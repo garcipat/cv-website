@@ -1,0 +1,155 @@
+{
+  "personality": {
+    "name": "Julia Entwicklerin",
+    "tagline": "Senior Frontend-Ingenieurin & UI-Architektin",
+    "summary": "Frontend-Ingenieurin mit über 8 Jahren Erfahrung in der Entwicklung leistungsstarker, barrierefreier Webanwendungen. Leidenschaftlich für komponentenbasierte Designsysteme, TypeScript und Entwicklerwerkzeuge.\n\nIch habe die Frontend-Architektur bei zwei Startups und einem mittelständischen Tech-Unternehmen geleitet und Teams von 2 auf 12 Ingenieure vergrößert. Ich glaube daran, Code zu schreiben, der nicht nur funktional ist, sondern auch Freude bei der Wartung bereitet.",
+    "favoriteQuote": "Löse zuerst das Problem. Dann schreibe den Code."
+  },
+  "contact": {
+    "email": "julia.entwicklerin@example.com",
+    "location": "Berlin, Deutschland",
+    "github": "julia-dev",
+    "website": "https://julia-dev.example.com"
+  },
+  "experience": [
+    {
+      "company": "Tech Innovations Inc.",
+      "role": "Staff Frontend-Ingenieurin",
+      "startDate": "2021-04",
+      "endDate": "2024-06",
+      "highlights": [
+        "Leitung der Migration einer Legacy-AngularJS-Anwendung zu React 18, Reduzierung der Seitenladezeiten um 60 %",
+        "Entwurf und Implementierung einer gemeinsam genutzten Komponentenbibliothek, die von 4 Produktteams übernommen wurde",
+        "Einführung von Frontend-Teststandards mit über 90 % Codeabdeckung in 15 Repositories",
+        "Mentoring von 3 Junior-Entwicklern durch strukturierte Pair-Programming-Sessions und Code-Reviews"
+      ],
+      "location": "Berlin, Deutschland"
+    },
+    {
+      "company": "WebFlow Studios",
+      "role": "Senior Frontend-Entwicklerin",
+      "startDate": "2018-03",
+      "endDate": "2021-03",
+      "highlights": [
+        "Architektur einer Echtzeit-Kollaborationsfunktion mit WebSockets und Operational Transforms",
+        "Optimierung der Core Web Vitals mit Lighthouse-Werten über 95 auf allen Produktseiten",
+        "Einführung von TypeScript in die Codebasis mit schrittweiser Typisierung von über 40.000 Zeilen JavaScript",
+        "Entwicklung einer benutzerdefinierten Design-Token-Pipeline zur Synchronisation von Figma-Variablen mit CSS-Custom-Properties"
+      ],
+      "location": "Remote"
+    },
+    {
+      "company": "PixelCraft GmbH",
+      "role": "Frontend-Entwicklerin",
+      "startDate": "2016-07",
+      "endDate": "2018-02",
+      "highlights": [
+        "Entwicklung responsiver E-Commerce-Checkout-Abläufe mit React und Redux",
+        "Aufbau einer automatisierten visuellen Regressionstestsuite mit Percy und Storybook",
+        "Reduzierung der JavaScript-Bundle-Größe um 45 % durch Code-Splitting und Tree-Shaking-Optimierungen"
+      ],
+      "location": "München, Deutschland"
+    }
+  ],
+  "skills": [
+    {
+      "category": "Frontend",
+      "skills": [
+        { "name": "React", "level": 95 },
+        { "name": "TypeScript", "level": 92 },
+        { "name": "Next.js", "level": 85 },
+        { "name": "CSS / Tailwind", "level": 90 },
+        { "name": "Storybook", "level": 80 },
+        { "name": "Vitest / Jest", "level": 85 }
+      ]
+    },
+    {
+      "category": "Backend & Werkzeuge",
+      "skills": [
+        { "name": "Node.js", "level": 75 },
+        { "name": "GraphQL", "level": 70 },
+        { "name": "Docker", "level": 65 },
+        { "name": "PostgreSQL", "level": 55 }
+      ]
+    },
+    {
+      "category": "Design & Zusammenarbeit",
+      "skills": [
+        { "name": "Figma", "level": 70 },
+        { "name": "Designsysteme", "level": 88 },
+        { "name": "Agile / Scrum", "level": 80 }
+      ]
+    }
+  ],
+  "courses": [
+    {
+      "title": "Fortgeschrittene React-Entwurfsmuster",
+      "provider": "Frontend Masters",
+      "year": 2024,
+      "certificate": "https://frontendmasters.com/certificates/react-patterns"
+    },
+    {
+      "title": "Skalierbare Designsysteme entwickeln",
+      "provider": "Smashing Magazine",
+      "year": 2023
+    },
+    {
+      "title": "TypeScript für Profis",
+      "provider": "Egghead.io",
+      "year": 2022
+    }
+  ],
+  "education": [
+    {
+      "degree": "B.Sc. Informatik",
+      "institution": "Technische Universität Berlin",
+      "startDate": "2013-10",
+      "endDate": "2016-07",
+      "description": "Schwerpunkt auf Softwareentwicklung und Mensch-Computer-Interaktion. Abschlussarbeit zum Thema barrierefreies Webkomponenten-Design."
+    },
+    {
+      "degree": "M.Sc. Medieninformatik",
+      "institution": "Hochschule für angewandte Wissenschaften München",
+      "startDate": "2016-10",
+      "endDate": "2018-03",
+      "description": "Forschung zu Echtzeit-Kollaborationsschnittstellen. Note: 1,3."
+    }
+  ],
+  "certificates": [
+    {
+      "name": "AWS Solutions Architect Associate",
+      "issuer": "Amazon Web Services",
+      "date": "2023-06",
+      "url": "https://aws.amazon.com/verify/certificate",
+      "credentialId": "AWS-ASA-98765"
+    },
+    {
+      "name": "Google Professional Cloud Developer",
+      "issuer": "Google Cloud",
+      "date": "2022-11"
+    }
+  ],
+  "projects": [
+    {
+      "name": "Open-Source-Designsystem",
+      "description": "Ein umfassendes Designsystem und eine Komponentenbibliothek, entwickelt mit React, TypeScript und Storybook. Enthält über 60 barrierefreie Komponenten, Design-Tokens und ein Figma-Plugin für die Synchronisation von Design und Code.",
+      "techStack": ["React", "TypeScript", "Storybook", "Tailwind CSS", "Figma API"],
+      "url": "https://opensourceds.example.com",
+      "githubUrl": "https://github.com/julia-dev/opensource-ds",
+      "imageUrl": "https://opensourceds.example.com/preview.png"
+    },
+    {
+      "name": "Vite-Plugin: SVG-Sprite",
+      "description": "Ein Vite-Plugin, das optimierte SVG-Sprites aus importierten SVG-Dateien zur Build-Zeit generiert, mit TypeScript-Typdefinitionen für Sprite-Symbolnamen.",
+      "techStack": ["Vite", "TypeScript", "SVGO"],
+      "githubUrl": "https://github.com/julia-dev/vite-svg-sprite"
+    },
+    {
+      "name": "Barrierefreiheits-Audit-CLI",
+      "description": "Ein Kommandozeilenwerkzeug, das Axe-Core-Barrierefreiheitsprüfungen auf lokalen oder bereitgestellten Webseiten durchführt und HTML-Berichte mit umsetzbaren Empfehlungen generiert.",
+      "techStack": ["Node.js", "Axe-core", "Puppeteer", "CLI"],
+      "url": "https://www.npmjs.com/package/a11y-audit-cli",
+      "githubUrl": "https://github.com/julia-dev/a11y-audit-cli"
+    }
+  ]
+}
