@@ -112,9 +112,10 @@ See [docs/Architecture.md](docs/Architecture.md) and
 
 ## Development Workflow and Quality Gates
 
+- **No auto-commits**: Never commit changes automatically. Always wait for the user to explicitly request a commit.
 - All changes via feature branches and pull requests — no direct commits to
   `main`.
-- Specification-first delivery: spec → plan → tasks → implementation.
+- Specification-first delivery: clarify → spec → plan → tasks → analyze → implementation.
 - Constitution Check in planning MUST enumerate principle-specific pass/fail
   outcomes and document mitigations for any exception.
 - Pull requests MUST pass all tests and linting (when configured).
