@@ -18,7 +18,10 @@
 
 ### Should Have
 
-- _TBD after layout decisions_
+- [ ] S-001: Print-friendly styling — `@media print` so CV doubles as printable resume
+- [ ] S-002: SEO meta tags — Open Graph metadata for social media previews
+- [ ] S-003: Scroll animations — subtle reveal animations as sections scroll into view
+- [ ] S-004: Reusable timeline component — shared by Career (F-004) and Studies (F-007)
 
 ### Optional
 
@@ -41,6 +44,10 @@
 | F-009 | Personal projects | 📋 Planned | — | ❌ | ❌ |
 | F-010 | Design system | 📋 Planned | — | ❌ | ❌ |
 | F-011 | Page layout | 📋 Planned | — | ❌ | ❌ |
+| S-001 | Print-friendly styling | 📋 Planned | — | ❌ | ❌ |
+| S-002 | SEO meta tags | 📋 Planned | — | ❌ | ❌ |
+| S-003 | Scroll animations | 📋 Planned | — | ❌ | ❌ |
+| S-004 | Reusable timeline | 📋 Planned | — | ❌ | ❌ |
 
 ---
 
@@ -73,6 +80,10 @@ graph RL
     F009["F-009: Projects"]
     F010["F-010: Design System"]
     F011["F-011: Page Layout"]
+    S001["S-001: Print-Friendly"]
+    S002["S-002: SEO Meta Tags"]
+    S003["S-003: Scroll Animations"]
+    S004["S-004: Timeline Component"]
 
     F003 --> F002
     F004 --> F002
@@ -93,18 +104,30 @@ graph RL
     F008 --> F011
     F009 --> F011
 
+    S001 --> F011
+    S002 --> F001
+    S003 --> F010
+    S003 --> F011
+    S004 --> F002
+    S004 --> F010
+    F004 --> S004
+    F007 --> S004
+
     classDef done fill:#4caf50,color:#ffffff
     classDef inProgress fill:#ff9800,color:#000000
     classDef planned fill:#9e9e9e,color:#ffffff
     classDef projectSetup fill:#e3f2fd,color:#000000
     classDef cvSections fill:#e8f5e9,color:#000000
     classDef layoutNavigation fill:#fff3e0,color:#000000
+    classDef enhancements fill:#fce4ec,color:#000000
 
     class F001 inProgress
     class F002,F003,F004,F005,F006,F007,F008,F009,F010,F011 planned
+    class S001,S002,S003,S004 planned
     class F001,F002,F010 projectSetup
     class F003,F004,F005,F006,F007,F008,F009 cvSections
-    class F011 layoutNavigation
+    class F011,S001,S003 layoutNavigation
+    class S002,S004 enhancements
 ```
 
 **Critical Path**: F-001 → F-010 → F-011 → F-002 → F-003 (foundation → design system → layout → data model → first content section drives reusable patterns for F-004 through F-009)
