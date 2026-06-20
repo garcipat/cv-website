@@ -15,6 +15,9 @@
 - [ ] F-009: Display personal projects — name, description, tech stack, link
 - [ ] F-010: Design system — typography, spacing, colors, component tokens
 - [ ] F-011: Page layout — section arrangement, scrolling structure, navigation
+- [ ] F-012: Theme system — Preact Signals, `createLocalStorageSignal`, theme switcher infrastructure
+- [ ] F-013: Multilanguage — i18n EN/DE, locale signal, UI translations, CV data per locale
+- [ ] F-014: IDE theme — file tree sidebar, tab bar, syntax-highlighted editor, status bar
 
 ### Should Have
 
@@ -22,6 +25,8 @@
 - [ ] S-002: SEO meta tags — Open Graph metadata for social media previews
 - [ ] S-003: Scroll animations — subtle reveal animations as sections scroll into view
 - [ ] S-004: Reusable timeline component — shared by Career (F-004) and Studies (F-007)
+- [ ] S-005: 3D Room theme — floating panels, parallax depth, scroll-through spatial effect
+- [ ] S-006: Retro Terminal theme — CRT green phosphor, scanlines, command-line interaction, `:help`
 
 ### Optional
 
@@ -44,10 +49,15 @@
 | F-009 | Personal projects | 📋 Planned | — | ❌ | ❌ |
 | F-010 | Design system | 📋 Planned | — | ❌ | ❌ |
 | F-011 | Page layout | 📋 Planned | — | ❌ | ❌ |
+| F-012 | Theme system | 📋 Planned | — | ❌ | ❌ |
+| F-013 | Multilanguage | 📋 Planned | — | ❌ | ❌ |
+| F-014 | IDE theme | 📋 Planned | — | ❌ | ❌ |
 | S-001 | Print-friendly styling | 📋 Planned | — | ❌ | ❌ |
 | S-002 | SEO meta tags | 📋 Planned | — | ❌ | ❌ |
 | S-003 | Scroll animations | 📋 Planned | — | ❌ | ❌ |
 | S-004 | Reusable timeline | 📋 Planned | — | ❌ | ❌ |
+| S-005 | 3D Room theme | 📋 Planned | — | ❌ | ❌ |
+| S-006 | Retro Terminal theme | 📋 Planned | — | ❌ | ❌ |
 
 ---
 
@@ -80,10 +90,15 @@ graph RL
     F009["F-009: Projects"]
     F010["F-010: Design System"]
     F011["F-011: Page Layout"]
+    F012["F-012: Theme System"]
+    F013["F-013: Multilanguage"]
+    F014["F-014: IDE Theme"]
     S001["S-001: Print-Friendly"]
     S002["S-002: SEO Meta Tags"]
     S003["S-003: Scroll Animations"]
     S004["S-004: Timeline Component"]
+    S005["S-005: 3D Room Theme"]
+    S006["S-006: Retro Terminal"]
 
     F003 --> F002
     F004 --> F002
@@ -104,6 +119,19 @@ graph RL
     F008 --> F011
     F009 --> F011
 
+    F012 --> F001
+    F013 --> F001
+    F013 --> F012
+    F014 --> F012
+    F014 --> F013
+    F014 --> F002
+    S005 --> F012
+    S005 --> F013
+    S005 --> F002
+    S006 --> F012
+    S006 --> F013
+    S006 --> F002
+
     S001 --> F011
     S002 --> F001
     S003 --> F010
@@ -119,15 +147,19 @@ graph RL
     classDef projectSetup fill:#e3f2fd,color:#000000
     classDef cvSections fill:#e8f5e9,color:#000000
     classDef layoutNavigation fill:#fff3e0,color:#000000
+    classDef themeInfrastructure fill:#f3e5f5,color:#000000
+    classDef themes fill:#e0f2f1,color:#000000
     classDef enhancements fill:#fce4ec,color:#000000
 
     class F001 inProgress
-    class F002,F003,F004,F005,F006,F007,F008,F009,F010,F011 planned
-    class S001,S002,S003,S004 planned
+    class F002,F003,F004,F005,F006,F007,F008,F009,F010,F011,F012,F013,F014 planned
+    class S001,S002,S003,S004,S005,S006 planned
     class F001,F002,F010 projectSetup
     class F003,F004,F005,F006,F007,F008,F009 cvSections
     class F011,S001,S003 layoutNavigation
+    class F012,F013 themeInfrastructure
+    class F014,S005,S006 themes
     class S002,S004 enhancements
 ```
 
-**Critical Path**: F-001 → F-010 → F-011 → F-002 → F-003 (foundation → design system → layout → data model → first content section drives reusable patterns for F-004 through F-009)
+**Critical Path**: F-001 → F-012 → F-013 → F-002 → F-014 (foundation → theme system → multilanguage → data model → first theme, then content sections F-003 through F-009)
