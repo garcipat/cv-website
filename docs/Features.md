@@ -51,7 +51,7 @@
 | F-011 | Page layout            | 📋 Planned     | —                                       | ❌             | ❌    |
 | F-012 | Theme system           | 📋 Planned     | —                                       | ❌             | ❌    |
 | F-013 | Multilanguage          | ✅ Done        | [spec](../specs/F-013-multilanguage/spec.md) | ✅             | ✅    |
-| F-014 | IDE theme              | 📋 Planned     | —                                       | ❌             | ❌    |
+| F-014 | IDE theme              | 📋 Planned     | [spec](../specs/F-014-ide-theme/spec.md) | ❌             | ❌    |
 | S-001 | Print-friendly styling | 📋 Planned     | —                                       | ❌             | ❌    |
 | S-002 | SEO meta tags          | 📋 Planned     | —                                       | ❌             | ❌    |
 | S-003 | Scroll animations      | 📋 Planned     | —                                       | ❌             | ❌    |
