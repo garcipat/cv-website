@@ -141,19 +141,16 @@ graph RL
     F004 --> S004
     F007 --> S004
 
-    classDef done fill:#4caf50,color:#ffffff
-    classDef inProgress fill:#ff9800,color:#000000
-    classDef planned fill:#9e9e9e,color:#ffffff
-    classDef projectSetup fill:#e3f2fd,color:#000000
-    classDef cvSections fill:#e8f5e9,color:#000000
-    classDef layoutNavigation fill:#fff3e0,color:#000000
-    classDef themeInfrastructure fill:#f3e5f5,color:#000000
-    classDef themes fill:#e0f2f1,color:#000000
-    classDef enhancements fill:#fce4ec,color:#000000
+    classDef done stroke:#FFD600,stroke-width:3px
+    classDef inProgress stroke:#FF6F00,stroke-width:3px,stroke-dasharray:4
+    classDef projectSetup fill:#1565C0,color:#ffffff
+    classDef cvSections fill:#2E7D32,color:#ffffff
+    classDef layoutNavigation fill:#E65100,color:#ffffff
+    classDef themeInfrastructure fill:#6A1B9A,color:#ffffff
+    classDef themes fill:#00838F,color:#ffffff
+    classDef enhancements fill:#AD1457,color:#ffffff
 
     class F001 done
-    class F002,F003,F004,F005,F006,F007,F008,F009,F010,F011,F012,F013,F014 planned
-    class S001,S002,S003,S004,S005,S006 planned
     class F001,F002,F010 projectSetup
     class F003,F004,F005,F006,F007,F008,F009 cvSections
     class F011,S001,S003 layoutNavigation
