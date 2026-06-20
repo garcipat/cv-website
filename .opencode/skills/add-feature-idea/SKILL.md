@@ -25,16 +25,16 @@ Use the `question` tool to collect what you need. Ask only questions whose answe
 
 **Feature name** _(free text)_
 
-> What should this feature be called? (short, imperative — e.g. "Export List to CSV")
+> What should this feature be called? (short, imperative — e.g. "Display Certificates Section")
 
 **Category** _(options + free text)_
 
 > Which area does this feature belong to?
 >
-> - List Management
-> - Room Management
-> - Gameplay
-> - Player Experience / Session
+> - Project Setup / Foundation
+> - CV Content Sections
+> - Layout & Navigation
+> - Testing & Quality
 > - Other (describe)
 
 **Feature type** _(options)_
@@ -47,7 +47,7 @@ Use the `question` tool to collect what you need. Ask only questions whose answe
 
 **One-line description** _(free text)_
 
-> Describe what this feature does in one sentence from the user's perspective (e.g. "User can export all list options as a CSV file")
+> Describe what this feature does in one sentence from the user's perspective (e.g. "User sees their certificates listed by issuer with date earned")
 
 Skip any question whose answer is already clear from context (e.g. if the user already provided the name or description in their message).
 
@@ -55,38 +55,37 @@ Skip any question whose answer is already clear from context (e.g. if the user a
 
 Do **not** ask the user about dependencies. Instead, reason over the feature list you already read:
 
-- A feature that _acts on_ a list implicitly requires **F-001** (Create List)
-- A feature that happens _inside a room_ requires **F-006** (Create Room) and often **F-007** (Join Room)
-- A feature that involves gameplay (claiming, board state) requires **F-009** (Claim Cell)
-- A feature that rates or summarises a completed game requires **F-012** (Game Results)
-- A feature that extends another specific feature (e.g. a bulk-import variation of F-018) requires that feature
+- A CV content section (displaying personality, career, skills, courses, studies, certificates, projects) always requires **F-002** (Data Model)
+- All features that render UI components require **F-001** (Project Setup)
+- F-002 itself requires **F-001** (Project Setup)
+- Layout/Navigation features require at least one content section to be implemented (typically **F-003** Personality as the first section)
+- A feature that extends or enhances another specific feature requires that feature
 - A feature with no obvious relationship to existing features has no dependencies
 
-List each inferred dependency clearly before writing the file edits (e.g. "Dependencies: F-001, F-006").
+List each inferred dependency clearly before writing the file edits (e.g. "Dependencies: F-001, F-002").
 
 ### 4. Assign the next number
 
 _(Do this after inferring dependencies so you have the full picture before touching the file.)_
 
 Look at all **numbered features** in `docs/Features.md` for the chosen prefix (F, S, or O). Take the highest existing `X-NNN` for that prefix and add 1.  
-Format: `X-NNN` with zero-padded three digits (e.g. `S-003`, `O-002`).
+Format: `X-NNN` with zero-padded three digits (e.g. `S-001`, `O-001`).
 
 ### 5. Determine the Mermaid node class
 
 Map the category to the correct `classDef`:
 
-| Category                             | classDef          |
-| ------------------------------------ | ----------------- |
-| List Management                      | `listManagement`  |
-| Room Management / Room Setup         | `roomSetup`       |
-| Gameplay                             | `coreGameplay`    |
-| Session Recovery / Player Experience | `sessionRecovery` |
-| Board Discovery                      | `boardDiscovery`  |
-| Enhancements / Other                 | `enhancements`    |
+| Category                   | classDef            |
+| -------------------------- | ------------------- |
+| Project Setup / Foundation | `projectSetup`      |
+| CV Content Sections        | `cvSections`        |
+| Layout & Navigation        | `layoutNavigation`  |
+| Testing & Quality          | `testingQuality`    |
+| Enhacements / Other        | `enhancements`      |
 
 ### 6. Update `docs/Features.md`
 
-Make **four targeted edits** in one multi-replace call:
+Make **five targeted edits**:
 
 #### A. Add feature entry to the correct subdomain section
 
@@ -94,7 +93,7 @@ Insert a new list item in the matching `##` subdomain section. Within each subdo
 Format:
 
 ```markdown
-- [ ] **X-NNN** [**Feature Name**](specs/feature-slug.md) — One-line description
+- [ ] **X-NNN** **Feature Name** — One-line description
 ```
 
 Append after the last item with the same prefix in that subdomain section.
@@ -104,18 +103,18 @@ Append after the last item with the same prefix in that subdomain section.
 Insert in logical order (F-features first by number, then S-features, then O-features):
 
 ```markdown
-| X-NNN | Feature Name | — | ❌ Pending | ❌ Not started | ❌ |
+| X-NNN | Feature Name | 📋 Planned | — | ❌ | ❌ |
 ```
 
 #### C. Add the node declaration to the Mermaid diagram
 
-Inside the `graph TD` block, after the last node declaration of the same prefix, add:
+Inside the `graph RL` block, after the last node declaration of the same prefix, add:
 
 ```
     XNNN["X-NNN: Feature Name"]
 ```
 
-(Node ID uses no hyphen: `S001`, `O002`, `F023`.)
+(Node ID uses no hyphen: `S001`, `O001`, `F010`.)
 
 New features are not yet implemented, so do **not** add the ✅ prefix. The ✅ prefix and `done` class are only added when a feature is marked as fully implemented in the status table.
 
@@ -141,14 +140,20 @@ At the end of the `class` lines block, append:
     class XNNN featureClass
 ```
 
+Also add the node to its category's existing class line. For example, if adding a CV Content Section feature:
+
+```diff
+- class F003,F004,F005,F006,F007,F008,F009 cvSections
++ class F003,F004,F005,F006,F007,F008,F009,F010 cvSections
+```
+
 ## Common Mistakes
 
 | Mistake                                                               | Fix                                                                                                    |
 | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
 | Forgetting to add the node to the Mermaid diagram                     | Always do steps C–E — the diagram must stay in sync                                                    |
-| Using the wrong zero-padding                                          | Always use three digits: `S-003`, `O-002` — not `S-3` or `O-2`                                         |
+| Using the wrong zero-padding                                          | Always use three digits: `S-001`, `O-001` — not `S-1` or `O-1`                                         |
 | Adding the feature under the wrong subdomain or with the wrong prefix | Confirm with the user if unsure — don't guess                                                          |
-| Skipping the `_(requires …)_` annotation                              | Dependencies belong in the diagram only — do not add them to the feature list entry                    |
-| Under-inferring dependencies                                          | If a feature touches a list, it needs F-001. If it touches a room, it needs F-006. Be explicit.        |
 | Adding ✅ or `done` class to a new feature                            | New features are unimplemented — no ✅ prefix, no `done` class. Only add those when marking as done.   |
 | Creating a spec file                                                  | Do **not** create `specs/feature-slug.md` — only add the markdown link; the spec is written separately |
+| Diagram uses `graph TD`                                               | This project uses `graph RL` — always match the existing diagram direction                              |

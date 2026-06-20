@@ -10,6 +10,9 @@
 - [ ] F-004: Display career timeline — company, role, period, highlights
 - [ ] F-005: Display skills — categories with visual skill levels
 - [ ] F-006: Display courses — title, provider, year
+- [ ] F-007: Display studies / education — degree, institution, period
+- [ ] F-008: Display certificates — name, issuer, date
+- [ ] F-009: Display personal projects — name, description, tech stack, link
 
 ### Should Have
 
@@ -31,6 +34,9 @@
 | F-004 | Career timeline | 📋 Planned | — | ❌ | ❌ |
 | F-005 | Skills display | 📋 Planned | — | ❌ | ❌ |
 | F-006 | Courses display | 📋 Planned | — | ❌ | ❌ |
+| F-007 | Studies / education | 📋 Planned | — | ❌ | ❌ |
+| F-008 | Certificates display | 📋 Planned | — | ❌ | ❌ |
+| F-009 | Personal projects | 📋 Planned | — | ❌ | ❌ |
 
 ---
 
@@ -58,19 +64,29 @@ graph RL
     F004["F-004: Career"]
     F005["F-005: Skills"]
     F006["F-006: Courses"]
+    F007["F-007: Studies"]
+    F008["F-008: Certificates"]
+    F009["F-009: Projects"]
 
     F003 --> F002
     F004 --> F002
     F005 --> F002
     F006 --> F002
+    F007 --> F002
+    F008 --> F002
+    F009 --> F002
     F002 --> F001
 
     classDef done fill:#4caf50,color:#ffffff
     classDef inProgress fill:#ff9800,color:#000000
     classDef planned fill:#9e9e9e,color:#ffffff
+    classDef projectSetup fill:#e3f2fd,color:#000000
+    classDef cvSections fill:#e8f5e9,color:#000000
 
     class F001 inProgress
-    class F002,F003,F004,F005,F006 planned
+    class F002,F003,F004,F005,F006,F007,F008,F009 planned
+    class F001,F002 projectSetup
+    class F003,F004,F005,F006,F007,F008,F009 cvSections
 ```
 
 **Critical Path**: F-001 → F-002 → F-003 (personality section drives the base layout pattern that F-004/F-005/F-006 follow)
