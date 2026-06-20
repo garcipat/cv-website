@@ -1,0 +1,42 @@
+{
+  "page": {
+    "title": "Lebenslauf — Julia Entwicklerin",
+    "description": "Professioneller Lebenslauf und Portfolio von Julia Entwicklerin, Senior Frontend-Ingenieurin & UI-Architektin."
+  },
+  "nav": {
+    "experience": "Erfahrung",
+    "skills": "Kenntnisse",
+    "projects": "Projekte",
+    "education": "Studium",
+    "courses": "Kurse",
+    "certificates": "Zertifikate"
+  },
+  "themes": {
+    "ide": "IDE",
+    "space": "3D-Raum",
+    "terminal": "Retro Terminal",
+    "select": "Design auswählen"
+  },
+  "sections": {
+    "summary": "Zusammenfassung",
+    "experience": "Erfahrung",
+    "skills": "Kenntnisse",
+    "projects": "Projekte",
+    "education": "Studium",
+    "courses": "Kurse",
+    "certificates": "Zertifikate"
+  },
+  "language": {
+    "switchTo": "Zu Englisch wechseln",
+    "label": "EN",
+    "names": {
+      "en": "Englisch",
+      "de": "Deutsch"
+    }
+  },
+  "action": {
+    "default": "Standard",
+    "delete": "Löschen",
+    "outline": "Umriss"
+  }
+}
