@@ -1,26 +1,33 @@
 import { useSignals } from '@preact/signals-react/runtime';
-import { Button } from '@/components/ui/button';
-import { ThemeSelect } from '@/components/ThemeSelect';
-import { LanguageSelect } from '@/components/LanguageSelect';
-import { currentUI } from '@/state/locale';
+import { MenuBar } from './components/MenuBar';
+import { FileTree } from './components/FileTree';
+import { SidebarSettings } from './components/SidebarSettings';
+import { TabBar } from './components/TabBar';
+import { EditorPane } from './components/EditorPane';
+import { StatusBar } from './components/StatusBar';
 
 export const IdePage = () => {
   useSignals();
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="flex items-center justify-between p-4">
-        <h1 className="text-3xl font-bold">Curriculum Vitae IDE</h1>
-        <div className="flex items-center gap-2">
-          <ThemeSelect />
-          <LanguageSelect />
+    <div className="grid h-screen w-full grid-rows-[auto_1fr_auto] grid-cols-[260px_1fr] overflow-hidden bg-[var(--ide-editor-bg)] text-[var(--color-ctp-text)]" style={{ fontFamily: "'SF Mono', 'Fira Code', monospace" }}>
+      <MenuBar />
+
+      <div className="flex flex-col bg-[var(--ide-sidebar-bg)] border-r border-[var(--color-ctp-overlay)] overflow-hidden">
+        <div className="flex-1 overflow-y-auto">
+          <FileTree />
+        </div>
+        <SidebarSettings />
+      </div>
+
+      <div className="flex flex-col overflow-hidden">
+        <TabBar />
+        <div className="flex-1 overflow-hidden">
+          <EditorPane />
         </div>
       </div>
-      <div className="flex gap-2 p-4">
-        <Button variant="default">{currentUI.value.action.default}</Button>
-        <Button variant="destructive">{currentUI.value.action.delete}</Button>
-        <Button variant="outline">{currentUI.value.action.outline}</Button>
-      </div>
+
+      <StatusBar />
     </div>
   );
 };

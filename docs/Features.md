@@ -17,7 +17,7 @@
 - [ ] F-011: Page layout — section arrangement, scrolling structure, navigation
 - [ ] F-012: Theme system — Preact Signals, `createLocalStorageSignal`, theme switcher infrastructure
 - [x] F-013: Multilanguage — i18n EN/DE, locale signal, UI translations, CV data per locale
-- [ ] F-014: IDE theme — file tree sidebar, tab bar, syntax-highlighted editor, status bar
+- [x] F-014: IDE theme — file tree sidebar, tab bar, syntax-highlighted editor, status bar
 
 ### Should Have
 
@@ -51,7 +51,7 @@
 | F-011 | Page layout            | 📋 Planned     | —                                       | ❌             | ❌    |
 | F-012 | Theme system           | 📋 Planned     | —                                       | ❌             | ❌    |
 | F-013 | Multilanguage          | ✅ Done        | [spec](../specs/F-013-multilanguage/spec.md) | ✅             | ✅    |
-| F-014 | IDE theme              | 📋 Planned     | [spec](../specs/F-014-ide-theme/spec.md) | ❌             | ❌    |
+| F-014 | IDE theme              | ✅ Done        | [spec](../specs/F-014-ide-theme/spec.md) | ✅             | ✅    |
 | S-001 | Print-friendly styling | 📋 Planned     | —                                       | ❌             | ❌    |
 | S-002 | SEO meta tags          | 📋 Planned     | —                                       | ❌             | ❌    |
 | S-003 | Scroll animations      | 📋 Planned     | —                                       | ❌             | ❌    |
@@ -92,7 +92,7 @@ graph RL
     F011["F-011: Page Layout"]
     F012["F-012: Theme System"]
     F013["✅ F-013: Multilanguage"]
-    F014["F-014: IDE Theme"]
+    F014["✅ F-014: IDE Theme"]
     S001["S-001: Print-Friendly"]
     S002["S-002: SEO Meta Tags"]
     S003["S-003: Scroll Animations"]
@@ -159,6 +159,7 @@ graph RL
     class F011,S001,S003 layoutNavigation
     class F012,F013 themeInfrastructure
     class F014,S005,S006 themes
+    class F014 done
     class S002,S004 enhancements
 ```
 

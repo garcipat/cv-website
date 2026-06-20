@@ -38,5 +38,23 @@
     "default": "Default",
     "delete": "Delete",
     "outline": "Outline"
+  },
+  "ide": {
+    "explorer": "EXPLORER",
+    "themes": "THEMES",
+    "language": "LANGUAGE",
+    "noFileOpen": "No file open",
+    "selectFile": "Select a file from the sidebar to view its contents",
+    "statusLang": "TypeScript React",
+    "close": "Close",
+    "menu": {
+      "file": "File",
+      "edit": "Edit",
+      "selection": "Selection",
+      "view": "View",
+      "go": "Go",
+      "run": "Run",
+      "terminal": "Terminal"
+    }
   }
 }
