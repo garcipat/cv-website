@@ -13,6 +13,15 @@
 
 **Git Repository**: Never ask for reading the git repository. All necessary information is available within the repository files themselves. Use the codebase, specs, and documentation to understand context—do not request git history, commits, or logs.
 
+## Project Conventions
+
+- **Stack**: Vite + React 19 + TypeScript (strict) + Tailwind CSS 4 + shadcn/ui
+- **No backend**: Static site — data lives in typed JSON files under `src/data/`, no server, no API calls, no database
+- **shadcn/ui**: Add components with `npx shadcn add <name>` only — never copy-paste from other projects. Components go in `src/components/ui/`
+- **Data pattern**: CV content is typed JSON. Define types in `src/types/`, data in `src/data/`. Components import the typed data directly.
+- **Specs**: Design documents live in `specs/` at the project root
+- **TypeScript strict**: No `any`, proper types for all data and component props
+
 ## Key Principles
 
 - **No Feature Bloat**: Keep the application minimal and startable. Build features as separate specs, not exploratory changes.
