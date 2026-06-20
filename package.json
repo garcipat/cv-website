@@ -22,6 +22,9 @@
   "dependencies": {
     "@base-ui/react": "^1.6.0",
     "@fontsource-variable/geist": "^5.2.9",
+    "@fontsource/fira-code": "^5.2.7",
+    "@fontsource/vt323": "^5.2.7",
+    "@preact/signals-react": "^3.10.2",
     "@tailwindcss/vite": "^4.3.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
