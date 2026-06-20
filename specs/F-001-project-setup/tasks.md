@@ -26,14 +26,14 @@
 
 **Purpose**: Complete missing configuration artifacts and tooling that all user stories depend on.
 
-- [ ] T001 [P] Create `.nvmrc` at project root with content `24` per `specs/F-001-project-setup/research.md`
-- [ ] T002 Add `engines` field to `package.json` with `"node": ">=24.0.0"` and `"npm": ">=10.0.0"` (FR-013)
-- [ ] T002b [P] Update `package.json` `"name"` from `"vite-scaffold"` to `"cv-website"`
-- [ ] T003 Install `prettier` (^3.0.0) and `eslint-config-prettier` (^10.0.0) as devDependencies via `npm install -D prettier eslint-config-prettier`
-- [ ] T004 [P] Create `.prettierrc` at project root with formatting rules: `semi: true`, `singleQuote: true`, `tabWidth: 2`, `trailingComma: "all"`, `printWidth: 100` per `specs/F-001-project-setup/research.md`
-- [ ] T005 Integrate `eslint-config-prettier` into `eslint.config.js` (add to `extends` array) and add `"format": "prettier --write ."` script to `package.json` (FR-004)
-- [ ] T006 [P] Add `VITE_BASE` environment variable support to `vite.config.ts` — refactor `defineConfig` to use a function that reads `process.env.VITE_BASE` with default `'/'` and applies it to the `base` option (FR-014, per `specs/F-001-project-setup/research.md` section 6)
-- [ ] T007 [P] Update `<title>` in `index.html` from `vite-scaffold` to `CV — Patrick Garcia`
+- [x] T001 [P] Create `.nvmrc` at project root with content `24` per `specs/F-001-project-setup/research.md`
+- [x] T002 Add `engines` field to `package.json` with `"node": ">=24.0.0"` and `"npm": ">=10.0.0"` (FR-013)
+- [x] T002b [P] Update `package.json` `"name"` from `"vite-scaffold"` to `"cv-website"`
+- [x] T003 Install `prettier` (^3.0.0) and `eslint-config-prettier` (^10.0.0) as devDependencies via `npm install -D prettier eslint-config-prettier`
+- [x] T004 [P] Create `.prettierrc` at project root with formatting rules: `semi: true`, `singleQuote: true`, `tabWidth: 2`, `trailingComma: "all"`, `printWidth: 100` per `specs/F-001-project-setup/research.md`
+- [x] T005 Integrate `eslint-config-prettier` into `eslint.config.js` (add to `extends` array) and add `"format": "prettier --write ."` script to `package.json` (FR-004)
+- [x] T006 [P] Add `VITE_BASE` environment variable support to `vite.config.ts` — refactor `defineConfig` to use a function that reads `process.env.VITE_BASE` with default `'/'` and applies it to the `base` option (FR-014, per `specs/F-001-project-setup/research.md` section 6)
+- [x] T007 [P] Update `<title>` in `index.html` from `vite-scaffold` to `CV — Patrick Garcia`
 
 ---
 
@@ -43,10 +43,10 @@
 
 **⚠️ CRITICAL**: No test writing can begin until this phase is complete.
 
-- [ ] T008 Install test dependencies as devDependencies: `vitest` (^4.0.0), `@testing-library/react` (^16.3.0), `@testing-library/jest-dom` (^6.6.0), `jsdom` (^26.0.0), `@testing-library/user-event` (^14.6.0) — versions per `specs/F-001-project-setup/research.md` section 3
-- [ ] T009 Create `vitest.config.ts` at project root extending `vite.config.ts` via `mergeConfig` with jsdom environment, `globals: true`, and `setupFiles: ['./src/test/setup.ts']` per `specs/F-001-project-setup/contracts/test-contract.md`
-- [ ] T010 [P] Create `src/test/setup.ts` with `import '@testing-library/jest-dom/vitest'` to enable DOM matchers globally per `specs/F-001-project-setup/contracts/test-contract.md`
-- [ ] T011 Add `"test": "vitest run"` and `"test:watch": "vitest"` scripts to `package.json`
+- [x] T008 Install test dependencies as devDependencies: `vitest` (^4.0.0), `@testing-library/react` (^16.3.0), `@testing-library/jest-dom` (^6.6.0), `jsdom` (^26.0.0), `@testing-library/user-event` (^14.6.0) — versions per `specs/F-001-project-setup/research.md` section 3
+- [x] T009 Create `vitest.config.ts` at project root extending `vite.config.ts` via `mergeConfig` with jsdom environment, `globals: true`, and `setupFiles: ['./src/test/setup.ts']` per `specs/F-001-project-setup/contracts/test-contract.md`
+- [x] T010 [P] Create `src/test/setup.ts` with `import '@testing-library/jest-dom/vitest'` to enable DOM matchers globally per `specs/F-001-project-setup/contracts/test-contract.md`
+- [x] T011 Add `"test": "vitest run"` and `"test:watch": "vitest"` scripts to `package.json`
 
 **Checkpoint**: Testing infrastructure ready — user story test writing can now begin
 
@@ -61,10 +61,10 @@
 ### Tests for User Story 1
 
 > **NOTE: Write this test FIRST, ensure it FAILS before configuring if testing infrastructure is new.**
-> 
+>
 > Actually, this test validates existing App.tsx so it should PASS immediately after test infra is set up.
 
-- [ ] T012 [US1] Write smoke test `App renders without crashing` in `src/App.test.tsx` — renders `<App />`, asserts document contains "CV" text per `specs/F-001-project-setup/plan.md` implementation task 6. Manually verify HMR: edit `src/App.tsx`, save, confirm browser updates within 2 seconds (SC-007).
+- [x] T012 [US1] Write smoke test `App renders without crashing` in `src/App.test.tsx` — renders `<App />`, asserts document contains "CV" text per `specs/F-001-project-setup/plan.md` implementation task 6. Manually verify HMR: edit `src/App.tsx`, save, confirm browser updates within 2 seconds (SC-007).
 
 ### Implementation for User Story 1
 
@@ -84,7 +84,7 @@
 
 > The production build (`tsc -b && vite build`) is already configured and working. T006 (VITE_BASE) in Setup enables sub-path deployment (FR-014). Verification task below validates the build contract.
 
-- [ ] T013 [US2] Verify `npm run build` succeeds (exit code 0) and `dist/` output matches `specs/F-001-project-setup/contracts/build-contract.md` — confirm `dist/index.html` exists, JS/CSS bundles in `dist/assets/`, gzipped total < 200 KB, `@/` path aliases resolve correctly in production output, `npm run preview` serves the built output at localhost:4173
+- [x] T013 [US2] Verify `npm run build` succeeds (exit code 0) and `dist/` output matches `specs/F-001-project-setup/contracts/build-contract.md` — confirm `dist/index.html` exists, JS/CSS bundles in `dist/assets/`, gzipped total < 200 KB, `@/` path aliases resolve correctly in production output, `npm run preview` serves the built output at localhost:4173
 
 **Checkpoint**: Production build should complete successfully with type-checking enforced and optimized output.
 
@@ -98,8 +98,8 @@
 
 ### Tests for User Story 3
 
-- [ ] T014 [P] [US3] Write test `cn() merges Tailwind classes correctly` in `src/lib/utils.test.ts` — verify `cn()` resolves conflicts and merges classes using `clsx` + `tailwind-merge` per contract in `specs/F-001-project-setup/plan.md` implementation task 6
-- [ ] T015 [P] [US3] Write test `Tailwind utility classes render correctly` in `src/App.test.tsx` — render a component with `bg-blue-500`, `hover:bg-blue-700`, `text-white`, `p-4`, `rounded-lg` and assert classes are present in the DOM per US3 acceptance scenario 3.1
+- [x] T014 [P] [US3] Write test `cn() merges Tailwind classes correctly` in `src/lib/utils.test.ts` — verify `cn()` resolves conflicts and merges classes using `clsx` + `tailwind-merge` per contract in `specs/F-001-project-setup/plan.md` implementation task 6
+- [x] T015 [P] [US3] Write test `Tailwind utility classes render correctly` in `src/App.test.tsx` — render a component with `bg-blue-500`, `hover:bg-blue-700`, `text-white`, `p-4`, `rounded-lg` and assert classes are present in the DOM per US3 acceptance scenario 3.1
 
 ### Implementation for User Story 3
 
@@ -117,9 +117,9 @@
 
 ### Implementation for User Story 4
 
-- [ ] T016 [US4] Add shadcn Button component by running `npx shadcn@latest add button` — validates `components.json` configuration and creates `src/components/ui/button.tsx` (FR-009)
-- [ ] T017 [P] [US4] Write test `Button renders with variants` in `src/components/ui/button.test.tsx` — render `<Button variant="destructive">Delete</Button>`, assert it renders with destructive styling per US4 acceptance scenario 4.2 and `specs/F-001-project-setup/plan.md` implementation task 6
-- [ ] T018 [US4] Integrate Button component into `src/App.tsx` — import and render a `<Button>` with a variant prop to validate the full import → render pipeline
+- [x] T016 [US4] Add shadcn Button component by running `npx shadcn@latest add button` — validates `components.json` configuration and creates `src/components/ui/button.tsx` (FR-009)
+- [x] T017 [P] [US4] Write test `Button renders with variants` in `src/components/ui/button.test.tsx` — render `<Button variant="destructive">Delete</Button>`, assert it renders with destructive styling per US4 acceptance scenario 4.2 and `specs/F-001-project-setup/plan.md` implementation task 6
+- [x] T018 [US4] Integrate Button component into `src/App.tsx` — import and render a `<Button>` with a variant prop to validate the full import → render pipeline
 
 **Checkpoint**: shadcn/ui integration should be validated — Button component added, renders with variants, import path `@/components/ui/button` resolves correctly.
 
@@ -135,8 +135,8 @@
 
 > All five documentation files in `docs/` (Architecture.md, CodingGuidelines.md, Features.md, TestingGuide.md, RepositoryStructure.md) already exist and are complete per `specs/F-001-project-setup/data-model.md` section 8. Only README.md needs updating.
 
-- [ ] T019 [US5] Update `README.md` with getting-started instructions: prerequisites (Node 24+, npm 10+), clone, install, dev, build, preview, lint, format, test commands, project layout, and link to `docs/` per `specs/F-001-project-setup/quickstart.md` and FR-011
-- [ ] T019a [P] [US5] Verify all 5 `docs/` files (Architecture.md, CodingGuidelines.md, Features.md, TestingGuide.md, RepositoryStructure.md) contain required sections with complete content and no placeholder text (SC-005)
+- [x] T019 [US5] Update `README.md` with getting-started instructions: prerequisites (Node 24+, npm 10+), clone, install, dev, build, preview, lint, format, test commands, project layout, and link to `docs/` per `specs/F-001-project-setup/quickstart.md` and FR-011
+- [x] T019a [P] [US5] Verify all 5 `docs/` files (Architecture.md, CodingGuidelines.md, Features.md, TestingGuide.md, RepositoryStructure.md) contain required sections with complete content and no placeholder text (SC-005)
 
 **Checkpoint**: All project documentation should be accessible and complete — a new contributor can onboard using `README.md` and `docs/`.
 
@@ -146,10 +146,10 @@
 
 **Purpose**: Final validation that all success criteria are met across all user stories.
 
-- [ ] T020 Run `npm run lint` and `npm run format` — both must pass with zero errors (SC-004)
-- [ ] T021 Run `npm run build` and verify total gzipped output (HTML + JS + CSS) is under 200 KB (SC-002, SC-003)
-- [ ] T022 Run `npm test` — all tests must pass, confirming App render, `cn()` utility, Tailwind classes, and Button component work correctly
-- [ ] T023 Validate quickstart workflow: `git clone` → `npm install` → `npm run dev` completes in under 3 minutes (SC-001)
+- [X] T020 Run `npm run lint` and `npm run format` — both must pass with zero errors (SC-004)
+- [X] T021 Run `npm run build` and verify total gzipped output (HTML + JS + CSS) is under 200 KB (SC-002, SC-003)
+- [X] T022 Run `npm test` — all tests must pass, confirming App render, `cn()` utility, Tailwind classes, and Button component work correctly
+- [X] T023 Validate quickstart workflow: `git clone` → `npm install` → `npm run dev` completes in under 3 minutes (SC-001)
 
 ---
 

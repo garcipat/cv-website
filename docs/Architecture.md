@@ -2,17 +2,17 @@
 
 ## Technology Stack
 
-| Layer | Choice |
-|---|---|
-| Build tool | Vite 6+ |
-| Framework | React 19+ |
-| State | Preact Signals (`@preact/signals-react`) |
-| Language | TypeScript (strict mode) |
-| Styling | Tailwind CSS 4+ |
-| Components | shadcn/ui (added fresh via CLI) |
-| Data | Typed JSON files under `src/data/` |
-| Testing | Vitest + React Testing Library + jsdom |
-| Package manager | npm |
+| Layer           | Choice                                   |
+| --------------- | ---------------------------------------- |
+| Build tool      | Vite 6+                                  |
+| Framework       | React 19+                                |
+| State           | Preact Signals (`@preact/signals-react`) |
+| Language        | TypeScript (strict mode)                 |
+| Styling         | Tailwind CSS 4+                          |
+| Components      | shadcn/ui (added fresh via CLI)          |
+| Data            | Typed JSON files under `src/data/`       |
+| Testing         | Vitest + React Testing Library + jsdom   |
+| Package manager | npm                                      |
 
 ## Data Flow
 

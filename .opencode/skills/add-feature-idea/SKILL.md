@@ -75,13 +75,13 @@ Format: `X-NNN` with zero-padded three digits (e.g. `S-001`, `O-001`).
 
 Map the category to the correct `classDef`:
 
-| Category                   | classDef            |
-| -------------------------- | ------------------- |
-| Project Setup / Foundation | `projectSetup`      |
-| CV Content Sections        | `cvSections`        |
-| Layout & Navigation        | `layoutNavigation`  |
-| Testing & Quality          | `testingQuality`    |
-| Enhacements / Other        | `enhancements`      |
+| Category                   | classDef           |
+| -------------------------- | ------------------ |
+| Project Setup / Foundation | `projectSetup`     |
+| CV Content Sections        | `cvSections`       |
+| Layout & Navigation        | `layoutNavigation` |
+| Testing & Quality          | `testingQuality`   |
+| Enhacements / Other        | `enhancements`     |
 
 ### 6. Update `docs/Features.md`
 
@@ -156,4 +156,4 @@ Also add the node to its category's existing class line. For example, if adding 
 | Adding the feature under the wrong subdomain or with the wrong prefix | Confirm with the user if unsure — don't guess                                                          |
 | Adding ✅ or `done` class to a new feature                            | New features are unimplemented — no ✅ prefix, no `done` class. Only add those when marking as done.   |
 | Creating a spec file                                                  | Do **not** create `specs/feature-slug.md` — only add the markdown link; the spec is written separately |
-| Diagram uses `graph TD`                                               | This project uses `graph RL` — always match the existing diagram direction                              |
+| Diagram uses `graph TD`                                               | This project uses `graph RL` — always match the existing diagram direction                             |

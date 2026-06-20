@@ -5,7 +5,7 @@
 **Status**: Draft  
 **Input**: User description: "i want to specify F-001 — Project setup: Vite + React + TypeScript scaffold, Tailwind, shadcn/ui, docs"
 
-## User Scenarios & Testing *(mandatory)*
+## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - Scaffold the Development Environment (Priority: P1)
 
@@ -99,7 +99,7 @@ A new contributor to the project needs to understand the architecture, coding co
 - ✅ What happens when `npx shadcn add` is run for a component that already exists — does it overwrite or warn? → **Resolved**: shadcn CLI's default behavior prompts the user before overwriting any existing component files. shadcn CLI defaults handle this scenario.
 - ✅ What happens when the `dist/` directory is served from a sub-path (not the domain root) — are asset paths relative and correct? → **Resolved**: `base` option in `vite.config.ts` defaults to `'/'` but is configurable via `VITE_BASE` env variable for sub-path deployment. Client-side routing handles language/theme paths (e.g., `/en/`, `/de/`).
 
-## Requirements *(mandatory)*
+## Requirements _(mandatory)_
 
 ### Functional Requirements
 
@@ -125,7 +125,7 @@ A new contributor to the project needs to understand the architecture, coding co
 - **Documentation Files**: Markdown files in `docs/` that describe the project's architecture, conventions, features, testing approach, and repository structure for contributor onboarding.
 - **Component Library Registry**: The shadcn/ui configuration (`components.json`) that maps component names to file locations and defines styling defaults for added components.
 
-## Success Criteria *(mandatory)*
+## Success Criteria _(mandatory)_
 
 ### Measurable Outcomes
 

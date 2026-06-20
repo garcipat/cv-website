@@ -4,7 +4,7 @@
 
 ### Core (Must Have)
 
-- [ ] F-001: Project setup — Vite + React + TypeScript scaffold, Tailwind, shadcn/ui, docs
+- [x] F-001: Project setup — Vite + React + TypeScript scaffold, Tailwind, shadcn/ui, docs
 - [ ] F-002: Data model — TypeScript types + JSON files for CV content
 - [ ] F-003: Display personality section — name, tagline, summary
 - [ ] F-004: Display career timeline — company, role, period, highlights
@@ -36,28 +36,28 @@
 
 ## Implementation Status
 
-| # | Feature | Status | Spec | Implementation | Tests |
-| - | ------- | ------ | ---- | -------------- | ----- |
-| F-001 | Project setup | 🔄 In Progress | [spec](../specs/F-001-project-setup.md) | ❌ | ❌ |
-| F-002 | Data model | 📋 Planned | — | ❌ | ❌ |
-| F-003 | Personality section | 📋 Planned | — | ❌ | ❌ |
-| F-004 | Career timeline | 📋 Planned | — | ❌ | ❌ |
-| F-005 | Skills display | 📋 Planned | — | ❌ | ❌ |
-| F-006 | Courses display | 📋 Planned | — | ❌ | ❌ |
-| F-007 | Studies / education | 📋 Planned | — | ❌ | ❌ |
-| F-008 | Certificates display | 📋 Planned | — | ❌ | ❌ |
-| F-009 | Personal projects | 📋 Planned | — | ❌ | ❌ |
-| F-010 | Design system | 📋 Planned | — | ❌ | ❌ |
-| F-011 | Page layout | 📋 Planned | — | ❌ | ❌ |
-| F-012 | Theme system | 📋 Planned | — | ❌ | ❌ |
-| F-013 | Multilanguage | 📋 Planned | — | ❌ | ❌ |
-| F-014 | IDE theme | 📋 Planned | — | ❌ | ❌ |
-| S-001 | Print-friendly styling | 📋 Planned | — | ❌ | ❌ |
-| S-002 | SEO meta tags | 📋 Planned | — | ❌ | ❌ |
-| S-003 | Scroll animations | 📋 Planned | — | ❌ | ❌ |
-| S-004 | Reusable timeline | 📋 Planned | — | ❌ | ❌ |
-| S-005 | 3D Room theme | 📋 Planned | — | ❌ | ❌ |
-| S-006 | Retro Terminal theme | 📋 Planned | — | ❌ | ❌ |
+| #     | Feature                | Status         | Spec                                    | Implementation | Tests |
+| ----- | ---------------------- | -------------- | --------------------------------------- | -------------- | ----- |
+| F-001 | Project setup          | ✅ Done        | [spec](../specs/F-001-project-setup.md) | ✅             | ✅    |
+| F-002 | Data model             | 📋 Planned     | —                                       | ❌             | ❌    |
+| F-003 | Personality section    | 📋 Planned     | —                                       | ❌             | ❌    |
+| F-004 | Career timeline        | 📋 Planned     | —                                       | ❌             | ❌    |
+| F-005 | Skills display         | 📋 Planned     | —                                       | ❌             | ❌    |
+| F-006 | Courses display        | 📋 Planned     | —                                       | ❌             | ❌    |
+| F-007 | Studies / education    | 📋 Planned     | —                                       | ❌             | ❌    |
+| F-008 | Certificates display   | 📋 Planned     | —                                       | ❌             | ❌    |
+| F-009 | Personal projects      | 📋 Planned     | —                                       | ❌             | ❌    |
+| F-010 | Design system          | 📋 Planned     | —                                       | ❌             | ❌    |
+| F-011 | Page layout            | 📋 Planned     | —                                       | ❌             | ❌    |
+| F-012 | Theme system           | 📋 Planned     | —                                       | ❌             | ❌    |
+| F-013 | Multilanguage          | 📋 Planned     | —                                       | ❌             | ❌    |
+| F-014 | IDE theme              | 📋 Planned     | —                                       | ❌             | ❌    |
+| S-001 | Print-friendly styling | 📋 Planned     | —                                       | ❌             | ❌    |
+| S-002 | SEO meta tags          | 📋 Planned     | —                                       | ❌             | ❌    |
+| S-003 | Scroll animations      | 📋 Planned     | —                                       | ❌             | ❌    |
+| S-004 | Reusable timeline      | 📋 Planned     | —                                       | ❌             | ❌    |
+| S-005 | 3D Room theme          | 📋 Planned     | —                                       | ❌             | ❌    |
+| S-006 | Retro Terminal theme   | 📋 Planned     | —                                       | ❌             | ❌    |
 
 ---
 
@@ -79,7 +79,7 @@ The following diagram shows feature dependencies and recommended implementation 
 
 ```mermaid
 graph RL
-    F001["F-001: Project Setup"]
+    F001["✅ F-001: Project Setup"]
     F002["F-002: Data Model"]
     F003["F-003: Personality"]
     F004["F-004: Career"]
@@ -151,7 +151,7 @@ graph RL
     classDef themes fill:#e0f2f1,color:#000000
     classDef enhancements fill:#fce4ec,color:#000000
 
-    class F001 inProgress
+    class F001 done
     class F002,F003,F004,F005,F006,F007,F008,F009,F010,F011,F012,F013,F014 planned
     class S001,S002,S003,S004,S005,S006 planned
     class F001,F002,F010 projectSetup

@@ -95,17 +95,18 @@ cv-website/
 
 ## Common Issues
 
-| Problem | Solution |
-|---------|----------|
-| `npm install` fails with engine mismatch | Upgrade Node to 24+: `nvm install 24 && nvm use 24` |
-| `npm run build` fails with type error | Check terminal output for file and line; fix the error |
-| HMR not working | Verify Vite dev server is running; check browser console for WebSocket errors |
-| shadcn add fails | Ensure `node_modules` is installed; try `npx shadcn@latest add <name>` |
-| Port 5173 already in use | Vite auto-increments to 5174, 5175, etc. |
+| Problem                                  | Solution                                                                      |
+| ---------------------------------------- | ----------------------------------------------------------------------------- |
+| `npm install` fails with engine mismatch | Upgrade Node to 24+: `nvm install 24 && nvm use 24`                           |
+| `npm run build` fails with type error    | Check terminal output for file and line; fix the error                        |
+| HMR not working                          | Verify Vite dev server is running; check browser console for WebSocket errors |
+| shadcn add fails                         | Ensure `node_modules` is installed; try `npx shadcn@latest add <name>`        |
+| Port 5173 already in use                 | Vite auto-increments to 5174, 5175, etc.                                      |
 
 ## Next Steps
 
 After verifying the scaffold works:
+
 1. Proceed to **F-002: Data Model** — define TypeScript types for CV content
 2. Then **F-012: Theme System** — set up Preact Signals for theme/locale state
 3. See `docs/Features.md` for the full feature roadmap and dependency diagram

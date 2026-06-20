@@ -30,19 +30,20 @@
 
 ## Success Criteria
 
-| Criteria | Threshold | Measurement |
-|----------|-----------|-------------|
-| Exit code | 0 | Shell `$?` |
-| HTML output | `dist/index.html` exists | File check |
-| JS bundle | `dist/assets/index-*.js` exists | Glob match |
-| CSS bundle | `dist/assets/index-*.css` exists | Glob match |
-| Total gzipped size | < 200 KB | `gzip -c dist/assets/*.js dist/assets/*.css dist/index.html \| wc -c` |
-| Build time | < 30 s | `time npm run build` |
-| Type errors | Fatal (exit ≠ 0) | Introduce type error, verify build fails |
+| Criteria           | Threshold                        | Measurement                                                           |
+| ------------------ | -------------------------------- | --------------------------------------------------------------------- |
+| Exit code          | 0                                | Shell `$?`                                                            |
+| HTML output        | `dist/index.html` exists         | File check                                                            |
+| JS bundle          | `dist/assets/index-*.js` exists  | Glob match                                                            |
+| CSS bundle         | `dist/assets/index-*.css` exists | Glob match                                                            |
+| Total gzipped size | < 200 KB                         | `gzip -c dist/assets/*.js dist/assets/*.css dist/index.html \| wc -c` |
+| Build time         | < 30 s                           | `time npm run build`                                                  |
+| Type errors        | Fatal (exit ≠ 0)                 | Introduce type error, verify build fails                              |
 
 ## Contract for Consuming Features
 
 Subsequent features (F-002+) rely on:
+
 1. Build succeeds → their TypeScript code compiles
 2. `@/` path alias resolves → they can import from `@/components`, `@/lib`, `@/data`
 3. Tailwind classes in `.tsx` are processed → visual output matches utility classes

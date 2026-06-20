@@ -2,6 +2,7 @@
 description: Identify underspecified areas in the current feature spec by asking up to 5 highly targeted clarification questions and encoding answers back into the spec.
 mode: subagent
 ---
+
 ## User Input
 
 ```text
@@ -13,6 +14,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 ## Pre-Execution Checks
 
 **Check for extension hooks (before clarification)**:
+
 - Check if `.specify/extensions.yml` exists in the project root.
 - If it exists, read it and look for entries under the `hooks.before_clarify` key
 - If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
@@ -22,6 +24,7 @@ You **MUST** consider the user input before proceeding (if not empty).
   - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
 - For each executable hook, output the following based on its `optional` flag:
   - **Optional hook** (`optional: true`):
+
     ```
     ## Extension Hooks
 
@@ -32,7 +35,9 @@ You **MUST** consider the user input before proceeding (if not empty).
     Prompt: {prompt}
     To execute: `/{command}`
     ```
+
   - **Mandatory hook** (`optional: false`):
+
     ```
     ## Extension Hooks
 
@@ -42,6 +47,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
     Wait for the result of the hook command before proceeding to the Outline.
     ```
+
 - If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
 
 ## Outline
@@ -116,77 +122,68 @@ Execution steps:
    - Information is better deferred to planning phase (note internally)
 
 3. Generate (internally) a prioritized queue of candidate clarification questions (maximum 5). Do NOT output them all at once. Apply these constraints:
-     - Maximum of 5 total questions across the whole session.
-      - Each question must be answerable via the `question` tool with EITHER:
-         - A short multiple‑choice selection (2–5 distinct, mutually exclusive options), OR
-         - A one-word / short‑phrase answer (use the automatic "Type your own answer" option).
-      - Only include questions whose answers materially impact architecture, data modeling, task decomposition, test design, UX behavior, operational readiness, or compliance validation.
-      - Ensure category coverage balance: attempt to cover the highest impact unresolved categories first; avoid asking two low-impact questions when a single high-impact area (e.g., security posture) is unresolved.
-      - Exclude questions already answered, trivial stylistic preferences, or plan-level execution details (unless blocking correctness).
-      - Favor clarifications that reduce downstream rework risk or prevent misaligned acceptance tests.
-      - If more than 5 categories remain unresolved, select the top 5 by (Impact * Uncertainty) heuristic.
+   - Maximum of 5 total questions across the whole session.
+   - Each question must be answerable via the `question` tool with EITHER:
+     - A short multiple‑choice selection (2–5 distinct, mutually exclusive options), OR
+     - A one-word / short‑phrase answer (use the automatic "Type your own answer" option).
+   - Only include questions whose answers materially impact architecture, data modeling, task decomposition, test design, UX behavior, operational readiness, or compliance validation.
+   - Ensure category coverage balance: attempt to cover the highest impact unresolved categories first; avoid asking two low-impact questions when a single high-impact area (e.g., security posture) is unresolved.
+   - Exclude questions already answered, trivial stylistic preferences, or plan-level execution details (unless blocking correctness).
+   - Favor clarifications that reduce downstream rework risk or prevent misaligned acceptance tests.
+   - If more than 5 categories remain unresolved, select the top 5 by (Impact \* Uncertainty) heuristic.
 
-3a. Edge Case Clarification (MANDATORY - runs before step 4):
-     - Scan the spec for ALL edge cases listed under `### Edge Cases` or similar sections.
-     - For each edge case, determine if it is sufficiently resolved (has a clear answer/behavior defined) or still needs clarification.
-     - Present unresolved edge cases to the user using the `question` tool — one at a time or grouped when related — to reach a definitive answer.
-     - After an edge case is resolved (answer accepted), immediately edit the spec to:
-       - Add the resolved answer inline to the edge case bullet
-       - Prefix the edge case bullet with a ✅ emoji to mark it as handled
-       - Example: `- ✅ What happens when X? — [resolved answer]`
-     - Already-resolved edge cases (ones that already have a clear, definitive answer in the spec) should also be prefixed with ✅.
-     - Edge case clarification questions count toward the 5-question maximum.
+3a. Edge Case Clarification (MANDATORY - runs before step 4): - Scan the spec for ALL edge cases listed under `### Edge Cases` or similar sections. - For each edge case, determine if it is sufficiently resolved (has a clear answer/behavior defined) or still needs clarification. - Present unresolved edge cases to the user using the `question` tool — one at a time or grouped when related — to reach a definitive answer. - After an edge case is resolved (answer accepted), immediately edit the spec to: - Add the resolved answer inline to the edge case bullet - Prefix the edge case bullet with a ✅ emoji to mark it as handled - Example: `- ✅ What happens when X? — [resolved answer]` - Already-resolved edge cases (ones that already have a clear, definitive answer in the spec) should also be prefixed with ✅. - Edge case clarification questions count toward the 5-question maximum.
 
- 4. Sequential questioning loop (interactive using `question` tool):
-     - Present EXACTLY ONE question at a time. Always use the `question` tool to present options — never raw markdown tables or lists.
-     - For each question, determine the format:
-        - **Multiple‑choice** (preferred when 2–5 clear options exist):
-           - **Analyze all options** and determine the **most suitable option** based on:
-              - Best practices for the project type
-              - Common patterns in similar implementations
-              - Risk reduction (security, performance, maintainability)
-              - Alignment with any explicit project goals or constraints visible in the spec
-           - Present your **recommended option prominently** in the question text with clear reasoning (1-2 sentences).
-           - Call the `question` tool with:
-              - `header`: Short topic label (e.g., "User Role Scope")
-              - `question`: Full question text including recommendation (e.g., "**Recommended:** Option A - ...")
-              - `options`: Array of option objects. The first option should be the recommended one. Each must have:
-                 - `label`: Concise option identifier (e.g., "A - All authenticated users")
-                 - `description`: Brief implication summary (1-2 sentences)
-               - Keep `multiple` unset (defaults to single selection).
-           - The `question` tool automatically includes "Type your own answer" for custom input, replacing the old "Short" option.
-        - **Free‑form** (when no meaningful discrete options exist):
-           - Provide your **suggested answer** in the question text with reasoning.
-           - Call the `question` tool with a single option (e.g., "Accept suggestion") as the recommended choice; the user can type their own answer via the automatic custom input.
-     - After the user answers via the tool:
-        - If the user selected a named option, record that as the answer.
-        - If the user selected "Type your own answer", validate it fits the <=5 word constraint.
-        - If ambiguous, ask for a quick disambiguation using the `question` tool again (count still belongs to same question; do not advance).
-        - Once satisfactory, record it in working memory (do not yet write to disk) and move to the next queued question.
-     - Stop asking further questions when:
-        - All critical ambiguities resolved early (remaining queued items become unnecessary), OR
-        - User signals completion ("done", "good", "no more"), OR
-        - You reach 5 asked questions.
-     - Never reveal future queued questions in advance.
-     - If no valid questions exist at start, immediately report no critical ambiguities.
+4. Sequential questioning loop (interactive using `question` tool):
+   - Present EXACTLY ONE question at a time. Always use the `question` tool to present options — never raw markdown tables or lists.
+   - For each question, determine the format:
+     - **Multiple‑choice** (preferred when 2–5 clear options exist):
+       - **Analyze all options** and determine the **most suitable option** based on:
+         - Best practices for the project type
+         - Common patterns in similar implementations
+         - Risk reduction (security, performance, maintainability)
+         - Alignment with any explicit project goals or constraints visible in the spec
+       - Present your **recommended option prominently** in the question text with clear reasoning (1-2 sentences).
+       - Call the `question` tool with:
+         - `header`: Short topic label (e.g., "User Role Scope")
+         - `question`: Full question text including recommendation (e.g., "**Recommended:** Option A - ...")
+         - `options`: Array of option objects. The first option should be the recommended one. Each must have:
+           - `label`: Concise option identifier (e.g., "A - All authenticated users")
+           - `description`: Brief implication summary (1-2 sentences)
+         - Keep `multiple` unset (defaults to single selection).
+       - The `question` tool automatically includes "Type your own answer" for custom input, replacing the old "Short" option.
+     - **Free‑form** (when no meaningful discrete options exist):
+       - Provide your **suggested answer** in the question text with reasoning.
+       - Call the `question` tool with a single option (e.g., "Accept suggestion") as the recommended choice; the user can type their own answer via the automatic custom input.
+   - After the user answers via the tool:
+     - If the user selected a named option, record that as the answer.
+     - If the user selected "Type your own answer", validate it fits the <=5 word constraint.
+     - If ambiguous, ask for a quick disambiguation using the `question` tool again (count still belongs to same question; do not advance).
+     - Once satisfactory, record it in working memory (do not yet write to disk) and move to the next queued question.
+   - Stop asking further questions when:
+     - All critical ambiguities resolved early (remaining queued items become unnecessary), OR
+     - User signals completion ("done", "good", "no more"), OR
+     - You reach 5 asked questions.
+   - Never reveal future queued questions in advance.
+   - If no valid questions exist at start, immediately report no critical ambiguities.
 
 5. Integration after EACH accepted answer (incremental update approach):
-    - Maintain in-memory representation of the spec (loaded once at start) plus the raw file contents.
-    - For the first integrated answer in this session:
-       - Ensure a `## Clarifications` section exists (create it just after the highest-level contextual/overview section per the spec template if missing).
-       - Under it, create (if not present) a `### Session YYYY-MM-DD` subheading for today.
-    - Append a bullet line immediately after acceptance: `- Q: <question> → A: <final answer>`.
-    - Then immediately apply the clarification to the most appropriate section(s):
-       - Functional ambiguity → Update or add a bullet in Functional Requirements.
-       - User interaction / actor distinction → Update User Stories or Actors subsection (if present) with clarified role, constraint, or scenario.
-       - Data shape / entities → Update Data Model (add fields, types, relationships) preserving ordering; note added constraints succinctly.
-       - Non-functional constraint → Add/modify measurable criteria in Success Criteria > Measurable Outcomes (convert vague adjective to metric or explicit target).
-        - Edge case / negative flow → Add a new bullet under Edge Cases / Error Handling (or create such subsection if template provides placeholder for it). Prefix resolved edge cases with ✅ emoji and append the resolved answer inline.
-       - Terminology conflict → Normalize term across spec; retain original only if necessary by adding `(formerly referred to as "X")` once.
-    - If the clarification invalidates an earlier ambiguous statement, replace that statement instead of duplicating; leave no obsolete contradictory text.
-    - Save the spec file AFTER each integration to minimize risk of context loss (atomic overwrite).
-    - Preserve formatting: do not reorder unrelated sections; keep heading hierarchy intact.
-    - Keep each inserted clarification minimal and testable (avoid narrative drift).
+   - Maintain in-memory representation of the spec (loaded once at start) plus the raw file contents.
+   - For the first integrated answer in this session:
+     - Ensure a `## Clarifications` section exists (create it just after the highest-level contextual/overview section per the spec template if missing).
+     - Under it, create (if not present) a `### Session YYYY-MM-DD` subheading for today.
+   - Append a bullet line immediately after acceptance: `- Q: <question> → A: <final answer>`.
+   - Then immediately apply the clarification to the most appropriate section(s):
+     - Functional ambiguity → Update or add a bullet in Functional Requirements.
+     - User interaction / actor distinction → Update User Stories or Actors subsection (if present) with clarified role, constraint, or scenario.
+     - Data shape / entities → Update Data Model (add fields, types, relationships) preserving ordering; note added constraints succinctly.
+     - Non-functional constraint → Add/modify measurable criteria in Success Criteria > Measurable Outcomes (convert vague adjective to metric or explicit target).
+     - Edge case / negative flow → Add a new bullet under Edge Cases / Error Handling (or create such subsection if template provides placeholder for it). Prefix resolved edge cases with ✅ emoji and append the resolved answer inline.
+     - Terminology conflict → Normalize term across spec; retain original only if necessary by adding `(formerly referred to as "X")` once.
+   - If the clarification invalidates an earlier ambiguous statement, replace that statement instead of duplicating; leave no obsolete contradictory text.
+   - Save the spec file AFTER each integration to minimize risk of context loss (atomic overwrite).
+   - Preserve formatting: do not reorder unrelated sections; keep heading hierarchy intact.
+   - Keep each inserted clarification minimal and testable (avoid narrative drift).
 
 6. Validation (performed after EACH write plus final pass):
    - Clarifications session contains exactly one bullet per accepted answer (no duplicates).
@@ -222,6 +219,7 @@ Context for prioritization: $ARGUMENTS
 
 **Check for extension hooks (after clarification)**:
 Check if `.specify/extensions.yml` exists in the project root.
+
 - If it exists, read it and look for entries under the `hooks.after_clarify` key
 - If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
 - Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
@@ -230,6 +228,7 @@ Check if `.specify/extensions.yml` exists in the project root.
   - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
 - For each executable hook, output the following based on its `optional` flag:
   - **Optional hook** (`optional: true`):
+
     ```
     ## Extension Hooks
 
@@ -240,7 +239,9 @@ Check if `.specify/extensions.yml` exists in the project root.
     Prompt: {prompt}
     To execute: `/{command}`
     ```
+
   - **Mandatory hook** (`optional: false`):
+
     ```
     ## Extension Hooks
 
@@ -248,9 +249,11 @@ Check if `.specify/extensions.yml` exists in the project root.
     Executing: `/{command}`
     EXECUTE_COMMAND: {command}
     ```
+
 - If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
 
 ## Next Steps
 
 When clarification is complete, suggest the user run:
+
 - `/speckit.plan` — Build a technical plan from the clarified spec

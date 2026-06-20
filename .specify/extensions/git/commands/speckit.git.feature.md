@@ -1,5 +1,5 @@
 ---
-description: "Create a feature branch using feature ID (e.g., F-008-player-roster)"
+description: 'Create a feature branch using feature ID (e.g., F-008-player-roster)'
 ---
 
 # Create Feature Branch

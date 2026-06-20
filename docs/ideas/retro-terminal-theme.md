@@ -44,18 +44,21 @@ A retro CRT terminal aesthetic. The entire CV is rendered as if displayed on an 
 ## Key Elements
 
 ### CRT Effect
+
 - **Phosphor glow**: Text has a subtle green glow (`text-shadow` with green blur)
 - **Scanlines**: Horizontal repeating lines overlay (CSS `repeating-linear-gradient`)
 - **Screen curvature** (optional): Subtle `border-radius` and vignette shadow at edges
 - **Color**: Classic green-on-black (`#33ff33` on `#0a0a0a`), could offer amber or white phosphor variants
 
 ### Command-Line Interaction
+
 - Sections are "commands" — `cat about.md`, `ls experience/`, `./run skills`
 - A blinking block cursor at the bottom
 - Could support typing commands for navigation (nice-to-have)
 - Box-drawing characters (`┌─┐│└┘`) for ASCII borders
 
 ### Available Commands
+
 - `:help` — lists all available commands
 - `:theme <ide|space|terminal>` — switch visual theme
 - `:lang <en|de>` — switch language
@@ -64,11 +67,13 @@ A retro CRT terminal aesthetic. The entire CV is rendered as if displayed on an 
 - `:top` — scroll to top
 
 ### Typography
+
 - Monospaced font stack: `'IBM Plex Mono', 'Courier New', monospace`
 - Fixed-width layout like a terminal (80-character column feel)
 - Section headers use `>` prefix like shell prompts
 
 ### Navigation
+
 - Scroll-driven within the terminal output
 - Or "command" links at the bottom that jump to sections
 - Could type section names (hitting Tab autocompletes) — fun but complex to implement
@@ -82,13 +87,13 @@ A retro CRT terminal aesthetic. The entire CV is rendered as if displayed on an 
 
 ## State (Preact Signals)
 
-| Signal | Purpose |
-|--------|---------|
-| `activeSection` | Which CV section is currently displayed in the terminal output |
+| Signal           | Purpose                                                                        |
+| ---------------- | ------------------------------------------------------------------------------ |
+| `activeSection`  | Which CV section is currently displayed in the terminal output                 |
 | `commandHistory` | Typed commands history (for up-arrow recall if interactive input is supported) |
-| `currentInput` | Current command line input value |
-| `cursorVisible` | Blinking cursor on/off state |
-| `activeTheme` | Shared signal — which theme is active (IDE / 3D / Terminal) |
+| `currentInput`   | Current command line input value                                               |
+| `cursorVisible`  | Blinking cursor on/off state                                                   |
+| `activeTheme`    | Shared signal — which theme is active (IDE / 3D / Terminal)                    |
 
 ## Desktop-First
 
