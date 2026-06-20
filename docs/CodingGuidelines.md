@@ -6,7 +6,7 @@
 - **Files**: Component files match component name (`PersonalitySection.tsx`)
 - **Imports**: Use `@/` path alias for internal imports (configured by Vite + shadcn)
 - **TypeScript**: Strict mode — no `any`, explicit types for all props and data
-- **Components**: Functional components with typed props interfaces
+- **Components**: Arrow function components with `export const`, typed props destructured inline — no `FunctionComponent`/`FC` wrapper
 
 ## Component Structure
 
@@ -19,7 +19,7 @@ interface SectionProps {
   className?: string
 }
 
-export function Section({ title, children, className }: SectionProps) {
+export const Section = ({ title, children, className = "" }: SectionProps) => {
   return (
     <section className={cn("py-8", className)}>
       <h2 className="text-2xl font-bold">{title}</h2>
