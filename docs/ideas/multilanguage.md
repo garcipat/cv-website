@@ -81,13 +81,27 @@ export const en: UITranslations = {
 };
 ```
 
-## State — Preact Signals
+## Data Pipeline (F-002 → F-013)
+
+F-002 (Data Model) provides the typed data files and wrapper modules:
+
+```
+src/data/
+├── cv.en.json      # English CV content (raw JSON)
+├── cv.en.ts        # Wrapper: import { cvEn } — named export, typed as CVData
+├── cv.de.json      # German CV content (raw JSON)
+└── cv.de.ts        # Wrapper: import { cvDe } — named export, typed as CVData
+```
+
+F-013 (Multilanguage) wires the `activeLocale` signal to select which wrapper module to expose. The locale-aware computed signal lives in F-013, not F-002 — keeping the data model focused on types + content.
+
+## State — Preact Signals (F-013)
 
 ```typescript
-// src/state/locale.ts
-import { signal, effect, computed } from '@preact/signals-react';
-import cvEn from '@/data/cv.en.json';
-import cvDe from '@/data/cv.de.json';
+// src/state/locale.ts (created in F-013)
+import { signal, computed } from '@preact/signals-react';
+import { cvEn } from '@/data/cv.en';
+import { cvDe } from '@/data/cv.de';
 import { en } from '@/i18n/en';
 import { de } from '@/i18n/de';
 import type { CVData } from '@/types/cv';

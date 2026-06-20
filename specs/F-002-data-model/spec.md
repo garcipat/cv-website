@@ -11,7 +11,7 @@
 
 A developer needs a complete set of TypeScript interfaces that describe all CV content sections (personality, career, skills, courses, education, certificates, projects). They open `src/types/cv.ts` and find well-named, strictly-typed interfaces with JSDoc comments explaining each field's purpose. TypeScript's compiler enforces these types across all data files and consuming components.
 
-**Why this priority**: Types are the contract between data and presentation. Every content-rendering feature (F-003 through F-009) imports from these types. Without them, no content component can be safely built.
+**Why this priority**: Types are the contract between data and presentation. Every content-rendering feature (F-003 through F-009) imports from these types. With them, every content component has a type-safe foundation.
 
 **Independent Test**: Import `CVData` and each sub-type in a test file, construct a valid object literal, verify TypeScript compiles without errors. Introduce an intentional type mismatch (wrong field type, missing required field) and verify `tsc` reports the error at the exact location.
 
@@ -30,12 +30,12 @@ A content author (developer or CV owner) opens `src/data/cv.en.json` and enters 
 
 **Why this priority**: The English CV is the primary content — the website's reason for existing. All presentation features render this data. German content can follow the same structure later.
 
-**Independent Test**: Create `cv.en.json` with at least one populated entry per section, run `npm run build`, verify no type errors.
+**Independent Test**: Create `cv.en.json` with at least one populated entry per section, run `npm run build`, verify the build compiles cleanly.
 
 **Acceptance Scenarios**:
 
 1. **Given** an empty `src/data/cv.en.json`, **When** the author populates the `personality` object with name, tagline, and summary strings, **Then** the build passes and consuming components can access `cv.personality.name`.
-2. **Given** the author adds a career entry with `company`, `role`, `startDate`, `endDate`, and `highlights` array, **When** they run the build, **Then** it compiles without type errors.
+2. **Given** the author adds a career entry with `company`, `role`, `startDate`, `endDate`, and `highlights` array, **When** they run the build, **Then** it compiles cleanly.
 3. **Given** the author adds a skill category with multiple skills each having a `name` and `level` (0–100), **When** they run the build, **Then** the numeric `level` field is validated as a number.
 4. **Given** the JSON file is populated, **When** the author opens it in VS Code (or any editor with JSON Schema support), **Then** the file is recognized as valid JSON and conforms to the expected structure.
 
@@ -63,11 +63,11 @@ A component developer building the Career section (F-004) imports the CV data an
 
 **Why this priority**: Developer experience directly impacts feature velocity. Type-safe imports eliminate a whole class of runtime bugs before they happen.
 
-**Independent Test**: Write a test component that imports `cvEn` (or `cvDe`), maps over `experience`, and renders each entry. Verify no type assertions or `any` casts are needed.
+**Independent Test**: Write a test component that imports `cvEn` (or `cvDe`), maps over `experience`, and renders each entry. Verify TypeScript infers all types correctly with zero assertions or `any` casts.
 
 **Acceptance Scenarios**:
 
-1. **Given** a component imports `cvEn from '@/data/cv.en.json'`, **When** the developer types `cvEn.experience[0].`, **Then** the IDE autocompletes with `company`, `role`, `startDate`, `endDate`, `highlights`, and `location`.
+1. **Given** a component imports `{ cvEn } from '@/data/cv.en'` (the wrapper module), **When** the developer types `cvEn.experience[0].`, **Then** the IDE autocompletes with `company`, `role`, `startDate`, `endDate`, `highlights`, and `location`.
 2. **Given** a developer maps over `cvEn.skills`, **When** they access `category.skills[0].level`, **Then** TypeScript treats `level` as `number` and flags any attempt to assign a string.
 3. **Given** a developer writes `cvEn.certificates.filter(c => c.date > '2023')`, **When** they run `tsc`, **Then** the comparison between `string` (date) and `string` (literal) is valid because both are strings.
 
@@ -75,12 +75,12 @@ A component developer building the Career section (F-004) imports the CV data an
 
 ### Edge Cases
 
-- ✅ **Empty arrays**: When a section has no entries (e.g., zero certificates, zero courses), the JSON file contains an empty array `[]`. Components must handle empty arrays gracefully (no rendering, or a "no entries" message). TypeScript validates this is still a valid `Certificate[]` or `Course[]`.
+- ✅ **Empty arrays**: When a section contains zero entries (e.g., zero certificates, zero courses), the JSON file contains an empty array `[]`. Components render gracefully (skip the section or show a placeholder message). TypeScript validates this is still a valid `Certificate[]` or `Course[]`.
 - ✅ **Ongoing positions**: When a career or education entry has no `endDate` (current position), the optional `endDate?: string` field is absent. Components interpret `undefined` as "present" and render accordingly.
 - ✅ **Missing optional fields**: Fields like `contact.email`, `project.url`, or `certificate.url` may be absent. Components use optional chaining (`?.`) or conditionals to handle missing data without crashes.
-- ✅ **Single-entry arrays**: A section with exactly one entry renders correctly — no special-casing needed for single vs. multiple items.
+- ✅ **Single-entry arrays**: A section with exactly one entry renders correctly — the same logic handles single and multiple items identically.
 - ✅ **Long text fields**: Fields like `summary` or `highlights` entries may contain multi-paragraph text. The data model stores them as plain strings; components are responsible for rendering (e.g., splitting on newlines, applying markdown if desired).
-- ✅ **Duplicate data between locales**: Dates, URLs, company names, and tech stacks are typically identical across languages. Authors may copy-paste these fields between `cv.en.json` and `cv.de.json`. TypeScript does not enforce uniqueness or warn about duplication — this is an authoring concern.
+- ✅ **Duplicate data between locales**: Dates, URLs, company names, and tech stacks are typically identical across languages. Authors may copy-paste these fields between `cv.en.json` and `cv.de.json`. TypeScript accepts duplicate values — this is an authoring convenience.
 - ✅ **Skill level boundaries**: Skill `level` values are defined as 0–100. Components rendering skill bars/indicators must clamp or handle out-of-range values gracefully. TypeScript's `number` type doesn't enforce range constraints — validation is a component responsibility.
 
 ## Requirements _(mandatory)_
@@ -88,9 +88,9 @@ A component developer building the Career section (F-004) imports the CV data an
 ### Functional Requirements
 
 - **FR-001**: System MUST define a `CVData` interface in `src/types/cv.ts` that serves as the root type for all CV content, containing typed sections for personality, experience, skills, courses, education, certificates, and projects.
-- **FR-002**: System MUST define a standalone, exported `ContactInfo` interface with `email`, `phone`, `location`, `website`, `linkedin`, and `github` (all optional strings). System MUST also define a `Personality` interface with `name` (string), `tagline` (string), `summary` (string), and an optional `contact` field typed as `ContactInfo`.
+- **FR-002**: System MUST define a standalone, exported `ContactInfo` interface with `email`, `phone`, `location`, `website`, `linkedin`, and `github` (all optional strings). System MUST also define a `Personality` interface with `name` (string), `tagline` (string), `summary` (string), and an optional `favoriteQuote` (string). The `ContactInfo` is a separate top-level optional field on `CVData`.
 - **FR-003**: System MUST define an `Experience` interface with `company` (string), `role` (string), `startDate` (string, format YYYY-MM), optional `endDate` (string, format YYYY-MM — absent means current position), `highlights` (string array), and optional `location` (string).
-- **FR-004**: System MUST define a `SkillCategory` interface with `category` (string) and `skills` array of `Skill` objects, each containing `name` (string) and `level` (number, 0–100 scale).
+- **FR-004**: System MUST define a `SkillCategory` interface with `category` (string) and `skills` array of `Skill` objects, each containing `name` (string) and `level` (integer, 0–100 scale).
 - **FR-005**: System MUST define a `Course` interface with `title` (string), `provider` (string), `year` (number), and optional `certificate` (string, for certificate URL or name).
 - **FR-006**: System MUST define an `Education` interface with `degree` (string), `institution` (string), `startDate` (string, YYYY-MM), optional `endDate` (string, YYYY-MM), and optional `description` (string).
 - **FR-007**: System MUST define a `Certificate` interface with `name` (string), `issuer` (string), `date` (string, YYYY-MM), optional `url` (string), and optional `credentialId` (string).
@@ -100,14 +100,14 @@ A component developer building the Career section (F-004) imports the CV data an
 - **FR-011**: System MUST provide a German CV data file at `src/data/cv.de.json` that conforms to the `CVData` type with German-language content in translatable fields.
 - **FR-012**: System MUST ensure that `tsc` (TypeScript compiler, invoked via `npm run build`) validates both `cv.en.json` and `cv.de.json` against the `CVData` type using `resolveJsonModule` and `strict` mode — any type mismatch causes a build failure.
 - **FR-013**: System MUST include JSDoc comments on each interface and field in `src/types/cv.ts` describing the expected content, format, and any constraints (e.g., date format, skill level range).
-- **FR-014**: System MUST populate `cv.en.json` with realistic sample data (not lorem ipsum) that exercises every type and field, including at least 2 entries in each array section and at least one entry using all optional fields.
+- **FR-014**: System MUST populate `cv.en.json` with realistic sample data (placeholder names, companies, and descriptions — not lorem ipsum) that exercises every type and field, including at least 2 entries in each array section and at least one entry using all optional fields.
 
 ### Key Entities
 
-- **CVData**: The root data structure. Contains all sections as typed properties. Imported by the locale signal (`currentCV`) and consumed by all theme layout components.
-- **ContactInfo**: The CV owner's contact details — all optional strings for email, phone, location, website, LinkedIn, and GitHub. Defined as a standalone exported interface so components can import it directly for contact-specific rendering (e.g., a contact card).
+- **CVData**: The root data structure. Contains all sections as typed properties, including an optional top-level `contact` field. Imported by the locale signal (`currentCV`) and consumed by all theme layout components.
+- **ContactInfo**: The CV owner's contact details — all optional strings for email, phone, location, website, LinkedIn, and GitHub. Defined as a standalone exported interface and an independent top-level optional field on `CVData` (separate from `Personality`). Components can import it directly for contact-specific rendering (e.g., a contact card).
 
-- **Personality**: The CV owner's identity — name, professional tagline, a multi-sentence summary, and an optional `ContactInfo` object.
+- **Personality**: The CV owner's identity — name, professional tagline, a multi-sentence summary, and an optional favorite quote. Does NOT contain contact details; those live separately under `CVData.contact`.
 - **Experience**: A career timeline entry representing one job or role — company name, role title, start/end dates (YYYY-MM format, endDate optional for current positions), location, and a list of highlight bullet points describing achievements.
 - **SkillCategory**: A named group of related skills (e.g., "Frontend", "Backend", "DevOps"). Each skill within the category has a name and a proficiency level on a 0–100 scale.
 - **Course**: A completed training course or certification program — title, provider, completion year, and an optional link or certificate identifier.
@@ -119,7 +119,7 @@ A component developer building the Career section (F-004) imports the CV data an
 ```
 CVData
  ├── personality: Personality (1:1)
- │       └── contact: ContactInfo (1:1, optional)
+ ├── contact: ContactInfo (1:1, optional)
  ├── experience: Experience[] (1:N)
  ├── skills: SkillCategory[] (1:N)
  │       └── skills: Skill[] (1:N)
@@ -129,7 +129,7 @@ CVData
  └── projects: Project[] (1:N)
 ```
 
-All relationships are compositional — each section is a direct property of `CVData`. No cross-references between entities (e.g., a project does not reference a skill; a certificate does not reference a course).
+All relationships are compositional — each section is a direct property of `CVData`. All entities are self-contained (e.g., a project stands alone without skill references; a certificate stands alone without course references).
 
 ## Success Criteria _(mandatory)_
 
@@ -137,21 +137,21 @@ All relationships are compositional — each section is a direct property of `CV
 
 - **SC-001**: A developer can import `CVData` from `@/types/cv`, construct a valid object with all sections populated, and have TypeScript accept it with zero errors.
 - **SC-002**: Introducing a deliberate type error in `cv.en.json` (e.g., `"name": 123` instead of a string) causes `npm run build` to fail with a TypeScript error that identifies the offending file and line.
-- **SC-003**: `src/types/cv.ts` exports at least 8 interfaces (`CVData`, `Personality`, `ContactInfo`, `Experience`, `SkillCategory`, `Skill`, `Course`, `Education`, `Certificate`, `Project`) — all importable individually.
+- **SC-003**: `src/types/cv.ts` exports exactly 10 named interfaces — `CVData`, `ContactInfo`, `Personality`, `Experience`, `SkillCategory`, `Skill`, `Course`, `Education`, `Certificate`, `Project` — all importable individually.
 - **SC-004**: Both `cv.en.json` and `cv.de.json` pass `tsc` type-checking when `strict: true` is enabled, with all sections containing at least one entry each.
-- **SC-005**: A developer opening `src/types/cv.ts` can understand the purpose of every field from its JSDoc comment without consulting external documentation.
-- **SC-006**: The `CVData` type and its sub-types cover all content sections planned for features F-003 through F-009 (personality, career timeline, skills, courses, education, certificates, projects) — no content section requires a follow-up type definition.
-- **SC-007**: All arrays default to empty `[]` when no entries exist; components never crash due to accessing `.length` or `.map()` on `undefined`.
+- **SC-005**: Every exported interface and every field in `src/types/cv.ts` has a JSDoc comment that describes its purpose, expected format, and any constraints. Verified by code review: each `export interface` and each field line is immediately preceded or followed by a `/** ... */` block.
+- **SC-006**: The `CVData` type and its sub-types cover all content sections planned for features F-003 through F-009 (personality, career timeline, skills, courses, education, certificates, projects) — every content section has a type today.
+- **SC-007**: All arrays default to empty `[]` when entries are absent; components always call `.length` and `.map()` on defined arrays that safely return 0 or `[]`.
 
 ## Assumptions
 
-- **Date format**: All date fields use `YYYY-MM` string format (e.g., `"2020-03"`) for sufficient precision without unnecessary day-level granularity. This is a documented convention in JSDoc comments.
-- **Skill level range**: 0–100 integer scale (0 = no proficiency, 100 = expert). This is enforced by JSDoc documentation; runtime clamping is the component's responsibility.
+- **Date format**: All date fields use `YYYY-MM` string format (e.g., `"2020-03"`) — precise enough for month-level granularity while keeping data entry simple. This is a documented convention in JSDoc comments.
+- **Skill level range**: 0–100 integer scale (0 = beginner, 100 = expert). This is documented in JSDoc; runtime clamping belongs to each component's responsibility.
 - **Ongoing positions**: `endDate` fields are optional — when absent, the position is considered current/present. Components render "Present" or equivalent.
 - **Language-independent fields**: Dates, URLs, email addresses, GitHub handles, tech stack names, and company names are typically identical across `cv.en.json` and `cv.de.json`. No mechanism exists to share these fields between files — authors maintain both files independently.
-- **Contact info**: Contact details are grouped under the `personality.contact` object rather than a separate top-level section. This keeps all personal identity information together.
+- **Contact info**: Contact details are a separate top-level `contact` field on `CVData` (independent from `personality`). This allows contact information to be rendered independently from the personality introduction, and keeps `Personality` focused on identity/narrative.
 - **Sample data**: `cv.en.json` will contain realistic but fictional sample data (not lorem ipsum) to demonstrate the data model and provide a starting point for content authors. Names, companies, and descriptions will be clearly placeholder.
-- **No runtime validation**: TypeScript strict mode at build time is the only validation mechanism. JSON is committed code, not user input — no runtime schema validation library (Zod, Yup, Joi) is needed.
-- **No cross-entity references**: Entities do not reference each other. For example, a `Project` does not link to specific `Skill` entries. If such relationships are needed later, they can be added as optional fields without breaking existing data.
+- **Compile-time validation**: JSON files are imported directly via `resolveJsonModule`. Shape consistency between `cv.en.json` and `cv.de.json` is validated at the `Record<Locale, CVData>` assignment site in F-013's locale signal — JSON imports are direct, with no intermediate abstraction.
+- **Self-contained entities**: Entities are independent of each other. For example, a `Project` stands alone; a `Certificate` stands alone. If relationships are needed later, they can be added as optional fields while keeping existing data intact.
 - **File encoding**: JSON files use UTF-8 encoding. Special characters (umlauts, accents, emoji) are stored directly, not as Unicode escape sequences.
-- **Data directory structure**: Both `cv.en.json` and `cv.de.json` live directly in `src/data/` — no subdirectories by locale. The file naming convention (`cv.{locale}.json`) is consistent with the `src/i18n/` structure planned for UI translations.
+- **Data directory structure**: Both `cv.en.json` and `cv.de.json` live directly in `src/data/` as flat locale files. The file naming convention (`cv.{locale}.json`) aligns with the `src/i18n/` structure planned for UI translations.
