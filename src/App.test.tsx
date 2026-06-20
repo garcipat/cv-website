@@ -2,16 +2,18 @@ import { render, screen } from '@testing-library/react';
 import { App } from './App';
 
 describe('App', () => {
-  it('renders without crashing and displays CV text', () => {
+  it('renders the IDE theme page by default', () => {
     render(<App />);
-    expect(screen.getByText('CV')).toBeInTheDocument();
+    expect(screen.getByText('Curriculum Vitae IDE')).toBeInTheDocument();
   });
 
-  it('renders Tailwind utility classes correctly', () => {
+  it('renders with layout structure', () => {
     render(<App />);
-    const heading = screen.getByText('CV');
+    const heading = screen.getByText('Curriculum Vitae IDE');
     expect(heading).toHaveClass('text-3xl', 'font-bold');
-    const container = heading.parentElement;
-    expect(container).toHaveClass('min-h-screen', 'bg-background', 'text-foreground');
+    const headerBar = heading.parentElement;
+    expect(headerBar).toHaveClass('flex', 'items-center', 'justify-between');
+    const pageContainer = headerBar?.parentElement;
+    expect(pageContainer).toHaveClass('min-h-screen', 'bg-background', 'text-foreground');
   });
 });

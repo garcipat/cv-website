@@ -1,0 +1,112 @@
+[data-theme="space"] {
+  /* Background & Foreground — deep space */
+  --background: oklch(0.05 0.04 265);
+  --foreground: oklch(0.9 0.02 265);
+
+  /* Card — translucent glass panels */
+  --card: oklch(0.12 0.06 265 / 0.6);
+  --card-foreground: oklch(0.9 0.02 265);
+
+  /* Popover */
+  --popover: oklch(0.12 0.06 265 / 0.95);
+  --popover-foreground: oklch(0.9 0.02 265);
+
+  /* Primary — nebula violet */
+  --primary: oklch(0.6 0.18 285);
+  --primary-foreground: oklch(0.98 0 0);
+
+  /* Secondary — star blue */
+  --secondary: oklch(0.25 0.1 265);
+  --secondary-foreground: oklch(0.9 0.02 265);
+
+  /* Muted */
+  --muted: oklch(0.15 0.06 265);
+  --muted-foreground: oklch(0.6 0.04 265);
+
+  /* Accent — aurora green */
+  --accent: oklch(0.7 0.15 165);
+  --accent-foreground: oklch(0.05 0.04 265);
+
+  /* Destructive */
+  --destructive: oklch(0.6 0.2 25);
+  --destructive-foreground: oklch(0.98 0 0);
+
+  /* Border, Input, Ring */
+  --border: oklch(0.2 0.06 265 / 0.5);
+  --input: oklch(0.2 0.06 265 / 0.6);
+  --ring: oklch(0.5 0.15 285);
+
+  /* Typography */
+  --font-sans: 'Geist Variable', sans-serif;
+  --font-heading: var(--font-sans);
+
+  /* Sidebar */
+  --sidebar: oklch(0.08 0.05 265 / 0.8);
+  --sidebar-foreground: oklch(0.9 0.02 265);
+  --sidebar-primary: oklch(0.6 0.18 285);
+  --sidebar-primary-foreground: oklch(0.98 0 0);
+  --sidebar-accent: oklch(0.25 0.1 265);
+  --sidebar-accent-foreground: oklch(0.9 0.02 265);
+  --sidebar-border: oklch(0.2 0.06 265 / 0.4);
+  --sidebar-ring: oklch(0.5 0.15 285);
+
+  /* Chart */
+  --chart-1: oklch(0.6 0.18 285);
+  --chart-2: oklch(0.5 0.12 220);
+  --chart-3: oklch(0.7 0.15 165);
+  --chart-4: oklch(0.65 0.12 30);
+  --chart-5: oklch(0.55 0.1 320);
+
+  /* 3D Room specific tokens */
+  --perspective-depth: 1000px;
+  --float-duration: 6s;
+}
+
+/* 3D perspective on layout */
+[data-theme="space"] body {
+  perspective: var(--perspective-depth, 1000px);
+  overflow-x: hidden;
+}
+
+/* Preserve 3D on sections */
+[data-theme="space"] section,
+[data-theme="space"] .three-d-panel {
+  transform-style: preserve-3d;
+}
+
+/* Floating animation for panels */
+@keyframes space-float {
+  0%, 100% {
+    transform: translateY(0) rotateX(0deg);
+  }
+  25% {
+    transform: translateY(-10px) rotateX(1deg);
+  }
+  50% {
+    transform: translateY(-5px) rotateX(0.5deg);
+  }
+  75% {
+    transform: translateY(-8px) rotateX(-0.5deg);
+  }
+}
+
+[data-theme="space"] .float-panel {
+  animation: space-float var(--float-duration, 6s) ease-in-out infinite;
+}
+
+/* Parallax scroll effect */
+[data-theme="space"] .parallax-layer {
+  transform-style: preserve-3d;
+}
+
+[data-theme="space"] .parallax-layer--deep {
+  transform: translateZ(-200px) scale(1.2);
+}
+
+[data-theme="space"] .parallax-layer--mid {
+  transform: translateZ(-100px) scale(1.1);
+}
+
+[data-theme="space"] .parallax-layer--near {
+  transform: translateZ(50px) scale(0.95);
+}

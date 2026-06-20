@@ -13,7 +13,7 @@
 - [ ] F-007: Display studies / education — degree, institution, period
 - [ ] F-008: Display certificates — name, issuer, date
 - [ ] F-009: Display personal projects — name, description, tech stack, link
-- [ ] F-010: Design system — typography, spacing, colors, component tokens
+- [x] F-010: Design system — typography, spacing, colors, component tokens
 - [ ] F-011: Page layout — section arrangement, scrolling structure, navigation
 - [ ] F-012: Theme system — Preact Signals, `createLocalStorageSignal`, theme switcher infrastructure
 - [ ] F-013: Multilanguage — i18n EN/DE, locale signal, UI translations, CV data per locale
@@ -47,7 +47,7 @@
 | F-007 | Studies / education    | 📋 Planned     | —                                       | ❌             | ❌    |
 | F-008 | Certificates display   | 📋 Planned     | —                                       | ❌             | ❌    |
 | F-009 | Personal projects      | 📋 Planned     | —                                       | ❌             | ❌    |
-| F-010 | Design system          | 📋 Planned     | —                                       | ❌             | ❌    |
+| F-010 | Design system          | ✅ Done        | [spec](../specs/F-010-design-system/spec.md) | ✅             | ✅    |
 | F-011 | Page layout            | 📋 Planned     | —                                       | ❌             | ❌    |
 | F-012 | Theme system           | 📋 Planned     | —                                       | ❌             | ❌    |
 | F-013 | Multilanguage          | 📋 Planned     | —                                       | ❌             | ❌    |
@@ -88,7 +88,7 @@ graph RL
     F007["F-007: Studies"]
     F008["F-008: Certificates"]
     F009["F-009: Projects"]
-    F010["F-010: Design System"]
+    F010["✅ F-010: Design System"]
     F011["F-011: Page Layout"]
     F012["F-012: Theme System"]
     F013["F-013: Multilanguage"]
@@ -152,7 +152,8 @@ graph RL
 
     class F001 done
     class F002 done
-    class F001,F002,F010 projectSetup
+    class F001,F002 projectSetup
+    class F010 done
     class F003,F004,F005,F006,F007,F008,F009 cvSections
     class F011,S001,S003 layoutNavigation
     class F012,F013 themeInfrastructure

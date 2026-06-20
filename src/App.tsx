@@ -1,14 +1,15 @@
-import { Button } from '@/components/ui/button';
+import { IdePage } from '@/themes/ide/IdePage';
+import { SpacePage } from '@/themes/space/SpacePage';
+import { TerminalPage } from '@/themes/terminal/TerminalPage';
+import { activeTheme } from '@/state/theme';
+
+const themePages = {
+  ide: IdePage,
+  space: SpacePage,
+  terminal: TerminalPage,
+} as const;
 
 export const App = () => {
-  return (
-    <div className="min-h-screen bg-background text-foreground">
-      <h1 className="text-3xl font-bold">CV</h1>
-      <div className="flex gap-2 p-4">
-        <Button variant="default">Default</Button>
-        <Button variant="destructive">Delete</Button>
-        <Button variant="outline">Outline</Button>
-      </div>
-    </div>
-  );
+  const Page = themePages[activeTheme.value] ?? IdePage;
+  return <Page />;
 };

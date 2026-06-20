@@ -1,0 +1,106 @@
+[data-theme="terminal"] {
+  /* Background & Foreground — dark phosphor green on black */
+  --background: oklch(0.04 0 0);
+  --foreground: oklch(0.75 0.12 145);
+
+  /* Card */
+  --card: oklch(0.08 0.02 145);
+  --card-foreground: oklch(0.75 0.12 145);
+
+  /* Popover */
+  --popover: oklch(0.08 0.02 145);
+  --popover-foreground: oklch(0.75 0.12 145);
+
+  /* Primary — bright terminal green */
+  --primary: oklch(0.65 0.18 145);
+  --primary-foreground: oklch(0.04 0 0);
+
+  /* Secondary — dim green */
+  --secondary: oklch(0.15 0.04 145);
+  --secondary-foreground: oklch(0.65 0.18 145);
+
+  /* Muted */
+  --muted: oklch(0.1 0.02 145);
+  --muted-foreground: oklch(0.4 0.06 145);
+
+  /* Accent — amber/gold for highlights */
+  --accent: oklch(0.7 0.15 85);
+  --accent-foreground: oklch(0.04 0 0);
+
+  /* Destructive */
+  --destructive: oklch(0.6 0.2 25);
+  --destructive-foreground: oklch(0.98 0 0);
+
+  /* Border, Input, Ring */
+  --border: oklch(0.2 0.06 145 / 0.5);
+  --input: oklch(0.2 0.06 145 / 0.6);
+  --ring: oklch(0.5 0.15 145);
+
+  /* Typography — monospace fonts */
+  --font-sans: 'Fira Code', monospace;
+  --font-heading: 'VT323', monospace;
+
+  /* Sidebar */
+  --sidebar: oklch(0.06 0.01 145);
+  --sidebar-foreground: oklch(0.75 0.12 145);
+  --sidebar-primary: oklch(0.65 0.18 145);
+  --sidebar-primary-foreground: oklch(0.04 0 0);
+  --sidebar-accent: oklch(0.15 0.04 145);
+  --sidebar-accent-foreground: oklch(0.65 0.18 145);
+  --sidebar-border: oklch(0.15 0.04 145);
+  --sidebar-ring: oklch(0.5 0.15 145);
+
+  /* Chart */
+  --chart-1: oklch(0.65 0.18 145);
+  --chart-2: oklch(0.5 0.12 145);
+  --chart-3: oklch(0.7 0.15 85);
+  --chart-4: oklch(0.55 0.1 200);
+  --chart-5: oklch(0.45 0.1 320);
+
+  /* CRT / Terminal specific tokens */
+  --scanline-opacity: 0.08;
+  --glow-color: oklch(0.65 0.18 145);
+  --crt-curve: 0.25rem;
+}
+
+/* CRT scanline overlay */
+[data-theme="terminal"] #root::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, var(--scanline-opacity, 0.08)) 2px,
+    rgba(0, 0, 0, var(--scanline-opacity, 0.08)) 4px
+  );
+  animation: terminal-scanline 10s linear infinite;
+}
+
+@keyframes terminal-scanline {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(4px);
+  }
+}
+
+/* CRT glow on headings */
+[data-theme="terminal"] h1,
+[data-theme="terminal"] h2,
+[data-theme="terminal"] h3 {
+  text-shadow:
+    0 0 10px var(--glow-color),
+    0 0 20px var(--glow-color),
+    0 0 40px var(--glow-color);
+}
+
+/* CRT curve on main container */
+[data-theme="terminal"] #root {
+  border-radius: var(--crt-curve, 0.25rem);
+  overflow: hidden;
+}

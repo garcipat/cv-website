@@ -48,4 +48,51 @@ describe('Button', () => {
     const button = screen.getByRole('button', { name: /custom/i });
     expect(button).toHaveClass('custom-class');
   });
+
+  describe('theme CSS variable overrides', () => {
+    const themes: Array<{ id: string; label: string }> = [
+      { id: 'ide', label: 'IDE' },
+      { id: 'space', label: '3D Room' },
+      { id: 'terminal', label: 'Retro Terminal' },
+    ];
+
+    themes.forEach(({ id, label }) => {
+      it(`renders Button without crashing under data-theme="${id}"`, () => {
+        document.documentElement.dataset.theme = id;
+        render(<Button>{label}</Button>);
+        const button = screen.getByRole('button', { name: new RegExp(label, 'i') });
+        expect(button).toBeInTheDocument();
+        delete document.documentElement.dataset.theme;
+      });
+    });
+
+    it('each theme CSS file defines the required CSS variables under [data-theme] selector', async () => {
+      const { readFileSync } = await import('node:fs');
+      const { resolve } = await import('node:path');
+      const { fileURLToPath } = await import('node:url');
+
+      const currentDir = resolve(fileURLToPath(import.meta.url), '..');
+      const themeFiles = ['ide.css', 'space.css', 'terminal.css'];
+      const requiredVars = [
+        '--background', '--foreground', '--card', '--card-foreground',
+        '--primary', '--primary-foreground', '--secondary', '--secondary-foreground',
+        '--muted', '--muted-foreground', '--accent', '--accent-foreground',
+        '--destructive', '--destructive-foreground',
+        '--border', '--input', '--ring',
+        '--font-sans', '--font-heading',
+      ];
+
+      const themesDir = resolve(currentDir, '../../../src/styles/themes');
+
+      for (const file of themeFiles) {
+        const content = readFileSync(resolve(themesDir, file), 'utf-8');
+        const themeId = file.replace('.css', '');
+        expect(content).toContain(`[data-theme="${themeId}"]`);
+
+        for (const variable of requiredVars) {
+          expect(content).toContain(variable);
+        }
+      }
+    });
+  });
 });
