@@ -37,7 +37,7 @@
   --ring: oklch(0.5 0.15 285);
 
   /* Typography */
-  --font-sans: 'Geist Variable', sans-serif;
+  --font-sans: 'Inter', sans-serif;
   --font-heading: var(--font-sans);
 
   /* Sidebar */
