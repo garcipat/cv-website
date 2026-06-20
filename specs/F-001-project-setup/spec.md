@@ -106,7 +106,8 @@ A new contributor to the project needs to understand the architecture, coding co
 - **FR-001**: System MUST provide a Vite-powered development server with React 19 and TypeScript in strict mode, accessible via `npm run dev`.
 - **FR-002**: System MUST produce an optimized static production build via `npm run build`, with TypeScript type-checking as a required build step.
 - **FR-003**: System MUST provide a production preview server via `npm run preview` to verify the built output before deployment.
-- **FR-004**: System MUST lint source files via `npm run lint` using ESLint with TypeScript and React-specific rules.
+- **FR-004**: System MUST lint source files via `npm run lint` using ESLint with TypeScript and React-specific rules, and format source files via `npm run format` using Prettier with ESLint-compatible configuration.
+- **FR-004a**: System MUST provide a test runner via `npm test` using Vitest with React Testing Library and jsdom, with DOM matchers available globally.
 - **FR-005**: System MUST resolve `@/` path aliases to the `src/` directory in both TypeScript compilation and Vite module resolution.
 - **FR-006**: System MUST integrate Tailwind CSS v4 via the `@tailwindcss/vite` plugin, with base styles imported in the application entry point.
 - **FR-007**: System MUST configure shadcn/ui via `components.json` with a defined style, base color, CSS variable mode, and icon library preference.
@@ -131,7 +132,7 @@ A new contributor to the project needs to understand the architecture, coding co
 - **SC-001**: A developer can go from `git clone` to a running dev server in under 3 minutes (assuming standard broadband and a modern machine).
 - **SC-002**: The production build outputs a total page weight under 200 KB (HTML + JS + CSS gzipped) for the initial scaffold (no content pages yet).
 - **SC-003**: The `npm run build` command completes in under 30 seconds on a modern development machine.
-- **SC-004**: ESLint reports zero errors on a clean checkout with the default source files.
+- **SC-004**: ESLint and Prettier report zero issues on a clean checkout with the default source files.
 - **SC-005**: All five documentation files in `docs/` contain the sections described in their acceptance scenarios, with all sections fully written.
 - **SC-006**: `npx shadcn add` successfully adds any standard shadcn/ui component without manual configuration changes required.
 - **SC-007**: Hot Module Replacement reflects source changes in the browser within 2 seconds during development.
