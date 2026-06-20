@@ -15,13 +15,13 @@
 
 ## Test Structure
 
-- Follow: `{Method}_{Condition}_{ExpectedResult}` naming
+- Follow: `{method}-{condition}-{expected-result}` naming with kebab-case
 - Use `// Arrange`, `// Act`, `// Assert` comments when a section has more than one line
 
 Example:
 ```typescript
 describe("PersonalitySection", () => {
-  it("renders_name_and_tagline_when_data_provided", () => {
+  it("renders-name-and-tagline-when-data-provided", () => {
     // Arrange
     const data = { name: "John", tagline: "Developer", summary: "..." }
 
