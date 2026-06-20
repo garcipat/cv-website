@@ -5,7 +5,7 @@
 ### Core (Must Have)
 
 - [x] F-001: Project setup — Vite + React + TypeScript scaffold, Tailwind, shadcn/ui, docs
-- [ ] F-002: Data model — TypeScript types + JSON files for CV content
+- [x] F-002: Data model — TypeScript types + JSON files for CV content
 - [ ] F-003: Display personality section — name, tagline, summary
 - [ ] F-004: Display career timeline — company, role, period, highlights
 - [ ] F-005: Display skills — categories with visual skill levels
@@ -39,7 +39,7 @@
 | #     | Feature                | Status         | Spec                                    | Implementation | Tests |
 | ----- | ---------------------- | -------------- | --------------------------------------- | -------------- | ----- |
 | F-001 | Project setup          | ✅ Done        | [spec](../specs/F-001-project-setup.md) | ✅             | ✅    |
-| F-002 | Data model             | 📋 Planned     | —                                       | ❌             | ❌    |
+| F-002 | Data model             | ✅ Done        | [spec](../specs/F-002-data-model/spec.md) | ✅             | ✅    |
 | F-003 | Personality section    | 📋 Planned     | —                                       | ❌             | ❌    |
 | F-004 | Career timeline        | 📋 Planned     | —                                       | ❌             | ❌    |
 | F-005 | Skills display         | 📋 Planned     | —                                       | ❌             | ❌    |
@@ -80,7 +80,7 @@ The following diagram shows feature dependencies and recommended implementation 
 ```mermaid
 graph RL
     F001["✅ F-001: Project Setup"]
-    F002["F-002: Data Model"]
+    F002["✅ F-002: Data Model"]
     F003["F-003: Personality"]
     F004["F-004: Career"]
     F005["F-005: Skills"]
@@ -151,6 +151,7 @@ graph RL
     classDef enhancements fill:#AD1457,color:#ffffff
 
     class F001 done
+    class F002 done
     class F001,F002,F010 projectSetup
     class F003,F004,F005,F006,F007,F008,F009 cvSections
     class F011,S001,S003 layoutNavigation

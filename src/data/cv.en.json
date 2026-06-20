@@ -1,0 +1,155 @@
+{
+  "personality": {
+    "name": "Jane Developer",
+    "tagline": "Senior Frontend Engineer & UI Architect",
+    "summary": "Senior frontend engineer with 8+ years of experience building performant, accessible web applications. Passionate about component-driven design systems, TypeScript, and developer tooling.\n\nI have led frontend architecture at two startups and one mid-size tech company, scaling teams from 2 to 12 engineers. I believe in writing code that is not only functional but a joy to maintain.",
+    "favoriteQuote": "First, solve the problem. Then, write the code."
+  },
+  "contact": {
+    "email": "jane.developer@example.com",
+    "location": "Berlin, Germany",
+    "github": "jane-dev",
+    "website": "https://jane-dev.example.com"
+  },
+  "experience": [
+    {
+      "company": "Tech Innovations Inc.",
+      "role": "Staff Frontend Engineer",
+      "startDate": "2021-04",
+      "endDate": "2024-06",
+      "highlights": [
+        "Led the migration of a legacy AngularJS application to React 18, reducing page load times by 60%",
+        "Designed and implemented a shared component library adopted by 4 product teams",
+        "Established frontend testing standards achieving 90%+ code coverage across 15 repositories",
+        "Mentored 3 junior developers through structured pair-programming sessions and code reviews"
+      ],
+      "location": "Berlin, Germany"
+    },
+    {
+      "company": "WebFlow Studios",
+      "role": "Senior Frontend Developer",
+      "startDate": "2018-03",
+      "endDate": "2021-03",
+      "highlights": [
+        "Architected a real-time collaborative editing feature using WebSockets and operational transforms",
+        "Optimised Core Web Vitals, achieving Lighthouse scores above 95 across all product pages",
+        "Introduced TypeScript to the codebase, gradually typing 40,000+ lines of JavaScript",
+        "Built a custom design token pipeline that synced Figma variables with CSS custom properties"
+      ],
+      "location": "Remote"
+    },
+    {
+      "company": "PixelCraft GmbH",
+      "role": "Frontend Developer",
+      "startDate": "2016-07",
+      "endDate": "2018-02",
+      "highlights": [
+        "Developed responsive e-commerce checkout flows with React and Redux",
+        "Built automated visual regression testing suite using Percy and Storybook",
+        "Reduced JavaScript bundle size by 45% through code splitting and tree-shaking optimisations"
+      ],
+      "location": "Munich, Germany"
+    }
+  ],
+  "skills": [
+    {
+      "category": "Frontend",
+      "skills": [
+        { "name": "React", "level": 95 },
+        { "name": "TypeScript", "level": 92 },
+        { "name": "Next.js", "level": 85 },
+        { "name": "CSS / Tailwind", "level": 90 },
+        { "name": "Storybook", "level": 80 },
+        { "name": "Vitest / Jest", "level": 85 }
+      ]
+    },
+    {
+      "category": "Backend & Tools",
+      "skills": [
+        { "name": "Node.js", "level": 75 },
+        { "name": "GraphQL", "level": 70 },
+        { "name": "Docker", "level": 65 },
+        { "name": "PostgreSQL", "level": 55 }
+      ]
+    },
+    {
+      "category": "Design & Collaboration",
+      "skills": [
+        { "name": "Figma", "level": 70 },
+        { "name": "Design Systems", "level": 88 },
+        { "name": "Agile / Scrum", "level": 80 }
+      ]
+    }
+  ],
+  "courses": [
+    {
+      "title": "Advanced React Patterns",
+      "provider": "Frontend Masters",
+      "year": 2024,
+      "certificate": "https://frontendmasters.com/certificates/react-patterns"
+    },
+    {
+      "title": "Building Scalable Design Systems",
+      "provider": "Smashing Magazine",
+      "year": 2023
+    },
+    {
+      "title": "TypeScript for Professionals",
+      "provider": "Egghead.io",
+      "year": 2022
+    }
+  ],
+  "education": [
+    {
+      "degree": "B.Sc. Computer Science",
+      "institution": "Technical University of Berlin",
+      "startDate": "2013-10",
+      "endDate": "2016-07",
+      "description": "Focused on software engineering and human-computer interaction. Thesis on accessible web component design."
+    },
+    {
+      "degree": "M.Sc. Media Informatics",
+      "institution": "University of Applied Sciences Munich",
+      "startDate": "2016-10",
+      "endDate": "2018-03",
+      "description": "Research on real-time collaborative editing interfaces. GPA: 1.3 (German system)."
+    }
+  ],
+  "certificates": [
+    {
+      "name": "AWS Solutions Architect Associate",
+      "issuer": "Amazon Web Services",
+      "date": "2023-06",
+      "url": "https://aws.amazon.com/verify/certificate",
+      "credentialId": "AWS-ASA-98765"
+    },
+    {
+      "name": "Google Professional Cloud Developer",
+      "issuer": "Google Cloud",
+      "date": "2022-11"
+    }
+  ],
+  "projects": [
+    {
+      "name": "Open Source Design System",
+      "description": "A comprehensive design system and component library built with React, TypeScript, and Storybook. Includes 60+ accessible components, design tokens, and a Figma plugin for design-to-code sync.",
+      "techStack": ["React", "TypeScript", "Storybook", "Tailwind CSS", "Figma API"],
+      "url": "https://opensourceds.example.com",
+      "githubUrl": "https://github.com/jane-dev/opensource-ds",
+      "imageUrl": "https://opensourceds.example.com/preview.png"
+    },
+    {
+      "name": "Vite Plugin: SVG Sprite",
+      "description": "A Vite plugin that generates optimised SVG sprites from imported SVG files at build time, with TypeScript type definitions for sprite symbol names.",
+      "techStack": ["Vite", "TypeScript", "SVGO"],
+      "githubUrl": "https://github.com/jane-dev/vite-svg-sprite"
+    },
+    {
+      "name": "Accessibility Audit CLI",
+      "description": "A command-line tool that runs Axe-core accessibility audits on local or deployed web pages, generating HTML reports with actionable recommendations.",
+      "techStack": ["Node.js", "Axe-core", "Puppeteer", "CLI"],
+      "url": "https://www.npmjs.com/package/a11y-audit-cli",
+      "githubUrl": "https://github.com/jane-dev/a11y-audit-cli"
+    }
+  ]
+}
