@@ -102,7 +102,7 @@ A developer wants to add French (`fr`) as a third supported language. They need 
 
 #### State Management
 
-- **FR-001**: System MUST define a `Locale` type as a union of supported locale identifiers (`'en' | 'de'`) in `src/state/locale.ts`, along with a `supportedLocales` array containing all valid locale identifiers.
+- **FR-001**: System MUST define a `Locale` type as a union of supported locale identifiers (`'en' | 'de'`) in `src/state/locale.ts`, along with a `supportedLocales` array of type `readonly Locale[]` containing all valid locale identifiers.
 
 - **FR-002**: System MUST create a `createLocalStorageSignal<Locale>('locale', getBrowserLocale())` signal named `currentLocale` in `src/state/locale.ts` that:
   - Reads the stored locale from `localStorage` on initialization
@@ -115,7 +115,9 @@ A developer wants to add French (`fr`) as a third supported language. They need 
   - Returns the locale if it matches a supported locale (case-insensitive)
   - Returns `'en'` as the ultimate fallback for unsupported or unavailable languages
 
-- **FR-004**: System MUST provide a `changeLocale(locale: Locale): void` function in `src/state/locale.ts` that sets `currentLocale.value` and is importable by components. In addition to updating the signal, `changeLocale` MUST also update `document.documentElement.lang` to the active locale value, and update `document.title` and the `<meta name="description">` content to their translated counterparts.
+- **FR-004**: System MUST provide a `changeLocale(locale: Locale): void` function in `src/state/locale.ts` that sets `currentLocale.value` and is importable by components. In addition to updating the signal, `changeLocale` MUST also:
+  - Update `document.documentElement.lang` to the active locale value (essential for WCAG SC 3.1.1 Language of Page — Level A: screen readers use this attribute for correct pronunciation, browsers use it for spell-check dictionaries)
+  - Update `document.title` and the `<meta name="description">` content to their translated counterparts
 
 #### Computed Signals
 
@@ -154,11 +156,11 @@ A developer wants to add French (`fr`) as a third supported language. They need 
 - **FR-012**: System MUST allow each theme layout to render the `LanguageToggle` in its own style and location:
   - **IDE theme**: Placed in the status bar alongside other status indicators (as a small button or status item)
   - **3D Room theme**: Rendered as a floating control or panel element
-  - **Retro Terminal theme**: Available as a `:lang` command within the terminal command interface (e.g., `:lang de`), in addition to a visible toggle
+  - **Retro Terminal theme**: Receives the visible `<LanguageToggle />` component adjacent to `<ThemeSwitcher />`.
   - The placement MUST be visually consistent within each theme's design language
   - The component instance is the same; the theme wraps or positions it, but does not modify its behavior
 
-- **FR-013**: System MUST ensure that the `LanguageToggle` label (the text shown on the toggle itself) comes from the `currentUI` computed signal — e.g., showing `DE` when English is active (indicating "switch to German") and `EN` when German is active, or alternatively showing both in the toggle label. The label MUST use the language's own name (endonym): "DE" for German, "EN" for English.
+- **FR-013**: System MUST ensure that the `LanguageToggle` label (the text shown on the toggle itself) comes from the `currentUI` computed signal — e.g., showing `DE` when English is active (indicating "switch to German") and `EN` when German is active, or alternatively showing both in the toggle label. The label MUST use the language's ISO 639-1 language code: `DE` for German, `EN` for English.
 
 #### Integration
 
@@ -168,9 +170,7 @@ A developer wants to add French (`fr`) as a third supported language. They need 
 
 - **FR-016**: System MUST NOT implement URL-based locale routing (no `/en/`, `/de/` paths). Locale is determined solely by `localStorage` and browser detection.
 
-- **FR-017**: System MUST update `document.documentElement.lang` to the active locale value whenever `changeLocale()` is called or on initial signal initialization. This is essential for WCAG SC 3.1.1 (Language of Page — Level A): screen readers use this attribute for correct pronunciation, and browsers use it for spell-check dictionaries.
-
-- **FR-018**: System MUST include `page.title` (browser tab title) and `page.description` (<meta name="description"> content) fields in the `UITranslations` interface. The `changeLocale()` function MUST update `document.title` and `document.querySelector('meta[name="description"]').content` to their translated values on every locale change.
+- **FR-017**: System MUST include `page.title` (browser tab title) and `page.description` (<meta name="description"> content) fields in the `UITranslations` interface. The `changeLocale()` function MUST update `document.title` and `document.querySelector('meta[name="description"]').content` to their translated values on every locale change.
 
 ### Key Entities
 
@@ -226,11 +226,9 @@ All relationships are compositional — the locale signal owns both translation 
 
 - **SC-004 — First-visit detection accuracy**: First-time visitors (no stored locale) whose browser language is `de`, `de-DE`, `de-AT`, or `de-CH` see the page in German. Visitors with any other browser language see English. Verified by automated test: mock `navigator.language` to each variant, clear localStorage, measure initial `currentLocale.value`.
 
-- **SC-005 — New locale addition velocity**: A developer with no prior context can add a new locale (e.g., French) in under 15 minutes. Verified by: create `cv.fr.json` from template, create `src/i18n/fr.ts` implementing `UITranslations`, add `'fr'` to supported locales and maps, verify the build passes and the toggle works.
+- **SC-005 — Zero runtime errors**: All acceptance scenarios pass without console errors, warnings, or uncaught exceptions. Verified by: run full test suite (Vitest) with locale switching tests covering initialization, toggle, persistence, and fallback paths.
 
-- **SC-006 — Zero runtime errors**: All acceptance scenarios pass without console errors, warnings, or uncaught exceptions. Verified by: run full test suite (Vitest) with locale switching tests covering initialization, toggle, persistence, and fallback paths.
-
-- **SC-007 — Component independence**: The `LanguageToggle` component renders correctly in all three themes without requiring theme-specific props, conditionals, or layout awareness. Verified by: render the component in each theme layout and verify it functions identically.
+- **SC-006 — Component independence**: The `LanguageToggle` component renders correctly in all three themes without requiring theme-specific props, conditionals, or layout awareness. Verified by: render the component in each theme layout and verify it functions identically.
 
 ## Assumptions
 
@@ -242,7 +240,7 @@ All relationships are compositional — the locale signal owns both translation 
 - **Static imports**: All translation data (CV JSON and UI strings) is statically imported at build time. No dynamic `import()` or lazy loading of locale chunks — all locales are bundled.
 - **CV data has identical structure across locales**: Both `cv.en.json` and `cv.de.json` conform to the same `CVData` interface. Fields containing language-independent data (dates, URLs, company names, tech stack names) may have identical values but are maintained independently in each file.
 - **Current theme signal exists**: `currentTheme` and the theme system (F-012) are already implemented. F-013's `LanguageToggle` component is integrated into each theme layout but does not depend on the theme signal directly.
-- **Toggle label convention**: The toggle shows the target locale's abbreviation in its own language (endonym): `DE` (not `GER`) to switch to German, `EN` (not `ENG`) to switch to English. This is consistent and unambiguous across languages.
+- **Toggle label convention**: The toggle shows the target locale's ISO 639-1 code: `DE` (not `GER`) to switch to German, `EN` (not `ENG`) to switch to English. This is consistent and unambiguous across languages.
 - **Theme integration is per-theme layout responsibility**: Each theme's layout component (e.g., `IdePage.tsx`, `SpacePage.tsx`, `TerminalPage.tsx`) is responsible for importing and positioning the `LanguageToggle`. The toggle component itself has no knowledge of its placement or surrounding theme.
 - **Locale is independent of theme**: The active locale and active theme are orthogonal state values. Changing locale does not affect the theme, and changing theme does not affect the locale.
 - **Language toggle immediately adjacent to theme switcher**: The `LanguageToggle` component renders directly next to the `ThemeSwitcher` component in the same visual row/group (e.g., IDE status bar: `[ThemeSwitcher] [LanguageToggle]`), but is a completely separate component. It does not share DOM structure, event handlers, or styling with the theme switcher.
@@ -253,8 +251,8 @@ Record of the clarification session on 2026-06-20. Five questions were asked and
 
 | # | Question | Choice | Impact |
 |---|---|---|---|
-| 1 | Should the HTML `lang` attribute update when locale changes? (WCAG SC 3.1.1) | **Always update** — `document.documentElement.lang` is set to the active locale on every change, not just on initialization. | Added FR-017. Added edge case for `lang` sync. |
+| 1 | Should the HTML `lang` attribute update when locale changes? (WCAG SC 3.1.1) | **Always update** — `document.documentElement.lang` is set to the active locale on every change, not just on initialization. | Added WCAG reference to FR-004. Added edge case for `lang` sync. |
 | 2 | Should a screen reader live region announce locale changes? | **No announcement** — The toggle's dynamic `aria-label` is sufficient. No `aria-live` region. | Added edge case noting no live region. |
 | 3 | How to handle the flash of English content before JS loads on German-first visitors? | **Accept brief flash** — ~50–150ms flash is imperceptible to most users. Updated US1 Scenario 6 to reflect this. | Updated US1 Scenario 6 wording. |
 | 4 | How should `LanguageToggle` be positioned relative to `ThemeSwitcher`? | **Immediately adjacent, same row** — Same visual group (e.g., `[ThemeSwitcher] [LanguageToggle]`), no dividers or separators. | Updated Assumption entry. |
-| 5 | Should HTML `<title>` and `<meta name="description">` be translated with locale? | **Translate both** — Include `page.title` and `page.description` in `UITranslations`. Update via DOM on locale change. | Added fields to UITranslations (FR-007). Added FR-018 for DOM updates. Added edge case. |
+| 5 | Should HTML `<title>` and `<meta name="description">` be translated with locale? | **Translate both** — Include `page.title` and `page.description` in `UITranslations`. Update via DOM on locale change. | Added fields to UITranslations (FR-007). Added FR-017 for DOM updates. Added edge case. |
