@@ -13,6 +13,8 @@
 - [ ] F-007: Display studies / education — degree, institution, period
 - [ ] F-008: Display certificates — name, issuer, date
 - [ ] F-009: Display personal projects — name, description, tech stack, link
+- [ ] F-010: Design system — typography, spacing, colors, component tokens
+- [ ] F-011: Page layout — section arrangement, scrolling structure, navigation
 
 ### Should Have
 
@@ -37,6 +39,8 @@
 | F-007 | Studies / education | 📋 Planned | — | ❌ | ❌ |
 | F-008 | Certificates display | 📋 Planned | — | ❌ | ❌ |
 | F-009 | Personal projects | 📋 Planned | — | ❌ | ❌ |
+| F-010 | Design system | 📋 Planned | — | ❌ | ❌ |
+| F-011 | Page layout | 📋 Planned | — | ❌ | ❌ |
 
 ---
 
@@ -67,6 +71,8 @@ graph RL
     F007["F-007: Studies"]
     F008["F-008: Certificates"]
     F009["F-009: Projects"]
+    F010["F-010: Design System"]
+    F011["F-011: Page Layout"]
 
     F003 --> F002
     F004 --> F002
@@ -76,17 +82,29 @@ graph RL
     F008 --> F002
     F009 --> F002
     F002 --> F001
+    F010 --> F001
+    F011 --> F010
+
+    F003 --> F011
+    F004 --> F011
+    F005 --> F011
+    F006 --> F011
+    F007 --> F011
+    F008 --> F011
+    F009 --> F011
 
     classDef done fill:#4caf50,color:#ffffff
     classDef inProgress fill:#ff9800,color:#000000
     classDef planned fill:#9e9e9e,color:#ffffff
     classDef projectSetup fill:#e3f2fd,color:#000000
     classDef cvSections fill:#e8f5e9,color:#000000
+    classDef layoutNavigation fill:#fff3e0,color:#000000
 
     class F001 inProgress
-    class F002,F003,F004,F005,F006,F007,F008,F009 planned
-    class F001,F002 projectSetup
+    class F002,F003,F004,F005,F006,F007,F008,F009,F010,F011 planned
+    class F001,F002,F010 projectSetup
     class F003,F004,F005,F006,F007,F008,F009 cvSections
+    class F011 layoutNavigation
 ```
 
-**Critical Path**: F-001 → F-002 → F-003 (personality section drives the base layout pattern that F-004/F-005/F-006 follow)
+**Critical Path**: F-001 → F-010 → F-011 → F-002 → F-003 (foundation → design system → layout → data model → first content section drives reusable patterns for F-004 through F-009)
