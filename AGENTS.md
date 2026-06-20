@@ -24,6 +24,7 @@
 
 ## Key Principles
 
+- **No Auto-Commits**: Never commit changes unless explicitly asked by the user. Always wait for the user to request a commit.
 - **No Feature Bloat**: Keep the application minimal and startable. Build features as separate specs, not exploratory changes.
 
 ## Feature Completion Tracking
