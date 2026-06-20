@@ -1,0 +1,42 @@
+{
+  "page": {
+    "title": "Curriculum Vitae — Julia Developer",
+    "description": "Professional CV and portfolio of Julia Developer, Senior Frontend Engineer & UI Architect."
+  },
+  "nav": {
+    "experience": "Experience",
+    "skills": "Skills",
+    "projects": "Projects",
+    "education": "Education",
+    "courses": "Courses",
+    "certificates": "Certificates"
+  },
+  "themes": {
+    "ide": "IDE",
+    "space": "3D Room",
+    "terminal": "Retro Terminal",
+    "select": "Select theme"
+  },
+  "sections": {
+    "summary": "Summary",
+    "experience": "Experience",
+    "skills": "Skills",
+    "projects": "Projects",
+    "education": "Education",
+    "courses": "Courses",
+    "certificates": "Certificates"
+  },
+  "language": {
+    "switchTo": "Switch language to Deutsch",
+    "label": "DE",
+    "names": {
+      "en": "English",
+      "de": "Deutsch"
+    }
+  },
+  "action": {
+    "default": "Default",
+    "delete": "Delete",
+    "outline": "Outline"
+  }
+}

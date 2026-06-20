@@ -1,17 +1,25 @@
+import { useSignals } from '@preact/signals-react/runtime';
 import { Button } from '@/components/ui/button';
-import { ThemeSwitcher } from '@/components/ThemeSwitcher';
+import { ThemeSelect } from '@/components/ThemeSelect';
+import { LanguageSelect } from '@/components/LanguageSelect';
+import { currentUI } from '@/state/locale';
 
 export const IdePage = () => {
+  useSignals();
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="flex items-center justify-between p-4">
         <h1 className="text-3xl font-bold">Curriculum Vitae IDE</h1>
-        <ThemeSwitcher />
+        <div className="flex items-center gap-2">
+          <ThemeSelect />
+          <LanguageSelect />
+        </div>
       </div>
       <div className="flex gap-2 p-4">
-        <Button variant="default">Default</Button>
-        <Button variant="destructive">Delete</Button>
-        <Button variant="outline">Outline</Button>
+        <Button variant="default">{currentUI.value.action.default}</Button>
+        <Button variant="destructive">{currentUI.value.action.delete}</Button>
+        <Button variant="outline">{currentUI.value.action.outline}</Button>
       </div>
     </div>
   );

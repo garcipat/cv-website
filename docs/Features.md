@@ -16,7 +16,7 @@
 - [x] F-010: Design system — typography, spacing, colors, component tokens
 - [ ] F-011: Page layout — section arrangement, scrolling structure, navigation
 - [ ] F-012: Theme system — Preact Signals, `createLocalStorageSignal`, theme switcher infrastructure
-- [ ] F-013: Multilanguage — i18n EN/DE, locale signal, UI translations, CV data per locale
+- [x] F-013: Multilanguage — i18n EN/DE, locale signal, UI translations, CV data per locale
 - [ ] F-014: IDE theme — file tree sidebar, tab bar, syntax-highlighted editor, status bar
 
 ### Should Have
@@ -50,7 +50,7 @@
 | F-010 | Design system          | ✅ Done        | [spec](../specs/F-010-design-system/spec.md) | ✅             | ✅    |
 | F-011 | Page layout            | 📋 Planned     | —                                       | ❌             | ❌    |
 | F-012 | Theme system           | 📋 Planned     | —                                       | ❌             | ❌    |
-| F-013 | Multilanguage          | 📋 Planned     | —                                       | ❌             | ❌    |
+| F-013 | Multilanguage          | ✅ Done        | [spec](../specs/F-013-multilanguage/spec.md) | ✅             | ✅    |
 | F-014 | IDE theme              | 📋 Planned     | —                                       | ❌             | ❌    |
 | S-001 | Print-friendly styling | 📋 Planned     | —                                       | ❌             | ❌    |
 | S-002 | SEO meta tags          | 📋 Planned     | —                                       | ❌             | ❌    |
@@ -91,7 +91,7 @@ graph RL
     F010["✅ F-010: Design System"]
     F011["F-011: Page Layout"]
     F012["F-012: Theme System"]
-    F013["F-013: Multilanguage"]
+    F013["✅ F-013: Multilanguage"]
     F014["F-014: IDE Theme"]
     S001["S-001: Print-Friendly"]
     S002["S-002: SEO Meta Tags"]
@@ -154,6 +154,7 @@ graph RL
     class F002 done
     class F001,F002 projectSetup
     class F010 done
+    class F013 done
     class F003,F004,F005,F006,F007,F008,F009 cvSections
     class F011,S001,S003 layoutNavigation
     class F012,F013 themeInfrastructure

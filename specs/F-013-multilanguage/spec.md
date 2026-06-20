@@ -143,24 +143,22 @@ A developer wants to add French (`fr`) as a third supported language. They need 
 
 - **FR-010**: System MUST register both locale files in the `uiMap` inside the locale signal so that TypeScript enforces compile-time completeness — any missing translation entry causes a build failure.
 
-#### Language Toggle Component
+#### Language Select Component
 
-- **FR-011**: System MUST provide a `LanguageToggle` component in `src/components/LanguageToggle.tsx` that:
-  - Displays the currently active locale as a clickable element (button or button-like control)
-  - Cycles through supported locales (EN ↔ DE) on click, or provides a small dropdown/popover for 3+ locales
-  - Includes an accessible label (e.g., `aria-label="Switch language to German"` that updates dynamically)
-  - Is keyboard-navigable (Tab to reach, Enter/Space to activate)
-  - Is fully functional in isolation — it manages its own state via the `changeLocale` function
+- **FR-011**: System MUST provide a `LanguageSelect` component in `src/components/LanguageSelect.tsx` that:
+  - Renders a dropdown (Select) showing the currently active locale's localized name
+  - Lists all supported locales with their localized names (e.g., "English" / "Deutsch" when viewing English)
+  - Includes an accessible label via `aria-label` on the trigger
+  - Is keyboard-navigable (the Select component handles Tab, arrow keys, Enter)
+  - Is fully functional in isolation — it uses `changeLocale` to apply the selection
   - Does NOT reference any theme-specific styling; themes apply their own wrapping/positioning
 
-- **FR-012**: System MUST allow each theme layout to render the `LanguageToggle` in its own style and location:
-  - **IDE theme**: Placed in the status bar alongside other status indicators (as a small button or status item)
-  - **3D Room theme**: Rendered as a floating control or panel element
-  - **Retro Terminal theme**: Receives the visible `<LanguageToggle />` component adjacent to `<ThemeSwitcher />`.
+- **FR-012**: System MUST allow each theme layout to render the `LanguageSelect` in its own style and location:
+  - All themes: Rendered adjacent to `<ThemeSelect />` in the same header row
   - The placement MUST be visually consistent within each theme's design language
   - The component instance is the same; the theme wraps or positions it, but does not modify its behavior
 
-- **FR-013**: System MUST ensure that the `LanguageToggle` label (the text shown on the toggle itself) comes from the `currentUI` computed signal — e.g., showing `DE` when English is active (indicating "switch to German") and `EN` when German is active, or alternatively showing both in the toggle label. The label MUST use the language's ISO 639-1 language code: `DE` for German, `EN` for English.
+- **FR-013**: System MUST ensure that the `LanguageSelect` option labels come from the `currentUI` computed signal via `currentUI.value.language.names`, where each locale maps to its localized display name (e.g., `{ en: "English", de: "Deutsch" }` when English is active). The selected value in the trigger displays the active locale's localized name.
 
 #### Integration
 
@@ -182,9 +180,9 @@ A developer wants to add French (`fr`) as a third supported language. They need 
 
 - **currentUI (Computed Signal)**: A `Computed<UITranslations>` that returns the UI translation object for the active locale. Reads from a `Record<Locale, UITranslations>` map (`{ en, de }`). Component import: `import { currentUI } from '@/state/locale'`. Usage: `currentUI.value.nav.experience`.
 
-- **UITranslations Interface**: A TypeScript interface in `src/i18n/translations.ts` that defines the shape of all user-facing UI strings. Organized by section (nav, themes, status, sections, etc.). Every translatable string in the application must have a field in this interface. Serves as the type contract — missing translations cause build failures.
+- **Translation Type**: Inferred from `typeof enJson` (English JSON) in `src/i18n/translations.ts`. The English JSON file is the source of truth; TypeScript validates all other locale files against it at build time. Missing or extra fields cause compilation errors.
 
-- **LanguageToggle Component**: A React component in `src/components/LanguageToggle.tsx` that renders a locale selector. Independent of theme (each theme positions/wraps it differently). Reads `currentLocale` via `useSyncExternalStore` (React bridge pattern for Preact Signals) and calls `changeLocale()` on user interaction.
+- **LanguageSelect Component**: A React component in `src/components/LanguageSelect.tsx` that renders a locale dropdown (Select element based on `@base-ui/react`). Independent of theme (each theme positions/wraps it differently). Uses `useSignals()` from `@preact/signals-react/runtime` to reactively read `currentLocale` and `currentUI`, and calls `changeLocale()` on user selection.
 
 - **Locale-Specific Data File**: Each locale has a corresponding JSON file at `src/data/cv.{locale}.json` sharing the `CVData` type. Created by F-002 (Data Model). F-013 consumes these files but does not create or modify them.
 
@@ -196,15 +194,15 @@ currentLocale (Signal<Locale>)
  └── Determines currentUI (Computed<UITranslations>)
          └── Maps via: { en: en, de: de }
 
-LanguageToggle (Component)
- ├── Reads currentLocale via useSyncExternalStore
+LanguageSelect (Component)
+ ├── Reads currentLocale and currentUI reactively via useSignals()
  ├── Writes via changeLocale()
  └── Rendered by each theme in its own style/location
 
-UITranslations (Interface)
- ├── en.ts implements it
- ├── de.ts implements it
- └── New locales add new implementations
+Translation (Type inferred from en.json)
+ ├── en.json defines the shape
+ ├── de.json validated against it at build time
+ └── New locales add new JSON files
 
 CVData (Interface from F-002)
  ├── cv.en.json implements it
