@@ -1,59 +1,65 @@
 [data-theme="ide"] {
-  /* Background & Foreground */
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  /* Catppuccin Mocha palette */
+  --color-ctp-base: #1e1e2e;
+  --color-ctp-mantle: #11111b;
+  --color-ctp-surface: #181825;
+  --color-ctp-text: #cdd6f4;
+  --color-ctp-subtext: #a6adc8;
+  --color-ctp-overlay: #6c7086;
+  --color-ctp-lavender: #cba6f7;
+  --color-ctp-blue: #89b4fa;
+  --color-ctp-green: #a6e3a1;
+  --color-ctp-red: #f38ba8;
+  --color-ctp-yellow: #f9e2af;
 
-  /* Card */
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-
-  /* Popover */
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-
-  /* Primary */
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-
-  /* Secondary */
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-
-  /* Muted */
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-
-  /* Accent */
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-
-  /* Destructive */
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.985 0 0);
-
-  /* Border, Input, Ring */
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  /* shadcn-compatible tokens mapped to Catppuccin Mocha */
+  --background: var(--color-ctp-base);
+  --foreground: var(--color-ctp-text);
+  --card: var(--color-ctp-surface);
+  --card-foreground: var(--color-ctp-text);
+  --popover: var(--color-ctp-surface);
+  --popover-foreground: var(--color-ctp-text);
+  --primary: var(--color-ctp-lavender);
+  --primary-foreground: var(--color-ctp-base);
+  --secondary: var(--color-ctp-surface);
+  --secondary-foreground: var(--color-ctp-text);
+  --muted: var(--color-ctp-surface);
+  --muted-foreground: var(--color-ctp-subtext);
+  --accent: var(--color-ctp-lavender);
+  --accent-foreground: var(--color-ctp-base);
+  --destructive: var(--color-ctp-red);
+  --destructive-foreground: var(--color-ctp-base);
+  --border: var(--color-ctp-overlay);
+  --input: var(--color-ctp-overlay);
+  --ring: var(--color-ctp-lavender);
+  --sidebar: var(--color-ctp-mantle);
+  --sidebar-foreground: var(--color-ctp-text);
+  --sidebar-primary: var(--color-ctp-lavender);
+  --sidebar-primary-foreground: var(--color-ctp-base);
+  --sidebar-accent: var(--color-ctp-lavender);
+  --sidebar-accent-foreground: var(--color-ctp-base);
+  --sidebar-border: var(--color-ctp-overlay);
+  --sidebar-ring: var(--color-ctp-lavender);
 
   /* Typography */
   --font-sans: 'Geist Variable', sans-serif;
   --font-heading: var(--font-sans);
 
-  /* Sidebar */
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-
-  /* Chart */
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  /* IDE-specific tokens */
+  --ide-sidebar-bg: var(--color-ctp-mantle);
+  --ide-editor-bg: var(--color-ctp-base);
+  --ide-tab-bar-bg: var(--color-ctp-surface);
+  --ide-status-bar-bg: var(--color-ctp-mantle);
+  --ide-label-color: var(--color-ctp-blue);
+  --ide-value-color: var(--color-ctp-text);
+  --ide-date-color: var(--color-ctp-subtext);
+  --ide-link-color: var(--color-ctp-lavender);
+  --ide-highlight-color: var(--color-ctp-green);
+  --ide-active-tab-accent: var(--color-ctp-lavender);
 }
+
+[data-theme="ide"] .editor-font {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+

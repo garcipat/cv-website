@@ -38,5 +38,23 @@
     "default": "Standard",
     "delete": "Löschen",
     "outline": "Umriss"
+  },
+  "ide": {
+    "explorer": "EXPLORER",
+    "themes": "DESIGNS",
+    "language": "SPRACHE",
+    "noFileOpen": "Keine Datei geöffnet",
+    "selectFile": "Wählen Sie eine Datei aus der Seitenleiste aus",
+    "statusLang": "TypeScript React",
+    "close": "Schließen",
+    "menu": {
+      "file": "Datei",
+      "edit": "Bearbeiten",
+      "selection": "Auswahl",
+      "view": "Ansicht",
+      "go": "Gehe zu",
+      "run": "Ausführen",
+      "terminal": "Terminal"
+    }
   }
 }
