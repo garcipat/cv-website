@@ -14,15 +14,15 @@ const testThemes: TestTheme[] = [
 ];
 
 describe('theme state contract', () => {
-  it('activeTheme initializes to "ide"', () => {
-    const activeTheme = signal<TestThemeId>('ide');
-    expect(activeTheme.value).toBe('ide');
+  it('currentTheme initializes to "ide"', () => {
+    const currentTheme = signal<TestThemeId>('ide');
+    expect(currentTheme.value).toBe('ide');
   });
 
   it('writing .value updates the signal correctly', () => {
-    const activeTheme = signal<TestThemeId>('ide');
-    activeTheme.value = 'terminal';
-    expect(activeTheme.value).toBe('terminal');
+    const currentTheme = signal<TestThemeId>('ide');
+    currentTheme.value = 'terminal';
+    expect(currentTheme.value).toBe('terminal');
   });
 
   it('theme list contains all three themes', () => {
@@ -41,12 +41,12 @@ describe('theme state contract', () => {
   });
 
   it('syncs data-theme attribute via subscribe', () => {
-    const activeTheme = signal<TestThemeId>('ide');
-    activeTheme.subscribe((id) => {
+    const currentTheme = signal<TestThemeId>('ide');
+    currentTheme.subscribe((id) => {
       document.documentElement.dataset.theme = id;
     });
 
-    activeTheme.value = 'terminal';
+    currentTheme.value = 'terminal';
     expect(document.documentElement.dataset.theme).toBe('terminal');
   });
 });

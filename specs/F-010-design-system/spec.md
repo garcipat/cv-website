@@ -46,11 +46,11 @@ Themes may also define custom tokens for effects (e.g., `--scanline-opacity`, `-
 
 State management uses `@preact/signals-react` (already the project standard, documented in Architecture.md). The localStorage-persisted signal pattern via `createLocalStorageSignal` (from `@/lib/utils.ts`) is used for persisting theme selection.
 
-The `activeTheme` signal (in `src/state/theme.ts`) controls theme application:
+The `currentTheme` signal (in `src/state/theme.ts`) controls theme application:
 
 ```ts
 // Sync signal to DOM
-document.documentElement.dataset.theme = activeTheme.value
+document.documentElement.dataset.theme = currentTheme.value
 // → <html data-theme="terminal">
 ```
 
@@ -140,7 +140,7 @@ src/
 │   ├── space/                   # 3D Room layout + space-specific components
 │   └── terminal/                # Terminal layout + terminal-specific components
 ├── state/
-│   └── theme.ts                 # activeTheme signal + data-theme sync
+│   └── theme.ts                 # currentTheme signal + data-theme sync
 └── App.tsx                      # Renders active theme layout
 ```
 
@@ -197,7 +197,7 @@ Theme-specific visual effects are established per theme (scanlines for Terminal,
 - ✅ Flash of Unstyled Content (FOUC) before JS hydrates? → **Resolved**: A blocking `<script>` in `index.html` `<head>` reads `localStorage` and sets `document.documentElement.dataset.theme` before first paint.
 - ✅ Rapid theme switching in quick succession? → **Resolved**: CSS variable swapping is synchronous and immediate. No debounce needed.
 - ✅ What if `localStorage` is full, disabled, or throws? → **Resolved**: `createLocalStorageSignal` wraps the `localStorage` call in try/catch and silently falls back to the default value.
-- ✅ What if a stored theme ID is invalid or refers to a removed theme? → **Resolved**: `activeTheme` signal validates the stored value against the known themes list; if not found, falls back to the default theme ID.
+- ✅ What if a stored theme ID is invalid or refers to a removed theme? → **Resolved**: `currentTheme` signal validates the stored value against the known themes list; if not found, falls back to the default theme ID.
 
 ## Requirements
 
@@ -213,7 +213,7 @@ Theme-specific visual effects are established per theme (scanlines for Terminal,
 - **FR-008**: System MUST define a shared typography scale (`--font-size-display`, `--font-size-h1`, etc.) that themes can override.
 - **FR-011**: System MUST implement `createLocalStorageSignal<T>(key: string, defaultValue: T): Signal<T>` in `src/lib/utils.ts` that creates a Preact Signal synced to `localStorage`.
 - **FR-012**: System MUST prevent FOUC by including a blocking `<script>` in `index.html` `<head>` that reads `localStorage.getItem('theme')` and sets `document.documentElement.dataset.theme` before first paint.
-- **FR-013**: System MUST define the `activeTheme` signal and theme type in `src/state/theme.ts` with the following contract:
+- **FR-013**: System MUST define the `currentTheme` signal and theme type in `src/state/theme.ts` with the following contract:
 
 ```ts
 type ThemeId = 'ide' | 'space' | 'terminal'
@@ -224,7 +224,7 @@ interface Theme {
 }
 
 const themes: Theme[]  // All available themes
-const activeTheme: Signal<ThemeId>  // Persisted to localStorage
+const currentTheme: Signal<ThemeId>  // Persisted to localStorage
 ```
 
 ### Key Entities

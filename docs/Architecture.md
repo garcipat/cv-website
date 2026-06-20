@@ -18,7 +18,7 @@
 
 ```
 src/data/cv.en.json ──┐
-                       ├──> signals (currentCV, activeLocale, activeTheme)
+                       ├──> signals (currentCV, currentLocale, currentTheme)
 src/data/cv.de.json ──┘              │
                                       ▼
                            Theme Layout Components
@@ -28,14 +28,14 @@ src/data/cv.de.json ──┘              │
                            App.tsx ──(renders active theme)──> Page
 ```
 
-- **Signals layer**: `activeTheme` (IDE / 3D / Terminal), `activeLocale` (en / de), `currentCV` (computed from locale) — all components read signals directly, no prop drilling
+- **Signals layer**: `currentTheme` (IDE / 3D / Terminal), `currentLocale` (en / de), `currentCV` (computed from locale) — all components read signals directly, no prop drilling
 - **Theme isolation**: Each theme is a separate root layout component with its own DOM structure and Tailwind styling. Themes share signals, not components
 - **JSON data**: `cv.en.json` and `cv.de.json` share the `CVData` type. `currentCV` computed signal returns the active locale's data
 - **No backend**: Static site — data lives in JSON files, no API calls, no database
 
 ## Multilanguage (i18n)
 
-Two layers of translation, both driven by `activeLocale` signal:
+Two layers of translation, both driven by `currentLocale` signal:
 
 ### Layer 1: CV Content Data
 
@@ -58,12 +58,12 @@ src/i18n/
 ```
 
 - Labels, navigation, theme names, status bar text, buttons
-- `t` computed signal returns the active locale's UI strings
-- Theme components use `t.value.nav.experience` etc.
+- `currentUI` computed signal returns the active locale's UI strings
+- Theme components use `currentUI.value.nav.experience` etc.
 
 ### Locale Signal
 
-- `activeLocale` — `"en" | "de"`, persisted to `localStorage`
+- `currentLocale` — `"en" | "de"`, persisted to `localStorage`
 - `getBrowserLocale()` — detects `navigator.language`, defaults to `"en"`
 - Language toggle placed in a consistent location across all themes
 
@@ -82,8 +82,8 @@ src/
 │   └── de.ts                  # German UI strings
 ├── lib/                       # Utility functions (cn(), createLocalStorageSignal, etc.)
 ├── state/                     # Preact Signals (global reactive state)
-│   ├── theme.ts               # activeTheme signal + theme list
-│   ├── locale.ts              # activeLocale + currentCV + t computed
+│   ├── theme.ts               # currentTheme signal + theme list
+│   ├── locale.ts              # currentLocale + currentCV + currentUI computed
 │   └── ide.ts                 # IDE-specific signals (activeFile, openTabs, etc.)
 ├── themes/                    # Theme layouts — each theme is self-contained
 │   ├── ide/                   # IDE theme

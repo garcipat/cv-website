@@ -93,7 +93,7 @@ src/data/
 └── cv.de.ts        # Wrapper: import { cvDe } — named export, typed as CVData
 ```
 
-F-013 (Multilanguage) wires the `activeLocale` signal to select which wrapper module to expose. The locale-aware computed signal lives in F-013, not F-002 — keeping the data model focused on types + content.
+F-013 (Multilanguage) wires the `currentLocale` signal to select which wrapper module to expose. The locale-aware computed signal lives in F-013, not F-002 — keeping the data model focused on types + content.
 
 ## State — Preact Signals (F-013)
 
@@ -115,23 +115,23 @@ function getBrowserLocale(): Locale {
   return supportedLocales.includes(lang as Locale) ? (lang as Locale) : 'en';
 }
 
-export const [activeLocale] = createLocalStorageSignal<Locale>('locale', getBrowserLocale());
+export const [currentLocale] = createLocalStorageSignal<Locale>('locale', getBrowserLocale());
 
 const cvDataMap: Record<Locale, CVData> = { en: cvEn, de: cvDe };
 const uiMap: Record<Locale, UITranslations> = { en, de };
 
-export const currentCV = computed<CVData>(() => cvDataMap[activeLocale.value]);
-export const t = computed<UITranslations>(() => uiMap[activeLocale.value]);
+export const currentCV = computed<CVData>(() => cvDataMap[currentLocale.value]);
+export const currentUI = computed<UITranslations>(() => uiMap[currentLocale.value]);
 
 export const changeLocale = (locale: Locale) => {
-  activeLocale.value = locale;
+  currentLocale.value = locale;
 };
 ```
 
 ## How Components Use It
 
 - **CV data**: `currentCV.value.experience[0].company` — reactive, recomputes on locale change
-- **UI strings**: `t.value.nav.experience` — reactive, recomputes on locale change
+- **UI strings**: `currentUI.value.nav.experience` — reactive, recomputes on locale change
 - Both use computed signals — any component that accesses them re-renders only when the locale changes
 
 ## Language Toggle
@@ -140,7 +140,7 @@ export const changeLocale = (locale: Locale) => {
 - IDE theme: could be in the status bar
 - 3D Room: could be a floating control
 - Terminal: could be a command (`:lang de`)
-- Switches `activeLocale` signal — both `currentCV` and `t` recompute automatically
+- Switches `currentLocale` signal — both `currentCV` and `currentUI` recompute automatically
 - Persisted to `localStorage` — survives page reloads
 
 ## Browser Detection
@@ -151,7 +151,7 @@ export const changeLocale = (locale: Locale) => {
 
 ## Why Preact Signals Works Well Here
 
-- Zero prop drilling — any component imports `currentCV` or `t` directly
+- Zero prop drilling — any component imports `currentCV` or `currentUI` directly
 - Theme components stay oblivious to locale logic
 - No React Context re-render cascades
 - Same pattern already battle-tested in the elnopal project

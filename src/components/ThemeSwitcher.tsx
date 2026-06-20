@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import { themes, activeTheme, type ThemeId } from '@/state/theme';
+import { themes, currentTheme, type ThemeId } from '@/state/theme';
 import type { SelectRootChangeEventDetails } from '@base-ui/react/select';
 import {
   Select,
@@ -10,13 +10,13 @@ import {
 } from '@/components/ui/select';
 
 export const ThemeSwitcher = () => {
-  const currentTheme = useSyncExternalStore(
+  const currentThemeId = useSyncExternalStore(
     (onStoreChange) => {
-      const unsub = activeTheme.subscribe(onStoreChange);
+      const unsub = currentTheme.subscribe(onStoreChange);
       return unsub;
     },
-    () => activeTheme.value,
-    () => activeTheme.value,
+    () => currentTheme.value,
+    () => currentTheme.value,
   );
 
   const handleThemeChange = (
@@ -24,7 +24,7 @@ export const ThemeSwitcher = () => {
     _details: SelectRootChangeEventDetails,
   ) => {
     if (value !== null) {
-      activeTheme.value = value as ThemeId;
+      currentTheme.value = value as ThemeId;
     }
   };
 
@@ -33,7 +33,7 @@ export const ThemeSwitcher = () => {
   );
 
   return (
-    <Select value={currentTheme} onValueChange={handleThemeChange} items={items}>
+    <Select value={currentThemeId} onValueChange={handleThemeChange} items={items}>
       <SelectTrigger className="w-[160px]">
         <SelectValue placeholder="Select theme" />
       </SelectTrigger>
