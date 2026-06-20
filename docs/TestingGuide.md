@@ -8,9 +8,9 @@
 
 ## Test Types
 
-| Layer | Use | Infrastructure |
-|---|---|---|
-| Unit | Pure utility functions in `src/lib/` | Vitest |
+| Layer     | Use                                   | Infrastructure                         |
+| --------- | ------------------------------------- | -------------------------------------- |
+| Unit      | Pure utility functions in `src/lib/`  | Vitest                                 |
 | Component | React components with rendered output | Vitest + React Testing Library + jsdom |
 
 ## Test Structure
@@ -19,6 +19,7 @@
 - Use `// Arrange`, `// Act`, `// Assert` comments when a section has more than one line
 
 Example:
+
 ```typescript
 describe("PersonalitySection", () => {
   it("renders-name-and-tagline-when-data-provided", () => {
@@ -37,10 +38,10 @@ describe("PersonalitySection", () => {
 
 ## Coverage Targets
 
-| Layer | Target |
-|---|---|
-| Utilities (`src/lib/`) | 100% |
-| Components (`src/components/`) | 80%+ |
+| Layer                          | Target |
+| ------------------------------ | ------ |
+| Utilities (`src/lib/`)         | 100%   |
+| Components (`src/components/`) | 80%+   |
 
 ## Running Tests
 

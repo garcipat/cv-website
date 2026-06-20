@@ -28,12 +28,12 @@ cv-website/
 
 ## Key Directories
 
-| Directory | Purpose |
-|---|---|
-| `docs/` | Living project documentation — architecture, conventions, features, testing |
-| `specs/` | Design documents for features and setup phases |
-| `src/components/` | Application components — flat structure, can be nested when layout is decided |
-| `src/components/ui/` | shadcn/ui managed territory — added/removed via CLI only |
-| `src/data/` | Single source of truth for all CV content — typed JSON |
-| `src/types/` | TypeScript interfaces — change these first, then update data |
-| `src/lib/` | Utility belt — pure functions with no React dependency |
+| Directory            | Purpose                                                                       |
+| -------------------- | ----------------------------------------------------------------------------- |
+| `docs/`              | Living project documentation — architecture, conventions, features, testing   |
+| `specs/`             | Design documents for features and setup phases                                |
+| `src/components/`    | Application components — flat structure, can be nested when layout is decided |
+| `src/components/ui/` | shadcn/ui managed territory — added/removed via CLI only                      |
+| `src/data/`          | Single source of truth for all CV content — typed JSON                        |
+| `src/types/`         | TypeScript interfaces — change these first, then update data                  |
+| `src/lib/`           | Utility belt — pure functions with no React dependency                        |

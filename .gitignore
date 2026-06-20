@@ -12,11 +12,23 @@ dist
 dist-ssr
 *.local
 
+# Environment files
+.env*
+!.env.example
+
+# Test coverage
+coverage/
+
+# TypeScript
+*.tsbuildinfo
+node_modules/.tmp/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 .idea
 .DS_Store
+Thumbs.db
 .superpowers
 *.suo
 *.ntvs*

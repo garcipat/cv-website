@@ -8,11 +8,11 @@ The CV website supports multiple visual themes that share the same underlying CV
 
 ## Themes
 
-| # | Theme | Description |
-|---|-------|-------------|
-| 1 | **IDE / Editor** | Code editor aesthetic with file-tree sidebar, tabs, syntax highlighting, status bar (Catppuccin Mocha palette) |
-| 2 | **3D Room** | Pseudo-3D floating panels in a spatial room, parallax depth, scroll-through immersive effect |
-| 3 | **Retro Terminal** | Green phosphor monospace CRT with scanlines, box-drawing characters, blinking cursor |
+| #   | Theme              | Description                                                                                                    |
+| --- | ------------------ | -------------------------------------------------------------------------------------------------------------- |
+| 1   | **IDE / Editor**   | Code editor aesthetic with file-tree sidebar, tabs, syntax highlighting, status bar (Catppuccin Mocha palette) |
+| 2   | **3D Room**        | Pseudo-3D floating panels in a spatial room, parallax depth, scroll-through immersive effect                   |
+| 3   | **Retro Terminal** | Green phosphor monospace CRT with scanlines, box-drawing characters, blinking cursor                           |
 
 ## Mechanism
 

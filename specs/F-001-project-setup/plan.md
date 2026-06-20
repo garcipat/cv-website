@@ -21,29 +21,34 @@ Scaffold the CV website development environment: Vite + React 19 + TypeScript (s
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+_GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 
 ### I. Typed Data Architecture
+
 - **Status**: ✅ PASS
 - **Evidence**: `src/types/` directory exists (to be populated in F-002). Strict TypeScript configured via `tsconfig.app.json` (`noUnusedLocals`, `noUnusedParameters`, `noFallthroughCasesInSwitch`). No `any` types in current source. Data pattern established in `docs/Architecture.md`.
 - **Action**: No violations. This feature only scaffolds; data types come in F-002.
 
 ### II. Testing (NON-NEGOTIABLE)
+
 - **Status**: ⚠️ GAP — test infrastructure not yet configured
 - **Evidence**: No Vitest, React Testing Library, or jsdom in `devDependencies`. No `vitest.config.ts`. No `test` or `test:watch` scripts in `package.json`.
 - **Action**: **MUST** install and configure Vitest + React Testing Library + jsdom before feature completion. Test scripts must be added to `package.json`. See Phase 2 implementation tasks.
 
 ### III. Code Quality and Component Standards
+
 - **Status**: ✅ PASS
 - **Evidence**: `components.json` configured with shadcn/ui (base-nova style, neutral base, CSS vars, lucide icons). ESLint configured with TypeScript + React Hooks + React Refresh. `cn()` utility in `src/lib/utils.ts` using `clsx` + `tailwind-merge`. Named exports used in `App.tsx` and `main.tsx`.
 - **Action**: Add at least one shadcn/ui component (Button) to validate CLI workflow. Verify components land in `src/components/ui/`.
 
 ### IV. No Feature Bloat
+
 - **Status**: ✅ PASS
 - **Evidence**: Feature originates from spec `specs/F-001-project-setup/spec.md`. Scope is well-defined: scaffold only, no content or page layout. Feature list in `docs/Features.md` tracks status.
 - **Action**: None — scope is bounded to scaffold.
 
 ### V. Performance and Static Delivery
+
 - **Status**: ✅ PASS
 - **Evidence**: Production build output: 60 KB JS gzipped + 4 KB CSS gzipped + 0.3 KB HTML gzipped ≈ 64 KB total (well under 200 KB target). Build time: 473 ms (well under 30 s target). No backend dependencies.
 - **Action**: Monitor bundle size as dependencies are added (Vitest devDependencies don't affect production build). Verify build succeeds after all changes.
@@ -95,8 +100,8 @@ vitest.config.ts         # ❌ MISSING — Vitest configuration
 > No violations — fill only if Constitution Check finds unjustified complexity.
 
 | Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|--------------------------------------|
-| — | — | — |
+| --------- | ---------- | ------------------------------------ |
+| —         | —          | —                                    |
 
 ---
 
@@ -104,14 +109,14 @@ vitest.config.ts         # ❌ MISSING — Vitest configuration
 
 ### Resolved Questions
 
-| Unknown | Resolution |
-|---------|------------|
+| Unknown                                | Resolution                                                                                                                                                |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Tailwind CSS v4 configuration approach | Use `@tailwindcss/vite` plugin (already installed). CSS-based config via `@theme` block in `index.css` — the v4 approach. No `tailwind.config.js` needed. |
-| shadcn/ui style and base color | "base-nova" style with "neutral" base color and CSS variables enabled. Already configured in `components.json`. |
-| Vitest vs Jest for React testing | Vitest is the prescribed tool per Constitution II and `docs/TestingGuide.md`. Native ESM support, Vite integration, faster than Jest. |
-| jsdom vs happy-dom | jsdom is prescribed per Constitution II and `docs/TestingGuide.md`. More comprehensive DOM implementation for React Testing Library. |
-| `.nvmrc` content | Pin to latest Node 24 LTS. Use `24` (nvm/fnm resolve to latest 24.x). |
-| `engines` field format | `"node": ">=24.0.0"` with `"npm": ">=10.0.0"` per spec assumptions. |
+| shadcn/ui style and base color         | "base-nova" style with "neutral" base color and CSS variables enabled. Already configured in `components.json`.                                           |
+| Vitest vs Jest for React testing       | Vitest is the prescribed tool per Constitution II and `docs/TestingGuide.md`. Native ESM support, Vite integration, faster than Jest.                     |
+| jsdom vs happy-dom                     | jsdom is prescribed per Constitution II and `docs/TestingGuide.md`. More comprehensive DOM implementation for React Testing Library.                      |
+| `.nvmrc` content                       | Pin to latest Node 24 LTS. Use `24` (nvm/fnm resolve to latest 24.x).                                                                                     |
+| `engines` field format                 | `"node": ">=24.0.0"` with `"npm": ">=10.0.0"` per spec assumptions.                                                                                       |
 
 ### Research Output
 
@@ -128,6 +133,7 @@ The "entities" for project setup are configuration artifacts, not runtime data. 
 ### Contracts
 
 Tooling contracts define expected behaviors of CLI commands and build outputs. See [contracts/](./contracts/) for:
+
 - `build-contract.md` — Expected output format of `npm run build`
 - `lint-contract.md` — ESLint rule set and expected behavior
 - `test-contract.md` — Vitest configuration and test execution contract
@@ -196,9 +202,9 @@ See [quickstart.md](./quickstart.md) for the developer onboarding guide.
 
 ### Risk Mitigation
 
-| Risk | Mitigation |
-|------|------------|
-| `vitest.config.ts` path alias doesn't match `vite.config.ts` | Use same `@/` → `./src` alias, validate with import test |
-| jsdom environment incompatibility with CSS modules | Not applicable — project uses Tailwind (utility classes), not CSS modules |
-| shadcn CLI version mismatch with installed shadcn package | Use `npx shadcn@latest` which auto-resolves to compatible version |
-| Node 24 `engines` too restrictive for CI | `>=24.0.0` allows Node 24 and 25 — verify CI image availability |
+| Risk                                                         | Mitigation                                                                |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------- |
+| `vitest.config.ts` path alias doesn't match `vite.config.ts` | Use same `@/` → `./src` alias, validate with import test                  |
+| jsdom environment incompatibility with CSS modules           | Not applicable — project uses Tailwind (utility classes), not CSS modules |
+| shadcn CLI version mismatch with installed shadcn package    | Use `npx shadcn@latest` which auto-resolves to compatible version         |
+| Node 24 `engines` too restrictive for CI                     | `>=24.0.0` allows Node 24 and 25 — verify CI image availability           |

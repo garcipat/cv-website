@@ -11,22 +11,22 @@
 ## Component Structure
 
 ```tsx
-import { cn } from "@/lib/utils"
+import { cn } from '@/lib/utils';
 
 interface SectionProps {
-  title: string
-  children: React.ReactNode
-  className?: string
+  title: string;
+  children: React.ReactNode;
+  className?: string;
 }
 
-export const Section = ({ title, children, className = "" }: SectionProps) => {
+export const Section = ({ title, children, className = '' }: SectionProps) => {
   return (
-    <section className={cn("py-8", className)}>
+    <section className={cn('py-8', className)}>
       <h2 className="text-2xl font-bold">{title}</h2>
       {children}
     </section>
-  )
-}
+  );
+};
 ```
 
 - Props interfaces defined in the same file, exported if reused

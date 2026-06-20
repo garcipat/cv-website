@@ -93,19 +93,19 @@ latency, but client-side bloat can still degrade the experience.
 
 ## Technical Constraints
 
-| Concern             | Rule                                                                                  |
-| ------------------- | ------------------------------------------------------------------------------------- |
-| Build tool          | Vite 6+ (bundler + dev server)                                                        |
-| Framework           | React 19+ with TypeScript strict mode                                                 |
-| Styling             | Tailwind CSS 4+ via `@tailwindcss/vite` plugin                                        |
-| UI components       | shadcn/ui — added via CLI (`npx shadcn@latest add <name>`), stored in `src/components/ui/` |
-| Data source         | Typed JSON files in `src/data/`, imported directly by components                      |
-| Types               | `src/types/` — declare interfaces before writing data files                           |
-| Utilities           | `src/lib/` — pure functions only, no React dependency                                 |
-| Testing             | Vitest + React Testing Library + jsdom                                                |
-| Package manager     | npm                                                                                   |
-| Configuration       | No secrets, no environment variables — fully build-time static                        |
-| Backend             | None. No server, no API calls, no database — everything is pre-rendered HTML/CSS/JS   |
+| Concern         | Rule                                                                                       |
+| --------------- | ------------------------------------------------------------------------------------------ |
+| Build tool      | Vite 6+ (bundler + dev server)                                                             |
+| Framework       | React 19+ with TypeScript strict mode                                                      |
+| Styling         | Tailwind CSS 4+ via `@tailwindcss/vite` plugin                                             |
+| UI components   | shadcn/ui — added via CLI (`npx shadcn@latest add <name>`), stored in `src/components/ui/` |
+| Data source     | Typed JSON files in `src/data/`, imported directly by components                           |
+| Types           | `src/types/` — declare interfaces before writing data files                                |
+| Utilities       | `src/lib/` — pure functions only, no React dependency                                      |
+| Testing         | Vitest + React Testing Library + jsdom                                                     |
+| Package manager | npm                                                                                        |
+| Configuration   | No secrets, no environment variables — fully build-time static                             |
+| Backend         | None. No server, no API calls, no database — everything is pre-rendered HTML/CSS/JS        |
 
 See [docs/Architecture.md](docs/Architecture.md) and
 [docs/RepositoryStructure.md](docs/RepositoryStructure.md).

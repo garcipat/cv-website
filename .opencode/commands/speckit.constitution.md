@@ -3,4 +3,5 @@ description: Create or update the project constitution from interactive or provi
 agent: speckit-constitution
 subtask: true
 ---
+
 $ARGUMENTS
