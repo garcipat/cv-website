@@ -38,7 +38,7 @@
 
 | # | Feature | Status | Spec | Implementation | Tests |
 | - | ------- | ------ | ---- | -------------- | ----- |
-| F-001 | Project setup | 🔄 In Progress | [spec](../specs/2026-06-20-project-scaffold-design.md) | ❌ | ❌ |
+| F-001 | Project setup | 🔄 In Progress | [spec](../specs/F-001-project-setup.md) | ❌ | ❌ |
 | F-002 | Data model | 📋 Planned | — | ❌ | ❌ |
 | F-003 | Personality section | 📋 Planned | — | ❌ | ❌ |
 | F-004 | Career timeline | 📋 Planned | — | ❌ | ❌ |
