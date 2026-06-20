@@ -1,7 +1,7 @@
 import { IdePage } from '@/themes/ide/IdePage';
 import { SpacePage } from '@/themes/space/SpacePage';
 import { TerminalPage } from '@/themes/terminal/TerminalPage';
-import { activeTheme } from '@/state/theme';
+import { currentTheme } from '@/state/theme';
 
 const themePages = {
   ide: IdePage,
@@ -10,6 +10,6 @@ const themePages = {
 } as const;
 
 export const App = () => {
-  const Page = themePages[activeTheme.value] ?? IdePage;
+  const Page = themePages[currentTheme.value] ?? IdePage;
   return <Page />;
 };

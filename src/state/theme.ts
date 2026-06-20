@@ -29,9 +29,9 @@ export const themes: Theme[] = [
  * - Default: 'ide'.
  * - Invalid localStorage values fall back to 'ide'.
  */
-export const activeTheme = createLocalStorageSignal<ThemeId>('theme', 'ide');
+export const currentTheme = createLocalStorageSignal<ThemeId>('theme', 'ide');
 
 // Sync the signal value to the DOM whenever it changes
-activeTheme.subscribe((id: ThemeId) => {
+currentTheme.subscribe((id: ThemeId) => {
   document.documentElement.dataset.theme = id;
 });

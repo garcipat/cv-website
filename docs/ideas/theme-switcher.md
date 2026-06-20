@@ -24,7 +24,7 @@ The CV website supports multiple visual themes that share the same underlying CV
 ## State Management
 
 - Use **Preact Signals** (`@preact/signals-react`) for shared state across themes
-- Active theme is a signal (`activeTheme`) — all theme layouts react to it automatically
+- Active theme is a signal (`currentTheme`) — all theme layouts react to it automatically
 - Each theme can also use signals for its own internal state (e.g., IDE tab state, 3D scroll position, terminal command history)
 - Signals keep state outside the React component tree, avoiding prop-drilling and unnecessary re-renders
 - `localStorage` persistence via a `effect()` on the active theme signal

@@ -93,7 +93,7 @@ A retro CRT terminal aesthetic. The entire CV is rendered as if displayed on an 
 | `commandHistory` | Typed commands history (for up-arrow recall if interactive input is supported) |
 | `currentInput`   | Current command line input value                                               |
 | `cursorVisible`  | Blinking cursor on/off state                                                   |
-| `activeTheme`    | Shared signal — which theme is active (IDE / 3D / Terminal)                    |
+| `currentTheme`    | Shared signal — which theme is active (IDE / 3D / Terminal)                    |
 
 ## Desktop-First
 

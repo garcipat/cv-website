@@ -97,7 +97,7 @@ The primary CV theme styled as a code editor. The page mimics a modern IDE (VS C
 | `activeFile`      | Currently open CV section (e.g., `"about"`)                 |
 | `openTabs`        | Set of open tab filenames                                   |
 | `sidebarExpanded` | Which folders are expanded in the file tree                 |
-| `activeTheme`     | Shared signal — which theme is active (IDE / 3D / Terminal) |
+| `currentTheme`     | Shared signal — which theme is active (IDE / 3D / Terminal) |
 
 Signals keep tab, file tree, and theme state reactive without prop drilling through the IDE layout.
 
