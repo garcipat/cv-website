@@ -24,13 +24,14 @@ A visitor opens the CV website with the Terminal theme active. The entire page r
 2. **Given** the terminal is rendered, **When** the visitor views the content, **Then** all CV sections (personality, experience, skills, projects, education, courses, certificates, contact) are displayed with section headers prefixed by `>` and separated by ASCII horizontal rules (`═════`).
 3. **Given** the terminal is rendered, **When** the visitor looks at the screen, **Then** a scanline overlay (repeating horizontal lines) and a subtle phosphor glow on headings are visible, as defined in the ideas document.
 4. **Given** the terminal is rendered, **When** the active locale is `'de'`, **Then** all CV content is displayed in German with the same terminal styling.
-5. **Given** the terminal content exceeds the viewport height, **When** the visitor scrolls, **Then** the terminal output scrolls vertically while the command input line and status bar remain fixed at the bottom.
+5. **Given** the terminal content exceeds the viewport height, **When** the visitor scrolls or executes a command, **Then** the terminal output scrolls vertically. On command execution, auto-scroll brings the new command output to the top of the visible viewport. The command input line and status bar remain fixed at the bottom.
+6. **Given** the terminal shows the intro screen, **When** the visitor executes their first command (any command), **Then** the intro content is removed from the output and replaced by the command result — the `$ :<cmd>` line becomes the top of the output area.
 
 ---
 
 ### User Story 2 - Command-Line Navigation (Priority: P1)
 
-A visitor sees a blinking cursor at a command prompt at the bottom of the terminal. They type `:help` and press Enter — the terminal outputs a list of available commands with descriptions. They then type `:exp` and press Enter — the terminal scrolls smoothly to the Experience section. They type `:skills` — the terminal scrolls to the Skills section. Each command produces a brief acknowledgement line (e.g., `# Showing experience...`) before scrolling to the relevant content.
+A visitor sees a blinking cursor at a command prompt at the bottom of the terminal. They type `:help` and press Enter — the terminal outputs a list of available commands with descriptions. They then type `:exp` and press Enter — the terminal scrolls to the Experience section. They type `:skills` — the terminal scrolls to the Skills section.
 
 **Why this priority**: The command-line interaction is the defining interaction metaphor of the terminal theme. It's what makes this more than just a green-styled page. Combined with US-1, this completes the MVP.
 
@@ -39,10 +40,10 @@ A visitor sees a blinking cursor at a command prompt at the bottom of the termin
 **Acceptance Scenarios**:
 
 1. **Given** the terminal theme is loaded, **When** the visitor types `:help` and presses Enter, **Then** a formatted list of all available commands with descriptions is displayed in the terminal output.
-2. **Given** the terminal is showing content, **When** the visitor types `:about` and presses Enter, **Then** the terminal scrolls to the personality/summary section and shows an acknowledgement line.
-3. **Given** the terminal is showing content, **When** the visitor types `:exp`, `:projects`, `:skills`, `:education`, `:courses`, `:certificates`, or `:contact` and presses Enter, **Then** the terminal scrolls to the corresponding CV section.
-4. **Given** the terminal is showing content, **When** the visitor types `:top` and presses Enter, **Then** the terminal scrolls to the top of the output.
-5. **Given** the terminal is showing content, **When** the visitor types `:clear` and presses Enter, **Then** the terminal output clears (shows only the welcome header) and the command input stays active.
+2. **Given** the terminal is showing content, **When** the visitor types `:me` and presses Enter, **Then** the terminal scrolls to the personality/summary section.
+3. **Given** the terminal is showing content, **When** the visitor types `:exp`, `:projs`, `:skills`, `:edu`, `:crs`, `:certs`, or `:contact` and presses Enter, **Then** the terminal scrolls to the corresponding CV section.
+4. **Given** the terminal is showing content, **When** the visitor types `:cls` and presses Enter, **Then** the terminal output clears completely (blank) and the command input stays active.
+5. **Given** the terminal output is blank or showing content, **When** the visitor types `:reset` and presses Enter, **Then** the terminal output resets to the minimal intro screen (name, tagline, command hints).
 6. **Given** the visitor types an unrecognized command (e.g., `:foo`), **When** they press Enter, **Then** the terminal displays an error message like `Unknown command ':foo'. Type :help for available commands.` without breaking the UI.
 7. **Given** the active locale is `'de'`, **When** the visitor types `:help`, **Then** command descriptions are displayed in German.
 
@@ -83,21 +84,21 @@ A visitor types `:theme space` and presses Enter — the theme switches to the S
 
 ---
 
-### User Story 5 - Command History Navigation (Priority: P3)
+### User Story 5 - Section Navigation via Arrow Keys (Priority: P3)
 
-A visitor has typed several commands (`:help`, `:exp`, `:skills`). They press the Up arrow key — the previously typed command (`:skills`) appears in the input line. They press Up again — `:exp` appears. They press Down — `:skills` appears again. They can edit a recalled command before re-submitting it. The command history persists only for the current session (resets on page reload).
+A visitor has opened multiple CV sections via commands. The terminal output area now contains several section blocks (`> EDUCATION`, `> EXPERIENCE`, `> SKILLS`). They press the Down arrow key — the terminal scrolls to the next section. They press Up — the terminal scrolls to the previous section. This provides quick keyboard-driven browsing through the CV without typing section commands.
 
-**Why this priority**: Command history is a quality-of-life feature that makes the terminal feel authentic. It's P3 because the core navigation (US-2) works without it.
+**Why this priority**: Section jumping makes the terminal feel like a document reader. It's P3 because section commands (`:edu`, `:exp`, etc.) already provide navigation.
 
-**Independent Test**: Type 3 different commands. Press Up arrow twice — verify the second-most-recent command appears. Press Down — verify the most-recent command appears. Press Enter to execute a recalled command. Verify history resets on page reload.
+**Independent Test**: Execute `:edu` then `:exp` then `:skills`. Press Arrow Down — verify scroll moves to next section. Press Arrow Up — verify scroll moves to previous section. Wrap around at boundaries.
 
 **Acceptance Scenarios**:
 
-1. **Given** the visitor has typed `:help`, `:exp`, `:skills` in order, **When** they press the Up arrow key, **Then** `:skills` appears in the input line.
-2. **Given** the visitor has navigated to `:exp` in history via Up arrow, **When** they press the Down arrow key, **Then** `:skills` reappears in the input line.
-3. **Given** the visitor has recalled a command via arrow keys, **When** they edit the text and press Enter, **Then** the edited command executes and is added to history.
-4. **Given** the visitor is at the bottom of the history (most recent), **When** they press the Down arrow key, **Then** the input line clears (shows empty prompt, ready for new input).
-5. **Given** the visitor reloads the page, **When** the terminal theme loads, **Then** the command history is empty (session-only, not persisted).
+1. **Given** the terminal output contains multiple section blocks, **When** the visitor presses the Down arrow key, **Then** the output scrolls to bring the next section header (`> ...`) to the top of the viewport.
+2. **Given** the terminal output is scrolled to a section, **When** the visitor presses the Up arrow key, **Then** the output scrolls to bring the previous section header to the top of the viewport.
+3. **Given** the terminal is at the last section, **When** the visitor presses Down arrow, **Then** the output scrolls to the end (command prompt area). Pressing Up returns to the last section.
+4. **Given** the terminal is at the first section, **When** the visitor presses Up arrow, **Then** the output scrolls to the top. Pressing Down returns to the first section.
+5. **Given** the command input is focused, **When** the visitor presses Arrow Up/Down, **Then** section navigation occurs (arrow keys are dedicated to section jumping, not command history recall).
 
 ---
 
@@ -123,8 +124,10 @@ The command input area at the bottom of the terminal displays a prompt symbol (`
 - **Invalid commands**: Typing an unrecognized command (e.g., `:asdf`, `:foo bar`) displays an error message: `Unknown command ':asdf'. Type :help for available commands.` The terminal does not crash or clear.
 - **Empty command submission**: Pressing Enter with an empty input line does nothing — no output, no error, no scroll.
 - **Very long command input**: If the visitor types a command exceeding ~100 characters, the input line wraps visually within the terminal width. No horizontal scrollbar appears.
-- **Rapid command execution**: Typing and submitting multiple commands rapidly (e.g., `:exp` then immediately `:skills`) processes each command sequentially. The terminal scrolls to the last requested section, not each intermediate one (last command wins for scroll targets).
+- **Rapid command execution**: Typing and submitting multiple commands rapidly (e.g., `:exp` then immediately `:skills`) processes each command sequentially. Each command's output accumulates in the terminal, and the output auto-scrolls to bring the latest command to the top of the viewport.
 - **Content overflow**: CV sections with long content (e.g., many experience entries) extend the terminal output vertically. The scrollable area grows naturally; the command input and status bar remain fixed at the bottom.
+- **Auto-scroll on command execution**: When the visitor executes any command, the terminal output area always auto-scrolls so the new `$ :<cmd>` line appears at the top of the visible viewport. This happens regardless of the current scroll position — the terminal reads top-to-bottom so the latest output should be immediately visible.
+- **Self-theme command**: Typing `:theme terminal` while already in the Terminal theme resets terminal state to the intro screen (same as `:reset`). Command history is cleared.
 - **Keyboard-only navigation**: The terminal is fully operable via keyboard. Mouse clicks on the terminal output area focus the command input. Clicking within the terminal output does not select text or interfere with typing.
 - **Locale switch mid-session**: When locale changes via `:lang`, all terminal output content updates immediately. The command history is preserved (commands typed in English remain in history but the terminal output is now German).
 - **Theme preservation on return**: When switching away from the Terminal theme and back, terminal-specific state (command history, scroll position, cursor state) resets to defaults. This matches the IDE theme behavior.
@@ -147,13 +150,13 @@ The command input area at the bottom of the terminal displays a prompt symbol (`
 #### Terminal Output Area
 
 - **FR-003**: System MUST render all CV sections in the output area as styled terminal text. Section rendering follows the conventions defined in the ideas document:
-  - **Personality** (`:about`): Name and tagline as a header block, summary as prose, favorite quote (if present) as an indented blockquote with `>` prefix
-  - **Experience** (`:exp`): Each entry as a block with company, role, dates, and bullet-point highlights using `*` markers
-  - **Skills** (`:skills`): Each category as a section header, skills listed with proficiency bars rendered as ASCII-style `[████░░]` indicators
-  - **Projects** (`:projects`): Each project with name, description, tech tags (bracketed), and URLs
-  - **Education** (`:education`): Each entry with degree, institution, dates, and optional description
-  - **Courses** (`:courses`): Each entry with title, provider, year on one line
-  - **Certificates** (`:certificates`): Each entry with name, issuer, date, and optional credential ID
+   - **Personality** (`:me`): Name and tagline as a header block, summary as prose, favorite quote (if present) as an indented blockquote with `>` prefix
+   - **Experience** (`:exp`): Each entry as a block with company, role, dates, and bullet-point highlights using `*` markers
+   - **Skills** (`:skills`): Each category as a section header, skills listed with proficiency bars rendered as ASCII-style `[████░░]` indicators
+   - **Projects** (`:projs`): Each project with name, description, tech tags (bracketed), and URLs
+   - **Education** (`:edu`): Each entry with degree, institution, dates, and optional description
+   - **Courses** (`:crs`): Each entry with title, provider, year on one line
+   - **Certificates** (`:certs`): Each entry with name, issuer, date, and optional credential ID
   - **Contact** (`:contact`): Email, phone, location, website, LinkedIn, GitHub rendered as labeled fields
 
 - **FR-004**: System MUST render section headers with a `>` prompt prefix (e.g., `> EXPERIENCE`) and separate sections with ASCII horizontal rule lines (e.g., `══════════════════════════════════════`).
@@ -173,23 +176,24 @@ The command input area at the bottom of the terminal displays a prompt symbol (`
   - A prompt symbol (`$`) preceding the input
   - A text input field styled to blend with the terminal aesthetic
   - A blinking block cursor (`█`) at the text insertion point
+  - The input field MUST be auto-focused when the Terminal theme loads (no click required)
 
 - **FR-008**: System MUST process the following built-in commands when the visitor presses Enter:
   | Command | Behavior |
   |---------|----------|
   | `:help` | Display formatted list of all available commands with descriptions |
-  | `:about` | Scroll to / display personality section |
+  | `:me` | Scroll to / display personality section |
   | `:exp` | Scroll to / display experience section |
   | `:skills` | Scroll to / display skills section |
-  | `:projects` | Scroll to / display projects section |
-  | `:education` | Scroll to / display education section |
-  | `:courses` | Scroll to / display courses section |
-  | `:certificates` | Scroll to / display certificates section |
+  | `:projs` | Scroll to / display projects section |
+  | `:edu` | Scroll to / display education section |
+  | `:crs` | Scroll to / display courses section |
+  | `:certs` | Scroll to / display certificates section |
   | `:contact` | Scroll to / display contact section |
-  | `:theme <id>` | Switch theme to `<id>` (valid: `ide`, `space`, `terminal`) |
+  | `:theme <id>` | Switch theme to `<id>` (valid: `ide`, `space`, `terminal`). If switching to the currently active theme, reset terminal state to intro screen. |
   | `:lang <locale>` | Switch language to `<locale>` (valid: `en`, `de`) |
-  | `:clear` | Clear terminal output (retain welcome header) |
-  | `:top` | Scroll terminal output to top |
+  | `:cls` | Clear terminal output (blank output area) |
+  | `:reset` | Reset terminal to initial intro screen |
 
 - **FR-009**: System MUST display an error message for unrecognized commands: `Unknown command '<input>'. Type :help for available commands.` (localized).
 
@@ -216,22 +220,22 @@ The command input area at the bottom of the terminal displays a prompt symbol (`
 #### Terminal State Signals
 
 - **FR-018**: System MUST create `src/state/terminal.ts` containing Preact Signals for terminal-specific state:
-  - `commandHistory`: `Signal<string[]>` — ordered list of previously executed commands (newest last). Session-only, not persisted.
-  - `historyIndex`: `Signal<number>` — current position in command history for arrow-key navigation. `-1` when not navigating history.
-  - `currentInput`: `Signal<string>` — current text in the command input field.
-  - `cursorVisible`: `Signal<boolean>` — whether the blinking cursor is currently visible (for blink toggle).
+   - `commandHistory`: `Signal<string[]>` — ordered list of previously executed commands. Session-only, not persisted.
+   - `currentInput`: `Signal<string>` — current text in the command input field.
+   - `cursorVisible`: `Signal<boolean>` — whether the blinking cursor is currently visible (for blink toggle).
+   - `terminalOutput`: `Signal<TerminalOutputLine[]>` — ordered list of output lines currently displayed, driving the `TerminalOutput` render.
 
 - **FR-019**: System MUST provide exported functions in `src/state/terminal.ts`:
-  - `executeCommand(input: string): CommandResult` — parses and executes a command, returns structured result indicating success/error and action type
-  - `navigateHistory(direction: 'up' | 'down'): void` — updates `currentInput` from `commandHistory` based on direction
+   - `executeCommand(input: string): CommandResult` — parses and executes a command, returns structured result
+   - `navigateSection(direction: 'up' | 'down'): void` — scrolls terminal output to adjacent section block
 
-#### Command History
+#### Section Navigation
 
-- **FR-020**: System MUST capture each executed command in `commandHistory` (appended at the end). Duplicate consecutive commands (typing the same command twice in a row) are still added — no deduplication.
+- **FR-020**: System MUST capture each executed command in `commandHistory` (appended at the end) for internal tracking. Duplicate consecutive commands are still added. History size is adaptive: minimum 2 commands always retained; additional commands kept up to the count that fits in the terminal output area without requiring a scrollbar. Command history is NOT navigable via arrow keys — arrow keys are reserved for section jumping.
 
-- **FR-021**: System MUST respond to Arrow Up keypress (when input is focused) by recalling the previous command from history into `currentInput`. Arrow Down moves forward toward the most recent. When at the most recent position, Arrow Down clears the input.
+- **FR-021**: System MUST respond to Arrow Up/Down keypress (when input is focused) by scrolling the terminal output to the previous/next CV section block. At boundaries (first section + Arrow Up, last section + Arrow Down), scrolling reaches the top or bottom of the output area.
 
-- **FR-022**: System MUST reset `commandHistory` and `historyIndex` on page reload (session-only, no localStorage persistence).
+- **FR-022**: System MUST reset `commandHistory` on page reload (session-only, no localStorage persistence).
 
 #### Component Structure
 
@@ -252,19 +256,19 @@ The command input area at the bottom of the terminal displays a prompt symbol (`
 
 #### Status Bar
 
-- **FR-025**: System MUST render a status bar at the bottom of the viewport (below the command input) showing decorative text: `screen 80x24 · 9600 baud · vt100` on the left side. The right side shows the current theme name and locale (e.g., `terminal · EN`).
+- **FR-025**: System MUST render a status bar at the bottom of the viewport (below the command input) showing static decorative text: `screen 80x24 · 9600 baud · vt100` on the left side. The right side shows the current theme name and locale (e.g., `terminal · EN`). These values are purely decorative and do not reflect actual viewport dimensions.
 
 - **FR-026**: System MUST update the status bar right-side text when theme or locale changes.
 
 #### Testing
 
 - **FR-027**: System MUST include unit tests for `src/state/terminal.ts` covering:
-  - `executeCommand` returns correct result for each built-in command
-  - `executeCommand` returns error for unrecognized commands
-  - `executeCommand` validates `:theme` and `:lang` arguments
-  - `navigateHistory` recalls correct command for Up/Down directions
-  - `navigateHistory` at boundaries (empty history, past oldest, past newest) behaves correctly
-  - Command history is appended in correct order
+   - `executeCommand` returns correct result for each built-in command
+   - `executeCommand` returns error for unrecognized commands
+   - `executeCommand` validates `:theme` and `:lang` arguments
+   - `navigateSection` scrolls to correct adjacent section for Up/Down directions
+   - `navigateSection` at boundaries (first section, last section) behaves correctly
+   - Command history is appended in correct order
 
 - **FR-028**: System MUST include unit tests for `terminal-commands.ts` covering:
   - Command parsing handles leading/trailing whitespace
@@ -273,32 +277,32 @@ The command input area at the bottom of the terminal displays a prompt symbol (`
   - Case sensitivity: command names are case-insensitive but section navigation still works
 
 - **FR-029**: System MUST include component tests for `CommandInput` covering:
-  - Enter key submits the command and clears the input
-  - Arrow Up/Down navigates command history
-  - Blinking cursor toggles visibility at correct interval
-  - Input field gains focus on terminal area click
-  - Prompt symbol renders before the input
+   - Enter key submits the command and clears the input
+   - Arrow Up/Down triggers section navigation (scrolls adjacent section block)
+   - Blinking cursor toggles visibility at correct interval
+   - Input field gains focus on terminal area click
+   - Prompt symbol renders before the input
 
 ### Key Entities
 
 - **Terminal State Signals** (`src/state/terminal.ts`):
-  - `commandHistory`: Ordered list of executed command strings. Drives arrow-key navigation. Session-only.
-  - `historyIndex`: Tracks current position during history navigation. `-1` means "not navigating."
-  - `currentInput`: The text currently in the command input field. Bound to the input element.
-  - `cursorVisible`: Boolean toggle for blinking cursor animation. Alternates at ~1 second interval.
+   - `commandHistory`: Ordered list of executed command strings. Session-only. Used internally, not directly navigable by user.
+   - `currentInput`: The text currently in the command input field. Bound to the input element.
+   - `cursorVisible`: Boolean toggle for blinking cursor animation. Alternates at ~1 second interval.
+   - `terminalOutput`: Ordered list of output lines driving the `TerminalOutput` render. Each line is typed (`TerminalOutputLine`).
 
 - **Command Result** (internal type, in `terminal-commands.ts`):
   - Structured result of command execution: `{ type: 'navigate' | 'theme' | 'lang' | 'clear' | 'help' | 'error' | 'none', target?: string, message?: string }`
   - Consumed by `TerminalPage` to decide what action to take (scroll, switch theme, change locale, display message).
 
 - **CV Data** (from F-002): Read via `currentCV.value`. All 8 command targets map to CVData fields:
-  - `:about` → `CVData.personality`
+  - `:me` → `CVData.personality`
   - `:exp` → `CVData.experience`
   - `:skills` → `CVData.skills`
-  - `:projects` → `CVData.projects`
-  - `:education` → `CVData.education`
-  - `:courses` → `CVData.courses`
-  - `:certificates` → `CVData.certificates`
+  - `:projs` → `CVData.projects`
+  - `:edu` → `CVData.education`
+  - `:crs` → `CVData.courses`
+  - `:certs` → `CVData.certificates`
   - `:contact` → `CVData.contact`
 
 - **Shared Signals** (from F-012, F-013):
@@ -308,14 +312,12 @@ The command input area at the bottom of the terminal displays a prompt symbol (`
 **Entity Relationships**:
 ```
 commandHistory (Signal<string[]>)
- ├── Appended by executeCommand()
- ├── Read by navigateHistory()
- └── Reset on page reload
+  ├── Appended by executeCommand()
+  └── Reset on page reload
 
 currentInput (Signal<string>)
- ├── Bound to CommandInput input element
- ├── Set by navigateHistory() during arrow-key navigation
- └── Cleared after command execution
+  ├── Bound to CommandInput input element
+  └── Cleared after command execution
 
 cursorVisible (Signal<boolean>)
  └── Toggled by setInterval in CommandInput component
@@ -332,13 +334,13 @@ TerminalPage
 
 ### Measurable Outcomes
 
-- **SC-001 — Full section coverage**: All 8 CV sections (personality, experience, skills, projects, education, courses, certificates, contact) are accessible via the `:help` command listing and render correctly in the terminal output. Verified by: executing each section command and confirming content matches `CVData` for the active locale.
+- **SC-001 — Full section coverage**: All 8 CV sections (personality, experience, skills, projects, education, courses, certificates, contact) are accessible via `:me`, `:exp`, `:skills`, `:projs`, `:edu`, `:crs`, `:certs`, `:contact` commands and render correctly in the terminal output. Verified by: executing each section command and confirming content matches `CVData` for the active locale.
 
-- **SC-002 — Command execution accuracy**: All 13 built-in commands (`:help`, `:about`, `:exp`, `:skills`, `:projects`, `:education`, `:courses`, `:certificates`, `:contact`, `:theme`, `:lang`, `:clear`, `:top`) execute without errors and produce the expected terminal output or action. Verified by: automated tests for `executeCommand`.
+- **SC-002 — Command execution accuracy**: All 13 built-in commands (`:help`, `:me`, `:exp`, `:skills`, `:projs`, `:edu`, `:crs`, `:certs`, `:contact`, `:theme`, `:lang`, `:cls`, `:reset`) execute without errors and produce the expected terminal output or action. Verified by: automated tests for `executeCommand`.
 
 - **SC-003 — Error handling**: Invalid commands and invalid arguments produce descriptive, localized error messages without breaking the terminal UI. Verified by: typing 5+ invalid commands in sequence, confirming error messages appear and terminal remains functional.
 
-- **SC-004 — Command history navigation**: After executing 5 commands, pressing Arrow Up 5 times recalls all 5 commands in reverse chronological order. Arrow Down returns forward. Verified by: automated tests for `navigateHistory`.
+- **SC-004 — Section navigation via arrow keys**: Pressing Arrow Down scrolls to the next CV section block; Arrow Up scrolls to the previous. At boundaries, scrolling reaches output area limits. Verified by: automated component tests for `CommandInput` arrow-key handlers.
 
 - **SC-005 — Locale reactivity**: Switching locale via `:lang de` updates all terminal output content to German. Switching back via `:lang en` restores English. Command outputs (help text, error messages) also translate. Verified by: manual verification and automated tests.
 
@@ -358,7 +360,7 @@ TerminalPage
 - **Scanline and CRT effects are CSS-only**: The CRT visual effects (scanlines, glow, curvature) are implemented entirely in `src/styles/themes/terminal.css` and applied via the `[data-theme="terminal"]` selector. No JavaScript-based rendering for effects.
 - **Command input is a styled text input**: The command input uses an HTML `<input>` element styled to look like a terminal prompt. It is not a custom canvas-based terminal emulator or xterm.js instance.
 - **Commands are case-insensitive**: `:HELP`, `:Help`, and `:help` all produce the same result. Arguments are case-sensitive where appropriate (e.g., `:lang DE` is invalid, must be `de`).
-- **Section scrolling, not filtering**: Section commands (`:about`, `:exp`, etc.) scroll the terminal output to the relevant section. They do not hide or filter other content — the full CV remains visible above and below the scrolled-to section.
+- **Section scrolling, not filtering**: Section commands (`:me`, `:exp`, etc.) scroll the terminal output to the relevant section. They do not hide or filter other content — the full CV remains visible above and below the scrolled-to section.
 - **Session-only state**: Command history and scroll position are not persisted across page reloads or theme switches. No localStorage for terminal state.
 - **The existing `terminal.css` is correct**: The CRT custom properties, scanline overlay, glow effects, and font variables already defined in `src/styles/themes/terminal.css` provide the foundation. F-004 builds the interactive layer on top.
 
