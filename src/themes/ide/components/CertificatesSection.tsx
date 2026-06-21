@@ -1,30 +1,51 @@
 import type { Certificate } from '@/types/cv';
+import { Keyword, Ident, Prop, Str, Punct, ImportType } from './syntax';
+
+function q(s: string) {
+  return <Str>&quot;{s}&quot;</Str>;
+}
 
 export const CertificatesSection = ({ certificates }: { certificates: Certificate[] }) => (
-  <>
+  <div>
+    <div>
+      <ImportType names={['Certificate']} from="../types" />
+    </div>
+    <div className="mb-2" />
+
+    <div>
+      <Keyword>export const </Keyword>
+      <Ident>certificates</Ident><Punct>:</Punct> <Ident>Certificate</Ident><Punct>[]</Punct>
+      <Punct> = [</Punct>
+    </div>
+
     {certificates.map((cert, i) => (
-      <div key={i} className="mb-3">
-        <div>
-          <span className="text-[var(--ide-label-color)]">certificate: </span>
-          <span className="text-[var(--ide-value-color)]">{cert.name}</span>
+      <div key={i}>
+        <div className="ml-2"><Punct>{'{'}</Punct></div>
+
+        <div className="ml-6">
+          <Prop>name</Prop><Punct>:</Punct> {q(cert.name)}<Punct>,</Punct>
         </div>
-        <div className="text-sm">
-          <span className="text-[var(--ide-label-color)]">issuer: </span>
-          <span className="text-[var(--ide-value-color)]">{cert.issuer}</span>
-          <span className="text-[var(--ide-date-color)]"> ({cert.date})</span>
+        <div className="ml-6">
+          <Prop>issuer</Prop><Punct>:</Punct> {q(cert.issuer)}<Punct>,</Punct>
+        </div>
+        <div className="ml-6">
+          <Prop>date</Prop><Punct>:</Punct> {q(cert.date)}<Punct>,</Punct>
         </div>
         {cert.credentialId && (
-          <div className="text-sm">
-            <span className="text-[var(--ide-date-color)]">credential: </span>
-            <span className="text-[var(--ide-value-color)]">{cert.credentialId}</span>
+          <div className="ml-6">
+            <Prop>credentialId</Prop><Punct>:</Punct> {q(cert.credentialId)}<Punct>,</Punct>
           </div>
         )}
         {cert.url && (
-          <a href={cert.url} target="_blank" rel="noopener noreferrer" className="text-sm text-[var(--ide-link-color)] hover:underline">
-            {cert.url}
-          </a>
+          <div className="ml-6">
+            <Prop>url</Prop><Punct>:</Punct> {q(cert.url)}<Punct>,</Punct>
+          </div>
         )}
+
+        <div className="ml-2"><Punct>{'}'}</Punct><Punct>,</Punct></div>
       </div>
     ))}
-  </>
+
+    <div><Punct>]</Punct><Punct>;</Punct></div>
+  </div>
 );

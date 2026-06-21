@@ -11,6 +11,7 @@
   --color-ctp-green: #a6e3a1;
   --color-ctp-red: #f38ba8;
   --color-ctp-yellow: #f9e2af;
+  --color-ctp-peach: #fab387;
 
   /* shadcn-compatible tokens mapped to Catppuccin Mocha */
   --background: var(--color-ctp-base);
