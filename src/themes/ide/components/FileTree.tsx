@@ -35,6 +35,7 @@ export const FILE_TREE: TreeItem[] = [
               { id: 'certificates.tsx', label: 'certificates.tsx', type: 'file', fileKey: 'certificates.tsx' },
             ],
           },
+          { id: 'types.tsx', label: 'types.tsx', type: 'file', fileKey: 'types.tsx' },
         ],
       },
     ],
