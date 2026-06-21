@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useSignals } from '@preact/signals-react/runtime';
-import { Signal } from '@preact/signals-react';
+import { scrollOffset } from '../SpaceState';
 import {
   SPACE_PARADE_CONFIGS,
   scaleConfigsToSpan,
@@ -15,8 +15,6 @@ import { ShootingStar } from './space-elements/ShootingStar';
 import { Asteroid } from './space-elements/Asteroid';
 
 export interface SpaceParadeProps {
-  /** Signal providing the current scroll offset in vh units. */
-  scrollOffset: Signal<number>;
   /** Total scroll span in vh units (computed from entries.length). */
   totalSpan: number;
 }
@@ -35,7 +33,7 @@ const WILL_CHANGE_BUFFER = 2.0;
  *   plus a buffer margin (FR-021).
  * - All elements render at z-5 behind CircleParade (z-10).
  */
-export const SpaceParade = ({ scrollOffset, totalSpan }: SpaceParadeProps) => {
+export const SpaceParade = ({ totalSpan }: SpaceParadeProps) => {
   useSignals();
 
   const currentOffset = scrollOffset.value;

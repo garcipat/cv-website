@@ -32,7 +32,7 @@ function circleSize(type: CircleEntry['type']): string {
     case 'project':
     case 'skillCategory':
     case 'education':
-      return 'w-[40vw] h-[40vw]';
+      return 'w-[33vw] h-[33vw]';
     case 'course':
     case 'certificate':
     case 'contact':

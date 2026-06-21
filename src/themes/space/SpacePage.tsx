@@ -1,6 +1,5 @@
-import { useRef, useState, useCallback, useMemo, useEffect } from 'react';
+import { useRef, useMemo, useEffect } from 'react';
 import { useSignals } from '@preact/signals-react/runtime';
-import { signal } from '@preact/signals-react';
 import { currentCV } from '@/state/locale';
 import { cn } from '@/lib/utils';
 import { CircleParade } from './components/CircleParade';
@@ -9,66 +8,43 @@ import { Nebula } from './components/space-elements/Nebula';
 import { Sun } from './components/space-elements/Sun';
 import { AnchorDots } from './components/AnchorDots';
 import { FloatingControls } from './components/FloatingControls';
+import { scrollOffset, showPoster } from './SpaceState';
 import {
   buildCircleEntries,
   buildSections,
-  getActiveSectionIndex,
   totalScrollSpan,
   type SectionInfo,
   type CircleEntry,
 } from './parade-utils';
 
-/**
- * Space Theme — Circle Parade root layout.
- *
- * Full-viewport page with deep-space background and a starfield.
- * Owns the scroll container, the scrollOffset signal, and orchestrates
- * both the CircleParade and SpaceParade layers.
- * Falls back to a static vertical stack when prefers-reduced-motion is active.
- */
 export const SpacePage = () => {
   useSignals();
 
-  // Detect reduced motion preference
   const prefersReducedMotion = useMemo(
     () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
     [],
   );
 
-  // Build circle entries from the reactive CV data signal
   const entries = useMemo<CircleEntry[]>(
     () => buildCircleEntries(currentCV.value),
     [currentCV.value],
   );
 
-  // Total span for SpaceParade: dynamic from CV data
   const paradeTotalSpan = useMemo(
     () => Math.max(entries.length * 1.4 + 1.0, 5.0),
     [entries.length],
   );
 
-  // Total scroll span (vh units)
   const totalSpan = totalScrollSpan(entries);
 
-  // Build section info for anchor dots
   const sections = useMemo<SectionInfo[]>(
     () => buildSections(entries),
     [entries],
   );
 
-  // Active section tracking
-  const [activeSectionIndex, setActiveSectionIndex] = useState(0);
-
-  // Poster visibility — hidden once user scrolls
-  const [showPoster, setShowPoster] = useState(true);
-
-  // Refs for scroll container
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // ── scrollOffset signal: single source of truth for scroll position ──
-  const scrollOffset = useMemo(() => signal(0), []);
-
-  // ── rAF-throttled scroll handler ──
+  // ── Scroll handler ──
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -78,60 +54,39 @@ export const SpacePage = () => {
     };
 
     container.addEventListener('scroll', onScroll, { passive: true });
+    return () => container.removeEventListener('scroll', onScroll);
+  }, []);
 
-    return () => {
-      container.removeEventListener('scroll', onScroll);
-    };
-  }, [scrollOffset]);
-
-  // Hide poster on first scroll
+  // ── Hide poster on first scroll ──
   useEffect(() => {
-    if (scrollOffset.value > 0 && showPoster) {
-      setShowPoster(false);
-    }
-  }, [scrollOffset.value, showPoster]);
+    const unsub = scrollOffset.subscribe((val) => {
+      if (val > 0) showPoster.value = false;
+    });
+    return unsub;
+  }, []);
 
-  // Handle active circle changes from CircleParade
-  const handleActiveCircleChange = useCallback(
-    (circleIndex: number) => {
-      const sectionIdx = getActiveSectionIndex(sections, circleIndex);
-      setActiveSectionIndex(sectionIdx);
-    },
-    [sections],
-  );
+  // ── Scroll to circle (anchor dot click) ──
+  const scrollToCircle = (circleIndex: number) => {
+    const container = containerRef.current;
+    if (!container || circleIndex < 0 || circleIndex >= entries.length) return;
+    if (typeof container.scrollTo !== 'function') return;
 
-  // Scroll to a specific circle (for anchor dot clicks)
-  const handleDotClick = useCallback(
-    (circleIndex: number) => {
-      const container = containerRef.current;
-      if (!container || circleIndex < 0 || circleIndex >= entries.length) return;
-      if (typeof container.scrollTo !== 'function') return;
-
-      const entry = entries[circleIndex];
-      const vhPixels = window.innerHeight;
-      const targetScrollTop = entry.circleCenter * vhPixels;
-
-      container.scrollTo({
-        top: targetScrollTop,
-        behavior: 'smooth',
-      });
-      setShowPoster(false);
-    },
-    [entries],
-  );
+    const entry = entries[circleIndex];
+    container.scrollTo({
+      top: entry.circleCenter * window.innerHeight,
+      behavior: 'smooth',
+    });
+    showPoster.value = false;
+  };
 
   return (
     <div
       className="min-h-screen w-full overflow-hidden relative"
       style={{ background: 'var(--background)' }}
     >
-      {/* Starfield background */}
       <Starfield />
-      {/* Ambient nebula clouds (z-0, CSS-only animation) */}
       <Nebula />
-      {/* Ambient sun (z-0, CSS-only pulse animation) */}
       <Sun />
-      {/* Deep space radial glow */}
       <div
         className="fixed inset-0 pointer-events-none z-0"
         style={{
@@ -141,16 +96,13 @@ export const SpacePage = () => {
         }}
       />
 
-      {/* Floating controls: theme + language (top-right) */}
       <FloatingControls />
 
-      {/* SpaceParade: scroll-driven space elements at z-5 (behind CircleParade) */}
       {!prefersReducedMotion && (
-        <SpaceParade scrollOffset={scrollOffset} totalSpan={paradeTotalSpan} />
+        <SpaceParade totalSpan={paradeTotalSpan} />
       )}
 
       {prefersReducedMotion ? (
-        /* Reduced-motion fallback: static vertical stack (FR-025, FR-026) */
         <div className="relative z-10 flex flex-col items-center gap-16 py-24 px-4">
           {entries.map((entry) => (
             <div
@@ -162,9 +114,7 @@ export const SpacePage = () => {
           ))}
         </div>
       ) : (
-        /* Full circle parade */
         <div className="relative z-10 h-screen w-full">
-          {/* Scroll driver: full-viewport scroll container */}
           <div
             ref={containerRef}
             className="h-screen w-full overflow-y-scroll"
@@ -178,24 +128,16 @@ export const SpacePage = () => {
             />
           </div>
 
-          {/* Scroll-driven circle parade (z-10) */}
-          <CircleParade
-            entries={entries}
-            scrollOffset={scrollOffset}
-            onActiveCircleChange={handleActiveCircleChange}
-          />
+          <CircleParade entries={entries} />
 
-          {/* Anchor dots: right-edge section navigation */}
           <AnchorDots
             sections={sections}
-            activeSectionIndex={activeSectionIndex}
-            onDotClick={handleDotClick}
+            onDotClick={scrollToCircle}
           />
         </div>
       )}
 
-      {/* Initial poster overlay with scroll hint */}
-      {showPoster && !prefersReducedMotion && (
+      {showPoster.value && !prefersReducedMotion && (
         <div
           className={cn(
             'fixed inset-0 z-100 flex flex-col items-center justify-center',

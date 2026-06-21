@@ -1,18 +1,16 @@
 import { useSignals } from '@preact/signals-react/runtime';
+import { activeCircleIndex } from '../SpaceState';
 import { currentUI } from '@/state/locale';
 import { cn } from '@/lib/utils';
-import type { SectionInfo } from '../parade-utils';
+import { getActiveSectionIndex, type SectionInfo } from '../parade-utils';
 
 export interface AnchorDotsProps {
   sections: SectionInfo[];
-  activeSectionIndex: number;
   onDotClick: (circleIndex: number) => void;
 }
 
-/** Maps a SectionId to a display label from UI translations or a fallback. */
 function sectionLabel(sectionId: string): string {
   const ui = currentUI.value;
-  // Map section IDs to i18n nav/section keys
   switch (sectionId) {
     case 'about':
       return 'About';
@@ -35,18 +33,12 @@ function sectionLabel(sectionId: string): string {
   }
 }
 
-/**
- * Navigation anchor dots along the right edge of the viewport.
- *
- * - One dot per non-empty section (FR-013).
- * - Active dot highlighted with --primary color (FR-014).
- * - Click triggers smooth scroll to the first circle of that section (FR-015).
- * - Empty sections have no dots (FR-012/FR-013).
- */
-export const AnchorDots = ({ sections, activeSectionIndex, onDotClick }: AnchorDotsProps) => {
+export const AnchorDots = ({ sections, onDotClick }: AnchorDotsProps) => {
   useSignals();
 
   if (sections.length <= 1) return null;
+
+  const activeSectionIdx = getActiveSectionIndex(sections, activeCircleIndex.value);
 
   return (
     <nav
@@ -57,7 +49,7 @@ export const AnchorDots = ({ sections, activeSectionIndex, onDotClick }: AnchorD
       aria-label="Section navigation"
     >
       {sections.map((section, i) => {
-        const isActive = i === activeSectionIndex;
+        const isActive = i === activeSectionIdx;
         return (
           <button
             key={section.id}
@@ -70,7 +62,6 @@ export const AnchorDots = ({ sections, activeSectionIndex, onDotClick }: AnchorD
             aria-label={`Scroll to ${sectionLabel(section.id)}`}
             aria-current={isActive ? 'true' : undefined}
           >
-            {/* Label: absolutely positioned to the left of the dot */}
             <span
               className={cn(
                 'absolute right-full mr-3 text-[10px] font-medium uppercase tracking-wider whitespace-nowrap',
@@ -85,7 +76,6 @@ export const AnchorDots = ({ sections, activeSectionIndex, onDotClick }: AnchorD
             >
               {sectionLabel(section.id)}
             </span>
-            {/* Dot: always same size, all dots form a vertical line */}
             <span
               className={cn(
                 'block w-2.5 h-2.5 rounded-full border shrink-0',
