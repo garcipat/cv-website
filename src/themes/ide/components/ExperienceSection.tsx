@@ -1,45 +1,25 @@
 import type { Experience } from '@/types/cv';
-import { Keyword, Ident, Prop, Str, Punct, ImportType } from './syntax';
-
-function q(s: string) {
-  return <Str>&quot;{s}&quot;</Str>;
-}
+import { Keyword, Ident, Prop, Str, Punct, ImportType, PropLine, Obj } from './syntax';
 
 function renderEntry(exp: Experience, index: number) {
   return (
-    <div key={index}>
-      <div className="ml-2"><Punct>{'{'}</Punct></div>
-
-      <div className="ml-6">
-        <Prop>company</Prop><Punct>:</Punct> {q(exp.company)}<Punct>,</Punct>
-      </div>
-      <div className="ml-6">
-        <Prop>role</Prop><Punct>:</Punct> {q(exp.role)}<Punct>,</Punct>
-      </div>
-      <div className="ml-6">
-        <Prop>startDate</Prop><Punct>:</Punct> {q(exp.startDate)}<Punct>,</Punct>
-      </div>
-      <div className="ml-6">
-        <Prop>endDate</Prop><Punct>:</Punct> {q(exp.endDate ?? 'Present')}<Punct>,</Punct>
-      </div>
-      {exp.location && (
-        <div className="ml-6">
-          <Prop>location</Prop><Punct>:</Punct> {q(exp.location)}<Punct>,</Punct>
-        </div>
-      )}
+    <Obj key={index}>
+      <PropLine name="company" value={exp.company} />
+      <PropLine name="role" value={exp.role} />
+      <PropLine name="startDate" value={exp.startDate} />
+      <PropLine name="endDate" value={exp.endDate ?? 'Present'} />
+      {exp.location && <PropLine name="location" value={exp.location} />}
 
       <div className="ml-6">
         <Prop>highlights</Prop><Punct>:</Punct> <Punct>[</Punct>
       </div>
       {exp.highlights.map((h, j) => (
         <div key={j} className="ml-10">
-          {q(h)}<Punct>,</Punct>
+          <Str>&quot;{h}&quot;</Str><Punct>,</Punct>
         </div>
       ))}
       <div className="ml-6"><Punct>]</Punct><Punct>,</Punct></div>
-
-      <div className="ml-2"><Punct>{'}'}</Punct><Punct>,</Punct></div>
-    </div>
+    </Obj>
   );
 }
 
