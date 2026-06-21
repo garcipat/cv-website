@@ -1,9 +1,5 @@
 import type { Education } from '@/types/cv';
-import { Keyword, Ident, Prop, Str, Punct, ImportType } from './syntax';
-
-function q(s: string) {
-  return <Str>&quot;{s}&quot;</Str>;
-}
+import { Keyword, Ident, Punct, ImportType, PropLine, Obj } from './syntax';
 
 export const EducationSection = ({ education }: { education: Education[] }) => (
   <div>
@@ -19,29 +15,13 @@ export const EducationSection = ({ education }: { education: Education[] }) => (
     </div>
 
     {education.map((edu, i) => (
-      <div key={i}>
-        <div className="ml-2"><Punct>{'{'}</Punct></div>
-
-        <div className="ml-6">
-          <Prop>degree</Prop><Punct>:</Punct> {q(edu.degree)}<Punct>,</Punct>
-        </div>
-        <div className="ml-6">
-          <Prop>institution</Prop><Punct>:</Punct> {q(edu.institution)}<Punct>,</Punct>
-        </div>
-        <div className="ml-6">
-          <Prop>startDate</Prop><Punct>:</Punct> {q(edu.startDate)}<Punct>,</Punct>
-        </div>
-        <div className="ml-6">
-          <Prop>endDate</Prop><Punct>:</Punct> {q(edu.endDate ?? 'Ongoing')}<Punct>,</Punct>
-        </div>
-        {edu.description && (
-          <div className="ml-6">
-            <Prop>description</Prop><Punct>:</Punct> {q(edu.description)}<Punct>,</Punct>
-          </div>
-        )}
-
-        <div className="ml-2"><Punct>{'}'}</Punct><Punct>,</Punct></div>
-      </div>
+      <Obj key={i}>
+        <PropLine name="degree" value={edu.degree} />
+        <PropLine name="institution" value={edu.institution} />
+        <PropLine name="startDate" value={edu.startDate} />
+        <PropLine name="endDate" value={edu.endDate ?? 'Ongoing'} />
+        {edu.description && <PropLine name="description" value={edu.description} />}
+      </Obj>
     ))}
 
     <div><Punct>]</Punct><Punct>;</Punct></div>
