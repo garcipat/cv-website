@@ -94,6 +94,16 @@ export const TypesSection = () => (
     />
 
     <Interface
+      name="Course"
+      props={[
+        { name: 'title', type: 'string' },
+        { name: 'provider', type: 'string' },
+        { name: 'date', type: 'string' },
+        { name: 'certificate', type: 'string', optional: true },
+      ]}
+    />
+
+    <Interface
       name="Certificate"
       props={[
         { name: 'name', type: 'string' },
