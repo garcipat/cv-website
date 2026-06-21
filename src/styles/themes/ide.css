@@ -62,12 +62,12 @@
   font-family: 'SF Mono', 'Fira Code', monospace;
 }
 
-[data-theme="ide"] .menu-item:hover {
+[data-theme="ide"] .menu-hover:hover {
   background-color: rgba(255, 255, 255, 0.2);
   color: #ffffff;
 }
 
-[data-theme="ide"] .tree-item:hover {
+[data-theme="ide"] .tree-hover:hover {
   background-color: rgba(255, 255, 255, 0.1);
   color: #ffffff;
 }
