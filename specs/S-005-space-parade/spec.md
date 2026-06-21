@@ -297,7 +297,7 @@ When `prefers-reduced-motion: reduce`:
 
 - **FR-020**: System MUST use CSS `transform` (translate, scale, rotate) and `opacity` for all element animations — GPU-composited, no layout thrashing.
 
-- **FR-021**: System MUST apply `will-change: transform, opacity` only to scroll-driven elements currently within or near the visible zone (in `[entryOffset, exitOffset]` range plus a buffer margin). Elements far outside their active range must have `will-change` removed.
+- **FR-021**: System MUST apply `will-change: transform, opacity` only to scroll-driven elements currently within or near the visible zone (in `[entryOffset, exitOffset]` range plus a 2.0vh buffer margin on each side). Elements outside this extended range must have `will-change` removed to free GPU memory.
 
 - **FR-022**: System MUST keep the total DOM node count for scroll-driven elements bounded (at most ~7 visible simultaneously plus ambient nodes, ~115 total background DOM nodes). No per-scroll-position DOM creation — elements are conditionally rendered based on whether scrollOffset falls within their range.
 
@@ -326,7 +326,7 @@ When `prefers-reduced-motion: reduce`:
 
 - **FR-027**: System MUST modify `CircleParade.tsx` to accept `scrollOffset` as a signal prop and remove its internal scroll listener and `useState`.
 
-- **FR-028**: System MUST add new `@keyframes` to `src/styles/themes/space.css` for: nebula drift, sun pulse, spaceship bobbing, satellite spin.
+- **FR-028**: System MUST add new `@keyframes` to `src/styles/themes/space.css` for: nebula drift, sun pulse, spaceship bobbing, satellite spin, shooting star trail, asteroid tumble.
 
 #### TypeScript
 
