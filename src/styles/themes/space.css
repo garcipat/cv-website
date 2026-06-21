@@ -167,12 +167,6 @@
   }
 }
 
-/* ── Space Parade: Rocket flame flicker ── */
-@keyframes rocket-flame-flicker {
-  0% { border-top-color: #ffaa00; opacity: 0.8; }
-  100% { border-top-color: #ff4400; opacity: 1; }
-}
-
 /* ── Space Parade: UFO hover ── */
 @keyframes ufo-hover {
   0%, 100% {
@@ -181,31 +175,6 @@
   50% {
     transform: translateY(-10px);
   }
-}
-
-/* ── Space Parade: UFO dome glow ── */
-@keyframes ufo-glow {
-  0% { box-shadow: 0 0 12px rgba(136,255,204,0.5); }
-  100% { box-shadow: 0 0 22px rgba(136,255,204,0.8); }
-}
-
-/* ── Space Parade: UFO blink lights ── */
-@keyframes ufo-blink {
-  0% { opacity: 0.3; }
-  100% { opacity: 1; }
-}
-
-/* ── Space Parade: Alien wiggle ── */
-@keyframes alien-wiggle {
-  0% { transform: rotate(-3deg); }
-  100% { transform: rotate(3deg); }
-}
-
-/* ── Space Parade: Alien pupil look ── */
-@keyframes alien-pupil-look {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-2px); }
-  75% { transform: translateX(2px); }
 }
 
 /* ── Space Parade: Satellite spin ── */

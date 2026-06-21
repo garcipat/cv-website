@@ -5,11 +5,9 @@ export interface RingedPlanetProps {
 }
 
 /**
- * Scroll-driven ringed planet.
- *
- * Pure CSS shape: radial-gradient circle body with an elliptical ring
- * formed by the ::after pseudo-element. Rendered as a `<div>` with
- * `pointer-events: none`.
+ * Scroll-driven ringed planet — inline SVG.
+ * Gradient sphere with perspective ring: back half behind, front half in front.
+ * Subtle crescent shadow for depth. Uses `pointer-events: none`.
  */
 export const RingedPlanet = ({ transform }: RingedPlanetProps) => {
   const { x, y, scale, rotation, opacity } = transform;
@@ -26,44 +24,55 @@ export const RingedPlanet = ({ transform }: RingedPlanetProps) => {
         opacity,
       }}
     >
-      {/* Planet body */}
       <div
-        className="absolute rounded-full"
         style={{
-          width: '120px',
-          height: '120px',
-          marginLeft: '-60px',
-          marginTop: '-60px',
           transform: `scale(${scale}) rotate(${rotation}deg)`,
-          background: `
-            radial-gradient(
-              ellipse at 35% 30%,
-              oklch(0.75 0.12 100) 0%,
-              oklch(0.55 0.15 65) 30%,
-              oklch(0.35 0.08 55) 70%,
-              oklch(0.15 0.04 40) 100%
-            )
-          `,
-          boxShadow: `
-            inset 0 -4px 8px oklch(0 0 0 / 0.3),
-            0 0 30px oklch(0.55 0.15 65 / 0.15)
-          `,
-        }}
-      />
-      {/* Elliptical ring via ::after equivalent — rendered as a sibling div for reliability */}
-      <div
-        className="absolute rounded-full"
-        style={{
-          width: '200px',
-          height: '50px',
+          marginTop: '-100px',
           marginLeft: '-100px',
-          marginTop: '-25px',
-          transform: `scale(${scale}) rotateX(75deg) rotate(${rotation + 15}deg)`,
-          background: 'transparent',
-          border: '3px solid oklch(0.7 0.05 80 / 0.5)',
-          boxShadow: '0 0 12px oklch(0.7 0.1 80 / 0.25)',
         }}
-      />
+      >
+        <svg
+          width="200"
+          height="200"
+          viewBox="0 0 200 200"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <defs>
+            <radialGradient id="planetGrad2" cx="35%" cy="30%">
+              <stop offset="0%" stopColor="#ffcc80" />
+              <stop offset="30%" stopColor="#e67e22" />
+              <stop offset="70%" stopColor="#8b4513" />
+              <stop offset="100%" stopColor="#3d1c00" />
+            </radialGradient>
+          </defs>
+
+          {/* Ring — back half (behind planet, top arc) */}
+          <path
+            d="M 10 100 A 90 24 0 0 0 190 100"
+            fill="none"
+            stroke="rgba(210,180,140,0.3)"
+            strokeWidth="5"
+          />
+
+          {/* Planet body */}
+          <circle cx="100" cy="100" r="60" fill="url(#planetGrad2)" />
+
+          {/* Ring — front half (in front of planet, bottom arc) */}
+          <path
+            d="M 10 100 A 90 24 0 0 1 190 100"
+            fill="none"
+            stroke="rgba(210,180,140,0.45)"
+            strokeWidth="5"
+          />
+          <path
+            d="M 10 100 A 90 24 0 0 1 190 100"
+            fill="none"
+            stroke="rgba(230,200,160,0.15)"
+            strokeWidth="2"
+          />
+        </svg>
+      </div>
     </div>
   );
 };
