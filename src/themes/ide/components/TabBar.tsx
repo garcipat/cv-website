@@ -23,6 +23,7 @@ export const TabBar = () => {
                 : 'bg-[var(--ide-tab-bar-bg)] text-[var(--color-ctp-subtext)] hover:text-white'
             }`}
             onClick={() => { activeFile.value = fileName; }}
+            onMouseDown={(e) => { if (e.button === 1) { e.preventDefault(); closeTab(fileName); } }}
           >
             <span className="truncate max-w-32">{fileName}</span>
             <span
