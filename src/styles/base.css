@@ -10,6 +10,23 @@
   /* Base radius */
   --radius: 0.625rem;
 
+  /* Catppuccin Mocha palette — defined per-theme in theme CSS files */
+  --color-ctp-base: var(--color-ctp-base);
+  --color-ctp-mantle: var(--color-ctp-mantle);
+  --color-ctp-surface: var(--color-ctp-surface);
+  --color-ctp-surface0: var(--color-ctp-surface0);
+  --color-ctp-surface1: var(--color-ctp-surface1);
+  --color-ctp-surface2: var(--color-ctp-surface2);
+  --color-ctp-text: var(--color-ctp-text);
+  --color-ctp-subtext0: var(--color-ctp-subtext0);
+  --color-ctp-subtext1: var(--color-ctp-subtext1);
+  --color-ctp-lavender: var(--color-ctp-lavender);
+  --color-ctp-blue: var(--color-ctp-blue);
+  --color-ctp-green: var(--color-ctp-green);
+  --color-ctp-red: var(--color-ctp-red);
+  --color-ctp-yellow: var(--color-ctp-yellow);
+  --color-ctp-peach: var(--color-ctp-peach);
+
   /* Shared shadcn variable mappings (imported from existing :root defaults) */
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);

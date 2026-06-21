@@ -23,7 +23,7 @@ A German-speaking visitor opens the CV website for the first time. Their browser
 3. **Given** a fresh browser profile with `navigator.language` set to `'de-AT'` or `'de-CH'`, **When** the page loads, **Then** the locale maps to `'de'` (language tag before the hyphen is matched, not the full subtag).
 4. **Given** a fresh browser profile with `navigator.language` set to `'fr'`, `'es'`, or any unsupported locale, **When** the page loads, **Then** the active locale falls back to `'en'` (default) and English content is displayed.
 5. **Given** a fresh browser profile where `navigator.language` is `'en-US'` or `'en-GB'`, **When** the page loads, **Then** the active locale is `'en'` and English content is displayed.
-6. **Given** a fresh browser profile with `navigator.language` set to `'de'`, **When** the page loads and React hydrates, **Then** content switches to German within the same frame as the first React render. A brief flash of English (~50–150ms) before JS execution is accepted — no blocking inline script or loading skeleton is used to suppress it.
+6. **Given** a fresh browser profile with `navigator.language` set to `'de'`, **When** the page loads and React hydrates, **Then** content switches to German within the same frame as the first React render. A brief flash of English (~50-150ms) before JS execution is accepted — no blocking inline script or loading skeleton is used to suppress it.
 
 ---
 
@@ -251,6 +251,6 @@ Record of the clarification session on 2026-06-20. Five questions were asked and
 |---|---|---|---|
 | 1 | Should the HTML `lang` attribute update when locale changes? (WCAG SC 3.1.1) | **Always update** — `document.documentElement.lang` is set to the active locale on every change, not just on initialization. | Added WCAG reference to FR-004. Added edge case for `lang` sync. |
 | 2 | Should a screen reader live region announce locale changes? | **No announcement** — The toggle's dynamic `aria-label` is sufficient. No `aria-live` region. | Added edge case noting no live region. |
-| 3 | How to handle the flash of English content before JS loads on German-first visitors? | **Accept brief flash** — ~50–150ms flash is imperceptible to most users. Updated US1 Scenario 6 to reflect this. | Updated US1 Scenario 6 wording. |
+| 3 | How to handle the flash of English content before JS loads on German-first visitors? | **Accept brief flash** — ~50-150ms flash is imperceptible to most users. Updated US1 Scenario 6 to reflect this. | Updated US1 Scenario 6 wording. |
 | 4 | How should `LanguageToggle` be positioned relative to `ThemeSwitcher`? | **Immediately adjacent, same row** — Same visual group (e.g., `[ThemeSwitcher] [LanguageToggle]`), no dividers or separators. | Updated Assumption entry. |
 | 5 | Should HTML `<title>` and `<meta name="description">` be translated with locale? | **Translate both** — Include `page.title` and `page.description` in `UITranslations`. Update via DOM on locale change. | Added fields to UITranslations (FR-007). Added FR-017 for DOM updates. Added edge case. |

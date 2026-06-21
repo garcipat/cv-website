@@ -19,10 +19,10 @@ Monospace font · inline-flex layout
 
 | Range     | Label (en)   | Label (de)      |
 |-----------|--------------|-----------------|
-| 0–24      | Skilled      | Erfahren        |
-| 25–49     | Proficient   | Fortgeschritten |
-| 50–74     | Advanced     | Spezialisiert   |
-| 75–100    | Expert       | Experte         |
+| 0-24      | Skilled      | Erfahren        |
+| 25-49     | Proficient   | Fortgeschritten |
+| 50-74     | Advanced     | Spezialisiert   |
+| 75-100    | Expert       | Experte         |
 
 Labels live in translation JSON (`skills.levels.*`) so they switch with locale.
 
@@ -31,7 +31,7 @@ Labels live in translation JSON (`skills.levels.*`) so they switch with locale.
 ```
 ProgressBar(value: number, width?: number)
 
-value: 0–100 skill level
+value: 0-100 skill level
 width: character count inside brackets (default 20)
 
 Renders: [████░░░░░░░░░░░░░░]  Label

@@ -36,7 +36,7 @@ A content author (developer or CV owner) opens `src/data/cv.en.json` and enters 
 
 1. **Given** an empty `src/data/cv.en.json`, **When** the author populates the `personality` object with name, tagline, and summary strings, **Then** the build passes and consuming components can access `cv.personality.name`.
 2. **Given** the author adds a career entry with `company`, `role`, `startDate`, `endDate`, and `highlights` array, **When** they run the build, **Then** it compiles cleanly.
-3. **Given** the author adds a skill category with multiple skills each having a `name` and `level` (0–100), **When** they run the build, **Then** the numeric `level` field is validated as a number.
+3. **Given** the author adds a skill category with multiple skills each having a `name` and `level` (0-100), **When** they run the build, **Then** the numeric `level` field is validated as a number.
 4. **Given** the JSON file is populated, **When** the author opens it in VS Code (or any editor with JSON Schema support), **Then** the file is recognized as valid JSON and conforms to the expected structure.
 
 ---
@@ -81,7 +81,7 @@ A component developer building the Career section (F-004) imports the CV data an
 - ✅ **Single-entry arrays**: A section with exactly one entry renders correctly — the same logic handles single and multiple items identically.
 - ✅ **Long text fields**: Fields like `summary` or `highlights` entries may contain multi-paragraph text. The data model stores them as plain strings; components are responsible for rendering (e.g., splitting on newlines, applying markdown if desired).
 - ✅ **Duplicate data between locales**: Dates, URLs, company names, and tech stacks are typically identical across languages. Authors may copy-paste these fields between `cv.en.json` and `cv.de.json`. TypeScript accepts duplicate values — this is an authoring convenience.
-- ✅ **Skill level boundaries**: Skill `level` values are defined as 0–100. Components rendering skill bars/indicators must clamp or handle out-of-range values gracefully. TypeScript's `number` type doesn't enforce range constraints — validation is a component responsibility.
+- ✅ **Skill level boundaries**: Skill `level` values are defined as 0-100. Components rendering skill bars/indicators must clamp or handle out-of-range values gracefully. TypeScript's `number` type doesn't enforce range constraints — validation is a component responsibility.
 
 ## Requirements _(mandatory)_
 
@@ -90,7 +90,7 @@ A component developer building the Career section (F-004) imports the CV data an
 - **FR-001**: System MUST define a `CVData` interface in `src/types/cv.ts` that serves as the root type for all CV content, containing typed sections for personality, experience, skills, courses, education, certificates, and projects.
 - **FR-002**: System MUST define a standalone, exported `ContactInfo` interface with `email`, `phone`, `location`, `website`, `linkedin`, and `github` (all optional strings). System MUST also define a `Personality` interface with `name` (string), `tagline` (string), `summary` (string), and an optional `favoriteQuote` (string). The `ContactInfo` is a separate top-level optional field on `CVData`.
 - **FR-003**: System MUST define an `Experience` interface with `company` (string), `role` (string), `startDate` (string, format YYYY-MM), optional `endDate` (string, format YYYY-MM — absent means current position), `highlights` (string array), optional `location` (string), and optional `skills` (array of `Skill` objects — key skills used in this role with proficiency level).
-- **FR-004**: System MUST define a `SkillCategory` interface with `category` (string) and `skills` array of `Skill` objects, each containing `name` (string) and `level` (integer, 0–100 scale).
+- **FR-004**: System MUST define a `SkillCategory` interface with `category` (string) and `skills` array of `Skill` objects, each containing `name` (string) and `level` (integer, 0-100 scale).
 - **FR-005**: System MUST define a `Course` interface with `title` (string), `provider` (string), `year` (number), and optional `certificate` (string, for certificate URL or name).
 - **FR-006**: System MUST define an `Education` interface with `degree` (string), `institution` (string), `startDate` (string, YYYY-MM), optional `endDate` (string, YYYY-MM), and optional `description` (string).
 - **FR-007**: System MUST define a `Certificate` interface with `name` (string), `issuer` (string), `date` (string, YYYY-MM), optional `url` (string), and optional `credentialId` (string).
@@ -109,7 +109,7 @@ A component developer building the Career section (F-004) imports the CV data an
 
 - **Personality**: The CV owner's identity — name, professional tagline, a multi-sentence summary, and an optional favorite quote. Does NOT contain contact details; those live separately under `CVData.contact`.
 - **Experience**: A career timeline entry representing one job or role — company name, role title, start/end dates (YYYY-MM format, endDate optional for current positions), location, a list of highlight bullet points describing achievements, and an optional list of key skills used in this role (with proficiency levels).
-- **SkillCategory**: A named group of related skills (e.g., "Frontend", "Backend", "DevOps"). Each skill within the category has a name and a proficiency level on a 0–100 scale.
+- **SkillCategory**: A named group of related skills (e.g., "Frontend", "Backend", "DevOps"). Each skill within the category has a name and a proficiency level on a 0-100 scale.
 - **Course**: A completed training course or certification program — title, provider, completion year, and an optional link or certificate identifier.
 - **Education**: A formal education entry — degree name, institution, attendance period (start/end dates, endDate optional if ongoing), and an optional description.
 - **Certificate**: An earned professional certification — certificate name, issuing organization, date awarded, optional verification URL, and optional credential ID.
@@ -146,7 +146,7 @@ All relationships are compositional — each section is a direct property of `CV
 ## Assumptions
 
 - **Date format**: All date fields use `YYYY-MM` string format (e.g., `"2020-03"`) — precise enough for month-level granularity while keeping data entry simple. This is a documented convention in JSDoc comments.
-- **Skill level range**: 0–100 integer scale (0 = beginner, 100 = expert). This is documented in JSDoc; runtime clamping belongs to each component's responsibility.
+- **Skill level range**: 0-100 integer scale (0 = beginner, 100 = expert). This is documented in JSDoc; runtime clamping belongs to each component's responsibility.
 - **Ongoing positions**: `endDate` fields are optional — when absent, the position is considered current/present. Components render "Present" or equivalent.
 - **Language-independent fields**: Dates, URLs, email addresses, GitHub handles, tech stack names, and company names are typically identical across `cv.en.json` and `cv.de.json`. No mechanism exists to share these fields between files — authors maintain both files independently.
 - **Contact info**: Contact details are a separate top-level `contact` field on `CVData` (independent from `personality`). This allows contact information to be rendered independently from the personality introduction, and keeps `Personality` focused on identity/narrative.

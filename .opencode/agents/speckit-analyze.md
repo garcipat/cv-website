@@ -56,7 +56,7 @@ Identify inconsistencies, duplications, ambiguities, and underspecified items ac
 
 ## Operating Constraints
 
-**READ-ONLY by default**: Do not modify files during the analysis pass (steps 1–7). After user approves remediation selections in step 8, apply the approved edits directly to the relevant files.
+**READ-ONLY by default**: Do not modify files during the analysis pass (steps 1-7). After user approves remediation selections in step 8, apply the approved edits directly to the relevant files.
 
 **Constitution Authority**: The project constitution (`.specify/memory/constitution.md`) is **non-negotiable** within this analysis scope. Constitution conflicts are automatically CRITICAL and require adjustment of the spec, plan, or tasks—not dilution, reinterpretation, or silent ignoring of the principle. If a principle itself needs to change, that must occur in a separate, explicit constitution update outside `/speckit.analyze`.
 

@@ -34,7 +34,7 @@ export const experience: Experience[] = [
   {
     company: "Tech Innovations Inc.",
     role: "Staff Frontend Engineer",
-    period: "2021-04 – 2024-06",
+    period: "2021-04 - 2024-06",
     location: "Berlin, Germany",
     highlights: [
       "Led migration of legacy AngularJS to React 18",
@@ -97,7 +97,7 @@ export const education: Education[] = [
   {
     degree: "B.Sc. Computer Science",
     institution: "Technical University of Berlin",
-    period: "2013-10 – 2016-07",
+    period: "2013-10 - 2016-07",
     description: "Focused on software engineering...",
   },
 ];

@@ -25,7 +25,7 @@ A new interactive "file" in the IDE theme file tree (`timeline.html`) that rende
 
   ┌──────────────────────────────────────────────────┐
   │ PixelCraft GmbH                     ← name (13px, green, bold)
-  │ Frontend Developer · 2016-07 – 2018-02           ← role + period (10px, gray)
+  │ Frontend Developer · 2016-07 - 2018-02           ← role + period (10px, gray)
   │ Munich, Germany                                   ← location (10px, dimmer gray)
   │                                                   │
   │ • Developed responsive e-commerce checkout flows  │
