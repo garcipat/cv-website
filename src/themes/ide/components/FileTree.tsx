@@ -21,23 +21,24 @@ export const FILE_TREE: TreeItem[] = [
         label: 'src',
         type: 'folder',
         children: [
-          { id: 'about.tsx', label: 'about.tsx', type: 'file', fileKey: 'about.tsx' },
           {
             id: 'src/sections',
             label: 'sections',
             type: 'folder',
             children: [
               { id: 'experience.tsx', label: 'experience.tsx', type: 'file', fileKey: 'experience.tsx' },
-              { id: 'skills.tsx', label: 'skills.tsx', type: 'file', fileKey: 'skills.tsx' },
+              { id: 'skills.md', label: 'skills.md', type: 'file', fileKey: 'skills.md' },
               { id: 'projects.tsx', label: 'projects.tsx', type: 'file', fileKey: 'projects.tsx' },
               { id: 'education.tsx', label: 'education.tsx', type: 'file', fileKey: 'education.tsx' },
               { id: 'courses.tsx', label: 'courses.tsx', type: 'file', fileKey: 'courses.tsx' },
               { id: 'certificates.tsx', label: 'certificates.tsx', type: 'file', fileKey: 'certificates.tsx' },
             ],
           },
+          { id: 'about.tsx', label: 'about.tsx', type: 'file', fileKey: 'about.tsx' },
           { id: 'types.tsx', label: 'types.tsx', type: 'file', fileKey: 'types.tsx' },
         ],
       },
+      { id: 'README.md', label: 'README.md', type: 'file', fileKey: 'README.md' },
     ],
   },
 ];

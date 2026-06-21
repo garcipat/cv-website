@@ -25,8 +25,8 @@ describe('openFile', () => {
   it('preserves-insertion-order', () => {
     openFile('about.tsx');
     openFile('exp.tsx');
-    openFile('skills.tsx');
-    expect(openTabs.value).toEqual(['about.tsx', 'exp.tsx', 'skills.tsx']);
+    openFile('skills.md');
+    expect(openTabs.value).toEqual(['about.tsx', 'exp.tsx', 'skills.md']);
   });
 });
 
@@ -41,18 +41,18 @@ describe('closeTab', () => {
   it('selects-rightmost-remaining-tab-when-closing-active-tab', () => {
     openFile('about.tsx');
     openFile('exp.tsx');
-    openFile('skills.tsx');
-    closeTab('skills.tsx');
+    openFile('skills.md');
+    closeTab('skills.md');
     expect(activeFile.value).toBe('exp.tsx');
   });
 
   it('selects-rightmost-when-closing-middle-active-tab', () => {
     openFile('about.tsx');
     openFile('exp.tsx');
-    openFile('skills.tsx');
+    openFile('skills.md');
     activeFile.value = 'exp.tsx';
     closeTab('exp.tsx');
-    expect(activeFile.value).toBe('skills.tsx');
+    expect(activeFile.value).toBe('skills.md');
   });
 
   it('results-in-null-activeFile-and-empty-openTabs-when-closing-last-tab', () => {
@@ -72,9 +72,9 @@ describe('closeTab', () => {
   it('preserves-tab-ordering-after-close', () => {
     openFile('about.tsx');
     openFile('exp.tsx');
-    openFile('skills.tsx');
+    openFile('skills.md');
     openFile('projects.tsx');
-    closeTab('skills.tsx');
+    closeTab('skills.md');
     expect(openTabs.value).toEqual(['about.tsx', 'exp.tsx', 'projects.tsx']);
   });
 });

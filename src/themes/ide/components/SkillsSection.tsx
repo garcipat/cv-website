@@ -1,23 +1,37 @@
+import { useSignals } from '@preact/signals-react/runtime';
 import type { SkillCategory } from '@/types/cv';
+import { currentUI } from '@/state/locale';
+import { ProgressBar } from './ProgressBar';
 
-export const SkillsSection = ({ skills }: { skills: SkillCategory[] }) => (
-  <>
-    {skills.map((cat, i) => (
-      <div key={i} className="mb-4">
-        <div className="text-[var(--ide-label-color)] font-medium mb-1">{cat.category}</div>
-        {cat.skills.map((skill, j) => (
-          <div key={j} className="flex items-center gap-2 mb-1">
-            <span className="text-[var(--ide-value-color)] text-sm w-28 shrink-0">{skill.name}</span>
-            <div className="h-2 flex-1 rounded-full bg-[var(--color-ctp-surface)] overflow-hidden max-w-48">
-              <div
-                className="h-full rounded-full bg-[var(--ide-active-tab-accent)] transition-all"
-                style={{ width: `${skill.level}%` }}
-              />
-            </div>
-            <span className="text-[var(--ide-date-color)] text-xs w-8 text-right">{skill.level}%</span>
+function levelLabel(value: number, levels: typeof currentUI.value.skills.levels): string {
+  if (value < 25) return levels.skilled;
+  if (value < 50) return levels.proficient;
+  if (value < 75) return levels.advanced;
+  return levels.expert;
+}
+
+export const SkillsSection = ({ skills }: { skills: SkillCategory[] }) => {
+  useSignals();
+  const levels = currentUI.value.skills.levels;
+
+  return (
+    <div className="font-mono">
+      <div className="text-[var(--color-ctp-lavender)] text-lg font-bold"># Skills</div>
+
+      {skills.map((cat, i) => (
+        <div key={i} className="mt-4">
+          <div className="text-[var(--color-ctp-blue)] text-base font-semibold">## {cat.category}</div>
+
+          <div className="mt-2 space-y-1">
+            {cat.skills.map((skill, j) => (
+              <div key={j} className="flex items-center gap-3">
+                <span className="w-32 shrink-0 text-[var(--color-ctp-text)]">- {skill.name}</span>
+                <ProgressBar value={skill.level} label={levelLabel(skill.level, levels)} />
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-    ))}
-  </>
-);
+        </div>
+      ))}
+    </div>
+  );
+};
