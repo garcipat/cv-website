@@ -67,7 +67,7 @@ function TreeNode({ item, depth }: { item: TreeItem; depth: number }) {
         className={`flex w-full items-center gap-1 px-2 py-0.5 text-left text-sm cursor-pointer border-l-2 transition-colors ${
           isActive
             ? 'border-[var(--ide-active-tab-accent)] bg-[var(--color-ctp-surface)] text-[var(--color-ctp-text)]'
-            : 'border-transparent text-[var(--color-ctp-subtext)] hover:text-white hover:bg-[rgba(255,255,255,0.1)]'
+            : 'border-transparent text-[var(--color-ctp-subtext)] tree-item'
         }`}
         style={{ paddingLeft: `${12 + depth * 16}px` }}
         onClick={handleClick}
