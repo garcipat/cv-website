@@ -27,7 +27,7 @@ export const FILE_TREE: TreeItem[] = [
             label: 'sections',
             type: 'folder',
             children: [
-              { id: 'exp.tsx', label: 'exp.tsx', type: 'file', fileKey: 'exp.tsx' },
+              { id: 'experience.tsx', label: 'experience.tsx', type: 'file', fileKey: 'experience.tsx' },
               { id: 'skills.tsx', label: 'skills.tsx', type: 'file', fileKey: 'skills.tsx' },
               { id: 'projects.tsx', label: 'projects.tsx', type: 'file', fileKey: 'projects.tsx' },
               { id: 'education.tsx', label: 'education.tsx', type: 'file', fileKey: 'education.tsx' },
@@ -67,7 +67,7 @@ function TreeNode({ item, depth }: { item: TreeItem; depth: number }) {
         className={`flex w-full items-center gap-1 px-2 py-0.5 text-left text-sm cursor-pointer border-l-2 transition-colors ${
           isActive
             ? 'border-[var(--ide-active-tab-accent)] bg-[var(--color-ctp-surface)] text-[var(--color-ctp-text)]'
-            : 'border-transparent text-[var(--color-ctp-subtext)] tree-item'
+            : 'border-transparent text-[var(--color-ctp-subtext)] tree-hover'
         }`}
         style={{ paddingLeft: `${12 + depth * 16}px` }}
         onClick={handleClick}

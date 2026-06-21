@@ -23,7 +23,7 @@ function renderContent(activeFileName: string, cv: CVData): React.ReactNode {
   switch (activeFileName) {
     case 'about.tsx':
       return <AboutSection personality={cv.personality} />;
-    case 'exp.tsx':
+    case 'experience.tsx':
       return <ExperienceSection experience={cv.experience} />;
     case 'skills.tsx':
       return <SkillsSection skills={cv.skills} />;

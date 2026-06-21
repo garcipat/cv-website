@@ -12,7 +12,7 @@ export const MenuBar = () => {
         <span className="w-3 h-3 rounded-full shrink-0" style={{ background: '#3DD956', border: '1.5px solid #1A9E30' }} />
       </div>
       {Object.values(currentUI.value.ide.menu).map((label) => (
-        <span key={label} className="menu-item px-2 py-0.5 rounded cursor-default select-none">
+        <span key={label} className="menu-hover px-2 py-0.5 rounded cursor-default select-none">
           {label}
         </span>
       ))}
