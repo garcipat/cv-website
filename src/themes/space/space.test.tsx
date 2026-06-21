@@ -6,6 +6,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, fireEvent } from '@testing-library/react';
 import { SpacePage } from './SpacePage';
+import { showPoster, scrollOffset } from './SpaceState';
 
 // Mock @preact/signals-react/runtime
 vi.mock('@preact/signals-react/runtime', () => ({
@@ -136,6 +137,9 @@ const mockMatchMedia = vi.fn((query: string) => ({
 beforeEach(() => {
   matchMediaMatches = false;
   window.matchMedia = mockMatchMedia;
+  // Reset SpaceState signals between tests
+  showPoster.value = true;
+  scrollOffset.value = 0;
   // jsdom doesn't support scrollTo on div elements
   if (!HTMLDivElement.prototype.scrollTo) {
     Object.defineProperty(HTMLDivElement.prototype, 'scrollTo', {
@@ -429,20 +433,13 @@ describe('Foundational refactor (T016)', () => {
 // ===========================================================================
 
 import { SpaceParade } from './components/SpaceParade';
-
-// Simple signal-like object for testing
-function createTestSignal(initial: number) {
-  return {
-    value: initial,
-    subscribe: vi.fn(() => vi.fn()),
-  };
-}
+import { scrollOffset as paradeScrollOffset } from './SpaceState';
 
 describe('User Story 1 — Scroll-driven elements (T017-T019)', () => {
   it('T017: renders scroll-driven elements at correct z-index in SpaceParade', () => {
-    const signal = createTestSignal(0);
+    paradeScrollOffset.value = 0;
     const { container } = render(
-      <SpaceParade scrollOffset={signal as any} totalSpan={15} />,
+      <SpaceParade totalSpan={15} />,
     );
     // SpaceParade should render elements behind CircleParade (z-5)
     // Stub returns null, so this should FAIL initially
@@ -452,9 +449,9 @@ describe('User Story 1 — Scroll-driven elements (T017-T019)', () => {
 
   it('T018: element visibility at start, mid, and end of scroll range', () => {
     // At scroll offset 1.5vh with totalSpan=15, several elements should be in range
-    const signal = createTestSignal(1.5);
+    paradeScrollOffset.value = 1.5;
     const { container } = render(
-      <SpaceParade scrollOffset={signal as any} totalSpan={15} />,
+      <SpaceParade totalSpan={15} />,
     );
     // SpaceParade renders a z-5 container with element divs inside
     const paradeContainer = container.querySelector('[class~="z-5"]');
@@ -466,12 +463,12 @@ describe('User Story 1 — Scroll-driven elements (T017-T019)', () => {
 
   it('T019: deterministic backward scroll (same position → same element state)', () => {
     // Render twice with same signal value — should produce identical output
-    const signal = createTestSignal(2.0);
+    paradeScrollOffset.value = 2.0;
     const { container: c1 } = render(
-      <SpaceParade scrollOffset={signal as any} totalSpan={15} />,
+      <SpaceParade totalSpan={15} />,
     );
     const { container: c2 } = render(
-      <SpaceParade scrollOffset={signal as any} totalSpan={15} />,
+      <SpaceParade totalSpan={15} />,
     );
     // Both renders at same scroll offset should have same DOM structure
     expect(c1.innerHTML).toBe(c2.innerHTML);
@@ -510,9 +507,9 @@ describe('User Story 2 — Ambient layer (T026-T027)', () => {
 describe('User Story 5 — Shooting Stars and Asteroids (T032-T033)', () => {
   it('T032: shooting stars render at correct scroll positions', () => {
     // At offset where SS1 is active (1.5 vh with totalSpan=15)
-    const signal = createTestSignal(1.5);
+    paradeScrollOffset.value = 1.5;
     const { container } = render(
-      <SpaceParade scrollOffset={signal as any} totalSpan={15} />,
+      <SpaceParade totalSpan={15} />,
     );
     // Verify the parade container has element children
     const paradeContainer = container.querySelector('[class~="z-5"]');
@@ -523,9 +520,9 @@ describe('User Story 5 — Shooting Stars and Asteroids (T032-T033)', () => {
 
   it('T033: asteroids render with rotation', () => {
     // At offset where asteroid-3 is active (0.37 * 15 = 5.55 vh)
-    const signal = createTestSignal(5.55);
+    paradeScrollOffset.value = 5.55;
     const { container } = render(
-      <SpaceParade scrollOffset={signal as any} totalSpan={15} />,
+      <SpaceParade totalSpan={15} />,
     );
     const paradeContainer = container.querySelector('[class~="z-5"]');
     expect(paradeContainer).toBeTruthy();
@@ -602,7 +599,8 @@ describe('Polish — Z-index layering and visual consistency (T043-T047)', () =>
   });
 
   it('T047: all space elements are div elements with CSS styling', () => {
-    const { container } = render(<SpaceParade scrollOffset={createTestSignal(1.5) as any} totalSpan={15} />);
+    paradeScrollOffset.value = 1.5;
+    const { container } = render(<SpaceParade totalSpan={15} />);
     const paradeEl = container.querySelector('[class~="z-5"]');
     if (paradeEl && paradeEl.children.length > 0) {
       // All children should be divs

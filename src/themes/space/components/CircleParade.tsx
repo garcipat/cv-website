@@ -1,7 +1,7 @@
-import { useMemo, useEffect } from 'react';
+import { useMemo } from 'react';
 import { useSignals } from '@preact/signals-react/runtime';
-import { Signal } from '@preact/signals-react';
 import { ParadeCircle } from './ParadeCircle';
+import { scrollOffset, activeCircleIndex } from '../SpaceState';
 import {
   computeCircleTransform,
   findClosestCircleIndex,
@@ -12,10 +12,6 @@ import {
 
 export interface CircleParadeProps {
   entries: CircleEntry[];
-  /** Signal providing the current scroll offset in vh units. */
-  scrollOffset: Signal<number>;
-  /** Called when the active circle index changes (for anchor dot sync). */
-  onActiveCircleChange?: (index: number) => void;
 }
 
 const EMPTY_TRANSFORM: CircleTransform = {
@@ -27,32 +23,17 @@ const EMPTY_TRANSFORM: CircleTransform = {
   settled: false,
 };
 
-/**
- * Scroll-driven circle parade manager (refactored — signal consumer).
- *
- * - Consumes `scrollOffset` signal to compute circle transforms.
- * - Renders only the fixed stage overlay with a 7-slot circle pool.
- * - No longer owns the scroll container or a scroll listener.
- */
-export const CircleParade = ({
-  entries,
-  scrollOffset,
-  onActiveCircleChange,
-}: CircleParadeProps) => {
+export const CircleParade = ({ entries }: CircleParadeProps) => {
   useSignals();
 
   const currentOffset = scrollOffset.value;
 
-  // Compute active circle index
-  const activeCircleIndex = useMemo(
+  // Compute and publish active circle index via signal
+  const activeIdx = useMemo(
     () => findClosestCircleIndex(entries, currentOffset),
     [entries, currentOffset],
   );
-
-  // Notify parent of active circle changes (for anchor dot sync)
-  useEffect(() => {
-    onActiveCircleChange?.(activeCircleIndex);
-  }, [activeCircleIndex, onActiveCircleChange]);
+  activeCircleIndex.value = activeIdx;
 
   // Compute pool assignments and transforms
   const { poolAssignments, transforms } = useMemo(() => {
@@ -68,7 +49,7 @@ export const CircleParade = ({
 
     for (let slot = 0; slot < POOL_SIZE; slot++) {
       const offset = slot - Math.floor(POOL_SIZE / 2);
-      const assignedIndex = activeCircleIndex + offset;
+      const assignedIndex = activeIdx + offset;
 
       if (assignedIndex < 0 || assignedIndex >= entries.length) {
         newAssignments.push(-1);
@@ -87,7 +68,7 @@ export const CircleParade = ({
     }
 
     return { poolAssignments: newAssignments, transforms: newTransforms };
-  }, [entries, currentOffset, activeCircleIndex]);
+  }, [entries, currentOffset, activeIdx]);
 
   return (
     <div
