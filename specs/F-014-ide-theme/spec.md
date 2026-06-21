@@ -213,7 +213,7 @@ A static menu bar spans the top of the page with IDE-typical menu items: `File`,
 - **FR-014**: System MUST apply semantic CSS coloring to pseudo-code elements:
   - Section headings / labels: `Blue` (`#89b4fa`) — e.g., "Company", "Role", "Highlights"
   - Values / data: `Text` (`#cdd6f4`) — e.g., "Tech Innovations Inc.", "Staff Frontend Engineer"
-  - Dates and metadata: `Subtext` (`#a6adc8`) — e.g., "2021-04 – 2024-06"
+  - Dates and metadata: `Subtext` (`#a6adc8`) — e.g., "2021-04 - 2024-06"
   - Highlighted/important items: `Green` (`#a6e3a1`) — e.g., quote text
   - Links: `Lavender` (`#cba6f7`) — clickable URLs
 

@@ -2,7 +2,7 @@
 // CV Data Model — TypeScript interfaces for all CV content sections
 //
 // All dates use YYYY-MM string format (e.g. "2021-04").
-// Skill levels are 0–100 integer scale (0 = none, 100 = expert).
+// Skill levels are 0-100 integer scale (0 = none, 100 = expert).
 // Arrays default to [] when entries are absent — always safe to iterate.
 // ---------------------------------------------------------------------------
 
@@ -48,7 +48,7 @@ export interface Experience {
   highlights: string[];
   /** Optional work location, e.g. "Berlin, Germany" or "Remote" */
   location?: string;
-  /** Key skills used in this role, with proficiency level (0–100). */
+  /** Key skills used in this role, with proficiency level (0-100). */
   skills?: Skill[];
 }
 
@@ -64,7 +64,7 @@ export interface SkillCategory {
 export interface Skill {
   /** Skill name, e.g. "React", "TypeScript", "Docker" */
   name: string;
-  /** Proficiency level on a 0–100 integer scale (0 = none, 100 = expert) */
+  /** Proficiency level on a 0-100 integer scale (0 = none, 100 = expert) */
   level: number;
 }
 
@@ -108,13 +108,25 @@ export interface Certificate {
   credentialId?: string;
 }
 
+/** A structured period in someone's life that isn't a job or formal study — e.g. travel, civil service, sabbatical. */
+export interface Activity {
+  /** Start date in YYYY-MM format, e.g. "2014-07" */
+  startDate: string;
+  /** End date in YYYY-MM format, e.g. "2014-12" */
+  endDate: string;
+  /** Short label, e.g. "Travel", "Civil Service" */
+  name: string;
+  /** Optional description or detail */
+  description?: string;
+}
+
 /** A personal or professional project showcased in the CV. */
 export interface Project {
   /** Project name, e.g. "Open Source Task Runner" */
   name: string;
   /** Project description (plain text, may be multi-sentence) */
   description: string;
-  /** Key skills demonstrated by this project, with proficiency level (0–100). */
+  /** Key skills demonstrated by this project, with proficiency level (0-100). */
   skills?: Skill[];
   /** Optional live project URL */
   url?: string;
@@ -145,4 +157,6 @@ export interface CVData {
   certificates: Certificate[];
   /** Personal or professional projects */
   projects: Project[];
+  /** Non-work, non-education life periods (travel, civil service, etc.) */
+  activities?: Activity[];
 }

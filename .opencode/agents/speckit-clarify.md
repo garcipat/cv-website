@@ -124,7 +124,7 @@ Execution steps:
 3. Generate (internally) a prioritized queue of candidate clarification questions (maximum 5). Do NOT output them all at once. Apply these constraints:
    - Maximum of 5 total questions across the whole session.
    - Each question must be answerable via the `question` tool with EITHER:
-     - A short multiple‑choice selection (2–5 distinct, mutually exclusive options), OR
+     - A short multiple‑choice selection (2-5 distinct, mutually exclusive options), OR
      - A one-word / short‑phrase answer (use the automatic "Type your own answer" option).
    - Only include questions whose answers materially impact architecture, data modeling, task decomposition, test design, UX behavior, operational readiness, or compliance validation.
    - Ensure category coverage balance: attempt to cover the highest impact unresolved categories first; avoid asking two low-impact questions when a single high-impact area (e.g., security posture) is unresolved.
@@ -137,7 +137,7 @@ Execution steps:
 4. Sequential questioning loop (interactive using `question` tool):
    - Present EXACTLY ONE question at a time. Always use the `question` tool to present options — never raw markdown tables or lists.
    - For each question, determine the format:
-     - **Multiple‑choice** (preferred when 2–5 clear options exist):
+     - **Multiple‑choice** (preferred when 2-5 clear options exist):
        - **Analyze all options** and determine the **most suitable option** based on:
          - Best practices for the project type
          - Common patterns in similar implementations

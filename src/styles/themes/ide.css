@@ -3,8 +3,12 @@
   --color-ctp-base: #1e1e2e;
   --color-ctp-mantle: #11111b;
   --color-ctp-surface: #181825;
+  --color-ctp-surface0: #313244;
+  --color-ctp-surface1: #45475a;
+  --color-ctp-surface2: #585b70;
   --color-ctp-text: #cdd6f4;
-  --color-ctp-subtext: #a6adc8;
+  --color-ctp-subtext0: #6c7086;
+  --color-ctp-subtext1: #a6adc8;
   --color-ctp-overlay: #6c7086;
   --color-ctp-lavender: #cba6f7;
   --color-ctp-blue: #89b4fa;

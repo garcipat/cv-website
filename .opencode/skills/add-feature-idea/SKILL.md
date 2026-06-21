@@ -151,7 +151,7 @@ Also add the node to its category's existing class line. For example, if adding 
 
 | Mistake                                                               | Fix                                                                                                    |
 | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| Forgetting to add the node to the Mermaid diagram                     | Always do steps C–E — the diagram must stay in sync                                                    |
+| Forgetting to add the node to the Mermaid diagram                     | Always do steps C-E — the diagram must stay in sync                                                    |
 | Using the wrong zero-padding                                          | Always use three digits: `S-001`, `O-001` — not `S-1` or `O-1`                                         |
 | Adding the feature under the wrong subdomain or with the wrong prefix | Confirm with the user if unsure — don't guess                                                          |
 | Adding ✅ or `done` class to a new feature                            | New features are unimplemented — no ✅ prefix, no `done` class. Only add those when marking as done.   |

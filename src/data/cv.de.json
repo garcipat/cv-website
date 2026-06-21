@@ -183,5 +183,19 @@
       "url": "https://www.npmjs.com/package/a11y-audit-cli",
       "githubUrl": "https://github.com/julia-dev/a11y-audit-cli"
     }
+  ],
+  "activities": [
+    {
+      "startDate": "2012-09",
+      "endDate": "2013-09",
+      "name": "Zivildienst",
+      "description": "Gemeindedienst in einem Jugendzentrum"
+    },
+    {
+      "startDate": "2024-07",
+      "endDate": "2025-01",
+      "name": "Reisen",
+      "description": "Backpacking durch Südostasien und Australien"
+    }
   ]
 }

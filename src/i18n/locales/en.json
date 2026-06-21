@@ -63,6 +63,17 @@
       "go": "Go",
       "run": "Run",
       "terminal": "Terminal"
+    },
+    "timeline": {
+      "comment": "// career timeline — drag or click to explore",
+      "coursesNearby": "// courses taken near this period",
+      "empty": "No timeline data available",
+      "legend": {
+        "education": "Education",
+        "activity": "Activity",
+        "experience": "Experience",
+        "course": "Course"
+      }
     }
   }
 }

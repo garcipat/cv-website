@@ -63,6 +63,17 @@
       "go": "Gehe zu",
       "run": "Ausführen",
       "terminal": "Terminal"
+    },
+    "timeline": {
+      "comment": "// Karriere-Zeitleiste — ziehen oder klicken zum Erkunden",
+      "coursesNearby": "// Kurse in dieser Zeit",
+      "empty": "Keine Zeitachsendaten verfügbar",
+      "legend": {
+        "education": "Bildung",
+        "activity": "Aktivität",
+        "experience": "Arbeitserfahrung",
+        "course": "Kurs"
+      }
     }
   }
 }

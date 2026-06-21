@@ -11,6 +11,7 @@ import { CoursesSection } from './CoursesSection';
 import { CertificatesSection } from './CertificatesSection';
 import { TypesSection } from './TypesSection';
 import { ReadmeSection } from './ReadmeSection';
+import { TimelineSection } from './TimelineSection';
 
 function renderEmptyState(ui: typeof currentUI.value) {
   return (
@@ -37,6 +38,8 @@ function renderContent(activeFileName: string, cv: CVData): React.ReactNode {
       return <CoursesSection courses={cv.courses} />;
     case 'certificates.tsx':
       return <CertificatesSection certificates={cv.certificates} />;
+    case 'timeline.html':
+      return <TimelineSection />;
     case 'types.tsx':
       return <TypesSection />;
     case 'README.md':
