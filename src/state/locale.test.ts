@@ -118,7 +118,7 @@ describe('currentUI', () => {
     expect(currentUI.value.nav.experience).toBe('Erfahrung');
     expect(currentUI.value.nav.skills).toBe('Kenntnisse');
     expect(currentUI.value.language.switchTo).toBe('Zu Englisch wechseln');
-    expect(currentUI.value.themes.space).toBe('3D-Raum');
+    expect(currentUI.value.themes.space).toBe('Space');
   });
 
   it('returns English UI translations when locale is "en"', async () => {

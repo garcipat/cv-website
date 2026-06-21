@@ -95,7 +95,7 @@ const mockCurrentUI = {
     },
     themes: {
       ide: 'IDE',
-      space: '3D Room',
+      space: 'Space',
       terminal: 'Retro Terminal',
       select: 'Select theme',
     },

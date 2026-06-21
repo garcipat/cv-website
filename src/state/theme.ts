@@ -18,7 +18,7 @@ export interface Theme {
  */
 export const themes: Theme[] = [
   { id: 'ide', label: 'IDE' },
-  { id: 'space', label: '3D Room' },
+  { id: 'space', label: 'Space' },
   { id: 'terminal', label: 'Retro Terminal' },
 ];
 

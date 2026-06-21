@@ -52,7 +52,7 @@ describe('Button', () => {
   describe('theme CSS variable overrides', () => {
     const themes: Array<{ id: string; label: string }> = [
       { id: 'ide', label: 'IDE' },
-      { id: 'space', label: '3D Room' },
+      { id: 'space', label: 'Space' },
       { id: 'terminal', label: 'Retro Terminal' },
     ];
 
