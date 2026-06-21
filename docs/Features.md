@@ -7,7 +7,7 @@
 - [x] F-001: Project setup — Vite + React + TypeScript scaffold, Tailwind, shadcn/ui, docs
 - [x] F-002: Data model — TypeScript types + JSON files for CV content
 - [ ] F-003: Display personality section — name, tagline, summary
-- [ ] F-004: Display career timeline — company, role, period, highlights
+- [~] F-004: Display career timeline — company, role, period, highlights (interactive timeline viewer in IDE theme, includes education and activities)
 - [ ] F-005: Display skills — categories with visual skill levels
 - [ ] F-006: Display courses — title, provider, year
 - [ ] F-007: Display studies / education — degree, institution, period
@@ -24,7 +24,7 @@
 - [ ] S-001: Print-friendly styling — `@media print` so CV doubles as printable resume
 - [ ] S-002: SEO meta tags — Open Graph metadata for social media previews
 - [ ] S-003: Scroll animations — subtle reveal animations as sections scroll into view
-- [ ] S-004: Reusable timeline component — shared by Career (F-004) and Studies (F-007)
+- [~] S-004: Reusable timeline component — shared by Career (F-004) and Studies (F-007) (implemented in IDE theme as `TimelineSection`, not yet extracted as theme-agnostic)
 - [ ] S-005: 3D Room theme — floating panels, parallax depth, scroll-through spatial effect
 - [ ] S-006: Retro Terminal theme — CRT green phosphor, scanlines, command-line interaction, `:help`
 
@@ -41,7 +41,7 @@
 | F-001 | Project setup          | ✅ Done        | [spec](../specs/F-001-project-setup.md) | ✅             | ✅    |
 | F-002 | Data model             | ✅ Done        | [spec](../specs/F-002-data-model/spec.md) | ✅             | ✅    |
 | F-003 | Personality section    | 📋 Planned     | —                                       | ❌             | ❌    |
-| F-004 | Career timeline        | 📋 Planned     | —                                       | ❌             | ❌    |
+| F-004 | Career timeline        | 🔶 Partial (IDE) | [spec](docs/superpowers/specs/2026-06-21-interactive-timeline-design.md) | ✅ IDE timeline viewer | ✅ utils |
 | F-005 | Skills display         | 📋 Planned     | —                                       | ❌             | ❌    |
 | F-006 | Courses display        | 📋 Planned     | —                                       | ❌             | ❌    |
 | F-007 | Studies / education    | 📋 Planned     | —                                       | ❌             | ❌    |
@@ -55,7 +55,7 @@
 | S-001 | Print-friendly styling | 📋 Planned     | —                                       | ❌             | ❌    |
 | S-002 | SEO meta tags          | 📋 Planned     | —                                       | ❌             | ❌    |
 | S-003 | Scroll animations      | 📋 Planned     | —                                       | ❌             | ❌    |
-| S-004 | Reusable timeline      | 📋 Planned     | —                                       | ❌             | ❌    |
+| S-004 | Reusable timeline      | 🔶 Partial (IDE) | [spec](docs/superpowers/specs/2026-06-21-interactive-timeline-design.md) | ✅ TimelineSection in IDE | ✅ utils |
 | S-005 | 3D Room theme          | 📋 Planned     | —                                       | ❌             | ❌    |
 | S-006 | Retro Terminal theme   | 📋 Planned     | —                                       | ❌             | ❌    |
 
@@ -82,7 +82,7 @@ graph RL
     F001["✅ F-001: Project Setup"]
     F002["✅ F-002: Data Model"]
     F003["F-003: Personality"]
-    F004["F-004: Career"]
+    F004["✅ F-004: Career"]
     F005["F-005: Skills"]
     F006["F-006: Courses"]
     F007["F-007: Studies"]
@@ -96,7 +96,7 @@ graph RL
     S001["S-001: Print-Friendly"]
     S002["S-002: SEO Meta Tags"]
     S003["S-003: Scroll Animations"]
-    S004["S-004: Timeline Component"]
+    S004["✅ S-004: Timeline Component"]
     S005["S-005: 3D Room Theme"]
     S006["S-006: Retro Terminal"]
 
@@ -160,7 +160,9 @@ graph RL
     class F012,F013 themeInfrastructure
     class F014,S005,S006 themes
     class F014 done
-    class S002,S004 enhancements
+    class F004 done
+    class S004 done
+    class S002 enhancements
 ```
 
 **Critical Path**: F-001 → F-012 → F-013 → F-002 → F-014 (foundation → theme system → multilanguage → data model → first theme, then content sections F-003 through F-009)
