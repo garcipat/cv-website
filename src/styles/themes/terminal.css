@@ -1,30 +1,30 @@
 [data-theme="terminal"] {
-  /* Background & Foreground — dark phosphor green on black */
+  /* Background & Foreground — bright phosphor green on black */
   --background: oklch(0.04 0 0);
-  --foreground: oklch(0.75 0.12 145);
+  --foreground: oklch(0.89 0.25 142);
 
   /* Card */
-  --card: oklch(0.08 0.02 145);
-  --card-foreground: oklch(0.75 0.12 145);
+  --card: oklch(0.08 0.02 142);
+  --card-foreground: oklch(0.89 0.25 142);
 
   /* Popover */
-  --popover: oklch(0.08 0.02 145);
-  --popover-foreground: oklch(0.75 0.12 145);
+  --popover: oklch(0.08 0.02 142);
+  --popover-foreground: oklch(0.89 0.25 142);
 
-  /* Primary — bright terminal green */
-  --primary: oklch(0.65 0.18 145);
+  /* Primary — extra bright terminal green for prompts / headings */
+  --primary: oklch(0.93 0.2 142);
   --primary-foreground: oklch(0.04 0 0);
 
   /* Secondary — dim green */
-  --secondary: oklch(0.15 0.04 145);
-  --secondary-foreground: oklch(0.65 0.18 145);
+  --secondary: oklch(0.15 0.04 142);
+  --secondary-foreground: oklch(0.93 0.2 142);
 
   /* Muted */
-  --muted: oklch(0.1 0.02 145);
-  --muted-foreground: oklch(0.4 0.06 145);
+  --muted: oklch(0.1 0.02 142);
+  --muted-foreground: oklch(0.45 0.12 145);
 
   /* Accent — amber/gold for highlights */
-  --accent: oklch(0.7 0.15 85);
+  --accent: oklch(0.78 0.2 75);
   --accent-foreground: oklch(0.04 0 0);
 
   /* Destructive */
@@ -32,34 +32,34 @@
   --destructive-foreground: oklch(0.98 0 0);
 
   /* Border, Input, Ring */
-  --border: oklch(0.2 0.06 145 / 0.5);
-  --input: oklch(0.2 0.06 145 / 0.6);
-  --ring: oklch(0.5 0.15 145);
+  --border: oklch(0.25 0.08 142 / 0.5);
+  --input: oklch(0.25 0.08 142 / 0.6);
+  --ring: oklch(0.6 0.2 142);
 
   /* Typography — monospace fonts */
   --font-sans: 'Fira Code', monospace;
   --font-heading: 'VT323', monospace;
 
   /* Sidebar */
-  --sidebar: oklch(0.06 0.01 145);
-  --sidebar-foreground: oklch(0.75 0.12 145);
-  --sidebar-primary: oklch(0.65 0.18 145);
+  --sidebar: oklch(0.06 0.01 142);
+  --sidebar-foreground: oklch(0.89 0.25 142);
+  --sidebar-primary: oklch(0.93 0.2 142);
   --sidebar-primary-foreground: oklch(0.04 0 0);
-  --sidebar-accent: oklch(0.15 0.04 145);
-  --sidebar-accent-foreground: oklch(0.65 0.18 145);
-  --sidebar-border: oklch(0.15 0.04 145);
-  --sidebar-ring: oklch(0.5 0.15 145);
+  --sidebar-accent: oklch(0.15 0.04 142);
+  --sidebar-accent-foreground: oklch(0.93 0.2 142);
+  --sidebar-border: oklch(0.15 0.04 142);
+  --sidebar-ring: oklch(0.6 0.2 142);
 
   /* Chart */
-  --chart-1: oklch(0.65 0.18 145);
-  --chart-2: oklch(0.5 0.12 145);
-  --chart-3: oklch(0.7 0.15 85);
-  --chart-4: oklch(0.55 0.1 200);
-  --chart-5: oklch(0.45 0.1 320);
+  --chart-1: oklch(0.93 0.2 142);
+  --chart-2: oklch(0.6 0.16 142);
+  --chart-3: oklch(0.78 0.2 75);
+  --chart-4: oklch(0.65 0.12 200);
+  --chart-5: oklch(0.55 0.12 320);
 
   /* CRT / Terminal specific tokens */
   --scanline-opacity: 0.08;
-  --glow-color: oklch(0.65 0.18 145);
+  --glow-color: oklch(0.89 0.25 142);
   --crt-curve: 0.25rem;
 }
 
@@ -103,4 +103,101 @@
 [data-theme="terminal"] #root {
   border-radius: var(--crt-curve, 0.25rem);
   overflow: hidden;
+}
+
+/* ===========================================
+   Terminal Theme — Component-Specific Styles
+   =========================================== */
+
+/* Blinking cursor animation */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* Section header with phosphor glow */
+[data-theme="terminal"] .section-header span:last-child {
+  text-shadow:
+    0 0 10px var(--glow-color),
+    0 0 20px var(--glow-color),
+    0 0 40px var(--glow-color);
+}
+
+[data-theme="terminal"] .section-header > span:first-child {
+  text-shadow:
+    0 0 8px var(--glow-color),
+    0 0 16px var(--glow-color);
+}
+
+/* Command echo styling */
+[data-theme="terminal"] .cmd-echo {
+  text-shadow: 0 0 4px rgba(51, 255, 51, 0.3);
+}
+
+/* Error text — amber/destructive */
+[data-theme="terminal"] .error-text {
+  text-shadow: 0 0 8px rgba(255, 176, 0, 0.4);
+}
+
+/* Help group titles — amber glow */
+[data-theme="terminal"] .help-group-title {
+  text-shadow: 0 0 8px rgba(255, 176, 0, 0.4);
+}
+
+/* ASCII skills bar rendering */
+[data-theme="terminal"] .skills-bar {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Separator line */
+[data-theme="terminal"] .separator-line {
+  user-select: none;
+}
+
+/* Acknowledgment line */
+[data-theme="terminal"] .ack-line {
+  font-style: italic;
+}
+
+/* Terminal input */
+[data-theme="terminal"] .terminal-input::selection {
+  background: var(--primary);
+  color: var(--background);
+}
+
+/* Custom scrollbar for terminal output */
+[data-theme="terminal"] .terminal-output-viewport::-webkit-scrollbar {
+  width: 6px;
+}
+[data-theme="terminal"] .terminal-output-viewport::-webkit-scrollbar-track {
+  background: var(--background);
+}
+[data-theme="terminal"] .terminal-output-viewport::-webkit-scrollbar-thumb {
+  background: var(--muted-foreground);
+  border-radius: 3px;
+}
+
+/* Screen vignette effect */
+[data-theme="terminal"] #root::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.4) 100%);
+  pointer-events: none;
+  z-index: 9998;
+  border-radius: inherit;
+}
+
+/* ===========================================
+   Reduced Motion
+   =========================================== */
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="terminal"] #root::after {
+    animation: none;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 1; }
+  }
 }

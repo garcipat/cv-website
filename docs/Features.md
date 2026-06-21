@@ -7,7 +7,7 @@
 - [x] F-001: Project setup — Vite + React + TypeScript scaffold, Tailwind, shadcn/ui, docs
 - [x] F-002: Data model — TypeScript types + JSON files for CV content
 - [x] F-003: Space theme — floating panels, parallax depth, scroll-through spatial effect, all CV sections
-- [ ] F-004: Terminal theme — CRT green phosphor, scanlines, command-line interaction, `:help`, all CV sections
+- [x] F-004: Terminal theme — CRT green phosphor, scanlines, command-line interaction, `:help`, all CV sections
 - [x] F-010: Design system — typography, spacing, colors, component tokens
 - [ ] F-011: Page layout — section arrangement, scrolling structure, navigation
 - [x] F-012: Theme system — Preact Signals, `createLocalStorageSignal`, theme switcher infrastructure
@@ -36,7 +36,7 @@
 | F-001 | Project setup          | ✅ Done        | [spec](../specs/F-001-project-setup.md) | ✅             | ✅    |
 | F-002 | Data model             | ✅ Done        | [spec](../specs/F-002-data-model/spec.md) | ✅             | ✅    |
 | F-003 | Space theme            | ✅ Done        | [spec](../specs/F-003-space-theme/spec.md) | ✅             | ✅    |
-| F-004 | Terminal theme         | 📋 Planned     | —                                       | ❌             | ❌    |
+| F-004 | Terminal theme         | ✅ Done        | [spec](../specs/F-004-terminal-theme/spec.md) | ✅             | ✅    |
 | F-010 | Design system          | ✅ Done        | [spec](../specs/F-010-design-system/spec.md) | ✅             | ✅    |
 | F-011 | Page layout            | 📋 Planned     | —                                       | ❌             | ❌    |
 | F-012 | Theme system           | ✅ Done        | —                                       | ✅             | ✅    |
@@ -71,7 +71,7 @@ graph RL
     F001["✅ F-001: Project Setup"]
     F002["✅ F-002: Data Model"]
     F003["✅ F-003: Space Theme"]
-    F004["F-004: Terminal Theme"]
+    F004["✅ F-004: Terminal Theme"]
     F010["✅ F-010: Design System"]
     F011["F-011: Page Layout"]
     F012["✅ F-012: Theme System"]
@@ -122,6 +122,7 @@ graph RL
     class F012 done
     class F013 done
     class F003 done
+    class F004 done
     class F003,F004,F014 themes
     class F011,S001,S003 layoutNavigation
     class F012,F013 themeInfrastructure

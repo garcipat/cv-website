@@ -47,6 +47,52 @@
       "expert": "Experte"
     }
   },
+  "terminal": {
+    "intro": {
+      "name": "Name",
+      "tagline": "Kurzbeschreibung",
+      "hint": "Gib einen Befehl ein, um zu erkunden \u2014",
+      "contact": "Kontaktinfo"
+    },
+    "commands": {
+      "me": "Pers\u00f6nliche Zusammenfassung anzeigen",
+      "exp": "Berufserfahrung durchbl\u00e4ttern",
+      "projs": "Projekte und Open-Source-Arbeit durchbl\u00e4ttern",
+      "skills": "Technische F\u00e4higkeiten anzeigen",
+      "edu": "Bildungsverlauf anzeigen",
+      "crs": "Abgeschlossene Kurse durchbl\u00e4ttern",
+      "certs": "Zertifizierungen anzeigen",
+      "contact": "Kontaktinformationen anzeigen",
+      "help": "Alle verf\u00fcgbaren Befehle auflisten",
+      "theme": "<id> \u2014 Design wechseln (terminal, ide, space)",
+      "lang": "<locale> \u2014 Sprache wechseln (en, de)",
+      "cls": "Terminalausgabe l\u00f6schen",
+      "reset": "Zum Startbildschirm zur\u00fccksetzen"
+    },
+    "commandsNavigation": "Navigation",
+    "commandsSystem": "System",
+    "helpFooter": "Pfeiltasten Auf/Ab zum Springen zwischen Abschnitten",
+    "errors": {
+      "unknown": "Unbekannter Befehl '{command}'. Tippe :help f\u00fcr verf\u00fcgbare Befehle.",
+      "invalidTheme": "Ung\u00fcltiges Design '{theme}'. G\u00fcltige Designs: ide, space, terminal.",
+      "invalidLang": "Ung\u00fcltige Sprache '{locale}'. G\u00fcltige Sprachen: en, de."
+    },
+    "status": {
+      "left": "screen 80x24 \u00b7 9600 baud \u00b7 vt100",
+      "separator": " \u00b7 "
+    },
+    "acknowledgment": "Zeige {section}...",
+    "sections": {
+      "personality": "PERS\u00d6NLICHKEIT",
+      "experience": "ERFAHRUNG",
+      "skills": "KENNTNISSE",
+      "projects": "PROJEKTE",
+      "education": "STUDIUM",
+      "courses": "KURSE",
+      "certificates": "ZERTIFIKATE",
+      "contact": "KONTAKT"
+    }
+  },
   "ide": {
     "explorer": "EXPLORER",
     "themes": "DESIGNS",
