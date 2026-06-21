@@ -48,6 +48,8 @@ export interface Experience {
   highlights: string[];
   /** Optional work location, e.g. "Berlin, Germany" or "Remote" */
   location?: string;
+  /** Key skills used in this role, with proficiency level (0–100). */
+  skills?: Skill[];
 }
 
 /** A named group of related skills. */
@@ -112,8 +114,8 @@ export interface Project {
   name: string;
   /** Project description (plain text, may be multi-sentence) */
   description: string;
-  /** Technologies used, e.g. ["React", "Node.js", "PostgreSQL"] */
-  techStack: string[];
+  /** Key skills demonstrated by this project, with proficiency level (0–100). */
+  skills?: Skill[];
   /** Optional live project URL */
   url?: string;
   /** Optional source code repository URL */

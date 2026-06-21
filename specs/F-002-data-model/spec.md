@@ -89,12 +89,12 @@ A component developer building the Career section (F-004) imports the CV data an
 
 - **FR-001**: System MUST define a `CVData` interface in `src/types/cv.ts` that serves as the root type for all CV content, containing typed sections for personality, experience, skills, courses, education, certificates, and projects.
 - **FR-002**: System MUST define a standalone, exported `ContactInfo` interface with `email`, `phone`, `location`, `website`, `linkedin`, and `github` (all optional strings). System MUST also define a `Personality` interface with `name` (string), `tagline` (string), `summary` (string), and an optional `favoriteQuote` (string). The `ContactInfo` is a separate top-level optional field on `CVData`.
-- **FR-003**: System MUST define an `Experience` interface with `company` (string), `role` (string), `startDate` (string, format YYYY-MM), optional `endDate` (string, format YYYY-MM — absent means current position), `highlights` (string array), and optional `location` (string).
+- **FR-003**: System MUST define an `Experience` interface with `company` (string), `role` (string), `startDate` (string, format YYYY-MM), optional `endDate` (string, format YYYY-MM — absent means current position), `highlights` (string array), optional `location` (string), and optional `skills` (array of `Skill` objects — key skills used in this role with proficiency level).
 - **FR-004**: System MUST define a `SkillCategory` interface with `category` (string) and `skills` array of `Skill` objects, each containing `name` (string) and `level` (integer, 0–100 scale).
 - **FR-005**: System MUST define a `Course` interface with `title` (string), `provider` (string), `year` (number), and optional `certificate` (string, for certificate URL or name).
 - **FR-006**: System MUST define an `Education` interface with `degree` (string), `institution` (string), `startDate` (string, YYYY-MM), optional `endDate` (string, YYYY-MM), and optional `description` (string).
 - **FR-007**: System MUST define a `Certificate` interface with `name` (string), `issuer` (string), `date` (string, YYYY-MM), optional `url` (string), and optional `credentialId` (string).
-- **FR-008**: System MUST define a `Project` interface with `name` (string), `description` (string), `techStack` (string array), optional `url` (string), optional `githubUrl` (string), and optional `imageUrl` (string).
+- **FR-008**: System MUST define a `Project` interface with `name` (string), `description` (string), optional `skills` (array of `Skill` objects — key skills demonstrated by this project with proficiency level), optional `url` (string), optional `githubUrl` (string), and optional `imageUrl` (string).
 - **FR-009**: System MUST export all interfaces from `src/types/cv.ts` so they are importable by data files, components, and tests.
 - **FR-010**: System MUST provide an English CV data file at `src/data/cv.en.json` that conforms to the `CVData` type.
 - **FR-011**: System MUST provide a German CV data file at `src/data/cv.de.json` that conforms to the `CVData` type with German-language content in translatable fields.
@@ -108,12 +108,12 @@ A component developer building the Career section (F-004) imports the CV data an
 - **ContactInfo**: The CV owner's contact details — all optional strings for email, phone, location, website, LinkedIn, and GitHub. Defined as a standalone exported interface and an independent top-level optional field on `CVData` (separate from `Personality`). Components can import it directly for contact-specific rendering (e.g., a contact card).
 
 - **Personality**: The CV owner's identity — name, professional tagline, a multi-sentence summary, and an optional favorite quote. Does NOT contain contact details; those live separately under `CVData.contact`.
-- **Experience**: A career timeline entry representing one job or role — company name, role title, start/end dates (YYYY-MM format, endDate optional for current positions), location, and a list of highlight bullet points describing achievements.
+- **Experience**: A career timeline entry representing one job or role — company name, role title, start/end dates (YYYY-MM format, endDate optional for current positions), location, a list of highlight bullet points describing achievements, and an optional list of key skills used in this role (with proficiency levels).
 - **SkillCategory**: A named group of related skills (e.g., "Frontend", "Backend", "DevOps"). Each skill within the category has a name and a proficiency level on a 0–100 scale.
 - **Course**: A completed training course or certification program — title, provider, completion year, and an optional link or certificate identifier.
 - **Education**: A formal education entry — degree name, institution, attendance period (start/end dates, endDate optional if ongoing), and an optional description.
 - **Certificate**: An earned professional certification — certificate name, issuing organization, date awarded, optional verification URL, and optional credential ID.
-- **Project**: A personal or professional project — name, description, list of technologies used, optional live URL, optional source code URL, and optional image URL.
+- **Project**: A personal or professional project — name, description, optional list of key skills demonstrated (with proficiency levels), optional live URL, optional source code URL, and optional image URL.
 
 **Entity Relationships**:
 ```

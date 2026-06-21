@@ -16,6 +16,12 @@ export const ExperienceSection = ({ experience }: { experience: Experience[] }) 
           <span>{exp.startDate} – {exp.endDate ?? 'Present'}</span>
           {exp.location && <span> · {exp.location}</span>}
         </div>
+        {exp.skills && exp.skills.length > 0 && (
+          <div className="text-sm mb-1">
+            <span className="text-[var(--ide-date-color)]">skills: </span>
+            <span className="text-[var(--ide-value-color)]">{exp.skills.map(s => s.name).join(', ')}</span>
+          </div>
+        )}
         <div className="ml-4 mt-1 space-y-0.5">
           {exp.highlights.map((h, j) => (
             <div key={j} className="text-[var(--ide-value-color)] text-sm">

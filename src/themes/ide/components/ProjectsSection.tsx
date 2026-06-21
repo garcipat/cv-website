@@ -6,10 +6,10 @@ export const ProjectsSection = ({ projects }: { projects: Project[] }) => (
       <div key={i} className="mb-4">
         <div className="text-[var(--ide-label-color)] font-medium">{proj.name}</div>
         <p className="text-[var(--ide-value-color)] text-sm mb-1">{proj.description}</p>
-        {proj.techStack.length > 0 && (
+        {proj.skills && proj.skills.length > 0 && (
           <div className="text-sm mb-1">
-            <span className="text-[var(--ide-date-color)]">tech: </span>
-            <span className="text-[var(--ide-value-color)]">{proj.techStack.join(', ')}</span>
+            <span className="text-[var(--ide-date-color)]">skills: </span>
+            <span className="text-[var(--ide-value-color)]">{proj.skills.map(s => s.name).join(', ')}</span>
           </div>
         )}
         <div className="flex gap-3 text-sm">

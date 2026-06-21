@@ -23,7 +23,14 @@
         "Einführung von Frontend-Teststandards mit über 90 % Codeabdeckung in 15 Repositories",
         "Mentoring von 3 Junior-Entwicklern durch strukturierte Pair-Programming-Sessions und Code-Reviews"
       ],
-      "location": "Berlin, Deutschland"
+      "location": "Berlin, Deutschland",
+      "skills": [
+        { "name": "React", "level": 95 },
+        { "name": "TypeScript", "level": 92 },
+        { "name": "Next.js", "level": 85 },
+        { "name": "Storybook", "level": 80 },
+        { "name": "Designsysteme", "level": 88 }
+      ]
     },
     {
       "company": "WebFlow Studios",
@@ -36,7 +43,13 @@
         "Einführung von TypeScript in die Codebasis mit schrittweiser Typisierung von über 40.000 Zeilen JavaScript",
         "Entwicklung einer benutzerdefinierten Design-Token-Pipeline zur Synchronisation von Figma-Variablen mit CSS-Custom-Properties"
       ],
-      "location": "Remote"
+      "location": "Remote",
+      "skills": [
+        { "name": "React", "level": 92 },
+        { "name": "TypeScript", "level": 90 },
+        { "name": "WebSockets", "level": 75 },
+        { "name": "Figma", "level": 70 }
+      ]
     },
     {
       "company": "PixelCraft GmbH",
@@ -48,7 +61,13 @@
         "Aufbau einer automatisierten visuellen Regressionstestsuite mit Percy und Storybook",
         "Reduzierung der JavaScript-Bundle-Größe um 45 % durch Code-Splitting und Tree-Shaking-Optimierungen"
       ],
-      "location": "München, Deutschland"
+      "location": "München, Deutschland",
+      "skills": [
+        { "name": "React", "level": 85 },
+        { "name": "Redux", "level": 80 },
+        { "name": "Storybook", "level": 75 },
+        { "name": "JavaScript", "level": 88 }
+      ]
     }
   ],
   "skills": [
@@ -133,7 +152,12 @@
     {
       "name": "Open-Source-Designsystem",
       "description": "Ein umfassendes Designsystem und eine Komponentenbibliothek, entwickelt mit React, TypeScript und Storybook. Enthält über 60 barrierefreie Komponenten, Design-Tokens und ein Figma-Plugin für die Synchronisation von Design und Code.",
-      "techStack": ["React", "TypeScript", "Storybook", "Tailwind CSS", "Figma API"],
+      "skills": [
+        { "name": "React", "level": 95 },
+        { "name": "TypeScript", "level": 92 },
+        { "name": "Storybook", "level": 80 },
+        { "name": "Designsysteme", "level": 88 }
+      ],
       "url": "https://opensourceds.example.com",
       "githubUrl": "https://github.com/julia-dev/opensource-ds",
       "imageUrl": "https://opensourceds.example.com/preview.png"
@@ -141,13 +165,21 @@
     {
       "name": "Vite-Plugin: SVG-Sprite",
       "description": "Ein Vite-Plugin, das optimierte SVG-Sprites aus importierten SVG-Dateien zur Build-Zeit generiert, mit TypeScript-Typdefinitionen für Sprite-Symbolnamen.",
-      "techStack": ["Vite", "TypeScript", "SVGO"],
+      "skills": [
+        { "name": "Vite", "level": 85 },
+        { "name": "TypeScript", "level": 90 },
+        { "name": "Node.js", "level": 75 }
+      ],
       "githubUrl": "https://github.com/julia-dev/vite-svg-sprite"
     },
     {
       "name": "Barrierefreiheits-Audit-CLI",
       "description": "Ein Kommandozeilenwerkzeug, das Axe-Core-Barrierefreiheitsprüfungen auf lokalen oder bereitgestellten Webseiten durchführt und HTML-Berichte mit umsetzbaren Empfehlungen generiert.",
-      "techStack": ["Node.js", "Axe-core", "Puppeteer", "CLI"],
+      "skills": [
+        { "name": "Node.js", "level": 75 },
+        { "name": "Puppeteer", "level": 70 },
+        { "name": "CLI", "level": 65 }
+      ],
       "url": "https://www.npmjs.com/package/a11y-audit-cli",
       "githubUrl": "https://github.com/julia-dev/a11y-audit-cli"
     }
