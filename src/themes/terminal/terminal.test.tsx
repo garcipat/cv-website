@@ -1,4 +1,40 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { cleanup } from '@testing-library/react';
+import { signal } from '@preact/signals-react';
+
+// Mock signal state for testing
+const mockTerminalOutput = signal<any[]>([]);
+const mockCommandHistory = signal<string[]>([]);
+const mockCurrentInput = signal<string>('');
+const mockCursorVisible = signal<boolean>(true);
+
+vi.mock('@/state/terminal', () => ({
+  get terminalOutput() { return mockTerminalOutput; },
+  get commandHistory() { return mockCommandHistory; },
+  get currentInput() { return mockCurrentInput; },
+  get cursorVisible() { return mockCursorVisible; },
+  navigateSection: vi.fn(),
+  executeCommand: vi.fn(),
+}));
+
+vi.mock('@/state/theme', () => ({
+  currentTheme: { value: 'terminal' },
+}));
+
+vi.mock('@/state/locale', () => ({
+  currentLocale: { value: 'en' },
+  currentCV: { value: { personality: { name: 'Test', tagline: 'Dev' }, contact: {}, experience: [], skills: [], courses: [], education: [], certificates: [], projects: [] } },
+  currentUI: { value: { terminal: { sections: { personality: 'PERSONALITY' } } } },
+  changeLocale: vi.fn(),
+}));
+
+beforeEach(() => {
+  cleanup();
+  mockTerminalOutput.value = [];
+  mockCommandHistory.value = [];
+  mockCurrentInput.value = '';
+  mockCursorVisible.value = true;
+});
 
 describe('Terminal theme effects', () => {
   it('terminal theme CSS file defines CRT effect variables and styles', async () => {

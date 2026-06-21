@@ -47,6 +47,52 @@
       "expert": "Expert"
     }
   },
+  "terminal": {
+    "intro": {
+      "name": "Name",
+      "tagline": "tagline",
+      "hint": "Type a command to explore \u2014",
+      "contact": "Contact info"
+    },
+    "commands": {
+      "me": "View personal summary and tagline",
+      "exp": "Browse work experience",
+      "projs": "Browse projects and open-source work",
+      "skills": "View technical skills and proficiencies",
+      "edu": "View education history",
+      "crs": "Browse completed courses",
+      "certs": "View certifications and credentials",
+      "contact": "View contact information",
+      "help": "List all available commands",
+      "theme": "<id> \u2014 switch theme (terminal, ide, space)",
+      "lang": "<locale> \u2014 switch language (en, de)",
+      "cls": "Clear terminal output",
+      "reset": "Reset to intro screen"
+    },
+    "commandsNavigation": "Navigation",
+    "commandsSystem": "System",
+    "helpFooter": "Arrow Up/Down to jump between sections",
+    "errors": {
+      "unknown": "Unknown command '{command}'. Type :help for available commands.",
+      "invalidTheme": "Invalid theme '{theme}'. Valid themes: ide, space, terminal.",
+      "invalidLang": "Invalid locale '{locale}'. Valid locales: en, de."
+    },
+    "status": {
+      "left": "screen 80x24 \u00b7 9600 baud \u00b7 vt100",
+      "separator": " \u00b7 "
+    },
+    "acknowledgment": "Showing {section}...",
+    "sections": {
+      "personality": "PERSONALITY",
+      "experience": "EXPERIENCE",
+      "skills": "SKILLS",
+      "projects": "PROJECTS",
+      "education": "EDUCATION",
+      "courses": "COURSES",
+      "certificates": "CERTIFICATES",
+      "contact": "CONTACT"
+    }
+  },
   "ide": {
     "explorer": "EXPLORER",
     "themes": "THEMES",
