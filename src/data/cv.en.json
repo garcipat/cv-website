@@ -104,18 +104,18 @@
     {
       "title": "Advanced React Patterns",
       "provider": "Frontend Masters",
-      "year": 2024,
+      "date": "2024-06",
       "certificate": "https://frontendmasters.com/certificates/react-patterns"
     },
     {
       "title": "Building Scalable Design Systems",
       "provider": "Smashing Magazine",
-      "year": 2023
+      "date": "2023-09"
     },
     {
       "title": "TypeScript for Professionals",
       "provider": "Egghead.io",
-      "year": 2022
+      "date": "2022-11"
     }
   ],
   "education": [

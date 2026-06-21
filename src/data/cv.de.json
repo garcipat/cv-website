@@ -104,18 +104,18 @@
     {
       "title": "Fortgeschrittene React-Entwurfsmuster",
       "provider": "Frontend Masters",
-      "year": 2024,
+      "date": "2024-06",
       "certificate": "https://frontendmasters.com/certificates/react-patterns"
     },
     {
       "title": "Skalierbare Designsysteme entwickeln",
       "provider": "Smashing Magazine",
-      "year": 2023
+      "date": "2023-09"
     },
     {
       "title": "TypeScript für Profis",
       "provider": "Egghead.io",
-      "year": 2022
+      "date": "2022-11"
     }
   ],
   "education": [

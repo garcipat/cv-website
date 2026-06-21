@@ -74,8 +74,8 @@ export interface Course {
   title: string;
   /** Organization providing the course, e.g. "Frontend Masters" */
   provider: string;
-  /** Year of completion, e.g. 2024 */
-  year: number;
+  /** Date of completion in YYYY-MM format, e.g. "2024-06" */
+  date: string;
   /** Optional certificate URL or identifier */
   certificate?: string;
 }
