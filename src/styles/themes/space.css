@@ -137,6 +137,107 @@
   transform: translateZ(50px) scale(0.95);
 }
 
+/* ── Space Parade: Nebula drift ── */
+@keyframes nebula-drift {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(120vw);
+  }
+}
+
+/* ── Space Parade: Sun pulse ── */
+@keyframes sun-pulse {
+  0% {
+    box-shadow: 0 0 80px 40px rgba(255,160,0,0.3), 0 0 160px 80px rgba(255,120,0,0.15);
+  }
+  100% {
+    box-shadow: 0 0 100px 55px rgba(255,160,0,0.4), 0 0 200px 100px rgba(255,120,0,0.2);
+  }
+}
+
+/* ── Space Parade: Rocket bob ── */
+@keyframes rocket-bob {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+/* ── Space Parade: Rocket flame flicker ── */
+@keyframes rocket-flame-flicker {
+  0% { border-top-color: #ffaa00; opacity: 0.8; }
+  100% { border-top-color: #ff4400; opacity: 1; }
+}
+
+/* ── Space Parade: UFO hover ── */
+@keyframes ufo-hover {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* ── Space Parade: UFO dome glow ── */
+@keyframes ufo-glow {
+  0% { box-shadow: 0 0 12px rgba(136,255,204,0.5); }
+  100% { box-shadow: 0 0 22px rgba(136,255,204,0.8); }
+}
+
+/* ── Space Parade: UFO blink lights ── */
+@keyframes ufo-blink {
+  0% { opacity: 0.3; }
+  100% { opacity: 1; }
+}
+
+/* ── Space Parade: Alien wiggle ── */
+@keyframes alien-wiggle {
+  0% { transform: rotate(-3deg); }
+  100% { transform: rotate(3deg); }
+}
+
+/* ── Space Parade: Alien pupil look ── */
+@keyframes alien-pupil-look {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
+}
+
+/* ── Space Parade: Satellite spin ── */
+@keyframes satellite-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── Space Parade: Shooting star trail fade ── */
+@keyframes shooting-star-trail {
+  0% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* ── Space Parade: Asteroid tumble ── */
+@keyframes asteroid-tumble {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
 /* Reduced motion: disable animations and transforms */
 @media (prefers-reduced-motion: reduce) {
   [data-theme="space"] .float-panel {
@@ -149,5 +250,10 @@
 
   [data-theme="space"] .will-change-transform {
     will-change: auto;
+  }
+
+  /* Space Parade: disable ambient and scroll-driven element animations */
+  [data-theme="space"] .star-twinkle {
+    animation: none !important;
   }
 }

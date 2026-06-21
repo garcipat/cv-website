@@ -21,7 +21,7 @@
 - [ ] S-003: Scroll animations — subtle reveal animations as sections scroll into view
 - [~] S-004: Reusable timeline component — shared by all themes with timeline data (implemented in IDE theme as `TimelineSection`, not yet extracted as theme-agnostic)
 
-- [ ] **S-005** **Space Background Animations** — Scroll-driven background animations (spaceship, planets, shooting stars, asteroids) add atmosphere to the Space theme
+- [x] **S-005** **Space Background Animations** — Scroll-driven background animations (spaceship, planets, shooting stars, asteroids) add atmosphere to the Space theme
 
 ### Optional
 
@@ -46,7 +46,7 @@
 | S-002 | SEO meta tags          | 📋 Planned     | —                                       | ❌             | ❌    |
 | S-003 | Scroll animations      | 📋 Planned     | —                                       | ❌             | ❌    |
 | S-004 | Reusable timeline      | 🔶 Partial (IDE) | [spec](docs/superpowers/specs/2026-06-21-interactive-timeline-design.md) | ✅ TimelineSection in IDE | ✅ utils |
-| S-005 | Space background animations | 📋 Planned | [spec](../specs/S-005-space-parade/spec.md) | ❌ | ❌ |
+| S-005 | Space background animations | ✅ Done | [spec](../specs/S-005-space-parade/spec.md) | ✅ | ✅ |
 
 ---
 
@@ -81,7 +81,7 @@ graph RL
     S002["S-002: SEO Meta Tags"]
     S003["S-003: Scroll Animations"]
     S004["✅ S-004: Timeline Component"]
-    S005["S-005: Space Background Animations"]
+    S005["✅ S-005: Space Background Animations"]
 
     F003 --> F002
     F003 --> F011
@@ -128,6 +128,7 @@ graph RL
     class F014 done
     class S004 done
     class S002,S005 enhancements
+    class S005 done
 ```
 
 **Critical Path**: F-001 → F-012 → F-013 → F-002 → F-014 (foundation → theme system → multilanguage → data model → IDE theme, then Space and Terminal themes)
