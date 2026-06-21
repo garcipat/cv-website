@@ -39,6 +39,14 @@
     "delete": "Delete",
     "outline": "Outline"
   },
+  "skills": {
+    "levels": {
+      "skilled": "Skilled",
+      "proficient": "Proficient",
+      "advanced": "Advanced",
+      "expert": "Expert"
+    }
+  },
   "ide": {
     "explorer": "EXPLORER",
     "themes": "THEMES",

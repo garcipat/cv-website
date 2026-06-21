@@ -10,6 +10,7 @@ import { EducationSection } from './EducationSection';
 import { CoursesSection } from './CoursesSection';
 import { CertificatesSection } from './CertificatesSection';
 import { TypesSection } from './TypesSection';
+import { ReadmeSection } from './ReadmeSection';
 
 function renderEmptyState(ui: typeof currentUI.value) {
   return (
@@ -26,7 +27,7 @@ function renderContent(activeFileName: string, cv: CVData): React.ReactNode {
       return <AboutSection personality={cv.personality} contact={cv.contact} />;
     case 'experience.tsx':
       return <ExperienceSection experience={cv.experience} />;
-    case 'skills.tsx':
+    case 'skills.md':
       return <SkillsSection skills={cv.skills} />;
     case 'projects.tsx':
       return <ProjectsSection projects={cv.projects} />;
@@ -38,6 +39,8 @@ function renderContent(activeFileName: string, cv: CVData): React.ReactNode {
       return <CertificatesSection certificates={cv.certificates} />;
     case 'types.tsx':
       return <TypesSection />;
+    case 'README.md':
+      return <ReadmeSection />;
     default:
       return <div className="text-[var(--color-ctp-subtext)]">Unknown file: {activeFileName}</div>;
   }

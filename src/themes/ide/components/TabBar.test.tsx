@@ -47,9 +47,9 @@ describe('TabBar', () => {
     const user = userEvent.setup();
     openFile('about.tsx');
     openFile('experience.tsx');
-    openFile('skills.tsx');
+    openFile('skills.md');
     render(<TabBar />);
-    const closeBtn = screen.getByLabelText('Close skills.tsx');
+    const closeBtn = screen.getByLabelText('Close skills.md');
     await user.click(closeBtn);
     expect(activeFile.value).toBe('experience.tsx');
   });
@@ -60,12 +60,12 @@ describe('TabBar', () => {
   });
 
   it('tab-order-matches-openTabs-signal-order', () => {
-    openFile('skills.tsx');
+    openFile('skills.md');
     openFile('about.tsx');
     openFile('experience.tsx');
     const { container } = render(<TabBar />);
     const tabLabels = container.querySelectorAll('button > span:first-child');
-    expect(tabLabels[0]).toHaveTextContent('skills.tsx');
+    expect(tabLabels[0]).toHaveTextContent('skills.md');
     expect(tabLabels[1]).toHaveTextContent('about.tsx');
     expect(tabLabels[2]).toHaveTextContent('experience.tsx');
   });

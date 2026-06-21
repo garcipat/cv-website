@@ -18,7 +18,7 @@ describe('FileTree', () => {
     expect(screen.getByText('sections/')).toBeInTheDocument();
     expect(screen.getByText('about.tsx')).toBeInTheDocument();
     expect(screen.getByText('experience.tsx')).toBeInTheDocument();
-    expect(screen.getByText('skills.tsx')).toBeInTheDocument();
+    expect(screen.getByText('skills.md')).toBeInTheDocument();
     expect(screen.getByText('projects.tsx')).toBeInTheDocument();
     expect(screen.getByText('education.tsx')).toBeInTheDocument();
     expect(screen.getByText('courses.tsx')).toBeInTheDocument();

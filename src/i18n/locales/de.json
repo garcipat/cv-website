@@ -39,6 +39,14 @@
     "delete": "Löschen",
     "outline": "Umriss"
   },
+  "skills": {
+    "levels": {
+      "skilled": "Erfahren",
+      "proficient": "Fortgeschritten",
+      "advanced": "Spezialisiert",
+      "expert": "Experte"
+    }
+  },
   "ide": {
     "explorer": "EXPLORER",
     "themes": "DESIGNS",
