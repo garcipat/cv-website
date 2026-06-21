@@ -193,29 +193,28 @@ export function scaleConfigsToSpan(
  *  - Natural gaps prevent elements from clustering awkwardly.
  */
 export const SPACE_PARADE_CONFIGS: ElementConfig[] = [
-  // ── Ringed Planet — anchor element, spans almost the full scroll ──
+  // ── Ringed Planet — mid-left, arcs down toward bottom-middle ──
   {
     id: 'planet-1',
     type: 'planet',
     entryOffset: 0.01,
     exitOffset: 0.93,
     startX: -15,
-    endX: 90,
-    baseY: 42,
+    endX: 65,
+    baseY: 10,
     verticalWaves: 0.5,
-    verticalAmplitude: 4,
+    verticalAmplitude: 110,
     scaleProfile: (t: number) => {
-      // 0.3 → 0.9 → 0.4 (grows to prominence, then recedes)
       if (t < 0.35) return 0.3 + (0.6 / 0.35) * t;
       if (t < 0.7) return 0.9 - ((0.5) / 0.35) * (t - 0.35);
       return 0.4;
     },
     rotationStart: 0,
-    rotationEnd: -25,
+    rotationEnd: -20,
     easing: easeInOutSine,
   },
 
-  // ── Rocket (Futurama Planet Express) — sweeps across with vertical bobbing ──
+  // ── Rocket (Futurama Planet Express) — sweeps across high region ──
   {
     id: 'rocket-1',
     type: 'rocket',
@@ -223,24 +222,24 @@ export const SPACE_PARADE_CONFIGS: ElementConfig[] = [
     exitOffset: 0.48,
     startX: 110,
     endX: -15,
-    baseY: 30,
+    baseY: 18,
     verticalWaves: 2,
-    verticalAmplitude: 10,
+    verticalAmplitude: 8,
     scaleProfile: (t: number) => 0.55 + 0.15 * Math.sin(t * Math.PI),
     rotationStart: -5,
     rotationEnd: 5,
     easing: easeInOutQuad,
   },
 
-  // ── UFO — hovers in from right, drifts to center ──
+  // ── UFO — enters after planet clears bottom zone, cruises mid-right ──
   {
     id: 'ufo-1',
     type: 'ufo',
-    entryOffset: 0.50,
+    entryOffset: 0.58,
     exitOffset: 0.95,
-    startX: 100,
-    endX: 35,
-    baseY: 48,
+    startX: 105,
+    endX: 30,
+    baseY: 62,
     verticalWaves: 0.3,
     verticalAmplitude: 6,
     scaleProfile: (t: number) => 0.65 + 0.1 * Math.sin(t * Math.PI),

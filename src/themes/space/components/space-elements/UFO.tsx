@@ -5,8 +5,8 @@ export interface UFOProps {
 }
 
 /**
- * Scroll-driven UFO with Simpsons-style alien riding on top.
- * Both alien head and saucer share a single centered column layout.
+ * UFO with Simpsons-style alien — inline SVG.
+ * Silver saucer, green alien head with antenna, eyes, and triangular teeth.
  * Uses `pointer-events: none`.
  */
 export const UFO = ({ transform }: UFOProps) => {
@@ -27,183 +27,88 @@ export const UFO = ({ transform }: UFOProps) => {
       <div
         style={{
           transform: `scale(${scale}) rotate(${rotation}deg)`,
-          marginTop: '-45px',
-          marginLeft: '-40px',
+          marginTop: '-55px',
+          marginLeft: '-45px',
           animation: 'ufo-hover 3s ease-in-out infinite',
         }}
       >
-        {/* ── Single centered column: alien on top, saucer below ── */}
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            width: '80px',
-            animation: 'alien-wiggle 0.5s ease-in-out infinite alternate',
-          }}
+        <svg
+          width="90"
+          height="85"
+          viewBox="0 0 90 85"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
         >
-          {/* Antenna stick */}
-          <div
-            style={{
-              width: '2px',
-              height: '14px',
-              background: '#44dd44',
-              borderRadius: '1px',
-              marginBottom: '-3px',
-              marginLeft: '-4px',
-            }}
-          />
-          {/* Antenna bulb */}
-          <div
-            style={{
-              width: '6px',
-              height: '6px',
-              background: '#ffdd44',
-              borderRadius: '50%',
-              marginBottom: '-3px',
-              marginLeft: '-4px',
-              boxShadow: '0 0 6px rgba(255,221,68,0.7)',
-            }}
-          />
-
-          {/* Head */}
-          <div
-            style={{
-              width: '36px',
-              height: '40px',
-              background: '#44dd44',
-              borderRadius: '50%',
-              position: 'relative',
-              boxShadow: '0 0 16px rgba(68,221,68,0.45)',
-            }}
-          >
-            {/* Left eye */}
-            <div
-              style={{
-                position: 'absolute',
-                width: '12px',
-                height: '14px',
-                background: 'white',
-                borderRadius: '50%',
-                top: '13px',
-                left: '5px',
-              }}
-            >
-              <div
-                style={{
-                  position: 'absolute',
-                  width: '5px',
-                  height: '6px',
-                  background: 'black',
-                  borderRadius: '50%',
-                  top: '5px',
-                  left: '4px',
-                  animation: 'alien-pupil-look 3s ease-in-out infinite',
-                }}
-              />
-            </div>
-            {/* Right eye */}
-            <div
-              style={{
-                position: 'absolute',
-                width: '12px',
-                height: '14px',
-                background: 'white',
-                borderRadius: '50%',
-                top: '13px',
-                right: '5px',
-              }}
-            >
-              <div
-                style={{
-                  position: 'absolute',
-                  width: '5px',
-                  height: '6px',
-                  background: 'black',
-                  borderRadius: '50%',
-                  top: '5px',
-                  right: '4px',
-                }}
-              />
-            </div>
-
-            {/* Triangular teeth */}
-            <div
-              style={{
-                position: 'absolute',
-                bottom: '2px',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                display: 'flex',
-                gap: '1px',
-              }}
-            >
-              {[0, 1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  style={{
-                    width: 0,
-                    height: 0,
-                    borderLeft: '3px solid transparent',
-                    borderRight: '3px solid transparent',
-                    borderTop: '5px solid white',
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Small neck gap */}
-          <div style={{ height: '2px' }} />
-
-          {/* Saucer body */}
-          <div
-            style={{
-              width: '80px',
-              height: '20px',
-              background: 'linear-gradient(180deg, #d4d4d4, #808080, #5a5a5a)',
-              borderRadius: '50%',
-              position: 'relative',
-              boxShadow: '0 4px 14px rgba(0,0,0,0.3)',
-            }}
-          >
-            {/* Rim highlight */}
-            <div
-              style={{
-                position: 'absolute',
-                top: '3px',
-                left: '10%',
-                width: '80%',
-                height: '3px',
-                background: 'rgba(255,255,255,0.35)',
-                borderRadius: '2px',
-              }}
+          <g>
+            <animateTransform
+              attributeName="transform"
+              type="rotate"
+              values="-3 45 40;3 45 40;-3 45 40"
+              dur="0.5s"
+              repeatCount="indefinite"
             />
 
+            {/* Antenna stick */}
+            <line x1="40" y1="20" x2="38" y2="4" stroke="#44dd44" strokeWidth="2" strokeLinecap="round" />
+            {/* Antenna bulb */}
+            <circle cx="37" cy="2" r="3.5" fill="#ffdd44" />
+            <circle cx="37" cy="2" r="6" fill="none" stroke="rgba(255,221,68,0.4)" strokeWidth="1.5">
+              <animate attributeName="r" values="6;9;6" dur="1s" repeatCount="indefinite" />
+              <animate attributeName="opacity" values="0.4;0.15;0.4" dur="1s" repeatCount="indefinite" />
+            </circle>
+
+            {/* Alien head */}
+            <ellipse cx="45" cy="35" rx="18" ry="20" fill="#44dd44" />
+            <ellipse cx="45" cy="35" rx="18" ry="20" fill="none" stroke="rgba(68,221,68,0.5)" strokeWidth="2">
+              <animate attributeName="rx" values="18;20;18" dur="1s" repeatCount="indefinite" />
+              <animate attributeName="ry" values="20;22;20" dur="1s" repeatCount="indefinite" />
+            </ellipse>
+
+            {/* Left eye */}
+            <ellipse cx="38" cy="32" rx="6" ry="7" fill="white" />
+            <circle cx="39" cy="33" r="2.5" fill="black">
+              <animate attributeName="cx" values="39;37;39" dur="3s" repeatCount="indefinite" />
+            </circle>
+
+            {/* Right eye */}
+            <ellipse cx="52" cy="32" rx="6" ry="7" fill="white" />
+            <circle cx="53" cy="33" r="2.5" fill="black" />
+
+            {/* Teeth */}
+            <polygon points="40,52 42,47 44,52" fill="white" />
+            <polygon points="44,52 46,47 48,52" fill="white" />
+            <polygon points="48,52 50,47 52,52" fill="white" />
+
+            {/* Neck gap */}
+            <rect x="36" y="53" width="18" height="3" fill="#0a0a1a" />
+
+            {/* Saucer body */}
+            <ellipse cx="45" cy="63" rx="42" ry="11" fill="url(#saucerGrad)" />
+            <ellipse cx="45" cy="63" rx="42" ry="11" fill="none" stroke="#666" strokeWidth="0.5" />
+
+            {/* Saucer rim highlight */}
+            <ellipse cx="45" cy="60" rx="34" ry="3" fill="rgba(255,255,255,0.15)" />
+
             {/* Blinking lights */}
-            {[
-              { left: '14px', delay: '0s' },
-              { left: '34px', delay: '0.25s' },
-              { left: '54px', delay: '0.1s' },
-            ].map((light, i) => (
-              <div
-                key={i}
-                style={{
-                  position: 'absolute',
-                  width: '5px',
-                  height: '5px',
-                  background: '#ff3333',
-                  borderRadius: '50%',
-                  bottom: '3px',
-                  left: light.left,
-                  boxShadow: '0 0 4px rgba(255,50,50,0.8)',
-                  animation: `ufo-blink 0.5s linear infinite alternate`,
-                  animationDelay: light.delay,
-                }}
-              />
-            ))}
-          </div>
-        </div>
+            <circle cx="18" cy="63" r="2.5" fill="#ff3333">
+              <animate attributeName="opacity" values="0.3;1;0.3" dur="0.5s" repeatCount="indefinite" />
+            </circle>
+            <circle cx="45" cy="63" r="2.5" fill="#ff3333">
+              <animate attributeName="opacity" values="1;0.3;1" dur="0.5s" begin="0.25s" repeatCount="indefinite" />
+            </circle>
+            <circle cx="72" cy="63" r="2.5" fill="#ff3333">
+              <animate attributeName="opacity" values="0.3;1;0.3" dur="0.5s" begin="0.1s" repeatCount="indefinite" />
+            </circle>
+          </g>
+
+          <defs>
+            <linearGradient id="saucerGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#d4d4d4" />
+              <stop offset="50%" stopColor="#808080" />
+              <stop offset="100%" stopColor="#5a5a5a" />
+            </linearGradient>
+          </defs>
+        </svg>
       </div>
     </div>
   );

@@ -589,10 +589,10 @@ describe('Polish — Z-index layering and visual consistency (T043-T047)', () =>
     }
   });
 
-  it('T046: no img, svg, or canvas in space background DOM', () => {
+  it('T046: no canvas in space background DOM', () => {
     renderSpacePage();
-    // Space background should be pure CSS — no external elements
-    // Note: FloatingControls contain SVG icons (lucide-react), but those are UI controls, not background
+    // Space background should be pure CSS/SVG — no external image elements
+    // Note: inline SVGs are allowed for element shapes
     const allElements = document.body.querySelectorAll('*');
     let backgroundCanvas = 0;
     allElements.forEach((el) => {
