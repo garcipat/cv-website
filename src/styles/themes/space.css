@@ -65,7 +65,19 @@
 /* 3D perspective on layout */
 [data-theme="space"] body {
   perspective: var(--perspective-depth, 1000px);
-  overflow-x: hidden;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+/* Starfield twinkle animation (matching mockup) */
+@keyframes star-twinkle {
+  0%, 100% { opacity: 0.12; }
+  50% { opacity: 0.8; }
+}
+
+[data-theme="space"] .star-twinkle {
+  animation: star-twinkle var(--star-duration, 3s) ease-in-out infinite;
+  animation-delay: var(--star-delay, 0s);
 }
 
 /* Preserve 3D on sections */
@@ -74,7 +86,21 @@
   transform-style: preserve-3d;
 }
 
-/* Floating animation for panels */
+/* Floating animation for settled center circle (matching mockup) */
+@keyframes circle-float {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(1) translateY(0);
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1) translateY(-6px);
+  }
+}
+
+[data-theme="space"] .circle-float {
+  animation: circle-float 5s ease-in-out infinite;
+}
+
+/* Older float-panel class kept for backward compatibility */
 @keyframes space-float {
   0%, 100% {
     transform: translateY(0) rotateX(0deg);
@@ -109,4 +135,19 @@
 
 [data-theme="space"] .parallax-layer--near {
   transform: translateZ(50px) scale(0.95);
+}
+
+/* Reduced motion: disable animations and transforms */
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="space"] .float-panel {
+    animation: none;
+  }
+
+  [data-theme="space"] .circle-float {
+    animation: none;
+  }
+
+  [data-theme="space"] .will-change-transform {
+    will-change: auto;
+  }
 }
