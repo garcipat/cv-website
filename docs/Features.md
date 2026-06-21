@@ -46,7 +46,7 @@
 | S-002 | SEO meta tags          | 📋 Planned     | —                                       | ❌             | ❌    |
 | S-003 | Scroll animations      | 📋 Planned     | —                                       | ❌             | ❌    |
 | S-004 | Reusable timeline      | 🔶 Partial (IDE) | [spec](docs/superpowers/specs/2026-06-21-interactive-timeline-design.md) | ✅ TimelineSection in IDE | ✅ utils |
-| S-005 | Space background animations | 📋 Planned | [spec](../docs/superpowers/specs/2026-06-21-space-animations-design.md) | ❌ | ❌ |
+| S-005 | Space background animations | 📋 Planned | [spec](../specs/S-005-space-parade/spec.md) | ❌ | ❌ |
 
 ---
 
