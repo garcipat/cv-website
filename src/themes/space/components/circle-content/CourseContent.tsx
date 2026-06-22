@@ -1,7 +1,8 @@
+import type { CourseBatch } from '../../parade-utils';
 import type { Course } from '@/types/cv';
 
 export interface CourseContentProps {
-  data: Course;
+  data: CourseBatch;
 }
 
 function fmtDate(ym: string): string {
@@ -10,28 +11,34 @@ function fmtDate(ym: string): string {
   return `${months[parseInt(m, 10) - 1]} ${y}`;
 }
 
+function CourseEntry({ course }: { course: Course }) {
+  return (
+    <div className="flex flex-col items-center gap-0.5">
+      <h4 className="text-xs font-semibold text-[var(--foreground)] leading-tight text-center">
+        {course.title}
+      </h4>
+      <p className="text-[10px] text-[var(--primary)]">
+        {course.provider}
+      </p>
+      <p className="text-[9px] text-[var(--muted-foreground)]">
+        {fmtDate(course.date)}
+      </p>
+    </div>
+  );
+}
+
 export const CourseContent = ({ data }: CourseContentProps) => {
   return (
-    <div className="flex flex-col items-center gap-1.5 max-w-sm mx-auto text-center">
-      <h3 className="text-sm font-semibold text-[var(--foreground)]">
-        {data.title}
+    <div className="flex flex-col gap-3 px-5 py-3 max-w-md mx-auto w-full">
+      <h3 className="text-sm font-semibold text-[var(--primary)] text-center">
+        Courses
       </h3>
-      <p className="text-xs text-[var(--primary)]">
-        {data.provider}
-      </p>
-      <p className="text-[10px] text-[var(--muted-foreground)]">
-        {fmtDate(data.date)}
-      </p>
-      {data.certificate && (
-        <a
-          href={data.certificate}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-[10px] text-[var(--accent)] hover:underline mt-1"
-        >
-          View Certificate
-        </a>
-      )}
+      {data.courses.map((course, i) => (
+        <div key={i}>
+          {i > 0 && <div className="border-t border-[var(--border)] my-2 opacity-30" />}
+          <CourseEntry course={course} />
+        </div>
+      ))}
     </div>
   );
 };

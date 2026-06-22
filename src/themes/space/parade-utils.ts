@@ -11,6 +11,8 @@ import type {
   Experience,
   Project,
   SkillCategory,
+  Skill,
+  Language,
   Education,
   Course,
   Certificate,
@@ -25,22 +27,22 @@ import type {
 export type CircleType =
   | 'about'
   | 'experience'
-  | 'project'
-  | 'skillCategory'
   | 'education'
-  | 'course'
-  | 'certificate'
+  | 'certificateBatch'
+  | 'skillCategory'
+  | 'courseBatch'
+  | 'project'
   | 'contact';
 
 /** Section identifiers for anchor dot navigation. */
 export type SectionId =
   | 'about'
   | 'experience'
-  | 'projects'
-  | 'skills'
   | 'education'
-  | 'courses'
   | 'certificates'
+  | 'skills'
+  | 'courses'
+  | 'projects'
   | 'contact';
 
 /** Exit direction for circles: bottom-left or bottom-right (alternating). */
@@ -51,7 +53,7 @@ export interface CircleEntry {
   /** Which type of CV content this circle displays */
   type: CircleType;
   /** The actual CV data for this circle */
-  data: Personality | Experience | Project | SkillCategory | Education | Course | Certificate | ContactInfo;
+  data: Personality | Experience | Project | SkillCategory | Education | CourseBatch | CertificateBatch | ContactInfo;
   /** Zero-based index within the flat circle list */
   index: number;
   /** The section identifier for anchor dot grouping */
@@ -62,6 +64,16 @@ export interface CircleEntry {
   effectiveSpan: number;
   /** Exit direction: 'bl' (bottom-left) or 'br' (bottom-right), alternates per circle */
   exitDirection: ExitDirection;
+}
+
+/** A batch of courses displayed in one circle. */
+export interface CourseBatch {
+  courses: Course[];
+}
+
+/** A batch of certificates displayed in one circle. */
+export interface CertificateBatch {
+  certificates: Certificate[];
 }
 
 /** Visual transform values for a circle at a given scroll position. */
@@ -125,9 +137,9 @@ function easeOutCubic(t: number): number {
 /**
  * Flattens CVData into an ordered list of CircleEntry objects.
  *
- * Order per FR-004:
- *   about → experience[] → projects[] → skillCategories[] →
- *   education[] → courses[] → certificates[] → contact
+ * Order:
+ *   about → experience[] → education[] → certificates[] → skillCategories[] →
+ *   languages[] → courses[] → projects[] → contact
  *
  * Empty arrays produce zero circles. Contact is omitted when undefined or empty (FR-012).
  */
@@ -156,22 +168,35 @@ export function buildCircleEntries(cv: CVData): CircleEntry[] {
   // 2. Experience entries
   for (const exp of cv.experience) push('experience', exp, 'experience');
 
-  // 3. Projects
-  for (const proj of cv.projects) push('project', proj, 'projects');
-
-  // 4. Skill categories
-  for (const skillCat of cv.skills) push('skillCategory', skillCat, 'skills');
-
-  // 5. Education
+  // 3. Education
   for (const edu of cv.education) push('education', edu, 'education');
 
-  // 6. Courses
-  for (const course of cv.courses) push('course', course, 'courses');
+  // 4. Certificates (all in one circle)
+  if (cv.certificates.length > 0) {
+    push('certificateBatch', { certificates: cv.certificates }, 'certificates');
+  }
 
-  // 7. Certificates
-  for (const cert of cv.certificates) push('certificate', cert, 'certificates');
+  // 5. Skill categories (merge adjacent categories from the same group into compound circles)
+  if (cv.skills.length > 0) {
+    for (const compound of buildCompoundSkills(cv.skills)) {
+      push('skillCategory', compound, 'skills');
+    }
+  }
 
-  // 8. Contact — omitted if undefined or has no meaningful fields (FR-012)
+  // 6. Languages (synthetic skill category — not separate circles)
+  if (cv.languages && cv.languages.length > 0) {
+    push('skillCategory', languagesToSkillCategory(cv.languages), 'skills');
+  }
+
+  // 7. Courses (batched, 4 per circle)
+  for (const batch of chunk(cv.courses, 4)) {
+    push('courseBatch', { courses: batch }, 'courses');
+  }
+
+  // 8. Projects
+  for (const proj of cv.projects) push('project', proj, 'projects');
+
+  // 9. Contact — omitted if undefined or has no meaningful fields (FR-012)
   if (cv.contact && hasContactData(cv.contact)) {
     push('contact', cv.contact, 'contact');
   }
@@ -194,6 +219,74 @@ function recomputeCenters(entries: CircleEntry[]): void {
 /** Check if contact data has at least one meaningful field. */
 function hasContactData(contact: ContactInfo): boolean {
   return !!(contact.email || contact.phone || contact.location || contact.website || contact.linkedin || contact.github);
+}
+
+/** Split an array into chunks of the given size. */
+function chunk<T>(arr: T[], size: number): T[][] {
+  const result: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) {
+    result.push(arr.slice(i, i + size));
+  }
+  return result;
+}
+
+/**
+ * Merge sets: consecutive categories whose names belong to the same inner Set
+ * are combined into a compound SkillCategory with sections.
+ */
+const MERGE_SETS: Array<Set<string>> = [
+  new Set(['AI & AI-Tools', 'Software Engineering', 'KI & AI-Tools']),
+  new Set(['Operating Systems', 'Servers & Databases', 'Betriebssysteme', 'Server & Datenbanken']),
+  new Set(['Requirement Engineering', 'Software Development Processes', 'Software Entwicklungsprozesse']),
+  new Set(['Other', 'Standard Software', 'Andere']),
+];
+
+function findMergeSet(name: string): number {
+  return MERGE_SETS.findIndex((s) => s.has(name));
+}
+
+/** Build compound SkillCategory entries from adjacent categories in the same merge set. */
+function buildCompoundSkills(skills: SkillCategory[]): SkillCategory[] {
+  const result: SkillCategory[] = [];
+  let i = 0;
+
+  while (i < skills.length) {
+    const setI = findMergeSet(skills[i].category);
+    if (setI < 0 || i + 1 >= skills.length || findMergeSet(skills[i + 1].category) !== setI) {
+      result.push(skills[i]);
+      i++;
+      continue;
+    }
+
+    // Collect all consecutive categories belonging to the same merge set
+    const sections: { title: string; skills: Skill[] }[] = [];
+    const allSkills: Skill[] = [];
+    while (i < skills.length && findMergeSet(skills[i].category) === setI) {
+      sections.push({ title: skills[i].category, skills: skills[i].skills });
+      allSkills.push(...skills[i].skills);
+      i++;
+    }
+
+    result.push({
+      category: sections.map((s) => s.title).join(' & '),
+      skills: allSkills,
+      sections,
+    });
+  }
+
+  return result;
+}
+
+/** Convert Language[] to a synthetic SkillCategory for display as skill bars. */
+function languagesToSkillCategory(languages: Language[]): SkillCategory {
+  return {
+    category: 'Languages',
+    skills: languages.map((l) => ({
+      name: l.name,
+      level: l.level,
+      flag: l.flag,
+    })),
+  };
 }
 
 // ---------------------------------------------------------------------------
