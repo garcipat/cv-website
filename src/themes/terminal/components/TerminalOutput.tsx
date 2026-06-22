@@ -1,6 +1,7 @@
 import { useSignals } from '@preact/signals-react/runtime';
 import { cn } from '@/lib/utils';
 import type { TerminalOutputLine } from '@/state/terminal';
+import { currentUI } from '@/state/locale';
 
 interface TerminalOutputProps {
   /** Accumulated output lines to render top-to-bottom. */
@@ -82,21 +83,23 @@ const OutputLine = ({ line }: { line: TerminalOutputLine }) => {
 
     case 'skills-bar':
       return (
-        <div className="px-7 py-0.5 text-[var(--foreground)] font-mono">
-          <span className="text-[var(--primary)]">{line.name.padEnd(12)}</span>
+        <div className="px-7 py-0.5 text-[var(--foreground)] font-mono flex items-center gap-2">
+          <span className="text-[var(--primary)] inline-block w-48 shrink-0">
+            {line.name}
+          </span>
           <span className="text-[var(--primary)] tracking-wider">
             {renderSkillBar(line.level)}
           </span>
           <span className="text-[var(--muted-foreground)] ml-1">
-            {line.level}%
+            {levelLabel(line.level)}
           </span>
         </div>
       );
 
     case 'skills-category':
       return (
-        <div className="px-7 py-0.5 mt-2">
-          <span className="text-[var(--primary)] font-bold">{line.name}</span>
+        <div className="px-7 py-1 mt-3 border-t border-[var(--border)]">
+          <span className="text-[var(--accent)] text-base font-bold">{line.name}</span>
         </div>
       );
 
@@ -200,4 +203,12 @@ function renderSkillBar(level: number): string {
   const filledCount = Math.round(level / 10);
   const emptyCount = 10 - filledCount;
   return '█'.repeat(filledCount) + '░'.repeat(emptyCount);
+}
+
+function levelLabel(value: number): string {
+  const levels = currentUI.value.skills.levels;
+  if (value < 25) return levels.skilled;
+  if (value < 50) return levels.proficient;
+  if (value < 75) return levels.advanced;
+  return levels.expert;
 }
