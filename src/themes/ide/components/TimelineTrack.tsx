@@ -73,7 +73,6 @@ export const TimelineTrack = ({
   );
 
   const overallStartMonths = parseYmdToMonths(overallStart);
-  const overallEndMonths = parseYmdToMonths(overallEnd);
   const startYear = parseInt(overallStart.split('-')[0], 10);
   const endYear = parseInt(overallEnd.split('-')[0], 10);
   const yearTicks: { label: string; pct: number }[] = [];
