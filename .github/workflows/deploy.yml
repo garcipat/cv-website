@@ -17,4 +17,5 @@ jobs:
       - run: npm run build
       - name: Deploy via SFTP
         run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq lftp
           lftp -c "set sftp:auto-confirm yes; open -u ${{ secrets.FTP_USERNAME }},${{ secrets.FTP_PASSWORD }} sftp://${{ secrets.FTP_SERVER }}:22; mirror -R dist/ ${{ secrets.FTP_LOCATION }}; quit"
