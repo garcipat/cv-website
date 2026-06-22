@@ -12,8 +12,8 @@ export interface TreeItem {
 
 export const FILE_TREE: TreeItem[] = [
   {
-    id: 'cv-website',
-    label: 'cv-website',
+    id: 'resume',
+    label: 'resume',
     type: 'folder',
     children: [
       {

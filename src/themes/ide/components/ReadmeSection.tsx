@@ -1,10 +1,10 @@
 export const ReadmeSection = () => (
   <div className="font-mono">
-    <div className="text-[var(--color-ctp-lavender)] text-lg font-bold"># CV — Julia Developer</div>
+    <div className="text-[var(--color-ctp-lavender)] text-lg font-bold"># Interactive Resume — Patrick Garcia</div>
 
     <div className="mt-2 text-[var(--color-ctp-overlay)]">
-      <div>// Senior Frontend Engineer &amp; UI Architect</div>
-      <div>// Personal CV and portfolio website</div>
+      <div>// Senior Software-Ingenieur &amp; Architekt</div>
+      <div>// Interactive resume and portfolio website</div>
     </div>
 
     <div className="mt-4 text-[var(--color-ctp-blue)] text-base font-semibold">## About</div>

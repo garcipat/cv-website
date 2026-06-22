@@ -94,8 +94,8 @@ describe('currentCV', () => {
   it('returns German CV data when locale is "de"', async () => {
     const { currentLocale, currentCV } = await importModule();
     currentLocale.value = 'de';
-    expect(currentCV.value.personality.name).toBe('Julia Entwicklerin');
-    expect(currentCV.value.personality.tagline).toContain('Frontend-Ingenieurin');
+    expect(currentCV.value.personality.name).toBe('Patrick Garcia');
+    expect(currentCV.value.personality.tagline).toContain('Software-Ingenieur');
   });
 
   it('returns English CV data when locale is "en"', async () => {
@@ -159,13 +159,13 @@ describe('changeLocale DOM side effects', () => {
   it('updates document.title to German page title', async () => {
     const { changeLocale } = await importModule();
     changeLocale('de');
-    expect(document.title).toBe('Lebenslauf — Julia Entwicklerin');
+    expect(document.title).toBe('Interaktiver Lebenslauf — Patrick Garcia');
   });
 
   it('updates document.title to English page title', async () => {
     const { changeLocale } = await importModule();
     changeLocale('en');
-    expect(document.title).toBe('Curriculum Vitae — Julia Developer');
+    expect(document.title).toBe('Interactive Resume — Patrick Garcia');
   });
 
   it('updates meta description content to German', async () => {
@@ -174,7 +174,7 @@ describe('changeLocale DOM side effects', () => {
     const meta = document.querySelector('meta[name="description"]');
     expect(meta).not.toBeNull();
     expect(meta!.getAttribute('content')).toBe(
-      'Professioneller Lebenslauf und Portfolio von Julia Entwicklerin, Senior Frontend-Ingenieurin & UI-Architektin.',
+      'Interaktiver Lebenslauf und Portfolio von Patrick Garcia, Senior Software-Ingenieur & Architekt.',
     );
   });
 
@@ -184,7 +184,7 @@ describe('changeLocale DOM side effects', () => {
     const meta = document.querySelector('meta[name="description"]');
     expect(meta).not.toBeNull();
     expect(meta!.getAttribute('content')).toBe(
-      'Professional CV and portfolio of Julia Developer, Senior Frontend Engineer & UI Architect.',
+      'Interactive resume and portfolio of Patrick Garcia, Senior Software Engineer & Architect.',
     );
   });
 

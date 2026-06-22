@@ -26,7 +26,7 @@ function Interface({ name, props }: { name: string; props: { name: string; type:
 export const TypesSection = () => (
   <div>
     <div className="mb-3">
-      <LineComment>// Type definitions for CV data model</LineComment>
+      <LineComment>// Type definitions for resume data model</LineComment>
     </div>
 
     <Interface

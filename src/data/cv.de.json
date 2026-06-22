@@ -473,8 +473,8 @@
   ],
   "projects": [
     {
-      "name": "CV-Website",
-      "description": "Moderne, mehrsprachige Portfolio-Website mit drei verschiedenen Themes (Space, IDE, Terminal). Statische Seite ohne Backend — CV-Daten aus getypten JSON-Dateien.",
+      "name": "Interactive Resume",
+      "description": "Moderne, mehrsprachige Portfolio-Website mit drei verschiedenen Themes (Space, IDE, Terminal). Statische Seite ohne Backend — Lebenslaufdaten aus getypten JSON-Dateien.",
       "skills": [
         "React",
         "TypeScript",

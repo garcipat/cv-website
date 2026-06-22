@@ -5,7 +5,7 @@ export const activeFile: Signal<string | null> = createLocalStorageSignal<string
 
 export const openTabs: Signal<string[]> = createLocalStorageSignal<string[]>('ide-openTabs', []);
 
-export const sidebarExpanded: Signal<Set<string>> = signal<Set<string>>(new Set(['cv-website', 'src', 'src/sections']));
+export const sidebarExpanded: Signal<Set<string>> = signal<Set<string>>(new Set(['resume', 'src', 'src/sections']));
 
 export function openFile(fileName: string): void {
   if (!openTabs.value.includes(fileName)) {

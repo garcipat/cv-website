@@ -15,6 +15,6 @@ describe('App', () => {
     expect(menuBar).toHaveClass('col-span-2');
     const grid = menuBar?.parentElement;
     expect(grid).toHaveClass('grid');
-    expect(screen.getByText('cv-website/')).toBeInTheDocument();
+    expect(screen.getByText('resume/')).toBeInTheDocument();
   });
 });
