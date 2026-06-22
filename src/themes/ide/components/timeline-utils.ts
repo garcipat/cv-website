@@ -1,4 +1,4 @@
-import type { Experience, Education, Skill, Activity as ActivityData } from '@/types/cv';
+import type { Experience, Education, Activity as ActivityData } from '@/types/cv';
 
 export interface Segment {
   startDate: string;
@@ -12,7 +12,8 @@ export interface Segment {
   degree?: string;
   highlights?: string[];
   location?: string;
-  skills?: Skill[];
+  client?: string;
+  skills?: string[];
   width: number;
   color: string;
 }
@@ -29,7 +30,8 @@ interface RawEntry {
   degree?: string;
   highlights?: string[];
   location?: string;
-  skills?: Skill[];
+  client?: string;
+  skills?: string[];
   color: string;
 }
 
@@ -85,6 +87,7 @@ function experienceToRaw(exp: Experience): RawEntry {
     role: exp.role,
     highlights: exp.highlights,
     location: exp.location,
+    client: exp.client,
     skills: exp.skills,
     color: pickColor('experience', isCurrent),
   };

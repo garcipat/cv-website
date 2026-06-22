@@ -25,11 +25,11 @@
       ],
       "location": "Berlin, Germany",
       "skills": [
-        { "name": "React", "level": 95 },
-        { "name": "TypeScript", "level": 92 },
-        { "name": "Next.js", "level": 85 },
-        { "name": "Storybook", "level": 80 },
-        { "name": "Design Systems", "level": 88 }
+        "React",
+        "TypeScript",
+        "Next.js",
+        "Storybook",
+        "Design Systems"
       ]
     },
     {
@@ -45,10 +45,10 @@
       ],
       "location": "Remote",
       "skills": [
-        { "name": "React", "level": 92 },
-        { "name": "TypeScript", "level": 90 },
-        { "name": "WebSockets", "level": 75 },
-        { "name": "Figma", "level": 70 }
+        "React",
+        "TypeScript",
+        "WebSockets",
+        "Figma"
       ]
     },
     {
@@ -63,40 +63,41 @@
       ],
       "location": "Munich, Germany",
       "skills": [
-        { "name": "React", "level": 85 },
-        { "name": "Redux", "level": 80 },
-        { "name": "Storybook", "level": 75 },
-        { "name": "JavaScript", "level": 88 }
+        "React",
+        "Redux",
+        "Storybook",
+        "JavaScript"
       ]
     }
   ],
   "skills": [
     {
-      "category": "Frontend",
+      "category": "Languages",
+      "skills": [
+        { "name": "TypeScript", "level": 92 },
+        { "name": "JavaScript", "level": 88 }
+      ]
+    },
+    {
+      "category": "Frameworks & Technologies",
       "skills": [
         { "name": "React", "level": 95 },
-        { "name": "TypeScript", "level": 92 },
-        { "name": "Next.js", "level": 85 },
         { "name": "CSS / Tailwind", "level": 90 },
+        { "name": "Design Systems", "level": 88 },
+        { "name": "Vitest / Jest", "level": 85 },
+        { "name": "Next.js", "level": 85 },
+        { "name": "Agile / Scrum", "level": 80 },
         { "name": "Storybook", "level": 80 },
-        { "name": "Vitest / Jest", "level": 85 }
-      ]
-    },
-    {
-      "category": "Backend & Tools",
-      "skills": [
         { "name": "Node.js", "level": 75 },
         { "name": "GraphQL", "level": 70 },
-        { "name": "Docker", "level": 65 },
-        { "name": "PostgreSQL", "level": 55 }
+        { "name": "Figma", "level": 70 },
+        { "name": "Docker", "level": 65 }
       ]
     },
     {
-      "category": "Design & Collaboration",
+      "category": "Tools",
       "skills": [
-        { "name": "Figma", "level": 70 },
-        { "name": "Design Systems", "level": 88 },
-        { "name": "Agile / Scrum", "level": 80 }
+        { "name": "PostgreSQL", "level": 55 }
       ]
     }
   ],
@@ -150,38 +151,40 @@
   ],
   "projects": [
     {
-      "name": "Open Source Design System",
-      "description": "A comprehensive design system and component library built with React, TypeScript, and Storybook. Includes 60+ accessible components, design tokens, and a Figma plugin for design-to-code sync.",
+      "name": "CV-Website",
+      "description": "A modern, multi-theme portfolio website with three distinct themes (Space, IDE, Terminal). Built with React 19, TypeScript, Tailwind CSS 4, and shadcn/ui. Fully static — no backend, CV data from typed JSON files.",
       "skills": [
-        { "name": "React", "level": 95 },
-        { "name": "TypeScript", "level": 92 },
-        { "name": "Storybook", "level": 80 },
-        { "name": "Design Systems", "level": 88 }
+        "React",
+        "TypeScript",
+        "TailwindCSS",
+        "Git"
       ],
-      "url": "https://opensourceds.example.com",
-      "githubUrl": "https://github.com/jane-dev/opensource-ds",
-      "imageUrl": "https://opensourceds.example.com/preview.png"
+      "githubUrl": "https://github.com/garcipat/cv-website"
     },
     {
-      "name": "Vite Plugin: SVG Sprite",
-      "description": "A Vite plugin that generates optimised SVG sprites from imported SVG files at build time, with TypeScript type definitions for sprite symbol names.",
+      "name": "Bingo Anything",
+      "description": "A customizable bingo web app built with ASP.NET Core Blazor Server and MudBlazor. Features multi-player sessions, real-time updates, custom board creation, configurable board sizes, and automatic winner detection. Uses Clean Architecture and Entity Framework Core.",
       "skills": [
-        { "name": "Vite", "level": 85 },
-        { "name": "TypeScript", "level": 90 },
-        { "name": "Node.js", "level": 75 }
+        "ASP.NET Core",
+        "Blazor Interactive Server",
+        "Entity Framework Core",
+        "C#",
+        "TailwindCSS"
       ],
-      "githubUrl": "https://github.com/jane-dev/vite-svg-sprite"
+      "githubUrl": "https://github.com/garcipat/bingo-anything"
     },
     {
-      "name": "Accessibility Audit CLI",
-      "description": "A command-line tool that runs Axe-core accessibility audits on local or deployed web pages, generating HTML reports with actionable recommendations.",
+      "name": "El Nopal Artesanal Web Shop",
+      "description": "An e-commerce platform for showcasing and selling authentic Mexican artisanal products. Built with React, TypeScript, .NET Core, and PostgreSQL. Features a product catalog with advanced search and filtering.",
       "skills": [
-        { "name": "Node.js", "level": 75 },
-        { "name": "Puppeteer", "level": 70 },
-        { "name": "CLI", "level": 65 }
+        "React",
+        "TypeScript",
+        ".NET Core",
+        "PostgreSQL",
+        "JWT"
       ],
-      "url": "https://www.npmjs.com/package/a11y-audit-cli",
-      "githubUrl": "https://github.com/jane-dev/a11y-audit-cli"
+      "url": "https://www.el-nopal-artesanal.com",
+      "githubUrl": "https://github.com/garcipat/elnopal"
     }
   ],
   "activities": [

@@ -48,8 +48,10 @@ export interface Experience {
   highlights: string[];
   /** Optional work location, e.g. "Berlin, Germany" or "Remote" */
   location?: string;
-  /** Key skills used in this role, with proficiency level (0-100). */
-  skills?: Skill[];
+  /** Optional client/company name for contractor engagements, e.g. "Bühlergroup AG" */
+  client?: string;
+  /** Key skills used in this role. */
+  skills?: string[];
 }
 
 /** A named group of related skills. */
@@ -126,8 +128,8 @@ export interface Project {
   name: string;
   /** Project description (plain text, may be multi-sentence) */
   description: string;
-  /** Key skills demonstrated by this project, with proficiency level (0-100). */
-  skills?: Skill[];
+  /** Key skills demonstrated by this project. */
+  skills?: string[];
   /** Optional live project URL */
   url?: string;
   /** Optional source code repository URL */

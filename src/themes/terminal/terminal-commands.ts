@@ -210,7 +210,7 @@ export function buildSectionLines(
 
     case 'exp': {
       (cv.experience || []).forEach((exp) => {
-        lines.push({ type: 'content', text: `${exp.role || ''} @ ${exp.company || ''}`, variant: 'bright' });
+        lines.push({ type: 'content', text: `${exp.role || ''} @ ${exp.company || ''}${exp.client ? ` — ${exp.client}` : ''}`, variant: 'bright' });
         const startYear = (exp.startDate || '').slice(0, 7);
         const endYear = exp.endDate ? exp.endDate.slice(0, 7) : 'present';
         lines.push({ type: 'content', text: `[${startYear} — ${endYear}]`, variant: 'dim' });
@@ -220,7 +220,7 @@ export function buildSectionLines(
         if (exp.skills && exp.skills.length > 0) {
           lines.push({
             type: 'content',
-            text: exp.skills.map((s) => s.name).join(' · '),
+            text: exp.skills.join(' · '),
             variant: 'dim',
           });
         }
@@ -251,7 +251,7 @@ export function buildSectionLines(
         if (proj.skills && proj.skills.length > 0) {
           lines.push({
             type: 'tags',
-            tags: proj.skills.map((s) => s.name),
+            tags: proj.skills,
           });
         }
       });

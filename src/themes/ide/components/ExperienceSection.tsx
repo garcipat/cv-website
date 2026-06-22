@@ -9,6 +9,7 @@ function renderEntry(exp: Experience, index: number) {
       <PropLine name="startDate" value={exp.startDate} />
       <PropLine name="endDate" value={exp.endDate ?? 'Present'} />
       {exp.location && <PropLine name="location" value={exp.location} />}
+      {exp.client && <PropLine name="client" value={exp.client} />}
 
       <div className="ml-6">
         <Prop>highlights</Prop><Punct>:</Punct> <Punct>[</Punct>

@@ -1,7 +1,7 @@
 import type { Project } from '@/types/cv';
 import { Keyword, Ident, Prop, Str, Punct, ImportType, PropLine, Obj } from './syntax';
 
-function renderSkills(skills: { name: string }[]) {
+function renderSkills(skills: string[]) {
   return (
     <>
       <div className="ml-6">
@@ -9,7 +9,7 @@ function renderSkills(skills: { name: string }[]) {
       </div>
       {skills.map((s, i) => (
         <div key={i} className="ml-10">
-          <Str>&quot;{s.name}&quot;</Str><Punct>,</Punct>
+          <Str>&quot;{s}&quot;</Str><Punct>,</Punct>
         </div>
       ))}
       <div className="ml-6"><Punct>]</Punct><Punct>,</Punct></div>
