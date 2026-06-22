@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import type { CircleEntry, CircleTransform } from '../parade-utils';
+import type { CircleEntry, CircleTransform, CourseBatch, CertificateBatch } from '../parade-utils';
 import { AboutContent } from './circle-content/AboutContent';
 import { ExperienceContent } from './circle-content/ExperienceContent';
 import { ProjectContent } from './circle-content/ProjectContent';
@@ -8,7 +8,7 @@ import { EducationContent } from './circle-content/EducationContent';
 import { CourseContent } from './circle-content/CourseContent';
 import { CertificateContent } from './circle-content/CertificateContent';
 import { ContactContent } from './circle-content/ContactContent';
-import type { Personality, Experience, Project, SkillCategory, Education, Course, Certificate, ContactInfo } from '@/types/cv';
+import type { Personality, Experience, Project, SkillCategory, Education, ContactInfo } from '@/types/cv';
 
 export interface ParadeCircleProps {
   entry: CircleEntry;
@@ -34,10 +34,10 @@ function circleSize(type: CircleEntry['type']): string {
       return 'w-[33vw] h-[33vw]';
     case 'skillCategory':
       return '';
-    case 'course':
-    case 'certificate':
+    case 'courseBatch':
+    case 'certificateBatch':
     case 'contact':
-      return 'w-[28vw] h-[28vw]';
+      return 'w-[30vw] h-[30vw]';
   }
 }
 
@@ -113,10 +113,10 @@ function renderContent(entry: CircleEntry): React.ReactNode {
       return <SkillCategoryContent data={entry.data as SkillCategory} />;
     case 'education':
       return <EducationContent data={entry.data as Education} />;
-    case 'course':
-      return <CourseContent data={entry.data as Course} />;
-    case 'certificate':
-      return <CertificateContent data={entry.data as Certificate} />;
+    case 'courseBatch':
+      return <CourseContent data={entry.data as CourseBatch} />;
+    case 'certificateBatch':
+      return <CertificateContent data={entry.data as CertificateBatch} />;
     case 'contact':
       return <ContactContent data={entry.data as ContactInfo} />;
     default:

@@ -60,6 +60,8 @@ export interface SkillCategory {
   category: string;
   /** Skills within this category. Minimum 1 entry recommended. */
   skills: Skill[];
+  /** Optional sub-sections for compound categories — each with its own title and skills. */
+  sections?: { title: string; skills: Skill[] }[];
 }
 
 /** An individual skill with proficiency level. */
@@ -67,6 +69,18 @@ export interface Skill {
   /** Skill name, e.g. "React", "TypeScript", "Docker" */
   name: string;
   /** Proficiency level on a 0-100 integer scale (0 = none, 100 = expert) */
+  level: number;
+  /** Optional flag emoji for language skills, e.g. "🇩🇪" */
+  flag?: string;
+}
+
+/** A spoken language with a flag emoji. */
+export interface Language {
+  /** Language name, e.g. "German" */
+  name: string;
+  /** Flag emoji, e.g. "🇩🇪" */
+  flag: string;
+  /** Proficiency level on a 0-100 integer scale (0 = none, 100 = native) */
   level: number;
 }
 
@@ -157,6 +171,8 @@ export interface CVData {
   education: Education[];
   /** Professional certifications */
   certificates: Certificate[];
+  /** Spoken languages */
+  languages?: Language[];
   /** Personal or professional projects */
   projects: Project[];
   /** Non-work, non-education life periods (travel, civil service, etc.) */

@@ -1,7 +1,8 @@
+import type { CertificateBatch } from '../../parade-utils';
 import type { Certificate } from '@/types/cv';
 
 export interface CertificateContentProps {
-  data: Certificate;
+  data: CertificateBatch;
 }
 
 function fmtDate(ym: string): string {
@@ -10,33 +11,44 @@ function fmtDate(ym: string): string {
   return `${months[parseInt(m, 10) - 1]} ${y}`;
 }
 
-export const CertificateContent = ({ data }: CertificateContentProps) => {
+function CertEntry({ cert }: { cert: Certificate }) {
   return (
-    <div className="flex flex-col items-center gap-1.5 max-w-sm mx-auto text-center">
-      <h3 className="text-sm font-semibold text-[var(--foreground)]">
-        {data.name}
-      </h3>
-      <p className="text-xs text-[var(--primary)]">
-        {data.issuer}
+    <div className="flex flex-col items-center gap-0.5">
+      <h4 className="text-xs font-semibold text-[var(--foreground)] leading-tight text-center">
+        {cert.name}
+      </h4>
+      <p className="text-[10px] text-[var(--primary)]">
+        {cert.issuer}
       </p>
-      <p className="text-[10px] text-[var(--muted-foreground)]">
-        {fmtDate(data.date)}
+      <p className="text-[9px] text-[var(--muted-foreground)]">
+        {fmtDate(cert.date)}
       </p>
-      {data.credentialId && (
-        <p className="text-[9px] text-[var(--muted-foreground)] font-mono">
-          ID: {data.credentialId}
-        </p>
-      )}
-      {data.url && (
+      {cert.url && (
         <a
-          href={data.url}
+          href={cert.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-[10px] text-[var(--accent)] hover:underline mt-1"
+          className="text-[9px] text-[var(--accent)] hover:underline"
         >
-          Verify Credential
+          Verify
         </a>
       )}
+    </div>
+  );
+}
+
+export const CertificateContent = ({ data }: CertificateContentProps) => {
+  return (
+    <div className="flex flex-col gap-3 px-5 py-3 max-w-md mx-auto w-full">
+      <h3 className="text-sm font-semibold text-[var(--primary)] text-center">
+        Certificates
+      </h3>
+      {data.certificates.map((cert, i) => (
+        <div key={i}>
+          {i > 0 && <div className="border-t border-[var(--border)] my-2 opacity-30" />}
+          <CertEntry cert={cert} />
+        </div>
+      ))}
     </div>
   );
 };

@@ -59,6 +59,9 @@ function makeCV(overrides: Partial<CVData> = {}): CVData {
     certificates: [
       { name: 'Test Cert', issuer: 'Test Issuer', date: '2022-01' },
     ],
+    languages: [
+      { name: 'TestLang', flag: '🏳️' },
+    ],
     contact: { email: 'test@example.com', location: 'Test City' },
     ...overrides,
   };
@@ -91,7 +94,7 @@ describe('buildCircleEntries', () => {
   it('returns all skillCategory entries in order', () => {
     const entries = buildCircleEntries(makeCV());
     const skillEntries = entries.filter((e) => e.type === 'skillCategory');
-    expect(skillEntries).toHaveLength(2);
+    expect(skillEntries).toHaveLength(3);
   });
 
   it('returns all education entries in order', () => {
@@ -102,8 +105,8 @@ describe('buildCircleEntries', () => {
 
   it('returns all course and certificate entries', () => {
     const entries = buildCircleEntries(makeCV());
-    expect(entries.filter((e) => e.type === 'course')).toHaveLength(1);
-    expect(entries.filter((e) => e.type === 'certificate')).toHaveLength(1);
+    expect(entries.filter((e) => e.type === 'courseBatch')).toHaveLength(1);
+    expect(entries.filter((e) => e.type === 'certificateBatch')).toHaveLength(1);
   });
 
   it('returns contact circle when contact data is present', () => {
@@ -131,6 +134,7 @@ describe('buildCircleEntries', () => {
       education: [],
       courses: [],
       certificates: [],
+      languages: [],
       contact: undefined,
     });
     const entries = buildCircleEntries(cv);
@@ -146,6 +150,7 @@ describe('buildCircleEntries', () => {
       education: [],
       courses: [],
       certificates: [],
+      languages: [],
       contact: undefined,
     });
     const entries = buildCircleEntries(cv);
@@ -182,11 +187,11 @@ describe('buildCircleEntries', () => {
     }
     expect(typeToSection['about']).toBe('about');
     expect(typeToSection['experience']).toBe('experience');
-    expect(typeToSection['project']).toBe('projects');
-    expect(typeToSection['skillCategory']).toBe('skills');
     expect(typeToSection['education']).toBe('education');
-    expect(typeToSection['course']).toBe('courses');
-    expect(typeToSection['certificate']).toBe('certificates');
+    expect(typeToSection['certificateBatch']).toBe('certificates');
+    expect(typeToSection['skillCategory']).toBe('skills');
+    expect(typeToSection['courseBatch']).toBe('courses');
+    expect(typeToSection['project']).toBe('projects');
     expect(typeToSection['contact']).toBe('contact');
   });
 
@@ -348,7 +353,7 @@ describe('buildSections', () => {
   it('sections are in parade order', () => {
     const entries = buildCircleEntries(makeCV());
     const sections = buildSections(entries);
-    const expectedOrder = ['about', 'experience', 'projects', 'skills', 'education', 'courses', 'certificates', 'contact'];
+    const expectedOrder = ['about', 'experience', 'education', 'certificates', 'skills', 'courses', 'projects', 'contact'];
     expect(sections.map((s) => s.id)).toEqual(expectedOrder);
   });
 
@@ -360,6 +365,7 @@ describe('buildSections', () => {
       education: [],
       courses: [],
       certificates: [],
+      languages: [],
       contact: undefined,
     });
     const entries = buildCircleEntries(cv);

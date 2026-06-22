@@ -122,268 +122,829 @@
     {
       "category": ".NET & Backend",
       "skills": [
-        { "name": ".NET Core", "level": 90 },
-        { "name": "ASP.NET Core", "level": 80 },
-        { "name": "JSON", "level": 85 },
-        { "name": "Entity Framework Core", "level": 75 },
-        { "name": "JSON:API", "level": 75 },
-        { "name": "OPC-UA", "level": 50 },
-        { "name": "REST", "level": 65 },
-        { "name": "WebApi", "level": 75 },
-        { "name": "XAML", "level": 45 },
-        { "name": "XML", "level": 45 },
-        { "name": "ASP.NET", "level": 45 },
-        { "name": "Entity Framework", "level": 45 },
-        { "name": "Node.js", "level": 35 },
-        { "name": "npm", "level": 35 },
-        { "name": "NuGet", "level": 65 },
-        { "name": "NLog", "level": 30 },
-        { "name": "OAuth2", "level": 60 },
-        { "name": "OpenID Connect", "level": 60 },
-        { "name": "Serilog", "level": 65 },
-        { "name": "SignalR", "level": 60 },
-        { "name": "Swagger", "level": 65 },
-        { "name": "WCF", "level": 35 },
-        { "name": "WinForms", "level": 45 },
-        { "name": "WPF", "level": 45 },
-        { "name": "IdentityServer4", "level": 70 },
-        { "name": "NHibernate", "level": 25 },
-        { "name": "Prism", "level": 35 }
+        {
+          "name": ".NET Core",
+          "level": 90
+        },
+        {
+          "name": "ASP.NET Core",
+          "level": 80
+        },
+        {
+          "name": "JSON",
+          "level": 85
+        },
+        {
+          "name": "Entity Framework Core",
+          "level": 75
+        },
+        {
+          "name": "JSON:API",
+          "level": 75
+        },
+        {
+          "name": "OPC-UA",
+          "level": 50
+        },
+        {
+          "name": "REST",
+          "level": 65
+        },
+        {
+          "name": "WebApi",
+          "level": 75
+        },
+        {
+          "name": "XAML",
+          "level": 45
+        },
+        {
+          "name": "XML",
+          "level": 45
+        },
+        {
+          "name": "ASP.NET",
+          "level": 45
+        },
+        {
+          "name": "Entity Framework",
+          "level": 45
+        },
+        {
+          "name": "Node.js",
+          "level": 35
+        },
+        {
+          "name": "npm",
+          "level": 35
+        },
+        {
+          "name": "NuGet",
+          "level": 65
+        },
+        {
+          "name": "NLog",
+          "level": 30
+        },
+        {
+          "name": "OAuth2",
+          "level": 60
+        },
+        {
+          "name": "OpenID Connect",
+          "level": 60
+        },
+        {
+          "name": "Serilog",
+          "level": 65
+        },
+        {
+          "name": "SignalR",
+          "level": 60
+        },
+        {
+          "name": "Swagger",
+          "level": 65
+        },
+        {
+          "name": "WCF",
+          "level": 35
+        },
+        {
+          "name": "WinForms",
+          "level": 45
+        },
+        {
+          "name": "WPF",
+          "level": 45
+        },
+        {
+          "name": "IdentityServer4",
+          "level": 70
+        },
+        {
+          "name": "NHibernate",
+          "level": 25
+        },
+        {
+          "name": "Prism",
+          "level": 35
+        }
       ]
     },
     {
       "category": "Web & Frontend",
       "skills": [
-        { "name": "Blazor Interactive Server", "level": 50 },
-        { "name": "ReactJS", "level": 45 },
-        { "name": "jQuery", "level": 35 },
-        { "name": "jQuery UI", "level": 30 },
-        { "name": "Less", "level": 45 },
-        { "name": "Sass", "level": 35 },
-        { "name": "TailwindCSS", "level": 45 },
-        { "name": "Angular", "level": 30 },
-        { "name": "Redux", "level": 25 },
-        { "name": "SVG", "level": 30 },
-        { "name": "WebGL", "level": 30 },
-        { "name": "Websockets", "level": 30 }
+        {
+          "name": "Blazor Interactive Server",
+          "level": 50
+        },
+        {
+          "name": "ReactJS",
+          "level": 45
+        },
+        {
+          "name": "jQuery",
+          "level": 35
+        },
+        {
+          "name": "jQuery UI",
+          "level": 30
+        },
+        {
+          "name": "Less",
+          "level": 45
+        },
+        {
+          "name": "Sass",
+          "level": 35
+        },
+        {
+          "name": "TailwindCSS",
+          "level": 45
+        },
+        {
+          "name": "Angular",
+          "level": 30
+        },
+        {
+          "name": "Redux",
+          "level": 25
+        },
+        {
+          "name": "SVG",
+          "level": 30
+        },
+        {
+          "name": "WebGL",
+          "level": 30
+        },
+        {
+          "name": "Websockets",
+          "level": 30
+        }
       ]
     },
     {
       "category": "DevOps & Werkzeuge",
       "skills": [
-        { "name": "Visual Studio", "level": 85 },
-        { "name": "Azure DevOps", "level": 75 },
-        { "name": "Git", "level": 70 },
-        { "name": "Markdown", "level": 85 },
-        { "name": "Visual Studio Code", "level": 75 },
-        { "name": "Ansible", "level": 60 },
-        { "name": "Proxmox", "level": 60 },
-        { "name": "ReSharper", "level": 30 },
-        { "name": "Chocolatey", "level": 35 },
-        { "name": "draw.io", "level": 30 },
-        { "name": "Drupal", "level": 25 },
-        { "name": "GitHub", "level": 45 },
-        { "name": "Gitlab", "level": 30 },
-        { "name": "Google Maps API", "level": 30 },
-        { "name": "Jira", "level": 30 },
-        { "name": "LaTeX", "level": 30 },
-        { "name": "MATLAB", "level": 25 },
-        { "name": "Docker", "level": 60 },
-        { "name": "Podman", "level": 60 },
-        { "name": "Siemens S5/S7", "level": 15 },
-        { "name": "Simulink", "level": 20 },
-        { "name": "Subversion", "level": 20 },
-        { "name": "Telerik", "level": 25 },
-        { "name": "TFS", "level": 25 },
-        { "name": "WordPress", "level": 40 }
-      ]
-    },
-    {
-      "category": "KI & AI-Tools",
-      "skills": [
-        { "name": "Künstliche Intelligenz (KI)", "level": 50 },
-        { "name": "LLM (Large Language Model)", "level": 50 },
-        { "name": "Machine Learning", "level": 30 },
-        { "name": "Neuronale Netzwerke", "level": 30 },
-        { "name": "RAG", "level": 20 },
-        { "name": "GitHub Copilot", "level": 45 },
-        { "name": "Cursor", "level": 45 },
-        { "name": "OpenCode", "level": 55 }
+        {
+          "name": "Visual Studio",
+          "level": 85
+        },
+        {
+          "name": "Azure DevOps",
+          "level": 75
+        },
+        {
+          "name": "Git",
+          "level": 70
+        },
+        {
+          "name": "Markdown",
+          "level": 85
+        },
+        {
+          "name": "Visual Studio Code",
+          "level": 75
+        },
+        {
+          "name": "Ansible",
+          "level": 60
+        },
+        {
+          "name": "Proxmox",
+          "level": 60
+        },
+        {
+          "name": "ReSharper",
+          "level": 30
+        },
+        {
+          "name": "Chocolatey",
+          "level": 35
+        },
+        {
+          "name": "draw.io",
+          "level": 30
+        },
+        {
+          "name": "Drupal",
+          "level": 25
+        },
+        {
+          "name": "GitHub",
+          "level": 45
+        },
+        {
+          "name": "Gitlab",
+          "level": 30
+        },
+        {
+          "name": "Google Maps API",
+          "level": 30
+        },
+        {
+          "name": "Jira",
+          "level": 30
+        },
+        {
+          "name": "LaTeX",
+          "level": 30
+        },
+        {
+          "name": "MATLAB",
+          "level": 25
+        },
+        {
+          "name": "Docker",
+          "level": 60
+        },
+        {
+          "name": "Podman",
+          "level": 60
+        },
+        {
+          "name": "Siemens S5/S7",
+          "level": 15
+        },
+        {
+          "name": "Simulink",
+          "level": 20
+        },
+        {
+          "name": "Subversion",
+          "level": 20
+        },
+        {
+          "name": "Telerik",
+          "level": 25
+        },
+        {
+          "name": "TFS",
+          "level": 25
+        },
+        {
+          "name": "WordPress",
+          "level": 40
+        }
       ]
     },
     {
       "category": "Programmiersprachen",
       "skills": [
-        { "name": "C#", "level": 90 },
-        { "name": "CSS", "level": 65 },
-        { "name": "HTML", "level": 65 },
-        { "name": "HTML5", "level": 65 },
-        { "name": "Javascript", "level": 45 },
-        { "name": "Typescript", "level": 45 },
-        { "name": "YAML", "level": 65 },
-        { "name": "Java", "level": 20 },
-        { "name": "OpenGL", "level": 25 },
-        { "name": "Python", "level": 15 },
-        { "name": "Razor", "level": 30 },
-        { "name": "VB.NET", "level": 30 },
-        { "name": "VBA", "level": 30 },
-        { "name": "Windows Batch", "level": 35 }
+        {
+          "name": "C#",
+          "level": 90
+        },
+        {
+          "name": "CSS",
+          "level": 65
+        },
+        {
+          "name": "HTML",
+          "level": 65
+        },
+        {
+          "name": "HTML5",
+          "level": 65
+        },
+        {
+          "name": "Javascript",
+          "level": 45
+        },
+        {
+          "name": "Typescript",
+          "level": 45
+        },
+        {
+          "name": "YAML",
+          "level": 65
+        },
+        {
+          "name": "Java",
+          "level": 20
+        },
+        {
+          "name": "OpenGL",
+          "level": 25
+        },
+        {
+          "name": "Python",
+          "level": 15
+        },
+        {
+          "name": "Razor",
+          "level": 30
+        },
+        {
+          "name": "VB.NET",
+          "level": 30
+        },
+        {
+          "name": "VBA",
+          "level": 30
+        },
+        {
+          "name": "Windows Batch",
+          "level": 35
+        }
       ]
     },
     {
       "category": "Software Engineering",
       "skills": [
-        { "name": "Software Engineering", "level": 85 },
-        { "name": "Software-Architektur", "level": 75 },
-        { "name": "Continuous Integration", "level": 80 },
-        { "name": "FDD (Feature Driven Development)", "level": 75 },
-        { "name": "TDD (Test Driven Development)", "level": 75 },
-        { "name": "Datenbanken", "level": 85 },
-        { "name": "Web Applikationen", "level": 75 },
-        { "name": "Versionsverwaltung", "level": 80 },
-        { "name": "Release Management", "level": 65 },
-        { "name": "GitFlow", "level": 65 },
-        { "name": "Netzwerke", "level": 65 },
-        { "name": "Algorithmen", "level": 55 },
-        { "name": "Computer Geometrie", "level": 45 },
-        { "name": "Content Management Systeme (CMS)", "level": 55 },
-        { "name": "Internationalisierung", "level": 65 },
-        { "name": "Multithreading", "level": 55 },
-        { "name": "Regelungstechnik", "level": 35 }
+        {
+          "name": "Software Engineering",
+          "level": 85
+        },
+        {
+          "name": "Software-Architektur",
+          "level": 75
+        },
+        {
+          "name": "Continuous Integration",
+          "level": 80
+        },
+        {
+          "name": "FDD (Feature Driven Development)",
+          "level": 75
+        },
+        {
+          "name": "TDD (Test Driven Development)",
+          "level": 75
+        },
+        {
+          "name": "Datenbanken",
+          "level": 85
+        },
+        {
+          "name": "Web Applikationen",
+          "level": 75
+        },
+        {
+          "name": "Versionsverwaltung",
+          "level": 80
+        },
+        {
+          "name": "Release Management",
+          "level": 65
+        },
+        {
+          "name": "GitFlow",
+          "level": 65
+        },
+        {
+          "name": "Netzwerke",
+          "level": 65
+        },
+        {
+          "name": "Algorithmen",
+          "level": 55
+        },
+        {
+          "name": "Computer Geometrie",
+          "level": 45
+        },
+        {
+          "name": "Content Management Systeme (CMS)",
+          "level": 55
+        },
+        {
+          "name": "Internationalisierung",
+          "level": 65
+        },
+        {
+          "name": "Multithreading",
+          "level": 55
+        },
+        {
+          "name": "Regelungstechnik",
+          "level": 35
+        }
+      ]
+    },
+    {
+      "category": "KI & AI-Tools",
+      "skills": [
+        {
+          "name": "Künstliche Intelligenz (KI)",
+          "level": 50
+        },
+        {
+          "name": "LLM (Large Language Model)",
+          "level": 50
+        },
+        {
+          "name": "Machine Learning",
+          "level": 30
+        },
+        {
+          "name": "Neuronale Netzwerke",
+          "level": 30
+        },
+        {
+          "name": "RAG",
+          "level": 20
+        },
+        {
+          "name": "GitHub Copilot",
+          "level": 45
+        },
+        {
+          "name": "Cursor",
+          "level": 45
+        },
+        {
+          "name": "OpenCode",
+          "level": 55
+        }
       ]
     },
     {
       "category": "Test Engineering & Quality Management",
       "skills": [
-        { "name": "Testautomatisierung", "level": 85 },
-        { "name": "Unit Tests", "level": 85 },
-        { "name": "Integration Tests", "level": 75 },
-        { "name": "Moq", "level": 80 },
-        { "name": "xUnit", "level": 80 },
-        { "name": "Fehlerbehebungsprozess", "level": 65 },
-        { "name": "POSTMAN", "level": 45 },
-        { "name": "SonarQube", "level": 45 },
-        { "name": "DependencyTrack", "level": 45 },
-        { "name": "Playwright", "level": 55 },
-        { "name": "System Tests", "level": 40 }
+        {
+          "name": "Testautomatisierung",
+          "level": 85
+        },
+        {
+          "name": "Unit Tests",
+          "level": 85
+        },
+        {
+          "name": "Integration Tests",
+          "level": 75
+        },
+        {
+          "name": "Moq",
+          "level": 80
+        },
+        {
+          "name": "xUnit",
+          "level": 80
+        },
+        {
+          "name": "Fehlerbehebungsprozess",
+          "level": 65
+        },
+        {
+          "name": "POSTMAN",
+          "level": 45
+        },
+        {
+          "name": "SonarQube",
+          "level": 45
+        },
+        {
+          "name": "DependencyTrack",
+          "level": 45
+        },
+        {
+          "name": "Playwright",
+          "level": 55
+        },
+        {
+          "name": "System Tests",
+          "level": 40
+        }
       ]
     },
     {
       "category": "Architektur & Design",
       "skills": [
-        { "name": "Klassenmodellierung", "level": 85 },
-        { "name": "Datenmodellierung", "level": 75 },
-        { "name": "Clean Code", "level": 75 },
-        { "name": "Onion Architektur", "level": 65 },
-        { "name": "Software-Patterns", "level": 65 },
-        { "name": "Model Driven Architecture (MDA)", "level": 65 },
-        { "name": "arc42 Architekturdokumentation", "level": 35 },
-        { "name": "Enterprise Architect", "level": 25 },
-        { "name": "UML", "level": 60 }
-      ]
-    },
-    {
-      "category": "Betriebssysteme",
-      "skills": [
-        { "name": "Windows", "level": 85 },
-        { "name": "Linux (Ubuntu)", "level": 55 }
-      ]
-    },
-    {
-      "category": "Standard Software",
-      "skills": [
-        { "name": "Microsoft Excel", "level": 75 },
-        { "name": "Microsoft Visio", "level": 45 },
-        { "name": "Microsoft Word", "level": 75 },
-        { "name": "Confluence", "level": 45 },
-        { "name": "GIMP", "level": 45 },
-        { "name": "Microsoft PowerPoint", "level": 45 },
-        { "name": "Miro (Online Whiteboard)", "level": 65 },
-        { "name": "Abacus", "level": 45 },
-        { "name": "Adobe Illustrator", "level": 25 },
-        { "name": "Adobe Photoshop", "level": 45 },
-        { "name": "SAP", "level": 25 }
+        {
+          "name": "Klassenmodellierung",
+          "level": 85
+        },
+        {
+          "name": "Datenmodellierung",
+          "level": 75
+        },
+        {
+          "name": "Clean Code",
+          "level": 75
+        },
+        {
+          "name": "Onion Architektur",
+          "level": 65
+        },
+        {
+          "name": "Software-Patterns",
+          "level": 65
+        },
+        {
+          "name": "Model Driven Architecture (MDA)",
+          "level": 65
+        },
+        {
+          "name": "arc42 Architekturdokumentation",
+          "level": 35
+        },
+        {
+          "name": "Enterprise Architect",
+          "level": 25
+        },
+        {
+          "name": "UML",
+          "level": 60
+        }
       ]
     },
     {
       "category": "Server & Datenbanken",
       "skills": [
-        { "name": "Microsoft Sql-Server", "level": 75 },
-        { "name": "IIS", "level": 45 },
-        { "name": "InfluxDb", "level": 65 },
-        { "name": "Microsoft Server", "level": 65 },
-        { "name": "MS Access", "level": 35 },
-        { "name": "NGINX", "level": 50 },
-        { "name": "PostgreSQL", "level": 65 },
-        { "name": "SQLite", "level": 50 },
-        { "name": "Virtualisierung", "level": 55 }
+        {
+          "name": "Microsoft Sql-Server",
+          "level": 75
+        },
+        {
+          "name": "IIS",
+          "level": 45
+        },
+        {
+          "name": "InfluxDb",
+          "level": 65
+        },
+        {
+          "name": "Microsoft Server",
+          "level": 65
+        },
+        {
+          "name": "MS Access",
+          "level": 35
+        },
+        {
+          "name": "NGINX",
+          "level": 50
+        },
+        {
+          "name": "PostgreSQL",
+          "level": 65
+        },
+        {
+          "name": "SQLite",
+          "level": 50
+        },
+        {
+          "name": "Virtualisierung",
+          "level": 55
+        }
+      ]
+    },
+    {
+      "category": "Betriebssysteme",
+      "skills": [
+        {
+          "name": "Windows",
+          "level": 85
+        },
+        {
+          "name": "Linux (Ubuntu)",
+          "level": 55
+        }
       ]
     },
     {
       "category": "Fachgebiete",
       "skills": [
-        { "name": "Informatik", "level": 75 },
-        { "name": "CAD", "level": 50 },
-        { "name": "Maschinenbau", "level": 50 },
-        { "name": "Messwesen", "level": 65 },
-        { "name": "Prüfgeräte", "level": 65 },
-        { "name": "Security", "level": 60 },
-        { "name": "Sensorik", "level": 65 },
-        { "name": "E-Learning", "level": 55 },
-        { "name": "Elektronik", "level": 40 },
-        { "name": "Elektrotechnik", "level": 40 },
-        { "name": "Fuzzy Logic", "level": 45 },
-        { "name": "Maschinen-Steuerungen", "level": 35 },
-        { "name": "Mathematik", "level": 45 },
-        { "name": "Mentoring", "level": 55 },
-        { "name": "OWASP", "level": 55 }
+        {
+          "name": "Informatik",
+          "level": 75
+        },
+        {
+          "name": "CAD",
+          "level": 50
+        },
+        {
+          "name": "Maschinenbau",
+          "level": 50
+        },
+        {
+          "name": "Messwesen",
+          "level": 65
+        },
+        {
+          "name": "Prüfgeräte",
+          "level": 65
+        },
+        {
+          "name": "Security",
+          "level": 60
+        },
+        {
+          "name": "Sensorik",
+          "level": 65
+        },
+        {
+          "name": "E-Learning",
+          "level": 55
+        },
+        {
+          "name": "Elektronik",
+          "level": 40
+        },
+        {
+          "name": "Elektrotechnik",
+          "level": 40
+        },
+        {
+          "name": "Fuzzy Logic",
+          "level": 45
+        },
+        {
+          "name": "Maschinen-Steuerungen",
+          "level": 35
+        },
+        {
+          "name": "Mathematik",
+          "level": 45
+        },
+        {
+          "name": "Mentoring",
+          "level": 55
+        },
+        {
+          "name": "OWASP",
+          "level": 55
+        }
       ]
     },
     {
       "category": "Kommunikation & Middleware",
       "skills": [
-        { "name": "SOAP", "level": 45 },
-        { "name": "OpenApi", "level": 75 },
-        { "name": "Ethernet", "level": 65 },
-        { "name": "HTTP", "level": 65 },
-        { "name": "TCP/IP", "level": 40 },
-        { "name": "AES", "level": 55 },
-        { "name": "DHCP", "level": 55 },
-        { "name": "FTP", "level": 55 },
-        { "name": "I2C", "level": 45 },
-        { "name": "Kryptografie", "level": 45 },
-        { "name": "openssl / SSL / TLS", "level": 55 },
-        { "name": "WLAN", "level": 55 }
+        {
+          "name": "SOAP",
+          "level": 45
+        },
+        {
+          "name": "OpenApi",
+          "level": 75
+        },
+        {
+          "name": "Ethernet",
+          "level": 65
+        },
+        {
+          "name": "HTTP",
+          "level": 65
+        },
+        {
+          "name": "TCP/IP",
+          "level": 40
+        },
+        {
+          "name": "AES",
+          "level": 55
+        },
+        {
+          "name": "DHCP",
+          "level": 55
+        },
+        {
+          "name": "FTP",
+          "level": 55
+        },
+        {
+          "name": "I2C",
+          "level": 45
+        },
+        {
+          "name": "Kryptografie",
+          "level": 45
+        },
+        {
+          "name": "openssl / SSL / TLS",
+          "level": 55
+        },
+        {
+          "name": "WLAN",
+          "level": 55
+        }
       ]
     },
     {
-      "category": "Requirement Engineering",
+      "category": "Standard Software",
       "skills": [
-        { "name": "Anforderungen ermitteln", "level": 75 },
-        { "name": "Anforderungs-Analyse", "level": 65 },
-        { "name": "Anforderungs-Dokumentation", "level": 55 },
-        { "name": "Use Cases", "level": 55 },
-        { "name": "User Experience", "level": 55 }
-      ]
-    },
-    {
-      "category": "Software Entwicklungsprozesse",
-      "skills": [
-        { "name": "Scrum", "level": 75 },
-        { "name": "V-Modell", "level": 65 },
-        { "name": "SAFe", "level": 55 },
-        { "name": "Scrumban", "level": 55 }
+        {
+          "name": "Microsoft Excel",
+          "level": 75
+        },
+        {
+          "name": "Microsoft Visio",
+          "level": 45
+        },
+        {
+          "name": "Microsoft Word",
+          "level": 75
+        },
+        {
+          "name": "Confluence",
+          "level": 45
+        },
+        {
+          "name": "GIMP",
+          "level": 45
+        },
+        {
+          "name": "Microsoft PowerPoint",
+          "level": 45
+        },
+        {
+          "name": "Miro (Online Whiteboard)",
+          "level": 65
+        },
+        {
+          "name": "Abacus",
+          "level": 45
+        },
+        {
+          "name": "Adobe Illustrator",
+          "level": 25
+        },
+        {
+          "name": "Adobe Photoshop",
+          "level": 45
+        },
+        {
+          "name": "SAP",
+          "level": 25
+        }
       ]
     },
     {
       "category": "Andere",
       "skills": [
-        { "name": "Consulting", "level": 75 },
-        { "name": "Soziale Skills", "level": 75 },
-        { "name": "Review / Expertisen", "level": 75 },
-        { "name": "Microsoft Azure", "level": 55 },
-        { "name": "ANSYS-HFSS (High-Frequency Structure Simulator)", "level": 20 },
-        { "name": "Projektplanung", "level": 35 }
+        {
+          "name": "Consulting",
+          "level": 75
+        },
+        {
+          "name": "Soziale Skills",
+          "level": 75
+        },
+        {
+          "name": "Review / Expertisen",
+          "level": 75
+        },
+        {
+          "name": "Microsoft Azure",
+          "level": 55
+        },
+        {
+          "name": "ANSYS-HFSS (High-Frequency Structure Simulator)",
+          "level": 20
+        },
+        {
+          "name": "Projektplanung",
+          "level": 35
+        }
+      ]
+    },
+    {
+      "category": "Requirement Engineering",
+      "skills": [
+        {
+          "name": "Anforderungen ermitteln",
+          "level": 75
+        },
+        {
+          "name": "Anforderungs-Analyse",
+          "level": 65
+        },
+        {
+          "name": "Anforderungs-Dokumentation",
+          "level": 55
+        },
+        {
+          "name": "Use Cases",
+          "level": 55
+        },
+        {
+          "name": "User Experience",
+          "level": 55
+        }
+      ]
+    },
+    {
+      "category": "Software Entwicklungsprozesse",
+      "skills": [
+        {
+          "name": "Scrum",
+          "level": 75
+        },
+        {
+          "name": "V-Modell",
+          "level": 65
+        },
+        {
+          "name": "SAFe",
+          "level": 55
+        },
+        {
+          "name": "Scrumban",
+          "level": 55
+        }
       ]
     }
   ],
@@ -392,12 +953,12 @@
       "title": "Konflikte erkennen, analysieren und nachhaltig lösen",
       "provider": "BWI Akademie",
       "date": "2026-06"
-    }, 
+    },
     {
       "title": "Einführung in Webapplikationen mit React",
       "provider": "letsboot.ch",
       "date": "2025-11"
-    }, 
+    },
     {
       "title": "iSAQB Advanced Level - Modul WEBSEC",
       "provider": "INNOQ",
@@ -510,6 +1071,23 @@
       ],
       "url": "https://www.el-nopal-artesanal.com",
       "githubUrl": "https://github.com/garcipat/elnopal"
+    }
+  ],
+  "languages": [
+    {
+      "name": "Deutsch",
+      "flag": "🇩🇪",
+      "level": 85
+    },
+    {
+      "name": "Englisch",
+      "flag": "🇬🇧",
+      "level": 70
+    },
+    {
+      "name": "Spanisch",
+      "flag": "🇪🇸",
+      "level": 50
     }
   ]
 }
