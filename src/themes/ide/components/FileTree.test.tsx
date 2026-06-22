@@ -7,13 +7,13 @@ import { FileTree } from './FileTree';
 beforeEach(() => {
   activeFile.value = null;
   openTabs.value = [];
-  sidebarExpanded.value = new Set(['cv-website', 'src', 'src/sections']);
+  sidebarExpanded.value = new Set(['resume', 'src', 'src/sections']);
 });
 
 describe('FileTree', () => {
   it('renders-all-files-and-folders-in-correct-hierarchy', () => {
     render(<FileTree />);
-    expect(screen.getByText('cv-website/')).toBeInTheDocument();
+    expect(screen.getByText('resume/')).toBeInTheDocument();
     expect(screen.getByText('src/')).toBeInTheDocument();
     expect(screen.getByText('sections/')).toBeInTheDocument();
     expect(screen.getByText('about.tsx')).toBeInTheDocument();

@@ -4,7 +4,7 @@ import { activeFile, openTabs, sidebarExpanded, openFile, closeTab } from './ide
 beforeEach(() => {
   activeFile.value = null;
   openTabs.value = [];
-  sidebarExpanded.value = new Set(['cv-website', 'src', 'src/sections']);
+  sidebarExpanded.value = new Set(['resume', 'src', 'src/sections']);
 });
 
 describe('openFile', () => {

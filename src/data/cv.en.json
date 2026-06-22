@@ -151,8 +151,8 @@
   ],
   "projects": [
     {
-      "name": "CV-Website",
-      "description": "A modern, multi-theme portfolio website with three distinct themes (Space, IDE, Terminal). Built with React 19, TypeScript, Tailwind CSS 4, and shadcn/ui. Fully static — no backend, CV data from typed JSON files.",
+      "name": "Interactive Resume",
+      "description": "A modern, multi-theme portfolio website with three distinct themes (Space, IDE, Terminal). Built with React 19, TypeScript, Tailwind CSS 4, and shadcn/ui. Fully static — no backend, resume data from typed JSON files.",
       "skills": [
         "React",
         "TypeScript",
