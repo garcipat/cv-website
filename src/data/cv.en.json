@@ -1035,11 +1035,13 @@
     {
       "name": "iSAQB Certified Professional for Software Architecture - Foundation Level",
       "issuer": "embarc.de",
+      "url": "https://www.isaqb.org/certifications/cpsa-certifications/cpsa-foundation-level",
       "date": "2021-09"
     },
     {
       "name": "UXQB Certified Professional for Usability and User Experience - Foundation Level",
       "issuer": "SAQ",
+      "url": "https://digicomp.ch/certification/software-engineering-certifications/usability-user-experience-certifications/uxqb-certified-professional-for-usability-and-user-experience-foundation-level",
       "date": "2023-06"
     }
   ],
