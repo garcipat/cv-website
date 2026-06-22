@@ -74,15 +74,15 @@ export const TimelineTrack = ({
 
   const overallStartMonths = parseYmdToMonths(overallStart);
   const startYear = parseInt(overallStart.split('-')[0], 10);
-  const endYear = parseInt(overallEnd.split('-')[0], 10);
   const yearTicks: { label: string; pct: number }[] = [];
-  for (let y = startYear; y <= endYear; y++) {
+  for (let y = new Date().getFullYear(); y >= startYear; y -= 5) {
     const yearStart = parseYmdToMonths(`${y}-01`);
     const pct = ((yearStart - overallStartMonths) / totalMonths) * 100;
     if (pct >= 0 && pct <= 100) {
       yearTicks.push({ label: String(y), pct });
     }
   }
+  yearTicks.reverse();
 
   const coursePositions = courses
     .map((c) => {

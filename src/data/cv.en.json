@@ -1089,5 +1089,25 @@
       "flag": "🇪🇸",
       "level": 50
     }
+  ],
+  "activities": [
+    {
+      "startDate": "2007-08",
+      "endDate": "2008-02",
+      "name": "Civil Service",
+      "description": "Civil service at the Brühlgut Foundation bakery"
+    },
+    {
+      "startDate": "2011-09",
+      "endDate": "2012-05",
+      "name": "Civil Service",
+      "description": "Civil service at Restaurant Stadtmuur, a social integration project"
+    },
+    {
+      "startDate": "2018-11",
+      "endDate": "2019-11",
+      "name": "Traveling",
+      "description": "Extended travel through North and South America"
+    }
   ]
 }

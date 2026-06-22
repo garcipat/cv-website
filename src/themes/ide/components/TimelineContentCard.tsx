@@ -21,6 +21,11 @@ export const TimelineContentCard = ({ segment, nearbyCourses }: TimelineContentC
               {segment.startDate} - {segment.isCurrent ? 'Present' : segment.endDate}
             </span>
           </div>
+          {segment.description && (
+            <div className="text-xs leading-relaxed text-ctp-text">
+              {segment.description}
+            </div>
+          )}
         </>
       ) : (
         <>
