@@ -1089,5 +1089,25 @@
       "flag": "🇪🇸",
       "level": 50
     }
+  ],
+  "activities": [
+    {
+      "startDate": "2007-08",
+      "endDate": "2008-02",
+      "name": "Zivildienst",
+      "description": "Zivildienst in der Bäckerei der Stiftung Brühlgut"
+    },
+    {
+      "startDate": "2011-09",
+      "endDate": "2012-05",
+      "name": "Zivildienst",
+      "description": "Zivildienst im Restaurant Stadtmuur, einem sozialen Integrationsprojekt"
+    },
+    {
+      "startDate": "2018-11",
+      "endDate": "2019-11",
+      "name": "Reisen",
+      "description": "Ausgedehnte Reise durch Nord- und Südamerika"
+    }
   ]
 }

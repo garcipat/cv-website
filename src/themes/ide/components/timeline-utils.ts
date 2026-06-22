@@ -11,6 +11,7 @@ export interface Segment {
   institution?: string;
   degree?: string;
   highlights?: string[];
+  description?: string;
   location?: string;
   client?: string;
   skills?: string[];
@@ -29,6 +30,7 @@ interface RawEntry {
   institution?: string;
   degree?: string;
   highlights?: string[];
+  description?: string;
   location?: string;
   client?: string;
   skills?: string[];
@@ -114,6 +116,7 @@ function activityToRaw(act: ActivityData): RawEntry {
     type: 'activity',
     isCurrent: false,
     label: act.name,
+    description: act.description,
     color: pickColor('activity', false),
   };
 }
@@ -222,6 +225,7 @@ export function buildSegments(
       institution: entry.institution,
       degree: entry.degree,
       highlights: entry.highlights,
+      description: entry.description,
       location: entry.location,
       skills: entry.skills,
       width,
