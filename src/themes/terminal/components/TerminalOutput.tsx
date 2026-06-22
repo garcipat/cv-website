@@ -87,8 +87,9 @@ const OutputLine = ({ line }: { line: TerminalOutputLine }) => {
           <span className="text-[var(--primary)] inline-block w-48 shrink-0">
             {line.name}
           </span>
-          <span className="text-[var(--primary)] tracking-wider">
-            {renderSkillBar(line.level)}
+          <span className="tracking-wider">
+            <span className="text-[var(--primary)]">{'█'.repeat(Math.round(line.level / 10))}</span>
+            <span className="text-[var(--color-ctp-surface2)]">{'█'.repeat(10 - Math.round(line.level / 10))}</span>
           </span>
           <span className="text-[var(--muted-foreground)] ml-1">
             {levelLabel(line.level)}
@@ -196,13 +197,6 @@ function getContentVariantClass(variant?: string): string {
     default:
       return 'text-[var(--foreground)]';
   }
-}
-
-/** Renders an ASCII-style proficiency bar: filled █ blocks vs empty ░ blocks. */
-function renderSkillBar(level: number): string {
-  const filledCount = Math.round(level / 10);
-  const emptyCount = 10 - filledCount;
-  return '█'.repeat(filledCount) + '░'.repeat(emptyCount);
 }
 
 function levelLabel(value: number): string {

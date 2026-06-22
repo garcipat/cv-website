@@ -8,12 +8,12 @@ import {
   executeCommand,
   type TerminalOutputLine,
 } from '@/state/terminal';
-import type { CommandResult } from '@/themes/terminal/terminal-commands';
+import type { CommandResult, SectionId } from '@/themes/terminal/terminal-commands';
 import {
   buildIntroLines,
-  buildFullCVLines,
   buildSectionLines,
   buildHelpLines,
+  SECTION_COMMANDS,
 } from '@/themes/terminal/terminal-commands';
 import { TerminalOutput } from '@/themes/terminal/components/TerminalOutput';
 import { CommandInput } from '@/themes/terminal/components/CommandInput';
@@ -27,7 +27,7 @@ import type { Locale } from '@/state/locale';
 export const TerminalPage = () => {
   useSignals();
   const initializedRef = useRef(false);
-  const viewRef = useRef<'intro' | 'full' | 'help' | 'clear'>('intro');
+  const viewRef = useRef<'intro' | 'help' | 'clear' | SectionId>('intro');
 
   const cv = currentCV.value;
   const ui = currentUI.value;
@@ -51,9 +51,6 @@ export const TerminalPage = () => {
       case 'intro':
         terminalOutput.value = buildIntroLines(cv, ui);
         break;
-      case 'full':
-        terminalOutput.value = buildFullCVLines(cv, ui);
-        break;
       case 'help':
         terminalOutput.value = [
           { type: 'command-echo', command: ':help' },
@@ -64,6 +61,17 @@ export const TerminalPage = () => {
       case 'clear':
         terminalOutput.value = [];
         break;
+      default: {
+        // A specific section is open — rebuild just that section from scratch
+        const sectionId = viewRef.current;
+        const command = Object.entries(SECTION_COMMANDS).find(([, v]) => v === sectionId)?.[0] ?? `:${sectionId}`;
+        terminalOutput.value = [
+          { type: 'command-echo', command },
+          { type: 'separator' },
+          ...buildSectionLines(sectionId, cv, ui),
+        ];
+        break;
+      }
     }
   }, [locale]);
 
@@ -102,7 +110,7 @@ export const TerminalPage = () => {
 
       switch (result.type) {
         case 'navigate': {
-          viewRef.current = 'full';
+          viewRef.current = result.target;
           newLines.push({ type: 'command-echo', command: input });
           if (!isFirstCommand) {
             newLines.push({
@@ -204,8 +212,12 @@ export const TerminalPage = () => {
     <div
       className="flex flex-col h-screen bg-[var(--background)] text-[var(--foreground)] font-mono"
       onClick={() => {
-        const input = document.querySelector('.terminal-input') as HTMLInputElement;
-        input?.focus();
+        const input = document.querySelector('.terminal-input') as HTMLInputElement | null;
+        if (input) input.focus();
+        else {
+          const hidden = document.querySelector('[aria-label="Terminal command input"]') as HTMLInputElement | null;
+          hidden?.focus();
+        }
       }}
     >
       {/* Terminal Output Area */}
