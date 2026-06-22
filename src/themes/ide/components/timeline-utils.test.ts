@@ -123,13 +123,6 @@ describe('buildSegments', () => {
   });
 
   it('assigns-correct-widths-proportionally', () => {
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = String(now.getMonth() + 1).padStart(2, '0');
-    const today = `${y}-${m}`;
-    const totalMonths =
-      ((y - 2020) * 12 + (parseInt(m, 10) - 1)) // months from 2020-01 to today
-      - 0;
     const segments = buildSegments(
       [makeExp({ company: 'A', startDate: '2020-01', endDate: '2020-06' })],
       [makeEdu({ institution: 'B', startDate: '2020-06', endDate: '2020-11' })],

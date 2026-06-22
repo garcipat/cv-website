@@ -116,10 +116,7 @@ function easeOutCubic(t: number): number {
   return 1 - Math.pow(1 - t, 3);
 }
 
-/** Steeper exponential ease-in for fast exit fade-out. */
-function easeInExpo(t: number): number {
-  return t === 0 ? 0 : Math.pow(2, 10 * t - 10);
-}
+
 
 // ---------------------------------------------------------------------------
 // buildCircleEntries

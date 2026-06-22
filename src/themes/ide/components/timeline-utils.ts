@@ -180,17 +180,20 @@ export function buildSegments(
     }
 
     // trailing gap from last entry to today
-    if (i === resolved.length - 1 && resolved[i].endDate) {
-      const gap = monthsBetween(resolved[i].endDate, todayYmd());
-      if (gap > 3) {
-        withGaps.push({
-          startDate: resolved[i].endDate,
-          endDate: todayYmd(),
-          type: 'gap',
-          isCurrent: false,
-          label: 'Gap',
-          color: COLORS.gap,
-        });
+    if (i === resolved.length - 1) {
+      const entry = resolved[i];
+      if (entry.endDate) {
+        const gap = monthsBetween(entry.endDate, todayYmd());
+        if (gap > 3) {
+          withGaps.push({
+            startDate: entry.endDate,
+            endDate: todayYmd(),
+            type: 'gap',
+            isCurrent: false,
+            label: 'Gap',
+            color: COLORS.gap,
+          });
+        }
       }
     }
   }

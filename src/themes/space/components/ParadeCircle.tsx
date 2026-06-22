@@ -41,7 +41,6 @@ function circleSize(type: CircleEntry['type']): string {
 }
 
 export const ParadeCircle = ({ entry, transform, isSettled }: ParadeCircleProps) => {
-  const showContent = transform.contentOpacity > 0.5;
   const content = renderContent(entry);
 
   return (
