@@ -73,6 +73,17 @@ const OutputLine = ({ line }: { line: TerminalOutputLine }) => {
         </div>
       );
 
+    case 'content-segments':
+      return (
+        <div className="px-7 py-0.5">
+          {line.segments.map((seg, i) => (
+            <span key={i} className={getContentVariantClass(seg.variant)}>
+              {seg.text}
+            </span>
+          ))}
+        </div>
+      );
+
     case 'bullet':
       return (
         <div className="px-7 pl-10 py-0.5 text-[var(--foreground)]">

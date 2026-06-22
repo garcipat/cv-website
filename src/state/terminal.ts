@@ -20,6 +20,7 @@ export type TerminalOutputLine =
   | { type: 'section-header'; sectionId: string; label: string }
   | { type: 'separator' }
   | { type: 'content'; text: string; variant?: ContentVariant }
+  | { type: 'content-segments'; segments: ContentSegment[] }
   | { type: 'bullet'; text: string }
   | { type: 'skills-bar'; name: string; level: number }
   | { type: 'skills-category'; name: string }
@@ -32,6 +33,12 @@ export type TerminalOutputLine =
   | { type: 'ack-line'; text: string };
 
 export type ContentVariant = 'default' | 'dim' | 'bright' | 'amber';
+
+/** A text segment with its own color variant for inline multi-color lines. */
+export interface ContentSegment {
+  text: string;
+  variant?: ContentVariant;
+}
 
 // ---------------------------------------------------------------------------
 // Signals

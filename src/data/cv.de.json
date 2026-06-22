@@ -952,57 +952,68 @@
     {
       "title": "Konflikte erkennen, analysieren und nachhaltig lösen",
       "provider": "BWI Akademie",
-      "date": "2026-06"
+      "date": "2026-06",
+      "category": "Soft Skills"
     },
     {
       "title": "Einführung in Webapplikationen mit React",
       "provider": "letsboot.ch",
-      "date": "2025-11"
+      "date": "2025-11",
+      "category": "Web Development"
     },
     {
       "title": "iSAQB Advanced Level - Modul WEBSEC",
       "provider": "INNOQ",
-      "date": "2025-05"
+      "date": "2025-05",
+      "category": "Architecture"
     },
     {
       "title": "Python-Grundlagen für Softwareentwickler",
       "provider": "Digicomp",
-      "date": "2024-10"
+      "date": "2024-10",
+      "category": "Programming"
     },
     {
       "title": "iSAQB Advanced Level - Agile Software Architektur",
       "provider": "embarc.de",
-      "date": "2024-05"
+      "date": "2024-05",
+      "category": "Architecture"
     },
     {
       "title": "iSAQB Advanced Level - Soft Skills",
       "provider": "Software Quality Lab",
-      "date": "2024-05"
+      "date": "2024-05",
+      "category": "Soft Skills"
     },
     {
       "title": "UXQB Certified Professional for Usability and User Experience Foundation Level",
       "provider": "SAQ",
-      "date": "2023-06"
+      "date": "2023-06",
+      "category": "UX"
     },
     {
       "title": "Blazor Grundlagen",
       "provider": "Hanspeter Bornhauser",
-      "date": "2022-12"
+      "date": "2022-12",
+      "category": "Web Development"
     },
     {
       "title": "iSAQB Certified Architect Foundation Level",
       "provider": "embarc.de",
-      "date": "2021-09"
+      "date": "2021-09",
+      "category": "Architecture"
     },
     {
       "title": "Kommunikationskurs",
       "provider": "Mike Bucher",
-      "date": "2020-10"
+      "date": "2020-10",
+      "category": "Soft Skills"
     },
     {
       "title": "Funktionale Programmierung mit C#",
       "provider": "Digicomp - Hans Peter Bornhauser",
-      "date": "2020-10"
+      "date": "2020-10",
+      "category": "Programming"
     }
   ],
   "education": [

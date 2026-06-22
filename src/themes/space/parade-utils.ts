@@ -188,8 +188,9 @@ export function buildCircleEntries(cv: CVData): CircleEntry[] {
     push('skillCategory', languagesToSkillCategory(cv.languages), 'skills');
   }
 
-  // 7. Courses (batched, 4 per circle)
-  for (const batch of chunk(cv.courses, 4)) {
+  // 7. Courses (batched, 4 per circle, sorted by date descending)
+  const sortedCourses = [...cv.courses].sort((a, b) => b.date.localeCompare(a.date));
+  for (const batch of chunk(sortedCourses, 4)) {
     push('courseBatch', { courses: batch }, 'courses');
   }
 

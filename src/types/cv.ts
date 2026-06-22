@@ -92,6 +92,8 @@ export interface Course {
   provider: string;
   /** Date of completion in YYYY-MM format, e.g. "2024-06" */
   date: string;
+  /** Classification group, e.g. "Architecture" | "Web Development" | "Programming" | "Soft Skills" | "UX" */
+  category: string;
   /** Optional certificate URL or identifier */
   certificate?: string;
 }

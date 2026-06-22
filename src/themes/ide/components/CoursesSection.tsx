@@ -1,16 +1,10 @@
 import type { Course } from '@/types/cv';
 import { Keyword, Ident, Prop, Str, Punct, ImportType } from './syntax';
 
-const courseCategory: Record<string, string> = {
-  'Advanced React Patterns': 'Frontend',
-  'Building Scalable Design Systems': 'Architecture',
-  'TypeScript for Professionals': 'Testing',
-};
-
 function groupByCategory(courses: Course[]): Map<string, Course[]> {
   const map = new Map<string, Course[]>();
   for (const course of courses) {
-    const cat = courseCategory[course.title] ?? 'Other';
+    const cat = course.category ?? 'Other';
     if (!map.has(cat)) map.set(cat, []);
     map.get(cat)!.push(course);
   }
@@ -29,10 +23,9 @@ function renderCourseInline(course: Course) {
   );
 }
 
-const CATEGORIES = ['Frontend', 'Architecture', 'Testing'] as const;
-
 export const CoursesSection = ({ courses }: { courses: Course[] }) => {
   const grouped = groupByCategory(courses);
+  const categories = [...grouped.keys()];
 
   return (
     <div>
@@ -43,9 +36,9 @@ export const CoursesSection = ({ courses }: { courses: Course[] }) => {
 
       <div>
         <Keyword>type </Keyword><Ident>Category</Ident><Punct> = </Punct>
-        {CATEGORIES.map((cat, i) => (
+        {categories.map((cat, i) => (
           <span key={cat}>
-            <Str>&quot;{cat}&quot;</Str>{i < CATEGORIES.length - 1 && <Punct> | </Punct>}
+            <Str>&quot;{cat}&quot;</Str>{i < categories.length - 1 && <Punct> | </Punct>}
           </span>
         ))}
         <Punct>;</Punct>
@@ -62,12 +55,12 @@ export const CoursesSection = ({ courses }: { courses: Course[] }) => {
         <Keyword>const </Keyword><Ident>catalog</Ident><Punct> = {'{'}</Punct>
       </div>
 
-      {CATEGORIES.map((cat) => {
+      {categories.map((cat) => {
         const catCourses = grouped.get(cat) ?? [];
         return (
           <div key={cat}>
             <div className="ml-4">
-              <Prop>{cat}</Prop><Punct>:</Punct> <Punct>[</Punct>
+              <Str>&quot;{cat}&quot;</Str><Punct>:</Punct> <Punct>[</Punct>
             </div>
             {catCourses.map((course, j) => (
               <div key={j} className="ml-8">
