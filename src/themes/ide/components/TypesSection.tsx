@@ -99,6 +99,7 @@ export const TypesSection = () => (
         { name: 'title', type: 'string' },
         { name: 'provider', type: 'string' },
         { name: 'date', type: 'string' },
+        { name: 'category', type: 'string' },
         { name: 'certificate', type: 'string', optional: true },
       ]}
     />

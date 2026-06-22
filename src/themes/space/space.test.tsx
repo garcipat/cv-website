@@ -66,6 +66,7 @@ const mockCV = {
       title: 'Test Course',
       provider: 'Test Provider',
       date: '2023-01',
+      category: 'Other',
     },
   ],
   certificates: [

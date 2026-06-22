@@ -54,7 +54,7 @@ function makeCV(overrides: Partial<CVData> = {}): CVData {
       { degree: 'B.Sc.', institution: 'Test University', startDate: '2015-01', endDate: '2018-01' },
     ],
     courses: [
-      { title: 'Test Course', provider: 'Test Provider', date: '2023-01' },
+      { title: 'Test Course', provider: 'Test Provider', date: '2023-01', category: 'Other' },
     ],
     certificates: [
       { name: 'Test Cert', issuer: 'Test Issuer', date: '2022-01' },

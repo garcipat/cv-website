@@ -280,15 +280,28 @@ export function buildSectionLines(
     }
 
     case 'crs': {
-      (cv.courses || []).forEach((course) => {
+      const sorted = [...(cv.courses || [])].sort((a, b) => b.date.localeCompare(a.date));
+      for (const course of sorted) {
+        const date = `[${(course.date || '').slice(0, 7)}]`;
+        const cat = course.category ? `[${course.category}]` : '';
         lines.push({
-          type: 'content',
-          text: `${course.title || ''} — ${course.provider || ''} [${(course.date || '').slice(0, 7)}]`,
+          type: 'content-segments',
+          segments: [
+            { text: date, variant: 'amber' },
+            { text: `  ${course.title || ''}`, variant: 'bright' },
+          ],
+        });
+        lines.push({
+          type: 'content-segments',
+          segments: [
+            { text: course.provider || '', variant: 'dim' },
+            { text: cat ? `  ${cat}` : '', variant: 'dim' },
+          ],
         });
         if (course.certificate) {
           lines.push({ type: 'link', text: course.certificate, url: course.certificate });
         }
-      });
+      }
       break;
     }
 
