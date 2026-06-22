@@ -30,14 +30,24 @@ function circleSize(type: CircleEntry['type']): string {
     case 'about':
     case 'experience':
     case 'project':
-    case 'skillCategory':
     case 'education':
       return 'w-[33vw] h-[33vw]';
+    case 'skillCategory':
+      return '';
     case 'course':
     case 'certificate':
     case 'contact':
       return 'w-[28vw] h-[28vw]';
   }
+}
+
+function circleStyle(entry: CircleEntry): React.CSSProperties {
+  if (entry.type === 'skillCategory') {
+    const count = (entry.data as SkillCategory).skills.length;
+    const size = Math.max(32, Math.min(58, 26 + count * 1.8));
+    return { width: `${size}vw`, height: `${size}vw` };
+  }
+  return {};
 }
 
 export const ParadeCircle = ({ entry, transform, isSettled }: ParadeCircleProps) => {
@@ -66,6 +76,7 @@ export const ParadeCircle = ({ entry, transform, isSettled }: ParadeCircleProps)
           isSettled && 'circle-float',
         )}
         style={{
+          ...circleStyle(entry),
           background: 'rgba(20, 22, 50, 0.65)',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
