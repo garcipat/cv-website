@@ -101,8 +101,8 @@ describe('currentCV', () => {
   it('returns English CV data when locale is "en"', async () => {
     const { currentLocale, currentCV } = await importModule();
     currentLocale.value = 'en';
-    expect(currentCV.value.personality.name).toBe('Jane Developer');
-    expect(currentCV.value.personality.tagline).toContain('Frontend Engineer');
+    expect(currentCV.value.personality.name).toBe('Patrick Garcia');
+    expect(currentCV.value.personality.tagline).toContain('Software Engineer');
   });
 });
 
