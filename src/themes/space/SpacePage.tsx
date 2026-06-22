@@ -201,7 +201,7 @@ function Starfield() {
 // Reduced-motion fallback inline renderer
 // ---------------------------------------------------------------------------
 
-import type { Personality, Experience, Project, SkillCategory, Education, Course, Certificate, ContactInfo } from '@/types/cv';
+import type { Personality, Experience, Project, SkillCategory, Education, ContactInfo } from '@/types/cv';
 
 function ReducedMotionCircle({ entry }: { entry: CircleEntry }) {
   const content = renderStaticContent(entry);
