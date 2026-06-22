@@ -1,9 +1,9 @@
 import { signal, type Signal } from '@preact/signals-react';
 import { createLocalStorageSignal } from '@/lib/utils';
 
-export const activeFile: Signal<string | null> = createLocalStorageSignal<string | null>('ide-activeFile', null);
+export const activeFile: Signal<string | null> = createLocalStorageSignal<string | null>('ide-activeFile', 'README.md');
 
-export const openTabs: Signal<string[]> = createLocalStorageSignal<string[]>('ide-openTabs', []);
+export const openTabs: Signal<string[]> = createLocalStorageSignal<string[]>('ide-openTabs', ['README.md']);
 
 export const sidebarExpanded: Signal<Set<string>> = signal<Set<string>>(new Set(['resume', 'src', 'src/sections']));
 
