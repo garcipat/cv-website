@@ -15,11 +15,6 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          local-dir: dist/
-          server-dir: ${{ secrets.FTP_LOCATION }}
-          security: loose
+      - name: Deploy via SFTP
+        run: |
+          lftp -c "set sftp:auto-confirm yes; open -u ${{ secrets.FTP_USERNAME }},${{ secrets.FTP_PASSWORD }} sftp://${{ secrets.FTP_SERVER }}:22; mirror -R dist/ ${{ secrets.FTP_LOCATION }}; quit"
