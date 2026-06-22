@@ -28,9 +28,9 @@ function CertEntry({ cert }: { cert: Certificate }) {
           href={cert.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-[9px] text-[var(--accent)] hover:underline"
+          className="text-[9px] text-[var(--accent)] hover:underline cursor-pointer"
         >
-          Verify
+          Website
         </a>
       )}
     </div>
