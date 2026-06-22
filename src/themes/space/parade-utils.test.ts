@@ -60,7 +60,7 @@ function makeCV(overrides: Partial<CVData> = {}): CVData {
       { name: 'Test Cert', issuer: 'Test Issuer', date: '2022-01' },
     ],
     languages: [
-      { name: 'TestLang', flag: '🏳️' },
+      { name: 'TestLang', flag: '🏳️', level: 90 },
     ],
     contact: { email: 'test@example.com', location: 'Test City' },
     ...overrides,

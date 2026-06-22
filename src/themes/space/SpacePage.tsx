@@ -15,6 +15,8 @@ import {
   totalScrollSpan,
   type SectionInfo,
   type CircleEntry,
+  type CourseBatch,
+  type CertificateBatch,
 } from './parade-utils';
 
 export const SpacePage = () => {
@@ -265,24 +267,36 @@ function renderStaticContent(entry: CircleEntry): React.ReactNode {
         </>
       );
     }
-    case 'course': {
-      const d = entry.data as Course;
+    case 'courseBatch': {
+      const d = entry.data as CourseBatch;
       return (
-        <>
-          <h3 className="text-sm font-semibold text-[var(--foreground)]">{d.title}</h3>
-          <p className="text-xs text-[var(--primary)]">{d.provider}</p>
-          <p className="text-[10px] text-[var(--muted-foreground)]">{d.date}</p>
-        </>
+        <div className="flex flex-col gap-2">
+          <h3 className="text-sm font-semibold text-[var(--foreground)]">Courses</h3>
+          {d.courses.map((c, i) => (
+            <div key={i}>
+              {i > 0 && <hr className="border-[var(--border)] opacity-30 my-1" />}
+              <p className="text-xs text-[var(--foreground)]">{c.title}</p>
+              <p className="text-[10px] text-[var(--primary)]">{c.provider}</p>
+              <p className="text-[9px] text-[var(--muted-foreground)]">{c.date}</p>
+            </div>
+          ))}
+        </div>
       );
     }
-    case 'certificate': {
-      const d = entry.data as Certificate;
+    case 'certificateBatch': {
+      const d = entry.data as CertificateBatch;
       return (
-        <>
-          <h3 className="text-sm font-semibold text-[var(--foreground)]">{d.name}</h3>
-          <p className="text-xs text-[var(--primary)]">{d.issuer}</p>
-          <p className="text-[10px] text-[var(--muted-foreground)]">{d.date}</p>
-        </>
+        <div className="flex flex-col gap-2">
+          <h3 className="text-sm font-semibold text-[var(--foreground)]">Certificates</h3>
+          {d.certificates.map((c, i) => (
+            <div key={i}>
+              {i > 0 && <hr className="border-[var(--border)] opacity-30 my-1" />}
+              <p className="text-xs text-[var(--foreground)]">{c.name}</p>
+              <p className="text-[10px] text-[var(--primary)]">{c.issuer}</p>
+              <p className="text-[9px] text-[var(--muted-foreground)]">{c.date}</p>
+            </div>
+          ))}
+        </div>
       );
     }
     case 'contact': {
