@@ -20,7 +20,7 @@ export const ProjectContent = ({ data }: ProjectContentProps) => {
               key={i}
               className="text-[9px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/20 text-[var(--primary)]"
             >
-              {s.name}
+              {s}
             </span>
           ))}
         </div>

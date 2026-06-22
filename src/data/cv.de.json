@@ -1,201 +1,515 @@
 {
   "personality": {
-    "name": "Julia Entwicklerin",
-    "tagline": "Senior Frontend-Ingenieurin & UI-Architektin",
-    "summary": "Frontend-Ingenieurin mit über 8 Jahren Erfahrung in der Entwicklung leistungsstarker, barrierefreier Webanwendungen. Leidenschaftlich für komponentenbasierte Designsysteme, TypeScript und Entwicklerwerkzeuge.\n\nIch habe die Frontend-Architektur bei zwei Startups und einem mittelständischen Tech-Unternehmen geleitet und Teams von 2 auf 12 Ingenieure vergrößert. Ich glaube daran, Code zu schreiben, der nicht nur funktional ist, sondern auch Freude bei der Wartung bereitet.",
-    "favoriteQuote": "Löse zuerst das Problem. Dann schreibe den Code."
+    "name": "Patrick Garcia",
+    "tagline": "Senior Software-Ingenieur & Architekt",
+    "summary": "Motivierter und kreativer Software-Engineer und Architekt mit Leidenschaft für saubere Architektur, modulare Systeme und innovative Lösungen. Ich denke in grossen Zusammenhängen und liebe es, komplexe Probleme in wartbare, gut strukturierte Software zu übersetzen. Ob Plattform-Architektur, API-Integration oder AI-gestützte Werkzeuge — ich bringe mich gerne dort ein, wo ich gestalten und bewegen kann. Mir ist ein wertschätzendes, offenes Team-Umfeld genauso wichtig wie exzellenter Code."
   },
   "contact": {
-    "email": "julia.entwicklerin@example.com",
-    "location": "Berlin, Deutschland",
-    "github": "julia-dev",
-    "website": "https://julia-dev.example.com"
+    "email": "info@pgarcia.dev",
+    "location": "Heiligbergstrasse 12, 8400 Winterthur",
+    "website": "https://pgarcia.dev",
+    "github": "https://github.com/garcipat"
   },
   "experience": [
     {
-      "company": "Tech Innovations Inc.",
-      "role": "Staff Frontend-Ingenieurin",
-      "startDate": "2021-04",
-      "endDate": "2024-06",
+      "company": "Noser Engineering AG",
+      "role": "Platform-Engineer und -Architekt",
+      "startDate": "2020-03",
+      "client": "Bühlergroup AG",
       "highlights": [
-        "Leitung der Migration einer Legacy-AngularJS-Anwendung zu React 18, Reduzierung der Seitenladezeiten um 60 %",
-        "Entwurf und Implementierung einer gemeinsam genutzten Komponentenbibliothek, die von 4 Produktteams übernommen wurde",
-        "Einführung von Frontend-Teststandards mit über 90 % Codeabdeckung in 15 Repositories",
-        "Mentoring von 3 Junior-Entwicklern durch strukturierte Pair-Programming-Sessions und Code-Reviews"
+        "Leitender Software-Engineer & Architekt für modulare .NET-Plattform (Playone) zur Unterstützung von 240+ Industrieanlagen in 9 Abteilungen",
+        "Entwurf und Implementierung modularer Architektur, Plugin-Mechanismen und klarer Layer-Trennung",
+        "Feature- und Release-Planung in Zusammenarbeit mit Product Ownern; Deployment-Automation mit Azure DevOps und Docker",
+        "Entwicklung von Engineering-Tools (JointForces Studio) inklusive AI-gestützter Import-/Übersetzungsprozesse",
+        "Sicherstellung von Code-Qualität und Tests (Unit/Integration, SonarQube, Dependency-Track); Code-Reviews und Mentoring",
+        "Performance-Analyse und Optimierung mittels skalierbarer Testapplikationen",
+        "Schnittstellenkoordination und Integration (Public APIs, OPC UA)"
       ],
-      "location": "Berlin, Deutschland",
       "skills": [
-        { "name": "React", "level": 95 },
-        { "name": "TypeScript", "level": 92 },
-        { "name": "Next.js", "level": 85 },
-        { "name": "Storybook", "level": 80 },
-        { "name": "Designsysteme", "level": 88 }
+        "C#",
+        ".NET Core",
+        "ASP.NET Core",
+        "Entity Framework Core",
+        "Azure DevOps",
+        "Docker",
+        "OPC-UA",
+        "WebApi",
+        "Git",
+        "Unit Tests",
+        "Integration Tests",
+        "SonarQube",
+        "DependencyTrack",
+        "Colpilot",
+        "LLM",
+        "Review / Expertisen",
+        "Mentoring",
+        "Soziale Skills"
       ]
     },
     {
-      "company": "WebFlow Studios",
-      "role": "Senior Frontend-Entwicklerin",
-      "startDate": "2018-03",
-      "endDate": "2021-03",
+      "company": "Kistler Instrumente AG",
+      "role": "Software-Ingenieur",
+      "startDate": "2015-01",
+      "endDate": "2018-09",
       "highlights": [
-        "Architektur einer Echtzeit-Kollaborationsfunktion mit WebSockets und Operational Transforms",
-        "Optimierung der Core Web Vitals mit Lighthouse-Werten über 95 auf allen Produktseiten",
-        "Einführung von TypeScript in die Codebasis mit schrittweiser Typisierung von über 40.000 Zeilen JavaScript",
-        "Entwicklung einer benutzerdefinierten Design-Token-Pipeline zur Synchronisation von Figma-Variablen mit CSS-Custom-Properties"
+        "Weiterentwicklung Kalibrier-Software mit C# und WPF",
+        "Verarbeitung von Daten mit MS SQL",
+        "Entwicklung von Treibern zur Kommunikation mit elektrischen Geräten wie Ladungsverstärker, Sensoren, Chassis und Geräte dritter über serielle-, Netzwerk- und USB-Schnittstelle",
+        "Datenverwaltung und Release Erstellung mit Microsoft TFS",
+        "First Level Support am Standort Winterthur für Kalibrieranlagen"
       ],
-      "location": "Remote",
       "skills": [
-        { "name": "React", "level": 92 },
-        { "name": "TypeScript", "level": 90 },
-        { "name": "WebSockets", "level": 75 },
-        { "name": "Figma", "level": 70 }
+        "C#",
+        "WPF",
+        "Microsoft Sql-Server",
+        "Netzwerke",
+        "Serial Communication",
+        "TFS",
+        "Visual Studio",
+        "XAML",
+        "Soziale Skills"
       ]
     },
     {
-      "company": "PixelCraft GmbH",
-      "role": "Frontend-Entwicklerin",
-      "startDate": "2016-07",
-      "endDate": "2018-02",
+      "company": "IT Solutions Biel (ehemals TWI AG)",
+      "role": "Softwareentwickler",
+      "startDate": "2012-06",
+      "endDate": "2014-12",
+      "location": "Biel",
       "highlights": [
-        "Entwicklung responsiver E-Commerce-Checkout-Abläufe mit React und Redux",
-        "Aufbau einer automatisierten visuellen Regressionstestsuite mit Percy und Storybook",
-        "Reduzierung der JavaScript-Bundle-Größe um 45 % durch Code-Splitting und Tree-Shaking-Optimierungen"
+        "Kundenspezifisches Customizing von ASP.NET basierter Lernplattform Global Teach",
+        "Ausarbeitung kundenspezifischer APIs als SOAP Webservice",
+        "Ausarbeitung neuer UI Elemente mit JavaScript",
+        "Verantwortlicher und erste Ansprechperson für mehrere Kundenprojekte",
+        "Release Erstellung für Kunden mittels NAnt .NET",
+        "Aufwandschätzungen von Änderungswünschen",
+        "Mitarbeit an Offerte von 250'000 CHF Projekt",
+        "2nd- und 3rd-Level Support für bestehende Kundenprojekte"
       ],
-      "location": "München, Deutschland",
       "skills": [
-        { "name": "React", "level": 85 },
-        { "name": "Redux", "level": 80 },
-        { "name": "Storybook", "level": 75 },
-        { "name": "JavaScript", "level": 88 }
+        "ASP.NET",
+        "Web Services",
+        "Javascript",
+        "jQuery",
+        "jQueryUI",
+        "Consulting",
+        "Soziale Skills"
+      ]
+    },
+    {
+      "company": "Denipro AG, Weinfelden",
+      "role": "Weiterentwicklung der Bachelorarbeit „3D-Produktkonfigurator im Web“",
+      "startDate": "2011-07",
+      "endDate": "2011-08",
+      "highlights": [
+        "Modellierung von 3D Modellen mit JavaScript im 3D-Raum",
+        "Optimierung des Datenbankmodells",
+        "Anpassung der JavaScripts an die Änderungen",
+        "Ersetzen von ASP.NET durch JavaScript Elemente"
+      ],
+      "skills": [
+        "ASP.NET",
+        "Javascript",
+        "PostgreSQL",
+        "Web Applikationen",
+        "WebGL",
+        "3D-Modellierung",
+        "Mathematik"
       ]
     }
   ],
   "skills": [
     {
-      "category": "Frontend",
+      "category": ".NET & Backend",
       "skills": [
-        { "name": "React", "level": 95 },
-        { "name": "TypeScript", "level": 92 },
-        { "name": "Next.js", "level": 85 },
-        { "name": "CSS / Tailwind", "level": 90 },
-        { "name": "Storybook", "level": 80 },
-        { "name": "Vitest / Jest", "level": 85 }
+        { "name": ".NET Core", "level": 90 },
+        { "name": "ASP.NET Core", "level": 80 },
+        { "name": "JSON", "level": 85 },
+        { "name": "Entity Framework Core", "level": 75 },
+        { "name": "JSON:API", "level": 75 },
+        { "name": "OPC-UA", "level": 50 },
+        { "name": "REST", "level": 65 },
+        { "name": "WebApi", "level": 75 },
+        { "name": "XAML", "level": 45 },
+        { "name": "XML", "level": 45 },
+        { "name": "ASP.NET", "level": 45 },
+        { "name": "Entity Framework", "level": 45 },
+        { "name": "Node.js", "level": 35 },
+        { "name": "npm", "level": 35 },
+        { "name": "NuGet", "level": 65 },
+        { "name": "NLog", "level": 30 },
+        { "name": "OAuth2", "level": 60 },
+        { "name": "OpenID Connect", "level": 60 },
+        { "name": "Serilog", "level": 65 },
+        { "name": "SignalR", "level": 60 },
+        { "name": "Swagger", "level": 65 },
+        { "name": "WCF", "level": 35 },
+        { "name": "WinForms", "level": 45 },
+        { "name": "WPF", "level": 45 },
+        { "name": "IdentityServer4", "level": 70 },
+        { "name": "NHibernate", "level": 25 },
+        { "name": "Prism", "level": 35 }
       ]
     },
     {
-      "category": "Backend & Werkzeuge",
+      "category": "Web & Frontend",
       "skills": [
-        { "name": "Node.js", "level": 75 },
-        { "name": "GraphQL", "level": 70 },
-        { "name": "Docker", "level": 65 },
-        { "name": "PostgreSQL", "level": 55 }
+        { "name": "Blazor Interactive Server", "level": 50 },
+        { "name": "ReactJS", "level": 45 },
+        { "name": "jQuery", "level": 35 },
+        { "name": "jQuery UI", "level": 30 },
+        { "name": "Less", "level": 45 },
+        { "name": "Sass", "level": 35 },
+        { "name": "TailwindCSS", "level": 45 },
+        { "name": "Angular", "level": 30 },
+        { "name": "Redux", "level": 25 },
+        { "name": "SVG", "level": 30 },
+        { "name": "WebGL", "level": 30 },
+        { "name": "Websockets", "level": 30 }
       ]
     },
     {
-      "category": "Design & Zusammenarbeit",
+      "category": "DevOps & Werkzeuge",
       "skills": [
-        { "name": "Figma", "level": 70 },
-        { "name": "Designsysteme", "level": 88 },
-        { "name": "Agile / Scrum", "level": 80 }
+        { "name": "Visual Studio", "level": 85 },
+        { "name": "Azure DevOps", "level": 75 },
+        { "name": "Git", "level": 70 },
+        { "name": "Markdown", "level": 85 },
+        { "name": "Visual Studio Code", "level": 75 },
+        { "name": "Ansible", "level": 60 },
+        { "name": "Proxmox", "level": 60 },
+        { "name": "ReSharper", "level": 30 },
+        { "name": "Chocolatey", "level": 35 },
+        { "name": "draw.io", "level": 30 },
+        { "name": "Drupal", "level": 25 },
+        { "name": "GitHub", "level": 45 },
+        { "name": "Gitlab", "level": 30 },
+        { "name": "Google Maps API", "level": 30 },
+        { "name": "Jira", "level": 30 },
+        { "name": "LaTeX", "level": 30 },
+        { "name": "MATLAB", "level": 25 },
+        { "name": "Docker", "level": 60 },
+        { "name": "Podman", "level": 60 },
+        { "name": "Siemens S5/S7", "level": 15 },
+        { "name": "Simulink", "level": 20 },
+        { "name": "Subversion", "level": 20 },
+        { "name": "Telerik", "level": 25 },
+        { "name": "TFS", "level": 25 },
+        { "name": "WordPress", "level": 40 }
+      ]
+    },
+    {
+      "category": "KI & AI-Tools",
+      "skills": [
+        { "name": "Künstliche Intelligenz (KI)", "level": 50 },
+        { "name": "LLM (Large Language Model)", "level": 50 },
+        { "name": "Machine Learning", "level": 30 },
+        { "name": "Neuronale Netzwerke", "level": 30 },
+        { "name": "RAG", "level": 20 },
+        { "name": "GitHub Copilot", "level": 45 },
+        { "name": "Cursor", "level": 45 },
+        { "name": "OpenCode", "level": 55 }
+      ]
+    },
+    {
+      "category": "Programmiersprachen",
+      "skills": [
+        { "name": "C#", "level": 90 },
+        { "name": "CSS", "level": 65 },
+        { "name": "HTML", "level": 65 },
+        { "name": "HTML5", "level": 65 },
+        { "name": "Javascript", "level": 45 },
+        { "name": "Typescript", "level": 45 },
+        { "name": "YAML", "level": 65 },
+        { "name": "Java", "level": 20 },
+        { "name": "OpenGL", "level": 25 },
+        { "name": "Python", "level": 15 },
+        { "name": "Razor", "level": 30 },
+        { "name": "VB.NET", "level": 30 },
+        { "name": "VBA", "level": 30 },
+        { "name": "Windows Batch", "level": 35 }
+      ]
+    },
+    {
+      "category": "Software Engineering",
+      "skills": [
+        { "name": "Software Engineering", "level": 85 },
+        { "name": "Software-Architektur", "level": 75 },
+        { "name": "Continuous Integration", "level": 80 },
+        { "name": "FDD (Feature Driven Development)", "level": 75 },
+        { "name": "TDD (Test Driven Development)", "level": 75 },
+        { "name": "Datenbanken", "level": 85 },
+        { "name": "Web Applikationen", "level": 75 },
+        { "name": "Versionsverwaltung", "level": 80 },
+        { "name": "Release Management", "level": 65 },
+        { "name": "GitFlow", "level": 65 },
+        { "name": "Netzwerke", "level": 65 },
+        { "name": "Algorithmen", "level": 55 },
+        { "name": "Computer Geometrie", "level": 45 },
+        { "name": "Content Management Systeme (CMS)", "level": 55 },
+        { "name": "Internationalisierung", "level": 65 },
+        { "name": "Multithreading", "level": 55 },
+        { "name": "Regelungstechnik", "level": 35 }
+      ]
+    },
+    {
+      "category": "Test Engineering & Quality Management",
+      "skills": [
+        { "name": "Testautomatisierung", "level": 85 },
+        { "name": "Unit Tests", "level": 85 },
+        { "name": "Integration Tests", "level": 75 },
+        { "name": "Moq", "level": 80 },
+        { "name": "xUnit", "level": 80 },
+        { "name": "Fehlerbehebungsprozess", "level": 65 },
+        { "name": "POSTMAN", "level": 45 },
+        { "name": "SonarQube", "level": 45 },
+        { "name": "DependencyTrack", "level": 45 },
+        { "name": "Playwright", "level": 55 },
+        { "name": "System Tests", "level": 40 }
+      ]
+    },
+    {
+      "category": "Architektur & Design",
+      "skills": [
+        { "name": "Klassenmodellierung", "level": 85 },
+        { "name": "Datenmodellierung", "level": 75 },
+        { "name": "Clean Code", "level": 75 },
+        { "name": "Onion Architektur", "level": 65 },
+        { "name": "Software-Patterns", "level": 65 },
+        { "name": "Model Driven Architecture (MDA)", "level": 65 },
+        { "name": "arc42 Architekturdokumentation", "level": 35 },
+        { "name": "Enterprise Architect", "level": 25 },
+        { "name": "UML", "level": 60 }
+      ]
+    },
+    {
+      "category": "Betriebssysteme",
+      "skills": [
+        { "name": "Windows", "level": 85 },
+        { "name": "Linux (Ubuntu)", "level": 55 }
+      ]
+    },
+    {
+      "category": "Standard Software",
+      "skills": [
+        { "name": "Microsoft Excel", "level": 75 },
+        { "name": "Microsoft Visio", "level": 45 },
+        { "name": "Microsoft Word", "level": 75 },
+        { "name": "Confluence", "level": 45 },
+        { "name": "GIMP", "level": 45 },
+        { "name": "Microsoft PowerPoint", "level": 45 },
+        { "name": "Miro (Online Whiteboard)", "level": 65 },
+        { "name": "Abacus", "level": 45 },
+        { "name": "Adobe Illustrator", "level": 25 },
+        { "name": "Adobe Photoshop", "level": 45 },
+        { "name": "SAP", "level": 25 }
+      ]
+    },
+    {
+      "category": "Server & Datenbanken",
+      "skills": [
+        { "name": "Microsoft Sql-Server", "level": 75 },
+        { "name": "IIS", "level": 45 },
+        { "name": "InfluxDb", "level": 65 },
+        { "name": "Microsoft Server", "level": 65 },
+        { "name": "MS Access", "level": 35 },
+        { "name": "NGINX", "level": 50 },
+        { "name": "PostgreSQL", "level": 65 },
+        { "name": "SQLite", "level": 50 },
+        { "name": "Virtualisierung", "level": 55 }
+      ]
+    },
+    {
+      "category": "Fachgebiete",
+      "skills": [
+        { "name": "Informatik", "level": 75 },
+        { "name": "CAD", "level": 50 },
+        { "name": "Maschinenbau", "level": 50 },
+        { "name": "Messwesen", "level": 65 },
+        { "name": "Prüfgeräte", "level": 65 },
+        { "name": "Security", "level": 60 },
+        { "name": "Sensorik", "level": 65 },
+        { "name": "E-Learning", "level": 55 },
+        { "name": "Elektronik", "level": 40 },
+        { "name": "Elektrotechnik", "level": 40 },
+        { "name": "Fuzzy Logic", "level": 45 },
+        { "name": "Maschinen-Steuerungen", "level": 35 },
+        { "name": "Mathematik", "level": 45 },
+        { "name": "Mentoring", "level": 55 },
+        { "name": "OWASP", "level": 55 }
+      ]
+    },
+    {
+      "category": "Kommunikation & Middleware",
+      "skills": [
+        { "name": "SOAP", "level": 45 },
+        { "name": "OpenApi", "level": 75 },
+        { "name": "Ethernet", "level": 65 },
+        { "name": "HTTP", "level": 65 },
+        { "name": "TCP/IP", "level": 40 },
+        { "name": "AES", "level": 55 },
+        { "name": "DHCP", "level": 55 },
+        { "name": "FTP", "level": 55 },
+        { "name": "I2C", "level": 45 },
+        { "name": "Kryptografie", "level": 45 },
+        { "name": "openssl / SSL / TLS", "level": 55 },
+        { "name": "WLAN", "level": 55 }
+      ]
+    },
+    {
+      "category": "Requirement Engineering",
+      "skills": [
+        { "name": "Anforderungen ermitteln", "level": 75 },
+        { "name": "Anforderungs-Analyse", "level": 65 },
+        { "name": "Anforderungs-Dokumentation", "level": 55 },
+        { "name": "Use Cases", "level": 55 },
+        { "name": "User Experience", "level": 55 }
+      ]
+    },
+    {
+      "category": "Software Entwicklungsprozesse",
+      "skills": [
+        { "name": "Scrum", "level": 75 },
+        { "name": "V-Modell", "level": 65 },
+        { "name": "SAFe", "level": 55 },
+        { "name": "Scrumban", "level": 55 }
+      ]
+    },
+    {
+      "category": "Andere",
+      "skills": [
+        { "name": "Consulting", "level": 75 },
+        { "name": "Soziale Skills", "level": 75 },
+        { "name": "Review / Expertisen", "level": 75 },
+        { "name": "Microsoft Azure", "level": 55 },
+        { "name": "ANSYS-HFSS (High-Frequency Structure Simulator)", "level": 20 },
+        { "name": "Projektplanung", "level": 35 }
       ]
     }
   ],
   "courses": [
     {
-      "title": "Fortgeschrittene React-Entwurfsmuster",
-      "provider": "Frontend Masters",
-      "date": "2024-06",
-      "certificate": "https://frontendmasters.com/certificates/react-patterns"
+      "title": "Konflikte erkennen, analysieren und nachhaltig lösen",
+      "provider": "BWI Akademie",
+      "date": "2026-06"
+    }, 
+    {
+      "title": "Einführung in Webapplikationen mit React",
+      "provider": "letsboot.ch",
+      "date": "2025-11"
+    }, 
+    {
+      "title": "iSAQB Advanced Level - Modul WEBSEC",
+      "provider": "INNOQ",
+      "date": "2025-05"
     },
     {
-      "title": "Skalierbare Designsysteme entwickeln",
-      "provider": "Smashing Magazine",
-      "date": "2023-09"
+      "title": "Python-Grundlagen für Softwareentwickler",
+      "provider": "Digicomp",
+      "date": "2024-10"
     },
     {
-      "title": "TypeScript für Profis",
-      "provider": "Egghead.io",
-      "date": "2022-11"
+      "title": "iSAQB Advanced Level - Agile Software Architektur",
+      "provider": "embarc.de",
+      "date": "2024-05"
+    },
+    {
+      "title": "iSAQB Advanced Level - Soft Skills",
+      "provider": "Software Quality Lab",
+      "date": "2024-05"
+    },
+    {
+      "title": "UXQB Certified Professional for Usability and User Experience Foundation Level",
+      "provider": "SAQ",
+      "date": "2023-06"
+    },
+    {
+      "title": "Blazor Grundlagen",
+      "provider": "Hanspeter Bornhauser",
+      "date": "2022-12"
+    },
+    {
+      "title": "iSAQB Certified Architect Foundation Level",
+      "provider": "embarc.de",
+      "date": "2021-09"
+    },
+    {
+      "title": "Kommunikationskurs",
+      "provider": "Mike Bucher",
+      "date": "2020-10"
+    },
+    {
+      "title": "Funktionale Programmierung mit C#",
+      "provider": "Digicomp - Hans Peter Bornhauser",
+      "date": "2020-10"
     }
   ],
   "education": [
     {
-      "degree": "B.Sc. Informatik",
-      "institution": "Technische Universität Berlin",
-      "startDate": "2013-10",
-      "endDate": "2016-07",
-      "description": "Schwerpunkt auf Softwareentwicklung und Mensch-Computer-Interaktion. Abschlussarbeit zum Thema barrierefreies Webkomponenten-Design."
+      "degree": "Bachelor of Science in Maschinentechnik mit Vertiefung in Informatik",
+      "institution": "Zürcher Hochschule für Angewandte Wissenschaften",
+      "startDate": "2008-09",
+      "endDate": "2011-07",
+      "description": "Schwerpunkt-Wahlfächer: Automatisierungstechnik/Leichtbau\nBachelorarbeit (2er Team, 5.5): Machbarkeitsstudie für einen 3D-Produktkonfigurator im Web - Software Requirement Specification mit Kunden erstellen, Recherche über 3D-Technologien im Web, Testumgebung einrichten, Erstellung von mathematischen Algorithmen zur Modellgenerierung, Einbindung der 3D-Umgebung und der Algorithmen in eine erstellte Webapplikation."
     },
     {
-      "degree": "M.Sc. Medieninformatik",
-      "institution": "Hochschule für angewandte Wissenschaften München",
-      "startDate": "2016-10",
-      "endDate": "2018-03",
-      "description": "Forschung zu Echtzeit-Kollaborationsschnittstellen. Note: 1,3."
+      "degree": "Eidg. Lehre zum Konstrukteur",
+      "institution": "Ditting Maschinen AG",
+      "startDate": "2003-08",
+      "endDate": "2007-08"
     }
   ],
   "certificates": [
     {
-      "name": "AWS Solutions Architect Associate",
-      "issuer": "Amazon Web Services",
-      "date": "2023-06",
-      "url": "https://aws.amazon.com/verify/certificate",
-      "credentialId": "AWS-ASA-98765"
+      "name": "iSAQB Certified Professional for Software Architecture - Foundation Level",
+      "issuer": "embarc.de",
+      "date": "2021-09"
     },
     {
-      "name": "Google Professional Cloud Developer",
-      "issuer": "Google Cloud",
-      "date": "2022-11"
+      "name": "UXQB Certified Professional for Usability and User Experience - Foundation Level",
+      "issuer": "SAQ",
+      "date": "2023-06"
     }
   ],
   "projects": [
     {
-      "name": "Open-Source-Designsystem",
-      "description": "Ein umfassendes Designsystem und eine Komponentenbibliothek, entwickelt mit React, TypeScript und Storybook. Enthält über 60 barrierefreie Komponenten, Design-Tokens und ein Figma-Plugin für die Synchronisation von Design und Code.",
+      "name": "CV-Website",
+      "description": "Moderne, mehrsprachige Portfolio-Website mit drei verschiedenen Themes (Space, IDE, Terminal). Statische Seite ohne Backend — CV-Daten aus getypten JSON-Dateien.",
       "skills": [
-        { "name": "React", "level": 95 },
-        { "name": "TypeScript", "level": 92 },
-        { "name": "Storybook", "level": 80 },
-        { "name": "Designsysteme", "level": 88 }
+        "React",
+        "TypeScript",
+        "TailwindCSS",
+        "Git"
       ],
-      "url": "https://opensourceds.example.com",
-      "githubUrl": "https://github.com/julia-dev/opensource-ds",
-      "imageUrl": "https://opensourceds.example.com/preview.png"
+      "url": "https://pgarcia.dev",
+      "githubUrl": "https://github.com/garcipat/cv-website"
     },
     {
-      "name": "Vite-Plugin: SVG-Sprite",
-      "description": "Ein Vite-Plugin, das optimierte SVG-Sprites aus importierten SVG-Dateien zur Build-Zeit generiert, mit TypeScript-Typdefinitionen für Sprite-Symbolnamen.",
+      "name": "Bingo Anything",
+      "description": "Anpassbare Bingo-Webapplikation mit Blazor Server und MudBlazor. Unterstützt Multi-Player-Sessions mit Echtzeit-Updates, benutzerdefinierten Boards und automatischer Gewinnererkennung.",
       "skills": [
-        { "name": "Vite", "level": 85 },
-        { "name": "TypeScript", "level": 90 },
-        { "name": "Node.js", "level": 75 }
+        "ASP.NET Core",
+        "Blazor Interactive Server",
+        "Entity Framework Core",
+        "Clean Architecture",
+        "C#",
+        "TailwindCSS"
       ],
-      "githubUrl": "https://github.com/julia-dev/vite-svg-sprite"
+      "url": "comming soon",
+      "githubUrl": "https://github.com/garcipat/bingo-anything"
     },
     {
-      "name": "Barrierefreiheits-Audit-CLI",
-      "description": "Ein Kommandozeilenwerkzeug, das Axe-Core-Barrierefreiheitsprüfungen auf lokalen oder bereitgestellten Webseiten durchführt und HTML-Berichte mit umsetzbaren Empfehlungen generiert.",
+      "name": "El Nopal Artesanal Web Shop",
+      "description": "E-Commerce-Plattform für mexikanische Kunsthandwerksprodukte. Moderne Webapplikation mit React, TypeScript, .NET Core und PostgreSQL. Bietet eine nahtlose Einkaufserfahrung mit Produktkatalog, erweiterter Suche und Filterung.",
       "skills": [
-        { "name": "Node.js", "level": 75 },
-        { "name": "Puppeteer", "level": 70 },
-        { "name": "CLI", "level": 65 }
+        "React",
+        "TypeScript",
+        ".NET Core",
+        "PostgreSQL",
+        "JWT"
       ],
-      "url": "https://www.npmjs.com/package/a11y-audit-cli",
-      "githubUrl": "https://github.com/julia-dev/a11y-audit-cli"
-    }
-  ],
-  "activities": [
-    {
-      "startDate": "2012-09",
-      "endDate": "2013-09",
-      "name": "Zivildienst",
-      "description": "Gemeindedienst in einem Jugendzentrum"
-    },
-    {
-      "startDate": "2024-07",
-      "endDate": "2025-01",
-      "name": "Reisen",
-      "description": "Backpacking durch Südostasien und Australien"
+      "url": "https://www.el-nopal-artesanal.com",
+      "githubUrl": "https://github.com/garcipat/elnopal"
     }
   ]
 }

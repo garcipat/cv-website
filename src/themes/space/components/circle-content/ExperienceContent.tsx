@@ -20,7 +20,7 @@ export const ExperienceContent = ({ data }: ExperienceContentProps) => {
         {data.role}
       </h3>
       <p className="text-xs font-medium text-[var(--primary)]">
-        {data.company}
+        {data.company}{data.client ? <span className="text-[var(--muted-foreground)]"> @ {data.client}</span> : null}
       </p>
       <p className="text-[10px] text-[var(--muted-foreground)]">
         {formatDateRange(data.startDate, data.endDate)}
