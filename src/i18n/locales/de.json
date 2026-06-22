@@ -41,9 +41,9 @@
   },
   "skills": {
     "levels": {
-      "skilled": "Erfahren",
-      "proficient": "Fortgeschritten",
-      "advanced": "Spezialisiert",
+      "skilled": "Basiswissen",
+      "proficient": "Erfahren",
+      "advanced": "Fortgeschritten",
       "expert": "Experte"
     }
   },
