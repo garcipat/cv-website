@@ -217,7 +217,7 @@ function renderStaticContent(entry: CircleEntry): React.ReactNode {
           <h2 className="text-xl font-bold text-[var(--foreground)]">{d.name}</h2>
           <p className="text-sm text-[var(--primary)] mt-1">{d.tagline}</p>
           <p className="text-xs text-[var(--muted-foreground)] mt-2 whitespace-pre-line">{d.summary}</p>
-          {d.favoriteQuote && <p className="text-xs italic text-[var(--accent)] mt-2">&ldquo;{d.favoriteQuote}&rdquo;</p>}
+          {d.favoriteQuote && <p className="text-xs italic text-[var(--accent)] mt-2">&ldquo;{d.favoriteQuote.text}&rdquo; <span className="not-italic text-[var(--muted-foreground)]">&mdash; {d.favoriteQuote.author}</span></p>}
         </>
       );
     }

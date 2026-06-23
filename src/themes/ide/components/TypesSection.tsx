@@ -54,7 +54,15 @@ export const TypesSection = () => (
         { name: 'name', type: 'string' },
         { name: 'tagline', type: 'string' },
         { name: 'summary', type: 'string' },
-        { name: 'favoriteQuote', type: 'string', optional: true },
+        { name: 'favoriteQuote', type: 'Quote', optional: true },
+      ]}
+    />
+
+    <Interface
+      name="Quote"
+      props={[
+        { name: 'text', type: 'string' },
+        { name: 'author', type: 'string' },
       ]}
     />
 
@@ -67,8 +75,7 @@ export const TypesSection = () => (
         { name: 'endDate', type: 'string', optional: true },
         { name: 'location', type: 'string', optional: true },
         { name: 'highlights', type: 'string[]' },
-        { name: 'skills', type: 'Skill[]', optional: true },
-      ]}
+        { name: 'skills', type: 'string[]', optional: true },      ]}
     />
 
     <Interface
@@ -76,8 +83,7 @@ export const TypesSection = () => (
       props={[
         { name: 'name', type: 'string' },
         { name: 'description', type: 'string' },
-        { name: 'skills', type: 'Skill[]', optional: true },
-        { name: 'url', type: 'string', optional: true },
+        { name: 'skills', type: 'string[]', optional: true },        { name: 'url', type: 'string', optional: true },
         { name: 'githubUrl', type: 'string', optional: true },
       ]}
     />

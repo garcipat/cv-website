@@ -31,7 +31,15 @@ export interface Personality {
   /** Multi-paragraph career summary (plain text, may contain newlines) */
   summary: string;
   /** A personal motto or favourite quote */
-  favoriteQuote?: string;
+  favoriteQuote?: Quote;
+}
+
+/** A quote with its author attribution. */
+export interface Quote {
+  /** The quote text */
+  text: string;
+  /** The person the quote is from */
+  author: string;
 }
 
 /** A career timeline entry representing one job or professional engagement. */

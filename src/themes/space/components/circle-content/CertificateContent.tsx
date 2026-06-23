@@ -28,7 +28,7 @@ function CertEntry({ cert }: { cert: Certificate }) {
           href={cert.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-[9px] text-[var(--accent)] hover:underline cursor-pointer"
+          className="text-[9px] text-[var(--accent)] hover:underline cursor-pointer pointer-events-auto"
         >
           Website
         </a>

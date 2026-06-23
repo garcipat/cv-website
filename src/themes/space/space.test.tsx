@@ -19,7 +19,7 @@ const mockCV = {
     name: 'Test User',
     tagline: 'Test Tagline',
     summary: 'Test summary for the test user.',
-    favoriteQuote: 'Test quote.',
+    favoriteQuote: { text: 'Test quote.', author: 'Test Author' },
   },
   experience: [
     {

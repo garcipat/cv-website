@@ -59,7 +59,6 @@ export const ParadeCircle = ({ entry, transform, isSettled }: ParadeCircleProps)
         'absolute',
         'left-1/2 top-[52%]',
         'w-0 h-0',
-        'pointer-events-auto',
       )}
       style={{
         transform: `translateX(${transform.translateX}vw) translateY(${transform.translateY}vh)`,

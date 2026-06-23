@@ -18,7 +18,8 @@ export const AboutContent = ({ data }: AboutContentProps) => {
       </p>
       {data.favoriteQuote && (
         <blockquote className="mt-2 text-xs italic text-[var(--accent)] border-l-2 border-[var(--border)] pl-3">
-          &ldquo;{data.favoriteQuote}&rdquo;
+          <p>&ldquo;{data.favoriteQuote.text}&rdquo;</p>
+          <p className="mt-0.5 not-italic text-[var(--muted-foreground)]">&mdash; {data.favoriteQuote.author}</p>
         </blockquote>
       )}
     </div>
