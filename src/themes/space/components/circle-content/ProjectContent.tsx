@@ -7,10 +7,10 @@ export interface ProjectContentProps {
 export const ProjectContent = ({ data }: ProjectContentProps) => {
   return (
     <div className="flex flex-col items-center gap-1.5 max-w-md mx-auto text-center">
-      <h3 className="text-sm font-semibold text-[var(--foreground)]">
+      <h3 className="text-base font-semibold text-[var(--foreground)]">
         {data.name}
       </h3>
-      <p className="text-[10px] leading-relaxed text-[var(--muted-foreground)]">
+      <p className="text-xs leading-relaxed text-[var(--muted-foreground)]">
         {data.description}
       </p>
       {data.skills && data.skills.length > 0 && (
@@ -18,7 +18,7 @@ export const ProjectContent = ({ data }: ProjectContentProps) => {
           {data.skills.map((s, i) => (
             <span
               key={i}
-              className="text-[9px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/20 text-[var(--primary)]"
+              className="text-[11px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/20 text-[var(--primary)]"
             >
               {s}
             </span>
@@ -30,7 +30,7 @@ export const ProjectContent = ({ data }: ProjectContentProps) => {
           href={data.githubUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-[10px] text-[var(--accent)] hover:underline mt-1 pointer-events-auto cursor-pointer"
+          className="text-xs text-[var(--accent)] hover:underline mt-1 pointer-events-auto cursor-pointer"
         >
           Repository
         </a>

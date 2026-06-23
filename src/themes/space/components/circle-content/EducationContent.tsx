@@ -13,17 +13,17 @@ function fmtDate(ym: string): string {
 export const EducationContent = ({ data }: EducationContentProps) => {
   return (
     <div className="flex flex-col items-center gap-1.5 max-w-sm mx-auto text-center">
-      <h3 className="text-sm font-semibold text-[var(--foreground)]">
+      <h3 className="text-base font-semibold text-[var(--foreground)]">
         {data.degree}
       </h3>
-      <p className="text-xs font-medium text-[var(--primary)]">
+      <p className="text-sm font-medium text-[var(--primary)]">
         {data.institution}
       </p>
-      <p className="text-[10px] text-[var(--muted-foreground)]">
+      <p className="text-xs text-[var(--muted-foreground)]">
         {fmtDate(data.startDate)} – {data.endDate ? fmtDate(data.endDate) : 'Present'}
       </p>
       {data.description && (
-        <p className="text-[10px] leading-relaxed text-[var(--muted-foreground)] mt-1">
+        <p className="text-xs leading-relaxed text-[var(--muted-foreground)] mt-1">
           {data.description}
         </p>
       )}

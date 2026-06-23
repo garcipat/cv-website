@@ -10,9 +10,9 @@ export const Punct = ({ children }: { children: ReactNode }) => <span style={c('
 export const LineComment = ({ children }: { children: ReactNode }) => <span style={c('var(--color-ctp-overlay)')}>{children}</span>;
 export const Num = ({ children }: { children: ReactNode }) => <span style={c('var(--color-ctp-peach)')}>{children}</span>;
 
-export function PropLine({ name, value, href }: { name: string; value: string; href?: string }) {
+export function PropLine({ name, value, href, indent = 'ml-6' }: { name: string; value: string; href?: string; indent?: string }) {
   return (
-    <div className="ml-6">
+    <div className={indent}>
       <Prop>{name}</Prop><Punct>:</Punct>
       {' '}
       {href ? (
