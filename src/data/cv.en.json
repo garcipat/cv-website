@@ -21,6 +21,7 @@
       "role": "Platform Engineer & Architect",
       "startDate": "2020-03",
       "client": "Bühlergroup AG",
+      "location": "Winterthur",
       "highlights": [
         "Lead software engineer & architect for a modular .NET platform (Playone) supporting 240+ industrial systems across 9 departments",
         "Designed and implemented modular architecture, plugin mechanisms, and clear layer separation",
@@ -56,6 +57,7 @@
       "role": "Software Engineer",
       "startDate": "2015-01",
       "endDate": "2018-09",
+      "location": "Winterthur",
       "highlights": [
         "Further development of calibration software using C# and WPF",
         "Data processing with MS SQL",
@@ -102,10 +104,11 @@
       ]
     },
     {
-      "company": "Denipro AG, Weinfelden",
+      "company": "Denipro AG",
       "role": "Bachelor Thesis Follow-Up — \"3D Product Configurator for the Web\"",
       "startDate": "2011-07",
       "endDate": "2011-08",
+      "location": "Weinfelden",
       "highlights": [
         "Modelled 3D models using JavaScript in 3D space",
         "Optimised the database model",
@@ -1027,13 +1030,14 @@
       "institution": "Zurich University of Applied Sciences",
       "startDate": "2008-09",
       "endDate": "2011-07",
-      "description": "Elective focus: Automation Technology / Lightweight Construction\nBachelor thesis (2-person team, grade 5.5): Feasibility study for a 3D product configurator for the web — creating a software requirements specification with the client, researching 3D web technologies, setting up a test environment, developing mathematical algorithms for model generation, integrating the 3D environment and algorithms into a web application."
+      "description": "Elective focus: Automation Technology / Lightweight Construction\nBachelor thesis (2-person team, grade 5.5): Feasibility study for a 3D product configurator for the web\nCreating a software requirements specification with the client\nResearching 3D web technologies\nSetting up a test environment\nDeveloping mathematical algorithms for model generation\nIntegrating the 3D environment and algorithms into a web application."
     },
     {
       "degree": "Federal Diploma as a Draftsman (Konstrukteur)",
       "institution": "Ditting Maschinen AG",
       "startDate": "2003-08",
-      "endDate": "2007-08"
+      "endDate": "2007-08",
+      "description": "Apprenticeship as a draftsman with Federal Diploma of Competence (EFZ) in mechanical engineering design\nFocus: Mechanical design, CAD, manufacturing technology"
     }
   ],
   "certificates": [

@@ -1,6 +1,6 @@
 import { useRef, useMemo, useEffect } from 'react';
 import { useSignals } from '@preact/signals-react/runtime';
-import { currentCV } from '@/state/locale';
+import { currentCV, currentUI } from '@/state/locale';
 import { cn } from '@/lib/utils';
 import { CircleParade } from './components/CircleParade';
 import { SpaceParade } from './components/SpaceParade';
@@ -214,10 +214,10 @@ function renderStaticContent(entry: CircleEntry): React.ReactNode {
       const d = entry.data as Personality;
       return (
         <>
-          <h2 className="text-xl font-bold text-[var(--foreground)]">{d.name}</h2>
-          <p className="text-sm text-[var(--primary)] mt-1">{d.tagline}</p>
-          <p className="text-xs text-[var(--muted-foreground)] mt-2 whitespace-pre-line">{d.summary}</p>
-          {d.favoriteQuote && <p className="text-xs italic text-[var(--accent)] mt-2">&ldquo;{d.favoriteQuote.text}&rdquo; <span className="not-italic text-[var(--muted-foreground)]">&mdash; {d.favoriteQuote.author}</span></p>}
+          <h2 className="text-2xl font-bold text-[var(--foreground)]">{d.name}</h2>
+          <p className="text-base text-[var(--primary)] mt-1">{d.tagline}</p>
+          <p className="text-sm text-[var(--muted-foreground)] mt-2 whitespace-pre-line">{d.summary}</p>
+          {d.favoriteQuote && <p className="text-sm italic text-[var(--accent)] mt-2">&ldquo;{d.favoriteQuote.text}&rdquo; <span className="not-italic text-[var(--muted-foreground)]">&mdash; {d.favoriteQuote.author}</span></p>}
         </>
       );
     }
@@ -269,9 +269,10 @@ function renderStaticContent(entry: CircleEntry): React.ReactNode {
     }
     case 'courseBatch': {
       const d = entry.data as CourseBatch;
+      const ui = currentUI.value;
       return (
         <div className="flex flex-col gap-2">
-          <h3 className="text-sm font-semibold text-[var(--foreground)]">Courses</h3>
+          <h3 className="text-sm font-semibold text-[var(--foreground)]">{ui.sections.courses}</h3>
           {d.courses.map((c, i) => (
             <div key={i}>
               {i > 0 && <hr className="border-[var(--border)] opacity-30 my-1" />}
@@ -285,9 +286,10 @@ function renderStaticContent(entry: CircleEntry): React.ReactNode {
     }
     case 'certificateBatch': {
       const d = entry.data as CertificateBatch;
+      const ui = currentUI.value;
       return (
         <div className="flex flex-col gap-2">
-          <h3 className="text-sm font-semibold text-[var(--foreground)]">Certificates</h3>
+          <h3 className="text-sm font-semibold text-[var(--foreground)]">{ui.sections.certificates}</h3>
           {d.certificates.map((c, i) => (
             <div key={i}>
               {i > 0 && <hr className="border-[var(--border)] opacity-30 my-1" />}
@@ -301,9 +303,10 @@ function renderStaticContent(entry: CircleEntry): React.ReactNode {
     }
     case 'contact': {
       const d = entry.data as ContactInfo;
+      const ui = currentUI.value;
       return (
         <>
-          <h3 className="text-sm font-semibold text-[var(--foreground)]">Contact</h3>
+          <h3 className="text-sm font-semibold text-[var(--foreground)]">{ui.sections.contact}</h3>
           {d.email && <p className="text-[10px] text-[var(--muted-foreground)]">{d.email}</p>}
           {d.location && <p className="text-[10px] text-[var(--muted-foreground)]">{d.location}</p>}
         </>

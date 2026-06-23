@@ -104,7 +104,7 @@ function educationToRaw(edu: Education): RawEntry {
     label: edu.institution,
     institution: edu.institution,
     degree: edu.degree,
-    highlights: edu.description ? [edu.description] : undefined,
+    highlights: edu.description ? edu.description.split('\n').filter(Boolean) : undefined,
     color: pickColor('education', false),
   };
 }

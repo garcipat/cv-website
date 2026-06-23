@@ -16,19 +16,19 @@ function formatDateRange(start: string, end?: string): string {
 export const ExperienceContent = ({ data }: ExperienceContentProps) => {
   return (
     <div className="flex flex-col items-center gap-1.5 max-w-md mx-auto text-center">
-      <h3 className="text-sm font-semibold text-[var(--foreground)]">
+      <h3 className="text-base font-semibold text-[var(--foreground)]">
         {data.role}
       </h3>
-      <p className="text-xs font-medium text-[var(--primary)]">
+      <p className="text-sm font-medium text-[var(--primary)]">
         {data.company}{data.client ? <span className="text-[var(--muted-foreground)]"> @ {data.client}</span> : null}
       </p>
-      <p className="text-[10px] text-[var(--muted-foreground)]">
+      <p className="text-xs text-[var(--muted-foreground)]">
         {formatDateRange(data.startDate, data.endDate)}
         {data.location && <span> &middot; {data.location}</span>}
       </p>
       <ul className="mt-1 space-y-0.5 list-none text-center">
         {data.highlights.map((h, i) => (
-          <li key={i} className="text-[10px] leading-relaxed text-[var(--muted-foreground)]">
+          <li key={i} className="text-xs leading-relaxed text-[var(--muted-foreground)]">
             {h}
           </li>
         ))}

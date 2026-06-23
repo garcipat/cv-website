@@ -21,6 +21,7 @@
       "role": "Platform-Engineer und -Architekt",
       "startDate": "2020-03",
       "client": "Bühlergroup AG",
+      "location": "Winterthur",
       "highlights": [
         "Leitender Software-Engineer & Architekt für modulare .NET-Plattform (Playone) zur Unterstützung von 240+ Industrieanlagen in 9 Abteilungen",
         "Entwurf und Implementierung modularer Architektur, Plugin-Mechanismen und klarer Layer-Trennung",
@@ -56,6 +57,7 @@
       "role": "Software-Ingenieur",
       "startDate": "2015-01",
       "endDate": "2018-09",
+      "location": "Winterthur",
       "highlights": [
         "Weiterentwicklung Kalibrier-Software mit C# und WPF",
         "Verarbeitung von Daten mit MS SQL",
@@ -102,10 +104,11 @@
       ]
     },
     {
-      "company": "Denipro AG, Weinfelden",
+      "company": "Denipro AG",
       "role": "Weiterentwicklung der Bachelorarbeit „3D-Produktkonfigurator im Web“",
       "startDate": "2011-07",
       "endDate": "2011-08",
+      "location": "Weinfelden",
       "highlights": [
         "Modellierung von 3D Modellen mit JavaScript im 3D-Raum",
         "Optimierung des Datenbankmodells",
@@ -1027,13 +1030,14 @@
       "institution": "Zürcher Hochschule für Angewandte Wissenschaften",
       "startDate": "2008-09",
       "endDate": "2011-07",
-      "description": "Schwerpunkt-Wahlfächer: Automatisierungstechnik/Leichtbau\nBachelorarbeit (2er Team, 5.5): Machbarkeitsstudie für einen 3D-Produktkonfigurator im Web - Software Requirement Specification mit Kunden erstellen, Recherche über 3D-Technologien im Web, Testumgebung einrichten, Erstellung von mathematischen Algorithmen zur Modellgenerierung, Einbindung der 3D-Umgebung und der Algorithmen in eine erstellte Webapplikation."
+      "description": "Schwerpunkt-Wahlfächer: Automatisierungstechnik/Leichtbau\nBachelorarbeit (2er Team, 5.5): Machbarkeitsstudie für einen 3D-Produktkonfigurator im Web\nSoftware Requirement Specification mit Kunden erstellen\nRecherche über 3D-Technologien im Web\nTestumgebung einrichten\nErstellung von mathematischen Algorithmen zur Modellgenerierung\nEinbindung der 3D-Umgebung und der Algorithmen in eine erstellte Webapplikation."
     },
     {
       "degree": "Eidg. Lehre zum Konstrukteur",
       "institution": "Ditting Maschinen AG",
       "startDate": "2003-08",
-      "endDate": "2007-08"
+      "endDate": "2007-08",
+      "description": "Lehre zum Konstrukteur mit eidg. Fähigkeitszeugnis (EFZ) in der Maschinenbau-Konstruktion\nSchwerpunkt: Mechanische Konstruktion, CAD, Fertigungstechnik"
     }
   ],
   "certificates": [

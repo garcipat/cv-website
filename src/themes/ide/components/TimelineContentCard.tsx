@@ -45,11 +45,11 @@ export const TimelineContentCard = ({ segment, nearbyCourses }: TimelineContentC
             </div>
           )}
           {segment.highlights && segment.highlights.length > 0 && (
-            <div className="text-xs leading-relaxed text-ctp-text">
+            <ul className="text-xs leading-relaxed text-ctp-text list-disc pl-5">
               {segment.highlights.map((h, i) => (
-                <div key={i}>• {h}</div>
+                <li key={i} className="pl-1 mb-0.5">{h}</li>
               ))}
-            </div>
+            </ul>
           )}
         </>
       )}
