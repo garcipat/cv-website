@@ -202,7 +202,8 @@ export function buildSectionLines(
           lines.push({ type: 'content', text: para.trim() });
         });
         if (p.favoriteQuote) {
-          lines.push({ type: 'content', text: `> ${p.favoriteQuote}`, variant: 'dim' });
+          lines.push({ type: 'content', text: `> ${p.favoriteQuote.text}`, variant: 'dim' });
+          lines.push({ type: 'content', text: `  — ${p.favoriteQuote.author}`, variant: 'dim' });
         }
       }
       break;

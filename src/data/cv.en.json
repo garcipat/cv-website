@@ -2,13 +2,18 @@
   "personality": {
     "name": "Patrick Garcia",
     "tagline": "Senior Software Engineer & Architect",
-    "summary": "Motivated and creative software engineer and architect with a passion for clean architecture, modular systems, and innovative solutions. I think in big-picture terms and love translating complex problems into maintainable, well-structured software. Whether it's platform architecture, API integration, or AI-powered tools — I thrive where I can shape and drive things forward. A respectful, open team environment matters just as much to me as excellent code."
+    "summary": "Motivated and creative software engineer and architect with a passion for clean architecture, modular systems, and innovative solutions. I think in big-picture terms and love translating complex problems into maintainable, well-structured software. Whether it's platform architecture, API integration, or AI-powered tools — I thrive where I can shape and drive things forward. A respectful, open team environment matters just as much to me as excellent code.",
+    "favoriteQuote": {
+      "text": "Success consists of having exactly the skills that are in demand at the moment.",
+      "author": "Henry Ford"
+    }
   },
   "contact": {
     "email": "info@pgarcia.dev",
     "location": "Heiligbergstrasse 12, 8400 Winterthur",
     "website": "https://pgarcia.dev",
-    "github": "https://github.com/garcipat"
+    "github": "https://github.com/garcipat",
+    "linkedin": "https://www.linkedin.com/in/garcipat/en-US"
   },
   "experience": [
     {

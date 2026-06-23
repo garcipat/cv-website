@@ -30,7 +30,7 @@ export const ProjectContent = ({ data }: ProjectContentProps) => {
           href={data.githubUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-[10px] text-[var(--accent)] hover:underline mt-1"
+          className="text-[10px] text-[var(--accent)] hover:underline mt-1 pointer-events-auto cursor-pointer"
         >
           Repository
         </a>

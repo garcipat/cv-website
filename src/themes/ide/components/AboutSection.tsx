@@ -58,7 +58,14 @@ export const AboutSection = ({ personality, contact }: Props) => (
     </div>
     {renderSummary(personality.summary)}
     {personality.favoriteQuote && (
-      <PropLine name="quote" value={personality.favoriteQuote} />
+      <>
+        <div className="ml-4">
+          <Prop>quote</Prop><Punct>:{' {'}</Punct>
+        </div>
+        <PropLine name="text" value={personality.favoriteQuote.text} />
+        <PropLine name="author" value={personality.favoriteQuote.author} />
+        <div className="ml-4"><Punct>{'}'}</Punct><Punct>,</Punct></div>
+      </>
     )}
     {contact && renderContact(contact)}
 
