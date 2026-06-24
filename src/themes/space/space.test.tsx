@@ -95,6 +95,16 @@ const mockCurrentUI = {
       courses: 'Courses',
       certificates: 'Certificates',
     },
+    sections: {
+      summary: 'Summary',
+      experience: 'Experience',
+      skills: 'Skills',
+      projects: 'Projects',
+      education: 'Education',
+      courses: 'Courses',
+      certificates: 'Certificates',
+      contact: 'Contact',
+    },
     themes: {
       ide: 'IDE',
       space: 'Space',
