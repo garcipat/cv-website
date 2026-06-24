@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { useSignals } from '@preact/signals-react/runtime';
 import { ParadeCircle } from './ParadeCircle';
 import { scrollOffset, activeCircleIndex } from '../SpaceState';
@@ -33,7 +33,10 @@ export const CircleParade = ({ entries }: CircleParadeProps) => {
     () => findClosestCircleIndex(entries, currentOffset),
     [entries, currentOffset],
   );
-  activeCircleIndex.value = activeIdx;
+
+  useEffect(() => {
+    activeCircleIndex.value = activeIdx;
+  }, [activeIdx]);
 
   // Compute pool assignments and transforms
   const { poolAssignments, transforms } = useMemo(() => {

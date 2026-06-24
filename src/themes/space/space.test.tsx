@@ -7,6 +7,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, fireEvent } from '@testing-library/react';
 import { SpacePage } from './SpacePage';
 import { showPoster, scrollOffset } from './SpaceState';
+import type { CVData } from '@/types/cv';
 
 // Mock @preact/signals-react/runtime
 vi.mock('@preact/signals-react/runtime', () => ({
@@ -14,7 +15,7 @@ vi.mock('@preact/signals-react/runtime', () => ({
 }));
 
 // Mock currentCV signal with full test data
-const mockCV = {
+const mockCV: CVData = {
   personality: {
     name: 'Test User',
     tagline: 'Test Tagline',
@@ -83,7 +84,7 @@ const mockCV = {
   },
 };
 
-const mockCurrentCV = { value: mockCV };
+const mockCurrentCV: { value: CVData } = { value: mockCV };
 const mockCurrentUI = {
   value: {
     nav: {
@@ -197,7 +198,7 @@ describe('Circle pool rendering (FR-030)', () => {
       courses: [],
       certificates: [],
       contact: undefined,
-    } as any;
+    } as unknown as CVData;
     renderSpacePage();
     expect(document.querySelector('nav[aria-label="Section navigation"]')).toBeNull();
     mockCurrentCV.value = original;
@@ -286,7 +287,7 @@ describe('Locale reactivity', () => {
 
   it('handles empty contact data', () => {
     const original = mockCurrentCV.value;
-    mockCurrentCV.value = { ...mockCV, contact: undefined } as any;
+    mockCurrentCV.value = { ...mockCV, contact: undefined } as unknown as CVData;
     renderSpacePage();
     const buttons = document.querySelectorAll('nav[aria-label="Section navigation"] button');
     const labels = Array.from(buttons).map(
@@ -335,7 +336,7 @@ describe('Edge cases', () => {
       courses: [],
       certificates: [],
       contact: undefined,
-    } as any;
+    } as unknown as CVData;
     renderSpacePage();
     expect(document.body).toBeTruthy();
     mockCurrentCV.value = original;
@@ -352,7 +353,7 @@ describe('Edge cases', () => {
       courses: [],
       certificates: [],
       contact: undefined,
-    } as any;
+    } as unknown as CVData;
     renderSpacePage();
     expect(document.body).toBeTruthy();
     mockCurrentCV.value = original;
@@ -363,7 +364,7 @@ describe('Edge cases', () => {
     mockCurrentCV.value = {
       ...mockCV,
       personality: { name: 'Minimal', tagline: 'Tag', summary: 'Sum.', favoriteQuote: undefined },
-    } as any;
+    } as unknown as CVData;
     expect(() => renderSpacePage()).not.toThrow();
     mockCurrentCV.value = original;
   });
