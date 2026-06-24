@@ -27,7 +27,6 @@ A personal CV website showcasing modern web development practices. Built with **
 ### Key Features
 - 🎨 **Multi-theme system**: IDE-inspired code editor, immersive 3D room, retro terminal — all sharing the same data
 - 🌍 **Full multilingual support**: English and German translations with automatic browser locale detection
-- 📱 **Responsive design**: Works seamlessly across desktop and mobile devices
 - ⚡ **Optimized performance**: Signal-based updates with minimal re-renders, fast build times with Vite
 - 🧪 **Comprehensive testing**: Automated tests for components and data integrity
 - 📊 **Spec-driven development**: Features documented in formal specifications with clear rationale and decisions
