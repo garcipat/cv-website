@@ -1,7 +1,6 @@
 import { useSignals } from '@preact/signals-react/runtime';
 import { currentTheme, type ThemeId } from '@/state/theme';
 import { currentUI } from '@/state/locale';
-import type { SelectRootChangeEventDetails } from '@base-ui/react/select';
 import {
   Select,
   SelectContent,
@@ -15,10 +14,7 @@ const themeIds: ThemeId[] = ['ide', 'space', 'terminal'];
 export const ThemeSelect = () => {
   useSignals();
 
-  const handleThemeChange = (
-    value: string | null,
-    _details: SelectRootChangeEventDetails,
-  ) => {
+  const handleThemeChange = (value: string | null) => {
     if (value !== null) {
       currentTheme.value = value as ThemeId;
     }

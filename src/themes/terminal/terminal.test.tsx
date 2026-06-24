@@ -3,7 +3,7 @@ import { cleanup } from '@testing-library/react';
 import { signal } from '@preact/signals-react';
 
 // Mock signal state for testing
-const mockTerminalOutput = signal<any[]>([]);
+const mockTerminalOutput = signal<object[]>([]);
 const mockCommandHistory = signal<string[]>([]);
 const mockCurrentInput = signal<string>('');
 const mockCursorVisible = signal<boolean>(true);
