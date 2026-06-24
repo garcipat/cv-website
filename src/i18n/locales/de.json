@@ -111,6 +111,20 @@
       "run": "Ausführen",
       "terminal": "Terminal"
     },
+    "readme": {
+      "title": "Interaktiver Lebenslauf — Patrick Garcia",
+      "tagline1": "Senior Software-Ingenieur & Architekt",
+      "tagline2": "Interaktiver Lebenslauf und Portfolio-Website",
+      "about": "Über mich",
+      "aboutBody": "Durchstöbern Sie meine Berufserfahrung, Kenntnisse, Projekte und Zertifizierungen in einer IDE-inspirierten Oberfläche. Öffnen Sie eine Datei in der Seitenleiste, um zu beginnen.",
+      "techStack": "Technologien",
+      "techStackBody": "Erstellt mit React 19, TypeScript, Tailwind CSS 4",
+      "gettingStarted": "Erste Schritte",
+      "step1": "Klicken Sie in der Seitenleiste auf eine Datei, um sie zu öffnen",
+      "step2": "Nutzen Sie die Tabs, um zwischen den Dateien zu wechseln",
+      "step3": "Wechseln Sie das Design in der Seitenleiste",
+      "step4": "Schalten Sie zwischen EN und DE um"
+    },
     "timeline": {
       "comment": "// Karriere-Zeitleiste — ziehen oder klicken zum Erkunden",
       "coursesNearby": "// Kurse in dieser Zeit",

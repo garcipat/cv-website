@@ -111,6 +111,20 @@
       "run": "Run",
       "terminal": "Terminal"
     },
+    "readme": {
+      "title": "Interactive Resume — Patrick Garcia",
+      "tagline1": "Senior Software-Ingenieur & Architekt",
+      "tagline2": "Interactive resume and portfolio website",
+      "about": "About",
+      "aboutBody": "Browse my professional experience, skills, projects, and certifications through an IDE-inspired interface. Open a file from the sidebar to get started.",
+      "techStack": "Tech Stack",
+      "techStackBody": "Built with React 19, TypeScript, Tailwind CSS 4",
+      "gettingStarted": "Getting Started",
+      "step1": "Click a file in the sidebar to open it",
+      "step2": "Use tabs to switch between files",
+      "step3": "Switch themes via the sidebar",
+      "step4": "Toggle language between EN and DE"
+    },
     "timeline": {
       "comment": "// career timeline — drag or click to explore",
       "coursesNearby": "// courses taken near this period",
