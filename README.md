@@ -1,5 +1,7 @@
 # CV — Patrick Garcia
 
+> **Official repository:** This is the canonical source for Patrick Garcia's CV website: <https://github.com/garcipat/cv-website>.
+
 A personal CV website built with Vite + React 19 + TypeScript (strict) + Tailwind CSS 4 + shadcn/ui.
 
 ## Prerequisites
