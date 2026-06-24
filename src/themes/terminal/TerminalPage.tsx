@@ -41,7 +41,7 @@ export const TerminalPage = () => {
       terminalOutput.value = buildIntroLines(cv, ui);
       commandHistory.value = [];
     }
-  }, []);
+  }, [cv, ui]);
 
   // Rebuild output when locale changes (to translate current content)
   useEffect(() => {
@@ -73,7 +73,7 @@ export const TerminalPage = () => {
         break;
       }
     }
-  }, [locale]);
+  }, [cv, ui, locale]);
 
   /** Scrolls viewport so the given section element is in view. */
   const scrollToSection = useCallback((sectionId: string) => {
