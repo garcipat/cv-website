@@ -2,7 +2,53 @@
 
 > **Official repository:** This is the canonical source for Patrick Garcia's CV website: <https://github.com/garcipat/cv-website>.
 
-A personal CV website built with Vite + React 19 + TypeScript (strict) + Tailwind CSS 4 + shadcn/ui.
+A personal CV website showcasing modern web development practices. Built with **spec-driven AI development**, featuring a **signal-based reactive architecture**, **multi-theme system** (IDE, 3D Room, Terminal), and **full multilingual support** (English & German). This repository demonstrates professional-grade TypeScript development with strict type safety, automated testing, and production-ready tooling.
+
+## Tech Stack & Architecture
+
+### Core Technologies
+- **Build**: Vite 6+ (fast, modern bundler)
+- **Framework**: React 19+ with signals-based reactivity
+- **Language**: TypeScript (strict mode, no `any`)
+- **State Management**: Preact Signals for reactive, zero-config state
+- **Styling**: Tailwind CSS 4+ with utility-first design
+- **Components**: shadcn/ui (CLI-managed, fresh imports)
+- **Testing**: Vitest + React Testing Library + jsdom
+- **Linting**: ESLint + Prettier for code quality
+
+### Architectural Highlights
+- **Signals-based reactivity**: No React Context, no prop drilling — all state flows through Preact Signals for minimal re-renders
+- **Theme isolation**: Three independent theme layouts (IDE, 3D Room, Terminal) sharing global signals but with self-contained DOM and styling
+- **Type-first data**: CV content lives in typed JSON files (`src/data/`) — components are purely presentational
+- **Multilingual i18n**: Two-layer translation system supporting English and German, with localStorage persistence
+- **Static-first**: No backend, no database, no API calls — everything is build-time
+- **Scalable structure**: Theme system designed to easily add new themes without touching core logic
+
+### Key Features
+- 🎨 **Multi-theme system**: IDE-inspired code editor, immersive 3D room, retro terminal — all sharing the same data
+- 🌍 **Full multilingual support**: English and German translations with automatic browser locale detection
+- ⚡ **Optimized performance**: Signal-based updates with minimal re-renders, fast build times with Vite
+- 🧪 **Comprehensive testing**: Automated tests for components and data integrity
+- 📊 **Spec-driven development**: Features documented in formal specifications with clear rationale and decisions
+
+### Essential Packages
+**Core Runtime** (6 packages):
+- `react@19.2+`, `react-dom@19.2+` — Modern React with Concurrent features
+- `@preact/signals-react@3+` — Signal-based state management
+- `@fontsource-variable/geist`, `@fontsource/inter`, `@fontsource/fira-code` — Professional font system
+
+**Styling & Components** (5 packages):
+- `tailwindcss@4+`, `@tailwindcss/vite@4+` — Modern utility-first CSS framework
+- `shadcn@4+` — Component library built on Radix UI
+- `lucide-react@1+` — Modern icon system
+- `class-variance-authority@0.7+`, `clsx@2+`, `tailwind-merge@3+` — Utility functions
+
+**Dev Stack** (13 packages):
+- `vite@8+` — Next-gen frontend tooling
+- `typescript@6+` — Strict type checking
+- `eslint@10+`, `prettier@3+` — Code quality and formatting
+- `vitest@4+`, `@testing-library/react@16+` — Testing frameworks
+- Plus TypeScript support packages and Node.js types
 
 ## Prerequisites
 
@@ -41,23 +87,34 @@ npm run build
 npm run preview
 ```
 
-## Project Layout
+## Project Structure
 
 ```
 cv-website/
-├── docs/              # Architecture, conventions, features, testing guide
+├── docs/              # Architecture, coding guidelines, features, testing
+├── specs/             # Feature specifications with design decisions
 ├── public/            # Static assets
-├── specs/             # Feature specifications and plans
 ├── src/
-│   ├── components/    # React components
-│   │   └── ui/        # shadcn/ui components (CLI-managed)
-│   ├── lib/           # Utility functions
-│   ├── App.tsx        # Root component
+│   ├── components/    # Reusable components
+│   │   └── ui/        # shadcn/ui components (added via CLI)
+│   ├── themes/        # Theme layouts (ide/, terminal/, space/)
+│   ├── state/         # Preact Signals (global reactive state)
+│   ├── data/          # Typed JSON data (cv.en.json, cv.de.json)
+│   ├── i18n/          # UI translations (en.ts, de.ts)
+│   ├── types/         # TypeScript type definitions
+│   ├── lib/           # Utility functions (cn(), signal helpers)
+│   ├── App.tsx        # Root component (renders active theme)
 │   └── main.tsx       # React entry point
 ├── package.json       # Dependencies and scripts
-├── tsconfig.json      # TypeScript configuration
-└── vite.config.ts     # Vite bundler configuration
+├── tsconfig.json      # TypeScript strict mode
+└── vite.config.ts     # Vite configuration
 ```
+
+**Key patterns:**
+- Themes are isolated, self-contained layout trees
+- All state flows through Signals (no Context, no prop drilling)
+- Data is typed JSON, components are purely presentational
+- shadcn/ui components only added via CLI (`npx shadcn add <name>`)
 
 ## Adding shadcn/ui Components
 
@@ -69,13 +126,11 @@ Components are installed to `src/components/ui/`.
 
 ## Documentation
 
-See the [docs/](docs/) directory for detailed documentation:
-
-- [Architecture](docs/Architecture.md) — Tech stack, data flow, project structure
-- [Coding Guidelines](docs/CodingGuidelines.md) — Naming conventions, component structure
-- [Features](docs/Features.md) — Feature roadmap and status
-- [Testing Guide](docs/TestingGuide.md) — Test setup, types, and conventions
-- [Repository Structure](docs/RepositoryStructure.md) — Directory tree overview
+- [Architecture](docs/Architecture.md) — Signal-based state management, theme isolation, multilingual architecture, and design patterns
+- [Coding Guidelines](docs/CodingGuidelines.md) — Naming conventions, component structure, and best practices
+- [Features](docs/Features.md) — Feature roadmap and development status
+- [Testing Guide](docs/TestingGuide.md) — Test setup, patterns, and testing conventions
+- [Repository Structure](docs/RepositoryStructure.md) — Directory organization and file layout
 
 ## Scripts
 
