@@ -1,6 +1,5 @@
 import { useSignals } from '@preact/signals-react/runtime';
 import { currentLocale, supportedLocales, changeLocale, currentUI } from '@/state/locale';
-import type { SelectRootChangeEventDetails } from '@base-ui/react/select';
 import {
   Select,
   SelectContent,
@@ -12,10 +11,7 @@ import {
 export const LanguageSelect = () => {
   useSignals();
 
-  const handleLanguageChange = (
-    value: string | null,
-    _details: SelectRootChangeEventDetails,
-  ) => {
+  const handleLanguageChange = (value: string | null) => {
     if (value !== null) {
       changeLocale(value as 'en' | 'de');
     }

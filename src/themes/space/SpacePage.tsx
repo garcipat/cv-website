@@ -29,7 +29,7 @@ export const SpacePage = () => {
 
   const entries = useMemo<CircleEntry[]>(
     () => buildCircleEntries(currentCV.value),
-    [currentCV.value],
+    [],
   );
 
   const paradeTotalSpan = useMemo(
@@ -165,17 +165,19 @@ export const SpacePage = () => {
 
 const STAR_COUNT = 100;
 
+function generateStars() {
+  return Array.from({ length: STAR_COUNT }, (_, i) => ({
+    id: i,
+    left: Math.random() * 100,
+    top: Math.random() * 100,
+    size: Math.random() * 2 + 0.5,
+    delay: Math.random() * 3,
+    duration: Math.random() * 3 + 2,
+  }));
+}
+
 function Starfield() {
-  const stars = useMemo(() => {
-    return Array.from({ length: STAR_COUNT }, (_, i) => ({
-      id: i,
-      left: Math.random() * 100,
-      top: Math.random() * 100,
-      size: Math.random() * 2 + 0.5,
-      delay: Math.random() * 3,
-      duration: Math.random() * 3 + 2,
-    }));
-  }, []);
+  const stars = useMemo(() => generateStars(), []);
 
   return (
     <div className="fixed inset-0 z-0 pointer-events-none" aria-hidden="true">

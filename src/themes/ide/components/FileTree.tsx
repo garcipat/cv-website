@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useSignals } from '@preact/signals-react/runtime';
 import { activeFile, sidebarExpanded, openFile } from '@/state/ide';
 import { currentUI } from '@/state/locale';
