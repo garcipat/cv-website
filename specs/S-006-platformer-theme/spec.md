@@ -116,7 +116,31 @@ At the far right end of the level stands a flagpole with a sliding flag. When th
 
 ---
 
-### User Story 8 - Floating Controls and Theme/Locale Switching (Priority: P3)
+### User Story 7 - Game Audio (Priority: P2)
+
+A looping background music track and sound effects enhance the platformer experience. Sound effects play for key actions: jumping, collecting a coin, stomping an enemy, breaking a block, reaching the flagpole, taking damage, and opening/closing the journal. A small speaker icon in the top-right HUD area allows the visitor to toggle all audio on/off. Audio is muted by default and must be enabled by the visitor.
+
+**Why this priority**: Audio feedback makes gameplay more engaging and provides clear confirmation of game actions, but the game is fully playable without it.
+
+**Independent Test**: Load the Platformer theme — verify audio is muted by default and speaker icon shows muted state. Click the speaker icon to enable — verify background music starts playing. Jump — verify jump sound effect. Collect a coin — verify coin sound. Stomp an enemy — verify splat sound. Toggle mute — verify all audio stops and icon updates.
+
+**Acceptance Scenarios**:
+
+1. **Given** the Platformer theme is active, **When** the game starts in the `playing` phase, **Then** audio is muted by default and a speaker icon indicating muted state is visible in the HUD.
+2. **Given** audio is enabled, **When** the character jumps, **Then** a short jump sound effect plays.
+3. **Given** audio is enabled, **When** the character collects a coin, **Then** a coin collection sound effect plays.
+4. **Given** audio is enabled, **When** the character stomps an enemy, **Then** a defeat sound effect plays.
+5. **Given** audio is enabled, **When** the character breaks a destroyable block, **Then** a shatter sound effect plays.
+6. **Given** audio is enabled, **When** the character reaches the flagpole, **Then** a celebration fanfare sound effect plays.
+7. **Given** audio is enabled, **When** the character takes damage from an enemy, **Then** a damage sound effect plays.
+8. **Given** audio is enabled, **When** the journal is opened or closed, **Then** a page-flip sound effect plays.
+9. **Given** the game is playing, **When** the visitor clicks the speaker icon, **Then** all audio (music and effects) toggles on/off and the icon updates to reflect the current state.
+
+---
+
+### P3 Priority
+
+### User Story 8 - Floating Controls and Theme/Locale Switching
 
 As with all CV themes, floating translucent controls in the top-left corner provide theme switching and language toggling. These controls are accessible both during gameplay (pausing briefly when opened) and in the journal view. Switching locale updates the journal content to the selected language. Switching away from the Platformer theme and back resets the game state.
 
@@ -172,12 +196,12 @@ As with all CV themes, floating translucent controls in the top-left corner prov
   - **Collision**: Character lands on platforms from above. All platforms are solid from every direction — the character cannot jump up through platforms from below.
   - **Horizontal movement**: Constant speed left/right with instant direction change
 
-- **FR-007**: System MUST handle keyboard input: Arrow Left/Right for movement, Space or Arrow Up for jump. Input is read per-frame so held keys produce continuous movement.
+- **FR-007**: System MUST handle keyboard input: Arrow Left/Right for movement, Space or Arrow Up for jump. The up-arrow key is used exclusively for jumping — it is NOT used for journal navigation or any other UI interaction. Input is read per-frame so held keys produce continuous movement.
 
 #### Level Design
 
 - **FR-008**: System MUST construct a single continuous level (for v1) from left to right. The level consists of:
-  - **Terrain tiles**: Ground, platforms, walls — solid blocks the character can stand on
+   - **Terrain tiles**: Ground, platforms, walls, slopes (angled surfaces) — solid blocks the character can stand on
   - **Collectibles (coins)**: Placed on platforms and in the air at varying heights
   - **Enemies** (P2): Patrol enemies on platforms
   - **Destroyable blocks** (P2): Blocks that can be destroyed by hitting from below
@@ -261,56 +285,57 @@ The level is hand-crafted — starting with a simple layout to validate function
 
 #### Controls & Theme Infrastructure (P3)
 
-- **FR-027**: System MUST render the HUD during gameplay with the following layout:
+- **FR-025**: System MUST render the HUD during gameplay with the following layout:
   - **Top-left**: 3 hearts (health indicator)
   - **Top-right**: Floating translucent controls — theme selector and language toggle (following the same pattern as the Space theme)
   - **Bottom-right**: Journal icon button (opens/closes the journal, same as `J` key)
 
-- **FR-028**: System MUST support locale switching: when `currentLocale` changes, journal content and in-game notifications re-render in the selected language while preserving game state and position.
+- **FR-026**: System MUST support locale switching: when `currentLocale` changes, journal content and in-game notifications re-render in the selected language while preserving game state and position.
 
 #### Performance
 
-- **FR-029**: System MUST use `requestAnimationFrame` for the game loop to synchronize with the browser's paint cycle.
+- **FR-027**: System MUST use `requestAnimationFrame` for the game loop to synchronize with the browser's paint cycle.
 
-- **FR-030**: System MUST pre-load all sprite assets (character, terrain tiles, coins, enemies, blocks, background) before entering the `playing` state. A loading indicator is shown during asset loading.
+- **FR-028**: System MUST pre-load all sprite assets (character, terrain tiles, coins, enemies, blocks, background) before entering the `playing` state. A loading indicator is shown during asset loading.
 
-- **FR-031**: System MUST use sprite sheet atlases for character, enemies, and terrain tiles to minimize HTTP requests and texture swaps.
+- **FR-029**: System MUST use sprite sheet atlases for character, enemies, and terrain tiles to minimize HTTP requests and texture swaps.
 
 #### Component Structure (P1-P2)
 
-- **FR-032**: System MUST organize Platformer theme components under `src/themes/platformer/`:
-  ```
-  src/themes/platformer/
-   ├── PlatformerPage.tsx         # Root layout — canvas element, asset loading, theme registration
-   ├── components/
-   │   ├── GameCanvas.tsx          # Canvas element + game loop management
-   │   ├── Journal.tsx             # Journal overlay — notebook, bookmarks, content
-   │   ├── JournalPage.tsx         # Single journal page — renders facts for one section
-   │   ├── BookmarkTabs.tsx        # Vertical bookmark tab strip
-   │   ├── FloatingControls.tsx    # Theme and locale toggle (P3)
-    │   └── EndingScreen.tsx         # Flagpole ending screen — Personality + Contact (P2)
-   ├── engine/
-   │   ├── GameLoop.ts             # rAF-based game loop, state machine
-   │   ├── Input.ts               # Keyboard input tracking per frame
-   │   ├── Physics.ts             # Gravity, collision detection, movement
-   │   ├── Camera.ts              # Viewport scrolling to follow character
-   │   ├── Renderer.ts            # Canvas 2D rendering — sprites, tiles, effects
-   │   └── SpriteLoader.ts        # Asset preloading and sprite sheet management
-   ├── entities/
-   │   ├── Player.ts              # Character state: position, velocity, animation frame
-   │   ├── Collectible.ts         # Coin/collectible state and collision
-   │   ├── Enemy.ts               # Enemy patrolling and collision (P2)
-    │   └── DestroyableBlock.ts    # Block state and hit tracking (P2)
-   ├── level/
-   │   ├── LevelData.ts           # Type definitions for level structure
-   │   ├── level1.ts              # Level 1 data — terrain, collectibles, mappings
-   │   └── CollectibleMapper.ts   # Maps CVData to collectible placements
-   └── types.ts                   # Shared types for the platformer theme
-  ```
+- **FR-030**: System MUST organize Platformer theme components under `src/themes/platformer/`:
+   ```
+   src/themes/platformer/
+    ├── PlatformerPage.tsx         # Root layout — canvas element, asset loading, theme registration
+    ├── components/
+    │   ├── GameCanvas.tsx          # Canvas element + game loop management
+    │   ├── Journal.tsx             # Journal overlay — notebook, bookmarks, content
+    │   ├── JournalPage.tsx         # Single journal page — renders facts for one section
+    │   ├── BookmarkTabs.tsx        # Vertical bookmark tab strip
+    │   ├── FloatingControls.tsx    # Theme and locale toggle (P3)
+     │   └── EndingScreen.tsx         # Flagpole ending screen — Personality + Contact (P2)
+    ├── engine/
+    │   ├── GameLoop.ts             # rAF-based game loop, state machine
+    │   ├── Input.ts               # Keyboard input tracking per frame
+    │   ├── Physics.ts             # Gravity, collision detection, movement
+    │   ├── Camera.ts              # Viewport scrolling to follow character
+    │   ├── Renderer.ts            # Canvas 2D rendering — sprites, tiles, effects
+    │   └── SpriteLoader.ts        # Asset preloading and sprite sheet management
+    ├── entities/
+    │   ├── Player.ts              # Character state: position, velocity, animation frame
+    │   ├── Collectible.ts         # Coin/collectible state and collision
+    │   ├── Enemy.ts               # Enemy patrolling and collision (P2)
+     │   └── DestroyableBlock.ts    # Block state and hit tracking (P2)
+    ├── level/
+    │   ├── LevelData.ts           # Type definitions for level structure
+    │   ├── Terrain.ts             # Tile helpers — isSolid, tileAtPosition, tile-to-pixel conversion
+    │   ├── level1.ts              # Level 1 data — terrain, collectibles, mappings
+    │   └── CollectibleMapper.ts   # Maps CVData to collectible placements
+    └── types.ts                   # Shared types for the platformer theme
+   ```
 
 #### State Management
 
-- **FR-033**: System MUST manage game session state containing:
+- **FR-031**: System MUST manage game session state containing:
   - `gamePhase`: Current game state (`loading` | `playing` | `paused` | `ending-screen`)
   - `playerState`: Position, velocity, animation frame, facing direction, grounded status
   - `collectedFacts`: Set of collected fact IDs — used to determine which collectibles are still in the world and which CV facts appear in the journal
@@ -318,7 +343,7 @@ The level is hand-crafted — starting with a simple layout to validate function
   - `enemyStates`: Per-enemy position, direction, defeated status (P2)
   - `blockStates`: Per-block hit count and broken status (P2)
 
-- **FR-034**: System MUST define TypeScript types for the platformer theme:
+- **FR-032**: System MUST define TypeScript types for the platformer theme:
   - `GamePhase`: `'loading' | 'playing' | 'paused' | 'ending-screen'`
   - `PlayerState`: `{ x: number; y: number; vx: number; vy: number; facing: 'left' | 'right'; grounded: boolean; animState: 'idle' | 'walk' | 'jump'; animFrame: number }`
   - `CollectibleDef`: `{ id: string; x: number; y: number; type: 'coin' | 'enemy' | 'block'; cvSection: SectionId; cvIndex: number }`
@@ -327,7 +352,7 @@ The level is hand-crafted — starting with a simple layout to validate function
 
 #### Testing
 
-- **FR-035**: System MUST include unit tests covering:
+- **FR-033**: System MUST include unit tests covering:
   - `CollectibleMapper` — correct mapping of CVData to collectible definitions per FR-009 (Skills/Languages → coins, Experience/Education/Courses → blocks, Certificates/Projects → enemies, Personality/Contact → flagpole only)
   - `Physics` — gravity, jump arc, collision with platforms, collision with pits
   - `Input` — keyboard event parsing, key held vs pressed
@@ -335,11 +360,15 @@ The level is hand-crafted — starting with a simple layout to validate function
   - Collected fact tracking (add fact, check if collected, persist across respawn)
   - Game state transitions (`playing` → `paused` → `playing`)
 
-- **FR-036**: System MUST include component tests covering:
+- **FR-034**: System MUST include component tests covering:
   - `PlatformerPage` renders canvas element
   - `Journal` renders with correct sections based on CV data
   - `BookmarkTabs` active/inactive states
-  - `EndingScreen` displays Personality and Contact info (P2)
+   - `EndingScreen` displays Personality and Contact info (P2)
+
+#### Audio (P2)
+
+- **FR-035**: System MUST support audio playback including a looping background music track and sound effects for game actions (jump, coin collection, enemy stomp, block break, flagpole celebration, damage, journal open/close). Audio is muted by default — playback requires visitor opt-in via a speaker icon in the HUD. Audio assets are pre-loaded alongside sprite assets (per FR-028) before entering the `playing` state. The audio state (muted/unmuted) is tracked in game session state.
 
 ### Key Entities
 
@@ -418,7 +447,7 @@ FloatingControls (P3)
 - **Game state is session-only**: No localStorage or backend persistence. Collected facts reset on page reload or theme switch.
 - **`Caveat` font from Google Fonts**: Journal handwriting font uses the existing font import pattern. Falls back to system cursive fonts if unavailable.
 - **Journal uses Simple List style (Option A)**: Based on the existing `entry-styles-mockup.html`, the chosen entry style for journal content is the Simple List approach — clean bullet-point notes with key data fields.
-- **No sound effects in v1**: Audio is out of scope for the initial iteration. Can be added as an enhancement.
+- **Audio is muted by default**: Audio playback (background music + sound effects) requires visitor opt-in via the speaker icon in the HUD. Audio assets are pre-loaded alongside sprite assets.
 - **Spawn points throughout the level**: Invisible spawn points defined in the level data serve as checkpoints. The character respawns at the nearest spawn point on death.
 - **Collision uses simple AABB (Axis-Aligned Bounding Box)**: Physics and collision detection use rectangular hitboxes, not pixel-perfect collision. This is standard for retro-style platformers.
 - **Fixed sprite sizes**: Character, enemy, coin, and block sprites have fixed pixel dimensions (e.g., 32×32 or 16×16 tiles). The canvas is scaled to fit the viewport while maintaining the pixel-art aesthetic.
@@ -442,16 +471,15 @@ This feature is intentionally scoped for incremental delivery:
 | Iteration | Priority | Scope | Key Deliverables |
 |-----------|----------|-------|-----------------|
 | **1** | P1 | Core platformer + coins + journal | Player movement, level terrain, coin collectibles (Skills + Languages), journal with bookmarks, CV fact mapping |
-| **2** | P2 | Enemies + blocks + flagpole | Enemy patrol and stomp (Certificates + Projects), destroyable blocks (Experience + Education + Courses), flagpole ending screen (Personality + Contact) |
+| **2** | P2 | Enemies + blocks + flagpole + audio | Enemy patrol and stomp (Certificates + Projects), destroyable blocks (Experience + Education + Courses), flagpole ending screen (Personality + Contact), game audio (background music + sound effects, muted by default) |
 | **3** | P3 | Controls + polish | Floating theme/locale controls, touch controls, visual polish |
 
 Each iteration is independently shippable and adds gameplay depth without breaking previous functionality.
 
 ## Out of Scope
 
-- **Mobile/touch controls** (P3 — deferred to Iteration 4)
+- **Mobile/touch controls** (P3 — out of scope for v1)
 - **Multiple levels** (v1 ships with one level; additional levels are future enhancements)
-- **Sound effects and music** (future enhancement)
 - **Score tracking or leaderboards**
 - **Boss enemies or complex enemy AI** (simple patrol-only in P2)
 - **Power-ups or character abilities beyond walk/jump**
