@@ -22,6 +22,7 @@
 - [~] S-004: Reusable timeline component — shared by all themes with timeline data (implemented in IDE theme as `TimelineSection`, not yet extracted as theme-agnostic)
 
 - [x] **S-005** **Space Background Animations** — Scroll-driven background animations (spaceship, planets, shooting stars, asteroids) add atmosphere to the Space theme
+- [ ] **S-006** **2D Platformer Theme** — User plays a simple 2D platformer where collecting coins, destroying blocks, or defeating enemies reveals CV information
 
 ### Optional
 
@@ -47,6 +48,7 @@
 | S-003 | Scroll animations      | 📋 Planned     | —                                       | ❌             | ❌    |
 | S-004 | Reusable timeline      | 🔶 Partial (IDE) | [spec](docs/superpowers/specs/2026-06-21-interactive-timeline-design.md) | ✅ TimelineSection in IDE | ✅ utils |
 | S-005 | Space background animations | ✅ Done | [spec](../specs/S-005-space-parade/spec.md) | ✅ | ✅ |
+| S-006 | 2D Platformer theme     | 📋 Planned     | —                                       | ❌             | ❌    |
 
 ---
 
@@ -82,6 +84,7 @@ graph RL
     S003["S-003: Scroll Animations"]
     S004["✅ S-004: Timeline Component"]
     S005["✅ S-005: Space Background Animations"]
+    S006["S-006: 2D Platformer Theme"]
 
     F003 --> F002
     F003 --> F011
@@ -107,6 +110,10 @@ graph RL
     S004 --> F002
     S004 --> F010
     S005 --> F003
+    S006 --> F002
+    S006 --> F011
+    S006 --> F012
+    S006 --> F013
 
     classDef done stroke:#FFD600,stroke-width:3px
     classDef projectSetup fill:#1565C0,color:#ffffff
@@ -123,7 +130,7 @@ graph RL
     class F013 done
     class F003 done
     class F004 done
-    class F003,F004,F014 themes
+    class F003,F004,F014,S006 themes
     class F011,S001,S003 layoutNavigation
     class F012,F013 themeInfrastructure
     class F014 done
