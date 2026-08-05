@@ -22,7 +22,7 @@ A visitor opens the CV website and switches to the Platformer theme. A 2D side-s
 2. **Given** the character is idle on a platform, **When** the visitor presses the right arrow key, **Then** the character moves right with a walking animation and the camera scrolls to follow.
 3. **Given** the character is standing on a platform, **When** the visitor presses the spacebar or up arrow, **Then** the character jumps upward, reaches a peak, and falls back down — landing on platforms or falling into pits.
 4. **Given** the character is moving left, **When** the visitor presses the right arrow key, **Then** the character reverses direction and the sprite faces right.
-5. **Given** the character falls into a pit or off the bottom of the screen, **When** the fall completes, **Then** the character respawns at the last safe checkpoint or level start.
+5. **Given** the character falls into a pit or loses all hearts, **When** the death occurs, **Then** the character respawns at the nearest spawn point with full health and all collected facts preserved.
 
 ---
 
@@ -75,7 +75,7 @@ Scattered through the level are simple enemy characters (e.g., slime-like creatu
 
 1. **Given** an enemy is patrolling on a platform, **When** the character jumps and lands on top of the enemy, **Then** the enemy is defeated with a poof/squish animation and the associated certificate or project fact text floats up, hovers, and flies to the journal icon.
 2. **Given** an enemy is defeated, **When** the visitor opens the journal, **Then** the certificate or project fact appears in the Certificates or Projects section respectively, styled as a simple list entry.
-3. **Given** the character collides with an enemy from the side or below, **When** contact occurs, **Then** the character takes damage (flashes briefly) but does not die from a single hit — the enemy remains and the character is pushed back slightly.
+3. **Given** the character collides with an enemy from the side or below, **When** contact occurs, **Then** the character takes damage (flashes briefly with invincibility frames), loses one heart, and is pushed back slightly. The character has 3 hearts total. At 0 hearts, the character respawns at the last checkpoint with full health and all collected facts preserved.
 4. **Given** the character respawns after falling, **When** they revisit an enemy location, **Then** previously defeated enemies remain defeated for the session.
 
 ---
@@ -169,7 +169,7 @@ As with all CV themes, floating translucent controls in the top-left corner prov
 - **FR-006**: System MUST implement character physics:
   - **Gravity**: Constant downward acceleration when not on a platform
   - **Jump**: Upward velocity impulse on jump key press; variable jump height based on key hold duration (short tap = small hop, long hold = full jump)
-  - **Collision**: Character lands on platforms from above, is blocked by walls from sides, falls through the bottom of the screen into pits
+  - **Collision**: Character lands on platforms from above. All platforms are solid from every direction — the character cannot jump up through platforms from below.
   - **Horizontal movement**: Constant speed left/right with instant direction change
 
 - **FR-007**: System MUST handle keyboard input: Arrow Left/Right for movement, Space or Arrow Up for jump. Input is read per-frame so held keys produce continuous movement.
@@ -189,13 +189,17 @@ As with all CV themes, floating translucent controls in the top-left corner prov
   - **Enemies** (P2) → Certificates, Projects
   - **Flagpole** (P2) → Personality (About) + Contact — shown as ending screen, then added to journal (with bookmarks but no per-section counter)
 
-- **FR-010**: System MUST define level data in a structured format (TypeScript types or JSON) that specifies:
+- **FR-010**: System MUST define level data in a structured format (TypeScript types or JSON) using a grid/raster system with width and height for easy element positioning. The level data specifies:
   - Terrain grid (tile positions)
   - Collectible positions with associated CV fact references
   - Enemy positions and patrol ranges (P2)
   - Destroyable block positions (P2)
   - Flagpole position (P2)
-  - Spawn point and checkpoints
+  - Spawn point (level start)
+  - Spawn points (invisible checkpoints throughout the level where the character respawns on death)
+  - Level dimensions (width × height in tiles)
+
+The level is hand-crafted — starting with a simple layout to validate functionality, then expanded iteratively.
 
 #### Collectibles & CV Facts
 
@@ -237,9 +241,11 @@ As with all CV themes, floating translucent controls in the top-left corner prov
 - **FR-019**: System MUST render simple enemy characters that patrol horizontally on platforms. Enemies reverse direction at platform edges or designated patrol boundaries.
 
 - **FR-020**: System MUST implement enemy interaction:
-  - **Stomp defeat**: Character landing on top of an enemy defeats it with a poof/squish animation and reveals a bonus CV fact
-  - **Side/below collision**: Character takes damage (flashes, brief knockback) but is not destroyed; the enemy remains
+  - **Stomp defeat**: Character landing on top of an enemy defeats it with a poof/squish animation and reveals a CV fact (Certificates or Projects)
+  - **Side/below collision**: Character takes damage (flashes, brief knockback) with invincibility frames; the enemy remains
   - Defeated enemies are removed from the game world for the session
+
+- **FR-020b**: System MUST implement a 3-heart health system. The character starts with 3 hearts displayed in the HUD. Side/below enemy collision costs 1 heart with brief invincibility frames after taking damage. At 0 hearts, the character respawns at the last checkpoint with full health, and all collected facts are preserved. Falling into a pit also respawns at checkpoint with full health.
 
 #### Destroyable Blocks (P2)
 
@@ -255,7 +261,10 @@ As with all CV themes, floating translucent controls in the top-left corner prov
 
 #### Controls & Theme Infrastructure (P3)
 
-- **FR-027**: System MUST render floating translucent controls in the top-left corner (theme selector, language toggle) following the same pattern as the Space, Terminal, and IDE themes.
+- **FR-027**: System MUST render the HUD during gameplay with the following layout:
+  - **Top-left**: 3 hearts (health indicator)
+  - **Top-right**: Floating translucent controls — theme selector and language toggle (following the same pattern as the Space theme)
+  - **Bottom-right**: Journal icon button (opens/closes the journal, same as `J` key)
 
 - **FR-028**: System MUST support locale switching: when `currentLocale` changes, journal content and in-game notifications re-render in the selected language while preserving game state and position.
 
@@ -410,14 +419,21 @@ FloatingControls (P3)
 - **`Caveat` font from Google Fonts**: Journal handwriting font uses the existing font import pattern. Falls back to system cursive fonts if unavailable.
 - **Journal uses Simple List style (Option A)**: Based on the existing `entry-styles-mockup.html`, the chosen entry style for journal content is the Simple List approach — clean bullet-point notes with key data fields.
 - **No sound effects in v1**: Audio is out of scope for the initial iteration. Can be added as an enhancement.
-- **Checkpoints at section boundaries**: The character respawns at the start of the current CV section zone when falling, not at the very beginning of the level.
+- **Spawn points throughout the level**: Invisible spawn points defined in the level data serve as checkpoints. The character respawns at the nearest spawn point on death.
 - **Collision uses simple AABB (Axis-Aligned Bounding Box)**: Physics and collision detection use rectangular hitboxes, not pixel-perfect collision. This is standard for retro-style platformers.
 - **Fixed sprite sizes**: Character, enemy, coin, and block sprites have fixed pixel dimensions (e.g., 32×32 or 16×16 tiles). The canvas is scaled to fit the viewport while maintaining the pixel-art aesthetic.
 - **Personality and Contact are flagpole-only**: The About/Personality section and Contact information are NOT placed as collectibles in the level. They are revealed exclusively via the flagpole ending screen at the end of the level.
 
 ## Clarifications
 
-_No clarifications have been answered yet. Questions will be presented during the specification validation phase._
+### Session 2026-08-05
+
+- **Q: Damage & Health System** — **A**: 3-hit health with checkpoint respawn. Character has 3 hearts, brief invincibility frames on hit. At 0 health: respawn at nearest spawn point, collected facts preserved. No game-over screen.
+- **Q: Platform Behavior** — **A**: All platforms are solid from every direction. Character cannot jump up through platforms from below.
+- **Q: Level Design Approach** — **A**: Hand-crafted level using a grid/raster system with width and height for easy element positioning. Start with a simple level to validate functionality, then expand iteratively.
+- **Q: Checkpoint System** — **A**: Invisible spawn points defined in the level data. Character respawns at the nearest spawn point on death.
+- **Q: HUD Layout** — **A**: Top-left: 3 hearts. Top-right: theme and language selector (like Space theme). Bottom-right: journal icon button.
+- **Q: Checkpoint Persistence Across Theme Switches** — **A**: Not in v1. Checkpoints only matter within a single session (for respawn after death). Switching themes always resets. May revisit this as a future enhancement.
 
 ## Iteration Plan
 
