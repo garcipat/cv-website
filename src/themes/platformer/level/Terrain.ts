@@ -28,3 +28,20 @@ export function isTopExposed(level: LevelDef, col: number, row: number): boolean
 export function tileToPixel(col: number, row: number): { x: number; y: number } {
   return { x: col * RENDERED_TILE_SIZE, y: row * RENDERED_TILE_SIZE };
 }
+
+/**
+ * Position of a `bridge` tile within its horizontal run of contiguous
+ * bridge tiles, used to pick the ramp-down/low/ramp-up sprite. A lone
+ * bridge tile (no bridge neighbor on either side) is 'single'.
+ */
+export type BridgeRunPosition = 'single' | 'left' | 'middle' | 'right';
+
+export function bridgeRunPosition(level: LevelDef, col: number, row: number): BridgeRunPosition {
+  const leftIsBridge = tileAt(level, col - 1, row) === 'bridge';
+  const rightIsBridge = tileAt(level, col + 1, row) === 'bridge';
+
+  if (!leftIsBridge && !rightIsBridge) return 'single';
+  if (!leftIsBridge && rightIsBridge) return 'left';
+  if (leftIsBridge && !rightIsBridge) return 'right';
+  return 'middle';
+}
