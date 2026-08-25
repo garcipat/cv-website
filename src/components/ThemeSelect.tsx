@@ -9,7 +9,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-const themeIds: ThemeId[] = ['ide', 'space', 'terminal'];
+const themeIds: ThemeId[] = ['ide', 'space', 'terminal', 'platformer'];
 
 export const ThemeSelect = () => {
   useSignals();

@@ -44,7 +44,7 @@ export const SECTION_COMMANDS: Record<string, SectionId> = {
 };
 
 /** Valid themes for :theme command. */
-export const VALID_THEMES: ThemeId[] = ['ide', 'space', 'terminal'];
+export const VALID_THEMES: ThemeId[] = ['ide', 'space', 'terminal', 'platformer'];
 
 /** Valid locales for :lang command. */
 export const VALID_LOCALES: Locale[] = ['en', 'de'];

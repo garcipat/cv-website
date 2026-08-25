@@ -15,6 +15,7 @@
     "ide": "IDE",
     "space": "Space",
     "terminal": "Retro Terminal",
+    "platformer": "Platformer",
     "select": "Design auswählen"
   },
   "sections": {
@@ -75,7 +76,7 @@
     "helpFooter": "Pfeiltasten Auf/Ab zum Springen zwischen Abschnitten",
     "errors": {
       "unknown": "Unbekannter Befehl '{command}'. Tippe :help f\u00fcr verf\u00fcgbare Befehle.",
-      "invalidTheme": "Ung\u00fcltiges Design '{theme}'. G\u00fcltige Designs: ide, space, terminal.",
+      "invalidTheme": "Ung\u00fcltiges Design '{theme}'. G\u00fcltige Designs: ide, space, terminal, platformer.",
       "invalidLang": "Ung\u00fcltige Sprache '{locale}'. G\u00fcltige Sprachen: en, de."
     },
     "status": {

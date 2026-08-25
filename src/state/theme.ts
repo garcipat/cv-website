@@ -3,7 +3,7 @@ import { createLocalStorageSignal } from '@/lib/utils';
 /**
  * Valid theme identifiers.
  */
-export type ThemeId = 'ide' | 'space' | 'terminal';
+export type ThemeId = 'ide' | 'space' | 'terminal' | 'platformer';
 
 /**
  * Metadata describing a theme for UI display.
@@ -20,6 +20,7 @@ export const themes: Theme[] = [
   { id: 'ide', label: 'IDE' },
   { id: 'space', label: 'Space' },
   { id: 'terminal', label: 'Retro Terminal' },
+  { id: 'platformer', label: 'Platformer' },
 ];
 
 /**

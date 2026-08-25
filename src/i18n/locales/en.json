@@ -15,6 +15,7 @@
     "ide": "IDE",
     "space": "Space",
     "terminal": "Retro Terminal",
+    "platformer": "Platformer",
     "select": "Select theme"
   },
   "sections": {
@@ -75,7 +76,7 @@
     "helpFooter": "Arrow Up/Down to jump between sections",
     "errors": {
       "unknown": "Unknown command '{command}'. Type :help for available commands.",
-      "invalidTheme": "Invalid theme '{theme}'. Valid themes: ide, space, terminal.",
+      "invalidTheme": "Invalid theme '{theme}'. Valid themes: ide, space, terminal, platformer.",
       "invalidLang": "Invalid locale '{locale}'. Valid locales: en, de."
     },
     "status": {
