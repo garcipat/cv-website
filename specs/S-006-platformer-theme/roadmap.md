@@ -10,7 +10,7 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
 
 ## Iteration 1 — Core movement + coins + journal (P1)
 
-- [ ] **1. Theme skeleton + floating controls** — register the `platformer` theme in
+- [x] **1. Theme skeleton + floating controls** — register the `platformer` theme in
   `App.tsx`'s `themePages` map, full-viewport `<canvas>` renders (blank/loading
   state), floating theme/locale controls (top-right, reusing `ThemeSelect` /
   `LanguageSelect` per the Space theme pattern) render on top of the canvas so the
