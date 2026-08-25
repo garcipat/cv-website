@@ -11,11 +11,11 @@ beforeEach(() => {
 });
 
 describe('SidebarSettings', () => {
-  it('renders-THEMES-radio-group-with-three-options-IDE-selected', () => {
+  it('renders-THEMES-radio-group-with-four-options-IDE-selected', () => {
     render(<SidebarSettings />);
     const radios = screen.getAllByRole('radio');
     const themeRadios = radios.filter((r) => r.getAttribute('name') === 'theme');
-    expect(themeRadios).toHaveLength(3);
+    expect(themeRadios).toHaveLength(4);
     const ideRadio = themeRadios.find((r) => r.getAttribute('value') === 'ide');
     expect(ideRadio).toBeChecked();
   });
