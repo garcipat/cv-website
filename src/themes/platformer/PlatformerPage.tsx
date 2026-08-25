@@ -3,6 +3,7 @@ import { FloatingControls } from './components/FloatingControls';
 import { loadImage } from './engine/SpriteLoader';
 import { drawTerrain } from './engine/Renderer';
 import { level1 } from './level/level1';
+import { RENDERED_TILE_SIZE } from './level/Terrain';
 
 export const PlatformerPage = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -26,7 +27,11 @@ export const PlatformerPage = () => {
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       if (tilesetRef.current) {
-        drawTerrain(ctx, level1, tilesetRef.current);
+        // Anchor the level to the bottom of the canvas so a taller viewport
+        // shows more sky above the ground instead of empty space below it.
+        const levelPixelHeight = level1.height * RENDERED_TILE_SIZE;
+        const originY = canvas.height - levelPixelHeight;
+        drawTerrain(ctx, level1, tilesetRef.current, originY);
       }
     };
 

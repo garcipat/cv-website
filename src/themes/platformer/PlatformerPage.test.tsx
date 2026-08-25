@@ -58,4 +58,25 @@ describe('PlatformerPage', () => {
 
     vi.unstubAllGlobals();
   });
+
+  it('render-tallViewport-anchorsLevelBottomToCanvasBottom', async () => {
+    Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 1024 });
+    Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 768 });
+    vi.stubGlobal('Image', MockTilesetImage);
+
+    render(<PlatformerPage />);
+    const canvas = screen.getByTestId('platformer-canvas');
+    const ctx = canvas.getContext('2d') as unknown as {
+      drawImage: ReturnType<typeof vi.fn>;
+    };
+
+    await waitFor(() => expect(ctx.drawImage).toHaveBeenCalled());
+
+    const bottomEdges = ctx.drawImage.mock.calls.map(
+      (call: unknown[]) => (call[6] as number) + (call[8] as number), // dy + dh
+    );
+    expect(Math.max(...bottomEdges)).toBe(768);
+
+    vi.unstubAllGlobals();
+  });
 });
