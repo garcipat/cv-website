@@ -54,3 +54,9 @@ export function parseLevel(layout: readonly string[]): LevelDef {
 }
 
 export const level1: LevelDef = parseLevel(LEVEL_1_LAYOUT);
+
+/**
+ * Player spawn point: one tile left of the bridged pit, on the
+ * top-exposed grass ground strip.
+ */
+export const SPAWN_TILE = { col: 1, row: 10 };
