@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import { currentTheme } from '@/state/theme';
 import { App } from './App';
 
 describe('App', () => {
@@ -16,5 +17,12 @@ describe('App', () => {
     const grid = menuBar?.parentElement;
     expect(grid).toHaveClass('grid');
     expect(screen.getByText('resume/')).toBeInTheDocument();
+  });
+
+  it('renders the Platformer theme page when currentTheme is platformer', () => {
+    currentTheme.value = 'platformer';
+    render(<App />);
+    expect(screen.getByTestId('platformer-canvas')).toBeInTheDocument();
+    currentTheme.value = 'ide';
   });
 });
