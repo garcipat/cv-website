@@ -21,7 +21,7 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
 - [x] **2. Static level render** — terrain tiles drawn from hand-crafted level data,
   no player yet.
   *Verify: the level layout (ground, platforms) is visible.*
-- [ ] **3. Player idle render** — sprite drawn standing on the ground, no physics.
+- [x] **3. Player idle render** — sprite drawn standing on the ground, no physics.
   *Verify: character visible on a platform.*
 - [ ] **4. Gravity + solid collision** — character rests on platforms, falls into
   pits; no input yet.
