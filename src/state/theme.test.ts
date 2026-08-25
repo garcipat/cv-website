@@ -1,4 +1,5 @@
 import { signal } from '@preact/signals-react';
+import { themes, type ThemeId } from './theme';
 
 type TestThemeId = 'ide' | 'space' | 'terminal';
 
@@ -48,5 +49,18 @@ describe('theme state contract', () => {
 
     currentTheme.value = 'terminal';
     expect(document.documentElement.dataset.theme).toBe('terminal');
+  });
+});
+
+describe('platformer theme registration', () => {
+  it('themes array includes platformer with a non-empty label', () => {
+    const platformer = themes.find((t) => t.id === 'platformer');
+    expect(platformer).toBeDefined();
+    expect(platformer?.label).toBeTruthy();
+  });
+
+  it('ThemeId type accepts "platformer"', () => {
+    const id: ThemeId = 'platformer';
+    expect(id).toBe('platformer');
   });
 });
