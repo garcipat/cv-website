@@ -1,5 +1,18 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { PlatformerPage } from './PlatformerPage';
+
+class MockTilesetImage {
+  onload: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+  private _src = '';
+  get src() {
+    return this._src;
+  }
+  set src(value: string) {
+    this._src = value;
+    queueMicrotask(() => this.onload?.());
+  }
+}
 
 describe('PlatformerPage', () => {
   it('render-default-showsFullViewportCanvas', () => {
@@ -32,5 +45,17 @@ describe('PlatformerPage', () => {
   it('render-default-showsFloatingControlsOverCanvas', () => {
     render(<PlatformerPage />);
     expect(screen.getAllByRole('combobox')).toHaveLength(2);
+  });
+
+  it('render-afterTilesetLoads-drawsTerrainTiles', async () => {
+    vi.stubGlobal('Image', MockTilesetImage);
+
+    render(<PlatformerPage />);
+    const canvas = screen.getByTestId('platformer-canvas');
+    const ctx = canvas.getContext('2d') as unknown as { drawImage: ReturnType<typeof vi.fn> };
+
+    await waitFor(() => expect(ctx.drawImage).toHaveBeenCalled());
+
+    vi.unstubAllGlobals();
   });
 });
