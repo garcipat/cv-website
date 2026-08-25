@@ -66,7 +66,7 @@
       "certs": "View certifications and credentials",
       "contact": "View contact information",
       "help": "List all available commands",
-      "theme": "<id> \u2014 switch theme (terminal, ide, space)",
+      "theme": "<id> \u2014 switch theme (terminal, ide, space, platformer)",
       "lang": "<locale> \u2014 switch language (en, de)",
       "cls": "Clear terminal output",
       "reset": "Reset to intro screen"
