@@ -15,6 +15,10 @@ class MockTilesetImage {
 }
 
 describe('PlatformerPage', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it('render-default-showsFullViewportCanvas', () => {
     Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 1024 });
     Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 768 });
@@ -55,8 +59,6 @@ describe('PlatformerPage', () => {
     const ctx = canvas.getContext('2d') as unknown as { drawImage: ReturnType<typeof vi.fn> };
 
     await waitFor(() => expect(ctx.drawImage).toHaveBeenCalled());
-
-    vi.unstubAllGlobals();
   });
 
   it('render-tallViewport-anchorsLevelBottomToCanvasBottom', async () => {
@@ -76,7 +78,5 @@ describe('PlatformerPage', () => {
       (call: unknown[]) => (call[6] as number) + (call[8] as number), // dy + dh
     );
     expect(Math.max(...bottomEdges)).toBe(768);
-
-    vi.unstubAllGlobals();
   });
 });
