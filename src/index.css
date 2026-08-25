@@ -10,6 +10,7 @@
 @import './styles/themes/ide.css';
 @import './styles/themes/space.css';
 @import './styles/themes/terminal.css';
+@import './styles/themes/platformer.css';
 
 @custom-variant dark (&:is(.dark *));
 
