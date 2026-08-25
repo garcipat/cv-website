@@ -50,7 +50,7 @@
 | S-003 | Scroll animations      | 📋 Planned     | —                                       | ❌             | ❌    |
 | S-004 | Reusable timeline      | 🔶 Partial (IDE) | [spec](docs/superpowers/specs/2026-06-21-interactive-timeline-design.md) | ✅ TimelineSection in IDE | ✅ utils |
 | S-005 | Space background animations | ✅ Done | [spec](../specs/S-005-space-parade/spec.md) | ✅ | ✅ |
-| S-006 | 2D Platformer theme     | 📋 Planned     | —                                       | ❌             | ❌    |
+| S-006 | 2D Platformer theme     | 📋 Planned     | [spec](../specs/S-006-platformer-theme/spec.md) / [roadmap](../specs/S-006-platformer-theme/roadmap.md) | ❌             | ❌    |
 | O-001 | Checkpoint Persistence  | 📋 Planned     | —                                       | ❌             | ❌    |
 
 ---
