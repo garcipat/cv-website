@@ -1,5 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { PlatformerPage } from './PlatformerPage';
+import { PLAYER_RENDERED_SIZE } from './entities/Player';
 
 class MockTilesetImage {
   onload: (() => void) | null = null;
@@ -78,5 +79,20 @@ describe('PlatformerPage', () => {
       (call: unknown[]) => (call[6] as number) + (call[8] as number), // dy + dh
     );
     expect(Math.max(...bottomEdges)).toBe(768);
+  });
+
+  it('render-afterPlayerSpriteLoads-drawsPlayerAtIdleSize', async () => {
+    vi.stubGlobal('Image', MockTilesetImage);
+
+    render(<PlatformerPage />);
+    const canvas = screen.getByTestId('platformer-canvas');
+    const ctx = canvas.getContext('2d') as unknown as { drawImage: ReturnType<typeof vi.fn> };
+
+    await waitFor(() => expect(ctx.drawImage).toHaveBeenCalled());
+
+    const playerCalls = ctx.drawImage.mock.calls.filter(
+      (call: unknown[]) => call[7] === PLAYER_RENDERED_SIZE,
+    );
+    expect(playerCalls.length).toBeGreaterThan(0);
   });
 });
