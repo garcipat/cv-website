@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Render a hand-crafted starter level's terrain (ground, a floating platform, a wall) on the Platformer theme's canvas using real CC0 sprite tiles, with no player, physics, or camera yet.
+**Goal:** Render a hand-crafted starter level's terrain (two ground biomes with capped/fill tiles, a floating platform, a wall, and a bridge spanning a small pit) on the Platformer theme's canvas using real CC0 sprite tiles, with no player, physics, or camera yet.
 
-**Architecture:** Pure-logic level data/types and tile helpers (`level/LevelData.ts`, `level/Terrain.ts`, `level/level1.ts`) feed a Canvas 2D renderer function (`engine/Renderer.ts`) that draws each solid tile by cropping the correct region out of a single preloaded spritesheet image (`engine/SpriteLoader.ts`). `PlatformerPage.tsx` loads the spritesheet once, then draws the background fill followed by the terrain on every resize/redraw.
+**Architecture:** Pure-logic level data/types and tile helpers (`level/LevelData.ts`, `level/Terrain.ts`, `level/level1.ts`) feed a Canvas 2D renderer function (`engine/Renderer.ts`) that draws each solid tile by cropping the correct region out of a single preloaded spritesheet image (`engine/SpriteLoader.ts`). Ground tiles pick their sprite (capped "top" vs plain "fill") based on whether the tile directly above them is solid, so a ground strip automatically looks capped on its exposed surface and plain underneath. `PlatformerPage.tsx` loads the spritesheet once, then draws the background fill followed by the terrain on every resize/redraw.
 
 **Tech Stack:** React 19, TypeScript strict, Vitest + React Testing Library + jsdom, Canvas 2D API, CC0-licensed sprite assets (Brackeys "2D Platformer Assets" pack — `public/sprites/world_tileset.png`, license copy at `public/sprites/LICENSE-sprites.txt`).
 
@@ -13,12 +13,23 @@
 ## Global Constraints
 
 - TypeScript strict mode, no `any` types, no `@ts-ignore` (constitution Principle I / spec SC-007).
-- Named arrow function exports (except where a plain `function` is idiomatic for a pure helper — keep consistent with this plan's code blocks), `cn()` from `@/lib/utils` only where conditional classes are needed (not used in this step), named exports only (constitution Principle III).
+- Named arrow function exports (except where a plain `function` is idiomatic for a pure helper — keep consistent with this plan's code blocks), named exports only (constitution Principle III).
 - Tests use Vitest + React Testing Library + jsdom; test naming follows `{method}-{Condition}-{ExpectedResult}` (constitution Principle II).
 - No backend, no API calls, no new npm dependencies.
 - Sprite tile size is 16×16 native pixels (`TILE_SIZE`), rendered at a 2× scale (`RENDER_SCALE`) for crisp retro pixel art — matches the spec's "Fixed sprite sizes" assumption.
-- Axis-aligned tile types only for this step (`ground`, `platform`, `wall`, `empty`) — slopes mentioned in FR-008 are explicitly deferred to a later step.
+- Axis-aligned tile types only for this step (slopes mentioned in FR-008 are explicitly deferred to a later step).
 - No camera/scrolling yet — the level is drawn at a fixed origin (world coordinates = screen coordinates), sized to mostly fit the viewport.
+
+## Exact Sprite Coordinates (from `public/sprites/world_tileset.png`, confirmed by direct pixel inspection, 16×16 grid)
+
+| Tile | Column, Row | Pixel (sx, sy) |
+|---|---|---|
+| Grass top (capped) | (0, 0) | (0, 0) |
+| Grass fill (plain) | (0, 1) | (0, 16) |
+| Rock top (capped) | (1, 0) | (16, 0) |
+| Rock fill (plain) | (1, 1) | (16, 16) |
+| Wall (gray stone) | (8, 0) | (128, 0) |
+| Bridge (bottom/pink chain link) | (9, 2) | (144, 32) |
 
 ---
 
@@ -30,46 +41,76 @@
 - Test: `src/themes/platformer/level/Terrain.test.ts`
 
 **Interfaces:**
-- Produces: `TileType`, `TileMap`, `LevelDef` (from `LevelData.ts`); `TILE_SIZE`, `RENDER_SCALE`, `RENDERED_TILE_SIZE`, `tileAt(level, col, row)`, `isSolid(tile)`, `tileToPixel(col, row)` (from `Terrain.ts`). Task 2 (`level1.ts`) imports `LevelDef`/`TileMap`/`TileType`. Task 4 (`Renderer.ts`) imports everything from `Terrain.ts`.
+- Produces: `TileType`, `TileMap`, `LevelDef` (from `LevelData.ts`); `TILE_SIZE`, `RENDER_SCALE`, `RENDERED_TILE_SIZE`, `tileAt(level, col, row)`, `isSolid(tile)`, `isTopExposed(level, col, row)`, `tileToPixel(col, row)` (from `Terrain.ts`). Task 2 (`level1.ts`) imports `LevelDef`/`TileMap`/`TileType`. Task 4 (`Renderer.ts`) imports everything from `Terrain.ts`.
 
 - [ ] **Step 1: Write the failing tests**
 
 Create `src/themes/platformer/level/Terrain.test.ts`:
 
 ```ts
-import { tileAt, isSolid, tileToPixel, TILE_SIZE, RENDER_SCALE, RENDERED_TILE_SIZE } from './Terrain';
+import { tileAt, isSolid, isTopExposed, tileToPixel, TILE_SIZE, RENDER_SCALE, RENDERED_TILE_SIZE } from './Terrain';
 import type { LevelDef } from './LevelData';
 
 const testLevel: LevelDef = {
   width: 3,
-  height: 2,
+  height: 3,
   terrain: [
-    ['empty', 'ground', 'wall'],
-    ['platform', 'empty', 'empty'],
+    ['empty', 'groundGrass', 'wall'],
+    ['bridge', 'empty', 'empty'],
+    ['groundGrass', 'groundRock', 'empty'],
   ],
 };
 
 describe('Terrain', () => {
   it('tileAt-inBounds-returnsTile', () => {
-    expect(tileAt(testLevel, 1, 0)).toBe('ground');
-    expect(tileAt(testLevel, 0, 1)).toBe('platform');
+    expect(tileAt(testLevel, 1, 0)).toBe('groundGrass');
+    expect(tileAt(testLevel, 0, 1)).toBe('bridge');
   });
 
   it('tileAt-outOfBounds-returnsEmpty', () => {
     expect(tileAt(testLevel, -1, 0)).toBe('empty');
     expect(tileAt(testLevel, 3, 0)).toBe('empty');
     expect(tileAt(testLevel, 0, -1)).toBe('empty');
-    expect(tileAt(testLevel, 0, 2)).toBe('empty');
+    expect(tileAt(testLevel, 0, 3)).toBe('empty');
   });
 
-  it('isSolid-groundPlatformWall-returnsTrue', () => {
-    expect(isSolid('ground')).toBe(true);
+  it('isSolid-groundPlatformWallBridge-returnsTrue', () => {
+    expect(isSolid('groundGrass')).toBe(true);
+    expect(isSolid('groundRock')).toBe(true);
     expect(isSolid('platform')).toBe(true);
     expect(isSolid('wall')).toBe(true);
+    expect(isSolid('bridge')).toBe(true);
   });
 
   it('isSolid-empty-returnsFalse', () => {
     expect(isSolid('empty')).toBe(false);
+  });
+
+  it('isTopExposed-emptyAbove-returnsTrue', () => {
+    const level: LevelDef = {
+      width: 1,
+      height: 2,
+      terrain: [['empty'], ['groundGrass']],
+    };
+    expect(isTopExposed(level, 0, 1)).toBe(true);
+  });
+
+  it('isTopExposed-solidTileAbove-returnsFalse', () => {
+    const level: LevelDef = {
+      width: 1,
+      height: 2,
+      terrain: [['groundGrass'], ['groundGrass']],
+    };
+    expect(isTopExposed(level, 0, 1)).toBe(false);
+  });
+
+  it('isTopExposed-topRowOfLevel-returnsTrue', () => {
+    const level: LevelDef = {
+      width: 1,
+      height: 1,
+      terrain: [['groundGrass']],
+    };
+    expect(isTopExposed(level, 0, 0)).toBe(true);
   });
 
   it('tileToPixel-scalesByRenderedTileSize', () => {
@@ -89,7 +130,13 @@ Expected: FAIL — `./Terrain` (and `./LevelData`) do not exist yet.
 Create `src/themes/platformer/level/LevelData.ts`:
 
 ```ts
-export type TileType = 'ground' | 'platform' | 'wall' | 'empty';
+export type TileType =
+  | 'groundGrass'
+  | 'groundRock'
+  | 'platform'
+  | 'wall'
+  | 'bridge'
+  | 'empty';
 
 export type TileMap = TileType[][];
 
@@ -119,7 +166,17 @@ export function tileAt(level: LevelDef, col: number, row: number): TileType {
 }
 
 export function isSolid(tile: TileType): boolean {
-  return tile === 'ground' || tile === 'platform' || tile === 'wall';
+  return (
+    tile === 'groundGrass' ||
+    tile === 'groundRock' ||
+    tile === 'platform' ||
+    tile === 'wall' ||
+    tile === 'bridge'
+  );
+}
+
+export function isTopExposed(level: LevelDef, col: number, row: number): boolean {
+  return !isSolid(tileAt(level, col, row - 1));
 }
 
 export function tileToPixel(col: number, row: number): { x: number; y: number } {
@@ -130,7 +187,7 @@ export function tileToPixel(col: number, row: number): { x: number; y: number } 
 - [ ] **Step 5: Run tests to verify they pass**
 
 Run: `npm run test -- src/themes/platformer/level/Terrain.test.ts`
-Expected: PASS (5/5)
+Expected: PASS (8/8)
 
 - [ ] **Step 6: Commit**
 
@@ -151,6 +208,13 @@ git commit -m "feat(platformer): add level data types and terrain helpers"
 - Consumes: `LevelDef`, `TileMap`, `TileType` (from Task 1's `LevelData.ts`).
 - Produces: `export const level1: LevelDef`. Task 5 imports this directly into `PlatformerPage.tsx`.
 
+Level layout (20 tiles wide × 12 tiles tall):
+- Rows 10-11 (bottom two rows) are the ground strip, EXCEPT columns 2-3 which are a 2-tile pit (left empty on both rows).
+- Columns 0-11 of the ground strip use `groundGrass`; columns 12-19 use `groundRock` (two biomes side by side for visual variety).
+- Row 10, columns 2-3 are `bridge` tiles spanning the pit (row 11 at columns 2-3 stays `empty` — the pit is one tile deep for this static-render step, no falling-in-pit behavior yet).
+- A 3-tile floating `platform` at row 7, columns 8-10 (within the grass zone).
+- A 3-tile-tall `wall` at column 15, rows 7-9 (within the rock zone).
+
 - [ ] **Step 1: Write the failing test**
 
 Create `src/themes/platformer/level/level1.test.ts`:
@@ -166,11 +230,22 @@ describe('level1', () => {
     }
   });
 
-  it('bottomTwoRows-areAllGround', () => {
+  it('groundStrip-usesGrassBiomeOnLeftAndRockBiomeOnRight', () => {
     const lastRow = level1.terrain[level1.height - 1];
-    const secondToLastRow = level1.terrain[level1.height - 2];
-    expect(lastRow.every((tile) => tile === 'ground')).toBe(true);
-    expect(secondToLastRow.every((tile) => tile === 'ground')).toBe(true);
+    expect(lastRow[0]).toBe('groundGrass');
+    expect(lastRow[11]).toBe('groundGrass');
+    expect(lastRow[12]).toBe('groundRock');
+    expect(lastRow[19]).toBe('groundRock');
+  });
+
+  it('pit-atColumns2And3-isEmptyOnBothGroundRows', () => {
+    expect(level1.terrain[level1.height - 1][2]).toBe('empty');
+    expect(level1.terrain[level1.height - 1][3]).toBe('empty');
+  });
+
+  it('bridge-spansThePitAtRowAboveBottomRow', () => {
+    expect(level1.terrain[level1.height - 2][2]).toBe('bridge');
+    expect(level1.terrain[level1.height - 2][3]).toBe('bridge');
   });
 
   it('containsAtLeastOnePlatformTile', () => {
@@ -199,6 +274,8 @@ import type { LevelDef, TileMap, TileType } from './LevelData';
 
 const WIDTH = 20;
 const HEIGHT = 12;
+const GRASS_ROCK_BOUNDARY_COL = 12; // columns < this use groundGrass, >= use groundRock
+const PIT_COLS = [2, 3];
 
 function emptyGrid(width: number, height: number): TileMap {
   return Array.from({ length: height }, () => Array<TileType>(width).fill('empty'));
@@ -208,8 +285,16 @@ function buildLevel1(): LevelDef {
   const terrain = emptyGrid(WIDTH, HEIGHT);
 
   for (let col = 0; col < WIDTH; col++) {
-    terrain[HEIGHT - 2][col] = 'ground';
-    terrain[HEIGHT - 1][col] = 'ground';
+    if (PIT_COLS.includes(col)) continue;
+
+    const groundType: TileType = col < GRASS_ROCK_BOUNDARY_COL ? 'groundGrass' : 'groundRock';
+    terrain[HEIGHT - 2][col] = groundType;
+    terrain[HEIGHT - 1][col] = groundType;
+  }
+
+  for (const col of PIT_COLS) {
+    terrain[HEIGHT - 2][col] = 'bridge';
+    // terrain[HEIGHT - 1][col] stays 'empty' -- the pit
   }
 
   terrain[7][8] = 'platform';
@@ -229,7 +314,7 @@ export const level1: LevelDef = buildLevel1();
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npm run test -- src/themes/platformer/level/level1.test.ts`
-Expected: PASS (4/4)
+Expected: PASS (6/6)
 
 - [ ] **Step 5: Commit**
 
@@ -342,13 +427,10 @@ git commit -m "feat(platformer): add sprite image loader"
 - Test: `src/themes/platformer/engine/Renderer.test.ts`
 
 **Interfaces:**
-- Consumes: `isSolid`, `tileAt`, `tileToPixel`, `TILE_SIZE`, `RENDERED_TILE_SIZE` (from Task 1's `Terrain.ts`); `LevelDef`, `TileType` (from Task 1's `LevelData.ts`).
+- Consumes: `isSolid`, `tileAt`, `isTopExposed`, `tileToPixel`, `TILE_SIZE`, `RENDERED_TILE_SIZE` (from Task 1's `Terrain.ts`); `LevelDef`, `TileType` (from Task 1's `LevelData.ts`).
 - Produces: `export function drawTerrain(ctx: CanvasRenderingContext2D, level: LevelDef, tileset: HTMLImageElement): void`. Task 5 calls this from `PlatformerPage.tsx`.
 
-Exact tile coordinates in `world_tileset.png` (16×16 grid, confirmed by direct inspection of the asset):
-- `ground`: source (0, 0)
-- `platform`: source (0, 0) — reuses the ground tile bitmap; floating platforms are visually distinguishable by their position in the level, not a different texture, at this step
-- `wall`: source (128, 0) — the plain gray stone block, 8 tiles right of origin (8 × 16px)
+Use the exact sprite coordinates from the table at the top of this plan.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -368,14 +450,35 @@ function makeMockContext() {
 const fakeTileset = {} as HTMLImageElement;
 
 describe('drawTerrain', () => {
-  it('groundTile-draws-fromOriginSource', () => {
-    const level: LevelDef = { width: 1, height: 1, terrain: [['ground']] };
+  it('groundGrassTopExposed-draws-fromGrassTopSource', () => {
+    const level: LevelDef = { width: 1, height: 1, terrain: [['groundGrass']] };
     const ctx = makeMockContext();
 
     drawTerrain(ctx, level, fakeTileset);
 
-    expect(ctx.drawImage).toHaveBeenCalledTimes(1);
     expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 0, 0, 16, 16, 0, 0, 32, 32);
+  });
+
+  it('groundGrassNotExposed-draws-fromGrassFillSource', () => {
+    const level: LevelDef = {
+      width: 1,
+      height: 2,
+      terrain: [['groundGrass'], ['groundGrass']],
+    };
+    const ctx = makeMockContext();
+
+    drawTerrain(ctx, level, fakeTileset);
+
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(2, fakeTileset, 0, 16, 16, 16, 0, 32, 32, 32);
+  });
+
+  it('groundRockTopExposed-draws-fromRockTopSource', () => {
+    const level: LevelDef = { width: 1, height: 1, terrain: [['groundRock']] };
+    const ctx = makeMockContext();
+
+    drawTerrain(ctx, level, fakeTileset);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 16, 0, 16, 16, 0, 0, 32, 32);
   });
 
   it('wallTile-draws-fromStoneBlockSource', () => {
@@ -385,6 +488,24 @@ describe('drawTerrain', () => {
     drawTerrain(ctx, level, fakeTileset);
 
     expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 128, 0, 16, 16, 0, 0, 32, 32);
+  });
+
+  it('bridgeTile-draws-fromLowestChainLinkSource', () => {
+    const level: LevelDef = { width: 1, height: 1, terrain: [['bridge']] };
+    const ctx = makeMockContext();
+
+    drawTerrain(ctx, level, fakeTileset);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 144, 32, 16, 16, 0, 0, 32, 32);
+  });
+
+  it('platformTile-draws-fromGrassTopSource', () => {
+    const level: LevelDef = { width: 1, height: 1, terrain: [['platform']] };
+    const ctx = makeMockContext();
+
+    drawTerrain(ctx, level, fakeTileset);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 0, 0, 16, 16, 0, 0, 32, 32);
   });
 
   it('emptyTile-doesNotDraw', () => {
@@ -397,7 +518,7 @@ describe('drawTerrain', () => {
   });
 
   it('multiTileLevel-draws-atCorrectPixelPositions', () => {
-    const level: LevelDef = { width: 2, height: 1, terrain: [['ground', 'wall']] };
+    const level: LevelDef = { width: 2, height: 1, terrain: [['groundGrass', 'wall']] };
     const ctx = makeMockContext();
 
     drawTerrain(ctx, level, fakeTileset);
@@ -407,7 +528,7 @@ describe('drawTerrain', () => {
   });
 
   it('draws-setsImageSmoothingEnabledFalse', () => {
-    const level: LevelDef = { width: 1, height: 1, terrain: [['ground']] };
+    const level: LevelDef = { width: 1, height: 1, terrain: [['groundGrass']] };
     const ctx = makeMockContext();
 
     drawTerrain(ctx, level, fakeTileset);
@@ -427,14 +548,34 @@ Expected: FAIL — `./Renderer` does not exist yet.
 Create `src/themes/platformer/engine/Renderer.ts`:
 
 ```ts
-import { isSolid, tileAt, tileToPixel, TILE_SIZE, RENDERED_TILE_SIZE } from '../level/Terrain';
+import { isSolid, tileAt, isTopExposed, tileToPixel, TILE_SIZE, RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { LevelDef, TileType } from '../level/LevelData';
 
-const TILE_SOURCE: Partial<Record<TileType, { sx: number; sy: number }>> = {
-  ground: { sx: 0, sy: 0 },
-  platform: { sx: 0, sy: 0 },
-  wall: { sx: 128, sy: 0 },
-};
+function tileSource(
+  level: LevelDef,
+  type: TileType,
+  col: number,
+  row: number,
+): { sx: number; sy: number } | null {
+  switch (type) {
+    case 'groundGrass':
+      return isTopExposed(level, col, row)
+        ? { sx: 0, sy: 0 }
+        : { sx: 0, sy: TILE_SIZE };
+    case 'groundRock':
+      return isTopExposed(level, col, row)
+        ? { sx: TILE_SIZE, sy: 0 }
+        : { sx: TILE_SIZE, sy: TILE_SIZE };
+    case 'platform':
+      return { sx: 0, sy: 0 };
+    case 'wall':
+      return { sx: 8 * TILE_SIZE, sy: 0 };
+    case 'bridge':
+      return { sx: 9 * TILE_SIZE, sy: 2 * TILE_SIZE };
+    default:
+      return null;
+  }
+}
 
 export function drawTerrain(
   ctx: CanvasRenderingContext2D,
@@ -448,7 +589,7 @@ export function drawTerrain(
       const tile = tileAt(level, col, row);
       if (!isSolid(tile)) continue;
 
-      const source = TILE_SOURCE[tile];
+      const source = tileSource(level, tile, col, row);
       if (!source) continue;
 
       const { x, y } = tileToPixel(col, row);
@@ -471,7 +612,7 @@ export function drawTerrain(
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `npm run test -- src/themes/platformer/engine/Renderer.test.ts`
-Expected: PASS (5/5)
+Expected: PASS (9/9)
 
 - [ ] **Step 5: Commit**
 
@@ -661,11 +802,12 @@ Run: `npm run dev`
 In the browser:
 1. Switch the theme selector to "Platformer".
 2. Confirm the sky-blue background still fills the canvas.
-3. Confirm a ground strip (grass-dirt tiles) renders along the bottom of the canvas.
-4. Confirm a small floating platform (3 tiles) is visible above the ground.
-5. Confirm a short wall (3 tiles tall) is visible standing on the ground.
-6. Confirm tiles render crisp (not blurry) — pixel art should look sharp, not smoothed.
-7. Resize the browser window — confirm the level redraws correctly without artifacts.
+3. Confirm a ground strip renders along the bottom, with a visible color/style difference between the left ~60% (grass biome, green cap) and right ~40% (rock biome, gray cap).
+4. Confirm a small 2-tile gap (pit) is visible in the ground near the left side, with a bridge (chain-link tiles) spanning across it at the ground's top surface level.
+5. Confirm a small floating platform (3 tiles) is visible above the ground, in the grass zone.
+6. Confirm a short wall (3 tiles tall) is visible standing on the ground, in the rock zone.
+7. Confirm tiles render crisp (not blurry) — pixel art should look sharp, not smoothed.
+8. Resize the browser window — confirm the level redraws correctly without artifacts.
 
 If all checks pass, check off roadmap step 2 in `specs/S-006-platformer-theme/roadmap.md`.
 
@@ -673,8 +815,8 @@ If all checks pass, check off roadmap step 2 in `specs/S-006-platformer-theme/ro
 
 ## Self-Review Notes
 
-- **Spec coverage**: FR-008 (terrain tiles — ground, platforms, walls; slopes explicitly deferred) → Tasks 1, 2, 4. FR-010 (level data as a structured grid with width/height) → Tasks 1, 2. FR-029 (sprite sheet atlas, not per-tile images) → Task 4 draws all tile types from one `world_tileset.png` image. No collision/physics, camera, player, or collectibles in this step — correctly out of scope per the roadmap (steps 3-9 cover those).
-- **Placeholder scan**: no TBD/TODO; every step has concrete code or an exact command.
-- **Type consistency**: `LevelDef`/`TileMap`/`TileType` (Task 1) are the single source of truth consumed by `level1.ts` (Task 2) and `Renderer.ts` (Task 4). `tileAt`/`isSolid`/`tileToPixel`/`TILE_SIZE`/`RENDERED_TILE_SIZE` (Task 1) are consumed by `Renderer.ts` (Task 4) with matching names throughout.
+- **Spec coverage**: FR-008 (terrain tiles — ground, platforms, walls; slopes explicitly deferred) → Tasks 1, 2, 4. FR-010 (level data as a structured grid with width/height) → Tasks 1, 2. FR-029 (sprite sheet atlas, not per-tile images) → Task 4 draws all tile types from one `world_tileset.png` image. No collision/physics, camera, player, or collectibles in this step — correctly out of scope per the roadmap (steps 3-9 cover those). The pit at columns 2-3 has no fall-in behavior yet (that's step 4's gravity/collision and step 8's respawn) — it's purely a visual/level-data feature at this step.
+- **Placeholder scan**: no TBD/TODO; every step has concrete code or an exact command. Fixed the scratch/contradictory test noted inline in Task 1 Step 1.
+- **Type consistency**: `LevelDef`/`TileMap`/`TileType` (Task 1) are the single source of truth consumed by `level1.ts` (Task 2) and `Renderer.ts` (Task 4). `tileAt`/`isSolid`/`isTopExposed`/`tileToPixel`/`TILE_SIZE`/`RENDERED_TILE_SIZE` (Task 1) are consumed by `Renderer.ts` (Task 4) with matching names throughout. The six `TileType` values (`groundGrass`, `groundRock`, `platform`, `wall`, `bridge`, `empty`) are used identically across `LevelData.ts`, `Terrain.ts`, `level1.ts`, and `Renderer.ts`.
 - **Scope check**: this plan covers only roadmap step 2. It does not touch player rendering, physics, camera, or collectibles — those are separate future steps/plans per the roadmap.
 - **Asset licensing**: `world_tileset.png` is CC0-licensed (Brackeys "2D Platformer Assets" pack, originally by RottingPixels), already copied to `public/sprites/world_tileset.png` with the license file at `public/sprites/LICENSE-sprites.txt` for traceability.
