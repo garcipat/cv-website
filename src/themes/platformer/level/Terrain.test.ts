@@ -1,0 +1,70 @@
+import { tileAt, isSolid, isTopExposed, tileToPixel, TILE_SIZE, RENDER_SCALE, RENDERED_TILE_SIZE } from './Terrain';
+import type { LevelDef } from './LevelData';
+
+const testLevel: LevelDef = {
+  width: 3,
+  height: 3,
+  terrain: [
+    ['empty', 'groundGrass', 'wall'],
+    ['bridge', 'empty', 'empty'],
+    ['groundGrass', 'groundRock', 'empty'],
+  ],
+};
+
+describe('Terrain', () => {
+  it('tileAt-inBounds-returnsTile', () => {
+    expect(tileAt(testLevel, 1, 0)).toBe('groundGrass');
+    expect(tileAt(testLevel, 0, 1)).toBe('bridge');
+  });
+
+  it('tileAt-outOfBounds-returnsEmpty', () => {
+    expect(tileAt(testLevel, -1, 0)).toBe('empty');
+    expect(tileAt(testLevel, 3, 0)).toBe('empty');
+    expect(tileAt(testLevel, 0, -1)).toBe('empty');
+    expect(tileAt(testLevel, 0, 3)).toBe('empty');
+  });
+
+  it('isSolid-groundPlatformWallBridge-returnsTrue', () => {
+    expect(isSolid('groundGrass')).toBe(true);
+    expect(isSolid('groundRock')).toBe(true);
+    expect(isSolid('platform')).toBe(true);
+    expect(isSolid('wall')).toBe(true);
+    expect(isSolid('bridge')).toBe(true);
+  });
+
+  it('isSolid-empty-returnsFalse', () => {
+    expect(isSolid('empty')).toBe(false);
+  });
+
+  it('isTopExposed-emptyAbove-returnsTrue', () => {
+    const level: LevelDef = {
+      width: 1,
+      height: 2,
+      terrain: [['empty'], ['groundGrass']],
+    };
+    expect(isTopExposed(level, 0, 1)).toBe(true);
+  });
+
+  it('isTopExposed-solidTileAbove-returnsFalse', () => {
+    const level: LevelDef = {
+      width: 1,
+      height: 2,
+      terrain: [['groundGrass'], ['groundGrass']],
+    };
+    expect(isTopExposed(level, 0, 1)).toBe(false);
+  });
+
+  it('isTopExposed-topRowOfLevel-returnsTrue', () => {
+    const level: LevelDef = {
+      width: 1,
+      height: 1,
+      terrain: [['groundGrass']],
+    };
+    expect(isTopExposed(level, 0, 0)).toBe(true);
+  });
+
+  it('tileToPixel-scalesByRenderedTileSize', () => {
+    expect(RENDERED_TILE_SIZE).toBe(TILE_SIZE * RENDER_SCALE);
+    expect(tileToPixel(2, 3)).toEqual({ x: 2 * RENDERED_TILE_SIZE, y: 3 * RENDERED_TILE_SIZE });
+  });
+});
