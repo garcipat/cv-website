@@ -1,4 +1,31 @@
-import { level1 } from './level1';
+import { level1, parseLevel, TILE_CHARS } from './level1';
+
+describe('parseLevel', () => {
+  it('charLayout-parsesInto-matchingTileMap', () => {
+    const result = parseLevel(['G.', '.W']);
+    expect(result).toEqual({
+      terrain: [
+        ['groundGrass', 'empty'],
+        ['empty', 'wall'],
+      ],
+      width: 2,
+      height: 2,
+    });
+  });
+
+  it('unknownCharacter-throws', () => {
+    expect(() => parseLevel(['G?'])).toThrow('Unknown level tile character: "?"');
+  });
+
+  it('tileChars-mapsEveryLegendCharacter', () => {
+    expect(TILE_CHARS['.']).toBe('empty');
+    expect(TILE_CHARS.G).toBe('groundGrass');
+    expect(TILE_CHARS.R).toBe('groundRock');
+    expect(TILE_CHARS.P).toBe('platform');
+    expect(TILE_CHARS.W).toBe('wall');
+    expect(TILE_CHARS.B).toBe('bridge');
+  });
+});
 
 describe('level1', () => {
   it('dimensions-matchTerrainGridShape', () => {
