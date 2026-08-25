@@ -10,9 +10,14 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
 
 ## Iteration 1 — Core movement + coins + journal (P1)
 
-- [ ] **1. Theme skeleton** — register the `platformer` theme in `App.tsx`'s
-  `themePages` map, full-viewport `<canvas>` renders (blank/loading state).
-  *Verify: switching to the Platformer theme shows a canvas.*
+- [ ] **1. Theme skeleton + floating controls** — register the `platformer` theme in
+  `App.tsx`'s `themePages` map, full-viewport `<canvas>` renders (blank/loading
+  state), floating theme/locale controls (top-right, reusing `ThemeSelect` /
+  `LanguageSelect` per the Space theme pattern) render on top of the canvas so the
+  theme is escapable during manual testing. No pause-on-open behavior yet — that
+  needs the game loop from step 22.
+  *Verify: switching to the Platformer theme shows a canvas with working theme/locale
+  controls on top; switching away and back works.*
 - [ ] **2. Static level render** — terrain tiles drawn from hand-crafted level data,
   no player yet.
   *Verify: the level layout (ground, platforms) is visible.*
@@ -77,9 +82,11 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
 
 ## Iteration 3 — Controls + polish (P3)
 
-- [ ] **22. Floating theme/locale controls in-game** — same pattern as the Space
-  theme, briefly pauses when opened.
-  *Verify: switch theme or locale mid-game via the floating controls.*
+- [ ] **22. Pause-on-open for floating controls** — the floating controls (built in
+  step 1) now pause the running game loop while open and resume it on close, instead
+  of being purely decorative.
+  *Verify: open the controls mid-game, confirm the game pauses; close, confirm it
+  resumes exactly where it left off.*
 - [ ] **23. Theme-switch reset** — leaving and returning to Platformer resets the
   session (fresh game, no collected facts).
   *Verify: switch to another theme and back, confirm the game is fresh.*
