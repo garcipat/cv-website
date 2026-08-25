@@ -1,4 +1,5 @@
-import { level1, parseLevel, TILE_CHARS } from './level1';
+import { level1, parseLevel, TILE_CHARS, SPAWN_TILE } from './level1';
+import { isTopExposed } from './Terrain';
 
 describe('parseLevel', () => {
   it('charLayout-parsesInto-matchingTileMap', () => {
@@ -65,5 +66,11 @@ describe('level1', () => {
   it('containsAtLeastOneWallTile', () => {
     const hasWall = level1.terrain.some((row) => row.includes('wall'));
     expect(hasWall).toBe(true);
+  });
+
+  it('spawnTile-isTopExposedGroundGrass', () => {
+    const { col, row } = SPAWN_TILE;
+    expect(level1.terrain[row][col]).toBe('groundGrass');
+    expect(isTopExposed(level1, col, row)).toBe(true);
   });
 });
