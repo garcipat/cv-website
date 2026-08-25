@@ -66,7 +66,7 @@
       "certs": "Zertifizierungen anzeigen",
       "contact": "Kontaktinformationen anzeigen",
       "help": "Alle verf\u00fcgbaren Befehle auflisten",
-      "theme": "<id> \u2014 Design wechseln (terminal, ide, space)",
+      "theme": "<id> \u2014 Design wechseln (terminal, ide, space, platformer)",
       "lang": "<locale> \u2014 Sprache wechseln (en, de)",
       "cls": "Terminalausgabe l\u00f6schen",
       "reset": "Zum Startbildschirm zur\u00fccksetzen"
