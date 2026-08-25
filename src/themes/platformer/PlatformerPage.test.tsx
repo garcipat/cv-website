@@ -28,4 +28,9 @@ describe('PlatformerPage', () => {
     expect(canvas).toHaveAttribute('width', '800');
     expect(canvas).toHaveAttribute('height', '600');
   });
+
+  it('render-default-showsFloatingControlsOverCanvas', () => {
+    render(<PlatformerPage />);
+    expect(screen.getAllByRole('combobox')).toHaveLength(2);
+  });
 });

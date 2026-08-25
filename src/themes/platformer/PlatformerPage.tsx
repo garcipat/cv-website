@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { FloatingControls } from './components/FloatingControls';
 
 export const PlatformerPage = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -29,6 +30,7 @@ export const PlatformerPage = () => {
   return (
     <div className="relative h-screen w-screen overflow-hidden">
       <canvas ref={canvasRef} data-testid="platformer-canvas" className="block" />
+      <FloatingControls />
     </div>
   );
 };
