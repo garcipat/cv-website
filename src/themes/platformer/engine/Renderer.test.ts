@@ -51,13 +51,34 @@ describe('drawTerrain', () => {
     expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 128, 0, 16, 16, 0, 0, 32, 32);
   });
 
-  it('bridgeTile-draws-fromLowestChainLinkSource', () => {
+  it('bridgeTile-singleWithNoBridgeNeighbors-draws-fromLowSource', () => {
     const level: LevelDef = { width: 1, height: 1, terrain: [['bridge']] };
     const ctx = makeMockContext();
 
     drawTerrain(ctx, level, fakeTileset);
 
-    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 144, 32, 16, 16, 0, 0, 32, 32);
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 160, 32, 16, 16, 0, 0, 32, 32);
+  });
+
+  it('bridgeRun-twoTiles-drawsRampDownThenRampUp', () => {
+    const level: LevelDef = { width: 2, height: 1, terrain: [['bridge', 'bridge']] };
+    const ctx = makeMockContext();
+
+    drawTerrain(ctx, level, fakeTileset);
+
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(1, fakeTileset, 144, 32, 16, 16, 0, 0, 32, 32);
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(2, fakeTileset, 176, 32, 16, 16, 32, 0, 32, 32);
+  });
+
+  it('bridgeRun-threeTiles-drawsRampDownLowRampUp', () => {
+    const level: LevelDef = { width: 3, height: 1, terrain: [['bridge', 'bridge', 'bridge']] };
+    const ctx = makeMockContext();
+
+    drawTerrain(ctx, level, fakeTileset);
+
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(1, fakeTileset, 144, 32, 16, 16, 0, 0, 32, 32);
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(2, fakeTileset, 160, 32, 16, 16, 32, 0, 32, 32);
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(3, fakeTileset, 176, 32, 16, 16, 64, 0, 32, 32);
   });
 
   it('platformTile-draws-fromGrassTopSource', () => {
@@ -86,6 +107,24 @@ describe('drawTerrain', () => {
 
     expect(ctx.drawImage).toHaveBeenNthCalledWith(1, fakeTileset, 0, 0, 16, 16, 0, 0, 32, 32);
     expect(ctx.drawImage).toHaveBeenNthCalledWith(2, fakeTileset, 128, 0, 16, 16, 32, 0, 32, 32);
+  });
+
+  it('originY-shiftsEveryTileVertically', () => {
+    const level: LevelDef = { width: 1, height: 1, terrain: [['groundGrass']] };
+    const ctx = makeMockContext();
+
+    drawTerrain(ctx, level, fakeTileset, 100);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 0, 0, 16, 16, 0, 100, 32, 32);
+  });
+
+  it('originY-omitted-defaultsToZero', () => {
+    const level: LevelDef = { width: 1, height: 1, terrain: [['groundGrass']] };
+    const ctx = makeMockContext();
+
+    drawTerrain(ctx, level, fakeTileset);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 0, 0, 16, 16, 0, 0, 32, 32);
   });
 
   it('draws-setsImageSmoothingEnabledFalse', () => {

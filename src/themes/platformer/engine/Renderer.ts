@@ -1,4 +1,12 @@
-import { isSolid, tileAt, isTopExposed, tileToPixel, TILE_SIZE, RENDERED_TILE_SIZE } from '../level/Terrain';
+import {
+  isSolid,
+  tileAt,
+  isTopExposed,
+  bridgeRunPosition,
+  tileToPixel,
+  TILE_SIZE,
+  RENDERED_TILE_SIZE,
+} from '../level/Terrain';
 import type { LevelDef, TileType } from '../level/LevelData';
 
 function tileSource(
@@ -20,17 +28,28 @@ function tileSource(
       return { sx: 0, sy: 0 };
     case 'wall':
       return { sx: 8 * TILE_SIZE, sy: 0 };
-    case 'bridge':
-      return { sx: 9 * TILE_SIZE, sy: 2 * TILE_SIZE };
+    case 'bridge': {
+      const position = bridgeRunPosition(level, col, row);
+      if (position === 'left') return { sx: 9 * TILE_SIZE, sy: 2 * TILE_SIZE }; // ramp down
+      if (position === 'right') return { sx: 11 * TILE_SIZE, sy: 2 * TILE_SIZE }; // ramp up
+      return { sx: 10 * TILE_SIZE, sy: 2 * TILE_SIZE }; // low (middle, or a lone single tile)
+    }
     default:
       return null;
   }
 }
 
+/**
+ * Draws the level's terrain. `originY` shifts every tile vertically (e.g. to
+ * anchor the level to the bottom of a taller-than-the-level canvas instead
+ * of drawing it pinned to the top with empty space below). Defaults to 0
+ * (level drawn at its raw grid position, top-left origin).
+ */
 export function drawTerrain(
   ctx: CanvasRenderingContext2D,
   level: LevelDef,
   tileset: HTMLImageElement,
+  originY = 0,
 ): void {
   ctx.imageSmoothingEnabled = false;
 
@@ -50,7 +69,7 @@ export function drawTerrain(
         TILE_SIZE,
         TILE_SIZE,
         x,
-        y,
+        y + originY,
         RENDERED_TILE_SIZE,
         RENDERED_TILE_SIZE,
       );

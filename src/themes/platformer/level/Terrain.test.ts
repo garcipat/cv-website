@@ -1,4 +1,13 @@
-import { tileAt, isSolid, isTopExposed, tileToPixel, TILE_SIZE, RENDER_SCALE, RENDERED_TILE_SIZE } from './Terrain';
+import {
+  tileAt,
+  isSolid,
+  isTopExposed,
+  tileToPixel,
+  bridgeRunPosition,
+  TILE_SIZE,
+  RENDER_SCALE,
+  RENDERED_TILE_SIZE,
+} from './Terrain';
 import type { LevelDef } from './LevelData';
 
 const testLevel: LevelDef = {
@@ -66,5 +75,25 @@ describe('Terrain', () => {
   it('tileToPixel-scalesByRenderedTileSize', () => {
     expect(RENDERED_TILE_SIZE).toBe(TILE_SIZE * RENDER_SCALE);
     expect(tileToPixel(2, 3)).toEqual({ x: 2 * RENDERED_TILE_SIZE, y: 3 * RENDERED_TILE_SIZE });
+  });
+
+  it('bridgeRunPosition-noBridgeNeighbors-returnsSingle', () => {
+    const level: LevelDef = { width: 3, height: 1, terrain: [['empty', 'bridge', 'empty']] };
+    expect(bridgeRunPosition(level, 1, 0)).toBe('single');
+  });
+
+  it('bridgeRunPosition-onlyRightNeighborIsBridge-returnsLeft', () => {
+    const level: LevelDef = { width: 2, height: 1, terrain: [['bridge', 'bridge']] };
+    expect(bridgeRunPosition(level, 0, 0)).toBe('left');
+  });
+
+  it('bridgeRunPosition-onlyLeftNeighborIsBridge-returnsRight', () => {
+    const level: LevelDef = { width: 2, height: 1, terrain: [['bridge', 'bridge']] };
+    expect(bridgeRunPosition(level, 1, 0)).toBe('right');
+  });
+
+  it('bridgeRunPosition-bothNeighborsAreBridge-returnsMiddle', () => {
+    const level: LevelDef = { width: 3, height: 1, terrain: [['bridge', 'bridge', 'bridge']] };
+    expect(bridgeRunPosition(level, 1, 0)).toBe('middle');
   });
 });
