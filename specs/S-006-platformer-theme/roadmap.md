@@ -18,7 +18,7 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   needs the game loop from step 22.
   *Verify: switching to the Platformer theme shows a canvas with working theme/locale
   controls on top; switching away and back works.*
-- [ ] **2. Static level render** — terrain tiles drawn from hand-crafted level data,
+- [x] **2. Static level render** — terrain tiles drawn from hand-crafted level data,
   no player yet.
   *Verify: the level layout (ground, platforms) is visible.*
 - [ ] **3. Player idle render** — sprite drawn standing on the ground, no physics.
