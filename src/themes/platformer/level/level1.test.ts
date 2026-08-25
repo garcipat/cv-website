@@ -17,6 +17,10 @@ describe('parseLevel', () => {
     expect(() => parseLevel(['G?'])).toThrow('Unknown level tile character: "?"');
   });
 
+  it('raggedRows-throws', () => {
+    expect(() => parseLevel(['GG', 'G'])).toThrow('Row 1 has length 1, expected 2');
+  });
+
   it('tileChars-mapsEveryLegendCharacter', () => {
     expect(TILE_CHARS['.']).toBe('empty');
     expect(TILE_CHARS.G).toBe('groundGrass');
