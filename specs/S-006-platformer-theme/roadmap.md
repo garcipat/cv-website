@@ -108,3 +108,19 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   browser.
 - If a step turns out to hide more complexity than expected, split it further here
   before writing its implementation plan — don't let a "small step" grow silently.
+
+### Branch strategy
+
+- `S-006-platformer-theme` is the integration branch for this entire feature — it is
+  NOT PR'd into `main` after every step. It only goes to `main` at a deliberate
+  iteration boundary (e.g. after step 13 closes out Iteration 1), as its own PR.
+- Each roadmap step gets its own branch off `S-006-platformer-theme` (e.g.
+  `S-006-step4-gravity-collision`), goes through the normal process (`writing-plans`
+  → `subagent-driven-development`, TDD, per-task review, final whole-branch review),
+  and lands via a PR into `S-006-platformer-theme` — not a direct commit to it.
+  Delete the step branch after merging.
+- Reason: keeps each PR small and reviewable (one step's diff), while
+  `S-006-platformer-theme` itself would be unreviewable as one 25-step blob.
+- Exception: step 1 was committed directly to `S-006-platformer-theme` (no step
+  branch) — that precedent stands as-is; the branch-per-step pattern applies from
+  step 2 onward.
