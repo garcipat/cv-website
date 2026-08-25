@@ -35,6 +35,27 @@
   --border: oklch(0.4 0.03 255 / 0.3);
   --input: oklch(0.4 0.03 255 / 0.4);
   --ring: oklch(0.6 0.19 25);
+
+  /* Typography — playful, rounded fonts */
+  --font-sans: 'Nunito', sans-serif;
+  --font-heading: 'Press Start 2P', monospace;
+
+  /* Sidebar */
+  --sidebar: oklch(0.93 0.035 232);
+  --sidebar-foreground: oklch(0.22 0.03 255);
+  --sidebar-primary: oklch(0.6 0.19 25);
+  --sidebar-primary-foreground: oklch(0.98 0 0);
+  --sidebar-accent: oklch(0.82 0.15 85);
+  --sidebar-accent-foreground: oklch(0.22 0.03 255);
+  --sidebar-border: oklch(0.4 0.03 255 / 0.3);
+  --sidebar-ring: oklch(0.6 0.19 25);
+
+  /* Chart */
+  --chart-1: oklch(0.6 0.19 25);
+  --chart-2: oklch(0.58 0.15 145);
+  --chart-3: oklch(0.82 0.15 85);
+  --chart-4: oklch(0.72 0.11 232);
+  --chart-5: oklch(0.55 0.12 320);
 }
 
 /* Select triggers default to a transparent background — give them the
