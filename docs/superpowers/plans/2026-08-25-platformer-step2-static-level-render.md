@@ -18,7 +18,7 @@
 - No backend, no API calls, no new npm dependencies.
 - Sprite tile size is 16×16 native pixels (`TILE_SIZE`), rendered at a 2× scale (`RENDER_SCALE`) for crisp retro pixel art — matches the spec's "Fixed sprite sizes" assumption.
 - Axis-aligned tile types only for this step (slopes mentioned in FR-008 are explicitly deferred to a later step).
-- No camera/scrolling yet — the level is drawn at a fixed origin (world coordinates = screen coordinates), sized to mostly fit the viewport.
+- No camera/horizontal scrolling yet. The level is no longer drawn at a literal fixed origin: `PlatformerPage.tsx` computes a vertical `originY` offset (`canvas.height - levelPixelHeight`) so the level is bottom-anchored to the canvas, showing more sky above the ground on taller viewports instead of empty space below it.
 
 ## Exact Sprite Coordinates (from `public/sprites/world_tileset.png`, confirmed by direct pixel inspection, 16×16 grid)
 
@@ -29,7 +29,9 @@
 | Rock top (capped) | (1, 0) | (16, 0) |
 | Rock fill (plain) | (1, 1) | (16, 16) |
 | Wall (gray stone) | (8, 0) | (128, 0) |
-| Bridge (bottom/pink chain link) | (9, 2) | (144, 32) |
+| Bridge ramp down (left end) | (9, 2) | (144, 32) |
+| Bridge low/middle (or lone single tile) | (10, 2) | (160, 32) |
+| Bridge ramp up (right end) | (11, 2) | (176, 32) |
 
 ---
 
