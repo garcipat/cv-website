@@ -1,7 +1,7 @@
 import type { LevelDef, TileMap, TileType } from './LevelData';
 
 /** Maps each character in LEVEL_1_LAYOUT to a tile type. */
-export const TILE_CHARS: Record<string, TileType> = {
+export const TILE_CHARS: Record<string, TileType | undefined> = {
   '.': 'empty',
   G: 'groundGrass',
   R: 'groundRock',
@@ -33,6 +33,12 @@ const LEVEL_1_LAYOUT: readonly string[] = [
 export function parseLevel(layout: readonly string[]): LevelDef {
   const height = layout.length;
   const width = layout[0]?.length ?? 0;
+
+  layout.forEach((row, index) => {
+    if (row.length !== width) {
+      throw new Error(`Row ${index} has length ${row.length}, expected ${width}`);
+    }
+  });
 
   const terrain: TileMap = layout.map((row) =>
     row.split('').map((char) => {
