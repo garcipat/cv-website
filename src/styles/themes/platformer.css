@@ -3,12 +3,12 @@
   --background: oklch(0.72 0.11 232);
   --foreground: oklch(0.22 0.03 255);
 
-  /* Card — off-white panel, e.g. for floating controls */
-  --card: oklch(0.98 0.005 232);
+  /* Card — light blue panel, e.g. for floating controls */
+  --card: oklch(0.93 0.035 232);
   --card-foreground: oklch(0.22 0.03 255);
 
   /* Popover */
-  --popover: oklch(0.98 0.005 232);
+  --popover: oklch(0.93 0.035 232);
   --popover-foreground: oklch(0.22 0.03 255);
 
   /* Primary — Mario-red accent for buttons/highlights */
@@ -35,4 +35,10 @@
   --border: oklch(0.4 0.03 255 / 0.3);
   --input: oklch(0.4 0.03 255 / 0.4);
   --ring: oklch(0.6 0.19 25);
+}
+
+/* Select triggers default to a transparent background — give them the
+   light-blue card tint so they read as highlighted against the canvas. */
+[data-theme="platformer"] [data-slot="select-trigger"] {
+  background-color: var(--card);
 }
