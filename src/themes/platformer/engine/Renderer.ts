@@ -8,6 +8,8 @@ import {
   RENDERED_TILE_SIZE,
 } from '../level/Terrain';
 import type { LevelDef, TileType } from '../level/LevelData';
+import { PLAYER_FRAME_SIZE, PLAYER_RENDERED_SIZE, playerFrameSource } from '../entities/Player';
+import type { PlayerState } from '../entities/Player';
 
 function tileSource(
   level: LevelDef,
@@ -79,4 +81,31 @@ export function drawTerrain(
       );
     }
   }
+}
+
+/**
+ * Draws the player sprite. `originY` shifts it vertically by the same
+ * amount as `drawTerrain`'s `originY`, so the player stays aligned with
+ * the bottom-anchored level.
+ */
+export function drawPlayer(
+  ctx: CanvasRenderingContext2D,
+  player: PlayerState,
+  spriteSheet: HTMLImageElement,
+  originY = 0,
+): void {
+  ctx.imageSmoothingEnabled = false;
+
+  const { sx, sy } = playerFrameSource(player.animState, player.animFrame);
+  ctx.drawImage(
+    spriteSheet,
+    sx,
+    sy,
+    PLAYER_FRAME_SIZE,
+    PLAYER_FRAME_SIZE,
+    player.x,
+    player.y + originY,
+    PLAYER_RENDERED_SIZE,
+    PLAYER_RENDERED_SIZE,
+  );
 }
