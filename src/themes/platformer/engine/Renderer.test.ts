@@ -1,5 +1,6 @@
-import { drawTerrain } from './Renderer';
+import { drawTerrain, drawPlayer } from './Renderer';
 import type { LevelDef } from '../level/LevelData';
+import type { PlayerState } from '../entities/Player';
 
 function makeMockContext() {
   return {
@@ -132,6 +133,44 @@ describe('drawTerrain', () => {
     const ctx = makeMockContext();
 
     drawTerrain(ctx, level, fakeTileset);
+
+    expect(ctx.imageSmoothingEnabled).toBe(false);
+  });
+});
+
+describe('drawPlayer', () => {
+  const fakeSpriteSheet = {} as HTMLImageElement;
+  const idlePlayer: PlayerState = { x: 16, y: 256, animState: 'idle', animFrame: 0 };
+
+  it('idleFrame0-draws-fromFirstIdleSource', () => {
+    const ctx = makeMockContext();
+
+    drawPlayer(ctx, idlePlayer, fakeSpriteSheet);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeSpriteSheet, 0, 0, 32, 32, 16, 256, 64, 64);
+  });
+
+  it('idleFrame2-draws-fromThirdIdleSource', () => {
+    const ctx = makeMockContext();
+    const player: PlayerState = { ...idlePlayer, animFrame: 2 };
+
+    drawPlayer(ctx, player, fakeSpriteSheet);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeSpriteSheet, 64, 0, 32, 32, 16, 256, 64, 64);
+  });
+
+  it('originY-shiftsPlayerVertically', () => {
+    const ctx = makeMockContext();
+
+    drawPlayer(ctx, idlePlayer, fakeSpriteSheet, 100);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeSpriteSheet, 0, 0, 32, 32, 16, 356, 64, 64);
+  });
+
+  it('draws-setsImageSmoothingEnabledFalse', () => {
+    const ctx = makeMockContext();
+
+    drawPlayer(ctx, idlePlayer, fakeSpriteSheet);
 
     expect(ctx.imageSmoothingEnabled).toBe(false);
   });
