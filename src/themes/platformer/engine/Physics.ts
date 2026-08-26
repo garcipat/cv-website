@@ -98,16 +98,17 @@ export function stepPlayerPhysics(
   let resolvedVy = vy;
 
   // Ground/ceiling checks use a narrower column span than the full render
-  // width. PLAYER_RENDERED_SIZE (2 whole tiles) is sized for clean
-  // rendering, but the visible character is much narrower — using the full
-  // width here let the hitbox's invisible side margins keep "standing" on a
-  // platform tile for up to a full extra tile after the visible character
-  // had already walked off its edge (unnoticeable on an arbitrarily-wide
-  // floor, very noticeable on a narrow floating platform). This inset is
-  // deliberately NOT applied to the horizontal wall-collision columns above
-  // — that's a separate, already-tuned design choice.
-  const visibleLeft = x + PLAYER_SIDE_PADDING;
-  const visibleRight = x + PLAYER_RENDERED_SIZE - PLAYER_SIDE_PADDING - 1;
+  // width, matching where the VISIBLE character actually is — which the
+  // renderer shifts to align flush with whichever edge is currently facing
+  // (see Renderer.ts's drawPlayer), not a fixed centered band. An earlier
+  // attempt used a centered band; that meant e.g. facing right, the game
+  // still considered a chunk of empty space "grounded" for a while after
+  // the visible character had already walked off a platform's right edge,
+  // because the centered band's trailing (left) portion lagged behind the
+  // facing-right sprite's true (right-biased) visible position.
+  const visibleWidth = PLAYER_RENDERED_SIZE - 2 * PLAYER_SIDE_PADDING;
+  const visibleLeft = facing === 'right' ? x + PLAYER_RENDERED_SIZE - visibleWidth : x;
+  const visibleRight = visibleLeft + visibleWidth - 1;
   const leftCol = Math.floor(visibleLeft / RENDERED_TILE_SIZE);
   const rightCol = Math.floor(visibleRight / RENDERED_TILE_SIZE);
 
