@@ -26,7 +26,7 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
 - [x] **4. Gravity + solid collision** — character rests on platforms, falls into
   pits; no input yet.
   *Verify: spawn the character mid-air, watch it land or fall.*
-- [ ] **5. Horizontal movement + walk animation** — arrow keys move the character,
+- [x] **5. Horizontal movement + walk animation** — arrow keys move the character,
   sprite faces movement direction.
   *Verify: walk left/right on screen with visible walk animation.*
 - [ ] **6. Jump** — jump physics (variable height by hold duration) + jump animation.
