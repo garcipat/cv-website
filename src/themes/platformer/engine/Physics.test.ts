@@ -35,11 +35,15 @@ const PIT_LEVEL = parseLevel(['..', '..', '..', '..']);
 // bottom — used to test the upward (ceiling) collision case jump introduces.
 const CEILING_LEVEL = parseLevel(['GG', '..', '..', '..']);
 
-// Single solid tile at col 0 only, empty everywhere else — isolates the
-// platform-edge case: the full 64px hitbox (2 tiles) is wider than this
-// 1-tile solid patch, so it can prove the narrowed visible-only column
-// check (not the old full-hitbox one) is what determines "grounded" now.
-const NARROW_PLATFORM_LEVEL = parseLevel(['G.......']);
+// One empty tile, then a 3-tile-wide solid strip (cols 1-3), then empty —
+// proportioned like level1's real 3-tile floating platform, with room to
+// its left so a facing-left walk-off-the-left-edge case stays within world
+// bounds (x can't go negative — see the world-bounds clamp in Physics.ts).
+// Isolates the platform-edge case: the full 64px hitbox (2 tiles) is wider
+// than the visible character, and the visible character's position within
+// the hitbox depends on facing direction (see Renderer.ts's drawPlayer) —
+// these tests cover both.
+const NARROW_PLATFORM_LEVEL = parseLevel(['.GGG.....']);
 
 describe('stepPlayerPhysics', () => {
   it('stepPlayerPhysics-inMidAir-appliesGravityToVelocityAndMovesDown', () => {
@@ -290,27 +294,54 @@ describe('stepPlayerPhysics jump', () => {
     expect(next.grounded).toBe(false);
   });
 
-  it('walkingPastVisibleEdgeOfNarrowPlatform-hitboxMarginStillOverlapping-becomesUngrounded', () => {
-    // x=16: the narrowed visible window (x+PLAYER_SIDE_PADDING to
-    // x+PLAYER_RENDERED_SIZE-PLAYER_SIDE_PADDING-1) starts at column 1
-    // (empty), even though the full 64px hitbox still spans columns 0-2 —
-    // proving the fix uses the narrower window, not the full hitbox.
-    const restY = 0 - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING; // resting on row 0
-    const player = basePlayer({ x: 16, y: restY, vy: 0, grounded: true });
+  it('facingRight-visibleContentStillOverPlatform-staysGrounded', () => {
+    // facing right: visible content is biased toward the hitbox's right
+    // edge (x+40 to x+63 — see the visibleLeft/visibleRight math in
+    // Physics.ts). At x=32 that content is [72, 95], falling within column
+    // 2, which is solid (columns 1-3 are the solid strip in this fixture).
+    const restY = 0 - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
+    const player = basePlayer({ x: 32, y: restY, vy: 0, grounded: true, facing: 'right' });
+
+    const next = stepPlayerPhysics(player, NARROW_PLATFORM_LEVEL, 1 / 60);
+
+    expect(next.grounded).toBe(true);
+  });
+
+  it('facingRight-walkedPastVisibleEdgeOfPlatform-becomesUngrounded', () => {
+    // x=92: visible content is [132, 155], fully past the platform's right
+    // edge at pixel 128 (column 4 starts there, empty). The OLD centered-window
+    // fix would have wrongly stayed grounded here (its left edge, x+20=112,
+    // still fell in column 3, which is solid) — this is the regression this
+    // fix targets.
+    const restY = 0 - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
+    const player = basePlayer({ x: 92, y: restY, vy: 0, grounded: true, facing: 'right' });
 
     const next = stepPlayerPhysics(player, NARROW_PLATFORM_LEVEL, 1 / 60);
 
     expect(next.grounded).toBe(false);
   });
 
-  it('standingWithVisibleWindowStillOverNarrowPlatform-staysGrounded', () => {
-    // x=0: the visible window starts right at the platform's own left edge,
-    // still squarely over the solid column-0 tile.
+  it('facingLeft-visibleContentStillOverPlatform-staysGrounded', () => {
+    // facing left: visible content is biased toward the hitbox's left edge
+    // (x to x+23). At x=32 that content is [32, 55], within column 1, solid.
     const restY = 0 - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
-    const player = basePlayer({ x: 0, y: restY, vy: 0, grounded: true });
+    const player = basePlayer({ x: 32, y: restY, vy: 0, grounded: true, facing: 'left' });
 
     const next = stepPlayerPhysics(player, NARROW_PLATFORM_LEVEL, 1 / 60);
 
     expect(next.grounded).toBe(true);
+  });
+
+  it('facingLeft-walkedPastVisibleEdgeOfPlatform-becomesUngrounded', () => {
+    // x=2: visible content is [2, 25], fully within column 0 (empty) — past
+    // the platform's left edge at pixel 32. Kept non-negative so the
+    // world-bounds clamp (`x = Math.max(0, ...)` in Physics.ts) doesn't
+    // mask the scenario by snapping x back to 0.
+    const restY = 0 - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
+    const player = basePlayer({ x: 2, y: restY, vy: 0, grounded: true, facing: 'left' });
+
+    const next = stepPlayerPhysics(player, NARROW_PLATFORM_LEVEL, 1 / 60);
+
+    expect(next.grounded).toBe(false);
   });
 });
