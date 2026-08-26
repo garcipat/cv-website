@@ -94,6 +94,13 @@ describe('stepPlayerPhysics', () => {
     // PhysicsConfig.ts's walkSpeed comment).
     expect(PHYSICS_CONFIG.walkSpeed * MAX_DT).toBeLessThan(RENDERED_TILE_SIZE);
   });
+
+  it('jumpVelocity-timesMaxDt-staysBelowOneTile', () => {
+    // Same tunneling invariant as gravity/walkSpeed above, but for the jump
+    // impulse: a single frame's upward travel must never exceed one tile's
+    // height or the player can tunnel through a 1-tile-thick ceiling.
+    expect(Math.abs(PHYSICS_CONFIG.jumpVelocity) * MAX_DT).toBeLessThan(RENDERED_TILE_SIZE);
+  });
 });
 
 // 2 rows tall, 6 cols wide, no ground anywhere — isolates horizontal
