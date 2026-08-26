@@ -4,25 +4,32 @@ import type { LevelDef } from '../level/LevelData';
 import { PLAYER_RENDERED_SIZE, PLAYER_FOOT_PADDING } from '../entities/Player';
 import type { PlayerState } from '../entities/Player';
 
-/** Which horizontal directions are currently held. Both held cancels out to no movement. */
-export interface HorizontalInput {
+/**
+ * One frame's worth of player input. `left`/`right` default to no movement so
+ * gravity-only call sites (and existing tests) keep working unchanged.
+ * `jumpPressed` is edge-triggered (true only on the frame the key was
+ * pressed — see `Input.ts`'s `consumePress`); `jumpHeld` is a level check
+ * (true for every frame the key is down — see `Input.ts`'s `isHeld`). Both
+ * default to `false`.
+ */
+export interface PlayerInput {
   left: boolean;
   right: boolean;
+  jumpPressed?: boolean;
+  jumpHeld?: boolean;
 }
 
-const NO_HORIZONTAL_INPUT: HorizontalInput = { left: false, right: false };
+const NO_INPUT: PlayerInput = { left: false, right: false };
 
 /**
- * Resolves one frame of horizontal movement/collision, then gravity and
- * vertical collision, against the level's solid tiles. `input` defaults to
- * no movement so gravity-only call sites (and existing tests) keep working
- * unchanged.
+ * Resolves one frame of horizontal movement/collision, then jump/gravity and
+ * vertical collision, against the level's solid tiles.
  */
 export function stepPlayerPhysics(
   player: PlayerState,
   level: LevelDef,
   dt: number,
-  input: HorizontalInput = NO_HORIZONTAL_INPUT,
+  input: PlayerInput = NO_INPUT,
 ): PlayerState {
   const moveRight = input.right && !input.left;
   const moveLeft = input.left && !input.right;
@@ -64,16 +71,41 @@ export function stepPlayerPhysics(
   const maxX = level.width * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE;
   x = Math.max(0, Math.min(x, maxX));
 
-  const vy = Math.min(player.vy + PHYSICS_CONFIG.gravity * dt, PHYSICS_CONFIG.terminalVelocity);
+  // Jump trigger (FR-006): a fixed upward impulse, only while grounded — no
+  // double jump. Ignored entirely while already airborne.
+  const jumpStarts = player.grounded && Boolean(input.jumpPressed);
+  let vy = jumpStarts ? PHYSICS_CONFIG.jumpVelocity : player.vy;
+  vy = Math.min(vy + PHYSICS_CONFIG.gravity * dt, PHYSICS_CONFIG.terminalVelocity);
+
+  // Variable jump height (FR-006): releasing the jump key while still
+  // ascending cuts the velocity short via a multiplier instead of a fixed
+  // clamp, so the resulting height scales with how long the key was held
+  // before release rather than snapping to one fixed "short hop" value.
+  if (!input.jumpHeld && vy < 0) {
+    vy *= PHYSICS_CONFIG.jumpCutMultiplier;
+  }
+
   let y = player.y + vy * dt;
   let grounded = false;
   let resolvedVy = vy;
 
-  if (vy >= 0) {
+  const leftCol = Math.floor(x / RENDERED_TILE_SIZE);
+  const rightCol = Math.floor((x + PLAYER_RENDERED_SIZE - 1) / RENDERED_TILE_SIZE);
+
+  if (vy < 0) {
+    // Ceiling collision: symmetric to the landing case below, but for the
+    // player's head hitting a solid tile from underneath while rising.
+    const headRow = Math.floor(y / RENDERED_TILE_SIZE);
+    for (let col = leftCol; col <= rightCol; col++) {
+      if (isSolid(tileAt(level, col, headRow))) {
+        y = (headRow + 1) * RENDERED_TILE_SIZE;
+        resolvedVy = 0;
+        break;
+      }
+    }
+  } else {
     const feetY = y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING;
     const footRow = Math.floor(feetY / RENDERED_TILE_SIZE);
-    const leftCol = Math.floor(x / RENDERED_TILE_SIZE);
-    const rightCol = Math.floor((x + PLAYER_RENDERED_SIZE - 1) / RENDERED_TILE_SIZE);
 
     for (let col = leftCol; col <= rightCol; col++) {
       if (isSolid(tileAt(level, col, footRow))) {
