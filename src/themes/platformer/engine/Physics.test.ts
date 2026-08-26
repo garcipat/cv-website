@@ -86,6 +86,14 @@ describe('stepPlayerPhysics', () => {
     // 1-tile-thick solid (see PhysicsConfig.ts's terminalVelocity comment).
     expect(PHYSICS_CONFIG.terminalVelocity * MAX_DT).toBeLessThan(RENDERED_TILE_SIZE);
   });
+
+  it('walkSpeed-timesMaxDt-staysBelowOneTile', () => {
+    // Same tunneling invariant as above, but for horizontal movement: a
+    // single frame's horizontal travel must never exceed one tile's width
+    // or the player can tunnel through a 1-tile-thick solid (see
+    // PhysicsConfig.ts's walkSpeed comment).
+    expect(PHYSICS_CONFIG.walkSpeed * MAX_DT).toBeLessThan(RENDERED_TILE_SIZE);
+  });
 });
 
 // 2 rows tall, 6 cols wide, no ground anywhere — isolates horizontal

@@ -25,6 +25,10 @@ HTMLCanvasElement.prototype.getContext = function (
       imageSmoothingEnabled: true,
       fillRect: vi.fn(),
       drawImage: vi.fn(),
+      save: vi.fn(),
+      restore: vi.fn(),
+      translate: vi.fn(),
+      scale: vi.fn(),
     });
   }
 
