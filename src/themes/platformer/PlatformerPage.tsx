@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { FloatingControls } from './components/FloatingControls';
 import { loadImage } from './engine/SpriteLoader';
 import { drawTerrain, drawPlayer } from './engine/Renderer';
+import { drawDebugOverlay } from './engine/DebugOverlay';
 import { createGameLoop } from './engine/GameLoop';
 import { stepPlayerPhysics } from './engine/Physics';
 import { createKeyboardInput } from './engine/Input';
@@ -15,6 +16,7 @@ export const PlatformerPage = () => {
   const tilesetRef = useRef<HTMLImageElement | null>(null);
   const playerSpriteRef = useRef<HTMLImageElement | null>(null);
   const playerJumpSpriteRef = useRef<HTMLImageElement | null>(null);
+  const debugHitboxes = new URLSearchParams(window.location.search).get('debug') === 'hitboxes';
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -53,6 +55,8 @@ export const PlatformerPage = () => {
       if (playerSpriteRef.current) {
         drawPlayer(ctx, playerState.value, playerSpriteRef.current, originY, playerJumpSpriteRef.current);
       }
+
+      if (debugHitboxes) drawDebugOverlay(ctx, playerState.value, level1, originY);
     };
 
     resize();
