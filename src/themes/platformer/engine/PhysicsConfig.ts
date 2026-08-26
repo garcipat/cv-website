@@ -15,4 +15,11 @@ export const PHYSICS_CONFIG = {
    * true when retuning any of the three.
    */
   terminalVelocity: 900,
+  /**
+   * Constant horizontal walk speed, in px/s, in either direction (FR-006:
+   * instant direction change, no acceleration/deceleration). Same tunneling
+   * invariant as `terminalVelocity` applies: `walkSpeed * MAX_DT` must stay
+   * below `RENDERED_TILE_SIZE`.
+   */
+  walkSpeed: 200,
 } as const;
