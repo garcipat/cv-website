@@ -3,7 +3,11 @@ import { PHYSICS_CONFIG } from './PhysicsConfig';
 import { MAX_DT } from './GameLoop';
 import { parseLevel } from '../level/level1';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
-import { PLAYER_RENDERED_SIZE, PLAYER_FOOT_PADDING } from '../entities/Player';
+import {
+  PLAYER_RENDERED_SIZE,
+  PLAYER_FOOT_PADDING,
+  PLAYER_HEAD_PADDING,
+} from '../entities/Player';
 import type { PlayerState } from '../entities/Player';
 
 function basePlayer(overrides: Partial<PlayerState> = {}): PlayerState {
@@ -30,6 +34,12 @@ const PIT_LEVEL = parseLevel(['..', '..', '..', '..']);
 // Same footprint as GROUND_LEVEL, but the solid row is on top instead of the
 // bottom — used to test the upward (ceiling) collision case jump introduces.
 const CEILING_LEVEL = parseLevel(['GG', '..', '..', '..']);
+
+// Single solid tile at col 0 only, empty everywhere else — isolates the
+// platform-edge case: the full 64px hitbox (2 tiles) is wider than this
+// 1-tile solid patch, so it can prove the narrowed visible-only column
+// check (not the old full-hitbox one) is what determines "grounded" now.
+const NARROW_PLATFORM_LEVEL = parseLevel(['G.......']);
 
 describe('stepPlayerPhysics', () => {
   it('stepPlayerPhysics-inMidAir-appliesGravityToVelocityAndMovesDown', () => {
@@ -260,14 +270,15 @@ describe('stepPlayerPhysics jump', () => {
 
   it('movingUpIntoCeiling-overshootsInOneFrame-clampsToTileBottomEdgeAndZeroesVelocity', () => {
     const ceilingBottomY = RENDERED_TILE_SIZE; // row 0 is solid; row 1 starts here
-    // Start 1px below the ceiling, moving up fast enough to overshoot through
-    // it in a single frame. jumpHeld: true avoids the variable-height cutoff
-    // so this test isolates collision behavior.
-    const player = basePlayer({ y: ceilingBottomY + 1, vy: -1000, grounded: false });
+    const restY = ceilingBottomY - PLAYER_HEAD_PADDING; // head touches exactly at the boundary
+    // Start with the head 1px below the ceiling, moving up fast enough to
+    // overshoot through it in a single frame. jumpHeld: true avoids the
+    // variable-height cutoff so this test isolates collision behavior.
+    const player = basePlayer({ y: restY + 1, vy: -1000, grounded: false });
 
     const next = stepPlayerPhysics(player, CEILING_LEVEL, 1 / 60, { jumpHeld: true });
 
-    expect(next.y).toBe(ceilingBottomY);
+    expect(next.y).toBe(restY);
     expect(next.vy).toBe(0);
     expect(next.grounded).toBe(false);
   });
@@ -277,5 +288,29 @@ describe('stepPlayerPhysics jump', () => {
     const next = stepPlayerPhysics(player, PIT_LEVEL, 1 / 60, { jumpHeld: true });
     expect(next.y).toBeLessThan(player.y);
     expect(next.grounded).toBe(false);
+  });
+
+  it('walkingPastVisibleEdgeOfNarrowPlatform-hitboxMarginStillOverlapping-becomesUngrounded', () => {
+    // x=16: the narrowed visible window (x+PLAYER_SIDE_PADDING to
+    // x+PLAYER_RENDERED_SIZE-PLAYER_SIDE_PADDING-1) starts at column 1
+    // (empty), even though the full 64px hitbox still spans columns 0-2 —
+    // proving the fix uses the narrower window, not the full hitbox.
+    const restY = 0 - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING; // resting on row 0
+    const player = basePlayer({ x: 16, y: restY, vy: 0, grounded: true });
+
+    const next = stepPlayerPhysics(player, NARROW_PLATFORM_LEVEL, 1 / 60);
+
+    expect(next.grounded).toBe(false);
+  });
+
+  it('standingWithVisibleWindowStillOverNarrowPlatform-staysGrounded', () => {
+    // x=0: the visible window starts right at the platform's own left edge,
+    // still squarely over the solid column-0 tile.
+    const restY = 0 - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
+    const player = basePlayer({ x: 0, y: restY, vy: 0, grounded: true });
+
+    const next = stepPlayerPhysics(player, NARROW_PLATFORM_LEVEL, 1 / 60);
+
+    expect(next.grounded).toBe(true);
   });
 });

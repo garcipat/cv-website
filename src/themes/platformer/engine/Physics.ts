@@ -1,7 +1,12 @@
 import { PHYSICS_CONFIG } from './PhysicsConfig';
 import { isSolid, tileAt, RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { LevelDef } from '../level/LevelData';
-import { PLAYER_RENDERED_SIZE, PLAYER_FOOT_PADDING } from '../entities/Player';
+import {
+  PLAYER_RENDERED_SIZE,
+  PLAYER_FOOT_PADDING,
+  PLAYER_HEAD_PADDING,
+  PLAYER_SIDE_PADDING,
+} from '../entities/Player';
 import type { PlayerState } from '../entities/Player';
 
 /**
@@ -45,7 +50,10 @@ export function stepPlayerPhysics(
   const topRow = Math.floor(player.y / RENDERED_TILE_SIZE);
   // Excludes the foot-padding sliver (like the vertical ground check below)
   // so standing on solid ground doesn't register as a horizontal wall
-  // collision on every frame the player tries to walk.
+  // collision on every frame the player tries to walk. Horizontal wall
+  // collision deliberately keeps using the FULL hitbox width (unlike the
+  // narrower vertical checks below) — that's what makes the sprite look
+  // flush against a wall (an earlier, already-tuned fix).
   const bottomRow = Math.floor(
     (player.y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING - 1) / RENDERED_TILE_SIZE,
   );
@@ -89,16 +97,31 @@ export function stepPlayerPhysics(
   let grounded = false;
   let resolvedVy = vy;
 
-  const leftCol = Math.floor(x / RENDERED_TILE_SIZE);
-  const rightCol = Math.floor((x + PLAYER_RENDERED_SIZE - 1) / RENDERED_TILE_SIZE);
+  // Ground/ceiling checks use a narrower column span than the full render
+  // width. PLAYER_RENDERED_SIZE (2 whole tiles) is sized for clean
+  // rendering, but the visible character is much narrower — using the full
+  // width here let the hitbox's invisible side margins keep "standing" on a
+  // platform tile for up to a full extra tile after the visible character
+  // had already walked off its edge (unnoticeable on an arbitrarily-wide
+  // floor, very noticeable on a narrow floating platform). This inset is
+  // deliberately NOT applied to the horizontal wall-collision columns above
+  // — that's a separate, already-tuned design choice.
+  const visibleLeft = x + PLAYER_SIDE_PADDING;
+  const visibleRight = x + PLAYER_RENDERED_SIZE - PLAYER_SIDE_PADDING - 1;
+  const leftCol = Math.floor(visibleLeft / RENDERED_TILE_SIZE);
+  const rightCol = Math.floor(visibleRight / RENDERED_TILE_SIZE);
 
   if (vy < 0) {
     // Ceiling collision: symmetric to the landing case below, but for the
     // player's head hitting a solid tile from underneath while rising.
-    const headRow = Math.floor(y / RENDERED_TILE_SIZE);
+    // PLAYER_HEAD_PADDING accounts for the transparent rows above the
+    // sprite's actual head, so this triggers when the VISIBLE head reaches
+    // the tile, not when the top of the (mostly-empty) frame does.
+    const headY = y + PLAYER_HEAD_PADDING;
+    const headRow = Math.floor(headY / RENDERED_TILE_SIZE);
     for (let col = leftCol; col <= rightCol; col++) {
       if (isSolid(tileAt(level, col, headRow))) {
-        y = (headRow + 1) * RENDERED_TILE_SIZE;
+        y = (headRow + 1) * RENDERED_TILE_SIZE - PLAYER_HEAD_PADDING;
         resolvedVy = 0;
         break;
       }

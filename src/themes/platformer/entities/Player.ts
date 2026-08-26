@@ -6,6 +6,9 @@ export const PLAYER_RENDERED_SIZE = PLAYER_FRAME_SIZE * RENDER_SCALE;
 /** Transparent rows below the knight's feet inside each 32px native frame. */
 export const PLAYER_FOOT_PADDING = 4 * RENDER_SCALE; // 8 rendered px
 
+/** Transparent rows above the knight's head inside each 32px native frame. */
+export const PLAYER_HEAD_PADDING = 9 * RENDER_SCALE; // 18 rendered px
+
 /**
  * Transparent margin on either side of the knight's silhouette inside each
  * 32px native frame (the placeholder sprite's art is ~13px wide, centered in
