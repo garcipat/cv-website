@@ -82,16 +82,16 @@ Scattered through the level are simple enemy characters (e.g., slime-like creatu
 
 ### User Story 5 - Destroy Blocks to Uncover Experience, Education, and Courses (Priority: P2)
 
-Some platforms contain destroyable blocks marked with a subtle question mark. Each block is associated with an Experience, Education, or Course entry from the CV. When the character jumps and hits a destroyable block from below (Mario-style bump), the block cracks. It takes **3 hits** to fully destroy — each hit drops a coin (as a reward, no CV fact), and the final hit breaks the block apart with a shatter animation and reveals the associated CV fact. The fact text floats up from the break point, hovers briefly, then animates toward the journal icon. The fact is added to the journal under the Experience, Education, or Courses section.
+Some platforms contain destroyable blocks marked with a subtle question mark. Each block is associated with an Experience, Education, or Course entry from the CV. When the character jumps and hits a destroyable block from below (Mario-style bump), the block cracks. It takes **3 hits** to fully destroy — each hit drops a fruit (as a bonus pickup, no CV fact — visually distinct from the Skills/Languages coins so a fruit is never mistaken for a coin's CV meaning), and the final hit breaks the block apart with a shatter animation and reveals the associated CV fact. The fact text floats up from the break point, hovers briefly, then animates toward the journal icon. The fact is added to the journal under the Experience, Education, or Courses section.
 
 **Why this priority**: Destroyable blocks add vertical exploration and a multi-hit mechanic. They're P2 because they're a secondary mechanic — coins and enemies already deliver the main content flow. Blocks reward persistent exploration with Career and Education facts.
 
-**Independent Test**: Find a marked destroyable block. Jump and hit it from below — verify it cracks and drops a coin each hit. After 3 hits — verify it breaks and the experience/education/course fact text appears. Check journal — verify the fact is added in the correct section.
+**Independent Test**: Find a marked destroyable block. Jump and hit it from below — verify it cracks and drops a fruit each hit. After 3 hits — verify it breaks and the experience/education/course fact text appears. Check journal — verify the fact is added in the correct section.
 
 **Acceptance Scenarios**:
 
-1. **Given** a destroyable block exists on a platform, **When** the character jumps and collides with it from below, **Then** the block cracks (visually progressing through crack states) and drops a coin.
-2. **Given** a destroyable block has been hit fewer than 3 times, **When** the character hits it again from below, **Then** it shows increasingly cracked visual states and drops another coin with each hit.
+1. **Given** a destroyable block exists on a platform, **When** the character jumps and collides with it from below, **Then** the block cracks (visually progressing through crack states) and drops a fruit.
+2. **Given** a destroyable block has been hit fewer than 3 times, **When** the character hits it again from below, **Then** it shows increasingly cracked visual states and drops another fruit with each hit.
 3. **Given** a destroyable block has been hit 3 times, **When** the final hit occurs, **Then** the block breaks apart with a shatter animation and the associated experience, education, or course fact text floats up from the break point, hovers, and flies to the journal icon.
 4. **Given** a destroyable block is destroyed, **When** the visitor opens the journal, **Then** the fact appears in the Experience, Education, or Courses section, styled as a simple list entry.
 5. **Given** the character hits a destroyable block from above or the side, **When** contact occurs, **Then** the block is not affected — only upward hits from below trigger the break mechanic.
@@ -193,7 +193,7 @@ As with all CV themes, floating translucent controls in the top-left corner prov
 - **FR-006**: System MUST implement character physics:
   - **Gravity**: Constant downward acceleration when not on a platform
   - **Jump**: Upward velocity impulse on jump key press; variable jump height based on key hold duration (short tap = small hop, long hold = full jump)
-  - **Collision**: Character lands on platforms from above. All platforms are solid from every direction — the character cannot jump up through platforms from below.
+  - **Collision**: Character lands on platforms from above. All platforms are solid from every direction — the character cannot jump up through platforms from below. **Exception**: `bridge` tiles are one-way platforms — passable from below (the character can jump up through one) but solid when landing on top, per roadmap step 7.
   - **Horizontal movement**: Constant speed left/right with instant direction change
 
 - **FR-007**: System MUST handle keyboard input: Arrow Left/Right for movement, Space or Arrow Up for jump. `A`/`D` are additionally accepted as alternates for Left/Right (a convenience discovered useful during development, e.g. for setups where arrow keys are intercepted before reaching the browser — the arrow-key requirement above is unaffected). The up-arrow key is used exclusively for jumping — it is NOT used for journal navigation or any other UI interaction. Input is read per-frame so held keys produce continuous movement.
@@ -275,7 +275,7 @@ The level is hand-crafted — starting with a simple layout to validate function
 
 - **FR-021**: System MUST render destroyable blocks as distinct tiles (marked with a subtle question mark) that require 3 upward hits to break, progressing through intact → cracked → heavily cracked → broken visual states.
 
-- **FR-022**: System MUST implement destroyable block interaction: when the character collides with a destroyable block from below (upward hit), the block cracks (visual state change) and drops one coin (as a reward, no CV fact). After **3 hits**, the block breaks apart with a shatter animation and reveals the associated CV fact (Experience, Education, or Courses). Hitting from other directions has no effect.
+- **FR-022**: System MUST implement destroyable block interaction: when the character collides with a destroyable block from below (upward hit), the block cracks (visual state change) and drops one fruit (a bonus pickup, no CV fact — rendered from `fruit.png`, distinct from the `coin.png` sprite used for Skills/Languages coins so a bonus pickup is never visually confused with a CV-mapped collectible). After **3 hits**, the block breaks apart with a shatter animation and reveals the associated CV fact (Experience, Education, or Courses). Hitting from other directions has no effect.
 
 #### Level Completion (P2)
 
@@ -378,6 +378,8 @@ The level is hand-crafted — starting with a simple layout to validate function
 
 - **Collectible**: An item in the game world that, when acquired by the player, reveals a CV fact. Types: coin (Skills, Languages — P1), enemy defeat (Certificates, Projects — P2), block break (Experience, Education, Courses — P2). Each collectible is mapped to a specific CV data item by section.
 
+- **Bonus pickup**: An item dropped by a destroyable block on each of its first 2 hits (rendered as a fruit) — unlike a `Collectible`, it carries no CV fact and isn't mapped to `CVData`. Purely a reward for engaging with the block-hit mechanic.
+
 - **CollectedFact**: A record of a discovered CV fact — links the CV data item to its source collectible type. The collection of all `CollectedFact` objects is the session's discovered CV content.
 
 - **Journal**: The notebook overlay where collected CV facts are readable. Consists of bookmark tabs (one per CV section), paginated pages, and Simple List entry styling.
@@ -458,7 +460,7 @@ FloatingControls (P3)
 ### Session 2026-08-05
 
 - **Q: Damage & Health System** — **A**: 3-hit health with checkpoint respawn. Character has 3 hearts, brief invincibility frames on hit. At 0 health: respawn at nearest spawn point, collected facts preserved. No game-over screen.
-- **Q: Platform Behavior** — **A**: All platforms are solid from every direction. Character cannot jump up through platforms from below.
+- **Q: Platform Behavior** — **A**: All platforms are solid from every direction. Character cannot jump up through platforms from below. **Exception (added at roadmap step 7)**: `bridge` tiles are one-way — passable from below, solid from above — since a rope/plank bridge is the one terrain type where that behavior reads as natural rather than surprising. A down-arrow "drop through" key is explicitly not part of this — only add it if a level layout creates a real reason to fall through a bridge deliberately.
 - **Q: Level Design Approach** — **A**: Hand-crafted level using a grid/raster system with width and height for easy element positioning. Start with a simple level to validate functionality, then expand iteratively.
 - **Q: Checkpoint System** — **A**: Invisible spawn points defined in the level data. Character respawns at the nearest spawn point on death.
 - **Q: HUD Layout** — **A**: Top-left: 3 hearts. Top-right: theme and language selector (like Space theme). Bottom-right: journal icon button.

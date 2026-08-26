@@ -31,69 +31,77 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   *Verify: walk left/right on screen with visible walk animation.*
 - [ ] **6. Jump** — jump physics (variable height by hold duration) + jump animation.
   *Verify: jump across a gap.*
-- [ ] **7. Camera scroll** — viewport follows the character horizontally.
+- [ ] **7. One-way bridge platforms** — `bridge` tiles become passable from below
+  (jumping up through them) while remaining solid when landing on top, instead of
+  being solid from every direction like other terrain. Depends on step 6's jump
+  existing (the "jump up through from below" case can't be exercised without it).
+  Down-arrow drop-through is explicitly out of scope unless a level layout actually
+  needs it (see `docs/themes/Platformer.md` if that reasoning needs revisiting).
+  *Verify: jump up through a bridge from below and land on top of it; walking onto it
+  from the side and standing on top both still work solidly.*
+- [ ] **8. Camera scroll** — viewport follows the character horizontally.
   *Verify: walk right, camera scrolls to follow.*
-- [ ] **8. Respawn** — falling into a pit or death respawns at the nearest spawn
+- [ ] **9. Respawn** — falling into a pit or death respawns at the nearest spawn
   point with full health.
   *Verify: fall into a pit, see the character respawn.*
-- [ ] **9. Coins render + CollectibleMapper** — coins placed from real `CVData`
+- [ ] **10. Coins render + CollectibleMapper** — coins placed from real `CVData`
   (Skills/Languages), visible but not yet collectible.
   *Verify: coin count in the level matches the number of Skills + Languages items.*
-- [ ] **10. Coin collection** — touching a coin removes it, fact text floats up and
+- [ ] **11. Coin collection** — touching a coin removes it, fact text floats up and
   flies toward the journal icon, `collectedFacts` state updates.
   *Verify: collect a coin, see the fact text animate off.*
-- [ ] **11. Journal skeleton** — `J` toggles a fullscreen overlay, pauses the game,
+- [ ] **12. Journal skeleton** — `J` toggles a fullscreen overlay, pauses the game,
   shows collected facts unstyled.
   *Verify: open/close the journal, see the collected fact listed.*
-- [ ] **12. Journal styling** — notebook paper, `Caveat` handwriting font, Simple
+- [ ] **13. Journal styling** — notebook paper, `Caveat` handwriting font, Simple
   List entry style per the mockup.
   *Verify: visually matches `entry-styles-mockup.html`.*
-- [ ] **13. Bookmark tabs + counters + pagination + Reset button** — per-section
+- [ ] **14. Bookmark tabs + counters + pagination + Reset button** — per-section
   tabs, "N/M" counters, pagination within a section, Reset Game button.
   *Verify: switch sections, counters update correctly, Reset clears all state.*
 
 ## Iteration 2 — Enemies + blocks + flagpole + audio (P2)
 
-- [ ] **14. Enemy render + patrol** — CollectibleMapper extended for
+- [ ] **15. Enemy render + patrol** — CollectibleMapper extended for
   Certificates/Projects; enemies patrol platforms, no interaction yet.
   *Verify: enemies visibly patrol back and forth.*
-- [ ] **15. Stomp defeat** — jumping on an enemy defeats it with a poof animation,
+- [ ] **16. Stomp defeat** — jumping on an enemy defeats it with a poof animation,
   fact flies to the journal.
   *Verify: stomp an enemy, see the fact appear.*
-- [ ] **16. Side/below damage** — heart HUD (3 hearts), invincibility frames,
+- [ ] **17. Side/below damage** — heart HUD (3 hearts), invincibility frames,
   knockback on non-stomp contact.
   *Verify: touch an enemy from the side, lose a heart.*
-- [ ] **17. Destroyable block render** — intact/question-mark tiles;
+- [ ] **18. Destroyable block render** — intact/question-mark tiles;
   CollectibleMapper extended for Experience/Education/Courses.
   *Verify: blocks are visible on platforms.*
-- [ ] **18. Block hit mechanic** — 3-hit crack progression, coin drop per hit, fact
+- [ ] **19. Block hit mechanic** — 3-hit crack progression, coin drop per hit, fact
   reveal + shatter animation on the 3rd hit.
   *Verify: break a block, see cracking states, coin drops, and the final fact.*
-- [ ] **19. Flagpole render + touch detection** — visible flagpole at the level end,
+- [ ] **20. Flagpole render + touch detection** — visible flagpole at the level end,
   no celebration/ending screen yet.
   *Verify: reach and touch the flagpole.*
-- [ ] **20. Flagpole celebration + ending screen** — slide-down animation, flag
+- [ ] **21. Flagpole celebration + ending screen** — slide-down animation, flag
   waves, ending screen with Personality + Contact, Replay Level button.
   *Verify: reach the flagpole, see the ending screen, Replay resets the level.*
-- [ ] **21. Audio** — preload audio assets, looping background music, SFX wired to
+- [ ] **22. Audio** — preload audio assets, looping background music, SFX wired to
   existing actions (jump, coin, stomp, block break, flagpole, damage, journal
   open/close), speaker icon toggle, muted by default.
   *Verify: toggle sound on, hear music and effects.*
 
 ## Iteration 3 — Controls + polish (P3)
 
-- [ ] **22. Pause-on-open for floating controls** — the floating controls (built in
+- [ ] **23. Pause-on-open for floating controls** — the floating controls (built in
   step 1) now pause the running game loop while open and resume it on close, instead
   of being purely decorative.
   *Verify: open the controls mid-game, confirm the game pauses; close, confirm it
   resumes exactly where it left off.*
-- [ ] **23. Theme-switch reset** — leaving and returning to Platformer resets the
+- [ ] **24. Theme-switch reset** — leaving and returning to Platformer resets the
   session (fresh game, no collected facts).
   *Verify: switch to another theme and back, confirm the game is fresh.*
-- [ ] **24. Touch/mobile controls** — on-screen D-pad + action buttons on small
+- [ ] **25. Touch/mobile controls** — on-screen D-pad + action buttons on small
   viewports.
   *Verify: at a mobile viewport width, the D-pad appears and functions.*
-- [ ] **25. Polish pass** — animation/effects refinement, 30 FPS check with 20+
+- [ ] **26. Polish pass** — animation/effects refinement, 30 FPS check with 20+
   collectibles rendered.
   *Verify: frame-timing check and smooth manual play.*
 
@@ -113,14 +121,14 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
 
 - `S-006-platformer-theme` is the integration branch for this entire feature — it is
   NOT PR'd into `main` after every step. It only goes to `main` at a deliberate
-  iteration boundary (e.g. after step 13 closes out Iteration 1), as its own PR.
+  iteration boundary (e.g. after step 14 closes out Iteration 1), as its own PR.
 - Each roadmap step gets its own branch off `S-006-platformer-theme` (e.g.
   `S-006-step4-gravity-collision`), goes through the normal process (`writing-plans`
   → `subagent-driven-development`, TDD, per-task review, final whole-branch review),
   and lands via a PR into `S-006-platformer-theme` — not a direct commit to it.
   Delete the step branch after merging.
 - Reason: keeps each PR small and reviewable (one step's diff), while
-  `S-006-platformer-theme` itself would be unreviewable as one 25-step blob.
+  `S-006-platformer-theme` itself would be unreviewable as one 26-step blob.
 - Exception: step 1 was committed directly to `S-006-platformer-theme` (no step
   branch) — that precedent stands as-is; the branch-per-step pattern applies from
   step 2 onward.

@@ -181,3 +181,19 @@ evaluating when jump is implemented:
 
 Both are pure quality-of-feel additions with no gameplay-rules impact — they can be
 added independently of the base jump mechanic and tuned by feel.
+
+## Collision: bridges are one-way platforms
+
+Every solid terrain type is solid from every direction — except `bridge`. A rope/
+plank bridge is the one terrain type where "passable from below, solid from above"
+reads as natural rather than surprising (you duck under and climb up through it,
+rather than a stone platform mysteriously having no underside). This only becomes
+testable once jump exists, so it's its own roadmap step placed right after jump.
+
+**Explicitly out of scope unless a level needs it**: a down-arrow "drop through"
+key, letting the character intentionally fall off a bridge they're standing on. The
+base one-way behavior doesn't require it — the character can always walk off a
+bridge's edge — and it only earns its cost (a new keybinding, a new input case,
+more direction-aware collision logic) if a level layout actually puts something
+reachable underneath a bridge that the player would want to drop into deliberately.
+`level1`'s current bridge just spans a ground-level pit, so this doesn't apply yet.
