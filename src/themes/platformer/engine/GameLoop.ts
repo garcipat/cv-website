@@ -1,6 +1,6 @@
 /** Caps the per-frame delta time (seconds) so a backgrounded/throttled tab
  * doesn't produce one huge catch-up physics step on resume. */
-const MAX_DT = 1 / 30;
+export const MAX_DT = 1 / 30;
 
 export interface GameLoop {
   start(): void;
