@@ -139,4 +139,59 @@ describe('PlatformerPage', () => {
     expect(playerState.value.grounded).toBe(true);
     expect(playerState.value.vy).toBe(0);
   });
+
+  it('arrowRightHeld-gameLoopTicks-movesPlayerRightAndFacesRightAndWalks', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    const startX = playerState.value.x;
+
+    fireEvent.keyDown(window, { code: 'ArrowRight' });
+    frameCallback!(0);
+    frameCallback!(16);
+
+    expect(playerState.value.x).toBeGreaterThan(startX);
+    expect(playerState.value.facing).toBe('right');
+    expect(playerState.value.animState).toBe('walk');
+  });
+
+  it('arrowKeyReleased-nextTick-returnsToIdleAndStopsMoving', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+
+    fireEvent.keyDown(window, { code: 'ArrowRight' });
+    frameCallback!(0);
+    frameCallback!(16);
+    const xAfterMoving = playerState.value.x;
+
+    fireEvent.keyUp(window, { code: 'ArrowRight' });
+    frameCallback!(32);
+
+    expect(playerState.value.x).toBe(xAfterMoving);
+    expect(playerState.value.animState).toBe('idle');
+  });
+
+  it('unmount-afterMount-removesKeyboardEventListeners', () => {
+    vi.stubGlobal('requestAnimationFrame', () => 1);
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+    const removeSpy = vi.spyOn(window, 'removeEventListener');
+
+    const { unmount } = render(<PlatformerPage />);
+    unmount();
+
+    expect(removeSpy).toHaveBeenCalledWith('keydown', expect.any(Function));
+    expect(removeSpy).toHaveBeenCalledWith('keyup', expect.any(Function));
+    removeSpy.mockRestore();
+  });
 });

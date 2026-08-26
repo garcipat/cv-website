@@ -31,7 +31,12 @@ export function stepPlayerPhysics(
 
   let x = player.x + vx * dt;
   const topRow = Math.floor(player.y / RENDERED_TILE_SIZE);
-  const bottomRow = Math.floor((player.y + PLAYER_RENDERED_SIZE - 1) / RENDERED_TILE_SIZE);
+  // Excludes the foot-padding sliver (like the vertical ground check below)
+  // so standing on solid ground doesn't register as a horizontal wall
+  // collision on every frame the player tries to walk.
+  const bottomRow = Math.floor(
+    (player.y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING - 1) / RENDERED_TILE_SIZE,
+  );
 
   if (vx > 0) {
     const rightCol = Math.floor((x + PLAYER_RENDERED_SIZE - 1) / RENDERED_TILE_SIZE);
