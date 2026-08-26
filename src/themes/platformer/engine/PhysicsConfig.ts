@@ -22,4 +22,18 @@ export const PHYSICS_CONFIG = {
    * below `RENDERED_TILE_SIZE`.
    */
   walkSpeed: 200,
+  /**
+   * Initial upward velocity impulse on jump press, in px/s (negative = up).
+   * Same tunneling invariant as `terminalVelocity`/`walkSpeed` applies:
+   * `Math.abs(jumpVelocity) * MAX_DT` must stay below `RENDERED_TILE_SIZE`.
+   */
+  jumpVelocity: -600,
+  /**
+   * Multiplier applied to `vy` once per frame while ascending (`vy < 0`) and
+   * the jump key isn't currently held (FR-006: variable jump height). A tap
+   * lets gravity + this cutoff shrink the arc quickly into a small hop; a
+   * full hold never triggers it, so the impulse decays only under gravity
+   * and reaches the full arc.
+   */
+  jumpCutMultiplier: 0.45,
 } as const;
