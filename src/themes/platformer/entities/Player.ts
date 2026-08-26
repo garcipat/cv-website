@@ -16,7 +16,7 @@ export const PLAYER_FOOT_PADDING = 4 * RENDER_SCALE; // 8 rendered px
  */
 export const PLAYER_SIDE_PADDING = 10 * RENDER_SCALE; // 20 rendered px
 
-export type PlayerAnimState = 'idle' | 'walk';
+export type PlayerAnimState = 'idle' | 'walk' | 'jump';
 export type PlayerFacing = 'left' | 'right';
 
 export interface PlayerState {
@@ -49,6 +49,7 @@ const ANIM_CONFIG: Record<
 > = {
   idle: { frameCount: 4, frameDuration: 0.15, sy: 0 },
   walk: { frameCount: 8, frameDuration: 0.08, sy: PLAYER_FRAME_SIZE * 2 },
+  jump: { frameCount: 7, frameDuration: 0.055, sy: 0 },
 };
 
 /** Seconds each idle frame is held before advancing to the next. */
@@ -60,6 +61,32 @@ export function playerFrameSource(
 ): { sx: number; sy: number } {
   const { frameCount, sy } = ANIM_CONFIG[animState];
   return { sx: (frame % frameCount) * PLAYER_FRAME_SIZE, sy };
+}
+
+/**
+ * `knight2.png` uses 128px frames (4x `PLAYER_FRAME_SIZE`) — the placeholder
+ * `knight.png` sheet has no jump row, so jump/fall use this separate,
+ * higher-resolution sheet and their own frame size instead of extending
+ * `playerFrameSource`.
+ */
+export const JUMP_FRAME_SIZE = 128;
+const JUMP_ROW_FRAME_COUNT = 7;
+const JUMP_ROW_SY = 0;
+const FALL_ROW_FRAME_COUNT = 4;
+const FALL_ROW_SY = 161;
+
+/**
+ * Frame source for the jump/fall animation, keyed by the player's vertical
+ * velocity rather than a separate `animState` value (FR-032 keeps
+ * `animState` limited to `'idle' | 'walk' | 'jump'`): rising (`vy < 0`) uses
+ * the 7-frame JUMP row, falling or at the arc's apex (`vy >= 0`) uses the
+ * 4-frame FALL row.
+ */
+export function jumpFrameSource(vy: number, frame: number): { sx: number; sy: number } {
+  if (vy < 0) {
+    return { sx: (frame % JUMP_ROW_FRAME_COUNT) * JUMP_FRAME_SIZE, sy: JUMP_ROW_SY };
+  }
+  return { sx: (frame % FALL_ROW_FRAME_COUNT) * JUMP_FRAME_SIZE, sy: FALL_ROW_SY };
 }
 
 /** Advances the player's animation timer/frame by `dt` seconds. */
@@ -77,13 +104,18 @@ export function advancePlayerAnimation(player: PlayerState, dt: number): PlayerS
 }
 
 /**
- * Switches `animState` between `idle`/`walk` based on horizontal velocity,
- * resetting the animation frame/timer whenever the state actually changes so
- * a leftover frame index from the previous state's cycle never carries over
- * (e.g. idle frame 3 is out of range for a state with fewer frames).
+ * Switches `animState` between `idle`/`walk`/`jump`, resetting the animation
+ * frame/timer whenever the state actually changes so a leftover frame index
+ * from the previous state's cycle never carries over. Airborne (`!grounded`)
+ * takes priority over horizontal velocity — the character can be moving
+ * horizontally while jumping, but it still reads as `'jump'`, not `'walk'`.
  */
 export function updatePlayerAnimState(player: PlayerState): PlayerState {
-  const animState: PlayerAnimState = player.vx !== 0 ? 'walk' : 'idle';
+  const animState: PlayerAnimState = !player.grounded
+    ? 'jump'
+    : player.vx !== 0
+      ? 'walk'
+      : 'idle';
   if (animState === player.animState) return player;
   return { ...player, animState, animFrame: 0, animTimer: 0 };
 }
