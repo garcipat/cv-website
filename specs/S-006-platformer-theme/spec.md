@@ -196,7 +196,7 @@ As with all CV themes, floating translucent controls in the top-left corner prov
   - **Collision**: Character lands on platforms from above. All platforms are solid from every direction — the character cannot jump up through platforms from below.
   - **Horizontal movement**: Constant speed left/right with instant direction change
 
-- **FR-007**: System MUST handle keyboard input: Arrow Left/Right for movement, Space or Arrow Up for jump. The up-arrow key is used exclusively for jumping — it is NOT used for journal navigation or any other UI interaction. Input is read per-frame so held keys produce continuous movement.
+- **FR-007**: System MUST handle keyboard input: Arrow Left/Right for movement, Space or Arrow Up for jump. `A`/`D` are additionally accepted as alternates for Left/Right (a convenience discovered useful during development, e.g. for setups where arrow keys are intercepted before reaching the browser — the arrow-key requirement above is unaffected). The up-arrow key is used exclusively for jumping — it is NOT used for journal navigation or any other UI interaction. Input is read per-frame so held keys produce continuous movement.
 
 #### Level Design
 
