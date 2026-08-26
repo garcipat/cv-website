@@ -21,4 +21,13 @@ describe('PlatformerState', () => {
     const expectedY = groundSurfaceY - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
     expect(playerState.value.y).toBe(expectedY);
   });
+
+  it('playerState-initial-hasZeroVelocityAndIsNotYetGrounded', () => {
+    expect(playerState.value.vy).toBe(0);
+    expect(playerState.value.grounded).toBe(false);
+  });
+
+  it('playerState-initial-hasZeroAnimationTimer', () => {
+    expect(playerState.value.animTimer).toBe(0);
+  });
 });

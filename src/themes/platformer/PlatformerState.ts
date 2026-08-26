@@ -12,8 +12,11 @@ function initialPlayerState(): PlayerState {
   return {
     x: spawnCell.x - (PLAYER_RENDERED_SIZE - RENDERED_TILE_SIZE) / 2,
     y: groundSurfaceY - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING,
+    vy: 0,
+    grounded: false,
     animState: 'idle',
     animFrame: 0,
+    animTimer: 0,
   };
 }
 
