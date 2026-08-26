@@ -12,10 +12,11 @@ export const PLAYER_HEAD_PADDING = 9 * RENDER_SCALE; // 18 rendered px
 /**
  * Transparent margin on either side of the knight's silhouette inside each
  * 32px native frame (the placeholder sprite's art is ~13px wide, centered in
- * the 32px cell). Rendering shifts the drawn sprite toward whichever edge is
- * currently leading (per `facing`) by this amount, purely visual, so the
- * visible character reaches a wall at the same position the (unchanged,
- * already-tested) hitbox already stops at — it doesn't touch collision math.
+ * the 32px cell). Used by Physics.ts to define a narrower, centered
+ * collision hitbox within the full PLAYER_RENDERED_SIZE render slot — not
+ * used for any rendering-position shift; the sprite is always drawn at a
+ * fixed position (see Renderer.ts's drawPlayer), only its artwork mirrors
+ * for facing direction.
  */
 export const PLAYER_SIDE_PADDING = 10 * RENDER_SCALE; // 20 rendered px
 

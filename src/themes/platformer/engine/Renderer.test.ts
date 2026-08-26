@@ -1,7 +1,7 @@
 import { drawTerrain, drawPlayer } from './Renderer';
 import type { LevelDef } from '../level/LevelData';
 import type { PlayerState } from '../entities/Player';
-import { PLAYER_RENDERED_SIZE, PLAYER_SIDE_PADDING, JUMP_FRAME_SIZE } from '../entities/Player';
+import { PLAYER_RENDERED_SIZE, JUMP_FRAME_SIZE } from '../entities/Player';
 
 function makeMockContext() {
   return {
@@ -168,7 +168,7 @@ describe('drawPlayer', () => {
       0,
       32,
       32,
-      16 + PLAYER_SIDE_PADDING,
+      16,
       256,
       64,
       64,
@@ -187,7 +187,7 @@ describe('drawPlayer', () => {
       0,
       32,
       32,
-      16 + PLAYER_SIDE_PADDING,
+      16,
       256,
       64,
       64,
@@ -205,7 +205,7 @@ describe('drawPlayer', () => {
       0,
       32,
       32,
-      16 + PLAYER_SIDE_PADDING,
+      16,
       356,
       64,
       64,
@@ -228,7 +228,7 @@ describe('drawPlayer', () => {
 
     expect(ctx.save).toHaveBeenCalled();
     expect(ctx.translate).toHaveBeenCalledWith(
-      player.x + PLAYER_SIDE_PADDING + PLAYER_RENDERED_SIZE,
+      player.x + PLAYER_RENDERED_SIZE,
       player.y,
     );
     expect(ctx.scale).toHaveBeenCalledWith(-1, 1);
@@ -268,7 +268,7 @@ describe('drawPlayer', () => {
       0,
       128,
       128,
-      16 + PLAYER_SIDE_PADDING,
+      16,
       256,
       64,
       64,
@@ -288,7 +288,7 @@ describe('drawPlayer', () => {
       161,
       128,
       128,
-      16 + PLAYER_SIDE_PADDING,
+      16,
       256,
       64,
       64,
@@ -307,7 +307,7 @@ describe('drawPlayer', () => {
       0,
       32,
       32,
-      16 + PLAYER_SIDE_PADDING,
+      16,
       256,
       64,
       64,

@@ -11,7 +11,6 @@ import type { LevelDef, TileType } from '../level/LevelData';
 import {
   PLAYER_FRAME_SIZE,
   PLAYER_RENDERED_SIZE,
-  PLAYER_SIDE_PADDING,
   JUMP_FRAME_SIZE,
   playerFrameSource,
   jumpFrameSource,
@@ -119,7 +118,7 @@ export function drawPlayer(
 
   if (player.facing === 'left') {
     ctx.save();
-    ctx.translate(player.x + PLAYER_SIDE_PADDING + PLAYER_RENDERED_SIZE, player.y + originY);
+    ctx.translate(player.x + PLAYER_RENDERED_SIZE, player.y + originY);
     ctx.scale(-1, 1);
     ctx.drawImage(
       sheet,
@@ -142,7 +141,7 @@ export function drawPlayer(
     sy,
     frameSize,
     frameSize,
-    player.x + PLAYER_SIDE_PADDING,
+    player.x,
     player.y + originY,
     PLAYER_RENDERED_SIZE,
     PLAYER_RENDERED_SIZE,
