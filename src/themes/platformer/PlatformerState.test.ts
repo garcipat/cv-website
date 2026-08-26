@@ -30,4 +30,9 @@ describe('PlatformerState', () => {
   it('playerState-initial-hasZeroAnimationTimer', () => {
     expect(playerState.value.animTimer).toBe(0);
   });
+
+  it('playerState-initial-hasZeroHorizontalVelocityAndFacesRight', () => {
+    expect(playerState.value.vx).toBe(0);
+    expect(playerState.value.facing).toBe('right');
+  });
 });
