@@ -2,8 +2,11 @@ import { useEffect, useRef } from 'react';
 import { FloatingControls } from './components/FloatingControls';
 import { loadImage } from './engine/SpriteLoader';
 import { drawTerrain, drawPlayer } from './engine/Renderer';
+import { createGameLoop } from './engine/GameLoop';
+import { stepPlayerPhysics } from './engine/Physics';
 import { level1 } from './level/level1';
 import { RENDERED_TILE_SIZE } from './level/Terrain';
+import { advancePlayerAnimation } from './entities/Player';
 import { playerState } from './PlatformerState';
 
 export const PlatformerPage = () => {
@@ -45,6 +48,14 @@ export const PlatformerPage = () => {
     draw();
     window.addEventListener('resize', draw);
 
+    const loop = createGameLoop((dt) => {
+      let next = stepPlayerPhysics(playerState.value, level1, dt);
+      next = advancePlayerAnimation(next, dt);
+      playerState.value = next;
+      draw();
+    });
+    loop.start();
+
     let cancelled = false;
     loadImage('/sprites/world_tileset.png')
       .then((img) => {
@@ -69,6 +80,7 @@ export const PlatformerPage = () => {
 
     return () => {
       cancelled = true;
+      loop.stop();
       window.removeEventListener('resize', draw);
     };
   }, []);
