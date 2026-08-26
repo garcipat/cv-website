@@ -130,6 +130,13 @@ const RIGHT_WALL_LEVEL = parseLevel(['....W.', '....W.']);
 // Solid wall at col 1, both rows — blocks leftward movement.
 const LEFT_WALL_LEVEL = parseLevel(['.W....', '.W....']);
 
+// 3 rows tall, 6 cols wide. Solid wall at col 4, but ONLY on row 0 — rows 1-2
+// are open. Used to prove the horizontal wall check excludes the
+// PLAYER_HEAD_PADDING band: a player positioned so their padded head lands in
+// row 1 (not row 0) must NOT be blocked by the row-0 wall tile, even though
+// the top of their (mostly-empty) render frame is still numerically in row 0.
+const HEAD_PADDING_WALL_LEVEL = parseLevel(['....W.', '......', '......']);
+
 describe('stepPlayerPhysics horizontal movement', () => {
   it('noHorizontalInput-defaultParam-leavesXAndVxUnchanged', () => {
     const player = basePlayer({ x: 10, vx: 0 });
@@ -193,6 +200,28 @@ describe('stepPlayerPhysics horizontal movement', () => {
     });
 
     expect(next.x).toBe(restX);
+  });
+
+  it('movingRightWithWallOnlyInHeadPaddingBand-isNotBlocked', () => {
+    // y chosen so player.y falls in row 0 (top of the render frame is
+    // numerically row 0), but player.y + PLAYER_HEAD_PADDING crosses into
+    // row 1 — i.e. the player's actual (padded) head is in row 1, where
+    // there's no wall, not row 0, where there is one.
+    const wallCol = 4;
+    const y = RENDERED_TILE_SIZE - PLAYER_HEAD_PADDING + 4;
+    const restX = wallCol * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_SIDE_PADDING;
+    const player = basePlayer({ x: restX - 1, y });
+
+    const next = stepPlayerPhysics(player, HEAD_PADDING_WALL_LEVEL, 1 / 60, {
+      left: false,
+      right: true,
+    });
+
+    // If the bug were present, the row-0 wall would clamp x to restX. Fixed
+    // behavior: the row-0 wall is outside the padded collision band, so the
+    // player moves freely past where restX would have clamped it.
+    expect(next.x).toBeCloseTo(restX - 1 + PHYSICS_CONFIG.walkSpeed / 60);
+    expect(next.x).not.toBe(restX);
   });
 
   it('movingLeftPastTheLevelStart-noWallThere-clampsToWorldLeftEdge', () => {

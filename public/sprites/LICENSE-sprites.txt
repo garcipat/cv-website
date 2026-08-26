@@ -24,3 +24,7 @@ SOUNDS by Brackeys, Asbjørn Thirslund
 MUSIC by Brackeys, Sofia Thirslund
 
 FONTS by Jayvee Enaguas - HarvettFox96 - (https://www.dafont.com/pixel-operator.font?l[]=10&l[]=1)
+
+knight2.png: project-supplied placeholder art (jump/fall animation sheet),
+not sourced from the packs above. TODO: confirm license/attribution before
+any public release.

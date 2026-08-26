@@ -24,11 +24,12 @@ export function drawDebugOverlay(
 ): void {
   ctx.lineWidth = 1;
 
-  // Full collision hitbox (red).
+  // Full render slot (red) — where the sprite is drawn, not the hitbox.
   ctx.strokeStyle = 'red';
   ctx.strokeRect(player.x, player.y + originY, PLAYER_RENDERED_SIZE, PLAYER_RENDERED_SIZE);
 
-  // Narrower "visible window" used by the ground/ceiling checks (yellow).
+  // Narrower collision hitbox (yellow) — used by ALL collision checks
+  // (horizontal, vertical, and world bounds).
   const visibleLeft = player.x + PLAYER_SIDE_PADDING;
   const visibleRight = player.x + PLAYER_RENDERED_SIZE - PLAYER_SIDE_PADDING - 1;
   ctx.strokeStyle = 'yellow';

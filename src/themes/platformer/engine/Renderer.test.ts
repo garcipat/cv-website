@@ -1,7 +1,7 @@
 import { drawTerrain, drawPlayer } from './Renderer';
 import type { LevelDef } from '../level/LevelData';
 import type { PlayerState } from '../entities/Player';
-import { PLAYER_RENDERED_SIZE, JUMP_FRAME_SIZE } from '../entities/Player';
+import { PLAYER_RENDERED_SIZE } from '../entities/Player';
 
 function makeMockContext() {
   return {
