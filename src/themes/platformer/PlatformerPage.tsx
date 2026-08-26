@@ -14,6 +14,7 @@ export const PlatformerPage = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const tilesetRef = useRef<HTMLImageElement | null>(null);
   const playerSpriteRef = useRef<HTMLImageElement | null>(null);
+  const playerJumpSpriteRef = useRef<HTMLImageElement | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -50,7 +51,7 @@ export const PlatformerPage = () => {
       }
 
       if (playerSpriteRef.current) {
-        drawPlayer(ctx, playerState.value, playerSpriteRef.current, originY);
+        drawPlayer(ctx, playerState.value, playerSpriteRef.current, originY, playerJumpSpriteRef.current);
       }
     };
 
@@ -73,7 +74,18 @@ export const PlatformerPage = () => {
         left: input.isHeld('ArrowLeft') || input.isHeld('KeyA'),
         right: input.isHeld('ArrowRight') || input.isHeld('KeyD'),
       };
-      let next = stepPlayerPhysics(playerState.value, level1, dt, horizontal);
+      // Both must be evaluated (not short-circuited) since consumePress has
+      // the side effect of clearing the pending press it finds.
+      const spacePressed = input.consumePress('Space');
+      const arrowUpPressed = input.consumePress('ArrowUp');
+      const jumpPressed = spacePressed || arrowUpPressed;
+      const jumpHeld = input.isHeld('Space') || input.isHeld('ArrowUp');
+
+      let next = stepPlayerPhysics(playerState.value, level1, dt, {
+        ...horizontal,
+        jumpPressed,
+        jumpHeld,
+      });
       next = updatePlayerAnimState(next);
       next = advancePlayerAnimation(next, dt);
       playerState.value = next;
@@ -101,6 +113,16 @@ export const PlatformerPage = () => {
       .catch(() => {
         // Player simply won't render if the sprite fails to load; the
         // terrain still shows.
+      });
+    loadImage('/sprites/knight2.png')
+      .then((img) => {
+        if (cancelled) return;
+        playerJumpSpriteRef.current = img;
+        render();
+      })
+      .catch(() => {
+        // Jump falls back to the primary sheet's current frame if this one
+        // fails to load (see Renderer.ts's drawPlayer).
       });
 
     return () => {
