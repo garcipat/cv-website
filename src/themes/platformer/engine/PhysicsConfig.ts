@@ -6,7 +6,7 @@
  */
 export const PHYSICS_CONFIG = {
   /** Downward acceleration applied while airborne, in px/s^2. */
-  gravity: 1800,
+  gravity: 1200,
   /**
    * Maximum downward fall speed, in px/s. Discrete collision resolution
    * (Physics.ts) only prevents tunneling through a 1-tile-thick solid as
@@ -27,7 +27,7 @@ export const PHYSICS_CONFIG = {
    * Same tunneling invariant as `terminalVelocity`/`walkSpeed` applies:
    * `Math.abs(jumpVelocity) * MAX_DT` must stay below `RENDERED_TILE_SIZE`.
    */
-  jumpVelocity: -600,
+  jumpVelocity: -650,
   /**
    * Multiplier applied to `vy` once per frame while ascending (`vy < 0`) and
    * the jump key isn't currently held (FR-006: variable jump height). A tap

@@ -49,7 +49,7 @@ const ANIM_CONFIG: Record<
 > = {
   idle: { frameCount: 4, frameDuration: 0.15, sy: 0 },
   walk: { frameCount: 8, frameDuration: 0.08, sy: PLAYER_FRAME_SIZE * 2 },
-  jump: { frameCount: 7, frameDuration: 0.055, sy: 0 },
+  jump: { frameCount: 7, frameDuration: 0.09, sy: 0 },
 };
 
 /** Seconds each idle frame is held before advancing to the next. */
