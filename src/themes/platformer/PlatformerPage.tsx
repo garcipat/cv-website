@@ -4,9 +4,10 @@ import { loadImage } from './engine/SpriteLoader';
 import { drawTerrain, drawPlayer } from './engine/Renderer';
 import { createGameLoop } from './engine/GameLoop';
 import { stepPlayerPhysics } from './engine/Physics';
+import { createKeyboardInput } from './engine/Input';
 import { level1 } from './level/level1';
 import { RENDERED_TILE_SIZE } from './level/Terrain';
-import { advancePlayerAnimation } from './entities/Player';
+import { advancePlayerAnimation, updatePlayerAnimState } from './entities/Player';
 import { playerState } from './PlatformerState';
 
 export const PlatformerPage = () => {
@@ -62,8 +63,15 @@ export const PlatformerPage = () => {
     };
     window.addEventListener('resize', onResize);
 
+    const input = createKeyboardInput();
+
     const loop = createGameLoop((dt) => {
-      let next = stepPlayerPhysics(playerState.value, level1, dt);
+      const horizontal = {
+        left: input.isHeld('ArrowLeft'),
+        right: input.isHeld('ArrowRight'),
+      };
+      let next = stepPlayerPhysics(playerState.value, level1, dt, horizontal);
+      next = updatePlayerAnimState(next);
       next = advancePlayerAnimation(next, dt);
       playerState.value = next;
       render();
@@ -95,6 +103,7 @@ export const PlatformerPage = () => {
     return () => {
       cancelled = true;
       loop.stop();
+      input.destroy();
       window.removeEventListener('resize', onResize);
     };
   }, []);
