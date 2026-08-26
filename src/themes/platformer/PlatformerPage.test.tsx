@@ -194,4 +194,10 @@ describe('PlatformerPage', () => {
     expect(removeSpy).toHaveBeenCalledWith('keyup', expect.any(Function));
     removeSpy.mockRestore();
   });
+
+  it('mount-onRender-focusesTheCanvasSoArrowKeysWorkImmediately', () => {
+    render(<PlatformerPage />);
+    const canvas = screen.getByTestId('platformer-canvas');
+    expect(canvas).toHaveFocus();
+  });
 });
