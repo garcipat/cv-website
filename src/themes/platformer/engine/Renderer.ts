@@ -86,7 +86,9 @@ export function drawTerrain(
 /**
  * Draws the player sprite. `originY` shifts it vertically by the same
  * amount as `drawTerrain`'s `originY`, so the player stays aligned with
- * the bottom-anchored level.
+ * the bottom-anchored level. When `player.facing` is `'left'`, the sprite is
+ * mirrored horizontally around its own bounding box — the sheet only needs
+ * to depict the character facing one direction.
  */
 export function drawPlayer(
   ctx: CanvasRenderingContext2D,
@@ -97,6 +99,26 @@ export function drawPlayer(
   ctx.imageSmoothingEnabled = false;
 
   const { sx, sy } = playerFrameSource(player.animState, player.animFrame);
+
+  if (player.facing === 'left') {
+    ctx.save();
+    ctx.translate(player.x + PLAYER_RENDERED_SIZE, player.y + originY);
+    ctx.scale(-1, 1);
+    ctx.drawImage(
+      spriteSheet,
+      sx,
+      sy,
+      PLAYER_FRAME_SIZE,
+      PLAYER_FRAME_SIZE,
+      0,
+      0,
+      PLAYER_RENDERED_SIZE,
+      PLAYER_RENDERED_SIZE,
+    );
+    ctx.restore();
+    return;
+  }
+
   ctx.drawImage(
     spriteSheet,
     sx,

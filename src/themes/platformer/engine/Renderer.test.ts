@@ -1,11 +1,16 @@
 import { drawTerrain, drawPlayer } from './Renderer';
 import type { LevelDef } from '../level/LevelData';
 import type { PlayerState } from '../entities/Player';
+import { PLAYER_RENDERED_SIZE } from '../entities/Player';
 
 function makeMockContext() {
   return {
     imageSmoothingEnabled: true,
     drawImage: vi.fn(),
+    save: vi.fn(),
+    translate: vi.fn(),
+    scale: vi.fn(),
+    restore: vi.fn(),
   } as unknown as CanvasRenderingContext2D;
 }
 
@@ -140,7 +145,17 @@ describe('drawTerrain', () => {
 
 describe('drawPlayer', () => {
   const fakeSpriteSheet = {} as HTMLImageElement;
-  const idlePlayer: PlayerState = { x: 16, y: 256, vy: 0, grounded: true, animTimer: 0, animState: 'idle', animFrame: 0 };
+  const idlePlayer: PlayerState = {
+    x: 16,
+    y: 256,
+    vx: 0,
+    vy: 0,
+    facing: 'right',
+    grounded: true,
+    animTimer: 0,
+    animState: 'idle',
+    animFrame: 0,
+  };
 
   it('idleFrame0-draws-fromFirstIdleSource', () => {
     const ctx = makeMockContext();
@@ -173,5 +188,37 @@ describe('drawPlayer', () => {
     drawPlayer(ctx, idlePlayer, fakeSpriteSheet);
 
     expect(ctx.imageSmoothingEnabled).toBe(false);
+  });
+
+  it('facingLeft-draws-flippedAroundSpriteBoundingBox', () => {
+    const ctx = makeMockContext();
+    const player: PlayerState = { ...idlePlayer, facing: 'left' };
+
+    drawPlayer(ctx, player, fakeSpriteSheet);
+
+    expect(ctx.save).toHaveBeenCalled();
+    expect(ctx.translate).toHaveBeenCalledWith(player.x + PLAYER_RENDERED_SIZE, player.y);
+    expect(ctx.scale).toHaveBeenCalledWith(-1, 1);
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeSpriteSheet,
+      0,
+      0,
+      32,
+      32,
+      0,
+      0,
+      PLAYER_RENDERED_SIZE,
+      PLAYER_RENDERED_SIZE,
+    );
+    expect(ctx.restore).toHaveBeenCalled();
+  });
+
+  it('facingRight-draws-withoutFlippingTransform', () => {
+    const ctx = makeMockContext();
+
+    drawPlayer(ctx, idlePlayer, fakeSpriteSheet);
+
+    expect(ctx.save).not.toHaveBeenCalled();
+    expect(ctx.scale).not.toHaveBeenCalled();
   });
 });
