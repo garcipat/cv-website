@@ -93,7 +93,7 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
 - [ ] **24. Touch/mobile controls** — on-screen D-pad + action buttons on small
   viewports.
   *Verify: at a mobile viewport width, the D-pad appears and functions.*
-- [ ] **25. Polish pass** — animation/effects refinement, 60 FPS check with 20+
+- [ ] **25. Polish pass** — animation/effects refinement, 30 FPS check with 20+
   collectibles rendered.
   *Verify: frame-timing check and smooth manual play.*
 

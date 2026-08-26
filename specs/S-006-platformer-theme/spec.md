@@ -180,7 +180,7 @@ As with all CV themes, floating translucent controls in the top-left corner prov
 
 - **FR-001**: System MUST render the Platformer theme as a full-viewport 2D side-scrolling game using an HTML `<canvas>` element, with a fixed aspect ratio that adapts to the browser window.
 
-- **FR-002**: System MUST implement a game loop running at a consistent tick rate (60 FPS target) that processes input, updates game state, and renders each frame independently of frame timing.
+- **FR-002**: System MUST implement a game loop running at a consistent tick rate (30 FPS target) that processes input, updates game state, and renders each frame independently of frame timing.
 
 - **FR-003**: System MUST manage game state through distinct phases: `loading` (assets loading), `playing` (active gameplay), `paused` (journal open or tab lost focus), and `ending-screen` (reached flagpole).
 
@@ -427,7 +427,7 @@ FloatingControls (P3)
 
 - **SC-004 — Journal is readable**: The journal renders with lined-paper background, `Caveat` handwriting font, colored bookmark tabs, and Simple List entry style. A non-technical person can read and understand all CV facts. Verified by: visual review and component test for correct rendering.
 
-- **SC-005 — Game runs at 60 FPS**: The game loop maintains consistent 60 FPS on a modern desktop browser (Chrome/Firefox) with the character, terrain, and 20+ collectibles rendered. Verified by: frame timing instrumentation in test.
+- **SC-005 — Game runs at 30 FPS**: The game loop maintains consistent 30 FPS on a modern desktop browser (Chrome/Firefox) with the character, terrain, and 20+ collectibles rendered. Verified by: frame timing instrumentation in test.
 
 - **SC-006 — Theme and locale switching work**: Switching to another theme replaces the game. Switching locale updates journal content. Switching back to Platformer resets the game. Verified by: component tests that exercise theme/locale signals.
 
