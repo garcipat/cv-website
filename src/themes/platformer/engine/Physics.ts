@@ -26,6 +26,11 @@ export function stepPlayerPhysics(
 ): PlayerState {
   const moveRight = input.right && !input.left;
   const moveLeft = input.left && !input.right;
+  // `vx` reflects commanded/intended velocity from input, not realized
+  // displacement — a wall or world-bounds clamp below may prevent `x` from
+  // actually changing this frame even though `vx` stays non-zero. Any future
+  // code that infers "the player moved" (dust particles, camera easing) from
+  // `vx !== 0` should account for that.
   const vx = moveRight ? PHYSICS_CONFIG.walkSpeed : moveLeft ? -PHYSICS_CONFIG.walkSpeed : 0;
   const facing = moveRight ? 'right' : moveLeft ? 'left' : player.facing;
 

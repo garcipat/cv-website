@@ -91,7 +91,7 @@ FR-032 `PlayerState` shape — `vx`, `facing`, FR-033 `Input` unit test coverage
   `'walk'`. Later tasks (`PlatformerState.ts`, `Physics.ts`, `Renderer.ts`,
   `PlatformerPage.tsx`) rely on these exact names and the field set.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Replace the `idlePlayer` helper and its imports at the top of
 `src/themes/platformer/entities/Player.test.ts`, and append the new test blocks below:
@@ -186,14 +186,14 @@ describe('updatePlayerAnimState', () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run src/themes/platformer/entities/Player.test.ts`
 Expected: FAIL — `updatePlayerAnimState` not exported; `'walk'` not assignable to
 `PlayerAnimState`; `PlayerState` object literals missing `vx`/`facing` fail
 type-checking.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Replace the full contents of `src/themes/platformer/entities/Player.ts`:
 
@@ -279,12 +279,12 @@ export function updatePlayerAnimState(player: PlayerState): PlayerState {
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `npx vitest run src/themes/platformer/entities/Player.test.ts`
 Expected: PASS (all tests, including the pre-existing idle-row ones).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/themes/platformer/entities/Player.ts src/themes/platformer/entities/Player.test.ts
@@ -306,7 +306,7 @@ git commit -m "feat(platformer): add walk animation state and horizontal velocit
   initialization. Task 6 (`PlatformerPage.tsx`) relies on this being present before
   the first tick reads player input.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `src/themes/platformer/PlatformerState.test.ts`:
 
@@ -317,12 +317,12 @@ it('playerState-initial-hasZeroHorizontalVelocityAndFacesRight', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npx vitest run src/themes/platformer/PlatformerState.test.ts`
 Expected: FAIL (or a TS error) — `vx`/`facing` missing from the returned object.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/themes/platformer/PlatformerState.ts`, update `initialPlayerState`'s return
 object:
@@ -343,12 +343,12 @@ return {
 
 (Only the return object changes — imports and the rest of the file stay as-is.)
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `npx vitest run src/themes/platformer/PlatformerState.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/themes/platformer/PlatformerState.ts src/themes/platformer/PlatformerState.test.ts
@@ -375,7 +375,7 @@ git commit -m "feat(platformer): initialize player horizontal velocity and facin
   call site (including the pre-existing tests) keeps compiling and passing unchanged.
   Task 6 (`PlatformerPage.tsx`) passes the real held-key state as the 4th argument.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 In `src/themes/platformer/engine/Physics.test.ts`, update the `basePlayer` helper and
 append the new fixtures/tests:
@@ -477,13 +477,13 @@ describe('stepPlayerPhysics horizontal movement', () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run src/themes/platformer/engine/Physics.test.ts`
 Expected: FAIL — `PHYSICS_CONFIG.walkSpeed` is `undefined` and `stepPlayerPhysics`
 ignores the 4th argument entirely (x/vx/facing never change).
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/themes/platformer/engine/PhysicsConfig.ts`, add `walkSpeed` to the exported
 object:
@@ -592,12 +592,12 @@ export function stepPlayerPhysics(
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `npx vitest run src/themes/platformer/engine/Physics.test.ts`
 Expected: PASS (all tests, including the pre-existing vertical-collision ones).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/themes/platformer/engine/PhysicsConfig.ts src/themes/platformer/engine/Physics.ts src/themes/platformer/engine/Physics.test.ts
@@ -618,7 +618,7 @@ git commit -m "feat(platformer): add constant-speed horizontal movement and soli
   `code` values match `KeyboardEvent.code` (e.g. `'ArrowLeft'`, `'ArrowRight'`). Task 6
   relies on exactly this factory name/signature.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `src/themes/platformer/engine/Input.test.ts`:
 
@@ -685,12 +685,12 @@ describe('createKeyboardInput', () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run src/themes/platformer/engine/Input.test.ts`
 Expected: FAIL — `./Input` doesn't exist yet.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Create `src/themes/platformer/engine/Input.ts`:
 
@@ -739,12 +739,12 @@ export function createKeyboardInput(): KeyboardInput {
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `npx vitest run src/themes/platformer/engine/Input.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/themes/platformer/engine/Input.ts src/themes/platformer/engine/Input.test.ts
@@ -765,7 +765,7 @@ git commit -m "feat(platformer): add per-frame keyboard input tracking"
   sprite horizontally around its own bounding box when `player.facing === 'left'`,
   instead of requiring a second mirrored sprite sheet.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 In `src/themes/platformer/engine/Renderer.test.ts`, update `makeMockContext` and the
 `idlePlayer` fixture, and append a new test to the `drawPlayer` describe block:
@@ -837,13 +837,13 @@ Add `PLAYER_RENDERED_SIZE` to the existing `'../entities/Player'`-adjacent impor
 test file currently imports `PlayerState` as a type only — add a value import line:
 `import { PLAYER_RENDERED_SIZE } from '../entities/Player';`).
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run src/themes/platformer/engine/Renderer.test.ts`
 Expected: FAIL — `drawPlayer` never calls `save`/`translate`/`scale`/`restore`, and the
 `idlePlayer`/inline `PlayerState` literals fail to type-check without `vx`/`facing`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/themes/platformer/engine/Renderer.ts`, replace `drawPlayer`:
 
@@ -900,12 +900,12 @@ export function drawPlayer(
 
 (No import changes needed — `PLAYER_RENDERED_SIZE` is already imported in this file.)
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `npx vitest run src/themes/platformer/engine/Renderer.test.ts`
 Expected: PASS (all tests, including the pre-existing terrain/idle-player ones).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/themes/platformer/engine/Renderer.ts src/themes/platformer/engine/Renderer.test.ts
@@ -928,7 +928,7 @@ git commit -m "feat(platformer): mirror the player sprite when facing left"
   the mount effect, destroyed in its cleanup — so held keys never leak state across
   mounts (e.g. switching away from and back to the Platformer theme).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `src/themes/platformer/PlatformerPage.test.tsx`:
 
@@ -989,13 +989,13 @@ it('unmount-afterMount-removesKeyboardEventListeners', () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run src/themes/platformer/PlatformerPage.test.tsx`
 Expected: FAIL — held arrow keys have no effect yet (`stepPlayerPhysics` is still
 called with no 4th argument), and no keyboard listeners are attached/removed.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/themes/platformer/PlatformerPage.tsx`, add two imports and wire the tracker
 into the mount effect:
@@ -1120,7 +1120,7 @@ export const PlatformerPage = () => {
 };
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `npx vitest run src/themes/platformer/PlatformerPage.test.tsx`
 Expected: PASS (all tests, including the pre-existing ones).
@@ -1130,7 +1130,7 @@ Then run the full platformer suite to confirm nothing else regressed:
 Run: `npx vitest run src/themes/platformer`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/themes/platformer/PlatformerPage.tsx src/themes/platformer/PlatformerPage.test.tsx
@@ -1143,34 +1143,34 @@ git commit -m "feat(platformer): drive horizontal movement and walk animation fr
 
 **Files:** none (roadmap checkbox update only)
 
-- [ ] **Step 1: Run the dev server**
+- [x] **Step 1: Run the dev server**
 
 ```bash
 npm run dev
 ```
 
-- [ ] **Step 2: Verify walking**
+- [x] **Step 2: Verify walking**
 
 Open the Platformer theme in the browser. Hold the right arrow key: confirm the
 character moves right smoothly and its sprite visibly cycles through a walk animation
 distinct from the idle pose. Release the key: confirm the character stops and returns
 to the idle animation.
 
-- [ ] **Step 3: Verify direction change and facing**
+- [x] **Step 3: Verify direction change and facing**
 
 Hold the left arrow key: confirm the character moves left, the sprite visibly mirrors
 to face left, and direction reverses instantly (no sliding/deceleration) when
 switching between left and right without releasing quickly. Confirm the sprite is not
 stretched, squashed, or misaligned with the ground while mirrored.
 
-- [ ] **Step 4: Verify wall collision**
+- [x] **Step 4: Verify wall collision**
 
 Walk into the wall in the rock zone (see `level1.ts`'s `W` column). Confirm the
 character stops exactly at the wall's edge instead of overlapping or passing through
 it, in both the rightward-approach and (after walking back and around, if the level
 layout allows, or by temporarily editing spawn position) leftward-approach cases.
 
-- [ ] **Step 5: Check off the roadmap step**
+- [x] **Step 5: Check off the roadmap step**
 
 In `specs/S-006-platformer-theme/roadmap.md`, change step 5's `- [ ]` to `- [x]`.
 
@@ -1232,7 +1232,7 @@ prevented in either direction.
   `[0, level.width * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE]`, regardless of input
   or tile collisions. No signature change.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `src/themes/platformer/engine/Physics.test.ts`, inside (or after) the
 `describe('stepPlayerPhysics horizontal movement', ...)` block:
@@ -1258,13 +1258,13 @@ it('startingAtWorldLeftEdge-holdingLeft-staysAtZero', () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run src/themes/platformer/engine/Physics.test.ts`
 Expected: FAIL — `next.x` goes negative (first test) or beyond `maxX` (second test);
 nothing currently clamps to world bounds.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/themes/platformer/engine/Physics.ts`, add the clamp immediately after the
 existing tile-collision `if (vx > 0) {...} else if (vx < 0) {...}` block, before the
@@ -1280,7 +1280,7 @@ player exactly at its own edge as before — the world-bounds clamp only ever en
 where there's no tile wall to have already stopped movement first, i.e. at the open
 edges of the level.)
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `npx vitest run src/themes/platformer/engine/Physics.test.ts`
 Expected: PASS (all tests, including every pre-existing one from Tasks 3 and 6's
@@ -1291,7 +1291,7 @@ Then run the full platformer suite to confirm nothing else regressed:
 Run: `npx vitest run src/themes/platformer`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/themes/platformer/engine/Physics.ts src/themes/platformer/engine/Physics.test.ts
@@ -1322,7 +1322,7 @@ navigation, and "Space" is a real theme name.)
   normal tab order since it's not a form control) and receives focus once on mount.
   No exported signature changes.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `src/themes/platformer/PlatformerPage.test.tsx`:
 
@@ -1334,13 +1334,13 @@ it('mount-onRender-focusesTheCanvasSoArrowKeysWorkImmediately', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npx vitest run src/themes/platformer/PlatformerPage.test.tsx`
 Expected: FAIL — the canvas isn't focusable yet (no `tabIndex`) and nothing calls
 `.focus()` on it.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/themes/platformer/PlatformerPage.tsx`, add `tabIndex={-1}` to the `<canvas>`
 element and call `canvas.focus()` in the mount effect (after `resize()`/`render()`,
@@ -1358,7 +1358,7 @@ Add `tabIndex={-1}` to the JSX:
       <canvas ref={canvasRef} data-testid="platformer-canvas" className="block" tabIndex={-1} />
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `npx vitest run src/themes/platformer/PlatformerPage.test.tsx`
 Expected: PASS (all tests, including every pre-existing one).
@@ -1368,7 +1368,7 @@ Then run the full platformer suite to confirm nothing else regressed:
 Run: `npx vitest run src/themes/platformer`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/themes/platformer/PlatformerPage.tsx src/themes/platformer/PlatformerPage.test.tsx

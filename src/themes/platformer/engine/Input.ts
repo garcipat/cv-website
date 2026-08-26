@@ -3,7 +3,7 @@
  * arrow keys) is suppressed so gameplay isn't fighting the page — FR-007
  * reserves Arrow Left/Right/Up and Space exclusively for the game.
  */
-const GAME_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'Space']);
+const GAME_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'Space', 'KeyA', 'KeyD']);
 
 export interface KeyboardInput {
   /** Whether `code` (a `KeyboardEvent.code` value, e.g. `'ArrowLeft'`) is currently held. */
