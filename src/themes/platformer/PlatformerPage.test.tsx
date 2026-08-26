@@ -1,6 +1,8 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { vi } from 'vitest';
 import { PlatformerPage } from './PlatformerPage';
 import { PLAYER_RENDERED_SIZE } from './entities/Player';
+import { playerState } from './PlatformerState';
 
 class MockTilesetImage {
   onload: (() => void) | null = null;
@@ -93,5 +95,43 @@ describe('PlatformerPage', () => {
         ctx.drawImage.mock.calls.some((call: unknown[]) => call[7] === PLAYER_RENDERED_SIZE),
       ).toBe(true),
     );
+  });
+
+  it('mount-onRender-startsTheGameLoop', () => {
+    const rafSpy = vi.fn(() => 1);
+    vi.stubGlobal('requestAnimationFrame', rafSpy);
+
+    render(<PlatformerPage />);
+
+    expect(rafSpy).toHaveBeenCalled();
+  });
+
+  it('unmount-afterMount-stopsTheGameLoop', () => {
+    vi.stubGlobal('requestAnimationFrame', () => 1);
+    const cafSpy = vi.fn();
+    vi.stubGlobal('cancelAnimationFrame', cafSpy);
+
+    const { unmount } = render(<PlatformerPage />);
+    unmount();
+
+    expect(cafSpy).toHaveBeenCalled();
+  });
+
+  it('gameLoopFrames-run-updatePlayerPhysicsAndGroundTheSpawnedPlayer', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    expect(playerState.value.grounded).toBe(false);
+
+    frameCallback!(0); // establishes the loop's reference time, no physics step yet
+    frameCallback!(16); // ~16ms later: one physics + animation step runs
+
+    expect(playerState.value.grounded).toBe(true);
+    expect(playerState.value.vy).toBe(0);
   });
 });
