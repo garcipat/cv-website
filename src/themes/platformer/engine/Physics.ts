@@ -18,8 +18,8 @@ import type { PlayerState } from '../entities/Player';
  * default to `false`.
  */
 export interface PlayerInput {
-  left: boolean;
-  right: boolean;
+  left?: boolean;
+  right?: boolean;
   jumpPressed?: boolean;
   jumpHeld?: boolean;
 }
@@ -59,7 +59,11 @@ export function stepPlayerPhysics(
   const facing = moveRight ? 'right' : moveLeft ? 'left' : player.facing;
 
   let x = player.x + vx * dt;
-  const topRow = Math.floor(player.y / RENDERED_TILE_SIZE);
+  // Excludes the head-padding sliver (like the vertical ceiling check below)
+  // so a solid tile directly above the character's transparent head-padding
+  // band doesn't register as a horizontal wall collision when nothing is
+  // visually beside the character.
+  const topRow = Math.floor((player.y + PLAYER_HEAD_PADDING) / RENDERED_TILE_SIZE);
   // Excludes the foot-padding sliver (like the vertical ground check below)
   // so standing on solid ground doesn't register as a horizontal wall
   // collision on every frame the player tries to walk.

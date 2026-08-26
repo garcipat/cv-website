@@ -29,7 +29,7 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
 - [x] **5. Horizontal movement + walk animation** — arrow keys move the character,
   sprite faces movement direction.
   *Verify: walk left/right on screen with visible walk animation.*
-- [ ] **6. Jump** — jump physics (variable height by hold duration) + jump animation.
+- [x] **6. Jump** — jump physics (variable height by hold duration) + jump animation.
   *Verify: jump across a gap.*
 - [ ] **7. One-way bridge platforms** — `bridge` tiles become passable from below
   (jumping up through them) while remaining solid when landing on top, instead of
