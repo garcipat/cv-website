@@ -7,6 +7,7 @@ import {
   PLAYER_RENDERED_SIZE,
   PLAYER_FOOT_PADDING,
   PLAYER_HEAD_PADDING,
+  PLAYER_SIDE_PADDING,
 } from '../entities/Player';
 import type { PlayerState } from '../entities/Player';
 
@@ -37,12 +38,10 @@ const CEILING_LEVEL = parseLevel(['GG', '..', '..', '..']);
 
 // One empty tile, then a 3-tile-wide solid strip (cols 1-3), then empty —
 // proportioned like level1's real 3-tile floating platform, with room to
-// its left so a facing-left walk-off-the-left-edge case stays within world
-// bounds (x can't go negative — see the world-bounds clamp in Physics.ts).
-// Isolates the platform-edge case: the full 64px hitbox (2 tiles) is wider
-// than the visible character, and the visible character's position within
-// the hitbox depends on facing direction (see Renderer.ts's drawPlayer) —
-// these tests cover both.
+// its left/right so the hitbox can be positioned on either side without
+// hitting world bounds. Isolates the platform-edge case: the full 64px
+// render slot (2 tiles) is wider than the actual (now-centered) collision
+// hitbox.
 const NARROW_PLATFORM_LEVEL = parseLevel(['.GGG.....']);
 
 describe('stepPlayerPhysics', () => {
@@ -172,7 +171,7 @@ describe('stepPlayerPhysics horizontal movement', () => {
 
   it('movingRightIntoWall-overshootsInOneFrame-clampsToWallLeftEdge', () => {
     const wallCol = 4;
-    const restX = wallCol * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE;
+    const restX = wallCol * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_SIDE_PADDING;
     const player = basePlayer({ x: restX - 1 });
 
     const next = stepPlayerPhysics(player, RIGHT_WALL_LEVEL, 1 / 60, {
@@ -185,7 +184,7 @@ describe('stepPlayerPhysics horizontal movement', () => {
 
   it('movingLeftIntoWall-overshootsInOneFrame-clampsToWallRightEdge', () => {
     const wallCol = 1;
-    const restX = (wallCol + 1) * RENDERED_TILE_SIZE;
+    const restX = (wallCol + 1) * RENDERED_TILE_SIZE - PLAYER_SIDE_PADDING;
     const player = basePlayer({ x: restX + 1 });
 
     const next = stepPlayerPhysics(player, LEFT_WALL_LEVEL, 1 / 60, {
@@ -197,22 +196,25 @@ describe('stepPlayerPhysics horizontal movement', () => {
   });
 
   it('movingLeftPastTheLevelStart-noWallThere-clampsToWorldLeftEdge', () => {
-    const player = basePlayer({ x: 2, facing: 'left' });
+    // Start 2px from the new world-left boundary (-PLAYER_SIDE_PADDING) so
+    // one frame's movement overshoots it.
+    const player = basePlayer({ x: -PLAYER_SIDE_PADDING + 2, facing: 'left' });
     const next = stepPlayerPhysics(player, OPEN_LEVEL, 1 / 60, { left: true, right: false });
-    expect(next.x).toBe(0);
+    expect(next.x).toBe(-PLAYER_SIDE_PADDING);
   });
 
   it('movingRightPastTheLevelEnd-noWallThere-clampsToWorldRightEdge', () => {
-    const maxX = OPEN_LEVEL.width * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE;
+    const maxX =
+      OPEN_LEVEL.width * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_SIDE_PADDING;
     const player = basePlayer({ x: maxX - 2, facing: 'right' });
     const next = stepPlayerPhysics(player, OPEN_LEVEL, 1 / 60, { left: false, right: true });
     expect(next.x).toBe(maxX);
   });
 
-  it('startingAtWorldLeftEdge-holdingLeft-staysAtZero', () => {
-    const player = basePlayer({ x: 0, facing: 'left' });
+  it('startingAtWorldLeftEdge-holdingLeft-staysAtWorldLeftEdge', () => {
+    const player = basePlayer({ x: -PLAYER_SIDE_PADDING, facing: 'left' });
     const next = stepPlayerPhysics(player, OPEN_LEVEL, 1 / 60, { left: true, right: false });
-    expect(next.x).toBe(0);
+    expect(next.x).toBe(-PLAYER_SIDE_PADDING);
   });
 });
 
@@ -294,54 +296,26 @@ describe('stepPlayerPhysics jump', () => {
     expect(next.grounded).toBe(false);
   });
 
-  it('facingRight-visibleContentStillOverPlatform-staysGrounded', () => {
-    // facing right: visible content is biased toward the hitbox's right
-    // edge (x+40 to x+63 — see the visibleLeft/visibleRight math in
-    // Physics.ts). At x=32 that content is [72, 95], falling within column
-    // 2, which is solid (columns 1-3 are the solid strip in this fixture).
+  it('standingOverNarrowPlatform-anyFacing-staysGrounded', () => {
+    // x=32: the centered hitbox (x+20 to x+43) falls within columns 1-2,
+    // both solid (the strip spans columns 1-3). facing shouldn't matter
+    // anymore — loop both to prove it.
     const restY = 0 - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
-    const player = basePlayer({ x: 32, y: restY, vy: 0, grounded: true, facing: 'right' });
-
-    const next = stepPlayerPhysics(player, NARROW_PLATFORM_LEVEL, 1 / 60);
-
-    expect(next.grounded).toBe(true);
+    for (const facing of ['left', 'right'] as const) {
+      const player = basePlayer({ x: 32, y: restY, vy: 0, grounded: true, facing });
+      const next = stepPlayerPhysics(player, NARROW_PLATFORM_LEVEL, 1 / 60);
+      expect(next.grounded).toBe(true);
+    }
   });
 
-  it('facingRight-walkedPastVisibleEdgeOfPlatform-becomesUngrounded', () => {
-    // x=92: visible content is [132, 155], fully past the platform's right
-    // edge at pixel 128 (column 4 starts there, empty). The OLD centered-window
-    // fix would have wrongly stayed grounded here (its left edge, x+20=112,
-    // still fell in column 3, which is solid) — this is the regression this
-    // fix targets.
+  it('walkedPastNarrowPlatformEdge-anyFacing-becomesUngrounded', () => {
+    // x=110: the centered hitbox (x+20=130 to x+43=153) falls entirely in
+    // column 4, empty — past the platform's right edge at pixel 128.
     const restY = 0 - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
-    const player = basePlayer({ x: 92, y: restY, vy: 0, grounded: true, facing: 'right' });
-
-    const next = stepPlayerPhysics(player, NARROW_PLATFORM_LEVEL, 1 / 60);
-
-    expect(next.grounded).toBe(false);
-  });
-
-  it('facingLeft-visibleContentStillOverPlatform-staysGrounded', () => {
-    // facing left: visible content is biased toward the hitbox's left edge
-    // (x to x+23). At x=32 that content is [32, 55], within column 1, solid.
-    const restY = 0 - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
-    const player = basePlayer({ x: 32, y: restY, vy: 0, grounded: true, facing: 'left' });
-
-    const next = stepPlayerPhysics(player, NARROW_PLATFORM_LEVEL, 1 / 60);
-
-    expect(next.grounded).toBe(true);
-  });
-
-  it('facingLeft-walkedPastVisibleEdgeOfPlatform-becomesUngrounded', () => {
-    // x=2: visible content is [2, 25], fully within column 0 (empty) — past
-    // the platform's left edge at pixel 32. Kept non-negative so the
-    // world-bounds clamp (`x = Math.max(0, ...)` in Physics.ts) doesn't
-    // mask the scenario by snapping x back to 0.
-    const restY = 0 - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
-    const player = basePlayer({ x: 2, y: restY, vy: 0, grounded: true, facing: 'left' });
-
-    const next = stepPlayerPhysics(player, NARROW_PLATFORM_LEVEL, 1 / 60);
-
-    expect(next.grounded).toBe(false);
+    for (const facing of ['left', 'right'] as const) {
+      const player = basePlayer({ x: 110, y: restY, vy: 0, grounded: true, facing });
+      const next = stepPlayerPhysics(player, NARROW_PLATFORM_LEVEL, 1 / 60);
+      expect(next.grounded).toBe(false);
+    }
   });
 });
