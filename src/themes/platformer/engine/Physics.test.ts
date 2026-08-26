@@ -27,6 +27,10 @@ const GROUND_LEVEL = parseLevel(['..', '..', '..', 'GG']);
 // Same footprint, no solid tile anywhere — an open pit.
 const PIT_LEVEL = parseLevel(['..', '..', '..', '..']);
 
+// Same footprint as GROUND_LEVEL, but the solid row is on top instead of the
+// bottom — used to test the upward (ceiling) collision case jump introduces.
+const CEILING_LEVEL = parseLevel(['GG', '..', '..', '..']);
+
 describe('stepPlayerPhysics', () => {
   it('stepPlayerPhysics-inMidAir-appliesGravityToVelocityAndMovesDown', () => {
     const player = basePlayer({ y: 0, vy: 0 });
@@ -195,5 +199,83 @@ describe('stepPlayerPhysics horizontal movement', () => {
     const player = basePlayer({ x: 0, facing: 'left' });
     const next = stepPlayerPhysics(player, OPEN_LEVEL, 1 / 60, { left: true, right: false });
     expect(next.x).toBe(0);
+  });
+});
+
+describe('stepPlayerPhysics jump', () => {
+  it('jumpPressed-whileGrounded-setsUpwardVelocityAndLeavesGround', () => {
+    const player = basePlayer({ vy: 0, grounded: true });
+    const next = stepPlayerPhysics(player, PIT_LEVEL, 1 / 60, {
+      left: false,
+      right: false,
+      jumpPressed: true,
+      jumpHeld: true,
+    });
+    expect(next.vy).toBeCloseTo(PHYSICS_CONFIG.jumpVelocity + PHYSICS_CONFIG.gravity / 60);
+    expect(next.grounded).toBe(false);
+  });
+
+  it('jumpPressed-whileAirborne-isIgnoredNoDoubleJump', () => {
+    const player = basePlayer({ vy: -200, grounded: false });
+    const next = stepPlayerPhysics(player, PIT_LEVEL, 1 / 60, {
+      left: false,
+      right: false,
+      jumpPressed: true,
+      jumpHeld: true,
+    });
+    expect(next.vy).toBeCloseTo(-200 + PHYSICS_CONFIG.gravity / 60);
+  });
+
+  it('jumpHeldFalse-whileAscending-cutsVelocityByMultiplier', () => {
+    const player = basePlayer({ vy: PHYSICS_CONFIG.jumpVelocity, grounded: false });
+    const next = stepPlayerPhysics(player, PIT_LEVEL, 1 / 60, {
+      left: false,
+      right: false,
+      jumpHeld: false,
+    });
+    const beforeCut = PHYSICS_CONFIG.jumpVelocity + PHYSICS_CONFIG.gravity / 60;
+    expect(next.vy).toBeCloseTo(beforeCut * PHYSICS_CONFIG.jumpCutMultiplier);
+  });
+
+  it('jumpHeldTrue-whileAscending-appliesNoCut', () => {
+    const player = basePlayer({ vy: PHYSICS_CONFIG.jumpVelocity, grounded: false });
+    const next = stepPlayerPhysics(player, PIT_LEVEL, 1 / 60, {
+      left: false,
+      right: false,
+      jumpHeld: true,
+    });
+    expect(next.vy).toBeCloseTo(PHYSICS_CONFIG.jumpVelocity + PHYSICS_CONFIG.gravity / 60);
+  });
+
+  it('jumpHeldFalse-whileDescending-appliesNoCut', () => {
+    // The cutoff only ever shortens an ascent — it must not also brake a fall.
+    const player = basePlayer({ vy: 50, grounded: false });
+    const next = stepPlayerPhysics(player, PIT_LEVEL, 1 / 60, {
+      left: false,
+      right: false,
+      jumpHeld: false,
+    });
+    expect(next.vy).toBeCloseTo(50 + PHYSICS_CONFIG.gravity / 60);
+  });
+
+  it('movingUpIntoCeiling-overshootsInOneFrame-clampsToTileBottomEdgeAndZeroesVelocity', () => {
+    const ceilingBottomY = RENDERED_TILE_SIZE; // row 0 is solid; row 1 starts here
+    // Start 1px below the ceiling, moving up fast enough to overshoot through
+    // it in a single frame. jumpHeld: true avoids the variable-height cutoff
+    // so this test isolates collision behavior.
+    const player = basePlayer({ y: ceilingBottomY + 1, vy: -1000, grounded: false });
+
+    const next = stepPlayerPhysics(player, CEILING_LEVEL, 1 / 60, { jumpHeld: true });
+
+    expect(next.y).toBe(ceilingBottomY);
+    expect(next.vy).toBe(0);
+    expect(next.grounded).toBe(false);
+  });
+
+  it('movingUpWithNoCeilingAbove-keepsRisingUngrounded', () => {
+    const player = basePlayer({ y: 500, vy: -400, grounded: false });
+    const next = stepPlayerPhysics(player, PIT_LEVEL, 1 / 60, { jumpHeld: true });
+    expect(next.y).toBeLessThan(player.y);
+    expect(next.grounded).toBe(false);
   });
 });
