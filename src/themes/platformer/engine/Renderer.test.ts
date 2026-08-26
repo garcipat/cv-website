@@ -1,7 +1,7 @@
 import { drawTerrain, drawPlayer } from './Renderer';
 import type { LevelDef } from '../level/LevelData';
 import type { PlayerState } from '../entities/Player';
-import { PLAYER_RENDERED_SIZE, PLAYER_SIDE_PADDING } from '../entities/Player';
+import { PLAYER_RENDERED_SIZE, PLAYER_SIDE_PADDING, JUMP_FRAME_SIZE } from '../entities/Player';
 
 function makeMockContext() {
   return {
@@ -253,5 +253,79 @@ describe('drawPlayer', () => {
 
     expect(ctx.save).not.toHaveBeenCalled();
     expect(ctx.scale).not.toHaveBeenCalled();
+  });
+
+  it('jumpStateRising-withJumpSpriteSheet-drawsFromJumpSheetAtJumpFrameSize', () => {
+    const ctx = makeMockContext();
+    const jumpSheet = {} as HTMLImageElement;
+    const player: PlayerState = { ...idlePlayer, animState: 'jump', vy: -300, animFrame: 2 };
+
+    drawPlayer(ctx, player, fakeSpriteSheet, 0, jumpSheet);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      jumpSheet,
+      2 * 128,
+      0,
+      128,
+      128,
+      16 + PLAYER_SIDE_PADDING,
+      256,
+      64,
+      64,
+    );
+  });
+
+  it('jumpStateFalling-withJumpSpriteSheet-drawsFromFallRow', () => {
+    const ctx = makeMockContext();
+    const jumpSheet = {} as HTMLImageElement;
+    const player: PlayerState = { ...idlePlayer, animState: 'jump', vy: 100, animFrame: 1 };
+
+    drawPlayer(ctx, player, fakeSpriteSheet, 0, jumpSheet);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      jumpSheet,
+      1 * 128,
+      161,
+      128,
+      128,
+      16 + PLAYER_SIDE_PADDING,
+      256,
+      64,
+      64,
+    );
+  });
+
+  it('jumpState-noJumpSpriteSheetProvided-fallsBackToPrimarySheetIdleFrame', () => {
+    const ctx = makeMockContext();
+    const player: PlayerState = { ...idlePlayer, animState: 'jump', vy: -300 };
+
+    drawPlayer(ctx, player, fakeSpriteSheet, 0, null);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeSpriteSheet,
+      0,
+      0,
+      32,
+      32,
+      16 + PLAYER_SIDE_PADDING,
+      256,
+      64,
+      64,
+    );
+  });
+
+  it('jumpStateFacingLeft-withJumpSpriteSheet-drawsFlippedFromJumpSheet', () => {
+    const ctx = makeMockContext();
+    const jumpSheet = {} as HTMLImageElement;
+    const player: PlayerState = {
+      ...idlePlayer,
+      animState: 'jump',
+      vy: -300,
+      facing: 'left',
+    };
+
+    drawPlayer(ctx, player, fakeSpriteSheet, 0, jumpSheet);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(jumpSheet, 0, 0, 128, 128, 0, 0, 64, 64);
   });
 });

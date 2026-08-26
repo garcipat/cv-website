@@ -12,7 +12,9 @@ import {
   PLAYER_FRAME_SIZE,
   PLAYER_RENDERED_SIZE,
   PLAYER_SIDE_PADDING,
+  JUMP_FRAME_SIZE,
   playerFrameSource,
+  jumpFrameSource,
 } from '../entities/Player';
 import type { PlayerState } from '../entities/Player';
 
@@ -93,28 +95,38 @@ export function drawTerrain(
  * amount as `drawTerrain`'s `originY`, so the player stays aligned with
  * the bottom-anchored level. When `player.facing` is `'left'`, the sprite is
  * mirrored horizontally around its own bounding box — the sheet only needs
- * to depict the character facing one direction.
+ * to depict the character facing one direction. `jumpSpriteSheet` is a
+ * separate, higher-resolution sheet used only while `animState === 'jump'`
+ * (the placeholder primary sheet has no jump row); if it hasn't loaded yet,
+ * this falls back to the primary sheet's current frame rather than drawing
+ * nothing.
  */
 export function drawPlayer(
   ctx: CanvasRenderingContext2D,
   player: PlayerState,
   spriteSheet: HTMLImageElement,
   originY = 0,
+  jumpSpriteSheet: HTMLImageElement | null = null,
 ): void {
   ctx.imageSmoothingEnabled = false;
 
-  const { sx, sy } = playerFrameSource(player.animState, player.animFrame);
+  const useJumpSheet = player.animState === 'jump' && jumpSpriteSheet !== null;
+  const frameSize = useJumpSheet ? JUMP_FRAME_SIZE : PLAYER_FRAME_SIZE;
+  const sheet = useJumpSheet ? jumpSpriteSheet : spriteSheet;
+  const { sx, sy } = useJumpSheet
+    ? jumpFrameSource(player.vy, player.animFrame)
+    : playerFrameSource(player.animState, player.animFrame);
 
   if (player.facing === 'left') {
     ctx.save();
     ctx.translate(player.x + PLAYER_RENDERED_SIZE - PLAYER_SIDE_PADDING, player.y + originY);
     ctx.scale(-1, 1);
     ctx.drawImage(
-      spriteSheet,
+      sheet,
       sx,
       sy,
-      PLAYER_FRAME_SIZE,
-      PLAYER_FRAME_SIZE,
+      frameSize,
+      frameSize,
       0,
       0,
       PLAYER_RENDERED_SIZE,
@@ -125,11 +137,11 @@ export function drawPlayer(
   }
 
   ctx.drawImage(
-    spriteSheet,
+    sheet,
     sx,
     sy,
-    PLAYER_FRAME_SIZE,
-    PLAYER_FRAME_SIZE,
+    frameSize,
+    frameSize,
     player.x + PLAYER_SIDE_PADDING,
     player.y + originY,
     PLAYER_RENDERED_SIZE,
