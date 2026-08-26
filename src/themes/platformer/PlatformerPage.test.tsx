@@ -200,4 +200,44 @@ describe('PlatformerPage', () => {
     const canvas = screen.getByTestId('platformer-canvas');
     expect(canvas).toHaveFocus();
   });
+
+  it('keyDHeld-gameLoopTicks-movesPlayerRightSameAsArrowRight', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    const startX = playerState.value.x;
+
+    fireEvent.keyDown(window, { code: 'KeyD' });
+    frameCallback!(0);
+    frameCallback!(16);
+
+    expect(playerState.value.x).toBeGreaterThan(startX);
+    expect(playerState.value.facing).toBe('right');
+    expect(playerState.value.animState).toBe('walk');
+  });
+
+  it('keyAHeld-gameLoopTicks-movesPlayerLeftSameAsArrowLeft', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    const startX = playerState.value.x;
+
+    fireEvent.keyDown(window, { code: 'KeyA' });
+    frameCallback!(0);
+    frameCallback!(16);
+
+    expect(playerState.value.x).toBeLessThan(startX);
+    expect(playerState.value.facing).toBe('left');
+    expect(playerState.value.animState).toBe('walk');
+  });
 });

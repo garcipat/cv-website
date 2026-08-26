@@ -67,9 +67,11 @@ export const PlatformerPage = () => {
     const input = createKeyboardInput();
 
     const loop = createGameLoop((dt) => {
+      // A/D accepted as an alternate to Arrow Left/Right (FR-007 only
+      // requires arrows; this is an additive convenience, not a replacement).
       const horizontal = {
-        left: input.isHeld('ArrowLeft'),
-        right: input.isHeld('ArrowRight'),
+        left: input.isHeld('ArrowLeft') || input.isHeld('KeyA'),
+        right: input.isHeld('ArrowRight') || input.isHeld('KeyD'),
       };
       let next = stepPlayerPhysics(playerState.value, level1, dt, horizontal);
       next = updatePlayerAnimState(next);

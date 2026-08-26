@@ -1209,3 +1209,168 @@ git commit -m "Check off roadmap step 5 — verified in browser"
   (`{ left, right }`) identical in Task 3 (definition) and Task 6 (construction from
   `input.isHeld(...)`). `createKeyboardInput(): { isHeld, destroy }` signature
   identical in Task 4 (definition) and Task 6 (usage).
+
+---
+
+### Task 8: Clamp horizontal movement to the level's world bounds
+
+**Added during Task 7's manual browser verification** — walking left off the open
+edge of `level1` (which has no wall there, unlike the wall in the rock zone that
+already stops rightward movement) let the character walk into the void with nothing
+to stop it, since camera scroll doesn't exist yet (roadmap step 7) to make an
+off-screen world coherent. The user asked that leaving the level's world bounds be
+prevented in either direction.
+
+**Files:**
+- Modify: `src/themes/platformer/engine/Physics.ts`
+- Test: `src/themes/platformer/engine/Physics.test.ts`
+
+**Interfaces:**
+- Consumes: `LevelDef.width` (existing, in tiles), `RENDERED_TILE_SIZE` (existing),
+  `PLAYER_RENDERED_SIZE` (existing).
+- Produces: `stepPlayerPhysics`'s returned `x` is now always within
+  `[0, level.width * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE]`, regardless of input
+  or tile collisions. No signature change.
+
+- [ ] **Step 1: Write the failing tests**
+
+Append to `src/themes/platformer/engine/Physics.test.ts`, inside (or after) the
+`describe('stepPlayerPhysics horizontal movement', ...)` block:
+
+```ts
+it('movingLeftPastTheLevelStart-noWallThere-clampsToWorldLeftEdge', () => {
+  const player = basePlayer({ x: 5, facing: 'left' });
+  const next = stepPlayerPhysics(player, OPEN_LEVEL, 1 / 60, { left: true, right: false });
+  expect(next.x).toBe(0);
+});
+
+it('movingRightPastTheLevelEnd-noWallThere-clampsToWorldRightEdge', () => {
+  const maxX = OPEN_LEVEL.width * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE;
+  const player = basePlayer({ x: maxX - 2, facing: 'right' });
+  const next = stepPlayerPhysics(player, OPEN_LEVEL, 1 / 60, { left: false, right: true });
+  expect(next.x).toBe(maxX);
+});
+
+it('startingAtWorldLeftEdge-holdingLeft-staysAtZero', () => {
+  const player = basePlayer({ x: 0, facing: 'left' });
+  const next = stepPlayerPhysics(player, OPEN_LEVEL, 1 / 60, { left: true, right: false });
+  expect(next.x).toBe(0);
+});
+```
+
+- [ ] **Step 2: Run the tests to verify they fail**
+
+Run: `npx vitest run src/themes/platformer/engine/Physics.test.ts`
+Expected: FAIL — `next.x` goes negative (first test) or beyond `maxX` (second test);
+nothing currently clamps to world bounds.
+
+- [ ] **Step 3: Implement**
+
+In `src/themes/platformer/engine/Physics.ts`, add the clamp immediately after the
+existing tile-collision `if (vx > 0) {...} else if (vx < 0) {...}` block, before the
+vertical gravity/collision section:
+
+```ts
+  const maxX = level.width * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE;
+  x = Math.max(0, Math.min(x, maxX));
+```
+
+(This runs after tile-wall collision resolution, so a real wall still stops the
+player exactly at its own edge as before — the world-bounds clamp only ever engages
+where there's no tile wall to have already stopped movement first, i.e. at the open
+edges of the level.)
+
+- [ ] **Step 4: Run the tests to verify they pass**
+
+Run: `npx vitest run src/themes/platformer/engine/Physics.test.ts`
+Expected: PASS (all tests, including every pre-existing one from Tasks 3 and 6's
+bugfix).
+
+Then run the full platformer suite to confirm nothing else regressed:
+
+Run: `npx vitest run src/themes/platformer`
+Expected: PASS.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/themes/platformer/engine/Physics.ts src/themes/platformer/engine/Physics.test.ts
+git commit -m "fix(platformer): clamp horizontal movement to the level's world bounds"
+```
+
+---
+
+### Task 9: Focus the game canvas on mount so arrow keys work without an extra click
+
+**Added during Task 7's manual browser verification** — since `Input.ts` (Task 4)
+listens on `window`, arrow-key events normally reach it regardless of DOM focus.
+But if keyboard focus is sitting on the theme/language `<select>` (e.g. right after
+page load, or after a visitor opens it), the select's own keyboard handling can
+consume the arrow-key event before it ever bubbles to `window`. The fix is to make
+the canvas the default focus target so this can't happen on a fresh mount. (Arrow
+keys stay as the movement keys per FR-007 — switching to WASD wouldn't avoid this
+class of problem anyway, since native/Radix selects also support type-ahead-by-letter
+navigation, and "Space" is a real theme name.)
+
+**Files:**
+- Modify: `src/themes/platformer/PlatformerPage.tsx`
+- Test: `src/themes/platformer/PlatformerPage.test.tsx`
+
+**Interfaces:**
+- Consumes: nothing new.
+- Produces: the `<canvas>` element is focusable (`tabIndex={-1}`, excluded from the
+  normal tab order since it's not a form control) and receives focus once on mount.
+  No exported signature changes.
+
+- [ ] **Step 1: Write the failing test**
+
+Append to `src/themes/platformer/PlatformerPage.test.tsx`:
+
+```ts
+it('mount-onRender-focusesTheCanvasSoArrowKeysWorkImmediately', () => {
+  render(<PlatformerPage />);
+  const canvas = screen.getByTestId('platformer-canvas');
+  expect(canvas).toHaveFocus();
+});
+```
+
+- [ ] **Step 2: Run the test to verify it fails**
+
+Run: `npx vitest run src/themes/platformer/PlatformerPage.test.tsx`
+Expected: FAIL — the canvas isn't focusable yet (no `tabIndex`) and nothing calls
+`.focus()` on it.
+
+- [ ] **Step 3: Implement**
+
+In `src/themes/platformer/PlatformerPage.tsx`, add `tabIndex={-1}` to the `<canvas>`
+element and call `canvas.focus()` in the mount effect (after `resize()`/`render()`,
+alongside the other one-time mount setup):
+
+```tsx
+    resize();
+    render();
+    canvas.focus();
+```
+
+Add `tabIndex={-1}` to the JSX:
+
+```tsx
+      <canvas ref={canvasRef} data-testid="platformer-canvas" className="block" tabIndex={-1} />
+```
+
+- [ ] **Step 4: Run the tests to verify they pass**
+
+Run: `npx vitest run src/themes/platformer/PlatformerPage.test.tsx`
+Expected: PASS (all tests, including every pre-existing one).
+
+Then run the full platformer suite to confirm nothing else regressed:
+
+Run: `npx vitest run src/themes/platformer`
+Expected: PASS.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/themes/platformer/PlatformerPage.tsx src/themes/platformer/PlatformerPage.test.tsx
+git commit -m "fix(platformer): focus the game canvas on mount so arrow keys aren't captured by other controls"
+```
