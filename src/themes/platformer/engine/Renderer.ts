@@ -8,7 +8,12 @@ import {
   RENDERED_TILE_SIZE,
 } from '../level/Terrain';
 import type { LevelDef, TileType } from '../level/LevelData';
-import { PLAYER_FRAME_SIZE, PLAYER_RENDERED_SIZE, playerFrameSource } from '../entities/Player';
+import {
+  PLAYER_FRAME_SIZE,
+  PLAYER_RENDERED_SIZE,
+  PLAYER_SIDE_PADDING,
+  playerFrameSource,
+} from '../entities/Player';
 import type { PlayerState } from '../entities/Player';
 
 function tileSource(
@@ -102,7 +107,7 @@ export function drawPlayer(
 
   if (player.facing === 'left') {
     ctx.save();
-    ctx.translate(player.x + PLAYER_RENDERED_SIZE, player.y + originY);
+    ctx.translate(player.x + PLAYER_RENDERED_SIZE - PLAYER_SIDE_PADDING, player.y + originY);
     ctx.scale(-1, 1);
     ctx.drawImage(
       spriteSheet,
@@ -125,7 +130,7 @@ export function drawPlayer(
     sy,
     PLAYER_FRAME_SIZE,
     PLAYER_FRAME_SIZE,
-    player.x,
+    player.x + PLAYER_SIDE_PADDING,
     player.y + originY,
     PLAYER_RENDERED_SIZE,
     PLAYER_RENDERED_SIZE,

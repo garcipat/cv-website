@@ -1,7 +1,7 @@
 import { drawTerrain, drawPlayer } from './Renderer';
 import type { LevelDef } from '../level/LevelData';
 import type { PlayerState } from '../entities/Player';
-import { PLAYER_RENDERED_SIZE } from '../entities/Player';
+import { PLAYER_RENDERED_SIZE, PLAYER_SIDE_PADDING } from '../entities/Player';
 
 function makeMockContext() {
   return {
@@ -162,7 +162,17 @@ describe('drawPlayer', () => {
 
     drawPlayer(ctx, idlePlayer, fakeSpriteSheet);
 
-    expect(ctx.drawImage).toHaveBeenCalledWith(fakeSpriteSheet, 0, 0, 32, 32, 16, 256, 64, 64);
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeSpriteSheet,
+      0,
+      0,
+      32,
+      32,
+      16 + PLAYER_SIDE_PADDING,
+      256,
+      64,
+      64,
+    );
   });
 
   it('idleFrame2-draws-fromThirdIdleSource', () => {
@@ -171,7 +181,17 @@ describe('drawPlayer', () => {
 
     drawPlayer(ctx, player, fakeSpriteSheet);
 
-    expect(ctx.drawImage).toHaveBeenCalledWith(fakeSpriteSheet, 64, 0, 32, 32, 16, 256, 64, 64);
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeSpriteSheet,
+      64,
+      0,
+      32,
+      32,
+      16 + PLAYER_SIDE_PADDING,
+      256,
+      64,
+      64,
+    );
   });
 
   it('originY-shiftsPlayerVertically', () => {
@@ -179,7 +199,17 @@ describe('drawPlayer', () => {
 
     drawPlayer(ctx, idlePlayer, fakeSpriteSheet, 100);
 
-    expect(ctx.drawImage).toHaveBeenCalledWith(fakeSpriteSheet, 0, 0, 32, 32, 16, 356, 64, 64);
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeSpriteSheet,
+      0,
+      0,
+      32,
+      32,
+      16 + PLAYER_SIDE_PADDING,
+      356,
+      64,
+      64,
+    );
   });
 
   it('draws-setsImageSmoothingEnabledFalse', () => {
@@ -197,7 +227,10 @@ describe('drawPlayer', () => {
     drawPlayer(ctx, player, fakeSpriteSheet);
 
     expect(ctx.save).toHaveBeenCalled();
-    expect(ctx.translate).toHaveBeenCalledWith(player.x + PLAYER_RENDERED_SIZE, player.y);
+    expect(ctx.translate).toHaveBeenCalledWith(
+      player.x + PLAYER_RENDERED_SIZE - PLAYER_SIDE_PADDING,
+      player.y,
+    );
     expect(ctx.scale).toHaveBeenCalledWith(-1, 1);
     expect(ctx.drawImage).toHaveBeenCalledWith(
       fakeSpriteSheet,
