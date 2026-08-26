@@ -56,6 +56,9 @@ export function stepPlayerPhysics(
     }
   }
 
+  const maxX = level.width * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE;
+  x = Math.max(0, Math.min(x, maxX));
+
   const vy = Math.min(player.vy + PHYSICS_CONFIG.gravity * dt, PHYSICS_CONFIG.terminalVelocity);
   let y = player.y + vy * dt;
   let grounded = false;

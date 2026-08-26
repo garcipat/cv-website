@@ -162,4 +162,23 @@ describe('stepPlayerPhysics horizontal movement', () => {
 
     expect(next.x).toBe(restX);
   });
+
+  it('movingLeftPastTheLevelStart-noWallThere-clampsToWorldLeftEdge', () => {
+    const player = basePlayer({ x: 2, facing: 'left' });
+    const next = stepPlayerPhysics(player, OPEN_LEVEL, 1 / 60, { left: true, right: false });
+    expect(next.x).toBe(0);
+  });
+
+  it('movingRightPastTheLevelEnd-noWallThere-clampsToWorldRightEdge', () => {
+    const maxX = OPEN_LEVEL.width * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE;
+    const player = basePlayer({ x: maxX - 2, facing: 'right' });
+    const next = stepPlayerPhysics(player, OPEN_LEVEL, 1 / 60, { left: false, right: true });
+    expect(next.x).toBe(maxX);
+  });
+
+  it('startingAtWorldLeftEdge-holdingLeft-staysAtZero', () => {
+    const player = basePlayer({ x: 0, facing: 'left' });
+    const next = stepPlayerPhysics(player, OPEN_LEVEL, 1 / 60, { left: true, right: false });
+    expect(next.x).toBe(0);
+  });
 });
