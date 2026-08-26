@@ -26,8 +26,11 @@ export const PHYSICS_CONFIG = {
    * Initial upward velocity impulse on jump press, in px/s (negative = up).
    * Same tunneling invariant as `terminalVelocity`/`walkSpeed` applies:
    * `Math.abs(jumpVelocity) * MAX_DT` must stay below `RENDERED_TILE_SIZE`.
+   * With gravity=1200, jumpVelocity=-520 yields peak height of 520²/(2*1200) ≈ 112.7px
+   * ≈ 3.5 tiles (RENDERED_TILE_SIZE=32px), comfortably clearing a 3-tile-high platform.
+   * Time-to-apex ≈ 0.43s. Tunneling check: Math.abs(-520) * (1/30) ≈ 17.33 < 32. ✓
    */
-  jumpVelocity: -650,
+  jumpVelocity: -520,
   /**
    * Multiplier applied to `vy` once per frame while ascending (`vy < 0`) and
    * the jump key isn't currently held (FR-006: variable jump height). A tap
