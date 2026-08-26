@@ -10,14 +10,15 @@ describe('PlatformerState', () => {
   });
 
   it('playerState-initial-standsHorizontallyCenteredOnSpawnTile', () => {
-    const spawnTop = tileToPixel(SPAWN_TILE.col, SPAWN_TILE.row);
-    const expectedX = spawnTop.x - (PLAYER_RENDERED_SIZE - RENDERED_TILE_SIZE) / 2;
+    const spawnCell = tileToPixel(SPAWN_TILE.col, SPAWN_TILE.row);
+    const expectedX = spawnCell.x - (PLAYER_RENDERED_SIZE - RENDERED_TILE_SIZE) / 2;
     expect(playerState.value.x).toBe(expectedX);
   });
 
-  it('playerState-initial-feetRestOnSpawnTileTop', () => {
-    const spawnTop = tileToPixel(SPAWN_TILE.col, SPAWN_TILE.row);
-    const expectedY = spawnTop.y - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
+  it('playerState-initial-feetRestOnGroundBelowSpawnTile', () => {
+    const spawnCell = tileToPixel(SPAWN_TILE.col, SPAWN_TILE.row);
+    const groundSurfaceY = spawnCell.y + RENDERED_TILE_SIZE;
+    const expectedY = groundSurfaceY - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
     expect(playerState.value.y).toBe(expectedY);
   });
 });
