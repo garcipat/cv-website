@@ -17,10 +17,18 @@ class MockTilesetImage {
   }
 }
 
+// `playerState` is a module-level singleton (see PlatformerState.ts), so
+// without a reset a jump left mid-air by one test (a real jump arc takes
+// ~300ms+ to complete, far more than the couple of 16ms ticks a test
+// advances) would bleed into the next test's "lands on the ground" or
+// "starts idle" assumptions.
+const initialPlayerState = playerState.value;
+
 describe('PlatformerPage', () => {
   beforeEach(() => {
     vi.stubGlobal('requestAnimationFrame', () => 1);
     vi.stubGlobal('cancelAnimationFrame', () => {});
+    playerState.value = initialPlayerState;
   });
 
   afterEach(() => {
@@ -239,5 +247,68 @@ describe('PlatformerPage', () => {
     expect(playerState.value.x).toBeLessThan(startX);
     expect(playerState.value.facing).toBe('left');
     expect(playerState.value.animState).toBe('walk');
+  });
+
+  it('spacePressed-whileGrounded-triggersJumpNextTick', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+    frameCallback!(16); // lands the spawned player on the ground first
+    expect(playerState.value.grounded).toBe(true);
+
+    fireEvent.keyDown(window, { code: 'Space' });
+    frameCallback!(32);
+
+    expect(playerState.value.grounded).toBe(false);
+    expect(playerState.value.vy).toBeLessThan(0);
+    expect(playerState.value.animState).toBe('jump');
+  });
+
+  it('arrowUpPressed-whileGrounded-alsoTriggersJump', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+    frameCallback!(16);
+    expect(playerState.value.grounded).toBe(true);
+
+    fireEvent.keyDown(window, { code: 'ArrowUp' });
+    frameCallback!(32);
+
+    expect(playerState.value.grounded).toBe(false);
+    expect(playerState.value.vy).toBeLessThan(0);
+  });
+
+  it('spaceReleasedEarly-whileAscending-resultsInLowerVelocityThanHeldJump', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+    frameCallback!(16);
+
+    fireEvent.keyDown(window, { code: 'Space' });
+    frameCallback!(32); // jump triggers this tick
+    const vyRightAfterJump = playerState.value.vy;
+
+    fireEvent.keyUp(window, { code: 'Space' });
+    frameCallback!(48); // released before reaching the apex
+
+    expect(playerState.value.vy).toBeGreaterThan(vyRightAfterJump);
   });
 });
