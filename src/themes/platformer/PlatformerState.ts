@@ -5,10 +5,13 @@ import { PLAYER_RENDERED_SIZE, PLAYER_FOOT_PADDING } from './entities/Player';
 import type { PlayerState } from './entities/Player';
 
 function initialPlayerState(): PlayerState {
-  const spawnTop = tileToPixel(SPAWN_TILE.col, SPAWN_TILE.row);
+  // SPAWN_TILE is the empty cell the character stands in (see level1.ts's
+  // `S` marker) — the ground surface is that cell's bottom edge.
+  const spawnCell = tileToPixel(SPAWN_TILE.col, SPAWN_TILE.row);
+  const groundSurfaceY = spawnCell.y + RENDERED_TILE_SIZE;
   return {
-    x: spawnTop.x - (PLAYER_RENDERED_SIZE - RENDERED_TILE_SIZE) / 2,
-    y: spawnTop.y - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING,
+    x: spawnCell.x - (PLAYER_RENDERED_SIZE - RENDERED_TILE_SIZE) / 2,
+    y: groundSurfaceY - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING,
     animState: 'idle',
     animFrame: 0,
   };

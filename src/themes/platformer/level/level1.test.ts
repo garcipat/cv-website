@@ -29,6 +29,12 @@ describe('parseLevel', () => {
     expect(TILE_CHARS.P).toBe('platform');
     expect(TILE_CHARS.W).toBe('wall');
     expect(TILE_CHARS.B).toBe('bridge');
+    expect(TILE_CHARS.S).toBe('empty');
+  });
+
+  it('spawnMarker-parsesAsEmptyWalkableTile', () => {
+    const result = parseLevel(['S.', 'G.']);
+    expect(result.terrain[0][0]).toBe('empty');
   });
 });
 
@@ -68,9 +74,10 @@ describe('level1', () => {
     expect(hasWall).toBe(true);
   });
 
-  it('spawnTile-isTopExposedGroundGrass', () => {
+  it('spawnTile-isEmptySpaceAboveTopExposedGroundGrass', () => {
     const { col, row } = SPAWN_TILE;
-    expect(level1.terrain[row][col]).toBe('groundGrass');
-    expect(isTopExposed(level1, col, row)).toBe(true);
+    expect(level1.terrain[row][col]).toBe('empty');
+    expect(level1.terrain[row + 1][col]).toBe('groundGrass');
+    expect(isTopExposed(level1, col, row + 1)).toBe(true);
   });
 });
