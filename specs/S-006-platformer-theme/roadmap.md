@@ -23,7 +23,7 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   *Verify: the level layout (ground, platforms) is visible.*
 - [x] **3. Player idle render** — sprite drawn standing on the ground, no physics.
   *Verify: character visible on a platform.*
-- [ ] **4. Gravity + solid collision** — character rests on platforms, falls into
+- [x] **4. Gravity + solid collision** — character rests on platforms, falls into
   pits; no input yet.
   *Verify: spawn the character mid-air, watch it land or fall.*
 - [ ] **5. Horizontal movement + walk animation** — arrow keys move the character,
