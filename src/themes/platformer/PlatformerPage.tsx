@@ -18,17 +18,25 @@ export const PlatformerPage = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const draw = () => {
+    // Cached across frames: only recomputed on mount and on actual window
+    // resize, since neither the canvas dimensions nor the CSS custom
+    // property change on any other frame.
+    let backgroundColor = '#000';
+
+    const resize = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
 
+      backgroundColor =
+        getComputedStyle(document.documentElement).getPropertyValue('--background').trim() ||
+        '#000';
+    };
+
+    const render = () => {
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
-      const backgroundColor = getComputedStyle(document.documentElement)
-        .getPropertyValue('--background')
-        .trim();
-      ctx.fillStyle = backgroundColor || '#000';
+      ctx.fillStyle = backgroundColor;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       // Anchor the level to the bottom of the canvas so a taller viewport
@@ -45,14 +53,20 @@ export const PlatformerPage = () => {
       }
     };
 
-    draw();
-    window.addEventListener('resize', draw);
+    resize();
+    render();
+
+    const onResize = () => {
+      resize();
+      render();
+    };
+    window.addEventListener('resize', onResize);
 
     const loop = createGameLoop((dt) => {
       let next = stepPlayerPhysics(playerState.value, level1, dt);
       next = advancePlayerAnimation(next, dt);
       playerState.value = next;
-      draw();
+      render();
     });
     loop.start();
 
@@ -61,7 +75,7 @@ export const PlatformerPage = () => {
       .then((img) => {
         if (cancelled) return;
         tilesetRef.current = img;
-        draw();
+        render();
       })
       .catch(() => {
         // Terrain simply won't render if the tileset fails to load; the
@@ -71,7 +85,7 @@ export const PlatformerPage = () => {
       .then((img) => {
         if (cancelled) return;
         playerSpriteRef.current = img;
-        draw();
+        render();
       })
       .catch(() => {
         // Player simply won't render if the sprite fails to load; the
@@ -81,7 +95,7 @@ export const PlatformerPage = () => {
     return () => {
       cancelled = true;
       loop.stop();
-      window.removeEventListener('resize', draw);
+      window.removeEventListener('resize', onResize);
     };
   }, []);
 

@@ -1,5 +1,6 @@
 import { stepPlayerPhysics } from './Physics';
 import { PHYSICS_CONFIG } from './PhysicsConfig';
+import { MAX_DT } from './GameLoop';
 import { parseLevel } from '../level/level1';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import { PLAYER_RENDERED_SIZE, PLAYER_FOOT_PADDING } from '../entities/Player';
@@ -74,5 +75,13 @@ describe('stepPlayerPhysics', () => {
     }
     expect(player.grounded).toBe(false);
     expect(player.y).toBeGreaterThan(0);
+  });
+
+  it('terminalVelocity-timesMaxDt-staysBelowOneTile', () => {
+    // Discrete collision resolution checks only the player's final
+    // foot-tile position each frame, so a single frame's fall must never
+    // exceed one tile's height or the player can tunnel through a
+    // 1-tile-thick solid (see PhysicsConfig.ts's terminalVelocity comment).
+    expect(PHYSICS_CONFIG.terminalVelocity * MAX_DT).toBeLessThan(RENDERED_TILE_SIZE);
   });
 });
