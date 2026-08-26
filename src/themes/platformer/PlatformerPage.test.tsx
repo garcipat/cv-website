@@ -23,6 +23,7 @@ class MockTilesetImage {
 // advances) would bleed into the next test's "lands on the ground" or
 // "starts idle" assumptions.
 const initialPlayerState = playerState.value;
+const originalLocation = window.location;
 
 describe('PlatformerPage', () => {
   beforeEach(() => {
@@ -33,6 +34,11 @@ describe('PlatformerPage', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    Object.defineProperty(window, 'location', {
+      value: originalLocation,
+      writable: true,
+      configurable: true,
+    });
   });
 
   it('render-default-showsFullViewportCanvas', () => {
@@ -108,6 +114,41 @@ describe('PlatformerPage', () => {
         ctx.drawImage.mock.calls.some((call: unknown[]) => call[7] === PLAYER_RENDERED_SIZE),
       ).toBe(true),
     );
+  });
+
+  it('debugHitboxesQueryParam-present-drawsDebugOverlayHitboxes', async () => {
+    Object.defineProperty(window, 'location', {
+      value: new URL('http://localhost/?debug=hitboxes'),
+      writable: true,
+      configurable: true,
+    });
+    vi.stubGlobal('Image', MockTilesetImage);
+
+    render(<PlatformerPage />);
+    const canvas = screen.getByTestId('platformer-canvas');
+    const ctx = canvas.getContext('2d') as unknown as {
+      drawImage: ReturnType<typeof vi.fn>;
+      strokeRect: ReturnType<typeof vi.fn>;
+    };
+
+    await waitFor(() => expect(ctx.drawImage).toHaveBeenCalled());
+
+    expect(ctx.strokeRect).toHaveBeenCalled();
+  });
+
+  it('debugHitboxesQueryParam-absent-doesNotDrawDebugOverlay', async () => {
+    vi.stubGlobal('Image', MockTilesetImage);
+
+    render(<PlatformerPage />);
+    const canvas = screen.getByTestId('platformer-canvas');
+    const ctx = canvas.getContext('2d') as unknown as {
+      drawImage: ReturnType<typeof vi.fn>;
+      strokeRect: ReturnType<typeof vi.fn>;
+    };
+
+    await waitFor(() => expect(ctx.drawImage).toHaveBeenCalled());
+
+    expect(ctx.strokeRect).not.toHaveBeenCalled();
   });
 
   it('mount-onRender-startsTheGameLoop', () => {

@@ -22,6 +22,8 @@ HTMLCanvasElement.prototype.getContext = function (
   if (!mockContexts.has(this)) {
     mockContexts.set(this, {
       fillStyle: '',
+      strokeStyle: '',
+      lineWidth: 1,
       imageSmoothingEnabled: true,
       fillRect: vi.fn(),
       drawImage: vi.fn(),
@@ -29,6 +31,11 @@ HTMLCanvasElement.prototype.getContext = function (
       restore: vi.fn(),
       translate: vi.fn(),
       scale: vi.fn(),
+      strokeRect: vi.fn(),
+      beginPath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      stroke: vi.fn(),
     });
   }
 
