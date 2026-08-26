@@ -18,6 +18,11 @@ class MockTilesetImage {
 }
 
 describe('PlatformerPage', () => {
+  beforeEach(() => {
+    vi.stubGlobal('requestAnimationFrame', () => 1);
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+  });
+
   afterEach(() => {
     vi.unstubAllGlobals();
   });
