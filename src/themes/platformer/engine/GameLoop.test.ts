@@ -62,4 +62,14 @@ describe('createGameLoop', () => {
     loop.start();
     expect(rafSpy).toHaveBeenCalledTimes(1);
   });
+
+  it('stop-calledFromWithinOnTick-loopDoesNotReschedule', () => {
+    const loop = createGameLoop((dt) => {
+      if (dt > 0) loop.stop();
+    });
+    loop.start();
+    frameCallback!(0);
+    frameCallback!(16); // onTick fires with dt>0, calls stop() from inside
+    expect(rafSpy).toHaveBeenCalledTimes(2); // the initial start() + the frame(0) reschedule — no third schedule after the in-tick stop
+  });
 });

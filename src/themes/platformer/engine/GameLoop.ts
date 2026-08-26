@@ -14,23 +14,28 @@ export interface GameLoop {
 export function createGameLoop(onTick: (dt: number) => void): GameLoop {
   let rafId: number | null = null;
   let lastTime: number | null = null;
+  let running = false;
 
   const frame = (time: number) => {
+    if (!running) return;
     if (lastTime !== null) {
       const dt = Math.min((time - lastTime) / 1000, MAX_DT);
       onTick(dt);
     }
+    if (!running) return; // onTick may have called stop()
     lastTime = time;
     rafId = requestAnimationFrame(frame);
   };
 
   return {
     start() {
-      if (rafId !== null) return;
+      if (running) return;
+      running = true;
       lastTime = null;
       rafId = requestAnimationFrame(frame);
     },
     stop() {
+      running = false;
       if (rafId !== null) {
         cancelAnimationFrame(rafId);
         rafId = null;
