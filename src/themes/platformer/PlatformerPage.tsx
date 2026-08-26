@@ -56,6 +56,7 @@ export const PlatformerPage = () => {
 
     resize();
     render();
+    canvas.focus();
 
     const onResize = () => {
       resize();
@@ -110,7 +111,7 @@ export const PlatformerPage = () => {
 
   return (
     <div className="relative h-screen w-screen overflow-hidden">
-      <canvas ref={canvasRef} data-testid="platformer-canvas" className="block" />
+      <canvas ref={canvasRef} data-testid="platformer-canvas" className="block" tabIndex={-1} />
       <FloatingControls />
     </div>
   );
