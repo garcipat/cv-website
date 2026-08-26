@@ -88,11 +88,10 @@ describe('PlatformerPage', () => {
     const canvas = screen.getByTestId('platformer-canvas');
     const ctx = canvas.getContext('2d') as unknown as { drawImage: ReturnType<typeof vi.fn> };
 
-    await waitFor(() => expect(ctx.drawImage).toHaveBeenCalled());
-
-    const playerCalls = ctx.drawImage.mock.calls.filter(
-      (call: unknown[]) => call[7] === PLAYER_RENDERED_SIZE,
+    await waitFor(() =>
+      expect(
+        ctx.drawImage.mock.calls.some((call: unknown[]) => call[7] === PLAYER_RENDERED_SIZE),
+      ).toBe(true),
     );
-    expect(playerCalls.length).toBeGreaterThan(0);
   });
 });

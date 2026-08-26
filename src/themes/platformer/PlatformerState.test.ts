@@ -1,7 +1,7 @@
 import { playerState } from './PlatformerState';
 import { tileToPixel, RENDERED_TILE_SIZE } from './level/Terrain';
 import { SPAWN_TILE } from './level/level1';
-import { PLAYER_RENDERED_SIZE } from './entities/Player';
+import { PLAYER_RENDERED_SIZE, PLAYER_FOOT_PADDING } from './entities/Player';
 
 describe('PlatformerState', () => {
   it('playerState-initial-hasIdleAnimAtFrameZero', () => {
@@ -17,7 +17,7 @@ describe('PlatformerState', () => {
 
   it('playerState-initial-feetRestOnSpawnTileTop', () => {
     const spawnTop = tileToPixel(SPAWN_TILE.col, SPAWN_TILE.row);
-    const expectedY = spawnTop.y - PLAYER_RENDERED_SIZE;
+    const expectedY = spawnTop.y - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
     expect(playerState.value.y).toBe(expectedY);
   });
 });

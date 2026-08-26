@@ -3,6 +3,9 @@ import { RENDER_SCALE } from '../level/Terrain';
 export const PLAYER_FRAME_SIZE = 32;
 export const PLAYER_RENDERED_SIZE = PLAYER_FRAME_SIZE * RENDER_SCALE;
 
+/** Transparent rows below the knight's feet inside each 32px native frame. */
+export const PLAYER_FOOT_PADDING = 4 * RENDER_SCALE; // 8 rendered px
+
 export type PlayerAnimState = 'idle';
 
 export interface PlayerState {
