@@ -57,4 +57,47 @@ describe('createKeyboardInput', () => {
     dispatchKey('keydown', 'ArrowRight');
     expect(input.isHeld('ArrowRight')).toBe(false);
   });
+
+  it('consumePress-beforeAnyKeyEvent-returnsFalse', () => {
+    const input = createKeyboardInput();
+    expect(input.consumePress('Space')).toBe(false);
+    input.destroy();
+  });
+
+  it('consumePress-afterKeydown-returnsTrueOnce', () => {
+    const input = createKeyboardInput();
+    dispatchKey('keydown', 'Space');
+    expect(input.consumePress('Space')).toBe(true);
+    expect(input.consumePress('Space')).toBe(false);
+    input.destroy();
+  });
+
+  it('consumePress-afterOsAutoRepeatKeydown-doesNotRefireOnceConsumed', () => {
+    const input = createKeyboardInput();
+    const first = new KeyboardEvent('keydown', { code: 'Space', cancelable: true });
+    window.dispatchEvent(first);
+    expect(input.consumePress('Space')).toBe(true);
+
+    const repeat = new KeyboardEvent('keydown', { code: 'Space', cancelable: true, repeat: true });
+    window.dispatchEvent(repeat);
+    expect(input.consumePress('Space')).toBe(false);
+    input.destroy();
+  });
+
+  it('consumePress-afterKeyupThenKeydownAgain-returnsTrueForTheNewPress', () => {
+    const input = createKeyboardInput();
+    dispatchKey('keydown', 'Space');
+    expect(input.consumePress('Space')).toBe(true);
+    dispatchKey('keyup', 'Space');
+    dispatchKey('keydown', 'Space');
+    expect(input.consumePress('Space')).toBe(true);
+    input.destroy();
+  });
+
+  it('destroy-afterCalled-clearsPendingPresses', () => {
+    const input = createKeyboardInput();
+    dispatchKey('keydown', 'Space');
+    input.destroy();
+    expect(input.consumePress('Space')).toBe(false);
+  });
 });
