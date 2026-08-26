@@ -6,6 +6,16 @@ export const PLAYER_RENDERED_SIZE = PLAYER_FRAME_SIZE * RENDER_SCALE;
 /** Transparent rows below the knight's feet inside each 32px native frame. */
 export const PLAYER_FOOT_PADDING = 4 * RENDER_SCALE; // 8 rendered px
 
+/**
+ * Transparent margin on either side of the knight's silhouette inside each
+ * 32px native frame (the placeholder sprite's art is ~13px wide, centered in
+ * the 32px cell). Rendering shifts the drawn sprite toward whichever edge is
+ * currently leading (per `facing`) by this amount, purely visual, so the
+ * visible character reaches a wall at the same position the (unchanged,
+ * already-tested) hitbox already stops at — it doesn't touch collision math.
+ */
+export const PLAYER_SIDE_PADDING = 10 * RENDER_SCALE; // 20 rendered px
+
 export type PlayerAnimState = 'idle' | 'walk';
 export type PlayerFacing = 'left' | 'right';
 
