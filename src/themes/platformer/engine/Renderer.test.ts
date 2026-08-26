@@ -140,7 +140,7 @@ describe('drawTerrain', () => {
 
 describe('drawPlayer', () => {
   const fakeSpriteSheet = {} as HTMLImageElement;
-  const idlePlayer: PlayerState = { x: 16, y: 256, animState: 'idle', animFrame: 0 };
+  const idlePlayer: PlayerState = { x: 16, y: 256, vy: 0, grounded: true, animTimer: 0, animState: 'idle', animFrame: 0 };
 
   it('idleFrame0-draws-fromFirstIdleSource', () => {
     const ctx = makeMockContext();
