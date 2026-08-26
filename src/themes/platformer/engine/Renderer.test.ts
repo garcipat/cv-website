@@ -228,7 +228,7 @@ describe('drawPlayer', () => {
 
     expect(ctx.save).toHaveBeenCalled();
     expect(ctx.translate).toHaveBeenCalledWith(
-      player.x + PLAYER_RENDERED_SIZE - PLAYER_SIDE_PADDING,
+      player.x + PLAYER_SIDE_PADDING + PLAYER_RENDERED_SIZE,
       player.y,
     );
     expect(ctx.scale).toHaveBeenCalledWith(-1, 1);

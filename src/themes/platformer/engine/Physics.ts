@@ -27,6 +27,18 @@ export interface PlayerInput {
 const NO_INPUT: PlayerInput = { left: false, right: false };
 
 /**
+ * Width of the actual collision hitbox — narrower than PLAYER_RENDERED_SIZE
+ * (the full render slot) and centered within it, matching where the visible
+ * sprite is always drawn (see Renderer.ts's drawPlayer: it draws at this
+ * same fixed offset within the slot regardless of facing — only the
+ * artwork mirrors, never the position). Used uniformly below for horizontal
+ * wall collision, vertical ground/ceiling collision, and world bounds, so
+ * there's one single definition of "where the character actually is" that
+ * rendering and every collision check agree on.
+ */
+const HITBOX_WIDTH = PLAYER_RENDERED_SIZE - 2 * PLAYER_SIDE_PADDING;
+
+/**
  * Resolves one frame of horizontal movement/collision, then jump/gravity and
  * vertical collision, against the level's solid tiles.
  */
@@ -50,34 +62,33 @@ export function stepPlayerPhysics(
   const topRow = Math.floor(player.y / RENDERED_TILE_SIZE);
   // Excludes the foot-padding sliver (like the vertical ground check below)
   // so standing on solid ground doesn't register as a horizontal wall
-  // collision on every frame the player tries to walk. Horizontal wall
-  // collision deliberately keeps using the FULL hitbox width (unlike the
-  // narrower vertical checks below) — that's what makes the sprite look
-  // flush against a wall (an earlier, already-tuned fix).
+  // collision on every frame the player tries to walk.
   const bottomRow = Math.floor(
     (player.y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING - 1) / RENDERED_TILE_SIZE,
   );
 
   if (vx > 0) {
-    const rightCol = Math.floor((x + PLAYER_RENDERED_SIZE - 1) / RENDERED_TILE_SIZE);
+    const rightCol = Math.floor(
+      (x + PLAYER_SIDE_PADDING + HITBOX_WIDTH - 1) / RENDERED_TILE_SIZE,
+    );
     for (let row = topRow; row <= bottomRow; row++) {
       if (isSolid(tileAt(level, rightCol, row))) {
-        x = rightCol * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE;
+        x = rightCol * RENDERED_TILE_SIZE - PLAYER_SIDE_PADDING - HITBOX_WIDTH;
         break;
       }
     }
   } else if (vx < 0) {
-    const leftCol = Math.floor(x / RENDERED_TILE_SIZE);
+    const leftCol = Math.floor((x + PLAYER_SIDE_PADDING) / RENDERED_TILE_SIZE);
     for (let row = topRow; row <= bottomRow; row++) {
       if (isSolid(tileAt(level, leftCol, row))) {
-        x = (leftCol + 1) * RENDERED_TILE_SIZE;
+        x = (leftCol + 1) * RENDERED_TILE_SIZE - PLAYER_SIDE_PADDING;
         break;
       }
     }
   }
 
-  const maxX = level.width * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE;
-  x = Math.max(0, Math.min(x, maxX));
+  const maxX = level.width * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_SIDE_PADDING;
+  x = Math.max(-PLAYER_SIDE_PADDING, Math.min(x, maxX));
 
   // Jump trigger (FR-006): a fixed upward impulse, only while grounded — no
   // double jump. Ignored entirely while already airborne.
@@ -97,20 +108,8 @@ export function stepPlayerPhysics(
   let grounded = false;
   let resolvedVy = vy;
 
-  // Ground/ceiling checks use a narrower column span than the full render
-  // width, matching where the VISIBLE character actually is — which the
-  // renderer shifts to align flush with whichever edge is currently facing
-  // (see Renderer.ts's drawPlayer), not a fixed centered band. An earlier
-  // attempt used a centered band; that meant e.g. facing right, the game
-  // still considered a chunk of empty space "grounded" for a while after
-  // the visible character had already walked off a platform's right edge,
-  // because the centered band's trailing (left) portion lagged behind the
-  // facing-right sprite's true (right-biased) visible position.
-  const visibleWidth = PLAYER_RENDERED_SIZE - 2 * PLAYER_SIDE_PADDING;
-  const visibleLeft = facing === 'right' ? x + PLAYER_RENDERED_SIZE - visibleWidth : x;
-  const visibleRight = visibleLeft + visibleWidth - 1;
-  const leftCol = Math.floor(visibleLeft / RENDERED_TILE_SIZE);
-  const rightCol = Math.floor(visibleRight / RENDERED_TILE_SIZE);
+  const leftCol = Math.floor((x + PLAYER_SIDE_PADDING) / RENDERED_TILE_SIZE);
+  const rightCol = Math.floor((x + PLAYER_SIDE_PADDING + HITBOX_WIDTH - 1) / RENDERED_TILE_SIZE);
 
   if (vy < 0) {
     // Ceiling collision: symmetric to the landing case below, but for the

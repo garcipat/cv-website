@@ -119,7 +119,7 @@ export function drawPlayer(
 
   if (player.facing === 'left') {
     ctx.save();
-    ctx.translate(player.x + PLAYER_RENDERED_SIZE - PLAYER_SIDE_PADDING, player.y + originY);
+    ctx.translate(player.x + PLAYER_SIDE_PADDING + PLAYER_RENDERED_SIZE, player.y + originY);
     ctx.scale(-1, 1);
     ctx.drawImage(
       sheet,
