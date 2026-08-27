@@ -5,11 +5,12 @@ import {
   drawIrisOverlay,
   drawRestartPrompt,
   RESTART_PROMPT_FONT_FAMILY,
+  HEARTS_START_X,
 } from './Renderer';
 import type { LevelDef } from '../level/LevelData';
 import type { PlayerState } from '../entities/Player';
 import { PLAYER_RENDERED_SIZE } from '../entities/Player';
-import { MAX_HALF_HEARTS } from '../entities/Health';
+import { MAX_HALF_HEARTS, HEART_RENDERED_SIZE } from '../entities/Health';
 
 function makeMockContext() {
   return {
@@ -423,6 +424,17 @@ describe('drawHearts', () => {
     drawHearts(ctx, MAX_HALF_HEARTS, fakeHeartsSheet);
 
     expect(ctx.imageSmoothingEnabled).toBe(false);
+  });
+
+  it('called-withCustomStartX-offsetsAllHeartsHorizontally', () => {
+    const ctx = makeMockContext();
+
+    drawHearts(ctx, MAX_HALF_HEARTS, fakeHeartsSheet, HEARTS_START_X);
+
+    const firstCall = (ctx.drawImage as ReturnType<typeof vi.fn>).mock.calls[0];
+    const secondCall = (ctx.drawImage as ReturnType<typeof vi.fn>).mock.calls[1];
+    expect(firstCall[5]).toBe(HEARTS_START_X); // dx
+    expect(secondCall[5]).toBe(HEARTS_START_X + HEART_RENDERED_SIZE + 4); // + spacing
   });
 });
 

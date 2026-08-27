@@ -164,22 +164,36 @@ const HUD_MARGIN = 16;
 const HEART_SPACING = 4;
 
 /**
- * Draws the heart HUD at a fixed screen position (top-left), unlike
- * `drawTerrain`/`drawPlayer` which take camera-scroll `originX`/`originY` —
- * the HUD must stay put on screen regardless of how far the camera has
- * scrolled into the level.
+ * Reserves room at the HUD's top-left for the journal icon button (a DOM
+ * `<img>`/`<button>`, not canvas-drawn — see `PlatformerPage.tsx`) so the
+ * heart HUD doesn't render underneath it. 40 is the icon button's size
+ * (`size-10` in Tailwind), 8 is the gap between it and the first heart —
+ * both must stay in sync with `PlatformerPage.tsx`'s icon button sizing if
+ * either changes.
+ */
+export const HEARTS_START_X = HUD_MARGIN + 40 + 8;
+
+/**
+ * Draws the heart HUD at a fixed screen position (top-left by default),
+ * unlike `drawTerrain`/`drawPlayer` which take camera-scroll
+ * `originX`/`originY` — the HUD must stay put on screen regardless of how
+ * far the camera has scrolled into the level. `startX` defaults to
+ * `HUD_MARGIN` (the original, unshifted position) so existing callers are
+ * unaffected; `PlatformerPage.tsx` passes `HEARTS_START_X` explicitly to
+ * make room for the journal icon button.
  */
 export function drawHearts(
   ctx: CanvasRenderingContext2D,
   halfHearts: number,
   heartsSheet: HTMLImageElement,
+  startX: number = HUD_MARGIN,
 ): void {
   ctx.imageSmoothingEnabled = false;
 
   for (let i = 0; i < MAX_HEARTS; i++) {
     const remaining = heartRemaining(halfHearts, i);
     const sx = heartFrameIndex(remaining) * HEART_FRAME_SIZE;
-    const x = HUD_MARGIN + i * (HEART_RENDERED_SIZE + HEART_SPACING);
+    const x = startX + i * (HEART_RENDERED_SIZE + HEART_SPACING);
     ctx.drawImage(
       heartsSheet,
       sx,

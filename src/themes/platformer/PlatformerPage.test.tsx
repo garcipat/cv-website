@@ -10,6 +10,7 @@ import {
   collectedFacts,
 } from './PlatformerState';
 import { MAX_HALF_HEARTS, PIT_FALL_DAMAGE, HEART_RENDERED_SIZE } from './entities/Health';
+import { HEARTS_START_X } from './engine/Renderer';
 import {
   JOURNAL_OPEN_FRAME_COUNT,
   JOURNAL_OPEN_FRAME_INTERVAL_MS,
@@ -141,19 +142,18 @@ describe('PlatformerPage', () => {
     const canvas = screen.getByTestId('platformer-canvas');
     const ctx = canvas.getContext('2d') as unknown as { drawImage: ReturnType<typeof vi.fn> };
 
-    // dx===16 (call[5]) alone isn't enough to distinguish this from the
-    // player's draw call: at this test's default spawn position (SPAWN_TILE
-    // col 1, camera at 0, facing right) the player's dest-x also happens to
-    // be 16 (see PlatformerState.ts's initialPlayerState math), coinciding
-    // with the heart HUD's fixed HUD_MARGIN dx. dy===16 (call[6]) is what
-    // actually discriminates: drawHearts always draws at dy=HUD_MARGIN=16
+    // dx===HEARTS_START_X (call[5]) alone isn't enough to distinguish this
+    // from the player's draw call: at this test's default spawn position
+    // (SPAWN_TILE col 1, camera at 0, facing right) the player's dest-x
+    // could coincidentally match too. dy===16 (call[6]) is what actually
+    // discriminates: drawHearts always draws at dy=HUD_MARGIN=16
     // (Renderer.ts), while the player's dy is its scrolled world y-position
     // (648 by default here), never 16.
     await waitFor(() =>
       expect(
         ctx.drawImage.mock.calls.some(
           (call: unknown[]) =>
-            call[7] === HEART_RENDERED_SIZE && call[5] === 16 && call[6] === 16,
+            call[7] === HEART_RENDERED_SIZE && call[5] === HEARTS_START_X && call[6] === 16,
         ),
       ).toBe(true),
     );
@@ -750,6 +750,14 @@ describe('PlatformerPage', () => {
 
     expect(screen.queryByTestId('platformer-journal')).not.toBeInTheDocument();
     expect(lifecycleState.value.phase).toBe('dying');
+  });
+
+  it('render-default-showsRealJournalIconAtTopLeft', () => {
+    render(<PlatformerPage />);
+
+    const icon = screen.getByTestId('journal-open-button');
+    expect(icon.tagName).toBe('IMG');
+    expect(icon).toHaveAttribute('src', '/sprites/journal.png');
   });
 
   it('journalOpenButtonClicked-whilePlaying-opensJournalAndPausesLoop', () => {
