@@ -292,9 +292,8 @@ The level is hand-crafted — starting with a simple layout to validate function
 #### Controls & Theme Infrastructure (P3)
 
 - **FR-025**: System MUST render the HUD during gameplay with the following layout:
-  - **Top-left**: 3 hearts (health indicator)
+  - **Top-left**: journal icon button (opens/closes the journal, same as `J` key), immediately left of the 3 hearts (health indicator). **Amended 2026-08-28**: originally specified as bottom-right; moved after step 14 shipped it there and it proved hard to spot against the level's terrain.
   - **Top-right**: Floating translucent controls — theme selector and language toggle (following the same pattern as the Space theme)
-  - **Bottom-right**: Journal icon button (opens/closes the journal, same as `J` key)
 
 - **FR-026**: System MUST support locale switching: when `currentLocale` changes, journal content and in-game notifications re-render in the selected language while preserving game state and position.
 
