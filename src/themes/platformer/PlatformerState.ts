@@ -10,6 +10,7 @@ import { MAX_HALF_HEARTS } from './entities/Health';
 import { introState } from './engine/GameLifecycle';
 import type { PlayerState } from './entities/Player';
 import type { LifecycleState } from './engine/GameLifecycle';
+import type { CollectedFact } from './types';
 
 /**
  * The player's state at the level's spawn point — full health's worth of
@@ -59,6 +60,36 @@ export const cameraPositionX = signal(0);
  * only needs to touch this signal, not reconstruct player position/state.
  */
 export const healthState = signal(MAX_HALF_HEARTS);
+
+/**
+ * TEMPORARY seed data — steps 11/12 (coin render + collection) don't exist
+ * yet, so nothing populates `collectedFacts` for real. These two entries only
+ * exist so step 13's "see the collected fact listed" verification has
+ * something to show. Delete this constant and switch `collectedFacts`'s
+ * initial value to `[]` once step 12 lands.
+ */
+const SEED_COLLECTED_FACTS: CollectedFact[] = [
+  {
+    id: 'seed-skill-typescript',
+    sectionId: 'skills',
+    sectionLabel: 'Skills',
+    data: { name: 'TypeScript', level: 90 },
+    sourceType: 'coin',
+  },
+  {
+    id: 'seed-language-german',
+    sectionId: 'languages',
+    sectionLabel: 'Languages',
+    data: { name: 'German', flag: '\u{1F1E9}\u{1F1EA}', level: 100 },
+    sourceType: 'coin',
+  },
+];
+
+/**
+ * Facts discovered so far this session (see spec.md FR-032). Populated for
+ * real starting in step 12 — see the seed-data comment above.
+ */
+export const collectedFacts = signal<CollectedFact[]>(SEED_COLLECTED_FACTS);
 
 /**
  * World-space center point (not top-left) of the spawned player — used to
