@@ -48,4 +48,22 @@ describe('Journal', () => {
 
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  it('skillCategoryFact-rendered-showsCategoryNameAndSkillCount', () => {
+    collectedFacts.value = [
+      {
+        id: 'coin-backend',
+        sectionId: 'skills',
+        sectionLabel: 'Skills',
+        data: { category: 'Backend', skills: [{ name: 'C#', level: 90 }, { name: '.NET', level: 85 }] },
+        sourceType: 'coin',
+      },
+    ];
+
+    render(<Journal onClose={() => {}} />);
+
+    expect(screen.getByText(/Backend/)).toBeInTheDocument();
+    expect(screen.getByText(/C#/)).toBeInTheDocument();
+    expect(screen.getByText(/\.NET/)).toBeInTheDocument();
+  });
 });
