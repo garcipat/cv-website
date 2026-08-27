@@ -23,6 +23,14 @@ import {
   heartRemaining,
   heartFrameIndex,
 } from '../entities/Health';
+import {
+  COIN_FRAME_SIZE,
+  COIN_RENDERED_SIZE,
+  coinFrameIndex,
+  coinFrameSource,
+  coinBobOffset,
+} from '../entities/Coin';
+import type { CoinPlacement } from '../entities/Coin';
 
 function tileSource(
   level: LevelDef,
@@ -192,4 +200,66 @@ export function drawHearts(
       HEART_RENDERED_SIZE,
     );
   }
+}
+
+/**
+ * Draws every coin at the current shared spin frame, offset a few pixels up
+ * or down by the current shared bob position (all coins spin and bob in sync
+ * — see Coin.ts's coinFrameIndex/coinBobOffset). Same originX/originY
+ * convention as drawTerrain/drawPlayer, since coins live in world space and
+ * must scroll with the camera; the bob offset is applied on top of that, not
+ * instead of it.
+ */
+export function drawCoins(
+  ctx: CanvasRenderingContext2D,
+  coins: CoinPlacement[],
+  sprite: HTMLImageElement,
+  elapsedSeconds: number,
+  originX = 0,
+  originY = 0,
+): void {
+  ctx.imageSmoothingEnabled = false;
+
+  const frame = coinFrameIndex(elapsedSeconds);
+  const { sx, sy } = coinFrameSource(frame);
+  const bob = coinBobOffset(elapsedSeconds);
+
+  for (const coin of coins) {
+    ctx.drawImage(
+      sprite,
+      sx,
+      sy,
+      COIN_FRAME_SIZE,
+      COIN_FRAME_SIZE,
+      coin.x + originX,
+      coin.y + originY + bob,
+      COIN_RENDERED_SIZE,
+      COIN_RENDERED_SIZE,
+    );
+  }
+}
+
+const COIN_COUNTER_GAP = 12;
+
+/**
+ * Draws a "collected/max" text counter at a fixed screen position, to the
+ * right of the heart HUD (see drawHearts's HUD_MARGIN/HEART_SPACING). This
+ * step always passes `collected = 0` (a static placeholder — coins aren't
+ * collectible yet); a later roadmap step wires a real collected count in.
+ */
+export function drawCoinCounter(
+  ctx: CanvasRenderingContext2D,
+  collected: number,
+  max: number,
+): void {
+  ctx.save();
+  ctx.fillStyle = '#fff';
+  ctx.font = '20px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  const heartsWidth = MAX_HEARTS * (HEART_RENDERED_SIZE + HEART_SPACING);
+  const x = HUD_MARGIN + heartsWidth + COIN_COUNTER_GAP;
+  const y = HUD_MARGIN + HEART_RENDERED_SIZE / 2;
+  ctx.fillText(`${collected}/${max}`, x, y);
+  ctx.restore();
 }
