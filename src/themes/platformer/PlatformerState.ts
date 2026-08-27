@@ -16,6 +16,7 @@ function initialPlayerState(): PlayerState {
     vy: 0,
     facing: 'right',
     grounded: false,
+    isDroppingThroughBridge: false,
     animState: 'idle',
     animFrame: 0,
     animTimer: 0,

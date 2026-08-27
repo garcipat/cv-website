@@ -22,6 +22,7 @@ export interface PlayerInput {
   right?: boolean;
   jumpPressed?: boolean;
   jumpHeld?: boolean;
+  dropThroughHeld?: boolean;
 }
 
 const NO_INPUT: PlayerInput = { left: false, right: false };
@@ -115,6 +116,29 @@ export function stepPlayerPhysics(
   const leftCol = Math.floor((x + PLAYER_SIDE_PADDING) / RENDERED_TILE_SIZE);
   const rightCol = Math.floor((x + PLAYER_SIDE_PADDING + HITBOX_WIDTH - 1) / RENDERED_TILE_SIZE);
 
+  // Drop-through trigger: pressing Down while already resting on a bridge
+  // lets the character deliberately fall through it (the base one-way
+  // behavior alone only lets you leave a bridge by walking off its edge).
+  // Detected against the tile the player is currently standing on, using
+  // the pre-frame `y` — so holding Down elsewhere (mid-air, or standing on
+  // regular solid ground) has no effect. Once triggered, the flag persists
+  // across frames (a single frame's gravity rarely clears a whole 32px
+  // tile from a standing start) until the character actually lands on
+  // something solid again, at which point it's cleared in the return below.
+  const standingFootRow = Math.floor(
+    (player.y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING) / RENDERED_TILE_SIZE,
+  );
+  let standingOnBridge = false;
+  for (let col = leftCol; col <= rightCol; col++) {
+    if (tileAt(level, col, standingFootRow) === 'bridge') {
+      standingOnBridge = true;
+      break;
+    }
+  }
+  const droppingThroughBridge =
+    player.isDroppingThroughBridge ||
+    (player.grounded && standingOnBridge && Boolean(input.dropThroughHeld));
+
   if (vy < 0) {
     // Ceiling collision: symmetric to the landing case below, but for the
     // player's head hitting a solid tile from underneath while rising.
@@ -136,9 +160,13 @@ export function stepPlayerPhysics(
   } else {
     const feetY = y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING;
     const footRow = Math.floor(feetY / RENDERED_TILE_SIZE);
+    // While actively dropping through a bridge, ground collision ignores
+    // bridge tiles the same way the ceiling check always does — everything
+    // else (regular ground, platforms, walls) still catches the character.
+    const groundIsSolid = droppingThroughBridge ? isSolidExcludingBridge : isSolid;
 
     for (let col = leftCol; col <= rightCol; col++) {
-      if (isSolid(tileAt(level, col, footRow))) {
+      if (groundIsSolid(tileAt(level, col, footRow))) {
         const groundSurfaceY = footRow * RENDERED_TILE_SIZE;
         y = groundSurfaceY - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
         resolvedVy = 0;
@@ -148,5 +176,14 @@ export function stepPlayerPhysics(
     }
   }
 
-  return { ...player, x, y, vx, vy: resolvedVy, facing, grounded };
+  return {
+    ...player,
+    x,
+    y,
+    vx,
+    vy: resolvedVy,
+    facing,
+    grounded,
+    isDroppingThroughBridge: grounded ? false : droppingThroughBridge,
+  };
 }
