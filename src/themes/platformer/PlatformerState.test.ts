@@ -1,8 +1,21 @@
-import { playerState, cameraPositionX, healthState } from './PlatformerState';
+import {
+  playerState,
+  cameraPositionX,
+  healthState,
+  lifecycleState,
+  spawnPlayerState,
+  spawnCenter,
+  resetGame,
+  collectedFacts,
+} from './PlatformerState';
 import { MAX_HALF_HEARTS } from './entities/Health';
 import { tileToPixel, RENDERED_TILE_SIZE } from './level/Terrain';
 import { SPAWN_TILE } from './level/level1';
-import { PLAYER_RENDERED_SIZE, PLAYER_FOOT_PADDING } from './entities/Player';
+import {
+  PLAYER_RENDERED_SIZE,
+  PLAYER_FOOT_PADDING,
+  PLAYER_VISUAL_CENTER_Y_OFFSET,
+} from './entities/Player';
 
 describe('PlatformerState', () => {
   it('playerState-initial-hasIdleAnimAtFrameZero', () => {
@@ -43,5 +56,64 @@ describe('PlatformerState', () => {
 
   it('healthState-initial-isMaxHalfHearts', () => {
     expect(healthState.value).toBe(MAX_HALF_HEARTS);
+  });
+
+  it('spawnPlayerState-called-matchesPlayerStateInitialValue', () => {
+    // spawnPlayerState() must be pure/deterministic so restart logic (Task 5)
+    // can call it again later and get the exact same spawn position.
+    expect(spawnPlayerState()).toEqual(playerState.value);
+  });
+
+  it('spawnCenter-called-isSpawnPlayerTopLeftPlusHalfRenderedSize', () => {
+    const spawn = spawnPlayerState();
+    const center = spawnCenter();
+    expect(center.x).toBe(spawn.x + PLAYER_RENDERED_SIZE / 2);
+    expect(center.y).toBe(spawn.y + PLAYER_VISUAL_CENTER_Y_OFFSET);
+  });
+
+  it('lifecycleState-initial-isIntroPhaseCenteredOnSpawnPlayer', () => {
+    const center = spawnCenter();
+    expect(lifecycleState.value.phase).toBe('intro');
+    expect(lifecycleState.value.elapsed).toBe(0);
+    expect(lifecycleState.value.centerX).toBe(center.x);
+    expect(lifecycleState.value.centerY).toBe(center.y);
+  });
+
+  it('resetGame-calledAfterMutation-restoresSpawnHealthAndZeroCamera', () => {
+    playerState.value = { ...playerState.value, x: 999, y: 999, vx: 5 };
+    healthState.value = 0;
+    cameraPositionX.value = 300;
+
+    resetGame();
+
+    expect(playerState.value).toEqual(spawnPlayerState());
+    expect(healthState.value).toBe(MAX_HALF_HEARTS);
+    expect(cameraPositionX.value).toBe(0);
+  });
+
+  it('resetGame-calledWithCollectedFacts-doesNotClearThem', () => {
+    const facts = [
+      {
+        id: 'x',
+        sectionId: 'skills' as const,
+        sectionLabel: 'Skills',
+        data: { name: 'Go', level: 70 },
+        sourceType: 'coin' as const,
+      },
+    ];
+    collectedFacts.value = facts;
+
+    resetGame();
+
+    expect(collectedFacts.value).toBe(facts);
+  });
+});
+
+describe('collectedFacts', () => {
+  it('initialValue-onModuleLoad-containsSeedFacts', () => {
+    expect(collectedFacts.value.length).toBeGreaterThan(0);
+    expect(collectedFacts.value[0]).toMatchObject({
+      sourceType: 'coin',
+    });
   });
 });

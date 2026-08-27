@@ -1,8 +1,14 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi } from 'vitest';
 import { PlatformerPage } from './PlatformerPage';
-import { PLAYER_RENDERED_SIZE } from './entities/Player';
-import { playerState, cameraPositionX, healthState } from './PlatformerState';
+import { PLAYER_RENDERED_SIZE, PLAYER_VISUAL_CENTER_Y_OFFSET } from './entities/Player';
+import {
+  playerState,
+  cameraPositionX,
+  healthState,
+  lifecycleState,
+  collectedFacts,
+} from './PlatformerState';
 import { MAX_HALF_HEARTS, PIT_FALL_DAMAGE, HEART_RENDERED_SIZE } from './entities/Health';
 import { level1Coins } from './level/level1Coins';
 import { COIN_RENDERED_SIZE } from './entities/Coin';
@@ -26,6 +32,8 @@ class MockTilesetImage {
 // advances) would bleed into the next test's "lands on the ground" or
 // "starts idle" assumptions.
 const initialPlayerState = playerState.value;
+const initialLifecycleState = lifecycleState.value;
+const initialCollectedFacts = collectedFacts.value;
 const originalLocation = window.location;
 
 describe('PlatformerPage', () => {
@@ -35,6 +43,8 @@ describe('PlatformerPage', () => {
     playerState.value = initialPlayerState;
     cameraPositionX.value = 0;
     healthState.value = MAX_HALF_HEARTS;
+    lifecycleState.value = initialLifecycleState;
+    collectedFacts.value = initialCollectedFacts;
   });
 
   afterEach(() => {
@@ -539,7 +549,497 @@ describe('PlatformerPage', () => {
     const coinCalls = ctx.drawImage.mock.calls.filter(
       (call: unknown[]) => (call[0] as MockTilesetImage).src === '/sprites/coin.png',
     );
-    expect(coinCalls).toHaveLength(level1Coins.length);
+    // Every render() pass draws exactly level1Coins.length coin calls, but
+    // how many passes have fired by the time waitFor's condition is met
+    // depends on how many other async sprite/font loads have also resolved
+    // (each triggers its own render()) — not just the coin sprite's. Assert
+    // a whole number of complete passes rather than one fixed pass count, so
+    // this doesn't break every time another asset load is added elsewhere.
+    expect(coinCalls.length).toBeGreaterThan(0);
+    expect(coinCalls.length % level1Coins.length).toBe(0);
     expect(coinCalls.every((call: unknown[]) => call[7] === COIN_RENDERED_SIZE)).toBe(true);
+  });
+
+  it('healthReachesZero-gameLoopTicks-entersDyingPhaseCenteredOnPlayerAndPausesPhysics', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    // One half-heart of health left; a pit fall (PIT_FALL_DAMAGE = 1) is
+    // exactly fatal this tick.
+    healthState.value = PIT_FALL_DAMAGE;
+    playerState.value = {
+      ...playerState.value,
+      x: 500,
+      y: 5000,
+      vx: 0,
+      vy: 900,
+      grounded: false,
+      lastGroundedX: 500,
+      lastGroundedY: 200,
+    };
+
+    frameCallback!(16);
+
+    expect(healthState.value).toBe(0);
+    expect(lifecycleState.value.phase).toBe('dying');
+    expect(lifecycleState.value.centerX).toBe(playerState.value.x + PLAYER_RENDERED_SIZE / 2);
+    expect(lifecycleState.value.centerY).toBe(playerState.value.y + PLAYER_VISUAL_CENTER_Y_OFFSET);
+
+    const frozenX = playerState.value.x;
+    const frozenY = playerState.value.y;
+    frameCallback!(32); // physics must stay paused while dying
+    expect(playerState.value.x).toBe(frozenX);
+    expect(playerState.value.y).toBe(frozenY);
+  });
+
+  it('dyingPhase-durationElapses-transitionsToAwaitingRestart', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+    healthState.value = PIT_FALL_DAMAGE;
+    playerState.value = {
+      ...playerState.value,
+      x: 500,
+      y: 5000,
+      vy: 900,
+      grounded: false,
+      lastGroundedX: 500,
+      lastGroundedY: 200,
+    };
+    frameCallback!(16);
+    expect(lifecycleState.value.phase).toBe('dying');
+
+    let t = 16;
+    for (let i = 0; i < 250; i++) {
+      t += 16;
+      frameCallback!(t);
+    }
+
+    expect(lifecycleState.value.phase).toBe('awaitingRestart');
+  });
+
+  it('awaitingRestartPhase-anyKeyPressed-resetsHealthAndPositionAndReturnsToIntroAtSpawn', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+    healthState.value = PIT_FALL_DAMAGE;
+    playerState.value = {
+      ...playerState.value,
+      x: 500,
+      y: 5000,
+      vy: 900,
+      grounded: false,
+      lastGroundedX: 500,
+      lastGroundedY: 200,
+    };
+    frameCallback!(16);
+    let t = 16;
+    for (let i = 0; i < 250; i++) {
+      t += 16;
+      frameCallback!(t);
+    }
+    expect(lifecycleState.value.phase).toBe('awaitingRestart');
+
+    fireEvent.keyDown(window, { code: 'Enter' });
+
+    expect(healthState.value).toBe(MAX_HALF_HEARTS);
+    expect(lifecycleState.value.phase).toBe('intro');
+    expect(playerState.value.x).toBe(initialPlayerState.x);
+    expect(playerState.value.y).toBe(initialPlayerState.y);
+    expect(cameraPositionX.value).toBe(0);
+  });
+
+  it('awaitingRestartPhase-canvasClicked-alsoTriggersRestart', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+    healthState.value = PIT_FALL_DAMAGE;
+    playerState.value = {
+      ...playerState.value,
+      x: 500,
+      y: 5000,
+      vy: 900,
+      grounded: false,
+      lastGroundedX: 500,
+      lastGroundedY: 200,
+    };
+    frameCallback!(16);
+    let t = 16;
+    for (let i = 0; i < 250; i++) {
+      t += 16;
+      frameCallback!(t);
+    }
+    expect(lifecycleState.value.phase).toBe('awaitingRestart');
+
+    const canvas = screen.getByTestId('platformer-canvas');
+    fireEvent.click(canvas);
+
+    expect(lifecycleState.value.phase).toBe('intro');
+    expect(healthState.value).toBe(MAX_HALF_HEARTS);
+  });
+
+  it('jKeyPressed-whilePlaying-opensJournalAndPausesLoop', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+    lifecycleState.value = { ...lifecycleState.value, phase: 'playing' };
+
+    fireEvent.keyDown(window, { code: 'KeyJ' });
+
+    expect(screen.getByTestId('platformer-journal')).toBeInTheDocument();
+    expect(lifecycleState.value.phase).toBe('paused');
+
+    const xBeforeTick = playerState.value.x;
+    fireEvent.keyDown(window, { code: 'ArrowRight' });
+    frameCallback!(16);
+    expect(playerState.value.x).toBe(xBeforeTick);
+  });
+
+  it('jKeyPressed-whileJournalOpen-closesJournalAndResumesLoop', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+    lifecycleState.value = { ...lifecycleState.value, phase: 'playing' };
+    fireEvent.keyDown(window, { code: 'KeyJ' });
+    expect(lifecycleState.value.phase).toBe('paused');
+
+    fireEvent.keyDown(window, { code: 'KeyJ' });
+
+    expect(screen.queryByTestId('platformer-journal')).not.toBeInTheDocument();
+    expect(lifecycleState.value.phase).toBe('playing');
+  });
+
+  it('jKeyHeld-osAutoRepeat-doesNotToggleJournalAgain', () => {
+    vi.stubGlobal('requestAnimationFrame', () => 1);
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    lifecycleState.value = { ...lifecycleState.value, phase: 'playing' };
+
+    fireEvent.keyDown(window, { code: 'KeyJ' });
+    expect(lifecycleState.value.phase).toBe('paused');
+
+    // Simulates the OS auto-repeat keydowns fired while the key is held.
+    fireEvent.keyDown(window, { code: 'KeyJ', repeat: true });
+
+    expect(screen.getByTestId('platformer-journal')).toBeInTheDocument();
+    expect(lifecycleState.value.phase).toBe('paused');
+  });
+
+  it('journalCloseButtonClicked-whileOpen-closesJournal', () => {
+    vi.stubGlobal('requestAnimationFrame', () => 1);
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    lifecycleState.value = { ...lifecycleState.value, phase: 'playing' };
+    fireEvent.keyDown(window, { code: 'KeyJ' });
+
+    fireEvent.click(screen.getByTestId('journal-close-button'));
+
+    expect(screen.queryByTestId('platformer-journal')).not.toBeInTheDocument();
+    expect(lifecycleState.value.phase).toBe('playing');
+  });
+
+  it('jKeyPressed-whileDying-isIgnored', () => {
+    vi.stubGlobal('requestAnimationFrame', () => 1);
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    lifecycleState.value = { ...lifecycleState.value, phase: 'dying' };
+
+    fireEvent.keyDown(window, { code: 'KeyJ' });
+
+    expect(screen.queryByTestId('platformer-journal')).not.toBeInTheDocument();
+    expect(lifecycleState.value.phase).toBe('dying');
+  });
+
+  it('journalOpenButtonClicked-whilePlaying-opensJournalAndPausesLoop', () => {
+    vi.stubGlobal('requestAnimationFrame', () => 1);
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    lifecycleState.value = { ...lifecycleState.value, phase: 'playing' };
+
+    fireEvent.click(screen.getByTestId('journal-open-button'));
+
+    expect(screen.getByTestId('platformer-journal')).toBeInTheDocument();
+    expect(lifecycleState.value.phase).toBe('paused');
+  });
+
+  it('journalOpenButtonClicked-whileJournalOpen-closesJournalAndResumesLoop', () => {
+    vi.stubGlobal('requestAnimationFrame', () => 1);
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    lifecycleState.value = { ...lifecycleState.value, phase: 'playing' };
+    fireEvent.click(screen.getByTestId('journal-open-button'));
+    expect(lifecycleState.value.phase).toBe('paused');
+
+    fireEvent.click(screen.getByTestId('journal-open-button'));
+
+    expect(screen.queryByTestId('platformer-journal')).not.toBeInTheDocument();
+    expect(lifecycleState.value.phase).toBe('playing');
+  });
+
+  it('deathThenRestart-journalOpened-stillShowsSeedFactsFromBeforeTheDeath', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+    const factsBeforeDeath = collectedFacts.value;
+    expect(factsBeforeDeath.length).toBeGreaterThan(0);
+
+    // Force a fatal pit fall (same setup as the existing
+    // healthReachesZero-... test above), then let the death/restart timeline
+    // fully play out.
+    healthState.value = PIT_FALL_DAMAGE;
+    playerState.value = { ...playerState.value, x: 500, y: 5000, vy: 900, grounded: false };
+    frameCallback!(16);
+    expect(lifecycleState.value.phase).toBe('dying');
+
+    let t = 16;
+    for (let i = 0; i < 250; i++) {
+      t += 16;
+      frameCallback!(t);
+    }
+    expect(lifecycleState.value.phase).toBe('awaitingRestart');
+
+    fireEvent.keyDown(window, { code: 'Enter' });
+    expect(collectedFacts.value).toBe(factsBeforeDeath);
+
+    lifecycleState.value = { ...lifecycleState.value, phase: 'playing' };
+    fireEvent.keyDown(window, { code: 'KeyJ' });
+
+    expect(screen.queryByTestId('journal-empty-state')).not.toBeInTheDocument();
+    expect(screen.getAllByTestId('journal-fact-item')).toHaveLength(factsBeforeDeath.length);
+  });
+
+  it('spacePressedWhileJournalOpen-afterResume-doesNotTriggerJumpOnResumingTick', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+    frameCallback!(16); // lands the spawned player on the ground first
+    expect(playerState.value.grounded).toBe(true);
+
+    lifecycleState.value = { ...lifecycleState.value, phase: 'playing' };
+    fireEvent.keyDown(window, { code: 'KeyJ' }); // opens the journal, pauses the loop
+    expect(lifecycleState.value.phase).toBe('paused');
+
+    // A press that lands while the journal is open — this must not survive
+    // to the tick after the journal closes.
+    fireEvent.keyDown(window, { code: 'Space' });
+    frameCallback!(32); // a paused tick, exercising the drain
+
+    fireEvent.keyDown(window, { code: 'KeyJ' }); // closes the journal, resumes the loop
+    expect(lifecycleState.value.phase).toBe('playing');
+
+    frameCallback!(48); // the resuming tick
+
+    expect(playerState.value.grounded).toBe(true);
+    expect(playerState.value.vy).toBe(0);
+    expect(playerState.value.animState).not.toBe('jump');
+  });
+
+  it('keyPressedWhilePlaying-doesNotTriggerRestart', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+    frameCallback!(16);
+    expect(lifecycleState.value.phase).not.toBe('awaitingRestart');
+
+    fireEvent.keyDown(window, { code: 'Enter' });
+
+    expect(healthState.value).toBe(MAX_HALF_HEARTS); // unchanged, no restart happened
+  });
+
+  it('debugQueryParamAbsent-render-doesNotShowKillOrRespawnButtons', () => {
+    render(<PlatformerPage />);
+
+    expect(screen.queryByRole('button', { name: 'Kill' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Respawn' })).not.toBeInTheDocument();
+  });
+
+  it('debugQueryParamPresent-render-showsKillAndRespawnButtons', () => {
+    Object.defineProperty(window, 'location', {
+      value: new URL('http://localhost/?debug=hitboxes'),
+      writable: true,
+      configurable: true,
+    });
+
+    render(<PlatformerPage />);
+
+    expect(screen.getByRole('button', { name: 'Kill' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Respawn' })).toBeInTheDocument();
+  });
+
+  it('killButtonClicked-whilePlaying-setsHealthZeroAndEntersDyingPhase', () => {
+    Object.defineProperty(window, 'location', {
+      value: new URL('http://localhost/?debug=hitboxes'),
+      writable: true,
+      configurable: true,
+    });
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+    frameCallback!(16);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Kill' }));
+
+    expect(healthState.value).toBe(0);
+    expect(lifecycleState.value.phase).toBe('dying');
+    expect(lifecycleState.value.centerX).toBe(playerState.value.x + PLAYER_RENDERED_SIZE / 2);
+    expect(lifecycleState.value.centerY).toBe(playerState.value.y + PLAYER_VISUAL_CENTER_Y_OFFSET);
+  });
+
+  it('respawnButtonClicked-anyPhase-resetsHealthPositionAndEntersIntroAtSpawn', () => {
+    Object.defineProperty(window, 'location', {
+      value: new URL('http://localhost/?debug=hitboxes'),
+      writable: true,
+      configurable: true,
+    });
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+    frameCallback!(16);
+    playerState.value = { ...playerState.value, x: 999, y: 999 };
+    healthState.value = 0;
+
+    fireEvent.click(screen.getByRole('button', { name: 'Respawn' }));
+
+    expect(healthState.value).toBe(MAX_HALF_HEARTS);
+    expect(lifecycleState.value.phase).toBe('intro');
+    expect(playerState.value.x).toBe(initialPlayerState.x);
+    expect(playerState.value.y).toBe(initialPlayerState.y);
+    expect(cameraPositionX.value).toBe(0);
+  });
+
+  it('debugQueryParamPresent-render-showsHitboxesToggleButton', () => {
+    Object.defineProperty(window, 'location', {
+      value: new URL('http://localhost/?debug=hitboxes'),
+      writable: true,
+      configurable: true,
+    });
+
+    render(<PlatformerPage />);
+
+    expect(screen.getByRole('button', { name: /Hitboxes/ })).toBeInTheDocument();
+  });
+
+  it('hitboxesToggleClicked-startingOnFromQueryParam-turnsOffAndStopsDrawingOverlay', async () => {
+    Object.defineProperty(window, 'location', {
+      value: new URL('http://localhost/?debug=hitboxes'),
+      writable: true,
+      configurable: true,
+    });
+    vi.stubGlobal('Image', MockTilesetImage);
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    const canvas = screen.getByTestId('platformer-canvas');
+    const ctx = canvas.getContext('2d') as unknown as { strokeRect: ReturnType<typeof vi.fn> };
+    await waitFor(() => expect(ctx.strokeRect).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByRole('button', { name: /Hitboxes/ }));
+    ctx.strokeRect.mockClear();
+    frameCallback!(16);
+
+    expect(ctx.strokeRect).not.toHaveBeenCalled();
+  });
+
+  it('hitboxesToggleClicked-startingOffWithOtherDebugParam-turnsOnAndDrawsOverlay', () => {
+    Object.defineProperty(window, 'location', {
+      value: new URL('http://localhost/?debug=1'),
+      writable: true,
+      configurable: true,
+    });
+    vi.stubGlobal('Image', MockTilesetImage);
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    const canvas = screen.getByTestId('platformer-canvas');
+    const ctx = canvas.getContext('2d') as unknown as { strokeRect: ReturnType<typeof vi.fn> };
+    frameCallback!(0);
+    expect(ctx.strokeRect).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: /Hitboxes/ }));
+    frameCallback!(16);
+
+    expect(ctx.strokeRect).toHaveBeenCalled();
   });
 });

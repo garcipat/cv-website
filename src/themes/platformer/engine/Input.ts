@@ -27,6 +27,13 @@ export interface KeyboardInput {
    * press rather than continuously (e.g. jump).
    */
   consumePress(code: string): boolean;
+  /**
+   * Discards all pending edge-triggered presses without touching which keys
+   * are currently held. Used to drop input that accumulates while the game
+   * loop isn't calling `consumePress` (e.g. while paused for the journal) so
+   * it can't leak through and fire on the very next tick after resuming.
+   */
+  clearPending(): void;
   /** Removes the window listeners and clears all held-key/pending-press state. */
   destroy(): void;
 }
@@ -58,6 +65,9 @@ export function createKeyboardInput(): KeyboardInput {
       const wasPressed = justPressed.has(code);
       justPressed.delete(code);
       return wasPressed;
+    },
+    clearPending() {
+      justPressed.clear();
     },
     destroy() {
       window.removeEventListener('keydown', onKeyDown);

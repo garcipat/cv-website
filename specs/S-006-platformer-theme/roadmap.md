@@ -66,7 +66,7 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   landing/collision logic itself.
   *Verify: fall into a pit, see a half-heart lost and the character reappear at the
   ledge it fell from.*
-- [ ] **10. Respawn** — at 0 health, the character respawns at the nearest spawn
+- [x] **10. Respawn** — at 0 health, the character respawns at the nearest spawn
   point with full health (3/3 hearts) restored, all collected facts preserved.
   *Verify: deplete all hearts via repeated pit falls, see the character respawn at a
   checkpoint with hearts refilled.*
@@ -91,9 +91,16 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   distinct collectible types instead of one.
   *Verify: coin count in the level matches the number of Skills + Languages
   items; collect one, see the fact text animate off and the counter update.*
-- [ ] **13. Journal skeleton** — `J` toggles a fullscreen overlay, pauses the game,
-  shows collected facts unstyled.
-  *Verify: open/close the journal, see the collected fact listed.*
+- [x] **13. Journal skeleton** — `J` (or a bottom-right journal icon button, per
+  FR-025 — a placeholder icon/emoji if no pixel-art asset exists yet) toggles a
+  centered card overlay (not a full-screen dark backdrop — see FR-014's
+  amendment; the rest of the game stays visible around it), pauses the game,
+  shows collected facts unstyled. Collected facts are preserved across a
+  death/respawn (unaffected by this step — see FR-020c for the forward-looking
+  note on enemies/blocks respawning while coins/facts don't, once those
+  exist).
+  *Verify: open/close the journal via both the `J` key and the icon button, see
+  the collected fact listed.*
 - [ ] **14. Journal styling** — notebook paper, `Caveat` handwriting font, Simple
   List entry style per the mockup.
   *Verify: visually matches `entry-styles-mockup.html`.*

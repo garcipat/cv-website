@@ -169,6 +169,7 @@ As with all CV themes, floating translucent controls in the top-left corner prov
 - **Journal open during game events**: If the journal is open and the character would have been hit by an enemy (had the game not been paused), nothing happens — the game is fully paused.
 - **Collectible counts at boundaries**: In Iteration 1 (coins only), only Skills and Languages appear as collectibles and in the journal. Experience, Education, Courses, Certificates, and Projects sections show the placeholder message until Iteration 2 when blocks and enemies are added. This is expected — each iteration incrementally unlocks CV sections.
 - **Game state across page reload**: Game state (collected coins, defeated enemies, destroyed blocks) is NOT persisted across page reloads. Each visit is a fresh session.
+- **Game state across death/respawn** (added 2026-08-27, see FR-020c): `collectedFacts` is preserved across a death/respawn — previously discovered CV content is never lost to a death. Enemies and destroyable blocks reset to their initial state on respawn (so the level plays the same each attempt) but grant no duplicate fact/fruit if re-collected; already-collected coins stay gone permanently rather than reappearing. Only the deliberate "Reset Game" button (FR-018b) clears `collectedFacts` and respawns coins too.
 - **Game state across theme switches**: Switching to another theme and back resets the game to its initial state (fresh session, no collected facts). State is NOT persisted across theme switches.
 - **Touch/mobile input**: The game is designed for keyboard input. On mobile devices, an on-screen D-pad and action buttons are displayed. This is a P3 enhancement.
 
@@ -238,7 +239,7 @@ The level is hand-crafted — starting with a simple layout to validate function
 
 #### Journal
 
-- **FR-014**: System MUST render the journal as a fullscreen overlay when activated (default key: `J`). The journal pauses the game. Pressing `J` again or clicking a close button dismisses the journal and resumes the game.
+- **FR-014**: System MUST render the journal as a centered, bounded card/panel when activated (default key: `J`) — **not** a full-screen dark backdrop; the rest of the game (canvas, HUD) stays fully visible around it, since the journal card itself (per FR-015's notebook styling) is the visual takeover, not an added scrim. The journal pauses the game. Pressing `J` again or clicking a close button dismisses the journal and resumes the game. (Amended 2026-08-27: originally specified as a full-screen dark overlay; changed after seeing the initial unstyled implementation — a full-bleed dark backdrop wasn't the intended look.)
 
 - **FR-015**: System MUST render the journal with:
   - **Notebook paper**: White/off-white page with blue horizontal ruled lines and a red margin line, on top of a slightly larger page underneath for depth
@@ -273,6 +274,8 @@ The level is hand-crafted — starting with a simple layout to validate function
   - **Falling into a pit** costs half a heart, one half-heart unit (`takeDamage(1)`), and repositions the character to the last solid ground position before the fall — not a checkpoint reset.
   - **Side/below enemy collision** costs a full heart, two half-heart units (`takeDamage(2)`), with brief invincibility frames after taking damage.
   - At 0 hearts (from either source), the character respawns at the last checkpoint with full health (6/6 half-heart units restored), and all collected facts are preserved.
+
+- **FR-020c**: System MUST reset enemies and destroyable blocks back to their initial patrol/intact state whenever the character respawns (the FR-020b death→respawn flow), so the level's layout and platforming challenge stay consistent across attempts — added 2026-08-27 alongside step 13's plan, ahead of steps 16/19 actually implementing enemies/blocks. **Coins are the exception**: an already-collected coin's visual representation stays removed for the rest of the session — it does not reappear on respawn. Because `collectedFacts` is preserved (FR-020b) while enemies/blocks respawn, re-triggering an already-collected source after a respawn (stomping a respawned enemy that was already defeated, or hitting a respawned block that was already broken) MUST NOT grant a duplicate CV fact or drop bonus fruit again — `CollectedFact` state is deduplicated by the source collectible's `id` (see `CollectibleDef.id`, FR-032), so a respawned enemy/block simply yields nothing on a repeat encounter. This is distinct from FR-018b's "Reset Game" button, which is a deliberate full reset that also clears `collectedFacts` and respawns coins too.
 
 #### Destroyable Blocks (P2)
 
