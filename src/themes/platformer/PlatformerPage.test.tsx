@@ -8,10 +8,11 @@ import {
   healthState,
   lifecycleState,
   collectedFacts,
+  collectiblePlacements,
+  collectedCollectibleIds,
+  activeEffects,
 } from './PlatformerState';
 import { MAX_HALF_HEARTS, PIT_FALL_DAMAGE, HEART_RENDERED_SIZE } from './entities/Health';
-import { level1Coins } from './level/level1Coins';
-import { COIN_RENDERED_SIZE } from './entities/Coin';
 
 class MockTilesetImage {
   onload: (() => void) | null = null;
@@ -45,6 +46,14 @@ describe('PlatformerPage', () => {
     healthState.value = MAX_HALF_HEARTS;
     lifecycleState.value = initialLifecycleState;
     collectedFacts.value = initialCollectedFacts;
+    collectedCollectibleIds.value = new Set();
+    // Not one of the two signals the brief called out explicitly, but a
+    // module-level signal like the others — without a reset, a flight effect
+    // started by one test (e.g. a collection) lingers into the next test's
+    // render() since it's independent of collectedFacts/collectedCollectibleIds
+    // and only clears itself via tickFlightEffect, which no render-only test
+    // ever calls.
+    activeEffects.value = [];
   });
 
   afterEach(() => {
@@ -519,45 +528,82 @@ describe('PlatformerPage', () => {
     expect(anyShiftedCall).toBe(true);
   });
 
-  it('render-default-showsCoinCounterPlaceholder', () => {
-    render(<PlatformerPage />);
-    const canvas = screen.getByTestId('platformer-canvas');
-    const ctx = canvas.getContext('2d') as unknown as { fillText: ReturnType<typeof vi.fn> };
-
-    expect(ctx.fillText).toHaveBeenCalledWith(
-      `0 / ${level1Coins.length}`,
-      expect.any(Number),
-      expect.any(Number),
-    );
-  });
-
-  it('render-afterCoinSpriteLoads-drawsEveryTestCoinAtRenderedSize', async () => {
+  it('render-afterCollectibleSpritesLoad-showsBothCollectibleCountersAtZero', async () => {
+    // Unlike the brief's originally-specified synchronous version of this
+    // test, the coin/fruit counters (per Step 3's implementation) only draw
+    // once their respective sprite ref has loaded — drawCollectibleCounter
+    // needs a real HTMLImageElement for its icon, so it can't be called
+    // unconditionally the way the old drawCoinCounter placeholder was.
+    // jsdom's default (unstubbed) Image never fires onload/onerror at all
+    // (verified empirically), so this test — like every other
+    // sprite-dependent assertion in this file (e.g.
+    // render-afterHeartsSpriteLoads-drawsHeartHud) — stubs Image and awaits
+    // the resulting render() instead of asserting synchronously.
     vi.stubGlobal('Image', MockTilesetImage);
 
     render(<PlatformerPage />);
     const canvas = screen.getByTestId('platformer-canvas');
-    const ctx = canvas.getContext('2d') as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const ctx = canvas.getContext('2d') as unknown as { fillText: ReturnType<typeof vi.fn> };
+
+    const coinTotal = collectiblePlacements.filter((p) => p.spriteType === 'coin').length;
+    const fruitTotal = collectiblePlacements.filter((p) => p.spriteType === 'fruit').length;
 
     await waitFor(() =>
-      expect(
-        ctx.drawImage.mock.calls.some(
-          (call: unknown[]) => (call[0] as MockTilesetImage).src === '/sprites/coin.png',
-        ),
-      ).toBe(true),
+      expect(ctx.fillText).toHaveBeenCalledWith(`0 / ${coinTotal}`, expect.any(Number), expect.any(Number)),
     );
+    expect(ctx.fillText).toHaveBeenCalledWith(`0 / ${fruitTotal}`, expect.any(Number), expect.any(Number));
+  });
 
-    const coinCalls = ctx.drawImage.mock.calls.filter(
-      (call: unknown[]) => (call[0] as MockTilesetImage).src === '/sprites/coin.png',
-    );
-    // Every render() pass draws exactly level1Coins.length coin calls, but
-    // how many passes have fired by the time waitFor's condition is met
-    // depends on how many other async sprite/font loads have also resolved
-    // (each triggers its own render()) — not just the coin sprite's. Assert
-    // a whole number of complete passes rather than one fixed pass count, so
-    // this doesn't break every time another asset load is added elsewhere.
-    expect(coinCalls.length).toBeGreaterThan(0);
-    expect(coinCalls.length % level1Coins.length).toBe(0);
-    expect(coinCalls.every((call: unknown[]) => call[7] === COIN_RENDERED_SIZE)).toBe(true);
+  it('playerOverlapsACollectible-tick-marksItCollectedAndAddsFact', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const target = collectiblePlacements[0];
+    playerState.value = { ...playerState.value, x: target.x, y: target.y };
+
+    frameCallback!(16);
+
+    expect(collectedCollectibleIds.value.has(target.id)).toBe(true);
+    expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(true);
+  });
+
+  it('alreadyCollected-touchedAgainAfterRespawn-doesNotDuplicateFact', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+    const target = collectiblePlacements[0];
+    playerState.value = { ...playerState.value, x: target.x, y: target.y };
+    frameCallback!(16);
+    expect(collectedFacts.value).toHaveLength(1);
+
+    // Simulate a respawn (per FR-020c, collected state survives it) and
+    // touch the same spot again.
+    healthState.value = 0;
+    frameCallback!(32); // enters 'dying'
+    // Fast-forward through dying+awaitingRestart, then restart.
+    let t = 32;
+    for (let i = 0; i < 200; i++) {
+      t += 16;
+      frameCallback!(t);
+    }
+    fireEvent.keyDown(window, { code: 'Enter' });
+    playerState.value = { ...playerState.value, x: target.x, y: target.y };
+    frameCallback!(t + 16);
+
+    expect(collectedFacts.value).toHaveLength(1); // still just the one — no duplicate
   });
 
   it('healthReachesZero-gameLoopTicks-entersDyingPhaseCenteredOnPlayerAndPausesPhysics', () => {
@@ -818,7 +864,7 @@ describe('PlatformerPage', () => {
     expect(lifecycleState.value.phase).toBe('playing');
   });
 
-  it('deathThenRestart-journalOpened-stillShowsSeedFactsFromBeforeTheDeath', () => {
+  it('deathThenRestart-journalOpened-stillShowsFactsCollectedBeforeTheDeath', () => {
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frameCallback = cb;
@@ -828,6 +874,15 @@ describe('PlatformerPage', () => {
 
     render(<PlatformerPage />);
     frameCallback!(0);
+
+    // Collect a real fact (per FR-020c, collected state survives a death) so
+    // there's something in the journal to persist across the restart below —
+    // the old temporary seed data this test relied on is gone (step 12
+    // starts collectedFacts empty; only real coin/fruit collection populates
+    // it now).
+    const target = collectiblePlacements[0];
+    playerState.value = { ...playerState.value, x: target.x, y: target.y };
+    frameCallback!(16);
     const factsBeforeDeath = collectedFacts.value;
     expect(factsBeforeDeath.length).toBeGreaterThan(0);
 
@@ -836,10 +891,10 @@ describe('PlatformerPage', () => {
     // fully play out.
     healthState.value = PIT_FALL_DAMAGE;
     playerState.value = { ...playerState.value, x: 500, y: 5000, vy: 900, grounded: false };
-    frameCallback!(16);
+    frameCallback!(32);
     expect(lifecycleState.value.phase).toBe('dying');
 
-    let t = 16;
+    let t = 32;
     for (let i = 0; i < 250; i++) {
       t += 16;
       frameCallback!(t);

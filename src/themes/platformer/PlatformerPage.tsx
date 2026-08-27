@@ -6,8 +6,9 @@ import {
   drawTerrain,
   drawPlayer,
   drawHearts,
-  drawCoins,
-  drawCoinCounter,
+  drawCollectibles,
+  drawCollectionEffects,
+  drawCollectibleCounter,
   drawIrisOverlay,
   drawRestartPrompt,
   RESTART_PROMPT_FONT_FAMILY,
@@ -28,7 +29,11 @@ import {
 } from './engine/GameLifecycle';
 import { maxIrisRadius } from './engine/IrisTransition';
 import { level1 } from './level/level1';
-import { level1Coins } from './level/level1Coins';
+import { checkCollectibleCollisions } from './engine/Collision';
+import { startFlightEffect, tickFlightEffect } from './engine/CollectionEffects';
+import { coinFrameSource, COIN_FRAME_SIZE } from './entities/Coin';
+import { fruitFrameSource, FRUIT_FRAME_SIZE } from './entities/Fruit';
+import { isSkillCategoryFact } from './types';
 import { RENDERED_TILE_SIZE } from './level/Terrain';
 import {
   advancePlayerAnimation,
@@ -37,8 +42,27 @@ import {
   PLAYER_VISUAL_CENTER_Y_OFFSET,
 } from './entities/Player';
 import { takeDamage, PIT_FALL_DAMAGE } from './entities/Health';
-import { playerState, cameraPositionX, healthState, lifecycleState, spawnCenter, resetGame } from './PlatformerState';
+import {
+  playerState,
+  cameraPositionX,
+  healthState,
+  lifecycleState,
+  spawnCenter,
+  resetGame,
+  collectiblePlacements,
+  collectedCollectibleIds,
+  activeEffects,
+  collectedFacts,
+} from './PlatformerState';
 import { Journal } from './components/Journal';
+
+// Horizontal HUD layout: hearts occupy roughly the first 130px from the left
+// margin (3 hearts x 32px + spacing, per drawHearts's own HUD_MARGIN/
+// HEART_SPACING in Renderer.ts) — these two constants position the coin and
+// fruit counters after that, side by side, without duplicating Renderer.ts's
+// private layout constants here.
+const MAX_HEARTS_COUNTER_WIDTH = 130;
+const COLLECTIBLE_COUNTER_SPACING = 90;
 
 export const PlatformerPage = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -47,6 +71,8 @@ export const PlatformerPage = () => {
   const playerJumpSpriteRef = useRef<HTMLImageElement | null>(null);
   const heartsSpriteRef = useRef<HTMLImageElement | null>(null);
   const coinSpriteRef = useRef<HTMLImageElement | null>(null);
+  const fruitSpriteRef = useRef<HTMLImageElement | null>(null);
+  const journalButtonRef = useRef<HTMLButtonElement>(null);
   const debugParams = new URLSearchParams(window.location.search);
   // Any `debug` param (not just `hitboxes`) shows the debug panel (Kill/
   // Respawn/Hitboxes toggle below) — a dev convenience for exercising the
@@ -158,9 +184,20 @@ export const PlatformerPage = () => {
         drawPlayer(ctx, playerState.value, playerSpriteRef.current, originX, originY, playerJumpSpriteRef.current);
       }
 
-      if (coinSpriteRef.current) {
-        drawCoins(ctx, level1Coins, coinSpriteRef.current, coinAnimElapsed, originX, originY);
+      if (coinSpriteRef.current && fruitSpriteRef.current) {
+        drawCollectibles(
+          ctx,
+          collectiblePlacements,
+          coinSpriteRef.current,
+          fruitSpriteRef.current,
+          collectedCollectibleIds.value,
+          coinAnimElapsed,
+          originX,
+          originY,
+        );
       }
+
+      drawCollectionEffects(ctx, activeEffects.value);
 
       if (debugHitboxesRef.current) drawDebugOverlay(ctx, playerState.value, level1, originX, originY);
 
@@ -168,7 +205,39 @@ export const PlatformerPage = () => {
         drawHearts(ctx, healthState.value, heartsSpriteRef.current);
       }
 
-      drawCoinCounter(ctx, 0, level1Coins.length);
+      const coinFrame0 = coinFrameSource(0);
+      const coinTotal = collectiblePlacements.filter((p) => p.spriteType === 'coin').length;
+      const coinCollected = collectiblePlacements.filter(
+        (p) => p.spriteType === 'coin' && collectedCollectibleIds.value.has(p.id),
+      ).length;
+      if (coinSpriteRef.current) {
+        drawCollectibleCounter(
+          ctx,
+          coinSpriteRef.current,
+          { sx: coinFrame0.sx, sy: coinFrame0.sy, size: COIN_FRAME_SIZE },
+          coinCollected,
+          coinTotal,
+          16 + MAX_HEARTS_COUNTER_WIDTH,
+          32,
+        );
+      }
+
+      const fruitFrame0 = fruitFrameSource(0);
+      const fruitTotal = collectiblePlacements.filter((p) => p.spriteType === 'fruit').length;
+      const fruitCollected = collectiblePlacements.filter(
+        (p) => p.spriteType === 'fruit' && collectedCollectibleIds.value.has(p.id),
+      ).length;
+      if (fruitSpriteRef.current) {
+        drawCollectibleCounter(
+          ctx,
+          fruitSpriteRef.current,
+          { sx: fruitFrame0.sx, sy: fruitFrame0.sy, size: FRUIT_FRAME_SIZE },
+          fruitCollected,
+          fruitTotal,
+          16 + MAX_HEARTS_COUNTER_WIDTH + COLLECTIBLE_COUNTER_SPACING,
+          32,
+        );
+      }
 
       // Iris overlay: drawn on top of everything else whenever the current
       // phase isn't 'playing'. centerX/centerY are stored world-space (see
@@ -249,6 +318,57 @@ export const PlatformerPage = () => {
       // death/restart/journal-pause, same as physics below, rather than
       // ticking on a wall-clock independent of the paused state.
       coinAnimElapsed += dt;
+
+      activeEffects.value = activeEffects.value
+        .map((effect) => tickFlightEffect(effect, dt))
+        .filter((effect) => effect.phase !== 'done');
+
+      // Same origin math as render()'s local originX/originY (that scope
+      // isn't reachable from here) — needed to convert a just-collected
+      // placement's world-space position into the screen-space coordinates
+      // FlightEffect requires (see CollectionEffects.ts's doc comment).
+      const levelPixelHeight = level1.height * RENDERED_TILE_SIZE;
+      const originY = canvas.height - levelPixelHeight;
+      const originX = -cameraPositionX.value;
+
+      const touchedIds = checkCollectibleCollisions(
+        playerState.value,
+        collectiblePlacements,
+        collectedCollectibleIds.value,
+      );
+      if (touchedIds.length > 0) {
+        const nextCollected = new Set(collectedCollectibleIds.value);
+        const newFacts = [...collectedFacts.value];
+        const newEffects = [...activeEffects.value];
+        const journalRect = journalButtonRef.current?.getBoundingClientRect();
+        const targetX = journalRect ? journalRect.left + journalRect.width / 2 : canvas.width - 32;
+        const targetY = journalRect ? journalRect.top + journalRect.height / 2 : canvas.height - 32;
+
+        for (const id of touchedIds) {
+          const placement = collectiblePlacements.find((p) => p.id === id);
+          if (!placement) continue;
+          nextCollected.add(id);
+          newFacts.push(placement.fact);
+
+          const label = isSkillCategoryFact(placement.fact.data)
+            ? placement.fact.data.category
+            : ('name' in placement.fact.data ? placement.fact.data.name : placement.fact.sectionLabel);
+          newEffects.push(
+            startFlightEffect(
+              id,
+              label,
+              placement.x + originX,
+              placement.y + originY,
+              targetX,
+              targetY,
+            ),
+          );
+        }
+
+        collectedCollectibleIds.value = nextCollected;
+        collectedFacts.value = newFacts;
+        activeEffects.value = newEffects;
+      }
 
       // A/D accepted as an alternate to Arrow Left/Right (FR-007 only
       // requires arrows; this is an additive convenience, not a replacement).
@@ -362,6 +482,16 @@ export const PlatformerPage = () => {
         // Coins simply won't render if the sprite fails to load; the rest of
         // the game still shows.
       });
+    loadImage('/sprites/fruit.png')
+      .then((img) => {
+        if (cancelled) return;
+        fruitSpriteRef.current = img;
+        render();
+      })
+      .catch(() => {
+        // Fruits simply won't render if the sprite fails to load; coins and
+        // the rest of the game still show.
+      });
     loadFont(RESTART_PROMPT_FONT_FAMILY, RESTART_PROMPT_FONT_URL)
       .then(() => {
         if (cancelled) return;
@@ -392,6 +522,7 @@ export const PlatformerPage = () => {
           (public/sprites/, public/icons.svg) — swap this emoji for a real
           sprite once one is added. FR-025: bottom-right, same action as `J`. */}
       <button
+        ref={journalButtonRef}
         type="button"
         onClick={handleJournalToggle}
         data-testid="journal-open-button"
