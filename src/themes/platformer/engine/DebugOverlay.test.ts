@@ -39,7 +39,7 @@ describe('drawDebugOverlay', () => {
     const ctx = makeMockContext();
     const level: LevelDef = { width: 1, height: 1, terrain: [['empty']] };
 
-    drawDebugOverlay(ctx, idlePlayer, level, 0);
+    drawDebugOverlay(ctx, idlePlayer, level, 0, 0);
 
     // Verify exactly one call matches the full hitbox dimensions.
     const hitboxCalls = (ctx.strokeRect as ReturnType<typeof vi.fn>).mock.calls.filter(
@@ -56,7 +56,7 @@ describe('drawDebugOverlay', () => {
     const ctx = makeMockContext();
     const level: LevelDef = { width: 1, height: 1, terrain: [['empty']] };
 
-    drawDebugOverlay(ctx, idlePlayer, level, 0);
+    drawDebugOverlay(ctx, idlePlayer, level, 0, 0);
 
     const expectedX = idlePlayer.x + PLAYER_SIDE_PADDING;
     const expectedWidth = PLAYER_RENDERED_SIZE - PLAYER_SIDE_PADDING * 2 - 1;
@@ -74,7 +74,7 @@ describe('drawDebugOverlay', () => {
     const ctx = makeMockContext();
     const level: LevelDef = { width: 1, height: 1, terrain: [['empty']] };
 
-    drawDebugOverlay(ctx, idlePlayer, level, 0);
+    drawDebugOverlay(ctx, idlePlayer, level, 0, 0);
 
     const headY = idlePlayer.y + PLAYER_HEAD_PADDING;
     const visibleLeft = idlePlayer.x + PLAYER_SIDE_PADDING;
@@ -88,7 +88,7 @@ describe('drawDebugOverlay', () => {
     const ctx = makeMockContext();
     const level: LevelDef = { width: 1, height: 1, terrain: [['empty']] };
 
-    drawDebugOverlay(ctx, idlePlayer, level, 0);
+    drawDebugOverlay(ctx, idlePlayer, level, 0, 0);
 
     const footY = idlePlayer.y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING;
     const visibleLeft = idlePlayer.x + PLAYER_SIDE_PADDING;
@@ -103,7 +103,7 @@ describe('drawDebugOverlay', () => {
     const level: LevelDef = { width: 1, height: 1, terrain: [['empty']] };
     const originY = 100;
 
-    drawDebugOverlay(ctx, idlePlayer, level, originY);
+    drawDebugOverlay(ctx, idlePlayer, level, 0, originY);
 
     const hitboxCalls = (ctx.strokeRect as ReturnType<typeof vi.fn>).mock.calls.filter(
       (call) =>
@@ -119,7 +119,7 @@ describe('drawDebugOverlay', () => {
     const ctx = makeMockContext();
     const level: LevelDef = { width: 2, height: 1, terrain: [['wall', 'empty']] };
 
-    drawDebugOverlay(ctx, idlePlayer, level, 0);
+    drawDebugOverlay(ctx, idlePlayer, level, 0, 0);
 
     const greenTileCalls = (ctx.strokeRect as ReturnType<typeof vi.fn>).mock.calls.filter(
       (call) => call[0] === 0 && call[1] === 0 && call[2] === RENDERED_TILE_SIZE && call[3] === RENDERED_TILE_SIZE,
@@ -141,12 +141,46 @@ describe('drawDebugOverlay', () => {
     const level: LevelDef = { width: 1, height: 1, terrain: [['wall']] };
     const originY = 50;
 
-    drawDebugOverlay(ctx, idlePlayer, level, originY);
+    drawDebugOverlay(ctx, idlePlayer, level, 0, originY);
 
     const greenTileCalls = (ctx.strokeRect as ReturnType<typeof vi.fn>).mock.calls.filter(
       (call) =>
         call[0] === 0 &&
         call[1] === originY &&
+        call[2] === RENDERED_TILE_SIZE &&
+        call[3] === RENDERED_TILE_SIZE,
+    );
+    expect(greenTileCalls).toHaveLength(1);
+  });
+
+  it('originX-offsetsPlayerRectsAndLinesHorizontally', () => {
+    const ctx = makeMockContext();
+    const level: LevelDef = { width: 1, height: 1, terrain: [['empty']] };
+    const originX = 40;
+
+    drawDebugOverlay(ctx, idlePlayer, level, originX, 0);
+
+    const hitboxCalls = (ctx.strokeRect as ReturnType<typeof vi.fn>).mock.calls.filter(
+      (call) =>
+        call[0] === idlePlayer.x + originX &&
+        call[1] === idlePlayer.y &&
+        call[2] === PLAYER_RENDERED_SIZE &&
+        call[3] === PLAYER_RENDERED_SIZE,
+    );
+    expect(hitboxCalls).toHaveLength(1);
+  });
+
+  it('solidTile-originX-offsetsTileRectHorizontally', () => {
+    const ctx = makeMockContext();
+    const level: LevelDef = { width: 1, height: 1, terrain: [['wall']] };
+    const originX = 24;
+
+    drawDebugOverlay(ctx, idlePlayer, level, originX, 0);
+
+    const greenTileCalls = (ctx.strokeRect as ReturnType<typeof vi.fn>).mock.calls.filter(
+      (call) =>
+        call[0] === originX &&
+        call[1] === 0 &&
         call[2] === RENDERED_TILE_SIZE &&
         call[3] === RENDERED_TILE_SIZE,
     );
