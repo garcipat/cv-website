@@ -10,6 +10,7 @@ import {
   drawRestartPrompt,
   RESTART_PROMPT_FONT_FAMILY,
   RESTART_PROMPT_FONT_URL,
+  HEARTS_START_X,
 } from './engine/Renderer';
 import { drawDebugOverlay } from './engine/DebugOverlay';
 import { createGameLoop } from './engine/GameLoop';
@@ -152,7 +153,7 @@ export const PlatformerPage = () => {
       if (debugHitboxesRef.current) drawDebugOverlay(ctx, playerState.value, level1, originX, originY);
 
       if (heartsSpriteRef.current) {
-        drawHearts(ctx, healthState.value, heartsSpriteRef.current);
+        drawHearts(ctx, healthState.value, heartsSpriteRef.current, HEARTS_START_X);
       }
 
       // Iris overlay: drawn on top of everything else whenever the current
@@ -358,17 +359,23 @@ export const PlatformerPage = () => {
       <canvas ref={canvasRef} data-testid="platformer-canvas" className="block" tabIndex={-1} />
       <FloatingControls />
       {journalOpen && <Journal onClose={handleJournalToggle} />}
-      {/* PLACEHOLDER icon: no journal/book pixel-art sprite exists yet
-          (public/sprites/, public/icons.svg) — swap this emoji for a real
-          sprite once one is added. FR-025: bottom-right, same action as `J`. */}
+      {/* Moved from bottom-right to top-left (was hard to spot against the
+          terrain) — sits left of the hearts HUD, which HEARTS_START_X
+          shifts right to make room. size-10 (40px) must match the 40 baked
+          into HEARTS_START_X's computation in Renderer.ts. */}
       <button
         type="button"
         onClick={handleJournalToggle}
-        data-testid="journal-open-button"
         aria-label="Toggle journal"
-        className="fixed right-4 bottom-4 z-50 rounded-full bg-gray-800/80 px-3 py-2 text-xl"
+        className="fixed top-4 left-4 z-50 size-10 overflow-hidden rounded"
       >
-        📖
+        <img
+          src="/sprites/journal.png"
+          alt=""
+          data-testid="journal-open-button"
+          className="h-full w-full object-contain"
+          style={{ imageRendering: 'pixelated' }}
+        />
       </button>
       {debugControls && (
         // Stacked below FloatingControls' top-right theme/locale selectors
