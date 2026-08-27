@@ -352,4 +352,36 @@ describe('PlatformerPage', () => {
 
     expect(playerState.value.vy).toBeGreaterThan(vyRightAfterJump);
   });
+
+  it('arrowDownHeld-whileRestingOnGroundLevelBridge-fallsThroughIt', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    // Place the character resting on level1's ground-level bridge (row 10,
+    // columns 2-3 — see level1.ts) directly, rather than navigating there by
+    // walking, since only the drop-through wiring is under test here (the
+    // underlying physics is covered by Physics.test.ts).
+    playerState.value = {
+      ...playerState.value,
+      x: 64,
+      y: 264,
+      vx: 0,
+      vy: 0,
+      grounded: true,
+      isDroppingThroughBridge: false,
+    };
+
+    fireEvent.keyDown(window, { code: 'ArrowDown' });
+    frameCallback!(16);
+
+    expect(playerState.value.grounded).toBe(false);
+    expect(playerState.value.isDroppingThroughBridge).toBe(true);
+  });
 });
