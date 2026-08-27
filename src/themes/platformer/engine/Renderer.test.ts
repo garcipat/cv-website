@@ -17,7 +17,7 @@ import type { LevelDef } from '../level/LevelData';
 import type { PlayerState } from '../entities/Player';
 import { PLAYER_RENDERED_SIZE } from '../entities/Player';
 import { MAX_HALF_HEARTS } from '../entities/Health';
-import { startFlightEffect, tickFlightEffect, HOVER_DURATION_SECONDS } from './CollectionEffects';
+import { startFlightEffect, tickFlightEffect, HOVER_DURATION_SECONDS, SPARKLE_DURATION_SECONDS } from './CollectionEffects';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
 
 function makeMockContext() {
@@ -98,6 +98,27 @@ describe('drawCollectionEffects', () => {
     const ctx = makeMockContext() as unknown as { fillText: ReturnType<typeof vi.fn> };
     drawCollectionEffects(ctx as unknown as CanvasRenderingContext2D, []);
     expect(ctx.fillText).not.toHaveBeenCalled();
+  });
+
+  it('freshEffect-drawsSixSparkleCircles', () => {
+    const ctx = makeMockContext() as unknown as { arc: ReturnType<typeof vi.fn> };
+    const effect = startFlightEffect('a', 'German', 50, 60, 900, 900);
+
+    drawCollectionEffects(ctx as unknown as CanvasRenderingContext2D, [effect]);
+
+    expect(ctx.arc).toHaveBeenCalledTimes(6);
+  });
+
+  it('sparkleExpired-doesNotDrawSparkleCircles', () => {
+    const ctx = makeMockContext() as unknown as { arc: ReturnType<typeof vi.fn> };
+    const effect = tickFlightEffect(
+      startFlightEffect('a', 'German', 50, 60, 900, 900),
+      SPARKLE_DURATION_SECONDS + 0.01,
+    );
+
+    drawCollectionEffects(ctx as unknown as CanvasRenderingContext2D, [effect]);
+
+    expect(ctx.arc).not.toHaveBeenCalled();
   });
 });
 
