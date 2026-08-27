@@ -30,6 +30,7 @@ node_modules/.tmp/
 .DS_Store
 Thumbs.db
 .superpowers
+.worktrees
 *.suo
 *.ntvs*
 *.njsproj
