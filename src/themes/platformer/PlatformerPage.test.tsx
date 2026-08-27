@@ -2,7 +2,13 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi } from 'vitest';
 import { PlatformerPage } from './PlatformerPage';
 import { PLAYER_RENDERED_SIZE, PLAYER_VISUAL_CENTER_Y_OFFSET } from './entities/Player';
-import { playerState, cameraPositionX, healthState, lifecycleState } from './PlatformerState';
+import {
+  playerState,
+  cameraPositionX,
+  healthState,
+  lifecycleState,
+  collectedFacts,
+} from './PlatformerState';
 import { MAX_HALF_HEARTS, PIT_FALL_DAMAGE, HEART_RENDERED_SIZE } from './entities/Health';
 
 class MockTilesetImage {
@@ -25,6 +31,7 @@ class MockTilesetImage {
 // "starts idle" assumptions.
 const initialPlayerState = playerState.value;
 const initialLifecycleState = lifecycleState.value;
+const initialCollectedFacts = collectedFacts.value;
 const originalLocation = window.location;
 
 describe('PlatformerPage', () => {
@@ -35,6 +42,7 @@ describe('PlatformerPage', () => {
     cameraPositionX.value = 0;
     healthState.value = MAX_HALF_HEARTS;
     lifecycleState.value = initialLifecycleState;
+    collectedFacts.value = initialCollectedFacts;
   });
 
   afterEach(() => {
@@ -650,6 +658,142 @@ describe('PlatformerPage', () => {
 
     expect(lifecycleState.value.phase).toBe('intro');
     expect(healthState.value).toBe(MAX_HALF_HEARTS);
+  });
+
+  it('jKeyPressed-whilePlaying-opensJournalAndPausesLoop', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+    lifecycleState.value = { ...lifecycleState.value, phase: 'playing' };
+
+    fireEvent.keyDown(window, { code: 'KeyJ' });
+
+    expect(screen.getByTestId('platformer-journal')).toBeInTheDocument();
+    expect(lifecycleState.value.phase).toBe('paused');
+
+    const xBeforeTick = playerState.value.x;
+    fireEvent.keyDown(window, { code: 'ArrowRight' });
+    frameCallback!(16);
+    expect(playerState.value.x).toBe(xBeforeTick);
+  });
+
+  it('jKeyPressed-whileJournalOpen-closesJournalAndResumesLoop', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+    lifecycleState.value = { ...lifecycleState.value, phase: 'playing' };
+    fireEvent.keyDown(window, { code: 'KeyJ' });
+    expect(lifecycleState.value.phase).toBe('paused');
+
+    fireEvent.keyDown(window, { code: 'KeyJ' });
+
+    expect(screen.queryByTestId('platformer-journal')).not.toBeInTheDocument();
+    expect(lifecycleState.value.phase).toBe('playing');
+  });
+
+  it('journalCloseButtonClicked-whileOpen-closesJournal', () => {
+    vi.stubGlobal('requestAnimationFrame', () => 1);
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    lifecycleState.value = { ...lifecycleState.value, phase: 'playing' };
+    fireEvent.keyDown(window, { code: 'KeyJ' });
+
+    fireEvent.click(screen.getByTestId('journal-close-button'));
+
+    expect(screen.queryByTestId('platformer-journal')).not.toBeInTheDocument();
+    expect(lifecycleState.value.phase).toBe('playing');
+  });
+
+  it('jKeyPressed-whileDying-isIgnored', () => {
+    vi.stubGlobal('requestAnimationFrame', () => 1);
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    lifecycleState.value = { ...lifecycleState.value, phase: 'dying' };
+
+    fireEvent.keyDown(window, { code: 'KeyJ' });
+
+    expect(screen.queryByTestId('platformer-journal')).not.toBeInTheDocument();
+    expect(lifecycleState.value.phase).toBe('dying');
+  });
+
+  it('journalOpenButtonClicked-whilePlaying-opensJournalAndPausesLoop', () => {
+    vi.stubGlobal('requestAnimationFrame', () => 1);
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    lifecycleState.value = { ...lifecycleState.value, phase: 'playing' };
+
+    fireEvent.click(screen.getByTestId('journal-open-button'));
+
+    expect(screen.getByTestId('platformer-journal')).toBeInTheDocument();
+    expect(lifecycleState.value.phase).toBe('paused');
+  });
+
+  it('journalOpenButtonClicked-whileJournalOpen-closesJournalAndResumesLoop', () => {
+    vi.stubGlobal('requestAnimationFrame', () => 1);
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    lifecycleState.value = { ...lifecycleState.value, phase: 'playing' };
+    fireEvent.click(screen.getByTestId('journal-open-button'));
+    expect(lifecycleState.value.phase).toBe('paused');
+
+    fireEvent.click(screen.getByTestId('journal-open-button'));
+
+    expect(screen.queryByTestId('platformer-journal')).not.toBeInTheDocument();
+    expect(lifecycleState.value.phase).toBe('playing');
+  });
+
+  it('deathThenRestart-journalOpened-stillShowsSeedFactsFromBeforeTheDeath', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+    const factsBeforeDeath = collectedFacts.value;
+    expect(factsBeforeDeath.length).toBeGreaterThan(0);
+
+    // Force a fatal pit fall (same setup as the existing
+    // healthReachesZero-... test above), then let the death/restart timeline
+    // fully play out.
+    healthState.value = PIT_FALL_DAMAGE;
+    playerState.value = { ...playerState.value, x: 500, y: 5000, vy: 900, grounded: false };
+    frameCallback!(16);
+    expect(lifecycleState.value.phase).toBe('dying');
+
+    let t = 16;
+    for (let i = 0; i < 250; i++) {
+      t += 16;
+      frameCallback!(t);
+    }
+    expect(lifecycleState.value.phase).toBe('awaitingRestart');
+
+    fireEvent.keyDown(window, { code: 'Enter' });
+    expect(collectedFacts.value).toBe(factsBeforeDeath);
+
+    lifecycleState.value = { ...lifecycleState.value, phase: 'playing' };
+    fireEvent.keyDown(window, { code: 'KeyJ' });
+
+    expect(screen.queryByTestId('journal-empty-state')).not.toBeInTheDocument();
+    expect(screen.getAllByTestId('journal-fact-item')).toHaveLength(factsBeforeDeath.length);
   });
 
   it('keyPressedWhilePlaying-doesNotTriggerRestart', () => {
