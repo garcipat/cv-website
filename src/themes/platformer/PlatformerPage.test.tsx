@@ -126,9 +126,20 @@ describe('PlatformerPage', () => {
     const canvas = screen.getByTestId('platformer-canvas');
     const ctx = canvas.getContext('2d') as unknown as { drawImage: ReturnType<typeof vi.fn> };
 
+    // dx===16 (call[5]) alone isn't enough to distinguish this from the
+    // player's draw call: at this test's default spawn position (SPAWN_TILE
+    // col 1, camera at 0, facing right) the player's dest-x also happens to
+    // be 16 (see PlatformerState.ts's initialPlayerState math), coinciding
+    // with the heart HUD's fixed HUD_MARGIN dx. dy===16 (call[6]) is what
+    // actually discriminates: drawHearts always draws at dy=HUD_MARGIN=16
+    // (Renderer.ts), while the player's dy is its scrolled world y-position
+    // (648 by default here), never 16.
     await waitFor(() =>
       expect(
-        ctx.drawImage.mock.calls.some((call: unknown[]) => call[7] === HEART_RENDERED_SIZE),
+        ctx.drawImage.mock.calls.some(
+          (call: unknown[]) =>
+            call[7] === HEART_RENDERED_SIZE && call[5] === 16 && call[6] === 16,
+        ),
       ).toBe(true),
     );
   });
