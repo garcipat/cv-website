@@ -22,6 +22,7 @@ function basePlayer(overrides: Partial<PlayerState> = {}): PlayerState {
     animState: 'idle',
     animFrame: 0,
     animTimer: 0,
+    isDroppingThroughBridge: false,
     ...overrides,
   };
 }
@@ -50,6 +51,12 @@ const BRIDGE_GROUND_LEVEL = parseLevel(['..', '..', '..', 'BB']);
 // but the solid tile is `bridge` — bridge must still block horizontal
 // movement like any other wall.
 const BRIDGE_SIDE_WALL_LEVEL = parseLevel(['....B.', '....B.']);
+
+// Bridge at row 0, two empty rows of clearance, solid ground at the bottom
+// row — used to test the Down-to-drop-through trigger: without Down held the
+// character rests on the bridge; with it held, gravity carries them through
+// to land on the floor below.
+const BRIDGE_DROP_LEVEL = parseLevel(['BB', '..', '..', 'GG']);
 
 // One empty tile, then a 3-tile-wide solid strip (cols 1-3), then empty —
 // proportioned like level1's real 3-tile floating platform, with room to
@@ -404,5 +411,60 @@ describe('stepPlayerPhysics one-way bridge platforms', () => {
     });
 
     expect(next.x).toBe(restX);
+  });
+});
+
+describe('stepPlayerPhysics bridge drop-through', () => {
+  it('downNotHeld-whileStandingOnBridge-remainsRestingOnIt', () => {
+    const restY = 0 - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING; // resting on row-0 bridge
+    const player = basePlayer({ y: restY, vy: 0, grounded: true });
+
+    const next = stepPlayerPhysics(player, BRIDGE_DROP_LEVEL, 1 / 60);
+
+    expect(next.grounded).toBe(true);
+    expect(next.y).toBe(restY);
+    expect(next.isDroppingThroughBridge).toBe(false);
+  });
+
+  it('downHeld-whileStandingOnBridge-startsFallingThroughIt', () => {
+    const restY = 0 - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
+    const player = basePlayer({ y: restY, vy: 0, grounded: true });
+
+    const next = stepPlayerPhysics(player, BRIDGE_DROP_LEVEL, 1 / 60, { dropThroughHeld: true });
+
+    expect(next.grounded).toBe(false);
+    expect(next.isDroppingThroughBridge).toBe(true);
+    expect(next.y).toBeGreaterThan(restY);
+  });
+
+  it('downHeld-whileGroundedOnRegularGround-hasNoEffect', () => {
+    const restY = 3 * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
+    const player = basePlayer({ y: restY, vy: 0, grounded: true });
+
+    const next = stepPlayerPhysics(player, GROUND_LEVEL, 1 / 60, { dropThroughHeld: true });
+
+    expect(next.grounded).toBe(true);
+    expect(next.y).toBe(restY);
+    expect(next.isDroppingThroughBridge).toBe(false);
+  });
+
+  it('droppingThroughBridge-onceTriggered-eventuallyLandsOnFloorBelowAndClearsFlag', () => {
+    const restY = 0 - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
+    let player = basePlayer({ y: restY, vy: 0, grounded: true });
+
+    player = stepPlayerPhysics(player, BRIDGE_DROP_LEVEL, 1 / 60, { dropThroughHeld: true });
+    expect(player.grounded).toBe(false);
+
+    // Keep ticking with Down no longer held — the flag persists on its own
+    // once triggered (a single frame's fall rarely clears a whole tile), so
+    // the character isn't caught by the bridge again on the very next frame.
+    for (let i = 0; i < 60 && !player.grounded; i++) {
+      player = stepPlayerPhysics(player, BRIDGE_DROP_LEVEL, 1 / 60);
+    }
+
+    const floorSurfaceY = 3 * RENDERED_TILE_SIZE;
+    expect(player.grounded).toBe(true);
+    expect(player.y).toBe(floorSurfaceY - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING);
+    expect(player.isDroppingThroughBridge).toBe(false);
   });
 });
