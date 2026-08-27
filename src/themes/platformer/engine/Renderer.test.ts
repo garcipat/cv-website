@@ -1,7 +1,8 @@
-import { drawTerrain, drawPlayer } from './Renderer';
+import { drawTerrain, drawPlayer, drawHearts } from './Renderer';
 import type { LevelDef } from '../level/LevelData';
 import type { PlayerState } from '../entities/Player';
 import { PLAYER_RENDERED_SIZE } from '../entities/Player';
+import { MAX_HALF_HEARTS } from '../entities/Health';
 
 function makeMockContext() {
   return {
@@ -363,5 +364,47 @@ describe('drawPlayer', () => {
     drawPlayer(ctx, player, fakeSpriteSheet, 0, 0, jumpSheet);
 
     expect(ctx.drawImage).toHaveBeenCalledWith(jumpSheet, 0, 0, 128, 128, 0, 0, 64, 64);
+  });
+});
+
+describe('drawHearts', () => {
+  const fakeHeartsSheet = {} as HTMLImageElement;
+
+  it('fullHealth-drawsThreeFullHeartFrames', () => {
+    const ctx = makeMockContext();
+
+    drawHearts(ctx, MAX_HALF_HEARTS, fakeHeartsSheet);
+
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(1, fakeHeartsSheet, 0, 0, 32, 32, 16, 16, 64, 64);
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(2, fakeHeartsSheet, 0, 0, 32, 32, 84, 16, 64, 64);
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(3, fakeHeartsSheet, 0, 0, 32, 32, 152, 16, 64, 64);
+  });
+
+  it('threeHalfHearts-drawsOneFullOneHalfOneEmpty', () => {
+    const ctx = makeMockContext();
+
+    drawHearts(ctx, 3, fakeHeartsSheet);
+
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(1, fakeHeartsSheet, 0, 0, 32, 32, 16, 16, 64, 64);
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(2, fakeHeartsSheet, 32, 0, 32, 32, 84, 16, 64, 64);
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(3, fakeHeartsSheet, 64, 0, 32, 32, 152, 16, 64, 64);
+  });
+
+  it('zeroHealth-drawsAllEmptyFrames', () => {
+    const ctx = makeMockContext();
+
+    drawHearts(ctx, 0, fakeHeartsSheet);
+
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(1, fakeHeartsSheet, 64, 0, 32, 32, 16, 16, 64, 64);
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(2, fakeHeartsSheet, 64, 0, 32, 32, 84, 16, 64, 64);
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(3, fakeHeartsSheet, 64, 0, 32, 32, 152, 16, 64, 64);
+  });
+
+  it('draws-setsImageSmoothingEnabledFalse', () => {
+    const ctx = makeMockContext();
+
+    drawHearts(ctx, MAX_HALF_HEARTS, fakeHeartsSheet);
+
+    expect(ctx.imageSmoothingEnabled).toBe(false);
   });
 });
