@@ -239,7 +239,7 @@ The level is hand-crafted — starting with a simple layout to validate function
 
 #### Journal
 
-- **FR-014**: System MUST render the journal as a fullscreen overlay when activated (default key: `J`). The journal pauses the game. Pressing `J` again or clicking a close button dismisses the journal and resumes the game.
+- **FR-014**: System MUST render the journal as a centered, bounded card/panel when activated (default key: `J`) — **not** a full-screen dark backdrop; the rest of the game (canvas, HUD) stays fully visible around it, since the journal card itself (per FR-015's notebook styling) is the visual takeover, not an added scrim. The journal pauses the game. Pressing `J` again or clicking a close button dismisses the journal and resumes the game. (Amended 2026-08-27: originally specified as a full-screen dark overlay; changed after seeing the initial unstyled implementation — a full-bleed dark backdrop wasn't the intended look.)
 
 - **FR-015**: System MUST render the journal with:
   - **Notebook paper**: White/off-white page with blue horizontal ruled lines and a red margin line, on top of a slightly larger page underneath for depth
