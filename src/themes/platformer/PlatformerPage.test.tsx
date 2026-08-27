@@ -2,7 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi } from 'vitest';
 import { PlatformerPage } from './PlatformerPage';
 import { PLAYER_RENDERED_SIZE } from './entities/Player';
-import { playerState } from './PlatformerState';
+import { playerState, cameraPositionX } from './PlatformerState';
 
 class MockTilesetImage {
   onload: (() => void) | null = null;
@@ -30,6 +30,7 @@ describe('PlatformerPage', () => {
     vi.stubGlobal('requestAnimationFrame', () => 1);
     vi.stubGlobal('cancelAnimationFrame', () => {});
     playerState.value = initialPlayerState;
+    cameraPositionX.value = 0;
   });
 
   afterEach(() => {
@@ -383,5 +384,52 @@ describe('PlatformerPage', () => {
 
     expect(playerState.value.grounded).toBe(false);
     expect(playerState.value.isDroppingThroughBridge).toBe(true);
+  });
+
+  it('playerWalksPastDeadZone-gameLoopTicks-cameraScrollsRight', () => {
+    Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 1024 });
+    Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 768 });
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    fireEvent.keyDown(window, { code: 'ArrowRight' });
+
+    // walkSpeed is 200px/s; the player starts near the level's left edge and
+    // needs to cross the dead zone (roughly the viewport's center ±96px)
+    // before the camera reacts — tick well past that at 16ms/frame.
+    let t = 0;
+    frameCallback!(t);
+    for (let i = 0; i < 200; i++) {
+      t += 16;
+      frameCallback!(t);
+    }
+
+    expect(cameraPositionX.value).toBeGreaterThan(0);
+  });
+
+  it('cameraPositionX-nonZero-shiftsTerrainDrawCallsHorizontally', async () => {
+    vi.stubGlobal('Image', MockTilesetImage);
+    cameraPositionX.value = 50;
+
+    render(<PlatformerPage />);
+    const canvas = screen.getByTestId('platformer-canvas');
+    const ctx = canvas.getContext('2d') as unknown as { drawImage: ReturnType<typeof vi.fn> };
+
+    await waitFor(() => expect(ctx.drawImage).toHaveBeenCalled());
+
+    // Every terrain/player draw call's dx (5th positional drawImage arg,
+    // index 5) should be shifted left by exactly the camera offset relative
+    // to what it'd be at cameraPositionX = 0 — cheapest check: originX is
+    // -cameraPositionX, so no draw call should use a dx that's uncorrected
+    // for a nonzero camera. Spot-check the first terrain tile (level1's
+    // top-left column is 'empty' until the platform/ground rows — assert on
+    // any call instead of a fixed index to stay robust to level1's layout).
+    const anyShiftedCall = ctx.drawImage.mock.calls.some((call: unknown[]) => call[5] === -50);
+    expect(anyShiftedCall).toBe(true);
   });
 });
