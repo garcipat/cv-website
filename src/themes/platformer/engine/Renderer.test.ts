@@ -4,6 +4,9 @@ import {
   drawHearts,
   drawCoins,
   drawCoinCounter,
+  drawCollectibles,
+  drawCollectionEffects,
+  drawCollectibleCounter,
   drawIrisOverlay,
   drawRestartPrompt,
   RESTART_PROMPT_FONT_FAMILY,
@@ -14,6 +17,8 @@ import type { LevelDef } from '../level/LevelData';
 import type { PlayerState } from '../entities/Player';
 import { PLAYER_RENDERED_SIZE } from '../entities/Player';
 import { MAX_HALF_HEARTS } from '../entities/Health';
+import { startFlightEffect, tickFlightEffect, HOVER_DURATION_SECONDS } from './CollectionEffects';
+import type { CollectiblePlacement } from '../level/CollectibleMapper';
 
 function makeMockContext() {
   return {
@@ -37,6 +42,81 @@ function makeMockContext() {
 }
 
 const fakeTileset = {} as HTMLImageElement;
+
+function makePlacement(id: string, spriteType: 'coin' | 'fruit', x: number, y: number): CollectiblePlacement {
+  return {
+    id,
+    spriteType,
+    fact: { id, sectionId: 'skills', sectionLabel: 'Skills', data: { category: 'X', skills: [] }, sourceType: 'coin' },
+    x,
+    y,
+  };
+}
+
+describe('drawCollectibles', () => {
+  it('coinAndFruit-drawEachFromItsOwnSprite', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const coinSprite = { tag: 'coin' } as unknown as HTMLImageElement;
+    const fruitSprite = { tag: 'fruit' } as unknown as HTMLImageElement;
+    const placements = [makePlacement('a', 'coin', 100, 100), makePlacement('b', 'fruit', 300, 300)];
+
+    drawCollectibles(ctx as unknown as CanvasRenderingContext2D, placements, coinSprite, fruitSprite, new Set(), 0);
+
+    const calls = ctx.drawImage.mock.calls;
+    expect(calls.some((c: unknown[]) => c[0] === coinSprite)).toBe(true);
+    expect(calls.some((c: unknown[]) => c[0] === fruitSprite)).toBe(true);
+  });
+
+  it('collectedId-isSkipped', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const placements = [makePlacement('a', 'coin', 100, 100)];
+
+    drawCollectibles(
+      ctx as unknown as CanvasRenderingContext2D,
+      placements,
+      {} as HTMLImageElement,
+      {} as HTMLImageElement,
+      new Set(['a']),
+      0,
+    );
+
+    expect(ctx.drawImage).not.toHaveBeenCalled();
+  });
+});
+
+describe('drawCollectionEffects', () => {
+  it('hoveringEffect-drawsTextAtStartPosition', () => {
+    const ctx = makeMockContext() as unknown as { fillText: ReturnType<typeof vi.fn> };
+    const effect = tickFlightEffect(startFlightEffect('a', 'German', 50, 60, 900, 900), HOVER_DURATION_SECONDS / 2);
+
+    drawCollectionEffects(ctx as unknown as CanvasRenderingContext2D, [effect]);
+
+    expect(ctx.fillText).toHaveBeenCalledWith('German', 50, expect.any(Number));
+  });
+
+  it('noEffects-doesNotCallFillText', () => {
+    const ctx = makeMockContext() as unknown as { fillText: ReturnType<typeof vi.fn> };
+    drawCollectionEffects(ctx as unknown as CanvasRenderingContext2D, []);
+    expect(ctx.fillText).not.toHaveBeenCalled();
+  });
+});
+
+describe('drawCollectibleCounter', () => {
+  it('called-drawsIconThenSpacedText', () => {
+    const ctx = makeMockContext() as unknown as {
+      drawImage: ReturnType<typeof vi.fn>;
+      fillText: ReturnType<typeof vi.fn>;
+      font: string;
+    };
+    const icon = {} as HTMLImageElement;
+
+    drawCollectibleCounter(ctx as unknown as CanvasRenderingContext2D, icon, { sx: 0, sy: 0, size: 16 }, 3, 16, 200, 20);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(icon, 0, 0, 16, 16, expect.any(Number), expect.any(Number), expect.any(Number), expect.any(Number));
+    expect(ctx.fillText).toHaveBeenCalledWith('3 / 16', expect.any(Number), expect.any(Number));
+    expect(ctx.font).toBe(`16px "${RESTART_PROMPT_FONT_FAMILY}", monospace`);
+  });
+});
 
 describe('drawTerrain', () => {
   it('groundGrassTopExposed-draws-fromGrassTopSource', () => {

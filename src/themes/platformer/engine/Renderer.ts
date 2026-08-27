@@ -31,6 +31,10 @@ import {
   coinBobOffset,
 } from '../entities/Coin';
 import type { CoinPlacement } from '../entities/Coin';
+import { FRUIT_FRAME_SIZE, fruitFrameSource } from '../entities/Fruit';
+import type { CollectiblePlacement } from '../level/CollectibleMapper';
+import { flightEffectPosition } from './CollectionEffects';
+import type { FlightEffect } from './CollectionEffects';
 
 function tileSource(
   level: LevelDef,
@@ -261,6 +265,129 @@ export function drawRestartPrompt(
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(RESTART_PROMPT_TEXT, canvasWidth / 2, canvasHeight / 2);
+  ctx.restore();
+}
+
+/**
+ * Draws every not-yet-collected placement — coins spin (Coin.ts's
+ * coinFrameIndex/coinFrameSource) from `coinSprite`, fruits stay on one
+ * fixed icon frame (Fruit.ts's fruitFrameSource, keyed by a stable index
+ * derived from the placement's position in the array — good enough for
+ * visual variety without needing to store a chosen index per placement)
+ * from `fruitSprite`. Both bob (Coin.ts's coinBobOffset, shared — bobbing
+ * isn't coin-specific). Same originX/originY convention as
+ * drawTerrain/drawPlayer.
+ */
+export function drawCollectibles(
+  ctx: CanvasRenderingContext2D,
+  placements: CollectiblePlacement[],
+  coinSprite: HTMLImageElement,
+  fruitSprite: HTMLImageElement,
+  collectedIds: ReadonlySet<string>,
+  elapsedSeconds: number,
+  originX = 0,
+  originY = 0,
+): void {
+  ctx.imageSmoothingEnabled = false;
+
+  const coinFrame = coinFrameIndex(elapsedSeconds);
+  const coinSource = coinFrameSource(coinFrame);
+  const bob = coinBobOffset(elapsedSeconds);
+
+  let fruitIndex = 0;
+  for (const placement of placements) {
+    if (collectedIds.has(placement.id)) continue;
+
+    if (placement.spriteType === 'coin') {
+      ctx.drawImage(
+        coinSprite,
+        coinSource.sx,
+        coinSource.sy,
+        COIN_FRAME_SIZE,
+        COIN_FRAME_SIZE,
+        placement.x + originX,
+        placement.y + originY + bob,
+        COIN_RENDERED_SIZE,
+        COIN_RENDERED_SIZE,
+      );
+    } else {
+      const { sx, sy } = fruitFrameSource(fruitIndex);
+      fruitIndex += 1;
+      ctx.drawImage(
+        fruitSprite,
+        sx,
+        sy,
+        FRUIT_FRAME_SIZE,
+        FRUIT_FRAME_SIZE,
+        placement.x + originX,
+        placement.y + originY + bob,
+        COIN_RENDERED_SIZE,
+        COIN_RENDERED_SIZE,
+      );
+    }
+  }
+}
+
+const COLLECTION_EFFECT_FONT_SIZE = 14;
+
+/** Draws every active collection-effect's fact text at its current
+ *  hover/flight position and opacity (see CollectionEffects.ts). Positions
+ *  are already screen-space (no originX/originY here — unlike
+ *  drawCollectibles, this doesn't scroll with the camera; see
+ *  CollectionEffects.ts's FlightEffect doc comment). */
+export function drawCollectionEffects(ctx: CanvasRenderingContext2D, effects: FlightEffect[]): void {
+  for (const effect of effects) {
+    const { x, y, opacity } = flightEffectPosition(effect);
+    if (opacity <= 0) continue;
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    ctx.fillStyle = '#fff';
+    ctx.font = `${COLLECTION_EFFECT_FONT_SIZE}px "${RESTART_PROMPT_FONT_FAMILY}", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(effect.text, x, y);
+    ctx.restore();
+  }
+}
+
+const COUNTER_ICON_SIZE = 20;
+const COUNTER_TEXT_GAP = 6;
+
+/**
+ * Draws one "[icon] collected / max" counter at a caller-chosen fixed screen
+ * position — generalized from step 11's single hardcoded-position
+ * drawCoinCounter so PlatformerPage.tsx (Task 8) can place a coin counter
+ * and a fruit counter side by side, each with its own sprite icon so it's
+ * visually unambiguous which counter measures what.
+ */
+export function drawCollectibleCounter(
+  ctx: CanvasRenderingContext2D,
+  icon: HTMLImageElement,
+  iconFrame: { sx: number; sy: number; size: number },
+  collected: number,
+  max: number,
+  x: number,
+  y: number,
+): void {
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(
+    icon,
+    iconFrame.sx,
+    iconFrame.sy,
+    iconFrame.size,
+    iconFrame.size,
+    x,
+    y - COUNTER_ICON_SIZE / 2,
+    COUNTER_ICON_SIZE,
+    COUNTER_ICON_SIZE,
+  );
+
+  ctx.save();
+  ctx.fillStyle = '#fff';
+  ctx.font = `16px "${RESTART_PROMPT_FONT_FAMILY}", monospace`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`${collected} / ${max}`, x + COUNTER_ICON_SIZE + COUNTER_TEXT_GAP, y);
   ctx.restore();
 }
 
