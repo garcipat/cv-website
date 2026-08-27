@@ -33,7 +33,7 @@ import {
 import type { CoinPlacement } from '../entities/Coin';
 import { FRUIT_FRAME_SIZE, fruitFrameSource } from '../entities/Fruit';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
-import { flightEffectPosition } from './CollectionEffects';
+import { flightEffectPosition, sparkleParticles } from './CollectionEffects';
 import type { FlightEffect } from './CollectionEffects';
 
 function tileSource(
@@ -329,24 +329,39 @@ export function drawCollectibles(
 }
 
 const COLLECTION_EFFECT_FONT_SIZE = 14;
+const SPARKLE_RADIUS_PX = 3;
 
 /** Draws every active collection-effect's fact text at its current
- *  hover/flight position and opacity (see CollectionEffects.ts). Positions
+ *  hover/flight position and opacity (see CollectionEffects.ts), plus a
+ *  sparkle burst anchored at the collection point (effect.startX/startY —
+ *  not the current hover/flying position; the burst happens once, right
+ *  where the collectible was, not following the text as it flies). Positions
  *  are already screen-space (no originX/originY here — unlike
  *  drawCollectibles, this doesn't scroll with the camera; see
  *  CollectionEffects.ts's FlightEffect doc comment). */
 export function drawCollectionEffects(ctx: CanvasRenderingContext2D, effects: FlightEffect[]): void {
   for (const effect of effects) {
     const { x, y, opacity } = flightEffectPosition(effect);
-    if (opacity <= 0) continue;
-    ctx.save();
-    ctx.globalAlpha = opacity;
-    ctx.fillStyle = '#fff';
-    ctx.font = `${COLLECTION_EFFECT_FONT_SIZE}px "${RESTART_PROMPT_FONT_FAMILY}", sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(effect.text, x, y);
-    ctx.restore();
+    if (opacity > 0) {
+      ctx.save();
+      ctx.globalAlpha = opacity;
+      ctx.fillStyle = '#fff';
+      ctx.font = `${COLLECTION_EFFECT_FONT_SIZE}px "${RESTART_PROMPT_FONT_FAMILY}", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(effect.text, x, y);
+      ctx.restore();
+    }
+
+    for (const sparkle of sparkleParticles(effect.elapsed)) {
+      ctx.save();
+      ctx.globalAlpha = sparkle.opacity;
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(effect.startX + sparkle.dx, effect.startY + sparkle.dy, SPARKLE_RADIUS_PX, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
   }
 }
 
