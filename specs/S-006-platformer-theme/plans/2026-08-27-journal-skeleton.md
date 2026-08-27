@@ -617,8 +617,11 @@ const factItemLabel = (fact: CollectedFact): string => {
 };
 
 /**
- * Unstyled journal skeleton (roadmap step 13) — a fullscreen overlay listing
- * collected facts, no notebook/bookmark/pagination styling yet (step 14/15).
+ * Unstyled journal skeleton (roadmap step 13) — a centered, bounded card
+ * listing collected facts (no dark full-screen backdrop: per spec.md FR-014,
+ * the rest of the game stays visible around it — the card itself is the
+ * visual takeover, not an added scrim). No notebook/bookmark/pagination
+ * styling yet (step 14/15).
  */
 export const Journal = ({ onClose }: JournalProps) => {
   useSignals();
@@ -627,28 +630,30 @@ export const Journal = ({ onClose }: JournalProps) => {
   return (
     <div
       data-testid="platformer-journal"
-      className="fixed inset-0 z-[60] flex flex-col items-center gap-4 overflow-y-auto bg-black/90 p-8 text-white"
+      className="fixed inset-0 z-[60] flex items-center justify-center"
     >
-      <button
-        type="button"
-        onClick={onClose}
-        data-testid="journal-close-button"
-        className="fixed top-4 right-4 rounded bg-gray-700 px-3 py-1 text-sm"
-      >
-        Close
-      </button>
-      <h2 className="text-2xl font-bold">Journal</h2>
-      {facts.length === 0 ? (
-        <p data-testid="journal-empty-state">No facts collected yet.</p>
-      ) : (
-        <ul className="flex flex-col gap-2">
-          {facts.map((fact) => (
-            <li key={fact.id} data-testid="journal-fact-item">
-              {fact.sectionLabel}: {factItemLabel(fact)}
-            </li>
-          ))}
-        </ul>
-      )}
+      <div className="relative flex h-[500px] max-h-[80vh] w-[600px] max-w-[90vw] flex-col items-center gap-4 overflow-y-auto rounded-lg bg-white p-8 text-gray-900 shadow-xl">
+        <button
+          type="button"
+          onClick={onClose}
+          data-testid="journal-close-button"
+          className="absolute top-4 right-4 rounded bg-gray-200 px-3 py-1 text-sm"
+        >
+          Close
+        </button>
+        <h2 className="text-2xl font-bold">Journal</h2>
+        {facts.length === 0 ? (
+          <p data-testid="journal-empty-state">No facts collected yet.</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {facts.map((fact) => (
+              <li key={fact.id} data-testid="journal-fact-item">
+                {fact.sectionLabel}: {factItemLabel(fact)}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 };
@@ -657,7 +662,11 @@ export const Journal = ({ onClose }: JournalProps) => {
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `npx vitest run src/themes/platformer/components/Journal.test.tsx`
-Expected: PASS.
+Expected: PASS — no test asserts on background color or dimensions, so the
+existing three tests (fact listing, empty state, close button) pass unchanged
+against the new markup; only `data-testid` placement matters and all four
+testids (`platformer-journal`, `journal-close-button`, `journal-fact-item`,
+`journal-empty-state`) are preserved.
 
 - [ ] **Step 5: Commit**
 
@@ -665,6 +674,13 @@ Expected: PASS.
 git add src/themes/platformer/components/Journal.tsx src/themes/platformer/components/Journal.test.tsx
 git commit -m "feat(platformer): add unstyled Journal overlay component"
 ```
+
+**Note (added after initial implementation, 2026-08-27):** this task was
+originally implemented with a `bg-black/90` full-screen dark backdrop. After
+seeing it rendered, the user clarified that was not the intended design — see
+`spec.md` FR-014's amendment and Task 7 below, which corrects this file to the
+centered-card version shown above (the code block above already reflects the
+corrected version, not the original one that first shipped).
 
 ---
 
@@ -1163,6 +1179,145 @@ Replace with:
 git add specs/S-006-platformer-theme/roadmap.md
 git commit -m "docs(platformer): check off roadmap step 13 (journal skeleton)"
 ```
+
+---
+
+## Task 7: Fix Journal visual design — centered card, no dark backdrop
+
+**Added 2026-08-27, after Tasks 1-6 were already implemented and committed.**
+Task 4's original implementation used a `bg-black/90 inset-0` full-screen dark
+scrim behind the journal content. After seeing it rendered (screenshot shared
+by the user), the user clarified this was not the intended design: the game
+should stay fully visible around the journal; the journal card itself (which
+step 14 will style as notebook paper) is meant to be the visual takeover, not
+an added dark overlay. `spec.md` FR-014 has been amended accordingly.
+
+**Files:**
+- Modify: `src/themes/platformer/components/Journal.tsx`
+
+**Interfaces:** No change to the component's public props (`{ onClose: () =>
+void }`) or its four `data-testid`s (`platformer-journal`,
+`journal-close-button`, `journal-fact-item`, `journal-empty-state`) — this is
+a pure markup/styling change. `PlatformerPage.tsx` (Task 5) needs no changes:
+it already just renders `<Journal onClose={handleJournalToggle} />`
+conditionally, unaware of Journal's internal markup.
+
+- [ ] **Step 1: Confirm existing tests still cover this file's behavior**
+
+No new tests are needed — `Journal.test.tsx`'s three existing tests
+(`render-withCollectedFacts-listsEachFactsSectionLabel`,
+`render-withNoCollectedFacts-showsEmptyState`,
+`closeButtonClicked-always-callsOnClose`) assert on testids and text content,
+not on background color or box dimensions, so they remain valid against the
+new markup unchanged.
+
+- [ ] **Step 2: Apply the fix**
+
+In `src/themes/platformer/components/Journal.tsx`, find:
+
+```tsx
+/**
+ * Unstyled journal skeleton (roadmap step 13) — a fullscreen overlay listing
+ * collected facts, no notebook/bookmark/pagination styling yet (step 14/15).
+ */
+export const Journal = ({ onClose }: JournalProps) => {
+  useSignals();
+  const facts = collectedFacts.value;
+
+  return (
+    <div
+      data-testid="platformer-journal"
+      className="fixed inset-0 z-[60] flex flex-col items-center gap-4 overflow-y-auto bg-black/90 p-8 text-white"
+    >
+      <button
+        type="button"
+        onClick={onClose}
+        data-testid="journal-close-button"
+        className="fixed top-4 right-4 rounded bg-gray-700 px-3 py-1 text-sm"
+      >
+        Close
+      </button>
+      <h2 className="text-2xl font-bold">Journal</h2>
+      {facts.length === 0 ? (
+        <p data-testid="journal-empty-state">No facts collected yet.</p>
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {facts.map((fact) => (
+            <li key={fact.id} data-testid="journal-fact-item">
+              {fact.sectionLabel}: {factItemLabel(fact)}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
+```
+
+Replace with:
+
+```tsx
+/**
+ * Unstyled journal skeleton (roadmap step 13) — a centered, bounded card
+ * listing collected facts (no dark full-screen backdrop: per spec.md FR-014,
+ * the rest of the game stays visible around it — the card itself is the
+ * visual takeover, not an added scrim). No notebook/bookmark/pagination
+ * styling yet (step 14/15).
+ */
+export const Journal = ({ onClose }: JournalProps) => {
+  useSignals();
+  const facts = collectedFacts.value;
+
+  return (
+    <div
+      data-testid="platformer-journal"
+      className="fixed inset-0 z-[60] flex items-center justify-center"
+    >
+      <div className="relative flex h-[500px] max-h-[80vh] w-[600px] max-w-[90vw] flex-col items-center gap-4 overflow-y-auto rounded-lg bg-white p-8 text-gray-900 shadow-xl">
+        <button
+          type="button"
+          onClick={onClose}
+          data-testid="journal-close-button"
+          className="absolute top-4 right-4 rounded bg-gray-200 px-3 py-1 text-sm"
+        >
+          Close
+        </button>
+        <h2 className="text-2xl font-bold">Journal</h2>
+        {facts.length === 0 ? (
+          <p data-testid="journal-empty-state">No facts collected yet.</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {facts.map((fact) => (
+              <li key={fact.id} data-testid="journal-fact-item">
+                {fact.sectionLabel}: {factItemLabel(fact)}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+};
+```
+
+- [ ] **Step 3: Run tests to verify they still pass**
+
+Run: `npx vitest run src/themes/platformer/components/Journal.test.tsx`
+Expected: PASS (3/3, unchanged).
+
+Then run the full suite once to confirm nothing else regressed:
+
+Run: `npx vitest run`
+Expected: PASS.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add src/themes/platformer/components/Journal.tsx
+git commit -m "fix(platformer): journal is a centered card, not a dark full-screen backdrop"
+```
+
+---
 
 ## After this plan
 
