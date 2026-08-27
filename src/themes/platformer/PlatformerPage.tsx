@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { FloatingControls } from './components/FloatingControls';
 import { loadImage } from './engine/SpriteLoader';
 import { loadFont } from './engine/FontLoader';
@@ -36,12 +36,24 @@ export const PlatformerPage = () => {
   const playerJumpSpriteRef = useRef<HTMLImageElement | null>(null);
   const heartsSpriteRef = useRef<HTMLImageElement | null>(null);
   const debugParams = new URLSearchParams(window.location.search);
-  const debugHitboxes = debugParams.get('debug') === 'hitboxes';
-  // Any `debug` param (not just `hitboxes`) shows the manual Kill/Respawn
-  // testing buttons below — they're a dev convenience for exercising the
-  // death/respawn iris transition without navigating pits repeatedly, not a
-  // feature end users should see.
+  // Any `debug` param (not just `hitboxes`) shows the debug panel (Kill/
+  // Respawn/Hitboxes toggle below) — a dev convenience for exercising the
+  // death/respawn iris transition and collision geometry without navigating
+  // pits repeatedly, not a feature end users should see.
   const debugControls = debugParams.has('debug');
+  // `?debug=hitboxes` still seeds the initial toggle state (so the existing
+  // "open at ?debug=hitboxes" manual-testing habit keeps working), but it's
+  // now a runtime toggle via the panel button rather than fixed for the
+  // session. Mirrored into a ref so the game loop's render() closure (set up
+  // once in the mount effect below) reads the latest value without needing
+  // to restart the effect on every toggle.
+  const [debugHitboxesOn, setDebugHitboxesOn] = useState(
+    () => debugParams.get('debug') === 'hitboxes',
+  );
+  const debugHitboxesRef = useRef(debugHitboxesOn);
+  debugHitboxesRef.current = debugHitboxesOn;
+
+  const handleToggleHitboxes = () => setDebugHitboxesOn((prev) => !prev);
 
   const handleDebugKill = () => {
     healthState.value = 0;
@@ -94,7 +106,7 @@ export const PlatformerPage = () => {
         drawPlayer(ctx, playerState.value, playerSpriteRef.current, originX, originY, playerJumpSpriteRef.current);
       }
 
-      if (debugHitboxes) drawDebugOverlay(ctx, playerState.value, level1, originX, originY);
+      if (debugHitboxesRef.current) drawDebugOverlay(ctx, playerState.value, level1, originX, originY);
 
       if (heartsSpriteRef.current) {
         drawHearts(ctx, healthState.value, heartsSpriteRef.current);
@@ -286,7 +298,11 @@ export const PlatformerPage = () => {
       <canvas ref={canvasRef} data-testid="platformer-canvas" className="block" tabIndex={-1} />
       <FloatingControls />
       {debugControls && (
-        <div className="absolute bottom-4 left-4 z-10 flex gap-2">
+        // Stacked below FloatingControls' top-right theme/locale selectors
+        // (which sit at top-4, ~36-40px tall) rather than bottom-left, so
+        // future debug affordances can grow downward in the same column
+        // instead of needing their own spot on screen.
+        <div className="fixed top-16 right-4 z-40 flex flex-col gap-2">
           <button
             type="button"
             onClick={handleDebugKill}
@@ -300,6 +316,13 @@ export const PlatformerPage = () => {
             className="rounded bg-green-600 px-3 py-1 text-sm text-white"
           >
             Respawn
+          </button>
+          <button
+            type="button"
+            onClick={handleToggleHitboxes}
+            className={`rounded px-3 py-1 text-sm text-white ${debugHitboxesOn ? 'bg-amber-600' : 'bg-gray-600'}`}
+          >
+            Hitboxes: {debugHitboxesOn ? 'On' : 'Off'}
           </button>
         </div>
       )}

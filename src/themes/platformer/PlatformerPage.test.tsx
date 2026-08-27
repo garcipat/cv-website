@@ -742,4 +742,68 @@ describe('PlatformerPage', () => {
     expect(playerState.value.y).toBe(initialPlayerState.y);
     expect(cameraPositionX.value).toBe(0);
   });
+
+  it('debugQueryParamPresent-render-showsHitboxesToggleButton', () => {
+    Object.defineProperty(window, 'location', {
+      value: new URL('http://localhost/?debug=hitboxes'),
+      writable: true,
+      configurable: true,
+    });
+
+    render(<PlatformerPage />);
+
+    expect(screen.getByRole('button', { name: /Hitboxes/ })).toBeInTheDocument();
+  });
+
+  it('hitboxesToggleClicked-startingOnFromQueryParam-turnsOffAndStopsDrawingOverlay', async () => {
+    Object.defineProperty(window, 'location', {
+      value: new URL('http://localhost/?debug=hitboxes'),
+      writable: true,
+      configurable: true,
+    });
+    vi.stubGlobal('Image', MockTilesetImage);
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    const canvas = screen.getByTestId('platformer-canvas');
+    const ctx = canvas.getContext('2d') as unknown as { strokeRect: ReturnType<typeof vi.fn> };
+    await waitFor(() => expect(ctx.strokeRect).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByRole('button', { name: /Hitboxes/ }));
+    ctx.strokeRect.mockClear();
+    frameCallback!(16);
+
+    expect(ctx.strokeRect).not.toHaveBeenCalled();
+  });
+
+  it('hitboxesToggleClicked-startingOffWithOtherDebugParam-turnsOnAndDrawsOverlay', () => {
+    Object.defineProperty(window, 'location', {
+      value: new URL('http://localhost/?debug=1'),
+      writable: true,
+      configurable: true,
+    });
+    vi.stubGlobal('Image', MockTilesetImage);
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    const canvas = screen.getByTestId('platformer-canvas');
+    const ctx = canvas.getContext('2d') as unknown as { strokeRect: ReturnType<typeof vi.fn> };
+    frameCallback!(0);
+    expect(ctx.strokeRect).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: /Hitboxes/ }));
+    frameCallback!(16);
+
+    expect(ctx.strokeRect).toHaveBeenCalled();
+  });
 });
