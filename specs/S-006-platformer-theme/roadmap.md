@@ -42,7 +42,7 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   *Verify: jump up through a bridge from below and land on top of it; walking onto it
   from the side and standing on top both still work solidly; holding Down while on a
   bridge drops the character through it.*
-- [ ] **8. Camera scroll** — viewport follows the character horizontally.
+- [x] **8. Camera scroll** — viewport follows the character horizontally.
   *Verify: walk right, camera scrolls to follow.*
 - [ ] **9. Respawn** — falling into a pit or death respawns at the nearest spawn
   point with full health.
