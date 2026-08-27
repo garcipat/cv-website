@@ -52,15 +52,18 @@ function tileSource(
 }
 
 /**
- * Draws the level's terrain. `originY` shifts every tile vertically (e.g. to
- * anchor the level to the bottom of a taller-than-the-level canvas instead
- * of drawing it pinned to the top with empty space below). Defaults to 0
- * (level drawn at its raw grid position, top-left origin).
+ * Draws the level's terrain. `originX` shifts every tile horizontally and
+ * `originY` shifts every tile vertically (e.g. to anchor the level to the
+ * bottom of a taller-than-the-level canvas instead of drawing it pinned to
+ * the top with empty space below, or to scroll it horizontally with the
+ * camera). Both default to 0 (level drawn at its raw grid position,
+ * top-left origin).
  */
 export function drawTerrain(
   ctx: CanvasRenderingContext2D,
   level: LevelDef,
   tileset: HTMLImageElement,
+  originX = 0,
   originY = 0,
 ): void {
   ctx.imageSmoothingEnabled = false;
@@ -80,7 +83,7 @@ export function drawTerrain(
         source.sy,
         TILE_SIZE,
         TILE_SIZE,
-        x,
+        x + originX,
         y + originY,
         RENDERED_TILE_SIZE,
         RENDERED_TILE_SIZE,
@@ -90,20 +93,22 @@ export function drawTerrain(
 }
 
 /**
- * Draws the player sprite. `originY` shifts it vertically by the same
- * amount as `drawTerrain`'s `originY`, so the player stays aligned with
- * the bottom-anchored level. When `player.facing` is `'left'`, the sprite is
- * mirrored horizontally around its own bounding box — the sheet only needs
- * to depict the character facing one direction. `jumpSpriteSheet` is a
- * separate, higher-resolution sheet used only while `animState === 'jump'`
- * (the placeholder primary sheet has no jump row); if it hasn't loaded yet,
- * this falls back to the primary sheet's current frame rather than drawing
+ * Draws the player sprite. `originX` and `originY` shift it horizontally and
+ * vertically by the same amounts as `drawTerrain`'s `originX`/`originY`, so
+ * the player stays aligned with the terrain (bottom-anchored, camera-scrolled,
+ * or both). When `player.facing` is `'left'`, the sprite is mirrored
+ * horizontally around its own bounding box — the sheet only needs to depict
+ * the character facing one direction. `jumpSpriteSheet` is a separate,
+ * higher-resolution sheet used only while `animState === 'jump'` (the
+ * placeholder primary sheet has no jump row); if it hasn't loaded yet, this
+ * falls back to the primary sheet's current frame rather than drawing
  * nothing.
  */
 export function drawPlayer(
   ctx: CanvasRenderingContext2D,
   player: PlayerState,
   spriteSheet: HTMLImageElement,
+  originX = 0,
   originY = 0,
   jumpSpriteSheet: HTMLImageElement | null = null,
 ): void {
@@ -118,7 +123,7 @@ export function drawPlayer(
 
   if (player.facing === 'left') {
     ctx.save();
-    ctx.translate(player.x + PLAYER_RENDERED_SIZE, player.y + originY);
+    ctx.translate(player.x + originX + PLAYER_RENDERED_SIZE, player.y + originY);
     ctx.scale(-1, 1);
     ctx.drawImage(
       sheet,
@@ -141,7 +146,7 @@ export function drawPlayer(
     sy,
     frameSize,
     frameSize,
-    player.x,
+    player.x + originX,
     player.y + originY,
     PLAYER_RENDERED_SIZE,
     PLAYER_RENDERED_SIZE,
