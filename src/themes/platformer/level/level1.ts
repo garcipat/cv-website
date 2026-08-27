@@ -37,7 +37,7 @@ const LEVEL_1_LAYOUT: readonly string[] = [
   '...............W....',
   '.S.............W....',
   'GGBBGGGGGGGGRRRRRRRR',
-  'GG..GGGGGGGGRRRRRRRR',
+  'GGGGGGGGGGGGRRRRRRRR',
 ];
 
 export function parseLevel(layout: readonly string[]): LevelDef {
