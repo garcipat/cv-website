@@ -70,12 +70,27 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   point with full health (3/3 hearts) restored, all collected facts preserved.
   *Verify: deplete all hearts via repeated pit falls, see the character respawn at a
   checkpoint with hearts refilled.*
-- [ ] **11. Coins render + CollectibleMapper** — coins placed from real `CVData`
-  (Skills/Languages), visible but not yet collectible.
-  *Verify: coin count in the level matches the number of Skills + Languages items.*
-- [ ] **12. Coin collection** — touching a coin removes it, fact text floats up and
-  flies toward the journal icon, `collectedFacts` state updates.
-  *Verify: collect a coin, see the fact text animate off.*
+- [x] **11. Coins render** — a small hardcoded set of animated coins (spin +
+  a few pixels of up/down bob) render on `level1` (two above the floating
+  platform, two on the ground floor) for visual/animation testing, plus a
+  static `0/max` coin counter next to the heart HUD. Not yet collectible, and
+  not yet driven by real `CVData` — placing one coin per real Skill/Language
+  item (the CollectibleMapper originally scoped here) moves into step 12
+  below, since that step needs the same data to know what to display on
+  collection anyway.
+  *Verify: the hardcoded test coins are visible and animate on the platform
+  and the floor; the `0/max` counter shows next to the hearts.*
+- [ ] **12. CollectibleMapper + coin collection** — extends step 11's hardcoded
+  test coins into real placements: a CollectibleMapper flattens `CVData`
+  Skills and Languages into facts and places one collectible per fact across
+  the level. Touching a collectible removes it, fact text floats up and flies
+  toward the journal icon, `collectedFacts` state updates, and the coin
+  counter added in step 11 starts reflecting the real collected/max count.
+  Worth deciding here: Skills as `coin.png`, Languages as the already-present
+  `fruit.png` (raised during step 11 planning, not decided yet) — two visually
+  distinct collectible types instead of one.
+  *Verify: coin count in the level matches the number of Skills + Languages
+  items; collect one, see the fact text animate off and the counter update.*
 - [ ] **13. Journal skeleton** — `J` toggles a fullscreen overlay, pauses the game,
   shows collected facts unstyled.
   *Verify: open/close the journal, see the collected fact listed.*
