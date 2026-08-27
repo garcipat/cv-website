@@ -14,8 +14,11 @@ import {
  * `dying`: circle shrinking closed on death, game loop paused.
  * `awaitingRestart`: fully black, "Press any button to restart" shown,
  * game loop paused, waiting for input.
+ * `paused`: the journal overlay is open (or, in a later step, the floating
+ * controls are open) — game loop paused, no iris overlay drawn (the DOM
+ * overlay covers the screen instead).
  */
-export type GamePhase = 'intro' | 'playing' | 'dying' | 'awaitingRestart';
+export type GamePhase = 'intro' | 'playing' | 'dying' | 'awaitingRestart' | 'paused';
 
 export interface LifecycleState {
   phase: GamePhase;
@@ -51,6 +54,18 @@ export function startDeath(centerX: number, centerY: number): LifecycleState {
   return { phase: 'dying', elapsed: 0, centerX, centerY };
 }
 
+/** Transitions to `paused` (e.g. the journal opening) without touching the
+ *  frozen `elapsed`/`centerX`/`centerY` — there's no animation running while
+ *  paused, so nothing else needs to change. */
+export function pauseForJournal(state: LifecycleState): LifecycleState {
+  return { ...state, phase: 'paused' };
+}
+
+/** Transitions back to `playing` (e.g. the journal closing). */
+export function resumeFromJournal(state: LifecycleState): LifecycleState {
+  return { ...state, phase: 'playing' };
+}
+
 /**
  * Advances `elapsed` by `dt` seconds for the two time-driven phases,
  * transitioning 'intro' -> 'playing' and 'dying' -> 'awaitingRestart' once
@@ -82,7 +97,7 @@ export function tickLifecycle(state: LifecycleState, dt: number): LifecycleState
  * above for the full timeline of each.
  */
 export function currentIrisRadius(state: LifecycleState, maxRadius: number): number | null {
-  if (state.phase === 'playing') return null;
+  if (state.phase === 'playing' || state.phase === 'paused') return null;
   if (state.phase === 'awaitingRestart') return 0;
 
   const smallRadius = Math.min(IRIS_SMALL_RADIUS, maxRadius);
