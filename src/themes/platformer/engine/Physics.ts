@@ -1,5 +1,5 @@
 import { PHYSICS_CONFIG } from './PhysicsConfig';
-import { isSolid, tileAt, RENDERED_TILE_SIZE } from '../level/Terrain';
+import { isSolid, isSolidExcludingBridge, tileAt, RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { LevelDef } from '../level/LevelData';
 import {
   PLAYER_RENDERED_SIZE,
@@ -22,6 +22,7 @@ export interface PlayerInput {
   right?: boolean;
   jumpPressed?: boolean;
   jumpHeld?: boolean;
+  dropThroughHeld?: boolean;
 }
 
 const NO_INPUT: PlayerInput = { left: false, right: false };
@@ -75,16 +76,35 @@ export function stepPlayerPhysics(
     const rightCol = Math.floor(
       (x + PLAYER_SIDE_PADDING + HITBOX_WIDTH - 1) / RENDERED_TILE_SIZE,
     );
+    // The hitbox's rightmost column *before* this frame's horizontal move
+    // (using the pre-move `player.x`). If that's the same column as
+    // `rightCol` above, the hitbox was already occupying this column when
+    // the frame started — e.g. mid pass-through while jumping up through a
+    // bridge, or while actively dropping through one (both let the vertical
+    // branches carry the hitbox into/through a `bridge` tile's row for many
+    // frames). In that case a `bridge` tile here isn't a new sideways
+    // collision, so it must not block (isSolidExcludingBridge). Only a
+    // genuinely NEW column — approaching the tile from the side, as in
+    // `walkingIntoBridgeFromSide-blockedLikeAnyWall` — still treats bridge
+    // as solid, exactly like any other wall.
+    const prevRightCol = Math.floor(
+      (player.x + PLAYER_SIDE_PADDING + HITBOX_WIDTH - 1) / RENDERED_TILE_SIZE,
+    );
+    const isWall = rightCol === prevRightCol ? isSolidExcludingBridge : isSolid;
     for (let row = topRow; row <= bottomRow; row++) {
-      if (isSolid(tileAt(level, rightCol, row))) {
+      if (isWall(tileAt(level, rightCol, row))) {
         x = rightCol * RENDERED_TILE_SIZE - PLAYER_SIDE_PADDING - HITBOX_WIDTH;
         break;
       }
     }
   } else if (vx < 0) {
     const leftCol = Math.floor((x + PLAYER_SIDE_PADDING) / RENDERED_TILE_SIZE);
+    // Mirrors the rightward branch above: only a bridge tile in a column the
+    // hitbox wasn't already occupying before this frame's move still blocks.
+    const prevLeftCol = Math.floor((player.x + PLAYER_SIDE_PADDING) / RENDERED_TILE_SIZE);
+    const isWall = leftCol === prevLeftCol ? isSolidExcludingBridge : isSolid;
     for (let row = topRow; row <= bottomRow; row++) {
-      if (isSolid(tileAt(level, leftCol, row))) {
+      if (isWall(tileAt(level, leftCol, row))) {
         x = (leftCol + 1) * RENDERED_TILE_SIZE - PLAYER_SIDE_PADDING;
         break;
       }
@@ -115,16 +135,42 @@ export function stepPlayerPhysics(
   const leftCol = Math.floor((x + PLAYER_SIDE_PADDING) / RENDERED_TILE_SIZE);
   const rightCol = Math.floor((x + PLAYER_SIDE_PADDING + HITBOX_WIDTH - 1) / RENDERED_TILE_SIZE);
 
+  // Drop-through trigger: pressing Down while already resting on a bridge
+  // lets the character deliberately fall through it (the base one-way
+  // behavior alone only lets you leave a bridge by walking off its edge).
+  // Detected against the tile the player is currently standing on, using
+  // the pre-frame `y` — so holding Down elsewhere (mid-air, or standing on
+  // regular solid ground) has no effect. Once triggered, the flag persists
+  // across frames (a single frame's gravity rarely clears a whole 32px
+  // tile from a standing start) until the character actually lands on
+  // something solid again, at which point it's cleared in the return below.
+  const standingFootRow = Math.floor(
+    (player.y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING) / RENDERED_TILE_SIZE,
+  );
+  let standingOnBridge = false;
+  for (let col = leftCol; col <= rightCol; col++) {
+    if (tileAt(level, col, standingFootRow) === 'bridge') {
+      standingOnBridge = true;
+      break;
+    }
+  }
+  const droppingThroughBridge =
+    player.isDroppingThroughBridge ||
+    (player.grounded && standingOnBridge && Boolean(input.dropThroughHeld));
+
   if (vy < 0) {
     // Ceiling collision: symmetric to the landing case below, but for the
     // player's head hitting a solid tile from underneath while rising.
     // PLAYER_HEAD_PADDING accounts for the transparent rows above the
     // sprite's actual head, so this triggers when the VISIBLE head reaches
     // the tile, not when the top of the (mostly-empty) frame does.
+    // Uses isSolidExcludingBridge (not isSolid) so `bridge` tiles are
+    // passable from underneath while remaining solid everywhere else
+    // (roadmap step 7).
     const headY = y + PLAYER_HEAD_PADDING;
     const headRow = Math.floor(headY / RENDERED_TILE_SIZE);
     for (let col = leftCol; col <= rightCol; col++) {
-      if (isSolid(tileAt(level, col, headRow))) {
+      if (isSolidExcludingBridge(tileAt(level, col, headRow))) {
         y = (headRow + 1) * RENDERED_TILE_SIZE - PLAYER_HEAD_PADDING;
         resolvedVy = 0;
         break;
@@ -133,9 +179,13 @@ export function stepPlayerPhysics(
   } else {
     const feetY = y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING;
     const footRow = Math.floor(feetY / RENDERED_TILE_SIZE);
+    // While actively dropping through a bridge, ground collision ignores
+    // bridge tiles the same way the ceiling check always does — everything
+    // else (regular ground, platforms, walls) still catches the character.
+    const groundIsSolid = droppingThroughBridge ? isSolidExcludingBridge : isSolid;
 
     for (let col = leftCol; col <= rightCol; col++) {
-      if (isSolid(tileAt(level, col, footRow))) {
+      if (groundIsSolid(tileAt(level, col, footRow))) {
         const groundSurfaceY = footRow * RENDERED_TILE_SIZE;
         y = groundSurfaceY - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
         resolvedVy = 0;
@@ -145,5 +195,14 @@ export function stepPlayerPhysics(
     }
   }
 
-  return { ...player, x, y, vx, vy: resolvedVy, facing, grounded };
+  return {
+    ...player,
+    x,
+    y,
+    vx,
+    vy: resolvedVy,
+    facing,
+    grounded,
+    isDroppingThroughBridge: grounded ? false : droppingThroughBridge,
+  };
 }

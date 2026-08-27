@@ -31,14 +31,17 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   *Verify: walk left/right on screen with visible walk animation.*
 - [x] **6. Jump** — jump physics (variable height by hold duration) + jump animation.
   *Verify: jump across a gap.*
-- [ ] **7. One-way bridge platforms** — `bridge` tiles become passable from below
+- [x] **7. One-way bridge platforms** — `bridge` tiles become passable from below
   (jumping up through them) while remaining solid when landing on top, instead of
   being solid from every direction like other terrain. Depends on step 6's jump
   existing (the "jump up through from below" case can't be exercised without it).
-  Down-arrow drop-through is explicitly out of scope unless a level layout actually
-  needs it (see `docs/themes/Platformer.md` if that reasoning needs revisiting).
+  Extended beyond the original scope: `level1`'s floating platform (row 7) was
+  redesigned into a platform-bridge-platform arrangement with reachable ground
+  below, and a Down-arrow/`S` drop-through was added now that a level layout
+  actually needs it (see `docs/themes/Platformer.md` for the updated reasoning).
   *Verify: jump up through a bridge from below and land on top of it; walking onto it
-  from the side and standing on top both still work solidly.*
+  from the side and standing on top both still work solidly; holding Down while on a
+  bridge drops the character through it.*
 - [ ] **8. Camera scroll** — viewport follows the character horizontally.
   *Verify: walk right, camera scrolls to follow.*
 - [ ] **9. Respawn** — falling into a pit or death respawns at the nearest spawn

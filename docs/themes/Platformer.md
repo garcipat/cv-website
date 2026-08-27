@@ -15,8 +15,9 @@ branch.)
 
 | Key | Action |
 | --- | --- |
-| ← / → (Arrow Left/Right) | Move left / right |
+| ← / → (Arrow Left/Right) or A/D | Move left / right |
 | Space or ↑ (Arrow Up) | Jump |
+| ↓ (Arrow Down) or S | Drop through a bridge while standing on one |
 | J | Toggle the journal open/closed |
 
 Arrow Up is reserved exclusively for jumping — it doesn't double as a journal
@@ -190,10 +191,13 @@ reads as natural rather than surprising (you duck under and climb up through it,
 rather than a stone platform mysteriously having no underside). This only becomes
 testable once jump exists, so it's its own roadmap step placed right after jump.
 
-**Explicitly out of scope unless a level needs it**: a down-arrow "drop through"
-key, letting the character intentionally fall off a bridge they're standing on. The
-base one-way behavior doesn't require it — the character can always walk off a
-bridge's edge — and it only earns its cost (a new keybinding, a new input case,
-more direction-aware collision logic) if a level layout actually puts something
-reachable underneath a bridge that the player would want to drop into deliberately.
-`level1`'s current bridge just spans a ground-level pit, so this doesn't apply yet.
+**Drop-through, implemented at roadmap step 7**: a down-arrow/`S` key lets the
+character deliberately fall off a bridge they're resting on, rather than only
+being able to leave it by walking off an edge. This was originally deferred —
+the base one-way behavior doesn't require it, and `level1`'s original bridge
+just spanned a ground-level pit with nothing to reach underneath. It was added
+once `level1` gained a platform-bridge-platform arrangement (row 7, columns
+8-14) with two rows of clearance and reachable ground below, giving the
+mechanic a real purpose: reaching the ground-level area under the elevated
+platforms without walking all the way around, and a template for use when the
+final level is designed.
