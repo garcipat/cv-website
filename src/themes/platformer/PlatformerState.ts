@@ -2,6 +2,7 @@ import { signal } from '@preact/signals-react';
 import { tileToPixel, RENDERED_TILE_SIZE } from './level/Terrain';
 import { SPAWN_TILE } from './level/level1';
 import { PLAYER_RENDERED_SIZE, PLAYER_FOOT_PADDING } from './entities/Player';
+import { MAX_HALF_HEARTS } from './entities/Health';
 import type { PlayerState } from './entities/Player';
 
 function initialPlayerState(): PlayerState {
@@ -38,3 +39,11 @@ export const playerState = signal<PlayerState>(initialPlayerState());
  * code doesn't need to re-derive it from player position every frame.
  */
 export const cameraPositionX = signal(0);
+
+/**
+ * Current health in half-heart units (0-MAX_HALF_HEARTS). Kept separate from
+ * `playerState` since damage sources (pit falls, and later enemy hits) are a
+ * distinct concern from position/animation, and step 10's full-heal-on-death
+ * only needs to touch this signal, not reconstruct player position/state.
+ */
+export const healthState = signal(MAX_HALF_HEARTS);
