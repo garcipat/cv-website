@@ -1,13 +1,14 @@
 import { useEffect, useRef } from 'react';
 import { FloatingControls } from './components/FloatingControls';
 import { loadImage } from './engine/SpriteLoader';
-import { drawTerrain, drawPlayer, drawHearts } from './engine/Renderer';
+import { drawTerrain, drawPlayer, drawHearts, drawCoins, drawCoinCounter } from './engine/Renderer';
 import { drawDebugOverlay } from './engine/DebugOverlay';
 import { createGameLoop } from './engine/GameLoop';
 import { stepPlayerPhysics, checkPitFall, resolvePitFall } from './engine/Physics';
 import { updateCamera } from './engine/Camera';
 import { createKeyboardInput } from './engine/Input';
 import { level1 } from './level/level1';
+import { level1Coins } from './level/level1Coins';
 import { RENDERED_TILE_SIZE } from './level/Terrain';
 import { advancePlayerAnimation, updatePlayerAnimState, PLAYER_RENDERED_SIZE } from './entities/Player';
 import { takeDamage, PIT_FALL_DAMAGE } from './entities/Health';
@@ -19,6 +20,7 @@ export const PlatformerPage = () => {
   const playerSpriteRef = useRef<HTMLImageElement | null>(null);
   const playerJumpSpriteRef = useRef<HTMLImageElement | null>(null);
   const heartsSpriteRef = useRef<HTMLImageElement | null>(null);
+  const coinSpriteRef = useRef<HTMLImageElement | null>(null);
   const debugHitboxes = new URLSearchParams(window.location.search).get('debug') === 'hitboxes';
 
   useEffect(() => {
@@ -29,6 +31,11 @@ export const PlatformerPage = () => {
     // resize, since neither the canvas dimensions nor the CSS custom
     // property change on any other frame.
     let backgroundColor = '#000';
+
+    // Shared spin-cycle timer for every coin (see Coin.ts's coinFrameIndex) —
+    // a plain variable, not a signal, since nothing outside this render loop
+    // needs to read or react to it.
+    let coinAnimElapsed = 0;
 
     const resize = () => {
       canvas.width = window.innerWidth;
@@ -60,11 +67,17 @@ export const PlatformerPage = () => {
         drawPlayer(ctx, playerState.value, playerSpriteRef.current, originX, originY, playerJumpSpriteRef.current);
       }
 
+      if (coinSpriteRef.current) {
+        drawCoins(ctx, level1Coins, coinSpriteRef.current, coinAnimElapsed, originX, originY);
+      }
+
       if (debugHitboxes) drawDebugOverlay(ctx, playerState.value, level1, originX, originY);
 
       if (heartsSpriteRef.current) {
         drawHearts(ctx, healthState.value, heartsSpriteRef.current);
       }
+
+      drawCoinCounter(ctx, 0, level1Coins.length);
     };
 
     resize();
@@ -80,6 +93,8 @@ export const PlatformerPage = () => {
     const input = createKeyboardInput();
 
     const loop = createGameLoop((dt) => {
+      coinAnimElapsed += dt;
+
       // A/D accepted as an alternate to Arrow Left/Right (FR-007 only
       // requires arrows; this is an additive convenience, not a replacement).
       const horizontal = {
@@ -168,6 +183,16 @@ export const PlatformerPage = () => {
       .catch(() => {
         // The heart HUD simply won't render if the sprite fails to load; the
         // rest of the game still shows.
+      });
+    loadImage('/sprites/coin.png')
+      .then((img) => {
+        if (cancelled) return;
+        coinSpriteRef.current = img;
+        render();
+      })
+      .catch(() => {
+        // Coins simply won't render if the sprite fails to load; the rest of
+        // the game still shows.
       });
 
     return () => {

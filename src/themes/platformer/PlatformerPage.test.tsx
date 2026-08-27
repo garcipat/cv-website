@@ -4,6 +4,8 @@ import { PlatformerPage } from './PlatformerPage';
 import { PLAYER_RENDERED_SIZE } from './entities/Player';
 import { playerState, cameraPositionX, healthState } from './PlatformerState';
 import { MAX_HALF_HEARTS, PIT_FALL_DAMAGE, HEART_RENDERED_SIZE } from './entities/Health';
+import { level1Coins } from './level/level1Coins';
+import { COIN_RENDERED_SIZE } from './entities/Coin';
 
 class MockTilesetImage {
   onload: (() => void) | null = null;
@@ -505,5 +507,39 @@ describe('PlatformerPage', () => {
     // any call instead of a fixed index to stay robust to level1's layout).
     const anyShiftedCall = ctx.drawImage.mock.calls.some((call: unknown[]) => call[5] === -50);
     expect(anyShiftedCall).toBe(true);
+  });
+
+  it('render-default-showsCoinCounterPlaceholder', () => {
+    render(<PlatformerPage />);
+    const canvas = screen.getByTestId('platformer-canvas');
+    const ctx = canvas.getContext('2d') as unknown as { fillText: ReturnType<typeof vi.fn> };
+
+    expect(ctx.fillText).toHaveBeenCalledWith(
+      `0/${level1Coins.length}`,
+      expect.any(Number),
+      expect.any(Number),
+    );
+  });
+
+  it('render-afterCoinSpriteLoads-drawsEveryTestCoinAtRenderedSize', async () => {
+    vi.stubGlobal('Image', MockTilesetImage);
+
+    render(<PlatformerPage />);
+    const canvas = screen.getByTestId('platformer-canvas');
+    const ctx = canvas.getContext('2d') as unknown as { drawImage: ReturnType<typeof vi.fn> };
+
+    await waitFor(() =>
+      expect(
+        ctx.drawImage.mock.calls.some(
+          (call: unknown[]) => (call[0] as MockTilesetImage).src === '/sprites/coin.png',
+        ),
+      ).toBe(true),
+    );
+
+    const coinCalls = ctx.drawImage.mock.calls.filter(
+      (call: unknown[]) => (call[0] as MockTilesetImage).src === '/sprites/coin.png',
+    );
+    expect(coinCalls).toHaveLength(level1Coins.length);
+    expect(coinCalls.every((call: unknown[]) => call[7] === COIN_RENDERED_SIZE)).toBe(true);
   });
 });
