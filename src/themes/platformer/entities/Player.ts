@@ -34,6 +34,11 @@ export interface PlayerState {
   facing: PlayerFacing;
   /** Whether the player is currently resting on a solid tile. */
   grounded: boolean;
+  /** Whether the player is currently dropping through a `bridge` tile
+   *  they deliberately fell through (Down held while resting on one) —
+   *  see Physics.ts's ground-collision branch. Cleared once they land on
+   *  real solid ground again. */
+  isDroppingThroughBridge: boolean;
   animState: PlayerAnimState;
   animFrame: number;
   /** Seconds accumulated toward the next animation frame advance. */

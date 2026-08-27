@@ -43,6 +43,20 @@ describe('createKeyboardInput', () => {
     input.destroy();
   });
 
+  it('keydown-forArrowDown-preventsDefault', () => {
+    const input = createKeyboardInput();
+    const event = dispatchKey('keydown', 'ArrowDown');
+    expect(event.defaultPrevented).toBe(true);
+    input.destroy();
+  });
+
+  it('keydown-forKeyS-preventsDefault', () => {
+    const input = createKeyboardInput();
+    const event = dispatchKey('keydown', 'KeyS');
+    expect(event.defaultPrevented).toBe(true);
+    input.destroy();
+  });
+
   it('keydown-forNonGameKey-doesNotPreventDefaultButStillTracksHeld', () => {
     const input = createKeyboardInput();
     const event = dispatchKey('keydown', 'KeyJ');

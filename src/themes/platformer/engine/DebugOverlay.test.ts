@@ -28,6 +28,7 @@ const idlePlayer: PlayerState = {
   vy: 0,
   facing: 'right',
   grounded: true,
+  isDroppingThroughBridge: false,
   animTimer: 0,
   animState: 'idle',
   animFrame: 0,

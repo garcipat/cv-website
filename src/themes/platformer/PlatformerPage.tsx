@@ -84,11 +84,13 @@ export const PlatformerPage = () => {
       const arrowUpPressed = input.consumePress('ArrowUp');
       const jumpPressed = spacePressed || arrowUpPressed;
       const jumpHeld = input.isHeld('Space') || input.isHeld('ArrowUp');
+      const dropThroughHeld = input.isHeld('ArrowDown') || input.isHeld('KeyS');
 
       let next = stepPlayerPhysics(playerState.value, level1, dt, {
         ...horizontal,
         jumpPressed,
         jumpHeld,
+        dropThroughHeld,
       });
       next = updatePlayerAnimState(next);
       next = advancePlayerAnimation(next, dt);

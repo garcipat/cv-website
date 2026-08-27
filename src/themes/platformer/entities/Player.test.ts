@@ -19,6 +19,7 @@ function idlePlayer(overrides: Partial<PlayerState> = {}): PlayerState {
     vy: 0,
     facing: 'right',
     grounded: true,
+    isDroppingThroughBridge: false,
     animState: 'idle',
     animFrame: 0,
     animTimer: 0,

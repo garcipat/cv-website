@@ -1,6 +1,7 @@
 import {
   tileAt,
   isSolid,
+  isSolidExcludingBridge,
   isTopExposed,
   tileToPixel,
   bridgeRunPosition,
@@ -43,6 +44,24 @@ describe('Terrain', () => {
 
   it('isSolid-empty-returnsFalse', () => {
     expect(isSolid('empty')).toBe(false);
+  });
+
+  it('isSolidExcludingBridge-groundPlatformWall-returnsTrue', () => {
+    expect(isSolidExcludingBridge('groundGrass')).toBe(true);
+    expect(isSolidExcludingBridge('groundRock')).toBe(true);
+    expect(isSolidExcludingBridge('platform')).toBe(true);
+    expect(isSolidExcludingBridge('wall')).toBe(true);
+  });
+
+  it('isSolidExcludingBridge-bridge-returnsFalseUnlikePlainIsSolid', () => {
+    // The one case isSolidExcludingBridge disagrees with isSolid: bridge is
+    // solid from every direction except from below (or while dropping).
+    expect(isSolid('bridge')).toBe(true);
+    expect(isSolidExcludingBridge('bridge')).toBe(false);
+  });
+
+  it('isSolidExcludingBridge-empty-returnsFalse', () => {
+    expect(isSolidExcludingBridge('empty')).toBe(false);
   });
 
   it('isTopExposed-emptyAbove-returnsTrue', () => {
