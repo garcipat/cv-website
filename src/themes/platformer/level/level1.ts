@@ -18,10 +18,13 @@ export const TILE_CHARS: Record<string, TileType | undefined> = {
 // Visual layout of level1 — one character per tile (see TILE_CHARS), top row
 // first. Every row must be the same length (the level's width in tiles).
 // Grass ground (cols 0-11) meets rock ground (cols 12-19) partway across;
-// a 2-tile pit (cols 2-3) is bridged at ground level; a 3-tile platform
-// floats above the grass zone; a 3-tile-tall wall stands in the rock zone.
-// `S` marks the player's spawn point — the empty space directly above the
-// top-exposed grass tile it stands on.
+// a 2-tile pit (cols 2-3) is bridged at ground level; a floating platform
+// row spans cols 8-14 as platform-platform-platform-bridge-bridge-platform-
+// platform (cols 8-10 / 11-12 / 13-14) — the bridge segment is passable from
+// below (jump up through it) and from above via Down/S (drop-through), with
+// solid ground two tiles below for both to land on; a 3-tile-tall wall stands
+// in the rock zone. `S` marks the player's spawn point — the empty space
+// directly above the top-exposed grass tile it stands on.
 const LEVEL_1_LAYOUT: readonly string[] = [
   '....................',
   '....................',
@@ -30,7 +33,7 @@ const LEVEL_1_LAYOUT: readonly string[] = [
   '....................',
   '....................',
   '....................',
-  '........PPP....W....',
+  '........PPPBBPPW....',
   '...............W....',
   '.S.............W....',
   'GGBBGGGGGGGGRRRRRRRR',
