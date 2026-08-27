@@ -1,4 +1,4 @@
-import { stepPlayerPhysics } from './Physics';
+import { stepPlayerPhysics, checkPitFall, resolvePitFall } from './Physics';
 import { PHYSICS_CONFIG } from './PhysicsConfig';
 import { MAX_DT } from './GameLoop';
 import { parseLevel } from '../level/level1';
@@ -604,5 +604,74 @@ describe('stepPlayerPhysics lastGroundedX/Y tracking', () => {
 
     expect(next.grounded).toBe(true);
     expect(next.lastGroundedY).toBe(restY);
+  });
+});
+
+describe('checkPitFall', () => {
+  it('feetAboveLevelBottom-returnsFalse', () => {
+    const player = basePlayer({ y: 0 });
+    expect(checkPitFall(player, PIT_LEVEL)).toBe(false);
+  });
+
+  it('feetBelowLevelBottom-returnsTrue', () => {
+    // PIT_LEVEL is 4 rows tall (128px). Well past that.
+    const player = basePlayer({ y: 500 });
+    expect(checkPitFall(player, PIT_LEVEL)).toBe(true);
+  });
+
+  it('feetExactlyAtLevelBottom-returnsFalse', () => {
+    const levelBottomY = PIT_LEVEL.height * RENDERED_TILE_SIZE;
+    const player = basePlayer({
+      y: levelBottomY - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING,
+    });
+    expect(checkPitFall(player, PIT_LEVEL)).toBe(false);
+  });
+
+  it('stepPlayerPhysics-fallingThroughOpenPit-eventuallyTriggersPitFall', () => {
+    let player = basePlayer({ y: 0, vy: 0 });
+    for (let i = 0; i < 60 && !checkPitFall(player, PIT_LEVEL); i++) {
+      player = stepPlayerPhysics(player, PIT_LEVEL, 1 / 60);
+    }
+    expect(checkPitFall(player, PIT_LEVEL)).toBe(true);
+  });
+});
+
+describe('resolvePitFall', () => {
+  it('repositionsToLastGroundedPositionAndStopsMovement', () => {
+    const player = basePlayer({
+      x: 500,
+      y: 999,
+      vx: 200,
+      vy: 900,
+      grounded: false,
+      isDroppingThroughBridge: true,
+      lastGroundedX: 64,
+      lastGroundedY: 96,
+    });
+
+    const next = resolvePitFall(player);
+
+    expect(next.x).toBe(64);
+    expect(next.y).toBe(96);
+    expect(next.vx).toBe(0);
+    expect(next.vy).toBe(0);
+    expect(next.grounded).toBe(true);
+    expect(next.isDroppingThroughBridge).toBe(false);
+  });
+
+  it('preservesAnimationAndFacingFields', () => {
+    const player = basePlayer({
+      facing: 'left',
+      animState: 'jump',
+      animFrame: 3,
+      lastGroundedX: 0,
+      lastGroundedY: 0,
+    });
+
+    const next = resolvePitFall(player);
+
+    expect(next.facing).toBe('left');
+    expect(next.animState).toBe('jump');
+    expect(next.animFrame).toBe(3);
   });
 });

@@ -208,3 +208,37 @@ export function stepPlayerPhysics(
     lastGroundedY: grounded ? y : player.lastGroundedY,
   };
 }
+
+/**
+ * Whether the player has fallen below the bottom of the level's tile grid —
+ * a pit fall. Deliberately position-only (no tile lookup): a column with no
+ * solid tile anywhere lets gravity carry the player past `level.height`
+ * tiles indefinitely (see Terrain.ts's tileAt, which returns 'empty' for any
+ * out-of-bounds row), so crossing that line is an unambiguous signal
+ * regardless of the level's layout.
+ */
+export function checkPitFall(player: PlayerState, level: LevelDef): boolean {
+  const feetY = player.y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING;
+  return feetY > level.height * RENDERED_TILE_SIZE;
+}
+
+/**
+ * Recovers from a pit fall by snapping the character back to the last
+ * position it was resting on solid ground (`lastGroundedX/Y`), rather than a
+ * level spawn/checkpoint (that full-respawn behavior is roadmap step 10's
+ * 0-heart case). Velocity is zeroed and `grounded` is set true so the very
+ * next frame doesn't read as still-falling; `isDroppingThroughBridge` is
+ * cleared since the character can't still be mid-drop-through after being
+ * teleported back onto solid ground.
+ */
+export function resolvePitFall(player: PlayerState): PlayerState {
+  return {
+    ...player,
+    x: player.lastGroundedX,
+    y: player.lastGroundedY,
+    vx: 0,
+    vy: 0,
+    grounded: true,
+    isDroppingThroughBridge: false,
+  };
+}
