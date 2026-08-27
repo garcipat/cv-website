@@ -76,9 +76,14 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
 - [ ] **12. Coin collection** — touching a coin removes it, fact text floats up and
   flies toward the journal icon, `collectedFacts` state updates.
   *Verify: collect a coin, see the fact text animate off.*
-- [ ] **13. Journal skeleton** — `J` toggles a fullscreen overlay, pauses the game,
-  shows collected facts unstyled.
-  *Verify: open/close the journal, see the collected fact listed.*
+- [ ] **13. Journal skeleton** — `J` (or a bottom-right journal icon button, per
+  FR-025 — a placeholder icon/emoji if no pixel-art asset exists yet) toggles a
+  fullscreen overlay, pauses the game, shows collected facts unstyled. Collected
+  facts are preserved across a death/respawn (unaffected by this step — see
+  FR-020c for the forward-looking note on enemies/blocks respawning while
+  coins/facts don't, once those exist).
+  *Verify: open/close the journal via both the `J` key and the icon button, see
+  the collected fact listed.*
 - [ ] **14. Journal styling** — notebook paper, `Caveat` handwriting font, Simple
   List entry style per the mockup.
   *Verify: visually matches `entry-styles-mockup.html`.*
