@@ -375,9 +375,9 @@ describe('drawHearts', () => {
 
     drawHearts(ctx, MAX_HALF_HEARTS, fakeHeartsSheet);
 
-    expect(ctx.drawImage).toHaveBeenNthCalledWith(1, fakeHeartsSheet, 0, 0, 32, 32, 16, 16, 64, 64);
-    expect(ctx.drawImage).toHaveBeenNthCalledWith(2, fakeHeartsSheet, 0, 0, 32, 32, 84, 16, 64, 64);
-    expect(ctx.drawImage).toHaveBeenNthCalledWith(3, fakeHeartsSheet, 0, 0, 32, 32, 152, 16, 64, 64);
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(1, fakeHeartsSheet, 0, 0, 32, 32, 16, 16, 32, 32);
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(2, fakeHeartsSheet, 0, 0, 32, 32, 52, 16, 32, 32);
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(3, fakeHeartsSheet, 0, 0, 32, 32, 88, 16, 32, 32);
   });
 
   it('threeHalfHearts-drawsOneFullOneHalfOneEmpty', () => {
@@ -385,9 +385,9 @@ describe('drawHearts', () => {
 
     drawHearts(ctx, 3, fakeHeartsSheet);
 
-    expect(ctx.drawImage).toHaveBeenNthCalledWith(1, fakeHeartsSheet, 0, 0, 32, 32, 16, 16, 64, 64);
-    expect(ctx.drawImage).toHaveBeenNthCalledWith(2, fakeHeartsSheet, 32, 0, 32, 32, 84, 16, 64, 64);
-    expect(ctx.drawImage).toHaveBeenNthCalledWith(3, fakeHeartsSheet, 64, 0, 32, 32, 152, 16, 64, 64);
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(1, fakeHeartsSheet, 0, 0, 32, 32, 16, 16, 32, 32);
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(2, fakeHeartsSheet, 32, 0, 32, 32, 52, 16, 32, 32);
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(3, fakeHeartsSheet, 64, 0, 32, 32, 88, 16, 32, 32);
   });
 
   it('zeroHealth-drawsAllEmptyFrames', () => {
@@ -395,9 +395,9 @@ describe('drawHearts', () => {
 
     drawHearts(ctx, 0, fakeHeartsSheet);
 
-    expect(ctx.drawImage).toHaveBeenNthCalledWith(1, fakeHeartsSheet, 64, 0, 32, 32, 16, 16, 64, 64);
-    expect(ctx.drawImage).toHaveBeenNthCalledWith(2, fakeHeartsSheet, 64, 0, 32, 32, 84, 16, 64, 64);
-    expect(ctx.drawImage).toHaveBeenNthCalledWith(3, fakeHeartsSheet, 64, 0, 32, 32, 152, 16, 64, 64);
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(1, fakeHeartsSheet, 64, 0, 32, 32, 16, 16, 32, 32);
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(2, fakeHeartsSheet, 64, 0, 32, 32, 52, 16, 32, 32);
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(3, fakeHeartsSheet, 64, 0, 32, 32, 88, 16, 32, 32);
   });
 
   it('draws-setsImageSmoothingEnabledFalse', () => {
