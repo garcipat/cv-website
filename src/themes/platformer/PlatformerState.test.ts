@@ -6,6 +6,7 @@ import {
   spawnPlayerState,
   spawnCenter,
   resetGame,
+  collectedFacts,
 } from './PlatformerState';
 import { MAX_HALF_HEARTS } from './entities/Health';
 import { tileToPixel, RENDERED_TILE_SIZE } from './level/Terrain';
@@ -88,5 +89,31 @@ describe('PlatformerState', () => {
     expect(playerState.value).toEqual(spawnPlayerState());
     expect(healthState.value).toBe(MAX_HALF_HEARTS);
     expect(cameraPositionX.value).toBe(0);
+  });
+
+  it('resetGame-calledWithCollectedFacts-doesNotClearThem', () => {
+    const facts = [
+      {
+        id: 'x',
+        sectionId: 'skills' as const,
+        sectionLabel: 'Skills',
+        data: { name: 'Go', level: 70 },
+        sourceType: 'coin' as const,
+      },
+    ];
+    collectedFacts.value = facts;
+
+    resetGame();
+
+    expect(collectedFacts.value).toBe(facts);
+  });
+});
+
+describe('collectedFacts', () => {
+  it('initialValue-onModuleLoad-containsSeedFacts', () => {
+    expect(collectedFacts.value.length).toBeGreaterThan(0);
+    expect(collectedFacts.value[0]).toMatchObject({
+      sourceType: 'coin',
+    });
   });
 });
