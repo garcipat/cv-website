@@ -412,6 +412,52 @@ describe('stepPlayerPhysics one-way bridge platforms', () => {
 
     expect(next.x).toBe(restX);
   });
+
+  // Single bridge tile at col 2, row 0, otherwise open on all sides — used to
+  // prove horizontal movement isn't frozen/snapped while the hitbox is
+  // vertically overlapping the SAME bridge tile it's passing through (the
+  // cross-cutting bug: the horizontal branch used to treat that overlap as a
+  // sideways wall collision). Columns beside the bridge column are empty, so
+  // drifting into them during the test's few frames never introduces an
+  // unrelated collision.
+  const BRIDGE_CEILING_SINGLE_COL_LEVEL = parseLevel(['..B...', '......', '......', '......']);
+
+  it.each([
+    ['right', { right: true }, 1] as const,
+    ['left', { left: true }, -1] as const,
+  ])(
+    'jumpingUpThroughBridgeWhileHolding%s-keepsAdvancingHorizontallyAtWalkSpeed',
+    (_label, dirInput, sign) => {
+      // x chosen so the hitbox starts fully inside column 2 (the bridge
+      // column): left edge = x+20 >= 64, right edge = x+43 <= 95, i.e.
+      // x in [44, 52].
+      const startX = 48;
+      // y chosen so the hitbox is already vertically overlapping the row-0
+      // bridge tile from the very first frame (topRow ends up 0), so the
+      // horizontal check's column range is still column 2 (the bridge
+      // column) when the artifact would strike, before any drift moves it
+      // into a neighboring (empty) column.
+      let player = basePlayer({
+        x: startX,
+        y: -10,
+        vy: PHYSICS_CONFIG.jumpVelocity,
+        grounded: false,
+      });
+
+      // Run several frames while the head is passing through/near the
+      // bridge row — each frame's horizontal displacement must be exactly
+      // walkSpeed * dt, identical to open-air movement, with no stall or
+      // snap-back from the overlapping bridge tile.
+      for (let i = 0; i < 5; i++) {
+        const prevX = player.x;
+        player = stepPlayerPhysics(player, BRIDGE_CEILING_SINGLE_COL_LEVEL, 1 / 60, {
+          ...dirInput,
+          jumpHeld: true,
+        });
+        expect(player.x).toBeCloseTo(prevX + sign * (PHYSICS_CONFIG.walkSpeed / 60));
+      }
+    },
+  );
 });
 
 describe('stepPlayerPhysics bridge drop-through', () => {
@@ -467,4 +513,41 @@ describe('stepPlayerPhysics bridge drop-through', () => {
     expect(player.y).toBe(floorSurfaceY - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING);
     expect(player.isDroppingThroughBridge).toBe(false);
   });
+
+  // Same bridge-at-row-0 setup as BRIDGE_DROP_LEVEL, but wide with open
+  // columns beside the bridge/floor column — isolates the same cross-cutting
+  // bug as the jump-through test above, for the drop-through direction: the
+  // horizontal branch must not treat the bridge tile the player is actively
+  // dropping through as a sideways wall.
+  const BRIDGE_DROP_WIDE_LEVEL = parseLevel(['..B...', '......', '......', '..G...']);
+
+  it.each([
+    ['right', { right: true }, 1] as const,
+    ['left', { left: true }, -1] as const,
+  ])(
+    'droppingThroughBridgeWhileHolding%s-keepsAdvancingHorizontallyAtWalkSpeed',
+    (_label, dirInput, sign) => {
+      const startX = 48; // fully inside column 2 (the bridge/floor column)
+      // Mid pass-through already (not the resting-on-top trigger frame):
+      // gravity accelerates slowly from a standstill, so reaching a y where
+      // the hitbox is vertically overlapping the row-0 bridge (same
+      // requirement as the jump-through test above) takes many frames from
+      // a resting start. Starting already inside the overlap, with the flag
+      // already set, isolates the same few frames the jump-through test
+      // does, without the test needing to simulate the whole slow fall.
+      let player = basePlayer({
+        x: startX,
+        y: -10,
+        vy: 50,
+        grounded: false,
+        isDroppingThroughBridge: true,
+      });
+
+      for (let i = 0; i < 5; i++) {
+        const prevX = player.x;
+        player = stepPlayerPhysics(player, BRIDGE_DROP_WIDE_LEVEL, 1 / 60, dirInput);
+        expect(player.x).toBeCloseTo(prevX + sign * (PHYSICS_CONFIG.walkSpeed / 60));
+      }
+    },
+  );
 });
