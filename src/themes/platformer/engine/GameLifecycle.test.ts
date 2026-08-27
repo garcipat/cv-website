@@ -1,4 +1,11 @@
-import { introState, startDeath, tickLifecycle, currentIrisRadius } from './GameLifecycle';
+import {
+  introState,
+  startDeath,
+  tickLifecycle,
+  currentIrisRadius,
+  pauseForJournal,
+  resumeFromJournal,
+} from './GameLifecycle';
 import type { LifecycleState } from './GameLifecycle';
 import {
   IRIS_DURATION_SECONDS,
@@ -19,6 +26,30 @@ describe('introState', () => {
 describe('startDeath', () => {
   it('called-returns-dyingPhaseAtZeroElapsedWithGivenCenter', () => {
     expect(startDeath(30, 40)).toEqual({ phase: 'dying', elapsed: 0, centerX: 30, centerY: 40 });
+  });
+});
+
+describe('pauseForJournal', () => {
+  it('called-fromPlaying-returnsPausedPhaseSameElapsedAndCenter', () => {
+    const state: LifecycleState = { phase: 'playing', elapsed: 0, centerX: 12, centerY: 34 };
+    expect(pauseForJournal(state)).toEqual({
+      phase: 'paused',
+      elapsed: 0,
+      centerX: 12,
+      centerY: 34,
+    });
+  });
+});
+
+describe('resumeFromJournal', () => {
+  it('called-fromPaused-returnsPlayingPhaseSameElapsedAndCenter', () => {
+    const state: LifecycleState = { phase: 'paused', elapsed: 0, centerX: 12, centerY: 34 };
+    expect(resumeFromJournal(state)).toEqual({
+      phase: 'playing',
+      elapsed: 0,
+      centerX: 12,
+      centerY: 34,
+    });
   });
 });
 
@@ -64,6 +95,11 @@ describe('tickLifecycle', () => {
 describe('currentIrisRadius', () => {
   it('playingPhase-returns-null', () => {
     const state: LifecycleState = { phase: 'playing', elapsed: 0, centerX: 0, centerY: 0 };
+    expect(currentIrisRadius(state, 500)).toBeNull();
+  });
+
+  it('pausedPhase-returns-null', () => {
+    const state: LifecycleState = { phase: 'paused', elapsed: 0, centerX: 0, centerY: 0 };
     expect(currentIrisRadius(state, 500)).toBeNull();
   });
 
