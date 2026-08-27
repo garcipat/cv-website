@@ -15,8 +15,9 @@ branch.)
 
 | Key | Action |
 | --- | --- |
-| ← / → (Arrow Left/Right) | Move left / right |
+| ← / → (Arrow Left/Right) or A/D | Move left / right |
 | Space or ↑ (Arrow Up) | Jump |
+| ↓ (Arrow Down) or S | Drop through a bridge while standing on one |
 | J | Toggle the journal open/closed |
 
 Arrow Up is reserved exclusively for jumping — it doesn't double as a journal
