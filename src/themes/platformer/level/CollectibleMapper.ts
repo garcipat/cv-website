@@ -71,10 +71,12 @@ export interface CollectiblePlacement extends CollectibleDef {
  * for each column left to right, place the next collectible one tile above
  * the first solid tile in that column, skipping columns with no solid tile
  * at all (pits) and spacing placements COLLECTIBLE_SPACING_COLS apart so
- * they don't crowd. Wraps to reuse columns if there are more collectibles
- * than spaced columns — level1 isn't designed with a specific collectible
- * count in mind yet (see this plan's "Key design decisions"), so this needs
- * to degrade gracefully rather than throw.
+ * they don't crowd. Falls back to the full (unspaced) candidate column list
+ * — every entry independently verified as empty-above-solid — if there are
+ * more collectibles than spaced columns, cycling through it via modulo;
+ * level1 isn't designed with a specific collectible count in mind yet (see
+ * this plan's "Key design decisions"), so this needs to degrade gracefully
+ * rather than throw or fabricate an unverified row.
  */
 const COLLECTIBLE_SPACING_COLS = 3;
 
@@ -93,12 +95,20 @@ export function placeCollectibles(
   }
 
   const spacedCols = candidateCols.filter((_, i) => i % COLLECTIBLE_SPACING_COLS === 0);
-  const pool = spacedCols.length > 0 ? spacedCols : candidateCols;
+  // Prefer even spacing while there's room; once defs exceed the spaced
+  // pool, fall back to the denser (but still always-valid) full candidate
+  // list rather than fabricating new rows by subtracting an offset — every
+  // entry in candidateCols is a real, verified empty-tile-above-solid
+  // position, so cycling through it can never place on an invalid tile.
+  const pool =
+    defs.length <= spacedCols.length && spacedCols.length > 0 ? spacedCols : candidateCols;
 
   return defs.map((def, i) => {
     const col = pool[i % pool.length];
     // Re-derive the row for this column (cheap; candidateCols doesn't carry
-    // row along, and a column can only match once per the break above).
+    // row along, and a column can only match once per the break above). This
+    // is always a genuinely re-verified empty-above-solid row — never
+    // computed by arithmetic on another row.
     let row = 0;
     for (let r = 0; r < level.height - 1; r++) {
       if (!isSolid(tileAt(level, col, r)) && isSolid(tileAt(level, col, r + 1))) {
@@ -106,11 +116,7 @@ export function placeCollectibles(
         break;
       }
     }
-    // When wrapping past the pool once, offset onto a second candidate row
-    // in the same column isn't tracked — instead nudge vertically by one
-    // extra tile per full wrap so repeated columns don't stack exactly.
-    const wrapOffset = Math.floor(i / pool.length);
-    const { x, y } = tileToPixel(col, row - wrapOffset);
+    const { x, y } = tileToPixel(col, row);
     return { ...def, x, y };
   });
 }

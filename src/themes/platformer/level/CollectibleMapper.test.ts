@@ -110,4 +110,34 @@ describe('placeCollectibles', () => {
     const positions = placed.map((p) => `${p.x},${p.y}`);
     expect(new Set(positions).size).toBe(positions.length);
   });
+
+  it('manyDefs-returns-everyPlacementUniqueAndOnAnEmptyTileAboveASolidTile', () => {
+    // Combines the two properties checked separately above (uniqueness,
+    // solidity) against the same 40-fake-defs wrap-triggering fixture, so a
+    // future regression that reintroduces fabricated (unverified) rows in
+    // the wrap path — valid positions that just happen to collide, or vice
+    // versa — is caught even if it slips past either check alone.
+    const manyDefs = Array.from({ length: 40 }, (_, i) => ({
+      id: `fake-${i}`,
+      spriteType: 'coin' as const,
+      fact: {
+        id: `fake-${i}`,
+        sectionId: 'skills' as const,
+        sectionLabel: 'Skills',
+        data: { category: `Cat ${i}`, skills: [] },
+        sourceType: 'coin' as const,
+      },
+    }));
+    const placed = placeCollectibles(manyDefs, level1);
+
+    const positions = placed.map((p) => `${p.x},${p.y}`);
+    expect(new Set(positions).size).toBe(positions.length);
+
+    for (const p of placed) {
+      const col = p.x / RENDERED_TILE_SIZE;
+      const row = p.y / RENDERED_TILE_SIZE;
+      expect(isSolid(tileAt(level1, col, row))).toBe(false);
+      expect(isSolid(tileAt(level1, col, row + 1))).toBe(true);
+    }
+  });
 });
