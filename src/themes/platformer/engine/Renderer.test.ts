@@ -1,4 +1,13 @@
-import { drawTerrain, drawPlayer, drawHearts, drawCoins, drawCoinCounter } from './Renderer';
+import {
+  drawTerrain,
+  drawPlayer,
+  drawHearts,
+  drawCoins,
+  drawCoinCounter,
+  drawIrisOverlay,
+  drawRestartPrompt,
+  RESTART_PROMPT_FONT_FAMILY,
+} from './Renderer';
 import { coinBobOffset, COIN_FRAME_DURATION } from '../entities/Coin';
 import type { CoinPlacement } from '../entities/Coin';
 import type { LevelDef } from '../level/LevelData';
@@ -9,15 +18,20 @@ import { MAX_HALF_HEARTS } from '../entities/Health';
 function makeMockContext() {
   return {
     imageSmoothingEnabled: true,
+    fillStyle: '',
+    font: '',
+    textAlign: '',
+    textBaseline: '',
     drawImage: vi.fn(),
     save: vi.fn(),
     translate: vi.fn(),
     scale: vi.fn(),
     restore: vi.fn(),
-    fillStyle: '',
-    font: '',
-    textAlign: 'left' as CanvasTextAlign,
-    textBaseline: 'alphabetic' as CanvasTextBaseline,
+    beginPath: vi.fn(),
+    rect: vi.fn(),
+    moveTo: vi.fn(),
+    arc: vi.fn(),
+    fill: vi.fn(),
     fillText: vi.fn(),
   } as unknown as CanvasRenderingContext2D;
 }
@@ -475,6 +489,56 @@ describe('drawCoinCounter', () => {
     drawCoinCounter(ctx as unknown as CanvasRenderingContext2D, 0, 4);
 
     expect(ctx.fillText).toHaveBeenCalledWith('0 / 4', expect.any(Number), expect.any(Number));
-    expect(ctx.font).toBe("16px 'Press Start 2P', monospace");
+    expect(ctx.font).toBe(`16px "${RESTART_PROMPT_FONT_FAMILY}", monospace`);
+  });
+});
+
+describe('drawIrisOverlay', () => {
+  it('positiveRadius-fillsRectAndCutsCircularHoleWithEvenOdd', () => {
+    const ctx = makeMockContext() as unknown as {
+      rect: ReturnType<typeof vi.fn>;
+      moveTo: ReturnType<typeof vi.fn>;
+      arc: ReturnType<typeof vi.fn>;
+      fill: ReturnType<typeof vi.fn>;
+    };
+
+    drawIrisOverlay(ctx as unknown as CanvasRenderingContext2D, 800, 600, 400, 300, 100);
+
+    expect(ctx.rect).toHaveBeenCalledWith(0, 0, 800, 600);
+    expect(ctx.arc).toHaveBeenCalledWith(400, 300, 100, 0, Math.PI * 2, true);
+    expect(ctx.fill).toHaveBeenCalledWith('evenodd');
+  });
+
+  it('zeroRadius-fillsRectWithoutDrawingCircle', () => {
+    const ctx = makeMockContext() as unknown as {
+      rect: ReturnType<typeof vi.fn>;
+      arc: ReturnType<typeof vi.fn>;
+      fill: ReturnType<typeof vi.fn>;
+    };
+
+    drawIrisOverlay(ctx as unknown as CanvasRenderingContext2D, 800, 600, 400, 300, 0);
+
+    expect(ctx.rect).toHaveBeenCalledWith(0, 0, 800, 600);
+    expect(ctx.arc).not.toHaveBeenCalled();
+    expect(ctx.fill).toHaveBeenCalledWith('evenodd');
+  });
+});
+
+describe('drawRestartPrompt', () => {
+  it('called-drawsPromptTextCenteredOnCanvas', () => {
+    const ctx = makeMockContext() as unknown as { fillText: ReturnType<typeof vi.fn> };
+
+    drawRestartPrompt(ctx as unknown as CanvasRenderingContext2D, 800, 600);
+
+    expect(ctx.fillText).toHaveBeenCalledWith('Press any button to restart', 400, 300);
+  });
+
+  it('called-usesRestartPromptFontFamilyWithSansSerifFallback', () => {
+    const ctx = makeMockContext() as unknown as { font: string };
+
+    drawRestartPrompt(ctx as unknown as CanvasRenderingContext2D, 800, 600);
+
+    expect(ctx.font).toContain(RESTART_PROMPT_FONT_FAMILY);
+    expect(ctx.font).toContain('sans-serif');
   });
 });

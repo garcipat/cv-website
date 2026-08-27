@@ -203,6 +203,68 @@ export function drawHearts(
 }
 
 /**
+ * Paints solid black over the whole canvas except a circular hole of
+ * `radius` centered on (centerX, centerY), using the canvas 2D API's
+ * even-odd fill rule on two subpaths (the full-canvas rect, then the
+ * circle) instead of an offscreen buffer + composite-operation punch —
+ * simpler and avoids an extra canvas. `centerX`/`centerY` are screen-space
+ * (caller adds the camera originX/originY, matching drawTerrain/drawPlayer's
+ * convention). `radius <= 0` draws solid black with no hole at all — the
+ * `awaitingRestart` phase and the very start of a death both rely on this.
+ */
+export function drawIrisOverlay(
+  ctx: CanvasRenderingContext2D,
+  canvasWidth: number,
+  canvasHeight: number,
+  centerX: number,
+  centerY: number,
+  radius: number,
+): void {
+  ctx.save();
+  ctx.fillStyle = '#000';
+  ctx.beginPath();
+  ctx.rect(0, 0, canvasWidth, canvasHeight);
+  if (radius > 0) {
+    ctx.moveTo(centerX + radius, centerY);
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2, true);
+  }
+  ctx.fill('evenodd');
+  ctx.restore();
+}
+
+const RESTART_PROMPT_TEXT = 'Press any button to restart';
+
+/**
+ * Family name registered with `document.fonts` by engine/FontLoader.ts's
+ * `loadFont` call (see PlatformerPage.tsx's mount effect) for
+ * `RESTART_PROMPT_FONT_URL`. Kept alongside the draw call that uses it so
+ * the loaded family name and the drawn family name can't drift apart.
+ */
+export const RESTART_PROMPT_FONT_FAMILY = 'ByteBounce';
+
+/** Public path to the font file loaded for RESTART_PROMPT_FONT_FAMILY. */
+export const RESTART_PROMPT_FONT_URL = '/fonts/bytebounce.medium.ttf';
+
+/** Draws the death-screen restart prompt, centered on the canvas. Only ever
+ *  drawn on top of a fully-closed drawIrisOverlay (radius 0), so no
+ *  background/contrast handling is needed here. Falls back to the
+ *  sans-serif stack if RESTART_PROMPT_FONT_FAMILY hasn't finished loading
+ *  (or failed to) by the time this is drawn. */
+export function drawRestartPrompt(
+  ctx: CanvasRenderingContext2D,
+  canvasWidth: number,
+  canvasHeight: number,
+): void {
+  ctx.save();
+  ctx.fillStyle = '#fff';
+  ctx.font = `24px "${RESTART_PROMPT_FONT_FAMILY}", sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(RESTART_PROMPT_TEXT, canvasWidth / 2, canvasHeight / 2);
+  ctx.restore();
+}
+
+/**
  * Draws every coin at the current shared spin frame, offset a few pixels up
  * or down by the current shared bob position (all coins spin and bob in sync
  * — see Coin.ts's coinFrameIndex/coinBobOffset). Same originX/originY
@@ -246,6 +308,12 @@ const COIN_COUNTER_GAP = 12;
  * right of the heart HUD (see drawHearts's HUD_MARGIN/HEART_SPACING). This
  * step always passes `collected = 0` (a static placeholder — coins aren't
  * collectible yet); a later roadmap step wires a real collected count in.
+ * Reuses RESTART_PROMPT_FONT_FAMILY (loaded once, in PlatformerPage.tsx's
+ * mount effect, for the restart prompt) rather than loading a second pixel
+ * font — it's this theme's only registered pixel typeface, and the CSS Font
+ * Loading API registers a family globally in `document.fonts` once loaded,
+ * so any canvas fillText call can use it. Falls back to monospace if the
+ * font hasn't finished loading (or failed to) yet.
  */
 export function drawCoinCounter(
   ctx: CanvasRenderingContext2D,
@@ -254,7 +322,7 @@ export function drawCoinCounter(
 ): void {
   ctx.save();
   ctx.fillStyle = '#fff';
-  ctx.font = "16px 'Press Start 2P', monospace";
+  ctx.font = `16px "${RESTART_PROMPT_FONT_FAMILY}", monospace`;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
   const heartsWidth = MAX_HEARTS * (HEART_RENDERED_SIZE + HEART_SPACING);

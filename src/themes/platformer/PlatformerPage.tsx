@@ -1,18 +1,44 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { FloatingControls } from './components/FloatingControls';
 import { loadImage } from './engine/SpriteLoader';
-import { drawTerrain, drawPlayer, drawHearts, drawCoins, drawCoinCounter } from './engine/Renderer';
+import { loadFont } from './engine/FontLoader';
+import {
+  drawTerrain,
+  drawPlayer,
+  drawHearts,
+  drawCoins,
+  drawCoinCounter,
+  drawIrisOverlay,
+  drawRestartPrompt,
+  RESTART_PROMPT_FONT_FAMILY,
+  RESTART_PROMPT_FONT_URL,
+} from './engine/Renderer';
 import { drawDebugOverlay } from './engine/DebugOverlay';
 import { createGameLoop } from './engine/GameLoop';
 import { stepPlayerPhysics, checkPitFall, resolvePitFall } from './engine/Physics';
 import { updateCamera } from './engine/Camera';
 import { createKeyboardInput } from './engine/Input';
+import {
+  tickLifecycle,
+  startDeath,
+  introState,
+  currentIrisRadius,
+  pauseForJournal,
+  resumeFromJournal,
+} from './engine/GameLifecycle';
+import { maxIrisRadius } from './engine/IrisTransition';
 import { level1 } from './level/level1';
 import { level1Coins } from './level/level1Coins';
 import { RENDERED_TILE_SIZE } from './level/Terrain';
-import { advancePlayerAnimation, updatePlayerAnimState, PLAYER_RENDERED_SIZE } from './entities/Player';
+import {
+  advancePlayerAnimation,
+  updatePlayerAnimState,
+  PLAYER_RENDERED_SIZE,
+  PLAYER_VISUAL_CENTER_Y_OFFSET,
+} from './entities/Player';
 import { takeDamage, PIT_FALL_DAMAGE } from './entities/Health';
-import { playerState, cameraPositionX, healthState } from './PlatformerState';
+import { playerState, cameraPositionX, healthState, lifecycleState, spawnCenter, resetGame } from './PlatformerState';
+import { Journal } from './components/Journal';
 
 export const PlatformerPage = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -21,7 +47,72 @@ export const PlatformerPage = () => {
   const playerJumpSpriteRef = useRef<HTMLImageElement | null>(null);
   const heartsSpriteRef = useRef<HTMLImageElement | null>(null);
   const coinSpriteRef = useRef<HTMLImageElement | null>(null);
-  const debugHitboxes = new URLSearchParams(window.location.search).get('debug') === 'hitboxes';
+  const debugParams = new URLSearchParams(window.location.search);
+  // Any `debug` param (not just `hitboxes`) shows the debug panel (Kill/
+  // Respawn/Hitboxes toggle below) — a dev convenience for exercising the
+  // death/respawn iris transition and collision geometry without navigating
+  // pits repeatedly, not a feature end users should see.
+  const debugControls = debugParams.has('debug');
+  // `?debug=hitboxes` still seeds the initial toggle state (so the existing
+  // "open at ?debug=hitboxes" manual-testing habit keeps working), but it's
+  // now a runtime toggle via the panel button rather than fixed for the
+  // session. Mirrored into a ref so the game loop's render() closure (set up
+  // once in the mount effect below) reads the latest value without needing
+  // to restart the effect on every toggle.
+  const [debugHitboxesOn, setDebugHitboxesOn] = useState(
+    () => debugParams.get('debug') === 'hitboxes',
+  );
+  const debugHitboxesRef = useRef(debugHitboxesOn);
+
+  const handleToggleHitboxes = () => setDebugHitboxesOn((prev) => !prev);
+
+  // Mirrored into a ref (same pattern as debugHitboxesOn/debugHitboxesRef
+  // above) so the keydown listener registered once in the mount effect below
+  // always reads the latest open/closed value instead of closing over a
+  // stale one.
+  const [journalOpen, setJournalOpen] = useState(false);
+  const journalOpenRef = useRef(journalOpen);
+
+  // Keeps both refs in sync with their corresponding state on every render
+  // (no dependency array) — assigning `.current` directly in the render body
+  // trips the `react-hooks/refs` lint rule ("Cannot update ref during
+  // render"), so the sync is done here instead, after commit, while still
+  // always reflecting the latest value by the next read.
+  useEffect(() => {
+    debugHitboxesRef.current = debugHitboxesOn;
+    journalOpenRef.current = journalOpen;
+  });
+
+  /**
+   * Toggles the journal. Opening is only allowed from 'playing' (not
+   * mid-death/intro/restart); closing is only allowed from 'paused' — both
+   * guards prevent the journal from desyncing the lifecycle phase if `J` is
+   * pressed during an animation.
+   */
+  const handleJournalToggle = () => {
+    const phase = lifecycleState.value.phase;
+    if (!journalOpenRef.current) {
+      if (phase !== 'playing') return;
+      lifecycleState.value = pauseForJournal(lifecycleState.value);
+      setJournalOpen(true);
+    } else {
+      if (phase !== 'paused') return;
+      lifecycleState.value = resumeFromJournal(lifecycleState.value);
+      setJournalOpen(false);
+    }
+  };
+
+  const handleDebugKill = () => {
+    healthState.value = 0;
+    const p = playerState.value;
+    lifecycleState.value = startDeath(p.x + PLAYER_RENDERED_SIZE / 2, p.y + PLAYER_VISUAL_CENTER_Y_OFFSET);
+  };
+
+  const handleDebugRespawn = () => {
+    resetGame();
+    const center = spawnCenter();
+    lifecycleState.value = introState(center.x, center.y);
+  };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -71,13 +162,30 @@ export const PlatformerPage = () => {
         drawCoins(ctx, level1Coins, coinSpriteRef.current, coinAnimElapsed, originX, originY);
       }
 
-      if (debugHitboxes) drawDebugOverlay(ctx, playerState.value, level1, originX, originY);
+      if (debugHitboxesRef.current) drawDebugOverlay(ctx, playerState.value, level1, originX, originY);
 
       if (heartsSpriteRef.current) {
         drawHearts(ctx, healthState.value, heartsSpriteRef.current);
       }
 
       drawCoinCounter(ctx, 0, level1Coins.length);
+
+      // Iris overlay: drawn on top of everything else whenever the current
+      // phase isn't 'playing'. centerX/centerY are stored world-space (see
+      // GameLifecycle.ts) so they're converted to screen-space here with the
+      // same originX/originY already used for terrain/player, keeping them
+      // aligned even if the canvas resizes mid-pause.
+      const lifecycle = lifecycleState.value;
+      if (lifecycle.phase !== 'playing' && lifecycle.phase !== 'paused') {
+        const centerX = lifecycle.centerX + originX;
+        const centerY = lifecycle.centerY + originY;
+        const maxRadius = maxIrisRadius(canvas.width, canvas.height, centerX, centerY);
+        const radius = currentIrisRadius(lifecycle, maxRadius) ?? 0;
+        drawIrisOverlay(ctx, canvas.width, canvas.height, centerX, centerY, radius);
+        if (lifecycle.phase === 'awaitingRestart') {
+          drawRestartPrompt(ctx, canvas.width, canvas.height);
+        }
+      }
     };
 
     resize();
@@ -92,12 +200,54 @@ export const PlatformerPage = () => {
 
     const input = createKeyboardInput();
 
+    /**
+     * Any key or a canvas click restarts the game while 'awaitingRestart' —
+     * full health, spawn position, back to the 'intro' iris-in. No-op in
+     * every other phase (checked first) so this can't fire mid-gameplay.
+     */
+    const restartIfAwaiting = () => {
+      if (lifecycleState.value.phase !== 'awaitingRestart') return;
+      resetGame();
+      const center = spawnCenter();
+      lifecycleState.value = introState(center.x, center.y);
+      render();
+    };
+    window.addEventListener('keydown', restartIfAwaiting);
+    canvas.addEventListener('click', restartIfAwaiting);
+
+    const onJournalKey = (e: KeyboardEvent) => {
+      if (e.repeat) return;
+      if (e.code === 'KeyJ') handleJournalToggle();
+    };
+    window.addEventListener('keydown', onJournalKey);
+
     const loop = createGameLoop((dt) => {
-      // Deliberate choice point, not an oversight: this branch predates the
-      // death/respawn lifecycle pause (see S-006-step10-respawn), so the
-      // increment runs unconditionally. When step 10's early-returns land in
-      // this callback, decide whether to move this line below them (coins
-      // freeze during death/restart) or leave it above (coins keep animating).
+      // 'dying' and 'awaitingRestart' pause the game loop entirely — no
+      // physics/input processing, just advancing (dying) or holding
+      // (awaitingRestart) the iris animation and re-rendering.
+      if (lifecycleState.value.phase === 'dying') {
+        lifecycleState.value = tickLifecycle(lifecycleState.value, dt);
+        render();
+        return;
+      }
+      if (lifecycleState.value.phase === 'awaitingRestart') {
+        render();
+        return;
+      }
+      if (lifecycleState.value.phase === 'paused') {
+        // Drains any edge-triggered presses (e.g. Space) that land while the
+        // journal is open every tick, not just once — otherwise a press made
+        // while paused sits in `justPressed` and fires as a jump on the very
+        // next tick after resuming, even though the player never intended to
+        // jump while looking at the overlay.
+        input.clearPending();
+        render();
+        return;
+      }
+
+      // Coins only spin/bob while the game is actually live — frozen during
+      // death/restart/journal-pause, same as physics below, rather than
+      // ticking on a wall-clock independent of the paused state.
       coinAnimElapsed += dt;
 
       // A/D accepted as an alternate to Arrow Left/Right (FR-007 only
@@ -143,6 +293,19 @@ export const PlatformerPage = () => {
         canvas.width,
         levelPixelWidth,
       );
+
+      // Death check: whatever the damage source (today, only repeated pit
+      // falls), 0 health starts the death iris centered on wherever the
+      // player ended up this frame. Otherwise, keep advancing 'intro' (a
+      // no-op once already 'playing' — see GameLifecycle.ts's tickLifecycle).
+      if (healthState.value === 0) {
+        lifecycleState.value = startDeath(
+          next.x + PLAYER_RENDERED_SIZE / 2,
+          next.y + PLAYER_VISUAL_CENTER_Y_OFFSET,
+        );
+      } else {
+        lifecycleState.value = tickLifecycle(lifecycleState.value, dt);
+      }
 
       render();
     });
@@ -199,12 +362,24 @@ export const PlatformerPage = () => {
         // Coins simply won't render if the sprite fails to load; the rest of
         // the game still shows.
       });
+    loadFont(RESTART_PROMPT_FONT_FAMILY, RESTART_PROMPT_FONT_URL)
+      .then(() => {
+        if (cancelled) return;
+        render();
+      })
+      .catch(() => {
+        // drawRestartPrompt/drawCoinCounter fall back to their sans-serif/
+        // monospace stacks if the custom font fails to load.
+      });
 
     return () => {
       cancelled = true;
       loop.stop();
       input.destroy();
       window.removeEventListener('resize', onResize);
+      window.removeEventListener('keydown', restartIfAwaiting);
+      window.removeEventListener('keydown', onJournalKey);
+      canvas.removeEventListener('click', restartIfAwaiting);
     };
   }, []);
 
@@ -212,6 +387,48 @@ export const PlatformerPage = () => {
     <div className="relative h-screen w-screen overflow-hidden">
       <canvas ref={canvasRef} data-testid="platformer-canvas" className="block" tabIndex={-1} />
       <FloatingControls />
+      {journalOpen && <Journal onClose={handleJournalToggle} />}
+      {/* PLACEHOLDER icon: no journal/book pixel-art sprite exists yet
+          (public/sprites/, public/icons.svg) — swap this emoji for a real
+          sprite once one is added. FR-025: bottom-right, same action as `J`. */}
+      <button
+        type="button"
+        onClick={handleJournalToggle}
+        data-testid="journal-open-button"
+        aria-label="Toggle journal"
+        className="fixed right-4 bottom-4 z-50 rounded-full bg-gray-800/80 px-3 py-2 text-xl"
+      >
+        📖
+      </button>
+      {debugControls && (
+        // Stacked below FloatingControls' top-right theme/locale selectors
+        // (which sit at top-4, ~36-40px tall) rather than bottom-left, so
+        // future debug affordances can grow downward in the same column
+        // instead of needing their own spot on screen.
+        <div className="fixed top-16 right-4 z-40 flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={handleDebugKill}
+            className="rounded bg-red-600 px-3 py-1 text-sm text-white"
+          >
+            Kill
+          </button>
+          <button
+            type="button"
+            onClick={handleDebugRespawn}
+            className="rounded bg-green-600 px-3 py-1 text-sm text-white"
+          >
+            Respawn
+          </button>
+          <button
+            type="button"
+            onClick={handleToggleHitboxes}
+            className={`rounded px-3 py-1 text-sm text-white ${debugHitboxesOn ? 'bg-amber-600' : 'bg-gray-600'}`}
+          >
+            Hitboxes: {debugHitboxesOn ? 'On' : 'Off'}
+          </button>
+        </div>
+      )}
     </div>
   );
 };
