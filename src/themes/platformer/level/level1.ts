@@ -17,27 +17,35 @@ export const TILE_CHARS: Record<string, TileType | undefined> = {
 
 // Visual layout of level1 — one character per tile (see TILE_CHARS), top row
 // first. Every row must be the same length (the level's width in tiles).
-// Grass ground (cols 0-11) meets rock ground (cols 12-19) partway across;
-// a 2-tile pit (cols 2-3) is bridged at ground level; a floating platform
-// row spans cols 8-14 as platform-platform-platform-bridge-bridge-platform-
-// platform (cols 8-10 / 11-12 / 13-14) — the bridge segment is passable from
-// below (jump up through it) and from above via Down/S (drop-through), with
-// solid ground two tiles below for both to land on; a 3-tile-tall wall stands
-// in the rock zone. `S` marks the player's spawn point — the empty space
-// directly above the top-exposed grass tile it stands on.
+// Grass ground (cols 0-11) meets rock ground (cols 12-79) partway across; a
+// 2-tile pit (cols 2-3) is bridged at ground level with a solid floor below
+// (drop-through lets the character fall through that bridge on purpose, so
+// the pit isn't a bottomless drop). A floating platform row spans cols 8-14
+// as platform-platform-platform-bridge-bridge-platform-platform (cols 8-10 /
+// 11-12 / 13-14) — the bridge segment is passable from below (jump up
+// through it) and from above via Down/S (drop-through), with solid ground
+// two tiles below for both to land on. The rock ground continues flat with
+// no obstacles from col 20 to the level end (col 79) — room for the camera
+// (step 8) to have something to scroll through (the wall obstacle that used
+// to stand in the rock zone was removed for this). `S` marks the player's
+// spawn point — the empty space directly above the top-exposed grass tile
+// it stands on.
+const LEVEL_WIDTH = 80;
+const pad = (s: string) => s.padEnd(LEVEL_WIDTH, '.');
+
 const LEVEL_1_LAYOUT: readonly string[] = [
-  '....................',
-  '....................',
-  '....................',
-  '....................',
-  '....................',
-  '....................',
-  '....................',
-  '........PPPBBPPW....',
-  '...............W....',
-  '.S.............W....',
-  'GGBBGGGGGGGGRRRRRRRR',
-  'GGGGGGGGGGGGRRRRRRRR',
+  pad(''),
+  pad(''),
+  pad(''),
+  pad(''),
+  pad(''),
+  pad(''),
+  pad(''),
+  pad('........PPPBBPP'),
+  pad(''),
+  pad('.S'),
+  'GGBBGGGGGGGG'.padEnd(LEVEL_WIDTH, 'R'),
+  'GGGGGGGGGGGG'.padEnd(LEVEL_WIDTH, 'R'),
 ];
 
 export function parseLevel(layout: readonly string[]): LevelDef {
