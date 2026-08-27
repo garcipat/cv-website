@@ -76,16 +76,35 @@ export function stepPlayerPhysics(
     const rightCol = Math.floor(
       (x + PLAYER_SIDE_PADDING + HITBOX_WIDTH - 1) / RENDERED_TILE_SIZE,
     );
+    // The hitbox's rightmost column *before* this frame's horizontal move
+    // (using the pre-move `player.x`). If that's the same column as
+    // `rightCol` above, the hitbox was already occupying this column when
+    // the frame started — e.g. mid pass-through while jumping up through a
+    // bridge, or while actively dropping through one (both let the vertical
+    // branches carry the hitbox into/through a `bridge` tile's row for many
+    // frames). In that case a `bridge` tile here isn't a new sideways
+    // collision, so it must not block (isSolidExcludingBridge). Only a
+    // genuinely NEW column — approaching the tile from the side, as in
+    // `walkingIntoBridgeFromSide-blockedLikeAnyWall` — still treats bridge
+    // as solid, exactly like any other wall.
+    const prevRightCol = Math.floor(
+      (player.x + PLAYER_SIDE_PADDING + HITBOX_WIDTH - 1) / RENDERED_TILE_SIZE,
+    );
+    const isWall = rightCol === prevRightCol ? isSolidExcludingBridge : isSolid;
     for (let row = topRow; row <= bottomRow; row++) {
-      if (isSolid(tileAt(level, rightCol, row))) {
+      if (isWall(tileAt(level, rightCol, row))) {
         x = rightCol * RENDERED_TILE_SIZE - PLAYER_SIDE_PADDING - HITBOX_WIDTH;
         break;
       }
     }
   } else if (vx < 0) {
     const leftCol = Math.floor((x + PLAYER_SIDE_PADDING) / RENDERED_TILE_SIZE);
+    // Mirrors the rightward branch above: only a bridge tile in a column the
+    // hitbox wasn't already occupying before this frame's move still blocks.
+    const prevLeftCol = Math.floor((player.x + PLAYER_SIDE_PADDING) / RENDERED_TILE_SIZE);
+    const isWall = leftCol === prevLeftCol ? isSolidExcludingBridge : isSolid;
     for (let row = topRow; row <= bottomRow; row++) {
-      if (isSolid(tileAt(level, leftCol, row))) {
+      if (isWall(tileAt(level, leftCol, row))) {
         x = (leftCol + 1) * RENDERED_TILE_SIZE - PLAYER_SIDE_PADDING;
         break;
       }
