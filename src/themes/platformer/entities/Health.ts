@@ -1,3 +1,5 @@
+import { RENDER_SCALE } from '../level/Terrain';
+
 /** Whole hearts shown in the HUD. */
 export const MAX_HEARTS = 3;
 
@@ -14,11 +16,12 @@ export const MAX_HALF_HEARTS = MAX_HEARTS * 2;
  */
 export const PIT_FALL_DAMAGE = 1;
 
-export const HEART_FRAME_SIZE = 32;
-/** Drawn at native size (no RENDER_SCALE), matching the ~32px height of the
- *  theme/language dropdown selects in FloatingControls.tsx — the tile/player
- *  sprites' 2x scale would make the HUD icons look oversized by comparison. */
-export const HEART_RENDERED_SIZE = HEART_FRAME_SIZE;
+/** `hearts.png` is a 16px-per-frame sheet (matching TILE_SIZE), scaled up by
+ *  the same RENDER_SCALE as terrain/player sprites — 32px rendered, matching
+ *  the ~32px height of the theme/language dropdown selects in
+ *  FloatingControls.tsx. */
+export const HEART_FRAME_SIZE = 16;
+export const HEART_RENDERED_SIZE = HEART_FRAME_SIZE * RENDER_SCALE;
 
 /** Subtracts `amount` half-heart units from `current`, clamped to [0, MAX_HALF_HEARTS]. */
 export function takeDamage(current: number, amount: number): number {
