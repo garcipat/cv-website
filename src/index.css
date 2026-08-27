@@ -5,6 +5,7 @@
 @import '@fontsource/inter';
 @import '@fontsource/fira-code';
 @import '@fontsource/vt323';
+@import '@fontsource/press-start-2p';
 
 @import './styles/base.css';
 @import './styles/themes/ide.css';

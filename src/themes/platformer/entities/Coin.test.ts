@@ -1,6 +1,7 @@
 import {
   COIN_FRAME_COUNT,
   COIN_FRAME_SIZE,
+  COIN_FRAME_DURATION,
   COIN_BOB_AMPLITUDE,
   COIN_BOB_PERIOD_SECONDS,
   coinFrameIndex,
@@ -14,15 +15,15 @@ describe('coinFrameIndex', () => {
   });
 
   it('elapsedJustBeforeFrameDuration-staysFrameZero', () => {
-    expect(coinFrameIndex(0.049)).toBe(0);
+    expect(coinFrameIndex(COIN_FRAME_DURATION - 0.001)).toBe(0);
   });
 
   it('elapsedAtFrameDuration-advancesToFrameOne', () => {
-    expect(coinFrameIndex(0.05)).toBe(1);
+    expect(coinFrameIndex(COIN_FRAME_DURATION)).toBe(1);
   });
 
   it('elapsedAfterFullCycle-wrapsBackToFrameZero', () => {
-    expect(coinFrameIndex(0.05 * COIN_FRAME_COUNT)).toBe(0);
+    expect(coinFrameIndex(COIN_FRAME_DURATION * COIN_FRAME_COUNT)).toBe(0);
   });
 
   it('elapsedNegative-clampsToFrameZero', () => {

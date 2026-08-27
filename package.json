@@ -24,6 +24,7 @@
     "@fontsource-variable/geist": "^5.2.9",
     "@fontsource/fira-code": "^5.2.7",
     "@fontsource/inter": "^5.2.8",
+    "@fontsource/press-start-2p": "^5.3.0",
     "@fontsource/vt323": "^5.2.7",
     "@preact/signals-react": "^3.10.2",
     "@tailwindcss/vite": "^4.3.1",

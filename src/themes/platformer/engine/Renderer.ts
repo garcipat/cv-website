@@ -254,12 +254,12 @@ export function drawCoinCounter(
 ): void {
   ctx.save();
   ctx.fillStyle = '#fff';
-  ctx.font = '20px sans-serif';
+  ctx.font = "16px 'Press Start 2P', monospace";
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
   const heartsWidth = MAX_HEARTS * (HEART_RENDERED_SIZE + HEART_SPACING);
   const x = HUD_MARGIN + heartsWidth + COIN_COUNTER_GAP;
   const y = HUD_MARGIN + HEART_RENDERED_SIZE / 2;
-  ctx.fillText(`${collected}/${max}`, x, y);
+  ctx.fillText(`${collected} / ${max}`, x, y);
   ctx.restore();
 }

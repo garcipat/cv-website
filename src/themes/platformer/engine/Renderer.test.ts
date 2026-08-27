@@ -1,5 +1,5 @@
 import { drawTerrain, drawPlayer, drawHearts, drawCoins, drawCoinCounter } from './Renderer';
-import { coinBobOffset } from '../entities/Coin';
+import { coinBobOffset, COIN_FRAME_DURATION } from '../entities/Coin';
 import type { CoinPlacement } from '../entities/Coin';
 import type { LevelDef } from '../level/LevelData';
 import type { PlayerState } from '../entities/Player';
@@ -436,9 +436,9 @@ describe('drawCoins', () => {
     const coins: CoinPlacement[] = [{ id: 'a', x: 0, y: 0 }];
     const sprite = {} as HTMLImageElement;
 
-    drawCoins(ctx as unknown as CanvasRenderingContext2D, coins, sprite, 0.05);
+    drawCoins(ctx as unknown as CanvasRenderingContext2D, coins, sprite, COIN_FRAME_DURATION);
 
-    // dy is omitted here — at elapsed=0.05 the bob offset (see the dedicated
+    // dy is omitted here — at elapsed=COIN_FRAME_DURATION the bob offset (see the dedicated
     // 'appliesBobOffset' test below) is a non-round number, so this test only
     // pins down the parts unaffected by bobbing: sprite frame and dx/dw/dh.
     const call = ctx.drawImage.mock.calls[0];
@@ -474,6 +474,6 @@ describe('drawCoinCounter', () => {
 
     drawCoinCounter(ctx as unknown as CanvasRenderingContext2D, 0, 4);
 
-    expect(ctx.fillText).toHaveBeenCalledWith('0/4', expect.any(Number), expect.any(Number));
+    expect(ctx.fillText).toHaveBeenCalledWith('0 / 4', expect.any(Number), expect.any(Number));
   });
 });
