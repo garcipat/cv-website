@@ -10,16 +10,6 @@ export const COIN_FRAME_COUNT = 12;
  *  rather than a state-driven animation. */
 export const COIN_FRAME_DURATION = 0.12;
 
-/** A coin's fixed world-space top-left render position. No `collected` flag
- *  or per-coin animation state yet — this step only renders a hardcoded test
- *  set (see level/level1Coins.ts); collection state is the next roadmap
- *  step's job. */
-export interface CoinPlacement {
-  id: string;
-  x: number;
-  y: number;
-}
-
 /**
  * Spin-cycle frame index for a given elapsed time, shared by every coin (all
  * coins spin in sync, so no per-coin animation state is needed — unlike

@@ -2,8 +2,6 @@ import {
   drawTerrain,
   drawPlayer,
   drawHearts,
-  drawCoins,
-  drawCoinCounter,
   drawCollectibles,
   drawCollectionEffects,
   drawCollectibleCounter,
@@ -11,8 +9,6 @@ import {
   drawRestartPrompt,
   RESTART_PROMPT_FONT_FAMILY,
 } from './Renderer';
-import { coinBobOffset, COIN_FRAME_DURATION } from '../entities/Coin';
-import type { CoinPlacement } from '../entities/Coin';
 import type { LevelDef } from '../level/LevelData';
 import type { PlayerState } from '../entities/Player';
 import { PLAYER_RENDERED_SIZE } from '../entities/Player';
@@ -528,69 +524,6 @@ describe('drawHearts', () => {
     drawHearts(ctx, MAX_HALF_HEARTS, fakeHeartsSheet);
 
     expect(ctx.imageSmoothingEnabled).toBe(false);
-  });
-});
-
-describe('drawCoins', () => {
-  it('twoCoinsAtElapsedZero-drawsBothAtFirstFrameWithOriginOffset', () => {
-    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-    const coins: CoinPlacement[] = [
-      { id: 'a', x: 100, y: 200 },
-      { id: 'b', x: 300, y: 400 },
-    ];
-    const sprite = {} as HTMLImageElement;
-
-    drawCoins(ctx as unknown as CanvasRenderingContext2D, coins, sprite, 0, 10, 20);
-
-    expect(ctx.drawImage).toHaveBeenNthCalledWith(1, sprite, 0, 0, 16, 16, 110, 220, 32, 32);
-    expect(ctx.drawImage).toHaveBeenNthCalledWith(2, sprite, 0, 0, 16, 16, 310, 420, 32, 32);
-  });
-
-  it('elapsedAdvancedOneFrameDuration-usesSecondSpriteFrame', () => {
-    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-    const coins: CoinPlacement[] = [{ id: 'a', x: 0, y: 0 }];
-    const sprite = {} as HTMLImageElement;
-
-    drawCoins(ctx as unknown as CanvasRenderingContext2D, coins, sprite, COIN_FRAME_DURATION);
-
-    // dy is omitted here — at elapsed=COIN_FRAME_DURATION the bob offset (see the dedicated
-    // 'appliesBobOffset' test below) is a non-round number, so this test only
-    // pins down the parts unaffected by bobbing: sprite frame and dx/dw/dh.
-    const call = ctx.drawImage.mock.calls[0];
-    expect(call[0]).toBe(sprite);
-    expect(call.slice(1, 6)).toEqual([16, 0, 16, 16, 0]); // sx, sy, sw, sh, dx
-    expect(call.slice(7)).toEqual([32, 32]); // dw, dh
-  });
-
-  it('elapsedQuarterBobPeriod-appliesBobOffsetToDestY', () => {
-    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-    const coins: CoinPlacement[] = [{ id: 'a', x: 0, y: 100 }];
-    const sprite = {} as HTMLImageElement;
-    const elapsed = 0.4; // COIN_BOB_PERIOD_SECONDS / 4 — see Coin.ts
-
-    drawCoins(ctx as unknown as CanvasRenderingContext2D, coins, sprite, elapsed, 0, 0);
-
-    const dy = ctx.drawImage.mock.calls[0][6] as number;
-    expect(dy).toBeCloseTo(100 + coinBobOffset(elapsed));
-  });
-
-  it('noCoins-doesNotCallDrawImage', () => {
-    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-
-    drawCoins(ctx as unknown as CanvasRenderingContext2D, [], {} as HTMLImageElement, 0);
-
-    expect(ctx.drawImage).not.toHaveBeenCalled();
-  });
-});
-
-describe('drawCoinCounter', () => {
-  it('called-drawsCollectedSlashMaxText', () => {
-    const ctx = makeMockContext() as unknown as { fillText: ReturnType<typeof vi.fn>; font: string };
-
-    drawCoinCounter(ctx as unknown as CanvasRenderingContext2D, 0, 4);
-
-    expect(ctx.fillText).toHaveBeenCalledWith('0 / 4', expect.any(Number), expect.any(Number));
-    expect(ctx.font).toBe(`16px "${RESTART_PROMPT_FONT_FAMILY}", monospace`);
   });
 });
 

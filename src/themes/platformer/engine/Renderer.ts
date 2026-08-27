@@ -30,7 +30,6 @@ import {
   coinFrameSource,
   coinBobOffset,
 } from '../entities/Coin';
-import type { CoinPlacement } from '../entities/Coin';
 import { FRUIT_FRAME_SIZE, fruitFrameSource } from '../entities/Fruit';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
 import { flightEffectPosition, sparkleParticles } from './CollectionEffects';
@@ -403,73 +402,5 @@ export function drawCollectibleCounter(
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
   ctx.fillText(`${collected} / ${max}`, x + COUNTER_ICON_SIZE + COUNTER_TEXT_GAP, y);
-  ctx.restore();
-}
-
-/**
- * Draws every coin at the current shared spin frame, offset a few pixels up
- * or down by the current shared bob position (all coins spin and bob in sync
- * — see Coin.ts's coinFrameIndex/coinBobOffset). Same originX/originY
- * convention as drawTerrain/drawPlayer, since coins live in world space and
- * must scroll with the camera; the bob offset is applied on top of that, not
- * instead of it.
- */
-export function drawCoins(
-  ctx: CanvasRenderingContext2D,
-  coins: CoinPlacement[],
-  sprite: HTMLImageElement,
-  elapsedSeconds: number,
-  originX = 0,
-  originY = 0,
-): void {
-  ctx.imageSmoothingEnabled = false;
-
-  const frame = coinFrameIndex(elapsedSeconds);
-  const { sx, sy } = coinFrameSource(frame);
-  const bob = coinBobOffset(elapsedSeconds);
-
-  for (const coin of coins) {
-    ctx.drawImage(
-      sprite,
-      sx,
-      sy,
-      COIN_FRAME_SIZE,
-      COIN_FRAME_SIZE,
-      coin.x + originX,
-      coin.y + originY + bob,
-      COIN_RENDERED_SIZE,
-      COIN_RENDERED_SIZE,
-    );
-  }
-}
-
-const COIN_COUNTER_GAP = 12;
-
-/**
- * Draws a "collected/max" text counter at a fixed screen position, to the
- * right of the heart HUD (see drawHearts's HUD_MARGIN/HEART_SPACING). This
- * step always passes `collected = 0` (a static placeholder — coins aren't
- * collectible yet); a later roadmap step wires a real collected count in.
- * Reuses RESTART_PROMPT_FONT_FAMILY (loaded once, in PlatformerPage.tsx's
- * mount effect, for the restart prompt) rather than loading a second pixel
- * font — it's this theme's only registered pixel typeface, and the CSS Font
- * Loading API registers a family globally in `document.fonts` once loaded,
- * so any canvas fillText call can use it. Falls back to monospace if the
- * font hasn't finished loading (or failed to) yet.
- */
-export function drawCoinCounter(
-  ctx: CanvasRenderingContext2D,
-  collected: number,
-  max: number,
-): void {
-  ctx.save();
-  ctx.fillStyle = '#fff';
-  ctx.font = `16px "${RESTART_PROMPT_FONT_FAMILY}", monospace`;
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  const heartsWidth = MAX_HEARTS * (HEART_RENDERED_SIZE + HEART_SPACING);
-  const x = HUD_MARGIN + heartsWidth + COIN_COUNTER_GAP;
-  const y = HUD_MARGIN + HEART_RENDERED_SIZE / 2;
-  ctx.fillText(`${collected} / ${max}`, x, y);
   ctx.restore();
 }
