@@ -1,4 +1,11 @@
-import { drawTerrain, drawPlayer, drawHearts } from './Renderer';
+import {
+  drawTerrain,
+  drawPlayer,
+  drawHearts,
+  drawIrisOverlay,
+  drawRestartPrompt,
+  RESTART_PROMPT_FONT_FAMILY,
+} from './Renderer';
 import type { LevelDef } from '../level/LevelData';
 import type { PlayerState } from '../entities/Player';
 import { PLAYER_RENDERED_SIZE } from '../entities/Player';
@@ -7,11 +14,21 @@ import { MAX_HALF_HEARTS } from '../entities/Health';
 function makeMockContext() {
   return {
     imageSmoothingEnabled: true,
+    fillStyle: '',
+    font: '',
+    textAlign: '',
+    textBaseline: '',
     drawImage: vi.fn(),
     save: vi.fn(),
     translate: vi.fn(),
     scale: vi.fn(),
     restore: vi.fn(),
+    beginPath: vi.fn(),
+    rect: vi.fn(),
+    moveTo: vi.fn(),
+    arc: vi.fn(),
+    fill: vi.fn(),
+    fillText: vi.fn(),
   } as unknown as CanvasRenderingContext2D;
 }
 
@@ -406,5 +423,55 @@ describe('drawHearts', () => {
     drawHearts(ctx, MAX_HALF_HEARTS, fakeHeartsSheet);
 
     expect(ctx.imageSmoothingEnabled).toBe(false);
+  });
+});
+
+describe('drawIrisOverlay', () => {
+  it('positiveRadius-fillsRectAndCutsCircularHoleWithEvenOdd', () => {
+    const ctx = makeMockContext() as unknown as {
+      rect: ReturnType<typeof vi.fn>;
+      moveTo: ReturnType<typeof vi.fn>;
+      arc: ReturnType<typeof vi.fn>;
+      fill: ReturnType<typeof vi.fn>;
+    };
+
+    drawIrisOverlay(ctx as unknown as CanvasRenderingContext2D, 800, 600, 400, 300, 100);
+
+    expect(ctx.rect).toHaveBeenCalledWith(0, 0, 800, 600);
+    expect(ctx.arc).toHaveBeenCalledWith(400, 300, 100, 0, Math.PI * 2, true);
+    expect(ctx.fill).toHaveBeenCalledWith('evenodd');
+  });
+
+  it('zeroRadius-fillsRectWithoutDrawingCircle', () => {
+    const ctx = makeMockContext() as unknown as {
+      rect: ReturnType<typeof vi.fn>;
+      arc: ReturnType<typeof vi.fn>;
+      fill: ReturnType<typeof vi.fn>;
+    };
+
+    drawIrisOverlay(ctx as unknown as CanvasRenderingContext2D, 800, 600, 400, 300, 0);
+
+    expect(ctx.rect).toHaveBeenCalledWith(0, 0, 800, 600);
+    expect(ctx.arc).not.toHaveBeenCalled();
+    expect(ctx.fill).toHaveBeenCalledWith('evenodd');
+  });
+});
+
+describe('drawRestartPrompt', () => {
+  it('called-drawsPromptTextCenteredOnCanvas', () => {
+    const ctx = makeMockContext() as unknown as { fillText: ReturnType<typeof vi.fn> };
+
+    drawRestartPrompt(ctx as unknown as CanvasRenderingContext2D, 800, 600);
+
+    expect(ctx.fillText).toHaveBeenCalledWith('Press any button to restart', 400, 300);
+  });
+
+  it('called-usesRestartPromptFontFamilyWithSansSerifFallback', () => {
+    const ctx = makeMockContext() as unknown as { font: string };
+
+    drawRestartPrompt(ctx as unknown as CanvasRenderingContext2D, 800, 600);
+
+    expect(ctx.font).toContain(RESTART_PROMPT_FONT_FAMILY);
+    expect(ctx.font).toContain('sans-serif');
   });
 });

@@ -1,11 +1,23 @@
 import { signal } from '@preact/signals-react';
 import { tileToPixel, RENDERED_TILE_SIZE } from './level/Terrain';
 import { SPAWN_TILE } from './level/level1';
-import { PLAYER_RENDERED_SIZE, PLAYER_FOOT_PADDING } from './entities/Player';
+import {
+  PLAYER_RENDERED_SIZE,
+  PLAYER_FOOT_PADDING,
+  PLAYER_VISUAL_CENTER_Y_OFFSET,
+} from './entities/Player';
 import { MAX_HALF_HEARTS } from './entities/Health';
+import { introState } from './engine/GameLifecycle';
 import type { PlayerState } from './entities/Player';
+import type { LifecycleState } from './engine/GameLifecycle';
 
-function initialPlayerState(): PlayerState {
+/**
+ * The player's state at the level's spawn point — full health's worth of
+ * idle standing on the ground. Exported (not just used once for the initial
+ * signal value) because restart logic (PlatformerPage.tsx, wired in a later
+ * task) calls this again to reset `playerState` back to spawn after a death.
+ */
+export function spawnPlayerState(): PlayerState {
   // SPAWN_TILE is the empty cell the character stands in (see level1.ts's
   // `S` marker) — the ground surface is that cell's bottom edge.
   const spawnCell = tileToPixel(SPAWN_TILE.col, SPAWN_TILE.row);
@@ -29,7 +41,7 @@ function initialPlayerState(): PlayerState {
 }
 
 /** Player position/animation state — mutated by the game loop (added in later steps). */
-export const playerState = signal<PlayerState>(initialPlayerState());
+export const playerState = signal<PlayerState>(spawnPlayerState());
 
 /**
  * Camera's horizontal scroll offset in rendered pixels — the world-space x
@@ -47,3 +59,43 @@ export const cameraPositionX = signal(0);
  * only needs to touch this signal, not reconstruct player position/state.
  */
 export const healthState = signal(MAX_HALF_HEARTS);
+
+/**
+ * World-space center point (not top-left) of the spawned player — used to
+ * center the iris-in transition on the character at game start/restart,
+ * matching where the death iris-out is centered (the player's actual visual
+ * midpoint, not its collision box's top-left corner).
+ */
+export function spawnCenter(): { x: number; y: number } {
+  const spawn = spawnPlayerState();
+  return { x: spawn.x + PLAYER_RENDERED_SIZE / 2, y: spawn.y + PLAYER_VISUAL_CENTER_Y_OFFSET };
+}
+
+/**
+ * Death/respawn/intro phase state (see engine/GameLifecycle.ts). Starts in
+ * `intro` (circle growing open) centered on the spawned player, the same as
+ * what a restart transitions back to.
+ */
+export const lifecycleState = signal<LifecycleState>(
+  introState(spawnCenter().x, spawnCenter().y),
+);
+
+/**
+ * Resets the game world to its spawn state: player back at the spawn point,
+ * full health, camera scrolled back to the level start. Does NOT touch
+ * `lifecycleState` — callers (Task 5's restart-on-input and debug Respawn
+ * button, both wired to the `intro` iris-in) decide the lifecycle transition
+ * themselves, since not every future caller of a "reset" necessarily wants
+ * the iris animation (e.g. step 15's "Reset Game" button might not).
+ *
+ * This is the single reset seam other roadmap steps extend: step 15's
+ * "Reset Game" button will additionally need to clear collected facts and
+ * respawn enemies/coins/blocks once those exist — this task doesn't build
+ * any of that, it only resets what already exists (position, health,
+ * camera).
+ */
+export function resetGame(): void {
+  playerState.value = spawnPlayerState();
+  healthState.value = MAX_HALF_HEARTS;
+  cameraPositionX.value = 0;
+}
