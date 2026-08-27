@@ -1,9 +1,20 @@
 /**
  * Keys the game reads. Their default browser behavior (e.g. page scroll on
  * arrow keys) is suppressed so gameplay isn't fighting the page — FR-007
- * reserves Arrow Left/Right/Up and Space exclusively for the game.
+ * reserves Arrow Left/Right/Up/Down and Space exclusively for the game.
+ * ArrowDown/KeyS trigger bridge drop-through (roadmap step 7); they have no
+ * other purpose today.
  */
-const GAME_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'Space', 'KeyA', 'KeyD']);
+const GAME_KEYS = new Set([
+  'ArrowLeft',
+  'ArrowRight',
+  'ArrowUp',
+  'ArrowDown',
+  'Space',
+  'KeyA',
+  'KeyD',
+  'KeyS',
+]);
 
 export interface KeyboardInput {
   /** Whether `code` (a `KeyboardEvent.code` value, e.g. `'ArrowLeft'`) is currently held. */
