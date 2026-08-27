@@ -73,9 +73,15 @@ describe('level1', () => {
     expect(hasPlatform).toBe(true);
   });
 
-  it('containsAtLeastOneWallTile', () => {
+  it('groundStrip-rockZoneContinuesFlatToLevelEnd', () => {
+    const lastRow = level1.terrain[level1.height - 1];
+    expect(level1.width).toBe(80);
+    expect(lastRow[79]).toBe('groundRock');
+  });
+
+  it('noRowContainsAWallTile', () => {
     const hasWall = level1.terrain.some((row) => row.includes('wall'));
-    expect(hasWall).toBe(true);
+    expect(hasWall).toBe(false);
   });
 
   it('elevatedBridge-spansGapBetweenTwoFloatingPlatformsAtPlatformRow', () => {
