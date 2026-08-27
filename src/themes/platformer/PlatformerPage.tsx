@@ -59,7 +59,6 @@ export const PlatformerPage = () => {
     () => debugParams.get('debug') === 'hitboxes',
   );
   const debugHitboxesRef = useRef(debugHitboxesOn);
-  debugHitboxesRef.current = debugHitboxesOn;
 
   const handleToggleHitboxes = () => setDebugHitboxesOn((prev) => !prev);
 
@@ -69,7 +68,16 @@ export const PlatformerPage = () => {
   // stale one.
   const [journalOpen, setJournalOpen] = useState(false);
   const journalOpenRef = useRef(journalOpen);
-  journalOpenRef.current = journalOpen;
+
+  // Keeps both refs in sync with their corresponding state on every render
+  // (no dependency array) — assigning `.current` directly in the render body
+  // trips the `react-hooks/refs` lint rule ("Cannot update ref during
+  // render"), so the sync is done here instead, after commit, while still
+  // always reflecting the latest value by the next read.
+  useEffect(() => {
+    debugHitboxesRef.current = debugHitboxesOn;
+    journalOpenRef.current = journalOpen;
+  });
 
   /**
    * Toggles the journal. Opening is only allowed from 'playing' (not
@@ -193,6 +201,7 @@ export const PlatformerPage = () => {
     canvas.addEventListener('click', restartIfAwaiting);
 
     const onJournalKey = (e: KeyboardEvent) => {
+      if (e.repeat) return;
       if (e.code === 'KeyJ') handleJournalToggle();
     };
     window.addEventListener('keydown', onJournalKey);
@@ -211,6 +220,12 @@ export const PlatformerPage = () => {
         return;
       }
       if (lifecycleState.value.phase === 'paused') {
+        // Drains any edge-triggered presses (e.g. Space) that land while the
+        // journal is open every tick, not just once — otherwise a press made
+        // while paused sits in `justPressed` and fires as a jump on the very
+        // next tick after resuming, even though the player never intended to
+        // jump while looking at the overlay.
+        input.clearPending();
         render();
         return;
       }

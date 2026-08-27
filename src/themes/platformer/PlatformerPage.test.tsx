@@ -703,6 +703,23 @@ describe('PlatformerPage', () => {
     expect(lifecycleState.value.phase).toBe('playing');
   });
 
+  it('jKeyHeld-osAutoRepeat-doesNotToggleJournalAgain', () => {
+    vi.stubGlobal('requestAnimationFrame', () => 1);
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    lifecycleState.value = { ...lifecycleState.value, phase: 'playing' };
+
+    fireEvent.keyDown(window, { code: 'KeyJ' });
+    expect(lifecycleState.value.phase).toBe('paused');
+
+    // Simulates the OS auto-repeat keydowns fired while the key is held.
+    fireEvent.keyDown(window, { code: 'KeyJ', repeat: true });
+
+    expect(screen.getByTestId('platformer-journal')).toBeInTheDocument();
+    expect(lifecycleState.value.phase).toBe('paused');
+  });
+
   it('journalCloseButtonClicked-whileOpen-closesJournal', () => {
     vi.stubGlobal('requestAnimationFrame', () => 1);
     vi.stubGlobal('cancelAnimationFrame', vi.fn());
@@ -794,6 +811,38 @@ describe('PlatformerPage', () => {
 
     expect(screen.queryByTestId('journal-empty-state')).not.toBeInTheDocument();
     expect(screen.getAllByTestId('journal-fact-item')).toHaveLength(factsBeforeDeath.length);
+  });
+
+  it('spacePressedWhileJournalOpen-afterResume-doesNotTriggerJumpOnResumingTick', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+    frameCallback!(16); // lands the spawned player on the ground first
+    expect(playerState.value.grounded).toBe(true);
+
+    lifecycleState.value = { ...lifecycleState.value, phase: 'playing' };
+    fireEvent.keyDown(window, { code: 'KeyJ' }); // opens the journal, pauses the loop
+    expect(lifecycleState.value.phase).toBe('paused');
+
+    // A press that lands while the journal is open — this must not survive
+    // to the tick after the journal closes.
+    fireEvent.keyDown(window, { code: 'Space' });
+    frameCallback!(32); // a paused tick, exercising the drain
+
+    fireEvent.keyDown(window, { code: 'KeyJ' }); // closes the journal, resumes the loop
+    expect(lifecycleState.value.phase).toBe('playing');
+
+    frameCallback!(48); // the resuming tick
+
+    expect(playerState.value.grounded).toBe(true);
+    expect(playerState.value.vy).toBe(0);
+    expect(playerState.value.animState).not.toBe('jump');
   });
 
   it('keyPressedWhilePlaying-doesNotTriggerRestart', () => {
