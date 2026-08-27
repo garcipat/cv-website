@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { vi } from 'vitest';
 import { PlatformerPage } from './PlatformerPage';
 import { PLAYER_RENDERED_SIZE, PLAYER_VISUAL_CENTER_Y_OFFSET } from './entities/Player';
@@ -10,6 +10,10 @@ import {
   collectedFacts,
 } from './PlatformerState';
 import { MAX_HALF_HEARTS, PIT_FALL_DAMAGE, HEART_RENDERED_SIZE } from './entities/Health';
+import {
+  JOURNAL_OPEN_FRAME_COUNT,
+  JOURNAL_OPEN_FRAME_INTERVAL_MS,
+} from './entities/JournalAnimation';
 
 class MockTilesetImage {
   onload: (() => void) | null = null;
@@ -46,6 +50,7 @@ describe('PlatformerPage', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
     Object.defineProperty(window, 'location', {
       value: originalLocation,
@@ -776,6 +781,7 @@ describe('PlatformerPage', () => {
   });
 
   it('deathThenRestart-journalOpened-stillShowsSeedFactsFromBeforeTheDeath', () => {
+    vi.useFakeTimers();
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frameCallback = cb;
@@ -809,8 +815,22 @@ describe('PlatformerPage', () => {
     lifecycleState.value = { ...lifecycleState.value, phase: 'playing' };
     fireEvent.keyDown(window, { code: 'KeyJ' });
 
+    // The journal plays its book-opening animation before showing content
+    // (roadmap step 14) — advance past it before asserting on fact items.
+    act(() => {
+      vi.advanceTimersByTime(JOURNAL_OPEN_FRAME_COUNT * JOURNAL_OPEN_FRAME_INTERVAL_MS);
+    });
+
+    // The journal shows one section at a time (roadmap step 14); it defaults
+    // to whichever section the first collected fact belongs to, so compare
+    // against that section's facts rather than the full flat list.
+    const defaultSectionFacts = factsBeforeDeath.filter(
+      (fact) => fact.sectionId === factsBeforeDeath[0].sectionId,
+    );
     expect(screen.queryByTestId('journal-empty-state')).not.toBeInTheDocument();
-    expect(screen.getAllByTestId('journal-fact-item')).toHaveLength(factsBeforeDeath.length);
+    expect(screen.getAllByTestId('journal-fact-item')).toHaveLength(defaultSectionFacts.length);
+
+    vi.useRealTimers();
   });
 
   it('spacePressedWhileJournalOpen-afterResume-doesNotTriggerJumpOnResumingTick', () => {
