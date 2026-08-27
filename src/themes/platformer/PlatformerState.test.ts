@@ -1,4 +1,5 @@
-import { playerState, cameraPositionX } from './PlatformerState';
+import { playerState, cameraPositionX, healthState } from './PlatformerState';
+import { MAX_HALF_HEARTS } from './entities/Health';
 import { tileToPixel, RENDERED_TILE_SIZE } from './level/Terrain';
 import { SPAWN_TILE } from './level/level1';
 import { PLAYER_RENDERED_SIZE, PLAYER_FOOT_PADDING } from './entities/Player';
@@ -38,5 +39,9 @@ describe('PlatformerState', () => {
 
   it('cameraPositionX-initial-isZero', () => {
     expect(cameraPositionX.value).toBe(0);
+  });
+
+  it('healthState-initial-isMaxHalfHearts', () => {
+    expect(healthState.value).toBe(MAX_HALF_HEARTS);
   });
 });
