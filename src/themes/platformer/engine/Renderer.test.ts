@@ -119,9 +119,18 @@ describe('drawTerrain', () => {
     const level: LevelDef = { width: 1, height: 1, terrain: [['groundGrass']] };
     const ctx = makeMockContext();
 
-    drawTerrain(ctx, level, fakeTileset, 100);
+    drawTerrain(ctx, level, fakeTileset, 0, 100);
 
     expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 0, 0, 16, 16, 0, 100, 32, 32);
+  });
+
+  it('originX-shiftsEveryTileHorizontally', () => {
+    const level: LevelDef = { width: 1, height: 1, terrain: [['groundGrass']] };
+    const ctx = makeMockContext();
+
+    drawTerrain(ctx, level, fakeTileset, 100);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 0, 0, 16, 16, 100, 0, 32, 32);
   });
 
   it('originY-omitted-defaultsToZero', () => {
@@ -198,7 +207,7 @@ describe('drawPlayer', () => {
   it('originY-shiftsPlayerVertically', () => {
     const ctx = makeMockContext();
 
-    drawPlayer(ctx, idlePlayer, fakeSpriteSheet, 100);
+    drawPlayer(ctx, idlePlayer, fakeSpriteSheet, 0, 100);
 
     expect(ctx.drawImage).toHaveBeenCalledWith(
       fakeSpriteSheet,
@@ -210,6 +219,18 @@ describe('drawPlayer', () => {
       356,
       64,
       64,
+    );
+  });
+
+  it('originX-shiftsPlayerHorizontally', () => {
+    const ctx = makeMockContext();
+
+    drawPlayer(ctx, idlePlayer, fakeSpriteSheet, 100);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeSpriteSheet,
+      0, 0, 32, 32,
+      116, 256, 64, 64,
     );
   });
 
@@ -247,6 +268,18 @@ describe('drawPlayer', () => {
     expect(ctx.restore).toHaveBeenCalled();
   });
 
+  it('facingLeft-withOriginX-translatesIncludingHorizontalShift', () => {
+    const ctx = makeMockContext();
+    const player: PlayerState = { ...idlePlayer, facing: 'left' };
+
+    drawPlayer(ctx, player, fakeSpriteSheet, 100);
+
+    expect(ctx.translate).toHaveBeenCalledWith(
+      player.x + 100 + PLAYER_RENDERED_SIZE,
+      player.y,
+    );
+  });
+
   it('facingRight-draws-withoutFlippingTransform', () => {
     const ctx = makeMockContext();
 
@@ -261,7 +294,7 @@ describe('drawPlayer', () => {
     const jumpSheet = {} as HTMLImageElement;
     const player: PlayerState = { ...idlePlayer, animState: 'jump', vy: -300, animFrame: 2 };
 
-    drawPlayer(ctx, player, fakeSpriteSheet, 0, jumpSheet);
+    drawPlayer(ctx, player, fakeSpriteSheet, 0, 0, jumpSheet);
 
     expect(ctx.drawImage).toHaveBeenCalledWith(
       jumpSheet,
@@ -281,7 +314,7 @@ describe('drawPlayer', () => {
     const jumpSheet = {} as HTMLImageElement;
     const player: PlayerState = { ...idlePlayer, animState: 'jump', vy: 100, animFrame: 1 };
 
-    drawPlayer(ctx, player, fakeSpriteSheet, 0, jumpSheet);
+    drawPlayer(ctx, player, fakeSpriteSheet, 0, 0, jumpSheet);
 
     expect(ctx.drawImage).toHaveBeenCalledWith(
       jumpSheet,
@@ -300,7 +333,7 @@ describe('drawPlayer', () => {
     const ctx = makeMockContext();
     const player: PlayerState = { ...idlePlayer, animState: 'jump', vy: -300 };
 
-    drawPlayer(ctx, player, fakeSpriteSheet, 0, null);
+    drawPlayer(ctx, player, fakeSpriteSheet, 0, 0, null);
 
     expect(ctx.drawImage).toHaveBeenCalledWith(
       fakeSpriteSheet,
@@ -325,7 +358,7 @@ describe('drawPlayer', () => {
       facing: 'left',
     };
 
-    drawPlayer(ctx, player, fakeSpriteSheet, 0, jumpSheet);
+    drawPlayer(ctx, player, fakeSpriteSheet, 0, 0, jumpSheet);
 
     expect(ctx.drawImage).toHaveBeenCalledWith(jumpSheet, 0, 0, 128, 128, 0, 0, 64, 64);
   });
