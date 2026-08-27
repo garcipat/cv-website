@@ -16,6 +16,13 @@ import {
   jumpFrameSource,
 } from '../entities/Player';
 import type { PlayerState } from '../entities/Player';
+import {
+  MAX_HEARTS,
+  HEART_FRAME_SIZE,
+  HEART_RENDERED_SIZE,
+  heartRemaining,
+  heartFrameIndex,
+} from '../entities/Health';
 
 function tileSource(
   level: LevelDef,
@@ -151,4 +158,38 @@ export function drawPlayer(
     PLAYER_RENDERED_SIZE,
     PLAYER_RENDERED_SIZE,
   );
+}
+
+const HUD_MARGIN = 16;
+const HEART_SPACING = 4;
+
+/**
+ * Draws the heart HUD at a fixed screen position (top-left), unlike
+ * `drawTerrain`/`drawPlayer` which take camera-scroll `originX`/`originY` —
+ * the HUD must stay put on screen regardless of how far the camera has
+ * scrolled into the level.
+ */
+export function drawHearts(
+  ctx: CanvasRenderingContext2D,
+  halfHearts: number,
+  heartsSheet: HTMLImageElement,
+): void {
+  ctx.imageSmoothingEnabled = false;
+
+  for (let i = 0; i < MAX_HEARTS; i++) {
+    const remaining = heartRemaining(halfHearts, i);
+    const sx = heartFrameIndex(remaining) * HEART_FRAME_SIZE;
+    const x = HUD_MARGIN + i * (HEART_RENDERED_SIZE + HEART_SPACING);
+    ctx.drawImage(
+      heartsSheet,
+      sx,
+      0,
+      HEART_FRAME_SIZE,
+      HEART_FRAME_SIZE,
+      x,
+      HUD_MARGIN,
+      HEART_RENDERED_SIZE,
+      HEART_RENDERED_SIZE,
+    );
+  }
 }
