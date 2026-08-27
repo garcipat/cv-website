@@ -93,6 +93,11 @@ export const PlatformerPage = () => {
     const input = createKeyboardInput();
 
     const loop = createGameLoop((dt) => {
+      // Deliberate choice point, not an oversight: this branch predates the
+      // death/respawn lifecycle pause (see S-006-step10-respawn), so the
+      // increment runs unconditionally. When step 10's early-returns land in
+      // this callback, decide whether to move this line below them (coins
+      // freeze during death/restart) or leave it above (coins keep animating).
       coinAnimElapsed += dt;
 
       // A/D accepted as an alternate to Arrow Left/Right (FR-007 only
