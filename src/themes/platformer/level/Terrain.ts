@@ -21,6 +21,18 @@ export function isSolid(tile: TileType): boolean {
   );
 }
 
+/**
+ * Whether a tile counts as solid for the two "bridge is special" collision
+ * cases: rising into it from below (always excluded), and falling through it
+ * while actively dropping through (Physics.ts's isDroppingThroughBridge
+ * flag). Identical to `isSolid` for every tile except `bridge` — a bridge is
+ * solid from above (landing) and the side (walking into it) like any other
+ * terrain, but never blocks these two specific directions/states.
+ */
+export function isSolidExcludingBridge(tile: TileType): boolean {
+  return isSolid(tile) && tile !== 'bridge';
+}
+
 export function isTopExposed(level: LevelDef, col: number, row: number): boolean {
   return !isSolid(tileAt(level, col, row - 1));
 }
