@@ -54,9 +54,13 @@ describe('level1', () => {
     expect(lastRow[19]).toBe('groundRock');
   });
 
-  it('pit-atColumns2And3-isEmptyOnBothGroundRows', () => {
-    expect(level1.terrain[level1.height - 1][2]).toBe('empty');
-    expect(level1.terrain[level1.height - 1][3]).toBe('empty');
+  it('pit-atColumns2And3-hasSolidGroundFloorAtBottomRow', () => {
+    // The pit has a bridge one row up (see the next test) but must not be a
+    // bottomless drop now that drop-through lets the character fall through
+    // that bridge on purpose — a floor here keeps that safe while preserving
+    // the original "walk off the bridge and fall a level" character.
+    expect(level1.terrain[level1.height - 1][2]).toBe('groundGrass');
+    expect(level1.terrain[level1.height - 1][3]).toBe('groundGrass');
   });
 
   it('bridge-spansThePitAtRowAboveBottomRow', () => {
