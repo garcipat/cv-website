@@ -23,6 +23,8 @@ function basePlayer(overrides: Partial<PlayerState> = {}): PlayerState {
     animFrame: 0,
     animTimer: 0,
     isDroppingThroughBridge: false,
+    lastGroundedX: 0,
+    lastGroundedY: 0,
     ...overrides,
   };
 }
@@ -550,4 +552,57 @@ describe('stepPlayerPhysics bridge drop-through', () => {
       }
     },
   );
+});
+
+describe('stepPlayerPhysics lastGroundedX/Y tracking', () => {
+  it('whileGrounded-updatesLastGroundedPositionToCurrentFrame', () => {
+    const groundSurfaceY = 3 * RENDERED_TILE_SIZE;
+    const restY = groundSurfaceY - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
+    const player = basePlayer({
+      x: 10,
+      y: restY,
+      vy: 0,
+      grounded: true,
+      lastGroundedX: -999,
+      lastGroundedY: -999,
+    });
+
+    const next = stepPlayerPhysics(player, GROUND_LEVEL, 1 / 60);
+
+    expect(next.lastGroundedX).toBe(next.x);
+    expect(next.lastGroundedY).toBe(next.y);
+  });
+
+  it('whileAirborne-freezesLastGroundedPositionAtTakeoffSpot', () => {
+    const player = basePlayer({
+      x: 10,
+      y: 0,
+      vy: -100,
+      grounded: false,
+      lastGroundedX: 10,
+      lastGroundedY: 40,
+    });
+
+    const next = stepPlayerPhysics(player, PIT_LEVEL, 1 / 60);
+
+    expect(next.lastGroundedX).toBe(10);
+    expect(next.lastGroundedY).toBe(40);
+  });
+
+  it('landingThisFrame-updatesLastGroundedPositionToLandingSpot', () => {
+    const groundSurfaceY = 3 * RENDERED_TILE_SIZE;
+    const restY = groundSurfaceY - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
+    const player = basePlayer({
+      y: restY - 1,
+      vy: 500,
+      grounded: false,
+      lastGroundedX: -999,
+      lastGroundedY: -999,
+    });
+
+    const next = stepPlayerPhysics(player, GROUND_LEVEL, 1 / 60);
+
+    expect(next.grounded).toBe(true);
+    expect(next.lastGroundedY).toBe(restY);
+  });
 });
