@@ -36,6 +36,13 @@ HTMLCanvasElement.prototype.getContext = function (
       moveTo: vi.fn(),
       lineTo: vi.fn(),
       stroke: vi.fn(),
+      rect: vi.fn(),
+      arc: vi.fn(),
+      fill: vi.fn(),
+      fillText: vi.fn(),
+      font: '',
+      textAlign: '',
+      textBaseline: '',
     });
   }
 
