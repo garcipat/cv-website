@@ -25,3 +25,12 @@ function initialPlayerState(): PlayerState {
 
 /** Player position/animation state — mutated by the game loop (added in later steps). */
 export const playerState = signal<PlayerState>(initialPlayerState());
+
+/**
+ * Camera's horizontal scroll offset in rendered pixels — the world-space x
+ * of the viewport's left edge. 0 at level start, increases rightward.
+ * Updated once per game-loop tick (see PlatformerPage.tsx) via
+ * Camera.ts's updateCamera; kept separate from playerState so renderer
+ * code doesn't need to re-derive it from player position every frame.
+ */
+export const cameraPositionX = signal(0);
