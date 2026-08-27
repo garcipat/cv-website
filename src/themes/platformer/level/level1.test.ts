@@ -54,18 +54,20 @@ describe('level1', () => {
     expect(lastRow[19]).toBe('groundRock');
   });
 
-  it('pit-atColumns2And3-hasSolidGroundFloorAtBottomRow', () => {
-    // The pit has a bridge one row up (see the next test) but must not be a
-    // bottomless drop now that drop-through lets the character fall through
-    // that bridge on purpose — a floor here keeps that safe while preserving
-    // the original "walk off the bridge and fall a level" character.
-    expect(level1.terrain[level1.height - 1][2]).toBe('groundGrass');
-    expect(level1.terrain[level1.height - 1][3]).toBe('groundGrass');
+  it('pit-atColumns2Through4-hasNoFloorAtBottomRow', () => {
+    // Deliberately a genuine bottomless drop (roadmap step 9): walking off
+    // the bridge's edge, or dropping through it on purpose (Down/S), both
+    // must trigger real pit-fall damage — a floor here would silently negate
+    // that.
+    expect(level1.terrain[level1.height - 1][2]).toBe('empty');
+    expect(level1.terrain[level1.height - 1][3]).toBe('empty');
+    expect(level1.terrain[level1.height - 1][4]).toBe('empty');
   });
 
   it('bridge-spansThePitAtRowAboveBottomRow', () => {
     expect(level1.terrain[level1.height - 2][2]).toBe('bridge');
     expect(level1.terrain[level1.height - 2][3]).toBe('bridge');
+    expect(level1.terrain[level1.height - 2][4]).toBe('bridge');
   });
 
   it('containsAtLeastOnePlatformTile', () => {
