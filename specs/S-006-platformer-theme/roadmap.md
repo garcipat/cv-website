@@ -44,67 +44,91 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   bridge drops the character through it.*
 - [x] **8. Camera scroll** — viewport follows the character horizontally.
   *Verify: walk right, camera scrolls to follow.*
-- [ ] **9. Respawn** — falling into a pit or death respawns at the nearest spawn
-  point with full health.
-  *Verify: fall into a pit, see the character respawn.*
-- [ ] **10. Coins render + CollectibleMapper** — coins placed from real `CVData`
+- [x] **9. Health system + pit-fall damage** — heart HUD (3 heart icons rendered
+  from `hearts.png` at native 32px size, matching the FloatingControls dropdown
+  height; each showing full/half/empty — 6 half-heart units total back them) and
+  a shared `takeDamage(amount)` mechanism. Falling into a pit calls
+  `takeDamage(1)` (one half-heart unit) and repositions the character to the
+  last *fully* solid ground position before the fall (not a checkpoint, and not
+  a precarious ledge overhang — see below) — pit falls are a minor setback, not
+  a full reset. Step 18 (side/below enemy damage) will reuse this same mechanism
+  with a different amount.
+
+  While verifying this step, a real bug was found and fixed: the recovery
+  anchor (`lastGroundedX/Y`) was updated on any frame the character was
+  merely "grounded" — a deliberately lenient check that keeps the character
+  grounded as long as even one column of its hitbox still touches solid
+  ground, so it can walk right up to a ledge's edge without the leniency
+  regressing. That let the anchor be captured mid-overhang, so a pit-fall
+  reposition could visibly float the character over the pit and immediately
+  re-trigger another fall. Fixed by only updating the anchor when the
+  *entire* hitbox footprint is solid, without touching the existing lenient
+  landing/collision logic itself.
+  *Verify: fall into a pit, see a half-heart lost and the character reappear at the
+  ledge it fell from.*
+- [ ] **10. Respawn** — at 0 health, the character respawns at the nearest spawn
+  point with full health (3/3 hearts) restored, all collected facts preserved.
+  *Verify: deplete all hearts via repeated pit falls, see the character respawn at a
+  checkpoint with hearts refilled.*
+- [ ] **11. Coins render + CollectibleMapper** — coins placed from real `CVData`
   (Skills/Languages), visible but not yet collectible.
   *Verify: coin count in the level matches the number of Skills + Languages items.*
-- [ ] **11. Coin collection** — touching a coin removes it, fact text floats up and
+- [ ] **12. Coin collection** — touching a coin removes it, fact text floats up and
   flies toward the journal icon, `collectedFacts` state updates.
   *Verify: collect a coin, see the fact text animate off.*
-- [ ] **12. Journal skeleton** — `J` toggles a fullscreen overlay, pauses the game,
+- [ ] **13. Journal skeleton** — `J` toggles a fullscreen overlay, pauses the game,
   shows collected facts unstyled.
   *Verify: open/close the journal, see the collected fact listed.*
-- [ ] **13. Journal styling** — notebook paper, `Caveat` handwriting font, Simple
+- [ ] **14. Journal styling** — notebook paper, `Caveat` handwriting font, Simple
   List entry style per the mockup.
   *Verify: visually matches `entry-styles-mockup.html`.*
-- [ ] **14. Bookmark tabs + counters + pagination + Reset button** — per-section
+- [ ] **15. Bookmark tabs + counters + pagination + Reset button** — per-section
   tabs, "N/M" counters, pagination within a section, Reset Game button.
   *Verify: switch sections, counters update correctly, Reset clears all state.*
 
 ## Iteration 2 — Enemies + blocks + flagpole + audio (P2)
 
-- [ ] **15. Enemy render + patrol** — CollectibleMapper extended for
+- [ ] **16. Enemy render + patrol** — CollectibleMapper extended for
   Certificates/Projects; enemies patrol platforms, no interaction yet.
   *Verify: enemies visibly patrol back and forth.*
-- [ ] **16. Stomp defeat** — jumping on an enemy defeats it with a poof animation,
+- [ ] **17. Stomp defeat** — jumping on an enemy defeats it with a poof animation,
   fact flies to the journal.
   *Verify: stomp an enemy, see the fact appear.*
-- [ ] **17. Side/below damage** — heart HUD (3 hearts), invincibility frames,
-  knockback on non-stomp contact.
-  *Verify: touch an enemy from the side, lose a heart.*
-- [ ] **18. Destroyable block render** — intact/question-mark tiles;
+- [ ] **18. Side/below damage** — invincibility frames, knockback on non-stomp
+  contact, reusing the `takeDamage` mechanism from step 9 with a full heart
+  (`takeDamage(1)`) instead of the half-heart pit-fall amount.
+  *Verify: touch an enemy from the side, lose a full heart.*
+- [ ] **19. Destroyable block render** — intact/question-mark tiles;
   CollectibleMapper extended for Experience/Education/Courses.
   *Verify: blocks are visible on platforms.*
-- [ ] **19. Block hit mechanic** — 3-hit crack progression, coin drop per hit, fact
+- [ ] **20. Block hit mechanic** — 3-hit crack progression, coin drop per hit, fact
   reveal + shatter animation on the 3rd hit.
   *Verify: break a block, see cracking states, coin drops, and the final fact.*
-- [ ] **20. Flagpole render + touch detection** — visible flagpole at the level end,
+- [ ] **21. Flagpole render + touch detection** — visible flagpole at the level end,
   no celebration/ending screen yet.
   *Verify: reach and touch the flagpole.*
-- [ ] **21. Flagpole celebration + ending screen** — slide-down animation, flag
+- [ ] **22. Flagpole celebration + ending screen** — slide-down animation, flag
   waves, ending screen with Personality + Contact, Replay Level button.
   *Verify: reach the flagpole, see the ending screen, Replay resets the level.*
-- [ ] **22. Audio** — preload audio assets, looping background music, SFX wired to
+- [ ] **23. Audio** — preload audio assets, looping background music, SFX wired to
   existing actions (jump, coin, stomp, block break, flagpole, damage, journal
   open/close), speaker icon toggle, muted by default.
   *Verify: toggle sound on, hear music and effects.*
 
 ## Iteration 3 — Controls + polish (P3)
 
-- [ ] **23. Pause-on-open for floating controls** — the floating controls (built in
+- [ ] **24. Pause-on-open for floating controls** — the floating controls (built in
   step 1) now pause the running game loop while open and resume it on close, instead
   of being purely decorative.
   *Verify: open the controls mid-game, confirm the game pauses; close, confirm it
   resumes exactly where it left off.*
-- [ ] **24. Theme-switch reset** — leaving and returning to Platformer resets the
+- [ ] **25. Theme-switch reset** — leaving and returning to Platformer resets the
   session (fresh game, no collected facts).
   *Verify: switch to another theme and back, confirm the game is fresh.*
-- [ ] **25. Touch/mobile controls** — on-screen D-pad + action buttons on small
+- [ ] **26. Touch/mobile controls** — on-screen D-pad + action buttons on small
   viewports.
   *Verify: at a mobile viewport width, the D-pad appears and functions.*
-- [ ] **26. Polish pass** — animation/effects refinement, 30 FPS check with 20+
+- [ ] **27. Polish pass** — animation/effects refinement, 30 FPS check with 20+
   collectibles rendered.
   *Verify: frame-timing check and smooth manual play.*
 

@@ -22,7 +22,7 @@ A visitor opens the CV website and switches to the Platformer theme. A 2D side-s
 2. **Given** the character is idle on a platform, **When** the visitor presses the right arrow key, **Then** the character moves right with a walking animation and the camera scrolls to follow.
 3. **Given** the character is standing on a platform, **When** the visitor presses the spacebar or up arrow, **Then** the character jumps upward, reaches a peak, and falls back down — landing on platforms or falling into pits.
 4. **Given** the character is moving left, **When** the visitor presses the right arrow key, **Then** the character reverses direction and the sprite faces right.
-5. **Given** the character falls into a pit or loses all hearts, **When** the death occurs, **Then** the character respawns at the nearest spawn point with full health and all collected facts preserved.
+5. **Given** the character falls into a pit, **When** the fall occurs, **Then** the character loses half a heart and reappears at the last solid ground position before the fall. **Given** the character loses all hearts, **When** the death occurs, **Then** the character respawns at the nearest spawn point with full health and all collected facts preserved.
 
 ---
 
@@ -75,7 +75,7 @@ Scattered through the level are simple enemy characters (e.g., slime-like creatu
 
 1. **Given** an enemy is patrolling on a platform, **When** the character jumps and lands on top of the enemy, **Then** the enemy is defeated with a poof/squish animation and the associated certificate or project fact text floats up, hovers, and flies to the journal icon.
 2. **Given** an enemy is defeated, **When** the visitor opens the journal, **Then** the certificate or project fact appears in the Certificates or Projects section respectively, styled as a simple list entry.
-3. **Given** the character collides with an enemy from the side or below, **When** contact occurs, **Then** the character takes damage (flashes briefly with invincibility frames), loses one heart, and is pushed back slightly. The character has 3 hearts total. At 0 hearts, the character respawns at the last checkpoint with full health and all collected facts preserved.
+3. **Given** the character collides with an enemy from the side or below, **When** contact occurs, **Then** the character takes damage (flashes briefly with invincibility frames), loses one full heart, and is pushed back slightly, using the same damage mechanism as pit falls (step 9) but with a full heart instead of a half heart. The character has 3 hearts total. At 0 hearts, the character respawns at the last checkpoint with full health and all collected facts preserved.
 4. **Given** the character respawns after falling, **When** they revisit an enemy location, **Then** previously defeated enemies remain defeated for the session.
 
 ---
@@ -269,7 +269,10 @@ The level is hand-crafted — starting with a simple layout to validate function
   - **Side/below collision**: Character takes damage (flashes, brief knockback) with invincibility frames; the enemy remains
   - Defeated enemies are removed from the game world for the session
 
-- **FR-020b**: System MUST implement a 3-heart health system. The character starts with 3 hearts displayed in the HUD. Side/below enemy collision costs 1 heart with brief invincibility frames after taking damage. At 0 hearts, the character respawns at the last checkpoint with full health, and all collected facts are preserved. Falling into a pit also respawns at checkpoint with full health.
+- **FR-020b**: System MUST implement a 3-heart health system backed by 6 half-heart units, rendered via `hearts.png` (full/half/empty per heart icon). The character starts with 3 hearts (6/6 half-heart units) displayed in the HUD. Both damage sources share the same underlying `takeDamage(amount)` mechanism:
+  - **Falling into a pit** costs half a heart (`takeDamage(0.5)`) and repositions the character to the last solid ground position before the fall — not a checkpoint reset.
+  - **Side/below enemy collision** costs a full heart (`takeDamage(1)`) with brief invincibility frames after taking damage.
+  - At 0 hearts (from either source), the character respawns at the last checkpoint with full health (6/6 half-heart units restored), and all collected facts are preserved.
 
 #### Destroyable Blocks (P2)
 
@@ -459,7 +462,7 @@ FloatingControls (P3)
 
 ### Session 2026-08-05
 
-- **Q: Damage & Health System** — **A**: 3-hit health with checkpoint respawn. Character has 3 hearts, brief invincibility frames on hit. At 0 health: respawn at nearest spawn point, collected facts preserved. No game-over screen.
+- **Q: Damage & Health System** — **A**: 3-heart health backed by 6 half-heart units, checkpoint respawn at 0 health. Character has 3 hearts (`hearts.png`, full/half/empty), brief invincibility frames on hit. Pit falls cost half a heart and reposition the character to the last solid ground (no checkpoint reset); enemy side/below collision costs a full heart — both use the same `takeDamage(amount)` mechanism. At 0 health: respawn at nearest spawn point with full health, collected facts preserved. No game-over screen.
 - **Q: Platform Behavior** — **A**: All platforms are solid from every direction. Character cannot jump up through platforms from below. **Exception (added at roadmap step 7)**: `bridge` tiles are one-way — passable from below, solid from above — since a rope/plank bridge is the one terrain type where that behavior reads as natural rather than surprising. **Update (roadmap step 7, level redesign)**: a Down-arrow/`S` "drop through" key was added once `level1` gained a platform-bridge-platform arrangement with reachable ground underneath — the condition the original clarification held it back for.
 - **Q: Level Design Approach** — **A**: Hand-crafted level using a grid/raster system with width and height for easy element positioning. Start with a simple level to validate functionality, then expand iteratively.
 - **Q: Checkpoint System** — **A**: Invisible spawn points defined in the level data. Character respawns at the nearest spawn point on death.
