@@ -114,4 +114,20 @@ describe('createKeyboardInput', () => {
     input.destroy();
     expect(input.consumePress('Space')).toBe(false);
   });
+
+  it('clearPending-afterPendingKeydown-consumePressReturnsFalse', () => {
+    const input = createKeyboardInput();
+    dispatchKey('keydown', 'Space');
+    input.clearPending();
+    expect(input.consumePress('Space')).toBe(false);
+    input.destroy();
+  });
+
+  it('clearPending-whileKeyHeld-doesNotAffectIsHeld', () => {
+    const input = createKeyboardInput();
+    dispatchKey('keydown', 'Space');
+    input.clearPending();
+    expect(input.isHeld('Space')).toBe(true);
+    input.destroy();
+  });
 });

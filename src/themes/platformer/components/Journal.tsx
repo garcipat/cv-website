@@ -33,9 +33,9 @@ export const Journal = ({ onClose }: JournalProps) => {
   return (
     <div
       data-testid="platformer-journal"
-      className="fixed inset-0 z-[60] flex items-center justify-center"
+      className="pointer-events-none fixed inset-0 z-[60] flex items-center justify-center"
     >
-      <div className="relative flex h-[500px] max-h-[80vh] w-[600px] max-w-[90vw] flex-col items-center gap-4 overflow-y-auto rounded-lg bg-white p-8 text-gray-900 shadow-xl">
+      <div className="pointer-events-auto relative flex h-[500px] max-h-[80vh] w-[600px] max-w-[90vw] flex-col items-center gap-4 overflow-y-auto rounded-lg bg-white p-8 text-gray-900 shadow-xl">
         <button
           type="button"
           onClick={onClose}
