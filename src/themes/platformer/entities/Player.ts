@@ -39,8 +39,15 @@ export interface PlayerState {
    *  see Physics.ts's ground-collision branch. Cleared once they land on
    *  real solid ground again. */
   isDroppingThroughBridge: boolean;
-  /** x/y as of the most recent frame where `grounded` was true — frozen the
-   *  instant the character becomes airborne (falls off an edge, jumps).
+  /** x/y as of the most recent frame where the hitbox's ENTIRE footprint
+   *  rested on solid ground (Physics.ts's `fullyGrounded`) — deliberately
+   *  stricter than the `grounded` field above, which stays lenient (any one
+   *  spanned column solid counts) so the character doesn't feel like it
+   *  falls the instant it's not 100% supported on a ledge. That leniency
+   *  means `grounded` alone can be true while mostly hanging over a gap;
+   *  using it here would let a pit-fall recovery visibly float the
+   *  character over the pit it just fell into. Frozen the instant the
+   *  footprint stops being fully supported (falls off an edge, jumps).
    *  Used by Physics.ts's resolvePitFall to reposition the character after a
    *  pit fall to "the last solid ground position before the fall" rather
    *  than a spawn/checkpoint (that's roadmap step 10's job). */

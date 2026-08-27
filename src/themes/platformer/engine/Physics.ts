@@ -250,7 +250,12 @@ export function checkPitFall(player: PlayerState, level: LevelDef): boolean {
  * 0-heart case). Velocity is zeroed and `grounded` is set true so the very
  * next frame doesn't read as still-falling; `isDroppingThroughBridge` is
  * cleared since the character can't still be mid-drop-through after being
- * teleported back onto solid ground.
+ * teleported back onto solid ground. `animState`/`animFrame`/`animTimer` are
+ * deliberately left untouched (via spread) — `PlatformerPage.tsx`'s loop
+ * calls `updatePlayerAnimState` on this function's result (in that order),
+ * which re-derives `animState` from the corrected `grounded` flag before
+ * anything renders, so there's no frame where a stale fall/jump animation
+ * state is visible on screen.
  */
 export function resolvePitFall(player: PlayerState): PlayerState {
   return {
