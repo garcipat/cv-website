@@ -193,3 +193,52 @@ export function drawHearts(
     );
   }
 }
+
+/**
+ * Paints solid black over the whole canvas except a circular hole of
+ * `radius` centered on (centerX, centerY), using the canvas 2D API's
+ * even-odd fill rule on two subpaths (the full-canvas rect, then the
+ * circle) instead of an offscreen buffer + composite-operation punch —
+ * simpler and avoids an extra canvas. `centerX`/`centerY` are screen-space
+ * (caller adds the camera originX/originY, matching drawTerrain/drawPlayer's
+ * convention). `radius <= 0` draws solid black with no hole at all — the
+ * `awaitingRestart` phase and the very start of a death both rely on this.
+ */
+export function drawIrisOverlay(
+  ctx: CanvasRenderingContext2D,
+  canvasWidth: number,
+  canvasHeight: number,
+  centerX: number,
+  centerY: number,
+  radius: number,
+): void {
+  ctx.save();
+  ctx.fillStyle = '#000';
+  ctx.beginPath();
+  ctx.rect(0, 0, canvasWidth, canvasHeight);
+  if (radius > 0) {
+    ctx.moveTo(centerX + radius, centerY);
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2, true);
+  }
+  ctx.fill('evenodd');
+  ctx.restore();
+}
+
+const RESTART_PROMPT_TEXT = 'Press any button to restart';
+
+/** Draws the death-screen restart prompt, centered on the canvas. Only ever
+ *  drawn on top of a fully-closed drawIrisOverlay (radius 0), so no
+ *  background/contrast handling is needed here. */
+export function drawRestartPrompt(
+  ctx: CanvasRenderingContext2D,
+  canvasWidth: number,
+  canvasHeight: number,
+): void {
+  ctx.save();
+  ctx.fillStyle = '#fff';
+  ctx.font = '24px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(RESTART_PROMPT_TEXT, canvasWidth / 2, canvasHeight / 2);
+  ctx.restore();
+}
