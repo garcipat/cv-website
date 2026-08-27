@@ -10,7 +10,11 @@ import {
 import { MAX_HALF_HEARTS } from './entities/Health';
 import { tileToPixel, RENDERED_TILE_SIZE } from './level/Terrain';
 import { SPAWN_TILE } from './level/level1';
-import { PLAYER_RENDERED_SIZE, PLAYER_FOOT_PADDING } from './entities/Player';
+import {
+  PLAYER_RENDERED_SIZE,
+  PLAYER_FOOT_PADDING,
+  PLAYER_VISUAL_CENTER_Y_OFFSET,
+} from './entities/Player';
 
 describe('PlatformerState', () => {
   it('playerState-initial-hasIdleAnimAtFrameZero', () => {
@@ -63,7 +67,7 @@ describe('PlatformerState', () => {
     const spawn = spawnPlayerState();
     const center = spawnCenter();
     expect(center.x).toBe(spawn.x + PLAYER_RENDERED_SIZE / 2);
-    expect(center.y).toBe(spawn.y + PLAYER_RENDERED_SIZE / 2);
+    expect(center.y).toBe(spawn.y + PLAYER_VISUAL_CENTER_Y_OFFSET);
   });
 
   it('lifecycleState-initial-isIntroPhaseCenteredOnSpawnPlayer', () => {

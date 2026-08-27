@@ -226,9 +226,22 @@ export function drawIrisOverlay(
 
 const RESTART_PROMPT_TEXT = 'Press any button to restart';
 
+/**
+ * Family name registered with `document.fonts` by engine/FontLoader.ts's
+ * `loadFont` call (see PlatformerPage.tsx's mount effect) for
+ * `RESTART_PROMPT_FONT_URL`. Kept alongside the draw call that uses it so
+ * the loaded family name and the drawn family name can't drift apart.
+ */
+export const RESTART_PROMPT_FONT_FAMILY = 'ByteBounce';
+
+/** Public path to the font file loaded for RESTART_PROMPT_FONT_FAMILY. */
+export const RESTART_PROMPT_FONT_URL = '/fonts/bytebounce.medium.ttf';
+
 /** Draws the death-screen restart prompt, centered on the canvas. Only ever
  *  drawn on top of a fully-closed drawIrisOverlay (radius 0), so no
- *  background/contrast handling is needed here. */
+ *  background/contrast handling is needed here. Falls back to the
+ *  sans-serif stack if RESTART_PROMPT_FONT_FAMILY hasn't finished loading
+ *  (or failed to) by the time this is drawn. */
 export function drawRestartPrompt(
   ctx: CanvasRenderingContext2D,
   canvasWidth: number,
@@ -236,7 +249,7 @@ export function drawRestartPrompt(
 ): void {
   ctx.save();
   ctx.fillStyle = '#fff';
-  ctx.font = '24px sans-serif';
+  ctx.font = `24px "${RESTART_PROMPT_FONT_FAMILY}", sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(RESTART_PROMPT_TEXT, canvasWidth / 2, canvasHeight / 2);

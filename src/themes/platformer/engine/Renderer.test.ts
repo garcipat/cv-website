@@ -1,4 +1,11 @@
-import { drawTerrain, drawPlayer, drawHearts, drawIrisOverlay, drawRestartPrompt } from './Renderer';
+import {
+  drawTerrain,
+  drawPlayer,
+  drawHearts,
+  drawIrisOverlay,
+  drawRestartPrompt,
+  RESTART_PROMPT_FONT_FAMILY,
+} from './Renderer';
 import type { LevelDef } from '../level/LevelData';
 import type { PlayerState } from '../entities/Player';
 import { PLAYER_RENDERED_SIZE } from '../entities/Player';
@@ -457,5 +464,14 @@ describe('drawRestartPrompt', () => {
     drawRestartPrompt(ctx as unknown as CanvasRenderingContext2D, 800, 600);
 
     expect(ctx.fillText).toHaveBeenCalledWith('Press any button to restart', 400, 300);
+  });
+
+  it('called-usesRestartPromptFontFamilyWithSansSerifFallback', () => {
+    const ctx = makeMockContext() as unknown as { font: string };
+
+    drawRestartPrompt(ctx as unknown as CanvasRenderingContext2D, 800, 600);
+
+    expect(ctx.font).toContain(RESTART_PROMPT_FONT_FAMILY);
+    expect(ctx.font).toContain('sans-serif');
   });
 });

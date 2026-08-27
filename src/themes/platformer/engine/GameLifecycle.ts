@@ -1,8 +1,15 @@
-import { IRIS_DURATION_SECONDS, irisRadius } from './IrisTransition';
+import {
+  IRIS_DURATION_SECONDS,
+  IRIS_HOLD_SECONDS,
+  IRIS_CLOSE_SECONDS,
+  IRIS_SMALL_RADIUS,
+  lerpRadius,
+} from './IrisTransition';
 
 /**
- * `intro`: circle growing open at game start/restart (non-blocking — see
- * this plan's Architecture note; physics still runs underneath).
+ * `intro`: circle already held small, then growing open at game
+ * start/restart (non-blocking — see this plan's Architecture note; physics
+ * still runs underneath).
  * `playing`: normal gameplay, no overlay drawn.
  * `dying`: circle shrinking closed on death, game loop paused.
  * `awaitingRestart`: fully black, "Press any button to restart" shown,
@@ -22,6 +29,20 @@ export interface LifecycleState {
   centerY: number;
 }
 
+/**
+ * `intro` total timeline: held at IRIS_SMALL_RADIUS for IRIS_HOLD_SECONDS,
+ * then grows IRIS_SMALL_RADIUS -> maxRadius over IRIS_DURATION_SECONDS.
+ */
+const INTRO_TOTAL_SECONDS = IRIS_HOLD_SECONDS + IRIS_DURATION_SECONDS;
+
+/**
+ * `dying` total timeline: shrinks maxRadius -> IRIS_SMALL_RADIUS over
+ * IRIS_DURATION_SECONDS, holds there for IRIS_HOLD_SECONDS (the character is
+ * fully encircled — a beat of held tension), then closes
+ * IRIS_SMALL_RADIUS -> 0 over IRIS_CLOSE_SECONDS.
+ */
+const DYING_TOTAL_SECONDS = IRIS_DURATION_SECONDS + IRIS_HOLD_SECONDS + IRIS_CLOSE_SECONDS;
+
 export function introState(centerX: number, centerY: number): LifecycleState {
   return { phase: 'intro', elapsed: 0, centerX, centerY };
 }
@@ -33,16 +54,17 @@ export function startDeath(centerX: number, centerY: number): LifecycleState {
 /**
  * Advances `elapsed` by `dt` seconds for the two time-driven phases,
  * transitioning 'intro' -> 'playing' and 'dying' -> 'awaitingRestart' once
- * IRIS_DURATION_SECONDS is reached or exceeded. No-op (same reference
+ * that phase's total duration is reached or exceeded. No-op (same reference
  * returned) for 'playing'/'awaitingRestart', which have no timer running.
  */
 export function tickLifecycle(state: LifecycleState, dt: number): LifecycleState {
   if (state.phase !== 'intro' && state.phase !== 'dying') return state;
   const elapsed = state.elapsed + dt;
-  if (elapsed >= IRIS_DURATION_SECONDS) {
+  const totalDuration = state.phase === 'intro' ? INTRO_TOTAL_SECONDS : DYING_TOTAL_SECONDS;
+  if (elapsed >= totalDuration) {
     return {
       ...state,
-      elapsed: IRIS_DURATION_SECONDS,
+      elapsed: totalDuration,
       phase: state.phase === 'intro' ? 'playing' : 'awaitingRestart',
     };
   }
@@ -53,12 +75,31 @@ export function tickLifecycle(state: LifecycleState, dt: number): LifecycleState
  * Circle radius to draw for the current phase, or `null` when 'playing'
  * (no overlay drawn at all — the caller should skip the draw call entirely
  * rather than draw a full-radius, fully-transparent circle every frame).
+ *
+ * 'intro' and 'dying' each hold at IRIS_SMALL_RADIUS (clamped to maxRadius,
+ * for a canvas too small to need a bigger circle) for a beat before/after
+ * the main grow/shrink segment — see INTRO_TOTAL_SECONDS/DYING_TOTAL_SECONDS
+ * above for the full timeline of each.
  */
 export function currentIrisRadius(state: LifecycleState, maxRadius: number): number | null {
   if (state.phase === 'playing') return null;
   if (state.phase === 'awaitingRestart') return 0;
-  const progress = state.elapsed / IRIS_DURATION_SECONDS;
-  return state.phase === 'intro'
-    ? irisRadius(progress, maxRadius, 'in')
-    : irisRadius(progress, maxRadius, 'out');
+
+  const smallRadius = Math.min(IRIS_SMALL_RADIUS, maxRadius);
+
+  if (state.phase === 'intro') {
+    if (state.elapsed < IRIS_HOLD_SECONDS) return smallRadius;
+    const growProgress = (state.elapsed - IRIS_HOLD_SECONDS) / IRIS_DURATION_SECONDS;
+    return lerpRadius(growProgress, smallRadius, maxRadius);
+  }
+
+  // 'dying'
+  if (state.elapsed < IRIS_DURATION_SECONDS) {
+    const shrinkProgress = state.elapsed / IRIS_DURATION_SECONDS;
+    return lerpRadius(shrinkProgress, maxRadius, smallRadius);
+  }
+  if (state.elapsed < IRIS_DURATION_SECONDS + IRIS_HOLD_SECONDS) return smallRadius;
+  const closeProgress =
+    (state.elapsed - IRIS_DURATION_SECONDS - IRIS_HOLD_SECONDS) / IRIS_CLOSE_SECONDS;
+  return lerpRadius(closeProgress, smallRadius, 0);
 }

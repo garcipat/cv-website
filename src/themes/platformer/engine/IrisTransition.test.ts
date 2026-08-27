@@ -1,4 +1,4 @@
-import { IRIS_DURATION_SECONDS, maxIrisRadius, irisRadius } from './IrisTransition';
+import { maxIrisRadius, lerpRadius } from './IrisTransition';
 
 describe('maxIrisRadius', () => {
   it('centerAtOrigin-returns-distanceToFarthestCorner', () => {
@@ -15,36 +15,28 @@ describe('maxIrisRadius', () => {
   });
 });
 
-describe('irisRadius', () => {
-  it('directionIn-progressZero-returnsZero', () => {
-    expect(irisRadius(0, 500, 'in')).toBe(0);
+describe('lerpRadius', () => {
+  it('progressZero-returnsFromRadius', () => {
+    expect(lerpRadius(0, 100, 500)).toBe(100);
   });
 
-  it('directionIn-progressOne-returnsMaxRadius', () => {
-    expect(irisRadius(1, 500, 'in')).toBe(500);
+  it('progressOne-returnsToRadius', () => {
+    expect(lerpRadius(1, 100, 500)).toBe(500);
   });
 
-  it('directionIn-progressHalf-returnsHalfMaxRadius', () => {
-    expect(irisRadius(0.5, 500, 'in')).toBe(250);
+  it('progressHalf-returnsMidpoint', () => {
+    expect(lerpRadius(0.5, 100, 500)).toBe(300);
   });
 
-  it('directionOut-progressZero-returnsMaxRadius', () => {
-    expect(irisRadius(0, 500, 'out')).toBe(500);
-  });
-
-  it('directionOut-progressOne-returnsZero', () => {
-    expect(irisRadius(1, 500, 'out')).toBe(0);
-  });
-
-  it('directionOut-progressHalf-returnsHalfMaxRadius', () => {
-    expect(irisRadius(0.5, 500, 'out')).toBe(250);
+  it('fromGreaterThanTo-progressHalf-returnsMidpoint', () => {
+    expect(lerpRadius(0.5, 500, 100)).toBe(300);
   });
 
   it('progressBeyondOne-clampsToOne', () => {
-    expect(irisRadius(1.5, 500, 'in')).toBe(500);
+    expect(lerpRadius(1.5, 100, 500)).toBe(500);
   });
 
   it('progressBelowZero-clampsToZero', () => {
-    expect(irisRadius(-0.5, 500, 'in')).toBe(0);
+    expect(lerpRadius(-0.5, 100, 500)).toBe(100);
   });
 });

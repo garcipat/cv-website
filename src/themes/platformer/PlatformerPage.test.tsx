@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi } from 'vitest';
 import { PlatformerPage } from './PlatformerPage';
-import { PLAYER_RENDERED_SIZE } from './entities/Player';
+import { PLAYER_RENDERED_SIZE, PLAYER_VISUAL_CENTER_Y_OFFSET } from './entities/Player';
 import { playerState, cameraPositionX, healthState, lifecycleState } from './PlatformerState';
 import { MAX_HALF_HEARTS, PIT_FALL_DAMAGE, HEART_RENDERED_SIZE } from './entities/Health';
 
@@ -539,7 +539,7 @@ describe('PlatformerPage', () => {
     expect(healthState.value).toBe(0);
     expect(lifecycleState.value.phase).toBe('dying');
     expect(lifecycleState.value.centerX).toBe(playerState.value.x + PLAYER_RENDERED_SIZE / 2);
-    expect(lifecycleState.value.centerY).toBe(playerState.value.y + PLAYER_RENDERED_SIZE / 2);
+    expect(lifecycleState.value.centerY).toBe(playerState.value.y + PLAYER_VISUAL_CENTER_Y_OFFSET);
 
     const frozenX = playerState.value.x;
     const frozenY = playerState.value.y;
@@ -572,7 +572,7 @@ describe('PlatformerPage', () => {
     expect(lifecycleState.value.phase).toBe('dying');
 
     let t = 16;
-    for (let i = 0; i < 120; i++) {
+    for (let i = 0; i < 250; i++) {
       t += 16;
       frameCallback!(t);
     }
@@ -602,7 +602,7 @@ describe('PlatformerPage', () => {
     };
     frameCallback!(16);
     let t = 16;
-    for (let i = 0; i < 120; i++) {
+    for (let i = 0; i < 250; i++) {
       t += 16;
       frameCallback!(t);
     }
@@ -639,7 +639,7 @@ describe('PlatformerPage', () => {
     };
     frameCallback!(16);
     let t = 16;
-    for (let i = 0; i < 120; i++) {
+    for (let i = 0; i < 250; i++) {
       t += 16;
       frameCallback!(t);
     }
@@ -712,7 +712,7 @@ describe('PlatformerPage', () => {
     expect(healthState.value).toBe(0);
     expect(lifecycleState.value.phase).toBe('dying');
     expect(lifecycleState.value.centerX).toBe(playerState.value.x + PLAYER_RENDERED_SIZE / 2);
-    expect(lifecycleState.value.centerY).toBe(playerState.value.y + PLAYER_RENDERED_SIZE / 2);
+    expect(lifecycleState.value.centerY).toBe(playerState.value.y + PLAYER_VISUAL_CENTER_Y_OFFSET);
   });
 
   it('respawnButtonClicked-anyPhase-resetsHealthPositionAndEntersIntroAtSpawn', () => {

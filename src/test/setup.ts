@@ -48,3 +48,32 @@ HTMLCanvasElement.prototype.getContext = function (
 
   return mockContexts.get(this);
 } as typeof HTMLCanvasElement.prototype.getContext;
+
+// jsdom does not implement the CSS Font Loading API (no `FontFace` global,
+// no `document.fonts`). Without a stub, PlatformerPage.tsx's font-loading
+// effect (see engine/FontLoader.ts) throws a ReferenceError on mount in
+// every test that renders it. A resolved-immediately mock is enough here —
+// individual tests that care about load success/failure (FontLoader.test.ts)
+// override these globals themselves via vi.stubGlobal.
+if (typeof FontFace === 'undefined') {
+  class MockFontFace {
+    family: string;
+    source: string;
+    constructor(family: string, source: string) {
+      this.family = family;
+      this.source = source;
+    }
+    load() {
+      return Promise.resolve(this as unknown as FontFace);
+    }
+  }
+  // @ts-expect-error jsdom doesn't implement the CSS Font Loading API
+  globalThis.FontFace = MockFontFace;
+}
+
+if (!document.fonts) {
+  Object.defineProperty(document, 'fonts', {
+    value: { add: () => {} },
+    configurable: true,
+  });
+}

@@ -1,9 +1,32 @@
 /**
- * Seconds the iris-in (grow, game start/restart) and iris-out (shrink, death)
- * animations each take. Chosen for a deliberately slow, dramatic beat rather
+ * Seconds the main grow-open (intro) / shrink-closed (dying) segment of the
+ * iris animation takes. Chosen for a deliberately slow, dramatic beat rather
  * than a snappy transition.
  */
 export const IRIS_DURATION_SECONDS = 1.75;
+
+/**
+ * Seconds the iris pauses at IRIS_SMALL_RADIUS — already circled in at the
+ * very start of `intro` (before growing open), and again mid-`dying` (after
+ * shrinking down around the just-died character, before the final full
+ * close) — a beat of held tension on both ends of the transition.
+ */
+export const IRIS_HOLD_SECONDS = 0.4;
+
+/**
+ * Seconds the final `dying` segment (IRIS_SMALL_RADIUS -> 0, the full black
+ * close) takes. Short relative to IRIS_DURATION_SECONDS since it only
+ * crosses a small remaining distance — reads as a quick, final snap shut.
+ */
+export const IRIS_CLOSE_SECONDS = 0.5;
+
+/**
+ * The radius the iris holds at when "encircling" the character — small
+ * enough to read as a tight circle around the player (PLAYER_RENDERED_SIZE
+ * is 64px), with a bit of margin. Not exported alongside a player-specific
+ * import to keep this module free of a dependency on entities/Player.
+ */
+export const IRIS_SMALL_RADIUS = 60;
 
 /**
  * The radius a circle centered at (centerX, centerY) needs to fully cover a
@@ -24,15 +47,11 @@ export function maxIrisRadius(
 }
 
 /**
- * Circle radius at a given point in the animation. `progress` (0-1, clamped)
- * is elapsed time / IRIS_DURATION_SECONDS. `'in'` (game start/restart) grows
- * 0 -> maxRadius; `'out'` (death) shrinks maxRadius -> 0.
+ * Linear interpolation between `fromRadius` and `toRadius`. `progress`
+ * (0-1, clamped) is elapsed time / segment duration for whichever animation
+ * segment the caller is in.
  */
-export function irisRadius(
-  progress: number,
-  maxRadius: number,
-  direction: 'in' | 'out',
-): number {
+export function lerpRadius(progress: number, fromRadius: number, toRadius: number): number {
   const clamped = Math.min(1, Math.max(0, progress));
-  return direction === 'in' ? clamped * maxRadius : (1 - clamped) * maxRadius;
+  return fromRadius + (toRadius - fromRadius) * clamped;
 }

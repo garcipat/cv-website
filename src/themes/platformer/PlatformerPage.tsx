@@ -1,7 +1,16 @@
 import { useEffect, useRef } from 'react';
 import { FloatingControls } from './components/FloatingControls';
 import { loadImage } from './engine/SpriteLoader';
-import { drawTerrain, drawPlayer, drawHearts, drawIrisOverlay, drawRestartPrompt } from './engine/Renderer';
+import { loadFont } from './engine/FontLoader';
+import {
+  drawTerrain,
+  drawPlayer,
+  drawHearts,
+  drawIrisOverlay,
+  drawRestartPrompt,
+  RESTART_PROMPT_FONT_FAMILY,
+  RESTART_PROMPT_FONT_URL,
+} from './engine/Renderer';
 import { drawDebugOverlay } from './engine/DebugOverlay';
 import { createGameLoop } from './engine/GameLoop';
 import { stepPlayerPhysics, checkPitFall, resolvePitFall } from './engine/Physics';
@@ -11,7 +20,12 @@ import { tickLifecycle, startDeath, introState, currentIrisRadius } from './engi
 import { maxIrisRadius } from './engine/IrisTransition';
 import { level1 } from './level/level1';
 import { RENDERED_TILE_SIZE } from './level/Terrain';
-import { advancePlayerAnimation, updatePlayerAnimState, PLAYER_RENDERED_SIZE } from './entities/Player';
+import {
+  advancePlayerAnimation,
+  updatePlayerAnimState,
+  PLAYER_RENDERED_SIZE,
+  PLAYER_VISUAL_CENTER_Y_OFFSET,
+} from './entities/Player';
 import { takeDamage, PIT_FALL_DAMAGE } from './entities/Health';
 import { playerState, cameraPositionX, healthState, lifecycleState, spawnCenter, resetGame } from './PlatformerState';
 
@@ -32,7 +46,7 @@ export const PlatformerPage = () => {
   const handleDebugKill = () => {
     healthState.value = 0;
     const p = playerState.value;
-    lifecycleState.value = startDeath(p.x + PLAYER_RENDERED_SIZE / 2, p.y + PLAYER_RENDERED_SIZE / 2);
+    lifecycleState.value = startDeath(p.x + PLAYER_RENDERED_SIZE / 2, p.y + PLAYER_VISUAL_CENTER_Y_OFFSET);
   };
 
   const handleDebugRespawn = () => {
@@ -196,7 +210,7 @@ export const PlatformerPage = () => {
       if (healthState.value === 0) {
         lifecycleState.value = startDeath(
           next.x + PLAYER_RENDERED_SIZE / 2,
-          next.y + PLAYER_RENDERED_SIZE / 2,
+          next.y + PLAYER_VISUAL_CENTER_Y_OFFSET,
         );
       } else {
         lifecycleState.value = tickLifecycle(lifecycleState.value, dt);
@@ -246,6 +260,15 @@ export const PlatformerPage = () => {
       .catch(() => {
         // The heart HUD simply won't render if the sprite fails to load; the
         // rest of the game still shows.
+      });
+    loadFont(RESTART_PROMPT_FONT_FAMILY, RESTART_PROMPT_FONT_URL)
+      .then(() => {
+        if (cancelled) return;
+        render();
+      })
+      .catch(() => {
+        // drawRestartPrompt falls back to its sans-serif stack if the
+        // custom font fails to load.
       });
 
     return () => {
