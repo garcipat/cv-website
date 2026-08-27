@@ -36,6 +36,21 @@ const PIT_LEVEL = parseLevel(['..', '..', '..', '..']);
 // bottom — used to test the upward (ceiling) collision case jump introduces.
 const CEILING_LEVEL = parseLevel(['GG', '..', '..', '..']);
 
+// Same shape as CEILING_LEVEL, but the solid row is `bridge` instead of
+// `groundGrass` — isolates the one-way case: rising into a bridge from below
+// must NOT block, unlike CEILING_LEVEL's ground row, which does.
+const BRIDGE_CEILING_LEVEL = parseLevel(['BB', '..', '..', '..']);
+
+// Same shape as GROUND_LEVEL, but the solid row is `bridge` — bridge must
+// still be solid when landed on from above under normal gravity, exactly
+// like ground.
+const BRIDGE_GROUND_LEVEL = parseLevel(['..', '..', '..', 'BB']);
+
+// Same shape as a horizontal wall level (see RIGHT_WALL_LEVEL further down),
+// but the solid tile is `bridge` — bridge must still block horizontal
+// movement like any other wall.
+const BRIDGE_SIDE_WALL_LEVEL = parseLevel(['....B.', '....B.']);
+
 // One empty tile, then a 3-tile-wide solid strip (cols 1-3), then empty —
 // proportioned like level1's real 3-tile floating platform, with room to
 // its left/right so the hitbox can be positioned on either side without
@@ -346,5 +361,48 @@ describe('stepPlayerPhysics jump', () => {
       const next = stepPlayerPhysics(player, NARROW_PLATFORM_LEVEL, 1 / 60);
       expect(next.grounded).toBe(false);
     }
+  });
+});
+
+describe('stepPlayerPhysics one-way bridge platforms', () => {
+  it('jumpingUpThroughBridgeFromBelow-doesNotBlockAndKeepsRising', () => {
+    const ceilingBottomY = RENDERED_TILE_SIZE; // row 0 is the bridge; row 1 starts here
+    const restY = ceilingBottomY - PLAYER_HEAD_PADDING; // where a solid ceiling would clamp to
+    // Same setup as the solid-ceiling collision test, but against a bridge —
+    // if bridge incorrectly blocked from below, this would clamp to restY
+    // exactly like the CEILING_LEVEL case does.
+    const player = basePlayer({ y: restY + 1, vy: -1000, grounded: false });
+
+    const next = stepPlayerPhysics(player, BRIDGE_CEILING_LEVEL, 1 / 60, { jumpHeld: true });
+
+    expect(next.y).toBeLessThan(restY);
+    expect(next.vy).not.toBe(0);
+  });
+
+  it('fallingOntoBridgeFromAbove-snapsFeetToSurfaceAndStopsVelocityLikeGround', () => {
+    const groundSurfaceY = 3 * RENDERED_TILE_SIZE;
+    const restY = groundSurfaceY - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
+    // Start 1px above the surface, falling fast enough to overshoot through
+    // it in a single frame — identical setup to the plain-ground landing test.
+    const player = basePlayer({ y: restY - 1, vy: 500 });
+
+    const next = stepPlayerPhysics(player, BRIDGE_GROUND_LEVEL, 1 / 60);
+
+    expect(next.y).toBe(restY);
+    expect(next.vy).toBe(0);
+    expect(next.grounded).toBe(true);
+  });
+
+  it('walkingIntoBridgeFromSide-blockedLikeAnyWall', () => {
+    const wallCol = 4;
+    const restX = wallCol * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_SIDE_PADDING;
+    const player = basePlayer({ x: restX - 1 });
+
+    const next = stepPlayerPhysics(player, BRIDGE_SIDE_WALL_LEVEL, 1 / 60, {
+      left: false,
+      right: true,
+    });
+
+    expect(next.x).toBe(restX);
   });
 });

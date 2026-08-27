@@ -1,5 +1,5 @@
 import { PHYSICS_CONFIG } from './PhysicsConfig';
-import { isSolid, tileAt, RENDERED_TILE_SIZE } from '../level/Terrain';
+import { isSolid, isSolidExcludingBridge, tileAt, RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { LevelDef } from '../level/LevelData';
 import {
   PLAYER_RENDERED_SIZE,
@@ -121,10 +121,13 @@ export function stepPlayerPhysics(
     // PLAYER_HEAD_PADDING accounts for the transparent rows above the
     // sprite's actual head, so this triggers when the VISIBLE head reaches
     // the tile, not when the top of the (mostly-empty) frame does.
+    // Uses isSolidExcludingBridge (not isSolid) so `bridge` tiles are
+    // passable from underneath while remaining solid everywhere else
+    // (roadmap step 7).
     const headY = y + PLAYER_HEAD_PADDING;
     const headRow = Math.floor(headY / RENDERED_TILE_SIZE);
     for (let col = leftCol; col <= rightCol; col++) {
-      if (isSolid(tileAt(level, col, headRow))) {
+      if (isSolidExcludingBridge(tileAt(level, col, headRow))) {
         y = (headRow + 1) * RENDERED_TILE_SIZE - PLAYER_HEAD_PADDING;
         resolvedVy = 0;
         break;
