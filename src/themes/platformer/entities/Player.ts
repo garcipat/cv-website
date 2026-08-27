@@ -10,6 +10,18 @@ export const PLAYER_FOOT_PADDING = 4 * RENDER_SCALE; // 8 rendered px
 export const PLAYER_HEAD_PADDING = 9 * RENDER_SCALE; // 18 rendered px
 
 /**
+ * Vertical offset from the player's render-slot top (`y`) to the visual
+ * center of the knight's actual silhouette — the midpoint between
+ * PLAYER_HEAD_PADDING (transparent rows above the head) and
+ * PLAYER_FOOT_PADDING (transparent rows below the feet), not simply half of
+ * PLAYER_RENDERED_SIZE (which includes that transparent padding and reads a
+ * few pixels too high). Used to center the death/respawn iris transition on
+ * the character rather than on its full transparent render slot.
+ */
+export const PLAYER_VISUAL_CENTER_Y_OFFSET =
+  PLAYER_HEAD_PADDING + (PLAYER_RENDERED_SIZE - PLAYER_HEAD_PADDING - PLAYER_FOOT_PADDING) / 2;
+
+/**
  * Transparent margin on either side of the knight's silhouette inside each
  * 32px native frame (the placeholder sprite's art is ~13px wide, centered in
  * the 32px cell). Used by Physics.ts to define a narrower, centered

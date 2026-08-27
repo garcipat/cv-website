@@ -66,7 +66,7 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   landing/collision logic itself.
   *Verify: fall into a pit, see a half-heart lost and the character reappear at the
   ledge it fell from.*
-- [ ] **10. Respawn** — at 0 health, the character respawns at the nearest spawn
+- [x] **10. Respawn** — at 0 health, the character respawns at the nearest spawn
   point with full health (3/3 hearts) restored, all collected facts preserved.
   *Verify: deplete all hearts via repeated pit falls, see the character respawn at a
   checkpoint with hearts refilled.*
