@@ -100,13 +100,18 @@ export const PlatformerPage = () => {
         jumpHeld,
         dropThroughHeld,
       });
-      next = updatePlayerAnimState(next);
-      next = advancePlayerAnimation(next, dt);
 
       if (checkPitFall(next, level1)) {
         healthState.value = takeDamage(healthState.value, PIT_FALL_DAMAGE);
         next = resolvePitFall(next);
       }
+
+      // Runs after the pit-fall check so `animState` is always derived from
+      // the frame's FINAL `grounded` value — otherwise a pit-fall recovery
+      // would render one frame of a stale fall/jump animation at the
+      // recovered position before the next tick corrected it.
+      next = updatePlayerAnimState(next);
+      next = advancePlayerAnimation(next, dt);
 
       playerState.value = next;
 
