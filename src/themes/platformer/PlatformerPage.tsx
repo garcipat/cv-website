@@ -16,7 +16,14 @@ import { createGameLoop } from './engine/GameLoop';
 import { stepPlayerPhysics, checkPitFall, resolvePitFall } from './engine/Physics';
 import { updateCamera } from './engine/Camera';
 import { createKeyboardInput } from './engine/Input';
-import { tickLifecycle, startDeath, introState, currentIrisRadius } from './engine/GameLifecycle';
+import {
+  tickLifecycle,
+  startDeath,
+  introState,
+  currentIrisRadius,
+  pauseForJournal,
+  resumeFromJournal,
+} from './engine/GameLifecycle';
 import { maxIrisRadius } from './engine/IrisTransition';
 import { level1 } from './level/level1';
 import { RENDERED_TILE_SIZE } from './level/Terrain';
@@ -28,6 +35,7 @@ import {
 } from './entities/Player';
 import { takeDamage, PIT_FALL_DAMAGE } from './entities/Health';
 import { playerState, cameraPositionX, healthState, lifecycleState, spawnCenter, resetGame } from './PlatformerState';
+import { Journal } from './components/Journal';
 
 export const PlatformerPage = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -54,6 +62,33 @@ export const PlatformerPage = () => {
   debugHitboxesRef.current = debugHitboxesOn;
 
   const handleToggleHitboxes = () => setDebugHitboxesOn((prev) => !prev);
+
+  // Mirrored into a ref (same pattern as debugHitboxesOn/debugHitboxesRef
+  // above) so the keydown listener registered once in the mount effect below
+  // always reads the latest open/closed value instead of closing over a
+  // stale one.
+  const [journalOpen, setJournalOpen] = useState(false);
+  const journalOpenRef = useRef(journalOpen);
+  journalOpenRef.current = journalOpen;
+
+  /**
+   * Toggles the journal. Opening is only allowed from 'playing' (not
+   * mid-death/intro/restart); closing is only allowed from 'paused' — both
+   * guards prevent the journal from desyncing the lifecycle phase if `J` is
+   * pressed during an animation.
+   */
+  const handleJournalToggle = () => {
+    const phase = lifecycleState.value.phase;
+    if (!journalOpenRef.current) {
+      if (phase !== 'playing') return;
+      lifecycleState.value = pauseForJournal(lifecycleState.value);
+      setJournalOpen(true);
+    } else {
+      if (phase !== 'paused') return;
+      lifecycleState.value = resumeFromJournal(lifecycleState.value);
+      setJournalOpen(false);
+    }
+  };
 
   const handleDebugKill = () => {
     healthState.value = 0;
@@ -118,7 +153,7 @@ export const PlatformerPage = () => {
       // same originX/originY already used for terrain/player, keeping them
       // aligned even if the canvas resizes mid-pause.
       const lifecycle = lifecycleState.value;
-      if (lifecycle.phase !== 'playing') {
+      if (lifecycle.phase !== 'playing' && lifecycle.phase !== 'paused') {
         const centerX = lifecycle.centerX + originX;
         const centerY = lifecycle.centerY + originY;
         const maxRadius = maxIrisRadius(canvas.width, canvas.height, centerX, centerY);
@@ -157,6 +192,11 @@ export const PlatformerPage = () => {
     window.addEventListener('keydown', restartIfAwaiting);
     canvas.addEventListener('click', restartIfAwaiting);
 
+    const onJournalKey = (e: KeyboardEvent) => {
+      if (e.code === 'KeyJ') handleJournalToggle();
+    };
+    window.addEventListener('keydown', onJournalKey);
+
     const loop = createGameLoop((dt) => {
       // 'dying' and 'awaitingRestart' pause the game loop entirely — no
       // physics/input processing, just advancing (dying) or holding
@@ -167,6 +207,10 @@ export const PlatformerPage = () => {
         return;
       }
       if (lifecycleState.value.phase === 'awaitingRestart') {
+        render();
+        return;
+      }
+      if (lifecycleState.value.phase === 'paused') {
         render();
         return;
       }
@@ -289,6 +333,7 @@ export const PlatformerPage = () => {
       input.destroy();
       window.removeEventListener('resize', onResize);
       window.removeEventListener('keydown', restartIfAwaiting);
+      window.removeEventListener('keydown', onJournalKey);
       canvas.removeEventListener('click', restartIfAwaiting);
     };
   }, []);
@@ -297,6 +342,19 @@ export const PlatformerPage = () => {
     <div className="relative h-screen w-screen overflow-hidden">
       <canvas ref={canvasRef} data-testid="platformer-canvas" className="block" tabIndex={-1} />
       <FloatingControls />
+      {journalOpen && <Journal onClose={handleJournalToggle} />}
+      {/* PLACEHOLDER icon: no journal/book pixel-art sprite exists yet
+          (public/sprites/, public/icons.svg) — swap this emoji for a real
+          sprite once one is added. FR-025: bottom-right, same action as `J`. */}
+      <button
+        type="button"
+        onClick={handleJournalToggle}
+        data-testid="journal-open-button"
+        aria-label="Toggle journal"
+        className="fixed right-4 bottom-4 z-50 rounded-full bg-gray-800/80 px-3 py-2 text-xl"
+      >
+        📖
+      </button>
       {debugControls && (
         // Stacked below FloatingControls' top-right theme/locale selectors
         // (which sit at top-4, ~36-40px tall) rather than bottom-left, so
