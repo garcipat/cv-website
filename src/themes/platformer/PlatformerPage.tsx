@@ -4,13 +4,14 @@ import { loadImage } from './engine/SpriteLoader';
 import { drawTerrain, drawPlayer } from './engine/Renderer';
 import { drawDebugOverlay } from './engine/DebugOverlay';
 import { createGameLoop } from './engine/GameLoop';
-import { stepPlayerPhysics } from './engine/Physics';
+import { stepPlayerPhysics, checkPitFall, resolvePitFall } from './engine/Physics';
 import { updateCamera } from './engine/Camera';
 import { createKeyboardInput } from './engine/Input';
 import { level1 } from './level/level1';
 import { RENDERED_TILE_SIZE } from './level/Terrain';
 import { advancePlayerAnimation, updatePlayerAnimState, PLAYER_RENDERED_SIZE } from './entities/Player';
-import { playerState, cameraPositionX } from './PlatformerState';
+import { takeDamage, PIT_FALL_DAMAGE } from './entities/Health';
+import { playerState, cameraPositionX, healthState } from './PlatformerState';
 
 export const PlatformerPage = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -96,6 +97,12 @@ export const PlatformerPage = () => {
       });
       next = updatePlayerAnimState(next);
       next = advancePlayerAnimation(next, dt);
+
+      if (checkPitFall(next, level1)) {
+        healthState.value = takeDamage(healthState.value, PIT_FALL_DAMAGE);
+        next = resolvePitFall(next);
+      }
+
       playerState.value = next;
 
       const levelPixelWidth = level1.width * RENDERED_TILE_SIZE;

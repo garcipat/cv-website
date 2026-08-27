@@ -2,7 +2,8 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi } from 'vitest';
 import { PlatformerPage } from './PlatformerPage';
 import { PLAYER_RENDERED_SIZE } from './entities/Player';
-import { playerState, cameraPositionX } from './PlatformerState';
+import { playerState, cameraPositionX, healthState } from './PlatformerState';
+import { MAX_HALF_HEARTS, PIT_FALL_DAMAGE } from './entities/Health';
 
 class MockTilesetImage {
   onload: (() => void) | null = null;
@@ -31,6 +32,7 @@ describe('PlatformerPage', () => {
     vi.stubGlobal('cancelAnimationFrame', () => {});
     playerState.value = initialPlayerState;
     cameraPositionX.value = 0;
+    healthState.value = MAX_HALF_HEARTS;
   });
 
   afterEach(() => {
@@ -384,6 +386,53 @@ describe('PlatformerPage', () => {
 
     expect(playerState.value.grounded).toBe(false);
     expect(playerState.value.isDroppingThroughBridge).toBe(true);
+  });
+
+  it('playerFallsPastLevelBottom-gameLoopTicks-losesHalfHeartAndRepositionsToLastGround', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    // Simulate having fallen into a pit: feet far below the level's bottom
+    // row, with a known "last grounded" position recorded earlier.
+    playerState.value = {
+      ...playerState.value,
+      x: 500,
+      y: 5000,
+      vx: 0,
+      vy: 900,
+      grounded: false,
+      lastGroundedX: 500,
+      lastGroundedY: 200,
+    };
+
+    frameCallback!(16);
+
+    expect(healthState.value).toBe(MAX_HALF_HEARTS - PIT_FALL_DAMAGE);
+    expect(playerState.value.x).toBe(500);
+    expect(playerState.value.y).toBe(200);
+    expect(playerState.value.grounded).toBe(true);
+  });
+
+  it('playerNeverFallsPastLevelBottom-gameLoopTicks-healthUnchanged', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+    frameCallback!(16);
+
+    expect(healthState.value).toBe(MAX_HALF_HEARTS);
   });
 
   it('playerWalksPastDeadZone-gameLoopTicks-cameraScrollsRight', () => {
