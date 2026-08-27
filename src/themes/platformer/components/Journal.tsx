@@ -1,5 +1,6 @@
 import { useSignals } from '@preact/signals-react/runtime';
 import { collectedFacts } from '../PlatformerState';
+import { isSkillCategoryFact } from '../types';
 import type { CollectedFact } from '../types';
 
 interface JournalProps {
@@ -7,17 +8,26 @@ interface JournalProps {
 }
 
 /**
- * Best-effort single-line label for a fact's underlying CV item — every
- * `CVItemData` variant has a `name` or `title` field except `Experience`
- * (`company`) and `Personality` (also `name`, already covered).
+ * Best-effort single-line label for a fact's underlying CV item. A
+ * SkillCategoryFact (roadmap step 12 — skills are collected as a whole
+ * category, not individually, see CollectibleMapper.ts) lists every skill
+ * name; every other `CVItemData` variant has a `name` or `title` field
+ * except `Experience` (`company`) and `Personality` (also `name`, already
+ * covered).
  */
 const factItemLabel = (fact: CollectedFact): string => {
+  if (isSkillCategoryFact(fact.data)) {
+    return fact.data.skills.map((s) => s.name).join(', ');
+  }
   const data = fact.data as Record<string, unknown>;
   if (typeof data.name === 'string') return data.name;
   if (typeof data.title === 'string') return data.title;
   if (typeof data.company === 'string') return data.company;
   return fact.sectionLabel;
 };
+
+const factHeading = (fact: CollectedFact): string =>
+  isSkillCategoryFact(fact.data) ? fact.data.category : fact.sectionLabel;
 
 /**
  * Unstyled journal skeleton (roadmap step 13) — a centered, bounded card
@@ -51,7 +61,7 @@ export const Journal = ({ onClose }: JournalProps) => {
           <ul className="flex flex-col gap-2">
             {facts.map((fact) => (
               <li key={fact.id} data-testid="journal-fact-item">
-                {fact.sectionLabel}: {factItemLabel(fact)}
+                {factHeading(fact)}: {factItemLabel(fact)}
               </li>
             ))}
           </ul>
