@@ -19,9 +19,9 @@ describe('Health constants', () => {
     expect(PIT_FALL_DAMAGE).toBe(1);
   });
 
-  it('heartRenderedSize-isFrameSizeTimesRenderScale', () => {
+  it('heartRenderedSize-equalsFrameSizeAtNativeScale', () => {
     expect(HEART_FRAME_SIZE).toBe(32);
-    expect(HEART_RENDERED_SIZE).toBe(64);
+    expect(HEART_RENDERED_SIZE).toBe(32);
   });
 });
 
