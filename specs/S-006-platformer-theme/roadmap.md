@@ -80,7 +80,7 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   collection anyway.
   *Verify: the hardcoded test coins are visible and animate on the platform
   and the floor; the `0/max` counter shows next to the hearts.*
-- [ ] **12. CollectibleMapper + coin collection** — extends step 11's hardcoded
+- [x] **12. CollectibleMapper + coin collection** — extends step 11's hardcoded
   test coins into real placements: a CollectibleMapper flattens `CVData`
   Skills and Languages into facts and places one collectible per fact across
   the level. Touching a collectible removes it, fact text floats up and flies
