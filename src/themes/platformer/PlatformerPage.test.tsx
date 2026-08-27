@@ -3,7 +3,7 @@ import { vi } from 'vitest';
 import { PlatformerPage } from './PlatformerPage';
 import { PLAYER_RENDERED_SIZE } from './entities/Player';
 import { playerState, cameraPositionX, healthState } from './PlatformerState';
-import { MAX_HALF_HEARTS, PIT_FALL_DAMAGE } from './entities/Health';
+import { MAX_HALF_HEARTS, PIT_FALL_DAMAGE, HEART_RENDERED_SIZE } from './entities/Health';
 
 class MockTilesetImage {
   onload: (() => void) | null = null;
@@ -115,6 +115,20 @@ describe('PlatformerPage', () => {
     await waitFor(() =>
       expect(
         ctx.drawImage.mock.calls.some((call: unknown[]) => call[7] === PLAYER_RENDERED_SIZE),
+      ).toBe(true),
+    );
+  });
+
+  it('render-afterHeartsSpriteLoads-drawsHeartHud', async () => {
+    vi.stubGlobal('Image', MockTilesetImage);
+
+    render(<PlatformerPage />);
+    const canvas = screen.getByTestId('platformer-canvas');
+    const ctx = canvas.getContext('2d') as unknown as { drawImage: ReturnType<typeof vi.fn> };
+
+    await waitFor(() =>
+      expect(
+        ctx.drawImage.mock.calls.some((call: unknown[]) => call[7] === HEART_RENDERED_SIZE),
       ).toBe(true),
     );
   });

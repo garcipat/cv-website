@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { FloatingControls } from './components/FloatingControls';
 import { loadImage } from './engine/SpriteLoader';
-import { drawTerrain, drawPlayer } from './engine/Renderer';
+import { drawTerrain, drawPlayer, drawHearts } from './engine/Renderer';
 import { drawDebugOverlay } from './engine/DebugOverlay';
 import { createGameLoop } from './engine/GameLoop';
 import { stepPlayerPhysics, checkPitFall, resolvePitFall } from './engine/Physics';
@@ -18,6 +18,7 @@ export const PlatformerPage = () => {
   const tilesetRef = useRef<HTMLImageElement | null>(null);
   const playerSpriteRef = useRef<HTMLImageElement | null>(null);
   const playerJumpSpriteRef = useRef<HTMLImageElement | null>(null);
+  const heartsSpriteRef = useRef<HTMLImageElement | null>(null);
   const debugHitboxes = new URLSearchParams(window.location.search).get('debug') === 'hitboxes';
 
   useEffect(() => {
@@ -60,6 +61,10 @@ export const PlatformerPage = () => {
       }
 
       if (debugHitboxes) drawDebugOverlay(ctx, playerState.value, level1, originX, originY);
+
+      if (heartsSpriteRef.current) {
+        drawHearts(ctx, healthState.value, heartsSpriteRef.current);
+      }
     };
 
     resize();
@@ -148,6 +153,16 @@ export const PlatformerPage = () => {
       .catch(() => {
         // Jump falls back to the primary sheet's current frame if this one
         // fails to load (see Renderer.ts's drawPlayer).
+      });
+    loadImage('/sprites/hearts.png')
+      .then((img) => {
+        if (cancelled) return;
+        heartsSpriteRef.current = img;
+        render();
+      })
+      .catch(() => {
+        // The heart HUD simply won't render if the sprite fails to load; the
+        // rest of the game still shows.
       });
 
     return () => {
