@@ -39,6 +39,13 @@ export interface PlayerState {
    *  see Physics.ts's ground-collision branch. Cleared once they land on
    *  real solid ground again. */
   isDroppingThroughBridge: boolean;
+  /** x/y as of the most recent frame where `grounded` was true — frozen the
+   *  instant the character becomes airborne (falls off an edge, jumps).
+   *  Used by Physics.ts's resolvePitFall to reposition the character after a
+   *  pit fall to "the last solid ground position before the fall" rather
+   *  than a spawn/checkpoint (that's roadmap step 10's job). */
+  lastGroundedX: number;
+  lastGroundedY: number;
   animState: PlayerAnimState;
   animFrame: number;
   /** Seconds accumulated toward the next animation frame advance. */

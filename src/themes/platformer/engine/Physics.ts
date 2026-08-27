@@ -204,5 +204,7 @@ export function stepPlayerPhysics(
     facing,
     grounded,
     isDroppingThroughBridge: grounded ? false : droppingThroughBridge,
+    lastGroundedX: grounded ? x : player.lastGroundedX,
+    lastGroundedY: grounded ? y : player.lastGroundedY,
   };
 }

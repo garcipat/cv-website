@@ -162,6 +162,8 @@ describe('drawPlayer', () => {
     facing: 'right',
     grounded: true,
     isDroppingThroughBridge: false,
+    lastGroundedX: 16,
+    lastGroundedY: 256,
     animTimer: 0,
     animState: 'idle',
     animFrame: 0,
