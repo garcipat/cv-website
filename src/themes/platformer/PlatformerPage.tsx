@@ -5,11 +5,12 @@ import { drawTerrain, drawPlayer } from './engine/Renderer';
 import { drawDebugOverlay } from './engine/DebugOverlay';
 import { createGameLoop } from './engine/GameLoop';
 import { stepPlayerPhysics } from './engine/Physics';
+import { updateCamera } from './engine/Camera';
 import { createKeyboardInput } from './engine/Input';
 import { level1 } from './level/level1';
 import { RENDERED_TILE_SIZE } from './level/Terrain';
-import { advancePlayerAnimation, updatePlayerAnimState } from './entities/Player';
-import { playerState } from './PlatformerState';
+import { advancePlayerAnimation, updatePlayerAnimState, PLAYER_RENDERED_SIZE } from './entities/Player';
+import { playerState, cameraPositionX } from './PlatformerState';
 
 export const PlatformerPage = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -47,16 +48,17 @@ export const PlatformerPage = () => {
       // shows more sky above the ground instead of empty space below it.
       const levelPixelHeight = level1.height * RENDERED_TILE_SIZE;
       const originY = canvas.height - levelPixelHeight;
+      const originX = -cameraPositionX.value;
 
       if (tilesetRef.current) {
-        drawTerrain(ctx, level1, tilesetRef.current, originY);
+        drawTerrain(ctx, level1, tilesetRef.current, originX, originY);
       }
 
       if (playerSpriteRef.current) {
-        drawPlayer(ctx, playerState.value, playerSpriteRef.current, originY, playerJumpSpriteRef.current);
+        drawPlayer(ctx, playerState.value, playerSpriteRef.current, originX, originY, playerJumpSpriteRef.current);
       }
 
-      if (debugHitboxes) drawDebugOverlay(ctx, playerState.value, level1, originY);
+      if (debugHitboxes) drawDebugOverlay(ctx, playerState.value, level1, originX, originY);
     };
 
     resize();
@@ -95,6 +97,16 @@ export const PlatformerPage = () => {
       next = updatePlayerAnimState(next);
       next = advancePlayerAnimation(next, dt);
       playerState.value = next;
+
+      const levelPixelWidth = level1.width * RENDERED_TILE_SIZE;
+      cameraPositionX.value = updateCamera(
+        cameraPositionX.value,
+        next.x,
+        PLAYER_RENDERED_SIZE,
+        canvas.width,
+        levelPixelWidth,
+      );
+
       render();
     });
     loop.start();
