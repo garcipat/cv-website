@@ -28,3 +28,7 @@ FONTS by Jayvee Enaguas - HarvettFox96 - (https://www.dafont.com/pixel-operator.
 knight2.png: project-supplied placeholder art (jump/fall animation sheet),
 not sourced from the packs above. TODO: confirm license/attribution before
 any public release.
+
+hearts.png: project-supplied placeholder art (16px full/half/empty heart HUD
+icons), not sourced from the packs above. TODO: confirm license/attribution
+before any public release.
