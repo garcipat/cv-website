@@ -18,9 +18,10 @@ export const TILE_CHARS: Record<string, TileType | undefined> = {
 // Visual layout of level1 — one character per tile (see TILE_CHARS), top row
 // first. Every row must be the same length (the level's width in tiles).
 // Grass ground (cols 0-11) meets rock ground (cols 12-79) partway across; a
-// 2-tile pit (cols 2-3) is bridged at ground level with a solid floor below
-// (drop-through lets the character fall through that bridge on purpose, so
-// the pit isn't a bottomless drop). A floating platform row spans cols 8-14
+// 3-tile pit (cols 2-4) is bridged at ground level with NO floor below — it's
+// a genuine bottomless drop, so walking off the bridge's edge or dropping
+// through it on purpose (Down/S) both trigger real pit-fall damage (roadmap
+// step 9). A floating platform row spans cols 8-14
 // as platform-platform-platform-bridge-bridge-platform-platform (cols 8-10 /
 // 11-12 / 13-14) — the bridge segment is passable from below (jump up
 // through it) and from above via Down/S (drop-through), with solid ground
@@ -44,8 +45,8 @@ const LEVEL_1_LAYOUT: readonly string[] = [
   pad('........PPPBBPP'),
   pad(''),
   pad('.S'),
-  'GGBBGGGGGGGG'.padEnd(LEVEL_WIDTH, 'R'),
-  'GGGGGGGGGGGG'.padEnd(LEVEL_WIDTH, 'R'),
+  'GGBBBGGGGGGG'.padEnd(LEVEL_WIDTH, 'R'),
+  'GG...GGGGGGG'.padEnd(LEVEL_WIDTH, 'R'),
 ];
 
 export function parseLevel(layout: readonly string[]): LevelDef {
