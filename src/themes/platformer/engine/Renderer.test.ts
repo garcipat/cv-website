@@ -470,10 +470,11 @@ describe('drawCoins', () => {
 
 describe('drawCoinCounter', () => {
   it('called-drawsCollectedSlashMaxText', () => {
-    const ctx = makeMockContext() as unknown as { fillText: ReturnType<typeof vi.fn> };
+    const ctx = makeMockContext() as unknown as { fillText: ReturnType<typeof vi.fn>; font: string };
 
     drawCoinCounter(ctx as unknown as CanvasRenderingContext2D, 0, 4);
 
     expect(ctx.fillText).toHaveBeenCalledWith('0 / 4', expect.any(Number), expect.any(Number));
+    expect(ctx.font).toBe("16px 'Press Start 2P', monospace");
   });
 });
