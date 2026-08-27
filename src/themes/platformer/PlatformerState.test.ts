@@ -1,4 +1,4 @@
-import { playerState } from './PlatformerState';
+import { playerState, cameraPositionX } from './PlatformerState';
 import { tileToPixel, RENDERED_TILE_SIZE } from './level/Terrain';
 import { SPAWN_TILE } from './level/level1';
 import { PLAYER_RENDERED_SIZE, PLAYER_FOOT_PADDING } from './entities/Player';
@@ -34,5 +34,9 @@ describe('PlatformerState', () => {
   it('playerState-initial-hasZeroHorizontalVelocityAndFacesRight', () => {
     expect(playerState.value.vx).toBe(0);
     expect(playerState.value.facing).toBe('right');
+  });
+
+  it('cameraPositionX-initial-isZero', () => {
+    expect(cameraPositionX.value).toBe(0);
   });
 });
