@@ -130,6 +130,17 @@ export function stepPlayerPhysics(
 
   let y = player.y + vy * dt;
   let grounded = false;
+  // Stricter than `grounded`: true only when EVERY column the hitbox spans
+  // at the foot row is solid, not just one. `grounded` itself stays lenient
+  // (any spanned column solid counts, so the character doesn't feel like it
+  // falls the instant it's not 100% supported on a ledge) — but that leniency
+  // means `grounded` can stay true while the character is mostly hanging
+  // over a gap with only a sliver of hitbox still on solid ground. Recording
+  // that precarious position as the pit-fall recovery anchor would reposition
+  // the character back to a spot that still looks like it's floating over
+  // the pit (and can immediately re-trigger another fall). `fullyGrounded`
+  // is only used below, for `lastGroundedX/Y` — never for `grounded` itself.
+  let fullyGrounded = false;
   let resolvedVy = vy;
 
   const leftCol = Math.floor((x + PLAYER_SIDE_PADDING) / RENDERED_TILE_SIZE);
@@ -193,6 +204,16 @@ export function stepPlayerPhysics(
         break;
       }
     }
+
+    if (grounded) {
+      fullyGrounded = true;
+      for (let col = leftCol; col <= rightCol; col++) {
+        if (!groundIsSolid(tileAt(level, col, footRow))) {
+          fullyGrounded = false;
+          break;
+        }
+      }
+    }
   }
 
   return {
@@ -204,8 +225,8 @@ export function stepPlayerPhysics(
     facing,
     grounded,
     isDroppingThroughBridge: grounded ? false : droppingThroughBridge,
-    lastGroundedX: grounded ? x : player.lastGroundedX,
-    lastGroundedY: grounded ? y : player.lastGroundedY,
+    lastGroundedX: fullyGrounded ? x : player.lastGroundedX,
+    lastGroundedY: fullyGrounded ? y : player.lastGroundedY,
   };
 }
 
