@@ -193,10 +193,10 @@ As with all CV themes, floating translucent controls in the top-left corner prov
 - **FR-006**: System MUST implement character physics:
   - **Gravity**: Constant downward acceleration when not on a platform
   - **Jump**: Upward velocity impulse on jump key press; variable jump height based on key hold duration (short tap = small hop, long hold = full jump)
-  - **Collision**: Character lands on platforms from above. All platforms are solid from every direction — the character cannot jump up through platforms from below. **Exception**: `bridge` tiles are one-way platforms — passable from below (the character can jump up through one) but solid when landing on top, per roadmap step 7.
+  - **Collision**: Character lands on platforms from above. All platforms are solid from every direction — the character cannot jump up through platforms from below. **Exception**: `bridge` tiles are one-way platforms — passable from below (the character can jump up through one) but solid when landing on top, per roadmap step 7. Holding Down (or `S`) while resting on a bridge deliberately drops the character through it.
   - **Horizontal movement**: Constant speed left/right with instant direction change
 
-- **FR-007**: System MUST handle keyboard input: Arrow Left/Right for movement, Space or Arrow Up for jump. `A`/`D` are additionally accepted as alternates for Left/Right (a convenience discovered useful during development, e.g. for setups where arrow keys are intercepted before reaching the browser — the arrow-key requirement above is unaffected). The up-arrow key is used exclusively for jumping — it is NOT used for journal navigation or any other UI interaction. Input is read per-frame so held keys produce continuous movement.
+- **FR-007**: System MUST handle keyboard input: Arrow Left/Right for movement, Space or Arrow Up for jump, Arrow Down or `S` to drop through a `bridge` tile the character is resting on. `A`/`D` are additionally accepted as alternates for Left/Right (a convenience discovered useful during development, e.g. for setups where arrow keys are intercepted before reaching the browser — the arrow-key requirement above is unaffected). The up-arrow key is used exclusively for jumping — it is NOT used for journal navigation or any other UI interaction. Input is read per-frame so held keys produce continuous movement.
 
 #### Level Design
 
@@ -460,7 +460,7 @@ FloatingControls (P3)
 ### Session 2026-08-05
 
 - **Q: Damage & Health System** — **A**: 3-hit health with checkpoint respawn. Character has 3 hearts, brief invincibility frames on hit. At 0 health: respawn at nearest spawn point, collected facts preserved. No game-over screen.
-- **Q: Platform Behavior** — **A**: All platforms are solid from every direction. Character cannot jump up through platforms from below. **Exception (added at roadmap step 7)**: `bridge` tiles are one-way — passable from below, solid from above — since a rope/plank bridge is the one terrain type where that behavior reads as natural rather than surprising. A down-arrow "drop through" key is explicitly not part of this — only add it if a level layout creates a real reason to fall through a bridge deliberately.
+- **Q: Platform Behavior** — **A**: All platforms are solid from every direction. Character cannot jump up through platforms from below. **Exception (added at roadmap step 7)**: `bridge` tiles are one-way — passable from below, solid from above — since a rope/plank bridge is the one terrain type where that behavior reads as natural rather than surprising. **Update (roadmap step 7, level redesign)**: a Down-arrow/`S` "drop through" key was added once `level1` gained a platform-bridge-platform arrangement with reachable ground underneath — the condition the original clarification held it back for.
 - **Q: Level Design Approach** — **A**: Hand-crafted level using a grid/raster system with width and height for easy element positioning. Start with a simple level to validate functionality, then expand iteratively.
 - **Q: Checkpoint System** — **A**: Invisible spawn points defined in the level data. Character respawns at the nearest spawn point on death.
 - **Q: HUD Layout** — **A**: Top-left: 3 hearts. Top-right: theme and language selector (like Space theme). Bottom-right: journal icon button.

@@ -1,5 +1,5 @@
 import { level1, parseLevel, TILE_CHARS, SPAWN_TILE } from './level1';
-import { isTopExposed } from './Terrain';
+import { isTopExposed, isSolid } from './Terrain';
 
 describe('parseLevel', () => {
   it('charLayout-parsesInto-matchingTileMap', () => {
@@ -72,6 +72,27 @@ describe('level1', () => {
   it('containsAtLeastOneWallTile', () => {
     const hasWall = level1.terrain.some((row) => row.includes('wall'));
     expect(hasWall).toBe(true);
+  });
+
+  it('elevatedBridge-spansGapBetweenTwoFloatingPlatformsAtPlatformRow', () => {
+    const row = 7;
+    expect(level1.terrain[row][8]).toBe('platform');
+    expect(level1.terrain[row][9]).toBe('platform');
+    expect(level1.terrain[row][10]).toBe('platform');
+    expect(level1.terrain[row][11]).toBe('bridge');
+    expect(level1.terrain[row][12]).toBe('bridge');
+    expect(level1.terrain[row][13]).toBe('platform');
+    expect(level1.terrain[row][14]).toBe('platform');
+  });
+
+  it('elevatedBridge-hasTwoRowsOfClearanceAboveReachableGroundBelow', () => {
+    // Enough clearance (2 empty rows) to jump up into the bridge from the
+    // ground below, and solid ground to land on after dropping through it.
+    for (const col of [11, 12]) {
+      expect(level1.terrain[8][col]).toBe('empty');
+      expect(level1.terrain[9][col]).toBe('empty');
+      expect(isSolid(level1.terrain[10][col])).toBe(true);
+    }
   });
 
   it('spawnTile-isEmptySpaceAboveTopExposedGroundGrass', () => {
