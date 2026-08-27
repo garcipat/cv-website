@@ -605,6 +605,31 @@ describe('stepPlayerPhysics lastGroundedX/Y tracking', () => {
     expect(next.grounded).toBe(true);
     expect(next.lastGroundedY).toBe(restY);
   });
+
+  it('hitboxStraddlesLedgeEdge-staysGroundedButDoesNotAdvanceLastGroundedPosition', () => {
+    // x=100: the centered hitbox (x+20=120 to x+43=143) straddles column 3
+    // (96-128, solid — part of NARROW_PLATFORM_LEVEL's GGG strip) and column
+    // 4 (128-160, empty, past the platform's right edge). `grounded` stays
+    // true (the existing lenient any-column-solid landing check — column 3
+    // alone is enough), but this position is mostly hanging over the empty
+    // column 4, so it must NOT become the pit-fall recovery anchor: repositioning
+    // a pit-fall here would visibly float the character over open space.
+    const restY = 0 - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
+    const player = basePlayer({
+      x: 100,
+      y: restY,
+      vy: 0,
+      grounded: true,
+      lastGroundedX: 32,
+      lastGroundedY: restY,
+    });
+
+    const next = stepPlayerPhysics(player, NARROW_PLATFORM_LEVEL, 1 / 60);
+
+    expect(next.grounded).toBe(true);
+    expect(next.lastGroundedX).toBe(32);
+    expect(next.lastGroundedY).toBe(restY);
+  });
 });
 
 describe('checkPitFall', () => {
