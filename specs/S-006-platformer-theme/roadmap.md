@@ -96,7 +96,8 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   *Verify: stomp an enemy, see the fact appear.*
 - [ ] **18. Side/below damage** — invincibility frames, knockback on non-stomp
   contact, reusing the `takeDamage` mechanism from step 9 with a full heart
-  (`takeDamage(1)`) instead of the half-heart pit-fall amount.
+  (`takeDamage(2)`, two half-heart units) instead of the half-heart pit-fall
+  amount.
   *Verify: touch an enemy from the side, lose a full heart.*
 - [ ] **19. Destroyable block render** — intact/question-mark tiles;
   CollectibleMapper extended for Experience/Education/Courses.
@@ -148,14 +149,14 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
 
 - `S-006-platformer-theme` is the integration branch for this entire feature — it is
   NOT PR'd into `main` after every step. It only goes to `main` at a deliberate
-  iteration boundary (e.g. after step 14 closes out Iteration 1), as its own PR.
+  iteration boundary (e.g. after step 15 closes out Iteration 1), as its own PR.
 - Each roadmap step gets its own branch off `S-006-platformer-theme` (e.g.
   `S-006-step4-gravity-collision`), goes through the normal process (`writing-plans`
   → `subagent-driven-development`, TDD, per-task review, final whole-branch review),
   and lands via a PR into `S-006-platformer-theme` — not a direct commit to it.
   Delete the step branch after merging.
 - Reason: keeps each PR small and reviewable (one step's diff), while
-  `S-006-platformer-theme` itself would be unreviewable as one 26-step blob.
+  `S-006-platformer-theme` itself would be unreviewable as one 27-step blob.
 - Exception: step 1 was committed directly to `S-006-platformer-theme` (no step
   branch) — that precedent stands as-is; the branch-per-step pattern applies from
   step 2 onward.

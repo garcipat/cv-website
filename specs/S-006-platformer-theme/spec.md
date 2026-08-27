@@ -270,8 +270,8 @@ The level is hand-crafted — starting with a simple layout to validate function
   - Defeated enemies are removed from the game world for the session
 
 - **FR-020b**: System MUST implement a 3-heart health system backed by 6 half-heart units, rendered via `hearts.png` (full/half/empty per heart icon). The character starts with 3 hearts (6/6 half-heart units) displayed in the HUD. Both damage sources share the same underlying `takeDamage(amount)` mechanism:
-  - **Falling into a pit** costs half a heart (`takeDamage(0.5)`) and repositions the character to the last solid ground position before the fall — not a checkpoint reset.
-  - **Side/below enemy collision** costs a full heart (`takeDamage(1)`) with brief invincibility frames after taking damage.
+  - **Falling into a pit** costs half a heart, one half-heart unit (`takeDamage(1)`), and repositions the character to the last solid ground position before the fall — not a checkpoint reset.
+  - **Side/below enemy collision** costs a full heart, two half-heart units (`takeDamage(2)`), with brief invincibility frames after taking damage.
   - At 0 hearts (from either source), the character respawns at the last checkpoint with full health (6/6 half-heart units restored), and all collected facts are preserved.
 
 #### Destroyable Blocks (P2)
