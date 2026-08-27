@@ -20,8 +20,11 @@ const factItemLabel = (fact: CollectedFact): string => {
 };
 
 /**
- * Unstyled journal skeleton (roadmap step 13) — a fullscreen overlay listing
- * collected facts, no notebook/bookmark/pagination styling yet (step 14/15).
+ * Unstyled journal skeleton (roadmap step 13) — a centered, bounded card
+ * listing collected facts (no dark full-screen backdrop: per spec.md FR-014,
+ * the rest of the game stays visible around it — the card itself is the
+ * visual takeover, not an added scrim). No notebook/bookmark/pagination
+ * styling yet (step 14/15).
  */
 export const Journal = ({ onClose }: JournalProps) => {
   useSignals();
@@ -30,28 +33,30 @@ export const Journal = ({ onClose }: JournalProps) => {
   return (
     <div
       data-testid="platformer-journal"
-      className="fixed inset-0 z-[60] flex flex-col items-center gap-4 overflow-y-auto bg-black/90 p-8 text-white"
+      className="fixed inset-0 z-[60] flex items-center justify-center"
     >
-      <button
-        type="button"
-        onClick={onClose}
-        data-testid="journal-close-button"
-        className="fixed top-4 right-4 rounded bg-gray-700 px-3 py-1 text-sm"
-      >
-        Close
-      </button>
-      <h2 className="text-2xl font-bold">Journal</h2>
-      {facts.length === 0 ? (
-        <p data-testid="journal-empty-state">No facts collected yet.</p>
-      ) : (
-        <ul className="flex flex-col gap-2">
-          {facts.map((fact) => (
-            <li key={fact.id} data-testid="journal-fact-item">
-              {fact.sectionLabel}: {factItemLabel(fact)}
-            </li>
-          ))}
-        </ul>
-      )}
+      <div className="relative flex h-[500px] max-h-[80vh] w-[600px] max-w-[90vw] flex-col items-center gap-4 overflow-y-auto rounded-lg bg-white p-8 text-gray-900 shadow-xl">
+        <button
+          type="button"
+          onClick={onClose}
+          data-testid="journal-close-button"
+          className="absolute top-4 right-4 rounded bg-gray-200 px-3 py-1 text-sm"
+        >
+          Close
+        </button>
+        <h2 className="text-2xl font-bold">Journal</h2>
+        {facts.length === 0 ? (
+          <p data-testid="journal-empty-state">No facts collected yet.</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {facts.map((fact) => (
+              <li key={fact.id} data-testid="journal-fact-item">
+                {fact.sectionLabel}: {factItemLabel(fact)}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 };
