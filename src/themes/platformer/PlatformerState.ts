@@ -1,7 +1,11 @@
 import { signal } from '@preact/signals-react';
 import { tileToPixel, RENDERED_TILE_SIZE } from './level/Terrain';
 import { SPAWN_TILE } from './level/level1';
-import { PLAYER_RENDERED_SIZE, PLAYER_FOOT_PADDING } from './entities/Player';
+import {
+  PLAYER_RENDERED_SIZE,
+  PLAYER_FOOT_PADDING,
+  PLAYER_VISUAL_CENTER_Y_OFFSET,
+} from './entities/Player';
 import { MAX_HALF_HEARTS } from './entities/Health';
 import { introState } from './engine/GameLifecycle';
 import type { PlayerState } from './entities/Player';
@@ -64,7 +68,7 @@ export const healthState = signal(MAX_HALF_HEARTS);
  */
 export function spawnCenter(): { x: number; y: number } {
   const spawn = spawnPlayerState();
-  return { x: spawn.x + PLAYER_RENDERED_SIZE / 2, y: spawn.y + PLAYER_RENDERED_SIZE / 2 };
+  return { x: spawn.x + PLAYER_RENDERED_SIZE / 2, y: spawn.y + PLAYER_VISUAL_CENTER_Y_OFFSET };
 }
 
 /**
