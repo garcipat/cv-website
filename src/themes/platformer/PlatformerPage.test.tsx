@@ -515,7 +515,7 @@ describe('PlatformerPage', () => {
     const ctx = canvas.getContext('2d') as unknown as { fillText: ReturnType<typeof vi.fn> };
 
     expect(ctx.fillText).toHaveBeenCalledWith(
-      `0/${level1Coins.length}`,
+      `0 / ${level1Coins.length}`,
       expect.any(Number),
       expect.any(Number),
     );

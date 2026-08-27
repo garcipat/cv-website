@@ -8,7 +8,7 @@ export const COIN_FRAME_COUNT = 12;
 /** Seconds each spin frame is held before advancing — a snappier cycle than
  *  the player's idle animation, since a coin's spin is a small ambient loop
  *  rather than a state-driven animation. */
-export const COIN_FRAME_DURATION = 0.05;
+export const COIN_FRAME_DURATION = 0.12;
 
 /** A coin's fixed world-space top-left render position. No `collected` flag
  *  or per-coin animation state yet — this step only renders a hardcoded test
