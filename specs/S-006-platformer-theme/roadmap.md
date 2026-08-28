@@ -176,15 +176,36 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   their `E`/`M` marker positions, idling; the 4 coins and 2 fruits are visible at
   their `C`/`F` marker positions; the wall pocket (cols 44-49) is visible on the
   ground row.*
-- [ ] **17. Enemy patrol** — enemies of both types move back and forth within their
-  patrol range (needs a real, distinct walk animation first — see step 16's known
-  gap), reversing direction at either (a) explicit patrol boundaries (the wall
-  pocket already in `level1`, cols 44/49) or (b) an unbounded platform edge
-  (cliff/ledge detection) — `level1` still needs at least one enemy on an open
-  ledge to exercise the second case.
-  *Verify: the walled enemy bounces between its two walls, animating a walk cycle
-  visibly distinct from idle; the ledge enemy reverses at the platform's edge
-  instead of walking off into a pit.*
+- [x] **17. Enemy patrol** — enemies move back and forth at a constant speed
+  (`PHYSICS_CONFIG.enemyPatrolSpeed`, 60px/s — 30% of the player's walk speed, a
+  deliberate "plodding threat" pace, confirmed live rather than tuned further),
+  reversing direction whenever `EnemyAI.ts`'s `stepEnemyPatrol` detects a wall or a
+  ledge/pit edge one tile ahead (checked at the enemy's own row, same convention
+  `level1`'s wall markers already used).
+  - **No `idle` state**: since a patrolling enemy is always moving, `EnemyAnimState`
+    dropped `'idle'` entirely (now `'walk' | 'hit'`) rather than keep it as dead
+    code — step 16's tuned "breathing/bounce" frame loop was repointed at `walk`
+    directly (it reads fine as movement too) instead of building a separate,
+    distinct walk animation.
+  - **Enemy factory**: `Enemy.ts`'s `toEnemyState(placement, index)` converts a
+    static placement into its live patrol state and desyncs each enemy's starting
+    animation frame/timer via `index`, so multiple enemies don't all animate in
+    perfect lockstep.
+  - **`level1` reworked** (again) to bring both patrol test cases close to spawn
+    instead of the far-away cols 44/49 wall pocket: the green enemy is now bounded
+    by two walls (cols 26/31, enemy at col 28 — the "boundaries" case), and the
+    purple enemy sits in a wall-on-one-side, pit-on-the-other sandwich (wall at
+    col 36, enemy at col 38, a genuine bottomless pit at cols 40-42) — one enemy
+    exercising both the wall-reversal and the ledge/pit-edge-reversal branches,
+    replacing the originally-scoped separate "enemy on an open ledge" case.
+  - A first attempt placed the wall pocket at cols 16-32, close enough to spawn
+    that the wall (solid to the player too, not just enemies) blocked an existing,
+    unrelated test's rightward-walk assertion — shifted to cols 26-42 to clear
+    that critical runway while staying far closer to spawn than the original.
+  *Verify: the walled enemy bounces between its two walls, animating continuously
+  as it moves; the wall-pit enemy reverses at both its wall and the pit edge
+  instead of walking through either; enemies desync visibly (not all on the same
+  animation frame); respawn resets both enemies to their initial position.*
 - [ ] **18. Stomp defeat** — jumping on an enemy defeats it with a poof animation
   (row-2 hit-reaction frames, including the red flash frame), fact flies to the
   journal.
