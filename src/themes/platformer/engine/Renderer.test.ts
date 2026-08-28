@@ -3,6 +3,7 @@ import {
   drawPlayer,
   drawHearts,
   drawCollectibles,
+  drawEnemies,
   drawCollectionEffects,
   drawCollectibleCounter,
   drawIrisOverlay,
@@ -16,7 +17,9 @@ import { PLAYER_RENDERED_SIZE } from '../entities/Player';
 import { MAX_HALF_HEARTS, HEART_RENDERED_SIZE } from '../entities/Health';
 import { startFlightEffect, tickFlightEffect, RISE_DURATION_SECONDS, SPARKLE_DURATION_SECONDS } from './CollectionEffects';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
+import type { EnemyPlacement } from '../level/EnemyMapper';
 import { fruitFrameSource } from '../entities/Fruit';
+import { ENEMY_FRAME_SIZE, ENEMY_RENDERED_SIZE } from '../entities/Enemy';
 
 function makeMockContext() {
   return {
@@ -153,6 +156,81 @@ describe('drawCollectibles', () => {
     const calls = ctx.drawImage.mock.calls;
     expect(calls.some((c: unknown[]) => c[0] === fruitSprite)).toBe(true);
     expect(calls.length).toBe(1);
+  });
+});
+
+function makeEnemyPlacement(
+  id: string,
+  spriteType: 'slimeGreen' | 'slimePurple',
+  x: number,
+  y: number,
+): EnemyPlacement {
+  return {
+    id,
+    spriteType,
+    fact: {
+      id,
+      sectionId: 'certificates',
+      sectionLabel: 'Certificates',
+      data: { name: 'X', issuer: 'Y', date: '2020-01' },
+      sourceType: 'enemy',
+    },
+    x,
+    y,
+  };
+}
+
+describe('drawEnemies', () => {
+  it('greenAndPurple-drawEachFromItsOwnSprite', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const greenSprite = { tag: 'green' } as unknown as HTMLImageElement;
+    const purpleSprite = { tag: 'purple' } as unknown as HTMLImageElement;
+    const placements = [
+      makeEnemyPlacement('a', 'slimeGreen', 100, 100),
+      makeEnemyPlacement('b', 'slimePurple', 300, 300),
+    ];
+
+    drawEnemies(ctx as unknown as CanvasRenderingContext2D, placements, greenSprite, purpleSprite, 0);
+
+    const calls = ctx.drawImage.mock.calls;
+    expect(calls.some((c: unknown[]) => c[0] === greenSprite)).toBe(true);
+    expect(calls.some((c: unknown[]) => c[0] === purpleSprite)).toBe(true);
+  });
+
+  it('missingGreenSprite-skipsGreenEnemiesButStillDrawsPurple', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const purpleSprite = { tag: 'purple' } as unknown as HTMLImageElement;
+    const placements = [
+      makeEnemyPlacement('a', 'slimeGreen', 100, 100),
+      makeEnemyPlacement('b', 'slimePurple', 300, 300),
+    ];
+
+    drawEnemies(ctx as unknown as CanvasRenderingContext2D, placements, null, purpleSprite, 0);
+
+    const calls = ctx.drawImage.mock.calls;
+    expect(calls).toHaveLength(1);
+    expect(calls[0][0]).toBe(purpleSprite);
+  });
+
+  it('called-drawsAtEnemyRenderedSizeUsingIdleFrameZero', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const greenSprite = {} as HTMLImageElement;
+
+    drawEnemies(
+      ctx as unknown as CanvasRenderingContext2D,
+      [makeEnemyPlacement('a', 'slimeGreen', 100, 100)],
+      greenSprite,
+      null,
+      0,
+    );
+
+    const call = ctx.drawImage.mock.calls[0];
+    expect(call[1]).toBe(0); // sx: idle frame 0
+    expect(call[2]).toBe(0); // sy: idle row 0
+    expect(call[3]).toBe(ENEMY_FRAME_SIZE);
+    expect(call[4]).toBe(ENEMY_FRAME_SIZE);
+    expect(call[7]).toBe(ENEMY_RENDERED_SIZE);
+    expect(call[8]).toBe(ENEMY_RENDERED_SIZE);
   });
 });
 
