@@ -83,6 +83,20 @@ export interface EnemyState extends EnemyPlacement {
   animFrame: number;
   /** Seconds accumulated toward the next animation frame advance. */
   animTimer: number;
+  /** Stomps remaining before this enemy is defeated — 1 for slimeGreen, 2 for
+   *  slimePurple (roadmap step 18: purple takes two stomps). Decremented by
+   *  `applyStomp` on every registered stomp, regardless of whether it's the
+   *  finishing blow. */
+  hitPoints: number;
+  /** Seconds elapsed since entering the `'hit'` animState — drives
+   *  EnemyAI.ts's `stepEnemyHitReaction`, which reverts to `'walk'` (if
+   *  `hitPoints` remains) or sets `defeated: true` (if not) once this reaches
+   *  `HIT_REACTION_DURATION_SECONDS`. Meaningless while `animState` is `'walk'`. */
+  hitTimer: number;
+  /** True once `hitPoints` has reached 0 and the hit-reaction animation has
+   *  finished playing — the game loop removes a `defeated` enemy from
+   *  `enemyStates` and fires its reward the same tick this flips true. */
+  defeated: boolean;
 }
 
 /**
@@ -113,6 +127,9 @@ export function toEnemyState(placement: EnemyPlacement, index = 0): EnemyState {
     animState: 'walk',
     animFrame: index % frames.length,
     animTimer: (index * 0.05) % frameDuration,
+    hitPoints: placement.spriteType === 'slimeGreen' ? 1 : 2,
+    hitTimer: 0,
+    defeated: false,
   };
 }
 
@@ -128,5 +145,25 @@ export function advanceEnemyAnimation(enemy: EnemyState, dt: number): EnemyState
     ...enemy,
     animTimer: animTimer - frameDuration,
     animFrame: (enemy.animFrame + 1) % frames.length,
+  };
+}
+
+/**
+ * Applies one stomp: decrements `hitPoints`, freezes horizontal movement, and
+ * enters the `hit` reaction (red-flash/dissolve) animation from its first
+ * frame. Does NOT decide defeat here — EnemyAI.ts's `stepEnemyHitReaction`
+ * checks `hitPoints` once the reaction animation finishes playing, so the
+ * player always sees the same brief "stunned" reaction whether or not this
+ * stomp was the finishing blow.
+ */
+export function applyStomp(enemy: EnemyState): EnemyState {
+  return {
+    ...enemy,
+    hitPoints: enemy.hitPoints - 1,
+    vx: 0,
+    animState: 'hit',
+    animFrame: 0,
+    animTimer: 0,
+    hitTimer: 0,
   };
 }
