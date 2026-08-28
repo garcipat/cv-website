@@ -4,12 +4,20 @@
     "description": "Interactive resume and portfolio of Patrick Garcia, Senior Software Engineer & Architect."
   },
   "nav": {
+    "about": "About",
     "experience": "Experience",
     "skills": "Skills",
     "projects": "Projects",
     "education": "Education",
     "courses": "Courses",
-    "certificates": "Certificates"
+    "certificates": "Certificates",
+    "contact": "Contact"
+  },
+  "space": {
+    "posterTitle": "Circle Parade",
+    "posterSubtitle": "Scroll — circles drop in from top, drift out to the corners",
+    "sectionNavAriaLabel": "Section navigation",
+    "scrollToLabel": "Scroll to {section}"
   },
   "themes": {
     "ide": "IDE",
