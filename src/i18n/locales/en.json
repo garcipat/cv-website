@@ -20,6 +20,7 @@
   },
   "sections": {
     "summary": "Summary",
+    "personality": "About Me",
     "experience": "Experience",
     "skills": "Skills",
     "languages": "Languages",

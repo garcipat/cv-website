@@ -3,15 +3,20 @@ import { currentUI } from '@/state/locale';
 import type { SectionId } from '../types';
 
 /**
- * The CV sections that can back a journal bookmark today, per FR-009's
- * collectible mapping (Coins → Skills/Languages, Blocks → Experience/
- * Education/Courses, Enemies → Certificates/Projects). `personality` and
- * `activities` are deliberately excluded: Personality has no collectibles
- * until step 22's flagpole ending screen adds it (FR-013), and `activities`
- * isn't mapped to any collectible type in FR-009. Order here is the order
- * bookmarks are distributed top-to-bottom (per `journal-mockup.html`).
+ * The CV sections that can back a journal bookmark today. Seven of these
+ * (experience/education/courses/certificates/skills/languages/projects) are
+ * per FR-009's collectible mapping. `personality` ("About Me") is a
+ * provisional addition, pulled forward per user request ahead of step 22's
+ * flagpole ending screen (which is FR-013's originally-specified route for
+ * personality content) — shown directly from CV data rather than
+ * `collectedFacts`, since it has no collectible source yet. `activities`
+ * remains excluded: it isn't mapped to any collectible type in FR-009.
+ * Order here is the order bookmarks are distributed (per
+ * `journal-mockup.html`, adapted from a side layout to a top layout per
+ * user feedback — see `BookmarkTabs.tsx`).
  */
 export const JOURNAL_SECTION_ORDER: SectionId[] = [
+  'personality',
   'experience',
   'education',
   'courses',
@@ -24,13 +29,14 @@ export const JOURNAL_SECTION_ORDER: SectionId[] = [
 export type BookmarkColor = 'blue' | 'green' | 'orange' | 'purple' | 'red' | 'yellow';
 
 /**
- * Six sprite colors (`public/sprites/bookmark_{color}.png`) for seven
- * sections — `courses` and `certificates` share `red` (both
- * "credentials/learning" in spirit), the closest pairing available. See
- * this plan's "six bookmark colors for seven sections" design note if this
- * needs revisiting.
+ * Six sprite colors (`public/sprites/bookmark_{color}.png`) for eight
+ * sections — `courses`/`certificates` share `red`, `languages`/`personality`
+ * share `purple`. Per user request, duplicate colors are acceptable for now
+ * ("we don't know if we keep them or need to switch anyway") until more
+ * distinct bookmark art exists.
  */
 export const SECTION_BOOKMARK_COLOR: Record<(typeof JOURNAL_SECTION_ORDER)[number], BookmarkColor> = {
+  personality: 'purple',
   experience: 'orange',
   education: 'green',
   courses: 'red',
@@ -45,10 +51,13 @@ export const SECTION_BOOKMARK_COLOR: Record<(typeof JOURNAL_SECTION_ORDER)[numbe
  * bookmark — regardless of whether anything in them has been *collected*
  * yet (FR-013: "Empty CV sections produce no collectibles and hide their
  * journal bookmark", evaluated against the CV data itself, not session
- * progress). Returned in `JOURNAL_SECTION_ORDER`'s order.
+ * progress). `personality` is always non-empty: `CVData.personality` is a
+ * required (non-optional) object, always present. Returned in
+ * `JOURNAL_SECTION_ORDER`'s order.
  */
 export function nonEmptySections(cv: CVData): SectionId[] {
   const isNonEmpty: Record<(typeof JOURNAL_SECTION_ORDER)[number], boolean> = {
+    personality: true,
     experience: cv.experience.length > 0,
     education: cv.education.length > 0,
     courses: cv.courses.length > 0,
