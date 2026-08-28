@@ -1,16 +1,23 @@
 import { useEffect, useState } from 'react';
 import { useSignals } from '@preact/signals-react/runtime';
 import { currentCV } from '@/state/locale';
-import { collectedFacts, activeJournalSection } from '../PlatformerState';
+import { collectedFacts, activeJournalSection, resetGameProgress } from '../PlatformerState';
 import { formatJournalEntry } from '../entities/JournalEntry';
-import { JOURNAL_SECTION_ORDER, nonEmptySections, sectionLabel } from '../entities/JournalSections';
+import {
+  JOURNAL_SECTION_ORDER,
+  nonEmptySections,
+  sectionLabel,
+  sectionTotal,
+  isPaginatedSection,
+} from '../entities/JournalSections';
+import { collectiblesSummary } from '../entities/CollectiblesSummary';
 import {
   journalOpenFrameSrc,
   JOURNAL_OPEN_FRAME_COUNT,
   JOURNAL_OPEN_FRAME_INTERVAL_MS,
 } from '../entities/JournalAnimation';
 import { BookmarkTabs } from './BookmarkTabs';
-import type { SectionId } from '../types';
+import type { CollectedFact, SectionId } from '../types';
 
 interface JournalProps {
   onClose: () => void;
@@ -58,6 +65,11 @@ export const Journal = ({ onClose, closeRequested }: JournalProps) => {
   const [closeClicked, setCloseClicked] = useState(false);
   const closing = closeRequested || closeClicked;
 
+  // Which fact is shown within a paginated section (roadmap step 15) — only
+  // meaningful for sections `isPaginatedSection` returns true for. Reset to
+  // the first page whenever the active section changes, below.
+  const [page, setPage] = useState(0);
+
   useEffect(() => {
     if (closing) {
       if (frame <= 1) {
@@ -98,6 +110,35 @@ export const Journal = ({ onClose, closeRequested }: JournalProps) => {
   const sectionFacts = effectiveSection
     ? facts.filter((fact) => fact.sectionId === effectiveSection)
     : [];
+  const sectionCounterTotal =
+    effectiveSection && effectiveSection !== 'personality' ? sectionTotal(cv, effectiveSection) : undefined;
+  const paginated = effectiveSection ? isPaginatedSection(effectiveSection) : false;
+  // Clamped rather than reset via a dedicated effect for every state change
+  // that can shrink `sectionFacts` (switching section, Reset Game) — the
+  // `effectiveSection` effect below still resets `page` to 0 on section
+  // switches so the *first* page is shown, not just a valid one.
+  const currentPage = Math.min(page, Math.max(0, sectionFacts.length - 1));
+
+  useEffect(() => {
+    setPage(0);
+  }, [effectiveSection]);
+
+  const handleResetGame = () => {
+    resetGameProgress();
+    setPage(0);
+  };
+
+  const renderFactRow = (fact: CollectedFact) => {
+    const entry = formatJournalEntry(fact);
+    return (
+      <li key={fact.id} data-testid="journal-fact-item">
+        <span>
+          {entry.icon} {entry.title}
+        </span>
+        {entry.subtitle && <span className="ml-6 block text-sm text-gray-500">{entry.subtitle}</span>}
+      </li>
+    );
+  };
 
   return (
     <div
@@ -134,54 +175,99 @@ export const Journal = ({ onClose, closeRequested }: JournalProps) => {
               }}
             >
               {effectiveSection && (
-                <h2 className="font-caveat mb-2 text-3xl font-bold">{sectionLabel(effectiveSection)}</h2>
+                <h2 className="font-caveat mb-2 flex items-baseline gap-3 text-3xl font-bold">
+                  {sectionLabel(effectiveSection)}
+                  {sectionCounterTotal !== undefined && (
+                    <span
+                      data-testid="journal-section-counter"
+                      className="text-base font-normal text-gray-400"
+                    >
+                      {sectionFacts.length} / {sectionCounterTotal}
+                    </span>
+                  )}
+                </h2>
               )}
               {/* The book is drawn as two physical pages with a spine down
-                  the middle (see journal_open_9.png) — a plain flowing block
-                  visually crosses that spine mid-line. `columns-2` with a
-                  gap approximating the spine's width flows content down the
-                  left page then continues at the top of the right one,
-                  matching how a real book reads. `flex-1 min-h-0` (rather
-                  than `h-full` on a sibling of the header) gives this only
-                  the space actually left below the header, so
-                  `column-fill: auto` fills the left column against the
-                  right height instead of splitting too early. Real per-page
-                  pagination is step 15's job; this is a lightweight
-                  stand-in — some overflow edge cases (very long content)
-                  are left for that step, not solved here. */}
-              <div
-                className="min-h-0 flex-1 columns-2 gap-[9%] overflow-y-auto"
-                style={{ columnFill: 'auto' }}
-              >
+                  the middle (see journal_open_9.png). Grouped sections
+                  (Skills/Languages) use `columns-2` to flow their compact
+                  list across both halves like a real book page; personality
+                  and paginated sections (Experience/Projects/etc., roadmap
+                  step 15) use the full spread as one canvas instead — a
+                  single long entry, or the bio + collectibles summary,
+                  doesn't read well split mid-sentence across a column
+                  break. */}
+              <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
                 {effectiveSection === 'personality' ? (
-                  <div className="font-caveat text-lg text-gray-700">
-                    <p className="text-xl font-semibold">{cv.personality.name}</p>
-                    <p className="text-gray-500 italic">{cv.personality.tagline}</p>
-                    <p className="mt-2 whitespace-pre-line">{cv.personality.summary}</p>
+                  <div className="grid flex-1 grid-cols-2 gap-[9%]">
+                    <div className="font-caveat text-lg text-gray-700">
+                      <p className="text-xl font-semibold">{cv.personality.name}</p>
+                      <p className="text-gray-500 italic">{cv.personality.tagline}</p>
+                      <p className="mt-2 whitespace-pre-line">{cv.personality.summary}</p>
+                    </div>
+                    <div
+                      data-testid="journal-collectibles-summary"
+                      className="font-caveat text-lg text-gray-700"
+                    >
+                      <p className="text-xl font-semibold">Collectibles</p>
+                      <ul className="mt-2 space-y-1">
+                        {collectiblesSummary(cv, facts).map((row) => (
+                          <li key={row.label}>
+                            {row.icon} {row.label} {row.collected} / {row.total}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   </div>
                 ) : sectionFacts.length === 0 ? (
                   <p data-testid="journal-empty-state" className="font-caveat text-lg text-gray-500">
-                    No facts collected yet.
+                    No facts discovered yet — keep exploring!
                   </p>
+                ) : paginated ? (
+                  <>
+                    <ul className="font-caveat flex-1 space-y-1 text-lg">
+                      {renderFactRow(sectionFacts[currentPage])}
+                    </ul>
+                    <div className="flex items-center justify-center gap-4 pt-2 text-sm text-gray-500">
+                      <button
+                        type="button"
+                        data-testid="journal-page-prev"
+                        aria-label="Previous fact"
+                        disabled={currentPage === 0}
+                        onClick={() => setPage((p) => Math.max(0, p - 1))}
+                        className="rounded px-2 py-1 text-lg disabled:opacity-30"
+                      >
+                        ‹
+                      </button>
+                      <span data-testid="journal-page-counter">
+                        {currentPage + 1} / {sectionFacts.length}
+                      </span>
+                      <button
+                        type="button"
+                        data-testid="journal-page-next"
+                        aria-label="Next fact"
+                        disabled={currentPage >= sectionFacts.length - 1}
+                        onClick={() => setPage((p) => Math.min(sectionFacts.length - 1, p + 1))}
+                        className="rounded px-2 py-1 text-lg disabled:opacity-30"
+                      >
+                        ›
+                      </button>
+                    </div>
+                  </>
                 ) : (
-                  <ul className="font-caveat space-y-1 text-lg">
-                    {sectionFacts.map((fact) => {
-                      const entry = formatJournalEntry(fact);
-                      return (
-                        <li key={fact.id} data-testid="journal-fact-item">
-                          <span>
-                            {entry.icon} {entry.title}
-                          </span>
-                          {entry.subtitle && (
-                            <span className="ml-6 block text-sm text-gray-500">{entry.subtitle}</span>
-                          )}
-                        </li>
-                      );
-                    })}
+                  <ul className="font-caveat columns-2 gap-[9%] space-y-1 text-lg">
+                    {sectionFacts.map(renderFactRow)}
                   </ul>
                 )}
               </div>
             </div>
+            <button
+              type="button"
+              onClick={handleResetGame}
+              data-testid="journal-reset-button"
+              className="absolute right-[4%] bottom-[3%] z-10 rounded bg-red-100/80 px-2 py-1 text-xs text-red-700"
+            >
+              Reset Game
+            </button>
           </>
         )}
         {bookmarksVisible && (
