@@ -5,10 +5,12 @@
 export const JOURNAL_OPEN_FRAME_COUNT = 9;
 
 /** Milliseconds each frame is held before advancing to the next — 9 frames
- * at this interval gives a ~1.35s open animation, played whenever the
- * journal mounts, and in reverse whenever it closes (see `Journal.tsx`'s
- * `opening`/`open`/`closing` phase state machine). */
-export const JOURNAL_OPEN_FRAME_INTERVAL_MS = 150;
+ * at this interval gives a ~810ms open animation, played whenever the
+ * journal mounts, and in reverse whenever it closes. 150ms/frame (the
+ * initial slowdown from an original, too-fast 50ms) turned out too slow —
+ * with only 9 discrete frames, a slower hold makes the missing in-between
+ * frames read as choppy rather than smooth. */
+export const JOURNAL_OPEN_FRAME_INTERVAL_MS = 90;
 
 /** Sprite path for a given 1-indexed frame, clamped to the valid range so an
  * out-of-range frame (e.g. a stray extra interval tick) never 404s. */

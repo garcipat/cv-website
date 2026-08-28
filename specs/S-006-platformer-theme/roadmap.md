@@ -86,12 +86,28 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   exist).
   *Verify: open/close the journal via both the `J` key and the icon button, see
   the collected fact listed.*
-- [ ] **14. Journal styling** — notebook paper, `Caveat` handwriting font, Simple
-  List entry style per the mockup.
+- [x] **14. Journal styling** — notebook paper, `Caveat` handwriting font, Simple
+  List entry style per the mockup, the book-opening/closing animation
+  (`journal_open_1-9.png`, plays forward on open and in reverse on close from
+  any of the three triggers: the in-book × button, the top-left icon, or
+  `J`) and real icon (`journal.png`, top-left next to the hearts per user
+  feedback — bottom-right blended into the terrain). Bookmark tabs
+  (`bookmark_*.png`) were pulled forward from step 15, per discussion, then
+  revised live against the actual sprite art: positioned at the book's
+  top-right edge (not the side — the sprites are ribbons hanging from a top
+  attachment point) showing an icon per section rather than rotated text
+  (unreadable at that size). An 8th "About Me"/personality bookmark shows
+  CV bio content directly (not via `collectedFacts`, which has no
+  personality-sourced entries until step 22's flagpole) — a provisional
+  forward-pull per user request; 6 sprite colors cover the 8 sections with
+  two accepted duplicate pairs. Only per-section counters, pagination, and
+  the Reset Game button remain in step 15.
   *Verify: visually matches `entry-styles-mockup.html`.*
-- [ ] **15. Bookmark tabs + counters + pagination + Reset button** — per-section
-  tabs, "N/M" counters, pagination within a section, Reset Game button.
-  *Verify: switch sections, counters update correctly, Reset clears all state.*
+- [ ] **15. Counters + pagination + Reset button** — "N/M" counters per
+  section, pagination within a section, Reset Game button. (Bookmark tabs
+  themselves moved into step 14.)
+  *Verify: counters update correctly, pagination works within a section with
+  many facts, Reset clears all state.*
 
 ## Iteration 2 — Enemies + blocks + flagpole + audio (P2)
 

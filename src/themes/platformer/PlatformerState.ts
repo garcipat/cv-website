@@ -10,7 +10,7 @@ import { MAX_HALF_HEARTS } from './entities/Health';
 import { introState } from './engine/GameLifecycle';
 import type { PlayerState } from './entities/Player';
 import type { LifecycleState } from './engine/GameLifecycle';
-import type { CollectedFact } from './types';
+import type { CollectedFact, SectionId } from './types';
 
 /**
  * The player's state at the level's spawn point — full health's worth of
@@ -90,6 +90,16 @@ const SEED_COLLECTED_FACTS: CollectedFact[] = [
  * real starting in step 12 — see the seed-data comment above.
  */
 export const collectedFacts = signal<CollectedFact[]>(SEED_COLLECTED_FACTS);
+
+/**
+ * The journal's last manually-selected bookmark section, remembered across
+ * closing and reopening the journal (per user request) — `Journal.tsx`
+ * itself fully unmounts on close, so this can't live in its local
+ * `useState`. `undefined` until the user clicks a bookmark tab for the
+ * first time, in which case `Journal.tsx` falls back to defaulting from
+ * the most recently collected fact's section.
+ */
+export const activeJournalSection = signal<SectionId | undefined>(undefined);
 
 /**
  * World-space center point (not top-left) of the spawned player — used to

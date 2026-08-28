@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSignals } from '@preact/signals-react/runtime';
 import { currentCV } from '@/state/locale';
-import { collectedFacts } from '../PlatformerState';
+import { collectedFacts, activeJournalSection } from '../PlatformerState';
 import { formatJournalEntry } from '../entities/JournalEntry';
 import { JOURNAL_SECTION_ORDER, nonEmptySections, sectionLabel } from '../entities/JournalSections';
 import {
@@ -72,8 +72,13 @@ export const Journal = ({ onClose, closeRequested }: JournalProps) => {
   const handleClose = () => setCloseClicked(true);
 
   const defaultSection: SectionId | undefined = facts[0]?.sectionId ?? sections[0];
-  const [activeSection, setActiveSection] = useState<SectionId | undefined>(defaultSection);
-  const effectiveSection = activeSection ?? defaultSection;
+  // Read from the shared signal (not local state) so the selected section
+  // survives Journal fully unmounting on close and remounting on reopen —
+  // per user request, the choice should be "memorized".
+  const effectiveSection = activeJournalSection.value ?? defaultSection;
+  const setActiveSection = (section: SectionId) => {
+    activeJournalSection.value = section;
+  };
 
   const contentVisible = frame >= JOURNAL_OPEN_FRAME_COUNT && !closing;
   // Bookmark tabs appear only in the last two frames of the opening
@@ -112,7 +117,7 @@ export const Journal = ({ onClose, closeRequested }: JournalProps) => {
               ×
             </button>
             <div
-              className="absolute inset-[6%_10%] overflow-y-auto text-gray-800"
+              className="absolute inset-[6%_10%] flex flex-col text-gray-800"
               style={{
                 backgroundImage:
                   'repeating-linear-gradient(transparent, transparent 27px, rgba(90,120,190,0.25) 27px, rgba(90,120,190,0.25) 28px)',
@@ -121,33 +126,51 @@ export const Journal = ({ onClose, closeRequested }: JournalProps) => {
               {effectiveSection && (
                 <h2 className="font-caveat mb-2 text-3xl font-bold">{sectionLabel(effectiveSection)}</h2>
               )}
-              {effectiveSection === 'personality' ? (
-                <div className="font-caveat text-lg text-gray-700">
-                  <p className="text-xl font-semibold">{cv.personality.name}</p>
-                  <p className="text-gray-500 italic">{cv.personality.tagline}</p>
-                  <p className="mt-2 whitespace-pre-line">{cv.personality.summary}</p>
-                </div>
-              ) : sectionFacts.length === 0 ? (
-                <p data-testid="journal-empty-state" className="font-caveat text-lg text-gray-500">
-                  No facts collected yet.
-                </p>
-              ) : (
-                <ul className="font-caveat flex flex-col gap-1 text-lg">
-                  {sectionFacts.map((fact) => {
-                    const entry = formatJournalEntry(fact);
-                    return (
-                      <li key={fact.id} data-testid="journal-fact-item">
-                        <span>
-                          {entry.icon} {entry.title}
-                        </span>
-                        {entry.subtitle && (
-                          <span className="ml-6 block text-sm text-gray-500">{entry.subtitle}</span>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
+              {/* The book is drawn as two physical pages with a spine down
+                  the middle (see journal_open_9.png) — a plain flowing block
+                  visually crosses that spine mid-line. `columns-2` with a
+                  gap approximating the spine's width flows content down the
+                  left page then continues at the top of the right one,
+                  matching how a real book reads. `flex-1 min-h-0` (rather
+                  than `h-full` on a sibling of the header) gives this only
+                  the space actually left below the header, so
+                  `column-fill: auto` fills the left column against the
+                  right height instead of splitting too early. Real per-page
+                  pagination is step 15's job; this is a lightweight
+                  stand-in — some overflow edge cases (very long content)
+                  are left for that step, not solved here. */}
+              <div
+                className="min-h-0 flex-1 columns-2 gap-[9%] overflow-y-auto"
+                style={{ columnFill: 'auto' }}
+              >
+                {effectiveSection === 'personality' ? (
+                  <div className="font-caveat text-lg text-gray-700">
+                    <p className="text-xl font-semibold">{cv.personality.name}</p>
+                    <p className="text-gray-500 italic">{cv.personality.tagline}</p>
+                    <p className="mt-2 whitespace-pre-line">{cv.personality.summary}</p>
+                  </div>
+                ) : sectionFacts.length === 0 ? (
+                  <p data-testid="journal-empty-state" className="font-caveat text-lg text-gray-500">
+                    No facts collected yet.
+                  </p>
+                ) : (
+                  <ul className="font-caveat flex flex-col gap-1 text-lg">
+                    {sectionFacts.map((fact) => {
+                      const entry = formatJournalEntry(fact);
+                      return (
+                        <li key={fact.id} data-testid="journal-fact-item">
+                          <span>
+                            {entry.icon} {entry.title}
+                          </span>
+                          {entry.subtitle && (
+                            <span className="ml-6 block text-sm text-gray-500">{entry.subtitle}</span>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
             </div>
           </>
         )}
