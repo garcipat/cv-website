@@ -147,10 +147,10 @@ export const SpacePage = () => {
           )}
         >
           <h1 className="text-[clamp(1.3rem,2.5vw,1.8rem)] font-bold text-[var(--foreground)] mb-2">
-            Circle Parade
+            {currentUI.value.space.posterTitle}
           </h1>
           <p className="text-[var(--muted-foreground)] text-[clamp(0.75rem,1.1vw,0.9rem)]">
-            Scroll — circles drop in from top, drift out to the corners
+            {currentUI.value.space.posterSubtitle}
           </p>
           <span className="text-2xl text-[var(--primary)] mt-4 animate-bounce">&darr;</span>
         </div>

@@ -1,0 +1,65 @@
+[data-theme="platformer"] {
+  /* Background & Foreground — retro sky blue, dark navy text */
+  --background: oklch(0.72 0.11 232);
+  --foreground: oklch(0.22 0.03 255);
+
+  /* Card — light blue panel, e.g. for floating controls */
+  --card: oklch(0.93 0.035 232);
+  --card-foreground: oklch(0.22 0.03 255);
+
+  /* Popover */
+  --popover: oklch(0.93 0.035 232);
+  --popover-foreground: oklch(0.22 0.03 255);
+
+  /* Primary — Mario-red accent for buttons/highlights */
+  --primary: oklch(0.6 0.19 25);
+  --primary-foreground: oklch(0.98 0 0);
+
+  /* Secondary — grass green */
+  --secondary: oklch(0.58 0.15 145);
+  --secondary-foreground: oklch(0.98 0 0);
+
+  /* Muted */
+  --muted: oklch(0.85 0.04 232);
+  --muted-foreground: oklch(0.4 0.03 255);
+
+  /* Accent — coin gold */
+  --accent: oklch(0.82 0.15 85);
+  --accent-foreground: oklch(0.22 0.03 255);
+
+  /* Destructive */
+  --destructive: oklch(0.6 0.2 25);
+  --destructive-foreground: oklch(0.98 0 0);
+
+  /* Border, Input, Ring */
+  --border: oklch(0.4 0.03 255 / 0.3);
+  --input: oklch(0.4 0.03 255 / 0.4);
+  --ring: oklch(0.6 0.19 25);
+
+  /* Typography — playful, rounded fonts */
+  --font-sans: 'Nunito', sans-serif;
+  --font-heading: 'Press Start 2P', monospace;
+
+  /* Sidebar */
+  --sidebar: oklch(0.93 0.035 232);
+  --sidebar-foreground: oklch(0.22 0.03 255);
+  --sidebar-primary: oklch(0.6 0.19 25);
+  --sidebar-primary-foreground: oklch(0.98 0 0);
+  --sidebar-accent: oklch(0.82 0.15 85);
+  --sidebar-accent-foreground: oklch(0.22 0.03 255);
+  --sidebar-border: oklch(0.4 0.03 255 / 0.3);
+  --sidebar-ring: oklch(0.6 0.19 25);
+
+  /* Chart */
+  --chart-1: oklch(0.6 0.19 25);
+  --chart-2: oklch(0.58 0.15 145);
+  --chart-3: oklch(0.82 0.15 85);
+  --chart-4: oklch(0.72 0.11 232);
+  --chart-5: oklch(0.55 0.12 320);
+}
+
+/* Select triggers default to a transparent background — give them the
+   light-blue card tint so they read as highlighted against the canvas. */
+[data-theme="platformer"] [data-slot="select-trigger"] {
+  background-color: var(--card);
+}

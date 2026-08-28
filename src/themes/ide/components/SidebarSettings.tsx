@@ -1,5 +1,5 @@
 import { useSignals } from '@preact/signals-react/runtime';
-import { currentTheme, themes } from '@/state/theme';
+import { currentTheme, visibleThemes } from '@/state/theme';
 import { currentLocale, supportedLocales, changeLocale, currentUI } from '@/state/locale';
 
 export const SidebarSettings = () => {
@@ -12,7 +12,7 @@ export const SidebarSettings = () => {
           {currentUI.value.ide.themes}
         </legend>
         <div className="space-y-1">
-          {themes.map((t) => {
+          {visibleThemes.value.map((t) => {
             const checked = currentTheme.value === t.id;
             return (
               <label
