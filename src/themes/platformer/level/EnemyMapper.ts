@@ -60,6 +60,7 @@ export interface EnemyPlacement extends EnemyDef {
  * deliberately anyway.
  */
 const ENEMY_SPACING_COLS = 3;
+/** Which of every ENEMY_SPACING_COLS candidate columns to start picking from. */
 const ENEMY_COLUMN_OFFSET = 1;
 
 export function placeEnemies(defs: EnemyDef[], level: LevelDef): EnemyPlacement[] {

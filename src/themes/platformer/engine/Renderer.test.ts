@@ -19,7 +19,12 @@ import { startFlightEffect, tickFlightEffect, RISE_DURATION_SECONDS, SPARKLE_DUR
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
 import type { EnemyPlacement } from '../level/EnemyMapper';
 import { fruitFrameSource } from '../entities/Fruit';
-import { ENEMY_FRAME_SIZE, ENEMY_RENDERED_SIZE } from '../entities/Enemy';
+import {
+  ENEMY_FRAME_SIZE,
+  ENEMY_RENDERED_SIZE,
+  ENEMY_TILE_OFFSET_X,
+  ENEMY_TILE_OFFSET_Y,
+} from '../entities/Enemy';
 
 function makeMockContext() {
   return {
@@ -229,8 +234,29 @@ describe('drawEnemies', () => {
     expect(call[2]).toBe(0); // sy: row 0
     expect(call[3]).toBe(ENEMY_FRAME_SIZE);
     expect(call[4]).toBe(ENEMY_FRAME_SIZE);
+    expect(call[5]).toBe(100 + ENEMY_TILE_OFFSET_X); // dx: bottom-anchored/centered offset applied
+    expect(call[6]).toBe(100 + ENEMY_TILE_OFFSET_Y); // dy: bottom-anchored/centered offset applied
     expect(call[7]).toBe(ENEMY_RENDERED_SIZE);
     expect(call[8]).toBe(ENEMY_RENDERED_SIZE);
+  });
+
+  it('withOrigin-addsOriginOnTopOfPlacementAndTileOffset', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const greenSprite = {} as HTMLImageElement;
+
+    drawEnemies(
+      ctx as unknown as CanvasRenderingContext2D,
+      [makeEnemyPlacement('a', 'slimeGreen', 100, 100)],
+      greenSprite,
+      null,
+      0,
+      50,
+      20,
+    );
+
+    const call = ctx.drawImage.mock.calls[0];
+    expect(call[5]).toBe(100 + ENEMY_TILE_OFFSET_X + 50);
+    expect(call[6]).toBe(100 + ENEMY_TILE_OFFSET_Y + 20);
   });
 });
 
