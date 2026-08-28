@@ -59,7 +59,7 @@ At any point during gameplay, the visitor can press a key (e.g., `J` or `Escape`
 4. **Given** the journal is open, **When** the visitor views any section, **Then** a counter near the section header or bookmark shows how many facts have been collected out of the total for that section (e.g., "Skills 3/5"), so the player knows whether there are still undiscovered facts.
 5. **Given** CV sections have no collected facts yet, **When** the journal is opened, **Then** those sections show a placeholder message like "No facts discovered yet — keep exploring!" and the counter shows "0/N".
 6. **Given** the journal is open, **When** the visitor presses `J` again (or clicks the close button), **Then** the journal overlay closes and the game resumes from the exact paused state.
-7. **Given** the journal is open at any point, **When** the visitor clicks the "Reset Game" button, **Then** all collected facts are cleared, the journal shows placeholder messages for all sections, the game resets to the spawn point, and all coins/enemies/blocks respawn in the level.
+7. **Given** the journal is open at any point, **When** the visitor clicks the "Reset Game" button, **Then** all collected facts are cleared, the journal closes immediately and the iris-in "starting again" transition plays, the game resets to the spawn point, and all coins/enemies/blocks respawn in the level (amended 2026-08-28 — see FR-018b — originally the journal stayed open showing placeholders).
 
 ---
 
@@ -248,7 +248,7 @@ The level is hand-crafted — starting with a simple layout to validate function
   - **Handwriting font**: `Caveat` (from Google Fonts), using the existing import pattern from `src/index.css`
   - **Bookmark tabs**: Colored tabs along the book's top-right edge, one per CV section shown in the journal, laid out left-to-right. The active tab extends further down; inactive tabs show a short peek. **Amended 2026-08-28**: originally specified as vertical tabs along the right edge; moved to the top-right after the real `bookmark_*.png` sprites turned out to be drawn as ribbons hanging from a top attachment point — a side layout looked wrong against that art.
   - **Section header** at the top of the active page
-  - **Page counter** at the bottom (e.g., "2 / 5" for pagination)
+  - **Page counter**: removed (amended 2026-08-28, see FR-018) — no visible "N / M" text; bookmarks alone indicate more content exists
 
 - **FR-016**: System MUST implement bookmark tab behavior:
   - Clicking an inactive tab makes it active (extends further) and switches the displayed section content
@@ -261,9 +261,36 @@ The level is hand-crafted — starting with a simple layout to validate function
 
 - **FR-017b**: System MUST display a per-section collection counter near each section's header or bookmark (e.g., "Skills 3/5") showing how many facts have been collected out of the total for that section. **Exception**: Personality and Contact sections have no counter — there is only one fact per section, revealed via the flagpole.
 
-- **FR-018**: System MUST paginate journal content within each section. If a section has more facts than fit on one page (approximately 5-7 entries per page), arrow buttons or page dots allow navigating forward/backward through that section's pages. (Amended 2026-08-28 — step 15's implementation paginates one entry per page for long-entry sections (Experience/Projects/Education/Courses/Certificates); Skills/Languages stay grouped on a single page instead of paginating, since their compact per-entry format fits many rows without needing page controls.)
+- **FR-018**: System MUST paginate journal content as one continuous flat sequence of pages
+  spanning the whole book, not scoped per section (amended 2026-08-28, superseding the same
+  day's earlier per-section-pagination amendment below). Each non-empty section inserts its own
+  pages into that sequence, per the user's own framing ("sections insert pages into it with
+  content"): Personality and Languages each contribute exactly one page (Languages lists every
+  collected language together, each with its own star rating); Skills, Experience, Projects,
+  Education, Courses, and Certificates each contribute one page per collected fact (minimum one,
+  showing an empty-state placeholder, so a section with nothing collected yet still has a page to
+  land on) — Skills' page shows one category's skills as star-rated rows. Prev/Next arrow controls
+  walk this flat sequence in section order and wrap around at both ends (Next from the book's last
+  page returns to its first, and symmetrically for Prev) — there is no disabled state at either
+  end. Clicking a bookmark tab jumps to that section's first page in the sequence; paging past a
+  section boundary updates the active bookmark to match. Arrow controls are pixel-art chevron
+  icons, hover-reveal only (invisible until the pointer is over that physical half of the book —
+  left half reveals the left arrow, right half the right arrow — then fade in), not always
+  visible. (Original text, superseded above: "System MUST paginate journal content within each
+  section. If a section has more facts than fit on one page (approximately 5-7 entries per page),
+  arrow buttons or page dots allow navigating forward/backward through that section's pages."
+  Amended once already on 2026-08-28 to paginate one entry per page for long-entry sections while
+  Skills/Languages stayed grouped — then revised again the same day, per further live user
+  feedback, into the flat whole-book model described above.)
 
-- **FR-018b**: System MUST include a "Reset Game" button in the journal overlay. Clicking it clears all collected facts (journal returns to placeholder messages for all sections) and resets the game world to its initial state (character respawns at spawn point, all coins/enemies/blocks respawn).
+- **FR-018b**: System MUST include a "Reset Game" button in the journal overlay, rendered as a
+  pixel-art icon (not a text label). Clicking it clears all collected facts and closes the journal
+  immediately (no reverse-close animation), then starts the same iris-in transition used for a
+  death/debug respawn, centered on the freshly-spawned player — reading as "starting again" rather
+  than remaining open to show cleared placeholders. The game world resets to its initial state
+  (character respawns at spawn point, all coins/enemies/blocks respawn). (Amended 2026-08-28 — was
+  originally specified as the journal staying open afterward showing placeholder messages for all
+  sections; changed per live user feedback after seeing the initial implementation.)
 
 #### Enemies (P2)
 
