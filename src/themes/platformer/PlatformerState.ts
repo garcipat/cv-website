@@ -152,3 +152,19 @@ export function resetGame(): void {
   healthState.value = MAX_HALF_HEARTS;
   cameraPositionX.value = 0;
 }
+
+/**
+ * The "Reset Game" button's full reset (roadmap step 15, FR-018b) — unlike
+ * `resetGame()`, this is a deliberate action the visitor takes, not a
+ * death/respawn, so it also clears everything `resetGame()` leaves alone:
+ * collected facts, the collected-collectible dedup set (clearing it is what
+ * makes already-collected coins/fruits reappear in the level, since the
+ * render/collision loop reads it live), and the remembered active journal
+ * bookmark (falls back to Journal.tsx's default section afterward).
+ */
+export function resetGameProgress(): void {
+  resetGame();
+  collectedFacts.value = [];
+  collectedCollectibleIds.value = new Set();
+  activeJournalSection.value = undefined;
+}
