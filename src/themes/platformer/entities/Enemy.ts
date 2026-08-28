@@ -7,7 +7,7 @@ import { RENDER_SCALE, RENDERED_TILE_SIZE } from '../level/Terrain';
  * sheet animate live (roadmap step 16) showed frames 1-3 read as a
  * mostly-featureless blob, frames 9-12 read as the slime dissolving toward
  * a near-black silhouette (a hit/defeat reaction, not idle), and frames 4-8
- * — spanning the end of row 0 into all of row 1 — loop well as a idle
+ * — spanning the end of row 0 into all of row 1 — loop well as an idle
  * breathing/bounce cycle. That's why ENEMY_ANIM_CONFIG's `idle` entry below
  * is an explicit frame list rather than a single row: the loop crosses a
  * row boundary. Adjust the frame lists/frameDuration below if a future
@@ -46,6 +46,16 @@ const IDLE_FRAMES: FrameCoord[] = [
   { sx: 3 * ENEMY_FRAME_SIZE, sy: ENEMY_FRAME_SIZE },
 ];
 
+// NOTE (landmine for step 17): after the idle tuning above, `walk`'s frames
+// (row 1, sheet frames 5-8) are now a subset of tuned `idle`'s frames
+// (sheet frames 4-8, which includes 5-8 plus one lead-in frame) — the two
+// states are near-identical today. `walk` is unreachable/unused as of this
+// step (only `idle` is ever played — see `drawEnemies` in Renderer.ts), so
+// this isn't a step-16 bug, but step 17's verify criterion ("an enemy
+// patrolling should visibly animate a distinct walk cycle") will silently
+// fail unless `walk` is given a genuinely distinct frame range (if the
+// sheet has one) or redesigned first, via the same kind of live visual
+// inspection idle got.
 const ENEMY_ANIM_CONFIG: Record<EnemyAnimState, { frames: FrameCoord[]; frameDuration: number }> = {
   idle: { frames: IDLE_FRAMES, frameDuration: 0.15 },
   walk: {

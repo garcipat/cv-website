@@ -73,7 +73,7 @@ export const healthState = signal(MAX_HALF_HEARTS);
  * current locale's CVData (see `@/state/locale`'s `currentCV`) — a plain
  * constant, not a signal, matching `level1`: neither is locale-reactive yet
  * (switching EN/DE mid-session doesn't re-place collectibles or change
- * which are already collected; that's roadmap step 25's theme-switch-reset
+ * which are already collected; that's roadmap step 26's theme-switch-reset
  * job, not this step's).
  */
 export const collectiblePlacements: CollectiblePlacement[] = placeCollectibles(
@@ -84,7 +84,7 @@ export const collectiblePlacements: CollectiblePlacement[] = placeCollectibles(
 /**
  * Every enemy in the level, placed once at module load — same non-reactive
  * convention as collectiblePlacements above (see its comment): no movement,
- * defeat, or locale-reactivity yet (roadmap steps 17/18/25).
+ * defeat, or locale-reactivity yet (roadmap steps 17/18/26).
  */
 export const enemyPlacements: EnemyPlacement[] = placeEnemies(
   mapCVDataToEnemies(currentCV.value),
