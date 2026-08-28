@@ -7,6 +7,7 @@ import {
   spawnCenter,
   resetGame,
   collectedFacts,
+  activeJournalSection,
 } from './PlatformerState';
 import { MAX_HALF_HEARTS } from './entities/Health';
 import { tileToPixel, RENDERED_TILE_SIZE } from './level/Terrain';
@@ -115,5 +116,13 @@ describe('collectedFacts', () => {
     expect(collectedFacts.value[0]).toMatchObject({
       sourceType: 'coin',
     });
+  });
+});
+
+describe('activeJournalSection', () => {
+  it('initialValue-onModuleLoad-isUndefined', () => {
+    // undefined until the user manually picks a bookmark tab — Journal.tsx
+    // falls back to defaulting from the most recently collected fact.
+    expect(activeJournalSection.value).toBeUndefined();
   });
 });

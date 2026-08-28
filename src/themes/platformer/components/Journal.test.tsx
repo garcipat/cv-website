@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { Journal } from './Journal';
 import { currentCV } from '@/state/locale';
-import { collectedFacts } from '../PlatformerState';
+import { collectedFacts, activeJournalSection } from '../PlatformerState';
 import { JOURNAL_OPEN_FRAME_COUNT, JOURNAL_OPEN_FRAME_INTERVAL_MS } from '../entities/JournalAnimation';
 import type { CollectedFact } from '../types';
 
@@ -31,6 +31,11 @@ describe('Journal', () => {
 
   afterEach(() => {
     collectedFacts.value = originalFacts;
+    // activeJournalSection is a module-level signal (deliberately, so the
+    // selected bookmark survives Journal unmounting/remounting on close) —
+    // it must be reset between tests the same way collectedFacts is, or a
+    // manual tab click in one test leaks into the next test's default.
+    activeJournalSection.value = undefined;
     vi.useRealTimers();
   });
 
@@ -127,6 +132,36 @@ describe('Journal', () => {
 
     expect(screen.queryByTestId('journal-fact-item')).not.toBeInTheDocument();
     expect(screen.getByTestId('journal-empty-state')).toBeInTheDocument();
+  });
+
+  it('bookmarkTabClicked-thenJournalUnmountedAndRemounted-remembersTheSelection', () => {
+    // Journal fully unmounts on close (PlatformerPage renders it as
+    // `{journalOpen && <Journal .../>}`), so the selected section can only
+    // survive a close/reopen if it lives in a signal rather than local
+    // useState — this is exactly that persistence, per user request.
+    const facts: CollectedFact[] = [
+      {
+        id: 'fact-1',
+        sectionId: 'skills',
+        sectionLabel: 'Skills',
+        data: { name: 'React', level: 80 },
+        sourceType: 'coin',
+      },
+    ];
+    collectedFacts.value = facts;
+
+    const { unmount } = render(<Journal onClose={() => {}} closeRequested={false} />);
+    openBookAnimation();
+    fireEvent.click(screen.getByTestId('bookmark-tab-experience'));
+    expect(screen.getByTestId('journal-empty-state')).toBeInTheDocument();
+    unmount();
+
+    render(<Journal onClose={() => {}} closeRequested={false} />);
+    openBookAnimation();
+
+    // Still on 'experience' (empty), not back to the skills-fact default.
+    expect(screen.getByTestId('journal-empty-state')).toBeInTheDocument();
+    expect(screen.queryByTestId('journal-fact-item')).not.toBeInTheDocument();
   });
 
   it('closeButtonClicked-immediately-hidesContentButDoesNotCallOnCloseYet', () => {
