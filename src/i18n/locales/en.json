@@ -139,5 +139,14 @@
         "course": "Course"
       }
     }
+  },
+  "platformer": {
+    "journal": {
+      "collectibles": "Collectibles",
+      "coins": "Coins",
+      "fruits": "Fruits",
+      "resetGame": "Reset Game",
+      "emptyState": "No facts discovered yet — keep exploring!"
+    }
   }
 }
