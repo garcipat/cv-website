@@ -37,3 +37,6 @@ docs/superpowers/
 *.njsproj
 *.sln
 *.sw?
+
+# nano-banana generated image drafts
+.generated/
