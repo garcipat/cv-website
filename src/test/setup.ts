@@ -24,8 +24,12 @@ HTMLCanvasElement.prototype.getContext = function (
       fillStyle: '',
       strokeStyle: '',
       lineWidth: 1,
+      font: '',
+      textAlign: 'start',
+      textBaseline: 'alphabetic',
       imageSmoothingEnabled: true,
       fillRect: vi.fn(),
+      fillText: vi.fn(),
       drawImage: vi.fn(),
       save: vi.fn(),
       restore: vi.fn(),
@@ -39,10 +43,6 @@ HTMLCanvasElement.prototype.getContext = function (
       rect: vi.fn(),
       arc: vi.fn(),
       fill: vi.fn(),
-      fillText: vi.fn(),
-      font: '',
-      textAlign: '',
-      textBaseline: '',
     });
   }
 

@@ -31,7 +31,11 @@ interface JournalProps {
  * shown directly from CV data rather than `collectedFacts`, since it has no
  * collectible source until step 22's flagpole lands — a provisional
  * forward-pull per user request. Per-section counters, pagination, and the
- * Reset Game button are step 15's job, not built here.
+ * Reset Game button are step 15's job, not built here. Per-fact display
+ * formatting (including step 12's `SkillCategoryFact` — a whole skill
+ * category collected as one unit) lives in `formatJournalEntry`
+ * (`entities/JournalEntry.ts`), not here — this component stays
+ * presentational.
  *
  * Animation state is just `frame` (1..COUNT) plus whether we're `closing` —
  * "fully open" and "fully closed" are *derived* from those two rather than

@@ -1,3 +1,4 @@
+import { isSkillCategoryFact } from '../types';
 import type { CollectedFact, SectionId } from '../types';
 
 export interface JournalEntryDisplay {
@@ -45,6 +46,17 @@ export function formatJournalEntry(fact: CollectedFact): JournalEntryDisplay {
 
   switch (fact.sectionId) {
     case 'skills':
+      // Roadmap step 12: a whole skill category is collected as one unit
+      // (too many individual CV skills to place one collectible each), so
+      // `fact.data` here is a `SkillCategoryFact` rather than a plain
+      // `Skill` — display the category name with its skills listed below.
+      if (isSkillCategoryFact(fact.data)) {
+        return {
+          icon,
+          title: fact.data.category,
+          subtitle: fact.data.skills.map((skill) => skill.name).join(', '),
+        };
+      }
       return { icon, title: `${data.name} ${starRating(data.level as number)}` };
     case 'languages':
       return {

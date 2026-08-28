@@ -260,4 +260,33 @@ describe('Journal', () => {
 
     expect(screen.getByTestId('bookmark-tabs')).toBeInTheDocument();
   });
+
+  it('skillCategoryFact-rendered-showsCategoryNameAndSkillCount', () => {
+    // A SkillCategoryFact (roadmap step 12 — skills are collected as a
+    // whole category, not individually) is a different `fact.data` shape
+    // than the plain `Skill` used elsewhere in this file; formatJournalEntry
+    // (entities/JournalEntry.ts) is what actually branches on it.
+    collectedFacts.value = [
+      {
+        id: 'coin-backend',
+        sectionId: 'skills',
+        sectionLabel: 'Skills',
+        data: {
+          category: 'Backend',
+          skills: [
+            { name: 'C#', level: 90 },
+            { name: '.NET', level: 85 },
+          ],
+        },
+        sourceType: 'coin',
+      },
+    ];
+
+    render(<Journal onClose={() => {}} closeRequested={false} />);
+    openBookAnimation();
+
+    expect(screen.getByText(/Backend/)).toBeInTheDocument();
+    expect(screen.getByText(/C#/)).toBeInTheDocument();
+    expect(screen.getByText(/\.NET/)).toBeInTheDocument();
+  });
 });
