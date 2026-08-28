@@ -10,11 +10,13 @@ import { MAX_HALF_HEARTS } from './entities/Health';
 import { introState } from './engine/GameLifecycle';
 import { currentCV } from '@/state/locale';
 import { mapCVDataToCollectibles, placeCollectibles } from './level/CollectibleMapper';
+import { mapCVDataToEnemies, placeEnemies } from './level/EnemyMapper';
 import { level1 } from './level/level1';
 import type { PlayerState } from './entities/Player';
 import type { LifecycleState } from './engine/GameLifecycle';
 import type { CollectedFact, SectionId } from './types';
 import type { CollectiblePlacement } from './level/CollectibleMapper';
+import type { EnemyPlacement } from './level/EnemyMapper';
 import type { FlightEffect } from './engine/CollectionEffects';
 
 /**
@@ -76,6 +78,16 @@ export const healthState = signal(MAX_HALF_HEARTS);
  */
 export const collectiblePlacements: CollectiblePlacement[] = placeCollectibles(
   mapCVDataToCollectibles(currentCV.value),
+  level1,
+);
+
+/**
+ * Every enemy in the level, placed once at module load — same non-reactive
+ * convention as collectiblePlacements above (see its comment): no movement,
+ * defeat, or locale-reactivity yet (roadmap steps 17/18/25).
+ */
+export const enemyPlacements: EnemyPlacement[] = placeEnemies(
+  mapCVDataToEnemies(currentCV.value),
   level1,
 );
 
