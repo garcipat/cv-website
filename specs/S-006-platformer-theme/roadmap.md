@@ -146,9 +146,13 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   visually distinct enemy types, mirroring the coin/fruit split for Skills/
   Languages). Both sheets are a 4x3 grid of 24x24 frames; a trial frame mapping —
   row 0 (4 frames) idle "awakening" loop, row 1 (4 frames) walk animation, row 2
-  (3 green + 1 red frame) hit-reaction, reserved for steps 18/19 — is adopted here
-  and adjusted by eye if it doesn't read well once on screen. Enemies render with
-  the row-0 idle loop at their level positions. No movement, no interaction yet.
+  (3 green + 1 red frame) hit-reaction, reserved for steps 18/19 — was proposed and
+  then adjusted after watching the full sheet animate live: frames 1-3 read as a
+  mostly-featureless blob, and frames 9-12 read as the slime dissolving toward a
+  near-black silhouette (a hit/defeat reaction, not idle), so the shipped idle loop
+  instead uses frames 4-8 — spanning the end of row 0 into all of row 1 — which
+  loop well as an idle breathing/bounce cycle. Enemies render with this tuned
+  frames-4-8 idle loop at their level positions. No movement, no interaction yet.
   *Verify: both green (Certificates) and purple (Projects) slimes are visible on
   their assigned platforms, idling, positioned per the CollectibleMapper output.*
 - [ ] **17. Enemy patrol** — enemies of both types move back and forth within their
