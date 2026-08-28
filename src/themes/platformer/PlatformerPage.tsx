@@ -199,10 +199,10 @@ export const PlatformerPage = () => {
     // property change on any other frame.
     let backgroundColor = '#000';
 
-    // Shared spin/idle-loop timer for every coin and enemy (see Coin.ts's
-    // coinFrameIndex, Enemy.ts's enemyIdleFrameIndex) — a plain variable, not
-    // a signal, since nothing outside this render loop needs to read or
-    // react to it.
+    // Shared spin/idle-loop timer for coins (see Coin.ts's coinFrameIndex) —
+    // a plain variable, not a signal, since nothing outside this render loop
+    // needs to read or react to it. Enemies track their own animation timers
+    // independently.
     let worldAnimElapsed = 0;
 
     // Cycles 0, 1, 2, 0, 1, 2, ... across collections (not reset per-tick) so
