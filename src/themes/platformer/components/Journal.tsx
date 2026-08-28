@@ -115,13 +115,24 @@ export const Journal = ({ onClose, closeRequested }: JournalProps) => {
   const paginated = effectiveSection ? isPaginatedSection(effectiveSection) : false;
   // Clamped rather than reset via a dedicated effect for every state change
   // that can shrink `sectionFacts` (switching section, Reset Game) — the
-  // `effectiveSection` effect below still resets `page` to 0 on section
-  // switches so the *first* page is shown, not just a valid one.
+  // section-change check below still resets `page` to 0 on section switches
+  // so the *first* page is shown, not just a valid one.
   const currentPage = Math.min(page, Math.max(0, sectionFacts.length - 1));
 
-  useEffect(() => {
+  // Reset `page` to 0 when `effectiveSection` changes, using React's
+  // "adjust state during render" pattern (comparing against a mirrored
+  // `prevSection` state) rather than a `useEffect` — calling `setState`
+  // synchronously inside an effect body is flagged by
+  // `react-hooks/set-state-in-effect` and, here, is also what a prior
+  // debugging pass identified as adding an extra render/commit cycle that
+  // interacted badly with `@preact/signals-react`'s external-store-driven
+  // re-renders (see Journal.test.tsx's Reset Game section). Doing the
+  // adjustment during render instead avoids that entirely.
+  const [prevSection, setPrevSection] = useState(effectiveSection);
+  if (effectiveSection !== prevSection) {
+    setPrevSection(effectiveSection);
     setPage(0);
-  }, [effectiveSection]);
+  }
 
   const handleResetGame = () => {
     resetGameProgress();
