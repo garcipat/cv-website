@@ -32,6 +32,15 @@ import {
 } from '../entities/Coin';
 import { FRUIT_FRAME_SIZE, fruitFrameSource } from '../entities/Fruit';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
+import {
+  ENEMY_FRAME_SIZE,
+  ENEMY_RENDERED_SIZE,
+  ENEMY_TILE_OFFSET_X,
+  ENEMY_TILE_OFFSET_Y,
+  enemyFrameSource,
+  enemyIdleFrameIndex,
+} from '../entities/Enemy';
+import type { EnemyPlacement } from '../level/EnemyMapper';
 import { flightEffectPosition, sparkleParticles } from './CollectionEffects';
 import type { FlightEffect } from './CollectionEffects';
 
@@ -344,6 +353,46 @@ export function drawCollectibles(
         COIN_RENDERED_SIZE,
       );
     }
+  }
+}
+
+/**
+ * Draws every enemy at its placement, idling (this step has no movement or
+ * defeat yet — those are roadmap steps 17/18). spriteType picks which sheet:
+ * slimeGreen for Certificates, slimePurple for Projects. Either sprite sheet
+ * may independently be null (not yet loaded); that type's enemies are simply
+ * skipped for the frame, same convention as drawCollectibles's
+ * coinSprite/fruitSprite handling. Same originX/originY convention as
+ * drawTerrain/drawPlayer/drawCollectibles.
+ */
+export function drawEnemies(
+  ctx: CanvasRenderingContext2D,
+  placements: EnemyPlacement[],
+  slimeGreenSprite: HTMLImageElement | null,
+  slimePurpleSprite: HTMLImageElement | null,
+  elapsedSeconds: number,
+  originX = 0,
+  originY = 0,
+): void {
+  ctx.imageSmoothingEnabled = false;
+
+  const frame = enemyIdleFrameIndex(elapsedSeconds);
+  const { sx, sy } = enemyFrameSource('idle', frame);
+
+  for (const placement of placements) {
+    const sprite = placement.spriteType === 'slimeGreen' ? slimeGreenSprite : slimePurpleSprite;
+    if (!sprite) continue;
+    ctx.drawImage(
+      sprite,
+      sx,
+      sy,
+      ENEMY_FRAME_SIZE,
+      ENEMY_FRAME_SIZE,
+      placement.x + ENEMY_TILE_OFFSET_X + originX,
+      placement.y + ENEMY_TILE_OFFSET_Y + originY,
+      ENEMY_RENDERED_SIZE,
+      ENEMY_RENDERED_SIZE,
+    );
   }
 }
 
