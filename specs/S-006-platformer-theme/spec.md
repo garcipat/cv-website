@@ -235,7 +235,7 @@ The level is hand-crafted — starting with a simple layout to validate function
   - Its state is marked as collected in session state
   - The associated CV fact is added to the journal
 
-- **FR-013**: System MUST ensure that every non-empty CV item in Skills, Languages, Experience, Education, Courses, Certificates, and Projects has at least one associated collectible in the level, mapped according to FR-009. Personality and Contact items have no collectibles — they are revealed via the flagpole ending screen and then added to the journal (with bookmarks but no counter). Empty CV sections produce no collectibles and hide their journal bookmark.
+- **FR-013**: System MUST ensure that every non-empty CV item in Skills, Languages, Experience, Education, Courses, Certificates, and Projects has at least one associated collectible in the level, mapped according to FR-009. Personality and Contact items have no collectibles — they are revealed via the flagpole ending screen and then added to the journal (with bookmarks but no counter). Empty CV sections produce no collectibles and hide their journal bookmark. **Amended 2026-08-28**: step 14 added the Personality/"About Me" bookmark ahead of schedule, per user request — it shows the CV's personality data (name, tagline, summary) directly rather than via a collected fact, since no collectible source exists for it yet. This is provisional, pulled forward from the flagpole mechanism above; revisit once step 22 actually implements the flagpole ending screen.
 
 #### Journal
 
@@ -244,14 +244,16 @@ The level is hand-crafted — starting with a simple layout to validate function
 - **FR-015**: System MUST render the journal with:
   - **Notebook paper**: White/off-white page with blue horizontal ruled lines and a red margin line, on top of a slightly larger page underneath for depth
   - **Handwriting font**: `Caveat` (from Google Fonts), using the existing import pattern from `src/index.css`
-  - **Bookmark tabs**: Colored vertical tabs along the right edge, one per non-empty CV section, distributed top-to-bottom. The active tab extends to show its label; inactive tabs appear as thin 12px slivers
+  - **Bookmark tabs**: Colored tabs along the book's top-right edge, one per CV section shown in the journal, laid out left-to-right. The active tab extends further down; inactive tabs show a short peek. **Amended 2026-08-28**: originally specified as vertical tabs along the right edge; moved to the top-right after the real `bookmark_*.png` sprites turned out to be drawn as ribbons hanging from a top attachment point — a side layout looked wrong against that art.
   - **Section header** at the top of the active page
   - **Page counter** at the bottom (e.g., "2 / 5" for pagination)
 
 - **FR-016**: System MUST implement bookmark tab behavior:
-  - Clicking an inactive tab makes it active (extends to 48px with label) and switches the displayed section content
-  - The previously active tab collapses to its inactive state (12px sliver)
-  - Tabs are colored distinctly per section (e.g., amber for Experience, green for Education, blue for Projects)
+  - Clicking an inactive tab makes it active (extends further) and switches the displayed section content
+  - The previously active tab collapses to its inactive state
+  - Tabs are colored distinctly per section, though with only 6 sprite colors for 8 sections two pairs intentionally share a color (courses/certificates, languages/personality) — accepted by the user as provisional until more distinct art exists
+  - Each tab shows the section's icon rather than a text label — a rotated text label read as illegible at the tab's width (amended 2026-08-28, same round as the layout change above)
+  - **Amended 2026-08-28**: the last selected bookmark section is remembered across closing and reopening the journal (not reset to the default every time)
 
 - **FR-017**: System MUST render collected facts within the journal in the **Simple List** entry style (Option A from design mockups): clean bullet-point notes on lined paper with handwriting font, displaying key data fields concisely. Each fact entry includes the section-appropriate icon (🏢 for experience, 🎓 for education, etc.) and key data fields. Skills entries use star ratings (e.g., "TypeScript ★★★★☆").
 
