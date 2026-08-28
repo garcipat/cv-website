@@ -1,4 +1,4 @@
-import { stepEnemyPatrol } from './EnemyAI';
+import { stepEnemyPatrol, stepEnemyHitReaction, HIT_REACTION_DURATION_SECONDS } from './EnemyAI';
 import { toEnemyState } from '../entities/Enemy';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import { PHYSICS_CONFIG } from './PhysicsConfig';
@@ -34,6 +34,10 @@ function makeEnemyAt(col: number) {
     y: 0, // entity row is row 0 in makeLevel's grid
   };
   return toEnemyState(placement);
+}
+
+function makeHitEnemy(hitPoints: number) {
+  return { ...makeEnemyAt(5), animState: 'hit' as const, hitPoints, hitTimer: 0 };
 }
 
 const SPEED = PHYSICS_CONFIG.enemyPatrolSpeed;
@@ -125,5 +129,46 @@ describe('stepEnemyPatrol', () => {
       expect(enemy.x).toBeGreaterThanOrEqual(minX);
       expect(enemy.x).toBeLessThanOrEqual(maxX);
     }
+  });
+});
+
+describe('stepEnemyHitReaction', () => {
+  it('walkState-isUnaffected-returnsSameReference', () => {
+    const enemy = makeEnemyAt(5);
+    const next = stepEnemyHitReaction(enemy, 1 / 30);
+    expect(next).toBe(enemy);
+  });
+
+  it('midReaction-accumulatesHitTimerAndStaysInHitState', () => {
+    const enemy = makeHitEnemy(0);
+    const next = stepEnemyHitReaction(enemy, 0.1);
+    expect(next.animState).toBe('hit');
+    expect(next.hitTimer).toBeCloseTo(0.1);
+    expect(next.defeated).toBe(false);
+  });
+
+  it('reactionDurationElapsed-hitPointsRemaining-revertsToWalk', () => {
+    const enemy = makeHitEnemy(1);
+    const next = stepEnemyHitReaction(enemy, HIT_REACTION_DURATION_SECONDS);
+    expect(next.animState).toBe('walk');
+    expect(next.animFrame).toBe(0);
+    expect(next.animTimer).toBe(0);
+    expect(next.hitTimer).toBe(0);
+    expect(next.defeated).toBe(false);
+  });
+
+  it('reactionDurationElapsed-noHitPointsRemaining-flagsDefeated', () => {
+    const enemy = makeHitEnemy(0);
+    const next = stepEnemyHitReaction(enemy, HIT_REACTION_DURATION_SECONDS);
+    expect(next.defeated).toBe(true);
+    expect(next.animState).toBe('hit'); // stays on its last frame until removed
+  });
+
+  it('reactionDuration-splitAcrossTwoTicks-stillCompletesCorrectly', () => {
+    let enemy = makeHitEnemy(0);
+    enemy = stepEnemyHitReaction(enemy, HIT_REACTION_DURATION_SECONDS / 2);
+    expect(enemy.defeated).toBe(false);
+    enemy = stepEnemyHitReaction(enemy, HIT_REACTION_DURATION_SECONDS / 2);
+    expect(enemy.defeated).toBe(true);
   });
 });
