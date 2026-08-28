@@ -19,6 +19,13 @@ vi.mock('@/state/terminal', () => ({
 
 vi.mock('@/state/theme', () => ({
   currentTheme: { value: 'terminal' },
+  platformerPrototypeUnlocked: { value: false },
+  setPlatformerPrototypeUnlocked: vi.fn(),
+  visibleThemes: { value: [
+    { id: 'ide', label: 'IDE' },
+    { id: 'space', label: 'Space' },
+    { id: 'terminal', label: 'Retro Terminal' },
+  ] },
 }));
 
 vi.mock('@/state/locale', () => ({
