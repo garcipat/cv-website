@@ -26,6 +26,8 @@
 
 ### Optional
 
+- [ ] **O-001** **Checkpoint Persistence** — Saves collected facts and spawn position at each checkpoint, persisting across theme switches so the player can continue later
+
 - _TBD_
 
 ---
@@ -48,7 +50,8 @@
 | S-003 | Scroll animations      | 📋 Planned     | —                                       | ❌             | ❌    |
 | S-004 | Reusable timeline      | 🔶 Partial (IDE) | [spec](docs/superpowers/specs/2026-06-21-interactive-timeline-design.md) | ✅ TimelineSection in IDE | ✅ utils |
 | S-005 | Space background animations | ✅ Done | [spec](../specs/S-005-space-parade/spec.md) | ✅ | ✅ |
-| S-006 | 2D Platformer theme     | 📋 Planned     | —                                       | ❌             | ❌    |
+| S-006 | 2D Platformer theme     | 📋 Planned     | [spec](../specs/S-006-platformer-theme/spec.md) / [roadmap](../specs/S-006-platformer-theme/roadmap.md) | ❌             | ❌    |
+| O-001 | Checkpoint Persistence  | 📋 Planned     | —                                       | ❌             | ❌    |
 
 ---
 
@@ -85,6 +88,7 @@ graph RL
     S004["✅ S-004: Timeline Component"]
     S005["✅ S-005: Space Background Animations"]
     S006["S-006: 2D Platformer Theme"]
+    O001["O-001: Checkpoint Persistence"]
 
     F003 --> F002
     F003 --> F011
@@ -114,6 +118,7 @@ graph RL
     S006 --> F011
     S006 --> F012
     S006 --> F013
+    O001 --> S006
 
     classDef done stroke:#FFD600,stroke-width:3px
     classDef projectSetup fill:#1565C0,color:#ffffff
@@ -135,7 +140,7 @@ graph RL
     class F012,F013 themeInfrastructure
     class F014 done
     class S004 done
-    class S002,S005 enhancements
+    class S002,S005,O001 enhancements
     class S005 done
 ```
 

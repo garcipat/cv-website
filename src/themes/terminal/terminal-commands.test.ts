@@ -245,6 +245,15 @@ describe('executeCommand', () => {
     expect(result).toEqual({ type: 'theme', themeId: 'terminal' });
   });
 
+  it('executeCommand-theme-platformer-returns-theme-platformer', () => {
+    // Arrange
+    const input = ':theme platformer';
+    // Act
+    const result = executeCommand(input);
+    // Assert
+    expect(result).toEqual({ type: 'theme', themeId: 'platformer' });
+  });
+
   // --- :lang command ---
   it('executeCommand-lang-en-returns-lang-en', () => {
     // Arrange

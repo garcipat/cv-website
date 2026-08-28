@@ -15,12 +15,15 @@
     "ide": "IDE",
     "space": "Space",
     "terminal": "Retro Terminal",
+    "platformer": "Platformer",
     "select": "Design auswählen"
   },
   "sections": {
     "summary": "Zusammenfassung",
+    "personality": "Über mich",
     "experience": "Erfahrung",
     "skills": "Kenntnisse",
+    "languages": "Sprachen",
     "projects": "Projekte",
     "education": "Studium",
     "courses": "Kurse",
@@ -65,7 +68,7 @@
       "certs": "Zertifizierungen anzeigen",
       "contact": "Kontaktinformationen anzeigen",
       "help": "Alle verf\u00fcgbaren Befehle auflisten",
-      "theme": "<id> \u2014 Design wechseln (terminal, ide, space)",
+      "theme": "<id> \u2014 Design wechseln (terminal, ide, space, platformer)",
       "lang": "<locale> \u2014 Sprache wechseln (en, de)",
       "cls": "Terminalausgabe l\u00f6schen",
       "reset": "Zum Startbildschirm zur\u00fccksetzen"
@@ -75,7 +78,7 @@
     "helpFooter": "Pfeiltasten Auf/Ab zum Springen zwischen Abschnitten",
     "errors": {
       "unknown": "Unbekannter Befehl '{command}'. Tippe :help f\u00fcr verf\u00fcgbare Befehle.",
-      "invalidTheme": "Ung\u00fcltiges Design '{theme}'. G\u00fcltige Designs: ide, space, terminal.",
+      "invalidTheme": "Ung\u00fcltiges Design '{theme}'. G\u00fcltige Designs: ide, space, terminal, platformer.",
       "invalidLang": "Ung\u00fcltige Sprache '{locale}'. G\u00fcltige Sprachen: en, de."
     },
     "status": {
@@ -125,6 +128,9 @@
       "step3": "Wechseln Sie das Design in der Seitenleiste",
       "step4": "Schalten Sie zwischen EN und DE um"
     },
+    "menuSubitems": {
+      "showPlatformerPrototype": "\"Platformer\" anzeigen"
+    },
     "timeline": {
       "comment": "// Karriere-Zeitleiste — ziehen oder klicken zum Erkunden",
       "coursesNearby": "// Kurse in dieser Zeit",
@@ -135,6 +141,15 @@
         "experience": "Arbeitserfahrung",
         "course": "Kurs"
       }
+    }
+  },
+  "platformer": {
+    "journal": {
+      "collectibles": "Sammelobjekte",
+      "coins": "Münzen",
+      "fruits": "Früchte",
+      "resetGame": "Spiel zurücksetzen",
+      "emptyState": "Noch nichts entdeckt — weiter erkunden!"
     }
   }
 }

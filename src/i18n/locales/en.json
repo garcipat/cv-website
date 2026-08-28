@@ -15,12 +15,15 @@
     "ide": "IDE",
     "space": "Space",
     "terminal": "Retro Terminal",
+    "platformer": "Platformer",
     "select": "Select theme"
   },
   "sections": {
     "summary": "Summary",
+    "personality": "About Me",
     "experience": "Experience",
     "skills": "Skills",
+    "languages": "Languages",
     "projects": "Projects",
     "education": "Education",
     "courses": "Courses",
@@ -65,7 +68,7 @@
       "certs": "View certifications and credentials",
       "contact": "View contact information",
       "help": "List all available commands",
-      "theme": "<id> \u2014 switch theme (terminal, ide, space)",
+      "theme": "<id> \u2014 switch theme (terminal, ide, space, platformer)",
       "lang": "<locale> \u2014 switch language (en, de)",
       "cls": "Clear terminal output",
       "reset": "Reset to intro screen"
@@ -75,7 +78,7 @@
     "helpFooter": "Arrow Up/Down to jump between sections",
     "errors": {
       "unknown": "Unknown command '{command}'. Type :help for available commands.",
-      "invalidTheme": "Invalid theme '{theme}'. Valid themes: ide, space, terminal.",
+      "invalidTheme": "Invalid theme '{theme}'. Valid themes: ide, space, terminal, platformer.",
       "invalidLang": "Invalid locale '{locale}'. Valid locales: en, de."
     },
     "status": {
@@ -125,6 +128,9 @@
       "step3": "Switch themes via the sidebar",
       "step4": "Toggle language between EN and DE"
     },
+    "menuSubitems": {
+      "showPlatformerPrototype": "Show \"Platformer\""
+    },
     "timeline": {
       "comment": "// career timeline — drag or click to explore",
       "coursesNearby": "// courses taken near this period",
@@ -135,6 +141,15 @@
         "experience": "Experience",
         "course": "Course"
       }
+    }
+  },
+  "platformer": {
+    "journal": {
+      "collectibles": "Collectibles",
+      "coins": "Coins",
+      "fruits": "Fruits",
+      "resetGame": "Reset Game",
+      "emptyState": "No facts discovered yet — keep exploring!"
     }
   }
 }
