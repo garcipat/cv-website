@@ -59,17 +59,34 @@ describe('level1', () => {
     expect(lastRow[79]).toBe('groundRock');
   });
 
-  it('wallPocket-boundsTheGreenEnemyMarkerAtTheEnemysOwnRow', () => {
-    // Two wall tiles (cols 44/49) flank the green enemy marker (col 46) —
+  it('greenEnemyWallPocket-boundsTheGreenEnemyMarkerAtTheEnemysOwnRow', () => {
+    // Two wall tiles (cols 26/31) flank the green enemy marker (col 28) —
     // deliberately at the marker's own row, not the ground row below, since
-    // a collision-based patrol check (roadmap step 17) tests the tile at
-    // the enemy's row, not the ground it stands on.
+    // EnemyAI.ts's stepEnemyPatrol tests the tile at the enemy's row, not the
+    // ground it stands on. Both walls: the "bounded by two walls" patrol case.
     expect(ENEMY_TILES_GREEN).toHaveLength(1);
     const [green] = ENEMY_TILES_GREEN;
-    expect(level1.terrain[green.row][44]).toBe('wall');
-    expect(level1.terrain[green.row][49]).toBe('wall');
-    expect(green.col).toBeGreaterThan(44);
-    expect(green.col).toBeLessThan(49);
+    expect(level1.terrain[green.row][26]).toBe('wall');
+    expect(level1.terrain[green.row][31]).toBe('wall');
+    expect(green.col).toBeGreaterThan(26);
+    expect(green.col).toBeLessThan(31);
+  });
+
+  it('purpleEnemyWallPitSandwich-hasAWallOnOneSideAndARealPitOnTheOther', () => {
+    // The user-requested "wall, enemy, pit" case: a wall (col 36) on one
+    // side, a genuine bottomless pit (cols 40-42, no bridge — unlike the
+    // spawn pit's bridge) on the other, with the purple enemy marker (col 38)
+    // between them. Exercises both stepEnemyPatrol's wall-reversal and its
+    // ledge/pit-edge-reversal branch on a single enemy.
+    expect(ENEMY_TILES_PURPLE).toHaveLength(1);
+    const [purple] = ENEMY_TILES_PURPLE;
+    expect(level1.terrain[purple.row][36]).toBe('wall');
+    expect(purple.col).toBeGreaterThan(36);
+    for (const col of [40, 41, 42]) {
+      expect(level1.terrain[level1.height - 1][col]).toBe('empty');
+      expect(level1.terrain[level1.height - 2][col]).toBe('empty');
+    }
+    expect(purple.col).toBeLessThan(40);
   });
 
   it('markers-eachStandsOnAnEmptyTileAboveSolidGround', () => {
@@ -114,5 +131,13 @@ describe('level1', () => {
     expect(level1.terrain[row][col]).toBe('empty');
     expect(level1.terrain[row + 1][col]).toBe('groundGrass');
     expect(isTopExposed(level1, col, row + 1)).toBe(true);
+  });
+
+  it('enemiesAndCollectibles-sitCloseToSpawnForEasyManualTesting', () => {
+    // Roadmap step 17: both enemy markers used to sit ~45 tiles from spawn
+    // (col 1); they must now be reachable within a short walk.
+    for (const tile of [...ENEMY_TILES_GREEN, ...ENEMY_TILES_PURPLE]) {
+      expect(tile.col - SPAWN_TILE.col).toBeLessThan(40);
+    }
   });
 });
