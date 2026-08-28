@@ -57,11 +57,12 @@ import {
 } from './PlatformerState';
 import { Journal } from './components/Journal';
 
-// Horizontal HUD layout: hearts occupy roughly the first 130px from the left
-// margin (3 hearts x 32px + spacing, per drawHearts's own HUD_MARGIN/
-// HEART_SPACING in Renderer.ts) — these two constants position the coin and
-// fruit counters after that, side by side, without duplicating Renderer.ts's
-// private layout constants here.
+// Horizontal HUD layout: hearts start at HEARTS_START_X (shifted right of
+// the journal icon button, see Renderer.ts) and occupy roughly 130px from
+// there (3 hearts x 32px + spacing, per drawHearts's own HEART_SPACING in
+// Renderer.ts) — these two constants position the coin and fruit counters
+// after that, side by side, without duplicating Renderer.ts's private
+// layout constants here.
 const MAX_HEARTS_COUNTER_WIDTH = 130;
 // Wide enough for a 32px icon (now matching HEART_RENDERED_SIZE, not the
 // smaller 20px it used to be) plus its "collected / max" text before the
@@ -249,7 +250,7 @@ export const PlatformerPage = () => {
           { sx: coinFrame0.sx, sy: coinFrame0.sy, size: COIN_FRAME_SIZE },
           coinCollected,
           coinTotal,
-          16 + MAX_HEARTS_COUNTER_WIDTH,
+          HEARTS_START_X + MAX_HEARTS_COUNTER_WIDTH,
           32,
         );
       }
@@ -266,7 +267,7 @@ export const PlatformerPage = () => {
           { sx: fruitFrame0.sx, sy: fruitFrame0.sy, size: FRUIT_FRAME_SIZE },
           fruitCollected,
           fruitTotal,
-          16 + MAX_HEARTS_COUNTER_WIDTH + COLLECTIBLE_COUNTER_SPACING,
+          HEARTS_START_X + MAX_HEARTS_COUNTER_WIDTH + COLLECTIBLE_COUNTER_SPACING,
           32,
         );
       }
