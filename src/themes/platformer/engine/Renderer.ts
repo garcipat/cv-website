@@ -271,17 +271,23 @@ export function drawRestartPrompt(
  * Draws every not-yet-collected placement — coins spin (Coin.ts's
  * coinFrameIndex/coinFrameSource) from `coinSprite`, fruits stay on one
  * fixed icon frame (Fruit.ts's fruitFrameSource, keyed by a stable index
- * derived from the placement's position in the array — good enough for
- * visual variety without needing to store a chosen index per placement)
+ * derived from the placement's position among all fruit-type placements —
+ * good enough for visual variety without needing to store a chosen index
+ * per placement, and stable regardless of which fruits have been collected)
  * from `fruitSprite`. Both bob (Coin.ts's coinBobOffset, shared — bobbing
  * isn't coin-specific). Same originX/originY convention as
  * drawTerrain/drawPlayer.
+ *
+ * `coinSprite`/`fruitSprite` may each independently be `null` (e.g. that
+ * sprite's image failed to load) — that type's collectibles are simply
+ * skipped for the frame rather than the whole call being skipped, so a
+ * missing fruit sprite never hides coins and vice versa.
  */
 export function drawCollectibles(
   ctx: CanvasRenderingContext2D,
   placements: CollectiblePlacement[],
-  coinSprite: HTMLImageElement,
-  fruitSprite: HTMLImageElement,
+  coinSprite: HTMLImageElement | null,
+  fruitSprite: HTMLImageElement | null,
   collectedIds: ReadonlySet<string>,
   elapsedSeconds: number,
   originX = 0,
@@ -295,9 +301,8 @@ export function drawCollectibles(
 
   let fruitIndex = 0;
   for (const placement of placements) {
-    if (collectedIds.has(placement.id)) continue;
-
     if (placement.spriteType === 'coin') {
+      if (collectedIds.has(placement.id) || !coinSprite) continue;
       ctx.drawImage(
         coinSprite,
         coinSource.sx,
@@ -312,6 +317,7 @@ export function drawCollectibles(
     } else {
       const { sx, sy } = fruitFrameSource(fruitIndex);
       fruitIndex += 1;
+      if (collectedIds.has(placement.id) || !fruitSprite) continue;
       ctx.drawImage(
         fruitSprite,
         sx,
