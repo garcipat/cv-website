@@ -265,7 +265,7 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
               onClick={handleClose}
               data-testid="journal-close-button"
               aria-label="Close journal"
-              className="absolute top-[2%] left-[4%] z-10 h-8 w-auto"
+              className="absolute top-[2%] left-[4%] z-20 h-8 w-auto"
             >
               <img
                 src="/sprites/journal-close.png"
@@ -350,10 +350,16 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
             </div>
             {flatPages.length > 1 && (
               <>
-                {/* Hover-reveal page-flip arrows at the outer edges of the
-                    book, per user request — invisible until the mouse
-                    hovers that edge, then fade in (closer to a real
-                    book-flip feel than an always-visible control bar).
+                {/* Hover-reveal page-flip arrows spanning each physical
+                    half of the book (split at the spine), per user
+                    request — hovering anywhere on the left page reveals
+                    the left arrow, anywhere on the right page reveals the
+                    right, not just a thin strip near the outer edge. Real
+                    controls that happen to sit inside a half (the close
+                    button, Reset Game, the bookmark tabs) are all bumped
+                    to z-20 (these zones are z-10) so they stay
+                    independently hoverable/clickable rather than being
+                    shadowed by the full-half zone underneath them.
                     Opacity is toggled via inline style + onMouseEnter/Leave,
                     NOT a Tailwind `hover:opacity-*` class: that class
                     reliably failed to generate any CSS at all in this build
@@ -373,7 +379,7 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
                   onMouseLeave={() => setPrevHovered(false)}
                   data-testid="journal-page-prev"
                   aria-label="Previous page"
-                  className="absolute top-[15%] bottom-[24%] left-0 z-10 flex w-[22%] items-center justify-start"
+                  className="absolute inset-y-0 left-0 z-10 flex w-1/2 items-center justify-start pl-[2%]"
                 >
                   <img
                     src="/sprites/journal-chevron-left.png"
@@ -389,7 +395,7 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
                   onMouseLeave={() => setNextHovered(false)}
                   data-testid="journal-page-next"
                   aria-label="Next page"
-                  className="absolute top-[15%] right-0 bottom-[24%] z-10 flex w-[22%] items-center justify-end"
+                  className="absolute inset-y-0 right-0 z-10 flex w-1/2 items-center justify-end pr-[2%]"
                 >
                   <img
                     src="/sprites/journal-chevron-right.png"
@@ -415,7 +421,7 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
               onClick={handleResetGame}
               data-testid="journal-reset-button"
               aria-label={ui.platformer.journal.resetGame}
-              className="absolute right-[6%] bottom-[10%] z-10 h-8 w-auto"
+              className="absolute right-[6%] bottom-[10%] z-20 h-8 w-auto"
             >
               <img
                 src="/sprites/journal-reset.png"
