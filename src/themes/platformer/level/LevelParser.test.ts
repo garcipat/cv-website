@@ -3,6 +3,8 @@ import {
   findSpawnTile,
   findGreenEnemyTiles,
   findPurpleEnemyTiles,
+  findCoinTiles,
+  findFruitTiles,
   TERRAIN_CHARS,
   ENTITY_CHARS,
 } from './LevelParser';
@@ -41,9 +43,16 @@ describe('parseLevel', () => {
     expect(ENTITY_CHARS.S).toBe('spawn');
     expect(ENTITY_CHARS.E).toBe('enemyGreen');
     expect(ENTITY_CHARS.M).toBe('enemyPurple');
+    expect(ENTITY_CHARS.C).toBe('coin');
+    expect(ENTITY_CHARS.F).toBe('fruit');
   });
 
-  it('noTerrainAndEntityCharOverlap', () => {
+  it('noTerrainAndEntityCharOverlap-documentedByTheModuleLoadGuard', () => {
+    // LevelParser.ts throws at import time if TERRAIN_CHARS/ENTITY_CHARS
+    // ever share a key — this file having loaded at all is that guard
+    // having already passed. This test exists to document the invariant
+    // by name, not to catch a violation itself (a real overlap fails the
+    // whole file at import, before any test body runs).
     const shared = Object.keys(TERRAIN_CHARS).filter((char) => char in ENTITY_CHARS);
     expect(shared).toEqual([]);
   });
@@ -55,6 +64,12 @@ describe('parseLevel', () => {
 
   it('enemyMarkers-parseAsEmptyWalkableTile', () => {
     const result = parseLevel(['EM', 'GG']);
+    expect(result.terrain[0][0]).toBe('empty');
+    expect(result.terrain[0][1]).toBe('empty');
+  });
+
+  it('coinAndFruitMarkers-parseAsEmptyWalkableTile', () => {
+    const result = parseLevel(['CF', 'GG']);
     expect(result.terrain[0][0]).toBe('empty');
     expect(result.terrain[0][1]).toBe('empty');
   });
@@ -109,5 +124,39 @@ describe('findPurpleEnemyTiles', () => {
 
   it('greenMarker-isNotCountedAsPurple', () => {
     expect(findPurpleEnemyTiles(['E.'])).toEqual([]);
+  });
+});
+
+describe('findCoinTiles', () => {
+  it('noMarkers-returnsEmptyArray', () => {
+    expect(findCoinTiles(['GG', 'GG'])).toEqual([]);
+  });
+
+  it('multipleMarkers-returnsAllInReadingOrder', () => {
+    expect(findCoinTiles(['.C', 'C.'])).toEqual([
+      { col: 1, row: 0 },
+      { col: 0, row: 1 },
+    ]);
+  });
+
+  it('fruitMarker-isNotCountedAsCoin', () => {
+    expect(findCoinTiles(['F.'])).toEqual([]);
+  });
+});
+
+describe('findFruitTiles', () => {
+  it('noMarkers-returnsEmptyArray', () => {
+    expect(findFruitTiles(['GG', 'GG'])).toEqual([]);
+  });
+
+  it('multipleMarkers-returnsAllInReadingOrder', () => {
+    expect(findFruitTiles(['.F', 'F.'])).toEqual([
+      { col: 1, row: 0 },
+      { col: 0, row: 1 },
+    ]);
+  });
+
+  it('coinMarker-isNotCountedAsFruit', () => {
+    expect(findFruitTiles(['C.'])).toEqual([]);
   });
 });
