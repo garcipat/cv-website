@@ -3,7 +3,6 @@ import type { CVData } from '@/types/cv';
 import type { CollectedFact } from '../types';
 
 export interface CollectibleSummaryRow {
-  icon: string;
   labelKey: 'coins' | 'fruits';
   collected: number;
   total: number;
@@ -27,7 +26,6 @@ export function collectiblesSummary(cv: CVData, facts: CollectedFact[]): Collect
   const skillsTotal = sectionTotal(cv, 'skills');
   if (skillsTotal > 0) {
     rows.push({
-      icon: '🪙',
       labelKey: 'coins',
       collected: facts.filter((f) => f.sectionId === 'skills').length,
       total: skillsTotal,
@@ -37,7 +35,6 @@ export function collectiblesSummary(cv: CVData, facts: CollectedFact[]): Collect
   const languagesTotal = sectionTotal(cv, 'languages');
   if (languagesTotal > 0) {
     rows.push({
-      icon: '🍎',
       labelKey: 'fruits',
       collected: facts.filter((f) => f.sectionId === 'languages').length,
       total: languagesTotal,

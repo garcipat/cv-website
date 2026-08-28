@@ -33,6 +33,27 @@ describe('formatJournalEntry', () => {
     expect(result.title).toBe('React ★★★★☆');
   });
 
+  it('skillCategoryFact-anyLevel-ratedItemsListsEachSkillWithItsOwnStarRating', () => {
+    const result = formatJournalEntry(
+      fact({
+        sectionId: 'skills',
+        data: {
+          category: 'Backend',
+          skills: [
+            { name: 'C#', level: 90 },
+            { name: '.NET', level: 60 },
+          ],
+        },
+      }),
+    );
+    expect(result.title).toBe('Backend');
+    expect(result.subtitle).toBeUndefined();
+    expect(result.ratedItems).toEqual([
+      { name: 'C#', stars: '★★★★★' },
+      { name: '.NET', stars: '★★★☆☆' },
+    ]);
+  });
+
   it('languageFact-anyLevel-titleIncludesNameAndStarsIconIsFlag', () => {
     const result = formatJournalEntry(
       fact({

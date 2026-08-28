@@ -98,10 +98,15 @@ export function sectionTotal(cv: CVData, section: SectionId): number {
 }
 
 /**
- * Sections whose entries are long enough (company/role/dates/description,
- * etc.) to need one-entry-per-page pagination, per user request during step
- * 15 planning. `skills`/`languages` entries are compact and stay grouped
- * together on a single page instead.
+ * Sections that paginate one entry per page (roadmap step 15, revised per
+ * live user feedback against real CV data): `experience`/`projects`/
+ * `education`/`courses`/`certificates` because their entries are long and
+ * may need the full page spread each; `skills` too, because a category's
+ * skill list (with star ratings, see `formatJournalEntry`) reads better one
+ * category per page than all categories crammed into one scrolling list.
+ * `languages` is the one exception left ungrouped-by-page — a language
+ * entry is a single short "Name ★★★★☆" line, so all of them fit together
+ * on one page without needing page controls.
  */
 const PAGINATED_SECTIONS = new Set<SectionId>([
   'experience',
@@ -109,8 +114,10 @@ const PAGINATED_SECTIONS = new Set<SectionId>([
   'education',
   'courses',
   'certificates',
+  'skills',
 ]);
 
 export function isPaginatedSection(section: SectionId): boolean {
   return PAGINATED_SECTIONS.has(section);
 }
+

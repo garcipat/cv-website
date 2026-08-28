@@ -584,6 +584,32 @@ describe('PlatformerPage', () => {
     expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(true);
   });
 
+  it('playerOverlapsACollectible-tick-flightEffectCarriesAnIconSeparateFromText', () => {
+    // The icon (a language's flag, or the section's generic symbol — 💡 for
+    // skills) is drawn separately from the effect's text (see Renderer.ts:
+    // the pixel font `text` uses has no emoji glyphs), so it must actually
+    // reach the effect as its own field, not be missing or baked into
+    // `text`.
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const target = collectiblePlacements.find((p) => p.spriteType === 'coin')!;
+    playerState.value = { ...playerState.value, x: target.x, y: target.y };
+
+    frameCallback!(16);
+
+    const effect = activeEffects.value.find((e) => e.id === target.id);
+    expect(effect?.icon).toBe('💡');
+    expect(effect?.text).not.toContain('💡');
+  });
+
   it('alreadyCollected-touchedAgainAfterRespawn-doesNotDuplicateFact', () => {
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
@@ -864,6 +890,51 @@ describe('PlatformerPage', () => {
 
     expect(screen.queryByTestId('platformer-journal')).not.toBeInTheDocument();
     expect(lifecycleState.value.phase).toBe('playing');
+
+    vi.useRealTimers();
+  });
+
+  it('journalResetGameButtonClicked-whileOpen-clearsProgressClosesJournalImmediatelyAndEntersIntro', () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('requestAnimationFrame', () => 1);
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    lifecycleState.value = { ...lifecycleState.value, phase: 'playing' };
+    fireEvent.keyDown(window, { code: 'KeyJ' });
+
+    // The Reset Game button only renders once the book-opening animation
+    // finishes — get there first, same as every other journal-content test.
+    for (let i = 0; i < JOURNAL_OPEN_FRAME_COUNT; i++) {
+      act(() => {
+        vi.advanceTimersByTime(JOURNAL_OPEN_FRAME_INTERVAL_MS);
+      });
+    }
+
+    collectedFacts.value = [
+      {
+        id: 'coin-frontend',
+        sectionId: 'skills',
+        sectionLabel: 'Skills',
+        data: { category: 'Frontend', skills: [{ name: 'React', level: 80 }] },
+        sourceType: 'coin',
+      },
+    ];
+    collectedCollectibleIds.value = new Set(['coin-frontend']);
+    playerState.value = { ...playerState.value, x: 999, y: 999 };
+    healthState.value = 0;
+    cameraPositionX.value = 300;
+
+    fireEvent.click(screen.getByTestId('journal-reset-button'));
+
+    expect(screen.queryByTestId('platformer-journal')).not.toBeInTheDocument();
+    expect(collectedFacts.value).toEqual([]);
+    expect(collectedCollectibleIds.value.size).toBe(0);
+    expect(healthState.value).toBe(MAX_HALF_HEARTS);
+    expect(lifecycleState.value.phase).toBe('intro');
+    expect(playerState.value.x).toBe(initialPlayerState.x);
+    expect(playerState.value.y).toBe(initialPlayerState.y);
+    expect(cameraPositionX.value).toBe(0);
 
     vi.useRealTimers();
   });

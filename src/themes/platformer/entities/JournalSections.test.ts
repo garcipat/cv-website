@@ -122,16 +122,19 @@ describe('sectionTotal', () => {
 });
 
 describe('isPaginatedSection', () => {
-  it('longEntrySections-returnTrue', () => {
+  it('longEntrySectionsAndSkills-returnTrue', () => {
     expect(isPaginatedSection('experience')).toBe(true);
     expect(isPaginatedSection('projects')).toBe(true);
     expect(isPaginatedSection('education')).toBe(true);
     expect(isPaginatedSection('courses')).toBe(true);
     expect(isPaginatedSection('certificates')).toBe(true);
+    expect(isPaginatedSection('skills')).toBe(true);
   });
 
-  it('compactEntrySections-returnFalse', () => {
-    expect(isPaginatedSection('skills')).toBe(false);
+  it('languages-returnsFalse', () => {
+    // A language entry is one short "Name ★★★★☆" line — all of them fit
+    // together on one page, unlike skill categories (whose skill lists can
+    // run long) or the other long-entry sections.
     expect(isPaginatedSection('languages')).toBe(false);
   });
 });

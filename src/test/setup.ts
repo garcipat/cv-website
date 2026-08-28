@@ -30,6 +30,11 @@ HTMLCanvasElement.prototype.getContext = function (
       imageSmoothingEnabled: true,
       fillRect: vi.fn(),
       fillText: vi.fn(),
+      // Returns a fixed, non-zero width — real glyph metrics don't matter
+      // for any test (nothing asserts on measured text width), only that
+      // callers relying on it (e.g. Renderer.ts's icon-positioning next to
+      // collection-effect text) don't crash on a missing mock method.
+      measureText: vi.fn(() => ({ width: 10 })),
       drawImage: vi.fn(),
       save: vi.fn(),
       restore: vi.fn(),

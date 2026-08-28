@@ -35,6 +35,7 @@ import { startFlightEffect, tickFlightEffect, COLLECTION_TEXT_SLOT_COUNT } from 
 import { coinFrameSource, COIN_FRAME_SIZE } from './entities/Coin';
 import { fruitFrameSource, FRUIT_FRAME_SIZE } from './entities/Fruit';
 import { isSkillCategoryFact } from './types';
+import { SECTION_ICON } from './entities/JournalEntry';
 import { RENDERED_TILE_SIZE } from './level/Terrain';
 import {
   advancePlayerAnimation,
@@ -50,6 +51,7 @@ import {
   lifecycleState,
   spawnCenter,
   resetGame,
+  resetGameProgress,
   collectiblePlacements,
   collectedCollectibleIds,
   activeEffects,
@@ -154,6 +156,21 @@ export const PlatformerPage = () => {
     setJournalOpen(false);
     setJournalClosing(false);
   }, []);
+
+  /**
+   * Reset Game (journal button, FR-018b): clears collected progress and
+   * closes the journal immediately (no reverse-close animation — per user
+   * request, just an instant close), then starts the same iris-in
+   * transition as a death respawn/debug respawn, centered on the
+   * freshly-spawned player, so the whole thing reads as "starting again"
+   * rather than "closing back into a paused game".
+   */
+  const handleResetGameRequested = () => {
+    resetGameProgress();
+    setJournalOpen(false);
+    const center = spawnCenter();
+    lifecycleState.value = introState(center.x, center.y);
+  };
 
   const handleDebugKill = () => {
     healthState.value = 0;
@@ -394,6 +411,15 @@ export const PlatformerPage = () => {
           const label = isSkillCategoryFact(placement.fact.data)
             ? placement.fact.data.category
             : ('name' in placement.fact.data ? placement.fact.data.name : placement.fact.sectionLabel);
+          // The same icon the journal uses (a language's own flag emoji if
+          // it has one, per formatJournalEntry's `icon` resolution;
+          // SECTION_ICON's generic symbol otherwise — 💡 for skills) — per
+          // user request, to distinguish a skill pickup from a language one
+          // at a glance. Passed to `startFlightEffect` separately, NOT
+          // concatenated into `label`: Renderer.ts draws it in a different
+          // font (the pixel font `label` uses has no emoji glyphs).
+          const flag = 'flag' in placement.fact.data ? placement.fact.data.flag : undefined;
+          const icon = typeof flag === 'string' ? flag : SECTION_ICON[placement.fact.sectionId];
           // Fast/simultaneous pickups cycle through a fixed set of vertical
           // slots (1, 2, 3, 1, 2, 3, ...) instead of every fact text landing
           // on the same spot. The offset applies to BOTH the rise's start
@@ -413,6 +439,7 @@ export const PlatformerPage = () => {
               midY + stackOffsetY,
               targetX,
               targetY,
+              icon,
             ),
           );
         }
@@ -570,7 +597,11 @@ export const PlatformerPage = () => {
       <canvas ref={canvasRef} data-testid="platformer-canvas" className="block" tabIndex={-1} />
       <FloatingControls />
       {journalOpen && (
-        <Journal onClose={handleJournalReallyClosed} closeRequested={journalClosing} />
+        <Journal
+          onClose={handleJournalReallyClosed}
+          closeRequested={journalClosing}
+          onResetGame={handleResetGameRequested}
+        />
       )}
       {/* Moved from bottom-right to top-left (was hard to spot against the
           terrain) — sits left of the hearts HUD, which HEARTS_START_X

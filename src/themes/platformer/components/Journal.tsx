@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSignals } from '@preact/signals-react/runtime';
 import { currentCV, currentUI } from '@/state/locale';
-import { collectedFacts, activeJournalSection, resetGameProgress } from '../PlatformerState';
+import { collectedFacts, activeJournalSection } from '../PlatformerState';
 import { formatJournalEntry } from '../entities/JournalEntry';
 import {
   JOURNAL_SECTION_ORDER,
@@ -11,6 +11,8 @@ import {
   isPaginatedSection,
 } from '../entities/JournalSections';
 import { collectiblesSummary } from '../entities/CollectiblesSummary';
+import { COIN_FRAME_SIZE, COIN_FRAME_COUNT } from '../entities/Coin';
+import { FRUIT_FRAME_SIZE } from '../entities/Fruit';
 import {
   journalOpenFrameSrc,
   JOURNAL_OPEN_FRAME_COUNT,
@@ -26,6 +28,12 @@ interface JournalProps {
    * top-left icon button, the `J` key) close the journal the same graceful
    * way instead of unmounting it instantly. */
   closeRequested: boolean;
+  /** Called when the Reset Game button is clicked. Everything it does
+   * (clearing collected progress, closing the journal immediately with no
+   * animation, and starting the iris-in "starting again" transition) lives
+   * in `PlatformerPage.tsx`'s `handleResetGameRequested` — this component
+   * only forwards the click. */
+  onResetGame: () => void;
 }
 
 /**
@@ -55,7 +63,7 @@ interface JournalProps {
  * source, from any frame (even mid-opening), just reverses from wherever
  * `frame` currently is.
  */
-export const Journal = ({ onClose, closeRequested }: JournalProps) => {
+export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) => {
   useSignals();
   const facts = collectedFacts.value;
   const cv = currentCV.value;
@@ -135,19 +143,77 @@ export const Journal = ({ onClose, closeRequested }: JournalProps) => {
     setPage(0);
   }
 
-  const handleResetGame = () => {
-    resetGameProgress();
-    setPage(0);
+  // Resetting is entirely the parent's job — clearing progress, closing the
+  // journal immediately (no reverse-close animation, per user request), and
+  // starting the iris-in restart transition all live in
+  // PlatformerPage.tsx's handleResetGameRequested. This component just
+  // forwards the click.
+  const handleResetGame = () => onResetGame();
+
+  // Renders the same coin.png/fruit.png sprites used in the level/HUD (not
+  // emoji) for the personality page's collectibles summary, per user
+  // feedback — cropped to each sheet's first frame (matching the HUD
+  // counter's static icon, drawCollectibleCounter's `coinFrameSource(0)`/
+  // `fruitFrameSource(0)` in Renderer.ts/PlatformerPage.tsx) at a small
+  // fixed display size, scaling the whole sheet's `background-size` up so
+  // that one frame lands exactly on the crop.
+  const COLLECTIBLE_ICON_DISPLAY_SIZE = 32;
+  // coin.png is a 1-row strip (COIN_FRAME_COUNT columns); fruit.png is a 4x4
+  // grid — both sheets' width/height-in-frames must be scaled independently
+  // or frame 0's crop distorts (e.g. fruit.png's 4 rows squashed into 1).
+  const renderCollectibleIcon = (labelKey: 'coins' | 'fruits') => {
+    const sheetSrc = labelKey === 'coins' ? '/sprites/coin.png' : '/sprites/fruit.png';
+    const frameSize = labelKey === 'coins' ? COIN_FRAME_SIZE : FRUIT_FRAME_SIZE;
+    const sheetCols = labelKey === 'coins' ? COIN_FRAME_COUNT : 4;
+    const sheetRows = labelKey === 'coins' ? 1 : 4;
+    const scale = COLLECTIBLE_ICON_DISPLAY_SIZE / frameSize;
+    return (
+      <span
+        aria-hidden="true"
+        className="mr-1 inline-block align-middle"
+        style={{
+          width: COLLECTIBLE_ICON_DISPLAY_SIZE,
+          height: COLLECTIBLE_ICON_DISPLAY_SIZE,
+          backgroundImage: `url(${sheetSrc})`,
+          backgroundPosition: '0 0',
+          backgroundSize: `${sheetCols * frameSize * scale}px ${sheetRows * frameSize * scale}px`,
+          imageRendering: 'pixelated',
+        }}
+      />
+    );
   };
 
   const renderFactRow = (fact: CollectedFact) => {
     const entry = formatJournalEntry(fact);
     return (
       <li key={fact.id} data-testid="journal-fact-item">
-        <span>
+        <span className="break-inside-avoid-column">
           {entry.icon} {entry.title}
         </span>
-        {entry.subtitle && <span className="ml-6 block text-sm text-gray-500">{entry.subtitle}</span>}
+        {entry.ratedItems ? (
+          // One flex row per skill, name and stars pinned to opposite
+          // edges — plain joined text left the stars ragged against
+          // variable-length names (Caveat is not monospace), per user
+          // feedback. No `break-inside-avoid` on the outer `<li>` — a long
+          // category's skill list is exactly what should flow across the
+          // book's column break (per user feedback); only each individual
+          // skill row avoids splitting mid-row.
+          <ul className="ml-6">
+            {entry.ratedItems.map((item) => (
+              <li
+                key={item.name}
+                className="flex justify-between gap-2 break-inside-avoid-column text-xs text-gray-500"
+              >
+                <span>{item.name}</span>
+                <span>{item.stars}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          entry.subtitle && (
+            <span className="ml-6 block text-xs whitespace-pre-line text-gray-500">{entry.subtitle}</span>
+          )
+        )}
       </li>
     );
   };
@@ -187,12 +253,12 @@ export const Journal = ({ onClose, closeRequested }: JournalProps) => {
               }}
             >
               {effectiveSection && (
-                <h2 className="font-caveat mb-2 flex items-baseline gap-3 text-3xl font-bold">
+                <h2 className="font-caveat mb-2 flex items-baseline gap-3 text-2xl font-bold">
                   {sectionLabel(effectiveSection)}
                   {sectionCounterTotal !== undefined && (
                     <span
                       data-testid="journal-section-counter"
-                      className="text-base font-normal text-gray-400"
+                      className="text-sm font-normal text-gray-400"
                     >
                       {sectionFacts.length} / {sectionCounterTotal}
                     </span>
@@ -200,77 +266,89 @@ export const Journal = ({ onClose, closeRequested }: JournalProps) => {
                 </h2>
               )}
               {/* The book is drawn as two physical pages with a spine down
-                  the middle (see journal_open_9.png). Grouped sections
-                  (Skills/Languages) use `columns-2` to flow their compact
-                  list across both halves like a real book page; personality
-                  and paginated sections (Experience/Projects/etc., roadmap
-                  step 15) use the full spread as one canvas instead — a
-                  single long entry, or the bio + collectibles summary,
-                  doesn't read well split mid-sentence across a column
-                  break. */}
-              <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+                  the middle (see journal_open_9.png). Every list-shaped
+                  section (Languages, and every paginated section's single
+                  visible entry) flows via `columns-2` + `column-fill: auto`
+                  — short content stays entirely on the left page; long
+                  content (a big skill category, a long Experience entry)
+                  spills onto the right page instead of needing an internal
+                  scrollbar, per user feedback. `overflow-y-auto` stays as a
+                  last-resort fallback for content too long even for both
+                  pages. Personality is the one exception (a fixed
+                  bio-left/summary-right split via CSS grid, not flowing
+                  columns — the two halves are different content, not one
+                  list). The pager (when `paginated`) is a sibling BELOW this
+                  scrollable area, not inside it, so it stays visible
+                  regardless of how much the content above scrolls — it was
+                  previously inside the scrollable region and could end up
+                  scrolled out of view for a long entry. */}
+              <div className="min-h-0 flex-1 overflow-y-auto">
                 {effectiveSection === 'personality' ? (
-                  <div className="grid flex-1 grid-cols-2 gap-[9%]">
-                    <div className="font-caveat text-lg text-gray-700">
-                      <p className="text-xl font-semibold">{cv.personality.name}</p>
-                      <p className="text-gray-500 italic">{cv.personality.tagline}</p>
-                      <p className="mt-2 whitespace-pre-line">{cv.personality.summary}</p>
+                  <div className="grid h-full grid-cols-2 gap-[9%]">
+                    <div className="font-caveat text-gray-700">
+                      <p className="text-lg font-semibold">{cv.personality.name}</p>
+                      <p className="text-sm text-gray-500 italic">{cv.personality.tagline}</p>
+                      <p className="mt-2 text-base leading-snug whitespace-pre-line">{cv.personality.summary}</p>
                     </div>
                     <div
                       data-testid="journal-collectibles-summary"
                       className="font-caveat text-lg text-gray-700"
                     >
                       <p className="text-xl font-semibold">{ui.platformer.journal.collectibles}</p>
-                      <ul className="mt-2 space-y-1">
+                      <ul className="mt-2 space-y-1.5">
                         {collectiblesSummary(cv, facts).map((row) => (
-                          <li key={row.labelKey}>
-                            {row.icon} {ui.platformer.journal[row.labelKey]} {row.collected} / {row.total}
+                          <li key={row.labelKey} className="flex items-center">
+                            {renderCollectibleIcon(row.labelKey)}
+                            {ui.platformer.journal[row.labelKey]} {row.collected} / {row.total}
                           </li>
                         ))}
                       </ul>
                     </div>
                   </div>
                 ) : sectionFacts.length === 0 ? (
-                  <p data-testid="journal-empty-state" className="font-caveat text-lg text-gray-500">
+                  <p data-testid="journal-empty-state" className="font-caveat text-sm text-gray-500">
                     {ui.platformer.journal.emptyState}
                   </p>
                 ) : paginated ? (
-                  <>
-                    <ul className="font-caveat flex-1 space-y-1 text-lg">
-                      {renderFactRow(sectionFacts[currentPage])}
-                    </ul>
-                    <div className="flex items-center justify-center gap-4 pt-2 text-sm text-gray-500">
-                      <button
-                        type="button"
-                        data-testid="journal-page-prev"
-                        aria-label="Previous fact"
-                        disabled={currentPage === 0}
-                        onClick={() => setPage(Math.max(0, currentPage - 1))}
-                        className="rounded px-2 py-1 text-lg disabled:opacity-30"
-                      >
-                        ‹
-                      </button>
-                      <span data-testid="journal-page-counter">
-                        {currentPage + 1} / {sectionFacts.length}
-                      </span>
-                      <button
-                        type="button"
-                        data-testid="journal-page-next"
-                        aria-label="Next fact"
-                        disabled={currentPage >= sectionFacts.length - 1}
-                        onClick={() => setPage(Math.min(sectionFacts.length - 1, currentPage + 1))}
-                        className="rounded px-2 py-1 text-lg disabled:opacity-30"
-                      >
-                        ›
-                      </button>
-                    </div>
-                  </>
+                  <ul
+                    className="font-caveat h-full columns-2 gap-[9%] space-y-1 text-sm"
+                    style={{ columnFill: 'auto' }}
+                  >
+                    {renderFactRow(sectionFacts[currentPage])}
+                  </ul>
                 ) : (
-                  <ul className="font-caveat columns-2 gap-[9%] space-y-1 text-lg">
+                  <ul className="font-caveat columns-2 gap-[9%] space-y-1 text-sm">
                     {sectionFacts.map(renderFactRow)}
                   </ul>
                 )}
               </div>
+              {paginated && sectionFacts.length > 0 && (
+                <div className="flex items-center justify-center gap-4 pt-2 text-xs text-gray-500">
+                  <button
+                    type="button"
+                    data-testid="journal-page-prev"
+                    aria-label="Previous fact"
+                    disabled={currentPage === 0}
+                    onClick={() => setPage(Math.max(0, currentPage - 1))}
+                    className="rounded px-2 py-1 text-base disabled:opacity-30"
+                  >
+                    ‹
+                  </button>
+                  <span data-testid="journal-page-counter">
+                    {currentPage + 1} / {sectionFacts.length}
+                  </span>
+                  <button
+                    type="button"
+                    data-testid="journal-page-next"
+                    aria-label="Next fact"
+                    disabled={currentPage >= sectionFacts.length - 1}
+                    onClick={() => setPage(Math.min(sectionFacts.length - 1, currentPage + 1))}
+                    className="rounded px-2 py-1 text-base disabled:opacity-30"
+                  >
+                    ›
+                  </button>
+                </div>
+              )}
             </div>
             <button
               type="button"
