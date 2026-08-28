@@ -141,28 +141,50 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
 
 ## Iteration 2 — Enemies + blocks + flagpole + audio (P2)
 
-- [x] **16. Enemy render** — CollectibleMapper extended for Certificates/Projects,
-  mapping Certificates to `slime_green.png` and Projects to `slime_purple.png` (two
-  visually distinct enemy types, mirroring the coin/fruit split for Skills/
-  Languages). Both sheets are a 4x3 grid of 24x24 frames; a trial frame mapping —
-  row 0 (4 frames) idle "awakening" loop, row 1 (4 frames) walk animation, row 2
-  (3 green + 1 red frame) hit-reaction, reserved for steps 18/19 — was proposed and
-  then adjusted after watching the full sheet animate live: frames 1-3 read as a
-  mostly-featureless blob, and frames 9-12 read as the slime dissolving toward a
-  near-black silhouette (a hit/defeat reaction, not idle), so the shipped idle loop
-  instead uses frames 4-8 — spanning the end of row 0 into all of row 1 — which
-  loop well as an idle breathing/bounce cycle. Enemies render with this tuned
-  frames-4-8 idle loop at their level positions. No movement, no interaction yet.
-  *Verify: both green (Certificates) and purple (Projects) slimes are visible on
-  their assigned platforms, idling, positioned per the CollectibleMapper output.*
+- [x] **16. Enemy render** — extended well beyond its original "render only" scope,
+  live with the user, into a full rework of how levels are authored:
+  - **Level format split**: `level/LevelParser.ts` (new) owns `parseLevel`,
+    `TERRAIN_CHARS` (terrain characters), and `ENTITY_CHARS` (entity-marker
+    characters — kept as two separate maps, with a load-time guard against a
+    character being defined in both). `level1.ts` is now pure layout data: no
+    parsing logic, and every row is a full literal 80-character string (no
+    `padEnd`/`pad` helper) so the level's shape is readable directly in the file.
+    Height is read from the array's length, not a fixed constant — a level is only
+    as tall as its tallest feature needs, bottom-anchored (last row = lowest
+    ground row).
+  - **Intentional placement, no auto-placement** — `S` (spawn), `E` (green/
+    Certificate enemy), `M` (purple/Project enemy), `C` (Skill-category coin), `F`
+    (Language fruit) are hand-placed markers in the level layout. `EnemyMapper.ts`'s
+    `placeEnemies` and `CollectibleMapper.ts`'s `placeCollectibles` both dropped
+    their old auto-column-placement algorithm entirely (and the `groundColumns`/
+    `groundRowForColumn` helpers it depended on, now deleted from `Terrain.ts` as
+    dead code): a marker is a slot on the map, and each slot draws the *next*
+    fact from CVData (in section order) as its reward. A level with fewer markers
+    of a type than CVData has facts of that type simply doesn't put the excess on
+    the map yet — not an error, since a level is authored incrementally.
+  - **`level1` redesigned as a small mechanics-test layout** (not a final design):
+    1 green slime, 1 purple slime, 4 coins, 2 fruits, plus a new two-`W`-wall
+    pocket (cols 44/49) bounding the green slime — a prepared spot for step 17's
+    walled-patrol case. Enemies render idling only (both sheets are a 4x3 grid of
+    24x24 frames; the shipped idle loop uses frames 4-8, tuned live after watching
+    the full sheet animate — frames 1-3 read as a featureless blob, frames 9-12 as
+    a hit/dissolve reaction). **Known gap for step 17**: the `walk` animation
+    entry still points at the untuned row 1, which now visually duplicates the
+    tuned idle frames — needs a real distinct frame range (or redesign) before
+    patrol relies on it looking different from idle.
+  *Verify: the green (Certificate) and purple (Project) slimes are visible at
+  their `E`/`M` marker positions, idling; the 4 coins and 2 fruits are visible at
+  their `C`/`F` marker positions; the wall pocket (cols 44-49) is visible on the
+  ground row.*
 - [ ] **17. Enemy patrol** — enemies of both types move back and forth within their
-  patrol range using the row-1 walk animation, reversing direction at either (a)
-  explicit patrol boundaries (walls) or (b) an unbounded platform edge (cliff/ledge
-  detection). `level1` is adjusted to exercise both cases: at least one enemy
-  patrolling between two walls, and at least one enemy on a ledge with open space at
-  one or both ends, relying on edge-detection alone.
-  *Verify: the walled enemy bounces between its two walls, animating its walk cycle;
-  the ledge enemy reverses at the platform's edge instead of walking off into a pit.*
+  patrol range (needs a real, distinct walk animation first — see step 16's known
+  gap), reversing direction at either (a) explicit patrol boundaries (the wall
+  pocket already in `level1`, cols 44/49) or (b) an unbounded platform edge
+  (cliff/ledge detection) — `level1` still needs at least one enemy on an open
+  ledge to exercise the second case.
+  *Verify: the walled enemy bounces between its two walls, animating a walk cycle
+  visibly distinct from idle; the ledge enemy reverses at the platform's edge
+  instead of walking off into a pit.*
 - [ ] **18. Stomp defeat** — jumping on an enemy defeats it with a poof animation
   (row-2 hit-reaction frames, including the red flash frame), fact flies to the
   journal.
