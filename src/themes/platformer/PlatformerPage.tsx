@@ -7,6 +7,7 @@ import {
   drawPlayer,
   drawHearts,
   drawCollectibles,
+  drawEnemies,
   drawCollectionEffects,
   drawCollectibleCounter,
   drawIrisOverlay,
@@ -53,6 +54,7 @@ import {
   resetGame,
   resetGameProgress,
   collectiblePlacements,
+  enemyPlacements,
   collectedCollectibleIds,
   activeEffects,
   collectedFacts,
@@ -84,6 +86,8 @@ export const PlatformerPage = () => {
   const heartsSpriteRef = useRef<HTMLImageElement | null>(null);
   const coinSpriteRef = useRef<HTMLImageElement | null>(null);
   const fruitSpriteRef = useRef<HTMLImageElement | null>(null);
+  const slimeGreenSpriteRef = useRef<HTMLImageElement | null>(null);
+  const slimePurpleSpriteRef = useRef<HTMLImageElement | null>(null);
   const journalButtonRef = useRef<HTMLButtonElement>(null);
   const debugParams = new URLSearchParams(window.location.search);
   // Any `debug` param (not just `hitboxes`) shows the debug panel (Kill/
@@ -193,10 +197,11 @@ export const PlatformerPage = () => {
     // property change on any other frame.
     let backgroundColor = '#000';
 
-    // Shared spin-cycle timer for every coin (see Coin.ts's coinFrameIndex) —
-    // a plain variable, not a signal, since nothing outside this render loop
-    // needs to read or react to it.
-    let coinAnimElapsed = 0;
+    // Shared spin/idle-loop timer for every coin and enemy (see Coin.ts's
+    // coinFrameIndex, Enemy.ts's enemyIdleFrameIndex) — a plain variable, not
+    // a signal, since nothing outside this render loop needs to read or
+    // react to it.
+    let worldAnimElapsed = 0;
 
     // Cycles 0, 1, 2, 0, 1, 2, ... across collections (not reset per-tick) so
     // fast/simultaneous pickups' fact text rotates through a fixed set of
@@ -241,7 +246,19 @@ export const PlatformerPage = () => {
           coinSpriteRef.current,
           fruitSpriteRef.current,
           collectedCollectibleIds.value,
-          coinAnimElapsed,
+          worldAnimElapsed,
+          originX,
+          originY,
+        );
+      }
+
+      if (slimeGreenSpriteRef.current || slimePurpleSpriteRef.current) {
+        drawEnemies(
+          ctx,
+          enemyPlacements,
+          slimeGreenSpriteRef.current,
+          slimePurpleSpriteRef.current,
+          worldAnimElapsed,
           originX,
           originY,
         );
@@ -364,10 +381,10 @@ export const PlatformerPage = () => {
         return;
       }
 
-      // Coins only spin/bob while the game is actually live — frozen during
-      // death/restart/journal-pause, same as physics below, rather than
-      // ticking on a wall-clock independent of the paused state.
-      coinAnimElapsed += dt;
+      // Coins/enemies only animate while the game is actually live — frozen
+      // during death/restart/journal-pause, same as physics below, rather
+      // than ticking on a wall-clock independent of the paused state.
+      worldAnimElapsed += dt;
 
       activeEffects.value = activeEffects.value
         .map((effect) => tickFlightEffect(effect, dt))
@@ -570,6 +587,26 @@ export const PlatformerPage = () => {
       .catch(() => {
         // Fruits simply won't render if the sprite fails to load; coins and
         // the rest of the game still show.
+      });
+    loadImage('/sprites/slime_green.png')
+      .then((img) => {
+        if (cancelled) return;
+        slimeGreenSpriteRef.current = img;
+        render();
+      })
+      .catch(() => {
+        // Green (Certificates) enemies simply won't render if the sprite
+        // fails to load; the rest of the game still shows.
+      });
+    loadImage('/sprites/slime_purple.png')
+      .then((img) => {
+        if (cancelled) return;
+        slimePurpleSpriteRef.current = img;
+        render();
+      })
+      .catch(() => {
+        // Purple (Projects) enemies simply won't render if the sprite fails
+        // to load; the rest of the game still shows.
       });
     loadFont(RESTART_PROMPT_FONT_FAMILY, RESTART_PROMPT_FONT_URL)
       .then(() => {

@@ -3,6 +3,7 @@ import { vi } from 'vitest';
 import { PlatformerPage } from './PlatformerPage';
 import { platformerPage } from './PlatformerPage.page';
 import { PLAYER_RENDERED_SIZE, PLAYER_VISUAL_CENTER_Y_OFFSET } from './entities/Player';
+import { ENEMY_RENDERED_SIZE } from './entities/Enemy';
 import {
   playerState,
   cameraPositionX,
@@ -547,6 +548,22 @@ describe('PlatformerPage', () => {
       expect(ctx.fillText).toHaveBeenCalledWith(`0 / ${coinTotal}`, expect.any(Number), expect.any(Number)),
     );
     expect(ctx.fillText).toHaveBeenCalledWith(`0 / ${fruitTotal}`, expect.any(Number), expect.any(Number));
+  });
+
+  it('render-afterEnemySpritesLoad-drawsEnemiesAtEnemyRenderedSize', async () => {
+    vi.stubGlobal('Image', MockTilesetImage);
+
+    render(<PlatformerPage />);
+    const canvas = screen.getByTestId('platformer-canvas');
+    const ctx = (canvas as HTMLCanvasElement).getContext('2d') as unknown as {
+      drawImage: ReturnType<typeof vi.fn>;
+    };
+
+    await waitFor(() =>
+      expect(
+        ctx.drawImage.mock.calls.some((call: unknown[]) => call[7] === ENEMY_RENDERED_SIZE),
+      ).toBe(true),
+    );
   });
 
   it('playerOverlapsACollectible-tick-marksItCollectedAndAddsFact', () => {
