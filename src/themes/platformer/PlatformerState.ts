@@ -171,19 +171,20 @@ export const lifecycleState = signal<LifecycleState>(
 
 /**
  * Resets the game world to its spawn state: player back at the spawn point,
- * full health, camera scrolled back to the level start. Does NOT touch
- * `lifecycleState`, `collectedFacts`, or `collectedCollectibleIds` — per
- * FR-020c, a death/respawn preserves everything already discovered; only a
- * future "Reset Game" button (roadmap step 15) clears those. Callers
- * (Task 5's restart-on-input and debug Respawn button, both wired to the
- * `intro` iris-in) decide the lifecycle transition themselves, since not
- * every future caller of a "reset" necessarily wants the iris animation.
+ * full health, enemies back at their spawn placements, camera scrolled back
+ * to the level start. Does NOT touch `lifecycleState`, `collectedFacts`, or
+ * `collectedCollectibleIds` — per FR-020c, a death/respawn preserves
+ * everything already discovered; only a future "Reset Game" button (roadmap
+ * step 15) clears those. Callers (Task 5's restart-on-input and debug
+ * Respawn button, both wired to the `intro` iris-in) decide the lifecycle
+ * transition themselves, since not every future caller of a "reset"
+ * necessarily wants the iris animation.
  *
- * This is the single reset seam other roadmap steps extend: step 15's
- * "Reset Game" button will additionally need to clear collected facts and
- * respawn enemies/coins/blocks once those exist — this task doesn't build
- * any of that, it only resets what already exists (position, health,
- * camera).
+ * This is the single reset seam other roadmap steps extend: enemies are
+ * already reset here; future steps needing a full "Reset Game" button will
+ * additionally clear collected facts and respawn coins/blocks once those
+ * mechanics are added (roadmap step 15, FR-018b — see `resetGameProgress()`
+ * below for the full reset including collected state).
  */
 export function resetGame(): void {
   playerState.value = spawnPlayerState();
