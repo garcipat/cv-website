@@ -28,7 +28,7 @@ A visitor opens the CV website and switches to the Platformer theme. A 2D side-s
 
 ### User Story 2 - Collect Coins to Discover Skills and Languages (Priority: P1)
 
-As the visitor explores the level, they encounter floating gold coins scattered across platforms and in the air — some easy to reach, others requiring tricky jumps. Each coin is associated with a Skill or Language entry from the CV. When the character touches a coin, it disappears with a sparkle effect, and the actual CV fact text (e.g., "TypeScript ★★★★☆") floats up from the collection point, hovers briefly near the character, then animates toward the journal icon in the bottom-right corner. The fact is added to the visitor's journal under the Skills section.
+As the visitor explores the level, they encounter floating gold coins scattered across platforms and in the air — some easy to reach, others requiring tricky jumps. Each coin is associated with a Skill or Language entry from the CV. When the character touches a coin, it disappears with a sparkle effect, and the actual CV fact text (e.g., "TypeScript ★★★★☆") floats up from the collection point, hovers briefly near the character, then animates toward the journal icon (top-left, next to the hearts, per FR-025's amendment). The fact is added to the visitor's journal under the Skills section.
 
 **Why this priority**: Coins are the primary mechanic that connects gameplay to CV content. Without them, the platformer is just a game with no CV purpose. This is the bridge between play and portfolio.
 
@@ -54,7 +54,7 @@ At any point during gameplay, the visitor can press a key (e.g., `J` or `Escape`
 **Acceptance Scenarios**:
 
 1. **Given** the visitor is playing the game, **When** they press `J` (or the journal key), **Then** the game pauses, the screen dims, and the journal overlay appears showing collected facts.
-2. **Given** the journal is open, **When** the visitor observes it, **Then** it renders as an open notebook with lined paper, handwriting-style font, and colored bookmark tabs along the right edge — one per non-empty CV section.
+2. **Given** the journal is open, **When** the visitor observes it, **Then** it renders as an open notebook with lined paper, handwriting-style font, and colored bookmark tabs along the top-right edge (amended 2026-08-28, was along the right edge — see FR-015) — one per non-empty CV section.
 3. **Given** one section's bookmark is active (extended, showing its label), **When** the visitor clicks a different bookmark tab, **Then** that tab extends with its label visible, the previously active tab collapses to a thin sliver, and the notebook content switches to that section's facts.
 4. **Given** the journal is open, **When** the visitor views any section, **Then** a counter near the section header or bookmark shows how many facts have been collected out of the total for that section (e.g., "Skills 3/5"), so the player knows whether there are still undiscovered facts.
 5. **Given** CV sections have no collected facts yet, **When** the journal is opened, **Then** those sections show a placeholder message like "No facts discovered yet — keep exploring!" and the counter shows "0/N".
@@ -230,7 +230,7 @@ The level is hand-crafted — starting with a simple layout to validate function
 
 - **FR-011**: System MUST associate each collectible (coin, enemy, block) with a specific CV fact entry — mapped by section and index into the `CVData` arrays. A collectible map is generated from `CVData` at theme load time.
 
-- **FR-012**: System MUST display the actual CV fact text when a collectible is acquired. The fact text floats up from the collection point, hovers briefly near the character, then animates toward the journal icon in the bottom-right corner. The fact is added to the journal. Collected state per collectible is tracked for the session:
+- **FR-012**: System MUST display the actual CV fact text when a collectible is acquired. The fact text floats up from the collection point, hovers briefly near the character, then animates toward the journal icon (top-left, next to the hearts, per FR-025's amendment). The fact is added to the journal. Collected state per collectible is tracked for the session:
   - Its visual representation is removed from the game world
   - Its state is marked as collected in session state
   - The associated CV fact is added to the journal

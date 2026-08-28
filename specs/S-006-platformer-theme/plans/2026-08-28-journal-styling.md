@@ -2,6 +2,24 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Superseded design note (added 2026-08-28, after Tasks 1-7 shipped):** live
+> browser iteration with the user, after this plan's tasks landed, revised
+> several of Task 6's design decisions below — they're kept as-written for
+> historical accuracy (this is what was actually reviewed and merged
+> task-by-task), but the CODE THAT ACTUALLY SHIPPED differs. Treat
+> `spec.md` (FR-013/015/016, amended 2026-08-28) and the actual source files
+> as authoritative, not this task's original code blocks. Specifically:
+> bookmark tabs moved from the book's right edge to its top-right edge, show
+> an icon instead of a text label, and now cover 8 sections (including a
+> provisional "About Me"/personality bookmark) instead of 7; the
+> book-opening animation also plays in reverse on close (originally "no
+> reverse-close animation") and is 90ms/frame, not the two intermediate
+> speeds tried along the way; the selected bookmark section is remembered
+> across closing/reopening via a `PlatformerState` signal, not local
+> component state. See the git history and this plan's SDD ledger
+> (`.superpowers/sdd/2026-08-28-journal-styling/progress.md`, deleted after
+> merge — see the branch's commit messages instead) for the full sequence.
+
 **Goal:** Implement roadmap step 14 — replace the unstyled journal skeleton
 (step 13) with the real notebook look: a book-opening animation, the
 `Caveat` handwriting font, ruled notebook paper, the Simple List entry style
