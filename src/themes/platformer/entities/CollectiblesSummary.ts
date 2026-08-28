@@ -4,7 +4,7 @@ import type { CollectedFact } from '../types';
 
 export interface CollectibleSummaryRow {
   icon: string;
-  label: string;
+  labelKey: 'coins' | 'fruits';
   collected: number;
   total: number;
 }
@@ -28,7 +28,7 @@ export function collectiblesSummary(cv: CVData, facts: CollectedFact[]): Collect
   if (skillsTotal > 0) {
     rows.push({
       icon: '🪙',
-      label: 'Coins',
+      labelKey: 'coins',
       collected: facts.filter((f) => f.sectionId === 'skills').length,
       total: skillsTotal,
     });
@@ -38,7 +38,7 @@ export function collectiblesSummary(cv: CVData, facts: CollectedFact[]): Collect
   if (languagesTotal > 0) {
     rows.push({
       icon: '🍎',
-      label: 'Fruits',
+      labelKey: 'fruits',
       collected: facts.filter((f) => f.sectionId === 'languages').length,
       total: languagesTotal,
     });

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSignals } from '@preact/signals-react/runtime';
-import { currentCV } from '@/state/locale';
+import { currentCV, currentUI } from '@/state/locale';
 import { collectedFacts, activeJournalSection, resetGameProgress } from '../PlatformerState';
 import { formatJournalEntry } from '../entities/JournalEntry';
 import {
@@ -59,6 +59,7 @@ export const Journal = ({ onClose, closeRequested }: JournalProps) => {
   useSignals();
   const facts = collectedFacts.value;
   const cv = currentCV.value;
+  const ui = currentUI.value;
   const sections = nonEmptySections(cv);
 
   const [frame, setFrame] = useState(1);
@@ -219,11 +220,11 @@ export const Journal = ({ onClose, closeRequested }: JournalProps) => {
                       data-testid="journal-collectibles-summary"
                       className="font-caveat text-lg text-gray-700"
                     >
-                      <p className="text-xl font-semibold">Collectibles</p>
+                      <p className="text-xl font-semibold">{ui.platformer.journal.collectibles}</p>
                       <ul className="mt-2 space-y-1">
                         {collectiblesSummary(cv, facts).map((row) => (
-                          <li key={row.label}>
-                            {row.icon} {row.label} {row.collected} / {row.total}
+                          <li key={row.labelKey}>
+                            {row.icon} {ui.platformer.journal[row.labelKey]} {row.collected} / {row.total}
                           </li>
                         ))}
                       </ul>
@@ -231,7 +232,7 @@ export const Journal = ({ onClose, closeRequested }: JournalProps) => {
                   </div>
                 ) : sectionFacts.length === 0 ? (
                   <p data-testid="journal-empty-state" className="font-caveat text-lg text-gray-500">
-                    No facts discovered yet — keep exploring!
+                    {ui.platformer.journal.emptyState}
                   </p>
                 ) : paginated ? (
                   <>
@@ -244,7 +245,7 @@ export const Journal = ({ onClose, closeRequested }: JournalProps) => {
                         data-testid="journal-page-prev"
                         aria-label="Previous fact"
                         disabled={currentPage === 0}
-                        onClick={() => setPage((p) => Math.max(0, p - 1))}
+                        onClick={() => setPage(Math.max(0, currentPage - 1))}
                         className="rounded px-2 py-1 text-lg disabled:opacity-30"
                       >
                         ‹
@@ -257,7 +258,7 @@ export const Journal = ({ onClose, closeRequested }: JournalProps) => {
                         data-testid="journal-page-next"
                         aria-label="Next fact"
                         disabled={currentPage >= sectionFacts.length - 1}
-                        onClick={() => setPage((p) => Math.min(sectionFacts.length - 1, p + 1))}
+                        onClick={() => setPage(Math.min(sectionFacts.length - 1, currentPage + 1))}
                         className="rounded px-2 py-1 text-lg disabled:opacity-30"
                       >
                         ›
@@ -277,7 +278,7 @@ export const Journal = ({ onClose, closeRequested }: JournalProps) => {
               data-testid="journal-reset-button"
               className="absolute right-[4%] bottom-[3%] z-10 rounded bg-red-100/80 px-2 py-1 text-xs text-red-700"
             >
-              Reset Game
+              {ui.platformer.journal.resetGame}
             </button>
           </>
         )}
