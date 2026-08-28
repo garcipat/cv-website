@@ -1,6 +1,6 @@
 import type { CVData } from '@/types/cv';
 import { currentUI } from '@/state/locale';
-import type { SectionId } from '../types';
+import type { SectionId, CollectedFact } from '../types';
 
 /**
  * The CV sections that can back a journal bookmark today. Seven of these
@@ -119,5 +119,61 @@ const PAGINATED_SECTIONS = new Set<SectionId>([
 
 export function isPaginatedSection(section: SectionId): boolean {
   return PAGINATED_SECTIONS.has(section);
+}
+
+/**
+ * What a journal page actually shows — a discriminated union so a
+ * consumer (`Journal.tsx`) switches on `content.kind` instead of
+ * re-deriving "is this the personality page / an empty section / which
+ * fact" from `section`+some index on every render. Each variant carries
+ * exactly the data its rendering needs and nothing else.
+ */
+export type JournalPageContent =
+  | { kind: 'personality' }
+  /** Every collected fact for an ungrouped section (today, only
+   *  `languages`) shown together on one page — not paginated. */
+  | { kind: 'groupedList'; facts: CollectedFact[] }
+  /** One collected fact for a paginated section (`isPaginatedSection`). */
+  | { kind: 'fact'; fact: CollectedFact }
+  /** A paginated section with nothing collected yet — still gets a page
+   *  (the empty-state placeholder) so its bookmark has somewhere to land. */
+  | { kind: 'emptyState' };
+
+/** One physical page of the journal book. */
+export interface JournalPage {
+  section: SectionId;
+  content: JournalPageContent;
+}
+
+/**
+ * Flattens a list of sections into the sequence of physical pages the book
+ * actually contains — per the user's own framing: "sections insert pages
+ * into it with content. Skills insert multiple pages, one per category
+ * found, Experience one page per experience, and Languages just one page
+ * with all of them." `sections` is expected to already be filtered/ordered
+ * (typically `nonEmptySections(cv)` in `JOURNAL_SECTION_ORDER`) — this
+ * function only flattens, it doesn't re-derive that list.
+ */
+export function buildJournalPages(sections: SectionId[], facts: CollectedFact[]): JournalPage[] {
+  const pages: JournalPage[] = [];
+  for (const section of sections) {
+    if (section === 'personality') {
+      pages.push({ section, content: { kind: 'personality' } });
+      continue;
+    }
+    const sectionFacts = facts.filter((fact) => fact.sectionId === section);
+    if (!isPaginatedSection(section)) {
+      pages.push({ section, content: { kind: 'groupedList', facts: sectionFacts } });
+      continue;
+    }
+    if (sectionFacts.length === 0) {
+      pages.push({ section, content: { kind: 'emptyState' } });
+      continue;
+    }
+    for (const fact of sectionFacts) {
+      pages.push({ section, content: { kind: 'fact', fact } });
+    }
+  }
+  return pages;
 }
 
