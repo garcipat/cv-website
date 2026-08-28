@@ -38,9 +38,8 @@ import {
   ENEMY_TILE_OFFSET_X,
   ENEMY_TILE_OFFSET_Y,
   enemyFrameSource,
-  enemyIdleFrameIndex,
 } from '../entities/Enemy';
-import type { EnemyPlacement } from '../level/EnemyMapper';
+import type { EnemyState } from '../entities/Enemy';
 import { flightEffectPosition, sparkleParticles } from './CollectionEffects';
 import type { FlightEffect } from './CollectionEffects';
 
@@ -357,39 +356,66 @@ export function drawCollectibles(
 }
 
 /**
- * Draws every enemy at its placement, idling (this step has no movement or
- * defeat yet — those are roadmap steps 17/18). spriteType picks which sheet:
- * slimeGreen for Certificates, slimePurple for Projects. Either sprite sheet
- * may independently be null (not yet loaded); that type's enemies are simply
+ * Draws every enemy at its current state position, direction, and animation
+ * frame. Each enemy carries its own animState and animFrame (updated per
+ * frame during patrol movement — Tasks 5+), so this reads per-enemy state
+ * rather than a shared clock. spriteType picks which sheet: slimeGreen for
+ * Certificates, slimePurple for Projects. Either sprite sheet may
+ * independently be null (not yet loaded); that type's enemies are simply
  * skipped for the frame, same convention as drawCollectibles's
- * coinSprite/fruitSprite handling. Same originX/originY convention as
+ * coinSprite/fruitSprite handling. Left-facing enemies are mirrored via
+ * save/translate/scale(-1,1)/restore pattern, matching drawPlayer's
+ * left-facing behavior. Same originX/originY convention as
  * drawTerrain/drawPlayer/drawCollectibles.
  */
 export function drawEnemies(
   ctx: CanvasRenderingContext2D,
-  placements: EnemyPlacement[],
+  enemies: EnemyState[],
   slimeGreenSprite: HTMLImageElement | null,
   slimePurpleSprite: HTMLImageElement | null,
-  elapsedSeconds: number,
   originX = 0,
   originY = 0,
 ): void {
   ctx.imageSmoothingEnabled = false;
 
-  const frame = enemyIdleFrameIndex(elapsedSeconds);
-  const { sx, sy } = enemyFrameSource('idle', frame);
-
-  for (const placement of placements) {
-    const sprite = placement.spriteType === 'slimeGreen' ? slimeGreenSprite : slimePurpleSprite;
+  for (const enemy of enemies) {
+    const sprite = enemy.spriteType === 'slimeGreen' ? slimeGreenSprite : slimePurpleSprite;
     if (!sprite) continue;
+
+    const { sx, sy } = enemyFrameSource(enemy.animState, enemy.animFrame);
+    const dx = enemy.x + ENEMY_TILE_OFFSET_X + originX;
+    const dy = enemy.y + ENEMY_TILE_OFFSET_Y + originY;
+
+    if (enemy.direction === 'left') {
+      // Mirrors drawPlayer's left-facing flip: translate to the sprite's
+      // right edge, then scale(-1, 1) so drawImage's own (0, 0) origin lands
+      // where the mirrored sprite's top-left should visually appear.
+      ctx.save();
+      ctx.translate(dx + ENEMY_RENDERED_SIZE, dy);
+      ctx.scale(-1, 1);
+      ctx.drawImage(
+        sprite,
+        sx,
+        sy,
+        ENEMY_FRAME_SIZE,
+        ENEMY_FRAME_SIZE,
+        0,
+        0,
+        ENEMY_RENDERED_SIZE,
+        ENEMY_RENDERED_SIZE,
+      );
+      ctx.restore();
+      continue;
+    }
+
     ctx.drawImage(
       sprite,
       sx,
       sy,
       ENEMY_FRAME_SIZE,
       ENEMY_FRAME_SIZE,
-      placement.x + ENEMY_TILE_OFFSET_X + originX,
-      placement.y + ENEMY_TILE_OFFSET_Y + originY,
+      dx,
+      dy,
       ENEMY_RENDERED_SIZE,
       ENEMY_RENDERED_SIZE,
     );
