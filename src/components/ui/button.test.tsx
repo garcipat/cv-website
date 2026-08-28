@@ -54,6 +54,7 @@ describe('Button', () => {
       { id: 'ide', label: 'IDE' },
       { id: 'space', label: 'Space' },
       { id: 'terminal', label: 'Retro Terminal' },
+      { id: 'platformer', label: 'Platformer' },
     ];
 
     themes.forEach(({ id, label }) => {
@@ -72,7 +73,7 @@ describe('Button', () => {
       const { fileURLToPath } = await import('node:url');
 
       const currentDir = resolve(fileURLToPath(import.meta.url), '..');
-      const themeFiles = ['ide.css', 'space.css', 'terminal.css'];
+      const themeFiles = ['ide.css', 'space.css', 'terminal.css', 'platformer.css'];
       const requiredVars = [
         '--background', '--foreground', '--card', '--card-foreground',
         '--primary', '--primary-foreground', '--secondary', '--secondary-foreground',
