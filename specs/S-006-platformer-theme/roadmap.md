@@ -141,48 +141,64 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
 
 ## Iteration 2 — Enemies + blocks + flagpole + audio (P2)
 
-- [ ] **16. Enemy render + patrol** — CollectibleMapper extended for
-  Certificates/Projects; enemies patrol platforms, no interaction yet.
-  *Verify: enemies visibly patrol back and forth.*
-- [ ] **17. Stomp defeat** — jumping on an enemy defeats it with a poof animation,
-  fact flies to the journal.
+- [ ] **16. Enemy render** — CollectibleMapper extended for Certificates/Projects,
+  mapping Certificates to `slime_green.png` and Projects to `slime_purple.png` (two
+  visually distinct enemy types, mirroring the coin/fruit split for Skills/
+  Languages). Both sheets are a 4x3 grid of 24x24 frames; a trial frame mapping —
+  row 0 (4 frames) idle "awakening" loop, row 1 (4 frames) walk animation, row 2
+  (3 green + 1 red frame) hit-reaction, reserved for steps 18/19 — is adopted here
+  and adjusted by eye if it doesn't read well once on screen. Enemies render with
+  the row-0 idle loop at their level positions. No movement, no interaction yet.
+  *Verify: both green (Certificates) and purple (Projects) slimes are visible on
+  their assigned platforms, idling, positioned per the CollectibleMapper output.*
+- [ ] **17. Enemy patrol** — enemies of both types move back and forth within their
+  patrol range using the row-1 walk animation, reversing direction at either (a)
+  explicit patrol boundaries (walls) or (b) an unbounded platform edge (cliff/ledge
+  detection). `level1` is adjusted to exercise both cases: at least one enemy
+  patrolling between two walls, and at least one enemy on a ledge with open space at
+  one or both ends, relying on edge-detection alone.
+  *Verify: the walled enemy bounces between its two walls, animating its walk cycle;
+  the ledge enemy reverses at the platform's edge instead of walking off into a pit.*
+- [ ] **18. Stomp defeat** — jumping on an enemy defeats it with a poof animation
+  (row-2 hit-reaction frames, including the red flash frame), fact flies to the
+  journal.
   *Verify: stomp an enemy, see the fact appear.*
-- [ ] **18. Side/below damage** — invincibility frames, knockback on non-stomp
+- [ ] **19. Side/below damage** — invincibility frames, knockback on non-stomp
   contact, reusing the `takeDamage` mechanism from step 9 with a full heart
   (`takeDamage(2)`, two half-heart units) instead of the half-heart pit-fall
   amount.
   *Verify: touch an enemy from the side, lose a full heart.*
-- [ ] **19. Destroyable block render** — intact/question-mark tiles;
+- [ ] **20. Destroyable block render** — intact/question-mark tiles;
   CollectibleMapper extended for Experience/Education/Courses.
   *Verify: blocks are visible on platforms.*
-- [ ] **20. Block hit mechanic** — 3-hit crack progression, coin drop per hit, fact
+- [ ] **21. Block hit mechanic** — 3-hit crack progression, coin drop per hit, fact
   reveal + shatter animation on the 3rd hit.
   *Verify: break a block, see cracking states, coin drops, and the final fact.*
-- [ ] **21. Flagpole render + touch detection** — visible flagpole at the level end,
+- [ ] **22. Flagpole render + touch detection** — visible flagpole at the level end,
   no celebration/ending screen yet.
   *Verify: reach and touch the flagpole.*
-- [ ] **22. Flagpole celebration + ending screen** — slide-down animation, flag
+- [ ] **23. Flagpole celebration + ending screen** — slide-down animation, flag
   waves, ending screen with Personality + Contact, Replay Level button.
   *Verify: reach the flagpole, see the ending screen, Replay resets the level.*
-- [ ] **23. Audio** — preload audio assets, looping background music, SFX wired to
+- [ ] **24. Audio** — preload audio assets, looping background music, SFX wired to
   existing actions (jump, coin, stomp, block break, flagpole, damage, journal
   open/close), speaker icon toggle, muted by default.
   *Verify: toggle sound on, hear music and effects.*
 
 ## Iteration 3 — Controls + polish (P3)
 
-- [ ] **24. Pause-on-open for floating controls** — the floating controls (built in
+- [ ] **25. Pause-on-open for floating controls** — the floating controls (built in
   step 1) now pause the running game loop while open and resume it on close, instead
   of being purely decorative.
   *Verify: open the controls mid-game, confirm the game pauses; close, confirm it
   resumes exactly where it left off.*
-- [ ] **25. Theme-switch reset** — leaving and returning to Platformer resets the
+- [ ] **26. Theme-switch reset** — leaving and returning to Platformer resets the
   session (fresh game, no collected facts).
   *Verify: switch to another theme and back, confirm the game is fresh.*
-- [ ] **26. Touch/mobile controls** — on-screen D-pad + action buttons on small
+- [ ] **27. Touch/mobile controls** — on-screen D-pad + action buttons on small
   viewports.
   *Verify: at a mobile viewport width, the D-pad appears and functions.*
-- [ ] **27. Polish pass** — animation/effects refinement, 30 FPS check with 20+
+- [ ] **28. Polish pass** — animation/effects refinement, 30 FPS check with 20+
   collectibles rendered.
   *Verify: frame-timing check and smooth manual play.*
 
