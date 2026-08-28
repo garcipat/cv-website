@@ -69,6 +69,11 @@ export const PlatformerPage = () => {
   // stale one.
   const [journalOpen, setJournalOpen] = useState(false);
   const journalOpenRef = useRef(journalOpen);
+  // When true, Journal.tsx plays its own reverse-close animation and only
+  // then calls handleJournalReallyClosed — this lets the icon button/`J`
+  // key trigger the same graceful close as clicking the in-book × button,
+  // instead of unmounting the journal instantly.
+  const [journalClosing, setJournalClosing] = useState(false);
 
   // Keeps both refs in sync with their corresponding state on every render
   // (no dependency array) — assigning `.current` directly in the render body
@@ -82,9 +87,11 @@ export const PlatformerPage = () => {
 
   /**
    * Toggles the journal. Opening is only allowed from 'playing' (not
-   * mid-death/intro/restart); closing is only allowed from 'paused' — both
-   * guards prevent the journal from desyncing the lifecycle phase if `J` is
-   * pressed during an animation.
+   * mid-death/intro/restart) and happens immediately. Closing is only
+   * requested from here — the actual close (resuming the game, unmounting
+   * Journal) happens in `handleJournalReallyClosed`, called by `Journal`
+   * once its reverse-close animation finishes, so every trigger (icon,
+   * `J`, and Journal's own in-book × button) closes the same animated way.
    */
   const handleJournalToggle = () => {
     const phase = lifecycleState.value.phase;
@@ -94,9 +101,14 @@ export const PlatformerPage = () => {
       setJournalOpen(true);
     } else {
       if (phase !== 'paused') return;
-      lifecycleState.value = resumeFromJournal(lifecycleState.value);
-      setJournalOpen(false);
+      setJournalClosing(true);
     }
+  };
+
+  const handleJournalReallyClosed = () => {
+    lifecycleState.value = resumeFromJournal(lifecycleState.value);
+    setJournalOpen(false);
+    setJournalClosing(false);
   };
 
   const handleDebugKill = () => {
@@ -358,7 +370,9 @@ export const PlatformerPage = () => {
     <div className="relative h-screen w-screen overflow-hidden">
       <canvas ref={canvasRef} data-testid="platformer-canvas" className="block" tabIndex={-1} />
       <FloatingControls />
-      {journalOpen && <Journal onClose={handleJournalToggle} />}
+      {journalOpen && (
+        <Journal onClose={handleJournalReallyClosed} closeRequested={journalClosing} />
+      )}
       {/* Moved from bottom-right to top-left (was hard to spot against the
           terrain) — sits left of the hearts HUD, which HEARTS_START_X
           shifts right to make room. size-10 (40px) must match the 40 baked
