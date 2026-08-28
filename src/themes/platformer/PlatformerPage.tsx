@@ -184,7 +184,7 @@ export const PlatformerPage = () => {
         drawPlayer(ctx, playerState.value, playerSpriteRef.current, originX, originY, playerJumpSpriteRef.current);
       }
 
-      if (coinSpriteRef.current && fruitSpriteRef.current) {
+      if (coinSpriteRef.current || fruitSpriteRef.current) {
         drawCollectibles(
           ctx,
           collectiblePlacements,
@@ -498,8 +498,8 @@ export const PlatformerPage = () => {
         render();
       })
       .catch(() => {
-        // drawRestartPrompt/drawCoinCounter fall back to their sans-serif/
-        // monospace stacks if the custom font fails to load.
+        // drawRestartPrompt/drawCollectibleCounter fall back to their
+        // sans-serif/monospace stacks if the custom font fails to load.
       });
 
     return () => {

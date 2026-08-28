@@ -42,7 +42,7 @@ export function aabbOverlap(a: Box, b: Box): boolean {
  * excluding ids already in `collectedIds` — collision against an
  * already-collected (visually removed) collectible is a no-op, not a
  * duplicate-collect (FR-020c). Uses each placement's fixed x/y, ignoring the
- * cosmetic bob offset (Renderer.ts's drawCoins/drawCollectibles) so the
+ * cosmetic bob offset (Renderer.ts's drawCollectibles) so the
  * hitbox doesn't jitter a few pixels every frame independent of the sprite.
  */
 export function checkCollectibleCollisions(
