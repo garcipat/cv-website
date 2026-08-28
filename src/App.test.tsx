@@ -12,7 +12,10 @@ describe('App', () => {
 
   it('renders with layout structure', () => {
     render(<App />);
-    const menuBar = screen.getByText('File').parentElement;
+    // Each menu label now sits in its own wrapper div (needed to anchor
+    // that item's dropdown, see MenuBar.tsx), so the menu bar itself is the
+    // *grandparent* of the label, not the direct parent as before.
+    const menuBar = screen.getByText('File').parentElement?.parentElement;
     expect(menuBar).toHaveClass('col-span-2');
     const grid = menuBar?.parentElement;
     expect(grid).toHaveClass('grid');
