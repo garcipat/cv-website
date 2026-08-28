@@ -1,14 +1,7 @@
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { Journal } from './Journal';
 import { currentCV } from '@/state/locale';
-import {
-  collectedFacts,
-  activeJournalSection,
-  collectedCollectibleIds,
-  playerState,
-  healthState,
-  cameraPositionX,
-} from '../PlatformerState';
+import { collectedFacts, activeJournalSection, collectedCollectibleIds } from '../PlatformerState';
 import { JOURNAL_OPEN_FRAME_COUNT, JOURNAL_OPEN_FRAME_INTERVAL_MS } from '../entities/JournalAnimation';
 import { sectionTotal } from '../entities/JournalSections';
 import type { CollectedFact } from '../types';
@@ -49,7 +42,7 @@ describe('Journal', () => {
   });
 
   it('render-onMount-showsFirstAnimationFrame', () => {
-    render(<Journal onClose={() => {}} closeRequested={false} />);
+    render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
 
     expect(screen.getByTestId('journal-book')).toHaveAttribute(
       'src',
@@ -58,7 +51,7 @@ describe('Journal', () => {
   });
 
   it('render-afterAnimationCompletes-showsFinalFrame', () => {
-    render(<Journal onClose={() => {}} closeRequested={false} />);
+    render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
 
     openBookAnimation();
 
@@ -69,7 +62,7 @@ describe('Journal', () => {
   });
 
   it('render-beforeAnimationCompletes-contentNotYetShown', () => {
-    render(<Journal onClose={() => {}} closeRequested={false} />);
+    render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
 
     expect(screen.queryByTestId('journal-fact-item')).not.toBeInTheDocument();
     expect(screen.queryByTestId('journal-empty-state')).not.toBeInTheDocument();
@@ -87,7 +80,7 @@ describe('Journal', () => {
     ];
     collectedFacts.value = facts;
 
-    render(<Journal onClose={() => {}} closeRequested={false} />);
+    render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
     openBookAnimation();
 
     expect(screen.getByTestId('bookmark-tab-skills')).toBeInTheDocument();
@@ -102,7 +95,7 @@ describe('Journal', () => {
     // section when nothing has been collected yet.
     collectedFacts.value = [];
 
-    render(<Journal onClose={() => {}} closeRequested={false} />);
+    render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
     openBookAnimation();
 
     expect(screen.getByText(currentCV.value.personality.name)).toBeInTheDocument();
@@ -119,7 +112,7 @@ describe('Journal', () => {
     collectedFacts.value = [];
     activeJournalSection.value = 'activities';
 
-    render(<Journal onClose={() => {}} closeRequested={false} />);
+    render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
     openBookAnimation();
 
     expect(screen.getByText(currentCV.value.personality.name)).toBeInTheDocument();
@@ -130,7 +123,7 @@ describe('Journal', () => {
   it('render-withNoFactsInActiveSection-showsEmptyStateAfterAnimation', () => {
     collectedFacts.value = [];
 
-    render(<Journal onClose={() => {}} closeRequested={false} />);
+    render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
     openBookAnimation();
     fireEvent.click(screen.getByTestId('bookmark-tab-experience'));
 
@@ -150,7 +143,7 @@ describe('Journal', () => {
     ];
     collectedFacts.value = facts;
 
-    render(<Journal onClose={() => {}} closeRequested={false} />);
+    render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
     openBookAnimation();
     expect(screen.getAllByTestId('journal-fact-item')).toHaveLength(1);
 
@@ -176,13 +169,13 @@ describe('Journal', () => {
     ];
     collectedFacts.value = facts;
 
-    const { unmount } = render(<Journal onClose={() => {}} closeRequested={false} />);
+    const { unmount } = render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
     openBookAnimation();
     fireEvent.click(screen.getByTestId('bookmark-tab-experience'));
     expect(screen.getByTestId('journal-empty-state')).toBeInTheDocument();
     unmount();
 
-    render(<Journal onClose={() => {}} closeRequested={false} />);
+    render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
     openBookAnimation();
 
     // Still on 'experience' (empty), not back to the skills-fact default.
@@ -194,7 +187,7 @@ describe('Journal', () => {
     collectedFacts.value = [];
     const onClose = vi.fn();
 
-    render(<Journal onClose={onClose} closeRequested={false} />);
+    render(<Journal onClose={onClose} closeRequested={false} onResetGame={() => {}} />);
     openBookAnimation();
     fireEvent.click(screen.getByTestId('journal-close-button'));
 
@@ -207,7 +200,7 @@ describe('Journal', () => {
   it('closeButtonClicked-duringCloseAnimation-playsFramesInReverse', () => {
     collectedFacts.value = [];
 
-    render(<Journal onClose={() => {}} closeRequested={false} />);
+    render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
     openBookAnimation();
     fireEvent.click(screen.getByTestId('journal-close-button'));
 
@@ -223,7 +216,7 @@ describe('Journal', () => {
     collectedFacts.value = [];
     const onClose = vi.fn();
 
-    render(<Journal onClose={onClose} closeRequested={false} />);
+    render(<Journal onClose={onClose} closeRequested={false} onResetGame={() => {}} />);
     openBookAnimation();
     fireEvent.click(screen.getByTestId('journal-close-button'));
 
@@ -236,13 +229,13 @@ describe('Journal', () => {
     collectedFacts.value = [];
     const onClose = vi.fn();
 
-    const { rerender } = render(<Journal onClose={onClose} closeRequested={false} />);
+    const { rerender } = render(<Journal onClose={onClose} closeRequested={false} onResetGame={() => {}} />);
     openBookAnimation();
     expect(screen.getByTestId('journal-close-button')).toBeInTheDocument();
 
     // Simulates the icon button / `J` key (PlatformerPage) requesting a
     // close, instead of clicking Journal's own in-book × button.
-    rerender(<Journal onClose={onClose} closeRequested={true} />);
+    rerender(<Journal onClose={onClose} closeRequested={true} onResetGame={() => {}} />);
 
     expect(screen.queryByTestId('journal-close-button')).not.toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
@@ -253,7 +246,7 @@ describe('Journal', () => {
   });
 
   it('render-beforeLastTwoFrames-bookmarkTabsNotYetShown', () => {
-    render(<Journal onClose={() => {}} closeRequested={false} />);
+    render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
 
     expect(screen.queryByTestId('bookmark-tabs')).not.toBeInTheDocument();
 
@@ -263,7 +256,7 @@ describe('Journal', () => {
   });
 
   it('render-onLastTwoFrames-bookmarkTabsShown', () => {
-    render(<Journal onClose={() => {}} closeRequested={false} />);
+    render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
 
     advanceFrames(JOURNAL_OPEN_FRAME_COUNT - 1);
 
@@ -291,7 +284,7 @@ describe('Journal', () => {
       },
     ];
 
-    render(<Journal onClose={() => {}} closeRequested={false} />);
+    render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
     openBookAnimation();
 
     expect(screen.getByText(/Backend/)).toBeInTheDocument();
@@ -312,7 +305,7 @@ describe('Journal', () => {
         },
       ];
 
-      render(<Journal onClose={() => {}} closeRequested={false} />);
+      render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
       openBookAnimation();
 
       expect(screen.getByTestId('journal-section-counter')).toHaveTextContent(`1 / ${total}`);
@@ -321,7 +314,7 @@ describe('Journal', () => {
     it('personalitySection-showsNoCounter', () => {
       collectedFacts.value = [];
 
-      render(<Journal onClose={() => {}} closeRequested={false} />);
+      render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
       openBookAnimation();
 
       expect(screen.queryByTestId('journal-section-counter')).not.toBeInTheDocument();
@@ -332,7 +325,7 @@ describe('Journal', () => {
     it('sectionWithNoCollectedFacts-showsSpecPlaceholderMessage', () => {
       collectedFacts.value = [];
 
-      render(<Journal onClose={() => {}} closeRequested={false} />);
+      render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
       openBookAnimation();
       fireEvent.click(screen.getByTestId('bookmark-tab-experience'));
 
@@ -342,34 +335,39 @@ describe('Journal', () => {
     });
   });
 
-  describe('grouped sections (skills/languages)', () => {
+  describe('grouped sections (languages)', () => {
     it('multipleFactsCollected-showsAllOfThemWithoutPaginationControls', () => {
+      activeJournalSection.value = 'languages';
       collectedFacts.value = [
         {
-          id: 'coin-frontend',
-          sectionId: 'skills',
-          sectionLabel: 'Skills',
-          data: { category: 'Frontend', skills: [{ name: 'React', level: 80 }] },
+          id: 'fruit-english',
+          sectionId: 'languages',
+          sectionLabel: 'Languages',
+          data: { name: 'English', level: 100 },
           sourceType: 'coin',
         },
         {
-          id: 'coin-backend',
-          sectionId: 'skills',
-          sectionLabel: 'Skills',
-          data: { category: 'Backend', skills: [{ name: 'Go', level: 70 }] },
+          id: 'fruit-german',
+          sectionId: 'languages',
+          sectionLabel: 'Languages',
+          data: { name: 'German', level: 80 },
           sourceType: 'coin',
         },
       ];
 
-      render(<Journal onClose={() => {}} closeRequested={false} />);
+      render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
       openBookAnimation();
 
       expect(screen.getAllByTestId('journal-fact-item')).toHaveLength(2);
       expect(screen.queryByTestId('journal-page-counter')).not.toBeInTheDocument();
+      // Each language line carries its own star rating, same format as a
+      // single Skill entry ("Name ★★★★☆").
+      expect(screen.getByText(/English ★★★★★/)).toBeInTheDocument();
+      expect(screen.getByText(/German ★★★★☆/)).toBeInTheDocument();
     });
   });
 
-  describe('paginated sections (experience/projects/education/courses/certificates)', () => {
+  describe('paginated sections (experience/projects/education/courses/certificates/skills)', () => {
     const experienceFacts: CollectedFact[] = [
       {
         id: 'exp-1',
@@ -390,7 +388,7 @@ describe('Journal', () => {
     it('sectionWithMultipleFacts-showsOnlyOneFactAtATime', () => {
       collectedFacts.value = experienceFacts;
 
-      render(<Journal onClose={() => {}} closeRequested={false} />);
+      render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
       openBookAnimation();
       fireEvent.click(screen.getByTestId('bookmark-tab-experience'));
 
@@ -401,7 +399,7 @@ describe('Journal', () => {
     it('nextButtonClicked-advancesToTheNextFact', () => {
       collectedFacts.value = experienceFacts;
 
-      render(<Journal onClose={() => {}} closeRequested={false} />);
+      render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
       openBookAnimation();
       fireEvent.click(screen.getByTestId('bookmark-tab-experience'));
       fireEvent.click(screen.getByTestId('journal-page-next'));
@@ -414,7 +412,7 @@ describe('Journal', () => {
     it('onFirstPage-prevButtonDisabled-onLastPage-nextButtonDisabled', () => {
       collectedFacts.value = experienceFacts;
 
-      render(<Journal onClose={() => {}} closeRequested={false} />);
+      render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
       openBookAnimation();
       fireEvent.click(screen.getByTestId('bookmark-tab-experience'));
 
@@ -430,7 +428,7 @@ describe('Journal', () => {
     it('switchingToAnotherSection-resetsPageBackToFirst', () => {
       collectedFacts.value = experienceFacts;
 
-      render(<Journal onClose={() => {}} closeRequested={false} />);
+      render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
       openBookAnimation();
       fireEvent.click(screen.getByTestId('bookmark-tab-experience'));
       fireEvent.click(screen.getByTestId('journal-page-next'));
@@ -445,7 +443,7 @@ describe('Journal', () => {
     it('sectionWithExactlyOneFact-showsOneOfOneWithBothArrowsDisabled', () => {
       collectedFacts.value = [experienceFacts[0]];
 
-      render(<Journal onClose={() => {}} closeRequested={false} />);
+      render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
       openBookAnimation();
       fireEvent.click(screen.getByTestId('bookmark-tab-experience'));
 
@@ -453,13 +451,57 @@ describe('Journal', () => {
       expect(screen.getByTestId('journal-page-prev')).toBeDisabled();
       expect(screen.getByTestId('journal-page-next')).toBeDisabled();
     });
+
+    it('skillsSectionWithMultipleCategories-paginatesOneCategoryPerPageWithStarRatings', () => {
+      // Skills behaves like the other long-entry sections (paginated one
+      // entry — here, one category — per page), unlike Languages, per user
+      // feedback: a category's skill list reads better one page at a time
+      // than all categories crammed into one scrolling list.
+      collectedFacts.value = [
+        {
+          id: 'coin-frontend',
+          sectionId: 'skills',
+          sectionLabel: 'Skills',
+          data: { category: 'Frontend', skills: [{ name: 'React', level: 80 }] },
+          sourceType: 'coin',
+        },
+        {
+          id: 'coin-backend',
+          sectionId: 'skills',
+          sectionLabel: 'Skills',
+          data: { category: 'Backend', skills: [{ name: 'Go', level: 100 }] },
+          sourceType: 'coin',
+        },
+      ];
+
+      render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
+      openBookAnimation();
+      fireEvent.click(screen.getByTestId('bookmark-tab-skills'));
+
+      expect(screen.getAllByTestId('journal-fact-item')).toHaveLength(1);
+      expect(screen.getByTestId('journal-page-counter')).toHaveTextContent('1 / 2');
+      expect(screen.getByText(/Frontend/)).toBeInTheDocument();
+      // Name and star rating render as separate flex-row cells (for
+      // right-alignment, see Journal.tsx's `ratedItems` branch), not one
+      // joined text node — assert each independently.
+      expect(screen.getByText('React')).toBeInTheDocument();
+      expect(screen.getByText('★★★★☆')).toBeInTheDocument();
+      expect(screen.queryByText(/Backend/)).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByTestId('journal-page-next'));
+
+      expect(screen.getByText(/Backend/)).toBeInTheDocument();
+      expect(screen.getByText('Go')).toBeInTheDocument();
+      expect(screen.getByText('★★★★★')).toBeInTheDocument();
+      expect(screen.queryByText(/Frontend/)).not.toBeInTheDocument();
+    });
   });
 
   describe('personality collectibles summary', () => {
     it('personalitySectionActive-showsCollectiblesSummary', () => {
       collectedFacts.value = [];
 
-      render(<Journal onClose={() => {}} closeRequested={false} />);
+      render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
       openBookAnimation();
 
       expect(screen.getByTestId('journal-collectibles-summary')).toBeInTheDocument();
@@ -478,7 +520,7 @@ describe('Journal', () => {
         },
       ];
 
-      render(<Journal onClose={() => {}} closeRequested={false} />);
+      render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
       openBookAnimation();
       fireEvent.click(screen.getByTestId('bookmark-tab-personality'));
 
@@ -489,7 +531,7 @@ describe('Journal', () => {
     it('otherSectionActive-hidesCollectiblesSummary', () => {
       collectedFacts.value = [];
 
-      render(<Journal onClose={() => {}} closeRequested={false} />);
+      render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
       openBookAnimation();
       fireEvent.click(screen.getByTestId('bookmark-tab-experience'));
 
@@ -498,70 +540,35 @@ describe('Journal', () => {
   });
 
   describe('Reset Game button', () => {
-    it('clicked-clearsCollectedFactsAndCollectibleIds', () => {
-      collectedFacts.value = [
-        {
-          id: 'coin-frontend',
-          sectionId: 'skills',
-          sectionLabel: 'Skills',
-          data: { category: 'Frontend', skills: [{ name: 'React', level: 80 }] },
-          sourceType: 'coin',
-        },
-      ];
-      collectedCollectibleIds.value = new Set(['coin-frontend']);
-      activeJournalSection.value = 'skills';
-
-      render(<Journal onClose={() => {}} closeRequested={false} />);
-      openBookAnimation();
-      fireEvent.click(screen.getByTestId('journal-reset-button'));
-
-      expect(collectedFacts.value).toEqual([]);
-      expect(collectedCollectibleIds.value.size).toBe(0);
-    });
-
-    it('clicked-journalStaysOpenAndSectionsShowPlaceholders', () => {
-      collectedFacts.value = [
-        {
-          id: 'coin-frontend',
-          sectionId: 'skills',
-          sectionLabel: 'Skills',
-          data: { category: 'Frontend', skills: [{ name: 'React', level: 80 }] },
-          sourceType: 'coin',
-        },
-      ];
-      activeJournalSection.value = 'skills';
-
-      render(<Journal onClose={() => {}} closeRequested={false} />);
-      openBookAnimation();
-      act(() => {
-        fireEvent.click(screen.getByTestId('journal-reset-button'));
-      });
-
-      // resetGameProgress() clears activeJournalSection back to undefined,
-      // so the journal falls back to its default (personality — always
-      // non-empty). Explicitly switching to skills is what proves the
-      // reset actually cleared its facts, not just that the default view
-      // happens to show content either way.
-      expect(screen.getByTestId('platformer-journal')).toBeInTheDocument();
-      act(() => {
-        fireEvent.click(screen.getByTestId('bookmark-tab-skills'));
-      });
-      expect(screen.getByTestId('journal-empty-state')).toBeInTheDocument();
-    });
-
-    it('clicked-alsoResetsPlayerHealthAndCamera', () => {
+    // Everything the button actually does (clearing collected progress,
+    // closing the journal immediately with no animation, and starting the
+    // iris-in "starting again" transition) lives in PlatformerPage.tsx's
+    // handleResetGameRequested (see PlatformerPage.test.tsx) — Journal only
+    // forwards the click via the `onResetGame` prop.
+    it('clicked-callsOnResetGameProp', () => {
+      const onResetGame = vi.fn();
       collectedFacts.value = [];
-      playerState.value = { ...playerState.value, x: 999 };
-      healthState.value = 0;
-      cameraPositionX.value = 300;
 
-      render(<Journal onClose={() => {}} closeRequested={false} />);
+      render(<Journal onClose={() => {}} closeRequested={false} onResetGame={onResetGame} />);
       openBookAnimation();
       fireEvent.click(screen.getByTestId('journal-reset-button'));
 
-      expect(playerState.value.x).not.toBe(999);
-      expect(healthState.value).toBeGreaterThan(0);
-      expect(cameraPositionX.value).toBe(0);
+      expect(onResetGame).toHaveBeenCalledTimes(1);
+    });
+
+    it('clicked-doesNotCallOnCloseItself', () => {
+      // Closing (immediate, no animation) is the parent's responsibility —
+      // it unmounts Journal directly (`journalOpen` state) rather than
+      // going through `onClose`/the reverse-close animation path the ×
+      // button and icon/`J` use.
+      const onClose = vi.fn();
+      collectedFacts.value = [];
+
+      render(<Journal onClose={onClose} closeRequested={false} onResetGame={() => {}} />);
+      openBookAnimation();
+      fireEvent.click(screen.getByTestId('journal-reset-button'));
+
+      expect(onClose).not.toHaveBeenCalled();
     });
   });
 });

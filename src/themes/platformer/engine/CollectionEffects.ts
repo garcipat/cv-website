@@ -20,6 +20,14 @@ export const FLIGHT_DURATION_SECONDS = 0.6;
 export interface FlightEffect {
   id: string;
   text: string;
+  /** Optional icon (an emoji — a language's flag, or a section's generic
+   * symbol) shown alongside `text`. Kept separate rather than baked into
+   * `text` because Renderer.ts draws it with a different font: the pixel
+   * font `text` uses has no emoji glyphs, so an emoji concatenated into the
+   * same string silently failed to render (canvas `fillText` doesn't fall
+   * back to a system emoji font the way DOM text does) — see this field's
+   * addition for the fix. */
+  icon?: string;
   startX: number;
   startY: number;
   midX: number;
@@ -39,8 +47,9 @@ export function startFlightEffect(
   midY: number,
   targetX: number,
   targetY: number,
+  icon?: string,
 ): FlightEffect {
-  return { id, text, startX, startY, midX, midY, targetX, targetY, elapsed: 0, phase: 'rising' };
+  return { id, text, icon, startX, startY, midX, midY, targetX, targetY, elapsed: 0, phase: 'rising' };
 }
 
 /** Fixed number of vertical text "slots" fast/simultaneous collections cycle
