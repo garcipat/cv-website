@@ -2,6 +2,9 @@ import {
   drawTerrain,
   drawPlayer,
   drawHearts,
+  drawCollectibles,
+  drawCollectionEffects,
+  drawCollectibleCounter,
   drawIrisOverlay,
   drawRestartPrompt,
   RESTART_PROMPT_FONT_FAMILY,
@@ -11,6 +14,9 @@ import type { LevelDef } from '../level/LevelData';
 import type { PlayerState } from '../entities/Player';
 import { PLAYER_RENDERED_SIZE } from '../entities/Player';
 import { MAX_HALF_HEARTS, HEART_RENDERED_SIZE } from '../entities/Health';
+import { startFlightEffect, tickFlightEffect, RISE_DURATION_SECONDS, SPARKLE_DURATION_SECONDS } from './CollectionEffects';
+import type { CollectiblePlacement } from '../level/CollectibleMapper';
+import { fruitFrameSource } from '../entities/Fruit';
 
 function makeMockContext() {
   return {
@@ -34,6 +40,178 @@ function makeMockContext() {
 }
 
 const fakeTileset = {} as HTMLImageElement;
+
+function makePlacement(id: string, spriteType: 'coin' | 'fruit', x: number, y: number): CollectiblePlacement {
+  return {
+    id,
+    spriteType,
+    fact: { id, sectionId: 'skills', sectionLabel: 'Skills', data: { category: 'X', skills: [] }, sourceType: 'coin' },
+    x,
+    y,
+  };
+}
+
+describe('drawCollectibles', () => {
+  it('coinAndFruit-drawEachFromItsOwnSprite', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const coinSprite = { tag: 'coin' } as unknown as HTMLImageElement;
+    const fruitSprite = { tag: 'fruit' } as unknown as HTMLImageElement;
+    const placements = [makePlacement('a', 'coin', 100, 100), makePlacement('b', 'fruit', 300, 300)];
+
+    drawCollectibles(ctx as unknown as CanvasRenderingContext2D, placements, coinSprite, fruitSprite, new Set(), 0);
+
+    const calls = ctx.drawImage.mock.calls;
+    expect(calls.some((c: unknown[]) => c[0] === coinSprite)).toBe(true);
+    expect(calls.some((c: unknown[]) => c[0] === fruitSprite)).toBe(true);
+  });
+
+  it('collectedId-isSkipped', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const placements = [makePlacement('a', 'coin', 100, 100)];
+
+    drawCollectibles(
+      ctx as unknown as CanvasRenderingContext2D,
+      placements,
+      {} as HTMLImageElement,
+      {} as HTMLImageElement,
+      new Set(['a']),
+      0,
+    );
+
+    expect(ctx.drawImage).not.toHaveBeenCalled();
+  });
+
+  it('middleFruitCollected-laterFruitKeepsSameIconAsWhenNoneCollected', () => {
+    const fruitSprite = { tag: 'fruit' } as unknown as HTMLImageElement;
+    const placements = [
+      makePlacement('a', 'fruit', 100, 100),
+      makePlacement('b', 'fruit', 200, 200),
+      makePlacement('c', 'fruit', 300, 300),
+    ];
+
+    // Baseline: render all three, nothing collected.
+    const baselineCtx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    drawCollectibles(
+      baselineCtx as unknown as CanvasRenderingContext2D,
+      placements,
+      {} as HTMLImageElement,
+      fruitSprite,
+      new Set(),
+      0,
+    );
+    const baselineThirdCall = baselineCtx.drawImage.mock.calls.find(
+      (c: unknown[]) => c[5] === 300 && c[6] === 300,
+    );
+    expect(baselineThirdCall).toBeDefined();
+    const [, baselineSx, baselineSy] = baselineThirdCall as unknown[];
+
+    // Now collect the middle fruit ('b') and re-render — the third fruit's
+    // icon (sx/sy) must be unchanged, since it's keyed to its own stable
+    // position among all fruit placements, not a counter of visible fruits.
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    drawCollectibles(
+      ctx as unknown as CanvasRenderingContext2D,
+      placements,
+      {} as HTMLImageElement,
+      fruitSprite,
+      new Set(['b']),
+      0,
+    );
+    const thirdCall = ctx.drawImage.mock.calls.find((c: unknown[]) => c[5] === 300 && c[6] === 300);
+    expect(thirdCall).toBeDefined();
+    const [, sx, sy] = thirdCall as unknown[];
+
+    expect(sx).toBe(baselineSx);
+    expect(sy).toBe(baselineSy);
+    // And it should match the icon for index 2 (its fixed position among
+    // all fruit-type placements), regardless of collection order.
+    const expected = fruitFrameSource(2);
+    expect(sx).toBe(expected.sx);
+    expect(sy).toBe(expected.sy);
+  });
+
+  it('fruitSpriteNull-coinsStillDrawAndFruitsSkipped', () => {
+    const coinSprite = { tag: 'coin' } as unknown as HTMLImageElement;
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const placements = [makePlacement('a', 'coin', 100, 100), makePlacement('b', 'fruit', 300, 300)];
+
+    drawCollectibles(ctx as unknown as CanvasRenderingContext2D, placements, coinSprite, null, new Set(), 0);
+
+    const calls = ctx.drawImage.mock.calls;
+    expect(calls.some((c: unknown[]) => c[0] === coinSprite)).toBe(true);
+    expect(calls.length).toBe(1);
+  });
+
+  it('coinSpriteNull-fruitsStillDrawAndCoinsSkipped', () => {
+    const fruitSprite = { tag: 'fruit' } as unknown as HTMLImageElement;
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const placements = [makePlacement('a', 'coin', 100, 100), makePlacement('b', 'fruit', 300, 300)];
+
+    drawCollectibles(ctx as unknown as CanvasRenderingContext2D, placements, null, fruitSprite, new Set(), 0);
+
+    const calls = ctx.drawImage.mock.calls;
+    expect(calls.some((c: unknown[]) => c[0] === fruitSprite)).toBe(true);
+    expect(calls.length).toBe(1);
+  });
+});
+
+describe('drawCollectionEffects', () => {
+  it('risingEffect-drawsTextPartwayToMid', () => {
+    const ctx = makeMockContext() as unknown as { fillText: ReturnType<typeof vi.fn> };
+    const effect = tickFlightEffect(
+      startFlightEffect('a', 'German', 50, 60, 400, 300, 900, 900),
+      RISE_DURATION_SECONDS / 2,
+    );
+
+    drawCollectionEffects(ctx as unknown as CanvasRenderingContext2D, [effect]);
+
+    expect(ctx.fillText).toHaveBeenCalledWith('German', expect.any(Number), expect.any(Number));
+  });
+
+  it('noEffects-doesNotCallFillText', () => {
+    const ctx = makeMockContext() as unknown as { fillText: ReturnType<typeof vi.fn> };
+    drawCollectionEffects(ctx as unknown as CanvasRenderingContext2D, []);
+    expect(ctx.fillText).not.toHaveBeenCalled();
+  });
+
+  it('freshEffect-drawsSixSparkleCircles', () => {
+    const ctx = makeMockContext() as unknown as { arc: ReturnType<typeof vi.fn> };
+    const effect = startFlightEffect('a', 'German', 50, 60, 400, 300, 900, 900);
+
+    drawCollectionEffects(ctx as unknown as CanvasRenderingContext2D, [effect]);
+
+    expect(ctx.arc).toHaveBeenCalledTimes(6);
+  });
+
+  it('sparkleExpired-doesNotDrawSparkleCircles', () => {
+    const ctx = makeMockContext() as unknown as { arc: ReturnType<typeof vi.fn> };
+    const effect = tickFlightEffect(
+      startFlightEffect('a', 'German', 50, 60, 400, 300, 900, 900),
+      SPARKLE_DURATION_SECONDS + 0.01,
+    );
+
+    drawCollectionEffects(ctx as unknown as CanvasRenderingContext2D, [effect]);
+
+    expect(ctx.arc).not.toHaveBeenCalled();
+  });
+});
+
+describe('drawCollectibleCounter', () => {
+  it('called-drawsIconThenSpacedText', () => {
+    const ctx = makeMockContext() as unknown as {
+      drawImage: ReturnType<typeof vi.fn>;
+      fillText: ReturnType<typeof vi.fn>;
+      font: string;
+    };
+    const icon = {} as HTMLImageElement;
+
+    drawCollectibleCounter(ctx as unknown as CanvasRenderingContext2D, icon, { sx: 0, sy: 0, size: 16 }, 3, 16, 200, 20);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(icon, 0, 0, 16, 16, expect.any(Number), expect.any(Number), expect.any(Number), expect.any(Number));
+    expect(ctx.fillText).toHaveBeenCalledWith('3 / 16', expect.any(Number), expect.any(Number));
+    expect(ctx.font).toBe(`22px "${RESTART_PROMPT_FONT_FAMILY}", monospace`);
+  });
+});
 
 describe('drawTerrain', () => {
   it('groundGrassTopExposed-draws-fromGrassTopSource', () => {
