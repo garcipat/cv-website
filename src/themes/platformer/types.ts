@@ -91,3 +91,18 @@ export interface CollectibleDef {
   spriteType: 'coin' | 'fruit';
   fact: CollectedFact;
 }
+
+/**
+ * One mapped, not-yet-placed enemy — `EnemyMapper.ts` produces these from
+ * `CVData`; `placeEnemies` adds x/y to turn each into an `EnemyPlacement`.
+ * Deliberately a separate type from `CollectibleDef` rather than widening
+ * its `spriteType` union: an enemy's sprite type ('slimeGreen'/'slimePurple')
+ * has no meaning for a coin/fruit collectible, and enemies don't join
+ * `collectedCollectibleIds` until roadmap step 18 gives them a defeat
+ * mechanic.
+ */
+export interface EnemyDef {
+  id: string;
+  spriteType: 'slimeGreen' | 'slimePurple';
+  fact: CollectedFact;
+}
