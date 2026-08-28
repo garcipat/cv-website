@@ -74,8 +74,14 @@ export const Journal = ({ onClose, closeRequested }: JournalProps) => {
   const defaultSection: SectionId | undefined = facts[0]?.sectionId ?? sections[0];
   // Read from the shared signal (not local state) so the selected section
   // survives Journal fully unmounting on close and remounting on reopen —
-  // per user request, the choice should be "memorized".
-  const effectiveSection = activeJournalSection.value ?? defaultSection;
+  // per user request, the choice should be "memorized". Guarded against a
+  // persisted section that isn't among the CV's currently non-empty
+  // sections (e.g. stale data from a previous CV/locale) — falls back to
+  // `defaultSection` instead of pointing at a bookmark that doesn't exist.
+  const effectiveSection: SectionId | undefined =
+    activeJournalSection.value && sections.includes(activeJournalSection.value)
+      ? activeJournalSection.value
+      : defaultSection;
   const setActiveSection = (section: SectionId) => {
     activeJournalSection.value = section;
   };
@@ -154,7 +160,7 @@ export const Journal = ({ onClose, closeRequested }: JournalProps) => {
                     No facts collected yet.
                   </p>
                 ) : (
-                  <ul className="font-caveat flex flex-col gap-1 text-lg">
+                  <ul className="font-caveat space-y-1 text-lg">
                     {sectionFacts.map((fact) => {
                       const entry = formatJournalEntry(fact);
                       return (

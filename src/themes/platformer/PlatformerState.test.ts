@@ -122,7 +122,8 @@ describe('collectedFacts', () => {
 describe('activeJournalSection', () => {
   it('initialValue-onModuleLoad-isUndefined', () => {
     // undefined until the user manually picks a bookmark tab — Journal.tsx
-    // falls back to defaulting from the most recently collected fact.
+    // falls back to defaulting from the first collected fact this session
+    // (`facts[0]`, not the most recently collected one).
     expect(activeJournalSection.value).toBeUndefined();
   });
 });

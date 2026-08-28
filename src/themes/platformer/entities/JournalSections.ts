@@ -15,7 +15,7 @@ import type { SectionId } from '../types';
  * `journal-mockup.html`, adapted from a side layout to a top layout per
  * user feedback — see `BookmarkTabs.tsx`).
  */
-export const JOURNAL_SECTION_ORDER: SectionId[] = [
+export const JOURNAL_SECTION_ORDER = [
   'personality',
   'experience',
   'education',
@@ -24,7 +24,9 @@ export const JOURNAL_SECTION_ORDER: SectionId[] = [
   'skills',
   'languages',
   'projects',
-];
+] as const satisfies readonly SectionId[];
+
+type JournalSection = (typeof JOURNAL_SECTION_ORDER)[number];
 
 export type BookmarkColor = 'blue' | 'green' | 'orange' | 'purple' | 'red' | 'yellow';
 
@@ -35,7 +37,7 @@ export type BookmarkColor = 'blue' | 'green' | 'orange' | 'purple' | 'red' | 'ye
  * ("we don't know if we keep them or need to switch anyway") until more
  * distinct bookmark art exists.
  */
-export const SECTION_BOOKMARK_COLOR: Record<(typeof JOURNAL_SECTION_ORDER)[number], BookmarkColor> = {
+export const SECTION_BOOKMARK_COLOR: Record<JournalSection, BookmarkColor> = {
   personality: 'purple',
   experience: 'orange',
   education: 'green',
@@ -56,7 +58,7 @@ export const SECTION_BOOKMARK_COLOR: Record<(typeof JOURNAL_SECTION_ORDER)[numbe
  * `JOURNAL_SECTION_ORDER`'s order.
  */
 export function nonEmptySections(cv: CVData): SectionId[] {
-  const isNonEmpty: Record<(typeof JOURNAL_SECTION_ORDER)[number], boolean> = {
+  const isNonEmpty: Record<JournalSection, boolean> = {
     personality: true,
     experience: cv.experience.length > 0,
     education: cv.education.length > 0,

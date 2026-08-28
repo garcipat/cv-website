@@ -40,6 +40,13 @@ export const BookmarkTabs = ({ sections, activeSection, onSelect }: BookmarkTabs
       {sections.map((section) => {
         const isActive = section === activeSection;
         const label = sectionLabel(section);
+        // `SECTION_BOOKMARK_COLOR` only covers the 8 sections that actually
+        // get bookmarks (`activities` is excluded, see JournalSections.ts);
+        // `section` here is typed as the wider `SectionId` via this
+        // component's props, so look it up defensively rather than indexing
+        // directly (which TypeScript correctly flags as unsound).
+        const bookmarkColor =
+          (SECTION_BOOKMARK_COLOR as Partial<Record<SectionId, BookmarkColor>>)[section] ?? 'blue';
         return (
           <button
             key={section}
@@ -47,11 +54,12 @@ export const BookmarkTabs = ({ sections, activeSection, onSelect }: BookmarkTabs
             onClick={() => onSelect(section)}
             data-testid={`bookmark-tab-${section}`}
             aria-label={label}
+            aria-current={isActive ? 'true' : undefined}
             className={cn(
               'flex w-9 items-start justify-center overflow-hidden bg-cover bg-bottom text-lg transition-all duration-150',
               isActive ? 'h-20 pt-1' : 'h-10',
             )}
-            style={{ backgroundImage: `url(${BOOKMARK_SPRITE[SECTION_BOOKMARK_COLOR[section]]})` }}
+            style={{ backgroundImage: `url(${BOOKMARK_SPRITE[bookmarkColor]})` }}
           >
             {SECTION_ICON[section]}
           </button>
