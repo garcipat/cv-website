@@ -1,5 +1,6 @@
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { Journal } from './Journal';
+import { journalPage } from './Journal.page';
 import { currentCV } from '@/state/locale';
 import { collectedFacts, activeJournalSection, collectedCollectibleIds } from '../PlatformerState';
 import { JOURNAL_OPEN_FRAME_COUNT, JOURNAL_OPEN_FRAME_INTERVAL_MS } from '../entities/JournalAnimation';
@@ -44,7 +45,7 @@ describe('Journal', () => {
   it('render-onMount-showsFirstAnimationFrame', () => {
     render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
 
-    expect(screen.getByTestId('journal-book')).toHaveAttribute(
+    expect(journalPage.book).toHaveAttribute(
       'src',
       '/sprites/journal_open_1.png',
     );
@@ -55,7 +56,7 @@ describe('Journal', () => {
 
     openBookAnimation();
 
-    expect(screen.getByTestId('journal-book')).toHaveAttribute(
+    expect(journalPage.book).toHaveAttribute(
       'src',
       `/sprites/journal_open_${JOURNAL_OPEN_FRAME_COUNT}.png`,
     );
@@ -64,8 +65,8 @@ describe('Journal', () => {
   it('render-beforeAnimationCompletes-contentNotYetShown', () => {
     render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
 
-    expect(screen.queryByTestId('journal-fact-item')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('journal-empty-state')).not.toBeInTheDocument();
+    expect(journalPage.factItem).not.toBeInTheDocument();
+    expect(journalPage.emptyState).not.toBeInTheDocument();
   });
 
   it('render-withSkillsFactAfterAnimation-defaultsToSkillsSectionAndListsIt', () => {
@@ -83,8 +84,8 @@ describe('Journal', () => {
     render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
     openBookAnimation();
 
-    expect(screen.getByTestId('bookmark-tab-skills')).toBeInTheDocument();
-    const items = screen.getAllByTestId('journal-fact-item');
+    expect(journalPage.bookmarkTabs.skills).toBeInTheDocument();
+    const items = journalPage.factItems;
     expect(items).toHaveLength(1);
     expect(items[0]).toHaveTextContent('React ★★★★☆');
   });
@@ -99,8 +100,8 @@ describe('Journal', () => {
     openBookAnimation();
 
     expect(screen.getByText(currentCV.value.personality.name)).toBeInTheDocument();
-    expect(screen.queryByTestId('journal-empty-state')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('journal-fact-item')).not.toBeInTheDocument();
+    expect(journalPage.emptyState).not.toBeInTheDocument();
+    expect(journalPage.factItem).not.toBeInTheDocument();
   });
 
   it('render-persistedSectionNotInCurrentBookmarks-fallsBackToDefaultSection', () => {
@@ -116,8 +117,8 @@ describe('Journal', () => {
     openBookAnimation();
 
     expect(screen.getByText(currentCV.value.personality.name)).toBeInTheDocument();
-    expect(screen.queryByTestId('journal-empty-state')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('journal-fact-item')).not.toBeInTheDocument();
+    expect(journalPage.emptyState).not.toBeInTheDocument();
+    expect(journalPage.factItem).not.toBeInTheDocument();
   });
 
   it('render-withNoFactsInActiveSection-showsEmptyStateAfterAnimation', () => {
@@ -125,10 +126,10 @@ describe('Journal', () => {
 
     render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
     openBookAnimation();
-    fireEvent.click(screen.getByTestId('bookmark-tab-experience'));
+    fireEvent.click(journalPage.bookmarkTabs.experience);
 
-    expect(screen.getByTestId('journal-empty-state')).toBeInTheDocument();
-    expect(screen.queryByTestId('journal-fact-item')).not.toBeInTheDocument();
+    expect(journalPage.emptyState).toBeInTheDocument();
+    expect(journalPage.factItem).not.toBeInTheDocument();
   });
 
   it('bookmarkTabClicked-afterAnimation-switchesDisplayedSection', () => {
@@ -145,12 +146,12 @@ describe('Journal', () => {
 
     render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
     openBookAnimation();
-    expect(screen.getAllByTestId('journal-fact-item')).toHaveLength(1);
+    expect(journalPage.factItems).toHaveLength(1);
 
-    fireEvent.click(screen.getByTestId('bookmark-tab-experience'));
+    fireEvent.click(journalPage.bookmarkTabs.experience);
 
-    expect(screen.queryByTestId('journal-fact-item')).not.toBeInTheDocument();
-    expect(screen.getByTestId('journal-empty-state')).toBeInTheDocument();
+    expect(journalPage.factItem).not.toBeInTheDocument();
+    expect(journalPage.emptyState).toBeInTheDocument();
   });
 
   it('bookmarkTabClicked-thenJournalUnmountedAndRemounted-remembersTheSelection', () => {
@@ -171,16 +172,16 @@ describe('Journal', () => {
 
     const { unmount } = render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
     openBookAnimation();
-    fireEvent.click(screen.getByTestId('bookmark-tab-experience'));
-    expect(screen.getByTestId('journal-empty-state')).toBeInTheDocument();
+    fireEvent.click(journalPage.bookmarkTabs.experience);
+    expect(journalPage.emptyState).toBeInTheDocument();
     unmount();
 
     render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
     openBookAnimation();
 
     // Still on 'experience' (empty), not back to the skills-fact default.
-    expect(screen.getByTestId('journal-empty-state')).toBeInTheDocument();
-    expect(screen.queryByTestId('journal-fact-item')).not.toBeInTheDocument();
+    expect(journalPage.emptyState).toBeInTheDocument();
+    expect(journalPage.factItem).not.toBeInTheDocument();
   });
 
   it('closeButtonClicked-immediately-hidesContentButDoesNotCallOnCloseYet', () => {
@@ -189,11 +190,11 @@ describe('Journal', () => {
 
     render(<Journal onClose={onClose} closeRequested={false} onResetGame={() => {}} />);
     openBookAnimation();
-    fireEvent.click(screen.getByTestId('journal-close-button'));
+    fireEvent.click(journalPage.closeButton);
 
     // The close animation plays in reverse before onClose actually fires —
     // content hides right away, but onClose is not called yet.
-    expect(screen.queryByTestId('journal-close-button')).not.toBeInTheDocument();
+    expect(journalPage.queryCloseButton).not.toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
   });
 
@@ -202,11 +203,11 @@ describe('Journal', () => {
 
     render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
     openBookAnimation();
-    fireEvent.click(screen.getByTestId('journal-close-button'));
+    fireEvent.click(journalPage.closeButton);
 
     advanceFrames(1);
 
-    expect(screen.getByTestId('journal-book')).toHaveAttribute(
+    expect(journalPage.book).toHaveAttribute(
       'src',
       `/sprites/journal_open_${JOURNAL_OPEN_FRAME_COUNT - 1}.png`,
     );
@@ -218,7 +219,7 @@ describe('Journal', () => {
 
     render(<Journal onClose={onClose} closeRequested={false} onResetGame={() => {}} />);
     openBookAnimation();
-    fireEvent.click(screen.getByTestId('journal-close-button'));
+    fireEvent.click(journalPage.closeButton);
 
     advanceFrames(JOURNAL_OPEN_FRAME_COUNT);
 
@@ -231,13 +232,13 @@ describe('Journal', () => {
 
     const { rerender } = render(<Journal onClose={onClose} closeRequested={false} onResetGame={() => {}} />);
     openBookAnimation();
-    expect(screen.getByTestId('journal-close-button')).toBeInTheDocument();
+    expect(journalPage.closeButton).toBeInTheDocument();
 
     // Simulates the icon button / `J` key (PlatformerPage) requesting a
     // close, instead of clicking Journal's own in-book × button.
     rerender(<Journal onClose={onClose} closeRequested={true} onResetGame={() => {}} />);
 
-    expect(screen.queryByTestId('journal-close-button')).not.toBeInTheDocument();
+    expect(journalPage.queryCloseButton).not.toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
 
     advanceFrames(JOURNAL_OPEN_FRAME_COUNT);
@@ -248,11 +249,11 @@ describe('Journal', () => {
   it('render-beforeLastTwoFrames-bookmarkTabsNotYetShown', () => {
     render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
 
-    expect(screen.queryByTestId('bookmark-tabs')).not.toBeInTheDocument();
+    expect(journalPage.bookmarkTabs.root).not.toBeInTheDocument();
 
     // Still not shown one frame before the last two.
     advanceFrames(JOURNAL_OPEN_FRAME_COUNT - 3);
-    expect(screen.queryByTestId('bookmark-tabs')).not.toBeInTheDocument();
+    expect(journalPage.bookmarkTabs.root).not.toBeInTheDocument();
   });
 
   it('render-onLastTwoFrames-bookmarkTabsShown', () => {
@@ -260,7 +261,7 @@ describe('Journal', () => {
 
     advanceFrames(JOURNAL_OPEN_FRAME_COUNT - 1);
 
-    expect(screen.getByTestId('bookmark-tabs')).toBeInTheDocument();
+    expect(journalPage.bookmarkTabs.root).toBeInTheDocument();
   });
 
   it('skillCategoryFact-rendered-showsCategoryNameAndSkillCount', () => {
@@ -308,7 +309,7 @@ describe('Journal', () => {
       render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
       openBookAnimation();
 
-      expect(screen.getByTestId('journal-section-counter')).toHaveTextContent(`1 / ${total}`);
+      expect(journalPage.sectionCounter).toHaveTextContent(`1 / ${total}`);
     });
 
     it('personalitySection-showsNoCounter', () => {
@@ -317,7 +318,7 @@ describe('Journal', () => {
       render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
       openBookAnimation();
 
-      expect(screen.queryByTestId('journal-section-counter')).not.toBeInTheDocument();
+      expect(journalPage.sectionCounter).not.toBeInTheDocument();
     });
   });
 
@@ -327,9 +328,9 @@ describe('Journal', () => {
 
       render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
       openBookAnimation();
-      fireEvent.click(screen.getByTestId('bookmark-tab-experience'));
+      fireEvent.click(journalPage.bookmarkTabs.experience);
 
-      expect(screen.getByTestId('journal-empty-state')).toHaveTextContent(
+      expect(journalPage.emptyState).toHaveTextContent(
         'No facts discovered yet — keep exploring!',
       );
     });
@@ -358,10 +359,10 @@ describe('Journal', () => {
       render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
       openBookAnimation();
 
-      expect(screen.getAllByTestId('journal-fact-item')).toHaveLength(2);
+      expect(journalPage.factItems).toHaveLength(2);
       // No visible page count anymore — bookmarks alone indicate more
       // content exists.
-      expect(screen.queryByTestId('journal-page-counter')).not.toBeInTheDocument();
+      expect(journalPage.pageCounter).not.toBeInTheDocument();
       // Each language line carries its own star rating, same format as a
       // single Skill entry ("Name ★★★★☆").
       expect(screen.getByText(/English ★★★★★/)).toBeInTheDocument();
@@ -392,10 +393,10 @@ describe('Journal', () => {
 
       render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
       openBookAnimation();
-      fireEvent.click(screen.getByTestId('bookmark-tab-experience'));
+      fireEvent.click(journalPage.bookmarkTabs.experience);
 
-      expect(screen.getAllByTestId('journal-fact-item')).toHaveLength(1);
-      expect(screen.queryByTestId('journal-page-counter')).not.toBeInTheDocument();
+      expect(journalPage.factItems).toHaveLength(1);
+      expect(journalPage.pageCounter).not.toBeInTheDocument();
     });
 
     it('nextButtonClicked-advancesToTheNextFact', () => {
@@ -403,8 +404,8 @@ describe('Journal', () => {
 
       render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
       openBookAnimation();
-      fireEvent.click(screen.getByTestId('bookmark-tab-experience'));
-      fireEvent.click(screen.getByTestId('journal-page-next'));
+      fireEvent.click(journalPage.bookmarkTabs.experience);
+      fireEvent.click(journalPage.pageNext);
 
       expect(screen.getByText(/Startup Inc/)).toBeInTheDocument();
       expect(screen.queryByText(/Acme Corp/)).not.toBeInTheDocument();
@@ -415,12 +416,12 @@ describe('Journal', () => {
 
       render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
       openBookAnimation();
-      fireEvent.click(screen.getByTestId('bookmark-tab-experience'));
-      fireEvent.click(screen.getByTestId('journal-page-next'));
+      fireEvent.click(journalPage.bookmarkTabs.experience);
+      fireEvent.click(journalPage.pageNext);
       expect(screen.getByText(/Startup Inc/)).toBeInTheDocument();
 
-      fireEvent.click(screen.getByTestId('bookmark-tab-personality'));
-      fireEvent.click(screen.getByTestId('bookmark-tab-experience'));
+      fireEvent.click(journalPage.bookmarkTabs.personality);
+      fireEvent.click(journalPage.bookmarkTabs.experience);
 
       expect(screen.getByText(/Acme Corp/)).toBeInTheDocument();
       expect(screen.queryByText(/Startup Inc/)).not.toBeInTheDocument();
@@ -436,10 +437,10 @@ describe('Journal', () => {
 
       render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
       openBookAnimation();
-      fireEvent.click(screen.getByTestId('bookmark-tab-projects'));
-      expect(screen.getByTestId('journal-empty-state')).toBeInTheDocument();
+      fireEvent.click(journalPage.bookmarkTabs.projects);
+      expect(journalPage.emptyState).toBeInTheDocument();
 
-      fireEvent.click(screen.getByTestId('journal-page-next'));
+      fireEvent.click(journalPage.pageNext);
 
       // Wrapped to the book's very first page — personality (About Me).
       expect(screen.getByText(currentCV.value.personality.name)).toBeInTheDocument();
@@ -450,15 +451,15 @@ describe('Journal', () => {
 
       render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
       openBookAnimation();
-      fireEvent.click(screen.getByTestId('bookmark-tab-personality'));
+      fireEvent.click(journalPage.bookmarkTabs.personality);
 
-      fireEvent.click(screen.getByTestId('journal-page-prev'));
+      fireEvent.click(journalPage.pagePrev);
 
-      fireEvent.click(screen.getByTestId('bookmark-tab-projects'));
+      fireEvent.click(journalPage.bookmarkTabs.projects);
       // Still the same (only) page 'projects' has — proves Prev landed
       // somewhere in/before 'projects', the book's last section, not that
       // it did nothing.
-      expect(screen.getByTestId('journal-empty-state')).toBeInTheDocument();
+      expect(journalPage.emptyState).toBeInTheDocument();
     });
 
     it('sectionWithExactlyOneFact-showsThatOneFactAndHasNoDisabledArrows', () => {
@@ -468,11 +469,11 @@ describe('Journal', () => {
 
       render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
       openBookAnimation();
-      fireEvent.click(screen.getByTestId('bookmark-tab-experience'));
+      fireEvent.click(journalPage.bookmarkTabs.experience);
 
       expect(screen.getByText(/Acme Corp/)).toBeInTheDocument();
-      expect(screen.getByTestId('journal-page-prev')).not.toBeDisabled();
-      expect(screen.getByTestId('journal-page-next')).not.toBeDisabled();
+      expect(journalPage.pagePrev).not.toBeDisabled();
+      expect(journalPage.pageNext).not.toBeDisabled();
     });
 
     it('skillsSectionWithMultipleCategories-paginatesOneCategoryPerPageWithStarRatings', () => {
@@ -499,9 +500,9 @@ describe('Journal', () => {
 
       render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
       openBookAnimation();
-      fireEvent.click(screen.getByTestId('bookmark-tab-skills'));
+      fireEvent.click(journalPage.bookmarkTabs.skills);
 
-      expect(screen.getAllByTestId('journal-fact-item')).toHaveLength(1);
+      expect(journalPage.factItems).toHaveLength(1);
       expect(screen.getByText(/Frontend/)).toBeInTheDocument();
       // Name and star rating render as separate flex-row cells (for
       // right-alignment, see Journal.tsx's `ratedItems` branch), not one
@@ -510,7 +511,7 @@ describe('Journal', () => {
       expect(screen.getByText('★★★★☆')).toBeInTheDocument();
       expect(screen.queryByText(/Backend/)).not.toBeInTheDocument();
 
-      fireEvent.click(screen.getByTestId('journal-page-next'));
+      fireEvent.click(journalPage.pageNext);
 
       expect(screen.getByText(/Backend/)).toBeInTheDocument();
       expect(screen.getByText('Go')).toBeInTheDocument();
@@ -526,7 +527,7 @@ describe('Journal', () => {
       render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
       openBookAnimation();
 
-      expect(screen.getByTestId('journal-collectibles-summary')).toBeInTheDocument();
+      expect(journalPage.collectiblesSummary).toBeInTheDocument();
       expect(screen.getByText(/Coins/)).toBeInTheDocument();
     });
 
@@ -544,9 +545,9 @@ describe('Journal', () => {
 
       render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
       openBookAnimation();
-      fireEvent.click(screen.getByTestId('bookmark-tab-personality'));
+      fireEvent.click(journalPage.bookmarkTabs.personality);
 
-      const summary = screen.getByTestId('journal-collectibles-summary');
+      const summary = journalPage.collectiblesSummary;
       expect(summary).toHaveTextContent(`1 / ${total}`);
     });
 
@@ -555,9 +556,9 @@ describe('Journal', () => {
 
       render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
       openBookAnimation();
-      fireEvent.click(screen.getByTestId('bookmark-tab-experience'));
+      fireEvent.click(journalPage.bookmarkTabs.experience);
 
-      expect(screen.queryByTestId('journal-collectibles-summary')).not.toBeInTheDocument();
+      expect(journalPage.collectiblesSummary).not.toBeInTheDocument();
     });
   });
 
@@ -573,7 +574,7 @@ describe('Journal', () => {
 
       render(<Journal onClose={() => {}} closeRequested={false} onResetGame={onResetGame} />);
       openBookAnimation();
-      fireEvent.click(screen.getByTestId('journal-reset-button'));
+      fireEvent.click(journalPage.resetButton);
 
       expect(onResetGame).toHaveBeenCalledTimes(1);
     });
@@ -588,7 +589,7 @@ describe('Journal', () => {
 
       render(<Journal onClose={onClose} closeRequested={false} onResetGame={() => {}} />);
       openBookAnimation();
-      fireEvent.click(screen.getByTestId('journal-reset-button'));
+      fireEvent.click(journalPage.resetButton);
 
       expect(onClose).not.toHaveBeenCalled();
     });
