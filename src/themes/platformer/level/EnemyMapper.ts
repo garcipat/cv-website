@@ -1,6 +1,5 @@
-import { tileToPixel, groundColumns, groundRowForColumn } from './Terrain';
+import { tileToPixel } from './Terrain';
 import { slugify } from './CollectibleMapper';
-import type { LevelDef } from './LevelData';
 import type { CVData, Certificate, Project } from '@/types/cv';
 import type { EnemyDef } from '../types';
 
@@ -49,33 +48,46 @@ export interface EnemyPlacement extends EnemyDef {
   y: number;
 }
 
+/** Hand-authored marker positions for each enemy type, keyed the same way
+ *  `EnemyDef.spriteType` is — see `placeEnemies` below. */
+export interface EnemyMarkerPositions {
+  slimeGreen: readonly { col: number; row: number }[];
+  slimePurple: readonly { col: number; row: number }[];
+}
+
 /**
- * Spacing between placed enemies, offset from CollectibleMapper.ts's
- * COLLECTIBLE_SPACING_COLS (which effectively starts at offset 0) so
- * enemies land on different ground columns than coins/fruits — both mappers
- * scan the same groundColumns() candidate list, and without this offset
- * they'd tend to pick the same columns and visually stack. A placement
- * nicety for this step's static render, not a hard requirement — step 17's
- * level1 rework (walls/ledges) will likely reposition enemies more
- * deliberately anyway.
+ * Places enemy defs at hand-authored marker positions — `E` markers
+ * (LevelParser.ts's findGreenEnemyTiles) for `slimeGreen` defs, `M` markers
+ * (findPurpleEnemyTiles) for `slimePurple` defs, each type matched to its
+ * own marker queue in reading order. The level's marker count decides how
+ * many enemies actually appear, not CVData's length: a marker is a slot on
+ * the map, and each slot draws the next available fact from `defs` (in
+ * `mapCVDataToEnemies`'s Certificates-then-Projects order) as its reward.
+ * If a level has fewer markers of a type than CVData has facts of that
+ * type, the excess facts simply have no enemy yet — not an error, since a
+ * level is built incrementally and isn't expected to represent every CV
+ * fact until it's the final design. There is no auto-placement: an enemy's
+ * position is always exactly where a level author put its marker.
  */
-const ENEMY_SPACING_COLS = 3;
-/** Which of every ENEMY_SPACING_COLS candidate columns to start picking from. */
-const ENEMY_COLUMN_OFFSET = 1;
+export function placeEnemies(defs: EnemyDef[], markers: EnemyMarkerPositions): EnemyPlacement[] {
+  let greenIndex = 0;
+  let purpleIndex = 0;
+  const placements: EnemyPlacement[] = [];
 
-export function placeEnemies(defs: EnemyDef[], level: LevelDef): EnemyPlacement[] {
-  const candidateCols = groundColumns(level);
+  for (const def of defs) {
+    const isGreen = def.spriteType === 'slimeGreen';
+    const queue = isGreen ? markers.slimeGreen : markers.slimePurple;
+    const index = isGreen ? greenIndex : purpleIndex;
 
-  const spacedCols = candidateCols.filter(
-    (_, i) => i % ENEMY_SPACING_COLS === ENEMY_COLUMN_OFFSET % ENEMY_SPACING_COLS,
-  );
-  const pool =
-    defs.length <= spacedCols.length && spacedCols.length > 0 ? spacedCols : candidateCols;
+    if (index >= queue.length) continue; // no marker left for this fact — not placed yet
 
-  return defs.map((def, i) => {
-    const col = pool[i % pool.length];
-    const row = groundRowForColumn(level, col) ?? 0; // pool only ever contains verified ground columns
+    if (isGreen) greenIndex++;
+    else purpleIndex++;
+
+    const { col, row } = queue[index];
     const { x, y } = tileToPixel(col, row);
-    return { ...def, x, y };
-  });
+    placements.push({ ...def, x, y });
+  }
+
+  return placements;
 }

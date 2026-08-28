@@ -196,7 +196,7 @@ character deliberately fall off a bridge they're resting on, rather than only
 being able to leave it by walking off an edge. This was originally deferred —
 the base one-way behavior doesn't require it, and `level1`'s original bridge
 just spanned a ground-level pit with nothing to reach underneath. It was added
-once `level1` gained a platform-bridge-platform arrangement (row 7, columns
+once `level1` gained a platform-bridge-platform arrangement (row 0, columns
 8-14) with two rows of clearance and reachable ground below, giving the
 mechanic a real purpose: reaching the ground-level area under the elevated
 platforms without walking all the way around, and a template for use when the
