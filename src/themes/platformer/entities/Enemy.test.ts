@@ -4,6 +4,7 @@ import {
   enemyFrameSource,
   toEnemyState,
   advanceEnemyAnimation,
+  applyStomp,
 } from './Enemy';
 import type { EnemyPlacement } from '../level/EnemyMapper';
 
@@ -71,6 +72,19 @@ describe('toEnemyState', () => {
     const b = toEnemyState(makePlacement(), 5);
     expect(b.animFrame).toBe(a.animFrame);
   });
+
+  it('greenSlime-startsWithOneHitPoint', () => {
+    const state = toEnemyState(makePlacement());
+    expect(state.hitPoints).toBe(1);
+    expect(state.defeated).toBe(false);
+    expect(state.hitTimer).toBe(0);
+  });
+
+  it('purpleSlime-startsWithTwoHitPoints', () => {
+    const purplePlacement = { ...makePlacement(), spriteType: 'slimePurple' as const };
+    const state = toEnemyState(purplePlacement);
+    expect(state.hitPoints).toBe(2);
+  });
 });
 
 describe('advanceEnemyAnimation', () => {
@@ -107,5 +121,30 @@ describe('advanceEnemyAnimation', () => {
 describe('ENEMY_RENDERED_SIZE', () => {
   it('equals-frameSizeTimesRenderScale', () => {
     expect(ENEMY_RENDERED_SIZE).toBe(ENEMY_FRAME_SIZE * 2);
+  });
+});
+
+describe('applyStomp', () => {
+  it('anyEnemy-entersHitStateAtFrameZeroAndFreezesMovement', () => {
+    const state = { ...toEnemyState(makePlacement()), vx: 60, direction: 'right' as const };
+    const next = applyStomp(state);
+    expect(next.animState).toBe('hit');
+    expect(next.animFrame).toBe(0);
+    expect(next.animTimer).toBe(0);
+    expect(next.hitTimer).toBe(0);
+    expect(next.vx).toBe(0);
+  });
+
+  it('greenSlimeWithOneHitPoint-decrementsToZero', () => {
+    const state = toEnemyState(makePlacement());
+    const next = applyStomp(state);
+    expect(next.hitPoints).toBe(0);
+  });
+
+  it('purpleSlimeWithTwoHitPoints-decrementsToOne', () => {
+    const purplePlacement = { ...makePlacement(), spriteType: 'slimePurple' as const };
+    const state = toEnemyState(purplePlacement);
+    const next = applyStomp(state);
+    expect(next.hitPoints).toBe(1);
   });
 });
