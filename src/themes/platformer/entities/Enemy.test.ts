@@ -1,55 +1,106 @@
 import {
   ENEMY_FRAME_SIZE,
   ENEMY_RENDERED_SIZE,
-  ENEMY_IDLE_FRAME_COUNT,
-  ENEMY_IDLE_FRAME_DURATION,
   enemyFrameSource,
-  enemyIdleFrameIndex,
+  toEnemyState,
+  advanceEnemyAnimation,
 } from './Enemy';
+import type { EnemyPlacement } from '../level/EnemyMapper';
+
+function makePlacement(): EnemyPlacement {
+  return {
+    id: 'enemy-cert-x',
+    spriteType: 'slimeGreen',
+    fact: {
+      id: 'enemy-cert-x',
+      sectionId: 'certificates',
+      sectionLabel: 'Certificates',
+      data: { name: 'X', issuer: 'Y', date: '2020-01' },
+      sourceType: 'enemy',
+    },
+    x: 320,
+    y: 96,
+  };
+}
 
 describe('enemyFrameSource', () => {
-  it('idleFrameZero-returnsSheetFrameFour', () => {
-    // Sheet frame 4 (1-based, row 0 col 3) — see Enemy.ts's IDLE_FRAMES doc comment.
-    expect(enemyFrameSource('idle', 0)).toEqual({ sx: 3 * ENEMY_FRAME_SIZE, sy: 0 });
+  it('walkFrameZero-returnsSheetFrameFour', () => {
+    // Sheet frame 4 (1-based, row 0 col 3) — the tuned breathing/bounce loop
+    // from roadmap step 16, now walk's frame range since idle no longer
+    // exists (a patrolling enemy is always moving).
+    expect(enemyFrameSource('walk', 0)).toEqual({ sx: 3 * ENEMY_FRAME_SIZE, sy: 0 });
   });
 
-  it('idleFrameTwo-returnsSheetFrameSix', () => {
+  it('walkFrameTwo-returnsSheetFrameSix', () => {
     // Sheet frame 6 (1-based, row 1 col 1).
-    expect(enemyFrameSource('idle', 2)).toEqual({ sx: 1 * ENEMY_FRAME_SIZE, sy: ENEMY_FRAME_SIZE });
-  });
-
-  it('walkFrameZero-returnsRowOne', () => {
-    expect(enemyFrameSource('walk', 0)).toEqual({ sx: 0, sy: ENEMY_FRAME_SIZE });
+    expect(enemyFrameSource('walk', 2)).toEqual({ sx: 1 * ENEMY_FRAME_SIZE, sy: ENEMY_FRAME_SIZE });
   });
 
   it('hitFrameZero-returnsRowTwo', () => {
     expect(enemyFrameSource('hit', 0)).toEqual({ sx: 0, sy: ENEMY_FRAME_SIZE * 2 });
   });
+});
 
-  it('idleFrameEqualToFrameCount-wrapsToFirstFrame', () => {
-    expect(enemyFrameSource('idle', ENEMY_IDLE_FRAME_COUNT)).toEqual({ sx: 3 * ENEMY_FRAME_SIZE, sy: 0 });
+describe('toEnemyState', () => {
+  it('placement-noIndex-convertsToInitialWalkStateAtFrameZero', () => {
+    const state = toEnemyState(makePlacement());
+    expect(state.x).toBe(320);
+    expect(state.y).toBe(96);
+    expect(state.spriteType).toBe('slimeGreen');
+    expect(state.fact).toEqual(makePlacement().fact);
+    expect(state.vx).toBe(0);
+    expect(state.direction).toBe('right');
+    expect(state.animState).toBe('walk');
+    expect(state.animFrame).toBe(0);
+    expect(state.animTimer).toBe(0);
+  });
+
+  it('differentIndices-desyncStartingAnimFrame', () => {
+    // Two enemies placed via the same factory must not start on the same
+    // walk frame, or they'd visibly animate in perfect unison.
+    const a = toEnemyState(makePlacement(), 0);
+    const b = toEnemyState(makePlacement(), 1);
+    expect(a.animFrame).not.toBe(b.animFrame);
+  });
+
+  it('indexEqualToWalkFrameCount-wrapsAroundToSameFrameAsIndexZero', () => {
+    // Walk has 5 frames (see Enemy.ts's WALK_FRAMES) — index 5 must land back
+    // on the same frame as index 0, confirming the offset wraps via modulo
+    // rather than growing unbounded.
+    const a = toEnemyState(makePlacement(), 0);
+    const b = toEnemyState(makePlacement(), 5);
+    expect(b.animFrame).toBe(a.animFrame);
   });
 });
 
-describe('enemyIdleFrameIndex', () => {
-  it('elapsedZero-returnsFrameZero', () => {
-    expect(enemyIdleFrameIndex(0)).toBe(0);
+describe('advanceEnemyAnimation', () => {
+  it('belowFrameDuration-onlyAccumulatesTimer', () => {
+    const state = toEnemyState(makePlacement());
+    const next = advanceEnemyAnimation(state, 0.05);
+    expect(next.animTimer).toBeCloseTo(0.05);
+    expect(next.animFrame).toBe(0);
   });
 
-  it('elapsedJustBeforeFrameDuration-staysFrameZero', () => {
-    expect(enemyIdleFrameIndex(ENEMY_IDLE_FRAME_DURATION - 0.001)).toBe(0);
+  it('atFrameDuration-advancesFrameAndResetsTimerRemainder', () => {
+    // walk's frameDuration is 0.15s (unchanged from the original idle tuning).
+    const state = { ...toEnemyState(makePlacement()), animTimer: 0.1 };
+    const next = advanceEnemyAnimation(state, 0.05);
+    expect(next.animFrame).toBe(1);
+    expect(next.animTimer).toBeCloseTo(0);
   });
 
-  it('elapsedAtFrameDuration-advancesToFrameOne', () => {
-    expect(enemyIdleFrameIndex(ENEMY_IDLE_FRAME_DURATION)).toBe(1);
+  it('wrapsFrameAfterFullCycle', () => {
+    let state = toEnemyState(makePlacement());
+    for (let i = 0; i < 5; i++) {
+      state = advanceEnemyAnimation(state, 0.15);
+    }
+    expect(state.animFrame).toBe(0);
   });
 
-  it('elapsedAfterFullCycle-wrapsBackToFrameZero', () => {
-    expect(enemyIdleFrameIndex(ENEMY_IDLE_FRAME_DURATION * ENEMY_IDLE_FRAME_COUNT)).toBe(0);
-  });
-
-  it('elapsedNegative-clampsToFrameZero', () => {
-    expect(enemyIdleFrameIndex(-1)).toBe(0);
+  it('hitState-usesHitsFrameDurationAndCount', () => {
+    let state = { ...toEnemyState(makePlacement()), animState: 'hit' as const, animFrame: 0, animTimer: 0 };
+    state = advanceEnemyAnimation(state, 0.1);
+    expect(state.animFrame).toBe(1);
   });
 });
 
