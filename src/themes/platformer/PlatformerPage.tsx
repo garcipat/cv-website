@@ -19,6 +19,7 @@ import {
 import { drawDebugOverlay } from './engine/DebugOverlay';
 import { createGameLoop } from './engine/GameLoop';
 import { stepPlayerPhysics, checkPitFall, resolvePitFall } from './engine/Physics';
+import { stepEnemyPatrol } from './engine/EnemyAI';
 import { updateCamera } from './engine/Camera';
 import { createKeyboardInput } from './engine/Input';
 import {
@@ -44,6 +45,7 @@ import {
   PLAYER_RENDERED_SIZE,
   PLAYER_VISUAL_CENTER_Y_OFFSET,
 } from './entities/Player';
+import { advanceEnemyAnimation } from './entities/Enemy';
 import { takeDamage, PIT_FALL_DAMAGE } from './entities/Health';
 import {
   playerState,
@@ -54,7 +56,7 @@ import {
   resetGame,
   resetGameProgress,
   collectiblePlacements,
-  enemyPlacements,
+  enemyStates,
   collectedCollectibleIds,
   activeEffects,
   collectedFacts,
@@ -255,10 +257,9 @@ export const PlatformerPage = () => {
       if (slimeGreenSpriteRef.current || slimePurpleSpriteRef.current) {
         drawEnemies(
           ctx,
-          enemyPlacements,
+          enemyStates.value,
           slimeGreenSpriteRef.current,
           slimePurpleSpriteRef.current,
-          worldAnimElapsed,
           originX,
           originY,
         );
@@ -385,6 +386,11 @@ export const PlatformerPage = () => {
       // during death/restart/journal-pause, same as physics below, rather
       // than ticking on a wall-clock independent of the paused state.
       worldAnimElapsed += dt;
+
+      enemyStates.value = enemyStates.value.map((enemy) => {
+        const next = stepEnemyPatrol(enemy, level1, dt);
+        return advanceEnemyAnimation(next, dt);
+      });
 
       activeEffects.value = activeEffects.value
         .map((effect) => tickFlightEffect(effect, dt))
