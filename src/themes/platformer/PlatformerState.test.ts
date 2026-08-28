@@ -10,9 +10,12 @@ import {
   collectedFacts,
   activeJournalSection,
   collectiblePlacements,
+  enemyPlacements,
   collectedCollectibleIds,
   activeEffects,
 } from './PlatformerState';
+import { mapCVDataToEnemies } from './level/EnemyMapper';
+import { currentCV } from '@/state/locale';
 import { MAX_HALF_HEARTS } from './entities/Health';
 import { tileToPixel, RENDERED_TILE_SIZE } from './level/Terrain';
 import { SPAWN_TILE } from './level/level1';
@@ -32,6 +35,17 @@ describe('PlatformerState', () => {
     // pinned here (that's CollectibleMapper.test.ts's job against fixture
     // data), just that real data produces a real, non-trivial list.
     expect(collectiblePlacements.length).toBeGreaterThan(0);
+  });
+
+  it('enemyPlacements-initial-oneEnemyPerLevelMarkerNotPerFullCVData', () => {
+    // level1 currently has exactly one `E` and one `M` marker — placement
+    // count tracks the level's markers, not CVData's (larger) certificate/
+    // project counts. This is expected for a mechanics-test level (see
+    // level1.ts's doc comment), not a regression.
+    const allPossibleDefs = mapCVDataToEnemies(currentCV.value);
+    expect(allPossibleDefs.length).toBeGreaterThan(enemyPlacements.length);
+    expect(enemyPlacements.filter((p) => p.spriteType === 'slimeGreen')).toHaveLength(1);
+    expect(enemyPlacements.filter((p) => p.spriteType === 'slimePurple')).toHaveLength(1);
   });
 
   it('collectedCollectibleIds-initial-isEmptySet', () => {

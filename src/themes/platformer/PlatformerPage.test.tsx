@@ -411,14 +411,14 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    // Place the character resting on level1's ground-level bridge (row 10,
+    // Place the character resting on level1's ground-level bridge (row 3,
     // columns 2-3 — see level1.ts) directly, rather than navigating there by
     // walking, since only the drop-through wiring is under test here (the
     // underlying physics is covered by Physics.test.ts).
     playerState.value = {
       ...playerState.value,
       x: 64,
-      y: 264,
+      y: 40,
       vx: 0,
       vy: 0,
       grounded: true,

@@ -1,7 +1,7 @@
 import { stepPlayerPhysics, checkPitFall, resolvePitFall } from './Physics';
 import { PHYSICS_CONFIG } from './PhysicsConfig';
 import { MAX_DT } from './GameLoop';
-import { parseLevel } from '../level/level1';
+import { parseLevel } from '../level/LevelParser';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import {
   PLAYER_RENDERED_SIZE,

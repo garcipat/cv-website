@@ -1,87 +1,71 @@
-import type { LevelDef, TileMap, TileType } from './LevelData';
+import type { LevelDef } from './LevelData';
+import {
+  parseLevel,
+  findSpawnTile,
+  findGreenEnemyTiles,
+  findPurpleEnemyTiles,
+  findCoinTiles,
+  findFruitTiles,
+} from './LevelParser';
 
-/**
- * Maps each character in LEVEL_1_LAYOUT to a tile type. `S` (spawn marker)
- * parses as `empty` — it marks the player's starting position but isn't a
- * distinct terrain tile.
- */
-export const TILE_CHARS: Record<string, TileType | undefined> = {
-  '.': 'empty',
-  G: 'groundGrass',
-  R: 'groundRock',
-  P: 'platform',
-  W: 'wall',
-  B: 'bridge',
-  S: 'empty',
-};
-
-// Visual layout of level1 — one character per tile (see TILE_CHARS), top row
-// first. Every row must be the same length (the level's width in tiles).
+// Visual layout of level1 — one character per tile (see LevelParser.ts's
+// LEVEL_SYMBOLS). Every row must be the same length (the level's width in
+// tiles), but the number of rows (the level's height) is NOT a fixed
+// constant — it's however many rows this array has. The array is
+// bottom-anchored: its LAST row is always the lowest ground row, and rows
+// above it add height only as far up as the tallest actual feature needs
+// (no filler rows of empty sky above that). Renderer.ts/Camera.ts already
+// anchor the level to the bottom of the canvas, so adding or removing
+// purely-empty leading rows here has no visual effect — it only changes how
+// much unused vertical space this file has to contain. Each row is written
+// as its full literal string (not built from padding calls), so the
+// level's shape is readable directly here — what you see is what's on
+// screen, left edge to right edge.
+//
 // Grass ground (cols 0-11) meets rock ground (cols 12-79) partway across; a
 // 3-tile pit (cols 2-4) is bridged at ground level with NO floor below — it's
 // a genuine bottomless drop, so walking off the bridge's edge or dropping
 // through it on purpose (Down/S) both trigger real pit-fall damage (roadmap
-// step 9). A floating platform row spans cols 8-14
-// as platform-platform-platform-bridge-bridge-platform-platform (cols 8-10 /
+// step 9). A floating platform row (row 0 below) spans cols 8-14 as
+// platform-platform-platform-bridge-bridge-platform-platform (cols 8-10 /
 // 11-12 / 13-14) — the bridge segment is passable from below (jump up
 // through it) and from above via Down/S (drop-through), with solid ground
-// two tiles below for both to land on. The rock ground continues flat with
-// no obstacles from col 20 to the level end (col 79) — room for the camera
-// (step 8) to have something to scroll through (the wall obstacle that used
-// to stand in the rock zone was removed for this). `S` marks the player's
-// spawn point — the empty space directly above the top-exposed grass tile
-// it stands on.
-const LEVEL_WIDTH = 80;
-const pad = (s: string) => s.padEnd(LEVEL_WIDTH, '.');
-
+// two tiles below for both to land on. Two `W` wall tiles (cols 44 and 49)
+// bound a short pocket in the rock ground — a first mechanics test spot for
+// roadmap step 17's walled-patrol case, once patrol exists.
+//
+// Every collectible/enemy on this map is a hand-placed marker, not
+// auto-placed: `S` (spawn), `E` (green/Certificate enemy), `M` (purple/
+// Project enemy), `C` (Skill-category coin), `F` (Language fruit). A marker
+// is a slot on the map — EnemyMapper.ts's placeEnemies and
+// CollectibleMapper.ts's placeCollectibles each draw the next fact from
+// CVData (in its own section order) per marker of that type, with no
+// auto-placement fallback. This level intentionally has only 1 `E`, 1 `M`,
+// 4 `C`s, and 2 `F`s — a mechanics test layout, not a complete one; most of
+// the real CV's certificates/projects/skills/languages simply aren't
+// represented on the map yet. The actual level design comes later, once the
+// mechanics it exercises are all built.
 const LEVEL_1_LAYOUT: readonly string[] = [
-  pad(''),
-  pad(''),
-  pad(''),
-  pad(''),
-  pad(''),
-  pad(''),
-  pad(''),
-  pad('........PPPBBPP'),
-  pad(''),
-  pad('.S'),
-  'GGBBBGGGGGGG'.padEnd(LEVEL_WIDTH, 'R'),
-  'GG...GGGGGGG'.padEnd(LEVEL_WIDTH, 'R'),
+  '........PPPBBPP.................................................................',
+  '................................................................................',
+  '.S........C....C.........C....M....C..........E........F.........F..............',
+  'GGBBBGGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRWRRRRWRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
+  'GG...GGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
 ];
-
-export function parseLevel(layout: readonly string[]): LevelDef {
-  const height = layout.length;
-  const width = layout[0]?.length ?? 0;
-
-  layout.forEach((row, index) => {
-    if (row.length !== width) {
-      throw new Error(`Row ${index} has length ${row.length}, expected ${width}`);
-    }
-  });
-
-  const terrain: TileMap = layout.map((row) =>
-    row.split('').map((char) => {
-      const tile = TILE_CHARS[char];
-      if (!tile) {
-        throw new Error(`Unknown level tile character: "${char}"`);
-      }
-      return tile;
-    }),
-  );
-
-  return { terrain, width, height };
-}
 
 export const level1: LevelDef = parseLevel(LEVEL_1_LAYOUT);
 
-/** Finds the `S` spawn marker's position in a level layout. */
-function findSpawnTile(layout: readonly string[]): { col: number; row: number } {
-  for (let row = 0; row < layout.length; row++) {
-    const col = layout[row].indexOf('S');
-    if (col !== -1) return { col, row };
-  }
-  throw new Error('Level layout has no spawn marker ("S")');
-}
-
 /** Player spawn point, read from `LEVEL_1_LAYOUT`'s `S` marker. */
 export const SPAWN_TILE = findSpawnTile(LEVEL_1_LAYOUT);
+
+/** Hand-placed green (Certificate) enemy positions, from `LEVEL_1_LAYOUT`'s `E` markers. */
+export const ENEMY_TILES_GREEN = findGreenEnemyTiles(LEVEL_1_LAYOUT);
+
+/** Hand-placed purple (Project) enemy positions, from `LEVEL_1_LAYOUT`'s `M` markers. */
+export const ENEMY_TILES_PURPLE = findPurpleEnemyTiles(LEVEL_1_LAYOUT);
+
+/** Hand-placed Skill-category coin positions, from `LEVEL_1_LAYOUT`'s `C` markers. */
+export const COIN_TILES = findCoinTiles(LEVEL_1_LAYOUT);
+
+/** Hand-placed Language fruit positions, from `LEVEL_1_LAYOUT`'s `F` markers. */
+export const FRUIT_TILES = findFruitTiles(LEVEL_1_LAYOUT);

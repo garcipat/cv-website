@@ -1,6 +1,12 @@
 import { signal } from '@preact/signals-react';
 import { tileToPixel, RENDERED_TILE_SIZE } from './level/Terrain';
-import { SPAWN_TILE } from './level/level1';
+import {
+  SPAWN_TILE,
+  ENEMY_TILES_GREEN,
+  ENEMY_TILES_PURPLE,
+  COIN_TILES,
+  FRUIT_TILES,
+} from './level/level1';
 import {
   PLAYER_RENDERED_SIZE,
   PLAYER_FOOT_PADDING,
@@ -11,7 +17,6 @@ import { introState } from './engine/GameLifecycle';
 import { currentCV } from '@/state/locale';
 import { mapCVDataToCollectibles, placeCollectibles } from './level/CollectibleMapper';
 import { mapCVDataToEnemies, placeEnemies } from './level/EnemyMapper';
-import { level1 } from './level/level1';
 import type { PlayerState } from './entities/Player';
 import type { LifecycleState } from './engine/GameLifecycle';
 import type { CollectedFact, SectionId } from './types';
@@ -74,22 +79,31 @@ export const healthState = signal(MAX_HALF_HEARTS);
  * constant, not a signal, matching `level1`: neither is locale-reactive yet
  * (switching EN/DE mid-session doesn't re-place collectibles or change
  * which are already collected; that's roadmap step 26's theme-switch-reset
- * job, not this step's).
+ * job, not this step's). Every position comes from level1's hand-placed
+ * `C`/`F` markers (see COIN_TILES/FRUIT_TILES) — placeCollectibles has no
+ * auto-placement, same as placeEnemies below.
  */
 export const collectiblePlacements: CollectiblePlacement[] = placeCollectibles(
   mapCVDataToCollectibles(currentCV.value),
-  level1,
+  { coin: COIN_TILES, fruit: FRUIT_TILES },
 );
 
 /**
  * Every enemy in the level, placed once at module load — same non-reactive
  * convention as collectiblePlacements above (see its comment): no movement,
- * defeat, or locale-reactivity yet (roadmap steps 17/18/26).
+ * defeat, or locale-reactivity yet (roadmap steps 17/18/26). Every position
+ * comes from level1's hand-placed `E`/`M` markers (see ENEMY_TILES_GREEN/
+ * ENEMY_TILES_PURPLE) — placeEnemies has no auto-placement. A marker is a
+ * slot on the map; each slot draws the next fact from CVData as its reward.
+ * level1 currently has one `E` and one `M`, so only the first certificate
+ * and first project actually have an enemy — the rest of CVData's
+ * certificates/projects simply aren't on the map yet, which is expected for
+ * this mechanics-test level, not a bug (see level1.ts's doc comment).
  */
-export const enemyPlacements: EnemyPlacement[] = placeEnemies(
-  mapCVDataToEnemies(currentCV.value),
-  level1,
-);
+export const enemyPlacements: EnemyPlacement[] = placeEnemies(mapCVDataToEnemies(currentCV.value), {
+  slimeGreen: ENEMY_TILES_GREEN,
+  slimePurple: ENEMY_TILES_PURPLE,
+});
 
 /**
  * Facts discovered so far this session (see spec.md FR-032). Starts empty —

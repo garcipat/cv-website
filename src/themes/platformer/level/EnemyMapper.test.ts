@@ -1,6 +1,5 @@
 import { mapCVDataToEnemies, placeEnemies } from './EnemyMapper';
-import { level1 } from './level1';
-import { isSolid, tileAt, RENDERED_TILE_SIZE } from './Terrain';
+import { tileToPixel } from './Terrain';
 import type { CVData } from '@/types/cv';
 
 const cv: CVData = {
@@ -60,38 +59,65 @@ describe('mapCVDataToEnemies', () => {
 });
 
 describe('placeEnemies', () => {
-  it('nDefs-returns-nPlacementsWithMatchingIds', () => {
-    const defs = mapCVDataToEnemies(cv);
-    const placed = placeEnemies(defs, level1);
-    expect(placed).toHaveLength(defs.length);
+  it('enoughMarkersOfEachType-returnsPlacementsAtMarkedPositionsInDefsOrder', () => {
+    const defs = mapCVDataToEnemies(cv); // [cert, cert, project]
+    const greenMarkers = [
+      { col: 5, row: 2 },
+      { col: 6, row: 2 },
+    ];
+    const purpleMarkers = [{ col: 7, row: 2 }];
+    const placed = placeEnemies(defs, { slimeGreen: greenMarkers, slimePurple: purpleMarkers });
+
     expect(placed.map((p) => p.id)).toEqual(defs.map((d) => d.id));
+    expect(placed[0]).toMatchObject(tileToPixel(greenMarkers[0].col, greenMarkers[0].row));
+    expect(placed[1]).toMatchObject(tileToPixel(greenMarkers[1].col, greenMarkers[1].row));
+    expect(placed[2]).toMatchObject(tileToPixel(purpleMarkers[0].col, purpleMarkers[0].row));
   });
 
-  it('everyPlacement-sitsOnAnEmptyTileDirectlyAboveASolidTile', () => {
+  it('greenMarkersConsumedInReadingOrder-secondGreenDefGetsSecondMarker', () => {
     const defs = mapCVDataToEnemies(cv);
-    const placed = placeEnemies(defs, level1);
-    for (const p of placed) {
-      const col = p.x / RENDERED_TILE_SIZE;
-      const row = p.y / RENDERED_TILE_SIZE;
-      expect(isSolid(tileAt(level1, col, row))).toBe(false);
-      expect(isSolid(tileAt(level1, col, row + 1))).toBe(true);
-    }
+    const greenMarkers = [
+      { col: 1, row: 0 },
+      { col: 2, row: 0 },
+    ];
+    const placed = placeEnemies(defs, { slimeGreen: greenMarkers, slimePurple: [{ col: 3, row: 0 }] });
+
+    const greenPlacements = placed.filter((p) => p.spriteType === 'slimeGreen');
+    expect(greenPlacements[0]).toMatchObject(tileToPixel(1, 0));
+    expect(greenPlacements[1]).toMatchObject(tileToPixel(2, 0));
   });
 
-  it('manyDefs-returns-noTwoPlacementsAtTheSamePosition', () => {
-    const manyDefs = Array.from({ length: 30 }, (_, i) => ({
-      id: `fake-${i}`,
-      spriteType: 'slimeGreen' as const,
-      fact: {
-        id: `fake-${i}`,
-        sectionId: 'certificates' as const,
-        sectionLabel: 'Certificates',
-        data: { name: `Cert ${i}`, issuer: 'X', date: '2020-01' },
-        sourceType: 'enemy' as const,
-      },
-    }));
-    const placed = placeEnemies(manyDefs, level1);
-    const positions = placed.map((p) => `${p.x},${p.y}`);
-    expect(new Set(positions).size).toBe(positions.length);
+  it('fewerGreenMarkersThanGreenDefs-onlyMarkedCountGetsPlaced', () => {
+    const defs = mapCVDataToEnemies(cv); // 2 slimeGreen defs, 1 slimePurple def
+    const placed = placeEnemies(defs, {
+      slimeGreen: [{ col: 1, row: 0 }],
+      slimePurple: [{ col: 2, row: 0 }],
+    });
+
+    // Only the first green def had a marker — the second isn't on the map
+    // yet, not an error (see placeEnemies's doc comment).
+    expect(placed.filter((p) => p.spriteType === 'slimeGreen')).toHaveLength(1);
+    expect(placed.filter((p) => p.spriteType === 'slimePurple')).toHaveLength(1);
+    expect(placed).toHaveLength(2);
+  });
+
+  it('noPurpleMarkers-noPurpleDefsPlacedButGreenDefsStillAre', () => {
+    const defs = mapCVDataToEnemies(cv); // 2 slimeGreen defs, 1 slimePurple def
+    const placed = placeEnemies(defs, {
+      slimeGreen: [
+        { col: 1, row: 0 },
+        { col: 2, row: 0 },
+      ],
+      slimePurple: [],
+    });
+
+    expect(placed.filter((p) => p.spriteType === 'slimeGreen')).toHaveLength(2);
+    expect(placed.filter((p) => p.spriteType === 'slimePurple')).toHaveLength(0);
+    expect(placed).toHaveLength(2);
+  });
+
+  it('noMarkersAtAll-noDefs-returnsEmptyArray', () => {
+    const defs = mapCVDataToEnemies({ ...cv, certificates: [], projects: [] });
+    expect(placeEnemies(defs, { slimeGreen: [], slimePurple: [] })).toEqual([]);
   });
 });

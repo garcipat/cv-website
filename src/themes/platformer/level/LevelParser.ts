@@ -1,0 +1,136 @@
+import type { LevelDef, TileMap, TileType } from './LevelData';
+
+/** An entity marker's kind — what it means, not what it looks like on the
+ *  ground (every entity marker sits on `empty` terrain, see parseLevel). */
+export type EntityKind = 'spawn' | 'enemyGreen' | 'enemyPurple' | 'coin' | 'fruit';
+
+/**
+ * Maps each terrain character usable in a level layout to its tile type.
+ * Shared by every level's raw ASCII layout, not just `level1`.
+ */
+export const TERRAIN_CHARS: Record<string, TileType | undefined> = {
+  '.': 'empty',
+  G: 'groundGrass',
+  R: 'groundRock',
+  P: 'platform',
+  W: 'wall',
+  B: 'bridge',
+};
+
+/**
+ * Maps each entity-marker character usable in a level layout to what it
+ * marks: `S` (spawn), `E` (green/Certificate enemy), `M` (purple/Project
+ * enemy), `C` (Skill-category coin), `F` (Language fruit). Kept as its own
+ * map, separate from TERRAIN_CHARS, since an entity marker isn't a terrain
+ * tile — the ground it sits on is always `empty` (see parseLevel below),
+ * and it's a fundamentally different kind of fact about a cell ("what
+ * starts here") than terrain is ("what's the ground").
+ */
+export const ENTITY_CHARS: Record<string, EntityKind | undefined> = {
+  S: 'spawn',
+  E: 'enemyGreen',
+  M: 'enemyPurple',
+  C: 'coin',
+  F: 'fruit',
+};
+
+// A character can only mean one thing — guard against TERRAIN_CHARS and
+// ENTITY_CHARS accidentally sharing a key, which two independent maps don't
+// prevent on their own the way one unified table would.
+const sharedChars = Object.keys(TERRAIN_CHARS).filter((char) => char in ENTITY_CHARS);
+if (sharedChars.length > 0) {
+  throw new Error(
+    `Level character(s) defined as both terrain and entity marker: ${sharedChars.join(', ')}`,
+  );
+}
+
+/**
+ * Parses a level's raw ASCII layout (one character per tile, see
+ * TERRAIN_CHARS/ENTITY_CHARS, top row first) into a `LevelDef`'s terrain
+ * grid. Width and height are read from the layout itself — never
+ * hardcoded — so any layout of any size works, which is also what makes
+ * this parser testable independently of any specific level's real data.
+ * Entity markers resolve to `empty` terrain here — use findSpawnTile/
+ * findGreenEnemyTiles/findPurpleEnemyTiles below to read their positions.
+ */
+export function parseLevel(layout: readonly string[]): LevelDef {
+  const height = layout.length;
+  const width = layout[0]?.length ?? 0;
+
+  layout.forEach((row, index) => {
+    if (row.length !== width) {
+      throw new Error(`Row ${index} has length ${row.length}, expected ${width}`);
+    }
+  });
+
+  const terrain: TileMap = layout.map((row) =>
+    row.split('').map((char) => {
+      const tile = TERRAIN_CHARS[char];
+      if (tile) return tile;
+      if (ENTITY_CHARS[char]) return 'empty';
+      throw new Error(`Unknown level tile character: "${char}"`);
+    }),
+  );
+
+  return { terrain, width, height };
+}
+
+/** Finds every character in a level layout whose ENTITY_CHARS entry has the
+ *  given `kind`, in reading order (top-to-bottom, left-to-right). Shared by
+ *  findSpawnTile/findGreenEnemyTiles/findPurpleEnemyTiles below — all three
+ *  just look for a different entity kind. */
+function findAllOfKind(layout: readonly string[], kind: EntityKind): { col: number; row: number }[] {
+  const tiles: { col: number; row: number }[] = [];
+  for (let row = 0; row < layout.length; row++) {
+    for (let col = 0; col < layout[row].length; col++) {
+      if (ENTITY_CHARS[layout[row][col]] === kind) {
+        tiles.push({ col, row });
+      }
+    }
+  }
+  return tiles;
+}
+
+/** Finds the `S` spawn marker's position in a level layout. */
+export function findSpawnTile(layout: readonly string[]): { col: number; row: number } {
+  const [first] = findAllOfKind(layout, 'spawn');
+  if (!first) {
+    throw new Error('Level layout has no spawn marker ("S")');
+  }
+  return first;
+}
+
+/**
+ * Finds every `E` (green/Certificate) enemy marker's position in a level
+ * layout, in reading order — this order is what `EnemyMapper.ts`'s
+ * `placeEnemies` zips against the certificate-derived enemy defs (in
+ * `mapCVDataToEnemies`'s output order) to assign hand-authored positions to
+ * specific CV facts. Zero markers is valid (a level can rely entirely on
+ * auto-placement for this type).
+ */
+export function findGreenEnemyTiles(layout: readonly string[]): { col: number; row: number }[] {
+  return findAllOfKind(layout, 'enemyGreen');
+}
+
+/** Finds every `M` (purple/Project) enemy marker's position in a level
+ *  layout — same convention as findGreenEnemyTiles, for project-derived
+ *  enemy defs instead of certificate-derived ones. */
+export function findPurpleEnemyTiles(layout: readonly string[]): { col: number; row: number }[] {
+  return findAllOfKind(layout, 'enemyPurple');
+}
+
+/** Finds every `C` (Skill-category coin) marker's position in a level
+ *  layout, in reading order — `CollectibleMapper.ts`'s `placeCollectibles`
+ *  zips this against `mapCVDataToCollectibles`'s skill-category-derived
+ *  defs the same way findGreenEnemyTiles/findPurpleEnemyTiles do for
+ *  enemies. */
+export function findCoinTiles(layout: readonly string[]): { col: number; row: number }[] {
+  return findAllOfKind(layout, 'coin');
+}
+
+/** Finds every `F` (Language fruit) marker's position in a level layout —
+ *  same convention as findCoinTiles, for language-derived defs instead of
+ *  skill-category-derived ones. */
+export function findFruitTiles(layout: readonly string[]): { col: number; row: number }[] {
+  return findAllOfKind(layout, 'fruit');
+}

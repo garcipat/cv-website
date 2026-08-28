@@ -57,34 +57,3 @@ export function bridgeRunPosition(level: LevelDef, col: number, row: number): Br
   if (leftIsBridge && !rightIsBridge) return 'right';
   return 'middle';
 }
-
-/**
- * The row index of the first empty-tile-above-solid-tile position in the
- * given column (top to bottom), or null if the column has no such surface at
- * all (e.g. a bottomless pit, or a column whose only solid tile is already at
- * the top with nothing exposed above it).
- */
-export function groundRowForColumn(level: LevelDef, col: number): number | null {
-  for (let row = 0; row < level.height - 1; row++) {
-    if (!isSolid(tileAt(level, col, row)) && isSolid(tileAt(level, col, row + 1))) {
-      return row;
-    }
-  }
-  return null;
-}
-
-/**
- * Every column index that has at least one empty tile directly above a solid
- * tile — i.e. a column an object can stand in. Shared by
- * CollectibleMapper.ts and EnemyMapper.ts so both place their objects using
- * the same "walkable column" definition.
- */
-export function groundColumns(level: LevelDef): number[] {
-  const cols: number[] = [];
-  for (let col = 0; col < level.width; col++) {
-    if (groundRowForColumn(level, col) !== null) {
-      cols.push(col);
-    }
-  }
-  return cols;
-}
