@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { vi } from 'vitest';
 import { PlatformerPage } from './PlatformerPage';
+import { platformerPage } from './PlatformerPage.page';
 import { PLAYER_RENDERED_SIZE, PLAYER_VISUAL_CENTER_Y_OFFSET } from './entities/Player';
 import {
   playerState,
@@ -82,7 +83,7 @@ describe('PlatformerPage', () => {
 
     render(<PlatformerPage />);
 
-    const canvas = screen.getByTestId('platformer-canvas');
+    const canvas = platformerPage.canvas;
     expect(canvas).toBeInTheDocument();
     expect(canvas).toHaveAttribute('width', '1024');
     expect(canvas).toHaveAttribute('height', '768');
@@ -98,7 +99,7 @@ describe('PlatformerPage', () => {
     Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 600 });
     fireEvent(window, new Event('resize'));
 
-    const canvas = screen.getByTestId('platformer-canvas');
+    const canvas = platformerPage.canvas;
     expect(canvas).toHaveAttribute('width', '800');
     expect(canvas).toHaveAttribute('height', '600');
   });
@@ -112,8 +113,7 @@ describe('PlatformerPage', () => {
     vi.stubGlobal('Image', MockTilesetImage);
 
     render(<PlatformerPage />);
-    const canvas = screen.getByTestId('platformer-canvas');
-    const ctx = (canvas as HTMLCanvasElement).getContext('2d') as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const ctx = platformerPage.context;
 
     await waitFor(() => expect(ctx.drawImage).toHaveBeenCalled());
   });
@@ -124,10 +124,7 @@ describe('PlatformerPage', () => {
     vi.stubGlobal('Image', MockTilesetImage);
 
     render(<PlatformerPage />);
-    const canvas = screen.getByTestId('platformer-canvas');
-    const ctx = (canvas as HTMLCanvasElement).getContext('2d') as unknown as {
-      drawImage: ReturnType<typeof vi.fn>;
-    };
+    const ctx = platformerPage.context;
 
     await waitFor(() => expect(ctx.drawImage).toHaveBeenCalled());
 
@@ -141,8 +138,7 @@ describe('PlatformerPage', () => {
     vi.stubGlobal('Image', MockTilesetImage);
 
     render(<PlatformerPage />);
-    const canvas = screen.getByTestId('platformer-canvas');
-    const ctx = (canvas as HTMLCanvasElement).getContext('2d') as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const ctx = platformerPage.context;
 
     await waitFor(() =>
       expect(
@@ -155,8 +151,7 @@ describe('PlatformerPage', () => {
     vi.stubGlobal('Image', MockTilesetImage);
 
     render(<PlatformerPage />);
-    const canvas = screen.getByTestId('platformer-canvas');
-    const ctx = (canvas as HTMLCanvasElement).getContext('2d') as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const ctx = platformerPage.context;
 
     // dx===HEARTS_START_X (call[5]) alone isn't enough to distinguish this
     // from the player's draw call: at this test's default spawn position
@@ -184,11 +179,7 @@ describe('PlatformerPage', () => {
     vi.stubGlobal('Image', MockTilesetImage);
 
     render(<PlatformerPage />);
-    const canvas = screen.getByTestId('platformer-canvas');
-    const ctx = (canvas as HTMLCanvasElement).getContext('2d') as unknown as {
-      drawImage: ReturnType<typeof vi.fn>;
-      strokeRect: ReturnType<typeof vi.fn>;
-    };
+    const ctx = platformerPage.context;
 
     await waitFor(() => expect(ctx.drawImage).toHaveBeenCalled());
 
@@ -199,11 +190,7 @@ describe('PlatformerPage', () => {
     vi.stubGlobal('Image', MockTilesetImage);
 
     render(<PlatformerPage />);
-    const canvas = screen.getByTestId('platformer-canvas');
-    const ctx = (canvas as HTMLCanvasElement).getContext('2d') as unknown as {
-      drawImage: ReturnType<typeof vi.fn>;
-      strokeRect: ReturnType<typeof vi.fn>;
-    };
+    const ctx = platformerPage.context;
 
     await waitFor(() => expect(ctx.drawImage).toHaveBeenCalled());
 
@@ -305,7 +292,7 @@ describe('PlatformerPage', () => {
 
   it('mount-onRender-focusesTheCanvasSoArrowKeysWorkImmediately', () => {
     render(<PlatformerPage />);
-    const canvas = screen.getByTestId('platformer-canvas');
+    const canvas = platformerPage.canvas;
     expect(canvas).toHaveFocus();
   });
 
@@ -522,8 +509,7 @@ describe('PlatformerPage', () => {
     cameraPositionX.value = 50;
 
     render(<PlatformerPage />);
-    const canvas = screen.getByTestId('platformer-canvas');
-    const ctx = (canvas as HTMLCanvasElement).getContext('2d') as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const ctx = platformerPage.context;
 
     await waitFor(() => expect(ctx.drawImage).toHaveBeenCalled());
 
@@ -552,8 +538,7 @@ describe('PlatformerPage', () => {
     vi.stubGlobal('Image', MockTilesetImage);
 
     render(<PlatformerPage />);
-    const canvas = screen.getByTestId('platformer-canvas');
-    const ctx = (canvas as HTMLCanvasElement).getContext('2d') as unknown as { fillText: ReturnType<typeof vi.fn> };
+    const ctx = platformerPage.context;
 
     const coinTotal = collectiblePlacements.filter((p) => p.spriteType === 'coin').length;
     const fruitTotal = collectiblePlacements.filter((p) => p.spriteType === 'fruit').length;
@@ -778,7 +763,7 @@ describe('PlatformerPage', () => {
     }
     expect(lifecycleState.value.phase).toBe('awaitingRestart');
 
-    const canvas = screen.getByTestId('platformer-canvas');
+    const canvas = platformerPage.canvas;
     fireEvent.click(canvas);
 
     expect(lifecycleState.value.phase).toBe('intro');
@@ -799,7 +784,7 @@ describe('PlatformerPage', () => {
 
     fireEvent.keyDown(window, { code: 'KeyJ' });
 
-    expect(screen.getByTestId('platformer-journal')).toBeInTheDocument();
+    expect(platformerPage.journal.root).toBeInTheDocument();
     expect(lifecycleState.value.phase).toBe('paused');
 
     const xBeforeTick = playerState.value.x;
@@ -837,7 +822,7 @@ describe('PlatformerPage', () => {
       });
     }
 
-    expect(screen.queryByTestId('platformer-journal')).not.toBeInTheDocument();
+    expect(platformerPage.journal.root).not.toBeInTheDocument();
     expect(lifecycleState.value.phase).toBe('playing');
 
     vi.useRealTimers();
@@ -856,7 +841,7 @@ describe('PlatformerPage', () => {
     // Simulates the OS auto-repeat keydowns fired while the key is held.
     fireEvent.keyDown(window, { code: 'KeyJ', repeat: true });
 
-    expect(screen.getByTestId('platformer-journal')).toBeInTheDocument();
+    expect(platformerPage.journal.root).toBeInTheDocument();
     expect(lifecycleState.value.phase).toBe('paused');
   });
 
@@ -880,7 +865,7 @@ describe('PlatformerPage', () => {
       });
     }
 
-    fireEvent.click(screen.getByTestId('journal-close-button'));
+    fireEvent.click(platformerPage.journal.closeButton);
 
     for (let i = 0; i < JOURNAL_OPEN_FRAME_COUNT; i++) {
       act(() => {
@@ -888,7 +873,7 @@ describe('PlatformerPage', () => {
       });
     }
 
-    expect(screen.queryByTestId('platformer-journal')).not.toBeInTheDocument();
+    expect(platformerPage.journal.root).not.toBeInTheDocument();
     expect(lifecycleState.value.phase).toBe('playing');
 
     vi.useRealTimers();
@@ -925,9 +910,9 @@ describe('PlatformerPage', () => {
     healthState.value = 0;
     cameraPositionX.value = 300;
 
-    fireEvent.click(screen.getByTestId('journal-reset-button'));
+    fireEvent.click(platformerPage.journal.resetButton);
 
-    expect(screen.queryByTestId('platformer-journal')).not.toBeInTheDocument();
+    expect(platformerPage.journal.root).not.toBeInTheDocument();
     expect(collectedFacts.value).toEqual([]);
     expect(collectedCollectibleIds.value.size).toBe(0);
     expect(healthState.value).toBe(MAX_HALF_HEARTS);
@@ -948,14 +933,14 @@ describe('PlatformerPage', () => {
 
     fireEvent.keyDown(window, { code: 'KeyJ' });
 
-    expect(screen.queryByTestId('platformer-journal')).not.toBeInTheDocument();
+    expect(platformerPage.journal.root).not.toBeInTheDocument();
     expect(lifecycleState.value.phase).toBe('dying');
   });
 
   it('render-default-showsRealJournalIconAtTopLeft', () => {
     render(<PlatformerPage />);
 
-    const icon = screen.getByTestId('journal-open-button');
+    const icon = platformerPage.journalOpenButton;
     expect(icon.tagName).toBe('IMG');
     expect(icon).toHaveAttribute('src', '/sprites/journal.png');
   });
@@ -967,9 +952,9 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     lifecycleState.value = { ...lifecycleState.value, phase: 'playing' };
 
-    fireEvent.click(screen.getByTestId('journal-open-button'));
+    fireEvent.click(platformerPage.journalOpenButton);
 
-    expect(screen.getByTestId('platformer-journal')).toBeInTheDocument();
+    expect(platformerPage.journal.root).toBeInTheDocument();
     expect(lifecycleState.value.phase).toBe('paused');
   });
 
@@ -980,10 +965,10 @@ describe('PlatformerPage', () => {
 
     render(<PlatformerPage />);
     lifecycleState.value = { ...lifecycleState.value, phase: 'playing' };
-    fireEvent.click(screen.getByTestId('journal-open-button'));
+    fireEvent.click(platformerPage.journalOpenButton);
     expect(lifecycleState.value.phase).toBe('paused');
 
-    fireEvent.click(screen.getByTestId('journal-open-button'));
+    fireEvent.click(platformerPage.journalOpenButton);
 
     // Same reverse-close animation as the in-book × button — advance
     // enough intervals to cover both the remaining open animation and the
@@ -995,7 +980,7 @@ describe('PlatformerPage', () => {
       });
     }
 
-    expect(screen.queryByTestId('platformer-journal')).not.toBeInTheDocument();
+    expect(platformerPage.journal.root).not.toBeInTheDocument();
     expect(lifecycleState.value.phase).toBe('playing');
 
     vi.useRealTimers();
@@ -1064,8 +1049,8 @@ describe('PlatformerPage', () => {
     const defaultSectionFacts = factsBeforeDeath.filter(
       (fact) => fact.sectionId === factsBeforeDeath[0].sectionId,
     );
-    expect(screen.queryByTestId('journal-empty-state')).not.toBeInTheDocument();
-    expect(screen.getAllByTestId('journal-fact-item')).toHaveLength(defaultSectionFacts.length);
+    expect(platformerPage.journal.emptyState).not.toBeInTheDocument();
+    expect(platformerPage.journal.factItems).toHaveLength(defaultSectionFacts.length);
 
     vi.useRealTimers();
   });
@@ -1135,8 +1120,8 @@ describe('PlatformerPage', () => {
   it('debugQueryParamAbsent-render-doesNotShowKillOrRespawnButtons', () => {
     render(<PlatformerPage />);
 
-    expect(screen.queryByRole('button', { name: 'Kill' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Respawn' })).not.toBeInTheDocument();
+    expect(platformerPage.queryDebugKillButton).not.toBeInTheDocument();
+    expect(platformerPage.queryDebugRespawnButton).not.toBeInTheDocument();
   });
 
   it('debugQueryParamPresent-render-showsKillAndRespawnButtons', () => {
@@ -1148,8 +1133,8 @@ describe('PlatformerPage', () => {
 
     render(<PlatformerPage />);
 
-    expect(screen.getByRole('button', { name: 'Kill' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Respawn' })).toBeInTheDocument();
+    expect(platformerPage.debugKillButton).toBeInTheDocument();
+    expect(platformerPage.debugRespawnButton).toBeInTheDocument();
   });
 
   it('killButtonClicked-whilePlaying-setsHealthZeroAndEntersDyingPhase', () => {
@@ -1169,7 +1154,7 @@ describe('PlatformerPage', () => {
     frameCallback!(0);
     frameCallback!(16);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Kill' }));
+    fireEvent.click(platformerPage.debugKillButton);
 
     expect(healthState.value).toBe(0);
     expect(lifecycleState.value.phase).toBe('dying');
@@ -1196,7 +1181,7 @@ describe('PlatformerPage', () => {
     playerState.value = { ...playerState.value, x: 999, y: 999 };
     healthState.value = 0;
 
-    fireEvent.click(screen.getByRole('button', { name: 'Respawn' }));
+    fireEvent.click(platformerPage.debugRespawnButton);
 
     expect(healthState.value).toBe(MAX_HALF_HEARTS);
     expect(lifecycleState.value.phase).toBe('intro');
@@ -1214,7 +1199,7 @@ describe('PlatformerPage', () => {
 
     render(<PlatformerPage />);
 
-    expect(screen.getByRole('button', { name: /Hitboxes/ })).toBeInTheDocument();
+    expect(platformerPage.debugHitboxesToggle).toBeInTheDocument();
   });
 
   it('hitboxesToggleClicked-startingOnFromQueryParam-turnsOffAndStopsDrawingOverlay', async () => {
@@ -1232,11 +1217,10 @@ describe('PlatformerPage', () => {
     vi.stubGlobal('cancelAnimationFrame', vi.fn());
 
     render(<PlatformerPage />);
-    const canvas = screen.getByTestId('platformer-canvas');
-    const ctx = (canvas as HTMLCanvasElement).getContext('2d') as unknown as { strokeRect: ReturnType<typeof vi.fn> };
+    const ctx = platformerPage.context;
     await waitFor(() => expect(ctx.strokeRect).toHaveBeenCalled());
 
-    fireEvent.click(screen.getByRole('button', { name: /Hitboxes/ }));
+    fireEvent.click(platformerPage.debugHitboxesToggle);
     ctx.strokeRect.mockClear();
     frameCallback!(16);
 
@@ -1258,12 +1242,11 @@ describe('PlatformerPage', () => {
     vi.stubGlobal('cancelAnimationFrame', vi.fn());
 
     render(<PlatformerPage />);
-    const canvas = screen.getByTestId('platformer-canvas');
-    const ctx = (canvas as HTMLCanvasElement).getContext('2d') as unknown as { strokeRect: ReturnType<typeof vi.fn> };
+    const ctx = platformerPage.context;
     frameCallback!(0);
     expect(ctx.strokeRect).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole('button', { name: /Hitboxes/ }));
+    fireEvent.click(platformerPage.debugHitboxesToggle);
     frameCallback!(16);
 
     expect(ctx.strokeRect).toHaveBeenCalled();

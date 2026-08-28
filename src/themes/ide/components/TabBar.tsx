@@ -24,6 +24,7 @@ export const TabBar = () => {
             }`}
             onClick={() => { activeFile.value = fileName; }}
             onMouseDown={(e) => { if (e.button === 1) { e.preventDefault(); closeTab(fileName); } }}
+            data-testid={`tab-item-${fileName}`}
           >
             <span className="truncate max-w-32">{fileName}</span>
             <span
@@ -41,6 +42,7 @@ export const TabBar = () => {
                 }
               }}
               aria-label={`${currentUI.value.ide.close} ${fileName}`}
+              data-testid={`tab-close-${fileName}`}
             >
               ×
             </span>

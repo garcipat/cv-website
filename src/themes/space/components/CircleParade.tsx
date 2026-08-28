@@ -77,6 +77,7 @@ export const CircleParade = ({ entries }: CircleParadeProps) => {
     <div
       className="fixed inset-0 pointer-events-none z-10 overflow-hidden"
       aria-hidden="true"
+      data-testid="circle-parade-stage"
     >
       {entries.length > 0 &&
         poolAssignments.map((assignedIndex, slot) => {

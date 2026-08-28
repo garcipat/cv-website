@@ -30,6 +30,7 @@ export const SidebarSettings = () => {
                   checked={checked}
                   onChange={() => { currentTheme.value = t.id; }}
                   className="appearance-none w-3 h-3 rounded-full border-2 border-[var(--color-ctp-overlay)] checked:border-[var(--color-ctp-lavender)] checked:bg-[var(--color-ctp-lavender)] shrink-0"
+                  data-testid={`theme-radio-${t.id}`}
                 />
                 {t.label}
               </label>
@@ -61,6 +62,7 @@ export const SidebarSettings = () => {
                   checked={checked}
                   onChange={() => { changeLocale(loc); }}
                   className="appearance-none w-3 h-3 rounded-full border-2 border-[var(--color-ctp-overlay)] checked:border-[var(--color-ctp-lavender)] checked:bg-[var(--color-ctp-lavender)] shrink-0"
+                  data-testid={`locale-radio-${loc}`}
                 />
                 {loc.toUpperCase()}
               </label>

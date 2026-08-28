@@ -24,6 +24,7 @@ export const FloatingControls = () => {
         'rounded-lg px-3 py-2',
         'shadow-lg shadow-black/20',
       )}
+      data-testid="floating-controls"
     >
       <ThemeSelect />
       <LanguageSelect />
