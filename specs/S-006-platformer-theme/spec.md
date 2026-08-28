@@ -213,6 +213,8 @@ As with all CV themes, floating translucent controls in the top-left corner prov
   - **Destroyable blocks** → Experience, Education, Courses
   - **Enemies** (P2) → Certificates, Projects
   - **Flagpole** (P2) → Personality (About) + Contact — shown as ending screen, then added to journal (with bookmarks but no per-section counter)
+  - **Amended 2026-08-28**: within the "Coins" collectible type, Skills and Languages are visually split — Skills render as `coin.png`, Languages as `fruit.png` — so a player can tell the two apart at a glance even though both are the same `sourceType: 'coin'` collectible mechanically (same touch-to-collect behavior, same flight-to-journal animation).
+  - **Amended 2026-08-28**: a Skill coin represents a whole skill *category* (e.g. "Backend"), not one individual skill — the real CV data has too many individual skills to reasonably place one collectible each. Touching one category's coin adds every skill in that category to the journal's Skills section at once, shown as the category name with its skill list. Languages remain one collectible per language.
 
 - **FR-010**: System MUST define level data in a structured format (TypeScript types or JSON) using a grid/raster system with width and height for easy element positioning. The level data specifies:
   - Terrain grid (tile positions)
@@ -352,6 +354,12 @@ The level is hand-crafted — starting with a simple layout to validate function
 
 - **FR-032**: System MUST define TypeScript types for the platformer theme:
   - `GamePhase`: `'loading' | 'playing' | 'paused' | 'ending-screen'`
+    (**Amended 2026-08-27**: step 10's death/respawn transition added two more
+    phases, `'intro'` and `'dying'`/`'awaitingRestart'` — see
+    `engine/GameLifecycle.ts`. Only `'dying'`/`'awaitingRestart'`/`'paused'`
+    pause the game loop; `'intro'` (the iris growing open at mount/restart) is
+    a purely visual overlay on top of already-running gameplay, so a pit near
+    spawn is still live during it — a deliberate choice, not an oversight.)
   - `PlayerState`: `{ x: number; y: number; vx: number; vy: number; facing: 'left' | 'right'; grounded: boolean; animState: 'idle' | 'walk' | 'jump'; animFrame: number }`
   - `CollectibleDef`: `{ id: string; x: number; y: number; type: 'coin' | 'enemy' | 'block'; cvSection: SectionId; cvIndex: number }`
   - `CollectedFact`: `{ id: string; sectionId: SectionId; sectionLabel: string; data: CVItemData; sourceType: 'coin' | 'enemy' | 'block' }`
