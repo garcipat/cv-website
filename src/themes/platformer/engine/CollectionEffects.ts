@@ -1,16 +1,20 @@
-/** Seconds the fact text lingers near the collection point before flying
- *  off, and how long the flight itself takes. */
-export const HOVER_DURATION_SECONDS = 0.5;
+/** Seconds each phase of a collected-fact animation takes: a quick rise from
+ *  the collection point to the middle of the screen, a hold there so the
+ *  fact is actually readable, then the flight to the journal icon. */
+export const RISE_DURATION_SECONDS = 0.4;
+export const HOLD_DURATION_SECONDS = 1.0;
 export const FLIGHT_DURATION_SECONDS = 0.6;
 
 /**
- * One in-flight collected-fact animation. `startX/startY` and
- * `targetX/targetY` are both SCREEN-space (not world-space) — computed once
- * at collection time by the caller (PlatformerPage.tsx, Task 8) using the
- * camera origin at that instant, since the animation is short-lived (~1.1s)
- * and re-deriving world-to-screen every frame isn't worth the complexity for
- * an effect this brief. `text` is the short label shown while flying (the
- * category or language name — see this plan's "Key design decisions" for
+ * One in-flight collected-fact animation. `startX/startY` (the collection
+ * point), `midX/midY` (the screen's center — where the text pauses to be
+ * read), and `targetX/targetY` (the journal icon) are all SCREEN-space (not
+ * world-space) — computed once at collection time by the caller
+ * (PlatformerPage.tsx) using the camera origin and canvas size at that
+ * instant, since the animation is short-lived (~2s) and re-deriving
+ * world-to-screen every frame isn't worth the complexity for an effect this
+ * brief. `text` is the short label shown throughout (the category or
+ * language name — see the coin-collection plan's "Key design decisions" for
  * why it's not the full skill list).
  */
 export interface FlightEffect {
@@ -18,10 +22,12 @@ export interface FlightEffect {
   text: string;
   startX: number;
   startY: number;
+  midX: number;
+  midY: number;
   targetX: number;
   targetY: number;
   elapsed: number;
-  phase: 'hover' | 'flying' | 'done';
+  phase: 'rising' | 'holding' | 'flying' | 'done';
 }
 
 export function startFlightEffect(
@@ -29,46 +35,61 @@ export function startFlightEffect(
   text: string,
   startX: number,
   startY: number,
+  midX: number,
+  midY: number,
   targetX: number,
   targetY: number,
 ): FlightEffect {
-  return { id, text, startX, startY, targetX, targetY, elapsed: 0, phase: 'hover' };
+  return { id, text, startX, startY, midX, midY, targetX, targetY, elapsed: 0, phase: 'rising' };
 }
 
-/** Advances the effect by `dt` seconds, transitioning hover -> flying ->
- *  done as HOVER_DURATION_SECONDS then FLIGHT_DURATION_SECONDS elapse.
- *  No-op (same reference) once `done`. */
+/** Fixed number of vertical text "slots" fast/simultaneous collections cycle
+ *  through (see PlatformerPage.tsx's `nextTextSlot`) — 1, 2, 3, 1, 2, 3, ...
+ *  so collecting several pickups in quick succession reads as a short
+ *  rotating list instead of every fact text landing on the exact same
+ *  screen position. */
+export const COLLECTION_TEXT_SLOT_COUNT = 3;
+
+/** Advances the effect by `dt` seconds, transitioning
+ *  rising -> holding -> flying -> done as RISE_DURATION_SECONDS, then
+ *  HOLD_DURATION_SECONDS, then FLIGHT_DURATION_SECONDS elapse. No-op (same
+ *  reference) once `done`. */
 export function tickFlightEffect(effect: FlightEffect, dt: number): FlightEffect {
   if (effect.phase === 'done') return effect;
   const elapsed = effect.elapsed + dt;
-  if (elapsed >= HOVER_DURATION_SECONDS + FLIGHT_DURATION_SECONDS) {
+  const holdEnd = RISE_DURATION_SECONDS + HOLD_DURATION_SECONDS;
+  const flightEnd = holdEnd + FLIGHT_DURATION_SECONDS;
+  if (elapsed >= flightEnd) {
     return { ...effect, elapsed, phase: 'done' };
   }
-  return { ...effect, elapsed, phase: elapsed >= HOVER_DURATION_SECONDS ? 'flying' : 'hover' };
+  const phase = elapsed >= holdEnd ? 'flying' : elapsed >= RISE_DURATION_SECONDS ? 'holding' : 'rising';
+  return { ...effect, elapsed, phase };
 }
-
-/** A gentle upward drift while hovering, so the text doesn't feel frozen in
- *  place even before it starts flying. */
-const HOVER_RISE_PX = 12;
 
 /**
  * Current screen-space position and opacity (0-1) to draw the fact text at.
- * `hover`: drifts upward from startY, full opacity. `flying`: linearly
- * interpolates start -> target, fading out over the final 40% of the flight
- * so it doesn't pop out of existence right at the icon. `done`: invisible.
+ * `rising`: interpolates start -> mid, full opacity. `holding`: fixed at
+ * mid, full opacity — this is the readable pause. `flying`: linearly
+ * interpolates mid -> target, fading out over the final 40% of the flight so
+ * it doesn't pop out of existence right at the icon. `done`: invisible.
  */
 export function flightEffectPosition(effect: FlightEffect): { x: number; y: number; opacity: number } {
   if (effect.phase === 'done') {
     return { x: effect.targetX, y: effect.targetY, opacity: 0 };
   }
-  if (effect.phase === 'hover') {
-    const progress = Math.min(1, effect.elapsed / HOVER_DURATION_SECONDS);
-    return { x: effect.startX, y: effect.startY - HOVER_RISE_PX * progress, opacity: 1 };
+  if (effect.phase === 'rising') {
+    const progress = Math.min(1, effect.elapsed / RISE_DURATION_SECONDS);
+    const x = effect.startX + (effect.midX - effect.startX) * progress;
+    const y = effect.startY + (effect.midY - effect.startY) * progress;
+    return { x, y, opacity: 1 };
   }
-  const flightElapsed = effect.elapsed - HOVER_DURATION_SECONDS;
+  if (effect.phase === 'holding') {
+    return { x: effect.midX, y: effect.midY, opacity: 1 };
+  }
+  const flightElapsed = effect.elapsed - RISE_DURATION_SECONDS - HOLD_DURATION_SECONDS;
   const progress = Math.min(1, flightElapsed / FLIGHT_DURATION_SECONDS);
-  const x = effect.startX + (effect.targetX - effect.startX) * progress;
-  const y = effect.startY + (effect.targetY - effect.startY) * progress;
+  const x = effect.midX + (effect.targetX - effect.midX) * progress;
+  const y = effect.midY + (effect.targetY - effect.midY) * progress;
   const opacity = progress < 0.6 ? 1 : 1 - (progress - 0.6) / 0.4;
   return { x, y, opacity };
 }
@@ -85,10 +106,10 @@ export interface SparkleParticle {
 
 /**
  * A fixed ring of small dots radiating outward from a collection point and
- * fading, in place of a full particle system — see this plan's "Key design
- * decisions". Returns offsets (dx/dy) relative to the collection point, not
- * absolute positions, so the caller (Renderer.ts, Task 6) just adds them to
- * wherever the collectible was.
+ * fading, in place of a full particle system — see the coin-collection
+ * plan's "Key design decisions". Returns offsets (dx/dy) relative to the
+ * collection point, not absolute positions, so the caller (Renderer.ts)
+ * just adds them to wherever the collectible was.
  */
 export function sparkleParticles(elapsedSinceCollect: number): SparkleParticle[] {
   if (elapsedSinceCollect < 0 || elapsedSinceCollect > SPARKLE_DURATION_SECONDS) return [];

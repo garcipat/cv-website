@@ -30,7 +30,7 @@ import {
 import { maxIrisRadius } from './engine/IrisTransition';
 import { level1 } from './level/level1';
 import { checkCollectibleCollisions } from './engine/Collision';
-import { startFlightEffect, tickFlightEffect } from './engine/CollectionEffects';
+import { startFlightEffect, tickFlightEffect, COLLECTION_TEXT_SLOT_COUNT } from './engine/CollectionEffects';
 import { coinFrameSource, COIN_FRAME_SIZE } from './entities/Coin';
 import { fruitFrameSource, FRUIT_FRAME_SIZE } from './entities/Fruit';
 import { isSkillCategoryFact } from './types';
@@ -62,7 +62,15 @@ import { Journal } from './components/Journal';
 // fruit counters after that, side by side, without duplicating Renderer.ts's
 // private layout constants here.
 const MAX_HEARTS_COUNTER_WIDTH = 130;
-const COLLECTIBLE_COUNTER_SPACING = 90;
+// Wide enough for a 32px icon (now matching HEART_RENDERED_SIZE, not the
+// smaller 20px it used to be) plus its "collected / max" text before the
+// next counter starts.
+const COLLECTIBLE_COUNTER_SPACING = 110;
+// Vertical spacing between stacked fact-flight rows when several pickups are
+// collected close together — a bit more than the 28px collection-effect
+// font size (Renderer.ts's COLLECTION_EFFECT_FONT_SIZE) so stacked lines
+// don't touch.
+const COLLECTION_TEXT_STACK_ROW_HEIGHT = 34;
 
 export const PlatformerPage = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -153,6 +161,12 @@ export const PlatformerPage = () => {
     // a plain variable, not a signal, since nothing outside this render loop
     // needs to read or react to it.
     let coinAnimElapsed = 0;
+
+    // Cycles 0, 1, 2, 0, 1, 2, ... across collections (not reset per-tick) so
+    // fast/simultaneous pickups' fact text rotates through a fixed set of
+    // vertical slots instead of landing on the same spot — see
+    // CollectionEffects.ts's COLLECTION_TEXT_SLOT_COUNT.
+    let nextTextSlot = 0;
 
     const resize = () => {
       canvas.width = window.innerWidth;
@@ -343,6 +357,14 @@ export const PlatformerPage = () => {
         const journalRect = journalButtonRef.current?.getBoundingClientRect();
         const targetX = journalRect ? journalRect.left + journalRect.width / 2 : canvas.width - 32;
         const targetY = journalRect ? journalRect.top + journalRect.height / 2 : canvas.height - 32;
+        // Fact text rises toward the upper-middle of the screen and holds
+        // there before flying on to the journal icon, so it's actually
+        // readable rather than flying past in one motion. Deliberately above
+        // dead-center (0.5) — vertical-center read as "too low" in review,
+        // since gameplay (terrain/player) sits in the lower half of the
+        // screen and a dead-center pause competes with it.
+        const midX = canvas.width / 2;
+        const midY = canvas.height * 0.3;
 
         for (const id of touchedIds) {
           const placement = collectiblePlacements.find((p) => p.id === id);
@@ -353,12 +375,23 @@ export const PlatformerPage = () => {
           const label = isSkillCategoryFact(placement.fact.data)
             ? placement.fact.data.category
             : ('name' in placement.fact.data ? placement.fact.data.name : placement.fact.sectionLabel);
+          // Fast/simultaneous pickups cycle through a fixed set of vertical
+          // slots (1, 2, 3, 1, 2, 3, ...) instead of every fact text landing
+          // on the same spot. The offset applies to BOTH the rise's start
+          // and its mid hold point (not just mid) — offsetting mid alone
+          // still let two effects starting near the same world position
+          // overlap through most of the rise, only separating at the end.
+          const slot = nextTextSlot;
+          nextTextSlot = (nextTextSlot + 1) % COLLECTION_TEXT_SLOT_COUNT;
+          const stackOffsetY = slot * COLLECTION_TEXT_STACK_ROW_HEIGHT;
           newEffects.push(
             startFlightEffect(
               id,
               label,
               placement.x + originX,
-              placement.y + originY,
+              placement.y + originY + stackOffsetY,
+              midX,
+              midY + stackOffsetY,
               targetX,
               targetY,
             ),
