@@ -1,5 +1,20 @@
-import { level1, SPAWN_TILE } from './level1';
-import { isTopExposed, isSolid } from './Terrain';
+import {
+  level1,
+  SPAWN_TILE,
+  ENEMY_TILES_GREEN,
+  ENEMY_TILES_PURPLE,
+  COIN_TILES,
+  FRUIT_TILES,
+} from './level1';
+import { isTopExposed, isSolid, tileAt } from './Terrain';
+
+/** Every hand-placed marker must sit on an empty tile directly above a solid
+ *  one — the same "standable" shape a level author expects any marker to
+ *  have, regardless of type. */
+function expectStandable(tile: { col: number; row: number }) {
+  expect(tileAt(level1, tile.col, tile.row)).toBe('empty');
+  expect(isSolid(tileAt(level1, tile.col, tile.row + 1))).toBe(true);
+}
 
 describe('level1', () => {
   it('dimensions-matchTerrainGridShape', () => {
@@ -44,16 +59,33 @@ describe('level1', () => {
     expect(lastRow[79]).toBe('groundRock');
   });
 
-  it('wallPocket-boundsAnOpenGapInTheGroundRow', () => {
-    // Two wall tiles (cols 44/49) flank an open pocket (cols 45-48) in the
-    // ground row — a mechanics test spot for roadmap step 17's
-    // walled-patrol case, once patrol exists.
-    const groundRow = level1.height - 2;
-    expect(level1.terrain[groundRow][44]).toBe('wall');
-    expect(level1.terrain[groundRow][49]).toBe('wall');
-    for (const col of [45, 46, 47, 48]) {
-      expect(level1.terrain[groundRow][col]).not.toBe('wall');
+  it('wallPocket-boundsTheGreenEnemyMarkerAtTheEnemysOwnRow', () => {
+    // Two wall tiles (cols 44/49) flank the green enemy marker (col 46) —
+    // deliberately at the marker's own row, not the ground row below, since
+    // a collision-based patrol check (roadmap step 17) tests the tile at
+    // the enemy's row, not the ground it stands on.
+    expect(ENEMY_TILES_GREEN).toHaveLength(1);
+    const [green] = ENEMY_TILES_GREEN;
+    expect(level1.terrain[green.row][44]).toBe('wall');
+    expect(level1.terrain[green.row][49]).toBe('wall');
+    expect(green.col).toBeGreaterThan(44);
+    expect(green.col).toBeLessThan(49);
+  });
+
+  it('markers-eachStandsOnAnEmptyTileAboveSolidGround', () => {
+    for (const tile of [...ENEMY_TILES_GREEN, ...ENEMY_TILES_PURPLE, ...COIN_TILES, ...FRUIT_TILES]) {
+      expectStandable(tile);
     }
+  });
+
+  it('markerCounts-matchThisMechanicsTestLevelsIntentionalDesign', () => {
+    // level1 deliberately covers only a slice of real CVData (see its doc
+    // comment) — these counts are the level's own intentional design, not
+    // derived from CVData length.
+    expect(ENEMY_TILES_GREEN).toHaveLength(1);
+    expect(ENEMY_TILES_PURPLE).toHaveLength(1);
+    expect(COIN_TILES).toHaveLength(4);
+    expect(FRUIT_TILES).toHaveLength(2);
   });
 
   it('elevatedBridge-spansGapBetweenTwoFloatingPlatformsAtPlatformRow', () => {

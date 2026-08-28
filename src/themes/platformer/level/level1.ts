@@ -9,7 +9,7 @@ import {
 } from './LevelParser';
 
 // Visual layout of level1 — one character per tile (see LevelParser.ts's
-// LEVEL_SYMBOLS). Every row must be the same length (the level's width in
+// TERRAIN_CHARS/ENTITY_CHARS). Every row must be the same length (the level's width in
 // tiles), but the number of rows (the level's height) is NOT a fixed
 // constant — it's however many rows this array has. The array is
 // bottom-anchored: its LAST row is always the lowest ground row, and rows
@@ -30,9 +30,12 @@ import {
 // platform-platform-platform-bridge-bridge-platform-platform (cols 8-10 /
 // 11-12 / 13-14) — the bridge segment is passable from below (jump up
 // through it) and from above via Down/S (drop-through), with solid ground
-// two tiles below for both to land on. Two `W` wall tiles (cols 44 and 49)
-// bound a short pocket in the rock ground — a first mechanics test spot for
-// roadmap step 17's walled-patrol case, once patrol exists.
+// two tiles below for both to land on. Two `W` wall tiles (cols 44 and 49,
+// same row as the entity markers below — NOT the ground row, since a
+// collision-based patrol check tests the tile at the enemy's own row, not
+// the ground it stands on) bound a short pocket around the green enemy — a
+// first mechanics test spot for roadmap step 17's walled-patrol case, once
+// patrol exists.
 //
 // Every collectible/enemy on this map is a hand-placed marker, not
 // auto-placed: `S` (spawn), `E` (green/Certificate enemy), `M` (purple/
@@ -48,8 +51,8 @@ import {
 const LEVEL_1_LAYOUT: readonly string[] = [
   '........PPPBBPP.................................................................',
   '................................................................................',
-  '.S........C....C.........C....M....C..........E........F.........F..............',
-  'GGBBBGGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRWRRRRWRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
+  '.S........C....C.........C....M....C........W.E..W.....F.........F..............',
+  'GGBBBGGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
   'GG...GGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
 ];
 
