@@ -1,5 +1,12 @@
 import { signal } from '@preact/signals-react';
-import { themes, type ThemeId } from './theme';
+import {
+  themes,
+  currentTheme,
+  platformerPrototypeUnlocked,
+  setPlatformerPrototypeUnlocked,
+  visibleThemes,
+  type ThemeId,
+} from './theme';
 
 type TestThemeId = 'ide' | 'space' | 'terminal';
 
@@ -62,5 +69,67 @@ describe('platformer theme registration', () => {
   it('ThemeId type accepts "platformer"', () => {
     const id: ThemeId = 'platformer';
     expect(id).toBe('platformer');
+  });
+});
+
+describe('platformerPrototypeUnlocked / setPlatformerPrototypeUnlocked', () => {
+  const originalUnlocked = platformerPrototypeUnlocked.value;
+  const originalTheme = currentTheme.value;
+
+  afterEach(() => {
+    platformerPrototypeUnlocked.value = originalUnlocked;
+    currentTheme.value = originalTheme;
+  });
+
+  it('initializes to false', () => {
+    expect(platformerPrototypeUnlocked.value).toBe(false);
+  });
+
+  it('setPlatformerPrototypeUnlocked(true)-setsTheSignalToTrue', () => {
+    setPlatformerPrototypeUnlocked(true);
+    expect(platformerPrototypeUnlocked.value).toBe(true);
+  });
+
+  it('setPlatformerPrototypeUnlocked(false)-whilePlatformerIsActive-fallsBackToIde', () => {
+    setPlatformerPrototypeUnlocked(true);
+    currentTheme.value = 'platformer';
+
+    setPlatformerPrototypeUnlocked(false);
+
+    expect(platformerPrototypeUnlocked.value).toBe(false);
+    expect(currentTheme.value).toBe('ide');
+  });
+
+  it('setPlatformerPrototypeUnlocked(false)-whileADifferentThemeIsActive-leavesCurrentThemeUntouched', () => {
+    setPlatformerPrototypeUnlocked(true);
+    currentTheme.value = 'space';
+
+    setPlatformerPrototypeUnlocked(false);
+
+    expect(currentTheme.value).toBe('space');
+  });
+});
+
+describe('visibleThemes', () => {
+  const originalUnlocked = platformerPrototypeUnlocked.value;
+
+  afterEach(() => {
+    platformerPrototypeUnlocked.value = originalUnlocked;
+  });
+
+  it('platformerLocked-excludesPlatformerButKeepsTheOtherThree', () => {
+    platformerPrototypeUnlocked.value = false;
+
+    const ids = visibleThemes.value.map((t) => t.id);
+
+    expect(ids).toEqual(['ide', 'space', 'terminal']);
+  });
+
+  it('platformerUnlocked-includesAllFourInThemesOrder', () => {
+    platformerPrototypeUnlocked.value = true;
+
+    const ids = visibleThemes.value.map((t) => t.id);
+
+    expect(ids).toEqual(themes.map((t) => t.id));
   });
 });

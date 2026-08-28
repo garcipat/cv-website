@@ -131,6 +131,13 @@ vi.mock('@/state/locale', () => ({
 
 vi.mock('@/state/theme', () => ({
   currentTheme: { value: 'space' },
+  platformerPrototypeUnlocked: { value: false },
+  setPlatformerPrototypeUnlocked: vi.fn(),
+  visibleThemes: { value: [
+    { id: 'ide', label: 'IDE' },
+    { id: 'space', label: 'Space' },
+    { id: 'terminal', label: 'Retro Terminal' },
+  ] },
 }));
 
 // Mock matchMedia for reduced motion tests
