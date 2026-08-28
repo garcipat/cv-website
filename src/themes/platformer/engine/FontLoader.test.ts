@@ -13,10 +13,12 @@ class MockFontFaceSuccess {
 }
 
 class MockFontFaceFailure {
-  constructor(
-    public family: string,
-    public source: string,
-  ) {}
+  family: string;
+  source: string;
+  constructor(family: string, source: string) {
+    this.family = family;
+    this.source = source;
+  }
   load() {
     return Promise.reject(new Error('font load failed'));
   }

@@ -113,7 +113,7 @@ describe('PlatformerPage', () => {
 
     render(<PlatformerPage />);
     const canvas = screen.getByTestId('platformer-canvas');
-    const ctx = canvas.getContext('2d') as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const ctx = (canvas as HTMLCanvasElement).getContext('2d') as unknown as { drawImage: ReturnType<typeof vi.fn> };
 
     await waitFor(() => expect(ctx.drawImage).toHaveBeenCalled());
   });
@@ -125,7 +125,7 @@ describe('PlatformerPage', () => {
 
     render(<PlatformerPage />);
     const canvas = screen.getByTestId('platformer-canvas');
-    const ctx = canvas.getContext('2d') as unknown as {
+    const ctx = (canvas as HTMLCanvasElement).getContext('2d') as unknown as {
       drawImage: ReturnType<typeof vi.fn>;
     };
 
@@ -142,7 +142,7 @@ describe('PlatformerPage', () => {
 
     render(<PlatformerPage />);
     const canvas = screen.getByTestId('platformer-canvas');
-    const ctx = canvas.getContext('2d') as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const ctx = (canvas as HTMLCanvasElement).getContext('2d') as unknown as { drawImage: ReturnType<typeof vi.fn> };
 
     await waitFor(() =>
       expect(
@@ -156,7 +156,7 @@ describe('PlatformerPage', () => {
 
     render(<PlatformerPage />);
     const canvas = screen.getByTestId('platformer-canvas');
-    const ctx = canvas.getContext('2d') as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const ctx = (canvas as HTMLCanvasElement).getContext('2d') as unknown as { drawImage: ReturnType<typeof vi.fn> };
 
     // dx===HEARTS_START_X (call[5]) alone isn't enough to distinguish this
     // from the player's draw call: at this test's default spawn position
@@ -185,7 +185,7 @@ describe('PlatformerPage', () => {
 
     render(<PlatformerPage />);
     const canvas = screen.getByTestId('platformer-canvas');
-    const ctx = canvas.getContext('2d') as unknown as {
+    const ctx = (canvas as HTMLCanvasElement).getContext('2d') as unknown as {
       drawImage: ReturnType<typeof vi.fn>;
       strokeRect: ReturnType<typeof vi.fn>;
     };
@@ -200,7 +200,7 @@ describe('PlatformerPage', () => {
 
     render(<PlatformerPage />);
     const canvas = screen.getByTestId('platformer-canvas');
-    const ctx = canvas.getContext('2d') as unknown as {
+    const ctx = (canvas as HTMLCanvasElement).getContext('2d') as unknown as {
       drawImage: ReturnType<typeof vi.fn>;
       strokeRect: ReturnType<typeof vi.fn>;
     };
@@ -523,7 +523,7 @@ describe('PlatformerPage', () => {
 
     render(<PlatformerPage />);
     const canvas = screen.getByTestId('platformer-canvas');
-    const ctx = canvas.getContext('2d') as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const ctx = (canvas as HTMLCanvasElement).getContext('2d') as unknown as { drawImage: ReturnType<typeof vi.fn> };
 
     await waitFor(() => expect(ctx.drawImage).toHaveBeenCalled());
 
@@ -553,7 +553,7 @@ describe('PlatformerPage', () => {
 
     render(<PlatformerPage />);
     const canvas = screen.getByTestId('platformer-canvas');
-    const ctx = canvas.getContext('2d') as unknown as { fillText: ReturnType<typeof vi.fn> };
+    const ctx = (canvas as HTMLCanvasElement).getContext('2d') as unknown as { fillText: ReturnType<typeof vi.fn> };
 
     const coinTotal = collectiblePlacements.filter((p) => p.spriteType === 'coin').length;
     const fruitTotal = collectiblePlacements.filter((p) => p.spriteType === 'fruit').length;
@@ -1233,7 +1233,7 @@ describe('PlatformerPage', () => {
 
     render(<PlatformerPage />);
     const canvas = screen.getByTestId('platformer-canvas');
-    const ctx = canvas.getContext('2d') as unknown as { strokeRect: ReturnType<typeof vi.fn> };
+    const ctx = (canvas as HTMLCanvasElement).getContext('2d') as unknown as { strokeRect: ReturnType<typeof vi.fn> };
     await waitFor(() => expect(ctx.strokeRect).toHaveBeenCalled());
 
     fireEvent.click(screen.getByRole('button', { name: /Hitboxes/ }));
@@ -1259,7 +1259,7 @@ describe('PlatformerPage', () => {
 
     render(<PlatformerPage />);
     const canvas = screen.getByTestId('platformer-canvas');
-    const ctx = canvas.getContext('2d') as unknown as { strokeRect: ReturnType<typeof vi.fn> };
+    const ctx = (canvas as HTMLCanvasElement).getContext('2d') as unknown as { strokeRect: ReturnType<typeof vi.fn> };
     frameCallback!(0);
     expect(ctx.strokeRect).not.toHaveBeenCalled();
 

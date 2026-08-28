@@ -18,7 +18,7 @@ describe('collectiblesSummary', () => {
     const cv: CVData = {
       ...emptyCV,
       skills: [{ category: 'Frontend', skills: [{ name: 'React', level: 80 }] }],
-      languages: [{ name: 'English', level: 100 }],
+      languages: [{ name: 'English', flag: '🇬🇧', level: 100 }],
     };
 
     const rows = collectiblesSummary(cv, []);
@@ -36,7 +36,7 @@ describe('collectiblesSummary', () => {
         { category: 'Frontend', skills: [{ name: 'React', level: 80 }] },
         { category: 'Backend', skills: [{ name: 'Go', level: 70 }] },
       ],
-      languages: [{ name: 'English', level: 100 }],
+      languages: [{ name: 'English', flag: '🇬🇧', level: 100 }],
     };
     const facts: CollectedFact[] = [
       {
