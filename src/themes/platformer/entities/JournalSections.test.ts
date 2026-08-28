@@ -5,8 +5,10 @@ import {
   sectionLabel,
   sectionTotal,
   isPaginatedSection,
+  buildJournalPages,
 } from './JournalSections';
 import type { CVData } from '@/types/cv';
+import type { SectionId, CollectedFact } from '../types';
 
 const emptyCV: CVData = {
   personality: { name: 'Test', tagline: 'Test', summary: 'Test' },
@@ -136,5 +138,65 @@ describe('isPaginatedSection', () => {
     // together on one page, unlike skill categories (whose skill lists can
     // run long) or the other long-entry sections.
     expect(isPaginatedSection('languages')).toBe(false);
+  });
+});
+
+describe('buildJournalPages', () => {
+  const fact = (sectionId: SectionId, id: string): CollectedFact => ({
+    id,
+    sectionId,
+    sectionLabel: sectionId,
+    data: { category: id, skills: [] },
+    sourceType: 'coin',
+  });
+
+  it('personalitySection-contributesOnePersonalityPage', () => {
+    expect(buildJournalPages(['personality'], [])).toEqual([
+      { section: 'personality', content: { kind: 'personality' } },
+    ]);
+  });
+
+  it('ungroupedNonPersonalitySection-contributesOneGroupedListPageWithAllItsFacts', () => {
+    const facts = [fact('languages', 'a'), fact('languages', 'b')];
+    expect(buildJournalPages(['languages'], facts)).toEqual([
+      { section: 'languages', content: { kind: 'groupedList', facts } },
+    ]);
+  });
+
+  it('paginatedSectionWithNoCollectedFacts-contributesOneEmptyStatePage', () => {
+    // A bookmark for a section with nothing collected yet still needs a
+    // page to land on (the empty-state placeholder message).
+    expect(buildJournalPages(['experience'], [])).toEqual([
+      { section: 'experience', content: { kind: 'emptyState' } },
+    ]);
+  });
+
+  it('paginatedSectionWithMultipleCollectedFacts-contributesOneFactPagePerFact', () => {
+    const facts = [fact('skills', 'a'), fact('skills', 'b'), fact('skills', 'c')];
+    expect(buildJournalPages(['skills'], facts)).toEqual([
+      { section: 'skills', content: { kind: 'fact', fact: facts[0] } },
+      { section: 'skills', content: { kind: 'fact', fact: facts[1] } },
+      { section: 'skills', content: { kind: 'fact', fact: facts[2] } },
+    ]);
+  });
+
+  it('paginatedSectionFacts-onlyCountsFactsBelongingToThatSection', () => {
+    const facts = [fact('skills', 'a'), fact('experience', 'b'), fact('skills', 'c')];
+    expect(buildJournalPages(['skills'], facts)).toHaveLength(2);
+  });
+
+  it('multipleSections-flattensInGivenOrderWithEachSectionsPagesTogether', () => {
+    const facts = [fact('experience', 'e1'), fact('experience', 'e2')];
+    const pages = buildJournalPages(['personality', 'experience', 'languages'], facts);
+    expect(pages).toEqual([
+      { section: 'personality', content: { kind: 'personality' } },
+      { section: 'experience', content: { kind: 'fact', fact: facts[0] } },
+      { section: 'experience', content: { kind: 'fact', fact: facts[1] } },
+      { section: 'languages', content: { kind: 'groupedList', facts: [] } },
+    ]);
+  });
+
+  it('emptySectionsList-returnsEmptyArray', () => {
+    expect(buildJournalPages([], [])).toEqual([]);
   });
 });

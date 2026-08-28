@@ -8,7 +8,7 @@ import {
   nonEmptySections,
   sectionLabel,
   sectionTotal,
-  isPaginatedSection,
+  buildJournalPages,
 } from '../entities/JournalSections';
 import { collectiblesSummary } from '../entities/CollectiblesSummary';
 import { COIN_FRAME_SIZE, COIN_FRAME_COUNT } from '../entities/Coin';
@@ -74,10 +74,58 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
   const [closeClicked, setCloseClicked] = useState(false);
   const closing = closeRequested || closeClicked;
 
-  // Which fact is shown within a paginated section (roadmap step 15) — only
-  // meaningful for sections `isPaginatedSection` returns true for. Reset to
-  // the first page whenever the active section changes, below.
-  const [page, setPage] = useState(0);
+  // Drives the hover-reveal page-flip arrows' opacity (see the render
+  // below for why this is plain state + inline style rather than a
+  // Tailwind `hover:` class).
+  const [prevHovered, setPrevHovered] = useState(false);
+  const [nextHovered, setNextHovered] = useState(false);
+
+  // The book as one continuous sequence of physical pages, per user
+  // framing: sections insert pages into it — Skills one per category,
+  // Experience one per collected item, Languages a single page listing all
+  // of them, Personality a single page. `buildJournalPages` resolves each
+  // page's actual content up front (a discriminated union — see
+  // `JournalPageContent`) so this component just switches on
+  // `content.kind` below instead of re-deriving "which fact / is this
+  // empty / is this personality" from a section+index every render.
+  // Recomputed each render but cheap (a few dozen pages at most) and
+  // stable for the component's lifetime — `facts`/`cv` can't change while
+  // the journal is open (the game is paused, so no new collections land).
+  const flatPages = buildJournalPages(sections, facts);
+
+  const initialSection: SectionId | undefined =
+    activeJournalSection.value && sections.includes(activeJournalSection.value)
+      ? activeJournalSection.value
+      : (facts[0]?.sectionId ?? sections[0]);
+
+  // Position within `flatPages` — a plain index, not a per-section page
+  // number, since Prev/Next now walk the whole book regardless of section
+  // boundaries. Lazy initializer runs once at mount, landing on the
+  // remembered/default section's first page (find the first flatPages
+  // entry for that section).
+  const [flatIndex, setFlatIndex] = useState(() => {
+    const idx = flatPages.findIndex((p) => p.section === initialSection);
+    return idx >= 0 ? idx : 0;
+  });
+
+  // Moves to an arbitrary page index and keeps `activeJournalSection` (the
+  // persisted-across-reopen signal, also what highlights the active
+  // bookmark) in sync with wherever paging actually lands — so paging past
+  // a section boundary updates the highlighted bookmark too, not just the
+  // content.
+  const goToPage = (index: number) => {
+    setFlatIndex(index);
+    const section = flatPages[index]?.section;
+    if (section) activeJournalSection.value = section;
+  };
+  const handlePrevPage = () => {
+    if (flatPages.length === 0) return;
+    goToPage((flatIndex - 1 + flatPages.length) % flatPages.length);
+  };
+  const handleNextPage = () => {
+    if (flatPages.length === 0) return;
+    goToPage((flatIndex + 1) % flatPages.length);
+  };
 
   useEffect(() => {
     if (closing) {
@@ -96,19 +144,14 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
 
   const handleClose = () => setCloseClicked(true);
 
-  const defaultSection: SectionId | undefined = facts[0]?.sectionId ?? sections[0];
-  // Read from the shared signal (not local state) so the selected section
-  // survives Journal fully unmounting on close and remounting on reopen —
-  // per user request, the choice should be "memorized". Guarded against a
-  // persisted section that isn't among the CV's currently non-empty
-  // sections (e.g. stale data from a previous CV/locale) — falls back to
-  // `defaultSection` instead of pointing at a bookmark that doesn't exist.
-  const effectiveSection: SectionId | undefined =
-    activeJournalSection.value && sections.includes(activeJournalSection.value)
-      ? activeJournalSection.value
-      : defaultSection;
+  // Read from `flatPages`/`flatIndex` (see above) rather than re-deriving a
+  // "default section" here — the current page's own section is always the
+  // source of truth for which bookmark is active and what the header shows.
+  const currentPageEntry = flatPages[flatIndex];
+  const effectiveSection: SectionId | undefined = currentPageEntry?.section;
   const setActiveSection = (section: SectionId) => {
-    activeJournalSection.value = section;
+    const idx = flatPages.findIndex((p) => p.section === section);
+    if (idx >= 0) goToPage(idx);
   };
 
   const contentVisible = frame >= JOURNAL_OPEN_FRAME_COUNT && !closing;
@@ -116,32 +159,13 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
   // animation (and, symmetrically, disappear at the same point on close) —
   // showing them from frame 1 looked wrong hanging off a still-closed cover.
   const bookmarksVisible = frame >= JOURNAL_OPEN_FRAME_COUNT - 1 && !closing;
-  const sectionFacts = effectiveSection
-    ? facts.filter((fact) => fact.sectionId === effectiveSection)
-    : [];
+  // Section-level aggregate for the header counter (e.g. "Experience 3/5")
+  // — independent of which single page is currently showing.
+  const sectionFactCount = effectiveSection
+    ? facts.filter((fact) => fact.sectionId === effectiveSection).length
+    : 0;
   const sectionCounterTotal =
     effectiveSection && effectiveSection !== 'personality' ? sectionTotal(cv, effectiveSection) : undefined;
-  const paginated = effectiveSection ? isPaginatedSection(effectiveSection) : false;
-  // Clamped rather than reset via a dedicated effect for every state change
-  // that can shrink `sectionFacts` (switching section, Reset Game) — the
-  // section-change check below still resets `page` to 0 on section switches
-  // so the *first* page is shown, not just a valid one.
-  const currentPage = Math.min(page, Math.max(0, sectionFacts.length - 1));
-
-  // Reset `page` to 0 when `effectiveSection` changes, using React's
-  // "adjust state during render" pattern (comparing against a mirrored
-  // `prevSection` state) rather than a `useEffect` — calling `setState`
-  // synchronously inside an effect body is flagged by
-  // `react-hooks/set-state-in-effect` and, here, is also what a prior
-  // debugging pass identified as adding an extra render/commit cycle that
-  // interacted badly with `@preact/signals-react`'s external-store-driven
-  // re-renders (see Journal.test.tsx's Reset Game section). Doing the
-  // adjustment during render instead avoids that entirely.
-  const [prevSection, setPrevSection] = useState(effectiveSection);
-  if (effectiveSection !== prevSection) {
-    setPrevSection(effectiveSection);
-    setPage(0);
-  }
 
   // Resetting is entirely the parent's job — clearing progress, closing the
   // journal immediately (no reverse-close animation, per user request), and
@@ -241,9 +265,14 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
               onClick={handleClose}
               data-testid="journal-close-button"
               aria-label="Close journal"
-              className="absolute top-[2%] left-[4%] z-10 flex h-6 w-6 items-center justify-center rounded-full bg-gray-800/80 text-sm leading-none text-white"
+              className="absolute top-[2%] left-[4%] z-10 h-8 w-auto"
             >
-              ×
+              <img
+                src="/sprites/journal-close.png"
+                alt=""
+                className="h-full w-auto object-contain"
+                style={{ imageRendering: 'pixelated' }}
+              />
             </button>
             <div
               className="absolute inset-[6%_10%] flex flex-col text-gray-800"
@@ -260,30 +289,26 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
                       data-testid="journal-section-counter"
                       className="text-sm font-normal text-gray-400"
                     >
-                      {sectionFacts.length} / {sectionCounterTotal}
+                      {sectionFactCount} / {sectionCounterTotal}
                     </span>
                   )}
                 </h2>
               )}
               {/* The book is drawn as two physical pages with a spine down
-                  the middle (see journal_open_9.png). Every list-shaped
-                  section (Languages, and every paginated section's single
-                  visible entry) flows via `columns-2` + `column-fill: auto`
-                  — short content stays entirely on the left page; long
-                  content (a big skill category, a long Experience entry)
-                  spills onto the right page instead of needing an internal
-                  scrollbar, per user feedback. `overflow-y-auto` stays as a
+                  the middle (see journal_open_9.png). Every list-shaped page
+                  (a groupedList, or a paginated section's single visible
+                  fact) flows via `columns-2` + `column-fill: auto` — short
+                  content stays entirely on the left page; long content (a
+                  big skill category, a long Experience entry) spills onto
+                  the right page instead of needing an internal scrollbar,
+                  per user feedback. `overflow-y-auto` stays as a
                   last-resort fallback for content too long even for both
                   pages. Personality is the one exception (a fixed
                   bio-left/summary-right split via CSS grid, not flowing
                   columns — the two halves are different content, not one
-                  list). The pager (when `paginated`) is a sibling BELOW this
-                  scrollable area, not inside it, so it stays visible
-                  regardless of how much the content above scrolls — it was
-                  previously inside the scrollable region and could end up
-                  scrolled out of view for a long entry. */}
+                  list). */}
               <div className="min-h-0 flex-1 overflow-y-auto">
-                {effectiveSection === 'personality' ? (
+                {!currentPageEntry ? null : currentPageEntry.content.kind === 'personality' ? (
                   <div className="grid h-full grid-cols-2 gap-[9%]">
                     <div className="font-caveat text-gray-700">
                       <p className="text-lg font-semibold">{cv.personality.name}</p>
@@ -305,58 +330,99 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
                       </ul>
                     </div>
                   </div>
-                ) : sectionFacts.length === 0 ? (
+                ) : currentPageEntry.content.kind === 'emptyState' ? (
                   <p data-testid="journal-empty-state" className="font-caveat text-sm text-gray-500">
                     {ui.platformer.journal.emptyState}
                   </p>
-                ) : paginated ? (
+                ) : currentPageEntry.content.kind === 'fact' ? (
                   <ul
                     className="font-caveat h-full columns-2 gap-[9%] space-y-1 text-sm"
                     style={{ columnFill: 'auto' }}
                   >
-                    {renderFactRow(sectionFacts[currentPage])}
+                    {renderFactRow(currentPageEntry.content.fact)}
                   </ul>
                 ) : (
                   <ul className="font-caveat columns-2 gap-[9%] space-y-1 text-sm">
-                    {sectionFacts.map(renderFactRow)}
+                    {currentPageEntry.content.facts.map(renderFactRow)}
                   </ul>
                 )}
               </div>
-              {paginated && sectionFacts.length > 0 && (
-                <div className="flex items-center justify-center gap-4 pt-2 text-xs text-gray-500">
-                  <button
-                    type="button"
-                    data-testid="journal-page-prev"
-                    aria-label="Previous fact"
-                    disabled={currentPage === 0}
-                    onClick={() => setPage(Math.max(0, currentPage - 1))}
-                    className="rounded px-2 py-1 text-base disabled:opacity-30"
-                  >
-                    ‹
-                  </button>
-                  <span data-testid="journal-page-counter">
-                    {currentPage + 1} / {sectionFacts.length}
-                  </span>
-                  <button
-                    type="button"
-                    data-testid="journal-page-next"
-                    aria-label="Next fact"
-                    disabled={currentPage >= sectionFacts.length - 1}
-                    onClick={() => setPage(Math.min(sectionFacts.length - 1, currentPage + 1))}
-                    className="rounded px-2 py-1 text-base disabled:opacity-30"
-                  >
-                    ›
-                  </button>
-                </div>
-              )}
             </div>
+            {flatPages.length > 1 && (
+              <>
+                {/* Hover-reveal page-flip arrows at the outer edges of the
+                    book, per user request — invisible until the mouse
+                    hovers that edge, then fade in (closer to a real
+                    book-flip feel than an always-visible control bar).
+                    Opacity is toggled via inline style + onMouseEnter/Leave,
+                    NOT a Tailwind `hover:opacity-*` class: that class
+                    reliably failed to generate any CSS at all in this build
+                    (verified: `opacity-90` never appeared in the compiled
+                    stylesheet even after a full dev-server restart, despite
+                    `hover:` working fine elsewhere in the codebase) — root
+                    cause not found, so this routes around it entirely with
+                    plain React state instead of fighting the build. No
+                    disabled state and no visible page count: Prev/Next now
+                    walk the whole book (every section's pages flattened,
+                    see `buildJournalPages`) and wrap around at both ends, so
+                    there's no "first"/"last" page to disable against. */}
+                <button
+                  type="button"
+                  onClick={handlePrevPage}
+                  onMouseEnter={() => setPrevHovered(true)}
+                  onMouseLeave={() => setPrevHovered(false)}
+                  data-testid="journal-page-prev"
+                  aria-label="Previous page"
+                  className="absolute top-[15%] bottom-[24%] left-0 z-10 flex w-[22%] items-center justify-start"
+                >
+                  <img
+                    src="/sprites/journal-chevron-left.png"
+                    alt=""
+                    className="h-10 w-auto object-contain transition-opacity duration-150"
+                    style={{ imageRendering: 'pixelated', opacity: prevHovered ? 0.9 : 0 }}
+                  />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleNextPage}
+                  onMouseEnter={() => setNextHovered(true)}
+                  onMouseLeave={() => setNextHovered(false)}
+                  data-testid="journal-page-next"
+                  aria-label="Next page"
+                  className="absolute top-[15%] right-0 bottom-[24%] z-10 flex w-[22%] items-center justify-end"
+                >
+                  <img
+                    src="/sprites/journal-chevron-right.png"
+                    alt=""
+                    className="h-10 w-auto object-contain transition-opacity duration-150"
+                    style={{ imageRendering: 'pixelated', opacity: nextHovered ? 0.9 : 0 }}
+                  />
+                </button>
+              </>
+            )}
+            {/* Sits at the bottom of the right page itself (inside the
+                content inset, like a wax seal stamped on the page) rather
+                than out in the book's outer corner — per user feedback,
+                the corner placement read as disconnected/hidden. Sized/
+                positioned up from an earlier too-big/too-far-left/
+                too-far-down pass, also per user feedback — and its vertical
+                span no longer overlaps the Next chevron's hover zone above
+                (that overlap was why the arrow felt like it appeared
+                "randomly": hovering near Reset was also hovering the
+                chevron's invisible strip). */}
             <button
               type="button"
               onClick={handleResetGame}
               data-testid="journal-reset-button"
-              className="absolute right-[4%] bottom-[3%] z-10 rounded bg-red-100/80 px-2 py-1 text-xs text-red-700"
+              aria-label={ui.platformer.journal.resetGame}
+              className="absolute right-[6%] bottom-[10%] z-10 h-8 w-auto"
             >
-              {ui.platformer.journal.resetGame}
+              <img
+                src="/sprites/journal-reset.png"
+                alt=""
+                className="h-full w-auto object-contain"
+                style={{ imageRendering: 'pixelated' }}
+              />
             </button>
           </>
         )}
