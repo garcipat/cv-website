@@ -1,19 +1,26 @@
 import { RENDER_SCALE, RENDERED_TILE_SIZE } from '../level/Terrain';
+import type { EnemyPlacement } from '../level/EnemyMapper';
 
 /**
  * Both slime_green.png and slime_purple.png are 96x72 sheets: a 4x3 grid of
  * 24x24 frames read left-to-right, top-to-bottom as frames 1-12. Frame 11
  * (row 2, col 2) alone is recolored red in both sheets. Watching the full
  * sheet animate live (roadmap step 16) showed frames 1-3 read as a
- * mostly-featureless blob, frames 9-12 read as the slime dissolving toward
- * a near-black silhouette (a hit/defeat reaction, not idle), and frames 4-8
- * — spanning the end of row 0 into all of row 1 — loop well as an idle
- * breathing/bounce cycle. That's why ENEMY_ANIM_CONFIG's `idle` entry below
- * is an explicit frame list rather than a single row: the loop crosses a
- * row boundary. Adjust the frame lists/frameDuration below if a future
- * viewing suggests a better sequence — centralizing it here in one lookup
- * table (same convention as Player.ts's ANIM_CONFIG) makes that a one-line
- * change instead of hunting through the renderer.
+ * mostly-featureless blob, frames 9-12 read as the slime dissolving toward a
+ * near-black silhouette (a hit/defeat reaction), and frames 4-8 — spanning
+ * the end of row 0 into all of row 1 — loop well as a breathing/bounce cycle.
+ *
+ * Roadmap step 17 (enemy patrol) settled on constant-slide movement — a
+ * patrolling enemy is always in motion, never actually standing still — so
+ * there is no reachable `idle` state: `EnemyAnimState` below is `'walk' |
+ * 'hit'` only, and the tuned frames 4-8 loop (below, `WALK_FRAMES`) is reused
+ * as-is for `walk` instead of a separate idle state — it reads fine as
+ * movement too, per live review. `ENEMY_ANIM_CONFIG`'s `walk` entry is an
+ * explicit frame list rather than a single row since the loop crosses a row
+ * boundary. Adjust the frame lists/frameDuration below if a future viewing
+ * suggests a better sequence — centralizing it here in one lookup table
+ * (same convention as Player.ts's ANIM_CONFIG) makes that a one-line change
+ * instead of hunting through the renderer.
  */
 export const ENEMY_FRAME_SIZE = 24;
 export const ENEMY_RENDERED_SIZE = ENEMY_FRAME_SIZE * RENDER_SCALE;
@@ -32,13 +39,15 @@ export const ENEMY_TILE_OFFSET_Y = RENDERED_TILE_SIZE - ENEMY_RENDERED_SIZE;
  *  horizontally over its placement tile. */
 export const ENEMY_TILE_OFFSET_X = (RENDERED_TILE_SIZE - ENEMY_RENDERED_SIZE) / 2;
 
-export type EnemyAnimState = 'idle' | 'walk' | 'hit';
+export type EnemyAnimState = 'walk' | 'hit';
+
+export type EnemyDirection = 'left' | 'right';
 
 type FrameCoord = { sx: number; sy: number };
 
 /** Frame 4 (row 0, col 3) through frame 8 (row 1, col 3) — see the file
  *  doc comment above for why this crosses the row boundary. */
-const IDLE_FRAMES: FrameCoord[] = [
+const WALK_FRAMES: FrameCoord[] = [
   { sx: 3 * ENEMY_FRAME_SIZE, sy: 0 },
   { sx: 0 * ENEMY_FRAME_SIZE, sy: ENEMY_FRAME_SIZE },
   { sx: 1 * ENEMY_FRAME_SIZE, sy: ENEMY_FRAME_SIZE },
@@ -46,51 +55,78 @@ const IDLE_FRAMES: FrameCoord[] = [
   { sx: 3 * ENEMY_FRAME_SIZE, sy: ENEMY_FRAME_SIZE },
 ];
 
-// NOTE (landmine for step 17): after the idle tuning above, `walk`'s frames
-// (row 1, sheet frames 5-8) are now a subset of tuned `idle`'s frames
-// (sheet frames 4-8, which includes 5-8 plus one lead-in frame) — the two
-// states are near-identical today. `walk` is unreachable/unused as of this
-// step (only `idle` is ever played — see `drawEnemies` in Renderer.ts), so
-// this isn't a step-16 bug, but step 17's verify criterion ("an enemy
-// patrolling should visibly animate a distinct walk cycle") will silently
-// fail unless `walk` is given a genuinely distinct frame range (if the
-// sheet has one) or redesigned first, via the same kind of live visual
-// inspection idle got.
 const ENEMY_ANIM_CONFIG: Record<EnemyAnimState, { frames: FrameCoord[]; frameDuration: number }> = {
-  idle: { frames: IDLE_FRAMES, frameDuration: 0.15 },
-  walk: {
-    frames: Array.from({ length: 4 }, (_, i) => ({ sx: i * ENEMY_FRAME_SIZE, sy: ENEMY_FRAME_SIZE })),
-    frameDuration: 0.12,
-  },
+  walk: { frames: WALK_FRAMES, frameDuration: 0.15 },
   hit: {
     frames: Array.from({ length: 4 }, (_, i) => ({ sx: i * ENEMY_FRAME_SIZE, sy: ENEMY_FRAME_SIZE * 2 })),
     frameDuration: 0.1,
   },
 };
 
-/** Seconds each idle frame is held before advancing — idle is the only
- *  animation state this step actually plays; walk/hit are wired up by
- *  roadmap steps 17/18. */
-export const ENEMY_IDLE_FRAME_DURATION = ENEMY_ANIM_CONFIG.idle.frameDuration;
-export const ENEMY_IDLE_FRAME_COUNT = ENEMY_ANIM_CONFIG.idle.frames.length;
-
 /** Sprite-sheet source rect for a given animation state/frame — looks up
- *  an explicit frame-coordinate list per state (see IDLE_FRAMES above)
+ *  an explicit frame-coordinate list per state (see WALK_FRAMES above)
  *  rather than assuming every state's frames sit on one sheet row. */
 export function enemyFrameSource(animState: EnemyAnimState, frame: number): { sx: number; sy: number } {
   const { frames } = ENEMY_ANIM_CONFIG[animState];
   return frames[frame % frames.length];
 }
 
+export interface EnemyState extends EnemyPlacement {
+  /** Horizontal velocity in px/s. Positive is rightward. Enemies never move
+   *  vertically — patrol is a simple back-and-forth walk along the row an
+   *  enemy is placed on (FR-019's "simple patrol-only" scope; no gravity). */
+  vx: number;
+  /** Direction the sprite is drawn facing and currently moving — always in
+   *  sync with `vx`'s sign once patrol has run at least one frame. */
+  direction: EnemyDirection;
+  animState: EnemyAnimState;
+  animFrame: number;
+  /** Seconds accumulated toward the next animation frame advance. */
+  animTimer: number;
+}
+
 /**
- * Idle-loop frame index for a given elapsed time — shared by every enemy
- * (all enemies idle in sync), matching Coin.ts's coinFrameIndex convention.
- * Movement (step 17) will need per-enemy animation state once enemies can
- * differ from each other (mid-patrol vs. turning); this step has no
- * movement yet, so a single shared clock is enough.
+ * The enemy factory: converts a placed-but-static `EnemyPlacement` (which
+ * already carries the CV fact this enemy drops on defeat — see
+ * `EnemyMapper.ts`'s `certificateToEnemy`/`projectToEnemy`, unaffected by this
+ * function) into its initial live patrol state: `'walk'` (patrol enemies are
+ * always moving — see this file's top doc comment for why there's no
+ * `'idle'`), facing right (the direction its very first patrol tick — see
+ * EnemyAI.ts's stepEnemyPatrol — will move it, unless a wall or ledge
+ * immediately reverses it).
+ *
+ * `index` (the enemy's position among all placed enemies — see
+ * PlatformerState.ts's call site) offsets the starting walk frame/timer so
+ * multiple enemies don't all animate in perfect lockstep: without this, every
+ * enemy starts at frame 0 with a zeroed timer and — since each enemy's frame
+ * advance is driven by its own `dt`-accumulated timer, not a shared clock —
+ * would stay frame-for-frame identical forever. Defaults to 0 (frame 0, timer
+ * 0) so a single ad-hoc enemy (e.g. in a test) still gets deterministic
+ * behavior.
  */
-export function enemyIdleFrameIndex(elapsedSeconds: number): number {
-  if (elapsedSeconds <= 0) return 0;
-  const frame = Math.floor(elapsedSeconds / ENEMY_IDLE_FRAME_DURATION);
-  return frame % ENEMY_IDLE_FRAME_COUNT;
+export function toEnemyState(placement: EnemyPlacement, index = 0): EnemyState {
+  const { frames, frameDuration } = ENEMY_ANIM_CONFIG.walk;
+  return {
+    ...placement,
+    vx: 0,
+    direction: 'right',
+    animState: 'walk',
+    animFrame: index % frames.length,
+    animTimer: (index * 0.05) % frameDuration,
+  };
+}
+
+/** Advances the enemy's animation timer/frame by `dt` seconds — same
+ *  convention as Player.ts's advancePlayerAnimation. */
+export function advanceEnemyAnimation(enemy: EnemyState, dt: number): EnemyState {
+  const { frames, frameDuration } = ENEMY_ANIM_CONFIG[enemy.animState];
+  const animTimer = enemy.animTimer + dt;
+  if (animTimer < frameDuration) {
+    return { ...enemy, animTimer };
+  }
+  return {
+    ...enemy,
+    animTimer: animTimer - frameDuration,
+    animFrame: (enemy.animFrame + 1) % frames.length,
+  };
 }
