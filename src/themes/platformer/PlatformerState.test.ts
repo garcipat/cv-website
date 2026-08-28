@@ -6,6 +6,7 @@ import {
   spawnPlayerState,
   spawnCenter,
   resetGame,
+  resetGameProgress,
   collectedFacts,
   activeJournalSection,
   collectiblePlacements,
@@ -142,6 +143,42 @@ describe('PlatformerState', () => {
     resetGame();
 
     expect(collectedFacts.value).toBe(facts);
+  });
+});
+
+describe('resetGameProgress', () => {
+  afterEach(() => {
+    collectedFacts.value = [];
+    collectedCollectibleIds.value = new Set();
+    activeJournalSection.value = undefined;
+  });
+
+  it('called-clearsCollectedFactsAndCollectibleIds', () => {
+    collectedFacts.value = [
+      { id: 'coin-backend', sectionId: 'skills', sectionLabel: 'Skills', data: { category: 'Backend', skills: [] }, sourceType: 'coin' },
+    ];
+    collectedCollectibleIds.value = new Set(['coin-backend']);
+    activeJournalSection.value = 'skills';
+
+    resetGameProgress();
+
+    expect(collectedFacts.value).toEqual([]);
+    expect(collectedCollectibleIds.value.size).toBe(0);
+    expect(activeJournalSection.value).toBeUndefined();
+  });
+
+  it('called-alsoRestoresSpawnHealthAndCamera', () => {
+    // Reuses resetGame()'s existing behavior (position/health/camera) —
+    // this asserts the seam is actually called, not just facts/ids cleared.
+    playerState.value = { ...playerState.value, x: 999 };
+    healthState.value = 0;
+    cameraPositionX.value = 300;
+
+    resetGameProgress();
+
+    expect(playerState.value).toEqual(spawnPlayerState());
+    expect(healthState.value).toBe(MAX_HALF_HEARTS);
+    expect(cameraPositionX.value).toBe(0);
   });
 });
 

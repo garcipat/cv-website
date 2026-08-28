@@ -5,6 +5,14 @@ export interface JournalEntryDisplay {
   icon: string;
   title: string;
   subtitle?: string;
+  /**
+   * A list of name/rating rows (skill categories only) — rendered as one
+   * flex row per skill with the star rating right-aligned, instead of
+   * `subtitle`'s plain text. Kept separate from `subtitle` because plain
+   * text can't right-align a rating against variable-length names; the
+   * component renders each row as its own flex container.
+   */
+  ratedItems?: { name: string; stars: string }[];
 }
 
 /** One emoji per section, per FR-017 ("🏢 for experience, 🎓 for
@@ -54,7 +62,13 @@ export function formatJournalEntry(fact: CollectedFact): JournalEntryDisplay {
         return {
           icon,
           title: fact.data.category,
-          subtitle: fact.data.skills.map((skill) => skill.name).join(', '),
+          // One skill per row, each with its own right-aligned star rating
+          // (`ratedItems`, not `subtitle` — plain joined text left the
+          // stars ragged against variable-length names, per user feedback).
+          ratedItems: fact.data.skills.map((skill) => ({
+            name: skill.name,
+            stars: starRating(skill.level),
+          })),
         };
       }
       return { icon, title: `${data.name} ${starRating(data.level as number)}` };

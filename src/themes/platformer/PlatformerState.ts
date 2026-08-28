@@ -152,3 +152,29 @@ export function resetGame(): void {
   healthState.value = MAX_HALF_HEARTS;
   cameraPositionX.value = 0;
 }
+
+/**
+ * The "Reset Game" button's full reset (roadmap step 15, FR-018b) — unlike
+ * `resetGame()`, this is a deliberate action the visitor takes, not a
+ * death/respawn, so it also clears everything `resetGame()` leaves alone:
+ * collected facts, the collected-collectible dedup set (clearing it is what
+ * makes already-collected coins/fruits reappear in the level, since the
+ * render/collision loop reads it live), the remembered active journal
+ * bookmark (falls back to Journal.tsx's default section afterward), and any
+ * in-flight fact-flight/sparkle animation (`activeEffects`) so a pickup
+ * triggered just before Reset Game is clicked doesn't keep animating after
+ * the journal closes. `lifecycleState` is deliberately left untouched: the
+ * journal can only be opened from the `'playing'` phase
+ * (`PlatformerPage.tsx`'s `handleJournalToggle`), so the phase is always
+ * `'paused'` while Reset Game is clickable, and `resumeFromJournal` (already
+ * called when the journal closes) correctly returns to `'playing'` — no
+ * lifecycle transition is needed here, unlike `resetGame()`'s other callers
+ * (death/respawn) which explicitly transition through `introState(...)`.
+ */
+export function resetGameProgress(): void {
+  resetGame();
+  collectedFacts.value = [];
+  collectedCollectibleIds.value = new Set();
+  activeJournalSection.value = undefined;
+  activeEffects.value = [];
+}

@@ -118,11 +118,26 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   two accepted duplicate pairs. Only per-section counters, pagination, and
   the Reset Game button remain in step 15.
   *Verify: visually matches `entry-styles-mockup.html`.*
-- [ ] **15. Counters + pagination + Reset button** — "N/M" counters per
+- [x] **15. Counters + pagination + Reset button** — "N/M" counters per
   section, pagination within a section, Reset Game button. (Bookmark tabs
-  themselves moved into step 14.)
-  *Verify: counters update correctly, pagination works within a section with
-  many facts, Reset clears all state.*
+  themselves moved into step 14.) Revised significantly live per user
+  feedback beyond the plan's original scope: pagination is one continuous
+  flat sequence of pages across the whole book (`buildJournalPages` in
+  `JournalSections.ts`, resolving each page's content as a discriminated
+  union) rather than per-section — Skills paginates one category per page
+  with star-rated skill rows, Languages stays a single grouped page,
+  Experience/Projects/Education/Courses/Certificates paginate one entry
+  per page, and Personality is a single page whose right column now shows
+  a coin/fruit collectibles summary using the real sprites. Prev/Next wrap
+  around at both ends (no disabled state, no visible page-count text);
+  page-flip arrows are hover-reveal pixel-art chevrons, each covering the
+  full physical half of the book. Close/Reset buttons are now pixel-art
+  icons (not text/glyphs); Reset Game closes the journal immediately and
+  triggers the iris-in "starting again" transition instead of staying
+  open. See `specs/S-006-platformer-theme/plans/2026-08-28-counters-pagination-reset.md`
+  for the full record.
+  *Verify: counters update correctly, pagination flips through the whole
+  book with wraparound, Reset clears all state and restarts play.*
 
 ## Iteration 2 — Enemies + blocks + flagpole + audio (P2)
 

@@ -25,6 +25,16 @@ describe('startFlightEffect', () => {
       phase: 'rising',
     });
   });
+
+  it('calledWithIcon-includesIconOnTheEffect', () => {
+    const effect = startFlightEffect('a', 'German', 10, 20, 400, 300, 900, 600, '🇩🇪');
+    expect(effect.icon).toBe('🇩🇪');
+  });
+
+  it('calledWithoutIcon-iconIsUndefined', () => {
+    const effect = startFlightEffect('a', 'German', 10, 20, 400, 300, 900, 600);
+    expect(effect.icon).toBeUndefined();
+  });
 });
 
 describe('tickFlightEffect', () => {

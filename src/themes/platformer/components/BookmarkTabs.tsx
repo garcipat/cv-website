@@ -36,7 +36,7 @@ export const BookmarkTabs = ({ sections, activeSection, onSelect }: BookmarkTabs
   useSignals();
 
   return (
-    <div className="absolute top-[3%] right-[8%] z-10 flex" data-testid="bookmark-tabs">
+    <div className="absolute top-[3%] right-[8%] z-20 flex" data-testid="bookmark-tabs">
       {sections.map((section) => {
         const isActive = section === activeSection;
         const label = sectionLabel(section);

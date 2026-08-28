@@ -348,6 +348,8 @@ export function drawCollectibles(
 }
 
 const COLLECTION_EFFECT_FONT_SIZE = 28;
+const COLLECTION_EFFECT_ICON_FONT_SIZE = 20;
+const COLLECTION_EFFECT_ICON_GAP = 6;
 const SPARKLE_RADIUS_PX = 3;
 
 /** Draws every active collection-effect's fact text at its current
@@ -369,6 +371,19 @@ export function drawCollectionEffects(ctx: CanvasRenderingContext2D, effects: Fl
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(effect.text, x, y);
+
+      // Drawn as a SEPARATE fillText, in a plain system font (not the pixel
+      // font above) — a custom @font-face has no emoji glyphs, and canvas
+      // text doesn't fall back to a system emoji font mid-string the way
+      // DOM text does, so an emoji baked into `effect.text` silently didn't
+      // render. Positioned just left of the text using the text's measured
+      // half-width, rather than baked into one centered string.
+      if (effect.icon) {
+        const textHalfWidth = ctx.measureText(effect.text).width / 2;
+        ctx.font = `${COLLECTION_EFFECT_ICON_FONT_SIZE}px sans-serif`;
+        ctx.textAlign = 'right';
+        ctx.fillText(effect.icon, x - textHalfWidth - COLLECTION_EFFECT_ICON_GAP, y);
+      }
       ctx.restore();
     }
 
