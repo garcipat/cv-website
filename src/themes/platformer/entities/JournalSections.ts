@@ -80,3 +80,37 @@ export function nonEmptySections(cv: CVData): SectionId[] {
 export function sectionLabel(section: SectionId): string {
   return currentUI.value.sections[section as keyof typeof currentUI.value.sections] ?? section;
 }
+
+/**
+ * Total possible facts for a section (roadmap step 15's "Skills 3/5"
+ * counter, FR-017b) — the section's raw CVData item count. This is a 1:1
+ * count for every section except `skills`, where one collectible is placed
+ * per skill *category* (not per individual skill, see CollectibleMapper.ts)
+ * — `cv.skills.length` already counts categories, so no special-casing is
+ * needed. `languages` defaults to 0 (matches `nonEmptySections`' handling of
+ * an undefined array). Not meaningful for `personality` (no counter, per
+ * FR-017b's exception) — callers exclude it themselves.
+ */
+export function sectionTotal(cv: CVData, section: SectionId): number {
+  if (section === 'languages') return cv.languages?.length ?? 0;
+  if (section === 'personality' || section === 'activities') return 0;
+  return cv[section].length;
+}
+
+/**
+ * Sections whose entries are long enough (company/role/dates/description,
+ * etc.) to need one-entry-per-page pagination, per user request during step
+ * 15 planning. `skills`/`languages` entries are compact and stay grouped
+ * together on a single page instead.
+ */
+const PAGINATED_SECTIONS = new Set<SectionId>([
+  'experience',
+  'projects',
+  'education',
+  'courses',
+  'certificates',
+]);
+
+export function isPaginatedSection(section: SectionId): boolean {
+  return PAGINATED_SECTIONS.has(section);
+}
