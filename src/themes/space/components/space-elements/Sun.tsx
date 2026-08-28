@@ -9,6 +9,7 @@ export const Sun = () => {
     <div
       className="fixed z-0 pointer-events-none"
       aria-hidden="true"
+      data-testid="sun"
       style={{
         bottom: '-60px',
         left: '-40px',

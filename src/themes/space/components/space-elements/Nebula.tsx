@@ -9,9 +9,14 @@
  */
 export const Nebula = () => {
   return (
-    <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden" aria-hidden="true">
+    <div
+      className="fixed inset-0 z-0 pointer-events-none overflow-hidden"
+      aria-hidden="true"
+      data-testid="nebula"
+    >
       <div
         className="absolute rounded-full"
+        data-testid="nebula-blob"
         style={{
           width: '500px',
           height: '300px',

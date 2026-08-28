@@ -1,9 +1,10 @@
-import { render, screen } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { currentTheme, platformerPrototypeUnlocked } from '@/state/theme';
 import { currentLocale } from '@/state/locale';
 import { SidebarSettings } from './SidebarSettings';
+import { sidebarSettingsPage } from './SidebarSettings.page';
 
 beforeEach(() => {
   currentTheme.value = 'ide';
@@ -14,13 +15,12 @@ beforeEach(() => {
 describe('SidebarSettings', () => {
   it('renders-THEMES-radio-group-with-three-options-IDE-selected-platformerLocked', () => {
     render(<SidebarSettings />);
-    const radios = screen.getAllByRole('radio');
-    const themeRadios = radios.filter((r) => r.getAttribute('name') === 'theme');
+    expect(sidebarSettingsPage.themeRadio.ide).toBeChecked();
+    expect(sidebarSettingsPage.themeRadio.space).toBeInTheDocument();
+    expect(sidebarSettingsPage.themeRadio.terminal).toBeInTheDocument();
     // Platformer stays out of this list until unlocked (see
     // state/theme.ts's `visibleThemes`) — same source ThemeSelect.tsx uses.
-    expect(themeRadios).toHaveLength(3);
-    const ideRadio = themeRadios.find((r) => r.getAttribute('value') === 'ide');
-    expect(ideRadio).toBeChecked();
+    expect(sidebarSettingsPage.themeRadio.platformer).not.toBeInTheDocument();
   });
 
   it('platformerUnlocked-rendersAllFourThemeOptions', () => {
@@ -28,42 +28,26 @@ describe('SidebarSettings', () => {
 
     render(<SidebarSettings />);
 
-    const radios = screen.getAllByRole('radio');
-    const themeRadios = radios.filter((r) => r.getAttribute('name') === 'theme');
-    expect(themeRadios).toHaveLength(4);
-    expect(themeRadios.some((r) => r.getAttribute('value') === 'platformer')).toBe(true);
+    expect(sidebarSettingsPage.themeRadio.platformer).toBeInTheDocument();
   });
 
   it('renders-LANGUAGE-radio-group-with-EN-DE-options', () => {
     render(<SidebarSettings />);
-    const radios = screen.getAllByRole('radio');
-    const langRadios = radios.filter((r) => r.getAttribute('name') === 'locale');
-    expect(langRadios).toHaveLength(2);
-    const enRadio = langRadios.find((r) => r.getAttribute('value') === 'en');
-    expect(enRadio).toBeChecked();
+    expect(sidebarSettingsPage.localeRadio.en).toBeChecked();
+    expect(sidebarSettingsPage.localeRadio.de).toBeInTheDocument();
   });
 
   it('clicking-theme-radio-changes-currentTheme-value', async () => {
     const user = userEvent.setup();
     render(<SidebarSettings />);
-    const radios = screen.getAllByRole('radio');
-    const terminalRadio = radios.find(
-      (r) => r.getAttribute('name') === 'theme' && r.getAttribute('value') === 'terminal',
-    );
-    expect(terminalRadio).toBeDefined();
-    await user.click(terminalRadio!);
+    await user.click(sidebarSettingsPage.themeRadio.terminal);
     expect(currentTheme.value).toBe('terminal');
   });
 
   it('clicking-language-radio-changes-currentLocale', async () => {
     const user = userEvent.setup();
     render(<SidebarSettings />);
-    const radios = screen.getAllByRole('radio');
-    const deRadio = radios.find(
-      (r) => r.getAttribute('name') === 'locale' && r.getAttribute('value') === 'de',
-    );
-    expect(deRadio).toBeDefined();
-    await user.click(deRadio!);
+    await user.click(sidebarSettingsPage.localeRadio.de);
     expect(currentLocale.value).toBe('de');
   });
 });

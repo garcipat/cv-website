@@ -47,6 +47,7 @@ export const AnchorDots = ({ sections, onDotClick }: AnchorDotsProps) => {
         'flex flex-col gap-3.5',
       )}
       aria-label={currentUI.value.space.sectionNavAriaLabel}
+      data-testid="anchor-dots-nav"
     >
       {sections.map((section, i) => {
         const isActive = i === activeSectionIdx;
@@ -61,6 +62,7 @@ export const AnchorDots = ({ sections, onDotClick }: AnchorDotsProps) => {
             )}
             aria-label={currentUI.value.space.scrollToLabel.replace('{section}', sectionLabel(section.id))}
             aria-current={isActive ? 'true' : undefined}
+            data-testid={`anchor-dot-${section.id}`}
           >
             <span
               className={cn(
