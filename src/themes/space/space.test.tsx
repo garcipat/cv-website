@@ -88,12 +88,14 @@ const mockCurrentCV: { value: CVData } = { value: mockCV };
 const mockCurrentUI = {
   value: {
     nav: {
+      about: 'About',
       experience: 'Experience',
       skills: 'Skills',
       projects: 'Projects',
       education: 'Education',
       courses: 'Courses',
       certificates: 'Certificates',
+      contact: 'Contact',
     },
     sections: {
       summary: 'Summary',
@@ -104,6 +106,12 @@ const mockCurrentUI = {
       courses: 'Courses',
       certificates: 'Certificates',
       contact: 'Contact',
+    },
+    space: {
+      posterTitle: 'Circle Parade',
+      posterSubtitle: 'Scroll — circles drop in from top, drift out to the corners',
+      sectionNavAriaLabel: 'Section navigation',
+      scrollToLabel: 'Scroll to {section}',
     },
     themes: {
       ide: 'IDE',
@@ -131,6 +139,13 @@ vi.mock('@/state/locale', () => ({
 
 vi.mock('@/state/theme', () => ({
   currentTheme: { value: 'space' },
+  platformerPrototypeUnlocked: { value: false },
+  setPlatformerPrototypeUnlocked: vi.fn(),
+  visibleThemes: { value: [
+    { id: 'ide', label: 'IDE' },
+    { id: 'space', label: 'Space' },
+    { id: 'terminal', label: 'Retro Terminal' },
+  ] },
 }));
 
 // Mock matchMedia for reduced motion tests

@@ -17,9 +17,18 @@
   },
   "experience": [
     {
+      "company": "CM Informatik AG",
+      "role": "Senior Software Engineer",
+      "startDate": "2026-10",
+      "highlights": [
+        "Einstieg als Senior Software Engineer (Details folgen)"
+      ]
+    },
+    {
       "company": "Noser Engineering AG",
       "role": "Platform-Engineer und -Architekt",
       "startDate": "2020-03",
+      "endDate": "2026-07",
       "client": "Bühlergroup AG",
       "location": "Winterthur",
       "highlights": [
@@ -45,7 +54,7 @@
         "Integration Tests",
         "SonarQube",
         "DependencyTrack",
-        "Colpilot",
+        "Copilot",
         "LLM",
         "Review / Expertisen",
         "Mentoring",
@@ -566,6 +575,14 @@
         {
           "name": "OpenCode",
           "level": 55
+        },
+        {
+          "name": "Claude Code",
+          "level": 65
+        },
+        {
+          "name": "AI Skills",
+          "level": 60
         }
       ]
     },
@@ -958,6 +975,12 @@
   ],
   "courses": [
     {
+      "title": "iSAQB Requirement Engineering for Architects",
+      "provider": "tecnovy",
+      "date": "2026-08",
+      "category": "Architektur"
+    },
+    {
       "title": "Konflikte erkennen, analysieren und nachhaltig lösen",
       "provider": "BWI Akademie",
       "date": "2026-06",
@@ -967,25 +990,25 @@
       "title": "Einführung in Webapplikationen mit React",
       "provider": "letsboot.ch",
       "date": "2025-11",
-      "category": "Web Development"
+      "category": "Webentwicklung"
     },
     {
       "title": "iSAQB Advanced Level - Modul WEBSEC",
       "provider": "INNOQ",
       "date": "2025-05",
-      "category": "Architecture"
+      "category": "Architektur"
     },
     {
       "title": "Python-Grundlagen für Softwareentwickler",
       "provider": "Digicomp",
       "date": "2024-10",
-      "category": "Programming"
+      "category": "Programmierung"
     },
     {
       "title": "iSAQB Advanced Level - Agile Software Architektur",
       "provider": "embarc.de",
       "date": "2024-05",
-      "category": "Architecture"
+      "category": "Architektur"
     },
     {
       "title": "iSAQB Advanced Level - Soft Skills",
@@ -1003,13 +1026,13 @@
       "title": "Blazor Grundlagen",
       "provider": "Hanspeter Bornhauser",
       "date": "2022-12",
-      "category": "Web Development"
+      "category": "Webentwicklung"
     },
     {
       "title": "iSAQB Certified Architect Foundation Level",
       "provider": "embarc.de",
       "date": "2021-09",
-      "category": "Architecture"
+      "category": "Architektur"
     },
     {
       "title": "Kommunikationskurs",
@@ -1021,7 +1044,7 @@
       "title": "Funktionale Programmierung mit C#",
       "provider": "Digicomp - Hans Peter Bornhauser",
       "date": "2020-10",
-      "category": "Programming"
+      "category": "Programmierung"
     }
   ],
   "education": [
