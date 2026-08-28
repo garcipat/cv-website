@@ -105,8 +105,8 @@ export function findSpawnTile(layout: readonly string[]): { col: number; row: nu
  * layout, in reading order — this order is what `EnemyMapper.ts`'s
  * `placeEnemies` zips against the certificate-derived enemy defs (in
  * `mapCVDataToEnemies`'s output order) to assign hand-authored positions to
- * specific CV facts. Zero markers is valid (a level can rely entirely on
- * auto-placement for this type).
+ * specific CV facts. Zero markers is valid — that CVData type simply has no
+ * enemy on the map yet (there is no auto-placement fallback).
  */
 export function findGreenEnemyTiles(layout: readonly string[]): { col: number; row: number }[] {
   return findAllOfKind(layout, 'enemyGreen');

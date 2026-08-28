@@ -109,6 +109,21 @@ describe('placeCollectibles', () => {
     expect(placed).toHaveLength(3);
   });
 
+  it('noFruitMarkers-noFruitDefsPlacedButCoinDefsStillAre', () => {
+    const defs = mapCVDataToCollectibles(cv); // 2 coin defs, 2 fruit defs
+    const placed = placeCollectibles(defs, {
+      coin: [
+        { col: 1, row: 0 },
+        { col: 2, row: 0 },
+      ],
+      fruit: [],
+    });
+
+    expect(placed.filter((p) => p.spriteType === 'coin')).toHaveLength(2);
+    expect(placed.filter((p) => p.spriteType === 'fruit')).toHaveLength(0);
+    expect(placed).toHaveLength(2);
+  });
+
   it('noMarkersAtAll-noDefs-returnsEmptyArray', () => {
     const defs = mapCVDataToCollectibles({ ...cv, skills: [], languages: undefined });
     expect(placeCollectibles(defs, { coin: [], fruit: [] })).toEqual([]);
