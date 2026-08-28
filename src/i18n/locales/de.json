@@ -4,12 +4,20 @@
     "description": "Interaktiver Lebenslauf und Portfolio von Patrick Garcia, Senior Software-Ingenieur & Architekt."
   },
   "nav": {
+    "about": "Über mich",
     "experience": "Erfahrung",
     "skills": "Kenntnisse",
     "projects": "Projekte",
     "education": "Studium",
     "courses": "Kurse",
-    "certificates": "Zertifikate"
+    "certificates": "Zertifikate",
+    "contact": "Kontakt"
+  },
+  "space": {
+    "posterTitle": "Kreisparade",
+    "posterSubtitle": "Scrollen — Kreise fallen von oben ein und driften zu den Ecken",
+    "sectionNavAriaLabel": "Abschnittsnavigation",
+    "scrollToLabel": "Zu {section} scrollen"
   },
   "themes": {
     "ide": "IDE",
