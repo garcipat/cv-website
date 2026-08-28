@@ -141,7 +141,7 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
 
 ## Iteration 2 — Enemies + blocks + flagpole + audio (P2)
 
-- [ ] **16. Enemy render** — CollectibleMapper extended for Certificates/Projects,
+- [x] **16. Enemy render** — CollectibleMapper extended for Certificates/Projects,
   mapping Certificates to `slime_green.png` and Projects to `slime_purple.png` (two
   visually distinct enemy types, mirroring the coin/fruit split for Skills/
   Languages). Both sheets are a 4x3 grid of 24x24 frames; a trial frame mapping —
