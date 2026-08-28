@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { FloatingControls } from './components/FloatingControls';
 import { loadImage } from './engine/SpriteLoader';
 import { loadFont } from './engine/FontLoader';
@@ -105,11 +105,16 @@ export const PlatformerPage = () => {
     }
   };
 
-  const handleJournalReallyClosed = () => {
+  // Wrapped in useCallback (empty deps: it only reads/writes signals and
+  // setState, nothing closed-over) so its identity is stable across renders
+  // — Journal's frame-advancing effect depends on it, and a recreated
+  // callback there would clear and reschedule the animation timer on every
+  // render.
+  const handleJournalReallyClosed = useCallback(() => {
     lifecycleState.value = resumeFromJournal(lifecycleState.value);
     setJournalOpen(false);
     setJournalClosing(false);
-  };
+  }, []);
 
   const handleDebugKill = () => {
     healthState.value = 0;

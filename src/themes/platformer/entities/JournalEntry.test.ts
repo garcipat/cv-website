@@ -5,7 +5,7 @@ const fact = (overrides: Partial<CollectedFact>): CollectedFact => ({
   id: 'x',
   sectionId: 'skills',
   sectionLabel: 'Skills',
-  data: {},
+  data: { name: 'Test', level: 0 },
   sourceType: 'coin',
   ...overrides,
 });
@@ -119,7 +119,11 @@ describe('formatJournalEntry', () => {
 
   it('unrecognizedSectionShapeMissingFields-fallsBackToSectionLabel', () => {
     const result = formatJournalEntry(
-      fact({ sectionId: 'activities', sectionLabel: 'Activities', data: {} }),
+      fact({
+        sectionId: 'activities',
+        sectionLabel: 'Activities',
+        data: { startDate: '2020-01', endDate: '2020-06', name: 'Test' },
+      }),
     );
     expect(result.title).toBe('Activities');
   });
