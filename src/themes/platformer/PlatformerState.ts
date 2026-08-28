@@ -8,9 +8,14 @@ import {
 } from './entities/Player';
 import { MAX_HALF_HEARTS } from './entities/Health';
 import { introState } from './engine/GameLifecycle';
+import { currentCV } from '@/state/locale';
+import { mapCVDataToCollectibles, placeCollectibles } from './level/CollectibleMapper';
+import { level1 } from './level/level1';
 import type { PlayerState } from './entities/Player';
 import type { LifecycleState } from './engine/GameLifecycle';
 import type { CollectedFact, SectionId } from './types';
+import type { CollectiblePlacement } from './level/CollectibleMapper';
+import type { FlightEffect } from './engine/CollectionEffects';
 
 /**
  * The player's state at the level's spawn point — full health's worth of
@@ -62,34 +67,38 @@ export const cameraPositionX = signal(0);
 export const healthState = signal(MAX_HALF_HEARTS);
 
 /**
- * TEMPORARY seed data — steps 11/12 (coin render + collection) don't exist
- * yet, so nothing populates `collectedFacts` for real. These two entries only
- * exist so step 13's "see the collected fact listed" verification has
- * something to show. Delete this constant and switch `collectedFacts`'s
- * initial value to `[]` once step 12 lands.
+ * Every collectible in the level, placed once at module load from the
+ * current locale's CVData (see `@/state/locale`'s `currentCV`) — a plain
+ * constant, not a signal, matching `level1`: neither is locale-reactive yet
+ * (switching EN/DE mid-session doesn't re-place collectibles or change
+ * which are already collected; that's roadmap step 25's theme-switch-reset
+ * job, not this step's).
  */
-const SEED_COLLECTED_FACTS: CollectedFact[] = [
-  {
-    id: 'seed-skill-typescript',
-    sectionId: 'skills',
-    sectionLabel: 'Skills',
-    data: { name: 'TypeScript', level: 90 },
-    sourceType: 'coin',
-  },
-  {
-    id: 'seed-language-german',
-    sectionId: 'languages',
-    sectionLabel: 'Languages',
-    data: { name: 'German', flag: '\u{1F1E9}\u{1F1EA}', level: 100 },
-    sourceType: 'coin',
-  },
-];
+export const collectiblePlacements: CollectiblePlacement[] = placeCollectibles(
+  mapCVDataToCollectibles(currentCV.value),
+  level1,
+);
 
 /**
- * Facts discovered so far this session (see spec.md FR-032). Populated for
- * real starting in step 12 — see the seed-data comment above.
+ * Facts discovered so far this session (see spec.md FR-032). Starts empty —
+ * step 12 (this step) is what actually populates it via real coin/fruit
+ * collection; the temporary two-item seed data step 13 relied on to verify
+ * the journal skeleton is gone.
  */
-export const collectedFacts = signal<CollectedFact[]>(SEED_COLLECTED_FACTS);
+export const collectedFacts = signal<CollectedFact[]>([]);
+
+/**
+ * Ids of every collected-and-removed collectible this session (dedup key,
+ * FR-020c) — kept separate from `collectedFacts` since a collectible's
+ * removal-from-the-world state and its fact-content-in-the-journal state,
+ * while always updated together (see PlatformerPage.tsx's collection
+ * handler, Task 8), are conceptually different concerns, matching how
+ * `healthState`/`playerState` are already kept separate.
+ */
+export const collectedCollectibleIds = signal<Set<string>>(new Set());
+
+/** Currently animating fact-flight/sparkle effects (see engine/CollectionEffects.ts). */
+export const activeEffects = signal<FlightEffect[]>([]);
 
 /**
  * The journal's last manually-selected bookmark section, remembered across
@@ -125,10 +134,12 @@ export const lifecycleState = signal<LifecycleState>(
 /**
  * Resets the game world to its spawn state: player back at the spawn point,
  * full health, camera scrolled back to the level start. Does NOT touch
- * `lifecycleState` — callers (Task 5's restart-on-input and debug Respawn
- * button, both wired to the `intro` iris-in) decide the lifecycle transition
- * themselves, since not every future caller of a "reset" necessarily wants
- * the iris animation (e.g. step 15's "Reset Game" button might not).
+ * `lifecycleState`, `collectedFacts`, or `collectedCollectibleIds` — per
+ * FR-020c, a death/respawn preserves everything already discovered; only a
+ * future "Reset Game" button (roadmap step 15) clears those. Callers
+ * (Task 5's restart-on-input and debug Respawn button, both wired to the
+ * `intro` iris-in) decide the lifecycle transition themselves, since not
+ * every future caller of a "reset" necessarily wants the iris animation.
  *
  * This is the single reset seam other roadmap steps extend: step 15's
  * "Reset Game" button will additionally need to clear collected facts and

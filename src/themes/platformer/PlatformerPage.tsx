@@ -6,6 +6,9 @@ import {
   drawTerrain,
   drawPlayer,
   drawHearts,
+  drawCollectibles,
+  drawCollectionEffects,
+  drawCollectibleCounter,
   drawIrisOverlay,
   drawRestartPrompt,
   RESTART_PROMPT_FONT_FAMILY,
@@ -27,6 +30,11 @@ import {
 } from './engine/GameLifecycle';
 import { maxIrisRadius } from './engine/IrisTransition';
 import { level1 } from './level/level1';
+import { checkCollectibleCollisions } from './engine/Collision';
+import { startFlightEffect, tickFlightEffect, COLLECTION_TEXT_SLOT_COUNT } from './engine/CollectionEffects';
+import { coinFrameSource, COIN_FRAME_SIZE } from './entities/Coin';
+import { fruitFrameSource, FRUIT_FRAME_SIZE } from './entities/Fruit';
+import { isSkillCategoryFact } from './types';
 import { RENDERED_TILE_SIZE } from './level/Terrain';
 import {
   advancePlayerAnimation,
@@ -35,8 +43,35 @@ import {
   PLAYER_VISUAL_CENTER_Y_OFFSET,
 } from './entities/Player';
 import { takeDamage, PIT_FALL_DAMAGE } from './entities/Health';
-import { playerState, cameraPositionX, healthState, lifecycleState, spawnCenter, resetGame } from './PlatformerState';
+import {
+  playerState,
+  cameraPositionX,
+  healthState,
+  lifecycleState,
+  spawnCenter,
+  resetGame,
+  collectiblePlacements,
+  collectedCollectibleIds,
+  activeEffects,
+  collectedFacts,
+} from './PlatformerState';
 import { Journal } from './components/Journal';
+
+// Horizontal HUD layout: hearts occupy roughly the first 130px from the left
+// margin (3 hearts x 32px + spacing, per drawHearts's own HUD_MARGIN/
+// HEART_SPACING in Renderer.ts) — these two constants position the coin and
+// fruit counters after that, side by side, without duplicating Renderer.ts's
+// private layout constants here.
+const MAX_HEARTS_COUNTER_WIDTH = 130;
+// Wide enough for a 32px icon (now matching HEART_RENDERED_SIZE, not the
+// smaller 20px it used to be) plus its "collected / max" text before the
+// next counter starts.
+const COLLECTIBLE_COUNTER_SPACING = 110;
+// Vertical spacing between stacked fact-flight rows when several pickups are
+// collected close together — a bit more than the 28px collection-effect
+// font size (Renderer.ts's COLLECTION_EFFECT_FONT_SIZE) so stacked lines
+// don't touch.
+const COLLECTION_TEXT_STACK_ROW_HEIGHT = 34;
 
 export const PlatformerPage = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -44,6 +79,9 @@ export const PlatformerPage = () => {
   const playerSpriteRef = useRef<HTMLImageElement | null>(null);
   const playerJumpSpriteRef = useRef<HTMLImageElement | null>(null);
   const heartsSpriteRef = useRef<HTMLImageElement | null>(null);
+  const coinSpriteRef = useRef<HTMLImageElement | null>(null);
+  const fruitSpriteRef = useRef<HTMLImageElement | null>(null);
+  const journalButtonRef = useRef<HTMLButtonElement>(null);
   const debugParams = new URLSearchParams(window.location.search);
   // Any `debug` param (not just `hitboxes`) shows the debug panel (Kill/
   // Respawn/Hitboxes toggle below) — a dev convenience for exercising the
@@ -137,6 +175,17 @@ export const PlatformerPage = () => {
     // property change on any other frame.
     let backgroundColor = '#000';
 
+    // Shared spin-cycle timer for every coin (see Coin.ts's coinFrameIndex) —
+    // a plain variable, not a signal, since nothing outside this render loop
+    // needs to read or react to it.
+    let coinAnimElapsed = 0;
+
+    // Cycles 0, 1, 2, 0, 1, 2, ... across collections (not reset per-tick) so
+    // fast/simultaneous pickups' fact text rotates through a fixed set of
+    // vertical slots instead of landing on the same spot — see
+    // CollectionEffects.ts's COLLECTION_TEXT_SLOT_COUNT.
+    let nextTextSlot = 0;
+
     const resize = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
@@ -167,10 +216,59 @@ export const PlatformerPage = () => {
         drawPlayer(ctx, playerState.value, playerSpriteRef.current, originX, originY, playerJumpSpriteRef.current);
       }
 
+      if (coinSpriteRef.current || fruitSpriteRef.current) {
+        drawCollectibles(
+          ctx,
+          collectiblePlacements,
+          coinSpriteRef.current,
+          fruitSpriteRef.current,
+          collectedCollectibleIds.value,
+          coinAnimElapsed,
+          originX,
+          originY,
+        );
+      }
+
+      drawCollectionEffects(ctx, activeEffects.value);
+
       if (debugHitboxesRef.current) drawDebugOverlay(ctx, playerState.value, level1, originX, originY);
 
       if (heartsSpriteRef.current) {
         drawHearts(ctx, healthState.value, heartsSpriteRef.current, HEARTS_START_X);
+      }
+
+      const coinFrame0 = coinFrameSource(0);
+      const coinTotal = collectiblePlacements.filter((p) => p.spriteType === 'coin').length;
+      const coinCollected = collectiblePlacements.filter(
+        (p) => p.spriteType === 'coin' && collectedCollectibleIds.value.has(p.id),
+      ).length;
+      if (coinSpriteRef.current) {
+        drawCollectibleCounter(
+          ctx,
+          coinSpriteRef.current,
+          { sx: coinFrame0.sx, sy: coinFrame0.sy, size: COIN_FRAME_SIZE },
+          coinCollected,
+          coinTotal,
+          16 + MAX_HEARTS_COUNTER_WIDTH,
+          32,
+        );
+      }
+
+      const fruitFrame0 = fruitFrameSource(0);
+      const fruitTotal = collectiblePlacements.filter((p) => p.spriteType === 'fruit').length;
+      const fruitCollected = collectiblePlacements.filter(
+        (p) => p.spriteType === 'fruit' && collectedCollectibleIds.value.has(p.id),
+      ).length;
+      if (fruitSpriteRef.current) {
+        drawCollectibleCounter(
+          ctx,
+          fruitSpriteRef.current,
+          { sx: fruitFrame0.sx, sy: fruitFrame0.sy, size: FRUIT_FRAME_SIZE },
+          fruitCollected,
+          fruitTotal,
+          16 + MAX_HEARTS_COUNTER_WIDTH + COLLECTIBLE_COUNTER_SPACING,
+          32,
+        );
       }
 
       // Iris overlay: drawn on top of everything else whenever the current
@@ -246,6 +344,81 @@ export const PlatformerPage = () => {
         input.clearPending();
         render();
         return;
+      }
+
+      // Coins only spin/bob while the game is actually live — frozen during
+      // death/restart/journal-pause, same as physics below, rather than
+      // ticking on a wall-clock independent of the paused state.
+      coinAnimElapsed += dt;
+
+      activeEffects.value = activeEffects.value
+        .map((effect) => tickFlightEffect(effect, dt))
+        .filter((effect) => effect.phase !== 'done');
+
+      // Same origin math as render()'s local originX/originY (that scope
+      // isn't reachable from here) — needed to convert a just-collected
+      // placement's world-space position into the screen-space coordinates
+      // FlightEffect requires (see CollectionEffects.ts's doc comment).
+      const levelPixelHeight = level1.height * RENDERED_TILE_SIZE;
+      const originY = canvas.height - levelPixelHeight;
+      const originX = -cameraPositionX.value;
+
+      const touchedIds = checkCollectibleCollisions(
+        playerState.value,
+        collectiblePlacements,
+        collectedCollectibleIds.value,
+      );
+      if (touchedIds.length > 0) {
+        const nextCollected = new Set(collectedCollectibleIds.value);
+        const newFacts = [...collectedFacts.value];
+        const newEffects = [...activeEffects.value];
+        const journalRect = journalButtonRef.current?.getBoundingClientRect();
+        const targetX = journalRect ? journalRect.left + journalRect.width / 2 : canvas.width - 32;
+        const targetY = journalRect ? journalRect.top + journalRect.height / 2 : canvas.height - 32;
+        // Fact text rises toward the upper-middle of the screen and holds
+        // there before flying on to the journal icon, so it's actually
+        // readable rather than flying past in one motion. Deliberately above
+        // dead-center (0.5) — vertical-center read as "too low" in review,
+        // since gameplay (terrain/player) sits in the lower half of the
+        // screen and a dead-center pause competes with it.
+        const midX = canvas.width / 2;
+        const midY = canvas.height * 0.3;
+
+        for (const id of touchedIds) {
+          const placement = collectiblePlacements.find((p) => p.id === id);
+          if (!placement) continue;
+          nextCollected.add(id);
+          newFacts.push(placement.fact);
+
+          const label = isSkillCategoryFact(placement.fact.data)
+            ? placement.fact.data.category
+            : ('name' in placement.fact.data ? placement.fact.data.name : placement.fact.sectionLabel);
+          // Fast/simultaneous pickups cycle through a fixed set of vertical
+          // slots (1, 2, 3, 1, 2, 3, ...) instead of every fact text landing
+          // on the same spot. The offset applies to BOTH the rise's start
+          // and its mid hold point (not just mid) — offsetting mid alone
+          // still let two effects starting near the same world position
+          // overlap through most of the rise, only separating at the end.
+          const slot = nextTextSlot;
+          nextTextSlot = (nextTextSlot + 1) % COLLECTION_TEXT_SLOT_COUNT;
+          const stackOffsetY = slot * COLLECTION_TEXT_STACK_ROW_HEIGHT;
+          newEffects.push(
+            startFlightEffect(
+              id,
+              label,
+              placement.x + originX,
+              placement.y + originY + stackOffsetY,
+              midX,
+              midY + stackOffsetY,
+              targetX,
+              targetY,
+            ),
+          );
+        }
+
+        collectedCollectibleIds.value = nextCollected;
+        collectedFacts.value = newFacts;
+        activeEffects.value = newEffects;
       }
 
       // A/D accepted as an alternate to Arrow Left/Right (FR-007 only
@@ -350,14 +523,34 @@ export const PlatformerPage = () => {
         // The heart HUD simply won't render if the sprite fails to load; the
         // rest of the game still shows.
       });
+    loadImage('/sprites/coin.png')
+      .then((img) => {
+        if (cancelled) return;
+        coinSpriteRef.current = img;
+        render();
+      })
+      .catch(() => {
+        // Coins simply won't render if the sprite fails to load; the rest of
+        // the game still shows.
+      });
+    loadImage('/sprites/fruit.png')
+      .then((img) => {
+        if (cancelled) return;
+        fruitSpriteRef.current = img;
+        render();
+      })
+      .catch(() => {
+        // Fruits simply won't render if the sprite fails to load; coins and
+        // the rest of the game still show.
+      });
     loadFont(RESTART_PROMPT_FONT_FAMILY, RESTART_PROMPT_FONT_URL)
       .then(() => {
         if (cancelled) return;
         render();
       })
       .catch(() => {
-        // drawRestartPrompt falls back to its sans-serif stack if the
-        // custom font fails to load.
+        // drawRestartPrompt/drawCollectibleCounter fall back to their
+        // sans-serif/monospace stacks if the custom font fails to load.
       });
 
     return () => {
@@ -383,6 +576,7 @@ export const PlatformerPage = () => {
           shifts right to make room. size-10 (40px) must match the 40 baked
           into HEARTS_START_X's computation in Renderer.ts. */}
       <button
+        ref={journalButtonRef}
         type="button"
         onClick={handleJournalToggle}
         aria-label="Toggle journal"

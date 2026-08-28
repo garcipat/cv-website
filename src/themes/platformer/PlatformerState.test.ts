@@ -8,6 +8,9 @@ import {
   resetGame,
   collectedFacts,
   activeJournalSection,
+  collectiblePlacements,
+  collectedCollectibleIds,
+  activeEffects,
 } from './PlatformerState';
 import { MAX_HALF_HEARTS } from './entities/Health';
 import { tileToPixel, RENDERED_TILE_SIZE } from './level/Terrain';
@@ -19,6 +22,38 @@ import {
 } from './entities/Player';
 
 describe('PlatformerState', () => {
+  it('collectedFacts-initial-isEmpty', () => {
+    expect(collectedFacts.value).toEqual([]);
+  });
+
+  it('collectiblePlacements-initial-isNonEmptyAndMatchesCVData', () => {
+    // Real CVData has skill categories + languages — exact count isn't
+    // pinned here (that's CollectibleMapper.test.ts's job against fixture
+    // data), just that real data produces a real, non-trivial list.
+    expect(collectiblePlacements.length).toBeGreaterThan(0);
+  });
+
+  it('collectedCollectibleIds-initial-isEmptySet', () => {
+    expect(collectedCollectibleIds.value.size).toBe(0);
+  });
+
+  it('activeEffects-initial-isEmptyArray', () => {
+    expect(activeEffects.value).toEqual([]);
+  });
+
+  it('resetGame-calledAfterCollectingAndFactsAdded-doesNotClearCollectedStateOrFacts', () => {
+    collectedCollectibleIds.value = new Set(['coin-backend']);
+    collectedFacts.value = [
+      { id: 'coin-backend', sectionId: 'skills', sectionLabel: 'Skills', data: { category: 'Backend', skills: [] }, sourceType: 'coin' },
+    ];
+
+    resetGame();
+
+    // FR-020c: collected coins/facts survive a death/respawn reset.
+    expect(collectedCollectibleIds.value.has('coin-backend')).toBe(true);
+    expect(collectedFacts.value).toHaveLength(1);
+  });
+
   it('playerState-initial-hasIdleAnimAtFrameZero', () => {
     expect(playerState.value.animState).toBe('idle');
     expect(playerState.value.animFrame).toBe(0);
@@ -107,15 +142,6 @@ describe('PlatformerState', () => {
     resetGame();
 
     expect(collectedFacts.value).toBe(facts);
-  });
-});
-
-describe('collectedFacts', () => {
-  it('initialValue-onModuleLoad-containsSeedFacts', () => {
-    expect(collectedFacts.value.length).toBeGreaterThan(0);
-    expect(collectedFacts.value[0]).toMatchObject({
-      sourceType: 'coin',
-    });
   });
 });
 
