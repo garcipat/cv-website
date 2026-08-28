@@ -7,9 +7,11 @@ export interface JournalEntryDisplay {
 }
 
 /** One emoji per section, per FR-017 ("🏢 for experience, 🎓 for
- * education, etc."). Used as the fallback icon — `languages` entries use
- * the fact's own flag emoji instead (see `formatJournalEntry` below). */
-const SECTION_ICON: Record<SectionId, string> = {
+ * education, etc."). Used as the fallback icon here — `languages` entries
+ * use the fact's own flag emoji instead (see `formatJournalEntry` below) —
+ * and reused by `BookmarkTabs` as the tab icon (a rotated text label on a
+ * narrow tab was hard to read, per user feedback). */
+export const SECTION_ICON: Record<SectionId, string> = {
   personality: '👤',
   experience: '🏢',
   skills: '💡',

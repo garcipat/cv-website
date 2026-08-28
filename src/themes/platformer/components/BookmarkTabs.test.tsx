@@ -16,13 +16,15 @@ describe('BookmarkTabs', () => {
     expect(screen.getByTestId('bookmark-tab-projects')).toBeInTheDocument();
   });
 
-  it('render-activeSection-onlyActiveTabShowsLabel', () => {
+  it('render-anySection-showsSectionIconOnEveryTab', () => {
     render(
       <BookmarkTabs sections={['experience', 'skills']} activeSection="skills" onSelect={() => {}} />,
     );
 
-    expect(screen.getByTestId('bookmark-tab-skills')).toHaveTextContent('Skills');
-    expect(screen.getByTestId('bookmark-tab-experience')).not.toHaveTextContent('Experience');
+    // Text labels were hard to read rotated on a narrow tab (user feedback)
+    // — tabs show an icon instead, on both active and inactive tabs.
+    expect(screen.getByTestId('bookmark-tab-experience')).toHaveTextContent('🏢');
+    expect(screen.getByTestId('bookmark-tab-skills')).toHaveTextContent('💡');
   });
 
   it('inactiveTabClicked-always-callsOnSelectWithThatSection', () => {

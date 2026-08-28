@@ -689,6 +689,7 @@ describe('PlatformerPage', () => {
   });
 
   it('jKeyPressed-whileJournalOpen-closesJournalAndResumesLoop', () => {
+    vi.useFakeTimers();
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frameCallback = cb;
@@ -704,8 +705,22 @@ describe('PlatformerPage', () => {
 
     fireEvent.keyDown(window, { code: 'KeyJ' });
 
+    // A second `J` press (fired immediately, before the opening animation
+    // has even finished) requests a close — Journal.tsx only starts its
+    // reverse-close once it actually reaches the fully-open frame, then
+    // plays all the way back down before unmounting. Advance enough
+    // intervals to cover both the remaining open animation and the full
+    // close animation.
+    for (let i = 0; i < JOURNAL_OPEN_FRAME_COUNT * 2; i++) {
+      act(() => {
+        vi.advanceTimersByTime(JOURNAL_OPEN_FRAME_INTERVAL_MS);
+      });
+    }
+
     expect(screen.queryByTestId('platformer-journal')).not.toBeInTheDocument();
     expect(lifecycleState.value.phase).toBe('playing');
+
+    vi.useRealTimers();
   });
 
   it('jKeyHeld-osAutoRepeat-doesNotToggleJournalAgain', () => {
@@ -726,6 +741,7 @@ describe('PlatformerPage', () => {
   });
 
   it('journalCloseButtonClicked-whileOpen-closesJournal', () => {
+    vi.useFakeTimers();
     vi.stubGlobal('requestAnimationFrame', () => 1);
     vi.stubGlobal('cancelAnimationFrame', vi.fn());
 
@@ -733,10 +749,29 @@ describe('PlatformerPage', () => {
     lifecycleState.value = { ...lifecycleState.value, phase: 'playing' };
     fireEvent.keyDown(window, { code: 'KeyJ' });
 
+    // Journal.tsx plays its book-opening animation before the close button
+    // renders, and its reverse-close animation before actually closing —
+    // both are one setTimeout per frame (re-scheduled by an effect each
+    // time the frame advances), so the clock must be advanced one interval
+    // at a time rather than in one bulk jump.
+    for (let i = 0; i < JOURNAL_OPEN_FRAME_COUNT; i++) {
+      act(() => {
+        vi.advanceTimersByTime(JOURNAL_OPEN_FRAME_INTERVAL_MS);
+      });
+    }
+
     fireEvent.click(screen.getByTestId('journal-close-button'));
+
+    for (let i = 0; i < JOURNAL_OPEN_FRAME_COUNT; i++) {
+      act(() => {
+        vi.advanceTimersByTime(JOURNAL_OPEN_FRAME_INTERVAL_MS);
+      });
+    }
 
     expect(screen.queryByTestId('platformer-journal')).not.toBeInTheDocument();
     expect(lifecycleState.value.phase).toBe('playing');
+
+    vi.useRealTimers();
   });
 
   it('jKeyPressed-whileDying-isIgnored', () => {
@@ -774,6 +809,7 @@ describe('PlatformerPage', () => {
   });
 
   it('journalOpenButtonClicked-whileJournalOpen-closesJournalAndResumesLoop', () => {
+    vi.useFakeTimers();
     vi.stubGlobal('requestAnimationFrame', () => 1);
     vi.stubGlobal('cancelAnimationFrame', vi.fn());
 
@@ -784,8 +820,20 @@ describe('PlatformerPage', () => {
 
     fireEvent.click(screen.getByTestId('journal-open-button'));
 
+    // Same reverse-close animation as the in-book × button — advance
+    // enough intervals to cover both the remaining open animation and the
+    // full close animation (the second click can land before the opening
+    // animation has finished).
+    for (let i = 0; i < JOURNAL_OPEN_FRAME_COUNT * 2; i++) {
+      act(() => {
+        vi.advanceTimersByTime(JOURNAL_OPEN_FRAME_INTERVAL_MS);
+      });
+    }
+
     expect(screen.queryByTestId('platformer-journal')).not.toBeInTheDocument();
     expect(lifecycleState.value.phase).toBe('playing');
+
+    vi.useRealTimers();
   });
 
   it('deathThenRestart-journalOpened-stillShowsSeedFactsFromBeforeTheDeath', () => {
@@ -825,9 +873,16 @@ describe('PlatformerPage', () => {
 
     // The journal plays its book-opening animation before showing content
     // (roadmap step 14) — advance past it before asserting on fact items.
-    act(() => {
-      vi.advanceTimersByTime(JOURNAL_OPEN_FRAME_COUNT * JOURNAL_OPEN_FRAME_INTERVAL_MS);
-    });
+    // Journal.tsx schedules one setTimeout per frame (re-created by an
+    // effect each time the frame advances), so the clock must be advanced
+    // one interval at a time (each in its own act()) rather than in one
+    // bulk jump — otherwise later timeouts haven't been scheduled yet by
+    // the time the fake clock reaches them.
+    for (let i = 0; i < JOURNAL_OPEN_FRAME_COUNT; i++) {
+      act(() => {
+        vi.advanceTimersByTime(JOURNAL_OPEN_FRAME_INTERVAL_MS);
+      });
+    }
 
     // The journal shows one section at a time (roadmap step 14); it defaults
     // to whichever section the first collected fact belongs to, so compare
@@ -842,6 +897,7 @@ describe('PlatformerPage', () => {
   });
 
   it('spacePressedWhileJournalOpen-afterResume-doesNotTriggerJumpOnResumingTick', () => {
+    vi.useFakeTimers();
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frameCallback = cb;
@@ -863,7 +919,16 @@ describe('PlatformerPage', () => {
     fireEvent.keyDown(window, { code: 'Space' });
     frameCallback!(32); // a paused tick, exercising the drain
 
-    fireEvent.keyDown(window, { code: 'KeyJ' }); // closes the journal, resumes the loop
+    fireEvent.keyDown(window, { code: 'KeyJ' }); // requests the journal close
+
+    // Journal.tsx plays its reverse-close animation before actually
+    // resuming the game — advance past it (covers both the remaining open
+    // animation and the full close animation).
+    for (let i = 0; i < JOURNAL_OPEN_FRAME_COUNT * 2; i++) {
+      act(() => {
+        vi.advanceTimersByTime(JOURNAL_OPEN_FRAME_INTERVAL_MS);
+      });
+    }
     expect(lifecycleState.value.phase).toBe('playing');
 
     frameCallback!(48); // the resuming tick
@@ -871,6 +936,8 @@ describe('PlatformerPage', () => {
     expect(playerState.value.grounded).toBe(true);
     expect(playerState.value.vy).toBe(0);
     expect(playerState.value.animState).not.toBe('jump');
+
+    vi.useRealTimers();
   });
 
   it('keyPressedWhilePlaying-doesNotTriggerRestart', () => {

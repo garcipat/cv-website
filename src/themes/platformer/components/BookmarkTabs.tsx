@@ -1,6 +1,7 @@
 import { useSignals } from '@preact/signals-react/runtime';
 import { cn } from '@/lib/utils';
 import { SECTION_BOOKMARK_COLOR, sectionLabel, type BookmarkColor } from '../entities/JournalSections';
+import { SECTION_ICON } from '../entities/JournalEntry';
 import type { SectionId } from '../types';
 
 interface BookmarkTabsProps {
@@ -19,16 +20,23 @@ const BOOKMARK_SPRITE: Record<BookmarkColor, string> = {
 };
 
 /**
- * Colored bookmark tabs along the journal's right edge — one per non-empty
- * CV section (per FR-013/FR-016). Inactive tabs are a thin 12px sliver of
- * their sprite; the active tab widens to 48px and shows its vertical label.
- * Per-section counters and pagination are step 15, not built here.
+ * Colored bookmark tabs hanging from the journal's top edge, on the right
+ * side of the book — one per non-empty CV section (per FR-013/FR-016).
+ * Originally along the right edge (vertically), then spread across the
+ * whole top edge; narrowed to just the top-right per user feedback. The
+ * `bookmark_*.png` sprites are cropped from the top (`bg-bottom` keeps the
+ * bottom — the ribbon's pointed tip — visible, cropping the plain
+ * attachment part off the top) so shorter/inactive tabs still show the
+ * ribbon's distinctive shape rather than its flat top edge. Each tab shows
+ * the section's icon (from `JournalEntry`'s `SECTION_ICON`) rather than a
+ * text label — a rotated label on a narrow tab was hard to read. Per-section
+ * counters and pagination are step 15, not built here.
  */
 export const BookmarkTabs = ({ sections, activeSection, onSelect }: BookmarkTabsProps) => {
   useSignals();
 
   return (
-    <div className="flex flex-col justify-between" data-testid="bookmark-tabs">
+    <div className="absolute top-[3%] right-[8%] z-10 flex" data-testid="bookmark-tabs">
       {sections.map((section) => {
         const isActive = section === activeSection;
         const label = sectionLabel(section);
@@ -40,19 +48,12 @@ export const BookmarkTabs = ({ sections, activeSection, onSelect }: BookmarkTabs
             data-testid={`bookmark-tab-${section}`}
             aria-label={label}
             className={cn(
-              'flex items-center justify-center overflow-hidden bg-cover bg-left transition-all duration-150',
-              isActive ? 'h-20 w-12' : 'h-16 w-3',
+              'flex w-9 items-start justify-center overflow-hidden bg-cover bg-bottom text-lg transition-all duration-150',
+              isActive ? 'h-20 pt-1' : 'h-10',
             )}
             style={{ backgroundImage: `url(${BOOKMARK_SPRITE[SECTION_BOOKMARK_COLOR[section]]})` }}
           >
-            {isActive && (
-              <span
-                className="font-caveat text-sm font-bold text-white"
-                style={{ writingMode: 'vertical-rl' }}
-              >
-                {label}
-              </span>
-            )}
+            {SECTION_ICON[section]}
           </button>
         );
       })}

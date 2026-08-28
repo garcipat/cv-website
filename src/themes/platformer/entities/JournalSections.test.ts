@@ -18,14 +18,22 @@ const emptyCV: CVData = {
 };
 
 describe('JOURNAL_SECTION_ORDER', () => {
-  it('always-excludesPersonalityAndActivities', () => {
-    expect(JOURNAL_SECTION_ORDER).not.toContain('personality');
+  it('always-excludesActivities', () => {
     expect(JOURNAL_SECTION_ORDER).not.toContain('activities');
   });
 
-  it('always-containsExactlyTheSevenCollectibleBackedSections', () => {
+  it('always-containsExactlyTheEightBookmarkedSections', () => {
     expect([...JOURNAL_SECTION_ORDER].sort()).toEqual(
-      ['certificates', 'courses', 'education', 'experience', 'languages', 'projects', 'skills'].sort(),
+      [
+        'certificates',
+        'courses',
+        'education',
+        'experience',
+        'languages',
+        'personality',
+        'projects',
+        'skills',
+      ].sort(),
     );
   });
 });
@@ -39,18 +47,19 @@ describe('SECTION_BOOKMARK_COLOR', () => {
 });
 
 describe('nonEmptySections', () => {
-  it('allSectionsEmpty-returnsEmptyArray', () => {
-    expect(nonEmptySections(emptyCV)).toEqual([]);
+  it('allOtherSectionsEmpty-returnsOnlyPersonality', () => {
+    // personality is always non-empty — CVData.personality is required.
+    expect(nonEmptySections(emptyCV)).toEqual(['personality']);
   });
 
-  it('onlySkillsNonEmpty-returnsOnlySkills', () => {
+  it('onlySkillsNonEmpty-returnsPersonalityAndSkills', () => {
     const cv: CVData = { ...emptyCV, skills: [{ category: 'Frontend', skills: [{ name: 'React', level: 80 }] }] };
-    expect(nonEmptySections(cv)).toEqual(['skills']);
+    expect(nonEmptySections(cv)).toEqual(['personality', 'skills']);
   });
 
   it('languagesUndefined-treatedAsEmpty', () => {
     const cv: CVData = { ...emptyCV, languages: undefined };
-    expect(nonEmptySections(cv)).toEqual([]);
+    expect(nonEmptySections(cv)).toEqual(['personality']);
   });
 
   it('multipleSectionsNonEmpty-returnsThemInJournalSectionOrder', () => {
@@ -59,8 +68,8 @@ describe('nonEmptySections', () => {
       projects: [{ name: 'A Project', description: 'desc' }],
       experience: [{ company: 'X', role: 'Y', startDate: '2020-01', highlights: [] }],
     };
-    // experience comes before projects in JOURNAL_SECTION_ORDER
-    expect(nonEmptySections(cv)).toEqual(['experience', 'projects']);
+    // personality, then experience, then projects — JOURNAL_SECTION_ORDER's order
+    expect(nonEmptySections(cv)).toEqual(['personality', 'experience', 'projects']);
   });
 });
 
@@ -70,5 +79,6 @@ describe('sectionLabel', () => {
     // default navigator.language), matching src/i18n/locales/en.json.
     expect(sectionLabel('experience')).toBe('Experience');
     expect(sectionLabel('languages')).toBe('Languages');
+    expect(sectionLabel('personality')).toBe('About Me');
   });
 });
