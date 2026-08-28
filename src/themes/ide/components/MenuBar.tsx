@@ -70,7 +70,11 @@ export const MenuBar = () => {
                     transparent full-viewport layer behind the dropdown
                     itself (lower in DOM order = lower default stacking,
                     dropdown below has its own z-index). */}
-                <div className="fixed inset-0 z-40" onClick={() => setOpenMenuId(null)} />
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setOpenMenuId(null)}
+                  data-testid="menu-backdrop"
+                />
                 <div
                   role="menu"
                   data-testid={`menu-dropdown-${id}`}
