@@ -47,4 +47,14 @@ export const PHYSICS_CONFIG = {
    * and reaches the full arc.
    */
   jumpCutMultiplier: 0.45,
+  /**
+   * Upward velocity impulse applied to the player immediately after a stomp
+   * (roadmap step 18), in px/s (negative = up) — a smaller bounce than
+   * `jumpVelocity` (-520) so it reads as "hopped off the enemy" rather than a
+   * full jump. Peak height ≈ 400²/(2*1200) ≈ 66.7px (~2 tiles). Same
+   * tunneling invariant as the other velocity constants applies:
+   * `Math.abs(stompBounceVelocity) * MAX_DT` must stay below
+   * RENDERED_TILE_SIZE (32px): Math.abs(-400) * (1/30) ≈ 13.3 < 32. ✓
+   */
+  stompBounceVelocity: -400,
 } as const;
