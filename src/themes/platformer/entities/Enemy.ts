@@ -2,15 +2,18 @@ import { RENDER_SCALE, RENDERED_TILE_SIZE } from '../level/Terrain';
 
 /**
  * Both slime_green.png and slime_purple.png are 96x72 sheets: a 4x3 grid of
- * 24x24 frames. Pixel analysis (roadmap step 16) found frame (row 2, col 2)
- * alone recolored red in both sheets, while every frame follows a smooth
- * squash-stretch shape progression (heights 9px through 15px) with no shape
- * break between rows — there's no sheet metadata to confirm intent, so the
- * row 0 idle / row 1 walk / row 2 hit mapping below is a trial reading, not
- * a documented fact. Adjust ENEMY_ANIM_CONFIG's frameCount/frameDuration/sy
- * if it doesn't read well once actually on screen — centralizing it here in
- * one lookup table (same convention as Player.ts's ANIM_CONFIG) makes that
- * a one-line change instead of hunting through the renderer.
+ * 24x24 frames read left-to-right, top-to-bottom as frames 1-12. Frame 11
+ * (row 2, col 2) alone is recolored red in both sheets. Watching the full
+ * sheet animate live (roadmap step 16) showed frames 1-3 read as a
+ * mostly-featureless blob, frames 9-12 read as the slime dissolving toward
+ * a near-black silhouette (a hit/defeat reaction, not idle), and frames 4-8
+ * — spanning the end of row 0 into all of row 1 — loop well as a idle
+ * breathing/bounce cycle. That's why ENEMY_ANIM_CONFIG's `idle` entry below
+ * is an explicit frame list rather than a single row: the loop crosses a
+ * row boundary. Adjust the frame lists/frameDuration below if a future
+ * viewing suggests a better sequence — centralizing it here in one lookup
+ * table (same convention as Player.ts's ANIM_CONFIG) makes that a one-line
+ * change instead of hunting through the renderer.
  */
 export const ENEMY_FRAME_SIZE = 24;
 export const ENEMY_RENDERED_SIZE = ENEMY_FRAME_SIZE * RENDER_SCALE;
@@ -31,26 +34,42 @@ export const ENEMY_TILE_OFFSET_X = (RENDERED_TILE_SIZE - ENEMY_RENDERED_SIZE) / 
 
 export type EnemyAnimState = 'idle' | 'walk' | 'hit';
 
-const ENEMY_ANIM_CONFIG: Record<
-  EnemyAnimState,
-  { frameCount: number; frameDuration: number; sy: number }
-> = {
-  idle: { frameCount: 4, frameDuration: 0.2, sy: 0 },
-  walk: { frameCount: 4, frameDuration: 0.12, sy: ENEMY_FRAME_SIZE },
-  hit: { frameCount: 4, frameDuration: 0.1, sy: ENEMY_FRAME_SIZE * 2 },
+type FrameCoord = { sx: number; sy: number };
+
+/** Frame 4 (row 0, col 3) through frame 8 (row 1, col 3) — see the file
+ *  doc comment above for why this crosses the row boundary. */
+const IDLE_FRAMES: FrameCoord[] = [
+  { sx: 3 * ENEMY_FRAME_SIZE, sy: 0 },
+  { sx: 0 * ENEMY_FRAME_SIZE, sy: ENEMY_FRAME_SIZE },
+  { sx: 1 * ENEMY_FRAME_SIZE, sy: ENEMY_FRAME_SIZE },
+  { sx: 2 * ENEMY_FRAME_SIZE, sy: ENEMY_FRAME_SIZE },
+  { sx: 3 * ENEMY_FRAME_SIZE, sy: ENEMY_FRAME_SIZE },
+];
+
+const ENEMY_ANIM_CONFIG: Record<EnemyAnimState, { frames: FrameCoord[]; frameDuration: number }> = {
+  idle: { frames: IDLE_FRAMES, frameDuration: 0.15 },
+  walk: {
+    frames: Array.from({ length: 4 }, (_, i) => ({ sx: i * ENEMY_FRAME_SIZE, sy: ENEMY_FRAME_SIZE })),
+    frameDuration: 0.12,
+  },
+  hit: {
+    frames: Array.from({ length: 4 }, (_, i) => ({ sx: i * ENEMY_FRAME_SIZE, sy: ENEMY_FRAME_SIZE * 2 })),
+    frameDuration: 0.1,
+  },
 };
 
 /** Seconds each idle frame is held before advancing — idle is the only
  *  animation state this step actually plays; walk/hit are wired up by
  *  roadmap steps 17/18. */
 export const ENEMY_IDLE_FRAME_DURATION = ENEMY_ANIM_CONFIG.idle.frameDuration;
-export const ENEMY_IDLE_FRAME_COUNT = ENEMY_ANIM_CONFIG.idle.frameCount;
+export const ENEMY_IDLE_FRAME_COUNT = ENEMY_ANIM_CONFIG.idle.frames.length;
 
-/** Sprite-sheet source rect for a given animation state/frame — same
- *  row-lookup convention as Player.ts's playerFrameSource. */
+/** Sprite-sheet source rect for a given animation state/frame — looks up
+ *  an explicit frame-coordinate list per state (see IDLE_FRAMES above)
+ *  rather than assuming every state's frames sit on one sheet row. */
 export function enemyFrameSource(animState: EnemyAnimState, frame: number): { sx: number; sy: number } {
-  const { frameCount, sy } = ENEMY_ANIM_CONFIG[animState];
-  return { sx: (frame % frameCount) * ENEMY_FRAME_SIZE, sy };
+  const { frames } = ENEMY_ANIM_CONFIG[animState];
+  return frames[frame % frames.length];
 }
 
 /**
