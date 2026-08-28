@@ -3,6 +3,11 @@ import { isSolid, tileAt, RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { LevelDef } from '../level/LevelData';
 import type { EnemyState } from '../entities/Enemy';
 
+/** How long the `hit` reaction (red-flash/dissolve) plays before the enemy
+ *  either reverts to patrolling (hit points remain) or is flagged defeated —
+ *  matches Enemy.ts's `hit` animation: 4 frames at 0.1s each. */
+export const HIT_REACTION_DURATION_SECONDS = 0.4;
+
 /**
  * Advances one enemy's horizontal patrol by `dt` seconds: moves at a
  * constant `PHYSICS_CONFIG.enemyPatrolSpeed` in its current `direction`,
@@ -50,4 +55,29 @@ export function stepEnemyPatrol(enemy: EnemyState, level: LevelDef, dt: number):
     x: nextX,
     vx: movingRight ? speed : -speed,
   };
+}
+
+/**
+ * Advances an enemy currently playing its stomp `hit` reaction. No-op
+ * (returns the same reference) for an enemy still `'walk'`ing — patrol
+ * movement is `stepEnemyPatrol`'s job, not this function's; the game loop
+ * (PlatformerPage.tsx) picks whichever of the two applies per enemy per
+ * tick. Once `HIT_REACTION_DURATION_SECONDS` has elapsed since the stomp
+ * (applyStomp reset `hitTimer` to 0), either reverts to `'walk'` (hit points
+ * remain — the enemy keeps patrolling) or flags `defeated: true` (no hit
+ * points remain — the game loop removes it and fires its reward that same
+ * tick). Deliberately does not clamp/zero `vx` on revert: the next
+ * `stepEnemyPatrol` call recomputes it from `direction`.
+ */
+export function stepEnemyHitReaction(enemy: EnemyState, dt: number): EnemyState {
+  if (enemy.animState !== 'hit') return enemy;
+
+  const hitTimer = enemy.hitTimer + dt;
+  if (hitTimer < HIT_REACTION_DURATION_SECONDS) {
+    return { ...enemy, hitTimer };
+  }
+  if (enemy.hitPoints <= 0) {
+    return { ...enemy, hitTimer, defeated: true };
+  }
+  return { ...enemy, hitTimer: 0, animState: 'walk', animFrame: 0, animTimer: 0 };
 }
