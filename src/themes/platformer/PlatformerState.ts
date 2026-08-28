@@ -97,7 +97,8 @@ export const collectedFacts = signal<CollectedFact[]>(SEED_COLLECTED_FACTS);
  * itself fully unmounts on close, so this can't live in its local
  * `useState`. `undefined` until the user clicks a bookmark tab for the
  * first time, in which case `Journal.tsx` falls back to defaulting from
- * the most recently collected fact's section.
+ * the first collected fact's section this session (`facts[0]`, not the most
+ * recently collected one).
  */
 export const activeJournalSection = signal<SectionId | undefined>(undefined);
 

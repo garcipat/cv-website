@@ -41,7 +41,7 @@ function starRating(level: number): string {
  */
 export function formatJournalEntry(fact: CollectedFact): JournalEntryDisplay {
   const icon = SECTION_ICON[fact.sectionId];
-  const data = fact.data as Record<string, unknown>;
+  const data = fact.data as unknown as Record<string, unknown>;
 
   switch (fact.sectionId) {
     case 'skills':

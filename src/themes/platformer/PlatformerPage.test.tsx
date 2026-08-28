@@ -8,6 +8,7 @@ import {
   healthState,
   lifecycleState,
   collectedFacts,
+  activeJournalSection,
 } from './PlatformerState';
 import { MAX_HALF_HEARTS, PIT_FALL_DAMAGE, HEART_RENDERED_SIZE } from './entities/Health';
 import { HEARTS_START_X } from './engine/Renderer';
@@ -48,6 +49,10 @@ describe('PlatformerPage', () => {
     healthState.value = MAX_HALF_HEARTS;
     lifecycleState.value = initialLifecycleState;
     collectedFacts.value = initialCollectedFacts;
+    // Module-level signal (see PlatformerState.ts) — must be reset the same
+    // way collectedFacts is, or a bookmark tab selection made by one test
+    // (via the rendered Journal) would leak into the next test's default.
+    activeJournalSection.value = undefined;
   });
 
   afterEach(() => {

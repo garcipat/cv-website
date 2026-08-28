@@ -101,6 +101,23 @@ describe('Journal', () => {
     expect(screen.queryByTestId('journal-fact-item')).not.toBeInTheDocument();
   });
 
+  it('render-persistedSectionNotInCurrentBookmarks-fallsBackToDefaultSection', () => {
+    // 'activities' is a real SectionId but nonEmptySections() never returns
+    // it (JournalSections.ts excludes it from JOURNAL_SECTION_ORDER) — this
+    // simulates a stale/invalid persisted selection (e.g. from a previous
+    // CV/locale) and asserts Journal falls back to defaultSection instead of
+    // crashing or rendering nothing.
+    collectedFacts.value = [];
+    activeJournalSection.value = 'activities';
+
+    render(<Journal onClose={() => {}} closeRequested={false} />);
+    openBookAnimation();
+
+    expect(screen.getByText(currentCV.value.personality.name)).toBeInTheDocument();
+    expect(screen.queryByTestId('journal-empty-state')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('journal-fact-item')).not.toBeInTheDocument();
+  });
+
   it('render-withNoFactsInActiveSection-showsEmptyStateAfterAnimation', () => {
     collectedFacts.value = [];
 
