@@ -13,7 +13,7 @@ function sectionLabel(sectionId: string): string {
   const ui = currentUI.value;
   switch (sectionId) {
     case 'about':
-      return 'About';
+      return ui.nav.about;
     case 'experience':
       return ui.nav.experience;
     case 'projects':
@@ -27,7 +27,7 @@ function sectionLabel(sectionId: string): string {
     case 'certificates':
       return ui.nav.certificates;
     case 'contact':
-      return 'Contact';
+      return ui.nav.contact;
     default:
       return sectionId;
   }
@@ -46,7 +46,7 @@ export const AnchorDots = ({ sections, onDotClick }: AnchorDotsProps) => {
         'fixed right-5 top-1/2 -translate-y-1/2 z-40',
         'flex flex-col gap-3.5',
       )}
-      aria-label="Section navigation"
+      aria-label={currentUI.value.space.sectionNavAriaLabel}
     >
       {sections.map((section, i) => {
         const isActive = i === activeSectionIdx;
@@ -59,7 +59,7 @@ export const AnchorDots = ({ sections, onDotClick }: AnchorDotsProps) => {
               'group relative flex items-center justify-end h-5',
               'cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] rounded-full',
             )}
-            aria-label={`Scroll to ${sectionLabel(section.id)}`}
+            aria-label={currentUI.value.space.scrollToLabel.replace('{section}', sectionLabel(section.id))}
             aria-current={isActive ? 'true' : undefined}
           >
             <span

@@ -22,8 +22,11 @@
 - [~] S-004: Reusable timeline component — shared by all themes with timeline data (implemented in IDE theme as `TimelineSection`, not yet extracted as theme-agnostic)
 
 - [x] **S-005** **Space Background Animations** — Scroll-driven background animations (spaceship, planets, shooting stars, asteroids) add atmosphere to the Space theme
+- [ ] **S-006** **2D Platformer Theme** — User plays a simple 2D platformer where collecting coins, destroying blocks, or defeating enemies reveals CV information
 
 ### Optional
+
+- [ ] **O-001** **Checkpoint Persistence** — Saves collected facts and spawn position at each checkpoint, persisting across theme switches so the player can continue later
 
 - _TBD_
 
@@ -47,6 +50,8 @@
 | S-003 | Scroll animations      | 📋 Planned     | —                                       | ❌             | ❌    |
 | S-004 | Reusable timeline      | 🔶 Partial (IDE) | [spec](docs/superpowers/specs/2026-06-21-interactive-timeline-design.md) | ✅ TimelineSection in IDE | ✅ utils |
 | S-005 | Space background animations | ✅ Done | [spec](../specs/S-005-space-parade/spec.md) | ✅ | ✅ |
+| S-006 | 2D Platformer theme     | 📋 Planned     | [spec](../specs/S-006-platformer-theme/spec.md) / [roadmap](../specs/S-006-platformer-theme/roadmap.md) | ❌             | ❌    |
+| O-001 | Checkpoint Persistence  | 📋 Planned     | —                                       | ❌             | ❌    |
 
 ---
 
@@ -82,6 +87,8 @@ graph RL
     S003["S-003: Scroll Animations"]
     S004["✅ S-004: Timeline Component"]
     S005["✅ S-005: Space Background Animations"]
+    S006["S-006: 2D Platformer Theme"]
+    O001["O-001: Checkpoint Persistence"]
 
     F003 --> F002
     F003 --> F011
@@ -107,6 +114,11 @@ graph RL
     S004 --> F002
     S004 --> F010
     S005 --> F003
+    S006 --> F002
+    S006 --> F011
+    S006 --> F012
+    S006 --> F013
+    O001 --> S006
 
     classDef done stroke:#FFD600,stroke-width:3px
     classDef projectSetup fill:#1565C0,color:#ffffff
@@ -123,12 +135,12 @@ graph RL
     class F013 done
     class F003 done
     class F004 done
-    class F003,F004,F014 themes
+    class F003,F004,F014,S006 themes
     class F011,S001,S003 layoutNavigation
     class F012,F013 themeInfrastructure
     class F014 done
     class S004 done
-    class S002,S005 enhancements
+    class S002,S005,O001 enhancements
     class S005 done
 ```
 

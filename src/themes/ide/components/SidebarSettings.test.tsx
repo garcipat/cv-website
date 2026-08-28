@@ -1,23 +1,37 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { currentTheme } from '@/state/theme';
+import { currentTheme, platformerPrototypeUnlocked } from '@/state/theme';
 import { currentLocale } from '@/state/locale';
 import { SidebarSettings } from './SidebarSettings';
 
 beforeEach(() => {
   currentTheme.value = 'ide';
   currentLocale.value = 'en';
+  platformerPrototypeUnlocked.value = false;
 });
 
 describe('SidebarSettings', () => {
-  it('renders-THEMES-radio-group-with-three-options-IDE-selected', () => {
+  it('renders-THEMES-radio-group-with-three-options-IDE-selected-platformerLocked', () => {
     render(<SidebarSettings />);
     const radios = screen.getAllByRole('radio');
     const themeRadios = radios.filter((r) => r.getAttribute('name') === 'theme');
+    // Platformer stays out of this list until unlocked (see
+    // state/theme.ts's `visibleThemes`) — same source ThemeSelect.tsx uses.
     expect(themeRadios).toHaveLength(3);
     const ideRadio = themeRadios.find((r) => r.getAttribute('value') === 'ide');
     expect(ideRadio).toBeChecked();
+  });
+
+  it('platformerUnlocked-rendersAllFourThemeOptions', () => {
+    platformerPrototypeUnlocked.value = true;
+
+    render(<SidebarSettings />);
+
+    const radios = screen.getAllByRole('radio');
+    const themeRadios = radios.filter((r) => r.getAttribute('name') === 'theme');
+    expect(themeRadios).toHaveLength(4);
+    expect(themeRadios.some((r) => r.getAttribute('value') === 'platformer')).toBe(true);
   });
 
   it('renders-LANGUAGE-radio-group-with-EN-DE-options', () => {
