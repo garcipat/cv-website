@@ -13,6 +13,8 @@ import {
   PLAYER_VISUAL_CENTER_Y_OFFSET,
 } from './entities/Player';
 import { MAX_HALF_HEARTS } from './entities/Health';
+import { toEnemyState } from './entities/Enemy';
+import type { EnemyState } from './entities/Enemy';
 import { introState } from './engine/GameLifecycle';
 import { currentCV } from '@/state/locale';
 import { mapCVDataToCollectibles, placeCollectibles } from './level/CollectibleMapper';
@@ -106,6 +108,16 @@ export const enemyPlacements: EnemyPlacement[] = placeEnemies(mapCVDataToEnemies
 });
 
 /**
+ * Live, per-frame patrol state for every enemy — position/velocity/
+ * direction/animation, updated by the game loop's `stepEnemyPatrol` (see
+ * PlatformerPage.tsx). Seeded from `enemyPlacements` (module load) and reset
+ * back to that seed in `resetGame()`, same convention as `playerState`.
+ */
+export const enemyStates = signal<EnemyState[]>(
+  enemyPlacements.map((placement, index) => toEnemyState(placement, index)),
+);
+
+/**
  * Facts discovered so far this session (see spec.md FR-032). Starts empty —
  * step 12 (this step) is what actually populates it via real coin/fruit
  * collection; the temporary two-item seed data step 13 relied on to verify
@@ -177,6 +189,7 @@ export function resetGame(): void {
   playerState.value = spawnPlayerState();
   healthState.value = MAX_HALF_HEARTS;
   cameraPositionX.value = 0;
+  enemyStates.value = enemyPlacements.map((placement, index) => toEnemyState(placement, index));
 }
 
 /**
