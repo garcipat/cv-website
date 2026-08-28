@@ -3,6 +3,8 @@ import {
   SECTION_BOOKMARK_COLOR,
   nonEmptySections,
   sectionLabel,
+  sectionTotal,
+  isPaginatedSection,
 } from './JournalSections';
 import type { CVData } from '@/types/cv';
 
@@ -80,5 +82,56 @@ describe('sectionLabel', () => {
     expect(sectionLabel('experience')).toBe('Experience');
     expect(sectionLabel('languages')).toBe('Languages');
     expect(sectionLabel('personality')).toBe('About Me');
+  });
+});
+
+describe('sectionTotal', () => {
+  it('sectionWithItems-returnsItemCount', () => {
+    const cv: CVData = {
+      ...emptyCV,
+      experience: [
+        { company: 'X', role: 'Y', startDate: '2020-01', highlights: [] },
+        { company: 'Z', role: 'W', startDate: '2021-01', highlights: [] },
+      ],
+    };
+    expect(sectionTotal(cv, 'experience')).toBe(2);
+  });
+
+  it('emptySection-returnsZero', () => {
+    expect(sectionTotal(emptyCV, 'projects')).toBe(0);
+  });
+
+  it('languagesUndefined-returnsZero', () => {
+    const cv: CVData = { ...emptyCV, languages: undefined };
+    expect(sectionTotal(cv, 'languages')).toBe(0);
+  });
+
+  it('skillsSection-countsCategoriesNotIndividualSkills', () => {
+    // One collectible is placed per skill CATEGORY (roadmap step 12), not
+    // per individual skill — the total must match that, not cv.skills'
+    // nested skill counts.
+    const cv: CVData = {
+      ...emptyCV,
+      skills: [
+        { category: 'Frontend', skills: [{ name: 'React', level: 80 }, { name: 'Vue', level: 60 }] },
+        { category: 'Backend', skills: [{ name: 'Go', level: 70 }] },
+      ],
+    };
+    expect(sectionTotal(cv, 'skills')).toBe(2);
+  });
+});
+
+describe('isPaginatedSection', () => {
+  it('longEntrySections-returnTrue', () => {
+    expect(isPaginatedSection('experience')).toBe(true);
+    expect(isPaginatedSection('projects')).toBe(true);
+    expect(isPaginatedSection('education')).toBe(true);
+    expect(isPaginatedSection('courses')).toBe(true);
+    expect(isPaginatedSection('certificates')).toBe(true);
+  });
+
+  it('compactEntrySections-returnFalse', () => {
+    expect(isPaginatedSection('skills')).toBe(false);
+    expect(isPaginatedSection('languages')).toBe(false);
   });
 });
