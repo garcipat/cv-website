@@ -128,6 +128,9 @@
       "step3": "Switch themes via the sidebar",
       "step4": "Toggle language between EN and DE"
     },
+    "menuSubitems": {
+      "showPlatformerPrototype": "Show \"Platformer\""
+    },
     "timeline": {
       "comment": "// career timeline — drag or click to explore",
       "coursesNearby": "// courses taken near this period",

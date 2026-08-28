@@ -128,6 +128,9 @@
       "step3": "Wechseln Sie das Design in der Seitenleiste",
       "step4": "Schalten Sie zwischen EN und DE um"
     },
+    "menuSubitems": {
+      "showPlatformerPrototype": "\"Platformer\" anzeigen"
+    },
     "timeline": {
       "comment": "// Karriere-Zeitleiste — ziehen oder klicken zum Erkunden",
       "coursesNearby": "// Kurse in dieser Zeit",
