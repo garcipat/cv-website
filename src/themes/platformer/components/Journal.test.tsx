@@ -441,6 +441,18 @@ describe('Journal', () => {
 
       expect(screen.getByTestId('journal-page-counter')).toHaveTextContent('1 / 2');
     });
+
+    it('sectionWithExactlyOneFact-showsOneOfOneWithBothArrowsDisabled', () => {
+      collectedFacts.value = [experienceFacts[0]];
+
+      render(<Journal onClose={() => {}} closeRequested={false} />);
+      openBookAnimation();
+      fireEvent.click(screen.getByTestId('bookmark-tab-experience'));
+
+      expect(screen.getByTestId('journal-page-counter')).toHaveTextContent('1 / 1');
+      expect(screen.getByTestId('journal-page-prev')).toBeDisabled();
+      expect(screen.getByTestId('journal-page-next')).toBeDisabled();
+    });
   });
 
   describe('personality collectibles summary', () => {
@@ -452,6 +464,26 @@ describe('Journal', () => {
 
       expect(screen.getByTestId('journal-collectibles-summary')).toBeInTheDocument();
       expect(screen.getByText(/Coins/)).toBeInTheDocument();
+    });
+
+    it('oneSkillsFactCollected-summaryRowShowsCollectedOverSectionTotal', () => {
+      const total = sectionTotal(currentCV.value, 'skills');
+      collectedFacts.value = [
+        {
+          id: 'coin-frontend',
+          sectionId: 'skills',
+          sectionLabel: 'Skills',
+          data: { category: 'Frontend', skills: [{ name: 'React', level: 80 }] },
+          sourceType: 'coin',
+        },
+      ];
+
+      render(<Journal onClose={() => {}} closeRequested={false} />);
+      openBookAnimation();
+      fireEvent.click(screen.getByTestId('bookmark-tab-personality'));
+
+      const summary = screen.getByTestId('journal-collectibles-summary');
+      expect(summary).toHaveTextContent(`1 / ${total}`);
     });
 
     it('otherSectionActive-hidesCollectiblesSummary', () => {

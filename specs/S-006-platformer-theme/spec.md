@@ -261,7 +261,7 @@ The level is hand-crafted — starting with a simple layout to validate function
 
 - **FR-017b**: System MUST display a per-section collection counter near each section's header or bookmark (e.g., "Skills 3/5") showing how many facts have been collected out of the total for that section. **Exception**: Personality and Contact sections have no counter — there is only one fact per section, revealed via the flagpole.
 
-- **FR-018**: System MUST paginate journal content within each section. If a section has more facts than fit on one page (approximately 5-7 entries per page), arrow buttons or page dots allow navigating forward/backward through that section's pages.
+- **FR-018**: System MUST paginate journal content within each section. If a section has more facts than fit on one page (approximately 5-7 entries per page), arrow buttons or page dots allow navigating forward/backward through that section's pages. (Amended 2026-08-28 — step 15's implementation paginates one entry per page for long-entry sections (Experience/Projects/Education/Courses/Certificates); Skills/Languages stay grouped on a single page instead of paginating, since their compact per-entry format fits many rows without needing page controls.)
 
 - **FR-018b**: System MUST include a "Reset Game" button in the journal overlay. Clicking it clears all collected facts (journal returns to placeholder messages for all sections) and resets the game world to its initial state (character respawns at spawn point, all coins/enemies/blocks respawn).
 

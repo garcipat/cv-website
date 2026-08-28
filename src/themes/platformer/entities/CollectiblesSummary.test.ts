@@ -24,8 +24,8 @@ describe('collectiblesSummary', () => {
     const rows = collectiblesSummary(cv, []);
 
     expect(rows).toEqual([
-      { icon: '🪙', label: 'Coins', collected: 0, total: 1 },
-      { icon: '🍎', label: 'Fruits', collected: 0, total: 1 },
+      { icon: '🪙', labelKey: 'coins', collected: 0, total: 1 },
+      { icon: '🍎', labelKey: 'fruits', collected: 0, total: 1 },
     ]);
   });
 
@@ -58,8 +58,8 @@ describe('collectiblesSummary', () => {
     const rows = collectiblesSummary(cv, facts);
 
     expect(rows).toEqual([
-      { icon: '🪙', label: 'Coins', collected: 1, total: 2 },
-      { icon: '🍎', label: 'Fruits', collected: 1, total: 1 },
+      { icon: '🪙', labelKey: 'coins', collected: 1, total: 2 },
+      { icon: '🍎', labelKey: 'fruits', collected: 1, total: 1 },
     ]);
   });
 
@@ -74,7 +74,7 @@ describe('collectiblesSummary', () => {
     };
 
     expect(collectiblesSummary(cv, [])).toEqual([
-      { icon: '🪙', label: 'Coins', collected: 0, total: 1 },
+      { icon: '🪙', labelKey: 'coins', collected: 0, total: 1 },
     ]);
   });
 });

@@ -139,5 +139,14 @@
         "course": "Kurs"
       }
     }
+  },
+  "platformer": {
+    "journal": {
+      "collectibles": "Sammelobjekte",
+      "coins": "Münzen",
+      "fruits": "Früchte",
+      "resetGame": "Spiel zurücksetzen",
+      "emptyState": "Noch nichts entdeckt — weiter erkunden!"
+    }
   }
 }
