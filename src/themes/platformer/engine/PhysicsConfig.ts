@@ -23,6 +23,14 @@ export const PHYSICS_CONFIG = {
    */
   walkSpeed: 200,
   /**
+   * Constant horizontal patrol speed for enemies, in px/s, in either
+   * direction — slower than the player's walkSpeed (200) so a slime reads as
+   * a plodding threat rather than matching the character's pace. Same
+   * tunneling invariant as walkSpeed/terminalVelocity applies:
+   * `enemyPatrolSpeed * MAX_DT` must stay below `RENDERED_TILE_SIZE`.
+   */
+  enemyPatrolSpeed: 60,
+  /**
    * Initial upward velocity impulse on jump press, in px/s (negative = up).
    * Same tunneling invariant as `terminalVelocity`/`walkSpeed` applies:
    * `Math.abs(jumpVelocity) * MAX_DT` must stay below `RENDERED_TILE_SIZE`.
