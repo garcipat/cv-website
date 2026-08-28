@@ -13,7 +13,7 @@ import type { LevelDef } from '../level/LevelData';
 import type { PlayerState } from '../entities/Player';
 import { PLAYER_RENDERED_SIZE } from '../entities/Player';
 import { MAX_HALF_HEARTS } from '../entities/Health';
-import { startFlightEffect, tickFlightEffect, HOVER_DURATION_SECONDS, SPARKLE_DURATION_SECONDS } from './CollectionEffects';
+import { startFlightEffect, tickFlightEffect, RISE_DURATION_SECONDS, SPARKLE_DURATION_SECONDS } from './CollectionEffects';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
 import { fruitFrameSource } from '../entities/Fruit';
 
@@ -155,13 +155,16 @@ describe('drawCollectibles', () => {
 });
 
 describe('drawCollectionEffects', () => {
-  it('hoveringEffect-drawsTextAtStartPosition', () => {
+  it('risingEffect-drawsTextPartwayToMid', () => {
     const ctx = makeMockContext() as unknown as { fillText: ReturnType<typeof vi.fn> };
-    const effect = tickFlightEffect(startFlightEffect('a', 'German', 50, 60, 900, 900), HOVER_DURATION_SECONDS / 2);
+    const effect = tickFlightEffect(
+      startFlightEffect('a', 'German', 50, 60, 400, 300, 900, 900),
+      RISE_DURATION_SECONDS / 2,
+    );
 
     drawCollectionEffects(ctx as unknown as CanvasRenderingContext2D, [effect]);
 
-    expect(ctx.fillText).toHaveBeenCalledWith('German', 50, expect.any(Number));
+    expect(ctx.fillText).toHaveBeenCalledWith('German', expect.any(Number), expect.any(Number));
   });
 
   it('noEffects-doesNotCallFillText', () => {
@@ -172,7 +175,7 @@ describe('drawCollectionEffects', () => {
 
   it('freshEffect-drawsSixSparkleCircles', () => {
     const ctx = makeMockContext() as unknown as { arc: ReturnType<typeof vi.fn> };
-    const effect = startFlightEffect('a', 'German', 50, 60, 900, 900);
+    const effect = startFlightEffect('a', 'German', 50, 60, 400, 300, 900, 900);
 
     drawCollectionEffects(ctx as unknown as CanvasRenderingContext2D, [effect]);
 
@@ -182,7 +185,7 @@ describe('drawCollectionEffects', () => {
   it('sparkleExpired-doesNotDrawSparkleCircles', () => {
     const ctx = makeMockContext() as unknown as { arc: ReturnType<typeof vi.fn> };
     const effect = tickFlightEffect(
-      startFlightEffect('a', 'German', 50, 60, 900, 900),
+      startFlightEffect('a', 'German', 50, 60, 400, 300, 900, 900),
       SPARKLE_DURATION_SECONDS + 0.01,
     );
 
@@ -205,7 +208,7 @@ describe('drawCollectibleCounter', () => {
 
     expect(ctx.drawImage).toHaveBeenCalledWith(icon, 0, 0, 16, 16, expect.any(Number), expect.any(Number), expect.any(Number), expect.any(Number));
     expect(ctx.fillText).toHaveBeenCalledWith('3 / 16', expect.any(Number), expect.any(Number));
-    expect(ctx.font).toBe(`16px "${RESTART_PROMPT_FONT_FAMILY}", monospace`);
+    expect(ctx.font).toBe(`22px "${RESTART_PROMPT_FONT_FAMILY}", monospace`);
   });
 });
 
