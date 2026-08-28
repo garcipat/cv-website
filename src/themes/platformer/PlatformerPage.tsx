@@ -632,6 +632,7 @@ export const PlatformerPage = () => {
             type="button"
             onClick={handleDebugKill}
             className="rounded bg-red-600 px-3 py-1 text-sm text-white"
+            data-testid="debug-kill-button"
           >
             Kill
           </button>
@@ -639,6 +640,7 @@ export const PlatformerPage = () => {
             type="button"
             onClick={handleDebugRespawn}
             className="rounded bg-green-600 px-3 py-1 text-sm text-white"
+            data-testid="debug-respawn-button"
           >
             Respawn
           </button>
@@ -646,6 +648,7 @@ export const PlatformerPage = () => {
             type="button"
             onClick={handleToggleHitboxes}
             className={`rounded px-3 py-1 text-sm text-white ${debugHitboxesOn ? 'bg-amber-600' : 'bg-gray-600'}`}
+            data-testid="debug-hitboxes-toggle"
           >
             Hitboxes: {debugHitboxesOn ? 'On' : 'Off'}
           </button>

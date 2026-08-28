@@ -6,6 +6,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, fireEvent } from '@testing-library/react';
 import { SpacePage } from './SpacePage';
+import { spacePage } from './SpacePage.page';
 import { showPoster, scrollOffset } from './SpaceState';
 import type { CVData } from '@/types/cv';
 
@@ -201,15 +202,13 @@ describe('Circle pool rendering (FR-030)', () => {
 
   it('renders floating controls', () => {
     renderSpacePage();
-    expect(document.querySelector('[class*="fixed"][class*="top-4"]')).toBeTruthy();
+    expect(spacePage.floatingControls.root).toBeTruthy();
   });
 
   it('renders anchor dots for multiple sections', () => {
     renderSpacePage();
-    const nav = document.querySelector('nav[aria-label="Section navigation"]');
-    expect(nav).toBeTruthy();
-    const buttons = nav?.querySelectorAll('button');
-    expect(buttons && buttons.length).toBeGreaterThan(1);
+    expect(spacePage.anchorDots.nav).toBeTruthy();
+    expect(spacePage.anchorDots.dots.length).toBeGreaterThan(1);
   });
 
   it('does not render anchor dots when only one section exists', () => {
@@ -225,15 +224,14 @@ describe('Circle pool rendering (FR-030)', () => {
       contact: undefined,
     } as unknown as CVData;
     renderSpacePage();
-    expect(document.querySelector('nav[aria-label="Section navigation"]')).toBeNull();
+    expect(spacePage.anchorDots.nav).toBeNull();
     mockCurrentCV.value = original;
   });
 
   it('renders circles in the fixed stage overlay', () => {
     renderSpacePage();
     // Circles should be in a fixed overlay (stage), not in the scroll container
-    const stages = document.querySelectorAll('[class*="fixed"][class*="inset-0"][class*="pointer-events-none"][class*="z-10"]');
-    expect(stages.length).toBeGreaterThanOrEqual(1);
+    expect(spacePage.circleParade.stage).toBeTruthy();
   });
 });
 
@@ -244,15 +242,14 @@ describe('Circle pool rendering (FR-030)', () => {
 describe('Anchor dots interaction', () => {
   it('renders a dot for each non-empty section', () => {
     renderSpacePage();
-    const buttons = document.querySelectorAll('nav[aria-label="Section navigation"] button');
-    expect(buttons.length).toBe(8);
+    expect(spacePage.anchorDots.dots.length).toBe(8);
   });
 
   it('clicking a dot does not throw', () => {
     renderSpacePage();
-    const buttons = document.querySelectorAll('nav[aria-label="Section navigation"] button');
-    expect(buttons.length).toBeGreaterThan(0);
-    expect(() => fireEvent.click(buttons[0])).not.toThrow();
+    const dots = spacePage.anchorDots.dots;
+    expect(dots.length).toBeGreaterThan(0);
+    expect(() => fireEvent.click(dots[0])).not.toThrow();
   });
 });
 
@@ -263,8 +260,7 @@ describe('Anchor dots interaction', () => {
 describe('Floating controls', () => {
   it('renders theme and language selectors', () => {
     renderSpacePage();
-    const controls = document.querySelector('[class*="fixed"][class*="top-4"]');
-    expect(controls).toBeTruthy();
+    expect(spacePage.floatingControls.root).toBeTruthy();
   });
 });
 
@@ -275,9 +271,8 @@ describe('Floating controls', () => {
 describe('Starfield background', () => {
   it('renders starfield stars', () => {
     renderSpacePage();
-    // Starfield renders 100 star elements with star-twinkle class
-    const stars = document.querySelectorAll('.star-twinkle');
-    expect(stars.length).toBe(100);
+    // Starfield renders 100 star elements
+    expect(spacePage.stars.length).toBe(100);
   });
 });
 
@@ -289,8 +284,8 @@ describe('Poster overlay', () => {
   it('shows the initial poster with scroll hint', () => {
     renderSpacePage();
     // Should contain "Circle Parade" and "Scroll" text
-    expect(document.body.textContent).toContain('Circle Parade');
-    expect(document.body.textContent).toContain('Scroll');
+    expect(spacePage.poster).toHaveTextContent('Circle Parade');
+    expect(spacePage.poster).toHaveTextContent('Scroll');
   });
 });
 
@@ -314,10 +309,7 @@ describe('Locale reactivity', () => {
     const original = mockCurrentCV.value;
     mockCurrentCV.value = { ...mockCV, contact: undefined } as unknown as CVData;
     renderSpacePage();
-    const buttons = document.querySelectorAll('nav[aria-label="Section navigation"] button');
-    const labels = Array.from(buttons).map(
-      (b) => b.getAttribute('aria-label'),
-    );
+    const labels = spacePage.anchorDots.dots.map((b) => b.getAttribute('aria-label'));
     expect(labels.some((l) => l?.includes('Contact'))).toBe(false);
     mockCurrentCV.value = original;
   });
@@ -332,8 +324,7 @@ describe('Reduced motion fallback (FR-025, FR-026)', () => {
     matchMediaMatches = true;
     renderSpacePage();
     // Static cards with rounded corners
-    const staticCards = document.querySelectorAll('[class*="rounded-[40px]"]');
-    expect(staticCards.length).toBeGreaterThan(0);
+    expect(spacePage.staticCards.length).toBeGreaterThan(0);
     // No anchor dots in reduced motion mode (since sections <= 1 check? No, still >1)
     // Actually anchor dots should still render per FR-026
   });
@@ -341,7 +332,7 @@ describe('Reduced motion fallback (FR-025, FR-026)', () => {
   it('renders circle parade when prefers-reduced-motion is not active', () => {
     matchMediaMatches = false;
     renderSpacePage();
-    expect(document.querySelector('nav[aria-label="Section navigation"]')).toBeTruthy();
+    expect(spacePage.anchorDots.nav).toBeTruthy();
   });
 });
 
@@ -434,24 +425,19 @@ describe('Foundational refactor (T016)', () => {
   it('renders scroll container owned by SpacePage', () => {
     renderSpacePage();
     // SpacePage should render the scroll container (overflow-y-scroll)
-    const scrollContainers = document.querySelectorAll('[class*="overflow-y-scroll"]');
-    expect(scrollContainers.length).toBeGreaterThan(0);
+    expect(spacePage.scrollContainer).toBeTruthy();
   });
 
   it('renders spacer div within scroll container', () => {
     renderSpacePage();
-    const scrollContainer = document.querySelector('[class*="overflow-y-scroll"]');
-    expect(scrollContainer).toBeTruthy();
-    // Spacer div has pointerEvents: 'none' style
-    const spacer = scrollContainer?.querySelector('[style*="pointer-events: none"]');
-    expect(spacer).toBeTruthy();
+    expect(spacePage.scrollContainer).toBeTruthy();
+    expect(spacePage.scrollSpacer).toBeTruthy();
   });
 
   it('CircleParade renders in a fixed z-10 overlay', () => {
     renderSpacePage();
     // CircleParade should render the fixed stage at z-10
-    const stage = document.querySelector('[class*="fixed"][class*="z-10"][class*="pointer-events-none"]');
-    expect(stage).toBeTruthy();
+    expect(spacePage.circleParade.stage).toBeTruthy();
   });
 });
 
@@ -460,6 +446,7 @@ describe('Foundational refactor (T016)', () => {
 // ===========================================================================
 
 import { SpaceParade } from './components/SpaceParade';
+import { spaceParadePage } from './components/SpaceParade.page';
 import { scrollOffset as paradeScrollOffset } from './SpaceState';
 
 describe('User Story 1 — Scroll-driven elements (T017-T019)', () => {
@@ -470,7 +457,7 @@ describe('User Story 1 — Scroll-driven elements (T017-T019)', () => {
     );
     // SpaceParade should render elements behind CircleParade (z-5)
     // Stub returns null, so this should FAIL initially
-    const paradeEl = container.querySelector('[class~="z-5"]');
+    const paradeEl = spaceParadePage.within(container);
     expect(paradeEl).toBeTruthy();
   });
 
@@ -481,7 +468,7 @@ describe('User Story 1 — Scroll-driven elements (T017-T019)', () => {
       <SpaceParade totalSpan={15} />,
     );
     // SpaceParade renders a z-5 container with element divs inside
-    const paradeContainer = container.querySelector('[class~="z-5"]');
+    const paradeContainer = spaceParadePage.within(container);
     expect(paradeContainer).toBeTruthy();
     // At least some elements should be rendered as children
     // (planet spans most of the range and should be visible at offset 1.5 with totalSpan=15)
@@ -507,23 +494,23 @@ describe('User Story 1 — Scroll-driven elements (T017-T019)', () => {
 // ===========================================================================
 
 import { Nebula } from './components/space-elements/Nebula';
+import { nebulaPage } from './components/space-elements/Nebula.page';
 import { Sun } from './components/space-elements/Sun';
+import { sunPage } from './components/space-elements/Sun.page';
 
 describe('User Story 2 — Ambient layer (T026-T027)', () => {
   it('T026: ambient layer elements (Nebula, Sun) render when mounted', () => {
-    const { container: nebulaContainer } = render(<Nebula />);
+    render(<Nebula />);
     // Nebula has blurred blobs
-    expect(nebulaContainer.querySelector('[style*="blur"]')).toBeTruthy();
+    expect(nebulaPage.blobs.length).toBeGreaterThan(0);
 
-    const { container: sunContainer } = render(<Sun />);
-    // Sun has radial-gradient
-    expect(sunContainer.querySelector('[style*="radial-gradient"]')).toBeTruthy();
+    render(<Sun />);
+    expect(sunPage.root).toBeTruthy();
   });
 
   it('T027: Starfield always renders with 100 stars', () => {
     renderSpacePage();
-    const stars = document.querySelectorAll('.star-twinkle');
-    expect(stars.length).toBe(100);
+    expect(spacePage.stars.length).toBe(100);
   });
 });
 
@@ -539,7 +526,7 @@ describe('User Story 5 — Shooting Stars and Asteroids (T032-T033)', () => {
       <SpaceParade totalSpan={15} />,
     );
     // Verify the parade container has element children
-    const paradeContainer = container.querySelector('[class~="z-5"]');
+    const paradeContainer = spaceParadePage.within(container);
     expect(paradeContainer).toBeTruthy();
     // Planet, spaceship, and SS1 should be active at offset 1.5
     expect(paradeContainer!.children.length).toBeGreaterThanOrEqual(2);
@@ -551,7 +538,7 @@ describe('User Story 5 — Shooting Stars and Asteroids (T032-T033)', () => {
     const { container } = render(
       <SpaceParade totalSpan={15} />,
     );
-    const paradeContainer = container.querySelector('[class~="z-5"]');
+    const paradeContainer = spaceParadePage.within(container);
     expect(paradeContainer).toBeTruthy();
     // Planet and asteroid-3 should be active at this offset
     expect(paradeContainer!.children.length).toBeGreaterThanOrEqual(1);
@@ -565,19 +552,17 @@ describe('User Story 5 — Shooting Stars and Asteroids (T032-T033)', () => {
 describe('User Story 4 — Reduced-motion fallback (T038-T039)', () => {
   it('T038: SpaceParade hidden when prefers-reduced-motion: reduce', () => {
     matchMediaMatches = true;
-    const { container } = render(<SpacePage />);
+    renderSpacePage();
     // SpaceParade should not render its z-5 fixed overlay
-    const paradeContainer = container.querySelector('[class~="z-5"]');
-    expect(paradeContainer).toBeNull();
+    expect(spacePage.spaceParade.root).toBeNull();
     matchMediaMatches = false;
   });
 
   it('T039: SpaceParade renders when reduced-motion is not active', () => {
     matchMediaMatches = false;
-    const { container } = render(<SpacePage />);
+    renderSpacePage();
     // SpaceParade renders at z-5
-    const paradeContainer = container.querySelector('[class~="z-5"]');
-    expect(paradeContainer).toBeTruthy();
+    expect(spacePage.spaceParade.root).toBeTruthy();
   });
 });
 
@@ -587,27 +572,24 @@ describe('User Story 4 — Reduced-motion fallback (T038-T039)', () => {
 
 describe('Polish — Z-index layering and visual consistency (T043-T047)', () => {
   it('T043: space elements (z-0 ambient, z-5 SpaceParade) render behind CV circles (z-10)', () => {
-    const { container } = render(<SpacePage />);
-    // Verify both z-0 and z-5 exist, and z-10 is present
-    const z0Els = container.querySelectorAll('[class~="z-0"]');
-    const z10Els = container.querySelectorAll('[class~="z-10"]');
-    expect(z0Els.length).toBeGreaterThan(0);
+    renderSpacePage();
+    // Verify both z-0 and z-10 are present
+    expect(spacePage.starfield).toBeTruthy();
+    expect(spacePage.ambientGlow).toBeTruthy();
     // SpaceParade may or may not render depending on reduced motion
-    expect(z10Els.length).toBeGreaterThan(0);
+    expect(spacePage.circleParade.stage).toBeTruthy();
   });
 
   it('T044: anchor dots (z-40) and floating controls (z-50) render on top', () => {
-    const { container } = render(<SpacePage />);
-    const z40Els = container.querySelectorAll('[class~="z-40"]');
-    const z50Els = container.querySelectorAll('[class~="z-50"]');
-    expect(z40Els.length).toBeGreaterThan(0);
-    expect(z50Els.length).toBeGreaterThan(0);
+    renderSpacePage();
+    expect(spacePage.anchorDots.nav).toBeTruthy();
+    expect(spacePage.floatingControls.root).toBeTruthy();
   });
 
   it('T045: space elements use pointer-events: none', () => {
-    const { container } = render(<SpacePage />);
+    renderSpacePage();
     // SpaceParade element container has pointer-events-none
-    const spaceParadeContainer = container.querySelector('[class~="z-5"]');
+    const spaceParadeContainer = spacePage.spaceParade.root;
     if (spaceParadeContainer) {
       expect(spaceParadeContainer.className).toContain('pointer-events-none');
     }
@@ -628,7 +610,7 @@ describe('Polish — Z-index layering and visual consistency (T043-T047)', () =>
   it('T047: all space elements are div elements with CSS styling', () => {
     paradeScrollOffset.value = 1.5;
     const { container } = render(<SpaceParade totalSpan={15} />);
-    const paradeEl = container.querySelector('[class~="z-5"]');
+    const paradeEl = spaceParadePage.within(container);
     if (paradeEl && paradeEl.children.length > 0) {
       // All children should be divs
       for (let i = 0; i < paradeEl.children.length; i++) {

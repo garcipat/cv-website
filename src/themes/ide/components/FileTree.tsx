@@ -76,6 +76,7 @@ function TreeNode({ item, depth }: { item: TreeItem; depth: number }) {
         style={{ paddingLeft: `${12 + depth * 16}px` }}
         onClick={handleClick}
         data-active={isActive ? 'true' : undefined}
+        data-testid={`file-tree-item-${item.id}`}
       >
         {isFolder && (
           <span className="shrink-0 text-xs">

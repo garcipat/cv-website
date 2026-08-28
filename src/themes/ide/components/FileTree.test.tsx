@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { activeFile, openTabs, sidebarExpanded, openFile } from '@/state/ide';
 import { FileTree } from './FileTree';
+import { fileTreePage } from './FileTree.page';
 
 beforeEach(() => {
   activeFile.value = null;
@@ -16,19 +17,19 @@ describe('FileTree', () => {
     expect(screen.getByText('resume/')).toBeInTheDocument();
     expect(screen.getByText('src/')).toBeInTheDocument();
     expect(screen.getByText('sections/')).toBeInTheDocument();
-    expect(screen.getByText('about.tsx')).toBeInTheDocument();
-    expect(screen.getByText('experience.tsx')).toBeInTheDocument();
-    expect(screen.getByText('skills.md')).toBeInTheDocument();
-    expect(screen.getByText('projects.tsx')).toBeInTheDocument();
-    expect(screen.getByText('education.tsx')).toBeInTheDocument();
-    expect(screen.getByText('courses.tsx')).toBeInTheDocument();
-    expect(screen.getByText('certificates.tsx')).toBeInTheDocument();
+    expect(fileTreePage.aboutFile).toBeInTheDocument();
+    expect(fileTreePage.experienceFile).toBeInTheDocument();
+    expect(fileTreePage.skillsFile).toBeInTheDocument();
+    expect(fileTreePage.projectsFile).toBeInTheDocument();
+    expect(fileTreePage.educationFile).toBeInTheDocument();
+    expect(fileTreePage.coursesFile).toBeInTheDocument();
+    expect(fileTreePage.certificatesFile).toBeInTheDocument();
   });
 
   it('expands-and-collapses-folders-on-click', async () => {
     const user = userEvent.setup();
     render(<FileTree />);
-    const srcFolder = screen.getByText('src/');
+    const srcFolder = fileTreePage.srcFolder;
     await user.click(srcFolder);
     expect(sidebarExpanded.value.has('src')).toBe(false);
     await user.click(srcFolder);
@@ -37,14 +38,14 @@ describe('FileTree', () => {
 
   it('src-and-sections-folders-expanded-by-default', () => {
     render(<FileTree />);
-    expect(screen.getByText('about.tsx')).toBeVisible();
-    expect(screen.getByText('experience.tsx')).toBeVisible();
+    expect(fileTreePage.aboutFile).toBeVisible();
+    expect(fileTreePage.experienceFile).toBeVisible();
   });
 
   it('clicking-file-calls-openFile-with-correct-file-name', async () => {
     const user = userEvent.setup();
     render(<FileTree />);
-    await user.click(screen.getByText('experience.tsx'));
+    await user.click(fileTreePage.experienceFile);
     expect(activeFile.value).toBe('experience.tsx');
     expect(openTabs.value).toContain('experience.tsx');
   });
@@ -52,7 +53,6 @@ describe('FileTree', () => {
   it('active-file-is-visually-highlighted', () => {
     openFile('about.tsx');
     render(<FileTree />);
-    const fileEl = screen.getByText('about.tsx').closest('button') ?? screen.getByText('about.tsx');
-    expect(fileEl.closest('[data-active="true"]') ?? fileEl.parentElement).toBeDefined();
+    expect(fileTreePage.aboutFile).toHaveAttribute('data-active', 'true');
   });
 });

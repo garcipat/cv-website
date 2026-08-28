@@ -1,5 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MenuBar } from './MenuBar';
+import { menuBarPage } from './MenuBar.page';
 import { platformerPrototypeUnlocked } from '@/state/theme';
 
 const originalUnlocked = platformerPrototypeUnlocked.value;
@@ -20,9 +21,9 @@ describe('MenuBar', () => {
   it('viewMenuClicked-opensDropdownWithPlatformerToggle', () => {
     render(<MenuBar />);
 
-    fireEvent.click(screen.getByTestId('menu-trigger-view'));
+    fireEvent.click(menuBarPage.view.trigger);
 
-    expect(screen.getByTestId('menu-dropdown-view')).toBeInTheDocument();
+    expect(menuBarPage.view.dropdown).toBeInTheDocument();
     expect(screen.getByRole('menuitemcheckbox')).toBeInTheDocument();
   });
 
@@ -30,7 +31,7 @@ describe('MenuBar', () => {
     platformerPrototypeUnlocked.value = false;
 
     render(<MenuBar />);
-    fireEvent.click(screen.getByTestId('menu-trigger-view'));
+    fireEvent.click(menuBarPage.view.trigger);
 
     expect(screen.getByRole('menuitemcheckbox')).toHaveAttribute('aria-checked', 'false');
   });
@@ -39,7 +40,7 @@ describe('MenuBar', () => {
     platformerPrototypeUnlocked.value = true;
 
     render(<MenuBar />);
-    fireEvent.click(screen.getByTestId('menu-trigger-view'));
+    fireEvent.click(menuBarPage.view.trigger);
 
     expect(screen.getByRole('menuitemcheckbox')).toHaveAttribute('aria-checked', 'true');
   });
@@ -48,7 +49,7 @@ describe('MenuBar', () => {
     platformerPrototypeUnlocked.value = false;
 
     render(<MenuBar />);
-    fireEvent.click(screen.getByTestId('menu-trigger-view'));
+    fireEvent.click(menuBarPage.view.trigger);
     fireEvent.click(screen.getByRole('menuitemcheckbox'));
 
     expect(platformerPrototypeUnlocked.value).toBe(true);
@@ -57,7 +58,7 @@ describe('MenuBar', () => {
 
   it('viewMenuOpen-clickingSameTriggerAgain-closesTheDropdown', () => {
     render(<MenuBar />);
-    const trigger = screen.getByTestId('menu-trigger-view');
+    const trigger = menuBarPage.view.trigger;
 
     fireEvent.click(trigger);
     expect(screen.getByRole('menu')).toBeInTheDocument();
@@ -73,13 +74,13 @@ describe('MenuBar', () => {
         <div data-testid="outside">outside</div>
       </div>,
     );
-    fireEvent.click(screen.getByTestId('menu-trigger-view'));
+    fireEvent.click(menuBarPage.view.trigger);
     expect(screen.getByRole('menu')).toBeInTheDocument();
 
     // The outside-click backdrop is a fixed full-viewport layer rendered
     // alongside the dropdown, not the literal "outside" element above —
     // clicking it is what closes the menu.
-    fireEvent.click(document.querySelector('.fixed.inset-0.z-40')!);
+    fireEvent.click(menuBarPage.backdrop);
 
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });

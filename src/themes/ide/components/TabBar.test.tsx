@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { activeFile, openTabs, openFile } from '@/state/ide';
 import { TabBar } from './TabBar';
+import { tabBarPage } from './TabBar.page';
 
 beforeEach(() => {
   activeFile.value = null;
@@ -14,15 +15,14 @@ describe('TabBar', () => {
     openFile('about.tsx');
     openFile('experience.tsx');
     render(<TabBar />);
-    expect(screen.getByText('about.tsx')).toBeInTheDocument();
-    expect(screen.getByText('experience.tsx')).toBeInTheDocument();
+    expect(tabBarPage.about.tab).toBeInTheDocument();
+    expect(tabBarPage.experience.tab).toBeInTheDocument();
   });
 
   it('active-tab-has-highlight-styling', () => {
     openFile('about.tsx');
     render(<TabBar />);
-    const tab = screen.getByText('about.tsx').closest('button');
-    expect(tab?.className).toContain('bg-[var(--color-ctp-mantle)]');
+    expect(tabBarPage.about.tab.className).toContain('bg-[var(--color-ctp-mantle)]');
   });
 
   it('clicking-tab-switches-active-tab', async () => {
@@ -30,7 +30,7 @@ describe('TabBar', () => {
     openFile('about.tsx');
     openFile('experience.tsx');
     render(<TabBar />);
-    await user.click(screen.getByText('about.tsx'));
+    await user.click(tabBarPage.about.tab);
     expect(activeFile.value).toBe('about.tsx');
   });
 
@@ -38,8 +38,7 @@ describe('TabBar', () => {
     const user = userEvent.setup();
     openFile('about.tsx');
     render(<TabBar />);
-    const closeBtn = screen.getByLabelText('Close about.tsx');
-    await user.click(closeBtn);
+    await user.click(tabBarPage.about.closeButton);
     expect(openTabs.value).not.toContain('about.tsx');
   });
 
@@ -49,8 +48,7 @@ describe('TabBar', () => {
     openFile('experience.tsx');
     openFile('skills.md');
     render(<TabBar />);
-    const closeBtn = screen.getByLabelText('Close skills.md');
-    await user.click(closeBtn);
+    await user.click(tabBarPage.skills.closeButton);
     expect(activeFile.value).toBe('experience.tsx');
   });
 
@@ -63,10 +61,10 @@ describe('TabBar', () => {
     openFile('skills.md');
     openFile('about.tsx');
     openFile('experience.tsx');
-    const { container } = render(<TabBar />);
-    const tabLabels = container.querySelectorAll('button > span:first-child');
-    expect(tabLabels[0]).toHaveTextContent('skills.md');
-    expect(tabLabels[1]).toHaveTextContent('about.tsx');
-    expect(tabLabels[2]).toHaveTextContent('experience.tsx');
+    render(<TabBar />);
+    const tabs = tabBarPage.allTabs;
+    expect(tabs[0]).toHaveTextContent('skills.md');
+    expect(tabs[1]).toHaveTextContent('about.tsx');
+    expect(tabs[2]).toHaveTextContent('experience.tsx');
   });
 });
