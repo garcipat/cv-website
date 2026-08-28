@@ -36,6 +36,7 @@ function makeMockContext() {
     arc: vi.fn(),
     fill: vi.fn(),
     fillText: vi.fn(),
+    measureText: vi.fn(() => ({ width: 10 })),
   } as unknown as CanvasRenderingContext2D;
 }
 
@@ -166,6 +167,37 @@ describe('drawCollectionEffects', () => {
     drawCollectionEffects(ctx as unknown as CanvasRenderingContext2D, [effect]);
 
     expect(ctx.fillText).toHaveBeenCalledWith('German', expect.any(Number), expect.any(Number));
+  });
+
+  it('effectWithIcon-drawsIconInSeparateSansSerifFillTextCall', () => {
+    // The custom pixel font `text` is drawn with has no emoji glyphs —
+    // canvas text doesn't fall back to a system emoji font mid-string the
+    // way DOM text does, so the icon must be its own fillText call in a
+    // plain font, not baked into the same string/font as the text.
+    const ctx = makeMockContext() as unknown as { fillText: ReturnType<typeof vi.fn>; font: string };
+    const fontsAtCall: string[] = [];
+    ctx.fillText.mockImplementation(() => {
+      fontsAtCall.push(ctx.font);
+    });
+    const effect = startFlightEffect('a', 'German', 50, 60, 400, 300, 900, 900, '🇩🇪');
+
+    drawCollectionEffects(ctx as unknown as CanvasRenderingContext2D, [effect]);
+
+    expect(ctx.fillText).toHaveBeenCalledTimes(2);
+    expect(ctx.fillText).toHaveBeenNthCalledWith(2, '🇩🇪', expect.any(Number), expect.any(Number));
+    expect(fontsAtCall[1]).toContain('sans-serif');
+    // The text call's font quotes the custom pixel font family name; the
+    // icon call's font doesn't reference it at all.
+    expect(fontsAtCall[1]).not.toContain('"');
+  });
+
+  it('effectWithoutIcon-onlyDrawsTextOnce', () => {
+    const ctx = makeMockContext() as unknown as { fillText: ReturnType<typeof vi.fn> };
+    const effect = startFlightEffect('a', 'German', 50, 60, 400, 300, 900, 900);
+
+    drawCollectionEffects(ctx as unknown as CanvasRenderingContext2D, [effect]);
+
+    expect(ctx.fillText).toHaveBeenCalledTimes(1);
   });
 
   it('noEffects-doesNotCallFillText', () => {
