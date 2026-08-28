@@ -30,8 +30,13 @@ node_modules/.tmp/
 .DS_Store
 Thumbs.db
 .superpowers
+.worktrees
+docs/superpowers/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# nano-banana generated image drafts
+.generated/
