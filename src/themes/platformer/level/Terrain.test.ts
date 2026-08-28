@@ -5,8 +5,6 @@ import {
   isTopExposed,
   tileToPixel,
   bridgeRunPosition,
-  groundColumns,
-  groundRowForColumn,
   TILE_SIZE,
   RENDER_SCALE,
   RENDERED_TILE_SIZE,
@@ -116,28 +114,5 @@ describe('Terrain', () => {
   it('bridgeRunPosition-bothNeighborsAreBridge-returnsMiddle', () => {
     const level: LevelDef = { width: 3, height: 1, terrain: [['bridge', 'bridge', 'bridge']] };
     expect(bridgeRunPosition(level, 1, 0)).toBe('middle');
-  });
-
-  it('groundRowForColumn-emptyTileDirectlyAboveSolid-returnsThatRow', () => {
-    // testLevel col 0: row0 empty, row1 'bridge' (solid) — row0 is the
-    // empty-above-solid surface.
-    expect(groundRowForColumn(testLevel, 0)).toBe(0);
-  });
-
-  it('groundRowForColumn-solidTileAtTopOfColumn-skipsToNextSurface', () => {
-    // testLevel col 1: row0 'groundGrass' (already solid, not a surface to
-    // stand ON), row1 empty above row2 'groundRock' (solid) — row1 is it.
-    expect(groundRowForColumn(testLevel, 1)).toBe(1);
-  });
-
-  it('groundRowForColumn-columnWithNoExposedSurface-returnsNull', () => {
-    // testLevel col 2: row0 'wall' (solid, nothing above it to expose a
-    // surface), row1/row2 both empty (no solid tile below either) — no
-    // empty-above-solid pair exists in this column.
-    expect(groundRowForColumn(testLevel, 2)).toBeNull();
-  });
-
-  it('groundColumns-testLevel-returnsOnlyColumnsWithASurface', () => {
-    expect(groundColumns(testLevel)).toEqual([0, 1]);
   });
 });

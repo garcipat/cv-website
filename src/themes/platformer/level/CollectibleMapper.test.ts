@@ -1,6 +1,5 @@
 import { mapCVDataToCollectibles, placeCollectibles } from './CollectibleMapper';
-import { level1 } from './level1';
-import { isSolid, tileAt, RENDERED_TILE_SIZE } from './Terrain';
+import { tileToPixel } from './Terrain';
 import { isSkillCategoryFact } from '../types';
 import type { CVData } from '@/types/cv';
 
@@ -74,70 +73,44 @@ describe('mapCVDataToCollectibles', () => {
 });
 
 describe('placeCollectibles', () => {
-  it('nDefs-returns-nPlacementsWithMatchingIds', () => {
-    const defs = mapCVDataToCollectibles(cv);
-    const placed = placeCollectibles(defs, level1);
-    expect(placed).toHaveLength(defs.length);
+  it('enoughMarkersOfEachType-returnsPlacementsAtMarkedPositionsInDefsOrder', () => {
+    const defs = mapCVDataToCollectibles(cv); // [Backend, Frontend, German, English]
+    const coinMarkers = [
+      { col: 5, row: 2 },
+      { col: 6, row: 2 },
+    ];
+    const fruitMarkers = [
+      { col: 7, row: 2 },
+      { col: 8, row: 2 },
+    ];
+    const placed = placeCollectibles(defs, { coin: coinMarkers, fruit: fruitMarkers });
+
     expect(placed.map((p) => p.id)).toEqual(defs.map((d) => d.id));
+    expect(placed[0]).toMatchObject(tileToPixel(coinMarkers[0].col, coinMarkers[0].row));
+    expect(placed[1]).toMatchObject(tileToPixel(coinMarkers[1].col, coinMarkers[1].row));
+    expect(placed[2]).toMatchObject(tileToPixel(fruitMarkers[0].col, fruitMarkers[0].row));
+    expect(placed[3]).toMatchObject(tileToPixel(fruitMarkers[1].col, fruitMarkers[1].row));
   });
 
-  it('everyPlacement-sitsOnAnEmptyTileDirectlyAboveASolidTile', () => {
-    const defs = mapCVDataToCollectibles(cv);
-    const placed = placeCollectibles(defs, level1);
-    for (const p of placed) {
-      const col = p.x / RENDERED_TILE_SIZE;
-      const row = p.y / RENDERED_TILE_SIZE;
-      expect(isSolid(tileAt(level1, col, row))).toBe(false);
-      expect(isSolid(tileAt(level1, col, row + 1))).toBe(true);
-    }
+  it('fewerCoinMarkersThanCoinDefs-onlyMarkedCountGetsPlaced', () => {
+    const defs = mapCVDataToCollectibles(cv); // 2 coin defs, 2 fruit defs
+    const placed = placeCollectibles(defs, {
+      coin: [{ col: 1, row: 0 }],
+      fruit: [
+        { col: 2, row: 0 },
+        { col: 3, row: 0 },
+      ],
+    });
+
+    // Only the first coin def had a marker — the second isn't on the map
+    // yet, not an error (see placeCollectibles's doc comment).
+    expect(placed.filter((p) => p.spriteType === 'coin')).toHaveLength(1);
+    expect(placed.filter((p) => p.spriteType === 'fruit')).toHaveLength(2);
+    expect(placed).toHaveLength(3);
   });
 
-  it('manyDefs-returns-noTwoPlacementsAtTheSamePosition', () => {
-    // 40 fake defs, well beyond level1's ~19 real collectibles, to exercise
-    // wrapping/spacing logic without depending on real CVData volume.
-    const manyDefs = Array.from({ length: 40 }, (_, i) => ({
-      id: `fake-${i}`,
-      spriteType: 'coin' as const,
-      fact: {
-        id: `fake-${i}`,
-        sectionId: 'skills' as const,
-        sectionLabel: 'Skills',
-        data: { category: `Cat ${i}`, skills: [] },
-        sourceType: 'coin' as const,
-      },
-    }));
-    const placed = placeCollectibles(manyDefs, level1);
-    const positions = placed.map((p) => `${p.x},${p.y}`);
-    expect(new Set(positions).size).toBe(positions.length);
-  });
-
-  it('manyDefs-returns-everyPlacementUniqueAndOnAnEmptyTileAboveASolidTile', () => {
-    // Combines the two properties checked separately above (uniqueness,
-    // solidity) against the same 40-fake-defs wrap-triggering fixture, so a
-    // future regression that reintroduces fabricated (unverified) rows in
-    // the wrap path — valid positions that just happen to collide, or vice
-    // versa — is caught even if it slips past either check alone.
-    const manyDefs = Array.from({ length: 40 }, (_, i) => ({
-      id: `fake-${i}`,
-      spriteType: 'coin' as const,
-      fact: {
-        id: `fake-${i}`,
-        sectionId: 'skills' as const,
-        sectionLabel: 'Skills',
-        data: { category: `Cat ${i}`, skills: [] },
-        sourceType: 'coin' as const,
-      },
-    }));
-    const placed = placeCollectibles(manyDefs, level1);
-
-    const positions = placed.map((p) => `${p.x},${p.y}`);
-    expect(new Set(positions).size).toBe(positions.length);
-
-    for (const p of placed) {
-      const col = p.x / RENDERED_TILE_SIZE;
-      const row = p.y / RENDERED_TILE_SIZE;
-      expect(isSolid(tileAt(level1, col, row))).toBe(false);
-      expect(isSolid(tileAt(level1, col, row + 1))).toBe(true);
-    }
+  it('noMarkersAtAll-noDefs-returnsEmptyArray', () => {
+    const defs = mapCVDataToCollectibles({ ...cv, skills: [], languages: undefined });
+    expect(placeCollectibles(defs, { coin: [], fruit: [] })).toEqual([]);
   });
 });
