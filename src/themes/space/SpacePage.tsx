@@ -91,6 +91,7 @@ export const SpacePage = () => {
       <Sun />
       <div
         className="fixed inset-0 pointer-events-none z-0"
+        data-testid="space-ambient-glow"
         style={{
           background:
             'radial-gradient(ellipse at 50% 50%, var(--primary) 0%, transparent 70%)',
@@ -110,6 +111,7 @@ export const SpacePage = () => {
             <div
               key={entry.index}
               className="w-full max-w-lg bg-[var(--card)] backdrop-blur-xl border border-[var(--border)] rounded-[40px] shadow-lg shadow-black/20 p-8"
+              data-testid="space-static-card"
             >
               <ReducedMotionCircle entry={entry} />
             </div>
@@ -121,8 +123,10 @@ export const SpacePage = () => {
             ref={containerRef}
             className="h-screen w-full overflow-y-scroll"
             style={{ scrollbarWidth: 'none' }}
+            data-testid="space-scroll-container"
           >
             <div
+              data-testid="space-scroll-spacer"
               style={{
                 height: `${totalSpan * 100}vh`,
                 pointerEvents: 'none',
@@ -145,6 +149,7 @@ export const SpacePage = () => {
             'fixed inset-0 z-100 flex flex-col items-center justify-center',
             'pointer-events-none transition-opacity duration-500',
           )}
+          data-testid="space-poster"
         >
           <h1 className="text-[clamp(1.3rem,2.5vw,1.8rem)] font-bold text-[var(--foreground)] mb-2">
             {currentUI.value.space.posterTitle}
@@ -180,11 +185,12 @@ function Starfield() {
   const stars = useMemo(() => generateStars(), []);
 
   return (
-    <div className="fixed inset-0 z-0 pointer-events-none" aria-hidden="true">
+    <div className="fixed inset-0 z-0 pointer-events-none" aria-hidden="true" data-testid="starfield">
       {stars.map((s) => (
         <div
           key={s.id}
           className="absolute rounded-full bg-white star-twinkle"
+          data-testid="starfield-star"
           style={{
             left: `${s.left}%`,
             top: `${s.top}%`,

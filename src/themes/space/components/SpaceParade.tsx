@@ -48,6 +48,7 @@ export const SpaceParade = ({ totalSpan }: SpaceParadeProps) => {
     <div
       className="fixed inset-0 pointer-events-none z-5 overflow-hidden"
       aria-hidden="true"
+      data-testid="space-parade"
     >
       {scaledConfigs.map((config) => {
         const { entryOffset, exitOffset } = config;

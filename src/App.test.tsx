@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { currentTheme } from '@/state/theme';
 import { App } from './App';
+import { platformerPage } from './themes/platformer/PlatformerPage.page';
 
 describe('App', () => {
   it('renders the IDE theme page by default', () => {
@@ -25,7 +26,7 @@ describe('App', () => {
   it('renders the Platformer theme page when currentTheme is platformer', () => {
     currentTheme.value = 'platformer';
     render(<App />);
-    expect(screen.getByTestId('platformer-canvas')).toBeInTheDocument();
+    expect(platformerPage.canvas).toBeInTheDocument();
     currentTheme.value = 'ide';
   });
 });
