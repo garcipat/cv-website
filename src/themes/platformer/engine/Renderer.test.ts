@@ -225,8 +225,8 @@ describe('drawEnemies', () => {
     );
 
     const call = ctx.drawImage.mock.calls[0];
-    expect(call[1]).toBe(0); // sx: idle frame 0
-    expect(call[2]).toBe(0); // sy: idle row 0
+    expect(call[1]).toBe(3 * ENEMY_FRAME_SIZE); // sx: idle frame 0 is sheet frame 4 (row 0, col 3)
+    expect(call[2]).toBe(0); // sy: row 0
     expect(call[3]).toBe(ENEMY_FRAME_SIZE);
     expect(call[4]).toBe(ENEMY_FRAME_SIZE);
     expect(call[7]).toBe(ENEMY_RENDERED_SIZE);

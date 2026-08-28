@@ -8,12 +8,14 @@ import {
 } from './Enemy';
 
 describe('enemyFrameSource', () => {
-  it('idleFrameZero-returnsRowZero', () => {
-    expect(enemyFrameSource('idle', 0)).toEqual({ sx: 0, sy: 0 });
+  it('idleFrameZero-returnsSheetFrameFour', () => {
+    // Sheet frame 4 (1-based, row 0 col 3) — see Enemy.ts's IDLE_FRAMES doc comment.
+    expect(enemyFrameSource('idle', 0)).toEqual({ sx: 3 * ENEMY_FRAME_SIZE, sy: 0 });
   });
 
-  it('idleFrameTwo-returnsThirdFrameOffsetOnRowZero', () => {
-    expect(enemyFrameSource('idle', 2)).toEqual({ sx: 2 * ENEMY_FRAME_SIZE, sy: 0 });
+  it('idleFrameTwo-returnsSheetFrameSix', () => {
+    // Sheet frame 6 (1-based, row 1 col 1).
+    expect(enemyFrameSource('idle', 2)).toEqual({ sx: 1 * ENEMY_FRAME_SIZE, sy: ENEMY_FRAME_SIZE });
   });
 
   it('walkFrameZero-returnsRowOne', () => {
@@ -25,7 +27,7 @@ describe('enemyFrameSource', () => {
   });
 
   it('idleFrameEqualToFrameCount-wrapsToFirstFrame', () => {
-    expect(enemyFrameSource('idle', ENEMY_IDLE_FRAME_COUNT)).toEqual({ sx: 0, sy: 0 });
+    expect(enemyFrameSource('idle', ENEMY_IDLE_FRAME_COUNT)).toEqual({ sx: 3 * ENEMY_FRAME_SIZE, sy: 0 });
   });
 });
 
