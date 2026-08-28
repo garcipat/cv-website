@@ -359,6 +359,8 @@ describe('Journal', () => {
       openBookAnimation();
 
       expect(screen.getAllByTestId('journal-fact-item')).toHaveLength(2);
+      // No visible page count anymore — bookmarks alone indicate more
+      // content exists.
       expect(screen.queryByTestId('journal-page-counter')).not.toBeInTheDocument();
       // Each language line carries its own star rating, same format as a
       // single Skill entry ("Name ★★★★☆").
@@ -393,7 +395,7 @@ describe('Journal', () => {
       fireEvent.click(screen.getByTestId('bookmark-tab-experience'));
 
       expect(screen.getAllByTestId('journal-fact-item')).toHaveLength(1);
-      expect(screen.getByTestId('journal-page-counter')).toHaveTextContent('1 / 2');
+      expect(screen.queryByTestId('journal-page-counter')).not.toBeInTheDocument();
     });
 
     it('nextButtonClicked-advancesToTheNextFact', () => {
@@ -406,23 +408,6 @@ describe('Journal', () => {
 
       expect(screen.getByText(/Startup Inc/)).toBeInTheDocument();
       expect(screen.queryByText(/Acme Corp/)).not.toBeInTheDocument();
-      expect(screen.getByTestId('journal-page-counter')).toHaveTextContent('2 / 2');
-    });
-
-    it('onFirstPage-prevButtonDisabled-onLastPage-nextButtonDisabled', () => {
-      collectedFacts.value = experienceFacts;
-
-      render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
-      openBookAnimation();
-      fireEvent.click(screen.getByTestId('bookmark-tab-experience'));
-
-      expect(screen.getByTestId('journal-page-prev')).toBeDisabled();
-      expect(screen.getByTestId('journal-page-next')).not.toBeDisabled();
-
-      fireEvent.click(screen.getByTestId('journal-page-next'));
-
-      expect(screen.getByTestId('journal-page-prev')).not.toBeDisabled();
-      expect(screen.getByTestId('journal-page-next')).toBeDisabled();
     });
 
     it('switchingToAnotherSection-resetsPageBackToFirst', () => {
@@ -432,24 +417,62 @@ describe('Journal', () => {
       openBookAnimation();
       fireEvent.click(screen.getByTestId('bookmark-tab-experience'));
       fireEvent.click(screen.getByTestId('journal-page-next'));
-      expect(screen.getByTestId('journal-page-counter')).toHaveTextContent('2 / 2');
+      expect(screen.getByText(/Startup Inc/)).toBeInTheDocument();
 
       fireEvent.click(screen.getByTestId('bookmark-tab-personality'));
       fireEvent.click(screen.getByTestId('bookmark-tab-experience'));
 
-      expect(screen.getByTestId('journal-page-counter')).toHaveTextContent('1 / 2');
+      expect(screen.getByText(/Acme Corp/)).toBeInTheDocument();
+      expect(screen.queryByText(/Startup Inc/)).not.toBeInTheDocument();
     });
 
-    it('sectionWithExactlyOneFact-showsOneOfOneWithBothArrowsDisabled', () => {
+    it('nextPastTheLastPageOfTheWholeBook-wrapsAroundToTheFirstPage', () => {
+      // Prev/Next now walk the flattened whole-book sequence
+      // (buildJournalPages), not just the active section, and wrap at both
+      // ends instead of disabling — 'projects' (empty, no collected facts)
+      // is the last non-empty section in JOURNAL_SECTION_ORDER, so its one
+      // empty-state page is the book's last page.
+      collectedFacts.value = experienceFacts;
+
+      render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
+      openBookAnimation();
+      fireEvent.click(screen.getByTestId('bookmark-tab-projects'));
+      expect(screen.getByTestId('journal-empty-state')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByTestId('journal-page-next'));
+
+      // Wrapped to the book's very first page — personality (About Me).
+      expect(screen.getByText(currentCV.value.personality.name)).toBeInTheDocument();
+    });
+
+    it('prevOnTheFirstPageOfTheWholeBook-wrapsAroundToTheLastPage', () => {
+      collectedFacts.value = experienceFacts;
+
+      render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
+      openBookAnimation();
+      fireEvent.click(screen.getByTestId('bookmark-tab-personality'));
+
+      fireEvent.click(screen.getByTestId('journal-page-prev'));
+
+      fireEvent.click(screen.getByTestId('bookmark-tab-projects'));
+      // Still the same (only) page 'projects' has — proves Prev landed
+      // somewhere in/before 'projects', the book's last section, not that
+      // it did nothing.
+      expect(screen.getByTestId('journal-empty-state')).toBeInTheDocument();
+    });
+
+    it('sectionWithExactlyOneFact-showsThatOneFactAndHasNoDisabledArrows', () => {
+      // No disabled state anymore — Prev/Next wrap around the whole book
+      // regardless of how many pages the active section has.
       collectedFacts.value = [experienceFacts[0]];
 
       render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
       openBookAnimation();
       fireEvent.click(screen.getByTestId('bookmark-tab-experience'));
 
-      expect(screen.getByTestId('journal-page-counter')).toHaveTextContent('1 / 1');
-      expect(screen.getByTestId('journal-page-prev')).toBeDisabled();
-      expect(screen.getByTestId('journal-page-next')).toBeDisabled();
+      expect(screen.getByText(/Acme Corp/)).toBeInTheDocument();
+      expect(screen.getByTestId('journal-page-prev')).not.toBeDisabled();
+      expect(screen.getByTestId('journal-page-next')).not.toBeDisabled();
     });
 
     it('skillsSectionWithMultipleCategories-paginatesOneCategoryPerPageWithStarRatings', () => {
@@ -479,7 +502,6 @@ describe('Journal', () => {
       fireEvent.click(screen.getByTestId('bookmark-tab-skills'));
 
       expect(screen.getAllByTestId('journal-fact-item')).toHaveLength(1);
-      expect(screen.getByTestId('journal-page-counter')).toHaveTextContent('1 / 2');
       expect(screen.getByText(/Frontend/)).toBeInTheDocument();
       // Name and star rating render as separate flex-row cells (for
       // right-alignment, see Journal.tsx's `ratedItems` branch), not one
