@@ -1,4 +1,4 @@
-import { tileToPixel, isSolid, tileAt } from './Terrain';
+import { tileToPixel, groundColumns, groundRowForColumn } from './Terrain';
 import type { LevelDef } from './LevelData';
 import type { CVData, SkillCategory, Skill, Language } from '@/types/cv';
 import type { CollectibleDef } from '../types';
@@ -6,7 +6,7 @@ import type { CollectibleDef } from '../types';
 /** Lowercases and hyphenates a label into a stable id fragment (e.g.
  *  "DevOps & Tools" -> "devops-tools"). Not full slugify (no unicode
  *  normalization) — CV category/language names are plain ASCII today. */
-function slugify(label: string): string {
+export function slugify(label: string): string {
   return label
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
@@ -84,15 +84,7 @@ export function placeCollectibles(
   defs: CollectibleDef[],
   level: LevelDef,
 ): CollectiblePlacement[] {
-  const candidateCols: number[] = [];
-  for (let col = 0; col < level.width; col++) {
-    for (let row = 0; row < level.height - 1; row++) {
-      if (!isSolid(tileAt(level, col, row)) && isSolid(tileAt(level, col, row + 1))) {
-        candidateCols.push(col);
-        break; // first empty-above-solid row in this column is enough
-      }
-    }
-  }
+  const candidateCols = groundColumns(level);
 
   const spacedCols = candidateCols.filter((_, i) => i % COLLECTIBLE_SPACING_COLS === 0);
   // Prefer even spacing while there's room; once defs exceed the spaced
@@ -105,17 +97,7 @@ export function placeCollectibles(
 
   return defs.map((def, i) => {
     const col = pool[i % pool.length];
-    // Re-derive the row for this column (cheap; candidateCols doesn't carry
-    // row along, and a column can only match once per the break above). This
-    // is always a genuinely re-verified empty-above-solid row — never
-    // computed by arithmetic on another row.
-    let row = 0;
-    for (let r = 0; r < level.height - 1; r++) {
-      if (!isSolid(tileAt(level, col, r)) && isSolid(tileAt(level, col, r + 1))) {
-        row = r;
-        break;
-      }
-    }
+    const row = groundRowForColumn(level, col) ?? 0; // pool only ever contains verified ground columns
     const { x, y } = tileToPixel(col, row);
     return { ...def, x, y };
   });
