@@ -17,9 +17,18 @@
   },
   "experience": [
     {
+      "company": "CM Informatik AG",
+      "role": "Senior Software Engineer",
+      "startDate": "2026-10",
+      "highlights": [
+        "Joining as Senior Software Engineer (details to be added)"
+      ]
+    },
+    {
       "company": "Noser Engineering AG",
       "role": "Platform Engineer & Architect",
       "startDate": "2020-03",
+      "endDate": "2026-07",
       "client": "Bühlergroup AG",
       "location": "Winterthur",
       "highlights": [
@@ -566,6 +575,14 @@
         {
           "name": "OpenCode",
           "level": 55
+        },
+        {
+          "name": "Claude Code",
+          "level": 65
+        },
+        {
+          "name": "AI Skills",
+          "level": 60
         }
       ]
     },
@@ -957,6 +974,12 @@
     }
   ],
   "courses": [
+    {
+      "title": "iSAQB Requirement Engineering for Architects",
+      "provider": "tecnovy",
+      "date": "2026-08",
+      "category": "Architecture"
+    },
     {
       "title": "Recognising, Analysing and Resolving Conflicts",
       "provider": "BWI Akademie",
