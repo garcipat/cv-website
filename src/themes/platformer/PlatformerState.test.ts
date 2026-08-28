@@ -11,6 +11,7 @@ import {
   activeJournalSection,
   collectiblePlacements,
   enemyPlacements,
+  enemyStates,
   collectedCollectibleIds,
   activeEffects,
 } from './PlatformerState';
@@ -46,6 +47,37 @@ describe('PlatformerState', () => {
     expect(allPossibleDefs.length).toBeGreaterThan(enemyPlacements.length);
     expect(enemyPlacements.filter((p) => p.spriteType === 'slimeGreen')).toHaveLength(1);
     expect(enemyPlacements.filter((p) => p.spriteType === 'slimePurple')).toHaveLength(1);
+  });
+
+  it('enemyStates-initial-oneLivePatrolStatePerEnemyPlacement', () => {
+    expect(enemyStates.value).toHaveLength(enemyPlacements.length);
+    for (const state of enemyStates.value) {
+      expect(state.vx).toBe(0);
+      expect(state.direction).toBe('right');
+      expect(state.animState).toBe('walk');
+    }
+  });
+
+  it('enemyStates-initial-desyncsStartingAnimFrameAcrossEnemies', () => {
+    // level1 has 2 enemies (1 green, 1 purple) — their seeded walk frames
+    // must differ so they don't visibly animate in unison (see Enemy.ts's
+    // toEnemyState `index` parameter).
+    expect(enemyStates.value.length).toBeGreaterThanOrEqual(2);
+    const [first, second] = enemyStates.value;
+    expect(first.animFrame).not.toBe(second.animFrame);
+  });
+
+  it('resetGame-calledAfterEnemiesMoved-restoresEnemiesToInitialState', () => {
+    enemyStates.value = enemyStates.value.map((e) => ({ ...e, x: e.x + 500, vx: 60, direction: 'left' as const }));
+
+    resetGame();
+
+    expect(enemyStates.value).toHaveLength(enemyPlacements.length);
+    enemyStates.value.forEach((state, i) => {
+      expect(state.x).toBe(enemyPlacements[i].x);
+      expect(state.vx).toBe(0);
+      expect(state.direction).toBe('right');
+    });
   });
 
   it('collectedCollectibleIds-initial-isEmptySet', () => {
