@@ -333,7 +333,7 @@ export function drawCollectibles(
   }
 }
 
-const COLLECTION_EFFECT_FONT_SIZE = 14;
+const COLLECTION_EFFECT_FONT_SIZE = 28;
 const SPARKLE_RADIUS_PX = 3;
 
 /** Draws every active collection-effect's fact text at its current
@@ -370,7 +370,9 @@ export function drawCollectionEffects(ctx: CanvasRenderingContext2D, effects: Fl
   }
 }
 
-const COUNTER_ICON_SIZE = 20;
+// Matches HEART_RENDERED_SIZE so the coin/fruit counter icons read as the
+// same HUD "row height" as the hearts, not a smaller secondary element.
+const COUNTER_ICON_SIZE = HEART_RENDERED_SIZE;
 const COUNTER_TEXT_GAP = 6;
 
 /**
@@ -404,7 +406,7 @@ export function drawCollectibleCounter(
 
   ctx.save();
   ctx.fillStyle = '#fff';
-  ctx.font = `16px "${RESTART_PROMPT_FONT_FAMILY}", monospace`;
+  ctx.font = `22px "${RESTART_PROMPT_FONT_FAMILY}", monospace`;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
   ctx.fillText(`${collected} / ${max}`, x + COUNTER_ICON_SIZE + COUNTER_TEXT_GAP, y);
