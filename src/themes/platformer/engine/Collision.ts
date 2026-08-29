@@ -100,3 +100,27 @@ export function checkEnemyStompCollisions(player: PlayerState, enemies: EnemySta
   }
   return stomped;
 }
+
+/**
+ * Returns the ids of every non-defeated enemy the player is touching in a
+ * way that is NOT a stomp (roadmap step 19) — the exact inverse of
+ * `checkEnemyStompCollisions`'s landing condition: any overlap where the
+ * player either isn't falling (`vy <= 0`) or is falling but contacting the
+ * enemy's lower half (side or below), not landing on its upper half. Unlike
+ * stomp detection, an enemy currently playing its `hit` reaction is NOT
+ * excluded here — a mid-reaction enemy can still hurt the player on side
+ * contact, only a fully `defeated` (removed) enemy can't (per user decision).
+ */
+export function checkEnemySideCollisions(player: PlayerState, enemies: EnemyState[]): string[] {
+  const hitbox = playerHitbox(player);
+  const hits: string[] = [];
+  for (const enemy of enemies) {
+    if (enemy.defeated) continue;
+    const box = enemyHitbox(enemy);
+    if (!aabbOverlap(hitbox, box)) continue;
+    const enemyMidY = box.y + box.height / 2;
+    const isStompLanding = player.vy > 0 && hitbox.y + hitbox.height <= enemyMidY;
+    if (!isStompLanding) hits.push(enemy.id);
+  }
+  return hits;
+}

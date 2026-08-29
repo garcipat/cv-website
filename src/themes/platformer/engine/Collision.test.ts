@@ -3,6 +3,7 @@ import {
   aabbOverlap,
   checkCollectibleCollisions,
   checkEnemyStompCollisions,
+  checkEnemySideCollisions,
 } from './Collision';
 import { PLAYER_SIDE_PADDING, PLAYER_HEAD_PADDING, PLAYER_RENDERED_SIZE } from '../entities/Player';
 import type { PlayerState } from '../entities/Player';
@@ -154,5 +155,47 @@ describe('checkEnemyStompCollisions', () => {
     const enemy = makeEnemy(0, 100, { animState: 'hit' });
     const player = { ...makePlayer(0, 100 - PLAYER_RENDERED_SIZE / 2), vy: 300 };
     expect(checkEnemyStompCollisions(player, [enemy])).toEqual([]);
+  });
+});
+
+describe('checkEnemySideCollisions', () => {
+  it('playerWalkingIntoEnemyFromTheSide-groundedNotFalling-returnsEnemyId', () => {
+    const enemy = makeEnemy(0, 100);
+    const player = { ...makePlayer(0, 100), vy: 0 };
+    expect(checkEnemySideCollisions(player, [enemy])).toEqual(['enemy-cert-x']);
+  });
+
+  it('playerRisingIntoEnemyFromBelow-returnsEnemyId', () => {
+    const enemy = makeEnemy(0, 100);
+    const player = { ...makePlayer(0, 100 + ENEMY_RENDERED_SIZE - 40), vy: -300 };
+    expect(checkEnemySideCollisions(player, [enemy])).toEqual(['enemy-cert-x']);
+  });
+
+  it('playerFallingAndLandingOnTop-isAStompNotASideHit-returnsEmptyArray', () => {
+    const enemy = makeEnemy(0, 100);
+    const player = { ...makePlayer(0, 100 - PLAYER_RENDERED_SIZE / 2), vy: 300 };
+    expect(checkEnemySideCollisions(player, [enemy])).toEqual([]);
+  });
+
+  it('playerFarFromEnemy-returnsEmptyArray', () => {
+    const enemy = makeEnemy(2000, 2000);
+    const player = { ...makePlayer(0, 0), vy: 0 };
+    expect(checkEnemySideCollisions(player, [enemy])).toEqual([]);
+  });
+
+  it('enemyDefeated-excludedEvenIfOverlapping', () => {
+    const enemy = makeEnemy(0, 100, { defeated: true });
+    const player = { ...makePlayer(0, 100), vy: 0 };
+    expect(checkEnemySideCollisions(player, [enemy])).toEqual([]);
+  });
+
+  it('enemyInHitReaction-stillCountsAsASideHit', () => {
+    // Unlike stomp detection (which excludes a 'hit'-reacting enemy to avoid
+    // double-stomping it), a side hit from an enemy mid-reaction still hurts
+    // the player — only a fully `defeated` (removed) enemy is harmless. Per
+    // user decision.
+    const enemy = makeEnemy(0, 100, { animState: 'hit' });
+    const player = { ...makePlayer(0, 100), vy: 0 };
+    expect(checkEnemySideCollisions(player, [enemy])).toEqual(['enemy-cert-x']);
   });
 });
