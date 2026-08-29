@@ -30,6 +30,7 @@ function idlePlayer(overrides: Partial<PlayerState> = {}): PlayerState {
     animTimer: 0,
     invincibleTimer: 0,
     knockbackTimer: 0,
+    bounceAscending: false,
     ...overrides,
   };
 }

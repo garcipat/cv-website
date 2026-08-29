@@ -596,7 +596,11 @@ export const PlatformerPage = () => {
         enemyStates.value = enemyStates.value.map((enemy) =>
           stompedIds.includes(enemy.id) ? applyStomp(enemy) : enemy,
         );
-        playerState.value = { ...playerState.value, vy: PHYSICS_CONFIG.stompBounceVelocity };
+        playerState.value = {
+          ...playerState.value,
+          vy: PHYSICS_CONFIG.stompBounceVelocity,
+          bounceAscending: true,
+        };
       }
 
       // Side/below damage (roadmap step 19) — only checked while not already

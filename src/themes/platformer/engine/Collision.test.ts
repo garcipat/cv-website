@@ -28,6 +28,7 @@ function makePlayer(x: number, y: number): PlayerState {
     animTimer: 0,
     invincibleTimer: 0,
     knockbackTimer: 0,
+    bounceAscending: false,
   };
 }
 
