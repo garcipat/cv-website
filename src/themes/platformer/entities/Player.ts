@@ -85,6 +85,15 @@ export interface PlayerState {
    *  decisions". */
   knockbackTimer: number;
   /**
+   * Ids of every block whose underside was hit this tick (roadmap step 21) —
+   * always freshly computed by `Physics.ts`'s ceiling-collision check, never
+   * carried over from a previous tick (unlike `bounceAscending`). Empty on
+   * every tick with no upward block collision. `PlatformerPage.tsx` reads
+   * this once per tick to apply block hits/rewards, then it's naturally
+   * replaced by next tick's fresh (usually empty) array.
+   */
+  hitBlockIds: string[];
+  /**
    * True while the player is ascending from a stomp bounce (roadmap step
    * 18/19) — suppresses `stepPlayerPhysics`'s variable-jump-height cut for
    * every tick of the ascent, not just the one the bounce was applied on.

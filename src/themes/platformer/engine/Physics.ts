@@ -1,7 +1,7 @@
 import { PHYSICS_CONFIG } from './PhysicsConfig';
 import { isSolid, isSolidExcludingBridge, tileAt, RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { LevelDef } from '../level/LevelData';
-import { isBlockOccupied } from '../level/BlockMapper';
+import { isBlockOccupied, blockIdAt } from '../level/BlockMapper';
 import type { BlockPlacement } from '../level/BlockMapper';
 import {
   PLAYER_RENDERED_SIZE,
@@ -203,6 +203,7 @@ export function stepPlayerPhysics(
     player.isDroppingThroughBridge ||
     (player.grounded && standingOnBridge && Boolean(input.dropThroughHeld));
 
+  const hitBlockIds: string[] = [];
   if (vy < 0) {
     // Ceiling collision: symmetric to the landing case below, but for the
     // player's head hitting a solid tile from underneath while rising.
@@ -214,12 +215,22 @@ export function stepPlayerPhysics(
     // (roadmap step 7).
     const headY = y + PLAYER_HEAD_PADDING;
     const headRow = Math.floor(headY / RENDERED_TILE_SIZE);
+    let ceilingResolved = false;
     for (let col = leftCol; col <= rightCol; col++) {
-      if (isSolidExcludingBridge(tileAt(level, col, headRow)) || isBlockOccupied(blockPlacements, col, headRow)) {
+      const blockId = blockIdAt(blockPlacements, col, headRow);
+      const solid = isSolidExcludingBridge(tileAt(level, col, headRow)) || blockId !== undefined;
+      if (!solid) continue;
+      // Position is resolved against only the FIRST solid column found
+      // (matches the pre-existing single-collision behavior) — but every
+      // column at this row is scanned so a block spanning any of them is
+      // still reported in `hitBlockIds`, even if it wasn't the column that
+      // stopped the ascent.
+      if (!ceilingResolved) {
         y = (headRow + 1) * RENDERED_TILE_SIZE - PLAYER_HEAD_PADDING;
         resolvedVy = 0;
-        break;
+        ceilingResolved = true;
       }
+      if (blockId !== undefined) hitBlockIds.push(blockId);
     }
   } else {
     const feetY = y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING;
@@ -266,6 +277,7 @@ export function stepPlayerPhysics(
     // moment the bounce's apex passes (resolvedVy >= 0) or a ceiling stops
     // it early, so it never lingers into a later, unrelated jump.
     bounceAscending: player.bounceAscending && resolvedVy < 0,
+    hitBlockIds,
   };
 }
 

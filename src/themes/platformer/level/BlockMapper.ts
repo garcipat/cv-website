@@ -94,20 +94,33 @@ export function placeBlocks(defs: BlockDef[], markers: BlockMarkerPositions): Bl
 }
 
 /**
+ * The id of the block placement occupying tile (col, row), if any — used by
+ * Physics.ts to both treat the tile as solid AND report which specific block
+ * a rising player's head just hit (roadmap step 21). `isBlockOccupied` below
+ * is now a thin wrapper for call sites that only need the yes/no answer.
+ */
+export function blockIdAt(
+  blockPlacements: readonly BlockPlacement[],
+  col: number,
+  row: number,
+): string | undefined {
+  const found = blockPlacements.find(
+    (b) => Math.floor(b.x / RENDERED_TILE_SIZE) === col && Math.floor(b.y / RENDERED_TILE_SIZE) === row,
+  );
+  return found?.id;
+}
+
+/**
  * Whether any block placement occupies tile (col, row) — used by
  * Physics.ts to treat block-occupied tiles as solid, the same way terrain
  * tiles already are, even though blocks aren't part of the terrain grid.
  * Added 2026-08-29 (pulled forward from roadmap step 21, per live user
- * feedback): every block is solid from every direction regardless of kind
- * — there's no crack/break/convert reaction yet, so there's nothing to
- * distinguish between kinds here.
+ * feedback): every block is solid from every direction regardless of kind.
  */
 export function isBlockOccupied(
   blockPlacements: readonly BlockPlacement[],
   col: number,
   row: number,
 ): boolean {
-  return blockPlacements.some(
-    (b) => Math.floor(b.x / RENDERED_TILE_SIZE) === col && Math.floor(b.y / RENDERED_TILE_SIZE) === row,
-  );
+  return blockIdAt(blockPlacements, col, row) !== undefined;
 }

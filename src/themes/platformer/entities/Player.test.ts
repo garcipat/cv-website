@@ -31,6 +31,7 @@ function idlePlayer(overrides: Partial<PlayerState> = {}): PlayerState {
     invincibleTimer: 0,
     knockbackTimer: 0,
     bounceAscending: false,
+    hitBlockIds: [],
     ...overrides,
   };
 }
