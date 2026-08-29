@@ -29,6 +29,7 @@ function basePlayer(overrides: Partial<PlayerState> = {}): PlayerState {
     invincibleTimer: 0,
     knockbackTimer: 0,
     bounceAscending: false,
+    hitBlockIds: [],
     ...overrides,
   };
 }
@@ -359,6 +360,47 @@ describe('stepPlayerPhysics block solidity', () => {
     const next = stepPlayerPhysics(player, BLOCK_LEVEL, 1 / 60, { jumpHeld: true }, blockAtCol2Row2);
     expect(next.vy).toBe(0);
     expect(next.y).toBe(restY);
+  });
+
+  it('jumpingUpIntoABlockFromBelow-reportsItsIdInHitBlockIds', () => {
+    const ceilingBottomY = 3 * RENDERED_TILE_SIZE;
+    const restY = ceilingBottomY - PLAYER_HEAD_PADDING;
+    const player = basePlayer({
+      x: 2 * RENDERED_TILE_SIZE,
+      y: restY + 1,
+      vy: -1000,
+      grounded: false,
+    });
+    const next = stepPlayerPhysics(player, BLOCK_LEVEL, 1 / 60, { jumpHeld: true }, blockAtCol2Row2);
+    expect(next.hitBlockIds).toEqual([blockAtCol2Row2[0].id]);
+  });
+
+  it('jumpingUpIntoPlainTerrainCeiling-reportsNoHitBlockIds', () => {
+    const next = stepPlayerPhysics(
+      basePlayer({ x: 0, y: 1 * RENDERED_TILE_SIZE, vy: -1000, grounded: false }),
+      parseLevel(['GGGG', '....', '....', 'GGGG']),
+      1 / 60,
+      { jumpHeld: true },
+    );
+    expect(next.hitBlockIds).toEqual([]);
+  });
+
+  it('walkingRightIntoABlock-doesNotReportItInHitBlockIds', () => {
+    // A side collision must never register as a below-hit (spec.md
+    // Acceptance Scenario 5: only upward hits from below trigger a reaction).
+    const wallCol = 2;
+    const restX = wallCol * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_SIDE_PADDING;
+    const player = basePlayer({ x: restX - 1, y: 1 * RENDERED_TILE_SIZE, grounded: true });
+    const next = stepPlayerPhysics(player, BLOCK_LEVEL, 1 / 60, { left: false, right: true }, blockAtCol2Row2);
+    expect(next.hitBlockIds).toEqual([]);
+  });
+
+  it('landingOnTopOfABlockFromAbove-doesNotReportItInHitBlockIds', () => {
+    const groundSurfaceY = 2 * RENDERED_TILE_SIZE;
+    const restY = groundSurfaceY - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
+    const player = basePlayer({ x: 2 * RENDERED_TILE_SIZE, y: restY - 1, vy: 300 });
+    const next = stepPlayerPhysics(player, BLOCK_LEVEL, 1 / 60, {}, blockAtCol2Row2);
+    expect(next.hitBlockIds).toEqual([]);
   });
 });
 
