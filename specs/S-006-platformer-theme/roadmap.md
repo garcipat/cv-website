@@ -213,9 +213,28 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   as it moves; the wall-pit enemy reverses at both its wall and the pit edge
   instead of walking through either; enemies desync visibly (not all on the same
   animation frame); respawn resets both enemies to their initial position.*
-- [ ] **18. Stomp defeat** — jumping on an enemy defeats it with a poof animation
+- [x] **18. Stomp defeat** — jumping on an enemy defeats it with a poof animation
   (row-2 hit-reaction frames, including the red flash frame), fact flies to the
   journal.
+
+  Extended in implementation: purple slimes take 2 stomps to defeat (green still
+  takes 1) — confirmed live with the user, not in the original roadmap text. A
+  stomp also bounces the player upward a short distance
+  (`PHYSICS_CONFIG.stompBounceVelocity`), on every stomp, not just the finishing
+  one; the bounce is deliberately exempted from the jump-cut multiplier (Physics.ts)
+  that normally shrinks a released-early jump, since a stomp bounce is airborne
+  with the jump key released by definition — without the exemption the bounce
+  collapsed to ~5px instead of its intended ~67px. An enemy's fact is deduplicated
+  by id against `collectedFacts` before being (re-)banked, since `resetGame()`
+  revives defeated enemies on respawn but deliberately never clears collected
+  facts — without the guard, re-stomping a revived enemy would duplicate its
+  journal page.
+
+  Also corrected here: green/purple was swapped to green→Project, purple→
+  Certificate (was the reverse since step 16) — purple (2 hit points, the
+  tougher enemy) now guards Certificates, the rarer of the two sections, per
+  live user feedback during verification. See `EnemyMapper.ts`'s
+  `certificateToEnemy`/`projectToEnemy` and step 16's note above.
   *Verify: stomp an enemy, see the fact appear.*
 - [ ] **19. Side/below damage** — invincibility frames, knockback on non-stomp
   contact, reusing the `takeDamage` mechanism from step 9 with a full heart
