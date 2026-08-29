@@ -63,38 +63,39 @@ At any point during gameplay, the visitor can press a key (e.g., `J` or `Escape`
 
 ---
 
-### User Story 4 - Defeat Enemies to Reveal Certificates and Projects (Priority: P2)
+### User Story 4 - Defeat Enemies to Reveal Certificates, Projects, and Courses (Priority: P2)
 
-Scattered through the level are simple enemy characters (e.g., slime-like creatures) that patrol back and forth on platforms. Each enemy is associated with a Certificate or Project entry from the CV. The visitor can defeat an enemy by jumping on top of it (stomp mechanic). When defeated, the enemy disappears in a poof animation and the actual CV fact text floats up from the defeat point, hovers briefly, then animates toward the journal icon. The fact is added to the visitor's journal under the Certificates or Projects section. Defeated enemies stay defeated for the session.
+Scattered through the level are two colors of simple slime enemies that patrol back and forth on platforms. Green slimes are associated with a Course entry from the CV; purple slimes are associated with a Certificate or Project entry. The visitor can defeat an enemy by jumping on top of it (stomp mechanic) — a green slime falls in a single stomp, a purple slime takes two stomps. When defeated, the enemy disappears in a poof animation and the actual CV fact text floats up from the defeat point, hovers briefly, then animates toward the journal icon. The fact is added to the visitor's journal under the Courses, Certificates, or Projects section accordingly. Defeated enemies stay defeated for the session.
 
-**Why this priority**: Enemies add gameplay depth and reward exploration. They're P2 because coins already deliver Skills and Languages — enemies unlock Certificates and Projects, which are distinct CV sections that require skilled play to discover.
+**Why this priority**: Enemies add gameplay depth and reward exploration. They're P2 because coins already deliver Skills and Languages — enemies unlock Certificates, Projects, and Courses, which require skilled play to discover. **Amended 2026-08-29**: Courses (12 CV entries) moved here from the destroyable-block mechanic (see User Story 5) — too large a pool for the block mechanic alongside Experience/Education, and green slimes already existed as a lightweight, single-hit enemy well suited to a large pool. Purple slimes absorbed Projects alongside their original Certificates, since Projects no longer has its own dedicated enemy color.
 
-**Independent Test**: Approach an enemy — verify it patrols. Jump on top of it — verify it's defeated with a poof effect and the certificate/project fact text appears. Open journal — verify the fact appears in Certificates or Projects section. Revisit the area — verify enemy is gone.
+**Independent Test**: Approach an enemy — verify it patrols. Jump on top of a green slime — verify it's defeated in one stomp with a poof effect and a Course fact appears. Jump on a purple slime twice — verify it takes two stomps before defeat and a certificate/project fact appears. Open journal — verify facts appear in the correct sections. Revisit the area — verify enemies are gone.
 
 **Acceptance Scenarios**:
 
-1. **Given** an enemy is patrolling on a platform, **When** the character jumps and lands on top of the enemy, **Then** the enemy is defeated with a poof/squish animation and the associated certificate or project fact text floats up, hovers, and flies to the journal icon.
-2. **Given** an enemy is defeated, **When** the visitor opens the journal, **Then** the certificate or project fact appears in the Certificates or Projects section respectively, styled as a simple list entry.
-3. **Given** the character collides with an enemy from the side or below, **When** contact occurs, **Then** the character takes damage (flashes briefly with invincibility frames), loses one full heart, and is pushed back slightly, using the same damage mechanism as pit falls (step 9) but with a full heart instead of a half heart. The character has 3 hearts total. At 0 hearts, the character respawns at the last checkpoint with full health and all collected facts preserved.
-4. **Given** the character respawns after falling, **When** they revisit an enemy location, **Then** previously defeated enemies remain defeated for the session.
+1. **Given** a green slime is patrolling on a platform, **When** the character jumps and lands on top of it, **Then** it is defeated in a single stomp with a poof/squish animation and the associated Course fact text floats up, hovers, and flies to the journal icon.
+2. **Given** a purple slime is patrolling on a platform, **When** the character stomps it twice (a bounce off the first stomp, then a second landing), **Then** it is defeated on the second stomp with a poof/squish animation and the associated Certificate or Project fact text floats up, hovers, and flies to the journal icon.
+3. **Given** an enemy is defeated, **When** the visitor opens the journal, **Then** the fact appears in the Courses, Certificates, or Projects section respectively, styled as a simple list entry.
+4. **Given** the character collides with an enemy from the side or below, **When** contact occurs, **Then** the character takes damage (flashes briefly with invincibility frames), loses one full heart, and is pushed back slightly, using the same damage mechanism as pit falls (step 9) but with a full heart instead of a half heart. The character has 3 hearts total. At 0 hearts, the character respawns at the last checkpoint with full health and all collected facts preserved.
+5. **Given** the character respawns after falling, **When** they revisit an enemy location, **Then** previously defeated enemies remain defeated for the session.
 
 ---
 
-### User Story 5 - Destroy Blocks to Uncover Experience, Education, and Courses (Priority: P2)
+### User Story 5 - Break Blocks to Uncover Experience and Education (Priority: P2)
 
-Some platforms contain destroyable blocks marked with a subtle question mark. Each block is associated with an Experience, Education, or Course entry from the CV. When the character jumps and hits a destroyable block from below (Mario-style bump), the block cracks. It takes **3 hits** to fully destroy — each hit drops a fruit (as a bonus pickup, no CV fact — visually distinct from the Skills/Languages coins so a fruit is never mistaken for a coin's CV meaning), and the final hit breaks the block apart with a shatter animation and reveals the associated CV fact. The fact text floats up from the break point, hovers briefly, then animates toward the journal icon. The fact is added to the journal under the Experience, Education, or Courses section.
+Some platforms contain destroyable blocks — three visually distinct kinds. **Crates** are associated with an Experience or Education entry from the CV: hitting one from below (Mario-style bump) shows a crack overlay; hitting it again from below breaks it apart with a shatter animation and reveals the associated fact. **Question-mark blocks** are styled to match their surrounding terrain (five color palettes) — a single hit from below pops a bonus fruit upward into the space directly above the block (a reward with no CV meaning, visually distinct from a coin so it's never mistaken for CV content) and permanently swaps the block to that same palette's plain `!` tile. **Rock blocks** break to empty space on a single hit from below and carry no reward at all — a pure level-design tool for shaping traversal. Every below-hit, on any of the three types, gives the block a short bump/nudge (it moves up a few pixels and settles back), even on the hit that breaks, shatters, or converts it. A crate's revealed fact text floats up from the break point, hovers briefly, then animates toward the journal icon, same as any other CV-mapped collectible.
 
-**Why this priority**: Destroyable blocks add vertical exploration and a multi-hit mechanic. They're P2 because they're a secondary mechanic — coins and enemies already deliver the main content flow. Blocks reward persistent exploration with Career and Education facts.
+**Why this priority**: Destroyable blocks add vertical exploration and a hit-based mechanic. They're P2 because they're a secondary mechanic — coins and enemies already deliver the main content flow. Crates reward persistent exploration with Experience and Education facts; question-mark and rock blocks add bonus rewards and level-design texture without extra CV content. **Amended 2026-08-29**: the original single 3-hit block type (dropping a fruit per hit, revealing an Experience/Education/Courses fact on the third) was split into three distinct block types once the tileset assets changed — there is no dedicated crack-progression sprite sheet, but there is a wooden crate tile, five terrain-matched `?`/`!` tile pairs, and plain terrain tiles to build from instead. Courses moved off blocks entirely onto enemies (see User Story 4) since 12 entries didn't fit well alongside Experience/Education on a 2-hit mechanic.
 
-**Independent Test**: Find a marked destroyable block. Jump and hit it from below — verify it cracks and drops a fruit each hit. After 3 hits — verify it breaks and the experience/education/course fact text appears. Check journal — verify the fact is added in the correct section.
+**Independent Test**: Find a crate. Hit it from below once — verify a crack overlay appears with a bump animation. Hit it again — verify it breaks with a shatter animation and the experience/education fact text appears; check the journal for the fact in the correct section. Find a question-mark block — hit it from below — verify a fruit pops up above it and the block turns into its matching `!` tile. Find a rock block — hit it from below — verify it breaks to empty space with no reward.
 
 **Acceptance Scenarios**:
 
-1. **Given** a destroyable block exists on a platform, **When** the character jumps and collides with it from below, **Then** the block cracks (visually progressing through crack states) and drops a fruit.
-2. **Given** a destroyable block has been hit fewer than 3 times, **When** the character hits it again from below, **Then** it shows increasingly cracked visual states and drops another fruit with each hit.
-3. **Given** a destroyable block has been hit 3 times, **When** the final hit occurs, **Then** the block breaks apart with a shatter animation and the associated experience, education, or course fact text floats up from the break point, hovers, and flies to the journal icon.
-4. **Given** a destroyable block is destroyed, **When** the visitor opens the journal, **Then** the fact appears in the Experience, Education, or Courses section, styled as a simple list entry.
-5. **Given** the character hits a destroyable block from above or the side, **When** contact occurs, **Then** the block is not affected — only upward hits from below trigger the break mechanic.
+1. **Given** an intact crate exists on a platform, **When** the character hits it from below for the first time, **Then** it shows a cracked visual overlay (with a bump animation) and remains in place — no fact, no reward yet.
+2. **Given** a cracked crate, **When** the character hits it again from below, **Then** it breaks apart with a shatter animation (and a bump animation) and the associated Experience or Education fact text floats up from the break point, hovers, and flies to the journal icon.
+3. **Given** a question-mark block, **When** the character hits it from below, **Then** a bonus fruit pops upward into the space directly above the block (landing as a touchable pickup) and the block permanently changes to its matching `!` terrain tile — no CV fact is revealed.
+4. **Given** a rock block, **When** the character hits it from below, **Then** the block breaks into empty space immediately — no fruit, no fact, no reward.
+5. **Given** any of the three block types, **When** the character hits it from above or the side, **Then** the block is not affected — only upward hits from below trigger any of the three mechanics.
 
 ---
 
@@ -156,6 +157,25 @@ As with all CV themes, floating translucent controls in the top-left corner prov
 
 ---
 
+### User Story 9 - Contextual Hint Signs and a Trimmed Controls Overlay (Priority: P3)
+
+As a new visitor starts the game, a small translucent overlay listing the universal controls (movement, jump, journal toggle) appears briefly and disappears once they start playing. As they explore the level and reach a mechanic that needs explanation beyond the basics — like the one-way bridge — a signpost near it displays a short hint in a speech bubble when the character stands near it, without pausing the game. The hint disappears when the character walks away, and reappears if they return. Hint text is plain gameplay guidance, not CV content — signs are reusable and never added to the journal.
+
+**Why this priority**: Onboarding polish. The game is fully playable without it, but a first-time visitor may not discover the movement keys or the drop-through bridge control. It's P3 because it doesn't gate core gameplay or CV content — a deliberate split between an upfront overlay for controls relevant from frame one and contextual, in-place signs for mechanics that only make sense once the player is standing at them.
+
+**Independent Test**: Load the Platformer theme — verify the controls overlay appears and disappears after the first movement/jump input. Walk up to the bridge hint sign — verify a speech-bubble tooltip with hint text appears. Walk away — verify it disappears. Switch locale — verify hint text updates to match.
+
+**Acceptance Scenarios**:
+
+1. **Given** the game enters the `playing` phase for the first time this session, **When** the theme loads, **Then** a translucent overlay listing only universal controls (movement, jump, journal toggle) appears.
+2. **Given** the controls overlay is visible, **When** the visitor presses a movement or jump key (or a short timeout elapses), **Then** the overlay disappears and does not reappear for the rest of the session.
+3. **Given** a hint sign exists in the level, **When** the character's hitbox overlaps its trigger zone, **Then** a speech-bubble tooltip appears near the character showing the sign's hint text, without pausing the game or blocking movement.
+4. **Given** a hint tooltip is visible, **When** the character no longer overlaps the sign, **Then** the tooltip disappears.
+5. **Given** the visitor switches locale, **When** a hint tooltip is shown afterward, **Then** it displays in the newly selected language.
+6. **Given** any hint sign is touched any number of times, **When** the visitor checks the journal or collected-fact state, **Then** nothing was added — signs carry no CV mapping and are not one-off collectibles.
+
+---
+
 ### Edge Cases
 
 - **Empty CV sections**: If a CV section has no data (e.g., empty `certificates` array), the journal bookmark for that section is hidden and no coins/blocks/enemies map to it.
@@ -210,11 +230,12 @@ As with all CV themes, floating translucent controls in the top-left corner prov
 
 - **FR-009**: System MUST map CV sections to specific game object types — each collectible type reveals content from assigned sections only:
   - **Coins** → Skills, Languages
-  - **Destroyable blocks** → Experience, Education, Courses
-  - **Enemies** (P2) → Certificates, Projects
+  - **Destroyable blocks** → Experience, Education (crates only — question-mark and rock blocks carry no CV fact)
+  - **Enemies** (P2) → Certificates, Projects (purple slimes), Courses (green slimes)
   - **Flagpole** (P2) → Personality (About) + Contact — shown as ending screen, then added to journal (with bookmarks but no per-section counter)
   - **Amended 2026-08-28**: within the "Coins" collectible type, Skills and Languages are visually split — Skills render as `coin.png`, Languages as `fruit.png` — so a player can tell the two apart at a glance even though both are the same `sourceType: 'coin'` collectible mechanically (same touch-to-collect behavior, same flight-to-journal animation).
   - **Amended 2026-08-28**: a Skill coin represents a whole skill *category* (e.g. "Backend"), not one individual skill — the real CV data has too many individual skills to reasonably place one collectible each. Touching one category's coin adds every skill in that category to the journal's Skills section at once, shown as the category name with its skill list. Languages remain one collectible per language.
+  - **Amended 2026-08-29**: Courses (12 CV entries) moved from destroyable blocks to green-slime enemies (see User Story 4 and FR-021's amendment) — the original "Experience, Education, Courses → blocks" mapping didn't fit once the block mechanic split into three narrower types. Purple slimes absorbed Projects alongside their original Certificates, replacing the original green=Projects/purple=Certificates split.
 
 - **FR-010**: System MUST define level data in a structured format (TypeScript types or JSON) using a grid/raster system with width and height for easy element positioning. The level data specifies:
   - Terrain grid (tile positions)
@@ -297,7 +318,7 @@ The level is hand-crafted — starting with a simple layout to validate function
 - **FR-019**: System MUST render simple enemy characters that patrol horizontally on platforms. Enemies reverse direction at platform edges or designated patrol boundaries.
 
 - **FR-020**: System MUST implement enemy interaction:
-  - **Stomp defeat**: Character landing on top of an enemy defeats it with a poof/squish animation and reveals a CV fact (Certificates or Projects)
+  - **Stomp defeat**: Character landing on top of an enemy defeats it with a poof/squish animation and reveals a CV fact — green slimes (Courses) are defeated in a single stomp; purple slimes (Certificates, Projects) take two stomps, with the fact revealed on the second, finishing stomp. Each stomp (finishing or not) gives the character a short upward bounce.
   - **Side/below collision**: Character takes damage (flashes, brief knockback) with invincibility frames; the enemy remains
   - Defeated enemies are removed from the game world for the session
 
@@ -310,9 +331,20 @@ The level is hand-crafted — starting with a simple layout to validate function
 
 #### Destroyable Blocks (P2)
 
-- **FR-021**: System MUST render destroyable blocks as distinct tiles (marked with a subtle question mark) that require 3 upward hits to break, progressing through intact → cracked → heavily cracked → broken visual states.
+- **FR-021**: System MUST render three visually distinct destroyable block types, each a `BlockDef` entity placed via hand-authored level markers (not baked into terrain, consistent with FR-013's enemy/coin marker approach):
+  - **Crate**: a wooden crate tile. Intact by default; shows a cracked overlay after one hit; breaks apart after a second hit.
+  - **Question-mark**: one of five palette-matched `?` tiles (matching the surrounding terrain's color — brick, sandy, pink/red, teal, blue-gray); after a single hit, permanently swaps to that same palette's `!` tile.
+  - **Rock**: a plain terrain-styled tile, visually distinct from both ordinary solid terrain and the palette's `?`/`!` tiles; breaks to empty space after a single hit.
 
-- **FR-022**: System MUST implement destroyable block interaction: when the character collides with a destroyable block from below (upward hit), the block cracks (visual state change) and drops one fruit (a bonus pickup, no CV fact — rendered from `fruit.png`, distinct from the `coin.png` sprite used for Skills/Languages coins so a bonus pickup is never visually confused with a CV-mapped collectible). After **3 hits**, the block breaks apart with a shatter animation and reveals the associated CV fact (Experience, Education, or Courses). Hitting from other directions has no effect.
+  **Amended 2026-08-29**: replaces the original single block type (one `?`-marked tile, 3-hit crack progression, fruit dropped per hit, fact revealed on the third) — the tileset in use no longer includes a dedicated crack-progression sprite sheet, so the mechanic was redesigned around the assets actually available (a crate tile, five terrain-matched `?`/`!` pairs, and plain terrain tiles).
+
+- **FR-022**: System MUST implement the crate's hit mechanic: an upward hit from below on an intact crate shows a crack overlay with no fact or reward yet. A second upward hit breaks the crate apart with a shatter animation and reveals the associated CV fact (Experience or Education) — the fact text floats up from the break point, hovers briefly, then animates toward the journal icon, same as any other collectible. Hitting a crate from above or the side has no effect at either hit count. **The crack overlay is a checked-in asset, `public/sprites/crack_overlay.png`** (generated 2026-08-29): a 16×16 transparent-background PNG derived from the existing `groundRock` terrain tile by thresholding its pixels by luminance (`lum<35` — tight enough to keep only the near-black outline, not the tile's dark-brown fill color), loaded like any other sprite and composited over the crate tile when `hitsTaken === 1`.
+
+- **FR-022b**: System MUST implement the question-mark block's hit mechanic: a single upward hit from below spawns a bonus fruit (rendered from `fruit.png`, no CV fact — a pure reward for engaging with the mechanic, distinct from a coin so it's never mistaken for CV content) that rises into the space directly above the block and lands as a touchable pickup. The block itself permanently swaps to its matching `!` terrain tile and no longer responds to hits. Hitting from above or the side has no effect.
+
+- **FR-022c**: System MUST implement the rock block's hit mechanic: a single upward hit from below breaks it immediately into empty space — no fruit, no fact, no reward. Rocks are not mapped to `CVData`; they exist purely as a level-design tool for shaping traversal (e.g. opening a shortcut or blocking one until broken). Hitting from above or the side has no effect.
+
+- **FR-022d**: System MUST play a short bump/nudge animation (the block moves up a few pixels then settles back, roughly 100ms) on every upward hit, for all three block types — including a block's terminal hit (crate's second hit, question-mark's and rock's only hit) — so every hit gets consistent tactile feedback regardless of which visual change (crack, shatter, convert-to-`!`, or disappear) also happens on it.
 
 #### Level Completion (P2)
 
@@ -327,6 +359,18 @@ The level is hand-crafted — starting with a simple layout to validate function
   - **Top-right**: Floating translucent controls — theme selector and language toggle (following the same pattern as the Space theme)
 
 - **FR-026**: System MUST support locale switching: when `currentLocale` changes, journal content and in-game notifications re-render in the selected language while preserving game state and position.
+
+#### Guidance & Onboarding (P3)
+
+- **FR-036**: System MUST show a translucent controls overlay listing only universal controls (movement keys, jump key, journal toggle key) when gameplay first enters the `playing` phase. The overlay MUST auto-dismiss on the player's first movement or jump input, or after a short timeout, whichever comes first, and MUST NOT reappear for the remainder of the session.
+
+- **FR-037**: System MUST render hint signs as a new non-solid, non-collectible level entity (`SignDef`), placed via hand-authored level markers (consistent with FR-013's/FR-021's marker-based placement approach, avoiding already-used marker characters). Signs use a sign-post tile sourced from `world_tileset.png`.
+
+- **FR-038**: System MUST display a sign's hint text in a speech-bubble tooltip near the character when the character's hitbox overlaps the sign's trigger zone, and hide it when the character no longer overlaps. This interaction MUST NOT pause the game, MUST NOT block movement (signs are not solid), and MUST NOT add anything to `collectedFacts` or the journal — hint text is not CV data, and signs are reusable rather than consumed on first touch.
+
+- **FR-039**: System MUST source hint text from a small per-locale (en/de) hint dictionary keyed by a `hintId` on each sign placement. Hint text is NOT derived from `CVData` and re-renders in the selected locale when `currentLocale` changes, consistent with FR-026.
+
+- **FR-040**: Initial hint signs cover contextual mechanics not included in the trimmed controls overlay (FR-036) — at minimum, a sign near the level's first one-way bridge explaining the Down/`S` drop-through control (FR-006/FR-007). Additional contextual signs (e.g. for a future ladder-climbing mechanic) are added only once that mechanic ships — out of scope until then.
 
 #### Performance
 
@@ -348,6 +392,7 @@ The level is hand-crafted — starting with a simple layout to validate function
     │   ├── JournalPage.tsx         # Single journal page — renders facts for one section
     │   ├── BookmarkTabs.tsx        # Vertical bookmark tab strip
     │   ├── FloatingControls.tsx    # Theme and locale toggle (P3)
+    │   ├── ControlsOverlay.tsx     # Universal controls overlay shown once at start (P3)
      │   └── EndingScreen.tsx         # Flagpole ending screen — Personality + Contact (P2)
     ├── engine/
     │   ├── GameLoop.ts             # rAF-based game loop, state machine
@@ -360,12 +405,14 @@ The level is hand-crafted — starting with a simple layout to validate function
     │   ├── Player.ts              # Character state: position, velocity, animation frame
     │   ├── Collectible.ts         # Coin/collectible state and collision
     │   ├── Enemy.ts               # Enemy patrolling and collision (P2)
-     │   └── DestroyableBlock.ts    # Block state and hit tracking (P2)
+    │   ├── DestroyableBlock.ts    # Block state and hit tracking (P2)
+     │   └── HintSign.ts             # Sign trigger-zone state and overlap detection (P3)
     ├── level/
     │   ├── LevelData.ts           # Type definitions for level structure
     │   ├── Terrain.ts             # Tile helpers — isSolid, tileAtPosition, tile-to-pixel conversion
     │   ├── level1.ts              # Level 1 data — terrain, collectibles, mappings
-    │   └── CollectibleMapper.ts   # Maps CVData to collectible placements
+    │   ├── CollectibleMapper.ts   # Maps CVData to collectible placements
+    │   └── HintText.ts             # Per-locale (en/de) hint text dictionary keyed by hintId (P3)
     └── types.ts                   # Shared types for the platformer theme
    ```
 
@@ -390,12 +437,14 @@ The level is hand-crafted — starting with a simple layout to validate function
   - `PlayerState`: `{ x: number; y: number; vx: number; vy: number; facing: 'left' | 'right'; grounded: boolean; animState: 'idle' | 'walk' | 'jump'; animFrame: number }`
   - `CollectibleDef`: `{ id: string; x: number; y: number; type: 'coin' | 'enemy' | 'block'; cvSection: SectionId; cvIndex: number }`
   - `CollectedFact`: `{ id: string; sectionId: SectionId; sectionLabel: string; data: CVItemData; sourceType: 'coin' | 'enemy' | 'block' }`
-  - `LevelDef`: `{ terrain: TileMap; collectibles: CollectibleDef[]; enemies: EnemyDef[]; blocks: BlockDef[]; spawn: Point; flagpole: Point; width: number; height: number }`
+  - `BlockDef`: `{ id: string; x: number; y: number; kind: 'crate' | 'questionMark' | 'rock'; hitsTaken: number; broken: boolean; cvSection?: SectionId; cvIndex?: number }` — `cvSection`/`cvIndex` are only present on `crate` blocks; `questionMark` and `rock` carry no CV mapping (amended 2026-08-29, see FR-021).
+  - `LevelDef`: `{ terrain: TileMap; collectibles: CollectibleDef[]; enemies: EnemyDef[]; blocks: BlockDef[]; signs: SignDef[]; spawn: Point; flagpole: Point; width: number; height: number }`
+  - `SignDef`: `{ id: string; x: number; y: number; hintId: string }` — `hintId` looks up localized text in the hint dictionary (`level/HintText.ts`); no `cvSection`/`cvIndex`, since signs carry no CV mapping (P3, see FR-037).
 
 #### Testing
 
 - **FR-033**: System MUST include unit tests covering:
-  - `CollectibleMapper` — correct mapping of CVData to collectible definitions per FR-009 (Skills/Languages → coins, Experience/Education/Courses → blocks, Certificates/Projects → enemies, Personality/Contact → flagpole only)
+  - `CollectibleMapper` — correct mapping of CVData to collectible definitions per FR-009 (Skills/Languages → coins, Experience/Education → crate blocks, Certificates/Projects → purple slimes, Courses → green slimes, Personality/Contact → flagpole only)
   - `Physics` — gravity, jump arc, collision with platforms, collision with pits
   - `Input` — keyboard event parsing, key held vs pressed
   - Journal content rendering with sample CV data
@@ -418,9 +467,13 @@ The level is hand-crafted — starting with a simple layout to validate function
 
 - **Level**: The game world — a side-scrolling environment defined by terrain tiles, collectible placements, enemy placements, spawn point, and flagpole. In v1, one continuous level covers all CV sections in order.
 
-- **Collectible**: An item in the game world that, when acquired by the player, reveals a CV fact. Types: coin (Skills, Languages — P1), enemy defeat (Certificates, Projects — P2), block break (Experience, Education, Courses — P2). Each collectible is mapped to a specific CV data item by section.
+- **Collectible**: An item in the game world that, when acquired by the player, reveals a CV fact. Types: coin (Skills, Languages — P1), enemy defeat (Certificates, Projects on purple slimes, Courses on green slimes — P2), crate block break (Experience, Education — P2). Each collectible is mapped to a specific CV data item by section.
 
-- **Bonus pickup**: An item dropped by a destroyable block on each of its first 2 hits (rendered as a fruit) — unlike a `Collectible`, it carries no CV fact and isn't mapped to `CVData`. Purely a reward for engaging with the block-hit mechanic.
+- **Destroyable Block**: A `BlockDef` entity that responds to upward hits from below. Three kinds (amended 2026-08-29, see FR-021): **Crate** (2 hits — crack overlay, then breaks and reveals an Experience/Education fact), **Question-mark** (1 hit — spawns a bonus fruit, then permanently converts to a matching `!` terrain tile, no fact), **Rock** (1 hit — breaks to empty space, no fact, no reward, pure level-design filler).
+
+- **Bonus pickup**: An item spawned by a question-mark block on its single hit (rendered as a fruit) — unlike a `Collectible`, it carries no CV fact and isn't mapped to `CVData`. Purely a reward for engaging with the block-hit mechanic.
+
+- **Hint Sign** (P3): A non-solid, non-collectible level entity that shows a localized gameplay hint (not a CV fact) in a speech-bubble tooltip while the character overlaps it. Reusable — never consumed, never added to `collectedFacts` or the journal. Teaches contextual mechanics (e.g. the one-way bridge drop-through) that the trimmed controls overlay deliberately excludes.
 
 - **CollectedFact**: A record of a discovered CV fact — links the CV data item to its source collectible type. The collection of all `CollectedFact` objects is the session's discovered CV content.
 
@@ -508,6 +561,11 @@ FloatingControls (P3)
 - **Q: HUD Layout** — **A**: Top-left: 3 hearts. Top-right: theme and language selector (like Space theme). Bottom-right: journal icon button.
 - **Q: Checkpoint Persistence Across Theme Switches** — **A**: Not in v1. Checkpoints only matter within a single session (for respawn after death). Switching themes always resets. May revisit this as a future enhancement.
 
+### Session 2026-08-29
+
+- **Q: Destroyable block redesign (roadmap step 20)** — **A**: the tileset in active use no longer includes a dedicated crack-progression block sprite sheet; the original single 3-hit block type is replaced by three distinct types built from what the tileset actually has — a wooden crate tile, five terrain-matched `?`/`!` tile pairs, and plain terrain tiles. **Crate**: 2 hits (crack overlay, then break + reveal an Experience/Education fact). **Question-mark**: 1 hit (spawns a bonus fruit, converts permanently to the matching `!` tile, no fact). **Rock**: 1 hit (breaks to empty space, no fact, no reward — pure level-design filler, not mapped to `CVData`). Crack visuals are drawn programmatically as a canvas overlay rather than a new sprite. A short bump/nudge animation plays on every below-hit across all three types, including each type's terminal (breaking/converting) hit.
+- **Q: Enemy section remapping** — **A**: Courses (12 CV entries) is too large a pool to share the crate mechanic with Experience/Education, so it moves to enemies instead: green slimes (1-hit) now carry Courses exclusively, replacing their original Projects mapping; purple slimes (2-hit) carry the combined Certificates + Projects pool, replacing their original Certificates-only mapping. See FR-009's and User Story 4's amendments.
+
 ## Iteration Plan
 
 This feature is intentionally scoped for incremental delivery:
@@ -515,8 +573,8 @@ This feature is intentionally scoped for incremental delivery:
 | Iteration | Priority | Scope | Key Deliverables |
 |-----------|----------|-------|-----------------|
 | **1** | P1 | Core platformer + coins + journal | Player movement, level terrain, coin collectibles (Skills + Languages), journal with bookmarks, CV fact mapping |
-| **2** | P2 | Enemies + blocks + flagpole + audio | Enemy patrol and stomp (Certificates + Projects), destroyable blocks (Experience + Education + Courses), flagpole ending screen (Personality + Contact), game audio (background music + sound effects, muted by default) |
-| **3** | P3 | Controls + polish | Floating theme/locale controls, touch controls, visual polish |
+| **2** | P2 | Enemies + blocks + flagpole + audio | Enemy patrol and stomp (Certificates + Projects on purple slimes, Courses on green slimes), destroyable blocks (Experience + Education via crates; question-mark and rock blocks add bonus/level-design mechanics with no CV mapping), flagpole ending screen (Personality + Contact), game audio (background music + sound effects, muted by default) |
+| **3** | P3 | Controls + polish | Floating theme/locale controls, universal controls overlay, contextual hint signs, touch controls, visual polish |
 
 Each iteration is independently shippable and adds gameplay depth without breaking previous functionality.
 
@@ -534,3 +592,4 @@ Each iteration is independently shippable and adds gameplay depth without breaki
 - **Responsive layout below 1024px** (desktop-only, consistent with other themes)
 - **Keyboard remapping** (fixed controls: arrows + space/J)
 - **Print-friendly styling for the journal**
+- **Ladder-climbing mechanic** (and its corresponding hint sign) — not yet implemented; a hint sign for it is out of scope until the mechanic itself ships (see FR-040)
