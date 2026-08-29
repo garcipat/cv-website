@@ -60,6 +60,16 @@ import {
 // each new marker type (BlockMapper.ts's placeBlocks has no auto-placement
 // fallback, same as EnemyMapper.ts/CollectibleMapper.ts).
 //
+// Follow-up (same day, after live user feedback on the render): the three
+// new block marker kinds moved again — from row 2 (ground-adjacent, same
+// height as the player's own standing position) to row 0 (elevated, with
+// rows 1-2 kept empty beneath them — the same "2 rows of clearance above
+// solid ground" shape the existing floating platform at cols 8-14 already
+// uses), and from cols 47-52 (51 tiles from spawn, past the wall/pit
+// gauntlet) to cols 19-24 (18-23 tiles from spawn, right after the second
+// coin and before the gauntlet) — both changes make the "jump up and hit
+// from below" gesture read correctly and cut the walk to reach them.
+//
 // Reworked for roadmap step 17 (enemy patrol) — patrol test cases now sit
 // close to spawn (cols ~26-42) instead of the original far-right (cols 44-65),
 // making manual testing convenient while staying well past the player's
@@ -72,9 +82,9 @@ import {
 //     wall-reversal and the ledge/pit-edge-reversal branches of
 //     EnemyAI.ts's stepEnemyPatrol on a single enemy.
 const LEVEL_1_LAYOUT: readonly string[] = [
-  '........PPPBBPP.................................................................',
+  '........PPPBBPP....XQKXQK.......................................................',
   '................................................................................',
-  '.S........C.......C.......W.E..W....W.M....CFCFXQKXQK...........................',
+  '.S........C.......C.......W.E..W....W.M....CFCF.................................',
   'GGBBBGGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRR...RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
   'GG...GGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRR...RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
 ];

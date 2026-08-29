@@ -93,15 +93,7 @@ describe('level1', () => {
   });
 
   it('markers-eachStandsOnAnEmptyTileAboveSolidGround', () => {
-    for (const tile of [
-      ...ENEMY_TILES_GREEN,
-      ...ENEMY_TILES_PURPLE,
-      ...COIN_TILES,
-      ...FRUIT_TILES,
-      ...CRATE_TILES,
-      ...QUESTIONMARK_TILES,
-      ...ROCK_TILES,
-    ]) {
+    for (const tile of [...ENEMY_TILES_GREEN, ...ENEMY_TILES_PURPLE, ...COIN_TILES, ...FRUIT_TILES]) {
       expectStandable(tile);
     }
   });
@@ -119,14 +111,30 @@ describe('level1', () => {
     expect(ROCK_TILES).toHaveLength(2);
   });
 
-  it('newBlockMarkers-sitOnRockGroundClearOfExistingFeatures', () => {
-    // Placed at cols 47-52, right after the col 40-42 pit, packed tightly
-    // together with the relocated coin/fruit cluster (cols 43-46) instead
-    // of spread out to col 75 — see level1.ts's doc comment for the full
-    // column layout.
-    expect(CRATE_TILES.map((t) => t.col)).toEqual([47, 50]);
-    expect(QUESTIONMARK_TILES.map((t) => t.col)).toEqual([48, 51]);
-    expect(ROCK_TILES.map((t) => t.col)).toEqual([49, 52]);
+  it('newBlockMarkers-sitElevatedAboveGroundCloseToSpawn', () => {
+    // Elevated to row 0 (2 empty rows of clearance above solid ground,
+    // same shape as the existing floating platform at cols 8-14) and moved
+    // to cols 19-24 — right after the second coin (col 18), well before
+    // the wall/enemy/pit gauntlet at cols 26-42, instead of the 51-tiles-
+    // from-spawn cluster at cols 47-52.
+    const blockRow = 0;
+    expect(CRATE_TILES.map((t) => t.col)).toEqual([19, 22]);
+    expect(QUESTIONMARK_TILES.map((t) => t.col)).toEqual([20, 23]);
+    expect(ROCK_TILES.map((t) => t.col)).toEqual([21, 24]);
+    for (const tile of [...CRATE_TILES, ...QUESTIONMARK_TILES, ...ROCK_TILES]) {
+      expect(tile.row).toBe(blockRow);
+    }
+  });
+
+  it('newBlockMarkers-haveTwoRowsOfClearanceAboveReachableGroundBelow', () => {
+    // Same clearance shape as the elevatedBridge tests above: 2 empty rows
+    // between the elevated block row and solid ground, so the player can
+    // jump up into a block from below.
+    for (const col of [19, 20, 21, 22, 23, 24]) {
+      expect(level1.terrain[1][col]).toBe('empty');
+      expect(level1.terrain[2][col]).toBe('empty');
+      expect(isSolid(level1.terrain[3][col])).toBe(true);
+    }
   });
 
   it('secondCoin-sitsSoonAfterSpawnNotOnlyPastThePit', () => {
@@ -134,6 +142,13 @@ describe('level1', () => {
     // relocated one of the four coins to col 18 (just past the wall
     // pocket) so there's a second nearby one too.
     expect(COIN_TILES.map((t) => t.col)).toContain(18);
+  });
+
+  it('blockMarkers-sitOnEmptyTileTwoRowsAboveSolidGround', () => {
+    for (const tile of [...CRATE_TILES, ...QUESTIONMARK_TILES, ...ROCK_TILES]) {
+      expect(level1.terrain[tile.row][tile.col]).toBe('empty');
+      expect(isSolid(level1.terrain[tile.row + 3][tile.col])).toBe(true);
+    }
   });
 
   it('elevatedBridge-spansGapBetweenTwoFloatingPlatformsAtPlatformRow', () => {
