@@ -2,15 +2,7 @@ import type { LevelDef, TileMap, TileType } from './LevelData';
 
 /** An entity marker's kind — what it means, not what it looks like on the
  *  ground (every entity marker sits on `empty` terrain, see parseLevel). */
-export type EntityKind =
-  | 'spawn'
-  | 'enemyGreen'
-  | 'enemyPurple'
-  | 'coin'
-  | 'fruit'
-  | 'crate'
-  | 'questionMark'
-  | 'rock';
+export type EntityKind = 'spawn' | 'enemyGreen' | 'enemyPurple' | 'coin' | 'fruit';
 
 /**
  * Maps each terrain character usable in a level layout to its tile type.
@@ -27,15 +19,12 @@ export const TERRAIN_CHARS: Record<string, TileType | undefined> = {
 
 /**
  * Maps each entity-marker character usable in a level layout to what it
- * marks: `S` (spawn), `E` (green/Course enemy), `M` (purple/Certificate+
- * Project enemy), `C` (Skill-category coin), `F` (Language fruit), `X`
- * (crate block — Experience/Education fact), `Q` (question-mark block — no
- * fact, spawns a bonus fruit), `K` (rock block — no fact, level-design
- * filler). Kept as its own map, separate from TERRAIN_CHARS, since an
- * entity marker isn't a terrain tile — the ground it sits on is always
- * `empty` (see parseLevel below), and it's a fundamentally different kind
- * of fact about a cell ("what starts here") than terrain is ("what's the
- * ground").
+ * marks: `S` (spawn), `E` (green/Project enemy), `M` (purple/Certificate
+ * enemy), `C` (Skill-category coin), `F` (Language fruit). Kept as its own
+ * map, separate from TERRAIN_CHARS, since an entity marker isn't a terrain
+ * tile — the ground it sits on is always `empty` (see parseLevel below),
+ * and it's a fundamentally different kind of fact about a cell ("what
+ * starts here") than terrain is ("what's the ground").
  */
 export const ENTITY_CHARS: Record<string, EntityKind | undefined> = {
   S: 'spawn',
@@ -43,9 +32,6 @@ export const ENTITY_CHARS: Record<string, EntityKind | undefined> = {
   M: 'enemyPurple',
   C: 'coin',
   F: 'fruit',
-  X: 'crate',
-  Q: 'questionMark',
-  K: 'rock',
 };
 
 // A character can only mean one thing — guard against TERRAIN_CHARS and
@@ -147,26 +133,4 @@ export function findCoinTiles(layout: readonly string[]): { col: number; row: nu
  *  skill-category-derived ones. */
 export function findFruitTiles(layout: readonly string[]): { col: number; row: number }[] {
   return findAllOfKind(layout, 'fruit');
-}
-
-/** Finds every `X` (crate block) marker's position in a level layout — same
- *  convention as findCoinTiles/findFruitTiles, for crate block defs instead
- *  of collectible defs (see BlockMapper.ts's placeBlocks). */
-export function findCrateTiles(layout: readonly string[]): { col: number; row: number }[] {
-  return findAllOfKind(layout, 'crate');
-}
-
-/** Finds every `Q` (question-mark block) marker's position in a level
- *  layout. Question-mark blocks carry no CV fact (spec.md's FR-021
- *  amendment) — every marker found here becomes a placement directly (see
- *  BlockMapper.ts's placeBlocks), unlike findCrateTiles's markers which are
- *  zipped against CVData-derived defs. */
-export function findQuestionMarkTiles(layout: readonly string[]): { col: number; row: number }[] {
-  return findAllOfKind(layout, 'questionMark');
-}
-
-/** Finds every `K` (rock block) marker's position in a level layout — same
- *  no-CV-fact convention as findQuestionMarkTiles. */
-export function findRockTiles(layout: readonly string[]): { col: number; row: number }[] {
-  return findAllOfKind(layout, 'rock');
 }
