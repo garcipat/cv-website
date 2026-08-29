@@ -46,7 +46,7 @@ import {
   PLAYER_RENDERED_SIZE,
   PLAYER_VISUAL_CENTER_Y_OFFSET,
 } from './entities/Player';
-import { advanceEnemyAnimation, applyStomp, enemyFrameSource, ENEMY_FRAME_SIZE } from './entities/Enemy';
+import { advanceEnemyAnimation, applyStomp, ENEMY_FRAME_SIZE } from './entities/Enemy';
 import { takeDamage, PIT_FALL_DAMAGE } from './entities/Health';
 import {
   playerState,
@@ -314,14 +314,15 @@ export const PlatformerPage = () => {
       // fruit counters above — driven by `collectedFacts` (sourceType
       // 'enemy'), which survives a respawn, rather than `enemyStates`'s
       // live array length, which resets to full on every respawn (enemies,
-      // unlike facts, respawn per FR-020c). The icon reuses the green
-      // slime's own tuned walk-loop frame (`enemyFrameSource('walk', 0)` —
-      // sheet frame 4, row 0 col 3) as a generic "enemy" icon instead of a
-      // `hit`-state frame — showing the slime mid-defeat/hurt read as an odd
-      // choice for a counter icon, per live user feedback. There's no
-      // separate "enemy defeated" sprite, and picking one color instead of
-      // showing both keeps this counter as simple as the coin/fruit ones.
-      const enemyIconFrame = enemyFrameSource('walk', 0);
+      // unlike facts, respawn per FR-020c). The icon is raw sheet frame 3
+      // (1-based, row 0 col 2) — chosen live by the user as a plain "enemy"
+      // icon distinct from both the walk loop (frames 4-8) and the hit
+      // reaction (frames 9-12). Not expressible via `enemyFrameSource`
+      // (which only looks up frames within a named animState's own list),
+      // so the sheet coordinates are computed directly here — a future
+      // generic "pick sprite N" helper (flagged separately, out of scope
+      // for this branch) would remove the need for this one-off.
+      const enemyIconFrame = { sx: 2 * ENEMY_FRAME_SIZE, sy: 0 };
       const enemyTotal = enemyPlacements.length;
       const enemyDefeated = collectedFacts.value.filter((f) => f.sourceType === 'enemy').length;
       if (slimeGreenSpriteRef.current) {
