@@ -55,15 +55,27 @@ export function stepPlayerPhysics(
   dt: number,
   input: PlayerInput = NO_INPUT,
 ): PlayerState {
-  const moveRight = input.right && !input.left;
-  const moveLeft = input.left && !input.right;
+  // While a side-hit's knockback is still active (roadmap step 19), held
+  // movement keys are ignored entirely and the knockback velocity/facing set
+  // by Player.ts's `applyKnockback` is held steady — otherwise this branch
+  // would recompute `vx` from input every single frame (as it does normally)
+  // and silently erase the knockback the instant this function next runs.
+  const knockbackActive = player.knockbackTimer > 0;
+  const moveRight = !knockbackActive && input.right && !input.left;
+  const moveLeft = !knockbackActive && input.left && !input.right;
   // `vx` reflects commanded/intended velocity from input, not realized
   // displacement — a wall or world-bounds clamp below may prevent `x` from
   // actually changing this frame even though `vx` stays non-zero. Any future
   // code that infers "the player moved" (dust particles, camera easing) from
   // `vx !== 0` should account for that.
-  const vx = moveRight ? PHYSICS_CONFIG.walkSpeed : moveLeft ? -PHYSICS_CONFIG.walkSpeed : 0;
-  const facing = moveRight ? 'right' : moveLeft ? 'left' : player.facing;
+  const vx = knockbackActive
+    ? player.vx
+    : moveRight
+      ? PHYSICS_CONFIG.walkSpeed
+      : moveLeft
+        ? -PHYSICS_CONFIG.walkSpeed
+        : 0;
+  const facing = knockbackActive ? player.facing : moveRight ? 'right' : moveLeft ? 'left' : player.facing;
 
   let x = player.x + vx * dt;
   // Excludes the head-padding sliver (like the vertical ceiling check below)
@@ -236,6 +248,7 @@ export function stepPlayerPhysics(
     isDroppingThroughBridge: grounded ? false : droppingThroughBridge,
     lastGroundedX: fullyGrounded ? x : player.lastGroundedX,
     lastGroundedY: fullyGrounded ? y : player.lastGroundedY,
+    knockbackTimer: Math.max(0, player.knockbackTimer - dt),
   };
 }
 
