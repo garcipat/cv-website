@@ -4,6 +4,7 @@ import {
   checkCollectibleCollisions,
   checkEnemyStompCollisions,
   checkEnemySideCollisions,
+  checkBonusFruitCollisions,
 } from './Collision';
 import { PLAYER_SIDE_PADDING, PLAYER_HEAD_PADDING, PLAYER_RENDERED_SIZE } from '../entities/Player';
 import type { PlayerState } from '../entities/Player';
@@ -11,6 +12,9 @@ import type { CollectiblePlacement } from '../level/CollectibleMapper';
 import { toEnemyState, ENEMY_RENDERED_SIZE } from '../entities/Enemy';
 import type { EnemyState } from '../entities/Enemy';
 import type { EnemyPlacement } from '../level/EnemyMapper';
+import { spawnBonusFruit, tickBonusFruit, BONUS_FRUIT_RISE_DURATION_SECONDS } from '../entities/BonusFruit';
+import { FRUIT_RENDERED_SIZE } from '../entities/Fruit';
+import { RENDERED_TILE_SIZE } from '../level/Terrain';
 
 function makePlayer(x: number, y: number): PlayerState {
   return {
@@ -218,5 +222,27 @@ describe('checkEnemySideCollisions', () => {
     const enemy = makeEnemy(0, 100, { animState: 'hit' });
     const player = { ...makePlayer(0, 100), vy: 0 };
     expect(checkEnemySideCollisions(player, [enemy])).toEqual([]);
+  });
+});
+
+describe('checkBonusFruitCollisions', () => {
+  it('playerOverlapsRestedFruit-returnsItsId', () => {
+    let fruit = spawnBonusFruit('bf1', 0, 100);
+    fruit = tickBonusFruit(fruit, BONUS_FRUIT_RISE_DURATION_SECONDS);
+    const player = makePlayer(0, 100 - RENDERED_TILE_SIZE);
+    expect(checkBonusFruitCollisions(player, [fruit])).toEqual(['bf1']);
+  });
+
+  it('playerOverlapsStillRisingFruit-notYetCollectible', () => {
+    const fruit = spawnBonusFruit('bf1', 0, 100); // elapsed 0, mid-rise
+    const player = makePlayer(0, 100 - RENDERED_TILE_SIZE);
+    expect(checkBonusFruitCollisions(player, [fruit])).toEqual([]);
+  });
+
+  it('playerFarFromFruit-returnsNoIds', () => {
+    let fruit = spawnBonusFruit('bf1', 0, 100);
+    fruit = tickBonusFruit(fruit, BONUS_FRUIT_RISE_DURATION_SECONDS);
+    const player = makePlayer(1000, 1000);
+    expect(checkBonusFruitCollisions(player, [fruit])).toEqual([]);
   });
 });

@@ -9,6 +9,9 @@ import { COIN_RENDERED_SIZE } from '../entities/Coin';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
 import { ENEMY_RENDERED_SIZE } from '../entities/Enemy';
 import type { EnemyState } from '../entities/Enemy';
+import { bonusFruitY, BONUS_FRUIT_RISE_DURATION_SECONDS } from '../entities/BonusFruit';
+import type { BonusFruitState } from '../entities/BonusFruit';
+import { FRUIT_RENDERED_SIZE } from '../entities/Fruit';
 
 export interface Box {
   x: number;
@@ -135,6 +138,29 @@ export function checkEnemySideCollisions(player: PlayerState, enemies: EnemyStat
     const enemyMidY = box.y + box.height / 2;
     const isStompLanding = player.vy > 0 && hitbox.y + hitbox.height <= enemyMidY;
     if (!isStompLanding) hits.push(enemy.id);
+  }
+  return hits;
+}
+
+/**
+ * Returns the ids of every bonus fruit the player's hitbox currently
+ * overlaps AND that has finished rising (`elapsed >=
+ * BONUS_FRUIT_RISE_DURATION_SECONDS`) — spec.md's "lands as a touchable
+ * pickup", i.e. not collectible mid-rise. Unlike
+ * `checkCollectibleCollisions`, there's no `collectedIds` dedup set here:
+ * `PlatformerPage.tsx` removes a touched bonus fruit from its live array
+ * entirely the same tick, so it simply can't be checked against again.
+ */
+export function checkBonusFruitCollisions(
+  player: PlayerState,
+  fruits: readonly BonusFruitState[],
+): string[] {
+  const hitbox = playerHitbox(player);
+  const hits: string[] = [];
+  for (const fruit of fruits) {
+    if (fruit.elapsed < BONUS_FRUIT_RISE_DURATION_SECONDS) continue;
+    const box: Box = { x: fruit.x, y: bonusFruitY(fruit), width: FRUIT_RENDERED_SIZE, height: FRUIT_RENDERED_SIZE };
+    if (aabbOverlap(hitbox, box)) hits.push(fruit.id);
   }
   return hits;
 }
