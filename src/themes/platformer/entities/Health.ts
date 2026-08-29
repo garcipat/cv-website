@@ -9,12 +9,32 @@ export const MAX_HEARTS = 3;
 export const MAX_HALF_HEARTS = MAX_HEARTS * 2;
 
 /**
- * Half-heart units lost per pit fall. Roadmap step 18 (enemy side/below
- * damage) reuses `takeDamage` with `amount = 2` (a full heart) instead of
- * introducing a separate damage function — the mechanism is shared, only the
- * amount differs.
+ * Half-heart units lost per pit fall. Roadmap step 19 (enemy side/below
+ * damage, see SIDE_HIT_DAMAGE below) reuses `takeDamage` with the same amount
+ * — confirmed live with the user, overriding the roadmap's original "full
+ * heart" text — instead of introducing a separate damage function.
  */
 export const PIT_FALL_DAMAGE = 1;
+
+/**
+ * Half-heart units lost when touched by an enemy from the side or below (a
+ * non-stomp contact, roadmap step 19) — the same half heart as a pit fall,
+ * not a full heart as the roadmap originally specified (revised live with
+ * the user), reusing the same `takeDamage` mechanism rather than a separate
+ * function. Kept as its own named constant (even though its value currently
+ * equals `PIT_FALL_DAMAGE`) since it represents a conceptually distinct
+ * damage source that could change independently later.
+ */
+export const SIDE_HIT_DAMAGE = 1;
+
+/**
+ * Seconds of invincibility granted after a side-hit — gates
+ * `checkEnemySideCollisions` (Collision.ts) from registering another hit and
+ * drives the player's render blink (PlatformerPage.tsx) for the same
+ * duration. Chosen live with the user: long enough to read clearly as "just
+ * got hurt" without dragging on.
+ */
+export const INVINCIBILITY_DURATION_SECONDS = 1.2;
 
 /** `hearts.png` is a 16px-per-frame sheet (matching TILE_SIZE), scaled up by
  *  the same RENDER_SCALE as terrain/player sprites — 32px rendered, matching
