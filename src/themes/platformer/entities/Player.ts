@@ -84,6 +84,23 @@ export interface PlayerState {
    *  `stepPlayerPhysics` itself, not here — see this plan's "Key design
    *  decisions". */
   knockbackTimer: number;
+  /**
+   * True while the player is ascending from a stomp bounce (roadmap step
+   * 18/19) — suppresses `stepPlayerPhysics`'s variable-jump-height cut for
+   * every tick of the ascent, not just the one the bounce was applied on.
+   * Found via live testing: the jump-cut multiplier re-applies EVERY tick
+   * the jump key isn't held (not just once), so a single-tick
+   * `suppressJumpCut` override only protected the very first frame — on the
+   * next frame, since a stomp bounce is never actually "held" like a real
+   * jump, the cut immediately sheared the bounce down to ~45% of its
+   * intended magnitude anyway, no matter how large
+   * `PHYSICS_CONFIG.stompBounceVelocity` was configured. Set `true` by
+   * `PlatformerPage.tsx` in the same assignment that sets the bounce `vy`;
+   * `stepPlayerPhysics` clears it back to `false` itself once the ascent
+   * ends (`vy` is no longer negative), so it never lingers into a later,
+   * unrelated jump.
+   */
+  bounceAscending: boolean;
 }
 
 /**

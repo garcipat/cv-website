@@ -142,10 +142,19 @@ export function stepPlayerPhysics(
   // ascending cuts the velocity short via a multiplier instead of a fixed
   // clamp, so the resulting height scales with how long the key was held
   // before release rather than snapping to one fixed "short hop" value.
-  // Skipped on a stomp-bounce frame (`suppressJumpCut`, roadmap step 18) —
-  // that impulse isn't a jump the player is "holding", so it must reach its
-  // full intended height regardless of jump-key state.
-  if (!input.jumpHeld && vy < 0 && !input.suppressJumpCut) {
+  // Skipped for the whole ascent of a stomp bounce (`player.bounceAscending`
+  // — set by `PlatformerPage.tsx` the tick the bounce is applied, persisted
+  // across ticks here) — that impulse isn't a jump the player is "holding",
+  // so it must reach its full intended height regardless of jump-key state.
+  // `input.suppressJumpCut` (a single-tick override) is kept too for
+  // whatever else might need it, but `bounceAscending` is what actually
+  // protects a bounce: this cut re-applies EVERY tick the key isn't held,
+  // not just once, so a one-tick-only override left every later ascending
+  // frame of the SAME bounce unprotected and sheared it down to ~45% of its
+  // configured magnitude regardless of how large it was set (found via live
+  // testing).
+  const suppressJumpCutThisFrame = input.suppressJumpCut || player.bounceAscending;
+  if (!input.jumpHeld && vy < 0 && !suppressJumpCutThisFrame) {
     vy *= PHYSICS_CONFIG.jumpCutMultiplier;
   }
 
@@ -249,6 +258,10 @@ export function stepPlayerPhysics(
     lastGroundedX: fullyGrounded ? x : player.lastGroundedX,
     lastGroundedY: fullyGrounded ? y : player.lastGroundedY,
     knockbackTimer: Math.max(0, player.knockbackTimer - dt),
+    // Stays true only while still actually ascending — clears itself the
+    // moment the bounce's apex passes (resolvedVy >= 0) or a ceiling stops
+    // it early, so it never lingers into a later, unrelated jump.
+    bounceAscending: player.bounceAscending && resolvedVy < 0,
   };
 }
 

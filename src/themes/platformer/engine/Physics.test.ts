@@ -27,6 +27,7 @@ function basePlayer(overrides: Partial<PlayerState> = {}): PlayerState {
     lastGroundedY: 0,
     invincibleTimer: 0,
     knockbackTimer: 0,
+    bounceAscending: false,
     ...overrides,
   };
 }
@@ -351,6 +352,49 @@ describe('stepPlayerPhysics jump', () => {
       jumpHeld: true,
     });
     expect(next.vy).toBeCloseTo(PHYSICS_CONFIG.jumpVelocity + PHYSICS_CONFIG.gravity / 60);
+  });
+
+  it('bounceAscendingTrue-jumpNotHeld-appliesNoCutOnFirstTick', () => {
+    const player = basePlayer({ vy: PHYSICS_CONFIG.stompBounceVelocity, grounded: false, bounceAscending: true });
+    const next = stepPlayerPhysics(player, PIT_LEVEL, 1 / 60, { left: false, right: false, jumpHeld: false });
+    expect(next.vy).toBeCloseTo(PHYSICS_CONFIG.stompBounceVelocity + PHYSICS_CONFIG.gravity / 60);
+  });
+
+  it('bounceAscendingTrue-jumpNotHeld-appliesNoCutAcrossManyConsecutiveTicks', () => {
+    // The actual bug found via live testing: the jump-cut multiplier
+    // re-applies EVERY tick the key isn't held, not just once — a
+    // single-tick-only suppression let it shear the bounce down to ~45% of
+    // its configured magnitude on the very next tick, no matter how large
+    // `stompBounceVelocity` was set. `bounceAscending` must stay effective
+    // for the WHOLE ascent, not just the tick the bounce was applied.
+    let player = basePlayer({ vy: PHYSICS_CONFIG.stompBounceVelocity, grounded: false, bounceAscending: true });
+    const dt = 1 / 60;
+    for (let i = 0; i < 10 && player.vy < 0; i++) {
+      player = stepPlayerPhysics(player, PIT_LEVEL, dt, { left: false, right: false, jumpHeld: false });
+    }
+    // After 10 ticks of gravity alone (no cut), vy should have decayed
+    // linearly from the full bounce velocity — nowhere near the ~55% cut a
+    // per-tick jump-cut would have inflicted almost immediately.
+    const expectedVy = PHYSICS_CONFIG.stompBounceVelocity + PHYSICS_CONFIG.gravity * dt * 10;
+    expect(player.vy).toBeCloseTo(expectedVy);
+  });
+
+  it('bounceAscendingTrue-onceApexPasses-clearsBackToFalse', () => {
+    const player = basePlayer({ vy: -10, grounded: false, bounceAscending: true });
+    const next = stepPlayerPhysics(player, PIT_LEVEL, 1 / 30, { left: false, right: false, jumpHeld: false });
+    // -10 + gravity(1200)/30 = 30, i.e. resolvedVy is now positive — the
+    // ascent is over, so the flag must clear even though it started true.
+    expect(next.vy).toBeGreaterThan(0);
+    expect(next.bounceAscending).toBe(false);
+  });
+
+  it('bounceAscendingFalse-jumpNotHeld-stillAppliesNormalCut', () => {
+    // A regular jump (not a stomp bounce) must still get the normal
+    // variable-height cutoff — `bounceAscending` only protects an actual bounce.
+    const player = basePlayer({ vy: PHYSICS_CONFIG.jumpVelocity, grounded: false, bounceAscending: false });
+    const next = stepPlayerPhysics(player, PIT_LEVEL, 1 / 60, { left: false, right: false, jumpHeld: false });
+    const beforeCut = PHYSICS_CONFIG.jumpVelocity + PHYSICS_CONFIG.gravity / 60;
+    expect(next.vy).toBeCloseTo(beforeCut * PHYSICS_CONFIG.jumpCutMultiplier);
   });
 
   it('jumpHeldFalse-whileDescending-appliesNoCut', () => {

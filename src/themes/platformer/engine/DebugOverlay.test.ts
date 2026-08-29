@@ -36,6 +36,7 @@ const idlePlayer: PlayerState = {
   animFrame: 0,
   invincibleTimer: 0,
   knockbackTimer: 0,
+  bounceAscending: false,
 };
 
 describe('drawDebugOverlay', () => {
