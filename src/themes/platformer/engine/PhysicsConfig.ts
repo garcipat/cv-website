@@ -49,20 +49,24 @@ export const PHYSICS_CONFIG = {
   jumpCutMultiplier: 0.45,
   /**
    * Upward velocity impulse applied to the player immediately after a stomp
-   * (roadmap step 18), in px/s (negative = up) — now noticeably STRONGER
-   * than a normal jump (`jumpVelocity`, -520), a dramatic launch rather than
-   * a hop. Bumped repeatedly live with the user (-400 -> -480 -> -560,
-   * each still "too small"), who then asked for roughly double -560
-   * (-1120) — not safe: that would violate the tunneling invariant below, so
-   * this is capped at -900 instead, the strongest value that still respects
-   * it. Peak height ≈ 900²/(2*1200) ≈ 337.5px (~10.5 tiles). Same tunneling
+   * (roadmap step 18), in px/s (negative = up) — a bit stronger than a
+   * normal jump (`jumpVelocity`, -520) so it reads as a real hop, not
+   * hugely more. Every earlier tuning pass (-400 -> -480 -> -560 -> -900,
+   * live with the user) was chasing a broken signal: `stepPlayerPhysics`'s
+   * jump-cut multiplier was silently shearing the bounce down to ~45% of
+   * whatever this was set to every tick after the first (see
+   * `PlayerState.bounceAscending`'s fix), so none of those values ever
+   * actually manifested at their configured height — all of them felt
+   * roughly the same, small height. Once that bug was fixed, -900 turned
+   * out to be ~3x a normal jump's peak — "double jump height, way too far"
+   * per the user. This value (-600) is the first one tuned against the
+   * CORRECTED physics: peak height ≈ 600²/(2*1200) = 150px (~4.7 tiles),
+   * about 1.15x `jumpVelocity`'s own ≈112.7px peak. Same tunneling
    * invariant as the other velocity constants applies:
    * `Math.abs(stompBounceVelocity) * MAX_DT` must stay below
-   * RENDERED_TILE_SIZE (32px): Math.abs(-900) * (1/30) = 30 < 32. ✓ (a true
-   * double, -1120, would be 37.3 — over the limit, risking tunneling
-   * straight through a one-tile-thick platform at 30fps.)
+   * RENDERED_TILE_SIZE (32px): Math.abs(-600) * (1/30) = 20 < 32. ✓
    */
-  stompBounceVelocity: -900,
+  stompBounceVelocity: -600,
   /**
    * Horizontal knockback speed applied to the player on a side-hit (roadmap
    * step 19), in px/s, away from the enemy that hit them — deliberately
