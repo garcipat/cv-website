@@ -19,6 +19,7 @@ import {
 } from './PlatformerState';
 import { MAX_HALF_HEARTS, PIT_FALL_DAMAGE, HEART_RENDERED_SIZE } from './entities/Health';
 import { HEARTS_START_X } from './engine/Renderer';
+import { PHYSICS_CONFIG } from './engine/PhysicsConfig';
 import {
   JOURNAL_OPEN_FRAME_COUNT,
   JOURNAL_OPEN_FRAME_INTERVAL_MS,
@@ -704,7 +705,76 @@ describe('PlatformerPage', () => {
 
     frameCallback!(16);
 
+    // Not just "still ascending" (that passes even if the jump-cut
+    // multiplier — 0.45 — has already chewed the -400 bounce impulse down to
+    // roughly -180, which is what happens on this exact frame if the jump
+    // key isn't held) — assert it's still close to its full magnitude.
     expect(playerState.value.vy).toBeLessThan(0);
+    expect(playerState.value.vy).toBeLessThan(PHYSICS_CONFIG.stompBounceVelocity * 0.9);
+  });
+
+  it('alreadyDefeated-stompedAgainAfterRespawn-doesNotDuplicateFact', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const target = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
+    const factId = target.id;
+    playerState.value = {
+      ...playerState.value,
+      x: target.x,
+      y: target.y - PLAYER_RENDERED_SIZE / 2,
+      vy: 300,
+    };
+
+    // Same defeat sequence as
+    // playerFallsOntoGreenEnemy-tick-defeatsItImmediatelyAndAddsFact above:
+    // green has 1 hit point, so one full 400ms hit-reaction cycle after the
+    // stomp defeats it and banks its fact.
+    let t = 16;
+    frameCallback!(t);
+    for (let i = 0; i < 30; i++) {
+      t += 16;
+      frameCallback!(t);
+    }
+
+    expect(collectedFacts.value.filter((f) => f.id === factId)).toHaveLength(1);
+
+    // Simulate a death + respawn (per FR-020c, collected facts survive it,
+    // but resetGame() revives all enemies from scratch, alive again) — same
+    // sequence as alreadyCollected-touchedAgainAfterRespawn-doesNotDuplicateFact
+    // above, but for an enemy stomp instead of a collectible touch.
+    healthState.value = 0;
+    t += 16;
+    frameCallback!(t); // enters 'dying'
+    for (let i = 0; i < 200; i++) {
+      t += 16;
+      frameCallback!(t);
+    }
+    fireEvent.keyDown(window, { code: 'Enter' });
+
+    // Stomp the SAME (now-revived) enemy again.
+    const revived = enemyStates.value.find((e) => e.id === factId)!;
+    playerState.value = {
+      ...playerState.value,
+      x: revived.x,
+      y: revived.y - PLAYER_RENDERED_SIZE / 2,
+      vy: 300,
+    };
+    t += 16;
+    frameCallback!(t);
+    for (let i = 0; i < 30; i++) {
+      t += 16;
+      frameCallback!(t);
+    }
+
+    expect(collectedFacts.value.filter((f) => f.id === factId)).toHaveLength(1);
   });
 
   it('playerFallsOntoPurpleEnemyTwice-firstStompSurvives-secondStompDefeatsIt', () => {
