@@ -3,6 +3,7 @@ import { PHYSICS_CONFIG } from './PhysicsConfig';
 import { MAX_DT } from './GameLoop';
 import { parseLevel } from '../level/LevelParser';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
+import { placeBlocks } from '../level/BlockMapper';
 import {
   PLAYER_RENDERED_SIZE,
   PLAYER_FOOT_PADDING,
@@ -271,6 +272,93 @@ describe('stepPlayerPhysics horizontal movement', () => {
     const player = basePlayer({ x: -PLAYER_SIDE_PADDING, facing: 'left' });
     const next = stepPlayerPhysics(player, OPEN_LEVEL, 1 / 60, { left: true, right: false });
     expect(next.x).toBe(-PLAYER_SIDE_PADDING);
+  });
+});
+
+describe('stepPlayerPhysics block solidity', () => {
+  // 4 rows tall, 4 cols wide, ground on the bottom row; a block sits at
+  // (col 2, row 2) — one row above the ground, with an empty row (row 1)
+  // above that for a ceiling-collision approach from below.
+  const BLOCK_LEVEL = parseLevel(['....', '....', '....', 'GGGG']);
+  const blockAtCol2Row2 = placeBlocks([], {
+    crate: [],
+    questionMark: [{ col: 2, row: 2 }],
+    rock: [],
+  });
+
+  it('walkingRightIntoABlock-stopsAtItsLeftEdgeLikeAWall', () => {
+    // Same "start 1px before the wall, overshoot in one frame" convention as
+    // the pre-existing terrain wall tests (see restX above): wallCol=2 (the
+    // block's column). y=1*RENDERED_TILE_SIZE keeps the hitbox's vertical
+    // span within rows 1-2 only (topRow=1, bottomRow=2), so it reaches the
+    // block's row without also touching row 3's full-width ground — that
+    // matters here because a starting x already grazing column 2 (e.g. the
+    // render slot's left edge placed one full tile back without this
+    // adjustment) would let the post-move rightCol skip straight past column
+    // 2 to column 3 in a single frame, missing the block collision entirely.
+    const wallCol = 2;
+    const restX = wallCol * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_SIDE_PADDING;
+    const player = basePlayer({
+      x: restX - 1,
+      y: 1 * RENDERED_TILE_SIZE,
+      grounded: true,
+    });
+    const next = stepPlayerPhysics(player, BLOCK_LEVEL, 1 / 60, { left: false, right: true }, blockAtCol2Row2);
+    expect(next.x).toBe(restX);
+  });
+
+  it('noBlockPlacementsPassed-behavesExactlyAsBefore', () => {
+    // Same position/input as the test above, but with no blockPlacements
+    // argument at all — the player must walk straight through unimpeded,
+    // proving the new parameter is opt-in and every pre-existing call site
+    // (which never passes a 5th argument) is unaffected.
+    const wallCol = 2;
+    const restX = wallCol * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_SIDE_PADDING;
+    const player = basePlayer({
+      x: restX - 1,
+      y: 1 * RENDERED_TILE_SIZE,
+      grounded: true,
+    });
+    const next = stepPlayerPhysics(player, BLOCK_LEVEL, 1 / 60, { left: false, right: true });
+    expect(next.x).toBeGreaterThan(restX);
+  });
+
+  it('landingOnTopOfABlockFromAbove-restsOnItLikeGround', () => {
+    // Mirrors the pre-existing terrain landing-collision convention exactly
+    // (see `stepPlayerPhysics-fallingOntoSolidTile-...` above): start 1px
+    // above the block's top surface, falling fast enough to reach it within
+    // one frame.
+    const groundSurfaceY = 2 * RENDERED_TILE_SIZE;
+    const restY = groundSurfaceY - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
+    const player = basePlayer({
+      x: 2 * RENDERED_TILE_SIZE,
+      y: restY - 1,
+      vy: 300,
+    });
+    const next = stepPlayerPhysics(player, BLOCK_LEVEL, 1 / 60, {}, blockAtCol2Row2);
+    expect(next.grounded).toBe(true);
+    expect(next.vy).toBe(0);
+    expect(next.y).toBe(restY);
+  });
+
+  it('jumpingUpIntoABlockFromBelow-stopsAscentLikeACeiling', () => {
+    // Mirrors the pre-existing terrain ceiling-collision convention exactly
+    // (see `movingUpIntoCeiling-...` above): the block's underside — the
+    // surface a rising head hits — is the boundary below row 2, i.e. where
+    // row 3 (the ground row) begins. `jumpHeld: true` avoids the
+    // variable-jump-height cutoff so this test isolates collision behavior,
+    // exactly as the pre-existing ceiling test does.
+    const ceilingBottomY = 3 * RENDERED_TILE_SIZE;
+    const restY = ceilingBottomY - PLAYER_HEAD_PADDING;
+    const player = basePlayer({
+      x: 2 * RENDERED_TILE_SIZE,
+      y: restY + 1,
+      vy: -1000,
+      grounded: false,
+    });
+    const next = stepPlayerPhysics(player, BLOCK_LEVEL, 1 / 60, { jumpHeld: true }, blockAtCol2Row2);
+    expect(next.vy).toBe(0);
+    expect(next.y).toBe(restY);
   });
 });
 

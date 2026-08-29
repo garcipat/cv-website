@@ -1,4 +1,4 @@
-import { tileToPixel } from './Terrain';
+import { tileToPixel, RENDERED_TILE_SIZE } from './Terrain';
 import { slugify } from './CollectibleMapper';
 import type { CVData, Experience, Education } from '@/types/cv';
 import type { BlockDef } from '../types';
@@ -91,4 +91,23 @@ export function placeBlocks(defs: BlockDef[], markers: BlockMarkerPositions): Bl
   }
 
   return placements;
+}
+
+/**
+ * Whether any block placement occupies tile (col, row) — used by
+ * Physics.ts to treat block-occupied tiles as solid, the same way terrain
+ * tiles already are, even though blocks aren't part of the terrain grid.
+ * Added 2026-08-29 (pulled forward from roadmap step 21, per live user
+ * feedback): every block is solid from every direction regardless of kind
+ * — there's no crack/break/convert reaction yet, so there's nothing to
+ * distinguish between kinds here.
+ */
+export function isBlockOccupied(
+  blockPlacements: readonly BlockPlacement[],
+  col: number,
+  row: number,
+): boolean {
+  return blockPlacements.some(
+    (b) => b.x / RENDERED_TILE_SIZE === col && b.y / RENDERED_TILE_SIZE === row,
+  );
 }
