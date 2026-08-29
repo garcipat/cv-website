@@ -8,6 +8,7 @@ import {
   drawHearts,
   drawCollectibles,
   drawEnemies,
+  drawBlocks,
   drawCollectionEffects,
   drawCollectibleCounter,
   drawIrisOverlay,
@@ -66,6 +67,7 @@ import {
   collectiblePlacements,
   enemyPlacements,
   enemyStates,
+  blockPlacements,
   collectedCollectibleIds,
   activeEffects,
   collectedFacts,
@@ -248,6 +250,7 @@ export const PlatformerPage = () => {
 
       if (tilesetRef.current) {
         drawTerrain(ctx, level1, tilesetRef.current, originX, originY);
+        drawBlocks(ctx, blockPlacements, tilesetRef.current, originX, originY);
       }
 
       if (playerSpriteRef.current) {

@@ -16,6 +16,7 @@ import {
   activeEffects,
   enemyPlacements,
   enemyStates,
+  blockPlacements,
 } from './PlatformerState';
 import {
   MAX_HALF_HEARTS,
@@ -128,6 +129,25 @@ describe('PlatformerPage', () => {
     const ctx = platformerPage.context;
 
     await waitFor(() => expect(ctx.drawImage).toHaveBeenCalled());
+  });
+
+  it('render-afterTilesetLoads-drawsBlockPlacements', async () => {
+    vi.stubGlobal('Image', MockTilesetImage);
+
+    render(<PlatformerPage />);
+    const ctx = platformerPage.context;
+
+    await waitFor(() => {
+      expect(blockPlacements.length).toBeGreaterThan(0);
+      // The crate tile's known source coords (world_tileset.png at
+      // 112,48 — see entities/Block.ts's blockFrameSource), drawn at the
+      // block-sized 32x32 render size.
+      expect(
+        ctx.drawImage.mock.calls.some(
+          (call: unknown[]) => call[1] === 112 && call[2] === 48 && call[7] === 32 && call[8] === 32,
+        ),
+      ).toBe(true);
+    });
   });
 
   it('render-tallViewport-anchorsLevelBottomToCanvasBottom', async () => {
