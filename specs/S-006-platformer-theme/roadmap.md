@@ -276,12 +276,71 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   cut for the bounce's whole ascent instead of just one frame. Retuned
   against the corrected physics down to `-330` (~1.4 tiles peak, well under
   half of a normal jump's own peak height).
-- [ ] **20. Destroyable block render** — intact/question-mark tiles;
-  CollectibleMapper extended for Experience/Education/Courses.
-  *Verify: blocks are visible on platforms.*
-- [ ] **21. Block hit mechanic** — 3-hit crack progression, coin drop per hit, fact
-  reveal + shatter animation on the 3rd hit.
-  *Verify: break a block, see cracking states, coin drops, and the final fact.*
+- [ ] **20. Destroyable block render + enemy section remap** — redefined
+  2026-08-29 (see `spec.md`'s Session 2026-08-29 clarifications) after
+  discovering the tileset in use no longer has a dedicated crack-progression
+  block sprite sheet: the original single 3-hit block type is replaced by
+  three visually distinct `BlockDef` types, render-only for this step (no hit
+  mechanics yet — those move to step 21's sub-steps below):
+  - **Crate** — wooden crate tile (`world_tileset.png`), intact state only for
+    now.
+  - **Question-mark** — one of five palette-matched `?` tiles (brick, sandy,
+    pink/red, teal, blue-gray), matching the surrounding terrain's color.
+  - **Rock** — a plain terrain-styled tile, visually distinct from ordinary
+    solid terrain and from the palette's `?`/`!` tiles.
+
+  All three are hand-placed via new level markers (`LevelParser.ts`'s
+  `TERRAIN_CHARS`/`ENTITY_CHARS`, avoiding the already-used `B`/`R` letters),
+  consistent with step 16's marker-based placement approach — no
+  auto-placement.
+
+  **CollectibleMapper**: extended so crates carry Experience + Education
+  facts (7 entries combined); question-mark and rock blocks carry no CV
+  mapping at all.
+
+  **EnemyMapper remap** (bundled here since it's the other half of the same
+  section-remapping decision): Courses (12 entries) moves off blocks
+  entirely onto green slimes, replacing green's original Projects mapping;
+  purple slimes absorb Projects alongside their original Certificates,
+  carrying a combined Certificates + Projects pool (5 entries). See
+  `spec.md`'s FR-009 amendment.
+
+  *Verify: crate, question-mark (in its level-appropriate palette color), and
+  rock tiles are all visible on platforms in `level1`; green slime enemies now
+  map to Course facts and purple slime enemies map to the combined
+  Certificates + Projects pool.*
+- [ ] **21. Block hit mechanics** — split into three sub-steps (2026-08-29),
+  one per block type, since each now has a genuinely distinct mechanic rather
+  than one shared 3-hit progression. A shared short bump/nudge animation
+  (block moves up a few pixels, settles back, ~100ms) plays on every
+  below-hit across all three sub-steps below, including each type's terminal
+  hit.
+  - **21a. Crate hit mechanic** — 2 hits: first hit shows a crack overlay,
+    second hit breaks the crate apart with a shatter animation and reveals
+    the associated Experience/Education fact (fly-to-journal animation, same
+    as other collectibles). **Crack overlay asset (derived + saved
+    2026-08-29)**: generated from the existing `groundRock` terrain tile
+    (`world_tileset.png` at tile coords 16,0) by thresholding its pixels by
+    luminance (a first pass at `lum<90` pulled in the tile's dark-brown fill
+    color and looked like a blotch, not a crack; tightened to `lum<35` kept
+    only the near-black outline pixels and reads as a clean, thin crack
+    line) — this was a one-time generation step, not a runtime computation.
+    The result is checked in as a standalone 16×16 transparent-background
+    PNG at `public/sprites/crack_overlay.png`, loaded and composited like
+    any other sprite (alongside the rest of `SpriteLoader.ts`'s asset prep)
+    over the crate tile (`world_tileset.png` at tile coords 112,48) whenever
+    `hitsTaken === 1`.
+    *Verify: hit a crate once, see the crack overlay and bump; hit it again,
+    see the shatter animation and the fact appear in the journal.*
+  - **21b. Question-mark hit mechanic** — single hit spawns a bonus fruit
+    (`fruit.png`, no CV fact) that rises into the space directly above the
+    block and lands as a touchable pickup; the block permanently swaps to
+    its matching `!` tile and stops responding to hits.
+    *Verify: hit a question-mark block, see the fruit pop up and become
+    collectible, and the block itself turn into its palette's `!` tile.*
+  - **21c. Rock hit mechanic** — single hit breaks the rock straight to empty
+    space — no fruit, no fact, no reward.
+    *Verify: hit a rock block, see it disappear immediately with no drop.*
 - [ ] **22. Flagpole render + touch detection** — visible flagpole at the level end,
   no celebration/ending screen yet.
   *Verify: reach and touch the flagpole.*
@@ -295,18 +354,38 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
 
 ## Iteration 3 — Controls + polish (P3)
 
-- [ ] **25. Pause-on-open for floating controls** — the floating controls (built in
+- [ ] **25. Controls overlay** — a translucent overlay listing only universal
+  controls (movement, jump, journal toggle — see spec.md FR-036, deliberately
+  trimmed of contextual mechanics like the bridge drop-through, which move to
+  step 26's hint signs instead) shows once when `gamePhase` first enters
+  `playing`. Auto-dismisses on the player's first movement/jump input, or a
+  short timeout, whichever comes first; does not reappear for the rest of the
+  session.
+  *Verify: load the theme, see the overlay; press an arrow key or wait out the
+  timeout, confirm it disappears and doesn't come back.*
+- [ ] **26. Hint signs** — a new non-solid, non-collectible `SignDef` entity
+  (FR-037–FR-040), placed via a hand-authored level marker like the existing
+  entity markers. Touching a sign's trigger zone shows a speech-bubble tooltip
+  near the character with localized hint text (from a small en/de dictionary
+  keyed by `hintId`, not `CVData`); the tooltip disappears when the character
+  walks away. Does not pause the game, does not block movement, never touches
+  `collectedFacts` or the journal. At minimum, place one sign near `level1`'s
+  first one-way bridge explaining the Down/`S` drop-through control. A future
+  ladder-climbing sign is out of scope until that mechanic itself exists.
+  *Verify: walk up to the bridge sign, see the hint bubble in the current
+  locale; walk away, see it disappear; switch locale, see the text update.*
+- [ ] **27. Pause-on-open for floating controls** — the floating controls (built in
   step 1) now pause the running game loop while open and resume it on close, instead
   of being purely decorative.
   *Verify: open the controls mid-game, confirm the game pauses; close, confirm it
   resumes exactly where it left off.*
-- [ ] **26. Theme-switch reset** — leaving and returning to Platformer resets the
+- [ ] **28. Theme-switch reset** — leaving and returning to Platformer resets the
   session (fresh game, no collected facts).
   *Verify: switch to another theme and back, confirm the game is fresh.*
-- [ ] **27. Touch/mobile controls** — on-screen D-pad + action buttons on small
+- [ ] **29. Touch/mobile controls** — on-screen D-pad + action buttons on small
   viewports.
   *Verify: at a mobile viewport width, the D-pad appears and functions.*
-- [ ] **28. Polish pass** — animation/effects refinement, 30 FPS check with 20+
+- [ ] **30. Polish pass** — animation/effects refinement, 30 FPS check with 20+
   collectibles rendered.
   *Verify: frame-timing check and smooth manual play.*
 
