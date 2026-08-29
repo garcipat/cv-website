@@ -1,4 +1,5 @@
 import { TILE_SIZE, RENDERED_TILE_SIZE } from '../level/Terrain';
+import type { BlockPlacement } from '../level/BlockMapper';
 
 /** Blocks are drawn from `world_tileset.png` — the same image and tile size
  *  as terrain (16px native, 32px rendered) — so no separate sprite sheet or
@@ -6,27 +7,27 @@ import { TILE_SIZE, RENDERED_TILE_SIZE } from '../level/Terrain';
 export const BLOCK_FRAME_SIZE = TILE_SIZE;
 export const BLOCK_RENDERED_SIZE = RENDERED_TILE_SIZE;
 
+export type BlockKind = 'crate' | 'questionMark' | 'rock';
+
 /**
- * Sprite-sheet source rect (in `world_tileset.png`) for a block's intact
- * state, by kind. Coordinates confirmed via a pixel-level inspection during
- * planning (roadmap step 20):
- * - `crate`: the wooden crate tile, at tile (col 7, row 3).
- * - `questionMark`: the brown-palette intact `?` tile, at tile (col 0, row
- *   2) — the only palette wired up for `level1` (a mechanics-test level);
- *   the matching `!` (used) tile lives at tile (col 1, row 2), needed once
- *   step 21b implements the hit mechanic, not used yet.
- * - `rock`: a plain, fractured-stone tile distinct from both
- *   `groundRock`(terrain) and the `?`/`!` tiles, at tile (col 3, row 0).
- *
- * No hit-state variants yet (step 20 is render-only) — every block always
- * renders in this intact state until step 21a/21b/21c add hit mechanics.
+ * Sprite-sheet source rect (in `world_tileset.png`) for a block's current
+ * visual state, by kind and `hitsTaken` (roadmap step 21b — the question-mark
+ * block permanently swaps from its intact `?` to its matching `!` tile, at
+ * tile (col 1, row 2), once hit; every other kind/hit-count combination keeps
+ * rendering its one intact tile forever — crate's crack is a separate overlay
+ * (see `crateCrackOverlayVisible`), not a frame swap, and rock/crate are
+ * removed from the world entirely once used up rather than swapping tile.
+ * `hitsTaken` defaults to 0 so every pre-existing call site (step 20's
+ * render-only code, and this file's own pre-step-21 tests) is unaffected.
  */
-export function blockFrameSource(blockKind: 'crate' | 'questionMark' | 'rock'): { sx: number; sy: number } {
+export function blockFrameSource(blockKind: BlockKind, hitsTaken = 0): { sx: number; sy: number } {
   switch (blockKind) {
     case 'crate':
       return { sx: 7 * TILE_SIZE, sy: 3 * TILE_SIZE };
     case 'questionMark':
-      return { sx: 0, sy: 2 * TILE_SIZE };
+      return hitsTaken >= 1
+        ? { sx: 1 * TILE_SIZE, sy: 2 * TILE_SIZE }
+        : { sx: 0, sy: 2 * TILE_SIZE };
     case 'rock':
       return { sx: 3 * TILE_SIZE, sy: 0 };
     default: {
@@ -34,4 +35,76 @@ export function blockFrameSource(blockKind: 'crate' | 'questionMark' | 'rock'): 
       return _exhaustive;
     }
   }
+}
+
+/** Hits required to fully use up a block, by kind — crate takes 2 (crack then
+ *  shatter); question-mark and rock each take just 1 (spec.md FR-022b/c). */
+export function maxHitsForBlock(blockKind: BlockKind): number {
+  return blockKind === 'crate' ? 2 : 1;
+}
+
+export type BlockAnimState = 'idle' | 'bump' | 'shatter';
+
+/**
+ * Live per-instance hit/animation state for a placed block — mirrors
+ * `Enemy.ts`'s `EnemyState extends EnemyPlacement` pattern. `animState`
+ * cycles `'idle' -> 'bump' -> ('shatter' -> ) 'idle'` on every hit (see
+ * `BlockAI.ts`'s `stepBlockAnimation`) — `'shatter'` is reachable only for a
+ * `crate` on its terminal (2nd) hit; question-mark/rock go straight back to
+ * `'idle'` after their bump.
+ */
+export interface BlockState extends BlockPlacement {
+  hitsTaken: number;
+  animState: BlockAnimState;
+  /** Seconds elapsed since entering the current `animState` — meaningless
+   *  while `'idle'`. */
+  animTimer: number;
+}
+
+/** Converts a placed-but-static `BlockPlacement` into its initial live state —
+ *  no hits taken, idle. */
+export function toBlockState(placement: BlockPlacement): BlockState {
+  return { ...placement, hitsTaken: 0, animState: 'idle', animTimer: 0 };
+}
+
+/** Whether this block has taken all the hits its kind responds to — it may
+ *  still be mid-animation (bump/shatter) even once true; see `isBlockRemoved`
+ *  for whether it's actually gone from the world yet. */
+export function isBlockUsedUp(block: BlockState): boolean {
+  return block.hitsTaken >= maxHitsForBlock(block.blockKind);
+}
+
+/**
+ * Whether this block should be filtered out of the live world entirely —
+ * true once a crate or rock is used up AND its post-hit animation (bump,
+ * then shatter for crate) has finished settling back to `'idle'`. A
+ * question-mark is NEVER removed — spec.md FR-022b: it "permanently changes
+ * to its matching `!` terrain tile" and stays a solid, present block forever;
+ * only its rendered tile (via `blockFrameSource`) changes.
+ */
+export function isBlockRemoved(block: BlockState): boolean {
+  if (block.blockKind === 'questionMark') return false;
+  return isBlockUsedUp(block) && block.animState === 'idle';
+}
+
+/**
+ * Applies one upward hit: increments `hitsTaken` and enters the shared
+ * `'bump'` nudge animation from frame zero (FR-022d — every upward hit, not
+ * just intermediate ones, plays this). A no-op (returns the same reference)
+ * if the block is already used up — callers (`PlatformerPage.tsx`) are
+ * expected to already exclude used-up blocks from `hitBlockIds` before
+ * calling this, but this guard keeps the function safe to call
+ * unconditionally regardless.
+ */
+export function applyBlockHit(block: BlockState): BlockState {
+  if (isBlockUsedUp(block)) return block;
+  return { ...block, hitsTaken: block.hitsTaken + 1, animState: 'bump', animTimer: 0 };
+}
+
+/** Whether a crate's cracked-overlay sprite (`crack_overlay.png`) should be
+ *  composited over its base tile — only between its first hit (cracked) and
+ *  second hit (shattered/removed), never on an intact or fully-broken
+ *  crate. */
+export function crateCrackOverlayVisible(hitsTaken: number): boolean {
+  return hitsTaken === 1;
 }
