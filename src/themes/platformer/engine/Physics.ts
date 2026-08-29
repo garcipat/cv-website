@@ -1,6 +1,8 @@
 import { PHYSICS_CONFIG } from './PhysicsConfig';
 import { isSolid, isSolidExcludingBridge, tileAt, RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { LevelDef } from '../level/LevelData';
+import { isBlockOccupied } from '../level/BlockMapper';
+import type { BlockPlacement } from '../level/BlockMapper';
 import {
   PLAYER_RENDERED_SIZE,
   PLAYER_FOOT_PADDING,
@@ -54,6 +56,7 @@ export function stepPlayerPhysics(
   level: LevelDef,
   dt: number,
   input: PlayerInput = NO_INPUT,
+  blockPlacements: readonly BlockPlacement[] = [],
 ): PlayerState {
   // While a side-hit's knockback is still active (roadmap step 19), held
   // movement keys are ignored entirely and the knockback velocity/facing set
@@ -110,7 +113,7 @@ export function stepPlayerPhysics(
     );
     const isWall = rightCol === prevRightCol ? isSolidExcludingBridge : isSolid;
     for (let row = topRow; row <= bottomRow; row++) {
-      if (isWall(tileAt(level, rightCol, row))) {
+      if (isWall(tileAt(level, rightCol, row)) || isBlockOccupied(blockPlacements, rightCol, row)) {
         x = rightCol * RENDERED_TILE_SIZE - PLAYER_SIDE_PADDING - HITBOX_WIDTH;
         break;
       }
@@ -122,7 +125,7 @@ export function stepPlayerPhysics(
     const prevLeftCol = Math.floor((player.x + PLAYER_SIDE_PADDING) / RENDERED_TILE_SIZE);
     const isWall = leftCol === prevLeftCol ? isSolidExcludingBridge : isSolid;
     for (let row = topRow; row <= bottomRow; row++) {
-      if (isWall(tileAt(level, leftCol, row))) {
+      if (isWall(tileAt(level, leftCol, row)) || isBlockOccupied(blockPlacements, leftCol, row)) {
         x = (leftCol + 1) * RENDERED_TILE_SIZE - PLAYER_SIDE_PADDING;
         break;
       }
@@ -211,7 +214,7 @@ export function stepPlayerPhysics(
     const headY = y + PLAYER_HEAD_PADDING;
     const headRow = Math.floor(headY / RENDERED_TILE_SIZE);
     for (let col = leftCol; col <= rightCol; col++) {
-      if (isSolidExcludingBridge(tileAt(level, col, headRow))) {
+      if (isSolidExcludingBridge(tileAt(level, col, headRow)) || isBlockOccupied(blockPlacements, col, headRow)) {
         y = (headRow + 1) * RENDERED_TILE_SIZE - PLAYER_HEAD_PADDING;
         resolvedVy = 0;
         break;
@@ -226,7 +229,7 @@ export function stepPlayerPhysics(
     const groundIsSolid = droppingThroughBridge ? isSolidExcludingBridge : isSolid;
 
     for (let col = leftCol; col <= rightCol; col++) {
-      if (groundIsSolid(tileAt(level, col, footRow))) {
+      if (groundIsSolid(tileAt(level, col, footRow)) || isBlockOccupied(blockPlacements, col, footRow)) {
         const groundSurfaceY = footRow * RENDERED_TILE_SIZE;
         y = groundSurfaceY - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
         resolvedVy = 0;
@@ -238,7 +241,7 @@ export function stepPlayerPhysics(
     if (grounded) {
       fullyGrounded = true;
       for (let col = leftCol; col <= rightCol; col++) {
-        if (!groundIsSolid(tileAt(level, col, footRow))) {
+        if (!groundIsSolid(tileAt(level, col, footRow)) && !isBlockOccupied(blockPlacements, col, footRow)) {
           fullyGrounded = false;
           break;
         }
