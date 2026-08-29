@@ -33,8 +33,8 @@ import {
 // two tiles below for both to land on.
 //
 // Every collectible/enemy on this map is a hand-placed marker, not
-// auto-placed: `S` (spawn), `E` (green/Certificate enemy), `M` (purple/
-// Project enemy), `C` (Skill-category coin), `F` (Language fruit). A marker
+// auto-placed: `S` (spawn), `E` (green/Project enemy), `M` (purple/
+// Certificate enemy), `C` (Skill-category coin), `F` (Language fruit). A marker
 // is a slot on the map — EnemyMapper.ts's placeEnemies and
 // CollectibleMapper.ts's placeCollectibles each draw the next fact from
 // CVData (in its own section order) per marker of that type, with no
@@ -68,10 +68,10 @@ export const level1: LevelDef = parseLevel(LEVEL_1_LAYOUT);
 /** Player spawn point, read from `LEVEL_1_LAYOUT`'s `S` marker. */
 export const SPAWN_TILE = findSpawnTile(LEVEL_1_LAYOUT);
 
-/** Hand-placed green (Certificate) enemy positions, from `LEVEL_1_LAYOUT`'s `E` markers. */
+/** Hand-placed green (Project) enemy positions, from `LEVEL_1_LAYOUT`'s `E` markers. */
 export const ENEMY_TILES_GREEN = findGreenEnemyTiles(LEVEL_1_LAYOUT);
 
-/** Hand-placed purple (Project) enemy positions, from `LEVEL_1_LAYOUT`'s `M` markers. */
+/** Hand-placed purple (Certificate) enemy positions, from `LEVEL_1_LAYOUT`'s `M` markers. */
 export const ENEMY_TILES_PURPLE = findPurpleEnemyTiles(LEVEL_1_LAYOUT);
 
 /** Hand-placed Skill-category coin positions, from `LEVEL_1_LAYOUT`'s `C` markers. */

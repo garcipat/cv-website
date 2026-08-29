@@ -19,7 +19,7 @@ export const TERRAIN_CHARS: Record<string, TileType | undefined> = {
 
 /**
  * Maps each entity-marker character usable in a level layout to what it
- * marks: `S` (spawn), `E` (green/Certificate enemy), `M` (purple/Project
+ * marks: `S` (spawn), `E` (green/Project enemy), `M` (purple/Certificate
  * enemy), `C` (Skill-category coin), `F` (Language fruit). Kept as its own
  * map, separate from TERRAIN_CHARS, since an entity marker isn't a terrain
  * tile — the ground it sits on is always `empty` (see parseLevel below),
@@ -101,9 +101,9 @@ export function findSpawnTile(layout: readonly string[]): { col: number; row: nu
 }
 
 /**
- * Finds every `E` (green/Certificate) enemy marker's position in a level
+ * Finds every `E` (green/Project) enemy marker's position in a level
  * layout, in reading order — this order is what `EnemyMapper.ts`'s
- * `placeEnemies` zips against the certificate-derived enemy defs (in
+ * `placeEnemies` zips against the project-derived enemy defs (in
  * `mapCVDataToEnemies`'s output order) to assign hand-authored positions to
  * specific CV facts. Zero markers is valid — that CVData type simply has no
  * enemy on the map yet (there is no auto-placement fallback).
@@ -112,9 +112,9 @@ export function findGreenEnemyTiles(layout: readonly string[]): { col: number; r
   return findAllOfKind(layout, 'enemyGreen');
 }
 
-/** Finds every `M` (purple/Project) enemy marker's position in a level
- *  layout — same convention as findGreenEnemyTiles, for project-derived
- *  enemy defs instead of certificate-derived ones. */
+/** Finds every `M` (purple/Certificate) enemy marker's position in a level
+ *  layout — same convention as findGreenEnemyTiles, for certificate-derived
+ *  enemy defs instead of project-derived ones. */
 export function findPurpleEnemyTiles(layout: readonly string[]): { col: number; row: number }[] {
   return findAllOfKind(layout, 'enemyPurple');
 }
