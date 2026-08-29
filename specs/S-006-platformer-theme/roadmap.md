@@ -364,12 +364,20 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   *Verify: load the theme, see the overlay; press an arrow key or wait out the
   timeout, confirm it disappears and doesn't come back.*
 - [ ] **26. Hint signs** — a new non-solid, non-collectible `SignDef` entity
-  (FR-037–FR-040), placed via a hand-authored level marker like the existing
-  entity markers. Touching a sign's trigger zone shows a speech-bubble tooltip
-  near the character with localized hint text (from a small en/de dictionary
-  keyed by `hintId`, not `CVData`); the tooltip disappears when the character
-  walks away. Does not pause the game, does not block movement, never touches
-  `collectedFacts` or the journal. At minimum, place one sign near `level1`'s
+  (FR-037–FR-040), placed via a hand-authored level marker. Each distinct
+  hint gets its own single-digit marker character (`1`–`9`, mapped directly
+  to a `hintId` in `LevelParser.ts`'s new `SIGN_CHARS` table) rather than
+  the CVData-order "zip" used for coins/enemies — hint content is
+  hand-authored, not pulled from `CVData`, and the digit-to-hintId mapping
+  stays correct no matter how the level layout is edited, capped at 9
+  distinct hints total (an accepted constraint). Touching a sign's trigger
+  zone shows a speech-bubble tooltip near the character with localized hint
+  text read from the existing i18n system (a new `platformer.hints.<hintId>`
+  key in `src/i18n/locales/en.json`/`de.json`, via `currentUI.value`, same
+  pattern `Journal.tsx` already uses — no bespoke dictionary); the tooltip
+  disappears when the character walks away. Does not pause the game, does
+  not block movement, never touches `collectedFacts` or the journal. At
+  minimum, place one sign (marker `1` → `bridgeDropThrough`) near `level1`'s
   first one-way bridge explaining the Down/`S` drop-through control. A future
   ladder-climbing sign is out of scope until that mechanic itself exists.
   *Verify: walk up to the bridge sign, see the hint bubble in the current
