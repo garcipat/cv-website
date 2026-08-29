@@ -5,6 +5,7 @@ import {
   drawCollectibles,
   drawEnemies,
   drawBlocks,
+  drawBonusFruits,
   drawCollectionEffects,
   drawCollectibleCounter,
   drawIrisOverlay,
@@ -19,8 +20,11 @@ import { MAX_HALF_HEARTS, HEART_RENDERED_SIZE } from '../entities/Health';
 import { startFlightEffect, tickFlightEffect, RISE_DURATION_SECONDS, SPARKLE_DURATION_SECONDS } from './CollectionEffects';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
 import type { BlockPlacement } from '../level/BlockMapper';
+import { toBlockState, blockFrameSource } from '../entities/Block';
+import { blockBumpOffsetY, crateShatterOpacity } from './BlockAI';
+import { spawnBonusFruit, bonusFruitY } from '../entities/BonusFruit';
 import type { EnemyState } from '../entities/Enemy';
-import { fruitFrameSource } from '../entities/Fruit';
+import { fruitFrameSource, FRUIT_FRAME_SIZE, FRUIT_RENDERED_SIZE } from '../entities/Fruit';
 import {
   ENEMY_FRAME_SIZE,
   ENEMY_RENDERED_SIZE,
@@ -304,13 +308,13 @@ describe('drawEnemies', () => {
 describe('drawBlocks', () => {
   it('crateQuestionMarkAndRock-eachDrawnFromItsOwnTileCoords', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-    const placements = [
-      makeBlockPlacement('b1', 'crate', 0, 0),
-      makeBlockPlacement('b2', 'questionMark', 32, 0),
-      makeBlockPlacement('b3', 'rock', 64, 0),
+    const states = [
+      toBlockState(makeBlockPlacement('b1', 'crate', 0, 0)),
+      toBlockState(makeBlockPlacement('b2', 'questionMark', 32, 0)),
+      toBlockState(makeBlockPlacement('b3', 'rock', 64, 0)),
     ];
 
-    drawBlocks(ctx as unknown as CanvasRenderingContext2D, placements, fakeTileset);
+    drawBlocks(ctx as unknown as CanvasRenderingContext2D, states, fakeTileset, null);
 
     const calls = ctx.drawImage.mock.calls;
     expect(calls).toHaveLength(3);
@@ -321,17 +325,154 @@ describe('drawBlocks', () => {
 
   it('originXOriginY-shiftsEveryBlockByTheSameAmount', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-    const placements = [makeBlockPlacement('b1', 'crate', 0, 0)];
+    const states = [toBlockState(makeBlockPlacement('b1', 'crate', 0, 0))];
 
-    drawBlocks(ctx as unknown as CanvasRenderingContext2D, placements, fakeTileset, -50, 20);
+    drawBlocks(ctx as unknown as CanvasRenderingContext2D, states, fakeTileset, null, -50, 20);
 
     expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 112, 48, 16, 16, -50, 20, 32, 32);
   });
 
   it('noPlacements-drawsNothing', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-    drawBlocks(ctx as unknown as CanvasRenderingContext2D, [], fakeTileset);
+    drawBlocks(ctx as unknown as CanvasRenderingContext2D, [], fakeTileset, null);
     expect(ctx.drawImage).not.toHaveBeenCalled();
+  });
+});
+
+describe('drawBlocks with hit state', () => {
+  it('crateWithOneHitAndCrackOverlaySprite-drawsBaseTileThenCrackOverlayAtSamePosition', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const fakeCrackOverlay = { tag: 'crack' } as unknown as HTMLImageElement;
+    const placement = makeBlockPlacement('c1', 'crate', 40, 60);
+    const state = { ...toBlockState(placement), hitsTaken: 1 };
+
+    drawBlocks(ctx as unknown as CanvasRenderingContext2D, [state], fakeTileset, fakeCrackOverlay);
+
+    const calls = ctx.drawImage.mock.calls;
+    expect(calls).toHaveLength(2);
+    expect(calls[0]).toEqual([fakeTileset, 112, 48, 16, 16, 40, 60, 32, 32]);
+    expect(calls[1]).toEqual([fakeCrackOverlay, 0, 0, 16, 16, 40, 60, 32, 32]);
+  });
+
+  it('crateWithNoHitsAndCrackOverlaySprite-drawsOnlyBaseTile', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const fakeCrackOverlay = { tag: 'crack' } as unknown as HTMLImageElement;
+    const placement = makeBlockPlacement('c1', 'crate', 0, 0);
+    const state = toBlockState(placement);
+
+    drawBlocks(ctx as unknown as CanvasRenderingContext2D, [state], fakeTileset, fakeCrackOverlay);
+
+    expect(ctx.drawImage).toHaveBeenCalledTimes(1);
+  });
+
+  it('crateWithOneHitAndNullCrackOverlaySprite-drawsOnlyBaseTile', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const placement = makeBlockPlacement('c1', 'crate', 0, 0);
+    const state = { ...toBlockState(placement), hitsTaken: 1 };
+
+    drawBlocks(ctx as unknown as CanvasRenderingContext2D, [state], fakeTileset, null);
+
+    expect(ctx.drawImage).toHaveBeenCalledTimes(1);
+  });
+
+  it('questionMarkAfterHit-drawsFromExclamationTileSource', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const placement = makeBlockPlacement('q1', 'questionMark', 0, 0);
+    const state = { ...toBlockState(placement), hitsTaken: 1 };
+    const { sx, sy } = blockFrameSource('questionMark', 1);
+
+    drawBlocks(ctx as unknown as CanvasRenderingContext2D, [state], fakeTileset, null);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, sx, sy, 16, 16, 0, 0, 32, 32);
+  });
+
+  it('bumpingBlock-offsetsDestinationYByBlockBumpOffsetY', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const placement = makeBlockPlacement('r1', 'rock', 0, 100);
+    const state = { ...toBlockState(placement), animState: 'bump' as const, animTimer: 0.05 };
+    const expectedOffset = blockBumpOffsetY(state);
+    expect(expectedOffset).not.toBe(0);
+
+    drawBlocks(ctx as unknown as CanvasRenderingContext2D, [state], fakeTileset, null);
+
+    const call = ctx.drawImage.mock.calls[0];
+    expect(call[6]).toBe(100 + expectedOffset);
+  });
+
+  it('shatteringCrate-appliesCrateShatterOpacityAsGlobalAlphaDuringDraw', () => {
+    const ctx = makeMockContext() as unknown as {
+      drawImage: ReturnType<typeof vi.fn>;
+      globalAlpha: number;
+    };
+    const placement = makeBlockPlacement('c1', 'crate', 0, 0);
+    const state = { ...toBlockState(placement), hitsTaken: 2, animState: 'shatter' as const, animTimer: 0.1 };
+    const expectedOpacity = crateShatterOpacity(state);
+    expect(expectedOpacity).toBeGreaterThan(0);
+    expect(expectedOpacity).toBeLessThan(1);
+
+    const alphaAtDrawCalls: number[] = [];
+    ctx.drawImage.mockImplementation(() => {
+      alphaAtDrawCalls.push(ctx.globalAlpha);
+    });
+
+    drawBlocks(ctx as unknown as CanvasRenderingContext2D, [state], fakeTileset, null);
+
+    expect(alphaAtDrawCalls[0]).toBeCloseTo(expectedOpacity);
+    // Restored to fully opaque afterward so it doesn't bleed into later draws.
+    expect(ctx.globalAlpha).toBe(1);
+  });
+});
+
+describe('drawBonusFruits', () => {
+  it('someFruits-drawsFromFirstFruitIconAtCurrentRisePosition', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const fakeFruitSprite = { tag: 'fruit' } as unknown as HTMLImageElement;
+    const fruit = spawnBonusFruit('bf1', 40, 100);
+    const { sx, sy } = fruitFrameSource(0);
+
+    drawBonusFruits(ctx as unknown as CanvasRenderingContext2D, [fruit], fakeFruitSprite);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeFruitSprite,
+      sx,
+      sy,
+      FRUIT_FRAME_SIZE,
+      FRUIT_FRAME_SIZE,
+      40,
+      bonusFruitY(fruit),
+      FRUIT_RENDERED_SIZE,
+      FRUIT_RENDERED_SIZE,
+    );
+  });
+
+  it('nullFruitSprite-drawsNothing', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const fruit = spawnBonusFruit('bf1', 0, 100);
+
+    drawBonusFruits(ctx as unknown as CanvasRenderingContext2D, [fruit], null);
+
+    expect(ctx.drawImage).not.toHaveBeenCalled();
+  });
+
+  it('noFruits-drawsNothing', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const fakeFruitSprite = { tag: 'fruit' } as unknown as HTMLImageElement;
+
+    drawBonusFruits(ctx as unknown as CanvasRenderingContext2D, [], fakeFruitSprite);
+
+    expect(ctx.drawImage).not.toHaveBeenCalled();
+  });
+
+  it('withOrigin-shiftsEveryFruitByTheSameAmount', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const fakeFruitSprite = { tag: 'fruit' } as unknown as HTMLImageElement;
+    const fruit = spawnBonusFruit('bf1', 0, 100);
+
+    drawBonusFruits(ctx as unknown as CanvasRenderingContext2D, [fruit], fakeFruitSprite, 50, 20);
+
+    const call = ctx.drawImage.mock.calls[0];
+    expect(call[5]).toBe(0 + 50);
+    expect(call[6]).toBe(bonusFruitY(fruit) + 20);
   });
 });
 
