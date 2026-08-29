@@ -5,6 +5,9 @@ import {
   ENEMY_TILES_PURPLE,
   COIN_TILES,
   FRUIT_TILES,
+  CRATE_TILES,
+  QUESTIONMARK_TILES,
+  ROCK_TILES,
 } from './level1';
 import { isTopExposed, isSolid, tileAt } from './Terrain';
 
@@ -90,7 +93,15 @@ describe('level1', () => {
   });
 
   it('markers-eachStandsOnAnEmptyTileAboveSolidGround', () => {
-    for (const tile of [...ENEMY_TILES_GREEN, ...ENEMY_TILES_PURPLE, ...COIN_TILES, ...FRUIT_TILES]) {
+    for (const tile of [
+      ...ENEMY_TILES_GREEN,
+      ...ENEMY_TILES_PURPLE,
+      ...COIN_TILES,
+      ...FRUIT_TILES,
+      ...CRATE_TILES,
+      ...QUESTIONMARK_TILES,
+      ...ROCK_TILES,
+    ]) {
       expectStandable(tile);
     }
   });
@@ -103,6 +114,26 @@ describe('level1', () => {
     expect(ENEMY_TILES_PURPLE).toHaveLength(1);
     expect(COIN_TILES).toHaveLength(4);
     expect(FRUIT_TILES).toHaveLength(2);
+    expect(CRATE_TILES).toHaveLength(2);
+    expect(QUESTIONMARK_TILES).toHaveLength(2);
+    expect(ROCK_TILES).toHaveLength(2);
+  });
+
+  it('newBlockMarkers-sitOnRockGroundClearOfExistingFeatures', () => {
+    // Placed at cols 47-52, right after the col 40-42 pit, packed tightly
+    // together with the relocated coin/fruit cluster (cols 43-46) instead
+    // of spread out to col 75 — see level1.ts's doc comment for the full
+    // column layout.
+    expect(CRATE_TILES.map((t) => t.col)).toEqual([47, 50]);
+    expect(QUESTIONMARK_TILES.map((t) => t.col)).toEqual([48, 51]);
+    expect(ROCK_TILES.map((t) => t.col)).toEqual([49, 52]);
+  });
+
+  it('secondCoin-sitsSoonAfterSpawnNotOnlyPastThePit', () => {
+    // Previously only the col 10 coin was reachable without a long walk —
+    // relocated one of the four coins to col 18 (just past the wall
+    // pocket) so there's a second nearby one too.
+    expect(COIN_TILES.map((t) => t.col)).toContain(18);
   });
 
   it('elevatedBridge-spansGapBetweenTwoFloatingPlatformsAtPlatformRow', () => {
