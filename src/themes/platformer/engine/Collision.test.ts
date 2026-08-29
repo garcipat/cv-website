@@ -13,7 +13,6 @@ import { toEnemyState, ENEMY_RENDERED_SIZE } from '../entities/Enemy';
 import type { EnemyState } from '../entities/Enemy';
 import type { EnemyPlacement } from '../level/EnemyMapper';
 import { spawnBonusFruit, tickBonusFruit, BONUS_FRUIT_RISE_DURATION_SECONDS } from '../entities/BonusFruit';
-import { FRUIT_RENDERED_SIZE } from '../entities/Fruit';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 
 function makePlayer(x: number, y: number): PlayerState {
