@@ -5,6 +5,9 @@ import {
   findPurpleEnemyTiles,
   findCoinTiles,
   findFruitTiles,
+  findCrateTiles,
+  findQuestionMarkTiles,
+  findRockTiles,
   TERRAIN_CHARS,
   ENTITY_CHARS,
 } from './LevelParser';
@@ -45,6 +48,9 @@ describe('parseLevel', () => {
     expect(ENTITY_CHARS.M).toBe('enemyPurple');
     expect(ENTITY_CHARS.C).toBe('coin');
     expect(ENTITY_CHARS.F).toBe('fruit');
+    expect(ENTITY_CHARS.X).toBe('crate');
+    expect(ENTITY_CHARS.Q).toBe('questionMark');
+    expect(ENTITY_CHARS.K).toBe('rock');
   });
 
   it('noTerrainAndEntityCharOverlap-documentedByTheModuleLoadGuard', () => {
@@ -158,5 +164,56 @@ describe('findFruitTiles', () => {
 
   it('coinMarker-isNotCountedAsFruit', () => {
     expect(findFruitTiles(['C.'])).toEqual([]);
+  });
+});
+
+describe('findCrateTiles', () => {
+  it('noMarkers-returnsEmptyArray', () => {
+    expect(findCrateTiles(['GG', 'GG'])).toEqual([]);
+  });
+
+  it('multipleMarkers-returnsAllInReadingOrder', () => {
+    expect(findCrateTiles(['.X', 'X.'])).toEqual([
+      { col: 1, row: 0 },
+      { col: 0, row: 1 },
+    ]);
+  });
+
+  it('questionMarkOrRockMarker-isNotCountedAsCrate', () => {
+    expect(findCrateTiles(['QK'])).toEqual([]);
+  });
+});
+
+describe('findQuestionMarkTiles', () => {
+  it('noMarkers-returnsEmptyArray', () => {
+    expect(findQuestionMarkTiles(['GG', 'GG'])).toEqual([]);
+  });
+
+  it('multipleMarkers-returnsAllInReadingOrder', () => {
+    expect(findQuestionMarkTiles(['.Q', 'Q.'])).toEqual([
+      { col: 1, row: 0 },
+      { col: 0, row: 1 },
+    ]);
+  });
+
+  it('crateOrRockMarker-isNotCountedAsQuestionMark', () => {
+    expect(findQuestionMarkTiles(['XK'])).toEqual([]);
+  });
+});
+
+describe('findRockTiles', () => {
+  it('noMarkers-returnsEmptyArray', () => {
+    expect(findRockTiles(['GG', 'GG'])).toEqual([]);
+  });
+
+  it('multipleMarkers-returnsAllInReadingOrder', () => {
+    expect(findRockTiles(['.K', 'K.'])).toEqual([
+      { col: 1, row: 0 },
+      { col: 0, row: 1 },
+    ]);
+  });
+
+  it('crateOrQuestionMarkMarker-isNotCountedAsRock', () => {
+    expect(findRockTiles(['XQ'])).toEqual([]);
   });
 });
