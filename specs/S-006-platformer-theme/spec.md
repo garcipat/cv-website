@@ -99,7 +99,15 @@ Some platforms contain destroyable blocks — three visually distinct kinds. **C
 
 ---
 
-### User Story 6 - Reach the Flagpole to Reveal Personality and Contact (Priority: P2)
+### User Story 6 - Reach the Level End to Reveal Personality and Contact (Priority: P2)
+
+> **Superseded 2026-08-30**: the flagpole is no longer planned as a mechanic. The
+> level still needs a defined end that reveals Personality and Contact, but the
+> concrete replacement (visual marker, trigger, whether a dedicated ending-screen
+> overlay still exists) is undecided — see roadmap step 22, which needs its own
+> `brainstorming`/`writing-plans` pass before this story, and every flagpole-specific
+> requirement/success-criterion below it, can be rewritten for real. The text below
+> is kept for historical context only and MUST NOT be implemented as written.
 
 At the far right end of the level stands a flagpole with a sliding flag. When the character jumps onto it, a celebration animation plays (character slides down the pole, flag waves). An ending screen appears showing the Personality section (personal summary / about me) and Contact information. After the ending screen is dismissed, the Personality and Contact facts are also added to the journal — with their own bookmarks but **no counter** (since there is only one piece of information per section). The visitor can choose to replay the level or close the ending screen.
 
@@ -119,7 +127,7 @@ At the far right end of the level stands a flagpole with a sliding flag. When th
 
 ### User Story 7 - Game Audio (Priority: P2)
 
-A looping background music track and sound effects enhance the platformer experience. Sound effects play for key actions: jumping, collecting a coin, stomping an enemy, breaking a block, reaching the flagpole, taking damage, and opening/closing the journal. A small speaker icon in the top-right HUD area allows the visitor to toggle all audio on/off. Audio is muted by default and must be enabled by the visitor.
+A looping background music track and sound effects enhance the platformer experience. Sound effects play for key actions: jumping, collecting a coin, stomping an enemy, breaking a block, taking damage, and opening/closing the journal. A level-end sound effect is TBD, pending the roadmap step 22 redesign (see User Story 6's superseded note above — the flagpole celebration fanfare it originally implied no longer applies). A small speaker icon in the top-right HUD area allows the visitor to toggle all audio on/off. Audio is muted by default and must be enabled by the visitor.
 
 **Why this priority**: Audio feedback makes gameplay more engaging and provides clear confirmation of game actions, but the game is fully playable without it.
 
@@ -132,7 +140,7 @@ A looping background music track and sound effects enhance the platformer experi
 3. **Given** audio is enabled, **When** the character collects a coin, **Then** a coin collection sound effect plays.
 4. **Given** audio is enabled, **When** the character stomps an enemy, **Then** a defeat sound effect plays.
 5. **Given** audio is enabled, **When** the character breaks a destroyable block, **Then** a shatter sound effect plays.
-6. **Given** audio is enabled, **When** the character reaches the flagpole, **Then** a celebration fanfare sound effect plays.
+6. **(Superseded 2026-08-30, TBD)** ~~Given audio is enabled, When the character reaches the flagpole, Then a celebration fanfare sound effect plays~~ — pending the roadmap step 22 level-end redesign.
 7. **Given** audio is enabled, **When** the character takes damage from an enemy, **Then** a damage sound effect plays.
 8. **Given** audio is enabled, **When** the journal is opened or closed, **Then** a page-flip sound effect plays.
 9. **Given** the game is playing, **When** the visitor clicks the speaker icon, **Then** all audio (music and effects) toggles on/off and the icon updates to reflect the current state.
@@ -179,7 +187,7 @@ As a new visitor starts the game, a small translucent overlay listing the univer
 ### Edge Cases
 
 - **Empty CV sections**: If a CV section has no data (e.g., empty `certificates` array), the journal bookmark for that section is hidden and no coins/blocks/enemies map to it.
-- **Personality and Contact sections**: These sections appear as bookmarks in the journal but have **no counter** — there is only one piece of information per section (revealed via the flagpole ending screen). Once the flagpole is reached, the facts appear in the journal. Before reaching the flagpole, the bookmarks show the placeholder message.
+- **Personality and Contact sections**: These sections appear as bookmarks in the journal but have **no counter** — there is only one piece of information per section, revealed via the level-end mechanism (superseded 2026-08-30 — see User Story 6; the reveal trigger is undecided, but the no-counter behavior itself still holds). Before the level end is reached, the bookmarks show the placeholder message.
 - **Very few CV items**: If the CV has only 3-4 items total, the level is shorter with fewer collectibles, but the platforming experience remains — the level adapts proportionally.
 - **Very many CV items**: If the CV has 20+ items, the level is longer and more populated with collectibles. The level design ensures the experience doesn't feel cluttered or overwhelming.
 - **No CV data at all**: If `CVData` is empty or fails to load, the game still renders — a minimal platformer level with a message: "CV data not available. Try another theme!"
@@ -191,7 +199,7 @@ As a new visitor starts the game, a small translucent overlay listing the univer
 - **Game state across page reload**: Game state (collected coins, defeated enemies, destroyed blocks) is NOT persisted across page reloads. Each visit is a fresh session.
 - **Game state across death/respawn** (added 2026-08-27, see FR-020c): `collectedFacts` is preserved across a death/respawn — previously discovered CV content is never lost to a death. Enemies and destroyable blocks reset to their initial state on respawn (so the level plays the same each attempt) but grant no duplicate fact/fruit if re-collected; already-collected coins stay gone permanently rather than reappearing. Only the deliberate "Reset Game" button (FR-018b) clears `collectedFacts` and respawns coins too.
 - **Game state across theme switches**: Switching to another theme and back resets the game to its initial state (fresh session, no collected facts). State is NOT persisted across theme switches.
-- **Touch/mobile input**: The game is designed for keyboard input. On mobile devices, an on-screen D-pad and action buttons are displayed. This is a P3 enhancement.
+- **Touch/mobile input**: The game is designed for keyboard input only. Mobile/touch controls are permanently out of scope (decided 2026-08-30) — no on-screen D-pad or action buttons are planned; see the "Out of Scope" section below.
 
 ## Requirements _(mandatory)_
 
@@ -203,7 +211,7 @@ As a new visitor starts the game, a small translucent overlay listing the univer
 
 - **FR-002**: System MUST implement a game loop running at a consistent tick rate (30 FPS target) that processes input, updates game state, and renders each frame independently of frame timing.
 
-- **FR-003**: System MUST manage game state through distinct phases: `loading` (assets loading), `playing` (active gameplay), `paused` (journal open or tab lost focus), and `ending-screen` (reached flagpole).
+- **FR-003**: System MUST manage game state through distinct phases: `loading` (assets loading), `playing` (active gameplay), `paused` (journal open or tab lost focus), and a level-end phase, tentatively `ending-screen`, whose actual shape is TBD pending the roadmap step 22 redesign (superseded 2026-08-30 — see User Story 6).
 
 - **FR-004**: System MUST use the existing theme system infrastructure — `currentTheme` signal from `src/state/theme.ts`, `currentLocale`/`currentCV` signals from `src/state/locale.ts`. The theme is registered in the `themePages` map in `App.tsx` under the key `platformer`.
 
@@ -226,13 +234,13 @@ As a new visitor starts the game, a small translucent overlay listing the univer
   - **Collectibles (coins)**: Placed on platforms and in the air at varying heights
   - **Enemies** (P2): Patrol enemies on platforms
   - **Destroyable blocks** (P2): Blocks that can be destroyed by hitting from below
-  - **Flagpole** (P2): End-of-level marker at the far right
+  - **Level end** (P2): some marker/trigger at the far right — no longer a flagpole (superseded 2026-08-30, see User Story 6); replacement TBD
 
 - **FR-009**: System MUST map CV sections to specific game object types — each collectible type reveals content from assigned sections only:
   - **Coins** → Skills, Languages
   - **Destroyable blocks** → Experience, Education (crates only — question-mark and rock blocks carry no CV fact)
   - **Enemies** (P2) → Certificates, Projects (purple slimes), Courses (green slimes)
-  - **Flagpole** (P2) → Personality (About) + Contact — shown as ending screen, then added to journal (with bookmarks but no per-section counter)
+  - **Level end** (P2) → Personality (About) + Contact — added to journal (with bookmarks but no per-section counter); reveal trigger/presentation is TBD, superseded 2026-08-30 (was: flagpole ending screen — see User Story 6)
   - **Amended 2026-08-28**: within the "Coins" collectible type, Skills and Languages are visually split — Skills render as `coin.png`, Languages as `fruit.png` — so a player can tell the two apart at a glance even though both are the same `sourceType: 'coin'` collectible mechanically (same touch-to-collect behavior, same flight-to-journal animation).
   - **Amended 2026-08-28**: a Skill coin represents a whole skill *category* (e.g. "Backend"), not one individual skill — the real CV data has too many individual skills to reasonably place one collectible each. Touching one category's coin adds every skill in that category to the journal's Skills section at once, shown as the category name with its skill list. Languages remain one collectible per language.
   - **Amended 2026-08-29**: Courses (12 CV entries) moved from destroyable blocks to green-slime enemies (see User Story 4 and FR-021's amendment) — the original "Experience, Education, Courses → blocks" mapping didn't fit once the block mechanic split into three narrower types. Purple slimes absorbed Projects alongside their original Certificates, replacing the original green=Projects/purple=Certificates split.
@@ -242,7 +250,7 @@ As a new visitor starts the game, a small translucent overlay listing the univer
   - Collectible positions with associated CV fact references
   - Enemy positions and patrol ranges (P2)
   - Destroyable block positions (P2)
-  - Flagpole position (P2)
+  - Level-end position (P2) — no longer a flagpole; superseded 2026-08-30, see User Story 6
   - Spawn point (level start)
   - Spawn points (invisible checkpoints throughout the level where the character respawns on death)
   - Level dimensions (width × height in tiles)
@@ -258,7 +266,7 @@ The level is hand-crafted — starting with a simple layout to validate function
   - Its state is marked as collected in session state
   - The associated CV fact is added to the journal
 
-- **FR-013**: System MUST ensure that every non-empty CV item in Skills, Languages, Experience, Education, Courses, Certificates, and Projects has at least one associated collectible in the level, mapped according to FR-009. Personality and Contact items have no collectibles — they are revealed via the flagpole ending screen and then added to the journal (with bookmarks but no counter). Empty CV sections produce no collectibles and hide their journal bookmark. **Amended 2026-08-28**: step 14 added the Personality/"About Me" bookmark ahead of schedule, per user request — it shows the CV's personality data (name, tagline, summary) directly rather than via a collected fact, since no collectible source exists for it yet. This is provisional, pulled forward from the flagpole mechanism above; revisit once step 22 actually implements the flagpole ending screen. **Amended 2026-08-28 (step 16)**: collectible/enemy placement changed from auto-placement to intentional, hand-authored markers in the level layout (`S`/`E`/`M`/`C`/`F` — see `LevelParser.ts`), with no auto-placement fallback. A level's marker count now decides on-map coverage, not CVData's length — a mechanics-test level (like `level1` as of step 16) MAY cover only a slice of CVData without violating this requirement; full coverage is deferred to the final level design (targeted for step 22, when the flagpole/ending screen closes out the level).
+- **FR-013**: System MUST ensure that every non-empty CV item in Skills, Languages, Experience, Education, Courses, Certificates, and Projects has at least one associated collectible in the level, mapped according to FR-009. Personality and Contact items have no collectibles — they are revealed via the level-end mechanism (superseded 2026-08-30, mechanism TBD — was: flagpole ending screen, see User Story 6) and then added to the journal (with bookmarks but no counter). Empty CV sections produce no collectibles and hide their journal bookmark. **Amended 2026-08-28**: step 14 added the Personality/"About Me" bookmark ahead of schedule, per user request — it shows the CV's personality data (name, tagline, summary) directly rather than via a collected fact, since no collectible source exists for it yet. This is provisional, pulled forward from the level-end mechanism above; revisit once step 22 actually implements its redesigned version. **Amended 2026-08-28 (step 16)**: collectible/enemy placement changed from auto-placement to intentional, hand-authored markers in the level layout (`S`/`E`/`M`/`C`/`F` — see `LevelParser.ts`), with no auto-placement fallback. A level's marker count now decides on-map coverage, not CVData's length — a mechanics-test level (like `level1` as of step 16) MAY cover only a slice of CVData without violating this requirement; full coverage is deferred to the final level design (targeted for step 22, once its now-undecided level-end mechanism closes out the level).
 
 #### Journal
 
@@ -280,7 +288,7 @@ The level is hand-crafted — starting with a simple layout to validate function
 
 - **FR-017**: System MUST render collected facts within the journal in the **Simple List** entry style (Option A from design mockups): clean bullet-point notes on lined paper with handwriting font, displaying key data fields concisely. Each fact entry includes the section-appropriate icon (🏢 for experience, 🎓 for education, etc.) and key data fields. Skills entries use star ratings (e.g., "TypeScript ★★★★☆").
 
-- **FR-017b**: System MUST display a per-section collection counter near each section's header or bookmark (e.g., "Skills 3/5") showing how many facts have been collected out of the total for that section. **Exception**: Personality and Contact sections have no counter — there is only one fact per section, revealed via the flagpole.
+- **FR-017b**: System MUST display a per-section collection counter near each section's header or bookmark (e.g., "Skills 3/5") showing how many facts have been collected out of the total for that section. **Exception**: Personality and Contact sections have no counter — there is only one fact per section, revealed via the level-end mechanism (superseded 2026-08-30, mechanism TBD — was: the flagpole, see User Story 6).
 
 - **FR-018**: System MUST paginate journal content as one continuous flat sequence of pages
   spanning the whole book, not scoped per section (amended 2026-08-28, superseding the same
@@ -350,9 +358,14 @@ The level is hand-crafted — starting with a simple layout to validate function
 
 #### Level Completion (P2)
 
-- **FR-023**: System MUST render a flagpole (with a separate sliding flag) at the rightmost end of the level. When the character jumps onto the flagpole, a celebration animation plays (character slides down the pole, flag waves) and the ending screen overlay appears.
+> **Superseded 2026-08-30**: FR-023 and FR-024 below describe the flagpole mechanic,
+> which is no longer planned. Kept for historical context only — see User Story 6's
+> superseded note. A replacement level-end mechanism (still needed) is undecided;
+> rewrite these two requirements once roadmap step 22 is designed.
 
-- **FR-024**: System MUST display the ending screen showing the Personality section content (personal summary / about me) and Contact information. After the ending screen is dismissed, the Personality and Contact facts are added to the journal with their own bookmarks but no per-section counter. The ending screen offers a "Replay Level" option to reset the game.
+- **FR-023**: ~~System MUST render a flagpole (with a separate sliding flag) at the rightmost end of the level. When the character jumps onto the flagpole, a celebration animation plays (character slides down the pole, flag waves) and the ending screen overlay appears.~~
+
+- **FR-024**: ~~System MUST display the ending screen showing the Personality section content (personal summary / about me) and Contact information. After the ending screen is dismissed, the Personality and Contact facts are added to the journal with their own bookmarks but no per-section counter. The ending screen offers a "Replay Level" option to reset the game.~~
 
 #### Controls & Theme Infrastructure (P3)
 
@@ -395,7 +408,7 @@ The level is hand-crafted — starting with a simple layout to validate function
     │   ├── BookmarkTabs.tsx        # Vertical bookmark tab strip
     │   ├── FloatingControls.tsx    # Theme and locale toggle (P3)
     │   ├── ControlsOverlay.tsx     # Universal controls overlay shown once at start (P3)
-     │   └── EndingScreen.tsx         # Flagpole ending screen — Personality + Contact (P2)
+     │   └── EndingScreen.tsx         # Level-end reveal — Personality + Contact (P2). Superseded 2026-08-30: was the flagpole ending screen; whether this component still exists as-is is TBD, see User Story 6.
     ├── engine/
     │   ├── GameLoop.ts             # rAF-based game loop, state machine
     │   ├── Input.ts               # Keyboard input tracking per frame
@@ -441,13 +454,13 @@ The level is hand-crafted — starting with a simple layout to validate function
   - `BlockDef`: **amended 2026-08-30** — replaces the earlier aspirational shape below with what step 20 actually shipped: `{ id: string; blockKind: 'crate' | 'questionMark' | 'rock'; fact?: CollectedFact }`. `fact` is present only on `crate` blocks (a `CollectedFact` drawn from Experience/Education, same shape as enemy/collectible facts); `questionMark` and `rock` carry no CV mapping (amended 2026-08-29, see FR-021). Placement adds `x`/`y` to produce `BlockPlacement extends BlockDef` (same `Def`→`Placement` convention already used for enemies/collectibles, e.g. `EnemyPlacement`/`CollectiblePlacement`) — `BlockPlacement` was not previously documented in this spec; this amendment is its first mention here. `hitsTaken`/`broken` — needed for the crate's 2-hit crack progression and any block's live "already broken" state — were deferred to the not-yet-implemented step 21 live-state design rather than being part of this static def; the original bullet below described them prematurely, before that design existed.
     <!-- superseded by the 2026-08-30 amendment above; kept for history only -->
     ~~`BlockDef`: `{ id: string; x: number; y: number; kind: 'crate' | 'questionMark' | 'rock'; hitsTaken: number; broken: boolean; cvSection?: SectionId; cvIndex?: number }` — `cvSection`/`cvIndex` are only present on `crate` blocks; `questionMark` and `rock` carry no CV mapping (amended 2026-08-29, see FR-021).~~
-  - `LevelDef`: `{ terrain: TileMap; collectibles: CollectibleDef[]; enemies: EnemyDef[]; blocks: BlockDef[]; signs: SignDef[]; spawn: Point; flagpole: Point; width: number; height: number }`
+  - `LevelDef`: `{ terrain: TileMap; collectibles: CollectibleDef[]; enemies: EnemyDef[]; blocks: BlockDef[]; signs: SignDef[]; spawn: Point; flagpole: Point; width: number; height: number }` — **superseded 2026-08-30**: the `flagpole: Point` field describes a mechanic that's no longer planned; it needs to be renamed/replaced by whatever roadmap step 22's redesign settles on (e.g. a generic `levelEnd: Point`), not implemented as `flagpole` literally.
   - `SignDef`: `{ id: string; x: number; y: number; hintId: string }` — `hintId` looks up localized text at `platformer.hints.<hintId>` in the existing i18n translation files (`src/i18n/locales/en.json`/`de.json`); no `cvSection`/`cvIndex`, since signs carry no CV mapping (P3, see FR-037).
 
 #### Testing
 
 - **FR-033**: System MUST include unit tests covering:
-  - `CollectibleMapper` — correct mapping of CVData to collectible definitions per FR-009 (Skills/Languages → coins, Experience/Education → crate blocks, Certificates/Projects → purple slimes, Courses → green slimes, Personality/Contact → flagpole only)
+  - `CollectibleMapper` — correct mapping of CVData to collectible definitions per FR-009 (Skills/Languages → coins, Experience/Education → crate blocks, Certificates/Projects → purple slimes, Courses → green slimes, Personality/Contact → level-end reveal only; mechanism TBD, superseded 2026-08-30 — was flagpole)
   - `Physics` — gravity, jump arc, collision with platforms, collision with pits
   - `Input` — keyboard event parsing, key held vs pressed
   - Journal content rendering with sample CV data
@@ -458,17 +471,17 @@ The level is hand-crafted — starting with a simple layout to validate function
   - `PlatformerPage` renders canvas element
   - `Journal` renders with correct sections based on CV data
   - `BookmarkTabs` active/inactive states
-   - `EndingScreen` displays Personality and Contact info (P2)
+   - `EndingScreen` displays Personality and Contact info (P2) — superseded 2026-08-30, TBD pending the level-end redesign (see User Story 6)
 
 #### Audio (P2)
 
-- **FR-035**: System MUST support audio playback including a looping background music track and sound effects for game actions (jump, coin collection, enemy stomp, block break, flagpole celebration, damage, journal open/close). Audio is muted by default — playback requires visitor opt-in via a speaker icon in the HUD. Audio assets are pre-loaded alongside sprite assets (per FR-028) before entering the `playing` state. The audio state (muted/unmuted) is tracked in game session state.
+- **FR-035**: System MUST support audio playback including a looping background music track and sound effects for game actions (jump, coin collection, enemy stomp, block break, damage, journal open/close). A level-end celebration sound effect is TBD, pending the roadmap step 22 redesign (superseded 2026-08-30 — was a flagpole celebration, see User Story 6). Audio is muted by default — playback requires visitor opt-in via a speaker icon in the HUD. Audio assets are pre-loaded alongside sprite assets (per FR-028) before entering the `playing` state. The audio state (muted/unmuted) is tracked in game session state.
 
 ### Key Entities
 
 - **Player (character)**: The visitor's avatar in the game world. State includes position (x, y), velocity (vx, vy), animation state (idle/walk/jump), facing direction, and grounded flag.
 
-- **Level**: The game world — a side-scrolling environment defined by terrain tiles, collectible placements, enemy placements, spawn point, and flagpole. In v1, one continuous level covers all CV sections in order.
+- **Level**: The game world — a side-scrolling environment defined by terrain tiles, collectible placements, enemy placements, spawn point, and a level-end point (superseded 2026-08-30 — no longer a flagpole; replacement TBD, see User Story 6). In v1, one continuous level covers all CV sections in order.
 
 - **Collectible**: An item in the game world that, when acquired by the player, reveals a CV fact. Types: coin (Skills, Languages — P1), enemy defeat (Certificates, Projects on purple slimes, Courses on green slimes — P2), crate block break (Experience, Education — P2). Each collectible is mapped to a specific CV data item by section.
 
@@ -493,7 +506,7 @@ CVData (from currentCV signal)
 Level
  ├── Contains CollectibleDef[] (coin/enemy/block positions)
  ├── Contains Terrain (platform tiles, collision data)
- └── Defines spawn, checkpoint, flagpole positions
+ └── Defines spawn, checkpoint, level-end positions (was flagpole; superseded 2026-08-30, TBD)
 
 Player
  ├── Collides with Terrain (stands, jumps, falls)
@@ -521,7 +534,7 @@ FloatingControls (P3)
 
 - **SC-001 — Core platformer mechanics work**: A visitor can control a character that moves left/right, jumps, lands on platforms, and is followed by a scrolling camera. Character animations (idle, walk, jump) are visibly distinct. Verified by: manual play test.
 
-- **SC-002 — Every CV item has a collectible**: Each non-empty item in Skills, Languages, Experience, Education, Courses, Certificates, and Projects maps to at least one collectible in the level according to the FR-009 mapping. Personality and Contact are excluded (revealed via flagpole ending screen). Verified by: unit test.
+- **SC-002 — Every CV item has a collectible**: Each non-empty item in Skills, Languages, Experience, Education, Courses, Certificates, and Projects maps to at least one collectible in the level according to the FR-009 mapping. Personality and Contact are excluded (revealed via the level-end mechanism — superseded 2026-08-30, TBD, was flagpole ending screen). Verified by: unit test.
 
 - **SC-003 — Collecting reveals journal content**: When a visitor collects all coins and defeats all enemies and destroys all blocks, the journal contains all CV facts from Skills, Languages, Certificates, Projects, Experience, Education, and Courses, organized by section with functional bookmark tabs. Verified by: component test that simulates collecting everything and checks journal content.
 
@@ -540,7 +553,7 @@ FloatingControls (P3)
 - **F-002 (Data Model) is complete**: `CVData` types and both `cv.en.json` / `cv.de.json` files exist and are importable. S-006 consumes these, does not create or modify them.
 - **F-012 (Theme System) is available**: `createLocalStorageSignal`, `currentTheme` signal, `ThemeId` type, and theme registration in `App.tsx` all exist.
 - **F-013 (Multilanguage) is complete**: `currentLocale`, `currentCV` computed signals, and `changeLocale` function exist in `src/state/locale.ts`.
-- **Desktop-only** (initially): The Platformer theme is designed for desktop with keyboard input. Mobile/touch controls are a P3 enhancement.
+- **Desktop-only**: The Platformer theme is designed for desktop with keyboard input only. Mobile/touch controls are permanently out of scope (decided 2026-08-30), not a deferred enhancement.
 - **Single level in v1**: Iteration 1 ships with one continuous level covering all CV sections. Additional levels per section can be added in future iterations.
 - **HTML5 Canvas for rendering**: The game uses Canvas 2D API (not WebGL/three.js), keeping the implementation simple and aligned with the "simple 2D platformer" scope.
 - **Sprite assets from existing mockup images**: The 10 existing sprite images in `specs/S-006-platformer-theme/images/` are the basis for game assets — character, enemies, coins, terrain, blocks, flagpole.
@@ -551,7 +564,7 @@ FloatingControls (P3)
 - **Spawn points throughout the level**: Invisible spawn points defined in the level data serve as checkpoints. The character respawns at the nearest spawn point on death.
 - **Collision uses simple AABB (Axis-Aligned Bounding Box)**: Physics and collision detection use rectangular hitboxes, not pixel-perfect collision. This is standard for retro-style platformers.
 - **Fixed sprite sizes**: Character, enemy, coin, and block sprites have fixed pixel dimensions (e.g., 32×32 or 16×16 tiles). The canvas is scaled to fit the viewport while maintaining the pixel-art aesthetic.
-- **Personality and Contact are flagpole-only**: The About/Personality section and Contact information are NOT placed as collectibles in the level. They are revealed exclusively via the flagpole ending screen at the end of the level.
+- **Personality and Contact are level-end-only**: The About/Personality section and Contact information are NOT placed as collectibles in the level. They are revealed exclusively via the level-end mechanism at the end of the level — superseded 2026-08-30, the mechanism is no longer the flagpole and its replacement is TBD (see User Story 6).
 
 ## Clarifications
 
@@ -569,6 +582,12 @@ FloatingControls (P3)
 - **Q: Destroyable block redesign (roadmap step 20)** — **A**: the tileset in active use no longer includes a dedicated crack-progression block sprite sheet; the original single 3-hit block type is replaced by three distinct types built from what the tileset actually has — a wooden crate tile, five terrain-matched `?`/`!` tile pairs, and plain terrain tiles. **Crate**: 2 hits (crack overlay, then break + reveal an Experience/Education fact). **Question-mark**: 1 hit (spawns a bonus fruit, converts permanently to the matching `!` tile, no fact). **Rock**: 1 hit (breaks to empty space, no fact, no reward — pure level-design filler, not mapped to `CVData`). Crack visuals are drawn programmatically as a canvas overlay rather than a new sprite. A short bump/nudge animation plays on every below-hit across all three types, including each type's terminal (breaking/converting) hit.
 - **Q: Enemy section remapping** — **A**: Courses (12 CV entries) is too large a pool to share the crate mechanic with Experience/Education, so it moves to enemies instead: green slimes (1-hit) now carry Courses exclusively, replacing their original Projects mapping; purple slimes (2-hit) carry the combined Certificates + Projects pool, replacing their original Certificates-only mapping. See FR-009's and User Story 4's amendments.
 
+### Session 2026-08-30
+
+- **Q: Is the flagpole still planned?** — **A**: No — removed as a mechanic. The level still needs a defined end that reveals Personality + Contact (User Story 6's underlying goal stands), but the concrete replacement (visual marker, trigger, whether a dedicated ending-screen overlay still exists) is undecided. Every flagpole-specific requirement, success criterion, and data-model field (FR-023, FR-024, FR-003's `ending-screen` phase, SC-002, `LevelDef.flagpole`, etc.) is marked superseded/TBD throughout this spec rather than rewritten, since the replacement design doesn't exist yet — see roadmap step 22, which needs its own `brainstorming`/`writing-plans` pass before these can be rewritten for real.
+- **Q: Is mobile/touch support still planned for a later iteration?** — **A**: No — permanently out of scope, not a deferred P3 enhancement. Roadmap step 28 ("Touch/mobile controls") was removed entirely rather than kept as a placeholder.
+- **Q: Does switching themes and back already reset the game?** — **A**: No, not yet — confirmed by tracing `PlatformerPage.tsx`/`PlatformerState.ts`: gameplay state lives in module-level `signal()`s that survive the component unmount/remount a theme switch causes, so the game currently resumes exactly where it was left. FR/SC text describing theme-switch reset as already working is aspirational, describing the intended behavior of roadmap step 27 (Theme-switch reset), which remains unimplemented.
+
 ## Iteration Plan
 
 This feature is intentionally scoped for incremental delivery:
@@ -576,14 +595,14 @@ This feature is intentionally scoped for incremental delivery:
 | Iteration | Priority | Scope | Key Deliverables |
 |-----------|----------|-------|-----------------|
 | **1** | P1 | Core platformer + coins + journal | Player movement, level terrain, coin collectibles (Skills + Languages), journal with bookmarks, CV fact mapping |
-| **2** | P2 | Enemies + blocks + flagpole + audio | Enemy patrol and stomp (Certificates + Projects on purple slimes, Courses on green slimes), destroyable blocks (Experience + Education via crates; question-mark and rock blocks add bonus/level-design mechanics with no CV mapping), flagpole ending screen (Personality + Contact), game audio (background music + sound effects, muted by default) |
-| **3** | P3 | Controls + polish | Floating theme/locale controls, universal controls overlay, contextual hint signs, touch controls, visual polish |
+| **2** | P2 | Enemies + blocks + level end + audio | Enemy patrol and stomp (Certificates + Projects on purple slimes, Courses on green slimes), destroyable blocks (Experience + Education via crates; question-mark and rock blocks add bonus/level-design mechanics with no CV mapping), level-end reveal for Personality + Contact (mechanism TBD, superseded 2026-08-30 — was a flagpole ending screen), game audio (background music + sound effects, muted by default) |
+| **3** | P3 | Controls + polish | Floating theme/locale controls, universal controls overlay, contextual hint signs, visual polish |
 
 Each iteration is independently shippable and adds gameplay depth without breaking previous functionality.
 
 ## Out of Scope
 
-- **Mobile/touch controls** (P3 — out of scope for v1)
+- **Mobile/touch controls** — permanently out of scope, not planned (decided 2026-08-30)
 - **Multiple levels** (v1 ships with one level; additional levels are future enhancements)
 - **Score tracking or leaderboards**
 - **Boss enemies or complex enemy AI** (simple patrol-only in P2)

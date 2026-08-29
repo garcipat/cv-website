@@ -113,7 +113,9 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   attachment point) showing an icon per section rather than rotated text
   (unreadable at that size). An 8th "About Me"/personality bookmark shows
   CV bio content directly (not via `collectedFacts`, which has no
-  personality-sourced entries until step 22's flagpole) — a provisional
+  personality-sourced entries until the level-end mechanism reveals them
+  (originally scoped as a step 22 flagpole; that mechanic was removed
+  2026-08-30 — see the current step 22 placeholder) — a provisional
   forward-pull per user request; 6 sprite colors cover the 8 sections with
   two accepted duplicate pairs. Only per-section counters, pagination, and
   the Reset Game button remain in step 15.
@@ -139,7 +141,7 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   *Verify: counters update correctly, pagination flips through the whole
   book with wraparound, Reset clears all state and restarts play.*
 
-## Iteration 2 — Enemies + blocks + flagpole + audio (P2)
+## Iteration 2 — Enemies + blocks + level end + audio (P2)
 
 - [x] **16. Enemy render** — extended well beyond its original "render only" scope,
   live with the user, into a full rework of how levels are authored:
@@ -276,7 +278,7 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   cut for the bounce's whole ascent instead of just one frame. Retuned
   against the corrected physics down to `-330` (~1.4 tiles peak, well under
   half of a normal jump's own peak height).
-- [ ] **20. Destroyable block render + enemy section remap** — redefined
+- [x] **20. Destroyable block render + enemy section remap** — redefined
   2026-08-29 (see `spec.md`'s Session 2026-08-29 clarifications) after
   discovering the tileset in use no longer has a dedicated crack-progression
   block sprite sheet: the original single 3-hit block type is replaced by
@@ -309,6 +311,20 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   rock tiles are all visible on platforms in `level1`; green slime enemies now
   map to Course facts and purple slime enemies map to the combined
   Certificates + Projects pool.*
+
+  **Follow-up (same day, after live user feedback on the rendered result):**
+  blocks were relocated from `level1`'s ground-adjacent marker row to an
+  elevated row with 2 full rows of jump clearance beneath them (matching the
+  existing floating-platform's clearance shape, and giving a future
+  question-mark hit — FR-022b — somewhere to pop its fruit into), and moved
+  from 51 tiles out (past the wall/pit gauntlet) to 18-23 tiles from spawn.
+  Basic solidity was also pulled forward from step 21 at the user's request:
+  all three block types are now solid obstacles from every direction
+  (`Physics.ts`'s `stepPlayerPhysics` gained an optional `blockPlacements`
+  parameter, defaulting to empty so every pre-existing call site is
+  unaffected) — no crack/shatter/fruit-pop reaction exists yet, only
+  standing-on-top/side-blocking/ceiling-bonk collision. See
+  `BlockMapper.ts`'s `isBlockOccupied`.
 - [ ] **21. Block hit mechanics** — split into three sub-steps (2026-08-29),
   one per block type, since each now has a genuinely distinct mechanic rather
   than one shared 3-hit progression. A shared short bump/nudge animation
@@ -341,29 +357,37 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   - **21c. Rock hit mechanic** — single hit breaks the rock straight to empty
     space — no fruit, no fact, no reward.
     *Verify: hit a rock block, see it disappear immediately with no drop.*
-- [ ] **22. Flagpole render + touch detection** — visible flagpole at the level end,
-  no celebration/ending screen yet.
-  *Verify: reach and touch the flagpole.*
-- [ ] **23. Flagpole celebration + ending screen** — slide-down animation, flag
-  waves, ending screen with Personality + Contact, Replay Level button.
-  *Verify: reach the flagpole, see the ending screen, Replay resets the level.*
-- [ ] **24. Audio** — preload audio assets, looping background music, SFX wired to
-  existing actions (jump, coin, stomp, block break, flagpole, damage, journal
-  open/close), speaker icon toggle, muted by default.
+- [ ] **22. Level-end mechanism (redesign needed)** — *Flagpole removed as a mechanic
+  (2026-08-30)*: the original steps 22–23 (flagpole render/touch detection, then
+  slide-down celebration + ending screen) no longer apply. The level still needs a
+  defined endpoint, and reaching it should still reveal the Personality + Contact
+  facts (previously flagpole-only), but the concrete mechanism — visual marker,
+  trigger condition, whether a dedicated ending-screen overlay still exists — is
+  undecided. Needs a `brainstorming` session before an implementation plan exists,
+  same pattern as step 31 (Level selection) below. **Follow-up, out of scope for
+  this roadmap pass**: `spec.md`'s flagpole-specific requirements (FR-023, the
+  `ending-screen` phase in FR-003, SC-002, the data model's `flagpole: Point`
+  field, and the flagpole SFX mention in FR-035) are now stale and need their own
+  amendment once this mechanism is designed.
+  *Verify: TBD, pending design.*
+- [ ] **23. Audio** — preload audio assets, looping background music, SFX wired to
+  existing actions (jump, coin, stomp, block break, damage, journal open/close),
+  speaker icon toggle, muted by default. A level-end sound effect waits on step 22's
+  redesign.
   *Verify: toggle sound on, hear music and effects.*
 
 ## Iteration 3 — Controls + polish (P3)
 
-- [ ] **25. Controls overlay** — a translucent overlay listing only universal
+- [ ] **24. Controls overlay** — a translucent overlay listing only universal
   controls (movement, jump, journal toggle — see spec.md FR-036, deliberately
   trimmed of contextual mechanics like the bridge drop-through, which move to
-  step 26's hint signs instead) shows once when `gamePhase` first enters
+  step 25's hint signs instead) shows once when `gamePhase` first enters
   `playing`. Auto-dismisses on the player's first movement/jump input, or a
   short timeout, whichever comes first; does not reappear for the rest of the
   session.
   *Verify: load the theme, see the overlay; press an arrow key or wait out the
   timeout, confirm it disappears and doesn't come back.*
-- [ ] **26. Hint signs** — a new non-solid, non-collectible `SignDef` entity
+- [ ] **25. Hint signs** — a new non-solid, non-collectible `SignDef` entity
   (FR-037–FR-040), placed via a hand-authored level marker. Each distinct
   hint gets its own single-digit marker character (`1`–`9`, mapped directly
   to a `hintId` in `LevelParser.ts`'s new `SIGN_CHARS` table) rather than
@@ -382,30 +406,27 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   ladder-climbing sign is out of scope until that mechanic itself exists.
   *Verify: walk up to the bridge sign, see the hint bubble in the current
   locale; walk away, see it disappear; switch locale, see the text update.*
-- [ ] **27. Pause-on-open for floating controls** — the floating controls (built in
+- [ ] **26. Pause-on-open for floating controls** — the floating controls (built in
   step 1) now pause the running game loop while open and resume it on close, instead
   of being purely decorative.
   *Verify: open the controls mid-game, confirm the game pauses; close, confirm it
   resumes exactly where it left off.*
-- [ ] **28. Theme-switch reset** — leaving and returning to Platformer resets the
+- [ ] **27. Theme-switch reset** — leaving and returning to Platformer resets the
   session (fresh game, no collected facts).
   *Verify: switch to another theme and back, confirm the game is fresh.*
-- [ ] **29. Touch/mobile controls** — on-screen D-pad + action buttons on small
-  viewports.
-  *Verify: at a mobile viewport width, the D-pad appears and functions.*
-- [ ] **30. Polish pass** — animation/effects refinement, 30 FPS check with 20+
+- [ ] **28. Polish pass** — animation/effects refinement, 30 FPS check with 20+
   collectibles rendered.
   *Verify: frame-timing check and smooth manual play.*
 
 ## Iteration 4 — Level variety (post-P3, added 2026-08-29)
 
-- [ ] **31. Level selection** — not yet designed; only discussed in ideation so far.
+- [ ] **29. Level selection** — not yet designed; only discussed in ideation so far.
   Needs its own brainstorming session before an implementation plan exists. Scoped
-  here as a placeholder step so step 32 (terrain rework) has something concrete to
+  here as a placeholder step so step 30 (terrain rework) has something concrete to
   depend on: some mechanism to choose among multiple levels instead of always
   loading `level1`.
   *Verify: TBD, pending design.*
-- [ ] **32. Terrain rework: autotiled ground + cave background** — re-themes
+- [ ] **30. Terrain rework: autotiled ground + cave background** — re-themes
   `groundGrass` from a single fixed sprite per tile to a proper autotiled look
   (fill vs. single, grass-top vs. plain-dirt-below) using the `spring_.png` tileset,
   and adds a new non-solid `caveBackground` tile type (same autotiling, no
@@ -414,11 +435,33 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   `world_tileset.png`. Research/findings captured 2026-08-29
   (`plans/2026-08-29-terrain-rework-notes.md` — confirmed tileset coordinates,
   autotile algorithm, decisions made); **no implementation plan yet** — write one via
-  `writing-plans` once step 31 lands, re-reading the codebase at that point rather
+  `writing-plans` once step 29 lands, re-reading the codebase at that point rather
   than reusing anything from the notes doc verbatim. **Implementation is blocked on
-  step 31** landing first, so the dedicated terrain test level (exercising every
+  step 29** landing first, so the dedicated terrain test level (exercising every
   tile combination) can be added as one of the selectable levels from the start,
   instead of behind a temporary dev-only flag.
+
+## Unscheduled additions (not yet numbered)
+
+Ideas raised 2026-08-30, not yet slotted into the sequential roadmap above. Each
+needs its own `writing-plans` pass (and, given the design choices involved, likely a
+`brainstorming` session first) before it becomes a numbered step. Listed here so
+they aren't lost, not in priority order.
+
+- **Ladders** — climbable terrain the character can ascend/descend with Up/Down
+  arrows or `W`/`S`, reusing the climb-capable frames already present in the
+  character's jump sprite sheet (per the user's note — needs confirming which
+  frames read as climbing once actually tried against a ladder). Depends on the
+  vertical-camera item below to be playable on a ladder taller than one screen.
+- **Persistent foreground/background water bands** — a foreground water strip at
+  the bottom of the canvas and a background band at the top, both fixed to the
+  viewport (not the level or the camera) so they stay in place regardless of
+  player movement or camera scroll, horizontal or vertical.
+- **Vertical camera follow** — extend the camera (currently horizontal-only,
+  step 8) to also follow the player vertically, so moving up a ladder scrolls the
+  viewport upward instead of the character walking off the top of the screen.
+  Depends on the ladder item above existing as the case that actually exercises
+  vertical movement.
   *Verify: TBD, pending the actual implementation plan.*
 
 ## Working agreement
