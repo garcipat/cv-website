@@ -13,6 +13,7 @@ import {
 import { collectiblesSummary } from '../entities/CollectiblesSummary';
 import { COIN_FRAME_SIZE, COIN_FRAME_COUNT } from '../entities/Coin';
 import { FRUIT_FRAME_SIZE } from '../entities/Fruit';
+import { ENEMY_FRAME_SIZE, enemyFrameSource } from '../entities/Enemy';
 import {
   journalOpenFrameSrc,
   JOURNAL_OPEN_FRAME_COUNT,
@@ -182,15 +183,21 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
   // fixed display size, scaling the whole sheet's `background-size` up so
   // that one frame lands exactly on the crop.
   const COLLECTIBLE_ICON_DISPLAY_SIZE = 32;
-  // coin.png is a 1-row strip (COIN_FRAME_COUNT columns); fruit.png is a 4x4
-  // grid — both sheets' width/height-in-frames must be scaled independently
-  // or frame 0's crop distorts (e.g. fruit.png's 4 rows squashed into 1).
-  const renderCollectibleIcon = (labelKey: 'coins' | 'fruits') => {
-    const sheetSrc = labelKey === 'coins' ? '/sprites/coin.png' : '/sprites/fruit.png';
-    const frameSize = labelKey === 'coins' ? COIN_FRAME_SIZE : FRUIT_FRAME_SIZE;
+  // coin.png is a 1-row strip (COIN_FRAME_COUNT columns); fruit.png and
+  // slime_green.png are both 4-column grids (4x4 and 4x3 respectively) —
+  // every sheet's width/height-in-frames must be scaled independently or
+  // frame 0's crop distorts (e.g. fruit.png's 4 rows squashed into 1). The
+  // 'enemies' row (roadmap step 18) reuses the same slime walk-loop frame
+  // (`enemyFrameSource('walk', 0)`) as the HUD's own enemy-defeated counter
+  // (see PlatformerPage.tsx), so both places show the same icon for "enemy".
+  const renderCollectibleIcon = (labelKey: 'coins' | 'fruits' | 'enemies') => {
+    const sheetSrc =
+      labelKey === 'coins' ? '/sprites/coin.png' : labelKey === 'fruits' ? '/sprites/fruit.png' : '/sprites/slime_green.png';
+    const frameSize = labelKey === 'coins' ? COIN_FRAME_SIZE : labelKey === 'fruits' ? FRUIT_FRAME_SIZE : ENEMY_FRAME_SIZE;
     const sheetCols = labelKey === 'coins' ? COIN_FRAME_COUNT : 4;
-    const sheetRows = labelKey === 'coins' ? 1 : 4;
+    const sheetRows = labelKey === 'coins' ? 1 : labelKey === 'fruits' ? 4 : 3;
     const scale = COLLECTIBLE_ICON_DISPLAY_SIZE / frameSize;
+    const { sx, sy } = labelKey === 'enemies' ? enemyFrameSource('walk', 0) : { sx: 0, sy: 0 };
     return (
       <span
         aria-hidden="true"
@@ -199,7 +206,7 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
           width: COLLECTIBLE_ICON_DISPLAY_SIZE,
           height: COLLECTIBLE_ICON_DISPLAY_SIZE,
           backgroundImage: `url(${sheetSrc})`,
-          backgroundPosition: '0 0',
+          backgroundPosition: `-${sx * scale}px -${sy * scale}px`,
           backgroundSize: `${sheetCols * frameSize * scale}px ${sheetRows * frameSize * scale}px`,
           imageRendering: 'pixelated',
         }}
