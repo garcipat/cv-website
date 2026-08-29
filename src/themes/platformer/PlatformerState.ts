@@ -54,6 +54,7 @@ export function spawnPlayerState(): PlayerState {
     animTimer: 0,
     invincibleTimer: 0,
     knockbackTimer: 0,
+    bounceAscending: false,
   };
 }
 

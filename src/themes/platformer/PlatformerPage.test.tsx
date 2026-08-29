@@ -814,7 +814,8 @@ describe('PlatformerPage', () => {
       vy: 300,
     };
 
-    frameCallback!(16);
+    let t = 16;
+    frameCallback!(t);
 
     // Not just "still ascending" (that passes even if the jump-cut
     // multiplier — 0.45 — has already chewed the bounce impulse down to
@@ -823,6 +824,19 @@ describe('PlatformerPage', () => {
     // full magnitude, whatever PHYSICS_CONFIG.stompBounceVelocity currently is.
     expect(playerState.value.vy).toBeLessThan(0);
     expect(playerState.value.vy).toBeLessThan(PHYSICS_CONFIG.stompBounceVelocity * 0.9);
+
+    // The actual bug found via live testing: the jump-cut multiplier
+    // re-applies EVERY tick the jump key isn't held, not just once — a
+    // single-tick-only suppression already passed the assertion above but
+    // still let the bounce collapse almost immediately afterward. Tick
+    // several more frames (still well within the ascent) and confirm `vy`
+    // is still decaying smoothly under gravity alone, not additionally
+    // getting cut down each frame.
+    for (let i = 0; i < 5; i++) {
+      t += 16;
+      frameCallback!(t);
+    }
+    expect(playerState.value.vy).toBeLessThan(PHYSICS_CONFIG.stompBounceVelocity * 0.5);
   });
 
   it('alreadyDefeated-stompedAgainAfterRespawn-doesNotDuplicateFact', () => {
