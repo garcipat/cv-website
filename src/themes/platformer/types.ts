@@ -106,3 +106,18 @@ export interface EnemyDef {
   spriteType: 'slimeGreen' | 'slimePurple';
   fact: CollectedFact;
 }
+
+/**
+ * One mapped, not-yet-placed block — `BlockMapper.ts` produces crate defs
+ * from CVData (`fact` present); `placeBlocks` also synthesizes
+ * question-mark and rock defs directly from level markers (`fact` absent —
+ * they carry no CV mapping, spec.md FR-021's amendment). `placeBlocks` adds
+ * x/y to turn each into a `BlockPlacement`.
+ */
+export interface BlockDef {
+  id: string;
+  blockKind: 'crate' | 'questionMark' | 'rock';
+  /** Present only when `blockKind === 'crate'` — question-mark and rock
+   *  blocks reveal no CV fact. */
+  fact?: CollectedFact;
+}
