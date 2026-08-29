@@ -15,7 +15,12 @@ import type { PlayerState } from '../entities/Player';
  * `jumpPressed` is edge-triggered (true only on the frame the key was
  * pressed — see `Input.ts`'s `consumePress`); `jumpHeld` is a level check
  * (true for every frame the key is down — see `Input.ts`'s `isHeld`). Both
- * default to `false`.
+ * default to `false`. `suppressJumpCut` is a one-off override for the frame a
+ * stomp bounce (roadmap step 18) was just applied to `player.vy` before this
+ * call — without it, the variable-jump-height cut below would immediately
+ * shrink the bounce impulse on the overwhelmingly common case where the jump
+ * key isn't currently held, defeating the bounce almost entirely. Defaults to
+ * `false`.
  */
 export interface PlayerInput {
   left?: boolean;
@@ -23,6 +28,7 @@ export interface PlayerInput {
   jumpPressed?: boolean;
   jumpHeld?: boolean;
   dropThroughHeld?: boolean;
+  suppressJumpCut?: boolean;
 }
 
 const NO_INPUT: PlayerInput = { left: false, right: false };
@@ -124,7 +130,10 @@ export function stepPlayerPhysics(
   // ascending cuts the velocity short via a multiplier instead of a fixed
   // clamp, so the resulting height scales with how long the key was held
   // before release rather than snapping to one fixed "short hop" value.
-  if (!input.jumpHeld && vy < 0) {
+  // Skipped on a stomp-bounce frame (`suppressJumpCut`, roadmap step 18) —
+  // that impulse isn't a jump the player is "holding", so it must reach its
+  // full intended height regardless of jump-key state.
+  if (!input.jumpHeld && vy < 0 && !input.suppressJumpCut) {
     vy *= PHYSICS_CONFIG.jumpCutMultiplier;
   }
 
