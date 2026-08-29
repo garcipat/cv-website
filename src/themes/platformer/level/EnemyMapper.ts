@@ -7,7 +7,12 @@ function certificateToEnemy(certificate: Certificate): EnemyDef {
   const id = `enemy-cert-${slugify(certificate.name)}`;
   return {
     id,
-    spriteType: 'slimeGreen',
+    // Purple (2 hit points, roadmap step 18) is the tougher enemy — it's
+    // deliberately matched to Certificates, the rarer of the two CV
+    // sections it can represent, so the harder-to-defeat enemy also
+    // guards the scarcer reward. Was slimeGreen before step 18 revealed
+    // this mismatch (purple guarded the more plentiful Projects instead).
+    spriteType: 'slimePurple',
     fact: {
       id,
       sectionId: 'certificates',
@@ -22,7 +27,10 @@ function projectToEnemy(project: Project): EnemyDef {
   const id = `enemy-project-${slugify(project.name)}`;
   return {
     id,
-    spriteType: 'slimePurple',
+    // Green (1 hit point) is the easier enemy — matched to Projects, the
+    // more plentiful of the two sections. See certificateToEnemy's comment
+    // above for the full rationale.
+    spriteType: 'slimeGreen',
     fact: {
       id,
       sectionId: 'projects',
@@ -35,8 +43,10 @@ function projectToEnemy(project: Project): EnemyDef {
 
 /**
  * Flattens CVData into one enemy per certificate (rendered as
- * slime_green.png) and one per project (rendered as slime_purple.png) —
- * mirrors CollectibleMapper.ts's coin/fruit split (FR-009). Empty
+ * slime_purple.png, the tougher 2-hit enemy) and one per project (rendered
+ * as slime_green.png, the easier 1-hit enemy) — tougher enemy guards the
+ * rarer section (see certificateToEnemy's comment). Mirrors
+ * CollectibleMapper.ts's coin/fruit split (FR-009). Empty
  * certificates/projects arrays simply produce no enemies of that kind.
  */
 export function mapCVDataToEnemies(cv: CVData): EnemyDef[] {

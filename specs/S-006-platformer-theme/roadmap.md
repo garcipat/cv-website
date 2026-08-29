@@ -153,7 +153,7 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
     as tall as its tallest feature needs, bottom-anchored (last row = lowest
     ground row).
   - **Intentional placement, no auto-placement** — `S` (spawn), `E` (green/
-    Certificate enemy), `M` (purple/Project enemy), `C` (Skill-category coin), `F`
+    Project enemy), `M` (purple/Certificate enemy), `C` (Skill-category coin), `F`
     (Language fruit) are hand-placed markers in the level layout. `EnemyMapper.ts`'s
     `placeEnemies` and `CollectibleMapper.ts`'s `placeCollectibles` both dropped
     their old auto-column-placement algorithm entirely (and the `groundColumns`/
@@ -172,10 +172,17 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
     entry still points at the untuned row 1, which now visually duplicates the
     tuned idle frames — needs a real distinct frame range (or redesign) before
     patrol relies on it looking different from idle.
-  *Verify: the green (Certificate) and purple (Project) slimes are visible at
+  *Verify: the green (Project) and purple (Certificate) slimes are visible at
   their `E`/`M` marker positions, idling; the 4 coins and 2 fruits are visible at
   their `C`/`F` marker positions; the wall pocket (cols 44-49) is visible on the
   ground row.*
+
+  **Corrected during step 18**: the green/purple ↔ Certificate/Project mapping
+  above was swapped from what step 16 originally shipped (green/Certificate,
+  purple/Project) — purple (2 hit points, the tougher enemy per step 18) is now
+  matched to Certificates, the rarer of the two sections, so the harder enemy
+  guards the scarcer reward; green (1 hit point) matches the more plentiful
+  Projects. See `EnemyMapper.ts`'s `certificateToEnemy`/`projectToEnemy` comments.
 - [x] **17. Enemy patrol** — enemies move back and forth at a constant speed
   (`PHYSICS_CONFIG.enemyPatrolSpeed`, 60px/s — 30% of the player's walk speed, a
   deliberate "plodding threat" pace, confirmed live rather than tuned further),
