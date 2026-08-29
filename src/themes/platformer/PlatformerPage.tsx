@@ -601,9 +601,13 @@ export const PlatformerPage = () => {
 
       // Side/below damage (roadmap step 19) — only checked while not already
       // invincible, so one overlap can't register repeated hits every tick
-      // it persists. Deliberately does NOT exclude a `hit`-reacting enemy
-      // (unlike the stomp check above) — per user decision, any non-defeated
-      // enemy can still hurt the player on side contact.
+      // it persists. A `hit`-reacting enemy IS excluded here (unlike stomp
+      // detection, which only excludes an enemy once its `hitPoints` reach
+      // 0 — see Collision.ts's checkEnemyStompCollisions) — reversed from an
+      // earlier design decision after live testing showed a hit-reacting
+      // enemy must stay harmless to side-touch for its whole reaction, or
+      // bouncing off a stomp while still overlapping it registered as a
+      // spurious side-hit.
       //
       // Excludes any id already in `stompedIds`: the stomp block above just
       // reassigned `playerState.value.vy` to the (negative, upward)

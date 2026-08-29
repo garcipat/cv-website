@@ -151,7 +151,14 @@ export function advanceEnemyAnimation(enemy: EnemyState, dt: number): EnemyState
 /**
  * Applies one stomp: decrements `hitPoints`, freezes horizontal movement, and
  * enters the `hit` reaction (red-flash/dissolve) animation from its first
- * frame. Does NOT decide defeat here — EnemyAI.ts's `stepEnemyHitReaction`
+ * frame — even if the enemy was already mid-reaction from an earlier stomp
+ * this same bounce arc (a skilled player chain-stomping a still-alive
+ * 2-hit purple enemy entirely airborne, confirmed live as the intended
+ * feel — see `Collision.ts`'s `checkEnemyStompCollisions`, which only
+ * excludes an enemy once `hitPoints` has actually reached 0, not while it's
+ * merely mid-reaction), so a legitimate second stomp always replays the
+ * reaction from frame 0 rather than continuing wherever the first one left
+ * off. Does NOT decide defeat here — EnemyAI.ts's `stepEnemyHitReaction`
  * checks `hitPoints` once the reaction animation finishes playing, so the
  * player always sees the same brief "stunned" reaction whether or not this
  * stomp was the finishing blow.

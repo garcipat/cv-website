@@ -3,16 +3,16 @@ import { RENDER_SCALE } from '../level/Terrain';
 /** Whole hearts shown in the HUD. */
 export const MAX_HEARTS = 3;
 
-/** Health is tracked in half-heart integer units so pit-fall damage (half a
- *  heart) and a future full-heart hit (roadmap step 18) both fit as whole
- *  numbers instead of needing fractional health values. */
+/** Health is tracked in half-heart integer units so pit-fall and side-hit
+ *  damage (both half a heart, see PIT_FALL_DAMAGE/SIDE_HIT_DAMAGE below) fit
+ *  as whole numbers instead of needing fractional health values. */
 export const MAX_HALF_HEARTS = MAX_HEARTS * 2;
 
 /**
  * Half-heart units lost per pit fall. Roadmap step 19 (enemy side/below
- * damage, see SIDE_HIT_DAMAGE below) reuses `takeDamage` with the same amount
- * — confirmed live with the user, overriding the roadmap's original "full
- * heart" text — instead of introducing a separate damage function.
+ * damage) gave `SIDE_HIT_DAMAGE` (below) this same amount — confirmed live
+ * with the user, overriding the roadmap's original "full heart" text for a
+ * side-hit — rather than introducing a separate damage function.
  */
 export const PIT_FALL_DAMAGE = 1;
 

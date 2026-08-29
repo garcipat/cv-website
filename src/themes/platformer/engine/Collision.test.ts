@@ -149,12 +149,25 @@ describe('checkEnemyStompCollisions', () => {
     expect(checkEnemyStompCollisions(player, [enemy])).toEqual([]);
   });
 
-  it('enemyAlreadyInHitReaction-excludedEvenIfOverlapping', () => {
-    // Prevents a single fall from registering a second stomp against an
-    // enemy still playing its first hit's reaction animation.
-    const enemy = makeEnemy(0, 100, { animState: 'hit' });
+  it('enemyHitPointsAlreadyZero-excludedEvenIfOverlapping', () => {
+    // Already taken its fatal hit, just awaiting removal once its reaction
+    // finishes — must not keep decrementing hitPoints arbitrarily below 0
+    // every time the stomp's own bounce arcs back down onto it.
+    const enemy = makeEnemy(0, 100, { animState: 'hit', hitPoints: 0 });
     const player = { ...makePlayer(0, 100 - PLAYER_RENDERED_SIZE / 2), vy: 300 };
     expect(checkEnemyStompCollisions(player, [enemy])).toEqual([]);
+  });
+
+  it('enemyMidHitReactionButHitPointsRemain-canBeStompedAgain', () => {
+    // The whole point of the fix (found via live testing): a still-alive
+    // (purple, 2 hit points, now down to 1) enemy mid-`hit`-reaction must be
+    // a valid stomp target even entirely airborne from the first stomp's own
+    // bounce — this engine has no double-jump, so "land on the same
+    // still-alive enemy again while still airborne" is a deliberate
+    // chain-stomp mechanic, not a bug to guard against.
+    const enemy = makeEnemy(0, 100, { animState: 'hit', hitPoints: 1 });
+    const player = { ...makePlayer(0, 100 - PLAYER_RENDERED_SIZE / 2), vy: 300 };
+    expect(checkEnemyStompCollisions(player, [enemy])).toEqual(['enemy-cert-x']);
   });
 });
 
@@ -194,8 +207,12 @@ describe('checkEnemySideCollisions', () => {
     // hit-reacting enemy must be harmless in every way, or bouncing off a
     // stomp while still overlapping the now-frozen enemy (rising, or
     // drifting beside it before separating) registers as a spurious side-hit
-    // against the very enemy just stomped. Matches stomp detection's own
-    // 'hit' exclusion now.
+    // against the very enemy just stomped. Unlike stomp detection (which
+    // only excludes an enemy once its `hitPoints` reach 0), side-hit
+    // detection still gates on `animState === 'hit'` directly — a
+    // hit-reacting enemy should stay harmless to side-touch for its whole
+    // reaction, separated or not, since (unlike stomping) there's no
+    // "legitimate repeat side-hit" the player would want to land sooner.
     const enemy = makeEnemy(0, 100, { animState: 'hit' });
     const player = { ...makePlayer(0, 100), vy: 0 };
     expect(checkEnemySideCollisions(player, [enemy])).toEqual([]);

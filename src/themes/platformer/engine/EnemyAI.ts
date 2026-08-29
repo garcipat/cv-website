@@ -81,3 +81,4 @@ export function stepEnemyHitReaction(enemy: EnemyState, dt: number): EnemyState 
   }
   return { ...enemy, hitTimer: 0, animState: 'walk', animFrame: 0, animTimer: 0 };
 }
+
