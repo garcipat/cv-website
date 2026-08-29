@@ -105,9 +105,9 @@ export const collectiblePlacements: CollectiblePlacement[] = placeCollectibles(
  * comes from level1's hand-placed `E`/`M` markers (see ENEMY_TILES_GREEN/
  * ENEMY_TILES_PURPLE) — placeEnemies has no auto-placement. A marker is a
  * slot on the map; each slot draws the next fact from CVData as its reward.
- * level1 currently has one `E` and one `M`, so only the first certificate
- * and first project actually have an enemy — the rest of CVData's
- * certificates/projects simply aren't on the map yet, which is expected for
+ * level1 currently has one `E` and one `M`, so only the first course
+ * and first certificate actually have an enemy — the rest of CVData's
+ * certificates/projects/courses simply aren't on the map yet, which is expected for
  * this mechanics-test level, not a bug (see level1.ts's doc comment).
  */
 export const enemyPlacements: EnemyPlacement[] = placeEnemies(mapCVDataToEnemies(currentCV.value), {

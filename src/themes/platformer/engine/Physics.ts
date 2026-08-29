@@ -34,6 +34,7 @@ export interface PlayerInput {
 }
 
 const NO_INPUT: PlayerInput = { left: false, right: false };
+const NO_BLOCKS: readonly BlockPlacement[] = [];
 
 /**
  * Width of the actual collision hitbox — narrower than PLAYER_RENDERED_SIZE
@@ -56,7 +57,7 @@ export function stepPlayerPhysics(
   level: LevelDef,
   dt: number,
   input: PlayerInput = NO_INPUT,
-  blockPlacements: readonly BlockPlacement[] = [],
+  blockPlacements: readonly BlockPlacement[] = NO_BLOCKS,
 ): PlayerState {
   // While a side-hit's knockback is still active (roadmap step 19), held
   // movement keys are ignored entirely and the knockback velocity/facing set

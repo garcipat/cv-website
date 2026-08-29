@@ -117,7 +117,7 @@ describe('level1', () => {
     // to cols 19-24 — right after the second coin (col 18), well before
     // the wall/enemy/pit gauntlet at cols 26-42, instead of the 51-tiles-
     // from-spawn cluster at cols 47-52.
-    const blockRow = 0;
+    const blockRow = 1;
     expect(CRATE_TILES.map((t) => t.col)).toEqual([19, 22]);
     expect(QUESTIONMARK_TILES.map((t) => t.col)).toEqual([20, 23]);
     expect(ROCK_TILES.map((t) => t.col)).toEqual([21, 24]);
@@ -131,9 +131,9 @@ describe('level1', () => {
     // between the elevated block row and solid ground, so the player can
     // jump up into a block from below.
     for (const col of [19, 20, 21, 22, 23, 24]) {
-      expect(level1.terrain[1][col]).toBe('empty');
       expect(level1.terrain[2][col]).toBe('empty');
-      expect(isSolid(level1.terrain[3][col])).toBe(true);
+      expect(level1.terrain[3][col]).toBe('empty');
+      expect(isSolid(level1.terrain[4][col])).toBe(true);
     }
   });
 
@@ -152,7 +152,7 @@ describe('level1', () => {
   });
 
   it('elevatedBridge-spansGapBetweenTwoFloatingPlatformsAtPlatformRow', () => {
-    const row = 0;
+    const row = 1;
     expect(level1.terrain[row][8]).toBe('platform');
     expect(level1.terrain[row][9]).toBe('platform');
     expect(level1.terrain[row][10]).toBe('platform');
@@ -166,9 +166,9 @@ describe('level1', () => {
     // Enough clearance (2 empty rows) to jump up into the bridge from the
     // ground below, and solid ground to land on after dropping through it.
     for (const col of [11, 12]) {
-      expect(level1.terrain[1][col]).toBe('empty');
       expect(level1.terrain[2][col]).toBe('empty');
-      expect(isSolid(level1.terrain[3][col])).toBe(true);
+      expect(level1.terrain[3][col]).toBe('empty');
+      expect(isSolid(level1.terrain[4][col])).toBe(true);
     }
   });
 

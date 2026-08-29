@@ -108,6 +108,6 @@ export function isBlockOccupied(
   row: number,
 ): boolean {
   return blockPlacements.some(
-    (b) => b.x / RENDERED_TILE_SIZE === col && b.y / RENDERED_TILE_SIZE === row,
+    (b) => Math.floor(b.x / RENDERED_TILE_SIZE) === col && Math.floor(b.y / RENDERED_TILE_SIZE) === row,
   );
 }
