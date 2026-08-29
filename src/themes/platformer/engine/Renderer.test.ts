@@ -4,6 +4,7 @@ import {
   drawHearts,
   drawCollectibles,
   drawEnemies,
+  drawBlocks,
   drawCollectionEffects,
   drawCollectibleCounter,
   drawIrisOverlay,
@@ -17,6 +18,7 @@ import { PLAYER_RENDERED_SIZE } from '../entities/Player';
 import { MAX_HALF_HEARTS, HEART_RENDERED_SIZE } from '../entities/Health';
 import { startFlightEffect, tickFlightEffect, RISE_DURATION_SECONDS, SPARKLE_DURATION_SECONDS } from './CollectionEffects';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
+import type { BlockPlacement } from '../level/BlockMapper';
 import type { EnemyState } from '../entities/Enemy';
 import { fruitFrameSource } from '../entities/Fruit';
 import {
@@ -58,6 +60,15 @@ function makePlacement(id: string, spriteType: 'coin' | 'fruit', x: number, y: n
     x,
     y,
   };
+}
+
+function makeBlockPlacement(
+  id: string,
+  blockKind: 'crate' | 'questionMark' | 'rock',
+  x: number,
+  y: number,
+): BlockPlacement {
+  return { id, blockKind, x, y };
 }
 
 describe('drawCollectibles', () => {
@@ -287,6 +298,40 @@ describe('drawEnemies', () => {
     const call = ctx.drawImage.mock.calls[0];
     expect(call[5]).toBe(0);
     expect(call[6]).toBe(0);
+  });
+});
+
+describe('drawBlocks', () => {
+  it('crateQuestionMarkAndRock-eachDrawnFromItsOwnTileCoords', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const placements = [
+      makeBlockPlacement('b1', 'crate', 0, 0),
+      makeBlockPlacement('b2', 'questionMark', 32, 0),
+      makeBlockPlacement('b3', 'rock', 64, 0),
+    ];
+
+    drawBlocks(ctx as unknown as CanvasRenderingContext2D, placements, fakeTileset);
+
+    const calls = ctx.drawImage.mock.calls;
+    expect(calls).toHaveLength(3);
+    expect(calls[0]).toEqual([fakeTileset, 112, 48, 16, 16, 0, 0, 32, 32]);
+    expect(calls[1]).toEqual([fakeTileset, 0, 32, 16, 16, 32, 0, 32, 32]);
+    expect(calls[2]).toEqual([fakeTileset, 48, 0, 16, 16, 64, 0, 32, 32]);
+  });
+
+  it('originXOriginY-shiftsEveryBlockByTheSameAmount', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const placements = [makeBlockPlacement('b1', 'crate', 0, 0)];
+
+    drawBlocks(ctx as unknown as CanvasRenderingContext2D, placements, fakeTileset, -50, 20);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 112, 48, 16, 16, -50, 20, 32, 32);
+  });
+
+  it('noPlacements-drawsNothing', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    drawBlocks(ctx as unknown as CanvasRenderingContext2D, [], fakeTileset);
+    expect(ctx.drawImage).not.toHaveBeenCalled();
   });
 });
 
