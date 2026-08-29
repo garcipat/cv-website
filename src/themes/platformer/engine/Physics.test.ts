@@ -273,6 +273,41 @@ describe('stepPlayerPhysics horizontal movement', () => {
   });
 });
 
+describe('stepPlayerPhysics knockback (roadmap step 19)', () => {
+  it('knockbackActive-ignoresHeldMovementKeysAndKeepsKnockbackVx', () => {
+    const player = basePlayer({ y: 0, vx: -250, knockbackTimer: 0.25, grounded: true });
+
+    // Holding RIGHT would normally set vx to +walkSpeed — knockback must win.
+    const next = stepPlayerPhysics(player, GROUND_LEVEL, 1 / 30, { right: true });
+
+    expect(next.vx).toBe(-250);
+  });
+
+  it('knockbackActive-decrementsKnockbackTimerByDt', () => {
+    const player = basePlayer({ y: 0, vx: -250, knockbackTimer: 0.25, grounded: true });
+
+    const next = stepPlayerPhysics(player, GROUND_LEVEL, 0.1);
+
+    expect(next.knockbackTimer).toBeCloseTo(0.15);
+  });
+
+  it('knockbackTimerBelowDt-clampsToZeroNotNegative', () => {
+    const player = basePlayer({ y: 0, vx: -250, knockbackTimer: 0.05, grounded: true });
+
+    const next = stepPlayerPhysics(player, GROUND_LEVEL, 0.1);
+
+    expect(next.knockbackTimer).toBe(0);
+  });
+
+  it('knockbackExpired-normalInputDrivenMovementResumes', () => {
+    const player = basePlayer({ y: 0, vx: -250, knockbackTimer: 0, grounded: true });
+
+    const next = stepPlayerPhysics(player, GROUND_LEVEL, 1 / 30, { right: true });
+
+    expect(next.vx).toBe(PHYSICS_CONFIG.walkSpeed);
+  });
+});
+
 describe('stepPlayerPhysics jump', () => {
   it('jumpPressed-whileGrounded-setsUpwardVelocityAndLeavesGround', () => {
     const player = basePlayer({ vy: 0, grounded: true });
