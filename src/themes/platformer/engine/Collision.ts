@@ -102,20 +102,25 @@ export function checkEnemyStompCollisions(player: PlayerState, enemies: EnemySta
 }
 
 /**
- * Returns the ids of every non-defeated enemy the player is touching in a
- * way that is NOT a stomp (roadmap step 19) — the exact inverse of
- * `checkEnemyStompCollisions`'s landing condition: any overlap where the
- * player either isn't falling (`vy <= 0`) or is falling but contacting the
- * enemy's lower half (side or below), not landing on its upper half. Unlike
- * stomp detection, an enemy currently playing its `hit` reaction is NOT
- * excluded here — a mid-reaction enemy can still hurt the player on side
- * contact, only a fully `defeated` (removed) enemy can't (per user decision).
+ * Returns the ids of every non-defeated, non-reacting enemy the player is
+ * touching in a way that is NOT a stomp (roadmap step 19) — the exact
+ * inverse of `checkEnemyStompCollisions`'s landing condition: any overlap
+ * where the player either isn't falling (`vy <= 0`) or is falling but
+ * contacting the enemy's lower half (side or below), not landing on its
+ * upper half. An enemy currently playing its `hit` reaction is excluded here
+ * too, same as stomp detection — this was originally left hurt-capable
+ * per an earlier design decision, but live testing showed that immediately
+ * bouncing off a stomp while still overlapping the now-frozen enemy (rising,
+ * or drifting beside it before separating) registered as a spurious side-hit
+ * against the very enemy just stomped. A stunned/reacting enemy is now
+ * harmless in every way until its reaction ends, not just immune to a
+ * second stomp.
  */
 export function checkEnemySideCollisions(player: PlayerState, enemies: EnemyState[]): string[] {
   const hitbox = playerHitbox(player);
   const hits: string[] = [];
   for (const enemy of enemies) {
-    if (enemy.defeated) continue;
+    if (enemy.defeated || enemy.animState === 'hit') continue;
     const box = enemyHitbox(enemy);
     if (!aabbOverlap(hitbox, box)) continue;
     const enemyMidY = box.y + box.height / 2;
