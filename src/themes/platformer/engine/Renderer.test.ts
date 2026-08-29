@@ -729,6 +729,22 @@ describe('drawPlayer', () => {
 
     expect(ctx.drawImage).toHaveBeenCalledWith(jumpSheet, 0, 0, 128, 128, 0, 0, 64, 64);
   });
+
+  it('visibleFalse-skipsDrawingEntirely', () => {
+    const ctx = makeMockContext();
+
+    drawPlayer(ctx, idlePlayer, fakeSpriteSheet, 0, 0, null, false);
+
+    expect(ctx.drawImage).not.toHaveBeenCalled();
+  });
+
+  it('visibleOmitted-defaultsToTrueAndDrawsNormally', () => {
+    const ctx = makeMockContext();
+
+    drawPlayer(ctx, idlePlayer, fakeSpriteSheet);
+
+    expect(ctx.drawImage).toHaveBeenCalled();
+  });
 });
 
 describe('drawHearts', () => {

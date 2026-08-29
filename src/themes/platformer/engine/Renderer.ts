@@ -137,7 +137,13 @@ export function drawPlayer(
   originX = 0,
   originY = 0,
   jumpSpriteSheet: HTMLImageElement | null = null,
+  // Roadmap step 19's invincibility blink: PlatformerPage.tsx toggles this
+  // every ~0.1s while the player is invincible instead of drawing a tinted
+  // sprite — simpler, and consistent with this renderer having no
+  // alpha/tint effects anywhere else.
+  visible = true,
 ): void {
+  if (!visible) return;
   ctx.imageSmoothingEnabled = false;
 
   const useJumpSheet = player.animState === 'jump' && jumpSpriteSheet !== null;
