@@ -421,6 +421,13 @@ export const PlatformerPage = () => {
         const originY = canvas.height - levelPixelHeight;
 
         for (const enemy of justDefeated) {
+          // Facts persist across respawns (FR-020c: `resetGame()` revives
+          // enemies but deliberately never clears `collectedFacts`), so a
+          // revived enemy stomped again in a later life must not re-bank the
+          // same fact — that would duplicate its journal page. The enemy is
+          // still removed via the `filter` below either way; only the
+          // reward (fact + flight effect) is skipped.
+          if (newFacts.some((f) => f.id === enemy.fact.id)) continue;
           newFacts.push(enemy.fact);
           const label = isSkillCategoryFact(enemy.fact.data)
             ? enemy.fact.data.category
@@ -531,7 +538,8 @@ export const PlatformerPage = () => {
       }
 
       const stompedIds = checkEnemyStompCollisions(playerState.value, enemyStates.value);
-      if (stompedIds.length > 0) {
+      const stompBounceThisTick = stompedIds.length > 0;
+      if (stompBounceThisTick) {
         enemyStates.value = enemyStates.value.map((enemy) =>
           stompedIds.includes(enemy.id) ? applyStomp(enemy) : enemy,
         );
@@ -557,6 +565,7 @@ export const PlatformerPage = () => {
         jumpPressed,
         jumpHeld,
         dropThroughHeld,
+        suppressJumpCut: stompBounceThisTick,
       });
 
       if (checkPitFall(next, level1)) {
