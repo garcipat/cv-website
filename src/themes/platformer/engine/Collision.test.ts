@@ -189,13 +189,15 @@ describe('checkEnemySideCollisions', () => {
     expect(checkEnemySideCollisions(player, [enemy])).toEqual([]);
   });
 
-  it('enemyInHitReaction-stillCountsAsASideHit', () => {
-    // Unlike stomp detection (which excludes a 'hit'-reacting enemy to avoid
-    // double-stomping it), a side hit from an enemy mid-reaction still hurts
-    // the player — only a fully `defeated` (removed) enemy is harmless. Per
-    // user decision.
+  it('enemyInHitReaction-excludedEvenIfOverlapping', () => {
+    // Reversed from an earlier design decision after live testing: a
+    // hit-reacting enemy must be harmless in every way, or bouncing off a
+    // stomp while still overlapping the now-frozen enemy (rising, or
+    // drifting beside it before separating) registers as a spurious side-hit
+    // against the very enemy just stomped. Matches stomp detection's own
+    // 'hit' exclusion now.
     const enemy = makeEnemy(0, 100, { animState: 'hit' });
     const player = { ...makePlayer(0, 100), vy: 0 };
-    expect(checkEnemySideCollisions(player, [enemy])).toEqual(['enemy-cert-x']);
+    expect(checkEnemySideCollisions(player, [enemy])).toEqual([]);
   });
 });
