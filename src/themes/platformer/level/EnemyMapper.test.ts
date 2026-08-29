@@ -17,10 +17,12 @@ const cv: CVData = {
 };
 
 describe('mapCVDataToEnemies', () => {
-  it('called-returns-oneSlimeGreenPerCertificatePlusOneSlimePurplePerProject', () => {
+  it('called-returns-oneSlimePurplePerCertificatePlusOneSlimeGreenPerProject', () => {
+    // Purple (2 hit points) is matched to Certificates, the rarer section —
+    // see EnemyMapper.ts's certificateToEnemy comment for the rationale.
     const defs = mapCVDataToEnemies(cv);
-    expect(defs.filter((d) => d.spriteType === 'slimeGreen')).toHaveLength(2);
-    expect(defs.filter((d) => d.spriteType === 'slimePurple')).toHaveLength(1);
+    expect(defs.filter((d) => d.spriteType === 'slimePurple')).toHaveLength(2);
+    expect(defs.filter((d) => d.spriteType === 'slimeGreen')).toHaveLength(1);
   });
 
   it('called-returns-uniqueIds', () => {
@@ -32,7 +34,7 @@ describe('mapCVDataToEnemies', () => {
   it('certificateEntry-buildsCertificatesFact', () => {
     const defs = mapCVDataToEnemies(cv);
     const cert = defs.find(
-      (d) => d.spriteType === 'slimeGreen' && 'name' in d.fact.data && d.fact.data.name === 'AWS Solutions Architect',
+      (d) => d.spriteType === 'slimePurple' && 'name' in d.fact.data && d.fact.data.name === 'AWS Solutions Architect',
     );
     expect(cert).toBeDefined();
     expect(cert?.fact.sectionId).toBe('certificates');
@@ -41,7 +43,7 @@ describe('mapCVDataToEnemies', () => {
 
   it('projectEntry-buildsProjectsFact', () => {
     const defs = mapCVDataToEnemies(cv);
-    const project = defs.find((d) => d.spriteType === 'slimePurple');
+    const project = defs.find((d) => d.spriteType === 'slimeGreen');
     expect(project).toBeDefined();
     expect(project?.fact.sectionId).toBe('projects');
     expect(project?.fact.sourceType).toBe('enemy');
@@ -60,59 +62,59 @@ describe('mapCVDataToEnemies', () => {
 
 describe('placeEnemies', () => {
   it('enoughMarkersOfEachType-returnsPlacementsAtMarkedPositionsInDefsOrder', () => {
-    const defs = mapCVDataToEnemies(cv); // [cert, cert, project]
-    const greenMarkers = [
+    const defs = mapCVDataToEnemies(cv); // [cert(purple), cert(purple), project(green)]
+    const purpleMarkers = [
       { col: 5, row: 2 },
       { col: 6, row: 2 },
     ];
-    const purpleMarkers = [{ col: 7, row: 2 }];
+    const greenMarkers = [{ col: 7, row: 2 }];
     const placed = placeEnemies(defs, { slimeGreen: greenMarkers, slimePurple: purpleMarkers });
 
     expect(placed.map((p) => p.id)).toEqual(defs.map((d) => d.id));
-    expect(placed[0]).toMatchObject(tileToPixel(greenMarkers[0].col, greenMarkers[0].row));
-    expect(placed[1]).toMatchObject(tileToPixel(greenMarkers[1].col, greenMarkers[1].row));
-    expect(placed[2]).toMatchObject(tileToPixel(purpleMarkers[0].col, purpleMarkers[0].row));
+    expect(placed[0]).toMatchObject(tileToPixel(purpleMarkers[0].col, purpleMarkers[0].row));
+    expect(placed[1]).toMatchObject(tileToPixel(purpleMarkers[1].col, purpleMarkers[1].row));
+    expect(placed[2]).toMatchObject(tileToPixel(greenMarkers[0].col, greenMarkers[0].row));
   });
 
-  it('greenMarkersConsumedInReadingOrder-secondGreenDefGetsSecondMarker', () => {
+  it('purpleMarkersConsumedInReadingOrder-secondPurpleDefGetsSecondMarker', () => {
     const defs = mapCVDataToEnemies(cv);
-    const greenMarkers = [
+    const purpleMarkers = [
       { col: 1, row: 0 },
       { col: 2, row: 0 },
     ];
-    const placed = placeEnemies(defs, { slimeGreen: greenMarkers, slimePurple: [{ col: 3, row: 0 }] });
+    const placed = placeEnemies(defs, { slimeGreen: [{ col: 3, row: 0 }], slimePurple: purpleMarkers });
 
-    const greenPlacements = placed.filter((p) => p.spriteType === 'slimeGreen');
-    expect(greenPlacements[0]).toMatchObject(tileToPixel(1, 0));
-    expect(greenPlacements[1]).toMatchObject(tileToPixel(2, 0));
+    const purplePlacements = placed.filter((p) => p.spriteType === 'slimePurple');
+    expect(purplePlacements[0]).toMatchObject(tileToPixel(1, 0));
+    expect(purplePlacements[1]).toMatchObject(tileToPixel(2, 0));
   });
 
-  it('fewerGreenMarkersThanGreenDefs-onlyMarkedCountGetsPlaced', () => {
-    const defs = mapCVDataToEnemies(cv); // 2 slimeGreen defs, 1 slimePurple def
+  it('fewerPurpleMarkersThanPurpleDefs-onlyMarkedCountGetsPlaced', () => {
+    const defs = mapCVDataToEnemies(cv); // 2 slimePurple defs, 1 slimeGreen def
     const placed = placeEnemies(defs, {
-      slimeGreen: [{ col: 1, row: 0 }],
-      slimePurple: [{ col: 2, row: 0 }],
+      slimeGreen: [{ col: 2, row: 0 }],
+      slimePurple: [{ col: 1, row: 0 }],
     });
 
-    // Only the first green def had a marker — the second isn't on the map
+    // Only the first purple def had a marker — the second isn't on the map
     // yet, not an error (see placeEnemies's doc comment).
-    expect(placed.filter((p) => p.spriteType === 'slimeGreen')).toHaveLength(1);
     expect(placed.filter((p) => p.spriteType === 'slimePurple')).toHaveLength(1);
+    expect(placed.filter((p) => p.spriteType === 'slimeGreen')).toHaveLength(1);
     expect(placed).toHaveLength(2);
   });
 
-  it('noPurpleMarkers-noPurpleDefsPlacedButGreenDefsStillAre', () => {
-    const defs = mapCVDataToEnemies(cv); // 2 slimeGreen defs, 1 slimePurple def
+  it('noGreenMarkers-noGreenDefsPlacedButPurpleDefsStillAre', () => {
+    const defs = mapCVDataToEnemies(cv); // 2 slimePurple defs, 1 slimeGreen def
     const placed = placeEnemies(defs, {
-      slimeGreen: [
+      slimeGreen: [],
+      slimePurple: [
         { col: 1, row: 0 },
         { col: 2, row: 0 },
       ],
-      slimePurple: [],
     });
 
-    expect(placed.filter((p) => p.spriteType === 'slimeGreen')).toHaveLength(2);
-    expect(placed.filter((p) => p.spriteType === 'slimePurple')).toHaveLength(0);
+    expect(placed.filter((p) => p.spriteType === 'slimePurple')).toHaveLength(2);
+    expect(placed.filter((p) => p.spriteType === 'slimeGreen')).toHaveLength(0);
     expect(placed).toHaveLength(2);
   });
 
