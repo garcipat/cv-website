@@ -40,6 +40,8 @@ import {
   enemyFrameSource,
 } from '../entities/Enemy';
 import type { EnemyState } from '../entities/Enemy';
+import { BLOCK_FRAME_SIZE, BLOCK_RENDERED_SIZE, blockFrameSource } from '../entities/Block';
+import type { BlockPlacement } from '../level/BlockMapper';
 import { flightEffectPosition, sparkleParticles } from './CollectionEffects';
 import type { FlightEffect } from './CollectionEffects';
 
@@ -424,6 +426,40 @@ export function drawEnemies(
       dy,
       ENEMY_RENDERED_SIZE,
       ENEMY_RENDERED_SIZE,
+    );
+  }
+}
+
+/**
+ * Draws every block placement in its intact state (roadmap step 20 — no
+ * hit mechanics yet, so there's no cracked/used/broken variant to pick
+ * between; steps 21a/21b/21c will extend this once blocks respond to
+ * hits). All three block kinds live in the same tileset image already used
+ * for terrain (`world_tileset.png`), so this reuses `drawTerrain`'s
+ * `tileset` parameter rather than a separate sprite sheet. Same
+ * originX/originY convention as drawTerrain/drawCollectibles/drawEnemies.
+ */
+export function drawBlocks(
+  ctx: CanvasRenderingContext2D,
+  placements: BlockPlacement[],
+  tileset: HTMLImageElement,
+  originX = 0,
+  originY = 0,
+): void {
+  ctx.imageSmoothingEnabled = false;
+
+  for (const block of placements) {
+    const { sx, sy } = blockFrameSource(block.blockKind);
+    ctx.drawImage(
+      tileset,
+      sx,
+      sy,
+      BLOCK_FRAME_SIZE,
+      BLOCK_FRAME_SIZE,
+      block.x + originX,
+      block.y + originY,
+      BLOCK_RENDERED_SIZE,
+      BLOCK_RENDERED_SIZE,
     );
   }
 }
