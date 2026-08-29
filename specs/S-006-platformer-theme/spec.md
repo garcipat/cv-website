@@ -364,11 +364,11 @@ The level is hand-crafted — starting with a simple layout to validate function
 
 - **FR-036**: System MUST show a translucent controls overlay listing only universal controls (movement keys, jump key, journal toggle key) when gameplay first enters the `playing` phase. The overlay MUST auto-dismiss on the player's first movement or jump input, or after a short timeout, whichever comes first, and MUST NOT reappear for the remainder of the session.
 
-- **FR-037**: System MUST render hint signs as a new non-solid, non-collectible level entity (`SignDef`), placed via hand-authored level markers (consistent with FR-013's/FR-021's marker-based placement approach, avoiding already-used marker characters). Signs use a sign-post tile sourced from `world_tileset.png`.
+- **FR-037**: System MUST render hint signs as a new non-solid, non-collectible level entity (`SignDef`), placed via hand-authored level markers. Each distinct hint gets its own single-digit marker character (`1`–`9`, consistent with FR-013's/FR-021's marker-based placement approach), mapped directly to a `hintId` in `LevelParser.ts`'s `SIGN_CHARS` table (e.g. `'1': 'bridgeDropThrough'`) — the character itself carries the hint's identity, independent of its position in the level layout, so the layout can be freely edited/reordered without breaking which sign shows which text. This is deliberately simpler than the CVData-order "zip" convention FR-013 uses for coins/enemies, since hint content is hand-authored, not pulled from an ordered CVData array — capped at 9 distinct hints total is an accepted constraint. Signs use a sign-post tile sourced from `world_tileset.png`.
 
 - **FR-038**: System MUST display a sign's hint text in a speech-bubble tooltip near the character when the character's hitbox overlaps the sign's trigger zone, and hide it when the character no longer overlaps. This interaction MUST NOT pause the game, MUST NOT block movement (signs are not solid), and MUST NOT add anything to `collectedFacts` or the journal — hint text is not CV data, and signs are reusable rather than consumed on first touch.
 
-- **FR-039**: System MUST source hint text from a small per-locale (en/de) hint dictionary keyed by a `hintId` on each sign placement. Hint text is NOT derived from `CVData` and re-renders in the selected locale when `currentLocale` changes, consistent with FR-026.
+- **FR-039**: System MUST source hint text from the existing i18n system (`src/i18n/locales/en.json`/`de.json`), NOT a bespoke dictionary — each hint's text lives under a new `platformer.hints.<hintId>` key (e.g. `platformer.hints.bridgeDropThrough`), read the same way existing platformer UI strings are (`currentUI.value.platformer.hints[hintId]`, per the pattern already used in `Journal.tsx`). Hint text is NOT derived from `CVData` and re-renders in the selected locale when `currentLocale` changes, consistent with FR-026 — this is "for free" from the existing translation signal, no bespoke locale-switching logic needed.
 
 - **FR-040**: Initial hint signs cover contextual mechanics not included in the trimmed controls overlay (FR-036) — at minimum, a sign near the level's first one-way bridge explaining the Down/`S` drop-through control (FR-006/FR-007). Additional contextual signs (e.g. for a future ladder-climbing mechanic) are added only once that mechanic ships — out of scope until then.
 
@@ -411,8 +411,7 @@ The level is hand-crafted — starting with a simple layout to validate function
     │   ├── LevelData.ts           # Type definitions for level structure
     │   ├── Terrain.ts             # Tile helpers — isSolid, tileAtPosition, tile-to-pixel conversion
     │   ├── level1.ts              # Level 1 data — terrain, collectibles, mappings
-    │   ├── CollectibleMapper.ts   # Maps CVData to collectible placements
-    │   └── HintText.ts             # Per-locale (en/de) hint text dictionary keyed by hintId (P3)
+    │   └── CollectibleMapper.ts   # Maps CVData to collectible placements
     └── types.ts                   # Shared types for the platformer theme
    ```
 
@@ -439,7 +438,7 @@ The level is hand-crafted — starting with a simple layout to validate function
   - `CollectedFact`: `{ id: string; sectionId: SectionId; sectionLabel: string; data: CVItemData; sourceType: 'coin' | 'enemy' | 'block' }`
   - `BlockDef`: `{ id: string; x: number; y: number; kind: 'crate' | 'questionMark' | 'rock'; hitsTaken: number; broken: boolean; cvSection?: SectionId; cvIndex?: number }` — `cvSection`/`cvIndex` are only present on `crate` blocks; `questionMark` and `rock` carry no CV mapping (amended 2026-08-29, see FR-021).
   - `LevelDef`: `{ terrain: TileMap; collectibles: CollectibleDef[]; enemies: EnemyDef[]; blocks: BlockDef[]; signs: SignDef[]; spawn: Point; flagpole: Point; width: number; height: number }`
-  - `SignDef`: `{ id: string; x: number; y: number; hintId: string }` — `hintId` looks up localized text in the hint dictionary (`level/HintText.ts`); no `cvSection`/`cvIndex`, since signs carry no CV mapping (P3, see FR-037).
+  - `SignDef`: `{ id: string; x: number; y: number; hintId: string }` — `hintId` looks up localized text at `platformer.hints.<hintId>` in the existing i18n translation files (`src/i18n/locales/en.json`/`de.json`); no `cvSection`/`cvIndex`, since signs carry no CV mapping (P3, see FR-037).
 
 #### Testing
 
