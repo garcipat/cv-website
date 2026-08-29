@@ -156,6 +156,7 @@
       "collectibles": "Sammelobjekte",
       "coins": "Münzen",
       "fruits": "Früchte",
+      "enemies": "Gegner",
       "resetGame": "Spiel zurücksetzen",
       "emptyState": "Noch nichts entdeckt — weiter erkunden!"
     }

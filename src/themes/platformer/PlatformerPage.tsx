@@ -46,7 +46,7 @@ import {
   PLAYER_RENDERED_SIZE,
   PLAYER_VISUAL_CENTER_Y_OFFSET,
 } from './entities/Player';
-import { advanceEnemyAnimation, applyStomp } from './entities/Enemy';
+import { advanceEnemyAnimation, applyStomp, enemyFrameSource, ENEMY_FRAME_SIZE } from './entities/Enemy';
 import { takeDamage, PIT_FALL_DAMAGE } from './entities/Health';
 import {
   playerState,
@@ -57,6 +57,7 @@ import {
   resetGame,
   resetGameProgress,
   collectiblePlacements,
+  enemyPlacements,
   enemyStates,
   collectedCollectibleIds,
   activeEffects,
@@ -67,9 +68,9 @@ import { Journal } from './components/Journal';
 // Horizontal HUD layout: hearts start at HEARTS_START_X (shifted right of
 // the journal icon button, see Renderer.ts) and occupy roughly 130px from
 // there (3 hearts x 32px + spacing, per drawHearts's own HEART_SPACING in
-// Renderer.ts) — these two constants position the coin and fruit counters
-// after that, side by side, without duplicating Renderer.ts's private
-// layout constants here.
+// Renderer.ts) — these two constants position the coin, fruit, and
+// enemy-defeated counters after that, side by side, without duplicating
+// Renderer.ts's private layout constants here.
 const MAX_HEARTS_COUNTER_WIDTH = 130;
 // Wide enough for a 32px icon (now matching HEART_RENDERED_SIZE, not the
 // smaller 20px it used to be) plus its "collected / max" text before the
@@ -305,6 +306,34 @@ export const PlatformerPage = () => {
           fruitTotal,
           HEARTS_START_X + MAX_HEARTS_COUNTER_WIDTH + COLLECTIBLE_COUNTER_SPACING,
           32,
+        );
+      }
+
+      // Enemy-defeated counter (roadmap step 18, added per live user
+      // feedback after verifying stomp defeat): persistent like the coin/
+      // fruit counters above — driven by `collectedFacts` (sourceType
+      // 'enemy'), which survives a respawn, rather than `enemyStates`'s
+      // live array length, which resets to full on every respawn (enemies,
+      // unlike facts, respawn per FR-020c). The icon reuses the green
+      // slime's own tuned walk-loop frame (`enemyFrameSource('walk', 0)` —
+      // sheet frame 4, row 0 col 3) as a generic "enemy" icon instead of a
+      // `hit`-state frame — showing the slime mid-defeat/hurt read as an odd
+      // choice for a counter icon, per live user feedback. There's no
+      // separate "enemy defeated" sprite, and picking one color instead of
+      // showing both keeps this counter as simple as the coin/fruit ones.
+      const enemyIconFrame = enemyFrameSource('walk', 0);
+      const enemyTotal = enemyPlacements.length;
+      const enemyDefeated = collectedFacts.value.filter((f) => f.sourceType === 'enemy').length;
+      if (slimeGreenSpriteRef.current) {
+        drawCollectibleCounter(
+          ctx,
+          slimeGreenSpriteRef.current,
+          { sx: enemyIconFrame.sx, sy: enemyIconFrame.sy, size: ENEMY_FRAME_SIZE },
+          enemyDefeated,
+          enemyTotal,
+          HEARTS_START_X + MAX_HEARTS_COUNTER_WIDTH + COLLECTIBLE_COUNTER_SPACING * 2,
+          32,
+          -6,
         );
       }
 
