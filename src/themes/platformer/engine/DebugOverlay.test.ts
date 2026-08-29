@@ -34,6 +34,8 @@ const idlePlayer: PlayerState = {
   animTimer: 0,
   animState: 'idle',
   animFrame: 0,
+  invincibleTimer: 0,
+  knockbackTimer: 0,
 };
 
 describe('drawDebugOverlay', () => {

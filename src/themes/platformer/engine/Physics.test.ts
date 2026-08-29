@@ -25,6 +25,8 @@ function basePlayer(overrides: Partial<PlayerState> = {}): PlayerState {
     isDroppingThroughBridge: false,
     lastGroundedX: 0,
     lastGroundedY: 0,
+    invincibleTimer: 0,
+    knockbackTimer: 0,
     ...overrides,
   };
 }
