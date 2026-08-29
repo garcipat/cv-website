@@ -6,9 +6,6 @@ import {
   findPurpleEnemyTiles,
   findCoinTiles,
   findFruitTiles,
-  findCrateTiles,
-  findQuestionMarkTiles,
-  findRockTiles,
 } from './LevelParser';
 
 // Visual layout of level1 — one character per tile (see LevelParser.ts's
@@ -47,29 +44,6 @@ import {
 // represented on the map yet. The actual level design comes later, once the
 // mechanics it exercises are all built.
 //
-// Roadmap step 20 (2026-08-29) relaid out the post-wall-pocket half of this
-// level after live user feedback that it felt too spread out: one of the
-// four Skill coins moved from col 50 to col 18 (a second nearby pickup,
-// not just the col 10 one), and the other three coins/both fruits moved
-// from their original cols 50/55/60/70/75 into a tight cluster at cols
-// 43-46 right after the col 40-42 pit. Three new marker kinds were added
-// immediately after that cluster, two of each: `X` (crate block), `Q`
-// (question-mark block), `K` (rock block), at cols 47-52. Like the
-// enemy/coin markers, a level's marker count decides on-map coverage, not
-// CVData's length — this mechanics-test level intentionally has just 2 of
-// each new marker type (BlockMapper.ts's placeBlocks has no auto-placement
-// fallback, same as EnemyMapper.ts/CollectibleMapper.ts).
-//
-// Follow-up (same day, after live user feedback on the render): the three
-// new block marker kinds moved again — from row 2 (ground-adjacent, same
-// height as the player's own standing position) to row 0 (elevated, with
-// rows 1-2 kept empty beneath them — the same "2 rows of clearance above
-// solid ground" shape the existing floating platform at cols 8-14 already
-// uses), and from cols 47-52 (51 tiles from spawn, past the wall/pit
-// gauntlet) to cols 19-24 (18-23 tiles from spawn, right after the second
-// coin and before the gauntlet) — both changes make the "jump up and hit
-// from below" gesture read correctly and cut the walk to reach them.
-//
 // Reworked for roadmap step 17 (enemy patrol) — patrol test cases now sit
 // close to spawn (cols ~26-42) instead of the original far-right (cols 44-65),
 // making manual testing convenient while staying well past the player's
@@ -82,9 +56,9 @@ import {
 //     wall-reversal and the ledge/pit-edge-reversal branches of
 //     EnemyAI.ts's stepEnemyPatrol on a single enemy.
 const LEVEL_1_LAYOUT: readonly string[] = [
-  '........PPPBBPP....XQKXQK.......................................................',
+  '........PPPBBPP.................................................................',
   '................................................................................',
-  '.S........C.......C.......W.E..W....W.M....CFCF.................................',
+  '.S........C...............W.E..W....W.M...........C....F....C.........C....F....',
   'GGBBBGGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRR...RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
   'GG...GGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRR...RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
 ];
@@ -105,12 +79,3 @@ export const COIN_TILES = findCoinTiles(LEVEL_1_LAYOUT);
 
 /** Hand-placed Language fruit positions, from `LEVEL_1_LAYOUT`'s `F` markers. */
 export const FRUIT_TILES = findFruitTiles(LEVEL_1_LAYOUT);
-
-/** Hand-placed crate block positions (2), from `LEVEL_1_LAYOUT`'s `X` markers. */
-export const CRATE_TILES = findCrateTiles(LEVEL_1_LAYOUT);
-
-/** Hand-placed question-mark block positions (2), from `LEVEL_1_LAYOUT`'s `Q` markers. */
-export const QUESTIONMARK_TILES = findQuestionMarkTiles(LEVEL_1_LAYOUT);
-
-/** Hand-placed rock block positions (2), from `LEVEL_1_LAYOUT`'s `K` markers. */
-export const ROCK_TILES = findRockTiles(LEVEL_1_LAYOUT);
