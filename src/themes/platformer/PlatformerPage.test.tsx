@@ -556,6 +556,112 @@ describe('PlatformerPage', () => {
     expect(ctx.fillText).toHaveBeenCalledWith(`0 / ${fruitTotal}`, expect.any(Number), expect.any(Number));
   });
 
+  it('render-afterEnemySpritesLoad-showsEnemyDefeatedCounterAtZero', async () => {
+    vi.stubGlobal('Image', MockTilesetImage);
+
+    render(<PlatformerPage />);
+    const ctx = platformerPage.context;
+
+    const enemyTotal = enemyPlacements.length;
+
+    await waitFor(() =>
+      expect(ctx.fillText).toHaveBeenCalledWith(`0 / ${enemyTotal}`, expect.any(Number), expect.any(Number)),
+    );
+  });
+
+  it('playerFallsOntoGreenEnemy-tick-enemyDefeatedCounterIncrementsToOne', async () => {
+    vi.stubGlobal('Image', MockTilesetImage);
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const ctx = platformerPage.context;
+    const enemyTotal = enemyPlacements.length;
+    await waitFor(() =>
+      expect(ctx.fillText).toHaveBeenCalledWith(`0 / ${enemyTotal}`, expect.any(Number), expect.any(Number)),
+    );
+
+    const target = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
+    playerState.value = {
+      ...playerState.value,
+      x: target.x,
+      y: target.y - PLAYER_RENDERED_SIZE / 2,
+      vy: 300,
+    };
+
+    // Green has 1 hit point — one full hit-reaction cycle (400ms) after the
+    // stomp defeats it. GameLoop caps any single tick's dt at MAX_DT (1/30s),
+    // so the 400ms reaction has to be paid off over enough real 16ms-spaced
+    // frames, not one big jump (see the stomp-defeat tests above).
+    let t = 16;
+    frameCallback!(t);
+    for (let i = 0; i < 30; i++) {
+      t += 16;
+      frameCallback!(t);
+    }
+
+    expect(ctx.fillText).toHaveBeenCalledWith(`1 / ${enemyTotal}`, expect.any(Number), expect.any(Number));
+  });
+
+  it('resetGame-afterDefeatingAnEnemy-enemyDefeatedCounterStaysAtOne', async () => {
+    // Facts persist across a respawn (FR-020c) even though the enemy itself
+    // respawns alive — the counter must track collectedFacts, not the live
+    // enemyStates array length, or it would wrongly drop back to 0/N.
+    vi.stubGlobal('Image', MockTilesetImage);
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const ctx = platformerPage.context;
+    const enemyTotal = enemyPlacements.length;
+    await waitFor(() =>
+      expect(ctx.fillText).toHaveBeenCalledWith(`0 / ${enemyTotal}`, expect.any(Number), expect.any(Number)),
+    );
+
+    const target = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
+    playerState.value = {
+      ...playerState.value,
+      x: target.x,
+      y: target.y - PLAYER_RENDERED_SIZE / 2,
+      vy: 300,
+    };
+
+    // Same 400ms-over-many-16ms-ticks pattern as the test above — green's
+    // one hit point needs a full hit-reaction cycle to actually defeat it.
+    let t = 16;
+    frameCallback!(t);
+    for (let i = 0; i < 30; i++) {
+      t += 16;
+      frameCallback!(t);
+    }
+    expect(ctx.fillText).toHaveBeenCalledWith(`1 / ${enemyTotal}`, expect.any(Number), expect.any(Number));
+
+    healthState.value = 0;
+    t += 16;
+    frameCallback!(t); // enters 'dying'
+    for (let i = 0; i < 200; i++) {
+      t += 16;
+      frameCallback!(t);
+    }
+    fireEvent.keyDown(window, { code: 'Enter' });
+    t += 16;
+    frameCallback!(t);
+
+    expect(ctx.fillText).toHaveBeenCalledWith(`1 / ${enemyTotal}`, expect.any(Number), expect.any(Number));
+  });
+
   it('render-afterEnemySpritesLoad-drawsEnemiesAtEnemyRenderedSize', async () => {
     vi.stubGlobal('Image', MockTilesetImage);
 

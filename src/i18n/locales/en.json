@@ -156,6 +156,7 @@
       "collectibles": "Collectibles",
       "coins": "Coins",
       "fruits": "Fruits",
+      "enemies": "Enemies",
       "resetGame": "Reset Game",
       "emptyState": "No facts discovered yet — keep exploring!"
     }
