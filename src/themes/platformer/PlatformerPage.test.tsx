@@ -817,9 +817,10 @@ describe('PlatformerPage', () => {
     frameCallback!(16);
 
     // Not just "still ascending" (that passes even if the jump-cut
-    // multiplier — 0.45 — has already chewed the -400 bounce impulse down to
-    // roughly -180, which is what happens on this exact frame if the jump
-    // key isn't held) — assert it's still close to its full magnitude.
+    // multiplier — 0.45 — has already chewed the bounce impulse down to
+    // roughly 45% of its magnitude, which is what happens on this exact
+    // frame if the jump key isn't held) — assert it's still close to its
+    // full magnitude, whatever PHYSICS_CONFIG.stompBounceVelocity currently is.
     expect(playerState.value.vy).toBeLessThan(0);
     expect(playerState.value.vy).toBeLessThan(PHYSICS_CONFIG.stompBounceVelocity * 0.9);
   });
@@ -918,7 +919,11 @@ describe('PlatformerPage', () => {
     expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(false);
 
     // Re-position for a second stomp (the enemy patrolled away during the
-    // reaction window above — put the player back on top of its current spot).
+    // reaction window above — put the player back on top of its current
+    // spot). Registers as a genuine second stomp since it still has 1 hit
+    // point left (roadmap step 19's chain-stomp fix: `checkEnemyStompCollisions`
+    // only excludes an enemy once `hitPoints` reaches 0 — no cooldown/landing
+    // tracking needed, since this engine has no double-jump).
     const stillAlive = enemyStates.value.find((e) => e.id === target.id)!;
     playerState.value = {
       ...playerState.value,
@@ -1562,7 +1567,7 @@ describe('PlatformerPage', () => {
     expect(ctx.strokeRect).toHaveBeenCalled();
   });
 
-  it('playerTouchesEnemyFromTheSide-tick-losesAFullHeartAndGetsKnockedBack', () => {
+  it('playerTouchesEnemyFromTheSide-tick-losesAHalfHeartAndGetsKnockedBack', () => {
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frameCallback = cb;
@@ -1668,6 +1673,109 @@ describe('PlatformerPage', () => {
 
     expect(healthState.value).toBe(startingHealth);
     expect(playerState.value.invincibleTimer).toBe(0);
+  });
+
+  it('playerStompsEnemy-ticksThroughTheWholeBounceArc-neverTakesSideHitDamage', () => {
+    // Regression guard for a real bug found via live play: the same-tick
+    // stompedIds filter (see the test above) only protects the exact tick a
+    // stomp registers. On every LATER tick, while the player is still rising
+    // off the bounce (vy < 0) and still overlapping the now-frozen, mid-'hit'
+    // enemy, checkEnemySideCollisions used to have no reason to exclude it —
+    // registering a fresh, unwanted side-hit against the very enemy just
+    // stomped. Fixed by excluding any `animState === 'hit'` enemy from side-hit
+    // detection entirely (matching stomp detection's own exclusion) rather
+    // than relying on velocity/geometry alone. This ticks through several
+    // frames of the bounce arc (well past the single tick the older test
+    // covered) and asserts health never drops and invincibility is never
+    // granted from this encounter.
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const target = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
+    const startingHealth = healthState.value;
+    playerState.value = {
+      ...playerState.value,
+      x: target.x,
+      y: target.y - PLAYER_RENDERED_SIZE / 2,
+      vy: 300,
+    };
+
+    let t = 16;
+    frameCallback!(t);
+    for (let i = 0; i < 20; i++) {
+      t += 16;
+      frameCallback!(t);
+      expect(healthState.value).toBe(startingHealth);
+      expect(playerState.value.invincibleTimer).toBe(0);
+    }
+  });
+
+  it('playerLandsAndRestompsPurpleEnemyWhileStillMidReaction-registersAsAGenuineSecondStomp', () => {
+    // The chain-stomp fix itself (found via live testing, "wouldn't it be
+    // nice if you could stomp twice in a row" / "if he stomps and gets
+    // repelled upwards he should be able to stomp again when falling down
+    // again on the same enemy"): a second stomp against the SAME enemy only
+    // needs it to still have hit points left — no cooldown, no landing, no
+    // waiting for the ~0.4s hit reaction to finish. Re-stomps almost
+    // immediately (well before the first reaction would have ended),
+    // entirely airborne (this engine has no double-jump, so re-landing on
+    // the same enemy while still airborne can only mean the same bounce's
+    // own descent — and that's exactly the desired chain-stomp), and still
+    // expects the enemy defeated.
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const target = enemyStates.value.find((e) => e.spriteType === 'slimePurple')!;
+    playerState.value = {
+      ...playerState.value,
+      x: target.x,
+      y: target.y - PLAYER_RENDERED_SIZE / 2,
+      vy: 300,
+    };
+
+    let t = 16;
+    frameCallback!(t); // first stomp: hitPoints 2 -> 1, animState 'hit'
+
+    const midReaction = enemyStates.value.find((e) => e.id === target.id)!;
+    expect(midReaction.animState).toBe('hit');
+    expect(midReaction.hitPoints).toBe(1);
+
+    // Land on it again immediately — still well within the ~0.4s reaction
+    // window (this same tick), entirely airborne, no landing/separation of
+    // any kind in between.
+    playerState.value = {
+      ...playerState.value,
+      x: midReaction.x,
+      y: midReaction.y - PLAYER_RENDERED_SIZE / 2,
+      vy: 300,
+    };
+    t += 16;
+    frameCallback!(t); // second stomp lands mid-reaction: hitPoints 1 -> 0
+
+    const stillMidReaction = enemyStates.value.find((e) => e.id === target.id)!;
+    expect(stillMidReaction.animState).toBe('hit'); // reaction hasn't finished yet
+
+    for (let i = 0; i < 30; i++) {
+      t += 16;
+      frameCallback!(t);
+    }
+
+    expect(enemyStates.value.some((e) => e.id === target.id)).toBe(false);
+    expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(true);
   });
 
   it('playerFallsIntoPit-tick-losesHalfHeartAndBecomesInvincible', () => {

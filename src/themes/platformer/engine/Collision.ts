@@ -75,22 +75,31 @@ export function enemyHitbox(enemy: EnemyState): Box {
 }
 
 /**
- * Returns the ids of every non-defeated, non-reacting enemy the player just
- * stomped this frame: overlapping AND falling (`player.vy > 0`) AND landing
- * on the enemy's upper half (the player's hitbox bottom edge is at or above
- * the enemy's vertical midpoint) — this is what distinguishes "jumped on
- * top of" from a side/below touch (roadmap step 19's separate concern,
- * intentionally not handled here: this function returns [] for that case,
- * same as for no contact at all). An enemy already `defeated`, or already
- * mid-`'hit'`-reaction from an earlier stomp this fall, is excluded so one
- * fall can't register a second stomp against it before its reaction finishes.
+ * Returns the ids of every not-yet-fatally-hit enemy the player just stomped
+ * this frame: overlapping AND falling (`player.vy > 0`) AND landing on the
+ * enemy's upper half (the player's hitbox bottom edge is at or above the
+ * enemy's vertical midpoint) — this is what distinguishes "jumped on top of"
+ * from a side/below touch (roadmap step 19's separate concern, intentionally
+ * not handled here: this function returns [] for that case, same as for no
+ * contact at all). An enemy already `defeated`, or one whose `hitPoints` has
+ * already reached 0 (mid `hit`-reaction, awaiting removal), is excluded —
+ * without this, a stomp's own bounce naturally arcs back down onto the same
+ * enemy, and would otherwise keep decrementing `hitPoints` arbitrarily far
+ * below 0 every time (found via live testing). Deliberately NOT gated on
+ * `animState === 'hit'` alone, nor on any player-side cooldown/landing/
+ * separation tracking — this engine has no double-jump, so "the player
+ * lands on the same still-alive enemy again while still airborne from their
+ * own stomp bounce" is a deliberate, desired mechanic (chain-stomping a
+ * 2-hit purple enemy in one fluid motion), confirmed live with the user, not
+ * a bug to guard against. `hitPoints > 0` is the only thing that should stop
+ * a stomp from registering.
  */
 export function checkEnemyStompCollisions(player: PlayerState, enemies: EnemyState[]): string[] {
   if (player.vy <= 0) return [];
   const hitbox = playerHitbox(player);
   const stomped: string[] = [];
   for (const enemy of enemies) {
-    if (enemy.defeated || enemy.animState === 'hit') continue;
+    if (enemy.defeated || enemy.hitPoints <= 0) continue;
     const box = enemyHitbox(enemy);
     if (!aabbOverlap(hitbox, box)) continue;
     const enemyMidY = box.y + box.height / 2;

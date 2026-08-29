@@ -135,6 +135,27 @@ describe('applyStomp', () => {
     expect(next.vx).toBe(0);
   });
 
+  it('enemyAlreadyMidHitReactionFromAnEarlierStomp-resetsAnimationAgain', () => {
+    // A legitimate second stomp (chain-stomping a still-alive purple enemy,
+    // even entirely airborne from the first stomp's own bounce — see
+    // Collision.ts's checkEnemyStompCollisions) must replay the reaction
+    // from frame 0, not continue wherever the first stomp's animation had
+    // gotten to.
+    const state = {
+      ...toEnemyState({ ...makePlacement(), spriteType: 'slimePurple' as const }),
+      hitPoints: 2,
+      animState: 'hit' as const,
+      animFrame: 3,
+      animTimer: 0.05,
+      hitTimer: 0.2,
+    };
+    const next = applyStomp(state);
+    expect(next.hitPoints).toBe(1);
+    expect(next.animFrame).toBe(0);
+    expect(next.animTimer).toBe(0);
+    expect(next.hitTimer).toBe(0);
+  });
+
   it('greenSlimeWithOneHitPoint-decrementsToZero', () => {
     const state = toEnemyState(makePlacement());
     const next = applyStomp(state);
