@@ -578,6 +578,7 @@ describe('drawPlayer', () => {
     invincibleTimer: 0,
     knockbackTimer: 0,
     bounceAscending: false,
+    hitBlockIds: [],
   };
 
   it('idleFrame0-draws-fromFirstIdleSource', () => {

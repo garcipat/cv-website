@@ -1,4 +1,4 @@
-import { mapCVDataToBlocks, placeBlocks, isBlockOccupied } from './BlockMapper';
+import { mapCVDataToBlocks, placeBlocks, isBlockOccupied, blockIdAt } from './BlockMapper';
 import { tileToPixel } from './Terrain';
 import type { CVData } from '@/types/cv';
 
@@ -142,5 +142,21 @@ describe('isBlockOccupied', () => {
 
   it('noPlacements-returnsFalse', () => {
     expect(isBlockOccupied([], 5, 2)).toBe(false);
+  });
+});
+
+describe('blockIdAt', () => {
+  it('tileMatchesABlockPlacement-returnsItsId', () => {
+    const placed = placeBlocks([], { crate: [], questionMark: [{ col: 5, row: 2 }], rock: [] });
+    expect(blockIdAt(placed, 5, 2)).toBe(placed[0].id);
+  });
+
+  it('tileDoesNotMatchAnyBlockPlacement-returnsUndefined', () => {
+    const placed = placeBlocks([], { crate: [], questionMark: [{ col: 5, row: 2 }], rock: [] });
+    expect(blockIdAt(placed, 6, 2)).toBeUndefined();
+  });
+
+  it('noPlacements-returnsUndefined', () => {
+    expect(blockIdAt([], 5, 2)).toBeUndefined();
   });
 });

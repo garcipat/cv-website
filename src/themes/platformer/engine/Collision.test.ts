@@ -29,6 +29,7 @@ function makePlayer(x: number, y: number): PlayerState {
     invincibleTimer: 0,
     knockbackTimer: 0,
     bounceAscending: false,
+    hitBlockIds: [],
   };
 }
 
