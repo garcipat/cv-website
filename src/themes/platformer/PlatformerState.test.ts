@@ -14,6 +14,7 @@ import {
   enemyStates,
   collectedCollectibleIds,
   activeEffects,
+  blockPlacements,
 } from './PlatformerState';
 import { mapCVDataToEnemies } from './level/EnemyMapper';
 import { currentCV } from '@/state/locale';
@@ -47,6 +48,15 @@ describe('PlatformerState', () => {
     expect(allPossibleDefs.length).toBeGreaterThan(enemyPlacements.length);
     expect(enemyPlacements.filter((p) => p.spriteType === 'slimeGreen')).toHaveLength(1);
     expect(enemyPlacements.filter((p) => p.spriteType === 'slimePurple')).toHaveLength(1);
+  });
+
+  it('blockPlacements-initial-hasTwoOfEachKindMatchingLevel1sMarkers', () => {
+    // level1 currently has exactly two X/Q/K markers each (see level1.ts's
+    // doc comment) — placement count tracks the level's markers, same
+    // convention as enemyPlacements/collectiblePlacements.
+    expect(blockPlacements.filter((p) => p.blockKind === 'crate')).toHaveLength(2);
+    expect(blockPlacements.filter((p) => p.blockKind === 'questionMark')).toHaveLength(2);
+    expect(blockPlacements.filter((p) => p.blockKind === 'rock')).toHaveLength(2);
   });
 
   it('enemyStates-initial-oneLivePatrolStatePerEnemyPlacement', () => {
