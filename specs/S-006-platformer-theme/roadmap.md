@@ -397,6 +397,30 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   collectibles rendered.
   *Verify: frame-timing check and smooth manual play.*
 
+## Iteration 4 — Level variety (post-P3, added 2026-08-29)
+
+- [ ] **31. Level selection** — not yet designed; only discussed in ideation so far.
+  Needs its own brainstorming session before an implementation plan exists. Scoped
+  here as a placeholder step so step 32 (terrain rework) has something concrete to
+  depend on: some mechanism to choose among multiple levels instead of always
+  loading `level1`.
+  *Verify: TBD, pending design.*
+- [ ] **32. Terrain rework: autotiled ground + cave background** — re-themes
+  `groundGrass` from a single fixed sprite per tile to a proper autotiled look
+  (fill vs. single, grass-top vs. plain-dirt-below) using the `spring_.png` tileset,
+  and adds a new non-solid `caveBackground` tile type (same autotiling, no
+  top-exposure distinction) using `terrain_.png` for cave-style background dressing.
+  `groundRock`/`platform`/`wall`/`bridge` are unaffected — they stay on
+  `world_tileset.png`. Research/findings captured 2026-08-29
+  (`plans/2026-08-29-terrain-rework-notes.md` — confirmed tileset coordinates,
+  autotile algorithm, decisions made); **no implementation plan yet** — write one via
+  `writing-plans` once step 31 lands, re-reading the codebase at that point rather
+  than reusing anything from the notes doc verbatim. **Implementation is blocked on
+  step 31** landing first, so the dedicated terrain test level (exercising every
+  tile combination) can be added as one of the selectable levels from the start,
+  instead of behind a temporary dev-only flag.
+  *Verify: TBD, pending the actual implementation plan.*
+
 ## Working agreement
 
 - One step = one small implementation plan (via `writing-plans`), TDD (tests first,
