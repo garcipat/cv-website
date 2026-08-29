@@ -6,6 +6,9 @@ import {
   ENEMY_TILES_PURPLE,
   COIN_TILES,
   FRUIT_TILES,
+  CRATE_TILES,
+  QUESTIONMARK_TILES,
+  ROCK_TILES,
 } from './level/level1';
 import {
   PLAYER_RENDERED_SIZE,
@@ -19,11 +22,13 @@ import { introState } from './engine/GameLifecycle';
 import { currentCV } from '@/state/locale';
 import { mapCVDataToCollectibles, placeCollectibles } from './level/CollectibleMapper';
 import { mapCVDataToEnemies, placeEnemies } from './level/EnemyMapper';
+import { mapCVDataToBlocks, placeBlocks } from './level/BlockMapper';
 import type { PlayerState } from './entities/Player';
 import type { LifecycleState } from './engine/GameLifecycle';
 import type { CollectedFact, SectionId } from './types';
 import type { CollectiblePlacement } from './level/CollectibleMapper';
 import type { EnemyPlacement } from './level/EnemyMapper';
+import type { BlockPlacement } from './level/BlockMapper';
 import type { FlightEffect } from './engine/CollectionEffects';
 
 /**
@@ -108,6 +113,22 @@ export const collectiblePlacements: CollectiblePlacement[] = placeCollectibles(
 export const enemyPlacements: EnemyPlacement[] = placeEnemies(mapCVDataToEnemies(currentCV.value), {
   slimeGreen: ENEMY_TILES_GREEN,
   slimePurple: ENEMY_TILES_PURPLE,
+});
+
+/**
+ * Every block in the level, placed once at module load — same
+ * non-reactive, marker-driven convention as collectiblePlacements/
+ * enemyPlacements above (roadmap step 20, 2026-08-29). Crates come from
+ * `mapCVDataToBlocks` zipped against level1's `X` markers; question-mark
+ * and rock blocks have no CVData mapping and are placed directly from
+ * their `Q`/`K` markers (see BlockMapper.ts's placeBlocks). No live
+ * per-instance state yet (no hitsTaken/broken) — that's step 21's job,
+ * once blocks respond to hits.
+ */
+export const blockPlacements: BlockPlacement[] = placeBlocks(mapCVDataToBlocks(currentCV.value), {
+  crate: CRATE_TILES,
+  questionMark: QUESTIONMARK_TILES,
+  rock: ROCK_TILES,
 });
 
 /**
