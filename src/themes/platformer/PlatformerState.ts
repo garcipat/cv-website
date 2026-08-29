@@ -18,6 +18,9 @@ import {
 import { MAX_HALF_HEARTS } from './entities/Health';
 import { toEnemyState } from './entities/Enemy';
 import type { EnemyState } from './entities/Enemy';
+import { toBlockState } from './entities/Block';
+import type { BlockState } from './entities/Block';
+import type { BonusFruitState } from './entities/BonusFruit';
 import { introState } from './engine/GameLifecycle';
 import { currentCV } from '@/state/locale';
 import { mapCVDataToCollectibles, placeCollectibles } from './level/CollectibleMapper';
@@ -60,6 +63,7 @@ export function spawnPlayerState(): PlayerState {
     invincibleTimer: 0,
     knockbackTimer: 0,
     bounceAscending: false,
+    hitBlockIds: [],
   };
 }
 
@@ -140,6 +144,25 @@ export const blockPlacements: BlockPlacement[] = placeBlocks(mapCVDataToBlocks(c
 export const enemyStates = signal<EnemyState[]>(
   enemyPlacements.map((placement, index) => toEnemyState(placement, index)),
 );
+
+/**
+ * Live, per-frame hit/animation state for every block — mirrors
+ * `enemyStates` above. Seeded from `blockPlacements` (module load) and
+ * reset back to that seed only by `resetGameProgress()` (the Reset Game
+ * button), NOT by `resetGame()` (death/respawn) — per this file's
+ * `resetGame()` doc comment, blocks behave like collectibles (progress
+ * persists across a respawn), not like enemies (which do revive on
+ * respawn).
+ */
+export const blockStates = signal<BlockState[]>(blockPlacements.map(toBlockState));
+
+/**
+ * Question-mark blocks' spawned no-fact bonus fruits (roadmap step 21b) —
+ * starts empty; `PlatformerPage.tsx` appends one each time a question-mark
+ * block is hit. Persists across a death/respawn (same reasoning as
+ * `blockStates` above); cleared only by `resetGameProgress()`.
+ */
+export const bonusFruitStates = signal<BonusFruitState[]>([]);
 
 /**
  * Facts discovered so far this session (see spec.md FR-032). Starts empty —
@@ -241,4 +264,6 @@ export function resetGameProgress(): void {
   collectedCollectibleIds.value = new Set();
   activeJournalSection.value = undefined;
   activeEffects.value = [];
+  blockStates.value = blockPlacements.map(toBlockState);
+  bonusFruitStates.value = [];
 }
