@@ -30,7 +30,7 @@ import {
   coinFrameSource,
   coinBobOffset,
 } from '../entities/Coin';
-import { FRUIT_FRAME_SIZE, fruitFrameSource } from '../entities/Fruit';
+import { FRUIT_FRAME_SIZE, FRUIT_RENDERED_SIZE, fruitFrameSource } from '../entities/Fruit';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
 import {
   ENEMY_FRAME_SIZE,
@@ -40,8 +40,11 @@ import {
   enemyFrameSource,
 } from '../entities/Enemy';
 import type { EnemyState } from '../entities/Enemy';
-import { BLOCK_FRAME_SIZE, BLOCK_RENDERED_SIZE, blockFrameSource } from '../entities/Block';
-import type { BlockPlacement } from '../level/BlockMapper';
+import { BLOCK_FRAME_SIZE, BLOCK_RENDERED_SIZE, blockFrameSource, crateCrackOverlayVisible } from '../entities/Block';
+import type { BlockState } from '../entities/Block';
+import { blockBumpOffsetY, crateShatterOpacity } from './BlockAI';
+import { bonusFruitY } from '../entities/BonusFruit';
+import type { BonusFruitState } from '../entities/BonusFruit';
 import { flightEffectPosition, sparkleParticles } from './CollectionEffects';
 import type { FlightEffect } from './CollectionEffects';
 
@@ -431,35 +434,75 @@ export function drawEnemies(
 }
 
 /**
- * Draws every block placement in its intact state (roadmap step 20 — no
- * hit mechanics yet, so there's no cracked/used/broken variant to pick
- * between; steps 21a/21b/21c will extend this once blocks respond to
- * hits). All three block kinds live in the same tileset image already used
- * for terrain (`world_tileset.png`), so this reuses `drawTerrain`'s
- * `tileset` parameter rather than a separate sprite sheet. Same
- * originX/originY convention as drawTerrain/drawCollectibles/drawEnemies.
+ * Draws every live block — its current sprite frame (accounting for a
+ * question-mark's permanent `?`→`!` swap once hit, via `blockFrameSource`'s
+ * `hitsTaken` param), the shared bump nudge offset, a crate's crack overlay
+ * (composited as a second draw call — it's a standalone sprite, not part of
+ * `world_tileset.png`) while cracked, and a crate's shatter fade-out while
+ * breaking apart. Roadmap step 21 (steps 21a/21b/21c) — extends step 20's
+ * intact-only render.
  */
 export function drawBlocks(
   ctx: CanvasRenderingContext2D,
-  placements: BlockPlacement[],
+  blocks: readonly BlockState[],
   tileset: HTMLImageElement,
+  crackOverlaySprite: HTMLImageElement | null,
   originX = 0,
   originY = 0,
 ): void {
   ctx.imageSmoothingEnabled = false;
 
-  for (const block of placements) {
-    const { sx, sy } = blockFrameSource(block.blockKind);
+  for (const block of blocks) {
+    const { sx, sy } = blockFrameSource(block.blockKind, block.hitsTaken);
+    const dx = block.x + originX;
+    const dy = block.y + originY + blockBumpOffsetY(block);
+    const opacity = block.blockKind === 'crate' ? crateShatterOpacity(block) : 1;
+
+    ctx.globalAlpha = opacity;
+    ctx.drawImage(tileset, sx, sy, BLOCK_FRAME_SIZE, BLOCK_FRAME_SIZE, dx, dy, BLOCK_RENDERED_SIZE, BLOCK_RENDERED_SIZE);
+    if (block.blockKind === 'crate' && crackOverlaySprite && crateCrackOverlayVisible(block.hitsTaken)) {
+      ctx.drawImage(
+        crackOverlaySprite,
+        0,
+        0,
+        BLOCK_FRAME_SIZE,
+        BLOCK_FRAME_SIZE,
+        dx,
+        dy,
+        BLOCK_RENDERED_SIZE,
+        BLOCK_RENDERED_SIZE,
+      );
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+
+/**
+ * Draws every question-mark block's spawned bonus fruit (roadmap step 21b) at
+ * its current rise-tween position, reusing `fruit.png` (index 0 — a bonus
+ * fruit carries no CV mapping, so there's no per-item icon to select).
+ */
+export function drawBonusFruits(
+  ctx: CanvasRenderingContext2D,
+  fruits: readonly BonusFruitState[],
+  fruitSprite: HTMLImageElement | null,
+  originX = 0,
+  originY = 0,
+): void {
+  if (!fruitSprite) return;
+  ctx.imageSmoothingEnabled = false;
+  const { sx, sy } = fruitFrameSource(0);
+  for (const fruit of fruits) {
     ctx.drawImage(
-      tileset,
+      fruitSprite,
       sx,
       sy,
-      BLOCK_FRAME_SIZE,
-      BLOCK_FRAME_SIZE,
-      block.x + originX,
-      block.y + originY,
-      BLOCK_RENDERED_SIZE,
-      BLOCK_RENDERED_SIZE,
+      FRUIT_FRAME_SIZE,
+      FRUIT_FRAME_SIZE,
+      fruit.x + originX,
+      bonusFruitY(fruit) + originY,
+      FRUIT_RENDERED_SIZE,
+      FRUIT_RENDERED_SIZE,
     );
   }
 }
