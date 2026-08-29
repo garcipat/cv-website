@@ -236,11 +236,46 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   live user feedback during verification. See `EnemyMapper.ts`'s
   `certificateToEnemy`/`projectToEnemy` and step 16's note above.
   *Verify: stomp an enemy, see the fact appear.*
-- [ ] **19. Side/below damage** — invincibility frames, knockback on non-stomp
-  contact, reusing the `takeDamage` mechanism from step 9 with a full heart
-  (`takeDamage(2)`, two half-heart units) instead of the half-heart pit-fall
-  amount.
-  *Verify: touch an enemy from the side, lose a full heart.*
+- [x] **19. Side/below damage** — invincibility frames, knockback on non-stomp
+  contact, reusing the `takeDamage` mechanism from step 9.
+  *Verify: touch an enemy from the side, lose health and get knocked back.*
+
+  Revised/extended in implementation, all confirmed live with the user: a
+  side-hit costs the same half heart as a pit fall (`SIDE_HIT_DAMAGE = 1`),
+  not the full heart originally specified above — and invincibility was
+  generalized to be a property of taking damage at all, not just enemy
+  contact: a pit fall (step 9) now also grants the same ~1.2s
+  invincibility/blink, and neither damage source can fire again while the
+  other's window is active (the pit-fall position recovery itself is never
+  skipped, only the extra heart loss). Knockback is horizontal-only
+  (~330px/s for ~0.25s), well inside the invincibility window so the player
+  regains full control long before the blink ends. The blink is a simple
+  visibility toggle (no draw call every ~0.1s), not a white-tint effect. Any
+  non-defeated enemy can side-hit the player — except one currently
+  mid-`hit`-reaction from a stomp, which is harmless in every way (no side
+  damage, no re-stomp) until its reaction ends, found necessary via live
+  testing (bouncing off a stomp while still overlapping the frozen enemy
+  otherwise registered as a spurious side-hit against the very enemy just
+  stomped).
+
+  Also revised on step 18's already-shipped stomp mechanic, found via
+  further live testing after this step's own work surfaced it: a
+  still-alive (purple, 2-hit) enemy can now be stomped again immediately,
+  even entirely airborne from the first stomp's own bounce — this engine
+  has no double-jump, so "land on the same still-alive enemy again while
+  still airborne" can only mean the same bounce's descent, and chaining
+  that into a second, deliberate hit is the intended feel, not a bug to
+  guard against (two earlier attempts at gating re-stomp on "has the player
+  bounced/landed since" both blocked this in practice; the actual fix needed
+  no such tracking — `checkEnemyStompCollisions` just excludes an enemy once
+  its `hitPoints` reach 0). The stomp bounce's own upward force
+  (`PHYSICS_CONFIG.stompBounceVelocity`) was also found to be silently
+  capped to ~45% of its configured magnitude every tick after the first by
+  the jump-cut multiplier (a stomp bounce is never actually "held" like a
+  real jump) — fixed via `PlayerState.bounceAscending`, which suppresses the
+  cut for the bounce's whole ascent instead of just one frame. Retuned
+  against the corrected physics down to `-330` (~1.4 tiles peak, well under
+  half of a normal jump's own peak height).
 - [ ] **20. Destroyable block render** — intact/question-mark tiles;
   CollectibleMapper extended for Experience/Education/Courses.
   *Verify: blocks are visible on platforms.*
