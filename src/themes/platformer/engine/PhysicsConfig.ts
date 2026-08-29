@@ -49,14 +49,20 @@ export const PHYSICS_CONFIG = {
   jumpCutMultiplier: 0.45,
   /**
    * Upward velocity impulse applied to the player immediately after a stomp
-   * (roadmap step 18), in px/s (negative = up) — a smaller bounce than
-   * `jumpVelocity` (-520) so it reads as "hopped off the enemy" rather than a
-   * full jump. Peak height ≈ 400²/(2*1200) ≈ 66.7px (~2 tiles). Same
-   * tunneling invariant as the other velocity constants applies:
+   * (roadmap step 18), in px/s (negative = up) — now noticeably STRONGER
+   * than a normal jump (`jumpVelocity`, -520), a dramatic launch rather than
+   * a hop. Bumped repeatedly live with the user (-400 -> -480 -> -560,
+   * each still "too small"), who then asked for roughly double -560
+   * (-1120) — not safe: that would violate the tunneling invariant below, so
+   * this is capped at -900 instead, the strongest value that still respects
+   * it. Peak height ≈ 900²/(2*1200) ≈ 337.5px (~10.5 tiles). Same tunneling
+   * invariant as the other velocity constants applies:
    * `Math.abs(stompBounceVelocity) * MAX_DT` must stay below
-   * RENDERED_TILE_SIZE (32px): Math.abs(-400) * (1/30) ≈ 13.3 < 32. ✓
+   * RENDERED_TILE_SIZE (32px): Math.abs(-900) * (1/30) = 30 < 32. ✓ (a true
+   * double, -1120, would be 37.3 — over the limit, risking tunneling
+   * straight through a one-tile-thick platform at 30fps.)
    */
-  stompBounceVelocity: -400,
+  stompBounceVelocity: -900,
   /**
    * Horizontal knockback speed applied to the player on a side-hit (roadmap
    * step 19), in px/s, away from the enemy that hit them — deliberately
