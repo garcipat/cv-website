@@ -69,6 +69,21 @@ export interface PlayerState {
   animFrame: number;
   /** Seconds accumulated toward the next animation frame advance. */
   animTimer: number;
+  /** Seconds remaining of post-hit invincibility (roadmap step 19) — 0 means
+   *  not invincible. Gates `checkEnemySideCollisions` from registering a new
+   *  hit (see Collision.ts) and drives the render blink (PlatformerPage.tsx);
+   *  ticked down once per frame by `tickInvincibility` below. Unrelated to
+   *  `knockbackTimer` — see this plan's "Key design decisions" for why they're
+   *  separate. */
+  invincibleTimer: number;
+  /** Seconds remaining of forced knockback velocity — 0 means normal
+   *  input-driven movement. While positive, Physics.ts's `stepPlayerPhysics`
+   *  ignores held movement keys and holds the knockback `vx` instead; much
+   *  shorter than `invincibleTimer` so the player regains full control well
+   *  before invincibility (and its blink) ends. Ticked down inside
+   *  `stepPlayerPhysics` itself, not here — see this plan's "Key design
+   *  decisions". */
+  knockbackTimer: number;
 }
 
 /**
@@ -153,4 +168,55 @@ export function updatePlayerAnimState(player: PlayerState): PlayerState {
       : 'idle';
   if (animState === player.animState) return player;
   return { ...player, animState, animFrame: 0, animTimer: 0 };
+}
+
+/**
+ * Ticks down `invincibleTimer` by `dt` seconds, clamped at 0 — a no-op
+ * (returns the same reference) once it's already 0. Called once per game-loop
+ * tick (PlatformerPage.tsx); unlike `knockbackTimer` (decremented inside
+ * `stepPlayerPhysics`, since that function is the one that reads it),
+ * invincibility isn't consumed by physics at all, only by the side-hit
+ * collision gate and the render blink.
+ */
+export function tickInvincibility(player: PlayerState, dt: number): PlayerState {
+  if (player.invincibleTimer <= 0) return player;
+  return { ...player, invincibleTimer: Math.max(0, player.invincibleTimer - dt) };
+}
+
+/**
+ * Applies a side-hit's knockback + invincibility in one step (roadmap step
+ * 19): sets `vx` to `direction * knockbackVx` (facing to match, so the
+ * character visually faces away from whatever hit it), starts
+ * `knockbackTimer` (how long `stepPlayerPhysics` overrides input-driven
+ * horizontal movement) and `invincibleTimer` (how long further hits are
+ * ignored and the render blink plays) independently — see this plan's "Key
+ * design decisions" for why the two timers differ so much in length.
+ */
+export function applyKnockback(
+  player: PlayerState,
+  direction: -1 | 1,
+  knockbackVx: number,
+  knockbackDuration: number,
+  invincibleDuration: number,
+): PlayerState {
+  return {
+    ...player,
+    vx: direction * knockbackVx,
+    facing: direction < 0 ? 'left' : 'right',
+    knockbackTimer: knockbackDuration,
+    invincibleTimer: invincibleDuration,
+  };
+}
+
+/**
+ * Grants invincibility with no knockback — used by a pit fall (roadmap step
+ * 19 extends step 9's mechanism this way, per user request: invincibility is
+ * a property of taking damage generally, not just of enemy contact
+ * specifically). Unlike `applyKnockback`, there's no "direction to push
+ * away from" for a pit fall, and no reason to touch `vx`/`facing`/
+ * `knockbackTimer` at all — `resolvePitFall` already handles repositioning
+ * the character back to solid ground.
+ */
+export function grantInvincibility(player: PlayerState, duration: number): PlayerState {
+  return { ...player, invincibleTimer: duration };
 }

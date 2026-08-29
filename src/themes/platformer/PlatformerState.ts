@@ -52,6 +52,8 @@ export function spawnPlayerState(): PlayerState {
     animState: 'idle',
     animFrame: 0,
     animTimer: 0,
+    invincibleTimer: 0,
+    knockbackTimer: 0,
   };
 }
 
