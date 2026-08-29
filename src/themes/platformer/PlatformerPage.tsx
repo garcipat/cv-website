@@ -8,6 +8,7 @@ import {
   drawHearts,
   drawCollectibles,
   drawEnemies,
+  drawBlocks,
   drawCollectionEffects,
   drawCollectibleCounter,
   drawIrisOverlay,
@@ -66,6 +67,7 @@ import {
   collectiblePlacements,
   enemyPlacements,
   enemyStates,
+  blockPlacements,
   collectedCollectibleIds,
   activeEffects,
   collectedFacts,
@@ -248,6 +250,7 @@ export const PlatformerPage = () => {
 
       if (tilesetRef.current) {
         drawTerrain(ctx, level1, tilesetRef.current, originX, originY);
+        drawBlocks(ctx, blockPlacements, tilesetRef.current, originX, originY);
       }
 
       if (playerSpriteRef.current) {
@@ -651,13 +654,19 @@ export const PlatformerPage = () => {
       const jumpHeld = input.isHeld('Space') || input.isHeld('ArrowUp');
       const dropThroughHeld = input.isHeld('ArrowDown') || input.isHeld('KeyS');
 
-      let next = stepPlayerPhysics(playerState.value, level1, dt, {
-        ...horizontal,
-        jumpPressed,
-        jumpHeld,
-        dropThroughHeld,
-        suppressJumpCut: stompBounceThisTick,
-      });
+      let next = stepPlayerPhysics(
+        playerState.value,
+        level1,
+        dt,
+        {
+          ...horizontal,
+          jumpPressed,
+          jumpHeld,
+          dropThroughHeld,
+          suppressJumpCut: stompBounceThisTick,
+        },
+        blockPlacements,
+      );
 
       if (checkPitFall(next, level1)) {
         // Invincibility (roadmap step 19) is a property of taking damage
