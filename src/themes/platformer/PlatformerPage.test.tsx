@@ -17,7 +17,12 @@ import {
   enemyPlacements,
   enemyStates,
 } from './PlatformerState';
-import { MAX_HALF_HEARTS, PIT_FALL_DAMAGE, HEART_RENDERED_SIZE } from './entities/Health';
+import {
+  MAX_HALF_HEARTS,
+  PIT_FALL_DAMAGE,
+  SIDE_HIT_DAMAGE,
+  HEART_RENDERED_SIZE,
+} from './entities/Health';
 import { HEARTS_START_X } from './engine/Renderer';
 import { PHYSICS_CONFIG } from './engine/PhysicsConfig';
 import {
@@ -1555,5 +1560,183 @@ describe('PlatformerPage', () => {
     frameCallback!(16);
 
     expect(ctx.strokeRect).toHaveBeenCalled();
+  });
+
+  it('playerTouchesEnemyFromTheSide-tick-losesAFullHeartAndGetsKnockedBack', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const target = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
+    const startingHealth = healthState.value;
+    playerState.value = {
+      ...playerState.value,
+      x: target.x,
+      y: target.y,
+      vx: 0,
+      vy: 0,
+    };
+
+    frameCallback!(16);
+
+    expect(healthState.value).toBe(startingHealth - SIDE_HIT_DAMAGE);
+    expect(playerState.value.vx).not.toBe(0);
+    expect(playerState.value.invincibleTimer).toBeGreaterThan(0);
+  });
+
+  it('playerTouchesEnemyFromTheSide-tick-knockbackPushesAwayFromTheEnemy', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const target = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
+    // Positioned at the SAME x as the enemy (a tie) so the direction is
+    // deterministic per the game loop's `<=` tie-break (push left) — see
+    // the implementation step below.
+    playerState.value = {
+      ...playerState.value,
+      x: target.x,
+      y: target.y,
+      vx: 0,
+      vy: 0,
+    };
+
+    frameCallback!(16);
+
+    expect(playerState.value.vx).toBeLessThan(0);
+  });
+
+  it('playerInvincible-touchesAnotherEnemy-noSecondHitRegistered', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const target = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
+    playerState.value = { ...playerState.value, x: target.x, y: target.y, vx: 0, vy: 0 };
+    frameCallback!(16);
+    const healthAfterFirstHit = healthState.value;
+    expect(playerState.value.invincibleTimer).toBeGreaterThan(0);
+
+    // Still overlapping the same enemy on the very next tick — must not hit again.
+    frameCallback!(32);
+
+    expect(healthState.value).toBe(healthAfterFirstHit);
+  });
+
+  it('playerFallsOntoEnemyFromAbove-tick-noSideHitDamageOnlyAStomp', () => {
+    // Regression guard: a stomp must never also register as a side hit on
+    // the same tick (the two collision checks are meant to be mutually
+    // exclusive for the same overlap).
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const target = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
+    const startingHealth = healthState.value;
+    playerState.value = {
+      ...playerState.value,
+      x: target.x,
+      y: target.y - PLAYER_RENDERED_SIZE / 2,
+      vy: 300,
+    };
+
+    frameCallback!(16);
+
+    expect(healthState.value).toBe(startingHealth);
+    expect(playerState.value.invincibleTimer).toBe(0);
+  });
+
+  it('playerFallsIntoPit-tick-losesHalfHeartAndBecomesInvincible', () => {
+    // Extends the pre-existing pit-fall test below with the new roadmap
+    // step 19 behavior: a pit fall now ALSO grants invincibility (per user
+    // request — invincibility is a property of taking damage generally, not
+    // just of enemy contact), even though it still costs the same half-heart
+    // as before (PIT_FALL_DAMAGE is unchanged).
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const startingHealth = healthState.value;
+    playerState.value = {
+      ...playerState.value,
+      x: 500,
+      y: 5000,
+      vx: 0,
+      vy: 900,
+      grounded: false,
+      lastGroundedX: 500,
+      lastGroundedY: 200,
+    };
+
+    frameCallback!(16);
+
+    expect(healthState.value).toBe(startingHealth - PIT_FALL_DAMAGE);
+    expect(playerState.value.invincibleTimer).toBeGreaterThan(0);
+  });
+
+  it('playerAlreadyInvincibleFromASideHit-fallsIntoPit-noAdditionalDamageButStillRepositioned', () => {
+    // The position-recovery half of a pit fall (resolvePitFall) must still
+    // happen even while invincible — only the heart loss is skipped. A
+    // player stuck mid-air with invincibleTimer > 0 must not keep falling
+    // forever just because a hit protected them a moment ago.
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const target = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
+    playerState.value = { ...playerState.value, x: target.x, y: target.y, vx: 0, vy: 0 };
+    frameCallback!(16); // side-hit: now invincible
+    const healthAfterSideHit = healthState.value;
+    expect(playerState.value.invincibleTimer).toBeGreaterThan(0);
+
+    playerState.value = {
+      ...playerState.value,
+      x: 500,
+      y: 5000,
+      vy: 900,
+      grounded: false,
+      lastGroundedX: 500,
+      lastGroundedY: 200,
+    };
+    frameCallback!(32);
+
+    expect(healthState.value).toBe(healthAfterSideHit); // no additional damage
+    expect(playerState.value.y).toBeLessThan(5000); // still repositioned to safety
   });
 });

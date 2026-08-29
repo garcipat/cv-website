@@ -33,7 +33,11 @@ import {
 } from './engine/GameLifecycle';
 import { maxIrisRadius } from './engine/IrisTransition';
 import { level1 } from './level/level1';
-import { checkCollectibleCollisions, checkEnemyStompCollisions } from './engine/Collision';
+import {
+  checkCollectibleCollisions,
+  checkEnemyStompCollisions,
+  checkEnemySideCollisions,
+} from './engine/Collision';
 import { startFlightEffect, tickFlightEffect, COLLECTION_TEXT_SLOT_COUNT } from './engine/CollectionEffects';
 import { coinFrameSource, COIN_FRAME_SIZE } from './entities/Coin';
 import { fruitFrameSource, FRUIT_FRAME_SIZE } from './entities/Fruit';
@@ -43,11 +47,14 @@ import { RENDERED_TILE_SIZE } from './level/Terrain';
 import {
   advancePlayerAnimation,
   updatePlayerAnimState,
+  applyKnockback,
+  tickInvincibility,
+  grantInvincibility,
   PLAYER_RENDERED_SIZE,
   PLAYER_VISUAL_CENTER_Y_OFFSET,
 } from './entities/Player';
 import { advanceEnemyAnimation, applyStomp, ENEMY_FRAME_SIZE } from './entities/Enemy';
-import { takeDamage, PIT_FALL_DAMAGE } from './entities/Health';
+import { takeDamage, PIT_FALL_DAMAGE, SIDE_HIT_DAMAGE, INVINCIBILITY_DURATION_SECONDS } from './entities/Health';
 import {
   playerState,
   cameraPositionX,
@@ -81,6 +88,10 @@ const COLLECTIBLE_COUNTER_SPACING = 110;
 // font size (Renderer.ts's COLLECTION_EFFECT_FONT_SIZE) so stacked lines
 // don't touch.
 const COLLECTION_TEXT_STACK_ROW_HEIGHT = 34;
+// How often the player's sprite toggles visible/invisible while invincible
+// (roadmap step 19) — short enough to read clearly as "blinking", not a slow
+// pulse.
+const INVINCIBILITY_BLINK_INTERVAL_SECONDS = 0.1;
 
 export const PlatformerPage = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -240,7 +251,19 @@ export const PlatformerPage = () => {
       }
 
       if (playerSpriteRef.current) {
-        drawPlayer(ctx, playerState.value, playerSpriteRef.current, originX, originY, playerJumpSpriteRef.current);
+        const isInvincible = playerState.value.invincibleTimer > 0;
+        const playerVisible =
+          !isInvincible ||
+          Math.floor(playerState.value.invincibleTimer / INVINCIBILITY_BLINK_INTERVAL_SECONDS) % 2 === 0;
+        drawPlayer(
+          ctx,
+          playerState.value,
+          playerSpriteRef.current,
+          originX,
+          originY,
+          playerJumpSpriteRef.current,
+          playerVisible,
+        );
       }
 
       if (coinSpriteRef.current || fruitSpriteRef.current) {
@@ -576,6 +599,36 @@ export const PlatformerPage = () => {
         playerState.value = { ...playerState.value, vy: PHYSICS_CONFIG.stompBounceVelocity };
       }
 
+      // Side/below damage (roadmap step 19) — only checked while not already
+      // invincible, so one overlap can't register repeated hits every tick
+      // it persists. Deliberately does NOT exclude a `hit`-reacting enemy
+      // (unlike the stomp check above) — per user decision, any non-defeated
+      // enemy can still hurt the player on side contact.
+      //
+      // Excludes any id already in `stompedIds`: the stomp block above just
+      // reassigned `playerState.value.vy` to the (negative, upward)
+      // `stompBounceVelocity`, which would otherwise make
+      // `checkEnemySideCollisions` see `vy <= 0` for the very enemy just
+      // landed on and misread the landing as a non-stomp touch — the two
+      // checks are meant to be mutually exclusive for the same overlap.
+      if (playerState.value.invincibleTimer <= 0) {
+        const sideHitIds = checkEnemySideCollisions(playerState.value, enemyStates.value).filter(
+          (id) => !stompedIds.includes(id),
+        );
+        if (sideHitIds.length > 0) {
+          const hitEnemy = enemyStates.value.find((e) => e.id === sideHitIds[0])!;
+          healthState.value = takeDamage(healthState.value, SIDE_HIT_DAMAGE);
+          const knockbackDirection = playerState.value.x <= hitEnemy.x ? -1 : 1;
+          playerState.value = applyKnockback(
+            playerState.value,
+            knockbackDirection,
+            PHYSICS_CONFIG.sideHitKnockbackVx,
+            PHYSICS_CONFIG.sideHitKnockbackDuration,
+            INVINCIBILITY_DURATION_SECONDS,
+          );
+        }
+      }
+
       // A/D accepted as an alternate to Arrow Left/Right (FR-007 only
       // requires arrows; this is an additive convenience, not a replacement).
       const horizontal = {
@@ -599,7 +652,16 @@ export const PlatformerPage = () => {
       });
 
       if (checkPitFall(next, level1)) {
-        healthState.value = takeDamage(healthState.value, PIT_FALL_DAMAGE);
+        // Invincibility (roadmap step 19) is a property of taking damage
+        // generally, not just of enemy contact — a pit fall grants and
+        // respects it exactly like a side-hit does. The position recovery
+        // below is NOT gated by it, though: `resolvePitFall` must always run
+        // or the character would keep falling forever while merely
+        // invincible from an earlier, unrelated hit.
+        if (next.invincibleTimer <= 0) {
+          healthState.value = takeDamage(healthState.value, PIT_FALL_DAMAGE);
+          next = grantInvincibility(next, INVINCIBILITY_DURATION_SECONDS);
+        }
         next = resolvePitFall(next);
       }
 
@@ -609,6 +671,7 @@ export const PlatformerPage = () => {
       // recovered position before the next tick corrected it.
       next = updatePlayerAnimState(next);
       next = advancePlayerAnimation(next, dt);
+      next = tickInvincibility(next, dt);
 
       playerState.value = next;
 
