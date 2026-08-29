@@ -57,4 +57,22 @@ export const PHYSICS_CONFIG = {
    * RENDERED_TILE_SIZE (32px): Math.abs(-400) * (1/30) ≈ 13.3 < 32. ✓
    */
   stompBounceVelocity: -400,
+  /**
+   * Horizontal knockback speed applied to the player on a side-hit (roadmap
+   * step 19), in px/s, away from the enemy that hit them — deliberately
+   * faster than `walkSpeed` (200) so the push reads as forceful even if the
+   * player is holding a direction key toward the enemy. Same tunneling
+   * invariant as the other velocity constants: `sideHitKnockbackVx * MAX_DT`
+   * must stay below RENDERED_TILE_SIZE (32px):
+   * 250 * (1/30) ≈ 8.3 < 32. ✓
+   */
+  sideHitKnockbackVx: 250,
+  /**
+   * Seconds the knockback velocity above overrides normal input-driven
+   * horizontal movement (see Physics.ts's `stepPlayerPhysics` and
+   * `PlayerState.knockbackTimer`) — brief on purpose so the player regains
+   * full control well before `INVINCIBILITY_DURATION_SECONDS` (Health.ts,
+   * 1.2s) elapses.
+   */
+  sideHitKnockbackDuration: 0.25,
 } as const;
