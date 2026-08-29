@@ -19,7 +19,8 @@ import {
 import { drawDebugOverlay } from './engine/DebugOverlay';
 import { createGameLoop } from './engine/GameLoop';
 import { stepPlayerPhysics, checkPitFall, resolvePitFall } from './engine/Physics';
-import { stepEnemyPatrol } from './engine/EnemyAI';
+import { PHYSICS_CONFIG } from './engine/PhysicsConfig';
+import { stepEnemyPatrol, stepEnemyHitReaction } from './engine/EnemyAI';
 import { updateCamera } from './engine/Camera';
 import { createKeyboardInput } from './engine/Input';
 import {
@@ -32,7 +33,7 @@ import {
 } from './engine/GameLifecycle';
 import { maxIrisRadius } from './engine/IrisTransition';
 import { level1 } from './level/level1';
-import { checkCollectibleCollisions } from './engine/Collision';
+import { checkCollectibleCollisions, checkEnemyStompCollisions } from './engine/Collision';
 import { startFlightEffect, tickFlightEffect, COLLECTION_TEXT_SLOT_COUNT } from './engine/CollectionEffects';
 import { coinFrameSource, COIN_FRAME_SIZE } from './entities/Coin';
 import { fruitFrameSource, FRUIT_FRAME_SIZE } from './entities/Fruit';
@@ -45,7 +46,7 @@ import {
   PLAYER_RENDERED_SIZE,
   PLAYER_VISUAL_CENTER_Y_OFFSET,
 } from './entities/Player';
-import { advanceEnemyAnimation } from './entities/Enemy';
+import { advanceEnemyAnimation, applyStomp } from './entities/Enemy';
 import { takeDamage, PIT_FALL_DAMAGE } from './entities/Health';
 import {
   playerState,
@@ -387,10 +388,67 @@ export const PlatformerPage = () => {
       // than ticking on a wall-clock independent of the paused state.
       worldAnimElapsed += dt;
 
+      // Enemies currently reacting to a stomp (animState 'hit') run their
+      // reaction timer instead of patrolling — stepEnemyHitReaction either
+      // holds them frozen, reverts them to 'walk', or flags them `defeated`
+      // once the reaction finishes (Enemy.ts's applyStomp is what put them
+      // into 'hit' in the first place, below).
       enemyStates.value = enemyStates.value.map((enemy) => {
-        const next = stepEnemyPatrol(enemy, level1, dt);
+        const next =
+          enemy.animState === 'hit' ? stepEnemyHitReaction(enemy, dt) : stepEnemyPatrol(enemy, level1, dt);
         return advanceEnemyAnimation(next, dt);
       });
+
+      // Enemies whose hit reaction just finished with no hit points left:
+      // reward + remove, reusing the exact fact-flight mechanism coins use
+      // (see the collectible-collision block below) rather than a duplicate
+      // implementation. Checked before the collectible block so both effects
+      // can coexist in `newEffects` without one clobbering the other within
+      // the same tick — each block builds off `activeEffects.value` as it
+      // stands when it runs, same convention the collectible block already
+      // uses.
+      const justDefeated = enemyStates.value.filter((e) => e.defeated);
+      if (justDefeated.length > 0) {
+        const newFacts = [...collectedFacts.value];
+        const newEffects = [...activeEffects.value];
+        const journalRect = journalButtonRef.current?.getBoundingClientRect();
+        const targetX = journalRect ? journalRect.left + journalRect.width / 2 : canvas.width - 32;
+        const targetY = journalRect ? journalRect.top + journalRect.height / 2 : canvas.height - 32;
+        const midX = canvas.width / 2;
+        const midY = canvas.height * 0.3;
+        const originX = -cameraPositionX.value;
+        const levelPixelHeight = level1.height * RENDERED_TILE_SIZE;
+        const originY = canvas.height - levelPixelHeight;
+
+        for (const enemy of justDefeated) {
+          newFacts.push(enemy.fact);
+          const label = isSkillCategoryFact(enemy.fact.data)
+            ? enemy.fact.data.category
+            : ('name' in enemy.fact.data ? enemy.fact.data.name : enemy.fact.sectionLabel);
+          const flag = 'flag' in enemy.fact.data ? enemy.fact.data.flag : undefined;
+          const icon = typeof flag === 'string' ? flag : SECTION_ICON[enemy.fact.sectionId];
+          const slot = nextTextSlot;
+          nextTextSlot = (nextTextSlot + 1) % COLLECTION_TEXT_SLOT_COUNT;
+          const stackOffsetY = slot * COLLECTION_TEXT_STACK_ROW_HEIGHT;
+          newEffects.push(
+            startFlightEffect(
+              enemy.id,
+              label,
+              enemy.x + originX,
+              enemy.y + originY + stackOffsetY,
+              midX,
+              midY + stackOffsetY,
+              targetX,
+              targetY,
+              icon,
+            ),
+          );
+        }
+
+        collectedFacts.value = newFacts;
+        activeEffects.value = newEffects;
+        enemyStates.value = enemyStates.value.filter((e) => !e.defeated);
+      }
 
       activeEffects.value = activeEffects.value
         .map((effect) => tickFlightEffect(effect, dt))
@@ -470,6 +528,14 @@ export const PlatformerPage = () => {
         collectedCollectibleIds.value = nextCollected;
         collectedFacts.value = newFacts;
         activeEffects.value = newEffects;
+      }
+
+      const stompedIds = checkEnemyStompCollisions(playerState.value, enemyStates.value);
+      if (stompedIds.length > 0) {
+        enemyStates.value = enemyStates.value.map((enemy) =>
+          stompedIds.includes(enemy.id) ? applyStomp(enemy) : enemy,
+        );
+        playerState.value = { ...playerState.value, vy: PHYSICS_CONFIG.stompBounceVelocity };
       }
 
       // A/D accepted as an alternate to Arrow Left/Right (FR-007 only

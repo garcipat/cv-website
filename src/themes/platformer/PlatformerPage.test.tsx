@@ -3,7 +3,7 @@ import { vi } from 'vitest';
 import { PlatformerPage } from './PlatformerPage';
 import { platformerPage } from './PlatformerPage.page';
 import { PLAYER_RENDERED_SIZE, PLAYER_VISUAL_CENTER_Y_OFFSET } from './entities/Player';
-import { ENEMY_RENDERED_SIZE } from './entities/Enemy';
+import { ENEMY_RENDERED_SIZE, toEnemyState } from './entities/Enemy';
 import {
   playerState,
   cameraPositionX,
@@ -14,6 +14,8 @@ import {
   collectiblePlacements,
   collectedCollectibleIds,
   activeEffects,
+  enemyPlacements,
+  enemyStates,
 } from './PlatformerState';
 import { MAX_HALF_HEARTS, PIT_FALL_DAMAGE, HEART_RENDERED_SIZE } from './entities/Health';
 import { HEARTS_START_X } from './engine/Renderer';
@@ -66,6 +68,9 @@ describe('PlatformerPage', () => {
     // and only clears itself via tickFlightEffect, which no render-only test
     // ever calls.
     activeEffects.value = [];
+    // Module-level signal like the others above — a stomp/defeat mutation
+    // from one test must not leak into the next test's enemy positions.
+    enemyStates.value = enemyPlacements.map((p, i) => toEnemyState(p, i));
   });
 
   afterEach(() => {
@@ -642,6 +647,113 @@ describe('PlatformerPage', () => {
     frameCallback!(t + 16);
 
     expect(collectedFacts.value).toHaveLength(1); // still just the one — no duplicate
+  });
+
+  it('playerFallsOntoGreenEnemy-tick-defeatsItImmediatelyAndAddsFact', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const target = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
+    playerState.value = {
+      ...playerState.value,
+      x: target.x,
+      y: target.y - PLAYER_RENDERED_SIZE / 2,
+      vy: 300,
+    };
+
+    // Green has 1 hit point — one full hit-reaction cycle (400ms) after the
+    // stomp defeats it outright. GameLoop caps any single tick's dt at
+    // MAX_DT (1/30s, ~33ms — see GameLoop.ts), so the 400ms reaction has to
+    // be paid off over enough real 16ms-spaced frames, not one big jump.
+    let t = 16;
+    frameCallback!(t);
+    for (let i = 0; i < 30; i++) {
+      t += 16;
+      frameCallback!(t);
+    }
+
+    expect(enemyStates.value.some((e) => e.id === target.id)).toBe(false);
+    expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(true);
+  });
+
+  it('playerFallsOntoGreenEnemy-tick-bouncesPlayerUpward', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const target = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
+    playerState.value = {
+      ...playerState.value,
+      x: target.x,
+      y: target.y - PLAYER_RENDERED_SIZE / 2,
+      vy: 300,
+    };
+
+    frameCallback!(16);
+
+    expect(playerState.value.vy).toBeLessThan(0);
+  });
+
+  it('playerFallsOntoPurpleEnemyTwice-firstStompSurvives-secondStompDefeatsIt', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const target = enemyStates.value.find((e) => e.spriteType === 'slimePurple')!;
+    playerState.value = {
+      ...playerState.value,
+      x: target.x,
+      y: target.y - PLAYER_RENDERED_SIZE / 2,
+      vy: 300,
+    };
+
+    // First stomp: plays out its full hit reaction, still alive afterward.
+    let t = 16;
+    frameCallback!(t);
+    for (let i = 0; i < 30; i++) {
+      t += 16;
+      frameCallback!(t);
+    }
+    expect(enemyStates.value.some((e) => e.id === target.id)).toBe(true);
+    expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(false);
+
+    // Re-position for a second stomp (the enemy patrolled away during the
+    // reaction window above — put the player back on top of its current spot).
+    const stillAlive = enemyStates.value.find((e) => e.id === target.id)!;
+    playerState.value = {
+      ...playerState.value,
+      x: stillAlive.x,
+      y: stillAlive.y - PLAYER_RENDERED_SIZE / 2,
+      vy: 300,
+    };
+    t += 16;
+    frameCallback!(t);
+    for (let i = 0; i < 30; i++) {
+      t += 16;
+      frameCallback!(t);
+    }
+
+    expect(enemyStates.value.some((e) => e.id === target.id)).toBe(false);
+    expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(true);
   });
 
   it('healthReachesZero-gameLoopTicks-entersDyingPhaseCenteredOnPlayerAndPausesPhysics', () => {
