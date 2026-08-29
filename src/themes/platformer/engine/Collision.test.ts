@@ -1,7 +1,15 @@
-import { playerHitbox, aabbOverlap, checkCollectibleCollisions } from './Collision';
+import {
+  playerHitbox,
+  aabbOverlap,
+  checkCollectibleCollisions,
+  checkEnemyStompCollisions,
+} from './Collision';
 import { PLAYER_SIDE_PADDING, PLAYER_HEAD_PADDING, PLAYER_RENDERED_SIZE } from '../entities/Player';
 import type { PlayerState } from '../entities/Player';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
+import { toEnemyState, ENEMY_RENDERED_SIZE } from '../entities/Enemy';
+import type { EnemyState } from '../entities/Enemy';
+import type { EnemyPlacement } from '../level/EnemyMapper';
 
 function makePlayer(x: number, y: number): PlayerState {
   return {
@@ -28,6 +36,23 @@ function makePlacement(id: string, x: number, y: number): CollectiblePlacement {
     x,
     y,
   };
+}
+
+function makeEnemy(x: number, y: number, overrides: Partial<EnemyState> = {}): EnemyState {
+  const placement: EnemyPlacement = {
+    id: 'enemy-cert-x',
+    spriteType: 'slimeGreen',
+    fact: {
+      id: 'enemy-cert-x',
+      sectionId: 'certificates',
+      sectionLabel: 'Certificates',
+      data: { name: 'X', issuer: 'Y', date: '2020-01' },
+      sourceType: 'enemy',
+    },
+    x,
+    y,
+  };
+  return { ...toEnemyState(placement), ...overrides };
 }
 
 describe('playerHitbox', () => {
@@ -81,5 +106,51 @@ describe('checkCollectibleCollisions', () => {
     const player = makePlayer(0, 0);
     const placements = [makePlacement('a', 0, 0), makePlacement('b', 5, 5)];
     expect(checkCollectibleCollisions(player, placements, new Set())).toEqual(['a', 'b']);
+  });
+});
+
+describe('checkEnemyStompCollisions', () => {
+  it('playerFallingAndLandingOnTop-returnsEnemyId', () => {
+    const enemy = makeEnemy(0, 100);
+    // Player's hitbox bottom lands well inside the enemy's upper half —
+    // playerHitbox's y offset (PLAYER_HEAD_PADDING) is applied to player.y,
+    // so placing the player a bit above the enemy with vy > 0 (falling)
+    // simulates "landing on top of it".
+    const player = { ...makePlayer(0, 100 - PLAYER_RENDERED_SIZE / 2), vy: 300 };
+    expect(checkEnemyStompCollisions(player, [enemy])).toEqual(['enemy-cert-x']);
+  });
+
+  it('playerRisingIntoEnemyFromBelow-returnsEmptyArray', () => {
+    const enemy = makeEnemy(0, 100);
+    const player = { ...makePlayer(0, 100 + ENEMY_RENDERED_SIZE - 10), vy: -300 };
+    expect(checkEnemyStompCollisions(player, [enemy])).toEqual([]);
+  });
+
+  it('playerLevelWithEnemyNotFalling-returnsEmptyArray', () => {
+    // vy === 0 (grounded, walking into it side-on) must not count as a stomp
+    // — that is roadmap step 19's job, not this one's.
+    const enemy = makeEnemy(0, 100);
+    const player = { ...makePlayer(0, 100), vy: 0 };
+    expect(checkEnemyStompCollisions(player, [enemy])).toEqual([]);
+  });
+
+  it('playerFallingButFarFromEnemy-returnsEmptyArray', () => {
+    const enemy = makeEnemy(2000, 2000);
+    const player = { ...makePlayer(0, 0), vy: 300 };
+    expect(checkEnemyStompCollisions(player, [enemy])).toEqual([]);
+  });
+
+  it('enemyAlreadyDefeated-excludedEvenIfOverlapping', () => {
+    const enemy = makeEnemy(0, 100, { defeated: true });
+    const player = { ...makePlayer(0, 100 - PLAYER_RENDERED_SIZE / 2), vy: 300 };
+    expect(checkEnemyStompCollisions(player, [enemy])).toEqual([]);
+  });
+
+  it('enemyAlreadyInHitReaction-excludedEvenIfOverlapping', () => {
+    // Prevents a single fall from registering a second stomp against an
+    // enemy still playing its first hit's reaction animation.
+    const enemy = makeEnemy(0, 100, { animState: 'hit' });
+    const player = { ...makePlayer(0, 100 - PLAYER_RENDERED_SIZE / 2), vy: 300 };
+    expect(checkEnemyStompCollisions(player, [enemy])).toEqual([]);
   });
 });

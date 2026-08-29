@@ -7,6 +7,8 @@ import {
 import type { PlayerState } from '../entities/Player';
 import { COIN_RENDERED_SIZE } from '../entities/Coin';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
+import { ENEMY_RENDERED_SIZE } from '../entities/Enemy';
+import type { EnemyState } from '../entities/Enemy';
 
 export interface Box {
   x: number;
@@ -63,4 +65,38 @@ export function checkCollectibleCollisions(
     if (aabbOverlap(hitbox, box)) collected.push(placement.id);
   }
   return collected;
+}
+
+/** An enemy's collision box — the full render slot (enemies have no
+ *  transparent-padding trim the way the player's hitbox does; see Enemy.ts's
+ *  doc comment on `ENEMY_TILE_OFFSET_Y`). */
+export function enemyHitbox(enemy: EnemyState): Box {
+  return { x: enemy.x, y: enemy.y, width: ENEMY_RENDERED_SIZE, height: ENEMY_RENDERED_SIZE };
+}
+
+/**
+ * Returns the ids of every non-defeated, non-reacting enemy the player just
+ * stomped this frame: overlapping AND falling (`player.vy > 0`) AND landing
+ * on the enemy's upper half (the player's hitbox bottom edge is at or above
+ * the enemy's vertical midpoint) — this is what distinguishes "jumped on
+ * top of" from a side/below touch (roadmap step 19's separate concern,
+ * intentionally not handled here: this function returns [] for that case,
+ * same as for no contact at all). An enemy already `defeated`, or already
+ * mid-`'hit'`-reaction from an earlier stomp this fall, is excluded so one
+ * fall can't register a second stomp against it before its reaction finishes.
+ */
+export function checkEnemyStompCollisions(player: PlayerState, enemies: EnemyState[]): string[] {
+  if (player.vy <= 0) return [];
+  const hitbox = playerHitbox(player);
+  const stomped: string[] = [];
+  for (const enemy of enemies) {
+    if (enemy.defeated || enemy.animState === 'hit') continue;
+    const box = enemyHitbox(enemy);
+    if (!aabbOverlap(hitbox, box)) continue;
+    const enemyMidY = box.y + box.height / 2;
+    if (hitbox.y + hitbox.height <= enemyMidY) {
+      stomped.push(enemy.id);
+    }
+  }
+  return stomped;
 }
