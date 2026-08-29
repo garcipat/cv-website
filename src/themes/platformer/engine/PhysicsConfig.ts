@@ -49,24 +49,22 @@ export const PHYSICS_CONFIG = {
   jumpCutMultiplier: 0.45,
   /**
    * Upward velocity impulse applied to the player immediately after a stomp
-   * (roadmap step 18), in px/s (negative = up) — a bit stronger than a
-   * normal jump (`jumpVelocity`, -520) so it reads as a real hop, not
-   * hugely more. Every earlier tuning pass (-400 -> -480 -> -560 -> -900,
-   * live with the user) was chasing a broken signal: `stepPlayerPhysics`'s
-   * jump-cut multiplier was silently shearing the bounce down to ~45% of
-   * whatever this was set to every tick after the first (see
-   * `PlayerState.bounceAscending`'s fix), so none of those values ever
-   * actually manifested at their configured height — all of them felt
-   * roughly the same, small height. Once that bug was fixed, -900 turned
-   * out to be ~3x a normal jump's peak — "double jump height, way too far"
-   * per the user. This value (-600) is the first one tuned against the
-   * CORRECTED physics: peak height ≈ 600²/(2*1200) = 150px (~4.7 tiles),
-   * about 1.15x `jumpVelocity`'s own ≈112.7px peak. Same tunneling
-   * invariant as the other velocity constants applies:
-   * `Math.abs(stompBounceVelocity) * MAX_DT` must stay below
-   * RENDERED_TILE_SIZE (32px): Math.abs(-600) * (1/30) = 20 < 32. ✓
+   * (roadmap step 18), in px/s (negative = up) — noticeably WEAKER than a
+   * normal jump (`jumpVelocity`, -520), a small hop rather than a launch.
+   * Tuning history (all live with the user): -400/-480/-560 were all
+   * silently capped to ~45% of their configured value by a jump-cut bug
+   * (see `PlayerState.bounceAscending`'s fix) so none of them actually
+   * manifested at their real height; -900 and -600, tuned AFTER that fix
+   * against the corrected physics, both still read as too much ("double
+   * jump height" and "still too much" respectively) — -600 * 0.55 ≈ -330,
+   * landing in the "50-60% of -600" range asked for last. Peak height ≈
+   * 330²/(2*1200) ≈ 45.4px (~1.4 tiles), well under half of
+   * `jumpVelocity`'s own ≈112.7px peak. Same tunneling invariant as the
+   * other velocity constants applies: `Math.abs(stompBounceVelocity) *
+   * MAX_DT` must stay below RENDERED_TILE_SIZE (32px): Math.abs(-330) *
+   * (1/30) = 11 < 32. ✓
    */
-  stompBounceVelocity: -600,
+  stompBounceVelocity: -330,
   /**
    * Horizontal knockback speed applied to the player on a side-hit (roadmap
    * step 19), in px/s, away from the enemy that hit them — deliberately
