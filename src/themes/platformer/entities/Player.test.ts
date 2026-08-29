@@ -7,6 +7,9 @@ import {
   advancePlayerAnimation,
   updatePlayerAnimState,
   IDLE_FRAME_DURATION,
+  tickInvincibility,
+  applyKnockback,
+  grantInvincibility,
 } from './Player';
 import type { PlayerState } from './Player';
 import { RENDER_SCALE } from '../level/Terrain';
@@ -25,6 +28,8 @@ function idlePlayer(overrides: Partial<PlayerState> = {}): PlayerState {
     animState: 'idle',
     animFrame: 0,
     animTimer: 0,
+    invincibleTimer: 0,
+    knockbackTimer: 0,
     ...overrides,
   };
 }
@@ -183,5 +188,56 @@ describe('updatePlayerAnimState jump priority', () => {
     const player = idlePlayer({ vx: 200, grounded: true, animState: 'jump' });
     const next = updatePlayerAnimState(player);
     expect(next.animState).toBe('walk');
+  });
+});
+
+describe('tickInvincibility', () => {
+  it('zeroTimer-returnsSameReference', () => {
+    const player = idlePlayer({ invincibleTimer: 0 });
+    const next = tickInvincibility(player, 1 / 30);
+    expect(next).toBe(player);
+  });
+
+  it('positiveTimer-decrementsByDt', () => {
+    const player = idlePlayer({ invincibleTimer: 1.2 });
+    const next = tickInvincibility(player, 0.2);
+    expect(next.invincibleTimer).toBeCloseTo(1.0);
+  });
+
+  it('timerBelowDt-clampsToZeroNotNegative', () => {
+    const player = idlePlayer({ invincibleTimer: 0.1 });
+    const next = tickInvincibility(player, 0.2);
+    expect(next.invincibleTimer).toBe(0);
+  });
+});
+
+describe('applyKnockback', () => {
+  it('directionLeft-setsNegativeVxFacingLeftAndBothTimers', () => {
+    const player = idlePlayer({ vx: 0, facing: 'right' });
+    const next = applyKnockback(player, -1, 250, 0.25, 1.2);
+    expect(next.vx).toBe(-250);
+    expect(next.facing).toBe('left');
+    expect(next.knockbackTimer).toBe(0.25);
+    expect(next.invincibleTimer).toBe(1.2);
+  });
+
+  it('directionRight-setsPositiveVxAndFacingRight', () => {
+    const player = idlePlayer({ vx: 0, facing: 'left' });
+    const next = applyKnockback(player, 1, 250, 0.25, 1.2);
+    expect(next.vx).toBe(250);
+    expect(next.facing).toBe('right');
+  });
+});
+
+describe('grantInvincibility', () => {
+  it('setsInvincibleTimerToDuration-leavesVxFacingKnockbackTimerUntouched', () => {
+    // Unlike applyKnockback, a pit fall has no "direction to knock away
+    // from" and no horizontal push at all — only the timer changes.
+    const player = idlePlayer({ vx: 42, facing: 'left', knockbackTimer: 0 });
+    const next = grantInvincibility(player, 1.2);
+    expect(next.invincibleTimer).toBe(1.2);
+    expect(next.vx).toBe(42);
+    expect(next.facing).toBe('left');
+    expect(next.knockbackTimer).toBe(0);
   });
 });
