@@ -9,6 +9,7 @@ import {
   drawCollectibles,
   drawEnemies,
   drawBlocks,
+  drawBonusFruits,
   drawCollectionEffects,
   drawCollectibleCounter,
   drawIrisOverlay,
@@ -38,7 +39,11 @@ import {
   checkCollectibleCollisions,
   checkEnemyStompCollisions,
   checkEnemySideCollisions,
+  checkBonusFruitCollisions,
 } from './engine/Collision';
+import { stepBlockAnimation } from './engine/BlockAI';
+import { applyBlockHit, isBlockUsedUp, isBlockRemoved } from './entities/Block';
+import { spawnBonusFruit, tickBonusFruit } from './entities/BonusFruit';
 import { startFlightEffect, tickFlightEffect, COLLECTION_TEXT_SLOT_COUNT } from './engine/CollectionEffects';
 import { coinFrameSource, COIN_FRAME_SIZE } from './entities/Coin';
 import { fruitFrameSource, FRUIT_FRAME_SIZE } from './entities/Fruit';
@@ -67,7 +72,8 @@ import {
   collectiblePlacements,
   enemyPlacements,
   enemyStates,
-  blockPlacements,
+  blockStates,
+  bonusFruitStates,
   collectedCollectibleIds,
   activeEffects,
   collectedFacts,
@@ -105,6 +111,7 @@ export const PlatformerPage = () => {
   const fruitSpriteRef = useRef<HTMLImageElement | null>(null);
   const slimeGreenSpriteRef = useRef<HTMLImageElement | null>(null);
   const slimePurpleSpriteRef = useRef<HTMLImageElement | null>(null);
+  const crackOverlaySpriteRef = useRef<HTMLImageElement | null>(null);
   const journalButtonRef = useRef<HTMLButtonElement>(null);
   const debugParams = new URLSearchParams(window.location.search);
   // Any `debug` param (not just `hitboxes`) shows the debug panel (Kill/
@@ -250,7 +257,7 @@ export const PlatformerPage = () => {
 
       if (tilesetRef.current) {
         drawTerrain(ctx, level1, tilesetRef.current, originX, originY);
-        drawBlocks(ctx, blockPlacements, tilesetRef.current, originX, originY);
+        drawBlocks(ctx, blockStates.value, tilesetRef.current, crackOverlaySpriteRef.current, originX, originY);
       }
 
       if (playerSpriteRef.current) {
@@ -291,6 +298,10 @@ export const PlatformerPage = () => {
           originX,
           originY,
         );
+      }
+
+      if (fruitSpriteRef.current) {
+        drawBonusFruits(ctx, bonusFruitStates.value, fruitSpriteRef.current, originX, originY);
       }
 
       drawCollectionEffects(ctx, activeEffects.value);
@@ -455,6 +466,21 @@ export const PlatformerPage = () => {
         return advanceEnemyAnimation(next, dt);
       });
 
+      // Blocks currently playing their shared bump/shatter reaction advance
+      // it here every tick, same convention as the enemy hit-reaction step
+      // just above — a used-up crate/rock is filtered out of the live array
+      // once its animation settles back to 'idle' (Block.ts's
+      // isBlockRemoved); a used-up question-mark is NEVER filtered (it stays
+      // solid forever, permanently showing its `!` tile — see Block.ts's
+      // doc comment).
+      blockStates.value = blockStates.value
+        .map((block) => stepBlockAnimation(block, dt))
+        .filter((block) => !isBlockRemoved(block));
+
+      // Bonus fruits (roadmap step 21b) rise on their own fixed timer,
+      // independent of anything else this tick.
+      bonusFruitStates.value = bonusFruitStates.value.map((fruit) => tickBonusFruit(fruit, dt));
+
       // Enemies whose hit reaction just finished with no hit points left:
       // reward + remove, reusing the exact fact-flight mechanism coins use
       // (see the collectible-collision block below) rather than a duplicate
@@ -593,6 +619,17 @@ export const PlatformerPage = () => {
         activeEffects.value = newEffects;
       }
 
+      // Bonus fruits carry no CV fact (spec.md's "Bonus pickup" glossary
+      // entry) — touching one is a plain, silent removal, unlike every other
+      // collectible/reward path in this file, which all push into
+      // `collectedFacts`/`activeEffects`. No counter, no journal entry.
+      const touchedBonusFruitIds = checkBonusFruitCollisions(playerState.value, bonusFruitStates.value);
+      if (touchedBonusFruitIds.length > 0) {
+        bonusFruitStates.value = bonusFruitStates.value.filter(
+          (fruit) => !touchedBonusFruitIds.includes(fruit.id),
+        );
+      }
+
       const stompedIds = checkEnemyStompCollisions(playerState.value, enemyStates.value);
       const stompBounceThisTick = stompedIds.length > 0;
       if (stompBounceThisTick) {
@@ -665,8 +702,75 @@ export const PlatformerPage = () => {
           dropThroughHeld,
           suppressJumpCut: stompBounceThisTick,
         },
-        blockPlacements,
+        blockStates.value,
       );
+
+      // Block hit mechanics (roadmap step 21): `next.hitBlockIds` (set by
+      // Physics.ts's ceiling-collision check, same call above) reports every
+      // block whose underside the player's head just hit this tick — but
+      // only a block that ISN'T already used up actually reacts (a
+      // question-mark that already popped its fruit, or a still-mid-bump
+      // crate/rock about to be filtered out, must not register a second hit
+      // just because the player's head is still under it this frame).
+      const hittableBlockIds = next.hitBlockIds.filter((id) => {
+        const block = blockStates.value.find((b) => b.id === id);
+        return block !== undefined && !isBlockUsedUp(block);
+      });
+      if (hittableBlockIds.length > 0) {
+        blockStates.value = blockStates.value.map((block) =>
+          hittableBlockIds.includes(block.id) ? applyBlockHit(block) : block,
+        );
+
+        const originX = -cameraPositionX.value;
+        const levelPixelHeight = level1.height * RENDERED_TILE_SIZE;
+        const originY = canvas.height - levelPixelHeight;
+        const journalRect = journalButtonRef.current?.getBoundingClientRect();
+        const targetX = journalRect ? journalRect.left + journalRect.width / 2 : canvas.width - 32;
+        const targetY = journalRect ? journalRect.top + journalRect.height / 2 : canvas.height - 32;
+        const midX = canvas.width / 2;
+        const midY = canvas.height * 0.3;
+
+        for (const id of hittableBlockIds) {
+          const block = blockStates.value.find((b) => b.id === id);
+          if (!block) continue;
+
+          if (block.blockKind === 'questionMark') {
+            bonusFruitStates.value = [...bonusFruitStates.value, spawnBonusFruit(block.id, block.x, block.y)];
+          }
+
+          if (block.blockKind === 'crate' && block.hitsTaken >= 2 && block.fact) {
+            // Dedup by fact id, same defensive guard the enemy-defeat reward
+            // already uses (FR-020c) — not actually reachable for crates
+            // today (they never reset mid-session), but keeps the two reward
+            // paths consistent.
+            if (!collectedFacts.value.some((f) => f.id === block.fact!.id)) {
+              const label = isSkillCategoryFact(block.fact.data)
+                ? block.fact.data.category
+                : ('name' in block.fact.data ? block.fact.data.name : block.fact.sectionLabel);
+              const flag = 'flag' in block.fact.data ? block.fact.data.flag : undefined;
+              const icon = typeof flag === 'string' ? flag : SECTION_ICON[block.fact.sectionId];
+              const slot = nextTextSlot;
+              nextTextSlot = (nextTextSlot + 1) % COLLECTION_TEXT_SLOT_COUNT;
+              const stackOffsetY = slot * COLLECTION_TEXT_STACK_ROW_HEIGHT;
+              collectedFacts.value = [...collectedFacts.value, block.fact];
+              activeEffects.value = [
+                ...activeEffects.value,
+                startFlightEffect(
+                  block.id,
+                  label,
+                  block.x + originX,
+                  block.y + originY + stackOffsetY,
+                  midX,
+                  midY + stackOffsetY,
+                  targetX,
+                  targetY,
+                  icon,
+                ),
+              ];
+            }
+          }
+        }
+      }
 
       if (checkPitFall(next, level1)) {
         // Invincibility (roadmap step 19) is a property of taking damage
@@ -798,6 +902,16 @@ export const PlatformerPage = () => {
       .catch(() => {
         // Purple (Projects) enemies simply won't render if the sprite fails
         // to load; the rest of the game still shows.
+      });
+    loadImage('/sprites/crack_overlay.png')
+      .then((img) => {
+        if (cancelled) return;
+        crackOverlaySpriteRef.current = img;
+        render();
+      })
+      .catch(() => {
+        // A cracked crate simply won't show its overlay if this fails to
+        // load; the base crate tile and every other mechanic still work.
       });
     loadFont(RESTART_PROMPT_FONT_FAMILY, RESTART_PROMPT_FONT_URL)
       .then(() => {
