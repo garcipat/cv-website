@@ -1,4 +1,4 @@
-import { updateCamera } from './Camera';
+import { updateCamera, updateCameraY } from './Camera';
 
 describe('updateCamera', () => {
   const PLAYER_WIDTH = 64;
@@ -47,5 +47,49 @@ describe('updateCamera', () => {
     // player position.
     const result = updateCamera(0, 780, PLAYER_WIDTH, VIEWPORT_WIDTH, 800);
     expect(result).toBe(0);
+  });
+});
+
+describe('updateCameraY', () => {
+  const PLAYER_HEIGHT = 64;
+  const VIEWPORT_HEIGHT = 480; // dead zone: [144, 336] around center 240
+
+  it('levelShorterThanViewport-cameraStaysAtZeroRegardlessOfPlayerPosition', () => {
+    const result = updateCameraY(0, 1000, PLAYER_HEIGHT, VIEWPORT_HEIGHT, 192);
+    expect(result).toBe(0);
+  });
+
+  it('tallLevel-playerCenteredWithinDeadZone-cameraStaysAtPreviousPosition', () => {
+    // levelPixelHeight 800, originYBase = 480-800 = -320. previousCameraY 160
+    // -> effective originY -160. playerY 368 -> center 400 -> screenCenterY
+    // 400-160 = 240, dead-center — no movement.
+    const result = updateCameraY(160, 368, PLAYER_HEIGHT, VIEWPORT_HEIGHT, 800);
+    expect(result).toBe(160);
+  });
+
+  it('playerExitsTopEdgeOfDeadZone-cameraShiftsUpToKeepPlayerAtEdge', () => {
+    // playerY 382 -> center 414 -> screenCenterY (previousCameraY 0) =
+    // 414-320 = 94, past deadZoneTop (144) on the low side — camera shifts
+    // up: 144-414-(-320) = 50.
+    const result = updateCameraY(0, 382, PLAYER_HEIGHT, VIEWPORT_HEIGHT, 800);
+    expect(result).toBe(50);
+  });
+
+  it('playerExitsBottomEdgeOfDeadZone-cameraShiftsDownToKeepPlayerAtEdge', () => {
+    // playerY 518 -> center 550 -> screenCenterY (previousCameraY 160) =
+    // 550-320+160 = 390, past deadZoneBottom (336) — camera shifts down:
+    // 336-550-(-320) = 106.
+    const result = updateCameraY(160, 518, PLAYER_HEIGHT, VIEWPORT_HEIGHT, 800);
+    expect(result).toBe(106);
+  });
+
+  it('cameraWouldGoNegative-clampsToZero', () => {
+    const result = updateCameraY(0, 668, PLAYER_HEIGHT, VIEWPORT_HEIGHT, 800);
+    expect(result).toBe(0);
+  });
+
+  it('cameraWouldExceedLevelTop-clampsToLevelHeightMinusViewport', () => {
+    const result = updateCameraY(0, 32, PLAYER_HEIGHT, VIEWPORT_HEIGHT, 800);
+    expect(result).toBe(320); // max = 800 - 480
   });
 });
