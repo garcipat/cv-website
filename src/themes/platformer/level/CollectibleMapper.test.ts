@@ -2,6 +2,7 @@ import { mapCVDataToCollectibles, placeCollectibles } from './CollectibleMapper'
 import { tileToPixel } from './Terrain';
 import { isSkillCategoryFact } from '../types';
 import type { CVData } from '@/types/cv';
+import type { CollectibleDef } from '../types';
 
 const cv: CVData = {
   personality: { name: 'Test', tagline: 'Test', summary: '' },
@@ -30,13 +31,18 @@ const cv: CVData = {
   projects: [],
 };
 
+function fruitDef(id: string): CollectibleDef {
+  return {
+    id,
+    spriteType: 'fruit',
+    fact: { id, sectionId: 'languages', sectionLabel: 'Languages', data: { name: id, level: 50 }, sourceType: 'coin' },
+  };
+}
+
 describe('mapCVDataToCollectibles', () => {
-  it('called-returns-oneCoinPerCategoryPlusOneFruitPerLanguage', () => {
+  it('called-returns-oneCoinPerCategory', () => {
     const defs = mapCVDataToCollectibles(cv);
-    const coins = defs.filter((d) => d.spriteType === 'coin');
-    const fruits = defs.filter((d) => d.spriteType === 'fruit');
-    expect(coins).toHaveLength(2); // Backend, Frontend
-    expect(fruits).toHaveLength(2); // German, English
+    expect(defs.filter((d) => d.spriteType === 'coin')).toHaveLength(2); // Backend, Frontend
   });
 
   it('called-returns-uniqueIds', () => {
@@ -54,16 +60,17 @@ describe('mapCVDataToCollectibles', () => {
     expect(names).toEqual(['React', 'Vite']);
   });
 
-  it('languageEntry-buildsSingleLanguageFact', () => {
+  // Amended 2026-08-30 (live user feedback during step 21 verification):
+  // Languages no longer produce `fruit` collectibles — see
+  // CollectibleMapper.ts's mapCVDataToCollectibles comment.
+  it('languagesPresent-stillProducesNoFruitCollectibles', () => {
     const defs = mapCVDataToCollectibles(cv);
-    const german = defs.find((d) => d.spriteType === 'fruit' && d.fact.sectionLabel === 'Languages' && !isSkillCategoryFact(d.fact.data) && 'name' in d.fact.data && d.fact.data.name === 'German');
-    expect(german).toBeDefined();
-    expect(german?.fact.sourceType).toBe('coin'); // FR-009: languages are still "coin" collectibles, spriteType is the visual-only distinction
+    expect(defs.filter((d) => d.spriteType === 'fruit')).toHaveLength(0);
   });
 
-  it('noLanguages-returnsNoFruitCollectibles', () => {
-    const defs = mapCVDataToCollectibles({ ...cv, languages: undefined });
-    expect(defs.filter((d) => d.spriteType === 'fruit')).toHaveLength(0);
+  it('noSkills-returnsNoCollectibles', () => {
+    const defs = mapCVDataToCollectibles({ ...cv, skills: [] });
+    expect(defs).toHaveLength(0);
   });
 
   it('everyCollectedFactId-matchesItsCollectibleId', () => {
@@ -74,7 +81,10 @@ describe('mapCVDataToCollectibles', () => {
 
 describe('placeCollectibles', () => {
   it('enoughMarkersOfEachType-returnsPlacementsAtMarkedPositionsInDefsOrder', () => {
-    const defs = mapCVDataToCollectibles(cv); // [Backend, Frontend, German, English]
+    // fruit-type defs are hand-built here (not via mapCVDataToCollectibles,
+    // which no longer produces any) — placeCollectibles's fruit marker queue
+    // is generic, reusable placement infrastructure, exercised directly.
+    const defs = [...mapCVDataToCollectibles(cv), fruitDef('fruit-german'), fruitDef('fruit-english')];
     const coinMarkers = [
       { col: 5, row: 2 },
       { col: 6, row: 2 },
@@ -93,7 +103,7 @@ describe('placeCollectibles', () => {
   });
 
   it('fewerCoinMarkersThanCoinDefs-onlyMarkedCountGetsPlaced', () => {
-    const defs = mapCVDataToCollectibles(cv); // 2 coin defs, 2 fruit defs
+    const defs = [...mapCVDataToCollectibles(cv), fruitDef('fruit-german'), fruitDef('fruit-english')]; // 2 coin defs, 2 fruit defs
     const placed = placeCollectibles(defs, {
       coin: [{ col: 1, row: 0 }],
       fruit: [
@@ -110,7 +120,7 @@ describe('placeCollectibles', () => {
   });
 
   it('noFruitMarkers-noFruitDefsPlacedButCoinDefsStillAre', () => {
-    const defs = mapCVDataToCollectibles(cv); // 2 coin defs, 2 fruit defs
+    const defs = [...mapCVDataToCollectibles(cv), fruitDef('fruit-german'), fruitDef('fruit-english')]; // 2 coin defs, 2 fruit defs
     const placed = placeCollectibles(defs, {
       coin: [
         { col: 1, row: 0 },
@@ -125,7 +135,7 @@ describe('placeCollectibles', () => {
   });
 
   it('noMarkersAtAll-noDefs-returnsEmptyArray', () => {
-    const defs = mapCVDataToCollectibles({ ...cv, skills: [], languages: undefined });
+    const defs = mapCVDataToCollectibles({ ...cv, skills: [] });
     expect(placeCollectibles(defs, { coin: [], fruit: [] })).toEqual([]);
   });
 });

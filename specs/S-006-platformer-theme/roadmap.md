@@ -325,7 +325,7 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   unaffected) — no crack/shatter/fruit-pop reaction exists yet, only
   standing-on-top/side-blocking/ceiling-bonk collision. See
   `BlockMapper.ts`'s `isBlockOccupied`.
-- [ ] **21. Block hit mechanics** — split into three sub-steps (2026-08-29),
+- [x] **21. Block hit mechanics** — split into three sub-steps (2026-08-29),
   one per block type, since each now has a genuinely distinct mechanic rather
   than one shared 3-hit progression. A shared short bump/nudge animation
   (block moves up a few pixels, settles back, ~100ms) plays on every
@@ -357,6 +357,49 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   - **21c. Rock hit mechanic** — single hit breaks the rock straight to empty
     space — no fruit, no fact, no reward.
     *Verify: hit a rock block, see it disappear immediately with no drop.*
+
+  **Follow-up (2026-08-30, live user feedback after the above shipped and was
+  manually verified):**
+  - **Question-mark's used-up tile redesigned**: swaps to a plain top-exposed
+    `groundRock` terrain tile (`world_tileset.png` at 16,0) instead of the
+    palette's `!` indicator — reads as "used up ground" rather than still a
+    distinct block type.
+  - **Bonus fruit now carries a real fact**: Certificates + Projects moved
+    off enemies onto question-mark blocks (`BlockMapper.ts`'s
+    `certificateToBlock`/`projectToBlock`) — picking up a bonus fruit reveals
+    it exactly like any other collectible, flying to the journal. Its icon
+    also cycles through `fruit.png`'s frames per spawn (visual variety,
+    `BonusFruitState.iconIndex`) instead of always frame 0. Bonus fruits
+    render *before* blocks each frame so a still-rising fruit reads as
+    emerging from behind/under its source block, not floating on top of it.
+  - **Courses split across both slime colors** (`EnemyMapper.ts`'s
+    `courseToEnemy`, alternating green/purple by index) instead of
+    green-only, freeing the purple pool for the Certificates+Projects move
+    above.
+  - **Rock gets a "puff" on break**: reuses the same sparkle-burst effect
+    every other reward pickup already plays (`startFlightEffect` with an
+    empty label, centered on the rock's tile) — previously it just vanished
+    with no tactile feedback at all.
+  - **Hand-placed `F`-marker (Language) fruit collectibles removed**
+    entirely from `level1` and `CollectibleMapper.ts` — Languages is
+    intentionally unmapped from any collectible for now (deferred, along
+    with `activities`, until a future decision on where they surface).
+  - **Fact-flight label bug fixed**: the fly-to-journal text's label/icon
+    derivation was a duplicated, incomplete ad-hoc check (`'name' in
+    data`) that silently fell back to the generic section name for
+    Courses/Experience/Education (whose display field is `title`/`role`/
+    `degree`, not `name`) — replaced all four duplicated copies with the
+    journal's own `formatJournalEntry`, which already handles every
+    section correctly.
+  - **HUD/journal collectible counters added for crates and bonus fruit**,
+    and every counter (HUD *and* the "About Me" page's collectibles
+    summary) now totals against what's actually placed in the level
+    (`blockPlacements`/`enemyPlacements`/`collectiblePlacements`) rather
+    than raw CVData section length — the two counters staying in sync was
+    the point.
+  - **Journal now always opens on "About Me"** by default instead of
+    falling back to the first collected fact's section, until the visitor
+    picks a bookmark themselves (still remembered across close/reopen).
 - [ ] **22. Level-end mechanism (redesign needed)** — *Flagpole removed as a mechanic
   (2026-08-30)*: the original steps 22–23 (flagpole render/touch detection, then
   slide-down celebration + ending screen) no longer apply. The level still needs a

@@ -479,8 +479,10 @@ export function drawBlocks(
 
 /**
  * Draws every question-mark block's spawned bonus fruit (roadmap step 21b) at
- * its current rise-tween position, reusing `fruit.png` (index 0 — a bonus
- * fruit carries no CV mapping, so there's no per-item icon to select).
+ * its current rise-tween position, reusing `fruit.png` at the fruit's own
+ * `iconIndex` (amended 2026-08-30, live user feedback: varies per spawn
+ * instead of always index 0, so bonus fruits are visually distinguishable
+ * from each other).
  */
 export function drawBonusFruits(
   ctx: CanvasRenderingContext2D,
@@ -491,8 +493,8 @@ export function drawBonusFruits(
 ): void {
   if (!fruitSprite) return;
   ctx.imageSmoothingEnabled = false;
-  const { sx, sy } = fruitFrameSource(0);
   for (const fruit of fruits) {
+    const { sx, sy } = fruitFrameSource(fruit.iconIndex);
     ctx.drawImage(
       fruitSprite,
       sx,
@@ -588,18 +590,28 @@ export function drawCollectibleCounter(
   // unchanged); the enemy-defeated counter (PlatformerPage.tsx) passes a
   // small negative value to compensate.
   iconYOffset = 0,
+  // Shrinks only the drawn icon (never the text's start position, which
+  // stays anchored to the full COUNTER_ICON_SIZE-wide slot) — added
+  // 2026-08-30, live user feedback: a crate's edge-to-edge terrain art (no
+  // transparent padding the way coin.png/fruit.png's centered icons have)
+  // reads as noticeably bigger than the other counters' icons at the same
+  // draw size. Defaults to COUNTER_ICON_SIZE (every pre-existing call site's
+  // unchanged behavior).
+  iconDisplaySize = COUNTER_ICON_SIZE,
 ): void {
   ctx.imageSmoothingEnabled = false;
+  const iconX = x + (COUNTER_ICON_SIZE - iconDisplaySize) / 2;
+  const iconY = y - iconDisplaySize / 2 + iconYOffset;
   ctx.drawImage(
     icon,
     iconFrame.sx,
     iconFrame.sy,
     iconFrame.size,
     iconFrame.size,
-    x,
-    y - COUNTER_ICON_SIZE / 2 + iconYOffset,
-    COUNTER_ICON_SIZE,
-    COUNTER_ICON_SIZE,
+    iconX,
+    iconY,
+    iconDisplaySize,
+    iconDisplaySize,
   );
 
   ctx.save();

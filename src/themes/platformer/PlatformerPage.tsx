@@ -42,13 +42,12 @@ import {
   checkBonusFruitCollisions,
 } from './engine/Collision';
 import { stepBlockAnimation } from './engine/BlockAI';
-import { applyBlockHit, isBlockUsedUp, isBlockRemoved } from './entities/Block';
-import { spawnBonusFruit, tickBonusFruit } from './entities/BonusFruit';
+import { applyBlockHit, isBlockUsedUp, isBlockRemoved, blockFrameSource, BLOCK_FRAME_SIZE } from './entities/Block';
+import { spawnBonusFruit, tickBonusFruit, bonusFruitY } from './entities/BonusFruit';
 import { startFlightEffect, tickFlightEffect, COLLECTION_TEXT_SLOT_COUNT } from './engine/CollectionEffects';
 import { coinFrameSource, COIN_FRAME_SIZE } from './entities/Coin';
 import { fruitFrameSource, FRUIT_FRAME_SIZE } from './entities/Fruit';
-import { isSkillCategoryFact } from './types';
-import { SECTION_ICON } from './entities/JournalEntry';
+import { formatJournalEntry } from './entities/JournalEntry';
 import { RENDERED_TILE_SIZE } from './level/Terrain';
 import {
   advancePlayerAnimation,
@@ -72,6 +71,7 @@ import {
   collectiblePlacements,
   enemyPlacements,
   enemyStates,
+  blockPlacements,
   blockStates,
   bonusFruitStates,
   collectedCollectibleIds,
@@ -91,6 +91,14 @@ const MAX_HEARTS_COUNTER_WIDTH = 130;
 // smaller 20px it used to be) plus its "collected / max" text before the
 // next counter starts.
 const COLLECTIBLE_COUNTER_SPACING = 110;
+// Shrinks the crate counter's icon below the other counters' full 32px
+// (Renderer.ts's COUNTER_ICON_SIZE) — a crate's edge-to-edge terrain art
+// reads as noticeably bigger than the others' centered, padded icons at the
+// same draw size (live user feedback, 2026-08-30). Between the HUD's full
+// 32px and the journal summary's 22px (Journal.tsx's CRATE_ICON_DISPLAY_SIZE)
+// — the HUD sits at a smaller, denser row than the journal's spaced-out list,
+// so its crate icon reads right a bit larger than the journal's.
+const CRATE_COUNTER_ICON_SIZE = 24;
 // Vertical spacing between stacked fact-flight rows when several pickups are
 // collected close together — a bit more than the 28px collection-effect
 // font size (Renderer.ts's COLLECTION_EFFECT_FONT_SIZE) so stacked lines
@@ -233,6 +241,13 @@ export const PlatformerPage = () => {
     // CollectionEffects.ts's COLLECTION_TEXT_SLOT_COUNT.
     let nextTextSlot = 0;
 
+    // Cycles through fruit.png's icon frames (see Fruit.ts's
+    // FRUIT_ICON_COUNT) so successive question-mark bonus fruits look
+    // visibly different from each other (amended 2026-08-30, live user
+    // feedback) — same "just keep incrementing, let spawnBonusFruit wrap it"
+    // convention as nextTextSlot above.
+    let nextBonusFruitIcon = 0;
+
     const resize = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
@@ -257,6 +272,18 @@ export const PlatformerPage = () => {
 
       if (tilesetRef.current) {
         drawTerrain(ctx, level1, tilesetRef.current, originX, originY);
+      }
+
+      // Drawn BEFORE blocks (amended 2026-08-30, live user feedback): a
+      // bonus fruit spawns at its source block's own position and rises
+      // through it — drawing it first lets the block's own tile occlude the
+      // still-rising fruit until it clears the block's top edge, reading as
+      // "popping out from behind the block" instead of floating on top of it.
+      if (fruitSpriteRef.current) {
+        drawBonusFruits(ctx, bonusFruitStates.value, fruitSpriteRef.current, originX, originY);
+      }
+
+      if (tilesetRef.current) {
         drawBlocks(ctx, blockStates.value, tilesetRef.current, crackOverlaySpriteRef.current, originX, originY);
       }
 
@@ -300,10 +327,6 @@ export const PlatformerPage = () => {
         );
       }
 
-      if (fruitSpriteRef.current) {
-        drawBonusFruits(ctx, bonusFruitStates.value, fruitSpriteRef.current, originX, originY);
-      }
-
       drawCollectionEffects(ctx, activeEffects.value);
 
       if (debugHitboxesRef.current) drawDebugOverlay(ctx, playerState.value, level1, originX, originY);
@@ -329,20 +352,55 @@ export const PlatformerPage = () => {
         );
       }
 
-      const fruitFrame0 = fruitFrameSource(0);
-      const fruitTotal = collectiblePlacements.filter((p) => p.spriteType === 'fruit').length;
-      const fruitCollected = collectiblePlacements.filter(
-        (p) => p.spriteType === 'fruit' && collectedCollectibleIds.value.has(p.id),
+      // Bonus-fruit counter (amended 2026-08-30, live user feedback): the
+      // old fruit counter here tracked the hand-placed `F`-marker Language
+      // fruits, removed along with those markers themselves (see
+      // CollectibleMapper.ts's mapCVDataToCollectibles comment). This one
+      // tracks question-mark blocks' Certificates+Projects bonus fruit
+      // instead — same "collected / placed-in-level" convention as the coin
+      // counter above, driven by `collectedFacts` (not `bonusFruitStates`'s
+      // live array, which loses entries once picked up) so it survives a
+      // respawn like every other persistent counter.
+      const bonusFruitFrame0 = fruitFrameSource(0);
+      const bonusFruitTotal = blockPlacements.filter(
+        (b) => b.blockKind === 'questionMark' && b.fact,
+      ).length;
+      const bonusFruitCollected = collectedFacts.value.filter(
+        (f) => f.sectionId === 'certificates' || f.sectionId === 'projects',
       ).length;
       if (fruitSpriteRef.current) {
         drawCollectibleCounter(
           ctx,
           fruitSpriteRef.current,
-          { sx: fruitFrame0.sx, sy: fruitFrame0.sy, size: FRUIT_FRAME_SIZE },
-          fruitCollected,
-          fruitTotal,
+          { sx: bonusFruitFrame0.sx, sy: bonusFruitFrame0.sy, size: FRUIT_FRAME_SIZE },
+          bonusFruitCollected,
+          bonusFruitTotal,
           HEARTS_START_X + MAX_HEARTS_COUNTER_WIDTH + COLLECTIBLE_COUNTER_SPACING,
           32,
+        );
+      }
+
+      // Crate counter (amended 2026-08-30, live user feedback): crates carry
+      // Experience+Education facts and had no HUD counter at all until now —
+      // same "collected / placed-in-level" convention as the other counters.
+      // Reuses the terrain tileset (crates are drawn from `world_tileset.png`,
+      // not their own sprite sheet — see entities/Block.ts).
+      const crateFrame = blockFrameSource('crate');
+      const crateTotal = blockPlacements.filter((b) => b.blockKind === 'crate').length;
+      const crateCollected = collectedFacts.value.filter(
+        (f) => f.sectionId === 'experience' || f.sectionId === 'education',
+      ).length;
+      if (tilesetRef.current) {
+        drawCollectibleCounter(
+          ctx,
+          tilesetRef.current,
+          { sx: crateFrame.sx, sy: crateFrame.sy, size: BLOCK_FRAME_SIZE },
+          crateCollected,
+          crateTotal,
+          HEARTS_START_X + MAX_HEARTS_COUNTER_WIDTH + COLLECTIBLE_COUNTER_SPACING * 2,
+          32,
+          0,
+          CRATE_COUNTER_ICON_SIZE,
         );
       }
 
@@ -369,7 +427,7 @@ export const PlatformerPage = () => {
           { sx: enemyIconFrame.sx, sy: enemyIconFrame.sy, size: ENEMY_FRAME_SIZE },
           enemyDefeated,
           enemyTotal,
-          HEARTS_START_X + MAX_HEARTS_COUNTER_WIDTH + COLLECTIBLE_COUNTER_SPACING * 2,
+          HEARTS_START_X + MAX_HEARTS_COUNTER_WIDTH + COLLECTIBLE_COUNTER_SPACING * 3,
           32,
           -6,
         );
@@ -511,11 +569,14 @@ export const PlatformerPage = () => {
           // reward (fact + flight effect) is skipped.
           if (newFacts.some((f) => f.id === enemy.fact.id)) continue;
           newFacts.push(enemy.fact);
-          const label = isSkillCategoryFact(enemy.fact.data)
-            ? enemy.fact.data.category
-            : ('name' in enemy.fact.data ? enemy.fact.data.name : enemy.fact.sectionLabel);
-          const flag = 'flag' in enemy.fact.data ? enemy.fact.data.flag : undefined;
-          const icon = typeof flag === 'string' ? flag : SECTION_ICON[enemy.fact.sectionId];
+          // Reuses the journal's own title/icon derivation (amended
+          // 2026-08-30, live user feedback: a course kill's flight text
+          // showed the generic "Courses" section label instead of the
+          // course's own title, since the old ad-hoc `'name' in data` check
+          // doesn't cover Course's `title` field — nor Experience's
+          // `role`/`company` or Education's `degree` — formatJournalEntry
+          // already gets every section's display title right).
+          const { icon, title: label } = formatJournalEntry(enemy.fact);
           const slot = nextTextSlot;
           nextTextSlot = (nextTextSlot + 1) % COLLECTION_TEXT_SLOT_COUNT;
           const stackOffsetY = slot * COLLECTION_TEXT_STACK_ROW_HEIGHT;
@@ -578,18 +639,13 @@ export const PlatformerPage = () => {
           nextCollected.add(id);
           newFacts.push(placement.fact);
 
-          const label = isSkillCategoryFact(placement.fact.data)
-            ? placement.fact.data.category
-            : ('name' in placement.fact.data ? placement.fact.data.name : placement.fact.sectionLabel);
-          // The same icon the journal uses (a language's own flag emoji if
-          // it has one, per formatJournalEntry's `icon` resolution;
-          // SECTION_ICON's generic symbol otherwise — 💡 for skills) — per
-          // user request, to distinguish a skill pickup from a language one
-          // at a glance. Passed to `startFlightEffect` separately, NOT
+          // Reuses the journal's own title/icon derivation (amended
+          // 2026-08-30 — see the enemy-defeat block above for why the old
+          // ad-hoc `'name' in data` check was wrong for several sections).
+          // `icon` is passed to `startFlightEffect` separately, NOT
           // concatenated into `label`: Renderer.ts draws it in a different
           // font (the pixel font `label` uses has no emoji glyphs).
-          const flag = 'flag' in placement.fact.data ? placement.fact.data.flag : undefined;
-          const icon = typeof flag === 'string' ? flag : SECTION_ICON[placement.fact.sectionId];
+          const { icon, title: label } = formatJournalEntry(placement.fact);
           // Fast/simultaneous pickups cycle through a fixed set of vertical
           // slots (1, 2, 3, 1, 2, 3, ...) instead of every fact text landing
           // on the same spot. The offset applies to BOTH the rise's start
@@ -619,12 +675,51 @@ export const PlatformerPage = () => {
         activeEffects.value = newEffects;
       }
 
-      // Bonus fruits carry no CV fact (spec.md's "Bonus pickup" glossary
-      // entry) — touching one is a plain, silent removal, unlike every other
-      // collectible/reward path in this file, which all push into
-      // `collectedFacts`/`activeEffects`. No counter, no journal entry.
+      // Bonus fruits (amended 2026-08-30, live user feedback): a question-
+      // mark's spawned fruit now DOES carry a CV fact (Certificates/
+      // Projects — see BlockMapper.ts's certificateToBlock/projectToBlock)
+      // and reveals it exactly like any other collectible on touch. A fruit
+      // spawned from a question-mark marker beyond the available data
+      // (`fruit.fact === undefined`) still removes silently, same as before.
       const touchedBonusFruitIds = checkBonusFruitCollisions(playerState.value, bonusFruitStates.value);
       if (touchedBonusFruitIds.length > 0) {
+        const newFacts = [...collectedFacts.value];
+        const newEffects = [...activeEffects.value];
+        const journalRect = journalButtonRef.current?.getBoundingClientRect();
+        const targetX = journalRect ? journalRect.left + journalRect.width / 2 : canvas.width - 32;
+        const targetY = journalRect ? journalRect.top + journalRect.height / 2 : canvas.height - 32;
+        const midX = canvas.width / 2;
+        const midY = canvas.height * 0.3;
+
+        for (const id of touchedBonusFruitIds) {
+          const fruit = bonusFruitStates.value.find((f) => f.id === id);
+          if (!fruit || !fruit.fact) continue;
+          if (newFacts.some((f) => f.id === fruit.fact!.id)) continue;
+
+          newFacts.push(fruit.fact);
+          // Reuses the journal's own title/icon derivation (amended
+          // 2026-08-30 — see the enemy-defeat block above).
+          const { icon, title: label } = formatJournalEntry(fruit.fact);
+          const slot = nextTextSlot;
+          nextTextSlot = (nextTextSlot + 1) % COLLECTION_TEXT_SLOT_COUNT;
+          const stackOffsetY = slot * COLLECTION_TEXT_STACK_ROW_HEIGHT;
+          newEffects.push(
+            startFlightEffect(
+              id,
+              label,
+              fruit.x + originX,
+              bonusFruitY(fruit) + originY + stackOffsetY,
+              midX,
+              midY + stackOffsetY,
+              targetX,
+              targetY,
+              icon,
+            ),
+          );
+        }
+
+        collectedFacts.value = newFacts;
+        activeEffects.value = newEffects;
         bonusFruitStates.value = bonusFruitStates.value.filter(
           (fruit) => !touchedBonusFruitIds.includes(fruit.id),
         );
@@ -735,7 +830,37 @@ export const PlatformerPage = () => {
           if (!block) continue;
 
           if (block.blockKind === 'questionMark') {
-            bonusFruitStates.value = [...bonusFruitStates.value, spawnBonusFruit(block.id, block.x, block.y)];
+            bonusFruitStates.value = [
+              ...bonusFruitStates.value,
+              spawnBonusFruit(block.id, block.x, block.y, block.fact, nextBonusFruitIcon++),
+            ];
+          }
+
+          // Rock's terminal hit (breaks to empty space, no fact, no reward —
+          // FR-022c) still gets a visual "puff" (amended 2026-08-30, live
+          // user feedback): the same sparkle-burst mechanism every other
+          // reward pickup already plays (drawCollectionEffects reads
+          // `effect.startX/startY`, independent of `effect.text`), with an
+          // empty label and no target-flight destination that matters since
+          // nothing is actually flying anywhere — the sparkle at the
+          // collection point is the only visible part.
+          if (block.blockKind === 'rock') {
+            // Centered on the rock's own tile (not its top-left corner —
+            // amended 2026-08-30, live user feedback). The burst's size
+            // itself (SPARKLE_RADIUS_PX/SPARKLE_MAX_RADIUS in
+            // CollectionEffects.ts/Renderer.ts) is a shared constant every
+            // collection effect uses, not parameterized per-effect — scaling
+            // it up just for rocks would mean threading a size override
+            // through FlightEffect/sparkleParticles/drawCollectionEffects,
+            // affecting every other effect's call sites too; left at the
+            // shared default per the user's own "keep it if not [easily
+            // scalable]" call.
+            const puffX = block.x + originX + RENDERED_TILE_SIZE / 2;
+            const puffY = block.y + originY + RENDERED_TILE_SIZE / 2;
+            activeEffects.value = [
+              ...activeEffects.value,
+              startFlightEffect(block.id, '', puffX, puffY, puffX, puffY, puffX, puffY),
+            ];
           }
 
           if (block.blockKind === 'crate' && block.hitsTaken >= 2 && block.fact) {
@@ -744,11 +869,12 @@ export const PlatformerPage = () => {
             // today (they never reset mid-session), but keeps the two reward
             // paths consistent.
             if (!collectedFacts.value.some((f) => f.id === block.fact!.id)) {
-              const label = isSkillCategoryFact(block.fact.data)
-                ? block.fact.data.category
-                : ('name' in block.fact.data ? block.fact.data.name : block.fact.sectionLabel);
-              const flag = 'flag' in block.fact.data ? block.fact.data.flag : undefined;
-              const icon = typeof flag === 'string' ? flag : SECTION_ICON[block.fact.sectionId];
+              // Reuses the journal's own title/icon derivation (amended
+              // 2026-08-30 — see the enemy-defeat block above). Fixes a
+              // crate's flight text showing the generic "Experience"/
+              // "Education" section label instead of the role/degree, same
+              // root cause as the course-kill bug.
+              const { icon, title: label } = formatJournalEntry(block.fact);
               const slot = nextTextSlot;
               nextTextSlot = (nextTextSlot + 1) % COLLECTION_TEXT_SLOT_COUNT;
               const stackOffsetY = slot * COLLECTION_TEXT_STACK_ROW_HEIGHT;

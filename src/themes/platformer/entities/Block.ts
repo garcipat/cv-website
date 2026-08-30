@@ -11,14 +11,20 @@ export type BlockKind = 'crate' | 'questionMark' | 'rock';
 
 /**
  * Sprite-sheet source rect (in `world_tileset.png`) for a block's current
- * visual state, by kind and `hitsTaken` (roadmap step 21b — the question-mark
- * block permanently swaps from its intact `?` to its matching `!` tile, at
- * tile (col 1, row 2), once hit; every other kind/hit-count combination keeps
- * rendering its one intact tile forever — crate's crack is a separate overlay
- * (see `crateCrackOverlayVisible`), not a frame swap, and rock/crate are
- * removed from the world entirely once used up rather than swapping tile.
- * `hitsTaken` defaults to 0 so every pre-existing call site (step 20's
- * render-only code, and this file's own pre-step-21 tests) is unaffected.
+ * visual state, by kind and `hitsTaken`. Amended 2026-08-30 (live user
+ * feedback during step 21 verification): a hit question-mark no longer
+ * swaps to its `!` indicator tile — that read as still-a-special-block
+ * rather than "used up," so it now swaps to the plain top-exposed
+ * `groundRock` terrain tile instead, at tile (col 1, row 0) — the same
+ * coordinates `Renderer.ts`'s `tileSource` uses for exposed `groundRock`
+ * terrain, so a used-up question-mark blends into ordinary ground rather
+ * than reading as a distinct block type. Every other kind/hit-count
+ * combination keeps rendering its one intact tile forever — crate's crack is
+ * a separate overlay (see `crateCrackOverlayVisible`), not a frame swap, and
+ * rock/crate are removed from the world entirely once used up rather than
+ * swapping tile. `hitsTaken` defaults to 0 so every pre-existing call site
+ * (step 20's render-only code, and this file's own pre-step-21 tests) is
+ * unaffected.
  */
 export function blockFrameSource(blockKind: BlockKind, hitsTaken = 0): { sx: number; sy: number } {
   switch (blockKind) {
@@ -26,7 +32,7 @@ export function blockFrameSource(blockKind: BlockKind, hitsTaken = 0): { sx: num
       return { sx: 7 * TILE_SIZE, sy: 3 * TILE_SIZE };
     case 'questionMark':
       return hitsTaken >= 1
-        ? { sx: 1 * TILE_SIZE, sy: 2 * TILE_SIZE }
+        ? { sx: 1 * TILE_SIZE, sy: 0 }
         : { sx: 0, sy: 2 * TILE_SIZE };
     case 'rock':
       return { sx: 3 * TILE_SIZE, sy: 0 };

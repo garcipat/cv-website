@@ -1,54 +1,23 @@
 import { tileToPixel } from './Terrain';
 import { slugify } from './CollectibleMapper';
-import type { CVData, Certificate, Project, Course } from '@/types/cv';
+import type { CVData, Course } from '@/types/cv';
 import type { EnemyDef } from '../types';
 
-function certificateToEnemy(certificate: Certificate): EnemyDef {
-  const id = `enemy-cert-${slugify(certificate.name)}`;
-  return {
-    id,
-    // Purple (2 hit points, roadmap step 18) now guards the combined
-    // Certificates + Projects pool (amended 2026-08-29 — see
-    // projectToEnemy's comment) instead of Certificates alone.
-    spriteType: 'slimePurple',
-    fact: {
-      id,
-      sectionId: 'certificates',
-      sectionLabel: 'Certificates',
-      data: certificate,
-      sourceType: 'enemy',
-    },
-  };
-}
-
-function projectToEnemy(project: Project): EnemyDef {
-  const id = `enemy-project-${slugify(project.name)}`;
-  return {
-    id,
-    // Amended 2026-08-29: Projects moved from the green pool to the purple
-    // pool, alongside Certificates — Courses (courseToEnemy below) took
-    // over the green pool instead, since Courses' 12 CV entries fit green's
-    // lightweight single-hit mechanic better than sharing the crate block
-    // mechanic with Experience/Education. See spec.md's FR-009 amendment.
-    spriteType: 'slimePurple',
-    fact: {
-      id,
-      sectionId: 'projects',
-      sectionLabel: 'Projects',
-      data: project,
-      sourceType: 'enemy',
-    },
-  };
-}
-
-function courseToEnemy(course: Course): EnemyDef {
+/**
+ * Amended 2026-08-30 (live user feedback during step 21 verification):
+ * Certificates + Projects moved OFF enemies entirely — they're now revealed
+ * by the question-mark blocks' bonus fruit instead (see `BlockMapper.ts`'s
+ * `certificateToBlock`/`projectToBlock`). Both slime types now guard the
+ * same Courses pool, alternating by index so the pool is split roughly
+ * evenly between the lightweight 1-hit green slime and the tougher 2-hit
+ * purple slime, rather than Courses being green-only. See spec.md's FR-009
+ * 2026-08-30 amendment.
+ */
+function courseToEnemy(course: Course, spriteType: EnemyDef['spriteType']): EnemyDef {
   const id = `enemy-course-${slugify(course.title)}`;
   return {
     id,
-    // Green (1 hit point) now carries Courses (amended 2026-08-29) — the
-    // lightweight enemy for the largest single-hit pool. See
-    // projectToEnemy's comment above for the full rationale.
-    spriteType: 'slimeGreen',
+    spriteType,
     fact: {
       id,
       sectionId: 'courses',
@@ -60,20 +29,16 @@ function courseToEnemy(course: Course): EnemyDef {
 }
 
 /**
- * Flattens CVData into one enemy per certificate and one per project (both
- * rendered as slime_purple.png, the tougher 2-hit enemy — amended
- * 2026-08-29; previously projects were slimeGreen) plus one enemy per
- * course (rendered as slime_green.png, the easier 1-hit enemy, replacing
- * its original Projects mapping). Mirrors CollectibleMapper.ts's coin/fruit
- * split (FR-009). Empty certificates/projects/courses arrays simply
- * produce no enemies of that kind.
+ * Flattens CVData into one enemy per course, alternating slimeGreen/
+ * slimePurple by index (amended 2026-08-30 — see `courseToEnemy`'s comment).
+ * Certificates/Projects no longer produce enemies at all. Mirrors
+ * CollectibleMapper.ts's coin/fruit split (FR-009). An empty courses array
+ * simply produces no enemies.
  */
 export function mapCVDataToEnemies(cv: CVData): EnemyDef[] {
-  return [
-    ...cv.certificates.map(certificateToEnemy),
-    ...cv.projects.map(projectToEnemy),
-    ...cv.courses.map(courseToEnemy),
-  ];
+  return cv.courses.map((course, index) =>
+    courseToEnemy(course, index % 2 === 0 ? 'slimeGreen' : 'slimePurple'),
+  );
 }
 
 export interface EnemyPlacement extends EnemyDef {

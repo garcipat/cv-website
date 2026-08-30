@@ -2,7 +2,7 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import { Journal } from './Journal';
 import { journalPage } from './Journal.page';
 import { currentCV } from '@/state/locale';
-import { collectedFacts, activeJournalSection, collectedCollectibleIds } from '../PlatformerState';
+import { collectedFacts, activeJournalSection, collectedCollectibleIds, collectiblePlacements } from '../PlatformerState';
 import { JOURNAL_OPEN_FRAME_COUNT, JOURNAL_OPEN_FRAME_INTERVAL_MS } from '../entities/JournalAnimation';
 import { sectionTotal } from '../entities/JournalSections';
 import type { CollectedFact } from '../types';
@@ -69,7 +69,11 @@ describe('Journal', () => {
     expect(journalPage.emptyState).not.toBeInTheDocument();
   });
 
-  it('render-withSkillsFactAfterAnimation-defaultsToSkillsSectionAndListsIt', () => {
+  it('render-withSkillsFactCollected-stillDefaultsToPersonalitySection', () => {
+    // Amended 2026-08-30 (live user feedback): the journal used to default
+    // to the first collected fact's section (Skills here) — it now always
+    // opens on 'personality' ("About Me") regardless of what's been
+    // collected, until the user picks a bookmark themselves.
     const facts: CollectedFact[] = [
       {
         id: 'fact-1',
@@ -84,7 +88,10 @@ describe('Journal', () => {
     render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
     openBookAnimation();
 
-    expect(journalPage.bookmarkTabs.skills).toBeInTheDocument();
+    expect(screen.getByText(currentCV.value.personality.name)).toBeInTheDocument();
+    expect(journalPage.factItem).not.toBeInTheDocument();
+
+    fireEvent.click(journalPage.bookmarkTabs.skills);
     const items = journalPage.factItems;
     expect(items).toHaveLength(1);
     expect(items[0]).toHaveTextContent('React ★★★★☆');
@@ -146,6 +153,8 @@ describe('Journal', () => {
 
     render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
     openBookAnimation();
+
+    fireEvent.click(journalPage.bookmarkTabs.skills);
     expect(journalPage.factItems).toHaveLength(1);
 
     fireEvent.click(journalPage.bookmarkTabs.experience);
@@ -287,6 +296,7 @@ describe('Journal', () => {
 
     render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
     openBookAnimation();
+    fireEvent.click(journalPage.bookmarkTabs.skills);
 
     expect(screen.getByText(/Backend/)).toBeInTheDocument();
     expect(screen.getByText(/C#/)).toBeInTheDocument();
@@ -308,6 +318,7 @@ describe('Journal', () => {
 
       render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
       openBookAnimation();
+      fireEvent.click(journalPage.bookmarkTabs.skills);
 
       expect(journalPage.sectionCounter).toHaveTextContent(`1 / ${total}`);
     });
@@ -531,8 +542,12 @@ describe('Journal', () => {
       expect(screen.getByText(/Coins/)).toBeInTheDocument();
     });
 
-    it('oneSkillsFactCollected-summaryRowShowsCollectedOverSectionTotal', () => {
-      const total = sectionTotal(currentCV.value, 'skills');
+    it('oneSkillsFactCollected-summaryRowShowsCollectedOverPlacedCoinCount', () => {
+      // Amended 2026-08-30 (live user feedback): the "About Me" summary's
+      // total is the number of coin markers actually placed in the level
+      // (collectiblePlacements), not the raw CVData skills count — see
+      // CollectiblesSummary.ts's doc comment.
+      const total = collectiblePlacements.filter((p) => p.spriteType === 'coin').length;
       collectedFacts.value = [
         {
           id: 'coin-frontend',

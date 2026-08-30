@@ -1,5 +1,5 @@
 import { tileToPixel } from './Terrain';
-import type { CVData, SkillCategory, Skill, Language } from '@/types/cv';
+import type { CVData, SkillCategory, Skill } from '@/types/cv';
 import type { CollectibleDef } from '../types';
 
 /** Lowercases and hyphenates a label into a stable id fragment (e.g.
@@ -31,33 +31,24 @@ function categoryToCollectible(category: SkillCategory): CollectibleDef {
   };
 }
 
-function languageToCollectible(language: Language): CollectibleDef {
-  const id = `fruit-${slugify(language.name)}`;
-  return {
-    id,
-    spriteType: 'fruit',
-    fact: {
-      id,
-      sectionId: 'languages',
-      sectionLabel: 'Languages',
-      data: language,
-      sourceType: 'coin', // FR-009: languages are "coin" collectibles too — spriteType is the visual-only split
-    },
-  };
-}
-
 /**
  * Flattens CVData into one collectible per skill category (rendered as
- * coin.png) and one per language (rendered as fruit.png) — see this plan's
- * "Key design decisions" for why categories aren't split further. Empty
- * `skills`/`languages` arrays simply produce no collectibles of that kind
- * (matches FR-013's "empty CV sections produce no collectibles").
+ * coin.png) — see this plan's "Key design decisions" for why categories
+ * aren't split further. An empty `skills` array simply produces no
+ * collectibles.
+ *
+ * Amended 2026-08-30 (live user feedback during step 21 verification):
+ * Languages no longer produce `fruit` collectibles here — the hand-placed
+ * `F`-marker fruit pickups were removed from the level entirely now that
+ * question-mark blocks spawn their own bonus fruit (see `BlockMapper.ts`'s
+ * `certificateToBlock`/`projectToBlock`); `placeCollectibles`'s `fruit`
+ * marker queue is left in place as generic, reusable placement
+ * infrastructure, just with no def ever produced to fill it today. Where
+ * Languages themselves get surfaced instead is still an open design
+ * question — not decided as part of this change.
  */
 export function mapCVDataToCollectibles(cv: CVData): CollectibleDef[] {
-  return [
-    ...cv.skills.map(categoryToCollectible),
-    ...(cv.languages ?? []).map(languageToCollectible),
-  ];
+  return cv.skills.map(categoryToCollectible);
 }
 
 export interface CollectiblePlacement extends CollectibleDef {

@@ -427,8 +427,29 @@ describe('drawBonusFruits', () => {
   it('someFruits-drawsFromFirstFruitIconAtCurrentRisePosition', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const fakeFruitSprite = { tag: 'fruit' } as unknown as HTMLImageElement;
-    const fruit = spawnBonusFruit('bf1', 40, 100);
+    const fruit = spawnBonusFruit('bf1', 40, 100, undefined, 0);
     const { sx, sy } = fruitFrameSource(0);
+
+    drawBonusFruits(ctx as unknown as CanvasRenderingContext2D, [fruit], fakeFruitSprite);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeFruitSprite,
+      sx,
+      sy,
+      FRUIT_FRAME_SIZE,
+      FRUIT_FRAME_SIZE,
+      40,
+      bonusFruitY(fruit),
+      FRUIT_RENDERED_SIZE,
+      FRUIT_RENDERED_SIZE,
+    );
+  });
+
+  it('fruitWithNonZeroIconIndex-drawsFromThatIcon', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const fakeFruitSprite = { tag: 'fruit' } as unknown as HTMLImageElement;
+    const fruit = spawnBonusFruit('bf1', 40, 100, undefined, 5);
+    const { sx, sy } = fruitFrameSource(5);
 
     drawBonusFruits(ctx as unknown as CanvasRenderingContext2D, [fruit], fakeFruitSprite);
 
@@ -447,7 +468,7 @@ describe('drawBonusFruits', () => {
 
   it('nullFruitSprite-drawsNothing', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-    const fruit = spawnBonusFruit('bf1', 0, 100);
+    const fruit = spawnBonusFruit('bf1', 0, 100, undefined, 0);
 
     drawBonusFruits(ctx as unknown as CanvasRenderingContext2D, [fruit], null);
 
@@ -466,7 +487,7 @@ describe('drawBonusFruits', () => {
   it('withOrigin-shiftsEveryFruitByTheSameAmount', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const fakeFruitSprite = { tag: 'fruit' } as unknown as HTMLImageElement;
-    const fruit = spawnBonusFruit('bf1', 0, 100);
+    const fruit = spawnBonusFruit('bf1', 0, 100, undefined, 0);
 
     drawBonusFruits(ctx as unknown as CanvasRenderingContext2D, [fruit], fakeFruitSprite, 50, 20);
 

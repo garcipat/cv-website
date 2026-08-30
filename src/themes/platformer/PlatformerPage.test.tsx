@@ -558,29 +558,30 @@ describe('PlatformerPage', () => {
     expect(anyShiftedCall).toBe(true);
   });
 
-  it('render-afterCollectibleSpritesLoad-showsBothCollectibleCountersAtZero', async () => {
+  it('render-afterCollectibleSpritesLoad-showsCoinCounterAtZero', async () => {
     // Unlike the brief's originally-specified synchronous version of this
-    // test, the coin/fruit counters (per Step 3's implementation) only draw
-    // once their respective sprite ref has loaded — drawCollectibleCounter
-    // needs a real HTMLImageElement for its icon, so it can't be called
-    // unconditionally the way the old drawCoinCounter placeholder was.
-    // jsdom's default (unstubbed) Image never fires onload/onerror at all
-    // (verified empirically), so this test — like every other
-    // sprite-dependent assertion in this file (e.g.
-    // render-afterHeartsSpriteLoads-drawsHeartHud) — stubs Image and awaits
-    // the resulting render() instead of asserting synchronously.
+    // test, the coin counter (per Step 3's implementation) only draws once
+    // its sprite ref has loaded — drawCollectibleCounter needs a real
+    // HTMLImageElement for its icon, so it can't be called unconditionally
+    // the way the old drawCoinCounter placeholder was. jsdom's default
+    // (unstubbed) Image never fires onload/onerror at all (verified
+    // empirically), so this test — like every other sprite-dependent
+    // assertion in this file (e.g. render-afterHeartsSpriteLoads-
+    // drawsHeartHud) — stubs Image and awaits the resulting render() instead
+    // of asserting synchronously. The fruit counter this test used to also
+    // check was removed 2026-08-30 (live user feedback) along with the
+    // hand-placed fruit collectibles themselves — see
+    // CollectibleMapper.ts's mapCVDataToCollectibles comment.
     vi.stubGlobal('Image', MockTilesetImage);
 
     render(<PlatformerPage />);
     const ctx = platformerPage.context;
 
     const coinTotal = collectiblePlacements.filter((p) => p.spriteType === 'coin').length;
-    const fruitTotal = collectiblePlacements.filter((p) => p.spriteType === 'fruit').length;
 
     await waitFor(() =>
       expect(ctx.fillText).toHaveBeenCalledWith(`0 / ${coinTotal}`, expect.any(Number), expect.any(Number)),
     );
-    expect(ctx.fillText).toHaveBeenCalledWith(`0 / ${fruitTotal}`, expect.any(Number), expect.any(Number));
   });
 
   it('render-afterEnemySpritesLoad-showsEnemyDefeatedCounterAtZero', async () => {
@@ -1394,11 +1395,16 @@ describe('PlatformerPage', () => {
       });
     }
 
-    // The journal shows one section at a time (roadmap step 14); it defaults
-    // to whichever section the first collected fact belongs to, so compare
-    // against that section's facts rather than the full flat list.
+    // The journal shows one section at a time (roadmap step 14). It now
+    // defaults to 'personality' regardless of what's collected (amended
+    // 2026-08-30, live user feedback) — switch to the first collected
+    // fact's own section bookmark before comparing against that section's
+    // facts, rather than the full flat list.
     const defaultSectionFacts = factsBeforeDeath.filter(
       (fact) => fact.sectionId === factsBeforeDeath[0].sectionId,
+    );
+    fireEvent.click(
+      screen.getByTestId(`bookmark-tab-${factsBeforeDeath[0].sectionId}`),
     );
     expect(platformerPage.journal.emptyState).not.toBeInTheDocument();
     expect(platformerPage.journal.factItems).toHaveLength(defaultSectionFacts.length);
