@@ -95,11 +95,17 @@ import {
 // the elevated block row (now row 1) so a future step (FR-022b's fruit-pop
 // mechanic) has somewhere for the popped fruit to rise into — the array is
 // bottom-anchored, so this costs nothing visually.
+//
+// Final review fix, round 2 (2026-08-30, live user feedback): trimmed from 5
+// `T` (chest) markers down to 2, both close together near spawn (cols 6 and
+// 12) rather than spread across the level — see CHEST_TILES's doc comment
+// below for the full reasoning (same mechanics-test-level convention as
+// this file's other collectible/enemy marker counts).
 const LEVEL_1_LAYOUT: readonly string[] = [
   '................................................................................',
   '........PPPBBPP....XQFXQF.......................................................',
   '................................................................................',
-  '.S....T...C.......C.......W.E..W....W.M....C.C..........T.....T.....T.....T.....',
+  '.S....T...C.T.....C.......W.E..W....W.M....C.C..................................',
   'GGBBBGGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRR...RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
   'GG...GGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRR...RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
 ];
@@ -131,7 +137,14 @@ export const QUESTIONMARK_TILES = findQuestionMarkTiles(LEVEL_1_LAYOUT);
  *  removing the dead Language-fruit marker concept it used to mean). */
 export const FRAGILE_ROCK_TILES = findFragileRockTiles(LEVEL_1_LAYOUT);
 
-/** Hand-placed chest positions (5 — one per real Experience entry), from
- *  `LEVEL_1_LAYOUT`'s `T` markers (spec.md FR-023, added 2026-08-30; one
- *  moved to col 6 (close to spawn) for easier manual testing, 2026-08-30). */
+/** Hand-placed chest positions (2), from `LEVEL_1_LAYOUT`'s `T` markers
+ *  (spec.md FR-023, added 2026-08-30). Both markers sit close to spawn (cols
+ *  6 and 12) — live user feedback, 2026-08-30, trimmed down from the original
+ *  5 spread across the level for easier manual testing. Same mechanics-test
+ *  convention as this file's other collectible/enemy marker counts (e.g. only
+ *  1 `E` and 1 `M` enemy despite far more courses/certificates existing in
+ *  the real CV data): a level's marker count decides on-map coverage, not
+ *  CVData's length, and `placeChests` has no auto-placement fallback — the
+ *  remaining 3 Experience entries (the newest ones, after this batch's `D5`
+ *  chest-ordering reversal) simply have no chest yet. */
 export const CHEST_TILES = findChestTiles(LEVEL_1_LAYOUT);

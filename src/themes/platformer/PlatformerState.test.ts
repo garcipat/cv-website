@@ -17,6 +17,7 @@ import {
   blockPlacements,
   chestPlacements,
   chestStates,
+  endingScreenShown,
 } from './PlatformerState';
 import { mapCVDataToEnemies } from './level/EnemyMapper';
 import { currentCV } from '@/state/locale';
@@ -28,7 +29,7 @@ import {
   PLAYER_FOOT_PADDING,
   PLAYER_VISUAL_CENTER_Y_OFFSET,
 } from './entities/Player';
-import { toChestState } from './entities/Chest';
+import { toChestState, isChestOpen } from './entities/Chest';
 
 describe('PlatformerState', () => {
   it('collectedFacts-initial-isEmpty', () => {
@@ -54,7 +55,7 @@ describe('PlatformerState', () => {
   });
 
   it('blockPlacements-initial-hasTwoOfEachKindMatchingLevel1sMarkers', () => {
-    // level1 currently has exactly two X/Q/K markers each (see level1.ts's
+    // level1 currently has exactly two X/Q/F markers each (see level1.ts's
     // doc comment) — placement count tracks the level's markers, same
     // convention as enemyPlacements/collectiblePlacements.
     expect(blockPlacements.filter((p) => p.blockKind === 'crate')).toHaveLength(2);
@@ -63,10 +64,13 @@ describe('PlatformerState', () => {
   });
 
   describe('chestPlacements', () => {
-    it('module-places-oneChestPerRealExperienceEntryWithAMarker', () => {
-      // level1 has 5 `T` markers and the real CVData has 5 Experience entries
-      // (see level1.ts's CHEST_TILES and cv.en.json) — every one gets placed.
-      expect(chestPlacements).toHaveLength(5);
+    it('module-places-oneChestPerMarker-cappedByAvailableMarkers', () => {
+      // level1 has 2 `T` markers (trimmed from 5, both near spawn — live user
+      // feedback, 2026-08-30) but the real CVData has 5 Experience entries
+      // (see level1.ts's CHEST_TILES and cv.en.json) — placeChests has no
+      // auto-placement fallback, so only the first 2 (oldest-first, after
+      // this batch's D5 chest-ordering reversal) actually get placed.
+      expect(chestPlacements).toHaveLength(2);
     });
   });
 
@@ -222,7 +226,7 @@ describe('PlatformerState', () => {
     it('called-afterOpeningAChest-leavesChestOpen', () => {
       chestStates.value = chestStates.value.map((c, i) => (i === 0 ? { ...c, state: 'open' } : c));
       resetGame();
-      expect(chestStates.value[0].state).toBe('open');
+      expect(isChestOpen(chestStates.value[0])).toBe(true);
     });
   });
 });
@@ -266,7 +270,18 @@ describe('resetGameProgress', () => {
   it('called-afterOpeningAChest-closesItAgain', () => {
     chestStates.value = chestStates.value.map((c, i) => (i === 0 ? { ...c, state: 'open' } : c));
     resetGameProgress();
-    expect(chestStates.value.every((c) => c.state === 'closed')).toBe(true);
+    expect(chestStates.value.every((c) => !isChestOpen(c))).toBe(true);
+  });
+
+  it('called-afterEndingScreenShown-resetsLatchToFalse', () => {
+    // endingScreenShown is the module-level one-shot latch (see its doc
+    // comment in PlatformerState.ts) gating the Thank You screen's
+    // trigger — resetGameProgress() must clear it back to false, alongside
+    // reopening chestStates, so a visitor who re-opens every chest after a
+    // genuine Reset Game can see the screen again.
+    endingScreenShown.value = true;
+    resetGameProgress();
+    expect(endingScreenShown.value).toBe(false);
   });
 });
 

@@ -12,7 +12,12 @@ import type { EnemyState } from '../entities/Enemy';
 import { bonusFruitY, BONUS_FRUIT_RISE_DURATION_SECONDS } from '../entities/BonusFruit';
 import type { BonusFruitState } from '../entities/BonusFruit';
 import { FRUIT_RENDERED_SIZE } from '../entities/Fruit';
-import { CHEST_CLOSED_RENDERED_WIDTH, CHEST_CLOSED_RENDERED_HEIGHT, isChestOpen } from '../entities/Chest';
+import {
+  CHEST_CLOSED_RENDERED_WIDTH,
+  CHEST_CLOSED_RENDERED_HEIGHT,
+  CHEST_CLOSED_OFFSET_X,
+  isChestOpen,
+} from '../entities/Chest';
 import type { ChestState } from '../entities/Chest';
 
 export interface Box {
@@ -175,7 +180,10 @@ export function checkBonusFruitCollisions(
  * this tick. Only a chest's CLOSED footprint is checked (its open sprite is a
  * different size and the chest is un-openable again anyway, so an open
  * chest's box is irrelevant here) — mirrors checkBonusFruitCollisions'
- * single-box-per-item convention.
+ * single-box-per-item convention. The box's x is shifted by
+ * CHEST_CLOSED_OFFSET_X (see entities/Chest.ts) so it matches exactly where
+ * the closed chest is now drawn (centered on its tile, not left-aligned to
+ * the tile's top-left corner).
  */
 export function chestPlayerIsStandingOn(
   player: PlayerState,
@@ -185,7 +193,7 @@ export function chestPlayerIsStandingOn(
   for (const chest of chests) {
     if (isChestOpen(chest)) continue;
     const box: Box = {
-      x: chest.x,
+      x: chest.x + CHEST_CLOSED_OFFSET_X,
       y: chest.y,
       width: CHEST_CLOSED_RENDERED_WIDTH,
       height: CHEST_CLOSED_RENDERED_HEIGHT,

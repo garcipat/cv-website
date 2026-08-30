@@ -51,6 +51,8 @@ import {
   CHEST_CLOSED_RENDERED_HEIGHT,
   CHEST_OPEN_RENDERED_WIDTH,
   CHEST_OPEN_RENDERED_HEIGHT,
+  CHEST_CLOSED_OFFSET_X,
+  CHEST_OPEN_OFFSET_X,
   isChestOpen,
 } from '../entities/Chest';
 import type { ChestState } from '../entities/Chest';
@@ -496,6 +498,11 @@ export function drawBlocks(
  * sprite may independently be null (not yet loaded); a chest whose current
  * state's sprite is missing is simply skipped for the frame, same convention
  * as drawCollectibles'/drawEnemies' null-sprite handling.
+ *
+ * The destination x is shifted by the state's `*_OFFSET_X` (see
+ * entities/Chest.ts) so the chest draws horizontally centered on its tile
+ * rather than left-aligned to the tile's top-left corner — its rendered
+ * width is wider than one tile.
  */
 export function drawChests(
   ctx: CanvasRenderingContext2D,
@@ -514,7 +521,18 @@ export function drawChests(
     const srcHeight = open ? CHEST_OPEN_HEIGHT : CHEST_CLOSED_HEIGHT;
     const destWidth = open ? CHEST_OPEN_RENDERED_WIDTH : CHEST_CLOSED_RENDERED_WIDTH;
     const destHeight = open ? CHEST_OPEN_RENDERED_HEIGHT : CHEST_CLOSED_RENDERED_HEIGHT;
-    ctx.drawImage(sprite, 0, 0, srcWidth, srcHeight, chest.x + originX, chest.y + originY, destWidth, destHeight);
+    const offsetX = open ? CHEST_OPEN_OFFSET_X : CHEST_CLOSED_OFFSET_X;
+    ctx.drawImage(
+      sprite,
+      0,
+      0,
+      srcWidth,
+      srcHeight,
+      chest.x + originX + offsetX,
+      chest.y + originY,
+      destWidth,
+      destHeight,
+    );
   }
 }
 
@@ -768,9 +786,15 @@ export const CHEST_COUNTER_Y = HUD_MARGIN + HEART_RENDERED_SIZE / 2;
  * height rather than forced into a square icon box.
  */
 // Chest art is edge-to-edge with no transparent padding (unlike hearts), so
-// it reads oversized at HEART_RENDERED_SIZE — shrunk to match the other
-// edge-to-edge icon (CRATE_ICON_DISPLAY_SIZE) used elsewhere in the HUD.
+// it reads oversized at HEART_RENDERED_SIZE — shrunk to look right at its
+// own smaller size instead.
 const CHEST_COUNTER_ICON_HEIGHT = 20;
+
+// Wider gap than the shared COUNTER_TEXT_GAP (used by drawCollectibleCounter)
+// between the chest icon and its "N / M" text — a dedicated constant so this
+// counter's spacing can be tuned without affecting the unrelated
+// drawCollectibleCounter (live user feedback, 2026-08-30).
+const CHEST_COUNTER_TEXT_GAP = 12;
 
 export function drawChestCounter(
   ctx: CanvasRenderingContext2D,
@@ -800,6 +824,6 @@ export function drawChestCounter(
   ctx.font = `22px "${RESTART_PROMPT_FONT_FAMILY}", monospace`;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  ctx.fillText(`${collected} / ${total}`, x + iconWidth + COUNTER_TEXT_GAP, y);
+  ctx.fillText(`${collected} / ${total}`, x + iconWidth + CHEST_COUNTER_TEXT_GAP, y);
   ctx.restore();
 }

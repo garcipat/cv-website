@@ -19,6 +19,7 @@ import {
   blockPlacements,
   chestPlacements,
   chestStates,
+  endingScreenShown,
 } from './PlatformerState';
 import { toChestState } from './entities/Chest';
 import {
@@ -85,6 +86,10 @@ describe('PlatformerPage', () => {
     // from one test (roadmap step 22) must not leak into the next test's
     // assumption that every chest starts closed.
     chestStates.value = chestPlacements.map(toChestState);
+    // Module-level one-shot latch (see PlatformerState.ts's doc comment) —
+    // must be reset too, or a test that triggers the ending screen would
+    // leave later tests unable to ever see it triggered again.
+    endingScreenShown.value = false;
   });
 
   afterEach(() => {
@@ -1886,6 +1891,29 @@ describe('PlatformerPage', () => {
     expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(true);
   });
 
+  it('keyWPressed-whileStandingOnClosedChest-opensItAndRevealsExperienceFact', () => {
+    // KeyW is an accepted alternate for ArrowUp's interact action (2026-08-30,
+    // same convention as A/D being alternates for Left/Right — see FR-007's
+    // amendment), so opening a chest must work with it too.
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const target = chestPlacements[0];
+    playerState.value = { ...playerState.value, x: target.x, y: target.y };
+    fireEvent.keyDown(window, { code: 'KeyW' });
+    frameCallback!(16);
+
+    expect(chestStates.value.find((c) => c.id === target.id)?.state).toBe('open');
+    expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(true);
+  });
+
   it('walkingOverClosedChest-withoutPressingArrowUp-leavesItClosed', () => {
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
@@ -1975,5 +2003,42 @@ describe('PlatformerPage', () => {
 
     expect(lifecycleState.value.phase).toBe('playing');
     expect(screen.queryByTestId('platformer-thank-you-screen')).not.toBeInTheDocument();
+  });
+
+  it('dismissingThankYouScreenViaSpace-doesNotTriggerJumpOnNextTick', () => {
+    // Regression coverage: the same physical Space keydown that dismisses
+    // the screen is ALSO seen by createKeyboardInput's own listener and
+    // buffered as a pending press. handleDismissEndingScreen flips gamePhase
+    // to 'playing' synchronously, so without draining that buffered press
+    // (see PlatformerPage.tsx's handleDismissEndingScreen, which now calls
+    // inputRef.current?.clearPending()), the very next tick would already
+    // skip the 'ending-screen' phase's own input.clearPending() early-return
+    // and consume the buffered Space as a real jump.
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    for (const target of chestPlacements) {
+      playerState.value = { ...playerState.value, x: target.x, y: target.y };
+      fireEvent.keyDown(window, { code: 'ArrowUp' });
+      act(() => frameCallback!(16));
+      fireEvent.keyUp(window, { code: 'ArrowUp' });
+    }
+
+    // Force grounded (with zero vy) right before dismissal so a jump WOULD
+    // fire on the very next tick if the buffered Space leaks through.
+    playerState.value = { ...playerState.value, grounded: true, vy: 0 };
+
+    fireEvent.keyDown(window, { code: 'Space' });
+    act(() => frameCallback!(16));
+
+    expect(playerState.value.vy).not.toBe(PHYSICS_CONFIG.jumpVelocity);
+    expect(playerState.value.vy).toBeGreaterThanOrEqual(0);
   });
 });

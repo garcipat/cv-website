@@ -14,6 +14,7 @@ const GAME_KEYS = new Set([
   'KeyA',
   'KeyD',
   'KeyS',
+  'KeyW',
 ]);
 
 export interface KeyboardInput {
