@@ -534,3 +534,13 @@ they aren't lost, not in priority order.
 - Exception: step 1 was committed directly to `S-006-platformer-theme` (no step
   branch) — that precedent stands as-is; the branch-per-step pattern applies from
   step 2 onward.
+- **Amended 2026-08-30**: the "only merges to `main` at an iteration boundary"
+  rule above is relaxed now that the Platformer theme is gated behind
+  `platformerPrototypeUnlocked` (a `localStorage`-backed feature flag, default
+  `false` — see `src/state/theme.ts`) — merging mid-iteration can no longer expose
+  unfinished work to a visitor, since no theme switcher lists Platformer until
+  it's explicitly unlocked. `S-006-platformer-theme` can now be merged into
+  `main` after any step (not just iteration boundaries) to keep `main`'s diff
+  from that branch smaller and easier to review overall; still merged as its own
+  step (local merge + push, or its own PR), never folded silently into another
+  branch's commit.
