@@ -389,7 +389,7 @@ describe('PlatformerPage', () => {
     expect(playerState.value.animState).toBe('jump');
   });
 
-  it('arrowUpPressed-whileGrounded-alsoTriggersJump', () => {
+  it('arrowUpPressed-whileGrounded-doesNotTriggerJump', () => {
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frameCallback = cb;
@@ -405,8 +405,8 @@ describe('PlatformerPage', () => {
     fireEvent.keyDown(window, { code: 'ArrowUp' });
     frameCallback!(32);
 
-    expect(playerState.value.grounded).toBe(false);
-    expect(playerState.value.vy).toBeLessThan(0);
+    expect(playerState.value.grounded).toBe(true);
+    expect(playerState.value.vy).toBe(0);
   });
 
   it('spaceReleasedEarly-whileAscending-resultsInLowerVelocityThanHeldJump', () => {
