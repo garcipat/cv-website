@@ -65,9 +65,12 @@ export interface CollectibleMarkerPositions {
 
 /**
  * Places collectible defs at hand-authored marker positions — `C` markers
- * (LevelParser.ts's findCoinTiles) for `coin` defs, `F` markers
- * (findFruitTiles) for `fruit` defs, each type matched to its own marker
- * queue in reading order. The level's marker count decides how many
+ * (LevelParser.ts's findCoinTiles) for `coin` defs; `fruit` defs have no
+ * level marker anymore (the `F` character was reassigned to the fragileRock
+ * block, see LevelParser.ts's ENTITY_CHARS, once the hand-placed fruit
+ * marker concept was removed — see this file's top comment), so callers now
+ * pass an empty array for `markers.fruit`. Each type is matched to its own
+ * marker queue in reading order. The level's marker count decides how many
  * collectibles actually appear, not CVData's length: a marker is a slot on
  * the map, and each slot draws the next available fact from `defs` (in
  * `mapCVDataToCollectibles`'s Skills-then-Languages order) as its reward.

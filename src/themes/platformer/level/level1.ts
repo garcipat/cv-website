@@ -5,10 +5,10 @@ import {
   findGreenEnemyTiles,
   findPurpleEnemyTiles,
   findCoinTiles,
-  findFruitTiles,
   findCrateTiles,
   findQuestionMarkTiles,
-  findRockTiles,
+  findFragileRockTiles,
+  findChestTiles,
 } from './LevelParser';
 
 // Visual layout of level1 — one character per tile (see LevelParser.ts's
@@ -40,18 +40,21 @@ import {
 // enemy — amended 2026-08-30, live user feedback: both slime colors now
 // guard the same Courses pool, alternating by index, rather than purple
 // carrying Certificates+Projects; see EnemyMapper.ts's courseToEnemy
-// comment), `C` (Skill-category coin). A marker is a slot on the map —
+// comment), `C` (Skill-category coin), `T` (chest — Experience fact, see roadmap step 22). A marker is a slot on the map —
 // EnemyMapper.ts's placeEnemies and CollectibleMapper.ts's
 // placeCollectibles each draw the next fact from CVData (in its own section
 // order) per marker of that type, with no auto-placement fallback. This
 // level intentionally has only 1 `E`, 1 `M`, and 4 `C`s — a mechanics test
 // layout, not a complete one; most of the real CV's courses/skills simply
 // aren't represented on the map yet. The actual level design comes later,
-// once the mechanics it exercises are all built. The `F` (Language fruit)
-// markers that used to sit here were removed 2026-08-30 (live user
+// once the mechanics it exercises are all built. The Language-fruit marker
+// concept that used to occupy `F` was removed 2026-08-30 (live user
 // feedback) — question-mark blocks now spawn their own bonus fruit instead
 // (see BlockMapper.ts's certificateToBlock/projectToBlock); where Languages
-// themselves get surfaced is still an open design question.
+// themselves get surfaced is still an open design question. `F` now marks
+// fragileRock blocks instead (renamed from `K`, see LevelParser.ts's
+// ENTITY_CHARS — the old letter collided confusingly with the unrelated
+// `groundRock` terrain tile).
 //
 // Roadmap step 20 (2026-08-29) relaid out the post-wall-pocket half of this
 // level after live user feedback that it felt too spread out: one of the
@@ -60,7 +63,7 @@ import {
 // from their original cols 50/55/60/70/75 into a tight cluster at cols
 // 43-46 right after the col 40-42 pit. Three new marker kinds were added
 // immediately after that cluster, two of each: `X` (crate block), `Q`
-// (question-mark block), `K` (rock block), at cols 47-52. Like the
+// (question-mark block), `F` (fragileRock block), at cols 47-52. Like the
 // enemy/coin markers, a level's marker count decides on-map coverage, not
 // CVData's length — this mechanics-test level intentionally has just 2 of
 // each new marker type (BlockMapper.ts's placeBlocks has no auto-placement
@@ -92,11 +95,17 @@ import {
 // the elevated block row (now row 1) so a future step (FR-022b's fruit-pop
 // mechanic) has somewhere for the popped fruit to rise into — the array is
 // bottom-anchored, so this costs nothing visually.
+//
+// Final review fix, round 2 (2026-08-30, live user feedback): trimmed from 5
+// `T` (chest) markers down to 2, both close together near spawn (cols 6 and
+// 12) rather than spread across the level — see CHEST_TILES's doc comment
+// below for the full reasoning (same mechanics-test-level convention as
+// this file's other collectible/enemy marker counts).
 const LEVEL_1_LAYOUT: readonly string[] = [
   '................................................................................',
-  '........PPPBBPP....XQKXQK.......................................................',
+  '........PPPBBPP....XQFXQF.......................................................',
   '................................................................................',
-  '.S........C.......C.......W.E..W....W.M....C.C..................................',
+  '.S....T...C.T.....C.......W.E..W....W.M....C.C..................................',
   'GGBBBGGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRR...RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
   'GG...GGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRR...RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
 ];
@@ -116,16 +125,26 @@ export const ENEMY_TILES_PURPLE = findPurpleEnemyTiles(LEVEL_1_LAYOUT);
 /** Hand-placed Skill-category coin positions, from `LEVEL_1_LAYOUT`'s `C` markers. */
 export const COIN_TILES = findCoinTiles(LEVEL_1_LAYOUT);
 
-/** No `F` markers remain in `LEVEL_1_LAYOUT` (removed 2026-08-30, see this
- *  file's top doc comment) — always empty. `placeCollectibles`'s fruit
- *  marker queue is left as generic, reusable infrastructure. */
-export const FRUIT_TILES = findFruitTiles(LEVEL_1_LAYOUT);
-
 /** Hand-placed crate block positions (2), from `LEVEL_1_LAYOUT`'s `X` markers. */
 export const CRATE_TILES = findCrateTiles(LEVEL_1_LAYOUT);
 
 /** Hand-placed question-mark block positions (2), from `LEVEL_1_LAYOUT`'s `Q` markers. */
 export const QUESTIONMARK_TILES = findQuestionMarkTiles(LEVEL_1_LAYOUT);
 
-/** Hand-placed rock block positions (2), from `LEVEL_1_LAYOUT`'s `K` markers. */
-export const ROCK_TILES = findRockTiles(LEVEL_1_LAYOUT);
+/** Hand-placed fragileRock block positions (2), from `LEVEL_1_LAYOUT`'s `F`
+ *  markers (renamed from `K` — the old letter collided confusingly with the
+ *  unrelated `groundRock` terrain tile; the `F` letter itself was freed up by
+ *  removing the dead Language-fruit marker concept it used to mean). */
+export const FRAGILE_ROCK_TILES = findFragileRockTiles(LEVEL_1_LAYOUT);
+
+/** Hand-placed chest positions (2), from `LEVEL_1_LAYOUT`'s `T` markers
+ *  (spec.md FR-023, added 2026-08-30). Both markers sit close to spawn (cols
+ *  6 and 12) — live user feedback, 2026-08-30, trimmed down from the original
+ *  5 spread across the level for easier manual testing. Same mechanics-test
+ *  convention as this file's other collectible/enemy marker counts (e.g. only
+ *  1 `E` and 1 `M` enemy despite far more courses/certificates existing in
+ *  the real CV data): a level's marker count decides on-map coverage, not
+ *  CVData's length, and `placeChests` has no auto-placement fallback — the
+ *  remaining 3 Experience entries (the newest ones, after this batch's `D5`
+ *  chest-ordering reversal) simply have no chest yet. */
+export const CHEST_TILES = findChestTiles(LEVEL_1_LAYOUT);

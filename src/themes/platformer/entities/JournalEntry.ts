@@ -91,6 +91,8 @@ export function formatJournalEntry(fact: CollectedFact): JournalEntryDisplay {
       return { icon, title: `${data.name}`, subtitle: `${data.issuer}` };
     case 'projects':
       return { icon, title: `${data.name}` };
+    case 'activities':
+      return { icon, title: `${data.name}`, subtitle: `${data.startDate}–${data.endDate}` };
     default:
       return { icon, title: fact.sectionLabel };
   }

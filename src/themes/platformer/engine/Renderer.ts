@@ -42,6 +42,20 @@ import {
 import type { EnemyState } from '../entities/Enemy';
 import { BLOCK_FRAME_SIZE, BLOCK_RENDERED_SIZE, blockFrameSource, crateCrackOverlayVisible } from '../entities/Block';
 import type { BlockState } from '../entities/Block';
+import {
+  CHEST_CLOSED_WIDTH,
+  CHEST_CLOSED_HEIGHT,
+  CHEST_OPEN_WIDTH,
+  CHEST_OPEN_HEIGHT,
+  CHEST_CLOSED_RENDERED_WIDTH,
+  CHEST_CLOSED_RENDERED_HEIGHT,
+  CHEST_OPEN_RENDERED_WIDTH,
+  CHEST_OPEN_RENDERED_HEIGHT,
+  CHEST_CLOSED_OFFSET_X,
+  CHEST_OPEN_OFFSET_X,
+  isChestOpen,
+} from '../entities/Chest';
+import type { ChestState } from '../entities/Chest';
 import { blockBumpOffsetY, crateShatterOpacity } from './BlockAI';
 import { bonusFruitY } from '../entities/BonusFruit';
 import type { BonusFruitState } from '../entities/BonusFruit';
@@ -478,6 +492,51 @@ export function drawBlocks(
 }
 
 /**
+ * Draws every chest at its current open/closed sprite (roadmap step 22) —
+ * each state is a standalone image (not a shared sheet, unlike blocks), so
+ * this always crops from (0, 0) at that state's own native size. Either
+ * sprite may independently be null (not yet loaded); a chest whose current
+ * state's sprite is missing is simply skipped for the frame, same convention
+ * as drawCollectibles'/drawEnemies' null-sprite handling.
+ *
+ * The destination x is shifted by the state's `*_OFFSET_X` (see
+ * entities/Chest.ts) so the chest draws horizontally centered on its tile
+ * rather than left-aligned to the tile's top-left corner — its rendered
+ * width is wider than one tile.
+ */
+export function drawChests(
+  ctx: CanvasRenderingContext2D,
+  chests: readonly ChestState[],
+  closedSprite: HTMLImageElement | null,
+  openSprite: HTMLImageElement | null,
+  originX = 0,
+  originY = 0,
+): void {
+  ctx.imageSmoothingEnabled = false;
+  for (const chest of chests) {
+    const open = isChestOpen(chest);
+    const sprite = open ? openSprite : closedSprite;
+    if (!sprite) continue;
+    const srcWidth = open ? CHEST_OPEN_WIDTH : CHEST_CLOSED_WIDTH;
+    const srcHeight = open ? CHEST_OPEN_HEIGHT : CHEST_CLOSED_HEIGHT;
+    const destWidth = open ? CHEST_OPEN_RENDERED_WIDTH : CHEST_CLOSED_RENDERED_WIDTH;
+    const destHeight = open ? CHEST_OPEN_RENDERED_HEIGHT : CHEST_CLOSED_RENDERED_HEIGHT;
+    const offsetX = open ? CHEST_OPEN_OFFSET_X : CHEST_CLOSED_OFFSET_X;
+    ctx.drawImage(
+      sprite,
+      0,
+      0,
+      srcWidth,
+      srcHeight,
+      chest.x + originX + offsetX,
+      chest.y + originY,
+      destWidth,
+      destHeight,
+    );
+  }
+}
+
+/**
  * Draws every question-mark block's spawned bonus fruit (roadmap step 21b) at
  * its current rise-tween position, reusing `fruit.png` at the fruit's own
  * `iconIndex` (amended 2026-08-30, live user feedback: varies per spawn
@@ -700,5 +759,72 @@ export function drawCollectibleCounter(
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
   ctx.fillText(`${collected} / ${max}`, x + COUNTER_ICON_SIZE + COUNTER_TEXT_GAP, y);
+  ctx.restore();
+}
+
+/** Total on-screen width of the 3-heart row (drawHearts), used to position
+ *  the chest counter just past it in the same HUD row. */
+const HEARTS_ROW_WIDTH = MAX_HEARTS * HEART_RENDERED_SIZE + (MAX_HEARTS - 1) * HEART_SPACING;
+
+/** Horizontal screen position for the persistent chest counter — placed
+ *  just to the right of the heart row, same HUD row as the hearts (not a
+ *  second row below them — moved here per live user feedback, 2026-08-30). */
+export const CHEST_COUNTER_X = HEARTS_START_X + HEARTS_ROW_WIDTH + 16;
+
+/** Vertical screen position for the persistent chest counter — vertically
+ *  centered on the same row the hearts occupy (drawHearts draws hearts with
+ *  their top edge at HUD_MARGIN; drawChestCounter treats its y as a
+ *  vertical CENTER, so this is offset by half a heart's height to align). */
+export const CHEST_COUNTER_Y = HUD_MARGIN + HEART_RENDERED_SIZE / 2;
+
+/**
+ * Draws the persistent "[chest icon] collected / total" HUD counter —
+ * unlike drawCollectibleCounter (which crops one frame out of a shared
+ * sheet), chest_closed.png is always the icon (a chest, once opened, still
+ * represents "one of the objectives" the same way) and is a standalone
+ * image at its own native aspect ratio, scaled to match the hearts' row
+ * height rather than forced into a square icon box.
+ */
+// Chest art is edge-to-edge with no transparent padding (unlike hearts), so
+// it reads oversized at HEART_RENDERED_SIZE — shrunk to look right at its
+// own smaller size instead.
+export const CHEST_COUNTER_ICON_HEIGHT = 20;
+
+// Wider gap than the shared COUNTER_TEXT_GAP (used by drawCollectibleCounter)
+// between the chest icon and its "N / M" text — a dedicated constant so this
+// counter's spacing can be tuned without affecting the unrelated
+// drawCollectibleCounter (live user feedback, 2026-08-30). Exported so tests
+// can pin the exact text x position instead of only asserting `any(Number)`.
+export const CHEST_COUNTER_TEXT_GAP = 12;
+
+export function drawChestCounter(
+  ctx: CanvasRenderingContext2D,
+  chestClosedSprite: HTMLImageElement,
+  collected: number,
+  total: number,
+  x: number,
+  y: number,
+): void {
+  ctx.imageSmoothingEnabled = false;
+  const iconHeight = CHEST_COUNTER_ICON_HEIGHT;
+  const iconWidth = (CHEST_CLOSED_WIDTH / CHEST_CLOSED_HEIGHT) * iconHeight;
+  ctx.drawImage(
+    chestClosedSprite,
+    0,
+    0,
+    CHEST_CLOSED_WIDTH,
+    CHEST_CLOSED_HEIGHT,
+    x,
+    y - iconHeight / 2,
+    iconWidth,
+    iconHeight,
+  );
+
+  ctx.save();
+  ctx.fillStyle = '#fff';
+  ctx.font = `22px "${RESTART_PROMPT_FONT_FAMILY}", monospace`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`${collected} / ${total}`, x + iconWidth + CHEST_COUNTER_TEXT_GAP, y);
   ctx.restore();
 }

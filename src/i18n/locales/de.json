@@ -158,8 +158,13 @@
       "fruits": "Früchte",
       "enemies": "Gegner",
       "crates": "Kisten",
+      "chests": "Truhen",
       "resetGame": "Spiel zurücksetzen",
       "emptyState": "Noch nichts entdeckt — weiter erkunden!"
+    },
+    "endingScreen": {
+      "thankYou": "Danke fürs Spielen!",
+      "continue": "Beliebige Taste drücken, um fortzufahren"
     }
   }
 }
