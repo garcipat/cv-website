@@ -93,7 +93,7 @@ describe('level1', () => {
   });
 
   it('markers-eachStandsOnAnEmptyTileAboveSolidGround', () => {
-    for (const tile of [...ENEMY_TILES_GREEN, ...ENEMY_TILES_PURPLE, ...COIN_TILES, ...FRUIT_TILES]) {
+    for (const tile of [...ENEMY_TILES_GREEN, ...ENEMY_TILES_PURPLE, ...COIN_TILES]) {
       expectStandable(tile);
     }
   });
@@ -101,11 +101,13 @@ describe('level1', () => {
   it('markerCounts-matchThisMechanicsTestLevelsIntentionalDesign', () => {
     // level1 deliberately covers only a slice of real CVData (see its doc
     // comment) — these counts are the level's own intentional design, not
-    // derived from CVData length.
+    // derived from CVData length. `F` (fruit) markers were removed 2026-08-30
+    // (live user feedback) — question-mark blocks spawn their own bonus
+    // fruit instead.
     expect(ENEMY_TILES_GREEN).toHaveLength(1);
     expect(ENEMY_TILES_PURPLE).toHaveLength(1);
     expect(COIN_TILES).toHaveLength(4);
-    expect(FRUIT_TILES).toHaveLength(2);
+    expect(FRUIT_TILES).toHaveLength(0);
     expect(CRATE_TILES).toHaveLength(2);
     expect(QUESTIONMARK_TILES).toHaveLength(2);
     expect(ROCK_TILES).toHaveLength(2);

@@ -1,27 +1,9 @@
 import { collectiblesSummary } from './CollectiblesSummary';
-import type { CVData } from '@/types/cv';
 import type { CollectedFact } from '../types';
 
-const emptyCV: CVData = {
-  personality: { name: 'Test', tagline: 'Test', summary: 'Test' },
-  experience: [],
-  skills: [],
-  courses: [],
-  education: [],
-  certificates: [],
-  languages: [],
-  projects: [],
-};
-
 describe('collectiblesSummary', () => {
-  it('cvWithSkillsAndLanguages-noneCollected-returnsBothRowsWithZeroCollected', () => {
-    const cv: CVData = {
-      ...emptyCV,
-      skills: [{ category: 'Frontend', skills: [{ name: 'React', level: 80 }] }],
-      languages: [{ name: 'English', flag: '🇬🇧', level: 100 }],
-    };
-
-    const rows = collectiblesSummary(cv, []);
+  it('coinsAndFruitsPlaced-noneCollected-returnsBothRowsWithZeroCollected', () => {
+    const rows = collectiblesSummary([], { coins: 1, fruits: 1, enemies: 0, crates: 0 });
 
     expect(rows).toEqual([
       { labelKey: 'coins', collected: 0, total: 1 },
@@ -29,15 +11,7 @@ describe('collectiblesSummary', () => {
     ]);
   });
 
-  it('cvWithSkillsAndLanguages-someCollected-countsMatchingFactsPerType', () => {
-    const cv: CVData = {
-      ...emptyCV,
-      skills: [
-        { category: 'Frontend', skills: [{ name: 'React', level: 80 }] },
-        { category: 'Backend', skills: [{ name: 'Go', level: 70 }] },
-      ],
-      languages: [{ name: 'English', flag: '🇬🇧', level: 100 }],
-    };
+  it('coinsAndFruitsPlaced-someCollected-countsMatchingFactsBySectionId', () => {
     const facts: CollectedFact[] = [
       {
         id: 'coin-frontend',
@@ -47,15 +21,15 @@ describe('collectiblesSummary', () => {
         sourceType: 'coin',
       },
       {
-        id: 'fruit-english',
-        sectionId: 'languages',
-        sectionLabel: 'Languages',
-        data: { name: 'English', level: 100 },
-        sourceType: 'coin',
+        id: 'qmark-cert-aws',
+        sectionId: 'certificates',
+        sectionLabel: 'Certificates',
+        data: { name: 'AWS Solutions Architect', issuer: 'AWS', date: '2023-06' },
+        sourceType: 'block',
       },
     ];
 
-    const rows = collectiblesSummary(cv, facts);
+    const rows = collectiblesSummary(facts, { coins: 2, fruits: 1, enemies: 0, crates: 0 });
 
     expect(rows).toEqual([
       { labelKey: 'coins', collected: 1, total: 2 },
@@ -63,51 +37,70 @@ describe('collectiblesSummary', () => {
     ]);
   });
 
-  it('cvWithNoSkillsOrLanguages-returnsNoRows', () => {
-    expect(collectiblesSummary(emptyCV, [])).toEqual([]);
+  it('nothingPlaced-returnsNoRows', () => {
+    expect(collectiblesSummary([], { coins: 0, fruits: 0, enemies: 0, crates: 0 })).toEqual([]);
   });
 
-  it('cvWithOnlySkills-omitsFruitsRow', () => {
-    const cv: CVData = {
-      ...emptyCV,
-      skills: [{ category: 'Frontend', skills: [{ name: 'React', level: 80 }] }],
-    };
-
-    expect(collectiblesSummary(cv, [])).toEqual([
+  it('onlyCoinsPlaced-omitsFruitsEnemiesAndCratesRows', () => {
+    expect(collectiblesSummary([], { coins: 1, fruits: 0, enemies: 0, crates: 0 })).toEqual([
       { labelKey: 'coins', collected: 0, total: 1 },
     ]);
   });
 
-  it('cvWithCertificatesAndProjects-noneDefeated-returnsCombinedEnemiesRowWithZeroCollected', () => {
-    const cv: CVData = {
-      ...emptyCV,
-      certificates: [{ name: 'AWS Solutions Architect', issuer: 'AWS', date: '2023-06' }],
-      projects: [{ name: 'Interactive Resume', description: 'This site.' }],
-    };
-
-    expect(collectiblesSummary(cv, [])).toEqual([{ labelKey: 'enemies', collected: 0, total: 2 }]);
-  });
-
-  it('cvWithCertificatesAndProjects-someDefeated-countsBothSectionsTogetherBySourceType', () => {
-    const cv: CVData = {
-      ...emptyCV,
-      certificates: [
-        { name: 'AWS Solutions Architect', issuer: 'AWS', date: '2023-06' },
-        { name: 'Scrum Master', issuer: 'Scrum.org', date: '2021-01' },
-      ],
-      projects: [{ name: 'Interactive Resume', description: 'This site.' }],
-    };
+  it('fruitsRow-countsProjectsFactsToo-notJustCertificates', () => {
+    // "fruits" combines both Certificates and Projects — a question-mark
+    // block's bonus fruit can carry either (amended 2026-08-30).
     const facts: CollectedFact[] = [
       {
-        id: 'enemy-cert-aws',
-        sectionId: 'certificates',
-        sectionLabel: 'Certificates',
-        data: { name: 'AWS Solutions Architect', issuer: 'AWS', date: '2023-06' },
+        id: 'qmark-project-x',
+        sectionId: 'projects',
+        sectionLabel: 'Projects',
+        data: { name: 'X', description: 'Y' },
+        sourceType: 'block',
+      },
+    ];
+    expect(collectiblesSummary(facts, { coins: 0, fruits: 2, enemies: 0, crates: 0 })).toEqual([
+      { labelKey: 'fruits', collected: 1, total: 2 },
+    ]);
+  });
+
+  it('fruitsRow-doesNotCountLanguagesFacts', () => {
+    // Languages is intentionally unmapped from the "fruits" row now that
+    // bonus fruits carry Certificates/Projects instead (amended 2026-08-30)
+    // — this is what the pre-2026-08-30 version of this file got wrong.
+    const facts: CollectedFact[] = [
+      {
+        id: 'fruit-german',
+        sectionId: 'languages',
+        sectionLabel: 'Languages',
+        data: { name: 'German', level: 100 },
+        sourceType: 'coin',
+      },
+    ];
+    expect(collectiblesSummary(facts, { coins: 0, fruits: 1, enemies: 0, crates: 0 })).toEqual([
+      { labelKey: 'fruits', collected: 0, total: 1 },
+    ]);
+  });
+
+  it('enemiesPlaced-noneDefeated-returnsEnemiesRowWithZeroCollected', () => {
+    expect(collectiblesSummary([], { coins: 0, fruits: 0, enemies: 2, crates: 0 })).toEqual([
+      { labelKey: 'enemies', collected: 0, total: 2 },
+    ]);
+  });
+
+  it('enemiesRow-countsCoursesFactsBySectionId-notSourceType', () => {
+    // Amended 2026-08-30: "enemies" now counts Courses (both slime colors
+    // guard the same pool), not Certificates+Projects — this is what the
+    // pre-2026-08-30 version of this file (keyed on sourceType 'enemy') got
+    // wrong once Certificates/Projects moved to blocks.
+    const facts: CollectedFact[] = [
+      {
+        id: 'enemy-course-x',
+        sectionId: 'courses',
+        sectionLabel: 'Courses',
+        data: { title: 'X', provider: 'Y', date: '2024-01', category: 'Z' },
         sourceType: 'enemy',
       },
-      // A coin-sourced fact must never count toward the enemies row, even
-      // if it happens to share a sectionId enemies can also produce facts
-      // for — the row is keyed on sourceType, not sectionId.
       {
         id: 'coin-frontend',
         sectionId: 'skills',
@@ -117,10 +110,60 @@ describe('collectiblesSummary', () => {
       },
     ];
 
-    expect(collectiblesSummary(cv, facts)).toEqual([{ labelKey: 'enemies', collected: 1, total: 3 }]);
+    expect(collectiblesSummary(facts, { coins: 1, fruits: 0, enemies: 3, crates: 0 })).toEqual([
+      { labelKey: 'coins', collected: 1, total: 1 },
+      { labelKey: 'enemies', collected: 1, total: 3 },
+    ]);
   });
 
-  it('cvWithNoCertificatesOrProjects-omitsEnemiesRow', () => {
-    expect(collectiblesSummary(emptyCV, [])).toEqual([]);
+  it('cratesPlaced-noneCollected-returnsCratesRowWithZeroCollected', () => {
+    // Added 2026-08-30, live user feedback: crates (Experience+Education)
+    // had no summary row at all until now.
+    expect(collectiblesSummary([], { coins: 0, fruits: 0, enemies: 0, crates: 2 })).toEqual([
+      { labelKey: 'crates', collected: 0, total: 2 },
+    ]);
+  });
+
+  it('cratesRow-countsExperienceAndEducationFactsBySectionId', () => {
+    const facts: CollectedFact[] = [
+      {
+        id: 'block-exp-x',
+        sectionId: 'experience',
+        sectionLabel: 'Experience',
+        data: { company: 'X', role: 'Y', startDate: '2020-01', highlights: [] },
+        sourceType: 'block',
+      },
+      {
+        id: 'block-edu-y',
+        sectionId: 'education',
+        sectionLabel: 'Education',
+        data: { degree: 'X', institution: 'Y', startDate: '2016-01' },
+        sourceType: 'block',
+      },
+      // A bonus-fruit-sourced fact must never count toward crates, even
+      // though it shares `sourceType: 'block'` — the row is keyed on
+      // sectionId, not sourceType.
+      {
+        id: 'qmark-cert-x',
+        sectionId: 'certificates',
+        sectionLabel: 'Certificates',
+        data: { name: 'X', issuer: 'Y', date: '2023-01' },
+        sourceType: 'block',
+      },
+    ];
+
+    expect(collectiblesSummary(facts, { coins: 0, fruits: 1, enemies: 0, crates: 3 })).toEqual([
+      { labelKey: 'fruits', collected: 1, total: 1 },
+      { labelKey: 'crates', collected: 2, total: 3 },
+    ]);
+  });
+
+  it('rowOrder-cratesAlwaysComesAfterEnemies', () => {
+    const rows = collectiblesSummary([], { coins: 1, fruits: 1, enemies: 1, crates: 1 });
+    expect(rows.map((r) => r.labelKey)).toEqual(['coins', 'fruits', 'enemies', 'crates']);
+  });
+
+  it('nothingPlacedForAnyRow-omitsAllRows', () => {
+    expect(collectiblesSummary([], { coins: 0, fruits: 0, enemies: 0, crates: 0 })).toEqual([]);
   });
 });

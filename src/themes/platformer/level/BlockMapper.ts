@@ -1,6 +1,6 @@
 import { tileToPixel, RENDERED_TILE_SIZE } from './Terrain';
 import { slugify } from './CollectibleMapper';
-import type { CVData, Experience, Education } from '@/types/cv';
+import type { CVData, Experience, Education, Certificate, Project } from '@/types/cv';
 import type { BlockDef } from '../types';
 
 function experienceToBlock(experience: Experience): BlockDef {
@@ -33,16 +33,54 @@ function educationToBlock(education: Education): BlockDef {
   };
 }
 
+function certificateToBlock(certificate: Certificate): BlockDef {
+  const id = `qmark-cert-${slugify(certificate.name)}`;
+  return {
+    id,
+    blockKind: 'questionMark',
+    fact: {
+      id,
+      sectionId: 'certificates',
+      sectionLabel: 'Certificates',
+      data: certificate,
+      sourceType: 'block',
+    },
+  };
+}
+
+function projectToBlock(project: Project): BlockDef {
+  const id = `qmark-project-${slugify(project.name)}`;
+  return {
+    id,
+    blockKind: 'questionMark',
+    fact: {
+      id,
+      sectionId: 'projects',
+      sectionLabel: 'Projects',
+      data: project,
+      sourceType: 'block',
+    },
+  };
+}
+
 /**
- * Flattens CVData into one crate per Experience entry and one per Education
- * entry (spec.md FR-009, amended 2026-08-29) — question-mark and rock
- * blocks carry no CV fact, so they have no mapping function here;
- * `placeBlocks` below places them directly from their level markers
- * instead. Mirrors CollectibleMapper.ts's/EnemyMapper.ts's CVData-flattening
- * pattern.
+ * Flattens CVData into one crate per Experience entry, one per Education
+ * entry (spec.md FR-009, amended 2026-08-29), and — amended 2026-08-30, live
+ * user feedback during step 21 verification — one question-mark bonus-fruit
+ * def per Certificate and per Project (moved off enemies; see
+ * `EnemyMapper.ts`'s courseToEnemy comment). Rock blocks still carry no CV
+ * fact at all — pure level-design filler, unaffected by this change.
+ * `placeBlocks` below zips crate/questionMark defs against their respective
+ * markers; rock markers still place directly with no def to zip against.
+ * Mirrors CollectibleMapper.ts's/EnemyMapper.ts's CVData-flattening pattern.
  */
 export function mapCVDataToBlocks(cv: CVData): BlockDef[] {
-  return [...cv.experience.map(experienceToBlock), ...cv.education.map(educationToBlock)];
+  return [
+    ...cv.experience.map(experienceToBlock),
+    ...cv.education.map(educationToBlock),
+    ...cv.certificates.map(certificateToBlock),
+    ...cv.projects.map(projectToBlock),
+  ];
 }
 
 export interface BlockPlacement extends BlockDef {
@@ -59,19 +97,24 @@ export interface BlockMarkerPositions {
 }
 
 /**
- * Places block defs/markers into the level. Crates follow the same
- * hand-authored-marker-zip convention as placeCollectibles/placeEnemies —
- * `defs` (from mapCVDataToBlocks) zipped against `markers.crate` in reading
- * order, extra defs simply not placed yet (a marker is a slot on the map;
- * see placeEnemies's doc comment for the full rationale). Question-mark and
- * rock blocks have no CVData mapping (spec.md FR-021's amendment) — every
- * one of their markers becomes a placement directly, with no def to zip
- * against and no "fewer markers than defs" case possible; each gets a
- * position-derived id since there's no CVData-derived one available.
+ * Places block defs/markers into the level. Crates and question-marks both
+ * follow the same hand-authored-marker-zip convention as
+ * placeCollectibles/placeEnemies — their defs (from `mapCVDataToBlocks`)
+ * zipped against `markers.crate`/`markers.questionMark` in reading order. A
+ * question-mark marker beyond the available Certificate/Project defs (or
+ * when there are none at all) still becomes a placement — just with no
+ * `fact`, matching pre-2026-08-30 behavior — so a level marker is never
+ * silently dropped for lack of data (amended 2026-08-30, live user feedback:
+ * question-mark blocks now carry Certificates/Projects, moved off enemies —
+ * see `mapCVDataToBlocks`'s comment). Rock blocks still have no CVData
+ * mapping at all (spec.md FR-021's amendment) — every rock marker becomes a
+ * placement directly, with a position-derived id since there's no
+ * CVData-derived one available.
  */
 export function placeBlocks(defs: BlockDef[], markers: BlockMarkerPositions): BlockPlacement[] {
   const placements: BlockPlacement[] = [];
   const crateDefs = defs.filter((d) => d.blockKind === 'crate');
+  const questionMarkDefs = defs.filter((d) => d.blockKind === 'questionMark');
 
   crateDefs.forEach((def, index) => {
     if (index >= markers.crate.length) return;
@@ -80,10 +123,11 @@ export function placeBlocks(defs: BlockDef[], markers: BlockMarkerPositions): Bl
     placements.push({ ...def, x, y });
   });
 
-  for (const { col, row } of markers.questionMark) {
+  markers.questionMark.forEach(({ col, row }, index) => {
     const { x, y } = tileToPixel(col, row);
-    placements.push({ id: `qmark-${col}-${row}`, blockKind: 'questionMark', x, y });
-  }
+    const def = questionMarkDefs[index];
+    placements.push(def ? { ...def, x, y } : { id: `qmark-${col}-${row}`, blockKind: 'questionMark', x, y });
+  });
 
   for (const { col, row } of markers.rock) {
     const { x, y } = tileToPixel(col, row);

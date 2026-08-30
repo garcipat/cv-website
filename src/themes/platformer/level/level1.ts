@@ -36,16 +36,22 @@ import {
 // two tiles below for both to land on.
 //
 // Every collectible/enemy on this map is a hand-placed marker, not
-// auto-placed: `S` (spawn), `E` (green/Course enemy), `M` (purple/
-// Certificate+Project enemy), `C` (Skill-category coin), `F` (Language fruit). A marker
-// is a slot on the map — EnemyMapper.ts's placeEnemies and
-// CollectibleMapper.ts's placeCollectibles each draw the next fact from
-// CVData (in its own section order) per marker of that type, with no
-// auto-placement fallback. This level intentionally has only 1 `E`, 1 `M`,
-// 4 `C`s, and 2 `F`s — a mechanics test layout, not a complete one; most of
-// the real CV's certificates/projects/skills/languages simply aren't
-// represented on the map yet. The actual level design comes later, once the
-// mechanics it exercises are all built.
+// auto-placed: `S` (spawn), `E` (green Course enemy), `M` (purple Course
+// enemy — amended 2026-08-30, live user feedback: both slime colors now
+// guard the same Courses pool, alternating by index, rather than purple
+// carrying Certificates+Projects; see EnemyMapper.ts's courseToEnemy
+// comment), `C` (Skill-category coin). A marker is a slot on the map —
+// EnemyMapper.ts's placeEnemies and CollectibleMapper.ts's
+// placeCollectibles each draw the next fact from CVData (in its own section
+// order) per marker of that type, with no auto-placement fallback. This
+// level intentionally has only 1 `E`, 1 `M`, and 4 `C`s — a mechanics test
+// layout, not a complete one; most of the real CV's courses/skills simply
+// aren't represented on the map yet. The actual level design comes later,
+// once the mechanics it exercises are all built. The `F` (Language fruit)
+// markers that used to sit here were removed 2026-08-30 (live user
+// feedback) — question-mark blocks now spawn their own bonus fruit instead
+// (see BlockMapper.ts's certificateToBlock/projectToBlock); where Languages
+// themselves get surfaced is still an open design question.
 //
 // Roadmap step 20 (2026-08-29) relaid out the post-wall-pocket half of this
 // level after live user feedback that it felt too spread out: one of the
@@ -90,7 +96,7 @@ const LEVEL_1_LAYOUT: readonly string[] = [
   '................................................................................',
   '........PPPBBPP....XQKXQK.......................................................',
   '................................................................................',
-  '.S........C.......C.......W.E..W....W.M....CFCF.................................',
+  '.S........C.......C.......W.E..W....W.M....C.C..................................',
   'GGBBBGGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRR...RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
   'GG...GGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRR...RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
 ];
@@ -103,13 +109,16 @@ export const SPAWN_TILE = findSpawnTile(LEVEL_1_LAYOUT);
 /** Hand-placed green (Course) enemy positions, from `LEVEL_1_LAYOUT`'s `E` markers. */
 export const ENEMY_TILES_GREEN = findGreenEnemyTiles(LEVEL_1_LAYOUT);
 
-/** Hand-placed purple (Certificate+Project) enemy positions, from `LEVEL_1_LAYOUT`'s `M` markers. */
+/** Hand-placed purple (Course) enemy positions, from `LEVEL_1_LAYOUT`'s `M`
+ *  markers — amended 2026-08-30, see this file's top doc comment. */
 export const ENEMY_TILES_PURPLE = findPurpleEnemyTiles(LEVEL_1_LAYOUT);
 
 /** Hand-placed Skill-category coin positions, from `LEVEL_1_LAYOUT`'s `C` markers. */
 export const COIN_TILES = findCoinTiles(LEVEL_1_LAYOUT);
 
-/** Hand-placed Language fruit positions, from `LEVEL_1_LAYOUT`'s `F` markers. */
+/** No `F` markers remain in `LEVEL_1_LAYOUT` (removed 2026-08-30, see this
+ *  file's top doc comment) — always empty. `placeCollectibles`'s fruit
+ *  marker queue is left as generic, reusable infrastructure. */
 export const FRUIT_TILES = findFruitTiles(LEVEL_1_LAYOUT);
 
 /** Hand-placed crate block positions (2), from `LEVEL_1_LAYOUT`'s `X` markers. */

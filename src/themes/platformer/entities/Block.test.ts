@@ -44,8 +44,12 @@ describe('blockFrameSource with hitsTaken', () => {
     expect(blockFrameSource('questionMark', 0)).toEqual({ sx: 0, sy: 32 });
   });
 
-  it('questionMark-hitsTakenAtLeastOne-returnsUsedExclamationTile', () => {
-    expect(blockFrameSource('questionMark', 1)).toEqual({ sx: 16, sy: 32 });
+  it('questionMark-hitsTakenAtLeastOne-returnsPlainGroundRockTerrainTile', () => {
+    // Amended 2026-08-30 (live user feedback): a used-up question-mark
+    // blends into ordinary ground terrain instead of showing a distinct `!`
+    // indicator — same coordinates Renderer.ts's tileSource uses for
+    // exposed groundRock.
+    expect(blockFrameSource('questionMark', 1)).toEqual({ sx: 16, sy: 0 });
   });
 
   it('crate-anyHitsTaken-alwaysReturnsSameCrateTile', () => {
