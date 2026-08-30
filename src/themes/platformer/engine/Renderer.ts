@@ -767,6 +767,11 @@ export const CHEST_COUNTER_Y = HUD_MARGIN + HEART_RENDERED_SIZE / 2;
  * image at its own native aspect ratio, scaled to match the hearts' row
  * height rather than forced into a square icon box.
  */
+// Chest art is edge-to-edge with no transparent padding (unlike hearts), so
+// it reads oversized at HEART_RENDERED_SIZE — shrunk to match the other
+// edge-to-edge icon (CRATE_ICON_DISPLAY_SIZE) used elsewhere in the HUD.
+const CHEST_COUNTER_ICON_HEIGHT = 20;
+
 export function drawChestCounter(
   ctx: CanvasRenderingContext2D,
   chestClosedSprite: HTMLImageElement,
@@ -776,7 +781,7 @@ export function drawChestCounter(
   y: number,
 ): void {
   ctx.imageSmoothingEnabled = false;
-  const iconHeight = HEART_RENDERED_SIZE;
+  const iconHeight = CHEST_COUNTER_ICON_HEIGHT;
   const iconWidth = (CHEST_CLOSED_WIDTH / CHEST_CLOSED_HEIGHT) * iconHeight;
   ctx.drawImage(
     chestClosedSprite,
