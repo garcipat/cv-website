@@ -153,14 +153,16 @@ describe('formatJournalEntry', () => {
     });
   });
 
-  it('unrecognizedSectionId-fallsBackToSectionLabel', () => {
+  it('unhandledSectionId-fallsBackToSectionLabel', () => {
+    // 'personality' is a valid SectionId but has no case in formatJournalEntry's switch,
+    // so it falls through to the default case which returns just the sectionLabel
     const result = formatJournalEntry(
       fact({
-        sectionId: 'unknownSection' as any,
-        sectionLabel: 'Unknown Section',
+        sectionId: 'personality',
+        sectionLabel: 'Profile',
         data: { name: 'Something' },
       }),
     );
-    expect(result.title).toBe('Unknown Section');
+    expect(result.title).toBe('Profile');
   });
 });
