@@ -17,14 +17,16 @@ const cv: CVData = {
   education: [
     { degree: 'B.Sc. Computer Science', institution: 'Technical University Berlin', startDate: '2016-10' },
   ],
+  activities: [{ name: 'Volunteering', startDate: '2019-01', endDate: '2019-06' }],
   certificates: [{ name: 'AWS Solutions Architect', issuer: 'AWS', date: '2023-06' }],
   languages: [],
   projects: [{ name: 'Open Source Task Runner', description: 'A CLI task runner.' }],
 };
 
 describe('mapCVDataToBlocks', () => {
-  it('called-returns-oneCratePerExperiencePlusOneCratePerEducation', () => {
+  it('called-returns-oneCratePerEducationPlusActivityPlusLanguage', () => {
     const defs = mapCVDataToBlocks(cv);
+    // 1 education + 1 activity + 0 languages (fixture's languages is [])
     expect(defs.filter((d) => d.blockKind === 'crate')).toHaveLength(2);
   });
 
@@ -34,13 +36,12 @@ describe('mapCVDataToBlocks', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('experienceEntry-buildsExperienceFact', () => {
+  it('experienceEntries-produceNoCrateBlocks', () => {
+    // Redesigned 2026-08-30: Experience moved off crates onto chests
+    // (see ChestMapper.ts) — mapCVDataToBlocks must never build an
+    // experience-sourced crate anymore.
     const defs = mapCVDataToBlocks(cv);
-    const exp = defs.find((d) => d.fact && 'role' in d.fact.data && d.fact.data.role === 'Staff Frontend Engineer');
-    expect(exp).toBeDefined();
-    expect(exp?.fact?.sectionId).toBe('experience');
-    expect(exp?.fact?.sourceType).toBe('block');
-    expect(exp?.blockKind).toBe('crate');
+    expect(defs.some((d) => d.fact?.sectionId === 'experience')).toBe(false);
   });
 
   it('educationEntry-buildsEducationFact', () => {
@@ -52,8 +53,25 @@ describe('mapCVDataToBlocks', () => {
     expect(edu?.blockKind).toBe('crate');
   });
 
-  it('noExperienceOrEducation-returnsNoCrateBlocks', () => {
-    const defs = mapCVDataToBlocks({ ...cv, experience: [], education: [] });
+  it('activityEntry-buildsActivityFact', () => {
+    const defs = mapCVDataToBlocks(cv);
+    const activity = defs.find((d) => d.fact && d.fact.sectionId === 'activities');
+    expect(activity).toBeDefined();
+    expect(activity?.fact?.sourceType).toBe('block');
+    expect(activity?.blockKind).toBe('crate');
+  });
+
+  it('languageEntry-buildsLanguageFact', () => {
+    const cvWithLanguage = { ...cv, languages: [{ name: 'German', level: 90, flag: '🇩🇪' }] };
+    const defs = mapCVDataToBlocks(cvWithLanguage);
+    const language = defs.find((d) => d.fact && d.fact.sectionId === 'languages');
+    expect(language).toBeDefined();
+    expect(language?.fact?.sourceType).toBe('block');
+    expect(language?.blockKind).toBe('crate');
+  });
+
+  it('noEducationActivitiesOrLanguages-returnsNoCrateBlocks', () => {
+    const defs = mapCVDataToBlocks({ ...cv, education: [], activities: [], languages: [] });
     expect(defs.filter((d) => d.blockKind === 'crate')).toHaveLength(0);
   });
 
