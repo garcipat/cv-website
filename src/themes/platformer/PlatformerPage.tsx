@@ -784,12 +784,8 @@ export const PlatformerPage = () => {
         left: input.isHeld('ArrowLeft') || input.isHeld('KeyA'),
         right: input.isHeld('ArrowRight') || input.isHeld('KeyD'),
       };
-      // Both must be evaluated (not short-circuited) since consumePress has
-      // the side effect of clearing the pending press it finds.
-      const spacePressed = input.consumePress('Space');
-      const arrowUpPressed = input.consumePress('ArrowUp');
-      const jumpPressed = spacePressed || arrowUpPressed;
-      const jumpHeld = input.isHeld('Space') || input.isHeld('ArrowUp');
+      const jumpPressed = input.consumePress('Space');
+      const jumpHeld = input.isHeld('Space');
       const dropThroughHeld = input.isHeld('ArrowDown') || input.isHeld('KeyS');
 
       let next = stepPlayerPhysics(
