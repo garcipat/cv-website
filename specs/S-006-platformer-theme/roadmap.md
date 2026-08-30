@@ -113,11 +113,9 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   attachment point) showing an icon per section rather than rotated text
   (unreadable at that size). An 8th "About Me"/personality bookmark shows
   CV bio content directly (not via `collectedFacts`, which has no
-  personality-sourced entries until the level-end mechanism reveals them
-  (originally scoped as a step 22 flagpole; that mechanic was removed
-  2026-08-30 — see the current step 22 placeholder) — a provisional
-  forward-pull per user request; 6 sprite colors cover the 8 sections with
-  two accepted duplicate pairs. Only per-section counters, pagination, and
+  personality-sourced entries) — a provisional forward-pull per user
+  request; 6 sprite colors cover the 8 sections with two accepted
+  duplicate pairs. Only per-section counters, pagination, and
   the Reset Game button remain in step 15.
   *Verify: visually matches `entry-styles-mockup.html`.*
 - [x] **15. Counters + pagination + Reset button** — "N/M" counters per
@@ -141,7 +139,7 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   *Verify: counters update correctly, pagination flips through the whole
   book with wraparound, Reset clears all state and restarts play.*
 
-## Iteration 2 — Enemies + blocks + level end + audio (P2)
+## Iteration 2 — Enemies + blocks + level end (P2)
 
 - [x] **16. Enemy render** — extended well beyond its original "render only" scope,
   live with the user, into a full rework of how levels are authored:
@@ -154,9 +152,12 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
     Height is read from the array's length, not a fixed constant — a level is only
     as tall as its tallest feature needs, bottom-anchored (last row = lowest
     ground row).
-  - **Intentional placement, no auto-placement** — `S` (spawn), `E` (green/
-    Project enemy), `M` (purple/Certificate enemy), `C` (Skill-category coin), `F`
-    (Language fruit) are hand-placed markers in the level layout. `EnemyMapper.ts`'s
+  - **Intentional placement, no auto-placement** — `S` (spawn), `E` (green
+    enemy), `M` (purple enemy), `C` (Skill-category coin), `F`
+    (Language fruit) are hand-placed markers in the level layout. Which CV
+    section each enemy color and marker maps to was iterated across this step
+    and steps 18/20/21 — see step 21's follow-up below for the final mapping.
+    `EnemyMapper.ts`'s
     `placeEnemies` and `CollectibleMapper.ts`'s `placeCollectibles` both dropped
     their old auto-column-placement algorithm entirely (and the `groundColumns`/
     `groundRowForColumn` helpers it depended on, now deleted from `Terrain.ts` as
@@ -174,17 +175,10 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
     entry still points at the untuned row 1, which now visually duplicates the
     tuned idle frames — needs a real distinct frame range (or redesign) before
     patrol relies on it looking different from idle.
-  *Verify: the green (Project) and purple (Certificate) slimes are visible at
+  *Verify: the green and purple slimes are visible at
   their `E`/`M` marker positions, idling; the 4 coins and 2 fruits are visible at
   their `C`/`F` marker positions; the wall pocket (cols 44-49) is visible on the
   ground row.*
-
-  **Corrected during step 18**: the green/purple ↔ Certificate/Project mapping
-  above was swapped from what step 16 originally shipped (green/Certificate,
-  purple/Project) — purple (2 hit points, the tougher enemy per step 18) is now
-  matched to Certificates, the rarer of the two sections, so the harder enemy
-  guards the scarcer reward; green (1 hit point) matches the more plentiful
-  Projects. See `EnemyMapper.ts`'s `certificateToEnemy`/`projectToEnemy` comments.
 - [x] **17. Enemy patrol** — enemies move back and forth at a constant speed
   (`PHYSICS_CONFIG.enemyPatrolSpeed`, 60px/s — 30% of the player's walk speed, a
   deliberate "plodding threat" pace, confirmed live rather than tuned further),
@@ -231,12 +225,6 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   revives defeated enemies on respawn but deliberately never clears collected
   facts — without the guard, re-stomping a revived enemy would duplicate its
   journal page.
-
-  Also corrected here: green/purple was swapped to green→Project, purple→
-  Certificate (was the reverse since step 16) — purple (2 hit points, the
-  tougher enemy) now guards Certificates, the rarer of the two sections, per
-  live user feedback during verification. See `EnemyMapper.ts`'s
-  `certificateToEnemy`/`projectToEnemy` and step 16's note above.
   *Verify: stomp an enemy, see the fact appear.*
 - [x] **19. Side/below damage** — invincibility frames, knockback on non-stomp
   contact, reusing the `takeDamage` mechanism from step 9.
@@ -296,21 +284,14 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   consistent with step 16's marker-based placement approach — no
   auto-placement.
 
-  **CollectibleMapper**: extended so crates carry Experience + Education
-  facts (7 entries combined); question-mark and rock blocks carry no CV
-  mapping at all.
-
-  **EnemyMapper remap** (bundled here since it's the other half of the same
-  section-remapping decision): Courses (12 entries) moves off blocks
-  entirely onto green slimes, replacing green's original Projects mapping;
-  purple slimes absorb Projects alongside their original Certificates,
-  carrying a combined Certificates + Projects pool (5 entries). See
-  `spec.md`'s FR-009 amendment.
+  **CollectibleMapper/EnemyMapper remap**: crates and enemies both picked up
+  CV-section mappings at this point, bundled here since it's one
+  section-remapping decision (see `spec.md`'s FR-009 amendment) — the
+  specific assignments were revised again in step 21's follow-up below,
+  which has the final mapping.
 
   *Verify: crate, question-mark (in its level-appropriate palette color), and
-  rock tiles are all visible on platforms in `level1`; green slime enemies now
-  map to Course facts and purple slime enemies map to the combined
-  Certificates + Projects pool.*
+  rock tiles are all visible on platforms in `level1`.*
 
   **Follow-up (same day, after live user feedback on the rendered result):**
   blocks were relocated from `level1`'s ground-adjacent marker row to an
@@ -400,7 +381,7 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   - **Journal now always opens on "About Me"** by default instead of
     falling back to the first collected fact's section, until the visitor
     picks a bookmark themselves (still remembered across close/reopen).
-- [ ] **22. Chests + Thank You screen (level-end redesign)** — *Flagpole removed as a
+- [x] **22. Chests + Thank You screen (level-end redesign)** — *Flagpole removed as a
   mechanic (2026-08-30); redesigned the same day via a `brainstorming` session.*
   Replaces the level-end mechanism with a new "main objective" collectible: treasure
   chests (`ChestDef`, new `T` level marker), one per non-empty Experience entry —
@@ -416,7 +397,7 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   **Bundled control change**: Arrow Up is no longer a jump key — Space becomes
   the sole jump input (FR-007 amended), freeing Arrow Up to become this game's
   "interact" key (opens a chest you're standing on now; reserved for climbing
-  once that unscheduled mechanic exists).
+  once step 23 ships).
 
   Once every chest is opened, a Thank You screen appears (`gamePhase:
   'ending-screen'`, pausing the game like `paused` does) wherever the visitor
@@ -448,7 +429,8 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   flagpole reference.
 
   **Out of scope for this step**: audio (chest-open SFX, Thank You fanfare) —
-  that's step 24's job; this step only defines where those hooks will attach.
+  see the "Maybe / reconsider later" section's Audio item; this step only
+  defines where those hooks would attach if it ships.
   *Verify: confirm Arrow Up no longer triggers a jump (only Space does). Stand
   on a closed chest and press Arrow Up, see it swap to its open sprite, the
   chest counter increment, and the Experience fact fly to the journal; walking
@@ -458,32 +440,54 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   resume from the same position. Confirm Contact never appears as a journal
   bookmark. Confirm crates now carry Education/Activities/Languages facts and
   coins carry only Skills facts.
-- [ ] **23. Ladders (climbing)** — *Promoted 2026-08-30* from the "Unscheduled
-  additions" list to the next numbered step, ahead of Audio and Iteration 3 —
-  now that step 22 freed Arrow Up from jumping into a general-purpose "interact
-  with what you're on" key (chest-opening today), climbing is the other
-  obvious use for it and reads as more immediately valuable than audio/polish.
-  Not yet designed — needs its own `brainstorming` session before an
-  implementation plan exists, same pattern step 30 (Level selection) below
-  already uses. Climbable terrain the character can ascend/descend with Up/Down
-  (reusing the climb-capable frames already present in the character's jump
-  sprite sheet — needs confirming which frames actually read as climbing once
-  tried against a real ladder). Arrow Up would need to mean "climb" while
-  standing on a ladder tile and "open the chest I'm standing on" while standing
-  on one (step 22) — the two never overlap in practice (a tile is either a
-  ladder or a chest marker, never both), so no conflict is expected, but this
-  needs confirming once the mechanic is actually designed. Playable on a
-  ladder taller than one screen depends on the "Vertical camera follow" item
-  still sitting in "Unscheduled additions" below — a short, single-screen
-  ladder can ship first without it.
-  *Verify: TBD, pending design.*
-- [ ] **24. Audio** — preload audio assets, looping background music, SFX wired to
-  existing actions (jump, coin, stomp, block break, damage, journal open/close),
-  speaker icon toggle, muted by default. A level-end sound effect waits on step 22's
-  redesign.
-  *Verify: toggle sound on, hear music and effects.*
+- [ ] **23. Ladders (climbing) + vertical camera follow** — *Promoted
+  2026-08-30* from the "Unscheduled additions" list to the next numbered
+  step, now that step 22 freed Arrow Up from jumping into a general-purpose
+  "interact with what you're on" key (chest-opening today) — climbing is the
+  other obvious use for it. *Designed 2026-08-30* via a `brainstorming`
+  session — see `spec.md`'s "Session 2026-08-30 (roadmap step 23
+  brainstorming)" and User Story 6b for the full record.
 
-## Iteration 3 — Controls + polish (P3)
+  A new `'ladder'` terrain tile (not solid, but climbable): overlapping one
+  and pressing Up/Down suspends gravity and drives vertical movement directly
+  at a fixed climb speed. Climbing is free-form, not column-locked —
+  Left/Right still move normally, and moving off every overlapping ladder
+  tile ends the climb immediately. Space cancels a climb into a normal jump.
+  The tile above a ladder's top rung is ordinary solid terrain, so standing
+  on it needs no special case; pressing Down there re-enters the climb
+  downward, mirroring `bridge`'s existing drop-through convention. Uses
+  `knight2.png`'s existing (previously unwired) 4-frame "climb (back view)"
+  row — no new art needed.
+
+  `level1` gets a real ladder, extended up from the existing floating
+  platform to a new tier above it — taller than originally scoped (just
+  reaching the existing platform) once it became clear the level (6 tiles /
+  ~192px) is nowhere near tall enough to ever need scrolling on a real
+  desktop window (`canvas.width/height` = `window.innerWidth/innerHeight`).
+  The new tier is throwaway/replaceable (called out in a code comment), not
+  final level design — it exists purely so this step has a real manual
+  browser Verify for both mechanics. `LevelParser.parseLevel`'s row-length
+  check is relaxed to pad shorter rows to the widest row's width (instead of
+  throwing on a mismatch), so authoring a mostly-empty-sky shaft doesn't
+  require 80 literal dots per row.
+
+  Vertical camera follow is a new `updateCameraY`/`cameraPositionY`, parallel
+  to (not merged with) the existing horizontal `updateCamera`/
+  `cameraPositionX` — same dead-zone-follow-and-clamp shape, own constant.
+  On every level shipped before this step (all shorter than a real
+  viewport), the clamp always resolves to 0 — a verified no-op, matching
+  today's fixed bottom-anchor exactly.
+  *Verify: walk into the ladder and press Up — the character climbs
+  vertically instead of falling, and the camera scrolls to follow once the
+  ladder goes off-screen. Press Left/Right while climbing — the character
+  shimmies off the ladder and immediately falls/walks normally. Press Space
+  while climbing — it cancels into a normal jump. Reach the new tier at the
+  top, confirm standing on it works like any other platform; press Down
+  there — confirm it re-enters the climb going downward. Confirm `level1`'s
+  pre-existing content (spawn, coins, enemies, blocks, chests) is unaffected
+  by the new rows above it.*
+
+## Iteration 3 — Controls (P3)
 
 - [ ] **25. Controls overlay** — a translucent overlay listing only universal
   controls (movement, jump, journal toggle — see spec.md FR-036, deliberately
@@ -519,12 +523,23 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   of being purely decorative.
   *Verify: open the controls mid-game, confirm the game pauses; close, confirm it
   resumes exactly where it left off.*
-- [ ] **28. Theme-switch reset** — leaving and returning to Platformer resets the
-  session (fresh game, no collected facts).
-  *Verify: switch to another theme and back, confirm the game is fresh.*
-- [ ] **29. Polish pass** — animation/effects refinement, 30 FPS check with 20+
-  collectibles rendered.
-  *Verify: frame-timing check and smooth manual play.*
+
+## Maybe / reconsider later
+
+Not committed to the roadmap sequence — before writing a `writing-plans` pass for
+any of these, first decide whether it's worth doing at all. Numbers kept from their
+original slot for traceability with git history (branch names, commit messages).
+
+- **24. Audio** — preload audio assets, looping background music, SFX wired to
+  existing actions (jump, coin, stomp, block break, damage, journal open/close),
+  speaker icon toggle, muted by default. Not clear yet whether this ships.
+- **28. Theme-switch reset** — leaving and returning to Platformer resets the
+  session (fresh game, no collected facts, hearts/chests/enemies back to start).
+  Whether "silently reset on return" is the behavior actually wanted (versus,
+  say, resuming where you left off) needs deciding before this becomes a step.
+- **29. Polish pass** — animation/effects refinement, 30 FPS check with 20+
+  collectibles rendered. May not need a dedicated step if each feature step
+  already verifies its own visuals as it lands.
 
 ## Iteration 4 — Level variety (post-P3, added 2026-08-29)
 
@@ -560,12 +575,11 @@ they aren't lost, not in priority order.
   the bottom of the canvas and a background band at the top, both fixed to the
   viewport (not the level or the camera) so they stay in place regardless of
   player movement or camera scroll, horizontal or vertical.
-- **Vertical camera follow** — extend the camera (currently horizontal-only,
-  step 8) to also follow the player vertically, so moving up a ladder scrolls the
-  viewport upward instead of the character walking off the top of the screen.
-  Depends on step 23 (Ladders, promoted 2026-08-30) existing as the case that
-  actually exercises vertical movement.
-  *Verify: TBD, pending the actual implementation plan.*
+- **Level editor** — a hidden dev-only route for authoring levels visually
+  instead of hand-editing character-grid strings, reusing the existing
+  tile-char catalog and real engine sprites for WYSIWYG rendering. Brainstormed
+  design captured in `docs/ideas/platformer-level-editor.md`; not yet a
+  numbered step.
 
 ## Working agreement
 
