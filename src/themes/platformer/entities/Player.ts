@@ -170,6 +170,25 @@ export function jumpFrameSource(vy: number, frame: number): { sx: number; sy: nu
   return { sx: (frame % FALL_ROW_FRAME_COUNT) * JUMP_FRAME_SIZE, sy: FALL_ROW_SY };
 }
 
+/**
+ * `knight2.png`'s third row — a 4-frame "climb (back view)" cycle present
+ * in the sheet but never wired up before roadmap step 23. Row spacing
+ * matches JUMP_ROW_SY (0) / FALL_ROW_SY (161): the sheet is 1024x484px, i.e.
+ * three ~161.3px-tall rows, so the third starts at 2*161=322.
+ */
+const CLIMB_ROW_SY = 322;
+const CLIMB_ROW_FRAME_COUNT = 4;
+
+/**
+ * Frame source for the climbing animation — a simple 4-frame cycle (unlike
+ * `jumpFrameSource`, there's no rising/falling branch: climbing has one
+ * direction-agnostic loop). Uses the same 128px `JUMP_FRAME_SIZE`/sheet as
+ * jump/fall.
+ */
+export function climbFrameSource(frame: number): { sx: number; sy: number } {
+  return { sx: (frame % CLIMB_ROW_FRAME_COUNT) * JUMP_FRAME_SIZE, sy: CLIMB_ROW_SY };
+}
+
 /** Advances the player's animation timer/frame by `dt` seconds. */
 export function advancePlayerAnimation(player: PlayerState, dt: number): PlayerState {
   const { frameCount, frameDuration } = ANIM_CONFIG[player.animState];
@@ -185,18 +204,20 @@ export function advancePlayerAnimation(player: PlayerState, dt: number): PlayerS
 }
 
 /**
- * Switches `animState` between `idle`/`walk`/`jump`, resetting the animation
+ * Switches `animState` between `idle`/`walk`/`jump`/`climb`, resetting the animation
  * frame/timer whenever the state actually changes so a leftover frame index
- * from the previous state's cycle never carries over. Airborne (`!grounded`)
- * takes priority over horizontal velocity — the character can be moving
- * horizontally while jumping, but it still reads as `'jump'`, not `'walk'`.
+ * from the previous state's cycle never carries over. Climbing takes priority
+ * over airborne/grounded/velocity checks — the character can be moving or
+ * airborne while climbing, but it still reads as `'climb'`, not other states.
  */
 export function updatePlayerAnimState(player: PlayerState): PlayerState {
-  const animState: PlayerAnimState = !player.grounded
-    ? 'jump'
-    : player.vx !== 0
-      ? 'walk'
-      : 'idle';
+  const animState: PlayerAnimState = player.climbing
+    ? 'climb'
+    : !player.grounded
+      ? 'jump'
+      : player.vx !== 0
+        ? 'walk'
+        : 'idle';
   if (animState === player.animState) return player;
   return { ...player, animState, animFrame: 0, animTimer: 0 };
 }

@@ -1,6 +1,7 @@
 import {
   playerFrameSource,
   jumpFrameSource,
+  climbFrameSource,
   PLAYER_FRAME_SIZE,
   JUMP_FRAME_SIZE,
   PLAYER_RENDERED_SIZE,
@@ -168,6 +169,21 @@ describe('playerFrameSource jump row', () => {
   });
 });
 
+describe('climbFrameSource', () => {
+  it('frame0-returnsFirstClimbColumnAtClimbRow', () => {
+    expect(climbFrameSource(0)).toEqual({ sx: 0, sy: 322 });
+  });
+
+  it('frame2-returnsThirdClimbColumnAtClimbRow', () => {
+    expect(climbFrameSource(2)).toEqual({ sx: 2 * JUMP_FRAME_SIZE, sy: 322 });
+  });
+
+  it('frame4-wrapsToFirstClimbColumn', () => {
+    // Only 4 real CLIMB frames in the sheet.
+    expect(climbFrameSource(4)).toEqual({ sx: 0, sy: 322 });
+  });
+});
+
 describe('updatePlayerAnimState jump priority', () => {
   it('updatePlayerAnimState-notGrounded-switchesToJumpEvenWithZeroVx', () => {
     const player = idlePlayer({ vx: 0, grounded: false, animState: 'idle' });
@@ -191,6 +207,22 @@ describe('updatePlayerAnimState jump priority', () => {
     const player = idlePlayer({ vx: 200, grounded: true, animState: 'jump' });
     const next = updatePlayerAnimState(player);
     expect(next.animState).toBe('walk');
+  });
+});
+
+describe('updatePlayerAnimState climbing priority', () => {
+  it('climbingTrue-switchesToClimbRegardlessOfGroundedOrVx', () => {
+    const player = idlePlayer({ climbing: true, grounded: false, vx: 200, animState: 'idle' });
+    const next = updatePlayerAnimState(player);
+    expect(next.animState).toBe('climb');
+    expect(next.animFrame).toBe(0);
+    expect(next.animTimer).toBe(0);
+  });
+
+  it('climbingFalseAfterClimb-fallsBackToJumpWhileAirborne', () => {
+    const player = idlePlayer({ climbing: false, grounded: false, animState: 'climb' });
+    const next = updatePlayerAnimState(player);
+    expect(next.animState).toBe('jump');
   });
 });
 
