@@ -1,4 +1,4 @@
-import { RENDER_SCALE } from '../level/Terrain';
+import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { ChestPlacement } from '../level/ChestMapper';
 
 /**
@@ -15,10 +15,18 @@ export const CHEST_CLOSED_HEIGHT = 20;
 export const CHEST_OPEN_WIDTH = 24;
 export const CHEST_OPEN_HEIGHT = 20;
 
-export const CHEST_CLOSED_RENDERED_WIDTH = CHEST_CLOSED_WIDTH * RENDER_SCALE;
-export const CHEST_CLOSED_RENDERED_HEIGHT = CHEST_CLOSED_HEIGHT * RENDER_SCALE;
-export const CHEST_OPEN_RENDERED_WIDTH = CHEST_OPEN_WIDTH * RENDER_SCALE;
-export const CHEST_OPEN_RENDERED_HEIGHT = CHEST_OPEN_HEIGHT * RENDER_SCALE;
+// Rendered height is pinned to match the other in-game blocks/tiles
+// (RENDERED_TILE_SIZE) rather than a flat RENDER_SCALE multiplier — a flat
+// 2x multiplier made chests noticeably taller than the 32px blocks sitting
+// on the same terrain grid (live user feedback, 2026-08-30). Width stays
+// proportional to the shared scale factor, so it can legitimately be wider
+// than one tile — chests aren't meant to fit inside a single tile cell.
+const CHEST_SPRITE_SCALE = RENDERED_TILE_SIZE / CHEST_CLOSED_HEIGHT;
+
+export const CHEST_CLOSED_RENDERED_WIDTH = CHEST_CLOSED_WIDTH * CHEST_SPRITE_SCALE;
+export const CHEST_CLOSED_RENDERED_HEIGHT = RENDERED_TILE_SIZE;
+export const CHEST_OPEN_RENDERED_WIDTH = CHEST_OPEN_WIDTH * CHEST_SPRITE_SCALE;
+export const CHEST_OPEN_RENDERED_HEIGHT = RENDERED_TILE_SIZE;
 
 export type ChestVisualState = 'closed' | 'open';
 
