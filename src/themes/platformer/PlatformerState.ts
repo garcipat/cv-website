@@ -58,6 +58,7 @@ export function spawnPlayerState(): PlayerState {
     vy: 0,
     facing: 'right',
     grounded: false,
+    climbing: false,
     isDroppingThroughBridge: false,
     lastGroundedX: x,
     lastGroundedY: y,

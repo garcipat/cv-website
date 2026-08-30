@@ -1,5 +1,5 @@
 import { PHYSICS_CONFIG } from './PhysicsConfig';
-import { isSolid, isSolidExcludingBridge, tileAt, RENDERED_TILE_SIZE } from '../level/Terrain';
+import { isSolid, isSolidExcludingBridge, isClimbable, tileAt, RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { LevelDef } from '../level/LevelData';
 import { isBlockOccupied, blockIdAt } from '../level/BlockMapper';
 import type { BlockPlacement } from '../level/BlockMapper';
@@ -29,6 +29,10 @@ export interface PlayerInput {
   right?: boolean;
   jumpPressed?: boolean;
   jumpHeld?: boolean;
+  /** Held state of Up/`W` (roadmap step 23) — continuous, like movement,
+   *  not edge-triggered like `jumpPressed`: climbing is driven every frame
+   *  the key is down, not just once on press. */
+  climbUpHeld?: boolean;
   dropThroughHeld?: boolean;
   suppressJumpCut?: boolean;
 }
@@ -136,11 +140,106 @@ export function stepPlayerPhysics(
   const maxX = level.width * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_SIDE_PADDING;
   x = Math.max(-PLAYER_SIDE_PADDING, Math.min(x, maxX));
 
-  // Jump trigger (FR-006): a fixed upward impulse, only while grounded — no
-  // double jump. Ignored entirely while already airborne.
-  const jumpStarts = player.grounded && Boolean(input.jumpPressed);
-  let vy = jumpStarts ? PHYSICS_CONFIG.jumpVelocity : player.vy;
+  // Climbing (roadmap step 23, FR-006): checked against the row at the
+  // player's CURRENT (pre-vertical-move) feet position, using this frame's
+  // already-resolved horizontal `x` — deliberately feet-only, not the whole
+  // hitbox, so climbing ends almost exactly at the ladder's top edge instead
+  // of overshooting into the solid tile above it (a whole-hitbox check would
+  // keep climbing true until the character's HEAD also clears the ladder, by
+  // which point the feet are already a tile or more above it).
+  const climbLeftCol = Math.floor((x + PLAYER_SIDE_PADDING) / RENDERED_TILE_SIZE);
+  const climbRightCol = Math.floor(
+    (x + PLAYER_SIDE_PADDING + HITBOX_WIDTH - 1) / RENDERED_TILE_SIZE,
+  );
+  const feetRow = Math.floor(
+    (player.y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING - 1) / RENDERED_TILE_SIZE,
+  );
+  const columnsAreClimbable = (row: number): boolean => {
+    for (let col = climbLeftCol; col <= climbRightCol; col++) {
+      if (isClimbable(tileAt(level, col, row))) return true;
+    }
+    return false;
+  };
+  const onLadderNow = columnsAreClimbable(feetRow);
+  const climbUpHeld = Boolean(input.climbUpHeld);
+  const climbDownHeld = Boolean(input.dropThroughHeld);
+
+  let climbing = player.climbing;
+  if (climbing) {
+    // Continue only while still over a ladder tile and not jump-cancelled.
+    climbing = onLadderNow && !input.jumpPressed;
+  } else if (onLadderNow && (climbUpHeld || climbDownHeld)) {
+    // Fresh entry: overlapping a ladder column and pressing Up/Down.
+    climbing = true;
+  } else if (player.grounded && climbDownHeld && columnsAreClimbable(feetRow + 1)) {
+    // Fresh entry from above: standing on the solid tile directly above a
+    // ladder's top rung, pressing Down re-enters the climb downward — mirrors
+    // the drop-through-bridge trigger below, but checked one row LOWER (the
+    // ladder starts the row BELOW the tile the character rests on, unlike a
+    // bridge, which the character rests ON TOP of directly).
+    climbing = true;
+  }
+
+  if (climbing) {
+    const vy = climbUpHeld ? -PHYSICS_CONFIG.climbSpeed : climbDownHeld ? PHYSICS_CONFIG.climbSpeed : 0;
+    return {
+      ...player,
+      x,
+      y: player.y + vy * dt,
+      vx,
+      vy,
+      facing,
+      grounded: false,
+      climbing: true,
+      isDroppingThroughBridge: false,
+      knockbackTimer: Math.max(0, player.knockbackTimer - dt),
+      bounceAscending: false,
+      hitBlockIds: [],
+    };
+  }
+
+  // Jump trigger (FR-006): a fixed upward impulse while grounded, OR while
+  // cancelling a climb (roadmap step 23) — climbing always reports
+  // `grounded: false` above, so the plain grounded-only check would silently
+  // swallow a jump press that's meant to cancel a climb.
+  const climbJumpCancelled = player.climbing && Boolean(input.jumpPressed);
+  const jumpStarts = (player.grounded || climbJumpCancelled) && Boolean(input.jumpPressed);
+  let vy = jumpStarts
+    ? PHYSICS_CONFIG.jumpVelocity
+    : player.climbing
+      ? 0 // just exited climbing (reached the top, or walked off) — fall from rest, not from the old climb speed
+      : player.vy;
   vy = Math.min(vy + PHYSICS_CONFIG.gravity * dt, PHYSICS_CONFIG.terminalVelocity);
+
+  if (player.climbing) {
+    // Just exited climbing this very frame (roadmap step 23) — either
+    // reached the ladder's top/walked off it under gravity, or cancelled
+    // via jump (both are detected above; if execution reaches here, this
+    // frame's `climbing` local is already false). The character's hitbox is
+    // still positioned exactly where the climbing branch left it — right
+    // against (or slightly inside) the solid tile it was climbing next to —
+    // so running this frame's normal ground/ceiling collision and
+    // variable-jump-height cut would immediately (and wrongly) snap it back
+    // onto that tile or shear a fresh cancel-jump's impulse, one tick
+    // before either check is actually meaningful. Skipping both for this
+    // one transitional frame lets the exit register cleanly (falling from
+    // rest, or launching at full jump impulse); normal collision resumes
+    // from the very next frame's now-accurate position.
+    return {
+      ...player,
+      x,
+      y: player.y + vy * dt,
+      vx,
+      vy,
+      facing,
+      grounded: false,
+      climbing: false,
+      isDroppingThroughBridge: false,
+      knockbackTimer: Math.max(0, player.knockbackTimer - dt),
+      bounceAscending: false,
+      hitBlockIds: [],
+    };
+  }
 
   // Variable jump height (FR-006): releasing the jump key while still
   // ascending cuts the velocity short via a multiplier instead of a fixed
@@ -269,6 +368,7 @@ export function stepPlayerPhysics(
     vy: resolvedVy,
     facing,
     grounded,
+    climbing: false,
     isDroppingThroughBridge: grounded ? false : droppingThroughBridge,
     lastGroundedX: fullyGrounded ? x : player.lastGroundedX,
     lastGroundedY: fullyGrounded ? y : player.lastGroundedY,

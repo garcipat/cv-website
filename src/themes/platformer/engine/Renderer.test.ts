@@ -939,6 +939,7 @@ describe('drawPlayer', () => {
     vy: 0,
     facing: 'right',
     grounded: true,
+    climbing: false,
     isDroppingThroughBridge: false,
     lastGroundedX: 16,
     lastGroundedY: 256,

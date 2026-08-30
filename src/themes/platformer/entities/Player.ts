@@ -32,7 +32,7 @@ export const PLAYER_VISUAL_CENTER_Y_OFFSET =
  */
 export const PLAYER_SIDE_PADDING = 10 * RENDER_SCALE; // 20 rendered px
 
-export type PlayerAnimState = 'idle' | 'walk' | 'jump';
+export type PlayerAnimState = 'idle' | 'walk' | 'jump' | 'climb';
 export type PlayerFacing = 'left' | 'right';
 
 export interface PlayerState {
@@ -46,6 +46,10 @@ export interface PlayerState {
   facing: PlayerFacing;
   /** Whether the player is currently resting on a solid tile. */
   grounded: boolean;
+  /** Whether the player is currently climbing a `'ladder'` tile (roadmap
+   *  step 23) — while true, `Physics.ts`'s stepPlayerPhysics suspends
+   *  gravity and drives vertical movement directly from Up/Down instead. */
+  climbing: boolean;
   /** Whether the player is currently dropping through a `bridge` tile
    *  they deliberately fell through (Down held while resting on one) —
    *  see Physics.ts's ground-collision branch. Cleared once they land on
@@ -126,6 +130,7 @@ const ANIM_CONFIG: Record<
   idle: { frameCount: 4, frameDuration: 0.15, sy: 0 },
   walk: { frameCount: 8, frameDuration: 0.08, sy: PLAYER_FRAME_SIZE * 2 },
   jump: { frameCount: 7, frameDuration: 0.062, sy: 0 },
+  climb: { frameCount: 4, frameDuration: 0.1, sy: 0 },
 };
 
 /** Seconds each idle frame is held before advancing to the next. */

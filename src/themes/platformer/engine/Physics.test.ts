@@ -20,6 +20,7 @@ function basePlayer(overrides: Partial<PlayerState> = {}): PlayerState {
     vy: 0,
     facing: 'right',
     grounded: false,
+    climbing: false,
     animState: 'idle',
     animFrame: 0,
     animTimer: 0,
@@ -72,6 +73,14 @@ const BRIDGE_DROP_LEVEL = parseLevel(['BB', '..', '..', 'GG']);
 // render slot (2 tiles) is wider than the actual (now-centered) collision
 // hitbox.
 const NARROW_PLATFORM_LEVEL = parseLevel(['.GGG.....']);
+
+// 4 rows tall, 2 cols wide (col 1 is empty filler, giving the hitbox — wider
+// than one tile — room to move horizontally without immediately hitting the
+// world-bounds clamp): row 0 is solid ground reachable by climbing (the tile
+// directly above the ladder's top rung, per FR-006); rows 1-2 are ladder in
+// col 0; row 3 is solid ground the ladder starts from. Mirrors level1's real
+// "ladder leads up to a platform" shape at a testable scale.
+const LADDER_LEVEL = parseLevel(['G.', 'L.', 'L.', 'G.']);
 
 describe('stepPlayerPhysics', () => {
   it('stepPlayerPhysics-inMidAir-appliesGravityToVelocityAndMovesDown', () => {
@@ -909,5 +918,93 @@ describe('resolvePitFall', () => {
     expect(next.facing).toBe('left');
     expect(next.animState).toBe('jump');
     expect(next.animFrame).toBe(3);
+  });
+});
+
+describe('stepPlayerPhysics climbing', () => {
+  it('onLadderTile-climbUpHeld-entersClimbingAndMovesUpwardAtClimbSpeed', () => {
+    const player = basePlayer({ x: 0, y: 20, grounded: false, climbing: false });
+
+    const next = stepPlayerPhysics(player, LADDER_LEVEL, 1 / 60, { climbUpHeld: true });
+
+    expect(next.climbing).toBe(true);
+    expect(next.grounded).toBe(false);
+    expect(next.vy).toBeCloseTo(-PHYSICS_CONFIG.climbSpeed);
+    expect(next.y).toBeCloseTo(20 - PHYSICS_CONFIG.climbSpeed / 60);
+  });
+
+  it('onLadderTile-dropThroughHeld-entersClimbingAndMovesDownwardAtClimbSpeed', () => {
+    const player = basePlayer({ x: 0, y: 20, grounded: false, climbing: false });
+
+    const next = stepPlayerPhysics(player, LADDER_LEVEL, 1 / 60, { dropThroughHeld: true });
+
+    expect(next.climbing).toBe(true);
+    expect(next.vy).toBeCloseTo(PHYSICS_CONFIG.climbSpeed);
+    expect(next.y).toBeCloseTo(20 + PHYSICS_CONFIG.climbSpeed / 60);
+  });
+
+  it('climbing-leftOrRightHeld-stillMovesHorizontallyAtNormalWalkSpeed', () => {
+    const player = basePlayer({ x: 0, y: 20, grounded: false, climbing: true });
+
+    const next = stepPlayerPhysics(player, LADDER_LEVEL, 1 / 60, { climbUpHeld: true, right: true });
+
+    expect(next.vx).toBeCloseTo(PHYSICS_CONFIG.walkSpeed);
+    expect(next.x).toBeCloseTo(PHYSICS_CONFIG.walkSpeed / 60);
+  });
+
+  it('climbingButFeetNoLongerOnLadderTile-exitsClimbingAndFallsUnderGravityFromRest', () => {
+    // y = -40 places the feet row on row 0 (the solid platform above the
+    // ladder's top rung), not a ladder tile — simulates having just climbed
+    // past the top.
+    const player = basePlayer({
+      x: 0,
+      y: -40,
+      vy: -PHYSICS_CONFIG.climbSpeed,
+      grounded: false,
+      climbing: true,
+    });
+
+    const next = stepPlayerPhysics(player, LADDER_LEVEL, 1 / 60, { climbUpHeld: true });
+
+    expect(next.climbing).toBe(false);
+    // Falls from rest (vy=0), not from the old climb speed — one frame of
+    // gravity accumulation from a standstill.
+    expect(next.vy).toBeCloseTo(PHYSICS_CONFIG.gravity / 60);
+  });
+
+  it('climbingAndJumpPressed-cancelsClimbAndAppliesNormalJumpImpulseEvenThoughNotGrounded', () => {
+    const player = basePlayer({
+      x: 0,
+      y: 20,
+      vy: -PHYSICS_CONFIG.climbSpeed,
+      grounded: false,
+      climbing: true,
+    });
+
+    const next = stepPlayerPhysics(player, LADDER_LEVEL, 1 / 60, { jumpPressed: true });
+
+    expect(next.climbing).toBe(false);
+    expect(next.vy).toBeCloseTo(PHYSICS_CONFIG.jumpVelocity + PHYSICS_CONFIG.gravity / 60);
+  });
+
+  it('standingOnPlatformAboveLaddersTopRung-dropThroughHeld-reEntersClimbDownward', () => {
+    // y = -40: feet rest on row 0's solid tile, directly above the ladder's
+    // top rung at row 1 — FR-006's "press Down to re-enter the climb" case.
+    const player = basePlayer({ x: 0, y: -40, vy: 0, grounded: true, climbing: false });
+
+    const next = stepPlayerPhysics(player, LADDER_LEVEL, 1 / 60, { dropThroughHeld: true });
+
+    expect(next.climbing).toBe(true);
+    expect(next.grounded).toBe(false);
+    expect(next.vy).toBeCloseTo(PHYSICS_CONFIG.climbSpeed);
+  });
+
+  it('groundedOnRegularGroundWithNoLadderNearby-dropThroughHeld-doesNotStartClimbing', () => {
+    const restY = 3 * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
+    const player = basePlayer({ x: 0, y: restY, vy: 0, grounded: true, climbing: false });
+
+    const next = stepPlayerPhysics(player, GROUND_LEVEL, 1 / 60, { dropThroughHeld: true });
+
+    expect(next.climbing).toBe(false);
   });
 });
