@@ -12,6 +12,8 @@ import type { EnemyState } from '../entities/Enemy';
 import { bonusFruitY, BONUS_FRUIT_RISE_DURATION_SECONDS } from '../entities/BonusFruit';
 import type { BonusFruitState } from '../entities/BonusFruit';
 import { FRUIT_RENDERED_SIZE } from '../entities/Fruit';
+import { CHEST_CLOSED_RENDERED_WIDTH, CHEST_CLOSED_RENDERED_HEIGHT, isChestOpen } from '../entities/Chest';
+import type { ChestState } from '../entities/Chest';
 
 export interface Box {
   x: number;
@@ -163,4 +165,32 @@ export function checkBonusFruitCollisions(
     if (aabbOverlap(hitbox, box)) hits.push(fruit.id);
   }
   return hits;
+}
+
+/**
+ * Returns the id of the first closed chest the player's hitbox currently
+ * overlaps, or `undefined` if none — spec.md FR-023: unlike every other
+ * collectible, a chest does NOT open on touch; the caller (PlatformerPage.tsx)
+ * only opens it once this returns an id AND the visitor has pressed Arrow Up
+ * this tick. Only a chest's CLOSED footprint is checked (its open sprite is a
+ * different size and the chest is un-openable again anyway, so an open
+ * chest's box is irrelevant here) — mirrors checkBonusFruitCollisions'
+ * single-box-per-item convention.
+ */
+export function chestPlayerIsStandingOn(
+  player: PlayerState,
+  chests: readonly ChestState[],
+): string | undefined {
+  const hitbox = playerHitbox(player);
+  for (const chest of chests) {
+    if (isChestOpen(chest)) continue;
+    const box: Box = {
+      x: chest.x,
+      y: chest.y,
+      width: CHEST_CLOSED_RENDERED_WIDTH,
+      height: CHEST_CLOSED_RENDERED_HEIGHT,
+    };
+    if (aabbOverlap(hitbox, box)) return chest.id;
+  }
+  return undefined;
 }
