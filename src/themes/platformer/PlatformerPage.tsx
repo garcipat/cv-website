@@ -11,7 +11,7 @@ import {
   drawBlocks,
   drawBonusFruits,
   drawCollectionEffects,
-  drawCollectibleCounter,
+  drawCounterPopups,
   drawIrisOverlay,
   drawRestartPrompt,
   RESTART_PROMPT_FONT_FAMILY,
@@ -44,7 +44,14 @@ import {
 import { stepBlockAnimation } from './engine/BlockAI';
 import { applyBlockHit, isBlockUsedUp, isBlockRemoved, blockFrameSource, BLOCK_FRAME_SIZE } from './entities/Block';
 import { spawnBonusFruit, tickBonusFruit, bonusFruitY } from './entities/BonusFruit';
-import { startFlightEffect, tickFlightEffect, COLLECTION_TEXT_SLOT_COUNT } from './engine/CollectionEffects';
+import {
+  startFlightEffect,
+  tickFlightEffect,
+  COLLECTION_TEXT_SLOT_COUNT,
+  startCounterPopup,
+  tickCounterPopup,
+  counterPopupOpacity,
+} from './engine/CollectionEffects';
 import { coinFrameSource, COIN_FRAME_SIZE } from './entities/Coin';
 import { fruitFrameSource, FRUIT_FRAME_SIZE } from './entities/Fruit';
 import { formatJournalEntry } from './entities/JournalEntry';
@@ -76,29 +83,11 @@ import {
   bonusFruitStates,
   collectedCollectibleIds,
   activeEffects,
+  activeCounterPopups,
   collectedFacts,
 } from './PlatformerState';
 import { Journal } from './components/Journal';
 
-// Horizontal HUD layout: hearts start at HEARTS_START_X (shifted right of
-// the journal icon button, see Renderer.ts) and occupy roughly 130px from
-// there (3 hearts x 32px + spacing, per drawHearts's own HEART_SPACING in
-// Renderer.ts) — these two constants position the coin, fruit, and
-// enemy-defeated counters after that, side by side, without duplicating
-// Renderer.ts's private layout constants here.
-const MAX_HEARTS_COUNTER_WIDTH = 130;
-// Wide enough for a 32px icon (now matching HEART_RENDERED_SIZE, not the
-// smaller 20px it used to be) plus its "collected / max" text before the
-// next counter starts.
-const COLLECTIBLE_COUNTER_SPACING = 110;
-// Shrinks the crate counter's icon below the other counters' full 32px
-// (Renderer.ts's COUNTER_ICON_SIZE) — a crate's edge-to-edge terrain art
-// reads as noticeably bigger than the others' centered, padded icons at the
-// same draw size (live user feedback, 2026-08-30). Between the HUD's full
-// 32px and the journal summary's 22px (Journal.tsx's CRATE_ICON_DISPLAY_SIZE)
-// — the HUD sits at a smaller, denser row than the journal's spaced-out list,
-// so its crate icon reads right a bit larger than the journal's.
-const CRATE_COUNTER_ICON_SIZE = 24;
 // Vertical spacing between stacked fact-flight rows when several pickups are
 // collected close together — a bit more than the 28px collection-effect
 // font size (Renderer.ts's COLLECTION_EFFECT_FONT_SIZE) so stacked lines
@@ -235,10 +224,17 @@ export const PlatformerPage = () => {
     // independently.
     let worldAnimElapsed = 0;
 
-    // Cycles 0, 1, 2, 0, 1, 2, ... across collections (not reset per-tick) so
-    // fast/simultaneous pickups' fact text rotates through a fixed set of
-    // vertical slots instead of landing on the same spot — see
-    // CollectionEffects.ts's COLLECTION_TEXT_SLOT_COUNT.
+    // Which vertical slot the next collection's fact text lands in — reseeded
+    // every tick from how many fact-flight effects are actually still in
+    // flight (see below), NOT a plain ever-incrementing counter: an earlier
+    // version just cycled 0, 1, 2, 0, 1, 2, ... across every collection ever,
+    // so a single item collected in isolation could still land on slot 1 or 2
+    // (visibly offset below the primary spot) purely because of how many
+    // items happened to be collected earlier in the session, even minutes
+    // apart with nothing overlapping (live user feedback, 2026-08-30).
+    // Reseeding from the live in-flight count instead means an isolated pickup
+    // always lands on slot 0, and only pickups that are actually concurrent
+    // (their effects still mid-animation) spread across further slots.
     let nextTextSlot = 0;
 
     // Cycles through fruit.png's icon frames (see Fruit.ts's
@@ -329,108 +325,64 @@ export const PlatformerPage = () => {
 
       drawCollectionEffects(ctx, activeEffects.value);
 
+      // Trial counter popups (per user request, 2026-08-30 — see
+      // activeCounterPopups's doc comment in PlatformerState.ts): drawn above
+      // the fact-flight text's stacked slots (canvas.height * 0.3, minus one
+      // row height, matches the vertical gap COLLECTION_TEXT_STACK_ROW_HEIGHT
+      // already uses between stacked slots), the whole row horizontally
+      // centered like the fact-flight text's own hold position. Built as an
+      // array in a fixed type order (matching the journal summary's own
+      // coins/fruits/enemies/crates ordering) so simultaneous popups always
+      // lay out the same way regardless of collection order.
+      const popupOrder: Array<{
+        labelKey: 'coins' | 'fruits' | 'enemies' | 'crates';
+        icon: HTMLImageElement | null;
+        iconFrame: { sx: number; sy: number; size: number };
+        iconYOffset?: number;
+      }> = [
+        { labelKey: 'coins', icon: coinSpriteRef.current, iconFrame: { ...coinFrameSource(0), size: COIN_FRAME_SIZE } },
+        {
+          labelKey: 'fruits',
+          icon: fruitSpriteRef.current,
+          iconFrame: { ...fruitFrameSource(0), size: FRUIT_FRAME_SIZE },
+        },
+        {
+          labelKey: 'enemies',
+          icon: slimeGreenSpriteRef.current,
+          iconFrame: { sx: 2 * ENEMY_FRAME_SIZE, sy: 0, size: ENEMY_FRAME_SIZE },
+          iconYOffset: -6,
+        },
+        {
+          labelKey: 'crates',
+          icon: tilesetRef.current,
+          iconFrame: { ...blockFrameSource('crate'), size: BLOCK_FRAME_SIZE },
+        },
+      ];
+      const popupItems = popupOrder.flatMap(({ labelKey, icon, iconFrame, iconYOffset }) => {
+        const popup = activeCounterPopups.value[labelKey];
+        if (!popup || !icon) return [];
+        return [
+          {
+            icon,
+            iconFrame,
+            collected: popup.collected,
+            total: popup.total,
+            opacity: counterPopupOpacity(popup),
+            iconYOffset,
+          },
+        ];
+      });
+      drawCounterPopups(
+        ctx,
+        popupItems,
+        canvas.width / 2,
+        canvas.height * 0.3 - COLLECTION_TEXT_STACK_ROW_HEIGHT,
+      );
+
       if (debugHitboxesRef.current) drawDebugOverlay(ctx, playerState.value, level1, originX, originY);
 
       if (heartsSpriteRef.current) {
         drawHearts(ctx, healthState.value, heartsSpriteRef.current, HEARTS_START_X);
-      }
-
-      const coinFrame0 = coinFrameSource(0);
-      const coinTotal = collectiblePlacements.filter((p) => p.spriteType === 'coin').length;
-      const coinCollected = collectiblePlacements.filter(
-        (p) => p.spriteType === 'coin' && collectedCollectibleIds.value.has(p.id),
-      ).length;
-      if (coinSpriteRef.current) {
-        drawCollectibleCounter(
-          ctx,
-          coinSpriteRef.current,
-          { sx: coinFrame0.sx, sy: coinFrame0.sy, size: COIN_FRAME_SIZE },
-          coinCollected,
-          coinTotal,
-          HEARTS_START_X + MAX_HEARTS_COUNTER_WIDTH,
-          32,
-        );
-      }
-
-      // Bonus-fruit counter (amended 2026-08-30, live user feedback): the
-      // old fruit counter here tracked the hand-placed `F`-marker Language
-      // fruits, removed along with those markers themselves (see
-      // CollectibleMapper.ts's mapCVDataToCollectibles comment). This one
-      // tracks question-mark blocks' Certificates+Projects bonus fruit
-      // instead — same "collected / placed-in-level" convention as the coin
-      // counter above, driven by `collectedFacts` (not `bonusFruitStates`'s
-      // live array, which loses entries once picked up) so it survives a
-      // respawn like every other persistent counter.
-      const bonusFruitFrame0 = fruitFrameSource(0);
-      const bonusFruitTotal = blockPlacements.filter(
-        (b) => b.blockKind === 'questionMark' && b.fact,
-      ).length;
-      const bonusFruitCollected = collectedFacts.value.filter(
-        (f) => f.sectionId === 'certificates' || f.sectionId === 'projects',
-      ).length;
-      if (fruitSpriteRef.current) {
-        drawCollectibleCounter(
-          ctx,
-          fruitSpriteRef.current,
-          { sx: bonusFruitFrame0.sx, sy: bonusFruitFrame0.sy, size: FRUIT_FRAME_SIZE },
-          bonusFruitCollected,
-          bonusFruitTotal,
-          HEARTS_START_X + MAX_HEARTS_COUNTER_WIDTH + COLLECTIBLE_COUNTER_SPACING,
-          32,
-        );
-      }
-
-      // Crate counter (amended 2026-08-30, live user feedback): crates carry
-      // Experience+Education facts and had no HUD counter at all until now —
-      // same "collected / placed-in-level" convention as the other counters.
-      // Reuses the terrain tileset (crates are drawn from `world_tileset.png`,
-      // not their own sprite sheet — see entities/Block.ts).
-      const crateFrame = blockFrameSource('crate');
-      const crateTotal = blockPlacements.filter((b) => b.blockKind === 'crate').length;
-      const crateCollected = collectedFacts.value.filter(
-        (f) => f.sectionId === 'experience' || f.sectionId === 'education',
-      ).length;
-      if (tilesetRef.current) {
-        drawCollectibleCounter(
-          ctx,
-          tilesetRef.current,
-          { sx: crateFrame.sx, sy: crateFrame.sy, size: BLOCK_FRAME_SIZE },
-          crateCollected,
-          crateTotal,
-          HEARTS_START_X + MAX_HEARTS_COUNTER_WIDTH + COLLECTIBLE_COUNTER_SPACING * 2,
-          32,
-          0,
-          CRATE_COUNTER_ICON_SIZE,
-        );
-      }
-
-      // Enemy-defeated counter (roadmap step 18, added per live user
-      // feedback after verifying stomp defeat): persistent like the coin/
-      // fruit counters above — driven by `collectedFacts` (sourceType
-      // 'enemy'), which survives a respawn, rather than `enemyStates`'s
-      // live array length, which resets to full on every respawn (enemies,
-      // unlike facts, respawn per FR-020c). The icon is raw sheet frame 3
-      // (1-based, row 0 col 2) — chosen live by the user as a plain "enemy"
-      // icon distinct from both the walk loop (frames 4-8) and the hit
-      // reaction (frames 9-12). Not expressible via `enemyFrameSource`
-      // (which only looks up frames within a named animState's own list),
-      // so the sheet coordinates are computed directly here — a future
-      // generic "pick sprite N" helper (flagged separately, out of scope
-      // for this branch) would remove the need for this one-off.
-      const enemyIconFrame = { sx: 2 * ENEMY_FRAME_SIZE, sy: 0 };
-      const enemyTotal = enemyPlacements.length;
-      const enemyDefeated = collectedFacts.value.filter((f) => f.sourceType === 'enemy').length;
-      if (slimeGreenSpriteRef.current) {
-        drawCollectibleCounter(
-          ctx,
-          slimeGreenSpriteRef.current,
-          { sx: enemyIconFrame.sx, sy: enemyIconFrame.sy, size: ENEMY_FRAME_SIZE },
-          enemyDefeated,
-          enemyTotal,
-          HEARTS_START_X + MAX_HEARTS_COUNTER_WIDTH + COLLECTIBLE_COUNTER_SPACING * 3,
-          32,
-          -6,
-        );
       }
 
       // Iris overlay: drawn on top of everything else whenever the current
@@ -513,6 +465,13 @@ export const PlatformerPage = () => {
       // than ticking on a wall-clock independent of the paused state.
       worldAnimElapsed += dt;
 
+      // Reseeded every tick from the number of fact-flight effects still
+      // in flight from previous ticks (already filtered for 'done' ones at
+      // the end of the previous tick — see the activeEffects tick/filter
+      // below) — see nextTextSlot's doc comment above for why this isn't a
+      // plain ever-incrementing counter.
+      nextTextSlot = activeEffects.value.length % COLLECTION_TEXT_SLOT_COUNT;
+
       // Enemies currently reacting to a stomp (animState 'hit') run their
       // reaction timer instead of patrolling — stepEnemyHitReaction either
       // holds them frozen, reverts them to 'walk', or flags them `defeated`
@@ -560,6 +519,7 @@ export const PlatformerPage = () => {
         const levelPixelHeight = level1.height * RENDERED_TILE_SIZE;
         const originY = canvas.height - levelPixelHeight;
 
+        let anyEnemyRewarded = false;
         for (const enemy of justDefeated) {
           // Facts persist across respawns (FR-020c: `resetGame()` revives
           // enemies but deliberately never clears `collectedFacts`), so a
@@ -568,6 +528,7 @@ export const PlatformerPage = () => {
           // still removed via the `filter` below either way; only the
           // reward (fact + flight effect) is skipped.
           if (newFacts.some((f) => f.id === enemy.fact.id)) continue;
+          anyEnemyRewarded = true;
           newFacts.push(enemy.fact);
           // Reuses the journal's own title/icon derivation (amended
           // 2026-08-30, live user feedback: a course kill's flight text
@@ -598,11 +559,31 @@ export const PlatformerPage = () => {
         collectedFacts.value = newFacts;
         activeEffects.value = newEffects;
         enemyStates.value = enemyStates.value.filter((e) => !e.defeated);
+        if (anyEnemyRewarded) {
+          const enemyDefeated = newFacts.filter((f) => f.sourceType === 'enemy').length;
+          activeCounterPopups.value = {
+            ...activeCounterPopups.value,
+            enemies: startCounterPopup('enemies', enemyDefeated, enemyPlacements.length),
+          };
+        }
       }
 
       activeEffects.value = activeEffects.value
         .map((effect) => tickFlightEffect(effect, dt))
         .filter((effect) => effect.phase !== 'done');
+
+      const tickedPopups = { ...activeCounterPopups.value };
+      let popupsChanged = false;
+      for (const key of Object.keys(tickedPopups) as Array<keyof typeof tickedPopups>) {
+        const ticked = tickCounterPopup(tickedPopups[key]!, dt);
+        popupsChanged = true;
+        if (ticked) {
+          tickedPopups[key] = ticked;
+        } else {
+          delete tickedPopups[key];
+        }
+      }
+      if (popupsChanged) activeCounterPopups.value = tickedPopups;
 
       // Same origin math as render()'s local originX/originY (that scope
       // isn't reachable from here) — needed to convert a just-collected
@@ -673,6 +654,17 @@ export const PlatformerPage = () => {
         collectedCollectibleIds.value = nextCollected;
         collectedFacts.value = newFacts;
         activeEffects.value = newEffects;
+
+        if (touchedIds.some((id) => collectiblePlacements.find((p) => p.id === id)?.spriteType === 'coin')) {
+          const coinTotal = collectiblePlacements.filter((p) => p.spriteType === 'coin').length;
+          const coinCollected = collectiblePlacements.filter(
+            (p) => p.spriteType === 'coin' && nextCollected.has(p.id),
+          ).length;
+          activeCounterPopups.value = {
+            ...activeCounterPopups.value,
+            coins: startCounterPopup('coins', coinCollected, coinTotal),
+          };
+        }
       }
 
       // Bonus fruits (amended 2026-08-30, live user feedback): a question-
@@ -691,11 +683,13 @@ export const PlatformerPage = () => {
         const midX = canvas.width / 2;
         const midY = canvas.height * 0.3;
 
+        let anyBonusFruitRewarded = false;
         for (const id of touchedBonusFruitIds) {
           const fruit = bonusFruitStates.value.find((f) => f.id === id);
           if (!fruit || !fruit.fact) continue;
           if (newFacts.some((f) => f.id === fruit.fact!.id)) continue;
 
+          anyBonusFruitRewarded = true;
           newFacts.push(fruit.fact);
           // Reuses the journal's own title/icon derivation (amended
           // 2026-08-30 — see the enemy-defeat block above).
@@ -723,6 +717,18 @@ export const PlatformerPage = () => {
         bonusFruitStates.value = bonusFruitStates.value.filter(
           (fruit) => !touchedBonusFruitIds.includes(fruit.id),
         );
+        if (anyBonusFruitRewarded) {
+          const bonusFruitTotal = blockPlacements.filter(
+            (b) => b.blockKind === 'questionMark' && b.fact,
+          ).length;
+          const bonusFruitCollected = newFacts.filter(
+            (f) => f.sectionId === 'certificates' || f.sectionId === 'projects',
+          ).length;
+          activeCounterPopups.value = {
+            ...activeCounterPopups.value,
+            fruits: startCounterPopup('fruits', bonusFruitCollected, bonusFruitTotal),
+          };
+        }
       }
 
       const stompedIds = checkEnemyStompCollisions(playerState.value, enemyStates.value);
@@ -879,6 +885,14 @@ export const PlatformerPage = () => {
               nextTextSlot = (nextTextSlot + 1) % COLLECTION_TEXT_SLOT_COUNT;
               const stackOffsetY = slot * COLLECTION_TEXT_STACK_ROW_HEIGHT;
               collectedFacts.value = [...collectedFacts.value, block.fact];
+              const crateTotal = blockPlacements.filter((b) => b.blockKind === 'crate').length;
+              const crateCollected = collectedFacts.value.filter(
+                (f) => f.sectionId === 'experience' || f.sectionId === 'education',
+              ).length;
+              activeCounterPopups.value = {
+                ...activeCounterPopups.value,
+                crates: startCounterPopup('crates', crateCollected, crateTotal),
+              };
               activeEffects.value = [
                 ...activeEffects.value,
                 startFlightEffect(
@@ -1045,7 +1059,7 @@ export const PlatformerPage = () => {
         render();
       })
       .catch(() => {
-        // drawRestartPrompt/drawCollectibleCounter fall back to their
+        // drawRestartPrompt/drawCounterPopups fall back to their
         // sans-serif/monospace stacks if the custom font fails to load.
       });
 

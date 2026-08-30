@@ -8,6 +8,7 @@ import {
   drawBonusFruits,
   drawCollectionEffects,
   drawCollectibleCounter,
+  drawCounterPopups,
   drawIrisOverlay,
   drawRestartPrompt,
   RESTART_PROMPT_FONT_FAMILY,
@@ -583,6 +584,79 @@ describe('drawCollectibleCounter', () => {
     expect(ctx.drawImage).toHaveBeenCalledWith(icon, 0, 0, 16, 16, expect.any(Number), expect.any(Number), expect.any(Number), expect.any(Number));
     expect(ctx.fillText).toHaveBeenCalledWith('3 / 16', expect.any(Number), expect.any(Number));
     expect(ctx.font).toBe(`22px "${RESTART_PROMPT_FONT_FAMILY}", monospace`);
+  });
+});
+
+describe('drawCounterPopups', () => {
+  it('calledWithOneItem-drawsIconThenSpacedText', () => {
+    const ctx = makeMockContext() as unknown as {
+      drawImage: ReturnType<typeof vi.fn>;
+      fillText: ReturnType<typeof vi.fn>;
+    };
+    const icon = {} as HTMLImageElement;
+
+    drawCounterPopups(
+      ctx as unknown as CanvasRenderingContext2D,
+      [{ icon, iconFrame: { sx: 0, sy: 0, size: 16 }, collected: 1, total: 4, opacity: 1 }],
+      400,
+      20,
+    );
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(icon, 0, 0, 16, 16, expect.any(Number), expect.any(Number), expect.any(Number), expect.any(Number));
+    expect(ctx.fillText).toHaveBeenCalledWith('1 / 4', expect.any(Number), 20);
+  });
+
+  it('calledWithZeroOpacityItem-skipsIt', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn>; fillText: ReturnType<typeof vi.fn> };
+    const icon = {} as HTMLImageElement;
+
+    drawCounterPopups(
+      ctx as unknown as CanvasRenderingContext2D,
+      [{ icon, iconFrame: { sx: 0, sy: 0, size: 16 }, collected: 1, total: 4, opacity: 0 }],
+      400,
+      20,
+    );
+
+    expect(ctx.drawImage).not.toHaveBeenCalled();
+    expect(ctx.fillText).not.toHaveBeenCalled();
+  });
+
+  it('calledWithNoItems-drawsNothing', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn>; fillText: ReturnType<typeof vi.fn> };
+
+    drawCounterPopups(ctx as unknown as CanvasRenderingContext2D, [], 400, 20);
+
+    expect(ctx.drawImage).not.toHaveBeenCalled();
+    expect(ctx.fillText).not.toHaveBeenCalled();
+  });
+
+  it('calledWithTwoItems-drawsBothSideBySideAsOneCenteredGroup', () => {
+    const ctx = makeMockContext() as unknown as {
+      drawImage: ReturnType<typeof vi.fn>;
+      fillText: ReturnType<typeof vi.fn>;
+    };
+    const coinIcon = { tag: 'coin' } as unknown as HTMLImageElement;
+    const fruitIcon = { tag: 'fruit' } as unknown as HTMLImageElement;
+
+    drawCounterPopups(
+      ctx as unknown as CanvasRenderingContext2D,
+      [
+        { icon: coinIcon, iconFrame: { sx: 0, sy: 0, size: 16 }, collected: 2, total: 4, opacity: 1 },
+        { icon: fruitIcon, iconFrame: { sx: 0, sy: 0, size: 16 }, collected: 1, total: 2, opacity: 1 },
+      ],
+      400,
+      20,
+    );
+
+    expect(ctx.fillText).toHaveBeenCalledWith('2 / 4', expect.any(Number), 20);
+    expect(ctx.fillText).toHaveBeenCalledWith('1 / 2', expect.any(Number), 20);
+
+    // The second item's icon must be drawn strictly to the right of the
+    // first item's icon — otherwise they'd overlap instead of sitting side
+    // by side.
+    const coinCallX = ctx.drawImage.mock.calls.find((c: unknown[]) => c[0] === coinIcon)![5] as number;
+    const fruitCallX = ctx.drawImage.mock.calls.find((c: unknown[]) => c[0] === fruitIcon)![5] as number;
+    expect(fruitCallX).toBeGreaterThan(coinCallX);
   });
 });
 
