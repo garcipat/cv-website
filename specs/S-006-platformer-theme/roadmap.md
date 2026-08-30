@@ -403,7 +403,7 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
 - [ ] **22. Chests + Thank You screen (level-end redesign)** — *Flagpole removed as a
   mechanic (2026-08-30); redesigned the same day via a `brainstorming` session.*
   Replaces the level-end mechanism with a new "main objective" collectible: treasure
-  chests (`ChestDef`, new `H` level marker), one per non-empty Experience entry —
+  chests (`ChestDef`, new `T` level marker), one per non-empty Experience entry —
   the CV section considered most valuable, worth its own dedicated collectible type.
   A chest starts closed (`chest_closed.png`), sits flush with the ground (not
   solid). Unlike every other collectible, opening is NOT automatic on touch:
