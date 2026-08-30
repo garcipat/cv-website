@@ -3,7 +3,7 @@ import type { CollectedFact } from '../types';
 
 describe('collectiblesSummary', () => {
   it('coinsAndFruitsPlaced-noneCollected-returnsBothRowsWithZeroCollected', () => {
-    const rows = collectiblesSummary([], { coins: 1, fruits: 1, enemies: 0, crates: 0 });
+    const rows = collectiblesSummary([], { coins: 1, fruits: 1, enemies: 0, crates: 0, chests: 0 });
 
     expect(rows).toEqual([
       { labelKey: 'coins', collected: 0, total: 1 },
@@ -29,7 +29,7 @@ describe('collectiblesSummary', () => {
       },
     ];
 
-    const rows = collectiblesSummary(facts, { coins: 2, fruits: 1, enemies: 0, crates: 0 });
+    const rows = collectiblesSummary(facts, { coins: 2, fruits: 1, enemies: 0, crates: 0, chests: 0 });
 
     expect(rows).toEqual([
       { labelKey: 'coins', collected: 1, total: 2 },
@@ -38,11 +38,11 @@ describe('collectiblesSummary', () => {
   });
 
   it('nothingPlaced-returnsNoRows', () => {
-    expect(collectiblesSummary([], { coins: 0, fruits: 0, enemies: 0, crates: 0 })).toEqual([]);
+    expect(collectiblesSummary([], { coins: 0, fruits: 0, enemies: 0, crates: 0, chests: 0 })).toEqual([]);
   });
 
   it('onlyCoinsPlaced-omitsFruitsEnemiesAndCratesRows', () => {
-    expect(collectiblesSummary([], { coins: 1, fruits: 0, enemies: 0, crates: 0 })).toEqual([
+    expect(collectiblesSummary([], { coins: 1, fruits: 0, enemies: 0, crates: 0, chests: 0 })).toEqual([
       { labelKey: 'coins', collected: 0, total: 1 },
     ]);
   });
@@ -59,7 +59,7 @@ describe('collectiblesSummary', () => {
         sourceType: 'block',
       },
     ];
-    expect(collectiblesSummary(facts, { coins: 0, fruits: 2, enemies: 0, crates: 0 })).toEqual([
+    expect(collectiblesSummary(facts, { coins: 0, fruits: 2, enemies: 0, crates: 0, chests: 0 })).toEqual([
       { labelKey: 'fruits', collected: 1, total: 2 },
     ]);
   });
@@ -77,13 +77,13 @@ describe('collectiblesSummary', () => {
         sourceType: 'coin',
       },
     ];
-    expect(collectiblesSummary(facts, { coins: 0, fruits: 1, enemies: 0, crates: 0 })).toEqual([
+    expect(collectiblesSummary(facts, { coins: 0, fruits: 1, enemies: 0, crates: 0, chests: 0 })).toEqual([
       { labelKey: 'fruits', collected: 0, total: 1 },
     ]);
   });
 
   it('enemiesPlaced-noneDefeated-returnsEnemiesRowWithZeroCollected', () => {
-    expect(collectiblesSummary([], { coins: 0, fruits: 0, enemies: 2, crates: 0 })).toEqual([
+    expect(collectiblesSummary([], { coins: 0, fruits: 0, enemies: 2, crates: 0, chests: 0 })).toEqual([
       { labelKey: 'enemies', collected: 0, total: 2 },
     ]);
   });
@@ -110,7 +110,7 @@ describe('collectiblesSummary', () => {
       },
     ];
 
-    expect(collectiblesSummary(facts, { coins: 1, fruits: 0, enemies: 3, crates: 0 })).toEqual([
+    expect(collectiblesSummary(facts, { coins: 1, fruits: 0, enemies: 3, crates: 0, chests: 0 })).toEqual([
       { labelKey: 'coins', collected: 1, total: 1 },
       { labelKey: 'enemies', collected: 1, total: 3 },
     ]);
@@ -119,20 +119,15 @@ describe('collectiblesSummary', () => {
   it('cratesPlaced-noneCollected-returnsCratesRowWithZeroCollected', () => {
     // Added 2026-08-30, live user feedback: crates (Experience+Education)
     // had no summary row at all until now.
-    expect(collectiblesSummary([], { coins: 0, fruits: 0, enemies: 0, crates: 2 })).toEqual([
+    expect(collectiblesSummary([], { coins: 0, fruits: 0, enemies: 0, crates: 2, chests: 0 })).toEqual([
       { labelKey: 'crates', collected: 0, total: 2 },
     ]);
   });
 
-  it('cratesRow-countsExperienceAndEducationFactsBySectionId', () => {
+  it('cratesRow-countsEducationActivityAndLanguageFactsBySectionId', () => {
+    // Redesigned 2026-08-30: Experience moved off crates onto chests: crates
+    // now carry Education + Activities + Languages instead.
     const facts: CollectedFact[] = [
-      {
-        id: 'block-exp-x',
-        sectionId: 'experience',
-        sectionLabel: 'Experience',
-        data: { company: 'X', role: 'Y', startDate: '2020-01', highlights: [] },
-        sourceType: 'block',
-      },
       {
         id: 'block-edu-y',
         sectionId: 'education',
@@ -140,30 +135,67 @@ describe('collectiblesSummary', () => {
         data: { degree: 'X', institution: 'Y', startDate: '2016-01' },
         sourceType: 'block',
       },
-      // A bonus-fruit-sourced fact must never count toward crates, even
-      // though it shares `sourceType: 'block'` — the row is keyed on
-      // sectionId, not sourceType.
       {
-        id: 'qmark-cert-x',
-        sectionId: 'certificates',
-        sectionLabel: 'Certificates',
-        data: { name: 'X', issuer: 'Y', date: '2023-01' },
+        id: 'block-activity-z',
+        sectionId: 'activities',
+        sectionLabel: 'Activities',
+        data: { name: 'X', startDate: '2019-01', endDate: '2019-06' },
         sourceType: 'block',
+      },
+      {
+        id: 'block-lang-de',
+        sectionId: 'languages',
+        sectionLabel: 'Languages',
+        data: { name: 'German', level: 90 },
+        sourceType: 'block',
+      },
+      // A chest-sourced Experience fact must never count toward crates.
+      {
+        id: 'chest-exp-x',
+        sectionId: 'experience',
+        sectionLabel: 'Experience',
+        data: { company: 'X', role: 'Y', startDate: '2020-01', highlights: [] },
+        sourceType: 'chest',
       },
     ];
 
-    expect(collectiblesSummary(facts, { coins: 0, fruits: 1, enemies: 0, crates: 3 })).toEqual([
-      { labelKey: 'fruits', collected: 1, total: 1 },
-      { labelKey: 'crates', collected: 2, total: 3 },
+    expect(collectiblesSummary(facts, { coins: 0, fruits: 0, enemies: 0, crates: 4, chests: 1 })).toEqual([
+      { labelKey: 'crates', collected: 3, total: 4 },
+      { labelKey: 'chests', collected: 1, total: 1 },
     ]);
   });
 
-  it('rowOrder-cratesAlwaysComesAfterEnemies', () => {
-    const rows = collectiblesSummary([], { coins: 1, fruits: 1, enemies: 1, crates: 1 });
-    expect(rows.map((r) => r.labelKey)).toEqual(['coins', 'fruits', 'enemies', 'crates']);
+  it('chestsPlaced-noneOpened-returnsChestsRowWithZeroCollected', () => {
+    expect(collectiblesSummary([], { coins: 0, fruits: 0, enemies: 0, crates: 0, chests: 3 })).toEqual([
+      { labelKey: 'chests', collected: 0, total: 3 },
+    ]);
+  });
+
+  it('chestsRow-countsExperienceFactsBySourceType-chestOnly', () => {
+    // An Experience fact could in principle come from anywhere, but today
+    // only chests ever produce one — this documents that the row counts
+    // sectionId 'experience' regardless of sourceType, same convention every
+    // other row uses.
+    const facts: CollectedFact[] = [
+      {
+        id: 'chest-exp-x',
+        sectionId: 'experience',
+        sectionLabel: 'Experience',
+        data: { company: 'X', role: 'Y', startDate: '2020-01', highlights: [] },
+        sourceType: 'chest',
+      },
+    ];
+    expect(collectiblesSummary(facts, { coins: 0, fruits: 0, enemies: 0, crates: 0, chests: 2 })).toEqual([
+      { labelKey: 'chests', collected: 1, total: 2 },
+    ]);
+  });
+
+  it('rowOrder-cratesThenChests-afterEnemies', () => {
+    const rows = collectiblesSummary([], { coins: 1, fruits: 1, enemies: 1, crates: 1, chests: 1 });
+    expect(rows.map((r) => r.labelKey)).toEqual(['coins', 'fruits', 'enemies', 'crates', 'chests']);
   });
 
   it('nothingPlacedForAnyRow-omitsAllRows', () => {
-    expect(collectiblesSummary([], { coins: 0, fruits: 0, enemies: 0, crates: 0 })).toEqual([]);
+    expect(collectiblesSummary([], { coins: 0, fruits: 0, enemies: 0, crates: 0, chests: 0 })).toEqual([]);
   });
 });
