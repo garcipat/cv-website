@@ -33,6 +33,16 @@ export function isSolidExcludingBridge(tile: TileType): boolean {
   return isSolid(tile) && tile !== 'bridge';
 }
 
+/**
+ * Whether the player can climb this tile (roadmap step 23) — currently only
+ * `'ladder'`. Deliberately NOT part of `isSolid`: a ladder never blocks
+ * horizontal movement or counts as ground; `Physics.ts`'s climbing branch is
+ * the only place vertical movement through a ladder tile is resolved.
+ */
+export function isClimbable(tile: TileType): boolean {
+  return tile === 'ladder';
+}
+
 export function isTopExposed(level: LevelDef, col: number, row: number): boolean {
   return !isSolid(tileAt(level, col, row - 1));
 }

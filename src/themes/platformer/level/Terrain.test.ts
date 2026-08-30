@@ -2,6 +2,7 @@ import {
   tileAt,
   isSolid,
   isSolidExcludingBridge,
+  isClimbable,
   isTopExposed,
   tileToPixel,
   bridgeRunPosition,
@@ -114,5 +115,26 @@ describe('Terrain', () => {
   it('bridgeRunPosition-bothNeighborsAreBridge-returnsMiddle', () => {
     const level: LevelDef = { width: 3, height: 1, terrain: [['bridge', 'bridge', 'bridge']] };
     expect(bridgeRunPosition(level, 1, 0)).toBe('middle');
+  });
+});
+
+describe('isClimbable', () => {
+  it('ladder-returnsTrue', () => {
+    expect(isClimbable('ladder')).toBe(true);
+  });
+
+  it('everyOtherTile-returnsFalse', () => {
+    expect(isClimbable('groundGrass')).toBe(false);
+    expect(isClimbable('groundRock')).toBe(false);
+    expect(isClimbable('platform')).toBe(false);
+    expect(isClimbable('wall')).toBe(false);
+    expect(isClimbable('bridge')).toBe(false);
+    expect(isClimbable('empty')).toBe(false);
+  });
+});
+
+describe('isSolid ladder exception', () => {
+  it('ladder-isNotSolid', () => {
+    expect(isSolid('ladder')).toBe(false);
   });
 });

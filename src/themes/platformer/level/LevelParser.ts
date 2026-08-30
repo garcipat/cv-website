@@ -23,6 +23,7 @@ export const TERRAIN_CHARS: Record<string, TileType | undefined> = {
   P: 'platform',
   W: 'wall',
   B: 'bridge',
+  L: 'ladder',
 };
 
 /**
@@ -70,22 +71,18 @@ if (sharedChars.length > 0) {
  */
 export function parseLevel(layout: readonly string[]): LevelDef {
   const height = layout.length;
-  const width = layout[0]?.length ?? 0;
+  const width = layout.reduce((max, row) => Math.max(max, row.length), 0);
 
-  layout.forEach((row, index) => {
-    if (row.length !== width) {
-      throw new Error(`Row ${index} has length ${row.length}, expected ${width}`);
-    }
-  });
-
-  const terrain: TileMap = layout.map((row) =>
-    row.split('').map((char) => {
+  const terrain: TileMap = layout.map((row) => {
+    const chars = row.split('').map((char) => {
       const tile = TERRAIN_CHARS[char];
       if (tile) return tile;
       if (ENTITY_CHARS[char]) return 'empty';
       throw new Error(`Unknown level tile character: "${char}"`);
-    }),
-  );
+    });
+    while (chars.length < width) chars.push('empty');
+    return chars;
+  });
 
   return { terrain, width, height };
 }
