@@ -35,3 +35,46 @@ export function updateCamera(
   const maxCameraX = Math.max(0, levelPixelWidth - viewportWidth);
   return Math.min(Math.max(cameraX, 0), maxCameraX);
 }
+
+/**
+ * Half-height (rendered px) of the vertical dead-zone band — same value as
+ * `CAMERA_DEAD_ZONE_HALF_WIDTH`, no reason yet to differ.
+ */
+export const CAMERA_DEAD_ZONE_HALF_HEIGHT = 96;
+
+/**
+ * Computes the next vertical camera offset (roadmap step 23) — an ADDITIVE
+ * amount on top of the existing bottom-anchor baseline
+ * (`viewportHeight - levelPixelHeight`, unchanged since roadmap step 1),
+ * not a replacement for it. At 0 (its minimum), the level is exactly
+ * bottom-anchored, matching every level shipped before this step; it grows
+ * as the player climbs toward the level's top, capped so the origin never
+ * scrolls past showing the level's very top row. Clamping to
+ * `[0, max(0, levelPixelHeight - viewportHeight)]` means a level that
+ * already fits the viewport ALWAYS returns 0 here, regardless of the
+ * dead-zone math below — a level shorter than the viewport can never need
+ * to scroll, by construction.
+ */
+export function updateCameraY(
+  previousCameraY: number,
+  playerY: number,
+  playerHeight: number,
+  viewportHeight: number,
+  levelPixelHeight: number,
+): number {
+  const originYBase = viewportHeight - levelPixelHeight;
+  const playerCenterY = playerY + playerHeight / 2;
+  const screenCenterY = playerCenterY + originYBase + previousCameraY;
+  const deadZoneTop = viewportHeight / 2 - CAMERA_DEAD_ZONE_HALF_HEIGHT;
+  const deadZoneBottom = viewportHeight / 2 + CAMERA_DEAD_ZONE_HALF_HEIGHT;
+
+  let cameraY = previousCameraY;
+  if (screenCenterY < deadZoneTop) {
+    cameraY = deadZoneTop - playerCenterY - originYBase;
+  } else if (screenCenterY > deadZoneBottom) {
+    cameraY = deadZoneBottom - playerCenterY - originYBase;
+  }
+
+  const maxCameraY = Math.max(0, levelPixelHeight - viewportHeight);
+  return Math.min(Math.max(cameraY, 0), maxCameraY);
+}
