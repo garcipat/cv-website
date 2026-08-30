@@ -7,6 +7,7 @@ import { ENEMY_RENDERED_SIZE, toEnemyState } from './entities/Enemy';
 import {
   playerState,
   cameraPositionX,
+  cameraPositionY,
   healthState,
   lifecycleState,
   collectedFacts,
@@ -31,6 +32,7 @@ import {
 } from './entities/Health';
 import { HEARTS_START_X } from './engine/Renderer';
 import { PHYSICS_CONFIG } from './engine/PhysicsConfig';
+import { tileToPixel } from './level/Terrain';
 import {
   JOURNAL_OPEN_FRAME_COUNT,
   JOURNAL_OPEN_FRAME_INTERVAL_MS,
@@ -65,6 +67,7 @@ describe('PlatformerPage', () => {
     vi.stubGlobal('cancelAnimationFrame', () => {});
     playerState.value = initialPlayerState;
     cameraPositionX.value = 0;
+    cameraPositionY.value = 0;
     healthState.value = MAX_HALF_HEARTS;
     lifecycleState.value = initialLifecycleState;
     collectedFacts.value = initialCollectedFacts;
@@ -2099,5 +2102,32 @@ describe('PlatformerPage', () => {
 
     expect(lifecycleState.value.phase).toBe('playing');
     expect(screen.queryByTestId('platformer-thank-you-screen')).not.toBeInTheDocument();
+  });
+
+  describe('PlatformerPage — ladder climbing', () => {
+    it('playerOnLadderColumn-arrowUpHeld-startsClimbingAndStopsFalling', () => {
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+      render(<PlatformerPage />);
+
+      // Position the character directly on the new ladder shaft (col 9,
+      // somewhere in the shaft's middle rows — see level1.ts).
+      const ladderCol = 9;
+      const ladderRow = 8;
+      const { x, y } = tileToPixel(ladderCol, ladderRow);
+      playerState.value = { ...playerState.value, x, y, vy: 50, grounded: false, climbing: false };
+
+      window.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowUp' }));
+      frameCallback!(0);
+      frameCallback!(16);
+
+      expect(playerState.value.climbing).toBe(true);
+      expect(playerState.value.vy).toBeLessThan(0); // moving upward, not falling
+    });
   });
 });

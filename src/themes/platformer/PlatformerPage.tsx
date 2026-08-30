@@ -27,7 +27,7 @@ import { createGameLoop } from './engine/GameLoop';
 import { stepPlayerPhysics, checkPitFall, resolvePitFall } from './engine/Physics';
 import { PHYSICS_CONFIG } from './engine/PhysicsConfig';
 import { stepEnemyPatrol, stepEnemyHitReaction } from './engine/EnemyAI';
-import { updateCamera } from './engine/Camera';
+import { updateCamera, updateCameraY } from './engine/Camera';
 import { createKeyboardInput } from './engine/Input';
 import type { KeyboardInput } from './engine/Input';
 import {
@@ -79,6 +79,7 @@ import { takeDamage, PIT_FALL_DAMAGE, SIDE_HIT_DAMAGE, INVINCIBILITY_DURATION_SE
 import {
   playerState,
   cameraPositionX,
+  cameraPositionY,
   healthState,
   lifecycleState,
   spawnCenter,
@@ -322,7 +323,7 @@ export const PlatformerPage = () => {
       // Anchor the level to the bottom of the canvas so a taller viewport
       // shows more sky above the ground instead of empty space below it.
       const levelPixelHeight = level1.height * RENDERED_TILE_SIZE;
-      const originY = canvas.height - levelPixelHeight;
+      const originY = canvas.height - levelPixelHeight + cameraPositionY.value;
       const originX = -cameraPositionX.value;
 
       if (tilesetRef.current) {
@@ -610,7 +611,7 @@ export const PlatformerPage = () => {
         const midY = canvas.height * 0.3;
         const originX = -cameraPositionX.value;
         const levelPixelHeight = level1.height * RENDERED_TILE_SIZE;
-        const originY = canvas.height - levelPixelHeight;
+        const originY = canvas.height - levelPixelHeight + cameraPositionY.value;
 
         let anyEnemyRewarded = false;
         for (const enemy of justDefeated) {
@@ -683,7 +684,7 @@ export const PlatformerPage = () => {
       // placement's world-space position into the screen-space coordinates
       // FlightEffect requires (see CollectionEffects.ts's doc comment).
       const levelPixelHeight = level1.height * RENDERED_TILE_SIZE;
-      const originY = canvas.height - levelPixelHeight;
+      const originY = canvas.height - levelPixelHeight + cameraPositionY.value;
       const originX = -cameraPositionX.value;
 
       const touchedIds = checkCollectibleCollisions(
@@ -934,6 +935,11 @@ export const PlatformerPage = () => {
       const jumpPressed = input.consumePress('Space');
       const jumpHeld = input.isHeld('Space');
       const dropThroughHeld = input.isHeld('ArrowDown') || input.isHeld('KeyS');
+      // Held (not edge-triggered) — climbing is continuous like movement,
+      // unlike the edge-triggered ArrowUp/KeyW read further below for chest
+      // interaction (roadmap step 23; the two never conflict in practice,
+      // since a tile is either a chest marker or a ladder tile, never both).
+      const climbUpHeld = input.isHeld('ArrowUp') || input.isHeld('KeyW');
 
       let next = stepPlayerPhysics(
         playerState.value,
@@ -944,6 +950,7 @@ export const PlatformerPage = () => {
           jumpPressed,
           jumpHeld,
           dropThroughHeld,
+          climbUpHeld,
           suppressJumpCut: stompBounceThisTick,
         },
         blockStates.value,
@@ -967,7 +974,7 @@ export const PlatformerPage = () => {
 
         const originX = -cameraPositionX.value;
         const levelPixelHeight = level1.height * RENDERED_TILE_SIZE;
-        const originY = canvas.height - levelPixelHeight;
+        const originY = canvas.height - levelPixelHeight + cameraPositionY.value;
         const journalRect = journalButtonRef.current?.getBoundingClientRect();
         const targetX = journalRect ? journalRect.left + journalRect.width / 2 : canvas.width - 32;
         const targetY = journalRect ? journalRect.top + journalRect.height / 2 : canvas.height - 32;
@@ -1086,6 +1093,15 @@ export const PlatformerPage = () => {
         PLAYER_RENDERED_SIZE,
         canvas.width,
         levelPixelWidth,
+      );
+
+      const levelPixelHeightForCamera = level1.height * RENDERED_TILE_SIZE;
+      cameraPositionY.value = updateCameraY(
+        cameraPositionY.value,
+        next.y,
+        PLAYER_RENDERED_SIZE,
+        canvas.height,
+        levelPixelHeightForCamera,
       );
 
       // Death check: whatever the damage source (today, only repeated pit
