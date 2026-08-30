@@ -558,46 +558,14 @@ describe('PlatformerPage', () => {
     expect(anyShiftedCall).toBe(true);
   });
 
-  it('render-afterCollectibleSpritesLoad-showsCoinCounterAtZero', async () => {
-    // Unlike the brief's originally-specified synchronous version of this
-    // test, the coin counter (per Step 3's implementation) only draws once
-    // its sprite ref has loaded — drawCollectibleCounter needs a real
-    // HTMLImageElement for its icon, so it can't be called unconditionally
-    // the way the old drawCoinCounter placeholder was. jsdom's default
-    // (unstubbed) Image never fires onload/onerror at all (verified
-    // empirically), so this test — like every other sprite-dependent
-    // assertion in this file (e.g. render-afterHeartsSpriteLoads-
-    // drawsHeartHud) — stubs Image and awaits the resulting render() instead
-    // of asserting synchronously. The fruit counter this test used to also
-    // check was removed 2026-08-30 (live user feedback) along with the
-    // hand-placed fruit collectibles themselves — see
-    // CollectibleMapper.ts's mapCVDataToCollectibles comment.
-    vi.stubGlobal('Image', MockTilesetImage);
-
-    render(<PlatformerPage />);
-    const ctx = platformerPage.context;
-
-    const coinTotal = collectiblePlacements.filter((p) => p.spriteType === 'coin').length;
-
-    await waitFor(() =>
-      expect(ctx.fillText).toHaveBeenCalledWith(`0 / ${coinTotal}`, expect.any(Number), expect.any(Number)),
-    );
-  });
-
-  it('render-afterEnemySpritesLoad-showsEnemyDefeatedCounterAtZero', async () => {
-    vi.stubGlobal('Image', MockTilesetImage);
-
-    render(<PlatformerPage />);
-    const ctx = platformerPage.context;
-
-    const enemyTotal = enemyPlacements.length;
-
-    await waitFor(() =>
-      expect(ctx.fillText).toHaveBeenCalledWith(`0 / ${enemyTotal}`, expect.any(Number), expect.any(Number)),
-    );
-  });
-
-  it('playerFallsOntoGreenEnemy-tick-enemyDefeatedCounterIncrementsToOne', async () => {
+  it('playerFallsOntoGreenEnemy-tick-showsEnemyCounterPopupAtOne', async () => {
+    // The persistent top-HUD coin/fruit/enemy/crate counters were removed
+    // 2026-08-30 (live user feedback: too much clutter at the top) in favor
+    // of this trial per-collection counter popup — see
+    // activeCounterPopup's doc comment in PlatformerState.ts. Unlike the old
+    // HUD counter, the popup only exists once something's actually been
+    // collected (nothing to assert "at zero" before that), so this test goes
+    // straight to defeating an enemy and checking the popup shows "1 / N".
     vi.stubGlobal('Image', MockTilesetImage);
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
@@ -611,9 +579,13 @@ describe('PlatformerPage', () => {
 
     const ctx = platformerPage.context;
     const enemyTotal = enemyPlacements.length;
-    await waitFor(() =>
-      expect(ctx.fillText).toHaveBeenCalledWith(`0 / ${enemyTotal}`, expect.any(Number), expect.any(Number)),
-    );
+
+    // The popup's icon needs its sprite ref loaded (same reasoning the old
+    // "showsCoinCounterAtZero" test's comment gave for drawCollectibleCounter)
+    // — wait for sprites to finish loading (any drawImage call) before
+    // defeating the enemy, or the popup would silently skip drawing (no
+    // icon yet) regardless of whether the count logic itself is correct.
+    await waitFor(() => expect(ctx.drawImage).toHaveBeenCalled());
 
     const target = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
     playerState.value = {
@@ -637,10 +609,12 @@ describe('PlatformerPage', () => {
     expect(ctx.fillText).toHaveBeenCalledWith(`1 / ${enemyTotal}`, expect.any(Number), expect.any(Number));
   });
 
-  it('resetGame-afterDefeatingAnEnemy-enemyDefeatedCounterStaysAtOne', async () => {
+  it('resetGame-afterDefeatingAnEnemy-collectedFactStaysBanked', async () => {
     // Facts persist across a respawn (FR-020c) even though the enemy itself
-    // respawns alive — the counter must track collectedFacts, not the live
-    // enemyStates array length, or it would wrongly drop back to 0/N.
+    // respawns alive. The old persistent HUD counter asserted this visually
+    // ("stays at 1/N" after reset); now that it's gone in favor of the
+    // transient counter popup (which will long since have faded by the time
+    // a reset happens), this asserts the underlying data directly instead.
     vi.stubGlobal('Image', MockTilesetImage);
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
@@ -651,12 +625,6 @@ describe('PlatformerPage', () => {
 
     render(<PlatformerPage />);
     frameCallback!(0);
-
-    const ctx = platformerPage.context;
-    const enemyTotal = enemyPlacements.length;
-    await waitFor(() =>
-      expect(ctx.fillText).toHaveBeenCalledWith(`0 / ${enemyTotal}`, expect.any(Number), expect.any(Number)),
-    );
 
     const target = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
     playerState.value = {
@@ -674,7 +642,8 @@ describe('PlatformerPage', () => {
       t += 16;
       frameCallback!(t);
     }
-    expect(ctx.fillText).toHaveBeenCalledWith(`1 / ${enemyTotal}`, expect.any(Number), expect.any(Number));
+    const defeatedEnemyFactCount = collectedFacts.value.filter((f) => f.sourceType === 'enemy').length;
+    expect(defeatedEnemyFactCount).toBe(1);
 
     healthState.value = 0;
     t += 16;
@@ -687,7 +656,7 @@ describe('PlatformerPage', () => {
     t += 16;
     frameCallback!(t);
 
-    expect(ctx.fillText).toHaveBeenCalledWith(`1 / ${enemyTotal}`, expect.any(Number), expect.any(Number));
+    expect(collectedFacts.value.filter((f) => f.sourceType === 'enemy').length).toBe(1);
   });
 
   it('render-afterEnemySpritesLoad-drawsEnemiesAtEnemyRenderedSize', async () => {

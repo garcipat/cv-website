@@ -3,10 +3,15 @@ import {
   HOLD_DURATION_SECONDS,
   FLIGHT_DURATION_SECONDS,
   SPARKLE_DURATION_SECONDS,
+  COUNTER_POPUP_HOLD_SECONDS,
+  COUNTER_POPUP_DURATION_SECONDS,
   startFlightEffect,
   tickFlightEffect,
   flightEffectPosition,
   sparkleParticles,
+  startCounterPopup,
+  tickCounterPopup,
+  counterPopupOpacity,
 } from './CollectionEffects';
 
 describe('startFlightEffect', () => {
@@ -153,5 +158,42 @@ describe('sparkleParticles', () => {
 
   it('pastDuration-returnsEmptyArray', () => {
     expect(sparkleParticles(SPARKLE_DURATION_SECONDS + 0.01)).toEqual([]);
+  });
+});
+
+describe('startCounterPopup', () => {
+  it('called-returnsZeroElapsedWithGivenFields', () => {
+    expect(startCounterPopup('fruits', 1, 4)).toEqual({
+      labelKey: 'fruits',
+      collected: 1,
+      total: 4,
+      elapsed: 0,
+    });
+  });
+});
+
+describe('tickCounterPopup', () => {
+  it('withinDuration-advancesElapsed', () => {
+    const effect = tickCounterPopup(startCounterPopup('coins', 2, 4), 0.5);
+    expect(effect).toEqual({ labelKey: 'coins', collected: 2, total: 4, elapsed: 0.5 });
+  });
+
+  it('pastDuration-returnsNull', () => {
+    expect(tickCounterPopup(startCounterPopup('coins', 2, 4), COUNTER_POPUP_DURATION_SECONDS + 0.01)).toBeNull();
+  });
+});
+
+describe('counterPopupOpacity', () => {
+  it('duringHold-returnsFullOpacity', () => {
+    const effect = tickCounterPopup(startCounterPopup('coins', 1, 4), COUNTER_POPUP_HOLD_SECONDS - 0.01)!;
+    expect(counterPopupOpacity(effect)).toBe(1);
+  });
+
+  it('midFade-returnsPartialOpacity', () => {
+    const effect = tickCounterPopup(
+      startCounterPopup('coins', 1, 4),
+      COUNTER_POPUP_DURATION_SECONDS - (COUNTER_POPUP_DURATION_SECONDS - COUNTER_POPUP_HOLD_SECONDS) / 2,
+    )!;
+    expect(counterPopupOpacity(effect)).toBeCloseTo(0.5);
   });
 });
