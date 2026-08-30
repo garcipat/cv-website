@@ -17,7 +17,10 @@ import {
   enemyPlacements,
   enemyStates,
   blockPlacements,
+  chestPlacements,
+  chestStates,
 } from './PlatformerState';
+import { toChestState } from './entities/Chest';
 import {
   MAX_HALF_HEARTS,
   PIT_FALL_DAMAGE,
@@ -78,6 +81,10 @@ describe('PlatformerPage', () => {
     // Module-level signal like the others above — a stomp/defeat mutation
     // from one test must not leak into the next test's enemy positions.
     enemyStates.value = enemyPlacements.map((p, i) => toEnemyState(p, i));
+    // Module-level signal like the others above — an open-chest mutation
+    // from one test (roadmap step 22) must not leak into the next test's
+    // assumption that every chest starts closed.
+    chestStates.value = chestPlacements.map(toChestState);
   });
 
   afterEach(() => {
@@ -1857,5 +1864,103 @@ describe('PlatformerPage', () => {
 
     expect(healthState.value).toBe(healthAfterSideHit); // no additional damage
     expect(playerState.value.y).toBeLessThan(5000); // still repositioned to safety
+  });
+
+  it('arrowUpPressed-whileStandingOnClosedChest-opensItAndRevealsExperienceFact', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const target = chestPlacements[0];
+    playerState.value = { ...playerState.value, x: target.x, y: target.y };
+    fireEvent.keyDown(window, { code: 'ArrowUp' });
+    frameCallback!(16);
+
+    expect(chestStates.value.find((c) => c.id === target.id)?.state).toBe('open');
+    expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(true);
+  });
+
+  it('walkingOverClosedChest-withoutPressingArrowUp-leavesItClosed', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const target = chestPlacements[0];
+    playerState.value = { ...playerState.value, x: target.x, y: target.y };
+    frameCallback!(16);
+
+    expect(chestStates.value.find((c) => c.id === target.id)?.state).toBe('closed');
+    expect(collectedFacts.value).toHaveLength(0);
+  });
+
+  it('openingEveryChest-showsThankYouScreen-pausingTheGame', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    for (const target of chestPlacements) {
+      playerState.value = { ...playerState.value, x: target.x, y: target.y };
+      fireEvent.keyDown(window, { code: 'ArrowUp' });
+      // Opening the last chest flips React state (setEndingScreenOpen),
+      // unlike every other per-tick signal-only assertion elsewhere in this
+      // file — wrapped in act() (same convention the journal-animation
+      // tests above already use) so that DOM update is flushed before the
+      // getByTestId assertion below runs.
+      act(() => frameCallback!(16));
+      fireEvent.keyUp(window, { code: 'ArrowUp' });
+    }
+
+    expect(lifecycleState.value.phase).toBe('ending-screen');
+    expect(screen.getByTestId('platformer-thank-you-screen')).toBeInTheDocument();
+  });
+
+  it('dismissingThankYouScreen-resumesPlayingFromSamePosition', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    for (const target of chestPlacements) {
+      playerState.value = { ...playerState.value, x: target.x, y: target.y };
+      fireEvent.keyDown(window, { code: 'ArrowUp' });
+      // Opening the last chest flips React state (setEndingScreenOpen),
+      // unlike every other per-tick signal-only assertion elsewhere in this
+      // file — wrapped in act() (same convention the journal-animation
+      // tests above already use) so that DOM update is flushed before the
+      // getByTestId assertion below runs.
+      act(() => frameCallback!(16));
+      fireEvent.keyUp(window, { code: 'ArrowUp' });
+    }
+    const positionBeforeDismiss = { x: playerState.value.x, y: playerState.value.y };
+
+    fireEvent.keyDown(window, { code: 'Space' });
+
+    expect(lifecycleState.value.phase).toBe('playing');
+    expect(screen.queryByTestId('platformer-thank-you-screen')).not.toBeInTheDocument();
+    expect(playerState.value.x).toBe(positionBeforeDismiss.x);
+    expect(playerState.value.y).toBe(positionBeforeDismiss.y);
   });
 });
