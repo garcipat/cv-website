@@ -32,7 +32,7 @@ export const TERRAIN_CHARS: Record<string, TileType | undefined> = {
  * enemy), `C` (Skill-category coin), `F` (Language fruit, unused today —
  * see CollectibleMapper.ts), `X` (crate block — Education/Activity/Language
  * fact), `Q` (question-mark block — no fact, spawns a bonus fruit), `K` (rock
- * block — no fact, level-design filler), `H` (chest — Experience fact,
+ * block — no fact, level-design filler), `T` (chest — Experience fact,
  * opened via Arrow Up while standing on it, spec.md FR-023). Kept as its own
  * map, separate from TERRAIN_CHARS, since an entity marker isn't a terrain
  * tile — the ground it sits on is always `empty` (see parseLevel below), and
@@ -48,7 +48,7 @@ export const ENTITY_CHARS: Record<string, EntityKind | undefined> = {
   X: 'crate',
   Q: 'questionMark',
   K: 'rock',
-  H: 'chest',
+  T: 'chest',
 };
 
 // A character can only mean one thing — guard against TERRAIN_CHARS and
@@ -174,7 +174,7 @@ export function findRockTiles(layout: readonly string[]): { col: number; row: nu
   return findAllOfKind(layout, 'rock');
 }
 
-/** Finds every `H` (chest) marker's position in a level layout — same
+/** Finds every `T` (chest) marker's position in a level layout — same
  *  convention as findCrateTiles/findRockTiles. Unlike those, a chest marker
  *  IS zipped against CVData-derived defs (one chest per Experience entry,
  *  spec.md FR-023) — see ChestMapper.ts's placeChests. */

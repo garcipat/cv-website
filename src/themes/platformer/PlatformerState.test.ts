@@ -64,7 +64,7 @@ describe('PlatformerState', () => {
 
   describe('chestPlacements', () => {
     it('module-places-oneChestPerRealExperienceEntryWithAMarker', () => {
-      // level1 has 5 `H` markers and the real CVData has 5 Experience entries
+      // level1 has 5 `T` markers and the real CVData has 5 Experience entries
       // (see level1.ts's CHEST_TILES and cv.en.json) — every one gets placed.
       expect(chestPlacements).toHaveLength(5);
     });

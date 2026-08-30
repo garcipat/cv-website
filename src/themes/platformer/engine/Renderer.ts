@@ -744,12 +744,20 @@ export function drawCollectibleCounter(
   ctx.restore();
 }
 
-/** Vertical screen position for the persistent chest counter — a second HUD
- *  row directly below the hearts, left-aligned under HEARTS_START_X (unlike
- *  the coin/fruit/crate counters, which are transient popups — spec.md
- *  FR-023's chest counter is deliberately always visible, since chests are
- *  the level's main objective). */
-export const CHEST_COUNTER_Y = HUD_MARGIN + HEART_RENDERED_SIZE + 12;
+/** Total on-screen width of the 3-heart row (drawHearts), used to position
+ *  the chest counter just past it in the same HUD row. */
+const HEARTS_ROW_WIDTH = MAX_HEARTS * HEART_RENDERED_SIZE + (MAX_HEARTS - 1) * HEART_SPACING;
+
+/** Horizontal screen position for the persistent chest counter — placed
+ *  just to the right of the heart row, same HUD row as the hearts (not a
+ *  second row below them — moved here per live user feedback, 2026-08-30). */
+export const CHEST_COUNTER_X = HEARTS_START_X + HEARTS_ROW_WIDTH + 16;
+
+/** Vertical screen position for the persistent chest counter — vertically
+ *  centered on the same row the hearts occupy (drawHearts draws hearts with
+ *  their top edge at HUD_MARGIN; drawChestCounter treats its y as a
+ *  vertical CENTER, so this is offset by half a heart's height to align). */
+export const CHEST_COUNTER_Y = HUD_MARGIN + HEART_RENDERED_SIZE / 2;
 
 /**
  * Draws the persistent "[chest icon] collected / total" HUD counter —
