@@ -67,7 +67,7 @@ export function isSkillCategoryFact(
 
 /**
  * A single discovered CV fact, per spec.md FR-032. `sourceType` distinguishes
- * how it was revealed (coin/enemy/block) even though only 'coin' is reachable
+ * how it was revealed (coin/enemy/block/chest) even though only 'coin' is reachable
  * until steps 16/20 add enemies and blocks.
  */
 export interface CollectedFact {
@@ -75,7 +75,7 @@ export interface CollectedFact {
   sectionId: SectionId;
   sectionLabel: string;
   data: CVItemData | SkillCategoryFact;
-  sourceType: 'coin' | 'enemy' | 'block';
+  sourceType: 'coin' | 'enemy' | 'block' | 'chest';
 }
 
 /**
@@ -120,4 +120,18 @@ export interface BlockDef {
   /** Present only when `blockKind === 'crate'` — question-mark and rock
    *  blocks reveal no CV fact. */
   fact?: CollectedFact;
+}
+
+/**
+ * One mapped, not-yet-placed chest — `ChestMapper.ts`'s `mapCVDataToChests`
+ * produces these from CVData (one per Experience entry, spec.md FR-023);
+ * `placeChests` adds x/y to turn each into a `ChestPlacement`. Mirrors
+ * `EnemyDef`'s shape (always carries a `fact`, no visual-state field here —
+ * live open/closed state is `entities/Chest.ts`'s `ChestState`, layered on
+ * top the same way `BlockState` layers hit-count/animation onto
+ * `BlockPlacement`).
+ */
+export interface ChestDef {
+  id: string;
+  fact: CollectedFact;
 }
