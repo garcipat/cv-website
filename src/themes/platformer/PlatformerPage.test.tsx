@@ -1962,5 +1962,18 @@ describe('PlatformerPage', () => {
     expect(screen.queryByTestId('platformer-thank-you-screen')).not.toBeInTheDocument();
     expect(playerState.value.x).toBe(positionBeforeDismiss.x);
     expect(playerState.value.y).toBe(positionBeforeDismiss.y);
+
+    // Regression coverage: every chest is still open at this point (opening
+    // is permanent — see entities/Chest.ts's openChest), so without a
+    // one-shot latch the very next tick's "all chests open" check would
+    // immediately re-trigger showEndingScreen/setEndingScreenOpen(true),
+    // reopening the screen the instant it's dismissed and permanently
+    // locking the player out. Ticking again and re-asserting both the phase
+    // and the screen's continued absence is what actually proves dismissal
+    // sticks, rather than merely proving it took effect once.
+    act(() => frameCallback!(32));
+
+    expect(lifecycleState.value.phase).toBe('playing');
+    expect(screen.queryByTestId('platformer-thank-you-screen')).not.toBeInTheDocument();
   });
 });
