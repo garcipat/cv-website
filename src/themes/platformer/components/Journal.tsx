@@ -7,6 +7,7 @@ import {
   collectiblePlacements,
   blockPlacements,
   enemyPlacements,
+  chestPlacements,
 } from '../PlatformerState';
 import { formatJournalEntry } from '../entities/JournalEntry';
 import {
@@ -214,7 +215,20 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
   // the HUD's own enemy-defeated counter (see PlatformerPage.tsx), so both
   // places show the same icon for "enemy". 'crates' (added 2026-08-30)
   // reuses the same crate tile coordinates as `blockFrameSource('crate')`.
-  const renderCollectibleIcon = (labelKey: 'coins' | 'fruits' | 'enemies' | 'crates') => {
+  // 'chests' (added 2026-08-30) renders a standalone image (chest_closed.png,
+  // 28×20, not a frame in a sprite sheet) via an early return, avoiding the
+  // sheet-cropping logic used for the others.
+  const renderCollectibleIcon = (labelKey: 'coins' | 'fruits' | 'enemies' | 'crates' | 'chests') => {
+    if (labelKey === 'chests') {
+      return (
+        <img
+          src="/sprites/chest_closed.png"
+          alt=""
+          className="mr-2 inline-block h-6 w-auto"
+          style={{ imageRendering: 'pixelated' }}
+        />
+      );
+    }
     const sheetSrc =
       labelKey === 'coins'
         ? '/sprites/coin.png'
@@ -411,6 +425,7 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
                           fruits: blockPlacements.filter((b) => b.blockKind === 'questionMark' && b.fact).length,
                           enemies: enemyPlacements.length,
                           crates: blockPlacements.filter((b) => b.blockKind === 'crate').length,
+                          chests: chestPlacements.length,
                         }).map((row) => (
                           <li key={row.labelKey} className="flex items-center">
                             {renderCollectibleIcon(row.labelKey)}

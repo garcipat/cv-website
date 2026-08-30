@@ -542,6 +542,13 @@ describe('Journal', () => {
       expect(screen.getByText(/Coins/)).toBeInTheDocument();
     });
 
+    it('render-aboutMePage-showsChestsRowInCollectiblesSummary', () => {
+      render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
+      openBookAnimation();
+
+      expect(screen.getByTestId('journal-collectibles-summary')).toHaveTextContent(/Chests/);
+    });
+
     it('oneSkillsFactCollected-summaryRowShowsCollectedOverPlacedCoinCount', () => {
       // Amended 2026-08-30 (live user feedback): the "About Me" summary's
       // total is the number of coin markers actually placed in the level
