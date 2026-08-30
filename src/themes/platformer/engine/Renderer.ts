@@ -87,6 +87,8 @@ function tileSource(
       if (position === 'right') return { sx: 11 * TILE_SIZE, sy: 2 * TILE_SIZE }; // ramp up
       return { sx: 10 * TILE_SIZE, sy: 2 * TILE_SIZE }; // low (middle, or a lone single tile)
     }
+    case 'ladder':
+      return { sx: 9 * TILE_SIZE, sy: 3 * TILE_SIZE };
     case 'empty':
       return null;
     default: {
