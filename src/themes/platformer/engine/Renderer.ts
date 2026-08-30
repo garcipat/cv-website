@@ -788,13 +788,14 @@ export const CHEST_COUNTER_Y = HUD_MARGIN + HEART_RENDERED_SIZE / 2;
 // Chest art is edge-to-edge with no transparent padding (unlike hearts), so
 // it reads oversized at HEART_RENDERED_SIZE — shrunk to look right at its
 // own smaller size instead.
-const CHEST_COUNTER_ICON_HEIGHT = 20;
+export const CHEST_COUNTER_ICON_HEIGHT = 20;
 
 // Wider gap than the shared COUNTER_TEXT_GAP (used by drawCollectibleCounter)
 // between the chest icon and its "N / M" text — a dedicated constant so this
 // counter's spacing can be tuned without affecting the unrelated
-// drawCollectibleCounter (live user feedback, 2026-08-30).
-const CHEST_COUNTER_TEXT_GAP = 12;
+// drawCollectibleCounter (live user feedback, 2026-08-30). Exported so tests
+// can pin the exact text x position instead of only asserting `any(Number)`.
+export const CHEST_COUNTER_TEXT_GAP = 12;
 
 export function drawChestCounter(
   ctx: CanvasRenderingContext2D,

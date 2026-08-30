@@ -49,7 +49,7 @@ import {
   checkBonusFruitCollisions,
   chestPlayerIsStandingOn,
 } from './engine/Collision';
-import { openChest, allChestsOpen, isChestOpen } from './entities/Chest';
+import { openChest, allChestsOpen, isChestOpen, CHEST_CLOSED_OFFSET_X } from './entities/Chest';
 import { stepBlockAnimation } from './engine/BlockAI';
 import { applyBlockHit, isBlockUsedUp, isBlockRemoved, blockFrameSource, BLOCK_FRAME_SIZE } from './entities/Block';
 import { spawnBonusFruit, tickBonusFruit, bonusFruitY } from './entities/BonusFruit';
@@ -97,7 +97,9 @@ import {
   chestPlacements,
   chestStates,
   endingScreenShown,
+  endingScreenOpen,
 } from './PlatformerState';
+import { useSignals } from '@preact/signals-react/runtime';
 import { Journal } from './components/Journal';
 import { ThankYouScreen } from './components/ThankYouScreen';
 
@@ -112,6 +114,12 @@ const COLLECTION_TEXT_STACK_ROW_HEIGHT = 34;
 const INVINCIBILITY_BLINK_INTERVAL_SECONDS = 0.1;
 
 export const PlatformerPage = () => {
+  // Subscribes this component's render to any signal `.value` read during
+  // it — needed for `endingScreenOpen.value` in the JSX below to actually
+  // trigger a re-render when the game loop flips it (see PlatformerState.ts's
+  // doc comment on `endingScreenOpen`). Same convention ThankYouScreen.tsx
+  // already uses.
+  useSignals();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const tilesetRef = useRef<HTMLImageElement | null>(null);
   const playerSpriteRef = useRef<HTMLImageElement | null>(null);
@@ -160,11 +168,9 @@ export const PlatformerPage = () => {
   // key trigger the same graceful close as clicking the in-book × button,
   // instead of unmounting the journal instantly.
   const [journalClosing, setJournalClosing] = useState(false);
-  // Mirrors the ending-screen phase (roadmap step 22): true while the Thank
-  // You screen is mounted, i.e. every chest has been opened and the game
-  // loop is paused. Unlike journalOpen/journalClosing there's no reverse
-  // animation to wait for — dismissal is instant.
-  const [endingScreenOpen, setEndingScreenOpen] = useState(false);
+  // `endingScreenOpen` (mirrors the ending-screen phase: true while the
+  // Thank You screen is mounted) is imported above as a module-level signal,
+  // not local useState — see its doc comment in PlatformerState.ts for why.
 
   // Keeps both refs in sync with their corresponding state on every render
   // (no dependency array) — assigning `.current` directly in the render body
@@ -222,7 +228,7 @@ export const PlatformerPage = () => {
   // against, just reappearing through this exit path.
   const handleDismissEndingScreen = useCallback(() => {
     lifecycleState.value = dismissEndingScreen(lifecycleState.value);
-    setEndingScreenOpen(false);
+    endingScreenOpen.value = false;
     inputRef.current?.clearPending();
   }, []);
 
@@ -237,15 +243,15 @@ export const PlatformerPage = () => {
   const handleResetGameRequested = () => {
     resetGameProgress();
     setJournalOpen(false);
-    // resetGameProgress() already clears the one-shot ending-screen latch
-    // (see `endingScreenShown`'s doc comment in PlatformerState.ts) — it also
+    // resetGameProgress() already clears the one-shot ending-screen latch AND
+    // endingScreenOpen (see PlatformerState.ts's doc comments) — it also
     // reopens every chest, so a visitor who re-opens all of them after
-    // resetting must be able to see the Thank You screen again.
-    // setEndingScreenOpen(false) is defensive (the Reset Game button isn't
-    // actually reachable while the ending screen is showing today — see
-    // Important 2's investigation in the task-13 report — but costs nothing
-    // to keep in sync regardless).
-    setEndingScreenOpen(false);
+    // resetting must be able to see the Thank You screen again. This extra
+    // assignment is defensive (the Reset Game button isn't actually
+    // reachable while the ending screen is showing today — see Important
+    // 2's investigation in the task-13 report — but costs nothing to keep in
+    // sync regardless).
+    endingScreenOpen.value = false;
     const center = spawnCenter();
     lifecycleState.value = introState(center.x, center.y);
   };
@@ -854,7 +860,12 @@ export const PlatformerPage = () => {
               startFlightEffect(
                 chest.id,
                 label,
-                chest.x + originX,
+                // Shifted by CHEST_CLOSED_OFFSET_X (see entities/Chest.ts) to
+                // start from the chest's actual centered-on-tile left edge —
+                // only the closed offset applies here, since this only fires
+                // the instant a closed chest is opened (D2/Minor 2, final
+                // review).
+                chest.x + originX + CHEST_CLOSED_OFFSET_X,
                 chest.y + originY + stackOffsetY,
                 midX,
                 midY + stackOffsetY,
@@ -1116,7 +1127,7 @@ export const PlatformerPage = () => {
         allChestsOpen(chestStates.value)
       ) {
         lifecycleState.value = showEndingScreen(lifecycleState.value);
-        setEndingScreenOpen(true);
+        endingScreenOpen.value = true;
         endingScreenShown.value = true;
       }
 
@@ -1268,7 +1279,7 @@ export const PlatformerPage = () => {
           onResetGame={handleResetGameRequested}
         />
       )}
-      {endingScreenOpen && <ThankYouScreen onDismiss={handleDismissEndingScreen} />}
+      {endingScreenOpen.value && <ThankYouScreen onDismiss={handleDismissEndingScreen} />}
       {/* Moved from bottom-right to top-left (was hard to spot against the
           terrain) — sits left of the hearts HUD, which HEARTS_START_X
           shifts right to make room. size-10 (40px) must match the 40 baked

@@ -20,6 +20,7 @@ import {
   chestPlacements,
   chestStates,
   endingScreenShown,
+  endingScreenOpen,
 } from './PlatformerState';
 import { toChestState } from './entities/Chest';
 import {
@@ -90,6 +91,10 @@ describe('PlatformerPage', () => {
     // must be reset too, or a test that triggers the ending screen would
     // leave later tests unable to ever see it triggered again.
     endingScreenShown.value = false;
+    // Module-level signal (see PlatformerState.ts's doc comment, final
+    // review Important 4) — same reasoning as endingScreenShown above, so a
+    // mounted-ThankYouScreen assumption doesn't leak between tests.
+    endingScreenOpen.value = false;
   });
 
   afterEach(() => {
@@ -2040,5 +2045,60 @@ describe('PlatformerPage', () => {
 
     expect(playerState.value.vy).not.toBe(PHYSICS_CONFIG.jumpVelocity);
     expect(playerState.value.vy).toBeGreaterThanOrEqual(0);
+  });
+
+  it('unmountingAndRemountingWhileEndingScreenShowing-stillShowsItAndStaysRecoverable', () => {
+    // Regression coverage (final review, Important 4): simulates switching
+    // away from the Platformer theme (unmounting this component) and back
+    // (remounting it) while the Thank You screen is showing — theme-switch
+    // reset isn't implemented yet (roadmap steps 27/28), so every
+    // module-level signal (lifecycleState, chestStates, endingScreenShown,
+    // endingScreenOpen) must survive that round-trip unchanged. Before this
+    // fix, endingScreenOpen was a component-local useState that reset to
+    // false on remount even though lifecycleState stayed 'ending-screen' —
+    // <ThankYouScreen> would never render, with no way to dismiss and no
+    // way for the "all chests open" check to ever re-fire either (blocked by
+    // the still-true endingScreenShown latch), permanently freezing the
+    // game. Making endingScreenOpen module-level too fixes this: a remount
+    // must still show the screen, and dismissing it must still resume play.
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    const { unmount } = render(<PlatformerPage />);
+    frameCallback!(0);
+
+    for (const target of chestPlacements) {
+      playerState.value = { ...playerState.value, x: target.x, y: target.y };
+      fireEvent.keyDown(window, { code: 'ArrowUp' });
+      act(() => frameCallback!(16));
+      fireEvent.keyUp(window, { code: 'ArrowUp' });
+    }
+
+    expect(lifecycleState.value.phase).toBe('ending-screen');
+    expect(endingScreenOpen.value).toBe(true);
+
+    // Simulate a theme switch away and back: unmount, then mount a fresh
+    // instance (a brand-new component tree, same module-level signals).
+    unmount();
+    frameCallback = null;
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    // The screen must still be showing immediately after remount — no
+    // player action re-triggered it, the module-level state simply
+    // persisted through the unmount/remount.
+    expect(lifecycleState.value.phase).toBe('ending-screen');
+    expect(screen.getByTestId('platformer-thank-you-screen')).toBeInTheDocument();
+
+    // And it must still be genuinely dismissible/recoverable — not frozen.
+    fireEvent.keyDown(window, { code: 'Space' });
+    act(() => frameCallback!(16));
+
+    expect(lifecycleState.value.phase).toBe('playing');
+    expect(screen.queryByTestId('platformer-thank-you-screen')).not.toBeInTheDocument();
   });
 });

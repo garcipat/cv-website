@@ -207,6 +207,37 @@ export const chestStates = signal<ChestState[]>(chestPlacements.map(toChestState
 export const endingScreenShown = signal(false);
 
 /**
+ * Whether `<ThankYouScreen>` is currently mounted — the sibling piece of
+ * ending-screen state to `endingScreenShown` above, but a distinct concern:
+ * `endingScreenShown` is a permanent one-shot latch (never reset except by
+ * Reset Game) while this one flips back to `false` on every dismissal so the
+ * screen can be shown again after a future re-trigger.
+ *
+ * **Final review fix (2026-08-30, Important 4)**: originally a component-
+ * local `useState` in PlatformerPage.tsx. That was a real bug: `chestStates`,
+ * `endingScreenShown`, and `lifecycleState` are all module-level and survive
+ * a theme-switch unmount/remount, but a local `useState` does not. If a
+ * visitor switched away from the Platformer theme and back while this
+ * screen was showing, `lifecycleState` would still read `'ending-screen'`
+ * (so the game loop's early-return for that phase keeps firing forever —
+ * see PlatformerPage.tsx's tick callback) while the local `endingScreenOpen`
+ * reset to `false` on remount, meaning `<ThankYouScreen>` would never
+ * render — no visible way to dismiss, and `endingScreenShown` (correctly
+ * still `true`) blocks the "all chests open" check from ever re-triggering
+ * it either. The game would be permanently stuck, paused, with nothing on
+ * screen. Making this module-level too (matching `endingScreenShown`'s
+ * lifetime) fixes it: a remount now sees the screen was open and keeps
+ * showing it, same as it would have without ever switching themes.
+ *
+ * PlatformerPage.tsx must call `useSignals()` (from
+ * `@preact/signals-react/runtime`, same as ThankYouScreen.tsx already does)
+ * for reading `.value` in its JSX to actually re-render on change — a plain
+ * signal read outside that hook (or outside `<Component>`-wrapped access)
+ * would not resubscribe the component.
+ */
+export const endingScreenOpen = signal(false);
+
+/**
  * Question-mark blocks' spawned no-fact bonus fruits (roadmap step 21b) —
  * starts empty; `PlatformerPage.tsx` appends one each time a question-mark
  * block is hit. Persists across a death/respawn (same reasoning as
@@ -330,5 +361,6 @@ export function resetGameProgress(): void {
   blockStates.value = blockPlacements.map(toBlockState);
   chestStates.value = chestPlacements.map(toChestState);
   endingScreenShown.value = false;
+  endingScreenOpen.value = false;
   bonusFruitStates.value = [];
 }

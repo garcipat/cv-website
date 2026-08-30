@@ -15,6 +15,8 @@ import {
   drawRestartPrompt,
   RESTART_PROMPT_FONT_FAMILY,
   HEARTS_START_X,
+  CHEST_COUNTER_TEXT_GAP,
+  CHEST_COUNTER_ICON_HEIGHT,
 } from './Renderer';
 import type { LevelDef } from '../level/LevelData';
 import type { PlayerState } from '../entities/Player';
@@ -547,7 +549,12 @@ describe('drawChestCounter', () => {
       expect.any(Number),
       expect.any(Number),
     );
-    expect(ctx.fillText).toHaveBeenCalledWith('2 / 5', expect.any(Number), 50);
+    const expectedIconWidth = (CHEST_CLOSED_WIDTH / CHEST_CLOSED_HEIGHT) * CHEST_COUNTER_ICON_HEIGHT;
+    expect(ctx.fillText).toHaveBeenCalledWith(
+      '2 / 5',
+      100 + expectedIconWidth + CHEST_COUNTER_TEXT_GAP,
+      50,
+    );
   });
 });
 
