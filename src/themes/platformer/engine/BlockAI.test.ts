@@ -10,7 +10,7 @@ import type { BlockState } from '../entities/Block';
 import type { BlockPlacement } from '../level/BlockMapper';
 
 function block(overrides: Partial<BlockState> = {}): BlockState {
-  const placement: BlockPlacement = { id: 'b1', blockKind: 'rock', x: 0, y: 0 };
+  const placement: BlockPlacement = { id: 'b1', blockKind: 'fragileRock', x: 0, y: 0 };
   return { ...toBlockState(placement), ...overrides };
 }
 
@@ -27,8 +27,8 @@ describe('stepBlockAnimation', () => {
     expect(next.animTimer).toBeCloseTo(BLOCK_BUMP_DURATION_SECONDS / 2);
   });
 
-  it('bumping-rockOrQuestionMark-durationElapsed-revertsToIdle', () => {
-    const b = block({ blockKind: 'rock', hitsTaken: 1, animState: 'bump', animTimer: 0 });
+  it('bumping-fragileRockOrQuestionMark-durationElapsed-revertsToIdle', () => {
+    const b = block({ blockKind: 'fragileRock', hitsTaken: 1, animState: 'bump', animTimer: 0 });
     const next = stepBlockAnimation(b, BLOCK_BUMP_DURATION_SECONDS);
     expect(next.animState).toBe('idle');
     expect(next.animTimer).toBe(0);

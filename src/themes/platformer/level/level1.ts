@@ -5,10 +5,9 @@ import {
   findGreenEnemyTiles,
   findPurpleEnemyTiles,
   findCoinTiles,
-  findFruitTiles,
   findCrateTiles,
   findQuestionMarkTiles,
-  findRockTiles,
+  findFragileRockTiles,
   findChestTiles,
 } from './LevelParser';
 
@@ -48,11 +47,14 @@ import {
 // level intentionally has only 1 `E`, 1 `M`, and 4 `C`s — a mechanics test
 // layout, not a complete one; most of the real CV's courses/skills simply
 // aren't represented on the map yet. The actual level design comes later,
-// once the mechanics it exercises are all built. The `F` (Language fruit)
-// markers that used to sit here were removed 2026-08-30 (live user
+// once the mechanics it exercises are all built. The Language-fruit marker
+// concept that used to occupy `F` was removed 2026-08-30 (live user
 // feedback) — question-mark blocks now spawn their own bonus fruit instead
 // (see BlockMapper.ts's certificateToBlock/projectToBlock); where Languages
-// themselves get surfaced is still an open design question.
+// themselves get surfaced is still an open design question. `F` now marks
+// fragileRock blocks instead (renamed from `K`, see LevelParser.ts's
+// ENTITY_CHARS — the old letter collided confusingly with the unrelated
+// `groundRock` terrain tile).
 //
 // Roadmap step 20 (2026-08-29) relaid out the post-wall-pocket half of this
 // level after live user feedback that it felt too spread out: one of the
@@ -61,7 +63,7 @@ import {
 // from their original cols 50/55/60/70/75 into a tight cluster at cols
 // 43-46 right after the col 40-42 pit. Three new marker kinds were added
 // immediately after that cluster, two of each: `X` (crate block), `Q`
-// (question-mark block), `K` (rock block), at cols 47-52. Like the
+// (question-mark block), `F` (fragileRock block), at cols 47-52. Like the
 // enemy/coin markers, a level's marker count decides on-map coverage, not
 // CVData's length — this mechanics-test level intentionally has just 2 of
 // each new marker type (BlockMapper.ts's placeBlocks has no auto-placement
@@ -95,7 +97,7 @@ import {
 // bottom-anchored, so this costs nothing visually.
 const LEVEL_1_LAYOUT: readonly string[] = [
   '................................................................................',
-  '........PPPBBPP....XQKXQK.......................................................',
+  '........PPPBBPP....XQFXQF.......................................................',
   '................................................................................',
   '.S....T...C.......C.......W.E..W....W.M....C.C..........T.....T.....T.....T.....',
   'GGBBBGGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRR...RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
@@ -117,19 +119,17 @@ export const ENEMY_TILES_PURPLE = findPurpleEnemyTiles(LEVEL_1_LAYOUT);
 /** Hand-placed Skill-category coin positions, from `LEVEL_1_LAYOUT`'s `C` markers. */
 export const COIN_TILES = findCoinTiles(LEVEL_1_LAYOUT);
 
-/** No `F` markers remain in `LEVEL_1_LAYOUT` (removed 2026-08-30, see this
- *  file's top doc comment) — always empty. `placeCollectibles`'s fruit
- *  marker queue is left as generic, reusable infrastructure. */
-export const FRUIT_TILES = findFruitTiles(LEVEL_1_LAYOUT);
-
 /** Hand-placed crate block positions (2), from `LEVEL_1_LAYOUT`'s `X` markers. */
 export const CRATE_TILES = findCrateTiles(LEVEL_1_LAYOUT);
 
 /** Hand-placed question-mark block positions (2), from `LEVEL_1_LAYOUT`'s `Q` markers. */
 export const QUESTIONMARK_TILES = findQuestionMarkTiles(LEVEL_1_LAYOUT);
 
-/** Hand-placed rock block positions (2), from `LEVEL_1_LAYOUT`'s `K` markers. */
-export const ROCK_TILES = findRockTiles(LEVEL_1_LAYOUT);
+/** Hand-placed fragileRock block positions (2), from `LEVEL_1_LAYOUT`'s `F`
+ *  markers (renamed from `K` — the old letter collided confusingly with the
+ *  unrelated `groundRock` terrain tile; the `F` letter itself was freed up by
+ *  removing the dead Language-fruit marker concept it used to mean). */
+export const FRAGILE_ROCK_TILES = findFragileRockTiles(LEVEL_1_LAYOUT);
 
 /** Hand-placed chest positions (5 — one per real Experience entry), from
  *  `LEVEL_1_LAYOUT`'s `T` markers (spec.md FR-023, added 2026-08-30; one
