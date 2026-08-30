@@ -1,6 +1,7 @@
 import {
   playerState,
   cameraPositionX,
+  cameraPositionY,
   healthState,
   lifecycleState,
   spawnPlayerState,
@@ -168,6 +169,12 @@ describe('PlatformerState', () => {
     expect(cameraPositionX.value).toBe(0);
   });
 
+  describe('cameraPositionY', () => {
+    it('initial-isZero', () => {
+      expect(cameraPositionY.value).toBe(0);
+    });
+  });
+
   it('healthState-initial-isMaxHalfHearts', () => {
     expect(healthState.value).toBe(MAX_HALF_HEARTS);
   });
@@ -227,6 +234,12 @@ describe('PlatformerState', () => {
       chestStates.value = chestStates.value.map((c, i) => (i === 0 ? { ...c, state: 'open' } : c));
       resetGame();
       expect(isChestOpen(chestStates.value[0])).toBe(true);
+    });
+
+    it('resetsCameraPositionYToZero', () => {
+      cameraPositionY.value = 300;
+      resetGame();
+      expect(cameraPositionY.value).toBe(0);
     });
   });
 });
