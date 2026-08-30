@@ -22,6 +22,7 @@ function idlePlayer(overrides: Partial<PlayerState> = {}): PlayerState {
     vy: 0,
     facing: 'right',
     grounded: true,
+    climbing: false,
     isDroppingThroughBridge: false,
     lastGroundedX: 0,
     lastGroundedY: 0,
