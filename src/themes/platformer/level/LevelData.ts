@@ -4,6 +4,7 @@ export type TileType =
   | 'platform'
   | 'wall'
   | 'bridge'
+  | 'ladder'
   | 'empty';
 
 export type TileMap = TileType[][];
