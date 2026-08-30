@@ -1,7 +1,7 @@
 import type { CollectedFact } from '../types';
 
 export interface CollectibleSummaryRow {
-  labelKey: 'coins' | 'fruits' | 'enemies' | 'crates';
+  labelKey: 'coins' | 'fruits' | 'enemies' | 'crates' | 'chests';
   collected: number;
   total: number;
 }
@@ -21,6 +21,7 @@ export interface CollectibleSummaryTotals {
   fruits: number;
   enemies: number;
   crates: number;
+  chests: number;
 }
 
 /**
@@ -44,8 +45,10 @@ export interface CollectibleSummaryTotals {
  * and to stay correct if that ever changes. A row is omitted entirely when
  * its `total` is 0 (nothing placed in the level yet), matching how
  * `nonEmptySections` hides empty sections' bookmarks. "crates" (added
- * 2026-08-30, live user feedback) counts Experience+Education, placed below
- * "enemies" in the row order per the user's request.
+ * 2026-08-30, live user feedback) counts Experience+Education; amended
+ * 2026-08-30 (step 22): crates now count Education+Activities+Languages,
+ * Experience moved to the new "chests" row, placed below "crates" in the row
+ * order.
  */
 export function collectiblesSummary(
   facts: CollectedFact[],
@@ -80,8 +83,18 @@ export function collectiblesSummary(
   if (totals.crates > 0) {
     rows.push({
       labelKey: 'crates',
-      collected: facts.filter((f) => f.sectionId === 'experience' || f.sectionId === 'education').length,
+      collected: facts.filter(
+        (f) => f.sectionId === 'education' || f.sectionId === 'activities' || f.sectionId === 'languages',
+      ).length,
       total: totals.crates,
+    });
+  }
+
+  if (totals.chests > 0) {
+    rows.push({
+      labelKey: 'chests',
+      collected: facts.filter((f) => f.sectionId === 'experience').length,
+      total: totals.chests,
     });
   }
 
