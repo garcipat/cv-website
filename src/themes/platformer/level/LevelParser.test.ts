@@ -29,10 +29,6 @@ describe('parseLevel', () => {
     expect(() => parseLevel(['G?'])).toThrow('Unknown level tile character: "?"');
   });
 
-  it('raggedRows-throws', () => {
-    expect(() => parseLevel(['GG', 'G'])).toThrow('Row 1 has length 1, expected 2');
-  });
-
   it('terrainChars-mapsEveryTerrainCharacter', () => {
     expect(TERRAIN_CHARS['.']).toBe('empty');
     expect(TERRAIN_CHARS.G).toBe('groundGrass');
@@ -86,6 +82,34 @@ describe('parseLevel', () => {
     const result = parseLevel(['GGG']);
     expect(result.height).toBe(1);
     expect(result.width).toBe(3);
+  });
+});
+
+describe('parseLevel ragged rows (padding, not throwing)', () => {
+  it('shorterRow-padsWithEmptyUpToWidestRowsWidth', () => {
+    const result = parseLevel(['GGG', 'G']);
+    expect(result.width).toBe(3);
+    expect(result.terrain[1]).toEqual(['groundGrass', 'empty', 'empty']);
+  });
+
+  it('allRowsAlreadyEqualLength-behavesExactlyAsBefore', () => {
+    const result = parseLevel(['GG', 'WW']);
+    expect(result.width).toBe(2);
+    expect(result.terrain).toEqual([
+      ['groundGrass', 'groundGrass'],
+      ['wall', 'wall'],
+    ]);
+  });
+});
+
+describe('ladder terrain character', () => {
+  it('terrainChars-mapsLToLadder', () => {
+    expect(TERRAIN_CHARS.L).toBe('ladder');
+  });
+
+  it('ladderChar-parsesAsLadderTile', () => {
+    const result = parseLevel(['L.', 'GG']);
+    expect(result.terrain[0][0]).toBe('ladder');
   });
 });
 
