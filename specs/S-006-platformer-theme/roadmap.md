@@ -400,20 +400,84 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   - **Journal now always opens on "About Me"** by default instead of
     falling back to the first collected fact's section, until the visitor
     picks a bookmark themselves (still remembered across close/reopen).
-- [ ] **22. Level-end mechanism (redesign needed)** — *Flagpole removed as a mechanic
-  (2026-08-30)*: the original steps 22–23 (flagpole render/touch detection, then
-  slide-down celebration + ending screen) no longer apply. The level still needs a
-  defined endpoint, and reaching it should still reveal the Personality + Contact
-  facts (previously flagpole-only), but the concrete mechanism — visual marker,
-  trigger condition, whether a dedicated ending-screen overlay still exists — is
-  undecided. Needs a `brainstorming` session before an implementation plan exists,
-  same pattern as step 31 (Level selection) below. **Follow-up, out of scope for
-  this roadmap pass**: `spec.md`'s flagpole-specific requirements (FR-023, the
-  `ending-screen` phase in FR-003, SC-002, the data model's `flagpole: Point`
-  field, and the flagpole SFX mention in FR-035) are now stale and need their own
-  amendment once this mechanism is designed.
+- [ ] **22. Chests + Thank You screen (level-end redesign)** — *Flagpole removed as a
+  mechanic (2026-08-30); redesigned the same day via a `brainstorming` session.*
+  Replaces the level-end mechanism with a new "main objective" collectible: treasure
+  chests (`ChestDef`, new `H` level marker), one per non-empty Experience entry —
+  the CV section considered most valuable, worth its own dedicated collectible type.
+  A chest starts closed (`chest_closed.png`), sits flush with the ground (not
+  solid). Unlike every other collectible, opening is NOT automatic on touch:
+  the character must be standing on/overlapping it and press Arrow Up to open
+  it, revealing its Experience fact like any other collectible; a HUD chest
+  counter (e.g. "Chests 2/5") tracks progress separately from hearts/coins.
+  Chests are scattered via markers like any other collectible — no special
+  end-of-level position.
+
+  **Bundled control change**: Arrow Up is no longer a jump key — Space becomes
+  the sole jump input (FR-007 amended), freeing Arrow Up to become this game's
+  "interact" key (opens a chest you're standing on now; reserved for climbing
+  once that unscheduled mechanic exists).
+
+  Once every chest is opened, a Thank You screen appears (`gamePhase:
+  'ending-screen'`, pausing the game like `paused` does) wherever the visitor
+  happens to be: a thank-you message, the CV's Contact information, and "press any
+  button to continue" — dismissed by any key/click, resuming play exactly where it
+  left off (no blocking, no "Replay Level" option — Reset Game already covers
+  restarting). Contact is shown only on this screen, never added to the journal.
+
+  **Side effects of moving Experience to chests**: crates (step 20/21's mechanic)
+  lose Experience and pick up Activities (previously unmapped anywhere) and
+  Languages (previously removed as standalone fruit collectibles in step 21, left
+  unmapped since) — crates now carry Education + Activities + Languages. Coins
+  narrow to Skills only. Personality is unaffected — it stays on the always-visible
+  "About Me" bookmark from step 14, no longer provisional.
+
+  **New assets (generated 2026-08-30 via nano-banana, checked in)**:
+  `public/sprites/chest_closed.png` (28×20) and `chest_open.png` (24×20) —
+  transparent background, flat/front-facing 2D style matching the existing crate
+  tile (a 3/4-angled "isometric" first attempt was rejected as inconsistent with
+  the game's flat art), both states generated together in one call for visual
+  consistency, then cropped to their tight bounding box and downscaled with
+  nearest-neighbor sampling (a smoothing filter blurred the ~500px source into an
+  unrecognizable blob at small size). Non-square and a bit larger than the 16×16
+  block tile grid, since a chest is a standalone placed object, not wall-adjacent.
+
+  `spec.md` amended in the same pass: User Story 6, FR-003/008/009/010/013/017b/
+  021/022/023/024/030/031/032/033/034/035, Key Entities, Entity Relationships,
+  SC-002, Assumptions, and a new Clarifications session replace every stale
+  flagpole reference.
+
+  **Out of scope for this step**: audio (chest-open SFX, Thank You fanfare) —
+  that's step 24's job; this step only defines where those hooks will attach.
+  *Verify: confirm Arrow Up no longer triggers a jump (only Space does). Stand
+  on a closed chest and press Arrow Up, see it swap to its open sprite, the
+  chest counter increment, and the Experience fact fly to the journal; walking
+  over a chest without pressing Up leaves it closed. Open every chest in the
+  level, see the Thank You screen appear (pausing the game) showing the
+  thank-you message and Contact info; press any key, see it dismiss and gameplay
+  resume from the same position. Confirm Contact never appears as a journal
+  bookmark. Confirm crates now carry Education/Activities/Languages facts and
+  coins carry only Skills facts.
+- [ ] **23. Ladders (climbing)** — *Promoted 2026-08-30* from the "Unscheduled
+  additions" list to the next numbered step, ahead of Audio and Iteration 3 —
+  now that step 22 freed Arrow Up from jumping into a general-purpose "interact
+  with what you're on" key (chest-opening today), climbing is the other
+  obvious use for it and reads as more immediately valuable than audio/polish.
+  Not yet designed — needs its own `brainstorming` session before an
+  implementation plan exists, same pattern step 30 (Level selection) below
+  already uses. Climbable terrain the character can ascend/descend with Up/Down
+  (reusing the climb-capable frames already present in the character's jump
+  sprite sheet — needs confirming which frames actually read as climbing once
+  tried against a real ladder). Arrow Up would need to mean "climb" while
+  standing on a ladder tile and "open the chest I'm standing on" while standing
+  on one (step 22) — the two never overlap in practice (a tile is either a
+  ladder or a chest marker, never both), so no conflict is expected, but this
+  needs confirming once the mechanic is actually designed. Playable on a
+  ladder taller than one screen depends on the "Vertical camera follow" item
+  still sitting in "Unscheduled additions" below — a short, single-screen
+  ladder can ship first without it.
   *Verify: TBD, pending design.*
-- [ ] **23. Audio** — preload audio assets, looping background music, SFX wired to
+- [ ] **24. Audio** — preload audio assets, looping background music, SFX wired to
   existing actions (jump, coin, stomp, block break, damage, journal open/close),
   speaker icon toggle, muted by default. A level-end sound effect waits on step 22's
   redesign.
@@ -421,16 +485,16 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
 
 ## Iteration 3 — Controls + polish (P3)
 
-- [ ] **24. Controls overlay** — a translucent overlay listing only universal
+- [ ] **25. Controls overlay** — a translucent overlay listing only universal
   controls (movement, jump, journal toggle — see spec.md FR-036, deliberately
   trimmed of contextual mechanics like the bridge drop-through, which move to
-  step 25's hint signs instead) shows once when `gamePhase` first enters
+  step 26's hint signs instead) shows once when `gamePhase` first enters
   `playing`. Auto-dismisses on the player's first movement/jump input, or a
   short timeout, whichever comes first; does not reappear for the rest of the
   session.
   *Verify: load the theme, see the overlay; press an arrow key or wait out the
   timeout, confirm it disappears and doesn't come back.*
-- [ ] **25. Hint signs** — a new non-solid, non-collectible `SignDef` entity
+- [ ] **26. Hint signs** — a new non-solid, non-collectible `SignDef` entity
   (FR-037–FR-040), placed via a hand-authored level marker. Each distinct
   hint gets its own single-digit marker character (`1`–`9`, mapped directly
   to a `hintId` in `LevelParser.ts`'s new `SIGN_CHARS` table) rather than
@@ -445,31 +509,32 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   disappears when the character walks away. Does not pause the game, does
   not block movement, never touches `collectedFacts` or the journal. At
   minimum, place one sign (marker `1` → `bridgeDropThrough`) near `level1`'s
-  first one-way bridge explaining the Down/`S` drop-through control. A future
-  ladder-climbing sign is out of scope until that mechanic itself exists.
+  first one-way bridge explaining the Down/`S` drop-through control. A
+  ladder-climbing sign becomes possible once step 23 ships (still out of
+  scope here otherwise).
   *Verify: walk up to the bridge sign, see the hint bubble in the current
   locale; walk away, see it disappear; switch locale, see the text update.*
-- [ ] **26. Pause-on-open for floating controls** — the floating controls (built in
+- [ ] **27. Pause-on-open for floating controls** — the floating controls (built in
   step 1) now pause the running game loop while open and resume it on close, instead
   of being purely decorative.
   *Verify: open the controls mid-game, confirm the game pauses; close, confirm it
   resumes exactly where it left off.*
-- [ ] **27. Theme-switch reset** — leaving and returning to Platformer resets the
+- [ ] **28. Theme-switch reset** — leaving and returning to Platformer resets the
   session (fresh game, no collected facts).
   *Verify: switch to another theme and back, confirm the game is fresh.*
-- [ ] **28. Polish pass** — animation/effects refinement, 30 FPS check with 20+
+- [ ] **29. Polish pass** — animation/effects refinement, 30 FPS check with 20+
   collectibles rendered.
   *Verify: frame-timing check and smooth manual play.*
 
 ## Iteration 4 — Level variety (post-P3, added 2026-08-29)
 
-- [ ] **29. Level selection** — not yet designed; only discussed in ideation so far.
+- [ ] **30. Level selection** — not yet designed; only discussed in ideation so far.
   Needs its own brainstorming session before an implementation plan exists. Scoped
-  here as a placeholder step so step 30 (terrain rework) has something concrete to
+  here as a placeholder step so step 31 (terrain rework) has something concrete to
   depend on: some mechanism to choose among multiple levels instead of always
   loading `level1`.
   *Verify: TBD, pending design.*
-- [ ] **30. Terrain rework: autotiled ground + cave background** — re-themes
+- [ ] **31. Terrain rework: autotiled ground + cave background** — re-themes
   `groundGrass` from a single fixed sprite per tile to a proper autotiled look
   (fill vs. single, grass-top vs. plain-dirt-below) using the `spring_.png` tileset,
   and adds a new non-solid `caveBackground` tile type (same autotiling, no
@@ -478,9 +543,9 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   `world_tileset.png`. Research/findings captured 2026-08-29
   (`plans/2026-08-29-terrain-rework-notes.md` — confirmed tileset coordinates,
   autotile algorithm, decisions made); **no implementation plan yet** — write one via
-  `writing-plans` once step 29 lands, re-reading the codebase at that point rather
+  `writing-plans` once step 30 lands, re-reading the codebase at that point rather
   than reusing anything from the notes doc verbatim. **Implementation is blocked on
-  step 29** landing first, so the dedicated terrain test level (exercising every
+  step 30** landing first, so the dedicated terrain test level (exercising every
   tile combination) can be added as one of the selectable levels from the start,
   instead of behind a temporary dev-only flag.
 
@@ -491,11 +556,6 @@ needs its own `writing-plans` pass (and, given the design choices involved, like
 `brainstorming` session first) before it becomes a numbered step. Listed here so
 they aren't lost, not in priority order.
 
-- **Ladders** — climbable terrain the character can ascend/descend with Up/Down
-  arrows or `W`/`S`, reusing the climb-capable frames already present in the
-  character's jump sprite sheet (per the user's note — needs confirming which
-  frames read as climbing once actually tried against a ladder). Depends on the
-  vertical-camera item below to be playable on a ladder taller than one screen.
 - **Persistent foreground/background water bands** — a foreground water strip at
   the bottom of the canvas and a background band at the top, both fixed to the
   viewport (not the level or the camera) so they stay in place regardless of
@@ -503,8 +563,8 @@ they aren't lost, not in priority order.
 - **Vertical camera follow** — extend the camera (currently horizontal-only,
   step 8) to also follow the player vertically, so moving up a ladder scrolls the
   viewport upward instead of the character walking off the top of the screen.
-  Depends on the ladder item above existing as the case that actually exercises
-  vertical movement.
+  Depends on step 23 (Ladders, promoted 2026-08-30) existing as the case that
+  actually exercises vertical movement.
   *Verify: TBD, pending the actual implementation plan.*
 
 ## Working agreement
