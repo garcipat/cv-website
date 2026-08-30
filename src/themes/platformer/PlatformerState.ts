@@ -32,7 +32,7 @@ import type { CollectedFact, SectionId } from './types';
 import type { CollectiblePlacement } from './level/CollectibleMapper';
 import type { EnemyPlacement } from './level/EnemyMapper';
 import type { BlockPlacement } from './level/BlockMapper';
-import type { FlightEffect } from './engine/CollectionEffects';
+import type { FlightEffect, CounterPopupEffect, CounterPopupLabelKey } from './engine/CollectionEffects';
 
 /**
  * The player's state at the level's spawn point — full health's worth of
@@ -186,6 +186,18 @@ export const collectedCollectibleIds = signal<Set<string>>(new Set());
 export const activeEffects = signal<FlightEffect[]>([]);
 
 /**
+ * The currently-visible "(icon) collected / total" counter popups, one slot
+ * per collectible type — replaces the old persistent HUD counters (removed
+ * 2026-08-30, live user feedback: too much clutter at the top). A missing key
+ * means that type has nothing showing. Collecting a coin while a coin popup
+ * is already up refreshes THAT slot (new count, timer restarted) rather than
+ * queuing a second one; collecting a coin and a fruit close together shows
+ * both at once, since they're genuinely different information — per user
+ * request, 2026-08-30 (see CounterPopupEffect's doc comment).
+ */
+export const activeCounterPopups = signal<Partial<Record<CounterPopupLabelKey, CounterPopupEffect>>>({});
+
+/**
  * The journal's last manually-selected bookmark section, remembered across
  * closing and reopening the journal (per user request) — `Journal.tsx`
  * itself fully unmounts on close, so this can't live in its local
@@ -264,6 +276,7 @@ export function resetGameProgress(): void {
   collectedCollectibleIds.value = new Set();
   activeJournalSection.value = undefined;
   activeEffects.value = [];
+  activeCounterPopups.value = {};
   blockStates.value = blockPlacements.map(toBlockState);
   bonusFruitStates.value = [];
 }
