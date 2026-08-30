@@ -561,6 +561,86 @@ export function drawCollectionEffects(ctx: CanvasRenderingContext2D, effects: Fl
   }
 }
 
+const COUNTER_POPUP_ICON_SIZE = 28;
+const COUNTER_POPUP_FONT_SIZE = 24;
+const COUNTER_POPUP_TEXT_GAP = 6;
+// Horizontal gap between two side-by-side popups (e.g. a coin popup and a
+// fruit popup both showing at once) — wider than COUNTER_POPUP_TEXT_GAP
+// (which separates an icon from ITS OWN text) so the two units read as
+// clearly separate, not one run-on row.
+const COUNTER_POPUP_ITEM_GAP = 20;
+
+export interface CounterPopupDrawItem {
+  icon: HTMLImageElement;
+  iconFrame: { sx: number; sy: number; size: number };
+  collected: number;
+  total: number;
+  opacity: number;
+  // Nudges only the icon (never the text) vertically from its default
+  // centered position — same purpose, and same default, as
+  // drawCollectibleCounter's iconYOffset above: Enemy.ts's slime frames are
+  // bottom-anchored (no transparent padding below the feet), which reads as
+  // sitting too low next to this popup's text otherwise.
+  iconYOffset?: number;
+}
+
+/**
+ * Draws every currently-visible "(icon) collected / total" counter popup
+ * (see CollectionEffects.ts's CounterPopupEffect) side by side, the whole
+ * row horizontally centered at a caller-chosen fixed screen position, above
+ * the fact-flight text's stacked slots (per user request, 2026-08-30 — see
+ * PlatformerPage.tsx for where that position comes from and why there can be
+ * more than one: each collectible type gets its own independent slot, so
+ * collecting a coin and a fruit close together shows both at once). Measures
+ * every item's text width up front to center the WHOLE row as a group,
+ * rather than centering each item independently (which would just stack
+ * them concentrically instead of laying them out left to right). */
+export function drawCounterPopups(
+  ctx: CanvasRenderingContext2D,
+  items: CounterPopupDrawItem[],
+  centerX: number,
+  y: number,
+): void {
+  const visible = items.filter((item) => item.opacity > 0);
+  if (visible.length === 0) return;
+
+  ctx.font = `${COUNTER_POPUP_FONT_SIZE}px "${RESTART_PROMPT_FONT_FAMILY}", monospace`;
+  const itemWidths = visible.map(
+    (item) => COUNTER_POPUP_ICON_SIZE + COUNTER_POPUP_TEXT_GAP + ctx.measureText(`${item.collected} / ${item.total}`).width,
+  );
+  const totalWidth =
+    itemWidths.reduce((sum, w) => sum + w, 0) + COUNTER_POPUP_ITEM_GAP * (visible.length - 1);
+
+  let cursorX = centerX - totalWidth / 2;
+  visible.forEach((item, i) => {
+    const { icon, iconFrame, collected, total, opacity, iconYOffset = 0 } = item;
+    const text = `${collected} / ${total}`;
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(
+      icon,
+      iconFrame.sx,
+      iconFrame.sy,
+      iconFrame.size,
+      iconFrame.size,
+      cursorX,
+      y - COUNTER_POPUP_ICON_SIZE / 2 + iconYOffset,
+      COUNTER_POPUP_ICON_SIZE,
+      COUNTER_POPUP_ICON_SIZE,
+    );
+
+    ctx.fillStyle = '#fff';
+    ctx.font = `${COUNTER_POPUP_FONT_SIZE}px "${RESTART_PROMPT_FONT_FAMILY}", monospace`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, cursorX + COUNTER_POPUP_ICON_SIZE + COUNTER_POPUP_TEXT_GAP, y);
+    ctx.restore();
+
+    cursorX += itemWidths[i] + COUNTER_POPUP_ITEM_GAP;
+  });
+}
+
 // Matches HEART_RENDERED_SIZE so the coin/fruit counter icons read as the
 // same HUD "row height" as the hearts, not a smaller secondary element.
 const COUNTER_ICON_SIZE = HEART_RENDERED_SIZE;

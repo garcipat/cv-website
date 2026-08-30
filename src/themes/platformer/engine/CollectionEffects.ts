@@ -103,6 +103,65 @@ export function flightEffectPosition(effect: FlightEffect): { x: number; y: numb
   return { x, y, opacity };
 }
 
+/** Seconds the "(icon) collected / total" counter popup stays fully visible
+ *  before fading, and the total seconds until it's gone — trialing a
+ *  per-collection running-count popup in place of the old persistent HUD
+ *  counters (removed 2026-08-30, live user feedback: too much clutter at the
+ *  top). Sized so the popup's total lifetime (HOLD + FADE) slightly exceeds
+ *  the fact-flight text's own total lifetime (RISE_DURATION_SECONDS +
+ *  HOLD_DURATION_SECONDS + FLIGHT_DURATION_SECONDS = 2.0s) — it used to be
+ *  noticeably shorter (1.4s total), so the counter disappeared well before
+ *  the flight text below it was done, which read as vanishing too fast (live
+ *  user feedback, 2026-08-30). */
+export const COUNTER_POPUP_HOLD_SECONDS = 1.7;
+export const COUNTER_POPUP_FADE_SECONDS = 0.4;
+export const COUNTER_POPUP_DURATION_SECONDS = COUNTER_POPUP_HOLD_SECONDS + COUNTER_POPUP_FADE_SECONDS;
+
+export type CounterPopupLabelKey = 'coins' | 'fruits' | 'enemies' | 'crates';
+
+/**
+ * One "(icon) collected / total" counter popup for a single collectible
+ * type. `PlatformerState.ts`'s `activeCounterPopups` keeps at most one of
+ * these PER TYPE (keyed by `labelKey`) — collecting another coin while a
+ * coin popup is already showing refreshes that same slot (new count, timer
+ * restarted) rather than queuing a second one, but collecting a coin and a
+ * fruit close together shows both side by side, since they're genuinely
+ * different information (unlike the fact-flight text's rotating slots, which
+ * exist purely to avoid overlapping the SAME kind of text). Per user
+ * request, 2026-08-30. Drawn at a fixed screen position above the
+ * fact-flight text's stacked slots (see PlatformerPage.tsx/Renderer.ts), not
+ * tied to the collection point.
+ */
+export interface CounterPopupEffect {
+  labelKey: CounterPopupLabelKey;
+  collected: number;
+  total: number;
+  elapsed: number;
+}
+
+export function startCounterPopup(
+  labelKey: CounterPopupEffect['labelKey'],
+  collected: number,
+  total: number,
+): CounterPopupEffect {
+  return { labelKey, collected, total, elapsed: 0 };
+}
+
+/** Advances the popup by `dt` seconds; returns `null` once its total
+ *  duration has elapsed (the caller clears the signal at that point). */
+export function tickCounterPopup(effect: CounterPopupEffect, dt: number): CounterPopupEffect | null {
+  const elapsed = effect.elapsed + dt;
+  if (elapsed >= COUNTER_POPUP_DURATION_SECONDS) return null;
+  return { ...effect, elapsed };
+}
+
+/** 1 while held, then linearly fades to 0 over the final
+ *  COUNTER_POPUP_FADE_SECONDS. */
+export function counterPopupOpacity(effect: CounterPopupEffect): number {
+  if (effect.elapsed < COUNTER_POPUP_HOLD_SECONDS) return 1;
+  return Math.max(0, 1 - (effect.elapsed - COUNTER_POPUP_HOLD_SECONDS) / COUNTER_POPUP_FADE_SECONDS);
+}
+
 export const SPARKLE_DURATION_SECONDS = 0.4;
 const SPARKLE_COUNT = 6;
 const SPARKLE_MAX_RADIUS = 18;

@@ -23,6 +23,8 @@ import { ENEMY_FRAME_SIZE } from '../entities/Enemy';
 import { blockFrameSource, BLOCK_FRAME_SIZE } from '../entities/Block';
 import {
   journalOpenFrameSrc,
+  journalOpenFrameWidthPercent,
+  journalOpenFrameCenteringShiftPercent,
   JOURNAL_OPEN_FRAME_COUNT,
   JOURNAL_OPEN_FRAME_INTERVAL_MS,
 } from '../entities/JournalAnimation';
@@ -313,14 +315,33 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
     >
       <div
         className="pointer-events-auto relative w-[min(900px,90vw)] drop-shadow-2xl"
-        style={{ aspectRatio: '900 / 439' }}
+        style={{
+          aspectRatio: '900 / 439',
+          // The book image anchors to this container's right edge (see
+          // below) so its hinge stays fixed once fully open — but every
+          // earlier, narrower frame then sits scrunched against the right
+          // edge with empty space to its left, reading as the book sliding
+          // in from the right rather than opening in place (live user
+          // feedback, 2026-08-30). journalOpenFrameCenteringShiftPercent
+          // counteracts that per frame — centering that frame's (content-
+          // free) book icon on screen — and resolves to exactly 0 at the
+          // final frame, so the one frame that carries real page content
+          // (laid out via fixed inset-% positions assuming this container
+          // sits centered) is never displaced.
+          transform: `translateX(${journalOpenFrameCenteringShiftPercent(frame)}%)`,
+          transition: `transform ${JOURNAL_OPEN_FRAME_INTERVAL_MS}ms linear`,
+        }}
       >
         <img
           data-testid="journal-book"
           src={journalOpenFrameSrc(frame)}
           alt=""
-          className="absolute inset-0 h-full w-full"
-          style={{ imageRendering: 'pixelated' }}
+          className="absolute right-0 bottom-0 h-full"
+          style={{
+            width: `${journalOpenFrameWidthPercent(frame)}%`,
+            transition: `width ${JOURNAL_OPEN_FRAME_INTERVAL_MS}ms linear`,
+            imageRendering: 'pixelated',
+          }}
         />
         {contentVisible && (
           <>
