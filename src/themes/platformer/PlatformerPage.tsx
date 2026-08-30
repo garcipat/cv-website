@@ -1048,18 +1048,22 @@ export const PlatformerPage = () => {
         lifecycleState.value = tickLifecycle(lifecycleState.value, dt);
       }
 
-      // Deliberately allows 'intro' here too, not just 'playing' (deviates
-      // from an earlier draft that gated on 'playing' alone): every early
-      // return above already excludes 'dying'/'awaitingRestart'/'paused'/
-      // 'ending-screen' for this tick, so by this point the phase is either
-      // 'intro', 'playing', or freshly 'dying' (just set by the health check
-      // immediately above) — excluding only 'dying' still prevents this from
-      // ever clobbering a same-tick death, while letting a (rare, but
-      // possible — physics/collisions already run during 'intro', same as
-      // every other per-tick mechanic in this loop) last-chest-opened-during-
-      // intro correctly show the Thank You screen instead of silently never
-      // firing because 'intro' hadn't yet advanced to 'playing'.
-      if (lifecycleState.value.phase !== 'dying' && allChestsOpen(chestStates.value)) {
+      // Deliberately allows 'intro' here too, not just 'playing': per
+      // GameLifecycle.ts's doc comment, 'intro' is a purely visual overlay
+      // on top of already-running gameplay (a pit near spawn is still live
+      // during it), and physics/collisions — including chest-opening —
+      // already run during 'intro' the same as any other tick. Explicitly
+      // listing the two live phases (rather than e.g. `!== 'dying'`) is
+      // required, not just tidier: this check runs every tick regardless of
+      // phase, so a broader exclusion-based condition would also fire while
+      // 'paused' (flipping a journal-open visitor straight to
+      // 'ending-screen' the instant they'd already opened every chest,
+      // clobbering the journal) or 'awaitingRestart', and would redundantly
+      // re-fire every tick while already 'ending-screen'.
+      if (
+        (lifecycleState.value.phase === 'playing' || lifecycleState.value.phase === 'intro') &&
+        allChestsOpen(chestStates.value)
+      ) {
         lifecycleState.value = showEndingScreen(lifecycleState.value);
         setEndingScreenOpen(true);
       }
