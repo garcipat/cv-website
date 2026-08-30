@@ -17,8 +17,11 @@ import {
  * `paused`: the journal overlay is open (or, in a later step, the floating
  * controls are open) — game loop paused, no iris overlay drawn (the DOM
  * overlay covers the screen instead).
+ * `ending-screen`: the Thank You screen is open (every chest in the level has
+ * been opened, spec.md FR-024) — game loop paused, no iris overlay drawn (the
+ * DOM overlay covers the screen instead), same as `paused`.
  */
-export type GamePhase = 'intro' | 'playing' | 'dying' | 'awaitingRestart' | 'paused';
+export type GamePhase = 'intro' | 'playing' | 'dying' | 'awaitingRestart' | 'paused' | 'ending-screen';
 
 export interface LifecycleState {
   phase: GamePhase;
@@ -66,6 +69,19 @@ export function resumeFromJournal(state: LifecycleState): LifecycleState {
   return { ...state, phase: 'playing' };
 }
 
+/** Transitions to `ending-screen` (every chest just got opened) without
+ *  touching the frozen `elapsed`/`centerX`/`centerY` — mirrors
+ *  pauseForJournal. */
+export function showEndingScreen(state: LifecycleState): LifecycleState {
+  return { ...state, phase: 'ending-screen' };
+}
+
+/** Transitions back to `playing` (the Thank You screen was dismissed) —
+ *  mirrors resumeFromJournal. */
+export function dismissEndingScreen(state: LifecycleState): LifecycleState {
+  return { ...state, phase: 'playing' };
+}
+
 /**
  * Advances `elapsed` by `dt` seconds for the two time-driven phases,
  * transitioning 'intro' -> 'playing' and 'dying' -> 'awaitingRestart' once
@@ -97,7 +113,7 @@ export function tickLifecycle(state: LifecycleState, dt: number): LifecycleState
  * above for the full timeline of each.
  */
 export function currentIrisRadius(state: LifecycleState, maxRadius: number): number | null {
-  if (state.phase === 'playing' || state.phase === 'paused') return null;
+  if (state.phase === 'playing' || state.phase === 'paused' || state.phase === 'ending-screen') return null;
   if (state.phase === 'awaitingRestart') return 0;
 
   const smallRadius = Math.min(IRIS_SMALL_RADIUS, maxRadius);
