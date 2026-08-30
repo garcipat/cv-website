@@ -226,20 +226,20 @@ describe('checkEnemySideCollisions', () => {
 
 describe('checkBonusFruitCollisions', () => {
   it('playerOverlapsRestedFruit-returnsItsId', () => {
-    let fruit = spawnBonusFruit('bf1', 0, 100);
+    let fruit = spawnBonusFruit('bf1', 0, 100, undefined, 0);
     fruit = tickBonusFruit(fruit, BONUS_FRUIT_RISE_DURATION_SECONDS);
     const player = makePlayer(0, 100 - RENDERED_TILE_SIZE);
     expect(checkBonusFruitCollisions(player, [fruit])).toEqual(['bf1']);
   });
 
   it('playerOverlapsStillRisingFruit-notYetCollectible', () => {
-    const fruit = spawnBonusFruit('bf1', 0, 100); // elapsed 0, mid-rise
+    const fruit = spawnBonusFruit('bf1', 0, 100, undefined, 0); // elapsed 0, mid-rise
     const player = makePlayer(0, 100 - RENDERED_TILE_SIZE);
     expect(checkBonusFruitCollisions(player, [fruit])).toEqual([]);
   });
 
   it('playerFarFromFruit-returnsNoIds', () => {
-    let fruit = spawnBonusFruit('bf1', 0, 100);
+    let fruit = spawnBonusFruit('bf1', 0, 100, undefined, 0);
     fruit = tickBonusFruit(fruit, BONUS_FRUIT_RISE_DURATION_SECONDS);
     const player = makePlayer(1000, 1000);
     expect(checkBonusFruitCollisions(player, [fruit])).toEqual([]);

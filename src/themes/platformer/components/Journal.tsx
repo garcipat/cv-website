@@ -1,7 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useSignals } from '@preact/signals-react/runtime';
 import { currentCV, currentUI } from '@/state/locale';
-import { collectedFacts, activeJournalSection } from '../PlatformerState';
+import {
+  collectedFacts,
+  activeJournalSection,
+  collectiblePlacements,
+  blockPlacements,
+  enemyPlacements,
+} from '../PlatformerState';
 import { formatJournalEntry } from '../entities/JournalEntry';
 import {
   JOURNAL_SECTION_ORDER,
@@ -14,6 +20,7 @@ import { collectiblesSummary } from '../entities/CollectiblesSummary';
 import { COIN_FRAME_SIZE, COIN_FRAME_COUNT } from '../entities/Coin';
 import { FRUIT_FRAME_SIZE } from '../entities/Fruit';
 import { ENEMY_FRAME_SIZE } from '../entities/Enemy';
+import { blockFrameSource, BLOCK_FRAME_SIZE } from '../entities/Block';
 import {
   journalOpenFrameSrc,
   JOURNAL_OPEN_FRAME_COUNT,
@@ -94,10 +101,16 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
   // the journal is open (the game is paused, so no new collections land).
   const flatPages = buildJournalPages(sections, facts);
 
+  // Defaults to 'personality' ("About Me") — amended 2026-08-30, live user
+  // feedback: falling back to the first collected fact's section (e.g.
+  // 'skills' after picking up any coin) meant the journal rarely opened on
+  // its own first page. 'personality' is always present (CVData.personality
+  // is a required field — see nonEmptySections's comment), so this fallback
+  // never needs `sections[0]` as a further backup.
   const initialSection: SectionId | undefined =
     activeJournalSection.value && sections.includes(activeJournalSection.value)
       ? activeJournalSection.value
-      : (facts[0]?.sectionId ?? sections[0]);
+      : 'personality';
 
   // Position within `flatPages` — a plain index, not a per-section page
   // number, since Prev/Next now walk the whole book regardless of section
@@ -183,41 +196,78 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
   // fixed display size, scaling the whole sheet's `background-size` up so
   // that one frame lands exactly on the crop.
   const COLLECTIBLE_ICON_DISPLAY_SIZE = 32;
+  // Crates are drawn from world_tileset.png's edge-to-edge terrain art (no
+  // transparent padding the way coin.png/fruit.png's centered icons have),
+  // which reads as noticeably bigger than the other icons at the same
+  // display size (live user feedback, 2026-08-30) — shown smaller to
+  // compensate; same fix applied to the HUD counter (PlatformerPage.tsx's
+  // CRATE_COUNTER_ICON_SIZE).
+  const CRATE_ICON_DISPLAY_SIZE = 22;
   // coin.png is a 1-row strip (COIN_FRAME_COUNT columns); fruit.png and
-  // slime_green.png are both 4-column grids (4x4 and 4x3 respectively) —
-  // every sheet's width/height-in-frames must be scaled independently or
-  // frame 0's crop distorts (e.g. fruit.png's 4 rows squashed into 1). The
-  // 'enemies' row (roadmap step 18) reuses the same raw sheet frame 3
-  // (row 0, col 2) as the HUD's own enemy-defeated counter (see
-  // PlatformerPage.tsx), so both places show the same icon for "enemy".
-  const renderCollectibleIcon = (labelKey: 'coins' | 'fruits' | 'enemies') => {
+  // slime_green.png are both 4-column grids (4x4 and 4x3 respectively);
+  // world_tileset.png is a 16x16 grid of 16px tiles — every sheet's
+  // width/height-in-frames must be scaled independently or frame 0's crop
+  // distorts (e.g. fruit.png's 4 rows squashed into 1). The 'enemies' row
+  // (roadmap step 18) reuses the same raw sheet frame 3 (row 0, col 2) as
+  // the HUD's own enemy-defeated counter (see PlatformerPage.tsx), so both
+  // places show the same icon for "enemy". 'crates' (added 2026-08-30)
+  // reuses the same crate tile coordinates as `blockFrameSource('crate')`.
+  const renderCollectibleIcon = (labelKey: 'coins' | 'fruits' | 'enemies' | 'crates') => {
     const sheetSrc =
-      labelKey === 'coins' ? '/sprites/coin.png' : labelKey === 'fruits' ? '/sprites/fruit.png' : '/sprites/slime_green.png';
-    const frameSize = labelKey === 'coins' ? COIN_FRAME_SIZE : labelKey === 'fruits' ? FRUIT_FRAME_SIZE : ENEMY_FRAME_SIZE;
-    const sheetCols = labelKey === 'coins' ? COIN_FRAME_COUNT : 4;
-    const sheetRows = labelKey === 'coins' ? 1 : labelKey === 'fruits' ? 4 : 3;
-    const scale = COLLECTIBLE_ICON_DISPLAY_SIZE / frameSize;
-    const { sx, sy } = labelKey === 'enemies' ? { sx: 2 * ENEMY_FRAME_SIZE, sy: 0 } : { sx: 0, sy: 0 };
+      labelKey === 'coins'
+        ? '/sprites/coin.png'
+        : labelKey === 'fruits'
+          ? '/sprites/fruit.png'
+          : labelKey === 'crates'
+            ? '/sprites/world_tileset.png'
+            : '/sprites/slime_green.png';
+    const frameSize =
+      labelKey === 'coins'
+        ? COIN_FRAME_SIZE
+        : labelKey === 'fruits'
+          ? FRUIT_FRAME_SIZE
+          : labelKey === 'crates'
+            ? BLOCK_FRAME_SIZE
+            : ENEMY_FRAME_SIZE;
+    const sheetCols = labelKey === 'coins' ? COIN_FRAME_COUNT : labelKey === 'crates' ? 16 : 4;
+    const sheetRows = labelKey === 'coins' ? 1 : labelKey === 'fruits' ? 4 : labelKey === 'crates' ? 16 : 3;
+    const displaySize = labelKey === 'crates' ? CRATE_ICON_DISPLAY_SIZE : COLLECTIBLE_ICON_DISPLAY_SIZE;
+    const scale = displaySize / frameSize;
+    const { sx, sy } =
+      labelKey === 'enemies'
+        ? { sx: 2 * ENEMY_FRAME_SIZE, sy: 0 }
+        : labelKey === 'crates'
+          ? blockFrameSource('crate')
+          : { sx: 0, sy: 0 };
     return (
       <span
         aria-hidden="true"
-        className="mr-1 inline-block align-middle"
+        className="mr-1 inline-flex items-center justify-center align-middle"
         style={{
           width: COLLECTIBLE_ICON_DISPLAY_SIZE,
           height: COLLECTIBLE_ICON_DISPLAY_SIZE,
-          backgroundImage: `url(${sheetSrc})`,
-          backgroundPosition: `-${sx * scale}px -${sy * scale}px`,
-          backgroundSize: `${sheetCols * frameSize * scale}px ${sheetRows * frameSize * scale}px`,
-          imageRendering: 'pixelated',
-          // Enemy.ts's slime frames are bottom-anchored within their native
-          // cell (no transparent padding below the feet, so any empty space
-          // sits above instead) — unlike coin.png/fruit.png's centered
-          // artwork, this reads as sitting too low next to the row's text
-          // once cropped into a fixed-size icon box. Nudged up to match;
-          // same fix as the HUD counter's `iconYOffset` (PlatformerPage.tsx).
-          transform: labelKey === 'enemies' ? 'translateY(-6px)' : undefined,
         }}
-      />
+      >
+        <span
+          style={{
+            width: displaySize,
+            height: displaySize,
+            display: 'block',
+            backgroundImage: `url(${sheetSrc})`,
+            backgroundPosition: `-${sx * scale}px -${sy * scale}px`,
+            backgroundSize: `${sheetCols * frameSize * scale}px ${sheetRows * frameSize * scale}px`,
+            imageRendering: 'pixelated',
+            // Enemy.ts's slime frames are bottom-anchored within their
+            // native cell (no transparent padding below the feet, so any
+            // empty space sits above instead) — unlike coin.png/fruit.png's
+            // centered artwork, this reads as sitting too low next to the
+            // row's text once cropped into a fixed-size icon box. Nudged up
+            // to match; same fix as the HUD counter's `iconYOffset`
+            // (PlatformerPage.tsx).
+            transform: labelKey === 'enemies' ? 'translateY(-6px)' : undefined,
+          }}
+        />
+      </span>
     );
   };
 
@@ -335,7 +385,12 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
                     >
                       <p className="text-xl font-semibold">{ui.platformer.journal.collectibles}</p>
                       <ul className="mt-2 space-y-1.5">
-                        {collectiblesSummary(cv, facts).map((row) => (
+                        {collectiblesSummary(facts, {
+                          coins: collectiblePlacements.filter((p) => p.spriteType === 'coin').length,
+                          fruits: blockPlacements.filter((b) => b.blockKind === 'questionMark' && b.fact).length,
+                          enemies: enemyPlacements.length,
+                          crates: blockPlacements.filter((b) => b.blockKind === 'crate').length,
+                        }).map((row) => (
                           <li key={row.labelKey} className="flex items-center">
                             {renderCollectibleIcon(row.labelKey)}
                             {ui.platformer.journal[row.labelKey]} {row.collected} / {row.total}

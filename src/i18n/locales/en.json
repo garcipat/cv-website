@@ -157,6 +157,7 @@
       "coins": "Coins",
       "fruits": "Fruits",
       "enemies": "Enemies",
+      "crates": "Crates",
       "resetGame": "Reset Game",
       "emptyState": "No facts discovered yet — keep exploring!"
     }
