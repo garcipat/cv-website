@@ -35,7 +35,7 @@ export interface ChestPlacement extends ChestDef {
 }
 
 /**
- * Places chest defs at hand-authored `H` marker positions (LevelParser.ts's
+ * Places chest defs at hand-authored `T` marker positions (LevelParser.ts's
  * findChestTiles), zipped against `defs` in reading order — same
  * marker-is-a-slot convention as placeCollectibles/placeEnemies/placeBlocks'
  * crate zip (no auto-placement; excess defs beyond the available markers
