@@ -43,6 +43,8 @@ import {
   CHEST_CLOSED_RENDERED_HEIGHT,
   CHEST_OPEN_RENDERED_WIDTH,
   CHEST_OPEN_RENDERED_HEIGHT,
+  CHEST_CLOSED_OFFSET_X,
+  CHEST_OPEN_OFFSET_X,
 } from '../entities/Chest';
 import type { ChestState } from '../entities/Chest';
 
@@ -463,7 +465,7 @@ describe('drawChests', () => {
       0,
       CHEST_CLOSED_WIDTH,
       CHEST_CLOSED_HEIGHT,
-      10,
+      10 + CHEST_CLOSED_OFFSET_X,
       20,
       CHEST_CLOSED_RENDERED_WIDTH,
       CHEST_CLOSED_RENDERED_HEIGHT,
@@ -495,7 +497,7 @@ describe('drawChests', () => {
       0,
       CHEST_OPEN_WIDTH,
       CHEST_OPEN_HEIGHT,
-      10,
+      10 + CHEST_OPEN_OFFSET_X,
       20,
       CHEST_OPEN_RENDERED_WIDTH,
       CHEST_OPEN_RENDERED_HEIGHT,

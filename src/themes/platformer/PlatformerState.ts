@@ -184,6 +184,29 @@ export const blockStates = signal<BlockState[]>(blockPlacements.map(toBlockState
 export const chestStates = signal<ChestState[]>(chestPlacements.map(toChestState));
 
 /**
+ * One-shot latch: true once the Thank You screen has been shown this
+ * "session" (i.e. since the last Reset Game). Without this,
+ * `allChestsOpen(chestStates.value)` stays true forever after the last chest
+ * opens (opening is permanent — see entities/Chest.ts's openChest), so the
+ * ending-screen check at the end of each tick would otherwise re-trigger
+ * `showEndingScreen`/`setEndingScreenOpen(true)` on the very next tick after
+ * dismissal, permanently locking the visitor out.
+ *
+ * Deliberately a module-level signal, not a component-local `useRef` in
+ * PlatformerPage.tsx: `chestStates` above already survives a component
+ * unmount (it's module-level), but a `useRef` does not — switching to
+ * another CV-site theme and back would reset a local ref to `false` while
+ * every chest is STILL open (theme-switch reset isn't implemented yet, see
+ * roadmap steps 27/28), which would make the Thank You screen reappear on
+ * the very first tick after switching back, with no player action. Living
+ * here keeps this latch's lifetime matched to `chestStates`'s, and it's
+ * reset back to `false` in `resetGameProgress()` below (alongside
+ * `chestStates`'s own reset) so a visitor can see the screen again after a
+ * genuine Reset Game.
+ */
+export const endingScreenShown = signal(false);
+
+/**
  * Question-mark blocks' spawned no-fact bonus fruits (roadmap step 21b) —
  * starts empty; `PlatformerPage.tsx` appends one each time a question-mark
  * block is hit. Persists across a death/respawn (same reasoning as
@@ -306,5 +329,6 @@ export function resetGameProgress(): void {
   activeCounterPopups.value = {};
   blockStates.value = blockPlacements.map(toBlockState);
   chestStates.value = chestPlacements.map(toChestState);
+  endingScreenShown.value = false;
   bonusFruitStates.value = [];
 }

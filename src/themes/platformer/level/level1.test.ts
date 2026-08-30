@@ -190,7 +190,7 @@ describe('level1', () => {
 });
 
 describe('CHEST_TILES', () => {
-  it('level1Layout-has-fiveChestMarkers', () => {
-    expect(CHEST_TILES).toHaveLength(5);
+  it('level1Layout-has-twoChestMarkers', () => {
+    expect(CHEST_TILES).toHaveLength(2);
   });
 });

@@ -28,6 +28,19 @@ export const CHEST_CLOSED_RENDERED_HEIGHT = RENDERED_TILE_SIZE;
 export const CHEST_OPEN_RENDERED_WIDTH = CHEST_OPEN_WIDTH * CHEST_SPRITE_SCALE;
 export const CHEST_OPEN_RENDERED_HEIGHT = RENDERED_TILE_SIZE;
 
+/**
+ * Horizontal offset (in rendered pixels, always <= 0) to add to a chest's
+ * tile-aligned `x` so it draws horizontally CENTERED on its assigned tile
+ * instead of left-aligned to the tile's top-left corner — the chest's
+ * rendered width is wider than one tile, so centering means its left edge
+ * sits this many pixels to the LEFT of the tile's left edge, symmetric with
+ * how far its right edge extends past the tile's right edge. No vertical
+ * counterpart is needed: rendered height exactly equals `RENDERED_TILE_SIZE`
+ * (see above), so the chest already aligns correctly on the vertical axis.
+ */
+export const CHEST_CLOSED_OFFSET_X = (RENDERED_TILE_SIZE - CHEST_CLOSED_RENDERED_WIDTH) / 2;
+export const CHEST_OPEN_OFFSET_X = (RENDERED_TILE_SIZE - CHEST_OPEN_RENDERED_WIDTH) / 2;
+
 export type ChestVisualState = 'closed' | 'open';
 
 /**
