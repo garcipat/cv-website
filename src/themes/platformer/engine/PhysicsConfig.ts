@@ -31,6 +31,15 @@ export const PHYSICS_CONFIG = {
    */
   enemyPatrolSpeed: 60,
   /**
+   * Constant vertical speed while climbing a ladder (roadmap step 23), in
+   * px/s, in either direction — slower than horizontal walkSpeed (200) so
+   * climbing reads as deliberate effort rather than matching normal
+   * movement pace. Same tunneling invariant as the other velocity constants:
+   * `climbSpeed * MAX_DT` must stay below RENDERED_TILE_SIZE (32px):
+   * 120 * (1/30) = 4 < 32. ✓
+   */
+  climbSpeed: 120,
+  /**
    * Initial upward velocity impulse on jump press, in px/s (negative = up).
    * Same tunneling invariant as `terminalVelocity`/`walkSpeed` applies:
    * `Math.abs(jumpVelocity) * MAX_DT` must stay below `RENDERED_TILE_SIZE`.
