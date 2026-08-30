@@ -17,7 +17,12 @@ import {
   enemyPlacements,
   enemyStates,
   blockPlacements,
+  chestPlacements,
+  chestStates,
+  endingScreenShown,
+  endingScreenOpen,
 } from './PlatformerState';
+import { toChestState } from './entities/Chest';
 import {
   MAX_HALF_HEARTS,
   PIT_FALL_DAMAGE,
@@ -78,6 +83,18 @@ describe('PlatformerPage', () => {
     // Module-level signal like the others above — a stomp/defeat mutation
     // from one test must not leak into the next test's enemy positions.
     enemyStates.value = enemyPlacements.map((p, i) => toEnemyState(p, i));
+    // Module-level signal like the others above — an open-chest mutation
+    // from one test (roadmap step 22) must not leak into the next test's
+    // assumption that every chest starts closed.
+    chestStates.value = chestPlacements.map(toChestState);
+    // Module-level one-shot latch (see PlatformerState.ts's doc comment) —
+    // must be reset too, or a test that triggers the ending screen would
+    // leave later tests unable to ever see it triggered again.
+    endingScreenShown.value = false;
+    // Module-level signal (see PlatformerState.ts's doc comment, final
+    // review Important 4) — same reasoning as endingScreenShown above, so a
+    // mounted-ThankYouScreen assumption doesn't leak between tests.
+    endingScreenOpen.value = false;
   });
 
   afterEach(() => {
@@ -389,7 +406,7 @@ describe('PlatformerPage', () => {
     expect(playerState.value.animState).toBe('jump');
   });
 
-  it('arrowUpPressed-whileGrounded-alsoTriggersJump', () => {
+  it('arrowUpPressed-whileGrounded-doesNotTriggerJump', () => {
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frameCallback = cb;
@@ -405,8 +422,8 @@ describe('PlatformerPage', () => {
     fireEvent.keyDown(window, { code: 'ArrowUp' });
     frameCallback!(32);
 
-    expect(playerState.value.grounded).toBe(false);
-    expect(playerState.value.vy).toBeLessThan(0);
+    expect(playerState.value.grounded).toBe(true);
+    expect(playerState.value.vy).toBe(0);
   });
 
   it('spaceReleasedEarly-whileAscending-resultsInLowerVelocityThanHeldJump', () => {
@@ -1857,5 +1874,231 @@ describe('PlatformerPage', () => {
 
     expect(healthState.value).toBe(healthAfterSideHit); // no additional damage
     expect(playerState.value.y).toBeLessThan(5000); // still repositioned to safety
+  });
+
+  it('arrowUpPressed-whileStandingOnClosedChest-opensItAndRevealsExperienceFact', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const target = chestPlacements[0];
+    playerState.value = { ...playerState.value, x: target.x, y: target.y };
+    fireEvent.keyDown(window, { code: 'ArrowUp' });
+    frameCallback!(16);
+
+    expect(chestStates.value.find((c) => c.id === target.id)?.state).toBe('open');
+    expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(true);
+  });
+
+  it('keyWPressed-whileStandingOnClosedChest-opensItAndRevealsExperienceFact', () => {
+    // KeyW is an accepted alternate for ArrowUp's interact action (2026-08-30,
+    // same convention as A/D being alternates for Left/Right — see FR-007's
+    // amendment), so opening a chest must work with it too.
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const target = chestPlacements[0];
+    playerState.value = { ...playerState.value, x: target.x, y: target.y };
+    fireEvent.keyDown(window, { code: 'KeyW' });
+    frameCallback!(16);
+
+    expect(chestStates.value.find((c) => c.id === target.id)?.state).toBe('open');
+    expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(true);
+  });
+
+  it('walkingOverClosedChest-withoutPressingArrowUp-leavesItClosed', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const target = chestPlacements[0];
+    playerState.value = { ...playerState.value, x: target.x, y: target.y };
+    frameCallback!(16);
+
+    expect(chestStates.value.find((c) => c.id === target.id)?.state).toBe('closed');
+    expect(collectedFacts.value).toHaveLength(0);
+  });
+
+  it('openingEveryChest-showsThankYouScreen-pausingTheGame', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    for (const target of chestPlacements) {
+      playerState.value = { ...playerState.value, x: target.x, y: target.y };
+      fireEvent.keyDown(window, { code: 'ArrowUp' });
+      // Opening the last chest flips React state (setEndingScreenOpen),
+      // unlike every other per-tick signal-only assertion elsewhere in this
+      // file — wrapped in act() (same convention the journal-animation
+      // tests above already use) so that DOM update is flushed before the
+      // getByTestId assertion below runs.
+      act(() => frameCallback!(16));
+      fireEvent.keyUp(window, { code: 'ArrowUp' });
+    }
+
+    expect(lifecycleState.value.phase).toBe('ending-screen');
+    expect(screen.getByTestId('platformer-thank-you-screen')).toBeInTheDocument();
+  });
+
+  it('dismissingThankYouScreen-resumesPlayingFromSamePosition', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    for (const target of chestPlacements) {
+      playerState.value = { ...playerState.value, x: target.x, y: target.y };
+      fireEvent.keyDown(window, { code: 'ArrowUp' });
+      // Opening the last chest flips React state (setEndingScreenOpen),
+      // unlike every other per-tick signal-only assertion elsewhere in this
+      // file — wrapped in act() (same convention the journal-animation
+      // tests above already use) so that DOM update is flushed before the
+      // getByTestId assertion below runs.
+      act(() => frameCallback!(16));
+      fireEvent.keyUp(window, { code: 'ArrowUp' });
+    }
+    const positionBeforeDismiss = { x: playerState.value.x, y: playerState.value.y };
+
+    fireEvent.keyDown(window, { code: 'Space' });
+
+    expect(lifecycleState.value.phase).toBe('playing');
+    expect(screen.queryByTestId('platformer-thank-you-screen')).not.toBeInTheDocument();
+    expect(playerState.value.x).toBe(positionBeforeDismiss.x);
+    expect(playerState.value.y).toBe(positionBeforeDismiss.y);
+
+    // Regression coverage: every chest is still open at this point (opening
+    // is permanent — see entities/Chest.ts's openChest), so without a
+    // one-shot latch the very next tick's "all chests open" check would
+    // immediately re-trigger showEndingScreen/setEndingScreenOpen(true),
+    // reopening the screen the instant it's dismissed and permanently
+    // locking the player out. Ticking again and re-asserting both the phase
+    // and the screen's continued absence is what actually proves dismissal
+    // sticks, rather than merely proving it took effect once.
+    act(() => frameCallback!(32));
+
+    expect(lifecycleState.value.phase).toBe('playing');
+    expect(screen.queryByTestId('platformer-thank-you-screen')).not.toBeInTheDocument();
+  });
+
+  it('dismissingThankYouScreenViaSpace-doesNotTriggerJumpOnNextTick', () => {
+    // Regression coverage: the same physical Space keydown that dismisses
+    // the screen is ALSO seen by createKeyboardInput's own listener and
+    // buffered as a pending press. handleDismissEndingScreen flips gamePhase
+    // to 'playing' synchronously, so without draining that buffered press
+    // (see PlatformerPage.tsx's handleDismissEndingScreen, which now calls
+    // inputRef.current?.clearPending()), the very next tick would already
+    // skip the 'ending-screen' phase's own input.clearPending() early-return
+    // and consume the buffered Space as a real jump.
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    for (const target of chestPlacements) {
+      playerState.value = { ...playerState.value, x: target.x, y: target.y };
+      fireEvent.keyDown(window, { code: 'ArrowUp' });
+      act(() => frameCallback!(16));
+      fireEvent.keyUp(window, { code: 'ArrowUp' });
+    }
+
+    // Force grounded (with zero vy) right before dismissal so a jump WOULD
+    // fire on the very next tick if the buffered Space leaks through.
+    playerState.value = { ...playerState.value, grounded: true, vy: 0 };
+
+    fireEvent.keyDown(window, { code: 'Space' });
+    act(() => frameCallback!(16));
+
+    expect(playerState.value.vy).not.toBe(PHYSICS_CONFIG.jumpVelocity);
+    expect(playerState.value.vy).toBeGreaterThanOrEqual(0);
+  });
+
+  it('unmountingAndRemountingWhileEndingScreenShowing-stillShowsItAndStaysRecoverable', () => {
+    // Regression coverage (final review, Important 4): simulates switching
+    // away from the Platformer theme (unmounting this component) and back
+    // (remounting it) while the Thank You screen is showing — theme-switch
+    // reset isn't implemented yet (roadmap steps 27/28), so every
+    // module-level signal (lifecycleState, chestStates, endingScreenShown,
+    // endingScreenOpen) must survive that round-trip unchanged. Before this
+    // fix, endingScreenOpen was a component-local useState that reset to
+    // false on remount even though lifecycleState stayed 'ending-screen' —
+    // <ThankYouScreen> would never render, with no way to dismiss and no
+    // way for the "all chests open" check to ever re-fire either (blocked by
+    // the still-true endingScreenShown latch), permanently freezing the
+    // game. Making endingScreenOpen module-level too fixes this: a remount
+    // must still show the screen, and dismissing it must still resume play.
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    const { unmount } = render(<PlatformerPage />);
+    frameCallback!(0);
+
+    for (const target of chestPlacements) {
+      playerState.value = { ...playerState.value, x: target.x, y: target.y };
+      fireEvent.keyDown(window, { code: 'ArrowUp' });
+      act(() => frameCallback!(16));
+      fireEvent.keyUp(window, { code: 'ArrowUp' });
+    }
+
+    expect(lifecycleState.value.phase).toBe('ending-screen');
+    expect(endingScreenOpen.value).toBe(true);
+
+    // Simulate a theme switch away and back: unmount, then mount a fresh
+    // instance (a brand-new component tree, same module-level signals).
+    unmount();
+    frameCallback = null;
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    // The screen must still be showing immediately after remount — no
+    // player action re-triggered it, the module-level state simply
+    // persisted through the unmount/remount.
+    expect(lifecycleState.value.phase).toBe('ending-screen');
+    expect(screen.getByTestId('platformer-thank-you-screen')).toBeInTheDocument();
+
+    // And it must still be genuinely dismissible/recoverable — not frozen.
+    fireEvent.keyDown(window, { code: 'Space' });
+    act(() => frameCallback!(16));
+
+    expect(lifecycleState.value.phase).toBe('playing');
+    expect(screen.queryByTestId('platformer-thank-you-screen')).not.toBeInTheDocument();
   });
 });

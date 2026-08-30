@@ -4,10 +4,10 @@ import {
   findGreenEnemyTiles,
   findPurpleEnemyTiles,
   findCoinTiles,
-  findFruitTiles,
   findCrateTiles,
   findQuestionMarkTiles,
-  findRockTiles,
+  findFragileRockTiles,
+  findChestTiles,
   TERRAIN_CHARS,
   ENTITY_CHARS,
 } from './LevelParser';
@@ -47,10 +47,10 @@ describe('parseLevel', () => {
     expect(ENTITY_CHARS.E).toBe('enemyGreen');
     expect(ENTITY_CHARS.M).toBe('enemyPurple');
     expect(ENTITY_CHARS.C).toBe('coin');
-    expect(ENTITY_CHARS.F).toBe('fruit');
     expect(ENTITY_CHARS.X).toBe('crate');
     expect(ENTITY_CHARS.Q).toBe('questionMark');
-    expect(ENTITY_CHARS.K).toBe('rock');
+    expect(ENTITY_CHARS.F).toBe('fragileRock');
+    expect(ENTITY_CHARS.T).toBe('chest');
   });
 
   it('noTerrainAndEntityCharOverlap-documentedByTheModuleLoadGuard', () => {
@@ -74,7 +74,7 @@ describe('parseLevel', () => {
     expect(result.terrain[0][1]).toBe('empty');
   });
 
-  it('coinAndFruitMarkers-parseAsEmptyWalkableTile', () => {
+  it('coinAndFragileRockMarkers-parseAsEmptyWalkableTile', () => {
     const result = parseLevel(['CF', 'GG']);
     expect(result.terrain[0][0]).toBe('empty');
     expect(result.terrain[0][1]).toBe('empty');
@@ -145,25 +145,8 @@ describe('findCoinTiles', () => {
     ]);
   });
 
-  it('fruitMarker-isNotCountedAsCoin', () => {
+  it('fragileRockMarker-isNotCountedAsCoin', () => {
     expect(findCoinTiles(['F.'])).toEqual([]);
-  });
-});
-
-describe('findFruitTiles', () => {
-  it('noMarkers-returnsEmptyArray', () => {
-    expect(findFruitTiles(['GG', 'GG'])).toEqual([]);
-  });
-
-  it('multipleMarkers-returnsAllInReadingOrder', () => {
-    expect(findFruitTiles(['.F', 'F.'])).toEqual([
-      { col: 1, row: 0 },
-      { col: 0, row: 1 },
-    ]);
-  });
-
-  it('coinMarker-isNotCountedAsFruit', () => {
-    expect(findFruitTiles(['C.'])).toEqual([]);
   });
 });
 
@@ -179,8 +162,8 @@ describe('findCrateTiles', () => {
     ]);
   });
 
-  it('questionMarkOrRockMarker-isNotCountedAsCrate', () => {
-    expect(findCrateTiles(['QK'])).toEqual([]);
+  it('questionMarkOrFragileRockMarker-isNotCountedAsCrate', () => {
+    expect(findCrateTiles(['QF'])).toEqual([]);
   });
 });
 
@@ -196,24 +179,41 @@ describe('findQuestionMarkTiles', () => {
     ]);
   });
 
-  it('crateOrRockMarker-isNotCountedAsQuestionMark', () => {
-    expect(findQuestionMarkTiles(['XK'])).toEqual([]);
+  it('crateOrFragileRockMarker-isNotCountedAsQuestionMark', () => {
+    expect(findQuestionMarkTiles(['XF'])).toEqual([]);
   });
 });
 
-describe('findRockTiles', () => {
+describe('findFragileRockTiles', () => {
   it('noMarkers-returnsEmptyArray', () => {
-    expect(findRockTiles(['GG', 'GG'])).toEqual([]);
+    expect(findFragileRockTiles(['GG', 'GG'])).toEqual([]);
   });
 
   it('multipleMarkers-returnsAllInReadingOrder', () => {
-    expect(findRockTiles(['.K', 'K.'])).toEqual([
+    expect(findFragileRockTiles(['.F', 'F.'])).toEqual([
       { col: 1, row: 0 },
       { col: 0, row: 1 },
     ]);
   });
 
-  it('crateOrQuestionMarkMarker-isNotCountedAsRock', () => {
-    expect(findRockTiles(['XQ'])).toEqual([]);
+  it('crateOrQuestionMarkMarker-isNotCountedAsFragileRock', () => {
+    expect(findFragileRockTiles(['XQ'])).toEqual([]);
+  });
+});
+
+describe('findChestTiles', () => {
+  it('noMarkers-returnsEmptyArray', () => {
+    expect(findChestTiles(['GG', 'GG'])).toEqual([]);
+  });
+
+  it('multipleMarkers-returnsAllInReadingOrder', () => {
+    expect(findChestTiles(['.T', 'T.'])).toEqual([
+      { col: 1, row: 0 },
+      { col: 0, row: 1 },
+    ]);
+  });
+
+  it('crateOrFragileRockMarker-isNotCountedAsChest', () => {
+    expect(findChestTiles(['XF'])).toEqual([]);
   });
 });

@@ -5,6 +5,7 @@ import {
   checkEnemyStompCollisions,
   checkEnemySideCollisions,
   checkBonusFruitCollisions,
+  chestPlayerIsStandingOn,
 } from './Collision';
 import { PLAYER_SIDE_PADDING, PLAYER_HEAD_PADDING, PLAYER_RENDERED_SIZE } from '../entities/Player';
 import type { PlayerState } from '../entities/Player';
@@ -14,6 +15,7 @@ import type { EnemyState } from '../entities/Enemy';
 import type { EnemyPlacement } from '../level/EnemyMapper';
 import { spawnBonusFruit, tickBonusFruit, BONUS_FRUIT_RISE_DURATION_SECONDS } from '../entities/BonusFruit';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
+import type { ChestState } from '../entities/Chest';
 
 function makePlayer(x: number, y: number): PlayerState {
   return {
@@ -243,5 +245,42 @@ describe('checkBonusFruitCollisions', () => {
     fruit = tickBonusFruit(fruit, BONUS_FRUIT_RISE_DURATION_SECONDS);
     const player = makePlayer(1000, 1000);
     expect(checkBonusFruitCollisions(player, [fruit])).toEqual([]);
+  });
+});
+
+describe('chestPlayerIsStandingOn', () => {
+  const closedChest: ChestState = {
+    id: 'chest-1',
+    x: 100,
+    y: 100,
+    state: 'closed',
+    fact: {
+      id: 'chest-1',
+      sectionId: 'experience',
+      sectionLabel: 'Experience',
+      data: { company: 'X', role: 'Y', startDate: '2020-01', highlights: [] },
+      sourceType: 'chest',
+    },
+  };
+
+  it('playerOverlappingClosedChest-returnsItsId', () => {
+    const player = { ...makePlayer(closedChest.x, closedChest.y) };
+    expect(chestPlayerIsStandingOn(player, [closedChest])).toBe('chest-1');
+  });
+
+  it('playerFarFromAnyChest-returnsUndefined', () => {
+    const player = { ...makePlayer(closedChest.x + 1000, closedChest.y) };
+    expect(chestPlayerIsStandingOn(player, [closedChest])).toBeUndefined();
+  });
+
+  it('alreadyOpenChest-isIgnored-evenWhileOverlapping', () => {
+    const openChestState: ChestState = { ...closedChest, state: 'open' };
+    const player = { ...makePlayer(openChestState.x, openChestState.y) };
+    expect(chestPlayerIsStandingOn(player, [openChestState])).toBeUndefined();
+  });
+
+  it('noChests-returnsUndefined', () => {
+    const player = makePlayer(0, 0);
+    expect(chestPlayerIsStandingOn(player, [])).toBeUndefined();
   });
 });

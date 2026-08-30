@@ -20,7 +20,7 @@ A visitor opens the CV website and switches to the Platformer theme. A 2D side-s
 
 1. **Given** the Platformer theme is active, **When** the page loads, **Then** a 2D side-scrolling game view renders with a pixel-art character standing on a platform against a themed background.
 2. **Given** the character is idle on a platform, **When** the visitor presses the right arrow key, **Then** the character moves right with a walking animation and the camera scrolls to follow.
-3. **Given** the character is standing on a platform, **When** the visitor presses the spacebar or up arrow, **Then** the character jumps upward, reaches a peak, and falls back down — landing on platforms or falling into pits.
+3. **Given** the character is standing on a platform, **When** the visitor presses the spacebar (**redesigned 2026-08-30**: Arrow Up is no longer a jump key — see FR-007), **Then** the character jumps upward, reaches a peak, and falls back down — landing on platforms or falling into pits.
 4. **Given** the character is moving left, **When** the visitor presses the right arrow key, **Then** the character reverses direction and the sprite faces right.
 5. **Given** the character falls into a pit, **When** the fall occurs, **Then** the character loses half a heart and reappears at the last solid ground position before the fall. **Given** the character loses all hearts, **When** the death occurs, **Then** the character respawns at the nearest spawn point with full health and all collected facts preserved.
 
@@ -83,51 +83,54 @@ Scattered through the level are two colors of simple slime enemies that patrol b
 
 ### User Story 5 - Break Blocks to Uncover Experience and Education (Priority: P2)
 
-Some platforms contain destroyable blocks — three visually distinct kinds. **Crates** are associated with an Experience or Education entry from the CV: hitting one from below (Mario-style bump) shows a crack overlay; hitting it again from below breaks it apart with a shatter animation and reveals the associated fact. **Question-mark blocks** are styled to match their surrounding terrain (five color palettes) — a single hit from below pops a bonus fruit upward into the space directly above the block (a reward with no CV meaning, visually distinct from a coin so it's never mistaken for CV content) and permanently swaps the block to that same palette's plain `!` tile. **Rock blocks** break to empty space on a single hit from below and carry no reward at all — a pure level-design tool for shaping traversal. Every below-hit, on any of the three types, gives the block a short bump/nudge (it moves up a few pixels and settles back), even on the hit that breaks, shatters, or converts it. A crate's revealed fact text floats up from the break point, hovers briefly, then animates toward the journal icon, same as any other CV-mapped collectible.
+Some platforms contain destroyable blocks — three visually distinct kinds. **Crates** are associated with an Education, Activity, or Language entry from the CV (**redesigned 2026-08-30**, see User Story 6 — Experience moved off crates onto the new chest collectible, freeing crates to pick up Activities and Languages instead, closing the gap left when Languages' own fruit collectibles were removed): hitting one from below (Mario-style bump) shows a crack overlay; hitting it again from below breaks it apart with a shatter animation and reveals the associated fact. **Question-mark blocks** are styled to match their surrounding terrain (five color palettes) — a single hit from below pops a bonus fruit upward into the space directly above the block (a reward with no CV meaning, visually distinct from a coin so it's never mistaken for CV content) and permanently swaps the block to that same palette's plain `!` tile. **Rock blocks** break to empty space on a single hit from below and carry no reward at all — a pure level-design tool for shaping traversal. Every below-hit, on any of the three types, gives the block a short bump/nudge (it moves up a few pixels and settles back), even on the hit that breaks, shatters, or converts it. A crate's revealed fact text floats up from the break point, hovers briefly, then animates toward the journal icon, same as any other CV-mapped collectible.
 
-**Why this priority**: Destroyable blocks add vertical exploration and a hit-based mechanic. They're P2 because they're a secondary mechanic — coins and enemies already deliver the main content flow. Crates reward persistent exploration with Experience and Education facts; question-mark and rock blocks add bonus rewards and level-design texture without extra CV content. **Amended 2026-08-29**: the original single 3-hit block type (dropping a fruit per hit, revealing an Experience/Education/Courses fact on the third) was split into three distinct block types once the tileset assets changed — there is no dedicated crack-progression sprite sheet, but there is a wooden crate tile, five terrain-matched `?`/`!` tile pairs, and plain terrain tiles to build from instead. Courses moved off blocks entirely onto enemies (see User Story 4) since 12 entries didn't fit well alongside Experience/Education on a 2-hit mechanic.
+**Why this priority**: Destroyable blocks add vertical exploration and a hit-based mechanic. They're P2 because they're a secondary mechanic — coins and enemies already deliver the main content flow. Crates reward persistent exploration with Experience and Education facts; question-mark and rock blocks add bonus rewards and level-design texture without extra CV content. **Amended 2026-08-29**: the original single 3-hit block type (dropping a fruit per hit, revealing an Experience/Education/Courses fact on the third) was split into three distinct block types once the tileset assets changed — there is no dedicated crack-progression sprite sheet, but there is a wooden crate tile, five terrain-matched `?`/`!` tile pairs, and plain terrain tiles to build from instead. Courses moved off blocks entirely onto enemies (see User Story 4) since 12 entries didn't fit well alongside Experience/Education on a 2-hit mechanic. **Redesigned 2026-08-30**: Experience moved off crates onto the new chest collectible (see User Story 6) since it's now considered the "most valuable" section and warrants its own dedicated main-objective collectible; crates pick up Activities (previously unmapped anywhere) and Languages (previously removed as standalone fruit collectibles in step 21) to keep a full complement of crate content.
 
-**Independent Test**: Find a crate. Hit it from below once — verify a crack overlay appears with a bump animation. Hit it again — verify it breaks with a shatter animation and the experience/education fact text appears; check the journal for the fact in the correct section. Find a question-mark block — hit it from below — verify a fruit pops up above it and the block turns into its matching `!` tile. Find a rock block — hit it from below — verify it breaks to empty space with no reward.
+**Independent Test**: Find a crate. Hit it from below once — verify a crack overlay appears with a bump animation. Hit it again — verify it breaks with a shatter animation and the education/activity/language fact text appears; check the journal for the fact in the correct section. Find a question-mark block — hit it from below — verify a fruit pops up above it and the block turns into its matching `!` tile. Find a rock block — hit it from below — verify it breaks to empty space with no reward.
 
 **Acceptance Scenarios**:
 
 1. **Given** an intact crate exists on a platform, **When** the character hits it from below for the first time, **Then** it shows a cracked visual overlay (with a bump animation) and remains in place — no fact, no reward yet.
-2. **Given** a cracked crate, **When** the character hits it again from below, **Then** it breaks apart with a shatter animation (and a bump animation) and the associated Experience or Education fact text floats up from the break point, hovers, and flies to the journal icon.
+2. **Given** a cracked crate, **When** the character hits it again from below, **Then** it breaks apart with a shatter animation (and a bump animation) and the associated Education, Activity, or Language fact text floats up from the break point, hovers, and flies to the journal icon.
 3. **Given** a question-mark block, **When** the character hits it from below, **Then** a bonus fruit pops upward into the space directly above the block (landing as a touchable pickup) and the block permanently changes to its matching `!` terrain tile — no CV fact is revealed.
 4. **Given** a rock block, **When** the character hits it from below, **Then** the block breaks into empty space immediately — no fruit, no fact, no reward.
 5. **Given** any of the three block types, **When** the character hits it from above or the side, **Then** the block is not affected — only upward hits from below trigger any of the three mechanics.
 
 ---
 
-### User Story 6 - Reach the Level End to Reveal Personality and Contact (Priority: P2)
+### User Story 6 - Collect Every Chest to Reveal the Most Valuable Facts, Then Reach the Thank-You Screen (Priority: P2)
 
-> **Superseded 2026-08-30**: the flagpole is no longer planned as a mechanic. The
-> level still needs a defined end that reveals Personality and Contact, but the
-> concrete replacement (visual marker, trigger, whether a dedicated ending-screen
-> overlay still exists) is undecided — see roadmap step 22, which needs its own
-> `brainstorming`/`writing-plans` pass before this story, and every flagpole-specific
-> requirement/success-criterion below it, can be rewritten for real. The text below
-> is kept for historical context only and MUST NOT be implemented as written.
+> **Redesigned 2026-08-30**: the flagpole is no longer planned as a mechanic —
+> replaced by treasure chests as the level's "main objective" collectible, per the
+> roadmap step 22 `brainstorming` session. The text below is the real, current
+> design; the flagpole text that previously occupied this story (and FR-023/FR-024
+> below it) is gone rather than kept for history, since it never shipped.
 
-At the far right end of the level stands a flagpole with a sliding flag. When the character jumps onto it, a celebration animation plays (character slides down the pole, flag waves). An ending screen appears showing the Personality section (personal summary / about me) and Contact information. After the ending screen is dismissed, the Personality and Contact facts are also added to the journal — with their own bookmarks but **no counter** (since there is only one piece of information per section). The visitor can choose to replay the level or close the ending screen.
+Scattered through the level (via hand-placed markers, same pattern as coins/enemies/blocks — no special end-of-level positioning) are treasure chests: the level's "main objective" collectible, visually and mechanically distinct from coins/fruit/crates. Each chest is associated with an Experience entry from the CV — the section considered most valuable, and therefore worth the extra weight of a dedicated collectible type. A chest starts closed (`chest_closed.png`), sits flush with the ground (not a solid obstacle — the character walks over/beside it, not on top of it). Unlike every other collectible, a chest does NOT open on touch: the character must be standing on/overlapping it and press Arrow Up (**redesigned 2026-08-30**, see FR-007's amendment — freed up from jumping specifically so it could become this game's "interact" key) to open it — a deliberate small pause-and-choose moment for the level's main objective, distinct from the passive walk-through-it collection every other pickup uses. Opening permanently swaps the chest to its open state (`chest_open.png` — it never re-closes) and reveals the associated Experience fact, which floats up and flies to the journal icon exactly like any other collectible. A dedicated chest counter in the HUD (e.g. "Chests 2/5") tracks progress separately from the heart/coin HUD elements, visually signaling that chests — not coins — are the primary goal.
 
-**Why this priority**: The flagpole provides closure and a satisfying end state, while revealing the Personality and Contact sections that don't fit the collectible mechanic. It's P2 because the core loop (play → collect → read) is already complete without it — but it adds important psychological satisfaction and a sense of completion.
+Once every chest in the level has been opened, a "Thank You" screen appears: a solid black full-screen background with white text — completely covering the game, not a card floating over it — showing a thank-you message and the CV's Contact information, with "press any button to continue" beneath it, and a "curtain falling" entrance animation (**amended 2026-08-30**, final review, live user feedback — see FR-024). Dismissing it (any key or click) resumes play exactly where the visitor left off — a visitor who still wants to mop up any remaining coins or crates isn't locked out. The screen can appear wherever in the level the visitor happens to be when they open the last chest; there is no separate location-based trigger. Contact is revealed only on this screen — it is not added to the journal, and has no bookmark (the visitor can trigger the screen again only by opening all chests again after a Reset Game, which restores every chest to closed).
 
-**Independent Test**: Play through the level to the rightmost edge. Jump onto the flagpole — verify celebration animation plays. Verify ending screen appears with Personality and Contact info. Dismiss the ending screen and open the journal — verify Personality and Contact bookmarks appear with the facts but no counter. Verify options to replay or close.
+**Why this priority**: Chests provide a clear "main objective" thread through the level (distinct from the ambient coin/crate collecting) and give Experience — the most valuable CV section — a collectible of its own, while the thank-you screen provides closure without needing a flagpole/pole-slide animation that no longer has matching art. It's P2 because the core loop (play → collect → read) is already complete without it — but it adds a satisfying sense of completion and surfaces Contact info a visitor would otherwise have to dig for.
+
+**Independent Test**: Stand on a closed chest and press Arrow Up — verify it swaps to its open sprite, the chest counter increments, and the Experience fact flies to the journal. Walk over (don't press Up on) a closed chest — verify it stays closed. Open every chest in the level — verify the Thank You screen appears, pausing the game, showing the thank-you message and Contact info with "press any button to continue". Press any key — verify the screen closes and gameplay resumes from the same position. Open the journal — verify Contact never appears as a bookmark.
 
 **Acceptance Scenarios**:
 
-1. **Given** the character reaches the flagpole at the level's right end, **When** they jump onto the pole, **Then** a celebration animation plays (character slides down, flag waves) and the ending screen overlay appears.
-2. **Given** the ending screen is displayed, **When** the visitor reads it, **Then** it shows the Personality section content and Contact information.
-3. **Given** the ending screen is dismissed, **When** the visitor opens the journal, **Then** Personality and Contact bookmarks appear with the facts displayed, but without a per-section counter.
-4. **Given** the ending screen is visible, **When** the visitor clicks "Replay Level", **Then** the level resets — all coins, enemies, and blocks are restored, journal is cleared, and the ending screen is dismissed.
-5. **Given** the ending screen is visible, **When** the visitor presses `J`, **Then** the ending screen closes and the journal opens (with all previously collected facts still available).
+1. **Given** a closed chest exists in the level, **When** the character is standing on/overlapping it and the visitor presses Arrow Up, **Then** it permanently swaps to its open sprite (never re-closes for the rest of the session), the HUD chest counter increments, and the associated Experience fact text floats up and flies to the journal icon.
+1b. **Given** a closed chest exists in the level, **When** the character merely walks over or past it without pressing Arrow Up, **Then** the chest stays closed and no fact is revealed — opening is a deliberate action, not automatic on touch.
+2. **Given** some but not all chests are open, **When** the visitor checks the HUD, **Then** the chest counter shows the count of opened vs. total chests in the level (e.g. "Chests 2/5").
+3. **Given** the last unopened chest in the level is touched, **When** it opens, **Then** the Thank You screen appears immediately, pausing the game, wherever the character happens to be in the level.
+4. **Given** the Thank You screen is displayed, **When** the visitor reads it, **Then** it shows a thank-you message, the CV's Contact information, and "press any button to continue" text beneath.
+5. **Given** the Thank You screen is visible, **When** the visitor presses any key or clicks, **Then** the screen closes and gameplay resumes from the exact paused state.
+6. **Given** the Thank You screen has been dismissed, **When** the visitor opens the journal, **Then** no Contact bookmark exists anywhere in the journal — Contact is only ever shown on the Thank You screen.
+7. **Given** the visitor clicks "Reset Game" (FR-018b), **When** the level restarts, **Then** all chests reset to closed and the chest counter resets to 0.
 
 ---
 
 ### User Story 7 - Game Audio (Priority: P2)
 
-A looping background music track and sound effects enhance the platformer experience. Sound effects play for key actions: jumping, collecting a coin, stomping an enemy, breaking a block, taking damage, and opening/closing the journal. A level-end sound effect is TBD, pending the roadmap step 22 redesign (see User Story 6's superseded note above — the flagpole celebration fanfare it originally implied no longer applies). A small speaker icon in the top-right HUD area allows the visitor to toggle all audio on/off. Audio is muted by default and must be enabled by the visitor.
+A looping background music track and sound effects enhance the platformer experience. Sound effects play for key actions: jumping, collecting a coin, stomping an enemy, breaking a block, taking damage, opening a chest, and opening/closing the journal. A distinct fanfare/chime plays when the Thank You screen appears (**redesigned 2026-08-30**, see User Story 6 — replaces the flagpole celebration fanfare this requirement originally implied). A small speaker icon in the top-right HUD area allows the visitor to toggle all audio on/off. Audio is muted by default and must be enabled by the visitor.
 
 **Why this priority**: Audio feedback makes gameplay more engaging and provides clear confirmation of game actions, but the game is fully playable without it.
 
@@ -140,7 +143,7 @@ A looping background music track and sound effects enhance the platformer experi
 3. **Given** audio is enabled, **When** the character collects a coin, **Then** a coin collection sound effect plays.
 4. **Given** audio is enabled, **When** the character stomps an enemy, **Then** a defeat sound effect plays.
 5. **Given** audio is enabled, **When** the character breaks a destroyable block, **Then** a shatter sound effect plays.
-6. **(Superseded 2026-08-30, TBD)** ~~Given audio is enabled, When the character reaches the flagpole, Then a celebration fanfare sound effect plays~~ — pending the roadmap step 22 level-end redesign.
+6. **Given** audio is enabled, **When** the character opens a chest, **Then** a chest-opening sound effect plays; **When** the Thank You screen then appears (the last chest was just opened), a distinct fanfare/chime sound effect plays (**redesigned 2026-08-30** — replaces the superseded flagpole celebration fanfare this scenario originally described).
 7. **Given** audio is enabled, **When** the character takes damage from an enemy, **Then** a damage sound effect plays.
 8. **Given** audio is enabled, **When** the journal is opened or closed, **Then** a page-flip sound effect plays.
 9. **Given** the game is playing, **When** the visitor clicks the speaker icon, **Then** all audio (music and effects) toggles on/off and the icon updates to reflect the current state.
@@ -211,7 +214,7 @@ As a new visitor starts the game, a small translucent overlay listing the univer
 
 - **FR-002**: System MUST implement a game loop running at a consistent tick rate (30 FPS target) that processes input, updates game state, and renders each frame independently of frame timing.
 
-- **FR-003**: System MUST manage game state through distinct phases: `loading` (assets loading), `playing` (active gameplay), `paused` (journal open or tab lost focus), and a level-end phase, tentatively `ending-screen`, whose actual shape is TBD pending the roadmap step 22 redesign (superseded 2026-08-30 — see User Story 6).
+- **FR-003**: System MUST manage game state through distinct phases: `loading` (assets loading), `playing` (active gameplay), `paused` (journal open or tab lost focus), and `ending-screen` (the Thank You screen shown once every chest is opened — **redesigned 2026-08-30**, see User Story 6; `ending-screen` pauses the game loop the same way `paused` does, and dismissing it — any key or click — returns to `playing`).
 
 - **FR-004**: System MUST use the existing theme system infrastructure — `currentTheme` signal from `src/state/theme.ts`, `currentLocale`/`currentCV` signals from `src/state/locale.ts`. The theme is registered in the `themePages` map in `App.tsx` under the key `platformer`.
 
@@ -225,7 +228,7 @@ As a new visitor starts the game, a small translucent overlay listing the univer
   - **Collision**: Character lands on platforms from above. All platforms are solid from every direction — the character cannot jump up through platforms from below. **Exception**: `bridge` tiles are one-way platforms — passable from below (the character can jump up through one) but solid when landing on top, per roadmap step 7. Holding Down (or `S`) while resting on a bridge deliberately drops the character through it.
   - **Horizontal movement**: Constant speed left/right with instant direction change
 
-- **FR-007**: System MUST handle keyboard input: Arrow Left/Right for movement, Space or Arrow Up for jump, Arrow Down or `S` to drop through a `bridge` tile the character is resting on. `A`/`D` are additionally accepted as alternates for Left/Right (a convenience discovered useful during development, e.g. for setups where arrow keys are intercepted before reaching the browser — the arrow-key requirement above is unaffected). The up-arrow key is used exclusively for jumping — it is NOT used for journal navigation or any other UI interaction. Input is read per-frame so held keys produce continuous movement.
+- **FR-007**: System MUST handle keyboard input: Arrow Left/Right for movement, Space for jump, Arrow Down or `S` to drop through a `bridge` tile the character is resting on. `A`/`D` are additionally accepted as alternates for Left/Right (a convenience discovered useful during development, e.g. for setups where arrow keys are intercepted before reaching the browser — the arrow-key requirement above is unaffected). **Redesigned 2026-08-30**: Arrow Up is no longer a jump key (was: Space or Arrow Up) — it's freed up for Arrow Up's new role opening a chest the character is standing on (FR-023) and, in the future, climbing (unscheduled — see roadmap.md's "Unscheduled additions"). Arrow Up is NOT used for journal navigation or any other UI interaction. Input is read per-frame so held keys produce continuous movement. **Amended 2026-08-30**: `KeyW` is additionally accepted as an alternate for Arrow Up's interact action (opening a chest), the same convention as `A`/`D` being alternates for Left/Right above — and, like `S` is already both the drop-through key and the future climb-down key, `W` is intended to double as the future climb-up key once that mechanic ships.
 
 #### Level Design
 
@@ -234,15 +237,17 @@ As a new visitor starts the game, a small translucent overlay listing the univer
   - **Collectibles (coins)**: Placed on platforms and in the air at varying heights
   - **Enemies** (P2): Patrol enemies on platforms
   - **Destroyable blocks** (P2): Blocks that can be destroyed by hitting from below
-  - **Level end** (P2): some marker/trigger at the far right — no longer a flagpole (superseded 2026-08-30, see User Story 6); replacement TBD
+  - **Chests** (P2, **redesigned 2026-08-30**): the "main objective" collectible, hand-placed via markers scattered through the level like any other collectible — no special end-of-level position. Opening every chest in the level triggers the Thank You screen (see User Story 6); there is no separate flagpole-style location trigger.
 
 - **FR-009**: System MUST map CV sections to specific game object types — each collectible type reveals content from assigned sections only:
-  - **Coins** → Skills, Languages
-  - **Destroyable blocks** → Experience, Education (crates only — question-mark and rock blocks carry no CV fact)
+  - **Coins** → Skills (**redesigned 2026-08-30**: Languages moved off coins — see the crate bullet below)
+  - **Chests** (P2, **redesigned 2026-08-30**) → Experience — the level's "main objective" collectible; see User Story 6
+  - **Destroyable blocks** → Education, Activities, Languages (crates only, **redesigned 2026-08-30** — Experience moved off crates onto the new chest collectible; Activities and Languages moved on, closing two previously-unmapped gaps — question-mark and rock blocks still carry no CV fact)
   - **Enemies** (P2) → Certificates, Projects (purple slimes), Courses (green slimes)
-  - **Level end** (P2) → Personality (About) + Contact — added to journal (with bookmarks but no per-section counter); reveal trigger/presentation is TBD, superseded 2026-08-30 (was: flagpole ending screen — see User Story 6)
-  - **Amended 2026-08-28**: within the "Coins" collectible type, Skills and Languages are visually split — Skills render as `coin.png`, Languages as `fruit.png` — so a player can tell the two apart at a glance even though both are the same `sourceType: 'coin'` collectible mechanically (same touch-to-collect behavior, same flight-to-journal animation).
-  - **Amended 2026-08-28**: a Skill coin represents a whole skill *category* (e.g. "Backend"), not one individual skill — the real CV data has too many individual skills to reasonably place one collectible each. Touching one category's coin adds every skill in that category to the journal's Skills section at once, shown as the category name with its skill list. Languages remain one collectible per language.
+  - **Personality** → shown directly on the always-visible "About Me" journal bookmark (per FR-013's step-14 amendment), not via any in-level collectible
+  - **Contact** → revealed only on the Thank You screen once every chest is opened (**redesigned 2026-08-30**, see User Story 6) — never added to the journal, no bookmark
+  - **Amended 2026-08-28**: within the "Coins" collectible type, Skills and Languages were visually split — Skills render as `coin.png`, Languages as `fruit.png` — so a player could tell the two apart at a glance even though both were the same `sourceType: 'coin'` collectible mechanically. **Superseded 2026-08-30**: Languages moved off coins entirely onto crates (see the crate bullet above); this split no longer applies — `fruit.png` is now used only for the question-mark block's bonus pickup (FR-022b), which still carries no CV fact.
+  - **Amended 2026-08-28**: a Skill coin represents a whole skill *category* (e.g. "Backend"), not one individual skill — the real CV data has too many individual skills to reasonably place one collectible each. Touching one category's coin adds every skill in that category to the journal's Skills section at once, shown as the category name with its skill list.
   - **Amended 2026-08-29**: Courses (12 CV entries) moved from destroyable blocks to green-slime enemies (see User Story 4 and FR-021's amendment) — the original "Experience, Education, Courses → blocks" mapping didn't fit once the block mechanic split into three narrower types. Purple slimes absorbed Projects alongside their original Certificates, replacing the original green=Projects/purple=Certificates split.
 
 - **FR-010**: System MUST define level data in a structured format (TypeScript types or JSON) using a grid/raster system with width and height for easy element positioning. The level data specifies:
@@ -250,7 +255,7 @@ As a new visitor starts the game, a small translucent overlay listing the univer
   - Collectible positions with associated CV fact references
   - Enemy positions and patrol ranges (P2)
   - Destroyable block positions (P2)
-  - Level-end position (P2) — no longer a flagpole; superseded 2026-08-30, see User Story 6
+  - Chest positions (P2, **redesigned 2026-08-30** — replaces the single flagpole position; chests are scattered via markers like any other collectible, see User Story 6)
   - Spawn point (level start)
   - Spawn points (invisible checkpoints throughout the level where the character respawns on death)
   - Level dimensions (width × height in tiles)
@@ -266,7 +271,9 @@ The level is hand-crafted — starting with a simple layout to validate function
   - Its state is marked as collected in session state
   - The associated CV fact is added to the journal
 
-- **FR-013**: System MUST ensure that every non-empty CV item in Skills, Languages, Experience, Education, Courses, Certificates, and Projects has at least one associated collectible in the level, mapped according to FR-009. Personality and Contact items have no collectibles — they are revealed via the level-end mechanism (superseded 2026-08-30, mechanism TBD — was: flagpole ending screen, see User Story 6) and then added to the journal (with bookmarks but no counter). Empty CV sections produce no collectibles and hide their journal bookmark. **Amended 2026-08-28**: step 14 added the Personality/"About Me" bookmark ahead of schedule, per user request — it shows the CV's personality data (name, tagline, summary) directly rather than via a collected fact, since no collectible source exists for it yet. This is provisional, pulled forward from the level-end mechanism above; revisit once step 22 actually implements its redesigned version. **Amended 2026-08-28 (step 16)**: collectible/enemy placement changed from auto-placement to intentional, hand-authored markers in the level layout (`S`/`E`/`M`/`C`/`F` — see `LevelParser.ts`), with no auto-placement fallback. A level's marker count now decides on-map coverage, not CVData's length — a mechanics-test level (like `level1` as of step 16) MAY cover only a slice of CVData without violating this requirement; full coverage is deferred to the final level design (targeted for step 22, once its now-undecided level-end mechanism closes out the level).
+- **FR-013**: System MUST ensure that every non-empty CV item in Skills, Languages, Experience, Education, Courses, Certificates, Activities, and Projects has at least one associated collectible in the level, mapped according to FR-009. Personality has no collectible — it is shown directly on the always-visible "About Me" journal bookmark. Contact has no collectible either — it is revealed only via the Thank You screen once every chest is opened (**redesigned 2026-08-30**, see User Story 6), and is never added to the journal. Empty CV sections produce no collectibles and hide their journal bookmark. **Amended 2026-08-28**: step 14 added the Personality/"About Me" bookmark ahead of schedule, per user request — it shows the CV's personality data (name, tagline, summary) directly rather than via a collected fact, since no collectible source exists for it. **Confirmed permanent 2026-08-30**: this is no longer provisional — the step 22 redesign settled on Personality staying exactly this way (About Me bookmark, no collectible, no level-end involvement). **Amended 2026-08-28 (step 16)**: collectible/enemy placement changed from auto-placement to intentional, hand-authored markers in the level layout (`S`/`E`/`M`/`C`/`F`/`T` — see `LevelParser.ts`, `T` added 2026-08-30 for chest markers), with no auto-placement fallback. A level's marker count now decides on-map coverage, not CVData's length — a mechanics-test level (like `level1` as of step 16) MAY cover only a slice of CVData without violating this requirement; full coverage is deferred to the final level design.
+
+**Amended 2026-08-30**: the `F` marker was reassigned from the removed dead "fruit" collectible marker to the `fragileRock` block (previously `K`); the fruit-marker placement concept itself was removed entirely — no marker character maps to a "fruit" placement kind anymore (`entities/Fruit.ts`'s bonus-fruit sprite rendering, spawned by the question-mark block's hit mechanic, is unrelated and unaffected).
 
 #### Journal
 
@@ -288,7 +295,7 @@ The level is hand-crafted — starting with a simple layout to validate function
 
 - **FR-017**: System MUST render collected facts within the journal in the **Simple List** entry style (Option A from design mockups): clean bullet-point notes on lined paper with handwriting font, displaying key data fields concisely. Each fact entry includes the section-appropriate icon (🏢 for experience, 🎓 for education, etc.) and key data fields. Skills entries use star ratings (e.g., "TypeScript ★★★★☆").
 
-- **FR-017b**: System MUST display a per-section collection counter near each section's header or bookmark (e.g., "Skills 3/5") showing how many facts have been collected out of the total for that section. **Exception**: Personality and Contact sections have no counter — there is only one fact per section, revealed via the level-end mechanism (superseded 2026-08-30, mechanism TBD — was: the flagpole, see User Story 6).
+- **FR-017b**: System MUST display a per-section collection counter near each section's header or bookmark (e.g., "Skills 3/5") showing how many facts have been collected out of the total for that section. **Exception**: Personality has no counter — there is only one fact, shown directly on the always-visible "About Me" bookmark rather than collected. Contact never appears in the journal at all (**redesigned 2026-08-30** — see User Story 6), so it has neither a bookmark nor a counter to consider.
 
 - **FR-018**: System MUST paginate journal content as one continuous flat sequence of pages
   spanning the whole book, not scoped per section (amended 2026-08-28, superseding the same
@@ -340,7 +347,7 @@ The level is hand-crafted — starting with a simple layout to validate function
 #### Destroyable Blocks (P2)
 
 - **FR-021**: System MUST render three visually distinct destroyable block types, each a `BlockDef` entity placed via hand-authored level markers (not baked into terrain, consistent with FR-013's enemy/coin marker approach):
-  - **Crate**: a wooden crate tile. Intact by default; shows a cracked overlay after one hit; breaks apart after a second hit.
+  - **Crate**: a wooden crate tile. Intact by default; shows a cracked overlay after one hit; breaks apart after a second hit. Carries Education, Activity, or Language facts (**redesigned 2026-08-30** — see FR-009).
   - **Question-mark**: one of five palette-matched `?` tiles (matching the surrounding terrain's color — brick, sandy, pink/red, teal, blue-gray); after a single hit, permanently swaps to that same palette's `!` tile.
   - **Rock**: a plain terrain-styled tile, visually distinct from both ordinary solid terrain and the palette's `?`/`!` tiles; breaks to empty space after a single hit.
 
@@ -348,7 +355,7 @@ The level is hand-crafted — starting with a simple layout to validate function
 
   **Amended 2026-08-30**: since blocks became fully solid physical obstacles (step 20's Task 11), the "hitting from above or the side has no effect" language in FR-022/FR-022b/FR-022c below refers only to the block's CV/hit *reaction* (crack, break, fruit-pop, convert-to-`!`) — not to collision. A block is solid from every direction regardless of hit count or hit direction; that's a separate, already-existing property (see FR-021's collision behavior), not something these FRs override.
 
-- **FR-022**: System MUST implement the crate's hit mechanic: an upward hit from below on an intact crate shows a crack overlay with no fact or reward yet. A second upward hit breaks the crate apart with a shatter animation and reveals the associated CV fact (Experience or Education) — the fact text floats up from the break point, hovers briefly, then animates toward the journal icon, same as any other collectible. Hitting a crate from above or the side has no effect at either hit count (no crack/break reaction — the crate remains a solid obstacle from those directions either way, see the 2026-08-30 amendment above). **The crack overlay is a checked-in asset, `public/sprites/crack_overlay.png`** (generated 2026-08-29): a 16×16 transparent-background PNG derived from the existing `groundRock` terrain tile by thresholding its pixels by luminance (`lum<35` — tight enough to keep only the near-black outline, not the tile's dark-brown fill color), loaded like any other sprite and composited over the crate tile when `hitsTaken === 1`.
+- **FR-022**: System MUST implement the crate's hit mechanic: an upward hit from below on an intact crate shows a crack overlay with no fact or reward yet. A second upward hit breaks the crate apart with a shatter animation and reveals the associated CV fact (Education, Activity, or Language — **redesigned 2026-08-30**, see FR-009) — the fact text floats up from the break point, hovers briefly, then animates toward the journal icon, same as any other collectible. Hitting a crate from above or the side has no effect at either hit count (no crack/break reaction — the crate remains a solid obstacle from those directions either way, see the 2026-08-30 amendment above). **The crack overlay is a checked-in asset, `public/sprites/crack_overlay.png`** (generated 2026-08-29): a 16×16 transparent-background PNG derived from the existing `groundRock` terrain tile by thresholding its pixels by luminance (`lum<35` — tight enough to keep only the near-black outline, not the tile's dark-brown fill color), loaded like any other sprite and composited over the crate tile when `hitsTaken === 1`.
 
 - **FR-022b**: System MUST implement the question-mark block's hit mechanic: a single upward hit from below spawns a bonus fruit (rendered from `fruit.png`, no CV fact — a pure reward for engaging with the mechanic, distinct from a coin so it's never mistaken for CV content) that rises into the space directly above the block and lands as a touchable pickup. The block itself permanently swaps to its matching `!` terrain tile and no longer responds to hits. Hitting from above or the side has no effect (no fruit-pop reaction; still solid, see the 2026-08-30 amendment above).
 
@@ -356,16 +363,15 @@ The level is hand-crafted — starting with a simple layout to validate function
 
 - **FR-022d**: System MUST play a short bump/nudge animation (the block moves up a few pixels then settles back, roughly 100ms) on every upward hit, for all three block types — including a block's terminal hit (crate's second hit, question-mark's and rock's only hit) — so every hit gets consistent tactile feedback regardless of which visual change (crack, shatter, convert-to-`!`, or disappear) also happens on it.
 
-#### Level Completion (P2)
+#### Chests & Level Completion (P2)
 
-> **Superseded 2026-08-30**: FR-023 and FR-024 below describe the flagpole mechanic,
-> which is no longer planned. Kept for historical context only — see User Story 6's
-> superseded note. A replacement level-end mechanism (still needed) is undecided;
-> rewrite these two requirements once roadmap step 22 is designed.
+> **Redesigned 2026-08-30**: FR-023 and FR-024 below replace the flagpole mechanic
+> (never implemented) with the chest/Thank-You-screen design from the roadmap step 22
+> `brainstorming` session — see User Story 6.
 
-- **FR-023**: ~~System MUST render a flagpole (with a separate sliding flag) at the rightmost end of the level. When the character jumps onto the flagpole, a celebration animation plays (character slides down the pole, flag waves) and the ending screen overlay appears.~~
+- **FR-023**: System MUST render treasure chests as a new `ChestDef` entity, placed via hand-authored level markers (the `T` marker, consistent with FR-013's marker-based placement approach for coins/enemies/blocks) — one chest per non-empty Experience entry (per FR-009's zip-in-CVData-order convention, same as coins/enemies/crates). A chest sits flush with the ground (not solid — FR-006's platform-collision rules don't apply to it) and renders in its closed state (`chest_closed.png`) by default. **Redesigned 2026-08-30**: unlike every other collectible, opening a chest is NOT automatic on touch — when the character's hitbox overlaps a closed chest AND the visitor presses Arrow Up (freed up from jumping by FR-007's amendment), it permanently swaps to its open state (`chest_open.png` — never reverts to closed except via Reset Game) and the associated Experience fact text floats up from the chest, hovers briefly, then animates toward the journal icon, same as any other collectible. Merely overlapping a closed chest without pressing Arrow Up has no effect. A HUD chest counter (e.g. "Chests 2/5", positioned near the heart/coin HUD elements) tracks how many chests have been opened out of the level's total. Per FR-013's marker-count convention, the level's actual chest count is capped by how many `T` markers exist, not by how many Experience entries CVData has — `level1` (a mechanics-test level) currently has only 2 markers, so the Thank You screen (FR-024) can fire after only 2 of the real CV's 5 Experience entries are found; full coverage is deferred to the final level design, same as every other marker type. **Amended 2026-08-30** (final review): unlike every other collectible type, chests are the one exception to FR-009's zip-in-CVData-order convention referenced above — `ChestMapper.ts`'s `mapCVDataToChests` zips markers against Experience entries in REVERSED CVData order (oldest entry first, newest last), not CVData's native newest-first order. Since markers are placed in level-reading order (near spawn to farther away), this makes the chests read as a chronological career progression as the visitor plays further into the level: the closest chest reveals the oldest job, the farthest (or, with only 2 markers today, the second) chest reveals the newest one — a deliberate narrative choice, not an oversight.
 
-- **FR-024**: ~~System MUST display the ending screen showing the Personality section content (personal summary / about me) and Contact information. After the ending screen is dismissed, the Personality and Contact facts are added to the journal with their own bookmarks but no per-section counter. The ending screen offers a "Replay Level" option to reset the game.~~
+- **FR-024**: System MUST display the Thank You screen once the last chest in the level is opened, showing a thank-you message, the CV's Contact information, and "press any button to continue" text beneath. Displaying the screen transitions `gamePhase` to `ending-screen`, pausing the game loop exactly like `paused` does. Any key press or click dismisses the screen, returning `gamePhase` to `playing` and resuming gameplay from the exact paused state — no separate "Replay Level" option is offered (Reset Game, FR-018b, already covers restarting). Contact is never added to `collectedFacts` or the journal; it exists only on this screen. **Amended 2026-08-30** (final review, live user feedback): this originally described a centered overlay following the journal's "game stays visible around it" pattern (FR-014) — that never shipped. The actual design is a solid full-screen black background with white text, completely covering the game while shown (not a card floating over a dimmed backdrop), with a "curtain falling" entrance animation: the background starts translated fully off-screen upward and slides down into view on mount, like a stage curtain dropping. Dismissal itself stays instant, with no reverse "curtain rising" animation.
 
 #### Controls & Theme Infrastructure (P3)
 
@@ -408,7 +414,7 @@ The level is hand-crafted — starting with a simple layout to validate function
     │   ├── BookmarkTabs.tsx        # Vertical bookmark tab strip
     │   ├── FloatingControls.tsx    # Theme and locale toggle (P3)
     │   ├── ControlsOverlay.tsx     # Universal controls overlay shown once at start (P3)
-     │   └── EndingScreen.tsx         # Level-end reveal — Personality + Contact (P2). Superseded 2026-08-30: was the flagpole ending screen; whether this component still exists as-is is TBD, see User Story 6.
+     │   └── ThankYouScreen.tsx       # Thank You screen — Contact reveal once all chests are opened (P2). Redesigned 2026-08-30: replaces the never-implemented flagpole EndingScreen, see User Story 6.
     ├── engine/
     │   ├── GameLoop.ts             # rAF-based game loop, state machine
     │   ├── Input.ts               # Keyboard input tracking per frame
@@ -421,12 +427,14 @@ The level is hand-crafted — starting with a simple layout to validate function
     │   ├── Collectible.ts         # Coin/collectible state and collision
     │   ├── Enemy.ts               # Enemy patrolling and collision (P2)
     │   ├── DestroyableBlock.ts    # Block state and hit tracking (P2)
+    │   ├── Chest.ts                # Chest state — closed/open, per-chest fact (P2, added 2026-08-30)
      │   └── HintSign.ts             # Sign trigger-zone state and overlap detection (P3)
     ├── level/
     │   ├── LevelData.ts           # Type definitions for level structure
     │   ├── Terrain.ts             # Tile helpers — isSolid, tileAtPosition, tile-to-pixel conversion
     │   ├── level1.ts              # Level 1 data — terrain, collectibles, mappings
-    │   └── CollectibleMapper.ts   # Maps CVData to collectible placements
+    │   ├── CollectibleMapper.ts   # Maps CVData to collectible placements
+    │   └── ChestMapper.ts         # Maps CVData Experience entries to chest placements (added 2026-08-30)
     └── types.ts                   # Shared types for the platformer theme
    ```
 
@@ -439,6 +447,7 @@ The level is hand-crafted — starting with a simple layout to validate function
   - `cameraPosition`: Current viewport scroll offset
   - `enemyStates`: Per-enemy position, direction, defeated status (P2)
   - `blockStates`: Per-block hit count and broken status (P2)
+  - `chestStates`: Per-chest open/closed status (P2, added 2026-08-30)
 
 - **FR-032**: System MUST define TypeScript types for the platformer theme:
   - `GamePhase`: `'loading' | 'playing' | 'paused' | 'ending-screen'`
@@ -451,16 +460,18 @@ The level is hand-crafted — starting with a simple layout to validate function
   - `PlayerState`: `{ x: number; y: number; vx: number; vy: number; facing: 'left' | 'right'; grounded: boolean; animState: 'idle' | 'walk' | 'jump'; animFrame: number }`
   - `CollectibleDef`: `{ id: string; x: number; y: number; type: 'coin' | 'enemy' | 'block'; cvSection: SectionId; cvIndex: number }`
   - `CollectedFact`: `{ id: string; sectionId: SectionId; sectionLabel: string; data: CVItemData; sourceType: 'coin' | 'enemy' | 'block' }`
-  - `BlockDef`: **amended 2026-08-30** — replaces the earlier aspirational shape below with what step 20 actually shipped: `{ id: string; blockKind: 'crate' | 'questionMark' | 'rock'; fact?: CollectedFact }`. `fact` is present only on `crate` blocks (a `CollectedFact` drawn from Experience/Education, same shape as enemy/collectible facts); `questionMark` and `rock` carry no CV mapping (amended 2026-08-29, see FR-021). Placement adds `x`/`y` to produce `BlockPlacement extends BlockDef` (same `Def`→`Placement` convention already used for enemies/collectibles, e.g. `EnemyPlacement`/`CollectiblePlacement`) — `BlockPlacement` was not previously documented in this spec; this amendment is its first mention here. `hitsTaken`/`broken` — needed for the crate's 2-hit crack progression and any block's live "already broken" state — were deferred to the not-yet-implemented step 21 live-state design rather than being part of this static def; the original bullet below described them prematurely, before that design existed.
+  - `BlockDef`: **amended 2026-08-30** — replaces the earlier aspirational shape below with what step 20 actually shipped: `{ id: string; blockKind: 'crate' | 'questionMark' | 'fragileRock'; fact?: CollectedFact }`. `fact` is present only on `crate` blocks (a `CollectedFact` drawn from Education, Activities, or Languages — **redesigned 2026-08-30**, was Experience/Education, see FR-009 — same shape as enemy/collectible facts); `questionMark` and `fragileRock` carry no CV mapping (amended 2026-08-29, see FR-021).
+  - `ChestDef` (**added 2026-08-30**, see User Story 6 and FR-023): `{ id: string; fact: CollectedFact }`, mirroring `EnemyDef`'s static-def shape — `fact` is always present (drawn from Experience, one chest per non-empty entry). Placement adds `x`/`y` to produce `ChestPlacement extends ChestDef`, same `Def`→`Placement` convention as `EnemyPlacement`/`CollectiblePlacement`/`BlockPlacement`. Live per-instance open/closed state (`ChestState extends ChestPlacement { state: 'closed' | 'open' }`) mirrors `BlockState`'s `Def`→`Placement`→`State` layering, not baked into `ChestDef` itself. Placement adds `x`/`y` to produce `BlockPlacement extends BlockDef` (same `Def`→`Placement` convention already used for enemies/collectibles, e.g. `EnemyPlacement`/`CollectiblePlacement`) — `BlockPlacement` was not previously documented in this spec; this amendment is its first mention here. `hitsTaken`/`broken` — needed for the crate's 2-hit crack progression and any block's live "already broken" state — were deferred to the not-yet-implemented step 21 live-state design rather than being part of this static def; the original bullet below described them prematurely, before that design existed.
     <!-- superseded by the 2026-08-30 amendment above; kept for history only -->
     ~~`BlockDef`: `{ id: string; x: number; y: number; kind: 'crate' | 'questionMark' | 'rock'; hitsTaken: number; broken: boolean; cvSection?: SectionId; cvIndex?: number }` — `cvSection`/`cvIndex` are only present on `crate` blocks; `questionMark` and `rock` carry no CV mapping (amended 2026-08-29, see FR-021).~~
-  - `LevelDef`: `{ terrain: TileMap; collectibles: CollectibleDef[]; enemies: EnemyDef[]; blocks: BlockDef[]; signs: SignDef[]; spawn: Point; flagpole: Point; width: number; height: number }` — **superseded 2026-08-30**: the `flagpole: Point` field describes a mechanic that's no longer planned; it needs to be renamed/replaced by whatever roadmap step 22's redesign settles on (e.g. a generic `levelEnd: Point`), not implemented as `flagpole` literally.
+  - `LevelDef`: `{ terrain: TileMap; collectibles: CollectibleDef[]; enemies: EnemyDef[]; blocks: BlockDef[]; chests: ChestDef[]; signs: SignDef[]; spawn: Point; width: number; height: number }` — **redesigned 2026-08-30**: the earlier `flagpole: Point` field is removed entirely (no replacement `levelEnd: Point` either) — chests have no single level-end position; the Thank You screen (FR-024) triggers once every entry in `chests` is `'open'`, computed from `chestStates`, not from a spawn/position check.
   - `SignDef`: `{ id: string; x: number; y: number; hintId: string }` — `hintId` looks up localized text at `platformer.hints.<hintId>` in the existing i18n translation files (`src/i18n/locales/en.json`/`de.json`); no `cvSection`/`cvIndex`, since signs carry no CV mapping (P3, see FR-037).
 
 #### Testing
 
 - **FR-033**: System MUST include unit tests covering:
-  - `CollectibleMapper` — correct mapping of CVData to collectible definitions per FR-009 (Skills/Languages → coins, Experience/Education → crate blocks, Certificates/Projects → purple slimes, Courses → green slimes, Personality/Contact → level-end reveal only; mechanism TBD, superseded 2026-08-30 — was flagpole)
+  - `CollectibleMapper` — correct mapping of CVData to collectible definitions per FR-009 (Skills → coins, Education/Activities/Languages → crate blocks, Certificates/Projects → purple slimes, Courses → green slimes)
+  - `ChestMapper` (**added 2026-08-30**) — correct mapping of CVData Experience entries to chest definitions per FR-009/FR-023; Personality has no collectible (shown on the About Me bookmark) and Contact has no collectible (shown on the Thank You screen only) — neither should ever be produced by any mapper
   - `Physics` — gravity, jump arc, collision with platforms, collision with pits
   - `Input` — keyboard event parsing, key held vs pressed
   - Journal content rendering with sample CV data
@@ -471,7 +482,7 @@ The level is hand-crafted — starting with a simple layout to validate function
   - `PlatformerPage` renders canvas element
   - `Journal` renders with correct sections based on CV data
   - `BookmarkTabs` active/inactive states
-   - `EndingScreen` displays Personality and Contact info (P2) — superseded 2026-08-30, TBD pending the level-end redesign (see User Story 6)
+   - `ThankYouScreen` displays the thank-you message and Contact info once all chests are open (P2, **added 2026-08-30**, see User Story 6)
 
 #### Audio (P2)
 
@@ -483,9 +494,11 @@ The level is hand-crafted — starting with a simple layout to validate function
 
 - **Level**: The game world — a side-scrolling environment defined by terrain tiles, collectible placements, enemy placements, spawn point, and a level-end point (superseded 2026-08-30 — no longer a flagpole; replacement TBD, see User Story 6). In v1, one continuous level covers all CV sections in order.
 
-- **Collectible**: An item in the game world that, when acquired by the player, reveals a CV fact. Types: coin (Skills, Languages — P1), enemy defeat (Certificates, Projects on purple slimes, Courses on green slimes — P2), crate block break (Experience, Education — P2). Each collectible is mapped to a specific CV data item by section.
+- **Collectible**: An item in the game world that, when acquired by the player, reveals a CV fact. Types: coin (Skills — P1, **redesigned 2026-08-30**: Languages moved to crates), enemy defeat (Certificates, Projects on purple slimes, Courses on green slimes — P2), crate block break (Education, Activities, Languages — P2, **redesigned 2026-08-30**, was Experience/Education). Each collectible is mapped to a specific CV data item by section.
 
-- **Destroyable Block**: A `BlockDef` entity that responds to upward hits from below. Three kinds (amended 2026-08-29, see FR-021): **Crate** (2 hits — crack overlay, then breaks and reveals an Experience/Education fact), **Question-mark** (1 hit — spawns a bonus fruit, then permanently converts to a matching `!` terrain tile, no fact), **Rock** (1 hit — breaks to empty space, no fact, no reward, pure level-design filler).
+- **Chest** (P2, **added 2026-08-30**): A `ChestDef` entity — the level's "main objective" collectible, distinct from ordinary `Collectible`s. Starts `closed` (`chest_closed.png`); touching it permanently swaps to `open` (`chest_open.png`) and reveals its associated Experience fact. Tracked by its own HUD counter, separate from coins/hearts. See User Story 6, FR-023.
+
+- **Destroyable Block**: A `BlockDef` entity that responds to upward hits from below. Three kinds (amended 2026-08-29, see FR-021): **Crate** (2 hits — crack overlay, then breaks and reveals an Education/Activity/Language fact, **redesigned 2026-08-30**), **Question-mark** (1 hit — spawns a bonus fruit, then permanently converts to a matching `!` terrain tile, no fact), **Rock** (1 hit — breaks to empty space, no fact, no reward, pure level-design filler).
 
 - **Bonus pickup**: An item spawned by a question-mark block on its single hit (rendered as a fruit) — unlike a `Collectible`, it carries no CV fact and isn't mapped to `CVData`. Purely a reward for engaging with the block-hit mechanic.
 
@@ -505,17 +518,20 @@ CVData (from currentCV signal)
 
 Level
  ├── Contains CollectibleDef[] (coin/enemy/block positions)
+ ├── Contains ChestDef[] (added 2026-08-30 — replaces the removed flagpole field)
  ├── Contains Terrain (platform tiles, collision data)
- └── Defines spawn, checkpoint, level-end positions (was flagpole; superseded 2026-08-30, TBD)
+ └── Defines spawn and checkpoint positions
 
 Player
  ├── Collides with Terrain (stands, jumps, falls)
  ├── Collides with Collectible → triggers fact collection
+ ├── Collides with Chest → opens it, triggers fact collection (added 2026-08-30)
  └── Tracked by Camera (viewport follows player)
 
 Session State
  ├── CollectedFact[] — which facts have been discovered
  ├── PlayerState — current position, animation
+ ├── chestStates — per-chest open/closed (added 2026-08-30; all chests open → ending-screen)
   └── GamePhase — playing, paused, ending-screen
 
 Journal
@@ -534,7 +550,7 @@ FloatingControls (P3)
 
 - **SC-001 — Core platformer mechanics work**: A visitor can control a character that moves left/right, jumps, lands on platforms, and is followed by a scrolling camera. Character animations (idle, walk, jump) are visibly distinct. Verified by: manual play test.
 
-- **SC-002 — Every CV item has a collectible**: Each non-empty item in Skills, Languages, Experience, Education, Courses, Certificates, and Projects maps to at least one collectible in the level according to the FR-009 mapping. Personality and Contact are excluded (revealed via the level-end mechanism — superseded 2026-08-30, TBD, was flagpole ending screen). Verified by: unit test.
+- **SC-002 — Every CV item has a collectible**: Each non-empty item in Skills, Languages, Experience, Education, Courses, Certificates, Activities, and Projects maps to at least one collectible in the level according to the FR-009 mapping (**redesigned 2026-08-30**: Experience → chests; Languages/Activities/Education → crates). Personality is excluded (shown directly on the About Me journal bookmark) and Contact is excluded (revealed only via the Thank You screen once all chests are opened). Verified by: unit test.
 
 - **SC-003 — Collecting reveals journal content**: When a visitor collects all coins and defeats all enemies and destroys all blocks, the journal contains all CV facts from Skills, Languages, Certificates, Projects, Experience, Education, and Courses, organized by section with functional bookmark tabs. Verified by: component test that simulates collecting everything and checks journal content.
 
@@ -556,15 +572,15 @@ FloatingControls (P3)
 - **Desktop-only**: The Platformer theme is designed for desktop with keyboard input only. Mobile/touch controls are permanently out of scope (decided 2026-08-30), not a deferred enhancement.
 - **Single level in v1**: Iteration 1 ships with one continuous level covering all CV sections. Additional levels per section can be added in future iterations.
 - **HTML5 Canvas for rendering**: The game uses Canvas 2D API (not WebGL/three.js), keeping the implementation simple and aligned with the "simple 2D platformer" scope.
-- **Sprite assets from existing mockup images**: The 10 existing sprite images in `specs/S-006-platformer-theme/images/` are the basis for game assets — character, enemies, coins, terrain, blocks, flagpole.
+- **Sprite assets from existing mockup images**: The 10 existing sprite images in `specs/S-006-platformer-theme/images/` are the basis for game assets — character, enemies, coins, terrain, blocks. **Redesigned 2026-08-30**: the flagpole asset was never used and the mechanic is dropped; `chest_closed.png`/`chest_open.png` (16×16 native canvas, cropped to their tight non-square bounding box and downscaled with nearest-neighbor sampling — 28×20 and 24×20 respectively — transparent background) were generated to replace it, checked in under `public/sprites/`.
 - **Game state is session-only**: No localStorage or backend persistence. Collected facts reset on page reload or theme switch.
 - **`Caveat` font from Google Fonts**: Journal handwriting font uses the existing font import pattern. Falls back to system cursive fonts if unavailable.
 - **Journal uses Simple List style (Option A)**: Based on the existing `entry-styles-mockup.html`, the chosen entry style for journal content is the Simple List approach — clean bullet-point notes with key data fields.
 - **Audio is muted by default**: Audio playback (background music + sound effects) requires visitor opt-in via the speaker icon in the HUD. Audio assets are pre-loaded alongside sprite assets.
 - **Spawn points throughout the level**: Invisible spawn points defined in the level data serve as checkpoints. The character respawns at the nearest spawn point on death.
 - **Collision uses simple AABB (Axis-Aligned Bounding Box)**: Physics and collision detection use rectangular hitboxes, not pixel-perfect collision. This is standard for retro-style platformers.
-- **Fixed sprite sizes**: Character, enemy, coin, and block sprites have fixed pixel dimensions (e.g., 32×32 or 16×16 tiles). The canvas is scaled to fit the viewport while maintaining the pixel-art aesthetic.
-- **Personality and Contact are level-end-only**: The About/Personality section and Contact information are NOT placed as collectibles in the level. They are revealed exclusively via the level-end mechanism at the end of the level — superseded 2026-08-30, the mechanism is no longer the flagpole and its replacement is TBD (see User Story 6).
+- **Fixed sprite sizes**: Character, enemy, coin, and block sprites have fixed pixel dimensions (e.g., 32×32 or 16×16 tiles). The canvas is scaled to fit the viewport while maintaining the pixel-art aesthetic. **Exception (added 2026-08-30)**: chests are a non-square 28×20 / 24×20 native size (see the Sprite assets note above) — they need their own render-size constant rather than reusing the 16×16 `BLOCK_FRAME_SIZE` convention.
+- **Personality has no collectible; Contact is Thank-You-screen-only (redesigned 2026-08-30)**: Personality is shown directly on the always-visible "About Me" journal bookmark, never via a collectible. Contact is NOT placed as a collectible either — it's revealed exclusively via the Thank You screen once every chest in the level is opened (see User Story 6), and is never added to the journal.
 
 ## Clarifications
 
@@ -586,7 +602,16 @@ FloatingControls (P3)
 
 - **Q: Is the flagpole still planned?** — **A**: No — removed as a mechanic. The level still needs a defined end that reveals Personality + Contact (User Story 6's underlying goal stands), but the concrete replacement (visual marker, trigger, whether a dedicated ending-screen overlay still exists) is undecided. Every flagpole-specific requirement, success criterion, and data-model field (FR-023, FR-024, FR-003's `ending-screen` phase, SC-002, `LevelDef.flagpole`, etc.) is marked superseded/TBD throughout this spec rather than rewritten, since the replacement design doesn't exist yet — see roadmap step 22, which needs its own `brainstorming`/`writing-plans` pass before these can be rewritten for real.
 - **Q: Is mobile/touch support still planned for a later iteration?** — **A**: No — permanently out of scope, not a deferred P3 enhancement. Roadmap step 28 ("Touch/mobile controls") was removed entirely rather than kept as a placeholder.
-- **Q: Does switching themes and back already reset the game?** — **A**: No, not yet — confirmed by tracing `PlatformerPage.tsx`/`PlatformerState.ts`: gameplay state lives in module-level `signal()`s that survive the component unmount/remount a theme switch causes, so the game currently resumes exactly where it was left. FR/SC text describing theme-switch reset as already working is aspirational, describing the intended behavior of roadmap step 27 (Theme-switch reset), which remains unimplemented.
+- **Q: Does switching themes and back already reset the game?** — **A**: No, not yet — confirmed by tracing `PlatformerPage.tsx`/`PlatformerState.ts`: gameplay state lives in module-level `signal()`s that survive the component unmount/remount a theme switch causes, so the game currently resumes exactly where it was left. FR/SC text describing theme-switch reset as already working is aspirational, describing the intended behavior of roadmap step 28 (Theme-switch reset, renumbered 2026-08-30 when step 23/Ladders was promoted ahead of it), which remains unimplemented.
+
+### Session 2026-08-30 (roadmap step 22 brainstorming)
+
+- **Q: What replaces the flagpole as the level-end mechanism?** — **A**: Treasure chests — a new "main objective" collectible (visually and mechanically distinct from coins/fruit/crates), each carrying an Experience fact (the CV section considered most valuable). A chest starts closed and, unlike every other collectible, does NOT open on touch — the character must be standing on/overlapping it and press Arrow Up to open it, permanently swapping it to its open state and revealing its fact like any other collectible (see FR-023). A dedicated chest counter in the HUD (e.g. "Chests 2/5") makes the objective visible at a glance. Once every chest is opened, a Thank You screen appears wherever the visitor happens to be — no location-based trigger, no flagpole, no pole-slide animation.
+- **Q: What does the Thank You screen show, and does it block play?** — **A**: A thank-you message, the CV's Contact information, and "press any button to continue" text. It pauses the game (`gamePhase: 'ending-screen'`) and is dismissed by any key/click, resuming exactly where play left off — deliberately non-blocking so a visitor can still mop up remaining coins/crates. No "Replay Level" option (Reset Game already covers restarting). Contact is shown only here — never added to the journal, no bookmark.
+- **Q: Experience moves off crates onto chests — what fills the gap on crates?** — **A**: Crates pick up Activities (previously unmapped anywhere) and Languages (previously removed as standalone fruit collectibles in step 21, left unmapped since). Crates now carry Education + Activities + Languages. Coins narrow to Skills only.
+- **Q: Does Personality/Contact still share a "level-end mechanism" the way the original flagpole design implied?** — **A**: No — they're deliberately decoupled now. Personality was already moved to the always-visible "About Me" journal bookmark back in step 14 and stays there permanently (no longer provisional). Contact is the only thing left revealed by the new chest-driven mechanism, via the Thank You screen only.
+- **Q: Where are chests placed in the level?** — **A**: Scattered via hand-placed markers, the same pattern as coins/enemies/blocks (a new `T` marker in `LevelParser.ts`) — not clustered at the level's end, since there's no single trigger location anymore.
+- **Q: What sprites were needed, and how were they made?** — **A**: `chest_closed.png`/`chest_open.png` — no chest art existed anywhere in `public/sprites/` or `world_tileset.png` before this. Generated via nano-banana (flat, front-facing 2D style matching the existing crate tile — an initial 3/4-angled "isometric" attempt was rejected as inconsistent with the game's flat 2D tile art), both states in a single generation call for visual consistency, on a solid magenta background for chroma-keying. Cropped tightly to each chest's bounding box (removing magenta padding) before downscaling with nearest-neighbor sampling (not a smoothing filter — smoothing blurred a 500+px source down to a small sprite into an unrecognizable blob) to a small non-square size (28×20 closed, 24×20 open) — kept non-square and a bit larger than the 16×16 block grid since a chest is a standalone placed object, not wall-adjacent, and doesn't need to tile.
 
 ## Iteration Plan
 
@@ -595,7 +620,7 @@ This feature is intentionally scoped for incremental delivery:
 | Iteration | Priority | Scope | Key Deliverables |
 |-----------|----------|-------|-----------------|
 | **1** | P1 | Core platformer + coins + journal | Player movement, level terrain, coin collectibles (Skills + Languages), journal with bookmarks, CV fact mapping |
-| **2** | P2 | Enemies + blocks + level end + audio | Enemy patrol and stomp (Certificates + Projects on purple slimes, Courses on green slimes), destroyable blocks (Experience + Education via crates; question-mark and rock blocks add bonus/level-design mechanics with no CV mapping), level-end reveal for Personality + Contact (mechanism TBD, superseded 2026-08-30 — was a flagpole ending screen), game audio (background music + sound effects, muted by default) |
+| **2** | P2 | Enemies + blocks + chests + level end + audio | Enemy patrol and stomp (Certificates + Projects on purple slimes, Courses on green slimes), destroyable blocks (Education + Activities + Languages via crates, **redesigned 2026-08-30**; question-mark and rock blocks add bonus/level-design mechanics with no CV mapping), chests (Experience, **added 2026-08-30**) with a HUD counter, Thank You screen revealing Contact once all chests are opened, game audio (background music + sound effects, muted by default — step 24, renumbered 2026-08-30, not yet implemented) |
 | **3** | P3 | Controls + polish | Floating theme/locale controls, universal controls overlay, contextual hint signs, visual polish |
 
 Each iteration is independently shippable and adds gameplay depth without breaking previous functionality.
