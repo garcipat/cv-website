@@ -1148,6 +1148,35 @@ describe('drawPlayer', () => {
     expect(ctx.drawImage).toHaveBeenCalledWith(jumpSheet, 0, 0, 128, 128, 0, 0, 64, 64);
   });
 
+  it('climbState-withJumpSpriteSheet-drawsFromClimbRowAtHighResFrameSize', () => {
+    const ctx = makeMockContext();
+    const jumpSheet = {} as HTMLImageElement;
+    const player: PlayerState = { ...idlePlayer, animState: 'climb', climbing: true, animFrame: 1 };
+
+    drawPlayer(ctx, player, fakeSpriteSheet, 0, 0, jumpSheet);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      jumpSheet,
+      1 * 128,
+      322,
+      128,
+      128,
+      16,
+      256,
+      64,
+      64,
+    );
+  });
+
+  it('climbState-noJumpSpriteSheetProvided-fallsBackToPrimarySheetIdleFrame', () => {
+    const ctx = makeMockContext();
+    const player: PlayerState = { ...idlePlayer, animState: 'climb', climbing: true };
+
+    drawPlayer(ctx, player, fakeSpriteSheet, 0, 0, null);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeSpriteSheet, 0, 0, 32, 32, 16, 256, 64, 64);
+  });
+
   it('visibleFalse-skipsDrawingEntirely', () => {
     const ctx = makeMockContext();
 

@@ -14,6 +14,7 @@ import {
   JUMP_FRAME_SIZE,
   playerFrameSource,
   jumpFrameSource,
+  climbFrameSource,
 } from '../entities/Player';
 import type { PlayerState } from '../entities/Player';
 import {
@@ -167,12 +168,15 @@ export function drawPlayer(
   if (!visible) return;
   ctx.imageSmoothingEnabled = false;
 
-  const useJumpSheet = player.animState === 'jump' && jumpSpriteSheet !== null;
-  const frameSize = useJumpSheet ? JUMP_FRAME_SIZE : PLAYER_FRAME_SIZE;
-  const sheet = useJumpSheet ? jumpSpriteSheet : spriteSheet;
-  const { sx, sy } = useJumpSheet
-    ? jumpFrameSource(player.vy, player.animFrame)
-    : playerFrameSource(player.animState, player.animFrame);
+  const useHighResSheet =
+    (player.animState === 'jump' || player.animState === 'climb') && jumpSpriteSheet !== null;
+  const frameSize = useHighResSheet ? JUMP_FRAME_SIZE : PLAYER_FRAME_SIZE;
+  const sheet = useHighResSheet ? jumpSpriteSheet : spriteSheet;
+  const { sx, sy } = !useHighResSheet
+    ? playerFrameSource(player.animState, player.animFrame)
+    : player.animState === 'climb'
+      ? climbFrameSource(player.animFrame)
+      : jumpFrameSource(player.vy, player.animFrame);
 
   if (player.facing === 'left') {
     ctx.save();
