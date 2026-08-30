@@ -138,14 +138,29 @@ describe('formatJournalEntry', () => {
     expect(result.icon).toBe('🚀');
   });
 
-  it('unrecognizedSectionShapeMissingFields-fallsBackToSectionLabel', () => {
+  it('activitiesFact-formats-nameAndDateRange', () => {
+    const fact_: CollectedFact = {
+      id: 'block-activity-volunteering',
+      sectionId: 'activities',
+      sectionLabel: 'Activities',
+      data: { name: 'Volunteering', startDate: '2019-01', endDate: '2019-06' },
+      sourceType: 'block',
+    };
+    expect(formatJournalEntry(fact_)).toEqual({
+      icon: '🧭',
+      title: 'Volunteering',
+      subtitle: '2019-01–2019-06',
+    });
+  });
+
+  it('unrecognizedSectionId-fallsBackToSectionLabel', () => {
     const result = formatJournalEntry(
       fact({
-        sectionId: 'activities',
-        sectionLabel: 'Activities',
-        data: { startDate: '2020-01', endDate: '2020-06', name: 'Test' },
+        sectionId: 'unknownSection' as any,
+        sectionLabel: 'Unknown Section',
+        data: { name: 'Something' },
       }),
     );
-    expect(result.title).toBe('Activities');
+    expect(result.title).toBe('Unknown Section');
   });
 });
