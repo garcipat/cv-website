@@ -85,6 +85,16 @@ export const playerState = signal<PlayerState>(spawnPlayerState());
 export const cameraPositionX = signal(0);
 
 /**
+ * Camera's vertical scroll offset (roadmap step 23) — an additive amount on
+ * top of the existing bottom-anchor baseline computed in
+ * `PlatformerPage.tsx` (`canvas.height - levelPixelHeight`), not a
+ * replacement for it. See `engine/Camera.ts`'s `updateCameraY` doc comment.
+ * 0 on every level shipped before this step (and whenever a level's height
+ * fits the viewport) — a verified no-op, not just an assumption.
+ */
+export const cameraPositionY = signal(0);
+
+/**
  * Current health in half-heart units (0-MAX_HALF_HEARTS). Kept separate from
  * `playerState` since damage sources (pit falls, and later enemy hits) are a
  * distinct concern from position/animation, and step 10's full-heal-on-death
@@ -331,6 +341,7 @@ export function resetGame(): void {
   playerState.value = spawnPlayerState();
   healthState.value = MAX_HALF_HEARTS;
   cameraPositionX.value = 0;
+  cameraPositionY.value = 0;
   enemyStates.value = enemyPlacements.map((placement, index) => toEnemyState(placement, index));
 }
 
