@@ -29,6 +29,7 @@ import { PHYSICS_CONFIG } from './engine/PhysicsConfig';
 import { stepEnemyPatrol, stepEnemyHitReaction } from './engine/EnemyAI';
 import { updateCamera } from './engine/Camera';
 import { createKeyboardInput } from './engine/Input';
+import type { KeyboardInput } from './engine/Input';
 import {
   tickLifecycle,
   startDeath,
@@ -48,7 +49,7 @@ import {
   checkBonusFruitCollisions,
   chestPlayerIsStandingOn,
 } from './engine/Collision';
-import { openChest, allChestsOpen } from './entities/Chest';
+import { openChest, allChestsOpen, isChestOpen } from './entities/Chest';
 import { stepBlockAnimation } from './engine/BlockAI';
 import { applyBlockHit, isBlockUsedUp, isBlockRemoved, blockFrameSource, BLOCK_FRAME_SIZE } from './entities/Block';
 import { spawnBonusFruit, tickBonusFruit, bonusFruitY } from './entities/BonusFruit';
@@ -95,6 +96,7 @@ import {
   collectedFacts,
   chestPlacements,
   chestStates,
+  endingScreenShown,
 } from './PlatformerState';
 import { Journal } from './components/Journal';
 import { ThankYouScreen } from './components/ThankYouScreen';
@@ -122,16 +124,11 @@ export const PlatformerPage = () => {
   const crackOverlaySpriteRef = useRef<HTMLImageElement | null>(null);
   const chestClosedSpriteRef = useRef<HTMLImageElement | null>(null);
   const chestOpenSpriteRef = useRef<HTMLImageElement | null>(null);
-  // One-shot latch: true once the Thank You screen has been shown this
-  // "session" (i.e. since the last Reset Game). Without this,
-  // `allChestsOpen(chestStates.value)` stays true forever after the last
-  // chest opens (opening is permanent — see entities/Chest.ts's openChest),
-  // so the ending-screen check at the end of the tick would otherwise
-  // re-trigger `showEndingScreen`/`setEndingScreenOpen(true)` on the very
-  // next tick after dismissal, permanently locking the player out. Reset by
-  // `handleResetGameRequested` so a visitor can see the screen again after
-  // resetting and re-opening every chest.
-  const endingScreenShownRef = useRef(false);
+  // Ref to the game loop's KeyboardInput, set once inside the mount effect
+  // below right after createKeyboardInput() runs. Needed by
+  // handleDismissEndingScreen (defined outside that effect) so it can drain
+  // the dismiss keypress itself — see that handler's doc comment.
+  const inputRef = useRef<KeyboardInput | null>(null);
   const journalButtonRef = useRef<HTMLButtonElement>(null);
   const debugParams = new URLSearchParams(window.location.search);
   // Any `debug` param (not just `hitboxes`) shows the debug panel (Kill/
@@ -213,9 +210,20 @@ export const PlatformerPage = () => {
   // Wrapped in useCallback (empty deps, same reasoning as
   // handleJournalReallyClosed above) since ThankYouScreen depends on it for
   // its own keydown-listener effect.
+  //
+  // Also drains the game loop's KeyboardInput (`inputRef.current`) here: the
+  // same physical keydown that dismisses this screen (e.g. Space) is also
+  // seen by `createKeyboardInput`'s own listener and buffered as a pending
+  // press. Flipping `gamePhase` to 'playing' happens synchronously above, so
+  // the very next game-loop tick already skips the 'ending-screen' phase's
+  // own `input.clearPending()` early-return — without this call, that
+  // buffered Space would fire as a real jump on the next tick. This is the
+  // same class of bug the 'paused' phase's `input.clearPending()` guards
+  // against, just reappearing through this exit path.
   const handleDismissEndingScreen = useCallback(() => {
     lifecycleState.value = dismissEndingScreen(lifecycleState.value);
     setEndingScreenOpen(false);
+    inputRef.current?.clearPending();
   }, []);
 
   /**
@@ -229,14 +237,14 @@ export const PlatformerPage = () => {
   const handleResetGameRequested = () => {
     resetGameProgress();
     setJournalOpen(false);
-    // Clears the one-shot ending-screen latch (see endingScreenShownRef's
-    // doc comment) — resetGameProgress() also reopens every chest, so a
-    // visitor who re-opens all of them after resetting must be able to see
-    // the Thank You screen again. setEndingScreenOpen(false) is defensive
-    // (the Reset Game button isn't actually reachable while the ending
-    // screen is showing today — see Important 2's investigation in the
-    // task-13 report — but costs nothing to keep in sync regardless).
-    endingScreenShownRef.current = false;
+    // resetGameProgress() already clears the one-shot ending-screen latch
+    // (see `endingScreenShown`'s doc comment in PlatformerState.ts) — it also
+    // reopens every chest, so a visitor who re-opens all of them after
+    // resetting must be able to see the Thank You screen again.
+    // setEndingScreenOpen(false) is defensive (the Reset Game button isn't
+    // actually reachable while the ending screen is showing today — see
+    // Important 2's investigation in the task-13 report — but costs nothing
+    // to keep in sync regardless).
     setEndingScreenOpen(false);
     const center = spawnCenter();
     lifecycleState.value = introState(center.x, center.y);
@@ -445,7 +453,7 @@ export const PlatformerPage = () => {
         drawChestCounter(
           ctx,
           chestClosedSpriteRef.current,
-          chestStates.value.filter((c) => c.state === 'open').length,
+          chestStates.value.filter(isChestOpen).length,
           chestPlacements.length,
           CHEST_COUNTER_X,
           CHEST_COUNTER_Y,
@@ -487,6 +495,7 @@ export const PlatformerPage = () => {
     window.addEventListener('resize', onResize);
 
     const input = createKeyboardInput();
+    inputRef.current = input;
 
     /**
      * Any key or a canvas click restarts the game while 'awaitingRestart' —
@@ -811,9 +820,17 @@ export const PlatformerPage = () => {
 
       // Chests (roadmap step 22) don't open on touch like every other
       // collectible — spec.md FR-023 requires an explicit Arrow Up press
-      // while standing on one. `originX`/`originY` are already in scope from
-      // this tick's earlier collision blocks above.
-      const interactPressed = input.consumePress('ArrowUp');
+      // while standing on one (KeyW also works, mirroring the A/D-as-
+      // Left/Right convention — see FR-007). `originX`/`originY` are already
+      // in scope from this tick's earlier collision blocks above.
+      //
+      // Both must be evaluated (not short-circuited) since consumePress has
+      // the side effect of clearing the pending press it finds — an `||`
+      // between the two calls directly would skip consuming the second
+      // key's pending press whenever the first already returned true.
+      const arrowUpPressed = input.consumePress('ArrowUp');
+      const wPressed = input.consumePress('KeyW');
+      const interactPressed = arrowUpPressed || wPressed;
       if (interactPressed) {
         const standingChestId = chestPlayerIsStandingOn(playerState.value, chestStates.value);
         if (standingChestId) {
@@ -1086,21 +1103,21 @@ export const PlatformerPage = () => {
       // clobbering the journal) or 'awaitingRestart', and would redundantly
       // re-fire every tick while already 'ending-screen'.
       //
-      // Also gated on `!endingScreenShownRef.current` (see that ref's doc
-      // comment) — without it, since opening a chest is permanent,
-      // `allChestsOpen` stays true on every subsequent tick after the last
-      // chest opens, so dismissing the screen (which only sets phase back
-      // to 'playing', not any per-chest state) would otherwise cause this
-      // exact check to immediately re-trigger on the very next tick,
-      // permanently re-opening the screen the instant it's dismissed.
+      // Also gated on `!endingScreenShown.value` (see that signal's doc
+      // comment in PlatformerState.ts) — without it, since opening a chest is
+      // permanent, `allChestsOpen` stays true on every subsequent tick after
+      // the last chest opens, so dismissing the screen (which only sets
+      // phase back to 'playing', not any per-chest state) would otherwise
+      // cause this exact check to immediately re-trigger on the very next
+      // tick, permanently re-opening the screen the instant it's dismissed.
       if (
-        !endingScreenShownRef.current &&
+        !endingScreenShown.value &&
         (lifecycleState.value.phase === 'playing' || lifecycleState.value.phase === 'intro') &&
         allChestsOpen(chestStates.value)
       ) {
         lifecycleState.value = showEndingScreen(lifecycleState.value);
         setEndingScreenOpen(true);
-        endingScreenShownRef.current = true;
+        endingScreenShown.value = true;
       }
 
       render();
@@ -1232,6 +1249,7 @@ export const PlatformerPage = () => {
       cancelled = true;
       loop.stop();
       input.destroy();
+      inputRef.current = null;
       window.removeEventListener('resize', onResize);
       window.removeEventListener('keydown', restartIfAwaiting);
       window.removeEventListener('keydown', onJournalKey);
