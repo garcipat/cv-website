@@ -1,22 +1,7 @@
 import { tileToPixel, RENDERED_TILE_SIZE } from './Terrain';
 import { slugify } from './CollectibleMapper';
-import type { CVData, Experience, Education, Certificate, Project } from '@/types/cv';
+import type { CVData, Education, Certificate, Project, Activity, Language } from '@/types/cv';
 import type { BlockDef } from '../types';
-
-function experienceToBlock(experience: Experience): BlockDef {
-  const id = `block-exp-${slugify(`${experience.role}-${experience.company}`)}`;
-  return {
-    id,
-    blockKind: 'crate',
-    fact: {
-      id,
-      sectionId: 'experience',
-      sectionLabel: 'Experience',
-      data: experience,
-      sourceType: 'block',
-    },
-  };
-}
 
 function educationToBlock(education: Education): BlockDef {
   const id = `block-edu-${slugify(`${education.degree}-${education.institution}`)}`;
@@ -28,6 +13,36 @@ function educationToBlock(education: Education): BlockDef {
       sectionId: 'education',
       sectionLabel: 'Education',
       data: education,
+      sourceType: 'block',
+    },
+  };
+}
+
+function activityToBlock(activity: Activity): BlockDef {
+  const id = `block-activity-${slugify(activity.name)}`;
+  return {
+    id,
+    blockKind: 'crate',
+    fact: {
+      id,
+      sectionId: 'activities',
+      sectionLabel: 'Activities',
+      data: activity,
+      sourceType: 'block',
+    },
+  };
+}
+
+function languageToBlock(language: Language): BlockDef {
+  const id = `block-lang-${slugify(language.name)}`;
+  return {
+    id,
+    blockKind: 'crate',
+    fact: {
+      id,
+      sectionId: 'languages',
+      sectionLabel: 'Languages',
+      data: language,
       sourceType: 'block',
     },
   };
@@ -64,20 +79,21 @@ function projectToBlock(project: Project): BlockDef {
 }
 
 /**
- * Flattens CVData into one crate per Experience entry, one per Education
- * entry (spec.md FR-009, amended 2026-08-29), and — amended 2026-08-30, live
- * user feedback during step 21 verification — one question-mark bonus-fruit
- * def per Certificate and per Project (moved off enemies; see
- * `EnemyMapper.ts`'s courseToEnemy comment). Rock blocks still carry no CV
- * fact at all — pure level-design filler, unaffected by this change.
- * `placeBlocks` below zips crate/questionMark defs against their respective
- * markers; rock markers still place directly with no def to zip against.
- * Mirrors CollectibleMapper.ts's/EnemyMapper.ts's CVData-flattening pattern.
+ * Flattens CVData into one crate per Education entry, one per Activity
+ * entry, and one per Language entry (spec.md FR-009, redesigned 2026-08-30 —
+ * Experience moved off crates onto the new chest collectible, see
+ * ChestMapper.ts; Activities and Languages moved on, closing two previously
+ * unmapped gaps), plus one question-mark bonus-fruit def per Certificate and
+ * per Project (unchanged since 2026-08-30's earlier amendment). `placeBlocks`
+ * below zips crate/questionMark defs against their respective markers; rock
+ * markers still place directly with no def to zip against. Mirrors
+ * CollectibleMapper.ts's/EnemyMapper.ts's CVData-flattening pattern.
  */
 export function mapCVDataToBlocks(cv: CVData): BlockDef[] {
   return [
-    ...cv.experience.map(experienceToBlock),
     ...cv.education.map(educationToBlock),
+    ...cv.activities.map(activityToBlock),
+    ...cv.languages.map(languageToBlock),
     ...cv.certificates.map(certificateToBlock),
     ...cv.projects.map(projectToBlock),
   ];
