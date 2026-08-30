@@ -5,14 +5,17 @@ import {
   drawCollectibles,
   drawEnemies,
   drawBlocks,
+  drawChests,
   drawBonusFruits,
   drawCollectionEffects,
   drawCollectibleCounter,
+  drawChestCounter,
   drawCounterPopups,
   drawIrisOverlay,
   drawRestartPrompt,
   RESTART_PROMPT_FONT_FAMILY,
   HEARTS_START_X,
+  CHEST_COUNTER_Y,
 } from './Renderer';
 import type { LevelDef } from '../level/LevelData';
 import type { PlayerState } from '../entities/Player';
@@ -32,6 +35,17 @@ import {
   ENEMY_TILE_OFFSET_X,
   ENEMY_TILE_OFFSET_Y,
 } from '../entities/Enemy';
+import {
+  CHEST_CLOSED_WIDTH,
+  CHEST_CLOSED_HEIGHT,
+  CHEST_OPEN_WIDTH,
+  CHEST_OPEN_HEIGHT,
+  CHEST_CLOSED_RENDERED_WIDTH,
+  CHEST_CLOSED_RENDERED_HEIGHT,
+  CHEST_OPEN_RENDERED_WIDTH,
+  CHEST_OPEN_RENDERED_HEIGHT,
+} from '../entities/Chest';
+import type { ChestState } from '../entities/Chest';
 
 function makeMockContext() {
   return {
@@ -421,6 +435,118 @@ describe('drawBlocks with hit state', () => {
     expect(alphaAtDrawCalls[0]).toBeCloseTo(expectedOpacity);
     // Restored to fully opaque afterward so it doesn't bleed into later draws.
     expect(ctx.globalAlpha).toBe(1);
+  });
+});
+
+describe('drawChests', () => {
+  it('closedChest-drawsFromClosedSprite-atNativeSize', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const closedSprite = {} as HTMLImageElement;
+    const chest: ChestState = {
+      id: 'c1',
+      x: 10,
+      y: 20,
+      state: 'closed',
+      fact: {
+        id: 'c1',
+        sectionId: 'experience',
+        sectionLabel: 'Experience',
+        data: { company: 'X', role: 'Y', startDate: '2020-01', highlights: [] },
+        sourceType: 'chest',
+      },
+    };
+
+    drawChests(ctx as unknown as CanvasRenderingContext2D, [chest], closedSprite, null);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      closedSprite,
+      0,
+      0,
+      CHEST_CLOSED_WIDTH,
+      CHEST_CLOSED_HEIGHT,
+      10,
+      20,
+      CHEST_CLOSED_RENDERED_WIDTH,
+      CHEST_CLOSED_RENDERED_HEIGHT,
+    );
+  });
+
+  it('openChest-drawsFromOpenSprite-atItsOwnNativeSize', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const openSprite = {} as HTMLImageElement;
+    const chest: ChestState = {
+      id: 'c1',
+      x: 10,
+      y: 20,
+      state: 'open',
+      fact: {
+        id: 'c1',
+        sectionId: 'experience',
+        sectionLabel: 'Experience',
+        data: { company: 'X', role: 'Y', startDate: '2020-01', highlights: [] },
+        sourceType: 'chest',
+      },
+    };
+
+    drawChests(ctx as unknown as CanvasRenderingContext2D, [chest], null, openSprite);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      openSprite,
+      0,
+      0,
+      CHEST_OPEN_WIDTH,
+      CHEST_OPEN_HEIGHT,
+      10,
+      20,
+      CHEST_OPEN_RENDERED_WIDTH,
+      CHEST_OPEN_RENDERED_HEIGHT,
+    );
+  });
+
+  it('missingSpriteForCurrentState-skipsThatChest-noThrow', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const chest: ChestState = {
+      id: 'c1',
+      x: 10,
+      y: 20,
+      state: 'closed',
+      fact: {
+        id: 'c1',
+        sectionId: 'experience',
+        sectionLabel: 'Experience',
+        data: { company: 'X', role: 'Y', startDate: '2020-01', highlights: [] },
+        sourceType: 'chest',
+      },
+    };
+
+    expect(() => drawChests(ctx as unknown as CanvasRenderingContext2D, [chest], null, null)).not.toThrow();
+    expect(ctx.drawImage).not.toHaveBeenCalled();
+  });
+});
+
+describe('drawChestCounter', () => {
+  it('called-drawsIconAndCollectedOverTotalText', () => {
+    const ctx = makeMockContext() as unknown as {
+      drawImage: ReturnType<typeof vi.fn>;
+      fillText: ReturnType<typeof vi.fn>;
+      font: string;
+    };
+    const sprite = {} as HTMLImageElement;
+
+    drawChestCounter(ctx as unknown as CanvasRenderingContext2D, sprite, 2, 5, 100, 50);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      sprite,
+      0,
+      0,
+      CHEST_CLOSED_WIDTH,
+      CHEST_CLOSED_HEIGHT,
+      expect.any(Number),
+      expect.any(Number),
+      expect.any(Number),
+      expect.any(Number),
+    );
+    expect(ctx.fillText).toHaveBeenCalledWith('2 / 5', expect.any(Number), 50);
   });
 });
 
