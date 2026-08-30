@@ -7,10 +7,9 @@ export type EntityKind =
   | 'enemyGreen'
   | 'enemyPurple'
   | 'coin'
-  | 'fruit'
   | 'crate'
   | 'questionMark'
-  | 'rock'
+  | 'fragileRock'
   | 'chest';
 
 /**
@@ -29,11 +28,11 @@ export const TERRAIN_CHARS: Record<string, TileType | undefined> = {
 /**
  * Maps each entity-marker character usable in a level layout to what it
  * marks: `S` (spawn), `E` (green/Course enemy), `M` (purple/Course
- * enemy), `C` (Skill-category coin), `F` (Language fruit, unused today —
- * see CollectibleMapper.ts), `X` (crate block — Education/Activity/Language
- * fact), `Q` (question-mark block — no fact, spawns a bonus fruit), `K` (rock
- * block — no fact, level-design filler), `T` (chest — Experience fact,
- * opened via Arrow Up while standing on it, spec.md FR-023). Kept as its own
+ * enemy), `C` (Skill-category coin), `X` (crate block — Education/Activity/
+ * Language fact), `Q` (question-mark block — no fact, spawns a bonus fruit),
+ * `F` (fragileRock block — no fact, level-design filler), `T` (chest —
+ * Experience fact, opened via Arrow Up while standing on it, spec.md
+ * FR-023). Kept as its own
  * map, separate from TERRAIN_CHARS, since an entity marker isn't a terrain
  * tile — the ground it sits on is always `empty` (see parseLevel below), and
  * it's a fundamentally different kind of fact about a cell ("what starts
@@ -44,10 +43,9 @@ export const ENTITY_CHARS: Record<string, EntityKind | undefined> = {
   E: 'enemyGreen',
   M: 'enemyPurple',
   C: 'coin',
-  F: 'fruit',
   X: 'crate',
   Q: 'questionMark',
-  K: 'rock',
+  F: 'fragileRock',
   T: 'chest',
 };
 
@@ -145,15 +143,8 @@ export function findCoinTiles(layout: readonly string[]): { col: number; row: nu
   return findAllOfKind(layout, 'coin');
 }
 
-/** Finds every `F` (Language fruit) marker's position in a level layout —
- *  same convention as findCoinTiles, for language-derived defs instead of
- *  skill-category-derived ones. */
-export function findFruitTiles(layout: readonly string[]): { col: number; row: number }[] {
-  return findAllOfKind(layout, 'fruit');
-}
-
 /** Finds every `X` (crate block) marker's position in a level layout — same
- *  convention as findCoinTiles/findFruitTiles, for crate block defs instead
+ *  convention as findCoinTiles, for crate block defs instead
  *  of collectible defs (see BlockMapper.ts's placeBlocks). */
 export function findCrateTiles(layout: readonly string[]): { col: number; row: number }[] {
   return findAllOfKind(layout, 'crate');
@@ -168,14 +159,14 @@ export function findQuestionMarkTiles(layout: readonly string[]): { col: number;
   return findAllOfKind(layout, 'questionMark');
 }
 
-/** Finds every `K` (rock block) marker's position in a level layout — same
- *  no-CV-fact convention as findQuestionMarkTiles. */
-export function findRockTiles(layout: readonly string[]): { col: number; row: number }[] {
-  return findAllOfKind(layout, 'rock');
+/** Finds every `F` (fragileRock block) marker's position in a level layout —
+ *  same no-CV-fact convention as findQuestionMarkTiles. */
+export function findFragileRockTiles(layout: readonly string[]): { col: number; row: number }[] {
+  return findAllOfKind(layout, 'fragileRock');
 }
 
 /** Finds every `T` (chest) marker's position in a level layout — same
- *  convention as findCrateTiles/findRockTiles. Unlike those, a chest marker
+ *  convention as findCrateTiles/findFragileRockTiles. Unlike those, a chest marker
  *  IS zipped against CVData-derived defs (one chest per Experience entry,
  *  spec.md FR-023) — see ChestMapper.ts's placeChests. */
 export function findChestTiles(layout: readonly string[]): { col: number; row: number }[] {

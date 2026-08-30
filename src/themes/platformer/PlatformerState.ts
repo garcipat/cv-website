@@ -5,10 +5,9 @@ import {
   ENEMY_TILES_GREEN,
   ENEMY_TILES_PURPLE,
   COIN_TILES,
-  FRUIT_TILES,
   CRATE_TILES,
   QUESTIONMARK_TILES,
-  ROCK_TILES,
+  FRAGILE_ROCK_TILES,
   CHEST_TILES,
 } from './level/level1';
 import {
@@ -99,12 +98,15 @@ export const healthState = signal(MAX_HALF_HEARTS);
  * (switching EN/DE mid-session doesn't re-place collectibles or change
  * which are already collected; that's roadmap step 26's theme-switch-reset
  * job, not this step's). Every position comes from level1's hand-placed
- * `C`/`F` markers (see COIN_TILES/FRUIT_TILES) — placeCollectibles has no
- * auto-placement, same as placeEnemies below.
+ * `C` markers (see COIN_TILES) — placeCollectibles has no
+ * auto-placement, same as placeEnemies below. The Language-fruit marker
+ * concept was removed 2026-08-30 (live user feedback, see level1.ts's doc
+ * comment) — `fruit` is passed an empty array since `CollectibleMarkerPositions`
+ * still legitimately has that field for future use.
  */
 export const collectiblePlacements: CollectiblePlacement[] = placeCollectibles(
   mapCVDataToCollectibles(currentCV.value),
-  { coin: COIN_TILES, fruit: FRUIT_TILES },
+  { coin: COIN_TILES, fruit: [] },
 );
 
 /**
@@ -129,15 +131,15 @@ export const enemyPlacements: EnemyPlacement[] = placeEnemies(mapCVDataToEnemies
  * non-reactive, marker-driven convention as collectiblePlacements/
  * enemyPlacements above (roadmap step 20, 2026-08-29). Crates come from
  * `mapCVDataToBlocks` zipped against level1's `X` markers; question-mark
- * and rock blocks have no CVData mapping and are placed directly from
- * their `Q`/`K` markers (see BlockMapper.ts's placeBlocks). No live
+ * and fragileRock blocks have no CVData mapping and are placed directly from
+ * their `Q`/`F` markers (see BlockMapper.ts's placeBlocks). No live
  * per-instance state yet (no hitsTaken/broken) — that's step 21's job,
  * once blocks respond to hits.
  */
 export const blockPlacements: BlockPlacement[] = placeBlocks(mapCVDataToBlocks(currentCV.value), {
   crate: CRATE_TILES,
   questionMark: QUESTIONMARK_TILES,
-  rock: ROCK_TILES,
+  fragileRock: FRAGILE_ROCK_TILES,
 });
 
 /**
