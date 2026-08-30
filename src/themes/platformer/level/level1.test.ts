@@ -4,10 +4,10 @@ import {
   ENEMY_TILES_GREEN,
   ENEMY_TILES_PURPLE,
   COIN_TILES,
-  FRUIT_TILES,
   CRATE_TILES,
   QUESTIONMARK_TILES,
-  ROCK_TILES,
+  FRAGILE_ROCK_TILES,
+  CHEST_TILES,
 } from './level1';
 import { isTopExposed, isSolid, tileAt } from './Terrain';
 
@@ -101,16 +101,15 @@ describe('level1', () => {
   it('markerCounts-matchThisMechanicsTestLevelsIntentionalDesign', () => {
     // level1 deliberately covers only a slice of real CVData (see its doc
     // comment) — these counts are the level's own intentional design, not
-    // derived from CVData length. `F` (fruit) markers were removed 2026-08-30
-    // (live user feedback) — question-mark blocks spawn their own bonus
-    // fruit instead.
+    // derived from CVData length. The Language-fruit marker concept was
+    // removed 2026-08-30 (live user feedback) — question-mark blocks spawn
+    // their own bonus fruit instead.
     expect(ENEMY_TILES_GREEN).toHaveLength(1);
     expect(ENEMY_TILES_PURPLE).toHaveLength(1);
     expect(COIN_TILES).toHaveLength(4);
-    expect(FRUIT_TILES).toHaveLength(0);
     expect(CRATE_TILES).toHaveLength(2);
     expect(QUESTIONMARK_TILES).toHaveLength(2);
-    expect(ROCK_TILES).toHaveLength(2);
+    expect(FRAGILE_ROCK_TILES).toHaveLength(2);
   });
 
   it('newBlockMarkers-sitElevatedAboveGroundCloseToSpawn', () => {
@@ -122,8 +121,8 @@ describe('level1', () => {
     const blockRow = 1;
     expect(CRATE_TILES.map((t) => t.col)).toEqual([19, 22]);
     expect(QUESTIONMARK_TILES.map((t) => t.col)).toEqual([20, 23]);
-    expect(ROCK_TILES.map((t) => t.col)).toEqual([21, 24]);
-    for (const tile of [...CRATE_TILES, ...QUESTIONMARK_TILES, ...ROCK_TILES]) {
+    expect(FRAGILE_ROCK_TILES.map((t) => t.col)).toEqual([21, 24]);
+    for (const tile of [...CRATE_TILES, ...QUESTIONMARK_TILES, ...FRAGILE_ROCK_TILES]) {
       expect(tile.row).toBe(blockRow);
     }
   });
@@ -147,7 +146,7 @@ describe('level1', () => {
   });
 
   it('blockMarkers-sitOnEmptyTileTwoRowsAboveSolidGround', () => {
-    for (const tile of [...CRATE_TILES, ...QUESTIONMARK_TILES, ...ROCK_TILES]) {
+    for (const tile of [...CRATE_TILES, ...QUESTIONMARK_TILES, ...FRAGILE_ROCK_TILES]) {
       expect(level1.terrain[tile.row][tile.col]).toBe('empty');
       expect(isSolid(level1.terrain[tile.row + 3][tile.col])).toBe(true);
     }
@@ -187,5 +186,11 @@ describe('level1', () => {
     for (const tile of [...ENEMY_TILES_GREEN, ...ENEMY_TILES_PURPLE]) {
       expect(tile.col - SPAWN_TILE.col).toBeLessThan(40);
     }
+  });
+});
+
+describe('CHEST_TILES', () => {
+  it('level1Layout-has-twoChestMarkers', () => {
+    expect(CHEST_TILES).toHaveLength(2);
   });
 });

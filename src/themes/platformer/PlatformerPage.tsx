@@ -12,11 +12,15 @@ import {
   drawBonusFruits,
   drawCollectionEffects,
   drawCounterPopups,
+  drawChests,
+  drawChestCounter,
   drawIrisOverlay,
   drawRestartPrompt,
   RESTART_PROMPT_FONT_FAMILY,
   RESTART_PROMPT_FONT_URL,
   HEARTS_START_X,
+  CHEST_COUNTER_X,
+  CHEST_COUNTER_Y,
 } from './engine/Renderer';
 import { drawDebugOverlay } from './engine/DebugOverlay';
 import { createGameLoop } from './engine/GameLoop';
@@ -25,6 +29,7 @@ import { PHYSICS_CONFIG } from './engine/PhysicsConfig';
 import { stepEnemyPatrol, stepEnemyHitReaction } from './engine/EnemyAI';
 import { updateCamera } from './engine/Camera';
 import { createKeyboardInput } from './engine/Input';
+import type { KeyboardInput } from './engine/Input';
 import {
   tickLifecycle,
   startDeath,
@@ -32,6 +37,8 @@ import {
   currentIrisRadius,
   pauseForJournal,
   resumeFromJournal,
+  showEndingScreen,
+  dismissEndingScreen,
 } from './engine/GameLifecycle';
 import { maxIrisRadius } from './engine/IrisTransition';
 import { level1 } from './level/level1';
@@ -40,7 +47,9 @@ import {
   checkEnemyStompCollisions,
   checkEnemySideCollisions,
   checkBonusFruitCollisions,
+  chestPlayerIsStandingOn,
 } from './engine/Collision';
+import { openChest, allChestsOpen, isChestOpen, CHEST_CLOSED_OFFSET_X } from './entities/Chest';
 import { stepBlockAnimation } from './engine/BlockAI';
 import { applyBlockHit, isBlockUsedUp, isBlockRemoved, blockFrameSource, BLOCK_FRAME_SIZE } from './entities/Block';
 import { spawnBonusFruit, tickBonusFruit, bonusFruitY } from './entities/BonusFruit';
@@ -85,8 +94,14 @@ import {
   activeEffects,
   activeCounterPopups,
   collectedFacts,
+  chestPlacements,
+  chestStates,
+  endingScreenShown,
+  endingScreenOpen,
 } from './PlatformerState';
+import { useSignals } from '@preact/signals-react/runtime';
 import { Journal } from './components/Journal';
+import { ThankYouScreen } from './components/ThankYouScreen';
 
 // Vertical spacing between stacked fact-flight rows when several pickups are
 // collected close together — a bit more than the 28px collection-effect
@@ -99,6 +114,12 @@ const COLLECTION_TEXT_STACK_ROW_HEIGHT = 34;
 const INVINCIBILITY_BLINK_INTERVAL_SECONDS = 0.1;
 
 export const PlatformerPage = () => {
+  // Subscribes this component's render to any signal `.value` read during
+  // it — needed for `endingScreenOpen.value` in the JSX below to actually
+  // trigger a re-render when the game loop flips it (see PlatformerState.ts's
+  // doc comment on `endingScreenOpen`). Same convention ThankYouScreen.tsx
+  // already uses.
+  useSignals();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const tilesetRef = useRef<HTMLImageElement | null>(null);
   const playerSpriteRef = useRef<HTMLImageElement | null>(null);
@@ -109,6 +130,13 @@ export const PlatformerPage = () => {
   const slimeGreenSpriteRef = useRef<HTMLImageElement | null>(null);
   const slimePurpleSpriteRef = useRef<HTMLImageElement | null>(null);
   const crackOverlaySpriteRef = useRef<HTMLImageElement | null>(null);
+  const chestClosedSpriteRef = useRef<HTMLImageElement | null>(null);
+  const chestOpenSpriteRef = useRef<HTMLImageElement | null>(null);
+  // Ref to the game loop's KeyboardInput, set once inside the mount effect
+  // below right after createKeyboardInput() runs. Needed by
+  // handleDismissEndingScreen (defined outside that effect) so it can drain
+  // the dismiss keypress itself — see that handler's doc comment.
+  const inputRef = useRef<KeyboardInput | null>(null);
   const journalButtonRef = useRef<HTMLButtonElement>(null);
   const debugParams = new URLSearchParams(window.location.search);
   // Any `debug` param (not just `hitboxes`) shows the debug panel (Kill/
@@ -140,6 +168,9 @@ export const PlatformerPage = () => {
   // key trigger the same graceful close as clicking the in-book × button,
   // instead of unmounting the journal instantly.
   const [journalClosing, setJournalClosing] = useState(false);
+  // `endingScreenOpen` (mirrors the ending-screen phase: true while the
+  // Thank You screen is mounted) is imported above as a module-level signal,
+  // not local useState — see its doc comment in PlatformerState.ts for why.
 
   // Keeps both refs in sync with their corresponding state on every render
   // (no dependency array) — assigning `.current` directly in the render body
@@ -182,6 +213,25 @@ export const PlatformerPage = () => {
     setJournalClosing(false);
   }, []);
 
+  // Wrapped in useCallback (empty deps, same reasoning as
+  // handleJournalReallyClosed above) since ThankYouScreen depends on it for
+  // its own keydown-listener effect.
+  //
+  // Also drains the game loop's KeyboardInput (`inputRef.current`) here: the
+  // same physical keydown that dismisses this screen (e.g. Space) is also
+  // seen by `createKeyboardInput`'s own listener and buffered as a pending
+  // press. Flipping `gamePhase` to 'playing' happens synchronously above, so
+  // the very next game-loop tick already skips the 'ending-screen' phase's
+  // own `input.clearPending()` early-return — without this call, that
+  // buffered Space would fire as a real jump on the next tick. This is the
+  // same class of bug the 'paused' phase's `input.clearPending()` guards
+  // against, just reappearing through this exit path.
+  const handleDismissEndingScreen = useCallback(() => {
+    lifecycleState.value = dismissEndingScreen(lifecycleState.value);
+    endingScreenOpen.value = false;
+    inputRef.current?.clearPending();
+  }, []);
+
   /**
    * Reset Game (journal button, FR-018b): clears collected progress and
    * closes the journal immediately (no reverse-close animation — per user
@@ -193,6 +243,15 @@ export const PlatformerPage = () => {
   const handleResetGameRequested = () => {
     resetGameProgress();
     setJournalOpen(false);
+    // resetGameProgress() already clears the one-shot ending-screen latch AND
+    // endingScreenOpen (see PlatformerState.ts's doc comments) — it also
+    // reopens every chest, so a visitor who re-opens all of them after
+    // resetting must be able to see the Thank You screen again. This extra
+    // assignment is defensive (the Reset Game button isn't actually
+    // reachable while the ending screen is showing today — see Important
+    // 2's investigation in the task-13 report — but costs nothing to keep in
+    // sync regardless).
+    endingScreenOpen.value = false;
     const center = spawnCenter();
     lifecycleState.value = introState(center.x, center.y);
   };
@@ -281,6 +340,17 @@ export const PlatformerPage = () => {
 
       if (tilesetRef.current) {
         drawBlocks(ctx, blockStates.value, tilesetRef.current, crackOverlaySpriteRef.current, originX, originY);
+      }
+
+      if (chestClosedSpriteRef.current || chestOpenSpriteRef.current) {
+        drawChests(
+          ctx,
+          chestStates.value,
+          chestClosedSpriteRef.current,
+          chestOpenSpriteRef.current,
+          originX,
+          originY,
+        );
       }
 
       if (playerSpriteRef.current) {
@@ -385,13 +455,30 @@ export const PlatformerPage = () => {
         drawHearts(ctx, healthState.value, heartsSpriteRef.current, HEARTS_START_X);
       }
 
+      if (chestClosedSpriteRef.current && chestPlacements.length > 0) {
+        drawChestCounter(
+          ctx,
+          chestClosedSpriteRef.current,
+          chestStates.value.filter(isChestOpen).length,
+          chestPlacements.length,
+          CHEST_COUNTER_X,
+          CHEST_COUNTER_Y,
+        );
+      }
+
       // Iris overlay: drawn on top of everything else whenever the current
       // phase isn't 'playing'. centerX/centerY are stored world-space (see
       // GameLifecycle.ts) so they're converted to screen-space here with the
       // same originX/originY already used for terrain/player, keeping them
-      // aligned even if the canvas resizes mid-pause.
+      // aligned even if the canvas resizes mid-pause. Also excludes
+      // 'ending-screen' (same as 'paused') — without this, `currentIrisRadius`
+      // returns `null` for that phase (see its own doc comment), which the
+      // `?? 0` below coerces to a fully-closed, opaque black circle every
+      // frame, painting solid black behind ThankYouScreen's translucent
+      // bg-black/80 overlay instead of leaving the paused game dimly visible
+      // through it.
       const lifecycle = lifecycleState.value;
-      if (lifecycle.phase !== 'playing' && lifecycle.phase !== 'paused') {
+      if (lifecycle.phase !== 'playing' && lifecycle.phase !== 'paused' && lifecycle.phase !== 'ending-screen') {
         const centerX = lifecycle.centerX + originX;
         const centerY = lifecycle.centerY + originY;
         const maxRadius = maxIrisRadius(canvas.width, canvas.height, centerX, centerY);
@@ -414,6 +501,7 @@ export const PlatformerPage = () => {
     window.addEventListener('resize', onResize);
 
     const input = createKeyboardInput();
+    inputRef.current = input;
 
     /**
      * Any key or a canvas click restarts the game while 'awaitingRestart' —
@@ -459,6 +547,11 @@ export const PlatformerPage = () => {
         render();
         return;
       }
+      if (lifecycleState.value.phase === 'ending-screen') {
+        input.clearPending();
+        render();
+        return;
+      }
 
       // Coins/enemies only animate while the game is actually live — frozen
       // during death/restart/journal-pause, same as physics below, rather
@@ -485,7 +578,7 @@ export const PlatformerPage = () => {
 
       // Blocks currently playing their shared bump/shatter reaction advance
       // it here every tick, same convention as the enemy hit-reaction step
-      // just above — a used-up crate/rock is filtered out of the live array
+      // just above — a used-up crate/fragileRock is filtered out of the live array
       // once its animation settles back to 'idle' (Block.ts's
       // isBlockRemoved); a used-up question-mark is NEVER filtered (it stays
       // solid forever, permanently showing its `!` tile — see Block.ts's
@@ -731,6 +824,60 @@ export const PlatformerPage = () => {
         }
       }
 
+      // Chests (roadmap step 22) don't open on touch like every other
+      // collectible — spec.md FR-023 requires an explicit Arrow Up press
+      // while standing on one (KeyW also works, mirroring the A/D-as-
+      // Left/Right convention — see FR-007). `originX`/`originY` are already
+      // in scope from this tick's earlier collision blocks above.
+      //
+      // Both must be evaluated (not short-circuited) since consumePress has
+      // the side effect of clearing the pending press it finds — an `||`
+      // between the two calls directly would skip consuming the second
+      // key's pending press whenever the first already returned true.
+      const arrowUpPressed = input.consumePress('ArrowUp');
+      const wPressed = input.consumePress('KeyW');
+      const interactPressed = arrowUpPressed || wPressed;
+      if (interactPressed) {
+        const standingChestId = chestPlayerIsStandingOn(playerState.value, chestStates.value);
+        if (standingChestId) {
+          const chest = chestStates.value.find((c) => c.id === standingChestId)!;
+          chestStates.value = chestStates.value.map((c) =>
+            c.id === standingChestId ? openChest(c) : c,
+          );
+          if (!collectedFacts.value.some((f) => f.id === chest.fact.id)) {
+            const journalRect = journalButtonRef.current?.getBoundingClientRect();
+            const targetX = journalRect ? journalRect.left + journalRect.width / 2 : canvas.width - 32;
+            const targetY = journalRect ? journalRect.top + journalRect.height / 2 : canvas.height - 32;
+            const midX = canvas.width / 2;
+            const midY = canvas.height * 0.3;
+            const { icon, title: label } = formatJournalEntry(chest.fact);
+            const slot = nextTextSlot;
+            nextTextSlot = (nextTextSlot + 1) % COLLECTION_TEXT_SLOT_COUNT;
+            const stackOffsetY = slot * COLLECTION_TEXT_STACK_ROW_HEIGHT;
+            collectedFacts.value = [...collectedFacts.value, chest.fact];
+            activeEffects.value = [
+              ...activeEffects.value,
+              startFlightEffect(
+                chest.id,
+                label,
+                // Shifted by CHEST_CLOSED_OFFSET_X (see entities/Chest.ts) to
+                // start from the chest's actual centered-on-tile left edge —
+                // only the closed offset applies here, since this only fires
+                // the instant a closed chest is opened (D2/Minor 2, final
+                // review).
+                chest.x + originX + CHEST_CLOSED_OFFSET_X,
+                chest.y + originY + stackOffsetY,
+                midX,
+                midY + stackOffsetY,
+                targetX,
+                targetY,
+                icon,
+              ),
+            ];
+          }
+        }
+      }
+
       const stompedIds = checkEnemyStompCollisions(playerState.value, enemyStates.value);
       const stompBounceThisTick = stompedIds.length > 0;
       if (stompBounceThisTick) {
@@ -784,12 +931,8 @@ export const PlatformerPage = () => {
         left: input.isHeld('ArrowLeft') || input.isHeld('KeyA'),
         right: input.isHeld('ArrowRight') || input.isHeld('KeyD'),
       };
-      // Both must be evaluated (not short-circuited) since consumePress has
-      // the side effect of clearing the pending press it finds.
-      const spacePressed = input.consumePress('Space');
-      const arrowUpPressed = input.consumePress('ArrowUp');
-      const jumpPressed = spacePressed || arrowUpPressed;
-      const jumpHeld = input.isHeld('Space') || input.isHeld('ArrowUp');
+      const jumpPressed = input.consumePress('Space');
+      const jumpHeld = input.isHeld('Space');
       const dropThroughHeld = input.isHeld('ArrowDown') || input.isHeld('KeyS');
 
       let next = stepPlayerPhysics(
@@ -811,7 +954,7 @@ export const PlatformerPage = () => {
       // block whose underside the player's head just hit this tick — but
       // only a block that ISN'T already used up actually reacts (a
       // question-mark that already popped its fruit, or a still-mid-bump
-      // crate/rock about to be filtered out, must not register a second hit
+      // crate/fragileRock about to be filtered out, must not register a second hit
       // just because the player's head is still under it this frame).
       const hittableBlockIds = next.hitBlockIds.filter((id) => {
         const block = blockStates.value.find((b) => b.id === id);
@@ -842,7 +985,7 @@ export const PlatformerPage = () => {
             ];
           }
 
-          // Rock's terminal hit (breaks to empty space, no fact, no reward —
+          // FragileRock's terminal hit (breaks to empty space, no fact, no reward —
           // FR-022c) still gets a visual "puff" (amended 2026-08-30, live
           // user feedback): the same sparkle-burst mechanism every other
           // reward pickup already plays (drawCollectionEffects reads
@@ -850,8 +993,8 @@ export const PlatformerPage = () => {
           // empty label and no target-flight destination that matters since
           // nothing is actually flying anywhere — the sparkle at the
           // collection point is the only visible part.
-          if (block.blockKind === 'rock') {
-            // Centered on the rock's own tile (not its top-left corner —
+          if (block.blockKind === 'fragileRock') {
+            // Centered on the fragileRock's own tile (not its top-left corner —
             // amended 2026-08-30, live user feedback). The burst's size
             // itself (SPARKLE_RADIUS_PX/SPARKLE_MAX_RADIUS in
             // CollectionEffects.ts/Renderer.ts) is a shared constant every
@@ -958,6 +1101,36 @@ export const PlatformerPage = () => {
         lifecycleState.value = tickLifecycle(lifecycleState.value, dt);
       }
 
+      // Deliberately allows 'intro' here too, not just 'playing': per
+      // GameLifecycle.ts's doc comment, 'intro' is a purely visual overlay
+      // on top of already-running gameplay (a pit near spawn is still live
+      // during it), and physics/collisions — including chest-opening —
+      // already run during 'intro' the same as any other tick. Explicitly
+      // listing the two live phases (rather than e.g. `!== 'dying'`) is
+      // required, not just tidier: this check runs every tick regardless of
+      // phase, so a broader exclusion-based condition would also fire while
+      // 'paused' (flipping a journal-open visitor straight to
+      // 'ending-screen' the instant they'd already opened every chest,
+      // clobbering the journal) or 'awaitingRestart', and would redundantly
+      // re-fire every tick while already 'ending-screen'.
+      //
+      // Also gated on `!endingScreenShown.value` (see that signal's doc
+      // comment in PlatformerState.ts) — without it, since opening a chest is
+      // permanent, `allChestsOpen` stays true on every subsequent tick after
+      // the last chest opens, so dismissing the screen (which only sets
+      // phase back to 'playing', not any per-chest state) would otherwise
+      // cause this exact check to immediately re-trigger on the very next
+      // tick, permanently re-opening the screen the instant it's dismissed.
+      if (
+        !endingScreenShown.value &&
+        (lifecycleState.value.phase === 'playing' || lifecycleState.value.phase === 'intro') &&
+        allChestsOpen(chestStates.value)
+      ) {
+        lifecycleState.value = showEndingScreen(lifecycleState.value);
+        endingScreenOpen.value = true;
+        endingScreenShown.value = true;
+      }
+
       render();
     });
     loop.start();
@@ -1053,6 +1226,26 @@ export const PlatformerPage = () => {
         // A cracked crate simply won't show its overlay if this fails to
         // load; the base crate tile and every other mechanic still work.
       });
+    loadImage('/sprites/chest_closed.png')
+      .then((img) => {
+        if (cancelled) return;
+        chestClosedSpriteRef.current = img;
+        render();
+      })
+      .catch(() => {
+        // Chests simply won't render if the sprite fails to load; the rest
+        // of the game still shows.
+      });
+    loadImage('/sprites/chest_open.png')
+      .then((img) => {
+        if (cancelled) return;
+        chestOpenSpriteRef.current = img;
+        render();
+      })
+      .catch(() => {
+        // An opened chest falls back to invisible if this fails to load;
+        // the closed sprite (and the rest of the game) still works.
+      });
     loadFont(RESTART_PROMPT_FONT_FAMILY, RESTART_PROMPT_FONT_URL)
       .then(() => {
         if (cancelled) return;
@@ -1067,6 +1260,7 @@ export const PlatformerPage = () => {
       cancelled = true;
       loop.stop();
       input.destroy();
+      inputRef.current = null;
       window.removeEventListener('resize', onResize);
       window.removeEventListener('keydown', restartIfAwaiting);
       window.removeEventListener('keydown', onJournalKey);
@@ -1085,6 +1279,7 @@ export const PlatformerPage = () => {
           onResetGame={handleResetGameRequested}
         />
       )}
+      {endingScreenOpen.value && <ThankYouScreen onDismiss={handleDismissEndingScreen} />}
       {/* Moved from bottom-right to top-left (was hard to spot against the
           terrain) — sits left of the hearts HUD, which HEARTS_START_X
           shifts right to make room. size-10 (40px) must match the 40 baked

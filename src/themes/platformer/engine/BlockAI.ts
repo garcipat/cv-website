@@ -69,7 +69,7 @@ export function blockBumpOffsetY(block: BlockState): number {
 /**
  * Opacity (0-1) to draw a crate at — 1 (fully opaque) unless it's currently
  * `'shatter'`ing, in which case it linearly fades to 0 over
- * `CRATE_SHATTER_DURATION_SECONDS`. Meaningless for question-mark/rock (which
+ * `CRATE_SHATTER_DURATION_SECONDS`. Meaningless for question-mark/fragileRock (which
  * never enter `'shatter'`) — Renderer.ts only calls this for `blockKind ===
  * 'crate'`.
  */

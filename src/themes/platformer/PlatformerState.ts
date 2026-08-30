@@ -5,10 +5,10 @@ import {
   ENEMY_TILES_GREEN,
   ENEMY_TILES_PURPLE,
   COIN_TILES,
-  FRUIT_TILES,
   CRATE_TILES,
   QUESTIONMARK_TILES,
-  ROCK_TILES,
+  FRAGILE_ROCK_TILES,
+  CHEST_TILES,
 } from './level/level1';
 import {
   PLAYER_RENDERED_SIZE,
@@ -20,12 +20,16 @@ import { toEnemyState } from './entities/Enemy';
 import type { EnemyState } from './entities/Enemy';
 import { toBlockState } from './entities/Block';
 import type { BlockState } from './entities/Block';
+import { toChestState } from './entities/Chest';
+import type { ChestState } from './entities/Chest';
 import type { BonusFruitState } from './entities/BonusFruit';
 import { introState } from './engine/GameLifecycle';
 import { currentCV } from '@/state/locale';
 import { mapCVDataToCollectibles, placeCollectibles } from './level/CollectibleMapper';
 import { mapCVDataToEnemies, placeEnemies } from './level/EnemyMapper';
 import { mapCVDataToBlocks, placeBlocks } from './level/BlockMapper';
+import { mapCVDataToChests, placeChests } from './level/ChestMapper';
+import type { ChestPlacement } from './level/ChestMapper';
 import type { PlayerState } from './entities/Player';
 import type { LifecycleState } from './engine/GameLifecycle';
 import type { CollectedFact, SectionId } from './types';
@@ -94,12 +98,15 @@ export const healthState = signal(MAX_HALF_HEARTS);
  * (switching EN/DE mid-session doesn't re-place collectibles or change
  * which are already collected; that's roadmap step 26's theme-switch-reset
  * job, not this step's). Every position comes from level1's hand-placed
- * `C`/`F` markers (see COIN_TILES/FRUIT_TILES) — placeCollectibles has no
- * auto-placement, same as placeEnemies below.
+ * `C` markers (see COIN_TILES) — placeCollectibles has no
+ * auto-placement, same as placeEnemies below. The Language-fruit marker
+ * concept was removed 2026-08-30 (live user feedback, see level1.ts's doc
+ * comment) — `fruit` is passed an empty array since `CollectibleMarkerPositions`
+ * still legitimately has that field for future use.
  */
 export const collectiblePlacements: CollectiblePlacement[] = placeCollectibles(
   mapCVDataToCollectibles(currentCV.value),
-  { coin: COIN_TILES, fruit: FRUIT_TILES },
+  { coin: COIN_TILES, fruit: [] },
 );
 
 /**
@@ -124,16 +131,27 @@ export const enemyPlacements: EnemyPlacement[] = placeEnemies(mapCVDataToEnemies
  * non-reactive, marker-driven convention as collectiblePlacements/
  * enemyPlacements above (roadmap step 20, 2026-08-29). Crates come from
  * `mapCVDataToBlocks` zipped against level1's `X` markers; question-mark
- * and rock blocks have no CVData mapping and are placed directly from
- * their `Q`/`K` markers (see BlockMapper.ts's placeBlocks). No live
+ * and fragileRock blocks have no CVData mapping and are placed directly from
+ * their `Q`/`F` markers (see BlockMapper.ts's placeBlocks). No live
  * per-instance state yet (no hitsTaken/broken) — that's step 21's job,
  * once blocks respond to hits.
  */
 export const blockPlacements: BlockPlacement[] = placeBlocks(mapCVDataToBlocks(currentCV.value), {
   crate: CRATE_TILES,
   questionMark: QUESTIONMARK_TILES,
-  rock: ROCK_TILES,
+  fragileRock: FRAGILE_ROCK_TILES,
 });
+
+/**
+ * Every chest in the level, placed once at module load — same non-reactive,
+ * marker-driven convention as blockPlacements above (roadmap step 22,
+ * 2026-08-30). One chest per real Experience entry, zipped against level1's
+ * `T` markers (see ChestMapper.ts's placeChests).
+ */
+export const chestPlacements: ChestPlacement[] = placeChests(
+  mapCVDataToChests(currentCV.value),
+  CHEST_TILES,
+);
 
 /**
  * Live, per-frame patrol state for every enemy — position/velocity/
@@ -155,6 +173,69 @@ export const enemyStates = signal<EnemyState[]>(
  * respawn).
  */
 export const blockStates = signal<BlockState[]>(blockPlacements.map(toBlockState));
+
+/**
+ * Live open/closed state for every chest — mirrors blockStates above.
+ * Seeded from chestPlacements (module load) and reset back to that seed only
+ * by resetGameProgress() (the Reset Game button), NOT by resetGame()
+ * (death/respawn) — a chest, like a block, is progress that persists across
+ * a death (spec.md FR-023's "never re-closes except via Reset Game").
+ */
+export const chestStates = signal<ChestState[]>(chestPlacements.map(toChestState));
+
+/**
+ * One-shot latch: true once the Thank You screen has been shown this
+ * "session" (i.e. since the last Reset Game). Without this,
+ * `allChestsOpen(chestStates.value)` stays true forever after the last chest
+ * opens (opening is permanent — see entities/Chest.ts's openChest), so the
+ * ending-screen check at the end of each tick would otherwise re-trigger
+ * `showEndingScreen`/`setEndingScreenOpen(true)` on the very next tick after
+ * dismissal, permanently locking the visitor out.
+ *
+ * Deliberately a module-level signal, not a component-local `useRef` in
+ * PlatformerPage.tsx: `chestStates` above already survives a component
+ * unmount (it's module-level), but a `useRef` does not — switching to
+ * another CV-site theme and back would reset a local ref to `false` while
+ * every chest is STILL open (theme-switch reset isn't implemented yet, see
+ * roadmap steps 27/28), which would make the Thank You screen reappear on
+ * the very first tick after switching back, with no player action. Living
+ * here keeps this latch's lifetime matched to `chestStates`'s, and it's
+ * reset back to `false` in `resetGameProgress()` below (alongside
+ * `chestStates`'s own reset) so a visitor can see the screen again after a
+ * genuine Reset Game.
+ */
+export const endingScreenShown = signal(false);
+
+/**
+ * Whether `<ThankYouScreen>` is currently mounted — the sibling piece of
+ * ending-screen state to `endingScreenShown` above, but a distinct concern:
+ * `endingScreenShown` is a permanent one-shot latch (never reset except by
+ * Reset Game) while this one flips back to `false` on every dismissal so the
+ * screen can be shown again after a future re-trigger.
+ *
+ * **Final review fix (2026-08-30, Important 4)**: originally a component-
+ * local `useState` in PlatformerPage.tsx. That was a real bug: `chestStates`,
+ * `endingScreenShown`, and `lifecycleState` are all module-level and survive
+ * a theme-switch unmount/remount, but a local `useState` does not. If a
+ * visitor switched away from the Platformer theme and back while this
+ * screen was showing, `lifecycleState` would still read `'ending-screen'`
+ * (so the game loop's early-return for that phase keeps firing forever —
+ * see PlatformerPage.tsx's tick callback) while the local `endingScreenOpen`
+ * reset to `false` on remount, meaning `<ThankYouScreen>` would never
+ * render — no visible way to dismiss, and `endingScreenShown` (correctly
+ * still `true`) blocks the "all chests open" check from ever re-triggering
+ * it either. The game would be permanently stuck, paused, with nothing on
+ * screen. Making this module-level too (matching `endingScreenShown`'s
+ * lifetime) fixes it: a remount now sees the screen was open and keeps
+ * showing it, same as it would have without ever switching themes.
+ *
+ * PlatformerPage.tsx must call `useSignals()` (from
+ * `@preact/signals-react/runtime`, same as ThankYouScreen.tsx already does)
+ * for reading `.value` in its JSX to actually re-render on change — a plain
+ * signal read outside that hook (or outside `<Component>`-wrapped access)
+ * would not resubscribe the component.
+ */
+export const endingScreenOpen = signal(false);
 
 /**
  * Question-mark blocks' spawned no-fact bonus fruits (roadmap step 21b) —
@@ -278,5 +359,8 @@ export function resetGameProgress(): void {
   activeEffects.value = [];
   activeCounterPopups.value = {};
   blockStates.value = blockPlacements.map(toBlockState);
+  chestStates.value = chestPlacements.map(toChestState);
+  endingScreenShown.value = false;
+  endingScreenOpen.value = false;
   bonusFruitStates.value = [];
 }

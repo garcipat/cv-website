@@ -5,6 +5,8 @@ import {
   currentIrisRadius,
   pauseForJournal,
   resumeFromJournal,
+  showEndingScreen,
+  dismissEndingScreen,
 } from './GameLifecycle';
 import type { LifecycleState } from './GameLifecycle';
 import {
@@ -45,6 +47,30 @@ describe('resumeFromJournal', () => {
   it('called-fromPaused-returnsPlayingPhaseSameElapsedAndCenter', () => {
     const state: LifecycleState = { phase: 'paused', elapsed: 0, centerX: 12, centerY: 34 };
     expect(resumeFromJournal(state)).toEqual({
+      phase: 'playing',
+      elapsed: 0,
+      centerX: 12,
+      centerY: 34,
+    });
+  });
+});
+
+describe('showEndingScreen', () => {
+  it('called-fromPlaying-returnsEndingScreenPhaseSameElapsedAndCenter', () => {
+    const state: LifecycleState = { phase: 'playing', elapsed: 0, centerX: 12, centerY: 34 };
+    expect(showEndingScreen(state)).toEqual({
+      phase: 'ending-screen',
+      elapsed: 0,
+      centerX: 12,
+      centerY: 34,
+    });
+  });
+});
+
+describe('dismissEndingScreen', () => {
+  it('called-fromEndingScreen-returnsPlayingPhaseSameElapsedAndCenter', () => {
+    const state: LifecycleState = { phase: 'ending-screen', elapsed: 0, centerX: 12, centerY: 34 };
+    expect(dismissEndingScreen(state)).toEqual({
       phase: 'playing',
       elapsed: 0,
       centerX: 12,
@@ -101,6 +127,11 @@ describe('currentIrisRadius', () => {
   it('pausedPhase-returns-null', () => {
     const state: LifecycleState = { phase: 'paused', elapsed: 0, centerX: 0, centerY: 0 };
     expect(currentIrisRadius(state, 500)).toBeNull();
+  });
+
+  it('endingScreenPhase-returns-null', () => {
+    const state: LifecycleState = { phase: 'ending-screen', elapsed: 0, centerX: 0, centerY: 0 };
+    expect(currentIrisRadius(state, 100)).toBeNull();
   });
 
   it('awaitingRestartPhase-returns-zero', () => {

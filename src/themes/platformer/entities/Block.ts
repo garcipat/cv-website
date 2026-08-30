@@ -7,7 +7,7 @@ import type { BlockPlacement } from '../level/BlockMapper';
 export const BLOCK_FRAME_SIZE = TILE_SIZE;
 export const BLOCK_RENDERED_SIZE = RENDERED_TILE_SIZE;
 
-export type BlockKind = 'crate' | 'questionMark' | 'rock';
+export type BlockKind = 'crate' | 'questionMark' | 'fragileRock';
 
 /**
  * Sprite-sheet source rect (in `world_tileset.png`) for a block's current
@@ -21,7 +21,7 @@ export type BlockKind = 'crate' | 'questionMark' | 'rock';
  * than reading as a distinct block type. Every other kind/hit-count
  * combination keeps rendering its one intact tile forever — crate's crack is
  * a separate overlay (see `crateCrackOverlayVisible`), not a frame swap, and
- * rock/crate are removed from the world entirely once used up rather than
+ * fragileRock/crate are removed from the world entirely once used up rather than
  * swapping tile. `hitsTaken` defaults to 0 so every pre-existing call site
  * (step 20's render-only code, and this file's own pre-step-21 tests) is
  * unaffected.
@@ -34,7 +34,7 @@ export function blockFrameSource(blockKind: BlockKind, hitsTaken = 0): { sx: num
       return hitsTaken >= 1
         ? { sx: 1 * TILE_SIZE, sy: 0 }
         : { sx: 0, sy: 2 * TILE_SIZE };
-    case 'rock':
+    case 'fragileRock':
       return { sx: 3 * TILE_SIZE, sy: 0 };
     default: {
       const _exhaustive: never = blockKind;
@@ -44,7 +44,7 @@ export function blockFrameSource(blockKind: BlockKind, hitsTaken = 0): { sx: num
 }
 
 /** Hits required to fully use up a block, by kind — crate takes 2 (crack then
- *  shatter); question-mark and rock each take just 1 (spec.md FR-022b/c). */
+ *  shatter); question-mark and fragileRock each take just 1 (spec.md FR-022b/c). */
 export function maxHitsForBlock(blockKind: BlockKind): number {
   return blockKind === 'crate' ? 2 : 1;
 }
@@ -56,7 +56,7 @@ export type BlockAnimState = 'idle' | 'bump' | 'shatter';
  * `Enemy.ts`'s `EnemyState extends EnemyPlacement` pattern. `animState`
  * cycles `'idle' -> 'bump' -> ('shatter' -> ) 'idle'` on every hit (see
  * `BlockAI.ts`'s `stepBlockAnimation`) — `'shatter'` is reachable only for a
- * `crate` on its terminal (2nd) hit; question-mark/rock go straight back to
+ * `crate` on its terminal (2nd) hit; question-mark/fragileRock go straight back to
  * `'idle'` after their bump.
  */
 export interface BlockState extends BlockPlacement {
@@ -82,7 +82,7 @@ export function isBlockUsedUp(block: BlockState): boolean {
 
 /**
  * Whether this block should be filtered out of the live world entirely —
- * true once a crate or rock is used up AND its post-hit animation (bump,
+ * true once a crate or fragileRock is used up AND its post-hit animation (bump,
  * then shatter for crate) has finished settling back to `'idle'`. A
  * question-mark is NEVER removed — spec.md FR-022b: it "permanently changes
  * to its matching `!` terrain tile" and stays a solid, present block forever;

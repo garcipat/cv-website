@@ -17,14 +17,16 @@ const cv: CVData = {
   education: [
     { degree: 'B.Sc. Computer Science', institution: 'Technical University Berlin', startDate: '2016-10' },
   ],
+  activities: [{ name: 'Volunteering', startDate: '2019-01', endDate: '2019-06' }],
   certificates: [{ name: 'AWS Solutions Architect', issuer: 'AWS', date: '2023-06' }],
   languages: [],
   projects: [{ name: 'Open Source Task Runner', description: 'A CLI task runner.' }],
 };
 
 describe('mapCVDataToBlocks', () => {
-  it('called-returns-oneCratePerExperiencePlusOneCratePerEducation', () => {
+  it('called-returns-oneCratePerEducationPlusActivityPlusLanguage', () => {
     const defs = mapCVDataToBlocks(cv);
+    // 1 education + 1 activity + 0 languages (fixture's languages is [])
     expect(defs.filter((d) => d.blockKind === 'crate')).toHaveLength(2);
   });
 
@@ -34,13 +36,12 @@ describe('mapCVDataToBlocks', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('experienceEntry-buildsExperienceFact', () => {
+  it('experienceEntries-produceNoCrateBlocks', () => {
+    // Redesigned 2026-08-30: Experience moved off crates onto chests
+    // (see ChestMapper.ts) — mapCVDataToBlocks must never build an
+    // experience-sourced crate anymore.
     const defs = mapCVDataToBlocks(cv);
-    const exp = defs.find((d) => d.fact && 'role' in d.fact.data && d.fact.data.role === 'Staff Frontend Engineer');
-    expect(exp).toBeDefined();
-    expect(exp?.fact?.sectionId).toBe('experience');
-    expect(exp?.fact?.sourceType).toBe('block');
-    expect(exp?.blockKind).toBe('crate');
+    expect(defs.some((d) => d.fact?.sectionId === 'experience')).toBe(false);
   });
 
   it('educationEntry-buildsEducationFact', () => {
@@ -52,8 +53,25 @@ describe('mapCVDataToBlocks', () => {
     expect(edu?.blockKind).toBe('crate');
   });
 
-  it('noExperienceOrEducation-returnsNoCrateBlocks', () => {
-    const defs = mapCVDataToBlocks({ ...cv, experience: [], education: [] });
+  it('activityEntry-buildsActivityFact', () => {
+    const defs = mapCVDataToBlocks(cv);
+    const activity = defs.find((d) => d.fact && d.fact.sectionId === 'activities');
+    expect(activity).toBeDefined();
+    expect(activity?.fact?.sourceType).toBe('block');
+    expect(activity?.blockKind).toBe('crate');
+  });
+
+  it('languageEntry-buildsLanguageFact', () => {
+    const cvWithLanguage = { ...cv, languages: [{ name: 'German', level: 90, flag: '🇩🇪' }] };
+    const defs = mapCVDataToBlocks(cvWithLanguage);
+    const language = defs.find((d) => d.fact && d.fact.sectionId === 'languages');
+    expect(language).toBeDefined();
+    expect(language?.fact?.sourceType).toBe('block');
+    expect(language?.blockKind).toBe('crate');
+  });
+
+  it('noEducationActivitiesOrLanguages-returnsNoCrateBlocks', () => {
+    const defs = mapCVDataToBlocks({ ...cv, education: [], activities: [], languages: [] });
     expect(defs.filter((d) => d.blockKind === 'crate')).toHaveLength(0);
   });
 
@@ -101,7 +119,7 @@ describe('placeBlocks', () => {
       { col: 5, row: 2 },
       { col: 6, row: 2 },
     ];
-    const placed = placeBlocks(defs, { crate: crateMarkers, questionMark: [], rock: [] });
+    const placed = placeBlocks(defs, { crate: crateMarkers, questionMark: [], fragileRock: [] });
 
     expect(placed.map((p) => p.id)).toEqual(crateDefs.map((d) => d.id));
     expect(placed[0]).toMatchObject(tileToPixel(crateMarkers[0].col, crateMarkers[0].row));
@@ -110,13 +128,13 @@ describe('placeBlocks', () => {
 
   it('fewerCrateMarkersThanCrateDefs-onlyMarkedCountGetsPlaced', () => {
     const defs = mapCVDataToBlocks(cv); // 2 crate defs
-    const placed = placeBlocks(defs, { crate: [{ col: 1, row: 0 }], questionMark: [], rock: [] });
+    const placed = placeBlocks(defs, { crate: [{ col: 1, row: 0 }], questionMark: [], fragileRock: [] });
     expect(placed.filter((p) => p.blockKind === 'crate')).toHaveLength(1);
   });
 
   it('noCrateMarkers-noCrateDefsPlaced', () => {
     const defs = mapCVDataToBlocks(cv);
-    const placed = placeBlocks(defs, { crate: [], questionMark: [], rock: [] });
+    const placed = placeBlocks(defs, { crate: [], questionMark: [], fragileRock: [] });
     expect(placed).toHaveLength(0);
   });
 
@@ -125,7 +143,7 @@ describe('placeBlocks', () => {
       { col: 2, row: 1 },
       { col: 3, row: 1 },
     ];
-    const placed = placeBlocks([], { crate: [], questionMark: markers, rock: [] });
+    const placed = placeBlocks([], { crate: [], questionMark: markers, fragileRock: [] });
     expect(placed).toHaveLength(2);
     for (const p of placed) {
       expect(p.blockKind).toBe('questionMark');
@@ -142,7 +160,7 @@ describe('placeBlocks', () => {
       { col: 2, row: 1 },
       { col: 3, row: 1 },
     ];
-    const placed = placeBlocks(defs, { crate: [], questionMark: markers, rock: [] });
+    const placed = placeBlocks(defs, { crate: [], questionMark: markers, fragileRock: [] });
 
     const questionMarkPlacements = placed.filter((p) => p.blockKind === 'questionMark');
     expect(questionMarkPlacements.map((p) => p.id)).toEqual(questionMarkDefs.map((d) => d.id));
@@ -152,7 +170,7 @@ describe('placeBlocks', () => {
 
   it('fewerQuestionMarkMarkersThanDefs-onlyMarkedCountGetsAFact', () => {
     const defs = mapCVDataToBlocks(cv); // 2 questionMark defs
-    const placed = placeBlocks(defs, { crate: [], questionMark: [{ col: 2, row: 1 }], rock: [] });
+    const placed = placeBlocks(defs, { crate: [], questionMark: [{ col: 2, row: 1 }], fragileRock: [] });
     const questionMarkPlacements = placed.filter((p) => p.blockKind === 'questionMark');
     expect(questionMarkPlacements).toHaveLength(1);
     expect(questionMarkPlacements[0].fact).toBeDefined();
@@ -161,45 +179,45 @@ describe('placeBlocks', () => {
   it('moreQuestionMarkMarkersThanDefs-excessMarkerStillPlacedWithNoFact', () => {
     const defs = mapCVDataToBlocks({ ...cv, certificates: [], projects: [] }); // 0 questionMark defs
     const markers = [{ col: 2, row: 1 }];
-    const placed = placeBlocks(defs, { crate: [], questionMark: markers, rock: [] });
+    const placed = placeBlocks(defs, { crate: [], questionMark: markers, fragileRock: [] });
     const questionMarkPlacements = placed.filter((p) => p.blockKind === 'questionMark');
     expect(questionMarkPlacements).toHaveLength(1);
     expect(questionMarkPlacements[0].fact).toBeUndefined();
     expect(questionMarkPlacements[0]).toMatchObject(tileToPixel(markers[0].col, markers[0].row));
   });
 
-  it('rockMarkers-eachBecomesAPlacementWithNoFact', () => {
+  it('fragileRockMarkers-eachBecomesAPlacementWithNoFact', () => {
     const markers = [{ col: 4, row: 1 }];
-    const placed = placeBlocks([], { crate: [], questionMark: [], rock: markers });
+    const placed = placeBlocks([], { crate: [], questionMark: [], fragileRock: markers });
     expect(placed).toHaveLength(1);
-    expect(placed[0].blockKind).toBe('rock');
+    expect(placed[0].blockKind).toBe('fragileRock');
     expect(placed[0].fact).toBeUndefined();
     expect(placed[0]).toMatchObject(tileToPixel(markers[0].col, markers[0].row));
   });
 
-  it('questionMarkAndRockPlacements-haveUniqueIdsDerivedFromPosition', () => {
+  it('questionMarkAndFragileRockPlacements-haveUniqueIdsDerivedFromPosition', () => {
     const placed = placeBlocks([], {
       crate: [],
       questionMark: [{ col: 2, row: 1 }],
-      rock: [{ col: 4, row: 1 }],
+      fragileRock: [{ col: 4, row: 1 }],
     });
     const ids = placed.map((p) => p.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
 
   it('noMarkersAtAll-noDefs-returnsEmptyArray', () => {
-    expect(placeBlocks([], { crate: [], questionMark: [], rock: [] })).toEqual([]);
+    expect(placeBlocks([], { crate: [], questionMark: [], fragileRock: [] })).toEqual([]);
   });
 });
 
 describe('isBlockOccupied', () => {
   it('tileMatchesABlockPlacement-returnsTrue', () => {
-    const placed = placeBlocks([], { crate: [], questionMark: [{ col: 5, row: 2 }], rock: [] });
+    const placed = placeBlocks([], { crate: [], questionMark: [{ col: 5, row: 2 }], fragileRock: [] });
     expect(isBlockOccupied(placed, 5, 2)).toBe(true);
   });
 
   it('tileDoesNotMatchAnyBlockPlacement-returnsFalse', () => {
-    const placed = placeBlocks([], { crate: [], questionMark: [{ col: 5, row: 2 }], rock: [] });
+    const placed = placeBlocks([], { crate: [], questionMark: [{ col: 5, row: 2 }], fragileRock: [] });
     expect(isBlockOccupied(placed, 6, 2)).toBe(false);
     expect(isBlockOccupied(placed, 5, 3)).toBe(false);
   });
@@ -211,12 +229,12 @@ describe('isBlockOccupied', () => {
 
 describe('blockIdAt', () => {
   it('tileMatchesABlockPlacement-returnsItsId', () => {
-    const placed = placeBlocks([], { crate: [], questionMark: [{ col: 5, row: 2 }], rock: [] });
+    const placed = placeBlocks([], { crate: [], questionMark: [{ col: 5, row: 2 }], fragileRock: [] });
     expect(blockIdAt(placed, 5, 2)).toBe(placed[0].id);
   });
 
   it('tileDoesNotMatchAnyBlockPlacement-returnsUndefined', () => {
-    const placed = placeBlocks([], { crate: [], questionMark: [{ col: 5, row: 2 }], rock: [] });
+    const placed = placeBlocks([], { crate: [], questionMark: [{ col: 5, row: 2 }], fragileRock: [] });
     expect(blockIdAt(placed, 6, 2)).toBeUndefined();
   });
 

@@ -158,8 +158,13 @@
       "fruits": "Fruits",
       "enemies": "Enemies",
       "crates": "Crates",
+      "chests": "Chests",
       "resetGame": "Reset Game",
       "emptyState": "No facts discovered yet — keep exploring!"
+    },
+    "endingScreen": {
+      "thankYou": "Thank you for playing!",
+      "continue": "Press any button to continue"
     }
   }
 }
