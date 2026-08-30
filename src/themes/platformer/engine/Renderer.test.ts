@@ -15,7 +15,6 @@ import {
   drawRestartPrompt,
   RESTART_PROMPT_FONT_FAMILY,
   HEARTS_START_X,
-  CHEST_COUNTER_Y,
 } from './Renderer';
 import type { LevelDef } from '../level/LevelData';
 import type { PlayerState } from '../entities/Player';

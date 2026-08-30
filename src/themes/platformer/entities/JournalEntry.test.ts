@@ -160,7 +160,7 @@ describe('formatJournalEntry', () => {
       fact({
         sectionId: 'personality',
         sectionLabel: 'Profile',
-        data: { name: 'Something' },
+        data: { name: 'Something', tagline: 'Test', summary: 'Test' },
       }),
     );
     expect(result.title).toBe('Profile');

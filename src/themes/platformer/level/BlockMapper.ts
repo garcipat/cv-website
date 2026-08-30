@@ -92,8 +92,8 @@ function projectToBlock(project: Project): BlockDef {
 export function mapCVDataToBlocks(cv: CVData): BlockDef[] {
   return [
     ...cv.education.map(educationToBlock),
-    ...cv.activities.map(activityToBlock),
-    ...cv.languages.map(languageToBlock),
+    ...(cv.activities ?? []).map(activityToBlock),
+    ...(cv.languages ?? []).map(languageToBlock),
     ...cv.certificates.map(certificateToBlock),
     ...cv.projects.map(projectToBlock),
   ];
