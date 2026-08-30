@@ -284,7 +284,7 @@ describe('stepPlayerPhysics block solidity', () => {
   const blockAtCol2Row2 = placeBlocks([], {
     crate: [],
     questionMark: [{ col: 2, row: 2 }],
-    rock: [],
+    fragileRock: [],
   });
 
   it('walkingRightIntoABlock-stopsAtItsLeftEdgeLikeAWall', () => {

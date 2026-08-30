@@ -485,7 +485,7 @@ export const PlatformerPage = () => {
 
       // Blocks currently playing their shared bump/shatter reaction advance
       // it here every tick, same convention as the enemy hit-reaction step
-      // just above — a used-up crate/rock is filtered out of the live array
+      // just above — a used-up crate/fragileRock is filtered out of the live array
       // once its animation settles back to 'idle' (Block.ts's
       // isBlockRemoved); a used-up question-mark is NEVER filtered (it stays
       // solid forever, permanently showing its `!` tile — see Block.ts's
@@ -807,7 +807,7 @@ export const PlatformerPage = () => {
       // block whose underside the player's head just hit this tick — but
       // only a block that ISN'T already used up actually reacts (a
       // question-mark that already popped its fruit, or a still-mid-bump
-      // crate/rock about to be filtered out, must not register a second hit
+      // crate/fragileRock about to be filtered out, must not register a second hit
       // just because the player's head is still under it this frame).
       const hittableBlockIds = next.hitBlockIds.filter((id) => {
         const block = blockStates.value.find((b) => b.id === id);
@@ -838,7 +838,7 @@ export const PlatformerPage = () => {
             ];
           }
 
-          // Rock's terminal hit (breaks to empty space, no fact, no reward —
+          // FragileRock's terminal hit (breaks to empty space, no fact, no reward —
           // FR-022c) still gets a visual "puff" (amended 2026-08-30, live
           // user feedback): the same sparkle-burst mechanism every other
           // reward pickup already plays (drawCollectionEffects reads
@@ -846,8 +846,8 @@ export const PlatformerPage = () => {
           // empty label and no target-flight destination that matters since
           // nothing is actually flying anywhere — the sparkle at the
           // collection point is the only visible part.
-          if (block.blockKind === 'rock') {
-            // Centered on the rock's own tile (not its top-left corner —
+          if (block.blockKind === 'fragileRock') {
+            // Centered on the fragileRock's own tile (not its top-left corner —
             // amended 2026-08-30, live user feedback). The burst's size
             // itself (SPARKLE_RADIUS_PX/SPARKLE_MAX_RADIUS in
             // CollectionEffects.ts/Renderer.ts) is a shared constant every

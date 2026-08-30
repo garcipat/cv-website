@@ -85,8 +85,8 @@ function projectToBlock(project: Project): BlockDef {
  * ChestMapper.ts; Activities and Languages moved on, closing two previously
  * unmapped gaps), plus one question-mark bonus-fruit def per Certificate and
  * per Project (unchanged since 2026-08-30's earlier amendment). `placeBlocks`
- * below zips crate/questionMark defs against their respective markers; rock
- * markers still place directly with no def to zip against. Mirrors
+ * below zips crate/questionMark defs against their respective markers;
+ * fragileRock markers still place directly with no def to zip against. Mirrors
  * CollectibleMapper.ts's/EnemyMapper.ts's CVData-flattening pattern.
  */
 export function mapCVDataToBlocks(cv: CVData): BlockDef[] {
@@ -109,7 +109,7 @@ export interface BlockPlacement extends BlockDef {
 export interface BlockMarkerPositions {
   crate: readonly { col: number; row: number }[];
   questionMark: readonly { col: number; row: number }[];
-  rock: readonly { col: number; row: number }[];
+  fragileRock: readonly { col: number; row: number }[];
 }
 
 /**
@@ -122,8 +122,8 @@ export interface BlockMarkerPositions {
  * `fact`, matching pre-2026-08-30 behavior — so a level marker is never
  * silently dropped for lack of data (amended 2026-08-30, live user feedback:
  * question-mark blocks now carry Certificates/Projects, moved off enemies —
- * see `mapCVDataToBlocks`'s comment). Rock blocks still have no CVData
- * mapping at all (spec.md FR-021's amendment) — every rock marker becomes a
+ * see `mapCVDataToBlocks`'s comment). FragileRock blocks still have no CVData
+ * mapping at all (spec.md FR-021's amendment) — every fragileRock marker becomes a
  * placement directly, with a position-derived id since there's no
  * CVData-derived one available.
  */
@@ -145,9 +145,9 @@ export function placeBlocks(defs: BlockDef[], markers: BlockMarkerPositions): Bl
     placements.push(def ? { ...def, x, y } : { id: `qmark-${col}-${row}`, blockKind: 'questionMark', x, y });
   });
 
-  for (const { col, row } of markers.rock) {
+  for (const { col, row } of markers.fragileRock) {
     const { x, y } = tileToPixel(col, row);
-    placements.push({ id: `rock-${col}-${row}`, blockKind: 'rock', x, y });
+    placements.push({ id: `fragileRock-${col}-${row}`, blockKind: 'fragileRock', x, y });
   }
 
   return placements;

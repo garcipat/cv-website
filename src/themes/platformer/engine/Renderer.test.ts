@@ -82,7 +82,7 @@ function makePlacement(id: string, spriteType: 'coin' | 'fruit', x: number, y: n
 
 function makeBlockPlacement(
   id: string,
-  blockKind: 'crate' | 'questionMark' | 'rock',
+  blockKind: 'crate' | 'questionMark' | 'fragileRock',
   x: number,
   y: number,
 ): BlockPlacement {
@@ -325,7 +325,7 @@ describe('drawBlocks', () => {
     const states = [
       toBlockState(makeBlockPlacement('b1', 'crate', 0, 0)),
       toBlockState(makeBlockPlacement('b2', 'questionMark', 32, 0)),
-      toBlockState(makeBlockPlacement('b3', 'rock', 64, 0)),
+      toBlockState(makeBlockPlacement('b3', 'fragileRock', 64, 0)),
     ];
 
     drawBlocks(ctx as unknown as CanvasRenderingContext2D, states, fakeTileset, null);
@@ -402,7 +402,7 @@ describe('drawBlocks with hit state', () => {
 
   it('bumpingBlock-offsetsDestinationYByBlockBumpOffsetY', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-    const placement = makeBlockPlacement('r1', 'rock', 0, 100);
+    const placement = makeBlockPlacement('r1', 'fragileRock', 0, 100);
     const state = { ...toBlockState(placement), animState: 'bump' as const, animTimer: 0.05 };
     const expectedOffset = blockBumpOffsetY(state);
     expect(expectedOffset).not.toBe(0);

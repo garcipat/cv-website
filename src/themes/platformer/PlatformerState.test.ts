@@ -59,7 +59,7 @@ describe('PlatformerState', () => {
     // convention as enemyPlacements/collectiblePlacements.
     expect(blockPlacements.filter((p) => p.blockKind === 'crate')).toHaveLength(2);
     expect(blockPlacements.filter((p) => p.blockKind === 'questionMark')).toHaveLength(2);
-    expect(blockPlacements.filter((p) => p.blockKind === 'rock')).toHaveLength(2);
+    expect(blockPlacements.filter((p) => p.blockKind === 'fragileRock')).toHaveLength(2);
   });
 
   describe('chestPlacements', () => {
