@@ -224,7 +224,7 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
         <img
           src="/sprites/chest_closed.png"
           alt=""
-          className="mr-2 inline-block h-6 w-auto"
+          className="mr-2 inline-block h-5 w-auto"
           style={{ imageRendering: 'pixelated' }}
         />
       );

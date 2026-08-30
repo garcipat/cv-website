@@ -52,7 +52,7 @@ describe('parseLevel', () => {
     expect(ENTITY_CHARS.X).toBe('crate');
     expect(ENTITY_CHARS.Q).toBe('questionMark');
     expect(ENTITY_CHARS.K).toBe('rock');
-    expect(ENTITY_CHARS.H).toBe('chest');
+    expect(ENTITY_CHARS.T).toBe('chest');
   });
 
   it('noTerrainAndEntityCharOverlap-documentedByTheModuleLoadGuard', () => {
@@ -226,7 +226,7 @@ describe('findChestTiles', () => {
   });
 
   it('multipleMarkers-returnsAllInReadingOrder', () => {
-    expect(findChestTiles(['.H', 'H.'])).toEqual([
+    expect(findChestTiles(['.T', 'T.'])).toEqual([
       { col: 1, row: 0 },
       { col: 0, row: 1 },
     ]);

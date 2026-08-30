@@ -144,7 +144,7 @@ export const blockPlacements: BlockPlacement[] = placeBlocks(mapCVDataToBlocks(c
  * Every chest in the level, placed once at module load — same non-reactive,
  * marker-driven convention as blockPlacements above (roadmap step 22,
  * 2026-08-30). One chest per real Experience entry, zipped against level1's
- * `H` markers (see ChestMapper.ts's placeChests).
+ * `T` markers (see ChestMapper.ts's placeChests).
  */
 export const chestPlacements: ChestPlacement[] = placeChests(
   mapCVDataToChests(currentCV.value),
