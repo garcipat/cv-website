@@ -9,6 +9,7 @@ import {
   CRATE_TILES,
   QUESTIONMARK_TILES,
   ROCK_TILES,
+  CHEST_TILES,
 } from './level/level1';
 import {
   PLAYER_RENDERED_SIZE,
@@ -20,12 +21,16 @@ import { toEnemyState } from './entities/Enemy';
 import type { EnemyState } from './entities/Enemy';
 import { toBlockState } from './entities/Block';
 import type { BlockState } from './entities/Block';
+import { toChestState } from './entities/Chest';
+import type { ChestState } from './entities/Chest';
 import type { BonusFruitState } from './entities/BonusFruit';
 import { introState } from './engine/GameLifecycle';
 import { currentCV } from '@/state/locale';
 import { mapCVDataToCollectibles, placeCollectibles } from './level/CollectibleMapper';
 import { mapCVDataToEnemies, placeEnemies } from './level/EnemyMapper';
 import { mapCVDataToBlocks, placeBlocks } from './level/BlockMapper';
+import { mapCVDataToChests, placeChests } from './level/ChestMapper';
+import type { ChestPlacement } from './level/ChestMapper';
 import type { PlayerState } from './entities/Player';
 import type { LifecycleState } from './engine/GameLifecycle';
 import type { CollectedFact, SectionId } from './types';
@@ -136,6 +141,17 @@ export const blockPlacements: BlockPlacement[] = placeBlocks(mapCVDataToBlocks(c
 });
 
 /**
+ * Every chest in the level, placed once at module load — same non-reactive,
+ * marker-driven convention as blockPlacements above (roadmap step 22,
+ * 2026-08-30). One chest per real Experience entry, zipped against level1's
+ * `H` markers (see ChestMapper.ts's placeChests).
+ */
+export const chestPlacements: ChestPlacement[] = placeChests(
+  mapCVDataToChests(currentCV.value),
+  CHEST_TILES,
+);
+
+/**
  * Live, per-frame patrol state for every enemy — position/velocity/
  * direction/animation, updated by the game loop's `stepEnemyPatrol` (see
  * PlatformerPage.tsx). Seeded from `enemyPlacements` (module load) and reset
@@ -155,6 +171,15 @@ export const enemyStates = signal<EnemyState[]>(
  * respawn).
  */
 export const blockStates = signal<BlockState[]>(blockPlacements.map(toBlockState));
+
+/**
+ * Live open/closed state for every chest — mirrors blockStates above.
+ * Seeded from chestPlacements (module load) and reset back to that seed only
+ * by resetGameProgress() (the Reset Game button), NOT by resetGame()
+ * (death/respawn) — a chest, like a block, is progress that persists across
+ * a death (spec.md FR-023's "never re-closes except via Reset Game").
+ */
+export const chestStates = signal<ChestState[]>(chestPlacements.map(toChestState));
 
 /**
  * Question-mark blocks' spawned no-fact bonus fruits (roadmap step 21b) —
@@ -278,5 +303,6 @@ export function resetGameProgress(): void {
   activeEffects.value = [];
   activeCounterPopups.value = {};
   blockStates.value = blockPlacements.map(toBlockState);
+  chestStates.value = chestPlacements.map(toChestState);
   bonusFruitStates.value = [];
 }

@@ -15,6 +15,8 @@ import {
   collectedCollectibleIds,
   activeEffects,
   blockPlacements,
+  chestPlacements,
+  chestStates,
 } from './PlatformerState';
 import { mapCVDataToEnemies } from './level/EnemyMapper';
 import { currentCV } from '@/state/locale';
@@ -26,6 +28,7 @@ import {
   PLAYER_FOOT_PADDING,
   PLAYER_VISUAL_CENTER_Y_OFFSET,
 } from './entities/Player';
+import { toChestState } from './entities/Chest';
 
 describe('PlatformerState', () => {
   it('collectedFacts-initial-isEmpty', () => {
@@ -57,6 +60,20 @@ describe('PlatformerState', () => {
     expect(blockPlacements.filter((p) => p.blockKind === 'crate')).toHaveLength(2);
     expect(blockPlacements.filter((p) => p.blockKind === 'questionMark')).toHaveLength(2);
     expect(blockPlacements.filter((p) => p.blockKind === 'rock')).toHaveLength(2);
+  });
+
+  describe('chestPlacements', () => {
+    it('module-places-oneChestPerRealExperienceEntryWithAMarker', () => {
+      // level1 has 5 `H` markers and the real CVData has 5 Experience entries
+      // (see level1.ts's CHEST_TILES and cv.en.json) — every one gets placed.
+      expect(chestPlacements).toHaveLength(5);
+    });
+  });
+
+  describe('chestStates', () => {
+    it('module-seeds-everyChestClosed', () => {
+      expect(chestStates.value.every((c) => c.state === 'closed')).toBe(true);
+    });
   });
 
   it('enemyStates-initial-oneLivePatrolStatePerEnemyPlacement', () => {
@@ -200,6 +217,14 @@ describe('PlatformerState', () => {
 
     expect(collectedFacts.value).toBe(facts);
   });
+
+  describe('resetGame', () => {
+    it('called-afterOpeningAChest-leavesChestOpen', () => {
+      chestStates.value = chestStates.value.map((c, i) => (i === 0 ? { ...c, state: 'open' } : c));
+      resetGame();
+      expect(chestStates.value[0].state).toBe('open');
+    });
+  });
 });
 
 describe('resetGameProgress', () => {
@@ -207,6 +232,7 @@ describe('resetGameProgress', () => {
     collectedFacts.value = [];
     collectedCollectibleIds.value = new Set();
     activeJournalSection.value = undefined;
+    chestStates.value = chestPlacements.map(toChestState);
   });
 
   it('called-clearsCollectedFactsAndCollectibleIds', () => {
@@ -235,6 +261,12 @@ describe('resetGameProgress', () => {
     expect(playerState.value).toEqual(spawnPlayerState());
     expect(healthState.value).toBe(MAX_HALF_HEARTS);
     expect(cameraPositionX.value).toBe(0);
+  });
+
+  it('called-afterOpeningAChest-closesItAgain', () => {
+    chestStates.value = chestStates.value.map((c, i) => (i === 0 ? { ...c, state: 'open' } : c));
+    resetGameProgress();
+    expect(chestStates.value.every((c) => c.state === 'closed')).toBe(true);
   });
 });
 
