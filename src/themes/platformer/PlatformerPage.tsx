@@ -122,6 +122,16 @@ export const PlatformerPage = () => {
   const crackOverlaySpriteRef = useRef<HTMLImageElement | null>(null);
   const chestClosedSpriteRef = useRef<HTMLImageElement | null>(null);
   const chestOpenSpriteRef = useRef<HTMLImageElement | null>(null);
+  // One-shot latch: true once the Thank You screen has been shown this
+  // "session" (i.e. since the last Reset Game). Without this,
+  // `allChestsOpen(chestStates.value)` stays true forever after the last
+  // chest opens (opening is permanent — see entities/Chest.ts's openChest),
+  // so the ending-screen check at the end of the tick would otherwise
+  // re-trigger `showEndingScreen`/`setEndingScreenOpen(true)` on the very
+  // next tick after dismissal, permanently locking the player out. Reset by
+  // `handleResetGameRequested` so a visitor can see the screen again after
+  // resetting and re-opening every chest.
+  const endingScreenShownRef = useRef(false);
   const journalButtonRef = useRef<HTMLButtonElement>(null);
   const debugParams = new URLSearchParams(window.location.search);
   // Any `debug` param (not just `hitboxes`) shows the debug panel (Kill/
@@ -219,6 +229,15 @@ export const PlatformerPage = () => {
   const handleResetGameRequested = () => {
     resetGameProgress();
     setJournalOpen(false);
+    // Clears the one-shot ending-screen latch (see endingScreenShownRef's
+    // doc comment) — resetGameProgress() also reopens every chest, so a
+    // visitor who re-opens all of them after resetting must be able to see
+    // the Thank You screen again. setEndingScreenOpen(false) is defensive
+    // (the Reset Game button isn't actually reachable while the ending
+    // screen is showing today — see Important 2's investigation in the
+    // task-13 report — but costs nothing to keep in sync regardless).
+    endingScreenShownRef.current = false;
+    setEndingScreenOpen(false);
     const center = spawnCenter();
     lifecycleState.value = introState(center.x, center.y);
   };
@@ -437,9 +456,15 @@ export const PlatformerPage = () => {
       // phase isn't 'playing'. centerX/centerY are stored world-space (see
       // GameLifecycle.ts) so they're converted to screen-space here with the
       // same originX/originY already used for terrain/player, keeping them
-      // aligned even if the canvas resizes mid-pause.
+      // aligned even if the canvas resizes mid-pause. Also excludes
+      // 'ending-screen' (same as 'paused') — without this, `currentIrisRadius`
+      // returns `null` for that phase (see its own doc comment), which the
+      // `?? 0` below coerces to a fully-closed, opaque black circle every
+      // frame, painting solid black behind ThankYouScreen's translucent
+      // bg-black/80 overlay instead of leaving the paused game dimly visible
+      // through it.
       const lifecycle = lifecycleState.value;
-      if (lifecycle.phase !== 'playing' && lifecycle.phase !== 'paused') {
+      if (lifecycle.phase !== 'playing' && lifecycle.phase !== 'paused' && lifecycle.phase !== 'ending-screen') {
         const centerX = lifecycle.centerX + originX;
         const centerY = lifecycle.centerY + originY;
         const maxRadius = maxIrisRadius(canvas.width, canvas.height, centerX, centerY);
@@ -1060,12 +1085,22 @@ export const PlatformerPage = () => {
       // 'ending-screen' the instant they'd already opened every chest,
       // clobbering the journal) or 'awaitingRestart', and would redundantly
       // re-fire every tick while already 'ending-screen'.
+      //
+      // Also gated on `!endingScreenShownRef.current` (see that ref's doc
+      // comment) — without it, since opening a chest is permanent,
+      // `allChestsOpen` stays true on every subsequent tick after the last
+      // chest opens, so dismissing the screen (which only sets phase back
+      // to 'playing', not any per-chest state) would otherwise cause this
+      // exact check to immediately re-trigger on the very next tick,
+      // permanently re-opening the screen the instant it's dismissed.
       if (
+        !endingScreenShownRef.current &&
         (lifecycleState.value.phase === 'playing' || lifecycleState.value.phase === 'intro') &&
         allChestsOpen(chestStates.value)
       ) {
         lifecycleState.value = showEndingScreen(lifecycleState.value);
         setEndingScreenOpen(true);
+        endingScreenShownRef.current = true;
       }
 
       render();
