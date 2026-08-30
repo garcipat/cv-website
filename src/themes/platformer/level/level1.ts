@@ -9,6 +9,7 @@ import {
   findCrateTiles,
   findQuestionMarkTiles,
   findRockTiles,
+  findChestTiles,
 } from './LevelParser';
 
 // Visual layout of level1 — one character per tile (see LevelParser.ts's
@@ -40,7 +41,7 @@ import {
 // enemy — amended 2026-08-30, live user feedback: both slime colors now
 // guard the same Courses pool, alternating by index, rather than purple
 // carrying Certificates+Projects; see EnemyMapper.ts's courseToEnemy
-// comment), `C` (Skill-category coin). A marker is a slot on the map —
+// comment), `C` (Skill-category coin), `H` (chest — Experience fact, see roadmap step 22). A marker is a slot on the map —
 // EnemyMapper.ts's placeEnemies and CollectibleMapper.ts's
 // placeCollectibles each draw the next fact from CVData (in its own section
 // order) per marker of that type, with no auto-placement fallback. This
@@ -96,7 +97,7 @@ const LEVEL_1_LAYOUT: readonly string[] = [
   '................................................................................',
   '........PPPBBPP....XQKXQK.......................................................',
   '................................................................................',
-  '.S........C.......C.......W.E..W....W.M....C.C..................................',
+  '.S........C.......C.......W.E..W....W.M....C.C....H.....H.....H.....H.....H.....',
   'GGBBBGGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRR...RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
   'GG...GGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRR...RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
 ];
@@ -129,3 +130,7 @@ export const QUESTIONMARK_TILES = findQuestionMarkTiles(LEVEL_1_LAYOUT);
 
 /** Hand-placed rock block positions (2), from `LEVEL_1_LAYOUT`'s `K` markers. */
 export const ROCK_TILES = findRockTiles(LEVEL_1_LAYOUT);
+
+/** Hand-placed chest positions (5 — one per real Experience entry), from
+ *  `LEVEL_1_LAYOUT`'s `H` markers (spec.md FR-023, added 2026-08-30). */
+export const CHEST_TILES = findChestTiles(LEVEL_1_LAYOUT);

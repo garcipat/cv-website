@@ -8,6 +8,7 @@ import {
   CRATE_TILES,
   QUESTIONMARK_TILES,
   ROCK_TILES,
+  CHEST_TILES,
 } from './level1';
 import { isTopExposed, isSolid, tileAt } from './Terrain';
 
@@ -187,5 +188,11 @@ describe('level1', () => {
     for (const tile of [...ENEMY_TILES_GREEN, ...ENEMY_TILES_PURPLE]) {
       expect(tile.col - SPAWN_TILE.col).toBeLessThan(40);
     }
+  });
+});
+
+describe('CHEST_TILES', () => {
+  it('level1Layout-has-fiveChestMarkers', () => {
+    expect(CHEST_TILES).toHaveLength(5);
   });
 });

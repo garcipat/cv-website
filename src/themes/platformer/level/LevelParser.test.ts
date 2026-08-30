@@ -8,6 +8,7 @@ import {
   findCrateTiles,
   findQuestionMarkTiles,
   findRockTiles,
+  findChestTiles,
   TERRAIN_CHARS,
   ENTITY_CHARS,
 } from './LevelParser';
@@ -51,6 +52,7 @@ describe('parseLevel', () => {
     expect(ENTITY_CHARS.X).toBe('crate');
     expect(ENTITY_CHARS.Q).toBe('questionMark');
     expect(ENTITY_CHARS.K).toBe('rock');
+    expect(ENTITY_CHARS.H).toBe('chest');
   });
 
   it('noTerrainAndEntityCharOverlap-documentedByTheModuleLoadGuard', () => {
@@ -215,5 +217,22 @@ describe('findRockTiles', () => {
 
   it('crateOrQuestionMarkMarker-isNotCountedAsRock', () => {
     expect(findRockTiles(['XQ'])).toEqual([]);
+  });
+});
+
+describe('findChestTiles', () => {
+  it('noMarkers-returnsEmptyArray', () => {
+    expect(findChestTiles(['GG', 'GG'])).toEqual([]);
+  });
+
+  it('multipleMarkers-returnsAllInReadingOrder', () => {
+    expect(findChestTiles(['.H', 'H.'])).toEqual([
+      { col: 1, row: 0 },
+      { col: 0, row: 1 },
+    ]);
+  });
+
+  it('crateOrRockMarker-isNotCountedAsChest', () => {
+    expect(findChestTiles(['XK'])).toEqual([]);
   });
 });

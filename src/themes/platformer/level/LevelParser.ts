@@ -10,7 +10,8 @@ export type EntityKind =
   | 'fruit'
   | 'crate'
   | 'questionMark'
-  | 'rock';
+  | 'rock'
+  | 'chest';
 
 /**
  * Maps each terrain character usable in a level layout to its tile type.
@@ -27,15 +28,16 @@ export const TERRAIN_CHARS: Record<string, TileType | undefined> = {
 
 /**
  * Maps each entity-marker character usable in a level layout to what it
- * marks: `S` (spawn), `E` (green/Course enemy), `M` (purple/Certificate+
- * Project enemy), `C` (Skill-category coin), `F` (Language fruit), `X`
- * (crate block — Experience/Education fact), `Q` (question-mark block — no
- * fact, spawns a bonus fruit), `K` (rock block — no fact, level-design
- * filler). Kept as its own map, separate from TERRAIN_CHARS, since an
- * entity marker isn't a terrain tile — the ground it sits on is always
- * `empty` (see parseLevel below), and it's a fundamentally different kind
- * of fact about a cell ("what starts here") than terrain is ("what's the
- * ground").
+ * marks: `S` (spawn), `E` (green/Course enemy), `M` (purple/Course
+ * enemy), `C` (Skill-category coin), `F` (Language fruit, unused today —
+ * see CollectibleMapper.ts), `X` (crate block — Education/Activity/Language
+ * fact), `Q` (question-mark block — no fact, spawns a bonus fruit), `K` (rock
+ * block — no fact, level-design filler), `H` (chest — Experience fact,
+ * opened via Arrow Up while standing on it, spec.md FR-023). Kept as its own
+ * map, separate from TERRAIN_CHARS, since an entity marker isn't a terrain
+ * tile — the ground it sits on is always `empty` (see parseLevel below), and
+ * it's a fundamentally different kind of fact about a cell ("what starts
+ * here") than terrain is ("what's the ground").
  */
 export const ENTITY_CHARS: Record<string, EntityKind | undefined> = {
   S: 'spawn',
@@ -46,6 +48,7 @@ export const ENTITY_CHARS: Record<string, EntityKind | undefined> = {
   X: 'crate',
   Q: 'questionMark',
   K: 'rock',
+  H: 'chest',
 };
 
 // A character can only mean one thing — guard against TERRAIN_CHARS and
@@ -169,4 +172,12 @@ export function findQuestionMarkTiles(layout: readonly string[]): { col: number;
  *  no-CV-fact convention as findQuestionMarkTiles. */
 export function findRockTiles(layout: readonly string[]): { col: number; row: number }[] {
   return findAllOfKind(layout, 'rock');
+}
+
+/** Finds every `H` (chest) marker's position in a level layout — same
+ *  convention as findCrateTiles/findRockTiles. Unlike those, a chest marker
+ *  IS zipped against CVData-derived defs (one chest per Experience entry,
+ *  spec.md FR-023) — see ChestMapper.ts's placeChests. */
+export function findChestTiles(layout: readonly string[]): { col: number; row: number }[] {
+  return findAllOfKind(layout, 'chest');
 }
