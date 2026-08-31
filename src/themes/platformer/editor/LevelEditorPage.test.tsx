@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { LevelEditorPage } from './LevelEditorPage';
 import { LEVEL_1_LAYOUT } from '../level/level1';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
@@ -24,42 +25,60 @@ beforeEach(() => {
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
     fillRect: vi.fn(),
     fillStyle: '',
+    strokeStyle: '',
+    lineWidth: 0,
+    beginPath: vi.fn(),
+    moveTo: vi.fn(),
+    lineTo: vi.fn(),
+    stroke: vi.fn(),
   } as unknown as CanvasRenderingContext2D);
 });
 
+const EXPECTED_EXPORT_TEXT = LEVEL_1_LAYOUT.slice(1)
+  .map((row) => `  '${row}',`)
+  .join('\n');
+
+async function openExportDialog() {
+  await userEvent.click(screen.getByRole('button', { name: 'Export' }));
+}
+
 describe('LevelEditorPage', () => {
-  it('shows an export textarea whose initial content is LEVEL_1_LAYOUT cropped to its content (SC-009 ruling — LEVEL_1_LAYOUT has one leading all-"." row that content-cropping always strips, even unedited), formatted as paste-ready quoted rows', () => {
+  it('renders a page title', () => {
     render(<LevelEditorPage />);
-    const textarea = screen.getByTestId('export-output') as HTMLTextAreaElement;
-    expect(textarea.value).toBe(
-      LEVEL_1_LAYOUT.slice(1)
-        .map((row) => `  '${row}',`)
-        .join('\n'),
-    );
+    expect(screen.getByRole('heading', { name: 'Platformer Level Editor' })).toBeInTheDocument();
   });
 
-  it('marks the export textarea read-only', () => {
+  it('does not show the export output until the Export button is clicked', () => {
     render(<LevelEditorPage />);
-    expect(screen.getByTestId('export-output')).toHaveAttribute('readonly');
+    expect(screen.queryByTestId('export-output')).not.toBeInTheDocument();
   });
 
-  it('renders the palette and canvas', () => {
+  it('opens a dialog with the export textarea, whose content is LEVEL_1_LAYOUT cropped to its content (SC-009 ruling) and formatted as paste-ready quoted rows', async () => {
     render(<LevelEditorPage />);
-    expect(screen.getByRole('toolbar')).toBeInTheDocument();
+    await openExportDialog();
+    const textarea = (await screen.findByTestId('export-output')) as HTMLTextAreaElement;
+    expect(textarea.value).toBe(EXPECTED_EXPORT_TEXT);
+  });
+
+  it('marks the export textarea read-only', async () => {
+    render(<LevelEditorPage />);
+    await openExportDialog();
+    expect(await screen.findByTestId('export-output')).toHaveAttribute('readonly');
+  });
+
+  it('renders the palette (as a grid catalog) and canvas', () => {
+    render(<LevelEditorPage />);
+    expect(screen.getByRole('toolbar', { name: 'Palette' })).toBeInTheDocument();
     expect(document.querySelector('canvas')).toBeInTheDocument();
   });
 
-  it('renders a Copy Layout button that writes the export text to the clipboard', async () => {
+  it('renders a Copy Layout button inside the dialog that writes the export text to the clipboard', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.assign(navigator, { clipboard: { writeText } });
     render(<LevelEditorPage />);
-    screen.getByRole('button', { name: 'Copy Layout' }).click();
-    await Promise.resolve();
-    expect(writeText).toHaveBeenCalledWith(
-      LEVEL_1_LAYOUT.slice(1)
-        .map((row) => `  '${row}',`)
-        .join('\n'),
-    );
+    await openExportDialog();
+    await userEvent.click(await screen.findByRole('button', { name: 'Copy Layout' }));
+    expect(writeText).toHaveBeenCalledWith(EXPECTED_EXPORT_TEXT);
   });
 
   it('compensates panOffset by exactly -colShift * RENDERED_TILE_SIZE when a paint grows the grid leftward, so existing content does not visually move (spec SC-006)', async () => {

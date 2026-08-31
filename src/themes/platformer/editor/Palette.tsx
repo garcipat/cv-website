@@ -1,6 +1,8 @@
 import { TERRAIN_CHARS, ENTITY_CHARS } from '../level/LevelParser';
 import type { TileChar } from '../level/LevelParser';
-import { cn } from '@/lib/utils';
+import { PALETTE_TILE_SPRITES, PALETTE_TILE_LABELS } from './paletteTiles';
+import { PaletteTile } from './PaletteTile';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
 interface PaletteProps {
   selectedTool: TileChar;
@@ -14,28 +16,24 @@ export const Palette = ({ selectedTool, onSelectTool }: PaletteProps) => {
     (key) => key !== EMPTY_CHAR,
   );
   const entityKeys = Object.keys(ENTITY_CHARS) as TileChar[];
+  const tileKeys = [...terrainKeys, ...entityKeys, EMPTY_CHAR];
 
   return (
-    <div role="toolbar">
-      {[...terrainKeys, ...entityKeys].map((key) => (
-        <button
-          key={key}
-          type="button"
-          aria-pressed={selectedTool === key}
-          className={cn(selectedTool === key && 'bg-blue-600 text-white ring-2 ring-blue-400')}
-          onClick={() => onSelectTool(key)}
-        >
-          {key}
-        </button>
-      ))}
-      <button
-        type="button"
-        aria-pressed={selectedTool === EMPTY_CHAR}
-        className={cn(selectedTool === EMPTY_CHAR && 'bg-blue-600 text-white ring-2 ring-blue-400')}
-        onClick={() => onSelectTool(EMPTY_CHAR)}
-      >
-        Eraser
-      </button>
-    </div>
+    <Card role="toolbar" aria-label="Palette">
+      <CardHeader>
+        <CardTitle>Palette</CardTitle>
+      </CardHeader>
+      <CardContent className="grid grid-cols-2 gap-2">
+        {tileKeys.map((key) => (
+          <PaletteTile
+            key={key}
+            label={PALETTE_TILE_LABELS[key]}
+            sprite={PALETTE_TILE_SPRITES[key]}
+            selected={selectedTool === key}
+            onClick={() => onSelectTool(key)}
+          />
+        ))}
+      </CardContent>
+    </Card>
   );
 };

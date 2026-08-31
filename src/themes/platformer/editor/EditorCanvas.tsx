@@ -42,7 +42,45 @@ interface EditorCanvasProps {
 
 const CANVAS_WIDTH_PX = 800;
 const CANVAS_HEIGHT_PX = 480;
-const BACKGROUND_COLOR = '#20232a';
+// Matches the platformer theme's own sky color (`--background` in
+// platformer.css) so the editor's canvas looks like the real game's
+// background rather than an arbitrary dev-tool color. Falls back to the
+// same color hardcoded (its computed value) for environments where the
+// CSS custom property isn't available (e.g. jsdom in tests).
+const FALLBACK_BACKGROUND_COLOR = '#53b0de';
+const GRID_LINE_COLOR = 'rgba(255, 255, 255, 0.25)';
+
+function readGameBackgroundColor(): string {
+  if (typeof document === 'undefined') return FALLBACK_BACKGROUND_COLOR;
+  const value = getComputedStyle(document.documentElement).getPropertyValue('--background').trim();
+  return value || FALLBACK_BACKGROUND_COLOR;
+}
+
+function drawGridLines(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  panOffset: PanOffset,
+): void {
+  ctx.strokeStyle = GRID_LINE_COLOR;
+  ctx.lineWidth = 1;
+
+  const startX = ((panOffset.x % RENDERED_TILE_SIZE) + RENDERED_TILE_SIZE) % RENDERED_TILE_SIZE;
+  for (let x = startX; x <= width; x += RENDERED_TILE_SIZE) {
+    ctx.beginPath();
+    ctx.moveTo(x + 0.5, 0);
+    ctx.lineTo(x + 0.5, height);
+    ctx.stroke();
+  }
+
+  const startY = ((panOffset.y % RENDERED_TILE_SIZE) + RENDERED_TILE_SIZE) % RENDERED_TILE_SIZE;
+  for (let y = startY; y <= height; y += RENDERED_TILE_SIZE) {
+    ctx.beginPath();
+    ctx.moveTo(0, y + 0.5);
+    ctx.lineTo(width, y + 0.5);
+    ctx.stroke();
+  }
+}
 
 export const EditorCanvas = ({
   grid,
@@ -53,17 +91,22 @@ export const EditorCanvas = ({
   onPan,
 }: EditorCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const dragRef = useRef<{ mode: 'paint' | 'pan'; lastCol: number; lastRow: number; lastX: number; lastY: number } | null>(
-    null,
-  );
+  const dragRef = useRef<{
+    mode: 'paint' | 'pan';
+    lastCol: number;
+    lastRow: number;
+    lastX: number;
+    lastY: number;
+  } | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
 
-    ctx.fillStyle = BACKGROUND_COLOR;
+    ctx.fillStyle = readGameBackgroundColor();
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+    drawGridLines(ctx, canvas.width, canvas.height, panOffset);
 
     if (images.tileset) {
       drawTerrain(ctx, gridToLevelDef(grid), images.tileset, panOffset.x, panOffset.y);
@@ -80,13 +123,34 @@ export const EditorCanvas = ({
       panOffset.y,
     );
 
-    drawEnemies(ctx, synthesizeEnemyStates(grid), images.slimeGreen, images.slimePurple, panOffset.x, panOffset.y);
+    drawEnemies(
+      ctx,
+      synthesizeEnemyStates(grid),
+      images.slimeGreen,
+      images.slimePurple,
+      panOffset.x,
+      panOffset.y,
+    );
 
     if (images.tileset) {
-      drawBlocks(ctx, synthesizeBlockStates(grid), images.tileset, images.crackOverlay, panOffset.x, panOffset.y);
+      drawBlocks(
+        ctx,
+        synthesizeBlockStates(grid),
+        images.tileset,
+        images.crackOverlay,
+        panOffset.x,
+        panOffset.y,
+      );
     }
 
-    drawChests(ctx, synthesizeChestStates(grid), images.chestClosed, null, panOffset.x, panOffset.y);
+    drawChests(
+      ctx,
+      synthesizeChestStates(grid),
+      images.chestClosed,
+      null,
+      panOffset.x,
+      panOffset.y,
+    );
 
     const player = synthesizePlayerState(grid);
     if (player && images.player) {
