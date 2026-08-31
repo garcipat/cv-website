@@ -68,8 +68,7 @@ export function isSkillCategoryFact(
 
 /**
  * A single discovered CV fact, per spec.md FR-032. `sourceType` distinguishes
- * how it was revealed (coin/enemy/block/chest) even though only 'coin' is reachable
- * until steps 16/20 add enemies and blocks.
+ * how it was revealed (coin/enemy/block/chest).
  */
 export interface CollectedFact {
   id: string;
@@ -99,15 +98,15 @@ export interface CollectibleDef {
  * Deliberately a separate type from `CollectibleDef` rather than widening
  * its `spriteType` union: an enemy's sprite type ('slimeGreen'/'slimePurple')
  * has no meaning for a coin/fruit collectible, and enemies don't join
- * `collectedCollectibleIds` until roadmap step 18 gives them a defeat
- * mechanic.
+ * `collectedCollectibleIds` — their defeat dedups by fact id in
+ * `collectedFacts` instead.
  */
 export interface EnemyDef {
   id: string;
   spriteType: 'slimeGreen' | 'slimePurple';
   /** Absent for a "plain" enemy — a level-author-placed marker beyond
    *  CVData's course count for that color (see `EnemyMapper.ts`'s
-   *  `placeEnemies`). Enemies are no longer capped at CVData's length: only
+   *  `placeEnemies`). Enemies are not capped at CVData's length: only
    *  the first N markers of each color (N = that color's course count)
    *  reveal a fact on defeat; any further marker is still a normal,
    *  killable enemy, it just carries no CV reward. Mirrors `BlockDef.fact`'s
@@ -119,7 +118,7 @@ export interface EnemyDef {
  * One mapped, not-yet-placed block — `BlockMapper.ts` produces crate defs
  * from CVData (`fact` present); `placeBlocks` also synthesizes
  * question-mark and fragileRock defs directly from level markers (`fact` absent —
- * they carry no CV mapping, spec.md FR-021's amendment). `placeBlocks` adds
+ * they carry no CV mapping, per spec.md FR-021). `placeBlocks` adds
  * x/y to turn each into a `BlockPlacement`.
  */
 export interface BlockDef {
@@ -153,7 +152,7 @@ export interface ChestDef {
 export type HintId = keyof Translation['platformer']['hints'];
 
 /**
- * A hand-authored hint sign (roadmap step 26, FR-037). Unlike CollectibleDef/
+ * A hand-authored hint sign (spec.md FR-037). Unlike CollectibleDef/
  * EnemyDef/BlockDef/ChestDef, a sign carries no CV mapping at all — no
  * `fact`, no `cvSection`/`cvIndex` — its only content is `hintId`, which
  * `SignMapper.ts`'s `placeSigns` turns into a `SignPlacement` (adds x/y),

@@ -18,8 +18,8 @@ export interface JournalEntryDisplay {
 /** One emoji per section, per FR-017 ("🏢 for experience, 🎓 for
  * education, etc."). Used as the fallback icon here — `languages` entries
  * use the fact's own flag emoji instead (see `formatJournalEntry` below) —
- * and reused by `BookmarkTabs` as the tab icon (a rotated text label on a
- * narrow tab was hard to read, per user feedback). */
+ * and reused by `BookmarkTabs` as the tab icon, since a rotated text label
+ * on a narrow tab is hard to read. */
 export const SECTION_ICON: Record<SectionId, string> = {
   personality: '👤',
   experience: '🏢',
@@ -54,17 +54,17 @@ export function formatJournalEntry(fact: CollectedFact): JournalEntryDisplay {
 
   switch (fact.sectionId) {
     case 'skills':
-      // Roadmap step 12: a whole skill category is collected as one unit
-      // (too many individual CV skills to place one collectible each), so
-      // `fact.data` here is a `SkillCategoryFact` rather than a plain
-      // `Skill` — display the category name with its skills listed below.
+      // A whole skill category is collected as one unit (too many individual
+      // CV skills to place one collectible each), so `fact.data` here is a
+      // `SkillCategoryFact` rather than a plain `Skill` — display the
+      // category name with its skills listed below.
       if (isSkillCategoryFact(fact.data)) {
         return {
           icon,
           title: fact.data.category,
           // One skill per row, each with its own right-aligned star rating
-          // (`ratedItems`, not `subtitle` — plain joined text left the
-          // stars ragged against variable-length names, per user feedback).
+          // (`ratedItems`, not `subtitle` — plain joined text leaves the
+          // stars ragged against variable-length names).
           ratedItems: fact.data.skills.map((skill) => ({
             name: skill.name,
             stars: starRating(skill.level),

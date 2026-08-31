@@ -63,8 +63,7 @@ describe('mapCVDataToChests', () => {
     // are zipped against level markers in reading order (level.ts, near
     // spawn to farther away), so reversing here makes the closest chest
     // reveal the OLDEST job and the farthest chest reveal the NEWEST one —
-    // a chronological career progression as the visitor plays further
-    // (2026-08-30, live user feedback).
+    // a chronological career progression as the visitor plays further.
     const defs = mapCVDataToChests(cv);
     expect(defs[0].fact.data).toBe(cv.experience[cv.experience.length - 1]);
     expect(defs[defs.length - 1].fact.data).toBe(cv.experience[0]);

@@ -76,10 +76,9 @@ describe('Journal', () => {
   });
 
   it('render-withSkillsFactCollected-stillDefaultsToPersonalitySection', () => {
-    // Amended 2026-08-30 (live user feedback): the journal used to default
-    // to the first collected fact's section (Skills here) — it now always
-    // opens on 'personality' ("About Me") regardless of what's been
-    // collected, until the user picks a bookmark themselves.
+    // The journal always opens on 'personality' ("About Me") regardless of
+    // what's been collected (e.g. Skills here), until the user picks a
+    // bookmark themselves.
     const facts: CollectedFact[] = [
       {
         id: 'fact-1',
@@ -280,8 +279,8 @@ describe('Journal', () => {
   });
 
   it('skillCategoryFact-rendered-showsCategoryNameAndSkillCount', () => {
-    // A SkillCategoryFact (roadmap step 12 — skills are collected as a
-    // whole category, not individually) is a different `fact.data` shape
+    // A SkillCategoryFact (skills are collected as a whole category, not
+    // individually) is a different `fact.data` shape
     // than the plain `Skill` used elsewhere in this file; formatJournalEntry
     // (entities/JournalEntry.ts) is what actually branches on it.
     collectedFacts.value = [
@@ -377,8 +376,8 @@ describe('Journal', () => {
       openBookAnimation();
 
       expect(journalPage.factItems).toHaveLength(2);
-      // No visible page count anymore — bookmarks alone indicate more
-      // content exists.
+      // No visible page count — bookmarks alone indicate more content
+      // exists.
       expect(journalPage.pageCounter).not.toBeInTheDocument();
       // Each language line carries its own star rating, same format as a
       // single Skill entry ("Name ★★★★☆").
@@ -445,7 +444,7 @@ describe('Journal', () => {
     });
 
     it('nextPastTheLastPageOfTheWholeBook-wrapsAroundToTheFirstPage', () => {
-      // Prev/Next now walk the flattened whole-book sequence
+      // Prev/Next walk the flattened whole-book sequence
       // (buildJournalPages), not just the active section, and wrap at both
       // ends instead of disabling — 'projects' (empty, no collected facts)
       // is the last non-empty section in JOURNAL_SECTION_ORDER, so its one
@@ -480,8 +479,8 @@ describe('Journal', () => {
     });
 
     it('sectionWithExactlyOneFact-showsThatOneFactAndHasNoDisabledArrows', () => {
-      // No disabled state anymore — Prev/Next wrap around the whole book
-      // regardless of how many pages the active section has.
+      // No disabled state — Prev/Next wrap around the whole book regardless
+      // of how many pages the active section has.
       collectedFacts.value = [experienceFacts[0]];
 
       render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
@@ -556,10 +555,9 @@ describe('Journal', () => {
     });
 
     it('oneSkillsFactCollected-summaryRowShowsCollectedOverPlacedCoinCount', () => {
-      // Amended 2026-08-30 (live user feedback): the "About Me" summary's
-      // total is the number of coin markers actually placed in the level
-      // (collectiblePlacements), not the raw CVData skills count — see
-      // CollectiblesSummary.ts's doc comment.
+      // The "About Me" summary's total is the number of coin markers
+      // actually placed in the level (collectiblePlacements), not the raw
+      // CVData skills count — see CollectiblesSummary.ts's doc comment.
       const total = collectiblePlacements.value.filter((p) => p.spriteType === 'coin').length;
       collectedFacts.value = [
         {
@@ -590,11 +588,11 @@ describe('Journal', () => {
     });
 
     it('enemyMarkerBeyondCourseCount-plainEnemyDoesNotInflateEnemiesTotal', () => {
-      // Regression test: enemy placement is no longer capped at CVData's
-      // course count (d96a6f5) — a "plain" enemy marker beyond that count
-      // has no `fact` (EnemyDef.fact is optional) and must not count toward
-      // the Journal's "Enemies" denominator, matching how the `fruits` row
-      // already filters block placements down to fact-bearing ones.
+      // Enemy placement is not capped at CVData's course count — a "plain"
+      // enemy marker beyond that count has no `fact` (EnemyDef.fact is
+      // optional) and must not count toward the Journal's "Enemies"
+      // denominator, matching how the `fruits` row already filters block
+      // placements down to fact-bearing ones.
       const factBearingEnemy = {
         id: 'enemy-course-0',
         spriteType: 'slimeGreen' as const,

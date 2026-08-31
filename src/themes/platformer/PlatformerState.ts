@@ -45,8 +45,8 @@ import type { HintTooltipState } from './engine/HintTooltip';
 /**
  * The player's state at the level's spawn point — full health's worth of
  * idle standing on the ground. Exported (not just used once for the initial
- * signal value) because restart logic (PlatformerPage.tsx, wired in a later
- * task) calls this again to reset `playerState` back to spawn after a death.
+ * signal value) because restart logic (PlatformerPage.tsx) calls this again
+ * to reset `playerState` back to spawn after a death.
  */
 export function spawnPlayerState(): PlayerState {
   // SPAWN_TILE is the empty cell the character stands in (see level.ts's
@@ -76,7 +76,7 @@ export function spawnPlayerState(): PlayerState {
   };
 }
 
-/** Player position/animation state — mutated by the game loop (added in later steps). */
+/** Player position/animation state — mutated by the game loop. */
 export const playerState = signal<PlayerState>(spawnPlayerState());
 
 /**
@@ -89,35 +89,34 @@ export const playerState = signal<PlayerState>(spawnPlayerState());
 export const cameraPositionX = signal(0);
 
 /**
- * Camera's vertical scroll offset (roadmap step 23) — an additive amount on
- * top of the existing bottom-anchor baseline computed in
- * `PlatformerPage.tsx` (`canvas.height - levelPixelHeight`), not a
- * replacement for it. See `engine/Camera.ts`'s `updateCameraY` doc comment.
- * 0 on every level shipped before this step (and whenever a level's height
- * fits the viewport) — a verified no-op, not just an assumption.
+ * Camera's vertical scroll offset — an additive amount on top of the
+ * existing bottom-anchor baseline computed in `PlatformerPage.tsx`
+ * (`canvas.height - levelPixelHeight`), not a replacement for it. See
+ * `engine/Camera.ts`'s `updateCameraY` doc comment. Stays 0 whenever a
+ * level's height fits the viewport — a verified no-op, not just an
+ * assumption.
  */
 export const cameraPositionY = signal(0);
 
 /**
  * Current health in half-heart units (0-MAX_HALF_HEARTS). Kept separate from
- * `playerState` since damage sources (pit falls, and later enemy hits) are a
- * distinct concern from position/animation, and step 10's full-heal-on-death
- * only needs to touch this signal, not reconstruct player position/state.
+ * `playerState` since damage sources (pit falls, enemy hits) are a distinct
+ * concern from position/animation, and full-heal-on-death only needs to
+ * touch this signal, not reconstruct player position/state.
  */
 export const healthState = signal(MAX_HALF_HEARTS);
 
 /**
  * Every collectible in the level, placed once at module load from the
  * current locale's CVData (see `@/state/locale`'s `currentCV`) — a plain
- * constant, not a signal, matching `currentLevel`: neither is locale-reactive yet
- * (switching EN/DE mid-session doesn't re-place collectibles or change
- * which are already collected; that's roadmap step 26's theme-switch-reset
- * job, not this step's). Every position comes from currentLevel's hand-placed
- * `C` markers (see COIN_TILES) — placeCollectibles has no
- * auto-placement, same as placeEnemies below. The Language-fruit marker
- * concept was removed 2026-08-30 (live user feedback, see level.ts's doc
- * comment) — `fruit` is passed an empty array since `CollectibleMarkerPositions`
- * still legitimately has that field for future use.
+ * constant, not a signal, matching `currentLevel`: neither is locale-reactive
+ * (switching EN/DE mid-session doesn't re-place collectibles or change which
+ * are already collected — that's a theme-switch-reset concern this doesn't
+ * cover). Every position comes from currentLevel's hand-placed `C` markers
+ * (see COIN_TILES) — placeCollectibles has no auto-placement, same as
+ * placeEnemies below. `fruit` is passed an empty array (see level.ts's doc
+ * comment) since `CollectibleMarkerPositions` still legitimately has that
+ * field for future use.
  */
 export const collectiblePlacements = computed<CollectiblePlacement[]>(() =>
   placeCollectibles(mapCVDataToCollectibles(currentCV.value), { coin: COIN_TILES.value, fruit: [] }),
@@ -125,9 +124,9 @@ export const collectiblePlacements = computed<CollectiblePlacement[]>(() =>
 
 /**
  * Every enemy in the level, placed once at module load — same non-reactive
- * convention as collectiblePlacements above (see its comment): no movement,
- * defeat, or locale-reactivity yet (roadmap steps 17/18/26). Every position
- * comes from currentLevel's hand-placed `E`/`M` markers (see ENEMY_TILES_GREEN/
+ * convention as collectiblePlacements above (see its comment): no
+ * locale-reactivity. Every position comes from currentLevel's hand-placed
+ * `E`/`M` markers (see ENEMY_TILES_GREEN/
  * ENEMY_TILES_PURPLE) — placeEnemies has no auto-placement. A marker is a
  * slot on the map; each slot draws the next fact from CVData as its reward.
  * currentLevel currently has one `E` and one `M`, so only the first course
@@ -145,12 +144,12 @@ export const enemyPlacements = computed<EnemyPlacement[]>(() =>
 /**
  * Every block in the level, placed once at module load — same
  * non-reactive, marker-driven convention as collectiblePlacements/
- * enemyPlacements above (roadmap step 20, 2026-08-29). Crates come from
+ * enemyPlacements above. Crates come from
  * `mapCVDataToBlocks` zipped against currentLevel's `X` markers; question-mark
  * and fragileRock blocks have no CVData mapping and are placed directly from
- * their `Q`/`F` markers (see BlockMapper.ts's placeBlocks). No live
- * per-instance state yet (no hitsTaken/broken) — that's step 21's job,
- * once blocks respond to hits.
+ * their `Q`/`F` markers (see BlockMapper.ts's placeBlocks). This placement
+ * carries no live per-instance state (no hitsTaken/broken) — that lives in
+ * `blockStates` below, once blocks respond to hits.
  */
 export const blockPlacements = computed<BlockPlacement[]>(() =>
   placeBlocks(mapCVDataToBlocks(currentCV.value), {
@@ -162,9 +161,9 @@ export const blockPlacements = computed<BlockPlacement[]>(() =>
 
 /**
  * Every chest in the level, placed once at module load — same non-reactive,
- * marker-driven convention as blockPlacements above (roadmap step 22,
- * 2026-08-30). One chest per real Experience entry, zipped against currentLevel's
- * `T` markers (see ChestMapper.ts's placeChests).
+ * marker-driven convention as blockPlacements above. One chest per real
+ * Experience entry, zipped against currentLevel's `T` markers (see
+ * ChestMapper.ts's placeChests).
  */
 export const chestPlacements = computed<ChestPlacement[]>(() =>
   placeChests(mapCVDataToChests(currentCV.value), CHEST_TILES.value),
@@ -173,9 +172,9 @@ export const chestPlacements = computed<ChestPlacement[]>(() =>
 /**
  * Every hint sign in the level, placed once at module load — same
  * non-reactive-to-CVData-but-reactive-to-`currentLayout` convention as
- * chestPlacements/blockPlacements above (roadmap step 26). Unlike those,
- * there's no CVData to zip against: a marker's character alone determines
- * its hintId (see SignMapper.ts's placeSigns).
+ * chestPlacements/blockPlacements above. Unlike those, there's no CVData to
+ * zip against: a marker's character alone determines its hintId (see
+ * SignMapper.ts's placeSigns).
  */
 export const signPlacements = computed<SignPlacement[]>(() => placeSigns(SIGN_TILES.value));
 
@@ -222,8 +221,8 @@ export const chestStates = signal<ChestState[]>(chestPlacements.value.map(toChes
  * PlatformerPage.tsx: `chestStates` above already survives a component
  * unmount (it's module-level), but a `useRef` does not — switching to
  * another CV-site theme and back would reset a local ref to `false` while
- * every chest is STILL open (theme-switch reset isn't implemented yet, see
- * roadmap steps 27/28), which would make the Thank You screen reappear on
+ * every chest is STILL open (theme-switch reset isn't implemented yet),
+ * which would make the Thank You screen reappear on
  * the very first tick after switching back, with no player action. Living
  * here keeps this latch's lifetime matched to `chestStates`'s, and it's
  * reset back to `false` in `resetGameProgress()` below (alongside
@@ -239,21 +238,20 @@ export const endingScreenShown = signal(false);
  * Reset Game) while this one flips back to `false` on every dismissal so the
  * screen can be shown again after a future re-trigger.
  *
- * **Final review fix (2026-08-30, Important 4)**: originally a component-
- * local `useState` in PlatformerPage.tsx. That was a real bug: `chestStates`,
- * `endingScreenShown`, and `lifecycleState` are all module-level and survive
- * a theme-switch unmount/remount, but a local `useState` does not. If a
- * visitor switched away from the Platformer theme and back while this
- * screen was showing, `lifecycleState` would still read `'ending-screen'`
- * (so the game loop's early-return for that phase keeps firing forever —
- * see PlatformerPage.tsx's tick callback) while the local `endingScreenOpen`
- * reset to `false` on remount, meaning `<ThankYouScreen>` would never
- * render — no visible way to dismiss, and `endingScreenShown` (correctly
- * still `true`) blocks the "all chests open" check from ever re-triggering
- * it either. The game would be permanently stuck, paused, with nothing on
- * screen. Making this module-level too (matching `endingScreenShown`'s
- * lifetime) fixes it: a remount now sees the screen was open and keeps
- * showing it, same as it would have without ever switching themes.
+ * Deliberately module-level, not a component-local `useState` in
+ * PlatformerPage.tsx: `chestStates`, `endingScreenShown`, and
+ * `lifecycleState` are all module-level and survive a theme-switch
+ * unmount/remount, but a local `useState` would not. If a visitor switches
+ * away from the Platformer theme and back while this screen is showing,
+ * `lifecycleState` still reads `'ending-screen'` (so the game loop's
+ * early-return for that phase keeps firing forever — see PlatformerPage.tsx's
+ * tick callback); a local `endingScreenOpen` would reset to `false` on
+ * remount, meaning `<ThankYouScreen>` would never render — no visible way to
+ * dismiss, and `endingScreenShown` (correctly still `true`) blocks the "all
+ * chests open" check from ever re-triggering it either, permanently stuck
+ * paused with nothing on screen. Being module-level (matching
+ * `endingScreenShown`'s lifetime) means a remount sees the screen was open
+ * and keeps showing it, same as it would without ever switching themes.
  *
  * PlatformerPage.tsx must call `useSignals()` (from
  * `@preact/signals-react/runtime`, same as ThankYouScreen.tsx already does)
@@ -264,7 +262,7 @@ export const endingScreenShown = signal(false);
 export const endingScreenOpen = signal(false);
 
 /**
- * One-shot latch (roadmap step 25, spec.md FR-036): true once the visitor
+ * One-shot latch (spec.md FR-036): true once the visitor
  * has dismissed the controls overlay (i.e. walked far enough from where it
  * appeared — see ControlsOverlay.tsx) this browser session. Unlike
  * `endingScreenShown` above, this is NEVER reset by
@@ -277,18 +275,17 @@ export const endingScreenOpen = signal(false);
 export const controlsOverlayDismissed = signal(false);
 
 /**
- * Question-mark blocks' spawned no-fact bonus fruits (roadmap step 21b) —
- * starts empty; `PlatformerPage.tsx` appends one each time a question-mark
- * block is hit. Persists across a death/respawn (same reasoning as
- * `blockStates` above); cleared only by `resetGameProgress()`.
+ * Question-mark blocks' spawned bonus fruits — starts empty;
+ * `PlatformerPage.tsx` appends one each time a question-mark block is hit.
+ * Persists across a death/respawn (same reasoning as `blockStates` above);
+ * cleared only by `resetGameProgress()`.
  */
 export const bonusFruitStates = signal<BonusFruitState[]>([]);
 
 /**
- * Facts discovered so far this session (see spec.md FR-032). Starts empty —
- * step 12 (this step) is what actually populates it via real coin/fruit
- * collection; the temporary two-item seed data step 13 relied on to verify
- * the journal skeleton is gone.
+ * Facts discovered so far this session (see spec.md FR-032). Starts empty;
+ * populated via real coin/fruit collection, enemy defeat, block hits, and
+ * chest opens.
  */
 export const collectedFacts = signal<CollectedFact[]>([]);
 
@@ -297,7 +294,7 @@ export const collectedFacts = signal<CollectedFact[]>([]);
  * FR-020c) — kept separate from `collectedFacts` since a collectible's
  * removal-from-the-world state and its fact-content-in-the-journal state,
  * while always updated together (see PlatformerPage.tsx's collection
- * handler, Task 8), are conceptually different concerns, matching how
+ * handler), are conceptually different concerns, matching how
  * `healthState`/`playerState` are already kept separate.
  */
 export const collectedCollectibleIds = signal<Set<string>>(new Set());
@@ -307,19 +304,17 @@ export const activeEffects = signal<FlightEffect[]>([]);
 
 /**
  * The currently-visible "(icon) collected / total" counter popups, one slot
- * per collectible type — replaces the old persistent HUD counters (removed
- * 2026-08-30, live user feedback: too much clutter at the top). A missing key
- * means that type has nothing showing. Collecting a coin while a coin popup
- * is already up refreshes THAT slot (new count, timer restarted) rather than
- * queuing a second one; collecting a coin and a fruit close together shows
- * both at once, since they're genuinely different information — per user
- * request, 2026-08-30 (see CounterPopupEffect's doc comment).
+ * per collectible type. A missing key means that type has nothing showing.
+ * Collecting a coin while a coin popup is already up refreshes THAT slot
+ * (new count, timer restarted) rather than queuing a second one; collecting
+ * a coin and a fruit close together shows both at once, since they're
+ * genuinely different information (see CounterPopupEffect's doc comment).
  */
 export const activeCounterPopups = signal<Partial<Record<CounterPopupLabelKey, CounterPopupEffect>>>({});
 
 /**
  * The journal's last manually-selected bookmark section, remembered across
- * closing and reopening the journal (per user request) — `Journal.tsx`
+ * closing and reopening the journal — `Journal.tsx`
  * itself fully unmounts on close, so this can't live in its local
  * `useState`. `undefined` until the user clicks a bookmark tab for the
  * first time, in which case `Journal.tsx` falls back to defaulting from
@@ -329,8 +324,8 @@ export const activeCounterPopups = signal<Partial<Record<CounterPopupLabelKey, C
 export const activeJournalSection = signal<SectionId | undefined>(undefined);
 
 /**
- * The hint-sign tooltip's current grow+fade animation state (roadmap step
- * 26, live UX feedback — see engine/HintTooltip.ts), or `null` when no
+ * The hint-sign tooltip's current grow+fade animation state (see
+ * engine/HintTooltip.ts), or `null` when no
  * tooltip is active/animating. Updated every game-loop tick (see
  * PlatformerPage.tsx's transition/tick logic) and read by `render()` to
  * decide whether/what/where to draw. Cleared by `resetGame()` (and so also
@@ -367,17 +362,15 @@ export const lifecycleState = signal<LifecycleState>(
  * full health, enemies back at their spawn placements, camera scrolled back
  * to the level start. Does NOT touch `lifecycleState`, `collectedFacts`, or
  * `collectedCollectibleIds` — per FR-020c, a death/respawn preserves
- * everything already discovered; only a future "Reset Game" button (roadmap
- * step 15) clears those. Callers (Task 5's restart-on-input and debug
+ * everything already discovered; only the "Reset Game" button clears those
+ * (see `resetGameProgress()` below). Callers (restart-on-input and the debug
  * Respawn button, both wired to the `intro` iris-in) decide the lifecycle
- * transition themselves, since not every future caller of a "reset"
- * necessarily wants the iris animation.
+ * transition themselves, since not every caller of a "reset" necessarily
+ * wants the iris animation.
  *
- * This is the single reset seam other roadmap steps extend: enemies are
- * already reset here; future steps needing a full "Reset Game" button will
- * additionally clear collected facts and respawn coins/blocks once those
- * mechanics are added (roadmap step 15, FR-018b — see `resetGameProgress()`
- * below for the full reset including collected state).
+ * This is the single reset seam a full "Reset Game" button extends: enemies
+ * are reset here; `resetGameProgress()` additionally clears collected facts
+ * and respawns coins/blocks (FR-018b).
  */
 export function resetGame(): void {
   playerState.value = spawnPlayerState();
@@ -389,7 +382,7 @@ export function resetGame(): void {
 }
 
 /**
- * The "Reset Game" button's full reset (roadmap step 15, FR-018b) — unlike
+ * The "Reset Game" button's full reset (FR-018b) — unlike
  * `resetGame()`, this is a deliberate action the visitor takes, not a
  * death/respawn, so it also clears everything `resetGame()` leaves alone:
  * collected facts, the collected-collectible dedup set (clearing it is what
