@@ -196,12 +196,16 @@ describe('CHEST_TILES', () => {
 });
 
 describe('ladder shaft (roadmap step 23)', () => {
-  it('newTopTier-hasASolidLandingPlatformAtCol15', () => {
-    expect(level1.terrain[0][15]).toBe('platform');
+  it('shaftTopTile-isBridgeAtCol15-standableButNotClimbable', () => {
+    expect(level1.terrain[0][15]).toBe('empty'); // open sky above — nothing solid here
+    expect(level1.terrain[1][14]).toBe('platform'); // landing platform beside the bridge, same row
+    expect(level1.terrain[1][15]).toBe('bridge'); // the shaft's topmost tile itself
+    expect(isClimbable(level1.terrain[1][15])).toBe(false); // bridge isn't climbable...
+    expect(isSolid(level1.terrain[1][15])).toBe(true); // ...but it IS solid (standable)
   });
 
-  it('shaftIsLadderAtCol15-eighteenTilesTall-flushWithThePlatformRow', () => {
-    for (let row = 1; row <= 18; row++) {
+  it('shaftIsLadderAtCol15-belowTheBridgeTile-seventeenTilesTall', () => {
+    for (let row = 2; row <= 18; row++) {
       expect(level1.terrain[row][15]).toBe('ladder');
       expect(isClimbable(level1.terrain[row][15])).toBe(true);
     }
