@@ -27,6 +27,7 @@
 ### Optional
 
 - [ ] **O-001** **Checkpoint Persistence** — Saves collected facts and spawn position at each checkpoint, persisting across theme switches so the player can continue later
+- [ ] **O-002** **Platformer Level Editor** — Hidden dev-only grid tool for authoring platformer level layouts with real game sprites, exported as copy-pasteable `readonly string[]`
 
 - _TBD_
 
@@ -52,6 +53,7 @@
 | S-005 | Space background animations | ✅ Done | [spec](../specs/S-005-space-parade/spec.md) | ✅ | ✅ |
 | S-006 | 2D Platformer theme     | 📋 Planned     | [spec](../specs/S-006-platformer-theme/spec.md) / [roadmap](../specs/S-006-platformer-theme/roadmap.md) | ❌             | ❌    |
 | O-001 | Checkpoint Persistence  | 📋 Planned     | —                                       | ❌             | ❌    |
+| O-002 | Platformer Level Editor | 📋 Planned     | [spec](../specs/O-002-platformer-level-editor/spec.md) | ❌             | ❌    |
 
 ---
 
@@ -89,6 +91,7 @@ graph RL
     S005["✅ S-005: Space Background Animations"]
     S006["S-006: 2D Platformer Theme"]
     O001["O-001: Checkpoint Persistence"]
+    O002["O-002: Platformer Level Editor"]
 
     F003 --> F002
     F003 --> F011
@@ -119,6 +122,7 @@ graph RL
     S006 --> F012
     S006 --> F013
     O001 --> S006
+    O002 --> S006
 
     classDef done stroke:#FFD600,stroke-width:3px
     classDef projectSetup fill:#1565C0,color:#ffffff
@@ -140,7 +144,7 @@ graph RL
     class F012,F013 themeInfrastructure
     class F014 done
     class S004 done
-    class S002,S005,O001 enhancements
+    class S002,S005,O001,O002 enhancements
     class S005 done
 ```
 
