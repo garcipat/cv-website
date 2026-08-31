@@ -21,6 +21,8 @@ import {
   HEARTS_START_X,
   CHEST_COUNTER_X,
   CHEST_COUNTER_Y,
+  drawSigns,
+  drawSignBubble,
 } from './engine/Renderer';
 import { drawDebugOverlay } from './engine/DebugOverlay';
 import { createGameLoop } from './engine/GameLoop';
@@ -48,6 +50,7 @@ import {
   checkEnemySideCollisions,
   checkBonusFruitCollisions,
   chestPlayerIsStandingOn,
+  checkSignOverlap,
 } from './engine/Collision';
 import { openChest, allChestsOpen, isChestOpen, CHEST_CLOSED_OFFSET_X } from './entities/Chest';
 import { stepBlockAnimation } from './engine/BlockAI';
@@ -99,12 +102,21 @@ import {
   chestStates,
   endingScreenShown,
   endingScreenOpen,
+  signPlacements,
+  hintTooltipState,
 } from './PlatformerState';
 import { useSignals } from '@preact/signals-react/runtime';
 import { Journal } from './components/Journal';
 import { ThankYouScreen } from './components/ThankYouScreen';
 import { ControlsOverlay } from './components/ControlsOverlay';
 import { navigateTo } from '@/state/navigation';
+import { currentUI } from '@/state/locale';
+import {
+  startHintTooltip,
+  beginHintTooltipExit,
+  tickHintTooltip,
+  hintTooltipGrowthAndOpacity,
+} from './engine/HintTooltip';
 
 // Vertical spacing between stacked fact-flight rows when several pickups are
 // collected close together — a bit more than the 28px collection-effect
@@ -342,6 +354,7 @@ export const PlatformerPage = () => {
 
       if (tilesetRef.current) {
         drawTerrain(ctx, currentLevel.value, tilesetRef.current, originX, originY);
+        drawSigns(ctx, signPlacements.value, tilesetRef.current, originX, originY);
       }
 
       // Drawn BEFORE blocks (amended 2026-08-30, live user feedback): a
@@ -382,6 +395,15 @@ export const PlatformerPage = () => {
           playerJumpSpriteRef.current,
           playerVisible,
         );
+      }
+
+      const tooltip = hintTooltipState.value;
+      if (tooltip) {
+        const hintText = currentUI.value.platformer.hints[tooltip.hintId];
+        const anchorX = playerState.value.x + PLAYER_RENDERED_SIZE / 2 + originX;
+        const anchorBottomY = playerState.value.y + originY;
+        const { growth, opacity } = hintTooltipGrowthAndOpacity(tooltip);
+        drawSignBubble(ctx, hintText, anchorX, anchorBottomY, growth, opacity);
       }
 
       if (coinSpriteRef.current || fruitSpriteRef.current) {
@@ -891,6 +913,30 @@ export const PlatformerPage = () => {
             ];
           }
         }
+      }
+
+      // FR-038, revised per live UX feedback: revealed like a chest — stand
+      // on a sign and press Up/W (interactPressed, computed above for
+      // chest-opening) — but reusable (not dedup-tracked) and hidden again
+      // automatically the instant the player leaves overlap, with no
+      // keypress needed to dismiss it.
+      if (hintTooltipState.value) {
+        hintTooltipState.value = tickHintTooltip(hintTooltipState.value, dt);
+      }
+      const overlappingSignHintId = checkSignOverlap(playerState.value, signPlacements.value);
+      const currentTooltip = hintTooltipState.value;
+      if (overlappingSignHintId && interactPressed) {
+        if (!currentTooltip || currentTooltip.hintId !== overlappingSignHintId) {
+          hintTooltipState.value = startHintTooltip(overlappingSignHintId);
+        } else if (currentTooltip.phase === 'exiting') {
+          // Pressed Up again before the previous reveal finished leaving —
+          // restart the entrance rather than leaving it stuck exiting.
+          hintTooltipState.value = { ...currentTooltip, phase: 'entering', elapsed: 0 };
+        }
+        // Already 'entering'/'shown' for this exact sign: a repeat press
+        // while it's already up is a harmless no-op.
+      } else if (!overlappingSignHintId && currentTooltip && currentTooltip.phase !== 'exiting') {
+        hintTooltipState.value = beginHintTooltipExit(currentTooltip);
       }
 
       const stompedIds = checkEnemyStompCollisions(playerState.value, enemyStates.value);
