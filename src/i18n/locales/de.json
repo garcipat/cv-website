@@ -165,6 +165,11 @@
     "endingScreen": {
       "thankYou": "Danke fürs Spielen!",
       "continue": "Beliebige Taste drücken, um fortzufahren"
+    },
+    "controlsOverlay": {
+      "move": "Bewegen",
+      "jump": "Springen",
+      "journal": "Journal"
     }
   }
 }
