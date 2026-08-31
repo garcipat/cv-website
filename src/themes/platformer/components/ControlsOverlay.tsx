@@ -200,7 +200,7 @@ export const ControlsOverlay = () => {
           }}
         >
           <span
-            className="absolute -translate-x-1/2"
+            className="absolute bottom-0 -translate-x-1/2"
             style={{ left: `${INTERACT_LABEL_CENTER_PERCENT}%` }}
           >
             {ui.platformer.controlsOverlay.interact}
