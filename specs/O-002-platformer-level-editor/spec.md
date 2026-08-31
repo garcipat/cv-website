@@ -39,7 +39,7 @@ The editor's initial `grid` state is a one-time, in-memory copy of `LEVEL_1_LAYO
 
 1. **Given** the editor has just loaded, **When** the grid renders for the first time, **Then** its dimensions equal `LEVEL_1_LAYOUT`'s width/height and every cell's value equals the corresponding character in `LEVEL_1_LAYOUT` — the grid itself is an exact copy; only export crops it (see below).
 2. **Given** the editor has just loaded, **When** the developer exports without making any edits, **Then** the exported layout equals `LEVEL_1_LAYOUT` cropped to its tightest non-`.` bounding box — export's content-cropping applies the same way here as to any other grid state; a leading/trailing all-`.` row or column already present in the loaded data is cropped away just as it would be after painting and erasing produced the same shape. This is not a special case for the unedited state.
-3. **Given** the editor has just loaded, **When** the grid re-renders, **Then** every terrain tile and entity marker from `level1.ts` (ground, platforms, walls, bridges, spawn, both enemy colors, coins, crates, question-marks, fragile rocks, chests) is visible with its real sprite — this is the same rendering path as any other painted cell (see User Story 2), just pre-populated instead of freshly painted.
+3. **Given** the editor has just loaded, **When** the grid re-renders, **Then** every terrain tile and entity marker from `level1.ts` (ground, walls, bridges, spawn, both enemy colors, coins, crates, question-marks, fragile rocks, chests) is visible with its real sprite — this is the same rendering path as any other painted cell (see User Story 2), just pre-populated instead of freshly painted.
 
 ---
 
@@ -196,7 +196,7 @@ The editor's 2D free-form pan (`editor/EditorPan.ts`) is unrelated to the game's
 
 Instead, `LevelParser.ts` gains an explicit, hardcoded literal union:
 ```typescript
-export type TileChar = '.' | 'G' | 'R' | 'P' | 'W' | 'B' | 'S' | 'E' | 'M' | 'C' | 'X' | 'Q' | 'F' | 'T';
+export type TileChar = '.' | 'G' | 'R' | 'W' | 'B' | 'S' | 'E' | 'M' | 'C' | 'X' | 'Q' | 'F' | 'T';
 ```
 placed immediately after the `sharedChars` overlap guard, plus a small runtime test (not shipped code — a test-only assertion) that every key of `TERRAIN_CHARS` and `ENTITY_CHARS` appears in `TileChar`'s member list, so the two can't silently drift apart. This keeps `parseLevel`/`findAllOfKind`'s existing, tested string-indexed lookups completely untouched — no changes to working engine code beyond this one type addition.
 
@@ -276,7 +276,7 @@ On mount, `LevelEditorPage` calls a new pure function `importLayout(layout: read
 #### TypeScript
 
 - **FR-024**: System MUST compile under TypeScript `strict: true` with no `any` types and no `@ts-ignore` directives.
-- **FR-025**: System MUST add `export type TileChar = '.' | 'G' | 'R' | 'P' | 'W' | 'B' | 'S' | 'E' | 'M' | 'C' | 'X' | 'Q' | 'F' | 'T';` to `LevelParser.ts`, positioned after the `sharedChars` overlap guard, plus a test asserting every `TERRAIN_CHARS`/`ENTITY_CHARS` key is one of `TileChar`'s members.
+- **FR-025**: System MUST add `export type TileChar = '.' | 'G' | 'R' | 'W' | 'B' | 'S' | 'E' | 'M' | 'C' | 'X' | 'Q' | 'F' | 'T';` to `LevelParser.ts`, positioned after the `sharedChars` overlap guard, plus a test asserting every `TERRAIN_CHARS`/`ENTITY_CHARS` key is one of `TileChar`'s members.
 
 ---
 
@@ -289,7 +289,7 @@ On mount, `LevelEditorPage` calls a new pure function `importLayout(layout: read
 - **`growGrid.ts`**: Pure function module. `growGrid(grid, col, row): { grid, colShift, rowShift }` — grows the array just enough to include `(col, row)`, reporting how much the origin shifted so the caller can compensate `panOffset`.
 - **`exportLayout.ts`**: Pure function module. `exportLayout(grid): readonly string[]` — crops to the tightest non-`.` bounding box before serializing.
 - **`importLayout.ts`**: Pure function module, the inverse of `exportLayout.ts`'s serialization (not its cropping). `importLayout(layout: readonly string[]): TileChar[][]`. Used once, on `LevelEditorPage` mount, against `LEVEL_1_LAYOUT`.
-- **`TileChar` (type, added to `LevelParser.ts`)**: hardcoded literal union of every valid layout character (`'.'`, `'G'`, `'R'`, `'P'`, `'W'`, `'B'`, `'S'`, `'E'`, `'M'`, `'C'`, `'X'`, `'Q'`, `'F'`, `'T'`), kept in sync with `TERRAIN_CHARS`/`ENTITY_CHARS` via a drift-guard test rather than direct `keyof` derivation (which would collapse to plain `string` given those maps' existing wide annotations). Consumed by the editor's grid state.
+- **`TileChar` (type, added to `LevelParser.ts`)**: hardcoded literal union of every valid layout character (`'.'`, `'G'`, `'R'`, `'W'`, `'B'`, `'S'`, `'E'`, `'M'`, `'C'`, `'X'`, `'Q'`, `'F'`, `'T'`), kept in sync with `TERRAIN_CHARS`/`ENTITY_CHARS` via a drift-guard test rather than direct `keyof` derivation (which would collapse to plain `string` given those maps' existing wide annotations). Consumed by the editor's grid state.
 - **Placeholder state objects** (constructed in the editor, not exported as reusable types beyond local helpers): minimal `PlayerState`/`CollectiblePlacement`/`EnemyState`/`BlockState`/`ChestState`-shaped objects built per marker found in the grid, with position + kind set from the grid and every other required field set to its "at rest" default (see Design Decisions' Sprite Reuse section).
 
 **Entity Relationships**:
@@ -363,7 +363,7 @@ Record of design decisions made during specification.
 | 7 | How should the grid handle content placed beyond its current bounds — fixed size with manual resize, or unbounded? | Unbounded and seamless: the grid isn't a fixed size at all. Painting outside current bounds grows the array automatically in that direction; growing left/up shifts `panOffset` to compensate so nothing visually moves. Export always crops to the tightest non-`.` bounding box | FR-018–FR-021, FR-022; replaces the earlier manual-resize design entirely (no width/height inputs, no shrink-confirmation dialog) |
 | 8 | Sparse map (O(1) per placement) or dense array (O(width×height) copy on boundary-crossing growth) for grid storage? | Dense `TileChar[][]`, grown on demand | This is a single-human, click-paced dev tool, not a hot loop — an occasional full-array copy on a boundary-crossing paint is imperceptible, and a plain array is simpler to feed into `drawTerrain`'s `LevelDef` and to test than a sparse map |
 | 9 | How should mouse buttons map to paint/erase/pan? | Left-click paints with `selectedTool`; right-click always erases (`.`), regardless of `selectedTool`; middle-click-drag pans | FR-004a, FR-016; matches common tile-editor convention (Tiled, Terraria-likes) — erasing no longer requires switching to the Eraser tool first. Supersedes the original right-click-drag-pans design |
-| 10 | Should Platform (`P`) be a separate palette tile? | No — hidden from the palette UI only (still a valid `TERRAIN_CHARS` entry, unaffected in the engine) | `platform`'s sprite is identical to an exposed `groundGrass` tile (`Renderer.ts`'s `tileSource`, both `{sx:0,sy:0}`) — offering it as a distinct, visually-indistinguishable palette tile reads as a confusing duplicate |
+| 10 | Should Platform (`P`) exist as a tile kind at all? | No — removed entirely, from both the palette and the engine (`TileType`, `TERRAIN_CHARS`, `TileChar`, `isSolid`, `tileSource`) | `platform`'s sprite was identical to an exposed `groundGrass` tile (`Renderer.ts`'s `tileSource`, both `{sx:0,sy:0}`) — a floating strip of ground is just `groundGrass`, which already renders its top-exposed sprite automatically; keeping a visually-indistinguishable second tile kind around (even just in engine code) served no purpose |
 
 ---
 
