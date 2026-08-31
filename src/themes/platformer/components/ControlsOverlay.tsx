@@ -47,7 +47,7 @@ const JOURNAL_LABEL_CENTER_PERCENT = 91.96;
 const INTERACT_LABEL_CENTER_PERCENT = MOVE_LABEL_CENTER_PERCENT;
 
 /**
- * Universal controls overlay (roadmap step 25, spec.md FR-036) — shown once
+ * Universal controls overlay (spec.md FR-036) — shown once
  * gameplay reaches the `playing` phase, listing the game's universal
  * controls via the real keycap sprite (`controls_overlay_keys.png`: the
  * arrow-key cluster, Space, and J) plus short translated captions, centered
@@ -71,14 +71,13 @@ const INTERACT_LABEL_CENTER_PERCENT = MOVE_LABEL_CENTER_PERCENT;
 export const ControlsOverlay = () => {
   useSignals();
   const ui = currentUI.value;
-  // Tried also showing this during 'intro' (the iris growing open at game
-  // start/restart) since the iris is a canvas-drawn mask with no clipping
-  // power over this DOM overlay — but in practice that means the overlay
-  // renders over a screen that's still almost entirely the iris's own solid
-  // black background early in the animation, reading as an unwanted black
-  // backdrop behind the keys. Waiting for 'playing' avoids that; the fade-in
-  // below (see FADE_IN_DURATION_MS) is what actually solves the "pop-in"
-  // feel instead.
+  // Not shown during 'intro' (the iris growing open at game start/restart):
+  // the iris is a canvas-drawn mask with no clipping power over this DOM
+  // overlay, so showing it there would render over a screen that's still
+  // almost entirely the iris's own solid black background early in the
+  // animation, reading as an unwanted black backdrop behind the keys.
+  // Waiting for 'playing' avoids that; the fade-in below (see
+  // FADE_IN_DURATION_MS) is what actually solves the "pop-in" feel instead.
   const shouldShow = lifecycleState.value.phase === 'playing' && !controlsOverlayDismissed.value;
   // Only reads (and so only subscribes to) playerState while actually
   // shown — needed to notice the player has traveled far enough to dismiss,

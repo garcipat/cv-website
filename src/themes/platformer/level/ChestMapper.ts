@@ -18,23 +18,23 @@ function experienceToChest(experience: Experience): ChestDef {
 }
 
 /**
- * Flattens CVData into one chest per Experience entry (spec.md FR-009/023,
- * added 2026-08-30) — Experience is treated as the CV's "most valuable"
- * section, worth its own dedicated main-objective collectible rather than
- * sharing the crate mechanic with Education/Activities/Languages. Mirrors
+ * Flattens CVData into one chest per Experience entry (spec.md FR-009/023)
+ * — Experience is treated as the CV's "most valuable" section, worth its own
+ * dedicated main-objective collectible rather than sharing the crate
+ * mechanic with Education/Activities/Languages. Mirrors
  * BlockMapper.ts's/EnemyMapper.ts's CVData-flattening pattern. An empty
  * `experience` array simply produces no chests.
  *
- * Reverses `cv.experience` before mapping (2026-08-30, live user feedback):
- * per `src/types/cv.ts`'s doc comment, `experience` is stored newest-first,
- * but `placeChests` below zips defs against markers in level-reading order
- * (left-to-right, near spawn to farther away per level.ts) — without the
- * reversal, the closest/first-reached chest would reveal the newest job and
- * the farthest/last chest the oldest one. Reversing makes the chests read as
- * a chronological career progression as the visitor plays further: oldest
- * job first, newest job last. `[...cv.experience].reverse()` (not
- * `cv.experience.reverse()`) since `Array.prototype.reverse()` mutates in
- * place and `cv.experience` must not be altered.
+ * Reverses `cv.experience` before mapping: per `src/types/cv.ts`'s doc
+ * comment, `experience` is stored newest-first, but `placeChests` below zips
+ * defs against markers in level-reading order (left-to-right, near spawn to
+ * farther away per level.ts) — without the reversal, the closest/first-reached
+ * chest would reveal the newest job and the farthest/last chest the oldest
+ * one. Reversing makes the chests read as a chronological career progression
+ * as the visitor plays further: oldest job first, newest job last.
+ * `[...cv.experience].reverse()` (not `cv.experience.reverse()`) since
+ * `Array.prototype.reverse()` mutates in place and `cv.experience` must not
+ * be altered.
  */
 export function mapCVDataToChests(cv: CVData): ChestDef[] {
   return [...cv.experience].reverse().map(experienceToChest);

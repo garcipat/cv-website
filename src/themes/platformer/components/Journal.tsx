@@ -48,18 +48,15 @@ interface JournalProps {
 }
 
 /**
- * Notebook journal overlay (roadmap step 14). Plays the book-opening sprite
+ * Notebook journal overlay. Plays the book-opening sprite
  * sequence on mount, and in reverse on close (before actually calling
  * `onClose`), then overlays the active section's collected facts (Simple
  * List style, FR-017) or a per-section empty-state message on top of the
- * open pages. Bookmark tabs (pulled forward from step 15, per discussion)
- * switch which section is shown. The `personality` ("About Me") section is
- * shown directly from CV data rather than `collectedFacts`, since it has no
- * collectible source until step 22's flagpole lands — a provisional
- * forward-pull per user request. Per-section counters, pagination, and the
- * Reset Game button are step 15's job, not built here. Per-fact display
- * formatting (including step 12's `SkillCategoryFact` — a whole skill
- * category collected as one unit) lives in `formatJournalEntry`
+ * open pages. Bookmark tabs switch which section is shown. The
+ * `personality` ("About Me") section is shown directly from CV data rather
+ * than `collectedFacts`, since it has no collectible source of its own.
+ * Per-fact display formatting (including `SkillCategoryFact` — a whole
+ * skill category collected as one unit) lives in `formatJournalEntry`
  * (`entities/JournalEntry.ts`), not here — this component stays
  * presentational.
  *
@@ -104,11 +101,11 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
   // the journal is open (the game is paused, so no new collections land).
   const flatPages = buildJournalPages(sections, facts);
 
-  // Defaults to 'personality' ("About Me") — amended 2026-08-30, live user
-  // feedback: falling back to the first collected fact's section (e.g.
-  // 'skills' after picking up any coin) meant the journal rarely opened on
-  // its own first page. 'personality' is always present (CVData.personality
-  // is a required field — see nonEmptySections's comment), so this fallback
+  // Defaults to 'personality' ("About Me") rather than falling back to the
+  // first collected fact's section — that fallback would mean the journal
+  // rarely opens on its own first page (e.g. 'skills' after picking up any
+  // coin). 'personality' is always present (CVData.personality is a
+  // required field — see nonEmptySections's comment), so this fallback
   // never needs `sections[0]` as a further backup.
   const initialSection: SectionId | undefined =
     activeJournalSection.value && sections.includes(activeJournalSection.value)
@@ -116,7 +113,7 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
       : 'personality';
 
   // Position within `flatPages` — a plain index, not a per-section page
-  // number, since Prev/Next now walk the whole book regardless of section
+  // number, since Prev/Next walk the whole book regardless of section
   // boundaries. Lazy initializer runs once at mount, landing on the
   // remembered/default section's first page (find the first flatPages
   // entry for that section).
@@ -202,22 +199,21 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
   // Crates are drawn from world_tileset.png's edge-to-edge terrain art (no
   // transparent padding the way coin.png/fruit.png's centered icons have),
   // which reads as noticeably bigger than the other icons at the same
-  // display size (live user feedback, 2026-08-30) — shown smaller to
-  // compensate; same fix applied to the HUD counter (PlatformerPage.tsx's
-  // CRATE_COUNTER_ICON_SIZE).
+  // display size — shown smaller to compensate; the same adjustment applies
+  // to the HUD counter (PlatformerPage.tsx's CRATE_COUNTER_ICON_SIZE).
   const CRATE_ICON_DISPLAY_SIZE = 22;
   // coin.png is a 1-row strip (COIN_FRAME_COUNT columns); fruit.png and
   // slime_green.png are both 4-column grids (4x4 and 4x3 respectively);
   // world_tileset.png is a 16x16 grid of 16px tiles — every sheet's
   // width/height-in-frames must be scaled independently or frame 0's crop
   // distorts (e.g. fruit.png's 4 rows squashed into 1). The 'enemies' row
-  // (roadmap step 18) reuses the same raw sheet frame 3 (row 0, col 2) as
-  // the HUD's own enemy-defeated counter (see PlatformerPage.tsx), so both
-  // places show the same icon for "enemy". 'crates' (added 2026-08-30)
-  // reuses the same crate tile coordinates as `blockFrameSource('crate')`.
-  // 'chests' (added 2026-08-30) renders a standalone image (chest_closed.png,
-  // 28×20, not a frame in a sprite sheet) via an early return, avoiding the
-  // sheet-cropping logic used for the others.
+  // reuses the same raw sheet frame 3 (row 0, col 2) as the HUD's own
+  // enemy-defeated counter (see PlatformerPage.tsx), so both places show
+  // the same icon for "enemy". 'crates' reuses the same crate tile
+  // coordinates as `blockFrameSource('crate')`. 'chests' renders a
+  // standalone image (chest_closed.png, 28×20, not a frame in a sprite
+  // sheet) via an early return, avoiding the sheet-cropping logic used for
+  // the others.
   const renderCollectibleIcon = (labelKey: 'coins' | 'fruits' | 'enemies' | 'crates' | 'chests') => {
     if (labelKey === 'chests') {
       return (
@@ -335,13 +331,13 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
           // below) so its hinge stays fixed once fully open — but every
           // earlier, narrower frame then sits scrunched against the right
           // edge with empty space to its left, reading as the book sliding
-          // in from the right rather than opening in place (live user
-          // feedback, 2026-08-30). journalOpenFrameCenteringShiftPercent
-          // counteracts that per frame — centering that frame's (content-
-          // free) book icon on screen — and resolves to exactly 0 at the
-          // final frame, so the one frame that carries real page content
-          // (laid out via fixed inset-% positions assuming this container
-          // sits centered) is never displaced.
+          // in from the right rather than opening in place.
+          // journalOpenFrameCenteringShiftPercent counteracts that per
+          // frame — centering that frame's (content-free) book icon on
+          // screen — and resolves to exactly 0 at the final frame, so the
+          // one frame that carries real page content (laid out via fixed
+          // inset-% positions assuming this container sits centered) is
+          // never displaced.
           transform: `translateX(${journalOpenFrameCenteringShiftPercent(frame)}%)`,
           transition: `transform ${JOURNAL_OPEN_FRAME_INTERVAL_MS}ms linear`,
         }}

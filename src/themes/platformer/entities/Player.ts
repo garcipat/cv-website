@@ -46,9 +46,9 @@ export interface PlayerState {
   facing: PlayerFacing;
   /** Whether the player is currently resting on a solid tile. */
   grounded: boolean;
-  /** Whether the player is currently climbing a `'ladder'` tile (roadmap
-   *  step 23) — while true, `Physics.ts`'s stepPlayerPhysics suspends
-   *  gravity and drives vertical movement directly from Up/Down instead. */
+  /** Whether the player is currently climbing a `'ladder'` tile — while
+   *  true, `Physics.ts`'s stepPlayerPhysics suspends gravity and drives
+   *  vertical movement directly from Up/Down instead. */
   climbing: boolean;
   /** Whether the player is currently dropping through a `bridge` tile
    *  they deliberately fell through (Down held while resting on one) —
@@ -66,15 +66,15 @@ export interface PlayerState {
    *  footprint stops being fully supported (falls off an edge, jumps).
    *  Used by Physics.ts's resolvePitFall to reposition the character after a
    *  pit fall to "the last solid ground position before the fall" rather
-   *  than a spawn/checkpoint (that's roadmap step 10's job). */
+   *  than a spawn/checkpoint. */
   lastGroundedX: number;
   lastGroundedY: number;
   animState: PlayerAnimState;
   animFrame: number;
   /** Seconds accumulated toward the next animation frame advance. */
   animTimer: number;
-  /** Seconds remaining of post-hit invincibility (roadmap step 19) — 0 means
-   *  not invincible. Gates `checkEnemySideCollisions` from registering a new
+  /** Seconds remaining of post-hit invincibility — 0 means not invincible.
+   *  Gates `checkEnemySideCollisions` from registering a new
    *  hit (see Collision.ts) and drives the render blink (PlatformerPage.tsx);
    *  ticked down once per frame by `tickInvincibility` below. Unrelated to
    *  `knockbackTimer` — see this plan's "Key design decisions" for why they're
@@ -89,8 +89,8 @@ export interface PlayerState {
    *  decisions". */
   knockbackTimer: number;
   /**
-   * Ids of every block whose underside was hit this tick (roadmap step 21) —
-   * always freshly computed by `Physics.ts`'s ceiling-collision check, never
+   * Ids of every block whose underside was hit this tick — always freshly
+   * computed by `Physics.ts`'s ceiling-collision check, never
    * carried over from a previous tick (unlike `bounceAscending`). Empty on
    * every tick with no upward block collision. `PlatformerPage.tsx` reads
    * this once per tick to apply block hits/rewards, then it's naturally
@@ -98,16 +98,15 @@ export interface PlayerState {
    */
   hitBlockIds: string[];
   /**
-   * True while the player is ascending from a stomp bounce (roadmap step
-   * 18/19) — suppresses `stepPlayerPhysics`'s variable-jump-height cut for
-   * every tick of the ascent, not just the one the bounce was applied on.
-   * Found via live testing: the jump-cut multiplier re-applies EVERY tick
-   * the jump key isn't held (not just once), so a single-tick
-   * `suppressJumpCut` override only protected the very first frame — on the
-   * next frame, since a stomp bounce is never actually "held" like a real
-   * jump, the cut immediately sheared the bounce down to ~45% of its
-   * intended magnitude anyway, no matter how large
-   * `PHYSICS_CONFIG.stompBounceVelocity` was configured. Set `true` by
+   * True while the player is ascending from a stomp bounce — suppresses
+   * `stepPlayerPhysics`'s variable-jump-height cut for every tick of the
+   * ascent, not just the one the bounce was applied on. The jump-cut
+   * multiplier re-applies EVERY tick the jump key isn't held (not just
+   * once), so a single-tick `suppressJumpCut` override would only protect
+   * the very first frame — on the next frame, since a stomp bounce is never
+   * actually "held" like a real jump, the cut would immediately shear the
+   * bounce down to ~45% of its intended magnitude regardless of how large
+   * `PHYSICS_CONFIG.stompBounceVelocity` is configured. Set `true` by
    * `PlatformerPage.tsx` in the same assignment that sets the bounce `vy`;
    * `stepPlayerPhysics` clears it back to `false` itself once the ascent
    * ends (`vy` is no longer negative), so it never lingers into a later,
@@ -171,10 +170,10 @@ export function jumpFrameSource(vy: number, frame: number): { sx: number; sy: nu
 }
 
 /**
- * `knight2.png`'s third row — a 4-frame "climb (back view)" cycle present
- * in the sheet but never wired up before roadmap step 23. Row spacing
- * matches JUMP_ROW_SY (0) / FALL_ROW_SY (161): the sheet is 1024x484px, i.e.
- * three ~161.3px-tall rows, so the third starts at 2*161=322.
+ * `knight2.png`'s third row — a 4-frame "climb (back view)" cycle. Row
+ * spacing matches JUMP_ROW_SY (0) / FALL_ROW_SY (161): the sheet is
+ * 1024x484px, i.e. three ~161.3px-tall rows, so the third starts at
+ * 2*161=322.
  */
 const CLIMB_ROW_SY = 322;
 const CLIMB_ROW_FRAME_COUNT = 4;
@@ -237,8 +236,8 @@ export function tickInvincibility(player: PlayerState, dt: number): PlayerState 
 }
 
 /**
- * Applies a side-hit's knockback + invincibility in one step (roadmap step
- * 19): sets `vx` to `direction * knockbackVx` (facing to match, so the
+ * Applies a side-hit's knockback + invincibility in one step: sets `vx` to
+ * `direction * knockbackVx` (facing to match, so the
  * character visually faces away from whatever hit it), starts
  * `knockbackTimer` (how long `stepPlayerPhysics` overrides input-driven
  * horizontal movement) and `invincibleTimer` (how long further hits are
@@ -262,10 +261,9 @@ export function applyKnockback(
 }
 
 /**
- * Grants invincibility with no knockback — used by a pit fall (roadmap step
- * 19 extends step 9's mechanism this way, per user request: invincibility is
- * a property of taking damage generally, not just of enemy contact
- * specifically). Unlike `applyKnockback`, there's no "direction to push
+ * Grants invincibility with no knockback — used by a pit fall, since
+ * invincibility is a property of taking damage generally, not just of enemy
+ * contact specifically. Unlike `applyKnockback`, there's no "direction to push
  * away from" for a pit fall, and no reason to touch `vx`/`facing`/
  * `knockbackTimer` at all — `resolvePitFall` already handles repositioning
  * the character back to solid ground.

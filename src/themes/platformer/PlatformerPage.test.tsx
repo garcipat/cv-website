@@ -90,8 +90,8 @@ describe('PlatformerPage', () => {
     // from one test must not leak into the next test's enemy positions.
     enemyStates.value = enemyPlacements.value.map((p, i) => toEnemyState(p, i));
     // Module-level signal like the others above — an open-chest mutation
-    // from one test (roadmap step 22) must not leak into the next test's
-    // assumption that every chest starts closed.
+    // from one test must not leak into the next test's assumption that
+    // every chest starts closed.
     chestStates.value = chestPlacements.value.map(toChestState);
     // Module-level one-shot latch (see PlatformerState.ts's doc comment) —
     // must be reset too, or a test that triggers the ending screen would
@@ -106,7 +106,7 @@ describe('PlatformerPage', () => {
     // dismissal from one test would leak into the next test's assumption
     // that the overlay is still showable.
     controlsOverlayDismissed.value = false;
-    // Module-level signal (see PlatformerState.ts, Task 5) — must be reset
+    // Module-level signal (see PlatformerState.ts) — must be reset
     // like the other module-level signals above, or a tooltip left mid-
     // animation by one test would leak into the next test's assumption that
     // no sign is currently revealed.
@@ -476,10 +476,10 @@ describe('PlatformerPage', () => {
     frameCallback!(0);
 
     // Place the character resting on currentLevel's ground-level bridge (row 6,
-    // columns 2-3 — see level.ts; shifted down 2 rows by roadmap step 23's
-    // ladder-shaft insertion at the top of the layout) directly, rather than
-    // navigating there by walking, since only the drop-through wiring is
-    // under test here (the underlying physics is covered by Physics.test.ts).
+    // columns 2-3 — see level.ts; the ladder shaft at the top of the layout
+    // shifts this down 2 rows) directly, rather than navigating there by
+    // walking, since only the drop-through wiring is under test here (the
+    // underlying physics is covered by Physics.test.ts).
     playerState.value = {
       ...playerState.value,
       x: 64,
@@ -591,13 +591,11 @@ describe('PlatformerPage', () => {
   });
 
   it('playerFallsOntoGreenEnemy-tick-showsEnemyCounterPopupAtOne', async () => {
-    // The persistent top-HUD coin/fruit/enemy/crate counters were removed
-    // 2026-08-30 (live user feedback: too much clutter at the top) in favor
-    // of this trial per-collection counter popup — see
-    // activeCounterPopup's doc comment in PlatformerState.ts. Unlike the old
-    // HUD counter, the popup only exists once something's actually been
-    // collected (nothing to assert "at zero" before that), so this test goes
-    // straight to defeating an enemy and checking the popup shows "1 / N".
+    // This trial per-collection counter popup (see activeCounterPopup's doc
+    // comment in PlatformerState.ts) only exists once something's actually
+    // been collected (nothing to assert "at zero" before that), so this test
+    // goes straight to defeating an enemy and checking the popup shows
+    // "1 / N".
     vi.stubGlobal('Image', MockTilesetImage);
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
@@ -643,10 +641,9 @@ describe('PlatformerPage', () => {
 
   it('resetGame-afterDefeatingAnEnemy-collectedFactStaysBanked', async () => {
     // Facts persist across a respawn (FR-020c) even though the enemy itself
-    // respawns alive. The old persistent HUD counter asserted this visually
-    // ("stays at 1/N" after reset); now that it's gone in favor of the
-    // transient counter popup (which will long since have faded by the time
-    // a reset happens), this asserts the underlying data directly instead.
+    // respawns alive. The counter popup is transient and will long since
+    // have faded by the time a reset happens, so this asserts the underlying
+    // data directly instead of the popup's visible count.
     vi.stubGlobal('Image', MockTilesetImage);
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
@@ -820,10 +817,10 @@ describe('PlatformerPage', () => {
   });
 
   it('playerFallsOntoAPlainEnemyWithNoFact-tick-defeatsItButAwardsNoFact', () => {
-    // A "plain" enemy (EnemyMapper.ts's excess-marker case, amended
-    // 2026-08-31: enemies are no longer capped at CVData's length) has no
-    // `fact` — stomping it must still remove it like any other enemy, just
-    // without banking a fact or bumping the enemy counter popup.
+    // A "plain" enemy (EnemyMapper.ts's excess-marker case — enemies are not
+    // capped at CVData's length) has no `fact` — stomping it must still
+    // remove it like any other enemy, just without banking a fact or
+    // bumping the enemy counter popup.
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frameCallback = cb;
@@ -893,13 +890,13 @@ describe('PlatformerPage', () => {
     expect(playerState.value.vy).toBeLessThan(0);
     expect(playerState.value.vy).toBeLessThan(PHYSICS_CONFIG.stompBounceVelocity * 0.9);
 
-    // The actual bug found via live testing: the jump-cut multiplier
-    // re-applies EVERY tick the jump key isn't held, not just once — a
-    // single-tick-only suppression already passed the assertion above but
-    // still let the bounce collapse almost immediately afterward. Tick
-    // several more frames (still well within the ascent) and confirm `vy`
-    // is still decaying smoothly under gravity alone, not additionally
-    // getting cut down each frame.
+    // The jump-cut multiplier must not re-apply EVERY tick the jump key
+    // isn't held, only once — a single-tick-only suppression already passes
+    // the assertion above but a repeated cut would still let the bounce
+    // collapse almost immediately afterward. Tick several more frames
+    // (still well within the ascent) and confirm `vy` is still decaying
+    // smoothly under gravity alone, not additionally getting cut down each
+    // frame.
     for (let i = 0; i < 5; i++) {
       t += 16;
       frameCallback!(t);
@@ -1003,9 +1000,9 @@ describe('PlatformerPage', () => {
     // Re-position for a second stomp (the enemy patrolled away during the
     // reaction window above — put the player back on top of its current
     // spot). Registers as a genuine second stomp since it still has 1 hit
-    // point left (roadmap step 19's chain-stomp fix: `checkEnemyStompCollisions`
-    // only excludes an enemy once `hitPoints` reaches 0 — no cooldown/landing
-    // tracking needed, since this engine has no double-jump).
+    // point left: `checkEnemyStompCollisions` only excludes an enemy once
+    // `hitPoints` reaches 0 — no cooldown/landing tracking needed, since
+    // this engine has no double-jump.
     const stillAlive = enemyStates.value.find((e) => e.id === target.id)!;
     playerState.value = {
       ...playerState.value,
@@ -1397,9 +1394,8 @@ describe('PlatformerPage', () => {
 
     // Collect a real fact (per FR-020c, collected state survives a death) so
     // there's something in the journal to persist across the restart below —
-    // the old temporary seed data this test relied on is gone (step 12
-    // starts collectedFacts empty; only real coin/fruit collection populates
-    // it now).
+    // collectedFacts starts empty; only real coin/fruit collection populates
+    // it.
     const target = collectiblePlacements.value[0];
     playerState.value = { ...playerState.value, x: target.x, y: target.y };
     frameCallback!(16);
@@ -1427,9 +1423,9 @@ describe('PlatformerPage', () => {
     lifecycleState.value = { ...lifecycleState.value, phase: 'playing' };
     fireEvent.keyDown(window, { code: 'KeyJ' });
 
-    // The journal plays its book-opening animation before showing content
-    // (roadmap step 14) — advance past it before asserting on fact items.
-    // Journal.tsx schedules one setTimeout per frame (re-created by an
+    // The journal plays its book-opening animation before showing content —
+    // advance past it before asserting on fact items. Journal.tsx schedules
+    // one setTimeout per frame (re-created by an
     // effect each time the frame advances), so the clock must be advanced
     // one interval at a time (each in its own act()) rather than in one
     // bulk jump — otherwise later timeouts haven't been scheduled yet by
@@ -1440,11 +1436,10 @@ describe('PlatformerPage', () => {
       });
     }
 
-    // The journal shows one section at a time (roadmap step 14). It now
-    // defaults to 'personality' regardless of what's collected (amended
-    // 2026-08-30, live user feedback) — switch to the first collected
-    // fact's own section bookmark before comparing against that section's
-    // facts, rather than the full flat list.
+    // The journal shows one section at a time, defaulting to 'personality'
+    // regardless of what's collected — switch to the first collected fact's
+    // own section bookmark before comparing against that section's facts,
+    // rather than the full flat list.
     const defaultSectionFacts = factsBeforeDeath.filter(
       (fact) => fact.sectionId === factsBeforeDeath[0].sectionId,
     );
@@ -1763,18 +1758,17 @@ describe('PlatformerPage', () => {
   });
 
   it('playerStompsEnemy-ticksThroughTheWholeBounceArc-neverTakesSideHitDamage', () => {
-    // Regression guard for a real bug found via live play: the same-tick
-    // stompedIds filter (see the test above) only protects the exact tick a
-    // stomp registers. On every LATER tick, while the player is still rising
-    // off the bounce (vy < 0) and still overlapping the now-frozen, mid-'hit'
-    // enemy, checkEnemySideCollisions used to have no reason to exclude it —
-    // registering a fresh, unwanted side-hit against the very enemy just
-    // stomped. Fixed by excluding any `animState === 'hit'` enemy from side-hit
-    // detection entirely (matching stomp detection's own exclusion) rather
-    // than relying on velocity/geometry alone. This ticks through several
-    // frames of the bounce arc (well past the single tick the older test
-    // covered) and asserts health never drops and invincibility is never
-    // granted from this encounter.
+    // The same-tick stompedIds filter (see the test above) only protects the
+    // exact tick a stomp registers. On every LATER tick, while the player is
+    // still rising off the bounce (vy < 0) and still overlapping the
+    // now-frozen, mid-'hit' enemy, checkEnemySideCollisions must not register
+    // a fresh, unwanted side-hit against the very enemy just stomped — any
+    // `animState === 'hit'` enemy is excluded from side-hit detection
+    // entirely (matching stomp detection's own exclusion) rather than
+    // relying on velocity/geometry alone. This ticks through several frames
+    // of the bounce arc (well past the single tick the older test covered)
+    // and asserts health never drops and invincibility is never granted from
+    // this encounter.
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frameCallback = cb;
@@ -1805,12 +1799,11 @@ describe('PlatformerPage', () => {
   });
 
   it('playerLandsAndRestompsPurpleEnemyWhileStillMidReaction-registersAsAGenuineSecondStomp', () => {
-    // The chain-stomp fix itself (found via live testing, "wouldn't it be
-    // nice if you could stomp twice in a row" / "if he stomps and gets
-    // repelled upwards he should be able to stomp again when falling down
-    // again on the same enemy"): a second stomp against the SAME enemy only
-    // needs it to still have hit points left — no cooldown, no landing, no
-    // waiting for the ~0.4s hit reaction to finish. Re-stomps almost
+    // Chain-stomping: a second stomp against the SAME enemy only needs it to
+    // still have hit points left — no cooldown, no landing, no waiting for
+    // the ~0.4s hit reaction to finish, so a player who bounces upward off a
+    // stomp and falls back onto the same enemy can stomp it again on the way
+    // down. Re-stomps almost
     // immediately (well before the first reaction would have ended),
     // entirely airborne (this engine has no double-jump, so re-landing on
     // the same enemy while still airborne can only mean the same bounce's
@@ -1866,11 +1859,9 @@ describe('PlatformerPage', () => {
   });
 
   it('playerFallsIntoPit-tick-losesHalfHeartAndBecomesInvincible', () => {
-    // Extends the pre-existing pit-fall test below with the new roadmap
-    // step 19 behavior: a pit fall now ALSO grants invincibility (per user
-    // request — invincibility is a property of taking damage generally, not
-    // just of enemy contact), even though it still costs the same half-heart
-    // as before (PIT_FALL_DAMAGE is unchanged).
+    // A pit fall ALSO grants invincibility — invincibility is a property of
+    // taking damage generally, not just of enemy contact — while still
+    // costing the same half-heart as any other pit fall (PIT_FALL_DAMAGE).
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frameCallback = cb;
@@ -1956,9 +1947,9 @@ describe('PlatformerPage', () => {
   });
 
   it('keyWPressed-whileStandingOnClosedChest-opensItAndRevealsExperienceFact', () => {
-    // KeyW is an accepted alternate for ArrowUp's interact action (2026-08-30,
-    // same convention as A/D being alternates for Left/Right — see FR-007's
-    // amendment), so opening a chest must work with it too.
+    // KeyW is an accepted alternate for ArrowUp's interact action, same
+    // convention as A/D being alternates for Left/Right (see FR-007), so
+    // opening a chest must work with it too.
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frameCallback = cb;
@@ -2107,19 +2098,19 @@ describe('PlatformerPage', () => {
   });
 
   it('unmountingAndRemountingWhileEndingScreenShowing-stillShowsItAndStaysRecoverable', () => {
-    // Regression coverage (final review, Important 4): simulates switching
-    // away from the Platformer theme (unmounting this component) and back
-    // (remounting it) while the Thank You screen is showing — theme-switch
-    // reset isn't implemented yet (roadmap steps 27/28), so every
+    // Simulates switching away from the Platformer theme (unmounting this
+    // component) and back (remounting it) while the Thank You screen is
+    // showing — theme-switch reset isn't implemented yet, so every
     // module-level signal (lifecycleState, chestStates, endingScreenShown,
-    // endingScreenOpen) must survive that round-trip unchanged. Before this
-    // fix, endingScreenOpen was a component-local useState that reset to
-    // false on remount even though lifecycleState stayed 'ending-screen' —
-    // <ThankYouScreen> would never render, with no way to dismiss and no
-    // way for the "all chests open" check to ever re-fire either (blocked by
-    // the still-true endingScreenShown latch), permanently freezing the
-    // game. Making endingScreenOpen module-level too fixes this: a remount
-    // must still show the screen, and dismissing it must still resume play.
+    // endingScreenOpen) must survive that round-trip unchanged.
+    // `endingScreenOpen` is module-level, not component-local useState, for
+    // exactly this reason: a component-local flag would reset to false on
+    // remount even though lifecycleState stayed 'ending-screen' —
+    // <ThankYouScreen> would never render, with no way to dismiss and no way
+    // for the "all chests open" check to ever re-fire either (blocked by the
+    // still-true endingScreenShown latch), permanently freezing the game. A
+    // remount must still show the screen, and dismissing it must still
+    // resume play.
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frameCallback = cb;

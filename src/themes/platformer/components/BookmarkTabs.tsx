@@ -21,16 +21,13 @@ const BOOKMARK_SPRITE: Record<BookmarkColor, string> = {
 
 /**
  * Colored bookmark tabs hanging from the journal's top edge, on the right
- * side of the book — one per non-empty CV section (per FR-013/FR-016).
- * Originally along the right edge (vertically), then spread across the
- * whole top edge; narrowed to just the top-right per user feedback. The
+ * side of the book — one per non-empty CV section (per FR-013/FR-016). The
  * `bookmark_*.png` sprites are cropped from the top (`bg-bottom` keeps the
  * bottom — the ribbon's pointed tip — visible, cropping the plain
  * attachment part off the top) so shorter/inactive tabs still show the
  * ribbon's distinctive shape rather than its flat top edge. Each tab shows
  * the section's icon (from `JournalEntry`'s `SECTION_ICON`) rather than a
- * text label — a rotated label on a narrow tab was hard to read. Per-section
- * counters and pagination are step 15, not built here.
+ * text label, since a rotated label on a narrow tab is hard to read.
  */
 export const BookmarkTabs = ({ sections, activeSection, onSelect }: BookmarkTabsProps) => {
   useSignals();

@@ -11,20 +11,18 @@ export type BlockKind = 'crate' | 'questionMark' | 'fragileRock';
 
 /**
  * Sprite-sheet source rect (in `world_tileset.png`) for a block's current
- * visual state, by kind and `hitsTaken`. Amended 2026-08-30 (live user
- * feedback during step 21 verification): a hit question-mark no longer
- * swaps to its `!` indicator tile — that read as still-a-special-block
- * rather than "used up," so it now swaps to the plain top-exposed
- * `groundRock` terrain tile instead, at tile (col 1, row 0) — the same
- * coordinates `Renderer.ts`'s `tileSource` uses for exposed `groundRock`
- * terrain, so a used-up question-mark blends into ordinary ground rather
- * than reading as a distinct block type. Every other kind/hit-count
- * combination keeps rendering its one intact tile forever — crate's crack is
- * a separate overlay (see `crateCrackOverlayVisible`), not a frame swap, and
- * fragileRock/crate are removed from the world entirely once used up rather than
- * swapping tile. `hitsTaken` defaults to 0 so every pre-existing call site
- * (step 20's render-only code, and this file's own pre-step-21 tests) is
- * unaffected.
+ * visual state, by kind and `hitsTaken`. A hit question-mark does not swap
+ * to a `!` indicator tile — that would read as still-a-special-block rather
+ * than "used up" — so it swaps to the plain top-exposed `groundRock` terrain
+ * tile instead, at tile (col 1, row 0) — the same coordinates `Renderer.ts`'s
+ * `tileSource` uses for exposed `groundRock` terrain, so a used-up
+ * question-mark blends into ordinary ground rather than reading as a
+ * distinct block type. Every other kind/hit-count combination keeps
+ * rendering its one intact tile forever — crate's crack is a separate
+ * overlay (see `crateCrackOverlayVisible`), not a frame swap, and
+ * fragileRock/crate are removed from the world entirely once used up rather
+ * than swapping tile. `hitsTaken` defaults to 0 so render-only call sites
+ * that don't track hit state still get a valid frame.
  */
 export function blockFrameSource(blockKind: BlockKind, hitsTaken = 0): { sx: number; sy: number } {
   switch (blockKind) {

@@ -49,7 +49,7 @@ describe('collectiblesSummary', () => {
 
   it('fruitsRow-countsProjectsFactsToo-notJustCertificates', () => {
     // "fruits" combines both Certificates and Projects — a question-mark
-    // block's bonus fruit can carry either (amended 2026-08-30).
+    // block's bonus fruit can carry either.
     const facts: CollectedFact[] = [
       {
         id: 'qmark-project-x',
@@ -65,9 +65,8 @@ describe('collectiblesSummary', () => {
   });
 
   it('fruitsRow-doesNotCountLanguagesFacts', () => {
-    // Languages is intentionally unmapped from the "fruits" row now that
-    // bonus fruits carry Certificates/Projects instead (amended 2026-08-30)
-    // — this is what the pre-2026-08-30 version of this file got wrong.
+    // Languages is intentionally unmapped from the "fruits" row — bonus
+    // fruits carry Certificates/Projects instead.
     const facts: CollectedFact[] = [
       {
         id: 'fruit-german',
@@ -89,10 +88,9 @@ describe('collectiblesSummary', () => {
   });
 
   it('enemiesRow-countsCoursesFactsBySectionId-notSourceType', () => {
-    // Amended 2026-08-30: "enemies" now counts Courses (both slime colors
-    // guard the same pool), not Certificates+Projects — this is what the
-    // pre-2026-08-30 version of this file (keyed on sourceType 'enemy') got
-    // wrong once Certificates/Projects moved to blocks.
+    // "enemies" counts Courses (both slime colors guard the same pool) by
+    // sectionId, not by sourceType — Certificates/Projects come from blocks,
+    // not enemies.
     const facts: CollectedFact[] = [
       {
         id: 'enemy-course-x',
@@ -117,16 +115,14 @@ describe('collectiblesSummary', () => {
   });
 
   it('cratesPlaced-noneCollected-returnsCratesRowWithZeroCollected', () => {
-    // Added 2026-08-30, live user feedback: crates (Experience+Education)
-    // had no summary row at all until now.
     expect(collectiblesSummary([], { coins: 0, fruits: 0, enemies: 0, crates: 2, chests: 0 })).toEqual([
       { labelKey: 'crates', collected: 0, total: 2 },
     ]);
   });
 
   it('cratesRow-countsEducationActivityAndLanguageFactsBySectionId', () => {
-    // Redesigned 2026-08-30: Experience moved off crates onto chests: crates
-    // now carry Education + Activities + Languages instead.
+    // Crates carry Education + Activities + Languages; Experience belongs to
+    // chests instead.
     const facts: CollectedFact[] = [
       {
         id: 'block-edu-y',

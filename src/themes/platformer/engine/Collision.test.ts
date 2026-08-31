@@ -141,7 +141,7 @@ describe('checkEnemyStompCollisions', () => {
 
   it('playerLevelWithEnemyNotFalling-returnsEmptyArray', () => {
     // vy === 0 (grounded, walking into it side-on) must not count as a stomp
-    // — that is roadmap step 19's job, not this one's.
+    // — that is checkEnemySideCollisions' job, not this one's.
     const enemy = makeEnemy(0, 100);
     const player = { ...makePlayer(0, 100), vy: 0 };
     expect(checkEnemyStompCollisions(player, [enemy])).toEqual([]);
@@ -169,12 +169,12 @@ describe('checkEnemyStompCollisions', () => {
   });
 
   it('enemyMidHitReactionButHitPointsRemain-canBeStompedAgain', () => {
-    // The whole point of the fix (found via live testing): a still-alive
-    // (purple, 2 hit points, now down to 1) enemy mid-`hit`-reaction must be
-    // a valid stomp target even entirely airborne from the first stomp's own
-    // bounce — this engine has no double-jump, so "land on the same
-    // still-alive enemy again while still airborne" is a deliberate
-    // chain-stomp mechanic, not a bug to guard against.
+    // A still-alive (purple, 2 hit points, now down to 1) enemy
+    // mid-`hit`-reaction must be a valid stomp target even entirely
+    // airborne from the first stomp's own bounce — this engine has no
+    // double-jump, so "land on the same still-alive enemy again while still
+    // airborne" is a deliberate chain-stomp mechanic, not a bug to guard
+    // against.
     const enemy = makeEnemy(0, 100, { animState: 'hit', hitPoints: 1 });
     const player = { ...makePlayer(0, 100 - PLAYER_RENDERED_SIZE / 2), vy: 300 };
     expect(checkEnemyStompCollisions(player, [enemy])).toEqual(['enemy-cert-x']);
@@ -213,8 +213,7 @@ describe('checkEnemySideCollisions', () => {
   });
 
   it('enemyInHitReaction-excludedEvenIfOverlapping', () => {
-    // Reversed from an earlier design decision after live testing: a
-    // hit-reacting enemy must be harmless in every way, or bouncing off a
+    // A hit-reacting enemy must be harmless in every way, or bouncing off a
     // stomp while still overlapping the now-frozen enemy (rising, or
     // drifting beside it before separating) registers as a spurious side-hit
     // against the very enemy just stomped. Unlike stomp detection (which

@@ -123,9 +123,8 @@ import {
 // font size (Renderer.ts's COLLECTION_EFFECT_FONT_SIZE) so stacked lines
 // don't touch.
 const COLLECTION_TEXT_STACK_ROW_HEIGHT = 34;
-// How often the player's sprite toggles visible/invisible while invincible
-// (roadmap step 19) — short enough to read clearly as "blinking", not a slow
-// pulse.
+// How often the player's sprite toggles visible/invisible while invincible —
+// short enough to read clearly as "blinking", not a slow pulse.
 const INVINCIBILITY_BLINK_INTERVAL_SECONDS = 0.1;
 
 export const PlatformerPage = () => {
@@ -263,9 +262,8 @@ export const PlatformerPage = () => {
     // reopens every chest, so a visitor who re-opens all of them after
     // resetting must be able to see the Thank You screen again. This extra
     // assignment is defensive (the Reset Game button isn't actually
-    // reachable while the ending screen is showing today — see Important
-    // 2's investigation in the task-13 report — but costs nothing to keep in
-    // sync regardless).
+    // reachable while the ending screen is showing today, but costs nothing
+    // to keep in sync regardless).
     endingScreenOpen.value = false;
     const center = spawnCenter();
     lifecycleState.value = introState(center.x, center.y);
@@ -318,22 +316,20 @@ export const PlatformerPage = () => {
 
     // Which vertical slot the next collection's fact text lands in — reseeded
     // every tick from how many fact-flight effects are actually still in
-    // flight (see below), NOT a plain ever-incrementing counter: an earlier
-    // version just cycled 0, 1, 2, 0, 1, 2, ... across every collection ever,
-    // so a single item collected in isolation could still land on slot 1 or 2
-    // (visibly offset below the primary spot) purely because of how many
-    // items happened to be collected earlier in the session, even minutes
-    // apart with nothing overlapping (live user feedback, 2026-08-30).
-    // Reseeding from the live in-flight count instead means an isolated pickup
-    // always lands on slot 0, and only pickups that are actually concurrent
-    // (their effects still mid-animation) spread across further slots.
+    // flight (see below), NOT a plain ever-incrementing counter: a plain
+    // ever-incrementing counter would let a single item collected in
+    // isolation land on slot 1 or 2 (visibly offset below the primary spot)
+    // purely because of how many items were collected earlier in the
+    // session, even minutes apart with nothing overlapping. Reseeding from
+    // the live in-flight count instead means an isolated pickup always lands
+    // on slot 0, and only pickups that are actually concurrent (their
+    // effects still mid-animation) spread across further slots.
     let nextTextSlot = 0;
 
     // Cycles through fruit.png's icon frames (see Fruit.ts's
     // FRUIT_ICON_COUNT) so successive question-mark bonus fruits look
-    // visibly different from each other (amended 2026-08-30, live user
-    // feedback) — same "just keep incrementing, let spawnBonusFruit wrap it"
-    // convention as nextTextSlot above.
+    // visibly different from each other — same "just keep incrementing, let
+    // spawnBonusFruit wrap it" convention as nextTextSlot above.
     let nextBonusFruitIcon = 0;
 
     const resize = () => {
@@ -363,11 +359,11 @@ export const PlatformerPage = () => {
         drawSigns(ctx, signPlacements.value, tilesetRef.current, originX, originY);
       }
 
-      // Drawn BEFORE blocks (amended 2026-08-30, live user feedback): a
-      // bonus fruit spawns at its source block's own position and rises
-      // through it — drawing it first lets the block's own tile occlude the
-      // still-rising fruit until it clears the block's top edge, reading as
-      // "popping out from behind the block" instead of floating on top of it.
+      // Drawn BEFORE blocks: a bonus fruit spawns at its source block's own
+      // position and rises through it — drawing it first lets the block's
+      // own tile occlude the still-rising fruit until it clears the block's
+      // top edge, reading as "popping out from behind the block" instead of
+      // floating on top of it.
       if (fruitSpriteRef.current) {
         drawBonusFruits(ctx, bonusFruitStates.value, fruitSpriteRef.current, originX, originY);
       }
@@ -438,8 +434,8 @@ export const PlatformerPage = () => {
 
       drawCollectionEffects(ctx, activeEffects.value);
 
-      // Trial counter popups (per user request, 2026-08-30 — see
-      // activeCounterPopups's doc comment in PlatformerState.ts): drawn above
+      // Trial counter popups (see activeCounterPopups's doc comment in
+      // PlatformerState.ts): drawn above
       // the fact-flight text's stacked slots (canvas.height * 0.3, minus one
       // row height, matches the vertical gap COLLECTION_TEXT_STACK_ROW_HEIGHT
       // already uses between stacked slots), the whole row horizontally
@@ -646,8 +642,8 @@ export const PlatformerPage = () => {
         .map((block) => stepBlockAnimation(block, dt))
         .filter((block) => !isBlockRemoved(block));
 
-      // Bonus fruits (roadmap step 21b) rise on their own fixed timer,
-      // independent of anything else this tick.
+      // Bonus fruits rise on their own fixed timer, independent of anything
+      // else this tick.
       bonusFruitStates.value = bonusFruitStates.value.map((fruit) => tickBonusFruit(fruit, dt));
 
       // Enemies whose hit reaction just finished with no hit points left:
@@ -684,13 +680,10 @@ export const PlatformerPage = () => {
           if (!fact || newFacts.some((f) => f.id === fact.id)) continue;
           anyEnemyRewarded = true;
           newFacts.push(fact);
-          // Reuses the journal's own title/icon derivation (amended
-          // 2026-08-30, live user feedback: a course kill's flight text
-          // showed the generic "Courses" section label instead of the
-          // course's own title, since the old ad-hoc `'name' in data` check
-          // doesn't cover Course's `title` field — nor Experience's
-          // `role`/`company` or Education's `degree` — formatJournalEntry
-          // already gets every section's display title right).
+          // Reuses the journal's own title/icon derivation — formatJournalEntry
+          // gets every section's display title right (Course's `title` field,
+          // Experience's `role`/`company`, Education's `degree`, etc.), unlike
+          // an ad-hoc `'name' in data` check would.
           const { icon, title: label } = formatJournalEntry(fact);
           const slot = nextTextSlot;
           nextTextSlot = (nextTextSlot + 1) % COLLECTION_TEXT_SLOT_COUNT;
@@ -778,9 +771,9 @@ export const PlatformerPage = () => {
           nextCollected.add(id);
           newFacts.push(placement.fact);
 
-          // Reuses the journal's own title/icon derivation (amended
-          // 2026-08-30 — see the enemy-defeat block above for why the old
-          // ad-hoc `'name' in data` check was wrong for several sections).
+          // Reuses the journal's own title/icon derivation — see the
+          // enemy-defeat block above for why an ad-hoc `'name' in data`
+          // check would be wrong for several sections.
           // `icon` is passed to `startFlightEffect` separately, NOT
           // concatenated into `label`: Renderer.ts draws it in a different
           // font (the pixel font `label` uses has no emoji glyphs).
@@ -825,10 +818,10 @@ export const PlatformerPage = () => {
         }
       }
 
-      // Bonus fruits (amended 2026-08-30, live user feedback): a question-
-      // mark's spawned fruit now DOES carry a CV fact (Certificates/
-      // Projects — see BlockMapper.ts's certificateToBlock/projectToBlock)
-      // and reveals it exactly like any other collectible on touch. A fruit
+      // Bonus fruits: a question-mark's spawned fruit carries a CV fact
+      // (Certificates/Projects — see BlockMapper.ts's
+      // certificateToBlock/projectToBlock) and reveals it exactly like any
+      // other collectible on touch. A fruit
       // spawned from a question-mark marker beyond the available data
       // (`fruit.fact === undefined`) still removes silently, same as before.
       const touchedBonusFruitIds = checkBonusFruitCollisions(playerState.value, bonusFruitStates.value);
@@ -849,8 +842,8 @@ export const PlatformerPage = () => {
 
           anyBonusFruitRewarded = true;
           newFacts.push(fruit.fact);
-          // Reuses the journal's own title/icon derivation (amended
-          // 2026-08-30 — see the enemy-defeat block above).
+          // Reuses the journal's own title/icon derivation — see the
+          // enemy-defeat block above.
           const { icon, title: label } = formatJournalEntry(fruit.fact);
           const slot = nextTextSlot;
           nextTextSlot = (nextTextSlot + 1) % COLLECTION_TEXT_SLOT_COUNT;
@@ -889,8 +882,8 @@ export const PlatformerPage = () => {
         }
       }
 
-      // Chests (roadmap step 22) don't open on touch like every other
-      // collectible — spec.md FR-023 requires an explicit Arrow Up press
+      // Chests don't open on touch like every other collectible — spec.md
+      // FR-023 requires an explicit Arrow Up press
       // while standing on one (KeyW also works, mirroring the A/D-as-
       // Left/Right convention — see FR-007). `originX`/`originY` are already
       // in scope from this tick's earlier collision blocks above.
@@ -928,8 +921,7 @@ export const PlatformerPage = () => {
                 // Shifted by CHEST_CLOSED_OFFSET_X (see entities/Chest.ts) to
                 // start from the chest's actual centered-on-tile left edge —
                 // only the closed offset applies here, since this only fires
-                // the instant a closed chest is opened (D2/Minor 2, final
-                // review).
+                // the instant a closed chest is opened.
                 chest.x + originX + CHEST_CLOSED_OFFSET_X,
                 chest.y + originY + stackOffsetY,
                 midX,
@@ -943,9 +935,9 @@ export const PlatformerPage = () => {
         }
       }
 
-      // FR-038, revised per live UX feedback: revealed like a chest — stand
-      // on a sign and press Up/W (interactPressed, computed above for
-      // chest-opening) — but reusable (not dedup-tracked) and hidden again
+      // FR-038: revealed like a chest — stand on a sign and press Up/W
+      // (interactPressed, computed above for chest-opening) — but reusable
+      // (not dedup-tracked) and hidden again
       // automatically the instant the player leaves overlap, with no
       // keypress needed to dismiss it.
       if (hintTooltipState.value) {
@@ -980,15 +972,14 @@ export const PlatformerPage = () => {
         };
       }
 
-      // Side/below damage (roadmap step 19) — only checked while not already
-      // invincible, so one overlap can't register repeated hits every tick
-      // it persists. A `hit`-reacting enemy IS excluded here (unlike stomp
-      // detection, which only excludes an enemy once its `hitPoints` reach
-      // 0 — see Collision.ts's checkEnemyStompCollisions) — reversed from an
-      // earlier design decision after live testing showed a hit-reacting
-      // enemy must stay harmless to side-touch for its whole reaction, or
-      // bouncing off a stomp while still overlapping it registered as a
-      // spurious side-hit.
+      // Side/below damage — only checked while not already invincible, so
+      // one overlap can't register repeated hits every tick it persists. A
+      // `hit`-reacting enemy IS excluded here (unlike stomp detection, which
+      // only excludes an enemy once its `hitPoints` reach 0 — see
+      // Collision.ts's checkEnemyStompCollisions): a hit-reacting enemy must
+      // stay harmless to side-touch for its whole reaction, or bouncing off
+      // a stomp while still overlapping it would register as a spurious
+      // side-hit.
       //
       // Excludes any id already in `stompedIds`: the stomp block above just
       // reassigned `playerState.value.vy` to the (negative, upward)
@@ -1025,8 +1016,8 @@ export const PlatformerPage = () => {
       const dropThroughHeld = input.isHeld('ArrowDown') || input.isHeld('KeyS');
       // Held (not edge-triggered) — climbing is continuous like movement,
       // unlike the edge-triggered ArrowUp/KeyW read further below for chest
-      // interaction (roadmap step 23; the two never conflict in practice,
-      // since a tile is either a chest marker or a ladder tile, never both).
+      // interaction (the two never conflict in practice, since a tile is
+      // either a chest marker or a ladder tile, never both).
       const climbUpHeld = input.isHeld('ArrowUp') || input.isHeld('KeyW');
 
       let next = stepPlayerPhysics(
@@ -1044,7 +1035,7 @@ export const PlatformerPage = () => {
         blockStates.value,
       );
 
-      // Block hit mechanics (roadmap step 21): `next.hitBlockIds` (set by
+      // Block hit mechanics: `next.hitBlockIds` (set by
       // Physics.ts's ceiling-collision check, same call above) reports every
       // block whose underside the player's head just hit this tick — but
       // only a block that ISN'T already used up actually reacts (a
@@ -1080,25 +1071,24 @@ export const PlatformerPage = () => {
             ];
           }
 
-          // FragileRock's terminal hit (breaks to empty space, no fact, no reward —
-          // FR-022c) still gets a visual "puff" (amended 2026-08-30, live
-          // user feedback): the same sparkle-burst mechanism every other
-          // reward pickup already plays (drawCollectionEffects reads
+          // FragileRock's terminal hit (breaks to empty space, no fact, no
+          // reward — FR-022c) still gets a visual "puff": the same
+          // sparkle-burst mechanism every other reward pickup already plays
+          // (drawCollectionEffects reads
           // `effect.startX/startY`, independent of `effect.text`), with an
           // empty label and no target-flight destination that matters since
           // nothing is actually flying anywhere — the sparkle at the
           // collection point is the only visible part.
           if (block.blockKind === 'fragileRock') {
-            // Centered on the fragileRock's own tile (not its top-left corner —
-            // amended 2026-08-30, live user feedback). The burst's size
-            // itself (SPARKLE_RADIUS_PX/SPARKLE_MAX_RADIUS in
-            // CollectionEffects.ts/Renderer.ts) is a shared constant every
-            // collection effect uses, not parameterized per-effect — scaling
-            // it up just for rocks would mean threading a size override
-            // through FlightEffect/sparkleParticles/drawCollectionEffects,
-            // affecting every other effect's call sites too; left at the
-            // shared default per the user's own "keep it if not [easily
-            // scalable]" call.
+            // Centered on the fragileRock's own tile, not its top-left
+            // corner. The burst's size itself (SPARKLE_RADIUS_PX/
+            // SPARKLE_MAX_RADIUS in CollectionEffects.ts/Renderer.ts) is a
+            // shared constant every collection effect uses, not
+            // parameterized per-effect — scaling it up just for rocks would
+            // mean threading a size override through
+            // FlightEffect/sparkleParticles/drawCollectionEffects, affecting
+            // every other effect's call sites too, so it stays at the shared
+            // default.
             const puffX = block.x + originX + RENDERED_TILE_SIZE / 2;
             const puffY = block.y + originY + RENDERED_TILE_SIZE / 2;
             activeEffects.value = [
@@ -1113,11 +1103,9 @@ export const PlatformerPage = () => {
             // today (they never reset mid-session), but keeps the two reward
             // paths consistent.
             if (!collectedFacts.value.some((f) => f.id === block.fact!.id)) {
-              // Reuses the journal's own title/icon derivation (amended
-              // 2026-08-30 — see the enemy-defeat block above). Fixes a
-              // crate's flight text showing the generic "Experience"/
-              // "Education" section label instead of the role/degree, same
-              // root cause as the course-kill bug.
+              // Reuses the journal's own title/icon derivation — see the
+              // enemy-defeat block above. Uses the role/degree rather than
+              // the generic "Experience"/"Education" section label.
               const { icon, title: label } = formatJournalEntry(block.fact);
               const slot = nextTextSlot;
               nextTextSlot = (nextTextSlot + 1) % COLLECTION_TEXT_SLOT_COUNT;
@@ -1151,8 +1139,8 @@ export const PlatformerPage = () => {
       }
 
       if (checkPitFall(next, currentLevel.value)) {
-        // Invincibility (roadmap step 19) is a property of taking damage
-        // generally, not just of enemy contact — a pit fall grants and
+        // Invincibility is a property of taking damage generally, not just
+        // of enemy contact — a pit fall grants and
         // respects it exactly like a side-hit does. The position recovery
         // below is NOT gated by it, though: `resolvePitFall` must always run
         // or the character would keep falling forever while merely
@@ -1391,10 +1379,10 @@ export const PlatformerPage = () => {
         />
       )}
       {endingScreenOpen.value && <ThankYouScreen onDismiss={handleDismissEndingScreen} />}
-      {/* Moved from bottom-right to top-left (was hard to spot against the
-          terrain) — sits left of the hearts HUD, which HEARTS_START_X
-          shifts right to make room. size-10 (40px) must match the 40 baked
-          into HEARTS_START_X's computation in Renderer.ts. */}
+      {/* Sits top-left, left of the hearts HUD, which HEARTS_START_X shifts
+          right to make room — top-left keeps it easy to spot against the
+          terrain. size-10 (40px) must match the 40 baked into
+          HEARTS_START_X's computation in Renderer.ts. */}
       <button
         ref={journalButtonRef}
         type="button"

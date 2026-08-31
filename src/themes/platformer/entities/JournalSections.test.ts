@@ -109,9 +109,9 @@ describe('sectionTotal', () => {
   });
 
   it('skillsSection-countsCategoriesNotIndividualSkills', () => {
-    // One collectible is placed per skill CATEGORY (roadmap step 12), not
-    // per individual skill — the total must match that, not cv.skills'
-    // nested skill counts.
+    // One collectible is placed per skill CATEGORY, not per individual
+    // skill — the total must match that, not cv.skills' nested skill
+    // counts.
     const cv: CVData = {
       ...emptyCV,
       skills: [

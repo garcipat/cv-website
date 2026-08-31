@@ -6,10 +6,9 @@ export const JOURNAL_OPEN_FRAME_COUNT = 9;
 
 /** Milliseconds each frame is held before advancing to the next — 9 frames
  * at this interval gives a ~810ms open animation, played whenever the
- * journal mounts, and in reverse whenever it closes. 150ms/frame (the
- * initial slowdown from an original, too-fast 50ms) turned out too slow —
- * with only 9 discrete frames, a slower hold makes the missing in-between
- * frames read as choppy rather than smooth. */
+ * journal mounts, and in reverse whenever it closes. With only 9 discrete
+ * frames, too slow a hold makes the missing in-between frames read as
+ * choppy rather than smooth. */
 export const JOURNAL_OPEN_FRAME_INTERVAL_MS = 90;
 
 /** Sprite path for a given 1-indexed frame, clamped to the valid range so an
@@ -43,12 +42,11 @@ const JOURNAL_OPEN_FINAL_FRAME_DIMENSIONS_PX =
  * render at, so the book can be displayed at a constant HEIGHT (matching the
  * final open frame) with only its width changing frame to frame — anchoring
  * on height instead of stretching every frame into the final frame's wide
- * aspect ratio (which squashed the taller closed/mid-opening frames; live
- * user feedback, 2026-08-30: "the closed book looks stretched") and instead
- * of letting each frame render at its own native size (which made the
- * closed cover look bigger than the open spread and shrink as it opened —
- * also flagged as wrong, since the closed cover's canvas has more raw pixel
- * area than the flattened-open spread's).
+ * aspect ratio (which squashes the taller closed/mid-opening frames) and
+ * instead of letting each frame render at its own native size (which makes
+ * the closed cover look bigger than the open spread and shrink as it opens,
+ * since the closed cover's canvas has more raw pixel area than the
+ * flattened-open spread's).
  *
  * Expressed as a percentage of the *container's width* (not a pixel value,
  * and not a percentage of the container's height, which CSS has no unit
@@ -64,7 +62,7 @@ const JOURNAL_OPEN_FINAL_FRAME_DIMENSIONS_PX =
  * changes — needed because the source frames' widths don't grow evenly frame
  * to frame (frames 1-7 stay within a ~37-67% range, then frames 8-9 jump to
  * ~90-100%), which without smoothing reads as a sudden late jump rather than
- * a fluid opening motion (live user feedback, 2026-08-30).
+ * a fluid opening motion.
  */
 export function journalOpenFrameWidthPercent(frame: number): number {
   const clamped = Math.max(1, Math.min(JOURNAL_OPEN_FRAME_COUNT, frame));
@@ -84,7 +82,7 @@ export function journalOpenFrameWidthPercent(frame: number): number {
  * anchor puts it. But it means every earlier, narrower frame (as low as
  * ~37% of the container's width) sits scrunched against the right edge with
  * a lot of empty space to its left, which reads as the book sliding in from
- * the right rather than opening in place (live user feedback, 2026-08-30).
+ * the right rather than opening in place.
  *
  * This shifts the container left by exactly half of the *missing* width
  * (`100 - journalOpenFrameWidthPercent(frame)`) at every frame — which

@@ -92,20 +92,19 @@ export function enemyHitbox(enemy: EnemyState): Box {
  * this frame: overlapping AND falling (`player.vy > 0`) AND landing on the
  * enemy's upper half (the player's hitbox bottom edge is at or above the
  * enemy's vertical midpoint) — this is what distinguishes "jumped on top of"
- * from a side/below touch (roadmap step 19's separate concern, intentionally
- * not handled here: this function returns [] for that case, same as for no
- * contact at all). An enemy already `defeated`, or one whose `hitPoints` has
- * already reached 0 (mid `hit`-reaction, awaiting removal), is excluded —
- * without this, a stomp's own bounce naturally arcs back down onto the same
- * enemy, and would otherwise keep decrementing `hitPoints` arbitrarily far
- * below 0 every time (found via live testing). Deliberately NOT gated on
- * `animState === 'hit'` alone, nor on any player-side cooldown/landing/
- * separation tracking — this engine has no double-jump, so "the player
- * lands on the same still-alive enemy again while still airborne from their
- * own stomp bounce" is a deliberate, desired mechanic (chain-stomping a
- * 2-hit purple enemy in one fluid motion), confirmed live with the user, not
- * a bug to guard against. `hitPoints > 0` is the only thing that should stop
- * a stomp from registering.
+ * from a side/below touch (a separate concern, intentionally not handled
+ * here: this function returns [] for that case, same as for no contact at
+ * all). An enemy already `defeated`, or one whose `hitPoints` has already
+ * reached 0 (mid `hit`-reaction, awaiting removal), is excluded — without
+ * this, a stomp's own bounce naturally arcs back down onto the same enemy,
+ * and would otherwise keep decrementing `hitPoints` arbitrarily far below 0
+ * every time. Deliberately NOT gated on `animState === 'hit'` alone, nor on
+ * any player-side cooldown/landing/separation tracking — this engine has no
+ * double-jump, so "the player lands on the same still-alive enemy again
+ * while still airborne from their own stomp bounce" is a deliberate,
+ * desired mechanic (chain-stomping a 2-hit purple enemy in one fluid
+ * motion), not a bug to guard against. `hitPoints > 0` is the only thing
+ * that should stop a stomp from registering.
  */
 export function checkEnemyStompCollisions(player: PlayerState, enemies: EnemyState[]): string[] {
   if (player.vy <= 0) return [];
@@ -125,18 +124,16 @@ export function checkEnemyStompCollisions(player: PlayerState, enemies: EnemySta
 
 /**
  * Returns the ids of every non-defeated, non-reacting enemy the player is
- * touching in a way that is NOT a stomp (roadmap step 19) — the exact
- * inverse of `checkEnemyStompCollisions`'s landing condition: any overlap
- * where the player either isn't falling (`vy <= 0`) or is falling but
- * contacting the enemy's lower half (side or below), not landing on its
- * upper half. An enemy currently playing its `hit` reaction is excluded here
- * too, same as stomp detection — this was originally left hurt-capable
- * per an earlier design decision, but live testing showed that immediately
- * bouncing off a stomp while still overlapping the now-frozen enemy (rising,
- * or drifting beside it before separating) registered as a spurious side-hit
- * against the very enemy just stomped. A stunned/reacting enemy is now
- * harmless in every way until its reaction ends, not just immune to a
- * second stomp.
+ * touching in a way that is NOT a stomp — the exact inverse of
+ * `checkEnemyStompCollisions`'s landing condition: any overlap where the
+ * player either isn't falling (`vy <= 0`) or is falling but contacting the
+ * enemy's lower half (side or below), not landing on its upper half. An
+ * enemy currently playing its `hit` reaction is excluded here too, same as
+ * stomp detection — otherwise, immediately bouncing off a stomp while still
+ * overlapping the now-frozen enemy (rising, or drifting beside it before
+ * separating) would register as a spurious side-hit against the very enemy
+ * just stomped. A stunned/reacting enemy is harmless in every way until its
+ * reaction ends, not just immune to a second stomp.
  */
 export function checkEnemySideCollisions(player: PlayerState, enemies: EnemyState[]): string[] {
   const hitbox = playerHitbox(player);

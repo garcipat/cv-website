@@ -115,7 +115,7 @@ describe('advancePlayerAnimation walk timing', () => {
   });
 });
 
-describe('advancePlayerAnimation climb-frozen-while-stationary (roadmap step 23 follow-up)', () => {
+describe('advancePlayerAnimation climb-frozen-while-stationary', () => {
   it('climbingWithVyZero-doesNotAdvanceFrameOrTimer-evenWithALargeDt', () => {
     const player = idlePlayer({ animState: 'climb', vy: 0, animFrame: 1, animTimer: 0.05 });
     const next = advancePlayerAnimation(player, 1); // dt far larger than any real frame duration

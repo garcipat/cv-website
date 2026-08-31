@@ -37,15 +37,13 @@ function categoryToCollectible(category: SkillCategory): CollectibleDef {
  * aren't split further. An empty `skills` array simply produces no
  * collectibles.
  *
- * Amended 2026-08-30 (live user feedback during step 21 verification):
- * Languages no longer produce `fruit` collectibles here — the hand-placed
- * `F`-marker fruit pickups were removed from the level entirely now that
- * question-mark blocks spawn their own bonus fruit (see `BlockMapper.ts`'s
+ * Languages do not produce `fruit` collectibles here — question-mark blocks
+ * spawn their own bonus fruit instead (see `BlockMapper.ts`'s
  * `certificateToBlock`/`projectToBlock`); `placeCollectibles`'s `fruit`
  * marker queue is left in place as generic, reusable placement
  * infrastructure, just with no def ever produced to fill it today. Where
  * Languages themselves get surfaced instead is still an open design
- * question — not decided as part of this change.
+ * question.
  */
 export function mapCVDataToCollectibles(cv: CVData): CollectibleDef[] {
   return cv.skills.map(categoryToCollectible);
@@ -66,9 +64,8 @@ export interface CollectibleMarkerPositions {
 /**
  * Places collectible defs at hand-authored marker positions — `C` markers
  * (LevelParser.ts's findCoinTiles) for `coin` defs; `fruit` defs have no
- * level marker anymore (the `F` character was reassigned to the fragileRock
- * block, see LevelParser.ts's ENTITY_CHARS, once the hand-placed fruit
- * marker concept was removed — see this file's top comment), so callers now
+ * level marker (the `F` character marks the fragileRock block instead, see
+ * LevelParser.ts's ENTITY_CHARS and this file's top comment), so callers
  * pass an empty array for `markers.fruit`. Each type is matched to its own
  * marker queue in reading order. The level's marker count decides how many
  * collectibles actually appear, not CVData's length: a marker is a slot on

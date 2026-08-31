@@ -60,8 +60,7 @@ describe('mapCVDataToCollectibles', () => {
     expect(names).toEqual(['React', 'Vite']);
   });
 
-  // Amended 2026-08-30 (live user feedback during step 21 verification):
-  // Languages no longer produce `fruit` collectibles — see
+  // Languages do not produce `fruit` collectibles — see
   // CollectibleMapper.ts's mapCVDataToCollectibles comment.
   it('languagesPresent-stillProducesNoFruitCollectibles', () => {
     const defs = mapCVDataToCollectibles(cv);

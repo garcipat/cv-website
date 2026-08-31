@@ -28,8 +28,8 @@ function makePlacement(): EnemyPlacement {
 describe('enemyFrameSource', () => {
   it('walkFrameZero-returnsSheetFrameFour', () => {
     // Sheet frame 4 (1-based, row 0 col 3) — the tuned breathing/bounce loop
-    // from roadmap step 16, now walk's frame range since idle no longer
-    // exists (a patrolling enemy is always moving).
+    // is walk's frame range since there's no idle state (a patrolling enemy
+    // is always moving).
     expect(enemyFrameSource('walk', 0)).toEqual({ sx: 3 * ENEMY_FRAME_SIZE, sy: 0 });
   });
 
@@ -97,7 +97,7 @@ describe('advanceEnemyAnimation', () => {
   });
 
   it('atFrameDuration-advancesFrameAndResetsTimerRemainder', () => {
-    // walk's frameDuration is 0.15s (unchanged from the original idle tuning).
+    // walk's frameDuration is 0.15s.
     const state = { ...toEnemyState(makePlacement()), animTimer: 0.1 };
     const next = advanceEnemyAnimation(state, 0.05);
     expect(next.animFrame).toBe(1);
@@ -138,7 +138,7 @@ describe('applyStomp', () => {
 
   it('enemyAlreadyMidHitReactionFromAnEarlierStomp-resetsAnimationAgain', () => {
     // A legitimate second stomp (chain-stomping a still-alive purple enemy,
-    // even entirely airborne from the first stomp's own bounce — see
+    // even entirely airborne from the first stomp's own bounce arc — see
     // Collision.ts's checkEnemyStompCollisions) must replay the reaction
     // from frame 0, not continue wherever the first stomp's animation had
     // gotten to.

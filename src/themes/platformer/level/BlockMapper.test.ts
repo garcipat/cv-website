@@ -37,9 +37,8 @@ describe('mapCVDataToBlocks', () => {
   });
 
   it('experienceEntries-produceNoCrateBlocks', () => {
-    // Redesigned 2026-08-30: Experience moved off crates onto chests
-    // (see ChestMapper.ts) — mapCVDataToBlocks must never build an
-    // experience-sourced crate anymore.
+    // Experience lives on chests, not crates (see ChestMapper.ts) —
+    // mapCVDataToBlocks must never build an experience-sourced crate.
     const defs = mapCVDataToBlocks(cv);
     expect(defs.some((d) => d.fact?.sectionId === 'experience')).toBe(false);
   });
@@ -80,9 +79,8 @@ describe('mapCVDataToBlocks', () => {
     expect(defs.every((d) => d.fact && d.id === d.fact.id)).toBe(true);
   });
 
-  // Amended 2026-08-30 (live user feedback during step 21 verification):
-  // Certificates + Projects moved off enemies onto question-mark blocks'
-  // bonus fruit — see EnemyMapper.ts's courseToEnemy comment.
+  // Certificates and Projects live on question-mark blocks' bonus fruit,
+  // not on enemies — see EnemyMapper.ts's courseToEnemy comment.
   it('called-returns-oneQuestionMarkPerCertificatePlusOneQuestionMarkPerProject', () => {
     const defs = mapCVDataToBlocks(cv);
     expect(defs.filter((d) => d.blockKind === 'questionMark')).toHaveLength(2);

@@ -5,15 +5,12 @@ import type { SectionId, CollectedFact } from '../types';
 /**
  * The CV sections that can back a journal bookmark today. Seven of these
  * (experience/education/courses/certificates/skills/languages/projects) are
- * per FR-009's collectible mapping. `personality` ("About Me") is a
- * provisional addition, pulled forward per user request ahead of step 22's
- * flagpole ending screen (which is FR-013's originally-specified route for
- * personality content) — shown directly from CV data rather than
- * `collectedFacts`, since it has no collectible source yet. `activities`
- * remains excluded: it isn't mapped to any collectible type in FR-009.
- * Order here is the order bookmarks are distributed (per
- * `journal-mockup.html`, adapted from a side layout to a top layout per
- * user feedback — see `BookmarkTabs.tsx`).
+ * per FR-009's collectible mapping. `personality` ("About Me") is shown
+ * directly from CV data rather than `collectedFacts`, since it has no
+ * collectible source. `activities` remains excluded: it isn't mapped to any
+ * collectible type in FR-009. Order here is the order bookmarks are
+ * distributed (per `journal-mockup.html`, laid out as a top layout — see
+ * `BookmarkTabs.tsx`).
  */
 export const JOURNAL_SECTION_ORDER = [
   'personality',
@@ -33,9 +30,8 @@ export type BookmarkColor = 'blue' | 'green' | 'orange' | 'purple' | 'red' | 'ye
 /**
  * Six sprite colors (`public/sprites/bookmark_{color}.png`) for eight
  * sections — `courses`/`certificates` share `red`, `languages`/`personality`
- * share `purple`. Per user request, duplicate colors are acceptable for now
- * ("we don't know if we keep them or need to switch anyway") until more
- * distinct bookmark art exists.
+ * share `purple`. Duplicate colors are acceptable until more distinct
+ * bookmark art exists.
  */
 export const SECTION_BOOKMARK_COLOR: Record<JournalSection, BookmarkColor> = {
   personality: 'purple',
@@ -82,8 +78,8 @@ export function sectionLabel(section: SectionId): string {
 }
 
 /**
- * Total possible facts for a section (roadmap step 15's "Skills 3/5"
- * counter, FR-017b) — the section's raw CVData item count. This is a 1:1
+ * Total possible facts for a section (the "Skills 3/5" counter, FR-017b) —
+ * the section's raw CVData item count. This is a 1:1
  * count for every section except `skills`, where one collectible is placed
  * per skill *category* (not per individual skill, see CollectibleMapper.ts)
  * — `cv.skills.length` already counts categories, so no special-casing is
@@ -98,8 +94,7 @@ export function sectionTotal(cv: CVData, section: SectionId): number {
 }
 
 /**
- * Sections that paginate one entry per page (roadmap step 15, revised per
- * live user feedback against real CV data): `experience`/`projects`/
+ * Sections that paginate one entry per page: `experience`/`projects`/
  * `education`/`courses`/`certificates` because their entries are long and
  * may need the full page spread each; `skills` too, because a category's
  * skill list (with star ratings, see `formatJournalEntry`) reads better one
@@ -147,10 +142,10 @@ export interface JournalPage {
 
 /**
  * Flattens a list of sections into the sequence of physical pages the book
- * actually contains — per the user's own framing: "sections insert pages
- * into it with content. Skills insert multiple pages, one per category
- * found, Experience one page per experience, and Languages just one page
- * with all of them." `sections` is expected to already be filtered/ordered
+ * actually contains: sections insert pages with their content — Skills
+ * inserts multiple pages, one per category found, Experience one page per
+ * experience entry, and Languages just one page with all of them.
+ * `sections` is expected to already be filtered/ordered
  * (typically `nonEmptySections(cv)` in `JOURNAL_SECTION_ORDER`) — this
  * function only flattens, it doesn't re-derive that list.
  */

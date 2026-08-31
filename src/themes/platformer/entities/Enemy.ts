@@ -4,34 +4,33 @@ import type { EnemyPlacement } from '../level/EnemyMapper';
 /**
  * Both slime_green.png and slime_purple.png are 96x72 sheets: a 4x3 grid of
  * 24x24 frames read left-to-right, top-to-bottom as frames 1-12. Frame 11
- * (row 2, col 2) alone is recolored red in both sheets. Watching the full
- * sheet animate live (roadmap step 16) showed frames 1-3 read as a
+ * (row 2, col 2) alone is recolored red in both sheets. Frames 1-3 read as a
  * mostly-featureless blob, frames 9-12 read as the slime dissolving toward a
  * near-black silhouette (a hit/defeat reaction), and frames 4-8 — spanning
  * the end of row 0 into all of row 1 — loop well as a breathing/bounce cycle.
  *
- * Roadmap step 17 (enemy patrol) settled on constant-slide movement — a
- * patrolling enemy is always in motion, never actually standing still — so
- * there is no reachable `idle` state: `EnemyAnimState` below is `'walk' |
- * 'hit'` only, and the tuned frames 4-8 loop (below, `WALK_FRAMES`) is reused
- * as-is for `walk` instead of a separate idle state — it reads fine as
- * movement too, per live review. `ENEMY_ANIM_CONFIG`'s `walk` entry is an
- * explicit frame list rather than a single row since the loop crosses a row
- * boundary. Adjust the frame lists/frameDuration below if a future viewing
- * suggests a better sequence — centralizing it here in one lookup table
- * (same convention as Player.ts's ANIM_CONFIG) makes that a one-line change
- * instead of hunting through the renderer.
+ * Enemy patrol uses constant-slide movement — a patrolling enemy is always
+ * in motion, never actually standing still — so there is no reachable `idle`
+ * state: `EnemyAnimState` below is `'walk' | 'hit'` only, and the tuned
+ * frames 4-8 loop (below, `WALK_FRAMES`) is reused as-is for `walk` instead
+ * of a separate idle state — it reads fine as movement too.
+ * `ENEMY_ANIM_CONFIG`'s `walk` entry is an explicit frame list rather than a
+ * single row since the loop crosses a row boundary. Adjust the frame
+ * lists/frameDuration below if a future viewing suggests a better sequence —
+ * centralizing it here in one lookup table (same convention as Player.ts's
+ * ANIM_CONFIG) makes that a one-line change instead of hunting through the
+ * renderer.
  */
 export const ENEMY_FRAME_SIZE = 24;
 export const ENEMY_RENDERED_SIZE = ENEMY_FRAME_SIZE * RENDER_SCALE;
 
 /**
  * Every frame's opaque silhouette bottom sits at row 23 of the 24px native
- * frame (measured via pixel bounding-box analysis, roadmap step 16) — i.e.
- * the sprite's feet already touch the frame's bottom edge with no
- * transparent padding, unlike Player.ts's PLAYER_FOOT_PADDING. So the
- * rendered sprite is bottom-anchored to its placement tile's ground surface
- * with no extra padding constant needed.
+ * frame (measured via pixel bounding-box analysis) — i.e. the sprite's feet
+ * already touch the frame's bottom edge with no transparent padding, unlike
+ * Player.ts's PLAYER_FOOT_PADDING. So the rendered sprite is bottom-anchored
+ * to its placement tile's ground surface with no extra padding constant
+ * needed.
  */
 export const ENEMY_TILE_OFFSET_Y = RENDERED_TILE_SIZE - ENEMY_RENDERED_SIZE;
 
@@ -84,7 +83,7 @@ export interface EnemyState extends EnemyPlacement {
   /** Seconds accumulated toward the next animation frame advance. */
   animTimer: number;
   /** Stomps remaining before this enemy is defeated — 1 for slimeGreen, 2 for
-   *  slimePurple (roadmap step 18: purple takes two stomps). Decremented by
+   *  slimePurple. Decremented by
    *  `applyStomp` on every registered stomp, regardless of whether it's the
    *  finishing blow. */
   hitPoints: number;
@@ -104,9 +103,9 @@ export interface EnemyState extends EnemyPlacement {
  * may carry the CV fact this enemy drops on defeat — see `EnemyMapper.ts`'s
  * `courseToEnemy`; a "plain" enemy beyond its color's CVData course count has
  * no fact and drops nothing — unaffected by this function) into its initial
- * live patrol state: `'walk'` (patrol enemies are
- * always moving — see this file's top doc comment for why there's no
- * `'idle'`), facing right (the direction its very first patrol tick — see
+ * live patrol state: `'walk'` (patrol enemies are always moving — see this
+ * file's top doc comment for why there's no `'idle'`), facing right (the
+ * direction its very first patrol tick — see
  * EnemyAI.ts's stepEnemyPatrol — will move it, unless a wall or ledge
  * immediately reverses it).
  *
@@ -153,9 +152,9 @@ export function advanceEnemyAnimation(enemy: EnemyState, dt: number): EnemyState
  * Applies one stomp: decrements `hitPoints`, freezes horizontal movement, and
  * enters the `hit` reaction (red-flash/dissolve) animation from its first
  * frame — even if the enemy was already mid-reaction from an earlier stomp
- * this same bounce arc (a skilled player chain-stomping a still-alive
- * 2-hit purple enemy entirely airborne, confirmed live as the intended
- * feel — see `Collision.ts`'s `checkEnemyStompCollisions`, which only
+ * this same bounce arc (a skilled player can chain-stomp a still-alive
+ * 2-hit purple enemy entirely airborne — see `Collision.ts`'s
+ * `checkEnemyStompCollisions`, which only
  * excludes an enemy once `hitPoints` has actually reached 0, not while it's
  * merely mid-reaction), so a legitimate second stomp always replays the
  * reaction from frame 0 rather than continuing wherever the first one left
