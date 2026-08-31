@@ -22,6 +22,7 @@ import {
   chestStates,
   endingScreenShown,
   endingScreenOpen,
+  controlsOverlayDismissed,
 } from './PlatformerState';
 import { toChestState } from './entities/Chest';
 import {
@@ -98,6 +99,11 @@ describe('PlatformerPage', () => {
     // review Important 4) — same reasoning as endingScreenShown above, so a
     // mounted-ThankYouScreen assumption doesn't leak between tests.
     endingScreenOpen.value = false;
+    // Module-level one-shot latch (see PlatformerState.ts's doc comment) —
+    // must be reset like endingScreenShown/endingScreenOpen above, or a
+    // dismissal from one test would leak into the next test's assumption
+    // that the overlay is still showable.
+    controlsOverlayDismissed.value = false;
   });
 
   afterEach(() => {
@@ -2102,6 +2108,15 @@ describe('PlatformerPage', () => {
 
     expect(lifecycleState.value.phase).toBe('playing');
     expect(screen.queryByTestId('platformer-thank-you-screen')).not.toBeInTheDocument();
+  });
+
+  it('render-lifecyclePlaying-showsControlsOverlay', () => {
+    render(<PlatformerPage />);
+    act(() => {
+      lifecycleState.value = { ...lifecycleState.value, phase: 'playing' };
+    });
+
+    expect(platformerPage.controlsOverlay).toBeInTheDocument();
   });
 
   describe('PlatformerPage — ladder climbing', () => {
