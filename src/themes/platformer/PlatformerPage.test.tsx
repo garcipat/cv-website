@@ -2115,9 +2115,9 @@ describe('PlatformerPage', () => {
 
       render(<PlatformerPage />);
 
-      // Position the character directly on the new ladder shaft (col 9,
+      // Position the character directly on the new ladder shaft (col 15,
       // somewhere in the shaft's middle rows — see level1.ts).
-      const ladderCol = 9;
+      const ladderCol = 15;
       const ladderRow = 8;
       const { x, y } = tileToPixel(ladderCol, ladderRow);
       playerState.value = { ...playerState.value, x, y, vy: 50, grounded: false, climbing: false };
