@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { exportLayout } from './exportLayout';
 import { importLayout } from './importLayout';
 import { parseLevel } from '../level/LevelParser';
-import { LEVEL_1_LAYOUT } from '../level/level1';
+import { LEVEL_1_LAYOUT } from '../level/level';
 import type { TileChar } from '../level/LevelParser';
 
 describe('exportLayout', () => {

@@ -221,6 +221,9 @@ function makeEnemyState(
     animState: 'walk',
     animFrame: 0,
     animTimer: 0,
+    hitPoints: 1,
+    hitTimer: 0,
+    defeated: false,
     ...overrides,
   };
 }

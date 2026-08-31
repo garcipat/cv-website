@@ -1,4 +1,4 @@
-import { signal } from '@preact/signals-react';
+import { signal, computed } from '@preact/signals-react';
 import { tileToPixel, RENDERED_TILE_SIZE } from './level/Terrain';
 import {
   SPAWN_TILE,
@@ -9,7 +9,7 @@ import {
   QUESTIONMARK_TILES,
   FRAGILE_ROCK_TILES,
   CHEST_TILES,
-} from './level/level1';
+} from './level/level';
 import {
   PLAYER_RENDERED_SIZE,
   PLAYER_FOOT_PADDING,
@@ -45,9 +45,9 @@ import type { FlightEffect, CounterPopupEffect, CounterPopupLabelKey } from './e
  * task) calls this again to reset `playerState` back to spawn after a death.
  */
 export function spawnPlayerState(): PlayerState {
-  // SPAWN_TILE is the empty cell the character stands in (see level1.ts's
+  // SPAWN_TILE is the empty cell the character stands in (see level.ts's
   // `S` marker) — the ground surface is that cell's bottom edge.
-  const spawnCell = tileToPixel(SPAWN_TILE.col, SPAWN_TILE.row);
+  const spawnCell = tileToPixel(SPAWN_TILE.value.col, SPAWN_TILE.value.row);
   const groundSurfaceY = spawnCell.y + RENDERED_TILE_SIZE;
   const x = spawnCell.x - (PLAYER_RENDERED_SIZE - RENDERED_TILE_SIZE) / 2;
   const y = groundSurfaceY - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
@@ -105,63 +105,65 @@ export const healthState = signal(MAX_HALF_HEARTS);
 /**
  * Every collectible in the level, placed once at module load from the
  * current locale's CVData (see `@/state/locale`'s `currentCV`) — a plain
- * constant, not a signal, matching `level1`: neither is locale-reactive yet
+ * constant, not a signal, matching `currentLevel`: neither is locale-reactive yet
  * (switching EN/DE mid-session doesn't re-place collectibles or change
  * which are already collected; that's roadmap step 26's theme-switch-reset
- * job, not this step's). Every position comes from level1's hand-placed
+ * job, not this step's). Every position comes from currentLevel's hand-placed
  * `C` markers (see COIN_TILES) — placeCollectibles has no
  * auto-placement, same as placeEnemies below. The Language-fruit marker
- * concept was removed 2026-08-30 (live user feedback, see level1.ts's doc
+ * concept was removed 2026-08-30 (live user feedback, see level.ts's doc
  * comment) — `fruit` is passed an empty array since `CollectibleMarkerPositions`
  * still legitimately has that field for future use.
  */
-export const collectiblePlacements: CollectiblePlacement[] = placeCollectibles(
-  mapCVDataToCollectibles(currentCV.value),
-  { coin: COIN_TILES, fruit: [] },
+export const collectiblePlacements = computed<CollectiblePlacement[]>(() =>
+  placeCollectibles(mapCVDataToCollectibles(currentCV.value), { coin: COIN_TILES.value, fruit: [] }),
 );
 
 /**
  * Every enemy in the level, placed once at module load — same non-reactive
  * convention as collectiblePlacements above (see its comment): no movement,
  * defeat, or locale-reactivity yet (roadmap steps 17/18/26). Every position
- * comes from level1's hand-placed `E`/`M` markers (see ENEMY_TILES_GREEN/
+ * comes from currentLevel's hand-placed `E`/`M` markers (see ENEMY_TILES_GREEN/
  * ENEMY_TILES_PURPLE) — placeEnemies has no auto-placement. A marker is a
  * slot on the map; each slot draws the next fact from CVData as its reward.
- * level1 currently has one `E` and one `M`, so only the first course
+ * currentLevel currently has one `E` and one `M`, so only the first course
  * and first certificate actually have an enemy — the rest of CVData's
  * certificates/projects/courses simply aren't on the map yet, which is expected for
- * this mechanics-test level, not a bug (see level1.ts's doc comment).
+ * this mechanics-test level, not a bug (see level.ts's doc comment).
  */
-export const enemyPlacements: EnemyPlacement[] = placeEnemies(mapCVDataToEnemies(currentCV.value), {
-  slimeGreen: ENEMY_TILES_GREEN,
-  slimePurple: ENEMY_TILES_PURPLE,
-});
+export const enemyPlacements = computed<EnemyPlacement[]>(() =>
+  placeEnemies(mapCVDataToEnemies(currentCV.value), {
+    slimeGreen: ENEMY_TILES_GREEN.value,
+    slimePurple: ENEMY_TILES_PURPLE.value,
+  }),
+);
 
 /**
  * Every block in the level, placed once at module load — same
  * non-reactive, marker-driven convention as collectiblePlacements/
  * enemyPlacements above (roadmap step 20, 2026-08-29). Crates come from
- * `mapCVDataToBlocks` zipped against level1's `X` markers; question-mark
+ * `mapCVDataToBlocks` zipped against currentLevel's `X` markers; question-mark
  * and fragileRock blocks have no CVData mapping and are placed directly from
  * their `Q`/`F` markers (see BlockMapper.ts's placeBlocks). No live
  * per-instance state yet (no hitsTaken/broken) — that's step 21's job,
  * once blocks respond to hits.
  */
-export const blockPlacements: BlockPlacement[] = placeBlocks(mapCVDataToBlocks(currentCV.value), {
-  crate: CRATE_TILES,
-  questionMark: QUESTIONMARK_TILES,
-  fragileRock: FRAGILE_ROCK_TILES,
-});
+export const blockPlacements = computed<BlockPlacement[]>(() =>
+  placeBlocks(mapCVDataToBlocks(currentCV.value), {
+    crate: CRATE_TILES.value,
+    questionMark: QUESTIONMARK_TILES.value,
+    fragileRock: FRAGILE_ROCK_TILES.value,
+  }),
+);
 
 /**
  * Every chest in the level, placed once at module load — same non-reactive,
  * marker-driven convention as blockPlacements above (roadmap step 22,
- * 2026-08-30). One chest per real Experience entry, zipped against level1's
+ * 2026-08-30). One chest per real Experience entry, zipped against currentLevel's
  * `T` markers (see ChestMapper.ts's placeChests).
  */
-export const chestPlacements: ChestPlacement[] = placeChests(
-  mapCVDataToChests(currentCV.value),
-  CHEST_TILES,
+export const chestPlacements = computed<ChestPlacement[]>(() =>
+  placeChests(mapCVDataToChests(currentCV.value), CHEST_TILES.value),
 );
 
 /**
@@ -171,7 +173,7 @@ export const chestPlacements: ChestPlacement[] = placeChests(
  * back to that seed in `resetGame()`, same convention as `playerState`.
  */
 export const enemyStates = signal<EnemyState[]>(
-  enemyPlacements.map((placement, index) => toEnemyState(placement, index)),
+  enemyPlacements.value.map((placement, index) => toEnemyState(placement, index)),
 );
 
 /**
@@ -183,7 +185,7 @@ export const enemyStates = signal<EnemyState[]>(
  * persists across a respawn), not like enemies (which do revive on
  * respawn).
  */
-export const blockStates = signal<BlockState[]>(blockPlacements.map(toBlockState));
+export const blockStates = signal<BlockState[]>(blockPlacements.value.map(toBlockState));
 
 /**
  * Live open/closed state for every chest — mirrors blockStates above.
@@ -192,7 +194,7 @@ export const blockStates = signal<BlockState[]>(blockPlacements.map(toBlockState
  * (death/respawn) — a chest, like a block, is progress that persists across
  * a death (spec.md FR-023's "never re-closes except via Reset Game").
  */
-export const chestStates = signal<ChestState[]>(chestPlacements.map(toChestState));
+export const chestStates = signal<ChestState[]>(chestPlacements.value.map(toChestState));
 
 /**
  * One-shot latch: true once the Thank You screen has been shown this
@@ -342,7 +344,7 @@ export function resetGame(): void {
   healthState.value = MAX_HALF_HEARTS;
   cameraPositionX.value = 0;
   cameraPositionY.value = 0;
-  enemyStates.value = enemyPlacements.map((placement, index) => toEnemyState(placement, index));
+  enemyStates.value = enemyPlacements.value.map((placement, index) => toEnemyState(placement, index));
 }
 
 /**
@@ -370,8 +372,8 @@ export function resetGameProgress(): void {
   activeJournalSection.value = undefined;
   activeEffects.value = [];
   activeCounterPopups.value = {};
-  blockStates.value = blockPlacements.map(toBlockState);
-  chestStates.value = chestPlacements.map(toChestState);
+  blockStates.value = blockPlacements.value.map(toBlockState);
+  chestStates.value = chestPlacements.value.map(toChestState);
   endingScreenShown.value = false;
   endingScreenOpen.value = false;
   bonusFruitStates.value = [];

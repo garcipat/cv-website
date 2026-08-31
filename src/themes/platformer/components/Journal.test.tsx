@@ -554,7 +554,7 @@ describe('Journal', () => {
       // total is the number of coin markers actually placed in the level
       // (collectiblePlacements), not the raw CVData skills count — see
       // CollectiblesSummary.ts's doc comment.
-      const total = collectiblePlacements.filter((p) => p.spriteType === 'coin').length;
+      const total = collectiblePlacements.value.filter((p) => p.spriteType === 'coin').length;
       collectedFacts.value = [
         {
           id: 'coin-frontend',

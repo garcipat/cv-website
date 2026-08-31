@@ -6,6 +6,7 @@ import {
   advanceEnemyAnimation,
   applyStomp,
 } from './Enemy';
+import type { EnemyState } from './Enemy';
 import type { EnemyPlacement } from '../level/EnemyMapper';
 
 function makePlacement(): EnemyPlacement {
@@ -112,7 +113,7 @@ describe('advanceEnemyAnimation', () => {
   });
 
   it('hitState-usesHitsFrameDurationAndCount', () => {
-    let state = { ...toEnemyState(makePlacement()), animState: 'hit' as const, animFrame: 0, animTimer: 0 };
+    let state: EnemyState = { ...toEnemyState(makePlacement()), animState: 'hit', animFrame: 0, animTimer: 0 };
     state = advanceEnemyAnimation(state, 0.1);
     expect(state.animFrame).toBe(1);
   });

@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { currentTheme } from '@/state/theme';
+import { currentPath, navigateTo } from '@/state/navigation';
 import { App } from './App';
 import { platformerPage } from './themes/platformer/PlatformerPage.page';
 
@@ -34,11 +35,17 @@ describe('App', () => {
 
 describe('App - level editor route', () => {
   afterEach(() => {
-    window.history.pushState({}, '', '/');
+    // App.tsx now reads the reactive `currentPath` signal (src/state/
+    // navigation.ts) instead of window.location.pathname directly, so
+    // resetting the route between tests means resetting the signal, not
+    // just history — a plain window.history.pushState here would leave
+    // currentPath (and therefore the next test's initial render) on
+    // whatever the previous test last navigated to.
+    navigateTo('/');
   });
 
-  it('renders the level editor when the pathname is /platformer/editor', async () => {
-    window.history.pushState({}, '', '/platformer/editor');
+  it('renders the level editor when currentPath is /platformer/editor', async () => {
+    navigateTo('/platformer/editor');
     render(<App />);
     // LevelEditorPage is lazy-loaded (see App.tsx) and its module graph now
     // pulls in Dialog/Card alongside the editor itself — the default
@@ -49,8 +56,19 @@ describe('App - level editor route', () => {
   });
 
   it('does not render the level editor for any other pathname', () => {
-    window.history.pushState({}, '', '/');
+    navigateTo('/');
     render(<App />);
     expect(screen.queryByRole('toolbar')).not.toBeInTheDocument();
+  });
+
+  it('reacts to client-side navigation (currentPath signal changing) without a remount-triggering reload', async () => {
+    navigateTo('/');
+    render(<App />);
+    expect(screen.queryByRole('toolbar')).not.toBeInTheDocument();
+
+    navigateTo('/platformer/editor');
+
+    expect(await screen.findByRole('toolbar', {}, { timeout: 5000 })).toBeInTheDocument();
+    expect(currentPath.value).toBe('/platformer/editor');
   });
 });

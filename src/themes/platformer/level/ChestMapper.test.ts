@@ -60,7 +60,7 @@ describe('mapCVDataToChests', () => {
 
   it('called-reversesExperienceOrder-oldestFirstNewestLast', () => {
     // cv.experience is newest-first (src/types/cv.ts's doc comment); chests
-    // are zipped against level markers in reading order (level1.ts, near
+    // are zipped against level markers in reading order (level.ts, near
     // spawn to farther away), so reversing here makes the closest chest
     // reveal the OLDEST job and the farthest chest reveal the NEWEST one —
     // a chronological career progression as the visitor plays further
