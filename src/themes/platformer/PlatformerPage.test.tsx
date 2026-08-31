@@ -23,6 +23,8 @@ import {
   endingScreenShown,
   endingScreenOpen,
   controlsOverlayDismissed,
+  signPlacements,
+  hintTooltipState,
 } from './PlatformerState';
 import { toChestState } from './entities/Chest';
 import {
@@ -104,6 +106,11 @@ describe('PlatformerPage', () => {
     // dismissal from one test would leak into the next test's assumption
     // that the overlay is still showable.
     controlsOverlayDismissed.value = false;
+    // Module-level signal (see PlatformerState.ts, Task 5) — must be reset
+    // like the other module-level signals above, or a tooltip left mid-
+    // animation by one test would leak into the next test's assumption that
+    // no sign is currently revealed.
+    hintTooltipState.value = null;
   });
 
   afterEach(() => {
@@ -2143,6 +2150,158 @@ describe('PlatformerPage', () => {
 
       expect(playerState.value.climbing).toBe(true);
       expect(playerState.value.vy).toBeLessThan(0); // moving upward, not falling
+    });
+  });
+
+  describe('PlatformerPage — hint signs', () => {
+    it('render-tilesetLoaded-drawsSignpostAtItsPosition', async () => {
+      // jsdom's real Image never fires onload, so tilesetRef.current would
+      // otherwise stay null forever — same stub every other "waits for the
+      // tileset to actually load" test above already uses.
+      vi.stubGlobal('Image', MockTilesetImage);
+
+      render(<PlatformerPage />);
+
+      const ctx = platformerPage.context;
+      const sign = signPlacements.value[0];
+      await waitFor(() =>
+        expect(ctx.drawImage).toHaveBeenCalledWith(
+          expect.anything(),
+          128,
+          48,
+          16,
+          16,
+          expect.any(Number),
+          expect.any(Number),
+          32,
+          32,
+        ),
+      );
+      // Sanity: the level actually has the one bridge sign this test expects.
+      expect(sign.hintId).toBe('bridgeDropThrough');
+    });
+
+    it('overlappingSignWithoutPressingUp-neverStartsTheTooltip', () => {
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+      render(<PlatformerPage />);
+      const sign = signPlacements.value[0];
+      playerState.value = { ...playerState.value, x: sign.x, y: sign.y };
+      frameCallback!(0);
+      frameCallback!(16);
+
+      expect(hintTooltipState.value).toBeNull();
+    });
+
+    it('arrowUpPressed-whileOverlappingSign-startsEnteringAndEventuallyDrawsBubbleText', () => {
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+      render(<PlatformerPage />);
+      const sign = signPlacements.value[0];
+      playerState.value = { ...playerState.value, x: sign.x, y: sign.y };
+      fireEvent.keyDown(window, { code: 'ArrowUp' });
+      frameCallback!(0);
+      frameCallback!(16); // one ~16ms tick: starts 'entering'
+
+      expect(hintTooltipState.value?.hintId).toBe('bridgeDropThrough');
+      expect(hintTooltipState.value?.phase).toBe('entering');
+
+      // Advance well past HINT_TOOLTIP_FADE_IN_SECONDS (0.2s) — several more
+      // 16ms ticks — so it settles into 'shown' and the text actually paints.
+      for (let t = 32; t <= 320; t += 16) frameCallback!(t);
+
+      expect(hintTooltipState.value?.phase).toBe('shown');
+      const ctx = platformerPage.context;
+      expect(ctx.fillText).toHaveBeenCalledWith(
+        'Hold Down to drop through a bridge.',
+        expect.any(Number),
+        expect.any(Number),
+      );
+    });
+
+    it('keyWPressed-whileOverlappingSign-alsoRevealsTheBubble', () => {
+      // KeyW is an accepted alternate for ArrowUp's interact action (same
+      // convention chest-opening already uses).
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+      render(<PlatformerPage />);
+      const sign = signPlacements.value[0];
+      playerState.value = { ...playerState.value, x: sign.x, y: sign.y };
+      fireEvent.keyDown(window, { code: 'KeyW' });
+      frameCallback!(0);
+      frameCallback!(16);
+
+      expect(hintTooltipState.value?.hintId).toBe('bridgeDropThrough');
+    });
+
+    it('playerWalksAwayAfterRevealing-gameLoopTicks-entersExitingThenClearsToNull', () => {
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+      render(<PlatformerPage />);
+      const sign = signPlacements.value[0];
+      playerState.value = { ...playerState.value, x: sign.x, y: sign.y };
+      fireEvent.keyDown(window, { code: 'ArrowUp' });
+      let t = 0;
+      frameCallback!(t);
+      for (let i = 0; i < 20; i++) {
+        t += 16;
+        frameCallback!(t);
+      }
+      expect(hintTooltipState.value?.phase).toBe('shown');
+
+      playerState.value = { ...playerState.value, x: sign.x + 2000, y: sign.y };
+      t += 16;
+      frameCallback!(t);
+      expect(hintTooltipState.value?.phase).toBe('exiting');
+
+      // Advance well past HINT_TOOLTIP_FADE_OUT_SECONDS (0.25s).
+      for (let i = 0; i < 20; i++) {
+        t += 16;
+        frameCallback!(t);
+      }
+
+      expect(hintTooltipState.value).toBeNull();
+    });
+
+    it('playerWalksAwayWithoutEverPressingUp-staysNull', () => {
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+      render(<PlatformerPage />);
+      const sign = signPlacements.value[0];
+      playerState.value = { ...playerState.value, x: sign.x, y: sign.y };
+      frameCallback!(0);
+      frameCallback!(16);
+      expect(hintTooltipState.value).toBeNull();
+
+      playerState.value = { ...playerState.value, x: sign.x + 2000, y: sign.y };
+      frameCallback!(32);
+
+      expect(hintTooltipState.value).toBeNull();
     });
   });
 });

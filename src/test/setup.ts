@@ -42,6 +42,7 @@ HTMLCanvasElement.prototype.getContext = function (
       scale: vi.fn(),
       strokeRect: vi.fn(),
       beginPath: vi.fn(),
+      closePath: vi.fn(),
       moveTo: vi.fn(),
       lineTo: vi.fn(),
       stroke: vi.fn(),
