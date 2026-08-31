@@ -10,18 +10,9 @@ interface PaletteProps {
 }
 
 const EMPTY_CHAR: TileChar = '.';
-// 'platform' renders with the exact same sprite as an exposed 'groundGrass'
-// tile (see Renderer.ts's tileSource — both are { sx: 0, sy: 0 }), so
-// offering it as a separate palette tile is visually indistinguishable
-// from Ground Grass and reads as a confusing duplicate. Still fully
-// paintable via a raw layout edit — this only removes it from the palette
-// UI, not from TERRAIN_CHARS/the engine.
-const HIDDEN_TERRAIN_KEYS: readonly TileChar[] = ['P'];
 
 export const Palette = ({ selectedTool, onSelectTool }: PaletteProps) => {
-  const terrainKeys = (Object.keys(TERRAIN_CHARS) as TileChar[]).filter(
-    (key) => key !== EMPTY_CHAR && !HIDDEN_TERRAIN_KEYS.includes(key),
-  );
+  const terrainKeys = (Object.keys(TERRAIN_CHARS) as TileChar[]).filter((key) => key !== EMPTY_CHAR);
   const entityKeys = Object.keys(ENTITY_CHARS) as TileChar[];
   // Only the FIRST registered sign character becomes a palette tile — clicking
   // it repeatedly on the canvas cycles through every other registered hint

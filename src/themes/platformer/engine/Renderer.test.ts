@@ -876,15 +876,6 @@ describe('drawTerrain', () => {
     expect(ctx.drawImage).toHaveBeenNthCalledWith(3, fakeTileset, 176, 32, 16, 16, 64, 0, 32, 32);
   });
 
-  it('platformTile-draws-fromGrassTopSource', () => {
-    const level: LevelDef = { width: 1, height: 1, terrain: [['platform']] };
-    const ctx = makeMockContext();
-
-    drawTerrain(ctx, level, fakeTileset);
-
-    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 0, 0, 16, 16, 0, 0, 32, 32);
-  });
-
   it('emptyTile-doesNotDraw', () => {
     const level: LevelDef = { width: 1, height: 1, terrain: [['empty']] };
     const ctx = makeMockContext();

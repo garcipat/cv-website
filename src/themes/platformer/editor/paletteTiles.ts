@@ -50,15 +50,6 @@ export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
     frameWidth: 16,
     frameHeight: 16,
   },
-  P: {
-    sheet: WORLD_TILESET,
-    sheetWidth: 256,
-    sheetHeight: 256,
-    sx: 0,
-    sy: 0,
-    frameWidth: 16,
-    frameHeight: 16,
-  },
   W: {
     sheet: WORLD_TILESET,
     sheetWidth: 256,
@@ -217,7 +208,6 @@ export const PALETTE_TILE_LABELS: Record<TileChar, string> = {
   '.': 'Eraser',
   G: 'Ground Grass',
   R: 'Ground Rock',
-  P: 'Platform',
   W: 'Wall',
   B: 'Bridge',
   L: 'Ladder',

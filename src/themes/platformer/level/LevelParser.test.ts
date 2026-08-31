@@ -36,7 +36,6 @@ describe('parseLevel', () => {
     expect(TERRAIN_CHARS['.']).toBe('empty');
     expect(TERRAIN_CHARS.G).toBe('groundGrass');
     expect(TERRAIN_CHARS.R).toBe('groundRock');
-    expect(TERRAIN_CHARS.P).toBe('platform');
     expect(TERRAIN_CHARS.W).toBe('wall');
     expect(TERRAIN_CHARS.B).toBe('bridge');
   });
@@ -297,7 +296,7 @@ describe('findSignTiles', () => {
 describe('TileChar', () => {
   it('includes every TERRAIN_CHARS, ENTITY_CHARS, and SIGN_CHARS key', () => {
     const tileChars: readonly TileChar[] = [
-      '.', 'G', 'R', 'P', 'W', 'B', 'L', 'S', 'E', 'M', 'C', 'X', 'Q', 'F', 'T',
+      '.', 'G', 'R', 'W', 'B', 'L', 'S', 'E', 'M', 'C', 'X', 'Q', 'F', 'T',
       '1', '2', '3', '4', '5',
     ];
     const allKeys = [...Object.keys(TERRAIN_CHARS), ...Object.keys(ENTITY_CHARS), ...Object.keys(SIGN_CHARS)];

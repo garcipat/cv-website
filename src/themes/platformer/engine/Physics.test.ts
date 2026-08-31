@@ -83,8 +83,8 @@ const NARROW_PLATFORM_LEVEL = parseLevel(['.GGG.....']);
 const LADDER_LEVEL = parseLevel(['G.', 'L.', 'L.', 'G.']);
 
 // Row 0 is ladder with nothing above it (out-of-bounds) — reproduces the
-// real currentLevel top-of-shaft scenario from roadmap step 23's follow-up:
-// climbing off the top must clamp, not overshoot into the void.
+// real currentLevel top-of-shaft scenario: climbing off the top must clamp,
+// not overshoot into the void.
 const TOP_LADDER_LEVEL = parseLevel(['L.', 'L.', 'G.']);
 
 // Same shape as TOP_LADDER_LEVEL but with the shaft's top tile in the MIDDLE
@@ -437,7 +437,7 @@ describe('stepPlayerPhysics block solidity', () => {
   });
 });
 
-describe('stepPlayerPhysics knockback (roadmap step 19)', () => {
+describe('stepPlayerPhysics knockback', () => {
   it('knockbackActive-ignoresHeldMovementKeysAndKeepsKnockbackVx', () => {
     const player = basePlayer({ y: 0, vx: -250, knockbackTimer: 0.25, grounded: true });
 
@@ -524,12 +524,12 @@ describe('stepPlayerPhysics jump', () => {
   });
 
   it('bounceAscendingTrue-jumpNotHeld-appliesNoCutAcrossManyConsecutiveTicks', () => {
-    // The actual bug found via live testing: the jump-cut multiplier
-    // re-applies EVERY tick the key isn't held, not just once — a
-    // single-tick-only suppression let it shear the bounce down to ~45% of
-    // its configured magnitude on the very next tick, no matter how large
-    // `stompBounceVelocity` was set. `bounceAscending` must stay effective
-    // for the WHOLE ascent, not just the tick the bounce was applied.
+    // The jump-cut multiplier re-applies EVERY tick the key isn't held, not
+    // just once — a single-tick-only suppression would shear the bounce
+    // down to ~45% of its configured magnitude on the very next tick, no
+    // matter how large `stompBounceVelocity` was set. `bounceAscending`
+    // must stay effective for the WHOLE ascent, not just the tick the
+    // bounce was applied.
     let player = basePlayer({ vy: PHYSICS_CONFIG.stompBounceVelocity, grounded: false, bounceAscending: true });
     const dt = 1 / 60;
     for (let i = 0; i < 10 && player.vy < 0; i++) {
@@ -1056,7 +1056,7 @@ describe('stepPlayerPhysics climbing', () => {
   });
 });
 
-describe('stepPlayerPhysics standing on top of a ladder (roadmap step 23 follow-up)', () => {
+describe('stepPlayerPhysics standing on top of a ladder', () => {
   const topEdgeY = standingYOnRow(0); // TOP_LADDER_LEVEL's shaft top is row 0
   const step = PHYSICS_CONFIG.climbSpeed / 60;
 
@@ -1187,14 +1187,14 @@ describe('stepPlayerPhysics standing on top of a ladder (roadmap step 23 follow-
   });
 });
 
-describe('stepPlayerPhysics standable ladder top tile is one-way like bridge (roadmap step 23 follow-up)', () => {
+describe('stepPlayerPhysics standable ladder top tile is one-way like bridge', () => {
   it('standableLadderTopTile-doesNotBlockHorizontalMovementThroughItsColumn', () => {
     // Player moving sideways INTO col 1's column at row 0 itself (the
     // standable ladder-top tile), not standing on it — passing through at
     // the same row from col 0. y=0 puts topRow/bottomRow at rows 0-1, both
     // of which are ladder tiles in col 1. isSolid('ladder') is always false
     // (confirmed in Terrain.test.ts), so this must move exactly like open
-    // space — no wall-style clamp the way isSolid('platform') would produce.
+    // space — no wall-style clamp the way isSolid('groundGrass') would produce.
     const x = 0;
     const player = basePlayer({ x, y: 0, grounded: false, climbing: false });
 
@@ -1206,7 +1206,7 @@ describe('stepPlayerPhysics standable ladder top tile is one-way like bridge (ro
   });
 });
 
-describe('stepPlayerPhysics climbing lands on the ladder\'s own top tile (roadmap step 23 follow-up)', () => {
+describe('stepPlayerPhysics climbing lands on the ladder\'s own top tile', () => {
   it('climbingUp-stillWithinTheShaft-notYetAtTheTop-continuesClimbingNormally', () => {
     // Sanity: the new branch must not fire prematurely while there's still
     // a climbable tile above. y=0 puts the feet in row 1 of TOP_LADDER_LEVEL
@@ -1222,7 +1222,7 @@ describe('stepPlayerPhysics climbing lands on the ladder\'s own top tile (roadma
   });
 });
 
-describe('stepPlayerPhysics climbing re-entry guard after jump-cancel (roadmap step 23 follow-up)', () => {
+describe('stepPlayerPhysics climbing re-entry guard after jump-cancel', () => {
   it('freshEntryHeldWhileAscendingFromAJump-doesNotReEnterClimbing', () => {
     // Simulates the frame right after a jump-cancel: still overlapping the
     // ladder, still ascending (vy very negative from the jump impulse),

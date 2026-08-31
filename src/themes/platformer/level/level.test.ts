@@ -39,10 +39,9 @@ describe('currentLevel', () => {
   });
 
   it('pit-atColumns2Through4-hasNoFloorAtBottomRow', () => {
-    // Deliberately a genuine bottomless drop (roadmap step 9): walking off
-    // the bridge's edge, or dropping through it on purpose (Down/S), both
-    // must trigger real pit-fall damage — a floor here would silently negate
-    // that.
+    // Deliberately a genuine bottomless drop: walking off the bridge's edge,
+    // or dropping through it on purpose (Down/S), both must trigger real
+    // pit-fall damage — a floor here would silently negate that.
     expect(currentLevel.value.terrain[currentLevel.value.height - 1][2]).toBe('empty');
     expect(currentLevel.value.terrain[currentLevel.value.height - 1][3]).toBe('empty');
     expect(currentLevel.value.terrain[currentLevel.value.height - 1][4]).toBe('empty');
@@ -52,11 +51,6 @@ describe('currentLevel', () => {
     expect(currentLevel.value.terrain[currentLevel.value.height - 2][2]).toBe('bridge');
     expect(currentLevel.value.terrain[currentLevel.value.height - 2][3]).toBe('bridge');
     expect(currentLevel.value.terrain[currentLevel.value.height - 2][4]).toBe('bridge');
-  });
-
-  it('containsAtLeastOnePlatformTile', () => {
-    const hasPlatform = currentLevel.value.terrain.some((row) => row.includes('platform'));
-    expect(hasPlatform).toBe(true);
   });
 
   it('groundStrip-rockZoneContinuesFlatToLevelEnd', () => {
@@ -104,9 +98,8 @@ describe('currentLevel', () => {
   it('markerCounts-matchThisMechanicsTestLevelsIntentionalDesign', () => {
     // currentLevel deliberately covers only a slice of real CVData (see its doc
     // comment) — these counts are the level's own intentional design, not
-    // derived from CVData length. The Language-fruit marker concept was
-    // removed 2026-08-30 (live user feedback) — question-mark blocks spawn
-    // their own bonus fruit instead.
+    // derived from CVData length. Question-mark blocks spawn their own bonus
+    // fruit; there is no separate Language-fruit marker.
     expect(ENEMY_TILES_GREEN.value).toHaveLength(1);
     expect(ENEMY_TILES_PURPLE.value).toHaveLength(1);
     expect(COIN_TILES.value).toHaveLength(4);
@@ -116,11 +109,10 @@ describe('currentLevel', () => {
   });
 
   it('newBlockMarkers-sitElevatedAboveGroundCloseToSpawn', () => {
-    // Elevated to the floating-platform row (2 empty rows of clearance above solid ground,
-    // same shape as the existing floating platform at cols 8-14) and moved
-    // to cols 19-24 — right after the second coin (col 18), well before
-    // the wall/enemy/pit gauntlet at cols 26-42, instead of the 51-tiles-
-    // from-spawn cluster at cols 47-52.
+    // Elevated to the floating-platform row (2 empty rows of clearance above
+    // solid ground, same shape as the existing floating platform at cols
+    // 8-14) at cols 19-24 — right after the second coin (col 18), well
+    // before the wall/enemy/pit gauntlet at cols 26-42.
     const blockRow = 3;
     expect(CRATE_TILES.value.map((t) => t.col)).toEqual([19, 22]);
     expect(QUESTIONMARK_TILES.value.map((t) => t.col)).toEqual([20, 23]);
@@ -142,9 +134,8 @@ describe('currentLevel', () => {
   });
 
   it('secondCoin-sitsSoonAfterSpawnNotOnlyPastThePit', () => {
-    // Previously only the col 10 coin was reachable without a long walk —
-    // relocated one of the four coins to col 18 (just past the wall
-    // pocket) so there's a second nearby one too.
+    // One of the four coins sits at col 18 (just past the wall pocket) so
+    // there's a second nearby pickup alongside the col 10 one.
     expect(COIN_TILES.value.map((t) => t.col)).toContain(18);
   });
 
@@ -155,15 +146,15 @@ describe('currentLevel', () => {
     }
   });
 
-  it('elevatedBridge-spansGapBetweenTwoFloatingPlatformsAtPlatformRow', () => {
+  it('elevatedBridge-spansGapBetweenTwoFloatingGroundStripsAtElevatedRow', () => {
     const row = 3;
-    expect(currentLevel.value.terrain[row][8]).toBe('platform');
-    expect(currentLevel.value.terrain[row][9]).toBe('platform');
-    expect(currentLevel.value.terrain[row][10]).toBe('platform');
+    expect(currentLevel.value.terrain[row][8]).toBe('groundGrass');
+    expect(currentLevel.value.terrain[row][9]).toBe('groundGrass');
+    expect(currentLevel.value.terrain[row][10]).toBe('groundGrass');
     expect(currentLevel.value.terrain[row][11]).toBe('bridge');
     expect(currentLevel.value.terrain[row][12]).toBe('bridge');
-    expect(currentLevel.value.terrain[row][13]).toBe('platform');
-    expect(currentLevel.value.terrain[row][14]).toBe('platform');
+    expect(currentLevel.value.terrain[row][13]).toBe('groundGrass');
+    expect(currentLevel.value.terrain[row][14]).toBe('groundGrass');
   });
 
   it('elevatedBridge-hasTwoRowsOfClearanceAboveReachableGroundBelow', () => {
@@ -184,8 +175,7 @@ describe('currentLevel', () => {
   });
 
   it('enemiesAndCollectibles-sitCloseToSpawnForEasyManualTesting', () => {
-    // Roadmap step 17: both enemy markers used to sit ~45 tiles from spawn
-    // (col 1); they must now be reachable within a short walk.
+    // Both enemy markers must be reachable within a short walk from spawn.
     for (const tile of [...ENEMY_TILES_GREEN.value, ...ENEMY_TILES_PURPLE.value]) {
       expect(tile.col - SPAWN_TILE.value.col).toBeLessThan(40);
     }
@@ -246,9 +236,9 @@ describe('currentLayout reactivity', () => {
   });
 });
 
-describe('ladder shaft (roadmap step 23)', () => {
-  it('ladderTopTile-sitsBesideTheLandingPlatformNotAboveIt', () => {
-    expect(currentLevel.value.terrain[0][14]).toBe('platform');
+describe('ladder shaft', () => {
+  it('ladderTopTile-sitsBesideTheLandingGroundNotAboveIt', () => {
+    expect(currentLevel.value.terrain[0][14]).toBe('groundGrass');
     expect(currentLevel.value.terrain[0][15]).toBe('ladder');
   });
 
@@ -259,16 +249,13 @@ describe('ladder shaft (roadmap step 23)', () => {
     }
   });
 
-  it('ladderBottomTile-sitsBesideTheExistingFloatingPlatformNotBelowIt', () => {
-    // Row 3 is the pre-existing floating platform. The ladder's bottom
-    // tile is now IN row 3 too (col 15, one column right of the
-    // platform's rightmost tile at col 14) — same row, adjacent column —
-    // so standing on the platform and walking one tile right puts the
-    // player's feet directly on a ladder tile without needing to jump
-    // (roadmap step 23 follow-up: the ladder previously sat one row ABOVE
-    // the platform at the same column, which blocked climb-entry from
-    // standing height).
-    expect(currentLevel.value.terrain[3][14]).toBe('platform');
+  it('ladderBottomTile-sitsBesideTheExistingFloatingGroundStripNotBelowIt', () => {
+    // Row 3 is the pre-existing floating ground strip. The ladder's bottom
+    // tile is IN row 3 too (col 15, one column right of the strip's
+    // rightmost tile at col 14) — same row, adjacent column — so standing on
+    // the strip and walking one tile right puts the player's feet directly
+    // on a ladder tile without needing to jump.
+    expect(currentLevel.value.terrain[3][14]).toBe('groundGrass');
     expect(currentLevel.value.terrain[3][15]).toBe('ladder');
   });
 
