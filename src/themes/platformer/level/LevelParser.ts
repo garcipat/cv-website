@@ -61,6 +61,34 @@ if (sharedChars.length > 0) {
 }
 
 /**
+ * Every character a level layout string may legally contain — the union of
+ * every `TERRAIN_CHARS` and `ENTITY_CHARS` key. Deliberately NOT derived via
+ * `keyof typeof TERRAIN_CHARS | keyof typeof ENTITY_CHARS`: both maps are
+ * annotated `Record<string, ... | undefined>` (required so `parseLevel`'s
+ * and `findAllOfKind`'s existing `TERRAIN_CHARS[char]`/`ENTITY_CHARS[char]`
+ * lookups can index by a plain `string`), which makes `keyof typeof` widen
+ * to plain `string` — a `TileChar` derived that way would carry no type
+ * safety at all. Kept in sync with the two maps by a test asserting every
+ * key of both appears here, not by direct derivation.
+ */
+export type TileChar =
+  | '.'
+  | 'G'
+  | 'R'
+  | 'P'
+  | 'W'
+  | 'B'
+  | 'L'
+  | 'S'
+  | 'E'
+  | 'M'
+  | 'C'
+  | 'X'
+  | 'Q'
+  | 'F'
+  | 'T';
+
+/**
  * Parses a level's raw ASCII layout (one character per tile, see
  * TERRAIN_CHARS/ENTITY_CHARS, top row first) into a `LevelDef`'s terrain
  * grid. Width and height are read from the layout itself — never
