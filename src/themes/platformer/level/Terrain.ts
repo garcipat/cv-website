@@ -43,6 +43,27 @@ export function isClimbable(tile: TileType): boolean {
   return tile === 'ladder';
 }
 
+/**
+ * Whether this tile is a ladder shaft's topmost tile with open space above
+ * it — the one ladder tile the character can actually stand ON (roadmap
+ * step 23 follow-up). A shaft's top rung is solid from above only: you climb
+ * out of the shaft onto it, land on it when falling from above, and can step
+ * off it sideways or press Down to climb back in. Every other ladder tile
+ * stays fully passable, and even the top one never blocks horizontal
+ * movement or a climb passing through it (`isSolid` is deliberately
+ * untouched — `Physics.ts` consults this separately, exactly like it does
+ * for `bridge`'s one-way behavior).
+ *
+ * "Open space above" excludes both a continuing ladder (that tile isn't the
+ * top) and a solid tile (there'd be no room to stand — the character would
+ * end up embedded in it, so such a dead-end shaft keeps the plain
+ * climb-until-the-feet-leave-the-ladder behavior).
+ */
+export function isStandableLadderTop(level: LevelDef, col: number, row: number): boolean {
+  const above = tileAt(level, col, row - 1);
+  return isClimbable(tileAt(level, col, row)) && !isClimbable(above) && !isSolid(above);
+}
+
 export function isTopExposed(level: LevelDef, col: number, row: number): boolean {
   return !isSolid(tileAt(level, col, row - 1));
 }

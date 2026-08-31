@@ -1,5 +1,12 @@
 import { PHYSICS_CONFIG } from './PhysicsConfig';
-import { isSolid, isSolidExcludingBridge, isClimbable, tileAt, RENDERED_TILE_SIZE } from '../level/Terrain';
+import {
+  isSolid,
+  isSolidExcludingBridge,
+  isClimbable,
+  isStandableLadderTop,
+  tileAt,
+  RENDERED_TILE_SIZE,
+} from '../level/Terrain';
 import type { LevelDef } from '../level/LevelData';
 import { isBlockOccupied, blockIdAt } from '../level/BlockMapper';
 import type { BlockPlacement } from '../level/BlockMapper';
@@ -160,27 +167,20 @@ export function stepPlayerPhysics(
     }
     return false;
   };
+  const columnsHaveStandableLadderTop = (row: number): boolean => {
+    for (let col = climbLeftCol; col <= climbRightCol; col++) {
+      if (isStandableLadderTop(level, col, row)) return true;
+    }
+    return false;
+  };
   const onLadderNow = columnsAreClimbable(feetRow);
   const climbUpHeld = Boolean(input.climbUpHeld);
   const climbDownHeld = Boolean(input.dropThroughHeld);
 
   let climbing = player.climbing;
   let justEnteredClimbing = false;
-  let landedOnLaddersOwnTopTile = false;
   if (climbing) {
-    const stillOnLadder = onLadderNow && !input.jumpPressed;
-    // Reached the very top of the shaft while still holding Up — nothing
-    // climbable in the row above (either out of bounds, or the row above
-    // simply isn't a ladder tile) — stand on the ladder's own topmost
-    // tile instead of hovering or falling (roadmap step 23 follow-up).
-    // This is a narrow, explicit exception, not a change to `isSolid`:
-    // a ladder tile is still never solid for any other purpose (walking
-    // into its side, dropping onto it from above, etc.) — only this one
-    // "climbed up into a dead end" transition treats it as landable.
-    if (stillOnLadder && climbUpHeld && !columnsAreClimbable(feetRow - 1)) {
-      landedOnLaddersOwnTopTile = true;
-    }
-    climbing = stillOnLadder;
+    climbing = onLadderNow && !input.jumpPressed;
   } else if (onLadderNow && (climbUpHeld || climbDownHeld) && player.vy >= 0) {
     // Fresh entry: overlapping a ladder column and pressing Up/Down. The
     // `player.vy >= 0` guard (roadmap step 23 follow-up) stops this from
@@ -203,25 +203,6 @@ export function stepPlayerPhysics(
     justEnteredClimbing = true;
   }
 
-  if (landedOnLaddersOwnTopTile) {
-    return {
-      ...player,
-      x,
-      y: player.y, // already exactly at the terminal tile — no snap needed
-      vx,
-      vy: 0,
-      facing,
-      grounded: true,
-      climbing: false,
-      isDroppingThroughBridge: false,
-      lastGroundedX: x,
-      lastGroundedY: player.y,
-      knockbackTimer: Math.max(0, player.knockbackTimer - dt),
-      bounceAscending: false,
-      hitBlockIds: [],
-    };
-  }
-
   if (climbing) {
     const vy = climbUpHeld ? -PHYSICS_CONFIG.climbSpeed : climbDownHeld ? PHYSICS_CONFIG.climbSpeed : 0;
     let climbX = x;
@@ -233,13 +214,49 @@ export function stepPlayerPhysics(
         }
       }
     }
-    // Clamp so the player's feet can never rise above row 0 (the level's
-    // topmost row) — without this, holding Up while climbing at the very
-    // top row overshoots into out-of-bounds territory (Terrain.ts's
-    // tileAt returns 'empty' there), ending climbing while floating above
-    // any solid ground and causing a long fall (roadmap step 23 follow-up).
-    const minClimbY = -PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING + 1; // feetRow >= 0
+    // Climbing out at the top of the shaft (roadmap step 23 follow-up).
+    // Find the shaft's topmost tile from the feet's current row upward; if
+    // there's room to stand on it (`isStandableLadderTop` — nothing solid
+    // directly above), that tile's top edge is where the climb ends: the
+    // character climbs all the way THROUGH the top tile and stops with its
+    // feet exactly on top of it, grounded, instead of either stopping the
+    // instant its feet enter that tile (which reads as hovering) or
+    // climbing on into empty space above the shaft. Ground collision below
+    // treats that same tile as solid-from-above, so the landing persists
+    // under the next frame's gravity — the character just stands there.
+    //
+    // A dead-end shaft (solid tile directly above the top rung, so nowhere
+    // to stand) keeps the plain behavior: climb until the feet leave the
+    // ladder, then fall. `minClimbY` — feet no higher than the level's own
+    // top edge — remains the backstop for that case, so holding Up can
+    // never carry the character out of bounds into a long fall.
+    let ladderTopRow = feetRow;
+    while (columnsAreClimbable(ladderTopRow - 1)) ladderTopRow--;
+    const canStandOnLadderTop = columnsHaveStandableLadderTop(ladderTopRow);
+    const minClimbY = canStandOnLadderTop
+      ? ladderTopRow * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING
+      : -PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING; // feet at the level's top edge
     const climbY = Math.max(player.y + vy * dt, minClimbY);
+
+    if (canStandOnLadderTop && climbUpHeld && player.y + vy * dt <= minClimbY) {
+      return {
+        ...player,
+        x: climbX,
+        y: minClimbY, // feet exactly on the shaft's top edge
+        vx,
+        vy: 0,
+        facing,
+        grounded: true,
+        climbing: false,
+        isDroppingThroughBridge: false,
+        lastGroundedX: climbX,
+        lastGroundedY: minClimbY,
+        knockbackTimer: Math.max(0, player.knockbackTimer - dt),
+        bounceAscending: false,
+        hitBlockIds: [],
+      };
+    }
+
     return {
       ...player,
       x: climbX,
@@ -396,9 +413,21 @@ export function stepPlayerPhysics(
     // bridge tiles the same way the ceiling check always does — everything
     // else (regular ground, platforms, walls) still catches the character.
     const groundIsSolid = droppingThroughBridge ? isSolidExcludingBridge : isSolid;
+    // A ladder shaft's topmost rung is solid from above (roadmap step 23
+    // follow-up) — that's what lets the character stand on top of a ladder
+    // after climbing out of the shaft, and catches it when it falls back
+    // onto that spot. One-way, exactly like `bridge`: the rest of the shaft
+    // stays fully passable, and nothing here makes a ladder block sideways
+    // movement or a climb through it. Pressing Down to climb back in is
+    // handled far above (the grounded + climbable-row-below entry), which
+    // returns before this collision pass runs.
+    const columnIsGround = (col: number): boolean =>
+      groundIsSolid(tileAt(level, col, footRow)) ||
+      isStandableLadderTop(level, col, footRow) ||
+      isBlockOccupied(blockPlacements, col, footRow);
 
     for (let col = leftCol; col <= rightCol; col++) {
-      if (groundIsSolid(tileAt(level, col, footRow)) || isBlockOccupied(blockPlacements, col, footRow)) {
+      if (columnIsGround(col)) {
         const groundSurfaceY = footRow * RENDERED_TILE_SIZE;
         y = groundSurfaceY - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
         resolvedVy = 0;
@@ -410,7 +439,7 @@ export function stepPlayerPhysics(
     if (grounded) {
       fullyGrounded = true;
       for (let col = leftCol; col <= rightCol; col++) {
-        if (!groundIsSolid(tileAt(level, col, footRow)) && !isBlockOccupied(blockPlacements, col, footRow)) {
+        if (!columnIsGround(col)) {
           fullyGrounded = false;
           break;
         }
