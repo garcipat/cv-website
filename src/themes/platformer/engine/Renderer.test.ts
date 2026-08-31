@@ -1395,6 +1395,36 @@ describe('drawSignBubble', () => {
     expect(halfBottom).toBeCloseTo(fullBottom);
   });
 
+  it('halfGrowth-tailWidthStaysFullWidthUnlikeItsHeight', () => {
+    // Per the plan's explicit constraint: the bubble reveals at its full
+    // WIDTH immediately — only height animates. The tail's horizontal span
+    // (moveTo/lineTo x deltas around anchorX in the inset triangle, the
+    // second beginPath/fill pair) must be identical at growth=1 and
+    // growth=0.5, unlike its height which does shrink.
+    const ctx = makeMockContext() as unknown as {
+      moveTo: ReturnType<typeof vi.fn>;
+      lineTo: ReturnType<typeof vi.fn>;
+    };
+
+    drawSignBubble(ctx as unknown as CanvasRenderingContext2D, 'Hi', 200, 300, 1);
+    // moveTo index 1 and lineTo index 3 are the inset cream tail's first
+    // and last points (index 0/1 lineTo belong to the border tail drawn
+    // first): moveTo(anchorX - tailHalfWidth, boxBottom) ... lineTo(anchorX
+    // + tailHalfWidth, boxBottom) — their x delta is the tail's base span.
+    const [fullMoveX] = ctx.moveTo.mock.calls[1];
+    const [fullLineX] = ctx.lineTo.mock.calls[3];
+    const fullSpan = fullLineX - fullMoveX;
+    ctx.moveTo.mockClear();
+    ctx.lineTo.mockClear();
+
+    drawSignBubble(ctx as unknown as CanvasRenderingContext2D, 'Hi', 200, 300, 0.5);
+    const [halfMoveX] = ctx.moveTo.mock.calls[1];
+    const [halfLineX] = ctx.lineTo.mock.calls[3];
+    const halfSpan = halfLineX - halfMoveX;
+
+    expect(halfSpan).toBeCloseTo(fullSpan);
+  });
+
   it('withOpacity-setsGlobalAlphaBeforeDrawing', () => {
     const ctx = makeMockContext() as unknown as { globalAlpha: number; fillRect: ReturnType<typeof vi.fn> };
     // Capture globalAlpha at the moment fillRect is called — save()/restore()
