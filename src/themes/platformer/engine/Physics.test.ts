@@ -1007,4 +1007,27 @@ describe('stepPlayerPhysics climbing', () => {
 
     expect(next.climbing).toBe(false);
   });
+
+  it('freshClimbEntry-snapsXToCenterOnTheLadderColumn', () => {
+    // Player starts off-center from the ladder column (col 0) — e.g. x=10,
+    // not the centered value. Entering climbing should snap x to center the
+    // player on col 0: col*32 + 16 - PLAYER_RENDERED_SIZE/2 = 0 + 16 - 32 = -16.
+    const player = basePlayer({ x: 10, y: 20, grounded: false, climbing: false });
+
+    const next = stepPlayerPhysics(player, LADDER_LEVEL, 1 / 60, { climbUpHeld: true });
+
+    expect(next.climbing).toBe(true);
+    expect(next.x).toBeCloseTo(-16);
+  });
+
+  it('continuingToClimb-doesNotResnapX-freeHorizontalMovementStillWorks', () => {
+    // Already climbing (not a fresh entry) and holding Right — x should
+    // move normally by walkSpeed, NOT get re-snapped to the ladder center.
+    const player = basePlayer({ x: -16, y: 20, grounded: false, climbing: true });
+
+    const next = stepPlayerPhysics(player, LADDER_LEVEL, 1 / 60, { climbUpHeld: true, right: true });
+
+    expect(next.climbing).toBe(true);
+    expect(next.x).toBeCloseTo(-16 + PHYSICS_CONFIG.walkSpeed / 60);
+  });
 });

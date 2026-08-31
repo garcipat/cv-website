@@ -165,12 +165,14 @@ export function stepPlayerPhysics(
   const climbDownHeld = Boolean(input.dropThroughHeld);
 
   let climbing = player.climbing;
+  let justEnteredClimbing = false;
   if (climbing) {
     // Continue only while still over a ladder tile and not jump-cancelled.
     climbing = onLadderNow && !input.jumpPressed;
   } else if (onLadderNow && (climbUpHeld || climbDownHeld)) {
     // Fresh entry: overlapping a ladder column and pressing Up/Down.
     climbing = true;
+    justEnteredClimbing = true;
   } else if (player.grounded && climbDownHeld && columnsAreClimbable(feetRow + 1)) {
     // Fresh entry from above: standing on the solid tile directly above a
     // ladder's top rung, pressing Down re-enters the climb downward — mirrors
@@ -178,13 +180,23 @@ export function stepPlayerPhysics(
     // ladder starts the row BELOW the tile the character rests on, unlike a
     // bridge, which the character rests ON TOP of directly).
     climbing = true;
+    justEnteredClimbing = true;
   }
 
   if (climbing) {
     const vy = climbUpHeld ? -PHYSICS_CONFIG.climbSpeed : climbDownHeld ? PHYSICS_CONFIG.climbSpeed : 0;
+    let climbX = x;
+    if (justEnteredClimbing) {
+      for (let col = climbLeftCol; col <= climbRightCol; col++) {
+        if (isClimbable(tileAt(level, col, feetRow)) || isClimbable(tileAt(level, col, feetRow + 1))) {
+          climbX = col * RENDERED_TILE_SIZE + RENDERED_TILE_SIZE / 2 - PLAYER_RENDERED_SIZE / 2;
+          break;
+        }
+      }
+    }
     return {
       ...player,
-      x,
+      x: climbX,
       y: player.y + vy * dt,
       vx,
       vy,
