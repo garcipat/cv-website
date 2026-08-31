@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { TileChar } from '../level/LevelParser';
 import { paintCell, type PaintResult } from './paintCell';
 import { updatePanOffset, type PanOffset } from './EditorPan';
@@ -40,8 +40,13 @@ interface EditorCanvasProps {
   onPan: (offset: PanOffset) => void;
 }
 
-const CANVAS_WIDTH_PX = 800;
-const CANVAS_HEIGHT_PX = 480;
+// Fallback size used before the first ResizeObserver measurement lands (or
+// in environments without ResizeObserver, e.g. some test runners) — after
+// that, the canvas tracks its container's actual size (see the
+// ResizeObserver effect below), so it grows/shrinks with the browser
+// window instead of staying fixed.
+const DEFAULT_CANVAS_WIDTH_PX = 800;
+const DEFAULT_CANVAS_HEIGHT_PX = 480;
 // Matches the platformer theme's own sky color (`--background` in
 // platformer.css) so the editor's canvas looks like the real game's
 // background rather than an arbitrary dev-tool color. Falls back to the
@@ -91,10 +96,30 @@ export const EditorCanvas = ({
   onPan,
 }: EditorCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   type DragState =
     | { mode: 'paint'; tool: TileChar; lastCol: number; lastRow: number }
     | { mode: 'pan'; lastX: number; lastY: number };
   const dragRef = useRef<DragState | null>(null);
+  const [canvasSize, setCanvasSize] = useState({
+    width: DEFAULT_CANVAS_WIDTH_PX,
+    height: DEFAULT_CANVAS_HEIGHT_PX,
+  });
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      const { width, height } = entry.contentRect;
+      if (width > 0 && height > 0) {
+        setCanvasSize({ width: Math.floor(width), height: Math.floor(height) });
+      }
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -217,15 +242,18 @@ export const EditorCanvas = ({
   };
 
   return (
-    <canvas
-      ref={canvasRef}
-      width={CANVAS_WIDTH_PX}
-      height={CANVAS_HEIGHT_PX}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
-      onContextMenu={(event) => event.preventDefault()}
-    />
+    <div ref={containerRef} className="min-h-0 min-w-0 flex-1">
+      <canvas
+        ref={canvasRef}
+        width={canvasSize.width}
+        height={canvasSize.height}
+        className="block"
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onContextMenu={(event) => event.preventDefault()}
+      />
+    </div>
   );
 };

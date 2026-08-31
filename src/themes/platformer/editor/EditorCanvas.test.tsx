@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, fireEvent } from '@testing-library/react';
+import { render, fireEvent, act } from '@testing-library/react';
 import { EditorCanvas } from './EditorCanvas';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { TileChar } from '../level/LevelParser';
@@ -54,6 +54,47 @@ beforeEach(() => {
 });
 
 describe('EditorCanvas', () => {
+  it('resizes the canvas to match its container via ResizeObserver, instead of staying a fixed size', () => {
+    stubCanvasContext();
+    let resizeCallback: ResizeObserverCallback = () => {};
+    class FakeResizeObserver {
+      constructor(callback: ResizeObserverCallback) {
+        resizeCallback = callback;
+      }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+    vi.stubGlobal('ResizeObserver', FakeResizeObserver);
+
+    const { container } = render(
+      <EditorCanvas
+        grid={[['.']]}
+        selectedTool="G"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+    const canvas = container.querySelector('canvas')! as HTMLCanvasElement;
+    const defaultWidth = canvas.width;
+
+    act(() => {
+      resizeCallback(
+        [{ contentRect: { width: 500, height: 300 } } as ResizeObserverEntry],
+        {} as ResizeObserver,
+      );
+    });
+
+    expect(canvas.width).not.toBe(defaultWidth);
+    expect(canvas.width).toBe(500);
+    expect(canvas.height).toBe(300);
+
+    vi.unstubAllGlobals();
+  });
+
+
   it('renders every visible cell as background before drawing terrain, so panning never shows blank canvas', () => {
     const ctx = stubCanvasContext();
     const grid: TileChar[][] = [['G']];
