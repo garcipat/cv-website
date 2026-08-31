@@ -37,10 +37,10 @@ describe('App - level editor route', () => {
     window.history.pushState({}, '', '/');
   });
 
-  it('renders the level editor when the pathname is /platformer/editor', () => {
+  it('renders the level editor when the pathname is /platformer/editor', async () => {
     window.history.pushState({}, '', '/platformer/editor');
     render(<App />);
-    expect(screen.getByRole('toolbar')).toBeInTheDocument();
+    expect(await screen.findByRole('toolbar')).toBeInTheDocument();
   });
 
   it('does not render the level editor for any other pathname', () => {
