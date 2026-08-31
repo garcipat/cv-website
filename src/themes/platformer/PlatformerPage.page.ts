@@ -37,4 +37,7 @@ export const platformerPage = {
   get debugHitboxesToggle() {
     return screen.getByTestId('debug-hitboxes-toggle');
   },
+  get controlsOverlay() {
+    return screen.getByTestId('platformer-controls-overlay');
+  },
 };
