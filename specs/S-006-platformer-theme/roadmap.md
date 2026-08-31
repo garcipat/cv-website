@@ -546,7 +546,7 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   expected to show again then); confirm holding still with no movement
   leaves it visible indefinitely (no timeout); confirm captions translate
   correctly with the locale switcher.*
-- [ ] **26. Hint signs** — a new non-solid, non-collectible `SignDef` entity
+- [x] **26. Hint signs** — a new non-solid, non-collectible `SignDef` entity
   (FR-037–FR-040), placed via a hand-authored level marker. Each distinct
   hint gets its own single-digit marker character (`1`–`9`, mapped directly
   to a `hintId` in `LevelParser.ts`'s new `SIGN_CHARS` table) rather than
@@ -566,6 +566,28 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   scope here otherwise).
   *Verify: walk up to the bridge sign, see the hint bubble in the current
   locale; walk away, see it disappear; switch locale, see the text update.*
+
+  **Shipped largely as specified** (2026-08-31): `SignDef`/`SIGN_CHARS`
+  digit-marker parsing in `LevelParser.ts`, an interact-triggered (not
+  overlap-triggered) speech bubble that grows up from the signpost and
+  settles above the character, `platformer.hints.bridgeDropThrough` keys in
+  `en.json`/`de.json`, and a single sign placed at `level1`'s first bridge.
+  Signs are reusable (re-triggerable on every Up press), never touch
+  `collectedFacts`/the journal, and don't pause the game. The Level Editor
+  also gained a "Sign" palette tool that paints a signpost with a digit
+  badge, per FR-040. Two real bugs were caught and fixed during
+  implementation, both by this plan's own tests/reviews before shipping: a
+  bubble-positioning formula in `Renderer.ts` that didn't actually keep the
+  box's bottom edge fixed while the bubble grew/shrank, and the speech-bubble
+  tail width incorrectly scaling with the growth animation instead of
+  staying fixed. Task execution also needed a mid-plan reorder: Task 10 (an
+  earlier task) had to run before Task 6 due to a dependency the plan's
+  written task order didn't account for. Two pre-existing, out-of-scope
+  Level Editor issues were noticed but intentionally left alone: enemy
+  markers sometimes appearing not to render (by-design behavior — a marker
+  only gets an enemy while `CVData` still has an unassigned course entry for
+  that color) and the Reset button's native `confirm()` dialog not always
+  firing reliably in all browser/testing contexts.
 - [ ] **27. Pause-on-open for floating controls** — the floating controls (built in
   step 1) now pause the running game loop while open and resume it on close, instead
   of being purely decorative.
