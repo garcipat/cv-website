@@ -13,12 +13,15 @@ import {
   drawCounterPopups,
   drawIrisOverlay,
   drawRestartPrompt,
+  drawSigns,
+  drawSignBubble,
   RESTART_PROMPT_FONT_FAMILY,
   HEARTS_START_X,
   CHEST_COUNTER_TEXT_GAP,
   CHEST_COUNTER_ICON_HEIGHT,
 } from './Renderer';
 import type { LevelDef } from '../level/LevelData';
+import type { SignPlacement } from '../level/SignMapper';
 import type { PlayerState } from '../entities/Player';
 import { PLAYER_RENDERED_SIZE } from '../entities/Player';
 import { MAX_HALF_HEARTS, HEART_RENDERED_SIZE } from '../entities/Health';
@@ -69,6 +72,10 @@ function makeMockContext() {
     fill: vi.fn(),
     fillText: vi.fn(),
     measureText: vi.fn(() => ({ width: 10 })),
+    fillRect: vi.fn(),
+    lineTo: vi.fn(),
+    closePath: vi.fn(),
+    globalAlpha: 1,
   } as unknown as CanvasRenderingContext2D;
 }
 
@@ -1306,5 +1313,100 @@ describe('drawRestartPrompt', () => {
 
     expect(ctx.font).toContain(RESTART_PROMPT_FONT_FAMILY);
     expect(ctx.font).toContain('sans-serif');
+  });
+});
+
+describe('drawSigns', () => {
+  it('onePlacement-drawsSignpostTileAtItsPosition', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const sign: SignPlacement = { id: 'sign-bridgeDropThrough-1-1', hintId: 'bridgeDropThrough', x: 64, y: 96 };
+
+    drawSigns(ctx as unknown as CanvasRenderingContext2D, [sign], fakeTileset, 10, 20);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 128, 48, 16, 16, 64 + 10, 96 + 20, 32, 32);
+  });
+
+  it('noPlacements-drawsNothing', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+
+    drawSigns(ctx as unknown as CanvasRenderingContext2D, [], fakeTileset);
+
+    expect(ctx.drawImage).not.toHaveBeenCalled();
+  });
+});
+
+describe('drawSignBubble', () => {
+  it('growth1-drawsBorderAndBubbleRectsPlusCenteredText', () => {
+    const ctx = makeMockContext() as unknown as {
+      fillRect: ReturnType<typeof vi.fn>;
+      fillText: ReturnType<typeof vi.fn>;
+    };
+
+    drawSignBubble(ctx as unknown as CanvasRenderingContext2D, 'Hold Down to drop through a bridge.', 200, 300);
+
+    expect(ctx.fillRect).toHaveBeenCalledTimes(2); // border rect, then the inset bubble rect on top
+    expect(ctx.fillText).toHaveBeenCalledWith(
+      'Hold Down to drop through a bridge.',
+      expect.any(Number),
+      expect.any(Number),
+    );
+  });
+
+  it('growthZero-drawsNothing', () => {
+    const ctx = makeMockContext() as unknown as {
+      fillRect: ReturnType<typeof vi.fn>;
+      fillText: ReturnType<typeof vi.fn>;
+    };
+
+    drawSignBubble(ctx as unknown as CanvasRenderingContext2D, 'Hi', 200, 300, 0);
+
+    expect(ctx.fillRect).not.toHaveBeenCalled();
+    expect(ctx.fillText).not.toHaveBeenCalled();
+  });
+
+  it('halfGrowth-drawsABubbleRectHalfAsTallAsFullGrowth', () => {
+    const ctx = makeMockContext() as unknown as { fillRect: ReturnType<typeof vi.fn> };
+
+    drawSignBubble(ctx as unknown as CanvasRenderingContext2D, 'Hi', 200, 300, 1);
+    const [, , , fullHeight] = ctx.fillRect.mock.calls[1]; // index 1: the inset bubble rect, not the border rect
+    ctx.fillRect.mockClear();
+
+    drawSignBubble(ctx as unknown as CanvasRenderingContext2D, 'Hi', 200, 300, 0.5);
+    const [, , , halfHeight] = ctx.fillRect.mock.calls[1];
+
+    expect(halfHeight).toBeCloseTo(fullHeight / 2);
+  });
+
+  it('everyGrowth-keepsTheBoxsBottomEdgeFixed', () => {
+    // The bubble must grow UPWARD from a fixed bottom edge (where the tail
+    // meets it), not scale symmetrically — this is what makes it read as
+    // "rising out of" the anchor point rather than just scaling in place.
+    const ctx = makeMockContext() as unknown as { fillRect: ReturnType<typeof vi.fn> };
+
+    drawSignBubble(ctx as unknown as CanvasRenderingContext2D, 'Hi', 200, 300, 1);
+    const [, fullTop, , fullHeight] = ctx.fillRect.mock.calls[1];
+    const fullBottom = fullTop + fullHeight;
+    ctx.fillRect.mockClear();
+
+    drawSignBubble(ctx as unknown as CanvasRenderingContext2D, 'Hi', 200, 300, 0.5);
+    const [, halfTop, , halfHeight] = ctx.fillRect.mock.calls[1];
+    const halfBottom = halfTop + halfHeight;
+
+    expect(halfBottom).toBeCloseTo(fullBottom);
+  });
+
+  it('withOpacity-setsGlobalAlphaBeforeDrawing', () => {
+    const ctx = makeMockContext() as unknown as { globalAlpha: number; fillRect: ReturnType<typeof vi.fn> };
+    // Capture globalAlpha at the moment fillRect is called — save()/restore()
+    // are no-ops in the mock, so without capturing mid-call, reading
+    // ctx.globalAlpha afterward could reflect whatever restore() reset it to.
+    let alphaDuringDraw: number | undefined;
+    ctx.fillRect.mockImplementation(() => {
+      if (alphaDuringDraw === undefined) alphaDuringDraw = ctx.globalAlpha;
+    });
+
+    drawSignBubble(ctx as unknown as CanvasRenderingContext2D, 'Hi', 200, 300, 1, 0.4);
+
+    expect(alphaDuringDraw).toBe(0.4);
   });
 });
