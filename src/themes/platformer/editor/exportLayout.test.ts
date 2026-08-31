@@ -40,13 +40,15 @@ describe('exportLayout', () => {
     expect(() => parseLevel(exportLayout(grid))).not.toThrow();
   });
 
-  it("exportLayout(importLayout(LEVEL_1_LAYOUT)) crops away LEVEL_1_LAYOUT's leading blank row, keeping every real tile", () => {
-    // LEVEL_1_LAYOUT has a deliberate leading all-'.' row (game rendering
-    // margin) and no other padding — content-cropping (this function's own
-    // job) removes exactly that row on export, even for unedited data.
-    // This is a ruling recorded in the SDD ledger: cropping is unconditional
-    // (spec SC-010), so it applies the same way to freshly-loaded data as to
-    // anything the developer paints and erases down to this shape.
-    expect(exportLayout(importLayout(LEVEL_1_LAYOUT))).toEqual(LEVEL_1_LAYOUT.slice(1));
+  it('exportLayout(importLayout(LEVEL_1_LAYOUT)) keeps every row since LEVEL_1_LAYOUT (post ladder-shaft rows) has no longer any leading/trailing all-"." row, only an interior one (which stays, per crop semantics)', () => {
+    // Content-cropping (this function's own job) is unconditional — spec
+    // SC-010 — so it applies the same way to freshly-loaded data as to
+    // anything the developer paints and erases down to this shape. As of
+    // this writing LEVEL_1_LAYOUT's only all-'.' row sits between two
+    // content rows (interior, not leading/trailing), so nothing is cropped;
+    // the expected value is importLayout's own right-padded rows re-joined,
+    // not the raw (jagged) LEVEL_1_LAYOUT constant.
+    const paddedRows = importLayout(LEVEL_1_LAYOUT).map((row) => row.join(''));
+    expect(exportLayout(importLayout(LEVEL_1_LAYOUT))).toEqual(paddedRows);
   });
 });

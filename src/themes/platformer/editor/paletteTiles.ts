@@ -77,6 +77,15 @@ export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
     frameWidth: 16,
     frameHeight: 16,
   },
+  L: {
+    sheet: WORLD_TILESET,
+    sheetWidth: 256,
+    sheetHeight: 256,
+    sx: 144,
+    sy: 48,
+    frameWidth: 16,
+    frameHeight: 16,
+  },
   S: {
     sheet: '/sprites/knight.png',
     sheetWidth: 256,
@@ -161,6 +170,7 @@ export const PALETTE_TILE_LABELS: Record<TileChar, string> = {
   P: 'Platform',
   W: 'Wall',
   B: 'Bridge',
+  L: 'Ladder',
   S: 'Spawn',
   E: 'Enemy Green',
   M: 'Enemy Purple',
