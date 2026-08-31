@@ -8,6 +8,7 @@ import {
   synthesizeChestStates,
 } from './gridRenderState';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
+import { PLAYER_RENDERED_SIZE, PLAYER_FOOT_PADDING } from '../entities/Player';
 import type { TileChar } from '../level/LevelParser';
 
 describe('gridToLevelDef', () => {
@@ -25,12 +26,18 @@ describe('synthesizePlayerState', () => {
     expect(synthesizePlayerState([['.', '.']])).toBeNull();
   });
 
-  it('returns a fixed-idle placeholder PlayerState at the spawn marker position', () => {
+  it('returns a fixed-idle placeholder PlayerState centered over the spawn tile with feet on its ground surface, matching the real game\'s spawnPlayerState formula exactly', () => {
     const grid: TileChar[][] = [['.', 'S']];
     const player = synthesizePlayerState(grid);
     expect(player).not.toBeNull();
-    expect(player?.x).toBe(1 * RENDERED_TILE_SIZE);
-    expect(player?.y).toBe(0);
+    const spawnTileX = 1 * RENDERED_TILE_SIZE;
+    const spawnTileY = 0;
+    const expectedX = spawnTileX - (PLAYER_RENDERED_SIZE - RENDERED_TILE_SIZE) / 2;
+    const expectedY = spawnTileY + RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
+    expect(player?.x).toBe(expectedX);
+    expect(player?.y).toBe(expectedY);
+    expect(player?.lastGroundedX).toBe(expectedX);
+    expect(player?.lastGroundedY).toBe(expectedY);
     expect(player?.facing).toBe('right');
     expect(player?.animState).toBe('idle');
     expect(player?.animFrame).toBe(0);

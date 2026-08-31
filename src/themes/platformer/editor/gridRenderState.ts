@@ -1,6 +1,7 @@
 import { TERRAIN_CHARS, type TileChar } from '../level/LevelParser';
 import type { LevelDef, TileMap } from '../level/LevelData';
-import { tileToPixel } from '../level/Terrain';
+import { tileToPixel, RENDERED_TILE_SIZE } from '../level/Terrain';
+import { PLAYER_RENDERED_SIZE, PLAYER_FOOT_PADDING } from '../entities/Player';
 import type { PlayerState } from '../entities/Player';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
 import { toEnemyState, type EnemyState } from '../entities/Enemy';
@@ -25,10 +26,7 @@ const PLACEHOLDER_FACT: CollectedFact = {
   sourceType: 'coin',
 };
 
-function findAllPositions(
-  grid: TileChar[][],
-  char: TileChar,
-): { col: number; row: number }[] {
+function findAllPositions(grid: TileChar[][], char: TileChar): { col: number; row: number }[] {
   const positions: { col: number; row: number }[] = [];
   for (let row = 0; row < grid.length; row++) {
     for (let col = 0; col < grid[row].length; col++) {
@@ -51,11 +49,20 @@ export function gridToLevelDef(grid: TileChar[][]): LevelDef {
 }
 
 /** Returns a fixed-idle placeholder `PlayerState` at the grid's `S` marker,
- *  or `null` if none exists yet. */
+ *  or `null` if none exists yet. Position matches the real game's own
+ *  `spawnPlayerState` (`PlatformerState.ts`) exactly — the player's 64px
+ *  render slot is horizontally centered over the 32px spawn tile, and
+ *  vertically placed so the sprite's visible feet (not the render slot's
+ *  bottom edge) land on the tile's ground surface, accounting for
+ *  `PLAYER_FOOT_PADDING`'s transparent rows below the feet. Without this,
+ *  the player renders visibly offset from its tile. */
 export function synthesizePlayerState(grid: TileChar[][]): PlayerState | null {
   const [spawn] = findAllPositions(grid, 'S');
   if (!spawn) return null;
-  const { x, y } = tileToPixel(spawn.col, spawn.row);
+  const spawnCell = tileToPixel(spawn.col, spawn.row);
+  const groundSurfaceY = spawnCell.y + RENDERED_TILE_SIZE;
+  const x = spawnCell.x - (PLAYER_RENDERED_SIZE - RENDERED_TILE_SIZE) / 2;
+  const y = groundSurfaceY - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
   return {
     x,
     y,
