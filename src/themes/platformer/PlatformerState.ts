@@ -252,8 +252,9 @@ export const endingScreenOpen = signal(false);
 
 /**
  * One-shot latch (roadmap step 25, spec.md FR-036): true once the visitor
- * has dismissed the controls overlay (or its timeout elapsed) this browser
- * session. Unlike `endingScreenShown` above, this is NEVER reset by
+ * has dismissed the controls overlay (i.e. walked far enough from where it
+ * appeared — see ControlsOverlay.tsx) this browser session. Unlike
+ * `endingScreenShown` above, this is NEVER reset by
  * `resetGame()` or `resetGameProgress()` — FR-036 requires the overlay to
  * not reappear "for the remainder of the session", and a visitor clicking
  * Reset Game is still the same session, not a new one. Module-level (not a

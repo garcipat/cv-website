@@ -97,21 +97,26 @@ export const ControlsOverlay = () => {
   };
 
   // Captures the player's position the moment the overlay appears, and
-  // schedules the fade-in reveal. The dismiss latch this feeds
-  // (controlsOverlayDismissed) is permanent, so this effect's
-  // cleanup-on-hide branch only ever needs to reset the refs the next
-  // branch reads — it deliberately does NOT also call setFadingOut(false)
-  // here: fadingOut already starts false and is never reused once
-  // dismissed, and a same-value setState from a mount effect was found (in
-  // PlatformerPage.test.tsx's chest/ending-screen tests) to desync React's
-  // act()-driven flush timing for unrelated signal-triggered DOM updates
-  // elsewhere on the page — `revealed` is left untouched for the same
-  // reason (it's never shown again once dismissed, so there's nothing to
-  // reset it for).
+  // schedules the fade-in reveal. `shouldShow` goes false both on the
+  // permanent dismissal (via `controlsOverlayDismissed`) AND on every
+  // transient hide — the journal opening (`paused`), or a death/respawn's
+  // `dying`/`intro` phases — where the overlay legitimately reappears once
+  // `shouldShow` flips back to true. `spawnXRef`/`triggeredRef` are reset
+  // here so a later reappearance re-captures a fresh spawn position and can
+  // fade out again; `revealed` is reset too, otherwise a transient
+  // reappearance would snap straight to its baseline opacity/position
+  // instead of fading/sliding in like a fresh appearance. (fadingOut is
+  // deliberately left alone: it already starts false and a same-value
+  // setState from a mount effect was found, in PlatformerPage.test.tsx's
+  // chest/ending-screen tests, to desync React's act()-driven flush timing
+  // for unrelated signal-triggered DOM updates elsewhere on the page —
+  // `revealed` only needs the same care applied when it's actually
+  // changing, which is exactly the case here.)
   useEffect(() => {
     if (!shouldShow) {
       spawnXRef.current = null;
       triggeredRef.current = false;
+      if (revealed) setRevealed(false);
       return;
     }
     // playerX is always a number here — it's only null when !shouldShow,
@@ -145,7 +150,18 @@ export const ControlsOverlay = () => {
     const timer = window.setTimeout(() => {
       controlsOverlayDismissed.value = true;
     }, FADE_OUT_DURATION_MS);
-    return () => window.clearTimeout(timer);
+    return () => {
+      window.clearTimeout(timer);
+      // If shouldShow flips false (e.g. the journal opens) mid-fade-out —
+      // after triggeredRef.current was set by beginFadeOut(), but before
+      // this timer fired — this effect gets cleaned up without the latch
+      // ever flipping. Fade-out was genuinely triggered, so treat it as
+      // dismissed anyway; otherwise the overlay could reappear later and
+      // demand another full DISMISS_TRAVEL_DISTANCE_PX of travel.
+      if (triggeredRef.current && !controlsOverlayDismissed.value) {
+        controlsOverlayDismissed.value = true;
+      }
+    };
   }, [fadingOut]);
 
   if (!shouldShow) return null;
@@ -162,7 +178,7 @@ export const ControlsOverlay = () => {
   return (
     <div
       data-testid="platformer-controls-overlay"
-      className={`pointer-events-none fixed inset-x-0 top-[30vh] z-40 flex flex-col items-center gap-2 transition-[opacity,transform] ease-out ${opacityClass}`}
+      className={`pointer-events-none fixed inset-x-0 top-[30vh] z-40 flex flex-col items-center transition-[opacity,transform] ease-out ${opacityClass}`}
       style={{
         transitionDuration: `${transitionDurationMs}ms`,
         transform: `translateX(${translateX}px)`,
