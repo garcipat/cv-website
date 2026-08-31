@@ -618,15 +618,19 @@ describe('Journal', () => {
       const enemyPlacementsSpy = vi
         .spyOn(enemyPlacements, 'value', 'get')
         .mockReturnValue([factBearingEnemy, plainEnemy]);
-      collectedFacts.value = [];
+      // try/finally so a failed assertion still restores the spy — otherwise
+      // this 2-element mock would leak into every later test in this file.
+      try {
+        collectedFacts.value = [];
 
-      render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
-      openBookAnimation();
+        render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
+        openBookAnimation();
 
-      const summary = journalPage.collectiblesSummary;
-      expect(summary).toHaveTextContent(/Enemies 0 \/ 1/);
-
-      enemyPlacementsSpy.mockRestore();
+        const summary = journalPage.collectiblesSummary;
+        expect(summary).toHaveTextContent(/Enemies 0 \/ 1/);
+      } finally {
+        enemyPlacementsSpy.mockRestore();
+      }
     });
   });
 
