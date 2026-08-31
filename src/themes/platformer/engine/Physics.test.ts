@@ -98,6 +98,14 @@ function standingYOnRow(row: number): number {
   return row * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
 }
 
+// 3 cols wide so col 0 and col 2 give room to approach col 1's ladder shaft
+// from the side; col 1 is a standable ladder top (row 0, nothing above it)
+// over a plain ladder tile (row 1) over solid ground (row 2). Used to prove
+// the standable top tile is one-way exactly like `bridge` — solid from
+// above, but never solid horizontally (isSolid('ladder') is always false,
+// standable or not).
+const STANDABLE_LADDER_TOP_SIDE_LEVEL = parseLevel(['.L.', '.L.', '.G.']);
+
 describe('stepPlayerPhysics', () => {
   it('stepPlayerPhysics-inMidAir-appliesGravityToVelocityAndMovesDown', () => {
     const player = basePlayer({ y: 0, vy: 0 });
@@ -1159,11 +1167,62 @@ describe('stepPlayerPhysics standing on top of a ladder (roadmap step 23 follow-
     // LADDER_LEVEL's shaft (rows 1-2) dead-ends into solid ground at row 0 —
     // there's no room to stand on the shaft's top tile, so the old
     // climb-until-the-feet-leave-the-ladder behaviour has to remain.
-    const player = basePlayer({ x: 0, y: standingYOnRow(1), grounded: false, climbing: true });
+    //
+    // standingYOnRow(1) would put the feet at row 0 (the row ABOVE row 1,
+    // per this file's "feet resting on top of `row`" convention) — already
+    // the solid ground tile, so `onLadderNow` is false before the climbing
+    // branch's canStandOnLadderTop logic is ever consulted, and the test
+    // would pass via the unrelated "just exited climbing" early return
+    // instead of the dead-end fallback it's meant to cover. standingYOnRow(2)
+    // instead puts the feet at row 1 — the shaft's own top rung, still on
+    // the ladder — so `onLadderNow` is true, `canStandOnLadderTop` genuinely
+    // evaluates to false (solid tile at row 0 above), and the plain
+    // climb-until-the-feet-leave-the-ladder fallback is what's exercised.
+    const player = basePlayer({ x: 0, y: standingYOnRow(2), grounded: false, climbing: true });
 
     const next = stepPlayerPhysics(player, LADDER_LEVEL, 1 / 60, { climbUpHeld: true });
 
+    expect(next.climbing).toBe(true);
     expect(next.grounded).toBe(false);
+  });
+});
+
+describe('stepPlayerPhysics standable ladder top tile is one-way like bridge (roadmap step 23 follow-up)', () => {
+  it('standingOnLaddersTopTile-walkingSideways-movesFreelyOffOfIt', () => {
+    // Player grounded exactly on col 1's standable ladder-top tile (row 0).
+    // Standing ON TOP of it means the hitbox sits entirely above that row,
+    // so horizontal collision never even scans the tile — holding Right
+    // should move normally at walkSpeed, not be blocked like a wall.
+    const colCenterX = 1 * RENDERED_TILE_SIZE + RENDERED_TILE_SIZE / 2 - PLAYER_RENDERED_SIZE / 2;
+    const player = basePlayer({
+      x: colCenterX,
+      y: standingYOnRow(0),
+      grounded: true,
+      climbing: false,
+    });
+
+    const next = stepPlayerPhysics(player, STANDABLE_LADDER_TOP_SIDE_LEVEL, 1 / 60, {
+      right: true,
+    });
+
+    expect(next.x).toBeCloseTo(colCenterX + PHYSICS_CONFIG.walkSpeed / 60);
+  });
+
+  it('standableLadderTopTile-doesNotBlockHorizontalMovementThroughItsColumn', () => {
+    // Player moving sideways INTO col 1's column at row 0 itself (the
+    // standable ladder-top tile), not standing on it — passing through at
+    // the same row from col 0. y=0 puts topRow/bottomRow at rows 0-1, both
+    // of which are ladder tiles in col 1. isSolid('ladder') is always false
+    // (confirmed in Terrain.test.ts), so this must move exactly like open
+    // space — no wall-style clamp the way isSolid('platform') would produce.
+    const x = 0;
+    const player = basePlayer({ x, y: 0, grounded: false, climbing: false });
+
+    const next = stepPlayerPhysics(player, STANDABLE_LADDER_TOP_SIDE_LEVEL, 1 / 60, {
+      right: true,
+    });
+
+    expect(next.x).toBeCloseTo(x + PHYSICS_CONFIG.walkSpeed / 60);
   });
 });
 
