@@ -6,6 +6,7 @@ import {
   checkEnemySideCollisions,
   checkBonusFruitCollisions,
   chestPlayerIsStandingOn,
+  checkSignOverlap,
 } from './Collision';
 import { PLAYER_SIDE_PADDING, PLAYER_HEAD_PADDING, PLAYER_RENDERED_SIZE } from '../entities/Player';
 import type { PlayerState } from '../entities/Player';
@@ -16,6 +17,7 @@ import type { EnemyPlacement } from '../level/EnemyMapper';
 import { spawnBonusFruit, tickBonusFruit, BONUS_FRUIT_RISE_DURATION_SECONDS } from '../entities/BonusFruit';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { ChestState } from '../entities/Chest';
+import type { SignPlacement } from '../level/SignMapper';
 
 function makePlayer(x: number, y: number): PlayerState {
   return {
@@ -283,5 +285,27 @@ describe('chestPlayerIsStandingOn', () => {
   it('noChests-returnsUndefined', () => {
     const player = makePlayer(0, 0);
     expect(chestPlayerIsStandingOn(player, [])).toBeUndefined();
+  });
+});
+
+describe('checkSignOverlap', () => {
+  const sign: SignPlacement = { id: 'sign-bridgeDropThrough-1-1', hintId: 'bridgeDropThrough', x: 100, y: 100 };
+
+  it('playerOverlappingSign-returnsItsHintId', () => {
+    const player = makePlayer(100, 100);
+
+    expect(checkSignOverlap(player, [sign])).toBe('bridgeDropThrough');
+  });
+
+  it('playerFarFromSign-returnsUndefined', () => {
+    const player = makePlayer(1000, 1000);
+
+    expect(checkSignOverlap(player, [sign])).toBeUndefined();
+  });
+
+  it('noSignsInLevel-returnsUndefined', () => {
+    const player = makePlayer(100, 100);
+
+    expect(checkSignOverlap(player, [])).toBeUndefined();
   });
 });

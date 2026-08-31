@@ -19,6 +19,9 @@ import {
   isChestOpen,
 } from '../entities/Chest';
 import type { ChestState } from '../entities/Chest';
+import { RENDERED_TILE_SIZE } from '../level/Terrain';
+import type { SignPlacement } from '../level/SignMapper';
+import type { HintId } from '../types';
 
 export interface Box {
   x: number;
@@ -199,6 +202,26 @@ export function chestPlayerIsStandingOn(
       height: CHEST_CLOSED_RENDERED_HEIGHT,
     };
     if (aabbOverlap(hitbox, box)) return chest.id;
+  }
+  return undefined;
+}
+
+/**
+ * Returns the `hintId` of the first sign the player's hitbox currently
+ * overlaps, or `undefined` if none. Unlike checkCollectibleCollisions, this
+ * is NOT destructive/dedup-tracked — a sign is reusable, so the same sign
+ * returns its hintId every tick the player stands on it, and again the next
+ * time they walk back onto it. A sign's box is exactly one rendered tile
+ * (RENDERED_TILE_SIZE square), matching how it's drawn (Renderer.ts).
+ */
+export function checkSignOverlap(
+  player: PlayerState,
+  signs: readonly SignPlacement[],
+): HintId | undefined {
+  const hitbox = playerHitbox(player);
+  for (const sign of signs) {
+    const box: Box = { x: sign.x, y: sign.y, width: RENDERED_TILE_SIZE, height: RENDERED_TILE_SIZE };
+    if (aabbOverlap(hitbox, box)) return sign.hintId;
   }
   return undefined;
 }

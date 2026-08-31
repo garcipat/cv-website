@@ -19,6 +19,7 @@ import {
   chestPlacements,
   chestStates,
   endingScreenShown,
+  signPlacements,
 } from './PlatformerState';
 import { mapCVDataToEnemies } from './level/EnemyMapper';
 import { currentCV } from '@/state/locale';
@@ -78,6 +79,13 @@ describe('PlatformerState', () => {
   describe('chestStates', () => {
     it('module-seeds-everyChestClosed', () => {
       expect(chestStates.value.every((c) => c.state === 'closed')).toBe(true);
+    });
+  });
+
+  describe('signPlacements', () => {
+    it('level1-hasExactlyOneSignPlacement', () => {
+      expect(signPlacements.value).toHaveLength(1);
+      expect(signPlacements.value[0].hintId).toBe('bridgeDropThrough');
     });
   });
 
@@ -330,5 +338,6 @@ describe('marker-derived placements react to currentLayout', () => {
     expect(enemyPlacements.value).toEqual([]);
     expect(blockPlacements.value).toEqual([]);
     expect(chestPlacements.value).toEqual([]);
+    expect(signPlacements.value).toEqual([]);
   });
 });

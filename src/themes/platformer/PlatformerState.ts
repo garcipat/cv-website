@@ -9,6 +9,7 @@ import {
   QUESTIONMARK_TILES,
   FRAGILE_ROCK_TILES,
   CHEST_TILES,
+  SIGN_TILES,
 } from './level/level';
 import {
   PLAYER_RENDERED_SIZE,
@@ -30,6 +31,8 @@ import { mapCVDataToEnemies, placeEnemies } from './level/EnemyMapper';
 import { mapCVDataToBlocks, placeBlocks } from './level/BlockMapper';
 import { mapCVDataToChests, placeChests } from './level/ChestMapper';
 import type { ChestPlacement } from './level/ChestMapper';
+import { placeSigns } from './level/SignMapper';
+import type { SignPlacement } from './level/SignMapper';
 import type { PlayerState } from './entities/Player';
 import type { LifecycleState } from './engine/GameLifecycle';
 import type { CollectedFact, SectionId } from './types';
@@ -165,6 +168,15 @@ export const blockPlacements = computed<BlockPlacement[]>(() =>
 export const chestPlacements = computed<ChestPlacement[]>(() =>
   placeChests(mapCVDataToChests(currentCV.value), CHEST_TILES.value),
 );
+
+/**
+ * Every hint sign in the level, placed once at module load — same
+ * non-reactive-to-CVData-but-reactive-to-`currentLayout` convention as
+ * chestPlacements/blockPlacements above (roadmap step 26). Unlike those,
+ * there's no CVData to zip against: a marker's character alone determines
+ * its hintId (see SignMapper.ts's placeSigns).
+ */
+export const signPlacements = computed<SignPlacement[]>(() => placeSigns(SIGN_TILES.value));
 
 /**
  * Live, per-frame patrol state for every enemy — position/velocity/
