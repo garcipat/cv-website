@@ -1,28 +1,54 @@
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ControlsOverlay } from './ControlsOverlay';
-import { lifecycleState, controlsOverlayDismissed } from '../PlatformerState';
+import { lifecycleState, controlsOverlayDismissed, playerState } from '../PlatformerState';
 import { introState } from '../engine/GameLifecycle';
+import { RENDERED_TILE_SIZE } from '../level/Terrain';
 
 const PLAYING_PHASE = { phase: 'playing' as const, elapsed: 0, centerX: 0, centerY: 0 };
+const DISMISS_TRAVEL_DISTANCE_PX = RENDERED_TILE_SIZE * 2;
+
+/** Flushes the component's double-rAF reveal (see ControlsOverlay.tsx's doc
+ *  comment on `revealed`) so tests that need the baseline translucent/
+ *  resting state don't have to re-derive the two-frame flush every time. */
+const flushReveal = () => {
+  act(() => {
+    vi.advanceTimersToNextFrame();
+  });
+  act(() => {
+    vi.advanceTimersToNextFrame();
+  });
+};
 
 describe('ControlsOverlay', () => {
   const initialLifecycleState = lifecycleState.value;
+  const initialPlayerState = playerState.value;
 
   beforeEach(() => {
     vi.useFakeTimers();
     lifecycleState.value = initialLifecycleState;
     controlsOverlayDismissed.value = false;
+    playerState.value = initialPlayerState;
   });
 
   afterEach(() => {
     vi.useRealTimers();
     lifecycleState.value = initialLifecycleState;
     controlsOverlayDismissed.value = false;
+    playerState.value = initialPlayerState;
   });
 
   it('render-phaseIntro-rendersNothing', () => {
+    // Tried during 'intro' too (see the component's own doc comment) — it
+    // renders over the iris's still-mostly-black canvas early on, so it
+    // waits for 'playing' instead.
     lifecycleState.value = introState(0, 0);
+    render(<ControlsOverlay />);
+    expect(screen.queryByTestId('platformer-controls-overlay')).not.toBeInTheDocument();
+  });
+
+  it('render-phasePaused-rendersNothing', () => {
+    lifecycleState.value = { phase: 'paused' as const, elapsed: 0, centerX: 0, centerY: 0 };
     render(<ControlsOverlay />);
     expect(screen.queryByTestId('platformer-controls-overlay')).not.toBeInTheDocument();
   });
@@ -49,57 +75,115 @@ describe('ControlsOverlay', () => {
     expect(overlay).toHaveTextContent('Journal');
   });
 
-  it('arrowLeftPress-dismissesOverlay', () => {
+  it('render-beforeReveal-isInvisibleAndOffsetLeft', () => {
+    lifecycleState.value = PLAYING_PHASE;
+    render(<ControlsOverlay />);
+    const overlay = screen.getByTestId('platformer-controls-overlay');
+    expect(overlay.className).toContain('opacity-0');
+    expect(overlay.style.transform).toBe('translateX(-80px)');
+  });
+
+  it('afterReveal-isBaselineTranslucentAtRestingPosition', () => {
     lifecycleState.value = PLAYING_PHASE;
     render(<ControlsOverlay />);
 
-    fireEvent.keyDown(window, { code: 'ArrowLeft' });
+    flushReveal();
+
+    const overlay = screen.getByTestId('platformer-controls-overlay');
+    expect(overlay.className).toContain('opacity-80');
+    expect(overlay.style.transform).toBe('translateX(0px)');
+  });
+
+  it('afterOneFrame-stillNotRevealed-onlyFlipsAfterTheSecond', () => {
+    // Regression coverage, same reasoning as ThankYouScreen.test.tsx's
+    // equivalent test: a single rAF isn't reliably enough.
+    lifecycleState.value = PLAYING_PHASE;
+    render(<ControlsOverlay />);
+
+    act(() => {
+      vi.advanceTimersToNextFrame();
+    });
+    expect(screen.getByTestId('platformer-controls-overlay').className).toContain('opacity-0');
+
+    act(() => {
+      vi.advanceTimersToNextFrame();
+    });
+    expect(screen.getByTestId('platformer-controls-overlay').className).toContain('opacity-80');
+  });
+
+  it('playerTravelsUnderThreshold-staysVisibleAndAtBaselineOpacity', () => {
+    lifecycleState.value = PLAYING_PHASE;
+    render(<ControlsOverlay />);
+    flushReveal();
+
+    act(() => {
+      playerState.value = { ...playerState.value, x: playerState.value.x + DISMISS_TRAVEL_DISTANCE_PX - 1 };
+    });
+
+    expect(controlsOverlayDismissed.value).toBe(false);
+    const overlay = screen.getByTestId('platformer-controls-overlay');
+    expect(overlay.className).toContain('opacity-80');
+  });
+
+  it('playerTravelsThreshold-startsFadingOut-slidingRight-thenDismissesAfterFade', () => {
+    lifecycleState.value = PLAYING_PHASE;
+    render(<ControlsOverlay />);
+    flushReveal();
+
+    act(() => {
+      playerState.value = { ...playerState.value, x: playerState.value.x + DISMISS_TRAVEL_DISTANCE_PX };
+    });
+
+    // Immediately starts fading/sliding right, but the permanent latch
+    // hasn't flipped yet.
+    const fadingOverlay = screen.getByTestId('platformer-controls-overlay');
+    expect(fadingOverlay.className).toContain('opacity-0');
+    expect(fadingOverlay.style.transform).toBe('translateX(120px)');
+    expect(controlsOverlayDismissed.value).toBe(false);
+
+    act(() => {
+      vi.advanceTimersByTime(600);
+    });
 
     expect(controlsOverlayDismissed.value).toBe(true);
     expect(screen.queryByTestId('platformer-controls-overlay')).not.toBeInTheDocument();
   });
 
-  it('spacePress-dismissesOverlay', () => {
+  it('playerTravelsInNegativeDirection-alsoDismisses', () => {
+    // Distance is unsigned — moving left counts the same as moving right.
     lifecycleState.value = PLAYING_PHASE;
     render(<ControlsOverlay />);
-
-    fireEvent.keyDown(window, { code: 'Space' });
-
-    expect(controlsOverlayDismissed.value).toBe(true);
-  });
-
-  it('journalKeyPress-doesNotDismissOverlay', () => {
-    // FR-036: only movement/jump input dismisses it — the journal toggle key
-    // is listed IN the overlay's own content, not a dismiss trigger.
-    lifecycleState.value = PLAYING_PHASE;
-    render(<ControlsOverlay />);
-
-    fireEvent.keyDown(window, { code: 'KeyJ' });
-
-    expect(controlsOverlayDismissed.value).toBe(false);
-    expect(screen.getByTestId('platformer-controls-overlay')).toBeInTheDocument();
-  });
-
-  it('timeoutElapses-dismissesOverlay', () => {
-    lifecycleState.value = PLAYING_PHASE;
-    render(<ControlsOverlay />);
+    flushReveal();
 
     act(() => {
-      vi.advanceTimersByTime(6000);
+      playerState.value = { ...playerState.value, x: playerState.value.x - DISMISS_TRAVEL_DISTANCE_PX };
     });
 
-    expect(controlsOverlayDismissed.value).toBe(true);
+    expect(screen.getByTestId('platformer-controls-overlay').className).toContain('opacity-0');
   });
 
-  it('unmountBeforeTimeout-doesNotThrowOrDismiss', () => {
+  it('noMovement-neverStartsFadingOut', () => {
+    // No timeout fallback (removed per live design feedback): a visitor who
+    // never moves keeps seeing the overlay indefinitely, by design.
+    lifecycleState.value = PLAYING_PHASE;
+    render(<ControlsOverlay />);
+    flushReveal();
+
+    act(() => {
+      vi.advanceTimersByTime(60_000);
+    });
+
+    expect(screen.getByTestId('platformer-controls-overlay').className).toContain('opacity-80');
+    expect(controlsOverlayDismissed.value).toBe(false);
+  });
+
+  it('unmountBeforeReveal-doesNotThrowOrDismiss', () => {
     lifecycleState.value = PLAYING_PHASE;
     const { unmount } = render(<ControlsOverlay />);
     unmount();
 
     expect(() => {
-      act(() => {
-        vi.advanceTimersByTime(6000);
-      });
+      flushReveal();
     }).not.toThrow();
     expect(controlsOverlayDismissed.value).toBe(false);
   });
