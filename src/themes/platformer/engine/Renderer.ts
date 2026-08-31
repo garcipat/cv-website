@@ -407,7 +407,12 @@ export function drawSignBubble(
   const fullBoxHeight = BUBBLE_FONT_SIZE + BUBBLE_PADDING_Y * 2;
   const boxHeight = fullBoxHeight * growth;
   const tailHeight = BUBBLE_TAIL_HEIGHT * growth;
-  const tailHalfWidth = BUBBLE_TAIL_HALF_WIDTH * growth;
+  // Tail WIDTH is not scaled by growth — per the plan's explicit constraint,
+  // the bubble reveals at its full width immediately and only its height
+  // (box height + tail height) animates. Using the constant here (rather
+  // than `BUBBLE_TAIL_HALF_WIDTH * growth`) keeps the tail from narrowing
+  // to a sliver mid-grow.
+  const tailHalfWidth = BUBBLE_TAIL_HALF_WIDTH;
 
   // Anchored at the box's fixed BOTTOM edge (independent of growth) — the
   // box grows UPWARD from there, and the tail grows DOWNWARD from there
