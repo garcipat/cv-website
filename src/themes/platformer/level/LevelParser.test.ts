@@ -10,6 +10,7 @@ import {
   findChestTiles,
   TERRAIN_CHARS,
   ENTITY_CHARS,
+  type TileChar,
 } from './LevelParser';
 
 describe('parseLevel', () => {
@@ -239,5 +240,17 @@ describe('findChestTiles', () => {
 
   it('crateOrFragileRockMarker-isNotCountedAsChest', () => {
     expect(findChestTiles(['XF'])).toEqual([]);
+  });
+});
+
+describe('TileChar', () => {
+  it('includes every TERRAIN_CHARS and ENTITY_CHARS key', () => {
+    const tileChars: readonly TileChar[] = [
+      '.', 'G', 'R', 'P', 'W', 'B', 'L', 'S', 'E', 'M', 'C', 'X', 'Q', 'F', 'T',
+    ];
+    const allKeys = [...Object.keys(TERRAIN_CHARS), ...Object.keys(ENTITY_CHARS)];
+    for (const key of allKeys) {
+      expect(tileChars).toContain(key);
+    }
   });
 });
