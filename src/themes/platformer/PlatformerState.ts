@@ -40,6 +40,7 @@ import type { CollectiblePlacement } from './level/CollectibleMapper';
 import type { EnemyPlacement } from './level/EnemyMapper';
 import type { BlockPlacement } from './level/BlockMapper';
 import type { FlightEffect, CounterPopupEffect, CounterPopupLabelKey } from './engine/CollectionEffects';
+import type { HintTooltipState } from './engine/HintTooltip';
 
 /**
  * The player's state at the level's spawn point — full health's worth of
@@ -313,6 +314,18 @@ export const activeCounterPopups = signal<Partial<Record<CounterPopupLabelKey, C
  * recently collected one).
  */
 export const activeJournalSection = signal<SectionId | undefined>(undefined);
+
+/**
+ * The hint-sign tooltip's current grow+fade animation state (roadmap step
+ * 26, live UX feedback — see engine/HintTooltip.ts), or `null` when no
+ * tooltip is active/animating. Updated every game-loop tick (see
+ * PlatformerPage.tsx's transition/tick logic) and read by `render()` to
+ * decide whether/what/where to draw. Not reset by
+ * `resetGame()`/`resetGameProgress()`: like the old `activeSignHintId` this
+ * replaces, it reflects a purely positional, always-current fact about this
+ * frame and the last few, not session progress.
+ */
+export const hintTooltipState = signal<HintTooltipState | null>(null);
 
 /**
  * World-space center point (not top-left) of the spawned player — used to
