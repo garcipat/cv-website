@@ -1,4 +1,5 @@
 import type { LevelDef, TileMap, TileType } from './LevelData';
+import type { HintId } from '../types';
 
 /** An entity marker's kind — what it means, not what it looks like on the
  *  ground (every entity marker sits on `empty` terrain, see parseLevel). */
@@ -50,13 +51,35 @@ export const ENTITY_CHARS: Record<string, EntityKind | undefined> = {
   T: 'chest',
 };
 
-// A character can only mean one thing — guard against TERRAIN_CHARS and
-// ENTITY_CHARS accidentally sharing a key, which two independent maps don't
-// prevent on their own the way one unified table would.
-const sharedChars = Object.keys(TERRAIN_CHARS).filter((char) => char in ENTITY_CHARS);
+/**
+ * Maps each sign-marker character to the hint it shows. Unlike ENTITY_CHARS
+ * (coins/enemies/blocks/chests, whose specific CV fact comes from zipping
+ * marker discovery order against CVData), a sign's content is hand-authored,
+ * not derived from CVData — so the character itself carries the hint's
+ * identity directly. This means the level layout can be freely edited
+ * (rows/columns added, removed, reordered) without ever scrambling which
+ * sign shows which text — a zip-by-discovery-order approach couldn't
+ * guarantee that. Capped at digits 1-9 (an accepted constraint, FR-037):
+ * this level is expected to need only a handful of distinct hints ever.
+ */
+export const SIGN_CHARS: Record<string, HintId | undefined> = {
+  '1': 'bridgeDropThrough',
+};
+
+// A character can only mean one thing — guard against TERRAIN_CHARS,
+// ENTITY_CHARS, and SIGN_CHARS accidentally sharing a key, which three
+// independent maps don't prevent on their own the way one unified table
+// would.
+const charOwners: Record<string, string[]> = {};
+for (const char of Object.keys(TERRAIN_CHARS)) (charOwners[char] ??= []).push('terrain');
+for (const char of Object.keys(ENTITY_CHARS)) (charOwners[char] ??= []).push('entity');
+for (const char of Object.keys(SIGN_CHARS)) (charOwners[char] ??= []).push('sign');
+const sharedChars = Object.entries(charOwners)
+  .filter(([, owners]) => owners.length > 1)
+  .map(([char]) => char);
 if (sharedChars.length > 0) {
   throw new Error(
-    `Level character(s) defined as both terrain and entity marker: ${sharedChars.join(', ')}`,
+    `Level character(s) defined as more than one of terrain/entity/sign: ${sharedChars.join(', ')}`,
   );
 }
 
@@ -86,7 +109,8 @@ export type TileChar =
   | 'X'
   | 'Q'
   | 'F'
-  | 'T';
+  | 'T'
+  | '1';
 
 /**
  * Parses a level's raw ASCII layout (one character per tile, see
@@ -105,7 +129,7 @@ export function parseLevel(layout: readonly string[]): LevelDef {
     const chars = row.split('').map((char) => {
       const tile = TERRAIN_CHARS[char];
       if (tile) return tile;
-      if (ENTITY_CHARS[char]) return 'empty';
+      if (ENTITY_CHARS[char] || SIGN_CHARS[char]) return 'empty';
       throw new Error(`Unknown level tile character: "${char}"`);
     });
     while (chars.length < width) chars.push('empty');
@@ -196,4 +220,25 @@ export function findFragileRockTiles(layout: readonly string[]): { col: number; 
  *  spec.md FR-023) — see ChestMapper.ts's placeChests. */
 export function findChestTiles(layout: readonly string[]): { col: number; row: number }[] {
   return findAllOfKind(layout, 'chest');
+}
+
+/**
+ * Finds every sign marker's position in a level layout, in reading order,
+ * paired with the hint it shows (SIGN_CHARS). Unlike findCoinTiles/
+ * findChestTiles/findGreenEnemyTiles/etc. (which all look for one specific
+ * EntityKind), this scans for ANY key of SIGN_CHARS at once and returns the
+ * resolved hintId directly — there's no separate CVData-derived list to zip
+ * these positions against.
+ */
+export function findSignTiles(
+  layout: readonly string[],
+): { col: number; row: number; hintId: HintId }[] {
+  const tiles: { col: number; row: number; hintId: HintId }[] = [];
+  for (let row = 0; row < layout.length; row++) {
+    for (let col = 0; col < layout[row].length; col++) {
+      const hintId = SIGN_CHARS[layout[row][col]];
+      if (hintId) tiles.push({ col, row, hintId });
+    }
+  }
+  return tiles;
 }
