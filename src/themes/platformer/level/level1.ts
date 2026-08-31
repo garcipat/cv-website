@@ -109,30 +109,30 @@ const LEVEL_1_LAYOUT: readonly string[] = [
   // vertical scrolling on a real desktop window otherwise. Column 9 matches
   // the existing floating platform's middle tile below (row 18 after this
   // insertion, was row 1) so the ladder's bottom rung lands on solid ground.
-  '........PPP', // new top tier: a small landing platform directly above the ladder's top rung
-  '.........L',
-  '.........L',
-  '.........L',
-  '.........L',
-  '.........L',
-  '.........L',
-  '.........L',
-  '.........L',
-  '.........L',
-  '.........L',
-  '.........L',
-  '.........L',
-  '.........L',
-  '.........L',
-  '.........L',
-  '.........L',
+  '..............PPP', // top tier: a small landing platform directly above the ladder's top rung (now at col 15)
+  '...............L',
+  '...............L',
+  '...............L',
+  '...............L',
+  '...............L',
+  '...............L',
+  '...............L',
+  '...............L',
+  '...............L',
+  '...............L',
+  '...............L',
+  '...............L',
+  '...............L',
+  '...............L',
+  '...............L',
+  '...............L',
   // Former row 0 (all-empty, added in an earlier review pass so a
   // question-mark block's popped fruit has somewhere to rise into) —
   // repurposed as the ladder shaft's 17th and final rung, directly above
-  // the existing floating platform. Only column 9 changes; every other
+  // the existing floating platform. Only column 15 changes; every other
   // column stays '.'.
-  '.........L',
-  '........PPPBBPP....XQFXQF.......................................................',
+  '...............L',
+  '........PPPBBPPL...XQFXQF.......................................................',
   '................................................................................',
   '.S....T...C.T.....C.......W.E..W....W.M....C.C..................................',
   'GGBBBGGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRR...RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',

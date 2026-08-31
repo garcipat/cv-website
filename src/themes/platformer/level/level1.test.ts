@@ -196,22 +196,28 @@ describe('CHEST_TILES', () => {
 });
 
 describe('ladder shaft (roadmap step 23)', () => {
-  it('newTopTier-hasASolidLandingPlatformAtCol9', () => {
-    expect(level1.terrain[0][9]).toBe('platform');
+  it('newTopTier-hasASolidLandingPlatformAtCol15', () => {
+    expect(level1.terrain[0][15]).toBe('platform');
   });
 
-  it('shaftBelowLandingTier-isLadderAtCol9-seventeenTilesTall', () => {
-    for (let row = 1; row <= 17; row++) {
-      expect(level1.terrain[row][9]).toBe('ladder');
-      expect(isClimbable(level1.terrain[row][9])).toBe(true);
+  it('shaftIsLadderAtCol15-eighteenTilesTall-flushWithThePlatformRow', () => {
+    for (let row = 1; row <= 18; row++) {
+      expect(level1.terrain[row][15]).toBe('ladder');
+      expect(isClimbable(level1.terrain[row][15])).toBe(true);
     }
   });
 
-  it('ladderBottomRung-sitsDirectlyAboveTheExistingFloatingPlatform', () => {
-    // Row 18 is the pre-existing floating platform (was row 1 before this
-    // step's 17-row insertion) — its middle tile (col 9) is solid ground the
-    // ladder's bottom rung (row 17, col 9) rests on.
-    expect(level1.terrain[18][9]).toBe('platform');
+  it('ladderBottomTile-sitsBesideTheExistingFloatingPlatformNotBelowIt', () => {
+    // Row 18 is the pre-existing floating platform. The ladder's bottom
+    // tile is now IN row 18 too (col 15, one column right of the
+    // platform's rightmost tile at col 14) — same row, adjacent column —
+    // so standing on the platform and walking one tile right puts the
+    // player's feet directly on a ladder tile without needing to jump
+    // (roadmap step 23 follow-up: the ladder previously sat one row ABOVE
+    // the platform at the same column, which blocked climb-entry from
+    // standing height).
+    expect(level1.terrain[18][14]).toBe('platform');
+    expect(level1.terrain[18][15]).toBe('ladder');
   });
 
   it('levelIsTallEnoughToExceedATypicalDesktopViewport', () => {
