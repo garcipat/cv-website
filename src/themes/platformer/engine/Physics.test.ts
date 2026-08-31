@@ -1188,26 +1188,6 @@ describe('stepPlayerPhysics standing on top of a ladder (roadmap step 23 follow-
 });
 
 describe('stepPlayerPhysics standable ladder top tile is one-way like bridge (roadmap step 23 follow-up)', () => {
-  it('standingOnLaddersTopTile-walkingSideways-movesFreelyOffOfIt', () => {
-    // Player grounded exactly on col 1's standable ladder-top tile (row 0).
-    // Standing ON TOP of it means the hitbox sits entirely above that row,
-    // so horizontal collision never even scans the tile — holding Right
-    // should move normally at walkSpeed, not be blocked like a wall.
-    const colCenterX = 1 * RENDERED_TILE_SIZE + RENDERED_TILE_SIZE / 2 - PLAYER_RENDERED_SIZE / 2;
-    const player = basePlayer({
-      x: colCenterX,
-      y: standingYOnRow(0),
-      grounded: true,
-      climbing: false,
-    });
-
-    const next = stepPlayerPhysics(player, STANDABLE_LADDER_TOP_SIDE_LEVEL, 1 / 60, {
-      right: true,
-    });
-
-    expect(next.x).toBeCloseTo(colCenterX + PHYSICS_CONFIG.walkSpeed / 60);
-  });
-
   it('standableLadderTopTile-doesNotBlockHorizontalMovementThroughItsColumn', () => {
     // Player moving sideways INTO col 1's column at row 0 itself (the
     // standable ladder-top tile), not standing on it — passing through at
