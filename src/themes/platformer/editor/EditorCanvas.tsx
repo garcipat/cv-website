@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { TileChar } from '../level/LevelParser';
+import { SIGN_CHARS, type TileChar } from '../level/LevelParser';
 import { paintCell, type PaintResult } from './paintCell';
 import { updatePanOffset, type PanOffset } from './EditorPan';
 import {
@@ -9,8 +9,9 @@ import {
   synthesizeEnemyStates,
   synthesizeBlockStates,
   synthesizeChestStates,
+  synthesizeSignPlacements,
 } from './gridRenderState';
-import { RENDERED_TILE_SIZE } from '../level/Terrain';
+import { RENDERED_TILE_SIZE, tileToPixel } from '../level/Terrain';
 import {
   drawTerrain,
   drawPlayer,
@@ -18,6 +19,7 @@ import {
   drawEnemies,
   drawBlocks,
   drawChests,
+  drawSigns,
 } from '../engine/Renderer';
 
 export interface EditorImages {
@@ -87,6 +89,36 @@ function drawGridLines(
   }
 }
 
+const SIGN_BADGE_FONT_SIZE = 12;
+
+/** Draws each sign marker's own digit character in its tile's top-left
+ *  corner — lets an author tell apart otherwise-identical signpost sprites
+ *  at a glance while placing/cycling them (Task 7). Editor-only: the real
+ *  game's own drawSigns/drawSignBubble never show this. */
+function drawSignBadges(
+  ctx: CanvasRenderingContext2D,
+  grid: TileChar[][],
+  originX: number,
+  originY: number,
+): void {
+  ctx.save();
+  ctx.font = `${SIGN_BADGE_FONT_SIZE}px sans-serif`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  for (let row = 0; row < grid.length; row++) {
+    for (let col = 0; col < grid[row].length; col++) {
+      const char = grid[row][col];
+      if (!SIGN_CHARS[char]) continue;
+      const { x, y } = tileToPixel(col, row);
+      ctx.fillStyle = '#000';
+      ctx.fillText(char, x + originX + 1, y + originY + 1);
+      ctx.fillStyle = '#fff';
+      ctx.fillText(char, x + originX, y + originY);
+    }
+  }
+  ctx.restore();
+}
+
 export const EditorCanvas = ({
   grid,
   selectedTool,
@@ -133,6 +165,11 @@ export const EditorCanvas = ({
     if (images.tileset) {
       drawTerrain(ctx, gridToLevelDef(grid), images.tileset, panOffset.x, panOffset.y);
     }
+
+    if (images.tileset) {
+      drawSigns(ctx, synthesizeSignPlacements(grid), images.tileset, panOffset.x, panOffset.y);
+    }
+    drawSignBadges(ctx, grid, panOffset.x, panOffset.y);
 
     drawCollectibles(
       ctx,
