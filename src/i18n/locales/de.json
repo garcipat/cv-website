@@ -153,7 +153,11 @@
   },
   "platformer": {
     "hints": {
-      "bridgeDropThrough": "Halte Runter gedrückt, um durch eine Brücke zu fallen."
+      "bridgeDropThrough": "Halte Runter gedrückt, um durch eine Brücke zu fallen.",
+      "ladderClimbUp": "Halte Hoch gedrückt, um eine Leiter hochzuklettern.",
+      "fragileRockBreaksFromBelow": "Brüchige Felsen können von unten zerbrochen werden.",
+      "chestNeedsKey": "Truhen benötigen einen Schlüssel zum Öffnen.",
+      "openAllChestsHaveFun": "Öffne alle Truhen und viel Spaß!"
     },
     "journal": {
       "collectibles": "Sammelobjekte",

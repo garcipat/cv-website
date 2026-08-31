@@ -153,7 +153,11 @@
   },
   "platformer": {
     "hints": {
-      "bridgeDropThrough": "Hold Down to drop through a bridge."
+      "bridgeDropThrough": "Hold Down to drop through a bridge.",
+      "ladderClimbUp": "Press Up to climb a ladder.",
+      "fragileRockBreaksFromBelow": "Fragile rocks can be broken from below.",
+      "chestNeedsKey": "Chests need a key to open.",
+      "openAllChestsHaveFun": "Open all the chests and have fun!"
     },
     "journal": {
       "collectibles": "Collectibles",
