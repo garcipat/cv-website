@@ -382,7 +382,7 @@ describe('EditorCanvas', () => {
     expect(onPaint).toHaveBeenCalledTimes(4);
   });
 
-  it('calls onPan on a right-click drag and prevents the context menu', () => {
+  it('calls onPan on a middle-click drag and prevents the context menu', () => {
     stubCanvasContext();
     const onPan = vi.fn();
     const { container } = render(
@@ -396,13 +396,50 @@ describe('EditorCanvas', () => {
       />,
     );
     const canvas = container.querySelector('canvas')!;
-    fireEvent.mouseDown(canvas, { button: 2, clientX: 100, clientY: 100 });
-    fireEvent.mouseMove(canvas, { button: 2, clientX: 90, clientY: 80 });
-    fireEvent.mouseUp(canvas, { button: 2 });
+    fireEvent.mouseDown(canvas, { button: 1, clientX: 100, clientY: 100 });
+    fireEvent.mouseMove(canvas, { button: 1, clientX: 90, clientY: 80 });
+    fireEvent.mouseUp(canvas, { button: 1 });
     expect(onPan).toHaveBeenCalledWith({ x: -10, y: -20 });
 
     const contextMenuEvent = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
     canvas.dispatchEvent(contextMenuEvent);
     expect(contextMenuEvent.defaultPrevented).toBe(true);
+  });
+
+  it('erases with a right-click regardless of the selected tool, and continues erasing along a right-click drag', () => {
+    stubCanvasContext();
+    const onPaint = vi.fn();
+    const grid: TileChar[][] = [['G', 'G', 'G']];
+    const { container } = render(
+      <EditorCanvas
+        grid={grid}
+        selectedTool="R"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={onPaint}
+        onPan={() => {}}
+      />,
+    );
+    const canvas = container.querySelector('canvas')!;
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 0,
+    } as DOMRect);
+
+    fireEvent.mouseDown(canvas, { button: 2, clientX: 1, clientY: 1 });
+    expect(onPaint).toHaveBeenCalledWith(
+      expect.objectContaining({ grid: [['.', 'G', 'G']] }),
+    );
+
+    // The `grid` prop isn't updated between events in this test (the real
+    // app re-renders EditorCanvas with the new grid after each onPaint —
+    // see LevelEditorPage), so this second paint is still computed against
+    // the original grid: only the newly-entered column (1) is erased.
+    fireEvent.mouseMove(canvas, { button: 2, clientX: RENDERED_TILE_SIZE + 1, clientY: 1 });
+    expect(onPaint).toHaveBeenLastCalledWith(
+      expect.objectContaining({ grid: [['G', '.', 'G']] }),
+    );
+
+    fireEvent.mouseUp(canvas, { button: 2 });
   });
 });
