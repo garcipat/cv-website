@@ -10,6 +10,8 @@ import {
   findChestTiles,
   TERRAIN_CHARS,
   ENTITY_CHARS,
+  SIGN_CHARS,
+  findSignTiles,
   type TileChar,
 } from './LevelParser';
 
@@ -243,12 +245,54 @@ describe('findChestTiles', () => {
   });
 });
 
+describe('SIGN_CHARS', () => {
+  it('digitOne-mapsToBridgeDropThroughHint', () => {
+    expect(SIGN_CHARS['1']).toBe('bridgeDropThrough');
+  });
+
+  it('noOverlapWithTerrainOrEntityChars-documentedByTheModuleLoadGuard', () => {
+    // Same convention as the existing TERRAIN_CHARS/ENTITY_CHARS overlap
+    // guard (see LevelParser.ts) — this file having loaded at all is that
+    // guard having already passed.
+    const overlapsTerrain = Object.keys(SIGN_CHARS).filter((char) => char in TERRAIN_CHARS);
+    const overlapsEntity = Object.keys(SIGN_CHARS).filter((char) => char in ENTITY_CHARS);
+    expect(overlapsTerrain).toEqual([]);
+    expect(overlapsEntity).toEqual([]);
+  });
+});
+
+describe('parseLevel — sign markers', () => {
+  it('signMarker-parsesAsEmptyWalkableTile', () => {
+    const result = parseLevel(['1.', 'GG']);
+    expect(result.terrain[0][0]).toBe('empty');
+  });
+});
+
+describe('findSignTiles', () => {
+  it('noMarkers-returnsEmptyArray', () => {
+    expect(findSignTiles(['GG', 'GG'])).toEqual([]);
+  });
+
+  it('oneMarker-returnsItsColRowAndHintId', () => {
+    expect(findSignTiles(['..', '.1'])).toEqual([{ col: 1, row: 1, hintId: 'bridgeDropThrough' }]);
+  });
+
+  it('multipleMarkersOfTheSameHint-returnsAllInReadingOrder', () => {
+    // Only '1' is registered today — placing it twice is still valid (a
+    // hint can be shown at more than one spot in the level).
+    expect(findSignTiles(['1.', '.1'])).toEqual([
+      { col: 0, row: 0, hintId: 'bridgeDropThrough' },
+      { col: 1, row: 1, hintId: 'bridgeDropThrough' },
+    ]);
+  });
+});
+
 describe('TileChar', () => {
-  it('includes every TERRAIN_CHARS and ENTITY_CHARS key', () => {
+  it('includes every TERRAIN_CHARS, ENTITY_CHARS, and SIGN_CHARS key', () => {
     const tileChars: readonly TileChar[] = [
-      '.', 'G', 'R', 'P', 'W', 'B', 'L', 'S', 'E', 'M', 'C', 'X', 'Q', 'F', 'T',
+      '.', 'G', 'R', 'P', 'W', 'B', 'L', 'S', 'E', 'M', 'C', 'X', 'Q', 'F', 'T', '1',
     ];
-    const allKeys = [...Object.keys(TERRAIN_CHARS), ...Object.keys(ENTITY_CHARS)];
+    const allKeys = [...Object.keys(TERRAIN_CHARS), ...Object.keys(ENTITY_CHARS), ...Object.keys(SIGN_CHARS)];
     for (const key of allKeys) {
       expect(tileChars).toContain(key);
     }

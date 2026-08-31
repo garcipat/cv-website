@@ -9,6 +9,7 @@ import type {
   Activity,
   Personality,
 } from '@/types/cv';
+import type { Translation } from '@/i18n/translations';
 
 /**
  * Every top-level CV section that can back a journal bookmark. Matches the
@@ -134,4 +135,24 @@ export interface BlockDef {
 export interface ChestDef {
   id: string;
   fact: CollectedFact;
+}
+
+/**
+ * Every hint id a hand-authored sign can show — derived directly from the
+ * i18n JSON's own keys (`platformer.hints.<hintId>` in en.json/de.json) so a
+ * typo or a stale hintId reference fails to compile instead of silently
+ * resolving to `undefined` at runtime.
+ */
+export type HintId = keyof Translation['platformer']['hints'];
+
+/**
+ * A hand-authored hint sign (roadmap step 26, FR-037). Unlike CollectibleDef/
+ * EnemyDef/BlockDef/ChestDef, a sign carries no CV mapping at all — no
+ * `fact`, no `cvSection`/`cvIndex` — its only content is `hintId`, which
+ * `SignMapper.ts`'s `placeSigns` turns into a `SignPlacement` (adds x/y),
+ * mirroring every other Def/Placement pair in this codebase.
+ */
+export interface SignDef {
+  id: string;
+  hintId: HintId;
 }
