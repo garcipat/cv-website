@@ -3,6 +3,7 @@ import {
   isSolid,
   isSolidExcludingBridge,
   isClimbable,
+  isStandableLadderTop,
   isTopExposed,
   tileToPixel,
   bridgeRunPosition,
@@ -10,6 +11,7 @@ import {
   RENDER_SCALE,
   RENDERED_TILE_SIZE,
 } from './Terrain';
+import { parseLevel } from './LevelParser';
 import type { LevelDef } from './LevelData';
 
 const testLevel: LevelDef = {
@@ -136,5 +138,27 @@ describe('isClimbable', () => {
 describe('isSolid ladder exception', () => {
   it('ladder-isNotSolid', () => {
     expect(isSolid('ladder')).toBe(false);
+  });
+});
+
+describe('isStandableLadderTop', () => {
+  it('ladderWithOpenSpaceAbove-returnsTrue', () => {
+    const level = parseLevel(['.', 'L', 'G']);
+    expect(isStandableLadderTop(level, 0, 1)).toBe(true);
+  });
+
+  it('ladderWithAnotherLadderAbove-returnsFalse-notTheTopRung', () => {
+    const level = parseLevel(['L', 'L', 'G']);
+    expect(isStandableLadderTop(level, 0, 1)).toBe(false);
+  });
+
+  it('ladderWithSolidTileAbove-returnsFalse-noRoomToStand', () => {
+    const level = parseLevel(['G', 'L', 'G']);
+    expect(isStandableLadderTop(level, 0, 1)).toBe(false);
+  });
+
+  it('nonLadderTile-returnsFalse-regardlessOfWhatsAbove', () => {
+    const level = parseLevel(['.', 'G', 'G']);
+    expect(isStandableLadderTop(level, 0, 1)).toBe(false);
   });
 });
