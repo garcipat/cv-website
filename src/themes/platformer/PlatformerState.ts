@@ -333,10 +333,12 @@ export const activeJournalSection = signal<SectionId | undefined>(undefined);
  * 26, live UX feedback — see engine/HintTooltip.ts), or `null` when no
  * tooltip is active/animating. Updated every game-loop tick (see
  * PlatformerPage.tsx's transition/tick logic) and read by `render()` to
- * decide whether/what/where to draw. Not reset by
- * `resetGame()`/`resetGameProgress()`: like the old `activeSignHintId` this
- * replaces, it reflects a purely positional, always-current fact about this
- * frame and the last few, not session progress.
+ * decide whether/what/where to draw. Cleared by `resetGame()` (and so also
+ * by `resetGameProgress()`, which calls it): a death/respawn or restart
+ * moves the player away from wherever the tooltip was anchored, so a
+ * lingering bubble would otherwise freeze on screen through the death
+ * animation and the `awaitingRestart` wait, then flash once at the new
+ * spawn point before the tick logic naturally clears it.
  */
 export const hintTooltipState = signal<HintTooltipState | null>(null);
 
@@ -383,6 +385,7 @@ export function resetGame(): void {
   cameraPositionX.value = 0;
   cameraPositionY.value = 0;
   enemyStates.value = enemyPlacements.value.map((placement, index) => toEnemyState(placement, index));
+  hintTooltipState.value = null;
 }
 
 /**

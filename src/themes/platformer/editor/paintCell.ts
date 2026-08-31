@@ -31,7 +31,11 @@ function firstUnusedSignChar(
       if (SIGN_KEYS.includes(char)) usedElsewhere.add(char);
     }
   }
-  const startIndex = SIGN_KEYS.indexOf(startFrom);
+  // Defensive: both call sites always pass a valid sign key today, so
+  // `indexOf` can't actually return -1 — but if it ever did, the modulo
+  // indexing below would read `SIGN_KEYS[-1]` (`undefined`) and paint that
+  // into the grid, so clamp to 0 rather than let that happen silently.
+  const startIndex = Math.max(0, SIGN_KEYS.indexOf(startFrom));
   for (let i = 0; i < SIGN_KEYS.length; i++) {
     const candidate = SIGN_KEYS[(startIndex + i) % SIGN_KEYS.length];
     if (!usedElsewhere.has(candidate)) return candidate;

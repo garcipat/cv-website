@@ -275,6 +275,12 @@ export const PlatformerPage = () => {
     healthState.value = 0;
     const p = playerState.value;
     lifecycleState.value = startDeath(p.x + PLAYER_RENDERED_SIZE / 2, p.y + PLAYER_VISUAL_CENTER_Y_OFFSET);
+    // Death immediately halts the hint-tick block below (the game loop skips
+    // it entirely for the 'dying'/'awaitingRestart' phases), so without this
+    // a bubble revealed just before dying would otherwise freeze on screen
+    // through the whole death animation and the restart-prompt wait — see
+    // this same comment at the other `startDeath()` call site below.
+    hintTooltipState.value = null;
   };
 
   const handleDebugRespawn = () => {
@@ -397,15 +403,6 @@ export const PlatformerPage = () => {
         );
       }
 
-      const tooltip = hintTooltipState.value;
-      if (tooltip) {
-        const hintText = currentUI.value.platformer.hints[tooltip.hintId];
-        const anchorX = playerState.value.x + PLAYER_RENDERED_SIZE / 2 + originX;
-        const anchorBottomY = playerState.value.y + originY;
-        const { growth, opacity } = hintTooltipGrowthAndOpacity(tooltip);
-        drawSignBubble(ctx, hintText, anchorX, anchorBottomY, growth, opacity);
-      }
-
       if (coinSpriteRef.current || fruitSpriteRef.current) {
         drawCollectibles(
           ctx,
@@ -428,6 +425,15 @@ export const PlatformerPage = () => {
           originX,
           originY,
         );
+      }
+
+      const tooltip = hintTooltipState.value;
+      if (tooltip) {
+        const hintText = currentUI.value.platformer.hints[tooltip.hintId];
+        const anchorX = playerState.value.x + PLAYER_RENDERED_SIZE / 2 + originX;
+        const anchorBottomY = playerState.value.y + originY;
+        const { growth, opacity } = hintTooltipGrowthAndOpacity(tooltip);
+        drawSignBubble(ctx, hintText, anchorX, anchorBottomY, growth, opacity);
       }
 
       drawCollectionEffects(ctx, activeEffects.value);
@@ -658,9 +664,10 @@ export const PlatformerPage = () => {
           // but deliberately never clears `collectedFacts`), so a revived
           // enemy stomped again in a later life must not re-bank the same
           // fact — that would duplicate its journal page.
-          if (!enemy.fact || newFacts.some((f) => f.id === enemy.fact!.id)) continue;
+          const fact = enemy.fact;
+          if (!fact || newFacts.some((f) => f.id === fact.id)) continue;
           anyEnemyRewarded = true;
-          newFacts.push(enemy.fact);
+          newFacts.push(fact);
           // Reuses the journal's own title/icon derivation (amended
           // 2026-08-30, live user feedback: a course kill's flight text
           // showed the generic "Courses" section label instead of the
@@ -668,7 +675,7 @@ export const PlatformerPage = () => {
           // doesn't cover Course's `title` field — nor Experience's
           // `role`/`company` or Education's `degree` — formatJournalEntry
           // already gets every section's display title right).
-          const { icon, title: label } = formatJournalEntry(enemy.fact);
+          const { icon, title: label } = formatJournalEntry(fact);
           const slot = nextTextSlot;
           nextTextSlot = (nextTextSlot + 1) % COLLECTION_TEXT_SLOT_COUNT;
           const stackOffsetY = slot * COLLECTION_TEXT_STACK_ROW_HEIGHT;
@@ -1178,6 +1185,12 @@ export const PlatformerPage = () => {
           next.x + PLAYER_RENDERED_SIZE / 2,
           next.y + PLAYER_VISUAL_CENTER_Y_OFFSET,
         );
+        // See handleDebugKill's identical assignment above: without this the
+        // hint bubble would freeze on screen through the death animation and
+        // the awaitingRestart wait, since the game loop's early-returns for
+        // those phases never reach the hint tick/transition block that would
+        // otherwise fade it out.
+        hintTooltipState.value = null;
       } else {
         lifecycleState.value = tickLifecycle(lifecycleState.value, dt);
       }
