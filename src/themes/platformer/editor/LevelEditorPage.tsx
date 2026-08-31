@@ -58,6 +58,14 @@ export const LevelEditorPage = () => {
     .map((row) => `  '${row}',`)
     .join('\n');
 
+  const resetToDefaultLayout = () => {
+    if (!window.confirm('Reset the level back to its default layout? This discards all unsaved edits.')) {
+      return;
+    }
+    setGrid(importLayout(LEVEL_1_LAYOUT));
+    setPanOffset({ x: 0, y: 0 });
+  };
+
   return (
     <div className="flex h-screen flex-col gap-4 p-4">
       <h1 className="text-xl font-semibold">Platformer Level Editor</h1>
@@ -88,6 +96,9 @@ export const LevelEditorPage = () => {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          <Button type="button" variant="outline" onClick={resetToDefaultLayout}>
+            Reset
+          </Button>
         </div>
         <EditorCanvas
           grid={grid}
