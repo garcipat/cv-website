@@ -1,4 +1,4 @@
-import { TERRAIN_CHARS, ENTITY_CHARS } from '../level/LevelParser';
+import { TERRAIN_CHARS, ENTITY_CHARS, SIGN_CHARS } from '../level/LevelParser';
 import type { TileChar } from '../level/LevelParser';
 import { PALETTE_TILE_SPRITES, PALETTE_TILE_LABELS } from './paletteTiles';
 import { PaletteTile } from './PaletteTile';
@@ -23,7 +23,13 @@ export const Palette = ({ selectedTool, onSelectTool }: PaletteProps) => {
     (key) => key !== EMPTY_CHAR && !HIDDEN_TERRAIN_KEYS.includes(key),
   );
   const entityKeys = Object.keys(ENTITY_CHARS) as TileChar[];
-  const tileKeys = [...terrainKeys, ...entityKeys, EMPTY_CHAR];
+  // Only the FIRST registered sign character becomes a palette tile — clicking
+  // it repeatedly on the canvas cycles through every other registered hint
+  // (Task 7's paintCell.ts), so the palette itself never needs to grow past one
+  // "Sign" entry no matter how many distinct hints get registered later.
+  const [firstSignKey] = Object.keys(SIGN_CHARS) as TileChar[];
+  const signKeys: TileChar[] = firstSignKey ? [firstSignKey] : [];
+  const tileKeys = [...terrainKeys, ...entityKeys, ...signKeys, EMPTY_CHAR];
 
   return (
     <Card role="toolbar" aria-label="Palette">

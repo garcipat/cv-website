@@ -21,6 +21,7 @@ vi.mock('../engine/Renderer', () => ({
   drawEnemies: vi.fn(),
   drawBlocks: vi.fn(),
   drawChests: vi.fn(),
+  drawSigns: vi.fn(),
 }));
 
 import { drawTerrain } from '../engine/Renderer';
@@ -36,6 +37,12 @@ beforeEach(() => {
     moveTo: vi.fn(),
     lineTo: vi.fn(),
     stroke: vi.fn(),
+    save: vi.fn(),
+    restore: vi.fn(),
+    font: '',
+    textAlign: '',
+    textBaseline: '',
+    fillText: vi.fn(),
   } as unknown as CanvasRenderingContext2D);
 });
 

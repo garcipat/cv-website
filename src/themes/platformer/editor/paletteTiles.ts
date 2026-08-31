@@ -158,6 +158,15 @@ export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
     frameWidth: 28,
     frameHeight: 20,
   },
+  '1': {
+    sheet: WORLD_TILESET,
+    sheetWidth: 256,
+    sheetHeight: 256,
+    sx: 128,
+    sy: 48,
+    frameWidth: 16,
+    frameHeight: 16,
+  },
 };
 
 /** Human-readable name per `TileChar`, so the palette reads by name rather
@@ -179,4 +188,5 @@ export const PALETTE_TILE_LABELS: Record<TileChar, string> = {
   Q: 'Question Mark',
   F: 'Fragile Rock',
   T: 'Chest',
+  '1': 'Sign',
 };
