@@ -1,3 +1,4 @@
+import { describe, it, expect, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { currentTheme } from '@/state/theme';
 import { App } from './App';
@@ -28,5 +29,23 @@ describe('App', () => {
     render(<App />);
     expect(platformerPage.canvas).toBeInTheDocument();
     currentTheme.value = 'ide';
+  });
+});
+
+describe('App - level editor route', () => {
+  afterEach(() => {
+    window.history.pushState({}, '', '/');
+  });
+
+  it('renders the level editor when the pathname is /platformer/editor', () => {
+    window.history.pushState({}, '', '/platformer/editor');
+    render(<App />);
+    expect(screen.getByRole('toolbar')).toBeInTheDocument();
+  });
+
+  it('does not render the level editor for any other pathname', () => {
+    window.history.pushState({}, '', '/');
+    render(<App />);
+    expect(screen.queryByRole('toolbar')).not.toBeInTheDocument();
   });
 });
