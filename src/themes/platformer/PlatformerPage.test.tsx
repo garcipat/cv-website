@@ -819,6 +819,50 @@ describe('PlatformerPage', () => {
     expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(true);
   });
 
+  it('playerFallsOntoAPlainEnemyWithNoFact-tick-defeatsItButAwardsNoFact', () => {
+    // A "plain" enemy (EnemyMapper.ts's excess-marker case, amended
+    // 2026-08-31: enemies are no longer capped at CVData's length) has no
+    // `fact` — stomping it must still remove it like any other enemy, just
+    // without banking a fact or bumping the enemy counter popup.
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const real = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
+    // Offset well clear of `real`'s position — otherwise both enemies sit
+    // exactly on top of each other and a single stomp defeats both,
+    // muddying what this test is actually checking.
+    const plain = toEnemyState(
+      { ...real, id: 'enemy-plain-slimeGreen-test', x: real.x + 500, fact: undefined },
+      0,
+    );
+    enemyStates.value = [...enemyStates.value, plain];
+    const factsBefore = collectedFacts.value.length;
+
+    playerState.value = {
+      ...playerState.value,
+      x: plain.x,
+      y: plain.y - PLAYER_RENDERED_SIZE / 2,
+      vy: 300,
+    };
+
+    let t = 16;
+    frameCallback!(t);
+    for (let i = 0; i < 30; i++) {
+      t += 16;
+      frameCallback!(t);
+    }
+
+    expect(enemyStates.value.some((e) => e.id === plain.id)).toBe(false);
+    expect(collectedFacts.value).toHaveLength(factsBefore);
+  });
+
   it('playerFallsOntoGreenEnemy-tick-bouncesPlayerUpward', () => {
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
