@@ -1,5 +1,6 @@
 import { RENDER_SCALE, RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { EnemyPlacement } from '../level/EnemyMapper';
+import type { EnemyDef } from '../types';
 
 /**
  * Both slime_green.png and slime_purple.png are 96x72 sheets: a 4x3 grid of
@@ -37,6 +38,51 @@ export const ENEMY_TILE_OFFSET_Y = RENDERED_TILE_SIZE - ENEMY_RENDERED_SIZE;
 /** The rendered sprite (48px) is wider than one tile (32px) — center it
  *  horizontally over its placement tile. */
 export const ENEMY_TILE_OFFSET_X = (RENDERED_TILE_SIZE - ENEMY_RENDERED_SIZE) / 2;
+
+/**
+ * Per-`spriteType` render-scale multiplier, patrol-speed multiplier, and hit
+ * points — a purple slime is 1.5x a green slime's size, patrols at 70% of
+ * its speed, and takes 3 stomps to defeat (green takes 1). Centralized here
+ * as lookups (same convention as ENEMY_ANIM_CONFIG above) rather than
+ * scattering per-type ternaries through Collision.ts/Renderer.ts/EnemyAI.ts.
+ */
+export const ENEMY_RENDER_SCALE: Record<EnemyDef['spriteType'], number> = {
+  slimeGreen: 1,
+  slimePurple: 1.5,
+};
+
+export const ENEMY_PATROL_SPEED_MULTIPLIER: Record<EnemyDef['spriteType'], number> = {
+  slimeGreen: 1,
+  slimePurple: 0.7,
+};
+
+export const ENEMY_HIT_POINTS: Record<EnemyDef['spriteType'], number> = {
+  slimeGreen: 1,
+  slimePurple: 3,
+};
+
+/** Actual rendered size for a given spriteType — ENEMY_RENDERED_SIZE scaled
+ *  by ENEMY_RENDER_SCALE. Collision.ts's enemyHitbox and Renderer.ts's
+ *  drawEnemies both call this instead of the flat ENEMY_RENDERED_SIZE
+ *  constant so a bigger purple slime gets a proportionally bigger hitbox and
+ *  draw rect. */
+export function enemyRenderedSize(spriteType: EnemyDef['spriteType']): number {
+  return ENEMY_FRAME_SIZE * RENDER_SCALE * ENEMY_RENDER_SCALE[spriteType];
+}
+
+/** Per-spriteType horizontal centering offset — same formula
+ *  ENEMY_TILE_OFFSET_X uses, but against enemyRenderedSize(spriteType)
+ *  instead of the flat green-sized constant, so a bigger purple slime still
+ *  centers correctly over its placement tile. */
+export function enemyTileOffsetX(spriteType: EnemyDef['spriteType']): number {
+  return (RENDERED_TILE_SIZE - enemyRenderedSize(spriteType)) / 2;
+}
+
+/** Per-spriteType bottom-anchoring offset — same formula
+ *  ENEMY_TILE_OFFSET_Y uses, against enemyRenderedSize(spriteType). */
+export function enemyTileOffsetY(spriteType: EnemyDef['spriteType']): number {
+  return RENDERED_TILE_SIZE - enemyRenderedSize(spriteType);
+}
 
 export type EnemyAnimState = 'walk' | 'hit';
 
@@ -127,7 +173,7 @@ export function toEnemyState(placement: EnemyPlacement, index = 0): EnemyState {
     animState: 'walk',
     animFrame: index % frames.length,
     animTimer: (index * 0.05) % frameDuration,
-    hitPoints: placement.spriteType === 'slimeGreen' ? 1 : 2,
+    hitPoints: ENEMY_HIT_POINTS[placement.spriteType],
     hitTimer: 0,
     defeated: false,
   };
