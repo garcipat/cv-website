@@ -14,7 +14,9 @@ import { currentTheme } from '@/state/theme';
 import { navigateTo } from '@/state/navigation';
 import {
   Dialog,
+  DialogClose,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -62,6 +64,10 @@ export const LevelEditorPage = () => {
   const [selectedTool, setSelectedTool] = useState<TileChar>('G');
   const [panOffset, setPanOffset] = useState<PanOffset>({ x: 0, y: 0 });
   const [images, setImages] = useState<EditorImages>(EMPTY_IMAGES);
+  // In-app confirmation dialog for Reset — replaces a native `window.confirm()`,
+  // which doesn't fire reliably in every browser/embedded context (e.g. some
+  // automated/sandboxed viewers suppress it outright and it silently no-ops).
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
 
   useEffect(() => {
     IMAGE_SOURCES.forEach(({ key, src }) => {
@@ -88,10 +94,9 @@ export const LevelEditorPage = () => {
     .map((row) => `  '${row}',`)
     .join('\n');
 
+  // Called only once the in-app confirmation dialog is actually accepted
+  // (see resetDialogOpen above) — no browser-native confirm() involved.
   const resetToDefaultLayout = () => {
-    if (!window.confirm('Reset the level back to its default layout? This discards all unsaved edits.')) {
-      return;
-    }
     const defaultGrid = importLayout(LEVEL_1_LAYOUT);
     setGrid(defaultGrid);
     setPanOffset({ x: 0, y: 0 });
@@ -101,6 +106,7 @@ export const LevelEditorPage = () => {
     // reopening the editor after a reload would silently restore the
     // discarded edits from storage.
     editorLevelSignal.value = defaultGrid;
+    setResetDialogOpen(false);
   };
 
   /**
@@ -150,9 +156,25 @@ export const LevelEditorPage = () => {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-          <Button type="button" variant="outline" onClick={resetToDefaultLayout}>
+          <Button type="button" variant="outline" onClick={() => setResetDialogOpen(true)}>
             Reset
           </Button>
+          <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Reset the level?</DialogTitle>
+                <DialogDescription>
+                  This reloads the default layout and discards all unsaved edits.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <DialogClose render={<Button type="button" variant="outline" />}>Cancel</DialogClose>
+                <Button type="button" variant="destructive" onClick={resetToDefaultLayout}>
+                  Reset level
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
           <Button type="button" onClick={tryLayout}>
             Try
           </Button>
