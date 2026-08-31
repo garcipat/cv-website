@@ -462,15 +462,15 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    // Place the character resting on level1's ground-level bridge (row 21,
-    // columns 2-3 — see level1.ts; shifted down 17 rows by roadmap step 23's
+    // Place the character resting on level1's ground-level bridge (row 6,
+    // columns 2-3 — see level1.ts; shifted down 2 rows by roadmap step 23's
     // ladder-shaft insertion at the top of the layout) directly, rather than
     // navigating there by walking, since only the drop-through wiring is
     // under test here (the underlying physics is covered by Physics.test.ts).
     playerState.value = {
       ...playerState.value,
       x: 64,
-      y: 616,
+      y: 136,
       vx: 0,
       vy: 0,
       grounded: true,
@@ -2116,9 +2116,9 @@ describe('PlatformerPage', () => {
       render(<PlatformerPage />);
 
       // Position the character directly on the new ladder shaft (col 15,
-      // somewhere in the shaft's middle rows — see level1.ts).
+      // in the shaft's middle — see level1.ts).
       const ladderCol = 15;
-      const ladderRow = 8;
+      const ladderRow = 1;
       const { x, y } = tileToPixel(ladderCol, ladderRow);
       playerState.value = { ...playerState.value, x, y, vy: 50, grounded: false, climbing: false };
 

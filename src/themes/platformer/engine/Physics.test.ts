@@ -87,6 +87,17 @@ const LADDER_LEVEL = parseLevel(['G.', 'L.', 'L.', 'G.']);
 // climbing off the top must clamp, not overshoot into the void.
 const TOP_LADDER_LEVEL = parseLevel(['L.', 'L.', 'G.']);
 
+// Same shape as TOP_LADDER_LEVEL but with the shaft's top tile in the MIDDLE
+// of the level (row 3) rather than at row 0, with open air above it — the
+// ladder-top standing rule is a property of the ladder, not of the level's
+// topmost row, so every top-of-shaft behaviour must hold here too.
+const MID_LADDER_LEVEL = parseLevel(['..', '..', '..', 'L.', 'L.', 'G.']);
+
+/** Y at which the player's feet rest exactly on the top edge of `row`. */
+function standingYOnRow(row: number): number {
+  return row * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
+}
+
 describe('stepPlayerPhysics', () => {
   it('stepPlayerPhysics-inMidAir-appliesGravityToVelocityAndMovesDown', () => {
     const player = basePlayer({ y: 0, vy: 0 });
@@ -1037,44 +1048,126 @@ describe('stepPlayerPhysics climbing', () => {
   });
 });
 
-describe('stepPlayerPhysics climbing past the level top', () => {
-  it('climbingAtTheVeryTopRow-holdingUp-landsGroundedInsteadOfOvershootingOrHovering', () => {
-    // Compute minClimbY the same way the implementation does, then start
-    // the player already there (feet exactly at row 0). Superseded by
-    // roadmap step 23 follow-up (Task 19): reaching the top of the shaft
-    // with nothing further to climb now lands the player standing right
-    // there instead of hovering in climbing state forever — this test's
-    // scenario is now identical to the new "lands on the ladder's own top
-    // tile" test below, and its expectations are updated to match. The
-    // underlying `Math.max(..., minClimbY)` clamp in Physics.ts is left in
-    // place as a defensive backstop and is exercised the same way here; it
-    // just no longer determines this test's outcome because the new
-    // landing branch returns before the clamp's climbing-continuation path
-    // is reached.
-    const minClimbY = -PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING + 1; // feetRow >= 0
-    const player = basePlayer({ x: 0, y: minClimbY, grounded: false, climbing: true });
+describe('stepPlayerPhysics standing on top of a ladder (roadmap step 23 follow-up)', () => {
+  const topEdgeY = standingYOnRow(0); // TOP_LADDER_LEVEL's shaft top is row 0
+  const step = PHYSICS_CONFIG.climbSpeed / 60;
+
+  it('climbingUp-moreThanOneFrameBelowTheLadderTopEdge-keepsClimbingWithoutLandingYet', () => {
+    // Two frames' worth of climbing still to go — the character must climb
+    // THROUGH the top tile, not land the instant its feet enter that tile.
+    const player = basePlayer({
+      x: 0,
+      y: topEdgeY + 2 * step + 1,
+      grounded: false,
+      climbing: true,
+    });
 
     const next = stepPlayerPhysics(player, TOP_LADDER_LEVEL, 1 / 60, { climbUpHeld: true });
 
-    expect(next.climbing).toBe(false);
-    expect(next.grounded).toBe(true);
-    expect(next.y).toBeCloseTo(minClimbY);
+    expect(next.climbing).toBe(true);
+    expect(next.grounded).toBe(false);
+    expect(next.y).toBeCloseTo(topEdgeY + step + 1);
   });
-});
 
-describe('stepPlayerPhysics climbing lands on the ladder\'s own top tile (roadmap step 23 follow-up)', () => {
-  it('climbingUp-reachingTheTopWithNothingFurtherToClimb-standsGroundedRightThere', () => {
-    const minClimbY = -PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING + 1; // matches Task 13's clamp boundary — feetRow 0
-    const player = basePlayer({ x: 0, y: minClimbY, grounded: false, climbing: true });
+  it('climbingUp-reachingTheLadderTopEdge-standsGroundedExactlyOnTopOfTheTopTile', () => {
+    // One frame away from the top edge: this frame's climb reaches (and
+    // would overshoot) it, so the character stops with its feet exactly on
+    // the tile's top edge and is handed over to normal grounded physics.
+    const player = basePlayer({ x: 0, y: topEdgeY + step, grounded: false, climbing: true });
 
     const next = stepPlayerPhysics(player, TOP_LADDER_LEVEL, 1 / 60, { climbUpHeld: true });
 
     expect(next.climbing).toBe(false);
     expect(next.grounded).toBe(true);
     expect(next.vy).toBe(0);
-    expect(next.y).toBeCloseTo(minClimbY); // no snap — already at the right spot
+    expect(next.y).toBeCloseTo(topEdgeY);
   });
 
+  it('standingOnTheLaddersTopTile-noInput-keepsStandingInsteadOfFallingThroughIt', () => {
+    // The whole point of the follow-up: the landing has to SURVIVE the next
+    // frame's gravity — the shaft's topmost tile is solid from above.
+    const player = basePlayer({ x: 0, y: topEdgeY, vy: 0, grounded: true, climbing: false });
+
+    const next = stepPlayerPhysics(player, TOP_LADDER_LEVEL, 1 / 60, {});
+
+    expect(next.grounded).toBe(true);
+    expect(next.climbing).toBe(false);
+    expect(next.y).toBeCloseTo(topEdgeY);
+  });
+
+  it('climbingUpAMidLevelShaft-reachingItsTopEdge-standsOnTopOfItToo', () => {
+    // Same rule away from the level's topmost row — it's the LADDER's top,
+    // not row 0, that the character stands on.
+    const midTopEdgeY = standingYOnRow(3); // MID_LADDER_LEVEL's shaft top is row 3
+    const player = basePlayer({ x: 0, y: midTopEdgeY + step, grounded: false, climbing: true });
+
+    const next = stepPlayerPhysics(player, MID_LADDER_LEVEL, 1 / 60, { climbUpHeld: true });
+
+    expect(next.climbing).toBe(false);
+    expect(next.grounded).toBe(true);
+    expect(next.y).toBeCloseTo(midTopEdgeY);
+  });
+
+  it('fallingOntoALaddersTopTileFromAbove-landsOnTopOfIt', () => {
+    const midTopEdgeY = standingYOnRow(3);
+    // Just above the top edge and falling fast enough to cross it this frame.
+    const player = basePlayer({ x: 0, y: midTopEdgeY - 3, vy: 200, grounded: false });
+
+    const next = stepPlayerPhysics(player, MID_LADDER_LEVEL, 1 / 60, {});
+
+    expect(next.grounded).toBe(true);
+    expect(next.y).toBeCloseTo(midTopEdgeY);
+  });
+
+  it('fallingPastALadderTileThatIsNotTheShaftTop-doesNotLandOnIt', () => {
+    // Only the topmost tile is standable — the rest of the shaft stays
+    // fully passable, so a ladder never becomes a floor mid-shaft.
+    // Crossing row 4's top edge — a ladder tile one row BELOW the shaft's
+    // top rung, so nothing here catches the fall.
+    const player = basePlayer({ x: 0, y: standingYOnRow(4) - 3, vy: 200, grounded: false });
+
+    const next = stepPlayerPhysics(player, MID_LADDER_LEVEL, 1 / 60, {});
+
+    expect(next.grounded).toBe(false);
+  });
+
+  it('standingOnTheLaddersTopTile-dropThroughHeld-climbsBackDownIntoTheShaft', () => {
+    const player = basePlayer({ x: 0, y: topEdgeY, vy: 0, grounded: true, climbing: false });
+
+    const next = stepPlayerPhysics(player, TOP_LADDER_LEVEL, 1 / 60, { dropThroughHeld: true });
+
+    expect(next.climbing).toBe(true);
+    expect(next.grounded).toBe(false);
+    expect(next.vy).toBeCloseTo(PHYSICS_CONFIG.climbSpeed);
+  });
+
+  it('standingOnTheLaddersTopTile-jumpPressed-jumpsOffItLikeAnyOtherGround', () => {
+    const player = basePlayer({ x: 0, y: topEdgeY, vy: 0, grounded: true, climbing: false });
+
+    // jumpHeld too, so the variable-jump-height cut doesn't shorten it —
+    // this is about the ladder top counting as jumpable ground, not about
+    // the cut.
+    const next = stepPlayerPhysics(player, TOP_LADDER_LEVEL, 1 / 60, {
+      jumpPressed: true,
+      jumpHeld: true,
+    });
+
+    expect(next.vy).toBeCloseTo(PHYSICS_CONFIG.jumpVelocity + PHYSICS_CONFIG.gravity / 60);
+  });
+
+  it('ladderTopDirectlyBeneathASolidTile-climbingUp-doesNotStandInsideThatTile', () => {
+    // LADDER_LEVEL's shaft (rows 1-2) dead-ends into solid ground at row 0 —
+    // there's no room to stand on the shaft's top tile, so the old
+    // climb-until-the-feet-leave-the-ladder behaviour has to remain.
+    const player = basePlayer({ x: 0, y: standingYOnRow(1), grounded: false, climbing: true });
+
+    const next = stepPlayerPhysics(player, LADDER_LEVEL, 1 / 60, { climbUpHeld: true });
+
+    expect(next.grounded).toBe(false);
+  });
+});
+
+describe('stepPlayerPhysics climbing lands on the ladder\'s own top tile (roadmap step 23 follow-up)', () => {
   it('climbingUp-stillWithinTheShaft-notYetAtTheTop-continuesClimbingNormally', () => {
     // Sanity: the new branch must not fire prematurely while there's still
     // a climbable tile above. y=0 puts the feet in row 1 of TOP_LADDER_LEVEL
