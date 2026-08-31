@@ -440,7 +440,7 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   resume from the same position. Confirm Contact never appears as a journal
   bookmark. Confirm crates now carry Education/Activities/Languages facts and
   coins carry only Skills facts.
-- [ ] **23. Ladders (climbing) + vertical camera follow** — *Promoted
+- [x] **23. Ladders (climbing) + vertical camera follow** — *Promoted
   2026-08-30* from the "Unscheduled additions" list to the next numbered
   step, now that step 22 freed Arrow Up from jumping into a general-purpose
   "interact with what you're on" key (chest-opening today) — climbing is the
