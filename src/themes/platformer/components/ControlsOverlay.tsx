@@ -38,6 +38,13 @@ const SLIDE_OUT_DISTANCE_PX = PHYSICS_CONFIG.walkSpeed * (FADE_OUT_DURATION_MS /
 const MOVE_LABEL_CENTER_PERCENT = 23.75;
 const JUMP_LABEL_CENTER_PERCENT = 65.36;
 const JOURNAL_LABEL_CENTER_PERCENT = 91.96;
+// The "Interact" caption sits ABOVE the key sprite (every other caption sits
+// below it) and horizontally centered on the arrow cluster's Up key
+// specifically, not the whole cluster's "Move" caption position reused
+// as-is by coincidence — the sprite's inverted-T layout already centers Up
+// on that same horizontal midpoint as the whole cluster, so no new
+// pixel-decoding pass is needed to find Up's own sub-position.
+const INTERACT_LABEL_CENTER_PERCENT = MOVE_LABEL_CENTER_PERCENT;
 
 /**
  * Universal controls overlay (roadmap step 25, spec.md FR-036) — shown once
@@ -185,6 +192,20 @@ export const ControlsOverlay = () => {
       }}
     >
       <div className="relative w-fit">
+        <div
+          className="absolute bottom-full mb-1.5 w-full text-xl whitespace-nowrap text-white"
+          style={{
+            fontFamily: `"${RESTART_PROMPT_FONT_FAMILY}", sans-serif`,
+            textShadow: '1px 1px 0 rgba(0,0,0,0.8), -1px -1px 0 rgba(0,0,0,0.8), 1px -1px 0 rgba(0,0,0,0.8), -1px 1px 0 rgba(0,0,0,0.8)',
+          }}
+        >
+          <span
+            className="absolute -translate-x-1/2"
+            style={{ left: `${INTERACT_LABEL_CENTER_PERCENT}%` }}
+          >
+            {ui.platformer.controlsOverlay.interact}
+          </span>
+        </div>
         <img
           src="/sprites/controls_overlay_keys.png"
           alt=""

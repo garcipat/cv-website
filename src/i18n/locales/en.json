@@ -169,7 +169,8 @@
     "controlsOverlay": {
       "move": "Move",
       "jump": "Jump",
-      "journal": "Journal"
+      "journal": "Journal",
+      "interact": "Interact"
     }
   }
 }

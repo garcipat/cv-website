@@ -73,6 +73,7 @@ describe('ControlsOverlay', () => {
     expect(overlay).toHaveTextContent('Move');
     expect(overlay).toHaveTextContent('Jump');
     expect(overlay).toHaveTextContent('Journal');
+    expect(screen.getByText('Interact')).toBeInTheDocument();
   });
 
   it('render-beforeReveal-isInvisibleAndOffsetLeft', () => {
