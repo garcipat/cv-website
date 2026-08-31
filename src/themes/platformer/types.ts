@@ -105,7 +105,14 @@ export interface CollectibleDef {
 export interface EnemyDef {
   id: string;
   spriteType: 'slimeGreen' | 'slimePurple';
-  fact: CollectedFact;
+  /** Absent for a "plain" enemy — a level-author-placed marker beyond
+   *  CVData's course count for that color (see `EnemyMapper.ts`'s
+   *  `placeEnemies`). Enemies are no longer capped at CVData's length: only
+   *  the first N markers of each color (N = that color's course count)
+   *  reveal a fact on defeat; any further marker is still a normal,
+   *  killable enemy, it just carries no CV reward. Mirrors `BlockDef.fact`'s
+   *  optionality for question-mark/fragileRock blocks. */
+  fact?: CollectedFact;
 }
 
 /**

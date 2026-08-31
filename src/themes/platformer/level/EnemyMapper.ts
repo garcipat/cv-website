@@ -54,38 +54,53 @@ export interface EnemyMarkerPositions {
 }
 
 /**
+ * Every marker on the map becomes an enemy — placement is no longer capped
+ * at CVData's length (amended 2026-08-31, live user feedback: "the enemies
+ * should not be capped, just the first enemies should reveal CVData"). A
+ * marker beyond its color's def count still places a fully functional,
+ * killable enemy — it just has no `fact` to award (see `EnemyDef.fact`'s
+ * doc comment), same convention `BlockMapper.ts`'s question-mark/
+ * fragileRock blocks already use for CV-mapping-free entities.
+ */
+function plainEnemyDef(spriteType: EnemyDef['spriteType'], col: number, row: number): EnemyDef {
+  return { id: `enemy-plain-${spriteType}-${col}-${row}`, spriteType };
+}
+
+/**
+ * Places one enemy per marker of `spriteType`, in reading order: the first
+ * `defs.length` markers each get the next def (and its `fact`) in order;
+ * any further marker gets a `plainEnemyDef` instead. Shared by both colors
+ * in `placeEnemies` below.
+ */
+function placeQueue(
+  defs: EnemyDef[],
+  markers: readonly { col: number; row: number }[],
+  spriteType: EnemyDef['spriteType'],
+): EnemyPlacement[] {
+  return markers.map((marker, index) => {
+    const def = defs[index] ?? plainEnemyDef(spriteType, marker.col, marker.row);
+    const { x, y } = tileToPixel(marker.col, marker.row);
+    return { ...def, x, y };
+  });
+}
+
+/**
  * Places enemy defs at hand-authored marker positions — `E` markers
  * (LevelParser.ts's findGreenEnemyTiles) for `slimeGreen` defs, `M` markers
  * (findPurpleEnemyTiles) for `slimePurple` defs, each type matched to its
- * own marker queue in reading order. The level's marker count decides how
- * many enemies actually appear, not CVData's length: a marker is a slot on
- * the map, and each slot draws the next available fact from `defs` (in
- * `mapCVDataToEnemies`'s Certificates-then-Projects-then-Courses order) as
- * its reward. If a level has fewer markers of a type than CVData has facts
- * of that type, the excess facts simply have no enemy yet — not an error,
- * since a level is built incrementally and isn't expected to represent
- * every CV fact until it's the final design. There is no auto-placement: an
- * enemy's position is always exactly where a level author put its marker.
+ * own marker queue in reading order. There is no auto-placement: an enemy's
+ * position is always exactly where a level author put its marker. If a
+ * level has fewer markers of a type than CVData has facts of that type, the
+ * excess facts simply have no enemy yet — not an error, since a level is
+ * built incrementally and isn't expected to represent every CV fact until
+ * it's the final design.
  */
 export function placeEnemies(defs: EnemyDef[], markers: EnemyMarkerPositions): EnemyPlacement[] {
-  let greenIndex = 0;
-  let purpleIndex = 0;
-  const placements: EnemyPlacement[] = [];
+  const greenDefs = defs.filter((def) => def.spriteType === 'slimeGreen');
+  const purpleDefs = defs.filter((def) => def.spriteType === 'slimePurple');
 
-  for (const def of defs) {
-    const isGreen = def.spriteType === 'slimeGreen';
-    const queue = isGreen ? markers.slimeGreen : markers.slimePurple;
-    const index = isGreen ? greenIndex : purpleIndex;
-
-    if (index >= queue.length) continue; // no marker left for this fact — not placed yet
-
-    if (isGreen) greenIndex++;
-    else purpleIndex++;
-
-    const { col, row } = queue[index];
-    const { x, y } = tileToPixel(col, row);
-    placements.push({ ...def, x, y });
-  }
-
-  return placements;
+  return [
+    ...placeQueue(greenDefs, markers.slimeGreen, 'slimeGreen'),
+    ...placeQueue(purpleDefs, markers.slimePurple, 'slimePurple'),
+  ];
 }

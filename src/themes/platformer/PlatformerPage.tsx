@@ -651,13 +651,14 @@ export const PlatformerPage = () => {
 
         let anyEnemyRewarded = false;
         for (const enemy of justDefeated) {
-          // Facts persist across respawns (FR-020c: `resetGame()` revives
-          // enemies but deliberately never clears `collectedFacts`), so a
-          // revived enemy stomped again in a later life must not re-bank the
-          // same fact — that would duplicate its journal page. The enemy is
-          // still removed via the `filter` below either way; only the
-          // reward (fact + flight effect) is skipped.
-          if (newFacts.some((f) => f.id === enemy.fact.id)) continue;
+          // A "plain" enemy (a marker beyond its color's CVData course
+          // count, see EnemyMapper.ts) carries no fact at all — it's still
+          // removed via the `filter` below, just with no reward. Facts also
+          // persist across respawns (FR-020c: `resetGame()` revives enemies
+          // but deliberately never clears `collectedFacts`), so a revived
+          // enemy stomped again in a later life must not re-bank the same
+          // fact — that would duplicate its journal page.
+          if (!enemy.fact || newFacts.some((f) => f.id === enemy.fact!.id)) continue;
           anyEnemyRewarded = true;
           newFacts.push(enemy.fact);
           // Reuses the journal's own title/icon derivation (amended
@@ -691,9 +692,13 @@ export const PlatformerPage = () => {
         enemyStates.value = enemyStates.value.filter((e) => !e.defeated);
         if (anyEnemyRewarded) {
           const enemyDefeated = newFacts.filter((f) => f.sourceType === 'enemy').length;
+          // Denominator counts only fact-bearing placements — a "plain"
+          // enemy (EnemyMapper.ts's excess-marker case) never contributes a
+          // fact, so counting it here would make the ratio unreachable.
+          const enemyTotal = enemyPlacements.value.filter((p) => p.fact).length;
           activeCounterPopups.value = {
             ...activeCounterPopups.value,
-            enemies: startCounterPopup('enemies', enemyDefeated, enemyPlacements.value.length),
+            enemies: startCounterPopup('enemies', enemyDefeated, enemyTotal),
           };
         }
       }
