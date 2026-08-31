@@ -1828,11 +1828,11 @@ describe('PlatformerPage', () => {
     };
 
     let t = 16;
-    frameCallback!(t); // first stomp: hitPoints 2 -> 1, animState 'hit'
+    frameCallback!(t); // first stomp: hitPoints 3 -> 2, animState 'hit'
 
     const midReaction = enemyStates.value.find((e) => e.id === target.id)!;
     expect(midReaction.animState).toBe('hit');
-    expect(midReaction.hitPoints).toBe(1);
+    expect(midReaction.hitPoints).toBe(2);
 
     // Land on it again immediately — still well within the ~0.4s reaction
     // window (this same tick), entirely airborne, no landing/separation of
@@ -1844,7 +1844,21 @@ describe('PlatformerPage', () => {
       vy: 300,
     };
     t += 16;
-    frameCallback!(t); // second stomp lands mid-reaction: hitPoints 1 -> 0
+    frameCallback!(t); // second stomp lands mid-reaction: hitPoints 2 -> 1
+
+    const afterSecondStomp = enemyStates.value.find((e) => e.id === target.id)!;
+    expect(afterSecondStomp.animState).toBe('hit');
+    expect(afterSecondStomp.hitPoints).toBe(1);
+
+    // Land on it a third time — to finally defeat the purple slime
+    playerState.value = {
+      ...playerState.value,
+      x: afterSecondStomp.x,
+      y: afterSecondStomp.y - PLAYER_RENDERED_SIZE / 2,
+      vy: 300,
+    };
+    t += 16;
+    frameCallback!(t); // third stomp lands mid-reaction: hitPoints 1 -> 0
 
     const stillMidReaction = enemyStates.value.find((e) => e.id === target.id)!;
     expect(stillMidReaction.animState).toBe('hit'); // reaction hasn't finished yet
