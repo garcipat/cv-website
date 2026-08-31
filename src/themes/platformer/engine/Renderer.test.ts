@@ -883,6 +883,15 @@ describe('drawTerrain', () => {
     expect(ctx.drawImage).not.toHaveBeenCalled();
   });
 
+  it('ladderTile-notSolid-stillDraws-fromLadderSource', () => {
+    const level: LevelDef = { width: 1, height: 1, terrain: [['ladder']] };
+    const ctx = makeMockContext();
+
+    drawTerrain(ctx, level, fakeTileset);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 144, 48, 16, 16, 0, 0, 32, 32);
+  });
+
   it('multiTileLevel-draws-atCorrectPixelPositions', () => {
     const level: LevelDef = { width: 2, height: 1, terrain: [['groundGrass', 'wall']] };
     const ctx = makeMockContext();
