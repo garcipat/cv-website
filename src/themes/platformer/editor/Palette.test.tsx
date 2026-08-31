@@ -37,4 +37,13 @@ describe('Palette', () => {
     expect(screen.getByRole('button', { name: 'R' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'G' })).toHaveAttribute('aria-pressed', 'false');
   });
+
+  it('visually highlights the currently selected tool with a distinct class', () => {
+    render(<Palette selectedTool="R" onSelectTool={() => {}} />);
+    const selectedButton = screen.getByRole('button', { name: 'R' });
+    const unselectedButton = screen.getByRole('button', { name: 'G' });
+    expect(selectedButton.className).not.toBe('');
+    expect(unselectedButton.className).toBe('');
+    expect(selectedButton.className).not.toBe(unselectedButton.className);
+  });
 });
