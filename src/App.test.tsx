@@ -40,7 +40,12 @@ describe('App - level editor route', () => {
   it('renders the level editor when the pathname is /platformer/editor', async () => {
     window.history.pushState({}, '', '/platformer/editor');
     render(<App />);
-    expect(await screen.findByRole('toolbar')).toBeInTheDocument();
+    // LevelEditorPage is lazy-loaded (see App.tsx) and its module graph now
+    // pulls in Dialog/Card alongside the editor itself — the default
+    // findBy* timeout (1000ms) can be tight for that under a loaded test
+    // run, so this gets explicit headroom rather than relying on the
+    // default and occasionally flaking.
+    expect(await screen.findByRole('toolbar', {}, { timeout: 5000 })).toBeInTheDocument();
   });
 
   it('does not render the level editor for any other pathname', () => {
