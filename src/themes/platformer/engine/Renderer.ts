@@ -358,6 +358,23 @@ const BUBBLE_FONT_SIZE = 16;
 const BUBBLE_PADDING_X = 10;
 const BUBBLE_PADDING_Y = 6;
 const BUBBLE_BORDER_WIDTH = 2;
+/** Extra vertical gap between wrapped lines, on top of BUBBLE_FONT_SIZE
+ *  itself — only added BETWEEN lines (lines.length - 1 times), so a
+ *  single-line bubble's height is untouched by this. */
+const BUBBLE_LINE_SPACING = 4;
+/** Corner radius for the bubble's rounded rect (both the border and the
+ *  inset fill), drawn via `ctx.roundRect` — a smooth curve, not a pixel-art
+ *  chamfer (tried and rejected per live feedback: cut-corner notches "just
+ *  cut away the corners, does not look better"). A curved corner is always
+ *  anti-aliased regardless of `imageSmoothingEnabled` (that flag only
+ *  affects `drawImage` scaling), so it reads slightly softer than this
+ *  game's pixel-art tileset — an accepted, deliberate tradeoff here. */
+const BUBBLE_CORNER_RADIUS = 6;
+/** Nudges the text down from dead-center by a couple px — a purely visual
+ *  correction (per live feedback: centered text read as sitting slightly
+ *  high against the box, likely due to font metrics' cap-height vs.
+ *  middle-baseline not perfectly bisecting the box). */
+const BUBBLE_TEXT_VERTICAL_NUDGE = 2;
 /** Vertical gap between the bubble tail's tip and its anchor point
  *  (anchorBottomY), so it floats just above the character's head rather
  *  than overlapping it. */
@@ -387,6 +404,15 @@ const BUBBLE_TEXT_COLOR = '#241a0e';
  * `ctx.globalAlpha`, the same mechanism `drawBlocks`'s crate-shatter fade
  * already uses.
  */
+/** Clamps a corner radius so `roundRect` never receives a radius bigger than
+ *  half the shape's own width/height — exceeding that throws a RangeError in
+ *  real browsers. The bubble's box/tail height shrinks toward 0 during the
+ *  grow/shrink animation, so this matters at low `growth`, not just as a
+ *  theoretical edge case. */
+function clampedCornerRadius(width: number, height: number, radius: number): number {
+  return Math.max(0, Math.min(radius, width / 2, height / 2));
+}
+
 export function drawSignBubble(
   ctx: CanvasRenderingContext2D,
   text: string,
@@ -403,8 +429,14 @@ export function drawSignBubble(
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
-  const boxWidth = ctx.measureText(text).width + BUBBLE_PADDING_X * 2;
-  const fullBoxHeight = BUBBLE_FONT_SIZE + BUBBLE_PADDING_Y * 2;
+  // Lines are `\n`-separated (a hint can be authored as a multi-line i18n
+  // string) — box width fits the WIDEST line, box height grows with every
+  // extra line. A single-line text (the common case) reduces to exactly the
+  // old single-line formula: `lines.length - 1` is 0, so no extra spacing.
+  const lines = text.split('\n');
+  const boxWidth = Math.max(...lines.map((line) => ctx.measureText(line).width)) + BUBBLE_PADDING_X * 2;
+  const fullBoxHeight =
+    lines.length * BUBBLE_FONT_SIZE + BUBBLE_PADDING_Y * 2 + (lines.length - 1) * BUBBLE_LINE_SPACING;
   const boxHeight = fullBoxHeight * growth;
   const tailHeight = BUBBLE_TAIL_HEIGHT * growth;
   // Tail WIDTH is not scaled by growth — per the plan's explicit constraint,
@@ -426,15 +458,23 @@ export function drawSignBubble(
   const tailTipY = boxBottom + tailHeight;
   const boxLeft = anchorX - boxWidth / 2;
 
+  const outerWidth = boxWidth + BUBBLE_BORDER_WIDTH * 2;
+  const outerHeight = boxHeight + BUBBLE_BORDER_WIDTH * 2;
+
   ctx.fillStyle = BUBBLE_BORDER_COLOR;
-  ctx.fillRect(
+  ctx.beginPath();
+  ctx.roundRect(
     boxLeft - BUBBLE_BORDER_WIDTH,
     boxTop - BUBBLE_BORDER_WIDTH,
-    boxWidth + BUBBLE_BORDER_WIDTH * 2,
-    boxHeight + BUBBLE_BORDER_WIDTH * 2,
+    outerWidth,
+    outerHeight,
+    clampedCornerRadius(outerWidth, outerHeight, BUBBLE_CORNER_RADIUS + BUBBLE_BORDER_WIDTH),
   );
+  ctx.fill();
   ctx.fillStyle = BUBBLE_BG_COLOR;
-  ctx.fillRect(boxLeft, boxTop, boxWidth, boxHeight);
+  ctx.beginPath();
+  ctx.roundRect(boxLeft, boxTop, boxWidth, boxHeight, clampedCornerRadius(boxWidth, boxHeight, BUBBLE_CORNER_RADIUS));
+  ctx.fill();
 
   ctx.fillStyle = BUBBLE_BORDER_COLOR;
   ctx.beginPath();
@@ -452,7 +492,16 @@ export function drawSignBubble(
   ctx.fill();
 
   ctx.fillStyle = BUBBLE_TEXT_COLOR;
-  ctx.fillText(text, anchorX, boxTop + boxHeight / 2);
+  // Lines are stacked evenly around the box's vertical center, scaling their
+  // spacing by `growth` too (so they compress toward the center as the box
+  // shrinks, rather than overflowing it) — reduces to a single fillText at
+  // dead-center-plus-nudge when there's only one line.
+  const lineStep = (BUBBLE_FONT_SIZE + BUBBLE_LINE_SPACING) * growth;
+  const centerY = boxTop + boxHeight / 2 + BUBBLE_TEXT_VERTICAL_NUDGE * growth;
+  const firstLineY = centerY - ((lines.length - 1) * lineStep) / 2;
+  lines.forEach((line, i) => {
+    ctx.fillText(line, anchorX, firstLineY + i * lineStep);
+  });
   ctx.restore();
 }
 

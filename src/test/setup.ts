@@ -47,6 +47,7 @@ HTMLCanvasElement.prototype.getContext = function (
       lineTo: vi.fn(),
       stroke: vi.fn(),
       rect: vi.fn(),
+      roundRect: vi.fn(),
       arc: vi.fn(),
       fill: vi.fn(),
     });
