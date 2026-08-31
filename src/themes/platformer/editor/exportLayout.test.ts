@@ -40,7 +40,13 @@ describe('exportLayout', () => {
     expect(() => parseLevel(exportLayout(grid))).not.toThrow();
   });
 
-  it('exportLayout(importLayout(LEVEL_1_LAYOUT)) deep-equals LEVEL_1_LAYOUT', () => {
-    expect(exportLayout(importLayout(LEVEL_1_LAYOUT))).toEqual(LEVEL_1_LAYOUT);
+  it('exportLayout(importLayout(LEVEL_1_LAYOUT)) crops away LEVEL_1_LAYOUT\'s leading blank row, keeping every real tile', () => {
+    // LEVEL_1_LAYOUT has a deliberate leading all-'.' row (game rendering
+    // margin) and no other padding — content-cropping (this function's own
+    // job) removes exactly that row on export, even for unedited data.
+    // This is a ruling recorded in the SDD ledger: cropping is unconditional
+    // (spec SC-010), so it applies the same way to freshly-loaded data as to
+    // anything the developer paints and erases down to this shape.
+    expect(exportLayout(importLayout(LEVEL_1_LAYOUT))).toEqual(LEVEL_1_LAYOUT.slice(1));
   });
 });
