@@ -86,6 +86,45 @@ describe('LevelEditorPage', () => {
     expect(writeText).toHaveBeenCalledWith(EXPECTED_EXPORT_TEXT);
   });
 
+  it('renders a Reset button that reloads the default layout after confirmation, discarding edits', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    render(<LevelEditorPage />);
+
+    const canvas = document.querySelector('canvas')!;
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
+    fireEvent.mouseDown(canvas, { button: 0, clientX: 1, clientY: 1 });
+
+    await openExportDialog();
+    const editedTextarea = (await screen.findByTestId('export-output')) as HTMLTextAreaElement;
+    expect(editedTextarea.value).not.toBe(EXPECTED_EXPORT_TEXT);
+    // The Dialog hides the rest of the page from the accessibility tree
+    // while open — close it before interacting with anything outside it.
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByTestId('export-output')).not.toBeInTheDocument());
+
+    await userEvent.click(screen.getByRole('button', { name: 'Reset' }));
+    expect(window.confirm).toHaveBeenCalled();
+
+    await openExportDialog();
+    const resetTextarea = (await screen.findByTestId('export-output')) as HTMLTextAreaElement;
+    expect(resetTextarea.value).toBe(EXPECTED_EXPORT_TEXT);
+  });
+
+  it('does not reset when the confirmation is declined', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(false);
+    render(<LevelEditorPage />);
+
+    const canvas = document.querySelector('canvas')!;
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
+    fireEvent.mouseDown(canvas, { button: 0, clientX: 1, clientY: 1 });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Reset' }));
+
+    await openExportDialog();
+    const textarea = (await screen.findByTestId('export-output')) as HTMLTextAreaElement;
+    expect(textarea.value).not.toBe(EXPECTED_EXPORT_TEXT);
+  });
+
   it('compensates panOffset by exactly -colShift * RENDERED_TILE_SIZE when a paint grows the grid leftward, so existing content does not visually move (spec SC-006)', async () => {
     render(<LevelEditorPage />);
     // Wait for the mocked loadImage promises to resolve so images.tileset is
