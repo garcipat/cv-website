@@ -1,3 +1,4 @@
+import { signal, computed } from '@preact/signals-react';
 import type { LevelDef } from './LevelData';
 import {
   parseLevel,
@@ -11,7 +12,7 @@ import {
   findChestTiles,
 } from './LevelParser';
 
-// Visual layout of level1 — one character per tile (see LevelParser.ts's
+// Visual layout of currentLevel — one character per tile (see LevelParser.ts's
 // TERRAIN_CHARS/ENTITY_CHARS). Every row must be the same length (the level's
 // width in tiles), but the number of rows (the level's height) is NOT a fixed
 // constant — it's however many rows this array has. The array is
@@ -129,34 +130,57 @@ export const LEVEL_1_LAYOUT: readonly string[] = [
   'GG...GGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRR...RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
 ];
 
-export const level1: LevelDef = parseLevel(LEVEL_1_LAYOUT);
+/**
+ * The layout the GAME actually renders/simulates against — starts out equal
+ * to the hardcoded `LEVEL_1_LAYOUT` above, but is deliberately an in-memory
+ * signal (NOT localStorage-backed, unlike the Level Editor's own
+ * `editorLevelSignal` in `editor/editorLevelState.ts`): a real page
+ * load/reload must always fall back to whatever `LEVEL_1_LAYOUT` says in
+ * code, so shipping a new default layout always takes effect for every
+ * visitor, and a play-tester's in-progress edits never leak into the live
+ * site just by being open in a browser tab. The Level Editor's Try button
+ * (`editor/LevelEditorPage.tsx`) is the only place that writes to this — it
+ * sets `.value` to the exported grid, then client-side-navigates
+ * (`@/state/navigation.ts`'s `navigateTo`, not a real reload) into the game,
+ * which is what lets this value actually be seen before a reload would
+ * discard it.
+ */
+export const currentLayout = signal<readonly string[]>(LEVEL_1_LAYOUT);
 
-/** Player spawn point, read from `LEVEL_1_LAYOUT`'s `S` marker. */
-export const SPAWN_TILE = findSpawnTile(LEVEL_1_LAYOUT);
+/** Parsed terrain/dimensions for `currentLayout`. Recomputes whenever the
+ *  Level Editor's Try button changes `currentLayout` (see its doc comment
+ *  above); every other read site (PlatformerPage.tsx, PlatformerState.ts)
+ *  reads this reactively via `.value` instead of a plain module-load-time
+ *  constant, so a Try'd layout actually renders/simulates instead of the
+ *  stale default. */
+export const currentLevel = computed<LevelDef>(() => parseLevel(currentLayout.value));
 
-/** Hand-placed green (Course) enemy positions, from `LEVEL_1_LAYOUT`'s `E` markers. */
-export const ENEMY_TILES_GREEN = findGreenEnemyTiles(LEVEL_1_LAYOUT);
+/** Player spawn point, read from `currentLayout`'s `S` marker. */
+export const SPAWN_TILE = computed(() => findSpawnTile(currentLayout.value));
 
-/** Hand-placed purple (Course) enemy positions, from `LEVEL_1_LAYOUT`'s `M`
+/** Hand-placed green (Course) enemy positions, from `currentLayout`'s `E` markers. */
+export const ENEMY_TILES_GREEN = computed(() => findGreenEnemyTiles(currentLayout.value));
+
+/** Hand-placed purple (Course) enemy positions, from `currentLayout`'s `M`
  *  markers — amended 2026-08-30, see this file's top doc comment. */
-export const ENEMY_TILES_PURPLE = findPurpleEnemyTiles(LEVEL_1_LAYOUT);
+export const ENEMY_TILES_PURPLE = computed(() => findPurpleEnemyTiles(currentLayout.value));
 
-/** Hand-placed Skill-category coin positions, from `LEVEL_1_LAYOUT`'s `C` markers. */
-export const COIN_TILES = findCoinTiles(LEVEL_1_LAYOUT);
+/** Hand-placed Skill-category coin positions, from `currentLayout`'s `C` markers. */
+export const COIN_TILES = computed(() => findCoinTiles(currentLayout.value));
 
-/** Hand-placed crate block positions (2), from `LEVEL_1_LAYOUT`'s `X` markers. */
-export const CRATE_TILES = findCrateTiles(LEVEL_1_LAYOUT);
+/** Hand-placed crate block positions (2), from `currentLayout`'s `X` markers. */
+export const CRATE_TILES = computed(() => findCrateTiles(currentLayout.value));
 
-/** Hand-placed question-mark block positions (2), from `LEVEL_1_LAYOUT`'s `Q` markers. */
-export const QUESTIONMARK_TILES = findQuestionMarkTiles(LEVEL_1_LAYOUT);
+/** Hand-placed question-mark block positions (2), from `currentLayout`'s `Q` markers. */
+export const QUESTIONMARK_TILES = computed(() => findQuestionMarkTiles(currentLayout.value));
 
-/** Hand-placed fragileRock block positions (2), from `LEVEL_1_LAYOUT`'s `F`
+/** Hand-placed fragileRock block positions (2), from `currentLayout`'s `F`
  *  markers (renamed from `K` — the old letter collided confusingly with the
  *  unrelated `groundRock` terrain tile; the `F` letter itself was freed up by
  *  removing the dead Language-fruit marker concept it used to mean). */
-export const FRAGILE_ROCK_TILES = findFragileRockTiles(LEVEL_1_LAYOUT);
+export const FRAGILE_ROCK_TILES = computed(() => findFragileRockTiles(currentLayout.value));
 
-/** Hand-placed chest positions (2), from `LEVEL_1_LAYOUT`'s `T` markers
+/** Hand-placed chest positions (2), from `currentLayout`'s `T` markers
  *  (spec.md FR-023, added 2026-08-30). Both markers sit close to spawn (cols
  *  6 and 12) — live user feedback, 2026-08-30, trimmed down from the original
  *  5 spread across the level for easier manual testing. Same mechanics-test
@@ -166,4 +190,4 @@ export const FRAGILE_ROCK_TILES = findFragileRockTiles(LEVEL_1_LAYOUT);
  *  CVData's length, and `placeChests` has no auto-placement fallback — the
  *  remaining 3 Experience entries (the newest ones, after this batch's `D5`
  *  chest-ordering reversal) simply have no chest yet. */
-export const CHEST_TILES = findChestTiles(LEVEL_1_LAYOUT);
+export const CHEST_TILES = computed(() => findChestTiles(currentLayout.value));

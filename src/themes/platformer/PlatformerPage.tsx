@@ -41,7 +41,7 @@ import {
   dismissEndingScreen,
 } from './engine/GameLifecycle';
 import { maxIrisRadius } from './engine/IrisTransition';
-import { level1 } from './level/level1';
+import { currentLevel } from './level/level';
 import {
   checkCollectibleCollisions,
   checkEnemyStompCollisions,
@@ -103,6 +103,7 @@ import {
 import { useSignals } from '@preact/signals-react/runtime';
 import { Journal } from './components/Journal';
 import { ThankYouScreen } from './components/ThankYouScreen';
+import { navigateTo } from '@/state/navigation';
 
 // Vertical spacing between stacked fact-flight rows when several pickups are
 // collected close together — a bit more than the 28px collection-effect
@@ -269,6 +270,18 @@ export const PlatformerPage = () => {
     lifecycleState.value = introState(center.x, center.y);
   };
 
+  /**
+   * Debug-only shortcut into the Level Editor (dev convenience, same gating
+   * as the Kill/Respawn/Hitboxes buttons above — see `debugControls`).
+   * Deliberately does NOT touch `currentLayout`: the editor's own grid is
+   * independent, localStorage-backed state (`editor/editorLevelState.ts`)
+   * that already restores itself on mount, regardless of whatever the game
+   * is currently showing.
+   */
+  const handleOpenEditor = () => {
+    navigateTo('/platformer/editor');
+  };
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -322,12 +335,12 @@ export const PlatformerPage = () => {
 
       // Anchor the level to the bottom of the canvas so a taller viewport
       // shows more sky above the ground instead of empty space below it.
-      const levelPixelHeight = level1.height * RENDERED_TILE_SIZE;
+      const levelPixelHeight = currentLevel.value.height * RENDERED_TILE_SIZE;
       const originY = canvas.height - levelPixelHeight + cameraPositionY.value;
       const originX = -cameraPositionX.value;
 
       if (tilesetRef.current) {
-        drawTerrain(ctx, level1, tilesetRef.current, originX, originY);
+        drawTerrain(ctx, currentLevel.value, tilesetRef.current, originX, originY);
       }
 
       // Drawn BEFORE blocks (amended 2026-08-30, live user feedback): a
@@ -373,7 +386,7 @@ export const PlatformerPage = () => {
       if (coinSpriteRef.current || fruitSpriteRef.current) {
         drawCollectibles(
           ctx,
-          collectiblePlacements,
+          collectiblePlacements.value,
           coinSpriteRef.current,
           fruitSpriteRef.current,
           collectedCollectibleIds.value,
@@ -450,18 +463,18 @@ export const PlatformerPage = () => {
         canvas.height * 0.3 - COLLECTION_TEXT_STACK_ROW_HEIGHT,
       );
 
-      if (debugHitboxesRef.current) drawDebugOverlay(ctx, playerState.value, level1, originX, originY);
+      if (debugHitboxesRef.current) drawDebugOverlay(ctx, playerState.value, currentLevel.value, originX, originY);
 
       if (heartsSpriteRef.current) {
         drawHearts(ctx, healthState.value, heartsSpriteRef.current, HEARTS_START_X);
       }
 
-      if (chestClosedSpriteRef.current && chestPlacements.length > 0) {
+      if (chestClosedSpriteRef.current && chestPlacements.value.length > 0) {
         drawChestCounter(
           ctx,
           chestClosedSpriteRef.current,
           chestStates.value.filter(isChestOpen).length,
-          chestPlacements.length,
+          chestPlacements.value.length,
           CHEST_COUNTER_X,
           CHEST_COUNTER_Y,
         );
@@ -573,7 +586,7 @@ export const PlatformerPage = () => {
       // into 'hit' in the first place, below).
       enemyStates.value = enemyStates.value.map((enemy) => {
         const next =
-          enemy.animState === 'hit' ? stepEnemyHitReaction(enemy, dt) : stepEnemyPatrol(enemy, level1, dt);
+          enemy.animState === 'hit' ? stepEnemyHitReaction(enemy, dt) : stepEnemyPatrol(enemy, currentLevel.value, dt);
         return advanceEnemyAnimation(next, dt);
       });
 
@@ -610,7 +623,7 @@ export const PlatformerPage = () => {
         const midX = canvas.width / 2;
         const midY = canvas.height * 0.3;
         const originX = -cameraPositionX.value;
-        const levelPixelHeight = level1.height * RENDERED_TILE_SIZE;
+        const levelPixelHeight = currentLevel.value.height * RENDERED_TILE_SIZE;
         const originY = canvas.height - levelPixelHeight + cameraPositionY.value;
 
         let anyEnemyRewarded = false;
@@ -657,7 +670,7 @@ export const PlatformerPage = () => {
           const enemyDefeated = newFacts.filter((f) => f.sourceType === 'enemy').length;
           activeCounterPopups.value = {
             ...activeCounterPopups.value,
-            enemies: startCounterPopup('enemies', enemyDefeated, enemyPlacements.length),
+            enemies: startCounterPopup('enemies', enemyDefeated, enemyPlacements.value.length),
           };
         }
       }
@@ -683,13 +696,13 @@ export const PlatformerPage = () => {
       // isn't reachable from here) — needed to convert a just-collected
       // placement's world-space position into the screen-space coordinates
       // FlightEffect requires (see CollectionEffects.ts's doc comment).
-      const levelPixelHeight = level1.height * RENDERED_TILE_SIZE;
+      const levelPixelHeight = currentLevel.value.height * RENDERED_TILE_SIZE;
       const originY = canvas.height - levelPixelHeight + cameraPositionY.value;
       const originX = -cameraPositionX.value;
 
       const touchedIds = checkCollectibleCollisions(
         playerState.value,
-        collectiblePlacements,
+        collectiblePlacements.value,
         collectedCollectibleIds.value,
       );
       if (touchedIds.length > 0) {
@@ -709,7 +722,7 @@ export const PlatformerPage = () => {
         const midY = canvas.height * 0.3;
 
         for (const id of touchedIds) {
-          const placement = collectiblePlacements.find((p) => p.id === id);
+          const placement = collectiblePlacements.value.find((p) => p.id === id);
           if (!placement) continue;
           nextCollected.add(id);
           newFacts.push(placement.fact);
@@ -749,9 +762,9 @@ export const PlatformerPage = () => {
         collectedFacts.value = newFacts;
         activeEffects.value = newEffects;
 
-        if (touchedIds.some((id) => collectiblePlacements.find((p) => p.id === id)?.spriteType === 'coin')) {
-          const coinTotal = collectiblePlacements.filter((p) => p.spriteType === 'coin').length;
-          const coinCollected = collectiblePlacements.filter(
+        if (touchedIds.some((id) => collectiblePlacements.value.find((p) => p.id === id)?.spriteType === 'coin')) {
+          const coinTotal = collectiblePlacements.value.filter((p) => p.spriteType === 'coin').length;
+          const coinCollected = collectiblePlacements.value.filter(
             (p) => p.spriteType === 'coin' && nextCollected.has(p.id),
           ).length;
           activeCounterPopups.value = {
@@ -812,7 +825,7 @@ export const PlatformerPage = () => {
           (fruit) => !touchedBonusFruitIds.includes(fruit.id),
         );
         if (anyBonusFruitRewarded) {
-          const bonusFruitTotal = blockPlacements.filter(
+          const bonusFruitTotal = blockPlacements.value.filter(
             (b) => b.blockKind === 'questionMark' && b.fact,
           ).length;
           const bonusFruitCollected = newFacts.filter(
@@ -943,7 +956,7 @@ export const PlatformerPage = () => {
 
       let next = stepPlayerPhysics(
         playerState.value,
-        level1,
+        currentLevel.value,
         dt,
         {
           ...horizontal,
@@ -973,7 +986,7 @@ export const PlatformerPage = () => {
         );
 
         const originX = -cameraPositionX.value;
-        const levelPixelHeight = level1.height * RENDERED_TILE_SIZE;
+        const levelPixelHeight = currentLevel.value.height * RENDERED_TILE_SIZE;
         const originY = canvas.height - levelPixelHeight + cameraPositionY.value;
         const journalRect = journalButtonRef.current?.getBoundingClientRect();
         const targetX = journalRect ? journalRect.left + journalRect.width / 2 : canvas.width - 32;
@@ -1035,7 +1048,7 @@ export const PlatformerPage = () => {
               nextTextSlot = (nextTextSlot + 1) % COLLECTION_TEXT_SLOT_COUNT;
               const stackOffsetY = slot * COLLECTION_TEXT_STACK_ROW_HEIGHT;
               collectedFacts.value = [...collectedFacts.value, block.fact];
-              const crateTotal = blockPlacements.filter((b) => b.blockKind === 'crate').length;
+              const crateTotal = blockPlacements.value.filter((b) => b.blockKind === 'crate').length;
               const crateCollected = collectedFacts.value.filter(
                 (f) => f.sectionId === 'experience' || f.sectionId === 'education',
               ).length;
@@ -1062,7 +1075,7 @@ export const PlatformerPage = () => {
         }
       }
 
-      if (checkPitFall(next, level1)) {
+      if (checkPitFall(next, currentLevel.value)) {
         // Invincibility (roadmap step 19) is a property of taking damage
         // generally, not just of enemy contact — a pit fall grants and
         // respects it exactly like a side-hit does. The position recovery
@@ -1086,7 +1099,7 @@ export const PlatformerPage = () => {
 
       playerState.value = next;
 
-      const levelPixelWidth = level1.width * RENDERED_TILE_SIZE;
+      const levelPixelWidth = currentLevel.value.width * RENDERED_TILE_SIZE;
       cameraPositionX.value = updateCamera(
         cameraPositionX.value,
         next.x,
@@ -1095,7 +1108,7 @@ export const PlatformerPage = () => {
         levelPixelWidth,
       );
 
-      const levelPixelHeightForCamera = level1.height * RENDERED_TILE_SIZE;
+      const levelPixelHeightForCamera = currentLevel.value.height * RENDERED_TILE_SIZE;
       cameraPositionY.value = updateCameraY(
         cameraPositionY.value,
         next.y,
@@ -1344,6 +1357,14 @@ export const PlatformerPage = () => {
             data-testid="debug-hitboxes-toggle"
           >
             Hitboxes: {debugHitboxesOn ? 'On' : 'Off'}
+          </button>
+          <button
+            type="button"
+            onClick={handleOpenEditor}
+            className="rounded bg-blue-600 px-3 py-1 text-sm text-white"
+            data-testid="debug-editor-button"
+          >
+            Editor
           </button>
         </div>
       )}

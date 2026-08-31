@@ -1,10 +1,14 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { LevelEditorPage } from './LevelEditorPage';
-import { LEVEL_1_LAYOUT } from '../level/level1';
+import { LEVEL_1_LAYOUT, currentLayout } from '../level/level';
 import { importLayout } from './importLayout';
+import { exportLayout } from './exportLayout';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
+import { editorLevelSignal } from './editorLevelState';
+import { currentTheme } from '@/state/theme';
+import { currentPath } from '@/state/navigation';
 
 vi.mock('../engine/SpriteLoader', () => ({
   loadImage: vi.fn((src: string) => Promise.resolve({ src } as unknown as HTMLImageElement)),
@@ -148,5 +152,103 @@ describe('LevelEditorPage', () => {
       const [, , , originXAfter] = callsAfter[callsAfter.length - 1];
       expect(originXAfter).toBe(-RENDERED_TILE_SIZE);
     });
+  });
+});
+
+describe('LevelEditorPage - debounced localStorage sync (editorLevelSignal)', () => {
+  const defaultGrid = importLayout(LEVEL_1_LAYOUT);
+
+  beforeEach(() => {
+    editorLevelSignal.value = defaultGrid;
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    editorLevelSignal.value = defaultGrid;
+  });
+
+  function paint(canvas: Element) {
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
+    fireEvent.mouseDown(canvas, { button: 0, clientX: 1, clientY: 1 });
+  }
+
+  it('initialGrid-onMount-comesFromEditorLevelSignalRatherThanAlwaysTheHardcodedDefault', async () => {
+    // Seed localStorage-backed state with something other than the default
+    // before mounting, so this only passes if the component's initial
+    // useState actually reads editorLevelSignal.value instead of always
+    // calling importLayout(LEVEL_1_LAYOUT) itself.
+    const editedGrid = defaultGrid.map((row) => [...row]);
+    editedGrid[0][0] = 'G';
+    editorLevelSignal.value = editedGrid;
+
+    render(<LevelEditorPage />);
+    await userEvent.click(screen.getByRole('button', { name: 'Export' }));
+    const textarea = (await screen.findByTestId('export-output')) as HTMLTextAreaElement;
+    expect(textarea.value).toBe(editedGrid.map((row) => `  '${row.join('')}',`).join('\n'));
+  });
+
+  it('paintingACell-doesNotSyncToEditorLevelSignalImmediately', () => {
+    render(<LevelEditorPage />);
+    const canvas = document.querySelector('canvas')!;
+
+    paint(canvas);
+
+    expect(editorLevelSignal.value).toEqual(defaultGrid);
+  });
+
+  it('paintingACell-afterTheDebounceWindowElapses-syncsTheGridToEditorLevelSignal', () => {
+    vi.useFakeTimers();
+    render(<LevelEditorPage />);
+    const canvas = document.querySelector('canvas')!;
+
+    paint(canvas);
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+
+    expect(editorLevelSignal.value).not.toEqual(defaultGrid);
+  });
+
+  it('reset-afterConfirmation-alsoResetsEditorLevelSignalBackToTheDefaultLayout', () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    vi.useFakeTimers();
+    render(<LevelEditorPage />);
+    const canvas = document.querySelector('canvas')!;
+
+    paint(canvas);
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+    expect(editorLevelSignal.value).not.toEqual(defaultGrid);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reset' }));
+
+    expect(editorLevelSignal.value).toEqual(defaultGrid);
+  });
+});
+
+describe('LevelEditorPage - Try button', () => {
+  beforeEach(() => {
+    editorLevelSignal.value = importLayout(LEVEL_1_LAYOUT);
+    currentTheme.value = 'ide';
+    currentPath.value = '/platformer/editor';
+  });
+
+  afterEach(() => {
+    currentTheme.value = 'ide';
+    currentPath.value = '/';
+  });
+
+  it('click-setsCurrentLayoutFromTheGridSetsTheThemeToPlatformerAndNavigatesToTheDebugGameRoute', async () => {
+    render(<LevelEditorPage />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Try' }));
+
+    expect(currentLayout.value).toEqual(exportLayout(importLayout(LEVEL_1_LAYOUT)));
+    expect(currentTheme.value).toBe('platformer');
+    // PlatformerPage.tsx gates its debug panel on `new
+    // URLSearchParams(window.location.search).has('debug')` — any `debug`
+    // param shows it, so this must land on a URL satisfying that exactly.
+    expect(currentPath.value).toBe('/?debug=1');
   });
 });
