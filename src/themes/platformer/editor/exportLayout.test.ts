@@ -40,7 +40,7 @@ describe('exportLayout', () => {
     expect(() => parseLevel(exportLayout(grid))).not.toThrow();
   });
 
-  it('exportLayout(importLayout(LEVEL_1_LAYOUT)) crops away LEVEL_1_LAYOUT\'s leading blank row, keeping every real tile', () => {
+  it("exportLayout(importLayout(LEVEL_1_LAYOUT)) crops away LEVEL_1_LAYOUT's leading blank row, keeping every real tile", () => {
     // LEVEL_1_LAYOUT has a deliberate leading all-'.' row (game rendering
     // margin) and no other padding — content-cropping (this function's own
     // job) removes exactly that row on export, even for unedited data.
