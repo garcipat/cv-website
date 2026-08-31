@@ -1,4 +1,4 @@
-import { updateCamera, updateCameraY } from './Camera';
+import { updateCamera, updateCameraY, CAMERA_TOP_OVERSCROLL } from './Camera';
 
 describe('updateCamera', () => {
   const PLAYER_WIDTH = 64;
@@ -88,8 +88,8 @@ describe('updateCameraY', () => {
     expect(result).toBe(0);
   });
 
-  it('cameraWouldExceedLevelTop-clampsToLevelHeightMinusViewport', () => {
+  it('cameraWouldExceedLevelTop-clampsToLevelHeightMinusViewportPlusOverscroll', () => {
     const result = updateCameraY(0, 32, PLAYER_HEIGHT, VIEWPORT_HEIGHT, 800);
-    expect(result).toBe(320); // max = 800 - 480
+    expect(result).toBe(320 + CAMERA_TOP_OVERSCROLL); // max = (800 - 480) + overscroll
   });
 });
