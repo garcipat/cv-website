@@ -2,7 +2,13 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import { Journal } from './Journal';
 import { journalPage } from './Journal.page';
 import { currentCV } from '@/state/locale';
-import { collectedFacts, activeJournalSection, collectedCollectibleIds, collectiblePlacements } from '../PlatformerState';
+import {
+  collectedFacts,
+  activeJournalSection,
+  collectedCollectibleIds,
+  collectiblePlacements,
+  enemyPlacements,
+} from '../PlatformerState';
 import { JOURNAL_OPEN_FRAME_COUNT, JOURNAL_OPEN_FRAME_INTERVAL_MS } from '../entities/JournalAnimation';
 import { sectionTotal } from '../entities/JournalSections';
 import type { CollectedFact } from '../types';
@@ -581,6 +587,46 @@ describe('Journal', () => {
       fireEvent.click(journalPage.bookmarkTabs.experience);
 
       expect(journalPage.collectiblesSummary).not.toBeInTheDocument();
+    });
+
+    it('enemyMarkerBeyondCourseCount-plainEnemyDoesNotInflateEnemiesTotal', () => {
+      // Regression test: enemy placement is no longer capped at CVData's
+      // course count (d96a6f5) — a "plain" enemy marker beyond that count
+      // has no `fact` (EnemyDef.fact is optional) and must not count toward
+      // the Journal's "Enemies" denominator, matching how the `fruits` row
+      // already filters block placements down to fact-bearing ones.
+      const factBearingEnemy = {
+        id: 'enemy-course-0',
+        spriteType: 'slimeGreen' as const,
+        x: 0,
+        y: 0,
+        fact: {
+          id: 'course-0',
+          sectionId: 'courses' as const,
+          sectionLabel: 'Courses',
+          data: { title: 'Test Course', provider: 'Test', date: '2024-01', category: 'Test' },
+          sourceType: 'enemy' as const,
+        },
+      };
+      const plainEnemy = {
+        id: 'enemy-plain-slimeGreen-9-9',
+        spriteType: 'slimeGreen' as const,
+        x: 100,
+        y: 0,
+        fact: undefined,
+      };
+      const enemyPlacementsSpy = vi
+        .spyOn(enemyPlacements, 'value', 'get')
+        .mockReturnValue([factBearingEnemy, plainEnemy]);
+      collectedFacts.value = [];
+
+      render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
+      openBookAnimation();
+
+      const summary = journalPage.collectiblesSummary;
+      expect(summary).toHaveTextContent(/Enemies 0 \/ 1/);
+
+      enemyPlacementsSpy.mockRestore();
     });
   });
 
