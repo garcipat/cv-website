@@ -99,17 +99,33 @@ The grid has no fixed size and no manual resize control. If the developer paints
 
 ### User Story 5 - Pan a Grid Larger Than the Viewport (Priority: P2)
 
-For a grid too large to fit the visible canvas, the developer holds the right mouse button and drags to pan the view. This is a free-form 2D pan local to the editor — unrelated to the game's in-game auto-follow camera.
+For a grid too large to fit the visible canvas, the developer holds the middle mouse button and drags to pan the view. This is a free-form 2D pan local to the editor — unrelated to the game's in-game auto-follow camera.
 
 **Why this priority**: Real levels (e.g. `level1.ts` is 80+ columns wide) exceed any reasonable viewport. P2 because P1-P3 are testable on a small grid that fits without panning.
 
-**Independent Test**: Using the `level1`-loaded grid (already wider than a typical viewport), right-click-drag left/right, verify the visible window of cells shifts accordingly. Verify the browser's context menu does not appear on right-click.
+**Independent Test**: Using the `level1`-loaded grid (already wider than a typical viewport), middle-click-drag left/right, verify the visible window of cells shifts accordingly. Verify the browser's context menu does not appear on right-click (right-click is reserved for erasing, see User Story 1b).
 
 **Acceptance Scenarios**:
 
-1. **Given** the grid's content extends beyond the canvas viewport, **When** the developer right-click-drags, **Then** the rendered offset (`panOffset`) updates to follow the drag, and the canvas redraws at the new offset.
-2. **Given** a right-click-drag is in progress, **When** the browser would normally show a context menu, **Then** it is suppressed (`contextmenu` prevented).
-3. **Given** panning is active, **When** the developer releases the right mouse button, **Then** panning stops and the view stays at its last offset.
+1. **Given** the grid's content extends beyond the canvas viewport, **When** the developer middle-click-drags, **Then** the rendered offset (`panOffset`) updates to follow the drag, and the canvas redraws at the new offset.
+2. **Given** the developer right-clicks the canvas at any point, **When** the browser would normally show a context menu, **Then** it is suppressed (`contextmenu` prevented) — right-click is reserved for erasing.
+3. **Given** panning is active, **When** the developer releases the middle mouse button, **Then** panning stops and the view stays at its last offset.
+
+---
+
+### User Story 1b - Erase with a Right-Click, Regardless of the Selected Tool (Priority: P1)
+
+Right-clicking a cell (or right-click-dragging across several) erases it — sets it to `.` — no matter which palette tool is currently selected. The developer doesn't need to switch to the Eraser tile first; erasing is always one right-click away, matching the left-click-paints/right-click-erases convention common to tile-map editors (Tiled, Terraria-likes).
+
+**Why this priority**: Constantly switching the selected tool back and forth between "the thing I'm placing" and Eraser just to fix a mistake is friction in the tool's core loop — the same loop User Story 1 depends on. P1 for the same reason as User Story 1.
+
+**Independent Test**: With any terrain or entity tool selected (not Eraser), right-click a painted cell. Verify it becomes `.` and the selected tool is unchanged. Right-click-drag across several cells, verify all of them are erased.
+
+**Acceptance Scenarios**:
+
+1. **Given** any tool other than Eraser is selected, **When** the developer right-clicks a cell, **Then** that cell becomes `.`, and `selectedTool` itself does not change.
+2. **Given** the developer right-click-drags across multiple cells, **Then** every cell the cursor passes over is erased (a run, matching left-click-drag's paint-a-run behavior).
+3. **Given** a right-click targets a cell outside the current grid bounds, **Then** the grid grows to include it exactly as a left-click paint would (via `growGrid`), and the newly-included cell is erased (a no-op in practice, since a freshly-grown cell is already `.`).
 
 ---
 
@@ -221,6 +237,7 @@ On mount, `LevelEditorPage` calls a new pure function `importLayout(layout: read
 - **FR-003**: System MUST support a `selectedTool: TileChar` state, set by clicking a palette button, with the active tool visually highlighted.
 - **FR-004**: System MUST paint `selectedTool` into the grid cell under the cursor on left-click, overwriting any existing value, with no confirmation.
 - **FR-005**: System MUST support left-click-drag to paint a continuous run of cells along the cursor's path with `selectedTool`, not merely the start and end cells.
+- **FR-004a**: System MUST erase (write `.`) into the grid cell under the cursor on right-click, regardless of `selectedTool` — `selectedTool` itself MUST NOT change as a result. System MUST support right-click-drag to erase a continuous run of cells the same way FR-005 does for left-click-drag painting.
 - **FR-006**: System MUST special-case placement of the `S` (spawn) tool: before writing `S` into the target cell, if any other cell in the grid currently holds `S`, that cell MUST be reset to `.` in the same paint action.
 - **FR-007**: System MUST provide an explicit Eraser tool (mapped to `.`) as a palette button distinct from the terrain/entity tools.
 
@@ -240,7 +257,7 @@ On mount, `LevelEditorPage` calls a new pure function `importLayout(layout: read
 
 #### Panning
 
-- **FR-016**: System MUST implement a 2D pan state (`panOffset: {x, y}`) in a new, editor-only module (`editor/EditorPan.ts`), updated by right-mouse-button drag, with `contextmenu` prevented on the canvas during drag.
+- **FR-016**: System MUST implement a 2D pan state (`panOffset: {x, y}`) in a new, editor-only module (`editor/EditorPan.ts`), updated by middle-mouse-button drag, with `contextmenu` prevented on the canvas at all times (not just during a drag — right-click is reserved for erasing, see FR-004a).
 - **FR-017**: System MUST offset every draw call's `originX`/`originY` by the current `panOffset` so panning shifts the visible window without mutating grid data.
 
 #### Seamless Growth
@@ -266,7 +283,7 @@ On mount, `LevelEditorPage` calls a new pure function `importLayout(layout: read
 
 - **`LevelEditorPage` (component)**: Route-level component at `/platformer/editor`. Owns `grid: TileChar[][]`, `selectedTool: TileChar`, `panOffset: {x, y}`. Grid has no fixed dimensions — it grows via `growGrid` as painting demands. Loads sprite sheet images once on mount via `loadImage`.
 - **`Palette` (component)**: Renders one button per `TERRAIN_CHARS` key, per `ENTITY_CHARS` key, plus an Eraser button (`.`). Presentational + click handler that sets `selectedTool` on the parent.
-- **`EditorCanvas` (component)**: A `<canvas>` sized to the viewport. Handles left-click/left-drag (paint, calling `growGrid` per cell as needed) and right-click-drag (pan, via `EditorPan.ts`). Renders every visible cell — in-bounds or not — so panning always shows grid. Delegates all sprite drawing to the reused engine `draw*` functions, fed synthesized placeholder objects for the current `grid` + `panOffset`.
+- **`EditorCanvas` (component)**: A `<canvas>` sized to the viewport. Handles left-click/left-drag (paint with `selectedTool`, calling `growGrid` per cell as needed), right-click/right-drag (erase — always `.`, regardless of `selectedTool`, same `growGrid` path), and middle-click-drag (pan, via `EditorPan.ts`). Renders every visible cell — in-bounds or not — so panning always shows grid. Delegates all sprite drawing to the reused engine `draw*` functions, fed synthesized placeholder objects for the current `grid` + `panOffset`.
 - **`EditorPan.ts`**: New, editor-only pure module holding pan-state update logic (drag delta → new `panOffset`). No relation to `engine/Camera.ts`. Growth-compensation shifts (from `growGrid`) are applied to the same `panOffset` state directly by the paint handler, not through this module.
 - **`growGrid.ts`**: Pure function module. `growGrid(grid, col, row): { grid, colShift, rowShift }` — grows the array just enough to include `(col, row)`, reporting how much the origin shifted so the caller can compensate `panOffset`.
 - **`exportLayout.ts`**: Pure function module. `exportLayout(grid): readonly string[]` — crops to the tightest non-`.` bounding box before serializing.
@@ -344,6 +361,8 @@ Record of design decisions made during specification.
 | 6 | Should the grid load pre-populated with `level1`'s layout? | Yes — the grid starts as a one-time, in-memory copy of `LEVEL_1_LAYOUT`, taken on mount (not a live link — see User Story 1a) | FR-002; new `importLayout.ts` module (inverse of `exportLayout.ts`); the initial grid matches the shipped level exactly at load time |
 | 7 | How should the grid handle content placed beyond its current bounds — fixed size with manual resize, or unbounded? | Unbounded and seamless: the grid isn't a fixed size at all. Painting outside current bounds grows the array automatically in that direction; growing left/up shifts `panOffset` to compensate so nothing visually moves. Export always crops to the tightest non-`.` bounding box | FR-018–FR-021, FR-022; replaces the earlier manual-resize design entirely (no width/height inputs, no shrink-confirmation dialog) |
 | 8 | Sparse map (O(1) per placement) or dense array (O(width×height) copy on boundary-crossing growth) for grid storage? | Dense `TileChar[][]`, grown on demand | This is a single-human, click-paced dev tool, not a hot loop — an occasional full-array copy on a boundary-crossing paint is imperceptible, and a plain array is simpler to feed into `drawTerrain`'s `LevelDef` and to test than a sparse map |
+| 9 | How should mouse buttons map to paint/erase/pan? | Left-click paints with `selectedTool`; right-click always erases (`.`), regardless of `selectedTool`; middle-click-drag pans | FR-004a, FR-016; matches common tile-editor convention (Tiled, Terraria-likes) — erasing no longer requires switching to the Eraser tool first. Supersedes the original right-click-drag-pans design |
+| 10 | Should Platform (`P`) be a separate palette tile? | No — hidden from the palette UI only (still a valid `TERRAIN_CHARS` entry, unaffected in the engine) | `platform`'s sprite is identical to an exposed `groundGrass` tile (`Renderer.ts`'s `tileSource`, both `{sx:0,sy:0}`) — offering it as a distinct, visually-indistinguishable palette tile reads as a confusing duplicate |
 
 ---
 
