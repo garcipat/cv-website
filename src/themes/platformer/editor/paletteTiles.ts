@@ -158,7 +158,48 @@ export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
     frameWidth: 28,
     frameHeight: 20,
   },
+  // '1'-'5' are all the same signpost sprite — the digit is what
+  // distinguishes a sign's hint content (SIGN_CHARS), not its appearance.
+  // Only the first (`'1'`) ever renders as its own palette button (see
+  // Palette.tsx's firstSignKey); the rest exist purely so this exhaustive
+  // Record has an entry for every TileChar.
   '1': {
+    sheet: WORLD_TILESET,
+    sheetWidth: 256,
+    sheetHeight: 256,
+    sx: 128,
+    sy: 48,
+    frameWidth: 16,
+    frameHeight: 16,
+  },
+  '2': {
+    sheet: WORLD_TILESET,
+    sheetWidth: 256,
+    sheetHeight: 256,
+    sx: 128,
+    sy: 48,
+    frameWidth: 16,
+    frameHeight: 16,
+  },
+  '3': {
+    sheet: WORLD_TILESET,
+    sheetWidth: 256,
+    sheetHeight: 256,
+    sx: 128,
+    sy: 48,
+    frameWidth: 16,
+    frameHeight: 16,
+  },
+  '4': {
+    sheet: WORLD_TILESET,
+    sheetWidth: 256,
+    sheetHeight: 256,
+    sx: 128,
+    sy: 48,
+    frameWidth: 16,
+    frameHeight: 16,
+  },
+  '5': {
     sheet: WORLD_TILESET,
     sheetWidth: 256,
     sheetHeight: 256,
@@ -189,4 +230,8 @@ export const PALETTE_TILE_LABELS: Record<TileChar, string> = {
   F: 'Fragile Rock',
   T: 'Chest',
   '1': 'Sign',
+  '2': 'Sign 2',
+  '3': 'Sign 3',
+  '4': 'Sign 4',
+  '5': 'Sign 5',
 };

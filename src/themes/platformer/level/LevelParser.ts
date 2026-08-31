@@ -64,6 +64,10 @@ export const ENTITY_CHARS: Record<string, EntityKind | undefined> = {
  */
 export const SIGN_CHARS: Record<string, HintId | undefined> = {
   '1': 'bridgeDropThrough',
+  '2': 'ladderClimbUp',
+  '3': 'fragileRockBreaksFromBelow',
+  '4': 'chestNeedsKey',
+  '5': 'openAllChestsHaveFun',
 };
 
 // A character can only mean one thing — guard against TERRAIN_CHARS,
@@ -110,7 +114,11 @@ export type TileChar =
   | 'Q'
   | 'F'
   | 'T'
-  | '1';
+  | '1'
+  | '2'
+  | '3'
+  | '4'
+  | '5';
 
 /**
  * Parses a level's raw ASCII layout (one character per tile, see

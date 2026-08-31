@@ -51,10 +51,6 @@ describe('paintCell', () => {
 
 describe('paintCell — sign markers', () => {
   it('paintingSignToolOnEmptyCell-placesTheFirstUnusedRegisteredHint', () => {
-    // Only '1' (bridgeDropThrough) is registered today, so this is
-    // necessarily a same-digit assertion until a second hint exists — see
-    // the next test for the actually-interesting "skip what's already
-    // placed" case once there's something to skip.
     const grid: TileChar[][] = [['.', '.']];
 
     const result = paintCell(grid, 1, 0, '1');
@@ -63,30 +59,50 @@ describe('paintCell — sign markers', () => {
   });
 
   it('clickingAnAlreadyPlacedSign-cyclesToTheNextRegisteredHint', () => {
-    // With only one hint registered, cycling a lone placed sign is
-    // necessarily a same-digit no-op — this test documents that behavior
-    // explicitly rather than leaving it unasserted, so a future second
-    // SIGN_CHARS entry (which would make this actually cycle somewhere new)
-    // has an existing test it visibly changes instead of silently gaining
-    // new behavior nothing ever exercised.
+    // Now genuinely exercised: 5 hints are registered (SIGN_CHARS '1'-'5'),
+    // so cycling the lone placed sign moves to the next digit, not a
+    // same-digit no-op.
     const grid: TileChar[][] = [['1', '.']];
 
     const result = paintCell(grid, 0, 0, '1');
 
-    expect(result.grid[0][0]).toBe('1');
+    expect(result.grid[0][0]).toBe('2');
   });
 
-  it('paintingSignToolOnEmptyCell-doesNotDisturbAnUnrelatedExistingSign', () => {
+  it('cyclingRepeatedly-walksThroughEveryRegisteredHintInOrderThenWrapsAround', () => {
+    let grid: TileChar[][] = [['1', '.']];
+    const seen: TileChar[] = [];
+    for (let i = 0; i < 5; i++) {
+      const result = paintCell(grid, 0, 0, '1');
+      seen.push(result.grid[0][0]);
+      grid = result.grid;
+    }
+
+    expect(seen).toEqual(['2', '3', '4', '5', '1']);
+  });
+
+  it('paintingSignToolOnEmptyCell-doesNotDisturbAnUnrelatedExistingSign-andSkipsTheAlreadyUsedHint', () => {
     const grid: TileChar[][] = [['1', '.']];
 
     const result = paintCell(grid, 1, 0, '1');
 
-    // Today's single-hint registry means the second sign is forced to reuse
-    // '1' too (the documented "every registered hint is already used
-    // elsewhere" fallback) — but the FIRST sign must be left completely
-    // untouched by painting the second one.
+    // '1' is already used elsewhere on the map, so the new sign gets the
+    // next unused hint ('2') instead of duplicating '1' — and the first
+    // sign is left completely untouched.
     expect(result.grid[0][0]).toBe('1');
-    expect(result.grid[0][1]).toBe('1');
+    expect(result.grid[0][1]).toBe('2');
+  });
+
+  it('everyRegisteredHintAlreadyUsedElsewhere-fallsBackToReusingTheStartingDigit', () => {
+    // Edge case from the doc comment: once every registered hint (1-5) is
+    // already placed somewhere else, a new placement has nothing unused
+    // left to grab and falls back to the tool's own starting digit rather
+    // than leaving the cell unpainted.
+    const grid: TileChar[][] = [['1', '2', '3', '4', '5', '.']];
+
+    const result = paintCell(grid, 5, 0, '1');
+
+    expect(result.grid[0][5]).toBe('1');
   });
 
   it('paintingNonSignTool-behavesExactlyAsBefore', () => {

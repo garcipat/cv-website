@@ -250,6 +250,13 @@ describe('SIGN_CHARS', () => {
     expect(SIGN_CHARS['1']).toBe('bridgeDropThrough');
   });
 
+  it('digitsTwoThroughFive-mapToTheirRegisteredHints', () => {
+    expect(SIGN_CHARS['2']).toBe('ladderClimbUp');
+    expect(SIGN_CHARS['3']).toBe('fragileRockBreaksFromBelow');
+    expect(SIGN_CHARS['4']).toBe('chestNeedsKey');
+    expect(SIGN_CHARS['5']).toBe('openAllChestsHaveFun');
+  });
+
   it('noOverlapWithTerrainOrEntityChars-documentedByTheModuleLoadGuard', () => {
     // Same convention as the existing TERRAIN_CHARS/ENTITY_CHARS overlap
     // guard (see LevelParser.ts) — this file having loaded at all is that
@@ -290,7 +297,8 @@ describe('findSignTiles', () => {
 describe('TileChar', () => {
   it('includes every TERRAIN_CHARS, ENTITY_CHARS, and SIGN_CHARS key', () => {
     const tileChars: readonly TileChar[] = [
-      '.', 'G', 'R', 'P', 'W', 'B', 'L', 'S', 'E', 'M', 'C', 'X', 'Q', 'F', 'T', '1',
+      '.', 'G', 'R', 'P', 'W', 'B', 'L', 'S', 'E', 'M', 'C', 'X', 'Q', 'F', 'T',
+      '1', '2', '3', '4', '5',
     ];
     const allKeys = [...Object.keys(TERRAIN_CHARS), ...Object.keys(ENTITY_CHARS), ...Object.keys(SIGN_CHARS)];
     for (const key of allKeys) {
