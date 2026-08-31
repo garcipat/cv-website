@@ -453,23 +453,38 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   at a fixed climb speed. Climbing is free-form, not column-locked —
   Left/Right still move normally, and moving off every overlapping ladder
   tile ends the climb immediately. Space cancels a climb into a normal jump.
-  The tile above a ladder's top rung is ordinary solid terrain, so standing
-  on it needs no special case; pressing Down there re-enters the climb
-  downward, mirroring `bridge`'s existing drop-through convention. Uses
-  `knight2.png`'s existing (previously unwired) 4-frame "climb (back view)"
-  row — no new art needed.
+  A ladder shaft's own top rung is solid from above (`isStandableLadderTop`
+  in `Terrain.ts`) whenever nothing climbable or solid sits directly above
+  it — one-way, exactly like `bridge`'s existing solid-from-above/
+  passable-from-below convention, but requiring no separate tile placed
+  above the ladder. Climbing carries the character all the way through
+  that top tile and stops it standing on it; pressing Down there re-enters
+  the climb downward. A dead-end shaft (a solid tile directly above the
+  top rung, so there's no room to stand) keeps the plain climb-until-the-
+  feet-leave-the-ladder behavior instead. Uses `knight2.png`'s existing
+  (previously unwired) 4-frame "climb (back view)" row — no new art
+  needed. *Live user feedback, several rounds*: the design went through the
+  pre-existing floating platform sitting stacked above the ladder's top
+  rung (required a jump to enter/exit), then a separate solid platform
+  tile above it, then substituting the ladder's own tile for `bridge`,
+  before landing on this final shape — the ladder itself gains the
+  standable/one-way behavior, with a landing platform placed *beside* it
+  (same row), never above it.
 
-  `level1` gets a real ladder, extended up from the existing floating
-  platform to a new tier above it — taller than originally scoped (just
-  reaching the existing platform) once it became clear the level (6 tiles /
-  ~192px) is nowhere near tall enough to ever need scrolling on a real
-  desktop window (`canvas.width/height` = `window.innerWidth/innerHeight`).
-  The new tier is throwaway/replaceable (called out in a code comment), not
-  final level design — it exists purely so this step has a real manual
-  browser Verify for both mechanics. `LevelParser.parseLevel`'s row-length
-  check is relaxed to pad shorter rows to the widest row's width (instead of
-  throwing on a mismatch), so authoring a mostly-empty-sky shaft doesn't
-  require 80 literal dots per row.
+  `level1` gets a real ladder — a short shaft beside the existing floating
+  platform (its bottom rung shares the platform's own row, one column
+  over, so stepping off the platform onto the ladder needs no jump) and
+  beside a small new landing platform at its top. Originally extended much
+  taller purely to force real vertical scrolling on a real desktop window
+  (the level was only 6 tiles / ~192px otherwise); shortened back down to
+  4 rungs once `Camera.test.ts`'s `updateCameraY` unit tests took over as
+  the authority on vertical-scroll correctness (see the Verify note below),
+  so climbing-mechanics play-testing stays quick. The shaft is
+  throwaway/replaceable (called out in a code comment), not final level
+  design. `LevelParser.parseLevel`'s row-length check is relaxed to pad
+  shorter rows to the widest row's width (instead of throwing on a
+  mismatch), so authoring a mostly-empty-sky shaft doesn't require 80
+  literal dots per row.
 
   Vertical camera follow is a new `updateCameraY`/`cameraPositionY`, parallel
   to (not merged with) the existing horizontal `updateCamera`/
