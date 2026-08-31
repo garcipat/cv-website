@@ -2283,6 +2283,44 @@ describe('PlatformerPage', () => {
       expect(hintTooltipState.value).toBeNull();
     });
 
+    it('arrowUpPressedAgainWhileMidExit-restartsTheEntranceInsteadOfStayingStuckExiting', () => {
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+      render(<PlatformerPage />);
+      const sign = signPlacements.value[0];
+      playerState.value = { ...playerState.value, x: sign.x, y: sign.y };
+      fireEvent.keyDown(window, { code: 'ArrowUp' });
+      let t = 0;
+      frameCallback!(t);
+      for (let i = 0; i < 20; i++) {
+        t += 16;
+        frameCallback!(t);
+      }
+      expect(hintTooltipState.value?.phase).toBe('shown');
+
+      // Walk away and tick exactly once — just enough to enter 'exiting',
+      // deliberately NOT enough to let it finish (HINT_TOOLTIP_FADE_OUT_SECONDS
+      // is 0.25s, far more than one 16ms tick), so it's caught mid-exit.
+      playerState.value = { ...playerState.value, x: sign.x + 2000, y: sign.y };
+      t += 16;
+      frameCallback!(t);
+      expect(hintTooltipState.value?.phase).toBe('exiting');
+
+      // Walk back onto the sign and press Up again before the exit finishes.
+      playerState.value = { ...playerState.value, x: sign.x, y: sign.y };
+      fireEvent.keyDown(window, { code: 'ArrowUp' });
+      t += 16;
+      frameCallback!(t);
+
+      expect(hintTooltipState.value?.hintId).toBe('bridgeDropThrough');
+      expect(hintTooltipState.value?.phase).toBe('entering');
+    });
+
     it('playerWalksAwayWithoutEverPressingUp-staysNull', () => {
       let frameCallback: FrameRequestCallback | null = null;
       vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
