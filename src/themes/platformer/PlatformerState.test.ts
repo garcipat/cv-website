@@ -24,7 +24,7 @@ import { mapCVDataToEnemies } from './level/EnemyMapper';
 import { currentCV } from '@/state/locale';
 import { MAX_HALF_HEARTS } from './entities/Health';
 import { tileToPixel, RENDERED_TILE_SIZE } from './level/Terrain';
-import { SPAWN_TILE } from './level/level1';
+import { SPAWN_TILE, currentLayout, LEVEL_1_LAYOUT } from './level/level';
 import {
   PLAYER_RENDERED_SIZE,
   PLAYER_FOOT_PADDING,
@@ -41,37 +41,37 @@ describe('PlatformerState', () => {
     // Real CVData has skill categories + languages — exact count isn't
     // pinned here (that's CollectibleMapper.test.ts's job against fixture
     // data), just that real data produces a real, non-trivial list.
-    expect(collectiblePlacements.length).toBeGreaterThan(0);
+    expect(collectiblePlacements.value.length).toBeGreaterThan(0);
   });
 
   it('enemyPlacements-initial-oneEnemyPerLevelMarkerNotPerFullCVData', () => {
-    // level1 currently has exactly one `E` and one `M` marker — placement
+    // currentLevel currently has exactly one `E` and one `M` marker — placement
     // count tracks the level's markers, not CVData's (larger) certificate/
     // project counts. This is expected for a mechanics-test level (see
-    // level1.ts's doc comment), not a regression.
+    // level.ts's doc comment), not a regression.
     const allPossibleDefs = mapCVDataToEnemies(currentCV.value);
-    expect(allPossibleDefs.length).toBeGreaterThan(enemyPlacements.length);
-    expect(enemyPlacements.filter((p) => p.spriteType === 'slimeGreen')).toHaveLength(1);
-    expect(enemyPlacements.filter((p) => p.spriteType === 'slimePurple')).toHaveLength(1);
+    expect(allPossibleDefs.length).toBeGreaterThan(enemyPlacements.value.length);
+    expect(enemyPlacements.value.filter((p) => p.spriteType === 'slimeGreen')).toHaveLength(1);
+    expect(enemyPlacements.value.filter((p) => p.spriteType === 'slimePurple')).toHaveLength(1);
   });
 
   it('blockPlacements-initial-hasTwoOfEachKindMatchingLevel1sMarkers', () => {
-    // level1 currently has exactly two X/Q/F markers each (see level1.ts's
+    // currentLevel currently has exactly two X/Q/F markers each (see level.ts's
     // doc comment) — placement count tracks the level's markers, same
     // convention as enemyPlacements/collectiblePlacements.
-    expect(blockPlacements.filter((p) => p.blockKind === 'crate')).toHaveLength(2);
-    expect(blockPlacements.filter((p) => p.blockKind === 'questionMark')).toHaveLength(2);
-    expect(blockPlacements.filter((p) => p.blockKind === 'fragileRock')).toHaveLength(2);
+    expect(blockPlacements.value.filter((p) => p.blockKind === 'crate')).toHaveLength(2);
+    expect(blockPlacements.value.filter((p) => p.blockKind === 'questionMark')).toHaveLength(2);
+    expect(blockPlacements.value.filter((p) => p.blockKind === 'fragileRock')).toHaveLength(2);
   });
 
   describe('chestPlacements', () => {
     it('module-places-oneChestPerMarker-cappedByAvailableMarkers', () => {
-      // level1 has 2 `T` markers (trimmed from 5, both near spawn — live user
+      // currentLevel has 2 `T` markers (trimmed from 5, both near spawn — live user
       // feedback, 2026-08-30) but the real CVData has 5 Experience entries
-      // (see level1.ts's CHEST_TILES and cv.en.json) — placeChests has no
+      // (see level.ts's CHEST_TILES and cv.en.json) — placeChests has no
       // auto-placement fallback, so only the first 2 (oldest-first, after
       // this batch's D5 chest-ordering reversal) actually get placed.
-      expect(chestPlacements).toHaveLength(2);
+      expect(chestPlacements.value).toHaveLength(2);
     });
   });
 
@@ -82,7 +82,7 @@ describe('PlatformerState', () => {
   });
 
   it('enemyStates-initial-oneLivePatrolStatePerEnemyPlacement', () => {
-    expect(enemyStates.value).toHaveLength(enemyPlacements.length);
+    expect(enemyStates.value).toHaveLength(enemyPlacements.value.length);
     for (const state of enemyStates.value) {
       expect(state.vx).toBe(0);
       expect(state.direction).toBe('right');
@@ -91,7 +91,7 @@ describe('PlatformerState', () => {
   });
 
   it('enemyStates-initial-desyncsStartingAnimFrameAcrossEnemies', () => {
-    // level1 has 2 enemies (1 green, 1 purple) — their seeded walk frames
+    // currentLevel has 2 enemies (1 green, 1 purple) — their seeded walk frames
     // must differ so they don't visibly animate in unison (see Enemy.ts's
     // toEnemyState `index` parameter).
     expect(enemyStates.value.length).toBeGreaterThanOrEqual(2);
@@ -104,9 +104,9 @@ describe('PlatformerState', () => {
 
     resetGame();
 
-    expect(enemyStates.value).toHaveLength(enemyPlacements.length);
+    expect(enemyStates.value).toHaveLength(enemyPlacements.value.length);
     enemyStates.value.forEach((state, i) => {
-      expect(state.x).toBe(enemyPlacements[i].x);
+      expect(state.x).toBe(enemyPlacements.value[i].x);
       expect(state.vx).toBe(0);
       expect(state.direction).toBe('right');
     });
@@ -139,13 +139,13 @@ describe('PlatformerState', () => {
   });
 
   it('playerState-initial-standsHorizontallyCenteredOnSpawnTile', () => {
-    const spawnCell = tileToPixel(SPAWN_TILE.col, SPAWN_TILE.row);
+    const spawnCell = tileToPixel(SPAWN_TILE.value.col, SPAWN_TILE.value.row);
     const expectedX = spawnCell.x - (PLAYER_RENDERED_SIZE - RENDERED_TILE_SIZE) / 2;
     expect(playerState.value.x).toBe(expectedX);
   });
 
   it('playerState-initial-feetRestOnGroundBelowSpawnTile', () => {
-    const spawnCell = tileToPixel(SPAWN_TILE.col, SPAWN_TILE.row);
+    const spawnCell = tileToPixel(SPAWN_TILE.value.col, SPAWN_TILE.value.row);
     const groundSurfaceY = spawnCell.y + RENDERED_TILE_SIZE;
     const expectedY = groundSurfaceY - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
     expect(playerState.value.y).toBe(expectedY);
@@ -249,7 +249,7 @@ describe('resetGameProgress', () => {
     collectedFacts.value = [];
     collectedCollectibleIds.value = new Set();
     activeJournalSection.value = undefined;
-    chestStates.value = chestPlacements.map(toChestState);
+    chestStates.value = chestPlacements.value.map(toChestState);
   });
 
   it('called-clearsCollectedFactsAndCollectibleIds', () => {
@@ -304,5 +304,31 @@ describe('activeJournalSection', () => {
     // falls back to defaulting from the first collected fact this session
     // (`facts[0]`, not the most recently collected one).
     expect(activeJournalSection.value).toBeUndefined();
+  });
+});
+
+describe('marker-derived placements react to currentLayout', () => {
+  afterEach(() => {
+    // currentLayout is module-level (see level.ts's doc comment) — restore
+    // it so this describe block doesn't leak a stripped-down layout into
+    // every other test in this file.
+    currentLayout.value = LEVEL_1_LAYOUT;
+  });
+
+  it('changingCurrentLayoutToALayoutWithNoMarkers-recomputesEveryPlacementSignalToEmpty', () => {
+    // A layout with no S/E/M/C/X/Q/F/T markers at all — placeEnemies/
+    // placeCollectibles/placeBlocks/placeChests all zip real CVData against
+    // zero marker positions, so every placement list must come back empty.
+    // This is the behavior collectiblePlacements/enemyPlacements/
+    // blockPlacements/chestPlacements becoming `computed(...)` signals
+    // (instead of plain module-load-time constants) exists to enable: the
+    // Level Editor's Try button relies on these re-deriving from a freshly
+    // set `currentLayout`, not staying pinned to LEVEL_1_LAYOUT's markers.
+    currentLayout.value = ['GGG'];
+
+    expect(collectiblePlacements.value).toEqual([]);
+    expect(enemyPlacements.value).toEqual([]);
+    expect(blockPlacements.value).toEqual([]);
+    expect(chestPlacements.value).toEqual([]);
   });
 });

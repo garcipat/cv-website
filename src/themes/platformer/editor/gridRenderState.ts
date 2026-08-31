@@ -70,6 +70,7 @@ export function synthesizePlayerState(grid: TileChar[][]): PlayerState | null {
     vy: 0,
     facing: 'right',
     grounded: true,
+    climbing: false,
     isDroppingThroughBridge: false,
     lastGroundedX: x,
     lastGroundedY: y,
