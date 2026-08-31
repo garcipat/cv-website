@@ -29,7 +29,9 @@ import {
 // 3-tile pit (cols 2-4) is bridged at ground level with NO floor below — it's
 // a genuine bottomless drop, so walking off the bridge's edge or dropping
 // through it on purpose (Down/S) both trigger real pit-fall damage (roadmap
-// step 9). A floating platform row (row 0 below) spans cols 8-14 as
+// step 9). A floating platform row (row 3 below — shifted down from row 0 by
+// the ladder shaft's 3 rows above it, added in roadmap step 23) spans cols
+// 8-14 as
 // platform-platform-platform-bridge-bridge-platform-platform (cols 8-10 /
 // 11-12 / 13-14) — the bridge segment is passable from below (jump up
 // through it) and from above via Down/S (drop-through), with solid ground
@@ -71,10 +73,12 @@ import {
 //
 // Follow-up (same day, after live user feedback on the render): the three
 // new block marker kinds moved again — from row 2 (ground-adjacent, same
-// height as the player's own standing position) to row 0 (elevated, with
-// rows 1-2 kept empty beneath them — the same "2 rows of clearance above
+// height as the player's own standing position) to row 3 (elevated, with
+// rows 4-5 kept empty beneath them — the same "2 rows of clearance above
 // solid ground" shape the existing floating platform at cols 8-14 already
-// uses), and from cols 47-52 (51 tiles from spawn, past the wall/pit
+// uses; both rows now sit at row 3 together, since the ladder shaft added in
+// roadmap step 23 shifted this row down from its original row 0), and from
+// cols 47-52 (51 tiles from spawn, past the wall/pit
 // gauntlet) to cols 19-24 (18-23 tiles from spawn, right after the second
 // coin and before the gauntlet) — both changes make the "jump up and hit
 // from below" gesture read correctly and cut the walk to reach them.

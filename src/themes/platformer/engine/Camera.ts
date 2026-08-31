@@ -60,9 +60,11 @@ export const CAMERA_TOP_OVERSCROLL = 2 * RENDERED_TILE_SIZE; // 64px
  * (`viewportHeight - levelPixelHeight`, unchanged since roadmap step 1),
  * not a replacement for it. At 0 (its minimum), the level is exactly
  * bottom-anchored, matching every level shipped before this step; it grows
- * as the player climbs toward the level's top, capped so the origin never
- * scrolls past showing the level's very top row. Clamping to
- * `[0, max(0, levelPixelHeight - viewportHeight)]` means a level that
+ * as the player climbs toward the level's top. Clamped to
+ * `[0, max(0, levelPixelHeight - viewportHeight) + CAMERA_TOP_OVERSCROLL]`
+ * when that base is positive — letting the origin scroll a little past the
+ * level's very top row instead of hard-stopping there (`CAMERA_TOP_OVERSCROLL`,
+ * roadmap step 23 follow-up) — or exactly `0` when it isn't: a level that
  * already fits the viewport ALWAYS returns 0 here, regardless of the
  * dead-zone math below — a level shorter than the viewport can never need
  * to scroll, by construction.

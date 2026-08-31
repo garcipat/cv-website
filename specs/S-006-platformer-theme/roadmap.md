@@ -478,14 +478,21 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   viewport), the clamp always resolves to 0 — a verified no-op, matching
   today's fixed bottom-anchor exactly.
   *Verify: walk into the ladder and press Up — the character climbs
-  vertically instead of falling, and the camera scrolls to follow once the
-  ladder goes off-screen. Press Left/Right while climbing — the character
-  shimmies off the ladder and immediately falls/walks normally. Press Space
-  while climbing — it cancels into a normal jump. Reach the new tier at the
-  top, confirm standing on it works like any other platform; press Down
-  there — confirm it re-enters the climb going downward. Confirm `level1`'s
-  pre-existing content (spawn, coins, enemies, blocks, chests) is unaffected
-  by the new rows above it.*
+  vertically instead of falling. Press Left/Right while climbing — the
+  character shimmies off the ladder and immediately falls/walks normally.
+  Press Space while climbing — it cancels into a normal jump. Reach the
+  ladder's own top rung, confirm standing on it works like any other
+  platform; press Down there — confirm it re-enters the climb going
+  downward. Confirm `level1`'s pre-existing content (spawn, coins, enemies,
+  blocks, chests) is unaffected by the new rows above it. Vertical camera
+  scroll is NOT manually verified via `level1` — its ladder shaft was
+  deliberately shortened to 4 rungs (same commit that added
+  `isStandableLadderTop`) for faster manual testing of the climbing
+  mechanics themselves, and is now far too short to ever trigger scrolling
+  in a real browser window; `Camera.test.ts`'s `updateCameraY` unit tests
+  are the authority on vertical-scroll correctness instead, with the
+  mechanism wired but left unexercised in-game pending a future level tall
+  enough to need it.*
 
 ## Iteration 3 — Controls (P3)
 
