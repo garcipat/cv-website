@@ -1,4 +1,4 @@
-import { TERRAIN_CHARS, type TileChar } from '../level/LevelParser';
+import { TERRAIN_CHARS, SIGN_CHARS, type TileChar } from '../level/LevelParser';
 import type { LevelDef, TileMap } from '../level/LevelData';
 import { tileToPixel, RENDERED_TILE_SIZE } from '../level/Terrain';
 import { PLAYER_RENDERED_SIZE, PLAYER_FOOT_PADDING } from '../entities/Player';
@@ -10,6 +10,7 @@ import { toBlockState, type BlockState, type BlockKind } from '../entities/Block
 import type { BlockPlacement } from '../level/BlockMapper';
 import { toChestState, type ChestState } from '../entities/Chest';
 import type { ChestPlacement } from '../level/ChestMapper';
+import type { SignPlacement } from '../level/SignMapper';
 import type { CollectedFact } from '../types';
 
 /**
@@ -149,4 +150,24 @@ export function synthesizeChestStates(grid: TileChar[][]): ChestState[] {
     return { id: `editor-chest-${index}`, fact: PLACEHOLDER_FACT, x, y };
   });
   return placements.map((placement) => toChestState(placement));
+}
+
+/** Returns a `SignPlacement` for every cell whose character is registered in
+ *  `SIGN_CHARS` — unlike `findAllPositions` (used by every other
+ *  `synthesizeX` function above), this scans for ANY sign character at once
+ *  and resolves each one's own `hintId` directly, mirroring
+ *  `LevelParser.ts`'s `findSignTiles`/`SignMapper.ts`'s `placeSigns` (the
+ *  real game's own sign-placement path) rather than duplicating a
+ *  one-char-at-a-time helper that wouldn't generalize past a single digit. */
+export function synthesizeSignPlacements(grid: TileChar[][]): SignPlacement[] {
+  const placements: SignPlacement[] = [];
+  for (let row = 0; row < grid.length; row++) {
+    for (let col = 0; col < grid[row].length; col++) {
+      const hintId = SIGN_CHARS[grid[row][col]];
+      if (!hintId) continue;
+      const { x, y } = tileToPixel(col, row);
+      placements.push({ id: `editor-sign-${col}-${row}`, hintId, x, y });
+    }
+  }
+  return placements;
 }

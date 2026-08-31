@@ -57,3 +57,21 @@ describe('PALETTE_TILE_LABELS', () => {
     expect(PALETTE_TILE_LABELS['.']).toBe('Eraser');
   });
 });
+
+describe('sign marker', () => {
+  it('digitOne-hasASpriteMatchingTheInGameSignpostTile', () => {
+    expect(PALETTE_TILE_SPRITES['1']).toEqual({
+      sheet: '/sprites/world_tileset.png',
+      sheetWidth: 256,
+      sheetHeight: 256,
+      sx: 128,
+      sy: 48,
+      frameWidth: 16,
+      frameHeight: 16,
+    });
+  });
+
+  it('digitOne-hasAHumanReadableLabel', () => {
+    expect(PALETTE_TILE_LABELS['1']).toBe('Sign');
+  });
+});

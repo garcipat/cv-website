@@ -6,8 +6,9 @@ import {
   synthesizeEnemyStates,
   synthesizeBlockStates,
   synthesizeChestStates,
+  synthesizeSignPlacements,
 } from './gridRenderState';
-import { RENDERED_TILE_SIZE } from '../level/Terrain';
+import { RENDERED_TILE_SIZE, tileToPixel } from '../level/Terrain';
 import { PLAYER_RENDERED_SIZE, PLAYER_FOOT_PADDING } from '../entities/Player';
 import type { TileChar } from '../level/LevelParser';
 
@@ -83,5 +84,20 @@ describe('synthesizeChestStates', () => {
     const chests = synthesizeChestStates(grid);
     expect(chests).toHaveLength(1);
     expect(chests[0].state).toBe('closed');
+  });
+});
+
+describe('synthesizeSignPlacements', () => {
+  it('noSignMarkers-returnsEmptyArray', () => {
+    expect(synthesizeSignPlacements([['G', 'G']])).toEqual([]);
+  });
+
+  it('oneSignMarker-returnsItsHintIdAndPixelPosition', () => {
+    const result = synthesizeSignPlacements([
+      ['.', '.'],
+      ['.', '1'],
+    ]);
+    const { x, y } = tileToPixel(1, 1);
+    expect(result).toEqual([{ id: 'editor-sign-1-1', hintId: 'bridgeDropThrough', x, y }]);
   });
 });
