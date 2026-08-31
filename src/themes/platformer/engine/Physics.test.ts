@@ -82,6 +82,11 @@ const NARROW_PLATFORM_LEVEL = parseLevel(['.GGG.....']);
 // "ladder leads up to a platform" shape at a testable scale.
 const LADDER_LEVEL = parseLevel(['G.', 'L.', 'L.', 'G.']);
 
+// Row 0 is ladder with nothing above it (out-of-bounds) — reproduces the
+// real level1 top-of-shaft scenario from roadmap step 23's follow-up:
+// climbing off the top must clamp, not overshoot into the void.
+const TOP_LADDER_LEVEL = parseLevel(['L.', 'L.', 'G.']);
+
 describe('stepPlayerPhysics', () => {
   it('stepPlayerPhysics-inMidAir-appliesGravityToVelocityAndMovesDown', () => {
     const player = basePlayer({ y: 0, vy: 0 });
@@ -1029,5 +1034,20 @@ describe('stepPlayerPhysics climbing', () => {
 
     expect(next.climbing).toBe(true);
     expect(next.x).toBeCloseTo(-16 + PHYSICS_CONFIG.walkSpeed / 60);
+  });
+});
+
+describe('stepPlayerPhysics climbing past the level top', () => {
+  it('climbingAtTheVeryTopRow-holdingUp-clampsInPlaceInsteadOfOvershootingIntoTheVoid', () => {
+    // Compute minClimbY the same way the implementation does, then start
+    // the player already there (feet exactly at row 0) and confirm holding
+    // Up doesn't move them any further.
+    const minClimbY = -PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING + 1; // feetRow >= 0
+    const player = basePlayer({ x: 0, y: minClimbY, grounded: false, climbing: true });
+
+    const next = stepPlayerPhysics(player, TOP_LADDER_LEVEL, 1 / 60, { climbUpHeld: true });
+
+    expect(next.climbing).toBe(true);
+    expect(next.y).toBeCloseTo(minClimbY);
   });
 });
