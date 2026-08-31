@@ -109,8 +109,8 @@ const LEVEL_1_LAYOUT: readonly string[] = [
   // vertical scrolling on a real desktop window otherwise. Column 9 matches
   // the existing floating platform's middle tile below (row 18 after this
   // insertion, was row 1) so the ladder's bottom rung lands on solid ground.
-  '................', // open sky above the ladder's topmost (bridge) tile — deliberately nothing solid here; the bridge tile at row 1 is the standing surface, not this row
-  '.............PPB', // shaft's topmost tile: platform beside it (cols 13-14, same row — walk onto it like a solid block) + the ladder's own top tile as 'bridge' (col 15) — solid on top (stand here), passable from below while climbing up, and pressing Down re-enters the climb via the existing re-entry-from-above mechanic
+  '.............PPL', // top tier: platform beside the ladder's top tile (col 15), same row — not stacked above it, not a separate tile type
+  '...............L',
   '...............L',
   '...............L',
   '...............L',
