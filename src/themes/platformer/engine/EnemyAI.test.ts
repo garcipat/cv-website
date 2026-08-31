@@ -49,7 +49,7 @@ describe('stepEnemyPatrol', () => {
     const level = makeLevel(10, [], []);
     const enemy = { ...makeEnemyAt(5), direction: 'right' as const };
 
-    const next = stepEnemyPatrol(enemy, level, DT);
+    const next = stepEnemyPatrol(enemy, level, DT, []);
 
     expect(next.x).toBeCloseTo(enemy.x + SPEED * DT);
     expect(next.direction).toBe('right');
@@ -60,7 +60,7 @@ describe('stepEnemyPatrol', () => {
     const level = makeLevel(10, [], []);
     const enemy = { ...makeEnemyAt(5), direction: 'left' as const };
 
-    const next = stepEnemyPatrol(enemy, level, DT);
+    const next = stepEnemyPatrol(enemy, level, DT, []);
 
     expect(next.x).toBeCloseTo(enemy.x - SPEED * DT);
     expect(next.direction).toBe('left');
@@ -75,7 +75,7 @@ describe('stepEnemyPatrol', () => {
     const level = makeLevel(10, [7], []);
     const enemy = { ...makeEnemyAt(5), direction: 'right' as const };
 
-    const next = stepEnemyPatrol(enemy, level, 1);
+    const next = stepEnemyPatrol(enemy, level, 1, []);
 
     expect(next.direction).toBe('left');
     expect(next.vx).toBe(-SPEED);
@@ -88,7 +88,7 @@ describe('stepEnemyPatrol', () => {
     const level = makeLevel(10, [2], []);
     const enemy = { ...makeEnemyAt(5), direction: 'left' as const };
 
-    const next = stepEnemyPatrol(enemy, level, 1.1);
+    const next = stepEnemyPatrol(enemy, level, 1.1, []);
 
     expect(next.direction).toBe('right');
     expect(next.vx).toBe(SPEED);
@@ -101,7 +101,7 @@ describe('stepEnemyPatrol', () => {
     const level = makeLevel(10, [], [7]);
     const enemy = { ...makeEnemyAt(5), direction: 'right' as const };
 
-    const next = stepEnemyPatrol(enemy, level, 1);
+    const next = stepEnemyPatrol(enemy, level, 1, []);
 
     expect(next.direction).toBe('left');
     expect(next.x).toBe(6 * RENDERED_TILE_SIZE);
@@ -111,7 +111,7 @@ describe('stepEnemyPatrol', () => {
     const level = makeLevel(10, [], [2]);
     const enemy = { ...makeEnemyAt(5), direction: 'left' as const };
 
-    const next = stepEnemyPatrol(enemy, level, 1.1);
+    const next = stepEnemyPatrol(enemy, level, 1.1, []);
 
     expect(next.direction).toBe('right');
     expect(next.x).toBe(3 * RENDERED_TILE_SIZE);
@@ -126,10 +126,51 @@ describe('stepEnemyPatrol', () => {
     const maxX = 6 * RENDERED_TILE_SIZE;
 
     for (let i = 0; i < 200; i++) {
-      enemy = stepEnemyPatrol(enemy, level, DT);
+      enemy = stepEnemyPatrol(enemy, level, DT, []);
       expect(enemy.x).toBeGreaterThanOrEqual(minX);
       expect(enemy.x).toBeLessThanOrEqual(maxX);
     }
+  });
+
+  it('pitAheadMovingRight-liveBlockFillsTheGap-continuesWalkingOntoIt', () => {
+    // Ground missing at col 7 (a pit in the static terrain), but a live
+    // block sits at (col 7, row 1) — the ground-ahead check should treat
+    // that as solid ground and let the enemy keep walking rather than
+    // reversing at the edge.
+    const level = makeLevel(10, [], [7]);
+    const enemy = { ...makeEnemyAt(5), direction: 'right' as const };
+
+    const next = stepEnemyPatrol(enemy, level, 1, [{ col: 7, row: 1 }]);
+
+    expect(next.direction).toBe('right');
+    expect(next.x).toBeCloseTo(enemy.x + SPEED * 1);
+  });
+
+  it('blockDirectlyAhead-atEnemyRow-reversesLikeAWallTile', () => {
+    // No static wall at col 7, but a live block occupies (col 7, row 0) —
+    // the enemy's own patrol row — so the wall-ahead check should treat it
+    // as solid and reverse, same as a static 'wall' tile would.
+    const level = makeLevel(10, [], []);
+    const enemy = { ...makeEnemyAt(5), direction: 'right' as const };
+
+    const next = stepEnemyPatrol(enemy, level, 1, [{ col: 7, row: 0 }]);
+
+    expect(next.direction).toBe('left');
+    expect(next.vx).toBe(-SPEED);
+    expect(next.x).toBe(6 * RENDERED_TILE_SIZE);
+  });
+
+  it('pitAheadMovingRight-blockedTilesDoNotCoverTheGap-stillReverses', () => {
+    // Regression check: neither the static terrain nor blockedTiles provide
+    // ground at col 7 — an unrelated block elsewhere must not affect the
+    // outcome, and the pre-existing terrain-only reversal must still fire.
+    const level = makeLevel(10, [], [7]);
+    const enemy = { ...makeEnemyAt(5), direction: 'right' as const };
+
+    const next = stepEnemyPatrol(enemy, level, 1, [{ col: 2, row: 1 }]);
+
+    expect(next.direction).toBe('left');
+    expect(next.x).toBe(6 * RENDERED_TILE_SIZE);
   });
 });
 

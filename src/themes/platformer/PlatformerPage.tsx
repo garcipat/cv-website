@@ -613,9 +613,25 @@ export const PlatformerPage = () => {
       // holds them frozen, reverts them to 'walk', or flags them `defeated`
       // once the reaction finishes (Enemy.ts's applyStomp is what put them
       // into 'hit' in the first place, below).
+      //
+      // stepEnemyPatrol also needs to know about currently-live blocks
+      // (crate/questionMark/fragileRock) — LevelParser.ts resolves their
+      // level-layout markers to 'empty' terrain, so the static grid alone
+      // can't tell an enemy it's standing on/beside one. Derive the live
+      // set from blockStates.value (excluding any already-removed block,
+      // same isBlockRemoved convention as the block-animation step below)
+      // and convert each block's pixel position to a tile col/row.
+      const blockedTiles = blockStates.value
+        .filter((block) => !isBlockRemoved(block))
+        .map((block) => ({
+          col: Math.round(block.x / RENDERED_TILE_SIZE),
+          row: Math.round(block.y / RENDERED_TILE_SIZE),
+        }));
       enemyStates.value = enemyStates.value.map((enemy) => {
         const next =
-          enemy.animState === 'hit' ? stepEnemyHitReaction(enemy, dt) : stepEnemyPatrol(enemy, currentLevel.value, dt);
+          enemy.animState === 'hit'
+            ? stepEnemyHitReaction(enemy, dt)
+            : stepEnemyPatrol(enemy, currentLevel.value, dt, blockedTiles);
         return advanceEnemyAnimation(next, dt);
       });
 
