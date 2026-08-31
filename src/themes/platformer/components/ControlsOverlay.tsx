@@ -192,7 +192,7 @@ export const ControlsOverlay = () => {
           style={{ imageRendering: 'pixelated' }}
         />
         <div
-          className="absolute top-full mt-1 w-full text-sm whitespace-nowrap text-white"
+          className="absolute top-full mt-1.5 w-full text-xl whitespace-nowrap text-white"
           style={{
             fontFamily: `"${RESTART_PROMPT_FONT_FAMILY}", sans-serif`,
             textShadow: '1px 1px 0 rgba(0,0,0,0.8), -1px -1px 0 rgba(0,0,0,0.8), 1px -1px 0 rgba(0,0,0,0.8), -1px 1px 0 rgba(0,0,0,0.8)',
