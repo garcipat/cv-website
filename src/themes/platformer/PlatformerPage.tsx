@@ -103,6 +103,7 @@ import {
 import { useSignals } from '@preact/signals-react/runtime';
 import { Journal } from './components/Journal';
 import { ThankYouScreen } from './components/ThankYouScreen';
+import { ControlsOverlay } from './components/ControlsOverlay';
 import { navigateTo } from '@/state/navigation';
 
 // Vertical spacing between stacked fact-flight rows when several pickups are
@@ -1301,6 +1302,7 @@ export const PlatformerPage = () => {
     <div className="relative h-screen w-screen overflow-hidden">
       <canvas ref={canvasRef} data-testid="platformer-canvas" className="block" tabIndex={-1} />
       <FloatingControls />
+      <ControlsOverlay />
       {journalOpen && (
         <Journal
           onClose={handleJournalReallyClosed}

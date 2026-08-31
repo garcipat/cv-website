@@ -264,6 +264,19 @@ export const endingScreenShown = signal(false);
 export const endingScreenOpen = signal(false);
 
 /**
+ * One-shot latch (roadmap step 25, spec.md FR-036): true once the visitor
+ * has dismissed the controls overlay (i.e. walked far enough from where it
+ * appeared — see ControlsOverlay.tsx) this browser session. Unlike
+ * `endingScreenShown` above, this is NEVER reset by
+ * `resetGame()` or `resetGameProgress()` — FR-036 requires the overlay to
+ * not reappear "for the remainder of the session", and a visitor clicking
+ * Reset Game is still the same session, not a new one. Module-level (not a
+ * component-local `useState`) for the same reason `endingScreenShown` is:
+ * it must survive a theme-switch unmount/remount of `PlatformerPage`.
+ */
+export const controlsOverlayDismissed = signal(false);
+
+/**
  * Question-mark blocks' spawned no-fact bonus fruits (roadmap step 21b) —
  * starts empty; `PlatformerPage.tsx` appends one each time a question-mark
  * block is hit. Persists across a death/respawn (same reasoning as
