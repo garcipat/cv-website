@@ -48,3 +48,53 @@ describe('paintCell', () => {
     expect(result.grid).toEqual([['S', 'G']]);
   });
 });
+
+describe('paintCell — sign markers', () => {
+  it('paintingSignToolOnEmptyCell-placesTheFirstUnusedRegisteredHint', () => {
+    // Only '1' (bridgeDropThrough) is registered today, so this is
+    // necessarily a same-digit assertion until a second hint exists — see
+    // the next test for the actually-interesting "skip what's already
+    // placed" case once there's something to skip.
+    const grid: TileChar[][] = [['.', '.']];
+
+    const result = paintCell(grid, 1, 0, '1');
+
+    expect(result.grid[0][1]).toBe('1');
+  });
+
+  it('clickingAnAlreadyPlacedSign-cyclesToTheNextRegisteredHint', () => {
+    // With only one hint registered, cycling a lone placed sign is
+    // necessarily a same-digit no-op — this test documents that behavior
+    // explicitly rather than leaving it unasserted, so a future second
+    // SIGN_CHARS entry (which would make this actually cycle somewhere new)
+    // has an existing test it visibly changes instead of silently gaining
+    // new behavior nothing ever exercised.
+    const grid: TileChar[][] = [['1', '.']];
+
+    const result = paintCell(grid, 0, 0, '1');
+
+    expect(result.grid[0][0]).toBe('1');
+  });
+
+  it('paintingSignToolOnEmptyCell-doesNotDisturbAnUnrelatedExistingSign', () => {
+    const grid: TileChar[][] = [['1', '.']];
+
+    const result = paintCell(grid, 1, 0, '1');
+
+    // Today's single-hint registry means the second sign is forced to reuse
+    // '1' too (the documented "every registered hint is already used
+    // elsewhere" fallback) — but the FIRST sign must be left completely
+    // untouched by painting the second one.
+    expect(result.grid[0][0]).toBe('1');
+    expect(result.grid[0][1]).toBe('1');
+  });
+
+  it('paintingNonSignTool-behavesExactlyAsBefore', () => {
+    const grid: TileChar[][] = [['1', '.']];
+
+    const result = paintCell(grid, 1, 0, 'G');
+
+    expect(result.grid[0][1]).toBe('G');
+    expect(result.grid[0][0]).toBe('1'); // unrelated cell untouched
+  });
+});
