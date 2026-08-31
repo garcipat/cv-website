@@ -152,6 +152,9 @@
     }
   },
   "platformer": {
+    "hints": {
+      "bridgeDropThrough": "Hold Down to drop through a bridge."
+    },
     "journal": {
       "collectibles": "Collectibles",
       "coins": "Coins",
