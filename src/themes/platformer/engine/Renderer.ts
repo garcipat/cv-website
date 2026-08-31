@@ -78,8 +78,6 @@ function tileSource(
       return isTopExposed(level, col, row)
         ? { sx: TILE_SIZE, sy: 0 }
         : { sx: TILE_SIZE, sy: TILE_SIZE };
-    case 'platform':
-      return { sx: 0, sy: 0 };
     case 'wall':
       return { sx: 8 * TILE_SIZE, sy: 0 };
     case 'bridge': {
@@ -158,7 +156,7 @@ export function drawPlayer(
   originX = 0,
   originY = 0,
   jumpSpriteSheet: HTMLImageElement | null = null,
-  // Roadmap step 19's invincibility blink: PlatformerPage.tsx toggles this
+  // Invincibility blink: PlatformerPage.tsx toggles this
   // every ~0.1s while the player is invincible instead of drawing a tinted
   // sprite — simpler, and consistent with this renderer having no
   // alpha/tint effects anywhere else.
@@ -321,7 +319,7 @@ export function drawRestartPrompt(
 
 /** Tile coordinates of the signpost sprite within world_tileset.png (col 8,
  *  row 3 -> pixel 128,48) — sits immediately right of the crate tile (col 7,
- *  row 3, roadmap step 21). */
+ *  row 3). */
 const SIGN_TILE_SX = 8 * TILE_SIZE;
 const SIGN_TILE_SY = 3 * TILE_SIZE;
 
@@ -364,16 +362,16 @@ const BUBBLE_BORDER_WIDTH = 2;
 const BUBBLE_LINE_SPACING = 4;
 /** Corner radius for the bubble's rounded rect (both the border and the
  *  inset fill), drawn via `ctx.roundRect` — a smooth curve, not a pixel-art
- *  chamfer (tried and rejected per live feedback: cut-corner notches "just
- *  cut away the corners, does not look better"). A curved corner is always
+ *  chamfer (a chamfer's cut-corner notches read as just cutting away the
+ *  corners, not as a rounded shape). A curved corner is always
  *  anti-aliased regardless of `imageSmoothingEnabled` (that flag only
  *  affects `drawImage` scaling), so it reads slightly softer than this
  *  game's pixel-art tileset — an accepted, deliberate tradeoff here. */
 const BUBBLE_CORNER_RADIUS = 6;
 /** Nudges the text down from dead-center by a couple px — a purely visual
- *  correction (per live feedback: centered text read as sitting slightly
- *  high against the box, likely due to font metrics' cap-height vs.
- *  middle-baseline not perfectly bisecting the box). */
+ *  correction: centered text reads as sitting slightly high against the
+ *  box, likely due to font metrics' cap-height vs. middle-baseline not
+ *  perfectly bisecting the box. */
 const BUBBLE_TEXT_VERTICAL_NUDGE = 2;
 /** Vertical gap between the bubble tail's tip and its anchor point
  *  (anchorBottomY), so it floats just above the character's head rather
@@ -389,15 +387,14 @@ const BUBBLE_TEXT_COLOR = '#241a0e';
  * Draws a comic-style speech bubble with `text` — a cream box, a dark
  * border, and a small tail pointing down at (`anchorX`, `anchorBottomY`),
  * already origin-shifted screen-space coordinates (same convention as
- * drawPlayer's own position). Per the user's explicit style preference (see
- * this session's `hint-tooltip-styles` mockup artifact, option 3). Uses a
- * bigger dark rect/triangle behind a smaller inset cream one for both the
- * box and the tail, instead of `ctx.strokeRect`/`ctx.stroke` — reads as a
- * BUBBLE_BORDER_WIDTH-thick outline with only fill-based primitives.
+ * drawPlayer's own position). Uses a bigger dark rect/triangle behind a
+ * smaller inset cream one for both the box and the tail, instead of
+ * `ctx.strokeRect`/`ctx.stroke` — reads as a BUBBLE_BORDER_WIDTH-thick
+ * outline with only fill-based primitives.
  *
- * `growth` (default 1, roadmap step 26 live UX feedback: "shown from bottom
- * to top like the sign is starting to talk") scales the box's and tail's
- * HEIGHT from 0 to their full size while keeping the box's BOTTOM edge
+ * `growth` (default 1) scales the box's and tail's HEIGHT from 0 to their
+ * full size — reading as the bubble rising out of the sign like it's
+ * starting to talk — while keeping the box's BOTTOM edge
  * fixed (where the tail meets it) — the caller passes
  * `hintTooltipGrowthAndOpacity`'s `growth` straight through. `growth <= 0`
  * draws nothing at all. `opacity` (default 1) is applied via
@@ -644,8 +641,7 @@ export function drawEnemies(
  * `hitsTaken` param), the shared bump nudge offset, a crate's crack overlay
  * (composited as a second draw call — it's a standalone sprite, not part of
  * `world_tileset.png`) while cracked, and a crate's shatter fade-out while
- * breaking apart. Roadmap step 21 (steps 21a/21b/21c) — extends step 20's
- * intact-only render.
+ * breaking apart.
  */
 export function drawBlocks(
   ctx: CanvasRenderingContext2D,
@@ -683,8 +679,8 @@ export function drawBlocks(
 }
 
 /**
- * Draws every chest at its current open/closed sprite (roadmap step 22) —
- * each state is a standalone image (not a shared sheet, unlike blocks), so
+ * Draws every chest at its current open/closed sprite — each state is a
+ * standalone image (not a shared sheet, unlike blocks), so
  * this always crops from (0, 0) at that state's own native size. Either
  * sprite may independently be null (not yet loaded); a chest whose current
  * state's sprite is missing is simply skipped for the frame, same convention
@@ -728,11 +724,10 @@ export function drawChests(
 }
 
 /**
- * Draws every question-mark block's spawned bonus fruit (roadmap step 21b) at
- * its current rise-tween position, reusing `fruit.png` at the fruit's own
- * `iconIndex` (amended 2026-08-30, live user feedback: varies per spawn
- * instead of always index 0, so bonus fruits are visually distinguishable
- * from each other).
+ * Draws every question-mark block's spawned bonus fruit at its current
+ * rise-tween position, reusing `fruit.png` at the fruit's own `iconIndex`,
+ * which varies per spawn instead of always index 0, so bonus fruits are
+ * visually distinguishable from each other.
  */
 export function drawBonusFruits(
   ctx: CanvasRenderingContext2D,
@@ -838,10 +833,10 @@ export interface CounterPopupDrawItem {
  * Draws every currently-visible "(icon) collected / total" counter popup
  * (see CollectionEffects.ts's CounterPopupEffect) side by side, the whole
  * row horizontally centered at a caller-chosen fixed screen position, above
- * the fact-flight text's stacked slots (per user request, 2026-08-30 — see
- * PlatformerPage.tsx for where that position comes from and why there can be
- * more than one: each collectible type gets its own independent slot, so
- * collecting a coin and a fruit close together shows both at once). Measures
+ * the fact-flight text's stacked slots — see PlatformerPage.tsx for where
+ * that position comes from and why there can be more than one: each
+ * collectible type gets its own independent slot, so collecting a coin and
+ * a fruit close together shows both at once. Measures
  * every item's text width up front to center the WHOLE row as a group,
  * rather than centering each item independently (which would just stack
  * them concentrically instead of laying them out left to right). */
@@ -921,12 +916,12 @@ export function drawCollectibleCounter(
   // small negative value to compensate.
   iconYOffset = 0,
   // Shrinks only the drawn icon (never the text's start position, which
-  // stays anchored to the full COUNTER_ICON_SIZE-wide slot) — added
-  // 2026-08-30, live user feedback: a crate's edge-to-edge terrain art (no
-  // transparent padding the way coin.png/fruit.png's centered icons have)
-  // reads as noticeably bigger than the other counters' icons at the same
-  // draw size. Defaults to COUNTER_ICON_SIZE (every pre-existing call site's
-  // unchanged behavior).
+  // stays anchored to the full COUNTER_ICON_SIZE-wide slot) — a crate's
+  // edge-to-edge terrain art (no transparent padding the way
+  // coin.png/fruit.png's centered icons have) reads as noticeably bigger
+  // than the other counters' icons at the same draw size otherwise.
+  // Defaults to COUNTER_ICON_SIZE (every pre-existing call site's unchanged
+  // behavior).
   iconDisplaySize = COUNTER_ICON_SIZE,
 ): void {
   ctx.imageSmoothingEnabled = false;
@@ -959,7 +954,7 @@ const HEARTS_ROW_WIDTH = MAX_HEARTS * HEART_RENDERED_SIZE + (MAX_HEARTS - 1) * H
 
 /** Horizontal screen position for the persistent chest counter — placed
  *  just to the right of the heart row, same HUD row as the hearts (not a
- *  second row below them — moved here per live user feedback, 2026-08-30). */
+ *  second row below them). */
 export const CHEST_COUNTER_X = HEARTS_START_X + HEARTS_ROW_WIDTH + 16;
 
 /** Vertical screen position for the persistent chest counter — vertically
@@ -984,8 +979,8 @@ export const CHEST_COUNTER_ICON_HEIGHT = 20;
 // Wider gap than the shared COUNTER_TEXT_GAP (used by drawCollectibleCounter)
 // between the chest icon and its "N / M" text — a dedicated constant so this
 // counter's spacing can be tuned without affecting the unrelated
-// drawCollectibleCounter (live user feedback, 2026-08-30). Exported so tests
-// can pin the exact text x position instead of only asserting `any(Number)`.
+// drawCollectibleCounter. Exported so tests can pin the exact text x
+// position instead of only asserting `any(Number)`.
 export const CHEST_COUNTER_TEXT_GAP = 12;
 
 export function drawChestCounter(
