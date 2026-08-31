@@ -54,6 +54,24 @@ beforeEach(() => {
 });
 
 describe('EditorCanvas', () => {
+  it('takes the canvas out of its container\'s layout flow (absolute positioning) so the container\'s size never depends on the canvas\'s own content size — otherwise the ResizeObserver below watches a target whose size the canvas itself helps determine, a feedback loop that spirals toward 0x0 and leaves the canvas invisible', () => {
+    stubCanvasContext();
+    const { container } = render(
+      <EditorCanvas
+        grid={[['.']]}
+        selectedTool="G"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+    const canvas = container.querySelector('canvas')!;
+    const wrapper = canvas.parentElement!;
+    expect(wrapper.className).toContain('relative');
+    expect(canvas.className).toContain('absolute');
+  });
+
   it('resizes the canvas to match its container via ResizeObserver, instead of staying a fixed size', () => {
     stubCanvasContext();
     let resizeCallback: ResizeObserverCallback = () => {};
@@ -90,6 +108,46 @@ describe('EditorCanvas', () => {
     expect(canvas.width).not.toBe(defaultWidth);
     expect(canvas.width).toBe(500);
     expect(canvas.height).toBe(300);
+
+    vi.unstubAllGlobals();
+  });
+
+  it('redraws after a resize even with no other prop change, since resizing a <canvas> clears its buffer (would otherwise leave it blank/invisible until an unrelated paint or pan happened to redraw it)', () => {
+    const ctx = stubCanvasContext();
+    let resizeCallback: ResizeObserverCallback = () => {};
+    class FakeResizeObserver {
+      constructor(callback: ResizeObserverCallback) {
+        resizeCallback = callback;
+      }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+    vi.stubGlobal('ResizeObserver', FakeResizeObserver);
+
+    render(
+      <EditorCanvas
+        grid={[['.']]}
+        selectedTool="G"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+    const fillRectCallsBeforeResize = (ctx.fillRect as ReturnType<typeof vi.fn>).mock.calls.length;
+    expect(fillRectCallsBeforeResize).toBeGreaterThan(0);
+
+    act(() => {
+      resizeCallback(
+        [{ contentRect: { width: 500, height: 300 } } as ResizeObserverEntry],
+        {} as ResizeObserver,
+      );
+    });
+
+    expect((ctx.fillRect as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(
+      fillRectCallsBeforeResize,
+    );
 
     vi.unstubAllGlobals();
   });
