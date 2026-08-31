@@ -109,7 +109,7 @@ const LEVEL_1_LAYOUT: readonly string[] = [
   // vertical scrolling on a real desktop window otherwise. Column 9 matches
   // the existing floating platform's middle tile below (row 18 after this
   // insertion, was row 1) so the ladder's bottom rung lands on solid ground.
-  '.............PPL', // top tier: platform beside the ladder's top tile (col 15), same row — not stacked above it
+  '.............PPP', // top tier: solid platform spanning cols 13-15 — the ladder shaft now ends at row 1 (climbing up into this solid row exits climbing and the player lands here normally, same mechanism as landing on the pre-existing platform at the bottom)
   '...............L',
   '...............L',
   '...............L',
