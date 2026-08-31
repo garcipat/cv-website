@@ -177,6 +177,31 @@ describe('ControlsOverlay', () => {
     expect(controlsOverlayDismissed.value).toBe(false);
   });
 
+  it('shouldShowFlipsFalseThenTrueAgain-revealedResets-fadesInAgainInsteadOfPoppingIn', () => {
+    // Regression coverage: `shouldShow` also goes false for transient hides
+    // (journal open, death/respawn), not just the permanent dismissal. If
+    // `revealed` weren't reset on hide, a later reappearance would snap
+    // straight to its baseline opacity/position instead of fading/sliding
+    // in again.
+    lifecycleState.value = PLAYING_PHASE;
+    render(<ControlsOverlay />);
+    flushReveal();
+    expect(screen.getByTestId('platformer-controls-overlay').className).toContain('opacity-80');
+
+    act(() => {
+      lifecycleState.value = { phase: 'paused' as const, elapsed: 0, centerX: 0, centerY: 0 };
+    });
+    expect(screen.queryByTestId('platformer-controls-overlay')).not.toBeInTheDocument();
+
+    act(() => {
+      lifecycleState.value = PLAYING_PHASE;
+    });
+
+    const overlay = screen.getByTestId('platformer-controls-overlay');
+    expect(overlay.className).toContain('opacity-0');
+    expect(overlay.style.transform).toBe('translateX(-80px)');
+  });
+
   it('unmountBeforeReveal-doesNotThrowOrDismiss', () => {
     lifecycleState.value = PLAYING_PHASE;
     const { unmount } = render(<ControlsOverlay />);
