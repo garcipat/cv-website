@@ -45,7 +45,9 @@ export const LevelEditorPage = () => {
     });
   }, []);
 
-  const exportedText = exportLayout(grid).join('\n');
+  const exportedText = exportLayout(grid)
+    .map((row) => `  '${row}',`)
+    .join('\n');
 
   return (
     <div>
