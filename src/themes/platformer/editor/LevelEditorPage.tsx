@@ -59,11 +59,11 @@ export const LevelEditorPage = () => {
     .join('\n');
 
   return (
-    <div className="flex flex-col gap-4 p-4">
+    <div className="flex h-screen flex-col gap-4 p-4">
       <h1 className="text-xl font-semibold">Platformer Level Editor</h1>
-      <div className="flex flex-row items-start gap-4">
-        <Palette selectedTool={selectedTool} onSelectTool={setSelectedTool} />
+      <div className="flex min-h-0 flex-1 flex-row items-stretch gap-4">
         <div className="flex flex-col gap-2">
+          <Palette selectedTool={selectedTool} onSelectTool={setSelectedTool} />
           <Dialog>
             <DialogTrigger render={<Button type="button">Export</Button>} />
             <DialogContent>
@@ -88,30 +88,30 @@ export const LevelEditorPage = () => {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-          <EditorCanvas
-            grid={grid}
-            selectedTool={selectedTool}
-            panOffset={panOffset}
-            images={images}
-            onPaint={({ grid: nextGrid, colShift, rowShift }) => {
-              setGrid(nextGrid);
-              if (colShift !== 0 || rowShift !== 0) {
-                // A cell at index i draws at i * RENDERED_TILE_SIZE + panOffset.x.
-                // Growth increases every existing cell's index by colShift/rowShift,
-                // so panOffset must move by the negative of that to cancel it out —
-                // otherwise already-painted content jumps on screen (spec FR-020/SC-006).
-                setPanOffset((prev) =>
-                  updatePanOffset(
-                    prev,
-                    -colShift * RENDERED_TILE_SIZE,
-                    -rowShift * RENDERED_TILE_SIZE,
-                  ),
-                );
-              }
-            }}
-            onPan={setPanOffset}
-          />
         </div>
+        <EditorCanvas
+          grid={grid}
+          selectedTool={selectedTool}
+          panOffset={panOffset}
+          images={images}
+          onPaint={({ grid: nextGrid, colShift, rowShift }) => {
+            setGrid(nextGrid);
+            if (colShift !== 0 || rowShift !== 0) {
+              // A cell at index i draws at i * RENDERED_TILE_SIZE + panOffset.x.
+              // Growth increases every existing cell's index by colShift/rowShift,
+              // so panOffset must move by the negative of that to cancel it out —
+              // otherwise already-painted content jumps on screen (spec FR-020/SC-006).
+              setPanOffset((prev) =>
+                updatePanOffset(
+                  prev,
+                  -colShift * RENDERED_TILE_SIZE,
+                  -rowShift * RENDERED_TILE_SIZE,
+                ),
+              );
+            }
+          }}
+          onPan={setPanOffset}
+        />
       </div>
     </div>
   );
