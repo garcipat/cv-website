@@ -190,12 +190,12 @@ As a new visitor starts the game, a small translucent overlay listing the univer
 
 **Why this priority**: Onboarding polish. The game is fully playable without it, but a first-time visitor may not discover the movement keys or the drop-through bridge control. It's P3 because it doesn't gate core gameplay or CV content — a deliberate split between an upfront overlay for controls relevant from frame one and contextual, in-place signs for mechanics that only make sense once the player is standing at them.
 
-**Independent Test**: Load the Platformer theme — verify the controls overlay appears and disappears after the first movement/jump input. Walk up to the bridge hint sign — verify a speech-bubble tooltip with hint text appears. Walk away — verify it disappears. Switch locale — verify hint text updates to match.
+**Independent Test**: Load the Platformer theme — verify the controls overlay appears and disappears once the player has walked far enough away from where it appeared. Walk up to the bridge hint sign — verify a speech-bubble tooltip with hint text appears. Walk away — verify it disappears. Switch locale — verify hint text updates to match.
 
 **Acceptance Scenarios**:
 
 1. **Given** the game enters the `playing` phase for the first time this session, **When** the theme loads, **Then** a translucent overlay listing only universal controls (movement, jump, journal toggle) appears.
-2. **Given** the controls overlay is visible, **When** the visitor presses a movement or jump key (or a short timeout elapses), **Then** the overlay disappears and does not reappear for the rest of the session.
+2. **Given** the controls overlay is visible, **When** the visitor walks about two tiles away (in either direction) from where they stood when it appeared, **Then** the overlay disappears and does not reappear for the rest of the session. *Amended 2026-08-31 — see FR-036's amendment note; there is no keypress trigger or timeout fallback.*
 3. **Given** a hint sign exists in the level, **When** the character's hitbox overlaps its trigger zone, **Then** a speech-bubble tooltip appears near the character showing the sign's hint text, without pausing the game or blocking movement.
 4. **Given** a hint tooltip is visible, **When** the character no longer overlaps the sign, **Then** the tooltip disappears.
 5. **Given** the visitor switches locale, **When** a hint tooltip is shown afterward, **Then** it displays in the newly selected language.
@@ -363,7 +363,7 @@ As a new visitor starts the game, a small translucent overlay listing the univer
 
 #### Guidance & Onboarding (P3)
 
-- **FR-036**: System MUST show a translucent controls overlay listing only universal controls (movement keys, jump key, journal toggle key) when gameplay first enters the `playing` phase. The overlay MUST auto-dismiss on the player's first movement or jump input, or after a short timeout, whichever comes first, and MUST NOT reappear for the remainder of the session.
+- **FR-036**: System MUST show a translucent controls overlay listing only universal controls (movement keys, jump key, journal toggle key) when gameplay first enters the `playing` phase. The overlay MUST auto-dismiss once the player has traveled a short distance (about two tiles, in either direction) from where they stood when it appeared, and MUST NOT reappear for the remainder of the session. *Amended 2026-08-31 — live UX review during implementation replaced the original keypress-or-timeout dismissal with purely distance-based dismissal (no keypress trigger, no timeout fallback — a visitor who never moves keeps seeing the overlay indefinitely, by design); see roadmap.md's step 25 entry for the full rationale.*
 
 - **FR-037**: System MUST render hint signs as a non-solid, non-collectible level entity (`SignDef`), placed via hand-authored level markers. Each distinct hint gets its own single-digit marker character (`1`–`9`, consistent with FR-013's marker-based placement approach), mapped directly to a `hintId` in `LevelParser.ts`'s `SIGN_CHARS` table (e.g. `'1': 'bridgeDropThrough'`) — the character itself carries the hint's identity, independent of its position in the level layout, so the layout can be freely edited/reordered without breaking which sign shows which text. This is deliberately simpler than the CVData-order "zip" convention FR-013 uses for coins/enemies, since hint content is hand-authored, not pulled from an ordered CVData array — capped at 9 distinct hints total is an accepted constraint. Signs use the wooden signpost tile at `world_tileset.png` tile coordinates (col 8, row 3 → pixel 128,48), the tan/brown palette variant sitting directly beside the crate tile (col 7, row 3).
 
