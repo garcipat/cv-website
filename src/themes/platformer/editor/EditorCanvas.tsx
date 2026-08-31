@@ -91,13 +91,10 @@ export const EditorCanvas = ({
   onPan,
 }: EditorCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const dragRef = useRef<{
-    mode: 'paint' | 'pan';
-    lastCol: number;
-    lastRow: number;
-    lastX: number;
-    lastY: number;
-  } | null>(null);
+  type DragState =
+    | { mode: 'paint'; tool: TileChar; lastCol: number; lastRow: number }
+    | { mode: 'pan'; lastX: number; lastY: number };
+  const dragRef = useRef<DragState | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -169,24 +166,25 @@ export const EditorCanvas = ({
   };
 
   const handleMouseDown = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    if (event.button === 2) {
+    if (event.button === 1) {
+      event.preventDefault(); // suppress the browser's middle-click auto-scroll cursor
       dragRef.current = {
         mode: 'pan',
-        lastCol: 0,
-        lastRow: 0,
         lastX: event.clientX,
         lastY: event.clientY,
       };
       return;
     }
+    // Right-click always erases, regardless of the selected palette tool;
+    // left-click paints with it.
+    const tool = event.button === 2 ? '.' : selectedTool;
     const { col, row } = cellFromEvent(event.clientX, event.clientY);
-    const result = paintCell(grid, col, row, selectedTool);
+    const result = paintCell(grid, col, row, tool);
     dragRef.current = {
       mode: 'paint',
+      tool,
       lastCol: col + result.colShift,
       lastRow: row + result.rowShift,
-      lastX: 0,
-      lastY: 0,
     };
     onPaint(result);
   };
@@ -205,7 +203,7 @@ export const EditorCanvas = ({
 
     const { col, row } = cellFromEvent(event.clientX, event.clientY);
     if (col === drag.lastCol && row === drag.lastRow) return;
-    const result = paintCell(grid, col, row, selectedTool);
+    const result = paintCell(grid, col, row, drag.tool);
     dragRef.current = {
       ...drag,
       lastCol: col + result.colShift,
