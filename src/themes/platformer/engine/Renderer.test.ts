@@ -67,6 +67,7 @@ function makeMockContext() {
     restore: vi.fn(),
     beginPath: vi.fn(),
     rect: vi.fn(),
+    roundRect: vi.fn(),
     moveTo: vi.fn(),
     arc: vi.fn(),
     fill: vi.fn(),
@@ -1336,15 +1337,15 @@ describe('drawSigns', () => {
 });
 
 describe('drawSignBubble', () => {
-  it('growth1-drawsBorderAndBubbleRectsPlusCenteredText', () => {
+  it('growth1-drawsBorderAndBubbleRoundRectsPlusCenteredText', () => {
     const ctx = makeMockContext() as unknown as {
-      fillRect: ReturnType<typeof vi.fn>;
+      roundRect: ReturnType<typeof vi.fn>;
       fillText: ReturnType<typeof vi.fn>;
     };
 
     drawSignBubble(ctx as unknown as CanvasRenderingContext2D, 'Hold Down to drop through a bridge.', 200, 300);
 
-    expect(ctx.fillRect).toHaveBeenCalledTimes(2); // border rect, then the inset bubble rect on top
+    expect(ctx.roundRect).toHaveBeenCalledTimes(2); // border rounded-rect, then the inset bubble rounded-rect on top
     expect(ctx.fillText).toHaveBeenCalledWith(
       'Hold Down to drop through a bridge.',
       expect.any(Number),
@@ -1354,25 +1355,25 @@ describe('drawSignBubble', () => {
 
   it('growthZero-drawsNothing', () => {
     const ctx = makeMockContext() as unknown as {
-      fillRect: ReturnType<typeof vi.fn>;
+      roundRect: ReturnType<typeof vi.fn>;
       fillText: ReturnType<typeof vi.fn>;
     };
 
     drawSignBubble(ctx as unknown as CanvasRenderingContext2D, 'Hi', 200, 300, 0);
 
-    expect(ctx.fillRect).not.toHaveBeenCalled();
+    expect(ctx.roundRect).not.toHaveBeenCalled();
     expect(ctx.fillText).not.toHaveBeenCalled();
   });
 
   it('halfGrowth-drawsABubbleRectHalfAsTallAsFullGrowth', () => {
-    const ctx = makeMockContext() as unknown as { fillRect: ReturnType<typeof vi.fn> };
+    const ctx = makeMockContext() as unknown as { roundRect: ReturnType<typeof vi.fn> };
 
     drawSignBubble(ctx as unknown as CanvasRenderingContext2D, 'Hi', 200, 300, 1);
-    const [, , , fullHeight] = ctx.fillRect.mock.calls[1]; // index 1: the inset bubble rect, not the border rect
-    ctx.fillRect.mockClear();
+    const [, , , fullHeight] = ctx.roundRect.mock.calls[1]; // index 1: the inset bubble rect, not the border rect
+    ctx.roundRect.mockClear();
 
     drawSignBubble(ctx as unknown as CanvasRenderingContext2D, 'Hi', 200, 300, 0.5);
-    const [, , , halfHeight] = ctx.fillRect.mock.calls[1];
+    const [, , , halfHeight] = ctx.roundRect.mock.calls[1];
 
     expect(halfHeight).toBeCloseTo(fullHeight / 2);
   });
@@ -1381,15 +1382,15 @@ describe('drawSignBubble', () => {
     // The bubble must grow UPWARD from a fixed bottom edge (where the tail
     // meets it), not scale symmetrically — this is what makes it read as
     // "rising out of" the anchor point rather than just scaling in place.
-    const ctx = makeMockContext() as unknown as { fillRect: ReturnType<typeof vi.fn> };
+    const ctx = makeMockContext() as unknown as { roundRect: ReturnType<typeof vi.fn> };
 
     drawSignBubble(ctx as unknown as CanvasRenderingContext2D, 'Hi', 200, 300, 1);
-    const [, fullTop, , fullHeight] = ctx.fillRect.mock.calls[1];
+    const [, fullTop, , fullHeight] = ctx.roundRect.mock.calls[1];
     const fullBottom = fullTop + fullHeight;
-    ctx.fillRect.mockClear();
+    ctx.roundRect.mockClear();
 
     drawSignBubble(ctx as unknown as CanvasRenderingContext2D, 'Hi', 200, 300, 0.5);
-    const [, halfTop, , halfHeight] = ctx.fillRect.mock.calls[1];
+    const [, halfTop, , halfHeight] = ctx.roundRect.mock.calls[1];
     const halfBottom = halfTop + halfHeight;
 
     expect(halfBottom).toBeCloseTo(fullBottom);
@@ -1426,17 +1427,87 @@ describe('drawSignBubble', () => {
   });
 
   it('withOpacity-setsGlobalAlphaBeforeDrawing', () => {
-    const ctx = makeMockContext() as unknown as { globalAlpha: number; fillRect: ReturnType<typeof vi.fn> };
-    // Capture globalAlpha at the moment fillRect is called — save()/restore()
+    const ctx = makeMockContext() as unknown as { globalAlpha: number; roundRect: ReturnType<typeof vi.fn> };
+    // Capture globalAlpha at the moment roundRect is called — save()/restore()
     // are no-ops in the mock, so without capturing mid-call, reading
     // ctx.globalAlpha afterward could reflect whatever restore() reset it to.
     let alphaDuringDraw: number | undefined;
-    ctx.fillRect.mockImplementation(() => {
+    ctx.roundRect.mockImplementation(() => {
       if (alphaDuringDraw === undefined) alphaDuringDraw = ctx.globalAlpha;
     });
 
     drawSignBubble(ctx as unknown as CanvasRenderingContext2D, 'Hi', 200, 300, 1, 0.4);
 
     expect(alphaDuringDraw).toBe(0.4);
+  });
+
+  describe('multi-line text (\\n-separated)', () => {
+    it('twoLineText-callsFillTextOncePerLineWithEachLinesOwnText', () => {
+      const ctx = makeMockContext() as unknown as { fillText: ReturnType<typeof vi.fn> };
+
+      drawSignBubble(ctx as unknown as CanvasRenderingContext2D, 'Line one\nLine two', 200, 300);
+
+      expect(ctx.fillText).toHaveBeenCalledTimes(2);
+      expect(ctx.fillText).toHaveBeenCalledWith('Line one', expect.any(Number), expect.any(Number));
+      expect(ctx.fillText).toHaveBeenCalledWith('Line two', expect.any(Number), expect.any(Number));
+    });
+
+    it('singleLineText-stillCallsFillTextExactlyOnce-unaffectedByTheMultiLineChange', () => {
+      const ctx = makeMockContext() as unknown as { fillText: ReturnType<typeof vi.fn> };
+
+      drawSignBubble(ctx as unknown as CanvasRenderingContext2D, 'Just one line.', 200, 300);
+
+      expect(ctx.fillText).toHaveBeenCalledTimes(1);
+      expect(ctx.fillText).toHaveBeenCalledWith('Just one line.', expect.any(Number), expect.any(Number));
+    });
+
+    it('twoLineText-boxWidthUsesTheWidestLineNotJustTheFirst', () => {
+      const ctx = makeMockContext() as unknown as {
+        roundRect: ReturnType<typeof vi.fn>;
+        measureText: ReturnType<typeof vi.fn>;
+      };
+      // Second line measures wider than the first — box width must track
+      // the max, not whichever line happens to come first.
+      ctx.measureText.mockImplementation((text: string) => ({
+        width: text === 'A short line' ? 20 : 200,
+      }));
+
+      drawSignBubble(ctx as unknown as CanvasRenderingContext2D, 'A short line\nA much much longer second line', 200, 300);
+
+      const [, , insetBoxWidth] = ctx.roundRect.mock.calls[1]; // index 1: inset bubble rect
+      // BUBBLE_PADDING_X is 10 (module-private constant in Renderer.ts) —
+      // box width = widest line's measured width (200) + padding on both sides.
+      expect(insetBoxWidth).toBeCloseTo(200 + 10 * 2);
+    });
+
+    it('twoLineText-boxIsTallerThanOneLineTextAtFullGrowth', () => {
+      const ctx = makeMockContext() as unknown as { roundRect: ReturnType<typeof vi.fn> };
+
+      drawSignBubble(ctx as unknown as CanvasRenderingContext2D, 'Hi', 200, 300, 1);
+      const [, , , oneLineHeight] = ctx.roundRect.mock.calls[1];
+      ctx.roundRect.mockClear();
+
+      drawSignBubble(ctx as unknown as CanvasRenderingContext2D, 'Hi\nHi', 200, 300, 1);
+      const [, , , twoLineHeight] = ctx.roundRect.mock.calls[1];
+
+      expect(twoLineHeight).toBeGreaterThan(oneLineHeight);
+    });
+
+    it('twoLineText-everyGrowth-stillKeepsTheBoxsBottomEdgeFixed', () => {
+      // Same fixed-bottom-edge invariant as the single-line tests above,
+      // regression-checked for the multi-line (taller) box too.
+      const ctx = makeMockContext() as unknown as { roundRect: ReturnType<typeof vi.fn> };
+
+      drawSignBubble(ctx as unknown as CanvasRenderingContext2D, 'Line one\nLine two', 200, 300, 1);
+      const [, fullTop, , fullHeight] = ctx.roundRect.mock.calls[1];
+      const fullBottom = fullTop + fullHeight;
+      ctx.roundRect.mockClear();
+
+      drawSignBubble(ctx as unknown as CanvasRenderingContext2D, 'Line one\nLine two', 200, 300, 0.5);
+      const [, halfTop, , halfHeight] = ctx.roundRect.mock.calls[1];
+      const halfBottom = halfTop + halfHeight;
+
+      expect(halfBottom).toBeCloseTo(fullBottom);
+    });
   });
 });
