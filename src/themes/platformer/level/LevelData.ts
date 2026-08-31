@@ -1,7 +1,6 @@
 export type TileType =
   | 'groundGrass'
   | 'groundRock'
-  | 'platform'
   | 'wall'
   | 'bridge'
   | 'ladder'

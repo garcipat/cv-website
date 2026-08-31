@@ -15,7 +15,6 @@ export function isSolid(tile: TileType): boolean {
   return (
     tile === 'groundGrass' ||
     tile === 'groundRock' ||
-    tile === 'platform' ||
     tile === 'wall' ||
     tile === 'bridge'
   );
@@ -34,10 +33,10 @@ export function isSolidExcludingBridge(tile: TileType): boolean {
 }
 
 /**
- * Whether the player can climb this tile (roadmap step 23) — currently only
- * `'ladder'`. Deliberately NOT part of `isSolid`: a ladder never blocks
- * horizontal movement or counts as ground; `Physics.ts`'s climbing branch is
- * the only place vertical movement through a ladder tile is resolved.
+ * Whether the player can climb this tile — currently only `'ladder'`.
+ * Deliberately NOT part of `isSolid`: a ladder never blocks horizontal
+ * movement or counts as ground; `Physics.ts`'s climbing branch is the only
+ * place vertical movement through a ladder tile is resolved.
  */
 export function isClimbable(tile: TileType): boolean {
   return tile === 'ladder';
@@ -45,10 +44,10 @@ export function isClimbable(tile: TileType): boolean {
 
 /**
  * Whether this tile is a ladder shaft's topmost tile with open space above
- * it — the one ladder tile the character can actually stand ON (roadmap
- * step 23 follow-up). A shaft's top rung is solid from above only: you climb
- * out of the shaft onto it, land on it when falling from above, and can step
- * off it sideways or press Down to climb back in. Every other ladder tile
+ * it — the one ladder tile the character can actually stand ON. A shaft's
+ * top rung is solid from above only: you climb out of the shaft onto it,
+ * land on it when falling from above, and can step off it sideways or press
+ * Down to climb back in. Every other ladder tile
  * stays fully passable, and even the top one never blocks horizontal
  * movement or a climb passing through it (`isSolid` is deliberately
  * untouched — `Physics.ts` consults this separately, exactly like it does

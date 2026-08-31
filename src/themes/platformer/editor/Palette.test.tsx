@@ -5,19 +5,12 @@ import { Palette } from './Palette';
 import { TERRAIN_CHARS, ENTITY_CHARS } from '../level/LevelParser';
 
 describe('Palette', () => {
-  it('renders one tile for every terrain char (excluding "." and the hidden Platform, which looks identical to Ground Grass), every entity char, one representative Sign tile, and the Eraser', () => {
+  it('renders one tile for every terrain char (excluding "."), every entity char, one representative Sign tile, and the Eraser', () => {
     render(<Palette selectedTool="G" onSelectTool={() => {}} />);
-    // -1 for Platform ('P'), hidden because it renders with the exact same
-    // sprite as Ground Grass and reads as a confusing duplicate tile.
-    const terrainCount = Object.keys(TERRAIN_CHARS).filter((k) => k !== '.' && k !== 'P').length;
+    const terrainCount = Object.keys(TERRAIN_CHARS).filter((k) => k !== '.').length;
     const entityCount = Object.keys(ENTITY_CHARS).length;
     // +1 for the single representative Sign tile, +1 for the Eraser tile.
     expect(screen.getAllByRole('button')).toHaveLength(terrainCount + entityCount + 1 + 1);
-  });
-
-  it('does not render a separate Platform tile', () => {
-    render(<Palette selectedTool="G" onSelectTool={() => {}} />);
-    expect(screen.queryByRole('button', { name: 'Platform' })).not.toBeInTheDocument();
   });
 
   it('renders a "Palette" title', () => {
