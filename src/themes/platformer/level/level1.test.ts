@@ -9,7 +9,7 @@ import {
   FRAGILE_ROCK_TILES,
   CHEST_TILES,
 } from './level1';
-import { isTopExposed, isSolid, isClimbable, tileAt } from './Terrain';
+import { isTopExposed, isSolid, isClimbable, isStandableLadderTop, tileAt } from './Terrain';
 
 /** Every hand-placed marker must sit on an empty tile directly above a solid
  *  one — the same "standable" shape a level author expects any marker to
@@ -113,12 +113,12 @@ describe('level1', () => {
   });
 
   it('newBlockMarkers-sitElevatedAboveGroundCloseToSpawn', () => {
-    // Elevated to row 0 (2 empty rows of clearance above solid ground,
+    // Elevated to the floating-platform row (2 empty rows of clearance above solid ground,
     // same shape as the existing floating platform at cols 8-14) and moved
     // to cols 19-24 — right after the second coin (col 18), well before
     // the wall/enemy/pit gauntlet at cols 26-42, instead of the 51-tiles-
     // from-spawn cluster at cols 47-52.
-    const blockRow = 18;
+    const blockRow = 3;
     expect(CRATE_TILES.map((t) => t.col)).toEqual([19, 22]);
     expect(QUESTIONMARK_TILES.map((t) => t.col)).toEqual([20, 23]);
     expect(FRAGILE_ROCK_TILES.map((t) => t.col)).toEqual([21, 24]);
@@ -132,9 +132,9 @@ describe('level1', () => {
     // between the elevated block row and solid ground, so the player can
     // jump up into a block from below.
     for (const col of [19, 20, 21, 22, 23, 24]) {
-      expect(level1.terrain[19][col]).toBe('empty');
-      expect(level1.terrain[20][col]).toBe('empty');
-      expect(isSolid(level1.terrain[21][col])).toBe(true);
+      expect(level1.terrain[4][col]).toBe('empty');
+      expect(level1.terrain[5][col]).toBe('empty');
+      expect(isSolid(level1.terrain[6][col])).toBe(true);
     }
   });
 
@@ -153,7 +153,7 @@ describe('level1', () => {
   });
 
   it('elevatedBridge-spansGapBetweenTwoFloatingPlatformsAtPlatformRow', () => {
-    const row = 18;
+    const row = 3;
     expect(level1.terrain[row][8]).toBe('platform');
     expect(level1.terrain[row][9]).toBe('platform');
     expect(level1.terrain[row][10]).toBe('platform');
@@ -167,9 +167,9 @@ describe('level1', () => {
     // Enough clearance (2 empty rows) to jump up into the bridge from the
     // ground below, and solid ground to land on after dropping through it.
     for (const col of [11, 12]) {
-      expect(level1.terrain[19][col]).toBe('empty');
-      expect(level1.terrain[20][col]).toBe('empty');
-      expect(isSolid(level1.terrain[21][col])).toBe(true);
+      expect(level1.terrain[4][col]).toBe('empty');
+      expect(level1.terrain[5][col]).toBe('empty');
+      expect(isSolid(level1.terrain[6][col])).toBe(true);
     }
   });
 
@@ -201,32 +201,31 @@ describe('ladder shaft (roadmap step 23)', () => {
     expect(level1.terrain[0][15]).toBe('ladder');
   });
 
-  it('shaftIsLadderAtCol15-nineteenTilesTall-flushWithBothPlatformRows', () => {
-    for (let row = 0; row <= 18; row++) {
+  it('shaftIsLadderAtCol15-fourTilesTall-flushWithBothPlatformRows', () => {
+    for (let row = 0; row <= 3; row++) {
       expect(level1.terrain[row][15]).toBe('ladder');
       expect(isClimbable(level1.terrain[row][15])).toBe(true);
     }
   });
 
   it('ladderBottomTile-sitsBesideTheExistingFloatingPlatformNotBelowIt', () => {
-    // Row 18 is the pre-existing floating platform. The ladder's bottom
-    // tile is now IN row 18 too (col 15, one column right of the
+    // Row 3 is the pre-existing floating platform. The ladder's bottom
+    // tile is now IN row 3 too (col 15, one column right of the
     // platform's rightmost tile at col 14) — same row, adjacent column —
     // so standing on the platform and walking one tile right puts the
     // player's feet directly on a ladder tile without needing to jump
     // (roadmap step 23 follow-up: the ladder previously sat one row ABOVE
     // the platform at the same column, which blocked climb-entry from
     // standing height).
-    expect(level1.terrain[18][14]).toBe('platform');
-    expect(level1.terrain[18][15]).toBe('ladder');
+    expect(level1.terrain[3][14]).toBe('platform');
+    expect(level1.terrain[3][15]).toBe('ladder');
   });
 
-  it('levelIsTallEnoughToExceedATypicalDesktopViewport', () => {
-    // 23 rows * 32px/tile = 736px — taller than most real browser viewports
-    // once browser chrome is accounted for; if it isn't on a very large
-    // monitor, shrinking the browser window height confirms the same
-    // scrolling logic (proven independently by Camera.test.ts's
-    // updateCameraY tests regardless of window size).
-    expect(level1.height * 32).toBeGreaterThan(700);
+  it('aboveTheShaftsTopRung-isOpenSpace-soTheClimbEndsStandingOnTopOfIt', () => {
+    // The top rung (row 0) has nothing above it — that open space is what
+    // makes it standable (Terrain.ts's isStandableLadderTop): the climb
+    // ends with the character standing on the rung, level with the landing
+    // platform beside it, rather than dead-ending under a ceiling.
+    expect(isStandableLadderTop(level1, 15, 0)).toBe(true);
   });
 });

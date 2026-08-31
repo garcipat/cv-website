@@ -104,34 +104,20 @@ import {
 const LEVEL_1_LAYOUT: readonly string[] = [
   // --- Ladder shaft (roadmap step 23) — throwaway/replaceable placeholder
   // content, not final level design. Exists only to give this step a real
-  // manual browser Verify for climbing + vertical camera follow: the level
-  // (originally 6 rows / ~192px) was nowhere near tall enough to ever need
-  // vertical scrolling on a real desktop window otherwise. Column 9 matches
-  // the existing floating platform's middle tile below (row 18 after this
-  // insertion, was row 1) so the ladder's bottom rung lands on solid ground.
+  // manual browser Verify for climbing: a short 4-rung shaft between the
+  // pre-existing floating platform (its bottom row) and a small landing
+  // platform beside its top rung. Deliberately short so climbing to the
+  // top — and the standing-on-the-top-rung behavior at the end of it — is
+  // a couple of seconds of play-testing rather than a long haul. Vertical
+  // camera follow no longer depends on this shaft's height for coverage;
+  // Camera.test.ts's updateCameraY tests exercise it directly, at any
+  // level size.
   '.............PPL', // top tier: platform beside the ladder's top tile (col 15), same row — not stacked above it, not a separate tile type
   '...............L',
   '...............L',
-  '...............L',
-  '...............L',
-  '...............L',
-  '...............L',
-  '...............L',
-  '...............L',
-  '...............L',
-  '...............L',
-  '...............L',
-  '...............L',
-  '...............L',
-  '...............L',
-  '...............L',
-  '...............L',
-  // Former row 0 (all-empty, added in an earlier review pass so a
-  // question-mark block's popped fruit has somewhere to rise into) —
-  // repurposed as the ladder shaft's 17th and final rung, directly above
-  // the existing floating platform. Only column 15 changes; every other
-  // column stays '.'.
-  '...............L',
+  // The shaft's bottom rung sits IN the floating platform's own row (col
+  // 15, one column right of the platform's rightmost tile), so stepping
+  // off the platform onto the ladder needs no jump.
   '........PPPBBPPL...XQFXQF.......................................................',
   '................................................................................',
   '.S....T...C.T.....C.......W.E..W....W.M....C.C..................................',
