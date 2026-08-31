@@ -196,12 +196,15 @@ describe('CHEST_TILES', () => {
 });
 
 describe('ladder shaft (roadmap step 23)', () => {
-  it('newTopTier-hasASolidLandingPlatformAtCol15', () => {
-    expect(level1.terrain[0][15]).toBe('platform');
+  it('ladderTopTile-sitsBesideTheLandingPlatformNotAboveIt', () => {
+    // Row 0 is the shaft's top: platform at col 14 (beside), ladder at col 15
+    // (same row) — mirrors the bottom's row-18 arrangement, not stacked.
+    expect(level1.terrain[0][14]).toBe('platform');
+    expect(level1.terrain[0][15]).toBe('ladder');
   });
 
-  it('shaftIsLadderAtCol15-eighteenTilesTall-flushWithThePlatformRow', () => {
-    for (let row = 1; row <= 18; row++) {
+  it('shaftIsLadderAtCol15-nineteenTilesTall-flushWithBothPlatformRows', () => {
+    for (let row = 0; row <= 18; row++) {
       expect(level1.terrain[row][15]).toBe('ladder');
       expect(isClimbable(level1.terrain[row][15])).toBe(true);
     }
