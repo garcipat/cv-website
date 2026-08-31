@@ -152,6 +152,9 @@
     }
   },
   "platformer": {
+    "hints": {
+      "bridgeDropThrough": "Halte Runter gedrückt, um durch eine Brücke zu fallen."
+    },
     "journal": {
       "collectibles": "Sammelobjekte",
       "coins": "Münzen",
