@@ -1,5 +1,6 @@
 import { stepEnemyPatrol, stepEnemyHitReaction, HIT_REACTION_DURATION_SECONDS } from './EnemyAI';
 import { toEnemyState } from '../entities/Enemy';
+import type { EnemyState } from '../entities/Enemy';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import { PHYSICS_CONFIG } from './PhysicsConfig';
 import type { LevelDef, TileType } from '../level/LevelData';
@@ -7,7 +8,7 @@ import type { EnemyPlacement } from '../level/EnemyMapper';
 
 /** Builds a one-row-tall-per-feature level: `groundRow` is solid everywhere
  *  except where noted, and `entityRow` (one tile above it) holds walls at the
- *  given columns and is otherwise empty — matching level1's real convention
+ *  given columns and is otherwise empty — matching currentLevel's real convention
  *  of placing enemies/walls on the row above the ground they patrol on. */
 function makeLevel(width: number, wallCols: number[], pitCols: number[]): LevelDef {
   const entityRow: TileType[] = Array.from({ length: width }, (_, c) =>
@@ -36,8 +37,8 @@ function makeEnemyAt(col: number) {
   return toEnemyState(placement);
 }
 
-function makeHitEnemy(hitPoints: number) {
-  return { ...makeEnemyAt(5), animState: 'hit' as const, hitPoints, hitTimer: 0 };
+function makeHitEnemy(hitPoints: number): EnemyState {
+  return { ...makeEnemyAt(5), animState: 'hit', hitPoints, hitTimer: 0 };
 }
 
 const SPEED = PHYSICS_CONFIG.enemyPatrolSpeed;
@@ -120,7 +121,7 @@ describe('stepEnemyPatrol', () => {
     // The user-requested "wall - enemy - pit" sandwich: wall at col 3, pit at
     // col 7, enemy starts at col 5 patrolling cols 4-6.
     const level = makeLevel(10, [3], [7]);
-    let enemy = { ...makeEnemyAt(5), direction: 'right' as const };
+    let enemy: EnemyState = { ...makeEnemyAt(5), direction: 'right' };
     const minX = 4 * RENDERED_TILE_SIZE;
     const maxX = 6 * RENDERED_TILE_SIZE;
 

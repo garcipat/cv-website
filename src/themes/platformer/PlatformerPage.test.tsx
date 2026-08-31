@@ -85,11 +85,11 @@ describe('PlatformerPage', () => {
     activeEffects.value = [];
     // Module-level signal like the others above — a stomp/defeat mutation
     // from one test must not leak into the next test's enemy positions.
-    enemyStates.value = enemyPlacements.map((p, i) => toEnemyState(p, i));
+    enemyStates.value = enemyPlacements.value.map((p, i) => toEnemyState(p, i));
     // Module-level signal like the others above — an open-chest mutation
     // from one test (roadmap step 22) must not leak into the next test's
     // assumption that every chest starts closed.
-    chestStates.value = chestPlacements.map(toChestState);
+    chestStates.value = chestPlacements.value.map(toChestState);
     // Module-level one-shot latch (see PlatformerState.ts's doc comment) —
     // must be reset too, or a test that triggers the ending screen would
     // leave later tests unable to ever see it triggered again.
@@ -158,7 +158,7 @@ describe('PlatformerPage', () => {
     const ctx = platformerPage.context;
 
     await waitFor(() => {
-      expect(blockPlacements.length).toBeGreaterThan(0);
+      expect(blockPlacements.value.length).toBeGreaterThan(0);
       // The crate tile's known source coords (world_tileset.png at
       // 112,48 — see entities/Block.ts's blockFrameSource), drawn at the
       // block-sized 32x32 render size.
@@ -462,8 +462,8 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    // Place the character resting on level1's ground-level bridge (row 6,
-    // columns 2-3 — see level1.ts; shifted down 2 rows by roadmap step 23's
+    // Place the character resting on currentLevel's ground-level bridge (row 6,
+    // columns 2-3 — see level.ts; shifted down 2 rows by roadmap step 23's
     // ladder-shaft insertion at the top of the layout) directly, rather than
     // navigating there by walking, since only the drop-through wiring is
     // under test here (the underlying physics is covered by Physics.test.ts).
@@ -570,9 +570,9 @@ describe('PlatformerPage', () => {
     // index 5) should be shifted left by exactly the camera offset relative
     // to what it'd be at cameraPositionX = 0 — cheapest check: originX is
     // -cameraPositionX, so no draw call should use a dx that's uncorrected
-    // for a nonzero camera. Spot-check the first terrain tile (level1's
+    // for a nonzero camera. Spot-check the first terrain tile (currentLevel's
     // top-left column is 'empty' until the platform/ground rows — assert on
-    // any call instead of a fixed index to stay robust to level1's layout).
+    // any call instead of a fixed index to stay robust to currentLevel's layout).
     const anyShiftedCall = ctx.drawImage.mock.calls.some((call: unknown[]) => call[5] === -50);
     expect(anyShiftedCall).toBe(true);
   });
@@ -597,7 +597,7 @@ describe('PlatformerPage', () => {
     frameCallback!(0);
 
     const ctx = platformerPage.context;
-    const enemyTotal = enemyPlacements.length;
+    const enemyTotal = enemyPlacements.value.length;
 
     // The popup's icon needs its sprite ref loaded (same reasoning the old
     // "showsCoinCounterAtZero" test's comment gave for drawCollectibleCounter)
@@ -705,7 +705,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = collectiblePlacements[0];
+    const target = collectiblePlacements.value[0];
     playerState.value = { ...playerState.value, x: target.x, y: target.y };
 
     frameCallback!(16);
@@ -730,7 +730,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = collectiblePlacements.find((p) => p.spriteType === 'coin')!;
+    const target = collectiblePlacements.value.find((p) => p.spriteType === 'coin')!;
     playerState.value = { ...playerState.value, x: target.x, y: target.y };
 
     frameCallback!(16);
@@ -750,7 +750,7 @@ describe('PlatformerPage', () => {
 
     render(<PlatformerPage />);
     frameCallback!(0);
-    const target = collectiblePlacements[0];
+    const target = collectiblePlacements.value[0];
     playerState.value = { ...playerState.value, x: target.x, y: target.y };
     frameCallback!(16);
     expect(collectedFacts.value).toHaveLength(1);
@@ -1343,7 +1343,7 @@ describe('PlatformerPage', () => {
     // the old temporary seed data this test relied on is gone (step 12
     // starts collectedFacts empty; only real coin/fruit collection populates
     // it now).
-    const target = collectiblePlacements[0];
+    const target = collectiblePlacements.value[0];
     playerState.value = { ...playerState.value, x: target.x, y: target.y };
     frameCallback!(16);
     const factsBeforeDeath = collectedFacts.value;
@@ -1889,7 +1889,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = chestPlacements[0];
+    const target = chestPlacements.value[0];
     playerState.value = { ...playerState.value, x: target.x, y: target.y };
     fireEvent.keyDown(window, { code: 'ArrowUp' });
     frameCallback!(16);
@@ -1912,7 +1912,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = chestPlacements[0];
+    const target = chestPlacements.value[0];
     playerState.value = { ...playerState.value, x: target.x, y: target.y };
     fireEvent.keyDown(window, { code: 'KeyW' });
     frameCallback!(16);
@@ -1932,7 +1932,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = chestPlacements[0];
+    const target = chestPlacements.value[0];
     playerState.value = { ...playerState.value, x: target.x, y: target.y };
     frameCallback!(16);
 
@@ -1951,7 +1951,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    for (const target of chestPlacements) {
+    for (const target of chestPlacements.value) {
       playerState.value = { ...playerState.value, x: target.x, y: target.y };
       fireEvent.keyDown(window, { code: 'ArrowUp' });
       // Opening the last chest flips React state (setEndingScreenOpen),
@@ -1978,7 +1978,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    for (const target of chestPlacements) {
+    for (const target of chestPlacements.value) {
       playerState.value = { ...playerState.value, x: target.x, y: target.y };
       fireEvent.keyDown(window, { code: 'ArrowUp' });
       // Opening the last chest flips React state (setEndingScreenOpen),
@@ -2031,7 +2031,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    for (const target of chestPlacements) {
+    for (const target of chestPlacements.value) {
       playerState.value = { ...playerState.value, x: target.x, y: target.y };
       fireEvent.keyDown(window, { code: 'ArrowUp' });
       act(() => frameCallback!(16));
@@ -2073,7 +2073,7 @@ describe('PlatformerPage', () => {
     const { unmount } = render(<PlatformerPage />);
     frameCallback!(0);
 
-    for (const target of chestPlacements) {
+    for (const target of chestPlacements.value) {
       playerState.value = { ...playerState.value, x: target.x, y: target.y };
       fireEvent.keyDown(window, { code: 'ArrowUp' });
       act(() => frameCallback!(16));
@@ -2116,7 +2116,7 @@ describe('PlatformerPage', () => {
       render(<PlatformerPage />);
 
       // Position the character directly on the new ladder shaft (col 15,
-      // in the shaft's middle — see level1.ts).
+      // in the shaft's middle — see level.ts).
       const ladderCol = 15;
       const ladderRow = 1;
       const { x, y } = tileToPixel(ladderCol, ladderRow);
