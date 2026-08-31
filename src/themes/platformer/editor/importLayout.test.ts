@@ -17,4 +17,13 @@ describe('importLayout', () => {
   it('returns an empty array for an empty layout', () => {
     expect(importLayout([])).toEqual([]);
   });
+
+  it('right-pads shorter rows with "." to match the widest row, like parseLevel does', () => {
+    const result = importLayout(['GG', 'G', 'GGGG']);
+    expect(result).toEqual([
+      ['G', 'G', '.', '.'],
+      ['G', '.', '.', '.'],
+      ['G', 'G', 'G', 'G'],
+    ]);
+  });
 });

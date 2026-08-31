@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { LevelEditorPage } from './LevelEditorPage';
 import { LEVEL_1_LAYOUT } from '../level/level1';
+import { importLayout } from './importLayout';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 
 vi.mock('../engine/SpriteLoader', () => ({
@@ -34,8 +35,12 @@ beforeEach(() => {
   } as unknown as CanvasRenderingContext2D);
 });
 
-const EXPECTED_EXPORT_TEXT = LEVEL_1_LAYOUT.slice(1)
-  .map((row) => `  '${row}',`)
+// LEVEL_1_LAYOUT is jagged (its ladder-shaft rows are short); importLayout
+// right-pads to a rectangle the same way parseLevel does, and — as of this
+// writing — LEVEL_1_LAYOUT's only all-'.' row is interior (between content
+// rows), so content-cropping (exportLayout's job) removes nothing.
+const EXPECTED_EXPORT_TEXT = importLayout(LEVEL_1_LAYOUT)
+  .map((row) => `  '${row.join('')}',`)
   .join('\n');
 
 async function openExportDialog() {
