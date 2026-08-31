@@ -7,6 +7,7 @@ import { updatePanOffset, type PanOffset } from './EditorPan';
 import type { TileChar } from '../level/LevelParser';
 import { LEVEL_1_LAYOUT, currentLayout } from '../level/level';
 import { editorLevelSignal, editorSelectedToolSignal } from './editorLevelState';
+import { resetGameProgress } from '../PlatformerState';
 import { loadImage } from '../engine/SpriteLoader';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import { Button } from '@/components/ui/button';
@@ -121,15 +122,24 @@ export const LevelEditorPage = () => {
    * Try (roadmap: editor/game round-trip): exports the current grid, sets it
    * as the in-memory layout the GAME reads (`level.ts`'s `currentLayout` —
    * deliberately NOT this editor's own localStorage-backed signal, see its
-   * doc comment), switches the active theme to Platformer, and navigates
-   * client-side (no real reload — a reload would discard `currentLayout`
-   * back to the hardcoded default before the game ever saw it) straight into
-   * the game with its debug panel visible (`?debug=1` — matches
-   * PlatformerPage.tsx's `debugControls` gate, any `debug` param shows it) so
-   * Kill/Respawn/Hitboxes are immediately available for testing the layout.
+   * doc comment), then calls `resetGameProgress()` — REQUIRED, not optional:
+   * `enemyStates`/`blockStates`/`chestStates`/`bonusFruitStates` are plain
+   * signals seeded once at module load, not `computed()` signals reactive to
+   * `currentLayout`, so without this they'd keep pointing at whichever
+   * layout was active before, and a marker just added in the editor (e.g. a
+   * new enemy) would silently never appear when tried. This also clears any
+   * collected facts/coins from a previous Try session, so trying a layout is
+   * always a clean slate, not tainted by prior progress. Then switches the
+   * active theme to Platformer and navigates client-side (no real reload — a
+   * reload would discard `currentLayout` back to the hardcoded default
+   * before the game ever saw it) straight into the game with its debug panel
+   * visible (`?debug=1` — matches PlatformerPage.tsx's `debugControls` gate,
+   * any `debug` param shows it) so Kill/Respawn/Hitboxes are immediately
+   * available for testing the layout.
    */
   const tryLayout = () => {
     currentLayout.value = exportLayout(grid);
+    resetGameProgress();
     currentTheme.value = 'platformer';
     navigateTo('/?debug=1');
   };

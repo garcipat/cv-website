@@ -9,6 +9,7 @@ import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import { editorLevelSignal, editorSelectedToolSignal } from './editorLevelState';
 import { currentTheme } from '@/state/theme';
 import { currentPath } from '@/state/navigation';
+import { enemyPlacements, enemyStates, collectedFacts, collectedCollectibleIds } from '../PlatformerState';
 
 vi.mock('../engine/SpriteLoader', () => ({
   loadImage: vi.fn((src: string) => Promise.resolve({ src } as unknown as HTMLImageElement)),
@@ -301,5 +302,27 @@ describe('LevelEditorPage - Try button', () => {
     // URLSearchParams(window.location.search).has('debug')` — any `debug`
     // param shows it, so this must land on a URL satisfying that exactly.
     expect(currentPath.value).toBe('/?debug=1');
+  });
+
+  it('click-alsoResetsGameProgressSoStaleStateFromAnEarlierLayoutDoesNotLeakIn', async () => {
+    // Regression test: enemyStates/blockStates/chestStates/bonusFruitStates
+    // are all plain signals seeded once at module load, NOT computed signals
+    // reactive to currentLayout — only resetGame()/resetGameProgress()
+    // re-derives them. Without calling one of those, Try swapped
+    // currentLayout but left enemyStates (etc.) pointing at whatever layout
+    // was active before, so a marker just added in the editor (e.g. a new
+    // enemy) never actually appeared when tried. Also verifies progress
+    // (collected facts/coins) from a previous Try session doesn't leak into
+    // the next one — trying a layout should be a clean slate.
+    collectedFacts.value = [{ id: 'stale-fact', sectionId: 'courses', sectionLabel: 'Courses', data: {} as never, sourceType: 'enemy' }];
+    collectedCollectibleIds.value = new Set(['stale-coin']);
+    enemyStates.value = [];
+
+    render(<LevelEditorPage />);
+    await userEvent.click(screen.getByRole('button', { name: 'Try' }));
+
+    expect(enemyStates.value).toHaveLength(enemyPlacements.value.length);
+    expect(collectedFacts.value).toEqual([]);
+    expect(collectedCollectibleIds.value.size).toBe(0);
   });
 });
