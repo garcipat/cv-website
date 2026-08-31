@@ -97,8 +97,29 @@ describe('LevelEditorPage', () => {
     expect(writeText).toHaveBeenCalledWith(EXPECTED_EXPORT_TEXT);
   });
 
-  it('renders a Reset button that reloads the default layout after confirmation, discarding edits', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
+  it('clicking Reset opens an in-app confirmation dialog rather than resetting immediately', async () => {
+    render(<LevelEditorPage />);
+
+    const canvas = document.querySelector('canvas')!;
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
+    fireEvent.mouseDown(canvas, { button: 0, clientX: 1, clientY: 1 });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Reset' }));
+
+    expect(
+      await screen.findByRole('heading', { name: /reset the level/i }),
+    ).toBeInTheDocument();
+    // Not reset yet — only the confirmation dialog opened.
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() =>
+      expect(screen.queryByRole('heading', { name: /reset the level/i })).not.toBeInTheDocument(),
+    );
+    await openExportDialog();
+    const textarea = (await screen.findByTestId('export-output')) as HTMLTextAreaElement;
+    expect(textarea.value).not.toBe(EXPECTED_EXPORT_TEXT);
+  });
+
+  it('confirming the in-app Reset dialog reloads the default layout, discarding edits', async () => {
     render(<LevelEditorPage />);
 
     const canvas = document.querySelector('canvas')!;
@@ -114,15 +135,17 @@ describe('LevelEditorPage', () => {
     await waitFor(() => expect(screen.queryByTestId('export-output')).not.toBeInTheDocument());
 
     await userEvent.click(screen.getByRole('button', { name: 'Reset' }));
-    expect(window.confirm).toHaveBeenCalled();
+    await userEvent.click(await screen.findByRole('button', { name: 'Reset level' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('heading', { name: /reset the level/i })).not.toBeInTheDocument(),
+    );
 
     await openExportDialog();
     const resetTextarea = (await screen.findByTestId('export-output')) as HTMLTextAreaElement;
     expect(resetTextarea.value).toBe(EXPECTED_EXPORT_TEXT);
   });
 
-  it('does not reset when the confirmation is declined', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
+  it('does not reset when the confirmation dialog is cancelled', async () => {
     render(<LevelEditorPage />);
 
     const canvas = document.querySelector('canvas')!;
@@ -130,6 +153,10 @@ describe('LevelEditorPage', () => {
     fireEvent.mouseDown(canvas, { button: 0, clientX: 1, clientY: 1 });
 
     await userEvent.click(screen.getByRole('button', { name: 'Reset' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Cancel' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('heading', { name: /reset the level/i })).not.toBeInTheDocument(),
+    );
 
     await openExportDialog();
     const textarea = (await screen.findByTestId('export-output')) as HTMLTextAreaElement;
@@ -216,9 +243,8 @@ describe('LevelEditorPage - debounced localStorage sync (editorLevelSignal)', ()
     expect(editorLevelSignal.value).not.toEqual(defaultGrid);
   });
 
-  it('reset-afterConfirmation-alsoResetsEditorLevelSignalBackToTheDefaultLayout', () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-    vi.useFakeTimers();
+  it('reset-afterConfirmation-alsoResetsEditorLevelSignalBackToTheDefaultLayout', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     render(<LevelEditorPage />);
     const canvas = document.querySelector('canvas')!;
 
@@ -229,6 +255,7 @@ describe('LevelEditorPage - debounced localStorage sync (editorLevelSignal)', ()
     expect(editorLevelSignal.value).not.toEqual(defaultGrid);
 
     fireEvent.click(screen.getByRole('button', { name: 'Reset' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Reset level' }));
 
     expect(editorLevelSignal.value).toEqual(defaultGrid);
   });
