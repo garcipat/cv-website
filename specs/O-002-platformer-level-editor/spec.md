@@ -271,6 +271,7 @@ On mount, `LevelEditorPage` calls a new pure function `importLayout(layout: read
 
 - **FR-022**: System MUST provide a pure function `exportLayout(grid: TileChar[][]): readonly string[]` that first crops `grid` to the tightest bounding box containing every non-`.` cell, then joins each row of that cropped region's characters into one string per row, in the exact shape `parseLevel` expects (equal-length rows, top row first). If no non-`.` cell exists, it returns `['.']`.
 - **FR-023**: System MUST display the current export output in a read-only text area, updated live as the grid changes (or on demand — implementation's choice of live vs. on-click is not constrained further), plus a button that copies the exact displayed text to the clipboard.
+- **FR-023a**: System MUST provide a Reset control that reloads the grid from `LEVEL_1_LAYOUT` (discarding all in-progress edits) and resets `panOffset` to `{x: 0, y: 0}`, gated behind a confirmation prompt — unlike every other action in the editor (which never confirms), a full reset discards the entire session's work in one click, not just one cell.
 
 #### TypeScript
 
