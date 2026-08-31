@@ -194,10 +194,17 @@ export function stepPlayerPhysics(
         }
       }
     }
+    // Clamp so the player's feet can never rise above row 0 (the level's
+    // topmost row) — without this, holding Up while climbing at the very
+    // top row overshoots into out-of-bounds territory (Terrain.ts's
+    // tileAt returns 'empty' there), ending climbing while floating above
+    // any solid ground and causing a long fall (roadmap step 23 follow-up).
+    const minClimbY = -PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING + 1; // feetRow >= 0
+    const climbY = Math.max(player.y + vy * dt, minClimbY);
     return {
       ...player,
       x: climbX,
-      y: player.y + vy * dt,
+      y: climbY,
       vx,
       vy,
       facing,
