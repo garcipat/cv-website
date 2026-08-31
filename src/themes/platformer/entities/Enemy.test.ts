@@ -1,13 +1,20 @@
 import {
   ENEMY_FRAME_SIZE,
   ENEMY_RENDERED_SIZE,
+  ENEMY_RENDER_SCALE,
+  ENEMY_PATROL_SPEED_MULTIPLIER,
+  ENEMY_HIT_POINTS,
   enemyFrameSource,
   toEnemyState,
   advanceEnemyAnimation,
   applyStomp,
+  enemyRenderedSize,
+  enemyTileOffsetX,
+  enemyTileOffsetY,
 } from './Enemy';
 import type { EnemyState } from './Enemy';
 import type { EnemyPlacement } from '../level/EnemyMapper';
+import { RENDER_SCALE, RENDERED_TILE_SIZE } from '../level/Terrain';
 
 function makePlacement(): EnemyPlacement {
   return {
@@ -81,10 +88,10 @@ describe('toEnemyState', () => {
     expect(state.hitTimer).toBe(0);
   });
 
-  it('purpleSlime-startsWithTwoHitPoints', () => {
+  it('purpleSlime-startsWithThreeHitPoints', () => {
     const purplePlacement = { ...makePlacement(), spriteType: 'slimePurple' as const };
     const state = toEnemyState(purplePlacement);
-    expect(state.hitPoints).toBe(2);
+    expect(state.hitPoints).toBe(3);
   });
 });
 
@@ -163,10 +170,49 @@ describe('applyStomp', () => {
     expect(next.hitPoints).toBe(0);
   });
 
-  it('purpleSlimeWithTwoHitPoints-decrementsToOne', () => {
+  it('purpleSlimeWithThreeHitPoints-decrementsToTwo', () => {
     const purplePlacement = { ...makePlacement(), spriteType: 'slimePurple' as const };
     const state = toEnemyState(purplePlacement);
     const next = applyStomp(state);
-    expect(next.hitPoints).toBe(1);
+    expect(next.hitPoints).toBe(2);
+  });
+});
+
+describe('per-spriteType enemy config', () => {
+  it('enemyRenderedSize-slimePurple-is1point5xGreen', () => {
+    expect(enemyRenderedSize('slimePurple')).toBe(ENEMY_FRAME_SIZE * RENDER_SCALE * 1.5);
+    expect(enemyRenderedSize('slimeGreen')).toBe(ENEMY_FRAME_SIZE * RENDER_SCALE);
+  });
+
+  it('enemyTileOffsetX-slimePurple-centersLargerSpriteOnTile', () => {
+    const size = enemyRenderedSize('slimePurple');
+    expect(enemyTileOffsetX('slimePurple')).toBe((RENDERED_TILE_SIZE - size) / 2);
+  });
+
+  it('enemyTileOffsetY-slimePurple-bottomAnchorsLargerSprite', () => {
+    const size = enemyRenderedSize('slimePurple');
+    expect(enemyTileOffsetY('slimePurple')).toBe(RENDERED_TILE_SIZE - size);
+  });
+
+  it('patrolSpeedMultiplier-slimePurple-isSlowerThanGreen', () => {
+    expect(ENEMY_PATROL_SPEED_MULTIPLIER.slimePurple).toBeLessThan(ENEMY_PATROL_SPEED_MULTIPLIER.slimeGreen);
+    expect(ENEMY_PATROL_SPEED_MULTIPLIER.slimePurple).toBe(0.7);
+  });
+
+  it('hitPoints-slimePurple-is3', () => {
+    expect(ENEMY_HIT_POINTS.slimePurple).toBe(3);
+    expect(ENEMY_HIT_POINTS.slimeGreen).toBe(1);
+  });
+
+  it('renderScale-slimePurple-is1point5', () => {
+    expect(ENEMY_RENDER_SCALE.slimePurple).toBe(1.5);
+    expect(ENEMY_RENDER_SCALE.slimeGreen).toBe(1);
+  });
+});
+
+describe('toEnemyState hitPoints (updated)', () => {
+  it('toEnemyState-slimePurple-hasThreeHitPoints', () => {
+    const placement = { id: 'e1', spriteType: 'slimePurple' as const, x: 0, y: 0 };
+    expect(toEnemyState(placement).hitPoints).toBe(3);
   });
 });
