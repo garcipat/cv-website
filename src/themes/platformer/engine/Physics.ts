@@ -166,9 +166,21 @@ export function stepPlayerPhysics(
 
   let climbing = player.climbing;
   let justEnteredClimbing = false;
+  let landedOnLaddersOwnTopTile = false;
   if (climbing) {
-    // Continue only while still over a ladder tile and not jump-cancelled.
-    climbing = onLadderNow && !input.jumpPressed;
+    const stillOnLadder = onLadderNow && !input.jumpPressed;
+    // Reached the very top of the shaft while still holding Up — nothing
+    // climbable in the row above (either out of bounds, or the row above
+    // simply isn't a ladder tile) — stand on the ladder's own topmost
+    // tile instead of hovering or falling (roadmap step 23 follow-up).
+    // This is a narrow, explicit exception, not a change to `isSolid`:
+    // a ladder tile is still never solid for any other purpose (walking
+    // into its side, dropping onto it from above, etc.) — only this one
+    // "climbed up into a dead end" transition treats it as landable.
+    if (stillOnLadder && climbUpHeld && !columnsAreClimbable(feetRow - 1)) {
+      landedOnLaddersOwnTopTile = true;
+    }
+    climbing = stillOnLadder;
   } else if (onLadderNow && (climbUpHeld || climbDownHeld) && player.vy >= 0) {
     // Fresh entry: overlapping a ladder column and pressing Up/Down. The
     // `player.vy >= 0` guard (roadmap step 23 follow-up) stops this from
@@ -189,6 +201,25 @@ export function stepPlayerPhysics(
     // bridge, which the character rests ON TOP of directly).
     climbing = true;
     justEnteredClimbing = true;
+  }
+
+  if (landedOnLaddersOwnTopTile) {
+    return {
+      ...player,
+      x,
+      y: player.y, // already exactly at the terminal tile — no snap needed
+      vx,
+      vy: 0,
+      facing,
+      grounded: true,
+      climbing: false,
+      isDroppingThroughBridge: false,
+      lastGroundedX: x,
+      lastGroundedY: player.y,
+      knockbackTimer: Math.max(0, player.knockbackTimer - dt),
+      bounceAscending: false,
+      hitBlockIds: [],
+    };
   }
 
   if (climbing) {
