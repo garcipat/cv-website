@@ -101,9 +101,10 @@ export interface EnemyState extends EnemyPlacement {
 
 /**
  * The enemy factory: converts a placed-but-static `EnemyPlacement` (which
- * already carries the CV fact this enemy drops on defeat — see
- * `EnemyMapper.ts`'s `certificateToEnemy`/`projectToEnemy`, unaffected by this
- * function) into its initial live patrol state: `'walk'` (patrol enemies are
+ * may carry the CV fact this enemy drops on defeat — see `EnemyMapper.ts`'s
+ * `courseToEnemy`; a "plain" enemy beyond its color's CVData course count has
+ * no fact and drops nothing — unaffected by this function) into its initial
+ * live patrol state: `'walk'` (patrol enemies are
  * always moving — see this file's top doc comment for why there's no
  * `'idle'`), facing right (the direction its very first patrol tick — see
  * EnemyAI.ts's stepEnemyPatrol — will move it, unless a wall or ledge

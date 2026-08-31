@@ -2385,5 +2385,39 @@ describe('PlatformerPage', () => {
 
       expect(hintTooltipState.value).toBeNull();
     });
+
+    it('playerDiesWhileTooltipShown-clearsImmediatelyInsteadOfFreezingThroughDeath', () => {
+      // Regression test for the startDeath() call-site clears (distinct from
+      // PlatformerState.test.ts's resetGame() clear test): without them, a
+      // revealed bubble stayed frozen on screen through the entire 'dying'
+      // animation and the 'awaitingRestart' wait, since the game loop's
+      // early-return for those phases never reaches the hint tick/transition
+      // block that would otherwise fade it out.
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+      render(<PlatformerPage />);
+      const sign = signPlacements.value[0];
+      playerState.value = { ...playerState.value, x: sign.x, y: sign.y };
+      fireEvent.keyDown(window, { code: 'ArrowUp' });
+      let t = 0;
+      frameCallback!(t);
+      for (let i = 0; i < 20; i++) {
+        t += 16;
+        frameCallback!(t);
+      }
+      expect(hintTooltipState.value?.phase).toBe('shown');
+
+      healthState.value = 0;
+      t += 16;
+      frameCallback!(t); // enters 'dying'
+
+      expect(lifecycleState.value.phase).toBe('dying');
+      expect(hintTooltipState.value).toBeNull();
+    });
   });
 });

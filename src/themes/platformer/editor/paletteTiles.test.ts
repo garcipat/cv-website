@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { PALETTE_TILE_SPRITES, PALETTE_TILE_LABELS } from './paletteTiles';
-import { TERRAIN_CHARS, ENTITY_CHARS } from '../level/LevelParser';
+import { TERRAIN_CHARS, ENTITY_CHARS, SIGN_CHARS } from '../level/LevelParser';
 import type { TileChar } from '../level/LevelParser';
 
 describe('PALETTE_TILE_SPRITES', () => {
-  it('has an entry for every TERRAIN_CHARS and ENTITY_CHARS key', () => {
-    const allKeys = [...Object.keys(TERRAIN_CHARS), ...Object.keys(ENTITY_CHARS)];
+  it('has an entry for every TERRAIN_CHARS, ENTITY_CHARS, and SIGN_CHARS key', () => {
+    const allKeys = [...Object.keys(TERRAIN_CHARS), ...Object.keys(ENTITY_CHARS), ...Object.keys(SIGN_CHARS)];
     for (const key of allKeys) {
       expect(Object.keys(PALETTE_TILE_SPRITES)).toContain(key);
     }
@@ -46,8 +46,12 @@ describe('PALETTE_TILE_SPRITES', () => {
 });
 
 describe('PALETTE_TILE_LABELS', () => {
-  it('has a non-empty label for every TERRAIN_CHARS and ENTITY_CHARS key', () => {
-    const allKeys = [...Object.keys(TERRAIN_CHARS), ...Object.keys(ENTITY_CHARS)] as TileChar[];
+  it('has a non-empty label for every TERRAIN_CHARS, ENTITY_CHARS, and SIGN_CHARS key', () => {
+    const allKeys = [
+      ...Object.keys(TERRAIN_CHARS),
+      ...Object.keys(ENTITY_CHARS),
+      ...Object.keys(SIGN_CHARS),
+    ] as TileChar[];
     for (const key of allKeys) {
       expect(PALETTE_TILE_LABELS[key]).toBeTruthy();
     }

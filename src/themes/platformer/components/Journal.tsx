@@ -423,7 +423,7 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
                         {collectiblesSummary(facts, {
                           coins: collectiblePlacements.value.filter((p) => p.spriteType === 'coin').length,
                           fruits: blockPlacements.value.filter((b) => b.blockKind === 'questionMark' && b.fact).length,
-                          enemies: enemyPlacements.value.length,
+                          enemies: enemyPlacements.value.filter((p) => p.fact).length,
                           crates: blockPlacements.value.filter((b) => b.blockKind === 'crate').length,
                           chests: chestPlacements.value.length,
                         }).map((row) => (

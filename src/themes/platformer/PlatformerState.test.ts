@@ -251,6 +251,18 @@ describe('PlatformerState', () => {
       resetGame();
       expect(cameraPositionY.value).toBe(0);
     });
+
+    it('calledWhileHintTooltipVisible-clearsHintTooltipState', () => {
+      // Regression test: a sign's hint bubble used to freeze on screen
+      // through the death animation, the awaitingRestart wait, and (since
+      // resetGame() never cleared it) flash once more at the new spawn
+      // point before the game-loop's own tick logic finally cleared it.
+      hintTooltipState.value = { hintId: 'bridgeDropThrough', phase: 'shown', elapsed: 0 };
+
+      resetGame();
+
+      expect(hintTooltipState.value).toBeNull();
+    });
   });
 });
 
