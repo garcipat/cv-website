@@ -28,10 +28,14 @@ beforeEach(() => {
 });
 
 describe('LevelEditorPage', () => {
-  it('shows an export textarea whose initial content is LEVEL_1_LAYOUT cropped to its content (SC-009 ruling — LEVEL_1_LAYOUT has one leading all-"." row that content-cropping always strips, even unedited)', () => {
+  it('shows an export textarea whose initial content is LEVEL_1_LAYOUT cropped to its content (SC-009 ruling — LEVEL_1_LAYOUT has one leading all-"." row that content-cropping always strips, even unedited), formatted as paste-ready quoted rows', () => {
     render(<LevelEditorPage />);
     const textarea = screen.getByTestId('export-output') as HTMLTextAreaElement;
-    expect(textarea.value).toBe(LEVEL_1_LAYOUT.slice(1).join('\n'));
+    expect(textarea.value).toBe(
+      LEVEL_1_LAYOUT.slice(1)
+        .map((row) => `  '${row}',`)
+        .join('\n'),
+    );
   });
 
   it('marks the export textarea read-only', () => {
@@ -51,7 +55,11 @@ describe('LevelEditorPage', () => {
     render(<LevelEditorPage />);
     screen.getByRole('button', { name: 'Copy Layout' }).click();
     await Promise.resolve();
-    expect(writeText).toHaveBeenCalledWith(LEVEL_1_LAYOUT.slice(1).join('\n'));
+    expect(writeText).toHaveBeenCalledWith(
+      LEVEL_1_LAYOUT.slice(1)
+        .map((row) => `  '${row}',`)
+        .join('\n'),
+    );
   });
 
   it('compensates panOffset by exactly -colShift * RENDERED_TILE_SIZE when a paint grows the grid leftward, so existing content does not visually move (spec SC-006)', async () => {
