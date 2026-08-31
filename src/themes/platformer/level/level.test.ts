@@ -10,6 +10,7 @@ import {
   QUESTIONMARK_TILES,
   FRAGILE_ROCK_TILES,
   CHEST_TILES,
+  SIGN_TILES,
 } from './level';
 import { isTopExposed, isSolid, isClimbable, isStandableLadderTop, tileAt } from './Terrain';
 
@@ -197,6 +198,19 @@ describe('CHEST_TILES', () => {
   });
 });
 
+describe('SIGN_TILES', () => {
+  it('level1Layout-hasExactlyOneBridgeDropThroughSign', () => {
+    expect(SIGN_TILES.value).toHaveLength(1);
+    expect(SIGN_TILES.value[0].hintId).toBe('bridgeDropThrough');
+  });
+
+  it('signMarker-sitsDirectlyAboveTheFirstBridgeNearSpawn', () => {
+    const [sign] = SIGN_TILES.value;
+    expect(currentLevel.value.terrain[sign.row][sign.col]).toBe('empty');
+    expect(currentLevel.value.terrain[sign.row + 1][sign.col]).toBe('bridge');
+  });
+});
+
 describe('currentLayout reactivity', () => {
   afterEach(() => {
     // currentLayout is module-level and deliberately NOT localStorage-backed
@@ -228,6 +242,7 @@ describe('currentLayout reactivity', () => {
     expect(QUESTIONMARK_TILES.value).toEqual([]);
     expect(FRAGILE_ROCK_TILES.value).toEqual([]);
     expect(CHEST_TILES.value).toEqual([]);
+    expect(SIGN_TILES.value).toEqual([]);
   });
 });
 

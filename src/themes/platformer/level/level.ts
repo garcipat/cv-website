@@ -10,6 +10,7 @@ import {
   findQuestionMarkTiles,
   findFragileRockTiles,
   findChestTiles,
+  findSignTiles,
 } from './LevelParser';
 
 // Visual layout of currentLevel — one character per tile (see LevelParser.ts's
@@ -125,7 +126,7 @@ export const LEVEL_1_LAYOUT: readonly string[] = [
   // off the platform onto the ladder needs no jump.
   '........PPPBBPPL...XQFXQF.......................................................',
   '................................................................................',
-  '.S....T...C.T.....C.......W.E..W....W.M....C.C..................................',
+  '.S.1..T...C.T.....C.......W.E..W....W.M....C.C..................................',
   'GGBBBGGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRR...RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
   'GG...GGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRR...RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
 ];
@@ -191,3 +192,9 @@ export const FRAGILE_ROCK_TILES = computed(() => findFragileRockTiles(currentLay
  *  remaining 3 Experience entries (the newest ones, after this batch's `D5`
  *  chest-ordering reversal) simply have no chest yet. */
 export const CHEST_TILES = computed(() => findChestTiles(currentLayout.value));
+
+/** Hand-placed hint-sign positions, from `currentLayout`'s digit markers
+ *  (`1`-`9`, see LevelParser.ts's SIGN_CHARS). Only one marker (`1`,
+ *  bridgeDropThrough) exists today — placed right above `currentLayout`'s
+ *  first ground-level pit bridge (spec.md FR-040). */
+export const SIGN_TILES = computed(() => findSignTiles(currentLayout.value));
