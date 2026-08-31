@@ -511,15 +511,41 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
 
 ## Iteration 3 — Controls (P3)
 
-- [ ] **25. Controls overlay** — a translucent overlay listing only universal
+- [x] **25. Controls overlay** — a translucent overlay listing only universal
   controls (movement, jump, journal toggle — see spec.md FR-036, deliberately
   trimmed of contextual mechanics like the bridge drop-through, which move to
-  step 26's hint signs instead) shows once when `gamePhase` first enters
-  `playing`. Auto-dismisses on the player's first movement/jump input, or a
-  short timeout, whichever comes first; does not reappear for the rest of the
-  session.
-  *Verify: load the theme, see the overlay; press an arrow key or wait out the
-  timeout, confirm it disappears and doesn't come back.*
+  step 26's hint signs instead) shows once `gamePhase` reaches `playing`.
+
+  **Redesigned live in the browser after initial implementation** (several
+  rounds of direct UX feedback, 2026-08-31), diverging from FR-036's original
+  wording in a few ways: no background panel (bigger real keycap sprite,
+  `public/sprites/controls_overlay_keys.png` — the arrow cluster in the real
+  inverted-T keyboard layout, a Space bar showing a dash glyph instead of
+  text, and a J key — generated via nano-banana on a magenta background and
+  processed by the new `scripts/chroma_key_sprite.py`), captions in the
+  game's arcade pixel font (`ByteBounce`/`RESTART_PROMPT_FONT_FAMILY`)
+  positioned directly under their matching key group rather than an evenly
+  spaced row, centered where collected-fact text already lands (~30vh,
+  matching `Renderer.ts`'s `midY` convention) instead of near the player.
+  Dismissal is purely distance-based — the player must actually travel
+  ~2 tiles from where they stood when it appeared (either direction), no
+  keypress or timeout trigger, so a visitor who never moves keeps seeing it
+  indefinitely, by design. Fades/slides in from the left on appearance and
+  out to the right on dismiss, at the player's own `walkSpeed`
+  (`PhysicsConfig.ts`) so the motion reads as the overlay "walking away"
+  with the character. Tried also showing it during the `intro` iris-in, but
+  reverted — the overlay rendered over the iris's still-mostly-black canvas
+  early in that animation, so it waits for `playing` instead. Still never
+  reappears for the rest of the session (via `controlsOverlayDismissed`, a
+  permanent module-level latch — see `PlatformerState.ts`), including across
+  a Reset Game or death/respawn.
+  *Verify: load the theme, see the overlay fade/slide in once `playing`
+  starts, with captions aligned under each matching key; walk left or right
+  about two tiles, confirm it fades/slides out and never reappears across a
+  respawn or Reset Game (a fresh page load starts a new session, so it's
+  expected to show again then); confirm holding still with no movement
+  leaves it visible indefinitely (no timeout); confirm captions translate
+  correctly with the locale switcher.*
 - [ ] **26. Hint signs** — a new non-solid, non-collectible `SignDef` entity
   (FR-037–FR-040), placed via a hand-authored level marker. Each distinct
   hint gets its own single-digit marker character (`1`–`9`, mapped directly

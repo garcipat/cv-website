@@ -165,6 +165,11 @@
     "endingScreen": {
       "thankYou": "Thank you for playing!",
       "continue": "Press any button to continue"
+    },
+    "controlsOverlay": {
+      "move": "Move",
+      "jump": "Jump",
+      "journal": "Journal"
     }
   }
 }
