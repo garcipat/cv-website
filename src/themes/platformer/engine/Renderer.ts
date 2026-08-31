@@ -1,5 +1,4 @@
 import {
-  isSolid,
   tileAt,
   isTopExposed,
   bridgeRunPosition,
@@ -119,7 +118,6 @@ export function drawTerrain(
   for (let row = 0; row < level.height; row++) {
     for (let col = 0; col < level.width; col++) {
       const tile = tileAt(level, col, row);
-      if (!isSolid(tile)) continue;
 
       const source = tileSource(level, tile, col, row);
       if (!source) continue;
