@@ -1,3 +1,5 @@
+import { RENDERED_TILE_SIZE } from '../level/Terrain';
+
 /**
  * Half-width (rendered px) of the centered band the player can move within
  * before the camera reacts. Tunable — bigger feels looser, smaller feels
@@ -43,6 +45,16 @@ export function updateCamera(
 export const CAMERA_DEAD_ZONE_HALF_HEIGHT = 96;
 
 /**
+ * Extra scroll room past the level's actual top edge (roadmap step 23
+ * follow-up), in rendered px — purely a feel tweak so reaching maximum
+ * vertical scroll doesn't read as an abrupt hard stop. Only ever applied
+ * on top of an already-positive `baseMaxCameraY` (see `updateCameraY`) — a
+ * level that fits the viewport must still get exactly 0, so this constant
+ * never causes scrolling on its own.
+ */
+export const CAMERA_TOP_OVERSCROLL = 2 * RENDERED_TILE_SIZE; // 64px
+
+/**
  * Computes the next vertical camera offset (roadmap step 23) — an ADDITIVE
  * amount on top of the existing bottom-anchor baseline
  * (`viewportHeight - levelPixelHeight`, unchanged since roadmap step 1),
@@ -75,6 +87,12 @@ export function updateCameraY(
     cameraY = deadZoneBottom - playerCenterY - originYBase;
   }
 
-  const maxCameraY = Math.max(0, levelPixelHeight - viewportHeight);
+  const baseMaxCameraY = Math.max(0, levelPixelHeight - viewportHeight);
+  // Small breathing room past the level's actual top edge so reaching max
+  // scroll doesn't feel like an abrupt hard stop (roadmap step 23 follow-
+  // up). Only added when the level already needs scrolling (baseMaxCameraY
+  // > 0) — a level that fits the viewport must still clamp to exactly 0,
+  // preserving the no-op guarantee verified below.
+  const maxCameraY = baseMaxCameraY > 0 ? baseMaxCameraY + CAMERA_TOP_OVERSCROLL : 0;
   return Math.min(Math.max(cameraY, 0), maxCameraY);
 }
