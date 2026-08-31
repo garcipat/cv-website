@@ -6,7 +6,7 @@ import { EditorCanvas, type EditorImages } from './EditorCanvas';
 import { updatePanOffset, type PanOffset } from './EditorPan';
 import type { TileChar } from '../level/LevelParser';
 import { LEVEL_1_LAYOUT, currentLayout } from '../level/level';
-import { editorLevelSignal } from './editorLevelState';
+import { editorLevelSignal, editorSelectedToolSignal } from './editorLevelState';
 import { loadImage } from '../engine/SpriteLoader';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import { Button } from '@/components/ui/button';
@@ -61,7 +61,15 @@ export const LevelEditorPage = () => {
   // dragged cell) stays snappy; the effect further down is what pushes it
   // back into the signal, debounced.
   const [grid, setGrid] = useState<TileChar[][]>(() => editorLevelSignal.value);
-  const [selectedTool, setSelectedTool] = useState<TileChar>('G');
+  // Seeded from editorSelectedToolSignal.value (localStorage-backed) the
+  // same way `grid` is seeded from editorLevelSignal above — a tool
+  // selection is a discrete click, not a hot drag path, so it's written
+  // straight through on every change rather than debounced.
+  const [selectedTool, setSelectedToolState] = useState<TileChar>(() => editorSelectedToolSignal.value);
+  const setSelectedTool = (tool: TileChar) => {
+    setSelectedToolState(tool);
+    editorSelectedToolSignal.value = tool;
+  };
   const [panOffset, setPanOffset] = useState<PanOffset>({ x: 0, y: 0 });
   const [images, setImages] = useState<EditorImages>(EMPTY_IMAGES);
   // In-app confirmation dialog for Reset — replaces a native `window.confirm()`,

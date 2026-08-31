@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { LevelEditorPage } from './LevelEditorPage';
 import { LEVEL_1_LAYOUT, currentLayout } from '../level/level';
 import { importLayout } from './importLayout';
 import { exportLayout } from './exportLayout';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
-import { editorLevelSignal } from './editorLevelState';
+import { editorLevelSignal, editorSelectedToolSignal } from './editorLevelState';
 import { currentTheme } from '@/state/theme';
 import { currentPath } from '@/state/navigation';
 
@@ -86,6 +86,23 @@ describe('LevelEditorPage', () => {
     render(<LevelEditorPage />);
     expect(screen.getByRole('toolbar', { name: 'Palette' })).toBeInTheDocument();
     expect(document.querySelector('canvas')).toBeInTheDocument();
+  });
+
+  it('selectingAPaletteTool-remountingThePage-stillHasThatToolSelected', () => {
+    const original = editorSelectedToolSignal.value;
+    try {
+      render(<LevelEditorPage />);
+      expect(screen.getByRole('button', { name: 'Ground Grass' })).toHaveAttribute('aria-pressed', 'true');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Enemy Green' }));
+      expect(screen.getByRole('button', { name: 'Enemy Green' })).toHaveAttribute('aria-pressed', 'true');
+
+      cleanup();
+      render(<LevelEditorPage />);
+      expect(screen.getByRole('button', { name: 'Enemy Green' })).toHaveAttribute('aria-pressed', 'true');
+    } finally {
+      editorSelectedToolSignal.value = original;
+    }
   });
 
   it('renders a Copy Layout button inside the dialog that writes the export text to the clipboard', async () => {
