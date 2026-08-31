@@ -231,6 +231,127 @@ describe('EditorCanvas', () => {
     expect(onPaint).toHaveBeenCalledTimes(2);
   });
 
+  it('paints every cell along a leftward drag that crosses a grid-growth boundary, with no gaps in the middle of the run', () => {
+    stubCanvasContext();
+    const onPaint = vi.fn();
+    const grid: TileChar[][] = [['.', '.', '.']];
+    const { container, rerender } = render(
+      <EditorCanvas
+        grid={grid}
+        selectedTool="R"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={onPaint}
+        onPan={() => {}}
+      />,
+    );
+    const canvas = container.querySelector('canvas')!;
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 0,
+    } as DOMRect);
+
+    // Start at col 1 (in-bounds) and drag left past the grid's left edge
+    // (col 0), through col -1 and col -2 — each of those triggers a
+    // one-column leftward grow, shifting panOffset by -RENDERED_TILE_SIZE.
+    // The component under test owns panOffset internally via re-renders in
+    // the real app; here we simulate the parent applying that compensation
+    // between moves, exactly as LevelEditorPage does.
+    let panOffset = { x: 0, y: 0 };
+    const rerenderWithPan = () => {
+      rerender(
+        <EditorCanvas
+          grid={grid}
+          selectedTool="R"
+          panOffset={panOffset}
+          images={EMPTY_IMAGES}
+          onPaint={onPaint}
+          onPan={() => {}}
+        />,
+      );
+    };
+
+    fireEvent.mouseDown(canvas, { button: 0, clientX: RENDERED_TILE_SIZE + 1, clientY: 1 });
+    expect(onPaint).toHaveBeenCalledTimes(1);
+
+    // Move to col 0 (still in bounds, no growth).
+    fireEvent.mouseMove(canvas, { button: 0, clientX: 1, clientY: 1 });
+    expect(onPaint).toHaveBeenCalledTimes(2);
+
+    // Move to col -1 — out of bounds, triggers a one-column leftward grow.
+    // The real parent (LevelEditorPage) would compensate panOffset by
+    // -RENDERED_TILE_SIZE at this point; simulate that here.
+    fireEvent.mouseMove(canvas, { button: 0, clientX: -RENDERED_TILE_SIZE + 1, clientY: 1 });
+    expect(onPaint).toHaveBeenCalledTimes(3);
+    panOffset = { x: -RENDERED_TILE_SIZE, y: 0 };
+    rerenderWithPan();
+
+    // Move further left to what was col -2 before growth; with panOffset
+    // now compensated, the same screen pixel maps to grid-index col -1 in
+    // the (already-grown) current grid space — another leftward grow.
+    fireEvent.mouseMove(canvas, { button: 0, clientX: -2 * RENDERED_TILE_SIZE + 1, clientY: 1 });
+    expect(onPaint).toHaveBeenCalledTimes(4);
+
+    fireEvent.mouseUp(canvas, { button: 0 });
+
+    // Every intermediate cell along the drag must have been painted — no
+    // dedup-skip should have dropped a cell from the middle of the run.
+    expect(onPaint).toHaveBeenCalledTimes(4);
+  });
+
+  it('paints every cell along an upward drag that crosses a grid-growth boundary, with no gaps in the middle of the run', () => {
+    stubCanvasContext();
+    const onPaint = vi.fn();
+    const grid: TileChar[][] = [['.'], ['.'], ['.']];
+    const { container, rerender } = render(
+      <EditorCanvas
+        grid={grid}
+        selectedTool="R"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={onPaint}
+        onPan={() => {}}
+      />,
+    );
+    const canvas = container.querySelector('canvas')!;
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 0,
+    } as DOMRect);
+
+    let panOffset = { x: 0, y: 0 };
+    const rerenderWithPan = () => {
+      rerender(
+        <EditorCanvas
+          grid={grid}
+          selectedTool="R"
+          panOffset={panOffset}
+          images={EMPTY_IMAGES}
+          onPaint={onPaint}
+          onPan={() => {}}
+        />,
+      );
+    };
+
+    fireEvent.mouseDown(canvas, { button: 0, clientX: 1, clientY: RENDERED_TILE_SIZE + 1 });
+    expect(onPaint).toHaveBeenCalledTimes(1);
+
+    fireEvent.mouseMove(canvas, { button: 0, clientX: 1, clientY: 1 });
+    expect(onPaint).toHaveBeenCalledTimes(2);
+
+    fireEvent.mouseMove(canvas, { button: 0, clientX: 1, clientY: -RENDERED_TILE_SIZE + 1 });
+    expect(onPaint).toHaveBeenCalledTimes(3);
+    panOffset = { x: 0, y: -RENDERED_TILE_SIZE };
+    rerenderWithPan();
+
+    fireEvent.mouseMove(canvas, { button: 0, clientX: 1, clientY: -2 * RENDERED_TILE_SIZE + 1 });
+    expect(onPaint).toHaveBeenCalledTimes(4);
+
+    fireEvent.mouseUp(canvas, { button: 0 });
+
+    expect(onPaint).toHaveBeenCalledTimes(4);
+  });
+
   it('calls onPan on a right-click drag and prevents the context menu', () => {
     stubCanvasContext();
     const onPan = vi.fn();

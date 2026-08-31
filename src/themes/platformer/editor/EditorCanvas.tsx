@@ -116,8 +116,15 @@ export const EditorCanvas = ({
       return;
     }
     const { col, row } = cellFromEvent(event.clientX, event.clientY);
-    dragRef.current = { mode: 'paint', lastCol: col, lastRow: row, lastX: 0, lastY: 0 };
-    onPaint(paintCell(grid, col, row, selectedTool));
+    const result = paintCell(grid, col, row, selectedTool);
+    dragRef.current = {
+      mode: 'paint',
+      lastCol: col + result.colShift,
+      lastRow: row + result.rowShift,
+      lastX: 0,
+      lastY: 0,
+    };
+    onPaint(result);
   };
 
   const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
@@ -134,8 +141,13 @@ export const EditorCanvas = ({
 
     const { col, row } = cellFromEvent(event.clientX, event.clientY);
     if (col === drag.lastCol && row === drag.lastRow) return;
-    dragRef.current = { ...drag, lastCol: col, lastRow: row };
-    onPaint(paintCell(grid, col, row, selectedTool));
+    const result = paintCell(grid, col, row, selectedTool);
+    dragRef.current = {
+      ...drag,
+      lastCol: col + result.colShift,
+      lastRow: row + result.rowShift,
+    };
+    onPaint(result);
   };
 
   const handleMouseUp = () => {
