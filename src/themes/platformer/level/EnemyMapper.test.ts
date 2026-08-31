@@ -37,9 +37,12 @@ describe('mapCVDataToEnemies', () => {
   });
 
   it('everyDef-carriesACoursesFactWithSourceTypeEnemy', () => {
+    // mapCVDataToEnemies always assigns a fact (courseToEnemy) — EnemyDef's
+    // `fact` is optional only for EnemyMapper.ts's placeEnemies-synthesized
+    // "plain" defs, never for CVData-derived ones.
     const defs = mapCVDataToEnemies(cv);
-    expect(defs.every((d) => d.fact.sectionId === 'courses')).toBe(true);
-    expect(defs.every((d) => d.fact.sourceType === 'enemy')).toBe(true);
+    expect(defs.every((d) => d.fact?.sectionId === 'courses')).toBe(true);
+    expect(defs.every((d) => d.fact?.sourceType === 'enemy')).toBe(true);
   });
 
   it('noCourses-returnsNoEnemies', () => {
@@ -49,13 +52,13 @@ describe('mapCVDataToEnemies', () => {
 
   it('everyFactId-matchesItsEnemyId', () => {
     const defs = mapCVDataToEnemies(cv);
-    expect(defs.every((d) => d.id === d.fact.id)).toBe(true);
+    expect(defs.every((d) => d.id === d.fact?.id)).toBe(true);
   });
 });
 
 describe('placeEnemies', () => {
-  it('enoughMarkersOfEachType-returnsPlacementsAtMarkedPositionsInDefsOrder', () => {
-    const defs = mapCVDataToEnemies(cv); // [green, purple, green]
+  it('enoughMarkersOfEachType-firstMarkersOfEachColorGetThatColorsDefsInOrder', () => {
+    const defs = mapCVDataToEnemies(cv); // [green0, purple0, green1]
     const greenMarkers = [
       { col: 5, row: 2 },
       { col: 6, row: 2 },
@@ -63,10 +66,13 @@ describe('placeEnemies', () => {
     const purpleMarkers = [{ col: 8, row: 2 }];
     const placed = placeEnemies(defs, { slimeGreen: greenMarkers, slimePurple: purpleMarkers });
 
-    expect(placed.map((p) => p.id)).toEqual(defs.map((d) => d.id));
-    expect(placed[0]).toMatchObject(tileToPixel(greenMarkers[0].col, greenMarkers[0].row));
-    expect(placed[1]).toMatchObject(tileToPixel(purpleMarkers[0].col, purpleMarkers[0].row));
-    expect(placed[2]).toMatchObject(tileToPixel(greenMarkers[1].col, greenMarkers[1].row));
+    const green = placed.filter((p) => p.spriteType === 'slimeGreen');
+    const purple = placed.filter((p) => p.spriteType === 'slimePurple');
+    expect(green.map((p) => p.id)).toEqual([defs[0].id, defs[2].id]);
+    expect(purple.map((p) => p.id)).toEqual([defs[1].id]);
+    expect(green[0]).toMatchObject(tileToPixel(greenMarkers[0].col, greenMarkers[0].row));
+    expect(green[1]).toMatchObject(tileToPixel(greenMarkers[1].col, greenMarkers[1].row));
+    expect(purple[0]).toMatchObject(tileToPixel(purpleMarkers[0].col, purpleMarkers[0].row));
   });
 
   it('greenMarkersConsumedInReadingOrder-secondGreenDefGetsSecondMarker', () => {
@@ -89,8 +95,8 @@ describe('placeEnemies', () => {
       slimePurple: [{ col: 2, row: 0 }],
     });
 
-    // Only the first green def had a marker — the rest aren't on the map
-    // yet, not an error (see placeEnemies's doc comment).
+    // Only the first green def had a marker — the second green def's fact
+    // simply has no enemy yet, not an error (see placeEnemies's doc comment).
     expect(placed.filter((p) => p.spriteType === 'slimeGreen')).toHaveLength(1);
     expect(placed.filter((p) => p.spriteType === 'slimePurple')).toHaveLength(1);
     expect(placed).toHaveLength(2);
@@ -114,5 +120,38 @@ describe('placeEnemies', () => {
   it('noMarkersAtAll-noDefs-returnsEmptyArray', () => {
     const defs = mapCVDataToEnemies({ ...cv, courses: [] });
     expect(placeEnemies(defs, { slimeGreen: [], slimePurple: [] })).toEqual([]);
+  });
+
+  describe('markers beyond that color\'s def count (amended 2026-08-31: enemies are no longer capped)', () => {
+    it('moreGreenMarkersThanGreenDefs-excessMarkerStillPlacedAsAPlainEnemy', () => {
+      const defs = mapCVDataToEnemies(cv); // 2 slimeGreen defs, 1 slimePurple def
+      const greenMarkers = [
+        { col: 1, row: 0 },
+        { col: 2, row: 0 },
+        { col: 3, row: 0 }, // beyond the 2 green defs
+      ];
+      const placed = placeEnemies(defs, { slimeGreen: greenMarkers, slimePurple: [] });
+
+      const green = placed.filter((p) => p.spriteType === 'slimeGreen');
+      expect(green).toHaveLength(3);
+      expect(green[2].fact).toBeUndefined();
+      expect(green[2]).toMatchObject(tileToPixel(3, 0));
+    });
+
+    it('plainEnemy-hasAStableIdDerivedFromItsPositionNotACVDataFact', () => {
+      const placed = placeEnemies([], { slimeGreen: [{ col: 7, row: 4 }], slimePurple: [] });
+      expect(placed).toHaveLength(1);
+      expect(placed[0].id).toBe('enemy-plain-slimeGreen-7-4');
+      expect(placed[0].fact).toBeUndefined();
+    });
+
+    it('noCVDataAtAll-everyMarkerStillPlacedAsPlainEnemies', () => {
+      const placed = placeEnemies([], {
+        slimeGreen: [{ col: 1, row: 0 }],
+        slimePurple: [{ col: 2, row: 0 }],
+      });
+      expect(placed).toHaveLength(2);
+      expect(placed.every((p) => p.fact === undefined)).toBe(true);
+    });
   });
 });
