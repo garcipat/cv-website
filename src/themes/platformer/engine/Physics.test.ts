@@ -1051,3 +1051,30 @@ describe('stepPlayerPhysics climbing past the level top', () => {
     expect(next.y).toBeCloseTo(minClimbY);
   });
 });
+
+describe('stepPlayerPhysics climbing re-entry guard after jump-cancel (roadmap step 23 follow-up)', () => {
+  it('freshEntryHeldWhileAscendingFromAJump-doesNotReEnterClimbing', () => {
+    // Simulates the frame right after a jump-cancel: still overlapping the
+    // ladder, still ascending (vy very negative from the jump impulse),
+    // Up still held — must NOT re-enter climbing.
+    const player = basePlayer({ x: 0, y: 20, vy: -400, grounded: false, climbing: false });
+
+    const next = stepPlayerPhysics(player, LADDER_LEVEL, 1 / 60, { climbUpHeld: true });
+
+    expect(next.climbing).toBe(false);
+  });
+
+  it('freshEntryWhileAtRest-stillEntersClimbingNormally', () => {
+    // Sanity check: the new vy>=0 guard must not break the ORIGINAL entry
+    // case (vy=0, not mid-jump) — mirrors the plan's own
+    // 'onLadderTile-climbUpHeld-entersClimbingAndMovesUpwardAtClimbSpeed'
+    // test, which already exercises this exact scenario and must keep
+    // passing unmodified; this test exists to make the vy>=0 boundary
+    // explicit rather than relying on that other test alone.
+    const player = basePlayer({ x: 0, y: 20, vy: 0, grounded: false, climbing: false });
+
+    const next = stepPlayerPhysics(player, LADDER_LEVEL, 1 / 60, { climbUpHeld: true });
+
+    expect(next.climbing).toBe(true);
+  });
+});

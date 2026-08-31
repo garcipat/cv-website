@@ -169,8 +169,16 @@ export function stepPlayerPhysics(
   if (climbing) {
     // Continue only while still over a ladder tile and not jump-cancelled.
     climbing = onLadderNow && !input.jumpPressed;
-  } else if (onLadderNow && (climbUpHeld || climbDownHeld)) {
-    // Fresh entry: overlapping a ladder column and pressing Up/Down.
+  } else if (onLadderNow && (climbUpHeld || climbDownHeld) && player.vy >= 0) {
+    // Fresh entry: overlapping a ladder column and pressing Up/Down. The
+    // `player.vy >= 0` guard (roadmap step 23 follow-up) stops this from
+    // immediately re-triggering the very next frame after a jump-cancel
+    // off a ladder — right after cancelling, the player is still briefly
+    // overlapping the same row while ascending under the jump impulse; if
+    // Up is still held (edge-triggered `jumpPressed` is already consumed
+    // by then), this branch would otherwise fire again and undo the jump.
+    // Entering while already falling or at rest (vy >= 0) is unaffected —
+    // grabbing the ladder while falling past it still works normally.
     climbing = true;
     justEnteredClimbing = true;
   } else if (player.grounded && climbDownHeld && columnsAreClimbable(feetRow + 1)) {
