@@ -19,6 +19,7 @@ import {
   chestPlacements,
   chestStates,
   endingScreenShown,
+  controlsOverlayDismissed,
 } from './PlatformerState';
 import { mapCVDataToEnemies } from './level/EnemyMapper';
 import { currentCV } from '@/state/locale';
@@ -295,6 +296,10 @@ describe('resetGameProgress', () => {
     endingScreenShown.value = true;
     resetGameProgress();
     expect(endingScreenShown.value).toBe(false);
+  });
+
+  it('controlsOverlayDismissed-initial-isFalse', () => {
+    expect(controlsOverlayDismissed.value).toBe(false);
   });
 });
 
