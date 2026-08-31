@@ -31,8 +31,8 @@ export const PHYSICS_CONFIG = {
    */
   enemyPatrolSpeed: 60,
   /**
-   * Constant vertical speed while climbing a ladder (roadmap step 23), in
-   * px/s, in either direction — slower than horizontal walkSpeed (200) so
+   * Constant vertical speed while climbing a ladder, in px/s, in either
+   * direction — slower than horizontal walkSpeed (200) so
    * climbing reads as deliberate effort rather than matching normal
    * movement pace. Same tunneling invariant as the other velocity constants:
    * `climbSpeed * MAX_DT` must stay below RENDERED_TILE_SIZE (32px):
@@ -57,26 +57,22 @@ export const PHYSICS_CONFIG = {
    */
   jumpCutMultiplier: 0.45,
   /**
-   * Upward velocity impulse applied to the player immediately after a stomp
-   * (roadmap step 18), in px/s (negative = up) — noticeably WEAKER than a
-   * normal jump (`jumpVelocity`, -520), a small hop rather than a launch.
-   * Tuning history (all live with the user): -400/-480/-560 were all
-   * silently capped to ~45% of their configured value by a jump-cut bug
-   * (see `PlayerState.bounceAscending`'s fix) so none of them actually
-   * manifested at their real height; -900 and -600, tuned AFTER that fix
-   * against the corrected physics, both still read as too much ("double
-   * jump height" and "still too much" respectively) — -600 * 0.55 ≈ -330,
-   * landing in the "50-60% of -600" range asked for last. Peak height ≈
-   * 330²/(2*1200) ≈ 45.4px (~1.4 tiles), well under half of
-   * `jumpVelocity`'s own ≈112.7px peak. Same tunneling invariant as the
-   * other velocity constants applies: `Math.abs(stompBounceVelocity) *
-   * MAX_DT` must stay below RENDERED_TILE_SIZE (32px): Math.abs(-330) *
-   * (1/30) = 11 < 32. ✓
+   * Upward velocity impulse applied to the player immediately after a
+   * stomp, in px/s (negative = up) — noticeably WEAKER than a normal jump
+   * (`jumpVelocity`, -520), a small hop rather than a launch. Without
+   * `PlayerState.bounceAscending` protecting it (see Physics.ts), the
+   * variable-jump-height cut would silently shear this down to ~45% of its
+   * configured value, so this magnitude must be read against the corrected
+   * physics, not the pre-fix behavior. Peak height ≈ 330²/(2*1200) ≈ 45.4px
+   * (~1.4 tiles), well under half of `jumpVelocity`'s own ≈112.7px peak.
+   * Same tunneling invariant as the other velocity constants applies:
+   * `Math.abs(stompBounceVelocity) * MAX_DT` must stay below
+   * RENDERED_TILE_SIZE (32px): Math.abs(-330) * (1/30) = 11 < 32. ✓
    */
   stompBounceVelocity: -330,
   /**
-   * Horizontal knockback speed applied to the player on a side-hit (roadmap
-   * step 19), in px/s, away from the enemy that hit them — deliberately
+   * Horizontal knockback speed applied to the player on a side-hit, in
+   * px/s, away from the enemy that hit them — deliberately
    * faster than `walkSpeed` (200) so the push reads as forceful even if the
    * player is holding a direction key toward the enemy. Same tunneling
    * invariant as the other velocity constants: `sideHitKnockbackVx * MAX_DT`

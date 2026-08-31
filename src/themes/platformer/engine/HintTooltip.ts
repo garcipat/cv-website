@@ -1,12 +1,12 @@
 import type { HintId } from '../types';
 
 /**
- * Grow+fade animation state for the hint-sign tooltip (roadmap step 26,
- * live UX feedback: "the bubble should be shown from bottom to top like the
- * sign is starting to talk... and disappears the same way") — mirrors the
- * phase/elapsed shape `engine/CollectionEffects.ts`'s `FlightEffect` already
- * uses for the fact-flight text animation, generalized here to just two
- * transitions instead of three.
+ * Grow+fade animation state for the hint-sign tooltip — the bubble grows
+ * from bottom to top like the sign is starting to talk, and collapses the
+ * same way when it disappears. Mirrors the phase/elapsed shape
+ * `engine/CollectionEffects.ts`'s `FlightEffect` already uses for the
+ * fact-flight text animation, generalized here to just two transitions
+ * instead of three.
  */
 export type HintTooltipPhase = 'entering' | 'shown' | 'exiting';
 
@@ -26,9 +26,9 @@ export interface HintTooltipState {
 export const HINT_TOOLTIP_FADE_IN_SECONDS = 0.2;
 export const HINT_TOOLTIP_FADE_OUT_SECONDS = 0.25;
 
-/** Starts a fresh tooltip in its 'entering' phase (roadmap step 26: only
- *  called once the player presses Up/`W` while overlapping a sign, not on
- *  mere overlap — see PlatformerPage.tsx). */
+/** Starts a fresh tooltip in its 'entering' phase — only called once the
+ *  player presses Up/`W` while overlapping a sign, not on mere overlap —
+ *  see PlatformerPage.tsx. */
 export function startHintTooltip(hintId: HintId): HintTooltipState {
   return { hintId, phase: 'entering', elapsed: 0 };
 }

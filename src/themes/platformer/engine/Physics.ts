@@ -25,8 +25,8 @@ import type { PlayerState } from '../entities/Player';
  * pressed — see `Input.ts`'s `consumePress`); `jumpHeld` is a level check
  * (true for every frame the key is down — see `Input.ts`'s `isHeld`). Both
  * default to `false`. `suppressJumpCut` is a one-off override for the frame a
- * stomp bounce (roadmap step 18) was just applied to `player.vy` before this
- * call — without it, the variable-jump-height cut below would immediately
+ * stomp bounce was just applied to `player.vy` before this call — without
+ * it, the variable-jump-height cut below would immediately
  * shrink the bounce impulse on the overwhelmingly common case where the jump
  * key isn't currently held, defeating the bounce almost entirely. Defaults to
  * `false`.
@@ -36,9 +36,9 @@ export interface PlayerInput {
   right?: boolean;
   jumpPressed?: boolean;
   jumpHeld?: boolean;
-  /** Held state of Up/`W` (roadmap step 23) — continuous, like movement,
-   *  not edge-triggered like `jumpPressed`: climbing is driven every frame
-   *  the key is down, not just once on press. */
+  /** Held state of Up/`W` — continuous, like movement, not edge-triggered
+   *  like `jumpPressed`: climbing is driven every frame the key is down,
+   *  not just once on press. */
   climbUpHeld?: boolean;
   dropThroughHeld?: boolean;
   suppressJumpCut?: boolean;
@@ -70,8 +70,8 @@ export function stepPlayerPhysics(
   input: PlayerInput = NO_INPUT,
   blockPlacements: readonly BlockPlacement[] = NO_BLOCKS,
 ): PlayerState {
-  // While a side-hit's knockback is still active (roadmap step 19), held
-  // movement keys are ignored entirely and the knockback velocity/facing set
+  // While a side-hit's knockback is still active, held movement keys are
+  // ignored entirely and the knockback velocity/facing set
   // by Player.ts's `applyKnockback` is held steady — otherwise this branch
   // would recompute `vx` from input every single frame (as it does normally)
   // and silently erase the knockback the instant this function next runs.
@@ -147,7 +147,7 @@ export function stepPlayerPhysics(
   const maxX = level.width * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_SIDE_PADDING;
   x = Math.max(-PLAYER_SIDE_PADDING, Math.min(x, maxX));
 
-  // Climbing (roadmap step 23, FR-006): checked against the row at the
+  // Climbing (FR-006): checked against the row at the
   // player's CURRENT (pre-vertical-move) feet position, using this frame's
   // already-resolved horizontal `x` — deliberately feet-only, not the whole
   // hitbox, so climbing ends almost exactly at the ladder's top edge instead
@@ -183,8 +183,8 @@ export function stepPlayerPhysics(
     climbing = onLadderNow && !input.jumpPressed;
   } else if (onLadderNow && (climbUpHeld || climbDownHeld) && player.vy >= 0) {
     // Fresh entry: overlapping a ladder column and pressing Up/Down. The
-    // `player.vy >= 0` guard (roadmap step 23 follow-up) stops this from
-    // immediately re-triggering the very next frame after a jump-cancel
+    // `player.vy >= 0` guard stops this from immediately re-triggering the
+    // very next frame after a jump-cancel
     // off a ladder — right after cancelling, the player is still briefly
     // overlapping the same row while ascending under the jump impulse; if
     // Up is still held (edge-triggered `jumpPressed` is already consumed
@@ -214,8 +214,8 @@ export function stepPlayerPhysics(
         }
       }
     }
-    // Climbing out at the top of the shaft (roadmap step 23 follow-up).
-    // Find the shaft's topmost tile from the feet's current row upward; if
+    // Climbing out at the top of the shaft. Find the shaft's topmost tile
+    // from the feet's current row upward; if
     // there's room to stand on it (`isStandableLadderTop` — nothing solid
     // directly above), that tile's top edge is where the climb ends: the
     // character climbs all the way THROUGH the top tile and stops with its
@@ -274,7 +274,7 @@ export function stepPlayerPhysics(
   }
 
   // Jump trigger (FR-006): a fixed upward impulse while grounded, OR while
-  // cancelling a climb (roadmap step 23) — climbing always reports
+  // cancelling a climb — climbing always reports
   // `grounded: false` above, so the plain grounded-only check would silently
   // swallow a jump press that's meant to cancel a climb.
   const climbJumpCancelled = player.climbing && Boolean(input.jumpPressed);
@@ -287,8 +287,8 @@ export function stepPlayerPhysics(
   vy = Math.min(vy + PHYSICS_CONFIG.gravity * dt, PHYSICS_CONFIG.terminalVelocity);
 
   if (player.climbing) {
-    // Just exited climbing this very frame (roadmap step 23) — either
-    // reached the ladder's top/walked off it under gravity, or cancelled
+    // Just exited climbing this very frame — either reached the ladder's
+    // top/walked off it under gravity, or cancelled
     // via jump (both are detected above; if execution reaches here, this
     // frame's `climbing` local is already false). The character's hitbox is
     // still positioned exactly where the climbing branch left it — right
@@ -327,10 +327,9 @@ export function stepPlayerPhysics(
   // `input.suppressJumpCut` (a single-tick override) is kept too for
   // whatever else might need it, but `bounceAscending` is what actually
   // protects a bounce: this cut re-applies EVERY tick the key isn't held,
-  // not just once, so a one-tick-only override left every later ascending
-  // frame of the SAME bounce unprotected and sheared it down to ~45% of its
-  // configured magnitude regardless of how large it was set (found via live
-  // testing).
+  // not just once, so a one-tick-only override would leave every later
+  // ascending frame of the SAME bounce unprotected and shear it down to
+  // ~45% of its configured magnitude regardless of how large it was set.
   const suppressJumpCutThisFrame = input.suppressJumpCut || player.bounceAscending;
   if (!input.jumpHeld && vy < 0 && !suppressJumpCutThisFrame) {
     vy *= PHYSICS_CONFIG.jumpCutMultiplier;
@@ -385,8 +384,7 @@ export function stepPlayerPhysics(
     // sprite's actual head, so this triggers when the VISIBLE head reaches
     // the tile, not when the top of the (mostly-empty) frame does.
     // Uses isSolidExcludingBridge (not isSolid) so `bridge` tiles are
-    // passable from underneath while remaining solid everywhere else
-    // (roadmap step 7).
+    // passable from underneath while remaining solid everywhere else.
     const headY = y + PLAYER_HEAD_PADDING;
     const headRow = Math.floor(headY / RENDERED_TILE_SIZE);
     let ceilingResolved = false;
@@ -413,8 +411,8 @@ export function stepPlayerPhysics(
     // bridge tiles the same way the ceiling check always does — everything
     // else (regular ground, platforms, walls) still catches the character.
     const groundIsSolid = droppingThroughBridge ? isSolidExcludingBridge : isSolid;
-    // A ladder shaft's topmost rung is solid from above (roadmap step 23
-    // follow-up) — that's what lets the character stand on top of a ladder
+    // A ladder shaft's topmost rung is solid from above — that's what lets
+    // the character stand on top of a ladder
     // after climbing out of the shaft, and catches it when it falls back
     // onto that spot. One-way, exactly like `bridge`: the rest of the shaft
     // stays fully passable, and nothing here makes a ladder block sideways
@@ -484,8 +482,8 @@ export function checkPitFall(player: PlayerState, level: LevelDef): boolean {
 /**
  * Recovers from a pit fall by snapping the character back to the last
  * position it was resting on solid ground (`lastGroundedX/Y`), rather than a
- * level spawn/checkpoint (that full-respawn behavior is roadmap step 10's
- * 0-heart case). Velocity is zeroed and `grounded` is set true so the very
+ * level spawn/checkpoint (that full-respawn behavior is the 0-heart case).
+ * Velocity is zeroed and `grounded` is set true so the very
  * next frame doesn't read as still-falling; `isDroppingThroughBridge` is
  * cleared since the character can't still be mid-drop-through after being
  * teleported back onto solid ground. `animState`/`animFrame`/`animTimer` are

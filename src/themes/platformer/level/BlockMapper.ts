@@ -80,13 +80,11 @@ function projectToBlock(project: Project): BlockDef {
 
 /**
  * Flattens CVData into one crate per Education entry, one per Activity
- * entry, and one per Language entry (spec.md FR-009, redesigned 2026-08-30 —
- * Experience moved off crates onto the new chest collectible, see
- * ChestMapper.ts; Activities and Languages moved on, closing two previously
- * unmapped gaps), plus one question-mark bonus-fruit def per Certificate and
- * per Project (unchanged since 2026-08-30's earlier amendment). `placeBlocks`
- * below zips crate/questionMark defs against their respective markers;
- * fragileRock markers still place directly with no def to zip against. Mirrors
+ * entry, and one per Language entry (spec.md FR-009 — Experience lives on
+ * the chest collectible instead, see ChestMapper.ts), plus one question-mark
+ * bonus-fruit def per Certificate and per Project. `placeBlocks` below zips
+ * crate/questionMark defs against their respective markers; fragileRock
+ * markers still place directly with no def to zip against. Mirrors
  * CollectibleMapper.ts's/EnemyMapper.ts's CVData-flattening pattern.
  */
 export function mapCVDataToBlocks(cv: CVData): BlockDef[] {
@@ -119,13 +117,11 @@ export interface BlockMarkerPositions {
  * zipped against `markers.crate`/`markers.questionMark` in reading order. A
  * question-mark marker beyond the available Certificate/Project defs (or
  * when there are none at all) still becomes a placement — just with no
- * `fact`, matching pre-2026-08-30 behavior — so a level marker is never
- * silently dropped for lack of data (amended 2026-08-30, live user feedback:
- * question-mark blocks now carry Certificates/Projects, moved off enemies —
- * see `mapCVDataToBlocks`'s comment). FragileRock blocks still have no CVData
- * mapping at all (spec.md FR-021's amendment) — every fragileRock marker becomes a
- * placement directly, with a position-derived id since there's no
- * CVData-derived one available.
+ * `fact` — so a level marker is never silently dropped for lack of data (see
+ * `mapCVDataToBlocks`'s comment). FragileRock blocks have no CVData mapping
+ * at all (spec.md FR-021) — every fragileRock marker becomes a placement
+ * directly, with a position-derived id since there's no CVData-derived one
+ * available.
  */
 export function placeBlocks(defs: BlockDef[], markers: BlockMarkerPositions): BlockPlacement[] {
   const placements: BlockPlacement[] = [];
@@ -156,8 +152,8 @@ export function placeBlocks(defs: BlockDef[], markers: BlockMarkerPositions): Bl
 /**
  * The id of the block placement occupying tile (col, row), if any — used by
  * Physics.ts to both treat the tile as solid AND report which specific block
- * a rising player's head just hit (roadmap step 21). `isBlockOccupied` below
- * is now a thin wrapper for call sites that only need the yes/no answer.
+ * a rising player's head just hit. `isBlockOccupied` below is a thin wrapper
+ * for call sites that only need the yes/no answer.
  */
 export function blockIdAt(
   blockPlacements: readonly BlockPlacement[],
@@ -174,8 +170,7 @@ export function blockIdAt(
  * Whether any block placement occupies tile (col, row) — used by
  * Physics.ts to treat block-occupied tiles as solid, the same way terrain
  * tiles already are, even though blocks aren't part of the terrain grid.
- * Added 2026-08-29 (pulled forward from roadmap step 21, per live user
- * feedback): every block is solid from every direction regardless of kind.
+ * Every block is solid from every direction regardless of kind.
  */
 export function isBlockOccupied(
   blockPlacements: readonly BlockPlacement[],

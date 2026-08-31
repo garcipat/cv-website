@@ -3,12 +3,11 @@ import type { ChestPlacement } from '../level/ChestMapper';
 
 /**
  * Native pixel dimensions of the two chest sprites (public/sprites/
- * chest_closed.png / chest_open.png), generated 2026-08-30 via nano-banana —
- * flat/front-facing 2D style matching the crate tile, non-square and
- * deliberately NOT the 16x16 block tile grid: a chest is a standalone placed
- * object, not wall-adjacent, so it doesn't need to tile (see spec.md's
- * Assumptions). Each is a standalone image file, not a sheet — no sx/sy
- * lookup needed, unlike Block.ts's blockFrameSource.
+ * chest_closed.png / chest_open.png) — flat/front-facing 2D style matching
+ * the crate tile, non-square and deliberately NOT the 16x16 block tile grid:
+ * a chest is a standalone placed object, not wall-adjacent, so it doesn't
+ * need to tile (see spec.md's Assumptions). Each is a standalone image file,
+ * not a sheet — no sx/sy lookup needed, unlike Block.ts's blockFrameSource.
  */
 export const CHEST_CLOSED_WIDTH = 28;
 export const CHEST_CLOSED_HEIGHT = 20;
@@ -17,10 +16,10 @@ export const CHEST_OPEN_HEIGHT = 20;
 
 // Rendered height is pinned to match the other in-game blocks/tiles
 // (RENDERED_TILE_SIZE) rather than a flat RENDER_SCALE multiplier — a flat
-// 2x multiplier made chests noticeably taller than the 32px blocks sitting
-// on the same terrain grid (live user feedback, 2026-08-30). Width stays
-// proportional to the shared scale factor, so it can legitimately be wider
-// than one tile — chests aren't meant to fit inside a single tile cell.
+// 2x multiplier would make chests noticeably taller than the 32px blocks
+// sitting on the same terrain grid. Width stays proportional to the shared
+// scale factor, so it can legitimately be wider than one tile — chests
+// aren't meant to fit inside a single tile cell.
 const CHEST_SPRITE_SCALE = RENDERED_TILE_SIZE / CHEST_CLOSED_HEIGHT;
 
 export const CHEST_CLOSED_RENDERED_WIDTH = CHEST_CLOSED_WIDTH * CHEST_SPRITE_SCALE;

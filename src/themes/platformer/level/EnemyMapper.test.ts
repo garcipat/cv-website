@@ -19,10 +19,9 @@ const cv: CVData = {
 
 describe('mapCVDataToEnemies', () => {
   it('called-returns-oneEnemyPerCourse-alternatingGreenAndPurpleByIndex', () => {
-    // Amended 2026-08-30 (live user feedback): Certificates + Projects moved
-    // off enemies entirely (now revealed by question-mark bonus fruit); both
-    // slime colors now guard the same Courses pool, split by index —
-    // see EnemyMapper.ts's courseToEnemy comment.
+    // Certificates and Projects are revealed by question-mark bonus fruit,
+    // not by enemies; both slime colors guard the same Courses pool, split
+    // by index — see EnemyMapper.ts's courseToEnemy comment.
     const defs = mapCVDataToEnemies(cv);
     expect(defs).toHaveLength(3);
     expect(defs[0].spriteType).toBe('slimeGreen');
@@ -122,7 +121,7 @@ describe('placeEnemies', () => {
     expect(placeEnemies(defs, { slimeGreen: [], slimePurple: [] })).toEqual([]);
   });
 
-  describe('markers beyond that color\'s def count (amended 2026-08-31: enemies are no longer capped)', () => {
+  describe('markers beyond that color\'s def count (enemies are not capped)', () => {
     it('moreGreenMarkersThanGreenDefs-excessMarkerStillPlacedAsAPlainEnemy', () => {
       const defs = mapCVDataToEnemies(cv); // 2 slimeGreen defs, 1 slimePurple def
       const greenMarkers = [

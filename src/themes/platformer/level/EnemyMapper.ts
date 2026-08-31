@@ -4,14 +4,12 @@ import type { CVData, Course } from '@/types/cv';
 import type { EnemyDef } from '../types';
 
 /**
- * Amended 2026-08-30 (live user feedback during step 21 verification):
- * Certificates + Projects moved OFF enemies entirely — they're now revealed
- * by the question-mark blocks' bonus fruit instead (see `BlockMapper.ts`'s
- * `certificateToBlock`/`projectToBlock`). Both slime types now guard the
- * same Courses pool, alternating by index so the pool is split roughly
- * evenly between the lightweight 1-hit green slime and the tougher 2-hit
- * purple slime, rather than Courses being green-only. See spec.md's FR-009
- * 2026-08-30 amendment.
+ * Certificates and Projects are revealed by the question-mark blocks' bonus
+ * fruit, not by enemies (see `BlockMapper.ts`'s
+ * `certificateToBlock`/`projectToBlock`). Both slime types guard the same
+ * Courses pool, alternating by index so the pool is split roughly evenly
+ * between the lightweight 1-hit green slime and the tougher 2-hit purple
+ * slime, rather than Courses being green-only. See spec.md's FR-009.
  */
 function courseToEnemy(course: Course, spriteType: EnemyDef['spriteType']): EnemyDef {
   const id = `enemy-course-${slugify(course.title)}`;
@@ -30,10 +28,9 @@ function courseToEnemy(course: Course, spriteType: EnemyDef['spriteType']): Enem
 
 /**
  * Flattens CVData into one enemy per course, alternating slimeGreen/
- * slimePurple by index (amended 2026-08-30 — see `courseToEnemy`'s comment).
- * Certificates/Projects no longer produce enemies at all. Mirrors
- * CollectibleMapper.ts's coin/fruit split (FR-009). An empty courses array
- * simply produces no enemies.
+ * slimePurple by index (see `courseToEnemy`'s comment). Certificates/Projects
+ * do not produce enemies. Mirrors CollectibleMapper.ts's coin/fruit split
+ * (FR-009). An empty courses array simply produces no enemies.
  */
 export function mapCVDataToEnemies(cv: CVData): EnemyDef[] {
   return cv.courses.map((course, index) =>
@@ -54,9 +51,8 @@ export interface EnemyMarkerPositions {
 }
 
 /**
- * Every marker on the map becomes an enemy — placement is no longer capped
- * at CVData's length (amended 2026-08-31, live user feedback: "the enemies
- * should not be capped, just the first enemies should reveal CVData"). A
+ * Every marker on the map becomes an enemy — placement is not capped at
+ * CVData's length; only the first enemies of each color reveal CVData. A
  * marker beyond its color's def count still places a fully functional,
  * killable enemy — it just has no `fact` to award (see `EnemyDef.fact`'s
  * doc comment), same convention `BlockMapper.ts`'s question-mark/

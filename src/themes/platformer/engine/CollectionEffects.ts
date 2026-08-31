@@ -24,9 +24,8 @@ export interface FlightEffect {
    * symbol) shown alongside `text`. Kept separate rather than baked into
    * `text` because Renderer.ts draws it with a different font: the pixel
    * font `text` uses has no emoji glyphs, so an emoji concatenated into the
-   * same string silently failed to render (canvas `fillText` doesn't fall
-   * back to a system emoji font the way DOM text does) — see this field's
-   * addition for the fix. */
+   * same string would silently fail to render (canvas `fillText` doesn't
+   * fall back to a system emoji font the way DOM text does). */
   icon?: string;
   startX: number;
   startY: number;
@@ -104,15 +103,14 @@ export function flightEffectPosition(effect: FlightEffect): { x: number; y: numb
 }
 
 /** Seconds the "(icon) collected / total" counter popup stays fully visible
- *  before fading, and the total seconds until it's gone — trialing a
- *  per-collection running-count popup in place of the old persistent HUD
- *  counters (removed 2026-08-30, live user feedback: too much clutter at the
- *  top). Sized so the popup's total lifetime (HOLD + FADE) slightly exceeds
- *  the fact-flight text's own total lifetime (RISE_DURATION_SECONDS +
- *  HOLD_DURATION_SECONDS + FLIGHT_DURATION_SECONDS = 2.0s) — it used to be
- *  noticeably shorter (1.4s total), so the counter disappeared well before
- *  the flight text below it was done, which read as vanishing too fast (live
- *  user feedback, 2026-08-30). */
+ *  before fading, and the total seconds until it's gone — a per-collection
+ *  running-count popup shown near the collection point rather than a
+ *  persistent HUD counter, to avoid clutter at the top. Sized so the popup's
+ *  total lifetime (HOLD + FADE) slightly exceeds the fact-flight text's own
+ *  total lifetime (RISE_DURATION_SECONDS + HOLD_DURATION_SECONDS +
+ *  FLIGHT_DURATION_SECONDS = 2.0s), so the counter doesn't disappear before
+ *  the flight text below it is done, which would read as vanishing too
+ *  fast. */
 export const COUNTER_POPUP_HOLD_SECONDS = 1.7;
 export const COUNTER_POPUP_FADE_SECONDS = 0.4;
 export const COUNTER_POPUP_DURATION_SECONDS = COUNTER_POPUP_HOLD_SECONDS + COUNTER_POPUP_FADE_SECONDS;
@@ -127,10 +125,9 @@ export type CounterPopupLabelKey = 'coins' | 'fruits' | 'enemies' | 'crates';
  * restarted) rather than queuing a second one, but collecting a coin and a
  * fruit close together shows both side by side, since they're genuinely
  * different information (unlike the fact-flight text's rotating slots, which
- * exist purely to avoid overlapping the SAME kind of text). Per user
- * request, 2026-08-30. Drawn at a fixed screen position above the
- * fact-flight text's stacked slots (see PlatformerPage.tsx/Renderer.ts), not
- * tied to the collection point.
+ * exist purely to avoid overlapping the SAME kind of text). Drawn at a fixed
+ * screen position above the fact-flight text's stacked slots (see
+ * PlatformerPage.tsx/Renderer.ts), not tied to the collection point.
  */
 export interface CounterPopupEffect {
   labelKey: CounterPopupLabelKey;
