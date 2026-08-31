@@ -105,7 +105,7 @@ import {
 // 12) rather than spread across the level — see CHEST_TILES's doc comment
 // below for the full reasoning (same mechanics-test-level convention as
 // this file's other collectible/enemy marker counts).
-const LEVEL_1_LAYOUT: readonly string[] = [
+export const LEVEL_1_LAYOUT: readonly string[] = [
   // --- Ladder shaft (roadmap step 23) — throwaway/replaceable placeholder
   // content, not final level design. Exists only to give this step a real
   // manual browser Verify for climbing: a short 4-rung shaft between the
