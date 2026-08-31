@@ -178,7 +178,16 @@ export const EditorCanvas = ({
     if (player && images.player) {
       drawPlayer(ctx, player, images.player, panOffset.x, panOffset.y, null, true);
     }
-  }, [grid, panOffset, images]);
+    // `canvasSize` is read only via `canvas.width`/`canvas.height` above,
+    // not referenced directly here — but it MUST stay a dependency.
+    // Changing a <canvas> element's width/height attribute clears its
+    // entire backing store (HTML spec), and React applies that attribute
+    // change on every canvasSize update from the ResizeObserver effect
+    // above. Without this dependency, a resize would blank the canvas and
+    // nothing would redraw it until some unrelated state change (a paint
+    // or pan) happened to run this effect again — the canvas would sit
+    // invisible until the next interaction "fixed" it as a side effect.
+  }, [grid, panOffset, images, canvasSize]);
 
   const cellFromEvent = (clientX: number, clientY: number) => {
     const rect = canvasRef.current!.getBoundingClientRect();
@@ -242,12 +251,22 @@ export const EditorCanvas = ({
   };
 
   return (
-    <div ref={containerRef} className="min-h-0 min-w-0 flex-1">
+    // `position: relative` + the canvas absolutely positioned (`inset-0`)
+    // takes the canvas out of this container's layout flow entirely, so
+    // the container's size depends only on the surrounding flex layout —
+    // never on the canvas's own content/attribute size. Without this, the
+    // ResizeObserver below would watch a container whose size the canvas
+    // itself helps determine, which is exactly the classic
+    // ResizeObserver feedback loop: canvas resizes -> container's content
+    // size changes -> observer fires again -> canvas resizes again,
+    // spiraling toward 0x0 before the browser's built-in loop-guard cuts
+    // it off, leaving the canvas stuck invisible.
+    <div ref={containerRef} className="relative min-h-0 min-w-0 flex-1">
       <canvas
         ref={canvasRef}
         width={canvasSize.width}
         height={canvasSize.height}
-        className="block"
+        className="absolute inset-0 block h-full w-full"
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
