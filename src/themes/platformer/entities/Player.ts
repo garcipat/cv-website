@@ -191,6 +191,7 @@ export function climbFrameSource(frame: number): { sx: number; sy: number } {
 
 /** Advances the player's animation timer/frame by `dt` seconds. */
 export function advancePlayerAnimation(player: PlayerState, dt: number): PlayerState {
+  if (player.animState === 'climb' && player.vy === 0) return player;
   const { frameCount, frameDuration } = ANIM_CONFIG[player.animState];
   const animTimer = player.animTimer + dt;
   if (animTimer < frameDuration) {

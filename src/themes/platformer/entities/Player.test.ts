@@ -115,6 +115,25 @@ describe('advancePlayerAnimation walk timing', () => {
   });
 });
 
+describe('advancePlayerAnimation climb-frozen-while-stationary (roadmap step 23 follow-up)', () => {
+  it('climbingWithVyZero-doesNotAdvanceFrameOrTimer-evenWithALargeDt', () => {
+    const player = idlePlayer({ animState: 'climb', vy: 0, animFrame: 1, animTimer: 0.05 });
+    const next = advancePlayerAnimation(player, 1); // dt far larger than any real frame duration
+    expect(next.animFrame).toBe(1);
+    expect(next.animTimer).toBe(0.05);
+  });
+
+  it('climbingWithNonzeroVy-stillAdvancesNormally', () => {
+    const player = idlePlayer({ animState: 'climb', vy: -50, animFrame: 1, animTimer: 0.05 });
+    const next = advancePlayerAnimation(player, 1);
+    // With dt=1s and any reasonable frameDuration for 'climb' (check ANIM_CONFIG's
+    // actual value in Player.ts), the frame must have advanced — assert
+    // next.animFrame !== 1, rather than a hardcoded number, so this doesn't
+    // depend on knowing the exact frameDuration/frameCount by heart.
+    expect(next.animFrame).not.toBe(1);
+  });
+});
+
 describe('updatePlayerAnimState', () => {
   it('updatePlayerAnimState-vxNonZeroFromIdle-switchesToWalkAndResetsFrame', () => {
     const player = idlePlayer({ vx: 200, animState: 'idle', animFrame: 3, animTimer: 0.1 });
