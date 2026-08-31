@@ -17,3 +17,11 @@ export const editorLevelSignal = createLocalStorageSignal<TileChar[][]>(
   'platformer-editor-level',
   importLayout(LEVEL_1_LAYOUT),
 );
+
+/**
+ * The Level Editor's currently-selected palette tool, persisted the same
+ * way `editorLevelSignal` is above — so reopening `/platformer/editor`
+ * keeps whichever tool was last selected instead of always resetting to
+ * Ground Grass.
+ */
+export const editorSelectedToolSignal = createLocalStorageSignal<TileChar>('platformer-editor-selected-tool', 'G');

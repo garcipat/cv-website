@@ -1,4 +1,4 @@
-import { editorLevelSignal } from './editorLevelState';
+import { editorLevelSignal, editorSelectedToolSignal } from './editorLevelState';
 import { importLayout } from './importLayout';
 import { LEVEL_1_LAYOUT } from '../level/level';
 
@@ -21,5 +21,23 @@ describe('editorLevelSignal', () => {
     editorLevelSignal.value = grid;
 
     expect(JSON.parse(localStorage.getItem('platformer-editor-level')!)).toEqual(grid);
+  });
+});
+
+describe('editorSelectedToolSignal', () => {
+  const original = editorSelectedToolSignal.value;
+
+  afterEach(() => {
+    editorSelectedToolSignal.value = original;
+  });
+
+  it('initialValue-onModuleLoad-withNothingInLocalStorage-defaultsToGroundGrass', () => {
+    expect(editorSelectedToolSignal.value).toBe('G');
+  });
+
+  it('writingValue-persistsToLocalStorageUnderTheExpectedKey', () => {
+    editorSelectedToolSignal.value = 'E';
+
+    expect(JSON.parse(localStorage.getItem('platformer-editor-selected-tool')!)).toBe('E');
   });
 });
