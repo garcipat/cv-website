@@ -7,6 +7,7 @@ import {
   RENDERED_TILE_SIZE,
 } from '../level/Terrain';
 import type { LevelDef, TileType } from '../level/LevelData';
+import type { SignPlacement } from '../level/SignMapper';
 import {
   PLAYER_FRAME_SIZE,
   PLAYER_RENDERED_SIZE,
@@ -315,6 +316,138 @@ export function drawRestartPrompt(
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(RESTART_PROMPT_TEXT, canvasWidth / 2, canvasHeight / 2);
+  ctx.restore();
+}
+
+/** Tile coordinates of the signpost sprite within world_tileset.png (col 8,
+ *  row 3 -> pixel 128,48) — sits immediately right of the crate tile (col 7,
+ *  row 3, roadmap step 21). */
+const SIGN_TILE_SX = 8 * TILE_SIZE;
+const SIGN_TILE_SY = 3 * TILE_SIZE;
+
+/**
+ * Draws every hint sign's static signpost sprite. Same originX/originY
+ * convention as drawTerrain/drawPlayer/drawCollectibles. Signs have no
+ * animation and no collected/removed state (unlike collectibles) — every
+ * placement in `signs` is always drawn.
+ */
+export function drawSigns(
+  ctx: CanvasRenderingContext2D,
+  signs: readonly SignPlacement[],
+  tileset: HTMLImageElement,
+  originX = 0,
+  originY = 0,
+): void {
+  ctx.imageSmoothingEnabled = false;
+  for (const sign of signs) {
+    ctx.drawImage(
+      tileset,
+      SIGN_TILE_SX,
+      SIGN_TILE_SY,
+      TILE_SIZE,
+      TILE_SIZE,
+      sign.x + originX,
+      sign.y + originY,
+      RENDERED_TILE_SIZE,
+      RENDERED_TILE_SIZE,
+    );
+  }
+}
+
+const BUBBLE_FONT_SIZE = 16;
+const BUBBLE_PADDING_X = 10;
+const BUBBLE_PADDING_Y = 6;
+const BUBBLE_BORDER_WIDTH = 2;
+/** Vertical gap between the bubble tail's tip and its anchor point
+ *  (anchorBottomY), so it floats just above the character's head rather
+ *  than overlapping it. */
+const BUBBLE_GAP_ABOVE_ANCHOR = 40;
+const BUBBLE_TAIL_HALF_WIDTH = 6;
+const BUBBLE_TAIL_HEIGHT = 8;
+const BUBBLE_BG_COLOR = '#f4ecd8';
+const BUBBLE_BORDER_COLOR = '#241a0e';
+const BUBBLE_TEXT_COLOR = '#241a0e';
+
+/**
+ * Draws a comic-style speech bubble with `text` — a cream box, a dark
+ * border, and a small tail pointing down at (`anchorX`, `anchorBottomY`),
+ * already origin-shifted screen-space coordinates (same convention as
+ * drawPlayer's own position). Per the user's explicit style preference (see
+ * this session's `hint-tooltip-styles` mockup artifact, option 3). Uses a
+ * bigger dark rect/triangle behind a smaller inset cream one for both the
+ * box and the tail, instead of `ctx.strokeRect`/`ctx.stroke` — reads as a
+ * BUBBLE_BORDER_WIDTH-thick outline with only fill-based primitives.
+ *
+ * `growth` (default 1, roadmap step 26 live UX feedback: "shown from bottom
+ * to top like the sign is starting to talk") scales the box's and tail's
+ * HEIGHT from 0 to their full size while keeping the box's BOTTOM edge
+ * fixed (where the tail meets it) — the caller passes
+ * `hintTooltipGrowthAndOpacity`'s `growth` straight through. `growth <= 0`
+ * draws nothing at all. `opacity` (default 1) is applied via
+ * `ctx.globalAlpha`, the same mechanism `drawBlocks`'s crate-shatter fade
+ * already uses.
+ */
+export function drawSignBubble(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  anchorX: number,
+  anchorBottomY: number,
+  growth = 1,
+  opacity = 1,
+): void {
+  if (growth <= 0) return;
+
+  ctx.save();
+  ctx.globalAlpha = opacity;
+  ctx.font = `${BUBBLE_FONT_SIZE}px "${RESTART_PROMPT_FONT_FAMILY}", sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  const boxWidth = ctx.measureText(text).width + BUBBLE_PADDING_X * 2;
+  const fullBoxHeight = BUBBLE_FONT_SIZE + BUBBLE_PADDING_Y * 2;
+  const boxHeight = fullBoxHeight * growth;
+  const tailHeight = BUBBLE_TAIL_HEIGHT * growth;
+  const tailHalfWidth = BUBBLE_TAIL_HALF_WIDTH * growth;
+
+  // Anchored at the box's fixed BOTTOM edge (independent of growth) — the
+  // box grows UPWARD from there, and the tail grows DOWNWARD from there
+  // toward anchorBottomY, so the whole bubble reads as rising out of that
+  // fixed point rather than scaling in place. (Computing boxBottom from a
+  // growth-scaled tailHeight instead would make the box's own bottom edge
+  // drift as growth changes — the opposite of what "fixed bottom edge"
+  // means; boxBottom must depend only on the CONSTANT BUBBLE_TAIL_HEIGHT.)
+  const boxBottom = anchorBottomY - BUBBLE_GAP_ABOVE_ANCHOR - BUBBLE_TAIL_HEIGHT;
+  const boxTop = boxBottom - boxHeight;
+  const tailTipY = boxBottom + tailHeight;
+  const boxLeft = anchorX - boxWidth / 2;
+
+  ctx.fillStyle = BUBBLE_BORDER_COLOR;
+  ctx.fillRect(
+    boxLeft - BUBBLE_BORDER_WIDTH,
+    boxTop - BUBBLE_BORDER_WIDTH,
+    boxWidth + BUBBLE_BORDER_WIDTH * 2,
+    boxHeight + BUBBLE_BORDER_WIDTH * 2,
+  );
+  ctx.fillStyle = BUBBLE_BG_COLOR;
+  ctx.fillRect(boxLeft, boxTop, boxWidth, boxHeight);
+
+  ctx.fillStyle = BUBBLE_BORDER_COLOR;
+  ctx.beginPath();
+  ctx.moveTo(anchorX - tailHalfWidth - BUBBLE_BORDER_WIDTH, boxBottom);
+  ctx.lineTo(anchorX, tailTipY + BUBBLE_BORDER_WIDTH);
+  ctx.lineTo(anchorX + tailHalfWidth + BUBBLE_BORDER_WIDTH, boxBottom);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = BUBBLE_BG_COLOR;
+  ctx.beginPath();
+  ctx.moveTo(anchorX - tailHalfWidth, boxBottom);
+  ctx.lineTo(anchorX, tailTipY);
+  ctx.lineTo(anchorX + tailHalfWidth, boxBottom);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = BUBBLE_TEXT_COLOR;
+  ctx.fillText(text, anchorX, boxTop + boxHeight / 2);
   ctx.restore();
 }
 
