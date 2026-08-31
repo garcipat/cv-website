@@ -35,7 +35,16 @@ const EMPTY_IMAGES: EditorImages = {
 };
 
 function stubCanvasContext() {
-  const ctx = { fillRect: vi.fn(), fillStyle: '' } as unknown as CanvasRenderingContext2D;
+  const ctx = {
+    fillRect: vi.fn(),
+    fillStyle: '',
+    strokeStyle: '',
+    lineWidth: 0,
+    beginPath: vi.fn(),
+    moveTo: vi.fn(),
+    lineTo: vi.fn(),
+    stroke: vi.fn(),
+  } as unknown as CanvasRenderingContext2D;
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(ctx);
   return ctx;
 }
@@ -59,6 +68,22 @@ describe('EditorCanvas', () => {
       />,
     );
     expect(ctx.fillRect).toHaveBeenCalled();
+  });
+
+  it('draws grid lines across the visible canvas so cell boundaries are visible while clicking', () => {
+    const ctx = stubCanvasContext();
+    render(
+      <EditorCanvas
+        grid={[['.']]}
+        selectedTool="G"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+    expect(ctx.stroke).toHaveBeenCalled();
+    expect((ctx.moveTo as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(1);
   });
 
   it('calls drawTerrain with the tileset image when it is loaded', () => {
@@ -202,7 +227,12 @@ describe('EditorCanvas', () => {
       clientY: 1,
     });
     expect(onPaint).toHaveBeenCalledWith(
-      expect.objectContaining({ grid: [['.', 'G'], ['.', '.']] }),
+      expect.objectContaining({
+        grid: [
+          ['.', 'G'],
+          ['.', '.'],
+        ],
+      }),
     );
   });
 
