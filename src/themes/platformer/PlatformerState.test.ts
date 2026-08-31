@@ -10,6 +10,7 @@ import {
   resetGameProgress,
   collectedFacts,
   activeJournalSection,
+  hintTooltipState,
   collectiblePlacements,
   enemyPlacements,
   enemyStates,
@@ -312,6 +313,16 @@ describe('activeJournalSection', () => {
     // falls back to defaulting from the first collected fact this session
     // (`facts[0]`, not the most recently collected one).
     expect(activeJournalSection.value).toBeUndefined();
+  });
+});
+
+describe('hintTooltipState', () => {
+  afterEach(() => {
+    hintTooltipState.value = null;
+  });
+
+  it('initialValue-onModuleLoad-isNull', () => {
+    expect(hintTooltipState.value).toBeNull();
   });
 });
 
