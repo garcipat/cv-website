@@ -1038,17 +1038,55 @@ describe('stepPlayerPhysics climbing', () => {
 });
 
 describe('stepPlayerPhysics climbing past the level top', () => {
-  it('climbingAtTheVeryTopRow-holdingUp-clampsInPlaceInsteadOfOvershootingIntoTheVoid', () => {
+  it('climbingAtTheVeryTopRow-holdingUp-landsGroundedInsteadOfOvershootingOrHovering', () => {
     // Compute minClimbY the same way the implementation does, then start
-    // the player already there (feet exactly at row 0) and confirm holding
-    // Up doesn't move them any further.
+    // the player already there (feet exactly at row 0). Superseded by
+    // roadmap step 23 follow-up (Task 19): reaching the top of the shaft
+    // with nothing further to climb now lands the player standing right
+    // there instead of hovering in climbing state forever — this test's
+    // scenario is now identical to the new "lands on the ladder's own top
+    // tile" test below, and its expectations are updated to match. The
+    // underlying `Math.max(..., minClimbY)` clamp in Physics.ts is left in
+    // place as a defensive backstop and is exercised the same way here; it
+    // just no longer determines this test's outcome because the new
+    // landing branch returns before the clamp's climbing-continuation path
+    // is reached.
     const minClimbY = -PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING + 1; // feetRow >= 0
     const player = basePlayer({ x: 0, y: minClimbY, grounded: false, climbing: true });
 
     const next = stepPlayerPhysics(player, TOP_LADDER_LEVEL, 1 / 60, { climbUpHeld: true });
 
-    expect(next.climbing).toBe(true);
+    expect(next.climbing).toBe(false);
+    expect(next.grounded).toBe(true);
     expect(next.y).toBeCloseTo(minClimbY);
+  });
+});
+
+describe('stepPlayerPhysics climbing lands on the ladder\'s own top tile (roadmap step 23 follow-up)', () => {
+  it('climbingUp-reachingTheTopWithNothingFurtherToClimb-standsGroundedRightThere', () => {
+    const minClimbY = -PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING + 1; // matches Task 13's clamp boundary — feetRow 0
+    const player = basePlayer({ x: 0, y: minClimbY, grounded: false, climbing: true });
+
+    const next = stepPlayerPhysics(player, TOP_LADDER_LEVEL, 1 / 60, { climbUpHeld: true });
+
+    expect(next.climbing).toBe(false);
+    expect(next.grounded).toBe(true);
+    expect(next.vy).toBe(0);
+    expect(next.y).toBeCloseTo(minClimbY); // no snap — already at the right spot
+  });
+
+  it('climbingUp-stillWithinTheShaft-notYetAtTheTop-continuesClimbingNormally', () => {
+    // Sanity: the new branch must not fire prematurely while there's still
+    // a climbable tile above. y=0 puts the feet in row 1 of TOP_LADDER_LEVEL
+    // (still 'L'), with row 0 (also 'L') directly above — NOT y=20, which
+    // (on this 3-row-tall fixture) already puts the feet in row 2, the
+    // solid ground row below the shaft, not the shaft itself.
+    const player = basePlayer({ x: 0, y: 0, grounded: false, climbing: true });
+
+    const next = stepPlayerPhysics(player, TOP_LADDER_LEVEL, 1 / 60, { climbUpHeld: true });
+
+    expect(next.climbing).toBe(true);
+    expect(next.grounded).toBe(false);
   });
 });
 
