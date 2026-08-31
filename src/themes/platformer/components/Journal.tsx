@@ -421,11 +421,11 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
                       <p className="text-xl font-semibold">{ui.platformer.journal.collectibles}</p>
                       <ul className="mt-2 space-y-1.5">
                         {collectiblesSummary(facts, {
-                          coins: collectiblePlacements.filter((p) => p.spriteType === 'coin').length,
-                          fruits: blockPlacements.filter((b) => b.blockKind === 'questionMark' && b.fact).length,
-                          enemies: enemyPlacements.length,
-                          crates: blockPlacements.filter((b) => b.blockKind === 'crate').length,
-                          chests: chestPlacements.length,
+                          coins: collectiblePlacements.value.filter((p) => p.spriteType === 'coin').length,
+                          fruits: blockPlacements.value.filter((b) => b.blockKind === 'questionMark' && b.fact).length,
+                          enemies: enemyPlacements.value.length,
+                          crates: blockPlacements.value.filter((b) => b.blockKind === 'crate').length,
+                          chests: chestPlacements.value.length,
                         }).map((row) => (
                           <li key={row.labelKey} className="flex items-center">
                             {renderCollectibleIcon(row.labelKey)}

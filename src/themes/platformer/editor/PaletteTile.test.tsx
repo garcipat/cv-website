@@ -38,4 +38,17 @@ describe('PaletteTile', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Coin' }));
     expect(onClick).toHaveBeenCalledTimes(1);
   });
+
+  it('scales a square sprite to fit within the button content box, not just the box size', () => {
+    // The button is 40px with a 2px border and 2px padding on every side
+    // (border-2 + p-0.5), so its content box is 40 - 2*(2+2) = 32px. A
+    // scaled sprite frame bigger than that gets visually clipped by the
+    // button's own border/padding even though it fits the raw 40px box.
+    render(<PaletteTile label="Coin" sprite={SPRITE} selected={false} onClick={() => {}} />);
+    const img = screen.getByRole('img', { name: 'Coin' });
+    const wrapper = img.parentElement as HTMLElement;
+    const width = parseFloat(wrapper.style.width);
+    const height = parseFloat(wrapper.style.height);
+    expect(Math.max(width, height)).toBeLessThanOrEqual(32);
+  });
 });

@@ -5,6 +5,7 @@ import { SpacePage } from '@/themes/space/SpacePage';
 import { TerminalPage } from '@/themes/terminal/TerminalPage';
 import { PlatformerPage } from '@/themes/platformer/PlatformerPage';
 import { currentTheme } from '@/state/theme';
+import { currentPath } from '@/state/navigation';
 
 const LevelEditorPage = lazy(() =>
   import('@/themes/platformer/editor/LevelEditorPage').then((m) => ({ default: m.LevelEditorPage })),
@@ -19,7 +20,7 @@ const themePages = {
 
 export const App = () => {
   useSignals();
-  if (window.location.pathname === '/platformer/editor') {
+  if (currentPath.value === '/platformer/editor') {
     return (
       <Suspense fallback={null}>
         <LevelEditorPage />

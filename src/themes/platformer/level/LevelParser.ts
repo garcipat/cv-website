@@ -14,7 +14,7 @@ export type EntityKind =
 
 /**
  * Maps each terrain character usable in a level layout to its tile type.
- * Shared by every level's raw ASCII layout, not just `level1`.
+ * Shared by every level's raw ASCII layout, not just `currentLevel`.
  */
 export const TERRAIN_CHARS: Record<string, TileType | undefined> = {
   '.': 'empty',

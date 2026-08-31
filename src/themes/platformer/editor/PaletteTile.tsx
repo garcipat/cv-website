@@ -9,7 +9,13 @@ interface PaletteTileProps {
 }
 
 const TILE_BOX_SIZE = 40;
-const SPRITE_PADDING = 6;
+// The button itself carries `border-2` (2px) and `p-0.5` (2px) on every
+// side (see the className below), shrinking its actual content box to
+// TILE_BOX_SIZE minus that inset on both edges — a sprite scaled against
+// the raw TILE_BOX_SIZE alone overflows the content box and gets visually
+// clipped by the button's own border/padding. 10px leaves a further ~1px
+// of breathing room inside that content box on each side.
+const SPRITE_PADDING = 10;
 
 /**
  * One square in the palette catalog: either a cropped sprite (plain `<img>`

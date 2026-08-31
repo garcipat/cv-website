@@ -67,7 +67,7 @@ const BRIDGE_SIDE_WALL_LEVEL = parseLevel(['....B.', '....B.']);
 const BRIDGE_DROP_LEVEL = parseLevel(['BB', '..', '..', 'GG']);
 
 // One empty tile, then a 3-tile-wide solid strip (cols 1-3), then empty —
-// proportioned like level1's real 3-tile floating platform, with room to
+// proportioned like currentLevel's real 3-tile floating platform, with room to
 // its left/right so the hitbox can be positioned on either side without
 // hitting world bounds. Isolates the platform-edge case: the full 64px
 // render slot (2 tiles) is wider than the actual (now-centered) collision
@@ -78,12 +78,12 @@ const NARROW_PLATFORM_LEVEL = parseLevel(['.GGG.....']);
 // than one tile — room to move horizontally without immediately hitting the
 // world-bounds clamp): row 0 is solid ground reachable by climbing (the tile
 // directly above the ladder's top rung, per FR-006); rows 1-2 are ladder in
-// col 0; row 3 is solid ground the ladder starts from. Mirrors level1's real
+// col 0; row 3 is solid ground the ladder starts from. Mirrors currentLevel's real
 // "ladder leads up to a platform" shape at a testable scale.
 const LADDER_LEVEL = parseLevel(['G.', 'L.', 'L.', 'G.']);
 
 // Row 0 is ladder with nothing above it (out-of-bounds) — reproduces the
-// real level1 top-of-shaft scenario from roadmap step 23's follow-up:
+// real currentLevel top-of-shaft scenario from roadmap step 23's follow-up:
 // climbing off the top must clamp, not overshoot into the void.
 const TOP_LADDER_LEVEL = parseLevel(['L.', 'L.', 'G.']);
 

@@ -20,7 +20,7 @@ export const BONUS_FRUIT_RISE_DURATION_SECONDS = 0.3;
  * (see `BlockMapper.ts`'s `placeBlocks`), in which case picking it up stays a
  * silent, factless removal. `x` is fixed at the source block's x (fruits
  * only rise straight up, never drift horizontally); `restY` is one tile
- * above the block's `y`, matching level1's reserved blank row above every
+ * above the block's `y`, matching currentLevel's reserved blank row above every
  * `Q` marker. `iconIndex` picks a `fruit.png` frame (see `Fruit.ts`'s
  * `fruitFrameSource`) so bonus fruits visually vary from spawn to spawn,
  * distinguishing them from each other and from the fixed-icon Language
