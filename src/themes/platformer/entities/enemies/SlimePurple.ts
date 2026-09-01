@@ -34,15 +34,31 @@ const SLIME_PURPLE_HELD_KEY_HEIGHT_RATIO = 0.5;
  *  slightly better sitting a bit lower in the blob than perfectly centered. */
 const SLIME_PURPLE_HELD_KEY_Y_NUDGE = 4;
 
-/** Mirrors EnemyAI.ts's SPIKE_GROW_DURATION_SECONDS/SPIKE_HOLD_DURATION_SECONDS/
- *  SPIKE_RETRACT_DURATION_SECONDS — entities/enemies/ modules don't import
- *  engine modules (EnemyAI.ts depends on this directory through ENEMY_TYPES,
- *  so importing it back here would create a load-order cycle; see
- *  drawSpriteSheetEntity.ts's own note on the same constraint). Keep these
- *  three in sync with EnemyAI.ts's if that cooldown timing ever changes. */
-const SPIKE_GROW_DURATION_SECONDS = 0.25;
-const SPIKE_HOLD_DURATION_SECONDS = 0.25;
-const SPIKE_RETRACT_DURATION_SECONDS = 0.4;
+/** How long the spikes take to pop fully out at the start of the cooldown —
+ *  see `spikeGrowthScale` below. Fast: the pop should read as a snappy
+ *  reaction, not a slow bloom. Exported for EnemyAI.ts's
+ *  `stepEnemySpikeCooldown`, which drives `spikeTimer` against this same
+ *  timing — this module is the source of truth rather than EnemyAI.ts
+ *  because entities/enemies/ modules don't import engine modules (EnemyAI.ts
+ *  depends on this directory through ENEMY_TYPES, so importing it back here
+ *  would create a load-order cycle; see drawSpriteSheetEntity.ts's own note
+ *  on the same constraint) — the reverse direction has no such problem,
+ *  since EnemyAI.ts already imports `ENEMY_TYPES` from this directory. */
+export const SPIKE_GROW_DURATION_SECONDS = 0.25;
+
+/** How long the spikes stay fully extended (scale 1) between popping out and
+ *  starting to retract — deliberately short, a brief "still dangerous" beat
+ *  rather than a long hold. */
+export const SPIKE_HOLD_DURATION_SECONDS = 0.25;
+
+/** How long the spikes take to retract fully — deliberately slower than
+ *  SPIKE_GROW_DURATION_SECONDS: popping out reads best as fast/sudden,
+ *  retracting reads best as a more deliberate withdrawal. (This also happens
+ *  to counteract a perceptual effect: `spikeGrowthScale`'s linear-scale
+ *  animation shrinks its RENDERED AREA quadratically, not linearly, so an
+ *  equal-duration retract would otherwise feel slower than an equal-duration
+ *  grow even before accounting for the intentional speed difference here.) */
+export const SPIKE_RETRACT_DURATION_SECONDS = 0.4;
 
 const TOP_SPIKE_FRACTIONS = [0.3, 0.7];
 
