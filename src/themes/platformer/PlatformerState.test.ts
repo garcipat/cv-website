@@ -56,8 +56,8 @@ describe('PlatformerState', () => {
     // level.ts's doc comment), not a regression.
     const allPossibleDefs = mapCVDataToEnemies(currentCV.value);
     expect(allPossibleDefs.length).toBeGreaterThan(enemyPlacements.value.length);
-    expect(enemyPlacements.value.filter((p) => p.spriteType === 'slimeGreen')).toHaveLength(1);
-    expect(enemyPlacements.value.filter((p) => p.spriteType === 'slimePurple')).toHaveLength(2);
+    expect(enemyPlacements.value.filter((p) => p.type === 'slimeGreen')).toHaveLength(1);
+    expect(enemyPlacements.value.filter((p) => p.type === 'slimePurple')).toHaveLength(2);
   });
 
   it('blockPlacements-initial-hasTwoOfEachKindMatchingLevel1sMarkers', () => {

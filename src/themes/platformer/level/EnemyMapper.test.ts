@@ -23,9 +23,9 @@ describe('mapCVDataToEnemies', () => {
     // not by enemies; every course is a green slime that reveals CV content.
     const defs = mapCVDataToEnemies(cv);
     expect(defs).toHaveLength(3);
-    expect(defs[0].spriteType).toBe('slimeGreen');
-    expect(defs[1].spriteType).toBe('slimeGreen');
-    expect(defs[2].spriteType).toBe('slimeGreen');
+    expect(defs[0].type).toBe('slimeGreen');
+    expect(defs[1].type).toBe('slimeGreen');
+    expect(defs[2].type).toBe('slimeGreen');
   });
 
   it('called-returns-uniqueIds', () => {
@@ -65,7 +65,7 @@ describe('mapCVDataToEnemies (green-only Courses)', () => {
     } as unknown as CVData;
     const defs = mapCVDataToEnemies(cv);
     expect(defs).toHaveLength(3);
-    expect(defs.every((d) => d.spriteType === 'slimeGreen')).toBe(true);
+    expect(defs.every((d) => d.type === 'slimeGreen')).toBe(true);
   });
 
   it('mapCVDataToEnemies-emptyCourses-returnsEmptyArray', () => {
@@ -80,9 +80,9 @@ describe('placeEnemies (purple markers have no defs to draw from)', () => {
       slimeGreen: [{ col: 1, row: 1 }],
       slimePurple: [{ col: 5, row: 1 }],
     });
-    const purplePlacement = placements.find((p) => p.spriteType === 'slimePurple')!;
+    const purplePlacement = placements.find((p) => p.type === 'slimePurple')!;
     expect(purplePlacement.fact).toBeUndefined();
-    const greenPlacement = placements.find((p) => p.spriteType === 'slimeGreen')!;
+    const greenPlacement = placements.find((p) => p.type === 'slimeGreen')!;
     expect(greenPlacement.fact).toBeDefined();
   });
 });
@@ -97,8 +97,8 @@ describe('placeEnemies', () => {
     const purpleMarkers = [{ col: 8, row: 2 }];
     const placed = placeEnemies(defs, { slimeGreen: greenMarkers, slimePurple: purpleMarkers });
 
-    const green = placed.filter((p) => p.spriteType === 'slimeGreen');
-    const purple = placed.filter((p) => p.spriteType === 'slimePurple');
+    const green = placed.filter((p) => p.type === 'slimeGreen');
+    const purple = placed.filter((p) => p.type === 'slimePurple');
     // All green defs get placed with facts from the defs
     expect(green.map((p) => p.id)).toEqual([defs[0].id, defs[1].id]);
     // Purple marker gets placed as a plain enemy (no fact) since all defs are green
@@ -117,7 +117,7 @@ describe('placeEnemies', () => {
     ];
     const placed = placeEnemies(defs, { slimeGreen: greenMarkers, slimePurple: [{ col: 4, row: 0 }] });
 
-    const greenPlacements = placed.filter((p) => p.spriteType === 'slimeGreen');
+    const greenPlacements = placed.filter((p) => p.type === 'slimeGreen');
     expect(greenPlacements[0]).toMatchObject(tileToPixel(1, 0));
     expect(greenPlacements[1]).toMatchObject(tileToPixel(2, 0));
   });
@@ -132,8 +132,8 @@ describe('placeEnemies', () => {
     // Only the first green def had a marker — the second and third green defs' facts
     // simply have no enemy yet, not an error (see placeEnemies's doc comment).
     // The purple marker gets a plain enemy with no fact.
-    expect(placed.filter((p) => p.spriteType === 'slimeGreen')).toHaveLength(1);
-    expect(placed.filter((p) => p.spriteType === 'slimePurple')).toHaveLength(1);
+    expect(placed.filter((p) => p.type === 'slimeGreen')).toHaveLength(1);
+    expect(placed.filter((p) => p.type === 'slimePurple')).toHaveLength(1);
     expect(placed.filter((p) => p.fact)).toHaveLength(1);
     expect(placed).toHaveLength(2);
   });
@@ -148,8 +148,8 @@ describe('placeEnemies', () => {
       slimePurple: [],
     });
 
-    expect(placed.filter((p) => p.spriteType === 'slimeGreen')).toHaveLength(2);
-    expect(placed.filter((p) => p.spriteType === 'slimePurple')).toHaveLength(0);
+    expect(placed.filter((p) => p.type === 'slimeGreen')).toHaveLength(2);
+    expect(placed.filter((p) => p.type === 'slimePurple')).toHaveLength(0);
     expect(placed).toHaveLength(2);
   });
 
@@ -169,7 +169,7 @@ describe('placeEnemies', () => {
       ];
       const placed = placeEnemies(defs, { slimeGreen: greenMarkers, slimePurple: [] });
 
-      const green = placed.filter((p) => p.spriteType === 'slimeGreen');
+      const green = placed.filter((p) => p.type === 'slimeGreen');
       expect(green).toHaveLength(4);
       expect(green[3].fact).toBeUndefined();
       expect(green[3]).toMatchObject(tileToPixel(4, 0));

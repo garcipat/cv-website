@@ -96,14 +96,14 @@ export interface CollectibleDef {
  * One mapped, not-yet-placed enemy — `EnemyMapper.ts` produces these from
  * `CVData`; `placeEnemies` adds x/y to turn each into an `EnemyPlacement`.
  * Deliberately a separate type from `CollectibleDef` rather than widening
- * its `spriteType` union: an enemy's sprite type ('slimeGreen'/'slimePurple')
+ * its `spriteType` union: an enemy's type ('slimeGreen'/'slimePurple')
  * has no meaning for a coin/fruit collectible, and enemies don't join
  * `collectedCollectibleIds` — their defeat dedups by fact id in
  * `collectedFacts` instead.
  */
 export interface EnemyDef {
   id: string;
-  spriteType: 'slimeGreen' | 'slimePurple';
+  type: 'slimeGreen' | 'slimePurple';
   /** Absent for a "plain" enemy — a level-author-placed marker beyond
    *  CVData's course count for that color (see `EnemyMapper.ts`'s
    *  `placeEnemies`). Enemies are not capped at CVData's length: only

@@ -23,7 +23,7 @@ function makeLevel(width: number, wallCols: number[], pitCols: number[]): LevelD
 function makeEnemyAt(col: number) {
   const placement: EnemyPlacement = {
     id: 'enemy-cert-x',
-    spriteType: 'slimeGreen',
+    type: 'slimeGreen',
     fact: {
       id: 'enemy-cert-x',
       sectionId: 'certificates',
@@ -198,10 +198,11 @@ describe('stepEnemyPatrol', () => {
     const level = makeLevel(10, [4], [6]);
     const enemy: EnemyState = {
       id: 'e1',
-      spriteType: 'slimePurple',
+      type: 'slimePurple',
       x: 5 * RENDERED_TILE_SIZE,
       y: 0,
       vx: 0,
+      vy: 0,
       direction: 'right',
       animState: 'walk',
       animFrame: 0,
@@ -234,6 +235,7 @@ describe('stepEnemyPatrol', () => {
       x: 3 * RENDERED_TILE_SIZE,
       y: 0,
       vx: 0,
+      vy: 0,
       direction: 'right' as const,
       animState: 'walk' as const,
       animFrame: 0,
@@ -247,8 +249,8 @@ describe('stepEnemyPatrol', () => {
       homeY: 0,
       rewardGiven: false,
     };
-    const green = stepEnemyPatrol({ ...base, spriteType: 'slimeGreen' as const }, level, 1, []);
-    const purple = stepEnemyPatrol({ ...base, spriteType: 'slimePurple' as const }, level, 1, []);
+    const green = stepEnemyPatrol({ ...base, type: 'slimeGreen' as const }, level, 1, []);
+    const purple = stepEnemyPatrol({ ...base, type: 'slimePurple' as const }, level, 1, []);
     const greenDelta = green.x - base.x;
     const purpleDelta = purple.x - base.x;
     expect(purpleDelta).toBeCloseTo(greenDelta * 0.7, 5);

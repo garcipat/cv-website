@@ -61,8 +61,8 @@ describe('synthesizeEnemyStates', () => {
     const grid: TileChar[][] = [['E', 'M']];
     const enemies = synthesizeEnemyStates(grid);
     expect(enemies).toHaveLength(2);
-    expect(enemies.find((e) => e.spriteType === 'slimeGreen')).toBeDefined();
-    expect(enemies.find((e) => e.spriteType === 'slimePurple')).toBeDefined();
+    expect(enemies.find((e) => e.type === 'slimeGreen')).toBeDefined();
+    expect(enemies.find((e) => e.type === 'slimePurple')).toBeDefined();
   });
 });
 

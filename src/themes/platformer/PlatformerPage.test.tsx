@@ -652,7 +652,7 @@ describe('PlatformerPage', () => {
     // icon yet) regardless of whether the count logic itself is correct.
     await waitFor(() => expect(ctx.drawImage).toHaveBeenCalled());
 
-    const target = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
+    const target = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
     playerState.value = {
       ...playerState.value,
       x: target.x,
@@ -690,7 +690,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
+    const target = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
     playerState.value = {
       ...playerState.value,
       x: target.x,
@@ -876,7 +876,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
+    const target = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
     playerState.value = {
       ...playerState.value,
       x: target.x,
@@ -914,7 +914,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const real = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
+    const real = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
     // Offset well clear of `real`'s position — otherwise both enemies sit
     // exactly on top of each other and a single stomp defeats both,
     // muddying what this test is actually checking.
@@ -958,7 +958,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = enemyStates.value.find((e) => e.spriteType === 'slimePurple')!;
+    const target = enemyStates.value.find((e) => e.type === 'slimePurple')!;
     enemyStates.value = enemyStates.value.map((e) => (e.id === target.id ? { ...e, hitPoints: 1 } : e));
     playerState.value = {
       ...playerState.value,
@@ -1005,7 +1005,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = enemyStates.value.find((e) => e.spriteType === 'slimePurple')!;
+    const target = enemyStates.value.find((e) => e.type === 'slimePurple')!;
     enemyStates.value = enemyStates.value.map((e) => (e.id === target.id ? { ...e, hitPoints: 1 } : e));
     playerState.value = {
       ...playerState.value,
@@ -1066,7 +1066,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = enemyStates.value.find((e) => e.spriteType === 'slimePurple')!;
+    const target = enemyStates.value.find((e) => e.type === 'slimePurple')!;
     enemyStates.value = enemyStates.value.map((e) =>
       e.id === target.id ? { ...e, hitPoints: 1 } : e,
     );
@@ -1166,7 +1166,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
+    const target = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
     playerState.value = {
       ...playerState.value,
       x: target.x,
@@ -1210,7 +1210,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
+    const target = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
     const factId = target.id;
     playerState.value = {
       ...playerState.value,
@@ -1274,7 +1274,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = enemyStates.value.find((e) => e.spriteType === 'slimePurple')!;
+    const target = enemyStates.value.find((e) => e.type === 'slimePurple')!;
     let t = 16;
 
     // ENEMY_HIT_POINTS.slimePurple is 3 — land three separate, deliberately
@@ -1952,7 +1952,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
+    const target = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
     const startingHealth = healthState.value;
     playerState.value = {
       ...playerState.value,
@@ -1980,7 +1980,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
+    const target = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
     const box = enemyHitbox(target);
     // Positioned so the player's hitbox CENTER sits a few px inside the
     // enemy hitbox's left edge — clearly left of the enemy's own center,
@@ -2010,7 +2010,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
+    const target = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
     const box = enemyHitbox(target);
     // Mirror of the "from the left" case above — player hitbox center a
     // few px inside the enemy hitbox's right edge.
@@ -2038,7 +2038,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = enemyStates.value.find((e) => e.spriteType === 'slimePurple')!;
+    const target = enemyStates.value.find((e) => e.type === 'slimePurple')!;
     enemyStates.value = enemyStates.value.map((e) =>
       e.id === target.id ? { ...e, spiked: true, spikeTimer: 0.1 } : e,
     );
@@ -2075,7 +2075,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
+    const target = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
     const box = enemyHitbox(target);
     playerState.value = {
       ...playerState.value,
@@ -2101,7 +2101,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
+    const target = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
     playerState.value = { ...playerState.value, x: target.x, y: target.y, vx: 0, vy: 0 };
     frameCallback!(16);
     const healthAfterFirstHit = healthState.value;
@@ -2127,7 +2127,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
+    const target = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
     const startingHealth = healthState.value;
     playerState.value = {
       ...playerState.value,
@@ -2164,7 +2164,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
+    const target = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
     const startingHealth = healthState.value;
     playerState.value = {
       ...playerState.value,
@@ -2205,7 +2205,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = enemyStates.value.find((e) => e.spriteType === 'slimePurple')!;
+    const target = enemyStates.value.find((e) => e.type === 'slimePurple')!;
     playerState.value = {
       ...playerState.value,
       x: target.x,
@@ -2257,7 +2257,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = enemyStates.value.find((e) => e.spriteType === 'slimePurple')!;
+    const target = enemyStates.value.find((e) => e.type === 'slimePurple')!;
     playerState.value = {
       ...playerState.value,
       x: target.x,
@@ -2313,7 +2313,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = enemyStates.value.find((e) => e.spriteType === 'slimePurple')!;
+    const target = enemyStates.value.find((e) => e.type === 'slimePurple')!;
     playerState.value = {
       ...playerState.value,
       x: target.x,
@@ -2395,7 +2395,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
+    const target = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
     playerState.value = { ...playerState.value, x: target.x, y: target.y, vx: 0, vy: 0 };
     frameCallback!(16); // side-hit: now invincible
     const healthAfterSideHit = healthState.value;

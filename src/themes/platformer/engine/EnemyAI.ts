@@ -85,10 +85,10 @@ export function stepEnemyPatrol(
   dt: number,
   blockedTiles: readonly { col: number; row: number }[],
 ): EnemyState {
-  const speed = PHYSICS_CONFIG.enemyPatrolSpeed * ENEMY_PATROL_SPEED_MULTIPLIER[enemy.spriteType];
+  const speed = PHYSICS_CONFIG.enemyPatrolSpeed * ENEMY_PATROL_SPEED_MULTIPLIER[enemy.type];
   const row = Math.round(enemy.y / RENDERED_TILE_SIZE);
-  const size = enemyRenderedSize(enemy.spriteType);
-  const offsetX = enemyTileOffsetX(enemy.spriteType);
+  const size = enemyRenderedSize(enemy.type);
+  const offsetX = enemyTileOffsetX(enemy.type);
   // The sprite's full render frame has transparent padding around the
   // actual opaque slime blob (see enemyHitboxSidePadding's own doc comment —
   // the same inset already used for the player-collision hitbox and for
@@ -96,7 +96,7 @@ export function stepEnemyPatrol(
   // edge here turned the enemy around noticeably before its VISIBLE body
   // ever reached the wall/ledge. Insetting by this padding aligns the
   // turn-around with the same silhouette the hitbox (and the eye) sees.
-  const sidePadding = enemyHitboxSidePadding(enemy.spriteType);
+  const sidePadding = enemyHitboxSidePadding(enemy.type);
 
   const isBlockedTile = (col: number, tileRow: number) =>
     blockedTiles.some((tile) => tile.col === col && tile.row === tileRow);

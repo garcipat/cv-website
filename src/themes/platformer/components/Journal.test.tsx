@@ -595,7 +595,7 @@ describe('Journal', () => {
       // placements down to fact-bearing ones.
       const factBearingEnemy = {
         id: 'enemy-course-0',
-        spriteType: 'slimeGreen' as const,
+        type: 'slimeGreen' as const,
         x: 0,
         y: 0,
         fact: {
@@ -608,7 +608,7 @@ describe('Journal', () => {
       };
       const plainEnemy = {
         id: 'enemy-plain-slimeGreen-9-9',
-        spriteType: 'slimeGreen' as const,
+        type: 'slimeGreen' as const,
         x: 100,
         y: 0,
         fact: undefined,

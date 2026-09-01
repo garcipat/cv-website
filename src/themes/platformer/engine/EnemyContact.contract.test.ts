@@ -44,10 +44,11 @@ function makePlayer(x: number, y: number, vy: number): PlayerState {
 function makeEnemy(overrides: Partial<EnemyState> = {}): EnemyState {
   return {
     id: 'enemy-under-test',
-    spriteType: 'slimeGreen',
+    type: 'slimeGreen',
     x: 100,
     y: 100,
     vx: 0,
+    vy: 0,
     direction: 'right',
     animState: 'walk',
     animFrame: 0,
@@ -124,7 +125,7 @@ export const CONTACT_CASES: ContactCase[] = [
   },
   {
     name: 'purpleUnspikedUpperHalfWhileFalling-isAStomp',
-    enemy: { spriteType: 'slimePurple', hitPoints: 3 },
+    enemy: { type: 'slimePurple', hitPoints: 3 },
     playerX: 90,
     playerY: 40,
     playerVy: 200,
@@ -132,7 +133,7 @@ export const CONTACT_CASES: ContactCase[] = [
   },
   {
     name: 'purpleSpikedUpperHalfWhileFalling-isDamageWithUpwardKnockback',
-    enemy: { spriteType: 'slimePurple', hitPoints: 2, spiked: true },
+    enemy: { type: 'slimePurple', hitPoints: 2, spiked: true },
     playerX: 90,
     playerY: 40,
     playerVy: 200,
@@ -140,7 +141,7 @@ export const CONTACT_CASES: ContactCase[] = [
   },
   {
     name: 'purpleSpikedLowerHalfWhileFalling-isPlainDamage',
-    enemy: { spriteType: 'slimePurple', hitPoints: 2, spiked: true },
+    enemy: { type: 'slimePurple', hitPoints: 2, spiked: true },
     playerX: 90,
     playerY: 80,
     playerVy: 200,
@@ -148,7 +149,7 @@ export const CONTACT_CASES: ContactCase[] = [
   },
   {
     name: 'purpleSpikedUpperHalfWhileRising-isPlainDamage',
-    enemy: { spriteType: 'slimePurple', hitPoints: 2, spiked: true },
+    enemy: { type: 'slimePurple', hitPoints: 2, spiked: true },
     playerX: 90,
     playerY: 40,
     playerVy: -200,

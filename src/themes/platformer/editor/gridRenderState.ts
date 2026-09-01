@@ -104,12 +104,12 @@ export function synthesizeCollectiblePlacements(grid: TileChar[][]): Collectible
 function synthesizeEnemyPlacements(
   grid: TileChar[][],
   char: TileChar,
-  spriteType: EnemyPlacement['spriteType'],
+  type: EnemyPlacement['type'],
   idPrefix: string,
 ): EnemyPlacement[] {
   return findAllPositions(grid, char).map(({ col, row }, index) => {
     const { x, y } = tileToPixel(col, row);
-    return { id: `${idPrefix}-${index}`, spriteType, fact: PLACEHOLDER_FACT, x, y };
+    return { id: `${idPrefix}-${index}`, type, fact: PLACEHOLDER_FACT, x, y };
   });
 }
 
