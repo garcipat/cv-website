@@ -323,4 +323,22 @@ describe('reviveEnemy', () => {
     expect(revived.x).toBe(enemy.x);
     expect(revived.vx).toBe(0);
   });
+
+  it('twoEnemiesWithDifferentIndex-staySeparatedInAnimationPhaseAfterRevive', () => {
+    // toEnemyState staggers animFrame/animTimer by `index` so multiple
+    // enemies don't animate in lockstep (see toEnemyState's doc comment).
+    // reviveEnemy must preserve that stagger across a death/respawn cycle
+    // instead of hard-zeroing animFrame/animTimer back to a shared start
+    // state.
+    const enemyA = toEnemyState(makePlacement(), 0);
+    const enemyB = toEnemyState(makePlacement(), 1);
+    expect(enemyA.animFrame).not.toBe(enemyB.animFrame);
+
+    const revivedA = reviveEnemy({ ...enemyA, alive: false, hitPoints: 0 });
+    const revivedB = reviveEnemy({ ...enemyB, alive: false, hitPoints: 0 });
+
+    expect(revivedA.animFrame !== revivedB.animFrame || revivedA.animTimer !== revivedB.animTimer).toBe(
+      true,
+    );
+  });
 });
