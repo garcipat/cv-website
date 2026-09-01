@@ -1546,7 +1546,7 @@ describe('drawKeyPickups', () => {
     // is exactly pickup.y + KEY_TILE_OFFSET_Y with no ambient float noise.
     const pickups: KeyPickupState[] = [{ id: 'k1', x: 100, y: 200, collected: false }];
     drawKeyPickups(ctx, pickups, fakeKeySprite, 0);
-    expect(KEY_RENDERED_HEIGHT).toBeLessThanOrEqual(RENDERED_TILE_SIZE);
+    expect(KEY_RENDERED_HEIGHT).toBe(RENDERED_TILE_SIZE);
     expect(ctx.drawImage).toHaveBeenCalledWith(
       fakeKeySprite,
       0,

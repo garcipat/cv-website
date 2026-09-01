@@ -1,46 +1,39 @@
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 
-/** Native pixel dimensions of public/sprites/key.png (generated, chroma-keyed
- *  from a magenta-background render, cropped tight on all sides) — a bold,
- *  diagonally-oriented key filling a roughly square bounding box. Deliberately
- *  16x16, matching TILE_SIZE (Terrain.ts) — every other sprite in this game
- *  (coin.png, hearts.png, ...) is also native 16px scaled by the game's flat
- *  RENDER_SCALE (2), and reusing that same convention here means the key
- *  scales by a clean INTEGER factor everywhere it's drawn. Two earlier
- *  versions (14x28, then 24x23) didn't: at a 32px render target, 32/28≈1.14x
- *  and 32/23≈1.39x are both non-integer scale factors, which makes
- *  nearest-neighbor upscaling duplicate source pixels unevenly — this reads
- *  as a distorted, blurry-edged sprite even though every individual pixel is
- *  either fully opaque or fully transparent (no actual blur in the asset). A
+/** Native pixel dimensions of public/sprites/key.png — a hand-drawn asset the
+ *  user provided (as a screenshot, not an exact pixel-perfect export),
+ *  reconstructed here by center-sampling each of its ~16-physical-pixel
+ *  blocks (avoiding the blur a plain resize would introduce at the block
+ *  boundaries) and snapping the result to a small flat color palette. A
  *  single standalone image, not a sheet — no sx/sy frame lookup needed,
  *  matching Chest.ts's convention for its own standalone (non-tiling)
  *  sprites. */
-export const KEY_FRAME_WIDTH = 16;
-export const KEY_FRAME_HEIGHT = 16;
+export const KEY_FRAME_WIDTH = 14;
+export const KEY_FRAME_HEIGHT = 22;
 
 /**
- * World-rendered size of a key pickup. Because the native frame is exactly
- * TILE_SIZE (see KEY_FRAME_WIDTH/HEIGHT's doc comment), scaling it by
- * RENDER_SCALE lands exactly on RENDERED_TILE_SIZE — same formula every
- * other one-tile pickup uses (COIN_RENDERED_SIZE/FRUIT_RENDERED_SIZE), no
- * special-casing needed.
+ * World-rendered size of a key pickup — fixed to exactly one tile
+ * (RENDERED_TILE_SIZE, 32px tall), independent of any other pickup's own
+ * size (a coin renders smaller than a tile; the key deliberately doesn't
+ * follow that as a reference point). Width is derived from the native
+ * 14:22 aspect ratio. This is a non-integer scale factor from the native
+ * frame (32/22 ≈ 1.455x) rather than a clean RENDER_SCALE multiple, which
+ * nearest-neighbor upscaling can turn into slightly uneven pixel duplication
+ * in principle — but this asset's bold, thick shapes and flat color-snapped
+ * palette hide that well in practice (confirmed by rendering at this exact
+ * size and inspecting the result). If a future key asset reads as visibly
+ * distorted at this size, that tradeoff needs revisiting.
  */
 export const KEY_RENDERED_HEIGHT = RENDERED_TILE_SIZE;
 export const KEY_RENDERED_WIDTH = Math.round((KEY_FRAME_WIDTH / KEY_FRAME_HEIGHT) * KEY_RENDERED_HEIGHT);
 
-/** Horizontal centering offset — currently 0 (the key's rendered width now
- *  exactly fills one tile), but kept as its own named constant rather than
- *  inlined so a future non-square key asset stays centered automatically
- *  (same formula Enemy.ts's enemyTileOffsetX uses) instead of silently
- *  drifting left-aligned. */
+/** Horizontal centering offset over the key's placement tile (same formula
+ *  Enemy.ts's enemyTileOffsetX uses). */
 export const KEY_TILE_OFFSET_X = (RENDERED_TILE_SIZE - KEY_RENDERED_WIDTH) / 2;
 
-/** Bottom-anchoring offset — currently 0 (the key's rendered height exactly
- *  fills one tile), kept as its own named constant so drawKeyPickups reads
- *  the same bottom-anchoring pattern Enemy.ts's enemyTileOffsetY
- *  establishes, and so a future resize of KEY_RENDERED_HEIGHT keeps the
- *  key's visible bottom sitting on the ground instead of silently drifting
- *  out of alignment. */
+/** Bottom-anchoring offset — 0 here (the key's rendered height exactly fills
+ *  one tile), kept as its own named constant so drawKeyPickups reads the
+ *  same bottom-anchoring pattern Enemy.ts's enemyTileOffsetY establishes. */
 export const KEY_TILE_OFFSET_Y = RENDERED_TILE_SIZE - KEY_RENDERED_HEIGHT;
 
 /**

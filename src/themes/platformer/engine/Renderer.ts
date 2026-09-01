@@ -1082,11 +1082,12 @@ export const KEY_COUNTER_X =
   16;
 export const KEY_COUNTER_Y = CHEST_COUNTER_Y;
 
-/** Matches HEART_RENDERED_SIZE so the key icon reads at the same visual
- *  weight as the hearts/chest icons on the same HUD row — key.png's native
- *  14x28 shape is narrow, so a smaller height (the old 24px) made it look
- *  visibly thinner/shrunk next to them. */
-const KEY_COUNTER_ICON_HEIGHT = HEART_RENDERED_SIZE;
+/** Between CHEST_COUNTER_ICON_HEIGHT (20) and HEART_RENDERED_SIZE (32) — the
+ *  current key.png is a bold, chunky shape (unlike an earlier thin 14x28
+ *  version, which needed the full heart height to avoid looking shrunk), so
+ *  a smaller HUD icon than the world sprite reads fine without looking
+ *  undersized next to the hearts/chest icons on the same row. */
+const KEY_COUNTER_ICON_HEIGHT = 24;
 
 /** Draws the "[key icon] N" HUD counter — no "/ total" denominator (unlike
  *  drawChestCounter): a key count has no fixed total to compare against, it
