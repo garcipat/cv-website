@@ -84,6 +84,39 @@ export function enemyTileOffsetY(spriteType: EnemyDef['spriteType']): number {
   return RENDERED_TILE_SIZE - enemyRenderedSize(spriteType);
 }
 
+/**
+ * Transparent margin inside each 24px native frame, measured via pixel
+ * bounding-box analysis across the shared walk-cycle frames of both
+ * slime_green.png and slime_purple.png (identical silhouette geometry,
+ * only the palette differs): the opaque silhouette spans x 5-18 (5px
+ * margin each side) and y 9-23 (9px margin above, 0px below — the feet
+ * already touch the frame's bottom edge, per ENEMY_TILE_OFFSET_Y's doc
+ * comment above). Used to inset the collision hitbox away from the
+ * sprite's transparent corners — a slime's silhouette is rounded, not a
+ * filled square, so a hitbox spanning the full render slot would register
+ * a hit against visibly empty space, worse the bigger ENEMY_RENDER_SCALE
+ * gets. Same convention as Player.ts's PLAYER_SIDE_PADDING/
+ * PLAYER_HEAD_PADDING/PLAYER_FOOT_PADDING.
+ */
+const ENEMY_HITBOX_SIDE_PADDING_NATIVE = 5;
+const ENEMY_HITBOX_TOP_PADDING_NATIVE = 9;
+
+/** Per-spriteType collision-hitbox side inset — scaled the same way
+ *  enemyRenderedSize scales the frame itself, so the inset grows
+ *  proportionally with a bigger slime instead of staying a fixed pixel
+ *  amount. */
+export function enemyHitboxSidePadding(spriteType: EnemyDef['spriteType']): number {
+  return ENEMY_HITBOX_SIDE_PADDING_NATIVE * RENDER_SCALE * ENEMY_RENDER_SCALE[spriteType];
+}
+
+/** Per-spriteType collision-hitbox top inset — see enemyHitboxSidePadding.
+ *  No corresponding bottom-inset function: the silhouette's feet already
+ *  touch the native frame's bottom edge, so the hitbox's bottom edge stays
+ *  at the render slot's bottom. */
+export function enemyHitboxTopPadding(spriteType: EnemyDef['spriteType']): number {
+  return ENEMY_HITBOX_TOP_PADDING_NATIVE * RENDER_SCALE * ENEMY_RENDER_SCALE[spriteType];
+}
+
 export type EnemyAnimState = 'walk' | 'hit';
 
 export type EnemyDirection = 'left' | 'right';

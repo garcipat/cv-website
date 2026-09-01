@@ -2,8 +2,15 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { vi } from 'vitest';
 import { PlatformerPage } from './PlatformerPage';
 import { platformerPage } from './PlatformerPage.page';
-import { PLAYER_RENDERED_SIZE, PLAYER_VISUAL_CENTER_Y_OFFSET } from './entities/Player';
+import {
+  PLAYER_RENDERED_SIZE,
+  PLAYER_VISUAL_CENTER_Y_OFFSET,
+  PLAYER_HEAD_PADDING,
+  PLAYER_FOOT_PADDING,
+} from './entities/Player';
+import type { EnemyState } from './entities/Enemy';
 import { ENEMY_RENDERED_SIZE, toEnemyState } from './entities/Enemy';
+import { enemyHitbox } from './engine/Collision';
 import {
   playerState,
   cameraPositionX,
@@ -43,6 +50,20 @@ import {
   JOURNAL_OPEN_FRAME_COUNT,
   JOURNAL_OPEN_FRAME_INTERVAL_MS,
 } from './entities/JournalAnimation';
+
+/**
+ * The player.y to set so a falling player's hitbox lands a few px into the
+ * given enemy's hitbox from the top — comfortably within its upper half (a
+ * "landing on top" stomp), derived from the real enemyHitbox/player padding
+ * geometry rather than a hand-picked magic offset, so this stays correct
+ * regardless of future hitbox/padding tuning (same helper shape as
+ * Collision.test.ts's playerLandingOnTopOf).
+ */
+function stompLandingY(enemy: EnemyState, overlapPx = 4): number {
+  const box = enemyHitbox(enemy);
+  const playerHitboxHeight = PLAYER_RENDERED_SIZE - PLAYER_HEAD_PADDING - PLAYER_FOOT_PADDING;
+  return box.y + overlapPx - playerHitboxHeight - PLAYER_HEAD_PADDING;
+}
 
 class MockTilesetImage {
   onload: (() => void) | null = null;
@@ -633,7 +654,7 @@ describe('PlatformerPage', () => {
     playerState.value = {
       ...playerState.value,
       x: target.x,
-      y: target.y - PLAYER_RENDERED_SIZE / 2,
+      y: stompLandingY(target),
       vy: 300,
     };
 
@@ -671,7 +692,7 @@ describe('PlatformerPage', () => {
     playerState.value = {
       ...playerState.value,
       x: target.x,
-      y: target.y - PLAYER_RENDERED_SIZE / 2,
+      y: stompLandingY(target),
       vy: 300,
     };
 
@@ -857,7 +878,7 @@ describe('PlatformerPage', () => {
     playerState.value = {
       ...playerState.value,
       x: target.x,
-      y: target.y - PLAYER_RENDERED_SIZE / 2,
+      y: stompLandingY(target),
       vy: 300,
     };
 
@@ -905,7 +926,7 @@ describe('PlatformerPage', () => {
     playerState.value = {
       ...playerState.value,
       x: plain.x,
-      y: plain.y - PLAYER_RENDERED_SIZE / 2,
+      y: stompLandingY(plain),
       vy: 300,
     };
 
@@ -940,7 +961,7 @@ describe('PlatformerPage', () => {
     playerState.value = {
       ...playerState.value,
       x: target.x,
-      y: target.y - PLAYER_RENDERED_SIZE / 2,
+      y: stompLandingY(target),
       vy: 300,
     };
 
@@ -987,7 +1008,7 @@ describe('PlatformerPage', () => {
     playerState.value = {
       ...playerState.value,
       x: target.x,
-      y: target.y - PLAYER_RENDERED_SIZE / 2,
+      y: stompLandingY(target),
       vy: 300,
     };
 
@@ -1016,7 +1037,7 @@ describe('PlatformerPage', () => {
     playerState.value = {
       ...playerState.value,
       x: revived.x,
-      y: revived.y - PLAYER_RENDERED_SIZE / 2,
+      y: stompLandingY(revived),
       vy: 300,
     };
     t += 16;
@@ -1102,7 +1123,7 @@ describe('PlatformerPage', () => {
     playerState.value = {
       ...playerState.value,
       x: target.x,
-      y: target.y - PLAYER_RENDERED_SIZE / 2,
+      y: stompLandingY(target),
       vy: 300,
     };
 
@@ -1147,7 +1168,7 @@ describe('PlatformerPage', () => {
     playerState.value = {
       ...playerState.value,
       x: target.x,
-      y: target.y - PLAYER_RENDERED_SIZE / 2,
+      y: stompLandingY(target),
       vy: 300,
     };
 
@@ -1182,7 +1203,7 @@ describe('PlatformerPage', () => {
     playerState.value = {
       ...playerState.value,
       x: revived.x,
-      y: revived.y - PLAYER_RENDERED_SIZE / 2,
+      y: stompLandingY(revived),
       vy: 300,
     };
     t += 16;
@@ -1195,7 +1216,7 @@ describe('PlatformerPage', () => {
     expect(collectedFacts.value.filter((f) => f.id === factId)).toHaveLength(1);
   });
 
-  it('playerFallsOntoPurpleEnemyTwice-firstStompSurvives-secondStompDefeatsIt', () => {
+  it('playerFallsOntoPurpleEnemyThreeTimes-firstTwoStompsSurvive-thirdStompDefeatsIt', () => {
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frameCallback = cb;
@@ -1207,41 +1228,34 @@ describe('PlatformerPage', () => {
     frameCallback!(0);
 
     const target = enemyStates.value.find((e) => e.spriteType === 'slimePurple')!;
-    playerState.value = {
-      ...playerState.value,
-      x: target.x,
-      y: target.y - PLAYER_RENDERED_SIZE / 2,
-      vy: 300,
-    };
-
-    // First stomp: plays out its full hit reaction, still alive afterward.
     let t = 16;
-    frameCallback!(t);
-    for (let i = 0; i < 30; i++) {
-      t += 16;
-      frameCallback!(t);
-    }
-    expect(enemyStates.value.some((e) => e.id === target.id)).toBe(true);
-    expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(false);
 
-    // Re-position for a second stomp (the enemy patrolled away during the
-    // reaction window above — put the player back on top of its current
-    // spot). Registers as a genuine second stomp since it still has 1 hit
-    // point left: `checkEnemyStompCollisions` only excludes an enemy once
-    // `hitPoints` reaches 0 — no cooldown/landing tracking needed, since
-    // this engine has no double-jump.
-    const stillAlive = enemyStates.value.find((e) => e.id === target.id)!;
-    playerState.value = {
-      ...playerState.value,
-      x: stillAlive.x,
-      y: stillAlive.y - PLAYER_RENDERED_SIZE / 2,
-      vy: 300,
-    };
-    t += 16;
-    frameCallback!(t);
-    for (let i = 0; i < 30; i++) {
+    // ENEMY_HIT_POINTS.slimePurple is 3 — land three separate, deliberately
+    // re-positioned stomps (not relying on an incidental double-bounce
+    // within one landing's reaction window, which is timing-sensitive).
+    // `checkEnemyStompCollisions` only excludes an enemy once `hitPoints`
+    // reaches 0 — no cooldown/landing tracking needed, since this engine has
+    // no double-jump.
+    for (let stomp = 1; stomp <= 3; stomp++) {
+      const current = enemyStates.value.find((e) => e.id === target.id);
+      if (!current) break; // defeated — nothing left to land on
+      playerState.value = {
+        ...playerState.value,
+        x: current.x,
+        y: stompLandingY(current),
+        vy: 300,
+      };
       t += 16;
       frameCallback!(t);
+      for (let i = 0; i < 30; i++) {
+        t += 16;
+        frameCallback!(t);
+      }
+
+      if (stomp < 3) {
+        expect(enemyStates.value.some((e) => e.id === target.id)).toBe(true);
+        expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(false);
+      }
     }
 
     expect(enemyStates.value.some((e) => e.id === target.id)).toBe(false);
@@ -1975,7 +1989,7 @@ describe('PlatformerPage', () => {
     playerState.value = {
       ...playerState.value,
       x: target.x,
-      y: target.y - PLAYER_RENDERED_SIZE / 2,
+      y: stompLandingY(target),
       vy: 300,
     };
 
@@ -2012,7 +2026,7 @@ describe('PlatformerPage', () => {
     playerState.value = {
       ...playerState.value,
       x: target.x,
-      y: target.y - PLAYER_RENDERED_SIZE / 2,
+      y: stompLandingY(target),
       vy: 300,
     };
 
@@ -2051,7 +2065,7 @@ describe('PlatformerPage', () => {
     playerState.value = {
       ...playerState.value,
       x: target.x,
-      y: target.y - PLAYER_RENDERED_SIZE / 2,
+      y: stompLandingY(target),
       vy: 300,
     };
 
@@ -2068,7 +2082,7 @@ describe('PlatformerPage', () => {
     playerState.value = {
       ...playerState.value,
       x: midReaction.x,
-      y: midReaction.y - PLAYER_RENDERED_SIZE / 2,
+      y: stompLandingY(midReaction),
       vy: 300,
     };
     t += 16;
@@ -2082,7 +2096,7 @@ describe('PlatformerPage', () => {
     playerState.value = {
       ...playerState.value,
       x: afterSecondStomp.x,
-      y: afterSecondStomp.y - PLAYER_RENDERED_SIZE / 2,
+      y: stompLandingY(afterSecondStomp),
       vy: 300,
     };
     t += 16;

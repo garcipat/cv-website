@@ -7,7 +7,13 @@ import {
 import type { PlayerState } from '../entities/Player';
 import { COIN_RENDERED_SIZE } from '../entities/Coin';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
-import { enemyRenderedSize } from '../entities/Enemy';
+import {
+  enemyRenderedSize,
+  enemyTileOffsetX,
+  enemyTileOffsetY,
+  enemyHitboxSidePadding,
+  enemyHitboxTopPadding,
+} from '../entities/Enemy';
 import type { EnemyState } from '../entities/Enemy';
 import { bonusFruitY, BONUS_FRUIT_RISE_DURATION_SECONDS } from '../entities/BonusFruit';
 import type { BonusFruitState } from '../entities/BonusFruit';
@@ -87,12 +93,24 @@ export function checkCollectibleCollisions(
   return collected;
 }
 
-/** An enemy's collision box — the full render slot (enemies have no
- *  transparent-padding trim the way the player's hitbox does; see Enemy.ts's
- *  doc comment on `ENEMY_TILE_OFFSET_Y`). */
+/**
+ * An enemy's collision box — inset from the full render slot by the same
+ * tile-centering offset `drawEnemies` draws the sprite at
+ * (`enemyTileOffsetX`/`enemyTileOffsetY`), plus a further sprite-shape inset
+ * (`enemyHitboxSidePadding`/`enemyHitboxTopPadding`, measured from the
+ * sprite's own transparent margins) so the box coincides with the visible,
+ * rounded slime silhouette rather than its full square render slot.
+ */
 export function enemyHitbox(enemy: EnemyState): Box {
   const size = enemyRenderedSize(enemy.spriteType);
-  return { x: enemy.x, y: enemy.y, width: size, height: size };
+  const sidePad = enemyHitboxSidePadding(enemy.spriteType);
+  const topPad = enemyHitboxTopPadding(enemy.spriteType);
+  return {
+    x: enemy.x + enemyTileOffsetX(enemy.spriteType) + sidePad,
+    y: enemy.y + enemyTileOffsetY(enemy.spriteType) + topPad,
+    width: size - 2 * sidePad,
+    height: size - topPad,
+  };
 }
 
 /**
