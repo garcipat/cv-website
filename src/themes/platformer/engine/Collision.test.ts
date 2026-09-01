@@ -350,6 +350,7 @@ function makeSpikedPurpleEnemy(overrides: Partial<EnemyState> = {}): EnemyState 
     direction: 'right', animState: 'walk', animFrame: 0,
     animTimer: 0, hitPoints: 2, hitTimer: 0, alive: true,
     spiked: true, spikeTimer: 0.1, homeX: 10, homeY: 20,
+    rewardGiven: false,
     ...overrides,
   };
 }
@@ -433,7 +434,7 @@ describe('enemyHitbox per spriteType', () => {
       id: 'e1', spriteType: 'slimeGreen' as const, x: 10, y: 20, vx: 0,
       direction: 'right' as const, animState: 'walk' as const, animFrame: 0,
       animTimer: 0, hitPoints: 1, hitTimer: 0, alive: true,
-      spiked: false, spikeTimer: 0, homeX: 10, homeY: 20,
+      spiked: false, spikeTimer: 0, homeX: 10, homeY: 20, rewardGiven: false,
     };
     expect(enemyHitbox(enemy)).toEqual({ x: 12, y: 22, width: 28, height: 30 });
   });
@@ -445,7 +446,7 @@ describe('enemyHitbox per spriteType', () => {
       id: 'e1', spriteType: 'slimePurple' as const, x: 10, y: 20, vx: 0,
       direction: 'right' as const, animState: 'walk' as const, animFrame: 0,
       animTimer: 0, hitPoints: 3, hitTimer: 0, alive: true,
-      spiked: false, spikeTimer: 0, homeX: 10, homeY: 20,
+      spiked: false, spikeTimer: 0, homeX: 10, homeY: 20, rewardGiven: false,
     };
     expect(enemyHitbox(enemy)).toEqual({ x: -2, y: -8, width: 56, height: 60 });
   });
@@ -459,7 +460,7 @@ describe('enemyHitbox per spriteType', () => {
         id: 'e1', spriteType, x: 100, y: 200, vx: 0,
         direction: 'right' as const, animState: 'walk' as const, animFrame: 0,
         animTimer: 0, hitPoints: 1, hitTimer: 0, alive: true,
-        spiked: false, spikeTimer: 0, homeX: 100, homeY: 200,
+        spiked: false, spikeTimer: 0, homeX: 100, homeY: 200, rewardGiven: false,
       };
       const size = enemyRenderedSize(spriteType);
       const sidePad = enemyHitboxSidePadding(spriteType);

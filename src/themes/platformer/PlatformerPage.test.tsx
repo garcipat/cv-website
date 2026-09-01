@@ -34,6 +34,7 @@ import {
   hintTooltipState,
   keyPickupStates,
   collectedKeys,
+  resetGame,
 } from './PlatformerState';
 import { toChestState, isChestOpen } from './entities/Chest';
 import { spawnKeyPickup } from './entities/KeyPickup';
@@ -1049,6 +1050,48 @@ describe('PlatformerPage', () => {
     }
 
     expect(keyPickupStates.value.filter((k) => k.id === target.id)).toHaveLength(1);
+  });
+
+  it('enemyThatGaveItsReward-isFlaggedRewardGivenAndStaysFlaggedAcrossRespawn', () => {
+    // The dedup is now a property of the enemy itself rather than a lookup
+    // into keyPickupStates, so assert on the enemy. This holds for any
+    // reward type, not only dropped keys.
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const target = enemyStates.value.find((e) => e.spriteType === 'slimePurple')!;
+    enemyStates.value = enemyStates.value.map((e) =>
+      e.id === target.id ? { ...e, hitPoints: 1 } : e,
+    );
+    playerState.value = {
+      ...playerState.value,
+      x: target.x,
+      y: stompLandingY(target),
+      vy: 300,
+    };
+
+    let t = 16;
+    frameCallback!(t);
+    for (let i = 0; i < 30; i++) {
+      t += 16;
+      frameCallback!(t);
+    }
+
+    expect(enemyStates.value.find((e) => e.id === target.id)?.rewardGiven).toBe(true);
+
+    resetGame();
+
+    const revived = enemyStates.value.find((e) => e.id === target.id)!;
+    expect(revived.alive).toBe(true);
+    expect(revived.hitPoints).toBeGreaterThan(0);
+    expect(revived.rewardGiven).toBe(true);
   });
 
   it('playerWalksIntoKeyPickup-tick-incrementsCollectedKeys', () => {

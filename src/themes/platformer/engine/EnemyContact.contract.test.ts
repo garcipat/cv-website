@@ -59,6 +59,7 @@ function makeEnemy(overrides: Partial<EnemyState> = {}): EnemyState {
     alive: true,
     homeX: 100,
     homeY: 100,
+    rewardGiven: false,
     ...overrides,
   };
 }

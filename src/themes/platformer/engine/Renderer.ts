@@ -660,8 +660,8 @@ export function drawEnemies(
   slimePurpleSprite: HTMLImageElement | null,
   originX = 0,
   originY = 0,
-  // Optional: when provided, every purple slime that HASN'T already dropped
-  // its key (see `droppedKeyEnemyIds` below) draws this key — fully opaque,
+  // Optional: when provided, every purple slime that HASN'T already given
+  // its reward (`enemy.rewardGiven` below) draws this key — fully opaque,
   // at the same tile position `spawnKeyPickup` later drops it at —
   // UNDERNEATH its own body, then dims the body itself (see
   // SLIME_PURPLE_HELD_KEY_BODY_ALPHA) so the key shows through, hinting at
@@ -669,15 +669,6 @@ export function drawEnemies(
   // null) skips this entirely and draws every slime fully opaque, unchanged
   // from before this was added.
   keySprite: HTMLImageElement | null = null,
-  // Ids of purple slimes that have ALREADY dropped their one key (see
-  // PlatformerPage.tsx's `justDefeated` handling — each enemy id only ever
-  // drops a single key, even across a death/respawn revival, so farming one
-  // slime for repeated keys isn't possible). Once an id is in here, that
-  // slime keeps patrolling and can still be stomped, but no longer shows a
-  // key inside it — stomping it again wouldn't yield a second one, so
-  // showing it would be a false promise. Defaults to empty (every purple
-  // slime shows its key), matching every pre-existing call site.
-  droppedKeyEnemyIds: ReadonlySet<string> = new Set(),
 ): void {
   ctx.imageSmoothingEnabled = false;
 
@@ -691,7 +682,7 @@ export function drawEnemies(
     const dx = enemy.x + enemyTileOffsetX(enemy.spriteType) + originX;
     const dy = enemy.y + enemyTileOffsetY(enemy.spriteType) + originY;
     const showsHeldKey =
-      enemy.spriteType === 'slimePurple' && keySprite !== null && !droppedKeyEnemyIds.has(enemy.id);
+      enemy.spriteType === 'slimePurple' && keySprite !== null && !enemy.rewardGiven;
 
     if (showsHeldKey) {
       // Centered against the sprite's ACTUAL opaque silhouette, not its full

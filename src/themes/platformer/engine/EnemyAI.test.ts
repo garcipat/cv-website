@@ -213,6 +213,7 @@ describe('stepEnemyPatrol', () => {
       alive: true,
       homeX: 5 * RENDERED_TILE_SIZE,
       homeY: 0,
+      rewardGiven: false,
     };
 
     const first = stepEnemyPatrol(enemy, level, DT, []);
@@ -244,6 +245,7 @@ describe('stepEnemyPatrol', () => {
       alive: true,
       homeX: 3 * RENDERED_TILE_SIZE,
       homeY: 0,
+      rewardGiven: false,
     };
     const green = stepEnemyPatrol({ ...base, spriteType: 'slimeGreen' as const }, level, 1, []);
     const purple = stepEnemyPatrol({ ...base, spriteType: 'slimePurple' as const }, level, 1, []);
