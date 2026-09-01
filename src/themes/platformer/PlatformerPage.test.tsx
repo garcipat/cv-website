@@ -978,7 +978,7 @@ describe('PlatformerPage', () => {
 
     // Note: the player is still standing exactly where the slime died (this
     // engine has no horizontal drift during the hit-reaction freeze — see
-    // applyStomp), so the very same tick's key-pickup collision check (below,
+    // SlimePurple.ts's onPlayerCollide), so the very same tick's key-pickup collision check (below,
     // in PlatformerPage.tsx) collects it immediately — that's real, intended
     // behavior (an item spawned right under the player is picked up on
     // contact, same as any other collectible), not a test artifact. What
@@ -1281,8 +1281,8 @@ describe('PlatformerPage', () => {
 
     // A purple slime's maxHitPoints is 3 — land three separate, deliberately
     // re-positioned stomps. A non-fatal stomp now also sets `spiked: true`
-    // for SPIKE_COOLDOWN_DURATION_SECONDS (see EnemyAI.ts's
-    // stepEnemySpikeCooldown), during which a top-landing is treated as
+    // for SPIKE_COOLDOWN_DURATION_SECONDS (see SlimePurple.ts's
+    // onTick), during which a top-landing is treated as
     // player damage instead of a stomp (SlimePurple.ts's
     // onPlayerCollide) — so each wait
     // between stomps must exceed that cooldown for the next landing to
@@ -2185,8 +2185,8 @@ describe('PlatformerPage', () => {
   });
 
   it('playerLandsOnPurpleEnemyImmediatelyAfterStomp-whileStillMidReactionAndSpiked-registersNeitherStompNorHit', () => {
-    // Purple slime spike cooldown (see EnemyAI.ts's stepEnemySpikeCooldown
-    // and SlimePurple.ts's onPlayerCollide): `takeHit` sets both
+    // Purple slime spike cooldown (see SlimePurple.ts's onTick
+    // and onPlayerCollide): `takeHit` sets both
     // `animState: 'hit'` AND
     // `spiked: true` on the very same stomp. An immediate second top-landing
     // while still mid-reaction therefore does nothing at all — a stunned

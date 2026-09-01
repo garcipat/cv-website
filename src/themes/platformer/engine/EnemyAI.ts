@@ -11,7 +11,8 @@ import {
 
 /** How long the `hit` reaction (red-flash/dissolve) plays before the enemy
  *  either reverts to patrolling (hit points remain) or is flagged dead —
- *  matches Enemy.ts's `hit` animation: 4 frames at 0.1s each. */
+ *  matches entities/enemies/EnemyAnimation.ts's `hit` animation: 4 frames at
+ *  0.1s each. */
 export const HIT_REACTION_DURATION_SECONDS = 0.4;
 
 /**

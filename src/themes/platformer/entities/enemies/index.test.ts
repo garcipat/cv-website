@@ -46,6 +46,28 @@ describe('ENEMY_TYPES', () => {
   });
 });
 
+describe('heldItem drop wiring', () => {
+  it('slimePurple-heldItem-isKey', () => {
+    expect(ENEMY_TYPES.slimePurple.heldItem).toBe('key');
+  });
+
+  it('slimeGreen-heldItem-isNull', () => {
+    expect(ENEMY_TYPES.slimeGreen.heldItem).toBeNull();
+  });
+
+  it('enemyTypes-heldItemOfKey-isExactlyTheSlimePurpleType', () => {
+    // The defeat handler (PlatformerPage.tsx) reads `typeOf(enemy).heldItem`
+    // to decide whether to spawn a key pickup, rather than branching on a
+    // hardcoded type literal. This asserts that config, not a type-name
+    // check, is what determines which types drop a key: exactly the types
+    // whose `heldItem` is `'key'` are the ones expected to drop one.
+    const typesThatDropAKey = Object.entries(ENEMY_TYPES)
+      .filter(([, type]) => type.heldItem === 'key')
+      .map(([key]) => key);
+    expect(typesThatDropAKey).toEqual(['slimePurple']);
+  });
+});
+
 describe('typeOf', () => {
   it('purpleSlimeState-returnsThePurpleModule', () => {
     const placement: EnemyPlacement = { id: 'e', type: 'slimePurple', x: 0, y: 0 };
