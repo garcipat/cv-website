@@ -188,6 +188,28 @@ export function checkEnemySideCollisions(player: PlayerState, enemies: EnemyStat
 }
 
 /**
+ * True when the player's overlap with `enemy` is exactly the "landing on
+ * its upper half while falling" shape `checkEnemyStompCollisions` would
+ * normally register as a stomp, but `checkEnemySideCollisions` reported as
+ * damage instead because `enemy.spiked` blocked it. Used by
+ * `PlatformerPage.tsx` to add a bit of upward knockback on top of the usual
+ * horizontal push for this specific case — a failed stomp attempt against
+ * spikes should read as "bounced off the top", not identically to a plain
+ * side/below touch. Deliberately re-derives the same geometry rather than
+ * having `checkEnemySideCollisions` return richer per-hit metadata — this
+ * is the only caller that needs the distinction, and every existing caller
+ * of `checkEnemySideCollisions` (Collision.test.ts included) keeps working
+ * against its unchanged `string[]` return type.
+ */
+export function isSpikedTopLanding(player: PlayerState, enemy: EnemyState): boolean {
+  if (!enemy.spiked || player.vy <= 0) return false;
+  const hitbox = playerHitbox(player);
+  const box = enemyHitbox(enemy);
+  const enemyMidY = box.y + box.height / 2;
+  return hitbox.y + hitbox.height <= enemyMidY;
+}
+
+/**
  * Returns the ids of every bonus fruit the player's hitbox currently
  * overlaps AND that has finished rising (`elapsed >=
  * BONUS_FRUIT_RISE_DURATION_SECONDS`) — spec.md's "lands as a touchable
