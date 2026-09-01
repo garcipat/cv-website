@@ -199,7 +199,7 @@ describe('drawDebugOverlay', () => {
   it('purpleEnemy-drawsOrangeRenderSlotRectAtFullScaledSize', () => {
     const ctx = makeMockContext();
     const level: LevelDef = { width: 1, height: 1, terrain: [['empty']] };
-    const enemy = toEnemyState({ id: 'e1', spriteType: 'slimePurple', x: 100, y: 200 });
+    const enemy = toEnemyState({ id: 'e1', type: 'slimePurple', x: 100, y: 200 });
 
     drawDebugOverlay(ctx, idlePlayer, level, 0, 0, [enemy]);
 
@@ -217,7 +217,7 @@ describe('drawDebugOverlay', () => {
   it('purpleEnemy-drawsBlueHitboxRectNarrowerThanRenderSlot', () => {
     const ctx = makeMockContext();
     const level: LevelDef = { width: 1, height: 1, terrain: [['empty']] };
-    const enemy = toEnemyState({ id: 'e1', spriteType: 'slimePurple', x: 100, y: 200 });
+    const enemy = toEnemyState({ id: 'e1', type: 'slimePurple', x: 100, y: 200 });
 
     drawDebugOverlay(ctx, idlePlayer, level, 0, 0, [enemy]);
 
@@ -232,7 +232,7 @@ describe('drawDebugOverlay', () => {
   it('enemies-originXY-offsetsEnemyRectsToo', () => {
     const ctx = makeMockContext();
     const level: LevelDef = { width: 1, height: 1, terrain: [['empty']] };
-    const enemy = toEnemyState({ id: 'e1', spriteType: 'slimeGreen', x: 50, y: 60 });
+    const enemy = toEnemyState({ id: 'e1', type: 'slimeGreen', x: 50, y: 60 });
     const originX = 10;
     const originY = 20;
 

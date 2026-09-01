@@ -624,7 +624,7 @@ export function drawKeyPickups(
  * Draws every enemy at its current state position, direction, and animation
  * frame. Each enemy carries its own animState and animFrame (updated per
  * frame during patrol movement — Tasks 5+), so this reads per-enemy state
- * rather than a shared clock. spriteType picks which sheet: slimeGreen for
+ * rather than a shared clock. type picks which sheet: slimeGreen for
  * Certificates, slimePurple for Projects. Either sprite sheet may
  * independently be null (not yet loaded); that type's enemies are simply
  * skipped for the frame, same convention as drawCollectibles's
@@ -674,15 +674,15 @@ export function drawEnemies(
 
   for (const enemy of enemies) {
     if (!enemy.alive) continue;
-    const sprite = enemy.spriteType === 'slimeGreen' ? slimeGreenSprite : slimePurpleSprite;
+    const sprite = enemy.type === 'slimeGreen' ? slimeGreenSprite : slimePurpleSprite;
     if (!sprite) continue;
 
     const { sx, sy } = enemyFrameSource(enemy.animState, enemy.animFrame);
-    const size = enemyRenderedSize(enemy.spriteType);
-    const dx = enemy.x + enemyTileOffsetX(enemy.spriteType) + originX;
-    const dy = enemy.y + enemyTileOffsetY(enemy.spriteType) + originY;
+    const size = enemyRenderedSize(enemy.type);
+    const dx = enemy.x + enemyTileOffsetX(enemy.type) + originX;
+    const dy = enemy.y + enemyTileOffsetY(enemy.type) + originY;
     const showsHeldKey =
-      enemy.spriteType === 'slimePurple' && keySprite !== null && !enemy.rewardGiven;
+      enemy.type === 'slimePurple' && keySprite !== null && !enemy.rewardGiven;
 
     if (showsHeldKey) {
       // Centered against the sprite's ACTUAL opaque silhouette, not its full
@@ -691,8 +691,8 @@ export function drawEnemies(
       // own doc comment: 9px of a 24px native frame, none below), so
       // centering against the full size×size box put the key well above the
       // visible body and made it look larger than the blob itself.
-      const sidePadding = enemyHitboxSidePadding(enemy.spriteType);
-      const topPadding = enemyHitboxTopPadding(enemy.spriteType);
+      const sidePadding = enemyHitboxSidePadding(enemy.type);
+      const topPadding = enemyHitboxTopPadding(enemy.type);
       const silhouetteWidth = size - sidePadding * 2;
       const silhouetteHeight = size - topPadding; // bottom padding is 0
       const silhouetteLeft = dx + sidePadding;
@@ -752,11 +752,11 @@ export function drawEnemies(
 
 const TOP_SPIKE_FRACTIONS = [0.3, 0.7];
 
-/** Per-spriteType spike palette, tinted toward each slime's own body color
+/** Per-type spike palette, tinted toward each slime's own body color
  *  (an approximate match, not sampled from the sprite sheet — there's no
  *  existing color constant for the slime PNGs to reuse) so the spikes read
  *  as part of the slime, not an unrelated bone/rock overlay. */
-const SPIKE_COLORS: Record<EnemyDef['spriteType'], { fill: string; outline: string }> = {
+const SPIKE_COLORS: Record<EnemyDef['type'], { fill: string; outline: string }> = {
   slimeGreen: { fill: '#7ec850', outline: '#355c22' },
   slimePurple: { fill: '#9a6fd6', outline: '#4d2f7a' },
 };
@@ -845,12 +845,12 @@ export function drawEnemySpikes(
     if (!enemy.spiked) continue;
 
     const scale = spikeGrowthScale(enemy.spikeTimer);
-    const colors = SPIKE_COLORS[enemy.spriteType];
-    const size = enemyRenderedSize(enemy.spriteType);
-    const sidePad = enemyHitboxSidePadding(enemy.spriteType);
-    const topPad = enemyHitboxTopPadding(enemy.spriteType);
-    const left = enemy.x + enemyTileOffsetX(enemy.spriteType) + sidePad + originX;
-    const top = enemy.y + enemyTileOffsetY(enemy.spriteType) + topPad + originY;
+    const colors = SPIKE_COLORS[enemy.type];
+    const size = enemyRenderedSize(enemy.type);
+    const sidePad = enemyHitboxSidePadding(enemy.type);
+    const topPad = enemyHitboxTopPadding(enemy.type);
+    const left = enemy.x + enemyTileOffsetX(enemy.type) + sidePad + originX;
+    const top = enemy.y + enemyTileOffsetY(enemy.type) + topPad + originY;
     const width = size - 2 * sidePad;
     const height = size - topPad;
     const right = left + width;

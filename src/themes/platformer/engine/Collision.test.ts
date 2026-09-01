@@ -71,7 +71,7 @@ function makePlacement(id: string, x: number, y: number): CollectiblePlacement {
 function makeEnemy(x: number, y: number, overrides: Partial<EnemyState> = {}): EnemyState {
   const placement: EnemyPlacement = {
     id: 'enemy-cert-x',
-    spriteType: 'slimeGreen',
+    type: 'slimeGreen',
     fact: {
       id: 'enemy-cert-x',
       sectionId: 'certificates',
@@ -346,7 +346,7 @@ describe('checkSignOverlap', () => {
 
 function makeSpikedPurpleEnemy(overrides: Partial<EnemyState> = {}): EnemyState {
   return {
-    id: 'e1', spriteType: 'slimePurple', x: 10, y: 20, vx: 0,
+    id: 'e1', type: 'slimePurple', x: 10, y: 20, vx: 0, vy: 0,
     direction: 'right', animState: 'walk', animFrame: 0,
     animTimer: 0, hitPoints: 2, hitTimer: 0, alive: true,
     spiked: true, spikeTimer: 0.1, homeX: 10, homeY: 20,
@@ -425,13 +425,13 @@ describe('isSpikedTopLanding', () => {
   });
 });
 
-describe('enemyHitbox per spriteType', () => {
+describe('enemyHitbox per type', () => {
   it('enemyHitbox-slimeGreen-insetFromRenderSlotByMeasuredSpriteConstants', () => {
     // Concrete anchor values (not derived from the functions under test):
     // size=48, tileOffsetX=-8, tileOffsetY=-16, sidePad=10, topPad=18 ->
     // x=enemy.x+2, y=enemy.y+2, width=28, height=30.
     const enemy = {
-      id: 'e1', spriteType: 'slimeGreen' as const, x: 10, y: 20, vx: 0,
+      id: 'e1', type: 'slimeGreen' as const, x: 10, y: 20, vx: 0, vy: 0,
       direction: 'right' as const, animState: 'walk' as const, animFrame: 0,
       animTimer: 0, hitPoints: 1, hitTimer: 0, alive: true,
       spiked: false, spikeTimer: 0, homeX: 10, homeY: 20, rewardGiven: false,
@@ -443,7 +443,7 @@ describe('enemyHitbox per spriteType', () => {
     // size=96, tileOffsetX=-32, tileOffsetY=-64, sidePad=20, topPad=36 ->
     // x=enemy.x-22, y=enemy.y-28, width=56, height=60.
     const enemy = {
-      id: 'e1', spriteType: 'slimePurple' as const, x: 10, y: 20, vx: 0,
+      id: 'e1', type: 'slimePurple' as const, x: 10, y: 20, vx: 0, vy: 0,
       direction: 'right' as const, animState: 'walk' as const, animFrame: 0,
       animTimer: 0, hitPoints: 3, hitTimer: 0, alive: true,
       spiked: false, spikeTimer: 0, homeX: 10, homeY: 20, rewardGiven: false,
@@ -455,19 +455,19 @@ describe('enemyHitbox per spriteType', () => {
     // Cross-checks against the same offset/padding helpers drawEnemies
     // itself uses, so the hitbox and the visible sprite can never silently
     // drift apart again.
-    for (const spriteType of ['slimeGreen', 'slimePurple'] as const) {
+    for (const type of ['slimeGreen', 'slimePurple'] as const) {
       const enemy = {
-        id: 'e1', spriteType, x: 100, y: 200, vx: 0,
+        id: 'e1', type, x: 100, y: 200, vx: 0, vy: 0,
         direction: 'right' as const, animState: 'walk' as const, animFrame: 0,
         animTimer: 0, hitPoints: 1, hitTimer: 0, alive: true,
         spiked: false, spikeTimer: 0, homeX: 100, homeY: 200, rewardGiven: false,
       };
-      const size = enemyRenderedSize(spriteType);
-      const sidePad = enemyHitboxSidePadding(spriteType);
-      const topPad = enemyHitboxTopPadding(spriteType);
+      const size = enemyRenderedSize(type);
+      const sidePad = enemyHitboxSidePadding(type);
+      const topPad = enemyHitboxTopPadding(type);
       expect(enemyHitbox(enemy)).toEqual({
-        x: 100 + enemyTileOffsetX(spriteType) + sidePad,
-        y: 200 + enemyTileOffsetY(spriteType) + topPad,
+        x: 100 + enemyTileOffsetX(type) + sidePad,
+        y: 200 + enemyTileOffsetY(type) + topPad,
         width: size - 2 * sidePad,
         height: size - topPad,
       });

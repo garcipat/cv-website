@@ -102,12 +102,12 @@ export function checkCollectibleCollisions(
  * rounded slime silhouette rather than its full square render slot.
  */
 export function enemyHitbox(enemy: EnemyState): Box {
-  const size = enemyRenderedSize(enemy.spriteType);
-  const sidePad = enemyHitboxSidePadding(enemy.spriteType);
-  const topPad = enemyHitboxTopPadding(enemy.spriteType);
+  const size = enemyRenderedSize(enemy.type);
+  const sidePad = enemyHitboxSidePadding(enemy.type);
+  const topPad = enemyHitboxTopPadding(enemy.type);
   return {
-    x: enemy.x + enemyTileOffsetX(enemy.spriteType) + sidePad,
-    y: enemy.y + enemyTileOffsetY(enemy.spriteType) + topPad,
+    x: enemy.x + enemyTileOffsetX(enemy.type) + sidePad,
+    y: enemy.y + enemyTileOffsetY(enemy.type) + topPad,
     width: size - 2 * sidePad,
     height: size - topPad,
   };

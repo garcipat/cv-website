@@ -225,14 +225,14 @@ describe('drawCollectibles', () => {
 
 function makeEnemyState(
   id: string,
-  spriteType: 'slimeGreen' | 'slimePurple',
+  type: 'slimeGreen' | 'slimePurple',
   x: number,
   y: number,
   overrides: Partial<EnemyState> = {},
 ): EnemyState {
   return {
     id,
-    spriteType,
+    type,
     fact: {
       id,
       sectionId: 'certificates',
@@ -243,6 +243,7 @@ function makeEnemyState(
     x,
     y,
     vx: 0,
+    vy: 0,
     direction: 'right',
     animState: 'walk',
     animFrame: 0,

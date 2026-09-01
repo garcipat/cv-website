@@ -22,7 +22,7 @@ import { RENDER_SCALE, RENDERED_TILE_SIZE } from '../level/Terrain';
 function makePlacement(): EnemyPlacement {
   return {
     id: 'enemy-cert-x',
-    spriteType: 'slimeGreen',
+    type: 'slimeGreen',
     fact: {
       id: 'enemy-cert-x',
       sectionId: 'certificates',
@@ -58,7 +58,7 @@ describe('toEnemyState', () => {
     const state = toEnemyState(makePlacement());
     expect(state.x).toBe(320);
     expect(state.y).toBe(96);
-    expect(state.spriteType).toBe('slimeGreen');
+    expect(state.type).toBe('slimeGreen');
     expect(state.fact).toEqual(makePlacement().fact);
     expect(state.vx).toBe(0);
     expect(state.direction).toBe('right');
@@ -92,7 +92,7 @@ describe('toEnemyState', () => {
   });
 
   it('purpleSlime-startsWithThreeHitPoints', () => {
-    const purplePlacement = { ...makePlacement(), spriteType: 'slimePurple' as const };
+    const purplePlacement = { ...makePlacement(), type: 'slimePurple' as const };
     const state = toEnemyState(purplePlacement);
     expect(state.hitPoints).toBe(3);
   });
@@ -154,7 +154,7 @@ describe('applyStomp', () => {
     // real player input once spikes are up — this test exercises the
     // function directly, bypassing that gate.
     const state = {
-      ...toEnemyState({ ...makePlacement(), spriteType: 'slimePurple' as const }),
+      ...toEnemyState({ ...makePlacement(), type: 'slimePurple' as const }),
       hitPoints: 2,
       animState: 'hit' as const,
       animFrame: 3,
@@ -175,14 +175,14 @@ describe('applyStomp', () => {
   });
 
   it('purpleSlimeWithThreeHitPoints-decrementsToTwo', () => {
-    const purplePlacement = { ...makePlacement(), spriteType: 'slimePurple' as const };
+    const purplePlacement = { ...makePlacement(), type: 'slimePurple' as const };
     const state = toEnemyState(purplePlacement);
     const next = applyStomp(state);
     expect(next.hitPoints).toBe(2);
   });
 });
 
-describe('per-spriteType enemy config', () => {
+describe('per-type enemy config', () => {
   it('enemyRenderedSize-slimePurple-is1point5xGreen', () => {
     expect(enemyRenderedSize('slimePurple')).toBe(ENEMY_FRAME_SIZE * RENDER_SCALE * 2);
     expect(enemyRenderedSize('slimeGreen')).toBe(ENEMY_FRAME_SIZE * RENDER_SCALE);
@@ -216,14 +216,14 @@ describe('per-spriteType enemy config', () => {
 
 describe('toEnemyState hitPoints (updated)', () => {
   it('toEnemyState-slimePurple-hasThreeHitPoints', () => {
-    const placement = { id: 'e1', spriteType: 'slimePurple' as const, x: 0, y: 0 };
+    const placement = { id: 'e1', type: 'slimePurple' as const, x: 0, y: 0 };
     expect(toEnemyState(placement).hitPoints).toBe(3);
   });
 });
 
 describe('toEnemyState spiked/spikeTimer defaults', () => {
   it('toEnemyState-anyPlacement-startsNotSpiked', () => {
-    const placement = { id: 'e1', spriteType: 'slimePurple' as const, x: 0, y: 0 };
+    const placement = { id: 'e1', type: 'slimePurple' as const, x: 0, y: 0 };
     const state = toEnemyState(placement);
     expect(state.spiked).toBe(false);
     expect(state.spikeTimer).toBe(0);
@@ -232,7 +232,7 @@ describe('toEnemyState spiked/spikeTimer defaults', () => {
 
 describe('applyStomp spiked behavior', () => {
   it('applyStomp-survivingStomp-becomesSpikedWithResetTimer', () => {
-    const state = { ...toEnemyState({ id: 'e1', spriteType: 'slimePurple' as const, x: 0, y: 0 }), spikeTimer: 0.9 };
+    const state = { ...toEnemyState({ id: 'e1', type: 'slimePurple' as const, x: 0, y: 0 }), spikeTimer: 0.9 };
     const next = applyStomp(state);
     expect(next.hitPoints).toBe(2);
     expect(next.spiked).toBe(true);
@@ -240,7 +240,7 @@ describe('applyStomp spiked behavior', () => {
   });
 
   it('applyStomp-finishingStomp-doesNotBecomeSpiked', () => {
-    const state = { ...toEnemyState({ id: 'e1', spriteType: 'slimeGreen' as const, x: 0, y: 0 }) };
+    const state = { ...toEnemyState({ id: 'e1', type: 'slimeGreen' as const, x: 0, y: 0 }) };
     const next = applyStomp(state);
     expect(next.hitPoints).toBe(0);
     expect(next.spiked).toBe(false);
@@ -248,7 +248,7 @@ describe('applyStomp spiked behavior', () => {
 
   it('applyStomp-alreadySpikedSurvivingAnotherStomp-restartsTimer', () => {
     const state = {
-      ...toEnemyState({ id: 'e1', spriteType: 'slimePurple' as const, x: 0, y: 0 }),
+      ...toEnemyState({ id: 'e1', type: 'slimePurple' as const, x: 0, y: 0 }),
       hitPoints: 2,
       spiked: true,
       spikeTimer: 1.2,
@@ -307,7 +307,7 @@ describe('reviveEnemy', () => {
 
     expect(revived.x).toBe(enemy.x);
     expect(revived.y).toBe(enemy.y);
-    expect(revived.hitPoints).toBe(ENEMY_HIT_POINTS[enemy.spriteType]);
+    expect(revived.hitPoints).toBe(ENEMY_HIT_POINTS[enemy.type]);
     expect(revived.alive).toBe(true);
     expect(revived.animState).toBe('walk');
     expect(revived.hitTimer).toBe(0);

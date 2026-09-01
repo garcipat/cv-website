@@ -1,6 +1,7 @@
 import { RENDER_SCALE, RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { EnemyPlacement } from '../level/EnemyMapper';
 import type { EnemyDef } from '../types';
+import type { Entity, Damageable, Direction } from './Entity';
 
 /**
  * Both slime_green.png and slime_purple.png are 96x72 sheets: a 4x3 grid of
@@ -40,13 +41,13 @@ export const ENEMY_TILE_OFFSET_Y = RENDERED_TILE_SIZE - ENEMY_RENDERED_SIZE;
 export const ENEMY_TILE_OFFSET_X = (RENDERED_TILE_SIZE - ENEMY_RENDERED_SIZE) / 2;
 
 /**
- * Per-`spriteType` render-scale multiplier, patrol-speed multiplier, and hit
+ * Per-`type` render-scale multiplier, patrol-speed multiplier, and hit
  * points — a purple slime is 1.5x a green slime's size, patrols at 70% of
  * its speed, and takes 3 stomps to defeat (green takes 1). Centralized here
  * as lookups (same convention as ENEMY_ANIM_CONFIG above) rather than
  * scattering per-type ternaries through Collision.ts/Renderer.ts/EnemyAI.ts.
  */
-export const ENEMY_RENDER_SCALE: Record<EnemyDef['spriteType'], number> = {
+export const ENEMY_RENDER_SCALE: Record<EnemyDef['type'], number> = {
   slimeGreen: 1,
   // Bumped from 1.5 to 2 as an experiment (not a settled design decision)
   // to see how a much larger purple slime reads next to the held-key
@@ -54,37 +55,37 @@ export const ENEMY_RENDER_SCALE: Record<EnemyDef['spriteType'], number> = {
   slimePurple: 2,
 };
 
-export const ENEMY_PATROL_SPEED_MULTIPLIER: Record<EnemyDef['spriteType'], number> = {
+export const ENEMY_PATROL_SPEED_MULTIPLIER: Record<EnemyDef['type'], number> = {
   slimeGreen: 1,
   slimePurple: 0.7,
 };
 
-export const ENEMY_HIT_POINTS: Record<EnemyDef['spriteType'], number> = {
+export const ENEMY_HIT_POINTS: Record<EnemyDef['type'], number> = {
   slimeGreen: 1,
   slimePurple: 3,
 };
 
-/** Actual rendered size for a given spriteType — ENEMY_RENDERED_SIZE scaled
+/** Actual rendered size for a given type — ENEMY_RENDERED_SIZE scaled
  *  by ENEMY_RENDER_SCALE. Collision.ts's enemyHitbox and Renderer.ts's
  *  drawEnemies both call this instead of the flat ENEMY_RENDERED_SIZE
  *  constant so a bigger purple slime gets a proportionally bigger hitbox and
  *  draw rect. */
-export function enemyRenderedSize(spriteType: EnemyDef['spriteType']): number {
-  return ENEMY_FRAME_SIZE * RENDER_SCALE * ENEMY_RENDER_SCALE[spriteType];
+export function enemyRenderedSize(type: EnemyDef['type']): number {
+  return ENEMY_FRAME_SIZE * RENDER_SCALE * ENEMY_RENDER_SCALE[type];
 }
 
-/** Per-spriteType horizontal centering offset — same formula
- *  ENEMY_TILE_OFFSET_X uses, but against enemyRenderedSize(spriteType)
+/** Per-type horizontal centering offset — same formula
+ *  ENEMY_TILE_OFFSET_X uses, but against enemyRenderedSize(type)
  *  instead of the flat green-sized constant, so a bigger purple slime still
  *  centers correctly over its placement tile. */
-export function enemyTileOffsetX(spriteType: EnemyDef['spriteType']): number {
-  return (RENDERED_TILE_SIZE - enemyRenderedSize(spriteType)) / 2;
+export function enemyTileOffsetX(type: EnemyDef['type']): number {
+  return (RENDERED_TILE_SIZE - enemyRenderedSize(type)) / 2;
 }
 
-/** Per-spriteType bottom-anchoring offset — same formula
- *  ENEMY_TILE_OFFSET_Y uses, against enemyRenderedSize(spriteType). */
-export function enemyTileOffsetY(spriteType: EnemyDef['spriteType']): number {
-  return RENDERED_TILE_SIZE - enemyRenderedSize(spriteType);
+/** Per-type bottom-anchoring offset — same formula
+ *  ENEMY_TILE_OFFSET_Y uses, against enemyRenderedSize(type). */
+export function enemyTileOffsetY(type: EnemyDef['type']): number {
+  return RENDERED_TILE_SIZE - enemyRenderedSize(type);
 }
 
 /**
@@ -104,25 +105,25 @@ export function enemyTileOffsetY(spriteType: EnemyDef['spriteType']): number {
 const ENEMY_HITBOX_SIDE_PADDING_NATIVE = 5;
 const ENEMY_HITBOX_TOP_PADDING_NATIVE = 9;
 
-/** Per-spriteType collision-hitbox side inset — scaled the same way
+/** Per-type collision-hitbox side inset — scaled the same way
  *  enemyRenderedSize scales the frame itself, so the inset grows
  *  proportionally with a bigger slime instead of staying a fixed pixel
  *  amount. */
-export function enemyHitboxSidePadding(spriteType: EnemyDef['spriteType']): number {
-  return ENEMY_HITBOX_SIDE_PADDING_NATIVE * RENDER_SCALE * ENEMY_RENDER_SCALE[spriteType];
+export function enemyHitboxSidePadding(type: EnemyDef['type']): number {
+  return ENEMY_HITBOX_SIDE_PADDING_NATIVE * RENDER_SCALE * ENEMY_RENDER_SCALE[type];
 }
 
-/** Per-spriteType collision-hitbox top inset — see enemyHitboxSidePadding.
+/** Per-type collision-hitbox top inset — see enemyHitboxSidePadding.
  *  No corresponding bottom-inset function: the silhouette's feet already
  *  touch the native frame's bottom edge, so the hitbox's bottom edge stays
  *  at the render slot's bottom. */
-export function enemyHitboxTopPadding(spriteType: EnemyDef['spriteType']): number {
-  return ENEMY_HITBOX_TOP_PADDING_NATIVE * RENDER_SCALE * ENEMY_RENDER_SCALE[spriteType];
+export function enemyHitboxTopPadding(type: EnemyDef['type']): number {
+  return ENEMY_HITBOX_TOP_PADDING_NATIVE * RENDER_SCALE * ENEMY_RENDER_SCALE[type];
 }
 
 export type EnemyAnimState = 'walk' | 'hit';
 
-export type EnemyDirection = 'left' | 'right';
+export type { Direction as EnemyDirection } from './Entity';
 
 type FrameCoord = { sx: number; sy: number };
 
@@ -152,14 +153,15 @@ export function enemyFrameSource(animState: EnemyAnimState, frame: number): { sx
   return frames[frame % frames.length];
 }
 
-export interface EnemyState extends EnemyPlacement {
+export interface EnemyState extends EnemyPlacement, Entity, Damageable {
+  type: EnemyDef['type'];
   /** Horizontal velocity in px/s. Positive is rightward. Enemies never move
    *  vertically — patrol is a simple back-and-forth walk along the row an
    *  enemy is placed on (FR-019's "simple patrol-only" scope; no gravity). */
   vx: number;
   /** Direction the sprite is drawn facing and currently moving — always in
    *  sync with `vx`'s sign once patrol has run at least one frame. */
-  direction: EnemyDirection;
+  direction: Direction;
   animState: EnemyAnimState;
   animFrame: number;
   /** Seconds accumulated toward the next animation frame advance. */
@@ -237,11 +239,12 @@ export function toEnemyState(placement: EnemyPlacement, index = 0): EnemyState {
   return {
     ...placement,
     vx: 0,
+    vy: 0,
     direction: 'right',
     animState: 'walk',
     animFrame: index % frames.length,
     animTimer: (index * 0.05) % frameDuration,
-    hitPoints: ENEMY_HIT_POINTS[placement.spriteType],
+    hitPoints: ENEMY_HIT_POINTS[placement.type],
     hitTimer: 0,
     spiked: false,
     spikeTimer: 0,
@@ -280,9 +283,10 @@ export function reviveEnemy(enemy: EnemyState): EnemyState {
     x: enemy.homeX,
     y: enemy.homeY,
     vx: 0,
+    vy: 0,
     direction: 'right',
     animState: 'walk',
-    hitPoints: ENEMY_HIT_POINTS[enemy.spriteType],
+    hitPoints: ENEMY_HIT_POINTS[enemy.type],
     hitTimer: 0,
     spiked: false,
     spikeTimer: 0,

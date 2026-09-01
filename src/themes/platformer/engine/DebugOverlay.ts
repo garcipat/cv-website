@@ -87,11 +87,11 @@ export function drawDebugOverlay(
   // here would misrepresent what's actually collidable.
   for (const enemy of enemies) {
     if (!enemy.alive) continue;
-    const size = enemyRenderedSize(enemy.spriteType);
+    const size = enemyRenderedSize(enemy.type);
     ctx.strokeStyle = 'red';
     ctx.strokeRect(
-      enemy.x + enemyTileOffsetX(enemy.spriteType) + originX,
-      enemy.y + enemyTileOffsetY(enemy.spriteType) + originY,
+      enemy.x + enemyTileOffsetX(enemy.type) + originX,
+      enemy.y + enemyTileOffsetY(enemy.type) + originY,
       size,
       size,
     );

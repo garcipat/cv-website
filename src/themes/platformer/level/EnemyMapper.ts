@@ -10,11 +10,11 @@ import type { EnemyDef } from '../types';
  * reveals CV content; purple slimes carry no CV content and instead drop a key
  * on defeat (see `entities/KeyPickup.ts` and `PlatformerPage.tsx`'s defeat handler).
  */
-function courseToEnemy(course: Course, spriteType: EnemyDef['spriteType']): EnemyDef {
+function courseToEnemy(course: Course, type: EnemyDef['type']): EnemyDef {
   const id = `enemy-course-${slugify(course.title)}`;
   return {
     id,
-    spriteType,
+    type,
     fact: {
       id,
       sectionId: 'courses',
@@ -40,7 +40,7 @@ export interface EnemyPlacement extends EnemyDef {
 }
 
 /** Hand-authored marker positions for each enemy type, keyed the same way
- *  `EnemyDef.spriteType` is — see `placeEnemies` below. */
+ *  `EnemyDef.type` is — see `placeEnemies` below. */
 export interface EnemyMarkerPositions {
   slimeGreen: readonly { col: number; row: number }[];
   slimePurple: readonly { col: number; row: number }[];
@@ -54,12 +54,12 @@ export interface EnemyMarkerPositions {
  * doc comment), same convention `BlockMapper.ts`'s question-mark/
  * fragileRock blocks already use for CV-mapping-free entities.
  */
-function plainEnemyDef(spriteType: EnemyDef['spriteType'], col: number, row: number): EnemyDef {
-  return { id: `enemy-plain-${spriteType}-${col}-${row}`, spriteType };
+function plainEnemyDef(type: EnemyDef['type'], col: number, row: number): EnemyDef {
+  return { id: `enemy-plain-${type}-${col}-${row}`, type };
 }
 
 /**
- * Places one enemy per marker of `spriteType`, in reading order: the first
+ * Places one enemy per marker of `type`, in reading order: the first
  * `defs.length` markers each get the next def (and its `fact`) in order;
  * any further marker gets a `plainEnemyDef` instead. Shared by both colors
  * in `placeEnemies` below.
@@ -67,10 +67,10 @@ function plainEnemyDef(spriteType: EnemyDef['spriteType'], col: number, row: num
 function placeQueue(
   defs: EnemyDef[],
   markers: readonly { col: number; row: number }[],
-  spriteType: EnemyDef['spriteType'],
+  type: EnemyDef['type'],
 ): EnemyPlacement[] {
   return markers.map((marker, index) => {
-    const def = defs[index] ?? plainEnemyDef(spriteType, marker.col, marker.row);
+    const def = defs[index] ?? plainEnemyDef(type, marker.col, marker.row);
     const { x, y } = tileToPixel(marker.col, marker.row);
     return { ...def, x, y };
   });
@@ -88,8 +88,8 @@ function placeQueue(
  * it's the final design.
  */
 export function placeEnemies(defs: EnemyDef[], markers: EnemyMarkerPositions): EnemyPlacement[] {
-  const greenDefs = defs.filter((def) => def.spriteType === 'slimeGreen');
-  const purpleDefs = defs.filter((def) => def.spriteType === 'slimePurple');
+  const greenDefs = defs.filter((def) => def.type === 'slimeGreen');
+  const purpleDefs = defs.filter((def) => def.type === 'slimePurple');
 
   return [
     ...placeQueue(greenDefs, markers.slimeGreen, 'slimeGreen'),
