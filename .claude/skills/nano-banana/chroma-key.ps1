@@ -109,10 +109,54 @@ function Copy-Cropped([System.Drawing.Bitmap]$src, [hashtable]$bounds) {
   return $cropped
 }
 
+# --- Step 0: trim any accidental solid-color margin OUTSIDE the magenta
+# canvas itself. Despite the prompt asking for magenta edge-to-edge, models
+# sometimes still frame it with a few dozen px of white (or some other flat
+# color) padding — that border isn't magenta, so the chroma-key pass below
+# would leave it as an opaque frame around the final asset. Scan inward from
+# each side while the pixel matches the top-left corner's color (a real
+# magenta canvas won't match an off-magenta corner) and isn't magenta-ish
+# itself; stop at the first pixel that's either magenta or genuinely
+# different from the corner color. A no-op when the canvas is already pure
+# magenta edge-to-edge (the common case) — the loops simply won't advance.
+function Test-Magentaish([System.Drawing.Color]$p, [int]$threshold) {
+  $score = [Math]::Min([int]$p.R - [int]$p.G, [int]$p.B - [int]$p.G)
+  return $score -gt $threshold
+}
+function Test-CloseColor([System.Drawing.Color]$a, [System.Drawing.Color]$b, [int]$tolerance = 24) {
+  return ([Math]::Abs([int]$a.R - [int]$b.R) -le $tolerance) -and
+         ([Math]::Abs([int]$a.G - [int]$b.G) -le $tolerance) -and
+         ([Math]::Abs([int]$a.B - [int]$b.B) -le $tolerance)
+}
+
+$rawImg = [System.Drawing.Image]::FromFile((Resolve-Path $InputPath))
+$raw = New-Object System.Drawing.Bitmap $rawImg, $rawImg.Width, $rawImg.Height
+$rawImg.Dispose()
+$rw = $raw.Width; $rh = $raw.Height
+$cornerColor = $raw.GetPixel(0, 0)
+
+if (-not (Test-Magentaish $cornerColor $MagentaScoreThreshold)) {
+  $midY = [int]($rh / 2); $midX = [int]($rw / 2)
+  $marginLeft = 0
+  while ($marginLeft -lt $rw -and (Test-CloseColor $raw.GetPixel($marginLeft, $midY) $cornerColor) -and -not (Test-Magentaish $raw.GetPixel($marginLeft, $midY) $MagentaScoreThreshold)) { $marginLeft++ }
+  $marginRight = $rw - 1
+  while ($marginRight -ge 0 -and (Test-CloseColor $raw.GetPixel($marginRight, $midY) $cornerColor) -and -not (Test-Magentaish $raw.GetPixel($marginRight, $midY) $MagentaScoreThreshold)) { $marginRight-- }
+  $marginTop = 0
+  while ($marginTop -lt $rh -and (Test-CloseColor $raw.GetPixel($midX, $marginTop) $cornerColor) -and -not (Test-Magentaish $raw.GetPixel($midX, $marginTop) $MagentaScoreThreshold)) { $marginTop++ }
+  $marginBottom = $rh - 1
+  while ($marginBottom -ge 0 -and (Test-CloseColor $raw.GetPixel($midX, $marginBottom) $cornerColor) -and -not (Test-Magentaish $raw.GetPixel($midX, $marginBottom) $MagentaScoreThreshold)) { $marginBottom-- }
+
+  if ($marginLeft -gt 0 -or $marginTop -gt 0 -or $marginRight -lt ($rw - 1) -or $marginBottom -lt ($rh - 1)) {
+    Write-Host "Trimmed a non-magenta outer margin: left=$marginLeft top=$marginTop right=$($rw-1-$marginRight) bottom=$($rh-1-$marginBottom)"
+    $bmp = Copy-Cropped $raw @{ MinX = $marginLeft; MinY = $marginTop; Width = ($marginRight - $marginLeft + 1); Height = ($marginBottom - $marginTop + 1) }
+  } else {
+    $bmp = $raw
+  }
+} else {
+  $bmp = $raw
+}
+
 # --- Step 1+2: chroma-key + 1px fringe erosion ---
-$srcImg = [System.Drawing.Image]::FromFile((Resolve-Path $InputPath))
-$bmp = New-Object System.Drawing.Bitmap $srcImg, $srcImg.Width, $srcImg.Height
-$srcImg.Dispose()
 $w = $bmp.Width; $h = $bmp.Height
 
 $keep = New-Object 'bool[,]' $w, $h
@@ -163,8 +207,18 @@ $bounds = Get-TightCropBounds $keyed
 $result = Copy-Cropped $keyed $bounds
 Write-Host "Chroma-keyed and cropped: $($result.Width)x$($result.Height)"
 
-# --- Step 4: optional downscale, then re-crop (downscaling can reintroduce
-# a faint edge-alpha halo, so tighten once more against the final pixels) ---
+# --- Step 4: optional downscale to an EXACT target size. The result keeps
+# TargetWidth x TargetHeight exactly (any leftover transparent margin is
+# harmless — every other sprite in a typical pixel-art project already has
+# some transparent padding around its silhouette, e.g. this repo's own
+# Player.ts PLAYER_SIDE_PADDING/PLAYER_HEAD_PADDING/PLAYER_FOOT_PADDING).
+# This matters for pixel-art: a caller usually wants a specific, predictable
+# native size (so it scales by a clean INTEGER factor into the game's render
+# size — a non-integer scale, e.g. 32px target / 23px asset ≈ 1.39x, causes
+# visibly uneven/"distorted" nearest-neighbor upscaling). Silently shrinking
+# below the requested size (re-cropping tighter after resize) would defeat
+# that. Re-cropping is only warranted with -Smooth (bicubic can introduce a
+# faint edge-alpha halo nearest-neighbor of a binary-alpha source cannot).
 if ($TargetWidth -or $TargetHeight) {
   if ($TargetWidth -and -not $TargetHeight) {
     $TargetHeight = [Math]::Round($result.Height * $TargetWidth / $result.Width)
@@ -178,9 +232,14 @@ if ($TargetWidth -or $TargetHeight) {
   $g.DrawImage($result, (New-Object System.Drawing.Rectangle 0, 0, $TargetWidth, $TargetHeight))
   $g.Dispose()
 
-  $resizedBounds = Get-TightCropBounds $resized
-  $result = Copy-Cropped $resized $resizedBounds
-  Write-Host "Downscaled and re-cropped: $($result.Width)x$($result.Height)"
+  if ($Smooth) {
+    $resizedBounds = Get-TightCropBounds $resized
+    $result = Copy-Cropped $resized $resizedBounds
+    Write-Host "Downscaled and re-cropped (smooth mode): $($result.Width)x$($result.Height)"
+  } else {
+    $result = $resized
+    Write-Host "Downscaled to exact target: $($result.Width)x$($result.Height)"
+  }
 }
 
 $outDir = Split-Path -Parent $OutputPath
