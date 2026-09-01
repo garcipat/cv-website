@@ -3,7 +3,6 @@ import {
   toEnemyState,
   reviveEnemy,
   advanceEnemyAnimation,
-  applyStomp,
   enemyRenderedSize,
   enemyTileOffsetX,
   enemyTileOffsetY,
@@ -140,53 +139,6 @@ describe('ENEMY_RENDERED_SIZE', () => {
   });
 });
 
-describe('applyStomp', () => {
-  it('anyEnemy-entersHitStateAtFrameZeroAndFreezesMovement', () => {
-    const state = { ...toEnemyState(makePlacement()), vx: 60, direction: 'right' as const };
-    const next = applyStomp(state);
-    expect(next.animState).toBe('hit');
-    expect(next.animFrame).toBe(0);
-    expect(next.animTimer).toBe(0);
-    expect(next.hitTimer).toBe(0);
-    expect(next.vx).toBe(0);
-  });
-
-  it('enemyAlreadyMidHitReactionFromAnEarlierStomp-resetsAnimationAgain', () => {
-    // applyStomp itself never refuses a second call (see its doc comment) —
-    // calling it again mid-reaction must replay from frame 0, not continue
-    // wherever the first stomp's animation had gotten to. Collision.ts's
-    // `spiked` exclusion is what actually prevents this from happening via
-    // real player input once spikes are up — this test exercises the
-    // function directly, bypassing that gate.
-    const state = {
-      ...toEnemyState({ ...makePlacement(), type: 'slimePurple' as const }),
-      hitPoints: 2,
-      animState: 'hit' as const,
-      animFrame: 3,
-      animTimer: 0.05,
-      hitTimer: 0.2,
-    };
-    const next = applyStomp(state);
-    expect(next.hitPoints).toBe(1);
-    expect(next.animFrame).toBe(0);
-    expect(next.animTimer).toBe(0);
-    expect(next.hitTimer).toBe(0);
-  });
-
-  it('greenSlimeWithOneHitPoint-decrementsToZero', () => {
-    const state = toEnemyState(makePlacement());
-    const next = applyStomp(state);
-    expect(next.hitPoints).toBe(0);
-  });
-
-  it('purpleSlimeWithThreeHitPoints-decrementsToTwo', () => {
-    const purplePlacement = { ...makePlacement(), type: 'slimePurple' as const };
-    const state = toEnemyState(purplePlacement);
-    const next = applyStomp(state);
-    expect(next.hitPoints).toBe(2);
-  });
-});
-
 describe('per-type enemy config', () => {
   it('enemyRenderedSize-slimePurple-is1point5xGreen', () => {
     expect(enemyRenderedSize('slimePurple')).toBe(ENEMY_FRAME_SIZE * RENDER_SCALE * 2);
@@ -228,44 +180,6 @@ describe('toEnemyState hitPoints (updated)', () => {
   });
 });
 
-describe('toEnemyState spiked/spikeTimer defaults', () => {
-  it('toEnemyState-anyPlacement-startsNotSpiked', () => {
-    const placement = { id: 'e1', type: 'slimePurple' as const, x: 0, y: 0 };
-    const state = toEnemyState(placement);
-    expect(state.spiked).toBe(false);
-    expect(state.spikeTimer).toBe(0);
-  });
-});
-
-describe('applyStomp spiked behavior', () => {
-  it('applyStomp-survivingStomp-becomesSpikedWithResetTimer', () => {
-    const state = { ...toEnemyState({ id: 'e1', type: 'slimePurple' as const, x: 0, y: 0 }), spikeTimer: 0.9 };
-    const next = applyStomp(state);
-    expect(next.hitPoints).toBe(2);
-    expect(next.spiked).toBe(true);
-    expect(next.spikeTimer).toBe(0);
-  });
-
-  it('applyStomp-finishingStomp-doesNotBecomeSpiked', () => {
-    const state = { ...toEnemyState({ id: 'e1', type: 'slimeGreen' as const, x: 0, y: 0 }) };
-    const next = applyStomp(state);
-    expect(next.hitPoints).toBe(0);
-    expect(next.spiked).toBe(false);
-  });
-
-  it('applyStomp-alreadySpikedSurvivingAnotherStomp-restartsTimer', () => {
-    const state = {
-      ...toEnemyState({ id: 'e1', type: 'slimePurple' as const, x: 0, y: 0 }),
-      hitPoints: 2,
-      spiked: true,
-      spikeTimer: 1.2,
-    };
-    const next = applyStomp(state);
-    expect(next.hitPoints).toBe(1);
-    expect(next.spiked).toBe(true);
-    expect(next.spikeTimer).toBe(0);
-  });
-});
 
 describe('enemy hitbox padding (insets the collision box from the sprite corners)', () => {
   it('enemyHitboxSidePadding-slimeGreen-matchesMeasuredNativePaddingTimesRenderScale', () => {
@@ -306,8 +220,6 @@ describe('reviveEnemy', () => {
       animFrame: 3,
       animTimer: 0.07,
       hitTimer: 0.9,
-      spiked: true,
-      spikeTimer: 0.3,
     };
 
     const revived = reviveEnemy(wandered);
@@ -318,8 +230,6 @@ describe('reviveEnemy', () => {
     expect(revived.alive).toBe(true);
     expect(revived.animState).toBe('walk');
     expect(revived.hitTimer).toBe(0);
-    expect(revived.spiked).toBe(false);
-    expect(revived.spikeTimer).toBe(0);
   });
 
   it('livingEnemy-stillResetsToSpawnState', () => {

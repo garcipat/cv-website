@@ -26,6 +26,7 @@ import {
   enemyHitboxTopPadding,
 } from '../entities/Enemy';
 import type { EnemyState } from '../entities/Enemy';
+import type { SlimeGreenState } from '../entities/enemies/SlimeGreen';
 import type { EnemyPlacement } from '../level/EnemyMapper';
 import { spawnBonusFruit, tickBonusFruit, BONUS_FRUIT_RISE_DURATION_SECONDS } from '../entities/BonusFruit';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
@@ -65,7 +66,7 @@ function makePlacement(id: string, x: number, y: number): CollectiblePlacement {
   };
 }
 
-function makeEnemy(x: number, y: number, overrides: Partial<EnemyState> = {}): EnemyState {
+function makeEnemy(x: number, y: number, overrides: Partial<SlimeGreenState> = {}): EnemyState {
   const placement: EnemyPlacement = {
     id: 'enemy-cert-x',
     type: 'slimeGreen',

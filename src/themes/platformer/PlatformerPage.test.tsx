@@ -9,6 +9,7 @@ import {
   PLAYER_FOOT_PADDING,
 } from './entities/Player';
 import type { EnemyState } from './entities/Enemy';
+import type { SlimePurpleState } from './entities/enemies/SlimePurple';
 import { ENEMY_RENDERED_SIZE, toEnemyState } from './entities/Enemy';
 import { enemyHitbox } from './engine/Collision';
 import {
@@ -45,7 +46,8 @@ import {
   HEART_RENDERED_SIZE,
 } from './entities/Health';
 import { HEARTS_START_X, keyCounterX, KEY_COUNTER_Y } from './engine/Renderer';
-import { HIT_REACTION_DURATION_SECONDS, SPIKE_COOLDOWN_DURATION_SECONDS } from './engine/EnemyAI';
+import { HIT_REACTION_DURATION_SECONDS } from './engine/EnemyAI';
+import { SPIKE_COOLDOWN_DURATION_SECONDS } from './entities/enemies/SlimePurple';
 import { PHYSICS_CONFIG } from './engine/PhysicsConfig';
 import { tileToPixel } from './level/Terrain';
 import {
@@ -2087,7 +2089,7 @@ describe('PlatformerPage', () => {
 
     frameCallback!(16);
 
-    expect(playerState.value.vy).not.toBe(PHYSICS_CONFIG.spikeTopHitKnockbackVy);
+    expect(playerState.value.vy).not.toBe(PHYSICS_CONFIG.awayAndUpKnockbackVy);
   });
 
   it('playerInvincible-touchesAnotherEnemy-noSecondHitRegistered', () => {
@@ -2214,7 +2216,7 @@ describe('PlatformerPage', () => {
     let t = 16;
     frameCallback!(t); // first stomp: hitPoints 3 -> 2, animState 'hit', spiked true
 
-    const midReaction = enemyStates.value.find((e) => e.id === target.id)!;
+    const midReaction = enemyStates.value.find((e) => e.id === target.id)! as SlimePurpleState;
     expect(midReaction.animState).toBe('hit');
     expect(midReaction.hitPoints).toBe(2);
     expect(midReaction.spiked).toBe(true);
@@ -2275,7 +2277,7 @@ describe('PlatformerPage', () => {
       frameCallback!(t);
     }
 
-    const stillSpiked = enemyStates.value.find((e) => e.id === target.id)!;
+    const stillSpiked = enemyStates.value.find((e) => e.id === target.id)! as SlimePurpleState;
     expect(stillSpiked.animState).toBe('walk');
     expect(stillSpiked.spiked).toBe(true);
     expect(stillSpiked.hitPoints).toBe(2);
@@ -2328,7 +2330,7 @@ describe('PlatformerPage', () => {
       frameCallback!(t);
     }
 
-    const noLongerSpiked = enemyStates.value.find((e) => e.id === target.id)!;
+    const noLongerSpiked = enemyStates.value.find((e) => e.id === target.id)! as SlimePurpleState;
     expect(noLongerSpiked.spiked).toBe(false);
     expect(noLongerSpiked.hitPoints).toBe(2);
 
@@ -2341,7 +2343,7 @@ describe('PlatformerPage', () => {
     t += 16;
     frameCallback!(t); // second landing after cooldown: a genuine second stomp
 
-    const afterSecondStomp = enemyStates.value.find((e) => e.id === target.id)!;
+    const afterSecondStomp = enemyStates.value.find((e) => e.id === target.id)! as SlimePurpleState;
     expect(afterSecondStomp.hitPoints).toBe(1);
     expect(afterSecondStomp.spiked).toBe(true); // the new stomp re-spikes it
   });

@@ -123,7 +123,3 @@ export function advanceEnemyAnimation(enemy: EnemyState, dt: number): EnemyState
     animFrame: (enemy.animFrame + 1) % frames.length,
   };
 }
-
-/** The hit a stomp applies — see `enemies/shared.ts`'s `takeHit`, which the
- *  type modules' `onPlayerCollide` hooks call directly. */
-export { takeHit as applyStomp } from './enemies/shared';

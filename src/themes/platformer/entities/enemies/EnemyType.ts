@@ -11,9 +11,9 @@ import type { PlayerState } from '../Player';
 export type ItemKind = 'key';
 
 /**
- * What every enemy has, regardless of type. Type-specific state — purple's
- * spike timer, for example — is declared by that type's own module, which
- * extends this.
+ * What every enemy has, regardless of type. Type-specific state — a
+ * temporary defense a stomped enemy grows, for example — is declared by that
+ * type's own module, which extends this.
  */
 export interface BaseEnemyState extends EnemyPlacement, Entity, Damageable {
   /** Key into ENEMY_TYPES. Each type module narrows this to its own literal. */
@@ -23,11 +23,6 @@ export interface BaseEnemyState extends EnemyPlacement, Entity, Damageable {
   homeX: number;
   homeY: number;
   hitTimer: number;
-  /** True while this enemy's top is spiked and un-stompable. */
-  spiked: boolean;
-  /** Seconds elapsed since `spiked` was last set true — meaningless while
-   *  `spiked` is false. */
-  spikeTimer: number;
   fact?: CollectedFact;
   /** True once this enemy's one reward has been handed out. Survives death
    *  and respawn; cleared only by resetGameProgress(). */
@@ -64,4 +59,8 @@ export interface EnemyType<S extends BaseEnemyState> {
    *  geometry; everything else — whether the top is safe to land on, whether
    *  a mechanic is currently active — is this module's business alone. */
   onPlayerCollide(enemy: S, player: PlayerState, contact: Contact): CollisionOutcome<S>;
+  /** Advances any per-tick state this type owns beyond patrol/hit-reaction
+   *  (both handled generically by EnemyAI.ts) — a temporary defense's
+   *  cooldown, for example. Optional: most types need nothing here. */
+  onTick?(enemy: S, dt: number): S;
 }

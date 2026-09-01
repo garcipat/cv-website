@@ -11,6 +11,12 @@ import type { DrawContext } from '../../engine/DrawContext';
 
 export interface SlimePurpleState extends BaseEnemyState {
   type: 'slimePurple';
+  /** True while this slime's top is spiked and un-stompable — set by a
+   *  non-fatal stomp, cleared by `onTick` once the cooldown elapses. */
+  spiked: boolean;
+  /** Seconds since `spiked` was last set. Meaningless while `spiked` is
+   *  false. */
+  spikeTimer: number;
 }
 
 const SLIME_PURPLE_SPRITE: SpriteDescriptor = {
@@ -37,14 +43,7 @@ const SLIME_PURPLE_HELD_KEY_Y_NUDGE = 4;
 
 /** How long the spikes take to pop fully out at the start of the cooldown —
  *  see `spikeGrowthScale` below. Fast: the pop should read as a snappy
- *  reaction, not a slow bloom. Exported for EnemyAI.ts's
- *  `stepEnemySpikeCooldown`, which drives `spikeTimer` against this same
- *  timing — this module is the source of truth rather than EnemyAI.ts
- *  because entities/enemies/ modules don't import engine modules (EnemyAI.ts
- *  depends on this directory through ENEMY_TYPES, so importing it back here
- *  would create a load-order cycle; see drawSpriteSheetEntity.ts's own note
- *  on the same constraint) — the reverse direction has no such problem,
- *  since EnemyAI.ts already imports `ENEMY_TYPES` from this directory. */
+ *  reaction, not a slow bloom. */
 export const SPIKE_GROW_DURATION_SECONDS = 0.25;
 
 /** How long the spikes stay fully extended (scale 1) between popping out and
@@ -60,6 +59,14 @@ export const SPIKE_HOLD_DURATION_SECONDS = 0.25;
  *  equal-duration retract would otherwise feel slower than an equal-duration
  *  grow even before accounting for the intentional speed difference here.) */
 export const SPIKE_RETRACT_DURATION_SECONDS = 0.4;
+
+/** Total time this slime stays `spiked` (un-stompable from above during this
+ *  window) — the sum of the three phase durations above, not an independent
+ *  value, so it becomes stompable again exactly when the retract animation
+ *  finishes, never before (looking like it's still got spikes out) or after
+ *  (an idle beat with no visible spikes but still immune). */
+export const SPIKE_COOLDOWN_DURATION_SECONDS =
+  SPIKE_GROW_DURATION_SECONDS + SPIKE_HOLD_DURATION_SECONDS + SPIKE_RETRACT_DURATION_SECONDS;
 
 const TOP_SPIKE_FRACTIONS = [0.3, 0.7];
 
@@ -79,8 +86,8 @@ const SPIKE_COLORS = { fill: '#9a6fd6', outline: '#4d2f7a' };
  * phase's own duration, not carved out of one shared total, so grow and
  * retract can (and deliberately do) move at different speeds. A
  * `spikeTimer` at or past the total is clamped to the fully-retracted end of
- * that last phase, covering the one frame before `stepEnemySpikeCooldown` in
- * EnemyAI.ts clears `spiked` that same tick.
+ * that last phase, covering the one frame before `onTick` below clears
+ * `spiked` that same tick.
  */
 function spikeGrowthScale(spikeTimer: number): number {
   if (spikeTimer < SPIKE_GROW_DURATION_SECONDS) {
@@ -132,8 +139,26 @@ export const slimePurple: EnemyType<SlimePurpleState> = {
   create: (placement, index) => ({
     ...baseEnemyState(placement, index, 3),
     type: 'slimePurple',
+    spiked: false,
+    spikeTimer: 0,
   }),
-  revive: (enemy) => ({ ...baseRevive(enemy, 3), type: 'slimePurple' }),
+  revive: (enemy) => ({
+    ...baseRevive(enemy, 3),
+    type: 'slimePurple',
+    spiked: false,
+    spikeTimer: 0,
+  }),
+
+  /** Advances the spiked cooldown by `dt` seconds. No-op (returns the same
+   *  reference) while not currently `spiked` — this timer runs independently
+   *  of `animState`/`hitTimer`: this slime keeps counting down its cooldown
+   *  while patrolling normally, not just while mid hit-reaction. */
+  onTick: (enemy, dt) => {
+    if (!enemy.spiked) return enemy;
+    const spikeTimer = enemy.spikeTimer + dt;
+    if (spikeTimer < SPIKE_COOLDOWN_DURATION_SECONDS) return { ...enemy, spikeTimer };
+    return { ...enemy, spiked: false, spikeTimer: 0 };
+  },
 
   draw(enemy, dc) {
     const size = SLIME_PURPLE_SPRITE.sheet.frameWidth * RENDER_SCALE * SLIME_PURPLE_SPRITE.renderScale;
@@ -174,7 +199,7 @@ export const slimePurple: EnemyType<SlimePurpleState> = {
 
     drawSpriteSheetEntity(enemy, dc, SLIME_PURPLE_SPRITE);
 
-    if (enemy.spiked) {
+    if (enemy.alive && enemy.spiked) {
       drawSpikes(enemy, dc, dx, dy, size, sidePadding, topPadding);
     }
   },
@@ -186,7 +211,12 @@ export const slimePurple: EnemyType<SlimePurpleState> = {
       // ordinary side touch.
       return { damagePlayer: 1, knockback: contact.side === 'top' ? 'awayAndUp' : 'away' };
     }
-    if (contact.side === 'top') return { self: takeHit(enemy), bouncePlayer: true };
+    if (contact.side === 'top') {
+      const hit = takeHit(enemy);
+      // Surviving a stomp grows spikes that make the top un-stompable until
+      // they retract. A fresh stomp always restarts the cooldown.
+      return { self: { ...hit, spiked: hit.hitPoints > 0, spikeTimer: 0 }, bouncePlayer: true };
+    }
     return { damagePlayer: 1, knockback: 'away' };
   },
 };

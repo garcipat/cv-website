@@ -27,28 +27,24 @@ export function baseEnemyState(
     animTimer: (index * 0.05) % WALK_FRAME_DURATION,
     hitPoints: maxHitPoints,
     hitTimer: 0,
-    spiked: false,
-    spikeTimer: 0,
     alive: true,
     rewardGiven: false,
   };
 }
 
 /**
- * Applies one hit: decrements `hitPoints`, freezes horizontal movement,
+ * Applies one hit: decrements `hitPoints`, freezes horizontal movement, and
  * enters the `hit` reaction (red-flash/dissolve) animation from its first
- * frame, and — if the enemy survives (`hitPoints` still > 0 after the
- * decrement) — grows spikes (`spiked: true`, `spikeTimer` reset to 0) that
- * make its top un-stompable for a cooldown (see `EnemyAI.ts`'s
- * `stepEnemySpikeCooldown`). This function itself doesn't gate re-entry —
- * calling it twice in a row always applies a second hit — the decision of
- * whether a given contact counts as a legal stomp lives in the type module's
- * `onPlayerCollide`, which runs before this is ever called. A fresh hit always
- * restarts the cooldown timer, even if the enemy was already `spiked` from an
- * earlier one. Does NOT decide defeat here — EnemyAI.ts's
- * `stepEnemyHitReaction` checks `hitPoints` once the reaction animation
- * finishes playing, so the player always sees the same brief "stunned"
- * reaction whether or not this hit was the finishing blow.
+ * frame. This function itself doesn't gate re-entry — calling it twice in a
+ * row always applies a second hit — the decision of whether a given contact
+ * counts as a legal stomp lives in the type module's `onPlayerCollide`, which
+ * runs before this is ever called, and any consequence of the enemy
+ * surviving the hit (SlimePurple.ts's temporary un-stompable defense, for
+ * one) is also that module's own business to layer on afterward. Does NOT
+ * decide defeat here — EnemyAI.ts's `stepEnemyHitReaction` checks
+ * `hitPoints` once the reaction animation finishes playing, so the player
+ * always sees the same brief "stunned" reaction whether or not this hit was
+ * the finishing blow.
  */
 export function takeHit<S extends BaseEnemyState>(enemy: S): S {
   const hitPoints = enemy.hitPoints - 1;
@@ -60,8 +56,6 @@ export function takeHit<S extends BaseEnemyState>(enemy: S): S {
     animFrame: 0,
     animTimer: 0,
     hitTimer: 0,
-    spiked: hitPoints > 0,
-    spikeTimer: 0,
   };
 }
 
@@ -83,8 +77,6 @@ export function baseRevive(
     animState: 'walk',
     hitPoints: maxHitPoints,
     hitTimer: 0,
-    spiked: false,
-    spikeTimer: 0,
     alive: true,
   };
 }
