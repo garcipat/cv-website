@@ -27,6 +27,8 @@ import {
   drawKeyCounter,
   keyCounterX,
   KEY_COUNTER_Y,
+  drawSkyBackground,
+  drawWaterForeground,
 } from './engine/Renderer';
 import type { DrawContext } from './engine/DrawContext';
 import { drawDebugOverlay } from './engine/DebugOverlay';
@@ -380,6 +382,9 @@ export const PlatformerPage = () => {
       const originX = -cameraPositionX.value;
 
       if (tilesetRef.current) {
+        // Fixed to the viewport, not the camera — drawn over the plain
+        // fillRect fallback above, once the tileset has actually loaded.
+        drawSkyBackground(ctx, tilesetRef.current, canvas.width, canvas.height, backgroundColor);
         drawTerrain(ctx, currentLevel.value, tilesetRef.current, originX, originY);
         drawSigns(ctx, signPlacements.value, tilesetRef.current, originX, originY);
       }
@@ -423,6 +428,14 @@ export const PlatformerPage = () => {
       drawEnemies(ctx, enemyStates.value, drawContext);
 
       drawKeyPickups(ctx, keyPickupStates.value, drawContext);
+
+      // Very-foreground water band, anchored to the LEVEL's bottom edge (not
+      // the viewport) — drawn after every world entity so it sits in front
+      // of the player/enemies, same camera-scroll originX/originY as
+      // drawTerrain so it stays attached to the level rather than the screen.
+      if (tilesetRef.current) {
+        drawWaterForeground(ctx, currentLevel.value, tilesetRef.current, canvas.height, originX, originY);
+      }
 
       const tooltip = hintTooltipState.value;
       if (tooltip) {

@@ -76,6 +76,109 @@ function tileSource(
   }
 }
 
+/** Sky tiles live in `world_tileset.png` column 0: row 9 is solid white, row
+ *  10 has white cloud silhouettes cut into blue. The fill below the clouds
+ *  uses `skyColor` (the theme's own `--background` CSS value) rather than
+ *  that sheet's row-11 solid-blue tile — the tileset's blue reads more
+ *  saturated/darker than the theme's original flat sky color, which is what
+ *  this is meant to preserve. */
+const SKY_TILE_SX = 0;
+const SKY_WHITE_SY = 9 * TILE_SIZE;
+const SKY_CLOUD_SY = 10 * TILE_SIZE;
+
+/** How many solid-white rows sit above the cloud band — tunable without
+ *  touching the draw loop itself. Exported so tests can address rows by
+ *  position instead of a hardcoded count. */
+export const SKY_WHITE_ROW_COUNT = 2;
+
+/**
+ * Draws the background sky — fixed to the viewport, not the camera or the
+ * level (same "no originX/originY" convention as `drawHearts`'s HUD) — so it
+ * always covers the same screen area regardless of how far the camera has
+ * scrolled. `SKY_WHITE_ROW_COUNT` rows of solid white, one row of the cloud
+ * tile, then `skyColor` filling the rest of the canvas height.
+ */
+export function drawSkyBackground(
+  ctx: CanvasRenderingContext2D,
+  tileset: HTMLImageElement,
+  canvasWidth: number,
+  canvasHeight: number,
+  skyColor: string,
+): void {
+  ctx.imageSmoothingEnabled = false;
+
+  const cols = Math.ceil(canvasWidth / RENDERED_TILE_SIZE);
+  const cloudRowY = SKY_WHITE_ROW_COUNT * RENDERED_TILE_SIZE;
+  const blueStartY = cloudRowY + RENDERED_TILE_SIZE;
+
+  for (let col = 0; col < cols; col++) {
+    const x = col * RENDERED_TILE_SIZE;
+    for (let row = 0; row < SKY_WHITE_ROW_COUNT; row++) {
+      const y = row * RENDERED_TILE_SIZE;
+      ctx.drawImage(tileset, SKY_TILE_SX, SKY_WHITE_SY, TILE_SIZE, TILE_SIZE, x, y, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+    }
+    ctx.drawImage(
+      tileset,
+      SKY_TILE_SX,
+      SKY_CLOUD_SY,
+      TILE_SIZE,
+      TILE_SIZE,
+      x,
+      cloudRowY,
+      RENDERED_TILE_SIZE,
+      RENDERED_TILE_SIZE,
+    );
+  }
+
+  if (blueStartY < canvasHeight) {
+    ctx.fillStyle = skyColor;
+    ctx.fillRect(0, blueStartY, canvasWidth, canvasHeight - blueStartY);
+  }
+}
+
+/** Water tiles live in `world_tileset.png` column 4: row 9 is the wave-crest
+ *  (foam edge over blue), row 10 is the plain solid-blue body beneath it. */
+const WATER_TILE_SX = 4 * TILE_SIZE;
+const WATER_CREST_SY = 9 * TILE_SIZE;
+const WATER_BODY_SY = 10 * TILE_SIZE;
+
+/**
+ * Draws the foreground water band anchored to the LEVEL's bottom row (not
+ * the viewport) — same `originX`/`originY` camera-scroll convention as
+ * `drawTerrain`, so it scrolls with the level rather than the screen.
+ * Overlaps the BOTTOM HALF of the level's own last terrain row (rather than
+ * sitting below it) because the camera formula in PlatformerPage.tsx already
+ * bottom-anchors that row flush against the canvas edge — a band drawn
+ * strictly beneath it would always land at/past the canvas edge and never
+ * actually be visible. Half a tile keeps the top of that row (and its grass
+ * edge) readable while still reading as "waves lapping in front of the
+ * ground" rather than fully submerging it. The crest tile tiles across the
+ * full level width at that half-tile line; the plain body tile fills every
+ * row beneath it down to the bottom of the canvas. Draws nothing once the
+ * band has scrolled entirely below the visible viewport.
+ */
+export function drawWaterForeground(
+  ctx: CanvasRenderingContext2D,
+  level: LevelDef,
+  tileset: HTMLImageElement,
+  canvasHeight: number,
+  originX = 0,
+  originY = 0,
+): void {
+  const topY = (level.height - 1) * RENDERED_TILE_SIZE + RENDERED_TILE_SIZE / 2 + originY;
+  if (topY >= canvasHeight) return;
+
+  ctx.imageSmoothingEnabled = false;
+
+  for (let col = 0; col < level.width; col++) {
+    const x = col * RENDERED_TILE_SIZE + originX;
+    ctx.drawImage(tileset, WATER_TILE_SX, WATER_CREST_SY, TILE_SIZE, TILE_SIZE, x, topY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+    for (let y = topY + RENDERED_TILE_SIZE; y < canvasHeight; y += RENDERED_TILE_SIZE) {
+      ctx.drawImage(tileset, WATER_TILE_SX, WATER_BODY_SY, TILE_SIZE, TILE_SIZE, x, y, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+    }
+  }
+}
+
 /**
  * Draws the level's terrain. `originX` shifts every tile horizontally and
  * `originY` shifts every tile vertically (e.g. to anchor the level to the
