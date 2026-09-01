@@ -690,21 +690,28 @@ describe('drawCollectionEffects', () => {
 
     drawCollectionEffects(ctx as unknown as CanvasRenderingContext2D, [effect]);
 
-    expect(ctx.fillText).toHaveBeenCalledTimes(2);
-    expect(ctx.fillText).toHaveBeenNthCalledWith(2, '🇩🇪', expect.any(Number), expect.any(Number));
-    expect(fontsAtCall[1]).toContain('sans-serif');
+    // The text itself is drawn with an outline (fillTextWithOutline: 4
+    // offset fillText calls plus the final fill), so the icon — drawn after
+    // it — is the LAST fillText call, not the 2nd.
+    expect(ctx.fillText).toHaveBeenCalledTimes(6);
+    const lastCall = ctx.fillText.mock.calls.length;
+    expect(ctx.fillText).toHaveBeenNthCalledWith(lastCall, '🇩🇪', expect.any(Number), expect.any(Number));
+    const iconFont = fontsAtCall[fontsAtCall.length - 1];
+    expect(iconFont).toContain('sans-serif');
     // The text call's font quotes the custom pixel font family name; the
     // icon call's font doesn't reference it at all.
-    expect(fontsAtCall[1]).not.toContain('"');
+    expect(iconFont).not.toContain('"');
   });
 
-  it('effectWithoutIcon-onlyDrawsTextOnce', () => {
+  it('effectWithoutIcon-drawsOutlinedTextOnly', () => {
     const ctx = makeMockContext() as unknown as { fillText: ReturnType<typeof vi.fn> };
     const effect = startFlightEffect('a', 'German', 50, 60, 400, 300, 900, 900);
 
     drawCollectionEffects(ctx as unknown as CanvasRenderingContext2D, [effect]);
 
-    expect(ctx.fillText).toHaveBeenCalledTimes(1);
+    // 4 outline offsets + 1 final fill, all for 'German' — no icon call.
+    expect(ctx.fillText).toHaveBeenCalledTimes(5);
+    ctx.fillText.mock.calls.forEach((call) => expect(call[0]).toBe('German'));
   });
 
   it('noEffects-doesNotCallFillText', () => {

@@ -971,7 +971,7 @@ export function drawCollectionEffects(ctx: CanvasRenderingContext2D, effects: Fl
       ctx.font = `${COLLECTION_EFFECT_FONT_SIZE}px "${RESTART_PROMPT_FONT_FAMILY}", sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(effect.text, x, y);
+      fillTextWithOutline(ctx, effect.text, x, y);
 
       // Drawn as a SEPARATE fillText, in a plain system font (not the pixel
       // font above) — a custom @font-face has no emoji glyphs, and canvas
@@ -998,6 +998,30 @@ export function drawCollectionEffects(ctx: CanvasRenderingContext2D, effects: Fl
       ctx.restore();
     }
   }
+}
+
+/** Outline color used behind every "collected" HUD counter's text below —
+ *  matches ControlsOverlay.tsx's DOM `textShadow` treatment (four 1px
+ *  diagonal offsets in the same semi-transparent black), reproduced here via
+ *  four offset fillText calls since canvas has no CSS text-shadow equivalent.
+ *  Without it, the counters' plain white text is easy to lose against
+ *  lighter terrain/sky backgrounds. */
+const COUNTER_TEXT_OUTLINE_COLOR = 'rgba(0,0,0,0.8)';
+
+/** Draws `text` with a 1px outline in every diagonal direction before the
+ *  final fill, so the caller's already-set fillStyle/font/textAlign/
+ *  textBaseline are used for both the outline and the fill — callers must
+ *  set those on `ctx` before calling this, exactly as they would before a
+ *  plain `ctx.fillText`. */
+function fillTextWithOutline(ctx: CanvasRenderingContext2D, text: string, x: number, y: number): void {
+  const fillStyle = ctx.fillStyle;
+  ctx.fillStyle = COUNTER_TEXT_OUTLINE_COLOR;
+  ctx.fillText(text, x - 1, y - 1);
+  ctx.fillText(text, x + 1, y - 1);
+  ctx.fillText(text, x - 1, y + 1);
+  ctx.fillText(text, x + 1, y + 1);
+  ctx.fillStyle = fillStyle;
+  ctx.fillText(text, x, y);
 }
 
 const COUNTER_POPUP_ICON_SIZE = 28;
@@ -1073,7 +1097,7 @@ export function drawCounterPopups(
     ctx.font = `${COUNTER_POPUP_FONT_SIZE}px "${RESTART_PROMPT_FONT_FAMILY}", monospace`;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(text, cursorX + COUNTER_POPUP_ICON_SIZE + COUNTER_POPUP_TEXT_GAP, y);
+    fillTextWithOutline(ctx, text, cursorX + COUNTER_POPUP_ICON_SIZE + COUNTER_POPUP_TEXT_GAP, y);
     ctx.restore();
 
     cursorX += itemWidths[i] + COUNTER_POPUP_ITEM_GAP;
@@ -1138,7 +1162,7 @@ export function drawCollectibleCounter(
   ctx.font = `22px "${RESTART_PROMPT_FONT_FAMILY}", monospace`;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  ctx.fillText(`${collected} / ${max}`, x + COUNTER_ICON_SIZE + COUNTER_TEXT_GAP, y);
+  fillTextWithOutline(ctx, `${collected} / ${max}`, x + COUNTER_ICON_SIZE + COUNTER_TEXT_GAP, y);
   ctx.restore();
 }
 
@@ -1211,7 +1235,7 @@ export function drawChestCounter(
   ctx.font = `22px "${RESTART_PROMPT_FONT_FAMILY}", monospace`;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  ctx.fillText(`${collected} / ${total}`, x + iconWidth + CHEST_COUNTER_TEXT_GAP, y);
+  fillTextWithOutline(ctx, `${collected} / ${total}`, x + iconWidth + CHEST_COUNTER_TEXT_GAP, y);
   ctx.restore();
 }
 
@@ -1272,6 +1296,6 @@ export function drawKeyCounter(
   ctx.font = `22px "${RESTART_PROMPT_FONT_FAMILY}", monospace`;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  ctx.fillText(`${count}`, x + iconWidth + CHEST_COUNTER_TEXT_GAP, y);
+  fillTextWithOutline(ctx, `${count}`, x + iconWidth + CHEST_COUNTER_TEXT_GAP, y);
   ctx.restore();
 }
