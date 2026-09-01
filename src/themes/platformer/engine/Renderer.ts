@@ -45,7 +45,14 @@ import {
 } from '../entities/Enemy';
 import type { EnemyState } from '../entities/Enemy';
 import type { KeyPickupState } from '../entities/KeyPickup';
-import { KEY_FRAME_WIDTH, KEY_FRAME_HEIGHT, KEY_RENDERED_WIDTH, KEY_RENDERED_HEIGHT } from '../entities/KeyPickup';
+import {
+  KEY_FRAME_WIDTH,
+  KEY_FRAME_HEIGHT,
+  KEY_RENDERED_WIDTH,
+  KEY_RENDERED_HEIGHT,
+  KEY_TILE_OFFSET_X,
+  KEY_TILE_OFFSET_Y,
+} from '../entities/KeyPickup';
 import { BLOCK_FRAME_SIZE, BLOCK_RENDERED_SIZE, blockFrameSource, crateCrackOverlayVisible } from '../entities/Block';
 import type { BlockState } from '../entities/Block';
 import {
@@ -576,7 +583,12 @@ export function drawCollectibles(
 /**
  * Draws every not-yet-collected key pickup, bobbing exactly like a coin
  * (shares Coin.ts's coinBobOffset — bobbing isn't coin-specific, same
- * convention drawCollectibles's fruit already follows).
+ * convention drawCollectibles's fruit already follows). `pickup.x`/`y` are
+ * the defeated purple slime's own tile-top position, so KEY_TILE_OFFSET_X/Y
+ * are added the same way Enemy.ts's enemyTileOffsetX/Y center and
+ * bottom-anchor a larger-than-tile enemy sprite over its placement tile —
+ * without this, the key (narrower than one tile) would draw left-aligned
+ * instead of centered.
  */
 export function drawKeyPickups(
   ctx: CanvasRenderingContext2D,
@@ -597,8 +609,8 @@ export function drawKeyPickups(
       0,
       KEY_FRAME_WIDTH,
       KEY_FRAME_HEIGHT,
-      pickup.x + originX,
-      pickup.y + originY + bob,
+      pickup.x + KEY_TILE_OFFSET_X + originX,
+      pickup.y + KEY_TILE_OFFSET_Y + originY + bob,
       KEY_RENDERED_WIDTH,
       KEY_RENDERED_HEIGHT,
     );

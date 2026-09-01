@@ -1,4 +1,4 @@
-import { RENDER_SCALE } from '../level/Terrain';
+import { RENDERED_TILE_SIZE } from '../level/Terrain';
 
 /** Native pixel dimensions of public/sprites/key.png (generated, chroma-keyed
  *  from a magenta-background render, cropped tight on all sides). A single
@@ -6,8 +6,31 @@ import { RENDER_SCALE } from '../level/Terrain';
  *  Chest.ts's convention for its own standalone (non-tiling) sprites. */
 export const KEY_FRAME_WIDTH = 14;
 export const KEY_FRAME_HEIGHT = 28;
-export const KEY_RENDERED_WIDTH = KEY_FRAME_WIDTH * RENDER_SCALE;
-export const KEY_RENDERED_HEIGHT = KEY_FRAME_HEIGHT * RENDER_SCALE;
+
+/**
+ * World-rendered size of a key pickup. Unlike most sprites here, this is NOT
+ * simply the native frame scaled by RENDER_SCALE (that formula would produce
+ * a 56px-tall key — almost twice a tile — sinking into the ground below and
+ * badly out of family with every other pickup, which render at one tile,
+ * 32px: COIN_RENDERED_SIZE/FRUIT_RENDERED_SIZE). Instead the key is clamped
+ * to fit within one rendered tile height, keeping its native 14:28 aspect
+ * ratio, so width comes out proportionally narrower.
+ */
+export const KEY_RENDERED_HEIGHT = RENDERED_TILE_SIZE;
+export const KEY_RENDERED_WIDTH = Math.round((KEY_FRAME_WIDTH / KEY_FRAME_HEIGHT) * KEY_RENDERED_HEIGHT);
+
+/** Horizontal centering offset — the key's rendered width is narrower than
+ *  one tile, so this centers it over its placement tile (same formula
+ *  Enemy.ts's enemyTileOffsetX uses). */
+export const KEY_TILE_OFFSET_X = (RENDERED_TILE_SIZE - KEY_RENDERED_WIDTH) / 2;
+
+/** Bottom-anchoring offset — the key's rendered height fits exactly one tile
+ *  here, so this is 0, but it's kept as its own named constant (rather than
+ *  inlined as 0) so drawKeyPickups reads the same bottom-anchoring pattern
+ *  Enemy.ts's enemyTileOffsetY establishes, and so a future resize of
+ *  KEY_RENDERED_HEIGHT keeps the key's visible bottom sitting on the ground
+ *  instead of silently drifting back out of alignment. */
+export const KEY_TILE_OFFSET_Y = RENDERED_TILE_SIZE - KEY_RENDERED_HEIGHT;
 
 /**
  * A dropped key, sitting in the world as its own bobbing pickup (bob reuses

@@ -59,7 +59,10 @@ import {
 //
 // One of the four Skill coins sits at col 18 (a second nearby pickup,
 // alongside the one at col 10); the other three coins/both fruits cluster at
-// cols 43-46, right after the col 40-42 pit. Three block marker kinds sit at
+// cols 43-46, right after the col 40-42 pit. The level's second purple slime
+// (col 47) sits on the same flat, open rock ground right after that coin
+// cluster — clear of the first purple slime's wall/pit sandwich pocket (cols
+// 37-39) and of the col 43/45 coin markers. Three block marker kinds sit at
 // cols 19-24, two of each: `X` (crate block), `Q` (question-mark block), `F`
 // (fragileRock block), at row 3 (elevated), with rows 4-5 kept empty beneath
 // them — the same "2 rows of clearance above solid ground" shape the
@@ -79,7 +82,9 @@ import {
 //     genuine bottomless pit on its right (cols 40-42, no bridge) — the
 //     "wall, enemy, pit" sandwich, exercising BOTH the wall-reversal and the
 //     ledge/pit-edge-reversal branches of EnemyAI.ts's stepEnemyPatrol on a
-//     single enemy.
+//     single enemy. The pocket this sandwich forms (cols 37-39) is exactly
+//     3 tiles wide — sized for this one purple slime only; the level's
+//     second purple slime lives well clear of it, at col 47 (see below).
 //
 // A blank leading row (row 0) sits above the elevated block row (row 1) so
 // FR-022b's fruit-pop mechanic has somewhere for the popped fruit to rise
@@ -107,7 +112,7 @@ export const LEVEL_1_LAYOUT: readonly string[] = [
   // strip onto the ladder needs no jump.
   '........GGGBBGGL...XQFXQF.......................................................',
   '................................................................................',
-  '.S.1..T...C.T.....C.......W.E..W....W.MM...C.C..................................',
+  '.S.1..T...C.T.....C.......W.E..W....W.M....C.C.M................................',
   'GGBBBGGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRR...RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
   'GG...GGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRR...RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
 ];
