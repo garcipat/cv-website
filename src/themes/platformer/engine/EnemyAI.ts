@@ -2,8 +2,8 @@ import { PHYSICS_CONFIG } from './PhysicsConfig';
 import { isSolid, tileAt, RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { LevelDef } from '../level/LevelData';
 import type { EnemyState, EnemyDirection } from '../entities/Enemy';
+import { ENEMY_TYPES } from '../entities/enemies';
 import {
-  ENEMY_PATROL_SPEED_MULTIPLIER,
   enemyRenderedSize,
   enemyTileOffsetX,
   enemyHitboxSidePadding,
@@ -85,7 +85,7 @@ export function stepEnemyPatrol(
   dt: number,
   blockedTiles: readonly { col: number; row: number }[],
 ): EnemyState {
-  const speed = PHYSICS_CONFIG.enemyPatrolSpeed * ENEMY_PATROL_SPEED_MULTIPLIER[enemy.type];
+  const speed = PHYSICS_CONFIG.enemyPatrolSpeed * ENEMY_TYPES[enemy.type].patrolSpeedMultiplier;
   const row = Math.round(enemy.y / RENDERED_TILE_SIZE);
   const size = enemyRenderedSize(enemy.type);
   const offsetX = enemyTileOffsetX(enemy.type);

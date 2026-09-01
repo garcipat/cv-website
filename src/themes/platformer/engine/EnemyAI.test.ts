@@ -186,8 +186,8 @@ describe('stepEnemyPatrol', () => {
   });
 
   it('slimePurple-laneNarrowerThanItsOwnOverhangOnBothSides-standsStillInsteadOfFlipFlopping', () => {
-    // Regression test: a render-scaled-up purple slime (ENEMY_RENDER_SCALE
-    // 2) needs clearance on both sides before it may safely turn around —
+    // Regression test: a render-scaled-up purple slime (sprite
+    // renderScale 2) needs clearance on both sides before it may safely turn around —
     // scaling with its own visible-silhouette size, not a flat one-tile
     // assumption (see stepEnemyPatrol's own doc comment). Spawned here (col
     // 5) in a lane too narrow for that on BOTH sides at once — wall

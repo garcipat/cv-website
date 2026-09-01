@@ -945,8 +945,8 @@ describe('PlatformerPage', () => {
 
   it('purpleSlimeDefeat-thirdStomp-spawnsKeyPickupInsteadOfJournalFact', () => {
     // Purple slimes carry no CV fact (EnemyMapper.ts) — defeating one drops a
-    // key pickup instead of banking a journal fact. ENEMY_HIT_POINTS.slimePurple
-    // is 3, so start it at 1 hit point (as if already stomped twice) and land
+    // key pickup instead of banking a journal fact. A purple slime's
+    // maxHitPoints is 3, so start it at 1 hit point (as if already stomped twice) and land
     // the final stomp here.
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
@@ -1277,7 +1277,7 @@ describe('PlatformerPage', () => {
     const target = enemyStates.value.find((e) => e.type === 'slimePurple')!;
     let t = 16;
 
-    // ENEMY_HIT_POINTS.slimePurple is 3 — land three separate, deliberately
+    // A purple slime's maxHitPoints is 3 — land three separate, deliberately
     // re-positioned stomps. A non-fatal stomp now also sets `spiked: true`
     // for SPIKE_COOLDOWN_DURATION_SECONDS (see EnemyAI.ts's
     // stepEnemySpikeCooldown), during which a top-landing is treated as
