@@ -346,6 +346,11 @@ describe('hintTooltipState', () => {
 });
 
 describe('keyPickupStates / collectedKeys persistence', () => {
+  afterEach(() => {
+    keyPickupStates.value = [];
+    collectedKeys.value = 0;
+  });
+
   it('resetGame-doesNotClearKeyPickupsOrCollectedKeys', () => {
     keyPickupStates.value = [{ id: 'k1', x: 0, y: 0, collected: true }];
     collectedKeys.value = 2;
