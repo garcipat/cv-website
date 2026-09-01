@@ -1068,11 +1068,25 @@ export function drawChestCounter(
 /** Horizontal screen position for the key counter — placed just to the right
  *  of the chest counter, same HUD row. Only ever drawn by the caller when
  *  collectedKeys > 0 (see PlatformerPage.tsx) — this constant is a fixed
- *  layout position, not conditional itself. */
-export const KEY_COUNTER_X = CHEST_COUNTER_X + 120;
+ *  layout position, not conditional itself. Offset accounts for the chest
+ *  icon/gap/"N / N" text (same widths drawChestCounter uses) plus a matching
+ *  16px gap before the key icon, so the rhythm of gaps between HUD groups
+ *  stays visually consistent (hearts→chest, chest→key) rather than an
+ *  arbitrary fixed jump. */
+const CHEST_COUNTER_TEXT_WIDTH_ESTIMATE = 70; // "N / N" at the counter's 22px font
+export const KEY_COUNTER_X =
+  CHEST_COUNTER_X +
+  (CHEST_CLOSED_WIDTH / CHEST_CLOSED_HEIGHT) * CHEST_COUNTER_ICON_HEIGHT +
+  CHEST_COUNTER_TEXT_GAP +
+  CHEST_COUNTER_TEXT_WIDTH_ESTIMATE +
+  16;
 export const KEY_COUNTER_Y = CHEST_COUNTER_Y;
 
-const KEY_COUNTER_ICON_HEIGHT = 24;
+/** Matches HEART_RENDERED_SIZE so the key icon reads at the same visual
+ *  weight as the hearts/chest icons on the same HUD row — key.png's native
+ *  14x28 shape is narrow, so a smaller height (the old 24px) made it look
+ *  visibly thinner/shrunk next to them. */
+const KEY_COUNTER_ICON_HEIGHT = HEART_RENDERED_SIZE;
 
 /** Draws the "[key icon] N" HUD counter — no "/ total" denominator (unlike
  *  drawChestCounter): a key count has no fixed total to compare against, it
