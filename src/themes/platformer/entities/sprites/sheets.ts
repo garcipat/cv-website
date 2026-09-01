@@ -1,5 +1,7 @@
 import type { SpriteSheet } from './SpriteSheet';
 import { KEY_FRAME_WIDTH, KEY_FRAME_HEIGHT } from '../KeyPickup';
+import { COIN_FRAME_SIZE, COIN_FRAME_COUNT } from '../Coin';
+import { FRUIT_FRAME_SIZE } from '../Fruit';
 
 /**
  * Both slime sheets are 96x72: a 4x3 grid of 24x24 frames. Frames 0-2 read as a
@@ -34,4 +36,23 @@ export const KEY_SHEET: SpriteSheet = {
   frameWidth: KEY_FRAME_WIDTH,
   frameHeight: KEY_FRAME_HEIGHT,
   columns: 1,
+};
+
+/** `coin.png` is a 192x16 strip: 12 frames of one spin cycle, so its
+ *  addressing stride is the whole strip. */
+export const COIN_SHEET: SpriteSheet = {
+  src: '/sprites/coin.png',
+  frameWidth: COIN_FRAME_SIZE,
+  frameHeight: COIN_FRAME_SIZE,
+  columns: COIN_FRAME_COUNT,
+};
+
+/** `fruit.png` is physically 64x64, but only its first three 16px columns
+ *  hold icons — the fourth is empty and never addressed. `columns` is the
+ *  addressing stride, so it is 3 rather than the image's width in frames. */
+export const FRUIT_SHEET: SpriteSheet = {
+  src: '/sprites/fruit.png',
+  frameWidth: FRUIT_FRAME_SIZE,
+  frameHeight: FRUIT_FRAME_SIZE,
+  columns: 3,
 };
