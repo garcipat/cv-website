@@ -22,6 +22,8 @@ import {
   endingScreenShown,
   signPlacements,
   controlsOverlayDismissed,
+  keyPickupStates,
+  collectedKeys,
 } from './PlatformerState';
 import { mapCVDataToEnemies } from './level/EnemyMapper';
 import { currentCV } from '@/state/locale';
@@ -340,6 +342,24 @@ describe('hintTooltipState', () => {
 
   it('initialValue-onModuleLoad-isNull', () => {
     expect(hintTooltipState.value).toBeNull();
+  });
+});
+
+describe('keyPickupStates / collectedKeys persistence', () => {
+  it('resetGame-doesNotClearKeyPickupsOrCollectedKeys', () => {
+    keyPickupStates.value = [{ id: 'k1', x: 0, y: 0, collected: true }];
+    collectedKeys.value = 2;
+    resetGame();
+    expect(keyPickupStates.value).toEqual([{ id: 'k1', x: 0, y: 0, collected: true }]);
+    expect(collectedKeys.value).toBe(2);
+  });
+
+  it('resetGameProgress-clearsKeyPickupsAndCollectedKeys', () => {
+    keyPickupStates.value = [{ id: 'k1', x: 0, y: 0, collected: true }];
+    collectedKeys.value = 2;
+    resetGameProgress();
+    expect(keyPickupStates.value).toEqual([]);
+    expect(collectedKeys.value).toBe(0);
   });
 });
 
