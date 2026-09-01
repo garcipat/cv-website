@@ -19,12 +19,20 @@ export const FRUIT_ICON_COUNT = 12;
  *  types. */
 export const FRUIT_ICON_ORDER = [0, 2, 3, 8, 9, 1, 4, 5, 6, 7, 10, 11];
 
+/** Maps a logical fruit index (wraps at FRUIT_ICON_COUNT) to its packed
+ *  sheet position via FRUIT_ICON_ORDER — the single place that mapping
+ *  happens, reused by fruitFrameSource and by entities/pickups' frameIndex
+ *  implementations. */
+export function fruitPackedIndex(index: number): number {
+  const wrapped = ((index % FRUIT_ICON_COUNT) + FRUIT_ICON_COUNT) % FRUIT_ICON_COUNT;
+  return FRUIT_ICON_ORDER[wrapped];
+}
+
 /** Sprite-sheet source rect for a given logical icon index (wraps at
  *  FRUIT_ICON_COUNT; see FRUIT_ICON_ORDER for the logical-to-packed
  *  mapping). */
 export function fruitFrameSource(index: number): { sx: number; sy: number } {
-  const wrapped = ((index % FRUIT_ICON_COUNT) + FRUIT_ICON_COUNT) % FRUIT_ICON_COUNT;
-  const packed = FRUIT_ICON_ORDER[wrapped];
+  const packed = fruitPackedIndex(index);
   const col = packed % FRUIT_ICON_COLUMNS;
   const row = Math.floor(packed / FRUIT_ICON_COLUMNS);
   return { sx: col * FRUIT_FRAME_SIZE, sy: row * FRUIT_FRAME_SIZE };
