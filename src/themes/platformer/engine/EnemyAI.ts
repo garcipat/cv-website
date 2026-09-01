@@ -9,6 +9,12 @@ import { ENEMY_PATROL_SPEED_MULTIPLIER } from '../entities/Enemy';
  *  matches Enemy.ts's `hit` animation: 4 frames at 0.1s each. */
 export const HIT_REACTION_DURATION_SECONDS = 0.4;
 
+/** How long a purple slime's post-stomp spikes stay up before retracting —
+ *  longer than HIT_REACTION_DURATION_SECONDS (0.4s) so the cooldown reads as
+ *  a distinct, deliberate "wait it out" beat rather than blurring into the
+ *  stun animation. Starting value — tune by playtest. */
+export const SPIKE_COOLDOWN_DURATION_SECONDS = 1.5;
+
 /**
  * Advances one enemy's horizontal patrol by `dt` seconds: moves at a
  * constant `PHYSICS_CONFIG.enemyPatrolSpeed` in its current `direction`,
@@ -96,5 +102,23 @@ export function stepEnemyHitReaction(enemy: EnemyState, dt: number): EnemyState 
     return { ...enemy, hitTimer, defeated: true };
   }
   return { ...enemy, hitTimer: 0, animState: 'walk', animFrame: 0, animTimer: 0 };
+}
+
+/**
+ * Advances a spiked enemy's cooldown by `dt` seconds. No-op (returns the
+ * same reference) for an enemy that isn't currently `spiked` — same
+ * no-op-until-threshold shape as `stepEnemyHitReaction` above, but this
+ * timer runs independently of `animState`/`hitTimer`: a purple slime keeps
+ * counting down its spike cooldown while patrolling normally, not just
+ * while mid hit-reaction.
+ */
+export function stepEnemySpikeCooldown(enemy: EnemyState, dt: number): EnemyState {
+  if (!enemy.spiked) return enemy;
+
+  const spikeTimer = enemy.spikeTimer + dt;
+  if (spikeTimer < SPIKE_COOLDOWN_DURATION_SECONDS) {
+    return { ...enemy, spikeTimer };
+  }
+  return { ...enemy, spiked: false, spikeTimer: 0 };
 }
 
