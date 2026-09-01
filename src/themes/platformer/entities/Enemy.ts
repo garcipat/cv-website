@@ -171,6 +171,20 @@ export interface EnemyState extends EnemyPlacement {
    *  `hitPoints` remains) or sets `defeated: true` (if not) once this reaches
    *  `HIT_REACTION_DURATION_SECONDS`. Meaningless while `animState` is `'walk'`. */
   hitTimer: number;
+  /** True while this enemy's top is spiked and un-stompable — set by
+   *  `applyStomp` whenever a stomp doesn't finish the enemy off, cleared by
+   *  `EnemyAI.ts`'s `stepEnemySpikeCooldown` once `spikeTimer` reaches
+   *  `SPIKE_COOLDOWN_DURATION_SECONDS`. While `true`, `Collision.ts`'s
+   *  `checkEnemyStompCollisions` excludes this enemy from stomp
+   *  registration, and `checkEnemySideCollisions` treats a top-landing on it
+   *  as player damage instead of a stomp. Independent of `animState`/
+   *  `hitTimer` — the hit-reaction animation (0.4s) and the spike cooldown
+   *  (longer, see EnemyAI.ts) run as two separate timers driven by the same
+   *  per-tick `dt`. */
+  spiked: boolean;
+  /** Seconds elapsed since `spiked` was last set `true` — meaningless while
+   *  `spiked` is `false`. Same convention as `hitTimer` above. */
+  spikeTimer: number;
   /** True once `hitPoints` has reached 0 and the hit-reaction animation has
    *  finished playing — the game loop removes a `defeated` enemy from
    *  `enemyStates` and fires its reward the same tick this flips true. */
@@ -208,6 +222,8 @@ export function toEnemyState(placement: EnemyPlacement, index = 0): EnemyState {
     animTimer: (index * 0.05) % frameDuration,
     hitPoints: ENEMY_HIT_POINTS[placement.spriteType],
     hitTimer: 0,
+    spiked: false,
+    spikeTimer: 0,
     defeated: false,
   };
 }
@@ -228,28 +244,33 @@ export function advanceEnemyAnimation(enemy: EnemyState, dt: number): EnemyState
 }
 
 /**
- * Applies one stomp: decrements `hitPoints`, freezes horizontal movement, and
+ * Applies one stomp: decrements `hitPoints`, freezes horizontal movement,
  * enters the `hit` reaction (red-flash/dissolve) animation from its first
- * frame — even if the enemy was already mid-reaction from an earlier stomp
- * this same bounce arc (a skilled player can chain-stomp a still-alive
- * 3-hit purple enemy entirely airborne — see `Collision.ts`'s
- * `checkEnemyStompCollisions`, which only
- * excludes an enemy once `hitPoints` has actually reached 0, not while it's
- * merely mid-reaction), so a legitimate second stomp always replays the
- * reaction from frame 0 rather than continuing wherever the first one left
- * off. Does NOT decide defeat here — EnemyAI.ts's `stepEnemyHitReaction`
- * checks `hitPoints` once the reaction animation finishes playing, so the
- * player always sees the same brief "stunned" reaction whether or not this
- * stomp was the finishing blow.
+ * frame, and — if the enemy survives (`hitPoints` still > 0 after the
+ * decrement) — grows spikes (`spiked: true`, `spikeTimer` reset to 0) that
+ * make its top un-stompable for a cooldown (see `EnemyAI.ts`'s
+ * `stepEnemySpikeCooldown` and `Collision.ts`'s `checkEnemyStompCollisions`/
+ * `checkEnemySideCollisions`). This function itself doesn't gate re-entry —
+ * calling it twice in a row always applies a second stomp — the `spiked`
+ * exclusion lives entirely in `Collision.ts`, which decides whether a given
+ * frame's landing counts as a legal stomp before this function is ever
+ * called. A fresh stomp always restarts the cooldown timer, even if the
+ * enemy was already `spiked` from an earlier stomp. Does NOT decide defeat
+ * here — EnemyAI.ts's `stepEnemyHitReaction` checks `hitPoints` once the
+ * reaction animation finishes playing, so the player always sees the same
+ * brief "stunned" reaction whether or not this stomp was the finishing blow.
  */
 export function applyStomp(enemy: EnemyState): EnemyState {
+  const hitPoints = enemy.hitPoints - 1;
   return {
     ...enemy,
-    hitPoints: enemy.hitPoints - 1,
+    hitPoints,
     vx: 0,
     animState: 'hit',
     animFrame: 0,
     animTimer: 0,
     hitTimer: 0,
+    spiked: hitPoints > 0,
+    spikeTimer: 0,
   };
 }

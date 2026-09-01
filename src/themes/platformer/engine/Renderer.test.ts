@@ -4,6 +4,7 @@ import {
   drawHearts,
   drawCollectibles,
   drawEnemies,
+  drawEnemySpikes,
   drawBlocks,
   drawChests,
   drawBonusFruits,
@@ -90,6 +91,9 @@ function makeMockContext() {
     fillRect: vi.fn(),
     lineTo: vi.fn(),
     closePath: vi.fn(),
+    stroke: vi.fn(),
+    strokeStyle: '',
+    lineWidth: 1,
     globalAlpha: 1,
   } as unknown as CanvasRenderingContext2D;
 }
@@ -245,6 +249,8 @@ function makeEnemyState(
     animTimer: 0,
     hitPoints: 1,
     hitTimer: 0,
+    spiked: false,
+    spikeTimer: 0,
     defeated: false,
     ...overrides,
   };
@@ -1568,5 +1574,71 @@ describe('drawKeyCounter', () => {
     drawKeyCounter(ctx, fakeKeySprite, 3, keyCounterX(ctx, 0, 0), KEY_COUNTER_Y);
     expect(ctx.drawImage).toHaveBeenCalled();
     expect(ctx.fillText).toHaveBeenCalledWith('3', expect.any(Number), KEY_COUNTER_Y);
+  });
+});
+
+describe('drawEnemySpikes', () => {
+  it('drawEnemySpikes-spikedEnemy-drawsFourTrianglesWithOutlineStroke', () => {
+    const ctx = makeMockContext();
+    const enemy = makeEnemyState('e1', 'slimePurple', 0, 0, { spiked: true, spikeTimer: 0.1 });
+    drawEnemySpikes(ctx, [enemy]);
+    // 2 top spikes + 2 side spikes = 4 triangles, one fill + one stroke each.
+    expect(ctx.fill).toHaveBeenCalledTimes(4);
+    expect(ctx.stroke).toHaveBeenCalledTimes(4);
+    expect(ctx.moveTo).toHaveBeenCalled();
+  });
+
+  it('drawEnemySpikes-nonSpikedEnemy-drawsNothing', () => {
+    const ctx = makeMockContext();
+    const enemy = makeEnemyState('e1', 'slimePurple', 0, 0, { spiked: false, spikeTimer: 0 });
+    drawEnemySpikes(ctx, [enemy]);
+    expect(ctx.fill).not.toHaveBeenCalled();
+  });
+
+  it('drawEnemySpikes-mixedSpikedAndNonSpikedEnemies-onlyDrawsForTheSpikedOne', () => {
+    const ctx = makeMockContext();
+    const spiked = makeEnemyState('a', 'slimePurple', 0, 0, { spiked: true, spikeTimer: 0.1 });
+    const notSpiked = makeEnemyState('b', 'slimeGreen', 100, 0, { spiked: false, spikeTimer: 0 });
+    drawEnemySpikes(ctx, [spiked, notSpiked]);
+    // Still exactly 4 triangles total — the non-spiked enemy contributes none,
+    // proving the per-enemy skip doesn't short-circuit the whole array.
+    expect(ctx.fill).toHaveBeenCalledTimes(4);
+  });
+
+  it('drawEnemySpikes-spikeTimerJustStarted-tipCollapsesOntoBase', () => {
+    const ctx = makeMockContext() as unknown as { lineTo: ReturnType<typeof vi.fn> };
+    // spikeTimer 0 is the instant spikes appear — spikeGrowthScale(0) is 0,
+    // so every triangle's tip vertex collapses onto its base-edge y
+    // (zero-length spike) rather than poking out immediately at full size.
+    const enemy = makeEnemyState('e1', 'slimePurple', 0, 0, { spiked: true, spikeTimer: 0 });
+    drawEnemySpikes(ctx as unknown as CanvasRenderingContext2D, [enemy]);
+
+    const baseEdgeY = ctx.lineTo.mock.calls[0][1]; // (baseX + halfWidth, baseY)
+    const tipY = ctx.lineTo.mock.calls[1][1]; // (baseX, baseY - length)
+    expect(tipY).toBe(baseEdgeY);
+  });
+
+  it('drawEnemySpikes-differentSpikeTimers-growsThenShrinksSpikeSizeOverTheCooldown', () => {
+    const ctxEarly = makeMockContext() as unknown as { lineTo: ReturnType<typeof vi.fn> };
+    const ctxMidCooldown = makeMockContext() as unknown as { lineTo: ReturnType<typeof vi.fn> };
+    const ctxLate = makeMockContext() as unknown as { lineTo: ReturnType<typeof vi.fn> };
+    const early = makeEnemyState('e1', 'slimePurple', 0, 0, { spiked: true, spikeTimer: 0.05 });
+    const midCooldown = makeEnemyState('e1', 'slimePurple', 0, 0, { spiked: true, spikeTimer: 0.75 });
+    const late = makeEnemyState('e1', 'slimePurple', 0, 0, { spiked: true, spikeTimer: 1.45 });
+
+    drawEnemySpikes(ctxEarly as unknown as CanvasRenderingContext2D, [early]);
+    drawEnemySpikes(ctxMidCooldown as unknown as CanvasRenderingContext2D, [midCooldown]);
+    drawEnemySpikes(ctxLate as unknown as CanvasRenderingContext2D, [late]);
+
+    // The tip vertex is the second lineTo call for the first top spike —
+    // its y-coordinate is baseY - length, so a bigger spike means a smaller
+    // (more negative) y here. Mid-cooldown (near the peak of the one-shot
+    // grow-then-shrink curve) should be the biggest of the three.
+    const earlyTipY = ctxEarly.lineTo.mock.calls[1][1];
+    const midTipY = ctxMidCooldown.lineTo.mock.calls[1][1];
+    const lateTipY = ctxLate.lineTo.mock.calls[1][1];
+
+    expect(midTipY).toBeLessThan(earlyTipY);
+    expect(midTipY).toBeLessThan(lateTipY);
   });
 });

@@ -27,12 +27,13 @@ import {
   drawKeyCounter,
   keyCounterX,
   KEY_COUNTER_Y,
+  drawEnemySpikes,
 } from './engine/Renderer';
 import { drawDebugOverlay } from './engine/DebugOverlay';
 import { createGameLoop } from './engine/GameLoop';
 import { stepPlayerPhysics, checkPitFall, resolvePitFall } from './engine/Physics';
 import { PHYSICS_CONFIG } from './engine/PhysicsConfig';
-import { stepEnemyPatrol, stepEnemyHitReaction } from './engine/EnemyAI';
+import { stepEnemyPatrol, stepEnemyHitReaction, stepEnemySpikeCooldown } from './engine/EnemyAI';
 import { updateCamera, updateCameraY } from './engine/Camera';
 import { createKeyboardInput } from './engine/Input';
 import type { KeyboardInput } from './engine/Input';
@@ -56,6 +57,9 @@ import {
   chestPlayerIsStandingOn,
   checkSignOverlap,
   checkKeyPickupCollisions,
+  playerHitbox,
+  enemyHitbox,
+  isSpikedTopLanding,
 } from './engine/Collision';
 import { openChest, allChestsOpen, isChestOpen, CHEST_CLOSED_OFFSET_X } from './entities/Chest';
 import { stepBlockAnimation } from './engine/BlockAI';
@@ -433,6 +437,7 @@ export const PlatformerPage = () => {
           originY,
         );
       }
+      drawEnemySpikes(ctx, enemyStates.value, originX, originY);
 
       drawKeyPickups(ctx, keyPickupStates.value, keySpriteRef.current, worldAnimElapsed, originX, originY);
 
@@ -505,7 +510,8 @@ export const PlatformerPage = () => {
         canvas.height * 0.3 - COLLECTION_TEXT_STACK_ROW_HEIGHT,
       );
 
-      if (debugHitboxesRef.current) drawDebugOverlay(ctx, playerState.value, currentLevel.value, originX, originY);
+      if (debugHitboxesRef.current)
+        drawDebugOverlay(ctx, playerState.value, currentLevel.value, originX, originY, enemyStates.value);
 
       if (heartsSpriteRef.current) {
         drawHearts(ctx, healthState.value, heartsSpriteRef.current, HEARTS_START_X);
@@ -654,7 +660,7 @@ export const PlatformerPage = () => {
           enemy.animState === 'hit'
             ? stepEnemyHitReaction(enemy, dt)
             : stepEnemyPatrol(enemy, currentLevel.value, dt, blockedTiles);
-        return advanceEnemyAnimation(next, dt);
+        return advanceEnemyAnimation(stepEnemySpikeCooldown(next, dt), dt);
       });
 
       // Blocks currently playing their shared bump/shatter reaction advance
@@ -1102,7 +1108,27 @@ export const PlatformerPage = () => {
         if (sideHitIds.length > 0) {
           const hitEnemy = enemyStates.value.find((e) => e.id === sideHitIds[0])!;
           healthState.value = takeDamage(healthState.value, SIDE_HIT_DAMAGE);
-          const knockbackDirection = playerState.value.x <= hitEnemy.x ? -1 : 1;
+          // Compare actual hitbox centers, not raw x (each entity's x is its
+          // own top-left placement coordinate, not its visual center — a
+          // purple slime's much wider render slot made this comparison
+          // biased toward one direction almost regardless of which side the
+          // player actually touched it from). Pushes the player back toward
+          // whichever side of the enemy their own hitbox center is already
+          // on, i.e. away from the enemy and back the way they came.
+          const playerBox = playerHitbox(playerState.value);
+          const enemyBox = enemyHitbox(hitEnemy);
+          const playerCenterX = playerBox.x + playerBox.width / 2;
+          const enemyCenterX = enemyBox.x + enemyBox.width / 2;
+          const knockbackDirection = playerCenterX <= enemyCenterX ? -1 : 1;
+          // A failed stomp attempt against spikes (the player was falling
+          // onto the enemy's top half, same shape a real stomp would need,
+          // but the enemy's spikes redirected it to damage) gets a bit of
+          // upward push added on top of the usual horizontal knockback, so
+          // it reads as "bounced off the spikes" rather than identical to a
+          // plain side/below touch. Checked against the pre-knockback state
+          // — applyKnockback below never touches position or vy, only
+          // vx/facing/timers, so this reads the same geometry either way.
+          const isTopLandingOnSpikes = isSpikedTopLanding(playerState.value, hitEnemy);
           playerState.value = applyKnockback(
             playerState.value,
             knockbackDirection,
@@ -1110,6 +1136,20 @@ export const PlatformerPage = () => {
             PHYSICS_CONFIG.sideHitKnockbackDuration,
             INVINCIBILITY_DURATION_SECONDS,
           );
+          if (isTopLandingOnSpikes) {
+            // Without `bounceAscending: true` (same mechanism the stomp
+            // bounce above relies on), `stepPlayerPhysics`'s variable-jump-
+            // height cut would shear this upward velocity to ~45% of its
+            // configured magnitude on this very tick, and again every tick
+            // after while the jump key isn't held — this isn't a jump the
+            // player is "holding", so it must play out at its full
+            // configured magnitude regardless of jump-key state.
+            playerState.value = {
+              ...playerState.value,
+              vy: PHYSICS_CONFIG.spikeTopHitKnockbackVy,
+              bounceAscending: true,
+            };
+          }
         }
       }
 

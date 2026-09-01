@@ -611,6 +611,12 @@ FloatingControls (P3)
 - **Q: How does vertical camera follow work?** — **A**: A new `updateCameraY`/`cameraPositionY`, parallel to the existing horizontal `updateCamera`/`cameraPositionX` — same dead-zone-follow-and-clamp shape, own constant, kept as a separate function so the already-shipped horizontal logic is untouched. On any level whose height fits the viewport, the clamp always resolves to 0 — bottom-anchored.
 - **Q: Does the ladder's top still need a separate solid tile placed above it, per the plan described earlier in this doc?** — **A**: No — that shape was tried and abandoned during live playtesting. A separate solid tile directly above the ladder's last rung either blocked climbing outright (it read as a ceiling, since the existing ground-collision rule has no reason to treat a tile above a ladder any differently from one above ordinary ground), or, once substituted with a `bridge` tile to stay passable from below, worked but required a tile-type substitution the author preferred not to bake into level authoring at all. The final, shipped design instead makes the ladder shaft's own topmost tile solid-from-above (`isStandableLadderTop` in `Terrain.ts`) whenever nothing climbable or solid sits above it — no additional tile in the level is needed; climbing out of the shaft just walks onto the shaft's own last rung.
 
+### Session 2026-09-01 (purple slime spike cooldown ideation)
+
+- Q: What happens if the player stomps a purple slime from the top again while it's spiked? A: The player takes damage. Landing on the spiked top hurts the player, the same as touching an enemy from the side already does today (checkEnemySideCollisions), not a harmless bounce-off.
+- Q: Does "go to the side to stomp it again" mean a new side-attack mechanic? A: No. That was shorthand for "don't stomp again immediately." Spikes are purely temporary: the cooldown expires, spikes retract, and the top is stompable again as normal. No new side-contact-defeats-enemy mechanic is introduced.
+- Q: Where is this idea captured? A: docs/ideas/platformer-purple-slime-spikes.md. Not yet a numbered roadmap step; deliberately scoped separately from roadmap step 30 (purple slime rework) since it reverses that step's intentionally-documented chain-stomp behavior rather than extending it.
+
 ## Iteration Plan
 
 This feature is intentionally scoped for incremental delivery:
