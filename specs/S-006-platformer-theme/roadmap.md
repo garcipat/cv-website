@@ -667,6 +667,11 @@ they aren't lost, not in priority order.
   tile-char catalog and real engine sprites for WYSIWYG rendering. Brainstormed
   design captured in `docs/ideas/platformer-level-editor.md`; not yet a
   numbered step.
+- **Purple slime spike cooldown** — after a stomp, a purple slime grows spikes
+  on top for a short cooldown; re-stomping it from above during that window
+  damages the player instead of registering a hit, until the spikes retract.
+  Raised 2026-09-01, reverses a currently-intentional chain-stomp behavior —
+  see `docs/ideas/platformer-purple-slime-spikes.md`; not yet a numbered step.
 
 ## Working agreement
 
