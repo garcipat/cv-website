@@ -50,14 +50,14 @@ describe('PlatformerState', () => {
   });
 
   it('enemyPlacements-initial-oneEnemyPerLevelMarkerNotPerFullCVData', () => {
-    // currentLevel currently has exactly one `E` and one `M` marker — placement
+    // currentLevel currently has exactly one `E` and two `M` markers — placement
     // count tracks the level's markers, not CVData's (larger) certificate/
     // project counts. This is expected for a mechanics-test level (see
     // level.ts's doc comment), not a regression.
     const allPossibleDefs = mapCVDataToEnemies(currentCV.value);
     expect(allPossibleDefs.length).toBeGreaterThan(enemyPlacements.value.length);
     expect(enemyPlacements.value.filter((p) => p.spriteType === 'slimeGreen')).toHaveLength(1);
-    expect(enemyPlacements.value.filter((p) => p.spriteType === 'slimePurple')).toHaveLength(1);
+    expect(enemyPlacements.value.filter((p) => p.spriteType === 'slimePurple')).toHaveLength(2);
   });
 
   it('blockPlacements-initial-hasTwoOfEachKindMatchingLevel1sMarkers', () => {
