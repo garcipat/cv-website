@@ -66,8 +66,10 @@ If the user selected **Custom (specify below)** for aspect ratio (in any operati
 
 ### 4. Prepare the call parameters
 
-- If operation is **Generate icon**: append `"as a clean icon with a transparent background"` to the prompt.
-- If operation is **Generate pattern**: append `"as a seamless tileable pattern with no visible edges"` to the prompt.
+- **If real transparency is needed** (an icon, a sprite, any asset that must composite over other content) — do NOT ask for "a transparent background" in the prompt. Image models are unreliable at producing real alpha this way: they frequently draw a literal checkerboard *pattern* as opaque pixels instead of actual transparency, which is very hard to key back out (its grays collide with black outlines/shadows in typical artwork). Instead:
+  - Append an instruction to render the ENTIRE background as a single **solid flat magenta**, exactly `RGB(255,0,255)`, with no gradient, shading, or texture — e.g. *"The ENTIRE background must be a single solid flat magenta color, exactly RGB(255,0,255), with absolutely no gradient, no shading, no texture, and no other color anywhere in the background — this magenta will be chroma-keyed out afterward, so it must be pure and uniform."*
+  - After generating, run `chroma-key.ps1` (in this skill's directory) on the result — see step 5b below. This applies to **Generate icon** and any other operation where the user needs transparency (an icon is the common case, but the same technique applies whenever transparency is the goal).
+- If operation is **Generate pattern**: append `"as a seamless tileable pattern with no visible edges"` to the prompt (patterns don't need transparency, so no magenta step here).
 - If `Style / mood` was provided, append it to the prompt (e.g. `"in a watercolor style, with a whimsical mood"`).
 - Set `maintainCharacterConsistency: true` if the user answered Yes to consistent character.
 - Set `useWorldKnowledge: true` if the user answered Yes to world knowledge.
@@ -89,8 +91,21 @@ Pass:
 - `maintainCharacterConsistency` — if applicable
 - `useWorldKnowledge` — if applicable
 
+### 5b. Chroma-key the result (transparency requests only)
+
+If step 4 used the magenta-background technique, the tool's result is NOT the final asset yet — it's often returned as a `.jpg` regardless of the requested filename (JPEG has no alpha channel at all, which is itself a sign the model isn't producing real transparency directly). Run the bundled script to convert it:
+
+```powershell
+pwsh -File "<this-skill-directory>/chroma-key.ps1" -InputPath "<raw output path>" -OutputPath "<final .png path>" -TargetWidth <N>
+```
+
+- `-TargetWidth` (or `-TargetHeight`) downscales after cropping — pass whatever the target render size is (e.g. a game sprite's native pixel size); omit both to keep the model's native resolution, tightly cropped.
+- Add `-Smooth` for non-pixel-art assets (photos, icons meant to scale smoothly) — omit it (the default) for pixel-art/game-sprite style assets, where nearest-neighbor keeps edges crisp.
+- The script prints the final dimensions and output path. If it throws "No opaque pixels found," the whole image got keyed out — the background likely wasn't a clean, uniform magenta (check the raw output); a `-MagentaScoreThreshold` below the default 60 can help if fringe remains, but the fix that actually matters is usually re-generating with a stricter magenta-background prompt.
+- Read the resulting PNG (a normal file-viewing step, not the crashing kind step 6 warns about) to confirm the crop and transparency look right before handing it off — a checkerboard viewer background around the artwork confirms real alpha; solid magenta anywhere means the key missed a spot.
+
 ### 6. Report the result
 
-Tell the user the output file path in `.generated/<image-name>.png`.
+Tell the user the output file path — `.generated/<image-name>.png` for a plain generation, or the chroma-keyed PNG's path from step 5b for a transparency request.
 
-**CRITICAL: Do NOT call `view_image`, `open_browser_page`, or any other tool that opens or previews the file. Do NOT attempt to display or render the image. Just report the path as plain text — opening the image crashes the conversation.**
+**CRITICAL: Do NOT call `view_image`, `open_browser_page`, or any other tool that opens or previews the file. Do NOT attempt to display or render the image. Just report the path as plain text — opening the image crashes the conversation.** (The Read-based visual check in step 5b is a different, safe mechanism — this warning is specifically about image-preview/browser tools, not about looking at the file at all.)
