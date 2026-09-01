@@ -7,7 +7,7 @@ import { RENDER_SCALE } from '../level/Terrain';
  *  visual, not coin-specific) but never change frame. */
 export const FRUIT_FRAME_SIZE = 16;
 export const FRUIT_RENDERED_SIZE = FRUIT_FRAME_SIZE * RENDER_SCALE;
-const FRUIT_ICON_COLUMNS = 3;
+export const FRUIT_ICON_COLUMNS = 3;
 export const FRUIT_ICON_COUNT = 12;
 
 /** Maps a logical fruit index (0-based, in *use* order) to its packed
@@ -17,7 +17,7 @@ export const FRUIT_ICON_COUNT = 12;
  *  realistic-looking icons and should appear first — everything else
  *  follows in its original sheet order as a reserve pool for future fruit
  *  types. */
-const FRUIT_ICON_ORDER = [0, 2, 3, 8, 9, 1, 4, 5, 6, 7, 10, 11];
+export const FRUIT_ICON_ORDER = [0, 2, 3, 8, 9, 1, 4, 5, 6, 7, 10, 11];
 
 /** Sprite-sheet source rect for a given logical icon index (wraps at
  *  FRUIT_ICON_COUNT; see FRUIT_ICON_ORDER for the logical-to-packed

@@ -1,7 +1,7 @@
 import { frameSource } from '../sprites/SpriteSheet';
 import { COIN_SHEET, FRUIT_SHEET } from '../sprites/sheets';
 import { coinFrameSource, COIN_FRAME_COUNT } from '../Coin';
-import { fruitFrameSource, FRUIT_ICON_COUNT } from '../Fruit';
+import { fruitFrameSource, FRUIT_ICON_COUNT, FRUIT_ICON_COLUMNS, FRUIT_ICON_ORDER } from '../Fruit';
 
 describe('COIN_SHEET', () => {
   it('everyFrameIndex-matchesCoinFrameSource', () => {
@@ -17,20 +17,20 @@ describe('FRUIT_SHEET', () => {
   // sheet's `columns` is that addressing stride, not the image width —
   // declaring 4 would shift every icon past index 2 onto the wrong row.
   it('columns-isTheAddressingStrideNotTheImageWidth', () => {
-    expect(FRUIT_SHEET.columns).toBe(3);
+    expect(FRUIT_SHEET.columns).toBe(FRUIT_ICON_COLUMNS);
   });
 
-  it('everyPackedIndex-matchesFruitFrameSourceForItsLogicalIndex', () => {
+  it('everyLogicalIndex-matchesFruitFrameSourceAtItsPackedPosition', () => {
     // fruitFrameSource takes a LOGICAL index and maps it through
     // FRUIT_ICON_ORDER to a packed position; frameSource addresses the packed
-    // position directly. Comparing them proves the sheet reproduces the same
-    // source rects, one packed slot at a time.
+    // position directly. Asserting rect equality at the corresponding packed
+    // index (rather than membership anywhere in the set) proves the mapping
+    // itself lines up, not just that the two sides produce the same rects in
+    // some order.
     for (let logical = 0; logical < FRUIT_ICON_COUNT; logical++) {
-      const expected = fruitFrameSource(logical);
-      const matches = Array.from({ length: FRUIT_ICON_COUNT }, (_, packed) =>
-        frameSource(FRUIT_SHEET, packed),
-      ).some((rect) => rect.sx === expected.sx && rect.sy === expected.sy);
-      expect(matches).toBe(true);
+      expect(frameSource(FRUIT_SHEET, FRUIT_ICON_ORDER[logical])).toEqual(
+        fruitFrameSource(logical),
+      );
     }
   });
 
