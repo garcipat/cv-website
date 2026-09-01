@@ -7,17 +7,20 @@ import {
   checkBonusFruitCollisions,
   chestPlayerIsStandingOn,
   checkSignOverlap,
+  enemyHitbox,
+  checkKeyPickupCollisions,
 } from './Collision';
 import { PLAYER_SIDE_PADDING, PLAYER_HEAD_PADDING, PLAYER_RENDERED_SIZE } from '../entities/Player';
 import type { PlayerState } from '../entities/Player';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
-import { toEnemyState, ENEMY_RENDERED_SIZE } from '../entities/Enemy';
+import { toEnemyState, ENEMY_RENDERED_SIZE, enemyRenderedSize } from '../entities/Enemy';
 import type { EnemyState } from '../entities/Enemy';
 import type { EnemyPlacement } from '../level/EnemyMapper';
 import { spawnBonusFruit, tickBonusFruit, BONUS_FRUIT_RISE_DURATION_SECONDS } from '../entities/BonusFruit';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { ChestState } from '../entities/Chest';
 import type { SignPlacement } from '../level/SignMapper';
+import type { KeyPickupState } from '../entities/KeyPickup';
 
 function makePlayer(x: number, y: number): PlayerState {
   return {
@@ -306,5 +309,41 @@ describe('checkSignOverlap', () => {
     const player = makePlayer(100, 100);
 
     expect(checkSignOverlap(player, [])).toBeUndefined();
+  });
+});
+
+describe('enemyHitbox per spriteType', () => {
+  it('enemyHitbox-slimePurple-usesLargerRenderedSize', () => {
+    const enemy = {
+      id: 'e1', spriteType: 'slimePurple' as const, x: 10, y: 20, vx: 0,
+      direction: 'right' as const, animState: 'walk' as const, animFrame: 0,
+      animTimer: 0, hitPoints: 3, hitTimer: 0, defeated: false,
+    };
+    const box = enemyHitbox(enemy);
+    const expectedSize = enemyRenderedSize('slimePurple');
+    expect(box).toEqual({ x: 10, y: 20, width: expectedSize, height: expectedSize });
+  });
+});
+
+describe('checkKeyPickupCollisions', () => {
+  const player = {
+    x: 0, y: 0, vx: 0, vy: 0, facing: 'right' as const, grounded: true, climbing: false,
+    isDroppingThroughBridge: false, lastGroundedX: 0, lastGroundedY: 0, animState: 'idle' as const,
+    animFrame: 0, animTimer: 0, invincibleTimer: 0, knockbackTimer: 0, bounceAscending: false, hitBlockIds: [],
+  };
+
+  it('checkKeyPickupCollisions-overlappingUncollectedPickup-returnsItsId', () => {
+    const pickups: KeyPickupState[] = [{ id: 'k1', x: 0, y: 0, collected: false }];
+    expect(checkKeyPickupCollisions(player, pickups)).toEqual(['k1']);
+  });
+
+  it('checkKeyPickupCollisions-alreadyCollectedPickup-isExcluded', () => {
+    const pickups: KeyPickupState[] = [{ id: 'k1', x: 0, y: 0, collected: true }];
+    expect(checkKeyPickupCollisions(player, pickups)).toEqual([]);
+  });
+
+  it('checkKeyPickupCollisions-noOverlap-returnsEmpty', () => {
+    const pickups: KeyPickupState[] = [{ id: 'k1', x: 1000, y: 1000, collected: false }];
+    expect(checkKeyPickupCollisions(player, pickups)).toEqual([]);
   });
 });
