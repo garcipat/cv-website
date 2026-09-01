@@ -10,10 +10,23 @@ import {
   enemyHitbox,
   checkKeyPickupCollisions,
 } from './Collision';
-import { PLAYER_SIDE_PADDING, PLAYER_HEAD_PADDING, PLAYER_RENDERED_SIZE } from '../entities/Player';
+import {
+  PLAYER_SIDE_PADDING,
+  PLAYER_HEAD_PADDING,
+  PLAYER_FOOT_PADDING,
+  PLAYER_RENDERED_SIZE,
+} from '../entities/Player';
 import type { PlayerState } from '../entities/Player';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
-import { toEnemyState, ENEMY_RENDERED_SIZE, enemyRenderedSize } from '../entities/Enemy';
+import {
+  toEnemyState,
+  ENEMY_RENDERED_SIZE,
+  enemyRenderedSize,
+  enemyTileOffsetX,
+  enemyTileOffsetY,
+  enemyHitboxSidePadding,
+  enemyHitboxTopPadding,
+} from '../entities/Enemy';
 import type { EnemyState } from '../entities/Enemy';
 import type { EnemyPlacement } from '../level/EnemyMapper';
 import { spawnBonusFruit, tickBonusFruit, BONUS_FRUIT_RISE_DURATION_SECONDS } from '../entities/BonusFruit';
@@ -125,14 +138,25 @@ describe('checkCollectibleCollisions', () => {
   });
 });
 
+/**
+ * Positions a player so its hitbox bottom lands a few px into the given
+ * enemy's hitbox from the top — comfortably within its upper half (a
+ * "landing on top" stomp), derived from the real enemyHitbox/playerHitbox
+ * geometry rather than a hand-computed magic number, so this stays correct
+ * regardless of future padding/offset tuning. `overlapPx` must stay well
+ * under half the enemy hitbox's height to guarantee an upper-half landing.
+ */
+function playerLandingOnTopOf(enemy: EnemyState, overlapPx = 4): PlayerState {
+  const box = enemyHitbox(enemy);
+  const playerHitboxHeight = PLAYER_RENDERED_SIZE - PLAYER_HEAD_PADDING - PLAYER_FOOT_PADDING;
+  const y = box.y + overlapPx - playerHitboxHeight - PLAYER_HEAD_PADDING;
+  return makePlayer(enemy.x, y);
+}
+
 describe('checkEnemyStompCollisions', () => {
   it('playerFallingAndLandingOnTop-returnsEnemyId', () => {
     const enemy = makeEnemy(0, 100);
-    // Player's hitbox bottom lands well inside the enemy's upper half —
-    // playerHitbox's y offset (PLAYER_HEAD_PADDING) is applied to player.y,
-    // so placing the player a bit above the enemy with vy > 0 (falling)
-    // simulates "landing on top of it".
-    const player = { ...makePlayer(0, 100 - PLAYER_RENDERED_SIZE / 2), vy: 300 };
+    const player = { ...playerLandingOnTopOf(enemy), vy: 300 };
     expect(checkEnemyStompCollisions(player, [enemy])).toEqual(['enemy-cert-x']);
   });
 
@@ -179,7 +203,7 @@ describe('checkEnemyStompCollisions', () => {
     // airborne" is a deliberate chain-stomp mechanic, not a bug to guard
     // against.
     const enemy = makeEnemy(0, 100, { animState: 'hit', hitPoints: 1 });
-    const player = { ...makePlayer(0, 100 - PLAYER_RENDERED_SIZE / 2), vy: 300 };
+    const player = { ...playerLandingOnTopOf(enemy), vy: 300 };
     expect(checkEnemyStompCollisions(player, [enemy])).toEqual(['enemy-cert-x']);
   });
 });
@@ -199,7 +223,7 @@ describe('checkEnemySideCollisions', () => {
 
   it('playerFallingAndLandingOnTop-isAStompNotASideHit-returnsEmptyArray', () => {
     const enemy = makeEnemy(0, 100);
-    const player = { ...makePlayer(0, 100 - PLAYER_RENDERED_SIZE / 2), vy: 300 };
+    const player = { ...playerLandingOnTopOf(enemy), vy: 300 };
     expect(checkEnemySideCollisions(player, [enemy])).toEqual([]);
   });
 
@@ -313,15 +337,49 @@ describe('checkSignOverlap', () => {
 });
 
 describe('enemyHitbox per spriteType', () => {
-  it('enemyHitbox-slimePurple-usesLargerRenderedSize', () => {
+  it('enemyHitbox-slimeGreen-insetFromRenderSlotByMeasuredSpriteConstants', () => {
+    // Concrete anchor values (not derived from the functions under test):
+    // size=48, tileOffsetX=-8, tileOffsetY=-16, sidePad=10, topPad=18 ->
+    // x=enemy.x+2, y=enemy.y+2, width=28, height=30.
+    const enemy = {
+      id: 'e1', spriteType: 'slimeGreen' as const, x: 10, y: 20, vx: 0,
+      direction: 'right' as const, animState: 'walk' as const, animFrame: 0,
+      animTimer: 0, hitPoints: 1, hitTimer: 0, defeated: false,
+    };
+    expect(enemyHitbox(enemy)).toEqual({ x: 12, y: 22, width: 28, height: 30 });
+  });
+
+  it('enemyHitbox-slimePurple-scalesOffsetAndInsetWithRenderScale', () => {
+    // size=72, tileOffsetX=-20, tileOffsetY=-40, sidePad=15, topPad=27 ->
+    // x=enemy.x-5, y=enemy.y-13, width=42, height=45.
     const enemy = {
       id: 'e1', spriteType: 'slimePurple' as const, x: 10, y: 20, vx: 0,
       direction: 'right' as const, animState: 'walk' as const, animFrame: 0,
       animTimer: 0, hitPoints: 3, hitTimer: 0, defeated: false,
     };
-    const box = enemyHitbox(enemy);
-    const expectedSize = enemyRenderedSize('slimePurple');
-    expect(box).toEqual({ x: 10, y: 20, width: expectedSize, height: expectedSize });
+    expect(enemyHitbox(enemy)).toEqual({ x: 5, y: 7, width: 42, height: 45 });
+  });
+
+  it('enemyHitbox-anySpriteType-matchesTheRenderedSpritesBoundingBox', () => {
+    // Cross-checks against the same offset/padding helpers drawEnemies
+    // itself uses, so the hitbox and the visible sprite can never silently
+    // drift apart again.
+    for (const spriteType of ['slimeGreen', 'slimePurple'] as const) {
+      const enemy = {
+        id: 'e1', spriteType, x: 100, y: 200, vx: 0,
+        direction: 'right' as const, animState: 'walk' as const, animFrame: 0,
+        animTimer: 0, hitPoints: 1, hitTimer: 0, defeated: false,
+      };
+      const size = enemyRenderedSize(spriteType);
+      const sidePad = enemyHitboxSidePadding(spriteType);
+      const topPad = enemyHitboxTopPadding(spriteType);
+      expect(enemyHitbox(enemy)).toEqual({
+        x: 100 + enemyTileOffsetX(spriteType) + sidePad,
+        y: 200 + enemyTileOffsetY(spriteType) + topPad,
+        width: size - 2 * sidePad,
+        height: size - topPad,
+      });
+    }
   });
 });
 
