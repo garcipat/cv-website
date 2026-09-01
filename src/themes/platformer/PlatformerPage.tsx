@@ -429,12 +429,6 @@ export const PlatformerPage = () => {
       }
 
       if (slimeGreenSpriteRef.current || slimePurpleSpriteRef.current) {
-        // Each purple slime only ever drops one key (see the `justDefeated`
-        // handling below — dedup by enemy id survives a death/respawn), so
-        // once an id already has a keyPickupState, stomping that slime again
-        // won't yield another one — the held-key shine-through effect should
-        // stop showing for it, not keep promising a key it'll never drop.
-        const droppedKeyEnemyIds = new Set(keyPickupStates.value.map((k) => k.id));
         drawEnemies(
           ctx,
           enemyStates.value,
@@ -443,7 +437,6 @@ export const PlatformerPage = () => {
           originX,
           originY,
           keySpriteRef.current,
-          droppedKeyEnemyIds,
         );
       }
       drawEnemySpikes(ctx, enemyStates.value, originX, originY);
@@ -697,17 +690,16 @@ export const PlatformerPage = () => {
       // `enemyStates` — render and collision already skip a dead enemy, so
       // there's nothing left to remove.
       //
-      // NOTE: `!alive` stays true forever once set, so without the
-      // `keyPickupStates`/`newFacts` membership guards below this block would
-      // re-fire the same reward every tick for as long as the enemy remains
-      // dead. Those guards are load-bearing until a per-enemy `rewardGiven`
-      // flag replaces them.
+      // An enemy is rewarded exactly once for the lifetime of the session:
+      // `alive` goes false on the finishing stomp and `rewardGiven` is set the
+      // same tick (see the end of this block), so a revived enemy stomped
+      // again in a later life is never selected here again.
       //
       // Checked before the collectible block so both effects can coexist in
       // `newEffects` without one clobbering the other within the same tick —
       // each block builds off `activeEffects.value` as it stands when it
       // runs, same convention the collectible block already uses.
-      const justDefeated = enemyStates.value.filter((e) => !e.alive);
+      const justDefeated = enemyStates.value.filter((e) => !e.alive && !e.rewardGiven);
       if (justDefeated.length > 0) {
         const newFacts = [...collectedFacts.value];
         const newEffects = [...activeEffects.value];
@@ -723,27 +715,24 @@ export const PlatformerPage = () => {
         let anyEnemyRewarded = false;
         for (const enemy of justDefeated) {
           // A defeated purple slime carries no fact at all — it drops a key
-          // pickup instead (spec.md User Story 4). Keys, like facts, persist
-          // across respawns (FR-020c-style dedup: `resetGame()` revives
-          // enemies but deliberately never clears `keyPickupStates`), so a
-          // revived purple slime stomped again in a later life must not drop
-          // a second key for the same source enemy id.
+          // pickup instead (spec.md User Story 4). `justDefeated`'s
+          // `!rewardGiven` filter already guarantees this fires once per
+          // enemy for the whole session, so no membership check against
+          // `keyPickupStates` is needed here.
           if (enemy.spriteType === 'slimePurple') {
-            const alreadyDropped = keyPickupStates.value.some((k) => k.id === enemy.id);
-            if (!alreadyDropped) {
-              keyPickupStates.value = [...keyPickupStates.value, spawnKeyPickup(enemy.id, enemy.x, enemy.y)];
-            }
+            keyPickupStates.value = [...keyPickupStates.value, spawnKeyPickup(enemy.id, enemy.x, enemy.y)];
             continue;
           }
           // A "plain" enemy (a marker beyond its color's CVData course
           // count, see EnemyMapper.ts) carries no fact at all — it stays dead
-          // in the array with no reward. Facts also persist across respawns
-          // (FR-020c: `resetGame()` revives enemies
-          // but deliberately never clears `collectedFacts`), so a revived
-          // enemy stomped again in a later life must not re-bank the same
-          // fact — that would duplicate its journal page.
+          // in the array with no reward.
+          //
+          // Facts are 1:1 with enemies by construction (EnemyMapper.ts zips
+          // each CVData entry to exactly one marker), and `rewardGiven`
+          // already guarantees one payout per enemy, so no membership check
+          // against `newFacts` is needed.
           const fact = enemy.fact;
-          if (!fact || newFacts.some((f) => f.id === fact.id)) continue;
+          if (!fact) continue;
           anyEnemyRewarded = true;
           newFacts.push(fact);
           // Reuses the journal's own title/icon derivation — formatJournalEntry
@@ -768,6 +757,16 @@ export const PlatformerPage = () => {
             ),
           );
         }
+
+        // Flag every selected enemy — including plain enemies with no reward
+        // at all — so `justDefeated`'s `!rewardGiven` filter never selects it
+        // again. This is the one remaining id use, and it is local to a
+        // single tick: it maps a just-computed subset back onto the array,
+        // not a lookup into persisted state.
+        const rewardedIds = new Set(justDefeated.map((e) => e.id));
+        enemyStates.value = enemyStates.value.map((e) =>
+          rewardedIds.has(e.id) ? { ...e, rewardGiven: true } : e,
+        );
 
         collectedFacts.value = newFacts;
         activeEffects.value = newEffects;

@@ -200,6 +200,16 @@ export interface EnemyState extends EnemyPlacement {
    *  (see `rewardGiven`) survive a respawn. */
   homeX: number;
   homeY: number;
+  /** True once this enemy's one reward — its CV fact, or the item its type
+   *  drops — has been handed out. Persists across death and respawn
+   *  (`reviveEnemy` deliberately leaves it alone), so an enemy revived after a
+   *  player death is a normal killable obstacle with nothing left to give.
+   *  Cleared only by `resetGameProgress()`, which rebuilds the whole array.
+   *
+   *  This replaces three separate id-keyed dedup lookups: against
+   *  `keyPickupStates` for dropped items, against `collectedFacts` for facts,
+   *  and a per-frame Set of ids rebuilt inside the render path. */
+  rewardGiven: boolean;
 }
 
 /**
@@ -238,6 +248,7 @@ export function toEnemyState(placement: EnemyPlacement, index = 0): EnemyState {
     alive: true,
     homeX: placement.x,
     homeY: placement.y,
+    rewardGiven: false,
   };
 }
 

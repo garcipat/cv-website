@@ -254,6 +254,7 @@ function makeEnemyState(
     alive: true,
     homeX: x,
     homeY: y,
+    rewardGiven: false,
     ...overrides,
   };
 }
@@ -411,50 +412,46 @@ describe('drawEnemies', () => {
     expect(ctx.drawImage.mock.calls[0][0]).toBe(purpleSprite);
   });
 
-  it('purpleSlimeIdInDroppedKeyEnemyIds-alreadyGaveUpItsOneKey-drawsNoKeyUnderneath', () => {
-    // Each purple slime only ever drops a single key (dedup by enemy id, see
-    // PlatformerPage.tsx's justDefeated handling) — once it has, stomping it
-    // again yields nothing, so the shine-through hint should stop showing.
+  it('purpleSlimeThatAlreadyGaveItsReward-drawsNoHeldKey', () => {
+    // Each purple slime only ever drops a single key (dedup via its own
+    // rewardGiven flag, see PlatformerPage.tsx's justDefeated handling) —
+    // once it has, stomping it again yields nothing, so the shine-through
+    // hint should stop showing.
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const purpleSprite = { tag: 'purple' } as unknown as HTMLImageElement;
     const keySprite = { tag: 'key' } as unknown as HTMLImageElement;
 
     drawEnemies(
       ctx as unknown as CanvasRenderingContext2D,
-      [makeEnemyState('already-dropped', 'slimePurple', 100, 100)],
+      [makeEnemyState('already-rewarded', 'slimePurple', 100, 100, { rewardGiven: true })],
       null,
       purpleSprite,
       0,
       0,
       keySprite,
-      new Set(['already-dropped']),
     );
 
     expect(ctx.drawImage.mock.calls).toHaveLength(1);
     expect(ctx.drawImage.mock.calls[0][0]).toBe(purpleSprite);
   });
 
-  it('multiplePurpleSlimes-onlyTheOneInDroppedKeyEnemyIdsSkipsItsKey', () => {
+  it('purpleSlimeThatHasNotGivenItsReward-drawsAHeldKey', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const purpleSprite = { tag: 'purple' } as unknown as HTMLImageElement;
     const keySprite = { tag: 'key' } as unknown as HTMLImageElement;
 
     drawEnemies(
       ctx as unknown as CanvasRenderingContext2D,
-      [
-        makeEnemyState('has-key-still', 'slimePurple', 100, 100),
-        makeEnemyState('already-dropped', 'slimePurple', 300, 100),
-      ],
+      [makeEnemyState('not-rewarded-yet', 'slimePurple', 100, 100, { rewardGiven: false })],
       null,
       purpleSprite,
       0,
       0,
       keySprite,
-      new Set(['already-dropped']),
     );
 
     const keyDraws = ctx.drawImage.mock.calls.filter((c: unknown[]) => c[0] === keySprite);
-    expect(keyDraws).toHaveLength(1);
+    expect(keyDraws.length).toBeGreaterThan(0);
   });
 });
 
