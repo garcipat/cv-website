@@ -35,9 +35,6 @@ import { FRUIT_FRAME_SIZE, FRUIT_RENDERED_SIZE, fruitFrameSource } from '../enti
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
 import {
   ENEMY_FRAME_SIZE,
-  ENEMY_RENDERED_SIZE,
-  ENEMY_TILE_OFFSET_X,
-  ENEMY_TILE_OFFSET_Y,
   enemyFrameSource,
   enemyRenderedSize,
   enemyTileOffsetX,
@@ -46,6 +43,8 @@ import {
   enemyHitboxTopPadding,
 } from '../entities/Enemy';
 import type { EnemyState } from '../entities/Enemy';
+import type { EnemyDef } from '../types';
+import { SPIKE_COOLDOWN_DURATION_SECONDS } from './EnemyAI';
 import type { KeyPickupState } from '../entities/KeyPickup';
 import {
   KEY_FRAME_WIDTH,
@@ -689,25 +688,81 @@ export function drawEnemies(
   }
 }
 
-const SPIKE_COUNT = 3;
-const SPIKE_FILL_COLOR = '#e8e4d8';
-const SPIKE_OUTLINE_COLOR = '#3a3428';
+const TOP_SPIKE_FRACTIONS = [0.3, 0.7];
+
+/** Per-spriteType spike palette, tinted toward each slime's own body color
+ *  (an approximate match, not sampled from the sprite sheet — there's no
+ *  existing color constant for the slime PNGs to reuse) so the spikes read
+ *  as part of the slime, not an unrelated bone/rock overlay. */
+const SPIKE_COLORS: Record<EnemyDef['spriteType'], { fill: string; outline: string }> = {
+  slimeGreen: { fill: '#7ec850', outline: '#355c22' },
+  slimePurple: { fill: '#9a6fd6', outline: '#4d2f7a' },
+};
 
 /**
- * Draws a row of SPIKE_COUNT triangles across the top of every `spiked`
- * enemy's visible silhouette. Insets by the same hitbox padding
- * `enemyHitbox` (Collision.ts) uses, so the spikes sit on the actual visible
- * slime blob's top edge rather than floating in the sprite's transparent
- * margin — same reasoning `enemyHitboxSidePadding`/`enemyHitboxTopPadding`
- * exist for in the first place. Deliberately a separate exported function
- * from `drawEnemies` (not folded into its loop) — `drawEnemies` is called
- * once per frame regardless of the game's animation/collision layering, and
- * keeping the spike overlay separate lets `PlatformerPage.tsx` draw it in
- * its own pass (spikes should read as "on top of" the enemy, so this must
- * be called after `drawEnemies`, not interleaved within it) without
- * threading extra parameters through `drawEnemies`' existing signature.
- * Purely procedural (no sprite) — no new asset needed for this small a
- * shape, matching `drawSignBubble`'s tail triangle convention.
+ * Returns a 0-1-0 growth curve across the spike cooldown: 0 the instant
+ * spikes appear (`spikeTimer` 0), peaking at 1 halfway through the cooldown,
+ * back to 0 right as the cooldown ends and spikes retract — a single
+ * grow-then-shrink pulse tied to the enemy's own remaining cooldown, not a
+ * continuously repeating animation. `Math.min(..., 1)` guards the one frame
+ * where `spikeTimer` reaches/exceeds `SPIKE_COOLDOWN_DURATION_SECONDS`
+ * before `stepEnemySpikeCooldown` (EnemyAI.ts) clears `spiked` that same
+ * tick — sin(pi) already resolves to ~0 there regardless.
+ */
+function spikeGrowthScale(spikeTimer: number): number {
+  const phase = Math.min(spikeTimer / SPIKE_COOLDOWN_DURATION_SECONDS, 1);
+  return Math.sin(phase * Math.PI);
+}
+
+/** Fills one spike triangle with a thin stroked outline — a flat outline
+ *  works for any triangle orientation (top-pointing or side-pointing),
+ *  unlike the old top-only overlay's offset-vertex outline trick. */
+function fillSpikeTriangle(
+  ctx: CanvasRenderingContext2D,
+  colors: { fill: string; outline: string },
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  x3: number,
+  y3: number,
+): void {
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.lineTo(x3, y3);
+  ctx.closePath();
+  ctx.fillStyle = colors.fill;
+  ctx.fill();
+  ctx.strokeStyle = colors.outline;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+}
+
+/**
+ * Draws 4 triangles sticking out of every `spiked` enemy's visible
+ * silhouette — 2 out of the top edge, 2 out of the left/right side edges —
+ * rather than a single row floating above the top edge. Each triangle's
+ * base sinks well *into* the hitbox (not flush with the edge), and each
+ * triangle itself is kept short, so the visible part reads as a short
+ * spike breaking the surface close to the slime's body, not a shape
+ * hovering apart from it. Insets by the same hitbox padding `enemyHitbox`
+ * (Collision.ts) uses, so the spikes are positioned relative to the actual
+ * visible slime blob, not the sprite's transparent render-slot margin —
+ * same reasoning `enemyHitboxSidePadding`/`enemyHitboxTopPadding` exist for
+ * in the first place. Each enemy's own `spikeTimer` drives a one-shot
+ * grow-then-shrink size curve (`spikeGrowthScale`) independently — every
+ * spiked enemy pulses on its own cooldown, not in shared lockstep — and
+ * `SPIKE_COLORS` tints the triangles toward that enemy's own body color
+ * instead of a generic bone/rock palette. Deliberately a separate exported
+ * function from `drawEnemies` (not folded into its loop) — `drawEnemies` is
+ * called once per frame regardless of the game's animation/collision
+ * layering, and keeping the spike overlay separate lets `PlatformerPage.tsx`
+ * draw it in its own pass (spikes should read as "on top of" the enemy, so
+ * this must be called after `drawEnemies`, not interleaved within it)
+ * without threading extra parameters through `drawEnemies`' existing
+ * signature. Purely procedural (no sprite) — no new asset needed for this
+ * small a shape.
  */
 export function drawEnemySpikes(
   ctx: CanvasRenderingContext2D,
@@ -718,37 +773,59 @@ export function drawEnemySpikes(
   for (const enemy of enemies) {
     if (!enemy.spiked) continue;
 
+    const scale = spikeGrowthScale(enemy.spikeTimer);
+    const colors = SPIKE_COLORS[enemy.spriteType];
     const size = enemyRenderedSize(enemy.spriteType);
     const sidePad = enemyHitboxSidePadding(enemy.spriteType);
     const topPad = enemyHitboxTopPadding(enemy.spriteType);
     const left = enemy.x + enemyTileOffsetX(enemy.spriteType) + sidePad + originX;
     const top = enemy.y + enemyTileOffsetY(enemy.spriteType) + topPad + originY;
     const width = size - 2 * sidePad;
-    const spikeWidth = width / SPIKE_COUNT;
-    const spikeHeight = spikeWidth * 0.9;
+    const height = size - topPad;
+    const right = left + width;
+    const midY = top + height / 2;
 
-    for (let i = 0; i < SPIKE_COUNT; i++) {
-      const baseLeftX = left + i * spikeWidth;
-      const baseRightX = baseLeftX + spikeWidth;
-      const tipX = baseLeftX + spikeWidth / 2;
-      const tipY = top - spikeHeight;
-
-      ctx.fillStyle = SPIKE_OUTLINE_COLOR;
-      ctx.beginPath();
-      ctx.moveTo(baseLeftX - 1, top);
-      ctx.lineTo(tipX, tipY - 1);
-      ctx.lineTo(baseRightX + 1, top);
-      ctx.closePath();
-      ctx.fill();
-
-      ctx.fillStyle = SPIKE_FILL_COLOR;
-      ctx.beginPath();
-      ctx.moveTo(baseLeftX, top);
-      ctx.lineTo(tipX, tipY);
-      ctx.lineTo(baseRightX, top);
-      ctx.closePath();
-      ctx.fill();
+    const topSpikeLength = width * 0.3 * scale;
+    const topSpikeHalfWidth = width * 0.12;
+    const topSpikeSink = topSpikeHalfWidth * 1.5;
+    for (const fraction of TOP_SPIKE_FRACTIONS) {
+      const baseX = left + width * fraction;
+      const baseY = top + topSpikeSink;
+      fillSpikeTriangle(
+        ctx,
+        colors,
+        baseX - topSpikeHalfWidth,
+        baseY,
+        baseX + topSpikeHalfWidth,
+        baseY,
+        baseX,
+        baseY - topSpikeLength,
+      );
     }
+
+    const sideSpikeLength = height * 0.26 * scale;
+    const sideSpikeHalfHeight = height * 0.1;
+    const sideSpikeSink = sideSpikeHalfHeight * 1.5;
+    fillSpikeTriangle(
+      ctx,
+      colors,
+      left + sideSpikeSink,
+      midY - sideSpikeHalfHeight,
+      left + sideSpikeSink,
+      midY + sideSpikeHalfHeight,
+      left - sideSpikeLength,
+      midY,
+    );
+    fillSpikeTriangle(
+      ctx,
+      colors,
+      right - sideSpikeSink,
+      midY - sideSpikeHalfHeight,
+      right - sideSpikeSink,
+      midY + sideSpikeHalfHeight,
+      right + sideSpikeLength,
+      midY,
+    );
   }
 }
 
