@@ -608,7 +608,11 @@ describe('PlatformerPage', () => {
     frameCallback!(0);
 
     const ctx = platformerPage.context;
-    const enemyTotal = enemyPlacements.value.length;
+    // The counter popup shows collected facts out of total fact-bearing placements,
+    // not including plain enemies (those at markers beyond the CVData's defs count).
+    // Since all courses now map to green slimes only, the purple marker becomes a
+    // plain enemy with no fact; it shouldn't be counted in the denominator.
+    const enemyTotal = enemyPlacements.value.filter((p) => p.fact).length;
 
     // The popup's icon needs its sprite ref loaded (same reasoning the old
     // "showsCoinCounterAtZero" test's comment gave for drawCollectibleCounter)
@@ -636,13 +640,7 @@ describe('PlatformerPage', () => {
       frameCallback!(t);
     }
 
-    // After defeating a green enemy with a fact, the counter popup should show
-    // some number of facts collected out of the total possible facts on the level
-    const callsWithCounterText = ctx.fillText.mock.calls.filter((c) => {
-      const text = c[0];
-      return typeof text === 'string' && text.match(/^\d+ \/ \d+$/);
-    });
-    expect(callsWithCounterText.length).toBeGreaterThan(0);
+    expect(ctx.fillText).toHaveBeenCalledWith(`1 / ${enemyTotal}`, expect.any(Number), expect.any(Number));
   });
 
   it('resetGame-afterDefeatingAnEnemy-collectedFactStaysBanked', async () => {
