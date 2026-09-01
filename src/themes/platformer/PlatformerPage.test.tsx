@@ -2268,6 +2268,73 @@ describe('PlatformerPage', () => {
     expect(collectedKeys.value).toBe(0);
   });
 
+  it('chestOpen-zeroKeys-showsNeedsKeyHintBubble', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    collectedKeys.value = 0;
+    const target = chestPlacements.value[0];
+    playerState.value = { ...playerState.value, x: target.x, y: target.y };
+    fireEvent.keyDown(window, { code: 'ArrowUp' });
+    frameCallback!(16);
+
+    expect(hintTooltipState.value?.hintId).toBe('chestNeedsKey');
+    expect(hintTooltipState.value?.phase).toBe('entering');
+  });
+
+  it('chestOpen-zeroKeys-thenPlayerWalksAway-needsKeyHintBubbleBeginsExiting', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    collectedKeys.value = 0;
+    const target = chestPlacements.value[0];
+    playerState.value = { ...playerState.value, x: target.x, y: target.y };
+    fireEvent.keyDown(window, { code: 'ArrowUp' });
+    frameCallback!(16);
+    expect(hintTooltipState.value?.hintId).toBe('chestNeedsKey');
+
+    // Walk far away from the chest — no longer standing on/overlapping it.
+    playerState.value = { ...playerState.value, x: target.x + 2000, y: target.y };
+    frameCallback!(32);
+
+    expect(hintTooltipState.value?.phase).toBe('exiting');
+  });
+
+  it('chestOpen-atLeastOneKey-doesNotShowNeedsKeyHintBubble', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    collectedKeys.value = 1;
+    const target = chestPlacements.value[0];
+    playerState.value = { ...playerState.value, x: target.x, y: target.y };
+    fireEvent.keyDown(window, { code: 'ArrowUp' });
+    frameCallback!(16);
+
+    // The chest opened successfully — no "need a key" bubble should show.
+    expect(hintTooltipState.value).toBeNull();
+  });
+
   it('chestOpen-atLeastOneKey-opensChestAndSpendsOneKey', () => {
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
