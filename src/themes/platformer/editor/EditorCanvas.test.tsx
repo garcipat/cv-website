@@ -282,10 +282,7 @@ describe('EditorCanvas', () => {
     expect(drawEnemies).toHaveBeenCalledWith(
       expect.anything(),
       expect.arrayContaining([expect.objectContaining({ type: 'slimeGreen' })]),
-      null,
-      null,
-      5,
-      7,
+      expect.objectContaining({ originX: 5, originY: 7 }),
     );
     expect(drawBlocks).toHaveBeenCalledWith(
       expect.anything(),

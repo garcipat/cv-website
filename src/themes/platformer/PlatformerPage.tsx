@@ -27,8 +27,8 @@ import {
   drawKeyCounter,
   keyCounterX,
   KEY_COUNTER_Y,
-  drawEnemySpikes,
 } from './engine/Renderer';
+import type { DrawContext } from './engine/DrawContext';
 import { drawDebugOverlay } from './engine/DebugOverlay';
 import { createGameLoop } from './engine/GameLoop';
 import { stepPlayerPhysics, checkPitFall, resolvePitFall } from './engine/Physics';
@@ -89,8 +89,10 @@ import {
   PLAYER_HEAD_PADDING,
 } from './entities/Player';
 import { advanceEnemyAnimation, applyStomp } from './entities/Enemy';
-import { SLIME_GREEN_SHEET } from './entities/sprites/sheets';
-import { frameSource } from './entities/sprites/SpriteSheet';
+import { SLIME_GREEN_SHEET, KEY_SHEET } from './entities/sprites/sheets';
+import { frameSource, collectSheetSources } from './entities/sprites/SpriteSheet';
+import type { SpriteLookup } from './entities/sprites/SpriteSheet';
+import { ENEMY_TYPES } from './entities/enemies';
 import type { EnemyState } from './entities/Enemy';
 import { takeDamage, PIT_FALL_DAMAGE, SIDE_HIT_DAMAGE, INVINCIBILITY_DURATION_SECONDS } from './entities/Health';
 import {
@@ -158,8 +160,10 @@ export const PlatformerPage = () => {
   const heartsSpriteRef = useRef<HTMLImageElement | null>(null);
   const coinSpriteRef = useRef<HTMLImageElement | null>(null);
   const fruitSpriteRef = useRef<HTMLImageElement | null>(null);
-  const slimeGreenSpriteRef = useRef<HTMLImageElement | null>(null);
-  const slimePurpleSpriteRef = useRef<HTMLImageElement | null>(null);
+  // Enemy sprite sheets (and the key sheet, for a purple slime's held-key
+  // shine-through), discovered from the type registry rather than loaded via
+  // individual refs — see the mount effect below.
+  const spritesRef = useRef<SpriteLookup>({});
   const crackOverlaySpriteRef = useRef<HTMLImageElement | null>(null);
   const chestClosedSpriteRef = useRef<HTMLImageElement | null>(null);
   const chestOpenSpriteRef = useRef<HTMLImageElement | null>(null);
@@ -430,18 +434,14 @@ export const PlatformerPage = () => {
         );
       }
 
-      if (slimeGreenSpriteRef.current || slimePurpleSpriteRef.current) {
-        drawEnemies(
-          ctx,
-          enemyStates.value,
-          slimeGreenSpriteRef.current,
-          slimePurpleSpriteRef.current,
-          originX,
-          originY,
-          keySpriteRef.current,
-        );
-      }
-      drawEnemySpikes(ctx, enemyStates.value, originX, originY);
+      const drawContext: DrawContext = {
+        ctx,
+        sprites: spritesRef.current,
+        originX,
+        originY,
+        worldElapsed: worldAnimElapsed,
+      };
+      drawEnemies(ctx, enemyStates.value, drawContext);
 
       drawKeyPickups(ctx, keyPickupStates.value, keySpriteRef.current, worldAnimElapsed, originX, originY);
 
@@ -483,7 +483,7 @@ export const PlatformerPage = () => {
         },
         {
           labelKey: 'enemies',
-          icon: slimeGreenSpriteRef.current,
+          icon: spritesRef.current[SLIME_GREEN_SHEET.src],
           iconFrame: { ...frameSource(SLIME_GREEN_SHEET, 2), size: SLIME_GREEN_SHEET.frameWidth },
           iconYOffset: -6,
         },
@@ -1468,26 +1468,25 @@ export const PlatformerPage = () => {
         // Fruits simply won't render if the sprite fails to load; coins and
         // the rest of the game still show.
       });
-    loadImage('/sprites/slime_green.png')
-      .then((img) => {
-        if (cancelled) return;
-        slimeGreenSpriteRef.current = img;
-        render();
-      })
-      .catch(() => {
-        // Green (Certificates) enemies simply won't render if the sprite
-        // fails to load; the rest of the game still shows.
-      });
-    loadImage('/sprites/slime_purple.png')
-      .then((img) => {
-        if (cancelled) return;
-        slimePurpleSpriteRef.current = img;
-        render();
-      })
-      .catch(() => {
-        // Purple (Projects) enemies simply won't render if the sprite fails
-        // to load; the rest of the game still shows.
-      });
+    // Discovers every enemy sheet from the type registry (plus the key
+    // sheet, for a purple slime's held-key shine-through) rather than
+    // hand-listing each one — adding an enemy type needs no new loadImage
+    // call here.
+    for (const src of collectSheetSources([
+      ...Object.values(ENEMY_TYPES).map((t) => t.sprite),
+      { sheet: KEY_SHEET, renderScale: 1, animations: {} },
+    ])) {
+      loadImage(src)
+        .then((img) => {
+          if (cancelled) return;
+          spritesRef.current[src] = img;
+          render();
+        })
+        .catch(() => {
+          // That sheet's enemies (or the held-key hint) simply won't render
+          // if it fails to load; the rest of the game still shows.
+        });
+    }
     loadImage('/sprites/crack_overlay.png')
       .then((img) => {
         if (cancelled) return;

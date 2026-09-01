@@ -4,7 +4,6 @@ import {
   drawHearts,
   drawCollectibles,
   drawEnemies,
-  drawEnemySpikes,
   drawBlocks,
   drawChests,
   drawBonusFruits,
@@ -52,7 +51,8 @@ import {
   KEY_TILE_OFFSET_Y,
 } from '../entities/KeyPickup';
 import type { KeyPickupState } from '../entities/KeyPickup';
-import { SLIME_GREEN_SHEET } from '../entities/sprites/sheets';
+import { SLIME_GREEN_SHEET, SLIME_PURPLE_SHEET, KEY_SHEET } from '../entities/sprites/sheets';
+import type { DrawContext } from './DrawContext';
 
 const ENEMY_FRAME_SIZE = SLIME_GREEN_SHEET.frameWidth;
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
@@ -262,47 +262,85 @@ function makeEnemyState(
   };
 }
 
+/** Alias kept for the type-owned-rendering tests below, which think in terms
+ *  of a draw context rather than raw canvas mock construction. */
+function makeMockCtx() {
+  return makeMockContext();
+}
+
+/** A `DrawContext` whose `sprites` map gives every sheet a DISTINCT mock
+ *  image object (by identity), so `drawImageCallsFor` can tell which sheet a
+ *  given `drawImage` call came from. */
+function makeDrawContext(
+  ctx: CanvasRenderingContext2D,
+  overrides: Partial<DrawContext> = {},
+): DrawContext {
+  return {
+    ctx,
+    sprites: {
+      [SLIME_GREEN_SHEET.src]: { tag: 'green' } as unknown as HTMLImageElement,
+      [SLIME_PURPLE_SHEET.src]: { tag: 'purple' } as unknown as HTMLImageElement,
+      [KEY_SHEET.src]: { tag: 'key' } as unknown as HTMLImageElement,
+    },
+    originX: 0,
+    originY: 0,
+    worldElapsed: 0,
+    ...overrides,
+  };
+}
+
+function makeGreenEnemy(overrides: Partial<EnemyState> = {}): EnemyState {
+  return makeEnemyState('green-1', 'slimeGreen', 100, 100, overrides);
+}
+
+function makePurpleEnemy(overrides: Partial<EnemyState> = {}): EnemyState {
+  return makeEnemyState('purple-1', 'slimePurple', 100, 100, overrides);
+}
+
+/** Every `drawImage` call whose image argument is `sprite`, by identity. */
+function drawImageCallsFor(
+  ctx: { drawImage: ReturnType<typeof vi.fn> },
+  sprite: HTMLImageElement | null,
+): unknown[][] {
+  return ctx.drawImage.mock.calls.filter((c: unknown[]) => c[0] === sprite);
+}
+
 describe('drawEnemies', () => {
   it('greenAndPurple-drawEachFromItsOwnSprite', () => {
-    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-    const greenSprite = { tag: 'green' } as unknown as HTMLImageElement;
-    const purpleSprite = { tag: 'purple' } as unknown as HTMLImageElement;
-    const enemies = [
-      makeEnemyState('a', 'slimeGreen', 100, 100),
-      makeEnemyState('b', 'slimePurple', 300, 300),
-    ];
+    const ctx = makeMockCtx() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
+    const enemies = [makeGreenEnemy({ id: 'a', x: 100, y: 100 }), makePurpleEnemy({ id: 'b', x: 300, y: 300 })];
 
-    drawEnemies(ctx as unknown as CanvasRenderingContext2D, enemies, greenSprite, purpleSprite);
+    drawEnemies(ctx as unknown as CanvasRenderingContext2D, enemies, dc);
 
-    const calls = ctx.drawImage.mock.calls;
-    expect(calls.some((c: unknown[]) => c[0] === greenSprite)).toBe(true);
-    expect(calls.some((c: unknown[]) => c[0] === purpleSprite)).toBe(true);
+    expect(drawImageCallsFor(ctx, dc.sprites[SLIME_GREEN_SHEET.src])).not.toHaveLength(0);
+    expect(drawImageCallsFor(ctx, dc.sprites[SLIME_PURPLE_SHEET.src])).not.toHaveLength(0);
   });
 
   it('missingGreenSprite-skipsGreenEnemiesButStillDrawsPurple', () => {
-    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-    const purpleSprite = { tag: 'purple' } as unknown as HTMLImageElement;
-    const enemies = [
-      makeEnemyState('a', 'slimeGreen', 100, 100),
-      makeEnemyState('b', 'slimePurple', 300, 300),
-    ];
+    const ctx = makeMockCtx() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D, {
+      sprites: { [SLIME_PURPLE_SHEET.src]: { tag: 'purple' } as unknown as HTMLImageElement },
+    });
+    const enemies = [makeGreenEnemy({ id: 'a', x: 100, y: 100 }), makePurpleEnemy({ id: 'b', x: 300, y: 300 })];
 
-    drawEnemies(ctx as unknown as CanvasRenderingContext2D, enemies, null, purpleSprite);
+    drawEnemies(ctx as unknown as CanvasRenderingContext2D, enemies, dc);
 
     const calls = ctx.drawImage.mock.calls;
     expect(calls).toHaveLength(1);
-    expect(calls[0][0]).toBe(purpleSprite);
+    expect(calls[0][0]).toBe(dc.sprites[SLIME_PURPLE_SHEET.src]);
   });
 
   it('facingRight-drawsAtEnemyRenderedSizeUsingItsOwnAnimFrame', () => {
-    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-    const greenSprite = {} as HTMLImageElement;
+    const ctx = makeMockCtx() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D, {
+      sprites: { [SLIME_GREEN_SHEET.src]: {} as HTMLImageElement },
+    });
 
     drawEnemies(
       ctx as unknown as CanvasRenderingContext2D,
-      [makeEnemyState('a', 'slimeGreen', 100, 100, { animState: 'walk', animFrame: 2 })],
-      greenSprite,
-      null,
+      [makeGreenEnemy({ id: 'a', x: 100, y: 100, animState: 'walk', animFrame: 2 })],
+      dc,
     );
 
     const call = ctx.drawImage.mock.calls[0];
@@ -317,17 +355,14 @@ describe('drawEnemies', () => {
   });
 
   it('withOrigin-addsOriginOnTopOfPlacementAndTileOffset', () => {
-    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-    const greenSprite = {} as HTMLImageElement;
+    const ctx = makeMockCtx() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D, {
+      sprites: { [SLIME_GREEN_SHEET.src]: {} as HTMLImageElement },
+      originX: 50,
+      originY: 20,
+    });
 
-    drawEnemies(
-      ctx as unknown as CanvasRenderingContext2D,
-      [makeEnemyState('a', 'slimeGreen', 100, 100)],
-      greenSprite,
-      null,
-      50,
-      20,
-    );
+    drawEnemies(ctx as unknown as CanvasRenderingContext2D, [makeGreenEnemy({ id: 'a', x: 100, y: 100 })], dc);
 
     const call = ctx.drawImage.mock.calls[0];
     expect(call[5]).toBe(100 + ENEMY_TILE_OFFSET_X + 50);
@@ -335,20 +370,21 @@ describe('drawEnemies', () => {
   });
 
   it('facingLeft-mirrorsViaSaveTranslateScale', () => {
-    const ctx = makeMockContext() as unknown as {
+    const ctx = makeMockCtx() as unknown as {
       drawImage: ReturnType<typeof vi.fn>;
       save: ReturnType<typeof vi.fn>;
       translate: ReturnType<typeof vi.fn>;
       scale: ReturnType<typeof vi.fn>;
       restore: ReturnType<typeof vi.fn>;
     };
-    const greenSprite = {} as HTMLImageElement;
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D, {
+      sprites: { [SLIME_GREEN_SHEET.src]: {} as HTMLImageElement },
+    });
 
     drawEnemies(
       ctx as unknown as CanvasRenderingContext2D,
-      [makeEnemyState('a', 'slimeGreen', 100, 100, { direction: 'left' })],
-      greenSprite,
-      null,
+      [makeGreenEnemy({ id: 'a', x: 100, y: 100, direction: 'left' })],
+      dc,
     );
 
     expect(ctx.save).toHaveBeenCalled();
@@ -360,101 +396,74 @@ describe('drawEnemies', () => {
   });
 
   it('purpleSlimeWithKeySprite-drawsTheKeyUnderneathTheBody', () => {
-    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-    const purpleSprite = { tag: 'purple' } as unknown as HTMLImageElement;
-    const keySprite = { tag: 'key' } as unknown as HTMLImageElement;
+    const ctx = makeMockCtx() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
 
-    drawEnemies(
-      ctx as unknown as CanvasRenderingContext2D,
-      [makeEnemyState('a', 'slimePurple', 100, 100)],
-      null,
-      purpleSprite,
-      0,
-      0,
-      keySprite,
-    );
+    drawEnemies(ctx as unknown as CanvasRenderingContext2D, [makePurpleEnemy({ id: 'a', x: 100, y: 100 })], dc);
 
     const calls = ctx.drawImage.mock.calls;
-    expect(calls.some((c: unknown[]) => c[0] === keySprite)).toBe(true);
+    expect(calls.some((c: unknown[]) => c[0] === dc.sprites[KEY_SHEET.src])).toBe(true);
     // Key is drawn BEFORE the (translucent) body, so it reads as underneath.
-    expect(calls.findIndex((c: unknown[]) => c[0] === keySprite)).toBeLessThan(
-      calls.findIndex((c: unknown[]) => c[0] === purpleSprite),
+    expect(calls.findIndex((c: unknown[]) => c[0] === dc.sprites[KEY_SHEET.src])).toBeLessThan(
+      calls.findIndex((c: unknown[]) => c[0] === dc.sprites[SLIME_PURPLE_SHEET.src]),
     );
   });
 
   it('greenSlimeWithKeySprite-neverDrawsAKey', () => {
-    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-    const greenSprite = { tag: 'green' } as unknown as HTMLImageElement;
-    const keySprite = { tag: 'key' } as unknown as HTMLImageElement;
+    const ctx = makeMockCtx() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D, {
+      sprites: {
+        [SLIME_GREEN_SHEET.src]: { tag: 'green' } as unknown as HTMLImageElement,
+        [KEY_SHEET.src]: { tag: 'key' } as unknown as HTMLImageElement,
+      },
+    });
 
-    drawEnemies(
-      ctx as unknown as CanvasRenderingContext2D,
-      [makeEnemyState('a', 'slimeGreen', 100, 100)],
-      greenSprite,
-      null,
-      0,
-      0,
-      keySprite,
-    );
+    drawEnemies(ctx as unknown as CanvasRenderingContext2D, [makeGreenEnemy({ id: 'a', x: 100, y: 100 })], dc);
 
-    expect(ctx.drawImage.mock.calls.some((c: unknown[]) => c[0] === keySprite)).toBe(false);
+    expect(ctx.drawImage.mock.calls.some((c: unknown[]) => c[0] === dc.sprites[KEY_SHEET.src])).toBe(false);
   });
 
   it('noKeySpriteProvided-purpleSlimeDrawsWithNoKeyUnderneath', () => {
-    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-    const purpleSprite = { tag: 'purple' } as unknown as HTMLImageElement;
+    const ctx = makeMockCtx() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D, {
+      sprites: { [SLIME_PURPLE_SHEET.src]: { tag: 'purple' } as unknown as HTMLImageElement },
+    });
 
-    drawEnemies(
-      ctx as unknown as CanvasRenderingContext2D,
-      [makeEnemyState('a', 'slimePurple', 100, 100)],
-      null,
-      purpleSprite,
-    );
+    drawEnemies(ctx as unknown as CanvasRenderingContext2D, [makePurpleEnemy({ id: 'a', x: 100, y: 100 })], dc);
 
     expect(ctx.drawImage.mock.calls).toHaveLength(1);
-    expect(ctx.drawImage.mock.calls[0][0]).toBe(purpleSprite);
+    expect(ctx.drawImage.mock.calls[0][0]).toBe(dc.sprites[SLIME_PURPLE_SHEET.src]);
+  });
+});
+
+describe('drawEnemies with type-owned rendering', () => {
+  it('deadEnemy-drawsNothing', () => {
+    const ctx = makeMockCtx();
+    const dc = makeDrawContext(ctx);
+    drawEnemies(ctx, [makeGreenEnemy({ alive: false })], dc);
+    expect(ctx.drawImage).not.toHaveBeenCalled();
   });
 
-  it('purpleSlimeThatAlreadyGaveItsReward-drawsNoHeldKey', () => {
-    // Each purple slime only ever drops a single key (dedup via its own
-    // rewardGiven flag, see PlatformerPage.tsx's justDefeated handling) —
-    // once it has, stomping it again yields nothing, so the shine-through
-    // hint should stop showing.
-    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-    const purpleSprite = { tag: 'purple' } as unknown as HTMLImageElement;
-    const keySprite = { tag: 'key' } as unknown as HTMLImageElement;
-
-    drawEnemies(
-      ctx as unknown as CanvasRenderingContext2D,
-      [makeEnemyState('already-rewarded', 'slimePurple', 100, 100, { rewardGiven: true })],
-      null,
-      purpleSprite,
-      0,
-      0,
-      keySprite,
-    );
-
-    expect(ctx.drawImage.mock.calls).toHaveLength(1);
-    expect(ctx.drawImage.mock.calls[0][0]).toBe(purpleSprite);
+  it('greenAndPurpleTogether-drawsEachFromItsOwnSheet', () => {
+    const ctx = makeMockCtx();
+    const dc = makeDrawContext(ctx);
+    drawEnemies(ctx, [makeGreenEnemy(), makePurpleEnemy()], dc);
+    expect(drawImageCallsFor(ctx as unknown as { drawImage: ReturnType<typeof vi.fn> }, dc.sprites[SLIME_GREEN_SHEET.src])).toHaveLength(1);
+    expect(drawImageCallsFor(ctx as unknown as { drawImage: ReturnType<typeof vi.fn> }, dc.sprites[SLIME_PURPLE_SHEET.src])).toHaveLength(1);
   });
 
-  it('purpleSlimeThatHasNotGivenItsReward-drawsAHeldKey', () => {
-    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-    const purpleSprite = { tag: 'purple' } as unknown as HTMLImageElement;
-    const keySprite = { tag: 'key' } as unknown as HTMLImageElement;
+  it('purpleThatAlreadyGaveItsReward-drawsNoHeldKey', () => {
+    const ctx = makeMockCtx();
+    const dc = makeDrawContext(ctx);
+    drawEnemies(ctx, [makePurpleEnemy({ rewardGiven: true })], dc);
+    expect(drawImageCallsFor(ctx as unknown as { drawImage: ReturnType<typeof vi.fn> }, dc.sprites[KEY_SHEET.src])).toHaveLength(0);
+  });
 
-    drawEnemies(
-      ctx as unknown as CanvasRenderingContext2D,
-      [makeEnemyState('not-rewarded-yet', 'slimePurple', 100, 100, { rewardGiven: false })],
-      null,
-      purpleSprite,
-      0,
-      0,
-      keySprite,
-    );
-
-    const keyDraws = ctx.drawImage.mock.calls.filter((c: unknown[]) => c[0] === keySprite);
-    expect(keyDraws.length).toBeGreaterThan(0);
+  it('purpleThatHasNotGivenItsReward-drawsAHeldKey', () => {
+    const ctx = makeMockCtx();
+    const dc = makeDrawContext(ctx);
+    drawEnemies(ctx, [makePurpleEnemy({ rewardGiven: false })], dc);
+    expect(drawImageCallsFor(ctx as unknown as { drawImage: ReturnType<typeof vi.fn> }, dc.sprites[KEY_SHEET.src]).length).toBeGreaterThan(0);
   });
 });
 
@@ -1688,58 +1697,65 @@ describe('drawKeyCounter', () => {
   });
 });
 
-describe('drawEnemySpikes', () => {
-  it('drawEnemySpikes-spikedEnemy-drawsFourTrianglesWithOutlineStroke', () => {
-    const ctx = makeMockContext();
-    const enemy = makeEnemyState('e1', 'slimePurple', 0, 0, { spiked: true, spikeTimer: 0.1 });
-    drawEnemySpikes(ctx, [enemy]);
+describe('drawEnemies spike overlay', () => {
+  it('spikedEnemy-drawsFourTrianglesWithOutlineStroke', () => {
+    const ctx = makeMockCtx();
+    const dc = makeDrawContext(ctx);
+    const enemy = makePurpleEnemy({ id: 'e1', x: 0, y: 0, spiked: true, spikeTimer: 0.1 });
+    drawEnemies(ctx, [enemy], dc);
     // 2 top spikes + 2 side spikes = 4 triangles, one fill + one stroke each.
     expect(ctx.fill).toHaveBeenCalledTimes(4);
     expect(ctx.stroke).toHaveBeenCalledTimes(4);
     expect(ctx.moveTo).toHaveBeenCalled();
   });
 
-  it('drawEnemySpikes-nonSpikedEnemy-drawsNothing', () => {
-    const ctx = makeMockContext();
-    const enemy = makeEnemyState('e1', 'slimePurple', 0, 0, { spiked: false, spikeTimer: 0 });
-    drawEnemySpikes(ctx, [enemy]);
+  it('nonSpikedEnemy-drawsNothing', () => {
+    const ctx = makeMockCtx();
+    const dc = makeDrawContext(ctx);
+    const enemy = makePurpleEnemy({ id: 'e1', x: 0, y: 0, spiked: false, spikeTimer: 0 });
+    drawEnemies(ctx, [enemy], dc);
     expect(ctx.fill).not.toHaveBeenCalled();
   });
 
-  it('drawEnemySpikes-mixedSpikedAndNonSpikedEnemies-onlyDrawsForTheSpikedOne', () => {
-    const ctx = makeMockContext();
-    const spiked = makeEnemyState('a', 'slimePurple', 0, 0, { spiked: true, spikeTimer: 0.1 });
-    const notSpiked = makeEnemyState('b', 'slimeGreen', 100, 0, { spiked: false, spikeTimer: 0 });
-    drawEnemySpikes(ctx, [spiked, notSpiked]);
+  it('mixedSpikedAndNonSpikedEnemies-onlyDrawsForTheSpikedOne', () => {
+    const ctx = makeMockCtx();
+    const dc = makeDrawContext(ctx);
+    const spiked = makePurpleEnemy({ id: 'a', x: 0, y: 0, spiked: true, spikeTimer: 0.1 });
+    const notSpiked = makeGreenEnemy({ id: 'b', x: 100, y: 0, spiked: false, spikeTimer: 0 });
+    drawEnemies(ctx, [spiked, notSpiked], dc);
     // Still exactly 4 triangles total — the non-spiked enemy contributes none,
     // proving the per-enemy skip doesn't short-circuit the whole array.
     expect(ctx.fill).toHaveBeenCalledTimes(4);
   });
 
-  it('drawEnemySpikes-spikeTimerJustStarted-tipCollapsesOntoBase', () => {
-    const ctx = makeMockContext() as unknown as { lineTo: ReturnType<typeof vi.fn> };
+  it('spikeTimerJustStarted-tipCollapsesOntoBase', () => {
+    const ctx = makeMockCtx() as unknown as { lineTo: ReturnType<typeof vi.fn> };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
     // spikeTimer 0 is the instant spikes appear — spikeGrowthScale(0) is 0,
     // so every triangle's tip vertex collapses onto its base-edge y
     // (zero-length spike) rather than poking out immediately at full size.
-    const enemy = makeEnemyState('e1', 'slimePurple', 0, 0, { spiked: true, spikeTimer: 0 });
-    drawEnemySpikes(ctx as unknown as CanvasRenderingContext2D, [enemy]);
+    const enemy = makePurpleEnemy({ id: 'e1', x: 0, y: 0, spiked: true, spikeTimer: 0 });
+    drawEnemies(ctx as unknown as CanvasRenderingContext2D, [enemy], dc);
 
     const baseEdgeY = ctx.lineTo.mock.calls[0][1]; // (baseX + halfWidth, baseY)
     const tipY = ctx.lineTo.mock.calls[1][1]; // (baseX, baseY - length)
     expect(tipY).toBe(baseEdgeY);
   });
 
-  it('drawEnemySpikes-differentSpikeTimers-growsThenShrinksSpikeSizeOverTheCooldown', () => {
-    const ctxEarly = makeMockContext() as unknown as { lineTo: ReturnType<typeof vi.fn> };
-    const ctxMidCooldown = makeMockContext() as unknown as { lineTo: ReturnType<typeof vi.fn> };
-    const ctxLate = makeMockContext() as unknown as { lineTo: ReturnType<typeof vi.fn> };
-    const early = makeEnemyState('e1', 'slimePurple', 0, 0, { spiked: true, spikeTimer: 0.05 });
-    const midCooldown = makeEnemyState('e1', 'slimePurple', 0, 0, { spiked: true, spikeTimer: 0.75 });
-    const late = makeEnemyState('e1', 'slimePurple', 0, 0, { spiked: true, spikeTimer: 1.45 });
+  it('differentSpikeTimers-growsThenShrinksSpikeSizeOverTheCooldown', () => {
+    const ctxEarly = makeMockCtx() as unknown as { lineTo: ReturnType<typeof vi.fn> };
+    const ctxMidCooldown = makeMockCtx() as unknown as { lineTo: ReturnType<typeof vi.fn> };
+    const ctxLate = makeMockCtx() as unknown as { lineTo: ReturnType<typeof vi.fn> };
+    const dcEarly = makeDrawContext(ctxEarly as unknown as CanvasRenderingContext2D);
+    const dcMid = makeDrawContext(ctxMidCooldown as unknown as CanvasRenderingContext2D);
+    const dcLate = makeDrawContext(ctxLate as unknown as CanvasRenderingContext2D);
+    const early = makePurpleEnemy({ id: 'e1', x: 0, y: 0, spiked: true, spikeTimer: 0.05 });
+    const midCooldown = makePurpleEnemy({ id: 'e1', x: 0, y: 0, spiked: true, spikeTimer: 0.75 });
+    const late = makePurpleEnemy({ id: 'e1', x: 0, y: 0, spiked: true, spikeTimer: 1.45 });
 
-    drawEnemySpikes(ctxEarly as unknown as CanvasRenderingContext2D, [early]);
-    drawEnemySpikes(ctxMidCooldown as unknown as CanvasRenderingContext2D, [midCooldown]);
-    drawEnemySpikes(ctxLate as unknown as CanvasRenderingContext2D, [late]);
+    drawEnemies(ctxEarly as unknown as CanvasRenderingContext2D, [early], dcEarly);
+    drawEnemies(ctxMidCooldown as unknown as CanvasRenderingContext2D, [midCooldown], dcMid);
+    drawEnemies(ctxLate as unknown as CanvasRenderingContext2D, [late], dcLate);
 
     // The tip vertex is the second lineTo call for the first top spike —
     // its y-coordinate is baseY - length, so a bigger spike means a smaller

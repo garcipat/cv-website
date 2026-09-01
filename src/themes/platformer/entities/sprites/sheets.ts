@@ -22,3 +22,15 @@ export const SLIME_PURPLE_SHEET: SpriteSheet = {
   frameHeight: SLIME_FRAME_SIZE,
   columns: SLIME_COLUMNS,
 };
+
+/** A standalone single image, not a sheet — one frame filling the whole
+ *  image, matching KeyPickup.ts's own KEY_FRAME_WIDTH/HEIGHT (the source of
+ *  truth for these numbers; kept here too so a purple slime's held-key
+ *  overlay can discover this sheet via the same registry-driven asset
+ *  loading every other sprite uses). */
+export const KEY_SHEET: SpriteSheet = {
+  src: '/sprites/key.png',
+  frameWidth: 14,
+  frameHeight: 22,
+  columns: 1,
+};
