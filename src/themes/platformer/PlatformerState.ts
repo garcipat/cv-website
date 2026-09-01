@@ -24,6 +24,7 @@ import type { BlockState } from './entities/Block';
 import { toChestState } from './entities/Chest';
 import type { ChestState } from './entities/Chest';
 import type { BonusFruitState } from './entities/BonusFruit';
+import type { KeyPickupState } from './entities/KeyPickup';
 import { introState } from './engine/GameLifecycle';
 import { currentCV } from '@/state/locale';
 import { mapCVDataToCollectibles, placeCollectibles } from './level/CollectibleMapper';
@@ -283,6 +284,24 @@ export const controlsOverlayDismissed = signal(false);
 export const bonusFruitStates = signal<BonusFruitState[]>([]);
 
 /**
+ * Dropped-key pickups (one per purple-slime finishing stomp) — starts empty.
+ * Collected entries stay in this array flagged `collected: true` rather than
+ * being removed (see entities/KeyPickup.ts's doc comment: this is what lets
+ * PlatformerPage.tsx's defeat handler tell whether a given purple slime has
+ * already paid out its key across a death/respawn). Persists across a
+ * death/respawn (resetGame()), same as blockStates/bonusFruitStates — cleared
+ * only by resetGameProgress().
+ */
+export const keyPickupStates = signal<KeyPickupState[]>([]);
+
+/**
+ * Count of keys currently held, spent one at a time to open a chest
+ * (spec.md FR-020e/FR-023). Persists across a death/respawn, same as
+ * keyPickupStates above — cleared only by resetGameProgress().
+ */
+export const collectedKeys = signal<number>(0);
+
+/**
  * Facts discovered so far this session (see spec.md FR-032). Starts empty;
  * populated via real coin/fruit collection, enemy defeat, block hits, and
  * chest opens.
@@ -411,4 +430,6 @@ export function resetGameProgress(): void {
   endingScreenShown.value = false;
   endingScreenOpen.value = false;
   bonusFruitStates.value = [];
+  keyPickupStates.value = [];
+  collectedKeys.value = 0;
 }
