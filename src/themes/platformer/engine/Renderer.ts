@@ -39,8 +39,13 @@ import {
   ENEMY_TILE_OFFSET_X,
   ENEMY_TILE_OFFSET_Y,
   enemyFrameSource,
+  enemyRenderedSize,
+  enemyTileOffsetX,
+  enemyTileOffsetY,
 } from '../entities/Enemy';
 import type { EnemyState } from '../entities/Enemy';
+import type { KeyPickupState } from '../entities/KeyPickup';
+import { KEY_FRAME_WIDTH, KEY_FRAME_HEIGHT, KEY_RENDERED_WIDTH, KEY_RENDERED_HEIGHT } from '../entities/KeyPickup';
 import { BLOCK_FRAME_SIZE, BLOCK_RENDERED_SIZE, blockFrameSource, crateCrackOverlayVisible } from '../entities/Block';
 import type { BlockState } from '../entities/Block';
 import {
@@ -569,6 +574,38 @@ export function drawCollectibles(
 }
 
 /**
+ * Draws every not-yet-collected key pickup, bobbing exactly like a coin
+ * (shares Coin.ts's coinBobOffset — bobbing isn't coin-specific, same
+ * convention drawCollectibles's fruit already follows).
+ */
+export function drawKeyPickups(
+  ctx: CanvasRenderingContext2D,
+  pickups: readonly KeyPickupState[],
+  keySprite: HTMLImageElement | null,
+  elapsedSeconds: number,
+  originX = 0,
+  originY = 0,
+): void {
+  if (!keySprite) return;
+  ctx.imageSmoothingEnabled = false;
+  const bob = coinBobOffset(elapsedSeconds);
+  for (const pickup of pickups) {
+    if (pickup.collected) continue;
+    ctx.drawImage(
+      keySprite,
+      0,
+      0,
+      KEY_FRAME_WIDTH,
+      KEY_FRAME_HEIGHT,
+      pickup.x + originX,
+      pickup.y + originY + bob,
+      KEY_RENDERED_WIDTH,
+      KEY_RENDERED_HEIGHT,
+    );
+  }
+}
+
+/**
  * Draws every enemy at its current state position, direction, and animation
  * frame. Each enemy carries its own animState and animFrame (updated per
  * frame during patrol movement — Tasks 5+), so this reads per-enemy state
@@ -596,15 +633,16 @@ export function drawEnemies(
     if (!sprite) continue;
 
     const { sx, sy } = enemyFrameSource(enemy.animState, enemy.animFrame);
-    const dx = enemy.x + ENEMY_TILE_OFFSET_X + originX;
-    const dy = enemy.y + ENEMY_TILE_OFFSET_Y + originY;
+    const size = enemyRenderedSize(enemy.spriteType);
+    const dx = enemy.x + enemyTileOffsetX(enemy.spriteType) + originX;
+    const dy = enemy.y + enemyTileOffsetY(enemy.spriteType) + originY;
 
     if (enemy.direction === 'left') {
       // Mirrors drawPlayer's left-facing flip: translate to the sprite's
       // right edge, then scale(-1, 1) so drawImage's own (0, 0) origin lands
       // where the mirrored sprite's top-left should visually appear.
       ctx.save();
-      ctx.translate(dx + ENEMY_RENDERED_SIZE, dy);
+      ctx.translate(dx + size, dy);
       ctx.scale(-1, 1);
       ctx.drawImage(
         sprite,
@@ -614,8 +652,8 @@ export function drawEnemies(
         ENEMY_FRAME_SIZE,
         0,
         0,
-        ENEMY_RENDERED_SIZE,
-        ENEMY_RENDERED_SIZE,
+        size,
+        size,
       );
       ctx.restore();
       continue;
@@ -629,8 +667,8 @@ export function drawEnemies(
       ENEMY_FRAME_SIZE,
       dx,
       dy,
-      ENEMY_RENDERED_SIZE,
-      ENEMY_RENDERED_SIZE,
+      size,
+      size,
     );
   }
 }
@@ -1012,5 +1050,38 @@ export function drawChestCounter(
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
   ctx.fillText(`${collected} / ${total}`, x + iconWidth + CHEST_COUNTER_TEXT_GAP, y);
+  ctx.restore();
+}
+
+/** Horizontal screen position for the key counter — placed just to the right
+ *  of the chest counter, same HUD row. Only ever drawn by the caller when
+ *  collectedKeys > 0 (see PlatformerPage.tsx) — this constant is a fixed
+ *  layout position, not conditional itself. */
+export const KEY_COUNTER_X = CHEST_COUNTER_X + 120;
+export const KEY_COUNTER_Y = CHEST_COUNTER_Y;
+
+const KEY_COUNTER_ICON_HEIGHT = 24;
+
+/** Draws the "[key icon] N" HUD counter — no "/ total" denominator (unlike
+ *  drawChestCounter): a key count has no fixed total to compare against, it
+ *  just goes up and down as keys are found and spent. */
+export function drawKeyCounter(
+  ctx: CanvasRenderingContext2D,
+  keySprite: HTMLImageElement,
+  count: number,
+  x: number,
+  y: number,
+): void {
+  ctx.imageSmoothingEnabled = false;
+  const iconHeight = KEY_COUNTER_ICON_HEIGHT;
+  const iconWidth = (KEY_FRAME_WIDTH / KEY_FRAME_HEIGHT) * iconHeight;
+  ctx.drawImage(keySprite, 0, 0, KEY_FRAME_WIDTH, KEY_FRAME_HEIGHT, x, y - iconHeight / 2, iconWidth, iconHeight);
+
+  ctx.save();
+  ctx.fillStyle = '#fff';
+  ctx.font = `22px "${RESTART_PROMPT_FONT_FAMILY}", monospace`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`${count}`, x + iconWidth + CHEST_COUNTER_TEXT_GAP, y);
   ctx.restore();
 }
