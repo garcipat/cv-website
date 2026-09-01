@@ -75,10 +75,11 @@ describe('currentLevel', () => {
   it('purpleEnemyWallPitSandwich-hasAWallOnOneSideAndARealPitOnTheOther', () => {
     // The user-requested "wall, enemy, pit" case: a wall (col 36) on one
     // side, a genuine bottomless pit (cols 40-42, no bridge — unlike the
-    // spawn pit's bridge) on the other, with the purple enemy marker (col 38)
+    // spawn pit's bridge) on the other, with a purple enemy marker
     // between them. Exercises both stepEnemyPatrol's wall-reversal and its
-    // ledge/pit-edge-reversal branch on a single enemy.
-    expect(ENEMY_TILES_PURPLE.value).toHaveLength(1);
+    // ledge/pit-edge-reversal branch on a single enemy. The first purple
+    // slime is specifically in this sandwich (the second one sits elsewhere).
+    expect(ENEMY_TILES_PURPLE.value.length).toBeGreaterThanOrEqual(1);
     const [purple] = ENEMY_TILES_PURPLE.value;
     expect(currentLevel.value.terrain[purple.row][36]).toBe('wall');
     expect(purple.col).toBeGreaterThan(36);
@@ -101,7 +102,7 @@ describe('currentLevel', () => {
     // derived from CVData length. Question-mark blocks spawn their own bonus
     // fruit; there is no separate Language-fruit marker.
     expect(ENEMY_TILES_GREEN.value).toHaveLength(1);
-    expect(ENEMY_TILES_PURPLE.value).toHaveLength(1);
+    expect(ENEMY_TILES_PURPLE.value).toHaveLength(2);
     expect(COIN_TILES.value).toHaveLength(4);
     expect(CRATE_TILES.value).toHaveLength(2);
     expect(QUESTIONMARK_TILES.value).toHaveLength(2);
@@ -265,5 +266,11 @@ describe('ladder shaft', () => {
     // ends with the character standing on the rung, level with the landing
     // platform beside it, rather than dead-ending under a ceiling.
     expect(isStandableLadderTop(currentLevel.value, 15, 0)).toBe(true);
+  });
+});
+
+describe('purple slime count matches chest count', () => {
+  it('purpleEnemyMarkerCount-equalsChestMarkerCount', () => {
+    expect(ENEMY_TILES_PURPLE.value.length).toBe(CHEST_TILES.value.length);
   });
 });
