@@ -1,7 +1,9 @@
 import type { PickupType } from './PickupType';
 import type { CollectiblePlacement } from '../../level/CollectibleMapper';
 import { COIN_SHEET } from '../sprites/sheets';
+import { frameSource } from '../sprites/SpriteSheet';
 import {
+  COIN_FRAME_SIZE,
   COIN_RENDERED_SIZE,
   COIN_FRAME_COUNT,
   COIN_FRAME_DURATION,
@@ -32,6 +34,25 @@ export const coin: PickupType<CollectiblePlacement> = {
   }),
   frameIndex: (_placement, elapsed, _index) => coinFrameIndex(elapsed),
   bobOffset: (_placement, elapsed) => coinBobOffset(elapsed),
-  // Filled in when rendering moves into these modules.
-  draw: () => {},
+  // Relocated from Renderer.ts's drawCollectibles coin branch, unchanged.
+  draw: (placement, dc) => {
+    const image = dc.sprites[COIN_SHEET.src];
+    if (!image) return;
+
+    const coinSource = frameSource(COIN_SHEET, coin.frameIndex(placement, dc.worldElapsed, 0));
+    const bob = coin.bobOffset(placement, dc.worldElapsed);
+
+    dc.ctx.imageSmoothingEnabled = false;
+    dc.ctx.drawImage(
+      image,
+      coinSource.sx,
+      coinSource.sy,
+      COIN_FRAME_SIZE,
+      COIN_FRAME_SIZE,
+      placement.x + dc.originX,
+      placement.y + dc.originY + bob,
+      COIN_RENDERED_SIZE,
+      COIN_RENDERED_SIZE,
+    );
+  },
 };

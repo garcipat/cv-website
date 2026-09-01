@@ -1,6 +1,9 @@
 import type { PickupType } from './PickupType';
 import { KEY_SHEET } from '../sprites/sheets';
+import { frameSource } from '../sprites/SpriteSheet';
 import {
+  KEY_FRAME_WIDTH,
+  KEY_FRAME_HEIGHT,
   KEY_RENDERED_WIDTH,
   KEY_RENDERED_HEIGHT,
   KEY_TILE_OFFSET_X,
@@ -37,7 +40,27 @@ export const key: PickupType<KeyPickupState> = {
   }),
   frameIndex: (_pickup, _elapsed, _index) => 0,
   bobOffset: (_pickup, elapsed) => coinBobOffset(elapsed),
-  // Filled in when rendering moves into these modules. Draw via box()'s own
-  // width/height, not the shared sheet helper (see the note above).
-  draw: () => {},
+  // Relocated from Renderer.ts's drawKeyPickups, unchanged. Draws at
+  // KEY_RENDERED_WIDTH/HEIGHT (via box(), the non-square 14:22-derived
+  // size), NOT the shared sheet-drawing helper (see the note above).
+  draw: (pickup, dc) => {
+    const image = dc.sprites[KEY_SHEET.src];
+    if (!image) return;
+
+    const { sx, sy } = frameSource(KEY_SHEET, key.frameIndex(pickup, dc.worldElapsed, 0));
+    const bob = key.bobOffset(pickup, dc.worldElapsed);
+
+    dc.ctx.imageSmoothingEnabled = false;
+    dc.ctx.drawImage(
+      image,
+      sx,
+      sy,
+      KEY_FRAME_WIDTH,
+      KEY_FRAME_HEIGHT,
+      pickup.x + KEY_TILE_OFFSET_X + dc.originX,
+      pickup.y + KEY_TILE_OFFSET_Y + dc.originY + bob,
+      KEY_RENDERED_WIDTH,
+      KEY_RENDERED_HEIGHT,
+    );
+  },
 };

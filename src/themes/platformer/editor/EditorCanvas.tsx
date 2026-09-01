@@ -22,7 +22,7 @@ import {
   drawSigns,
 } from '../engine/Renderer';
 import type { DrawContext } from '../engine/DrawContext';
-import { SLIME_GREEN_SHEET, SLIME_PURPLE_SHEET } from '../entities/sprites/sheets';
+import { SLIME_GREEN_SHEET, SLIME_PURPLE_SHEET, COIN_SHEET, FRUIT_SHEET } from '../entities/sprites/sheets';
 
 export interface EditorImages {
   tileset: HTMLImageElement | null;
@@ -173,27 +173,21 @@ export const EditorCanvas = ({
     }
     drawSignBadges(ctx, grid, panOffset.x, panOffset.y);
 
-    drawCollectibles(
-      ctx,
-      synthesizeCollectiblePlacements(grid),
-      images.coin,
-      images.fruit,
-      new Set(),
-      0,
-      panOffset.x,
-      panOffset.y,
-    );
-
     const drawContext: DrawContext = {
       ctx,
       sprites: {
         [SLIME_GREEN_SHEET.src]: images.slimeGreen,
         [SLIME_PURPLE_SHEET.src]: images.slimePurple,
+        [COIN_SHEET.src]: images.coin,
+        [FRUIT_SHEET.src]: images.fruit,
       },
       originX: panOffset.x,
       originY: panOffset.y,
       worldElapsed: 0,
     };
+
+    drawCollectibles(ctx, synthesizeCollectiblePlacements(grid), new Set(), drawContext);
+
     drawEnemies(ctx, synthesizeEnemyStates(grid), drawContext);
 
     if (images.tileset) {

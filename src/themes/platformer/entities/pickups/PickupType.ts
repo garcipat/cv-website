@@ -46,5 +46,11 @@ export interface PickupType<S> {
    * few pixels every frame independently of its sprite.
    */
   bobOffset(state: S, elapsed: number): number;
-  draw(state: S, dc: DrawContext): void;
+  /**
+   * Draws this one pickup. `index` is this item's position within its own
+   * array (see `frameIndex`'s doc comment) — only a type whose icon varies
+   * by placement order (fruit) reads it; every other type ignores it, so
+   * callers iterating a single-type array (keys, bonus fruits) may omit it.
+   */
+  draw(state: S, dc: DrawContext, index?: number): void;
 }

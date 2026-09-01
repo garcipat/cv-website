@@ -272,12 +272,8 @@ describe('EditorCanvas', () => {
     expect(drawCollectibles).toHaveBeenCalledWith(
       expect.anything(),
       expect.arrayContaining([expect.objectContaining({ spriteType: 'coin' })]),
-      coin,
-      null,
       expect.any(Set),
-      0,
-      5,
-      7,
+      expect.objectContaining({ originX: 5, originY: 7 }),
     );
     expect(drawEnemies).toHaveBeenCalledWith(
       expect.anything(),

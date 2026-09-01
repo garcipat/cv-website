@@ -24,27 +24,15 @@ import {
   heartRemaining,
   heartFrameIndex,
 } from '../entities/Health';
-import {
-  COIN_FRAME_SIZE,
-  COIN_RENDERED_SIZE,
-  coinFrameIndex,
-  coinFrameSource,
-  coinBobOffset,
-} from '../entities/Coin';
-import { FRUIT_FRAME_SIZE, FRUIT_RENDERED_SIZE, fruitFrameSource } from '../entities/Fruit';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
+import { PICKUP_TYPES } from '../entities/pickups';
+import { key } from '../entities/pickups/Key';
+import { bonusFruit } from '../entities/pickups/BonusFruit';
 import { typeOf } from '../entities/enemies';
 import type { EnemyState } from '../entities/Enemy';
 import type { DrawContext } from './DrawContext';
 import type { KeyPickupState } from '../entities/KeyPickup';
-import {
-  KEY_FRAME_WIDTH,
-  KEY_FRAME_HEIGHT,
-  KEY_RENDERED_WIDTH,
-  KEY_RENDERED_HEIGHT,
-  KEY_TILE_OFFSET_X,
-  KEY_TILE_OFFSET_Y,
-} from '../entities/KeyPickup';
+import { KEY_FRAME_WIDTH, KEY_FRAME_HEIGHT } from '../entities/KeyPickup';
 import { BLOCK_FRAME_SIZE, BLOCK_RENDERED_SIZE, blockFrameSource, crateCrackOverlayVisible } from '../entities/Block';
 import type { BlockState } from '../entities/Block';
 import {
@@ -62,7 +50,6 @@ import {
 } from '../entities/Chest';
 import type { ChestState } from '../entities/Chest';
 import { blockBumpOffsetY, crateShatterOpacity } from './BlockAI';
-import { bonusFruitY } from '../entities/BonusFruit';
 import type { BonusFruitState } from '../entities/BonusFruit';
 import { flightEffectPosition, sparkleParticles } from './CollectionEffects';
 import type { FlightEffect } from './CollectionEffects';
@@ -509,105 +496,46 @@ export function drawSignBubble(
 }
 
 /**
- * Draws every not-yet-collected placement — coins spin (Coin.ts's
- * coinFrameIndex/coinFrameSource) from `coinSprite`, fruits stay on one
- * fixed icon frame (Fruit.ts's fruitFrameSource, keyed by a stable index
- * derived from the placement's position among all fruit-type placements —
- * good enough for visual variety without needing to store a chosen index
- * per placement, and stable regardless of which fruits have been collected)
- * from `fruitSprite`. Both bob (Coin.ts's coinBobOffset, shared — bobbing
- * isn't coin-specific). Same originX/originY convention as
- * drawTerrain/drawPlayer.
- *
- * `coinSprite`/`fruitSprite` may each independently be `null` (e.g. that
- * sprite's image failed to load) — that type's collectibles are simply
- * skipped for the frame rather than the whole call being skipped, so a
- * missing fruit sprite never hides coins and vice versa.
+ * Draws every not-yet-collected placement — each spriteType renders itself
+ * (see entities/pickups/), keyed by the item's stable position among all
+ * placements of its own spriteType (matters for fruit's fixed-per-index
+ * icon — see Fruit.ts — and is tracked here, unconditionally per item seen,
+ * so a fruit's icon stays stable regardless of which fruits have since been
+ * collected). A missing sprite for one pickup type is handled inside that
+ * type's own `draw` (it simply skips), so a missing fruit sprite never hides
+ * coins and vice versa.
  */
 export function drawCollectibles(
   ctx: CanvasRenderingContext2D,
-  placements: CollectiblePlacement[],
-  coinSprite: HTMLImageElement | null,
-  fruitSprite: HTMLImageElement | null,
+  placements: readonly CollectiblePlacement[],
   collectedIds: ReadonlySet<string>,
-  elapsedSeconds: number,
-  originX = 0,
-  originY = 0,
+  dc: DrawContext,
 ): void {
   ctx.imageSmoothingEnabled = false;
 
-  const coinFrame = coinFrameIndex(elapsedSeconds);
-  const coinSource = coinFrameSource(coinFrame);
-  const bob = coinBobOffset(elapsedSeconds);
-
-  let fruitIndex = 0;
+  const typeCounts: Partial<Record<CollectiblePlacement['spriteType'], number>> = {};
   for (const placement of placements) {
-    if (placement.spriteType === 'coin') {
-      if (collectedIds.has(placement.id) || !coinSprite) continue;
-      ctx.drawImage(
-        coinSprite,
-        coinSource.sx,
-        coinSource.sy,
-        COIN_FRAME_SIZE,
-        COIN_FRAME_SIZE,
-        placement.x + originX,
-        placement.y + originY + bob,
-        COIN_RENDERED_SIZE,
-        COIN_RENDERED_SIZE,
-      );
-    } else {
-      const { sx, sy } = fruitFrameSource(fruitIndex);
-      fruitIndex += 1;
-      if (collectedIds.has(placement.id) || !fruitSprite) continue;
-      ctx.drawImage(
-        fruitSprite,
-        sx,
-        sy,
-        FRUIT_FRAME_SIZE,
-        FRUIT_FRAME_SIZE,
-        placement.x + originX,
-        placement.y + originY + bob,
-        COIN_RENDERED_SIZE,
-        COIN_RENDERED_SIZE,
-      );
-    }
+    const index = typeCounts[placement.spriteType] ?? 0;
+    typeCounts[placement.spriteType] = index + 1;
+    if (collectedIds.has(placement.id)) continue;
+    PICKUP_TYPES[placement.spriteType].draw(placement, dc, index);
   }
 }
 
 /**
- * Draws every not-yet-collected key pickup, bobbing exactly like a coin
- * (shares Coin.ts's coinBobOffset — bobbing isn't coin-specific, same
- * convention drawCollectibles's fruit already follows). `pickup.x`/`y` are
- * the defeated purple slime's own tile-top position, so KEY_TILE_OFFSET_X/Y
- * are added the same way Enemy.ts's enemyTileOffsetX/Y center and
- * bottom-anchor a larger-than-tile enemy sprite over its placement tile —
- * without this, the key (narrower than one tile) would draw left-aligned
- * instead of centered.
+ * Draws every not-yet-collected key pickup — each one renders itself (see
+ * entities/pickups/Key.ts); this only owns the collected filter, matching
+ * drawCollectibles's/drawEnemies's own not-yet-collected/alive filtering.
  */
 export function drawKeyPickups(
   ctx: CanvasRenderingContext2D,
   pickups: readonly KeyPickupState[],
-  keySprite: HTMLImageElement | null,
-  elapsedSeconds: number,
-  originX = 0,
-  originY = 0,
+  dc: DrawContext,
 ): void {
-  if (!keySprite) return;
   ctx.imageSmoothingEnabled = false;
-  const bob = coinBobOffset(elapsedSeconds);
   for (const pickup of pickups) {
     if (pickup.collected) continue;
-    ctx.drawImage(
-      keySprite,
-      0,
-      0,
-      KEY_FRAME_WIDTH,
-      KEY_FRAME_HEIGHT,
-      pickup.x + KEY_TILE_OFFSET_X + originX,
-      pickup.y + KEY_TILE_OFFSET_Y + originY + bob,
-      KEY_RENDERED_WIDTH,
-      KEY_RENDERED_HEIGHT,
-    );
+    key.draw(pickup, dc);
   }
 }
 
@@ -713,34 +641,16 @@ export function drawChests(
   }
 }
 
-/**
- * Draws every question-mark block's spawned bonus fruit at its current
- * rise-tween position, reusing `fruit.png` at the fruit's own `iconIndex`,
- * which varies per spawn instead of always index 0, so bonus fruits are
- * visually distinguishable from each other.
- */
+/** Draws every question-mark block's spawned bonus fruit — each one renders
+ *  itself (see entities/pickups/BonusFruit.ts). */
 export function drawBonusFruits(
   ctx: CanvasRenderingContext2D,
   fruits: readonly BonusFruitState[],
-  fruitSprite: HTMLImageElement | null,
-  originX = 0,
-  originY = 0,
+  dc: DrawContext,
 ): void {
-  if (!fruitSprite) return;
   ctx.imageSmoothingEnabled = false;
   for (const fruit of fruits) {
-    const { sx, sy } = fruitFrameSource(fruit.iconIndex);
-    ctx.drawImage(
-      fruitSprite,
-      sx,
-      sy,
-      FRUIT_FRAME_SIZE,
-      FRUIT_FRAME_SIZE,
-      fruit.x + originX,
-      bonusFruitY(fruit) + originY,
-      FRUIT_RENDERED_SIZE,
-      FRUIT_RENDERED_SIZE,
-    );
+    bonusFruit.draw(fruit, dc);
   }
 }
 
