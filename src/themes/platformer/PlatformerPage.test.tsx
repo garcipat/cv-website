@@ -25,6 +25,8 @@ import {
   controlsOverlayDismissed,
   signPlacements,
   hintTooltipState,
+  keyPickupStates,
+  collectedKeys,
 } from './PlatformerState';
 import { toChestState } from './entities/Chest';
 import {
@@ -111,6 +113,11 @@ describe('PlatformerPage', () => {
     // animation by one test would leak into the next test's assumption that
     // no sign is currently revealed.
     hintTooltipState.value = null;
+    // Module-level signals like the others above — a key pickup dropped or
+    // collected by one test must not leak into the next test's assumption
+    // that no keys have been dropped/banked yet.
+    keyPickupStates.value = [];
+    collectedKeys.value = 0;
   });
 
   afterEach(() => {
@@ -862,6 +869,115 @@ describe('PlatformerPage', () => {
 
     expect(enemyStates.value.some((e) => e.id === plain.id)).toBe(false);
     expect(collectedFacts.value).toHaveLength(factsBefore);
+  });
+
+  it('purpleSlimeDefeat-thirdStomp-spawnsKeyPickupInsteadOfJournalFact', () => {
+    // Purple slimes carry no CV fact (EnemyMapper.ts) — defeating one drops a
+    // key pickup instead of banking a journal fact. ENEMY_HIT_POINTS.slimePurple
+    // is 3, so start it at 1 hit point (as if already stomped twice) and land
+    // the final stomp here.
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const target = enemyStates.value.find((e) => e.spriteType === 'slimePurple')!;
+    enemyStates.value = enemyStates.value.map((e) => (e.id === target.id ? { ...e, hitPoints: 1 } : e));
+    playerState.value = {
+      ...playerState.value,
+      x: target.x,
+      y: target.y - PLAYER_RENDERED_SIZE / 2,
+      vy: 300,
+    };
+
+    let t = 16;
+    frameCallback!(t);
+    for (let i = 0; i < 30; i++) {
+      t += 16;
+      frameCallback!(t);
+    }
+
+    // Note: the player is still standing exactly where the slime died (this
+    // engine has no horizontal drift during the hit-reaction freeze — see
+    // applyStomp), so the very same tick's key-pickup collision check (below,
+    // in PlatformerPage.tsx) collects it immediately — that's real, intended
+    // behavior (an item spawned right under the player is picked up on
+    // contact, same as any other collectible), not a test artifact. What
+    // matters here is that a KeyPickupState was created at all (proving the
+    // defeat routed through spawnKeyPickup, not the fact-flight path) and
+    // that no journal fact was banked for this enemy.
+    expect(enemyStates.value.some((e) => e.id === target.id)).toBe(false);
+    expect(keyPickupStates.value.some((k) => k.id === target.id)).toBe(true);
+    expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(false);
+  });
+
+  it('purpleSlimeRespawnedAfterDeath-defeatedAgain-doesNotDropASecondKey', () => {
+    // FR (see entities/KeyPickup.ts's doc comment): keyPickupStates persists
+    // across resetGame() (death/respawn), so a purple slime revived and
+    // stomped again in a later life must be deduplicated by id, same
+    // reasoning as collectedFacts's own respawn-dedup (see the collectible
+    // respawn test above) — otherwise the player could farm infinite keys by
+    // dying and re-defeating the same slime.
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const target = enemyStates.value.find((e) => e.spriteType === 'slimePurple')!;
+    enemyStates.value = enemyStates.value.map((e) => (e.id === target.id ? { ...e, hitPoints: 1 } : e));
+    playerState.value = {
+      ...playerState.value,
+      x: target.x,
+      y: target.y - PLAYER_RENDERED_SIZE / 2,
+      vy: 300,
+    };
+
+    let t = 16;
+    frameCallback!(t);
+    for (let i = 0; i < 30; i++) {
+      t += 16;
+      frameCallback!(t);
+    }
+    expect(keyPickupStates.value.filter((k) => k.id === target.id)).toHaveLength(1);
+
+    // Simulate a respawn (per FR-020c, collected/dropped state survives it —
+    // same convention as the collectible respawn test above) and re-defeat
+    // the same purple slime once revived.
+    healthState.value = 0;
+    frameCallback!(t + 16); // enters 'dying'
+    t += 16;
+    for (let i = 0; i < 200; i++) {
+      t += 16;
+      frameCallback!(t);
+    }
+    fireEvent.keyDown(window, { code: 'Enter' });
+
+    const revived = enemyStates.value.find((e) => e.id === target.id)!;
+    enemyStates.value = enemyStates.value.map((e) => (e.id === target.id ? { ...e, hitPoints: 1 } : e));
+    playerState.value = {
+      ...playerState.value,
+      x: revived.x,
+      y: revived.y - PLAYER_RENDERED_SIZE / 2,
+      vy: 300,
+    };
+    t += 16;
+    frameCallback!(t);
+    for (let i = 0; i < 30; i++) {
+      t += 16;
+      frameCallback!(t);
+    }
+
+    expect(keyPickupStates.value.filter((k) => k.id === target.id)).toHaveLength(1);
   });
 
   it('playerFallsOntoGreenEnemy-tick-bouncesPlayerUpward', () => {
@@ -1957,6 +2073,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
+    collectedKeys.value = 1;
     const target = chestPlacements.value[0];
     playerState.value = { ...playerState.value, x: target.x, y: target.y };
     fireEvent.keyDown(window, { code: 'ArrowUp' });
@@ -1980,6 +2097,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
+    collectedKeys.value = 1;
     const target = chestPlacements.value[0];
     playerState.value = { ...playerState.value, x: target.x, y: target.y };
     fireEvent.keyDown(window, { code: 'KeyW' });
@@ -2008,6 +2126,48 @@ describe('PlatformerPage', () => {
     expect(collectedFacts.value).toHaveLength(0);
   });
 
+  it('chestOpen-zeroKeys-doesNothing', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    collectedKeys.value = 0;
+    const target = chestPlacements.value[0];
+    playerState.value = { ...playerState.value, x: target.x, y: target.y };
+    fireEvent.keyDown(window, { code: 'ArrowUp' });
+    frameCallback!(16);
+
+    expect(chestStates.value.find((c) => c.id === target.id)?.state).toBe('closed');
+    expect(collectedKeys.value).toBe(0);
+  });
+
+  it('chestOpen-atLeastOneKey-opensChestAndSpendsOneKey', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    collectedKeys.value = 1;
+    const target = chestPlacements.value[0];
+    playerState.value = { ...playerState.value, x: target.x, y: target.y };
+    fireEvent.keyDown(window, { code: 'ArrowUp' });
+    frameCallback!(16);
+
+    expect(chestStates.value.find((c) => c.id === target.id)?.state).toBe('open');
+    expect(collectedKeys.value).toBe(0);
+  });
+
   it('openingEveryChest-showsThankYouScreen-pausingTheGame', () => {
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
@@ -2019,6 +2179,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
+    collectedKeys.value = chestPlacements.value.length;
     for (const target of chestPlacements.value) {
       playerState.value = { ...playerState.value, x: target.x, y: target.y };
       fireEvent.keyDown(window, { code: 'ArrowUp' });
@@ -2046,6 +2207,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
+    collectedKeys.value = chestPlacements.value.length;
     for (const target of chestPlacements.value) {
       playerState.value = { ...playerState.value, x: target.x, y: target.y };
       fireEvent.keyDown(window, { code: 'ArrowUp' });
@@ -2099,6 +2261,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
+    collectedKeys.value = chestPlacements.value.length;
     for (const target of chestPlacements.value) {
       playerState.value = { ...playerState.value, x: target.x, y: target.y };
       fireEvent.keyDown(window, { code: 'ArrowUp' });
@@ -2141,6 +2304,7 @@ describe('PlatformerPage', () => {
     const { unmount } = render(<PlatformerPage />);
     frameCallback!(0);
 
+    collectedKeys.value = chestPlacements.value.length;
     for (const target of chestPlacements.value) {
       playerState.value = { ...playerState.value, x: target.x, y: target.y };
       fireEvent.keyDown(window, { code: 'ArrowUp' });
