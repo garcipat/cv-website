@@ -74,8 +74,8 @@ export interface PlayerState {
   /** Seconds accumulated toward the next animation frame advance. */
   animTimer: number;
   /** Seconds remaining of post-hit invincibility — 0 means not invincible.
-   *  Gates `checkEnemySideCollisions` from registering a new
-   *  hit (see Collision.ts) and drives the render blink (PlatformerPage.tsx);
+   *  Makes the game loop drop the damage `resolveEnemyContacts` reports
+   *  (see Collision.ts) and drives the render blink (PlatformerPage.tsx);
    *  ticked down once per frame by `tickInvincibility` below. Unrelated to
    *  `knockbackTimer` — see this plan's "Key design decisions" for why they're
    *  separate. */

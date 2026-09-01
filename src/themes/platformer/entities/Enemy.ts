@@ -124,34 +124,6 @@ export function advanceEnemyAnimation(enemy: EnemyState, dt: number): EnemyState
   };
 }
 
-/**
- * Applies one stomp: decrements `hitPoints`, freezes horizontal movement,
- * enters the `hit` reaction (red-flash/dissolve) animation from its first
- * frame, and — if the enemy survives (`hitPoints` still > 0 after the
- * decrement) — grows spikes (`spiked: true`, `spikeTimer` reset to 0) that
- * make its top un-stompable for a cooldown (see `EnemyAI.ts`'s
- * `stepEnemySpikeCooldown` and `Collision.ts`'s `checkEnemyStompCollisions`/
- * `checkEnemySideCollisions`). This function itself doesn't gate re-entry —
- * calling it twice in a row always applies a second stomp — the `spiked`
- * exclusion lives entirely in `Collision.ts`, which decides whether a given
- * frame's landing counts as a legal stomp before this function is ever
- * called. A fresh stomp always restarts the cooldown timer, even if the
- * enemy was already `spiked` from an earlier stomp. Does NOT decide defeat
- * here — EnemyAI.ts's `stepEnemyHitReaction` checks `hitPoints` once the
- * reaction animation finishes playing, so the player always sees the same
- * brief "stunned" reaction whether or not this stomp was the finishing blow.
- */
-export function applyStomp(enemy: EnemyState): EnemyState {
-  const hitPoints = enemy.hitPoints - 1;
-  return {
-    ...enemy,
-    hitPoints,
-    vx: 0,
-    animState: 'hit',
-    animFrame: 0,
-    animTimer: 0,
-    hitTimer: 0,
-    spiked: hitPoints > 0,
-    spikeTimer: 0,
-  };
-}
+/** The hit a stomp applies — see `enemies/shared.ts`'s `takeHit`, which the
+ *  type modules' `onPlayerCollide` hooks call directly. */
+export { takeHit as applyStomp } from './enemies/shared';

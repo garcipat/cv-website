@@ -1,5 +1,6 @@
 import type { EnemyType, BaseEnemyState } from './EnemyType';
-import { baseEnemyState, baseRevive } from './shared';
+import { baseEnemyState, baseRevive, takeHit } from './shared';
+import { isStunned } from './stunnedGuard';
 import { ENEMY_ANIMATIONS } from './EnemyAnimation';
 import { SLIME_GREEN_SHEET } from '../sprites/sheets';
 import type { SpriteDescriptor } from '../sprites/SpriteSheet';
@@ -29,4 +30,10 @@ export const slimeGreen: EnemyType<SlimeGreenState> = {
   }),
   revive: (enemy) => ({ ...baseRevive(enemy, 1), type: 'slimeGreen' }),
   draw: (enemy, dc) => drawSpriteSheetEntity(enemy, dc, SLIME_GREEN_SPRITE),
+
+  onPlayerCollide: (enemy, _player, contact) => {
+    if (isStunned(enemy) || enemy.hitPoints <= 0) return {};
+    if (contact.side === 'top') return { self: takeHit(enemy), bouncePlayer: true };
+    return { damagePlayer: 1, knockback: 'away' };
+  },
 };

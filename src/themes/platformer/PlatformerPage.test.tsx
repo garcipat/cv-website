@@ -1281,8 +1281,8 @@ describe('PlatformerPage', () => {
     // re-positioned stomps. A non-fatal stomp now also sets `spiked: true`
     // for SPIKE_COOLDOWN_DURATION_SECONDS (see EnemyAI.ts's
     // stepEnemySpikeCooldown), during which a top-landing is treated as
-    // player damage instead of a stomp (Collision.ts's
-    // checkEnemyStompCollisions/checkEnemySideCollisions) — so each wait
+    // player damage instead of a stomp (SlimePurple.ts's
+    // onPlayerCollide) — so each wait
     // between stomps must exceed that cooldown for the next landing to
     // register as a genuine stomp again.
     const framesPastSpikeCooldown = Math.ceil((SPIKE_COOLDOWN_DURATION_SECONDS * 1000) / 16) + 5;
@@ -2143,13 +2143,12 @@ describe('PlatformerPage', () => {
   });
 
   it('playerStompsEnemy-ticksThroughTheWholeBounceArc-neverTakesSideHitDamage', () => {
-    // The same-tick stompedIds filter (see the test above) only protects the
-    // exact tick a stomp registers. On every LATER tick, while the player is
+    // A stomp and its damage are decided in one pass on the tick it
+    // registers. On every LATER tick, while the player is
     // still rising off the bounce (vy < 0) and still overlapping the
-    // now-frozen, mid-'hit' enemy, checkEnemySideCollisions must not register
-    // a fresh, unwanted side-hit against the very enemy just stomped — any
-    // `animState === 'hit'` enemy is excluded from side-hit detection
-    // entirely (matching stomp detection's own exclusion) rather than
+    // now-frozen, mid-'hit' enemy, no fresh, unwanted side-hit may register
+    // against the very enemy just stomped — a stunned enemy returns no
+    // outcome at all (see enemies/stunnedGuard.ts) rather than
     // relying on velocity/geometry alone. This ticks through several frames
     // of the bounce arc (well past the single tick the older test covered)
     // and asserts health never drops and invincibility is never granted from
@@ -2185,12 +2184,11 @@ describe('PlatformerPage', () => {
 
   it('playerLandsOnPurpleEnemyImmediatelyAfterStomp-whileStillMidReactionAndSpiked-registersNeitherStompNorHit', () => {
     // Purple slime spike cooldown (see EnemyAI.ts's stepEnemySpikeCooldown
-    // and Collision.ts's checkEnemyStompCollisions/checkEnemySideCollisions
-    // doc comments): `applyStomp` sets both `animState: 'hit'` AND
+    // and SlimePurple.ts's onPlayerCollide): `takeHit` sets both
+    // `animState: 'hit'` AND
     // `spiked: true` on the very same stomp. An immediate second top-landing
-    // while still mid-reaction therefore hits neither collision path —
-    // `checkEnemyStompCollisions` excludes it because it's `spiked`, and
-    // `checkEnemySideCollisions` excludes it because `animState === 'hit'`.
+    // while still mid-reaction therefore does nothing at all — a stunned
+    // enemy returns no outcome, neither stomp nor damage.
     // It must register as neither a stomp nor a side-hit: hitPoints stays
     // frozen at whatever the first stomp left it at, and the player takes no
     // damage, until the ~0.4s hit-reaction ends and the spike cooldown
@@ -2244,9 +2242,9 @@ describe('PlatformerPage', () => {
     // Once the ~0.4s hit-reaction ends (animState back to 'walk'), a spiked
     // enemy is stompable-position-wise again, but `spiked` itself lasts the
     // full SPIKE_COOLDOWN_DURATION_SECONDS (0.9s) — a top-landing during
-    // that window is excluded from `checkEnemyStompCollisions` (spiked) and
-    // instead picked up by `checkEnemySideCollisions` as a genuine side-hit,
-    // damaging the player instead of the enemy.
+    // that window is no longer a legal stomp landing (spiked) and is
+    // instead reported as a genuine side-hit, damaging the player instead of
+    // the enemy.
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frameCallback = cb;

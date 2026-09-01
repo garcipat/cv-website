@@ -4,6 +4,8 @@ import type { EnemyPlacement } from '../../level/EnemyMapper';
 import type { CollectedFact, EnemyDef } from '../../types';
 import type { EnemyAnimState } from './EnemyAnimation';
 import type { DrawContext } from '../../engine/DrawContext';
+import type { Contact, CollisionOutcome } from '../../engine/Contact';
+import type { PlayerState } from '../Player';
 
 /** Item kinds an enemy type can drop on defeat. Grows as items are added. */
 export type ItemKind = 'key';
@@ -58,4 +60,8 @@ export interface EnemyType<S extends BaseEnemyState> {
    *  ship as one file: Renderer.ts iterates and supplies the camera, and
    *  never branches on type. */
   draw(enemy: S, dc: DrawContext): void;
+  /** Decides what a contact means for this type. The engine supplies the
+   *  geometry; everything else — whether the top is safe to land on, whether
+   *  a mechanic is currently active — is this module's business alone. */
+  onPlayerCollide(enemy: S, player: PlayerState, contact: Contact): CollisionOutcome<S>;
 }

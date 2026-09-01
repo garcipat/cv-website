@@ -142,7 +142,7 @@ export function stepEnemyPatrol(
  * movement is `stepEnemyPatrol`'s job, not this function's; the game loop
  * (PlatformerPage.tsx) picks whichever of the two applies per enemy per
  * tick. Once `HIT_REACTION_DURATION_SECONDS` has elapsed since the stomp
- * (applyStomp reset `hitTimer` to 0), either reverts to `'walk'` (hit points
+ * (`takeHit` reset `hitTimer` to 0), either reverts to `'walk'` (hit points
  * remain — the enemy keeps patrolling) or flags the enemy dead in place (no
  * hit points remain — the game loop fires its reward that same tick and
  * leaves it in the array). Deliberately does not clamp/zero `vx` on revert:

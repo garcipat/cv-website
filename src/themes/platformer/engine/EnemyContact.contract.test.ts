@@ -1,17 +1,13 @@
-import {
-  checkEnemyStompCollisions,
-  checkEnemySideCollisions,
-  isSpikedTopLanding,
-} from './Collision';
+import { resolveEnemyContacts } from './Collision';
 import type { EnemyState } from '../entities/Enemy';
 import type { PlayerState } from '../entities/Player';
 
 /**
  * Characterization of enemy/player contact as it behaves today, expressed in
  * terms of OUTCOMES (stomped / damaged / bounced off spikes) rather than the
- * names of the three functions that currently produce them. Plan 2 collapses
- * those three into one `resolveEnemyContacts` and re-runs this exact table,
- * so a behavior drift fails here rather than silently landing.
+ * names of the functions that produce them, so a behavior drift in
+ * `resolveEnemyContacts` or in any enemy type's `onPlayerCollide` fails here
+ * rather than silently landing.
  *
  * Positions are chosen from the hitbox arithmetic documented in this plan's
  * "Reference values" table: with an enemy at (100, 100), a player at y = 60
@@ -171,13 +167,13 @@ describe('enemy contact characterization', () => {
       const enemy = makeEnemy(testCase.enemy);
       const player = makePlayer(testCase.playerX, testCase.playerY, testCase.playerVy);
 
-      const stomped = checkEnemyStompCollisions(player, [enemy]).includes(enemy.id);
-      const damaged = checkEnemySideCollisions(player, [enemy]).includes(enemy.id);
+      const resolved = resolveEnemyContacts(player, [enemy]);
+      const after = resolved.enemies[0];
 
       expect({
-        stomped,
-        damaged,
-        spikedTopLanding: isSpikedTopLanding(player, enemy),
+        stomped: after.hitPoints < enemy.hitPoints,
+        damaged: resolved.damagePlayer > 0,
+        spikedTopLanding: resolved.knockback === 'awayAndUp',
       }).toEqual(testCase.expected);
     });
   }
