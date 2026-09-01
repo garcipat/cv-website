@@ -4,6 +4,7 @@ import {
   drawHearts,
   drawCollectibles,
   drawEnemies,
+  drawEnemySpikes,
   drawBlocks,
   drawChests,
   drawBonusFruits,
@@ -245,6 +246,8 @@ function makeEnemyState(
     animTimer: 0,
     hitPoints: 1,
     hitTimer: 0,
+    spiked: false,
+    spikeTimer: 0,
     defeated: false,
     ...overrides,
   };
@@ -1568,5 +1571,22 @@ describe('drawKeyCounter', () => {
     drawKeyCounter(ctx, fakeKeySprite, 3, keyCounterX(ctx, 0, 0), KEY_COUNTER_Y);
     expect(ctx.drawImage).toHaveBeenCalled();
     expect(ctx.fillText).toHaveBeenCalledWith('3', expect.any(Number), KEY_COUNTER_Y);
+  });
+});
+
+describe('drawEnemySpikes', () => {
+  it('drawEnemySpikes-spikedEnemy-drawsTriangles', () => {
+    const ctx = makeMockContext();
+    const enemy = makeEnemyState('e1', 'slimePurple', 0, 0, { spiked: true, spikeTimer: 0.1 });
+    drawEnemySpikes(ctx, [enemy]);
+    expect(ctx.fill).toHaveBeenCalled();
+    expect(ctx.moveTo).toHaveBeenCalled();
+  });
+
+  it('drawEnemySpikes-nonSpikedEnemy-drawsNothing', () => {
+    const ctx = makeMockContext();
+    const enemy = makeEnemyState('e1', 'slimePurple', 0, 0, { spiked: false, spikeTimer: 0 });
+    drawEnemySpikes(ctx, [enemy]);
+    expect(ctx.fill).not.toHaveBeenCalled();
   });
 });
