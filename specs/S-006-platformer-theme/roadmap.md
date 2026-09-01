@@ -650,6 +650,60 @@ original slot for traceability with git history (branch names, commit messages).
   step 31** landing first, so the dedicated terrain test level (exercising every
   tile combination) can be added as one of the selectable levels from the start,
   instead of behind a temporary dev-only flag.
+- [x] **33. Purple slime spike cooldown** — reverses step 30's intentional
+  "chain-stomp a purple slime 3 times in one bounce arc while airborne" mechanic:
+  a purple slime that survives a stomp now grows spikes on top for a 1.5s
+  cooldown (`EnemyState.spiked`/`spikeTimer`, `EnemyAI.ts`'s
+  `stepEnemySpikeCooldown`), during which `Collision.ts`'s
+  `checkEnemyStompCollisions` excludes it from stomp registration and
+  `checkEnemySideCollisions` reports a top-landing on it as player damage
+  instead (flowing through the existing side-hit damage/knockback path — no
+  new damage-handling code needed). Once the cooldown elapses, spikes retract
+  and it's stompable from the top again as normal. This is generic on any
+  enemy that survives a stomp (`applyStomp` sets `spiked: hitPoints > 0`), not
+  hardcoded to `slimePurple` — a green slime just never reaches it, since it
+  always dies in one stomp.
+
+  Spikes render procedurally (`Renderer.ts`'s `drawEnemySpikes`, no new sprite
+  asset) — 4 triangles per spiked enemy (2 sticking up out of the top edge, 2
+  out of the left/right sides, each sunk well into the body so they read as
+  growing out of it rather than floating above it), tinted per-spriteType
+  toward that slime's own body color (`SPIKE_COLORS`), and animating a
+  one-shot grow-then-shrink pulse tied to the enemy's own `spikeTimer`
+  progress through the cooldown (`spikeGrowthScale`) — every spiked enemy
+  pulses independently, not in shared lockstep. Iterated live against the
+  running game through several rounds of direct visual feedback before
+  landing on this shape (an earlier pass used a single row of 3 flat
+  top-only spikes with a continuously-repeating pulse, unrelated colors, and
+  too little embed into the body).
+
+  Two pre-existing bugs were found and fixed via this same live playtesting,
+  both pre-dating this step but only actually exercised once a spiked
+  top-landing started registering as damage: (1) the side-hit knockback
+  direction compared each entity's raw placement `x` (top-left of its own
+  render slot, not its visual center) instead of actual hitbox centers,
+  which biased it toward one direction almost regardless of which side
+  contact really happened on — especially visible against the purple
+  slime's much wider render slot; fixed to compare `playerHitbox`/
+  `enemyHitbox` centers. (2) a new upward knockback added specifically for a
+  failed stomp attempt against spikes (`isSpikedTopLanding`,
+  `PhysicsConfig.spikeTopHitKnockbackVy`) was silently sheared to ~45% of its
+  configured magnitude every tick by the variable-jump-height cut in
+  `Physics.ts` (since an involuntary knockback isn't a jump the player is
+  "holding") — the same failure mode step 18/19 already hit once for the
+  stomp bounce, fixed the same way (`PlayerState.bounceAscending: true`).
+  *Verify: stomp a purple slime once (survives, hitPoints 3→2), confirm it
+  visibly grows 4 pulsing, body-colored spikes once its brief stun animation
+  ends. Land on it again from above while spiked — confirm the player takes
+  damage (half a heart lost, invincibility flicker), gets knocked back toward
+  whichever side they actually approached from (not always the same
+  direction), AND gets a noticeable upward bounce (not just sideways) —
+  while the slime's hit count does NOT decrement. Wait out the ~1.5s
+  cooldown without touching it — confirm the spikes shrink away. Stomp it
+  again — confirm it registers as a real stomp (hitPoints 2→1) and grows
+  spikes again; a plain side/below touch on a non-spiked enemy still knocks
+  back correctly with no upward component. Confirm a green slime never
+  visibly grows spikes (always defeated in one stomp).*
 
 ## Unscheduled additions (not yet numbered)
 
@@ -667,11 +721,6 @@ they aren't lost, not in priority order.
   tile-char catalog and real engine sprites for WYSIWYG rendering. Brainstormed
   design captured in `docs/ideas/platformer-level-editor.md`; not yet a
   numbered step.
-- **Purple slime spike cooldown** — after a stomp, a purple slime grows spikes
-  on top for a short cooldown; re-stomping it from above during that window
-  damages the player instead of registering a hit, until the spikes retract.
-  Raised 2026-09-01, reverses a currently-intentional chain-stomp behavior —
-  see `docs/ideas/platformer-purple-slime-spikes.md`; not yet a numbered step.
 
 ## Working agreement
 
