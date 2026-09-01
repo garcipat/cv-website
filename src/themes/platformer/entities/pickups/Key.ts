@@ -17,6 +17,10 @@ export const key: PickupType<KeyPickupState> = {
   key: 'key',
   sprite: {
     sheet: KEY_SHEET,
+    // The key's rendered size comes from KEY_RENDERED_WIDTH/KEY_RENDERED_HEIGHT
+    // via box(), not from frameWidth * renderScale — the shared sheet-drawing
+    // helper (drawSpriteSheetEntity) must not be used to draw this pickup, or
+    // it will render at the wrong (square) size and aspect.
     renderScale: 1,
     animations: {
       idle: {
@@ -33,6 +37,7 @@ export const key: PickupType<KeyPickupState> = {
   }),
   frameIndex: (_pickup, _elapsed, _index) => 0,
   bobOffset: (_pickup, elapsed) => coinBobOffset(elapsed),
-  // Filled in when rendering moves into these modules.
+  // Filled in when rendering moves into these modules. Draw via box()'s own
+  // width/height, not the shared sheet helper (see the note above).
   draw: () => {},
 };
