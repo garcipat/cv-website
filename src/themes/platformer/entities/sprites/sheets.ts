@@ -1,7 +1,7 @@
 import type { SpriteSheet } from './SpriteSheet';
 import { KEY_FRAME_WIDTH, KEY_FRAME_HEIGHT } from '../KeyPickup';
 import { COIN_FRAME_SIZE, COIN_FRAME_COUNT } from '../Coin';
-import { FRUIT_FRAME_SIZE } from '../Fruit';
+import { FRUIT_FRAME_SIZE, FRUIT_ICON_COLUMNS } from '../Fruit';
 
 /**
  * Both slime sheets are 96x72: a 4x3 grid of 24x24 frames. Frames 0-2 read as a
@@ -39,7 +39,11 @@ export const KEY_SHEET: SpriteSheet = {
 };
 
 /** `coin.png` is a 192x16 strip: 12 frames of one spin cycle, so its
- *  addressing stride is the whole strip. */
+ *  addressing stride is the whole strip. `frameSource(COIN_SHEET, i)` does
+ *  NOT wrap for `i >= 12` the way `coinFrameSource` does — harmless today
+ *  since coin.png is a single row and every caller already passes a wrapped
+ *  index, but this sheet is not a drop-in for `coinFrameSource`'s wrapping
+ *  behavior. */
 export const COIN_SHEET: SpriteSheet = {
   src: '/sprites/coin.png',
   frameWidth: COIN_FRAME_SIZE,
@@ -49,10 +53,12 @@ export const COIN_SHEET: SpriteSheet = {
 
 /** `fruit.png` is physically 64x64, but only its first three 16px columns
  *  hold icons — the fourth is empty and never addressed. `columns` is the
- *  addressing stride, so it is 3 rather than the image's width in frames. */
+ *  addressing stride, so it reuses Fruit.ts's own FRUIT_ICON_COLUMNS (the
+ *  source of truth for that number) rather than the image's width in
+ *  frames. */
 export const FRUIT_SHEET: SpriteSheet = {
   src: '/sprites/fruit.png',
   frameWidth: FRUIT_FRAME_SIZE,
   frameHeight: FRUIT_FRAME_SIZE,
-  columns: 3,
+  columns: FRUIT_ICON_COLUMNS,
 };
