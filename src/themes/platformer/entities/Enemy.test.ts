@@ -146,11 +146,12 @@ describe('applyStomp', () => {
   });
 
   it('enemyAlreadyMidHitReactionFromAnEarlierStomp-resetsAnimationAgain', () => {
-    // A legitimate second stomp (chain-stomping a still-alive purple enemy,
-    // even entirely airborne from the first stomp's own bounce arc — see
-    // Collision.ts's checkEnemyStompCollisions) must replay the reaction
-    // from frame 0, not continue wherever the first stomp's animation had
-    // gotten to.
+    // applyStomp itself never refuses a second call (see its doc comment) —
+    // calling it again mid-reaction must replay from frame 0, not continue
+    // wherever the first stomp's animation had gotten to. Collision.ts's
+    // `spiked` exclusion is what actually prevents this from happening via
+    // real player input once spikes are up — this test exercises the
+    // function directly, bypassing that gate.
     const state = {
       ...toEnemyState({ ...makePlacement(), spriteType: 'slimePurple' as const }),
       hitPoints: 2,
@@ -216,6 +217,45 @@ describe('toEnemyState hitPoints (updated)', () => {
   it('toEnemyState-slimePurple-hasThreeHitPoints', () => {
     const placement = { id: 'e1', spriteType: 'slimePurple' as const, x: 0, y: 0 };
     expect(toEnemyState(placement).hitPoints).toBe(3);
+  });
+});
+
+describe('toEnemyState spiked/spikeTimer defaults', () => {
+  it('toEnemyState-anyPlacement-startsNotSpiked', () => {
+    const placement = { id: 'e1', spriteType: 'slimePurple' as const, x: 0, y: 0 };
+    const state = toEnemyState(placement);
+    expect(state.spiked).toBe(false);
+    expect(state.spikeTimer).toBe(0);
+  });
+});
+
+describe('applyStomp spiked behavior', () => {
+  it('applyStomp-survivingStomp-becomesSpikedWithResetTimer', () => {
+    const state = { ...toEnemyState({ id: 'e1', spriteType: 'slimePurple' as const, x: 0, y: 0 }), spikeTimer: 0.9 };
+    const next = applyStomp(state);
+    expect(next.hitPoints).toBe(2);
+    expect(next.spiked).toBe(true);
+    expect(next.spikeTimer).toBe(0);
+  });
+
+  it('applyStomp-finishingStomp-doesNotBecomeSpiked', () => {
+    const state = { ...toEnemyState({ id: 'e1', spriteType: 'slimeGreen' as const, x: 0, y: 0 }) };
+    const next = applyStomp(state);
+    expect(next.hitPoints).toBe(0);
+    expect(next.spiked).toBe(false);
+  });
+
+  it('applyStomp-alreadySpikedSurvivingAnotherStomp-restartsTimer', () => {
+    const state = {
+      ...toEnemyState({ id: 'e1', spriteType: 'slimePurple' as const, x: 0, y: 0 }),
+      hitPoints: 2,
+      spiked: true,
+      spikeTimer: 1.2,
+    };
+    const next = applyStomp(state);
+    expect(next.hitPoints).toBe(1);
+    expect(next.spiked).toBe(true);
+    expect(next.spikeTimer).toBe(0);
   });
 });
 

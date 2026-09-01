@@ -1,4 +1,4 @@
-import { stepEnemyPatrol, stepEnemyHitReaction, HIT_REACTION_DURATION_SECONDS } from './EnemyAI';
+import { stepEnemyPatrol, stepEnemyHitReaction, HIT_REACTION_DURATION_SECONDS, stepEnemySpikeCooldown, SPIKE_COOLDOWN_DURATION_SECONDS } from './EnemyAI';
 import { toEnemyState } from '../entities/Enemy';
 import type { EnemyState } from '../entities/Enemy';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
@@ -186,6 +186,8 @@ describe('stepEnemyPatrol', () => {
       animTimer: 0,
       hitPoints: 1,
       hitTimer: 0,
+      spiked: false,
+      spikeTimer: 0,
       defeated: false,
     };
     const green = stepEnemyPatrol({ ...base, spriteType: 'slimeGreen' as const }, level, 1, []);
@@ -234,5 +236,27 @@ describe('stepEnemyHitReaction', () => {
     expect(enemy.defeated).toBe(false);
     enemy = stepEnemyHitReaction(enemy, HIT_REACTION_DURATION_SECONDS / 2);
     expect(enemy.defeated).toBe(true);
+  });
+});
+
+describe('stepEnemySpikeCooldown', () => {
+  it('stepEnemySpikeCooldown-notSpiked-isNoOp', () => {
+    const enemy = { ...makeEnemyAt(5), spiked: false, spikeTimer: 0 };
+    const next = stepEnemySpikeCooldown(enemy, 1);
+    expect(next).toBe(enemy);
+  });
+
+  it('stepEnemySpikeCooldown-spikedBelowDuration-accumulatesTimer', () => {
+    const enemy = { ...makeEnemyAt(5), spiked: true, spikeTimer: 0 };
+    const next = stepEnemySpikeCooldown(enemy, 0.5);
+    expect(next.spiked).toBe(true);
+    expect(next.spikeTimer).toBe(0.5);
+  });
+
+  it('stepEnemySpikeCooldown-reachesDuration-clearsSpiked', () => {
+    const enemy = { ...makeEnemyAt(5), spiked: true, spikeTimer: SPIKE_COOLDOWN_DURATION_SECONDS - 0.1 };
+    const next = stepEnemySpikeCooldown(enemy, 0.2);
+    expect(next.spiked).toBe(false);
+    expect(next.spikeTimer).toBe(0);
   });
 });

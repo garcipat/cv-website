@@ -7,6 +7,8 @@ import {
   PLAYER_FOOT_PADDING,
   PLAYER_HEAD_PADDING,
 } from '../entities/Player';
+import { toEnemyState, enemyRenderedSize, enemyTileOffsetX, enemyTileOffsetY } from '../entities/Enemy';
+import { enemyHitbox } from './Collision';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 
 function makeMockContext() {
@@ -192,5 +194,65 @@ describe('drawDebugOverlay', () => {
         call[3] === RENDERED_TILE_SIZE,
     );
     expect(greenTileCalls).toHaveLength(1);
+  });
+
+  it('purpleEnemy-drawsOrangeRenderSlotRectAtFullScaledSize', () => {
+    const ctx = makeMockContext();
+    const level: LevelDef = { width: 1, height: 1, terrain: [['empty']] };
+    const enemy = toEnemyState({ id: 'e1', spriteType: 'slimePurple', x: 100, y: 200 });
+
+    drawDebugOverlay(ctx, idlePlayer, level, 0, 0, [enemy]);
+
+    const size = enemyRenderedSize('slimePurple');
+    const slotCalls = (ctx.strokeRect as ReturnType<typeof vi.fn>).mock.calls.filter(
+      (call) =>
+        call[0] === enemy.x + enemyTileOffsetX('slimePurple') &&
+        call[1] === enemy.y + enemyTileOffsetY('slimePurple') &&
+        call[2] === size &&
+        call[3] === size,
+    );
+    expect(slotCalls).toHaveLength(1);
+  });
+
+  it('purpleEnemy-drawsBlueHitboxRectNarrowerThanRenderSlot', () => {
+    const ctx = makeMockContext();
+    const level: LevelDef = { width: 1, height: 1, terrain: [['empty']] };
+    const enemy = toEnemyState({ id: 'e1', spriteType: 'slimePurple', x: 100, y: 200 });
+
+    drawDebugOverlay(ctx, idlePlayer, level, 0, 0, [enemy]);
+
+    const box = enemyHitbox(enemy);
+    const hitboxCalls = (ctx.strokeRect as ReturnType<typeof vi.fn>).mock.calls.filter(
+      (call) => call[0] === box.x && call[1] === box.y && call[2] === box.width && call[3] === box.height,
+    );
+    expect(hitboxCalls).toHaveLength(1);
+    expect(box.width).toBeLessThan(enemyRenderedSize('slimePurple'));
+  });
+
+  it('enemies-originXY-offsetsEnemyRectsToo', () => {
+    const ctx = makeMockContext();
+    const level: LevelDef = { width: 1, height: 1, terrain: [['empty']] };
+    const enemy = toEnemyState({ id: 'e1', spriteType: 'slimeGreen', x: 50, y: 60 });
+    const originX = 10;
+    const originY = 20;
+
+    drawDebugOverlay(ctx, idlePlayer, level, originX, originY, [enemy]);
+
+    const size = enemyRenderedSize('slimeGreen');
+    const slotCalls = (ctx.strokeRect as ReturnType<typeof vi.fn>).mock.calls.filter(
+      (call) =>
+        call[0] === enemy.x + enemyTileOffsetX('slimeGreen') + originX &&
+        call[1] === enemy.y + enemyTileOffsetY('slimeGreen') + originY &&
+        call[2] === size &&
+        call[3] === size,
+    );
+    expect(slotCalls).toHaveLength(1);
+  });
+
+  it('noEnemiesArgument-defaultsToEmptyArrayWithoutThrowing', () => {
+    const ctx = makeMockContext();
+    const level: LevelDef = { width: 1, height: 1, terrain: [['empty']] };
+
+    expect(() => drawDebugOverlay(ctx, idlePlayer, level, 0, 0)).not.toThrow();
   });
 });

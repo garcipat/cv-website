@@ -5,17 +5,24 @@ import {
   PLAYER_HEAD_PADDING,
 } from '../entities/Player';
 import type { PlayerState } from '../entities/Player';
+import { enemyRenderedSize, enemyTileOffsetX, enemyTileOffsetY } from '../entities/Enemy';
+import type { EnemyState } from '../entities/Enemy';
+import { enemyHitbox } from './Collision';
 import { isSolid, tileAt, tileToPixel, RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { LevelDef } from '../level/LevelData';
 
 /**
- * Draws the player's actual collision geometry and the level's solid tiles
- * on top of the normal render, so collision bugs (e.g. the head-padding and
- * ground/ceiling column-span bugs found in `Physics.ts`) are visible without
- * manual pixel-measurement. Toggled by `?debug=hitboxes` in `PlatformerPage`.
- * Uses only stroked (unfilled) shapes so the sprite/terrain underneath stays
+ * Draws the player's actual collision geometry, every enemy's render slot
+ * and collision hitbox, and the level's solid tiles on top of the normal
+ * render, so collision bugs (e.g. the head-padding and ground/ceiling
+ * column-span bugs found in `Physics.ts`) are visible without manual
+ * pixel-measurement. Toggled by `?debug=hitboxes` in `PlatformerPage`. Uses
+ * only stroked (unfilled) shapes so the sprite/terrain underneath stays
  * visible. `originX`/`originY` shift all drawn shapes to match the camera's
- * current scroll offset.
+ * current scroll offset. Color meaning is shared across entities — red
+ * always means "full render slot, not used for collision" and yellow
+ * always means "the actual collision hitbox", whether the box belongs to
+ * the player or an enemy.
  */
 export function drawDebugOverlay(
   ctx: CanvasRenderingContext2D,
@@ -23,6 +30,7 @@ export function drawDebugOverlay(
   level: LevelDef,
   originX: number,
   originY: number,
+  enemies: EnemyState[] = [],
 ): void {
   ctx.lineWidth = 1;
 
@@ -66,5 +74,26 @@ export function drawDebugOverlay(
       const { x, y } = tileToPixel(col, row);
       ctx.strokeRect(x + originX, y + originY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
     }
+  }
+
+  // Enemies: full render slot (red) — where the sprite is drawn, not the
+  // hitbox — and the narrower collision hitbox (yellow) that
+  // checkEnemyStompCollisions/checkEnemySideCollisions actually use. Same
+  // colors as the player's own render-slot/hitbox pair above, so the same
+  // color always means the same collision concept regardless of which
+  // entity it's drawn on.
+  for (const enemy of enemies) {
+    const size = enemyRenderedSize(enemy.spriteType);
+    ctx.strokeStyle = 'red';
+    ctx.strokeRect(
+      enemy.x + enemyTileOffsetX(enemy.spriteType) + originX,
+      enemy.y + enemyTileOffsetY(enemy.spriteType) + originY,
+      size,
+      size,
+    );
+
+    const box = enemyHitbox(enemy);
+    ctx.strokeStyle = 'yellow';
+    ctx.strokeRect(box.x + originX, box.y + originY, box.width, box.height);
   }
 }
