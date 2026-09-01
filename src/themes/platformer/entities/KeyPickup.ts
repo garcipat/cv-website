@@ -1,20 +1,22 @@
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 
 /** Native pixel dimensions of public/sprites/key.png (generated, chroma-keyed
- *  from a magenta-background render, cropped tight on all sides). A single
+ *  from a magenta-background render, cropped tight on all sides) — a bold,
+ *  diagonally-oriented key filling a roughly square bounding box (not a thin
+ *  vertical sliver: an earlier 14x28 version read as visibly thinner/smaller
+ *  than the other HUD icons even at a matched render height). A single
  *  standalone image, not a sheet — no sx/sy frame lookup needed, matching
  *  Chest.ts's convention for its own standalone (non-tiling) sprites. */
-export const KEY_FRAME_WIDTH = 14;
-export const KEY_FRAME_HEIGHT = 28;
+export const KEY_FRAME_WIDTH = 24;
+export const KEY_FRAME_HEIGHT = 23;
 
 /**
  * World-rendered size of a key pickup. Unlike most sprites here, this is NOT
  * simply the native frame scaled by RENDER_SCALE (that formula would produce
- * a 56px-tall key — almost twice a tile — sinking into the ground below and
- * badly out of family with every other pickup, which render at one tile,
- * 32px: COIN_RENDERED_SIZE/FRUIT_RENDERED_SIZE). Instead the key is clamped
- * to fit within one rendered tile height, keeping its native 14:28 aspect
- * ratio, so width comes out proportionally narrower.
+ * a key noticeably taller than a tile, sinking into the ground below and out
+ * of family with every other pickup, which render at one tile, 32px:
+ * COIN_RENDERED_SIZE/FRUIT_RENDERED_SIZE). Instead the key is clamped to fit
+ * within one rendered tile height, keeping its native aspect ratio.
  */
 export const KEY_RENDERED_HEIGHT = RENDERED_TILE_SIZE;
 export const KEY_RENDERED_WIDTH = Math.round((KEY_FRAME_WIDTH / KEY_FRAME_HEIGHT) * KEY_RENDERED_HEIGHT);
