@@ -29,13 +29,14 @@ import {
   collectedKeys,
 } from './PlatformerState';
 import { toChestState } from './entities/Chest';
+import { spawnKeyPickup } from './entities/KeyPickup';
 import {
   MAX_HALF_HEARTS,
   PIT_FALL_DAMAGE,
   SIDE_HIT_DAMAGE,
   HEART_RENDERED_SIZE,
 } from './entities/Health';
-import { HEARTS_START_X } from './engine/Renderer';
+import { HEARTS_START_X, KEY_COUNTER_X, KEY_COUNTER_Y } from './engine/Renderer';
 import { PHYSICS_CONFIG } from './engine/PhysicsConfig';
 import { tileToPixel } from './level/Terrain';
 import {
@@ -715,6 +716,54 @@ describe('PlatformerPage', () => {
     );
   });
 
+  it('render-collectedKeysZero-doesNotDrawKeyCounter', async () => {
+    // The HUD key counter is only ever drawn by the `keySpriteRef.current &&
+    // collectedKeys.value > 0` gate in PlatformerPage.tsx's render function —
+    // drawKeyCounter itself doesn't gate on count (matching drawChestCounter's
+    // convention of the CALLER deciding whether to call it). At 0 keys
+    // (this suite's default — see beforeEach), no plain digit-string
+    // fillText call (drawKeyCounter's own "N" text, distinct from every
+    // other HUD counter's "N / total" format) should ever appear.
+    vi.stubGlobal('Image', MockTilesetImage);
+
+    render(<PlatformerPage />);
+    const canvas = screen.getByTestId('platformer-canvas');
+    const ctx = (canvas as HTMLCanvasElement).getContext('2d') as unknown as {
+      drawImage: ReturnType<typeof vi.fn>;
+      fillText: ReturnType<typeof vi.fn>;
+    };
+
+    // Wait for at least one real frame so sprites have had a chance to load
+    // and render — a key counter that's simply never reached would be a
+    // false negative for this test.
+    await waitFor(() => expect(ctx.drawImage.mock.calls.length).toBeGreaterThan(0));
+
+    expect(
+      ctx.fillText.mock.calls.some(
+        (call: unknown[]) => call[2] === KEY_COUNTER_Y && /^\d+$/.test(String(call[0])),
+      ),
+    ).toBe(false);
+  });
+
+  it('render-collectedKeysAboveZero-drawsKeyCounter', async () => {
+    vi.stubGlobal('Image', MockTilesetImage);
+    collectedKeys.value = 1;
+
+    render(<PlatformerPage />);
+    const canvas = screen.getByTestId('platformer-canvas');
+    const ctx = (canvas as HTMLCanvasElement).getContext('2d') as unknown as {
+      fillText: ReturnType<typeof vi.fn>;
+    };
+
+    await waitFor(() =>
+      expect(
+        ctx.fillText.mock.calls.some(
+          (call: unknown[]) => call[2] === KEY_COUNTER_Y && call[0] === '1',
+        ),
+      ).toBe(true),
+    );
+  });
+
   it('playerOverlapsACollectible-tick-marksItCollectedAndAddsFact', () => {
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
@@ -978,6 +1027,64 @@ describe('PlatformerPage', () => {
     }
 
     expect(keyPickupStates.value.filter((k) => k.id === target.id)).toHaveLength(1);
+  });
+
+  it('playerWalksIntoKeyPickup-tick-incrementsCollectedKeys', () => {
+    // Deleting the `collectedKeys.value += touchedKeyIds.length` line in
+    // PlatformerPage.tsx would not fail any pre-existing test — nothing
+    // asserted the counter actually moves on touch (only that the pickup
+    // itself gets flagged/removed). Places a key pickup well away from any
+    // other collectible/enemy, drives the player onto it via one game-loop
+    // tick, and asserts the counter goes 0 -> 1.
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    expect(collectedKeys.value).toBe(0);
+    const pickup = spawnKeyPickup('test-key-1', 5000, 5000);
+    keyPickupStates.value = [pickup];
+    playerState.value = { ...playerState.value, x: pickup.x, y: pickup.y };
+
+    frameCallback!(16);
+
+    expect(collectedKeys.value).toBe(1);
+    expect(keyPickupStates.value.find((k) => k.id === pickup.id)?.collected).toBe(true);
+  });
+
+  it('playerWalksIntoKeyPickup-tick-startsAFlightEffectTowardTheKeyCounter', () => {
+    // Spec.md's User Story 4 and roadmap.md's step 30 both promise that
+    // collecting a key "animates toward the key counter in the HUD" —
+    // reusing the same startFlightEffect/activeEffects mechanism every other
+    // pickup path in this file already uses, just targeting the HUD key
+    // counter's fixed screen position instead of the journal icon.
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const pickup = spawnKeyPickup('test-key-2', 5000, 5000);
+    keyPickupStates.value = [pickup];
+    playerState.value = { ...playerState.value, x: pickup.x, y: pickup.y };
+
+    expect(activeEffects.value.some((e) => e.id === pickup.id)).toBe(false);
+
+    frameCallback!(16);
+
+    const effect = activeEffects.value.find((e) => e.id === pickup.id);
+    expect(effect).toBeDefined();
+    expect(effect?.targetX).toBe(KEY_COUNTER_X);
+    expect(effect?.targetY).toBe(KEY_COUNTER_Y);
   });
 
   it('playerFallsOntoGreenEnemy-tick-bouncesPlayerUpward', () => {

@@ -61,7 +61,7 @@ import { openChest, allChestsOpen, isChestOpen, CHEST_CLOSED_OFFSET_X } from './
 import { stepBlockAnimation } from './engine/BlockAI';
 import { applyBlockHit, isBlockUsedUp, isBlockRemoved, blockFrameSource, BLOCK_FRAME_SIZE } from './entities/Block';
 import { spawnBonusFruit, tickBonusFruit, bonusFruitY } from './entities/BonusFruit';
-import { spawnKeyPickup } from './entities/KeyPickup';
+import { spawnKeyPickup, KEY_TILE_OFFSET_X, KEY_TILE_OFFSET_Y } from './entities/KeyPickup';
 import {
   startFlightEffect,
   tickFlightEffect,
@@ -684,13 +684,12 @@ export const PlatformerPage = () => {
 
         let anyEnemyRewarded = false;
         for (const enemy of justDefeated) {
-          // A "plain" enemy (a marker beyond its color's CVData course
-          // count, see EnemyMapper.ts) carries no fact at all — it's still
-          // removed via the `filter` below, just with no reward. Facts also
-          // persist across respawns (FR-020c: `resetGame()` revives enemies
-          // but deliberately never clears `collectedFacts`), so a revived
-          // enemy stomped again in a later life must not re-bank the same
-          // fact — that would duplicate its journal page.
+          // A defeated purple slime carries no fact at all — it drops a key
+          // pickup instead (spec.md User Story 4). Keys, like facts, persist
+          // across respawns (FR-020c-style dedup: `resetGame()` revives
+          // enemies but deliberately never clears `keyPickupStates`), so a
+          // revived purple slime stomped again in a later life must not drop
+          // a second key for the same source enemy id.
           if (enemy.spriteType === 'slimePurple') {
             const alreadyDropped = keyPickupStates.value.some((k) => k.id === enemy.id);
             if (!alreadyDropped) {
@@ -698,6 +697,13 @@ export const PlatformerPage = () => {
             }
             continue;
           }
+          // A "plain" enemy (a marker beyond its color's CVData course
+          // count, see EnemyMapper.ts) carries no fact at all — it's still
+          // removed via the `filter` below, just with no reward. Facts also
+          // persist across respawns (FR-020c: `resetGame()` revives enemies
+          // but deliberately never clears `collectedFacts`), so a revived
+          // enemy stomped again in a later life must not re-bank the same
+          // fact — that would duplicate its journal page.
           const fact = enemy.fact;
           if (!fact || newFacts.some((f) => f.id === fact.id)) continue;
           anyEnemyRewarded = true;
@@ -909,9 +915,36 @@ export const PlatformerPage = () => {
       // rather than a per-item fact — flagged `collected: true` in place
       // (not removed from the array) so drawKeyPickups's own skip-if-collected
       // check keeps the pickup out of the render list without needing a
-      // separate "already gone" list.
+      // separate "already gone" list. Unlike every other pickup here, the
+      // flight target isn't the journal icon — it's the canvas-drawn HUD key
+      // counter's fixed screen position (KEY_COUNTER_X/Y), used directly with
+      // no origin/camera offset since the HUD is screen-fixed. There's no
+      // per-key fact/label the way other pickups have one, so the flight
+      // text is just a static "Key" caption.
       const touchedKeyIds = checkKeyPickupCollisions(playerState.value, keyPickupStates.value);
       if (touchedKeyIds.length > 0) {
+        const newEffects = [...activeEffects.value];
+        const midX = canvas.width / 2;
+        const midY = canvas.height * 0.3;
+        for (const pickup of keyPickupStates.value) {
+          if (!touchedKeyIds.includes(pickup.id)) continue;
+          const slot = nextTextSlot;
+          nextTextSlot = (nextTextSlot + 1) % COLLECTION_TEXT_SLOT_COUNT;
+          const stackOffsetY = slot * COLLECTION_TEXT_STACK_ROW_HEIGHT;
+          newEffects.push(
+            startFlightEffect(
+              pickup.id,
+              'Key',
+              pickup.x + KEY_TILE_OFFSET_X + originX,
+              pickup.y + KEY_TILE_OFFSET_Y + originY + stackOffsetY,
+              midX,
+              midY + stackOffsetY,
+              KEY_COUNTER_X,
+              KEY_COUNTER_Y,
+            ),
+          );
+        }
+        activeEffects.value = newEffects;
         keyPickupStates.value = keyPickupStates.value.map((k) =>
           touchedKeyIds.includes(k.id) ? { ...k, collected: true } : k,
         );
