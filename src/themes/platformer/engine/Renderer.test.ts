@@ -352,6 +352,108 @@ describe('drawEnemies', () => {
     expect(call[5]).toBe(0);
     expect(call[6]).toBe(0);
   });
+
+  it('purpleSlimeWithKeySprite-drawsTheKeyUnderneathTheBody', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const purpleSprite = { tag: 'purple' } as unknown as HTMLImageElement;
+    const keySprite = { tag: 'key' } as unknown as HTMLImageElement;
+
+    drawEnemies(
+      ctx as unknown as CanvasRenderingContext2D,
+      [makeEnemyState('a', 'slimePurple', 100, 100)],
+      null,
+      purpleSprite,
+      0,
+      0,
+      keySprite,
+    );
+
+    const calls = ctx.drawImage.mock.calls;
+    expect(calls.some((c: unknown[]) => c[0] === keySprite)).toBe(true);
+    // Key is drawn BEFORE the (translucent) body, so it reads as underneath.
+    expect(calls.findIndex((c: unknown[]) => c[0] === keySprite)).toBeLessThan(
+      calls.findIndex((c: unknown[]) => c[0] === purpleSprite),
+    );
+  });
+
+  it('greenSlimeWithKeySprite-neverDrawsAKey', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const greenSprite = { tag: 'green' } as unknown as HTMLImageElement;
+    const keySprite = { tag: 'key' } as unknown as HTMLImageElement;
+
+    drawEnemies(
+      ctx as unknown as CanvasRenderingContext2D,
+      [makeEnemyState('a', 'slimeGreen', 100, 100)],
+      greenSprite,
+      null,
+      0,
+      0,
+      keySprite,
+    );
+
+    expect(ctx.drawImage.mock.calls.some((c: unknown[]) => c[0] === keySprite)).toBe(false);
+  });
+
+  it('noKeySpriteProvided-purpleSlimeDrawsWithNoKeyUnderneath', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const purpleSprite = { tag: 'purple' } as unknown as HTMLImageElement;
+
+    drawEnemies(
+      ctx as unknown as CanvasRenderingContext2D,
+      [makeEnemyState('a', 'slimePurple', 100, 100)],
+      null,
+      purpleSprite,
+    );
+
+    expect(ctx.drawImage.mock.calls).toHaveLength(1);
+    expect(ctx.drawImage.mock.calls[0][0]).toBe(purpleSprite);
+  });
+
+  it('purpleSlimeIdInDroppedKeyEnemyIds-alreadyGaveUpItsOneKey-drawsNoKeyUnderneath', () => {
+    // Each purple slime only ever drops a single key (dedup by enemy id, see
+    // PlatformerPage.tsx's justDefeated handling) — once it has, stomping it
+    // again yields nothing, so the shine-through hint should stop showing.
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const purpleSprite = { tag: 'purple' } as unknown as HTMLImageElement;
+    const keySprite = { tag: 'key' } as unknown as HTMLImageElement;
+
+    drawEnemies(
+      ctx as unknown as CanvasRenderingContext2D,
+      [makeEnemyState('already-dropped', 'slimePurple', 100, 100)],
+      null,
+      purpleSprite,
+      0,
+      0,
+      keySprite,
+      new Set(['already-dropped']),
+    );
+
+    expect(ctx.drawImage.mock.calls).toHaveLength(1);
+    expect(ctx.drawImage.mock.calls[0][0]).toBe(purpleSprite);
+  });
+
+  it('multiplePurpleSlimes-onlyTheOneInDroppedKeyEnemyIdsSkipsItsKey', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const purpleSprite = { tag: 'purple' } as unknown as HTMLImageElement;
+    const keySprite = { tag: 'key' } as unknown as HTMLImageElement;
+
+    drawEnemies(
+      ctx as unknown as CanvasRenderingContext2D,
+      [
+        makeEnemyState('has-key-still', 'slimePurple', 100, 100),
+        makeEnemyState('already-dropped', 'slimePurple', 300, 100),
+      ],
+      null,
+      purpleSprite,
+      0,
+      0,
+      keySprite,
+      new Set(['already-dropped']),
+    );
+
+    const keyDraws = ctx.drawImage.mock.calls.filter((c: unknown[]) => c[0] === keySprite);
+    expect(keyDraws).toHaveLength(1);
+  });
 });
 
 describe('drawBlocks', () => {
