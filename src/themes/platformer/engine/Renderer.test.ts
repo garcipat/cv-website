@@ -39,7 +39,6 @@ import { spawnBonusFruit, bonusFruitY } from '../entities/BonusFruit';
 import type { EnemyState } from '../entities/Enemy';
 import { fruitFrameSource, FRUIT_FRAME_SIZE, FRUIT_RENDERED_SIZE } from '../entities/Fruit';
 import {
-  ENEMY_FRAME_SIZE,
   ENEMY_RENDERED_SIZE,
   ENEMY_TILE_OFFSET_X,
   ENEMY_TILE_OFFSET_Y,
@@ -53,6 +52,9 @@ import {
   KEY_TILE_OFFSET_Y,
 } from '../entities/KeyPickup';
 import type { KeyPickupState } from '../entities/KeyPickup';
+import { SLIME_GREEN_SHEET } from '../entities/sprites/sheets';
+
+const ENEMY_FRAME_SIZE = SLIME_GREEN_SHEET.frameWidth;
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import {
   CHEST_CLOSED_WIDTH,

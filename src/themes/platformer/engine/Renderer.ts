@@ -33,9 +33,10 @@ import {
 } from '../entities/Coin';
 import { FRUIT_FRAME_SIZE, FRUIT_RENDERED_SIZE, fruitFrameSource } from '../entities/Fruit';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
+import { ENEMY_TYPES } from '../entities/enemies';
+import { enemyFrameIndex } from '../entities/enemies/EnemyAnimation';
+import { frameSource } from '../entities/sprites/SpriteSheet';
 import {
-  ENEMY_FRAME_SIZE,
-  enemyFrameSource,
   enemyRenderedSize,
   enemyTileOffsetX,
   enemyTileOffsetY,
@@ -677,7 +678,8 @@ export function drawEnemies(
     const sprite = enemy.type === 'slimeGreen' ? slimeGreenSprite : slimePurpleSprite;
     if (!sprite) continue;
 
-    const { sx, sy } = enemyFrameSource(enemy.animState, enemy.animFrame);
+    const { sheet } = ENEMY_TYPES[enemy.type].sprite;
+    const { sx, sy } = frameSource(sheet, enemyFrameIndex(enemy.animState, enemy.animFrame));
     const size = enemyRenderedSize(enemy.type);
     const dx = enemy.x + enemyTileOffsetX(enemy.type) + originX;
     const dy = enemy.y + enemyTileOffsetY(enemy.type) + originY;
@@ -726,8 +728,8 @@ export function drawEnemies(
         sprite,
         sx,
         sy,
-        ENEMY_FRAME_SIZE,
-        ENEMY_FRAME_SIZE,
+        sheet.frameWidth,
+        sheet.frameHeight,
         0,
         0,
         size,
@@ -738,8 +740,8 @@ export function drawEnemies(
         sprite,
         sx,
         sy,
-        ENEMY_FRAME_SIZE,
-        ENEMY_FRAME_SIZE,
+        sheet.frameWidth,
+        sheet.frameHeight,
         dx,
         dy,
         size,

@@ -1,10 +1,5 @@
 import {
-  ENEMY_FRAME_SIZE,
   ENEMY_RENDERED_SIZE,
-  ENEMY_RENDER_SCALE,
-  ENEMY_PATROL_SPEED_MULTIPLIER,
-  ENEMY_HIT_POINTS,
-  enemyFrameSource,
   toEnemyState,
   reviveEnemy,
   advanceEnemyAnimation,
@@ -16,6 +11,16 @@ import {
   enemyHitboxTopPadding,
 } from './Enemy';
 import type { EnemyState } from './Enemy';
+import { ENEMY_TYPES } from './enemies';
+import { enemyFrameIndex } from './enemies/EnemyAnimation';
+import { SLIME_GREEN_SHEET } from './sprites/sheets';
+import { frameSource } from './sprites/SpriteSheet';
+
+const ENEMY_FRAME_SIZE = SLIME_GREEN_SHEET.frameWidth;
+
+function enemyFrameSource(animState: 'walk' | 'hit', frame: number): { sx: number; sy: number } {
+  return frameSource(SLIME_GREEN_SHEET, enemyFrameIndex(animState, frame));
+}
 import type { EnemyPlacement } from '../level/EnemyMapper';
 import { RENDER_SCALE, RENDERED_TILE_SIZE } from '../level/Terrain';
 
@@ -35,7 +40,7 @@ function makePlacement(): EnemyPlacement {
   };
 }
 
-describe('enemyFrameSource', () => {
+describe('enemyFrameIndex resolved through the sheet', () => {
   it('walkFrameZero-returnsSheetFrameFour', () => {
     // Sheet frame 4 (1-based, row 0 col 3) — the tuned breathing/bounce loop
     // is walk's frame range since there's no idle state (a patrolling enemy
@@ -76,7 +81,7 @@ describe('toEnemyState', () => {
   });
 
   it('indexEqualToWalkFrameCount-wrapsAroundToSameFrameAsIndexZero', () => {
-    // Walk has 5 frames (see Enemy.ts's WALK_FRAMES) — index 5 must land back
+    // Walk has 5 frames (see EnemyAnimation.ts) — index 5 must land back
     // on the same frame as index 0, confirming the offset wraps via modulo
     // rather than growing unbounded.
     const a = toEnemyState(makePlacement(), 0);
@@ -199,18 +204,20 @@ describe('per-type enemy config', () => {
   });
 
   it('patrolSpeedMultiplier-slimePurple-isSlowerThanGreen', () => {
-    expect(ENEMY_PATROL_SPEED_MULTIPLIER.slimePurple).toBeLessThan(ENEMY_PATROL_SPEED_MULTIPLIER.slimeGreen);
-    expect(ENEMY_PATROL_SPEED_MULTIPLIER.slimePurple).toBe(0.7);
+    expect(ENEMY_TYPES.slimePurple.patrolSpeedMultiplier).toBeLessThan(
+      ENEMY_TYPES.slimeGreen.patrolSpeedMultiplier,
+    );
+    expect(ENEMY_TYPES.slimePurple.patrolSpeedMultiplier).toBe(0.7);
   });
 
   it('hitPoints-slimePurple-is3', () => {
-    expect(ENEMY_HIT_POINTS.slimePurple).toBe(3);
-    expect(ENEMY_HIT_POINTS.slimeGreen).toBe(1);
+    expect(ENEMY_TYPES.slimePurple.maxHitPoints).toBe(3);
+    expect(ENEMY_TYPES.slimeGreen.maxHitPoints).toBe(1);
   });
 
   it('renderScale-slimePurple-is1point5', () => {
-    expect(ENEMY_RENDER_SCALE.slimePurple).toBe(2);
-    expect(ENEMY_RENDER_SCALE.slimeGreen).toBe(1);
+    expect(ENEMY_TYPES.slimePurple.sprite.renderScale).toBe(2);
+    expect(ENEMY_TYPES.slimeGreen.sprite.renderScale).toBe(1);
   });
 });
 
@@ -276,7 +283,7 @@ describe('enemy hitbox padding (insets the collision box from the sprite corners
   it('enemyHitboxTopPadding-slimeGreen-matchesMeasuredNativePaddingTimesRenderScale', () => {
     // Same measurement: opaque silhouette spans y 9-23 (9px transparent
     // margin above; 0px below — the feet already touch the frame's bottom
-    // edge, per ENEMY_TILE_OFFSET_Y's doc comment).
+    // edge, per enemyTileOffsetY's doc comment).
     expect(enemyHitboxTopPadding('slimeGreen')).toBe(9 * RENDER_SCALE * 1);
   });
 
@@ -307,7 +314,7 @@ describe('reviveEnemy', () => {
 
     expect(revived.x).toBe(enemy.x);
     expect(revived.y).toBe(enemy.y);
-    expect(revived.hitPoints).toBe(ENEMY_HIT_POINTS[enemy.type]);
+    expect(revived.hitPoints).toBe(ENEMY_TYPES[enemy.type].maxHitPoints);
     expect(revived.alive).toBe(true);
     expect(revived.animState).toBe('walk');
     expect(revived.hitTimer).toBe(0);

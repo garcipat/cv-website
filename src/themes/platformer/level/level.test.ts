@@ -75,7 +75,7 @@ describe('currentLevel', () => {
   it('purpleEnemyWallPitSandwich-hasAWallOnOneSideAndARealPitOnTheOther', () => {
     // The user-requested "wall, enemy, pit" case: a wall (col 31 — the same
     // wall bounding the green enemy's pocket on its right; the pocket was
-    // widened from cols 37-39 to cols 32-39 once ENEMY_RENDER_SCALE bumped
+    // widened from cols 37-39 to cols 32-39 once the sprite renderScale bumped
     // slimePurple to 2x and needed more clearance to turn around without
     // overlapping — see level.ts's own doc comment) on one side, a genuine
     // bottomless pit (cols 40-42, no bridge — unlike the spawn pit's bridge)

@@ -20,7 +20,8 @@ import {
 import { collectiblesSummary } from '../entities/CollectiblesSummary';
 import { COIN_FRAME_SIZE, COIN_FRAME_COUNT } from '../entities/Coin';
 import { FRUIT_FRAME_SIZE } from '../entities/Fruit';
-import { ENEMY_FRAME_SIZE } from '../entities/Enemy';
+import { SLIME_GREEN_SHEET } from '../entities/sprites/sheets';
+import { frameSource } from '../entities/sprites/SpriteSheet';
 import { blockFrameSource, BLOCK_FRAME_SIZE } from '../entities/Block';
 import {
   journalOpenFrameSrc,
@@ -240,14 +241,14 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
           ? FRUIT_FRAME_SIZE
           : labelKey === 'crates'
             ? BLOCK_FRAME_SIZE
-            : ENEMY_FRAME_SIZE;
+            : SLIME_GREEN_SHEET.frameWidth;
     const sheetCols = labelKey === 'coins' ? COIN_FRAME_COUNT : labelKey === 'crates' ? 16 : 4;
     const sheetRows = labelKey === 'coins' ? 1 : labelKey === 'fruits' ? 4 : labelKey === 'crates' ? 16 : 3;
     const displaySize = labelKey === 'crates' ? CRATE_ICON_DISPLAY_SIZE : COLLECTIBLE_ICON_DISPLAY_SIZE;
     const scale = displaySize / frameSize;
     const { sx, sy } =
       labelKey === 'enemies'
-        ? { sx: 2 * ENEMY_FRAME_SIZE, sy: 0 }
+        ? frameSource(SLIME_GREEN_SHEET, 2)
         : labelKey === 'crates'
           ? blockFrameSource('crate')
           : { sx: 0, sy: 0 };

@@ -80,7 +80,7 @@ import {
 //     "patrol bounded by two walls" case.
 //   - Purple enemy (col 38): bounded by a `W` wall on its left (col 31 — the
 //     same wall that bounds the green enemy's pocket on its right; the wall
-//     that used to sit at col 36 was removed once ENEMY_RENDER_SCALE bumped
+//     that used to sit at col 36 was removed once the sprite renderScale bumped
 //     slimePurple to 2x, since a slime that wide needs roughly a tile of
 //     clearance to its left and two to its right just to turn around
 //     without visually overlapping the obstacle — see EnemyAI.ts's

@@ -88,7 +88,9 @@ import {
   PLAYER_VISUAL_CENTER_Y_OFFSET,
   PLAYER_HEAD_PADDING,
 } from './entities/Player';
-import { advanceEnemyAnimation, applyStomp, ENEMY_FRAME_SIZE } from './entities/Enemy';
+import { advanceEnemyAnimation, applyStomp } from './entities/Enemy';
+import { SLIME_GREEN_SHEET } from './entities/sprites/sheets';
+import { frameSource } from './entities/sprites/SpriteSheet';
 import type { EnemyState } from './entities/Enemy';
 import { takeDamage, PIT_FALL_DAMAGE, SIDE_HIT_DAMAGE, INVINCIBILITY_DURATION_SECONDS } from './entities/Health';
 import {
@@ -482,7 +484,7 @@ export const PlatformerPage = () => {
         {
           labelKey: 'enemies',
           icon: slimeGreenSpriteRef.current,
-          iconFrame: { sx: 2 * ENEMY_FRAME_SIZE, sy: 0, size: ENEMY_FRAME_SIZE },
+          iconFrame: { ...frameSource(SLIME_GREEN_SHEET, 2), size: SLIME_GREEN_SHEET.frameWidth },
           iconYOffset: -6,
         },
         {
