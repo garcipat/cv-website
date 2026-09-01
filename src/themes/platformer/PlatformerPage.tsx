@@ -25,7 +25,7 @@ import {
   drawSignBubble,
   drawKeyPickups,
   drawKeyCounter,
-  KEY_COUNTER_X,
+  keyCounterX,
   KEY_COUNTER_Y,
 } from './engine/Renderer';
 import { drawDebugOverlay } from './engine/DebugOverlay';
@@ -523,7 +523,12 @@ export const PlatformerPage = () => {
       }
 
       if (keySpriteRef.current && collectedKeys.value > 0) {
-        drawKeyCounter(ctx, keySpriteRef.current, collectedKeys.value, KEY_COUNTER_X, KEY_COUNTER_Y);
+        const keyX = keyCounterX(
+          ctx,
+          chestStates.value.filter(isChestOpen).length,
+          chestPlacements.value.length,
+        );
+        drawKeyCounter(ctx, keySpriteRef.current, collectedKeys.value, keyX, KEY_COUNTER_Y);
       }
 
       // Iris overlay: drawn on top of everything else whenever the current
@@ -923,15 +928,22 @@ export const PlatformerPage = () => {
       // check keeps the pickup out of the render list without needing a
       // separate "already gone" list. Unlike every other pickup here, the
       // flight target isn't the journal icon — it's the canvas-drawn HUD key
-      // counter's fixed screen position (KEY_COUNTER_X/Y), used directly with
-      // no origin/camera offset since the HUD is screen-fixed. There's no
-      // per-key fact/label the way other pickups have one, so the flight
-      // text is just a static "Key" caption.
+      // counter's screen position (keyCounterX/KEY_COUNTER_Y), used directly
+      // with no origin/camera offset since the HUD is screen-fixed. keyCounterX
+      // needs a 2D context to measure the chest counter's current text width
+      // (same real position render() draws the key counter at) — canvas
+      // already has one from this component's setup, reused here rather than
+      // recreating it. There's no per-key fact/label the way other pickups
+      // have one, so the flight text is just a static "Key" caption.
       const touchedKeyIds = checkKeyPickupCollisions(playerState.value, keyPickupStates.value);
       if (touchedKeyIds.length > 0) {
         const newEffects = [...activeEffects.value];
         const midX = canvas.width / 2;
         const midY = canvas.height * 0.3;
+        const hudCtx = canvas.getContext('2d');
+        const keyX = hudCtx
+          ? keyCounterX(hudCtx, chestStates.value.filter(isChestOpen).length, chestPlacements.value.length)
+          : CHEST_COUNTER_X;
         for (const pickup of keyPickupStates.value) {
           if (!touchedKeyIds.includes(pickup.id)) continue;
           const slot = nextTextSlot;
@@ -945,7 +957,7 @@ export const PlatformerPage = () => {
               pickup.y + KEY_TILE_OFFSET_Y + originY + stackOffsetY,
               midX,
               midY + stackOffsetY,
-              KEY_COUNTER_X,
+              keyX,
               KEY_COUNTER_Y,
             ),
           );

@@ -1004,10 +1004,16 @@ export function drawCollectibleCounter(
  *  the chest counter just past it in the same HUD row. */
 const HEARTS_ROW_WIDTH = MAX_HEARTS * HEART_RENDERED_SIZE + (MAX_HEARTS - 1) * HEART_SPACING;
 
+/** Shared horizontal gap between HUD groups (hearts→chest, chest→key) — one
+ *  constant reused for every gap on this row, rather than separately
+ *  hand-tuned numbers, so the rhythm between groups is equal by
+ *  construction instead of by coincidence. */
+export const HUD_GROUP_GAP = 24;
+
 /** Horizontal screen position for the persistent chest counter — placed
  *  just to the right of the heart row, same HUD row as the hearts (not a
  *  second row below them). */
-export const CHEST_COUNTER_X = HEARTS_START_X + HEARTS_ROW_WIDTH + 16;
+export const CHEST_COUNTER_X = HEARTS_START_X + HEARTS_ROW_WIDTH + HUD_GROUP_GAP;
 
 /** Vertical screen position for the persistent chest counter — vertically
  *  centered on the same row the hearts occupy (drawHearts draws hearts with
@@ -1024,9 +1030,9 @@ export const CHEST_COUNTER_Y = HUD_MARGIN + HEART_RENDERED_SIZE / 2;
  * height rather than forced into a square icon box.
  */
 // Chest art is edge-to-edge with no transparent padding (unlike hearts), so
-// it reads oversized at HEART_RENDERED_SIZE — shrunk to look right at its
-// own smaller size instead.
-export const CHEST_COUNTER_ICON_HEIGHT = 20;
+// it reads oversized at HEART_RENDERED_SIZE — shrunk down from that, but not
+// all the way to 20 (read as too small next to the other HUD icons).
+export const CHEST_COUNTER_ICON_HEIGHT = 26;
 
 // Wider gap than the shared COUNTER_TEXT_GAP (used by drawCollectibleCounter)
 // between the chest icon and its "N / M" text — a dedicated constant so this
@@ -1067,24 +1073,37 @@ export function drawChestCounter(
   ctx.restore();
 }
 
+/**
+ * The chest counter's actual on-screen content width (icon + gap + the real
+ * measured "N / M" text, via ctx.measureText — NOT a hand-picked estimate).
+ * Used to position the key counter's X so the chest→key gap always exactly
+ * matches HUD_GROUP_GAP regardless of how many digits `collected`/`total`
+ * happen to have, instead of drifting whenever the guessed text width and
+ * the real one disagree. `ctx.font` is set here to the same font
+ * drawChestCounter itself uses, so the measurement is accurate regardless of
+ * whatever the context's font was left at beforehand.
+ */
+export function chestCounterWidth(ctx: CanvasRenderingContext2D, collected: number, total: number): number {
+  const iconWidth = (CHEST_CLOSED_WIDTH / CHEST_CLOSED_HEIGHT) * CHEST_COUNTER_ICON_HEIGHT;
+  ctx.font = `22px "${RESTART_PROMPT_FONT_FAMILY}", monospace`;
+  const textWidth = ctx.measureText(`${collected} / ${total}`).width;
+  return iconWidth + CHEST_COUNTER_TEXT_GAP + textWidth;
+}
+
 /** Horizontal screen position for the key counter — placed just to the right
- *  of the chest counter, same HUD row. Only ever drawn by the caller when
- *  collectedKeys > 0 (see PlatformerPage.tsx) — this constant is a fixed
- *  layout position, not conditional itself. Offset accounts for the chest
- *  icon/gap/"N / N" text (same widths drawChestCounter uses) plus a matching
- *  16px gap before the key icon, so the rhythm of gaps between HUD groups
- *  stays visually consistent (hearts→chest, chest→key) rather than an
- *  arbitrary fixed jump. */
-const CHEST_COUNTER_TEXT_WIDTH_ESTIMATE = 70; // "N / N" at the counter's 22px font
-export const KEY_COUNTER_X =
-  CHEST_COUNTER_X +
-  (CHEST_CLOSED_WIDTH / CHEST_CLOSED_HEIGHT) * CHEST_COUNTER_ICON_HEIGHT +
-  CHEST_COUNTER_TEXT_GAP +
-  CHEST_COUNTER_TEXT_WIDTH_ESTIMATE +
-  16;
+ *  of the chest counter's actual measured width, same HUD row, separated by
+ *  the same HUD_GROUP_GAP the hearts→chest gap uses. Callers (both
+ *  PlatformerPage.tsx's render loop and its key-collection flight-effect
+ *  target) must call this with the CURRENT chest collected/total — it is a
+ *  function, not a static constant, precisely because that width isn't
+ *  fixed. */
+export function keyCounterX(ctx: CanvasRenderingContext2D, chestCollected: number, chestTotal: number): number {
+  return CHEST_COUNTER_X + chestCounterWidth(ctx, chestCollected, chestTotal) + HUD_GROUP_GAP;
+}
+
 export const KEY_COUNTER_Y = CHEST_COUNTER_Y;
 
-/** Between CHEST_COUNTER_ICON_HEIGHT (20) and HEART_RENDERED_SIZE (32) — the
+/** Between CHEST_COUNTER_ICON_HEIGHT (26) and HEART_RENDERED_SIZE (32) — the
  *  current key.png is a bold, chunky shape (unlike an earlier thin 14x28
  *  version, which needed the full heart height to avoid looking shrunk), so
  *  a smaller HUD icon than the world sprite reads fine without looking

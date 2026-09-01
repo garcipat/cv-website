@@ -17,7 +17,7 @@ import {
   drawSignBubble,
   drawKeyPickups,
   drawKeyCounter,
-  KEY_COUNTER_X,
+  keyCounterX,
   KEY_COUNTER_Y,
   RESTART_PROMPT_FONT_FAMILY,
   HEARTS_START_X,
@@ -1565,7 +1565,7 @@ describe('drawKeyCounter', () => {
   it('drawKeyCounter-drawsIconAndCountText', () => {
     const ctx = makeMockContext();
     const fakeKeySprite = {} as HTMLImageElement;
-    drawKeyCounter(ctx, fakeKeySprite, 3, KEY_COUNTER_X, KEY_COUNTER_Y);
+    drawKeyCounter(ctx, fakeKeySprite, 3, keyCounterX(ctx, 0, 0), KEY_COUNTER_Y);
     expect(ctx.drawImage).toHaveBeenCalled();
     expect(ctx.fillText).toHaveBeenCalledWith('3', expect.any(Number), KEY_COUNTER_Y);
   });
