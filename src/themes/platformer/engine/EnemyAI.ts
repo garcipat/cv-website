@@ -2,6 +2,7 @@ import { PHYSICS_CONFIG } from './PhysicsConfig';
 import { isSolid, tileAt, RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { LevelDef } from '../level/LevelData';
 import type { EnemyState } from '../entities/Enemy';
+import { ENEMY_PATROL_SPEED_MULTIPLIER } from '../entities/Enemy';
 
 /** How long the `hit` reaction (red-flash/dissolve) plays before the enemy
  *  either reverts to patrolling (hit points remain) or is flagged defeated —
@@ -33,7 +34,7 @@ export function stepEnemyPatrol(
   dt: number,
   blockedTiles: readonly { col: number; row: number }[],
 ): EnemyState {
-  const speed = PHYSICS_CONFIG.enemyPatrolSpeed;
+  const speed = PHYSICS_CONFIG.enemyPatrolSpeed * ENEMY_PATROL_SPEED_MULTIPLIER[enemy.spriteType];
   const row = Math.round(enemy.y / RENDERED_TILE_SIZE);
   const movingRight = enemy.direction === 'right';
   const nextX = enemy.x + (movingRight ? speed : -speed) * dt;
