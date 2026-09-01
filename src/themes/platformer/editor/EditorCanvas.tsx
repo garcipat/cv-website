@@ -21,6 +21,8 @@ import {
   drawChests,
   drawSigns,
 } from '../engine/Renderer';
+import type { DrawContext } from '../engine/DrawContext';
+import { SLIME_GREEN_SHEET, SLIME_PURPLE_SHEET } from '../entities/sprites/sheets';
 
 export interface EditorImages {
   tileset: HTMLImageElement | null;
@@ -182,14 +184,17 @@ export const EditorCanvas = ({
       panOffset.y,
     );
 
-    drawEnemies(
+    const drawContext: DrawContext = {
       ctx,
-      synthesizeEnemyStates(grid),
-      images.slimeGreen,
-      images.slimePurple,
-      panOffset.x,
-      panOffset.y,
-    );
+      sprites: {
+        [SLIME_GREEN_SHEET.src]: images.slimeGreen,
+        [SLIME_PURPLE_SHEET.src]: images.slimePurple,
+      },
+      originX: panOffset.x,
+      originY: panOffset.y,
+      worldElapsed: 0,
+    };
+    drawEnemies(ctx, synthesizeEnemyStates(grid), drawContext);
 
     if (images.tileset) {
       drawBlocks(

@@ -3,6 +3,7 @@ import type { SpriteDescriptor } from '../sprites/SpriteSheet';
 import type { EnemyPlacement } from '../../level/EnemyMapper';
 import type { CollectedFact, EnemyDef } from '../../types';
 import type { EnemyAnimState } from './EnemyAnimation';
+import type { DrawContext } from '../../engine/DrawContext';
 
 /** Item kinds an enemy type can drop on defeat. Grows as items are added. */
 export type ItemKind = 'key';
@@ -53,4 +54,8 @@ export interface EnemyType<S extends BaseEnemyState> {
 
   create(placement: EnemyPlacement, index: number): S;
   revive(enemy: S): S;
+  /** Renders this enemy. Owning rendering here is what lets a new enemy type
+   *  ship as one file: Renderer.ts iterates and supplies the camera, and
+   *  never branches on type. */
+  draw(enemy: S, dc: DrawContext): void;
 }
