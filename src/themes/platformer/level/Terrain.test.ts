@@ -37,10 +37,9 @@ describe('Terrain', () => {
     expect(tileAt(testLevel, 0, 3)).toBe('empty');
   });
 
-  it('isSolid-groundPlatformWallBridge-returnsTrue', () => {
+  it('isSolid-groundWallBridge-returnsTrue', () => {
     expect(isSolid('groundGrass')).toBe(true);
     expect(isSolid('groundRock')).toBe(true);
-    expect(isSolid('platform')).toBe(true);
     expect(isSolid('wall')).toBe(true);
     expect(isSolid('bridge')).toBe(true);
   });
@@ -49,10 +48,9 @@ describe('Terrain', () => {
     expect(isSolid('empty')).toBe(false);
   });
 
-  it('isSolidExcludingBridge-groundPlatformWall-returnsTrue', () => {
+  it('isSolidExcludingBridge-groundWall-returnsTrue', () => {
     expect(isSolidExcludingBridge('groundGrass')).toBe(true);
     expect(isSolidExcludingBridge('groundRock')).toBe(true);
-    expect(isSolidExcludingBridge('platform')).toBe(true);
     expect(isSolidExcludingBridge('wall')).toBe(true);
   });
 
@@ -128,7 +126,6 @@ describe('isClimbable', () => {
   it('everyOtherTile-returnsFalse', () => {
     expect(isClimbable('groundGrass')).toBe(false);
     expect(isClimbable('groundRock')).toBe(false);
-    expect(isClimbable('platform')).toBe(false);
     expect(isClimbable('wall')).toBe(false);
     expect(isClimbable('bridge')).toBe(false);
     expect(isClimbable('empty')).toBe(false);

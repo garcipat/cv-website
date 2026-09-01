@@ -39,8 +39,20 @@ import {
   ENEMY_TILE_OFFSET_X,
   ENEMY_TILE_OFFSET_Y,
   enemyFrameSource,
+  enemyRenderedSize,
+  enemyTileOffsetX,
+  enemyTileOffsetY,
 } from '../entities/Enemy';
 import type { EnemyState } from '../entities/Enemy';
+import type { KeyPickupState } from '../entities/KeyPickup';
+import {
+  KEY_FRAME_WIDTH,
+  KEY_FRAME_HEIGHT,
+  KEY_RENDERED_WIDTH,
+  KEY_RENDERED_HEIGHT,
+  KEY_TILE_OFFSET_X,
+  KEY_TILE_OFFSET_Y,
+} from '../entities/KeyPickup';
 import { BLOCK_FRAME_SIZE, BLOCK_RENDERED_SIZE, blockFrameSource, crateCrackOverlayVisible } from '../entities/Block';
 import type { BlockState } from '../entities/Block';
 import {
@@ -78,8 +90,6 @@ function tileSource(
       return isTopExposed(level, col, row)
         ? { sx: TILE_SIZE, sy: 0 }
         : { sx: TILE_SIZE, sy: TILE_SIZE };
-    case 'platform':
-      return { sx: 0, sy: 0 };
     case 'wall':
       return { sx: 8 * TILE_SIZE, sy: 0 };
     case 'bridge': {
@@ -158,7 +168,7 @@ export function drawPlayer(
   originX = 0,
   originY = 0,
   jumpSpriteSheet: HTMLImageElement | null = null,
-  // Roadmap step 19's invincibility blink: PlatformerPage.tsx toggles this
+  // Invincibility blink: PlatformerPage.tsx toggles this
   // every ~0.1s while the player is invincible instead of drawing a tinted
   // sprite — simpler, and consistent with this renderer having no
   // alpha/tint effects anywhere else.
@@ -321,7 +331,7 @@ export function drawRestartPrompt(
 
 /** Tile coordinates of the signpost sprite within world_tileset.png (col 8,
  *  row 3 -> pixel 128,48) — sits immediately right of the crate tile (col 7,
- *  row 3, roadmap step 21). */
+ *  row 3). */
 const SIGN_TILE_SX = 8 * TILE_SIZE;
 const SIGN_TILE_SY = 3 * TILE_SIZE;
 
@@ -364,21 +374,23 @@ const BUBBLE_BORDER_WIDTH = 2;
 const BUBBLE_LINE_SPACING = 4;
 /** Corner radius for the bubble's rounded rect (both the border and the
  *  inset fill), drawn via `ctx.roundRect` — a smooth curve, not a pixel-art
- *  chamfer (tried and rejected per live feedback: cut-corner notches "just
- *  cut away the corners, does not look better"). A curved corner is always
+ *  chamfer (a chamfer's cut-corner notches read as just cutting away the
+ *  corners, not as a rounded shape). A curved corner is always
  *  anti-aliased regardless of `imageSmoothingEnabled` (that flag only
  *  affects `drawImage` scaling), so it reads slightly softer than this
  *  game's pixel-art tileset — an accepted, deliberate tradeoff here. */
 const BUBBLE_CORNER_RADIUS = 6;
 /** Nudges the text down from dead-center by a couple px — a purely visual
- *  correction (per live feedback: centered text read as sitting slightly
- *  high against the box, likely due to font metrics' cap-height vs.
- *  middle-baseline not perfectly bisecting the box). */
+ *  correction: centered text reads as sitting slightly high against the
+ *  box, likely due to font metrics' cap-height vs. middle-baseline not
+ *  perfectly bisecting the box. */
 const BUBBLE_TEXT_VERTICAL_NUDGE = 2;
 /** Vertical gap between the bubble tail's tip and its anchor point
  *  (anchorBottomY), so it floats just above the character's head rather
- *  than overlapping it. */
-const BUBBLE_GAP_ABOVE_ANCHOR = 40;
+ *  than overlapping it. Kept small — this is the gap ABOVE the anchor, which
+ *  itself is already the head's own position (see PlatformerPage.tsx's
+ *  anchorBottomY), not extra breathing room on top of that. */
+const BUBBLE_GAP_ABOVE_ANCHOR = 16;
 const BUBBLE_TAIL_HALF_WIDTH = 6;
 const BUBBLE_TAIL_HEIGHT = 8;
 const BUBBLE_BG_COLOR = '#f4ecd8';
@@ -389,15 +401,14 @@ const BUBBLE_TEXT_COLOR = '#241a0e';
  * Draws a comic-style speech bubble with `text` — a cream box, a dark
  * border, and a small tail pointing down at (`anchorX`, `anchorBottomY`),
  * already origin-shifted screen-space coordinates (same convention as
- * drawPlayer's own position). Per the user's explicit style preference (see
- * this session's `hint-tooltip-styles` mockup artifact, option 3). Uses a
- * bigger dark rect/triangle behind a smaller inset cream one for both the
- * box and the tail, instead of `ctx.strokeRect`/`ctx.stroke` — reads as a
- * BUBBLE_BORDER_WIDTH-thick outline with only fill-based primitives.
+ * drawPlayer's own position). Uses a bigger dark rect/triangle behind a
+ * smaller inset cream one for both the box and the tail, instead of
+ * `ctx.strokeRect`/`ctx.stroke` — reads as a BUBBLE_BORDER_WIDTH-thick
+ * outline with only fill-based primitives.
  *
- * `growth` (default 1, roadmap step 26 live UX feedback: "shown from bottom
- * to top like the sign is starting to talk") scales the box's and tail's
- * HEIGHT from 0 to their full size while keeping the box's BOTTOM edge
+ * `growth` (default 1) scales the box's and tail's HEIGHT from 0 to their
+ * full size — reading as the bubble rising out of the sign like it's
+ * starting to talk — while keeping the box's BOTTOM edge
  * fixed (where the tail meets it) — the caller passes
  * `hintTooltipGrowthAndOpacity`'s `growth` straight through. `growth <= 0`
  * draws nothing at all. `opacity` (default 1) is applied via
@@ -572,6 +583,43 @@ export function drawCollectibles(
 }
 
 /**
+ * Draws every not-yet-collected key pickup, bobbing exactly like a coin
+ * (shares Coin.ts's coinBobOffset — bobbing isn't coin-specific, same
+ * convention drawCollectibles's fruit already follows). `pickup.x`/`y` are
+ * the defeated purple slime's own tile-top position, so KEY_TILE_OFFSET_X/Y
+ * are added the same way Enemy.ts's enemyTileOffsetX/Y center and
+ * bottom-anchor a larger-than-tile enemy sprite over its placement tile —
+ * without this, the key (narrower than one tile) would draw left-aligned
+ * instead of centered.
+ */
+export function drawKeyPickups(
+  ctx: CanvasRenderingContext2D,
+  pickups: readonly KeyPickupState[],
+  keySprite: HTMLImageElement | null,
+  elapsedSeconds: number,
+  originX = 0,
+  originY = 0,
+): void {
+  if (!keySprite) return;
+  ctx.imageSmoothingEnabled = false;
+  const bob = coinBobOffset(elapsedSeconds);
+  for (const pickup of pickups) {
+    if (pickup.collected) continue;
+    ctx.drawImage(
+      keySprite,
+      0,
+      0,
+      KEY_FRAME_WIDTH,
+      KEY_FRAME_HEIGHT,
+      pickup.x + KEY_TILE_OFFSET_X + originX,
+      pickup.y + KEY_TILE_OFFSET_Y + originY + bob,
+      KEY_RENDERED_WIDTH,
+      KEY_RENDERED_HEIGHT,
+    );
+  }
+}
+
+/**
  * Draws every enemy at its current state position, direction, and animation
  * frame. Each enemy carries its own animState and animFrame (updated per
  * frame during patrol movement — Tasks 5+), so this reads per-enemy state
@@ -599,15 +647,16 @@ export function drawEnemies(
     if (!sprite) continue;
 
     const { sx, sy } = enemyFrameSource(enemy.animState, enemy.animFrame);
-    const dx = enemy.x + ENEMY_TILE_OFFSET_X + originX;
-    const dy = enemy.y + ENEMY_TILE_OFFSET_Y + originY;
+    const size = enemyRenderedSize(enemy.spriteType);
+    const dx = enemy.x + enemyTileOffsetX(enemy.spriteType) + originX;
+    const dy = enemy.y + enemyTileOffsetY(enemy.spriteType) + originY;
 
     if (enemy.direction === 'left') {
       // Mirrors drawPlayer's left-facing flip: translate to the sprite's
       // right edge, then scale(-1, 1) so drawImage's own (0, 0) origin lands
       // where the mirrored sprite's top-left should visually appear.
       ctx.save();
-      ctx.translate(dx + ENEMY_RENDERED_SIZE, dy);
+      ctx.translate(dx + size, dy);
       ctx.scale(-1, 1);
       ctx.drawImage(
         sprite,
@@ -617,8 +666,8 @@ export function drawEnemies(
         ENEMY_FRAME_SIZE,
         0,
         0,
-        ENEMY_RENDERED_SIZE,
-        ENEMY_RENDERED_SIZE,
+        size,
+        size,
       );
       ctx.restore();
       continue;
@@ -632,8 +681,8 @@ export function drawEnemies(
       ENEMY_FRAME_SIZE,
       dx,
       dy,
-      ENEMY_RENDERED_SIZE,
-      ENEMY_RENDERED_SIZE,
+      size,
+      size,
     );
   }
 }
@@ -644,8 +693,7 @@ export function drawEnemies(
  * `hitsTaken` param), the shared bump nudge offset, a crate's crack overlay
  * (composited as a second draw call — it's a standalone sprite, not part of
  * `world_tileset.png`) while cracked, and a crate's shatter fade-out while
- * breaking apart. Roadmap step 21 (steps 21a/21b/21c) — extends step 20's
- * intact-only render.
+ * breaking apart.
  */
 export function drawBlocks(
   ctx: CanvasRenderingContext2D,
@@ -683,8 +731,8 @@ export function drawBlocks(
 }
 
 /**
- * Draws every chest at its current open/closed sprite (roadmap step 22) —
- * each state is a standalone image (not a shared sheet, unlike blocks), so
+ * Draws every chest at its current open/closed sprite — each state is a
+ * standalone image (not a shared sheet, unlike blocks), so
  * this always crops from (0, 0) at that state's own native size. Either
  * sprite may independently be null (not yet loaded); a chest whose current
  * state's sprite is missing is simply skipped for the frame, same convention
@@ -728,11 +776,10 @@ export function drawChests(
 }
 
 /**
- * Draws every question-mark block's spawned bonus fruit (roadmap step 21b) at
- * its current rise-tween position, reusing `fruit.png` at the fruit's own
- * `iconIndex` (amended 2026-08-30, live user feedback: varies per spawn
- * instead of always index 0, so bonus fruits are visually distinguishable
- * from each other).
+ * Draws every question-mark block's spawned bonus fruit at its current
+ * rise-tween position, reusing `fruit.png` at the fruit's own `iconIndex`,
+ * which varies per spawn instead of always index 0, so bonus fruits are
+ * visually distinguishable from each other.
  */
 export function drawBonusFruits(
   ctx: CanvasRenderingContext2D,
@@ -838,10 +885,10 @@ export interface CounterPopupDrawItem {
  * Draws every currently-visible "(icon) collected / total" counter popup
  * (see CollectionEffects.ts's CounterPopupEffect) side by side, the whole
  * row horizontally centered at a caller-chosen fixed screen position, above
- * the fact-flight text's stacked slots (per user request, 2026-08-30 — see
- * PlatformerPage.tsx for where that position comes from and why there can be
- * more than one: each collectible type gets its own independent slot, so
- * collecting a coin and a fruit close together shows both at once). Measures
+ * the fact-flight text's stacked slots — see PlatformerPage.tsx for where
+ * that position comes from and why there can be more than one: each
+ * collectible type gets its own independent slot, so collecting a coin and
+ * a fruit close together shows both at once. Measures
  * every item's text width up front to center the WHOLE row as a group,
  * rather than centering each item independently (which would just stack
  * them concentrically instead of laying them out left to right). */
@@ -921,12 +968,12 @@ export function drawCollectibleCounter(
   // small negative value to compensate.
   iconYOffset = 0,
   // Shrinks only the drawn icon (never the text's start position, which
-  // stays anchored to the full COUNTER_ICON_SIZE-wide slot) — added
-  // 2026-08-30, live user feedback: a crate's edge-to-edge terrain art (no
-  // transparent padding the way coin.png/fruit.png's centered icons have)
-  // reads as noticeably bigger than the other counters' icons at the same
-  // draw size. Defaults to COUNTER_ICON_SIZE (every pre-existing call site's
-  // unchanged behavior).
+  // stays anchored to the full COUNTER_ICON_SIZE-wide slot) — a crate's
+  // edge-to-edge terrain art (no transparent padding the way
+  // coin.png/fruit.png's centered icons have) reads as noticeably bigger
+  // than the other counters' icons at the same draw size otherwise.
+  // Defaults to COUNTER_ICON_SIZE (every pre-existing call site's unchanged
+  // behavior).
   iconDisplaySize = COUNTER_ICON_SIZE,
 ): void {
   ctx.imageSmoothingEnabled = false;
@@ -957,10 +1004,16 @@ export function drawCollectibleCounter(
  *  the chest counter just past it in the same HUD row. */
 const HEARTS_ROW_WIDTH = MAX_HEARTS * HEART_RENDERED_SIZE + (MAX_HEARTS - 1) * HEART_SPACING;
 
+/** Shared horizontal gap between HUD groups (hearts→chest, chest→key) — one
+ *  constant reused for every gap on this row, rather than separately
+ *  hand-tuned numbers, so the rhythm between groups is equal by
+ *  construction instead of by coincidence. */
+export const HUD_GROUP_GAP = 24;
+
 /** Horizontal screen position for the persistent chest counter — placed
  *  just to the right of the heart row, same HUD row as the hearts (not a
- *  second row below them — moved here per live user feedback, 2026-08-30). */
-export const CHEST_COUNTER_X = HEARTS_START_X + HEARTS_ROW_WIDTH + 16;
+ *  second row below them). */
+export const CHEST_COUNTER_X = HEARTS_START_X + HEARTS_ROW_WIDTH + HUD_GROUP_GAP;
 
 /** Vertical screen position for the persistent chest counter — vertically
  *  centered on the same row the hearts occupy (drawHearts draws hearts with
@@ -977,15 +1030,15 @@ export const CHEST_COUNTER_Y = HUD_MARGIN + HEART_RENDERED_SIZE / 2;
  * height rather than forced into a square icon box.
  */
 // Chest art is edge-to-edge with no transparent padding (unlike hearts), so
-// it reads oversized at HEART_RENDERED_SIZE — shrunk to look right at its
-// own smaller size instead.
-export const CHEST_COUNTER_ICON_HEIGHT = 20;
+// it reads oversized at HEART_RENDERED_SIZE — shrunk down from that, but not
+// all the way to 20 (read as too small next to the other HUD icons).
+export const CHEST_COUNTER_ICON_HEIGHT = 26;
 
 // Wider gap than the shared COUNTER_TEXT_GAP (used by drawCollectibleCounter)
 // between the chest icon and its "N / M" text — a dedicated constant so this
 // counter's spacing can be tuned without affecting the unrelated
-// drawCollectibleCounter (live user feedback, 2026-08-30). Exported so tests
-// can pin the exact text x position instead of only asserting `any(Number)`.
+// drawCollectibleCounter. Exported so tests can pin the exact text x
+// position instead of only asserting `any(Number)`.
 export const CHEST_COUNTER_TEXT_GAP = 12;
 
 export function drawChestCounter(
@@ -1017,5 +1070,66 @@ export function drawChestCounter(
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
   ctx.fillText(`${collected} / ${total}`, x + iconWidth + CHEST_COUNTER_TEXT_GAP, y);
+  ctx.restore();
+}
+
+/**
+ * The chest counter's actual on-screen content width (icon + gap + the real
+ * measured "N / M" text, via ctx.measureText — NOT a hand-picked estimate).
+ * Used to position the key counter's X so the chest→key gap always exactly
+ * matches HUD_GROUP_GAP regardless of how many digits `collected`/`total`
+ * happen to have, instead of drifting whenever the guessed text width and
+ * the real one disagree. `ctx.font` is set here to the same font
+ * drawChestCounter itself uses, so the measurement is accurate regardless of
+ * whatever the context's font was left at beforehand.
+ */
+export function chestCounterWidth(ctx: CanvasRenderingContext2D, collected: number, total: number): number {
+  const iconWidth = (CHEST_CLOSED_WIDTH / CHEST_CLOSED_HEIGHT) * CHEST_COUNTER_ICON_HEIGHT;
+  ctx.font = `22px "${RESTART_PROMPT_FONT_FAMILY}", monospace`;
+  const textWidth = ctx.measureText(`${collected} / ${total}`).width;
+  return iconWidth + CHEST_COUNTER_TEXT_GAP + textWidth;
+}
+
+/** Horizontal screen position for the key counter — placed just to the right
+ *  of the chest counter's actual measured width, same HUD row, separated by
+ *  the same HUD_GROUP_GAP the hearts→chest gap uses. Callers (both
+ *  PlatformerPage.tsx's render loop and its key-collection flight-effect
+ *  target) must call this with the CURRENT chest collected/total — it is a
+ *  function, not a static constant, precisely because that width isn't
+ *  fixed. */
+export function keyCounterX(ctx: CanvasRenderingContext2D, chestCollected: number, chestTotal: number): number {
+  return CHEST_COUNTER_X + chestCounterWidth(ctx, chestCollected, chestTotal) + HUD_GROUP_GAP;
+}
+
+export const KEY_COUNTER_Y = CHEST_COUNTER_Y;
+
+/** Between CHEST_COUNTER_ICON_HEIGHT (26) and HEART_RENDERED_SIZE (32) — the
+ *  current key.png is a bold, chunky shape (unlike an earlier thin 14x28
+ *  version, which needed the full heart height to avoid looking shrunk), so
+ *  a smaller HUD icon than the world sprite reads fine without looking
+ *  undersized next to the hearts/chest icons on the same row. */
+const KEY_COUNTER_ICON_HEIGHT = 24;
+
+/** Draws the "[key icon] N" HUD counter — no "/ total" denominator (unlike
+ *  drawChestCounter): a key count has no fixed total to compare against, it
+ *  just goes up and down as keys are found and spent. */
+export function drawKeyCounter(
+  ctx: CanvasRenderingContext2D,
+  keySprite: HTMLImageElement,
+  count: number,
+  x: number,
+  y: number,
+): void {
+  ctx.imageSmoothingEnabled = false;
+  const iconHeight = KEY_COUNTER_ICON_HEIGHT;
+  const iconWidth = (KEY_FRAME_WIDTH / KEY_FRAME_HEIGHT) * iconHeight;
+  ctx.drawImage(keySprite, 0, 0, KEY_FRAME_WIDTH, KEY_FRAME_HEIGHT, x, y - iconHeight / 2, iconWidth, iconHeight);
+
+  ctx.save();
+  ctx.fillStyle = '#fff';
+  ctx.font = `22px "${RESTART_PROMPT_FONT_FAMILY}", monospace`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`${count}`, x + iconWidth + CHEST_COUNTER_TEXT_GAP, y);
   ctx.restore();
 }

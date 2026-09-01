@@ -7,7 +7,13 @@ import {
 import type { PlayerState } from '../entities/Player';
 import { COIN_RENDERED_SIZE } from '../entities/Coin';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
-import { ENEMY_RENDERED_SIZE } from '../entities/Enemy';
+import {
+  enemyRenderedSize,
+  enemyTileOffsetX,
+  enemyTileOffsetY,
+  enemyHitboxSidePadding,
+  enemyHitboxTopPadding,
+} from '../entities/Enemy';
 import type { EnemyState } from '../entities/Enemy';
 import { bonusFruitY, BONUS_FRUIT_RISE_DURATION_SECONDS } from '../entities/BonusFruit';
 import type { BonusFruitState } from '../entities/BonusFruit';
@@ -22,6 +28,13 @@ import type { ChestState } from '../entities/Chest';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { SignPlacement } from '../level/SignMapper';
 import type { HintId } from '../types';
+import type { KeyPickupState } from '../entities/KeyPickup';
+import {
+  KEY_RENDERED_WIDTH,
+  KEY_RENDERED_HEIGHT,
+  KEY_TILE_OFFSET_X,
+  KEY_TILE_OFFSET_Y,
+} from '../entities/KeyPickup';
 
 export interface Box {
   x: number;
@@ -80,11 +93,24 @@ export function checkCollectibleCollisions(
   return collected;
 }
 
-/** An enemy's collision box — the full render slot (enemies have no
- *  transparent-padding trim the way the player's hitbox does; see Enemy.ts's
- *  doc comment on `ENEMY_TILE_OFFSET_Y`). */
+/**
+ * An enemy's collision box — inset from the full render slot by the same
+ * tile-centering offset `drawEnemies` draws the sprite at
+ * (`enemyTileOffsetX`/`enemyTileOffsetY`), plus a further sprite-shape inset
+ * (`enemyHitboxSidePadding`/`enemyHitboxTopPadding`, measured from the
+ * sprite's own transparent margins) so the box coincides with the visible,
+ * rounded slime silhouette rather than its full square render slot.
+ */
 export function enemyHitbox(enemy: EnemyState): Box {
-  return { x: enemy.x, y: enemy.y, width: ENEMY_RENDERED_SIZE, height: ENEMY_RENDERED_SIZE };
+  const size = enemyRenderedSize(enemy.spriteType);
+  const sidePad = enemyHitboxSidePadding(enemy.spriteType);
+  const topPad = enemyHitboxTopPadding(enemy.spriteType);
+  return {
+    x: enemy.x + enemyTileOffsetX(enemy.spriteType) + sidePad,
+    y: enemy.y + enemyTileOffsetY(enemy.spriteType) + topPad,
+    width: size - 2 * sidePad,
+    height: size - topPad,
+  };
 }
 
 /**
@@ -92,20 +118,19 @@ export function enemyHitbox(enemy: EnemyState): Box {
  * this frame: overlapping AND falling (`player.vy > 0`) AND landing on the
  * enemy's upper half (the player's hitbox bottom edge is at or above the
  * enemy's vertical midpoint) — this is what distinguishes "jumped on top of"
- * from a side/below touch (roadmap step 19's separate concern, intentionally
- * not handled here: this function returns [] for that case, same as for no
- * contact at all). An enemy already `defeated`, or one whose `hitPoints` has
- * already reached 0 (mid `hit`-reaction, awaiting removal), is excluded —
- * without this, a stomp's own bounce naturally arcs back down onto the same
- * enemy, and would otherwise keep decrementing `hitPoints` arbitrarily far
- * below 0 every time (found via live testing). Deliberately NOT gated on
- * `animState === 'hit'` alone, nor on any player-side cooldown/landing/
- * separation tracking — this engine has no double-jump, so "the player
- * lands on the same still-alive enemy again while still airborne from their
- * own stomp bounce" is a deliberate, desired mechanic (chain-stomping a
- * 2-hit purple enemy in one fluid motion), confirmed live with the user, not
- * a bug to guard against. `hitPoints > 0` is the only thing that should stop
- * a stomp from registering.
+ * from a side/below touch (a separate concern, intentionally not handled
+ * here: this function returns [] for that case, same as for no contact at
+ * all). An enemy already `defeated`, or one whose `hitPoints` has already
+ * reached 0 (mid `hit`-reaction, awaiting removal), is excluded — without
+ * this, a stomp's own bounce naturally arcs back down onto the same enemy,
+ * and would otherwise keep decrementing `hitPoints` arbitrarily far below 0
+ * every time. Deliberately NOT gated on `animState === 'hit'` alone, nor on
+ * any player-side cooldown/landing/separation tracking — this engine has no
+ * double-jump, so "the player lands on the same still-alive enemy again
+ * while still airborne from their own stomp bounce" is a deliberate,
+ * desired mechanic (chain-stomping a 3-hit purple enemy in one fluid
+ * motion), not a bug to guard against. `hitPoints > 0` is the only thing
+ * that should stop a stomp from registering.
  */
 export function checkEnemyStompCollisions(player: PlayerState, enemies: EnemyState[]): string[] {
   if (player.vy <= 0) return [];
@@ -125,18 +150,16 @@ export function checkEnemyStompCollisions(player: PlayerState, enemies: EnemySta
 
 /**
  * Returns the ids of every non-defeated, non-reacting enemy the player is
- * touching in a way that is NOT a stomp (roadmap step 19) — the exact
- * inverse of `checkEnemyStompCollisions`'s landing condition: any overlap
- * where the player either isn't falling (`vy <= 0`) or is falling but
- * contacting the enemy's lower half (side or below), not landing on its
- * upper half. An enemy currently playing its `hit` reaction is excluded here
- * too, same as stomp detection — this was originally left hurt-capable
- * per an earlier design decision, but live testing showed that immediately
- * bouncing off a stomp while still overlapping the now-frozen enemy (rising,
- * or drifting beside it before separating) registered as a spurious side-hit
- * against the very enemy just stomped. A stunned/reacting enemy is now
- * harmless in every way until its reaction ends, not just immune to a
- * second stomp.
+ * touching in a way that is NOT a stomp — the exact inverse of
+ * `checkEnemyStompCollisions`'s landing condition: any overlap where the
+ * player either isn't falling (`vy <= 0`) or is falling but contacting the
+ * enemy's lower half (side or below), not landing on its upper half. An
+ * enemy currently playing its `hit` reaction is excluded here too, same as
+ * stomp detection — otherwise, immediately bouncing off a stomp while still
+ * overlapping the now-frozen enemy (rising, or drifting beside it before
+ * separating) would register as a spurious side-hit against the very enemy
+ * just stomped. A stunned/reacting enemy is harmless in every way until its
+ * reaction ends, not just immune to a second stomp.
  */
 export function checkEnemySideCollisions(player: PlayerState, enemies: EnemyState[]): string[] {
   const hitbox = playerHitbox(player);
@@ -224,4 +247,34 @@ export function checkSignOverlap(
     if (aabbOverlap(hitbox, box)) return sign.hintId;
   }
   return undefined;
+}
+
+/**
+ * Returns the ids of every NOT-yet-collected key pickup the player's hitbox
+ * currently overlaps. Unlike checkCollectibleCollisions, there's no external
+ * `collectedIds` set — a pickup's own `collected` flag is the source of
+ * truth (PlatformerState.ts's keyPickupStates keeps collected entries around,
+ * flagged rather than removed, so a defeated purple slime can never drop a
+ * second key on a later respawn — see KeyPickup.ts's doc comment). The box
+ * is offset by KEY_TILE_OFFSET_X/Y, the same centering/bottom-anchoring
+ * Renderer.ts's drawKeyPickups applies, so the collidable area matches where
+ * the key is actually drawn rather than the tile's raw top-left corner.
+ */
+export function checkKeyPickupCollisions(
+  player: PlayerState,
+  pickups: readonly KeyPickupState[],
+): string[] {
+  const hitbox = playerHitbox(player);
+  const hits: string[] = [];
+  for (const pickup of pickups) {
+    if (pickup.collected) continue;
+    const box: Box = {
+      x: pickup.x + KEY_TILE_OFFSET_X,
+      y: pickup.y + KEY_TILE_OFFSET_Y,
+      width: KEY_RENDERED_WIDTH,
+      height: KEY_RENDERED_HEIGHT,
+    };
+    if (aabbOverlap(hitbox, box)) hits.push(pickup.id);
+  }
+  return hits;
 }

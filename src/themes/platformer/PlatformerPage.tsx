@@ -23,6 +23,10 @@ import {
   CHEST_COUNTER_Y,
   drawSigns,
   drawSignBubble,
+  drawKeyPickups,
+  drawKeyCounter,
+  keyCounterX,
+  KEY_COUNTER_Y,
 } from './engine/Renderer';
 import { drawDebugOverlay } from './engine/DebugOverlay';
 import { createGameLoop } from './engine/GameLoop';
@@ -51,11 +55,13 @@ import {
   checkBonusFruitCollisions,
   chestPlayerIsStandingOn,
   checkSignOverlap,
+  checkKeyPickupCollisions,
 } from './engine/Collision';
 import { openChest, allChestsOpen, isChestOpen, CHEST_CLOSED_OFFSET_X } from './entities/Chest';
 import { stepBlockAnimation } from './engine/BlockAI';
 import { applyBlockHit, isBlockUsedUp, isBlockRemoved, blockFrameSource, BLOCK_FRAME_SIZE } from './entities/Block';
 import { spawnBonusFruit, tickBonusFruit, bonusFruitY } from './entities/BonusFruit';
+import { spawnKeyPickup, KEY_TILE_OFFSET_X, KEY_TILE_OFFSET_Y } from './entities/KeyPickup';
 import {
   startFlightEffect,
   tickFlightEffect,
@@ -76,6 +82,7 @@ import {
   grantInvincibility,
   PLAYER_RENDERED_SIZE,
   PLAYER_VISUAL_CENTER_Y_OFFSET,
+  PLAYER_HEAD_PADDING,
 } from './entities/Player';
 import { advanceEnemyAnimation, applyStomp, ENEMY_FRAME_SIZE } from './entities/Enemy';
 import { takeDamage, PIT_FALL_DAMAGE, SIDE_HIT_DAMAGE, INVINCIBILITY_DURATION_SECONDS } from './entities/Health';
@@ -104,6 +111,8 @@ import {
   endingScreenOpen,
   signPlacements,
   hintTooltipState,
+  keyPickupStates,
+  collectedKeys,
 } from './PlatformerState';
 import { useSignals } from '@preact/signals-react/runtime';
 import { Journal } from './components/Journal';
@@ -117,15 +126,15 @@ import {
   tickHintTooltip,
   hintTooltipGrowthAndOpacity,
 } from './engine/HintTooltip';
+import type { HintId } from './types';
 
 // Vertical spacing between stacked fact-flight rows when several pickups are
 // collected close together — a bit more than the 28px collection-effect
 // font size (Renderer.ts's COLLECTION_EFFECT_FONT_SIZE) so stacked lines
 // don't touch.
 const COLLECTION_TEXT_STACK_ROW_HEIGHT = 34;
-// How often the player's sprite toggles visible/invisible while invincible
-// (roadmap step 19) — short enough to read clearly as "blinking", not a slow
-// pulse.
+// How often the player's sprite toggles visible/invisible while invincible —
+// short enough to read clearly as "blinking", not a slow pulse.
 const INVINCIBILITY_BLINK_INTERVAL_SECONDS = 0.1;
 
 export const PlatformerPage = () => {
@@ -147,6 +156,7 @@ export const PlatformerPage = () => {
   const crackOverlaySpriteRef = useRef<HTMLImageElement | null>(null);
   const chestClosedSpriteRef = useRef<HTMLImageElement | null>(null);
   const chestOpenSpriteRef = useRef<HTMLImageElement | null>(null);
+  const keySpriteRef = useRef<HTMLImageElement | null>(null);
   // Ref to the game loop's KeyboardInput, set once inside the mount effect
   // below right after createKeyboardInput() runs. Needed by
   // handleDismissEndingScreen (defined outside that effect) so it can drain
@@ -263,9 +273,8 @@ export const PlatformerPage = () => {
     // reopens every chest, so a visitor who re-opens all of them after
     // resetting must be able to see the Thank You screen again. This extra
     // assignment is defensive (the Reset Game button isn't actually
-    // reachable while the ending screen is showing today — see Important
-    // 2's investigation in the task-13 report — but costs nothing to keep in
-    // sync regardless).
+    // reachable while the ending screen is showing today, but costs nothing
+    // to keep in sync regardless).
     endingScreenOpen.value = false;
     const center = spawnCenter();
     lifecycleState.value = introState(center.x, center.y);
@@ -318,22 +327,20 @@ export const PlatformerPage = () => {
 
     // Which vertical slot the next collection's fact text lands in — reseeded
     // every tick from how many fact-flight effects are actually still in
-    // flight (see below), NOT a plain ever-incrementing counter: an earlier
-    // version just cycled 0, 1, 2, 0, 1, 2, ... across every collection ever,
-    // so a single item collected in isolation could still land on slot 1 or 2
-    // (visibly offset below the primary spot) purely because of how many
-    // items happened to be collected earlier in the session, even minutes
-    // apart with nothing overlapping (live user feedback, 2026-08-30).
-    // Reseeding from the live in-flight count instead means an isolated pickup
-    // always lands on slot 0, and only pickups that are actually concurrent
-    // (their effects still mid-animation) spread across further slots.
+    // flight (see below), NOT a plain ever-incrementing counter: a plain
+    // ever-incrementing counter would let a single item collected in
+    // isolation land on slot 1 or 2 (visibly offset below the primary spot)
+    // purely because of how many items were collected earlier in the
+    // session, even minutes apart with nothing overlapping. Reseeding from
+    // the live in-flight count instead means an isolated pickup always lands
+    // on slot 0, and only pickups that are actually concurrent (their
+    // effects still mid-animation) spread across further slots.
     let nextTextSlot = 0;
 
     // Cycles through fruit.png's icon frames (see Fruit.ts's
     // FRUIT_ICON_COUNT) so successive question-mark bonus fruits look
-    // visibly different from each other (amended 2026-08-30, live user
-    // feedback) — same "just keep incrementing, let spawnBonusFruit wrap it"
-    // convention as nextTextSlot above.
+    // visibly different from each other — same "just keep incrementing, let
+    // spawnBonusFruit wrap it" convention as nextTextSlot above.
     let nextBonusFruitIcon = 0;
 
     const resize = () => {
@@ -363,11 +370,11 @@ export const PlatformerPage = () => {
         drawSigns(ctx, signPlacements.value, tilesetRef.current, originX, originY);
       }
 
-      // Drawn BEFORE blocks (amended 2026-08-30, live user feedback): a
-      // bonus fruit spawns at its source block's own position and rises
-      // through it — drawing it first lets the block's own tile occlude the
-      // still-rising fruit until it clears the block's top edge, reading as
-      // "popping out from behind the block" instead of floating on top of it.
+      // Drawn BEFORE blocks: a bonus fruit spawns at its source block's own
+      // position and rises through it — drawing it first lets the block's
+      // own tile occlude the still-rising fruit until it clears the block's
+      // top edge, reading as "popping out from behind the block" instead of
+      // floating on top of it.
       if (fruitSpriteRef.current) {
         drawBonusFruits(ctx, bonusFruitStates.value, fruitSpriteRef.current, originX, originY);
       }
@@ -427,19 +434,25 @@ export const PlatformerPage = () => {
         );
       }
 
+      drawKeyPickups(ctx, keyPickupStates.value, keySpriteRef.current, worldAnimElapsed, originX, originY);
+
       const tooltip = hintTooltipState.value;
       if (tooltip) {
         const hintText = currentUI.value.platformer.hints[tooltip.hintId];
         const anchorX = playerState.value.x + PLAYER_RENDERED_SIZE / 2 + originX;
-        const anchorBottomY = playerState.value.y + originY;
+        // Anchored at the player's actual visible head (render-slot top plus
+        // PLAYER_HEAD_PADDING), not the render slot's own top — the slot has
+        // transparent padding above the head, so using it directly floated
+        // the bubble noticeably higher than the character.
+        const anchorBottomY = playerState.value.y + PLAYER_HEAD_PADDING + originY;
         const { growth, opacity } = hintTooltipGrowthAndOpacity(tooltip);
         drawSignBubble(ctx, hintText, anchorX, anchorBottomY, growth, opacity);
       }
 
       drawCollectionEffects(ctx, activeEffects.value);
 
-      // Trial counter popups (per user request, 2026-08-30 — see
-      // activeCounterPopups's doc comment in PlatformerState.ts): drawn above
+      // Trial counter popups (see activeCounterPopups's doc comment in
+      // PlatformerState.ts): drawn above
       // the fact-flight text's stacked slots (canvas.height * 0.3, minus one
       // row height, matches the vertical gap COLLECTION_TEXT_STACK_ROW_HEIGHT
       // already uses between stacked slots), the whole row horizontally
@@ -507,6 +520,15 @@ export const PlatformerPage = () => {
           CHEST_COUNTER_X,
           CHEST_COUNTER_Y,
         );
+      }
+
+      if (keySpriteRef.current && collectedKeys.value > 0) {
+        const keyX = keyCounterX(
+          ctx,
+          chestStates.value.filter(isChestOpen).length,
+          chestPlacements.value.length,
+        );
+        drawKeyCounter(ctx, keySpriteRef.current, collectedKeys.value, keyX, KEY_COUNTER_Y);
       }
 
       // Iris overlay: drawn on top of everything else whenever the current
@@ -646,8 +668,8 @@ export const PlatformerPage = () => {
         .map((block) => stepBlockAnimation(block, dt))
         .filter((block) => !isBlockRemoved(block));
 
-      // Bonus fruits (roadmap step 21b) rise on their own fixed timer,
-      // independent of anything else this tick.
+      // Bonus fruits rise on their own fixed timer, independent of anything
+      // else this tick.
       bonusFruitStates.value = bonusFruitStates.value.map((fruit) => tickBonusFruit(fruit, dt));
 
       // Enemies whose hit reaction just finished with no hit points left:
@@ -673,6 +695,19 @@ export const PlatformerPage = () => {
 
         let anyEnemyRewarded = false;
         for (const enemy of justDefeated) {
+          // A defeated purple slime carries no fact at all — it drops a key
+          // pickup instead (spec.md User Story 4). Keys, like facts, persist
+          // across respawns (FR-020c-style dedup: `resetGame()` revives
+          // enemies but deliberately never clears `keyPickupStates`), so a
+          // revived purple slime stomped again in a later life must not drop
+          // a second key for the same source enemy id.
+          if (enemy.spriteType === 'slimePurple') {
+            const alreadyDropped = keyPickupStates.value.some((k) => k.id === enemy.id);
+            if (!alreadyDropped) {
+              keyPickupStates.value = [...keyPickupStates.value, spawnKeyPickup(enemy.id, enemy.x, enemy.y)];
+            }
+            continue;
+          }
           // A "plain" enemy (a marker beyond its color's CVData course
           // count, see EnemyMapper.ts) carries no fact at all — it's still
           // removed via the `filter` below, just with no reward. Facts also
@@ -684,13 +719,10 @@ export const PlatformerPage = () => {
           if (!fact || newFacts.some((f) => f.id === fact.id)) continue;
           anyEnemyRewarded = true;
           newFacts.push(fact);
-          // Reuses the journal's own title/icon derivation (amended
-          // 2026-08-30, live user feedback: a course kill's flight text
-          // showed the generic "Courses" section label instead of the
-          // course's own title, since the old ad-hoc `'name' in data` check
-          // doesn't cover Course's `title` field — nor Experience's
-          // `role`/`company` or Education's `degree` — formatJournalEntry
-          // already gets every section's display title right).
+          // Reuses the journal's own title/icon derivation — formatJournalEntry
+          // gets every section's display title right (Course's `title` field,
+          // Experience's `role`/`company`, Education's `degree`, etc.), unlike
+          // an ad-hoc `'name' in data` check would.
           const { icon, title: label } = formatJournalEntry(fact);
           const slot = nextTextSlot;
           nextTextSlot = (nextTextSlot + 1) % COLLECTION_TEXT_SLOT_COUNT;
@@ -778,9 +810,9 @@ export const PlatformerPage = () => {
           nextCollected.add(id);
           newFacts.push(placement.fact);
 
-          // Reuses the journal's own title/icon derivation (amended
-          // 2026-08-30 — see the enemy-defeat block above for why the old
-          // ad-hoc `'name' in data` check was wrong for several sections).
+          // Reuses the journal's own title/icon derivation — see the
+          // enemy-defeat block above for why an ad-hoc `'name' in data`
+          // check would be wrong for several sections.
           // `icon` is passed to `startFlightEffect` separately, NOT
           // concatenated into `label`: Renderer.ts draws it in a different
           // font (the pixel font `label` uses has no emoji glyphs).
@@ -825,10 +857,10 @@ export const PlatformerPage = () => {
         }
       }
 
-      // Bonus fruits (amended 2026-08-30, live user feedback): a question-
-      // mark's spawned fruit now DOES carry a CV fact (Certificates/
-      // Projects — see BlockMapper.ts's certificateToBlock/projectToBlock)
-      // and reveals it exactly like any other collectible on touch. A fruit
+      // Bonus fruits: a question-mark's spawned fruit carries a CV fact
+      // (Certificates/Projects — see BlockMapper.ts's
+      // certificateToBlock/projectToBlock) and reveals it exactly like any
+      // other collectible on touch. A fruit
       // spawned from a question-mark marker beyond the available data
       // (`fruit.fact === undefined`) still removes silently, same as before.
       const touchedBonusFruitIds = checkBonusFruitCollisions(playerState.value, bonusFruitStates.value);
@@ -849,8 +881,8 @@ export const PlatformerPage = () => {
 
           anyBonusFruitRewarded = true;
           newFacts.push(fruit.fact);
-          // Reuses the journal's own title/icon derivation (amended
-          // 2026-08-30 — see the enemy-defeat block above).
+          // Reuses the journal's own title/icon derivation — see the
+          // enemy-defeat block above.
           const { icon, title: label } = formatJournalEntry(fruit.fact);
           const slot = nextTextSlot;
           nextTextSlot = (nextTextSlot + 1) % COLLECTION_TEXT_SLOT_COUNT;
@@ -889,8 +921,56 @@ export const PlatformerPage = () => {
         }
       }
 
-      // Chests (roadmap step 22) don't open on touch like every other
-      // collectible — spec.md FR-023 requires an explicit Arrow Up press
+      // Key pickups: dropped by defeated purple slimes (see the justDefeated
+      // block above), collected on touch like a coin, but banked as a count
+      // rather than a per-item fact — flagged `collected: true` in place
+      // (not removed from the array) so drawKeyPickups's own skip-if-collected
+      // check keeps the pickup out of the render list without needing a
+      // separate "already gone" list. Unlike every other pickup here, the
+      // flight target isn't the journal icon — it's the canvas-drawn HUD key
+      // counter's screen position (keyCounterX/KEY_COUNTER_Y), used directly
+      // with no origin/camera offset since the HUD is screen-fixed. keyCounterX
+      // needs a 2D context to measure the chest counter's current text width
+      // (same real position render() draws the key counter at) — canvas
+      // already has one from this component's setup, reused here rather than
+      // recreating it. There's no per-key fact/label the way other pickups
+      // have one, so the flight text is just a static "Key" caption.
+      const touchedKeyIds = checkKeyPickupCollisions(playerState.value, keyPickupStates.value);
+      if (touchedKeyIds.length > 0) {
+        const newEffects = [...activeEffects.value];
+        const midX = canvas.width / 2;
+        const midY = canvas.height * 0.3;
+        const hudCtx = canvas.getContext('2d');
+        const keyX = hudCtx
+          ? keyCounterX(hudCtx, chestStates.value.filter(isChestOpen).length, chestPlacements.value.length)
+          : CHEST_COUNTER_X;
+        for (const pickup of keyPickupStates.value) {
+          if (!touchedKeyIds.includes(pickup.id)) continue;
+          const slot = nextTextSlot;
+          nextTextSlot = (nextTextSlot + 1) % COLLECTION_TEXT_SLOT_COUNT;
+          const stackOffsetY = slot * COLLECTION_TEXT_STACK_ROW_HEIGHT;
+          newEffects.push(
+            startFlightEffect(
+              pickup.id,
+              'Key',
+              pickup.x + KEY_TILE_OFFSET_X + originX,
+              pickup.y + KEY_TILE_OFFSET_Y + originY + stackOffsetY,
+              midX,
+              midY + stackOffsetY,
+              keyX,
+              KEY_COUNTER_Y,
+            ),
+          );
+        }
+        activeEffects.value = newEffects;
+        keyPickupStates.value = keyPickupStates.value.map((k) =>
+          touchedKeyIds.includes(k.id) ? { ...k, collected: true } : k,
+        );
+        collectedKeys.value += touchedKeyIds.length;
+      }
+
+      // Chests don't open on touch like every other collectible — spec.md
+      // FR-023 requires an explicit Arrow Up press
       // while standing on one (KeyW also works, mirroring the A/D-as-
       // Left/Right convention — see FR-007). `originX`/`originY` are already
       // in scope from this tick's earlier collision blocks above.
@@ -902,13 +982,18 @@ export const PlatformerPage = () => {
       const arrowUpPressed = input.consumePress('ArrowUp');
       const wPressed = input.consumePress('KeyW');
       const interactPressed = arrowUpPressed || wPressed;
+      // Computed unconditionally (not just inside `if (interactPressed)`) so
+      // the "no key" hint bubble below can also read it — standing on a
+      // closed chest with zero keys is itself the trigger condition for that
+      // bubble, independent of whether Up was actually pressed this tick.
+      const standingChestId = chestPlayerIsStandingOn(playerState.value, chestStates.value);
       if (interactPressed) {
-        const standingChestId = chestPlayerIsStandingOn(playerState.value, chestStates.value);
-        if (standingChestId) {
+        if (standingChestId && collectedKeys.value > 0) {
           const chest = chestStates.value.find((c) => c.id === standingChestId)!;
           chestStates.value = chestStates.value.map((c) =>
             c.id === standingChestId ? openChest(c) : c,
           );
+          collectedKeys.value -= 1;
           if (!collectedFacts.value.some((f) => f.id === chest.fact.id)) {
             const journalRect = journalButtonRef.current?.getBoundingClientRect();
             const targetX = journalRect ? journalRect.left + journalRect.width / 2 : canvas.width - 32;
@@ -928,8 +1013,7 @@ export const PlatformerPage = () => {
                 // Shifted by CHEST_CLOSED_OFFSET_X (see entities/Chest.ts) to
                 // start from the chest's actual centered-on-tile left edge —
                 // only the closed offset applies here, since this only fires
-                // the instant a closed chest is opened (D2/Minor 2, final
-                // review).
+                // the instant a closed chest is opened.
                 chest.x + originX + CHEST_CLOSED_OFFSET_X,
                 chest.y + originY + stackOffsetY,
                 midX,
@@ -943,27 +1027,43 @@ export const PlatformerPage = () => {
         }
       }
 
-      // FR-038, revised per live UX feedback: revealed like a chest — stand
-      // on a sign and press Up/W (interactPressed, computed above for
-      // chest-opening) — but reusable (not dedup-tracked) and hidden again
+      // FR-038: revealed like a chest — stand on a sign (or, per the same
+      // convention, a locked chest with zero keys) and press Up/W
+      // (interactPressed, computed above for chest-opening) — but reusable
+      // (not dedup-tracked) and hidden again
       // automatically the instant the player leaves overlap, with no
       // keypress needed to dismiss it.
       if (hintTooltipState.value) {
         hintTooltipState.value = tickHintTooltip(hintTooltipState.value, dt);
       }
       const overlappingSignHintId = checkSignOverlap(playerState.value, signPlacements.value);
+      // A closed chest the player is standing on, while holding zero keys,
+      // is itself an "overlapping something with a hint" case — reuses the
+      // existing chestNeedsKey hint text (spec.md's i18n `platformer.hints`)
+      // that already existed for this purpose but was previously only
+      // reachable via an unplaced hint-sign marker. Signs take priority in
+      // the vanishingly unlikely case a chest and a sign tile overlap.
+      // Re-checked against the CURRENT chestStates (not the `standingChestId`
+      // captured above, before the chest-open block ran) — a chest just
+      // successfully opened this same tick is no longer "closed and stood
+      // on", so `chestPlayerIsStandingOn` correctly stops returning its id
+      // (it skips open chests), and no bubble should show for that case.
+      const standingClosedChestId = chestPlayerIsStandingOn(playerState.value, chestStates.value);
+      const lockedChestHintId: HintId | undefined =
+        !overlappingSignHintId && standingClosedChestId && collectedKeys.value <= 0 ? 'chestNeedsKey' : undefined;
+      const overlappingHintId = overlappingSignHintId ?? lockedChestHintId;
       const currentTooltip = hintTooltipState.value;
-      if (overlappingSignHintId && interactPressed) {
-        if (!currentTooltip || currentTooltip.hintId !== overlappingSignHintId) {
-          hintTooltipState.value = startHintTooltip(overlappingSignHintId);
+      if (overlappingHintId && interactPressed) {
+        if (!currentTooltip || currentTooltip.hintId !== overlappingHintId) {
+          hintTooltipState.value = startHintTooltip(overlappingHintId);
         } else if (currentTooltip.phase === 'exiting') {
           // Pressed Up again before the previous reveal finished leaving —
           // restart the entrance rather than leaving it stuck exiting.
           hintTooltipState.value = { ...currentTooltip, phase: 'entering', elapsed: 0 };
         }
-        // Already 'entering'/'shown' for this exact sign: a repeat press
-        // while it's already up is a harmless no-op.
-      } else if (!overlappingSignHintId && currentTooltip && currentTooltip.phase !== 'exiting') {
+        // Already 'entering'/'shown' for this exact sign/chest: a repeat
+        // press while it's already up is a harmless no-op.
+      } else if (!overlappingHintId && currentTooltip && currentTooltip.phase !== 'exiting') {
         hintTooltipState.value = beginHintTooltipExit(currentTooltip);
       }
 
@@ -980,15 +1080,14 @@ export const PlatformerPage = () => {
         };
       }
 
-      // Side/below damage (roadmap step 19) — only checked while not already
-      // invincible, so one overlap can't register repeated hits every tick
-      // it persists. A `hit`-reacting enemy IS excluded here (unlike stomp
-      // detection, which only excludes an enemy once its `hitPoints` reach
-      // 0 — see Collision.ts's checkEnemyStompCollisions) — reversed from an
-      // earlier design decision after live testing showed a hit-reacting
-      // enemy must stay harmless to side-touch for its whole reaction, or
-      // bouncing off a stomp while still overlapping it registered as a
-      // spurious side-hit.
+      // Side/below damage — only checked while not already invincible, so
+      // one overlap can't register repeated hits every tick it persists. A
+      // `hit`-reacting enemy IS excluded here (unlike stomp detection, which
+      // only excludes an enemy once its `hitPoints` reach 0 — see
+      // Collision.ts's checkEnemyStompCollisions): a hit-reacting enemy must
+      // stay harmless to side-touch for its whole reaction, or bouncing off
+      // a stomp while still overlapping it would register as a spurious
+      // side-hit.
       //
       // Excludes any id already in `stompedIds`: the stomp block above just
       // reassigned `playerState.value.vy` to the (negative, upward)
@@ -1025,8 +1124,8 @@ export const PlatformerPage = () => {
       const dropThroughHeld = input.isHeld('ArrowDown') || input.isHeld('KeyS');
       // Held (not edge-triggered) — climbing is continuous like movement,
       // unlike the edge-triggered ArrowUp/KeyW read further below for chest
-      // interaction (roadmap step 23; the two never conflict in practice,
-      // since a tile is either a chest marker or a ladder tile, never both).
+      // interaction (the two never conflict in practice, since a tile is
+      // either a chest marker or a ladder tile, never both).
       const climbUpHeld = input.isHeld('ArrowUp') || input.isHeld('KeyW');
 
       let next = stepPlayerPhysics(
@@ -1044,7 +1143,7 @@ export const PlatformerPage = () => {
         blockStates.value,
       );
 
-      // Block hit mechanics (roadmap step 21): `next.hitBlockIds` (set by
+      // Block hit mechanics: `next.hitBlockIds` (set by
       // Physics.ts's ceiling-collision check, same call above) reports every
       // block whose underside the player's head just hit this tick — but
       // only a block that ISN'T already used up actually reacts (a
@@ -1080,25 +1179,24 @@ export const PlatformerPage = () => {
             ];
           }
 
-          // FragileRock's terminal hit (breaks to empty space, no fact, no reward —
-          // FR-022c) still gets a visual "puff" (amended 2026-08-30, live
-          // user feedback): the same sparkle-burst mechanism every other
-          // reward pickup already plays (drawCollectionEffects reads
+          // FragileRock's terminal hit (breaks to empty space, no fact, no
+          // reward — FR-022c) still gets a visual "puff": the same
+          // sparkle-burst mechanism every other reward pickup already plays
+          // (drawCollectionEffects reads
           // `effect.startX/startY`, independent of `effect.text`), with an
           // empty label and no target-flight destination that matters since
           // nothing is actually flying anywhere — the sparkle at the
           // collection point is the only visible part.
           if (block.blockKind === 'fragileRock') {
-            // Centered on the fragileRock's own tile (not its top-left corner —
-            // amended 2026-08-30, live user feedback). The burst's size
-            // itself (SPARKLE_RADIUS_PX/SPARKLE_MAX_RADIUS in
-            // CollectionEffects.ts/Renderer.ts) is a shared constant every
-            // collection effect uses, not parameterized per-effect — scaling
-            // it up just for rocks would mean threading a size override
-            // through FlightEffect/sparkleParticles/drawCollectionEffects,
-            // affecting every other effect's call sites too; left at the
-            // shared default per the user's own "keep it if not [easily
-            // scalable]" call.
+            // Centered on the fragileRock's own tile, not its top-left
+            // corner. The burst's size itself (SPARKLE_RADIUS_PX/
+            // SPARKLE_MAX_RADIUS in CollectionEffects.ts/Renderer.ts) is a
+            // shared constant every collection effect uses, not
+            // parameterized per-effect — scaling it up just for rocks would
+            // mean threading a size override through
+            // FlightEffect/sparkleParticles/drawCollectionEffects, affecting
+            // every other effect's call sites too, so it stays at the shared
+            // default.
             const puffX = block.x + originX + RENDERED_TILE_SIZE / 2;
             const puffY = block.y + originY + RENDERED_TILE_SIZE / 2;
             activeEffects.value = [
@@ -1113,11 +1211,9 @@ export const PlatformerPage = () => {
             // today (they never reset mid-session), but keeps the two reward
             // paths consistent.
             if (!collectedFacts.value.some((f) => f.id === block.fact!.id)) {
-              // Reuses the journal's own title/icon derivation (amended
-              // 2026-08-30 — see the enemy-defeat block above). Fixes a
-              // crate's flight text showing the generic "Experience"/
-              // "Education" section label instead of the role/degree, same
-              // root cause as the course-kill bug.
+              // Reuses the journal's own title/icon derivation — see the
+              // enemy-defeat block above. Uses the role/degree rather than
+              // the generic "Experience"/"Education" section label.
               const { icon, title: label } = formatJournalEntry(block.fact);
               const slot = nextTextSlot;
               nextTextSlot = (nextTextSlot + 1) % COLLECTION_TEXT_SLOT_COUNT;
@@ -1151,8 +1247,8 @@ export const PlatformerPage = () => {
       }
 
       if (checkPitFall(next, currentLevel.value)) {
-        // Invincibility (roadmap step 19) is a property of taking damage
-        // generally, not just of enemy contact — a pit fall grants and
+        // Invincibility is a property of taking damage generally, not just
+        // of enemy contact — a pit fall grants and
         // respects it exactly like a side-hit does. The position recovery
         // below is NOT gated by it, though: `resolvePitFall` must always run
         // or the character would keep falling forever while merely
@@ -1356,6 +1452,17 @@ export const PlatformerPage = () => {
         // An opened chest falls back to invisible if this fails to load;
         // the closed sprite (and the rest of the game) still works.
       });
+    loadImage('/sprites/key.png')
+      .then((img) => {
+        if (cancelled) return;
+        keySpriteRef.current = img;
+        render();
+      })
+      .catch(() => {
+        // Key pickups simply won't render if the sprite fails to load; the
+        // rest of the game still works (collision doesn't depend on the
+        // sprite being loaded).
+      });
     loadFont(RESTART_PROMPT_FONT_FAMILY, RESTART_PROMPT_FONT_URL)
       .then(() => {
         if (cancelled) return;
@@ -1391,10 +1498,10 @@ export const PlatformerPage = () => {
         />
       )}
       {endingScreenOpen.value && <ThankYouScreen onDismiss={handleDismissEndingScreen} />}
-      {/* Moved from bottom-right to top-left (was hard to spot against the
-          terrain) — sits left of the hearts HUD, which HEARTS_START_X
-          shifts right to make room. size-10 (40px) must match the 40 baked
-          into HEARTS_START_X's computation in Renderer.ts. */}
+      {/* Sits top-left, left of the hearts HUD, which HEARTS_START_X shifts
+          right to make room — top-left keeps it easy to spot against the
+          terrain. size-10 (40px) must match the 40 baked into
+          HEARTS_START_X's computation in Renderer.ts. */}
       <button
         ref={journalButtonRef}
         type="button"

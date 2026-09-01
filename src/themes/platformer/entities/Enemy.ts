@@ -1,43 +1,121 @@
 import { RENDER_SCALE, RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { EnemyPlacement } from '../level/EnemyMapper';
+import type { EnemyDef } from '../types';
 
 /**
  * Both slime_green.png and slime_purple.png are 96x72 sheets: a 4x3 grid of
  * 24x24 frames read left-to-right, top-to-bottom as frames 1-12. Frame 11
- * (row 2, col 2) alone is recolored red in both sheets. Watching the full
- * sheet animate live (roadmap step 16) showed frames 1-3 read as a
+ * (row 2, col 2) alone is recolored red in both sheets. Frames 1-3 read as a
  * mostly-featureless blob, frames 9-12 read as the slime dissolving toward a
  * near-black silhouette (a hit/defeat reaction), and frames 4-8 — spanning
  * the end of row 0 into all of row 1 — loop well as a breathing/bounce cycle.
  *
- * Roadmap step 17 (enemy patrol) settled on constant-slide movement — a
- * patrolling enemy is always in motion, never actually standing still — so
- * there is no reachable `idle` state: `EnemyAnimState` below is `'walk' |
- * 'hit'` only, and the tuned frames 4-8 loop (below, `WALK_FRAMES`) is reused
- * as-is for `walk` instead of a separate idle state — it reads fine as
- * movement too, per live review. `ENEMY_ANIM_CONFIG`'s `walk` entry is an
- * explicit frame list rather than a single row since the loop crosses a row
- * boundary. Adjust the frame lists/frameDuration below if a future viewing
- * suggests a better sequence — centralizing it here in one lookup table
- * (same convention as Player.ts's ANIM_CONFIG) makes that a one-line change
- * instead of hunting through the renderer.
+ * Enemy patrol uses constant-slide movement — a patrolling enemy is always
+ * in motion, never actually standing still — so there is no reachable `idle`
+ * state: `EnemyAnimState` below is `'walk' | 'hit'` only, and the tuned
+ * frames 4-8 loop (below, `WALK_FRAMES`) is reused as-is for `walk` instead
+ * of a separate idle state — it reads fine as movement too.
+ * `ENEMY_ANIM_CONFIG`'s `walk` entry is an explicit frame list rather than a
+ * single row since the loop crosses a row boundary. Adjust the frame
+ * lists/frameDuration below if a future viewing suggests a better sequence —
+ * centralizing it here in one lookup table (same convention as Player.ts's
+ * ANIM_CONFIG) makes that a one-line change instead of hunting through the
+ * renderer.
  */
 export const ENEMY_FRAME_SIZE = 24;
 export const ENEMY_RENDERED_SIZE = ENEMY_FRAME_SIZE * RENDER_SCALE;
 
 /**
  * Every frame's opaque silhouette bottom sits at row 23 of the 24px native
- * frame (measured via pixel bounding-box analysis, roadmap step 16) — i.e.
- * the sprite's feet already touch the frame's bottom edge with no
- * transparent padding, unlike Player.ts's PLAYER_FOOT_PADDING. So the
- * rendered sprite is bottom-anchored to its placement tile's ground surface
- * with no extra padding constant needed.
+ * frame (measured via pixel bounding-box analysis) — i.e. the sprite's feet
+ * already touch the frame's bottom edge with no transparent padding, unlike
+ * Player.ts's PLAYER_FOOT_PADDING. So the rendered sprite is bottom-anchored
+ * to its placement tile's ground surface with no extra padding constant
+ * needed.
  */
 export const ENEMY_TILE_OFFSET_Y = RENDERED_TILE_SIZE - ENEMY_RENDERED_SIZE;
 
 /** The rendered sprite (48px) is wider than one tile (32px) — center it
  *  horizontally over its placement tile. */
 export const ENEMY_TILE_OFFSET_X = (RENDERED_TILE_SIZE - ENEMY_RENDERED_SIZE) / 2;
+
+/**
+ * Per-`spriteType` render-scale multiplier, patrol-speed multiplier, and hit
+ * points — a purple slime is 1.5x a green slime's size, patrols at 70% of
+ * its speed, and takes 3 stomps to defeat (green takes 1). Centralized here
+ * as lookups (same convention as ENEMY_ANIM_CONFIG above) rather than
+ * scattering per-type ternaries through Collision.ts/Renderer.ts/EnemyAI.ts.
+ */
+export const ENEMY_RENDER_SCALE: Record<EnemyDef['spriteType'], number> = {
+  slimeGreen: 1,
+  slimePurple: 1.5,
+};
+
+export const ENEMY_PATROL_SPEED_MULTIPLIER: Record<EnemyDef['spriteType'], number> = {
+  slimeGreen: 1,
+  slimePurple: 0.7,
+};
+
+export const ENEMY_HIT_POINTS: Record<EnemyDef['spriteType'], number> = {
+  slimeGreen: 1,
+  slimePurple: 3,
+};
+
+/** Actual rendered size for a given spriteType — ENEMY_RENDERED_SIZE scaled
+ *  by ENEMY_RENDER_SCALE. Collision.ts's enemyHitbox and Renderer.ts's
+ *  drawEnemies both call this instead of the flat ENEMY_RENDERED_SIZE
+ *  constant so a bigger purple slime gets a proportionally bigger hitbox and
+ *  draw rect. */
+export function enemyRenderedSize(spriteType: EnemyDef['spriteType']): number {
+  return ENEMY_FRAME_SIZE * RENDER_SCALE * ENEMY_RENDER_SCALE[spriteType];
+}
+
+/** Per-spriteType horizontal centering offset — same formula
+ *  ENEMY_TILE_OFFSET_X uses, but against enemyRenderedSize(spriteType)
+ *  instead of the flat green-sized constant, so a bigger purple slime still
+ *  centers correctly over its placement tile. */
+export function enemyTileOffsetX(spriteType: EnemyDef['spriteType']): number {
+  return (RENDERED_TILE_SIZE - enemyRenderedSize(spriteType)) / 2;
+}
+
+/** Per-spriteType bottom-anchoring offset — same formula
+ *  ENEMY_TILE_OFFSET_Y uses, against enemyRenderedSize(spriteType). */
+export function enemyTileOffsetY(spriteType: EnemyDef['spriteType']): number {
+  return RENDERED_TILE_SIZE - enemyRenderedSize(spriteType);
+}
+
+/**
+ * Transparent margin inside each 24px native frame, measured via pixel
+ * bounding-box analysis across the shared walk-cycle frames of both
+ * slime_green.png and slime_purple.png (identical silhouette geometry,
+ * only the palette differs): the opaque silhouette spans x 5-18 (5px
+ * margin each side) and y 9-23 (9px margin above, 0px below — the feet
+ * already touch the frame's bottom edge, per ENEMY_TILE_OFFSET_Y's doc
+ * comment above). Used to inset the collision hitbox away from the
+ * sprite's transparent corners — a slime's silhouette is rounded, not a
+ * filled square, so a hitbox spanning the full render slot would register
+ * a hit against visibly empty space, worse the bigger ENEMY_RENDER_SCALE
+ * gets. Same convention as Player.ts's PLAYER_SIDE_PADDING/
+ * PLAYER_HEAD_PADDING/PLAYER_FOOT_PADDING.
+ */
+const ENEMY_HITBOX_SIDE_PADDING_NATIVE = 5;
+const ENEMY_HITBOX_TOP_PADDING_NATIVE = 9;
+
+/** Per-spriteType collision-hitbox side inset — scaled the same way
+ *  enemyRenderedSize scales the frame itself, so the inset grows
+ *  proportionally with a bigger slime instead of staying a fixed pixel
+ *  amount. */
+export function enemyHitboxSidePadding(spriteType: EnemyDef['spriteType']): number {
+  return ENEMY_HITBOX_SIDE_PADDING_NATIVE * RENDER_SCALE * ENEMY_RENDER_SCALE[spriteType];
+}
+
+/** Per-spriteType collision-hitbox top inset — see enemyHitboxSidePadding.
+ *  No corresponding bottom-inset function: the silhouette's feet already
+ *  touch the native frame's bottom edge, so the hitbox's bottom edge stays
+ *  at the render slot's bottom. */
+export function enemyHitboxTopPadding(spriteType: EnemyDef['spriteType']): number {
+  return ENEMY_HITBOX_TOP_PADDING_NATIVE * RENDER_SCALE * ENEMY_RENDER_SCALE[spriteType];
+}
 
 export type EnemyAnimState = 'walk' | 'hit';
 
@@ -83,8 +161,8 @@ export interface EnemyState extends EnemyPlacement {
   animFrame: number;
   /** Seconds accumulated toward the next animation frame advance. */
   animTimer: number;
-  /** Stomps remaining before this enemy is defeated — 1 for slimeGreen, 2 for
-   *  slimePurple (roadmap step 18: purple takes two stomps). Decremented by
+  /** Stomps remaining before this enemy is defeated — 1 for slimeGreen, 3 for
+   *  slimePurple (see ENEMY_HIT_POINTS above). Decremented by
    *  `applyStomp` on every registered stomp, regardless of whether it's the
    *  finishing blow. */
   hitPoints: number;
@@ -104,9 +182,9 @@ export interface EnemyState extends EnemyPlacement {
  * may carry the CV fact this enemy drops on defeat — see `EnemyMapper.ts`'s
  * `courseToEnemy`; a "plain" enemy beyond its color's CVData course count has
  * no fact and drops nothing — unaffected by this function) into its initial
- * live patrol state: `'walk'` (patrol enemies are
- * always moving — see this file's top doc comment for why there's no
- * `'idle'`), facing right (the direction its very first patrol tick — see
+ * live patrol state: `'walk'` (patrol enemies are always moving — see this
+ * file's top doc comment for why there's no `'idle'`), facing right (the
+ * direction its very first patrol tick — see
  * EnemyAI.ts's stepEnemyPatrol — will move it, unless a wall or ledge
  * immediately reverses it).
  *
@@ -128,7 +206,7 @@ export function toEnemyState(placement: EnemyPlacement, index = 0): EnemyState {
     animState: 'walk',
     animFrame: index % frames.length,
     animTimer: (index * 0.05) % frameDuration,
-    hitPoints: placement.spriteType === 'slimeGreen' ? 1 : 2,
+    hitPoints: ENEMY_HIT_POINTS[placement.spriteType],
     hitTimer: 0,
     defeated: false,
   };
@@ -153,9 +231,9 @@ export function advanceEnemyAnimation(enemy: EnemyState, dt: number): EnemyState
  * Applies one stomp: decrements `hitPoints`, freezes horizontal movement, and
  * enters the `hit` reaction (red-flash/dissolve) animation from its first
  * frame — even if the enemy was already mid-reaction from an earlier stomp
- * this same bounce arc (a skilled player chain-stomping a still-alive
- * 2-hit purple enemy entirely airborne, confirmed live as the intended
- * feel — see `Collision.ts`'s `checkEnemyStompCollisions`, which only
+ * this same bounce arc (a skilled player can chain-stomp a still-alive
+ * 3-hit purple enemy entirely airborne — see `Collision.ts`'s
+ * `checkEnemyStompCollisions`, which only
  * excludes an enemy once `hitPoints` has actually reached 0, not while it's
  * merely mid-reaction), so a legitimate second stomp always replays the
  * reaction from frame 0 rather than continuing wherever the first one left

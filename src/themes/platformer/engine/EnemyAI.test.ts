@@ -172,6 +172,28 @@ describe('stepEnemyPatrol', () => {
     expect(next.direction).toBe('left');
     expect(next.x).toBe(6 * RENDERED_TILE_SIZE);
   });
+
+  it('stepEnemyPatrol-slimePurple-movesSlowerThanGreen', () => {
+    const level = makeLevel(10, [], []);
+    const base = {
+      id: 'e1',
+      x: 3 * RENDERED_TILE_SIZE,
+      y: 0,
+      vx: 0,
+      direction: 'right' as const,
+      animState: 'walk' as const,
+      animFrame: 0,
+      animTimer: 0,
+      hitPoints: 1,
+      hitTimer: 0,
+      defeated: false,
+    };
+    const green = stepEnemyPatrol({ ...base, spriteType: 'slimeGreen' as const }, level, 1, []);
+    const purple = stepEnemyPatrol({ ...base, spriteType: 'slimePurple' as const }, level, 1, []);
+    const greenDelta = green.x - base.x;
+    const purpleDelta = purple.x - base.x;
+    expect(purpleDelta).toBeCloseTo(greenDelta * 0.7, 5);
+  });
 });
 
 describe('stepEnemyHitReaction', () => {

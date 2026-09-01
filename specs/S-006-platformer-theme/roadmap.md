@@ -613,24 +613,41 @@ original slot for traceability with git history (branch names, commit messages).
 
 ## Iteration 4 — Level variety (post-P3, added 2026-08-29)
 
-- [ ] **30. Level selection** — not yet designed; only discussed in ideation so far.
+- [x] **30. Purple slime rework: bigger/slower/tougher, drops a key instead of a
+  Course fact** — purple slimes render at 1.5× a green slime's size, patrol ~30%
+  slower, and take 3 stomps to defeat (up from 2). Green slimes now deliver every
+  Course fact (purple no longer carries any CV content). A purple slime's
+  finishing stomp pops a key onto the ground as its own bobbing pickup entity
+  (`KeyPickupState`, reusing `Coin.ts`'s `coinBobOffset`); walking into it adds
+  one to `collectedKeys` and flies its icon to a HUD key counter that's hidden at
+  0 and appears once the count rises above 0. Opening a chest (Arrow Up while
+  overlapping it) now additionally requires `collectedKeys > 0` and spends one
+  key. `level1.ts` gained a second `M` marker so its 2 chests both have a
+  matching purple slime. New `key.png` sprite (pixel-art, transparent, generated
+  and chroma-keyed from a magenta-background render). See `spec.md`'s User Story
+  4/6, FR-009, FR-019, FR-020, FR-020e, FR-023.
+  *Verify: purple slime is visibly bigger/slower than green, takes 3 stomps,
+  drops a bobbing key on defeat; walking into the key increments the HUD key
+  counter; a chest refuses to open at 0 keys and opens (spending one key) at
+  ≥1; Reset Game clears `collectedKeys` and any dropped keys.*
+- [ ] **31. Level selection** — not yet designed; only discussed in ideation so far.
   Needs its own brainstorming session before an implementation plan exists. Scoped
-  here as a placeholder step so step 31 (terrain rework) has something concrete to
+  here as a placeholder step so step 32 (terrain rework) has something concrete to
   depend on: some mechanism to choose among multiple levels instead of always
   loading `level1`.
   *Verify: TBD, pending design.*
-- [ ] **31. Terrain rework: autotiled ground + cave background** — re-themes
+- [ ] **32. Terrain rework: autotiled ground + cave background** — re-themes
   `groundGrass` from a single fixed sprite per tile to a proper autotiled look
   (fill vs. single, grass-top vs. plain-dirt-below) using the `spring_.png` tileset,
   and adds a new non-solid `caveBackground` tile type (same autotiling, no
   top-exposure distinction) using `terrain_.png` for cave-style background dressing.
-  `groundRock`/`platform`/`wall`/`bridge` are unaffected — they stay on
+  `groundRock`/`wall`/`bridge` are unaffected — they stay on
   `world_tileset.png`. Research/findings captured 2026-08-29
   (`plans/2026-08-29-terrain-rework-notes.md` — confirmed tileset coordinates,
   autotile algorithm, decisions made); **no implementation plan yet** — write one via
-  `writing-plans` once step 30 lands, re-reading the codebase at that point rather
+  `writing-plans` once step 31 lands, re-reading the codebase at that point rather
   than reusing anything from the notes doc verbatim. **Implementation is blocked on
-  step 30** landing first, so the dedicated terrain test level (exercising every
+  step 31** landing first, so the dedicated terrain test level (exercising every
   tile combination) can be added as one of the selectable levels from the start,
   instead of behind a temporary dev-only flag.
 

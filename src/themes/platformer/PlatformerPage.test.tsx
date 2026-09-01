@@ -2,8 +2,15 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { vi } from 'vitest';
 import { PlatformerPage } from './PlatformerPage';
 import { platformerPage } from './PlatformerPage.page';
-import { PLAYER_RENDERED_SIZE, PLAYER_VISUAL_CENTER_Y_OFFSET } from './entities/Player';
+import {
+  PLAYER_RENDERED_SIZE,
+  PLAYER_VISUAL_CENTER_Y_OFFSET,
+  PLAYER_HEAD_PADDING,
+  PLAYER_FOOT_PADDING,
+} from './entities/Player';
+import type { EnemyState } from './entities/Enemy';
 import { ENEMY_RENDERED_SIZE, toEnemyState } from './entities/Enemy';
+import { enemyHitbox } from './engine/Collision';
 import {
   playerState,
   cameraPositionX,
@@ -25,21 +32,38 @@ import {
   controlsOverlayDismissed,
   signPlacements,
   hintTooltipState,
+  keyPickupStates,
+  collectedKeys,
 } from './PlatformerState';
-import { toChestState } from './entities/Chest';
+import { toChestState, isChestOpen } from './entities/Chest';
+import { spawnKeyPickup } from './entities/KeyPickup';
 import {
   MAX_HALF_HEARTS,
   PIT_FALL_DAMAGE,
   SIDE_HIT_DAMAGE,
   HEART_RENDERED_SIZE,
 } from './entities/Health';
-import { HEARTS_START_X } from './engine/Renderer';
+import { HEARTS_START_X, keyCounterX, KEY_COUNTER_Y } from './engine/Renderer';
 import { PHYSICS_CONFIG } from './engine/PhysicsConfig';
 import { tileToPixel } from './level/Terrain';
 import {
   JOURNAL_OPEN_FRAME_COUNT,
   JOURNAL_OPEN_FRAME_INTERVAL_MS,
 } from './entities/JournalAnimation';
+
+/**
+ * The player.y to set so a falling player's hitbox lands a few px into the
+ * given enemy's hitbox from the top — comfortably within its upper half (a
+ * "landing on top" stomp), derived from the real enemyHitbox/player padding
+ * geometry rather than a hand-picked magic offset, so this stays correct
+ * regardless of future hitbox/padding tuning (same helper shape as
+ * Collision.test.ts's playerLandingOnTopOf).
+ */
+function stompLandingY(enemy: EnemyState, overlapPx = 4): number {
+  const box = enemyHitbox(enemy);
+  const playerHitboxHeight = PLAYER_RENDERED_SIZE - PLAYER_HEAD_PADDING - PLAYER_FOOT_PADDING;
+  return box.y + overlapPx - playerHitboxHeight - PLAYER_HEAD_PADDING;
+}
 
 class MockTilesetImage {
   onload: (() => void) | null = null;
@@ -90,8 +114,8 @@ describe('PlatformerPage', () => {
     // from one test must not leak into the next test's enemy positions.
     enemyStates.value = enemyPlacements.value.map((p, i) => toEnemyState(p, i));
     // Module-level signal like the others above — an open-chest mutation
-    // from one test (roadmap step 22) must not leak into the next test's
-    // assumption that every chest starts closed.
+    // from one test must not leak into the next test's assumption that
+    // every chest starts closed.
     chestStates.value = chestPlacements.value.map(toChestState);
     // Module-level one-shot latch (see PlatformerState.ts's doc comment) —
     // must be reset too, or a test that triggers the ending screen would
@@ -106,11 +130,16 @@ describe('PlatformerPage', () => {
     // dismissal from one test would leak into the next test's assumption
     // that the overlay is still showable.
     controlsOverlayDismissed.value = false;
-    // Module-level signal (see PlatformerState.ts, Task 5) — must be reset
+    // Module-level signal (see PlatformerState.ts) — must be reset
     // like the other module-level signals above, or a tooltip left mid-
     // animation by one test would leak into the next test's assumption that
     // no sign is currently revealed.
     hintTooltipState.value = null;
+    // Module-level signals like the others above — a key pickup dropped or
+    // collected by one test must not leak into the next test's assumption
+    // that no keys have been dropped/banked yet.
+    keyPickupStates.value = [];
+    collectedKeys.value = 0;
   });
 
   afterEach(() => {
@@ -476,10 +505,10 @@ describe('PlatformerPage', () => {
     frameCallback!(0);
 
     // Place the character resting on currentLevel's ground-level bridge (row 6,
-    // columns 2-3 — see level.ts; shifted down 2 rows by roadmap step 23's
-    // ladder-shaft insertion at the top of the layout) directly, rather than
-    // navigating there by walking, since only the drop-through wiring is
-    // under test here (the underlying physics is covered by Physics.test.ts).
+    // columns 2-3 — see level.ts; the ladder shaft at the top of the layout
+    // shifts this down 2 rows) directly, rather than navigating there by
+    // walking, since only the drop-through wiring is under test here (the
+    // underlying physics is covered by Physics.test.ts).
     playerState.value = {
       ...playerState.value,
       x: 64,
@@ -591,13 +620,11 @@ describe('PlatformerPage', () => {
   });
 
   it('playerFallsOntoGreenEnemy-tick-showsEnemyCounterPopupAtOne', async () => {
-    // The persistent top-HUD coin/fruit/enemy/crate counters were removed
-    // 2026-08-30 (live user feedback: too much clutter at the top) in favor
-    // of this trial per-collection counter popup — see
-    // activeCounterPopup's doc comment in PlatformerState.ts. Unlike the old
-    // HUD counter, the popup only exists once something's actually been
-    // collected (nothing to assert "at zero" before that), so this test goes
-    // straight to defeating an enemy and checking the popup shows "1 / N".
+    // This trial per-collection counter popup (see activeCounterPopup's doc
+    // comment in PlatformerState.ts) only exists once something's actually
+    // been collected (nothing to assert "at zero" before that), so this test
+    // goes straight to defeating an enemy and checking the popup shows
+    // "1 / N".
     vi.stubGlobal('Image', MockTilesetImage);
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
@@ -610,7 +637,11 @@ describe('PlatformerPage', () => {
     frameCallback!(0);
 
     const ctx = platformerPage.context;
-    const enemyTotal = enemyPlacements.value.length;
+    // The counter popup shows collected facts out of total fact-bearing placements,
+    // not including plain enemies (those at markers beyond the CVData's defs count).
+    // Since all courses now map to green slimes only, the purple marker becomes a
+    // plain enemy with no fact; it shouldn't be counted in the denominator.
+    const enemyTotal = enemyPlacements.value.filter((p) => p.fact).length;
 
     // The popup's icon needs its sprite ref loaded (same reasoning the old
     // "showsCoinCounterAtZero" test's comment gave for drawCollectibleCounter)
@@ -623,7 +654,7 @@ describe('PlatformerPage', () => {
     playerState.value = {
       ...playerState.value,
       x: target.x,
-      y: target.y - PLAYER_RENDERED_SIZE / 2,
+      y: stompLandingY(target),
       vy: 300,
     };
 
@@ -643,10 +674,9 @@ describe('PlatformerPage', () => {
 
   it('resetGame-afterDefeatingAnEnemy-collectedFactStaysBanked', async () => {
     // Facts persist across a respawn (FR-020c) even though the enemy itself
-    // respawns alive. The old persistent HUD counter asserted this visually
-    // ("stays at 1/N" after reset); now that it's gone in favor of the
-    // transient counter popup (which will long since have faded by the time
-    // a reset happens), this asserts the underlying data directly instead.
+    // respawns alive. The counter popup is transient and will long since
+    // have faded by the time a reset happens, so this asserts the underlying
+    // data directly instead of the popup's visible count.
     vi.stubGlobal('Image', MockTilesetImage);
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
@@ -662,7 +692,7 @@ describe('PlatformerPage', () => {
     playerState.value = {
       ...playerState.value,
       x: target.x,
-      y: target.y - PLAYER_RENDERED_SIZE / 2,
+      y: stompLandingY(target),
       vy: 300,
     };
 
@@ -703,6 +733,54 @@ describe('PlatformerPage', () => {
     await waitFor(() =>
       expect(
         ctx.drawImage.mock.calls.some((call: unknown[]) => call[7] === ENEMY_RENDERED_SIZE),
+      ).toBe(true),
+    );
+  });
+
+  it('render-collectedKeysZero-doesNotDrawKeyCounter', async () => {
+    // The HUD key counter is only ever drawn by the `keySpriteRef.current &&
+    // collectedKeys.value > 0` gate in PlatformerPage.tsx's render function —
+    // drawKeyCounter itself doesn't gate on count (matching drawChestCounter's
+    // convention of the CALLER deciding whether to call it). At 0 keys
+    // (this suite's default — see beforeEach), no plain digit-string
+    // fillText call (drawKeyCounter's own "N" text, distinct from every
+    // other HUD counter's "N / total" format) should ever appear.
+    vi.stubGlobal('Image', MockTilesetImage);
+
+    render(<PlatformerPage />);
+    const canvas = screen.getByTestId('platformer-canvas');
+    const ctx = (canvas as HTMLCanvasElement).getContext('2d') as unknown as {
+      drawImage: ReturnType<typeof vi.fn>;
+      fillText: ReturnType<typeof vi.fn>;
+    };
+
+    // Wait for at least one real frame so sprites have had a chance to load
+    // and render — a key counter that's simply never reached would be a
+    // false negative for this test.
+    await waitFor(() => expect(ctx.drawImage.mock.calls.length).toBeGreaterThan(0));
+
+    expect(
+      ctx.fillText.mock.calls.some(
+        (call: unknown[]) => call[2] === KEY_COUNTER_Y && /^\d+$/.test(String(call[0])),
+      ),
+    ).toBe(false);
+  });
+
+  it('render-collectedKeysAboveZero-drawsKeyCounter', async () => {
+    vi.stubGlobal('Image', MockTilesetImage);
+    collectedKeys.value = 1;
+
+    render(<PlatformerPage />);
+    const canvas = screen.getByTestId('platformer-canvas');
+    const ctx = (canvas as HTMLCanvasElement).getContext('2d') as unknown as {
+      fillText: ReturnType<typeof vi.fn>;
+    };
+
+    await waitFor(() =>
+      expect(
+        ctx.fillText.mock.calls.some(
+          (call: unknown[]) => call[2] === KEY_COUNTER_Y && call[0] === '1',
+        ),
       ).toBe(true),
     );
   });
@@ -800,7 +878,7 @@ describe('PlatformerPage', () => {
     playerState.value = {
       ...playerState.value,
       x: target.x,
-      y: target.y - PLAYER_RENDERED_SIZE / 2,
+      y: stompLandingY(target),
       vy: 300,
     };
 
@@ -820,10 +898,10 @@ describe('PlatformerPage', () => {
   });
 
   it('playerFallsOntoAPlainEnemyWithNoFact-tick-defeatsItButAwardsNoFact', () => {
-    // A "plain" enemy (EnemyMapper.ts's excess-marker case, amended
-    // 2026-08-31: enemies are no longer capped at CVData's length) has no
-    // `fact` — stomping it must still remove it like any other enemy, just
-    // without banking a fact or bumping the enemy counter popup.
+    // A "plain" enemy (EnemyMapper.ts's excess-marker case — enemies are not
+    // capped at CVData's length) has no `fact` — stomping it must still
+    // remove it like any other enemy, just without banking a fact or
+    // bumping the enemy counter popup.
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frameCallback = cb;
@@ -848,7 +926,7 @@ describe('PlatformerPage', () => {
     playerState.value = {
       ...playerState.value,
       x: plain.x,
-      y: plain.y - PLAYER_RENDERED_SIZE / 2,
+      y: stompLandingY(plain),
       vy: 300,
     };
 
@@ -861,6 +939,176 @@ describe('PlatformerPage', () => {
 
     expect(enemyStates.value.some((e) => e.id === plain.id)).toBe(false);
     expect(collectedFacts.value).toHaveLength(factsBefore);
+  });
+
+  it('purpleSlimeDefeat-thirdStomp-spawnsKeyPickupInsteadOfJournalFact', () => {
+    // Purple slimes carry no CV fact (EnemyMapper.ts) — defeating one drops a
+    // key pickup instead of banking a journal fact. ENEMY_HIT_POINTS.slimePurple
+    // is 3, so start it at 1 hit point (as if already stomped twice) and land
+    // the final stomp here.
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const target = enemyStates.value.find((e) => e.spriteType === 'slimePurple')!;
+    enemyStates.value = enemyStates.value.map((e) => (e.id === target.id ? { ...e, hitPoints: 1 } : e));
+    playerState.value = {
+      ...playerState.value,
+      x: target.x,
+      y: stompLandingY(target),
+      vy: 300,
+    };
+
+    let t = 16;
+    frameCallback!(t);
+    for (let i = 0; i < 30; i++) {
+      t += 16;
+      frameCallback!(t);
+    }
+
+    // Note: the player is still standing exactly where the slime died (this
+    // engine has no horizontal drift during the hit-reaction freeze — see
+    // applyStomp), so the very same tick's key-pickup collision check (below,
+    // in PlatformerPage.tsx) collects it immediately — that's real, intended
+    // behavior (an item spawned right under the player is picked up on
+    // contact, same as any other collectible), not a test artifact. What
+    // matters here is that a KeyPickupState was created at all (proving the
+    // defeat routed through spawnKeyPickup, not the fact-flight path) and
+    // that no journal fact was banked for this enemy.
+    expect(enemyStates.value.some((e) => e.id === target.id)).toBe(false);
+    expect(keyPickupStates.value.some((k) => k.id === target.id)).toBe(true);
+    expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(false);
+  });
+
+  it('purpleSlimeRespawnedAfterDeath-defeatedAgain-doesNotDropASecondKey', () => {
+    // FR (see entities/KeyPickup.ts's doc comment): keyPickupStates persists
+    // across resetGame() (death/respawn), so a purple slime revived and
+    // stomped again in a later life must be deduplicated by id, same
+    // reasoning as collectedFacts's own respawn-dedup (see the collectible
+    // respawn test above) — otherwise the player could farm infinite keys by
+    // dying and re-defeating the same slime.
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const target = enemyStates.value.find((e) => e.spriteType === 'slimePurple')!;
+    enemyStates.value = enemyStates.value.map((e) => (e.id === target.id ? { ...e, hitPoints: 1 } : e));
+    playerState.value = {
+      ...playerState.value,
+      x: target.x,
+      y: stompLandingY(target),
+      vy: 300,
+    };
+
+    let t = 16;
+    frameCallback!(t);
+    for (let i = 0; i < 30; i++) {
+      t += 16;
+      frameCallback!(t);
+    }
+    expect(keyPickupStates.value.filter((k) => k.id === target.id)).toHaveLength(1);
+
+    // Simulate a respawn (per FR-020c, collected/dropped state survives it —
+    // same convention as the collectible respawn test above) and re-defeat
+    // the same purple slime once revived.
+    healthState.value = 0;
+    frameCallback!(t + 16); // enters 'dying'
+    t += 16;
+    for (let i = 0; i < 200; i++) {
+      t += 16;
+      frameCallback!(t);
+    }
+    fireEvent.keyDown(window, { code: 'Enter' });
+
+    const revived = enemyStates.value.find((e) => e.id === target.id)!;
+    enemyStates.value = enemyStates.value.map((e) => (e.id === target.id ? { ...e, hitPoints: 1 } : e));
+    playerState.value = {
+      ...playerState.value,
+      x: revived.x,
+      y: stompLandingY(revived),
+      vy: 300,
+    };
+    t += 16;
+    frameCallback!(t);
+    for (let i = 0; i < 30; i++) {
+      t += 16;
+      frameCallback!(t);
+    }
+
+    expect(keyPickupStates.value.filter((k) => k.id === target.id)).toHaveLength(1);
+  });
+
+  it('playerWalksIntoKeyPickup-tick-incrementsCollectedKeys', () => {
+    // Deleting the `collectedKeys.value += touchedKeyIds.length` line in
+    // PlatformerPage.tsx would not fail any pre-existing test — nothing
+    // asserted the counter actually moves on touch (only that the pickup
+    // itself gets flagged/removed). Places a key pickup well away from any
+    // other collectible/enemy, drives the player onto it via one game-loop
+    // tick, and asserts the counter goes 0 -> 1.
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    expect(collectedKeys.value).toBe(0);
+    const pickup = spawnKeyPickup('test-key-1', 5000, 5000);
+    keyPickupStates.value = [pickup];
+    playerState.value = { ...playerState.value, x: pickup.x, y: pickup.y };
+
+    frameCallback!(16);
+
+    expect(collectedKeys.value).toBe(1);
+    expect(keyPickupStates.value.find((k) => k.id === pickup.id)?.collected).toBe(true);
+  });
+
+  it('playerWalksIntoKeyPickup-tick-startsAFlightEffectTowardTheKeyCounter', () => {
+    // Spec.md's User Story 4 and roadmap.md's step 30 both promise that
+    // collecting a key "animates toward the key counter in the HUD" —
+    // reusing the same startFlightEffect/activeEffects mechanism every other
+    // pickup path in this file already uses, just targeting the HUD key
+    // counter's fixed screen position instead of the journal icon.
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const pickup = spawnKeyPickup('test-key-2', 5000, 5000);
+    keyPickupStates.value = [pickup];
+    playerState.value = { ...playerState.value, x: pickup.x, y: pickup.y };
+
+    expect(activeEffects.value.some((e) => e.id === pickup.id)).toBe(false);
+
+    frameCallback!(16);
+
+    const effect = activeEffects.value.find((e) => e.id === pickup.id);
+    expect(effect).toBeDefined();
+    const canvas = screen.getByTestId('platformer-canvas') as HTMLCanvasElement;
+    const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
+    const chestOpenCount = chestStates.value.filter(isChestOpen).length;
+    expect(effect?.targetX).toBe(keyCounterX(ctx, chestOpenCount, chestPlacements.value.length));
+    expect(effect?.targetY).toBe(KEY_COUNTER_Y);
   });
 
   it('playerFallsOntoGreenEnemy-tick-bouncesPlayerUpward', () => {
@@ -878,7 +1126,7 @@ describe('PlatformerPage', () => {
     playerState.value = {
       ...playerState.value,
       x: target.x,
-      y: target.y - PLAYER_RENDERED_SIZE / 2,
+      y: stompLandingY(target),
       vy: 300,
     };
 
@@ -893,13 +1141,13 @@ describe('PlatformerPage', () => {
     expect(playerState.value.vy).toBeLessThan(0);
     expect(playerState.value.vy).toBeLessThan(PHYSICS_CONFIG.stompBounceVelocity * 0.9);
 
-    // The actual bug found via live testing: the jump-cut multiplier
-    // re-applies EVERY tick the jump key isn't held, not just once — a
-    // single-tick-only suppression already passed the assertion above but
-    // still let the bounce collapse almost immediately afterward. Tick
-    // several more frames (still well within the ascent) and confirm `vy`
-    // is still decaying smoothly under gravity alone, not additionally
-    // getting cut down each frame.
+    // The jump-cut multiplier must not re-apply EVERY tick the jump key
+    // isn't held, only once — a single-tick-only suppression already passes
+    // the assertion above but a repeated cut would still let the bounce
+    // collapse almost immediately afterward. Tick several more frames
+    // (still well within the ascent) and confirm `vy` is still decaying
+    // smoothly under gravity alone, not additionally getting cut down each
+    // frame.
     for (let i = 0; i < 5; i++) {
       t += 16;
       frameCallback!(t);
@@ -923,7 +1171,7 @@ describe('PlatformerPage', () => {
     playerState.value = {
       ...playerState.value,
       x: target.x,
-      y: target.y - PLAYER_RENDERED_SIZE / 2,
+      y: stompLandingY(target),
       vy: 300,
     };
 
@@ -958,7 +1206,7 @@ describe('PlatformerPage', () => {
     playerState.value = {
       ...playerState.value,
       x: revived.x,
-      y: revived.y - PLAYER_RENDERED_SIZE / 2,
+      y: stompLandingY(revived),
       vy: 300,
     };
     t += 16;
@@ -971,7 +1219,7 @@ describe('PlatformerPage', () => {
     expect(collectedFacts.value.filter((f) => f.id === factId)).toHaveLength(1);
   });
 
-  it('playerFallsOntoPurpleEnemyTwice-firstStompSurvives-secondStompDefeatsIt', () => {
+  it('playerFallsOntoPurpleEnemyThreeTimes-firstTwoStompsSurvive-thirdStompDefeatsIt', () => {
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frameCallback = cb;
@@ -983,45 +1231,39 @@ describe('PlatformerPage', () => {
     frameCallback!(0);
 
     const target = enemyStates.value.find((e) => e.spriteType === 'slimePurple')!;
-    playerState.value = {
-      ...playerState.value,
-      x: target.x,
-      y: target.y - PLAYER_RENDERED_SIZE / 2,
-      vy: 300,
-    };
-
-    // First stomp: plays out its full hit reaction, still alive afterward.
     let t = 16;
-    frameCallback!(t);
-    for (let i = 0; i < 30; i++) {
-      t += 16;
-      frameCallback!(t);
-    }
-    expect(enemyStates.value.some((e) => e.id === target.id)).toBe(true);
-    expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(false);
 
-    // Re-position for a second stomp (the enemy patrolled away during the
-    // reaction window above — put the player back on top of its current
-    // spot). Registers as a genuine second stomp since it still has 1 hit
-    // point left (roadmap step 19's chain-stomp fix: `checkEnemyStompCollisions`
-    // only excludes an enemy once `hitPoints` reaches 0 — no cooldown/landing
-    // tracking needed, since this engine has no double-jump).
-    const stillAlive = enemyStates.value.find((e) => e.id === target.id)!;
-    playerState.value = {
-      ...playerState.value,
-      x: stillAlive.x,
-      y: stillAlive.y - PLAYER_RENDERED_SIZE / 2,
-      vy: 300,
-    };
-    t += 16;
-    frameCallback!(t);
-    for (let i = 0; i < 30; i++) {
+    // ENEMY_HIT_POINTS.slimePurple is 3 — land three separate, deliberately
+    // re-positioned stomps (not relying on an incidental double-bounce
+    // within one landing's reaction window, which is timing-sensitive).
+    // `checkEnemyStompCollisions` only excludes an enemy once `hitPoints`
+    // reaches 0 — no cooldown/landing tracking needed, since this engine has
+    // no double-jump.
+    for (let stomp = 1; stomp <= 3; stomp++) {
+      const current = enemyStates.value.find((e) => e.id === target.id);
+      if (!current) break; // defeated — nothing left to land on
+      playerState.value = {
+        ...playerState.value,
+        x: current.x,
+        y: stompLandingY(current),
+        vy: 300,
+      };
       t += 16;
       frameCallback!(t);
+      for (let i = 0; i < 30; i++) {
+        t += 16;
+        frameCallback!(t);
+      }
+
+      if (stomp < 3) {
+        expect(enemyStates.value.some((e) => e.id === target.id)).toBe(true);
+        expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(false);
+      }
     }
 
     expect(enemyStates.value.some((e) => e.id === target.id)).toBe(false);
-    expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(true);
+    // Purple enemies now carry no CV facts — they drop keys on defeat instead
+    expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(false);
   });
 
   it('healthReachesZero-gameLoopTicks-entersDyingPhaseCenteredOnPlayerAndPausesPhysics', () => {
@@ -1397,9 +1639,8 @@ describe('PlatformerPage', () => {
 
     // Collect a real fact (per FR-020c, collected state survives a death) so
     // there's something in the journal to persist across the restart below —
-    // the old temporary seed data this test relied on is gone (step 12
-    // starts collectedFacts empty; only real coin/fruit collection populates
-    // it now).
+    // collectedFacts starts empty; only real coin/fruit collection populates
+    // it.
     const target = collectiblePlacements.value[0];
     playerState.value = { ...playerState.value, x: target.x, y: target.y };
     frameCallback!(16);
@@ -1427,9 +1668,9 @@ describe('PlatformerPage', () => {
     lifecycleState.value = { ...lifecycleState.value, phase: 'playing' };
     fireEvent.keyDown(window, { code: 'KeyJ' });
 
-    // The journal plays its book-opening animation before showing content
-    // (roadmap step 14) — advance past it before asserting on fact items.
-    // Journal.tsx schedules one setTimeout per frame (re-created by an
+    // The journal plays its book-opening animation before showing content —
+    // advance past it before asserting on fact items. Journal.tsx schedules
+    // one setTimeout per frame (re-created by an
     // effect each time the frame advances), so the clock must be advanced
     // one interval at a time (each in its own act()) rather than in one
     // bulk jump — otherwise later timeouts haven't been scheduled yet by
@@ -1440,11 +1681,10 @@ describe('PlatformerPage', () => {
       });
     }
 
-    // The journal shows one section at a time (roadmap step 14). It now
-    // defaults to 'personality' regardless of what's collected (amended
-    // 2026-08-30, live user feedback) — switch to the first collected
-    // fact's own section bookmark before comparing against that section's
-    // facts, rather than the full flat list.
+    // The journal shows one section at a time, defaulting to 'personality'
+    // regardless of what's collected — switch to the first collected fact's
+    // own section bookmark before comparing against that section's facts,
+    // rather than the full flat list.
     const defaultSectionFacts = factsBeforeDeath.filter(
       (fact) => fact.sectionId === factsBeforeDeath[0].sectionId,
     );
@@ -1752,7 +1992,7 @@ describe('PlatformerPage', () => {
     playerState.value = {
       ...playerState.value,
       x: target.x,
-      y: target.y - PLAYER_RENDERED_SIZE / 2,
+      y: stompLandingY(target),
       vy: 300,
     };
 
@@ -1763,18 +2003,17 @@ describe('PlatformerPage', () => {
   });
 
   it('playerStompsEnemy-ticksThroughTheWholeBounceArc-neverTakesSideHitDamage', () => {
-    // Regression guard for a real bug found via live play: the same-tick
-    // stompedIds filter (see the test above) only protects the exact tick a
-    // stomp registers. On every LATER tick, while the player is still rising
-    // off the bounce (vy < 0) and still overlapping the now-frozen, mid-'hit'
-    // enemy, checkEnemySideCollisions used to have no reason to exclude it —
-    // registering a fresh, unwanted side-hit against the very enemy just
-    // stomped. Fixed by excluding any `animState === 'hit'` enemy from side-hit
-    // detection entirely (matching stomp detection's own exclusion) rather
-    // than relying on velocity/geometry alone. This ticks through several
-    // frames of the bounce arc (well past the single tick the older test
-    // covered) and asserts health never drops and invincibility is never
-    // granted from this encounter.
+    // The same-tick stompedIds filter (see the test above) only protects the
+    // exact tick a stomp registers. On every LATER tick, while the player is
+    // still rising off the bounce (vy < 0) and still overlapping the
+    // now-frozen, mid-'hit' enemy, checkEnemySideCollisions must not register
+    // a fresh, unwanted side-hit against the very enemy just stomped — any
+    // `animState === 'hit'` enemy is excluded from side-hit detection
+    // entirely (matching stomp detection's own exclusion) rather than
+    // relying on velocity/geometry alone. This ticks through several frames
+    // of the bounce arc (well past the single tick the older test covered)
+    // and asserts health never drops and invincibility is never granted from
+    // this encounter.
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frameCallback = cb;
@@ -1790,7 +2029,7 @@ describe('PlatformerPage', () => {
     playerState.value = {
       ...playerState.value,
       x: target.x,
-      y: target.y - PLAYER_RENDERED_SIZE / 2,
+      y: stompLandingY(target),
       vy: 300,
     };
 
@@ -1805,12 +2044,11 @@ describe('PlatformerPage', () => {
   });
 
   it('playerLandsAndRestompsPurpleEnemyWhileStillMidReaction-registersAsAGenuineSecondStomp', () => {
-    // The chain-stomp fix itself (found via live testing, "wouldn't it be
-    // nice if you could stomp twice in a row" / "if he stomps and gets
-    // repelled upwards he should be able to stomp again when falling down
-    // again on the same enemy"): a second stomp against the SAME enemy only
-    // needs it to still have hit points left — no cooldown, no landing, no
-    // waiting for the ~0.4s hit reaction to finish. Re-stomps almost
+    // Chain-stomping: a second stomp against the SAME enemy only needs it to
+    // still have hit points left — no cooldown, no landing, no waiting for
+    // the ~0.4s hit reaction to finish, so a player who bounces upward off a
+    // stomp and falls back onto the same enemy can stomp it again on the way
+    // down. Re-stomps almost
     // immediately (well before the first reaction would have ended),
     // entirely airborne (this engine has no double-jump, so re-landing on
     // the same enemy while still airborne can only mean the same bounce's
@@ -1830,16 +2068,16 @@ describe('PlatformerPage', () => {
     playerState.value = {
       ...playerState.value,
       x: target.x,
-      y: target.y - PLAYER_RENDERED_SIZE / 2,
+      y: stompLandingY(target),
       vy: 300,
     };
 
     let t = 16;
-    frameCallback!(t); // first stomp: hitPoints 2 -> 1, animState 'hit'
+    frameCallback!(t); // first stomp: hitPoints 3 -> 2, animState 'hit'
 
     const midReaction = enemyStates.value.find((e) => e.id === target.id)!;
     expect(midReaction.animState).toBe('hit');
-    expect(midReaction.hitPoints).toBe(1);
+    expect(midReaction.hitPoints).toBe(2);
 
     // Land on it again immediately — still well within the ~0.4s reaction
     // window (this same tick), entirely airborne, no landing/separation of
@@ -1847,11 +2085,25 @@ describe('PlatformerPage', () => {
     playerState.value = {
       ...playerState.value,
       x: midReaction.x,
-      y: midReaction.y - PLAYER_RENDERED_SIZE / 2,
+      y: stompLandingY(midReaction),
       vy: 300,
     };
     t += 16;
-    frameCallback!(t); // second stomp lands mid-reaction: hitPoints 1 -> 0
+    frameCallback!(t); // second stomp lands mid-reaction: hitPoints 2 -> 1
+
+    const afterSecondStomp = enemyStates.value.find((e) => e.id === target.id)!;
+    expect(afterSecondStomp.animState).toBe('hit');
+    expect(afterSecondStomp.hitPoints).toBe(1);
+
+    // Land on it a third time — to finally defeat the purple slime
+    playerState.value = {
+      ...playerState.value,
+      x: afterSecondStomp.x,
+      y: stompLandingY(afterSecondStomp),
+      vy: 300,
+    };
+    t += 16;
+    frameCallback!(t); // third stomp lands mid-reaction: hitPoints 1 -> 0
 
     const stillMidReaction = enemyStates.value.find((e) => e.id === target.id)!;
     expect(stillMidReaction.animState).toBe('hit'); // reaction hasn't finished yet
@@ -1862,15 +2114,14 @@ describe('PlatformerPage', () => {
     }
 
     expect(enemyStates.value.some((e) => e.id === target.id)).toBe(false);
-    expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(true);
+    // Purple enemies now carry no CV facts — they drop keys on defeat instead
+    expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(false);
   });
 
   it('playerFallsIntoPit-tick-losesHalfHeartAndBecomesInvincible', () => {
-    // Extends the pre-existing pit-fall test below with the new roadmap
-    // step 19 behavior: a pit fall now ALSO grants invincibility (per user
-    // request — invincibility is a property of taking damage generally, not
-    // just of enemy contact), even though it still costs the same half-heart
-    // as before (PIT_FALL_DAMAGE is unchanged).
+    // A pit fall ALSO grants invincibility — invincibility is a property of
+    // taking damage generally, not just of enemy contact — while still
+    // costing the same half-heart as any other pit fall (PIT_FALL_DAMAGE).
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frameCallback = cb;
@@ -1946,6 +2197,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
+    collectedKeys.value = 1;
     const target = chestPlacements.value[0];
     playerState.value = { ...playerState.value, x: target.x, y: target.y };
     fireEvent.keyDown(window, { code: 'ArrowUp' });
@@ -1956,9 +2208,9 @@ describe('PlatformerPage', () => {
   });
 
   it('keyWPressed-whileStandingOnClosedChest-opensItAndRevealsExperienceFact', () => {
-    // KeyW is an accepted alternate for ArrowUp's interact action (2026-08-30,
-    // same convention as A/D being alternates for Left/Right — see FR-007's
-    // amendment), so opening a chest must work with it too.
+    // KeyW is an accepted alternate for ArrowUp's interact action, same
+    // convention as A/D being alternates for Left/Right (see FR-007), so
+    // opening a chest must work with it too.
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frameCallback = cb;
@@ -1969,6 +2221,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
+    collectedKeys.value = 1;
     const target = chestPlacements.value[0];
     playerState.value = { ...playerState.value, x: target.x, y: target.y };
     fireEvent.keyDown(window, { code: 'KeyW' });
@@ -1997,6 +2250,115 @@ describe('PlatformerPage', () => {
     expect(collectedFacts.value).toHaveLength(0);
   });
 
+  it('chestOpen-zeroKeys-doesNothing', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    collectedKeys.value = 0;
+    const target = chestPlacements.value[0];
+    playerState.value = { ...playerState.value, x: target.x, y: target.y };
+    fireEvent.keyDown(window, { code: 'ArrowUp' });
+    frameCallback!(16);
+
+    expect(chestStates.value.find((c) => c.id === target.id)?.state).toBe('closed');
+    expect(collectedKeys.value).toBe(0);
+  });
+
+  it('chestOpen-zeroKeys-showsNeedsKeyHintBubble', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    collectedKeys.value = 0;
+    const target = chestPlacements.value[0];
+    playerState.value = { ...playerState.value, x: target.x, y: target.y };
+    fireEvent.keyDown(window, { code: 'ArrowUp' });
+    frameCallback!(16);
+
+    expect(hintTooltipState.value?.hintId).toBe('chestNeedsKey');
+    expect(hintTooltipState.value?.phase).toBe('entering');
+  });
+
+  it('chestOpen-zeroKeys-thenPlayerWalksAway-needsKeyHintBubbleBeginsExiting', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    collectedKeys.value = 0;
+    const target = chestPlacements.value[0];
+    playerState.value = { ...playerState.value, x: target.x, y: target.y };
+    fireEvent.keyDown(window, { code: 'ArrowUp' });
+    frameCallback!(16);
+    expect(hintTooltipState.value?.hintId).toBe('chestNeedsKey');
+
+    // Walk far away from the chest — no longer standing on/overlapping it.
+    playerState.value = { ...playerState.value, x: target.x + 2000, y: target.y };
+    frameCallback!(32);
+
+    expect(hintTooltipState.value?.phase).toBe('exiting');
+  });
+
+  it('chestOpen-atLeastOneKey-doesNotShowNeedsKeyHintBubble', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    collectedKeys.value = 1;
+    const target = chestPlacements.value[0];
+    playerState.value = { ...playerState.value, x: target.x, y: target.y };
+    fireEvent.keyDown(window, { code: 'ArrowUp' });
+    frameCallback!(16);
+
+    // The chest opened successfully — no "need a key" bubble should show.
+    expect(hintTooltipState.value).toBeNull();
+  });
+
+  it('chestOpen-atLeastOneKey-opensChestAndSpendsOneKey', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    collectedKeys.value = 1;
+    const target = chestPlacements.value[0];
+    playerState.value = { ...playerState.value, x: target.x, y: target.y };
+    fireEvent.keyDown(window, { code: 'ArrowUp' });
+    frameCallback!(16);
+
+    expect(chestStates.value.find((c) => c.id === target.id)?.state).toBe('open');
+    expect(collectedKeys.value).toBe(0);
+  });
+
   it('openingEveryChest-showsThankYouScreen-pausingTheGame', () => {
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
@@ -2008,6 +2370,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
+    collectedKeys.value = chestPlacements.value.length;
     for (const target of chestPlacements.value) {
       playerState.value = { ...playerState.value, x: target.x, y: target.y };
       fireEvent.keyDown(window, { code: 'ArrowUp' });
@@ -2035,6 +2398,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
+    collectedKeys.value = chestPlacements.value.length;
     for (const target of chestPlacements.value) {
       playerState.value = { ...playerState.value, x: target.x, y: target.y };
       fireEvent.keyDown(window, { code: 'ArrowUp' });
@@ -2088,6 +2452,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
+    collectedKeys.value = chestPlacements.value.length;
     for (const target of chestPlacements.value) {
       playerState.value = { ...playerState.value, x: target.x, y: target.y };
       fireEvent.keyDown(window, { code: 'ArrowUp' });
@@ -2107,19 +2472,19 @@ describe('PlatformerPage', () => {
   });
 
   it('unmountingAndRemountingWhileEndingScreenShowing-stillShowsItAndStaysRecoverable', () => {
-    // Regression coverage (final review, Important 4): simulates switching
-    // away from the Platformer theme (unmounting this component) and back
-    // (remounting it) while the Thank You screen is showing — theme-switch
-    // reset isn't implemented yet (roadmap steps 27/28), so every
+    // Simulates switching away from the Platformer theme (unmounting this
+    // component) and back (remounting it) while the Thank You screen is
+    // showing — theme-switch reset isn't implemented yet, so every
     // module-level signal (lifecycleState, chestStates, endingScreenShown,
-    // endingScreenOpen) must survive that round-trip unchanged. Before this
-    // fix, endingScreenOpen was a component-local useState that reset to
-    // false on remount even though lifecycleState stayed 'ending-screen' —
-    // <ThankYouScreen> would never render, with no way to dismiss and no
-    // way for the "all chests open" check to ever re-fire either (blocked by
-    // the still-true endingScreenShown latch), permanently freezing the
-    // game. Making endingScreenOpen module-level too fixes this: a remount
-    // must still show the screen, and dismissing it must still resume play.
+    // endingScreenOpen) must survive that round-trip unchanged.
+    // `endingScreenOpen` is module-level, not component-local useState, for
+    // exactly this reason: a component-local flag would reset to false on
+    // remount even though lifecycleState stayed 'ending-screen' —
+    // <ThankYouScreen> would never render, with no way to dismiss and no way
+    // for the "all chests open" check to ever re-fire either (blocked by the
+    // still-true endingScreenShown latch), permanently freezing the game. A
+    // remount must still show the screen, and dismissing it must still
+    // resume play.
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frameCallback = cb;
@@ -2130,6 +2495,7 @@ describe('PlatformerPage', () => {
     const { unmount } = render(<PlatformerPage />);
     frameCallback!(0);
 
+    collectedKeys.value = chestPlacements.value.length;
     for (const target of chestPlacements.value) {
       playerState.value = { ...playerState.value, x: target.x, y: target.y };
       fireEvent.keyDown(window, { code: 'ArrowUp' });

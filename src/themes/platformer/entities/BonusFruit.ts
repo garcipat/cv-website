@@ -10,12 +10,11 @@ export const BONUS_FRUIT_RISE_DURATION_SECONDS = 0.3;
 
 /**
  * A question-mark block's spawned reward (spec.md's "Bonus pickup" glossary
- * entry). Amended 2026-08-30 (live user feedback during step 21
- * verification): now DOES carry a CV fact — Certificates/Projects moved off
- * enemies onto question-mark blocks (see `BlockMapper.ts`'s
- * `certificateToBlock`/`projectToBlock`) — revealed the same way as any
- * other collectible once picked up (`PlatformerPage.tsx` pushes it into
- * `collectedFacts` and flies it to the journal). `fact` is `undefined` only
+ * entry). Carries a CV fact — Certificates/Projects live on question-mark
+ * blocks (see `BlockMapper.ts`'s `certificateToBlock`/`projectToBlock`) —
+ * revealed the same way as any other collectible once picked up
+ * (`PlatformerPage.tsx` pushes it into `collectedFacts` and flies it to the
+ * journal). `fact` is `undefined` only
  * for a question-mark marker beyond the available Certificate/Project data
  * (see `BlockMapper.ts`'s `placeBlocks`), in which case picking it up stays a
  * silent, factless removal. `x` is fixed at the source block's x (fruits

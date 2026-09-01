@@ -1,13 +1,22 @@
 import {
   ENEMY_FRAME_SIZE,
   ENEMY_RENDERED_SIZE,
+  ENEMY_RENDER_SCALE,
+  ENEMY_PATROL_SPEED_MULTIPLIER,
+  ENEMY_HIT_POINTS,
   enemyFrameSource,
   toEnemyState,
   advanceEnemyAnimation,
   applyStomp,
+  enemyRenderedSize,
+  enemyTileOffsetX,
+  enemyTileOffsetY,
+  enemyHitboxSidePadding,
+  enemyHitboxTopPadding,
 } from './Enemy';
 import type { EnemyState } from './Enemy';
 import type { EnemyPlacement } from '../level/EnemyMapper';
+import { RENDER_SCALE, RENDERED_TILE_SIZE } from '../level/Terrain';
 
 function makePlacement(): EnemyPlacement {
   return {
@@ -28,8 +37,8 @@ function makePlacement(): EnemyPlacement {
 describe('enemyFrameSource', () => {
   it('walkFrameZero-returnsSheetFrameFour', () => {
     // Sheet frame 4 (1-based, row 0 col 3) — the tuned breathing/bounce loop
-    // from roadmap step 16, now walk's frame range since idle no longer
-    // exists (a patrolling enemy is always moving).
+    // is walk's frame range since there's no idle state (a patrolling enemy
+    // is always moving).
     expect(enemyFrameSource('walk', 0)).toEqual({ sx: 3 * ENEMY_FRAME_SIZE, sy: 0 });
   });
 
@@ -81,10 +90,10 @@ describe('toEnemyState', () => {
     expect(state.hitTimer).toBe(0);
   });
 
-  it('purpleSlime-startsWithTwoHitPoints', () => {
+  it('purpleSlime-startsWithThreeHitPoints', () => {
     const purplePlacement = { ...makePlacement(), spriteType: 'slimePurple' as const };
     const state = toEnemyState(purplePlacement);
-    expect(state.hitPoints).toBe(2);
+    expect(state.hitPoints).toBe(3);
   });
 });
 
@@ -97,7 +106,7 @@ describe('advanceEnemyAnimation', () => {
   });
 
   it('atFrameDuration-advancesFrameAndResetsTimerRemainder', () => {
-    // walk's frameDuration is 0.15s (unchanged from the original idle tuning).
+    // walk's frameDuration is 0.15s.
     const state = { ...toEnemyState(makePlacement()), animTimer: 0.1 };
     const next = advanceEnemyAnimation(state, 0.05);
     expect(next.animFrame).toBe(1);
@@ -138,7 +147,7 @@ describe('applyStomp', () => {
 
   it('enemyAlreadyMidHitReactionFromAnEarlierStomp-resetsAnimationAgain', () => {
     // A legitimate second stomp (chain-stomping a still-alive purple enemy,
-    // even entirely airborne from the first stomp's own bounce — see
+    // even entirely airborne from the first stomp's own bounce arc — see
     // Collision.ts's checkEnemyStompCollisions) must replay the reaction
     // from frame 0, not continue wherever the first stomp's animation had
     // gotten to.
@@ -163,10 +172,74 @@ describe('applyStomp', () => {
     expect(next.hitPoints).toBe(0);
   });
 
-  it('purpleSlimeWithTwoHitPoints-decrementsToOne', () => {
+  it('purpleSlimeWithThreeHitPoints-decrementsToTwo', () => {
     const purplePlacement = { ...makePlacement(), spriteType: 'slimePurple' as const };
     const state = toEnemyState(purplePlacement);
     const next = applyStomp(state);
-    expect(next.hitPoints).toBe(1);
+    expect(next.hitPoints).toBe(2);
+  });
+});
+
+describe('per-spriteType enemy config', () => {
+  it('enemyRenderedSize-slimePurple-is1point5xGreen', () => {
+    expect(enemyRenderedSize('slimePurple')).toBe(ENEMY_FRAME_SIZE * RENDER_SCALE * 1.5);
+    expect(enemyRenderedSize('slimeGreen')).toBe(ENEMY_FRAME_SIZE * RENDER_SCALE);
+  });
+
+  it('enemyTileOffsetX-slimePurple-centersLargerSpriteOnTile', () => {
+    const size = enemyRenderedSize('slimePurple');
+    expect(enemyTileOffsetX('slimePurple')).toBe((RENDERED_TILE_SIZE - size) / 2);
+  });
+
+  it('enemyTileOffsetY-slimePurple-bottomAnchorsLargerSprite', () => {
+    const size = enemyRenderedSize('slimePurple');
+    expect(enemyTileOffsetY('slimePurple')).toBe(RENDERED_TILE_SIZE - size);
+  });
+
+  it('patrolSpeedMultiplier-slimePurple-isSlowerThanGreen', () => {
+    expect(ENEMY_PATROL_SPEED_MULTIPLIER.slimePurple).toBeLessThan(ENEMY_PATROL_SPEED_MULTIPLIER.slimeGreen);
+    expect(ENEMY_PATROL_SPEED_MULTIPLIER.slimePurple).toBe(0.7);
+  });
+
+  it('hitPoints-slimePurple-is3', () => {
+    expect(ENEMY_HIT_POINTS.slimePurple).toBe(3);
+    expect(ENEMY_HIT_POINTS.slimeGreen).toBe(1);
+  });
+
+  it('renderScale-slimePurple-is1point5', () => {
+    expect(ENEMY_RENDER_SCALE.slimePurple).toBe(1.5);
+    expect(ENEMY_RENDER_SCALE.slimeGreen).toBe(1);
+  });
+});
+
+describe('toEnemyState hitPoints (updated)', () => {
+  it('toEnemyState-slimePurple-hasThreeHitPoints', () => {
+    const placement = { id: 'e1', spriteType: 'slimePurple' as const, x: 0, y: 0 };
+    expect(toEnemyState(placement).hitPoints).toBe(3);
+  });
+});
+
+describe('enemy hitbox padding (insets the collision box from the sprite corners)', () => {
+  it('enemyHitboxSidePadding-slimeGreen-matchesMeasuredNativePaddingTimesRenderScale', () => {
+    // Measured via pixel bounding-box analysis across slime_green.png's/
+    // slime_purple.png's shared walk-cycle frames: the opaque silhouette
+    // spans x 5-18 of the 24px native frame (5px transparent margin each
+    // side).
+    expect(enemyHitboxSidePadding('slimeGreen')).toBe(5 * RENDER_SCALE * 1);
+  });
+
+  it('enemyHitboxSidePadding-slimePurple-scalesWithRenderScale', () => {
+    expect(enemyHitboxSidePadding('slimePurple')).toBe(5 * RENDER_SCALE * 1.5);
+  });
+
+  it('enemyHitboxTopPadding-slimeGreen-matchesMeasuredNativePaddingTimesRenderScale', () => {
+    // Same measurement: opaque silhouette spans y 9-23 (9px transparent
+    // margin above; 0px below — the feet already touch the frame's bottom
+    // edge, per ENEMY_TILE_OFFSET_Y's doc comment).
+    expect(enemyHitboxTopPadding('slimeGreen')).toBe(9 * RENDER_SCALE * 1);
+  });
+
+  it('enemyHitboxTopPadding-slimePurple-scalesWithRenderScale', () => {
+    expect(enemyHitboxTopPadding('slimePurple')).toBe(9 * RENDER_SCALE * 1.5);
   });
 });

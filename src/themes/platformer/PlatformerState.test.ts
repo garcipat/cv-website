@@ -22,6 +22,8 @@ import {
   endingScreenShown,
   signPlacements,
   controlsOverlayDismissed,
+  keyPickupStates,
+  collectedKeys,
 } from './PlatformerState';
 import { mapCVDataToEnemies } from './level/EnemyMapper';
 import { currentCV } from '@/state/locale';
@@ -48,14 +50,14 @@ describe('PlatformerState', () => {
   });
 
   it('enemyPlacements-initial-oneEnemyPerLevelMarkerNotPerFullCVData', () => {
-    // currentLevel currently has exactly one `E` and one `M` marker — placement
+    // currentLevel currently has exactly one `E` and two `M` markers — placement
     // count tracks the level's markers, not CVData's (larger) certificate/
     // project counts. This is expected for a mechanics-test level (see
     // level.ts's doc comment), not a regression.
     const allPossibleDefs = mapCVDataToEnemies(currentCV.value);
     expect(allPossibleDefs.length).toBeGreaterThan(enemyPlacements.value.length);
     expect(enemyPlacements.value.filter((p) => p.spriteType === 'slimeGreen')).toHaveLength(1);
-    expect(enemyPlacements.value.filter((p) => p.spriteType === 'slimePurple')).toHaveLength(1);
+    expect(enemyPlacements.value.filter((p) => p.spriteType === 'slimePurple')).toHaveLength(2);
   });
 
   it('blockPlacements-initial-hasTwoOfEachKindMatchingLevel1sMarkers', () => {
@@ -340,6 +342,29 @@ describe('hintTooltipState', () => {
 
   it('initialValue-onModuleLoad-isNull', () => {
     expect(hintTooltipState.value).toBeNull();
+  });
+});
+
+describe('keyPickupStates / collectedKeys persistence', () => {
+  afterEach(() => {
+    keyPickupStates.value = [];
+    collectedKeys.value = 0;
+  });
+
+  it('resetGame-doesNotClearKeyPickupsOrCollectedKeys', () => {
+    keyPickupStates.value = [{ id: 'k1', x: 0, y: 0, collected: true }];
+    collectedKeys.value = 2;
+    resetGame();
+    expect(keyPickupStates.value).toEqual([{ id: 'k1', x: 0, y: 0, collected: true }]);
+    expect(collectedKeys.value).toBe(2);
+  });
+
+  it('resetGameProgress-clearsKeyPickupsAndCollectedKeys', () => {
+    keyPickupStates.value = [{ id: 'k1', x: 0, y: 0, collected: true }];
+    collectedKeys.value = 2;
+    resetGameProgress();
+    expect(keyPickupStates.value).toEqual([]);
+    expect(collectedKeys.value).toBe(0);
   });
 });
 
