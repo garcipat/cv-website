@@ -93,15 +93,33 @@ Pass:
 
 ### 5b. Chroma-key the result (transparency requests only)
 
-If step 4 used the magenta-background technique, the tool's result is NOT the final asset yet — it's often returned as a `.jpg` regardless of the requested filename (JPEG has no alpha channel at all, which is itself a sign the model isn't producing real transparency directly). Run the bundled script to convert it:
+If step 4 used the magenta-background technique, the tool's result is NOT the final asset yet — it's often returned as a `.jpg` regardless of the requested filename (JPEG has no alpha channel at all, which is itself a sign the model isn't producing real transparency directly). Run the bundled script to convert it — no need to open/read the script itself to know its syntax, it's fully specified here:
 
 ```powershell
-pwsh -File "<this-skill-directory>/chroma-key.ps1" -InputPath "<raw output path>" -OutputPath "<final .png path>" -TargetWidth <N>
+<this-skill-directory>\chroma-key.ps1 -InputPath "<raw output path>" -OutputPath "<final .png path>" -TargetWidth <N>
 ```
 
-- `-TargetWidth` (or `-TargetHeight`) downscales after cropping — pass whatever the target render size is (e.g. a game sprite's native pixel size); omit both to keep the model's native resolution, tightly cropped.
-- Add `-Smooth` for non-pixel-art assets (photos, icons meant to scale smoothly) — omit it (the default) for pixel-art/game-sprite style assets, where nearest-neighbor keeps edges crisp.
-- The script prints the final dimensions and output path. If it throws "No opaque pixels found," the whole image got keyed out — the background likely wasn't a clean, uniform magenta (check the raw output); a `-MagentaScoreThreshold` below the default 60 can help if fringe remains, but the fix that actually matters is usually re-generating with a stricter magenta-background prompt.
+Concrete example (generate an icon at native res, land it as a 24px-wide game sprite):
+
+```powershell
+C:\path\to\repo\.claude\skills\nano-banana\chroma-key.ps1 -InputPath "C:\path\to\repo\.generated\raw_magenta.jpg" -OutputPath "C:\path\to\repo\public\sprites\icon.png" -TargetWidth 24
+```
+
+**Parameters** (all documented in the script's own comment-based help — `Get-Help <path>\chroma-key.ps1 -Full` if you ever need more than this table):
+
+| Parameter | Required | Meaning |
+|---|---|---|
+| `-InputPath` | yes | The raw magenta-background image from step 3/5 (`.jpg` or `.png`, either works) |
+| `-OutputPath` | yes | Where to write the final transparent `.png` — parent directory is created automatically if missing |
+| `-TargetWidth <N>` | no | Downscale to this width after cropping, preserving aspect ratio (use this OR `-TargetHeight`, not both, unless you deliberately want to override the aspect ratio) |
+| `-TargetHeight <N>` | no | Downscale to this height after cropping, preserving aspect ratio |
+| `-Smooth` | no | Use high-quality bicubic interpolation instead of nearest-neighbor — only for non-pixel-art assets (photos, icons meant to scale smoothly). Omit for pixel-art/game-sprite style assets, where nearest-neighbor keeps edges crisp |
+| `-MagentaScoreThreshold <N>` | no | Default `60`. Lower = stricter magenta match (may leave a fringe); higher = more aggressive removal (may eat real artwork that leans magenta/pink) |
+
+Both `-InputPath` and `-OutputPath` accept relative paths (resolved against the current working directory) or absolute paths — either works.
+
+- The script prints the crop/downscale dimensions and the final output path on success.
+- If it throws "No opaque pixels found," the whole image got keyed out — the background likely wasn't a clean, uniform magenta (check the raw output); try a lower `-MagentaScoreThreshold` if a fringe remains, but the fix that actually matters is usually re-generating with a stricter magenta-background prompt.
 - Read the resulting PNG (a normal file-viewing step, not the crashing kind step 6 warns about) to confirm the crop and transparency look right before handing it off — a checkerboard viewer background around the artwork confirms real alpha; solid magenta anywhere means the key missed a spot.
 
 ### 6. Report the result
