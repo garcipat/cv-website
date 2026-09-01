@@ -5,7 +5,6 @@ import {
   PLAYER_FOOT_PADDING,
 } from '../entities/Player';
 import type { PlayerState } from '../entities/Player';
-import { COIN_RENDERED_SIZE } from '../entities/Coin';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
 import {
   enemyRenderedSize,
@@ -17,9 +16,8 @@ import {
 import type { EnemyState } from '../entities/Enemy';
 import { typeOf } from '../entities/enemies';
 import type { ContactSide } from './Contact';
-import { bonusFruitY, BONUS_FRUIT_RISE_DURATION_SECONDS } from '../entities/BonusFruit';
+import { BONUS_FRUIT_RISE_DURATION_SECONDS } from '../entities/BonusFruit';
 import type { BonusFruitState } from '../entities/BonusFruit';
-import { FRUIT_RENDERED_SIZE } from '../entities/Fruit';
 import {
   CHEST_CLOSED_RENDERED_WIDTH,
   CHEST_CLOSED_RENDERED_HEIGHT,
@@ -31,12 +29,7 @@ import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { SignPlacement } from '../level/SignMapper';
 import type { HintId } from '../types';
 import type { KeyPickupState } from '../entities/KeyPickup';
-import {
-  KEY_RENDERED_WIDTH,
-  KEY_RENDERED_HEIGHT,
-  KEY_TILE_OFFSET_X,
-  KEY_TILE_OFFSET_Y,
-} from '../entities/KeyPickup';
+import { PICKUP_TYPES } from '../entities/pickups';
 
 export interface Box {
   x: number;
@@ -68,31 +61,55 @@ export function aabbOverlap(a: Box, b: Box): boolean {
 }
 
 /**
+ * Every item whose box overlaps the player's hitbox and that its caller
+ * considers eligible right now.
+ *
+ * Eligibility is a caller-supplied predicate rather than a property of the
+ * item, because the pickup families record "already collected" differently:
+ * placed collectibles are deduplicated against an external id Set, dropped
+ * keys carry a `collected` flag, and bonus fruits are removed from their
+ * array outright. The overlap mechanism is shared; the policy stays with
+ * whoever owns it.
+ */
+export function overlappingPickups<T>(
+  player: PlayerState,
+  items: readonly T[],
+  boxOf: (item: T) => Box,
+  eligible: (item: T) => boolean,
+): T[] {
+  const hitbox = playerHitbox(player);
+  const hits: T[] = [];
+  for (const item of items) {
+    if (!eligible(item)) continue;
+    if (aabbOverlap(hitbox, boxOf(item))) hits.push(item);
+  }
+  return hits;
+}
+
+/**
  * Returns the ids of every placement the player's hitbox currently overlaps,
  * excluding ids already in `collectedIds` — collision against an
  * already-collected (visually removed) collectible is a no-op, not a
- * duplicate-collect (FR-020c). Uses each placement's fixed x/y, ignoring the
- * cosmetic bob offset (Renderer.ts's drawCollectibles) so the
- * hitbox doesn't jitter a few pixels every frame independent of the sprite.
+ * duplicate-collect (FR-020c). Boxes come from `PICKUP_TYPES[spriteType].box`,
+ * which uses each placement's fixed x/y, ignoring the cosmetic bob offset
+ * (Renderer.ts's drawCollectibles) so the hitbox doesn't jitter a few pixels
+ * every frame independent of the sprite. A coin placement's box is
+ * `COIN_RENDERED_SIZE` square and a fruit placement's is `FRUIT_RENDERED_SIZE`
+ * square — both currently equal 32, so routing per-placement through its own
+ * pickup type is a no-op versus the single shared size this function used to
+ * hardcode.
  */
 export function checkCollectibleCollisions(
   player: PlayerState,
   placements: CollectiblePlacement[],
   collectedIds: ReadonlySet<string>,
 ): string[] {
-  const hitbox = playerHitbox(player);
-  const collected: string[] = [];
-  for (const placement of placements) {
-    if (collectedIds.has(placement.id)) continue;
-    const box: Box = {
-      x: placement.x,
-      y: placement.y,
-      width: COIN_RENDERED_SIZE,
-      height: COIN_RENDERED_SIZE,
-    };
-    if (aabbOverlap(hitbox, box)) collected.push(placement.id);
-  }
-  return collected;
+  return overlappingPickups(
+    player,
+    placements,
+    (p) => PICKUP_TYPES[p.spriteType].box(p),
+    (p) => !collectedIds.has(p.id),
+  ).map((p) => p.id);
 }
 
 /**
@@ -208,14 +225,12 @@ export function checkBonusFruitCollisions(
   player: PlayerState,
   fruits: readonly BonusFruitState[],
 ): string[] {
-  const hitbox = playerHitbox(player);
-  const hits: string[] = [];
-  for (const fruit of fruits) {
-    if (fruit.elapsed < BONUS_FRUIT_RISE_DURATION_SECONDS) continue;
-    const box: Box = { x: fruit.x, y: bonusFruitY(fruit), width: FRUIT_RENDERED_SIZE, height: FRUIT_RENDERED_SIZE };
-    if (aabbOverlap(hitbox, box)) hits.push(fruit.id);
-  }
-  return hits;
+  return overlappingPickups(
+    player,
+    fruits,
+    (f) => PICKUP_TYPES.bonusFruit.box(f),
+    (f) => f.elapsed >= BONUS_FRUIT_RISE_DURATION_SECONDS,
+  ).map((f) => f.id);
 }
 
 /**
@@ -287,17 +302,10 @@ export function checkKeyPickupCollisions(
   player: PlayerState,
   pickups: readonly KeyPickupState[],
 ): string[] {
-  const hitbox = playerHitbox(player);
-  const hits: string[] = [];
-  for (const pickup of pickups) {
-    if (pickup.collected) continue;
-    const box: Box = {
-      x: pickup.x + KEY_TILE_OFFSET_X,
-      y: pickup.y + KEY_TILE_OFFSET_Y,
-      width: KEY_RENDERED_WIDTH,
-      height: KEY_RENDERED_HEIGHT,
-    };
-    if (aabbOverlap(hitbox, box)) hits.push(pickup.id);
-  }
-  return hits;
+  return overlappingPickups(
+    player,
+    pickups,
+    (p) => PICKUP_TYPES.key.box(p),
+    (p) => !p.collected,
+  ).map((p) => p.id);
 }
