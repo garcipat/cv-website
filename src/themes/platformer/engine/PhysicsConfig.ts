@@ -90,17 +90,17 @@ export const PHYSICS_CONFIG = {
   sideHitKnockbackDuration: 0.25,
   /**
    * Upward velocity impulse added on top of the usual horizontal knockback
-   * when the side-hit was actually a top-landing attempt on a `spiked`
-   * enemy (the `'awayAndUp'` knockback SlimePurple.ts's `onPlayerCollide`
-   * asks for) — much weaker than
-   * `stompBounceVelocity` (-330), just enough to read as "bounced off the
-   * spikes" rather than an identical sideways-only push to a genuine
-   * side/below touch. Not gated by `PlayerState.bounceAscending` the way
-   * `stompBounceVelocity` is — this is a brief, involuntary knockback
-   * reaction, not a jump the variable-height cut needs protecting from.
-   * Same tunneling invariant as the other velocity constants:
-   * `Math.abs(spikeTopHitKnockbackVy) * MAX_DT` must stay below
-   * RENDERED_TILE_SIZE (32px): Math.abs(-150) * (1/30) = 5 < 32. ✓
+   * when a contact resolves to the `'awayAndUp'` knockback direction (an
+   * enemy type asks for this when a top-landing attempt fails against a
+   * defense currently making it un-stompable — see SlimePurple.ts's
+   * `onPlayerCollide`) — much weaker than `stompBounceVelocity` (-330), just
+   * enough to read as bouncing off rather than an identical sideways-only
+   * push to a genuine side/below touch. Not gated by
+   * `PlayerState.bounceAscending` the way `stompBounceVelocity` is — this is
+   * a brief, involuntary knockback reaction, not a jump the variable-height
+   * cut needs protecting from. Same tunneling invariant as the other
+   * velocity constants: `Math.abs(awayAndUpKnockbackVy) * MAX_DT` must stay
+   * below RENDERED_TILE_SIZE (32px): Math.abs(-150) * (1/30) = 5 < 32. ✓
    */
-  spikeTopHitKnockbackVy: -150,
+  awayAndUpKnockbackVy: -150,
 } as const;

@@ -8,27 +8,11 @@ import {
   enemyTileOffsetX,
   enemyHitboxSidePadding,
 } from '../entities/Enemy';
-import {
-  SPIKE_GROW_DURATION_SECONDS,
-  SPIKE_HOLD_DURATION_SECONDS,
-  SPIKE_RETRACT_DURATION_SECONDS,
-} from '../entities/enemies/SlimePurple';
-
-export { SPIKE_GROW_DURATION_SECONDS, SPIKE_HOLD_DURATION_SECONDS, SPIKE_RETRACT_DURATION_SECONDS };
 
 /** How long the `hit` reaction (red-flash/dissolve) plays before the enemy
  *  either reverts to patrolling (hit points remain) or is flagged dead —
  *  matches Enemy.ts's `hit` animation: 4 frames at 0.1s each. */
 export const HIT_REACTION_DURATION_SECONDS = 0.4;
-
-/** Total time an enemy stays `spiked` (per Collision.ts, un-stompable from
- *  above during this window) — derived from SlimePurple.ts's three spike
- *  animation phases (grow/hold/retract), not an independent value, so the
- *  enemy becomes stompable again exactly when the retract animation
- *  finishes, never before (looking like it's still got spikes out) or after
- *  (an idle beat with no visible spikes but still immune). */
-export const SPIKE_COOLDOWN_DURATION_SECONDS =
-  SPIKE_GROW_DURATION_SECONDS + SPIKE_HOLD_DURATION_SECONDS + SPIKE_RETRACT_DURATION_SECONDS;
 
 /**
  * Advances one enemy's horizontal patrol by `dt` seconds: moves at a
@@ -159,23 +143,5 @@ export function stepEnemyHitReaction(enemy: EnemyState, dt: number): EnemyState 
     return { ...enemy, hitTimer, alive: false };
   }
   return { ...enemy, hitTimer: 0, animState: 'walk', animFrame: 0, animTimer: 0 };
-}
-
-/**
- * Advances a spiked enemy's cooldown by `dt` seconds. No-op (returns the
- * same reference) for an enemy that isn't currently `spiked` — same
- * no-op-until-threshold shape as `stepEnemyHitReaction` above, but this
- * timer runs independently of `animState`/`hitTimer`: a purple slime keeps
- * counting down its spike cooldown while patrolling normally, not just
- * while mid hit-reaction.
- */
-export function stepEnemySpikeCooldown(enemy: EnemyState, dt: number): EnemyState {
-  if (!enemy.spiked) return enemy;
-
-  const spikeTimer = enemy.spikeTimer + dt;
-  if (spikeTimer < SPIKE_COOLDOWN_DURATION_SECONDS) {
-    return { ...enemy, spikeTimer };
-  }
-  return { ...enemy, spiked: false, spikeTimer: 0 };
 }
 

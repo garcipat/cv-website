@@ -33,7 +33,7 @@ import { drawDebugOverlay } from './engine/DebugOverlay';
 import { createGameLoop } from './engine/GameLoop';
 import { stepPlayerPhysics, checkPitFall, resolvePitFall } from './engine/Physics';
 import { PHYSICS_CONFIG } from './engine/PhysicsConfig';
-import { stepEnemyPatrol, stepEnemyHitReaction, stepEnemySpikeCooldown } from './engine/EnemyAI';
+import { stepEnemyPatrol, stepEnemyHitReaction } from './engine/EnemyAI';
 import { updateCamera, updateCameraY } from './engine/Camera';
 import { createKeyboardInput } from './engine/Input';
 import type { KeyboardInput } from './engine/Input';
@@ -88,7 +88,7 @@ import { advanceEnemyAnimation } from './entities/Enemy';
 import { SLIME_GREEN_SHEET, KEY_SHEET } from './entities/sprites/sheets';
 import { frameSource, collectSheetSources } from './entities/sprites/SpriteSheet';
 import type { SpriteLookup } from './entities/sprites/SpriteSheet';
-import { ENEMY_TYPES } from './entities/enemies';
+import { ENEMY_TYPES, typeOf } from './entities/enemies';
 import type { EnemyState } from './entities/Enemy';
 import { takeDamage, PIT_FALL_DAMAGE, INVINCIBILITY_DURATION_SECONDS } from './entities/Health';
 import {
@@ -663,7 +663,7 @@ export const PlatformerPage = () => {
           enemy.animState === 'hit'
             ? stepEnemyHitReaction(enemy, dt)
             : stepEnemyPatrol(enemy, currentLevel.value, dt, blockedTiles);
-        return advanceEnemyAnimation(stepEnemySpikeCooldown(next, dt), dt);
+        return advanceEnemyAnimation(typeOf(next).onTick?.(next, dt) ?? next, dt);
       };
       enemyStates.value = enemyStates.value.map((enemy) => (enemy.alive ? stepEnemy(enemy) : enemy));
 
@@ -1132,7 +1132,7 @@ export const PlatformerPage = () => {
           // configured magnitude regardless of jump-key state.
           playerState.value = {
             ...playerState.value,
-            vy: PHYSICS_CONFIG.spikeTopHitKnockbackVy,
+            vy: PHYSICS_CONFIG.awayAndUpKnockbackVy,
             bounceAscending: true,
           };
         }
