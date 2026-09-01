@@ -17,7 +17,7 @@ import {
   PLAYER_VISUAL_CENTER_Y_OFFSET,
 } from './entities/Player';
 import { MAX_HALF_HEARTS } from './entities/Health';
-import { toEnemyState } from './entities/Enemy';
+import { toEnemyState, reviveEnemy } from './entities/Enemy';
 import type { EnemyState } from './entities/Enemy';
 import { toBlockState } from './entities/Block';
 import type { BlockState } from './entities/Block';
@@ -378,14 +378,21 @@ export const lifecycleState = signal<LifecycleState>(
 
 /**
  * Resets the game world to its spawn state: player back at the spawn point,
- * full health, enemies back at their spawn placements, camera scrolled back
- * to the level start. Does NOT touch `lifecycleState`, `collectedFacts`, or
- * `collectedCollectibleIds` — per FR-020c, a death/respawn preserves
- * everything already discovered; only the "Reset Game" button clears those
- * (see `resetGameProgress()` below). Callers (restart-on-input and the debug
- * Respawn button, both wired to the `intro` iris-in) decide the lifecycle
- * transition themselves, since not every caller of a "reset" necessarily
- * wants the iris animation.
+ * full health, enemies revived in place at their spawn placements, camera
+ * scrolled back to the level start. Does NOT touch `lifecycleState`,
+ * `collectedFacts`, or `collectedCollectibleIds` — per FR-020c, a
+ * death/respawn preserves everything already discovered; only the "Reset
+ * Game" button clears those (see `resetGameProgress()` below). Callers
+ * (restart-on-input and the debug Respawn button, both wired to the `intro`
+ * iris-in) decide the lifecycle transition themselves, since not every
+ * caller of a "reset" necessarily wants the iris animation.
+ *
+ * Enemies are revived via `reviveEnemy` on the existing `enemyStates`
+ * objects rather than rebuilt from `enemyPlacements` — the same enemy
+ * objects survive a death/respawn cycle so per-instance session state (see
+ * `EnemyState.rewardGiven`) isn't wiped out by a fresh rebuild.
+ * `resetGameProgress()` below is the only place still allowed to rebuild
+ * from placements, which is what actually clears that session state.
  *
  * This is the single reset seam a full "Reset Game" button extends: enemies
  * are reset here; `resetGameProgress()` additionally clears collected facts
@@ -396,7 +403,7 @@ export function resetGame(): void {
   healthState.value = MAX_HALF_HEARTS;
   cameraPositionX.value = 0;
   cameraPositionY.value = 0;
-  enemyStates.value = enemyPlacements.value.map((placement, index) => toEnemyState(placement, index));
+  enemyStates.value = enemyStates.value.map(reviveEnemy);
   hintTooltipState.value = null;
 }
 
@@ -432,4 +439,5 @@ export function resetGameProgress(): void {
   bonusFruitStates.value = [];
   keyPickupStates.value = [];
   collectedKeys.value = 0;
+  enemyStates.value = enemyPlacements.value.map((placement, index) => toEnemyState(placement, index));
 }

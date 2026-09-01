@@ -194,6 +194,12 @@ export interface EnemyState extends EnemyPlacement {
    *  per-instance state below (see `rewardGiven`, added in Task 4) survives a
    *  death/respawn cycle without needing an id-keyed ledger elsewhere. */
   alive: boolean;
+  /** The enemy's placement position. `reviveEnemy` restores `x`/`y` from
+   *  these after a player death, so the enemy object itself never has to be
+   *  rebuilt from its placement — which is what lets per-instance state
+   *  (see `rewardGiven`) survive a respawn. */
+  homeX: number;
+  homeY: number;
 }
 
 /**
@@ -226,6 +232,38 @@ export function toEnemyState(placement: EnemyPlacement, index = 0): EnemyState {
     animFrame: index % frames.length,
     animTimer: (index * 0.05) % frameDuration,
     hitPoints: ENEMY_HIT_POINTS[placement.spriteType],
+    hitTimer: 0,
+    spiked: false,
+    spikeTimer: 0,
+    alive: true,
+    homeX: placement.x,
+    homeY: placement.y,
+  };
+}
+
+/**
+ * Returns an enemy reset to its spawn state, preserving every field that
+ * represents session progress rather than a moment in a life. Called by
+ * `PlatformerState.ts`'s `resetGame()` on every enemy after a player death,
+ * living or dead — an enemy mid-patrol is returned to its placement tile just
+ * as a dead one is brought back.
+ *
+ * `rewardGiven` (Task 4) is deliberately NOT reset here: an enemy that has
+ * already paid out its fact or its dropped item revives as a normal, killable
+ * obstacle that has nothing further to give. Only `resetGameProgress()` (the
+ * Reset Game button) clears that, by rebuilding the array from placements.
+ */
+export function reviveEnemy(enemy: EnemyState): EnemyState {
+  return {
+    ...enemy,
+    x: enemy.homeX,
+    y: enemy.homeY,
+    vx: 0,
+    direction: 'right',
+    animState: 'walk',
+    animFrame: 0,
+    animTimer: 0,
+    hitPoints: ENEMY_HIT_POINTS[enemy.spriteType],
     hitTimer: 0,
     spiked: false,
     spikeTimer: 0,

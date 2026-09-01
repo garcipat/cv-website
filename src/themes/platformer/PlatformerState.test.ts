@@ -145,6 +145,32 @@ describe('PlatformerState', () => {
     expect(collectedFacts.value).toHaveLength(1);
   });
 
+  it('resetGame-afterEnemyMovedAndDied-revivesTheSameObjectsInPlace', () => {
+    const before = enemyStates.value;
+    enemyStates.value = before.map((e) => ({ ...e, x: e.x + 200, hitPoints: 0, alive: false }));
+
+    resetGame();
+
+    expect(enemyStates.value).toHaveLength(before.length);
+    expect(enemyStates.value.every((e) => e.alive)).toBe(true);
+    enemyStates.value.forEach((e, i) => {
+      expect(e.x).toBe(before[i].x);
+      expect(e.id).toBe(before[i].id);
+    });
+  });
+
+  it('resetGame-enemyCarryingSessionState-preservesThatStateAcrossRevive', () => {
+    // The property the whole plan exists for: resetGame() must not be able to
+    // erase per-enemy session progress by rebuilding the array from placements.
+    enemyStates.value = enemyStates.value.map((e, i) => (i === 0 ? { ...e, alive: false } : e));
+    const targetId = enemyStates.value[0].id;
+
+    resetGame();
+
+    expect(enemyStates.value[0].id).toBe(targetId);
+    expect(enemyStates.value[0].alive).toBe(true);
+  });
+
   it('playerState-initial-hasIdleAnimAtFrameZero', () => {
     expect(playerState.value.animState).toBe('idle');
     expect(playerState.value.animFrame).toBe(0);

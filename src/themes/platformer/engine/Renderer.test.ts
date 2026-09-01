@@ -252,6 +252,8 @@ function makeEnemyState(
     spiked: false,
     spikeTimer: 0,
     alive: true,
+    homeX: x,
+    homeY: y,
     ...overrides,
   };
 }
