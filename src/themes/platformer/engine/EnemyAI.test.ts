@@ -210,7 +210,7 @@ describe('stepEnemyPatrol', () => {
       hitTimer: 0,
       spiked: false,
       spikeTimer: 0,
-      defeated: false,
+      alive: true,
     };
 
     const first = stepEnemyPatrol(enemy, level, DT, []);
@@ -239,7 +239,7 @@ describe('stepEnemyPatrol', () => {
       hitTimer: 0,
       spiked: false,
       spikeTimer: 0,
-      defeated: false,
+      alive: true,
     };
     const green = stepEnemyPatrol({ ...base, spriteType: 'slimeGreen' as const }, level, 1, []);
     const purple = stepEnemyPatrol({ ...base, spriteType: 'slimePurple' as const }, level, 1, []);
@@ -261,7 +261,7 @@ describe('stepEnemyHitReaction', () => {
     const next = stepEnemyHitReaction(enemy, 0.1);
     expect(next.animState).toBe('hit');
     expect(next.hitTimer).toBeCloseTo(0.1);
-    expect(next.defeated).toBe(false);
+    expect(next.alive).toBe(true);
   });
 
   it('reactionDurationElapsed-hitPointsRemaining-revertsToWalk', () => {
@@ -271,22 +271,35 @@ describe('stepEnemyHitReaction', () => {
     expect(next.animFrame).toBe(0);
     expect(next.animTimer).toBe(0);
     expect(next.hitTimer).toBe(0);
-    expect(next.defeated).toBe(false);
+    expect(next.alive).toBe(true);
   });
 
   it('reactionDurationElapsed-noHitPointsRemaining-flagsDefeated', () => {
     const enemy = makeHitEnemy(0);
     const next = stepEnemyHitReaction(enemy, HIT_REACTION_DURATION_SECONDS);
-    expect(next.defeated).toBe(true);
+    expect(next.alive).toBe(false);
     expect(next.animState).toBe('hit'); // stays on its last frame until removed
   });
 
   it('reactionDuration-splitAcrossTwoTicks-stillCompletesCorrectly', () => {
     let enemy = makeHitEnemy(0);
     enemy = stepEnemyHitReaction(enemy, HIT_REACTION_DURATION_SECONDS / 2);
-    expect(enemy.defeated).toBe(false);
+    expect(enemy.alive).toBe(true);
     enemy = stepEnemyHitReaction(enemy, HIT_REACTION_DURATION_SECONDS / 2);
-    expect(enemy.defeated).toBe(true);
+    expect(enemy.alive).toBe(false);
+  });
+
+  it('reactionFinishedWithNoHitPoints-flagsNotAlive', () => {
+    const enemy = makeHitEnemy(0);
+    const stepped = stepEnemyHitReaction(enemy, HIT_REACTION_DURATION_SECONDS);
+    expect(stepped.alive).toBe(false);
+  });
+
+  it('reactionFinishedWithHitPointsRemaining-staysAlive', () => {
+    const enemy = makeHitEnemy(2);
+    const stepped = stepEnemyHitReaction(enemy, HIT_REACTION_DURATION_SECONDS);
+    expect(stepped.alive).toBe(true);
+    expect(stepped.animState).toBe('walk');
   });
 });
 

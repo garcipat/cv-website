@@ -894,14 +894,14 @@ describe('PlatformerPage', () => {
       frameCallback!(t);
     }
 
-    expect(enemyStates.value.some((e) => e.id === target.id)).toBe(false);
+    expect(enemyStates.value.find((e) => e.id === target.id)?.alive).toBe(false);
     expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(true);
   });
 
   it('playerFallsOntoAPlainEnemyWithNoFact-tick-defeatsItButAwardsNoFact', () => {
     // A "plain" enemy (EnemyMapper.ts's excess-marker case — enemies are not
     // capped at CVData's length) has no `fact` — stomping it must still
-    // remove it like any other enemy, just without banking a fact or
+    // flag it dead like any other enemy, just without banking a fact or
     // bumping the enemy counter popup.
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
@@ -938,7 +938,7 @@ describe('PlatformerPage', () => {
       frameCallback!(t);
     }
 
-    expect(enemyStates.value.some((e) => e.id === plain.id)).toBe(false);
+    expect(enemyStates.value.find((e) => e.id === plain.id)?.alive).toBe(false);
     expect(collectedFacts.value).toHaveLength(factsBefore);
   });
 
@@ -982,7 +982,7 @@ describe('PlatformerPage', () => {
     // matters here is that a KeyPickupState was created at all (proving the
     // defeat routed through spawnKeyPickup, not the fact-flight path) and
     // that no journal fact was banked for this enemy.
-    expect(enemyStates.value.some((e) => e.id === target.id)).toBe(false);
+    expect(enemyStates.value.find((e) => e.id === target.id)?.alive).toBe(false);
     expect(keyPickupStates.value.some((k) => k.id === target.id)).toBe(true);
     expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(false);
   });
@@ -1245,7 +1245,7 @@ describe('PlatformerPage', () => {
     const framesPastSpikeCooldown = Math.ceil((SPIKE_COOLDOWN_DURATION_SECONDS * 1000) / 16) + 5;
     for (let stomp = 1; stomp <= 3; stomp++) {
       const current = enemyStates.value.find((e) => e.id === target.id);
-      if (!current) break; // defeated — nothing left to land on
+      if (!current || !current.alive) break; // dead — nothing left to land on
       playerState.value = {
         ...playerState.value,
         x: current.x,
@@ -1265,7 +1265,7 @@ describe('PlatformerPage', () => {
       }
     }
 
-    expect(enemyStates.value.some((e) => e.id === target.id)).toBe(false);
+    expect(enemyStates.value.find((e) => e.id === target.id)?.alive).toBe(false);
     // Purple enemies now carry no CV facts — they drop keys on defeat instead
     expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(false);
   });

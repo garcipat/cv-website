@@ -86,7 +86,7 @@ describe('toEnemyState', () => {
   it('greenSlime-startsWithOneHitPoint', () => {
     const state = toEnemyState(makePlacement());
     expect(state.hitPoints).toBe(1);
-    expect(state.defeated).toBe(false);
+    expect(state.alive).toBe(true);
     expect(state.hitTimer).toBe(0);
   });
 
