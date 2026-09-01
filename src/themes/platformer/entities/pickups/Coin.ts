@@ -30,7 +30,7 @@ export const coin: PickupType<CollectiblePlacement> = {
     width: COIN_RENDERED_SIZE,
     height: COIN_RENDERED_SIZE,
   }),
-  frameIndex: (_placement, elapsed) => coinFrameIndex(elapsed),
+  frameIndex: (_placement, elapsed, _index) => coinFrameIndex(elapsed),
   bobOffset: (_placement, elapsed) => coinBobOffset(elapsed),
   // Filled in when rendering moves into these modules.
   draw: () => {},
