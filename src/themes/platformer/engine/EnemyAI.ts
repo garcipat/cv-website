@@ -8,37 +8,25 @@ import {
   enemyTileOffsetX,
   enemyHitboxSidePadding,
 } from '../entities/Enemy';
+import {
+  SPIKE_GROW_DURATION_SECONDS,
+  SPIKE_HOLD_DURATION_SECONDS,
+  SPIKE_RETRACT_DURATION_SECONDS,
+} from '../entities/enemies/SlimePurple';
+
+export { SPIKE_GROW_DURATION_SECONDS, SPIKE_HOLD_DURATION_SECONDS, SPIKE_RETRACT_DURATION_SECONDS };
 
 /** How long the `hit` reaction (red-flash/dissolve) plays before the enemy
  *  either reverts to patrolling (hit points remain) or is flagged dead —
  *  matches Enemy.ts's `hit` animation: 4 frames at 0.1s each. */
 export const HIT_REACTION_DURATION_SECONDS = 0.4;
 
-/** How long the spikes take to pop fully out at the start of the cooldown —
- *  see Renderer.ts's `spikeGrowthScale`. Fast: the pop should read as a
- *  snappy reaction, not a slow bloom. */
-export const SPIKE_GROW_DURATION_SECONDS = 0.25;
-
-/** How long the spikes stay fully extended (scale 1) between popping out and
- *  starting to retract — deliberately short, a brief "still dangerous" beat
- *  rather than a long hold. */
-export const SPIKE_HOLD_DURATION_SECONDS = 0.25;
-
-/** How long the spikes take to retract fully — deliberately slower than
- *  SPIKE_GROW_DURATION_SECONDS: popping out reads best as fast/sudden,
- *  retracting reads best as a more deliberate withdrawal. (This also happens
- *  to counteract a perceptual effect: `spikeGrowthScale`'s linear-scale
- *  animation shrinks its RENDERED AREA quadratically, not linearly, so an
- *  equal-duration retract would otherwise feel slower than an equal-duration
- *  grow even before accounting for the intentional speed difference here.) */
-export const SPIKE_RETRACT_DURATION_SECONDS = 0.4;
-
 /** Total time an enemy stays `spiked` (per Collision.ts, un-stompable from
- *  above during this window) — derived from the three animation phases
- *  above, not an independent value, so the enemy becomes stompable again
- *  exactly when the retract animation finishes, never before (looking like
- *  it's still got spikes out) or after (an idle beat with no visible spikes
- *  but still immune). */
+ *  above during this window) — derived from SlimePurple.ts's three spike
+ *  animation phases (grow/hold/retract), not an independent value, so the
+ *  enemy becomes stompable again exactly when the retract animation
+ *  finishes, never before (looking like it's still got spikes out) or after
+ *  (an idle beat with no visible spikes but still immune). */
 export const SPIKE_COOLDOWN_DURATION_SECONDS =
   SPIKE_GROW_DURATION_SECONDS + SPIKE_HOLD_DURATION_SECONDS + SPIKE_RETRACT_DURATION_SECONDS;
 
