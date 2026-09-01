@@ -114,30 +114,32 @@ export function enemyHitbox(enemy: EnemyState): Box {
 }
 
 /**
- * Returns the ids of every not-yet-fatally-hit enemy the player just stomped
- * this frame: overlapping AND falling (`player.vy > 0`) AND landing on the
- * enemy's upper half (the player's hitbox bottom edge is at or above the
- * enemy's vertical midpoint) — this is what distinguishes "jumped on top of"
- * from a side/below touch (a separate concern, intentionally not handled
- * here: this function returns [] for that case, same as for no contact at
- * all). An enemy already `defeated`, or one whose `hitPoints` has already
- * reached 0 (mid `hit`-reaction, awaiting removal), is excluded — without
- * this, a stomp's own bounce naturally arcs back down onto the same enemy,
- * and would otherwise keep decrementing `hitPoints` arbitrarily far below 0
- * every time. Deliberately NOT gated on `animState === 'hit'` alone, nor on
- * any player-side cooldown/landing/separation tracking — this engine has no
- * double-jump, so "the player lands on the same still-alive enemy again
- * while still airborne from their own stomp bounce" is a deliberate,
- * desired mechanic (chain-stomping a 3-hit purple enemy in one fluid
- * motion), not a bug to guard against. `hitPoints > 0` is the only thing
- * that should stop a stomp from registering.
+ * Returns the ids of every not-yet-fatally-hit, not-currently-`spiked` enemy
+ * the player just stomped this frame: overlapping AND falling (`player.vy >
+ * 0`) AND landing on the enemy's upper half (the player's hitbox bottom edge
+ * is at or above the enemy's vertical midpoint) — this is what distinguishes
+ * "jumped on top of" from a side/below touch (a separate concern,
+ * intentionally not handled here: this function returns [] for that case,
+ * same as for no contact at all). An enemy already `defeated`, or one whose
+ * `hitPoints` has already reached 0 (mid `hit`-reaction, awaiting removal),
+ * is excluded — without this, a stomp's own bounce naturally arcs back down
+ * onto the same enemy, and would otherwise keep decrementing `hitPoints`
+ * arbitrarily far below 0 every time. A `spiked` enemy is excluded too — its
+ * spikes make the top un-stompable until they retract (see `Enemy.ts`'s
+ * `applyStomp`, `EnemyAI.ts`'s `stepEnemySpikeCooldown`); the same
+ * top-landing on a spiked enemy is instead picked up by
+ * `checkEnemySideCollisions` below and treated as player damage. Not gated
+ * on `animState === 'hit'` alone — a still-airborne bounce back onto a
+ * non-spiked, still-alive enemy (possible only for a single non-fatal stomp,
+ * since that same stomp immediately sets `spiked: true`) is unaffected by
+ * this function; `spiked` is what actually prevents repeat top-stomps now.
  */
 export function checkEnemyStompCollisions(player: PlayerState, enemies: EnemyState[]): string[] {
   if (player.vy <= 0) return [];
   const hitbox = playerHitbox(player);
   const stomped: string[] = [];
   for (const enemy of enemies) {
-    if (enemy.defeated || enemy.hitPoints <= 0) continue;
+    if (enemy.defeated || enemy.hitPoints <= 0 || enemy.spiked) continue;
     const box = enemyHitbox(enemy);
     if (!aabbOverlap(hitbox, box)) continue;
     const enemyMidY = box.y + box.height / 2;
@@ -150,16 +152,26 @@ export function checkEnemyStompCollisions(player: PlayerState, enemies: EnemySta
 
 /**
  * Returns the ids of every non-defeated, non-reacting enemy the player is
- * touching in a way that is NOT a stomp — the exact inverse of
- * `checkEnemyStompCollisions`'s landing condition: any overlap where the
- * player either isn't falling (`vy <= 0`) or is falling but contacting the
- * enemy's lower half (side or below), not landing on its upper half. An
- * enemy currently playing its `hit` reaction is excluded here too, same as
- * stomp detection — otherwise, immediately bouncing off a stomp while still
- * overlapping the now-frozen enemy (rising, or drifting beside it before
- * separating) would register as a spurious side-hit against the very enemy
- * just stomped. A stunned/reacting enemy is harmless in every way until its
- * reaction ends, not just immune to a second stomp.
+ * touching in a way that counts as damage — the exact inverse of
+ * `checkEnemyStompCollisions`'s landing condition, EXCEPT for one case: a
+ * `spiked` enemy's top is never treated as a legal stomp landing (its
+ * spikes make it un-stompable — see `checkEnemyStompCollisions`'s doc
+ * comment above), so any overlap with a `spiked` enemy counts as a hit here,
+ * including a fall-and-land-on-top that would be a stomp against a
+ * non-spiked enemy. For a non-spiked enemy, this is still the exact inverse
+ * it always was: any overlap where the player either isn't falling (`vy <=
+ * 0`) or is falling but contacting the enemy's lower half (side or below),
+ * not landing on its upper half. An enemy currently playing its `hit`
+ * reaction is excluded here too, same as stomp detection — otherwise,
+ * immediately bouncing off a stomp while still overlapping the now-frozen
+ * enemy (rising, or drifting beside it before separating) would register as
+ * a spurious side-hit against the very enemy just stomped. A stunned/
+ * reacting enemy is harmless in every way until its reaction ends, not just
+ * immune to a second stomp — note a freshly-stomped enemy is BOTH `'hit'`
+ * and `spiked` at once (`applyStomp` sets both), so this `animState`
+ * exclusion is what actually protects it during its stun; `spiked` alone
+ * would otherwise make a still-`'hit'`-reacting enemy's top count as damage
+ * the instant its stomp registers.
  */
 export function checkEnemySideCollisions(player: PlayerState, enemies: EnemyState[]): string[] {
   const hitbox = playerHitbox(player);
@@ -169,7 +181,7 @@ export function checkEnemySideCollisions(player: PlayerState, enemies: EnemyStat
     const box = enemyHitbox(enemy);
     if (!aabbOverlap(hitbox, box)) continue;
     const enemyMidY = box.y + box.height / 2;
-    const isStompLanding = player.vy > 0 && hitbox.y + hitbox.height <= enemyMidY;
+    const isStompLanding = !enemy.spiked && player.y < box.y && player.vy > 0;
     if (!isStompLanding) hits.push(enemy.id);
   }
   return hits;

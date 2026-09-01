@@ -336,6 +336,56 @@ describe('checkSignOverlap', () => {
   });
 });
 
+function makeSpikedPurpleEnemy(overrides: Partial<EnemyState> = {}): EnemyState {
+  return {
+    id: 'e1', spriteType: 'slimePurple', x: 10, y: 20, vx: 0,
+    direction: 'right', animState: 'walk', animFrame: 0,
+    animTimer: 0, hitPoints: 2, hitTimer: 0, defeated: false,
+    spiked: true, spikeTimer: 0.1,
+    ...overrides,
+  };
+}
+
+describe('checkEnemyStompCollisions excludes spiked enemies', () => {
+  it('checkEnemyStompCollisions-spikedEnemyDirectlyBelow-doesNotRegister', () => {
+    const enemy = makeSpikedPurpleEnemy();
+    const box = enemyHitbox(enemy);
+    const player = {
+      x: box.x, y: box.y - 5, vx: 0, vy: 50, facing: 'right' as const, grounded: false,
+      climbing: false, isDroppingThroughBridge: false, lastGroundedX: 0, lastGroundedY: 0,
+      animState: 'jump' as const, animFrame: 0, animTimer: 0, invincibleTimer: 0,
+      knockbackTimer: 0, bounceAscending: false, hitBlockIds: [],
+    };
+    expect(checkEnemyStompCollisions(player, [enemy])).toEqual([]);
+  });
+});
+
+describe('checkEnemySideCollisions treats a spiked top-landing as a hit', () => {
+  it('checkEnemySideCollisions-spikedEnemyLandedOnFromAbove-registersAsHit', () => {
+    const enemy = makeSpikedPurpleEnemy();
+    const box = enemyHitbox(enemy);
+    const player = {
+      x: box.x, y: box.y - 5, vx: 0, vy: 50, facing: 'right' as const, grounded: false,
+      climbing: false, isDroppingThroughBridge: false, lastGroundedX: 0, lastGroundedY: 0,
+      animState: 'jump' as const, animFrame: 0, animTimer: 0, invincibleTimer: 0,
+      knockbackTimer: 0, bounceAscending: false, hitBlockIds: [],
+    };
+    expect(checkEnemySideCollisions(player, [enemy])).toEqual(['e1']);
+  });
+
+  it('checkEnemySideCollisions-nonSpikedEnemyLandedOnFromAbove-stillExcludedAsStomp', () => {
+    const enemy = makeSpikedPurpleEnemy({ spiked: false, spikeTimer: 0 });
+    const box = enemyHitbox(enemy);
+    const player = {
+      x: box.x, y: box.y - 5, vx: 0, vy: 50, facing: 'right' as const, grounded: false,
+      climbing: false, isDroppingThroughBridge: false, lastGroundedX: 0, lastGroundedY: 0,
+      animState: 'jump' as const, animFrame: 0, animTimer: 0, invincibleTimer: 0,
+      knockbackTimer: 0, bounceAscending: false, hitBlockIds: [],
+    };
+    expect(checkEnemySideCollisions(player, [enemy])).toEqual([]);
+  });
+});
+
 describe('enemyHitbox per spriteType', () => {
   it('enemyHitbox-slimeGreen-insetFromRenderSlotByMeasuredSpriteConstants', () => {
     // Concrete anchor values (not derived from the functions under test):
@@ -345,6 +395,7 @@ describe('enemyHitbox per spriteType', () => {
       id: 'e1', spriteType: 'slimeGreen' as const, x: 10, y: 20, vx: 0,
       direction: 'right' as const, animState: 'walk' as const, animFrame: 0,
       animTimer: 0, hitPoints: 1, hitTimer: 0, defeated: false,
+      spiked: false, spikeTimer: 0,
     };
     expect(enemyHitbox(enemy)).toEqual({ x: 12, y: 22, width: 28, height: 30 });
   });
@@ -356,6 +407,7 @@ describe('enemyHitbox per spriteType', () => {
       id: 'e1', spriteType: 'slimePurple' as const, x: 10, y: 20, vx: 0,
       direction: 'right' as const, animState: 'walk' as const, animFrame: 0,
       animTimer: 0, hitPoints: 3, hitTimer: 0, defeated: false,
+      spiked: false, spikeTimer: 0,
     };
     expect(enemyHitbox(enemy)).toEqual({ x: 5, y: 7, width: 42, height: 45 });
   });
@@ -369,6 +421,7 @@ describe('enemyHitbox per spriteType', () => {
         id: 'e1', spriteType, x: 100, y: 200, vx: 0,
         direction: 'right' as const, animState: 'walk' as const, animFrame: 0,
         animTimer: 0, hitPoints: 1, hitTimer: 0, defeated: false,
+        spiked: false, spikeTimer: 0,
       };
       const size = enemyRenderedSize(spriteType);
       const sidePad = enemyHitboxSidePadding(spriteType);
