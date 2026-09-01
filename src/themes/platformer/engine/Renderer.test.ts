@@ -23,6 +23,9 @@ import {
   HEARTS_START_X,
   CHEST_COUNTER_TEXT_GAP,
   CHEST_COUNTER_ICON_HEIGHT,
+  drawSkyBackground,
+  drawWaterForeground,
+  SKY_WHITE_ROW_COUNT,
 } from './Renderer';
 import type { LevelDef } from '../level/LevelData';
 import type { SignPlacement } from '../level/SignMapper';
@@ -1857,5 +1860,105 @@ describe('drawEnemies spike overlay', () => {
 
     expect(midTipY).toBeLessThan(earlyTipY);
     expect(midTipY).toBeLessThan(lateTipY);
+  });
+});
+
+describe('drawSkyBackground', () => {
+  const SKY_COLOR = 'oklch(0.72 0.11 232)';
+
+  it('oneColumn-drawsWhiteRowsThenCloudRowThenFillsSkyColorDownToCanvasHeight', () => {
+    const ctx = makeMockContext() as unknown as {
+      drawImage: ReturnType<typeof vi.fn>;
+      fillRect: ReturnType<typeof vi.fn>;
+      fillStyle: string;
+    };
+    const canvasHeight = RENDERED_TILE_SIZE * (SKY_WHITE_ROW_COUNT + 2);
+
+    drawSkyBackground(ctx as unknown as CanvasRenderingContext2D, fakeTileset, RENDERED_TILE_SIZE, canvasHeight, SKY_COLOR);
+
+    const calls = ctx.drawImage.mock.calls;
+    for (let row = 0; row < SKY_WHITE_ROW_COUNT; row++) {
+      expect(calls[row]).toEqual([fakeTileset, 0, 144, 16, 16, 0, row * RENDERED_TILE_SIZE, 32, 32]);
+    }
+    expect(calls[SKY_WHITE_ROW_COUNT]).toEqual([
+      fakeTileset,
+      0,
+      160,
+      16,
+      16,
+      0,
+      SKY_WHITE_ROW_COUNT * RENDERED_TILE_SIZE,
+      32,
+      32,
+    ]);
+    expect(calls).toHaveLength(SKY_WHITE_ROW_COUNT + 1);
+    expect(ctx.fillStyle).toBe(SKY_COLOR);
+    const blueStartY = (SKY_WHITE_ROW_COUNT + 1) * RENDERED_TILE_SIZE;
+    expect(ctx.fillRect).toHaveBeenCalledWith(0, blueStartY, RENDERED_TILE_SIZE, canvasHeight - blueStartY);
+  });
+
+  it('multipleColumns-tilesWhiteAndCloudBandsAcrossFullCanvasWidth', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const canvasHeight = RENDERED_TILE_SIZE * (SKY_WHITE_ROW_COUNT + 1);
+
+    drawSkyBackground(
+      ctx as unknown as CanvasRenderingContext2D,
+      fakeTileset,
+      RENDERED_TILE_SIZE * 2,
+      canvasHeight,
+      SKY_COLOR,
+    );
+
+    const xPositions = new Set(ctx.drawImage.mock.calls.map((c: unknown[]) => c[5]));
+    expect(xPositions).toEqual(new Set([0, RENDERED_TILE_SIZE]));
+  });
+
+  it('shortCanvas-fillsNoSkyColor', () => {
+    const ctx = makeMockContext() as unknown as { fillRect: ReturnType<typeof vi.fn> };
+    const canvasHeight = RENDERED_TILE_SIZE * (SKY_WHITE_ROW_COUNT + 1);
+
+    drawSkyBackground(ctx as unknown as CanvasRenderingContext2D, fakeTileset, RENDERED_TILE_SIZE, canvasHeight, SKY_COLOR);
+
+    expect(ctx.fillRect).not.toHaveBeenCalled();
+  });
+});
+
+describe('drawWaterForeground', () => {
+  it('drawsCrestAcrossFullLevelWidthOverlappingTheLevelsBottomRow', () => {
+    const level: LevelDef = { width: 2, height: 1, terrain: [['groundGrass', 'groundGrass']] };
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+
+    drawWaterForeground(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, RENDERED_TILE_SIZE * 3);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 64, 144, 16, 16, 0, 16, 32, 32);
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 64, 144, 16, 16, 32, 16, 32, 32);
+  });
+
+  it('fillsBodyTilesBelowTheCrestDownToCanvasHeight', () => {
+    const level: LevelDef = { width: 1, height: 1, terrain: [['groundGrass']] };
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+
+    drawWaterForeground(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, RENDERED_TILE_SIZE * 3);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 64, 160, 16, 16, 0, 48, 32, 32);
+    expect(ctx.drawImage).not.toHaveBeenCalledWith(fakeTileset, 64, 160, 16, 16, 0, 112, 32, 32);
+  });
+
+  it('cameraOrigin-shiftsWaterWithTheLevelLikeTerrain', () => {
+    const level: LevelDef = { width: 1, height: 1, terrain: [['groundGrass']] };
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+
+    drawWaterForeground(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, 200, 10, -20);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 64, 144, 16, 16, 10, -4, 32, 32);
+  });
+
+  it('bandScrolledFullyBelowTheViewport-drawsNothing', () => {
+    const level: LevelDef = { width: 1, height: 1, terrain: [['groundGrass']] };
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+
+    drawWaterForeground(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, 10, 0, 50);
+
+    expect(ctx.drawImage).not.toHaveBeenCalled();
   });
 });
