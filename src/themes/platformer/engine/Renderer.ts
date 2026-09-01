@@ -387,8 +387,10 @@ const BUBBLE_CORNER_RADIUS = 6;
 const BUBBLE_TEXT_VERTICAL_NUDGE = 2;
 /** Vertical gap between the bubble tail's tip and its anchor point
  *  (anchorBottomY), so it floats just above the character's head rather
- *  than overlapping it. */
-const BUBBLE_GAP_ABOVE_ANCHOR = 40;
+ *  than overlapping it. Kept small — this is the gap ABOVE the anchor, which
+ *  itself is already the head's own position (see PlatformerPage.tsx's
+ *  anchorBottomY), not extra breathing room on top of that. */
+const BUBBLE_GAP_ABOVE_ANCHOR = 16;
 const BUBBLE_TAIL_HALF_WIDTH = 6;
 const BUBBLE_TAIL_HEIGHT = 8;
 const BUBBLE_BG_COLOR = '#f4ecd8';
