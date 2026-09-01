@@ -15,6 +15,10 @@ import {
   drawRestartPrompt,
   drawSigns,
   drawSignBubble,
+  drawKeyPickups,
+  drawKeyCounter,
+  KEY_COUNTER_X,
+  KEY_COUNTER_Y,
   RESTART_PROMPT_FONT_FAMILY,
   HEARTS_START_X,
   CHEST_COUNTER_TEXT_GAP,
@@ -39,6 +43,8 @@ import {
   ENEMY_TILE_OFFSET_X,
   ENEMY_TILE_OFFSET_Y,
 } from '../entities/Enemy';
+import { KEY_FRAME_WIDTH, KEY_FRAME_HEIGHT, KEY_RENDERED_WIDTH, KEY_RENDERED_HEIGHT } from '../entities/KeyPickup';
+import type { KeyPickupState } from '../entities/KeyPickup';
 import {
   CHEST_CLOSED_WIDTH,
   CHEST_CLOSED_HEIGHT,
@@ -1500,5 +1506,38 @@ describe('drawSignBubble', () => {
 
       expect(halfBottom).toBeCloseTo(fullBottom);
     });
+  });
+});
+
+describe('drawKeyPickups', () => {
+  it('drawKeyPickups-uncollectedPickup-drawsKeySprite', () => {
+    const ctx = makeMockContext();
+    const fakeKeySprite = {} as HTMLImageElement;
+    const pickups: KeyPickupState[] = [{ id: 'k1', x: 0, y: 0, collected: false }];
+    drawKeyPickups(ctx, pickups, fakeKeySprite, 0);
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeKeySprite,
+      0, 0, KEY_FRAME_WIDTH, KEY_FRAME_HEIGHT,
+      expect.any(Number), expect.any(Number),
+      KEY_RENDERED_WIDTH, KEY_RENDERED_HEIGHT,
+    );
+  });
+
+  it('drawKeyPickups-collectedPickup-doesNotDraw', () => {
+    const ctx = makeMockContext();
+    const fakeKeySprite = {} as HTMLImageElement;
+    const pickups: KeyPickupState[] = [{ id: 'k1', x: 0, y: 0, collected: true }];
+    drawKeyPickups(ctx, pickups, fakeKeySprite, 0);
+    expect(ctx.drawImage).not.toHaveBeenCalled();
+  });
+});
+
+describe('drawKeyCounter', () => {
+  it('drawKeyCounter-drawsIconAndCountText', () => {
+    const ctx = makeMockContext();
+    const fakeKeySprite = {} as HTMLImageElement;
+    drawKeyCounter(ctx, fakeKeySprite, 3, KEY_COUNTER_X, KEY_COUNTER_Y);
+    expect(ctx.drawImage).toHaveBeenCalled();
+    expect(ctx.fillText).toHaveBeenCalledWith('3', expect.any(Number), KEY_COUNTER_Y);
   });
 });
