@@ -1926,7 +1926,7 @@ describe('PlatformerPage', () => {
     expect(playerState.value.invincibleTimer).toBeGreaterThan(0);
   });
 
-  it('playerTouchesEnemyFromTheSide-tick-knockbackPushesAwayFromTheEnemy', () => {
+  it('playerTouchesEnemyFromTheLeft-tick-knockbackPushesFurtherLeft', () => {
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frameCallback = cb;
@@ -1938,12 +1938,14 @@ describe('PlatformerPage', () => {
     frameCallback!(0);
 
     const target = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
-    // Positioned at the SAME x as the enemy (a tie) so the direction is
-    // deterministic per the game loop's `<=` tie-break (push left) — see
-    // the implementation step below.
+    const box = enemyHitbox(target);
+    // Positioned so the player's hitbox CENTER sits a few px inside the
+    // enemy hitbox's left edge — clearly left of the enemy's own center,
+    // not a raw-x coincidence — so knockback direction is unambiguous and
+    // reflects which side contact actually happened on.
     playerState.value = {
       ...playerState.value,
-      x: target.x,
+      x: box.x + 2 - PLAYER_RENDERED_SIZE / 2,
       y: target.y,
       vx: 0,
       vy: 0,
@@ -1952,6 +1954,97 @@ describe('PlatformerPage', () => {
     frameCallback!(16);
 
     expect(playerState.value.vx).toBeLessThan(0);
+  });
+
+  it('playerTouchesEnemyFromTheRight-tick-knockbackPushesFurtherRight', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const target = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
+    const box = enemyHitbox(target);
+    // Mirror of the "from the left" case above — player hitbox center a
+    // few px inside the enemy hitbox's right edge.
+    playerState.value = {
+      ...playerState.value,
+      x: box.x + box.width - 2 - PLAYER_RENDERED_SIZE / 2,
+      y: target.y,
+      vx: 0,
+      vy: 0,
+    };
+
+    frameCallback!(16);
+
+    expect(playerState.value.vx).toBeGreaterThan(0);
+  });
+
+  it('playerLandsOnTopOfSpikedPurpleEnemy-tick-addsUpwardKnockbackOnTopOfHorizontalPush', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const target = enemyStates.value.find((e) => e.spriteType === 'slimePurple')!;
+    enemyStates.value = enemyStates.value.map((e) =>
+      e.id === target.id ? { ...e, spiked: true, spikeTimer: 0.1 } : e,
+    );
+    const spiked = enemyStates.value.find((e) => e.id === target.id)!;
+    playerState.value = {
+      ...playerState.value,
+      x: spiked.x,
+      y: stompLandingY(spiked),
+      vy: 300,
+    };
+
+    frameCallback!(16);
+
+    // Not an exact equality — gravity integrates against the newly-set
+    // upward vy within the same tick's physics step, so the final value
+    // isn't the raw constant. The lower bound guards against the exact
+    // regression this feature hit during manual testing: without
+    // `bounceAscending: true` protecting it (same mechanism the stomp
+    // bounce uses), stepPlayerPhysics's variable-jump-height cut sheared
+    // -150 down to ~-59 on this very tick (since the jump key isn't held) —
+    // still negative, but far too weak to read as "bounced off the
+    // spikes". -100 sits well above that sheared value and well below 0.
+    expect(playerState.value.vy).toBeLessThan(-100);
+  });
+
+  it('playerTouchesEnemyFromTheSide-tick-doesNotAddUpwardKnockback', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const target = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
+    const box = enemyHitbox(target);
+    playerState.value = {
+      ...playerState.value,
+      x: box.x + 2 - PLAYER_RENDERED_SIZE / 2,
+      y: target.y,
+      vx: 0,
+      vy: 0,
+    };
+
+    frameCallback!(16);
+
+    expect(playerState.value.vy).not.toBe(PHYSICS_CONFIG.spikeTopHitKnockbackVy);
   });
 
   it('playerInvincible-touchesAnotherEnemy-noSecondHitRegistered', () => {
