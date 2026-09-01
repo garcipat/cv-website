@@ -6,10 +6,9 @@ import type { EnemyDef } from '../types';
 /**
  * Certificates and Projects are revealed by the question-mark blocks' bonus
  * fruit, not by enemies (see `BlockMapper.ts`'s
- * `certificateToBlock`/`projectToBlock`). Both slime types guard the same
- * Courses pool, alternating by index so the pool is split roughly evenly
- * between the lightweight 1-hit green slime and the tougher 2-hit purple
- * slime, rather than Courses being green-only. See spec.md's FR-009.
+ * `certificateToBlock`/`projectToBlock`). Every course is a green slime that
+ * reveals CV content; purple slimes carry no CV content and instead drop a key
+ * on defeat (see `entities/KeyPickup.ts` and `PlatformerPage.tsx`'s defeat handler).
  */
 function courseToEnemy(course: Course, spriteType: EnemyDef['spriteType']): EnemyDef {
   const id = `enemy-course-${slugify(course.title)}`;
@@ -27,15 +26,12 @@ function courseToEnemy(course: Course, spriteType: EnemyDef['spriteType']): Enem
 }
 
 /**
- * Flattens CVData into one enemy per course, alternating slimeGreen/
- * slimePurple by index (see `courseToEnemy`'s comment). Certificates/Projects
- * do not produce enemies. Mirrors CollectibleMapper.ts's coin/fruit split
- * (FR-009). An empty courses array simply produces no enemies.
+ * Flattens CVData into one green slime enemy per course. Every course maps to
+ * slimeGreen; purple slimes carry no CV content. Certificates/Projects do not
+ * produce enemies. An empty courses array simply produces no enemies.
  */
 export function mapCVDataToEnemies(cv: CVData): EnemyDef[] {
-  return cv.courses.map((course, index) =>
-    courseToEnemy(course, index % 2 === 0 ? 'slimeGreen' : 'slimePurple'),
-  );
+  return cv.courses.map((course) => courseToEnemy(course, 'slimeGreen'));
 }
 
 export interface EnemyPlacement extends EnemyDef {
