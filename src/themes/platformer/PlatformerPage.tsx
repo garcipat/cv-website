@@ -27,12 +27,13 @@ import {
   drawKeyCounter,
   keyCounterX,
   KEY_COUNTER_Y,
+  drawEnemySpikes,
 } from './engine/Renderer';
 import { drawDebugOverlay } from './engine/DebugOverlay';
 import { createGameLoop } from './engine/GameLoop';
 import { stepPlayerPhysics, checkPitFall, resolvePitFall } from './engine/Physics';
 import { PHYSICS_CONFIG } from './engine/PhysicsConfig';
-import { stepEnemyPatrol, stepEnemyHitReaction } from './engine/EnemyAI';
+import { stepEnemyPatrol, stepEnemyHitReaction, stepEnemySpikeCooldown } from './engine/EnemyAI';
 import { updateCamera, updateCameraY } from './engine/Camera';
 import { createKeyboardInput } from './engine/Input';
 import type { KeyboardInput } from './engine/Input';
@@ -433,6 +434,7 @@ export const PlatformerPage = () => {
           originY,
         );
       }
+      drawEnemySpikes(ctx, enemyStates.value, originX, originY);
 
       drawKeyPickups(ctx, keyPickupStates.value, keySpriteRef.current, worldAnimElapsed, originX, originY);
 
@@ -655,7 +657,7 @@ export const PlatformerPage = () => {
           enemy.animState === 'hit'
             ? stepEnemyHitReaction(enemy, dt)
             : stepEnemyPatrol(enemy, currentLevel.value, dt, blockedTiles);
-        return advanceEnemyAnimation(next, dt);
+        return advanceEnemyAnimation(stepEnemySpikeCooldown(next, dt), dt);
       });
 
       // Blocks currently playing their shared bump/shatter reaction advance
