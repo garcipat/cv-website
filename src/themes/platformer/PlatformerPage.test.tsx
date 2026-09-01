@@ -2151,7 +2151,7 @@ describe('PlatformerPage', () => {
     // It must register as neither a stomp nor a side-hit: hitPoints stays
     // frozen at whatever the first stomp left it at, and the player takes no
     // damage, until the ~0.4s hit-reaction ends and the spike cooldown
-    // (1.5s) later lifts.
+    // (0.9s) later lifts.
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frameCallback = cb;
@@ -2181,7 +2181,7 @@ describe('PlatformerPage', () => {
     const healthBeforeSecondLanding = healthState.value;
 
     // Land on it again immediately — still well within the ~0.4s reaction
-    // window (this same tick) and well within the 1.5s spike cooldown,
+    // window (this same tick) and well within the 0.9s spike cooldown,
     // entirely airborne, no landing/separation of any kind in between.
     playerState.value = {
       ...playerState.value,
@@ -2200,7 +2200,7 @@ describe('PlatformerPage', () => {
   it('spikedPurpleSlime-stompedAgainFromTopDuringCooldown-damagesPlayerInstead', () => {
     // Once the ~0.4s hit-reaction ends (animState back to 'walk'), a spiked
     // enemy is stompable-position-wise again, but `spiked` itself lasts the
-    // full SPIKE_COOLDOWN_DURATION_SECONDS (1.5s) — a top-landing during
+    // full SPIKE_COOLDOWN_DURATION_SECONDS (0.9s) — a top-landing during
     // that window is excluded from `checkEnemyStompCollisions` (spiked) and
     // instead picked up by `checkEnemySideCollisions` as a genuine side-hit,
     // damaging the player instead of the enemy.
@@ -2226,7 +2226,7 @@ describe('PlatformerPage', () => {
     frameCallback!(t); // first stomp: hitPoints 3 -> 2, animState 'hit', spiked true
 
     // Advance past HIT_REACTION_DURATION_SECONDS (0.4s) so animState returns
-    // to 'walk', but stay well within SPIKE_COOLDOWN_DURATION_SECONDS (1.5s)
+    // to 'walk', but stay well within SPIKE_COOLDOWN_DURATION_SECONDS (0.9s)
     // so the enemy is still `spiked`.
     const framesPastHitReaction = Math.ceil((HIT_REACTION_DURATION_SECONDS * 1000) / 16) + 5;
     for (let i = 0; i < framesPastHitReaction; i++) {

@@ -435,6 +435,7 @@ export const PlatformerPage = () => {
           slimePurpleSpriteRef.current,
           originX,
           originY,
+          keySpriteRef.current,
         );
       }
       drawEnemySpikes(ctx, enemyStates.value, originX, originY);

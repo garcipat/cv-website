@@ -78,13 +78,21 @@ import {
 // convenient:
 //   - Green enemy (col 28): bounded by two `W` walls (cols 26 and 31) — the
 //     "patrol bounded by two walls" case.
-//   - Purple enemy (col 38): bounded by a `W` wall on its left (col 36) and a
-//     genuine bottomless pit on its right (cols 40-42, no bridge) — the
-//     "wall, enemy, pit" sandwich, exercising BOTH the wall-reversal and the
-//     ledge/pit-edge-reversal branches of EnemyAI.ts's stepEnemyPatrol on a
-//     single enemy. The pocket this sandwich forms (cols 37-39) is exactly
-//     3 tiles wide — sized for this one purple slime only; the level's
-//     second purple slime lives well clear of it, at col 47 (see below).
+//   - Purple enemy (col 38): bounded by a `W` wall on its left (col 31 — the
+//     same wall that bounds the green enemy's pocket on its right; the wall
+//     that used to sit at col 36 was removed once ENEMY_RENDER_SCALE bumped
+//     slimePurple to 2x, since a slime that wide needs roughly a tile of
+//     clearance to its left and two to its right just to turn around
+//     without visually overlapping the obstacle — see EnemyAI.ts's
+//     stepEnemyPatrol doc comment — and the original 3-tile pocket (cols
+//     37-39) left no room to patrol at all once turn-around correctly
+//     accounted for that) and a genuine bottomless pit on its right (cols
+//     40-42, no bridge) — the "wall, enemy, pit" sandwich, exercising BOTH
+//     the wall-reversal and the ledge/pit-edge-reversal branches of
+//     EnemyAI.ts's stepEnemyPatrol on a single enemy. The pocket this
+//     sandwich now forms (cols 32-39) is 8 tiles wide, sized for this one
+//     purple slime only; the level's second purple slime lives well clear of
+//     it, at col 47 (see below).
 //
 // A blank leading row (row 0) sits above the elevated block row (row 1) so
 // FR-022b's fruit-pop mechanic has somewhere for the popped fruit to rise
@@ -112,7 +120,7 @@ export const LEVEL_1_LAYOUT: readonly string[] = [
   // strip onto the ladder needs no jump.
   '........GGGBBGGL...XQFXQF.......................................................',
   '................................................................................',
-  '.S.1..T...C.T.....C.......W.E..W....W.M....C.C.M................................',
+  '.S.1..T...C.T.....C.......W.E..W......M....C.C.M................................',
   'GGBBBGGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRR...RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
   'GG...GGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRR...RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
 ];
