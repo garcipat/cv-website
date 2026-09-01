@@ -439,15 +439,15 @@ describe('enemyHitbox per spriteType', () => {
   });
 
   it('enemyHitbox-slimePurple-scalesOffsetAndInsetWithRenderScale', () => {
-    // size=72, tileOffsetX=-20, tileOffsetY=-40, sidePad=15, topPad=27 ->
-    // x=enemy.x-5, y=enemy.y-13, width=42, height=45.
+    // size=96, tileOffsetX=-32, tileOffsetY=-64, sidePad=20, topPad=36 ->
+    // x=enemy.x-22, y=enemy.y-28, width=56, height=60.
     const enemy = {
       id: 'e1', spriteType: 'slimePurple' as const, x: 10, y: 20, vx: 0,
       direction: 'right' as const, animState: 'walk' as const, animFrame: 0,
       animTimer: 0, hitPoints: 3, hitTimer: 0, defeated: false,
       spiked: false, spikeTimer: 0,
     };
-    expect(enemyHitbox(enemy)).toEqual({ x: 5, y: 7, width: 42, height: 45 });
+    expect(enemyHitbox(enemy)).toEqual({ x: -2, y: -8, width: 56, height: 60 });
   });
 
   it('enemyHitbox-anySpriteType-matchesTheRenderedSpritesBoundingBox', () => {

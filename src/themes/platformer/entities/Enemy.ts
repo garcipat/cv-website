@@ -48,7 +48,10 @@ export const ENEMY_TILE_OFFSET_X = (RENDERED_TILE_SIZE - ENEMY_RENDERED_SIZE) / 
  */
 export const ENEMY_RENDER_SCALE: Record<EnemyDef['spriteType'], number> = {
   slimeGreen: 1,
-  slimePurple: 1.5,
+  // Bumped from 1.5 to 2 as an experiment (not a settled design decision)
+  // to see how a much larger purple slime reads next to the held-key
+  // shine-through effect.
+  slimePurple: 2,
 };
 
 export const ENEMY_PATROL_SPEED_MULTIPLIER: Record<EnemyDef['spriteType'], number> = {

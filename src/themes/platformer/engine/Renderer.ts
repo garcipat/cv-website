@@ -44,7 +44,7 @@ import {
 } from '../entities/Enemy';
 import type { EnemyState } from '../entities/Enemy';
 import type { EnemyDef } from '../types';
-import { SPIKE_COOLDOWN_DURATION_SECONDS } from './EnemyAI';
+import { SPIKE_GROW_DURATION_SECONDS, SPIKE_HOLD_DURATION_SECONDS, SPIKE_RETRACT_DURATION_SECONDS } from './EnemyAI';
 import type { KeyPickupState } from '../entities/KeyPickup';
 import {
   KEY_FRAME_WIDTH,
@@ -633,6 +633,26 @@ export function drawKeyPickups(
  * left-facing behavior. Same originX/originY convention as
  * drawTerrain/drawPlayer/drawCollectibles.
  */
+/** Opacity every slime's body is drawn at — low enough that a purple
+ *  slime's held key (see `keySprite` below) visibly shines through it, high
+ *  enough that either slime still reads as a solid creature rather than a
+ *  ghost. Applied uniformly to green slimes too (which never hold a key)
+ *  purely for visual consistency between the two enemy types, not because
+ *  green has anything to show through it. */
+const SLIME_BODY_ALPHA = 0.78;
+
+/** The held key is drawn at a FRACTION of the slime's own opaque silhouette
+ *  height (not KEY_RENDERED_WIDTH/HEIGHT, which is sized for the standalone
+ *  ground pickup and reads as oversized crammed inside a slime's body; and
+ *  not the sprite's full bounding square either — see the silhouette-padding
+ *  comment below). Width follows from the sprite's native 14:28 aspect ratio
+ *  so it isn't stretched. */
+const SLIME_PURPLE_HELD_KEY_HEIGHT_RATIO = 0.5;
+
+/** Nudges the held key down from dead-center in the silhouette — reads
+ *  slightly better sitting a bit lower in the blob than perfectly centered. */
+const SLIME_PURPLE_HELD_KEY_Y_NUDGE = 4;
+
 export function drawEnemies(
   ctx: CanvasRenderingContext2D,
   enemies: EnemyState[],
@@ -640,6 +660,14 @@ export function drawEnemies(
   slimePurpleSprite: HTMLImageElement | null,
   originX = 0,
   originY = 0,
+  // Optional: when provided, every purple slime draws this key — fully
+  // opaque, at the same tile position `spawnKeyPickup` later drops it at —
+  // UNDERNEATH its own body, then dims the body itself (see
+  // SLIME_PURPLE_HELD_KEY_BODY_ALPHA) so the key shows through, hinting at
+  // what defeating it will drop before the player ever does. Omitted (or
+  // null) skips this entirely and draws every slime fully opaque, unchanged
+  // from before this was added.
+  keySprite: HTMLImageElement | null = null,
 ): void {
   ctx.imageSmoothingEnabled = false;
 
@@ -651,12 +679,44 @@ export function drawEnemies(
     const size = enemyRenderedSize(enemy.spriteType);
     const dx = enemy.x + enemyTileOffsetX(enemy.spriteType) + originX;
     const dy = enemy.y + enemyTileOffsetY(enemy.spriteType) + originY;
+    const showsHeldKey = enemy.spriteType === 'slimePurple' && keySprite !== null;
+
+    if (showsHeldKey) {
+      // Centered against the sprite's ACTUAL opaque silhouette, not its full
+      // (mostly transparent) bounding square — a slime's blob shape sits
+      // bottom-anchored with a big gap above it (see enemyHitboxTopPadding's
+      // own doc comment: 9px of a 24px native frame, none below), so
+      // centering against the full size×size box put the key well above the
+      // visible body and made it look larger than the blob itself.
+      const sidePadding = enemyHitboxSidePadding(enemy.spriteType);
+      const topPadding = enemyHitboxTopPadding(enemy.spriteType);
+      const silhouetteWidth = size - sidePadding * 2;
+      const silhouetteHeight = size - topPadding; // bottom padding is 0
+      const silhouetteLeft = dx + sidePadding;
+      const silhouetteTop = dy + topPadding;
+
+      const heldKeyHeight = silhouetteHeight * SLIME_PURPLE_HELD_KEY_HEIGHT_RATIO;
+      const heldKeyWidth = heldKeyHeight * (KEY_FRAME_WIDTH / KEY_FRAME_HEIGHT);
+      ctx.drawImage(
+        keySprite,
+        0,
+        0,
+        KEY_FRAME_WIDTH,
+        KEY_FRAME_HEIGHT,
+        silhouetteLeft + (silhouetteWidth - heldKeyWidth) / 2,
+        silhouetteTop + (silhouetteHeight - heldKeyHeight) / 2 + SLIME_PURPLE_HELD_KEY_Y_NUDGE,
+        heldKeyWidth,
+        heldKeyHeight,
+      );
+    }
+
+    ctx.save();
+    ctx.globalAlpha = SLIME_BODY_ALPHA;
 
     if (enemy.direction === 'left') {
       // Mirrors drawPlayer's left-facing flip: translate to the sprite's
       // right edge, then scale(-1, 1) so drawImage's own (0, 0) origin lands
       // where the mirrored sprite's top-left should visually appear.
-      ctx.save();
       ctx.translate(dx + size, dy);
       ctx.scale(-1, 1);
       ctx.drawImage(
@@ -670,21 +730,20 @@ export function drawEnemies(
         size,
         size,
       );
-      ctx.restore();
-      continue;
+    } else {
+      ctx.drawImage(
+        sprite,
+        sx,
+        sy,
+        ENEMY_FRAME_SIZE,
+        ENEMY_FRAME_SIZE,
+        dx,
+        dy,
+        size,
+        size,
+      );
     }
-
-    ctx.drawImage(
-      sprite,
-      sx,
-      sy,
-      ENEMY_FRAME_SIZE,
-      ENEMY_FRAME_SIZE,
-      dx,
-      dy,
-      size,
-      size,
-    );
+    ctx.restore();
   }
 }
 
@@ -700,18 +759,27 @@ const SPIKE_COLORS: Record<EnemyDef['spriteType'], { fill: string; outline: stri
 };
 
 /**
- * Returns a 0-1-0 growth curve across the spike cooldown: 0 the instant
- * spikes appear (`spikeTimer` 0), peaking at 1 halfway through the cooldown,
- * back to 0 right as the cooldown ends and spikes retract — a single
- * grow-then-shrink pulse tied to the enemy's own remaining cooldown, not a
- * continuously repeating animation. `Math.min(..., 1)` guards the one frame
- * where `spikeTimer` reaches/exceeds `SPIKE_COOLDOWN_DURATION_SECONDS`
- * before `stepEnemySpikeCooldown` (EnemyAI.ts) clears `spiked` that same
- * tick — sin(pi) already resolves to ~0 there regardless.
+ * Returns a 0-1-0 growth curve across three explicit, sequential phases of
+ * `spikeTimer` (see EnemyAI.ts's SPIKE_GROW_DURATION_SECONDS/
+ * SPIKE_HOLD_DURATION_SECONDS/SPIKE_RETRACT_DURATION_SECONDS, which
+ * SPIKE_COOLDOWN_DURATION_SECONDS is the sum of): pop up to 1 over the grow
+ * phase, hold at 1 for the hold phase, retract back to 0 over the retract
+ * phase — each phase's own duration, not carved out of one shared total, so
+ * grow and retract can (and deliberately do) move at different speeds. A
+ * `spikeTimer` at or past the total is clamped to the fully-retracted end of
+ * that last phase, covering the one frame before `stepEnemySpikeCooldown` in
+ * EnemyAI.ts clears `spiked` that same tick.
  */
 function spikeGrowthScale(spikeTimer: number): number {
-  const phase = Math.min(spikeTimer / SPIKE_COOLDOWN_DURATION_SECONDS, 1);
-  return Math.sin(phase * Math.PI);
+  if (spikeTimer < SPIKE_GROW_DURATION_SECONDS) {
+    return spikeTimer / SPIKE_GROW_DURATION_SECONDS;
+  }
+  const sinceHoldStart = spikeTimer - SPIKE_GROW_DURATION_SECONDS;
+  if (sinceHoldStart < SPIKE_HOLD_DURATION_SECONDS) {
+    return 1;
+  }
+  const sinceRetractStart = sinceHoldStart - SPIKE_HOLD_DURATION_SECONDS;
+  return Math.max(1 - sinceRetractStart / SPIKE_RETRACT_DURATION_SECONDS, 0);
 }
 
 /** Fills one spike triangle with a thin stroked outline — a flat outline

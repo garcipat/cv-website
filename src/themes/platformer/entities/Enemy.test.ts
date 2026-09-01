@@ -183,7 +183,7 @@ describe('applyStomp', () => {
 
 describe('per-spriteType enemy config', () => {
   it('enemyRenderedSize-slimePurple-is1point5xGreen', () => {
-    expect(enemyRenderedSize('slimePurple')).toBe(ENEMY_FRAME_SIZE * RENDER_SCALE * 1.5);
+    expect(enemyRenderedSize('slimePurple')).toBe(ENEMY_FRAME_SIZE * RENDER_SCALE * 2);
     expect(enemyRenderedSize('slimeGreen')).toBe(ENEMY_FRAME_SIZE * RENDER_SCALE);
   });
 
@@ -208,7 +208,7 @@ describe('per-spriteType enemy config', () => {
   });
 
   it('renderScale-slimePurple-is1point5', () => {
-    expect(ENEMY_RENDER_SCALE.slimePurple).toBe(1.5);
+    expect(ENEMY_RENDER_SCALE.slimePurple).toBe(2);
     expect(ENEMY_RENDER_SCALE.slimeGreen).toBe(1);
   });
 });
@@ -269,7 +269,7 @@ describe('enemy hitbox padding (insets the collision box from the sprite corners
   });
 
   it('enemyHitboxSidePadding-slimePurple-scalesWithRenderScale', () => {
-    expect(enemyHitboxSidePadding('slimePurple')).toBe(5 * RENDER_SCALE * 1.5);
+    expect(enemyHitboxSidePadding('slimePurple')).toBe(5 * RENDER_SCALE * 2);
   });
 
   it('enemyHitboxTopPadding-slimeGreen-matchesMeasuredNativePaddingTimesRenderScale', () => {
@@ -280,6 +280,6 @@ describe('enemy hitbox padding (insets the collision box from the sprite corners
   });
 
   it('enemyHitboxTopPadding-slimePurple-scalesWithRenderScale', () => {
-    expect(enemyHitboxTopPadding('slimePurple')).toBe(9 * RENDER_SCALE * 1.5);
+    expect(enemyHitboxTopPadding('slimePurple')).toBe(9 * RENDER_SCALE * 2);
   });
 });

@@ -73,16 +73,20 @@ describe('currentLevel', () => {
   });
 
   it('purpleEnemyWallPitSandwich-hasAWallOnOneSideAndARealPitOnTheOther', () => {
-    // The user-requested "wall, enemy, pit" case: a wall (col 36) on one
-    // side, a genuine bottomless pit (cols 40-42, no bridge — unlike the
-    // spawn pit's bridge) on the other, with a purple enemy marker
-    // between them. Exercises both stepEnemyPatrol's wall-reversal and its
-    // ledge/pit-edge-reversal branch on a single enemy. The first purple
-    // slime is specifically in this sandwich (the second one sits elsewhere).
+    // The user-requested "wall, enemy, pit" case: a wall (col 31 — the same
+    // wall bounding the green enemy's pocket on its right; the pocket was
+    // widened from cols 37-39 to cols 32-39 once ENEMY_RENDER_SCALE bumped
+    // slimePurple to 2x and needed more clearance to turn around without
+    // overlapping — see level.ts's own doc comment) on one side, a genuine
+    // bottomless pit (cols 40-42, no bridge — unlike the spawn pit's bridge)
+    // on the other, with a purple enemy marker between them. Exercises both
+    // stepEnemyPatrol's wall-reversal and its ledge/pit-edge-reversal branch
+    // on a single enemy. The first purple slime is specifically in this
+    // sandwich (the second one sits elsewhere).
     expect(ENEMY_TILES_PURPLE.value.length).toBeGreaterThanOrEqual(1);
     const [purple] = ENEMY_TILES_PURPLE.value;
-    expect(currentLevel.value.terrain[purple.row][36]).toBe('wall');
-    expect(purple.col).toBeGreaterThan(36);
+    expect(currentLevel.value.terrain[purple.row][31]).toBe('wall');
+    expect(purple.col).toBeGreaterThan(31);
     for (const col of [40, 41, 42]) {
       expect(currentLevel.value.terrain[currentLevel.value.height - 1][col]).toBe('empty');
       expect(currentLevel.value.terrain[currentLevel.value.height - 2][col]).toBe('empty');
