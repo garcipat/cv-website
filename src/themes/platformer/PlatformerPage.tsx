@@ -505,7 +505,8 @@ export const PlatformerPage = () => {
         canvas.height * 0.3 - COLLECTION_TEXT_STACK_ROW_HEIGHT,
       );
 
-      if (debugHitboxesRef.current) drawDebugOverlay(ctx, playerState.value, currentLevel.value, originX, originY);
+      if (debugHitboxesRef.current)
+        drawDebugOverlay(ctx, playerState.value, currentLevel.value, originX, originY, enemyStates.value);
 
       if (heartsSpriteRef.current) {
         drawHearts(ctx, healthState.value, heartsSpriteRef.current, HEARTS_START_X);
