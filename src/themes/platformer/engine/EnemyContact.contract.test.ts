@@ -1,5 +1,8 @@
 import { resolveEnemyContacts } from './Collision';
 import type { EnemyState } from '../entities/Enemy';
+import { ENEMY_TYPES } from '../entities/enemies';
+import type { SlimePurpleState } from '../entities/enemies/SlimePurple';
+import type { EnemyPlacement } from '../level/EnemyMapper';
 import type { PlayerState } from '../entities/Player';
 
 /**
@@ -37,28 +40,32 @@ function makePlayer(x: number, y: number, vy: number): PlayerState {
   };
 }
 
+/** A type-guard, not a cast: it lets TypeScript actually narrow `overrides`
+ *  to `Partial<SlimePurpleState>` in the branch below, rather than merely
+ *  asserting it. */
+function isPurpleOverride(overrides: Partial<EnemyState>): overrides is Partial<SlimePurpleState> {
+  return overrides.type === 'slimePurple';
+}
+
+/**
+ * Builds a fresh enemy via its own type module's `create` (rather than a
+ * hand-written literal), so the base shape is always exactly what that type
+ * declares — a green enemy never gets a `spiked` field, a purple one always
+ * does — before `overrides` (e.g. `{ type: 'slimePurple', spiked: true }`)
+ * is applied on top. Branching on `isPurpleOverride(overrides)` (rather than
+ * computing a single shared `type` variable up front) is what lets
+ * TypeScript narrow `overrides` itself to the matching type's own
+ * `Partial<...>` in each branch, so the merged result is provably one
+ * concrete enemy type — never a green base carrying a leftover `spiked`
+ * override, nor a purple base missing the `spiked` field it requires.
+ */
 function makeEnemy(overrides: Partial<EnemyState> = {}): EnemyState {
-  return {
-    id: 'enemy-under-test',
-    type: 'slimeGreen',
-    x: 100,
-    y: 100,
-    vx: 0,
-    vy: 0,
-    direction: 'right',
-    animState: 'walk',
-    animFrame: 0,
-    animTimer: 0,
-    hitPoints: 1,
-    hitTimer: 0,
-    spiked: false,
-    spikeTimer: 0,
-    alive: true,
-    homeX: 100,
-    homeY: 100,
-    rewardGiven: false,
-    ...overrides,
-  };
+  if (isPurpleOverride(overrides)) {
+    const placement: EnemyPlacement = { id: 'enemy-under-test', type: 'slimePurple', x: 100, y: 100 };
+    return { ...ENEMY_TYPES.slimePurple.create(placement, 0), ...overrides };
+  }
+  const placement: EnemyPlacement = { id: 'enemy-under-test', type: 'slimeGreen', x: 100, y: 100 };
+  return { ...ENEMY_TYPES.slimeGreen.create(placement, 0), ...overrides };
 }
 
 export interface ContactCase {
