@@ -7,7 +7,7 @@ import {
 import type { PlayerState } from '../entities/Player';
 import { COIN_RENDERED_SIZE } from '../entities/Coin';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
-import { ENEMY_RENDERED_SIZE } from '../entities/Enemy';
+import { enemyRenderedSize } from '../entities/Enemy';
 import type { EnemyState } from '../entities/Enemy';
 import { bonusFruitY, BONUS_FRUIT_RISE_DURATION_SECONDS } from '../entities/BonusFruit';
 import type { BonusFruitState } from '../entities/BonusFruit';
@@ -22,6 +22,8 @@ import type { ChestState } from '../entities/Chest';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { SignPlacement } from '../level/SignMapper';
 import type { HintId } from '../types';
+import type { KeyPickupState } from '../entities/KeyPickup';
+import { KEY_RENDERED_WIDTH, KEY_RENDERED_HEIGHT } from '../entities/KeyPickup';
 
 export interface Box {
   x: number;
@@ -84,7 +86,8 @@ export function checkCollectibleCollisions(
  *  transparent-padding trim the way the player's hitbox does; see Enemy.ts's
  *  doc comment on `ENEMY_TILE_OFFSET_Y`). */
 export function enemyHitbox(enemy: EnemyState): Box {
-  return { x: enemy.x, y: enemy.y, width: ENEMY_RENDERED_SIZE, height: ENEMY_RENDERED_SIZE };
+  const size = enemyRenderedSize(enemy.spriteType);
+  return { x: enemy.x, y: enemy.y, width: size, height: size };
 }
 
 /**
@@ -221,4 +224,26 @@ export function checkSignOverlap(
     if (aabbOverlap(hitbox, box)) return sign.hintId;
   }
   return undefined;
+}
+
+/**
+ * Returns the ids of every NOT-yet-collected key pickup the player's hitbox
+ * currently overlaps. Unlike checkCollectibleCollisions, there's no external
+ * `collectedIds` set — a pickup's own `collected` flag is the source of
+ * truth (PlatformerState.ts's keyPickupStates keeps collected entries around,
+ * flagged rather than removed, so a defeated purple slime can never drop a
+ * second key on a later respawn — see KeyPickup.ts's doc comment).
+ */
+export function checkKeyPickupCollisions(
+  player: PlayerState,
+  pickups: readonly KeyPickupState[],
+): string[] {
+  const hitbox = playerHitbox(player);
+  const hits: string[] = [];
+  for (const pickup of pickups) {
+    if (pickup.collected) continue;
+    const box: Box = { x: pickup.x, y: pickup.y, width: KEY_RENDERED_WIDTH, height: KEY_RENDERED_HEIGHT };
+    if (aabbOverlap(hitbox, box)) hits.push(pickup.id);
+  }
+  return hits;
 }
