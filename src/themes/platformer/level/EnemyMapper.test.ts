@@ -62,7 +62,7 @@ describe('mapCVDataToEnemies (green-only Courses)', () => {
         { title: 'Course B', provider: 'Y', year: 2021 },
         { title: 'Course C', provider: 'Z', year: 2022 },
       ],
-    } as CVData;
+    } as unknown as CVData;
     const defs = mapCVDataToEnemies(cv);
     expect(defs).toHaveLength(3);
     expect(defs.every((d) => d.spriteType === 'slimeGreen')).toBe(true);
@@ -75,7 +75,7 @@ describe('mapCVDataToEnemies (green-only Courses)', () => {
 
 describe('placeEnemies (purple markers have no defs to draw from)', () => {
   it('placeEnemies-purpleMarkerWithNoDefs-producesPlainEnemyDefWithNoFact', () => {
-    const defs = mapCVDataToEnemies({ courses: [{ title: 'Course A', provider: 'X', year: 2020 }] } as CVData);
+    const defs = mapCVDataToEnemies({ courses: [{ title: 'Course A', provider: 'X', year: 2020 }] } as unknown as CVData);
     const placements = placeEnemies(defs, {
       slimeGreen: [{ col: 1, row: 1 }],
       slimePurple: [{ col: 5, row: 1 }],
