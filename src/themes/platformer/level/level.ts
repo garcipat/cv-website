@@ -39,18 +39,19 @@ import {
 // two tiles below for both to land on.
 //
 // Every collectible/enemy on this map is a hand-placed marker, not
-// auto-placed: `S` (spawn), `E` (green Course enemy), `M` (purple Course
-// enemy — both slime colors guard the same Courses pool, alternating by
-// index; see EnemyMapper.ts's courseToEnemy comment), `C` (Skill-category
+// auto-placed: `S` (spawn), `E` (green Course enemy), `M` (purple slime —
+// delivers key collectible instead of CV facts), `C` (Skill-category
 // coin), `T` (chest — Experience fact). A marker is a slot on the map —
 // EnemyMapper.ts's placeEnemies and CollectibleMapper.ts's
 // placeCollectibles each draw the next fact from CVData (in its own section
 // order) per marker of that type, with no auto-placement fallback. This
-// level intentionally has only 1 `E`, 1 `M`, and 4 `C`s — a mechanics test
+// level intentionally has only 1 `E`, 2 `M`s, and 4 `C`s — a mechanics test
 // layout, not a complete one; most of the real CV's courses/skills simply
 // aren't represented on the map yet. The actual level design comes later,
-// once the mechanics it exercises are all built. Question-mark blocks spawn
-// their own bonus fruit (see BlockMapper.ts's
+// once the mechanics it exercises are all built. The level's two purple
+// slimes (`M` markers) produce two keys (one per slime), which enables both
+// chests (`T` markers) to be unlocked — each chest requires one key to open.
+// Question-mark blocks spawn their own bonus fruit (see BlockMapper.ts's
 // certificateToBlock/projectToBlock); where Languages themselves get
 // surfaced is still an open design question. `F` marks fragileRock blocks,
 // kept distinct from the unrelated `groundRock` terrain tile (see
@@ -106,7 +107,7 @@ export const LEVEL_1_LAYOUT: readonly string[] = [
   // strip onto the ladder needs no jump.
   '........GGGBBGGL...XQFXQF.......................................................',
   '................................................................................',
-  '.S.1..T...C.T.....C.......W.E..W....W.M....C.C..................................',
+  '.S.1..T...C.T.....C.......W.E..W....W.MM...C.C..................................',
   'GGBBBGGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRR...RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
   'GG...GGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRR...RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
 ];
