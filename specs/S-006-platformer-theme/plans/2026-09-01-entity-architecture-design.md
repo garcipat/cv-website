@@ -182,7 +182,7 @@ export interface EnemyType<S extends BaseEnemyState> {
   renderScale: number;
   patrolSpeedMultiplier: number;
   hitboxPaddingNative: { side: number; top: number };
-  spriteAssetPath: string;
+  sprite: SpriteDescriptor;
   heldItem: ItemKind | null;
 
   // lifecycle
@@ -199,6 +199,53 @@ export interface EnemyType<S extends BaseEnemyState> {
 }
 ```
 
+### Sprites
+
+Sprites come in **groups**, and the group is the sheet. One sheet backs however
+many things draw from it — `world_tileset.png` is a single group serving terrain,
+crates, question-mark blocks, and fragile rocks at once.
+
+```ts
+// entities/sprites/SpriteSheet.ts
+export interface SpriteSheet {
+  src: string;
+  frameWidth: number;
+  frameHeight: number;
+  /** Frames are addressed by index, read left-to-right then top-to-bottom;
+   *  `columns` is what turns an index into sx/sy. */
+  columns: number;
+}
+```
+
+A standalone single image (`chest_closed.png`, `key.png`) is a one-frame sheet,
+so it stops being a special case with its own drawing path.
+
+A type declares which group it draws from and which frames within it:
+
+```ts
+export interface SpriteDescriptor {
+  sheet: SpriteSheet;
+  renderScale: number;
+  /** Frame INDICES into `sheet`, not sx/sy pairs. An animation may span a row
+   *  boundary — the enemy walk loop deliberately does. */
+  animations: Record<string, { frames: number[]; frameDuration: number }>;
+}
+```
+
+**There is no enum listing every sprite.** The loader walks the type registries,
+collects the distinct `sheet.src` values it finds, and loads each exactly once —
+so a shared sheet loads once no matter how many types reference it, and adding a
+type touches no sprite registry at all. The lookup is keyed by `src`, which is
+derived from the registries rather than hand-maintained:
+
+```ts
+export type SpriteLookup = Record<string, HTMLImageElement | null>;
+```
+
+This replaces four unrelated idioms — the enemy sheet's hand-written `sx/sy`
+coordinate list, the block `sx/sy` lookup into the shared tileset, the chest and
+key standalone images, and the collectible sheets — with one.
+
 ### Rendering owned by the type
 
 `Renderer.ts` keeps only the iteration and the camera transform, handing each
@@ -207,7 +254,8 @@ entity a context:
 ```ts
 export interface DrawContext {
   ctx: CanvasRenderingContext2D;
-  sprites: SpriteLookup;      // loaded images, keyed by type
+  /** Loaded images keyed by `SpriteSheet.src`. */
+  sprites: SpriteLookup;
   originX: number; originY: number;
   worldElapsed: number;       // drives bob/pulse effects
 }
@@ -304,10 +352,14 @@ adding a type stays "one file, one registry line."
 
 | Family | Modules | Contact | Data replacing today's lookups |
 |---|---|---|---|
-| Blocks | `blocks/Crate.ts`, `QuestionMark.ts`, `FragileRock.ts` | `side: 'bottom'` | `maxHits` replaces `maxHitsForBlock`'s ternary; `removeWhenUsedUp: false` replaces `isBlockRemoved`'s questionMark special-case; each module's `draw` absorbs its arm of `blockFrameSource`'s switch |
-| Chests | `chests/Chest.ts` | standing-on | closed/open sprite pair and offsets |
-| Pickups | `items/Key.ts`, `Coin.ts`, `Fruit.ts` | any side → collect | frame size, rendered size, offsets, bob behavior |
-| Player | `Player.ts` | — | `PLAYER_TYPE` holds the three padding constants; `onDamage`/`onDeath` hooks |
+| Blocks | `blocks/Crate.ts`, `QuestionMark.ts`, `FragileRock.ts` | `side: 'bottom'` | `maxHits` replaces `maxHitsForBlock`'s ternary; `removeWhenUsedUp: false` replaces `isBlockRemoved`'s questionMark special-case; each module's `sprite` descriptor points at the shared `world_tileset.png` sheet with its own frame index, dissolving `blockFrameSource`'s switch |
+| Chests | `chests/Chest.ts` | standing-on | closed and open as two one-frame sheets, plus offsets |
+| Pickups | `items/Key.ts`, `Coin.ts`, `Fruit.ts` | any side → collect | sprite descriptor, rendered size, offsets, bob behavior |
+| Player | `Player.ts` | — | `PLAYER_TYPE` holds the three padding constants and its sprite descriptor; `onDamage`/`onDeath` hooks |
+
+Every family declares its sprites the same way, so the loader that discovers
+enemy sheets discovers theirs too — no per-family loading code, and no sheet
+loaded twice when families share one.
 
 **Constraint to hold deliberately:** `CollisionOutcome` grows fields as families
 join — `spawnItem`, `consumeKey`, `collect`, `giveFact`. That object becomes the
@@ -324,7 +376,7 @@ plan leaves a half-migrated world.
 | Plan | Content | Ships |
 |---|---|---|
 | **1 — Lifecycle** (`2026-09-01-entity-lifecycle.md`) | Characterization tests, then `alive`/`rewardGiven`, revive-in-place, deletion of all three id-keyed ledgers. No abstraction. | The defect fix, independently |
-| **2 — Enemy modules** (`2026-09-01-enemy-modules.md`) | `Entity` base, per-type enemy modules, type-owned rendering, contact resolution, spikes relocated into `SlimePurple.ts`. | The enemy architecture |
+| **2 — Enemy modules** (`2026-09-01-enemy-modules.md`) | `Entity` base, sprite sheets and the discovering loader, per-type enemy modules, type-owned rendering, contact resolution, spikes relocated into `SlimePurple.ts`. | The enemy architecture and the shared sprite model |
 | **3 — Generalization** (not yet written) | Items, blocks, chests, then the player. | The remaining families |
 
 Plan 3 is written via `superpowers:writing-plans` once Plan 2 lands, because its

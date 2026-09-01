@@ -4,75 +4,64 @@
 
 **Goal:** Make each enemy type a single self-contained module owning its data, its mechanics, and its rendering, so that adding an enemy is one new file plus one registry line plus one sprite asset.
 
-**Architecture:** A shared `Entity` base gives every world object the same positional shape and derived hitbox. Each enemy type becomes a module exporting an `EnemyType` object — numbers, lifecycle hooks, a `draw` function, and an `onPlayerCollide` hook that decides consequences from engine-computed contact geometry. `Renderer.ts` keeps only iteration and the camera transform; `Collision.ts` keeps only geometry. The spike mechanic ends up mentioned in exactly one file.
+**Architecture:** A shared `Entity` base gives every world object the same positional shape. Sprites are described as sheets — a group of frames addressed by index — that a type points into, with a loader that discovers assets from the type registries rather than from a hand-maintained list. Each enemy type becomes a module exporting an `EnemyType` object: numbers, lifecycle hooks, a `draw` function, and an `onPlayerCollide` hook that decides consequences from engine-computed contact geometry. `Renderer.ts` keeps only iteration and the camera transform; `Collision.ts` keeps only geometry. The spike mechanic ends up mentioned in exactly one file.
 
 **Tech Stack:** TypeScript 5 (strict), React 19, `@preact/signals-react`, Vitest + React Testing Library + jsdom.
 
 **Spec:** `specs/S-006-platformer-theme/plans/2026-09-01-entity-architecture-design.md`
 
-**Prerequisite:** `specs/S-006-platformer-theme/plans/2026-09-01-entity-lifecycle.md` must be complete. This plan assumes `EnemyState.alive`, `EnemyState.rewardGiven`, `EnemyState.homeX/homeY`, and `reviveEnemy` already exist, and that `EnemyContact.contract.test.ts` exists and passes.
+**Prerequisite:** `specs/S-006-platformer-theme/plans/2026-09-01-entity-lifecycle.md` is complete. This plan assumes `EnemyState.alive`, `EnemyState.rewardGiven`, `EnemyState.homeX/homeY`, and `reviveEnemy` exist, and that `EnemyContact.contract.test.ts` exists and passes.
 
 ## Global Constraints
 
-- TypeScript strict mode. No `any`, no `@ts-ignore`, no `@ts-expect-error` (constitution Principle I). Exactly one `as unknown as` cast is permitted, in the registry dispatcher defined in Task 2; it must carry the doc comment given there.
+- TypeScript strict mode. No `any`, no `@ts-ignore`, no `@ts-expect-error`. Exactly one `as unknown as` cast is permitted, in the registry dispatcher defined in Task 3; it must carry the doc comment given there.
 - Test-first for every task (constitution Principle II, NON-NEGOTIABLE).
 - Test names follow `{method}-{Condition}-{ExpectedResult}`.
 - No new dependencies.
 - Test command: `npm test`. Single file: `npx vitest run <path>`. Typecheck: `npx tsc -b --noEmit`.
 - Vitest globals are enabled — `describe`, `it`, `expect`, `vi` need no imports.
 - Named exports only.
-- **No behavior change is intended by any task in this plan.** `EnemyContact.contract.test.ts` must keep passing with its expectations unmodified, except for the mechanical construction changes each task names explicitly.
+- Doc comments describe the current state. No history trails, no references to plans or task numbers.
+- **No behavior change is intended by any task in this plan.** `EnemyContact.contract.test.ts` must keep passing with its `expected` blocks unmodified, except for the mechanical construction changes each task names explicitly.
+
+## Reference values
+
+The two slime sheets are 96×72: a 4-column, 3-row grid of 24×24 frames, addressed by index left-to-right then top-to-bottom (index 0 is top-left).
+
+| Animation | Current coordinate list | Equivalent frame indices |
+|---|---|---|
+| `walk` | `{72,0}, {0,24}, {24,24}, {48,24}, {72,24}` | `[3, 4, 5, 6, 7]` |
+| `hit` | `{0,48}, {24,48}, {48,48}, {72,48}` | `[8, 9, 10, 11]` |
+
+Index → source rect: `sx = (index % columns) * frameWidth`, `sy = Math.floor(index / columns) * frameHeight`.
 
 ## Model guidance
 
-This plan is **mixed**. Task-level assignments are on each task heading below;
-the reasoning is here.
+This plan is **mixed**. Task-level assignments are on each task heading; the reasoning is here.
 
-**Opus for Tasks 2 and 4.** These are the two places where a plausible-looking
-edit can typecheck and still be wrong:
+**Opus for Tasks 3 and 5.** These are the two places where a plausible-looking edit can typecheck and still be wrong:
 
-- Task 2 combines a generic dispatcher holding the plan's one permitted cast, a
-  module cycle that must be broken in a specific order, `Omit<BaseEnemyState,
-  'type'>` construction, and a discriminated union crossing an existing
-  `extends EnemyPlacement`. The failure modes are silent: widening the cast to
-  `any`, or "resolving" the cycle by duplicating a constant so two modules
-  disagree about the walk-frame count.
-- Task 4 is the semantic core. `EnemyContact.contract.test.ts` pins the ten
-  single-enemy cases, but the multi-contact aggregation rules are new behavior
-  that no existing test covers.
+- Task 3 combines a generic dispatcher holding the plan's one permitted cast, a module cycle that must be broken in a specific order, `Omit<BaseEnemyState, 'type'>` construction, and a discriminated union crossing an existing `extends EnemyPlacement`. The failure modes are silent: widening the cast to `any`, or "resolving" the cycle by duplicating a constant so two modules disagree about the walk-frame count.
+- Task 5 is the semantic core. `EnemyContact.contract.test.ts` pins the ten single-enemy cases, but the multi-contact aggregation rules are new behavior that no existing test covers.
 
-**Sonnet 5 for Tasks 1, 3, and 5.** Task 1 is a `grep`-and-rename fully caught
-by `tsc`. Task 5's design is fully specified and its outcome is objectively
-verifiable by the `grep` containment check in its Step 5. Task 3 is the
-borderline one — see its own note.
+**Sonnet 5 for Tasks 1, 2, 4 and 6.** Task 1 is a selective rename fully caught by `tsc` plus review. Task 2 is new, self-contained code with an exact equivalence test. Task 6's design is fully specified and its outcome is objectively verifiable by the `grep` containment check in its Step 5. Task 4 is the borderline one — see its own note.
 
-**On the "move this code verbatim" steps.** Tasks 2, 3, and 5 each relocate
-existing code rather than reproducing it in this plan, because transcribing
-~60 lines of canvas arithmetic (silhouette centering, spike overlay geometry)
-into a plan invites drift between plan and source. The consequence is that the
-implementer must actually open and read the source file rather than working
-from the plan alone. Do not let a model paraphrase these blocks — the
-instruction is *move*, and a diff that shows rewritten arithmetic instead of
-relocated arithmetic should be rejected in review.
+**On the "move this code verbatim" steps.** Tasks 3, 4 and 6 relocate existing code rather than reproducing it here, because transcribing ~60 lines of canvas arithmetic (silhouette centering, spike overlay geometry) into a plan invites drift between plan and source. The implementer must therefore open and read the source rather than working from the plan alone. Do not let a model paraphrase these blocks — the instruction is *move*, and a diff showing rewritten arithmetic instead of relocated arithmetic should be rejected in review.
 
-**Review.** Opus should review every task regardless of who implements it.
-Tasks 3, 4, and 5 additionally require the browser verification in their own
-steps — `Renderer.test.ts` asserts the structure of canvas calls, not the pixel
-offsets, so a transcription error in Task 3 passes the suite and is visible
-only on screen.
+**Review.** Opus should review every task. Tasks 4, 5 and 6 additionally require the browser verification in their own steps — `Renderer.test.ts` asserts the structure of canvas calls, not pixel offsets, so a transcription error in Task 4 passes the suite and is visible only on screen.
 
 ---
 
 ### Task 1: Shared entity base
 
-**Model:** Sonnet 5 — grep-and-rename plus one new types file; `tsc` catches every missed site.
+**Model:** Sonnet 5 — a selective rename plus one new types file.
 
 **Files:**
 - Create: `src/themes/platformer/entities/Entity.ts`
 - Create: `src/themes/platformer/entities/Entity.test.ts`
 - Modify: `src/themes/platformer/types.ts` (`EnemyDef.spriteType` → `EnemyDef.type`)
-- Modify: `src/themes/platformer/entities/Enemy.ts` (`EnemyState` extends the base)
-- Modify: every file referencing `spriteType` (see Step 4)
+- Modify: `src/themes/platformer/entities/Enemy.ts`
+- Modify: every file referencing the ENEMY `spriteType` (see Step 4)
 
 **Interfaces:**
 - Produces: `Direction`, `Rect`, `Entity`, `Damageable` from `entities/Entity.ts`. `EnemyDef.type` replaces `EnemyDef.spriteType`. `EnemyState` gains `vy: number`, always `0` for enemies.
@@ -164,15 +153,21 @@ export interface Damageable {
 }
 ```
 
-- [ ] **Step 4: Rename `spriteType` to `type` and conform `EnemyState`**
+- [ ] **Step 4: Rename the ENEMY `spriteType` to `type` — selectively**
 
-Run: `grep -rn "spriteType" src/themes/platformer/`
+**`spriteType` is two unrelated fields.** `EnemyDef.spriteType` (`'slimeGreen' | 'slimePurple'`) is what you are renaming. `CollectibleDef.spriteType` (`'coin' | 'fruit'`) is a different field on a different type and **must not be touched**. `tsc` will NOT catch a mistake here — a consistent over-rename of collectibles compiles and runs correctly while silently expanding scope. Only a partial rename fails to build. Check every hit before changing it.
 
-Rename `spriteType` to `type` in every hit **for enemies only**. `CollectibleDef.spriteType` is a different field on a different type and must be left alone — check each hit before changing it.
+Files containing ENEMY `spriteType` (rename):
+`types.ts`, `entities/Enemy.ts`, `entities/Enemy.test.ts`, `engine/Collision.ts`, `engine/Collision.test.ts`, `engine/DebugOverlay.ts`, `engine/DebugOverlay.test.ts`, `engine/EnemyAI.ts`, `engine/EnemyAI.test.ts`, `engine/EnemyContact.contract.test.ts`, `engine/Renderer.test.ts`, `level/EnemyMapper.ts`, `level/EnemyMapper.test.ts`, `PlatformerPage.tsx`, `PlatformerPage.test.tsx`, `PlatformerState.ts`, `PlatformerState.test.ts`, `editor/gridRenderState.test.ts`, `editor/EditorCanvas.test.tsx`.
 
-Files expected to be affected: `types.ts` (`EnemyDef`), `entities/Enemy.ts`, `level/EnemyMapper.ts`, `engine/Collision.ts`, `engine/Renderer.ts`, `engine/EnemyAI.ts`, `PlatformerState.ts`, `PlatformerPage.tsx`, plus their test files and any editor file that places enemies.
+Files containing only COLLECTIBLE `spriteType` (leave entirely alone):
+`components/Journal.tsx`, `components/Journal.test.tsx`, `level/CollectibleMapper.ts`, `level/CollectibleMapper.test.ts`.
 
-In `entities/Enemy.ts`, make the state extend the base and add `vy`:
+Files containing BOTH — edit selectively:
+- `engine/Renderer.ts`: line ~554 (`placement.spriteType === 'coin'`) is collectible, keep. Lines ~677-683 are enemy, rename.
+- `editor/gridRenderState.ts`: line ~96 (`spriteType: 'coin'`) is collectible, keep. Lines ~107/112 (`EnemyPlacement['spriteType']`) are enemy, rename.
+
+Then make the state extend the base, in `entities/Enemy.ts`:
 
 ```typescript
 import type { Entity, Damageable, Direction } from './Entity';
@@ -186,13 +181,15 @@ export interface EnemyState extends EnemyPlacement, Entity, Damageable {
 }
 ```
 
-Replace the local `EnemyDirection` type alias with `Direction` from `./Entity`, re-exporting it if other modules import `EnemyDirection`:
+Replace the local `EnemyDirection` alias with `Direction`, re-exporting it so existing importers keep working:
 
 ```typescript
 export type { Direction as EnemyDirection } from './Entity';
 ```
 
-In `toEnemyState`, add `vy: 0`. In `reviveEnemy`, add `vy: 0`.
+Add `vy: 0` to `toEnemyState` and to `reviveEnemy`.
+
+**`EnemyContact.contract.test.ts` needs `vy: 0` added to its `makeEnemy` defaults** — `vy` is a new required field and that helper builds a complete `EnemyState`. That file is a characterization test whose `expected` blocks pin current game behavior for Task 5. Add the field and rename its `spriteType` key; **change nothing else there, and never an `expected` block.**
 
 - [ ] **Step 5: Run the tests to verify they pass**
 
@@ -200,7 +197,10 @@ Run: `npm test`
 Expected: PASS.
 
 Run: `npx tsc -b --noEmit`
-Expected: no errors. A missed `spriteType` rename fails here.
+Expected: no errors.
+
+Run: `grep -rn "spriteType" src/themes/platformer/`
+Expected: only collectible hits remain — `Journal.tsx`, `Journal.test.tsx`, `CollectibleMapper.ts`, `CollectibleMapper.test.ts`, `Renderer.ts` (~554), `gridRenderState.ts` (~96), and their tests. Any enemy hit surviving is a miss.
 
 - [ ] **Step 6: Commit**
 
@@ -211,11 +211,215 @@ git commit -m "refactor(platformer): add shared Entity base and rename enemy spr
 
 ---
 
-### Task 2: Enemy type modules and registry
+### Task 2: Sprite sheets, descriptors, and the discovering loader
 
-**Model:** Opus — the dispatcher cast, the module cycle, and the discriminated union all fail silently when done almost-right. See "Model guidance" above.
+**Model:** Sonnet 5 — new self-contained code with an exact-equivalence test pinning it.
 
-Moves every per-type number out of the parallel `Record` lookups into one module per type. Data only — no rendering, no hooks yet.
+Replaces four unrelated sprite idioms with one. This task builds the mechanism and proves it reproduces today's enemy frame coordinates exactly; Task 4 switches rendering onto it.
+
+**Files:**
+- Create: `src/themes/platformer/entities/sprites/SpriteSheet.ts`
+- Create: `src/themes/platformer/entities/sprites/SpriteSheet.test.ts`
+- Create: `src/themes/platformer/entities/sprites/sheets.ts`
+
+**Interfaces:**
+- Produces: `SpriteSheet`, `SpriteDescriptor`, `frameSource(sheet, index)`, `SpriteLookup`, `collectSheetSources(descriptors)` from `entities/sprites/SpriteSheet.ts`; the sheet constants from `entities/sprites/sheets.ts`.
+
+- [ ] **Step 1: Write the failing test**
+
+Create `src/themes/platformer/entities/sprites/SpriteSheet.test.ts`:
+
+```typescript
+import { frameSource, collectSheetSources } from './SpriteSheet';
+import type { SpriteDescriptor } from './SpriteSheet';
+import { SLIME_GREEN_SHEET, SLIME_PURPLE_SHEET } from './sheets';
+
+describe('frameSource', () => {
+  it('indexZero-returnsTopLeftFrame', () => {
+    expect(frameSource(SLIME_GREEN_SHEET, 0)).toEqual({ sx: 0, sy: 0 });
+  });
+
+  it('indexAtColumnCount-wrapsToTheNextRow', () => {
+    // 4 columns of 24px: index 4 is row 1, column 0.
+    expect(frameSource(SLIME_GREEN_SHEET, 4)).toEqual({ sx: 0, sy: 24 });
+  });
+
+  it('lastIndexOfTheSheet-returnsBottomRightFrame', () => {
+    expect(frameSource(SLIME_GREEN_SHEET, 11)).toEqual({ sx: 72, sy: 48 });
+  });
+});
+
+describe('frameSource equivalence with the existing coordinate lists', () => {
+  // The walk loop deliberately crosses a sheet row boundary, so this
+  // conversion from hand-written sx/sy pairs to frame indices is the one place
+  // it could silently drift. These are the exact coordinates the renderer
+  // draws today.
+  it('walkFrameIndices-matchTodaysWalkCoordinates', () => {
+    const expected = [
+      { sx: 72, sy: 0 },
+      { sx: 0, sy: 24 },
+      { sx: 24, sy: 24 },
+      { sx: 48, sy: 24 },
+      { sx: 72, sy: 24 },
+    ];
+    expect([3, 4, 5, 6, 7].map((i) => frameSource(SLIME_GREEN_SHEET, i))).toEqual(expected);
+  });
+
+  it('hitFrameIndices-matchTodaysHitCoordinates', () => {
+    const expected = [
+      { sx: 0, sy: 48 },
+      { sx: 24, sy: 48 },
+      { sx: 48, sy: 48 },
+      { sx: 72, sy: 48 },
+    ];
+    expect([8, 9, 10, 11].map((i) => frameSource(SLIME_GREEN_SHEET, i))).toEqual(expected);
+  });
+});
+
+describe('collectSheetSources', () => {
+  it('descriptorsSharingASheet-yieldThatSourceOnce', () => {
+    const a: SpriteDescriptor = {
+      sheet: SLIME_GREEN_SHEET,
+      renderScale: 1,
+      animations: { walk: { frames: [3], frameDuration: 0.15 } },
+    };
+    const b: SpriteDescriptor = { ...a };
+    expect(collectSheetSources([a, b])).toEqual([SLIME_GREEN_SHEET.src]);
+  });
+
+  it('descriptorsWithDistinctSheets-yieldEverySourceOnce', () => {
+    const green: SpriteDescriptor = {
+      sheet: SLIME_GREEN_SHEET,
+      renderScale: 1,
+      animations: { walk: { frames: [3], frameDuration: 0.15 } },
+    };
+    const purple: SpriteDescriptor = { ...green, sheet: SLIME_PURPLE_SHEET };
+    expect(collectSheetSources([green, purple]).sort()).toEqual(
+      [SLIME_GREEN_SHEET.src, SLIME_PURPLE_SHEET.src].sort(),
+    );
+  });
+});
+```
+
+- [ ] **Step 2: Run the test to verify it fails**
+
+Run: `npx vitest run src/themes/platformer/entities/sprites/SpriteSheet.test.ts`
+Expected: FAIL — `Cannot find module './SpriteSheet'`.
+
+- [ ] **Step 3: Write the sprite model**
+
+Create `src/themes/platformer/entities/sprites/SpriteSheet.ts`:
+
+```typescript
+/**
+ * A group of frames sharing one image. One sheet backs however many things
+ * draw from it — `world_tileset.png` serves terrain, crates, question-mark
+ * blocks and fragile rocks at once — so a sheet is the unit of loading, not the
+ * entity that happens to use it.
+ *
+ * A standalone single image is a one-frame sheet (`columns: 1`, frame size =
+ * image size), which is why chests and dropped keys need no separate drawing
+ * path.
+ */
+export interface SpriteSheet {
+  src: string;
+  frameWidth: number;
+  frameHeight: number;
+  /** Frames are addressed by index, read left-to-right then top-to-bottom;
+   *  `columns` is what turns an index into a source rect. */
+  columns: number;
+}
+
+/**
+ * Which sheet a type draws from, at what scale, and which frames make up each
+ * of its animations. Frames are INDICES into the sheet rather than sx/sy pairs,
+ * so an animation spanning a row boundary — the enemy walk loop does — is just
+ * a contiguous range.
+ */
+export interface SpriteDescriptor {
+  sheet: SpriteSheet;
+  /** Multiplier on the frame's rendered size, on top of RENDER_SCALE. */
+  renderScale: number;
+  animations: Record<string, { frames: number[]; frameDuration: number }>;
+}
+
+/** Loaded images keyed by `SpriteSheet.src`. A key present with a `null` value
+ *  means the asset has not finished loading; callers skip drawing rather than
+ *  waiting. */
+export type SpriteLookup = Record<string, HTMLImageElement | null>;
+
+/** Source rect of one frame. */
+export function frameSource(sheet: SpriteSheet, index: number): { sx: number; sy: number } {
+  return {
+    sx: (index % sheet.columns) * sheet.frameWidth,
+    sy: Math.floor(index / sheet.columns) * sheet.frameHeight,
+  };
+}
+
+/**
+ * The distinct image sources a set of descriptors needs, each listed once.
+ * The loader walks the type registries and calls this, so no hand-maintained
+ * list of assets exists anywhere and a shared sheet is fetched only once no
+ * matter how many types point at it.
+ */
+export function collectSheetSources(descriptors: readonly SpriteDescriptor[]): string[] {
+  return [...new Set(descriptors.map((d) => d.sheet.src))];
+}
+```
+
+Create `src/themes/platformer/entities/sprites/sheets.ts`:
+
+```typescript
+import type { SpriteSheet } from './SpriteSheet';
+
+/**
+ * Both slime sheets are 96x72: a 4x3 grid of 24x24 frames. Frames 0-2 read as a
+ * mostly-featureless blob, frames 3-7 loop well as a breathing/bounce cycle,
+ * and frames 8-11 read as the slime dissolving toward a near-black silhouette.
+ * Frame 10 alone is recolored red in both sheets.
+ */
+const SLIME_FRAME_SIZE = 24;
+const SLIME_COLUMNS = 4;
+
+export const SLIME_GREEN_SHEET: SpriteSheet = {
+  src: '/sprites/slime_green.png',
+  frameWidth: SLIME_FRAME_SIZE,
+  frameHeight: SLIME_FRAME_SIZE,
+  columns: SLIME_COLUMNS,
+};
+
+export const SLIME_PURPLE_SHEET: SpriteSheet = {
+  src: '/sprites/slime_purple.png',
+  frameWidth: SLIME_FRAME_SIZE,
+  frameHeight: SLIME_FRAME_SIZE,
+  columns: SLIME_COLUMNS,
+};
+```
+
+Verify the two `src` paths against the actual `loadImage` calls in `PlatformerPage.tsx` before committing — they must match exactly, including the leading slash.
+
+- [ ] **Step 4: Run the tests to verify they pass**
+
+Run: `npx vitest run src/themes/platformer/entities/sprites/SpriteSheet.test.ts`
+Expected: PASS.
+
+Run: `npm test` and `npx tsc -b --noEmit`
+Expected: PASS, no errors. Nothing consumes this yet, so no existing behavior can change.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/themes/platformer
+git commit -m "feat(platformer): add sprite sheet descriptors and asset discovery"
+```
+
+---
+
+### Task 3: Enemy type modules and registry
+
+**Model:** Opus — the dispatcher cast, the module cycle, and the discriminated union all fail silently when done almost-right. See "Model guidance".
+
+Moves every per-type number out of the parallel `Record` lookups into one module per type. Data only — no rendering, no collision hooks yet.
 
 **Files:**
 - Create: `src/themes/platformer/entities/enemies/EnemyAnimation.ts`
@@ -225,20 +429,14 @@ Moves every per-type number out of the parallel `Record` lookups into one module
 - Create: `src/themes/platformer/entities/enemies/SlimePurple.ts`
 - Create: `src/themes/platformer/entities/enemies/index.ts`
 - Create: `src/themes/platformer/entities/enemies/index.test.ts`
-- Modify: `src/themes/platformer/entities/Enemy.ts` (size/offset/padding functions read the registry; delete the three `Record`s; animation config moves out)
+- Modify: `src/themes/platformer/entities/Enemy.ts`
 - Test: `src/themes/platformer/entities/Enemy.test.ts`
 
 **Interfaces:**
-- Consumes: `Entity`, `Damageable`, `Rect` (Task 1).
-- Produces: `EnemyType<S>` and `BaseEnemyState` from `enemies/EnemyType.ts`; `ENEMY_TYPES`, `EnemyTypeKey`, `EnemyState`, `typeOf` from `enemies/index.ts`; `EnemyAnimState`, `enemyFrameSource`, `ENEMY_FRAME_SIZE`, `walkAnimFrameCount`, `WALK_FRAME_DURATION` from `enemies/EnemyAnimation.ts`.
+- Consumes: `Entity`, `Damageable`, `Rect` (Task 1); `SpriteSheet`, `SpriteDescriptor`, `frameSource` (Task 2).
+- Produces: `EnemyType<S>`, `BaseEnemyState`, `ItemKind` from `enemies/EnemyType.ts`; `ENEMY_TYPES`, `EnemyTypeKey`, `EnemyState`, `typeOf` from `enemies/index.ts`; `EnemyAnimState`, `walkAnimFrameCount`, `WALK_FRAME_DURATION` from `enemies/EnemyAnimation.ts`.
 
-**Import direction — read before writing any file in this task.** The dependency
-edge runs **one way**: `Enemy.ts` → `enemies/*`, never back. `enemies/shared.ts`
-must not import from `../Enemy`, or the cycle
-`Enemy.ts → enemies/index.ts → SlimeGreen.ts → shared.ts → Enemy.ts` forms and
-`ENEMY_TYPES` is `undefined` at module-init time in whichever module loads
-second. That is why Step 3a moves the animation config out of `Enemy.ts` into
-`enemies/EnemyAnimation.ts` **before** anything else in this task.
+**Import direction — read before writing any file in this task.** The dependency edge runs **one way**: `Enemy.ts` → `enemies/*`, never back. `enemies/shared.ts` must not import from `../Enemy`, or the cycle `Enemy.ts → enemies/index.ts → SlimeGreen.ts → shared.ts → Enemy.ts` forms and `ENEMY_TYPES` is `undefined` at module-init time in whichever module loads second. That is why Step 3a moves the animation config out of `Enemy.ts` **before** anything else in this task.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -248,6 +446,7 @@ Create `src/themes/platformer/entities/enemies/index.test.ts`:
 import { ENEMY_TYPES, typeOf } from './index';
 import { toEnemyState } from '../Enemy';
 import { RENDER_SCALE } from '../../level/Terrain';
+import { SLIME_GREEN_SHEET, SLIME_PURPLE_SHEET } from '../sprites/sheets';
 import type { EnemyPlacement } from '../../level/EnemyMapper';
 
 describe('ENEMY_TYPES', () => {
@@ -257,21 +456,23 @@ describe('ENEMY_TYPES', () => {
   it('slimeGreen-matchesItsPreRefactorConstants', () => {
     expect(ENEMY_TYPES.slimeGreen).toMatchObject({
       maxHitPoints: 1,
-      renderScale: 1,
       patrolSpeedMultiplier: 1,
       hitboxPaddingNative: { side: 5, top: 9 },
       heldItem: null,
     });
+    expect(ENEMY_TYPES.slimeGreen.sprite.sheet).toBe(SLIME_GREEN_SHEET);
+    expect(ENEMY_TYPES.slimeGreen.sprite.renderScale).toBe(1);
   });
 
   it('slimePurple-matchesItsPreRefactorConstants', () => {
     expect(ENEMY_TYPES.slimePurple).toMatchObject({
       maxHitPoints: 3,
-      renderScale: 2,
       patrolSpeedMultiplier: 0.7,
       hitboxPaddingNative: { side: 5, top: 9 },
       heldItem: 'key',
     });
+    expect(ENEMY_TYPES.slimePurple.sprite.sheet).toBe(SLIME_PURPLE_SHEET);
+    expect(ENEMY_TYPES.slimePurple.sprite.renderScale).toBe(2);
   });
 
   it('everyEntry-declaresItsOwnKey', () => {
@@ -279,6 +480,13 @@ describe('ENEMY_TYPES', () => {
     // `type`, which is sound only while each module's key matches its slot.
     for (const [key, type] of Object.entries(ENEMY_TYPES)) {
       expect(type.key).toBe(key);
+    }
+  });
+
+  it('everyEntry-declaresWalkAndHitAnimations', () => {
+    for (const type of Object.values(ENEMY_TYPES)) {
+      expect(type.sprite.animations.walk.frames).toEqual([3, 4, 5, 6, 7]);
+      expect(type.sprite.animations.hit.frames).toEqual([8, 9, 10, 11]);
     }
   });
 });
@@ -292,13 +500,15 @@ describe('typeOf', () => {
 
 describe('enemy geometry from the registry', () => {
   it('purpleSlime-rendersAtTwiceGreensSize', () => {
-    expect(ENEMY_TYPES.slimePurple.renderScale).toBe(2 * ENEMY_TYPES.slimeGreen.renderScale);
+    expect(ENEMY_TYPES.slimePurple.sprite.renderScale).toBe(
+      2 * ENEMY_TYPES.slimeGreen.sprite.renderScale,
+    );
   });
 
   it('hitboxPadding-scalesWithRenderScaleAndRenderScaleConstant', () => {
     const purple = ENEMY_TYPES.slimePurple;
-    expect(purple.hitboxPaddingNative.side * RENDER_SCALE * purple.renderScale).toBe(20);
-    expect(purple.hitboxPaddingNative.top * RENDER_SCALE * purple.renderScale).toBe(36);
+    expect(purple.hitboxPaddingNative.side * RENDER_SCALE * purple.sprite.renderScale).toBe(20);
+    expect(purple.hitboxPaddingNative.top * RENDER_SCALE * purple.sprite.renderScale).toBe(36);
   });
 });
 ```
@@ -308,47 +518,58 @@ describe('enemy geometry from the registry', () => {
 Run: `npx vitest run src/themes/platformer/entities/enemies/index.test.ts`
 Expected: FAIL — `Cannot find module './index'`.
 
-- [ ] **Step 3a: Move the animation config out of `Enemy.ts` first**
+- [ ] **Step 3a: Move the animation config out of `Enemy.ts` FIRST**
 
-Create `src/themes/platformer/entities/enemies/EnemyAnimation.ts` and move into
-it, unchanged, from `entities/Enemy.ts`: `ENEMY_FRAME_SIZE`, `EnemyAnimState`,
-the `FrameCoord` type, `WALK_FRAMES`, `ENEMY_ANIM_CONFIG`, and
-`enemyFrameSource`, along with the file-header doc comment explaining the frame
-choices. Add two exports the type modules need:
+Create `src/themes/platformer/entities/enemies/EnemyAnimation.ts` holding `EnemyAnimState` and the frame-index animation lists, replacing `Enemy.ts`'s `WALK_FRAMES`/`ENEMY_ANIM_CONFIG`/`enemyFrameSource`:
 
 ```typescript
+import type { SpriteDescriptor } from '../sprites/SpriteSheet';
+
+/** Patrol uses constant-slide movement — a patrolling enemy is always in
+ *  motion — so there is no reachable idle state. The frames 3-7 loop reads
+ *  fine as movement and is reused for `walk`. */
+export type EnemyAnimState = 'walk' | 'hit';
+
+export const WALK_FRAME_DURATION = 0.15;
+const HIT_FRAME_DURATION = 0.1;
+
+export const ENEMY_ANIMATIONS: SpriteDescriptor['animations'] = {
+  walk: { frames: [3, 4, 5, 6, 7], frameDuration: WALK_FRAME_DURATION },
+  hit: { frames: [8, 9, 10, 11], frameDuration: HIT_FRAME_DURATION },
+};
+
 /** Number of frames in the walk loop — used to stagger enemies' starting
  *  frames so they don't animate in lockstep. */
 export function walkAnimFrameCount(): number {
-  return ENEMY_ANIM_CONFIG.walk.frames.length;
+  return ENEMY_ANIMATIONS.walk.frames.length;
 }
-
-export const WALK_FRAME_DURATION = ENEMY_ANIM_CONFIG.walk.frameDuration;
 ```
 
-Re-export the moved names from `entities/Enemy.ts` so existing importers keep
-working:
+Delete `ENEMY_FRAME_SIZE`, `WALK_FRAMES`, `ENEMY_ANIM_CONFIG`, `enemyFrameSource`, and the `FrameCoord` type from `Enemy.ts`, and re-export what other modules still import:
 
 ```typescript
-export {
-  ENEMY_FRAME_SIZE,
-  enemyFrameSource,
-  walkAnimFrameCount,
-  WALK_FRAME_DURATION,
-} from './enemies/EnemyAnimation';
 export type { EnemyAnimState } from './enemies/EnemyAnimation';
+export { walkAnimFrameCount, WALK_FRAME_DURATION } from './enemies/EnemyAnimation';
 ```
 
-`EnemyAnimation.ts` must import nothing from `../Enemy`. Verify before
-continuing: `grep -n "from '\.\./Enemy'" src/themes/platformer/entities/enemies/`
-returns nothing.
+`Renderer.ts` and any test currently calling `enemyFrameSource(animState, frame)` must switch to resolving the frame through the descriptor: look up `ENEMY_ANIMATIONS[animState].frames[animFrame % frames.length]` to get the index, then `frameSource(sheet, index)`. Add a small helper in `EnemyAnimation.ts` for exactly that and use it at every call site:
 
-- [ ] **Step 3: Write the type contract**
+```typescript
+export function enemyFrameIndex(animState: EnemyAnimState, animFrame: number): number {
+  const { frames } = ENEMY_ANIMATIONS[animState];
+  return frames[animFrame % frames.length];
+}
+```
+
+`EnemyAnimation.ts` must import nothing from `../Enemy`. Verify before continuing: `grep -rn "from '\.\./Enemy'" src/themes/platformer/entities/enemies/` returns nothing.
+
+- [ ] **Step 3b: Write the type contract**
 
 Create `src/themes/platformer/entities/enemies/EnemyType.ts`:
 
 ```typescript
 import type { Entity, Damageable } from '../Entity';
+import type { SpriteDescriptor } from '../sprites/SpriteSheet';
 import type { EnemyPlacement } from '../../level/EnemyMapper';
 import type { CollectedFact } from '../../types';
 import type { EnemyAnimState } from './EnemyAnimation';
@@ -357,9 +578,9 @@ import type { EnemyAnimState } from './EnemyAnimation';
 export type ItemKind = 'key';
 
 /**
- * What every enemy has, regardless of type. Type-specific state (purple's
- * spike timer, for example) is declared by that type's own module, which
- * extends this — see SlimePurple.ts.
+ * What every enemy has, regardless of type. Type-specific state — purple's
+ * spike timer, for example — is declared by that type's own module, which
+ * extends this.
  */
 export interface BaseEnemyState extends EnemyPlacement, Entity, Damageable {
   type: string;
@@ -378,18 +599,18 @@ export interface BaseEnemyState extends EnemyPlacement, Entity, Damageable {
  * Everything the engine needs to know about one enemy type, owned entirely by
  * that type's own module. Adding an enemy means writing one of these and
  * adding one line to `enemies/index.ts` — nothing in Collision.ts,
- * Renderer.ts, EnemyAI.ts, or PlatformerPage.tsx needs to change.
+ * Renderer.ts, EnemyAI.ts, or PlatformerPage.tsx needs to change, and no
+ * sprite registry needs editing either: the loader discovers assets from
+ * `sprite.sheet`.
  */
 export interface EnemyType<S extends BaseEnemyState> {
   /** Must equal this module's slot in ENEMY_TYPES — see index.test.ts. */
   key: string;
   maxHitPoints: number;
-  /** Multiplier on the 24px native frame's rendered size. */
-  renderScale: number;
   patrolSpeedMultiplier: number;
   /** Transparent margin inside the native frame, in pre-scale pixels. */
   hitboxPaddingNative: { side: number; top: number };
-  spriteAssetPath: string;
+  sprite: SpriteDescriptor;
   /** What a finishing stomp drops, or null for a type that carries a CV fact
    *  instead. */
   heldItem: ItemKind | null;
@@ -399,65 +620,9 @@ export interface EnemyType<S extends BaseEnemyState> {
 }
 ```
 
-- [ ] **Step 4: Write the two type modules**
+- [ ] **Step 3c: Write `shared.ts` and the two type modules**
 
-Create `src/themes/platformer/entities/enemies/SlimeGreen.ts`:
-
-```typescript
-import type { EnemyType, BaseEnemyState } from './EnemyType';
-import { baseEnemyState, baseRevive } from './shared';
-
-export interface SlimeGreenState extends BaseEnemyState {
-  type: 'slimeGreen';
-}
-
-export const slimeGreen: EnemyType<SlimeGreenState> = {
-  key: 'slimeGreen',
-  maxHitPoints: 1,
-  renderScale: 1,
-  patrolSpeedMultiplier: 1,
-  hitboxPaddingNative: { side: 5, top: 9 },
-  spriteAssetPath: '/sprites/slime_green.png',
-  heldItem: null,
-
-  create: (placement, index) => ({
-    ...baseEnemyState(placement, index, 1),
-    type: 'slimeGreen',
-  }),
-  revive: (enemy) => ({ ...baseRevive(enemy, 1), type: 'slimeGreen' }),
-};
-```
-
-Create `src/themes/platformer/entities/enemies/SlimePurple.ts`:
-
-```typescript
-import type { EnemyType, BaseEnemyState } from './EnemyType';
-import { baseEnemyState, baseRevive } from './shared';
-
-export interface SlimePurpleState extends BaseEnemyState {
-  type: 'slimePurple';
-}
-
-export const slimePurple: EnemyType<SlimePurpleState> = {
-  key: 'slimePurple',
-  maxHitPoints: 3,
-  // A purple slime reads as a distinctly bigger, slower, tougher variant of
-  // the green one — twice the size, 70% of the patrol speed, three stomps.
-  renderScale: 2,
-  patrolSpeedMultiplier: 0.7,
-  hitboxPaddingNative: { side: 5, top: 9 },
-  spriteAssetPath: '/sprites/slime_purple.png',
-  heldItem: 'key',
-
-  create: (placement, index) => ({
-    ...baseEnemyState(placement, index, 3),
-    type: 'slimePurple',
-  }),
-  revive: (enemy) => ({ ...baseRevive(enemy, 3), type: 'slimePurple' }),
-};
-```
-
-Create `src/themes/platformer/entities/enemies/shared.ts` holding the construction both modules reuse. Move the bodies of the existing `toEnemyState` and `reviveEnemy` here, parameterising hit points:
+Create `src/themes/platformer/entities/enemies/shared.ts` with the construction both modules reuse. Move the bodies of the existing `toEnemyState` and `reviveEnemy` here, parameterising hit points. **Note `reviveEnemy` deliberately does NOT reset `animFrame`/`animTimer`** — that preserves the per-enemy animation stagger across a respawn.
 
 ```typescript
 import type { BaseEnemyState } from './EnemyType';
@@ -498,7 +663,8 @@ export function baseEnemyState(
 
 /** Resets an enemy to its spawn state, preserving `rewardGiven` — an enemy
  *  that already paid out revives as a normal killable obstacle with nothing
- *  left to give. */
+ *  left to give — and preserving `animFrame`/`animTimer` so the per-enemy
+ *  animation stagger survives a respawn. */
 export function baseRevive(
   enemy: BaseEnemyState,
   maxHitPoints: number,
@@ -511,8 +677,6 @@ export function baseRevive(
     vy: 0,
     direction: 'right',
     animState: 'walk',
-    animFrame: 0,
-    animTimer: 0,
     hitPoints: maxHitPoints,
     hitTimer: 0,
     spiked: false,
@@ -522,9 +686,67 @@ export function baseRevive(
 }
 ```
 
-Export `walkAnimFrameCount()` (returning `ENEMY_ANIM_CONFIG.walk.frames.length`) and `WALK_FRAME_DURATION` from `entities/Enemy.ts` so `shared.ts` can reach the animation config without duplicating it. `spiked`/`spikeTimer` stay on the base for now; Task 5 moves them into `SlimePurpleState`.
+Create `src/themes/platformer/entities/enemies/SlimeGreen.ts`:
 
-- [ ] **Step 5: Write the registry and dispatcher**
+```typescript
+import type { EnemyType, BaseEnemyState } from './EnemyType';
+import { baseEnemyState, baseRevive } from './shared';
+import { ENEMY_ANIMATIONS } from './EnemyAnimation';
+import { SLIME_GREEN_SHEET } from '../sprites/sheets';
+
+export interface SlimeGreenState extends BaseEnemyState {
+  type: 'slimeGreen';
+}
+
+export const slimeGreen: EnemyType<SlimeGreenState> = {
+  key: 'slimeGreen',
+  maxHitPoints: 1,
+  patrolSpeedMultiplier: 1,
+  hitboxPaddingNative: { side: 5, top: 9 },
+  sprite: { sheet: SLIME_GREEN_SHEET, renderScale: 1, animations: ENEMY_ANIMATIONS },
+  heldItem: null,
+
+  create: (placement, index) => ({
+    ...baseEnemyState(placement, index, 1),
+    type: 'slimeGreen',
+  }),
+  revive: (enemy) => ({ ...baseRevive(enemy, 1), type: 'slimeGreen' }),
+};
+```
+
+Create `src/themes/platformer/entities/enemies/SlimePurple.ts`:
+
+```typescript
+import type { EnemyType, BaseEnemyState } from './EnemyType';
+import { baseEnemyState, baseRevive } from './shared';
+import { ENEMY_ANIMATIONS } from './EnemyAnimation';
+import { SLIME_PURPLE_SHEET } from '../sprites/sheets';
+
+export interface SlimePurpleState extends BaseEnemyState {
+  type: 'slimePurple';
+}
+
+// A purple slime reads as a distinctly bigger, slower, tougher variant of the
+// green one — twice the size, 70% of the patrol speed, three stomps.
+export const slimePurple: EnemyType<SlimePurpleState> = {
+  key: 'slimePurple',
+  maxHitPoints: 3,
+  patrolSpeedMultiplier: 0.7,
+  hitboxPaddingNative: { side: 5, top: 9 },
+  sprite: { sheet: SLIME_PURPLE_SHEET, renderScale: 2, animations: ENEMY_ANIMATIONS },
+  heldItem: 'key',
+
+  create: (placement, index) => ({
+    ...baseEnemyState(placement, index, 3),
+    type: 'slimePurple',
+  }),
+  revive: (enemy) => ({ ...baseRevive(enemy, 3), type: 'slimePurple' }),
+};
+```
+
+`spiked`/`spikeTimer` stay on the base for now; Task 6 moves them into `SlimePurpleState`.
+
+- [ ] **Step 3d: Write the registry and dispatcher**
 
 Create `src/themes/platformer/entities/enemies/index.ts`:
 
@@ -559,13 +781,14 @@ export function typeOf<S extends BaseEnemyState>(enemy: S): EnemyType<S> {
 }
 ```
 
-- [ ] **Step 6: Point `Enemy.ts`'s geometry functions at the registry**
+- [ ] **Step 3e: Point `Enemy.ts`'s geometry functions at the registry**
 
-In `entities/Enemy.ts`, rewrite the five geometry functions to read the registry, and **delete** `ENEMY_RENDER_SCALE`, `ENEMY_PATROL_SPEED_MULTIPLIER`, `ENEMY_HIT_POINTS`, `ENEMY_HITBOX_SIDE_PADDING_NATIVE`, and `ENEMY_HITBOX_TOP_PADDING_NATIVE`:
+Rewrite the geometry functions to read the registry, and **delete** `ENEMY_RENDER_SCALE`, `ENEMY_PATROL_SPEED_MULTIPLIER`, `ENEMY_HIT_POINTS`, `ENEMY_HITBOX_SIDE_PADDING_NATIVE`, and `ENEMY_HITBOX_TOP_PADDING_NATIVE`:
 
 ```typescript
 export function enemyRenderedSize(type: EnemyTypeKey): number {
-  return ENEMY_FRAME_SIZE * RENDER_SCALE * ENEMY_TYPES[type].renderScale;
+  const { sheet, renderScale } = ENEMY_TYPES[type].sprite;
+  return sheet.frameWidth * RENDER_SCALE * renderScale;
 }
 
 export function enemyTileOffsetX(type: EnemyTypeKey): number {
@@ -577,19 +800,15 @@ export function enemyTileOffsetY(type: EnemyTypeKey): number {
 }
 
 export function enemyHitboxSidePadding(type: EnemyTypeKey): number {
-  const { hitboxPaddingNative, renderScale } = ENEMY_TYPES[type];
-  return hitboxPaddingNative.side * RENDER_SCALE * renderScale;
+  const { hitboxPaddingNative, sprite } = ENEMY_TYPES[type];
+  return hitboxPaddingNative.side * RENDER_SCALE * sprite.renderScale;
 }
 
 export function enemyHitboxTopPadding(type: EnemyTypeKey): number {
-  const { hitboxPaddingNative, renderScale } = ENEMY_TYPES[type];
-  return hitboxPaddingNative.top * RENDER_SCALE * renderScale;
+  const { hitboxPaddingNative, sprite } = ENEMY_TYPES[type];
+  return hitboxPaddingNative.top * RENDER_SCALE * sprite.renderScale;
 }
-```
 
-Replace `toEnemyState`'s body with construction via the registry, and delete `reviveEnemy`'s body in favour of the module hook:
-
-```typescript
 export function toEnemyState(placement: EnemyPlacement, index = 0): EnemyState {
   return ENEMY_TYPES[placement.type].create(placement, index);
 }
@@ -599,26 +818,22 @@ export function reviveEnemy(enemy: EnemyState): EnemyState {
 }
 ```
 
-**`EnemyState` now has one definition, not two.** Delete the `EnemyState`
-interface from `entities/Enemy.ts` — it is superseded by the union in
-`enemies/index.ts`, which is the only place a per-type state shape may be
-added. `Enemy.ts` re-exports it so the ~40 existing `import type { EnemyState }
-from './entities/Enemy'` sites keep compiling unchanged:
+**`EnemyState` now has one definition, not two.** Delete the `EnemyState` interface from `entities/Enemy.ts` — it is superseded by the union in `enemies/index.ts`, which is the only place a per-type state shape may be added. `Enemy.ts` re-exports it so the existing `import type { EnemyState } from './entities/Enemy'` sites keep compiling:
 
 ```typescript
 export type { EnemyState } from './enemies';
 ```
 
-Every field the old interface declared now lives on `BaseEnemyState` (shared)
-or on a type module's own state interface (per-type). Nothing is lost; run
-`npx tsc -b --noEmit` after this step to confirm no field went missing.
+Every field the old interface declared now lives on `BaseEnemyState` or on a type module's own state interface. Run `npx tsc -b --noEmit` after this step to confirm nothing went missing.
 
-Update `Enemy.test.ts`: it imports `ENEMY_RENDER_SCALE`, `ENEMY_PATROL_SPEED_MULTIPLIER`, and `ENEMY_HIT_POINTS`, which no longer exist. Replace each with the corresponding `ENEMY_TYPES.<key>.<field>` read. The assertions themselves must not change — the values are identical by construction and `index.test.ts` Step 1 asserts exactly that.
+**If `EnemyContact.contract.test.ts`'s `makeEnemy` stops typechecking**, it is because `Partial<EnemyState>` over a discriminated union distributes and no longer spreads cleanly onto a base literal. Fix it by changing the HELPER — for example building via `ENEMY_TYPES[type].create(...)` and then applying overrides, or typing the parameter as `Partial<BaseEnemyState> & { type?: EnemyTypeKey }`. **Never** by editing an `expected` block and never with a cast to `any`.
 
-- [ ] **Step 7: Run the tests to verify they pass**
+Update `Enemy.test.ts`: it imports `ENEMY_RENDER_SCALE`, `ENEMY_PATROL_SPEED_MULTIPLIER`, and `ENEMY_HIT_POINTS`, which no longer exist. Replace each with the corresponding `ENEMY_TYPES.<key>` read. The assertions must not change — the values are identical by construction and `index.test.ts` asserts exactly that.
+
+- [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `npm test`
-Expected: PASS, including `EnemyContact.contract.test.ts` unmodified.
+Expected: PASS, including `EnemyContact.contract.test.ts` with unmodified `expected` blocks.
 
 Run: `npx tsc -b --noEmit`
 Expected: no errors.
@@ -626,7 +841,7 @@ Expected: no errors.
 Run: `grep -rn "ENEMY_RENDER_SCALE\|ENEMY_PATROL_SPEED_MULTIPLIER\|ENEMY_HIT_POINTS" src/`
 Expected: no output.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add src/themes/platformer
@@ -635,22 +850,22 @@ git commit -m "refactor(platformer): move per-enemy-type data into self-containe
 
 ---
 
-### Task 3: Rendering moves into the type modules
+### Task 4: Rendering moves into the type modules
 
 **Model:** Sonnet 5, with mandatory Opus review and the browser check in Step 7. This task RELOCATES ~60 lines of canvas arithmetic; a rewritten-from-memory version passes the suite and looks wrong only on screen.
 
 **Files:**
 - Create: `src/themes/platformer/engine/DrawContext.ts`
+- Create: `src/themes/platformer/entities/enemies/drawSpriteSheetEntity.ts`
 - Modify: `src/themes/platformer/entities/enemies/EnemyType.ts` (add `draw`)
 - Modify: `src/themes/platformer/entities/enemies/SlimeGreen.ts`, `SlimePurple.ts`
-- Create: `src/themes/platformer/entities/enemies/drawSpriteSheetEntity.ts`
-- Modify: `src/themes/platformer/engine/Renderer.ts` (`drawEnemies` becomes a loop)
-- Modify: `src/themes/platformer/PlatformerPage.tsx` (one sprite lookup replaces two refs)
+- Modify: `src/themes/platformer/engine/Renderer.ts`
+- Modify: `src/themes/platformer/PlatformerPage.tsx`
 - Test: `src/themes/platformer/engine/Renderer.test.ts`
 
 **Interfaces:**
-- Consumes: `ENEMY_TYPES`, `typeOf` (Task 2).
-- Produces: `DrawContext` and `SpriteLookup` from `engine/DrawContext.ts`; `EnemyType.draw(enemy, dc)`. `drawEnemies(ctx, enemies, dc)` replaces the eight-positional-argument signature.
+- Consumes: `ENEMY_TYPES`, `typeOf` (Task 3); `SpriteLookup`, `frameSource`, `collectSheetSources` (Task 2).
+- Produces: `DrawContext` from `engine/DrawContext.ts`; `EnemyType.draw(enemy, dc)`. `drawEnemies(ctx, enemies, dc)` replaces the eight-positional-argument signature.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -669,21 +884,27 @@ describe('drawEnemies with type-owned rendering', () => {
     const ctx = makeMockCtx();
     const dc = makeDrawContext(ctx);
     drawEnemies(ctx, [makeGreenEnemy(), makePurpleEnemy()], dc);
-    expect(drawImageCallsFor(ctx, dc.sprites.slimeGreen)).toHaveLength(1);
-    // Purple draws its sheet frame plus its held-key shine-through.
-    expect(drawImageCallsFor(ctx, dc.sprites.slimePurple)).toHaveLength(1);
+    expect(drawImageCallsFor(ctx, dc.sprites[SLIME_GREEN_SHEET.src])).toHaveLength(1);
+    expect(drawImageCallsFor(ctx, dc.sprites[SLIME_PURPLE_SHEET.src])).toHaveLength(1);
   });
 
   it('purpleThatAlreadyGaveItsReward-drawsNoHeldKey', () => {
     const ctx = makeMockCtx();
     const dc = makeDrawContext(ctx);
     drawEnemies(ctx, [makePurpleEnemy({ rewardGiven: true })], dc);
-    expect(drawImageCallsFor(ctx, dc.sprites.key)).toHaveLength(0);
+    expect(drawImageCallsFor(ctx, dc.sprites[KEY_SHEET.src])).toHaveLength(0);
+  });
+
+  it('purpleThatHasNotGivenItsReward-drawsAHeldKey', () => {
+    const ctx = makeMockCtx();
+    const dc = makeDrawContext(ctx);
+    drawEnemies(ctx, [makePurpleEnemy({ rewardGiven: false })], dc);
+    expect(drawImageCallsFor(ctx, dc.sprites[KEY_SHEET.src]).length).toBeGreaterThan(0);
   });
 });
 ```
 
-Add a `makeDrawContext(ctx)` helper to that file building a `DrawContext` with distinct mock image objects per sprite key, so `drawImageCallsFor` can tell them apart. Reuse the file's existing mock-context and `drawImageCallsFor` helpers.
+Add a `makeDrawContext(ctx)` helper building a `DrawContext` whose `sprites` maps each sheet `src` to a DISTINCT mock image object, so `drawImageCallsFor` can tell them apart. Reuse the file's existing mock-context and `drawImageCallsFor` helpers.
 
 - [ ] **Step 2: Run the test to verify it fails**
 
@@ -695,14 +916,12 @@ Expected: FAIL — `makeDrawContext is not defined` / `drawEnemies` arity mismat
 Create `src/themes/platformer/engine/DrawContext.ts`:
 
 ```typescript
-/** Loaded sprite images, keyed by the type key that declared the asset path.
- *  `key` is the shared dropped-item sprite, not an enemy type. */
-export type SpriteLookup = Record<string, HTMLImageElement | null>;
+import type { SpriteLookup } from '../entities/sprites/SpriteSheet';
 
 /**
- * Everything a type's `draw` needs in order to render itself, so that drawing
- * logic can live in the type's own module without each module having to reach
- * for the camera or the sprite refs.
+ * Everything a type's `draw` needs in order to render itself, so drawing logic
+ * can live in the type's own module without each module reaching for the
+ * camera or the sprite refs.
  *
  * Renderer.ts remains the only module that knows how the camera maps world
  * coordinates to canvas coordinates; a type only ever adds originX/originY to
@@ -710,6 +929,7 @@ export type SpriteLookup = Record<string, HTMLImageElement | null>;
  */
 export interface DrawContext {
   ctx: CanvasRenderingContext2D;
+  /** Loaded images keyed by `SpriteSheet.src`. */
   sprites: SpriteLookup;
   /** World-to-canvas offset. */
   originX: number;
@@ -719,9 +939,11 @@ export interface DrawContext {
 }
 ```
 
+Add a `KEY_SHEET` to `entities/sprites/sheets.ts` for `public/sprites/key.png` — a one-frame sheet, `frameWidth: 14`, `frameHeight: 22`, `columns: 1` (see `entities/KeyPickup.ts`'s existing constants; keep them as the source of truth for the numbers).
+
 - [ ] **Step 4: Write the shared blit helper and the two `draw` implementations**
 
-Create `src/themes/platformer/entities/enemies/drawSpriteSheetEntity.ts` containing the plain sheet blit currently at the top of `drawEnemies`' loop body — source rect from `enemyFrameSource`, destination from `enemyTileOffsetX/Y` plus origin, `imageSmoothingEnabled = false`, and the horizontal mirror for `direction === 'left'`. Move that code; do not rewrite it.
+Create `src/themes/platformer/entities/enemies/drawSpriteSheetEntity.ts` containing the plain sheet blit currently at the top of `drawEnemies`' loop body — source rect via `frameSource(sprite.sheet, enemyFrameIndex(animState, animFrame))`, destination from `enemyTileOffsetX/Y` plus origin, `imageSmoothingEnabled = false`, and the horizontal mirror for `direction === 'left'`. **Move that code; do not rewrite it.**
 
 ```typescript
 export function drawSpriteSheetEntity(enemy: BaseEnemyState, dc: DrawContext): void
@@ -742,10 +964,10 @@ Add `draw` to the `EnemyType` interface:
   draw: (enemy, dc) => drawSpriteSheetEntity(enemy, dc),
 ```
 
-`SlimePurple.draw` calls the helper, then draws the spike overlay and the held-key shine. Move both blocks verbatim out of `Renderer.ts`'s `drawEnemies`, including the `SPIKE_COLORS` palette (now a plain local constant in `SlimePurple.ts`, with the unreachable `slimeGreen` entry deleted) and the silhouette-centering arithmetic in the held-key block. Replace the gate:
+`SlimePurple.draw` calls the helper, then draws its spike overlay and held-key shine. **Move both blocks verbatim** out of `Renderer.ts`'s `drawEnemies`, including the `SPIKE_COLORS` palette (now a plain local constant in `SlimePurple.ts`, with the unreachable `slimeGreen` entry deleted) and the silhouette-centering arithmetic in the held-key block. Replace the gate:
 
 ```typescript
-    const showsHeldKey = dc.sprites.key !== null && !enemy.rewardGiven;
+    const showsHeldKey = dc.sprites[KEY_SHEET.src] != null && !enemy.rewardGiven;
 ```
 
 - [ ] **Step 5: Reduce `drawEnemies` to a loop**
@@ -768,31 +990,34 @@ export function drawEnemies(
 }
 ```
 
+`ctx` is passed explicitly even though `dc.ctx` holds it, matching every other `draw*` function in this module. `dc.ctx` must be the same object.
+
 Delete `SPIKE_COLORS` and the `SPIKE_GROW/HOLD/RETRACT` imports from `Renderer.ts`.
 
-In `PlatformerPage.tsx`, replace `slimeGreenSpriteRef` and `slimePurpleSpriteRef` with one lookup populated by iterating the registry:
+In `PlatformerPage.tsx`, replace `slimeGreenSpriteRef` and `slimePurpleSpriteRef` with one lookup populated by discovering sheets from the registry:
 
 ```typescript
-const enemySpritesRef = useRef<SpriteLookup>({});
+const spritesRef = useRef<SpriteLookup>({});
 
 useEffect(() => {
-  for (const [key, type] of Object.entries(ENEMY_TYPES)) {
-    loadImage(type.spriteAssetPath).then((img) => {
-      enemySpritesRef.current[key] = img;
+  const sources = collectSheetSources([
+    ...Object.values(ENEMY_TYPES).map((t) => t.sprite),
+    { sheet: KEY_SHEET, renderScale: 1, animations: {} },
+  ]);
+  for (const src of sources) {
+    loadImage(src).then((img) => {
+      spritesRef.current[src] = img;
     });
   }
 }, []);
 ```
 
-Match the existing `loadImage` call convention in that file rather than inventing a new one. Build the `DrawContext` once per tick alongside the existing `originX`/`originY` computation, adding `key: keySpriteRef.current` to `sprites`, and pass it to `drawEnemies`.
+Match the existing `loadImage` call convention in that file rather than inventing a new one. Build the `DrawContext` once per tick alongside the existing `originX`/`originY` computation and pass it to `drawEnemies`.
 
 - [ ] **Step 6: Run the tests to verify they pass**
 
-Run: `npm test`
-Expected: PASS.
-
-Run: `npx tsc -b --noEmit`
-Expected: no errors.
+Run: `npm test` and `npx tsc -b --noEmit`
+Expected: PASS, no errors.
 
 - [ ] **Step 7: Verify in the browser**
 
@@ -807,7 +1032,7 @@ git commit -m "refactor(platformer): let each enemy type render itself"
 
 ---
 
-### Task 4: Contact resolution
+### Task 5: Contact resolution
 
 **Model:** Opus — the semantic core. The contract test pins ten single-enemy cases; the multi-contact aggregation rules are new behavior nothing else covers.
 
@@ -815,17 +1040,16 @@ Collapses `checkEnemyStompCollisions`, `checkEnemySideCollisions`, and `isSpiked
 
 **Files:**
 - Create: `src/themes/platformer/engine/Contact.ts`
-- Modify: `src/themes/platformer/entities/enemies/EnemyType.ts` (add `onPlayerCollide`)
-- Modify: `src/themes/platformer/entities/enemies/SlimeGreen.ts`, `SlimePurple.ts`
 - Create: `src/themes/platformer/entities/enemies/stunnedGuard.ts`
-- Modify: `src/themes/platformer/engine/Collision.ts` (delete three functions, add `resolveEnemyContacts`)
-- Modify: `src/themes/platformer/PlatformerPage.tsx` (apply outcomes)
+- Modify: `src/themes/platformer/entities/enemies/EnemyType.ts`, `SlimeGreen.ts`, `SlimePurple.ts`
+- Modify: `src/themes/platformer/engine/Collision.ts`
+- Modify: `src/themes/platformer/PlatformerPage.tsx`
 - Modify: `src/themes/platformer/engine/EnemyContact.contract.test.ts`
 - Test: `src/themes/platformer/engine/Collision.test.ts`
 
 **Interfaces:**
-- Consumes: `typeOf` (Task 2), `hitbox` geometry from `Collision.ts`.
-- Produces: `ContactSide`, `Contact`, `CollisionOutcome<S>` from `engine/Contact.ts`; `resolveEnemyContacts(player, enemies): { enemies, damagePlayer, bouncePlayer, knockback }` from `Collision.ts`; `EnemyType.onPlayerCollide`.
+- Consumes: `typeOf` (Task 3), hitbox geometry from `Collision.ts`.
+- Produces: `ContactSide`, `Contact`, `CollisionOutcome<S>` from `engine/Contact.ts`; `resolveEnemyContacts(player, enemies)` from `Collision.ts`; `EnemyType.onPlayerCollide`.
 
 - [ ] **Step 1: Rewrite the characterization test against the new surface**
 
@@ -851,7 +1075,7 @@ describe('enemy contact characterization', () => {
 });
 ```
 
-**The `expected` blocks must not be edited.** If a case fails, the new implementation has changed behavior and the implementation is what is wrong.
+**The `expected` blocks must not be edited.** If a case fails, the new implementation changed behavior and the implementation is what is wrong.
 
 - [ ] **Step 2: Run it to verify it fails**
 
@@ -965,7 +1189,7 @@ export function isStunned(enemy: BaseEnemyState): boolean {
 export function takeHit<S extends BaseEnemyState>(enemy: S): S
 ```
 
-Move `applyStomp`'s body into it unchanged and re-export `applyStomp` as an alias until Task 5 removes the last caller.
+Move `applyStomp`'s body into it unchanged and re-export `applyStomp` as an alias until Task 6 removes the last caller.
 
 - [ ] **Step 5: Write `resolveEnemyContacts` and delete the three old functions**
 
@@ -1000,9 +1224,21 @@ Implement it as: compute `playerHitbox(player)` once; for each enemy, skip when 
 
 Delete `checkEnemyStompCollisions`, `checkEnemySideCollisions`, and `isSpikedTopLanding`, and delete their tests from `Collision.test.ts` — `EnemyContact.contract.test.ts` now carries that coverage, which is why it was written first. Keep every non-enemy function in `Collision.test.ts` untouched.
 
+Add tests to `Collision.test.ts` for the aggregation rules, which no existing test covers:
+
+```typescript
+describe('resolveEnemyContacts aggregation', () => {
+  it('twoDamagingEnemiesTouchedAtOnce-appliesDamageOnce', () => { /* … */ });
+  it('oneStompableAndOneDamagingEnemy-appliesBothBounceAndDamage', () => { /* … */ });
+  it('enemiesNotTouched-areReturnedByReference', () => { /* … */ });
+});
+```
+
+Position the two enemies using this plan's Reference values arithmetic; assert `damagePlayer` is 1, not 2.
+
 - [ ] **Step 6: Apply outcomes in the game loop**
 
-In `PlatformerPage.tsx`, replace the block that calls the three deleted functions with:
+In `PlatformerPage.tsx`, replace the block calling the three deleted functions with:
 
 ```typescript
 const contacts = resolveEnemyContacts(playerState.value, enemyStates.value);
@@ -1041,19 +1277,17 @@ git commit -m "refactor(platformer): let enemy types decide collision consequenc
 
 ---
 
-### Task 5: The spike mechanic moves into `SlimePurple.ts`
+### Task 6: The spike mechanic moves into `SlimePurple.ts`
 
 **Model:** Sonnet 5 — fully specified, and Step 5's grep containment check verifies the outcome objectively.
 
 **Files:**
-- Modify: `src/themes/platformer/entities/enemies/EnemyType.ts` (add `onTick`, drop `spiked`/`spikeTimer` from `BaseEnemyState`)
-- Modify: `src/themes/platformer/entities/enemies/SlimePurple.ts`, `SlimeGreen.ts`, `shared.ts`
-- Modify: `src/themes/platformer/engine/EnemyAI.ts` (delete spike constants and `stepEnemySpikeCooldown`)
-- Modify: `src/themes/platformer/PlatformerPage.tsx` (per-tick step calls `onTick`)
+- Modify: `src/themes/platformer/entities/enemies/EnemyType.ts`, `SlimePurple.ts`, `SlimeGreen.ts`, `shared.ts`
+- Modify: `src/themes/platformer/engine/EnemyAI.ts`
+- Modify: `src/themes/platformer/PlatformerPage.tsx`
 - Test: `src/themes/platformer/engine/EnemyAI.test.ts`, `src/themes/platformer/entities/enemies/SlimePurple.test.ts`
 
 **Interfaces:**
-- Consumes: everything from Tasks 1–4.
 - Produces: `SlimePurpleState` gains `spiked: boolean` and `spikeTimer: number`; `BaseEnemyState` loses both. `EnemyType.onTick?(enemy, dt): S`.
 
 - [ ] **Step 1: Write the failing test**
@@ -1091,6 +1325,8 @@ export interface SlimePurpleState extends BaseEnemyState {
 }
 ```
 
+`SlimePurple.create` and `revive` must now seed these themselves, since `shared.ts` no longer does.
+
 Move `SPIKE_GROW_DURATION_SECONDS`, `SPIKE_HOLD_DURATION_SECONDS`, `SPIKE_RETRACT_DURATION_SECONDS`, and `SPIKE_COOLDOWN_DURATION_SECONDS` from `EnemyAI.ts` into `SlimePurple.ts`, and move `stepEnemySpikeCooldown`'s body into:
 
 ```typescript
@@ -1119,6 +1355,8 @@ Add `onTick` to the `EnemyType` interface as optional, and in `PlatformerPage.ts
 
 Delete `stepEnemySpikeCooldown` and the four spike constants from `EnemyAI.ts`, along with their now-moved tests.
 
+Add an `alive` guard to the spike overlay drawing in `SlimePurple.draw` — a dead enemy is skipped by `drawEnemies` today, but the guard belongs with the mechanic now that it lives here.
+
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `npm test` and `npx tsc -b --noEmit`
@@ -1146,13 +1384,14 @@ git commit -m "refactor(platformer): contain the spike mechanic in the purple sl
 
 - `grep -rln "spike" src/themes/platformer/ | grep -v test` returns only `SlimePurple.ts`.
 - `Renderer.ts`, `Collision.ts`, `EnemyAI.ts`, and `PlatformerPage.tsx` contain no literal `'slimeGreen'` or `'slimePurple'`.
+- No module outside `entities/sprites/` names a sprite asset path.
 - `EnemyContact.contract.test.ts`'s `expected` blocks are byte-identical to the ones committed in the lifecycle plan.
 - `npm test` and `npx tsc -b --noEmit` pass.
-- Adding a third enemy type would require: one new module, one line in `enemies/index.ts`, one sprite asset.
+- Adding a third enemy type would require: one new module, one line in `enemies/index.ts`, one sprite asset — and no edit to any sprite registry.
 
 ## Next
 
 Plan 3 — items, blocks, chests, then the player — is written via
 `superpowers:writing-plans` once this plan lands, against the shapes it
-actually produced (`DrawContext`, `CollisionOutcome`, `typeOf`) rather than
-against predicted ones.
+actually produced (`SpriteDescriptor`, `DrawContext`, `CollisionOutcome`,
+`typeOf`) rather than against predicted ones.
