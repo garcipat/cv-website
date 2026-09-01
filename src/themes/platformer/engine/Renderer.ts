@@ -42,6 +42,8 @@ import {
   enemyRenderedSize,
   enemyTileOffsetX,
   enemyTileOffsetY,
+  enemyHitboxSidePadding,
+  enemyHitboxTopPadding,
 } from '../entities/Enemy';
 import type { EnemyState } from '../entities/Enemy';
 import type { KeyPickupState } from '../entities/KeyPickup';
@@ -684,6 +686,69 @@ export function drawEnemies(
       size,
       size,
     );
+  }
+}
+
+const SPIKE_COUNT = 3;
+const SPIKE_FILL_COLOR = '#e8e4d8';
+const SPIKE_OUTLINE_COLOR = '#3a3428';
+
+/**
+ * Draws a row of SPIKE_COUNT triangles across the top of every `spiked`
+ * enemy's visible silhouette. Insets by the same hitbox padding
+ * `enemyHitbox` (Collision.ts) uses, so the spikes sit on the actual visible
+ * slime blob's top edge rather than floating in the sprite's transparent
+ * margin — same reasoning `enemyHitboxSidePadding`/`enemyHitboxTopPadding`
+ * exist for in the first place. Deliberately a separate exported function
+ * from `drawEnemies` (not folded into its loop) — `drawEnemies` is called
+ * once per frame regardless of the game's animation/collision layering, and
+ * keeping the spike overlay separate lets `PlatformerPage.tsx` draw it in
+ * its own pass (spikes should read as "on top of" the enemy, so this must
+ * be called after `drawEnemies`, not interleaved within it) without
+ * threading extra parameters through `drawEnemies`' existing signature.
+ * Purely procedural (no sprite) — no new asset needed for this small a
+ * shape, matching `drawSignBubble`'s tail triangle convention.
+ */
+export function drawEnemySpikes(
+  ctx: CanvasRenderingContext2D,
+  enemies: EnemyState[],
+  originX = 0,
+  originY = 0,
+): void {
+  for (const enemy of enemies) {
+    if (!enemy.spiked) continue;
+
+    const size = enemyRenderedSize(enemy.spriteType);
+    const sidePad = enemyHitboxSidePadding(enemy.spriteType);
+    const topPad = enemyHitboxTopPadding(enemy.spriteType);
+    const left = enemy.x + enemyTileOffsetX(enemy.spriteType) + sidePad + originX;
+    const top = enemy.y + enemyTileOffsetY(enemy.spriteType) + topPad + originY;
+    const width = size - 2 * sidePad;
+    const spikeWidth = width / SPIKE_COUNT;
+    const spikeHeight = spikeWidth * 0.9;
+
+    for (let i = 0; i < SPIKE_COUNT; i++) {
+      const baseLeftX = left + i * spikeWidth;
+      const baseRightX = baseLeftX + spikeWidth;
+      const tipX = baseLeftX + spikeWidth / 2;
+      const tipY = top - spikeHeight;
+
+      ctx.fillStyle = SPIKE_OUTLINE_COLOR;
+      ctx.beginPath();
+      ctx.moveTo(baseLeftX - 1, top);
+      ctx.lineTo(tipX, tipY - 1);
+      ctx.lineTo(baseRightX + 1, top);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = SPIKE_FILL_COLOR;
+      ctx.beginPath();
+      ctx.moveTo(baseLeftX, top);
+      ctx.lineTo(tipX, tipY);
+      ctx.lineTo(baseRightX, top);
+      ctx.closePath();
+      ctx.fill();
+    }
   }
 }
 
