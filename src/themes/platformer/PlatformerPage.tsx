@@ -125,6 +125,7 @@ import {
   tickHintTooltip,
   hintTooltipGrowthAndOpacity,
 } from './engine/HintTooltip';
+import type { HintId } from './types';
 
 // Vertical spacing between stacked fact-flight rows when several pickups are
 // collected close together — a bit more than the 28px collection-effect
@@ -964,8 +965,12 @@ export const PlatformerPage = () => {
       const arrowUpPressed = input.consumePress('ArrowUp');
       const wPressed = input.consumePress('KeyW');
       const interactPressed = arrowUpPressed || wPressed;
+      // Computed unconditionally (not just inside `if (interactPressed)`) so
+      // the "no key" hint bubble below can also read it — standing on a
+      // closed chest with zero keys is itself the trigger condition for that
+      // bubble, independent of whether Up was actually pressed this tick.
+      const standingChestId = chestPlayerIsStandingOn(playerState.value, chestStates.value);
       if (interactPressed) {
-        const standingChestId = chestPlayerIsStandingOn(playerState.value, chestStates.value);
         if (standingChestId && collectedKeys.value > 0) {
           const chest = chestStates.value.find((c) => c.id === standingChestId)!;
           chestStates.value = chestStates.value.map((c) =>
@@ -1005,7 +1010,8 @@ export const PlatformerPage = () => {
         }
       }
 
-      // FR-038: revealed like a chest — stand on a sign and press Up/W
+      // FR-038: revealed like a chest — stand on a sign (or, per the same
+      // convention, a locked chest with zero keys) and press Up/W
       // (interactPressed, computed above for chest-opening) — but reusable
       // (not dedup-tracked) and hidden again
       // automatically the instant the player leaves overlap, with no
@@ -1014,18 +1020,33 @@ export const PlatformerPage = () => {
         hintTooltipState.value = tickHintTooltip(hintTooltipState.value, dt);
       }
       const overlappingSignHintId = checkSignOverlap(playerState.value, signPlacements.value);
+      // A closed chest the player is standing on, while holding zero keys,
+      // is itself an "overlapping something with a hint" case — reuses the
+      // existing chestNeedsKey hint text (spec.md's i18n `platformer.hints`)
+      // that already existed for this purpose but was previously only
+      // reachable via an unplaced hint-sign marker. Signs take priority in
+      // the vanishingly unlikely case a chest and a sign tile overlap.
+      // Re-checked against the CURRENT chestStates (not the `standingChestId`
+      // captured above, before the chest-open block ran) — a chest just
+      // successfully opened this same tick is no longer "closed and stood
+      // on", so `chestPlayerIsStandingOn` correctly stops returning its id
+      // (it skips open chests), and no bubble should show for that case.
+      const standingClosedChestId = chestPlayerIsStandingOn(playerState.value, chestStates.value);
+      const lockedChestHintId: HintId | undefined =
+        !overlappingSignHintId && standingClosedChestId && collectedKeys.value <= 0 ? 'chestNeedsKey' : undefined;
+      const overlappingHintId = overlappingSignHintId ?? lockedChestHintId;
       const currentTooltip = hintTooltipState.value;
-      if (overlappingSignHintId && interactPressed) {
-        if (!currentTooltip || currentTooltip.hintId !== overlappingSignHintId) {
-          hintTooltipState.value = startHintTooltip(overlappingSignHintId);
+      if (overlappingHintId && interactPressed) {
+        if (!currentTooltip || currentTooltip.hintId !== overlappingHintId) {
+          hintTooltipState.value = startHintTooltip(overlappingHintId);
         } else if (currentTooltip.phase === 'exiting') {
           // Pressed Up again before the previous reveal finished leaving —
           // restart the entrance rather than leaving it stuck exiting.
           hintTooltipState.value = { ...currentTooltip, phase: 'entering', elapsed: 0 };
         }
-        // Already 'entering'/'shown' for this exact sign: a repeat press
-        // while it's already up is a harmless no-op.
-      } else if (!overlappingSignHintId && currentTooltip && currentTooltip.phase !== 'exiting') {
+        // Already 'entering'/'shown' for this exact sign/chest: a repeat
+        // press while it's already up is a harmless no-op.
+      } else if (!overlappingHintId && currentTooltip && currentTooltip.phase !== 'exiting') {
         hintTooltipState.value = beginHintTooltipExit(currentTooltip);
       }
 
