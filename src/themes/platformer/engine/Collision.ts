@@ -181,7 +181,7 @@ export function checkEnemySideCollisions(player: PlayerState, enemies: EnemyStat
     const box = enemyHitbox(enemy);
     if (!aabbOverlap(hitbox, box)) continue;
     const enemyMidY = box.y + box.height / 2;
-    const isStompLanding = !enemy.spiked && player.y < box.y && player.vy > 0;
+    const isStompLanding = !enemy.spiked && player.vy > 0 && hitbox.y + hitbox.height <= enemyMidY;
     if (!isStompLanding) hits.push(enemy.id);
   }
   return hits;
