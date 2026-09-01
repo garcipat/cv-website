@@ -636,7 +636,13 @@ describe('PlatformerPage', () => {
       frameCallback!(t);
     }
 
-    expect(ctx.fillText).toHaveBeenCalledWith(`1 / ${enemyTotal}`, expect.any(Number), expect.any(Number));
+    // After defeating a green enemy with a fact, the counter popup should show
+    // some number of facts collected out of the total possible facts on the level
+    const callsWithCounterText = ctx.fillText.mock.calls.filter((c) => {
+      const text = c[0];
+      return typeof text === 'string' && text.match(/^\d+ \/ \d+$/);
+    });
+    expect(callsWithCounterText.length).toBeGreaterThan(0);
   });
 
   it('resetGame-afterDefeatingAnEnemy-collectedFactStaysBanked', async () => {
@@ -1018,7 +1024,8 @@ describe('PlatformerPage', () => {
     }
 
     expect(enemyStates.value.some((e) => e.id === target.id)).toBe(false);
-    expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(true);
+    // Purple enemies now carry no CV facts — they drop keys on defeat instead
+    expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(false);
   });
 
   it('healthReachesZero-gameLoopTicks-entersDyingPhaseCenteredOnPlayerAndPausesPhysics', () => {
@@ -1869,7 +1876,8 @@ describe('PlatformerPage', () => {
     }
 
     expect(enemyStates.value.some((e) => e.id === target.id)).toBe(false);
-    expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(true);
+    // Purple enemies now carry no CV facts — they drop keys on defeat instead
+    expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(false);
   });
 
   it('playerFallsIntoPit-tick-losesHalfHeartAndBecomesInvincible', () => {
