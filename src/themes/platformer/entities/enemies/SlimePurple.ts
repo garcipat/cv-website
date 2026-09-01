@@ -1,5 +1,6 @@
 import type { EnemyType, BaseEnemyState } from './EnemyType';
-import { baseEnemyState, baseRevive } from './shared';
+import { baseEnemyState, baseRevive, takeHit } from './shared';
+import { isStunned } from './stunnedGuard';
 import { ENEMY_ANIMATIONS } from './EnemyAnimation';
 import { SLIME_PURPLE_SHEET, KEY_SHEET } from '../sprites/sheets';
 import type { SpriteDescriptor } from '../sprites/SpriteSheet';
@@ -176,6 +177,17 @@ export const slimePurple: EnemyType<SlimePurpleState> = {
     if (enemy.spiked) {
       drawSpikes(enemy, dc, dx, dy, size, sidePadding, topPadding);
     }
+  },
+
+  onPlayerCollide: (enemy, _player, contact) => {
+    if (isStunned(enemy) || enemy.hitPoints <= 0) return {};
+    if (enemy.spiked) {
+      // A failed stomp should read as bouncing off the spikes, not as an
+      // ordinary side touch.
+      return { damagePlayer: 1, knockback: contact.side === 'top' ? 'awayAndUp' : 'away' };
+    }
+    if (contact.side === 'top') return { self: takeHit(enemy), bouncePlayer: true };
+    return { damagePlayer: 1, knockback: 'away' };
   },
 };
 

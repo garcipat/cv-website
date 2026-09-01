@@ -51,15 +51,11 @@ import { maxIrisRadius } from './engine/IrisTransition';
 import { currentLevel } from './level/level';
 import {
   checkCollectibleCollisions,
-  checkEnemyStompCollisions,
-  checkEnemySideCollisions,
+  resolveEnemyContacts,
   checkBonusFruitCollisions,
   chestPlayerIsStandingOn,
   checkSignOverlap,
   checkKeyPickupCollisions,
-  playerHitbox,
-  enemyHitbox,
-  isSpikedTopLanding,
 } from './engine/Collision';
 import { openChest, allChestsOpen, isChestOpen, CHEST_CLOSED_OFFSET_X } from './entities/Chest';
 import { stepBlockAnimation } from './engine/BlockAI';
@@ -88,13 +84,13 @@ import {
   PLAYER_VISUAL_CENTER_Y_OFFSET,
   PLAYER_HEAD_PADDING,
 } from './entities/Player';
-import { advanceEnemyAnimation, applyStomp } from './entities/Enemy';
+import { advanceEnemyAnimation } from './entities/Enemy';
 import { SLIME_GREEN_SHEET, KEY_SHEET } from './entities/sprites/sheets';
 import { frameSource, collectSheetSources } from './entities/sprites/SpriteSheet';
 import type { SpriteLookup } from './entities/sprites/SpriteSheet';
 import { ENEMY_TYPES } from './entities/enemies';
 import type { EnemyState } from './entities/Enemy';
-import { takeDamage, PIT_FALL_DAMAGE, SIDE_HIT_DAMAGE, INVINCIBILITY_DURATION_SECONDS } from './entities/Health';
+import { takeDamage, PIT_FALL_DAMAGE, INVINCIBILITY_DURATION_SECONDS } from './entities/Health';
 import {
   playerState,
   cameraPositionX,
@@ -643,7 +639,8 @@ export const PlatformerPage = () => {
       // Enemies currently reacting to a stomp (animState 'hit') run their
       // reaction timer instead of patrolling — stepEnemyHitReaction either
       // holds them frozen, reverts them to 'walk', or flags them `alive:
-      // false` once the reaction finishes (Enemy.ts's applyStomp is what put
+      // false` once the reaction finishes (a type module's own
+      // `onPlayerCollide` is what put
       // them into 'hit' in the first place, below). A dead enemy (`!alive`)
       // is skipped entirely — it stays in the array but is neither patrolled
       // nor animated.
@@ -1099,12 +1096,14 @@ export const PlatformerPage = () => {
         hintTooltipState.value = beginHintTooltipExit(currentTooltip);
       }
 
-      const stompedIds = checkEnemyStompCollisions(playerState.value, enemyStates.value);
-      const stompBounceThisTick = stompedIds.length > 0;
-      if (stompBounceThisTick) {
-        enemyStates.value = enemyStates.value.map((enemy) =>
-          stompedIds.includes(enemy.id) ? applyStomp(enemy) : enemy,
-        );
+      // One pass over the enemies: the engine computes each overlap's
+      // geometry, each enemy's own type decides what that overlap means, and
+      // the aggregated result lands here. Invincibility is the engine's rule,
+      // not any enemy's — no type ever knows it exists.
+      const contacts = resolveEnemyContacts(playerState.value, enemyStates.value);
+      enemyStates.value = contacts.enemies;
+
+      if (contacts.bouncePlayer) {
         playerState.value = {
           ...playerState.value,
           vy: PHYSICS_CONFIG.stompBounceVelocity,
@@ -1112,70 +1111,30 @@ export const PlatformerPage = () => {
         };
       }
 
-      // Side/below damage — only checked while not already invincible, so
-      // one overlap can't register repeated hits every tick it persists. A
-      // `hit`-reacting enemy IS excluded here (unlike stomp detection, which
-      // only excludes an enemy once its `hitPoints` reach 0 — see
-      // Collision.ts's checkEnemyStompCollisions): a hit-reacting enemy must
-      // stay harmless to side-touch for its whole reaction, or bouncing off
-      // a stomp while still overlapping it would register as a spurious
-      // side-hit.
-      //
-      // Excludes any id already in `stompedIds`: the stomp block above just
-      // reassigned `playerState.value.vy` to the (negative, upward)
-      // `stompBounceVelocity`, which would otherwise make
-      // `checkEnemySideCollisions` see `vy <= 0` for the very enemy just
-      // landed on and misread the landing as a non-stomp touch — the two
-      // checks are meant to be mutually exclusive for the same overlap.
-      if (playerState.value.invincibleTimer <= 0) {
-        const sideHitIds = checkEnemySideCollisions(playerState.value, enemyStates.value).filter(
-          (id) => !stompedIds.includes(id),
+      // Damage is dropped entirely while invincible, so one persisting
+      // overlap can't register a fresh hit every tick.
+      if (contacts.damagePlayer > 0 && playerState.value.invincibleTimer <= 0) {
+        healthState.value = takeDamage(healthState.value, contacts.damagePlayer);
+        playerState.value = applyKnockback(
+          playerState.value,
+          contacts.knockbackDirection,
+          PHYSICS_CONFIG.sideHitKnockbackVx,
+          PHYSICS_CONFIG.sideHitKnockbackDuration,
+          INVINCIBILITY_DURATION_SECONDS,
         );
-        if (sideHitIds.length > 0) {
-          const hitEnemy = enemyStates.value.find((e) => e.id === sideHitIds[0])!;
-          healthState.value = takeDamage(healthState.value, SIDE_HIT_DAMAGE);
-          // Compare actual hitbox centers, not raw x (each entity's x is its
-          // own top-left placement coordinate, not its visual center — a
-          // purple slime's much wider render slot made this comparison
-          // biased toward one direction almost regardless of which side the
-          // player actually touched it from). Pushes the player back toward
-          // whichever side of the enemy their own hitbox center is already
-          // on, i.e. away from the enemy and back the way they came.
-          const playerBox = playerHitbox(playerState.value);
-          const enemyBox = enemyHitbox(hitEnemy);
-          const playerCenterX = playerBox.x + playerBox.width / 2;
-          const enemyCenterX = enemyBox.x + enemyBox.width / 2;
-          const knockbackDirection = playerCenterX <= enemyCenterX ? -1 : 1;
-          // A failed stomp attempt against spikes (the player was falling
-          // onto the enemy's top half, same shape a real stomp would need,
-          // but the enemy's spikes redirected it to damage) gets a bit of
-          // upward push added on top of the usual horizontal knockback, so
-          // it reads as "bounced off the spikes" rather than identical to a
-          // plain side/below touch. Checked against the pre-knockback state
-          // — applyKnockback below never touches position or vy, only
-          // vx/facing/timers, so this reads the same geometry either way.
-          const isTopLandingOnSpikes = isSpikedTopLanding(playerState.value, hitEnemy);
-          playerState.value = applyKnockback(
-            playerState.value,
-            knockbackDirection,
-            PHYSICS_CONFIG.sideHitKnockbackVx,
-            PHYSICS_CONFIG.sideHitKnockbackDuration,
-            INVINCIBILITY_DURATION_SECONDS,
-          );
-          if (isTopLandingOnSpikes) {
-            // Without `bounceAscending: true` (same mechanism the stomp
-            // bounce above relies on), `stepPlayerPhysics`'s variable-jump-
-            // height cut would shear this upward velocity to ~45% of its
-            // configured magnitude on this very tick, and again every tick
-            // after while the jump key isn't held — this isn't a jump the
-            // player is "holding", so it must play out at its full
-            // configured magnitude regardless of jump-key state.
-            playerState.value = {
-              ...playerState.value,
-              vy: PHYSICS_CONFIG.spikeTopHitKnockbackVy,
-              bounceAscending: true,
-            };
-          }
+        if (contacts.knockback === 'awayAndUp') {
+          // Without `bounceAscending: true` (same mechanism the stomp
+          // bounce above relies on), `stepPlayerPhysics`'s variable-jump-
+          // height cut would shear this upward velocity to ~45% of its
+          // configured magnitude on this very tick, and again every tick
+          // after while the jump key isn't held — this isn't a jump the
+          // player is "holding", so it must play out at its full
+          // configured magnitude regardless of jump-key state.
+          playerState.value = {
+            ...playerState.value,
+            vy: PHYSICS_CONFIG.spikeTopHitKnockbackVy,
+            bounceAscending: true,
+          };
         }
       }
 
@@ -1204,7 +1163,7 @@ export const PlatformerPage = () => {
           jumpHeld,
           dropThroughHeld,
           climbUpHeld,
-          suppressJumpCut: stompBounceThisTick,
+          suppressJumpCut: contacts.bouncePlayer,
         },
         blockStates.value,
       );

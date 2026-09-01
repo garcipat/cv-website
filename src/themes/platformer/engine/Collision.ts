@@ -15,6 +15,8 @@ import {
   enemyHitboxTopPadding,
 } from '../entities/Enemy';
 import type { EnemyState } from '../entities/Enemy';
+import { typeOf } from '../entities/enemies';
+import type { ContactSide } from './Contact';
 import { bonusFruitY, BONUS_FRUIT_RISE_DURATION_SECONDS } from '../entities/BonusFruit';
 import type { BonusFruitState } from '../entities/BonusFruit';
 import { FRUIT_RENDERED_SIZE } from '../entities/Fruit';
@@ -113,100 +115,84 @@ export function enemyHitbox(enemy: EnemyState): Box {
   };
 }
 
+export interface EnemyContactResult {
+  /** The enemy array with every contacted enemy's returned `self` merged in.
+   *  Enemies with no contact are returned unchanged, by reference. */
+  enemies: EnemyState[];
+  /** Half-hearts. The caller drops this while the player is invincible. */
+  damagePlayer: number;
+  bouncePlayer: boolean;
+  knockback: 'none' | 'away' | 'awayAndUp';
+  /** Which way "away" points: -1 pushes the player left, 1 right. Derived from
+   *  the first damaging contact's hitbox centers — the geometry stays here so
+   *  no caller has to re-derive it. Meaningless while `knockback` is 'none'. */
+  knockbackDirection: -1 | 1;
+}
+
+const KNOCKBACK_RANK = { none: 0, away: 1, awayAndUp: 2 } as const;
+
 /**
- * Returns the ids of every not-yet-fatally-hit, not-currently-`spiked` enemy
- * the player just stomped this frame: overlapping AND falling (`player.vy >
- * 0`) AND landing on the enemy's upper half (the player's hitbox bottom edge
- * is at or above the enemy's vertical midpoint) — this is what distinguishes
- * "jumped on top of" from a side/below touch (a separate concern,
- * intentionally not handled here: this function returns [] for that case,
- * same as for no contact at all). An enemy no longer `alive`, or one whose
- * `hitPoints` has already reached 0 (mid `hit`-reaction, about to be flagged
- * `alive: false` in place), is excluded — without this, a stomp's own bounce naturally arcs back down
- * onto the same enemy, and would otherwise keep decrementing `hitPoints`
- * arbitrarily far below 0 every time. A `spiked` enemy is excluded too — its
- * spikes make the top un-stompable until they retract (see `Enemy.ts`'s
- * `applyStomp`, `EnemyAI.ts`'s `stepEnemySpikeCooldown`); the same
- * top-landing on a spiked enemy is instead picked up by
- * `checkEnemySideCollisions` below and treated as player damage. Not gated
- * on `animState === 'hit'` alone — a still-airborne bounce back onto a
- * non-spiked, still-alive enemy (possible only for a single non-fatal stomp,
- * since that same stomp immediately sets `spiked: true`) is unaffected by
- * this function; `spiked` is what actually prevents repeat top-stomps now.
+ * Computes contact geometry against every living enemy and asks each one's
+ * type what the contact means, then aggregates.
+ *
+ * Aggregation rules, owned here and nowhere else: at most one damage applies
+ * per tick regardless of how many enemies are touched; a bounce applies if any
+ * outcome requests one; 'awayAndUp' wins over 'away', which wins over 'none'.
  */
-export function checkEnemyStompCollisions(player: PlayerState, enemies: EnemyState[]): string[] {
-  if (player.vy <= 0) return [];
-  const hitbox = playerHitbox(player);
-  const stomped: string[] = [];
-  for (const enemy of enemies) {
-    if (!enemy.alive || enemy.hitPoints <= 0 || enemy.spiked) continue;
-    const box = enemyHitbox(enemy);
-    if (!aabbOverlap(hitbox, box)) continue;
-    const enemyMidY = box.y + box.height / 2;
-    if (hitbox.y + hitbox.height <= enemyMidY) {
-      stomped.push(enemy.id);
+export function resolveEnemyContacts(
+  player: PlayerState,
+  enemies: readonly EnemyState[],
+): EnemyContactResult {
+  const playerBox = playerHitbox(player);
+  let merged: EnemyState[] | undefined;
+  let damagePlayer = 0;
+  let bouncePlayer = false;
+  let knockback: 'none' | 'away' | 'awayAndUp' = 'none';
+  let knockbackDirection: -1 | 1 = 1;
+
+  for (let i = 0; i < enemies.length; i += 1) {
+    const enemy = enemies[i];
+    if (!enemy.alive) continue;
+    const selfBox = enemyHitbox(enemy);
+    if (!aabbOverlap(playerBox, selfBox)) continue;
+
+    const landsOnUpperHalf = playerBox.y + playerBox.height <= selfBox.y + selfBox.height / 2;
+    const side: ContactSide = player.vy > 0 && landsOnUpperHalf ? 'top' : 'side';
+    const outcome = typeOf(enemy).onPlayerCollide(enemy, player, {
+      side,
+      playerVx: player.vx,
+      playerVy: player.vy,
+      playerBox,
+      selfBox,
+    });
+
+    if (outcome.self) {
+      merged ??= [...enemies];
+      merged[i] = outcome.self;
     }
+    if (outcome.bouncePlayer) bouncePlayer = true;
+    if (outcome.damagePlayer && outcome.damagePlayer > damagePlayer) {
+      // Max, not sum: touching two enemies in one tick still costs one hit.
+      damagePlayer = outcome.damagePlayer;
+      // Pushes the player back toward whichever side of the enemy their own
+      // hitbox center is already on, i.e. away from it and back the way they
+      // came. Compares hitbox centers rather than raw x, since each entity's
+      // x is its own render-slot top-left, not its visual center.
+      const playerCenterX = playerBox.x + playerBox.width / 2;
+      const selfCenterX = selfBox.x + selfBox.width / 2;
+      knockbackDirection = playerCenterX <= selfCenterX ? -1 : 1;
+    }
+    const requested = outcome.knockback ?? 'none';
+    if (KNOCKBACK_RANK[requested] > KNOCKBACK_RANK[knockback]) knockback = requested;
   }
-  return stomped;
-}
 
-/**
- * Returns the ids of every still-alive, non-reacting enemy the player is
- * touching in a way that counts as damage — the exact inverse of
- * `checkEnemyStompCollisions`'s landing condition, EXCEPT for one case: a
- * `spiked` enemy's top is never treated as a legal stomp landing (its
- * spikes make it un-stompable — see `checkEnemyStompCollisions`'s doc
- * comment above), so any overlap with a `spiked` enemy counts as a hit here,
- * including a fall-and-land-on-top that would be a stomp against a
- * non-spiked enemy. For a non-spiked enemy, this is still the exact inverse
- * it always was: any overlap where the player either isn't falling (`vy <=
- * 0`) or is falling but contacting the enemy's lower half (side or below),
- * not landing on its upper half. An enemy currently playing its `hit`
- * reaction is excluded here too, same as stomp detection — otherwise,
- * immediately bouncing off a stomp while still overlapping the now-frozen
- * enemy (rising, or drifting beside it before separating) would register as
- * a spurious side-hit against the very enemy just stomped. A stunned/
- * reacting enemy is harmless in every way until its reaction ends, not just
- * immune to a second stomp — note a freshly-stomped enemy is BOTH `'hit'`
- * and `spiked` at once (`applyStomp` sets both), so this `animState`
- * exclusion is what actually protects it during its stun; `spiked` alone
- * would otherwise make a still-`'hit'`-reacting enemy's top count as damage
- * the instant its stomp registers.
- */
-export function checkEnemySideCollisions(player: PlayerState, enemies: EnemyState[]): string[] {
-  const hitbox = playerHitbox(player);
-  const hits: string[] = [];
-  for (const enemy of enemies) {
-    if (!enemy.alive || enemy.animState === 'hit') continue;
-    const box = enemyHitbox(enemy);
-    if (!aabbOverlap(hitbox, box)) continue;
-    const enemyMidY = box.y + box.height / 2;
-    const isStompLanding = !enemy.spiked && player.vy > 0 && hitbox.y + hitbox.height <= enemyMidY;
-    if (!isStompLanding) hits.push(enemy.id);
-  }
-  return hits;
-}
-
-/**
- * True when the player's overlap with `enemy` is exactly the "landing on
- * its upper half while falling" shape `checkEnemyStompCollisions` would
- * normally register as a stomp, but `checkEnemySideCollisions` reported as
- * damage instead because `enemy.spiked` blocked it. Used by
- * `PlatformerPage.tsx` to add a bit of upward knockback on top of the usual
- * horizontal push for this specific case — a failed stomp attempt against
- * spikes should read as "bounced off the top", not identically to a plain
- * side/below touch. Deliberately re-derives the same geometry rather than
- * having `checkEnemySideCollisions` return richer per-hit metadata — this
- * is the only caller that needs the distinction, and every existing caller
- * of `checkEnemySideCollisions` (Collision.test.ts included) keeps working
- * against its unchanged `string[]` return type.
- */
-export function isSpikedTopLanding(player: PlayerState, enemy: EnemyState): boolean {
-  if (!enemy.spiked || player.vy <= 0) return false;
-  const hitbox = playerHitbox(player);
-  const box = enemyHitbox(enemy);
-  const enemyMidY = box.y + box.height / 2;
-  return hitbox.y + hitbox.height <= enemyMidY;
+  return {
+    enemies: merged ?? enemies.slice(),
+    damagePlayer,
+    bouncePlayer,
+    knockback,
+    knockbackDirection,
+  };
 }
 
 /**

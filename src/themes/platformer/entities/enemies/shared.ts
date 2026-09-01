@@ -34,6 +34,37 @@ export function baseEnemyState(
   };
 }
 
+/**
+ * Applies one hit: decrements `hitPoints`, freezes horizontal movement,
+ * enters the `hit` reaction (red-flash/dissolve) animation from its first
+ * frame, and — if the enemy survives (`hitPoints` still > 0 after the
+ * decrement) — grows spikes (`spiked: true`, `spikeTimer` reset to 0) that
+ * make its top un-stompable for a cooldown (see `EnemyAI.ts`'s
+ * `stepEnemySpikeCooldown`). This function itself doesn't gate re-entry —
+ * calling it twice in a row always applies a second hit — the decision of
+ * whether a given contact counts as a legal stomp lives in the type module's
+ * `onPlayerCollide`, which runs before this is ever called. A fresh hit always
+ * restarts the cooldown timer, even if the enemy was already `spiked` from an
+ * earlier one. Does NOT decide defeat here — EnemyAI.ts's
+ * `stepEnemyHitReaction` checks `hitPoints` once the reaction animation
+ * finishes playing, so the player always sees the same brief "stunned"
+ * reaction whether or not this hit was the finishing blow.
+ */
+export function takeHit<S extends BaseEnemyState>(enemy: S): S {
+  const hitPoints = enemy.hitPoints - 1;
+  return {
+    ...enemy,
+    hitPoints,
+    vx: 0,
+    animState: 'hit',
+    animFrame: 0,
+    animTimer: 0,
+    hitTimer: 0,
+    spiked: hitPoints > 0,
+    spikeTimer: 0,
+  };
+}
+
 /** Resets an enemy to its spawn state, preserving `rewardGiven` — an enemy
  *  that already paid out revives as a normal killable obstacle with nothing
  *  left to give — and preserving `animFrame`/`animTimer` so the per-enemy

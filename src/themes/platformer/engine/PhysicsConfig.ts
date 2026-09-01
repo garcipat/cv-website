@@ -91,7 +91,8 @@ export const PHYSICS_CONFIG = {
   /**
    * Upward velocity impulse added on top of the usual horizontal knockback
    * when the side-hit was actually a top-landing attempt on a `spiked`
-   * enemy (see Collision.ts's `isSpikedTopLanding`) — much weaker than
+   * enemy (the `'awayAndUp'` knockback SlimePurple.ts's `onPlayerCollide`
+   * asks for) — much weaker than
    * `stompBounceVelocity` (-330), just enough to read as "bounced off the
    * spikes" rather than an identical sideways-only push to a genuine
    * side/below touch. Not gated by `PlayerState.bounceAscending` the way

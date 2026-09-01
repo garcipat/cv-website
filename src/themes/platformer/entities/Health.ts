@@ -25,9 +25,9 @@ export const PIT_FALL_DAMAGE = 1;
 export const SIDE_HIT_DAMAGE = 1;
 
 /**
- * Seconds of invincibility granted after a side-hit — gates
- * `checkEnemySideCollisions` (Collision.ts) from registering another hit and
- * drives the player's render blink (PlatformerPage.tsx) for the same
+ * Seconds of invincibility granted after a side-hit — makes the game loop
+ * (PlatformerPage.tsx) drop `resolveEnemyContacts`'s reported damage rather
+ * than registering another hit, and drives the player's render blink for the same
  * duration. Long enough to read clearly as "just got hurt" without dragging
  * on.
  */

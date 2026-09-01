@@ -2,14 +2,12 @@ import {
   playerHitbox,
   aabbOverlap,
   checkCollectibleCollisions,
-  checkEnemyStompCollisions,
-  checkEnemySideCollisions,
+  resolveEnemyContacts,
   checkBonusFruitCollisions,
   chestPlayerIsStandingOn,
   checkSignOverlap,
   enemyHitbox,
   checkKeyPickupCollisions,
-  isSpikedTopLanding,
 } from './Collision';
 import {
   PLAYER_SIDE_PADDING,
@@ -21,7 +19,6 @@ import type { PlayerState } from '../entities/Player';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
 import {
   toEnemyState,
-  ENEMY_RENDERED_SIZE,
   enemyRenderedSize,
   enemyTileOffsetX,
   enemyTileOffsetY,
@@ -154,115 +151,6 @@ function playerLandingOnTopOf(enemy: EnemyState, overlapPx = 4): PlayerState {
   return makePlayer(enemy.x, y);
 }
 
-describe('checkEnemyStompCollisions', () => {
-  it('playerFallingAndLandingOnTop-returnsEnemyId', () => {
-    const enemy = makeEnemy(0, 100);
-    const player = { ...playerLandingOnTopOf(enemy), vy: 300 };
-    expect(checkEnemyStompCollisions(player, [enemy])).toEqual(['enemy-cert-x']);
-  });
-
-  it('playerRisingIntoEnemyFromBelow-returnsEmptyArray', () => {
-    const enemy = makeEnemy(0, 100);
-    const player = { ...makePlayer(0, 100 + ENEMY_RENDERED_SIZE - 10), vy: -300 };
-    expect(checkEnemyStompCollisions(player, [enemy])).toEqual([]);
-  });
-
-  it('playerLevelWithEnemyNotFalling-returnsEmptyArray', () => {
-    // vy === 0 (grounded, walking into it side-on) must not count as a stomp
-    // — that is checkEnemySideCollisions' job, not this one's.
-    const enemy = makeEnemy(0, 100);
-    const player = { ...makePlayer(0, 100), vy: 0 };
-    expect(checkEnemyStompCollisions(player, [enemy])).toEqual([]);
-  });
-
-  it('playerFallingButFarFromEnemy-returnsEmptyArray', () => {
-    const enemy = makeEnemy(2000, 2000);
-    const player = { ...makePlayer(0, 0), vy: 300 };
-    expect(checkEnemyStompCollisions(player, [enemy])).toEqual([]);
-  });
-
-  it('enemyAlreadyDefeated-excludedEvenIfOverlapping', () => {
-    const enemy = makeEnemy(0, 100, { alive: false });
-    const player = { ...makePlayer(0, 100 - PLAYER_RENDERED_SIZE / 2), vy: 300 };
-    expect(checkEnemyStompCollisions(player, [enemy])).toEqual([]);
-  });
-
-  it('enemyHitPointsAlreadyZero-excludedEvenIfOverlapping', () => {
-    // Already taken its fatal hit, just awaiting removal once its reaction
-    // finishes — must not keep decrementing hitPoints arbitrarily below 0
-    // every time the stomp's own bounce arcs back down onto it.
-    const enemy = makeEnemy(0, 100, { animState: 'hit', hitPoints: 0 });
-    const player = { ...makePlayer(0, 100 - PLAYER_RENDERED_SIZE / 2), vy: 300 };
-    expect(checkEnemyStompCollisions(player, [enemy])).toEqual([]);
-  });
-
-  it('enemyMidHitReactionButHitPointsRemainAndNotSpiked-canBeStompedAgain', () => {
-    // `checkEnemyStompCollisions` itself only gates on `!alive`,
-    // `hitPoints <= 0`, and `spiked` — not on `animState`. A real
-    // `applyStomp` call always sets `spiked: true` whenever the enemy
-    // survives (see Enemy.ts), so this exact combination (mid-`hit`-reaction,
-    // hit points remaining, yet NOT spiked) can't happen via real player
-    // input; this test exercises the function's own gating directly,
-    // bypassing that gate, to pin down that `animState` alone was never what
-    // stopped a repeat stomp — `spiked` is (see the `spiked` exclusion tests
-    // below).
-    const enemy = makeEnemy(0, 100, { animState: 'hit', hitPoints: 1 });
-    const player = { ...playerLandingOnTopOf(enemy), vy: 300 };
-    expect(checkEnemyStompCollisions(player, [enemy])).toEqual(['enemy-cert-x']);
-  });
-});
-
-describe('checkEnemySideCollisions', () => {
-  it('playerWalkingIntoEnemyFromTheSide-groundedNotFalling-returnsEnemyId', () => {
-    const enemy = makeEnemy(0, 100);
-    const player = { ...makePlayer(0, 100), vy: 0 };
-    expect(checkEnemySideCollisions(player, [enemy])).toEqual(['enemy-cert-x']);
-  });
-
-  it('playerRisingIntoEnemyFromBelow-returnsEnemyId', () => {
-    const enemy = makeEnemy(0, 100);
-    const player = { ...makePlayer(0, 100 + ENEMY_RENDERED_SIZE - 40), vy: -300 };
-    expect(checkEnemySideCollisions(player, [enemy])).toEqual(['enemy-cert-x']);
-  });
-
-  it('playerFallingAndLandingOnTop-isAStompNotASideHit-returnsEmptyArray', () => {
-    const enemy = makeEnemy(0, 100);
-    const player = { ...playerLandingOnTopOf(enemy), vy: 300 };
-    expect(checkEnemySideCollisions(player, [enemy])).toEqual([]);
-  });
-
-  it('playerFarFromEnemy-returnsEmptyArray', () => {
-    const enemy = makeEnemy(2000, 2000);
-    const player = { ...makePlayer(0, 0), vy: 0 };
-    expect(checkEnemySideCollisions(player, [enemy])).toEqual([]);
-  });
-
-  it('enemyDefeated-excludedEvenIfOverlapping', () => {
-    const enemy = makeEnemy(0, 100, { alive: false });
-    const player = { ...makePlayer(0, 100), vy: 0 };
-    expect(checkEnemySideCollisions(player, [enemy])).toEqual([]);
-  });
-
-  it('enemyInHitReaction-excludedEvenIfOverlapping', () => {
-    // A hit-reacting enemy must be harmless in every way, or bouncing off a
-    // stomp while still overlapping the now-frozen enemy (rising, or
-    // drifting beside it before separating) registers as a spurious side-hit
-    // against the very enemy just stomped. Side-hit detection gates on
-    // `animState === 'hit'` directly (in addition to stomp detection's own
-    // `!alive`/`hitPoints <= 0`/`spiked` exclusions) — a hit-reacting
-    // enemy should stay harmless to side-touch for its whole reaction,
-    // separated or not. This matters even after the spike-cooldown feature:
-    // a freshly-stomped, surviving enemy is BOTH `'hit'` and `spiked` at
-    // once (`applyStomp` sets both), and it's this `animState` exclusion —
-    // not `spiked` — that actually protects it during that brief reaction;
-    // `spiked` alone would otherwise make a still-`'hit'`-reacting enemy's
-    // top count as damage the instant its stomp registers.
-    const enemy = makeEnemy(0, 100, { animState: 'hit' });
-    const player = { ...makePlayer(0, 100), vy: 0 };
-    expect(checkEnemySideCollisions(player, [enemy])).toEqual([]);
-  });
-});
-
 describe('checkBonusFruitCollisions', () => {
   it('playerOverlapsRestedFruit-returnsItsId', () => {
     let fruit = spawnBonusFruit('bf1', 0, 100, undefined, 0);
@@ -355,73 +243,58 @@ function makeSpikedPurpleEnemy(overrides: Partial<EnemyState> = {}): EnemyState 
   };
 }
 
-describe('checkEnemyStompCollisions excludes spiked enemies', () => {
-  it('checkEnemyStompCollisions-spikedEnemyDirectlyBelow-doesNotRegister', () => {
-    const enemy = makeSpikedPurpleEnemy();
-    // Must be a genuine top-landing (same helper the sibling describe block
-    // below uses) — a position that isn't actually landing on the upper
-    // half would return [] regardless of the `spiked` guard, making this
-    // test pass even with the guard deleted.
-    const player = { ...playerLandingOnTopOf(enemy), vy: 300, facing: 'right' as const, grounded: false };
-    expect(checkEnemyStompCollisions(player, [enemy])).toEqual([]);
+/**
+ * Multi-enemy aggregation. Single-enemy outcomes are pinned by
+ * EnemyContact.contract.test.ts; what these cover is what the engine — and
+ * only the engine — decides when more than one enemy is contacted in the same
+ * tick.
+ *
+ * Positions come from the hitbox arithmetic anchored in 'enemyHitbox per type'
+ * below: a green slime at (x, y) has a hitbox of (x+2, y+2, 28x30), a purple
+ * one (x-12, y-28, 56x60), and the player's is (x+20, y+18, 24x38).
+ */
+describe('resolveEnemyContacts aggregation', () => {
+  it('twoDamagingEnemiesTouchedAtOnce-appliesDamageOnce', () => {
+    // Player hitbox spans x 20..44; the two green hitboxes span 2..30 and
+    // 26..54, so it is walking into both at once.
+    const left = makeEnemy(0, 100);
+    const right = makeEnemy(24, 100);
+    const player = makePlayer(0, 100); // vy 0 — a side touch, not a landing
+
+    const result = resolveEnemyContacts(player, [left, right]);
+
+    expect(result.damagePlayer).toBe(1);
+    expect(result.knockback).toBe('away');
+    expect(result.bouncePlayer).toBe(false);
   });
 
-  it('checkEnemyStompCollisions-sameLandingButNotSpiked-stillRegisters', () => {
-    // Control for the test above: the identical top-landing position DOES
-    // register as a stomp once `spiked` is false — proving the previous
-    // test's [] result comes from the `spiked` guard, not from the landing
-    // geometry itself.
-    const enemy = makeSpikedPurpleEnemy({ spiked: false, spikeTimer: 0 });
-    const player = { ...playerLandingOnTopOf(enemy), vy: 300, facing: 'right' as const, grounded: false };
-    expect(checkEnemyStompCollisions(player, [enemy])).toEqual(['e1']);
-  });
-});
+  it('oneStompableAndOneDamagingEnemy-appliesBothBounceAndDamage', () => {
+    // The player's hitbox bottom (106) is inside the green slime's upper half
+    // (its hitbox spans y 102..132) and also inside the spiked purple one's
+    // upper half beside it (77..137), so both register a top contact — a
+    // stomp on the green, a failed stomp against the purple's spikes.
+    const green = makeEnemy(0, 100);
+    const spikedPurple = makeSpikedPurpleEnemy({ x: 30, y: 105, homeX: 30, homeY: 105 });
+    const player = { ...playerLandingOnTopOf(green), vy: 300, grounded: false };
 
-describe('checkEnemySideCollisions treats a spiked top-landing as a hit', () => {
-  it('checkEnemySideCollisions-spikedEnemyLandedOnFromAbove-registersAsHit', () => {
-    const enemy = makeSpikedPurpleEnemy();
-    const player = { ...playerLandingOnTopOf(enemy), vy: 50, facing: 'right' as const, grounded: false };
-    expect(checkEnemySideCollisions(player, [enemy])).toEqual(['e1']);
-  });
+    const result = resolveEnemyContacts(player, [green, spikedPurple]);
 
-  it('checkEnemySideCollisions-nonSpikedEnemyLandedOnFromAbove-stillExcludedAsStomp', () => {
-    const enemy = makeSpikedPurpleEnemy({ spiked: false, spikeTimer: 0 });
-    const player = { ...playerLandingOnTopOf(enemy), vy: 50, facing: 'right' as const, grounded: false };
-    expect(checkEnemySideCollisions(player, [enemy])).toEqual([]);
-  });
-});
-
-describe('isSpikedTopLanding', () => {
-  it('isSpikedTopLanding-spikedEnemyLandedOnFromAboveWhileFalling-returnsTrue', () => {
-    const enemy = makeSpikedPurpleEnemy();
-    const player = { ...playerLandingOnTopOf(enemy), vy: 50, facing: 'right' as const, grounded: false };
-    expect(isSpikedTopLanding(player, enemy)).toBe(true);
+    expect(result.bouncePlayer).toBe(true);
+    expect(result.enemies[0].hitPoints).toBe(green.hitPoints - 1);
+    expect(result.damagePlayer).toBe(1);
+    expect(result.knockback).toBe('awayAndUp');
+    expect(result.enemies[1]).toBe(spikedPurple);
   });
 
-  it('isSpikedTopLanding-nonSpikedEnemyLandedOnFromAbove-returnsFalse', () => {
-    const enemy = makeSpikedPurpleEnemy({ spiked: false, spikeTimer: 0 });
-    const player = { ...playerLandingOnTopOf(enemy), vy: 50, facing: 'right' as const, grounded: false };
-    expect(isSpikedTopLanding(player, enemy)).toBe(false);
-  });
+  it('enemiesNotTouched-areReturnedByReference', () => {
+    const stomped = makeEnemy(0, 100);
+    const faraway = makeEnemy(2000, 2000);
+    const player = { ...playerLandingOnTopOf(stomped), vy: 300, grounded: false };
 
-  it('isSpikedTopLanding-spikedEnemyButPlayerNotFalling-returnsFalse', () => {
-    const enemy = makeSpikedPurpleEnemy();
-    const player = { ...playerLandingOnTopOf(enemy), vy: 0, facing: 'right' as const, grounded: true };
-    expect(isSpikedTopLanding(player, enemy)).toBe(false);
-  });
+    const result = resolveEnemyContacts(player, [stomped, faraway]);
 
-  it('isSpikedTopLanding-spikedEnemyTouchedFromTheSideNotOnTop-returnsFalse', () => {
-    const enemy = makeSpikedPurpleEnemy();
-    const box = enemyHitbox(enemy);
-    // Positioned level with the enemy (not landing on its upper half) —
-    // a genuine side touch, not a failed top-landing attempt.
-    const player = {
-      x: box.x - 20, y: box.y, vx: 0, vy: 50, facing: 'right' as const, grounded: false,
-      climbing: false, isDroppingThroughBridge: false, lastGroundedX: 0, lastGroundedY: 0,
-      animState: 'jump' as const, animFrame: 0, animTimer: 0, invincibleTimer: 0,
-      knockbackTimer: 0, bounceAscending: false, hitBlockIds: [],
-    };
-    expect(isSpikedTopLanding(player, enemy)).toBe(false);
+    expect(result.enemies[1]).toBe(faraway);
+    expect(result.enemies[0]).not.toBe(stomped);
   });
 });
 

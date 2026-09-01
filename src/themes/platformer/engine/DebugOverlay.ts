@@ -78,12 +78,12 @@ export function drawDebugOverlay(
 
   // Enemies: full render slot (red) — where the sprite is drawn, not the
   // hitbox — and the narrower collision hitbox (yellow) that
-  // checkEnemyStompCollisions/checkEnemySideCollisions actually use. Same
+  // resolveEnemyContacts actually uses. Same
   // colors as the player's own render-slot/hitbox pair above, so the same
   // color always means the same collision concept regardless of which
   // entity it's drawn on. A dead enemy (`!alive`) is skipped — collision
-  // ignores it entirely (see checkEnemyStompCollisions/
-  // checkEnemySideCollisions in Collision.ts), so drawing a hitbox for one
+  // ignores it entirely (see resolveEnemyContacts in Collision.ts), so
+  // drawing a hitbox for one
   // here would misrepresent what's actually collidable.
   for (const enemy of enemies) {
     if (!enemy.alive) continue;
