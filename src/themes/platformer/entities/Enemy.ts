@@ -191,8 +191,8 @@ export interface EnemyState extends EnemyPlacement {
   /** False once `hitPoints` has reached 0 and the hit-reaction animation has
    *  finished playing. A dead enemy stays in `enemyStates` at its array index
    *  for the whole session — render and collision skip it — so that the
-   *  per-instance state below (see `rewardGiven`, added in Task 4) survives a
-   *  death/respawn cycle without needing an id-keyed ledger elsewhere. */
+   *  per-instance state below (see `rewardGiven`) survives a death/respawn
+   *  cycle without needing an id-keyed ledger elsewhere. */
   alive: boolean;
   /** The enemy's placement position. `reviveEnemy` restores `x`/`y` from
    *  these after a player death, so the enemy object itself never has to be
@@ -259,7 +259,17 @@ export function toEnemyState(placement: EnemyPlacement, index = 0): EnemyState {
  * living or dead — an enemy mid-patrol is returned to its placement tile just
  * as a dead one is brought back.
  *
- * `rewardGiven` (Task 4) is deliberately NOT reset here: an enemy that has
+ * `animFrame`/`animTimer` are deliberately left alone: `toEnemyState` staggers
+ * them per enemy (via `index`) so multiple enemies don't animate in
+ * lockstep, and zeroing them here on every revive would collapse that
+ * stagger back to a shared start state after the first player death. This is
+ * safe because a dead enemy is always revived from a frame reached while
+ * `animState` was `'hit'` (see `PlatformerPage.tsx`'s `stepEnemy`, which
+ * stops stepping an enemy once `!alive`) — `hit`'s frame count is always
+ * less than or equal to `walk`'s, so that frame index stays in range once
+ * `animState` below flips back to `'walk'`.
+ *
+ * `rewardGiven` is deliberately NOT reset here: an enemy that has
  * already paid out its fact or its dropped item revives as a normal, killable
  * obstacle that has nothing further to give. Only `resetGameProgress()` (the
  * Reset Game button) clears that, by rebuilding the array from placements.
@@ -272,8 +282,6 @@ export function reviveEnemy(enemy: EnemyState): EnemyState {
     vx: 0,
     direction: 'right',
     animState: 'walk',
-    animFrame: 0,
-    animTimer: 0,
     hitPoints: ENEMY_HIT_POINTS[enemy.spriteType],
     hitTimer: 0,
     spiked: false,

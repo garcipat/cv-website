@@ -121,8 +121,8 @@ export function enemyHitbox(enemy: EnemyState): Box {
  * "jumped on top of" from a side/below touch (a separate concern,
  * intentionally not handled here: this function returns [] for that case,
  * same as for no contact at all). An enemy no longer `alive`, or one whose
- * `hitPoints` has already reached 0 (mid `hit`-reaction, awaiting removal),
- * is excluded — without this, a stomp's own bounce naturally arcs back down
+ * `hitPoints` has already reached 0 (mid `hit`-reaction, about to be flagged
+ * `alive: false` in place), is excluded — without this, a stomp's own bounce naturally arcs back down
  * onto the same enemy, and would otherwise keep decrementing `hitPoints`
  * arbitrarily far below 0 every time. A `spiked` enemy is excluded too — its
  * spikes make the top un-stompable until they retract (see `Enemy.ts`'s
@@ -288,11 +288,14 @@ export function checkSignOverlap(
  * currently overlaps. Unlike checkCollectibleCollisions, there's no external
  * `collectedIds` set — a pickup's own `collected` flag is the source of
  * truth (PlatformerState.ts's keyPickupStates keeps collected entries around,
- * flagged rather than removed, so a defeated purple slime can never drop a
- * second key on a later respawn — see KeyPickup.ts's doc comment). The box
- * is offset by KEY_TILE_OFFSET_X/Y, the same centering/bottom-anchoring
- * Renderer.ts's drawKeyPickups applies, so the collidable area matches where
- * the key is actually drawn rather than the tile's raw top-left corner.
+ * flagged rather than removed, so the renderer can skip drawing them — see
+ * KeyPickup.ts's doc comment). A defeated purple slime can never drop a
+ * second key on a later respawn because of a separate mechanism: the source
+ * enemy's own `rewardGiven` flag (Enemy.ts), which `reviveEnemy` leaves
+ * untouched. The box is offset by KEY_TILE_OFFSET_X/Y, the same
+ * centering/bottom-anchoring Renderer.ts's drawKeyPickups applies, so the
+ * collidable area matches where the key is actually drawn rather than the
+ * tile's raw top-left corner.
  */
 export function checkKeyPickupCollisions(
   player: PlayerState,

@@ -286,11 +286,13 @@ export const bonusFruitStates = signal<BonusFruitState[]>([]);
 /**
  * Dropped-key pickups (one per purple-slime finishing stomp) — starts empty.
  * Collected entries stay in this array flagged `collected: true` rather than
- * being removed (see entities/KeyPickup.ts's doc comment: this is what lets
- * PlatformerPage.tsx's defeat handler tell whether a given purple slime has
- * already paid out its key across a death/respawn). Persists across a
- * death/respawn (resetGame()), same as blockStates/bonusFruitStates — cleared
- * only by resetGameProgress().
+ * being removed so the renderer's skip-if-collected logic (see
+ * entities/KeyPickup.ts's doc comment) keeps working across a death/respawn.
+ * The guarantee that a defeated purple slime can never drop a second key
+ * lives elsewhere now: on the source enemy's own `rewardGiven` flag
+ * (Enemy.ts), not on anything read from this array. Persists across a
+ * death/respawn (resetGame()), same as blockStates/bonusFruitStates —
+ * cleared only by resetGameProgress().
  */
 export const keyPickupStates = signal<KeyPickupState[]>([]);
 
