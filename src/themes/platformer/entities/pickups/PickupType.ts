@@ -25,10 +25,21 @@ export interface PickupType<S> {
    * upward while it rises.
    */
   box(state: S): Rect;
-  /** Which frame of `sprite.sheet` to draw right now. `elapsed` is the shared
-   *  world clock — coins spin in sync, so their frame comes from it rather
-   *  than from per-coin animation state. */
-  frameIndex(state: S, elapsed: number): number;
+  /**
+   * The LOGICAL frame/icon index to draw right now — for a type whose sheet
+   * is scrambled (fruit-family sheets, via `FRUIT_ICON_ORDER`), this is the
+   * pre-mapped index a helper like `fruitFrameSource` still expects, NOT the
+   * already-packed sheet position; the packed-slot mapping happens later,
+   * at draw time. For a type with no such scrambling (coin, key) the
+   * logical index already IS the sheet frame, so the distinction is moot.
+   *
+   * `elapsed` is the shared world clock — coins spin in sync, so their frame
+   * comes from it rather than from per-coin animation state. `index` is the
+   * item's position within its own array (e.g. the Nth placed fruit) —
+   * needed by a type whose icon varies by placement order rather than by
+   * per-instance state; most types ignore it.
+   */
+  frameIndex(state: S, elapsed: number, index: number): number;
   /**
    * Vertical offset added to `box().y` when DRAWING only. Collision
    * deliberately ignores it, so a bobbing pickup's hitbox does not jitter a

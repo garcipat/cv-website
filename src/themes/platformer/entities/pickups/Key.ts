@@ -31,7 +31,7 @@ export const key: PickupType<KeyPickupState> = {
     width: KEY_RENDERED_WIDTH,
     height: KEY_RENDERED_HEIGHT,
   }),
-  frameIndex: () => 0,
+  frameIndex: (_pickup, _elapsed, _index) => 0,
   bobOffset: (_pickup, elapsed) => coinBobOffset(elapsed),
   // Filled in when rendering moves into these modules.
   draw: () => {},

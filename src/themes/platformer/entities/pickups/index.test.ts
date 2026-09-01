@@ -61,11 +61,17 @@ describe('pickup boxes match the boxes collision uses today', () => {
 
 describe('pickup frames match their existing frame functions', () => {
   it('coinFrameIndex-followsTheSharedWorldClock', () => {
-    expect(PICKUP_TYPES.coin.frameIndex(makePlacement(0, 0), 0)).toBe(0);
-    expect(PICKUP_TYPES.coin.frameIndex(makePlacement(0, 0), 0.12 * 3)).toBe(3);
+    expect(PICKUP_TYPES.coin.frameIndex(makePlacement(0, 0), 0, 0)).toBe(0);
+    expect(PICKUP_TYPES.coin.frameIndex(makePlacement(0, 0), 0.12 * 3, 0)).toBe(3);
   });
 
   it('key-hasASingleFrame', () => {
-    expect(PICKUP_TYPES.key.frameIndex(spawnKeyPickup('k', 0, 0), 99)).toBe(0);
+    expect(PICKUP_TYPES.key.frameIndex(spawnKeyPickup('k', 0, 0), 99, 0)).toBe(0);
+  });
+
+  it('fruitFrameIndex-tracksItsPositionAmongPlacements', () => {
+    const placement = makePlacement(0, 0);
+    expect(PICKUP_TYPES.fruit.frameIndex(placement, 0, 0)).toBe(0);
+    expect(PICKUP_TYPES.fruit.frameIndex(placement, 0, 1)).toBe(1);
   });
 });
