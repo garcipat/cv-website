@@ -428,6 +428,12 @@ export const PlatformerPage = () => {
       }
 
       if (slimeGreenSpriteRef.current || slimePurpleSpriteRef.current) {
+        // Each purple slime only ever drops one key (see the `justDefeated`
+        // handling below — dedup by enemy id survives a death/respawn), so
+        // once an id already has a keyPickupState, stomping that slime again
+        // won't yield another one — the held-key shine-through effect should
+        // stop showing for it, not keep promising a key it'll never drop.
+        const droppedKeyEnemyIds = new Set(keyPickupStates.value.map((k) => k.id));
         drawEnemies(
           ctx,
           enemyStates.value,
@@ -436,6 +442,7 @@ export const PlatformerPage = () => {
           originX,
           originY,
           keySpriteRef.current,
+          droppedKeyEnemyIds,
         );
       }
       drawEnemySpikes(ctx, enemyStates.value, originX, originY);
