@@ -22,7 +22,9 @@ describe('spawnKeyPickup', () => {
 });
 
 describe('KEY sizing constants', () => {
-  it('renderedHeight-fitsWithinOneRenderedTile', () => {
+  it('renderedHeight-fixedToExactlyOneRenderedTile-independentOfOtherPickups', () => {
+    // Fixed to one tile height regardless of any other pickup's own size
+    // (a coin renders smaller than a tile — not used as a reference here).
     expect(KEY_RENDERED_HEIGHT).toBe(RENDERED_TILE_SIZE);
   });
 
