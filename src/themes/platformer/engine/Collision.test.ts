@@ -8,6 +8,7 @@ import {
   checkSignOverlap,
   enemyHitbox,
   checkKeyPickupCollisions,
+  overlappingPickups,
 } from './Collision';
 import {
   PLAYER_SIDE_PADDING,
@@ -108,6 +109,35 @@ describe('aabbOverlap', () => {
 
   it('overlapping-returns-true', () => {
     expect(aabbOverlap({ x: 0, y: 0, width: 10, height: 10 }, { x: 5, y: 5, width: 10, height: 10 })).toBe(true);
+  });
+});
+
+describe('overlappingPickups', () => {
+  it('itemsOverlappingThePlayer-areReturnedInArrayOrder', () => {
+    const player = makePlayer(100, 100);
+    const box = playerHitbox(player);
+    const near = { id: 'near', x: box.x, y: box.y };
+    const far = { id: 'far', x: box.x + 500, y: box.y };
+    const result = overlappingPickups(
+      player,
+      [far, near],
+      (i) => ({ x: i.x, y: i.y, width: 32, height: 32 }),
+      () => true,
+    );
+    expect(result).toEqual([near]);
+  });
+
+  it('itemsFailingTheEligibilityPredicate-areSkippedEvenWhenOverlapping', () => {
+    const player = makePlayer(100, 100);
+    const box = playerHitbox(player);
+    const item = { id: 'blocked', x: box.x, y: box.y };
+    const result = overlappingPickups(
+      player,
+      [item],
+      (i) => ({ x: i.x, y: i.y, width: 32, height: 32 }),
+      () => false,
+    );
+    expect(result).toEqual([]);
   });
 });
 
