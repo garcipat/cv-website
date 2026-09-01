@@ -89,6 +89,7 @@ import {
   PLAYER_HEAD_PADDING,
 } from './entities/Player';
 import { advanceEnemyAnimation, applyStomp, ENEMY_FRAME_SIZE } from './entities/Enemy';
+import type { EnemyState } from './entities/Enemy';
 import { takeDamage, PIT_FALL_DAMAGE, SIDE_HIT_DAMAGE, INVINCIBILITY_DURATION_SECONDS } from './entities/Health';
 import {
   playerState,
@@ -646,9 +647,11 @@ export const PlatformerPage = () => {
 
       // Enemies currently reacting to a stomp (animState 'hit') run their
       // reaction timer instead of patrolling — stepEnemyHitReaction either
-      // holds them frozen, reverts them to 'walk', or flags them `defeated`
-      // once the reaction finishes (Enemy.ts's applyStomp is what put them
-      // into 'hit' in the first place, below).
+      // holds them frozen, reverts them to 'walk', or flags them `alive:
+      // false` once the reaction finishes (Enemy.ts's applyStomp is what put
+      // them into 'hit' in the first place, below). A dead enemy (`!alive`)
+      // is skipped entirely — it stays in the array but is neither patrolled
+      // nor animated.
       //
       // stepEnemyPatrol also needs to know about currently-live blocks
       // (crate/questionMark/fragileRock) — LevelParser.ts resolves their
@@ -663,13 +666,14 @@ export const PlatformerPage = () => {
           col: Math.round(block.x / RENDERED_TILE_SIZE),
           row: Math.round(block.y / RENDERED_TILE_SIZE),
         }));
-      enemyStates.value = enemyStates.value.map((enemy) => {
+      const stepEnemy = (enemy: EnemyState): EnemyState => {
         const next =
           enemy.animState === 'hit'
             ? stepEnemyHitReaction(enemy, dt)
             : stepEnemyPatrol(enemy, currentLevel.value, dt, blockedTiles);
         return advanceEnemyAnimation(stepEnemySpikeCooldown(next, dt), dt);
-      });
+      };
+      enemyStates.value = enemyStates.value.map((enemy) => (enemy.alive ? stepEnemy(enemy) : enemy));
 
       // Blocks currently playing their shared bump/shatter reaction advance
       // it here every tick, same convention as the enemy hit-reaction step
@@ -686,15 +690,24 @@ export const PlatformerPage = () => {
       // else this tick.
       bonusFruitStates.value = bonusFruitStates.value.map((fruit) => tickBonusFruit(fruit, dt));
 
-      // Enemies whose hit reaction just finished with no hit points left:
-      // reward + remove, reusing the exact fact-flight mechanism coins use
-      // (see the collectible-collision block below) rather than a duplicate
-      // implementation. Checked before the collectible block so both effects
-      // can coexist in `newEffects` without one clobbering the other within
-      // the same tick — each block builds off `activeEffects.value` as it
-      // stands when it runs, same convention the collectible block already
-      // uses.
-      const justDefeated = enemyStates.value.filter((e) => e.defeated);
+      // Enemies whose hit reaction just finished with no hit points left
+      // (`!alive`): fire their reward, reusing the exact fact-flight
+      // mechanism coins use (see the collectible-collision block below)
+      // rather than a duplicate implementation. The enemy itself stays in
+      // `enemyStates` — render and collision already skip a dead enemy, so
+      // there's nothing left to remove.
+      //
+      // NOTE: `!alive` stays true forever once set, so without the
+      // `keyPickupStates`/`newFacts` membership guards below this block would
+      // re-fire the same reward every tick for as long as the enemy remains
+      // dead. Those guards are load-bearing until a per-enemy `rewardGiven`
+      // flag replaces them.
+      //
+      // Checked before the collectible block so both effects can coexist in
+      // `newEffects` without one clobbering the other within the same tick —
+      // each block builds off `activeEffects.value` as it stands when it
+      // runs, same convention the collectible block already uses.
+      const justDefeated = enemyStates.value.filter((e) => !e.alive);
       if (justDefeated.length > 0) {
         const newFacts = [...collectedFacts.value];
         const newEffects = [...activeEffects.value];
@@ -723,9 +736,9 @@ export const PlatformerPage = () => {
             continue;
           }
           // A "plain" enemy (a marker beyond its color's CVData course
-          // count, see EnemyMapper.ts) carries no fact at all — it's still
-          // removed via the `filter` below, just with no reward. Facts also
-          // persist across respawns (FR-020c: `resetGame()` revives enemies
+          // count, see EnemyMapper.ts) carries no fact at all — it stays dead
+          // in the array with no reward. Facts also persist across respawns
+          // (FR-020c: `resetGame()` revives enemies
           // but deliberately never clears `collectedFacts`), so a revived
           // enemy stomped again in a later life must not re-bank the same
           // fact — that would duplicate its journal page.
@@ -758,7 +771,6 @@ export const PlatformerPage = () => {
 
         collectedFacts.value = newFacts;
         activeEffects.value = newEffects;
-        enemyStates.value = enemyStates.value.filter((e) => !e.defeated);
         if (anyEnemyRewarded) {
           const enemyDefeated = newFacts.filter((f) => f.sourceType === 'enemy').length;
           // Denominator counts only fact-bearing placements — a "plain"

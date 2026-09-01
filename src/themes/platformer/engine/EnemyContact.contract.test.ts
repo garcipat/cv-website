@@ -56,7 +56,7 @@ function makeEnemy(overrides: Partial<EnemyState> = {}): EnemyState {
     hitTimer: 0,
     spiked: false,
     spikeTimer: 0,
-    defeated: false,
+    alive: true,
     ...overrides,
   };
 }
@@ -112,8 +112,8 @@ export const CONTACT_CASES: ContactCase[] = [
     expected: { stomped: false, damaged: false, spikedTopLanding: false },
   },
   {
-    name: 'greenDefeated-isNeitherStompNorDamage',
-    enemy: { defeated: true, hitPoints: 0 },
+    name: 'greenDead-isNeitherStompNorDamage',
+    enemy: { alive: false, hitPoints: 0 },
     playerX: 90,
     playerY: 60,
     playerVy: 200,

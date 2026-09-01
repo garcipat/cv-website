@@ -251,7 +251,7 @@ function makeEnemyState(
     hitTimer: 0,
     spiked: false,
     spikeTimer: 0,
-    defeated: false,
+    alive: true,
     ...overrides,
   };
 }

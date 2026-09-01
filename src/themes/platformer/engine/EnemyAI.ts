@@ -10,7 +10,7 @@ import {
 } from '../entities/Enemy';
 
 /** How long the `hit` reaction (red-flash/dissolve) plays before the enemy
- *  either reverts to patrolling (hit points remain) or is flagged defeated —
+ *  either reverts to patrolling (hit points remain) or is flagged dead —
  *  matches Enemy.ts's `hit` animation: 4 frames at 0.1s each. */
 export const HIT_REACTION_DURATION_SECONDS = 0.4;
 
@@ -155,10 +155,10 @@ export function stepEnemyPatrol(
  * (PlatformerPage.tsx) picks whichever of the two applies per enemy per
  * tick. Once `HIT_REACTION_DURATION_SECONDS` has elapsed since the stomp
  * (applyStomp reset `hitTimer` to 0), either reverts to `'walk'` (hit points
- * remain — the enemy keeps patrolling) or flags `defeated: true` (no hit
- * points remain — the game loop removes it and fires its reward that same
- * tick). Deliberately does not clamp/zero `vx` on revert: the next
- * `stepEnemyPatrol` call recomputes it from `direction`.
+ * remain — the enemy keeps patrolling) or flags the enemy dead in place (no
+ * hit points remain — the game loop fires its reward that same tick and
+ * leaves it in the array). Deliberately does not clamp/zero `vx` on revert:
+ * the next `stepEnemyPatrol` call recomputes it from `direction`.
  */
 export function stepEnemyHitReaction(enemy: EnemyState, dt: number): EnemyState {
   if (enemy.animState !== 'hit') return enemy;
@@ -168,7 +168,7 @@ export function stepEnemyHitReaction(enemy: EnemyState, dt: number): EnemyState 
     return { ...enemy, hitTimer };
   }
   if (enemy.hitPoints <= 0) {
-    return { ...enemy, hitTimer, defeated: true };
+    return { ...enemy, hitTimer, alive: false };
   }
   return { ...enemy, hitTimer: 0, animState: 'walk', animFrame: 0, animTimer: 0 };
 }

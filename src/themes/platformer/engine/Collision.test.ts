@@ -182,7 +182,7 @@ describe('checkEnemyStompCollisions', () => {
   });
 
   it('enemyAlreadyDefeated-excludedEvenIfOverlapping', () => {
-    const enemy = makeEnemy(0, 100, { defeated: true });
+    const enemy = makeEnemy(0, 100, { alive: false });
     const player = { ...makePlayer(0, 100 - PLAYER_RENDERED_SIZE / 2), vy: 300 };
     expect(checkEnemyStompCollisions(player, [enemy])).toEqual([]);
   });
@@ -197,7 +197,7 @@ describe('checkEnemyStompCollisions', () => {
   });
 
   it('enemyMidHitReactionButHitPointsRemainAndNotSpiked-canBeStompedAgain', () => {
-    // `checkEnemyStompCollisions` itself only gates on `defeated`,
+    // `checkEnemyStompCollisions` itself only gates on `!alive`,
     // `hitPoints <= 0`, and `spiked` — not on `animState`. A real
     // `applyStomp` call always sets `spiked: true` whenever the enemy
     // survives (see Enemy.ts), so this exact combination (mid-`hit`-reaction,
@@ -238,7 +238,7 @@ describe('checkEnemySideCollisions', () => {
   });
 
   it('enemyDefeated-excludedEvenIfOverlapping', () => {
-    const enemy = makeEnemy(0, 100, { defeated: true });
+    const enemy = makeEnemy(0, 100, { alive: false });
     const player = { ...makePlayer(0, 100), vy: 0 };
     expect(checkEnemySideCollisions(player, [enemy])).toEqual([]);
   });
@@ -249,7 +249,7 @@ describe('checkEnemySideCollisions', () => {
     // drifting beside it before separating) registers as a spurious side-hit
     // against the very enemy just stomped. Side-hit detection gates on
     // `animState === 'hit'` directly (in addition to stomp detection's own
-    // `defeated`/`hitPoints <= 0`/`spiked` exclusions) — a hit-reacting
+    // `!alive`/`hitPoints <= 0`/`spiked` exclusions) — a hit-reacting
     // enemy should stay harmless to side-touch for its whole reaction,
     // separated or not. This matters even after the spike-cooldown feature:
     // a freshly-stomped, surviving enemy is BOTH `'hit'` and `spiked` at
@@ -348,7 +348,7 @@ function makeSpikedPurpleEnemy(overrides: Partial<EnemyState> = {}): EnemyState 
   return {
     id: 'e1', spriteType: 'slimePurple', x: 10, y: 20, vx: 0,
     direction: 'right', animState: 'walk', animFrame: 0,
-    animTimer: 0, hitPoints: 2, hitTimer: 0, defeated: false,
+    animTimer: 0, hitPoints: 2, hitTimer: 0, alive: true,
     spiked: true, spikeTimer: 0.1,
     ...overrides,
   };
@@ -432,7 +432,7 @@ describe('enemyHitbox per spriteType', () => {
     const enemy = {
       id: 'e1', spriteType: 'slimeGreen' as const, x: 10, y: 20, vx: 0,
       direction: 'right' as const, animState: 'walk' as const, animFrame: 0,
-      animTimer: 0, hitPoints: 1, hitTimer: 0, defeated: false,
+      animTimer: 0, hitPoints: 1, hitTimer: 0, alive: true,
       spiked: false, spikeTimer: 0,
     };
     expect(enemyHitbox(enemy)).toEqual({ x: 12, y: 22, width: 28, height: 30 });
@@ -444,7 +444,7 @@ describe('enemyHitbox per spriteType', () => {
     const enemy = {
       id: 'e1', spriteType: 'slimePurple' as const, x: 10, y: 20, vx: 0,
       direction: 'right' as const, animState: 'walk' as const, animFrame: 0,
-      animTimer: 0, hitPoints: 3, hitTimer: 0, defeated: false,
+      animTimer: 0, hitPoints: 3, hitTimer: 0, alive: true,
       spiked: false, spikeTimer: 0,
     };
     expect(enemyHitbox(enemy)).toEqual({ x: -2, y: -8, width: 56, height: 60 });
@@ -458,7 +458,7 @@ describe('enemyHitbox per spriteType', () => {
       const enemy = {
         id: 'e1', spriteType, x: 100, y: 200, vx: 0,
         direction: 'right' as const, animState: 'walk' as const, animFrame: 0,
-        animTimer: 0, hitPoints: 1, hitTimer: 0, defeated: false,
+        animTimer: 0, hitPoints: 1, hitTimer: 0, alive: true,
         spiked: false, spikeTimer: 0,
       };
       const size = enemyRenderedSize(spriteType);

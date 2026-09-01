@@ -171,7 +171,7 @@ export interface EnemyState extends EnemyPlacement {
   hitPoints: number;
   /** Seconds elapsed since entering the `'hit'` animState — drives
    *  EnemyAI.ts's `stepEnemyHitReaction`, which reverts to `'walk'` (if
-   *  `hitPoints` remains) or sets `defeated: true` (if not) once this reaches
+   *  `hitPoints` remains) or sets `alive: false` (if not) once this reaches
    *  `HIT_REACTION_DURATION_SECONDS`. Meaningless while `animState` is `'walk'`. */
   hitTimer: number;
   /** True while this enemy's top is spiked and un-stompable — set by
@@ -188,10 +188,12 @@ export interface EnemyState extends EnemyPlacement {
   /** Seconds elapsed since `spiked` was last set `true` — meaningless while
    *  `spiked` is `false`. Same convention as `hitTimer` above. */
   spikeTimer: number;
-  /** True once `hitPoints` has reached 0 and the hit-reaction animation has
-   *  finished playing — the game loop removes a `defeated` enemy from
-   *  `enemyStates` and fires its reward the same tick this flips true. */
-  defeated: boolean;
+  /** False once `hitPoints` has reached 0 and the hit-reaction animation has
+   *  finished playing. A dead enemy stays in `enemyStates` at its array index
+   *  for the whole session — render and collision skip it — so that the
+   *  per-instance state below (see `rewardGiven`, added in Task 4) survives a
+   *  death/respawn cycle without needing an id-keyed ledger elsewhere. */
+  alive: boolean;
 }
 
 /**
@@ -227,7 +229,7 @@ export function toEnemyState(placement: EnemyPlacement, index = 0): EnemyState {
     hitTimer: 0,
     spiked: false,
     spikeTimer: 0,
-    defeated: false,
+    alive: true,
   };
 }
 

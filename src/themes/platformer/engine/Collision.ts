@@ -120,7 +120,7 @@ export function enemyHitbox(enemy: EnemyState): Box {
  * is at or above the enemy's vertical midpoint) — this is what distinguishes
  * "jumped on top of" from a side/below touch (a separate concern,
  * intentionally not handled here: this function returns [] for that case,
- * same as for no contact at all). An enemy already `defeated`, or one whose
+ * same as for no contact at all). An enemy no longer `alive`, or one whose
  * `hitPoints` has already reached 0 (mid `hit`-reaction, awaiting removal),
  * is excluded — without this, a stomp's own bounce naturally arcs back down
  * onto the same enemy, and would otherwise keep decrementing `hitPoints`
@@ -139,7 +139,7 @@ export function checkEnemyStompCollisions(player: PlayerState, enemies: EnemySta
   const hitbox = playerHitbox(player);
   const stomped: string[] = [];
   for (const enemy of enemies) {
-    if (enemy.defeated || enemy.hitPoints <= 0 || enemy.spiked) continue;
+    if (!enemy.alive || enemy.hitPoints <= 0 || enemy.spiked) continue;
     const box = enemyHitbox(enemy);
     if (!aabbOverlap(hitbox, box)) continue;
     const enemyMidY = box.y + box.height / 2;
@@ -151,7 +151,7 @@ export function checkEnemyStompCollisions(player: PlayerState, enemies: EnemySta
 }
 
 /**
- * Returns the ids of every non-defeated, non-reacting enemy the player is
+ * Returns the ids of every still-alive, non-reacting enemy the player is
  * touching in a way that counts as damage — the exact inverse of
  * `checkEnemyStompCollisions`'s landing condition, EXCEPT for one case: a
  * `spiked` enemy's top is never treated as a legal stomp landing (its
@@ -177,7 +177,7 @@ export function checkEnemySideCollisions(player: PlayerState, enemies: EnemyStat
   const hitbox = playerHitbox(player);
   const hits: string[] = [];
   for (const enemy of enemies) {
-    if (enemy.defeated || enemy.animState === 'hit') continue;
+    if (!enemy.alive || enemy.animState === 'hit') continue;
     const box = enemyHitbox(enemy);
     if (!aabbOverlap(hitbox, box)) continue;
     const enemyMidY = box.y + box.height / 2;

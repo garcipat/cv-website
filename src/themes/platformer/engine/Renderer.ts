@@ -682,6 +682,7 @@ export function drawEnemies(
   ctx.imageSmoothingEnabled = false;
 
   for (const enemy of enemies) {
+    if (!enemy.alive) continue;
     const sprite = enemy.spriteType === 'slimeGreen' ? slimeGreenSprite : slimePurpleSprite;
     if (!sprite) continue;
 
