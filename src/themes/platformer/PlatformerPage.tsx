@@ -718,7 +718,7 @@ export const PlatformerPage = () => {
           // `!rewardGiven` filter already guarantees this fires once per
           // enemy for the whole session, so no membership check against
           // `keyPickupStates` is needed here.
-          if (enemy.type === 'slimePurple') {
+          if (typeOf(enemy).heldItem === 'key') {
             keyPickupStates.value = [...keyPickupStates.value, spawnKeyPickup(enemy.id, enemy.x, enemy.y)];
             continue;
           }

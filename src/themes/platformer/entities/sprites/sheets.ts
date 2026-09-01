@@ -1,4 +1,5 @@
 import type { SpriteSheet } from './SpriteSheet';
+import { KEY_FRAME_WIDTH, KEY_FRAME_HEIGHT } from '../KeyPickup';
 
 /**
  * Both slime sheets are 96x72: a 4x3 grid of 24x24 frames. Frames 0-2 read as a
@@ -24,13 +25,13 @@ export const SLIME_PURPLE_SHEET: SpriteSheet = {
 };
 
 /** A standalone single image, not a sheet — one frame filling the whole
- *  image, matching KeyPickup.ts's own KEY_FRAME_WIDTH/HEIGHT (the source of
- *  truth for these numbers; kept here too so a purple slime's held-key
- *  overlay can discover this sheet via the same registry-driven asset
- *  loading every other sprite uses). */
+ *  image, reusing KeyPickup.ts's own KEY_FRAME_WIDTH/HEIGHT (the source of
+ *  truth for these numbers) so a purple slime's held-key overlay can
+ *  discover this sheet via the same registry-driven asset loading every
+ *  other sprite uses. */
 export const KEY_SHEET: SpriteSheet = {
   src: '/sprites/key.png',
-  frameWidth: 14,
-  frameHeight: 22,
+  frameWidth: KEY_FRAME_WIDTH,
+  frameHeight: KEY_FRAME_HEIGHT,
   columns: 1,
 };

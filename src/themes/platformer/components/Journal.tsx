@@ -270,8 +270,8 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
             backgroundPosition: `-${sx * scale}px -${sy * scale}px`,
             backgroundSize: `${sheetCols * frameSize * scale}px ${sheetRows * frameSize * scale}px`,
             imageRendering: 'pixelated',
-            // Enemy.ts's slime frames are bottom-anchored within their
-            // native cell (no transparent padding below the feet, so any
+            // A slime's sprite frames (entities/sprites/sheets.ts) are
+            // bottom-anchored within their native cell (no transparent padding below the feet, so any
             // empty space sits above instead) — unlike coin.png/fruit.png's
             // centered artwork, this reads as sitting too low next to the
             // row's text once cropped into a fixed-size icon box. Nudged up

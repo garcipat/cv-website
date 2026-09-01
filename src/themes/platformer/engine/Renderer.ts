@@ -922,9 +922,10 @@ export function drawCollectibleCounter(
   y: number,
   // Nudges only the icon (never the text) vertically from its default
   // centered position — coin.png/fruit.png's artwork is already centered
-  // within its native frame, but Enemy.ts's slime frames are bottom-anchored
-  // (no transparent padding below the feet, per ENEMY_TILE_OFFSET_Y's doc
-  // comment), which reads as sitting too low once scaled into this counter's
+  // within its native frame, but a slime's sprite frames (entities/sprites/
+  // sheets.ts, drawn via each type's sprite descriptor) are bottom-anchored
+  // (no transparent padding below the feet, per enemyTileOffsetY's doc
+  // comment in Enemy.ts), which reads as sitting too low once scaled into this counter's
   // fixed-size icon box. Defaults to 0 (coin/fruit's existing behavior,
   // unchanged); the enemy-defeated counter (PlatformerPage.tsx) passes a
   // small negative value to compensate.
