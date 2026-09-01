@@ -11,6 +11,8 @@ import {
   enemyRenderedSize,
   enemyTileOffsetX,
   enemyTileOffsetY,
+  enemyHitboxSidePadding,
+  enemyHitboxTopPadding,
 } from './Enemy';
 import type { EnemyState } from './Enemy';
 import type { EnemyPlacement } from '../level/EnemyMapper';
@@ -214,5 +216,30 @@ describe('toEnemyState hitPoints (updated)', () => {
   it('toEnemyState-slimePurple-hasThreeHitPoints', () => {
     const placement = { id: 'e1', spriteType: 'slimePurple' as const, x: 0, y: 0 };
     expect(toEnemyState(placement).hitPoints).toBe(3);
+  });
+});
+
+describe('enemy hitbox padding (insets the collision box from the sprite corners)', () => {
+  it('enemyHitboxSidePadding-slimeGreen-matchesMeasuredNativePaddingTimesRenderScale', () => {
+    // Measured via pixel bounding-box analysis across slime_green.png's/
+    // slime_purple.png's shared walk-cycle frames: the opaque silhouette
+    // spans x 5-18 of the 24px native frame (5px transparent margin each
+    // side).
+    expect(enemyHitboxSidePadding('slimeGreen')).toBe(5 * RENDER_SCALE * 1);
+  });
+
+  it('enemyHitboxSidePadding-slimePurple-scalesWithRenderScale', () => {
+    expect(enemyHitboxSidePadding('slimePurple')).toBe(5 * RENDER_SCALE * 1.5);
+  });
+
+  it('enemyHitboxTopPadding-slimeGreen-matchesMeasuredNativePaddingTimesRenderScale', () => {
+    // Same measurement: opaque silhouette spans y 9-23 (9px transparent
+    // margin above; 0px below — the feet already touch the frame's bottom
+    // edge, per ENEMY_TILE_OFFSET_Y's doc comment).
+    expect(enemyHitboxTopPadding('slimeGreen')).toBe(9 * RENDER_SCALE * 1);
+  });
+
+  it('enemyHitboxTopPadding-slimePurple-scalesWithRenderScale', () => {
+    expect(enemyHitboxTopPadding('slimePurple')).toBe(9 * RENDER_SCALE * 1.5);
   });
 });
