@@ -57,6 +57,8 @@ function makeEnemy(overrides: Partial<EnemyState> = {}): EnemyState {
     spiked: false,
     spikeTimer: 0,
     alive: true,
+    homeX: 100,
+    homeY: 100,
     ...overrides,
   };
 }

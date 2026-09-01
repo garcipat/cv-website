@@ -6,6 +6,7 @@ import {
   ENEMY_HIT_POINTS,
   enemyFrameSource,
   toEnemyState,
+  reviveEnemy,
   advanceEnemyAnimation,
   applyStomp,
   enemyRenderedSize,
@@ -281,5 +282,45 @@ describe('enemy hitbox padding (insets the collision box from the sprite corners
 
   it('enemyHitboxTopPadding-slimePurple-scalesWithRenderScale', () => {
     expect(enemyHitboxTopPadding('slimePurple')).toBe(9 * RENDER_SCALE * 2);
+  });
+});
+
+describe('reviveEnemy', () => {
+  it('deadEnemyAwayFromSpawn-restoresPositionHitPointsAndLife', () => {
+    const enemy = toEnemyState(makePlacement());
+    const wandered: EnemyState = {
+      ...enemy,
+      x: enemy.x + 250,
+      y: enemy.y + 64,
+      vx: -40,
+      hitPoints: 0,
+      alive: false,
+      animState: 'hit',
+      animFrame: 3,
+      animTimer: 0.07,
+      hitTimer: 0.9,
+      spiked: true,
+      spikeTimer: 0.3,
+    };
+
+    const revived = reviveEnemy(wandered);
+
+    expect(revived.x).toBe(enemy.x);
+    expect(revived.y).toBe(enemy.y);
+    expect(revived.hitPoints).toBe(ENEMY_HIT_POINTS[enemy.spriteType]);
+    expect(revived.alive).toBe(true);
+    expect(revived.animState).toBe('walk');
+    expect(revived.hitTimer).toBe(0);
+    expect(revived.spiked).toBe(false);
+    expect(revived.spikeTimer).toBe(0);
+  });
+
+  it('livingEnemy-stillResetsToSpawnState', () => {
+    // resetGame() maps over every enemy unconditionally, so revive must be
+    // correct for a living enemy too, not only a dead one.
+    const enemy = toEnemyState(makePlacement());
+    const revived = reviveEnemy({ ...enemy, x: enemy.x + 100, vx: 40 });
+    expect(revived.x).toBe(enemy.x);
+    expect(revived.vx).toBe(0);
   });
 });
