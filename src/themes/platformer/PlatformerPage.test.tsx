@@ -35,7 +35,7 @@ import {
   keyPickupStates,
   collectedKeys,
 } from './PlatformerState';
-import { toChestState } from './entities/Chest';
+import { toChestState, isChestOpen } from './entities/Chest';
 import { spawnKeyPickup } from './entities/KeyPickup';
 import {
   MAX_HALF_HEARTS,
@@ -43,7 +43,7 @@ import {
   SIDE_HIT_DAMAGE,
   HEART_RENDERED_SIZE,
 } from './entities/Health';
-import { HEARTS_START_X, KEY_COUNTER_X, KEY_COUNTER_Y } from './engine/Renderer';
+import { HEARTS_START_X, keyCounterX, KEY_COUNTER_Y } from './engine/Renderer';
 import { PHYSICS_CONFIG } from './engine/PhysicsConfig';
 import { tileToPixel } from './level/Terrain';
 import {
@@ -1104,7 +1104,10 @@ describe('PlatformerPage', () => {
 
     const effect = activeEffects.value.find((e) => e.id === pickup.id);
     expect(effect).toBeDefined();
-    expect(effect?.targetX).toBe(KEY_COUNTER_X);
+    const canvas = screen.getByTestId('platformer-canvas') as HTMLCanvasElement;
+    const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
+    const chestOpenCount = chestStates.value.filter(isChestOpen).length;
+    expect(effect?.targetX).toBe(keyCounterX(ctx, chestOpenCount, chestPlacements.value.length));
     expect(effect?.targetY).toBe(KEY_COUNTER_Y);
   });
 
