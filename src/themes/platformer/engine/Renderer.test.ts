@@ -49,9 +49,10 @@ import {
   KEY_RENDERED_HEIGHT,
   KEY_TILE_OFFSET_X,
   KEY_TILE_OFFSET_Y,
+  spawnKeyPickup,
 } from '../entities/KeyPickup';
 import type { KeyPickupState } from '../entities/KeyPickup';
-import { SLIME_GREEN_SHEET, SLIME_PURPLE_SHEET, KEY_SHEET } from '../entities/sprites/sheets';
+import { SLIME_GREEN_SHEET, SLIME_PURPLE_SHEET, KEY_SHEET, COIN_SHEET, FRUIT_SHEET } from '../entities/sprites/sheets';
 import type { DrawContext } from './DrawContext';
 
 const ENEMY_FRAME_SIZE = SLIME_GREEN_SHEET.frameWidth;
@@ -112,6 +113,14 @@ function makePlacement(id: string, spriteType: 'coin' | 'fruit', x: number, y: n
   };
 }
 
+function makeCoinPlacement(id = 'coin-1', x = 100, y = 100): CollectiblePlacement {
+  return makePlacement(id, 'coin', x, y);
+}
+
+function makeFruitPlacement(id = 'fruit-1', x = 300, y = 300): CollectiblePlacement {
+  return makePlacement(id, 'fruit', x, y);
+}
+
 function makeBlockPlacement(
   id: string,
   blockKind: 'crate' | 'questionMark' | 'fragileRock',
@@ -124,35 +133,26 @@ function makeBlockPlacement(
 describe('drawCollectibles', () => {
   it('coinAndFruit-drawEachFromItsOwnSprite', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-    const coinSprite = { tag: 'coin' } as unknown as HTMLImageElement;
-    const fruitSprite = { tag: 'fruit' } as unknown as HTMLImageElement;
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
     const placements = [makePlacement('a', 'coin', 100, 100), makePlacement('b', 'fruit', 300, 300)];
 
-    drawCollectibles(ctx as unknown as CanvasRenderingContext2D, placements, coinSprite, fruitSprite, new Set(), 0);
+    drawCollectibles(ctx as unknown as CanvasRenderingContext2D, placements, new Set(), dc);
 
-    const calls = ctx.drawImage.mock.calls;
-    expect(calls.some((c: unknown[]) => c[0] === coinSprite)).toBe(true);
-    expect(calls.some((c: unknown[]) => c[0] === fruitSprite)).toBe(true);
+    expect(drawImageCallsFor(ctx, dc.sprites[COIN_SHEET.src])).toHaveLength(1);
+    expect(drawImageCallsFor(ctx, dc.sprites[FRUIT_SHEET.src])).toHaveLength(1);
   });
 
   it('collectedId-isSkipped', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
     const placements = [makePlacement('a', 'coin', 100, 100)];
 
-    drawCollectibles(
-      ctx as unknown as CanvasRenderingContext2D,
-      placements,
-      {} as HTMLImageElement,
-      {} as HTMLImageElement,
-      new Set(['a']),
-      0,
-    );
+    drawCollectibles(ctx as unknown as CanvasRenderingContext2D, placements, new Set(['a']), dc);
 
     expect(ctx.drawImage).not.toHaveBeenCalled();
   });
 
   it('middleFruitCollected-laterFruitKeepsSameIconAsWhenNoneCollected', () => {
-    const fruitSprite = { tag: 'fruit' } as unknown as HTMLImageElement;
     const placements = [
       makePlacement('a', 'fruit', 100, 100),
       makePlacement('b', 'fruit', 200, 200),
@@ -161,14 +161,8 @@ describe('drawCollectibles', () => {
 
     // Baseline: render all three, nothing collected.
     const baselineCtx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-    drawCollectibles(
-      baselineCtx as unknown as CanvasRenderingContext2D,
-      placements,
-      {} as HTMLImageElement,
-      fruitSprite,
-      new Set(),
-      0,
-    );
+    const baselineDc = makeDrawContext(baselineCtx as unknown as CanvasRenderingContext2D);
+    drawCollectibles(baselineCtx as unknown as CanvasRenderingContext2D, placements, new Set(), baselineDc);
     const baselineThirdCall = baselineCtx.drawImage.mock.calls.find(
       (c: unknown[]) => c[5] === 300 && c[6] === 300,
     );
@@ -179,14 +173,8 @@ describe('drawCollectibles', () => {
     // icon (sx/sy) must be unchanged, since it's keyed to its own stable
     // position among all fruit placements, not a counter of visible fruits.
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-    drawCollectibles(
-      ctx as unknown as CanvasRenderingContext2D,
-      placements,
-      {} as HTMLImageElement,
-      fruitSprite,
-      new Set(['b']),
-      0,
-    );
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
+    drawCollectibles(ctx as unknown as CanvasRenderingContext2D, placements, new Set(['b']), dc);
     const thirdCall = ctx.drawImage.mock.calls.find((c: unknown[]) => c[5] === 300 && c[6] === 300);
     expect(thirdCall).toBeDefined();
     const [, sx, sy] = thirdCall as unknown[];
@@ -201,26 +189,30 @@ describe('drawCollectibles', () => {
   });
 
   it('fruitSpriteNull-coinsStillDrawAndFruitsSkipped', () => {
-    const coinSprite = { tag: 'coin' } as unknown as HTMLImageElement;
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D, {
+      sprites: { [COIN_SHEET.src]: { tag: 'coin' } as unknown as HTMLImageElement },
+    });
     const placements = [makePlacement('a', 'coin', 100, 100), makePlacement('b', 'fruit', 300, 300)];
 
-    drawCollectibles(ctx as unknown as CanvasRenderingContext2D, placements, coinSprite, null, new Set(), 0);
+    drawCollectibles(ctx as unknown as CanvasRenderingContext2D, placements, new Set(), dc);
 
     const calls = ctx.drawImage.mock.calls;
-    expect(calls.some((c: unknown[]) => c[0] === coinSprite)).toBe(true);
+    expect(calls.some((c: unknown[]) => c[0] === dc.sprites[COIN_SHEET.src])).toBe(true);
     expect(calls.length).toBe(1);
   });
 
   it('coinSpriteNull-fruitsStillDrawAndCoinsSkipped', () => {
-    const fruitSprite = { tag: 'fruit' } as unknown as HTMLImageElement;
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D, {
+      sprites: { [FRUIT_SHEET.src]: { tag: 'fruit' } as unknown as HTMLImageElement },
+    });
     const placements = [makePlacement('a', 'coin', 100, 100), makePlacement('b', 'fruit', 300, 300)];
 
-    drawCollectibles(ctx as unknown as CanvasRenderingContext2D, placements, null, fruitSprite, new Set(), 0);
+    drawCollectibles(ctx as unknown as CanvasRenderingContext2D, placements, new Set(), dc);
 
     const calls = ctx.drawImage.mock.calls;
-    expect(calls.some((c: unknown[]) => c[0] === fruitSprite)).toBe(true);
+    expect(calls.some((c: unknown[]) => c[0] === dc.sprites[FRUIT_SHEET.src])).toBe(true);
     expect(calls.length).toBe(1);
   });
 });
@@ -281,6 +273,8 @@ function makeDrawContext(
       [SLIME_GREEN_SHEET.src]: { tag: 'green' } as unknown as HTMLImageElement,
       [SLIME_PURPLE_SHEET.src]: { tag: 'purple' } as unknown as HTMLImageElement,
       [KEY_SHEET.src]: { tag: 'key' } as unknown as HTMLImageElement,
+      [COIN_SHEET.src]: { tag: 'coin' } as unknown as HTMLImageElement,
+      [FRUIT_SHEET.src]: { tag: 'fruit' } as unknown as HTMLImageElement,
     },
     originX: 0,
     originY: 0,
@@ -705,14 +699,14 @@ describe('drawChestCounter', () => {
 describe('drawBonusFruits', () => {
   it('someFruits-drawsFromFirstFruitIconAtCurrentRisePosition', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-    const fakeFruitSprite = { tag: 'fruit' } as unknown as HTMLImageElement;
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
     const fruit = spawnBonusFruit('bf1', 40, 100, undefined, 0);
     const { sx, sy } = fruitFrameSource(0);
 
-    drawBonusFruits(ctx as unknown as CanvasRenderingContext2D, [fruit], fakeFruitSprite);
+    drawBonusFruits(ctx as unknown as CanvasRenderingContext2D, [fruit], dc);
 
     expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeFruitSprite,
+      dc.sprites[FRUIT_SHEET.src],
       sx,
       sy,
       FRUIT_FRAME_SIZE,
@@ -726,14 +720,14 @@ describe('drawBonusFruits', () => {
 
   it('fruitWithNonZeroIconIndex-drawsFromThatIcon', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-    const fakeFruitSprite = { tag: 'fruit' } as unknown as HTMLImageElement;
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
     const fruit = spawnBonusFruit('bf1', 40, 100, undefined, 5);
     const { sx, sy } = fruitFrameSource(5);
 
-    drawBonusFruits(ctx as unknown as CanvasRenderingContext2D, [fruit], fakeFruitSprite);
+    drawBonusFruits(ctx as unknown as CanvasRenderingContext2D, [fruit], dc);
 
     expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeFruitSprite,
+      dc.sprites[FRUIT_SHEET.src],
       sx,
       sy,
       FRUIT_FRAME_SIZE,
@@ -747,28 +741,29 @@ describe('drawBonusFruits', () => {
 
   it('nullFruitSprite-drawsNothing', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D, { sprites: {} });
     const fruit = spawnBonusFruit('bf1', 0, 100, undefined, 0);
 
-    drawBonusFruits(ctx as unknown as CanvasRenderingContext2D, [fruit], null);
+    drawBonusFruits(ctx as unknown as CanvasRenderingContext2D, [fruit], dc);
 
     expect(ctx.drawImage).not.toHaveBeenCalled();
   });
 
   it('noFruits-drawsNothing', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-    const fakeFruitSprite = { tag: 'fruit' } as unknown as HTMLImageElement;
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
 
-    drawBonusFruits(ctx as unknown as CanvasRenderingContext2D, [], fakeFruitSprite);
+    drawBonusFruits(ctx as unknown as CanvasRenderingContext2D, [], dc);
 
     expect(ctx.drawImage).not.toHaveBeenCalled();
   });
 
   it('withOrigin-shiftsEveryFruitByTheSameAmount', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-    const fakeFruitSprite = { tag: 'fruit' } as unknown as HTMLImageElement;
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D, { originX: 50, originY: 20 });
     const fruit = spawnBonusFruit('bf1', 0, 100, undefined, 0);
 
-    drawBonusFruits(ctx as unknown as CanvasRenderingContext2D, [fruit], fakeFruitSprite, 50, 20);
+    drawBonusFruits(ctx as unknown as CanvasRenderingContext2D, [fruit], dc);
 
     const call = ctx.drawImage.mock.calls[0];
     expect(call[5]).toBe(0 + 50);
@@ -1646,11 +1641,11 @@ describe('drawSignBubble', () => {
 describe('drawKeyPickups', () => {
   it('drawKeyPickups-uncollectedPickup-drawsKeySprite', () => {
     const ctx = makeMockContext();
-    const fakeKeySprite = {} as HTMLImageElement;
+    const dc = makeDrawContext(ctx);
     const pickups: KeyPickupState[] = [{ id: 'k1', x: 0, y: 0, collected: false }];
-    drawKeyPickups(ctx, pickups, fakeKeySprite, 0);
+    drawKeyPickups(ctx, pickups, dc);
     expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeKeySprite,
+      dc.sprites[KEY_SHEET.src],
       0, 0, KEY_FRAME_WIDTH, KEY_FRAME_HEIGHT,
       expect.any(Number), expect.any(Number),
       KEY_RENDERED_WIDTH, KEY_RENDERED_HEIGHT,
@@ -1659,22 +1654,22 @@ describe('drawKeyPickups', () => {
 
   it('drawKeyPickups-collectedPickup-doesNotDraw', () => {
     const ctx = makeMockContext();
-    const fakeKeySprite = {} as HTMLImageElement;
+    const dc = makeDrawContext(ctx);
     const pickups: KeyPickupState[] = [{ id: 'k1', x: 0, y: 0, collected: true }];
-    drawKeyPickups(ctx, pickups, fakeKeySprite, 0);
+    drawKeyPickups(ctx, pickups, dc);
     expect(ctx.drawImage).not.toHaveBeenCalled();
   });
 
   it('drawKeyPickups-uncollectedPickup-fitsWithinOneTileAndIsBottomAnchored', () => {
     const ctx = makeMockContext();
-    const fakeKeySprite = {} as HTMLImageElement;
-    // No bob: elapsedSeconds 0 gives coinBobOffset(0) === 0, so the drawn y
-    // is exactly pickup.y + KEY_TILE_OFFSET_Y with no ambient float noise.
+    // No bob: worldElapsed 0 gives coinBobOffset(0) === 0, so the drawn y is
+    // exactly pickup.y + KEY_TILE_OFFSET_Y with no ambient float noise.
+    const dc = makeDrawContext(ctx, { worldElapsed: 0 });
     const pickups: KeyPickupState[] = [{ id: 'k1', x: 100, y: 200, collected: false }];
-    drawKeyPickups(ctx, pickups, fakeKeySprite, 0);
+    drawKeyPickups(ctx, pickups, dc);
     expect(KEY_RENDERED_HEIGHT).toBe(RENDERED_TILE_SIZE);
     expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeKeySprite,
+      dc.sprites[KEY_SHEET.src],
       0,
       0,
       KEY_FRAME_WIDTH,
@@ -1684,6 +1679,40 @@ describe('drawKeyPickups', () => {
       KEY_RENDERED_WIDTH,
       KEY_RENDERED_HEIGHT,
     );
+  });
+});
+
+describe('pickup drawing delegates to the type modules', () => {
+  it('coinsAndFruits-eachDrawFromTheirOwnSheet', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
+    drawCollectibles(
+      ctx as unknown as CanvasRenderingContext2D,
+      [makeCoinPlacement(), makeFruitPlacement()],
+      new Set(),
+      dc,
+    );
+    expect(drawImageCallsFor(ctx, dc.sprites[COIN_SHEET.src])).toHaveLength(1);
+    expect(drawImageCallsFor(ctx, dc.sprites[FRUIT_SHEET.src])).toHaveLength(1);
+  });
+
+  it('alreadyCollectedCollectible-drawsNothing', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
+    const coin = makeCoinPlacement();
+    drawCollectibles(ctx as unknown as CanvasRenderingContext2D, [coin], new Set([coin.id]), dc);
+    expect(ctx.drawImage).not.toHaveBeenCalled();
+  });
+
+  it('collectedKeyPickup-drawsNothing', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
+    drawKeyPickups(
+      ctx as unknown as CanvasRenderingContext2D,
+      [{ ...spawnKeyPickup('k', 100, 200), collected: true }],
+      dc,
+    );
+    expect(ctx.drawImage).not.toHaveBeenCalled();
   });
 });
 

@@ -1,6 +1,6 @@
 import type { PickupType } from './PickupType';
 import { FRUIT_SHEET } from '../sprites/sheets';
-import { FRUIT_RENDERED_SIZE } from '../Fruit';
+import { FRUIT_FRAME_SIZE, FRUIT_RENDERED_SIZE, fruitFrameSource } from '../Fruit';
 import { bonusFruitY, type BonusFruitState } from '../BonusFruit';
 
 /** The `PickupType` view of a question-mark block's spawned bonus fruit —
@@ -33,6 +33,25 @@ export const bonusFruit: PickupType<BonusFruitState> = {
   }),
   frameIndex: (fruit, _elapsed, _index) => fruit.iconIndex,
   bobOffset: () => 0,
-  // Filled in when rendering moves into these modules.
-  draw: () => {},
+  // Relocated from Renderer.ts's drawBonusFruits, unchanged — no bob offset
+  // added (see bobOffset above and the doc comment on this module).
+  draw: (fruitState, dc) => {
+    const image = dc.sprites[FRUIT_SHEET.src];
+    if (!image) return;
+
+    const { sx, sy } = fruitFrameSource(bonusFruit.frameIndex(fruitState, dc.worldElapsed, 0));
+
+    dc.ctx.imageSmoothingEnabled = false;
+    dc.ctx.drawImage(
+      image,
+      sx,
+      sy,
+      FRUIT_FRAME_SIZE,
+      FRUIT_FRAME_SIZE,
+      fruitState.x + dc.originX,
+      bonusFruitY(fruitState) + dc.originY,
+      FRUIT_RENDERED_SIZE,
+      FRUIT_RENDERED_SIZE,
+    );
+  },
 };

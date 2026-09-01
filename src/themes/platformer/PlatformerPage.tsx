@@ -89,6 +89,7 @@ import { SLIME_GREEN_SHEET, KEY_SHEET } from './entities/sprites/sheets';
 import { frameSource, collectSheetSources } from './entities/sprites/SpriteSheet';
 import type { SpriteLookup } from './entities/sprites/SpriteSheet';
 import { ENEMY_TYPES, typeOf } from './entities/enemies';
+import { PICKUP_TYPES } from './entities/pickups';
 import type { EnemyState } from './entities/Enemy';
 import { takeDamage, PIT_FALL_DAMAGE, INVINCIBILITY_DURATION_SECONDS } from './entities/Health';
 import {
@@ -377,14 +378,20 @@ export const PlatformerPage = () => {
         drawSigns(ctx, signPlacements.value, tilesetRef.current, originX, originY);
       }
 
+      const drawContext: DrawContext = {
+        ctx,
+        sprites: spritesRef.current,
+        originX,
+        originY,
+        worldElapsed: worldAnimElapsed,
+      };
+
       // Drawn BEFORE blocks: a bonus fruit spawns at its source block's own
       // position and rises through it — drawing it first lets the block's
       // own tile occlude the still-rising fruit until it clears the block's
       // top edge, reading as "popping out from behind the block" instead of
       // floating on top of it.
-      if (fruitSpriteRef.current) {
-        drawBonusFruits(ctx, bonusFruitStates.value, fruitSpriteRef.current, originX, originY);
-      }
+      drawBonusFruits(ctx, bonusFruitStates.value, drawContext);
 
       if (tilesetRef.current) {
         drawBlocks(ctx, blockStates.value, tilesetRef.current, crackOverlaySpriteRef.current, originX, originY);
@@ -417,29 +424,11 @@ export const PlatformerPage = () => {
         );
       }
 
-      if (coinSpriteRef.current || fruitSpriteRef.current) {
-        drawCollectibles(
-          ctx,
-          collectiblePlacements.value,
-          coinSpriteRef.current,
-          fruitSpriteRef.current,
-          collectedCollectibleIds.value,
-          worldAnimElapsed,
-          originX,
-          originY,
-        );
-      }
+      drawCollectibles(ctx, collectiblePlacements.value, collectedCollectibleIds.value, drawContext);
 
-      const drawContext: DrawContext = {
-        ctx,
-        sprites: spritesRef.current,
-        originX,
-        originY,
-        worldElapsed: worldAnimElapsed,
-      };
       drawEnemies(ctx, enemyStates.value, drawContext);
 
-      drawKeyPickups(ctx, keyPickupStates.value, keySpriteRef.current, worldAnimElapsed, originX, originY);
+      drawKeyPickups(ctx, keyPickupStates.value, drawContext);
 
       const tooltip = hintTooltipState.value;
       if (tooltip) {
@@ -1428,11 +1417,17 @@ export const PlatformerPage = () => {
         // the rest of the game still show.
       });
     // Discovers every enemy sheet from the type registry (plus the key
-    // sheet, for a purple slime's held-key shine-through) rather than
-    // hand-listing each one — adding an enemy type needs no new loadImage
-    // call here.
+    // sheet, for a purple slime's held-key shine-through) and every pickup
+    // sheet from PICKUP_TYPES rather than hand-listing each one — adding an
+    // enemy or pickup type needs no new loadImage call here. coin.png and
+    // fruit.png are also loaded individually above into
+    // coinSpriteRef/fruitSpriteRef, which the HUD counters
+    // (drawCollectibleCounter) still read directly — the two loads race
+    // harmlessly (same convention KEY_SHEET already established alongside
+    // keySpriteRef's own individual load below).
     for (const src of collectSheetSources([
       ...Object.values(ENEMY_TYPES).map((t) => t.sprite),
+      ...Object.values(PICKUP_TYPES).map((t) => t.sprite),
       { sheet: KEY_SHEET, renderScale: 1, animations: {} },
     ])) {
       loadImage(src)
@@ -1442,8 +1437,8 @@ export const PlatformerPage = () => {
           render();
         })
         .catch(() => {
-          // That sheet's enemies (or the held-key hint) simply won't render
-          // if it fails to load; the rest of the game still shows.
+          // That sheet's enemies/pickups (or the held-key hint) simply won't
+          // render if it fails to load; the rest of the game still shows.
         });
     }
     loadImage('/sprites/crack_overlay.png')

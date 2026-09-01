@@ -1,7 +1,7 @@
 import type { PickupType } from './PickupType';
 import type { CollectiblePlacement } from '../../level/CollectibleMapper';
 import { FRUIT_SHEET } from '../sprites/sheets';
-import { FRUIT_RENDERED_SIZE } from '../Fruit';
+import { FRUIT_FRAME_SIZE, FRUIT_RENDERED_SIZE, fruitFrameSource } from '../Fruit';
 import { coinBobOffset } from '../Coin';
 
 /** The `PickupType` view of a placed fruit collectible — Fruit.ts remains
@@ -35,6 +35,30 @@ export const fruit: PickupType<CollectiblePlacement> = {
   // Icon comes from placement order, not per-instance state — see doc comment above.
   frameIndex: (_state, _elapsed, index) => index,
   bobOffset: (_placement, elapsed) => coinBobOffset(elapsed),
-  // Filled in when rendering moves into these modules.
-  draw: () => {},
+  // Relocated from Renderer.ts's drawCollectibles fruit branch, unchanged.
+  // The logical index (this placement's position among all fruit
+  // placements, supplied by the caller — see drawCollectibles) is mapped to
+  // a packed sheet position by fruitFrameSource, NOT the generic
+  // frameSource — passing it to frameSource directly would treat the
+  // logical index as an already-packed slot and render the wrong icon.
+  draw: (placement, dc, index = 0) => {
+    const image = dc.sprites[FRUIT_SHEET.src];
+    if (!image) return;
+
+    const { sx, sy } = fruitFrameSource(fruit.frameIndex(placement, dc.worldElapsed, index));
+    const bob = fruit.bobOffset(placement, dc.worldElapsed);
+
+    dc.ctx.imageSmoothingEnabled = false;
+    dc.ctx.drawImage(
+      image,
+      sx,
+      sy,
+      FRUIT_FRAME_SIZE,
+      FRUIT_FRAME_SIZE,
+      placement.x + dc.originX,
+      placement.y + dc.originY + bob,
+      FRUIT_RENDERED_SIZE,
+      FRUIT_RENDERED_SIZE,
+    );
+  },
 };
