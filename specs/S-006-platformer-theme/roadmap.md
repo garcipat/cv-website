@@ -613,7 +613,7 @@ original slot for traceability with git history (branch names, commit messages).
 
 ## Iteration 4 — Level variety (post-P3, added 2026-08-29)
 
-- [ ] **30. Purple slime rework: bigger/slower/tougher, drops a key instead of a
+- [x] **30. Purple slime rework: bigger/slower/tougher, drops a key instead of a
   Course fact** — purple slimes render at 1.5× a green slime's size, patrol ~30%
   slower, and take 3 stomps to defeat (up from 2). Green slimes now deliver every
   Course fact (purple no longer carries any CV content). A purple slime's
