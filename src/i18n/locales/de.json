@@ -156,7 +156,8 @@
       "bridgeDropThrough": "Halte Runter gedrückt, um durch eine Brücke zu fallen.",
       "ladderClimbUp": "Halte Hoch gedrückt, um eine Leiter hochzuklettern.",
       "fragileRockBreaksFromBelow": "Brüchige Felsen können von unten zerbrochen werden.",
-      "chestNeedsKey": "Ich brauche einen Schlüssel.",
+      "chestNeedsKey": "Truhen benötigen einen Schlüssel zum Öffnen.",
+      "noKeyForChest": "Ich brauche einen Schlüssel.",
       "openAllChestsHaveFun": "Öffne alle Truhen und viel Spaß!"
     },
     "journal": {

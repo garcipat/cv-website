@@ -2475,7 +2475,7 @@ describe('PlatformerPage', () => {
     fireEvent.keyDown(window, { code: 'ArrowUp' });
     frameCallback!(16);
 
-    expect(hintTooltipState.value?.hintId).toBe('chestNeedsKey');
+    expect(hintTooltipState.value?.hintId).toBe('noKeyForChest');
     expect(hintTooltipState.value?.phase).toBe('entering');
   });
 
@@ -2495,7 +2495,7 @@ describe('PlatformerPage', () => {
     playerState.value = { ...playerState.value, x: target.x, y: target.y };
     fireEvent.keyDown(window, { code: 'ArrowUp' });
     frameCallback!(16);
-    expect(hintTooltipState.value?.hintId).toBe('chestNeedsKey');
+    expect(hintTooltipState.value?.hintId).toBe('noKeyForChest');
 
     // Walk far away from the chest — no longer standing on/overlapping it.
     playerState.value = { ...playerState.value, x: target.x + 2000, y: target.y };

@@ -1052,19 +1052,24 @@ export const PlatformerPage = () => {
       }
       const overlappingSignHintId = checkSignOverlap(playerState.value, signPlacements.value);
       // A closed chest the player is standing on, while holding zero keys,
-      // is itself an "overlapping something with a hint" case — reuses the
-      // existing chestNeedsKey hint text (spec.md's i18n `platformer.hints`)
-      // that already existed for this purpose but was previously only
-      // reachable via an unplaced hint-sign marker. Signs take priority in
-      // the vanishingly unlikely case a chest and a sign tile overlap.
-      // Re-checked against the CURRENT chestStates (not the `standingChestId`
-      // captured above, before the chest-open block ran) — a chest just
-      // successfully opened this same tick is no longer "closed and stood
-      // on", so `chestPlayerIsStandingOn` correctly stops returning its id
-      // (it skips open chests), and no bubble should show for that case.
+      // is itself an "overlapping something with a hint" case — uses its own
+      // `noKeyForChest` hint text (spec.md's i18n `platformer.hints`),
+      // distinct from `chestNeedsKey` (a hint-SIGN's informational rule text,
+      // "Chests need a key to open.") even though both used to share one key
+      // before this was split: a bubble anchored above the player's own head
+      // reads as the character SPEAKING ("I need a key."), not as a sign's
+      // third-person rule, and the two must stay independently translatable
+      // since they're grammatically different sentences, not just different
+      // triggers for the same line. Signs take priority in the vanishingly
+      // unlikely case a chest and a sign tile overlap. Re-checked against the
+      // CURRENT chestStates (not the `standingChestId` captured above, before
+      // the chest-open block ran) — a chest just successfully opened this
+      // same tick is no longer "closed and stood on", so
+      // `chestPlayerIsStandingOn` correctly stops returning its id (it skips
+      // open chests), and no bubble should show for that case.
       const standingClosedChestId = chestPlayerIsStandingOn(playerState.value, chestStates.value);
       const lockedChestHintId: HintId | undefined =
-        !overlappingSignHintId && standingClosedChestId && collectedKeys.value <= 0 ? 'chestNeedsKey' : undefined;
+        !overlappingSignHintId && standingClosedChestId && collectedKeys.value <= 0 ? 'noKeyForChest' : undefined;
       const overlappingHintId = overlappingSignHintId ?? lockedChestHintId;
       const currentTooltip = hintTooltipState.value;
       if (overlappingHintId && interactPressed) {
