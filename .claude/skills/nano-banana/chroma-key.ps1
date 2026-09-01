@@ -67,6 +67,16 @@ param(
 
 Add-Type -AssemblyName System.Drawing
 
+# .NET's relative-path resolution uses [Environment]::CurrentDirectory, which
+# can silently diverge from PowerShell's own $PWD (e.g. after `cd` via a
+# provider) — without this, a relative -OutputPath can fail to save ("The
+# directory ... does not exist") even though the same path looks valid from
+# the shell. Resolve both paths to absolute up front so the rest of the
+# script never has to think about it.
+[Environment]::CurrentDirectory = (Get-Location).Path
+$InputPath = [System.IO.Path]::GetFullPath($InputPath)
+$OutputPath = [System.IO.Path]::GetFullPath($OutputPath)
+
 function Get-TightCropBounds([System.Drawing.Bitmap]$bmp) {
   $w = $bmp.Width; $h = $bmp.Height
   $minX = $w; $maxX = -1; $minY = $h; $maxY = -1
