@@ -128,8 +128,8 @@ export interface EnemyState extends EnemyPlacement {
   animFrame: number;
   /** Seconds accumulated toward the next animation frame advance. */
   animTimer: number;
-  /** Stomps remaining before this enemy is defeated — 1 for slimeGreen, 2 for
-   *  slimePurple. Decremented by
+  /** Stomps remaining before this enemy is defeated — 1 for slimeGreen, 3 for
+   *  slimePurple (see ENEMY_HIT_POINTS above). Decremented by
    *  `applyStomp` on every registered stomp, regardless of whether it's the
    *  finishing blow. */
   hitPoints: number;
@@ -199,7 +199,7 @@ export function advanceEnemyAnimation(enemy: EnemyState, dt: number): EnemyState
  * enters the `hit` reaction (red-flash/dissolve) animation from its first
  * frame — even if the enemy was already mid-reaction from an earlier stomp
  * this same bounce arc (a skilled player can chain-stomp a still-alive
- * 2-hit purple enemy entirely airborne — see `Collision.ts`'s
+ * 3-hit purple enemy entirely airborne — see `Collision.ts`'s
  * `checkEnemyStompCollisions`, which only
  * excludes an enemy once `hitPoints` has actually reached 0, not while it's
  * merely mid-reaction), so a legitimate second stomp always replays the

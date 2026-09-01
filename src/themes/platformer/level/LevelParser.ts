@@ -28,8 +28,8 @@ export const TERRAIN_CHARS: Record<string, TileType | undefined> = {
 
 /**
  * Maps each entity-marker character usable in a level layout to what it
- * marks: `S` (spawn), `E` (green/Course enemy), `M` (purple/Course
- * enemy), `C` (Skill-category coin), `X` (crate block — Education/Activity/
+ * marks: `S` (spawn), `E` (green/Course enemy), `M` (purple enemy — carries
+ * no CV fact, drops a key on defeat), `C` (Skill-category coin), `X` (crate block — Education/Activity/
  * Language fact), `Q` (question-mark block — no fact, spawns a bonus fruit),
  * `F` (fragileRock block — no fact, level-design filler), `T` (chest —
  * Experience fact, opened via Arrow Up while standing on it, spec.md
