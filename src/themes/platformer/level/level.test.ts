@@ -176,10 +176,19 @@ describe('currentLevel', () => {
   });
 
   it('enemiesAndCollectibles-sitCloseToSpawnForEasyManualTesting', () => {
-    // Both enemy markers must be reachable within a short walk from spawn.
-    for (const tile of [...ENEMY_TILES_GREEN.value, ...ENEMY_TILES_PURPLE.value]) {
+    // The green slime and the level's first purple slime sit inside the
+    // patrol-test zone (see this file's top doc comment) — reachable within
+    // a short walk from spawn.
+    for (const tile of [...ENEMY_TILES_GREEN.value, ENEMY_TILES_PURPLE.value[0]]) {
       expect(tile.col - SPAWN_TILE.value.col).toBeLessThan(40);
     }
+    // The level's second purple slime intentionally lives past the col
+    // 40-42 pit (open ground at col 47, alongside the coin cluster) — the
+    // wall/pit sandwich pocket at cols 37-39 only fits one 1.5x-scaled
+    // purple slime (see purpleEnemyWallPitSandwich above), so a second one
+    // there would permanently overlap it. Still a short walk from spawn,
+    // just a slightly longer one than the patrol-test zone's markers.
+    expect(ENEMY_TILES_PURPLE.value[1].col - SPAWN_TILE.value.col).toBeLessThan(50);
   });
 });
 

@@ -43,8 +43,16 @@ import {
   ENEMY_TILE_OFFSET_X,
   ENEMY_TILE_OFFSET_Y,
 } from '../entities/Enemy';
-import { KEY_FRAME_WIDTH, KEY_FRAME_HEIGHT, KEY_RENDERED_WIDTH, KEY_RENDERED_HEIGHT } from '../entities/KeyPickup';
+import {
+  KEY_FRAME_WIDTH,
+  KEY_FRAME_HEIGHT,
+  KEY_RENDERED_WIDTH,
+  KEY_RENDERED_HEIGHT,
+  KEY_TILE_OFFSET_X,
+  KEY_TILE_OFFSET_Y,
+} from '../entities/KeyPickup';
 import type { KeyPickupState } from '../entities/KeyPickup';
+import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import {
   CHEST_CLOSED_WIDTH,
   CHEST_CLOSED_HEIGHT,
@@ -1529,6 +1537,27 @@ describe('drawKeyPickups', () => {
     const pickups: KeyPickupState[] = [{ id: 'k1', x: 0, y: 0, collected: true }];
     drawKeyPickups(ctx, pickups, fakeKeySprite, 0);
     expect(ctx.drawImage).not.toHaveBeenCalled();
+  });
+
+  it('drawKeyPickups-uncollectedPickup-fitsWithinOneTileAndIsBottomAnchored', () => {
+    const ctx = makeMockContext();
+    const fakeKeySprite = {} as HTMLImageElement;
+    // No bob: elapsedSeconds 0 gives coinBobOffset(0) === 0, so the drawn y
+    // is exactly pickup.y + KEY_TILE_OFFSET_Y with no ambient float noise.
+    const pickups: KeyPickupState[] = [{ id: 'k1', x: 100, y: 200, collected: false }];
+    drawKeyPickups(ctx, pickups, fakeKeySprite, 0);
+    expect(KEY_RENDERED_HEIGHT).toBeLessThanOrEqual(RENDERED_TILE_SIZE);
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeKeySprite,
+      0,
+      0,
+      KEY_FRAME_WIDTH,
+      KEY_FRAME_HEIGHT,
+      100 + KEY_TILE_OFFSET_X,
+      200 + KEY_TILE_OFFSET_Y,
+      KEY_RENDERED_WIDTH,
+      KEY_RENDERED_HEIGHT,
+    );
   });
 });
 

@@ -23,7 +23,12 @@ import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { SignPlacement } from '../level/SignMapper';
 import type { HintId } from '../types';
 import type { KeyPickupState } from '../entities/KeyPickup';
-import { KEY_RENDERED_WIDTH, KEY_RENDERED_HEIGHT } from '../entities/KeyPickup';
+import {
+  KEY_RENDERED_WIDTH,
+  KEY_RENDERED_HEIGHT,
+  KEY_TILE_OFFSET_X,
+  KEY_TILE_OFFSET_Y,
+} from '../entities/KeyPickup';
 
 export interface Box {
   x: number;
@@ -105,7 +110,7 @@ export function enemyHitbox(enemy: EnemyState): Box {
  * any player-side cooldown/landing/separation tracking — this engine has no
  * double-jump, so "the player lands on the same still-alive enemy again
  * while still airborne from their own stomp bounce" is a deliberate,
- * desired mechanic (chain-stomping a 2-hit purple enemy in one fluid
+ * desired mechanic (chain-stomping a 3-hit purple enemy in one fluid
  * motion), not a bug to guard against. `hitPoints > 0` is the only thing
  * that should stop a stomp from registering.
  */
@@ -232,7 +237,10 @@ export function checkSignOverlap(
  * `collectedIds` set — a pickup's own `collected` flag is the source of
  * truth (PlatformerState.ts's keyPickupStates keeps collected entries around,
  * flagged rather than removed, so a defeated purple slime can never drop a
- * second key on a later respawn — see KeyPickup.ts's doc comment).
+ * second key on a later respawn — see KeyPickup.ts's doc comment). The box
+ * is offset by KEY_TILE_OFFSET_X/Y, the same centering/bottom-anchoring
+ * Renderer.ts's drawKeyPickups applies, so the collidable area matches where
+ * the key is actually drawn rather than the tile's raw top-left corner.
  */
 export function checkKeyPickupCollisions(
   player: PlayerState,
@@ -242,7 +250,12 @@ export function checkKeyPickupCollisions(
   const hits: string[] = [];
   for (const pickup of pickups) {
     if (pickup.collected) continue;
-    const box: Box = { x: pickup.x, y: pickup.y, width: KEY_RENDERED_WIDTH, height: KEY_RENDERED_HEIGHT };
+    const box: Box = {
+      x: pickup.x + KEY_TILE_OFFSET_X,
+      y: pickup.y + KEY_TILE_OFFSET_Y,
+      width: KEY_RENDERED_WIDTH,
+      height: KEY_RENDERED_HEIGHT,
+    };
     if (aabbOverlap(hitbox, box)) hits.push(pickup.id);
   }
   return hits;
