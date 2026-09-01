@@ -82,6 +82,7 @@ import {
   grantInvincibility,
   PLAYER_RENDERED_SIZE,
   PLAYER_VISUAL_CENTER_Y_OFFSET,
+  PLAYER_HEAD_PADDING,
 } from './entities/Player';
 import { advanceEnemyAnimation, applyStomp, ENEMY_FRAME_SIZE } from './entities/Enemy';
 import { takeDamage, PIT_FALL_DAMAGE, SIDE_HIT_DAMAGE, INVINCIBILITY_DURATION_SECONDS } from './entities/Health';
@@ -439,7 +440,11 @@ export const PlatformerPage = () => {
       if (tooltip) {
         const hintText = currentUI.value.platformer.hints[tooltip.hintId];
         const anchorX = playerState.value.x + PLAYER_RENDERED_SIZE / 2 + originX;
-        const anchorBottomY = playerState.value.y + originY;
+        // Anchored at the player's actual visible head (render-slot top plus
+        // PLAYER_HEAD_PADDING), not the render slot's own top — the slot has
+        // transparent padding above the head, so using it directly floated
+        // the bubble noticeably higher than the character.
+        const anchorBottomY = playerState.value.y + PLAYER_HEAD_PADDING + originY;
         const { growth, opacity } = hintTooltipGrowthAndOpacity(tooltip);
         drawSignBubble(ctx, hintText, anchorX, anchorBottomY, growth, opacity);
       }
