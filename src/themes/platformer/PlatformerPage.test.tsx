@@ -44,6 +44,7 @@ import {
   HEART_RENDERED_SIZE,
 } from './entities/Health';
 import { HEARTS_START_X, keyCounterX, KEY_COUNTER_Y } from './engine/Renderer';
+import { HIT_REACTION_DURATION_SECONDS, SPIKE_COOLDOWN_DURATION_SECONDS } from './engine/EnemyAI';
 import { PHYSICS_CONFIG } from './engine/PhysicsConfig';
 import { tileToPixel } from './level/Terrain';
 import {
@@ -1234,11 +1235,14 @@ describe('PlatformerPage', () => {
     let t = 16;
 
     // ENEMY_HIT_POINTS.slimePurple is 3 — land three separate, deliberately
-    // re-positioned stomps (not relying on an incidental double-bounce
-    // within one landing's reaction window, which is timing-sensitive).
-    // `checkEnemyStompCollisions` only excludes an enemy once `hitPoints`
-    // reaches 0 — no cooldown/landing tracking needed, since this engine has
-    // no double-jump.
+    // re-positioned stomps. A non-fatal stomp now also sets `spiked: true`
+    // for SPIKE_COOLDOWN_DURATION_SECONDS (see EnemyAI.ts's
+    // stepEnemySpikeCooldown), during which a top-landing is treated as
+    // player damage instead of a stomp (Collision.ts's
+    // checkEnemyStompCollisions/checkEnemySideCollisions) — so each wait
+    // between stomps must exceed that cooldown for the next landing to
+    // register as a genuine stomp again.
+    const framesPastSpikeCooldown = Math.ceil((SPIKE_COOLDOWN_DURATION_SECONDS * 1000) / 16) + 5;
     for (let stomp = 1; stomp <= 3; stomp++) {
       const current = enemyStates.value.find((e) => e.id === target.id);
       if (!current) break; // defeated — nothing left to land on
@@ -1250,7 +1254,7 @@ describe('PlatformerPage', () => {
       };
       t += 16;
       frameCallback!(t);
-      for (let i = 0; i < 30; i++) {
+      for (let i = 0; i < framesPastSpikeCooldown; i++) {
         t += 16;
         frameCallback!(t);
       }
@@ -2043,17 +2047,18 @@ describe('PlatformerPage', () => {
     }
   });
 
-  it('playerLandsAndRestompsPurpleEnemyWhileStillMidReaction-registersAsAGenuineSecondStomp', () => {
-    // Chain-stomping: a second stomp against the SAME enemy only needs it to
-    // still have hit points left — no cooldown, no landing, no waiting for
-    // the ~0.4s hit reaction to finish, so a player who bounces upward off a
-    // stomp and falls back onto the same enemy can stomp it again on the way
-    // down. Re-stomps almost
-    // immediately (well before the first reaction would have ended),
-    // entirely airborne (this engine has no double-jump, so re-landing on
-    // the same enemy while still airborne can only mean the same bounce's
-    // own descent — and that's exactly the desired chain-stomp), and still
-    // expects the enemy defeated.
+  it('playerLandsOnPurpleEnemyImmediatelyAfterStomp-whileStillMidReactionAndSpiked-registersNeitherStompNorHit', () => {
+    // Purple slime spike cooldown (see EnemyAI.ts's stepEnemySpikeCooldown
+    // and Collision.ts's checkEnemyStompCollisions/checkEnemySideCollisions
+    // doc comments): `applyStomp` sets both `animState: 'hit'` AND
+    // `spiked: true` on the very same stomp. An immediate second top-landing
+    // while still mid-reaction therefore hits neither collision path —
+    // `checkEnemyStompCollisions` excludes it because it's `spiked`, and
+    // `checkEnemySideCollisions` excludes it because `animState === 'hit'`.
+    // It must register as neither a stomp nor a side-hit: hitPoints stays
+    // frozen at whatever the first stomp left it at, and the player takes no
+    // damage, until the ~0.4s hit-reaction ends and the spike cooldown
+    // (1.5s) later lifts.
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frameCallback = cb;
@@ -2073,15 +2078,18 @@ describe('PlatformerPage', () => {
     };
 
     let t = 16;
-    frameCallback!(t); // first stomp: hitPoints 3 -> 2, animState 'hit'
+    frameCallback!(t); // first stomp: hitPoints 3 -> 2, animState 'hit', spiked true
 
     const midReaction = enemyStates.value.find((e) => e.id === target.id)!;
     expect(midReaction.animState).toBe('hit');
     expect(midReaction.hitPoints).toBe(2);
+    expect(midReaction.spiked).toBe(true);
+
+    const healthBeforeSecondLanding = healthState.value;
 
     // Land on it again immediately — still well within the ~0.4s reaction
-    // window (this same tick), entirely airborne, no landing/separation of
-    // any kind in between.
+    // window (this same tick) and well within the 1.5s spike cooldown,
+    // entirely airborne, no landing/separation of any kind in between.
     playerState.value = {
       ...playerState.value,
       x: midReaction.x,
@@ -2089,33 +2097,119 @@ describe('PlatformerPage', () => {
       vy: 300,
     };
     t += 16;
-    frameCallback!(t); // second stomp lands mid-reaction: hitPoints 2 -> 1
+    frameCallback!(t); // second landing mid-reaction: neither a stomp nor a hit
 
-    const afterSecondStomp = enemyStates.value.find((e) => e.id === target.id)!;
-    expect(afterSecondStomp.animState).toBe('hit');
-    expect(afterSecondStomp.hitPoints).toBe(1);
+    const afterSecondLanding = enemyStates.value.find((e) => e.id === target.id)!;
+    expect(afterSecondLanding.hitPoints).toBe(2); // unchanged from the first stomp
+    expect(healthState.value).toBe(healthBeforeSecondLanding); // no player damage
+  });
 
-    // Land on it a third time — to finally defeat the purple slime
+  it('spikedPurpleSlime-stompedAgainFromTopDuringCooldown-damagesPlayerInstead', () => {
+    // Once the ~0.4s hit-reaction ends (animState back to 'walk'), a spiked
+    // enemy is stompable-position-wise again, but `spiked` itself lasts the
+    // full SPIKE_COOLDOWN_DURATION_SECONDS (1.5s) — a top-landing during
+    // that window is excluded from `checkEnemyStompCollisions` (spiked) and
+    // instead picked up by `checkEnemySideCollisions` as a genuine side-hit,
+    // damaging the player instead of the enemy.
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const target = enemyStates.value.find((e) => e.spriteType === 'slimePurple')!;
     playerState.value = {
       ...playerState.value,
-      x: afterSecondStomp.x,
-      y: stompLandingY(afterSecondStomp),
+      x: target.x,
+      y: stompLandingY(target),
       vy: 300,
     };
-    t += 16;
-    frameCallback!(t); // third stomp lands mid-reaction: hitPoints 1 -> 0
 
-    const stillMidReaction = enemyStates.value.find((e) => e.id === target.id)!;
-    expect(stillMidReaction.animState).toBe('hit'); // reaction hasn't finished yet
+    let t = 16;
+    frameCallback!(t); // first stomp: hitPoints 3 -> 2, animState 'hit', spiked true
 
-    for (let i = 0; i < 30; i++) {
+    // Advance past HIT_REACTION_DURATION_SECONDS (0.4s) so animState returns
+    // to 'walk', but stay well within SPIKE_COOLDOWN_DURATION_SECONDS (1.5s)
+    // so the enemy is still `spiked`.
+    const framesPastHitReaction = Math.ceil((HIT_REACTION_DURATION_SECONDS * 1000) / 16) + 5;
+    for (let i = 0; i < framesPastHitReaction; i++) {
       t += 16;
       frameCallback!(t);
     }
 
-    expect(enemyStates.value.some((e) => e.id === target.id)).toBe(false);
-    // Purple enemies now carry no CV facts — they drop keys on defeat instead
-    expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(false);
+    const stillSpiked = enemyStates.value.find((e) => e.id === target.id)!;
+    expect(stillSpiked.animState).toBe('walk');
+    expect(stillSpiked.spiked).toBe(true);
+    expect(stillSpiked.hitPoints).toBe(2);
+
+    const healthBeforeSecondLanding = healthState.value;
+
+    // Land on it from above a second time, still within the spike cooldown.
+    playerState.value = {
+      ...playerState.value,
+      x: stillSpiked.x,
+      y: stompLandingY(stillSpiked),
+      vy: 300,
+    };
+    t += 16;
+    frameCallback!(t);
+
+    const afterSecondLanding = enemyStates.value.find((e) => e.id === target.id)!;
+    expect(afterSecondLanding.hitPoints).toBe(2); // no stomp registered
+    expect(healthState.value).toBe(healthBeforeSecondLanding - SIDE_HIT_DAMAGE);
+  });
+
+  it('spikedPurpleSlime-afterCooldownElapses-isStompableAgain', () => {
+    // Same setup as the cooldown test above, but this time the second
+    // landing waits out the full SPIKE_COOLDOWN_DURATION_SECONDS — the
+    // enemy is no longer `spiked`, so the landing is a real stomp again.
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const target = enemyStates.value.find((e) => e.spriteType === 'slimePurple')!;
+    playerState.value = {
+      ...playerState.value,
+      x: target.x,
+      y: stompLandingY(target),
+      vy: 300,
+    };
+
+    let t = 16;
+    frameCallback!(t); // first stomp: hitPoints 3 -> 2, animState 'hit', spiked true
+
+    const framesPastSpikeCooldown = Math.ceil((SPIKE_COOLDOWN_DURATION_SECONDS * 1000) / 16) + 5;
+    for (let i = 0; i < framesPastSpikeCooldown; i++) {
+      t += 16;
+      frameCallback!(t);
+    }
+
+    const noLongerSpiked = enemyStates.value.find((e) => e.id === target.id)!;
+    expect(noLongerSpiked.spiked).toBe(false);
+    expect(noLongerSpiked.hitPoints).toBe(2);
+
+    playerState.value = {
+      ...playerState.value,
+      x: noLongerSpiked.x,
+      y: stompLandingY(noLongerSpiked),
+      vy: 300,
+    };
+    t += 16;
+    frameCallback!(t); // second landing after cooldown: a genuine second stomp
+
+    const afterSecondStomp = enemyStates.value.find((e) => e.id === target.id)!;
+    expect(afterSecondStomp.hitPoints).toBe(1);
+    expect(afterSecondStomp.spiked).toBe(true); // the new stomp re-spikes it
   });
 
   it('playerFallsIntoPit-tick-losesHalfHeartAndBecomesInvincible', () => {
