@@ -377,12 +377,23 @@ plan leaves a half-migrated world.
 |---|---|---|
 | **1 — Lifecycle** (`2026-09-01-entity-lifecycle.md`) | Characterization tests, then `alive`/`rewardGiven`, revive-in-place, deletion of all three id-keyed ledgers. No abstraction. | The defect fix, independently |
 | **2 — Enemy modules** (`2026-09-01-enemy-modules.md`) | `Entity` base, sprite sheets and the discovering loader, per-type enemy modules, type-owned rendering, contact resolution, spikes relocated into `SlimePurple.ts`. | The enemy architecture and the shared sprite model |
-| **3 — Generalization** (not yet written) | Items, blocks, chests, then the player. | The remaining families |
+| **3 — Pickups** (`2026-09-02-pickup-modules.md`) | Sheet descriptors and per-type modules for coin, fruit, dropped key and bonus fruit; one overlap helper; type-owned rendering. | The pickup family |
+| **4 — Blocks and chests** (not yet written) | The same treatment for crate, question-mark, fragile rock and chest. | Those two families |
+| **5 — Player** (not yet written) | `PLAYER_TYPE` holding the padding constants and sprite descriptor; `onDamage`/`onDeath` hooks. | The last family |
 
-Plan 3 is written via `superpowers:writing-plans` once Plan 2 lands, because its
-task-level detail depends on the exact shapes Plan 2 produces — `DrawContext`,
-`CollisionOutcome`, and the dispatcher — and writing it against a predicted
-shape would produce a plan that silently disagrees with the code.
+Each plan is written via `superpowers:writing-plans` once its predecessor
+lands, against the shapes that predecessor actually produced rather than
+predicted ones — writing against a predicted shape produces a plan that
+silently disagrees with the code.
+
+**Pickup lifecycle is deliberately excluded from Plan 3.** The four pickup
+types record "collected" three different ways: an external `collectedCollectibleIds`
+Set for placed collectibles, a `collected` flag for dropped keys, and removal
+from the array for bonus fruits. Unifying those would move coins off the
+placements-plus-Set model the Reset Game respawn path reads, which is real
+behavioral risk in code the enemy refactor never touched. Plan 3 unifies the
+overlap MECHANISM while each call site keeps supplying its own eligibility
+predicate; whether to unify the policy is a separate, later decision.
 
 Plan 1 is worth doing even if Plans 2 and 3 are never picked up.
 
