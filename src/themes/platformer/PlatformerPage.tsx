@@ -23,6 +23,10 @@ import {
   CHEST_COUNTER_Y,
   drawSigns,
   drawSignBubble,
+  drawKeyPickups,
+  drawKeyCounter,
+  KEY_COUNTER_X,
+  KEY_COUNTER_Y,
 } from './engine/Renderer';
 import { drawDebugOverlay } from './engine/DebugOverlay';
 import { createGameLoop } from './engine/GameLoop';
@@ -51,11 +55,13 @@ import {
   checkBonusFruitCollisions,
   chestPlayerIsStandingOn,
   checkSignOverlap,
+  checkKeyPickupCollisions,
 } from './engine/Collision';
 import { openChest, allChestsOpen, isChestOpen, CHEST_CLOSED_OFFSET_X } from './entities/Chest';
 import { stepBlockAnimation } from './engine/BlockAI';
 import { applyBlockHit, isBlockUsedUp, isBlockRemoved, blockFrameSource, BLOCK_FRAME_SIZE } from './entities/Block';
 import { spawnBonusFruit, tickBonusFruit, bonusFruitY } from './entities/BonusFruit';
+import { spawnKeyPickup } from './entities/KeyPickup';
 import {
   startFlightEffect,
   tickFlightEffect,
@@ -104,6 +110,8 @@ import {
   endingScreenOpen,
   signPlacements,
   hintTooltipState,
+  keyPickupStates,
+  collectedKeys,
 } from './PlatformerState';
 import { useSignals } from '@preact/signals-react/runtime';
 import { Journal } from './components/Journal';
@@ -146,6 +154,7 @@ export const PlatformerPage = () => {
   const crackOverlaySpriteRef = useRef<HTMLImageElement | null>(null);
   const chestClosedSpriteRef = useRef<HTMLImageElement | null>(null);
   const chestOpenSpriteRef = useRef<HTMLImageElement | null>(null);
+  const keySpriteRef = useRef<HTMLImageElement | null>(null);
   // Ref to the game loop's KeyboardInput, set once inside the mount effect
   // below right after createKeyboardInput() runs. Needed by
   // handleDismissEndingScreen (defined outside that effect) so it can drain
@@ -423,6 +432,8 @@ export const PlatformerPage = () => {
         );
       }
 
+      drawKeyPickups(ctx, keyPickupStates.value, keySpriteRef.current, worldAnimElapsed, originX, originY);
+
       const tooltip = hintTooltipState.value;
       if (tooltip) {
         const hintText = currentUI.value.platformer.hints[tooltip.hintId];
@@ -503,6 +514,10 @@ export const PlatformerPage = () => {
           CHEST_COUNTER_X,
           CHEST_COUNTER_Y,
         );
+      }
+
+      if (keySpriteRef.current && collectedKeys.value > 0) {
+        drawKeyCounter(ctx, keySpriteRef.current, collectedKeys.value, KEY_COUNTER_X, KEY_COUNTER_Y);
       }
 
       // Iris overlay: drawn on top of everything else whenever the current
@@ -676,6 +691,13 @@ export const PlatformerPage = () => {
           // but deliberately never clears `collectedFacts`), so a revived
           // enemy stomped again in a later life must not re-bank the same
           // fact — that would duplicate its journal page.
+          if (enemy.spriteType === 'slimePurple') {
+            const alreadyDropped = keyPickupStates.value.some((k) => k.id === enemy.id);
+            if (!alreadyDropped) {
+              keyPickupStates.value = [...keyPickupStates.value, spawnKeyPickup(enemy.id, enemy.x, enemy.y)];
+            }
+            continue;
+          }
           const fact = enemy.fact;
           if (!fact || newFacts.some((f) => f.id === fact.id)) continue;
           anyEnemyRewarded = true;
@@ -882,6 +904,20 @@ export const PlatformerPage = () => {
         }
       }
 
+      // Key pickups: dropped by defeated purple slimes (see the justDefeated
+      // block above), collected on touch like a coin, but banked as a count
+      // rather than a per-item fact — flagged `collected: true` in place
+      // (not removed from the array) so drawKeyPickups's own skip-if-collected
+      // check keeps the pickup out of the render list without needing a
+      // separate "already gone" list.
+      const touchedKeyIds = checkKeyPickupCollisions(playerState.value, keyPickupStates.value);
+      if (touchedKeyIds.length > 0) {
+        keyPickupStates.value = keyPickupStates.value.map((k) =>
+          touchedKeyIds.includes(k.id) ? { ...k, collected: true } : k,
+        );
+        collectedKeys.value += touchedKeyIds.length;
+      }
+
       // Chests don't open on touch like every other collectible — spec.md
       // FR-023 requires an explicit Arrow Up press
       // while standing on one (KeyW also works, mirroring the A/D-as-
@@ -897,11 +933,12 @@ export const PlatformerPage = () => {
       const interactPressed = arrowUpPressed || wPressed;
       if (interactPressed) {
         const standingChestId = chestPlayerIsStandingOn(playerState.value, chestStates.value);
-        if (standingChestId) {
+        if (standingChestId && collectedKeys.value > 0) {
           const chest = chestStates.value.find((c) => c.id === standingChestId)!;
           chestStates.value = chestStates.value.map((c) =>
             c.id === standingChestId ? openChest(c) : c,
           );
+          collectedKeys.value -= 1;
           if (!collectedFacts.value.some((f) => f.id === chest.fact.id)) {
             const journalRect = journalButtonRef.current?.getBoundingClientRect();
             const targetX = journalRect ? journalRect.left + journalRect.width / 2 : canvas.width - 32;
@@ -1343,6 +1380,17 @@ export const PlatformerPage = () => {
       .catch(() => {
         // An opened chest falls back to invisible if this fails to load;
         // the closed sprite (and the rest of the game) still works.
+      });
+    loadImage('/sprites/key.png')
+      .then((img) => {
+        if (cancelled) return;
+        keySpriteRef.current = img;
+        render();
+      })
+      .catch(() => {
+        // Key pickups simply won't render if the sprite fails to load; the
+        // rest of the game still works (collision doesn't depend on the
+        // sprite being loaded).
       });
     loadFont(RESTART_PROMPT_FONT_FAMILY, RESTART_PROMPT_FONT_URL)
       .then(() => {
