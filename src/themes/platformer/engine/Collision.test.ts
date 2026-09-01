@@ -363,25 +363,13 @@ describe('checkEnemyStompCollisions excludes spiked enemies', () => {
 describe('checkEnemySideCollisions treats a spiked top-landing as a hit', () => {
   it('checkEnemySideCollisions-spikedEnemyLandedOnFromAbove-registersAsHit', () => {
     const enemy = makeSpikedPurpleEnemy();
-    const box = enemyHitbox(enemy);
-    const player = {
-      x: box.x, y: box.y - 5, vx: 0, vy: 50, facing: 'right' as const, grounded: false,
-      climbing: false, isDroppingThroughBridge: false, lastGroundedX: 0, lastGroundedY: 0,
-      animState: 'jump' as const, animFrame: 0, animTimer: 0, invincibleTimer: 0,
-      knockbackTimer: 0, bounceAscending: false, hitBlockIds: [],
-    };
+    const player = { ...playerLandingOnTopOf(enemy), vy: 50, facing: 'right' as const, grounded: false };
     expect(checkEnemySideCollisions(player, [enemy])).toEqual(['e1']);
   });
 
   it('checkEnemySideCollisions-nonSpikedEnemyLandedOnFromAbove-stillExcludedAsStomp', () => {
     const enemy = makeSpikedPurpleEnemy({ spiked: false, spikeTimer: 0 });
-    const box = enemyHitbox(enemy);
-    const player = {
-      x: box.x, y: box.y - 5, vx: 0, vy: 50, facing: 'right' as const, grounded: false,
-      climbing: false, isDroppingThroughBridge: false, lastGroundedX: 0, lastGroundedY: 0,
-      animState: 'jump' as const, animFrame: 0, animTimer: 0, invincibleTimer: 0,
-      knockbackTimer: 0, bounceAscending: false, hitBlockIds: [],
-    };
+    const player = { ...playerLandingOnTopOf(enemy), vy: 50, facing: 'right' as const, grounded: false };
     expect(checkEnemySideCollisions(player, [enemy])).toEqual([]);
   });
 });
