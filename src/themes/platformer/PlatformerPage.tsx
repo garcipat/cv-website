@@ -762,9 +762,12 @@ export const PlatformerPage = () => {
             continue;
           }
 
-          // A fresh fact-bearing defeat: the flight effect already draws its
-          // own sparkle burst (Renderer.ts's drawCollectionEffects) — no
-          // additional puff, to avoid two overlapping bursts (B-003).
+          // A fresh fact-bearing defeat: puff and reward are fully decoupled
+          // layers (puff = destruction/defeat feedback, flight text = reward
+          // feedback), same as crate destruction below — the defeat is a
+          // world event that always deserves a puff, independent of whether
+          // it also happens to award a fact (B-003).
+          newPuffs.push(startPuffEffect(enemy.id, puffX, puffY, anchor.scale));
           anyEnemyRewarded = true;
           newFacts.push(fact);
           // Reuses the journal's own title/icon derivation — formatJournalEntry
