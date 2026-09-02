@@ -1249,26 +1249,16 @@ export const PlatformerPage = () => {
             ];
           }
 
-          // FragileRock's terminal hit (breaks to empty space, no fact, no
-          // reward — FR-022c) still gets a visual "puff" — a standalone
-          // world-event burst (CollectionEffects.ts's PuffEffect /
-          // Renderer.ts's drawPuffEffects), not tied to any flying fact
-          // text. This used to fake a burst-only effect via an empty-label
-          // FlightEffect with all coordinates equal; that hack is gone (see
-          // B-003).
-          if (block.blockKind === 'fragileRock') {
-            const anchor = blockEffectAnchor(block);
-            activePuffs.value = [
-              ...activePuffs.value,
-              startPuffEffect(block.id, anchor.x + originX, anchor.y + originY, anchor.scale),
-            ];
-          }
-
-          if (block.blockKind === 'crate' && block.hitsTaken >= 2) {
-            // Destruction feedback (B-003, same mechanism as fragileRock
-            // above) — unconditional on whether a reward fires below, since
-            // this is feedback for the block breaking, not for the fact
-            // reward itself.
+          // A block's terminal hit — any kind that's removed once used up
+          // (crate, fragileRock; not questionMark, which never breaks) —
+          // gets a visual "puff": a standalone world-event burst
+          // (CollectionEffects.ts's PuffEffect / Renderer.ts's
+          // drawPuffEffects), independent of whether a reward is also
+          // awarded below. This used to be duplicated per block kind (and
+          // fragileRock used to fake a burst-only effect via an empty-label
+          // FlightEffect with all coordinates equal); both hacks are gone —
+          // see B-003.
+          if (BLOCK_TYPES[block.blockKind].removeWhenUsedUp && isBlockUsedUp(block)) {
             const anchor = blockEffectAnchor(block);
             activePuffs.value = [
               ...activePuffs.value,
