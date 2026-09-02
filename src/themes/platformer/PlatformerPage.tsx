@@ -105,6 +105,7 @@ import {
   SLIME_GREEN_SHEET,
   KEY_SHEET,
   CRACK_OVERLAY_SHEET,
+  GROUND_ATLAS_SHEET,
 } from './entities/sprites/sheets';
 import { frameSource, collectSheetSources } from './entities/sprites/SpriteSheet';
 import type { SpriteLookup } from './entities/sprites/SpriteSheet';
@@ -171,6 +172,7 @@ export const PlatformerPage = () => {
   useSignals();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const tilesetRef = useRef<HTMLImageElement | null>(null);
+  const groundAtlasRef = useRef<HTMLImageElement | null>(null);
   const playerSpriteRef = useRef<HTMLImageElement | null>(null);
   const playerJumpSpriteRef = useRef<HTMLImageElement | null>(null);
   const heartsSpriteRef = useRef<HTMLImageElement | null>(null);
@@ -265,6 +267,24 @@ export const PlatformerPage = () => {
     setJournalOpen(false);
     setJournalClosing(false);
   }, []);
+
+  /**
+   * Pauses/resumes the game loop while the floating theme/locale controls
+   * (top-right, rendered below) are open — mirrors handleJournalToggle's
+   * phase guards. Only pauses from 'playing' (so it's a no-op while the
+   * journal or ending screen already own the pause), and only resumes if
+   * nothing else is still the reason the game is paused.
+   */
+  const handleFloatingControlsOpenChange = (open: boolean) => {
+    const phase = lifecycleState.value.phase;
+    if (open) {
+      if (phase !== 'playing') return;
+      lifecycleState.value = pauseForJournal(lifecycleState.value);
+    } else {
+      if (phase !== 'paused' || journalOpenRef.current || endingScreenOpen.value) return;
+      lifecycleState.value = resumeFromJournal(lifecycleState.value);
+    }
+  };
 
   // Wrapped in useCallback (empty deps, same reasoning as
   // handleJournalReallyClosed above) since ThankYouScreen depends on it for
@@ -397,7 +417,16 @@ export const PlatformerPage = () => {
         // Fixed to the viewport, not the camera — drawn over the plain
         // fillRect fallback above, once the tileset has actually loaded.
         drawSkyBackground(ctx, tilesetRef.current, canvas.width, canvas.height, backgroundColor);
-        drawTerrain(ctx, currentLevel.value, tilesetRef.current, originX, originY);
+        if (groundAtlasRef.current) {
+          drawTerrain(
+            ctx,
+            currentLevel.value,
+            tilesetRef.current,
+            groundAtlasRef.current,
+            originX,
+            originY,
+          );
+        }
         drawSigns(ctx, signPlacements.value, tilesetRef.current, originX, originY);
       }
 
@@ -1415,6 +1444,16 @@ export const PlatformerPage = () => {
         // Terrain simply won't render if the tileset fails to load; the
         // background fill still shows so the page isn't blank.
       });
+    loadImage(GROUND_ATLAS_SHEET.src)
+      .then((img) => {
+        if (cancelled) return;
+        groundAtlasRef.current = img;
+        render();
+      })
+      .catch(() => {
+        // Ground simply won't render if the atlas fails to load; the sky and
+        // the background fill still show so the page isn't blank.
+      });
     loadImage('/sprites/knight.png')
       .then((img) => {
         if (cancelled) return;
@@ -1548,7 +1587,7 @@ export const PlatformerPage = () => {
   return (
     <div className="relative h-screen w-screen overflow-hidden">
       <canvas ref={canvasRef} data-testid="platformer-canvas" className="block" tabIndex={-1} />
-      <FloatingControls />
+      <FloatingControls onOpenChange={handleFloatingControlsOpenChange} />
       <ControlsOverlay />
       {journalOpen && (
         <Journal

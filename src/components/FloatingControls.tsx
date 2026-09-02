@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useSignals } from '@preact/signals-react/runtime';
 import { ThemeSelect } from './ThemeSelect';
 import { LanguageSelect } from './LanguageSelect';
@@ -8,14 +9,30 @@ export interface FloatingControlsProps {
    *  'plain' (default) is a bare positioned wrapper, matching the platformer
    *  theme's flat look over its canvas. */
   variant?: 'glass' | 'plain';
+  /** Fires true the moment either the theme or language dropdown opens, and
+   *  false once both are closed. Used by the Platformer theme to pause its
+   *  game loop while either is open; other themes simply don't pass it. */
+  onOpenChange?: (open: boolean) => void;
 }
 
 /**
  * Floating theme/language selectors, fixed at the top-right corner (FR-020,
  * FR-021), shared by every theme.
  */
-export const FloatingControls = ({ variant = 'plain' }: FloatingControlsProps) => {
+export const FloatingControls = ({ variant = 'plain', onOpenChange }: FloatingControlsProps) => {
   useSignals();
+  const [themeOpen, setThemeOpen] = useState(false);
+  const [languageOpen, setLanguageOpen] = useState(false);
+
+  const handleThemeOpenChange = (open: boolean) => {
+    setThemeOpen(open);
+    onOpenChange?.(open || languageOpen);
+  };
+
+  const handleLanguageOpenChange = (open: boolean) => {
+    setLanguageOpen(open);
+    onOpenChange?.(open || themeOpen);
+  };
 
   return (
     <div
@@ -30,8 +47,8 @@ export const FloatingControls = ({ variant = 'plain' }: FloatingControlsProps) =
       )}
       data-testid="floating-controls"
     >
-      <ThemeSelect />
-      <LanguageSelect />
+      <ThemeSelect onOpenChange={handleThemeOpenChange} />
+      <LanguageSelect onOpenChange={handleLanguageOpenChange} />
     </div>
   );
 };

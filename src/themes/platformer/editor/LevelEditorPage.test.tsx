@@ -188,7 +188,7 @@ describe('LevelEditorPage', () => {
     await waitFor(() => expect(drawTerrain).toHaveBeenCalled());
 
     const callsBefore = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls;
-    const [, , , originXBefore, originYBefore] = callsBefore[callsBefore.length - 1];
+    const [, , , , originXBefore, originYBefore] = callsBefore[callsBefore.length - 1];
     expect(originXBefore).toBe(0);
     expect(originYBefore).toBe(0);
 
@@ -201,7 +201,7 @@ describe('LevelEditorPage', () => {
 
     await waitFor(() => {
       const callsAfter = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls;
-      const [, , , originXAfter] = callsAfter[callsAfter.length - 1];
+      const [, , , , originXAfter] = callsAfter[callsAfter.length - 1];
       expect(originXAfter).toBe(-RENDERED_TILE_SIZE);
     });
   });

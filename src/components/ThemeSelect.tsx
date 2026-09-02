@@ -9,7 +9,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-export const ThemeSelect = () => {
+export interface ThemeSelectProps {
+  onOpenChange?: (open: boolean) => void;
+}
+
+export const ThemeSelect = ({ onOpenChange }: ThemeSelectProps = {}) => {
   useSignals();
 
   // Derived from the shared `visibleThemes` computed signal (state/theme.ts)
@@ -29,7 +33,12 @@ export const ThemeSelect = () => {
   );
 
   return (
-    <Select value={currentTheme.value} onValueChange={handleThemeChange} items={items}>
+    <Select
+      value={currentTheme.value}
+      onValueChange={handleThemeChange}
+      onOpenChange={(open) => onOpenChange?.(open)}
+      items={items}
+    >
       <SelectTrigger className="w-[160px]">
         <SelectValue placeholder={currentUI.value.themes.select} />
       </SelectTrigger>

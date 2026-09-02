@@ -51,4 +51,69 @@ describe('PaletteTile', () => {
     const height = parseFloat(wrapper.style.height);
     expect(Math.max(width, height)).toBeLessThanOrEqual(32);
   });
+
+  it('spriteWithOverlay-rendersBothLayersFromTheSameSheet', () => {
+    const sprite: TileSpriteSpec = {
+      sheet: '/sprites/tile_atlas.png',
+      sheetWidth: 130,
+      sheetHeight: 54,
+      sx: 114,
+      sy: 0,
+      frameWidth: 16,
+      frameHeight: 16,
+      overlay: { sx: 76, sy: 38 },
+    };
+
+    const { container } = render(
+      <PaletteTile label="Ground" sprite={sprite} selected={false} onClick={() => {}} />,
+    );
+
+    // The overlay layer is `alt=""` (decorative, so AT doesn't announce it
+    // twice), which computes to ARIA role "presentation" rather than "img" —
+    // so both layers are queried by tag here rather than by role.
+    const layers = container.querySelectorAll('img');
+    expect(layers).toHaveLength(2);
+    expect(Array.from(layers).every((img) => img.getAttribute('src') === '/sprites/tile_atlas.png')).toBe(
+      true,
+    );
+  });
+
+  it('spriteWithOverlay-positionsTheOverlayByItsOwnOffset', () => {
+    const sprite: TileSpriteSpec = {
+      sheet: '/sprites/tile_atlas.png',
+      sheetWidth: 130,
+      sheetHeight: 54,
+      sx: 114,
+      sy: 0,
+      frameWidth: 16,
+      frameHeight: 16,
+      overlay: { sx: 76, sy: 38 },
+    };
+
+    const { container } = render(
+      <PaletteTile label="Ground" sprite={sprite} selected={false} onClick={() => {}} />,
+    );
+
+    // Both layers are scaled the same way; the overlay is offset by its own
+    // cell, not the base's, or the tuft would come from the wrong sheet cell.
+    const [base, overlay] = Array.from(container.querySelectorAll('img'));
+    expect(base.style.left).not.toBe(overlay.style.left);
+    expect(overlay.style.top).not.toBe('0px');
+  });
+
+  it('spriteWithoutOverlay-rendersOneLayer', () => {
+    const sprite: TileSpriteSpec = {
+      sheet: '/sprites/world_tileset.png',
+      sheetWidth: 256,
+      sheetHeight: 256,
+      sx: 16,
+      sy: 0,
+      frameWidth: 16,
+      frameHeight: 16,
+    };
+
+    render(<PaletteTile label="Rock" sprite={sprite} selected={false} onClick={() => {}} />);
+
+    expect(screen.getAllByRole('img')).toHaveLength(1);
+  });
 });

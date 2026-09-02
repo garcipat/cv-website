@@ -26,6 +26,7 @@ import {
 
 const EMPTY_IMAGES: EditorImages = {
   tileset: null,
+  groundAtlas: null,
   player: null,
   coin: null,
   fruit: null,
@@ -37,6 +38,7 @@ const EMPTY_IMAGES: EditorImages = {
 
 const IMAGE_SOURCES: { key: keyof EditorImages; src: string }[] = [
   { key: 'tileset', src: '/sprites/world_tileset.png' },
+  { key: 'groundAtlas', src: '/sprites/tile_atlas.png' },
   { key: 'player', src: '/sprites/knight.png' },
   { key: 'coin', src: '/sprites/coin.png' },
   { key: 'fruit', src: '/sprites/fruit.png' },
