@@ -35,7 +35,9 @@ import {
   keyPickupStates,
   collectedKeys,
   resetGame,
+  activePuffs,
 } from './PlatformerState';
+import { startPuffEffect } from './engine/CollectionEffects';
 import { toChestState, isChestOpen } from './entities/Chest';
 import { spawnKeyPickup } from './entities/KeyPickup';
 import {
@@ -50,7 +52,7 @@ import { isInvulnerable } from './entities/capabilities';
 import { PLAYER_HIT_REACTION_SECONDS } from './entities/Player';
 import { SPIKE_COOLDOWN_DURATION_SECONDS } from './entities/enemies/SlimePurple';
 import { PHYSICS_CONFIG } from './engine/PhysicsConfig';
-import { tileToPixel } from './level/Terrain';
+import { tileToPixel, RENDERED_TILE_SIZE } from './level/Terrain';
 import {
   JOURNAL_OPEN_FRAME_COUNT,
   JOURNAL_OPEN_FRAME_INTERVAL_MS,
@@ -795,6 +797,30 @@ describe('PlatformerPage', () => {
     );
   });
 
+  it('activePuff-tick-elapsesAndEventuallyClearsItself', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    activePuffs.value = [startPuffEffect('test-puff', 500, 500)];
+    frameCallback!(16);
+    expect(activePuffs.value.find((p) => p.id === 'test-puff')?.elapsed).toBeGreaterThan(0);
+
+    // SPARKLE_DURATION_SECONDS is 0.4s — well under 1000ms of ticks.
+    let t = 16;
+    for (let i = 0; i < 100; i++) {
+      t += 16;
+      frameCallback!(t);
+    }
+    expect(activePuffs.value.find((p) => p.id === 'test-puff')).toBeUndefined();
+  });
+
   it('playerOverlapsACollectible-tick-marksItCollectedAndAddsFact', () => {
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
@@ -996,6 +1022,34 @@ describe('PlatformerPage', () => {
     expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(false);
   });
 
+  it('purpleSlimeDefeat-thirdStomp-alsoQueuesAPuff', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const target = enemyStates.value.find((e) => e.type === 'slimePurple')!;
+    enemyStates.value = enemyStates.value.map((e) => (e.id === target.id ? { ...e, hitPoints: 1 } : e));
+    playerState.value = { ...playerState.value, x: target.x, y: stompLandingY(target), vy: 300 };
+
+    let t = 16;
+    frameCallback!(t);
+    for (let i = 0; i < 30; i++) {
+      t += 16;
+      frameCallback!(t);
+    }
+
+    expect(activePuffs.value.some((p) => p.id === target.id)).toBe(true);
+    // A purple slime is bigger than the baseline green slime — its puff scale
+    // must be visibly bigger than 1 (see enemyEffectAnchor).
+    expect(activePuffs.value.find((p) => p.id === target.id)?.scale).toBeGreaterThan(1);
+  });
+
   it('purpleSlimeRespawnedAfterDeath-defeatedAgain-doesNotDropASecondKey', () => {
     // FR (see entities/KeyPickup.ts's doc comment): keyPickupStates persists
     // across resetGame() (death/respawn), so a purple slime revived and
@@ -1100,6 +1154,112 @@ describe('PlatformerPage', () => {
     expect(revived.alive).toBe(true);
     expect(revived.hitPoints).toBeGreaterThan(0);
     expect(revived.rewardGiven).toBe(true);
+  });
+
+  it('greenSlimeRevivedAndDefeatedAgain-secondDefeat-queuesAPuffNotAFlightEffect', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const target = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
+    playerState.value = { ...playerState.value, x: target.x, y: stompLandingY(target), vy: 300 };
+
+    let t = 16;
+    frameCallback!(t);
+    for (let i = 0; i < 30; i++) {
+      t += 16;
+      frameCallback!(t);
+    }
+    expect(enemyStates.value.find((e) => e.id === target.id)?.rewardGiven).toBe(true);
+    const factsAfterFirstDefeat = collectedFacts.value.length;
+
+    // Simulate a death/respawn (per FR-020c: rewardGiven survives it, but
+    // deathEffectGiven must reset — see Task 5), same pattern as the existing
+    // 'purpleSlimeRevivedAndDefeatedAgain...' key-pickup test in this file.
+    // Note: `alive: false` must be set explicitly alongside `hitPoints: 0`
+    // — the game loop only ever flips `alive` false itself from a live
+    // damage event (contact/pit-fall — see PlatformerPage.tsx), never from
+    // `hitPoints` alone, so a direct-write test setup has to set both to
+    // actually enter the 'dying'/'awaitingRestart' phase (same convention
+    // as `handleDebugKill` in PlatformerPage.tsx).
+    playerState.value = { ...playerState.value, hitPoints: 0, alive: false };
+    frameCallback!(t + 16); // enters 'dying'
+    t += 16;
+    for (let i = 0; i < 200; i++) {
+      t += 16;
+      frameCallback!(t);
+    }
+    fireEvent.keyDown(window, { code: 'Enter' });
+
+    const revived = enemyStates.value.find((e) => e.id === target.id)!;
+    playerState.value = { ...playerState.value, x: revived.x, y: stompLandingY(revived), vy: 300 };
+    t += 16;
+    frameCallback!(t);
+    for (let i = 0; i < 30; i++) {
+      t += 16;
+      frameCallback!(t);
+    }
+
+    // The redefeat must NOT add a second fact...
+    expect(collectedFacts.value).toHaveLength(factsAfterFirstDefeat);
+    // ...but MUST show a puff, which is the actual bug being fixed.
+    expect(activePuffs.value.some((p) => p.id === target.id)).toBe(true);
+  });
+
+  it('fragileRockBrokenFromBelow-queuesAPuffNotAFlightEffect', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const rock = blockPlacements.value.find((b) => b.blockKind === 'fragileRock')!;
+    const ceilingBottomY = rock.y + RENDERED_TILE_SIZE;
+    playerState.value = {
+      ...playerState.value,
+      x: rock.x,
+      y: ceilingBottomY - PLAYER_HEAD_PADDING + 1,
+      vy: -1000,
+    };
+
+    let t = 16;
+    frameCallback!(t);
+    for (let i = 0; i < 10; i++) {
+      t += 16;
+      frameCallback!(t);
+    }
+
+    expect(activePuffs.value.some((p) => p.id === rock.id)).toBe(true);
+    expect(activeEffects.value.some((e) => e.id === rock.id)).toBe(false);
+  });
+
+  it('coinCollection-queuesAFlightEffectOnly-neverAlsoAPuff', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const coin = collectiblePlacements.value[0];
+    playerState.value = { ...playerState.value, x: coin.x, y: coin.y };
+    frameCallback!(16);
+
+    expect(activeEffects.value.some((e) => e.id === coin.id)).toBe(true);
+    expect(activePuffs.value.some((p) => p.id === coin.id)).toBe(false);
   });
 
   it('playerWalksIntoKeyPickup-tick-incrementsCollectedKeys', () => {
