@@ -250,9 +250,12 @@ export function drawWaterForeground(
 
 /**
  * Draws one atlas cell into a terrain cell, applying the entry's rotation
- * about the cell's own centre. Only the flat dark tiles are ever rotated
- * (see GroundAtlas.ts) — a vertical brightness ramp turned sideways reads as
- * broken.
+ * about the cell's own centre (see GroundAtlas.ts). A quarter turn moves a
+ * border onto an adjacent edge and would also swing a vertical brightness
+ * ramp sideways, so it is only used on cells measured flat: `c1r1`, `c6r0`,
+ * `c6r1`. A half turn maps every edge onto its opposite and flips the ramp
+ * end-for-end, which is exactly why the isolated-tile cell `c0r0` uses one —
+ * it puts that cell's bright end in the strip visible below the grass.
  */
 function drawGroundTile(
   ctx: CanvasRenderingContext2D,

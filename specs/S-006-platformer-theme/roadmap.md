@@ -81,9 +81,9 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
 - [ ] **31. Level selection** — not yet designed. Needs its own brainstorming session
   before a plan exists: a way to choose among multiple levels instead of always
   loading the current one.
-- [ ] **32. Terrain rework** — restyle the ground and add a cave-style background
-  using autotiling, instead of today's fixed single-sprite tiles. Blocked on step 31
-  landing first.
+- [x] **32. Terrain rework** — `groundGrass` is autotiled from `tile_atlas.png` via a
+  4-neighbour mask, with grass drawn as a decoupled overlay pass. Design in
+  `plans/2026-09-02-terrain-rework-design.md`.
 - [x] **33. Purple slime spike cooldown** — a purple slime that survives a stomp grows
   spikes for a short cooldown, punishing a landing attempt instead of allowing another
   stomp.
