@@ -7,6 +7,12 @@ import {
   isTopExposed,
   tileToPixel,
   bridgeRunPosition,
+  horizontalRunPosition,
+  neighbourMask,
+  NEIGHBOUR_UP,
+  NEIGHBOUR_RIGHT,
+  NEIGHBOUR_DOWN,
+  NEIGHBOUR_LEFT,
   TILE_SIZE,
   RENDER_SCALE,
   RENDERED_TILE_SIZE,
@@ -115,6 +121,158 @@ describe('Terrain', () => {
   it('bridgeRunPosition-bothNeighborsAreBridge-returnsMiddle', () => {
     const level: LevelDef = { width: 3, height: 1, terrain: [['bridge', 'bridge', 'bridge']] };
     expect(bridgeRunPosition(level, 1, 0)).toBe('middle');
+  });
+
+  it('neighbourMask-isolatedTile-returnsZero', () => {
+    const level: LevelDef = { width: 1, height: 1, terrain: [['groundGrass']] };
+    expect(neighbourMask(level, 0, 0)).toBe(0);
+  });
+
+  it('neighbourMask-solidAbove-setsUpBit', () => {
+    const level: LevelDef = {
+      width: 1,
+      height: 2,
+      terrain: [['groundGrass'], ['groundGrass']],
+    };
+    expect(neighbourMask(level, 0, 1)).toBe(NEIGHBOUR_UP);
+  });
+
+  it('neighbourMask-solidBelow-setsDownBit', () => {
+    const level: LevelDef = {
+      width: 1,
+      height: 2,
+      terrain: [['groundGrass'], ['groundGrass']],
+    };
+    expect(neighbourMask(level, 0, 0)).toBe(NEIGHBOUR_DOWN);
+  });
+
+  it('neighbourMask-solidLeftAndRight-setsBothHorizontalBits', () => {
+    const level: LevelDef = {
+      width: 3,
+      height: 1,
+      terrain: [['groundGrass', 'groundGrass', 'groundGrass']],
+    };
+    expect(neighbourMask(level, 1, 0)).toBe(NEIGHBOUR_LEFT | NEIGHBOUR_RIGHT);
+  });
+
+  it('neighbourMask-surroundedBySolid-setsAllBits', () => {
+    const level: LevelDef = {
+      width: 3,
+      height: 3,
+      terrain: [
+        ['groundGrass', 'groundGrass', 'groundGrass'],
+        ['groundGrass', 'groundGrass', 'groundGrass'],
+        ['groundGrass', 'groundGrass', 'groundGrass'],
+      ],
+    };
+    expect(neighbourMask(level, 1, 1)).toBe(
+      NEIGHBOUR_UP | NEIGHBOUR_RIGHT | NEIGHBOUR_DOWN | NEIGHBOUR_LEFT,
+    );
+  });
+
+  it('neighbourMask-nonSolidNeighbour-leavesBitClear', () => {
+    // A ladder is deliberately not solid, so it does not open the edge.
+    const level: LevelDef = {
+      width: 2,
+      height: 1,
+      terrain: [['groundGrass', 'ladder']],
+    };
+    expect(neighbourMask(level, 0, 0) & NEIGHBOUR_RIGHT).toBe(0);
+  });
+
+  it('neighbourMask-differentSolidMaterial-opensEdge', () => {
+    // Borders are about facing air, so any solid neighbour opens the edge.
+    const level: LevelDef = {
+      width: 2,
+      height: 1,
+      terrain: [['groundGrass', 'wall']],
+    };
+    expect(neighbourMask(level, 0, 0) & NEIGHBOUR_RIGHT).toBe(NEIGHBOUR_RIGHT);
+  });
+
+  it('neighbourMask-upBitClear-matchesIsTopExposedForNonBridgeNeighbours', () => {
+    // For every neighbour except a bridge the two notions agree, and the grass
+    // pass relies on that.
+    const level: LevelDef = {
+      width: 2,
+      height: 2,
+      terrain: [
+        ['groundGrass', 'empty'],
+        ['groundGrass', 'groundGrass'],
+      ],
+    };
+    for (let row = 0; row < level.height; row++) {
+      for (let col = 0; col < level.width; col++) {
+        const upClear = (neighbourMask(level, col, row) & NEIGHBOUR_UP) === 0;
+        expect(upClear).toBe(isTopExposed(level, col, row));
+      }
+    }
+  });
+
+  it('neighbourMask-bridgeNeighbour-treatedAsAirUnlikeIsSolid', () => {
+    // A bridge is a thin walkway, not a solid mass: ground beside or beneath one
+    // must render as though it faced air, so the bridge leaves the edge CLOSED
+    // even though isSolid('bridge') is true.
+    const level: LevelDef = {
+      width: 2,
+      height: 2,
+      terrain: [
+        ['bridge', 'empty'],
+        ['groundGrass', 'bridge'],
+      ],
+    };
+    const mask = neighbourMask(level, 0, 1);
+    expect(mask & NEIGHBOUR_UP).toBe(0);
+    expect(mask & NEIGHBOUR_RIGHT).toBe(0);
+    // isTopExposed still counts the bridge as solid — the two deliberately differ.
+    expect(isTopExposed(level, 0, 1)).toBe(false);
+  });
+
+  it('horizontalRunPosition-noMatchingNeighbours-returnsSingle', () => {
+    const level: LevelDef = { width: 1, height: 1, terrain: [['groundGrass']] };
+    const isGround = (l: LevelDef, c: number, r: number) => tileAt(l, c, r) === 'groundGrass';
+    expect(horizontalRunPosition(level, 0, 0, isGround)).toBe('single');
+  });
+
+  it('horizontalRunPosition-onlyRightMatches-returnsLeft', () => {
+    const level: LevelDef = {
+      width: 2,
+      height: 1,
+      terrain: [['groundGrass', 'groundGrass']],
+    };
+    const isGround = (l: LevelDef, c: number, r: number) => tileAt(l, c, r) === 'groundGrass';
+    expect(horizontalRunPosition(level, 0, 0, isGround)).toBe('left');
+  });
+
+  it('horizontalRunPosition-onlyLeftMatches-returnsRight', () => {
+    const level: LevelDef = {
+      width: 2,
+      height: 1,
+      terrain: [['groundGrass', 'groundGrass']],
+    };
+    const isGround = (l: LevelDef, c: number, r: number) => tileAt(l, c, r) === 'groundGrass';
+    expect(horizontalRunPosition(level, 1, 0, isGround)).toBe('right');
+  });
+
+  it('horizontalRunPosition-bothNeighboursMatch-returnsMiddle', () => {
+    const level: LevelDef = {
+      width: 3,
+      height: 1,
+      terrain: [['groundGrass', 'groundGrass', 'groundGrass']],
+    };
+    const isGround = (l: LevelDef, c: number, r: number) => tileAt(l, c, r) === 'groundGrass';
+    expect(horizontalRunPosition(level, 1, 0, isGround)).toBe('middle');
+  });
+
+  it('horizontalRunPosition-predicateRejectsNeighbour-capsTheRun', () => {
+    // The predicate, not mere adjacency, decides continuity.
+    const level: LevelDef = {
+      width: 2,
+      height: 1,
+      terrain: [['groundGrass', 'groundRock']],
+    };
+    const isGround = (l: LevelDef, c: number, r: number) => tileAt(l, c, r) === 'groundGrass';
+    expect(horizontalRunPosition(level, 0, 0, isGround)).toBe('single');
   });
 });
 

@@ -54,4 +54,27 @@ describe('LanguageSelect', () => {
     const popup = document.querySelector('[data-slot="select-content"]');
     expect(popup).toHaveAttribute('data-align-trigger', 'false');
   });
+
+  it('opened-callsOnOpenChangeWithTrue', async () => {
+    const { LanguageSelect } = await setupEnglish();
+    const onOpenChange = vi.fn();
+    render(<LanguageSelect onOpenChange={onOpenChange} />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('combobox'));
+
+    expect(onOpenChange).toHaveBeenCalledWith(true);
+  });
+
+  it('closedAfterOpen-callsOnOpenChangeWithFalse', async () => {
+    const { LanguageSelect } = await setupEnglish();
+    const onOpenChange = vi.fn();
+    render(<LanguageSelect onOpenChange={onOpenChange} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('combobox'));
+
+    await user.click(screen.getAllByText('Deutsch')[0]);
+
+    expect(onOpenChange).toHaveBeenLastCalledWith(false);
+  });
 });

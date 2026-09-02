@@ -8,7 +8,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-export const LanguageSelect = () => {
+export interface LanguageSelectProps {
+  onOpenChange?: (open: boolean) => void;
+}
+
+export const LanguageSelect = ({ onOpenChange }: LanguageSelectProps = {}) => {
   useSignals();
 
   const handleLanguageChange = (value: string | null) => {
@@ -22,7 +26,12 @@ export const LanguageSelect = () => {
   );
 
   return (
-    <Select value={currentLocale.value} onValueChange={handleLanguageChange} items={items}>
+    <Select
+      value={currentLocale.value}
+      onValueChange={handleLanguageChange}
+      onOpenChange={(open) => onOpenChange?.(open)}
+      items={items}
+    >
       <SelectTrigger className="w-[160px]">
         <SelectValue placeholder="Select language" />
       </SelectTrigger>

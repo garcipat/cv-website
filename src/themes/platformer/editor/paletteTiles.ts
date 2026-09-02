@@ -22,9 +22,19 @@ export interface TileSpriteSpec {
   sy: number;
   frameWidth: number;
   frameHeight: number;
+  /**
+   * A second crop of the SAME sheet, drawn over the base crop at the same
+   * scale and offset by its own `sx`/`sy`. Ground cells carry no grass — the
+   * engine draws grass as a separate overlay pass — so a swatch that should
+   * look like grassy ground composites the two the same way the renderer
+   * does. A grass cell is 9px of tuft at the top of a 16px cell with the rest
+   * transparent, which is why this needs no height of its own.
+   */
+  overlay?: { sx: number; sy: number };
 }
 
 const WORLD_TILESET = '/sprites/world_tileset.png';
+const TILE_ATLAS = '/sprites/tile_atlas.png';
 
 /**
  * One sprite spec per `TileChar`, or `null` for `.` (the Eraser tool, which
@@ -33,13 +43,14 @@ const WORLD_TILESET = '/sprites/world_tileset.png';
 export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
   '.': null,
   G: {
-    sheet: WORLD_TILESET,
-    sheetWidth: 256,
-    sheetHeight: 256,
-    sx: 0,
+    sheet: TILE_ATLAS,
+    sheetWidth: 130,
+    sheetHeight: 54,
+    sx: 114,
     sy: 0,
     frameWidth: 16,
     frameHeight: 16,
+    overlay: { sx: 76, sy: 38 },
   },
   R: {
     sheet: WORLD_TILESET,

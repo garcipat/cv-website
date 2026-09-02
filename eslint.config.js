@@ -7,7 +7,12 @@ import eslintConfigPrettier from 'eslint-config-prettier';
 import { defineConfig, globalIgnores } from 'eslint/config';
 
 export default defineConfig([
-  globalIgnores(['dist', 'src/components/ui']),
+  // `.claude/worktrees` holds nested git worktrees — full checkouts of this
+  // same repo. Without ignoring them ESLint lints every copy, and having
+  // several candidate tsconfig roots on disk makes typescript-eslint fail to
+  // resolve one at all ("multiple candidate TSConfigRootDirs are present"),
+  // which turns every file in the real source tree into a parsing error.
+  globalIgnores(['dist', '.claude', 'src/components/ui']),
   {
     files: ['**/*.{ts,tsx}'],
     ignores: ['src/components/ui/**'],
