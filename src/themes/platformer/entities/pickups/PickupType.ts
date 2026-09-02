@@ -1,4 +1,5 @@
 import type { Rect } from '../geometry';
+import type { WorldType, Boxed } from '../WorldType';
 import type { SpriteDescriptor } from '../sprites/SpriteSheet';
 import type { DrawContext } from '../../engine/DrawContext';
 
@@ -15,7 +16,7 @@ import type { DrawContext } from '../../engine/DrawContext';
  * and each call site supplies its own eligibility predicate. This interface
  * owns geometry and appearance only.
  */
-export interface PickupType<S> {
+export interface PickupType<S> extends WorldType<S>, Boxed<S> {
   /** Must equal this module's slot in PICKUP_TYPES. */
   key: string;
   sprite: SpriteDescriptor;

@@ -11,7 +11,7 @@ import {
 import type { EnemyState } from './entities/Enemy';
 import type { SlimePurpleState } from './entities/enemies/SlimePurple';
 import { ENEMY_RENDERED_SIZE, toEnemyState } from './entities/Enemy';
-import { enemyHitbox } from './engine/Collision';
+import { typeOf } from './entities/enemies';
 import {
   playerState,
   cameraPositionX,
@@ -59,13 +59,13 @@ import {
 /**
  * The player.y to set so a falling player's hitbox lands a few px into the
  * given enemy's hitbox from the top — comfortably within its upper half (a
- * "landing on top" stomp), derived from the real enemyHitbox/player padding
+ * "landing on top" stomp), derived from the real enemy box/player padding
  * geometry rather than a hand-picked magic offset, so this stays correct
  * regardless of future hitbox/padding tuning (same helper shape as
  * Collision.test.ts's playerLandingOnTopOf).
  */
 function stompLandingY(enemy: EnemyState, overlapPx = 4): number {
-  const box = enemyHitbox(enemy);
+  const box = typeOf(enemy).box(enemy);
   const playerHitboxHeight = PLAYER_RENDERED_SIZE - PLAYER_HEAD_PADDING - PLAYER_FOOT_PADDING;
   return box.y + overlapPx - playerHitboxHeight - PLAYER_HEAD_PADDING;
 }
@@ -1983,7 +1983,7 @@ describe('PlatformerPage', () => {
     frameCallback!(0);
 
     const target = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
-    const box = enemyHitbox(target);
+    const box = typeOf(target).box(target);
     // Positioned so the player's hitbox CENTER sits a few px inside the
     // enemy hitbox's left edge — clearly left of the enemy's own center,
     // not a raw-x coincidence — so knockback direction is unambiguous and
@@ -2013,7 +2013,7 @@ describe('PlatformerPage', () => {
     frameCallback!(0);
 
     const target = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
-    const box = enemyHitbox(target);
+    const box = typeOf(target).box(target);
     // Mirror of the "from the left" case above — player hitbox center a
     // few px inside the enemy hitbox's right edge.
     playerState.value = {
@@ -2078,7 +2078,7 @@ describe('PlatformerPage', () => {
     frameCallback!(0);
 
     const target = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
-    const box = enemyHitbox(target);
+    const box = typeOf(target).box(target);
     playerState.value = {
       ...playerState.value,
       x: box.x + 2 - PLAYER_RENDERED_SIZE / 2,

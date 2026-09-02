@@ -1,6 +1,7 @@
 import type { SpriteDescriptor } from '../sprites/SpriteSheet';
 import type { DrawContext } from '../../engine/DrawContext';
 import type { BlockState } from '../Block';
+import type { WorldType } from '../WorldType';
 
 /**
  * Everything the engine needs to know about one block kind, owned entirely by
@@ -20,7 +21,7 @@ import type { BlockState } from '../Block';
  * caller reads that and applies the hit. This interface owns appearance and
  * per-kind rules only.
  */
-export interface BlockType {
+export interface BlockType extends WorldType<BlockState> {
   /** Must equal this module's slot in BLOCK_TYPES. */
   key: string;
   sprite: SpriteDescriptor;

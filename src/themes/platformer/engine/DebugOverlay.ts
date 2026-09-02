@@ -7,7 +7,7 @@ import {
 import type { PlayerState } from '../entities/Player';
 import { enemyRenderedSize, enemyTileOffsetX, enemyTileOffsetY } from '../entities/Enemy';
 import type { EnemyState } from '../entities/Enemy';
-import { enemyHitbox } from './Collision';
+import { typeOf } from '../entities/enemies';
 import { isSolid, tileAt, tileToPixel, RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { LevelDef } from '../level/LevelData';
 
@@ -96,7 +96,7 @@ export function drawDebugOverlay(
       size,
     );
 
-    const box = enemyHitbox(enemy);
+    const box = typeOf(enemy).box(enemy);
     ctx.strokeStyle = 'yellow';
     ctx.strokeRect(box.x + originX, box.y + originY, box.width, box.height);
   }

@@ -6,13 +6,6 @@ import {
 } from '../entities/Player';
 import type { PlayerState } from '../entities/Player';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
-import {
-  enemyRenderedSize,
-  enemyTileOffsetX,
-  enemyTileOffsetY,
-  enemyHitboxSidePadding,
-  enemyHitboxTopPadding,
-} from '../entities/Enemy';
 import type { EnemyState } from '../entities/Enemy';
 import { typeOf } from '../entities/enemies';
 import type { ContactSide } from './Contact';
@@ -113,26 +106,6 @@ export function checkCollectibleCollisions(
   ).map((p) => p.id);
 }
 
-/**
- * An enemy's collision box — inset from the full render slot by the same
- * tile-centering offset `drawEnemies` draws the sprite at
- * (`enemyTileOffsetX`/`enemyTileOffsetY`), plus a further sprite-shape inset
- * (`enemyHitboxSidePadding`/`enemyHitboxTopPadding`, measured from the
- * sprite's own transparent margins) so the box coincides with the visible,
- * rounded slime silhouette rather than its full square render slot.
- */
-export function enemyHitbox(enemy: EnemyState): Box {
-  const size = enemyRenderedSize(enemy.type);
-  const sidePad = enemyHitboxSidePadding(enemy.type);
-  const topPad = enemyHitboxTopPadding(enemy.type);
-  return {
-    x: enemy.x + enemyTileOffsetX(enemy.type) + sidePad,
-    y: enemy.y + enemyTileOffsetY(enemy.type) + topPad,
-    width: size - 2 * sidePad,
-    height: size - topPad,
-  };
-}
-
 export interface EnemyContactResult {
   /** The enemy array with every contacted enemy's returned `self` merged in.
    *  Enemies with no contact are returned unchanged, by reference. */
@@ -171,12 +144,12 @@ export function resolveEnemyContacts(
   for (let i = 0; i < enemies.length; i += 1) {
     const enemy = enemies[i];
     if (!enemy.alive) continue;
-    const selfBox = enemyHitbox(enemy);
+    const enemyType = typeOf(enemy);
+    const selfBox = enemyType.box(enemy);
     if (!aabbOverlap(playerBox, selfBox)) continue;
 
     const landsOnUpperHalf = playerBox.y + playerBox.height <= selfBox.y + selfBox.height / 2;
     const side: ContactSide = player.vy > 0 && landsOnUpperHalf ? 'top' : 'side';
-    const enemyType = typeOf(enemy);
     const outcome = enemyType.onPlayerCollide(enemy, player, {
       side,
       playerVx: player.vx,
