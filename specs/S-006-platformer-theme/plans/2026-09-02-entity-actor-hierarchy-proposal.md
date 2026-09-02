@@ -304,14 +304,14 @@ cleanly, and the third is genuinely a different shape. If blocks are ever rework
 count down with a `removeWhenUsedUp` type flag deciding whether `alive: false` removes
 them, they could join — but that is a behavior change, not a typing exercise.
 
-### 5. One type base, with optional hooks
+### 5. Type-layer bases, composed the same way
 
-The universal capability — *has a box and can be drawn* — belongs on the type layer:
+The type layer composes like the state layer does, rather than inflating one base.
 
 ```ts
+/** Every drawable world object's type. Both members are genuinely universal. */
 export interface WorldType<S> {
   key: string;
-  box(state: S): Rect;
   draw(state: S, dc: DrawContext): void;
 
   /** Optional behavior. A type implements only what applies to it, so adding a
@@ -319,11 +319,23 @@ export interface WorldType<S> {
   onPlayerCollide?(state: S, player: PlayerState, contact: Contact): CollisionOutcome<S>;
   onTick?(state: S, dt: number): S;
 }
+
+/** Has a rectangle in world space — for collision or for triggering. */
+export interface Boxed<S> {
+  box(state: S): Rect;
+}
 ```
 
-`EnemyType`, `PickupType`, `BlockType` and `ChestType` extend it. All four already have
-`draw`; three have `box`, and `ChestType`'s absence becomes a compile error rather than
-an oversight.
+`EnemyType`, `PickupType` and `ChestType` compose both. **`BlockType` composes
+`WorldType` only.** Physics locates blocks by grid cell — `isBlockOccupied(placements,
+col, row)` and `blockIdAt(placements, col, headRow)` — and never computes a block
+rectangle, so a required `box()` there would be a member with no consumer. That is the
+dead-member failure this refactor exists to remove.
+
+The rectangle's *use* differs by family — an enemy's is a collision box, a chest's and a
+pickup's are trigger boxes — but a rectangle is geometry, not semantics; the meaning
+lives in who calls it. That is why `Boxed` is one interface rather than two, unlike
+`animState`, whose *values* denote different kinds of state machine.
 
 **Optional hooks are what serve the extensibility goal.** `EnemyType` already works this
 way — `onTick` is optional and only the purple slime implements it.
