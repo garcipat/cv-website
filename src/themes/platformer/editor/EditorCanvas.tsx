@@ -22,7 +22,14 @@ import {
   drawSigns,
 } from '../engine/Renderer';
 import type { DrawContext } from '../engine/DrawContext';
-import { SLIME_GREEN_SHEET, SLIME_PURPLE_SHEET, COIN_SHEET, FRUIT_SHEET } from '../entities/sprites/sheets';
+import {
+  SLIME_GREEN_SHEET,
+  SLIME_PURPLE_SHEET,
+  COIN_SHEET,
+  FRUIT_SHEET,
+  WORLD_TILESET_SHEET,
+  CRACK_OVERLAY_SHEET,
+} from '../entities/sprites/sheets';
 
 export interface EditorImages {
   tileset: HTMLImageElement | null;
@@ -180,6 +187,8 @@ export const EditorCanvas = ({
         [SLIME_PURPLE_SHEET.src]: images.slimePurple,
         [COIN_SHEET.src]: images.coin,
         [FRUIT_SHEET.src]: images.fruit,
+        [WORLD_TILESET_SHEET.src]: images.tileset,
+        [CRACK_OVERLAY_SHEET.src]: images.crackOverlay,
       },
       originX: panOffset.x,
       originY: panOffset.y,
@@ -190,16 +199,7 @@ export const EditorCanvas = ({
 
     drawEnemies(ctx, synthesizeEnemyStates(grid), drawContext);
 
-    if (images.tileset) {
-      drawBlocks(
-        ctx,
-        synthesizeBlockStates(grid),
-        images.tileset,
-        images.crackOverlay,
-        panOffset.x,
-        panOffset.y,
-      );
-    }
+    drawBlocks(ctx, synthesizeBlockStates(grid), drawContext);
 
     drawChests(
       ctx,

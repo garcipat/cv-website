@@ -1,7 +1,6 @@
 import {
   stepBlockAnimation,
   blockBumpOffsetY,
-  crateShatterOpacity,
   BLOCK_BUMP_DURATION_SECONDS,
   CRATE_SHATTER_DURATION_SECONDS,
 } from './BlockAI';
@@ -85,18 +84,5 @@ describe('blockBumpOffsetY', () => {
   it('bumpEnd-offsetReturnsToZero', () => {
     const offset = blockBumpOffsetY(block({ animState: 'bump', animTimer: BLOCK_BUMP_DURATION_SECONDS }));
     expect(offset).toBeCloseTo(0, 1);
-  });
-});
-
-describe('crateShatterOpacity', () => {
-  it('nonShatteringBlock-returnsFullOpacity', () => {
-    expect(crateShatterOpacity(block({ animState: 'idle' }))).toBe(1);
-    expect(crateShatterOpacity(block({ animState: 'bump' }))).toBe(1);
-  });
-  it('shatterStart-fullOpacity', () => {
-    expect(crateShatterOpacity(block({ animState: 'shatter', animTimer: 0 }))).toBe(1);
-  });
-  it('shatterEnd-zeroOpacity', () => {
-    expect(crateShatterOpacity(block({ animState: 'shatter', animTimer: CRATE_SHATTER_DURATION_SECONDS }))).toBe(0);
   });
 });

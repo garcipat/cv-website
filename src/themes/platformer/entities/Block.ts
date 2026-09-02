@@ -21,7 +21,7 @@ export type BlockKind = 'crate' | 'questionMark' | 'fragileRock';
  * question-mark blends into ordinary ground rather than reading as a
  * distinct block type. Every other kind/hit-count combination keeps
  * rendering its one intact tile forever — crate's crack is a separate
- * overlay (see `crateCrackOverlayVisible`), not a frame swap, and
+ * overlay (see `blocks/Crate.ts`'s `crateCrackOverlayVisible`), not a frame swap, and
  * fragileRock/crate are removed from the world entirely once used up rather
  * than swapping tile. `hitsTaken` defaults to 0 so render-only call sites
  * that don't track hit state still get a valid frame.
@@ -93,12 +93,4 @@ export function isBlockRemoved(block: BlockState): boolean {
 export function applyBlockHit(block: BlockState): BlockState {
   if (isBlockUsedUp(block)) return block;
   return { ...block, hitsTaken: block.hitsTaken + 1, animState: 'bump', animTimer: 0 };
-}
-
-/** Whether a crate's cracked-overlay sprite (`crack_overlay.png`) should be
- *  composited over its base tile — only between its first hit (cracked) and
- *  second hit (shattered/removed), never on an intact or fully-broken
- *  crate. */
-export function crateCrackOverlayVisible(hitsTaken: number): boolean {
-  return hitsTaken === 1;
 }

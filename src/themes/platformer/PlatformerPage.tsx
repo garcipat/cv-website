@@ -85,7 +85,7 @@ import {
   PLAYER_HEAD_PADDING,
 } from './entities/Player';
 import { advanceEnemyAnimation } from './entities/Enemy';
-import { SLIME_GREEN_SHEET, KEY_SHEET } from './entities/sprites/sheets';
+import { SLIME_GREEN_SHEET, KEY_SHEET, WORLD_TILESET_SHEET, CRACK_OVERLAY_SHEET } from './entities/sprites/sheets';
 import { frameSource, collectSheetSources } from './entities/sprites/SpriteSheet';
 import type { SpriteLookup } from './entities/sprites/SpriteSheet';
 import { ENEMY_TYPES, typeOf } from './entities/enemies';
@@ -161,7 +161,6 @@ export const PlatformerPage = () => {
   // shine-through), discovered from the type registry rather than loaded via
   // individual refs — see the mount effect below.
   const spritesRef = useRef<SpriteLookup>({});
-  const crackOverlaySpriteRef = useRef<HTMLImageElement | null>(null);
   const chestClosedSpriteRef = useRef<HTMLImageElement | null>(null);
   const chestOpenSpriteRef = useRef<HTMLImageElement | null>(null);
   const keySpriteRef = useRef<HTMLImageElement | null>(null);
@@ -393,9 +392,7 @@ export const PlatformerPage = () => {
       // floating on top of it.
       drawBonusFruits(ctx, bonusFruitStates.value, drawContext);
 
-      if (tilesetRef.current) {
-        drawBlocks(ctx, blockStates.value, tilesetRef.current, crackOverlaySpriteRef.current, originX, originY);
-      }
+      drawBlocks(ctx, blockStates.value, drawContext);
 
       if (chestClosedSpriteRef.current || chestOpenSpriteRef.current) {
         drawChests(
@@ -1424,11 +1421,18 @@ export const PlatformerPage = () => {
     // coinSpriteRef/fruitSpriteRef, which the HUD counters
     // (drawCollectibleCounter) still read directly — the two loads race
     // harmlessly (same convention KEY_SHEET already established alongside
-    // keySpriteRef's own individual load below).
+    // keySpriteRef's own individual load below). world_tileset.png is
+    // likewise still loaded individually above into tilesetRef, which
+    // drawTerrain/drawSigns read directly — its block-drawing modules
+    // (entities/blocks/) read the copy landing here in spritesRef instead.
+    // crack_overlay.png has no dedicated ref at all; only a crate's own
+    // module reads it, via spritesRef.
     for (const src of collectSheetSources([
       ...Object.values(ENEMY_TYPES).map((t) => t.sprite),
       ...Object.values(PICKUP_TYPES).map((t) => t.sprite),
       { sheet: KEY_SHEET, renderScale: 1, animations: {} },
+      { sheet: WORLD_TILESET_SHEET, renderScale: 1, animations: {} },
+      { sheet: CRACK_OVERLAY_SHEET, renderScale: 1, animations: {} },
     ])) {
       loadImage(src)
         .then((img) => {
@@ -1441,16 +1445,6 @@ export const PlatformerPage = () => {
           // render if it fails to load; the rest of the game still shows.
         });
     }
-    loadImage('/sprites/crack_overlay.png')
-      .then((img) => {
-        if (cancelled) return;
-        crackOverlaySpriteRef.current = img;
-        render();
-      })
-      .catch(() => {
-        // A cracked crate simply won't show its overlay if this fails to
-        // load; the base crate tile and every other mechanic still work.
-      });
     loadImage('/sprites/chest_closed.png')
       .then((img) => {
         if (cancelled) return;
