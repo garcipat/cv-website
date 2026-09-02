@@ -1289,6 +1289,54 @@ describe('PlatformerPage', () => {
     expect(activeEffects.value.some((e) => e.id === rock.id)).toBe(false);
   });
 
+  it('crateDestroyedFromBelow-terminalHit-queuesAPuffAndStillAwardsTheFlightEffectReward', () => {
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const crate = blockPlacements.value.find((b) => b.blockKind === 'crate')!;
+    const ceilingBottomY = crate.y + RENDERED_TILE_SIZE;
+    const bumpPosition = {
+      x: crate.x,
+      y: ceilingBottomY - PLAYER_HEAD_PADDING + 1,
+      vy: -1000,
+    };
+
+    // First hit (crate takes 2 — Block.ts's maxHitsForBlock('crate')):
+    // bumps it but doesn't destroy it yet, so no puff/reward should fire.
+    playerState.value = { ...playerState.value, ...bumpPosition };
+    let t = 16;
+    frameCallback!(t);
+    for (let i = 0; i < 10; i++) {
+      t += 16;
+      frameCallback!(t);
+    }
+    expect(activePuffs.value.some((p) => p.id === crate.id)).toBe(false);
+    expect(activeEffects.value.some((e) => e.id === crate.id)).toBe(false);
+
+    // Second hit — the terminal one — must ALWAYS queue a puff (destruction
+    // feedback, reusing the same blockEffectAnchor/startPuffEffect mechanism
+    // as fragileRock above) AND independently still award the existing
+    // fact/flight-effect reward, since every real crate carries a fact.
+    playerState.value = { ...playerState.value, ...bumpPosition };
+    t += 16;
+    frameCallback!(t);
+    for (let i = 0; i < 10; i++) {
+      t += 16;
+      frameCallback!(t);
+    }
+
+    expect(activePuffs.value.some((p) => p.id === crate.id)).toBe(true);
+    expect(activeEffects.value.some((e) => e.id === crate.id)).toBe(true);
+    expect(collectedFacts.value.some((f) => f.id === crate.fact?.id)).toBe(true);
+  });
+
   it('coinCollection-queuesAFlightEffectOnly-neverAlsoAPuff', () => {
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
