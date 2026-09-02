@@ -7,24 +7,20 @@ import { coinBobOffset } from '../Coin';
 /** The `PickupType` view of a placed fruit collectible — Fruit.ts remains
  *  the source of truth for every constant. A placed fruit carries no
  *  per-instance icon index (unlike BonusFruit's `iconIndex`); its icon comes
- *  from its position among all fruit placements instead, matching
- *  Renderer.ts's current `drawCollectibles`, which counts placements as it
- *  iterates and feeds that running count into `fruitFrameSource` — so
- *  `frameIndex` returns `index` itself (the LOGICAL index; packed-slot
- *  mapping via `FRUIT_ICON_ORDER` happens later, at draw time). Fruits bob
- *  exactly like coins (Coin.ts's coinBobOffset, reused as-is — bobbing is
- *  visual, not coin-specific). */
+ *  from its position among all fruit placements instead, supplied through
+ *  this module's own `frameIndex`/`draw` `index` parameter (the caller counts
+ *  placements as it iterates) — so `frameIndex` returns `index` itself (the
+ *  LOGICAL index; packed-slot mapping via `FRUIT_ICON_ORDER` happens later,
+ *  at draw time). Fruits bob exactly like coins (Coin.ts's coinBobOffset,
+ *  reused as-is — bobbing is visual, not coin-specific). */
 export const fruit: PickupType<CollectiblePlacement> = {
   key: 'fruit',
   sprite: {
     sheet: FRUIT_SHEET,
     renderScale: 1,
-    animations: {
-      idle: {
-        frames: [0],
-        frameDuration: 1, // unused — a single-frame animation never advances.
-      },
-    },
+    // Frame selection goes through frameIndex, not through named animations —
+    // this stays empty rather than restating unread frame/duration data.
+    animations: {},
   },
   box: (placement) => ({
     x: placement.x,
@@ -35,7 +31,6 @@ export const fruit: PickupType<CollectiblePlacement> = {
   // Icon comes from placement order, not per-instance state — see doc comment above.
   frameIndex: (_state, _elapsed, index) => index,
   bobOffset: (_placement, elapsed) => coinBobOffset(elapsed),
-  // Relocated from Renderer.ts's drawCollectibles fruit branch, unchanged.
   // The logical index (this placement's position among all fruit
   // placements, supplied by the caller — see drawCollectibles) is mapped to
   // a packed sheet position by fruitFrameSource, NOT the generic

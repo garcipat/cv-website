@@ -5,8 +5,6 @@ import { frameSource } from '../sprites/SpriteSheet';
 import {
   COIN_FRAME_SIZE,
   COIN_RENDERED_SIZE,
-  COIN_FRAME_COUNT,
-  COIN_FRAME_DURATION,
   coinFrameIndex,
   coinBobOffset,
 } from '../Coin';
@@ -19,12 +17,10 @@ export const coin: PickupType<CollectiblePlacement> = {
   sprite: {
     sheet: COIN_SHEET,
     renderScale: 1,
-    animations: {
-      spin: {
-        frames: Array.from({ length: COIN_FRAME_COUNT }, (_, i) => i),
-        frameDuration: COIN_FRAME_DURATION,
-      },
-    },
+    // Frame selection goes through frameIndex (coinFrameIndex), not through
+    // named animations — this stays empty so the frame count/duration have
+    // one source of truth instead of two that could silently diverge.
+    animations: {},
   },
   box: (placement) => ({
     x: placement.x,
@@ -32,9 +28,8 @@ export const coin: PickupType<CollectiblePlacement> = {
     width: COIN_RENDERED_SIZE,
     height: COIN_RENDERED_SIZE,
   }),
-  frameIndex: (_placement, elapsed, _index) => coinFrameIndex(elapsed),
+  frameIndex: (_placement, elapsed) => coinFrameIndex(elapsed),
   bobOffset: (_placement, elapsed) => coinBobOffset(elapsed),
-  // Relocated from Renderer.ts's drawCollectibles coin branch, unchanged.
   draw: (placement, dc) => {
     const image = dc.sprites[COIN_SHEET.src];
     if (!image) return;

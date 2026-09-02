@@ -32,13 +32,14 @@ export const KEY_RENDERED_WIDTH = Math.round((KEY_FRAME_WIDTH / KEY_FRAME_HEIGHT
 export const KEY_TILE_OFFSET_X = (RENDERED_TILE_SIZE - KEY_RENDERED_WIDTH) / 2;
 
 /** Bottom-anchoring offset — 0 here (the key's rendered height exactly fills
- *  one tile), kept as its own named constant so drawKeyPickups reads the
- *  same bottom-anchoring pattern Enemy.ts's enemyTileOffsetY establishes. */
+ *  one tile), kept as its own named constant so entities/pickups/Key.ts's
+ *  `box`/`draw` read the same bottom-anchoring pattern Enemy.ts's
+ *  enemyTileOffsetY establishes. */
 export const KEY_TILE_OFFSET_Y = RENDERED_TILE_SIZE - KEY_RENDERED_HEIGHT;
 
 /**
  * A dropped key, sitting in the world as its own bobbing pickup (bob reuses
- * Coin.ts's coinBobOffset directly — see Renderer.ts's drawKeyPickups). `id`
+ * Coin.ts's coinBobOffset directly — see entities/pickups/Key.ts). `id`
  * reuses the source purple slime's own `id`, identifying the pickup for
  * collection within `keyPickupStates` — it is no longer a dedup key. The
  * no-second-key guarantee (a purple slime respawned after death and defeated

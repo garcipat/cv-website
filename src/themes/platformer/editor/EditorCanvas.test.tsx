@@ -4,6 +4,7 @@ import { EditorCanvas } from './EditorCanvas';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { TileChar } from '../level/LevelParser';
 import type { EditorImages } from './EditorCanvas';
+import { COIN_SHEET } from '../entities/sprites/sheets';
 
 vi.mock('../engine/Renderer', () => ({
   drawTerrain: vi.fn(),
@@ -273,7 +274,11 @@ describe('EditorCanvas', () => {
       expect.anything(),
       expect.arrayContaining([expect.objectContaining({ spriteType: 'coin' })]),
       expect.any(Set),
-      expect.objectContaining({ originX: 5, originY: 7 }),
+      expect.objectContaining({
+        originX: 5,
+        originY: 7,
+        sprites: expect.objectContaining({ [COIN_SHEET.src]: coin }),
+      }),
     );
     expect(drawEnemies).toHaveBeenCalledWith(
       expect.anything(),

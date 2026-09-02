@@ -92,8 +92,9 @@ export function overlappingPickups<T>(
  * already-collected (visually removed) collectible is a no-op, not a
  * duplicate-collect (FR-020c). Boxes come from `PICKUP_TYPES[spriteType].box`,
  * which uses each placement's fixed x/y, ignoring the cosmetic bob offset
- * (Renderer.ts's drawCollectibles) so the hitbox doesn't jitter a few pixels
- * every frame independent of the sprite. A coin placement's box is
+ * (applied only when drawing — see each pickup type's own `bobOffset` under
+ * entities/pickups/) so the hitbox doesn't jitter a few pixels every frame
+ * independent of the sprite. A coin placement's box is
  * `COIN_RENDERED_SIZE` square and a fruit placement's is `FRUIT_RENDERED_SIZE`
  * square — both currently equal 32, so routing per-placement through its own
  * pickup type is a no-op versus the single shared size this function used to
@@ -294,9 +295,9 @@ export function checkSignOverlap(
  * second key on a later respawn because of a separate mechanism: the source
  * enemy's own `rewardGiven` flag (Enemy.ts), which `reviveEnemy` leaves
  * untouched. The box is offset by KEY_TILE_OFFSET_X/Y, the same
- * centering/bottom-anchoring Renderer.ts's drawKeyPickups applies, so the
- * collidable area matches where the key is actually drawn rather than the
- * tile's raw top-left corner.
+ * centering/bottom-anchoring entities/pickups/Key.ts's `box`/`draw` apply,
+ * so the collidable area matches where the key is actually drawn rather
+ * than the tile's raw top-left corner.
  */
 export function checkKeyPickupCollisions(
   player: PlayerState,

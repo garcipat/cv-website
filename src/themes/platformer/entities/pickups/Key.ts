@@ -15,7 +15,7 @@ import { coinBobOffset } from '../Coin';
 /** The `PickupType` view of a dropped key — KeyPickup.ts remains the source
  *  of truth for every constant. A single standalone image, not a sheet, so
  *  frameIndex is always 0. Bobs exactly like a coin (Coin.ts's
- *  coinBobOffset — see Renderer.ts's drawKeyPickups). */
+ *  coinBobOffset — reused as-is, this module's own `draw` applies it). */
 export const key: PickupType<KeyPickupState> = {
   key: 'key',
   sprite: {
@@ -25,12 +25,10 @@ export const key: PickupType<KeyPickupState> = {
     // helper (drawSpriteSheetEntity) must not be used to draw this pickup, or
     // it will render at the wrong (square) size and aspect.
     renderScale: 1,
-    animations: {
-      idle: {
-        frames: [0],
-        frameDuration: 1, // unused — a single-frame animation never advances.
-      },
-    },
+    // Frame selection goes through frameIndex (always 0 — a single standalone
+    // image), not through named animations — this stays empty rather than
+    // restating unread frame/duration data.
+    animations: {},
   },
   box: (pickup) => ({
     x: pickup.x + KEY_TILE_OFFSET_X,
@@ -38,11 +36,11 @@ export const key: PickupType<KeyPickupState> = {
     width: KEY_RENDERED_WIDTH,
     height: KEY_RENDERED_HEIGHT,
   }),
-  frameIndex: (_pickup, _elapsed, _index) => 0,
+  frameIndex: () => 0,
   bobOffset: (_pickup, elapsed) => coinBobOffset(elapsed),
-  // Relocated from Renderer.ts's drawKeyPickups, unchanged. Draws at
-  // KEY_RENDERED_WIDTH/HEIGHT (via box(), the non-square 14:22-derived
-  // size), NOT the shared sheet-drawing helper (see the note above).
+  // Draws at KEY_RENDERED_WIDTH/HEIGHT (via box(), the non-square
+  // 14:22-derived size), NOT the shared sheet-drawing helper (see the note
+  // above).
   draw: (pickup, dc) => {
     const image = dc.sprites[KEY_SHEET.src];
     if (!image) return;
