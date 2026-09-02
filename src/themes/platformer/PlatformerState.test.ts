@@ -15,6 +15,7 @@ import {
   enemyStates,
   collectedCollectibleIds,
   activeEffects,
+  activePuffs,
   blockPlacements,
   chestPlacements,
   chestStates,
@@ -35,6 +36,7 @@ import {
   PLAYER_VISUAL_CENTER_Y_OFFSET,
 } from './entities/Player';
 import { toChestState, isChestOpen } from './entities/Chest';
+import { startPuffEffect } from './engine/CollectionEffects';
 
 describe('PlatformerState', () => {
   it('collectedFacts-initial-isEmpty', () => {
@@ -346,6 +348,18 @@ describe('resetGameProgress', () => {
 
   it('controlsOverlayDismissed-initial-isFalse', () => {
     expect(controlsOverlayDismissed.value).toBe(false);
+  });
+});
+
+describe('activePuffs', () => {
+  it('startsEmpty', () => {
+    expect(activePuffs.value).toEqual([]);
+  });
+
+  it('resetGameProgress-clearsActivePuffs', () => {
+    activePuffs.value = [startPuffEffect('a', 0, 0)];
+    resetGameProgress();
+    expect(activePuffs.value).toEqual([]);
   });
 });
 

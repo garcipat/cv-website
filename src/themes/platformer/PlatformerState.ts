@@ -41,7 +41,7 @@ import type { CollectedFact, SectionId } from './types';
 import type { CollectiblePlacement } from './level/CollectibleMapper';
 import type { EnemyPlacement } from './level/EnemyMapper';
 import type { BlockPlacement } from './level/BlockMapper';
-import type { FlightEffect, CounterPopupEffect, CounterPopupLabelKey } from './engine/CollectionEffects';
+import type { FlightEffect, PuffEffect, CounterPopupEffect, CounterPopupLabelKey } from './engine/CollectionEffects';
 import type { HintTooltipState } from './engine/HintTooltip';
 
 /**
@@ -320,6 +320,14 @@ export const collectedCollectibleIds = signal<Set<string>>(new Set());
 /** Currently animating fact-flight/sparkle effects (see engine/CollectionEffects.ts). */
 export const activeEffects = signal<FlightEffect[]>([]);
 
+/** Currently animating world-event puffs — see engine/CollectionEffects.ts's
+ *  PuffEffect doc comment and B-003
+ *  (docs/bugs/B-003-puff-bound-to-fact-reward/ticket.md). Kept as its own
+ *  array, parallel to activeEffects, rather than merged into it: the two are
+ *  different shapes (no text/flight-target fields here) and different
+ *  render passes (drawPuffEffects vs. drawCollectionEffects). */
+export const activePuffs = signal<PuffEffect[]>([]);
+
 /**
  * The currently-visible "(icon) collected / total" counter popups, one slot
  * per collectible type. A missing key means that type has nothing showing.
@@ -429,6 +437,7 @@ export function resetGameProgress(): void {
   collectedCollectibleIds.value = new Set();
   activeJournalSection.value = undefined;
   activeEffects.value = [];
+  activePuffs.value = [];
   activeCounterPopups.value = {};
   blockStates.value = blockPlacements.value.map(toBlockState);
   chestStates.value = chestPlacements.value.map(toChestState);
