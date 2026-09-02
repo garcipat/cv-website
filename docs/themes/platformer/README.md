@@ -11,6 +11,14 @@ independent of any single implementation step. (The formal requirements/roadmap 
 in `specs/`; this document is the conceptual companion that outlives any one feature
 branch.)
 
+## Documents in this folder
+
+| Document | Covers |
+|---|---|
+| **README.md** (this file) | The theme itself — controls, core loop, CV-data mapping, journal, movement and collision design |
+| [Entities.md](Entities.md) | How every drawable thing is modelled: capability interfaces, the type layer, identity, sprites, contacts and triggers |
+| [EntityFollowUps.md](EntityFollowUps.md) | What is not done, and the loose ends worth closing |
+
 ## Controls
 
 | Key | Action |

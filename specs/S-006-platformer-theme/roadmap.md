@@ -38,7 +38,7 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   Extended beyond the original scope: `level1`'s floating platform (row 7) was
   redesigned into a platform-bridge-platform arrangement with reachable ground
   below, and a Down-arrow/`S` drop-through was added now that a level layout
-  actually needs it (see `docs/themes/Platformer.md` for the updated reasoning).
+  actually needs it (see `docs/themes/platformer/README.md` for the updated reasoning).
   *Verify: jump up through a bridge from below and land on top of it; walking onto it
   from the side and standing on top both still work solidly; holding Down while on a
   bridge drops the character through it.*
@@ -726,7 +726,7 @@ they aren't lost, not in priority order.
   (the player family, world-event puffs, pickup lifecycle), what adding a new type
   actually costs across the level/editor surface, and the loose ends worth closing are
   recorded in
-  `plans/2026-09-02-entity-architecture-followups.md`. Defects found during that work
+  `docs/themes/platformer/EntityFollowUps.md`. Defects found during that work
   are filed as B-003, B-004 and B-005 in `docs/Bugs.md`.
 
 ## Working agreement

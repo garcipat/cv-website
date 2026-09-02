@@ -38,5 +38,5 @@ shipped level can show. Leaving this open and documented may stay the right call
 
 ## Related
 
-- `specs/S-006-platformer-theme/plans/2026-09-02-entity-architecture-followups.md` —
+- `docs/themes/platformer/EntityFollowUps.md` —
   listed under "Known and accepted", with the reachability arithmetic.
