@@ -49,22 +49,28 @@ export function aabbOverlap(a: Box, b: Box): boolean {
   return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
 }
 
+const ALWAYS_ELIGIBLE = () => true;
+
 /**
- * Every item whose box overlaps the player's hitbox and that its caller
- * considers eligible right now.
+ * Every trigger — pickup, chest, sign — whose box overlaps the player's
+ * hitbox and that its caller considers eligible right now, in the order the
+ * items were given. Matches are returned by reference, so a tick that touches
+ * nothing allocates only the empty array. Callers wanting just the nearest-in-
+ * array trigger take `[0]`.
  *
  * Eligibility is a caller-supplied predicate rather than a property of the
- * item, because the pickup families record "already collected" differently:
+ * item, because the trigger families record "no longer available" differently:
  * placed collectibles are deduplicated against an external id Set, dropped
- * keys carry a `collected` flag, and bonus fruits are removed from their
- * array outright. The overlap mechanism is shared; the policy stays with
- * whoever owns it.
+ * keys carry a `collected` flag, bonus fruits are removed from their array
+ * outright, chests read their own open/closed state, and signs are reusable
+ * and never become ineligible at all (they omit the predicate). The overlap
+ * mechanism is shared; the policy stays with whoever owns it.
  */
-export function overlappingPickups<T>(
+export function overlappingTriggers<T>(
   player: PlayerState,
   items: readonly T[],
   boxOf: (item: T) => Box,
-  eligible: (item: T) => boolean,
+  eligible: (item: T) => boolean = ALWAYS_ELIGIBLE,
 ): T[] {
   const hitbox = playerHitbox(player);
   const hits: T[] = [];
@@ -94,7 +100,7 @@ export function checkCollectibleCollisions(
   placements: CollectiblePlacement[],
   collectedIds: ReadonlySet<string>,
 ): string[] {
-  return overlappingPickups(
+  return overlappingTriggers(
     player,
     placements,
     (p) => PICKUP_TYPES[p.spriteType].box(p),
@@ -202,7 +208,7 @@ export function checkBonusFruitCollisions(
   player: PlayerState,
   fruits: readonly BonusFruitState[],
 ): string[] {
-  return overlappingPickups(
+  return overlappingTriggers(
     player,
     fruits,
     (f) => PICKUP_TYPES.bonusFruit.box(f),
@@ -227,12 +233,7 @@ export function chestPlayerIsStandingOn(
   player: PlayerState,
   chests: readonly ChestState[],
 ): string | undefined {
-  const hitbox = playerHitbox(player);
-  for (const chest of chests) {
-    if (isChestOpen(chest)) continue;
-    if (aabbOverlap(hitbox, CHEST_TYPE.box(chest))) return chest.id;
-  }
-  return undefined;
+  return overlappingTriggers(player, chests, CHEST_TYPE.box, (c) => !isChestOpen(c))[0]?.id;
 }
 
 /**
@@ -248,11 +249,7 @@ export function checkSignOverlap(
   player: PlayerState,
   signs: readonly SignPlacement[],
 ): HintId | undefined {
-  const hitbox = playerHitbox(player);
-  for (const sign of signs) {
-    if (aabbOverlap(hitbox, signBox(sign))) return sign.hintId;
-  }
-  return undefined;
+  return overlappingTriggers(player, signs, signBox)[0]?.hintId;
 }
 
 /**
@@ -273,7 +270,7 @@ export function checkKeyPickupCollisions(
   player: PlayerState,
   pickups: readonly KeyPickupState[],
 ): string[] {
-  return overlappingPickups(
+  return overlappingTriggers(
     player,
     pickups,
     (p) => PICKUP_TYPES.key.box(p),

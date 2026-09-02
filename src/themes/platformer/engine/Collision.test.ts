@@ -7,8 +7,9 @@ import {
   chestPlayerIsStandingOn,
   checkSignOverlap,
   checkKeyPickupCollisions,
-  overlappingPickups,
+  overlappingTriggers,
 } from './Collision';
+import type { Box } from './Collision';
 import {
   PLAYER_SIDE_PADDING,
   PLAYER_HEAD_PADDING,
@@ -109,18 +110,23 @@ describe('aabbOverlap', () => {
   });
 });
 
-describe('overlappingPickups', () => {
+/** A trigger item positioned by real `playerHitbox` arithmetic, so no case
+ *  below can pass vacuously by never overlapping in the first place. */
+interface TestTrigger {
+  id: string;
+  x: number;
+  y: number;
+}
+
+const triggerBox = (item: TestTrigger): Box => ({ x: item.x, y: item.y, width: 32, height: 32 });
+
+describe('overlappingTriggers', () => {
   it('itemsOverlappingThePlayer-areReturnedInArrayOrder', () => {
     const player = makePlayer(100, 100);
     const box = playerHitbox(player);
     const near = { id: 'near', x: box.x, y: box.y };
     const far = { id: 'far', x: box.x + 500, y: box.y };
-    const result = overlappingPickups(
-      player,
-      [far, near],
-      (i) => ({ x: i.x, y: i.y, width: 32, height: 32 }),
-      () => true,
-    );
+    const result = overlappingTriggers(player, [far, near], triggerBox, () => true);
     expect(result).toEqual([near]);
   });
 
@@ -128,13 +134,54 @@ describe('overlappingPickups', () => {
     const player = makePlayer(100, 100);
     const box = playerHitbox(player);
     const item = { id: 'blocked', x: box.x, y: box.y };
-    const result = overlappingPickups(
-      player,
-      [item],
-      (i) => ({ x: i.x, y: i.y, width: 32, height: 32 }),
-      () => false,
-    );
+    const result = overlappingTriggers(player, [item], triggerBox, () => false);
     expect(result).toEqual([]);
+  });
+
+  it('severalOverlappingItems-areReturnedInArrayOrderNotProximityOrder', () => {
+    const player = makePlayer(100, 100);
+    const box = playerHitbox(player);
+    // Every one of these overlaps the player's hitbox: `last` sits exactly on
+    // it, `first`/`second` are nudged left/right by less than their own width.
+    const first: TestTrigger = { id: 'first', x: box.x + box.width - 4, y: box.y };
+    const second: TestTrigger = { id: 'second', x: box.x - 28, y: box.y };
+    const last: TestTrigger = { id: 'last', x: box.x, y: box.y };
+
+    const result = overlappingTriggers(player, [first, second, last], triggerBox, () => true);
+
+    expect(result.map((i) => i.id)).toEqual(['first', 'second', 'last']);
+  });
+
+  it('eligibleItemThatDoesNotOverlap-isSkipped', () => {
+    const player = makePlayer(100, 100);
+    const box = playerHitbox(player);
+    // Touching edges only (aabbOverlap treats a zero-area intersection as a
+    // miss), so this is eligible but genuinely not overlapping.
+    const flush: TestTrigger = { id: 'flush', x: box.x + box.width, y: box.y };
+
+    expect(overlappingTriggers(player, [flush], triggerBox, () => true)).toEqual([]);
+  });
+
+  it('matchingItems-areReturnedByReference', () => {
+    const player = makePlayer(100, 100);
+    const box = playerHitbox(player);
+    const item: TestTrigger = { id: 'hit', x: box.x, y: box.y };
+
+    const result = overlappingTriggers(player, [item], triggerBox, () => true);
+
+    expect(result[0]).toBe(item);
+  });
+
+  it('noEligibilityPredicate-everyOverlappingItemMatches', () => {
+    const player = makePlayer(100, 100);
+    const box = playerHitbox(player);
+    const item: TestTrigger = { id: 'always', x: box.x, y: box.y };
+
+    expect(overlappingTriggers(player, [item], triggerBox)).toEqual([item]);
+  });
+
+  it('emptyItemList-returnsEmptyArray', () => {
+    expect(overlappingTriggers(makePlayer(0, 0), [], triggerBox)).toEqual([]);
   });
 });
 
