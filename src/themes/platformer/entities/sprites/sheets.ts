@@ -104,3 +104,15 @@ export const CHEST_OPEN_SHEET: SpriteSheet = {
   frameHeight: CHEST_OPEN_HEIGHT,
   columns: 1,
 };
+
+/** `tile_atlas.png` is the purpose-built ground sheet: 16px tiles on a 19px
+ *  stride, 7 columns by 3 rows. Terrain addresses it through its own
+ *  neighbour-mask table in `GroundAtlas.ts` rather than by frame index — the
+ *  3px gutter means `frameSource`'s stride maths does not apply — so this
+ *  registration exists for loading, not addressing. */
+export const GROUND_ATLAS_SHEET: SpriteSheet = {
+  src: '/sprites/tile_atlas.png',
+  frameWidth: TILE_SIZE,
+  frameHeight: TILE_SIZE,
+  columns: 7,
+};

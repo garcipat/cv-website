@@ -25,6 +25,7 @@ export interface TileSpriteSpec {
 }
 
 const WORLD_TILESET = '/sprites/world_tileset.png';
+const TILE_ATLAS = '/sprites/tile_atlas.png';
 
 /**
  * One sprite spec per `TileChar`, or `null` for `.` (the Eraser tool, which
@@ -33,10 +34,10 @@ const WORLD_TILESET = '/sprites/world_tileset.png';
 export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
   '.': null,
   G: {
-    sheet: WORLD_TILESET,
-    sheetWidth: 256,
-    sheetHeight: 256,
-    sx: 0,
+    sheet: TILE_ATLAS,
+    sheetWidth: 130,
+    sheetHeight: 54,
+    sx: 76,
     sy: 0,
     frameWidth: 16,
     frameHeight: 16,

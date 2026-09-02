@@ -34,6 +34,7 @@ import {
 
 export interface EditorImages {
   tileset: HTMLImageElement | null;
+  groundAtlas: HTMLImageElement | null;
   player: HTMLImageElement | null;
   coin: HTMLImageElement | null;
   fruit: HTMLImageElement | null;
@@ -172,8 +173,15 @@ export const EditorCanvas = ({
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     drawGridLines(ctx, canvas.width, canvas.height, panOffset);
 
-    if (images.tileset) {
-      drawTerrain(ctx, gridToLevelDef(grid), images.tileset, panOffset.x, panOffset.y);
+    if (images.tileset && images.groundAtlas) {
+      drawTerrain(
+        ctx,
+        gridToLevelDef(grid),
+        images.tileset,
+        images.groundAtlas,
+        panOffset.x,
+        panOffset.y,
+      );
     }
 
     if (images.tileset) {

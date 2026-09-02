@@ -27,6 +27,7 @@ import {
 
 const EMPTY_IMAGES: EditorImages = {
   tileset: null,
+  groundAtlas: null,
   player: null,
   coin: null,
   fruit: null,
@@ -193,16 +194,17 @@ describe('EditorCanvas', () => {
     expect((ctx.moveTo as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(1);
   });
 
-  it('calls drawTerrain with the tileset image when it is loaded', () => {
+  it('calls drawTerrain with both the tileset and the ground atlas when they are loaded', () => {
     stubCanvasContext();
     const tileset = {} as HTMLImageElement;
+    const groundAtlas = {} as HTMLImageElement;
     const grid: TileChar[][] = [['G']];
     render(
       <EditorCanvas
         grid={grid}
         selectedTool="G"
         panOffset={{ x: 0, y: 0 }}
-        images={{ ...EMPTY_IMAGES, tileset }}
+        images={{ ...EMPTY_IMAGES, tileset, groundAtlas }}
         onPaint={() => {}}
         onPan={() => {}}
       />,
@@ -211,9 +213,26 @@ describe('EditorCanvas', () => {
       expect.anything(),
       expect.objectContaining({ width: 1, height: 1 }),
       tileset,
+      groundAtlas,
       0,
       0,
     );
+  });
+
+  it('skips drawTerrain when the ground atlas has not loaded yet', () => {
+    stubCanvasContext();
+    const tileset = {} as HTMLImageElement;
+    render(
+      <EditorCanvas
+        grid={[['G']]}
+        selectedTool="G"
+        panOffset={{ x: 0, y: 0 }}
+        images={{ ...EMPTY_IMAGES, tileset, groundAtlas: null }}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+    expect(drawTerrain).not.toHaveBeenCalled();
   });
 
   it('skips drawTerrain when the tileset image has not loaded yet', () => {
