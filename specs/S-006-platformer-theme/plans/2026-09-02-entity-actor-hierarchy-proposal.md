@@ -106,6 +106,26 @@ happens through the capability interfaces below.
 Terrain tiles are solid too, but they are a character grid with no per-instance state.
 Blocks are the bridge: solid like terrain, stateful like an object.
 
+### Invariant: state is only for things that change
+
+**Terrain must never become entities.** It is a character grid; `drawTerrain` iterates
+that grid and `tileSource(level, tile, col, row)` derives each sprite from the grid plus
+its neighbours. A wall costs one character, not an object.
+
+Only markers that can *change* become stateful: the `X` / `Q` / `F` markers that produce
+`blockStates` entries with `hitsTaken`, `animState` and `animTimer`. In the current level
+that is **six stateful blocks** against hundreds of terrain tiles.
+
+This is what keeps a large map affordable — ten times the map is ten times the
+*characters*, not ten times the *objects*. Two rules follow:
+
+- A new **static decorative** tile is a terrain character and a `tileSource` case, **not**
+  a block type. The block registry is for things with state.
+- A new **block kind** is only justified if instances of it genuinely differ over time.
+  If every instance always looks and behaves identically, it is terrain.
+
+Nothing in this proposal changes that split, and nothing should.
+
 Inside **Trigger**, the sub-axis is what happens to the trigger itself:
 
 | Sub-shape | Families | Eligibility rule |
