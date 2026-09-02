@@ -1,6 +1,14 @@
 # Entity Architecture — Design
 
-**Status:** approved design, staged across three implementation plans.
+**Status:** implemented. Stages 1-4 below all landed; stage 5 (the player type
+module) is deferred and tracked in `2026-09-02-entity-architecture-followups.md`.
+
+> **These describe the design as agreed, not necessarily as it stands.** Details were
+> tweaked while implementing; where this document and the code disagree, the code wins.
+> Deviations decided during execution are recorded in `2026-09-02-capability-rollout.md`,
+> and the architecture as actually built is described in
+> `2026-09-02-entity-architecture-followups.md`.
+
 
 **Goal:** Make every world object — enemies, the player, blocks, chests, pickups
 — share one entity model, and make each concrete type fully self-contained: its
@@ -375,21 +383,22 @@ style hook receiving a narrow `WorldApi` instead.
 
 ## Staging
 
-Three plans. Each ends with the full suite green and the game playable — no
-plan leaves a half-migrated world.
+Four plans, each ending with the full suite green and the game playable — no
+stage left a half-migrated world. The plan files were execution scaffolding and
+have been removed now that the code and its tests are the record; what each
+stage delivered is kept here.
 
-| Plan | Content | Ships |
+| Stage | Content | Shipped |
 |---|---|---|
-| **1 — Lifecycle** (`2026-09-01-entity-lifecycle.md`) | Characterization tests, then `alive`/`rewardGiven`, revive-in-place, deletion of all three id-keyed ledgers. No abstraction. | The defect fix, independently |
-| **2 — Enemy modules** (`2026-09-01-enemy-modules.md`) | `Entity` base, sprite sheets and the discovering loader, per-type enemy modules, type-owned rendering, contact resolution, spikes relocated into `SlimePurple.ts`. | The enemy architecture and the shared sprite model |
-| **3 — Pickups** (`2026-09-02-pickup-modules.md`) | Sheet descriptors and per-type modules for coin, fruit, dropped key and bonus fruit; one overlap helper; type-owned rendering. | The pickup family |
-| **4 — Blocks and chests** (`2026-09-02-block-chest-modules.md`) | The shared `world_tileset.png` as a sheet, per-kind modules for crate, question-mark and fragile rock, and the chest's two one-frame sheets. | Those two families |
-| **5 — Player** (not yet written) | `PLAYER_TYPE` holding the padding constants and sprite descriptor; `onDamage`/`onDeath` hooks. | The last family |
+| **1 — Lifecycle** | Characterization tests, then `alive`/`rewardGiven`, revive-in-place, deletion of all three id-keyed ledgers. No abstraction. | The defect fix, independently |
+| **2 — Enemy modules** | `Entity` base, sprite sheets and the discovering loader, per-type enemy modules, type-owned rendering, contact resolution, spikes relocated into `SlimePurple.ts`. | The enemy architecture and the shared sprite model |
+| **3 — Pickups** | Sheet descriptors and per-type modules for coin, fruit, dropped key and bonus fruit; one overlap helper; type-owned rendering. | The pickup family |
+| **4 — Blocks and chests** | The shared `world_tileset.png` as a sheet, per-kind modules for crate, question-mark and fragile rock, and the chest's two one-frame sheets. | Those two families |
+| **5 — Player** (deferred, see follow-ups) | `PLAYER_TYPE` holding the padding constants and sprite descriptor; `onDamage`/`onDeath` hooks. | The last family |
 
-Each plan is written via `superpowers:writing-plans` once its predecessor
-lands, against the shapes that predecessor actually produced rather than
-predicted ones — writing against a predicted shape produces a plan that
-silently disagrees with the code.
+Each plan was written once its predecessor landed, against the shapes that
+predecessor actually produced rather than predicted ones — writing against a
+predicted shape produces a plan that silently disagrees with the code.
 
 **Pickup lifecycle is deliberately excluded from Plan 3.** The four pickup
 types record "collected" three different ways: an external `collectedCollectibleIds`

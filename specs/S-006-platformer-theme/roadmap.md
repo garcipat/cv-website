@@ -134,8 +134,7 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   full physical half of the book. Close/Reset buttons are now pixel-art
   icons (not text/glyphs); Reset Game closes the journal immediately and
   triggers the iris-in "starting again" transition instead of staying
-  open. See `specs/S-006-platformer-theme/plans/2026-08-28-counters-pagination-reset.md`
-  for the full record.
+  open.
   *Verify: counters update correctly, pagination flips through the whole
   book with wraparound, Reset clears all state and restarts play.*
 
