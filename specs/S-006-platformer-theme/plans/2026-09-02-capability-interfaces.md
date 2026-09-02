@@ -319,7 +319,7 @@ git commit -m "refactor(platformer): declare player state as moving and self-ani
 
 - `grep -rn "entities/Entity" src/` returns nothing; `Entity.ts` and `Entity.test.ts` are gone.
 - `Moving`, `SelfAnimated` and `Damageable` live in `entities/capabilities.ts`; `Direction` and `Rect` in `entities/geometry.ts`.
-- `BaseEnemyState` composes all three; `BlockState` composes `SelfAnimated`; `PlayerState` composes `Moving` and `SelfAnimated`.
+- `BaseEnemyState` composes all three; `PlayerState` composes `Moving` and `SelfAnimated`; blocks compose neither — no block cycles sprite frames, so its `animTimer` only drives a bump offset and a shatter alpha, transforms on a static sprite rather than frame animation.
 - `PlayerState.facing` is now `direction`, typed `Direction`.
 - `npm test` passes with every pre-existing assertion unmodified apart from that rename; `npx tsc -b --noEmit` produces no output; `npx eslint src/themes/platformer` reports exactly the one pre-existing error.
 - No runtime behavior changed anywhere.

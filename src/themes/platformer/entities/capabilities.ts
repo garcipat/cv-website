@@ -1,6 +1,14 @@
 import type { Direction } from './geometry';
 
 /**
+ * No capability here stores a `hitbox` or `spriteBox` field. Both are derived
+ * functions of `type` + `x` + `y`, computed on demand rather than cached: a
+ * stored box would be a second copy of position, needing re-sync on every one
+ * of the ~60 position updates per second a moving entity gets, where a missed
+ * sync is a silent collision bug.
+ */
+
+/**
  * Moves under its own power. `vy` is a capability of moving things rather than
  * a field every mover uses today — enemies patrol along one row and leave it
  * at zero — but a flying or jumping enemy would need it, and the player

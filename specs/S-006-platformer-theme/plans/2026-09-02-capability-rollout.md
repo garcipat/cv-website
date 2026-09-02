@@ -29,7 +29,7 @@ type-level. Steps 1-4 cannot change behavior at all; 5 onward can.
 | # | Step | Plan | Risk | What proves it |
 |---|---|---|---|---|
 | 1 | Split `Entity.ts` into `geometry.ts` + `capabilities.ts`; add `Moving` / `SelfAnimated` / `Damageable`; enemy state composes all three; delete `Entity` | A | type-level | Standing gates. `grep -rn "entities/Entity" src/` returns nothing. |
-| 2 | `BlockState` composes `SelfAnimated` | A | type-level | Standing gates. **Decision point — see below.** |
+| 2 | *(resolved, no change)* Blocks compose no capability — no block cycles sprite frames, so `animTimer` only drives a bump offset and a shatter alpha | A | type-level | Standing gates. **Decision point — see below.** |
 | 3 | `PlayerState.facing` → `direction` | A | rename only | Standing gates, plus `Physics.test.ts` unmodified apart from the rename. **Browser:** player faces its movement direction; sprite still mirrors left. |
 | 4 | `PlayerState` composes `Moving` + `SelfAnimated` | A | type-level | Standing gates. |
 | 5 | Player health moves onto `PlayerState` as `hitPoints` (6) and `alive` | B | **behavioral** | **Browser:** take a pit fall and an enemy hit — hearts decrease correctly; at zero the death/respawn iris still plays. |
