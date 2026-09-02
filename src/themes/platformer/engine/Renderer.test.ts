@@ -8,6 +8,7 @@ import {
   drawChests,
   drawBonusFruits,
   drawCollectionEffects,
+  drawPuffEffects,
   drawCollectibleCounter,
   drawChestCounter,
   drawCounterPopups,
@@ -32,7 +33,7 @@ import type { SignPlacement } from '../level/SignMapper';
 import type { PlayerState } from '../entities/Player';
 import { PLAYER_RENDERED_SIZE, PLAYER_HIT_REACTION_SECONDS } from '../entities/Player';
 import { MAX_HALF_HEARTS, HEART_RENDERED_SIZE } from '../entities/Health';
-import { startFlightEffect, tickFlightEffect, RISE_DURATION_SECONDS, SPARKLE_DURATION_SECONDS } from './CollectionEffects';
+import { startFlightEffect, tickFlightEffect, RISE_DURATION_SECONDS, SPARKLE_DURATION_SECONDS, startPuffEffect, tickPuffEffect } from './CollectionEffects';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
 import type { BlockPlacement } from '../level/BlockMapper';
 import { toBlockState, blockFrameSource } from '../entities/Block';
@@ -336,6 +337,7 @@ function makeEnemyState(
     homeX: x,
     homeY: y,
     rewardGiven: false,
+    deathEffectGiven: false,
     ...overrides,
   };
 }
@@ -945,24 +947,77 @@ describe('drawCollectionEffects', () => {
     expect(ctx.fillText).not.toHaveBeenCalled();
   });
 
-  it('freshEffect-drawsSixSparkleCircles', () => {
+  it('freshEffect-drawsNoSparkleCircles-sparkleIsNowPuffOnly', () => {
+    // Sparkle bursts are exclusively PuffEffect's concern now (see
+    // drawPuffEffects below) — a flight effect (coin/fruit/key/enemy-fact
+    // collection) shows only its flying text, never a sparkle ring.
     const ctx = makeMockContext() as unknown as { arc: ReturnType<typeof vi.fn> };
     const effect = startFlightEffect('a', 'German', 50, 60, 400, 300, 900, 900);
 
     drawCollectionEffects(ctx as unknown as CanvasRenderingContext2D, [effect]);
 
+    expect(ctx.arc).not.toHaveBeenCalled();
+  });
+});
+
+describe('drawPuffEffects', () => {
+  it('freshPuff-drawsSixSparkleCircles', () => {
+    const ctx = makeMockContext() as unknown as { arc: ReturnType<typeof vi.fn> };
+    const effect = startPuffEffect('rock-1', 100, 200);
+
+    drawPuffEffects(ctx as unknown as CanvasRenderingContext2D, [effect]);
+
     expect(ctx.arc).toHaveBeenCalledTimes(6);
   });
 
-  it('sparkleExpired-doesNotDrawSparkleCircles', () => {
+  it('freshPuff-neverCallsFillText', () => {
+    // A puff has no text/icon at all — unlike drawCollectionEffects, there is
+    // nothing here that could accidentally render an empty label.
+    const ctx = makeMockContext() as unknown as { fillText: ReturnType<typeof vi.fn> };
+    const effect = startPuffEffect('rock-1', 100, 200);
+
+    drawPuffEffects(ctx as unknown as CanvasRenderingContext2D, [effect]);
+
+    expect(ctx.fillText).not.toHaveBeenCalled();
+  });
+
+  it('puffAtItsOwnXY-drawsCirclesCenteredThere-not0-0', () => {
     const ctx = makeMockContext() as unknown as { arc: ReturnType<typeof vi.fn> };
-    const effect = tickFlightEffect(
-      startFlightEffect('a', 'German', 50, 60, 400, 300, 900, 900),
-      SPARKLE_DURATION_SECONDS + 0.01,
-    );
+    const effect = startPuffEffect('rock-1', 100, 200);
 
-    drawCollectionEffects(ctx as unknown as CanvasRenderingContext2D, [effect]);
+    drawPuffEffects(ctx as unknown as CanvasRenderingContext2D, [effect]);
 
+    const [cx, cy] = ctx.arc.mock.calls[0];
+    expect(cx).toBeCloseTo(100, 0);
+    expect(cy).toBeCloseTo(200, 0);
+  });
+
+  it('scaledPuff-drawsWiderCircleRadiusThanUnscaled', () => {
+    const ctx = makeMockContext() as unknown as { arc: ReturnType<typeof vi.fn> };
+    const unscaled = startPuffEffect('a', 0, 0, 1);
+    const scaled = startPuffEffect('b', 0, 0, 2);
+
+    drawPuffEffects(ctx as unknown as CanvasRenderingContext2D, [unscaled]);
+    const unscaledRadius = ctx.arc.mock.calls[0][2];
+    ctx.arc.mockClear();
+    drawPuffEffects(ctx as unknown as CanvasRenderingContext2D, [scaled]);
+    const scaledRadius = ctx.arc.mock.calls[0][2];
+
+    expect(scaledRadius).toBeGreaterThan(unscaledRadius);
+  });
+
+  it('expiredPuff-doesNotDrawSparkleCircles', () => {
+    const ctx = makeMockContext() as unknown as { arc: ReturnType<typeof vi.fn> };
+    const effect = tickPuffEffect(startPuffEffect('rock-1', 100, 200), SPARKLE_DURATION_SECONDS + 0.01);
+
+    drawPuffEffects(ctx as unknown as CanvasRenderingContext2D, [effect]);
+
+    expect(ctx.arc).not.toHaveBeenCalled();
+  });
+
+  it('noPuffs-drawsNothing', () => {
+    const ctx = makeMockContext() as unknown as { arc: ReturnType<typeof vi.fn> };
+    drawPuffEffects(ctx as unknown as CanvasRenderingContext2D, []);
     expect(ctx.arc).not.toHaveBeenCalled();
   });
 });

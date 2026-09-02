@@ -39,6 +39,7 @@ function makeEnemy(type: EnemyState['type'], x: number, y: number): EnemyState {
     homeX: x,
     homeY: y,
     rewardGiven: false,
+    deathEffectGiven: false,
   };
   return enemy;
 }

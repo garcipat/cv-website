@@ -80,3 +80,34 @@ describe('baseEnemyState/baseRevive hitTimer seeding', () => {
     expect(isInvulnerable(purpleState, ENEMY_TYPES.slimePurple.hitReactionSeconds)).toBe(false);
   });
 });
+
+describe('deathEffectGiven', () => {
+  const placement: EnemyPlacement = { id: 'enemy-cert-x', type: 'slimeGreen', x: 320, y: 96 };
+
+  it('baseEnemyState-startsFalse', () => {
+    const state = baseEnemyState(placement, 0, 1, ENEMY_HIT_REACTION_SECONDS);
+    expect(state.deathEffectGiven).toBe(false);
+  });
+
+  it('baseRevive-resetsDeathEffectGivenToFalse-evenIfItWasTrue', () => {
+    const state = { ...baseEnemyState(placement, 0, 1, ENEMY_HIT_REACTION_SECONDS), type: 'slimeGreen' as const, deathEffectGiven: true, alive: false };
+    const revived = baseRevive(state, 1, ENEMY_HIT_REACTION_SECONDS);
+    expect(revived.deathEffectGiven).toBe(false);
+  });
+
+  it('baseRevive-preservesRewardGiven-unlikeDeathEffectGiven', () => {
+    // Contrast case: rewardGiven is permanent (see baseRevive's own doc
+    // comment); deathEffectGiven is per-life. Both fields exist on the same
+    // object but behave oppositely across a revive.
+    const state = {
+      ...baseEnemyState(placement, 0, 1, ENEMY_HIT_REACTION_SECONDS),
+      type: 'slimeGreen' as const,
+      rewardGiven: true,
+      deathEffectGiven: true,
+      alive: false,
+    };
+    const revived = baseRevive(state, 1, ENEMY_HIT_REACTION_SECONDS);
+    expect(revived.rewardGiven).toBe(true);
+    expect(revived.deathEffectGiven).toBe(false);
+  });
+});

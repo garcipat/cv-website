@@ -41,7 +41,7 @@ import type { CollectedFact, SectionId } from './types';
 import type { CollectiblePlacement } from './level/CollectibleMapper';
 import type { EnemyPlacement } from './level/EnemyMapper';
 import type { BlockPlacement } from './level/BlockMapper';
-import type { FlightEffect, CounterPopupEffect, CounterPopupLabelKey } from './engine/CollectionEffects';
+import type { FlightEffect, PuffEffect, CounterPopupEffect, CounterPopupLabelKey } from './engine/CollectionEffects';
 import type { HintTooltipState } from './engine/HintTooltip';
 
 /**
@@ -317,8 +317,17 @@ export const collectedFacts = signal<CollectedFact[]>([]);
  */
 export const collectedCollectibleIds = signal<Set<string>>(new Set());
 
-/** Currently animating fact-flight/sparkle effects (see engine/CollectionEffects.ts). */
+/** Currently animating fact-flight text effects (see engine/CollectionEffects.ts) —
+ *  flying text only; the sparkle burst is `activePuffs`'s concern, not this one. */
 export const activeEffects = signal<FlightEffect[]>([]);
+
+/** Currently animating world-event puffs — see engine/CollectionEffects.ts's
+ *  PuffEffect doc comment and B-003
+ *  (docs/bugs/B-003-puff-bound-to-fact-reward/ticket.md). Kept as its own
+ *  array, parallel to activeEffects, rather than merged into it: the two are
+ *  different shapes (no text/flight-target fields here) and different
+ *  render passes (drawPuffEffects vs. drawCollectionEffects). */
+export const activePuffs = signal<PuffEffect[]>([]);
 
 /**
  * The currently-visible "(icon) collected / total" counter popups, one slot
@@ -413,7 +422,7 @@ export function resetGame(): void {
  * makes already-collected coins/fruits reappear in the level, since the
  * render/collision loop reads it live), the remembered active journal
  * bookmark (falls back to Journal.tsx's default section afterward), and any
- * in-flight fact-flight/sparkle animation (`activeEffects`) so a pickup
+ * in-flight fact-flight text animation (`activeEffects`) so a pickup
  * triggered just before Reset Game is clicked doesn't keep animating after
  * the journal closes. `lifecycleState` is deliberately left untouched: the
  * journal can only be opened from the `'playing'` phase
@@ -429,6 +438,7 @@ export function resetGameProgress(): void {
   collectedCollectibleIds.value = new Set();
   activeJournalSection.value = undefined;
   activeEffects.value = [];
+  activePuffs.value = [];
   activeCounterPopups.value = {};
   blockStates.value = blockPlacements.value.map(toBlockState);
   chestStates.value = chestPlacements.value.map(toChestState);

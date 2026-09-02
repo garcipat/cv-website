@@ -325,6 +325,7 @@ function makeSpikedPurpleEnemy(overrides: Partial<EnemyState> = {}): EnemyState 
     animTimer: 0, hitPoints: 2, hitTimer: ENEMY_HIT_REACTION_SECONDS, alive: true,
     spiked: true, spikeTimer: 0.1, homeX: 10, homeY: 20,
     rewardGiven: false,
+    deathEffectGiven: false,
     ...overrides,
   };
 }
