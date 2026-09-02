@@ -1,11 +1,11 @@
-# Proposal: Entity / Actor split, and a shared type-module base
+# Proposal: drop `Entity`, name the three categories, unify triggers
 
 **Status:** proposal, not accepted. No implementation plan exists yet.
 
 Companion to `2026-09-01-entity-architecture-design.md`. That document describes the
 architecture as built; this one proposes a correction to its central abstraction.
 
-## Two layers, and which one this proposal touches
+## Two layers, and which one this touches
 
 Rendering is **not** part of an entity. The architecture has two parallel hierarchies,
 joined only by the registry key:
@@ -27,8 +27,7 @@ The animation split illustrates the boundary:
   slimes animate out of phase, which is the stagger `reviveEnemy` preserves.
 - **Type:** `ENEMY_ANIMATIONS` — which frames make up a walk. Shared by every slime.
 
-This proposal changes both layers: `Entity`/`Actor` on the state side, `WorldType` on
-the type side. They stay separate.
+This proposal changes both layers, and they stay separate.
 
 ## The problem
 
@@ -46,64 +45,95 @@ export interface Entity {
 }
 ```
 
-That is not a description of an entity. It is a description of **something that moves
-and animates** — and it is adopted by exactly one family:
+That is not a description of an entity. It describes **something that moves and
+animates**, and it is adopted by exactly one family:
 
 ```
 BaseEnemyState extends EnemyPlacement, Entity, Damageable   ← the only implementor
 ```
 
-`BlockState`, `ChestState` and the pickup states all kept their own shapes. The design
-doc's stated goal — *"make every world object share one entity model"* — was not met,
-and the code was right not to meet it: a chest has no velocity, no facing and no
-animation, so making it satisfy `Entity` would mean carrying five meaningless fields.
+`BlockState`, `ChestState` and the pickup states kept their own shapes, and were right
+to: a chest has no velocity, no facing and no animation, so satisfying `Entity` would
+mean carrying five meaningless fields.
 
 Two smaller symptoms of the same mis-naming:
 
 - **The registry key has three names.** `EnemyDef.type`, `BlockDef.blockKind`,
-  `CollectibleDef.spriteType` — one concept, three spellings — and chests have none at
-  all, being a single kind.
+  `CollectibleDef.spriteType` — one concept, three spellings — and chests have none,
+  being a single kind.
 - **Two hitboxes are still built in the engine.** `Collision.ts:257` constructs the
-  chest's box inside `chestPlayerIsStandingOn` and `:282` constructs a sign's inside
-  `checkSignOverlap`. Those are the only boxes left outside the generic overlap helper;
-  pickups own theirs via `PickupType.box()` and enemies via `enemyHitbox`. `ChestType`
-  simply has no `box()` — a leftover, not a decision.
+  chest's box inside `chestPlayerIsStandingOn`, and `:282` a sign's inside
+  `checkSignOverlap`. Those are the only boxes left outside the generic overlap helper.
 
-## What the families actually are
+## The distinction that actually organises this: two kinds of box
 
-Derived from what each type module turned out to need, not from a taxonomy chosen up
-front:
+Everything the player can touch has a rectangle, which is why a chest *feels* like an
+entity. But the rectangles do different jobs:
 
-| Category | Families | Box | Moves | Health | Distinguishing feature |
-|---|---|---|---|---|---|
-| **Actor** | player, enemies | ✅ | ✅ | ✅ | resolves contacts, animates, acts on its own |
-| **Prop** | blocks, chests | ✅ | ❌ | partial | fixed, has visual state, responds to one stimulus |
-| **Pickup** | coin, fruit, key, bonus fruit | ✅ | ❌ (one tweens) | ❌ | consumed on touch |
-| **Marker** | signs | ✅ | ❌ | ❌ | pure placement; proximity triggers something elsewhere |
+| Kind | Meaning | Who has it |
+|---|---|---|
+| **Collision box** | participates in movement resolution — the player cannot pass through it | terrain, blocks, player, enemies |
+| **Trigger box** | never affects movement; only answers *"is the player overlapping?"* | chests, signs, pickups |
 
-Signs are the clarifying case: `SignPlacement` is `{ id, hintId, x, y }` and nothing
-else. A chest is barely more — one boolean. Neither is an entity in the sense `Entity`
-currently describes, yet **both have a hitbox**, because everything the player can touch
-needs one.
+This is verifiable, not a judgement call:
 
-So "has a hitbox" is not the dividing line. What differs between categories is **what a
-touch means and who decides it.**
+```
+Physics.ts:71    blockPlacements: readonly BlockPlacement[] = NO_BLOCKS,
+Physics.ts:393   const solid = isSolidExcludingBridge(tileAt(level, col, headRow)) || blockId !== undefined;
+```
+
+A **block is solid** — physics takes block placements and treats a block as terrain
+during collision resolution. A **chest does not appear in `Physics.ts` at all**; you
+walk straight through it.
+
+That is why a sign feels like a chest and a block does not. A chest and a sign are both
+triggers. A block is solid geometry that happens to react to being struck.
+
+## The categories
+
+| Category | Family | Box | What the player's presence does to it |
+|---|---|---|---|
+| **Actor** | player | collision | — |
+| | green slime, purple slime | collision | damaged, then dies |
+| **Solid** | crate, question-mark, fragile rock | collision | struck from below → damaged → consumed (question-mark persists, spent) |
+| **Trigger** | coin, fruit | trigger | consumed on overlap |
+| | dropped key | trigger | consumed on overlap |
+| | bonus fruit | trigger | consumed on overlap, once its rise finishes |
+| | chest | trigger | permanent state flip; needs Up and a held key |
+| | sign | trigger | nothing — the sign never changes; the UI does |
+
+Terrain tiles are solid too, but they are a character grid with no per-instance state,
+so they sit outside this discussion entirely. Blocks are the bridge: solid like terrain,
+stateful like an object.
+
+Inside **Trigger** the sub-axis is *what happens to the trigger itself* — and it is not
+cosmetic, it is exactly where the current code differs:
+
+| Sub-shape | Families | Eligibility rule |
+|---|---|---|
+| disappears | coin, fruit, key, bonus fruit | "not yet collected" — recorded three different ways |
+| changes state permanently | chest | "not already open" |
+| never changes | sign | none — there is nothing to exhaust |
+
+The sign is the cleanest evidence for the model: `SignPlacement` is `{ id, hintId, x, y }`
+and nothing else. A taxonomy that cannot place a sign comfortably is wrong, and
+"entity" could not.
 
 ## Proposal
 
-### 1. Split the state interface
+### 1. Drop `Entity`; rename it `Actor`
+
+Not a split — a removal. `Entity` shrunk to its honest content would be `{ x, y }`,
+which is too thin to earn a name, and nothing outside the Actor category wants the rest
+of it.
 
 ```ts
-// entities/Entity.ts
+// entities/Actor.ts
 
-/** Anything that occupies a place in the world. */
-export interface Entity {
+/** Something that moves under its own power and animates while doing so. */
+export interface Actor {
   x: number;
   y: number;
-}
-
-/** An entity that moves under its own power and animates while doing so. */
-export interface Actor extends Entity {
   vx: number;
   vy: number;
   direction: Direction;
@@ -114,26 +144,23 @@ export interface Actor extends Entity {
 ```
 
 `BaseEnemyState extends EnemyPlacement, Actor, Damageable`. `PlayerState` extends
-`Actor` — it already has every one of those fields. `BlockState` and `ChestState`
-already satisfy `Entity` structurally through their `Placement` types, so declaring it
-costs nothing and documents intent.
+`Actor` — it already has every one of those fields, so this is free and is the smallest
+possible step toward the player family without touching `Physics.ts`.
 
-**`vy` stays on `Actor`.** A flying or jumping enemy is entirely plausible, so vertical
-velocity is a category-level capability, not dead weight. This is a different case from
-`spiked`, which was one *type's* mechanic sitting on a shared shape.
+**`vy` stays.** A flying or jumping enemy is entirely plausible, so vertical velocity is
+a category-level capability, not dead weight. This differs from `spiked`, which was one
+*type's* mechanic sitting on a shared shape.
 
-**`Damageable` stays orthogonal — do not fold health into `Actor`.** The player's health
-is not on `PlayerState` at all; it is the module-level `healthState` signal in
-half-hearts, deliberately kept apart from position and animation, so that
-full-heal-on-death touches one signal. An `Actor` that mandated `hitPoints` would be
-immediately wrong for the one player it exists to accommodate. "Moves and animates" and
-"can be hurt" are independent axes.
+**`Damageable` stays orthogonal.** The player's health is not on `PlayerState` at all —
+it is the module-level `healthState` signal in half-hearts, deliberately apart from
+position and animation so that full-heal-on-death touches one signal. An `Actor` that
+mandated `hitPoints` would be immediately wrong for the one player it exists to
+accommodate. "Moves and animates" and "can be hurt" are independent axes.
 
-### 2. A shared type-module base
+### 2. `WorldType` on the type layer — the real universal
 
-This is the second layer described at the top — appearance and behavior, per type, not
-per instance. All four type modules already have `draw`; three have `box`, and the
-fourth's absence is the leftover named above.
+The only thing all three categories share is *has a position, a box, and a sprite*. That
+is a set of **capabilities**, not a kind of thing, and it belongs on the type layer:
 
 ```ts
 export interface WorldType<S> {
@@ -143,76 +170,81 @@ export interface WorldType<S> {
 }
 ```
 
-`EnemyType`, `PickupType`, `BlockType` and `ChestType` extend it. That formalises what
-is already true and makes the chest's missing `box()` a compile error rather than an
+`EnemyType`, `PickupType`, `BlockType` and `ChestType` extend it. All four already have
+`draw`; three have `box`. `ChestType`'s absence becomes a compile error rather than an
 oversight.
 
-### 3. Move the last two boxes out of the engine
+### 3. Unify the triggers — the actual simplification
 
-Give `ChestType` a `box()` returning the closed-chest footprint it currently builds
-inline, and give signs an equivalent. `chestPlayerIsStandingOn` and `checkSignOverlap`
-then read geometry from the modules instead of constructing it.
+Chests, signs and pickups share one shape: a trigger box, an eligibility rule, and an
+effect on overlap. The codebase has already half-discovered this — these three
+functions are the same function:
 
-Result: **zero hitboxes constructed inside `Collision.ts` outside the generic overlap
-helper** — the property this architecture has been reaching for, with the chest as its
-one remaining hole.
+```ts
+overlappingPickups(player, items, boxOf, eligible)   // all matches
+chestPlayerIsStandingOn(player, chests)              // first match's id
+checkSignOverlap(player, signs)                      // first match's payload
+```
+
+Each builds a box, tests it against the player hitbox, and hands the caller an
+identifier to act on. Collapsing them onto one helper also moves the chest's and sign's
+geometry into their own modules, leaving **zero hitboxes constructed inside
+`Collision.ts` outside the shared helper**.
+
+Keep the eligibility predicate caller-supplied, as `overlappingPickups` already does.
+The three pickup families record "collected" three different ways and unifying that is
+a separate decision (see the follow-ups document); the *mechanism* unifies without it.
 
 ## What this deliberately does not do
 
-- **No universal behavior base.** There is no shared `onHit` / `onDeath` / movement
-  contract across categories. Player and enemy damage models are genuinely different:
-  half-hearts in a separate signal versus stomp counts on the state; invincibility and
-  knockback versus stun and spike growth; a lifecycle iris transition versus a flag and
-  a once-ever reward. Merging them would unify names, not behavior.
+- **No universal behavior base.** No shared `onHit` / `onDeath` / movement contract
+  across categories. Player and enemy damage models are genuinely different: half-hearts
+  in a separate signal versus stomp counts on the state; invincibility and knockback
+  versus stun and spike growth; a lifecycle iris transition versus a flag and a
+  once-ever reward. Merging them would unify names, not behavior.
+- **`Solid` and `Trigger` stay informal categories, not declared interfaces.** They are
+  vocabulary for reasoning about the code. Beyond `WorldType` they share no members, so
+  declaring them would be taxonomy for its own sake.
 - **No change to how blocks or chests are triggered.** A block is struck from below via
   `player.hitBlockIds` from ceiling collision; a chest opens on standing plus Up plus a
-  held key. Routing either through `Contact`/`CollisionOutcome` would require
-  `Physics.ts` to emit contacts and the outcome type to carry input state.
+  held key.
 - **No renaming of the three registry-key fields.** `type` / `blockKind` / `spriteType`
-  is a real inconsistency but touching it means touching level parsing, the mappers and
-  the editor. Worth doing on its own terms, not smuggled into this.
+  is a real inconsistency, but changing it touches level parsing, the mappers and the
+  editor. Worth doing on its own terms, not smuggled in here.
 
 ## Risk, stated plainly
 
 Every time this codebase has shared behavior through a **base interface**, it grew dead
-members: `spiked` sat on every enemy including one that could never spike, and `vy` sat
-on enemies before it was justified as a category capability. Every time it shared
-through **functions and data models** — `overlappingPickups`, `SpriteSheet` /
-`SpriteDescriptor`, `DrawContext` — it worked without residue.
+members: `spiked` sat on every enemy including one that could never spike, and `Entity`
+itself is the larger instance of the same mistake. Every time it shared through
+**functions and data models** — `overlappingPickups`, `SpriteSheet` / `SpriteDescriptor`,
+`DrawContext` — it worked without residue.
 
-`WorldType` is proposed only because `box` and `draw` are genuinely universal across all
-four categories. **If it starts accumulating optional members, that is the signal it was
-the wrong tool** and it should be dissolved back into helpers.
-
-The `Entity`/`Actor` split carries less of that risk, since `Entity` shrinks to two
-fields that every family already has.
+That is why this proposal removes a base interface, adds only one (`WorldType`, whose
+two members are genuinely universal), and puts its real weight on a shared *function*.
+**If `WorldType` starts accumulating optional members, that is the signal it was the
+wrong tool** and it should dissolve back into helpers.
 
 ## Rough shape of the work
 
 Not a plan — a sketch, to convey size. Each would be a task with tests first.
 
-1. Split `Entity` into `Entity` + `Actor`; point `BaseEnemyState` at `Actor`. Type-level
-   only; no behavior.
-2. Declare `Entity` on `BlockState` and `ChestState`. Documentation value; both already
-   satisfy it.
+1. Rename `Entity` → `Actor`, shrink to the moving/animating fields, point
+   `BaseEnemyState` at it. Type-level only.
+2. `PlayerState extends Actor`. Free — it already has the fields.
 3. Add `WorldType`; have the four type modules extend it. Compile-error-driven.
-4. Give `ChestType` a `box()`; repoint `chestPlayerIsStandingOn`. Behavior must be
-   identical — the box it returns has to match the one built inline today, including
-   `CHEST_CLOSED_OFFSET_X`.
-5. Same for signs and `checkSignOverlap`.
-6. Optionally, `PlayerState extends Actor` — free, since it already has the fields, and
-   it is the smallest possible first step toward the player family without touching
-   `Physics.ts`.
+4. Give `ChestType` a `box()` and repoint `chestPlayerIsStandingOn`.
+5. Give signs a type module with a `box()` and repoint `checkSignOverlap`.
+6. Collapse the three overlap functions onto one trigger helper.
 
-Steps 4 and 5 are the only ones with behavioral risk, and both are pinned by existing
-tests plus a browser check (standing on a chest must still offer to open it; walking
-past a sign must still show its hint).
+Steps 4–6 are the only ones with behavioral risk. The boxes must come out byte-identical
+— the chest's includes `CHEST_CLOSED_OFFSET_X` — so they need a browser check alongside
+tests: standing on a chest must still offer to open it, and walking past a sign must
+still show its hint.
 
-## Open questions
+## Open question
 
-- Is `Entity` at two fields worth naming at all, or should `Actor` simply stand alone
-  and the others declare `x`/`y` themselves? Naming it gives `WorldType<S extends Entity>`
-  something to constrain against, which is the main argument for keeping it.
-- Should `Prop` and `Pickup` become declared interfaces too, or stay as informal
-  categories? They currently share nothing beyond `WorldType`, so declaring them may be
-  taxonomy for its own sake.
+Should signs get a full type module, or is a `box()` helper enough? A sign has no state
+and no per-type variation beyond its `hintId` payload, so a module may be more structure
+than it earns. Step 5 assumes a module for symmetry with the other triggers; the cheaper
+alternative is a bare `signBox(sign)` function next to the placement type.
