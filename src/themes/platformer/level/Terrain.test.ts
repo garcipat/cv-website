@@ -9,7 +9,6 @@ import {
   bridgeRunPosition,
   horizontalRunPosition,
   neighbourMask,
-  verticalRun,
   NEIGHBOUR_UP,
   NEIGHBOUR_RIGHT,
   NEIGHBOUR_DOWN,
@@ -316,45 +315,5 @@ describe('isStandableLadderTop', () => {
   it('nonLadderTile-returnsFalse-regardlessOfWhatsAbove', () => {
     const level = parseLevel(['.', 'G', 'G']);
     expect(isStandableLadderTop(level, 0, 1)).toBe(false);
-  });
-});
-
-describe('verticalRun', () => {
-  it('verticalRun-singleTile-reportsHeightOneAtDepthZero', () => {
-    const level: LevelDef = { width: 1, height: 1, terrain: [['groundGrass']] };
-    expect(verticalRun(level, 0, 0)).toEqual({ depth: 0, height: 1 });
-  });
-
-  it('verticalRun-fourTallColumn-reportsEachCellsDepthAndTheSharedHeight', () => {
-    const level: LevelDef = {
-      width: 1,
-      height: 4,
-      terrain: [['groundGrass'], ['groundGrass'], ['groundGrass'], ['groundGrass']],
-    };
-    expect(verticalRun(level, 0, 0)).toEqual({ depth: 0, height: 4 });
-    expect(verticalRun(level, 0, 1)).toEqual({ depth: 1, height: 4 });
-    expect(verticalRun(level, 0, 3)).toEqual({ depth: 3, height: 4 });
-  });
-
-  it('verticalRun-runBrokenByAGap-measuresOnlyTheCellsOwnRun', () => {
-    // Two separate runs in one column: each is measured on its own, so the
-    // lower run's top cell is depth 0 of a height-2 run, not depth 2 of 4.
-    const level: LevelDef = {
-      width: 1,
-      height: 5,
-      terrain: [['groundGrass'], ['groundGrass'], ['empty'], ['groundGrass'], ['groundGrass']],
-    };
-    expect(verticalRun(level, 0, 1)).toEqual({ depth: 1, height: 2 });
-    expect(verticalRun(level, 0, 3)).toEqual({ depth: 0, height: 2 });
-  });
-
-  it('verticalRun-differentMaterialAbove-startsANewRun', () => {
-    // The run is groundGrass cells only — a rock above does not extend it.
-    const level: LevelDef = {
-      width: 1,
-      height: 2,
-      terrain: [['groundRock'], ['groundGrass']],
-    };
-    expect(verticalRun(level, 0, 1)).toEqual({ depth: 0, height: 1 });
   });
 });
