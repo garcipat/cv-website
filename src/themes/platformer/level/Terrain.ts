@@ -93,6 +93,25 @@ export function neighbourMask(level: LevelDef, col: number, row: number): number
   );
 }
 
+/** Where a ground cell sits within its vertical run: how many cells of the
+ *  same run are above it, and how tall that run is in total. A run is a
+ *  maximal stretch of contiguous `groundGrass` cells in one column, so a gap
+ *  or a different material starts a new one. */
+export interface VerticalRun {
+  depth: number;
+  height: number;
+}
+
+export function verticalRun(level: LevelDef, col: number, row: number): VerticalRun {
+  let top = row;
+  while (tileAt(level, col, top - 1) === 'groundGrass') top -= 1;
+
+  let bottom = row;
+  while (tileAt(level, col, bottom + 1) === 'groundGrass') bottom += 1;
+
+  return { depth: row - top, height: bottom - top + 1 };
+}
+
 export function tileToPixel(col: number, row: number): { x: number; y: number } {
   return { x: col * RENDERED_TILE_SIZE, y: row * RENDERED_TILE_SIZE };
 }

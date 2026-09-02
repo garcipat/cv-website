@@ -1474,6 +1474,38 @@ describe('drawTerrain', () => {
     );
     expect(grassAtBottomLeft![1]).toBe(76); // 'single', not 'left'
   });
+
+  it('fourTallColumn-drawsTwoBrightRowsThenDark', () => {
+    const level: LevelDef = {
+      width: 1,
+      height: 4,
+      terrain: [['groundGrass'], ['groundGrass'], ['groundGrass'], ['groundGrass']],
+    };
+    const ctx = makeMockContext();
+
+    drawTerrain(ctx, level, fakeTileset, fakeGroundAtlas);
+
+    // Row 1 is the second bright band: a one-wide column, so c6r1 at 114, 19.
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeGroundAtlas, 114, 19, 16, 16, 0, 32, 32, 32,
+    );
+  });
+
+  it('threeTallColumn-keepsASingleBrightRow', () => {
+    const level: LevelDef = {
+      width: 1,
+      height: 3,
+      terrain: [['groundGrass'], ['groundGrass'], ['groundGrass']],
+    };
+    const ctx = makeMockContext();
+
+    drawTerrain(ctx, level, fakeTileset, fakeGroundAtlas);
+
+    // Row 1 stays dark: the LR dark cell c4r1 at 76, 19 — not c6r1.
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeGroundAtlas, 76, 19, 16, 16, 0, 32, 32, 32,
+    );
+  });
 });
 
 describe('drawPlayer', () => {

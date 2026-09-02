@@ -5,12 +5,19 @@ import {
   horizontalRunPosition,
   neighbourMask,
   NEIGHBOUR_UP,
+  verticalRun,
   tileToPixel,
   TILE_SIZE,
   RENDER_SCALE,
   RENDERED_TILE_SIZE,
 } from '../level/Terrain';
-import { groundAtlasCell, grassCell, GRASS_SOURCE_HEIGHT } from './GroundAtlas';
+import {
+  groundAtlasCell,
+  groundTileKind,
+  secondBandCell,
+  grassCell,
+  GRASS_SOURCE_HEIGHT,
+} from './GroundAtlas';
 import type { GroundAtlasEntry } from './GroundAtlas';
 import type { LevelDef, TileType } from '../level/LevelData';
 import type { SignPlacement } from '../level/SignMapper';
@@ -326,7 +333,12 @@ export function drawTerrain(
 
       if (tile === 'groundGrass') {
         const mask = neighbourMask(level, col, row);
-        drawGroundTile(ctx, groundAtlas, groundAtlasCell(mask), destX, destY);
+        const run = verticalRun(level, col, row);
+        const entry =
+          groundTileKind(mask, run) === 'brightSecond'
+            ? secondBandCell(mask)
+            : groundAtlasCell(mask);
+        drawGroundTile(ctx, groundAtlas, entry, destX, destY);
 
         if ((mask & NEIGHBOUR_UP) === 0) {
           const grass = grassCell(horizontalRunPosition(level, col, row, isGrassSurface));
