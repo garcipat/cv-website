@@ -90,7 +90,7 @@ describe('deathEffectGiven', () => {
   });
 
   it('baseRevive-resetsDeathEffectGivenToFalse-evenIfItWasTrue', () => {
-    const state = { ...baseEnemyState(placement, 0, 1, ENEMY_HIT_REACTION_SECONDS), deathEffectGiven: true, alive: false };
+    const state = { ...baseEnemyState(placement, 0, 1, ENEMY_HIT_REACTION_SECONDS), type: 'slimeGreen' as const, deathEffectGiven: true, alive: false };
     const revived = baseRevive(state, 1, ENEMY_HIT_REACTION_SECONDS);
     expect(revived.deathEffectGiven).toBe(false);
   });
@@ -101,6 +101,7 @@ describe('deathEffectGiven', () => {
     // object but behave oppositely across a revive.
     const state = {
       ...baseEnemyState(placement, 0, 1, ENEMY_HIT_REACTION_SECONDS),
+      type: 'slimeGreen' as const,
       rewardGiven: true,
       deathEffectGiven: true,
       alive: false,

@@ -282,6 +282,7 @@ function makeEnemyState(
     homeX: x,
     homeY: y,
     rewardGiven: false,
+    deathEffectGiven: false,
     ...overrides,
   };
 }
