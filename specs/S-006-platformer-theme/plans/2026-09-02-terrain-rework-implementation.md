@@ -1270,9 +1270,16 @@ Navigate to `/platformer/editor` (the route is registered in `App.tsx`). Draw an
 
 Masks 7 and 13 (left-edge and right-edge of a tall mass) are `c1r1` turned 90°. On the wide solid mass from the previous step, check its left and right edges: the border should read as a clean vertical line with no brightness ramp running sideways. If it looks wrong, report it — the fix is drawing explicit tiles into `c5r2`/`c6r2`, which is an art change plus two table entries, not a code redesign.
 
-- [ ] **Step 6: Note any art mismatches**
+- [ ] **Step 6: Judge the two accepted trade-offs**
 
-The design doc's "Required art fix" flags `c3r1` (the middle of a one-tile-tall strip) as still flat dark rather than a gradient. If a thin platform three or more wide shows gradient ends around flat middles, that is the known art issue, not a code bug — report it rather than working around it in code.
+Both were chosen deliberately, so the question is only whether they read acceptably — not whether they are bugs.
+
+1. **A one-tile-tall platform has no underside border.** Dropping the gradient band means a surface tile ignores its bottom edge, so a thin platform's dirt ends without a dark line beneath it. Look at a one-tile-tall platform three or more wide and say plainly whether that reads as intentional or as unfinished.
+2. **Ground beneath a bridge grows grass, and ground beside one shows its edge.** A bridge counts as open space, so both follow from the same rule. Find a spot where ground meets a bridge and confirm the ground reads as a proper terrain edge rather than merging into the planks.
+
+- [ ] **Step 7: Check the editor's ground swatch**
+
+In the palette, the `G` swatch should show a single block **with grass on top**, composited from two crops of the atlas — matching what painting `G` actually produces on the canvas.
 
 ---
 
