@@ -284,11 +284,16 @@ function drawGroundTile(
  * Grass continues into a horizontal neighbour only when that neighbour is
  * itself a grass-topped surface cell. A `groundRock` neighbour, or a
  * `groundGrass` one that is buried because the terrain steps up, caps the
- * run instead — which is why this is not the same predicate the ground
- * mask uses (that one is about facing air, not matching material).
+ * run instead — so this adds a material check on top of the ground mask's
+ * notion of exposure. Exposure is read from the mask's UP bit rather than
+ * `isTopExposed` so that a bridge overhead counts as open space here exactly
+ * as it does when the ground cell is chosen.
  */
 function isGrassSurface(level: LevelDef, col: number, row: number): boolean {
-  return tileAt(level, col, row) === 'groundGrass' && isTopExposed(level, col, row);
+  return (
+    tileAt(level, col, row) === 'groundGrass' &&
+    (neighbourMask(level, col, row) & NEIGHBOUR_UP) === 0
+  );
 }
 
 /**

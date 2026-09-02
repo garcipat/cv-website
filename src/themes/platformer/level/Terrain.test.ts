@@ -190,9 +190,9 @@ describe('Terrain', () => {
     expect(neighbourMask(level, 0, 0) & NEIGHBOUR_RIGHT).toBe(NEIGHBOUR_RIGHT);
   });
 
-  it('neighbourMask-upBitClear-matchesIsTopExposed', () => {
-    // These two must never drift: the grass pass keys off the UP bit while
-    // other code still calls isTopExposed.
+  it('neighbourMask-upBitClear-matchesIsTopExposedForNonBridgeNeighbours', () => {
+    // For every neighbour except a bridge the two notions agree, and the grass
+    // pass relies on that.
     const level: LevelDef = {
       width: 2,
       height: 2,
@@ -207,6 +207,25 @@ describe('Terrain', () => {
         expect(upClear).toBe(isTopExposed(level, col, row));
       }
     }
+  });
+
+  it('neighbourMask-bridgeNeighbour-treatedAsAirUnlikeIsSolid', () => {
+    // A bridge is a thin walkway, not a solid mass: ground beside or beneath one
+    // must render as though it faced air, so the bridge leaves the edge CLOSED
+    // even though isSolid('bridge') is true.
+    const level: LevelDef = {
+      width: 2,
+      height: 2,
+      terrain: [
+        ['bridge', 'empty'],
+        ['groundGrass', 'bridge'],
+      ],
+    };
+    const mask = neighbourMask(level, 0, 1);
+    expect(mask & NEIGHBOUR_UP).toBe(0);
+    expect(mask & NEIGHBOUR_RIGHT).toBe(0);
+    // isTopExposed still counts the bridge as solid — the two deliberately differ.
+    expect(isTopExposed(level, 0, 1)).toBe(false);
   });
 
   it('horizontalRunPosition-noMatchingNeighbours-returnsSingle', () => {

@@ -1129,14 +1129,16 @@ describe('drawCounterPopups', () => {
 });
 
 describe('drawTerrain', () => {
-  it('groundGrassIsolatedTile-draws-fromGradientCellC0R0', () => {
+  it('groundGrassIsolatedTile-draws-fromBrightThreeSidedCellC6R0', () => {
     const level: LevelDef = { width: 1, height: 1, terrain: [['groundGrass']] };
     const ctx = makeMockContext();
 
     drawTerrain(ctx, level, fakeTileset, fakeGroundAtlas);
 
+    // No neighbours -> mask 0. The bottom edge is ignored for a top-exposed
+    // tile, so this shares the one-wide column's top cell c6r0 at 6*19 = 114.
     expect(ctx.drawImage).toHaveBeenNthCalledWith(
-      1, fakeGroundAtlas, 0, 0, 16, 16, 0, 0, 32, 32,
+      1, fakeGroundAtlas, 114, 0, 16, 16, 0, 0, 32, 32,
     );
   });
 
@@ -1307,8 +1309,9 @@ describe('drawTerrain', () => {
 
     // The grass cell draws from the atlas (plus a grass overlay), the wall
     // from the world tileset — both at their own grid position. The wall is
-    // solid, so the grass cell's right edge is open -> c1r0 at sx 19.
-    expect(ctx.drawImage).toHaveBeenNthCalledWith(1, fakeGroundAtlas, 19, 0, 16, 16, 0, 0, 32, 32);
+    // solid, so the grass cell's right edge is open -> mask 2 -> the left end
+    // of a surface run, c3r0 at 3*19 = 57.
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(1, fakeGroundAtlas, 57, 0, 16, 16, 0, 0, 32, 32);
     expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 128, 0, 16, 16, 32, 0, 32, 32);
   });
 
@@ -1318,7 +1321,8 @@ describe('drawTerrain', () => {
 
     drawTerrain(ctx, level, fakeTileset, fakeGroundAtlas, 0, 100);
 
-    expect(ctx.drawImage).toHaveBeenNthCalledWith(1, fakeGroundAtlas, 0, 0, 16, 16, 0, 100, 32, 32);
+    // Mask 0 -> c6r0 at 6*19 = 114.
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(1, fakeGroundAtlas, 114, 0, 16, 16, 0, 100, 32, 32);
   });
 
   it('originX-shiftsEveryTileHorizontally', () => {
@@ -1327,7 +1331,8 @@ describe('drawTerrain', () => {
 
     drawTerrain(ctx, level, fakeTileset, fakeGroundAtlas, 100);
 
-    expect(ctx.drawImage).toHaveBeenNthCalledWith(1, fakeGroundAtlas, 0, 0, 16, 16, 100, 0, 32, 32);
+    // Mask 0 -> c6r0 at 6*19 = 114.
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(1, fakeGroundAtlas, 114, 0, 16, 16, 100, 0, 32, 32);
   });
 
   it('originY-omitted-defaultsToZero', () => {
@@ -1336,7 +1341,8 @@ describe('drawTerrain', () => {
 
     drawTerrain(ctx, level, fakeTileset, fakeGroundAtlas);
 
-    expect(ctx.drawImage).toHaveBeenNthCalledWith(1, fakeGroundAtlas, 0, 0, 16, 16, 0, 0, 32, 32);
+    // Mask 0 -> c6r0 at 6*19 = 114.
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(1, fakeGroundAtlas, 114, 0, 16, 16, 0, 0, 32, 32);
   });
 
   it('draws-setsImageSmoothingEnabledFalse', () => {
