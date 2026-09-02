@@ -39,6 +39,10 @@ HTMLCanvasElement.prototype.getContext = function (
       save: vi.fn(),
       restore: vi.fn(),
       translate: vi.fn(),
+      // Terrain's autotiler rotates a ground cell to reuse one piece of art on
+      // several edges (see engine/GroundAtlas.ts), so the draw path calls this
+      // for any level holding such a tile — without it the render loop throws.
+      rotate: vi.fn(),
       scale: vi.fn(),
       strokeRect: vi.fn(),
       beginPath: vi.fn(),

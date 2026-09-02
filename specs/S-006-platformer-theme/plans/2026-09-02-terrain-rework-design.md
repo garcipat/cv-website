@@ -50,9 +50,9 @@ Colour is decided by the top edge alone, in two cases:
 - Top edge **open** (terrain above) — the tile is buried and is **dark**, however deep.
 
 The bottom edge does not participate, and there is no gradient kind: a one-tile-tall
-platform is just as much a surface as the top of a deep mass, and is bright. The
-consequence is accepted deliberately — such a platform has no darkened underside border,
-because the bright cells leave their bottom edge open.
+platform is just as much a surface as the top of a deep mass, and is bright. Colour and
+shape are separate concerns, though — the bottom edge does select a different *cell*, so a
+one-tile-tall platform still gets a border along its underside (see the table below).
 
 | Top edge | Colour |
 | --- | --- |
@@ -76,9 +76,10 @@ the 4-neighbour mask already determines colour.
 Closed sides are listed as T/B/L/R; a side is closed when the neighbour in that
 direction is not ground (a `bridge` neighbour leaves the side closed).
 
-Because the bottom edge never affects a top-exposed tile's cell, each T-closed mask
-shares the cell of its bottom-open counterpart: `T B L R` uses `T L R`'s cell, `T B L`
-uses `T L`'s, `T B R` uses `T R`'s, and `T B` uses `T`'s.
+A one-tile-tall shape (`T B`, `T B L`, `T B R`, `T B L R`) needs a border on its
+underside, so it takes a different cell from its bottom-open counterpart. The sheet has no
+purpose-drawn art for three of those four, so they are obtained by rotating `c6r0`
+(closed T+L+R) and `c6r1` (closed L+R) onto the sides they need.
 
 | Closed sides | Cell | Colour | Role |
 | --- | --- | --- | --- |
@@ -87,26 +88,31 @@ uses `T L`'s, `T B R` uses `T R`'s, and `T B` uses `T`'s.
 | B | `c1r1` | dark | bottom edge |
 | L | *rotate `c1r1` +90°* | dark | left edge below the corner |
 | R | *rotate `c1r1` −90°* | dark | right edge below the corner |
-| T B | `c4r0` | bright | middle of a surface run, one tile tall |
+| T B | *rotate `c6r1` +90°* | bright | middle of a one-tile-tall run |
 | L R | `c4r1` | dark | middle of a one-tile-wide column |
 | T L | `c3r0` | bright | left end of a surface run |
 | T R | `c5r0` | bright | right end of a surface run |
 | B L | `c0r1` | dark | bottom-left corner |
 | B R | `c2r1` | dark | bottom-right corner |
 | T L R | `c6r0` | bright | top of a one-tile-wide column |
-| T B L | `c3r0` | bright | left end of a surface run, one tile tall |
-| T B R | `c5r0` | bright | right end of a surface run, one tile tall |
+| T B L | *rotate `c6r0` −90°* | bright | left end of a one-tile-tall run |
+| T B R | *rotate `c6r0` +90°* | bright | right end of a one-tile-tall run |
 | B L R | `c0r2` | dark | bottom of a one-tile-wide column |
-| T B L R | `c6r0` | bright | isolated single tile; bottom edge ignored |
+| T B L R | *rotate `c0r0` 180°* | bright | isolated single tile |
 
-`c0r0`, `c1r0`, `c2r0` and `c3r1` are **unreferenced** — they were the gradient shapes,
-and no mask selects them now. They stay in the sheet; removing art is not worth the churn.
-`c5r2` and `c6r2` are free. `c6r1` holds a bright L+R tile that the colour rule above
-never selects (L+R means the top edge is open, which is a buried tile).
+`c0r0` is the sheet's only cell bordered on all four sides, so `T B L R` uses it even
+though its artwork still carries the old vertical brightness ramp; a half turn puts the
+ramp's bright end in the band visible below the grass and buries the dark end under it.
+`c6r1` (closed L+R) is reached by `T B` and is not a spare. `c1r0`, `c2r0` and `c3r1` are
+**unreferenced** — they were the gradient shapes, and no mask selects them now. They stay
+in the sheet; removing art is not worth the churn. `c5r2` and `c6r2` are free.
 
-**Rotation** is safe for the dark tiles, whose texture is flat and direction-neutral, and
-is how L-only and R-only are obtained. It must not be applied to the bright tiles, whose
-vertical brightness ramp would end up running sideways.
+**Rotation** is applied to the flat cells `c1r1`, `c6r0` and `c6r1` — bright ones
+included: measured, their artwork carries no meaningful vertical ramp, so a quarter turn
+that moves a border onto an adjacent edge reads correctly. It must never be applied to
+`c0r0`, `c1r0` or `c2r0`, whose steep vertical ramp would end up running sideways — with
+the one exception of a half turn, which keeps the ramp vertical and merely flips it
+end-for-end.
 
 ### Grass overlay
 
@@ -198,17 +204,19 @@ correctly in the running game.
   genre, so this is left as is. If a softer transition is wanted, deepen only the bottom
   one or two pixel rows of the four bright tiles (`c3r0`, `c4r0`, `c5r0`, `c6r0`) toward
   ~130 — no new shapes and no renderer change.
-- `c6r1` (bright L+R) is unreachable under the banding rule, since L+R means the top edge
-  is open and therefore dark. Treated as a spare slot.
+- `c6r1` (bright L+R) is unreachable by its own closed sides under the banding rule, since
+  L+R means the top edge is open and therefore dark. It is used rotated instead, as the
+  middle of a one-tile-tall run.
 - L-only and R-only rely on rotating `c1r1`. If its mild vertical ramp reads badly
   rotated, draw them explicitly into `c5r2` / `c6r2`.
-- A one-tile-tall platform has no darkened underside border, since its bright cell leaves
-  the bottom edge open. Accepted: the top-edge-only rule is worth more than the border.
-  Restoring it would mean bringing back bottom-closed bright variants of the four bright
-  shapes — four new tiles, and the atlas has only two free slots.
+- The one-tile-tall shapes reuse rotated art rather than purpose-drawn cells, so their
+  underside border is the same stroke as the top or side border it was turned from. If a
+  distinct underside is wanted, draw it explicitly — but the atlas has only two free slots
+  and four one-tile-tall shapes.
 
-Note for any tile carrying a vertical brightness ramp: **mirror horizontally, never
-rotate.** A horizontal mirror preserves the ramp; rotation turns it sideways.
+Note for any tile carrying a steep vertical brightness ramp: **mirror horizontally, or
+half-turn — never quarter-turn.** A mirror and a half turn both keep the ramp vertical; a
+quarter turn runs it sideways.
 
 ## Retained reference material
 

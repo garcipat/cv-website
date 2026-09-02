@@ -19,9 +19,10 @@ function cell(col: number, row: number): { sx: number; sy: number } {
 
 export type GroundTileKind = 'bright' | 'dark';
 
-/** Quarter-turns clockwise applied when drawing. Only 90 degrees either way
- *  is ever needed, and only for the flat dark tiles. */
-export type QuarterTurns = 0 | 1 | 3;
+/** Quarter-turns clockwise applied when drawing. A half turn (2) is used to
+ *  flip a vertical brightness ramp end-for-end; the quarter turns move a
+ *  border onto an adjacent edge and are only safe on flat cells. */
+export type QuarterTurns = 0 | 1 | 2 | 3;
 
 export interface GroundAtlasEntry {
   sx: number;
@@ -51,23 +52,30 @@ export function groundTileKind(mask: number): GroundTileKind {
  *
  * Comments name the sides whose borders ARE drawn (the mask's clear bits).
  *
- * Because the bottom edge never affects a top-exposed tile's cell, masks
- * 0/2/8/10 share the cells of 4/6/12/14. Cells `c0r0`, `c1r0`, `c2r0` and
- * `c3r1` are therefore unreferenced — they are still in the sheet, just not
- * used by any mask.
+ * A one-tile-tall shape (masks 0/2/8/10) closes its bottom edge, so it does
+ * NOT share a cell with the top of a taller run (4/6/12/14), which leaves that
+ * edge open. Masks 2, 8 and 10 get their shapes by rotating `c6r0` and `c6r1`,
+ * whose artwork is flat enough that turning a border onto an adjacent edge
+ * reads correctly. Mask 0 uses `c0r0`, the sheet's only all-four-sides-closed
+ * cell; its artwork still carries the old vertical ramp, and it is kept anyway
+ * — deliberately — because nothing else borders all four sides, with a half
+ * turn putting the bright end of the ramp in the band visible below the grass.
+ *
+ * Cells `c1r0`, `c2r0` and `c3r1` are unreferenced — still in the sheet, just
+ * not used by any mask. `c6r1` is referenced (mask 10) and is not a spare.
  */
 const GROUND_ATLAS: Record<number, GroundAtlasEntry> = {
-  0: { ...cell(6, 0), rotation: 0, kind: 'bright' }, //   T L R - air all round; bottom edge ignored
+  0: { ...cell(0, 0), rotation: 2, kind: 'bright' }, // T B L R - isolated single tile, half-turned
   1: { ...cell(0, 2), rotation: 0, kind: 'dark' }, //     B L R - bottom of a one-wide column
-  2: { ...cell(3, 0), rotation: 0, kind: 'bright' }, //   T L   - left end of a surface run
+  2: { ...cell(6, 0), rotation: 3, kind: 'bright' }, // T B L   - left end of a one-tall run
   3: { ...cell(0, 1), rotation: 0, kind: 'dark' }, //     B L   - bottom-left corner
   4: { ...cell(6, 0), rotation: 0, kind: 'bright' }, //   T L R - top of a one-wide column
   5: { ...cell(4, 1), rotation: 0, kind: 'dark' }, //       L R - middle of a one-wide column
   6: { ...cell(3, 0), rotation: 0, kind: 'bright' }, //   T L   - top-left corner
   7: { ...cell(1, 1), rotation: 1, kind: 'dark' }, //       L   - left edge, bottom-edge tile turned CW
-  8: { ...cell(5, 0), rotation: 0, kind: 'bright' }, //   T   R - right end of a surface run
+  8: { ...cell(6, 0), rotation: 1, kind: 'bright' }, // T B   R - right end of a one-tall run
   9: { ...cell(2, 1), rotation: 0, kind: 'dark' }, //     B R   - bottom-right corner
-  10: { ...cell(4, 0), rotation: 0, kind: 'bright' }, //  T     - middle of a surface run
+  10: { ...cell(6, 1), rotation: 1, kind: 'bright' }, // T B    - middle of a one-tall run
   11: { ...cell(1, 1), rotation: 0, kind: 'dark' }, //     B    - bottom edge
   12: { ...cell(5, 0), rotation: 0, kind: 'bright' }, //  T   R - top-right corner
   13: { ...cell(1, 1), rotation: 3, kind: 'dark' }, //         R - right edge, bottom-edge tile turned CCW

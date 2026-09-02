@@ -1129,16 +1129,24 @@ describe('drawCounterPopups', () => {
 });
 
 describe('drawTerrain', () => {
-  it('groundGrassIsolatedTile-draws-fromBrightThreeSidedCellC6R0', () => {
+  it('groundGrassIsolatedTile-draws-fromAllSidesClosedCellC0R0HalfTurned', () => {
     const level: LevelDef = { width: 1, height: 1, terrain: [['groundGrass']] };
-    const ctx = makeMockContext();
+    const ctx = makeMockContext() as unknown as {
+      drawImage: ReturnType<typeof vi.fn>;
+      rotate: ReturnType<typeof vi.fn>;
+      translate: ReturnType<typeof vi.fn>;
+    };
 
-    drawTerrain(ctx, level, fakeTileset, fakeGroundAtlas);
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas);
 
-    // No neighbours -> mask 0. The bottom edge is ignored for a top-exposed
-    // tile, so this shares the one-wide column's top cell c6r0 at 6*19 = 114.
+    // No neighbours -> mask 0: every edge is bordered, which only c0r0 does.
+    // It is half-turned so its bright end lands in the strip below the grass,
+    // and a rotated cell is drawn through a transform centred on the cell, so
+    // the destination is -16,-16 rather than the cell's top-left.
+    expect(ctx.translate).toHaveBeenCalledWith(16, 16);
+    expect(ctx.rotate).toHaveBeenCalledWith(Math.PI);
     expect(ctx.drawImage).toHaveBeenNthCalledWith(
-      1, fakeGroundAtlas, 114, 0, 16, 16, 0, 0, 32, 32,
+      1, fakeGroundAtlas, 0, 0, 16, 16, -16, -16, 32, 32,
     );
   });
 
@@ -1303,46 +1311,74 @@ describe('drawTerrain', () => {
 
   it('multiTileLevel-draws-atCorrectPixelPositions', () => {
     const level: LevelDef = { width: 2, height: 1, terrain: [['groundGrass', 'wall']] };
-    const ctx = makeMockContext();
+    const ctx = makeMockContext() as unknown as {
+      drawImage: ReturnType<typeof vi.fn>;
+      rotate: ReturnType<typeof vi.fn>;
+      translate: ReturnType<typeof vi.fn>;
+    };
 
-    drawTerrain(ctx, level, fakeTileset, fakeGroundAtlas);
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas);
 
     // The grass cell draws from the atlas (plus a grass overlay), the wall
     // from the world tileset — both at their own grid position. The wall is
-    // solid, so the grass cell's right edge is open -> mask 2 -> the left end
-    // of a surface run, c3r0 at 3*19 = 57.
-    expect(ctx.drawImage).toHaveBeenNthCalledWith(1, fakeGroundAtlas, 57, 0, 16, 16, 0, 0, 32, 32);
+    // solid, so the grass cell's right edge is open -> mask 2, a one-tile-tall
+    // run's left end -> c6r0 at 6*19 = 114 turned three quarters, drawn
+    // through a transform centred on the cell (destination -16,-16).
+    expect(ctx.translate).toHaveBeenCalledWith(16, 16);
+    expect(ctx.rotate).toHaveBeenCalledWith((3 * Math.PI) / 2);
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(
+      1, fakeGroundAtlas, 114, 0, 16, 16, -16, -16, 32, 32,
+    );
     expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 128, 0, 16, 16, 32, 0, 32, 32);
   });
 
   it('originY-shiftsEveryTileVertically', () => {
     const level: LevelDef = { width: 1, height: 1, terrain: [['groundGrass']] };
-    const ctx = makeMockContext();
+    const ctx = makeMockContext() as unknown as {
+      drawImage: ReturnType<typeof vi.fn>;
+      translate: ReturnType<typeof vi.fn>;
+    };
 
-    drawTerrain(ctx, level, fakeTileset, fakeGroundAtlas, 0, 100);
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 100);
 
-    // Mask 0 -> c6r0 at 6*19 = 114.
-    expect(ctx.drawImage).toHaveBeenNthCalledWith(1, fakeGroundAtlas, 114, 0, 16, 16, 0, 100, 32, 32);
+    // Mask 0 -> the half-turned c0r0, so the shift lands on the rotated
+    // transform's centre (destY 100 + half 16) rather than on drawImage.
+    expect(ctx.translate).toHaveBeenCalledWith(16, 116);
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(
+      1, fakeGroundAtlas, 0, 0, 16, 16, -16, -16, 32, 32,
+    );
   });
 
   it('originX-shiftsEveryTileHorizontally', () => {
     const level: LevelDef = { width: 1, height: 1, terrain: [['groundGrass']] };
-    const ctx = makeMockContext();
+    const ctx = makeMockContext() as unknown as {
+      drawImage: ReturnType<typeof vi.fn>;
+      translate: ReturnType<typeof vi.fn>;
+    };
 
-    drawTerrain(ctx, level, fakeTileset, fakeGroundAtlas, 100);
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 100);
 
-    // Mask 0 -> c6r0 at 6*19 = 114.
-    expect(ctx.drawImage).toHaveBeenNthCalledWith(1, fakeGroundAtlas, 114, 0, 16, 16, 100, 0, 32, 32);
+    // Mask 0 -> the half-turned c0r0; destX 100 + half 16.
+    expect(ctx.translate).toHaveBeenCalledWith(116, 16);
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(
+      1, fakeGroundAtlas, 0, 0, 16, 16, -16, -16, 32, 32,
+    );
   });
 
   it('originY-omitted-defaultsToZero', () => {
     const level: LevelDef = { width: 1, height: 1, terrain: [['groundGrass']] };
-    const ctx = makeMockContext();
+    const ctx = makeMockContext() as unknown as {
+      drawImage: ReturnType<typeof vi.fn>;
+      translate: ReturnType<typeof vi.fn>;
+    };
 
-    drawTerrain(ctx, level, fakeTileset, fakeGroundAtlas);
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas);
 
-    // Mask 0 -> c6r0 at 6*19 = 114.
-    expect(ctx.drawImage).toHaveBeenNthCalledWith(1, fakeGroundAtlas, 114, 0, 16, 16, 0, 0, 32, 32);
+    // Mask 0 -> the half-turned c0r0, centred on the unshifted cell.
+    expect(ctx.translate).toHaveBeenCalledWith(16, 16);
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(
+      1, fakeGroundAtlas, 0, 0, 16, 16, -16, -16, 32, 32,
+    );
   });
 
   it('draws-setsImageSmoothingEnabledFalse', () => {
