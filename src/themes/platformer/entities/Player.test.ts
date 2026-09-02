@@ -13,9 +13,10 @@ import {
   grantInvincibility,
 } from './Player';
 import type { PlayerState } from './Player';
-import type { Moving, SelfAnimated } from './capabilities';
+import type { Moving, SelfAnimated, Damageable } from './capabilities';
 import { spawnPlayerState } from '../PlatformerState';
 import { RENDER_SCALE } from '../level/Terrain';
+import { MAX_HALF_HEARTS } from './Health';
 
 function idlePlayer(overrides: Partial<PlayerState> = {}): PlayerState {
   return {
@@ -36,6 +37,9 @@ function idlePlayer(overrides: Partial<PlayerState> = {}): PlayerState {
     knockbackTimer: 0,
     bounceAscending: false,
     hitBlockIds: [],
+    hitPoints: MAX_HALF_HEARTS,
+    alive: true,
+    hitTimer: 0,
     ...overrides,
   };
 }
@@ -303,5 +307,19 @@ describe('grantInvincibility', () => {
     expect(next.vx).toBe(42);
     expect(next.direction).toBe('left');
     expect(next.knockbackTimer).toBe(0);
+  });
+});
+
+describe('player as a damageable', () => {
+  it('spawnedPlayer-startsAtFullHitPointsAndAlive', () => {
+    const player: Damageable = spawnPlayerState();
+    expect(player.hitPoints).toBe(MAX_HALF_HEARTS);
+    expect(player.alive).toBe(true);
+  });
+
+  it('hitPoints-areCountedInHalfHeartsSoThreeHeartsIsSix', () => {
+    // The heart display is presentation over a plain hit-point count: three
+    // hearts of two halves each.
+    expect(MAX_HALF_HEARTS).toBe(6);
   });
 });

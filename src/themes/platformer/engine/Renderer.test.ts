@@ -1155,6 +1155,9 @@ describe('drawPlayer', () => {
     knockbackTimer: 0,
     bounceAscending: false,
     hitBlockIds: [],
+    hitPoints: 6,
+    alive: true,
+    hitTimer: 0,
   };
 
   it('idleFrame0-draws-fromFirstIdleSource', () => {

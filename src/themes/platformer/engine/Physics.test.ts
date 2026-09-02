@@ -31,6 +31,9 @@ function basePlayer(overrides: Partial<PlayerState> = {}): PlayerState {
     knockbackTimer: 0,
     bounceAscending: false,
     hitBlockIds: [],
+    hitPoints: 6,
+    alive: true,
+    hitTimer: 0,
     ...overrides,
   };
 }

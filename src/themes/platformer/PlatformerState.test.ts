@@ -2,7 +2,6 @@ import {
   playerState,
   cameraPositionX,
   cameraPositionY,
-  healthState,
   lifecycleState,
   spawnPlayerState,
   spawnCenter,
@@ -213,8 +212,8 @@ describe('PlatformerState', () => {
     });
   });
 
-  it('healthState-initial-isMaxHalfHearts', () => {
-    expect(healthState.value).toBe(MAX_HALF_HEARTS);
+  it('playerState-initial-hasMaxHalfHeartsHitPoints', () => {
+    expect(playerState.value.hitPoints).toBe(MAX_HALF_HEARTS);
   });
 
   it('spawnPlayerState-called-matchesPlayerStateInitialValue', () => {
@@ -239,14 +238,13 @@ describe('PlatformerState', () => {
   });
 
   it('resetGame-calledAfterMutation-restoresSpawnHealthAndZeroCamera', () => {
-    playerState.value = { ...playerState.value, x: 999, y: 999, vx: 5 };
-    healthState.value = 0;
+    playerState.value = { ...playerState.value, x: 999, y: 999, vx: 5, hitPoints: 0 };
     cameraPositionX.value = 300;
 
     resetGame();
 
     expect(playerState.value).toEqual(spawnPlayerState());
-    expect(healthState.value).toBe(MAX_HALF_HEARTS);
+    expect(playerState.value.hitPoints).toBe(MAX_HALF_HEARTS);
     expect(cameraPositionX.value).toBe(0);
   });
 
@@ -319,14 +317,13 @@ describe('resetGameProgress', () => {
   it('called-alsoRestoresSpawnHealthAndCamera', () => {
     // Reuses resetGame()'s existing behavior (position/health/camera) —
     // this asserts the seam is actually called, not just facts/ids cleared.
-    playerState.value = { ...playerState.value, x: 999 };
-    healthState.value = 0;
+    playerState.value = { ...playerState.value, x: 999, hitPoints: 0 };
     cameraPositionX.value = 300;
 
     resetGameProgress();
 
     expect(playerState.value).toEqual(spawnPlayerState());
-    expect(healthState.value).toBe(MAX_HALF_HEARTS);
+    expect(playerState.value.hitPoints).toBe(MAX_HALF_HEARTS);
     expect(cameraPositionX.value).toBe(0);
   });
 

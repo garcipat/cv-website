@@ -54,6 +54,9 @@ function makePlayer(x: number, y: number): PlayerState {
     knockbackTimer: 0,
     bounceAscending: false,
     hitBlockIds: [],
+    hitPoints: 6,
+    alive: true,
+    hitTimer: 0,
   };
 }
 
@@ -384,6 +387,7 @@ describe('checkKeyPickupCollisions', () => {
     x: 0, y: 0, vx: 0, vy: 0, direction: 'right' as const, grounded: true, climbing: false,
     isDroppingThroughBridge: false, lastGroundedX: 0, lastGroundedY: 0, animState: 'idle' as const,
     animFrame: 0, animTimer: 0, invincibleTimer: 0, knockbackTimer: 0, bounceAscending: false, hitBlockIds: [],
+    hitPoints: 6, alive: true, hitTimer: 0,
   };
 
   it('checkKeyPickupCollisions-overlappingUncollectedPickup-returnsItsId', () => {

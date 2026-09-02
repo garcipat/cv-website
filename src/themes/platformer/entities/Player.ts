@@ -1,5 +1,5 @@
 import { RENDER_SCALE } from '../level/Terrain';
-import type { Moving, SelfAnimated } from './capabilities';
+import type { Moving, SelfAnimated, Damageable } from './capabilities';
 
 export const PLAYER_FRAME_SIZE = 32;
 export const PLAYER_RENDERED_SIZE = PLAYER_FRAME_SIZE * RENDER_SCALE;
@@ -38,11 +38,15 @@ export type PlayerAnimState = 'idle' | 'walk' | 'jump' | 'climb';
 /**
  * Player-only state, layered onto `Moving`'s `vx`/`vy` (px/s, positive
  * right/down) and `direction` (the direction the sprite is drawn facing —
- * only horizontal movement changes it) and onto `SelfAnimated`'s `animFrame`
+ * only horizontal movement changes it), onto `SelfAnimated`'s `animFrame`
  * and `animTimer` (seconds accumulated toward the next animation frame
- * advance), both keyed by `animState`, narrowed below.
+ * advance), both keyed by `animState`, narrowed below, and onto
+ * `Damageable`'s `hitPoints`/`alive`/`hitTimer` — `hitPoints` is a plain
+ * half-heart count (see entities/Health.ts's MAX_HALF_HEARTS/takeDamage),
+ * with all heart-display presentation unchanged. `invincibleTimer` below,
+ * not `hitTimer`, is what currently gates further hits.
  */
-export interface PlayerState extends Moving, SelfAnimated {
+export interface PlayerState extends Moving, SelfAnimated, Damageable {
   x: number;
   y: number;
   /** Whether the player is currently resting on a solid tile. */
