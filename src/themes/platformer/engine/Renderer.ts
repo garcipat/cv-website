@@ -2,10 +2,16 @@ import {
   tileAt,
   isTopExposed,
   bridgeRunPosition,
+  horizontalRunPosition,
+  neighbourMask,
+  NEIGHBOUR_UP,
   tileToPixel,
   TILE_SIZE,
+  RENDER_SCALE,
   RENDERED_TILE_SIZE,
 } from '../level/Terrain';
+import { groundAtlasCell, grassCell, GRASS_SOURCE_HEIGHT } from './GroundAtlas';
+import type { GroundAtlasEntry } from './GroundAtlas';
 import type { LevelDef, TileType } from '../level/LevelData';
 import type { SignPlacement } from '../level/SignMapper';
 import {
@@ -50,9 +56,9 @@ function tileSource(
 ): { sx: number; sy: number } | null {
   switch (type) {
     case 'groundGrass':
-      return isTopExposed(level, col, row)
-        ? { sx: 0, sy: 0 }
-        : { sx: 0, sy: TILE_SIZE };
+      // Drawn by drawTerrain's own atlas path — it sources from a different
+      // image and may be rotated, neither of which this shared lookup models.
+      return null;
     case 'groundRock':
       return isTopExposed(level, col, row)
         ? { sx: TILE_SIZE, sy: 0 }
@@ -243,6 +249,49 @@ export function drawWaterForeground(
 }
 
 /**
+ * Draws one atlas cell into a terrain cell, applying the entry's rotation
+ * about the cell's own centre. Only the flat dark tiles are ever rotated
+ * (see GroundAtlas.ts) — a vertical brightness ramp turned sideways reads as
+ * broken.
+ */
+function drawGroundTile(
+  ctx: CanvasRenderingContext2D,
+  groundAtlas: HTMLImageElement,
+  entry: GroundAtlasEntry,
+  destX: number,
+  destY: number,
+): void {
+  if (entry.rotation === 0) {
+    ctx.drawImage(
+      groundAtlas, entry.sx, entry.sy, TILE_SIZE, TILE_SIZE,
+      destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
+    );
+    return;
+  }
+
+  const half = RENDERED_TILE_SIZE / 2;
+  ctx.save();
+  ctx.translate(destX + half, destY + half);
+  ctx.rotate((entry.rotation * Math.PI) / 2);
+  ctx.drawImage(
+    groundAtlas, entry.sx, entry.sy, TILE_SIZE, TILE_SIZE,
+    -half, -half, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
+  );
+  ctx.restore();
+}
+
+/**
+ * Grass continues into a horizontal neighbour only when that neighbour is
+ * itself a grass-topped surface cell. A `groundRock` neighbour, or a
+ * `groundGrass` one that is buried because the terrain steps up, caps the
+ * run instead — which is why this is not the same predicate the ground
+ * mask uses (that one is about facing air, not matching material).
+ */
+function isGrassSurface(level: LevelDef, col: number, row: number): boolean {
+  return tileAt(level, col, row) === 'groundGrass' && isTopExposed(level, col, row);
+}
+
+/**
  * Draws the level's terrain. `originX` shifts every tile horizontally and
  * `originY` shifts every tile vertically (e.g. to anchor the level to the
  * bottom of a taller-than-the-level canvas instead of drawing it pinned to
@@ -254,6 +303,7 @@ export function drawTerrain(
   ctx: CanvasRenderingContext2D,
   level: LevelDef,
   tileset: HTMLImageElement,
+  groundAtlas: HTMLImageElement,
   originX = 0,
   originY = 0,
 ): void {
@@ -262,21 +312,30 @@ export function drawTerrain(
   for (let row = 0; row < level.height; row++) {
     for (let col = 0; col < level.width; col++) {
       const tile = tileAt(level, col, row);
+      const { x, y } = tileToPixel(col, row);
+      const destX = x + originX;
+      const destY = y + originY;
+
+      if (tile === 'groundGrass') {
+        const mask = neighbourMask(level, col, row);
+        drawGroundTile(ctx, groundAtlas, groundAtlasCell(mask), destX, destY);
+
+        if ((mask & NEIGHBOUR_UP) === 0) {
+          const grass = grassCell(horizontalRunPosition(level, col, row, isGrassSurface));
+          ctx.drawImage(
+            groundAtlas, grass.sx, grass.sy, TILE_SIZE, GRASS_SOURCE_HEIGHT,
+            destX, destY, RENDERED_TILE_SIZE, GRASS_SOURCE_HEIGHT * RENDER_SCALE,
+          );
+        }
+        continue;
+      }
 
       const source = tileSource(level, tile, col, row);
       if (!source) continue;
 
-      const { x, y } = tileToPixel(col, row);
       ctx.drawImage(
-        tileset,
-        source.sx,
-        source.sy,
-        TILE_SIZE,
-        TILE_SIZE,
-        x + originX,
-        y + originY,
-        RENDERED_TILE_SIZE,
-        RENDERED_TILE_SIZE,
+        tileset, source.sx, source.sy, TILE_SIZE, TILE_SIZE,
+        destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
       );
     }
   }
