@@ -689,10 +689,12 @@ const COLLECTION_EFFECT_ICON_GAP = 6;
 const SPARKLE_RADIUS_PX = 3;
 
 /** Draws one sparkle burst — a ring of small fading dots radiating outward
- *  from (x, y) — shared by drawCollectionEffects (a fact-flight's own burst,
- *  always scale 1) and drawPuffEffects (a standalone world-event puff, whose
- *  scale varies with the entity that caused it). The one place that draws a
- *  sparkle ring, so the visual can't drift between the two call sites. */
+ *  from (x, y) — called only by drawPuffEffects (a standalone world-event
+ *  puff, whose scale varies with the entity that caused it). A flight effect
+ *  (drawCollectionEffects) shows only its flying text and never a sparkle —
+ *  sparkle is exclusively PuffEffect's concern, decoupled from CV-fact
+ *  collection. This stays the one place that draws a sparkle ring, so the
+ *  visual can't drift if a future call site needs one too. */
 function drawSparkleBurst(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -737,8 +739,6 @@ export function drawCollectionEffects(ctx: CanvasRenderingContext2D, effects: Fl
       }
       ctx.restore();
     }
-
-    drawSparkleBurst(ctx, effect.startX, effect.startY, effect.elapsed);
   }
 }
 
