@@ -5,11 +5,11 @@
 | Plan | Content | Risk |
 |---|---|---|
 | **A — Capability interfaces** (`2026-09-02-capability-interfaces.md`) | `Moving` / `SelfAnimated` / `Damageable`; enemies, blocks and the player compose them; `Entity` deleted. | Type-level only |
-| **B — Player damage model** (not yet written) | Health onto `PlayerState` as `hitPoints`; the two post-hit timers unified into one refractory window. | Behavioral |
-| **C — `WorldType` and trigger unification** (not yet written) | One type base with optional hooks; chest and sign boxes into their modules; three overlap functions collapsed into one. | Behavioral |
+| **B — Player damage model** (`2026-09-02-player-damage-model.md`) | Health onto `PlayerState` as `hitPoints`; the two post-hit timers unified into one refractory window. | Behavioral |
+| **C — `WorldType` and trigger unification** (`2026-09-02-worldtype-and-triggers.md`) | One type base with optional hooks; chest and sign boxes into their modules; three overlap functions collapsed into one. | Behavioral |
 
-B and C are each written via `superpowers:writing-plans` once their predecessor lands,
-against the shapes it actually produced.
+All three are written. `2026-09-02-capability-rollout.md` sequences them as eleven
+steps with the verification gate for each.
 
 Companion to `2026-09-01-entity-architecture-design.md`. That document describes the
 architecture as built; this proposes a correction to its central abstraction.
@@ -259,6 +259,33 @@ new damageable thing get its refractory window by declaring one number.
 What stays type-specific is what *happens* during and after the window — the player
 blinks then becomes vulnerable; an enemy plays its hit animation then reverts or dies.
 That is `onTick` business, not interface business.
+
+### 3b. `DamageableType` — the type-side half
+
+`Damageable` holds fields; the numbers and behavior belong on the type, paired with it:
+
+```ts
+export interface DamageableType<S extends Damageable> {
+  maxHitPoints: number;
+  /** Length of the post-hit refractory window. */
+  hitReactionSeconds: number;
+
+  /** What taking a hit does to this type beyond decrementing hit points —
+   *  growing a temporary defense, entering a reaction animation. */
+  onDamaged?(state: S, amount: number): S;
+  /** Fired once when `alive` flips false. */
+  onDeath?(state: S, world: WorldApi): void;
+}
+```
+
+`EnemyType` extends `WorldType<S> & DamageableType<S>`; so does `PLAYER_TYPE`. Adding a
+damageable thing then means composing two halves — `Damageable` on its state,
+`DamageableType` on its type — rather than wiring damage by hand.
+
+`maxHitPoints` already exists on `EnemyType`. `hitReactionSeconds` replaces the two
+hardcoded durations. `onDamaged` gives the purple slime's spike growth a home separate
+from interpreting a contact: today it happens inside `onPlayerCollide`, which conflates
+*what this contact means* with *what happens to me when hit*.
 
 ### 4. Blocks are the one exception to `Damageable`
 
