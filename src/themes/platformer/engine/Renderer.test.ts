@@ -1204,14 +1204,20 @@ describe('drawTerrain', () => {
         ['groundGrass', 'groundGrass'],
       ],
     };
-    const ctx = makeMockContext();
+    const ctx = makeMockContext() as unknown as {
+      drawImage: ReturnType<typeof vi.fn>;
+      rotate: ReturnType<typeof vi.fn>;
+      translate: ReturnType<typeof vi.fn>;
+    };
 
-    drawTerrain(ctx, level, fakeTileset, fakeGroundAtlas);
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas);
 
     // Cell (0,1): up, down and right are ground -> closed L only -> the
     // bottom-edge tile c1r1 turned a quarter-turn clockwise, so it is drawn
     // through a rotated transform centred on the cell rather than at its
     // top-left corner.
+    // Cell (0,1): destX 0 + half 16, destY 32 + half 16.
+    expect(ctx.translate).toHaveBeenCalledWith(16, 48);
     expect(ctx.rotate).toHaveBeenCalledWith(Math.PI / 2);
     expect(ctx.drawImage).toHaveBeenCalledWith(
       fakeGroundAtlas, 19, 19, 16, 16, -16, -16, 32, 32,
@@ -1340,6 +1346,91 @@ describe('drawTerrain', () => {
     drawTerrain(ctx, level, fakeTileset, fakeGroundAtlas);
 
     expect(ctx.imageSmoothingEnabled).toBe(false);
+  });
+
+  it('grassPass-topExposedSingleTile-drawsSingleGrassVariantOverTheGroundTile', () => {
+    const level: LevelDef = { width: 1, height: 1, terrain: [['groundGrass']] };
+    const ctx = makeMockContext();
+
+    drawTerrain(ctx, level, fakeTileset, fakeGroundAtlas);
+
+    // c4r2 at 4*19 = 76, 2*19 = 38; 9px tall source, 18px tall destination.
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(
+      2, fakeGroundAtlas, 76, 38, 16, 9, 0, 0, 32, 18,
+    );
+  });
+
+  it('grassPass-threeWideRun-drawsLeftMiddleRightVariants', () => {
+    const level: LevelDef = {
+      width: 3,
+      height: 1,
+      terrain: [['groundGrass', 'groundGrass', 'groundGrass']],
+    };
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas);
+
+    const grassSx = ctx.drawImage.mock.calls
+      .filter((c: unknown[]) => c[0] === fakeGroundAtlas && c[4] === 9)
+      .map((c: unknown[]) => c[1] as number);
+    expect(grassSx).toEqual([19, 38, 57]);
+  });
+
+  it('grassPass-buriedTile-drawsNoGrass', () => {
+    const level: LevelDef = {
+      width: 1,
+      height: 2,
+      terrain: [['groundGrass'], ['groundGrass']],
+    };
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas);
+
+    // Only the top cell is top-exposed, so exactly one grass sprite is drawn.
+    const grassCalls = ctx.drawImage.mock.calls.filter(
+      (c: unknown[]) => c[0] === fakeGroundAtlas && c[4] === 9,
+    );
+    expect(grassCalls).toHaveLength(1);
+    expect(grassCalls[0][6]).toBe(0);
+  });
+
+  it('grassPass-neighbourIsRock-capsTheRunAsSingle', () => {
+    const level: LevelDef = {
+      width: 2,
+      height: 1,
+      terrain: [['groundGrass', 'groundRock']],
+    };
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas);
+
+    const grassCalls = ctx.drawImage.mock.calls.filter(
+      (c: unknown[]) => c[0] === fakeGroundAtlas && c[4] === 9,
+    );
+    expect(grassCalls).toHaveLength(1);
+    expect(grassCalls[0][1]).toBe(76); // the 'single' variant, c4r2
+  });
+
+  it('grassPass-stepUpNeighbour-capsTheRunEvenThoughItIsGround', () => {
+    // The right neighbour is groundGrass but buried under more ground, so the
+    // grass must cap rather than run into it.
+    const level: LevelDef = {
+      width: 2,
+      height: 2,
+      terrain: [
+        ['empty', 'groundGrass'],
+        ['groundGrass', 'groundGrass'],
+      ],
+    };
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas);
+
+    // Cell (0,1) is top-exposed; its right neighbour (1,1) is not.
+    const grassAtBottomLeft = ctx.drawImage.mock.calls.find(
+      (c: unknown[]) => c[0] === fakeGroundAtlas && c[4] === 9 && c[5] === 0 && c[6] === 32,
+    );
+    expect(grassAtBottomLeft![1]).toBe(76); // 'single', not 'left'
   });
 });
 
