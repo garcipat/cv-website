@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Give every type module one shared base carrying the two genuinely universal capabilities — *has a box* and *can be drawn* — and collapse the three near-identical player-overlap functions into one, leaving no hitbox constructed inside the engine.
+**Goal:** Give every type module a shared base for what is genuinely universal — *can be drawn* — with a separate `Boxed` for the families that actually have a rectangle, and collapse the three near-identical player-overlap functions into one, leaving no hitbox constructed inside the engine.
 
 **Architecture:** `WorldType<S>` requires `key` and `draw(state, dc)`, with behavior hooks optional so a new type never forces the interface to change. A separate `Boxed<S>` carries `box(state)`. `EnemyType`, `PickupType` and `ChestType` compose both; `BlockType` composes `WorldType` alone, because physics locates blocks by grid cell and never computes a block rectangle. `chestPlayerIsStandingOn`, `checkSignOverlap` and `overlappingPickups` then become one trigger helper.
 
@@ -53,12 +53,12 @@ checkSignOverlap(player, signs): HintId | undefined            // first match's 
 
 Type modules today:
 
-| Module | Has `box` | Has `draw` |
-|---|---|---|
-| `PickupType` | ✅ | ✅ |
-| `EnemyType` | ❌ | ✅ |
-| `BlockType` | ❌ | ✅ |
-| `ChestType` | ❌ | ✅ |
+| Module | Has `box` | Should have `box` | Has `draw` |
+|---|---|---|---|
+| `PickupType` | ✅ | ✅ | ✅ |
+| `EnemyType` | ❌ | ✅ (collision) | ✅ |
+| `ChestType` | ❌ | ✅ (trigger) | ✅ |
+| `BlockType` | ❌ | ❌ — located by grid cell | ✅ |
 
 ## Model guidance
 
@@ -95,7 +95,7 @@ import { BLOCK_TYPES } from './blocks';
 import { CHEST_TYPE } from './chests';
 
 describe('WorldType conformance', () => {
-  it('everyTypeModule-exposesABoxAndADraw', () => {
+  it('everyTypeModule-exposesADraw', () => {
     const all = [
       ...Object.values(ENEMY_TYPES),
       ...Object.values(PICKUP_TYPES),
@@ -103,8 +103,22 @@ describe('WorldType conformance', () => {
       CHEST_TYPE,
     ];
     for (const type of all) {
-      expect(typeof type.box).toBe('function');
       expect(typeof type.draw).toBe('function');
+    }
+  });
+
+  it('typesWithARectangle-exposeABox', () => {
+    const boxed = [...Object.values(ENEMY_TYPES), ...Object.values(PICKUP_TYPES), CHEST_TYPE];
+    for (const type of boxed) {
+      expect(typeof type.box).toBe('function');
+    }
+  });
+
+  it('blockTypes-exposeNoBox', () => {
+    // Physics locates blocks by grid cell and never computes a block
+    // rectangle, so a box here would have no consumer.
+    for (const type of Object.values(BLOCK_TYPES)) {
+      expect('box' in type).toBe(false);
     }
   });
 });
@@ -115,7 +129,7 @@ Add a per-family assertion that each new `box()` reproduces the rect the engine 
 - [ ] **Step 2: Run it to verify it fails**
 
 Run: `npx vitest run src/themes/platformer/entities/WorldType.test.ts`
-Expected: FAIL — `box` is not a function on the enemy, block and chest types.
+Expected: FAIL — `box` is not a function on the enemy and chest types.
 
 - [ ] **Step 3: Write the base and give every module a `box`**
 
