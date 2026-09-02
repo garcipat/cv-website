@@ -45,9 +45,14 @@ export function frameSource(sheet: SpriteSheet, index: number): { sx: number; sy
 
 /**
  * The distinct image sources a set of descriptors needs, each listed once.
- * The loader walks the type registries and calls this, so no hand-maintained
- * list of assets exists anywhere and a shared sheet is fetched only once no
- * matter how many types point at it.
+ * The loader (PlatformerPage.tsx) walks the type registries — ENEMY_TYPES,
+ * PICKUP_TYPES, BLOCK_TYPES, CHEST_TYPE — and calls this, so adding a type
+ * needs no loader edit as long as it draws from an already-registered sheet
+ * or a new sheet that's its own primary `sprite.sheet`. A secondary sheet
+ * that isn't any type's primary descriptor (`crack_overlay.png`, the crate's
+ * overlay) can't be discovered that way and stays hand-listed in the loader
+ * instead. Either way, a shared sheet is fetched only once no matter how many
+ * types point at it.
  */
 export function collectSheetSources(descriptors: readonly SpriteDescriptor[]): string[] {
   return [...new Set(descriptors.map((d) => d.sheet.src))];

@@ -6,5 +6,3 @@ import { fragileRock } from './FragileRock';
  *  module — `BlockState.blockKind` indexes this registry directly and every
  *  entry shares the same state type, so no dispatcher is needed. */
 export const BLOCK_TYPES = { crate, questionMark, fragileRock };
-
-export type BlockTypeKey = keyof typeof BLOCK_TYPES;
