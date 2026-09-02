@@ -41,6 +41,28 @@ export function enemyTileOffsetY(type: EnemyTypeKey): number {
   return RENDERED_TILE_SIZE - enemyRenderedSize(type);
 }
 
+/** A world-space anchor point + size scale for a one-shot visual effect at
+ *  this enemy's position — see engine/CollectionEffects.ts's PuffEffect and
+ *  B-003 (docs/bugs/B-003-puff-bound-to-fact-reward/ticket.md). Centred on
+ *  the rendered sprite (not its top-left placement corner), reusing the same
+ *  per-type size/offset math drawEnemies already uses so a purple slime's
+ *  puff scales up right along with its bigger sprite. */
+export interface EffectAnchor {
+  x: number;
+  y: number;
+  scale: number;
+}
+
+export function enemyEffectAnchor(enemy: EnemyState): EffectAnchor {
+  const type = enemy.type as EnemyTypeKey;
+  const size = enemyRenderedSize(type);
+  return {
+    x: enemy.x + enemyTileOffsetX(type) + size / 2,
+    y: enemy.y + enemyTileOffsetY(type) + size / 2,
+    scale: size / ENEMY_RENDERED_SIZE,
+  };
+}
+
 /** Rendered size of a green slime — the baseline enemy size. */
 export const ENEMY_RENDERED_SIZE = enemyRenderedSize('slimeGreen');
 

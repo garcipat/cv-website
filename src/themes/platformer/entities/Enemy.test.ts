@@ -8,6 +8,7 @@ import {
   enemyTileOffsetY,
   enemyHitboxSidePadding,
   enemyHitboxTopPadding,
+  enemyEffectAnchor,
 } from './Enemy';
 import type { EnemyState } from './Enemy';
 import { ENEMY_TYPES } from './enemies';
@@ -204,6 +205,29 @@ describe('enemy hitbox padding (insets the collision box from the sprite corners
 
   it('enemyHitboxTopPadding-slimePurple-scalesWithRenderScale', () => {
     expect(enemyHitboxTopPadding('slimePurple')).toBe(9 * RENDER_SCALE * 2);
+  });
+});
+
+describe('enemyEffectAnchor', () => {
+  it('slimeGreen-centersOnTheRenderedSprite-notTopLeftCorner', () => {
+    const enemy = toEnemyState(makePlacement());
+    const anchor = enemyEffectAnchor(enemy);
+    const size = enemyRenderedSize('slimeGreen');
+    expect(anchor.x).toBeCloseTo(enemy.x + enemyTileOffsetX('slimeGreen') + size / 2);
+    expect(anchor.y).toBeCloseTo(enemy.y + enemyTileOffsetY('slimeGreen') + size / 2);
+  });
+
+  it('slimeGreen-scaleIs1-theBaselineSize', () => {
+    const enemy = toEnemyState(makePlacement());
+    expect(enemyEffectAnchor(enemy).scale).toBeCloseTo(1);
+  });
+
+  it('slimePurple-scaleIsGreaterThan1-biggerThanTheGreenBaseline', () => {
+    const purplePlacement = { ...makePlacement(), type: 'slimePurple' as const };
+    const enemy = toEnemyState(purplePlacement);
+    const anchor = enemyEffectAnchor(enemy);
+    expect(anchor.scale).toBeGreaterThan(1);
+    expect(anchor.scale).toBeCloseTo(enemyRenderedSize('slimePurple') / ENEMY_RENDERED_SIZE);
   });
 });
 
