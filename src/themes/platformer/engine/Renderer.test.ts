@@ -79,7 +79,10 @@ import {
   CHEST_CLOSED_OFFSET_X,
   CHEST_OPEN_OFFSET_X,
 } from '../entities/Chest';
+import { toChestState, openChest } from '../entities/Chest';
 import type { ChestState } from '../entities/Chest';
+import type { ChestPlacement } from '../level/ChestMapper';
+import { CHEST_CLOSED_SHEET, CHEST_OPEN_SHEET } from '../entities/sprites/sheets';
 
 function makeMockContext() {
   return {
@@ -138,6 +141,21 @@ function makeBlockPlacement(
   y: number,
 ): BlockPlacement {
   return { id, blockKind, x, y };
+}
+
+function makeChestPlacement(id = 'c1', x = 10, y = 20): ChestPlacement {
+  return {
+    id,
+    x,
+    y,
+    fact: {
+      id,
+      sectionId: 'experience',
+      sectionLabel: 'Experience',
+      data: { company: 'X', role: 'Y', startDate: '2020-01', highlights: [] },
+      sourceType: 'chest',
+    },
+  };
 }
 
 describe('drawCollectibles', () => {
@@ -287,6 +305,8 @@ function makeDrawContext(
       [FRUIT_SHEET.src]: { tag: 'fruit' } as unknown as HTMLImageElement,
       [WORLD_TILESET_SHEET.src]: { tag: 'worldTileset' } as unknown as HTMLImageElement,
       [CRACK_OVERLAY_SHEET.src]: { tag: 'crackOverlay' } as unknown as HTMLImageElement,
+      [CHEST_CLOSED_SHEET.src]: { tag: 'chestClosed' } as unknown as HTMLImageElement,
+      [CHEST_OPEN_SHEET.src]: { tag: 'chestOpen' } as unknown as HTMLImageElement,
     },
     originX: 0,
     originY: 0,
@@ -637,25 +657,13 @@ describe('block drawing delegates to the type modules', () => {
 describe('drawChests', () => {
   it('closedChest-drawsFromClosedSprite-atNativeSize', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-    const closedSprite = {} as HTMLImageElement;
-    const chest: ChestState = {
-      id: 'c1',
-      x: 10,
-      y: 20,
-      state: 'closed',
-      fact: {
-        id: 'c1',
-        sectionId: 'experience',
-        sectionLabel: 'Experience',
-        data: { company: 'X', role: 'Y', startDate: '2020-01', highlights: [] },
-        sourceType: 'chest',
-      },
-    };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
+    const chest: ChestState = toChestState(makeChestPlacement());
 
-    drawChests(ctx as unknown as CanvasRenderingContext2D, [chest], closedSprite, null);
+    drawChests(ctx as unknown as CanvasRenderingContext2D, [chest], dc);
 
     expect(ctx.drawImage).toHaveBeenCalledWith(
-      closedSprite,
+      dc.sprites[CHEST_CLOSED_SHEET.src],
       0,
       0,
       CHEST_CLOSED_WIDTH,
@@ -669,25 +677,13 @@ describe('drawChests', () => {
 
   it('openChest-drawsFromOpenSprite-atItsOwnNativeSize', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-    const openSprite = {} as HTMLImageElement;
-    const chest: ChestState = {
-      id: 'c1',
-      x: 10,
-      y: 20,
-      state: 'open',
-      fact: {
-        id: 'c1',
-        sectionId: 'experience',
-        sectionLabel: 'Experience',
-        data: { company: 'X', role: 'Y', startDate: '2020-01', highlights: [] },
-        sourceType: 'chest',
-      },
-    };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
+    const chest: ChestState = openChest(toChestState(makeChestPlacement()));
 
-    drawChests(ctx as unknown as CanvasRenderingContext2D, [chest], null, openSprite);
+    drawChests(ctx as unknown as CanvasRenderingContext2D, [chest], dc);
 
     expect(ctx.drawImage).toHaveBeenCalledWith(
-      openSprite,
+      dc.sprites[CHEST_OPEN_SHEET.src],
       0,
       0,
       CHEST_OPEN_WIDTH,
@@ -701,22 +697,30 @@ describe('drawChests', () => {
 
   it('missingSpriteForCurrentState-skipsThatChest-noThrow', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-    const chest: ChestState = {
-      id: 'c1',
-      x: 10,
-      y: 20,
-      state: 'closed',
-      fact: {
-        id: 'c1',
-        sectionId: 'experience',
-        sectionLabel: 'Experience',
-        data: { company: 'X', role: 'Y', startDate: '2020-01', highlights: [] },
-        sourceType: 'chest',
-      },
-    };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D, {
+      sprites: { [CHEST_CLOSED_SHEET.src]: null, [CHEST_OPEN_SHEET.src]: null },
+    });
+    const chest: ChestState = toChestState(makeChestPlacement());
 
-    expect(() => drawChests(ctx as unknown as CanvasRenderingContext2D, [chest], null, null)).not.toThrow();
+    expect(() => drawChests(ctx as unknown as CanvasRenderingContext2D, [chest], dc)).not.toThrow();
     expect(ctx.drawImage).not.toHaveBeenCalled();
+  });
+});
+
+describe('chest drawing delegates to the type module', () => {
+  it('closedChest-drawsFromTheClosedSheet', () => {
+    const ctx = makeMockContext();
+    const dc = makeDrawContext(ctx);
+    drawChests(ctx, [toChestState(makeChestPlacement())], dc);
+    expect(drawImageCallsFor(ctx as unknown as { drawImage: ReturnType<typeof vi.fn> }, dc.sprites[CHEST_CLOSED_SHEET.src])).toHaveLength(1);
+    expect(drawImageCallsFor(ctx as unknown as { drawImage: ReturnType<typeof vi.fn> }, dc.sprites[CHEST_OPEN_SHEET.src])).toHaveLength(0);
+  });
+
+  it('openChest-drawsFromTheOpenSheet', () => {
+    const ctx = makeMockContext();
+    const dc = makeDrawContext(ctx);
+    drawChests(ctx, [openChest(toChestState(makeChestPlacement()))], dc);
+    expect(drawImageCallsFor(ctx as unknown as { drawImage: ReturnType<typeof vi.fn> }, dc.sprites[CHEST_OPEN_SHEET.src])).toHaveLength(1);
   });
 });
 

@@ -85,7 +85,14 @@ import {
   PLAYER_HEAD_PADDING,
 } from './entities/Player';
 import { advanceEnemyAnimation } from './entities/Enemy';
-import { SLIME_GREEN_SHEET, KEY_SHEET, WORLD_TILESET_SHEET, CRACK_OVERLAY_SHEET } from './entities/sprites/sheets';
+import {
+  SLIME_GREEN_SHEET,
+  KEY_SHEET,
+  WORLD_TILESET_SHEET,
+  CRACK_OVERLAY_SHEET,
+  CHEST_CLOSED_SHEET,
+  CHEST_OPEN_SHEET,
+} from './entities/sprites/sheets';
 import { frameSource, collectSheetSources } from './entities/sprites/SpriteSheet';
 import type { SpriteLookup } from './entities/sprites/SpriteSheet';
 import { ENEMY_TYPES, typeOf } from './entities/enemies';
@@ -161,8 +168,10 @@ export const PlatformerPage = () => {
   // shine-through), discovered from the type registry rather than loaded via
   // individual refs — see the mount effect below.
   const spritesRef = useRef<SpriteLookup>({});
+  // Kept alongside spritesRef: drawChestCounter (the HUD) still reads this
+  // directly, unlike drawChests, which now reads the closed/open sprites
+  // from spritesRef via CHEST_TYPE.draw.
   const chestClosedSpriteRef = useRef<HTMLImageElement | null>(null);
-  const chestOpenSpriteRef = useRef<HTMLImageElement | null>(null);
   const keySpriteRef = useRef<HTMLImageElement | null>(null);
   // Ref to the game loop's KeyboardInput, set once inside the mount effect
   // below right after createKeyboardInput() runs. Needed by
@@ -394,16 +403,7 @@ export const PlatformerPage = () => {
 
       drawBlocks(ctx, blockStates.value, drawContext);
 
-      if (chestClosedSpriteRef.current || chestOpenSpriteRef.current) {
-        drawChests(
-          ctx,
-          chestStates.value,
-          chestClosedSpriteRef.current,
-          chestOpenSpriteRef.current,
-          originX,
-          originY,
-        );
-      }
+      drawChests(ctx, chestStates.value, drawContext);
 
       if (playerSpriteRef.current) {
         const isInvincible = playerState.value.invincibleTimer > 0;
@@ -1433,6 +1433,8 @@ export const PlatformerPage = () => {
       { sheet: KEY_SHEET, renderScale: 1, animations: {} },
       { sheet: WORLD_TILESET_SHEET, renderScale: 1, animations: {} },
       { sheet: CRACK_OVERLAY_SHEET, renderScale: 1, animations: {} },
+      { sheet: CHEST_CLOSED_SHEET, renderScale: 1, animations: {} },
+      { sheet: CHEST_OPEN_SHEET, renderScale: 1, animations: {} },
     ])) {
       loadImage(src)
         .then((img) => {
@@ -1454,16 +1456,6 @@ export const PlatformerPage = () => {
       .catch(() => {
         // Chests simply won't render if the sprite fails to load; the rest
         // of the game still shows.
-      });
-    loadImage('/sprites/chest_open.png')
-      .then((img) => {
-        if (cancelled) return;
-        chestOpenSpriteRef.current = img;
-        render();
-      })
-      .catch(() => {
-        // An opened chest falls back to invisible if this fails to load;
-        // the closed sprite (and the rest of the game) still works.
       });
     loadImage('/sprites/key.png')
       .then((img) => {

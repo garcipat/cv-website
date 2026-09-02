@@ -35,19 +35,8 @@ import type { KeyPickupState } from '../entities/KeyPickup';
 import { KEY_FRAME_WIDTH, KEY_FRAME_HEIGHT } from '../entities/KeyPickup';
 import type { BlockState } from '../entities/Block';
 import { BLOCK_TYPES } from '../entities/blocks';
-import {
-  CHEST_CLOSED_WIDTH,
-  CHEST_CLOSED_HEIGHT,
-  CHEST_OPEN_WIDTH,
-  CHEST_OPEN_HEIGHT,
-  CHEST_CLOSED_RENDERED_WIDTH,
-  CHEST_CLOSED_RENDERED_HEIGHT,
-  CHEST_OPEN_RENDERED_WIDTH,
-  CHEST_OPEN_RENDERED_HEIGHT,
-  CHEST_CLOSED_OFFSET_X,
-  CHEST_OPEN_OFFSET_X,
-  isChestOpen,
-} from '../entities/Chest';
+import { CHEST_TYPE } from '../entities/chests';
+import { CHEST_CLOSED_WIDTH, CHEST_CLOSED_HEIGHT } from '../entities/Chest';
 import type { ChestState } from '../entities/Chest';
 import type { BonusFruitState } from '../entities/BonusFruit';
 import { flightEffectPosition, sparkleParticles } from './CollectionEffects';
@@ -565,48 +554,16 @@ export function drawBlocks(
   }
 }
 
-/**
- * Draws every chest at its current open/closed sprite — each state is a
- * standalone image (not a shared sheet, unlike blocks), so
- * this always crops from (0, 0) at that state's own native size. Either
- * sprite may independently be null (not yet loaded); a chest whose current
- * state's sprite is missing is simply skipped for the frame, same convention
- * as drawCollectibles'/drawEnemies' null-sprite handling.
- *
- * The destination x is shifted by the state's `*_OFFSET_X` (see
- * entities/Chest.ts) so the chest draws horizontally centered on its tile
- * rather than left-aligned to the tile's top-left corner — its rendered
- * width is wider than one tile.
- */
+/** Draws every chest at its current open/closed sprite — each one renders
+ *  itself (see entities/chests/Chest.ts). */
 export function drawChests(
   ctx: CanvasRenderingContext2D,
   chests: readonly ChestState[],
-  closedSprite: HTMLImageElement | null,
-  openSprite: HTMLImageElement | null,
-  originX = 0,
-  originY = 0,
+  dc: DrawContext,
 ): void {
   ctx.imageSmoothingEnabled = false;
   for (const chest of chests) {
-    const open = isChestOpen(chest);
-    const sprite = open ? openSprite : closedSprite;
-    if (!sprite) continue;
-    const srcWidth = open ? CHEST_OPEN_WIDTH : CHEST_CLOSED_WIDTH;
-    const srcHeight = open ? CHEST_OPEN_HEIGHT : CHEST_CLOSED_HEIGHT;
-    const destWidth = open ? CHEST_OPEN_RENDERED_WIDTH : CHEST_CLOSED_RENDERED_WIDTH;
-    const destHeight = open ? CHEST_OPEN_RENDERED_HEIGHT : CHEST_CLOSED_RENDERED_HEIGHT;
-    const offsetX = open ? CHEST_OPEN_OFFSET_X : CHEST_CLOSED_OFFSET_X;
-    ctx.drawImage(
-      sprite,
-      0,
-      0,
-      srcWidth,
-      srcHeight,
-      chest.x + originX + offsetX,
-      chest.y + originY,
-      destWidth,
-      destHeight,
-    );
+    CHEST_TYPE.draw(chest, dc);
   }
 }
 

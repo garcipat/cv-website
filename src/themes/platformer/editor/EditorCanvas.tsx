@@ -29,6 +29,7 @@ import {
   FRUIT_SHEET,
   WORLD_TILESET_SHEET,
   CRACK_OVERLAY_SHEET,
+  CHEST_CLOSED_SHEET,
 } from '../entities/sprites/sheets';
 
 export interface EditorImages {
@@ -189,6 +190,7 @@ export const EditorCanvas = ({
         [FRUIT_SHEET.src]: images.fruit,
         [WORLD_TILESET_SHEET.src]: images.tileset,
         [CRACK_OVERLAY_SHEET.src]: images.crackOverlay,
+        [CHEST_CLOSED_SHEET.src]: images.chestClosed,
       },
       originX: panOffset.x,
       originY: panOffset.y,
@@ -201,14 +203,7 @@ export const EditorCanvas = ({
 
     drawBlocks(ctx, synthesizeBlockStates(grid), drawContext);
 
-    drawChests(
-      ctx,
-      synthesizeChestStates(grid),
-      images.chestClosed,
-      null,
-      panOffset.x,
-      panOffset.y,
-    );
+    drawChests(ctx, synthesizeChestStates(grid), drawContext);
 
     const player = synthesizePlayerState(grid);
     if (player && images.player) {
