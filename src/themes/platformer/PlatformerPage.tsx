@@ -27,13 +27,13 @@ import {
   drawKeyCounter,
   keyCounterX,
   KEY_COUNTER_Y,
-  drawEnemySpikes,
 } from './engine/Renderer';
+import type { DrawContext } from './engine/DrawContext';
 import { drawDebugOverlay } from './engine/DebugOverlay';
 import { createGameLoop } from './engine/GameLoop';
 import { stepPlayerPhysics, checkPitFall, resolvePitFall } from './engine/Physics';
 import { PHYSICS_CONFIG } from './engine/PhysicsConfig';
-import { stepEnemyPatrol, stepEnemyHitReaction, stepEnemySpikeCooldown } from './engine/EnemyAI';
+import { stepEnemyPatrol, stepEnemyHitReaction } from './engine/EnemyAI';
 import { updateCamera, updateCameraY } from './engine/Camera';
 import { createKeyboardInput } from './engine/Input';
 import type { KeyboardInput } from './engine/Input';
@@ -51,15 +51,11 @@ import { maxIrisRadius } from './engine/IrisTransition';
 import { currentLevel } from './level/level';
 import {
   checkCollectibleCollisions,
-  checkEnemyStompCollisions,
-  checkEnemySideCollisions,
+  resolveEnemyContacts,
   checkBonusFruitCollisions,
   chestPlayerIsStandingOn,
   checkSignOverlap,
   checkKeyPickupCollisions,
-  playerHitbox,
-  enemyHitbox,
-  isSpikedTopLanding,
 } from './engine/Collision';
 import { openChest, allChestsOpen, isChestOpen, CHEST_CLOSED_OFFSET_X } from './entities/Chest';
 import { stepBlockAnimation } from './engine/BlockAI';
@@ -82,19 +78,33 @@ import {
   advancePlayerAnimation,
   updatePlayerAnimState,
   applyKnockback,
-  tickInvincibility,
-  grantInvincibility,
+  advancePlayerHitTimer,
+  beginHitReaction,
+  isPlayerBlinkVisible,
+  PLAYER_HIT_REACTION_SECONDS,
   PLAYER_RENDERED_SIZE,
   PLAYER_VISUAL_CENTER_Y_OFFSET,
   PLAYER_HEAD_PADDING,
 } from './entities/Player';
-import { advanceEnemyAnimation, applyStomp, ENEMY_FRAME_SIZE } from './entities/Enemy';
-import { takeDamage, PIT_FALL_DAMAGE, SIDE_HIT_DAMAGE, INVINCIBILITY_DURATION_SECONDS } from './entities/Health';
+import { isInvulnerable } from './entities/capabilities';
+import { advanceEnemyAnimation } from './entities/Enemy';
+import {
+  SLIME_GREEN_SHEET,
+  KEY_SHEET,
+  CRACK_OVERLAY_SHEET,
+} from './entities/sprites/sheets';
+import { frameSource, collectSheetSources } from './entities/sprites/SpriteSheet';
+import type { SpriteLookup } from './entities/sprites/SpriteSheet';
+import { ENEMY_TYPES, typeOf } from './entities/enemies';
+import { PICKUP_TYPES } from './entities/pickups';
+import { BLOCK_TYPES } from './entities/blocks';
+import { CHEST_TYPE } from './entities/chests';
+import type { EnemyState } from './entities/Enemy';
+import { takeDamage, PIT_FALL_DAMAGE } from './entities/Health';
 import {
   playerState,
   cameraPositionX,
   cameraPositionY,
-  healthState,
   lifecycleState,
   spawnCenter,
   resetGame,
@@ -137,9 +147,6 @@ import type { HintId } from './types';
 // font size (Renderer.ts's COLLECTION_EFFECT_FONT_SIZE) so stacked lines
 // don't touch.
 const COLLECTION_TEXT_STACK_ROW_HEIGHT = 34;
-// How often the player's sprite toggles visible/invisible while invincible —
-// short enough to read clearly as "blinking", not a slow pulse.
-const INVINCIBILITY_BLINK_INTERVAL_SECONDS = 0.1;
 
 export const PlatformerPage = () => {
   // Subscribes this component's render to any signal `.value` read during
@@ -155,11 +162,14 @@ export const PlatformerPage = () => {
   const heartsSpriteRef = useRef<HTMLImageElement | null>(null);
   const coinSpriteRef = useRef<HTMLImageElement | null>(null);
   const fruitSpriteRef = useRef<HTMLImageElement | null>(null);
-  const slimeGreenSpriteRef = useRef<HTMLImageElement | null>(null);
-  const slimePurpleSpriteRef = useRef<HTMLImageElement | null>(null);
-  const crackOverlaySpriteRef = useRef<HTMLImageElement | null>(null);
+  // Enemy sprite sheets (and the key sheet, for a purple slime's held-key
+  // shine-through), discovered from the type registry rather than loaded via
+  // individual refs — see the mount effect below.
+  const spritesRef = useRef<SpriteLookup>({});
+  // Kept alongside spritesRef: drawChestCounter (the HUD) still reads this
+  // directly, unlike drawChests, which now reads the closed/open sprites
+  // from spritesRef via CHEST_TYPE.draw.
   const chestClosedSpriteRef = useRef<HTMLImageElement | null>(null);
-  const chestOpenSpriteRef = useRef<HTMLImageElement | null>(null);
   const keySpriteRef = useRef<HTMLImageElement | null>(null);
   // Ref to the game loop's KeyboardInput, set once inside the mount effect
   // below right after createKeyboardInput() runs. Needed by
@@ -285,7 +295,7 @@ export const PlatformerPage = () => {
   };
 
   const handleDebugKill = () => {
-    healthState.value = 0;
+    playerState.value = { ...playerState.value, hitPoints: 0, alive: false };
     const p = playerState.value;
     lifecycleState.value = startDeath(p.x + PLAYER_RENDERED_SIZE / 2, p.y + PLAYER_VISUAL_CENTER_Y_OFFSET);
     // Death immediately halts the hint-tick block below (the game loop skips
@@ -374,35 +384,29 @@ export const PlatformerPage = () => {
         drawSigns(ctx, signPlacements.value, tilesetRef.current, originX, originY);
       }
 
+      const drawContext: DrawContext = {
+        ctx,
+        sprites: spritesRef.current,
+        originX,
+        originY,
+        worldElapsed: worldAnimElapsed,
+      };
+
       // Drawn BEFORE blocks: a bonus fruit spawns at its source block's own
       // position and rises through it — drawing it first lets the block's
       // own tile occlude the still-rising fruit until it clears the block's
       // top edge, reading as "popping out from behind the block" instead of
       // floating on top of it.
-      if (fruitSpriteRef.current) {
-        drawBonusFruits(ctx, bonusFruitStates.value, fruitSpriteRef.current, originX, originY);
-      }
+      drawBonusFruits(ctx, bonusFruitStates.value, drawContext);
 
-      if (tilesetRef.current) {
-        drawBlocks(ctx, blockStates.value, tilesetRef.current, crackOverlaySpriteRef.current, originX, originY);
-      }
+      drawBlocks(ctx, blockStates.value, drawContext);
 
-      if (chestClosedSpriteRef.current || chestOpenSpriteRef.current) {
-        drawChests(
-          ctx,
-          chestStates.value,
-          chestClosedSpriteRef.current,
-          chestOpenSpriteRef.current,
-          originX,
-          originY,
-        );
-      }
+      drawChests(ctx, chestStates.value, drawContext);
 
       if (playerSpriteRef.current) {
-        const isInvincible = playerState.value.invincibleTimer > 0;
         const playerVisible =
-          !isInvincible ||
-          Math.floor(playerState.value.invincibleTimer / INVINCIBILITY_BLINK_INTERVAL_SECONDS) % 2 === 0;
+          !isInvulnerable(playerState.value, PLAYER_HIT_REACTION_SECONDS) ||
+          isPlayerBlinkVisible(playerState.value.hitTimer, PLAYER_HIT_REACTION_SECONDS);
         drawPlayer(
           ctx,
           playerState.value,
@@ -414,32 +418,11 @@ export const PlatformerPage = () => {
         );
       }
 
-      if (coinSpriteRef.current || fruitSpriteRef.current) {
-        drawCollectibles(
-          ctx,
-          collectiblePlacements.value,
-          coinSpriteRef.current,
-          fruitSpriteRef.current,
-          collectedCollectibleIds.value,
-          worldAnimElapsed,
-          originX,
-          originY,
-        );
-      }
+      drawCollectibles(ctx, collectiblePlacements.value, collectedCollectibleIds.value, drawContext);
 
-      if (slimeGreenSpriteRef.current || slimePurpleSpriteRef.current) {
-        drawEnemies(
-          ctx,
-          enemyStates.value,
-          slimeGreenSpriteRef.current,
-          slimePurpleSpriteRef.current,
-          originX,
-          originY,
-        );
-      }
-      drawEnemySpikes(ctx, enemyStates.value, originX, originY);
+      drawEnemies(ctx, enemyStates.value, drawContext);
 
-      drawKeyPickups(ctx, keyPickupStates.value, keySpriteRef.current, worldAnimElapsed, originX, originY);
+      drawKeyPickups(ctx, keyPickupStates.value, drawContext);
 
       const tooltip = hintTooltipState.value;
       if (tooltip) {
@@ -479,8 +462,8 @@ export const PlatformerPage = () => {
         },
         {
           labelKey: 'enemies',
-          icon: slimeGreenSpriteRef.current,
-          iconFrame: { sx: 2 * ENEMY_FRAME_SIZE, sy: 0, size: ENEMY_FRAME_SIZE },
+          icon: spritesRef.current[SLIME_GREEN_SHEET.src],
+          iconFrame: { ...frameSource(SLIME_GREEN_SHEET, 2), size: SLIME_GREEN_SHEET.frameWidth },
           iconYOffset: -6,
         },
         {
@@ -514,7 +497,7 @@ export const PlatformerPage = () => {
         drawDebugOverlay(ctx, playerState.value, currentLevel.value, originX, originY, enemyStates.value);
 
       if (heartsSpriteRef.current) {
-        drawHearts(ctx, healthState.value, heartsSpriteRef.current, HEARTS_START_X);
+        drawHearts(ctx, playerState.value.hitPoints, heartsSpriteRef.current, HEARTS_START_X);
       }
 
       if (chestClosedSpriteRef.current && chestPlacements.value.length > 0) {
@@ -638,9 +621,12 @@ export const PlatformerPage = () => {
 
       // Enemies currently reacting to a stomp (animState 'hit') run their
       // reaction timer instead of patrolling — stepEnemyHitReaction either
-      // holds them frozen, reverts them to 'walk', or flags them `defeated`
-      // once the reaction finishes (Enemy.ts's applyStomp is what put them
-      // into 'hit' in the first place, below).
+      // holds them frozen, reverts them to 'walk', or flags them `alive:
+      // false` once the reaction finishes (a type module's own
+      // `onPlayerCollide` is what put
+      // them into 'hit' in the first place, below). A dead enemy (`!alive`)
+      // is skipped entirely — it stays in the array but is neither patrolled
+      // nor animated.
       //
       // stepEnemyPatrol also needs to know about currently-live blocks
       // (crate/questionMark/fragileRock) — LevelParser.ts resolves their
@@ -655,13 +641,14 @@ export const PlatformerPage = () => {
           col: Math.round(block.x / RENDERED_TILE_SIZE),
           row: Math.round(block.y / RENDERED_TILE_SIZE),
         }));
-      enemyStates.value = enemyStates.value.map((enemy) => {
+      const stepEnemy = (enemy: EnemyState): EnemyState => {
         const next =
           enemy.animState === 'hit'
             ? stepEnemyHitReaction(enemy, dt)
             : stepEnemyPatrol(enemy, currentLevel.value, dt, blockedTiles);
-        return advanceEnemyAnimation(stepEnemySpikeCooldown(next, dt), dt);
-      });
+        return advanceEnemyAnimation(typeOf(next).onTick?.(next, dt) ?? next, dt);
+      };
+      enemyStates.value = enemyStates.value.map((enemy) => (enemy.alive ? stepEnemy(enemy) : enemy));
 
       // Blocks currently playing their shared bump/shatter reaction advance
       // it here every tick, same convention as the enemy hit-reaction step
@@ -678,15 +665,23 @@ export const PlatformerPage = () => {
       // else this tick.
       bonusFruitStates.value = bonusFruitStates.value.map((fruit) => tickBonusFruit(fruit, dt));
 
-      // Enemies whose hit reaction just finished with no hit points left:
-      // reward + remove, reusing the exact fact-flight mechanism coins use
-      // (see the collectible-collision block below) rather than a duplicate
-      // implementation. Checked before the collectible block so both effects
-      // can coexist in `newEffects` without one clobbering the other within
-      // the same tick — each block builds off `activeEffects.value` as it
-      // stands when it runs, same convention the collectible block already
-      // uses.
-      const justDefeated = enemyStates.value.filter((e) => e.defeated);
+      // Enemies whose hit reaction just finished with no hit points left
+      // (`!alive`): fire their reward, reusing the exact fact-flight
+      // mechanism coins use (see the collectible-collision block below)
+      // rather than a duplicate implementation. The enemy itself stays in
+      // `enemyStates` — render and collision already skip a dead enemy, so
+      // there's nothing left to remove.
+      //
+      // An enemy is rewarded exactly once for the lifetime of the session:
+      // `alive` goes false on the finishing stomp and `rewardGiven` is set the
+      // same tick (see the end of this block), so a revived enemy stomped
+      // again in a later life is never selected here again.
+      //
+      // Checked before the collectible block so both effects can coexist in
+      // `newEffects` without one clobbering the other within the same tick —
+      // each block builds off `activeEffects.value` as it stands when it
+      // runs, same convention the collectible block already uses.
+      const justDefeated = enemyStates.value.filter((e) => !e.alive && !e.rewardGiven);
       if (justDefeated.length > 0) {
         const newFacts = [...collectedFacts.value];
         const newEffects = [...activeEffects.value];
@@ -702,27 +697,24 @@ export const PlatformerPage = () => {
         let anyEnemyRewarded = false;
         for (const enemy of justDefeated) {
           // A defeated purple slime carries no fact at all — it drops a key
-          // pickup instead (spec.md User Story 4). Keys, like facts, persist
-          // across respawns (FR-020c-style dedup: `resetGame()` revives
-          // enemies but deliberately never clears `keyPickupStates`), so a
-          // revived purple slime stomped again in a later life must not drop
-          // a second key for the same source enemy id.
-          if (enemy.spriteType === 'slimePurple') {
-            const alreadyDropped = keyPickupStates.value.some((k) => k.id === enemy.id);
-            if (!alreadyDropped) {
-              keyPickupStates.value = [...keyPickupStates.value, spawnKeyPickup(enemy.id, enemy.x, enemy.y)];
-            }
+          // pickup instead (spec.md User Story 4). `justDefeated`'s
+          // `!rewardGiven` filter already guarantees this fires once per
+          // enemy for the whole session, so no membership check against
+          // `keyPickupStates` is needed here.
+          if (typeOf(enemy).heldItem === 'key') {
+            keyPickupStates.value = [...keyPickupStates.value, spawnKeyPickup(enemy.id, enemy.x, enemy.y)];
             continue;
           }
           // A "plain" enemy (a marker beyond its color's CVData course
-          // count, see EnemyMapper.ts) carries no fact at all — it's still
-          // removed via the `filter` below, just with no reward. Facts also
-          // persist across respawns (FR-020c: `resetGame()` revives enemies
-          // but deliberately never clears `collectedFacts`), so a revived
-          // enemy stomped again in a later life must not re-bank the same
-          // fact — that would duplicate its journal page.
+          // count, see EnemyMapper.ts) carries no fact at all — it stays dead
+          // in the array with no reward.
+          //
+          // Facts are 1:1 with enemies by construction (EnemyMapper.ts zips
+          // each CVData entry to exactly one marker), and `rewardGiven`
+          // already guarantees one payout per enemy, so no membership check
+          // against `newFacts` is needed.
           const fact = enemy.fact;
-          if (!fact || newFacts.some((f) => f.id === fact.id)) continue;
+          if (!fact) continue;
           anyEnemyRewarded = true;
           newFacts.push(fact);
           // Reuses the journal's own title/icon derivation — formatJournalEntry
@@ -748,9 +740,18 @@ export const PlatformerPage = () => {
           );
         }
 
+        // Flag every selected enemy — including plain enemies with no reward
+        // at all — so `justDefeated`'s `!rewardGiven` filter never selects it
+        // again. This is the one remaining id use, and it is local to a
+        // single tick: it maps a just-computed subset back onto the array,
+        // not a lookup into persisted state.
+        const rewardedIds = new Set(justDefeated.map((e) => e.id));
+        enemyStates.value = enemyStates.value.map((e) =>
+          rewardedIds.has(e.id) ? { ...e, rewardGiven: true } : e,
+        );
+
         collectedFacts.value = newFacts;
         activeEffects.value = newEffects;
-        enemyStates.value = enemyStates.value.filter((e) => !e.defeated);
         if (anyEnemyRewarded) {
           const enemyDefeated = newFacts.filter((f) => f.sourceType === 'enemy').length;
           // Denominator counts only fact-bearing placements — a "plain"
@@ -1044,19 +1045,24 @@ export const PlatformerPage = () => {
       }
       const overlappingSignHintId = checkSignOverlap(playerState.value, signPlacements.value);
       // A closed chest the player is standing on, while holding zero keys,
-      // is itself an "overlapping something with a hint" case — reuses the
-      // existing chestNeedsKey hint text (spec.md's i18n `platformer.hints`)
-      // that already existed for this purpose but was previously only
-      // reachable via an unplaced hint-sign marker. Signs take priority in
-      // the vanishingly unlikely case a chest and a sign tile overlap.
-      // Re-checked against the CURRENT chestStates (not the `standingChestId`
-      // captured above, before the chest-open block ran) — a chest just
-      // successfully opened this same tick is no longer "closed and stood
-      // on", so `chestPlayerIsStandingOn` correctly stops returning its id
-      // (it skips open chests), and no bubble should show for that case.
+      // is itself an "overlapping something with a hint" case — uses its own
+      // `noKeyForChest` hint text (spec.md's i18n `platformer.hints`),
+      // distinct from `chestNeedsKey` (a hint-SIGN's informational rule text,
+      // "Chests need a key to open.") even though both used to share one key
+      // before this was split: a bubble anchored above the player's own head
+      // reads as the character SPEAKING ("I need a key."), not as a sign's
+      // third-person rule, and the two must stay independently translatable
+      // since they're grammatically different sentences, not just different
+      // triggers for the same line. Signs take priority in the vanishingly
+      // unlikely case a chest and a sign tile overlap. Re-checked against the
+      // CURRENT chestStates (not the `standingChestId` captured above, before
+      // the chest-open block ran) — a chest just successfully opened this
+      // same tick is no longer "closed and stood on", so
+      // `chestPlayerIsStandingOn` correctly stops returning its id (it skips
+      // open chests), and no bubble should show for that case.
       const standingClosedChestId = chestPlayerIsStandingOn(playerState.value, chestStates.value);
       const lockedChestHintId: HintId | undefined =
-        !overlappingSignHintId && standingClosedChestId && collectedKeys.value <= 0 ? 'chestNeedsKey' : undefined;
+        !overlappingSignHintId && standingClosedChestId && collectedKeys.value <= 0 ? 'noKeyForChest' : undefined;
       const overlappingHintId = overlappingSignHintId ?? lockedChestHintId;
       const currentTooltip = hintTooltipState.value;
       if (overlappingHintId && interactPressed) {
@@ -1073,12 +1079,14 @@ export const PlatformerPage = () => {
         hintTooltipState.value = beginHintTooltipExit(currentTooltip);
       }
 
-      const stompedIds = checkEnemyStompCollisions(playerState.value, enemyStates.value);
-      const stompBounceThisTick = stompedIds.length > 0;
-      if (stompBounceThisTick) {
-        enemyStates.value = enemyStates.value.map((enemy) =>
-          stompedIds.includes(enemy.id) ? applyStomp(enemy) : enemy,
-        );
+      // One pass over the enemies: the engine computes each overlap's
+      // geometry, each enemy's own type decides what that overlap means, and
+      // the aggregated result lands here. Invulnerability is the engine's rule,
+      // not any enemy's — no type ever knows it exists.
+      const contacts = resolveEnemyContacts(playerState.value, enemyStates.value);
+      enemyStates.value = contacts.enemies;
+
+      if (contacts.bouncePlayer) {
         playerState.value = {
           ...playerState.value,
           vy: PHYSICS_CONFIG.stompBounceVelocity,
@@ -1086,70 +1094,33 @@ export const PlatformerPage = () => {
         };
       }
 
-      // Side/below damage — only checked while not already invincible, so
-      // one overlap can't register repeated hits every tick it persists. A
-      // `hit`-reacting enemy IS excluded here (unlike stomp detection, which
-      // only excludes an enemy once its `hitPoints` reach 0 — see
-      // Collision.ts's checkEnemyStompCollisions): a hit-reacting enemy must
-      // stay harmless to side-touch for its whole reaction, or bouncing off
-      // a stomp while still overlapping it would register as a spurious
-      // side-hit.
-      //
-      // Excludes any id already in `stompedIds`: the stomp block above just
-      // reassigned `playerState.value.vy` to the (negative, upward)
-      // `stompBounceVelocity`, which would otherwise make
-      // `checkEnemySideCollisions` see `vy <= 0` for the very enemy just
-      // landed on and misread the landing as a non-stomp touch — the two
-      // checks are meant to be mutually exclusive for the same overlap.
-      if (playerState.value.invincibleTimer <= 0) {
-        const sideHitIds = checkEnemySideCollisions(playerState.value, enemyStates.value).filter(
-          (id) => !stompedIds.includes(id),
+      // Damage is dropped entirely while inside the refractory window, so
+      // one persisting overlap can't register a fresh hit every tick.
+      if (
+        contacts.damagePlayer > 0 &&
+        !isInvulnerable(playerState.value, PLAYER_HIT_REACTION_SECONDS)
+      ) {
+        const hitPoints = takeDamage(playerState.value.hitPoints, contacts.damagePlayer);
+        playerState.value = { ...playerState.value, hitPoints, alive: hitPoints > 0 };
+        playerState.value = applyKnockback(
+          playerState.value,
+          contacts.knockbackDirection,
+          PHYSICS_CONFIG.sideHitKnockbackVx,
+          PHYSICS_CONFIG.sideHitKnockbackDuration,
         );
-        if (sideHitIds.length > 0) {
-          const hitEnemy = enemyStates.value.find((e) => e.id === sideHitIds[0])!;
-          healthState.value = takeDamage(healthState.value, SIDE_HIT_DAMAGE);
-          // Compare actual hitbox centers, not raw x (each entity's x is its
-          // own top-left placement coordinate, not its visual center — a
-          // purple slime's much wider render slot made this comparison
-          // biased toward one direction almost regardless of which side the
-          // player actually touched it from). Pushes the player back toward
-          // whichever side of the enemy their own hitbox center is already
-          // on, i.e. away from the enemy and back the way they came.
-          const playerBox = playerHitbox(playerState.value);
-          const enemyBox = enemyHitbox(hitEnemy);
-          const playerCenterX = playerBox.x + playerBox.width / 2;
-          const enemyCenterX = enemyBox.x + enemyBox.width / 2;
-          const knockbackDirection = playerCenterX <= enemyCenterX ? -1 : 1;
-          // A failed stomp attempt against spikes (the player was falling
-          // onto the enemy's top half, same shape a real stomp would need,
-          // but the enemy's spikes redirected it to damage) gets a bit of
-          // upward push added on top of the usual horizontal knockback, so
-          // it reads as "bounced off the spikes" rather than identical to a
-          // plain side/below touch. Checked against the pre-knockback state
-          // — applyKnockback below never touches position or vy, only
-          // vx/facing/timers, so this reads the same geometry either way.
-          const isTopLandingOnSpikes = isSpikedTopLanding(playerState.value, hitEnemy);
-          playerState.value = applyKnockback(
-            playerState.value,
-            knockbackDirection,
-            PHYSICS_CONFIG.sideHitKnockbackVx,
-            PHYSICS_CONFIG.sideHitKnockbackDuration,
-            INVINCIBILITY_DURATION_SECONDS,
-          );
-          if (isTopLandingOnSpikes) {
-            // Without `bounceAscending: true` (same mechanism the stomp
-            // bounce above relies on), `stepPlayerPhysics`'s variable-jump-
-            // height cut would shear this upward velocity to ~45% of its
-            // configured magnitude on this very tick, and again every tick
-            // after while the jump key isn't held — this isn't a jump the
-            // player is "holding", so it must play out at its full
-            // configured magnitude regardless of jump-key state.
-            playerState.value = {
-              ...playerState.value,
-              vy: PHYSICS_CONFIG.spikeTopHitKnockbackVy,
-              bounceAscending: true,
-            };
-          }
+        if (contacts.knockback === 'awayAndUp') {
+          // Without `bounceAscending: true` (same mechanism the stomp
+          // bounce above relies on), `stepPlayerPhysics`'s variable-jump-
+          // height cut would shear this upward velocity to ~45% of its
+          // configured magnitude on this very tick, and again every tick
+          // after while the jump key isn't held — this isn't a jump the
+          // player is "holding", so it must play out at its full
+          // configured magnitude regardless of jump-key state.
+          playerState.value = {
+            ...playerState.value,
+            vy: PHYSICS_CONFIG.awayAndUpKnockbackVy,
+            bounceAscending: true,
+          };
         }
       }
 
@@ -1178,7 +1149,7 @@ export const PlatformerPage = () => {
           jumpHeld,
           dropThroughHeld,
           climbUpHeld,
-          suppressJumpCut: stompBounceThisTick,
+          suppressJumpCut: contacts.bouncePlayer,
         },
         blockStates.value,
       );
@@ -1287,15 +1258,16 @@ export const PlatformerPage = () => {
       }
 
       if (checkPitFall(next, currentLevel.value)) {
-        // Invincibility is a property of taking damage generally, not just
-        // of enemy contact — a pit fall grants and
-        // respects it exactly like a side-hit does. The position recovery
-        // below is NOT gated by it, though: `resolvePitFall` must always run
-        // or the character would keep falling forever while merely
-        // invincible from an earlier, unrelated hit.
-        if (next.invincibleTimer <= 0) {
-          healthState.value = takeDamage(healthState.value, PIT_FALL_DAMAGE);
-          next = grantInvincibility(next, INVINCIBILITY_DURATION_SECONDS);
+        // The refractory window is a property of taking damage generally,
+        // not just of enemy contact — a pit fall opens and respects it
+        // exactly like a side-hit does. The position recovery below is NOT
+        // gated by it, though: `resolvePitFall` must always run or the
+        // character would keep falling forever while merely invulnerable
+        // from an earlier, unrelated hit.
+        if (!isInvulnerable(next, PLAYER_HIT_REACTION_SECONDS)) {
+          const hitPoints = takeDamage(next.hitPoints, PIT_FALL_DAMAGE);
+          next = { ...next, hitPoints, alive: hitPoints > 0 };
+          next = beginHitReaction(next);
         }
         next = resolvePitFall(next);
       }
@@ -1306,7 +1278,7 @@ export const PlatformerPage = () => {
       // recovered position before the next tick corrected it.
       next = updatePlayerAnimState(next);
       next = advancePlayerAnimation(next, dt);
-      next = tickInvincibility(next, dt);
+      next = advancePlayerHitTimer(next, dt);
 
       playerState.value = next;
 
@@ -1329,10 +1301,11 @@ export const PlatformerPage = () => {
       );
 
       // Death check: whatever the damage source (today, only repeated pit
-      // falls), 0 health starts the death iris centered on wherever the
-      // player ended up this frame. Otherwise, keep advancing 'intro' (a
-      // no-op once already 'playing' — see GameLifecycle.ts's tickLifecycle).
-      if (healthState.value === 0) {
+      // falls), `alive` going false starts the death iris centered on
+      // wherever the player ended up this frame — the same `Damageable`
+      // flag an enemy dies by. Otherwise, keep advancing 'intro' (a no-op
+      // once already 'playing' — see GameLifecycle.ts's tickLifecycle).
+      if (!next.alive) {
         lifecycleState.value = startDeath(
           next.x + PLAYER_RENDERED_SIZE / 2,
           next.y + PLAYER_VISUAL_CENTER_Y_OFFSET,
@@ -1442,36 +1415,43 @@ export const PlatformerPage = () => {
         // Fruits simply won't render if the sprite fails to load; coins and
         // the rest of the game still show.
       });
-    loadImage('/sprites/slime_green.png')
-      .then((img) => {
-        if (cancelled) return;
-        slimeGreenSpriteRef.current = img;
-        render();
-      })
-      .catch(() => {
-        // Green (Certificates) enemies simply won't render if the sprite
-        // fails to load; the rest of the game still shows.
-      });
-    loadImage('/sprites/slime_purple.png')
-      .then((img) => {
-        if (cancelled) return;
-        slimePurpleSpriteRef.current = img;
-        render();
-      })
-      .catch(() => {
-        // Purple (Projects) enemies simply won't render if the sprite fails
-        // to load; the rest of the game still shows.
-      });
-    loadImage('/sprites/crack_overlay.png')
-      .then((img) => {
-        if (cancelled) return;
-        crackOverlaySpriteRef.current = img;
-        render();
-      })
-      .catch(() => {
-        // A cracked crate simply won't show its overlay if this fails to
-        // load; the base crate tile and every other mechanic still work.
-      });
+    // Discovers every enemy sheet from the type registry (plus the key
+    // sheet, for a purple slime's held-key shine-through), every pickup
+    // sheet from PICKUP_TYPES, every block sheet from BLOCK_TYPES and both
+    // chest sheets (closed/open) from CHEST_TYPE, rather than hand-listing
+    // each one — adding an enemy, pickup, block or chest type needs no new
+    // loadImage call here. coin.png and fruit.png are also loaded
+    // individually above into coinSpriteRef/fruitSpriteRef, which the HUD
+    // counters (drawCollectibleCounter) still read directly — the two loads
+    // race harmlessly (same convention KEY_SHEET already established
+    // alongside keySpriteRef's own individual load below). world_tileset.png
+    // is likewise still loaded individually above into tilesetRef, which
+    // drawTerrain/drawSigns read directly — its block-drawing modules
+    // (entities/blocks/) read the copy landing here in spritesRef instead.
+    // crack_overlay.png has no dedicated ref at all and no type's primary
+    // sprite — only a crate's own module reads it, as a secondary overlay it
+    // composites on top of its own tile, via spritesRef, so it stays
+    // hand-listed here rather than discovered through a registry.
+    for (const src of collectSheetSources([
+      ...Object.values(ENEMY_TYPES).map((t) => t.sprite),
+      ...Object.values(PICKUP_TYPES).map((t) => t.sprite),
+      ...Object.values(BLOCK_TYPES).map((t) => t.sprite),
+      CHEST_TYPE.closed,
+      CHEST_TYPE.open,
+      { sheet: KEY_SHEET, renderScale: 1, animations: {} },
+      { sheet: CRACK_OVERLAY_SHEET, renderScale: 1, animations: {} },
+    ])) {
+      loadImage(src)
+        .then((img) => {
+          if (cancelled) return;
+          spritesRef.current[src] = img;
+          render();
+        })
+        .catch(() => {
+          // That sheet's enemies/pickups (or the held-key hint) simply won't
+          // render if it fails to load; the rest of the game still shows.
+        });
+    }
     loadImage('/sprites/chest_closed.png')
       .then((img) => {
         if (cancelled) return;
@@ -1481,16 +1461,6 @@ export const PlatformerPage = () => {
       .catch(() => {
         // Chests simply won't render if the sprite fails to load; the rest
         // of the game still shows.
-      });
-    loadImage('/sprites/chest_open.png')
-      .then((img) => {
-        if (cancelled) return;
-        chestOpenSpriteRef.current = img;
-        render();
-      })
-      .catch(() => {
-        // An opened chest falls back to invisible if this fails to load;
-        // the closed sprite (and the rest of the game) still works.
       });
     loadImage('/sprites/key.png')
       .then((img) => {

@@ -4,6 +4,7 @@ import { EditorCanvas } from './EditorCanvas';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { TileChar } from '../level/LevelParser';
 import type { EditorImages } from './EditorCanvas';
+import { COIN_SHEET } from '../entities/sprites/sheets';
 
 vi.mock('../engine/Renderer', () => ({
   drawTerrain: vi.fn(),
@@ -245,7 +246,7 @@ describe('EditorCanvas', () => {
     );
     expect(drawPlayer).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ facing: 'right', animState: 'idle' }),
+      expect.objectContaining({ direction: 'right', animState: 'idle' }),
       player,
       0,
       0,
@@ -272,36 +273,27 @@ describe('EditorCanvas', () => {
     expect(drawCollectibles).toHaveBeenCalledWith(
       expect.anything(),
       expect.arrayContaining([expect.objectContaining({ spriteType: 'coin' })]),
-      coin,
-      null,
       expect.any(Set),
-      0,
-      5,
-      7,
+      expect.objectContaining({
+        originX: 5,
+        originY: 7,
+        sprites: expect.objectContaining({ [COIN_SHEET.src]: coin }),
+      }),
     );
     expect(drawEnemies).toHaveBeenCalledWith(
       expect.anything(),
-      expect.arrayContaining([expect.objectContaining({ spriteType: 'slimeGreen' })]),
-      null,
-      null,
-      5,
-      7,
+      expect.arrayContaining([expect.objectContaining({ type: 'slimeGreen' })]),
+      expect.objectContaining({ originX: 5, originY: 7 }),
     );
     expect(drawBlocks).toHaveBeenCalledWith(
       expect.anything(),
       expect.arrayContaining([expect.objectContaining({ blockKind: 'crate' })]),
-      tileset,
-      null,
-      5,
-      7,
+      expect.objectContaining({ originX: 5, originY: 7 }),
     );
     expect(drawChests).toHaveBeenCalledWith(
       expect.anything(),
       expect.arrayContaining([expect.objectContaining({ id: 'editor-chest-0' })]),
-      null,
-      null,
-      5,
-      7,
+      expect.objectContaining({ originX: 5, originY: 7 }),
     );
   });
 

@@ -65,15 +65,3 @@ export function blockBumpOffsetY(block: BlockState): number {
   const phase = t < 0.5 ? t / 0.5 : 1 - (t - 0.5) / 0.5;
   return phase === 0 ? 0 : -BLOCK_BUMP_HEIGHT_PX * phase;
 }
-
-/**
- * Opacity (0-1) to draw a crate at — 1 (fully opaque) unless it's currently
- * `'shatter'`ing, in which case it linearly fades to 0 over
- * `CRATE_SHATTER_DURATION_SECONDS`. Meaningless for question-mark/fragileRock (which
- * never enter `'shatter'`) — Renderer.ts only calls this for `blockKind ===
- * 'crate'`.
- */
-export function crateShatterOpacity(block: BlockState): number {
-  if (block.animState !== 'shatter') return 1;
-  return Math.max(0, 1 - block.animTimer / CRATE_SHATTER_DURATION_SECONDS);
-}

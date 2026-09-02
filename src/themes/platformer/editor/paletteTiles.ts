@@ -7,7 +7,7 @@ import type { TileChar } from '../level/LevelParser';
  * inside an `overflow: hidden` box) needs, with no runtime image
  * measurement. Coordinates are hand-picked to match the exact frame the
  * real engine renders for that tile/marker's "at rest" state (see
- * `Renderer.ts`'s `tileSource`, and `coinFrameSource`/`enemyFrameSource`/
+ * `Renderer.ts`'s `tileSource`, and `coinFrameSource`/`enemyFrameIndex`/
  * `blockFrameSource`/`playerFrameSource` in the respective entity files) —
  * this is a palette icon, not a live game sprite, so it intentionally
  * doesn't reuse those functions' animation/context-dependent logic (e.g.

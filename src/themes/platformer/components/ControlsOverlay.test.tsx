@@ -92,7 +92,11 @@ describe('ControlsOverlay', () => {
 
     const overlay = screen.getByTestId('platformer-controls-overlay');
     expect(overlay.className).toContain('opacity-80');
-    expect(overlay.style.transform).toBe('translateX(0px)');
+    // No transform at all at rest (rather than 'translateX(0px)') — a
+    // non-'none' transform value promotes the element to its own
+    // GPU-composited layer, which softens the text inside it on displays
+    // with a fractional device pixel ratio for as long as the layer exists.
+    expect(overlay.style.transform).toBe('');
   });
 
   it('afterOneFrame-stillNotRevealed-onlyFlipsAfterTheSecond', () => {

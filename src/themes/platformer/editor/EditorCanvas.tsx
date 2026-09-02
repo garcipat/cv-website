@@ -21,6 +21,16 @@ import {
   drawChests,
   drawSigns,
 } from '../engine/Renderer';
+import type { DrawContext } from '../engine/DrawContext';
+import {
+  SLIME_GREEN_SHEET,
+  SLIME_PURPLE_SHEET,
+  COIN_SHEET,
+  FRUIT_SHEET,
+  WORLD_TILESET_SHEET,
+  CRACK_OVERLAY_SHEET,
+  CHEST_CLOSED_SHEET,
+} from '../entities/sprites/sheets';
 
 export interface EditorImages {
   tileset: HTMLImageElement | null;
@@ -171,45 +181,29 @@ export const EditorCanvas = ({
     }
     drawSignBadges(ctx, grid, panOffset.x, panOffset.y);
 
-    drawCollectibles(
+    const drawContext: DrawContext = {
       ctx,
-      synthesizeCollectiblePlacements(grid),
-      images.coin,
-      images.fruit,
-      new Set(),
-      0,
-      panOffset.x,
-      panOffset.y,
-    );
+      sprites: {
+        [SLIME_GREEN_SHEET.src]: images.slimeGreen,
+        [SLIME_PURPLE_SHEET.src]: images.slimePurple,
+        [COIN_SHEET.src]: images.coin,
+        [FRUIT_SHEET.src]: images.fruit,
+        [WORLD_TILESET_SHEET.src]: images.tileset,
+        [CRACK_OVERLAY_SHEET.src]: images.crackOverlay,
+        [CHEST_CLOSED_SHEET.src]: images.chestClosed,
+      },
+      originX: panOffset.x,
+      originY: panOffset.y,
+      worldElapsed: 0,
+    };
 
-    drawEnemies(
-      ctx,
-      synthesizeEnemyStates(grid),
-      images.slimeGreen,
-      images.slimePurple,
-      panOffset.x,
-      panOffset.y,
-    );
+    drawCollectibles(ctx, synthesizeCollectiblePlacements(grid), new Set(), drawContext);
 
-    if (images.tileset) {
-      drawBlocks(
-        ctx,
-        synthesizeBlockStates(grid),
-        images.tileset,
-        images.crackOverlay,
-        panOffset.x,
-        panOffset.y,
-      );
-    }
+    drawEnemies(ctx, synthesizeEnemyStates(grid), drawContext);
 
-    drawChests(
-      ctx,
-      synthesizeChestStates(grid),
-      images.chestClosed,
-      null,
-      panOffset.x,
-      panOffset.y,
-    );
+    drawBlocks(ctx, synthesizeBlockStates(grid), drawContext);
+
+    drawChests(ctx, synthesizeChestStates(grid), drawContext);
 
     const player = synthesizePlayerState(grid);
     if (player && images.player) {

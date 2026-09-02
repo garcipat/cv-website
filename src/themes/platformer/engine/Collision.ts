@@ -5,36 +5,20 @@ import {
   PLAYER_FOOT_PADDING,
 } from '../entities/Player';
 import type { PlayerState } from '../entities/Player';
-import { COIN_RENDERED_SIZE } from '../entities/Coin';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
-import {
-  enemyRenderedSize,
-  enemyTileOffsetX,
-  enemyTileOffsetY,
-  enemyHitboxSidePadding,
-  enemyHitboxTopPadding,
-} from '../entities/Enemy';
 import type { EnemyState } from '../entities/Enemy';
-import { bonusFruitY, BONUS_FRUIT_RISE_DURATION_SECONDS } from '../entities/BonusFruit';
+import { typeOf } from '../entities/enemies';
+import type { ContactSide } from './Contact';
+import { BONUS_FRUIT_RISE_DURATION_SECONDS } from '../entities/BonusFruit';
 import type { BonusFruitState } from '../entities/BonusFruit';
-import { FRUIT_RENDERED_SIZE } from '../entities/Fruit';
-import {
-  CHEST_CLOSED_RENDERED_WIDTH,
-  CHEST_CLOSED_RENDERED_HEIGHT,
-  CHEST_CLOSED_OFFSET_X,
-  isChestOpen,
-} from '../entities/Chest';
+import { isChestOpen } from '../entities/Chest';
 import type { ChestState } from '../entities/Chest';
-import { RENDERED_TILE_SIZE } from '../level/Terrain';
+import { CHEST_TYPE } from '../entities/chests';
+import { signBox } from '../level/SignMapper';
 import type { SignPlacement } from '../level/SignMapper';
 import type { HintId } from '../types';
 import type { KeyPickupState } from '../entities/KeyPickup';
-import {
-  KEY_RENDERED_WIDTH,
-  KEY_RENDERED_HEIGHT,
-  KEY_TILE_OFFSET_X,
-  KEY_TILE_OFFSET_Y,
-} from '../entities/KeyPickup';
+import { PICKUP_TYPES } from '../entities/pickups';
 
 export interface Box {
   x: number;
@@ -65,148 +49,150 @@ export function aabbOverlap(a: Box, b: Box): boolean {
   return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
 }
 
+const ALWAYS_ELIGIBLE = () => true;
+
+/**
+ * Every trigger — pickup, chest, sign — whose box overlaps the player's
+ * hitbox and that its caller considers eligible right now, in the order the
+ * items were given. Matches are returned by reference, so a tick that touches
+ * nothing allocates only the empty array. Callers wanting just the nearest-in-
+ * array trigger take `[0]`.
+ *
+ * Eligibility is a caller-supplied predicate rather than a property of the
+ * item, because the trigger families record "no longer available" differently:
+ * placed collectibles are deduplicated against an external id Set, dropped
+ * keys carry a `collected` flag, bonus fruits are removed from their array
+ * outright, chests read their own open/closed state, and signs are reusable
+ * and never become ineligible at all (they omit the predicate). The overlap
+ * mechanism is shared; the policy stays with whoever owns it.
+ */
+export function overlappingTriggers<T>(
+  player: PlayerState,
+  items: readonly T[],
+  boxOf: (item: T) => Box,
+  eligible: (item: T) => boolean = ALWAYS_ELIGIBLE,
+): T[] {
+  const hitbox = playerHitbox(player);
+  const hits: T[] = [];
+  for (const item of items) {
+    if (!eligible(item)) continue;
+    if (aabbOverlap(hitbox, boxOf(item))) hits.push(item);
+  }
+  return hits;
+}
+
 /**
  * Returns the ids of every placement the player's hitbox currently overlaps,
  * excluding ids already in `collectedIds` — collision against an
  * already-collected (visually removed) collectible is a no-op, not a
- * duplicate-collect (FR-020c). Uses each placement's fixed x/y, ignoring the
- * cosmetic bob offset (Renderer.ts's drawCollectibles) so the
- * hitbox doesn't jitter a few pixels every frame independent of the sprite.
+ * duplicate-collect (FR-020c). Boxes come from `PICKUP_TYPES[spriteType].box`,
+ * which uses each placement's fixed x/y, ignoring the cosmetic bob offset
+ * (applied only when drawing — see each pickup type's own `bobOffset` under
+ * entities/pickups/) so the hitbox doesn't jitter a few pixels every frame
+ * independent of the sprite. A coin placement's box is
+ * `COIN_RENDERED_SIZE` square and a fruit placement's is `FRUIT_RENDERED_SIZE`
+ * square — both currently equal 32, so routing per-placement through its own
+ * pickup type is a no-op versus the single shared size this function used to
+ * hardcode.
  */
 export function checkCollectibleCollisions(
   player: PlayerState,
   placements: CollectiblePlacement[],
   collectedIds: ReadonlySet<string>,
 ): string[] {
-  const hitbox = playerHitbox(player);
-  const collected: string[] = [];
-  for (const placement of placements) {
-    if (collectedIds.has(placement.id)) continue;
-    const box: Box = {
-      x: placement.x,
-      y: placement.y,
-      width: COIN_RENDERED_SIZE,
-      height: COIN_RENDERED_SIZE,
-    };
-    if (aabbOverlap(hitbox, box)) collected.push(placement.id);
-  }
-  return collected;
+  return overlappingTriggers(
+    player,
+    placements,
+    (p) => PICKUP_TYPES[p.spriteType].box(p),
+    (p) => !collectedIds.has(p.id),
+  ).map((p) => p.id);
 }
 
-/**
- * An enemy's collision box — inset from the full render slot by the same
- * tile-centering offset `drawEnemies` draws the sprite at
- * (`enemyTileOffsetX`/`enemyTileOffsetY`), plus a further sprite-shape inset
- * (`enemyHitboxSidePadding`/`enemyHitboxTopPadding`, measured from the
- * sprite's own transparent margins) so the box coincides with the visible,
- * rounded slime silhouette rather than its full square render slot.
- */
-export function enemyHitbox(enemy: EnemyState): Box {
-  const size = enemyRenderedSize(enemy.spriteType);
-  const sidePad = enemyHitboxSidePadding(enemy.spriteType);
-  const topPad = enemyHitboxTopPadding(enemy.spriteType);
-  return {
-    x: enemy.x + enemyTileOffsetX(enemy.spriteType) + sidePad,
-    y: enemy.y + enemyTileOffsetY(enemy.spriteType) + topPad,
-    width: size - 2 * sidePad,
-    height: size - topPad,
-  };
+export interface EnemyContactResult {
+  /** The enemy array with every contacted enemy's returned `self` merged in.
+   *  Enemies with no contact are returned unchanged, by reference. */
+  enemies: EnemyState[];
+  /** Half-hearts. The caller drops this while the player is invulnerable. */
+  damagePlayer: number;
+  bouncePlayer: boolean;
+  knockback: 'none' | 'away' | 'awayAndUp';
+  /** Which way "away" points: -1 pushes the player left, 1 right. Derived from
+   *  the first damaging contact's hitbox centers — the geometry stays here so
+   *  no caller has to re-derive it. Meaningless while `knockback` is 'none'. */
+  knockbackDirection: -1 | 1;
 }
 
+const KNOCKBACK_RANK = { none: 0, away: 1, awayAndUp: 2 } as const;
+
 /**
- * Returns the ids of every not-yet-fatally-hit, not-currently-`spiked` enemy
- * the player just stomped this frame: overlapping AND falling (`player.vy >
- * 0`) AND landing on the enemy's upper half (the player's hitbox bottom edge
- * is at or above the enemy's vertical midpoint) — this is what distinguishes
- * "jumped on top of" from a side/below touch (a separate concern,
- * intentionally not handled here: this function returns [] for that case,
- * same as for no contact at all). An enemy already `defeated`, or one whose
- * `hitPoints` has already reached 0 (mid `hit`-reaction, awaiting removal),
- * is excluded — without this, a stomp's own bounce naturally arcs back down
- * onto the same enemy, and would otherwise keep decrementing `hitPoints`
- * arbitrarily far below 0 every time. A `spiked` enemy is excluded too — its
- * spikes make the top un-stompable until they retract (see `Enemy.ts`'s
- * `applyStomp`, `EnemyAI.ts`'s `stepEnemySpikeCooldown`); the same
- * top-landing on a spiked enemy is instead picked up by
- * `checkEnemySideCollisions` below and treated as player damage. Not gated
- * on `animState === 'hit'` alone — a still-airborne bounce back onto a
- * non-spiked, still-alive enemy (possible only for a single non-fatal stomp,
- * since that same stomp immediately sets `spiked: true`) is unaffected by
- * this function; `spiked` is what actually prevents repeat top-stomps now.
+ * Computes contact geometry against every living enemy and asks each one's
+ * type what the contact means, then aggregates.
+ *
+ * Aggregation rules, owned here and nowhere else: at most one damage applies
+ * per tick regardless of how many enemies are touched; a bounce applies if any
+ * outcome requests one; 'awayAndUp' wins over 'away', which wins over 'none'.
  */
-export function checkEnemyStompCollisions(player: PlayerState, enemies: EnemyState[]): string[] {
-  if (player.vy <= 0) return [];
-  const hitbox = playerHitbox(player);
-  const stomped: string[] = [];
-  for (const enemy of enemies) {
-    if (enemy.defeated || enemy.hitPoints <= 0 || enemy.spiked) continue;
-    const box = enemyHitbox(enemy);
-    if (!aabbOverlap(hitbox, box)) continue;
-    const enemyMidY = box.y + box.height / 2;
-    if (hitbox.y + hitbox.height <= enemyMidY) {
-      stomped.push(enemy.id);
+export function resolveEnemyContacts(
+  player: PlayerState,
+  enemies: readonly EnemyState[],
+): EnemyContactResult {
+  const playerBox = playerHitbox(player);
+  let merged: EnemyState[] | undefined;
+  let damagePlayer = 0;
+  let bouncePlayer = false;
+  let knockback: 'none' | 'away' | 'awayAndUp' = 'none';
+  let knockbackDirection: -1 | 1 = 1;
+
+  for (let i = 0; i < enemies.length; i += 1) {
+    const enemy = enemies[i];
+    if (!enemy.alive) continue;
+    const enemyType = typeOf(enemy);
+    const selfBox = enemyType.box(enemy);
+    if (!aabbOverlap(playerBox, selfBox)) continue;
+
+    const landsOnUpperHalf = playerBox.y + playerBox.height <= selfBox.y + selfBox.height / 2;
+    const side: ContactSide = player.vy > 0 && landsOnUpperHalf ? 'top' : 'side';
+    const outcome = enemyType.onPlayerCollide(enemy, player, {
+      side,
+      playerVx: player.vx,
+      playerVy: player.vy,
+      playerBox,
+      selfBox,
+    });
+
+    if (outcome.self) {
+      // A contact that cost hit points is a landed hit, so whatever taking
+      // one costs this type beyond the decrement (a temporary defense, say)
+      // is applied here — the type decides what a touch means, the engine
+      // decides that the resulting hit is a fact and pays for it.
+      const damage = enemy.hitPoints - outcome.self.hitPoints;
+      merged ??= [...enemies];
+      merged[i] =
+        damage > 0 && enemyType.onDamaged ? enemyType.onDamaged(outcome.self, damage) : outcome.self;
     }
+    if (outcome.bouncePlayer) bouncePlayer = true;
+    if (outcome.damagePlayer && outcome.damagePlayer > damagePlayer) {
+      // Max, not sum: touching two enemies in one tick still costs one hit.
+      damagePlayer = outcome.damagePlayer;
+      // Pushes the player back toward whichever side of the enemy their own
+      // hitbox center is already on, i.e. away from it and back the way they
+      // came. Compares hitbox centers rather than raw x, since each entity's
+      // x is its own render-slot top-left, not its visual center.
+      const playerCenterX = playerBox.x + playerBox.width / 2;
+      const selfCenterX = selfBox.x + selfBox.width / 2;
+      knockbackDirection = playerCenterX <= selfCenterX ? -1 : 1;
+    }
+    const requested = outcome.knockback ?? 'none';
+    if (KNOCKBACK_RANK[requested] > KNOCKBACK_RANK[knockback]) knockback = requested;
   }
-  return stomped;
-}
 
-/**
- * Returns the ids of every non-defeated, non-reacting enemy the player is
- * touching in a way that counts as damage — the exact inverse of
- * `checkEnemyStompCollisions`'s landing condition, EXCEPT for one case: a
- * `spiked` enemy's top is never treated as a legal stomp landing (its
- * spikes make it un-stompable — see `checkEnemyStompCollisions`'s doc
- * comment above), so any overlap with a `spiked` enemy counts as a hit here,
- * including a fall-and-land-on-top that would be a stomp against a
- * non-spiked enemy. For a non-spiked enemy, this is still the exact inverse
- * it always was: any overlap where the player either isn't falling (`vy <=
- * 0`) or is falling but contacting the enemy's lower half (side or below),
- * not landing on its upper half. An enemy currently playing its `hit`
- * reaction is excluded here too, same as stomp detection — otherwise,
- * immediately bouncing off a stomp while still overlapping the now-frozen
- * enemy (rising, or drifting beside it before separating) would register as
- * a spurious side-hit against the very enemy just stomped. A stunned/
- * reacting enemy is harmless in every way until its reaction ends, not just
- * immune to a second stomp — note a freshly-stomped enemy is BOTH `'hit'`
- * and `spiked` at once (`applyStomp` sets both), so this `animState`
- * exclusion is what actually protects it during its stun; `spiked` alone
- * would otherwise make a still-`'hit'`-reacting enemy's top count as damage
- * the instant its stomp registers.
- */
-export function checkEnemySideCollisions(player: PlayerState, enemies: EnemyState[]): string[] {
-  const hitbox = playerHitbox(player);
-  const hits: string[] = [];
-  for (const enemy of enemies) {
-    if (enemy.defeated || enemy.animState === 'hit') continue;
-    const box = enemyHitbox(enemy);
-    if (!aabbOverlap(hitbox, box)) continue;
-    const enemyMidY = box.y + box.height / 2;
-    const isStompLanding = !enemy.spiked && player.vy > 0 && hitbox.y + hitbox.height <= enemyMidY;
-    if (!isStompLanding) hits.push(enemy.id);
-  }
-  return hits;
-}
-
-/**
- * True when the player's overlap with `enemy` is exactly the "landing on
- * its upper half while falling" shape `checkEnemyStompCollisions` would
- * normally register as a stomp, but `checkEnemySideCollisions` reported as
- * damage instead because `enemy.spiked` blocked it. Used by
- * `PlatformerPage.tsx` to add a bit of upward knockback on top of the usual
- * horizontal push for this specific case — a failed stomp attempt against
- * spikes should read as "bounced off the top", not identically to a plain
- * side/below touch. Deliberately re-derives the same geometry rather than
- * having `checkEnemySideCollisions` return richer per-hit metadata — this
- * is the only caller that needs the distinction, and every existing caller
- * of `checkEnemySideCollisions` (Collision.test.ts included) keeps working
- * against its unchanged `string[]` return type.
- */
-export function isSpikedTopLanding(player: PlayerState, enemy: EnemyState): boolean {
-  if (!enemy.spiked || player.vy <= 0) return false;
-  const hitbox = playerHitbox(player);
-  const box = enemyHitbox(enemy);
-  const enemyMidY = box.y + box.height / 2;
-  return hitbox.y + hitbox.height <= enemyMidY;
+  return {
+    enemies: merged ?? enemies.slice(),
+    damagePlayer,
+    bouncePlayer,
+    knockback,
+    knockbackDirection,
+  };
 }
 
 /**
@@ -222,14 +208,12 @@ export function checkBonusFruitCollisions(
   player: PlayerState,
   fruits: readonly BonusFruitState[],
 ): string[] {
-  const hitbox = playerHitbox(player);
-  const hits: string[] = [];
-  for (const fruit of fruits) {
-    if (fruit.elapsed < BONUS_FRUIT_RISE_DURATION_SECONDS) continue;
-    const box: Box = { x: fruit.x, y: bonusFruitY(fruit), width: FRUIT_RENDERED_SIZE, height: FRUIT_RENDERED_SIZE };
-    if (aabbOverlap(hitbox, box)) hits.push(fruit.id);
-  }
-  return hits;
+  return overlappingTriggers(
+    player,
+    fruits,
+    (f) => PICKUP_TYPES.bonusFruit.box(f),
+    (f) => f.elapsed >= BONUS_FRUIT_RISE_DURATION_SECONDS,
+  ).map((f) => f.id);
 }
 
 /**
@@ -240,27 +224,16 @@ export function checkBonusFruitCollisions(
  * this tick. Only a chest's CLOSED footprint is checked (its open sprite is a
  * different size and the chest is un-openable again anyway, so an open
  * chest's box is irrelevant here) — mirrors checkBonusFruitCollisions'
- * single-box-per-item convention. The box's x is shifted by
- * CHEST_CLOSED_OFFSET_X (see entities/Chest.ts) so it matches exactly where
- * the closed chest is now drawn (centered on its tile, not left-aligned to
- * the tile's top-left corner).
+ * single-box-per-item convention. The box comes from `CHEST_TYPE.box`,
+ * which shifts its x by CHEST_CLOSED_OFFSET_X (see entities/Chest.ts) so it
+ * matches exactly where the closed chest is drawn (centered on its tile,
+ * not left-aligned to the tile's top-left corner).
  */
 export function chestPlayerIsStandingOn(
   player: PlayerState,
   chests: readonly ChestState[],
 ): string | undefined {
-  const hitbox = playerHitbox(player);
-  for (const chest of chests) {
-    if (isChestOpen(chest)) continue;
-    const box: Box = {
-      x: chest.x + CHEST_CLOSED_OFFSET_X,
-      y: chest.y,
-      width: CHEST_CLOSED_RENDERED_WIDTH,
-      height: CHEST_CLOSED_RENDERED_HEIGHT,
-    };
-    if (aabbOverlap(hitbox, box)) return chest.id;
-  }
-  return undefined;
+  return overlappingTriggers(player, chests, CHEST_TYPE.box, (c) => !isChestOpen(c))[0]?.id;
 }
 
 /**
@@ -268,19 +241,15 @@ export function chestPlayerIsStandingOn(
  * overlaps, or `undefined` if none. Unlike checkCollectibleCollisions, this
  * is NOT destructive/dedup-tracked — a sign is reusable, so the same sign
  * returns its hintId every tick the player stands on it, and again the next
- * time they walk back onto it. A sign's box is exactly one rendered tile
- * (RENDERED_TILE_SIZE square), matching how it's drawn (Renderer.ts).
+ * time they walk back onto it. The box comes from `signBox`
+ * (level/SignMapper.ts) — exactly one rendered tile, matching how it's
+ * drawn (Renderer.ts).
  */
 export function checkSignOverlap(
   player: PlayerState,
   signs: readonly SignPlacement[],
 ): HintId | undefined {
-  const hitbox = playerHitbox(player);
-  for (const sign of signs) {
-    const box: Box = { x: sign.x, y: sign.y, width: RENDERED_TILE_SIZE, height: RENDERED_TILE_SIZE };
-    if (aabbOverlap(hitbox, box)) return sign.hintId;
-  }
-  return undefined;
+  return overlappingTriggers(player, signs, signBox)[0]?.hintId;
 }
 
 /**
@@ -288,27 +257,23 @@ export function checkSignOverlap(
  * currently overlaps. Unlike checkCollectibleCollisions, there's no external
  * `collectedIds` set — a pickup's own `collected` flag is the source of
  * truth (PlatformerState.ts's keyPickupStates keeps collected entries around,
- * flagged rather than removed, so a defeated purple slime can never drop a
- * second key on a later respawn — see KeyPickup.ts's doc comment). The box
- * is offset by KEY_TILE_OFFSET_X/Y, the same centering/bottom-anchoring
- * Renderer.ts's drawKeyPickups applies, so the collidable area matches where
- * the key is actually drawn rather than the tile's raw top-left corner.
+ * flagged rather than removed, so the renderer can skip drawing them — see
+ * KeyPickup.ts's doc comment). A defeated purple slime can never drop a
+ * second key on a later respawn because of a separate mechanism: the source
+ * enemy's own `rewardGiven` flag (Enemy.ts), which `reviveEnemy` leaves
+ * untouched. The box is offset by KEY_TILE_OFFSET_X/Y, the same
+ * centering/bottom-anchoring entities/pickups/Key.ts's `box`/`draw` apply,
+ * so the collidable area matches where the key is actually drawn rather
+ * than the tile's raw top-left corner.
  */
 export function checkKeyPickupCollisions(
   player: PlayerState,
   pickups: readonly KeyPickupState[],
 ): string[] {
-  const hitbox = playerHitbox(player);
-  const hits: string[] = [];
-  for (const pickup of pickups) {
-    if (pickup.collected) continue;
-    const box: Box = {
-      x: pickup.x + KEY_TILE_OFFSET_X,
-      y: pickup.y + KEY_TILE_OFFSET_Y,
-      width: KEY_RENDERED_WIDTH,
-      height: KEY_RENDERED_HEIGHT,
-    };
-    if (aabbOverlap(hitbox, box)) hits.push(pickup.id);
-  }
-  return hits;
+  return overlappingTriggers(
+    player,
+    pickups,
+    (p) => PICKUP_TYPES.key.box(p),
+    (p) => !p.collected,
+  ).map((p) => p.id);
 }

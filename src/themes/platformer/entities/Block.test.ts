@@ -7,7 +7,6 @@ import {
   isBlockUsedUp,
   isBlockRemoved,
   applyBlockHit,
-  crateCrackOverlayVisible,
 } from './Block';
 import { TILE_SIZE, RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { BlockPlacement } from '../level/BlockMapper';
@@ -133,10 +132,4 @@ describe('applyBlockHit', () => {
     const usedUp = { ...toBlockState(placement('fragileRock')), hitsTaken: 1, animState: 'idle' as const };
     expect(applyBlockHit(usedUp)).toBe(usedUp);
   });
-});
-
-describe('crateCrackOverlayVisible', () => {
-  it('hitsTakenZero-notVisible', () => expect(crateCrackOverlayVisible(0)).toBe(false));
-  it('hitsTakenOne-visible', () => expect(crateCrackOverlayVisible(1)).toBe(true));
-  it('hitsTakenTwo-noLongerVisible', () => expect(crateCrackOverlayVisible(2)).toBe(false));
 });

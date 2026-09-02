@@ -7,7 +7,7 @@ import {
 import type { PlayerState } from '../entities/Player';
 import { enemyRenderedSize, enemyTileOffsetX, enemyTileOffsetY } from '../entities/Enemy';
 import type { EnemyState } from '../entities/Enemy';
-import { enemyHitbox } from './Collision';
+import { typeOf } from '../entities/enemies';
 import { isSolid, tileAt, tileToPixel, RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { LevelDef } from '../level/LevelData';
 
@@ -78,21 +78,25 @@ export function drawDebugOverlay(
 
   // Enemies: full render slot (red) — where the sprite is drawn, not the
   // hitbox — and the narrower collision hitbox (yellow) that
-  // checkEnemyStompCollisions/checkEnemySideCollisions actually use. Same
+  // resolveEnemyContacts actually uses. Same
   // colors as the player's own render-slot/hitbox pair above, so the same
   // color always means the same collision concept regardless of which
-  // entity it's drawn on.
+  // entity it's drawn on. A dead enemy (`!alive`) is skipped — collision
+  // ignores it entirely (see resolveEnemyContacts in Collision.ts), so
+  // drawing a hitbox for one
+  // here would misrepresent what's actually collidable.
   for (const enemy of enemies) {
-    const size = enemyRenderedSize(enemy.spriteType);
+    if (!enemy.alive) continue;
+    const size = enemyRenderedSize(enemy.type);
     ctx.strokeStyle = 'red';
     ctx.strokeRect(
-      enemy.x + enemyTileOffsetX(enemy.spriteType) + originX,
-      enemy.y + enemyTileOffsetY(enemy.spriteType) + originY,
+      enemy.x + enemyTileOffsetX(enemy.type) + originX,
+      enemy.y + enemyTileOffsetY(enemy.type) + originY,
       size,
       size,
     );
 
-    const box = enemyHitbox(enemy);
+    const box = typeOf(enemy).box(enemy);
     ctx.strokeStyle = 'yellow';
     ctx.strokeRect(box.x + originX, box.y + originY, box.width, box.height);
   }

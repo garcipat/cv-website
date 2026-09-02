@@ -9,13 +9,13 @@ import {
   PLAYER_FOOT_PADDING,
 } from './entities/Player';
 import type { EnemyState } from './entities/Enemy';
+import type { SlimePurpleState } from './entities/enemies/SlimePurple';
 import { ENEMY_RENDERED_SIZE, toEnemyState } from './entities/Enemy';
-import { enemyHitbox } from './engine/Collision';
+import { typeOf } from './entities/enemies';
 import {
   playerState,
   cameraPositionX,
   cameraPositionY,
-  healthState,
   lifecycleState,
   collectedFacts,
   activeJournalSection,
@@ -34,6 +34,7 @@ import {
   hintTooltipState,
   keyPickupStates,
   collectedKeys,
+  resetGame,
 } from './PlatformerState';
 import { toChestState, isChestOpen } from './entities/Chest';
 import { spawnKeyPickup } from './entities/KeyPickup';
@@ -44,7 +45,10 @@ import {
   HEART_RENDERED_SIZE,
 } from './entities/Health';
 import { HEARTS_START_X, keyCounterX, KEY_COUNTER_Y } from './engine/Renderer';
-import { HIT_REACTION_DURATION_SECONDS, SPIKE_COOLDOWN_DURATION_SECONDS } from './engine/EnemyAI';
+import { ENEMY_HIT_REACTION_SECONDS } from './entities/enemies/shared';
+import { isInvulnerable } from './entities/capabilities';
+import { PLAYER_HIT_REACTION_SECONDS } from './entities/Player';
+import { SPIKE_COOLDOWN_DURATION_SECONDS } from './entities/enemies/SlimePurple';
 import { PHYSICS_CONFIG } from './engine/PhysicsConfig';
 import { tileToPixel } from './level/Terrain';
 import {
@@ -55,13 +59,13 @@ import {
 /**
  * The player.y to set so a falling player's hitbox lands a few px into the
  * given enemy's hitbox from the top — comfortably within its upper half (a
- * "landing on top" stomp), derived from the real enemyHitbox/player padding
+ * "landing on top" stomp), derived from the real enemy box/player padding
  * geometry rather than a hand-picked magic offset, so this stays correct
  * regardless of future hitbox/padding tuning (same helper shape as
  * Collision.test.ts's playerLandingOnTopOf).
  */
 function stompLandingY(enemy: EnemyState, overlapPx = 4): number {
-  const box = enemyHitbox(enemy);
+  const box = typeOf(enemy).box(enemy);
   const playerHitboxHeight = PLAYER_RENDERED_SIZE - PLAYER_HEAD_PADDING - PLAYER_FOOT_PADDING;
   return box.y + overlapPx - playerHitboxHeight - PLAYER_HEAD_PADDING;
 }
@@ -96,7 +100,6 @@ describe('PlatformerPage', () => {
     playerState.value = initialPlayerState;
     cameraPositionX.value = 0;
     cameraPositionY.value = 0;
-    healthState.value = MAX_HALF_HEARTS;
     lifecycleState.value = initialLifecycleState;
     collectedFacts.value = initialCollectedFacts;
     // Module-level signal (see PlatformerState.ts) — must be reset the same
@@ -346,7 +349,7 @@ describe('PlatformerPage', () => {
     frameCallback!(16);
 
     expect(playerState.value.x).toBeGreaterThan(startX);
-    expect(playerState.value.facing).toBe('right');
+    expect(playerState.value.direction).toBe('right');
     expect(playerState.value.animState).toBe('walk');
   });
 
@@ -407,7 +410,7 @@ describe('PlatformerPage', () => {
     frameCallback!(16);
 
     expect(playerState.value.x).toBeGreaterThan(startX);
-    expect(playerState.value.facing).toBe('right');
+    expect(playerState.value.direction).toBe('right');
     expect(playerState.value.animState).toBe('walk');
   });
 
@@ -427,7 +430,7 @@ describe('PlatformerPage', () => {
     frameCallback!(16);
 
     expect(playerState.value.x).toBeLessThan(startX);
-    expect(playerState.value.facing).toBe('left');
+    expect(playerState.value.direction).toBe('left');
     expect(playerState.value.animState).toBe('walk');
   });
 
@@ -553,7 +556,7 @@ describe('PlatformerPage', () => {
 
     frameCallback!(16);
 
-    expect(healthState.value).toBe(MAX_HALF_HEARTS - PIT_FALL_DAMAGE);
+    expect(playerState.value.hitPoints).toBe(MAX_HALF_HEARTS - PIT_FALL_DAMAGE);
     expect(playerState.value.x).toBe(500);
     expect(playerState.value.y).toBe(200);
     expect(playerState.value.grounded).toBe(true);
@@ -571,7 +574,7 @@ describe('PlatformerPage', () => {
     frameCallback!(0);
     frameCallback!(16);
 
-    expect(healthState.value).toBe(MAX_HALF_HEARTS);
+    expect(playerState.value.hitPoints).toBe(MAX_HALF_HEARTS);
   });
 
   it('playerWalksPastDeadZone-gameLoopTicks-cameraScrollsRight', () => {
@@ -651,7 +654,7 @@ describe('PlatformerPage', () => {
     // icon yet) regardless of whether the count logic itself is correct.
     await waitFor(() => expect(ctx.drawImage).toHaveBeenCalled());
 
-    const target = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
+    const target = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
     playerState.value = {
       ...playerState.value,
       x: target.x,
@@ -689,7 +692,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
+    const target = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
     playerState.value = {
       ...playerState.value,
       x: target.x,
@@ -708,7 +711,7 @@ describe('PlatformerPage', () => {
     const defeatedEnemyFactCount = collectedFacts.value.filter((f) => f.sourceType === 'enemy').length;
     expect(defeatedEnemyFactCount).toBe(1);
 
-    healthState.value = 0;
+    playerState.value = { ...playerState.value, hitPoints: 0 };
     t += 16;
     frameCallback!(t); // enters 'dying'
     for (let i = 0; i < 200; i++) {
@@ -849,7 +852,7 @@ describe('PlatformerPage', () => {
 
     // Simulate a respawn (per FR-020c, collected state survives it) and
     // touch the same spot again.
-    healthState.value = 0;
+    playerState.value = { ...playerState.value, hitPoints: 0 };
     frameCallback!(32); // enters 'dying'
     // Fast-forward through dying+awaitingRestart, then restart.
     let t = 32;
@@ -875,7 +878,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
+    const target = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
     playerState.value = {
       ...playerState.value,
       x: target.x,
@@ -894,14 +897,14 @@ describe('PlatformerPage', () => {
       frameCallback!(t);
     }
 
-    expect(enemyStates.value.some((e) => e.id === target.id)).toBe(false);
+    expect(enemyStates.value.find((e) => e.id === target.id)?.alive).toBe(false);
     expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(true);
   });
 
   it('playerFallsOntoAPlainEnemyWithNoFact-tick-defeatsItButAwardsNoFact', () => {
     // A "plain" enemy (EnemyMapper.ts's excess-marker case — enemies are not
     // capped at CVData's length) has no `fact` — stomping it must still
-    // remove it like any other enemy, just without banking a fact or
+    // flag it dead like any other enemy, just without banking a fact or
     // bumping the enemy counter popup.
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
@@ -913,7 +916,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const real = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
+    const real = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
     // Offset well clear of `real`'s position — otherwise both enemies sit
     // exactly on top of each other and a single stomp defeats both,
     // muddying what this test is actually checking.
@@ -938,14 +941,14 @@ describe('PlatformerPage', () => {
       frameCallback!(t);
     }
 
-    expect(enemyStates.value.some((e) => e.id === plain.id)).toBe(false);
+    expect(enemyStates.value.find((e) => e.id === plain.id)?.alive).toBe(false);
     expect(collectedFacts.value).toHaveLength(factsBefore);
   });
 
   it('purpleSlimeDefeat-thirdStomp-spawnsKeyPickupInsteadOfJournalFact', () => {
     // Purple slimes carry no CV fact (EnemyMapper.ts) — defeating one drops a
-    // key pickup instead of banking a journal fact. ENEMY_HIT_POINTS.slimePurple
-    // is 3, so start it at 1 hit point (as if already stomped twice) and land
+    // key pickup instead of banking a journal fact. A purple slime's
+    // maxHitPoints is 3, so start it at 1 hit point (as if already stomped twice) and land
     // the final stomp here.
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
@@ -957,7 +960,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = enemyStates.value.find((e) => e.spriteType === 'slimePurple')!;
+    const target = enemyStates.value.find((e) => e.type === 'slimePurple')!;
     enemyStates.value = enemyStates.value.map((e) => (e.id === target.id ? { ...e, hitPoints: 1 } : e));
     playerState.value = {
       ...playerState.value,
@@ -975,14 +978,14 @@ describe('PlatformerPage', () => {
 
     // Note: the player is still standing exactly where the slime died (this
     // engine has no horizontal drift during the hit-reaction freeze — see
-    // applyStomp), so the very same tick's key-pickup collision check (below,
+    // SlimePurple.ts's onPlayerCollide), so the very same tick's key-pickup collision check (below,
     // in PlatformerPage.tsx) collects it immediately — that's real, intended
     // behavior (an item spawned right under the player is picked up on
     // contact, same as any other collectible), not a test artifact. What
     // matters here is that a KeyPickupState was created at all (proving the
     // defeat routed through spawnKeyPickup, not the fact-flight path) and
     // that no journal fact was banked for this enemy.
-    expect(enemyStates.value.some((e) => e.id === target.id)).toBe(false);
+    expect(enemyStates.value.find((e) => e.id === target.id)?.alive).toBe(false);
     expect(keyPickupStates.value.some((k) => k.id === target.id)).toBe(true);
     expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(false);
   });
@@ -1004,7 +1007,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = enemyStates.value.find((e) => e.spriteType === 'slimePurple')!;
+    const target = enemyStates.value.find((e) => e.type === 'slimePurple')!;
     enemyStates.value = enemyStates.value.map((e) => (e.id === target.id ? { ...e, hitPoints: 1 } : e));
     playerState.value = {
       ...playerState.value,
@@ -1024,7 +1027,7 @@ describe('PlatformerPage', () => {
     // Simulate a respawn (per FR-020c, collected/dropped state survives it —
     // same convention as the collectible respawn test above) and re-defeat
     // the same purple slime once revived.
-    healthState.value = 0;
+    playerState.value = { ...playerState.value, hitPoints: 0 };
     frameCallback!(t + 16); // enters 'dying'
     t += 16;
     for (let i = 0; i < 200; i++) {
@@ -1049,6 +1052,48 @@ describe('PlatformerPage', () => {
     }
 
     expect(keyPickupStates.value.filter((k) => k.id === target.id)).toHaveLength(1);
+  });
+
+  it('enemyThatGaveItsReward-isFlaggedRewardGivenAndStaysFlaggedAcrossRespawn', () => {
+    // The dedup is now a property of the enemy itself rather than a lookup
+    // into keyPickupStates, so assert on the enemy. This holds for any
+    // reward type, not only dropped keys.
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const target = enemyStates.value.find((e) => e.type === 'slimePurple')!;
+    enemyStates.value = enemyStates.value.map((e) =>
+      e.id === target.id ? { ...e, hitPoints: 1 } : e,
+    );
+    playerState.value = {
+      ...playerState.value,
+      x: target.x,
+      y: stompLandingY(target),
+      vy: 300,
+    };
+
+    let t = 16;
+    frameCallback!(t);
+    for (let i = 0; i < 30; i++) {
+      t += 16;
+      frameCallback!(t);
+    }
+
+    expect(enemyStates.value.find((e) => e.id === target.id)?.rewardGiven).toBe(true);
+
+    resetGame();
+
+    const revived = enemyStates.value.find((e) => e.id === target.id)!;
+    expect(revived.alive).toBe(true);
+    expect(revived.hitPoints).toBeGreaterThan(0);
+    expect(revived.rewardGiven).toBe(true);
   });
 
   it('playerWalksIntoKeyPickup-tick-incrementsCollectedKeys', () => {
@@ -1123,7 +1168,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
+    const target = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
     playerState.value = {
       ...playerState.value,
       x: target.x,
@@ -1167,7 +1212,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
+    const target = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
     const factId = target.id;
     playerState.value = {
       ...playerState.value,
@@ -1193,7 +1238,7 @@ describe('PlatformerPage', () => {
     // but resetGame() revives all enemies from scratch, alive again) — same
     // sequence as alreadyCollected-touchedAgainAfterRespawn-doesNotDuplicateFact
     // above, but for an enemy stomp instead of a collectible touch.
-    healthState.value = 0;
+    playerState.value = { ...playerState.value, hitPoints: 0 };
     t += 16;
     frameCallback!(t); // enters 'dying'
     for (let i = 0; i < 200; i++) {
@@ -1231,21 +1276,21 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = enemyStates.value.find((e) => e.spriteType === 'slimePurple')!;
+    const target = enemyStates.value.find((e) => e.type === 'slimePurple')!;
     let t = 16;
 
-    // ENEMY_HIT_POINTS.slimePurple is 3 — land three separate, deliberately
+    // A purple slime's maxHitPoints is 3 — land three separate, deliberately
     // re-positioned stomps. A non-fatal stomp now also sets `spiked: true`
-    // for SPIKE_COOLDOWN_DURATION_SECONDS (see EnemyAI.ts's
-    // stepEnemySpikeCooldown), during which a top-landing is treated as
-    // player damage instead of a stomp (Collision.ts's
-    // checkEnemyStompCollisions/checkEnemySideCollisions) — so each wait
+    // for SPIKE_COOLDOWN_DURATION_SECONDS (see SlimePurple.ts's
+    // onTick), during which a top-landing is treated as
+    // player damage instead of a stomp (SlimePurple.ts's
+    // onPlayerCollide) — so each wait
     // between stomps must exceed that cooldown for the next landing to
     // register as a genuine stomp again.
     const framesPastSpikeCooldown = Math.ceil((SPIKE_COOLDOWN_DURATION_SECONDS * 1000) / 16) + 5;
     for (let stomp = 1; stomp <= 3; stomp++) {
       const current = enemyStates.value.find((e) => e.id === target.id);
-      if (!current) break; // defeated — nothing left to land on
+      if (!current || !current.alive) break; // dead — nothing left to land on
       playerState.value = {
         ...playerState.value,
         x: current.x,
@@ -1265,7 +1310,7 @@ describe('PlatformerPage', () => {
       }
     }
 
-    expect(enemyStates.value.some((e) => e.id === target.id)).toBe(false);
+    expect(enemyStates.value.find((e) => e.id === target.id)?.alive).toBe(false);
     // Purple enemies now carry no CV facts — they drop keys on defeat instead
     expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(false);
   });
@@ -1283,7 +1328,7 @@ describe('PlatformerPage', () => {
 
     // One half-heart of health left; a pit fall (PIT_FALL_DAMAGE = 1) is
     // exactly fatal this tick.
-    healthState.value = PIT_FALL_DAMAGE;
+    playerState.value = { ...playerState.value, hitPoints: PIT_FALL_DAMAGE };
     playerState.value = {
       ...playerState.value,
       x: 500,
@@ -1297,7 +1342,7 @@ describe('PlatformerPage', () => {
 
     frameCallback!(16);
 
-    expect(healthState.value).toBe(0);
+    expect(playerState.value.hitPoints).toBe(0);
     expect(lifecycleState.value.phase).toBe('dying');
     expect(lifecycleState.value.centerX).toBe(playerState.value.x + PLAYER_RENDERED_SIZE / 2);
     expect(lifecycleState.value.centerY).toBe(playerState.value.y + PLAYER_VISUAL_CENTER_Y_OFFSET);
@@ -1319,7 +1364,7 @@ describe('PlatformerPage', () => {
 
     render(<PlatformerPage />);
     frameCallback!(0);
-    healthState.value = PIT_FALL_DAMAGE;
+    playerState.value = { ...playerState.value, hitPoints: PIT_FALL_DAMAGE };
     playerState.value = {
       ...playerState.value,
       x: 500,
@@ -1351,7 +1396,7 @@ describe('PlatformerPage', () => {
 
     render(<PlatformerPage />);
     frameCallback!(0);
-    healthState.value = PIT_FALL_DAMAGE;
+    playerState.value = { ...playerState.value, hitPoints: PIT_FALL_DAMAGE };
     playerState.value = {
       ...playerState.value,
       x: 500,
@@ -1371,7 +1416,7 @@ describe('PlatformerPage', () => {
 
     fireEvent.keyDown(window, { code: 'Enter' });
 
-    expect(healthState.value).toBe(MAX_HALF_HEARTS);
+    expect(playerState.value.hitPoints).toBe(MAX_HALF_HEARTS);
     expect(lifecycleState.value.phase).toBe('intro');
     expect(playerState.value.x).toBe(initialPlayerState.x);
     expect(playerState.value.y).toBe(initialPlayerState.y);
@@ -1388,7 +1433,7 @@ describe('PlatformerPage', () => {
 
     render(<PlatformerPage />);
     frameCallback!(0);
-    healthState.value = PIT_FALL_DAMAGE;
+    playerState.value = { ...playerState.value, hitPoints: PIT_FALL_DAMAGE };
     playerState.value = {
       ...playerState.value,
       x: 500,
@@ -1410,7 +1455,7 @@ describe('PlatformerPage', () => {
     fireEvent.click(canvas);
 
     expect(lifecycleState.value.phase).toBe('intro');
-    expect(healthState.value).toBe(MAX_HALF_HEARTS);
+    expect(playerState.value.hitPoints).toBe(MAX_HALF_HEARTS);
   });
 
   it('jKeyPressed-whilePlaying-opensJournalAndPausesLoop', () => {
@@ -1550,7 +1595,7 @@ describe('PlatformerPage', () => {
     ];
     collectedCollectibleIds.value = new Set(['coin-frontend']);
     playerState.value = { ...playerState.value, x: 999, y: 999 };
-    healthState.value = 0;
+    playerState.value = { ...playerState.value, hitPoints: 0 };
     cameraPositionX.value = 300;
 
     fireEvent.click(platformerPage.journal.resetButton);
@@ -1558,7 +1603,7 @@ describe('PlatformerPage', () => {
     expect(platformerPage.journal.root).not.toBeInTheDocument();
     expect(collectedFacts.value).toEqual([]);
     expect(collectedCollectibleIds.value.size).toBe(0);
-    expect(healthState.value).toBe(MAX_HALF_HEARTS);
+    expect(playerState.value.hitPoints).toBe(MAX_HALF_HEARTS);
     expect(lifecycleState.value.phase).toBe('intro');
     expect(playerState.value.x).toBe(initialPlayerState.x);
     expect(playerState.value.y).toBe(initialPlayerState.y);
@@ -1654,7 +1699,7 @@ describe('PlatformerPage', () => {
     // Force a fatal pit fall (same setup as the existing
     // healthReachesZero-... test above), then let the death/restart timeline
     // fully play out.
-    healthState.value = PIT_FALL_DAMAGE;
+    playerState.value = { ...playerState.value, hitPoints: PIT_FALL_DAMAGE };
     playerState.value = { ...playerState.value, x: 500, y: 5000, vy: 900, grounded: false };
     frameCallback!(32);
     expect(lifecycleState.value.phase).toBe('dying');
@@ -1760,7 +1805,7 @@ describe('PlatformerPage', () => {
 
     fireEvent.keyDown(window, { code: 'Enter' });
 
-    expect(healthState.value).toBe(MAX_HALF_HEARTS); // unchanged, no restart happened
+    expect(playerState.value.hitPoints).toBe(MAX_HALF_HEARTS); // unchanged, no restart happened
   });
 
   it('debugQueryParamAbsent-render-doesNotShowKillOrRespawnButtons', () => {
@@ -1802,7 +1847,7 @@ describe('PlatformerPage', () => {
 
     fireEvent.click(platformerPage.debugKillButton);
 
-    expect(healthState.value).toBe(0);
+    expect(playerState.value.hitPoints).toBe(0);
     expect(lifecycleState.value.phase).toBe('dying');
     expect(lifecycleState.value.centerX).toBe(playerState.value.x + PLAYER_RENDERED_SIZE / 2);
     expect(lifecycleState.value.centerY).toBe(playerState.value.y + PLAYER_VISUAL_CENTER_Y_OFFSET);
@@ -1825,11 +1870,11 @@ describe('PlatformerPage', () => {
     frameCallback!(0);
     frameCallback!(16);
     playerState.value = { ...playerState.value, x: 999, y: 999 };
-    healthState.value = 0;
+    playerState.value = { ...playerState.value, hitPoints: 0 };
 
     fireEvent.click(platformerPage.debugRespawnButton);
 
-    expect(healthState.value).toBe(MAX_HALF_HEARTS);
+    expect(playerState.value.hitPoints).toBe(MAX_HALF_HEARTS);
     expect(lifecycleState.value.phase).toBe('intro');
     expect(playerState.value.x).toBe(initialPlayerState.x);
     expect(playerState.value.y).toBe(initialPlayerState.y);
@@ -1909,8 +1954,8 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
-    const startingHealth = healthState.value;
+    const target = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
+    const startingHealth = playerState.value.hitPoints;
     playerState.value = {
       ...playerState.value,
       x: target.x,
@@ -1921,9 +1966,9 @@ describe('PlatformerPage', () => {
 
     frameCallback!(16);
 
-    expect(healthState.value).toBe(startingHealth - SIDE_HIT_DAMAGE);
+    expect(playerState.value.hitPoints).toBe(startingHealth - SIDE_HIT_DAMAGE);
     expect(playerState.value.vx).not.toBe(0);
-    expect(playerState.value.invincibleTimer).toBeGreaterThan(0);
+    expect(isInvulnerable(playerState.value, PLAYER_HIT_REACTION_SECONDS)).toBe(true);
   });
 
   it('playerTouchesEnemyFromTheLeft-tick-knockbackPushesFurtherLeft', () => {
@@ -1937,8 +1982,8 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
-    const box = enemyHitbox(target);
+    const target = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
+    const box = typeOf(target).box(target);
     // Positioned so the player's hitbox CENTER sits a few px inside the
     // enemy hitbox's left edge — clearly left of the enemy's own center,
     // not a raw-x coincidence — so knockback direction is unambiguous and
@@ -1967,8 +2012,8 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
-    const box = enemyHitbox(target);
+    const target = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
+    const box = typeOf(target).box(target);
     // Mirror of the "from the left" case above — player hitbox center a
     // few px inside the enemy hitbox's right edge.
     playerState.value = {
@@ -1995,7 +2040,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = enemyStates.value.find((e) => e.spriteType === 'slimePurple')!;
+    const target = enemyStates.value.find((e) => e.type === 'slimePurple')!;
     enemyStates.value = enemyStates.value.map((e) =>
       e.id === target.id ? { ...e, spiked: true, spikeTimer: 0.1 } : e,
     );
@@ -2032,8 +2077,8 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
-    const box = enemyHitbox(target);
+    const target = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
+    const box = typeOf(target).box(target);
     playerState.value = {
       ...playerState.value,
       x: box.x + 2 - PLAYER_RENDERED_SIZE / 2,
@@ -2044,7 +2089,7 @@ describe('PlatformerPage', () => {
 
     frameCallback!(16);
 
-    expect(playerState.value.vy).not.toBe(PHYSICS_CONFIG.spikeTopHitKnockbackVy);
+    expect(playerState.value.vy).not.toBe(PHYSICS_CONFIG.awayAndUpKnockbackVy);
   });
 
   it('playerInvincible-touchesAnotherEnemy-noSecondHitRegistered', () => {
@@ -2058,16 +2103,16 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
+    const target = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
     playerState.value = { ...playerState.value, x: target.x, y: target.y, vx: 0, vy: 0 };
     frameCallback!(16);
-    const healthAfterFirstHit = healthState.value;
-    expect(playerState.value.invincibleTimer).toBeGreaterThan(0);
+    const healthAfterFirstHit = playerState.value.hitPoints;
+    expect(isInvulnerable(playerState.value, PLAYER_HIT_REACTION_SECONDS)).toBe(true);
 
     // Still overlapping the same enemy on the very next tick — must not hit again.
     frameCallback!(32);
 
-    expect(healthState.value).toBe(healthAfterFirstHit);
+    expect(playerState.value.hitPoints).toBe(healthAfterFirstHit);
   });
 
   it('playerFallsOntoEnemyFromAbove-tick-noSideHitDamageOnlyAStomp', () => {
@@ -2084,8 +2129,8 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
-    const startingHealth = healthState.value;
+    const target = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
+    const startingHealth = playerState.value.hitPoints;
     playerState.value = {
       ...playerState.value,
       x: target.x,
@@ -2095,19 +2140,18 @@ describe('PlatformerPage', () => {
 
     frameCallback!(16);
 
-    expect(healthState.value).toBe(startingHealth);
-    expect(playerState.value.invincibleTimer).toBe(0);
+    expect(playerState.value.hitPoints).toBe(startingHealth);
+    expect(isInvulnerable(playerState.value, PLAYER_HIT_REACTION_SECONDS)).toBe(false);
   });
 
   it('playerStompsEnemy-ticksThroughTheWholeBounceArc-neverTakesSideHitDamage', () => {
-    // The same-tick stompedIds filter (see the test above) only protects the
-    // exact tick a stomp registers. On every LATER tick, while the player is
+    // A stomp and its damage are decided in one pass on the tick it
+    // registers. On every LATER tick, while the player is
     // still rising off the bounce (vy < 0) and still overlapping the
-    // now-frozen, mid-'hit' enemy, checkEnemySideCollisions must not register
-    // a fresh, unwanted side-hit against the very enemy just stomped — any
-    // `animState === 'hit'` enemy is excluded from side-hit detection
-    // entirely (matching stomp detection's own exclusion) rather than
-    // relying on velocity/geometry alone. This ticks through several frames
+    // now-frozen, mid-'hit' enemy, no fresh, unwanted side-hit may register
+    // against the very enemy just stomped — an enemy inside its refractory
+    // window returns no outcome at all (its type module asks
+    // `isInvulnerable`) rather than relying on velocity/geometry alone. This ticks through several frames
     // of the bounce arc (well past the single tick the older test covered)
     // and asserts health never drops and invincibility is never granted from
     // this encounter.
@@ -2121,8 +2165,8 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
-    const startingHealth = healthState.value;
+    const target = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
+    const startingHealth = playerState.value.hitPoints;
     playerState.value = {
       ...playerState.value,
       x: target.x,
@@ -2135,23 +2179,22 @@ describe('PlatformerPage', () => {
     for (let i = 0; i < 20; i++) {
       t += 16;
       frameCallback!(t);
-      expect(healthState.value).toBe(startingHealth);
-      expect(playerState.value.invincibleTimer).toBe(0);
+      expect(playerState.value.hitPoints).toBe(startingHealth);
+      expect(isInvulnerable(playerState.value, PLAYER_HIT_REACTION_SECONDS)).toBe(false);
     }
   });
 
   it('playerLandsOnPurpleEnemyImmediatelyAfterStomp-whileStillMidReactionAndSpiked-registersNeitherStompNorHit', () => {
-    // Purple slime spike cooldown (see EnemyAI.ts's stepEnemySpikeCooldown
-    // and Collision.ts's checkEnemyStompCollisions/checkEnemySideCollisions
-    // doc comments): `applyStomp` sets both `animState: 'hit'` AND
+    // Purple slime spike cooldown (see SlimePurple.ts's onTick
+    // and onPlayerCollide): `takeHit` sets both
+    // `animState: 'hit'` AND
     // `spiked: true` on the very same stomp. An immediate second top-landing
-    // while still mid-reaction therefore hits neither collision path —
-    // `checkEnemyStompCollisions` excludes it because it's `spiked`, and
-    // `checkEnemySideCollisions` excludes it because `animState === 'hit'`.
+    // while still mid-reaction therefore does nothing at all — a stunned
+    // enemy returns no outcome, neither stomp nor damage.
     // It must register as neither a stomp nor a side-hit: hitPoints stays
     // frozen at whatever the first stomp left it at, and the player takes no
     // damage, until the ~0.4s hit-reaction ends and the spike cooldown
-    // (1.5s) later lifts.
+    // (0.9s) later lifts.
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frameCallback = cb;
@@ -2162,7 +2205,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = enemyStates.value.find((e) => e.spriteType === 'slimePurple')!;
+    const target = enemyStates.value.find((e) => e.type === 'slimePurple')!;
     playerState.value = {
       ...playerState.value,
       x: target.x,
@@ -2173,15 +2216,15 @@ describe('PlatformerPage', () => {
     let t = 16;
     frameCallback!(t); // first stomp: hitPoints 3 -> 2, animState 'hit', spiked true
 
-    const midReaction = enemyStates.value.find((e) => e.id === target.id)!;
+    const midReaction = enemyStates.value.find((e) => e.id === target.id)! as SlimePurpleState;
     expect(midReaction.animState).toBe('hit');
     expect(midReaction.hitPoints).toBe(2);
     expect(midReaction.spiked).toBe(true);
 
-    const healthBeforeSecondLanding = healthState.value;
+    const healthBeforeSecondLanding = playerState.value.hitPoints;
 
     // Land on it again immediately — still well within the ~0.4s reaction
-    // window (this same tick) and well within the 1.5s spike cooldown,
+    // window (this same tick) and well within the 0.9s spike cooldown,
     // entirely airborne, no landing/separation of any kind in between.
     playerState.value = {
       ...playerState.value,
@@ -2194,16 +2237,16 @@ describe('PlatformerPage', () => {
 
     const afterSecondLanding = enemyStates.value.find((e) => e.id === target.id)!;
     expect(afterSecondLanding.hitPoints).toBe(2); // unchanged from the first stomp
-    expect(healthState.value).toBe(healthBeforeSecondLanding); // no player damage
+    expect(playerState.value.hitPoints).toBe(healthBeforeSecondLanding); // no player damage
   });
 
   it('spikedPurpleSlime-stompedAgainFromTopDuringCooldown-damagesPlayerInstead', () => {
     // Once the ~0.4s hit-reaction ends (animState back to 'walk'), a spiked
     // enemy is stompable-position-wise again, but `spiked` itself lasts the
-    // full SPIKE_COOLDOWN_DURATION_SECONDS (1.5s) — a top-landing during
-    // that window is excluded from `checkEnemyStompCollisions` (spiked) and
-    // instead picked up by `checkEnemySideCollisions` as a genuine side-hit,
-    // damaging the player instead of the enemy.
+    // full SPIKE_COOLDOWN_DURATION_SECONDS (0.9s) — a top-landing during
+    // that window is no longer a legal stomp landing (spiked) and is
+    // instead reported as a genuine side-hit, damaging the player instead of
+    // the enemy.
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frameCallback = cb;
@@ -2214,7 +2257,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = enemyStates.value.find((e) => e.spriteType === 'slimePurple')!;
+    const target = enemyStates.value.find((e) => e.type === 'slimePurple')!;
     playerState.value = {
       ...playerState.value,
       x: target.x,
@@ -2225,21 +2268,21 @@ describe('PlatformerPage', () => {
     let t = 16;
     frameCallback!(t); // first stomp: hitPoints 3 -> 2, animState 'hit', spiked true
 
-    // Advance past HIT_REACTION_DURATION_SECONDS (0.4s) so animState returns
-    // to 'walk', but stay well within SPIKE_COOLDOWN_DURATION_SECONDS (1.5s)
+    // Advance past ENEMY_HIT_REACTION_SECONDS (0.4s) so animState returns
+    // to 'walk', but stay well within SPIKE_COOLDOWN_DURATION_SECONDS (0.9s)
     // so the enemy is still `spiked`.
-    const framesPastHitReaction = Math.ceil((HIT_REACTION_DURATION_SECONDS * 1000) / 16) + 5;
+    const framesPastHitReaction = Math.ceil((ENEMY_HIT_REACTION_SECONDS * 1000) / 16) + 5;
     for (let i = 0; i < framesPastHitReaction; i++) {
       t += 16;
       frameCallback!(t);
     }
 
-    const stillSpiked = enemyStates.value.find((e) => e.id === target.id)!;
+    const stillSpiked = enemyStates.value.find((e) => e.id === target.id)! as SlimePurpleState;
     expect(stillSpiked.animState).toBe('walk');
     expect(stillSpiked.spiked).toBe(true);
     expect(stillSpiked.hitPoints).toBe(2);
 
-    const healthBeforeSecondLanding = healthState.value;
+    const healthBeforeSecondLanding = playerState.value.hitPoints;
 
     // Land on it from above a second time, still within the spike cooldown.
     playerState.value = {
@@ -2253,7 +2296,7 @@ describe('PlatformerPage', () => {
 
     const afterSecondLanding = enemyStates.value.find((e) => e.id === target.id)!;
     expect(afterSecondLanding.hitPoints).toBe(2); // no stomp registered
-    expect(healthState.value).toBe(healthBeforeSecondLanding - SIDE_HIT_DAMAGE);
+    expect(playerState.value.hitPoints).toBe(healthBeforeSecondLanding - SIDE_HIT_DAMAGE);
   });
 
   it('spikedPurpleSlime-afterCooldownElapses-isStompableAgain', () => {
@@ -2270,7 +2313,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = enemyStates.value.find((e) => e.spriteType === 'slimePurple')!;
+    const target = enemyStates.value.find((e) => e.type === 'slimePurple')!;
     playerState.value = {
       ...playerState.value,
       x: target.x,
@@ -2287,7 +2330,7 @@ describe('PlatformerPage', () => {
       frameCallback!(t);
     }
 
-    const noLongerSpiked = enemyStates.value.find((e) => e.id === target.id)!;
+    const noLongerSpiked = enemyStates.value.find((e) => e.id === target.id)! as SlimePurpleState;
     expect(noLongerSpiked.spiked).toBe(false);
     expect(noLongerSpiked.hitPoints).toBe(2);
 
@@ -2300,7 +2343,7 @@ describe('PlatformerPage', () => {
     t += 16;
     frameCallback!(t); // second landing after cooldown: a genuine second stomp
 
-    const afterSecondStomp = enemyStates.value.find((e) => e.id === target.id)!;
+    const afterSecondStomp = enemyStates.value.find((e) => e.id === target.id)! as SlimePurpleState;
     expect(afterSecondStomp.hitPoints).toBe(1);
     expect(afterSecondStomp.spiked).toBe(true); // the new stomp re-spikes it
   });
@@ -2319,7 +2362,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const startingHealth = healthState.value;
+    const startingHealth = playerState.value.hitPoints;
     playerState.value = {
       ...playerState.value,
       x: 500,
@@ -2333,14 +2376,14 @@ describe('PlatformerPage', () => {
 
     frameCallback!(16);
 
-    expect(healthState.value).toBe(startingHealth - PIT_FALL_DAMAGE);
-    expect(playerState.value.invincibleTimer).toBeGreaterThan(0);
+    expect(playerState.value.hitPoints).toBe(startingHealth - PIT_FALL_DAMAGE);
+    expect(isInvulnerable(playerState.value, PLAYER_HIT_REACTION_SECONDS)).toBe(true);
   });
 
   it('playerAlreadyInvincibleFromASideHit-fallsIntoPit-noAdditionalDamageButStillRepositioned', () => {
     // The position-recovery half of a pit fall (resolvePitFall) must still
     // happen even while invincible — only the heart loss is skipped. A
-    // player stuck mid-air with invincibleTimer > 0 must not keep falling
+    // player stuck mid-air but still invulnerable must not keep falling
     // forever just because a hit protected them a moment ago.
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
@@ -2352,11 +2395,11 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = enemyStates.value.find((e) => e.spriteType === 'slimeGreen')!;
+    const target = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
     playerState.value = { ...playerState.value, x: target.x, y: target.y, vx: 0, vy: 0 };
     frameCallback!(16); // side-hit: now invincible
-    const healthAfterSideHit = healthState.value;
-    expect(playerState.value.invincibleTimer).toBeGreaterThan(0);
+    const healthAfterSideHit = playerState.value.hitPoints;
+    expect(isInvulnerable(playerState.value, PLAYER_HIT_REACTION_SECONDS)).toBe(true);
 
     playerState.value = {
       ...playerState.value,
@@ -2369,7 +2412,7 @@ describe('PlatformerPage', () => {
     };
     frameCallback!(32);
 
-    expect(healthState.value).toBe(healthAfterSideHit); // no additional damage
+    expect(playerState.value.hitPoints).toBe(healthAfterSideHit); // no additional damage
     expect(playerState.value.y).toBeLessThan(5000); // still repositioned to safety
   });
 
@@ -2475,7 +2518,7 @@ describe('PlatformerPage', () => {
     fireEvent.keyDown(window, { code: 'ArrowUp' });
     frameCallback!(16);
 
-    expect(hintTooltipState.value?.hintId).toBe('chestNeedsKey');
+    expect(hintTooltipState.value?.hintId).toBe('noKeyForChest');
     expect(hintTooltipState.value?.phase).toBe('entering');
   });
 
@@ -2495,7 +2538,7 @@ describe('PlatformerPage', () => {
     playerState.value = { ...playerState.value, x: target.x, y: target.y };
     fireEvent.keyDown(window, { code: 'ArrowUp' });
     frameCallback!(16);
-    expect(hintTooltipState.value?.hintId).toBe('chestNeedsKey');
+    expect(hintTooltipState.value?.hintId).toBe('noKeyForChest');
 
     // Walk far away from the chest — no longer standing on/overlapping it.
     playerState.value = { ...playerState.value, x: target.x + 2000, y: target.y };
@@ -2965,7 +3008,7 @@ describe('PlatformerPage', () => {
       }
       expect(hintTooltipState.value?.phase).toBe('shown');
 
-      healthState.value = 0;
+      playerState.value = { ...playerState.value, hitPoints: 0, alive: false };
       t += 16;
       frameCallback!(t); // enters 'dying'
 

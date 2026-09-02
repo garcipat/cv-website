@@ -24,54 +24,20 @@ import {
   heartRemaining,
   heartFrameIndex,
 } from '../entities/Health';
-import {
-  COIN_FRAME_SIZE,
-  COIN_RENDERED_SIZE,
-  coinFrameIndex,
-  coinFrameSource,
-  coinBobOffset,
-} from '../entities/Coin';
-import { FRUIT_FRAME_SIZE, FRUIT_RENDERED_SIZE, fruitFrameSource } from '../entities/Fruit';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
-import {
-  ENEMY_FRAME_SIZE,
-  enemyFrameSource,
-  enemyRenderedSize,
-  enemyTileOffsetX,
-  enemyTileOffsetY,
-  enemyHitboxSidePadding,
-  enemyHitboxTopPadding,
-} from '../entities/Enemy';
+import { PICKUP_TYPES } from '../entities/pickups';
+import { key } from '../entities/pickups/Key';
+import { bonusFruit } from '../entities/pickups/BonusFruit';
+import { typeOf } from '../entities/enemies';
 import type { EnemyState } from '../entities/Enemy';
-import type { EnemyDef } from '../types';
-import { SPIKE_COOLDOWN_DURATION_SECONDS } from './EnemyAI';
+import type { DrawContext } from './DrawContext';
 import type { KeyPickupState } from '../entities/KeyPickup';
-import {
-  KEY_FRAME_WIDTH,
-  KEY_FRAME_HEIGHT,
-  KEY_RENDERED_WIDTH,
-  KEY_RENDERED_HEIGHT,
-  KEY_TILE_OFFSET_X,
-  KEY_TILE_OFFSET_Y,
-} from '../entities/KeyPickup';
-import { BLOCK_FRAME_SIZE, BLOCK_RENDERED_SIZE, blockFrameSource, crateCrackOverlayVisible } from '../entities/Block';
+import { KEY_FRAME_WIDTH, KEY_FRAME_HEIGHT } from '../entities/KeyPickup';
 import type { BlockState } from '../entities/Block';
-import {
-  CHEST_CLOSED_WIDTH,
-  CHEST_CLOSED_HEIGHT,
-  CHEST_OPEN_WIDTH,
-  CHEST_OPEN_HEIGHT,
-  CHEST_CLOSED_RENDERED_WIDTH,
-  CHEST_CLOSED_RENDERED_HEIGHT,
-  CHEST_OPEN_RENDERED_WIDTH,
-  CHEST_OPEN_RENDERED_HEIGHT,
-  CHEST_CLOSED_OFFSET_X,
-  CHEST_OPEN_OFFSET_X,
-  isChestOpen,
-} from '../entities/Chest';
+import { BLOCK_TYPES } from '../entities/blocks';
+import { CHEST_TYPE } from '../entities/chests';
+import { CHEST_CLOSED_WIDTH, CHEST_CLOSED_HEIGHT } from '../entities/Chest';
 import type { ChestState } from '../entities/Chest';
-import { blockBumpOffsetY, crateShatterOpacity } from './BlockAI';
-import { bonusFruitY } from '../entities/BonusFruit';
 import type { BonusFruitState } from '../entities/BonusFruit';
 import { flightEffectPosition, sparkleParticles } from './CollectionEffects';
 import type { FlightEffect } from './CollectionEffects';
@@ -154,7 +120,7 @@ export function drawTerrain(
  * Draws the player sprite. `originX` and `originY` shift it horizontally and
  * vertically by the same amounts as `drawTerrain`'s `originX`/`originY`, so
  * the player stays aligned with the terrain (bottom-anchored, camera-scrolled,
- * or both). When `player.facing` is `'left'`, the sprite is mirrored
+ * or both). When `player.direction` is `'left'`, the sprite is mirrored
  * horizontally around its own bounding box — the sheet only needs to depict
  * the character facing one direction. `jumpSpriteSheet` is a separate,
  * higher-resolution sheet used only while `animState === 'jump'` (the
@@ -169,8 +135,8 @@ export function drawPlayer(
   originX = 0,
   originY = 0,
   jumpSpriteSheet: HTMLImageElement | null = null,
-  // Invincibility blink: PlatformerPage.tsx toggles this
-  // every ~0.1s while the player is invincible instead of drawing a tinted
+  // Invulnerability blink: PlatformerPage.tsx toggles this
+  // every ~0.1s while the player is invulnerable instead of drawing a tinted
   // sprite — simpler, and consistent with this renderer having no
   // alpha/tint effects anywhere else.
   visible = true,
@@ -188,7 +154,7 @@ export function drawPlayer(
       ? climbFrameSource(player.animFrame)
       : jumpFrameSource(player.vy, player.animFrame);
 
-  if (player.facing === 'left') {
+  if (player.direction === 'left') {
     ctx.save();
     ctx.translate(player.x + originX + PLAYER_RENDERED_SIZE, player.y + originY);
     ctx.scale(-1, 1);
@@ -413,7 +379,7 @@ const BUBBLE_TEXT_COLOR = '#241a0e';
  * fixed (where the tail meets it) — the caller passes
  * `hintTooltipGrowthAndOpacity`'s `growth` straight through. `growth <= 0`
  * draws nothing at all. `opacity` (default 1) is applied via
- * `ctx.globalAlpha`, the same mechanism `drawBlocks`'s crate-shatter fade
+ * `ctx.globalAlpha`, the same mechanism `Crate.ts`'s crate-shatter fade
  * already uses.
  */
 /** Clamps a corner radius so `roundRect` never receives a radius bigger than
@@ -518,433 +484,99 @@ export function drawSignBubble(
 }
 
 /**
- * Draws every not-yet-collected placement — coins spin (Coin.ts's
- * coinFrameIndex/coinFrameSource) from `coinSprite`, fruits stay on one
- * fixed icon frame (Fruit.ts's fruitFrameSource, keyed by a stable index
- * derived from the placement's position among all fruit-type placements —
- * good enough for visual variety without needing to store a chosen index
- * per placement, and stable regardless of which fruits have been collected)
- * from `fruitSprite`. Both bob (Coin.ts's coinBobOffset, shared — bobbing
- * isn't coin-specific). Same originX/originY convention as
- * drawTerrain/drawPlayer.
- *
- * `coinSprite`/`fruitSprite` may each independently be `null` (e.g. that
- * sprite's image failed to load) — that type's collectibles are simply
- * skipped for the frame rather than the whole call being skipped, so a
- * missing fruit sprite never hides coins and vice versa.
+ * Draws every not-yet-collected placement — each spriteType renders itself
+ * (see entities/pickups/), keyed by the item's stable position among all
+ * placements of its own spriteType (matters for fruit's fixed-per-index
+ * icon — see Fruit.ts — and is tracked here, unconditionally per item seen,
+ * so a fruit's icon stays stable regardless of which fruits have since been
+ * collected). A missing sprite for one pickup type is handled inside that
+ * type's own `draw` (it simply skips), so a missing fruit sprite never hides
+ * coins and vice versa.
  */
 export function drawCollectibles(
   ctx: CanvasRenderingContext2D,
-  placements: CollectiblePlacement[],
-  coinSprite: HTMLImageElement | null,
-  fruitSprite: HTMLImageElement | null,
+  placements: readonly CollectiblePlacement[],
   collectedIds: ReadonlySet<string>,
-  elapsedSeconds: number,
-  originX = 0,
-  originY = 0,
+  dc: DrawContext,
 ): void {
   ctx.imageSmoothingEnabled = false;
 
-  const coinFrame = coinFrameIndex(elapsedSeconds);
-  const coinSource = coinFrameSource(coinFrame);
-  const bob = coinBobOffset(elapsedSeconds);
-
-  let fruitIndex = 0;
+  const typeCounts: Partial<Record<CollectiblePlacement['spriteType'], number>> = {};
   for (const placement of placements) {
-    if (placement.spriteType === 'coin') {
-      if (collectedIds.has(placement.id) || !coinSprite) continue;
-      ctx.drawImage(
-        coinSprite,
-        coinSource.sx,
-        coinSource.sy,
-        COIN_FRAME_SIZE,
-        COIN_FRAME_SIZE,
-        placement.x + originX,
-        placement.y + originY + bob,
-        COIN_RENDERED_SIZE,
-        COIN_RENDERED_SIZE,
-      );
-    } else {
-      const { sx, sy } = fruitFrameSource(fruitIndex);
-      fruitIndex += 1;
-      if (collectedIds.has(placement.id) || !fruitSprite) continue;
-      ctx.drawImage(
-        fruitSprite,
-        sx,
-        sy,
-        FRUIT_FRAME_SIZE,
-        FRUIT_FRAME_SIZE,
-        placement.x + originX,
-        placement.y + originY + bob,
-        COIN_RENDERED_SIZE,
-        COIN_RENDERED_SIZE,
-      );
-    }
+    const index = typeCounts[placement.spriteType] ?? 0;
+    typeCounts[placement.spriteType] = index + 1;
+    if (collectedIds.has(placement.id)) continue;
+    PICKUP_TYPES[placement.spriteType].draw(placement, dc, index);
   }
 }
 
 /**
- * Draws every not-yet-collected key pickup, bobbing exactly like a coin
- * (shares Coin.ts's coinBobOffset — bobbing isn't coin-specific, same
- * convention drawCollectibles's fruit already follows). `pickup.x`/`y` are
- * the defeated purple slime's own tile-top position, so KEY_TILE_OFFSET_X/Y
- * are added the same way Enemy.ts's enemyTileOffsetX/Y center and
- * bottom-anchor a larger-than-tile enemy sprite over its placement tile —
- * without this, the key (narrower than one tile) would draw left-aligned
- * instead of centered.
+ * Draws every not-yet-collected key pickup — each one renders itself (see
+ * entities/pickups/Key.ts); this only owns the collected filter, matching
+ * drawCollectibles's/drawEnemies's own not-yet-collected/alive filtering.
  */
 export function drawKeyPickups(
   ctx: CanvasRenderingContext2D,
   pickups: readonly KeyPickupState[],
-  keySprite: HTMLImageElement | null,
-  elapsedSeconds: number,
-  originX = 0,
-  originY = 0,
+  dc: DrawContext,
 ): void {
-  if (!keySprite) return;
   ctx.imageSmoothingEnabled = false;
-  const bob = coinBobOffset(elapsedSeconds);
   for (const pickup of pickups) {
     if (pickup.collected) continue;
-    ctx.drawImage(
-      keySprite,
-      0,
-      0,
-      KEY_FRAME_WIDTH,
-      KEY_FRAME_HEIGHT,
-      pickup.x + KEY_TILE_OFFSET_X + originX,
-      pickup.y + KEY_TILE_OFFSET_Y + originY + bob,
-      KEY_RENDERED_WIDTH,
-      KEY_RENDERED_HEIGHT,
-    );
+    key.draw(pickup, dc);
   }
 }
 
-/**
- * Draws every enemy at its current state position, direction, and animation
- * frame. Each enemy carries its own animState and animFrame (updated per
- * frame during patrol movement — Tasks 5+), so this reads per-enemy state
- * rather than a shared clock. spriteType picks which sheet: slimeGreen for
- * Certificates, slimePurple for Projects. Either sprite sheet may
- * independently be null (not yet loaded); that type's enemies are simply
- * skipped for the frame, same convention as drawCollectibles's
- * coinSprite/fruitSprite handling. Left-facing enemies are mirrored via
- * save/translate/scale(-1,1)/restore pattern, matching drawPlayer's
- * left-facing behavior. Same originX/originY convention as
- * drawTerrain/drawPlayer/drawCollectibles.
- */
+/** Draws every living enemy. Knows nothing about any specific enemy type —
+ *  each one renders itself (see entities/enemies/). */
 export function drawEnemies(
   ctx: CanvasRenderingContext2D,
-  enemies: EnemyState[],
-  slimeGreenSprite: HTMLImageElement | null,
-  slimePurpleSprite: HTMLImageElement | null,
-  originX = 0,
-  originY = 0,
+  enemies: readonly EnemyState[],
+  dc: DrawContext,
 ): void {
   ctx.imageSmoothingEnabled = false;
-
   for (const enemy of enemies) {
-    const sprite = enemy.spriteType === 'slimeGreen' ? slimeGreenSprite : slimePurpleSprite;
-    if (!sprite) continue;
-
-    const { sx, sy } = enemyFrameSource(enemy.animState, enemy.animFrame);
-    const size = enemyRenderedSize(enemy.spriteType);
-    const dx = enemy.x + enemyTileOffsetX(enemy.spriteType) + originX;
-    const dy = enemy.y + enemyTileOffsetY(enemy.spriteType) + originY;
-
-    if (enemy.direction === 'left') {
-      // Mirrors drawPlayer's left-facing flip: translate to the sprite's
-      // right edge, then scale(-1, 1) so drawImage's own (0, 0) origin lands
-      // where the mirrored sprite's top-left should visually appear.
-      ctx.save();
-      ctx.translate(dx + size, dy);
-      ctx.scale(-1, 1);
-      ctx.drawImage(
-        sprite,
-        sx,
-        sy,
-        ENEMY_FRAME_SIZE,
-        ENEMY_FRAME_SIZE,
-        0,
-        0,
-        size,
-        size,
-      );
-      ctx.restore();
-      continue;
-    }
-
-    ctx.drawImage(
-      sprite,
-      sx,
-      sy,
-      ENEMY_FRAME_SIZE,
-      ENEMY_FRAME_SIZE,
-      dx,
-      dy,
-      size,
-      size,
-    );
+    if (!enemy.alive) continue;
+    typeOf(enemy).draw(enemy, dc);
   }
 }
 
-const TOP_SPIKE_FRACTIONS = [0.3, 0.7];
-
-/** Per-spriteType spike palette, tinted toward each slime's own body color
- *  (an approximate match, not sampled from the sprite sheet — there's no
- *  existing color constant for the slime PNGs to reuse) so the spikes read
- *  as part of the slime, not an unrelated bone/rock overlay. */
-const SPIKE_COLORS: Record<EnemyDef['spriteType'], { fill: string; outline: string }> = {
-  slimeGreen: { fill: '#7ec850', outline: '#355c22' },
-  slimePurple: { fill: '#9a6fd6', outline: '#4d2f7a' },
-};
-
-/**
- * Returns a 0-1-0 growth curve across the spike cooldown: 0 the instant
- * spikes appear (`spikeTimer` 0), peaking at 1 halfway through the cooldown,
- * back to 0 right as the cooldown ends and spikes retract — a single
- * grow-then-shrink pulse tied to the enemy's own remaining cooldown, not a
- * continuously repeating animation. `Math.min(..., 1)` guards the one frame
- * where `spikeTimer` reaches/exceeds `SPIKE_COOLDOWN_DURATION_SECONDS`
- * before `stepEnemySpikeCooldown` (EnemyAI.ts) clears `spiked` that same
- * tick — sin(pi) already resolves to ~0 there regardless.
- */
-function spikeGrowthScale(spikeTimer: number): number {
-  const phase = Math.min(spikeTimer / SPIKE_COOLDOWN_DURATION_SECONDS, 1);
-  return Math.sin(phase * Math.PI);
-}
-
-/** Fills one spike triangle with a thin stroked outline — a flat outline
- *  works for any triangle orientation (top-pointing or side-pointing),
- *  unlike the old top-only overlay's offset-vertex outline trick. */
-function fillSpikeTriangle(
-  ctx: CanvasRenderingContext2D,
-  colors: { fill: string; outline: string },
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number,
-  x3: number,
-  y3: number,
-): void {
-  ctx.beginPath();
-  ctx.moveTo(x1, y1);
-  ctx.lineTo(x2, y2);
-  ctx.lineTo(x3, y3);
-  ctx.closePath();
-  ctx.fillStyle = colors.fill;
-  ctx.fill();
-  ctx.strokeStyle = colors.outline;
-  ctx.lineWidth = 1;
-  ctx.stroke();
-}
-
-/**
- * Draws 4 triangles sticking out of every `spiked` enemy's visible
- * silhouette — 2 out of the top edge, 2 out of the left/right side edges —
- * rather than a single row floating above the top edge. Each triangle's
- * base sinks well *into* the hitbox (not flush with the edge), and each
- * triangle itself is kept short, so the visible part reads as a short
- * spike breaking the surface close to the slime's body, not a shape
- * hovering apart from it. Insets by the same hitbox padding `enemyHitbox`
- * (Collision.ts) uses, so the spikes are positioned relative to the actual
- * visible slime blob, not the sprite's transparent render-slot margin —
- * same reasoning `enemyHitboxSidePadding`/`enemyHitboxTopPadding` exist for
- * in the first place. Each enemy's own `spikeTimer` drives a one-shot
- * grow-then-shrink size curve (`spikeGrowthScale`) independently — every
- * spiked enemy pulses on its own cooldown, not in shared lockstep — and
- * `SPIKE_COLORS` tints the triangles toward that enemy's own body color
- * instead of a generic bone/rock palette. Deliberately a separate exported
- * function from `drawEnemies` (not folded into its loop) — `drawEnemies` is
- * called once per frame regardless of the game's animation/collision
- * layering, and keeping the spike overlay separate lets `PlatformerPage.tsx`
- * draw it in its own pass (spikes should read as "on top of" the enemy, so
- * this must be called after `drawEnemies`, not interleaved within it)
- * without threading extra parameters through `drawEnemies`' existing
- * signature. Purely procedural (no sprite) — no new asset needed for this
- * small a shape.
- */
-export function drawEnemySpikes(
-  ctx: CanvasRenderingContext2D,
-  enemies: EnemyState[],
-  originX = 0,
-  originY = 0,
-): void {
-  for (const enemy of enemies) {
-    if (!enemy.spiked) continue;
-
-    const scale = spikeGrowthScale(enemy.spikeTimer);
-    const colors = SPIKE_COLORS[enemy.spriteType];
-    const size = enemyRenderedSize(enemy.spriteType);
-    const sidePad = enemyHitboxSidePadding(enemy.spriteType);
-    const topPad = enemyHitboxTopPadding(enemy.spriteType);
-    const left = enemy.x + enemyTileOffsetX(enemy.spriteType) + sidePad + originX;
-    const top = enemy.y + enemyTileOffsetY(enemy.spriteType) + topPad + originY;
-    const width = size - 2 * sidePad;
-    const height = size - topPad;
-    const right = left + width;
-    const midY = top + height / 2;
-
-    const topSpikeLength = width * 0.3 * scale;
-    const topSpikeHalfWidth = width * 0.12;
-    const topSpikeSink = topSpikeHalfWidth * 1.5;
-    for (const fraction of TOP_SPIKE_FRACTIONS) {
-      const baseX = left + width * fraction;
-      const baseY = top + topSpikeSink;
-      fillSpikeTriangle(
-        ctx,
-        colors,
-        baseX - topSpikeHalfWidth,
-        baseY,
-        baseX + topSpikeHalfWidth,
-        baseY,
-        baseX,
-        baseY - topSpikeLength,
-      );
-    }
-
-    const sideSpikeLength = height * 0.26 * scale;
-    const sideSpikeHalfHeight = height * 0.1;
-    const sideSpikeSink = sideSpikeHalfHeight * 1.5;
-    fillSpikeTriangle(
-      ctx,
-      colors,
-      left + sideSpikeSink,
-      midY - sideSpikeHalfHeight,
-      left + sideSpikeSink,
-      midY + sideSpikeHalfHeight,
-      left - sideSpikeLength,
-      midY,
-    );
-    fillSpikeTriangle(
-      ctx,
-      colors,
-      right - sideSpikeSink,
-      midY - sideSpikeHalfHeight,
-      right - sideSpikeSink,
-      midY + sideSpikeHalfHeight,
-      right + sideSpikeLength,
-      midY,
-    );
-  }
-}
-
-/**
- * Draws every live block — its current sprite frame (accounting for a
- * question-mark's permanent `?`→`!` swap once hit, via `blockFrameSource`'s
- * `hitsTaken` param), the shared bump nudge offset, a crate's crack overlay
- * (composited as a second draw call — it's a standalone sprite, not part of
- * `world_tileset.png`) while cracked, and a crate's shatter fade-out while
- * breaking apart.
- */
+/** Draws every block. Knows nothing about any specific kind — each one renders
+ *  itself (see entities/blocks/). */
 export function drawBlocks(
   ctx: CanvasRenderingContext2D,
   blocks: readonly BlockState[],
-  tileset: HTMLImageElement,
-  crackOverlaySprite: HTMLImageElement | null,
-  originX = 0,
-  originY = 0,
+  dc: DrawContext,
 ): void {
   ctx.imageSmoothingEnabled = false;
-
   for (const block of blocks) {
-    const { sx, sy } = blockFrameSource(block.blockKind, block.hitsTaken);
-    const dx = block.x + originX;
-    const dy = block.y + originY + blockBumpOffsetY(block);
-    const opacity = block.blockKind === 'crate' ? crateShatterOpacity(block) : 1;
-
-    ctx.globalAlpha = opacity;
-    ctx.drawImage(tileset, sx, sy, BLOCK_FRAME_SIZE, BLOCK_FRAME_SIZE, dx, dy, BLOCK_RENDERED_SIZE, BLOCK_RENDERED_SIZE);
-    if (block.blockKind === 'crate' && crackOverlaySprite && crateCrackOverlayVisible(block.hitsTaken)) {
-      ctx.drawImage(
-        crackOverlaySprite,
-        0,
-        0,
-        BLOCK_FRAME_SIZE,
-        BLOCK_FRAME_SIZE,
-        dx,
-        dy,
-        BLOCK_RENDERED_SIZE,
-        BLOCK_RENDERED_SIZE,
-      );
-    }
-    ctx.globalAlpha = 1;
+    BLOCK_TYPES[block.blockKind].draw(block, dc);
   }
 }
 
-/**
- * Draws every chest at its current open/closed sprite — each state is a
- * standalone image (not a shared sheet, unlike blocks), so
- * this always crops from (0, 0) at that state's own native size. Either
- * sprite may independently be null (not yet loaded); a chest whose current
- * state's sprite is missing is simply skipped for the frame, same convention
- * as drawCollectibles'/drawEnemies' null-sprite handling.
- *
- * The destination x is shifted by the state's `*_OFFSET_X` (see
- * entities/Chest.ts) so the chest draws horizontally centered on its tile
- * rather than left-aligned to the tile's top-left corner — its rendered
- * width is wider than one tile.
- */
+/** Draws every chest at its current open/closed sprite — each one renders
+ *  itself (see entities/chests/Chest.ts). */
 export function drawChests(
   ctx: CanvasRenderingContext2D,
   chests: readonly ChestState[],
-  closedSprite: HTMLImageElement | null,
-  openSprite: HTMLImageElement | null,
-  originX = 0,
-  originY = 0,
+  dc: DrawContext,
 ): void {
   ctx.imageSmoothingEnabled = false;
   for (const chest of chests) {
-    const open = isChestOpen(chest);
-    const sprite = open ? openSprite : closedSprite;
-    if (!sprite) continue;
-    const srcWidth = open ? CHEST_OPEN_WIDTH : CHEST_CLOSED_WIDTH;
-    const srcHeight = open ? CHEST_OPEN_HEIGHT : CHEST_CLOSED_HEIGHT;
-    const destWidth = open ? CHEST_OPEN_RENDERED_WIDTH : CHEST_CLOSED_RENDERED_WIDTH;
-    const destHeight = open ? CHEST_OPEN_RENDERED_HEIGHT : CHEST_CLOSED_RENDERED_HEIGHT;
-    const offsetX = open ? CHEST_OPEN_OFFSET_X : CHEST_CLOSED_OFFSET_X;
-    ctx.drawImage(
-      sprite,
-      0,
-      0,
-      srcWidth,
-      srcHeight,
-      chest.x + originX + offsetX,
-      chest.y + originY,
-      destWidth,
-      destHeight,
-    );
+    CHEST_TYPE.draw(chest, dc);
   }
 }
 
-/**
- * Draws every question-mark block's spawned bonus fruit at its current
- * rise-tween position, reusing `fruit.png` at the fruit's own `iconIndex`,
- * which varies per spawn instead of always index 0, so bonus fruits are
- * visually distinguishable from each other.
- */
+/** Draws every question-mark block's spawned bonus fruit — each one renders
+ *  itself (see entities/pickups/BonusFruit.ts). */
 export function drawBonusFruits(
   ctx: CanvasRenderingContext2D,
   fruits: readonly BonusFruitState[],
-  fruitSprite: HTMLImageElement | null,
-  originX = 0,
-  originY = 0,
+  dc: DrawContext,
 ): void {
-  if (!fruitSprite) return;
   ctx.imageSmoothingEnabled = false;
   for (const fruit of fruits) {
-    const { sx, sy } = fruitFrameSource(fruit.iconIndex);
-    ctx.drawImage(
-      fruitSprite,
-      sx,
-      sy,
-      FRUIT_FRAME_SIZE,
-      FRUIT_FRAME_SIZE,
-      fruit.x + originX,
-      bonusFruitY(fruit) + originY,
-      FRUIT_RENDERED_SIZE,
-      FRUIT_RENDERED_SIZE,
-    );
+    bonusFruit.draw(fruit, dc);
   }
 }
 
@@ -971,7 +603,7 @@ export function drawCollectionEffects(ctx: CanvasRenderingContext2D, effects: Fl
       ctx.font = `${COLLECTION_EFFECT_FONT_SIZE}px "${RESTART_PROMPT_FONT_FAMILY}", sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(effect.text, x, y);
+      fillTextWithOutline(ctx, effect.text, x, y);
 
       // Drawn as a SEPARATE fillText, in a plain system font (not the pixel
       // font above) — a custom @font-face has no emoji glyphs, and canvas
@@ -998,6 +630,30 @@ export function drawCollectionEffects(ctx: CanvasRenderingContext2D, effects: Fl
       ctx.restore();
     }
   }
+}
+
+/** Outline color used behind every "collected" HUD counter's text below —
+ *  matches ControlsOverlay.tsx's DOM `textShadow` treatment (four 1px
+ *  diagonal offsets in the same semi-transparent black), reproduced here via
+ *  four offset fillText calls since canvas has no CSS text-shadow equivalent.
+ *  Without it, the counters' plain white text is easy to lose against
+ *  lighter terrain/sky backgrounds. */
+const COUNTER_TEXT_OUTLINE_COLOR = 'rgba(0,0,0,0.8)';
+
+/** Draws `text` with a 1px outline in every diagonal direction before the
+ *  final fill, so the caller's already-set fillStyle/font/textAlign/
+ *  textBaseline are used for both the outline and the fill — callers must
+ *  set those on `ctx` before calling this, exactly as they would before a
+ *  plain `ctx.fillText`. */
+function fillTextWithOutline(ctx: CanvasRenderingContext2D, text: string, x: number, y: number): void {
+  const fillStyle = ctx.fillStyle;
+  ctx.fillStyle = COUNTER_TEXT_OUTLINE_COLOR;
+  ctx.fillText(text, x - 1, y - 1);
+  ctx.fillText(text, x + 1, y - 1);
+  ctx.fillText(text, x - 1, y + 1);
+  ctx.fillText(text, x + 1, y + 1);
+  ctx.fillStyle = fillStyle;
+  ctx.fillText(text, x, y);
 }
 
 const COUNTER_POPUP_ICON_SIZE = 28;
@@ -1073,7 +729,7 @@ export function drawCounterPopups(
     ctx.font = `${COUNTER_POPUP_FONT_SIZE}px "${RESTART_PROMPT_FONT_FAMILY}", monospace`;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(text, cursorX + COUNTER_POPUP_ICON_SIZE + COUNTER_POPUP_TEXT_GAP, y);
+    fillTextWithOutline(ctx, text, cursorX + COUNTER_POPUP_ICON_SIZE + COUNTER_POPUP_TEXT_GAP, y);
     ctx.restore();
 
     cursorX += itemWidths[i] + COUNTER_POPUP_ITEM_GAP;
@@ -1102,9 +758,10 @@ export function drawCollectibleCounter(
   y: number,
   // Nudges only the icon (never the text) vertically from its default
   // centered position — coin.png/fruit.png's artwork is already centered
-  // within its native frame, but Enemy.ts's slime frames are bottom-anchored
-  // (no transparent padding below the feet, per ENEMY_TILE_OFFSET_Y's doc
-  // comment), which reads as sitting too low once scaled into this counter's
+  // within its native frame, but a slime's sprite frames (entities/sprites/
+  // sheets.ts, drawn via each type's sprite descriptor) are bottom-anchored
+  // (no transparent padding below the feet, per enemyTileOffsetY's doc
+  // comment in Enemy.ts), which reads as sitting too low once scaled into this counter's
   // fixed-size icon box. Defaults to 0 (coin/fruit's existing behavior,
   // unchanged); the enemy-defeated counter (PlatformerPage.tsx) passes a
   // small negative value to compensate.
@@ -1138,7 +795,7 @@ export function drawCollectibleCounter(
   ctx.font = `22px "${RESTART_PROMPT_FONT_FAMILY}", monospace`;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  ctx.fillText(`${collected} / ${max}`, x + COUNTER_ICON_SIZE + COUNTER_TEXT_GAP, y);
+  fillTextWithOutline(ctx, `${collected} / ${max}`, x + COUNTER_ICON_SIZE + COUNTER_TEXT_GAP, y);
   ctx.restore();
 }
 
@@ -1211,7 +868,7 @@ export function drawChestCounter(
   ctx.font = `22px "${RESTART_PROMPT_FONT_FAMILY}", monospace`;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  ctx.fillText(`${collected} / ${total}`, x + iconWidth + CHEST_COUNTER_TEXT_GAP, y);
+  fillTextWithOutline(ctx, `${collected} / ${total}`, x + iconWidth + CHEST_COUNTER_TEXT_GAP, y);
   ctx.restore();
 }
 
@@ -1272,6 +929,6 @@ export function drawKeyCounter(
   ctx.font = `22px "${RESTART_PROMPT_FONT_FAMILY}", monospace`;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  ctx.fillText(`${count}`, x + iconWidth + CHEST_COUNTER_TEXT_GAP, y);
+  fillTextWithOutline(ctx, `${count}`, x + iconWidth + CHEST_COUNTER_TEXT_GAP, y);
   ctx.restore();
 }
