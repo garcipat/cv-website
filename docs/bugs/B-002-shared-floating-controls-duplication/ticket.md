@@ -2,7 +2,7 @@
 
 **Bug ID**: B-002
 **Found In**: S-006 (Platformer theme) step 1 implementation
-**Status**: Open
+**Status**: Resolved
 **Severity**: Minor (code duplication / maintainability)
 
 ## Description
@@ -25,6 +25,19 @@ interfaces in the same file if any props are needed, no new shadcn
 components. Verify both themes still render correctly after the change
 (existing tests for both FloatingControls components should be
 updated/consolidated accordingly).
+
+## Resolution
+
+Extracted `src/components/FloatingControls.tsx`: a named arrow export taking
+an optional `variant?: 'glass' | 'plain'` prop (default `'plain'`). The space
+theme's glass-morphism styling (translucent background, border, shadow) moved
+behind `variant="glass"`, passed explicitly from `SpacePage.tsx`; the
+platformer theme uses the default, matching its previous bare wrapper
+byte-for-byte. Both themes now import the shared component instead of their
+own copies, which are deleted along with platformer's now-redundant
+`FloatingControls.test.tsx`. Space's `FloatingControls.page.ts` test helper
+needed no change — it only queries `data-testid="floating-controls"`, which
+the shared component still renders regardless of variant.
 
 ## Related
 

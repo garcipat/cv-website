@@ -2,7 +2,7 @@
 
 **Bug ID**: B-001
 **Found In**: S-006 (Platformer theme) manual testing, but affects the Space theme and the shared `Select` component — not caused by S-006
-**Status**: Open
+**Status**: Resolved
 **Severity**: Minor (cosmetic / i18n completeness)
 
 ## Description
@@ -46,6 +46,22 @@ theme's step 1 (theme skeleton):
   (`ThemeSelect`/`LanguageSelect`), or a scoped CSS fix. Do not hand-edit the
   shadcn-generated `select.tsx` internals beyond what's necessary — per this
   repo's constitution, shadcn components are CLI-managed.
+
+## Resolution
+
+- **Locale gaps**: already fixed by unrelated prior work — `AnchorDots.tsx`'s
+  `sectionLabel` and `SpacePage.tsx`'s poster subtitle both now read from
+  `currentUI.value` (`space.posterSubtitle`, `nav.*`), present in both
+  `en.json` and `de.json`. Verified live: switching to German shows
+  "Kreisparade" / "Scrollen — Kreise fallen von oben ein und driften zu den
+  Ecken" / "ÜBER MICH". No code change needed for this half.
+- **Dropdown quirk**: `ThemeSelect.tsx` and `LanguageSelect.tsx` now pass
+  `alignItemWithTrigger={false}` to `SelectContent` (a prop `select.tsx`
+  already exposed), so the popup opens positioned below the trigger instead
+  of aligned to the selected item — no more spurious scroll-up chevron when a
+  non-first item is selected near the top of the viewport. Verified live with
+  "Space" (2nd of 4) and "Deutsch" (2nd of 2) selected: both dropdowns now
+  open cleanly with every item visible and no scroll arrows.
 
 ## Related
 

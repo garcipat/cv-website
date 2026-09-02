@@ -7,7 +7,7 @@ import { SpaceParade } from './components/SpaceParade';
 import { Nebula } from './components/space-elements/Nebula';
 import { Sun } from './components/space-elements/Sun';
 import { AnchorDots } from './components/AnchorDots';
-import { FloatingControls } from './components/FloatingControls';
+import { FloatingControls } from '@/components/FloatingControls';
 import { scrollOffset, showPoster } from './SpaceState';
 import {
   buildCircleEntries,
@@ -99,7 +99,7 @@ export const SpacePage = () => {
         }}
       />
 
-      <FloatingControls />
+      <FloatingControls variant="glass" />
 
       {!prefersReducedMotion && (
         <SpaceParade totalSpan={paradeTotalSpan} />
