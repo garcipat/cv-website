@@ -104,6 +104,16 @@ the natural target if "adding content should be cheap" is the goal.
 
 None of these affect behavior. Grouped by whether they're worth a deliberate pass.
 
+**Deferred from the accepted design:**
+
+- **`DamageableType.onDeath` is not implemented.** The proposal defines it as
+  `onDeath?(state, world: WorldApi)`, but no `WorldApi` exists and no plan creates one,
+  so adding the hook would mean an invented empty type with no implementer and no
+  caller. `maxHitPoints`, `hitReactionSeconds` and `onDamaged` are all in place. The
+  natural moment to add it is the first work that needs an entity to affect the world on
+  death — most likely B-003, the world-event puff, which is exactly an on-death and
+  on-break effect.
+
 **Worth fixing when nearby:**
 
 - `entities/Block.ts`'s `BlockKind` union duplicates `types.ts`'s `BlockDef.blockKind`,
