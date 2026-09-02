@@ -1,6 +1,15 @@
 # Proposal: capability interfaces, one type base, unified triggers
 
-**Status:** proposal, not accepted. No implementation plan exists yet.
+**Status:** accepted. Staged across three implementation plans:
+
+| Plan | Content | Risk |
+|---|---|---|
+| **A — Capability interfaces** (`2026-09-02-capability-interfaces.md`) | `Moving` / `SelfAnimated` / `Damageable`; enemies, blocks and the player compose them; `Entity` deleted. | Type-level only |
+| **B — Player damage model** (not yet written) | Health onto `PlayerState` as `hitPoints`; the two post-hit timers unified into one refractory window. | Behavioral |
+| **C — `WorldType` and trigger unification** (not yet written) | One type base with optional hooks; chest and sign boxes into their modules; three overlap functions collapsed into one. | Behavioral |
+
+B and C are each written via `superpowers:writing-plans` once their predecessor lands,
+against the shapes it actually produced.
 
 Companion to `2026-09-01-entity-architecture-design.md`. That document describes the
 architecture as built; this proposes a correction to its central abstraction.
