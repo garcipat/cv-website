@@ -288,10 +288,7 @@ describe('EditorCanvas', () => {
     expect(drawBlocks).toHaveBeenCalledWith(
       expect.anything(),
       expect.arrayContaining([expect.objectContaining({ blockKind: 'crate' })]),
-      tileset,
-      null,
-      5,
-      7,
+      expect.objectContaining({ originX: 5, originY: 7 }),
     );
     expect(drawChests).toHaveBeenCalledWith(
       expect.anything(),

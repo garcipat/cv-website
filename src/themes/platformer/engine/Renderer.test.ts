@@ -33,7 +33,9 @@ import { startFlightEffect, tickFlightEffect, RISE_DURATION_SECONDS, SPARKLE_DUR
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
 import type { BlockPlacement } from '../level/BlockMapper';
 import { toBlockState, blockFrameSource } from '../entities/Block';
-import { blockBumpOffsetY, crateShatterOpacity } from './BlockAI';
+import type { BlockState } from '../entities/Block';
+import { blockBumpOffsetY } from './BlockAI';
+import { crateShatterOpacity } from '../entities/blocks/Crate';
 import { spawnBonusFruit, bonusFruitY } from '../entities/BonusFruit';
 import type { EnemyState } from '../entities/Enemy';
 import { fruitFrameSource, FRUIT_FRAME_SIZE, FRUIT_RENDERED_SIZE } from '../entities/Fruit';
@@ -52,7 +54,15 @@ import {
   spawnKeyPickup,
 } from '../entities/KeyPickup';
 import type { KeyPickupState } from '../entities/KeyPickup';
-import { SLIME_GREEN_SHEET, SLIME_PURPLE_SHEET, KEY_SHEET, COIN_SHEET, FRUIT_SHEET } from '../entities/sprites/sheets';
+import {
+  SLIME_GREEN_SHEET,
+  SLIME_PURPLE_SHEET,
+  KEY_SHEET,
+  COIN_SHEET,
+  FRUIT_SHEET,
+  WORLD_TILESET_SHEET,
+  CRACK_OVERLAY_SHEET,
+} from '../entities/sprites/sheets';
 import type { DrawContext } from './DrawContext';
 
 const ENEMY_FRAME_SIZE = SLIME_GREEN_SHEET.frameWidth;
@@ -275,6 +285,8 @@ function makeDrawContext(
       [KEY_SHEET.src]: { tag: 'key' } as unknown as HTMLImageElement,
       [COIN_SHEET.src]: { tag: 'coin' } as unknown as HTMLImageElement,
       [FRUIT_SHEET.src]: { tag: 'fruit' } as unknown as HTMLImageElement,
+      [WORLD_TILESET_SHEET.src]: { tag: 'worldTileset' } as unknown as HTMLImageElement,
+      [CRACK_OVERLAY_SHEET.src]: { tag: 'crackOverlay' } as unknown as HTMLImageElement,
     },
     originX: 0,
     originY: 0,
@@ -461,36 +473,47 @@ describe('drawEnemies with type-owned rendering', () => {
   });
 });
 
+function makeBlock(
+  kind: 'crate' | 'questionMark' | 'fragileRock',
+  overrides: Partial<BlockState> = {},
+): BlockState {
+  return { ...toBlockState(makeBlockPlacement(`${kind}-1`, kind, 0, 0)), ...overrides };
+}
+
 describe('drawBlocks', () => {
   it('crateQuestionMarkAndRock-eachDrawnFromItsOwnTileCoords', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
+    const tileset = dc.sprites[WORLD_TILESET_SHEET.src];
     const states = [
-      toBlockState(makeBlockPlacement('b1', 'crate', 0, 0)),
-      toBlockState(makeBlockPlacement('b2', 'questionMark', 32, 0)),
-      toBlockState(makeBlockPlacement('b3', 'fragileRock', 64, 0)),
+      { ...makeBlock('crate'), x: 0 },
+      { ...makeBlock('questionMark'), x: 32 },
+      { ...makeBlock('fragileRock'), x: 64 },
     ];
 
-    drawBlocks(ctx as unknown as CanvasRenderingContext2D, states, fakeTileset, null);
+    drawBlocks(ctx as unknown as CanvasRenderingContext2D, states, dc);
 
-    const calls = ctx.drawImage.mock.calls;
+    const calls = drawImageCallsFor(ctx, tileset);
     expect(calls).toHaveLength(3);
-    expect(calls[0]).toEqual([fakeTileset, 112, 48, 16, 16, 0, 0, 32, 32]);
-    expect(calls[1]).toEqual([fakeTileset, 0, 32, 16, 16, 32, 0, 32, 32]);
-    expect(calls[2]).toEqual([fakeTileset, 48, 0, 16, 16, 64, 0, 32, 32]);
+    expect(calls[0]).toEqual([tileset, 112, 48, 16, 16, 0, 0, 32, 32]);
+    expect(calls[1]).toEqual([tileset, 0, 32, 16, 16, 32, 0, 32, 32]);
+    expect(calls[2]).toEqual([tileset, 48, 0, 16, 16, 64, 0, 32, 32]);
   });
 
   it('originXOriginY-shiftsEveryBlockByTheSameAmount', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-    const states = [toBlockState(makeBlockPlacement('b1', 'crate', 0, 0))];
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D, { originX: -50, originY: 20 });
+    const states = [makeBlock('crate')];
 
-    drawBlocks(ctx as unknown as CanvasRenderingContext2D, states, fakeTileset, null, -50, 20);
+    drawBlocks(ctx as unknown as CanvasRenderingContext2D, states, dc);
 
-    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 112, 48, 16, 16, -50, 20, 32, 32);
+    expect(ctx.drawImage).toHaveBeenCalledWith(dc.sprites[WORLD_TILESET_SHEET.src], 112, 48, 16, 16, -50, 20, 32, 32);
   });
 
   it('noPlacements-drawsNothing', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-    drawBlocks(ctx as unknown as CanvasRenderingContext2D, [], fakeTileset, null);
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
+    drawBlocks(ctx as unknown as CanvasRenderingContext2D, [], dc);
     expect(ctx.drawImage).not.toHaveBeenCalled();
   });
 });
@@ -498,58 +521,58 @@ describe('drawBlocks', () => {
 describe('drawBlocks with hit state', () => {
   it('crateWithOneHitAndCrackOverlaySprite-drawsBaseTileThenCrackOverlayAtSamePosition', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-    const fakeCrackOverlay = { tag: 'crack' } as unknown as HTMLImageElement;
-    const placement = makeBlockPlacement('c1', 'crate', 40, 60);
-    const state = { ...toBlockState(placement), hitsTaken: 1 };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
+    const state = { ...makeBlock('crate', { hitsTaken: 1 }), x: 40, y: 60 };
 
-    drawBlocks(ctx as unknown as CanvasRenderingContext2D, [state], fakeTileset, fakeCrackOverlay);
+    drawBlocks(ctx as unknown as CanvasRenderingContext2D, [state], dc);
 
     const calls = ctx.drawImage.mock.calls;
     expect(calls).toHaveLength(2);
-    expect(calls[0]).toEqual([fakeTileset, 112, 48, 16, 16, 40, 60, 32, 32]);
-    expect(calls[1]).toEqual([fakeCrackOverlay, 0, 0, 16, 16, 40, 60, 32, 32]);
+    expect(calls[0]).toEqual([dc.sprites[WORLD_TILESET_SHEET.src], 112, 48, 16, 16, 40, 60, 32, 32]);
+    expect(calls[1]).toEqual([dc.sprites[CRACK_OVERLAY_SHEET.src], 0, 0, 16, 16, 40, 60, 32, 32]);
   });
 
   it('crateWithNoHitsAndCrackOverlaySprite-drawsOnlyBaseTile', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-    const fakeCrackOverlay = { tag: 'crack' } as unknown as HTMLImageElement;
-    const placement = makeBlockPlacement('c1', 'crate', 0, 0);
-    const state = toBlockState(placement);
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
+    const state = makeBlock('crate');
 
-    drawBlocks(ctx as unknown as CanvasRenderingContext2D, [state], fakeTileset, fakeCrackOverlay);
+    drawBlocks(ctx as unknown as CanvasRenderingContext2D, [state], dc);
 
     expect(ctx.drawImage).toHaveBeenCalledTimes(1);
   });
 
   it('crateWithOneHitAndNullCrackOverlaySprite-drawsOnlyBaseTile', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-    const placement = makeBlockPlacement('c1', 'crate', 0, 0);
-    const state = { ...toBlockState(placement), hitsTaken: 1 };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D, {
+      sprites: { [WORLD_TILESET_SHEET.src]: { tag: 'worldTileset' } as unknown as HTMLImageElement },
+    });
+    const state = makeBlock('crate', { hitsTaken: 1 });
 
-    drawBlocks(ctx as unknown as CanvasRenderingContext2D, [state], fakeTileset, null);
+    drawBlocks(ctx as unknown as CanvasRenderingContext2D, [state], dc);
 
     expect(ctx.drawImage).toHaveBeenCalledTimes(1);
   });
 
   it('questionMarkAfterHit-drawsFromExclamationTileSource', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-    const placement = makeBlockPlacement('q1', 'questionMark', 0, 0);
-    const state = { ...toBlockState(placement), hitsTaken: 1 };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
+    const state = makeBlock('questionMark', { hitsTaken: 1 });
     const { sx, sy } = blockFrameSource('questionMark', 1);
 
-    drawBlocks(ctx as unknown as CanvasRenderingContext2D, [state], fakeTileset, null);
+    drawBlocks(ctx as unknown as CanvasRenderingContext2D, [state], dc);
 
-    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, sx, sy, 16, 16, 0, 0, 32, 32);
+    expect(ctx.drawImage).toHaveBeenCalledWith(dc.sprites[WORLD_TILESET_SHEET.src], sx, sy, 16, 16, 0, 0, 32, 32);
   });
 
   it('bumpingBlock-offsetsDestinationYByBlockBumpOffsetY', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-    const placement = makeBlockPlacement('r1', 'fragileRock', 0, 100);
-    const state = { ...toBlockState(placement), animState: 'bump' as const, animTimer: 0.05 };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
+    const state = { ...makeBlock('fragileRock', { animState: 'bump' as const, animTimer: 0.05 }), y: 100 };
     const expectedOffset = blockBumpOffsetY(state);
     expect(expectedOffset).not.toBe(0);
 
-    drawBlocks(ctx as unknown as CanvasRenderingContext2D, [state], fakeTileset, null);
+    drawBlocks(ctx as unknown as CanvasRenderingContext2D, [state], dc);
 
     const call = ctx.drawImage.mock.calls[0];
     expect(call[6]).toBe(100 + expectedOffset);
@@ -560,8 +583,8 @@ describe('drawBlocks with hit state', () => {
       drawImage: ReturnType<typeof vi.fn>;
       globalAlpha: number;
     };
-    const placement = makeBlockPlacement('c1', 'crate', 0, 0);
-    const state = { ...toBlockState(placement), hitsTaken: 2, animState: 'shatter' as const, animTimer: 0.1 };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
+    const state = makeBlock('crate', { hitsTaken: 2, animState: 'shatter' as const, animTimer: 0.1 });
     const expectedOpacity = crateShatterOpacity(state);
     expect(expectedOpacity).toBeGreaterThan(0);
     expect(expectedOpacity).toBeLessThan(1);
@@ -571,11 +594,43 @@ describe('drawBlocks with hit state', () => {
       alphaAtDrawCalls.push(ctx.globalAlpha);
     });
 
-    drawBlocks(ctx as unknown as CanvasRenderingContext2D, [state], fakeTileset, null);
+    drawBlocks(ctx as unknown as CanvasRenderingContext2D, [state], dc);
 
     expect(alphaAtDrawCalls[0]).toBeCloseTo(expectedOpacity);
     // Restored to fully opaque afterward so it doesn't bleed into later draws.
     expect(ctx.globalAlpha).toBe(1);
+  });
+});
+
+describe('block drawing delegates to the type modules', () => {
+  it('everyBlockKind-drawsFromTheSharedTileset', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
+    drawBlocks(ctx as unknown as CanvasRenderingContext2D, [makeBlock('crate'), makeBlock('questionMark'), makeBlock('fragileRock')], dc);
+    expect(drawImageCallsFor(ctx, dc.sprites[WORLD_TILESET_SHEET.src])).toHaveLength(3);
+  });
+
+  it('crateOnItsFirstHit-alsoDrawsTheCrackOverlay', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
+    drawBlocks(ctx as unknown as CanvasRenderingContext2D, [makeBlock('crate', { hitsTaken: 1 })], dc);
+    expect(drawImageCallsFor(ctx, dc.sprites[CRACK_OVERLAY_SHEET.src])).toHaveLength(1);
+  });
+
+  it('intactCrate-drawsNoCrackOverlay', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
+    drawBlocks(ctx as unknown as CanvasRenderingContext2D, [makeBlock('crate', { hitsTaken: 0 })], dc);
+    expect(drawImageCallsFor(ctx, dc.sprites[CRACK_OVERLAY_SHEET.src])).toHaveLength(0);
+  });
+
+  it('missingTilesetImage-drawsNothing', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D, {
+      sprites: { [WORLD_TILESET_SHEET.src]: null },
+    });
+    drawBlocks(ctx as unknown as CanvasRenderingContext2D, [makeBlock('crate')], dc);
+    expect(ctx.drawImage).not.toHaveBeenCalled();
   });
 });
 

@@ -33,8 +33,8 @@ import type { EnemyState } from '../entities/Enemy';
 import type { DrawContext } from './DrawContext';
 import type { KeyPickupState } from '../entities/KeyPickup';
 import { KEY_FRAME_WIDTH, KEY_FRAME_HEIGHT } from '../entities/KeyPickup';
-import { BLOCK_FRAME_SIZE, BLOCK_RENDERED_SIZE, blockFrameSource, crateCrackOverlayVisible } from '../entities/Block';
 import type { BlockState } from '../entities/Block';
+import { BLOCK_TYPES } from '../entities/blocks';
 import {
   CHEST_CLOSED_WIDTH,
   CHEST_CLOSED_HEIGHT,
@@ -49,7 +49,6 @@ import {
   isChestOpen,
 } from '../entities/Chest';
 import type { ChestState } from '../entities/Chest';
-import { blockBumpOffsetY, crateShatterOpacity } from './BlockAI';
 import type { BonusFruitState } from '../entities/BonusFruit';
 import { flightEffectPosition, sparkleParticles } from './CollectionEffects';
 import type { FlightEffect } from './CollectionEffects';
@@ -553,46 +552,16 @@ export function drawEnemies(
   }
 }
 
-/**
- * Draws every live block — its current sprite frame (accounting for a
- * question-mark's permanent `?`→`!` swap once hit, via `blockFrameSource`'s
- * `hitsTaken` param), the shared bump nudge offset, a crate's crack overlay
- * (composited as a second draw call — it's a standalone sprite, not part of
- * `world_tileset.png`) while cracked, and a crate's shatter fade-out while
- * breaking apart.
- */
+/** Draws every block. Knows nothing about any specific kind — each one renders
+ *  itself (see entities/blocks/). */
 export function drawBlocks(
   ctx: CanvasRenderingContext2D,
   blocks: readonly BlockState[],
-  tileset: HTMLImageElement,
-  crackOverlaySprite: HTMLImageElement | null,
-  originX = 0,
-  originY = 0,
+  dc: DrawContext,
 ): void {
   ctx.imageSmoothingEnabled = false;
-
   for (const block of blocks) {
-    const { sx, sy } = blockFrameSource(block.blockKind, block.hitsTaken);
-    const dx = block.x + originX;
-    const dy = block.y + originY + blockBumpOffsetY(block);
-    const opacity = block.blockKind === 'crate' ? crateShatterOpacity(block) : 1;
-
-    ctx.globalAlpha = opacity;
-    ctx.drawImage(tileset, sx, sy, BLOCK_FRAME_SIZE, BLOCK_FRAME_SIZE, dx, dy, BLOCK_RENDERED_SIZE, BLOCK_RENDERED_SIZE);
-    if (block.blockKind === 'crate' && crackOverlaySprite && crateCrackOverlayVisible(block.hitsTaken)) {
-      ctx.drawImage(
-        crackOverlaySprite,
-        0,
-        0,
-        BLOCK_FRAME_SIZE,
-        BLOCK_FRAME_SIZE,
-        dx,
-        dy,
-        BLOCK_RENDERED_SIZE,
-        BLOCK_RENDERED_SIZE,
-      );
-    }
-    ctx.globalAlpha = 1;
+    BLOCK_TYPES[block.blockKind].draw(block, dc);
   }
 }
 
