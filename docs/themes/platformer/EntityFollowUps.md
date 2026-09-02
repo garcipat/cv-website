@@ -1,8 +1,8 @@
 # Entity Architecture — Follow-Ups
 
-Companion to `2026-09-01-entity-architecture-design.md`. That document describes the
-design; this one records what is **not** done, what the architecture actually costs
-today, and the loose ends worth closing. Read it before picking any of this up.
+Companion to [Entities.md](Entities.md). That document describes the architecture and
+what it costs to extend; this one records what is **not** done and the loose ends worth
+closing. Read it before picking any of this up.
 
 ## State of the architecture
 
@@ -14,19 +14,8 @@ today, and the loose ends worth closing. Read it before picking any of this up.
 | Chests | ✅ `entities/chests/` | ✅ | ✅ | — appearance only |
 | **Player** | ❌ — no type module | ❌ | ❌ | ✅ composes `Moving`, `SelfAnimated`, `Damageable` |
 
-Sprites are modelled as indexed sheets (`entities/sprites/`), discovered from the type
-registries rather than from a hand-maintained asset list. `Renderer.ts` and
-`Collision.ts` contain no enemy, pickup or block type literals.
-
-State composes three capability interfaces — `Moving`, `SelfAnimated`, `Damageable` —
-and the type layer composes `WorldType` (`key`, `draw`) with `Boxed` (`box`) and
-`DamageableType` (`maxHitPoints`, `hitReactionSeconds`, `onDamaged`). Blocks compose
-neither `SelfAnimated` nor `Boxed`: they have a timed transform rather than frame
-animation, and physics locates them by grid cell rather than by rectangle.
-
-**No hitbox is constructed inside `engine/Collision.ts`** except the player's own, and a
-single `overlappingTriggers` helper resolves every player-versus-trigger overlap with
-eligibility supplied by each caller.
+The player is the one gap, and a narrow one: its state already composes every
+capability, so what it lacks is a type module. See item 2 below.
 
 ## Remaining work, in the order I'd do it
 
@@ -118,8 +107,8 @@ None of these affect behavior. Grouped by whether they're worth a deliberate pas
 
 **Deferred from the accepted design:**
 
-- **`DamageableType.onDeath` is not implemented.** The proposal defines it as
-  `onDeath?(state, world: WorldApi)`, but no `WorldApi` exists and no plan creates one,
+- **`DamageableType.onDeath` is not implemented.** The accepted design defined it as
+  `onDeath?(state, world: WorldApi)`, but no `WorldApi` exists,
   so adding the hook would mean an invented empty type with no implementer and no
   caller. `maxHitPoints`, `hitReactionSeconds` and `onDamaged` are all in place. The
   natural moment to add it is the first work that needs an entity to affect the world on

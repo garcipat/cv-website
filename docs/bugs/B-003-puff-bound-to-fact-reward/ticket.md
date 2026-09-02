@@ -55,5 +55,5 @@ failing test first, TypeScript strict with no `any`.
 
 ## Related
 
-- `specs/S-006-platformer-theme/plans/2026-09-02-entity-architecture-followups.md` —
+- `docs/themes/platformer/EntityFollowUps.md` —
   listed there as the highest-value remaining item.

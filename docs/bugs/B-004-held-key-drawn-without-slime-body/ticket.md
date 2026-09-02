@@ -32,5 +32,5 @@ present and both absent, but not the mixed case, which is why this slipped throu
 
 ## Related
 
-- `specs/S-006-platformer-theme/plans/2026-09-02-entity-architecture-followups.md` —
+- `docs/themes/platformer/EntityFollowUps.md` —
   listed under "Known and accepted".
