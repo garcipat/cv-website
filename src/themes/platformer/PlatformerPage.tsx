@@ -1081,7 +1081,7 @@ export const PlatformerPage = () => {
 
       // One pass over the enemies: the engine computes each overlap's
       // geometry, each enemy's own type decides what that overlap means, and
-      // the aggregated result lands here. Invincibility is the engine's rule,
+      // the aggregated result lands here. Invulnerability is the engine's rule,
       // not any enemy's — no type ever knows it exists.
       const contacts = resolveEnemyContacts(playerState.value, enemyStates.value);
       enemyStates.value = contacts.enemies;

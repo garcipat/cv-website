@@ -26,10 +26,13 @@ export const slimeGreen: EnemyType<SlimeGreenState> = {
   heldItem: null,
 
   create: (placement, index) => ({
-    ...baseEnemyState(placement, index, 1),
+    ...baseEnemyState(placement, index, 1, slimeGreen.hitReactionSeconds),
     type: 'slimeGreen',
   }),
-  revive: (enemy) => ({ ...baseRevive(enemy, 1), type: 'slimeGreen' }),
+  revive: (enemy) => ({
+    ...baseRevive(enemy, 1, slimeGreen.hitReactionSeconds),
+    type: 'slimeGreen',
+  }),
   draw: (enemy, dc) => drawSpriteSheetEntity(enemy, dc, SLIME_GREEN_SPRITE),
 
   onPlayerCollide: (enemy, _player, contact) => {

@@ -137,7 +137,7 @@ export interface EnemyContactResult {
   /** The enemy array with every contacted enemy's returned `self` merged in.
    *  Enemies with no contact are returned unchanged, by reference. */
   enemies: EnemyState[];
-  /** Half-hearts. The caller drops this while the player is invincible. */
+  /** Half-hearts. The caller drops this while the player is invulnerable. */
   damagePlayer: number;
   bouncePlayer: boolean;
   knockback: 'none' | 'away' | 'awayAndUp';

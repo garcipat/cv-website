@@ -33,7 +33,7 @@ export interface CollisionOutcome<S> {
   /** Replacement state, if the contact changed this entity. */
   self?: S;
   /** Half-hearts to deal to the player. The engine ignores this while the
-   *  player is invincible; no entity ever knows invincibility exists. */
+   *  player is invulnerable; no entity ever knows invulnerability exists. */
   damagePlayer?: number;
   bouncePlayer?: boolean;
   knockback?: 'none' | 'away' | 'awayAndUp';

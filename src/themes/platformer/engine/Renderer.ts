@@ -135,8 +135,8 @@ export function drawPlayer(
   originX = 0,
   originY = 0,
   jumpSpriteSheet: HTMLImageElement | null = null,
-  // Invincibility blink: PlatformerPage.tsx toggles this
-  // every ~0.1s while the player is invincible instead of drawing a tinted
+  // Invulnerability blink: PlatformerPage.tsx toggles this
+  // every ~0.1s while the player is invulnerable instead of drawing a tinted
   // sprite — simpler, and consistent with this renderer having no
   // alpha/tint effects anywhere else.
   visible = true,

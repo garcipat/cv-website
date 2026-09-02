@@ -24,6 +24,7 @@ export function baseEnemyState(
   placement: EnemyPlacement,
   index: number,
   maxHitPoints: number,
+  hitReactionSeconds: number,
 ): Omit<BaseEnemyState, 'type'> {
   return {
     ...placement,
@@ -38,8 +39,11 @@ export function baseEnemyState(
     hitPoints: maxHitPoints,
     // At or past the reaction duration means "no hit is being reacted to",
     // i.e. vulnerable — `isInvulnerable` asks `hitTimer < hitReactionSeconds`.
-    // Seeding 0 would make every enemy harmless and unstompable at spawn.
-    hitTimer: ENEMY_HIT_REACTION_SECONDS,
+    // Seeding 0 would make every enemy harmless and unstompable at spawn, so
+    // this seeds from the type's own `hitReactionSeconds`, passed in here —
+    // never from a shared constant, so a type with a different duration
+    // still spawns exactly at its own threshold.
+    hitTimer: hitReactionSeconds,
     alive: true,
     rewardGiven: false,
   };
@@ -81,6 +85,7 @@ export function takeHit<S extends BaseEnemyState>(enemy: S): S {
 export function baseRevive(
   enemy: BaseEnemyState,
   maxHitPoints: number,
+  hitReactionSeconds: number,
 ): Omit<BaseEnemyState, 'type'> {
   return {
     ...enemy,
@@ -92,7 +97,7 @@ export function baseRevive(
     animState: 'walk',
     hitPoints: maxHitPoints,
     // Vulnerable again on revival — see baseEnemyState's note on this seed.
-    hitTimer: ENEMY_HIT_REACTION_SECONDS,
+    hitTimer: hitReactionSeconds,
     alive: true,
   };
 }

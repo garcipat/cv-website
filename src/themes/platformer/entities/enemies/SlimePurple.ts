@@ -138,13 +138,13 @@ export const slimePurple: EnemyType<SlimePurpleState> = {
   heldItem: 'key',
 
   create: (placement, index) => ({
-    ...baseEnemyState(placement, index, 3),
+    ...baseEnemyState(placement, index, 3, slimePurple.hitReactionSeconds),
     type: 'slimePurple',
     spiked: false,
     spikeTimer: 0,
   }),
   revive: (enemy) => ({
-    ...baseRevive(enemy, 3),
+    ...baseRevive(enemy, 3, slimePurple.hitReactionSeconds),
     type: 'slimePurple',
     spiked: false,
     spikeTimer: 0,
@@ -152,8 +152,9 @@ export const slimePurple: EnemyType<SlimePurpleState> = {
 
   /** Advances the spiked cooldown by `dt` seconds. No-op (returns the same
    *  reference) while not currently `spiked` — this timer runs independently
-   *  of `animState`/`hitTimer`: this slime keeps counting down its cooldown
-   *  while patrolling normally, not just while mid hit-reaction. */
+   *  of `animState`/`hitTimer`: this slime keeps counting up toward the
+   *  cooldown's end while patrolling normally, not just while mid
+   *  hit-reaction. */
   onTick: (enemy, dt) => {
     if (!enemy.spiked) return enemy;
     const spikeTimer = enemy.spikeTimer + dt;
