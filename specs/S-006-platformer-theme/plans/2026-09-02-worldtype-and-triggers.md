@@ -4,7 +4,7 @@
 
 **Goal:** Give every type module one shared base carrying the two genuinely universal capabilities — *has a box* and *can be drawn* — and collapse the three near-identical player-overlap functions into one, leaving no hitbox constructed inside the engine.
 
-**Architecture:** `WorldType<S>` requires `key`, `box(state)` and `draw(state, dc)`, with behavior hooks optional so a new type never forces the interface to change. `EnemyType`, `PickupType`, `BlockType` and `ChestType` extend it — which forces the two families whose geometry the engine still owns (chests, enemies) to take it back. `chestPlayerIsStandingOn`, `checkSignOverlap` and `overlappingPickups` then become one trigger helper.
+**Architecture:** `WorldType<S>` requires `key` and `draw(state, dc)`, with behavior hooks optional so a new type never forces the interface to change. A separate `Boxed<S>` carries `box(state)`. `EnemyType`, `PickupType` and `ChestType` compose both; `BlockType` composes `WorldType` alone, because physics locates blocks by grid cell and never computes a block rectangle. `chestPlayerIsStandingOn`, `checkSignOverlap` and `overlappingPickups` then become one trigger helper.
 
 **Tech Stack:** TypeScript 5 (strict), React 19, `@preact/signals-react`, Vitest + React Testing Library + jsdom.
 
@@ -81,7 +81,7 @@ Type modules today:
 - Test: the four `*.test.ts` beside those modules
 
 **Interfaces:**
-- Produces: `WorldType<S>` from `entities/WorldType.ts`. `EnemyType`, `PickupType`, `BlockType`, `ChestType` all extend it. `enemyHitbox` moves out of `Collision.ts`.
+- Produces: `WorldType<S>` and `Boxed<S>` from `entities/WorldType.ts`. `EnemyType`, `PickupType` and `ChestType` compose both; `BlockType` composes `WorldType` alone. `enemyHitbox` moves out of `Collision.ts`.
 
 **Watch for a load-order cycle.** `entities/Enemy.ts` and `entities/Block.ts` import their registries at runtime, so the edge runs `Enemy.ts → enemies/*` and `Block.ts → blocks/*`, never back. A production import of a runtime *value* from a module back into its registry's parent leaves the registry `undefined` at load — it compiles cleanly and shows as a blank page. `enemyHitbox` currently reads `enemyRenderedSize` / `enemyTileOffsetX` / `enemyTileOffsetY` / `enemyHitboxSidePadding` / `enemyHitboxTopPadding` from `Enemy.ts`; moving it into the enemy modules means deriving those from the module's own `sprite` and `hitboxPaddingNative` instead, exactly as `drawSpriteSheetEntity` already does. Verify with `grep -rn "from '\.\./Enemy'" src/themes/platformer/entities/enemies/` — every production hit must be `import type`.
 
@@ -131,17 +131,24 @@ import type { DrawContext } from '../engine/DrawContext';
  */
 export interface WorldType<S> {
   key: string;
-  /** This object's rect in world coordinates, used for BOTH collision and
-   *  drawing so the two can never disagree. */
-  box(state: S): Rect;
   draw(state: S, dc: DrawContext): void;
+}
+
+/**
+ * Has a rectangle in world space. Composed by types that actually have one:
+ * enemies (a collision box), pickups and chests (trigger boxes). Blocks do NOT
+ * compose this — physics locates them by grid cell and never computes a block
+ * rectangle, so the member would have no consumer.
+ */
+export interface Boxed<S> {
+  box(state: S): Rect;
 }
 ```
 
 Then:
 
 - **Enemies** — move `enemyHitbox`'s body into an `EnemyType.box`, deriving size and padding from the module's own `sprite` and `hitboxPaddingNative`. `Collision.ts` calls `typeOf(enemy).box(enemy)`.
-- **Blocks** — a block's box is its tile: `{ x, y, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE }`. Nothing reads it yet; it exists because the base requires it and because a block *does* occupy that rect.
+- **Blocks** — compose `WorldType` only. Do NOT add a `box()`: physics finds blocks via `isBlockOccupied(placements, col, row)` and `blockIdAt(placements, col, headRow)`, so a block rectangle would have no consumer.
 - **Chests** — the closed footprint, `x` shifted by `CHEST_CLOSED_OFFSET_X`, at `CHEST_CLOSED_RENDERED_WIDTH` × `CHEST_CLOSED_RENDERED_HEIGHT`. **Byte-identical to the literal in `chestPlayerIsStandingOn`**; do not recompute the centering.
 - **Pickups** — already have `box`; just extend the base.
 
@@ -271,7 +278,7 @@ git commit -m "refactor(platformer): resolve every player trigger through one he
 
 ## Done criteria
 
-- `EnemyType`, `PickupType`, `BlockType` and `ChestType` all extend `WorldType`; all four expose `box` and `draw`.
+- All four type modules compose `WorldType`; enemies, pickups and chests additionally compose `Boxed`. Blocks expose no `box`.
 - `grep -n "const box: Box\|Box = {" src/themes/platformer/engine/Collision.ts` shows only `playerHitbox`.
 - One helper resolves every player-versus-trigger overlap; eligibility remains caller-supplied.
 - `EnemyContact.contract.test.ts`'s `CONTACT_CASES` and `expected` blocks are byte-identical.
