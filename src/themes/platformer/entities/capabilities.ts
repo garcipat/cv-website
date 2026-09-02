@@ -65,3 +65,27 @@ export interface Damageable {
 export function isInvulnerable(state: Damageable, reactionSeconds: number): boolean {
   return state.hitTimer < reactionSeconds;
 }
+
+/**
+ * The type-side half of `Damageable`: the numbers a type of damageable thing
+ * is born with, and what taking damage costs it beyond the shared reaction
+ * every damageable thing gets.
+ *
+ * `onDamaged` is separate from whatever hook decides that a contact counts as
+ * a hit: deciding what a touch MEANS and paying for a landed hit are
+ * different jobs, and only the second one is a type's business once a hit is
+ * a fact. It is optional because most types owe nothing beyond the shared
+ * reaction.
+ */
+export interface DamageableType<S extends Damageable> {
+  maxHitPoints: number;
+  /** Length of the post-hit refractory window, in seconds — the window
+   *  `isInvulnerable` reads. Every call site asking whether one of these is
+   *  invulnerable takes the duration from here, never from a shared
+   *  constant, so a type wanting a longer stun changes one field. */
+  hitReactionSeconds: number;
+  /** What taking a hit does to this type beyond decrementing hit points.
+   *  Receives the already-decremented state and the damage that landed, and
+   *  returns the state to store. */
+  onDamaged?(state: S, amount: number): S;
+}

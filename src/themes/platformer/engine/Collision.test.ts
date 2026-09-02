@@ -321,6 +321,30 @@ describe('resolveEnemyContacts aggregation', () => {
     expect(result.enemies[1]).toBe(spikedPurple);
   });
 
+  it('survivingStompOnAPurpleSlime-appliesItsOnDamagedHook', () => {
+    // The engine applies a landed hit's consequences through the type's
+    // `onDamaged`: without that wiring the slime takes the hit but never
+    // grows its spikes. Purple hitbox spans y 72..132 (midpoint 102); the
+    // player's hitbox bottom at 96 lands on its upper half.
+    const purple = makeSpikedPurpleEnemy({ x: 100, y: 100, homeX: 100, homeY: 100, hitPoints: 3, spiked: false, spikeTimer: 0 });
+    const player = { ...makePlayer(90, 40), vy: 200, grounded: false };
+
+    const result = resolveEnemyContacts(player, [purple]);
+
+    expect(result.enemies[0].hitPoints).toBe(2);
+    expect(result.enemies[0]).toMatchObject({ spiked: true, spikeTimer: 0 });
+  });
+
+  it('killingStompOnAPurpleSlime-leavesTheCorpseUnspiked', () => {
+    const purple = makeSpikedPurpleEnemy({ x: 100, y: 100, homeX: 100, homeY: 100, hitPoints: 1, spiked: false, spikeTimer: 0 });
+    const player = { ...makePlayer(90, 40), vy: 200, grounded: false };
+
+    const result = resolveEnemyContacts(player, [purple]);
+
+    expect(result.enemies[0].hitPoints).toBe(0);
+    expect(result.enemies[0]).toMatchObject({ spiked: false });
+  });
+
   it('enemiesNotTouched-areReturnedByReference', () => {
     const stomped = makeEnemy(0, 100);
     const faraway = makeEnemy(2000, 2000);

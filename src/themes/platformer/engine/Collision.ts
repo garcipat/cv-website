@@ -176,7 +176,8 @@ export function resolveEnemyContacts(
 
     const landsOnUpperHalf = playerBox.y + playerBox.height <= selfBox.y + selfBox.height / 2;
     const side: ContactSide = player.vy > 0 && landsOnUpperHalf ? 'top' : 'side';
-    const outcome = typeOf(enemy).onPlayerCollide(enemy, player, {
+    const enemyType = typeOf(enemy);
+    const outcome = enemyType.onPlayerCollide(enemy, player, {
       side,
       playerVx: player.vx,
       playerVy: player.vy,
@@ -185,8 +186,14 @@ export function resolveEnemyContacts(
     });
 
     if (outcome.self) {
+      // A contact that cost hit points is a landed hit, so whatever taking
+      // one costs this type beyond the decrement (a temporary defense, say)
+      // is applied here — the type decides what a touch means, the engine
+      // decides that the resulting hit is a fact and pays for it.
+      const damage = enemy.hitPoints - outcome.self.hitPoints;
       merged ??= [...enemies];
-      merged[i] = outcome.self;
+      merged[i] =
+        damage > 0 && enemyType.onDamaged ? enemyType.onDamaged(outcome.self, damage) : outcome.self;
     }
     if (outcome.bouncePlayer) bouncePlayer = true;
     if (outcome.damagePlayer && outcome.damagePlayer > damagePlayer) {
