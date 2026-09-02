@@ -67,6 +67,30 @@ export function isTopExposed(level: LevelDef, col: number, row: number): boolean
   return !isSolid(tileAt(level, col, row - 1));
 }
 
+/**
+ * Neighbour-mask bits. A SET bit means the neighbour on that side is solid,
+ * so the tile's edge there continues into more terrain and is drawn WITHOUT
+ * a border ("open"). A CLEAR bit means that edge faces non-solid space and
+ * is drawn WITH its dark border ("closed").
+ *
+ * Closure is deliberately about facing air rather than matching materials,
+ * so `isTopExposed` is exactly "the UP bit is clear" — see
+ * `neighbourMask-upBitClear-matchesIsTopExposed`.
+ */
+export const NEIGHBOUR_UP = 1;
+export const NEIGHBOUR_RIGHT = 2;
+export const NEIGHBOUR_DOWN = 4;
+export const NEIGHBOUR_LEFT = 8;
+
+export function neighbourMask(level: LevelDef, col: number, row: number): number {
+  return (
+    (isSolid(tileAt(level, col, row - 1)) ? NEIGHBOUR_UP : 0) |
+    (isSolid(tileAt(level, col + 1, row)) ? NEIGHBOUR_RIGHT : 0) |
+    (isSolid(tileAt(level, col, row + 1)) ? NEIGHBOUR_DOWN : 0) |
+    (isSolid(tileAt(level, col - 1, row)) ? NEIGHBOUR_LEFT : 0)
+  );
+}
+
 export function tileToPixel(col: number, row: number): { x: number; y: number } {
   return { x: col * RENDERED_TILE_SIZE, y: row * RENDERED_TILE_SIZE };
 }
