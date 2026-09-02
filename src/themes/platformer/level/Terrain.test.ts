@@ -7,6 +7,7 @@ import {
   isTopExposed,
   tileToPixel,
   bridgeRunPosition,
+  horizontalRunPosition,
   neighbourMask,
   NEIGHBOUR_UP,
   NEIGHBOUR_RIGHT,
@@ -206,6 +207,53 @@ describe('Terrain', () => {
         expect(upClear).toBe(isTopExposed(level, col, row));
       }
     }
+  });
+
+  it('horizontalRunPosition-noMatchingNeighbours-returnsSingle', () => {
+    const level: LevelDef = { width: 1, height: 1, terrain: [['groundGrass']] };
+    const isGround = (l: LevelDef, c: number, r: number) => tileAt(l, c, r) === 'groundGrass';
+    expect(horizontalRunPosition(level, 0, 0, isGround)).toBe('single');
+  });
+
+  it('horizontalRunPosition-onlyRightMatches-returnsLeft', () => {
+    const level: LevelDef = {
+      width: 2,
+      height: 1,
+      terrain: [['groundGrass', 'groundGrass']],
+    };
+    const isGround = (l: LevelDef, c: number, r: number) => tileAt(l, c, r) === 'groundGrass';
+    expect(horizontalRunPosition(level, 0, 0, isGround)).toBe('left');
+  });
+
+  it('horizontalRunPosition-onlyLeftMatches-returnsRight', () => {
+    const level: LevelDef = {
+      width: 2,
+      height: 1,
+      terrain: [['groundGrass', 'groundGrass']],
+    };
+    const isGround = (l: LevelDef, c: number, r: number) => tileAt(l, c, r) === 'groundGrass';
+    expect(horizontalRunPosition(level, 1, 0, isGround)).toBe('right');
+  });
+
+  it('horizontalRunPosition-bothNeighboursMatch-returnsMiddle', () => {
+    const level: LevelDef = {
+      width: 3,
+      height: 1,
+      terrain: [['groundGrass', 'groundGrass', 'groundGrass']],
+    };
+    const isGround = (l: LevelDef, c: number, r: number) => tileAt(l, c, r) === 'groundGrass';
+    expect(horizontalRunPosition(level, 1, 0, isGround)).toBe('middle');
+  });
+
+  it('horizontalRunPosition-predicateRejectsNeighbour-capsTheRun', () => {
+    // The predicate, not mere adjacency, decides continuity.
+    const level: LevelDef = {
+      width: 2,
+      height: 1,
+      terrain: [['groundGrass', 'groundRock']],
+    };
+    const isGround = (l: LevelDef, c: number, r: number) => tileAt(l, c, r) === 'groundGrass';
+    expect(horizontalRunPosition(level, 0, 0, isGround)).toBe('single');
   });
 });
 
