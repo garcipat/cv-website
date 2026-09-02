@@ -653,6 +653,23 @@ Both fakes are distinct object identities, so assertions can tell the two images
 
 Every `drawTerrain(ctx, level, fakeTileset, ...)` call in the file then gains a 4th argument.
 
+**Reading `drawImage` call arguments.** `makeMockContext()` returns a value cast to `CanvasRenderingContext2D`, so `ctx.drawImage.mock` does not typecheck. Where a test below inspects `.mock.calls`, use the convention this file already uses (see the `drawCollectibles` tests around line 233) — declare the mock-typed handle and cast when passing it in:
+
+```typescript
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+
+    drawTerrain(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      fakeTileset,
+      fakeGroundAtlas,
+    );
+
+    const calls = ctx.drawImage.mock.calls as unknown[][];
+```
+
+Tests that only use `expect(ctx.drawImage).toHaveBeenCalledWith(...)` need no cast and can keep `const ctx = makeMockContext();`. Where a test below asserts on `ctx.rotate`, it needs the same treatment: widen the handle to `{ drawImage: ReturnType<typeof vi.fn>; rotate: ReturnType<typeof vi.fn> }`.
+
 Replace the two existing groundGrass cases in `describe('drawTerrain', ...)` with:
 
 ```typescript
