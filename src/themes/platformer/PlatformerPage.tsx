@@ -78,12 +78,15 @@ import {
   advancePlayerAnimation,
   updatePlayerAnimState,
   applyKnockback,
-  tickInvincibility,
-  grantInvincibility,
+  advancePlayerHitTimer,
+  beginHitReaction,
+  isPlayerBlinkVisible,
+  PLAYER_HIT_REACTION_SECONDS,
   PLAYER_RENDERED_SIZE,
   PLAYER_VISUAL_CENTER_Y_OFFSET,
   PLAYER_HEAD_PADDING,
 } from './entities/Player';
+import { isInvulnerable } from './entities/capabilities';
 import { advanceEnemyAnimation } from './entities/Enemy';
 import {
   SLIME_GREEN_SHEET,
@@ -97,7 +100,7 @@ import { PICKUP_TYPES } from './entities/pickups';
 import { BLOCK_TYPES } from './entities/blocks';
 import { CHEST_TYPE } from './entities/chests';
 import type { EnemyState } from './entities/Enemy';
-import { takeDamage, PIT_FALL_DAMAGE, INVINCIBILITY_DURATION_SECONDS } from './entities/Health';
+import { takeDamage, PIT_FALL_DAMAGE } from './entities/Health';
 import {
   playerState,
   cameraPositionX,
@@ -144,9 +147,6 @@ import type { HintId } from './types';
 // font size (Renderer.ts's COLLECTION_EFFECT_FONT_SIZE) so stacked lines
 // don't touch.
 const COLLECTION_TEXT_STACK_ROW_HEIGHT = 34;
-// How often the player's sprite toggles visible/invisible while invincible —
-// short enough to read clearly as "blinking", not a slow pulse.
-const INVINCIBILITY_BLINK_INTERVAL_SECONDS = 0.1;
 
 export const PlatformerPage = () => {
   // Subscribes this component's render to any signal `.value` read during
@@ -295,7 +295,7 @@ export const PlatformerPage = () => {
   };
 
   const handleDebugKill = () => {
-    playerState.value = { ...playerState.value, hitPoints: 0 };
+    playerState.value = { ...playerState.value, hitPoints: 0, alive: false };
     const p = playerState.value;
     lifecycleState.value = startDeath(p.x + PLAYER_RENDERED_SIZE / 2, p.y + PLAYER_VISUAL_CENTER_Y_OFFSET);
     // Death immediately halts the hint-tick block below (the game loop skips
@@ -404,10 +404,9 @@ export const PlatformerPage = () => {
       drawChests(ctx, chestStates.value, drawContext);
 
       if (playerSpriteRef.current) {
-        const isInvincible = playerState.value.invincibleTimer > 0;
         const playerVisible =
-          !isInvincible ||
-          Math.floor(playerState.value.invincibleTimer / INVINCIBILITY_BLINK_INTERVAL_SECONDS) % 2 === 0;
+          !isInvulnerable(playerState.value, PLAYER_HIT_REACTION_SECONDS) ||
+          isPlayerBlinkVisible(playerState.value.hitTimer, PLAYER_HIT_REACTION_SECONDS);
         drawPlayer(
           ctx,
           playerState.value,
@@ -1095,19 +1094,19 @@ export const PlatformerPage = () => {
         };
       }
 
-      // Damage is dropped entirely while invincible, so one persisting
-      // overlap can't register a fresh hit every tick.
-      if (contacts.damagePlayer > 0 && playerState.value.invincibleTimer <= 0) {
-        playerState.value = {
-          ...playerState.value,
-          hitPoints: takeDamage(playerState.value.hitPoints, contacts.damagePlayer),
-        };
+      // Damage is dropped entirely while inside the refractory window, so
+      // one persisting overlap can't register a fresh hit every tick.
+      if (
+        contacts.damagePlayer > 0 &&
+        !isInvulnerable(playerState.value, PLAYER_HIT_REACTION_SECONDS)
+      ) {
+        const hitPoints = takeDamage(playerState.value.hitPoints, contacts.damagePlayer);
+        playerState.value = { ...playerState.value, hitPoints, alive: hitPoints > 0 };
         playerState.value = applyKnockback(
           playerState.value,
           contacts.knockbackDirection,
           PHYSICS_CONFIG.sideHitKnockbackVx,
           PHYSICS_CONFIG.sideHitKnockbackDuration,
-          INVINCIBILITY_DURATION_SECONDS,
         );
         if (contacts.knockback === 'awayAndUp') {
           // Without `bounceAscending: true` (same mechanism the stomp
@@ -1259,15 +1258,16 @@ export const PlatformerPage = () => {
       }
 
       if (checkPitFall(next, currentLevel.value)) {
-        // Invincibility is a property of taking damage generally, not just
-        // of enemy contact — a pit fall grants and
-        // respects it exactly like a side-hit does. The position recovery
-        // below is NOT gated by it, though: `resolvePitFall` must always run
-        // or the character would keep falling forever while merely
-        // invincible from an earlier, unrelated hit.
-        if (next.invincibleTimer <= 0) {
-          next = { ...next, hitPoints: takeDamage(next.hitPoints, PIT_FALL_DAMAGE) };
-          next = grantInvincibility(next, INVINCIBILITY_DURATION_SECONDS);
+        // The refractory window is a property of taking damage generally,
+        // not just of enemy contact — a pit fall opens and respects it
+        // exactly like a side-hit does. The position recovery below is NOT
+        // gated by it, though: `resolvePitFall` must always run or the
+        // character would keep falling forever while merely invulnerable
+        // from an earlier, unrelated hit.
+        if (!isInvulnerable(next, PLAYER_HIT_REACTION_SECONDS)) {
+          const hitPoints = takeDamage(next.hitPoints, PIT_FALL_DAMAGE);
+          next = { ...next, hitPoints, alive: hitPoints > 0 };
+          next = beginHitReaction(next);
         }
         next = resolvePitFall(next);
       }
@@ -1278,7 +1278,7 @@ export const PlatformerPage = () => {
       // recovered position before the next tick corrected it.
       next = updatePlayerAnimState(next);
       next = advancePlayerAnimation(next, dt);
-      next = tickInvincibility(next, dt);
+      next = advancePlayerHitTimer(next, dt);
 
       playerState.value = next;
 
@@ -1301,10 +1301,11 @@ export const PlatformerPage = () => {
       );
 
       // Death check: whatever the damage source (today, only repeated pit
-      // falls), 0 health starts the death iris centered on wherever the
-      // player ended up this frame. Otherwise, keep advancing 'intro' (a
-      // no-op once already 'playing' — see GameLifecycle.ts's tickLifecycle).
-      if (next.hitPoints === 0) {
+      // falls), `alive` going false starts the death iris centered on
+      // wherever the player ended up this frame — the same `Damageable`
+      // flag an enemy dies by. Otherwise, keep advancing 'intro' (a no-op
+      // once already 'playing' — see GameLifecycle.ts's tickLifecycle).
+      if (!next.alive) {
         lifecycleState.value = startDeath(
           next.x + PLAYER_RENDERED_SIZE / 2,
           next.y + PLAYER_VISUAL_CENTER_Y_OFFSET,

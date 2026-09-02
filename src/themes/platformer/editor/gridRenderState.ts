@@ -1,7 +1,11 @@
 import { TERRAIN_CHARS, SIGN_CHARS, type TileChar } from '../level/LevelParser';
 import type { LevelDef, TileMap } from '../level/LevelData';
 import { tileToPixel, RENDERED_TILE_SIZE } from '../level/Terrain';
-import { PLAYER_RENDERED_SIZE, PLAYER_FOOT_PADDING } from '../entities/Player';
+import {
+  PLAYER_RENDERED_SIZE,
+  PLAYER_FOOT_PADDING,
+  PLAYER_HIT_REACTION_SECONDS,
+} from '../entities/Player';
 import type { PlayerState } from '../entities/Player';
 import { MAX_HALF_HEARTS } from '../entities/Health';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
@@ -79,13 +83,12 @@ export function synthesizePlayerState(grid: TileChar[][]): PlayerState | null {
     animState: 'idle',
     animFrame: 0,
     animTimer: 0,
-    invincibleTimer: 0,
     knockbackTimer: 0,
     hitBlockIds: [],
     bounceAscending: false,
     hitPoints: MAX_HALF_HEARTS,
     alive: true,
-    hitTimer: 0,
+    hitTimer: PLAYER_HIT_REACTION_SECONDS,
   };
 }
 

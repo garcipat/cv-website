@@ -1,4 +1,5 @@
-import { stepEnemyPatrol, stepEnemyHitReaction, HIT_REACTION_DURATION_SECONDS } from './EnemyAI';
+import { stepEnemyPatrol, stepEnemyHitReaction } from './EnemyAI';
+import { ENEMY_HIT_REACTION_SECONDS } from '../entities/enemies/shared';
 import { toEnemyState } from '../entities/Enemy';
 import type { EnemyState } from '../entities/Enemy';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
@@ -274,38 +275,41 @@ describe('stepEnemyHitReaction', () => {
 
   it('reactionDurationElapsed-hitPointsRemaining-revertsToWalk', () => {
     const enemy = makeHitEnemy(1);
-    const next = stepEnemyHitReaction(enemy, HIT_REACTION_DURATION_SECONDS);
+    const next = stepEnemyHitReaction(enemy, ENEMY_HIT_REACTION_SECONDS);
     expect(next.animState).toBe('walk');
     expect(next.animFrame).toBe(0);
     expect(next.animTimer).toBe(0);
-    expect(next.hitTimer).toBe(0);
+    // Left at its accumulated value, not reset: the same timer is what
+    // `isInvulnerable` reads, and a reset would leave the reverted enemy
+    // permanently untouchable.
+    expect(next.hitTimer).toBeGreaterThanOrEqual(ENEMY_HIT_REACTION_SECONDS);
     expect(next.alive).toBe(true);
   });
 
   it('reactionDurationElapsed-noHitPointsRemaining-flagsDefeated', () => {
     const enemy = makeHitEnemy(0);
-    const next = stepEnemyHitReaction(enemy, HIT_REACTION_DURATION_SECONDS);
+    const next = stepEnemyHitReaction(enemy, ENEMY_HIT_REACTION_SECONDS);
     expect(next.alive).toBe(false);
     expect(next.animState).toBe('hit'); // stays on its last frame until removed
   });
 
   it('reactionDuration-splitAcrossTwoTicks-stillCompletesCorrectly', () => {
     let enemy = makeHitEnemy(0);
-    enemy = stepEnemyHitReaction(enemy, HIT_REACTION_DURATION_SECONDS / 2);
+    enemy = stepEnemyHitReaction(enemy, ENEMY_HIT_REACTION_SECONDS / 2);
     expect(enemy.alive).toBe(true);
-    enemy = stepEnemyHitReaction(enemy, HIT_REACTION_DURATION_SECONDS / 2);
+    enemy = stepEnemyHitReaction(enemy, ENEMY_HIT_REACTION_SECONDS / 2);
     expect(enemy.alive).toBe(false);
   });
 
   it('reactionFinishedWithNoHitPoints-flagsNotAlive', () => {
     const enemy = makeHitEnemy(0);
-    const stepped = stepEnemyHitReaction(enemy, HIT_REACTION_DURATION_SECONDS);
+    const stepped = stepEnemyHitReaction(enemy, ENEMY_HIT_REACTION_SECONDS);
     expect(stepped.alive).toBe(false);
   });
 
   it('reactionFinishedWithHitPointsRemaining-staysAlive', () => {
     const enemy = makeHitEnemy(2);
-    const stepped = stepEnemyHitReaction(enemy, HIT_REACTION_DURATION_SECONDS);
+    const stepped = stepEnemyHitReaction(enemy, ENEMY_HIT_REACTION_SECONDS);
     expect(stepped.alive).toBe(true);
     expect(stepped.animState).toBe('walk');
   });

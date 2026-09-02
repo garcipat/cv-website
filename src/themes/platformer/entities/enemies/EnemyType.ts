@@ -40,6 +40,10 @@ export interface EnemyType<S extends BaseEnemyState> {
   /** Must equal this module's slot in ENEMY_TYPES — see index.test.ts. */
   key: string;
   maxHitPoints: number;
+  /** Seconds this type's post-hit reaction lasts. It is one window with two
+   *  jobs: the `hit` animation plays for exactly this long, and
+   *  `isInvulnerable` reports the enemy untouchable for exactly this long. */
+  hitReactionSeconds: number;
   patrolSpeedMultiplier: number;
   /** Transparent margin inside the native frame, in pre-scale pixels. */
   hitboxPaddingNative: { side: number; top: number };

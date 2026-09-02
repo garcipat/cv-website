@@ -27,7 +27,7 @@ import {
 import type { LevelDef } from '../level/LevelData';
 import type { SignPlacement } from '../level/SignMapper';
 import type { PlayerState } from '../entities/Player';
-import { PLAYER_RENDERED_SIZE } from '../entities/Player';
+import { PLAYER_RENDERED_SIZE, PLAYER_HIT_REACTION_SECONDS } from '../entities/Player';
 import { MAX_HALF_HEARTS, HEART_RENDERED_SIZE } from '../entities/Health';
 import { startFlightEffect, tickFlightEffect, RISE_DURATION_SECONDS, SPARKLE_DURATION_SECONDS } from './CollectionEffects';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
@@ -1151,13 +1151,12 @@ describe('drawPlayer', () => {
     animTimer: 0,
     animState: 'idle',
     animFrame: 0,
-    invincibleTimer: 0,
     knockbackTimer: 0,
     bounceAscending: false,
     hitBlockIds: [],
     hitPoints: 6,
     alive: true,
-    hitTimer: 0,
+    hitTimer: PLAYER_HIT_REACTION_SECONDS,
   };
 
   it('idleFrame0-draws-fromFirstIdleSource', () => {

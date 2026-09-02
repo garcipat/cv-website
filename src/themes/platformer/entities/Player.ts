@@ -43,8 +43,9 @@ export type PlayerAnimState = 'idle' | 'walk' | 'jump' | 'climb';
  * advance), both keyed by `animState`, narrowed below, and onto
  * `Damageable`'s `hitPoints`/`alive`/`hitTimer` — `hitPoints` is a plain
  * half-heart count (see entities/Health.ts's MAX_HALF_HEARTS/takeDamage),
- * with all heart-display presentation unchanged. `invincibleTimer` below,
- * not `hitTimer`, is what currently gates further hits.
+ * with all heart-display presentation unchanged, and `hitTimer` counts
+ * seconds since the last hit landed, gating further hits through
+ * `isInvulnerable` exactly as it does for an enemy.
  */
 export interface PlayerState extends Moving, SelfAnimated, Damageable {
   x: number;
@@ -77,20 +78,14 @@ export interface PlayerState extends Moving, SelfAnimated, Damageable {
   /** Narrowed from `SelfAnimated`'s `string` to the player's finite set of
    *  animation states. */
   animState: PlayerAnimState;
-  /** Seconds remaining of post-hit invincibility — 0 means not invincible.
-   *  Makes the game loop drop the damage `resolveEnemyContacts` reports
-   *  (see Collision.ts) and drives the render blink (PlatformerPage.tsx);
-   *  ticked down once per frame by `tickInvincibility` below. Unrelated to
-   *  `knockbackTimer` — see this plan's "Key design decisions" for why they're
-   *  separate. */
-  invincibleTimer: number;
   /** Seconds remaining of forced knockback velocity — 0 means normal
    *  input-driven movement. While positive, Physics.ts's `stepPlayerPhysics`
    *  ignores held movement keys and holds the knockback `vx` instead; much
-   *  shorter than `invincibleTimer` so the player regains full control well
-   *  before invincibility (and its blink) ends. Ticked down inside
-   *  `stepPlayerPhysics` itself, not here — see this plan's "Key design
-   *  decisions". */
+   *  shorter than PLAYER_HIT_REACTION_SECONDS so the player regains full
+   *  control well before the refractory window (and its blink) ends. Counts
+   *  DOWN, unlike `hitTimer`, and is ticked down inside `stepPlayerPhysics`
+   *  itself rather than here, since that function is the one that reads
+   *  it. */
   knockbackTimer: number;
   /**
    * Ids of every block whose underside was hit this tick — always freshly
@@ -227,51 +222,86 @@ export function updatePlayerAnimState(player: PlayerState): PlayerState {
 }
 
 /**
- * Ticks down `invincibleTimer` by `dt` seconds, clamped at 0 — a no-op
- * (returns the same reference) once it's already 0. Called once per game-loop
- * tick (PlatformerPage.tsx); unlike `knockbackTimer` (decremented inside
- * `stepPlayerPhysics`, since that function is the one that reads it),
- * invincibility isn't consumed by physics at all, only by the side-hit
- * collision gate and the render blink.
+ * Advances `hitTimer` by `dt` seconds, clamped at PLAYER_HIT_REACTION_SECONDS
+ * — a no-op (returns the same reference) once already clamped. The clamp is
+ * what stops a long session from accumulating a meaninglessly large number:
+ * every reader only ever asks whether the timer is still below the reaction
+ * duration, so anything past it is the same answer. Called once per
+ * game-loop tick (PlatformerPage.tsx); unlike `knockbackTimer` (decremented
+ * inside `stepPlayerPhysics`, since that function is the one that reads it),
+ * the refractory window isn't consumed by physics at all, only by the damage
+ * gate and the render blink.
  */
-export function tickInvincibility(player: PlayerState, dt: number): PlayerState {
-  if (player.invincibleTimer <= 0) return player;
-  return { ...player, invincibleTimer: Math.max(0, player.invincibleTimer - dt) };
+export function advancePlayerHitTimer(player: PlayerState, dt: number): PlayerState {
+  if (player.hitTimer >= PLAYER_HIT_REACTION_SECONDS) return player;
+  return {
+    ...player,
+    hitTimer: Math.min(PLAYER_HIT_REACTION_SECONDS, player.hitTimer + dt),
+  };
 }
 
 /**
- * Applies a side-hit's knockback + invincibility in one step: sets `vx` to
- * `direction * knockbackVx` (facing to match, so the
- * character visually faces away from whatever hit it), starts
- * `knockbackTimer` (how long `stepPlayerPhysics` overrides input-driven
- * horizontal movement) and `invincibleTimer` (how long further hits are
- * ignored and the render blink plays) independently — see this plan's "Key
- * design decisions" for why the two timers differ so much in length.
+ * Applies a side-hit's knockback and refractory window in one step: sets `vx`
+ * to `direction * knockbackVx` (facing to match, so the character visually
+ * faces away from whatever hit it), starts `knockbackTimer` (how long
+ * `stepPlayerPhysics` overrides input-driven horizontal movement) and
+ * restarts `hitTimer` (how long further hits are ignored and the render
+ * blink plays). The two run independently and differ a lot in length —
+ * control comes back long before the blink ends. The refractory window takes
+ * no duration argument: its length is PLAYER_HIT_REACTION_SECONDS, read by
+ * whoever asks `isInvulnerable`, so starting one is just zeroing the timer.
  */
 export function applyKnockback(
   player: PlayerState,
   direction: -1 | 1,
   knockbackVx: number,
   knockbackDuration: number,
-  invincibleDuration: number,
 ): PlayerState {
   return {
     ...player,
     vx: direction * knockbackVx,
     direction: direction < 0 ? 'left' : 'right',
     knockbackTimer: knockbackDuration,
-    invincibleTimer: invincibleDuration,
+    hitTimer: 0,
   };
 }
 
 /**
- * Grants invincibility with no knockback — used by a pit fall, since
- * invincibility is a property of taking damage generally, not just of enemy
- * contact specifically. Unlike `applyKnockback`, there's no "direction to push
- * away from" for a pit fall, and no reason to touch `vx`/`direction`/
- * `knockbackTimer` at all — `resolvePitFall` already handles repositioning
- * the character back to solid ground.
+ * Starts the post-hit refractory window with no knockback — used by a pit
+ * fall, since the window is a property of taking damage generally, not just
+ * of enemy contact specifically. Unlike `applyKnockback`, there's no
+ * "direction to push away from" for a pit fall, and no reason to touch
+ * `vx`/`direction`/`knockbackTimer` at all — `resolvePitFall` already
+ * handles repositioning the character back to solid ground.
  */
-export function grantInvincibility(player: PlayerState, duration: number): PlayerState {
-  return { ...player, invincibleTimer: duration };
+export function beginHitReaction(player: PlayerState): PlayerState {
+  return { ...player, hitTimer: 0 };
+}
+
+/**
+ * Seconds the player's post-hit refractory window lasts: further hits are
+ * dropped and the render blink plays for this long after a hit lands. Long
+ * enough to read clearly as "just got hurt" without dragging on. The enemy
+ * equivalent is each type's own `hitReactionSeconds`.
+ */
+export const PLAYER_HIT_REACTION_SECONDS = 1.2;
+
+/** Seconds between blink phase flips while the player is invulnerable. */
+export const PLAYER_BLINK_INTERVAL_SECONDS = 0.1;
+
+/**
+ * Whether the player sprite is drawn on this frame of the post-hit blink.
+ *
+ * The phase is measured from the END of the window, not its start:
+ * `reactionSeconds - hitTimer` is the time REMAINING, and it is that
+ * remainder — not the elapsed time — whose blink-interval parity decides
+ * on/off. Taking the parity of `hitTimer` directly would blink at the same
+ * rate for the same duration with every frame's on/off state swapped.
+ *
+ * Callers gate this behind `isInvulnerable`; outside the window the
+ * remainder goes negative and the result is meaningless.
+ */
+export function isPlayerBlinkVisible(hitTimer: number, reactionSeconds: number): boolean {
+  const remaining = reactionSeconds - hitTimer;
+  return Math.floor(remaining / PLAYER_BLINK_INTERVAL_SECONDS) % 2 === 0;
 }

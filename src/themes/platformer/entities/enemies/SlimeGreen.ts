@@ -1,6 +1,6 @@
 import type { EnemyType, BaseEnemyState } from './EnemyType';
-import { baseEnemyState, baseRevive, takeHit } from './shared';
-import { isStunned } from './stunnedGuard';
+import { baseEnemyState, baseRevive, takeHit, ENEMY_HIT_REACTION_SECONDS } from './shared';
+import { isInvulnerable } from '../capabilities';
 import { ENEMY_ANIMATIONS } from './EnemyAnimation';
 import { SLIME_GREEN_SHEET } from '../sprites/sheets';
 import type { SpriteDescriptor } from '../sprites/SpriteSheet';
@@ -19,6 +19,7 @@ const SLIME_GREEN_SPRITE: SpriteDescriptor = {
 export const slimeGreen: EnemyType<SlimeGreenState> = {
   key: 'slimeGreen',
   maxHitPoints: 1,
+  hitReactionSeconds: ENEMY_HIT_REACTION_SECONDS,
   patrolSpeedMultiplier: 1,
   hitboxPaddingNative: { side: 5, top: 9 },
   sprite: SLIME_GREEN_SPRITE,
@@ -32,7 +33,11 @@ export const slimeGreen: EnemyType<SlimeGreenState> = {
   draw: (enemy, dc) => drawSpriteSheetEntity(enemy, dc, SLIME_GREEN_SPRITE),
 
   onPlayerCollide: (enemy, _player, contact) => {
-    if (isStunned(enemy) || enemy.hitPoints <= 0) return {};
+    // Mid-reaction, this slime is harmless in every way — not merely immune
+    // to a second stomp. Without that, bouncing off a stomp while still
+    // overlapping the now-frozen enemy registers as a spurious side-hit
+    // against the very enemy just stomped.
+    if (isInvulnerable(enemy, ENEMY_HIT_REACTION_SECONDS) || enemy.hitPoints <= 0) return {};
     if (contact.side === 'top') return { self: takeHit(enemy), bouncePlayer: true };
     return { damagePlayer: 1, knockback: 'away' };
   },

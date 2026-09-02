@@ -4,6 +4,7 @@ import { ENEMY_TYPES } from '../entities/enemies';
 import type { SlimePurpleState } from '../entities/enemies/SlimePurple';
 import type { EnemyPlacement } from '../level/EnemyMapper';
 import type { PlayerState } from '../entities/Player';
+import { PLAYER_HIT_REACTION_SECONDS } from '../entities/Player';
 
 /**
  * Characterization of enemy/player contact as it behaves today, expressed in
@@ -33,13 +34,12 @@ function makePlayer(x: number, y: number, vy: number): PlayerState {
     animState: 'jump',
     animFrame: 0,
     animTimer: 0,
-    invincibleTimer: 0,
     knockbackTimer: 0,
     bounceAscending: false,
     hitBlockIds: [],
     hitPoints: 6,
     alive: true,
-    hitTimer: 0,
+    hitTimer: PLAYER_HIT_REACTION_SECONDS,
   };
 }
 

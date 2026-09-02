@@ -9,12 +9,6 @@ import {
   enemyHitboxSidePadding,
 } from '../entities/Enemy';
 
-/** How long the `hit` reaction (red-flash/dissolve) plays before the enemy
- *  either reverts to patrolling (hit points remain) or is flagged dead —
- *  matches entities/enemies/EnemyAnimation.ts's `hit` animation: 4 frames at
- *  0.1s each. */
-export const HIT_REACTION_DURATION_SECONDS = 0.4;
-
 /**
  * Advances one enemy's horizontal patrol by `dt` seconds: moves at a
  * constant `PHYSICS_CONFIG.enemyPatrolSpeed` in its current `direction`,
@@ -126,23 +120,28 @@ export function stepEnemyPatrol(
  * (returns the same reference) for an enemy still `'walk'`ing — patrol
  * movement is `stepEnemyPatrol`'s job, not this function's; the game loop
  * (PlatformerPage.tsx) picks whichever of the two applies per enemy per
- * tick. Once `HIT_REACTION_DURATION_SECONDS` has elapsed since the stomp
+ * tick. Once this type's own `hitReactionSeconds` has elapsed since the stomp
  * (`takeHit` reset `hitTimer` to 0), either reverts to `'walk'` (hit points
  * remain — the enemy keeps patrolling) or flags the enemy dead in place (no
  * hit points remain — the game loop fires its reward that same tick and
  * leaves it in the array). Deliberately does not clamp/zero `vx` on revert:
  * the next `stepEnemyPatrol` call recomputes it from `direction`.
+ *
+ * `hitTimer` is left at its accumulated value on revert rather than reset to
+ * 0: the same timer answers "is this enemy still untouchable?" through
+ * `isInvulnerable`, and a reset would read as a fresh hit that never
+ * happened, leaving a patrolling enemy permanently harmless.
  */
 export function stepEnemyHitReaction(enemy: EnemyState, dt: number): EnemyState {
   if (enemy.animState !== 'hit') return enemy;
 
   const hitTimer = enemy.hitTimer + dt;
-  if (hitTimer < HIT_REACTION_DURATION_SECONDS) {
+  if (hitTimer < ENEMY_TYPES[enemy.type].hitReactionSeconds) {
     return { ...enemy, hitTimer };
   }
   if (enemy.hitPoints <= 0) {
     return { ...enemy, hitTimer, alive: false };
   }
-  return { ...enemy, hitTimer: 0, animState: 'walk', animFrame: 0, animTimer: 0 };
+  return { ...enemy, hitTimer, animState: 'walk', animFrame: 0, animTimer: 0 };
 }
 

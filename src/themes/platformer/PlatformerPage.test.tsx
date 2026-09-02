@@ -45,7 +45,9 @@ import {
   HEART_RENDERED_SIZE,
 } from './entities/Health';
 import { HEARTS_START_X, keyCounterX, KEY_COUNTER_Y } from './engine/Renderer';
-import { HIT_REACTION_DURATION_SECONDS } from './engine/EnemyAI';
+import { ENEMY_HIT_REACTION_SECONDS } from './entities/enemies/shared';
+import { isInvulnerable } from './entities/capabilities';
+import { PLAYER_HIT_REACTION_SECONDS } from './entities/Player';
 import { SPIKE_COOLDOWN_DURATION_SECONDS } from './entities/enemies/SlimePurple';
 import { PHYSICS_CONFIG } from './engine/PhysicsConfig';
 import { tileToPixel } from './level/Terrain';
@@ -1966,7 +1968,7 @@ describe('PlatformerPage', () => {
 
     expect(playerState.value.hitPoints).toBe(startingHealth - SIDE_HIT_DAMAGE);
     expect(playerState.value.vx).not.toBe(0);
-    expect(playerState.value.invincibleTimer).toBeGreaterThan(0);
+    expect(isInvulnerable(playerState.value, PLAYER_HIT_REACTION_SECONDS)).toBe(true);
   });
 
   it('playerTouchesEnemyFromTheLeft-tick-knockbackPushesFurtherLeft', () => {
@@ -2105,7 +2107,7 @@ describe('PlatformerPage', () => {
     playerState.value = { ...playerState.value, x: target.x, y: target.y, vx: 0, vy: 0 };
     frameCallback!(16);
     const healthAfterFirstHit = playerState.value.hitPoints;
-    expect(playerState.value.invincibleTimer).toBeGreaterThan(0);
+    expect(isInvulnerable(playerState.value, PLAYER_HIT_REACTION_SECONDS)).toBe(true);
 
     // Still overlapping the same enemy on the very next tick — must not hit again.
     frameCallback!(32);
@@ -2139,7 +2141,7 @@ describe('PlatformerPage', () => {
     frameCallback!(16);
 
     expect(playerState.value.hitPoints).toBe(startingHealth);
-    expect(playerState.value.invincibleTimer).toBe(0);
+    expect(isInvulnerable(playerState.value, PLAYER_HIT_REACTION_SECONDS)).toBe(false);
   });
 
   it('playerStompsEnemy-ticksThroughTheWholeBounceArc-neverTakesSideHitDamage', () => {
@@ -2147,9 +2149,9 @@ describe('PlatformerPage', () => {
     // registers. On every LATER tick, while the player is
     // still rising off the bounce (vy < 0) and still overlapping the
     // now-frozen, mid-'hit' enemy, no fresh, unwanted side-hit may register
-    // against the very enemy just stomped — a stunned enemy returns no
-    // outcome at all (see enemies/stunnedGuard.ts) rather than
-    // relying on velocity/geometry alone. This ticks through several frames
+    // against the very enemy just stomped — an enemy inside its refractory
+    // window returns no outcome at all (its type module asks
+    // `isInvulnerable`) rather than relying on velocity/geometry alone. This ticks through several frames
     // of the bounce arc (well past the single tick the older test covered)
     // and asserts health never drops and invincibility is never granted from
     // this encounter.
@@ -2178,7 +2180,7 @@ describe('PlatformerPage', () => {
       t += 16;
       frameCallback!(t);
       expect(playerState.value.hitPoints).toBe(startingHealth);
-      expect(playerState.value.invincibleTimer).toBe(0);
+      expect(isInvulnerable(playerState.value, PLAYER_HIT_REACTION_SECONDS)).toBe(false);
     }
   });
 
@@ -2266,10 +2268,10 @@ describe('PlatformerPage', () => {
     let t = 16;
     frameCallback!(t); // first stomp: hitPoints 3 -> 2, animState 'hit', spiked true
 
-    // Advance past HIT_REACTION_DURATION_SECONDS (0.4s) so animState returns
+    // Advance past ENEMY_HIT_REACTION_SECONDS (0.4s) so animState returns
     // to 'walk', but stay well within SPIKE_COOLDOWN_DURATION_SECONDS (0.9s)
     // so the enemy is still `spiked`.
-    const framesPastHitReaction = Math.ceil((HIT_REACTION_DURATION_SECONDS * 1000) / 16) + 5;
+    const framesPastHitReaction = Math.ceil((ENEMY_HIT_REACTION_SECONDS * 1000) / 16) + 5;
     for (let i = 0; i < framesPastHitReaction; i++) {
       t += 16;
       frameCallback!(t);
@@ -2375,13 +2377,13 @@ describe('PlatformerPage', () => {
     frameCallback!(16);
 
     expect(playerState.value.hitPoints).toBe(startingHealth - PIT_FALL_DAMAGE);
-    expect(playerState.value.invincibleTimer).toBeGreaterThan(0);
+    expect(isInvulnerable(playerState.value, PLAYER_HIT_REACTION_SECONDS)).toBe(true);
   });
 
   it('playerAlreadyInvincibleFromASideHit-fallsIntoPit-noAdditionalDamageButStillRepositioned', () => {
     // The position-recovery half of a pit fall (resolvePitFall) must still
     // happen even while invincible — only the heart loss is skipped. A
-    // player stuck mid-air with invincibleTimer > 0 must not keep falling
+    // player stuck mid-air but still invulnerable must not keep falling
     // forever just because a hit protected them a moment ago.
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
@@ -2397,7 +2399,7 @@ describe('PlatformerPage', () => {
     playerState.value = { ...playerState.value, x: target.x, y: target.y, vx: 0, vy: 0 };
     frameCallback!(16); // side-hit: now invincible
     const healthAfterSideHit = playerState.value.hitPoints;
-    expect(playerState.value.invincibleTimer).toBeGreaterThan(0);
+    expect(isInvulnerable(playerState.value, PLAYER_HIT_REACTION_SECONDS)).toBe(true);
 
     playerState.value = {
       ...playerState.value,
@@ -3006,7 +3008,7 @@ describe('PlatformerPage', () => {
       }
       expect(hintTooltipState.value?.phase).toBe('shown');
 
-      playerState.value = { ...playerState.value, hitPoints: 0 };
+      playerState.value = { ...playerState.value, hitPoints: 0, alive: false };
       t += 16;
       frameCallback!(t); // enters 'dying'
 
