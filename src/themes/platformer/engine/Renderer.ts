@@ -40,7 +40,7 @@ import { CHEST_CLOSED_WIDTH, CHEST_CLOSED_HEIGHT } from '../entities/Chest';
 import type { ChestState } from '../entities/Chest';
 import type { BonusFruitState } from '../entities/BonusFruit';
 import { flightEffectPosition, sparkleParticles } from './CollectionEffects';
-import type { FlightEffect } from './CollectionEffects';
+import type { FlightEffect, PuffEffect } from './CollectionEffects';
 
 function tileSource(
   level: LevelDef,
@@ -688,14 +688,29 @@ const COLLECTION_EFFECT_ICON_FONT_SIZE = 20;
 const COLLECTION_EFFECT_ICON_GAP = 6;
 const SPARKLE_RADIUS_PX = 3;
 
-/** Draws every active collection-effect's fact text at its current
- *  hover/flight position and opacity (see CollectionEffects.ts), plus a
- *  sparkle burst anchored at the collection point (effect.startX/startY —
- *  not the current hover/flying position; the burst happens once, right
- *  where the collectible was, not following the text as it flies). Positions
- *  are already screen-space (no originX/originY here — unlike
- *  drawCollectibles, this doesn't scroll with the camera; see
- *  CollectionEffects.ts's FlightEffect doc comment). */
+/** Draws one sparkle burst — a ring of small fading dots radiating outward
+ *  from (x, y) — shared by drawCollectionEffects (a fact-flight's own burst,
+ *  always scale 1) and drawPuffEffects (a standalone world-event puff, whose
+ *  scale varies with the entity that caused it). The one place that draws a
+ *  sparkle ring, so the visual can't drift between the two call sites. */
+function drawSparkleBurst(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  elapsedSinceCollect: number,
+  scale = 1,
+): void {
+  for (const sparkle of sparkleParticles(elapsedSinceCollect, scale)) {
+    ctx.save();
+    ctx.globalAlpha = sparkle.opacity;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(x + sparkle.dx, y + sparkle.dy, SPARKLE_RADIUS_PX * scale, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
 export function drawCollectionEffects(ctx: CanvasRenderingContext2D, effects: FlightEffect[]): void {
   for (const effect of effects) {
     const { x, y, opacity } = flightEffectPosition(effect);
@@ -723,15 +738,16 @@ export function drawCollectionEffects(ctx: CanvasRenderingContext2D, effects: Fl
       ctx.restore();
     }
 
-    for (const sparkle of sparkleParticles(effect.elapsed)) {
-      ctx.save();
-      ctx.globalAlpha = sparkle.opacity;
-      ctx.fillStyle = '#fff';
-      ctx.beginPath();
-      ctx.arc(effect.startX + sparkle.dx, effect.startY + sparkle.dy, SPARKLE_RADIUS_PX, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    }
+    drawSparkleBurst(ctx, effect.startX, effect.startY, effect.elapsed);
+  }
+}
+
+/** Draws every currently-animating world-event puff (see B-003 /
+ *  CollectionEffects.ts's PuffEffect doc comment) — screen-space, same
+ *  no-camera-offset convention as drawCollectionEffects. */
+export function drawPuffEffects(ctx: CanvasRenderingContext2D, effects: PuffEffect[]): void {
+  for (const effect of effects) {
+    drawSparkleBurst(ctx, effect.x, effect.y, effect.elapsed, effect.scale);
   }
 }
 
