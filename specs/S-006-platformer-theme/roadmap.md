@@ -703,6 +703,29 @@ original slot for traceability with git history (branch names, commit messages).
   spikes again; a plain side/below touch on a non-spiked enemy still knocks
   back correctly with no upward component. Confirm a green slime never
   visibly grows spikes (always defeated in one stomp).*
+- [ ] **34. World-event puff, decoupled from fact rewards** — fixes B-003
+  (`docs/bugs/B-003-puff-bound-to-fact-reward/ticket.md`). Splits the sparkle
+  burst out of `FlightEffect` into its own `PuffEffect` (`CollectionEffects.ts`:
+  `startPuffEffect`/`tickPuffEffect`, a `scale`-aware `sparkleParticles`) drawn by
+  a new `drawPuffEffects` in `Renderer.ts`, tracked in its own `activePuffs`
+  signal. Fact-bearing events (coins, bonus fruit, green-slime defeats,
+  crate/chest facts) are untouched — they keep their existing flight-effect
+  sparkle and do not additionally trigger a puff. `PlatformerPage.tsx` calls
+  `startPuffEffect` at the factless branches that currently show nothing: a
+  purple slime's defeat (before it drops its key), a revived enemy defeated a
+  second time, and the `fragileRock` terminal break (replacing its empty-label
+  `startFlightEffect` hack). Each entity family gets a small `effectAnchor`
+  helper (`enemyEffectAnchor`, `blockEffectAnchor`, ...) returning a world-space
+  `{ x, y, scale }`, reusing each type's existing render-size math (e.g.
+  `enemyRenderedSize`) so a bigger enemy (a purple slime) produces a visibly
+  bigger puff than a green slime.
+  *Verify: defeat a purple slime — a puff shows immediately on defeat (before
+  the key drops), visibly bigger than a green slime's puff. Defeat a green
+  slime, die, respawn, defeat the same (revived) slime again — a puff shows
+  on the second defeat even though no fact/journal entry is added. Break a
+  fragile rock — same visual puff as before, no `FlightEffect` involved.
+  Collecting a coin/fruit/crate/chest fact still shows exactly one sparkle
+  burst (the existing flight-effect one), not two.*
 
 ## Unscheduled additions (not yet numbered)
 
@@ -743,26 +766,17 @@ they aren't lost, not in priority order.
 
 ### Branch strategy
 
-- `S-006-platformer-theme` is the integration branch for this entire feature — it is
-  NOT PR'd into `main` after every step. It only goes to `main` at a deliberate
-  iteration boundary (e.g. after step 15 closes out Iteration 1), as its own PR.
-- Each roadmap step gets its own branch off `S-006-platformer-theme` (e.g.
-  `S-006-step4-gravity-collision`), goes through the normal process (`writing-plans`
-  → `subagent-driven-development`, TDD, per-task review, final whole-branch review),
-  and lands via a PR into `S-006-platformer-theme` — not a direct commit to it.
-  Delete the step branch after merging.
-- Reason: keeps each PR small and reviewable (one step's diff), while
-  `S-006-platformer-theme` itself would be unreviewable as one 27-step blob.
-- Exception: step 1 was committed directly to `S-006-platformer-theme` (no step
-  branch) — that precedent stands as-is; the branch-per-step pattern applies from
-  step 2 onward.
-- **Amended 2026-08-30**: the "only merges to `main` at an iteration boundary"
-  rule above is relaxed now that the Platformer theme is gated behind
-  `platformerPrototypeUnlocked` (a `localStorage`-backed feature flag, default
-  `false` — see `src/state/theme.ts`) — merging mid-iteration can no longer expose
-  unfinished work to a visitor, since no theme switcher lists Platformer until
-  it's explicitly unlocked. `S-006-platformer-theme` can now be merged into
-  `main` after any step (not just iteration boundaries) to keep `main`'s diff
-  from that branch smaller and easier to review overall; still merged as its own
-  step (local merge + push, or its own PR), never folded silently into another
-  branch's commit.
+Each roadmap step gets its own branch off `main` (e.g. `S-006-step34-world-event-puff`),
+goes through the normal process (`writing-plans` → `subagent-driven-development`, TDD,
+per-task review, final whole-branch review), and lands via its own PR directly into
+`main` — not into an intermediate integration branch. `main` is safe to merge into at
+any point mid-epic since the Platformer theme is gated behind
+`platformerPrototypeUnlocked` (a `localStorage`-backed feature flag, default `false` —
+see `src/state/theme.ts`); no theme switcher lists Platformer until it's explicitly
+unlocked, so a partially-built step never reaches a visitor. Delete the step branch
+after merging.
+
+The Platformer theme turned out to be more of an epic than a single feature, so there
+is no single `S-006-platformer-theme` integration branch anymore — that branch (and its
+`-2` successor) already merged into `main` and is no longer where step branches fork
+from or land.
