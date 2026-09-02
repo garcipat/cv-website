@@ -1,9 +1,10 @@
 # Capability Refactor — Rollout and Verification
 
-The ordered path from today's code to the accepted design, and what proves each step
-worked. Detail for each step lives in its own plan; this is the sequence and the gates.
+The ordered path to the accepted design, and what proved each step worked. All eleven
+steps landed; this is the sequence, the gates, and the decisions taken while executing.
+The per-stage plan files (A, B, C) were execution scaffolding and have been removed.
 
-**Design:** `2026-09-02-entity-actor-hierarchy-proposal.md` (accepted)
+**Design:** `2026-09-02-entity-actor-hierarchy-proposal.md` (implemented)
 
 ## Standing gates — every step, without exception
 
@@ -26,7 +27,7 @@ server. This has produced convincing false alarms, including an apparently dead 
 Steps are ordered so that every behavioral change lands on a foundation already proven
 type-level. Steps 1-4 cannot change behavior at all; 5 onward can.
 
-| # | Step | Plan | Risk | What proves it |
+| # | Step | Stage | Risk | What proves it |
 |---|---|---|---|---|
 | 1 | Split `Entity.ts` into `geometry.ts` + `capabilities.ts`; add `Moving` / `SelfAnimated` / `Damageable`; enemy state composes all three; delete `Entity` | A | type-level | Standing gates. `grep -rn "entities/Entity" src/` returns nothing. |
 | 2 | *(resolved, no change)* Blocks compose no capability — no block cycles sprite frames, so `animTimer` only drives a bump offset and a shatter alpha | A | — | Investigated and settled; nothing to implement. |

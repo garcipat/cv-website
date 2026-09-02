@@ -1,15 +1,23 @@
 # Proposal: capability interfaces, one type base, unified triggers
 
-**Status:** accepted. Staged across three implementation plans:
+**Status:** implemented. Delivered in three stages:
 
-| Plan | Content | Risk |
+> **These describe the design as agreed, not necessarily as it stands.** Details were
+> tweaked while implementing; where this document and the code disagree, the code wins.
+> Deviations decided during execution are recorded in `2026-09-02-capability-rollout.md`,
+> and the architecture as actually built is described in
+> `2026-09-02-entity-architecture-followups.md`.
+
+
+| Stage | Content | Risk |
 |---|---|---|
-| **A — Capability interfaces** (`2026-09-02-capability-interfaces.md`) | `Moving` / `SelfAnimated` / `Damageable`; enemy and player state compose them; `Entity` deleted. | Type-level only |
-| **B — Player damage model** (`2026-09-02-player-damage-model.md`) | Health onto `PlayerState` as `hitPoints`; the two post-hit timers unified into one refractory window. | Behavioral |
-| **C — `WorldType` and trigger unification** (`2026-09-02-worldtype-and-triggers.md`) | One type base with optional hooks; chest and sign boxes into their modules; three overlap functions collapsed into one. | Behavioral |
+| **A — Capability interfaces** | `Moving` / `SelfAnimated` / `Damageable`; enemy and player state compose them; `Entity` deleted. | Type-level only |
+| **B — Player damage model** | Health onto `PlayerState` as `hitPoints`; the two post-hit timers unified into one refractory window. | Behavioral |
+| **C — `WorldType` and trigger unification** | One type base with optional hooks; chest and sign boxes into their modules; three overlap functions collapsed into one. | Behavioral |
 
-All three are written. `2026-09-02-capability-rollout.md` sequences them as eleven
-steps with the verification gate for each.
+All three landed. `2026-09-02-capability-rollout.md` records the eleven-step
+sequence, the gate each step had to pass, and the decisions taken along the way.
+The three plan files themselves were execution scaffolding and have been removed.
 
 Companion to `2026-09-01-entity-architecture-design.md`. That document describes the
 architecture as built; this proposes a correction to its central abstraction.
