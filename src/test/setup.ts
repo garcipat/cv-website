@@ -50,6 +50,17 @@ HTMLCanvasElement.prototype.getContext = function (
       roundRect: vi.fn(),
       arc: vi.fn(),
       fill: vi.fn(),
+      // Returns an opaque-white buffer of the requested size by default —
+      // real pixel content doesn't matter for most tests (nothing reads the
+      // tileset's actual pixels), only that a caller doing a
+      // getImageData/mutate/putImageData round trip (e.g. Renderer.ts's
+      // cloud-tile recoloring) doesn't crash on a missing mock method. Tests
+      // that DO care about specific pixel values override this per-call via
+      // `mockReturnValueOnce`/`mockImplementationOnce`.
+      getImageData: vi.fn((_sx: number, _sy: number, sw: number, sh: number) => ({
+        data: new Uint8ClampedArray(sw * sh * 4).fill(255),
+      })),
+      putImageData: vi.fn(),
     });
   }
 
