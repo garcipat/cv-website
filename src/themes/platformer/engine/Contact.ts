@@ -1,4 +1,4 @@
-import type { Rect } from '../entities/Entity';
+import type { Rect } from '../entities/geometry';
 
 export type ContactSide = 'top' | 'side' | 'bottom';
 
