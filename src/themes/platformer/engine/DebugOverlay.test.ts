@@ -28,7 +28,7 @@ const idlePlayer: PlayerState = {
   y: 256,
   vx: 0,
   vy: 0,
-  facing: 'right',
+  direction: 'right',
   grounded: true,
   climbing: false,
   isDroppingThroughBridge: false,

@@ -61,7 +61,7 @@ export function spawnPlayerState(): PlayerState {
     y,
     vx: 0,
     vy: 0,
-    facing: 'right',
+    direction: 'right',
     grounded: false,
     climbing: false,
     isDroppingThroughBridge: false,

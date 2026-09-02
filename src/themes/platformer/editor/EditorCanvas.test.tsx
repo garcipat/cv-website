@@ -246,7 +246,7 @@ describe('EditorCanvas', () => {
     );
     expect(drawPlayer).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ facing: 'right', animState: 'idle' }),
+      expect.objectContaining({ direction: 'right', animState: 'idle' }),
       player,
       0,
       0,

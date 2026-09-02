@@ -349,7 +349,7 @@ describe('PlatformerPage', () => {
     frameCallback!(16);
 
     expect(playerState.value.x).toBeGreaterThan(startX);
-    expect(playerState.value.facing).toBe('right');
+    expect(playerState.value.direction).toBe('right');
     expect(playerState.value.animState).toBe('walk');
   });
 
@@ -410,7 +410,7 @@ describe('PlatformerPage', () => {
     frameCallback!(16);
 
     expect(playerState.value.x).toBeGreaterThan(startX);
-    expect(playerState.value.facing).toBe('right');
+    expect(playerState.value.direction).toBe('right');
     expect(playerState.value.animState).toBe('walk');
   });
 
@@ -430,7 +430,7 @@ describe('PlatformerPage', () => {
     frameCallback!(16);
 
     expect(playerState.value.x).toBeLessThan(startX);
-    expect(playerState.value.facing).toBe('left');
+    expect(playerState.value.direction).toBe('left');
     expect(playerState.value.animState).toBe('walk');
   });
 

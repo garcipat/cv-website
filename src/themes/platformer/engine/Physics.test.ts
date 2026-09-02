@@ -18,7 +18,7 @@ function basePlayer(overrides: Partial<PlayerState> = {}): PlayerState {
     y: 0,
     vx: 0,
     vy: 0,
-    facing: 'right',
+    direction: 'right',
     grounded: false,
     climbing: false,
     animState: 'idle',
@@ -208,34 +208,34 @@ describe('stepPlayerPhysics horizontal movement', () => {
   });
 
   it('rightHeld-inOpenSpace-movesRightAtWalkSpeedAndFacesRight', () => {
-    const player = basePlayer({ x: 0, facing: 'left' });
+    const player = basePlayer({ x: 0, direction: 'left' });
     const next = stepPlayerPhysics(player, OPEN_LEVEL, 1 / 60, { left: false, right: true });
     expect(next.vx).toBe(PHYSICS_CONFIG.walkSpeed);
     expect(next.x).toBeCloseTo(PHYSICS_CONFIG.walkSpeed / 60);
-    expect(next.facing).toBe('right');
+    expect(next.direction).toBe('right');
   });
 
   it('leftHeld-inOpenSpace-movesLeftAtWalkSpeedAndFacesLeft', () => {
-    const player = basePlayer({ x: 100, facing: 'right' });
+    const player = basePlayer({ x: 100, direction: 'right' });
     const next = stepPlayerPhysics(player, OPEN_LEVEL, 1 / 60, { left: true, right: false });
     expect(next.vx).toBe(-PHYSICS_CONFIG.walkSpeed);
     expect(next.x).toBeCloseTo(100 - PHYSICS_CONFIG.walkSpeed / 60);
-    expect(next.facing).toBe('left');
+    expect(next.direction).toBe('left');
   });
 
   it('bothHeld-inOpenSpace-cancelsOutToZeroVelocityAndKeepsFacing', () => {
-    const player = basePlayer({ x: 50, facing: 'left' });
+    const player = basePlayer({ x: 50, direction: 'left' });
     const next = stepPlayerPhysics(player, OPEN_LEVEL, 1 / 60, { left: true, right: true });
     expect(next.vx).toBe(0);
     expect(next.x).toBe(50);
-    expect(next.facing).toBe('left');
+    expect(next.direction).toBe('left');
   });
 
   it('neitherHeld-afterMoving-stopsButKeepsLastFacing', () => {
-    const player = basePlayer({ x: 50, facing: 'right' });
+    const player = basePlayer({ x: 50, direction: 'right' });
     const next = stepPlayerPhysics(player, OPEN_LEVEL, 1 / 60, { left: false, right: false });
     expect(next.vx).toBe(0);
-    expect(next.facing).toBe('right');
+    expect(next.direction).toBe('right');
   });
 
   it('movingRightIntoWall-overshootsInOneFrame-clampsToWallLeftEdge', () => {
@@ -289,7 +289,7 @@ describe('stepPlayerPhysics horizontal movement', () => {
   it('movingLeftPastTheLevelStart-noWallThere-clampsToWorldLeftEdge', () => {
     // Start 2px from the new world-left boundary (-PLAYER_SIDE_PADDING) so
     // one frame's movement overshoots it.
-    const player = basePlayer({ x: -PLAYER_SIDE_PADDING + 2, facing: 'left' });
+    const player = basePlayer({ x: -PLAYER_SIDE_PADDING + 2, direction: 'left' });
     const next = stepPlayerPhysics(player, OPEN_LEVEL, 1 / 60, { left: true, right: false });
     expect(next.x).toBe(-PLAYER_SIDE_PADDING);
   });
@@ -297,13 +297,13 @@ describe('stepPlayerPhysics horizontal movement', () => {
   it('movingRightPastTheLevelEnd-noWallThere-clampsToWorldRightEdge', () => {
     const maxX =
       OPEN_LEVEL.width * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_SIDE_PADDING;
-    const player = basePlayer({ x: maxX - 2, facing: 'right' });
+    const player = basePlayer({ x: maxX - 2, direction: 'right' });
     const next = stepPlayerPhysics(player, OPEN_LEVEL, 1 / 60, { left: false, right: true });
     expect(next.x).toBe(maxX);
   });
 
   it('startingAtWorldLeftEdge-holdingLeft-staysAtWorldLeftEdge', () => {
-    const player = basePlayer({ x: -PLAYER_SIDE_PADDING, facing: 'left' });
+    const player = basePlayer({ x: -PLAYER_SIDE_PADDING, direction: 'left' });
     const next = stepPlayerPhysics(player, OPEN_LEVEL, 1 / 60, { left: true, right: false });
     expect(next.x).toBe(-PLAYER_SIDE_PADDING);
   });
@@ -595,11 +595,11 @@ describe('stepPlayerPhysics jump', () => {
 
   it('standingOverNarrowPlatform-anyFacing-staysGrounded', () => {
     // x=32: the centered hitbox (x+20 to x+43) falls within columns 1-2,
-    // both solid (the strip spans columns 1-3). facing shouldn't matter
+    // both solid (the strip spans columns 1-3). direction shouldn't matter
     // anymore — loop both to prove it.
     const restY = 0 - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
-    for (const facing of ['left', 'right'] as const) {
-      const player = basePlayer({ x: 32, y: restY, vy: 0, grounded: true, facing });
+    for (const direction of ['left', 'right'] as const) {
+      const player = basePlayer({ x: 32, y: restY, vy: 0, grounded: true, direction });
       const next = stepPlayerPhysics(player, NARROW_PLATFORM_LEVEL, 1 / 60);
       expect(next.grounded).toBe(true);
     }
@@ -609,8 +609,8 @@ describe('stepPlayerPhysics jump', () => {
     // x=110: the centered hitbox (x+20=130 to x+43=153) falls entirely in
     // column 4, empty — past the platform's right edge at pixel 128.
     const restY = 0 - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
-    for (const facing of ['left', 'right'] as const) {
-      const player = basePlayer({ x: 110, y: restY, vy: 0, grounded: true, facing });
+    for (const direction of ['left', 'right'] as const) {
+      const player = basePlayer({ x: 110, y: restY, vy: 0, grounded: true, direction });
       const next = stepPlayerPhysics(player, NARROW_PLATFORM_LEVEL, 1 / 60);
       expect(next.grounded).toBe(false);
     }
@@ -930,7 +930,7 @@ describe('resolvePitFall', () => {
 
   it('preservesAnimationAndFacingFields', () => {
     const player = basePlayer({
-      facing: 'left',
+      direction: 'left',
       animState: 'jump',
       animFrame: 3,
       lastGroundedX: 0,
@@ -939,7 +939,7 @@ describe('resolvePitFall', () => {
 
     const next = resolvePitFall(player);
 
-    expect(next.facing).toBe('left');
+    expect(next.direction).toBe('left');
     expect(next.animState).toBe('jump');
     expect(next.animFrame).toBe(3);
   });

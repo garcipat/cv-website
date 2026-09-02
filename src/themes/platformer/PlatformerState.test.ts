@@ -200,7 +200,7 @@ describe('PlatformerState', () => {
 
   it('playerState-initial-hasZeroHorizontalVelocityAndFacesRight', () => {
     expect(playerState.value.vx).toBe(0);
-    expect(playerState.value.facing).toBe('right');
+    expect(playerState.value.direction).toBe('right');
   });
 
   it('cameraPositionX-initial-isZero', () => {

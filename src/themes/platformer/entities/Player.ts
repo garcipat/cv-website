@@ -1,4 +1,5 @@
 import { RENDER_SCALE } from '../level/Terrain';
+import type { Moving, SelfAnimated } from './capabilities';
 
 export const PLAYER_FRAME_SIZE = 32;
 export const PLAYER_RENDERED_SIZE = PLAYER_FRAME_SIZE * RENDER_SCALE;
@@ -33,17 +34,17 @@ export const PLAYER_VISUAL_CENTER_Y_OFFSET =
 export const PLAYER_SIDE_PADDING = 10 * RENDER_SCALE; // 20 rendered px
 
 export type PlayerAnimState = 'idle' | 'walk' | 'jump' | 'climb';
-export type PlayerFacing = 'left' | 'right';
 
-export interface PlayerState {
+/**
+ * Player-only state, layered onto `Moving`'s `vx`/`vy` (px/s, positive
+ * right/down) and `direction` (the direction the sprite is drawn facing —
+ * only horizontal movement changes it) and onto `SelfAnimated`'s `animFrame`
+ * and `animTimer` (seconds accumulated toward the next animation frame
+ * advance), both keyed by `animState`, narrowed below.
+ */
+export interface PlayerState extends Moving, SelfAnimated {
   x: number;
   y: number;
-  /** Horizontal velocity in px/s. Positive is rightward. */
-  vx: number;
-  /** Vertical velocity in px/s. Positive is downward. */
-  vy: number;
-  /** Direction the sprite is drawn facing. Only horizontal movement changes it. */
-  facing: PlayerFacing;
   /** Whether the player is currently resting on a solid tile. */
   grounded: boolean;
   /** Whether the player is currently climbing a `'ladder'` tile — while
@@ -69,10 +70,9 @@ export interface PlayerState {
    *  than a spawn/checkpoint. */
   lastGroundedX: number;
   lastGroundedY: number;
+  /** Narrowed from `SelfAnimated`'s `string` to the player's finite set of
+   *  animation states. */
   animState: PlayerAnimState;
-  animFrame: number;
-  /** Seconds accumulated toward the next animation frame advance. */
-  animTimer: number;
   /** Seconds remaining of post-hit invincibility — 0 means not invincible.
    *  Makes the game loop drop the damage `resolveEnemyContacts` reports
    *  (see Collision.ts) and drives the render blink (PlatformerPage.tsx);
@@ -254,7 +254,7 @@ export function applyKnockback(
   return {
     ...player,
     vx: direction * knockbackVx,
-    facing: direction < 0 ? 'left' : 'right',
+    direction: direction < 0 ? 'left' : 'right',
     knockbackTimer: knockbackDuration,
     invincibleTimer: invincibleDuration,
   };
@@ -264,7 +264,7 @@ export function applyKnockback(
  * Grants invincibility with no knockback — used by a pit fall, since
  * invincibility is a property of taking damage generally, not just of enemy
  * contact specifically. Unlike `applyKnockback`, there's no "direction to push
- * away from" for a pit fall, and no reason to touch `vx`/`facing`/
+ * away from" for a pit fall, and no reason to touch `vx`/`direction`/
  * `knockbackTimer` at all — `resolvePitFall` already handles repositioning
  * the character back to solid ground.
  */
