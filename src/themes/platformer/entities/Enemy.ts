@@ -44,9 +44,13 @@ export function enemyTileOffsetY(type: EnemyTypeKey): number {
 /** A world-space anchor point + size scale for a one-shot visual effect at
  *  this enemy's position — see engine/CollectionEffects.ts's PuffEffect and
  *  B-003 (docs/bugs/B-003-puff-bound-to-fact-reward/ticket.md). Centred on
- *  the rendered sprite (not its top-left placement corner), reusing the same
- *  per-type size/offset math drawEnemies already uses so a purple slime's
- *  puff scales up right along with its bigger sprite. */
+ *  the collision hitbox (`typeOf(enemy).box(enemy)`), not the render slot: a
+ *  slime's actual opaque silhouette sits bottom-anchored with a big
+ *  transparent gap above it — see SlimePurple.ts's HITBOX_PADDING_NATIVE doc
+ *  comment and its held-key placement code, which centers against the same
+ *  hitbox for the same reason. Scale still comes from the per-type render
+ *  size drawEnemies already uses, so a purple slime's puff scales up right
+ *  along with its bigger sprite. */
 export interface EffectAnchor {
   x: number;
   y: number;
@@ -56,9 +60,10 @@ export interface EffectAnchor {
 export function enemyEffectAnchor(enemy: EnemyState): EffectAnchor {
   const type = enemy.type as EnemyTypeKey;
   const size = enemyRenderedSize(type);
+  const box = typeOf(enemy).box(enemy);
   return {
-    x: enemy.x + enemyTileOffsetX(type) + size / 2,
-    y: enemy.y + enemyTileOffsetY(type) + size / 2,
+    x: box.x + box.width / 2,
+    y: box.y + box.height / 2,
     scale: size / ENEMY_RENDERED_SIZE,
   };
 }
