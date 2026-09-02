@@ -2,6 +2,13 @@ import type { SpriteSheet } from './SpriteSheet';
 import { KEY_FRAME_WIDTH, KEY_FRAME_HEIGHT } from '../KeyPickup';
 import { COIN_FRAME_SIZE, COIN_FRAME_COUNT } from '../Coin';
 import { FRUIT_FRAME_SIZE, FRUIT_ICON_COLUMNS } from '../Fruit';
+import { TILE_SIZE } from '../../level/Terrain';
+import {
+  CHEST_CLOSED_WIDTH,
+  CHEST_CLOSED_HEIGHT,
+  CHEST_OPEN_WIDTH,
+  CHEST_OPEN_HEIGHT,
+} from '../Chest';
 
 /**
  * Both slime sheets are 96x72: a 4x3 grid of 24x24 frames. Frames 0-2 read as a
@@ -61,4 +68,39 @@ export const FRUIT_SHEET: SpriteSheet = {
   frameWidth: FRUIT_FRAME_SIZE,
   frameHeight: FRUIT_FRAME_SIZE,
   columns: FRUIT_ICON_COLUMNS,
+};
+
+/** `world_tileset.png` is a 16x16 grid of 16px tiles, shared by terrain and
+ *  every block kind. Terrain addresses it through its own neighbour-aware
+ *  lookup rather than by frame index; the sheet is the unit of loading, not
+ *  of addressing. */
+export const WORLD_TILESET_SHEET: SpriteSheet = {
+  src: '/sprites/world_tileset.png',
+  frameWidth: TILE_SIZE,
+  frameHeight: TILE_SIZE,
+  columns: 16,
+};
+
+/** A single 16px overlay composited over a cracked crate. */
+export const CRACK_OVERLAY_SHEET: SpriteSheet = {
+  src: '/sprites/crack_overlay.png',
+  frameWidth: TILE_SIZE,
+  frameHeight: TILE_SIZE,
+  columns: 1,
+};
+
+/** The chest's two states are separate standalone images of different sizes,
+ *  so each is its own one-frame sheet. */
+export const CHEST_CLOSED_SHEET: SpriteSheet = {
+  src: '/sprites/chest_closed.png',
+  frameWidth: CHEST_CLOSED_WIDTH,
+  frameHeight: CHEST_CLOSED_HEIGHT,
+  columns: 1,
+};
+
+export const CHEST_OPEN_SHEET: SpriteSheet = {
+  src: '/sprites/chest_open.png',
+  frameWidth: CHEST_OPEN_WIDTH,
+  frameHeight: CHEST_OPEN_HEIGHT,
+  columns: 1,
 };

@@ -352,10 +352,15 @@ adding a type stays "one file, one registry line."
 
 | Family | Modules | Contact | Data replacing today's lookups |
 |---|---|---|---|
-| Blocks | `blocks/Crate.ts`, `QuestionMark.ts`, `FragileRock.ts` | `side: 'bottom'` | `maxHits` replaces `maxHitsForBlock`'s ternary; `removeWhenUsedUp: false` replaces `isBlockRemoved`'s questionMark special-case; each module's `sprite` descriptor points at the shared `world_tileset.png` sheet with its own frame index, dissolving `blockFrameSource`'s switch |
-| Chests | `chests/Chest.ts` | standing-on | closed and open as two one-frame sheets, plus offsets |
+| Blocks | `blocks/Crate.ts`, `QuestionMark.ts`, `FragileRock.ts` | hit from below, detected during ceiling collision in `Physics.ts`, which writes `player.hitBlockIds`; the caller reads that once per tick and applies the hit — no player-versus-block overlap test exists | `maxHits` replaces `maxHitsForBlock`'s ternary; `removeWhenUsedUp: false` replaces `isBlockRemoved`'s questionMark special-case; each module's `sprite` descriptor points at the shared `world_tileset.png` sheet with its own frame index, dissolving `blockFrameSource`'s switch |
+| Chests | `chests/Chest.ts` | opens on standing on the chest AND pressing Up AND holding a key; `Collision.ts`'s `chestPlayerIsStandingOn` returns a candidate, the caller decides whether the other two conditions hold | closed and open as two one-frame sheets, plus offsets |
 | Pickups | `items/Key.ts`, `Coin.ts`, `Fruit.ts` | any side → collect | sprite descriptor, rendered size, offsets, bob behavior |
 | Player | `Player.ts` | — | `PLAYER_TYPE` holds the three padding constants and its sprite descriptor; `onDamage`/`onDeath` hooks |
+
+Blocks and chests do not go through the `Contact`/`CollisionOutcome` model the
+way the other families do. Unifying them would require `Physics.ts` to emit
+contacts for ceiling hits and `CollisionOutcome` to carry input state (the Up
+key and held-key status), which is deliberately not done.
 
 Every family declares its sprites the same way, so the loader that discovers
 enemy sheets discovers theirs too — no per-family loading code, and no sheet
