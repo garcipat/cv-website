@@ -212,73 +212,29 @@ git commit -m "refactor(platformer): replace Entity with composable capability i
 
 ---
 
-### Task 2: `BlockState` composes `SelfAnimated`
+### Task 2: Dropped — blocks do not compose `SelfAnimated`
 
-**Model:** Sonnet 5.
+Investigated and resolved: **blocks keep their own `animState` and `animTimer`.**
 
-A block animates without moving — the case no single `Entity` could express. This task makes that explicit.
+No block cycles sprite frames. `Crate.frameIndex` and `FragileRock.frameIndex` are
+constants; `QuestionMark.frameIndex` is a function of `hitsTaken`, not of time. A
+block's `animTimer` drives only `blockBumpOffsetY` (a plus/minus 6px offset) and
+`crateShatterOpacity` (an alpha) — transforms applied to a static sprite, not animation
+through frames. All three kinds bump; only the crate shatters.
 
-**Files:**
-- Modify: `src/themes/platformer/entities/Block.ts`
-- Test: `src/themes/platformer/entities/Block.test.ts`
+`EnemyAnimState` (`'walk' | 'hit'`) and `BlockAnimState` (`'idle' | 'bump' | 'shatter'`)
+denote different kinds of state machine: an enemy's selects a frame cycle to advance
+through, a block's selects a one-shot transform to apply. Composing `SelfAnimated` would
+share a field name rather than a concept, and would force `animFrame` onto a family with
+no frame — the error `Entity` made.
 
-**Interfaces:**
-- Consumes: `SelfAnimated` (Task 1).
-- Produces: `BlockState extends BlockPlacement, SelfAnimated`.
+Splitting `SelfAnimated` into a timer half was considered and rejected: nothing else in
+the game has a timed transform and no function operates on one generically, so it would
+be taxonomy for its own sake.
 
-- [ ] **Step 1: Check what the state actually has before writing anything**
-
-`BlockState` currently declares `hitsTaken`, `animState` and `animTimer` — but **not `animFrame`**, which `SelfAnimated` requires. Read `entities/Block.ts` and `engine/BlockAI.ts` and establish which of these is true:
-
-- **(a)** A block genuinely has no frame index — its appearance comes from `BLOCK_TYPES[kind].frameIndex(hitsTaken)`, and `animState`/`animTimer` drive only the bump offset and shatter opacity.
-- **(b)** A frame index exists under another name.
-
-If **(a)** — which the code suggests — then a block satisfies only *part* of `SelfAnimated`, and forcing `animFrame: 0` onto it would be exactly the dead field this whole proposal exists to remove.
-
-**In that case, stop and report BLOCKED with your findings rather than adding the field.** The right resolution is a design decision, not an implementation one: either `SelfAnimated` splits into a timer part and a frame part, or blocks simply do not compose it and keep their own two fields. Both are defensible; neither is yours to pick mid-task.
-
-Only continue to Step 2 if a block genuinely has all three fields.
-
-- [ ] **Step 2: Write the failing test**
-
-Add to `src/themes/platformer/entities/Block.test.ts`:
-
-```typescript
-it('blockState-assignedToSelfAnimated-satisfiesTheShape', () => {
-  const block: SelfAnimated = toBlockState(makeBlockPlacement());
-  expect(block.animState).toBe('idle');
-  expect(block.animTimer).toBe(0);
-});
-```
-
-Use the file's existing placement helper rather than inventing one.
-
-- [ ] **Step 3: Run it to verify it fails**
-
-Run: `npx vitest run src/themes/platformer/entities/Block.test.ts`
-Expected: FAIL — `BlockState` does not satisfy `SelfAnimated`.
-
-- [ ] **Step 4: Compose it**
-
-```typescript
-export interface BlockState extends BlockPlacement, SelfAnimated {
-  hitsTaken: number;
-}
-```
-
-Narrow `animState` back to `BlockAnimState` in the interface body, since `SelfAnimated.animState` is the wider `string` and a block's states are `'idle' | 'bump' | 'shatter'`. Keep `toBlockState` unchanged apart from any field the composition now requires.
-
-- [ ] **Step 5: Run the tests to verify they pass**
-
-Run: `npm test`, `npx tsc -b --noEmit`, `npx eslint src/themes/platformer`
-Expected: all existing tests pass unmodified, no `tsc` output, exactly one eslint error.
-
-- [ ] **Step 6: Commit**
-
-```bash
-git add src/themes/platformer
-git commit -m "refactor(platformer): declare block state as self-animated"
-```
+For completeness, the full layering: terrain (`groundGrass`, `groundRock`, `wall`,
+`bridge`, `ladder`) is grid characters with no state at all; blocks have a timed
+transform; enemies and the player cycle frames. Only the last is `SelfAnimated`.
 
 ---
 
