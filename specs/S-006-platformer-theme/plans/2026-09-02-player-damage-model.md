@@ -165,16 +165,16 @@ describe('isInvulnerable', () => {
   });
 
   it('partwayThroughTheWindow-isStillInvulnerable', () => {
-    expect(isInvulnerable({ hitPoints: 3, alive: true, hitTimer: 1.1 }, 1.2)).toBe(false === false);
+    expect(isInvulnerable({ hitPoints: 3, alive: true, hitTimer: 1.1 }, 1.2)).toBe(true);
   });
 
-  it('windowElapsed-isVulnerableAgain', () => {
+  it('exactlyAtTheDuration-isVulnerableAgain', () => {
+    // The window is `hitTimer < reactionSeconds`, so the boundary value is
+    // already outside it.
     expect(isInvulnerable({ hitPoints: 3, alive: true, hitTimer: 1.2 }, 1.2)).toBe(false);
   });
 });
 ```
-
-Fix the middle assertion to the plain `toBe(true)` it should read as — it is written awkwardly above to make the boundary explicit: the window is `hitTimer < reactionSeconds`, so exactly `1.2` is already vulnerable.
 
 - [ ] **Step 2: Run it to verify it fails**
 
