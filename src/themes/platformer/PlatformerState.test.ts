@@ -356,6 +356,14 @@ describe('activePuffs', () => {
     expect(activePuffs.value).toEqual([]);
   });
 
+  it('resetGame-doesNotClearActivePuffs', () => {
+    const puff = startPuffEffect('a', 0, 0);
+    activePuffs.value = [puff];
+    resetGame();
+    expect(activePuffs.value).toHaveLength(1);
+    expect(activePuffs.value[0]).toBe(puff);
+  });
+
   it('resetGameProgress-clearsActivePuffs', () => {
     activePuffs.value = [startPuffEffect('a', 0, 0)];
     resetGameProgress();
