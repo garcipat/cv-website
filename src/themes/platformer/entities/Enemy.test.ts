@@ -11,7 +11,7 @@ import {
   enemyEffectAnchor,
 } from './Enemy';
 import type { EnemyState } from './Enemy';
-import { ENEMY_TYPES } from './enemies';
+import { ENEMY_TYPES, typeOf } from './enemies';
 import { enemyFrameIndex } from './enemies/EnemyAnimation';
 import { ENEMY_HIT_REACTION_SECONDS } from './enemies/shared';
 import { SLIME_GREEN_SHEET } from './sprites/sheets';
@@ -209,12 +209,12 @@ describe('enemy hitbox padding (insets the collision box from the sprite corners
 });
 
 describe('enemyEffectAnchor', () => {
-  it('slimeGreen-centersOnTheRenderedSprite-notTopLeftCorner', () => {
+  it('slimeGreen-centersOnTheHitbox-notTheRenderSlot', () => {
     const enemy = toEnemyState(makePlacement());
     const anchor = enemyEffectAnchor(enemy);
-    const size = enemyRenderedSize('slimeGreen');
-    expect(anchor.x).toBeCloseTo(enemy.x + enemyTileOffsetX('slimeGreen') + size / 2);
-    expect(anchor.y).toBeCloseTo(enemy.y + enemyTileOffsetY('slimeGreen') + size / 2);
+    const box = typeOf(enemy).box(enemy);
+    expect(anchor.x).toBeCloseTo(box.x + box.width / 2);
+    expect(anchor.y).toBeCloseTo(box.y + box.height / 2);
   });
 
   it('slimeGreen-scaleIs1-theBaselineSize', () => {
@@ -228,6 +228,32 @@ describe('enemyEffectAnchor', () => {
     const anchor = enemyEffectAnchor(enemy);
     expect(anchor.scale).toBeGreaterThan(1);
     expect(anchor.scale).toBeCloseTo(enemyRenderedSize('slimePurple') / ENEMY_RENDERED_SIZE);
+  });
+
+  it('slimePurple-centersOnTheHitbox-notTheRenderSlot', () => {
+    const purplePlacement = { ...makePlacement(), type: 'slimePurple' as const };
+    const enemy = toEnemyState(purplePlacement);
+    const anchor = enemyEffectAnchor(enemy);
+    const box = typeOf(enemy).box(enemy);
+    expect(anchor.x).toBeCloseTo(box.x + box.width / 2);
+    expect(anchor.y).toBeCloseTo(box.y + box.height / 2);
+  });
+
+  it('slimePurple-anchorIsLowerThanTheOldRenderSlotCenterFormula-locksInTheBugFix', () => {
+    // The old (buggy) formula centered on the full render slot: since a
+    // slime's transparent padding sits above the visible silhouette (never
+    // below — see HITBOX_PADDING_NATIVE's own doc comment), the old y-center
+    // was always too high. Purple has the largest padding (renderScale: 2),
+    // so it shows the biggest, most unambiguous divergence between the two
+    // formulas.
+    const purplePlacement = { ...makePlacement(), type: 'slimePurple' as const };
+    const enemy = toEnemyState(purplePlacement);
+    const anchor = enemyEffectAnchor(enemy);
+
+    const size = enemyRenderedSize('slimePurple');
+    const oldBuggyY = enemy.y + enemyTileOffsetY('slimePurple') + size / 2;
+
+    expect(anchor.y).toBeGreaterThan(oldBuggyY);
   });
 });
 
