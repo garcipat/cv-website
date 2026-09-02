@@ -91,12 +91,66 @@ const SKY_CLOUD_SY = 10 * TILE_SIZE;
  *  position instead of a hardcoded count. */
 export const SKY_WHITE_ROW_COUNT = 2;
 
+/** The cloud tile is drawn larger than the other sky tiles (which are all
+ *  exactly RENDERED_TILE_SIZE) — the tileset's cloud silhouette reads as too
+ *  fine/busy at native size once recolored to blend with the flat sky below
+ *  it; scaling it up reads as fewer, chunkier, more legible clouds. Its own
+ *  tiling stride (see the `cloudCols` loop below) is independent of the
+ *  white rows' stride, since it's a different tile size. */
+const CLOUD_TILE_SCALE = 1.5;
+
+/** A channel value at or above this (out of 255) counts as "near white" when
+ *  recoloring the cloud tile below — the tileset's cloud silhouette is a
+ *  flat white, so this is a generous cutoff, not a fine-tuned threshold. */
+const CLOUD_TILE_WHITE_THRESHOLD = 200;
+
+/** Cache of the cloud tile with its own blue background cut to fully
+ *  transparent, keyed by `skyColor` — recomputed only when `skyColor`
+ *  changes (a theme switch), not on every frame. A 16x16 getImageData/
+ *  putImageData pass is unnecessary work to repeat 60 times a second when
+ *  the tileset and the theme's sky color are both static between frames. */
+let recoloredCloudTileCache: { skyColor: string; tile: HTMLCanvasElement } | null = null;
+
+/**
+ * Returns a `TILE_SIZE`-square canvas holding the cloud tile with every
+ * pixel that isn't near-white (the tileset's own blue background — see this
+ * file's `SKY_CLOUD_SY` comment) cut to fully transparent. Drawing this over
+ * a `skyColor`-filled rect lets the cloud silhouette blend into the theme's
+ * own sky color instead of showing the tileset's more saturated blue as a
+ * visible seam against the flat sky fill below it.
+ */
+function recoloredCloudTile(tileset: HTMLImageElement, skyColor: string): HTMLCanvasElement {
+  if (recoloredCloudTileCache && recoloredCloudTileCache.skyColor === skyColor) {
+    return recoloredCloudTileCache.tile;
+  }
+  const tile = document.createElement('canvas');
+  tile.width = TILE_SIZE;
+  tile.height = TILE_SIZE;
+  const tileCtx = tile.getContext('2d')!;
+  tileCtx.drawImage(tileset, SKY_TILE_SX, SKY_CLOUD_SY, TILE_SIZE, TILE_SIZE, 0, 0, TILE_SIZE, TILE_SIZE);
+  const imageData = tileCtx.getImageData(0, 0, TILE_SIZE, TILE_SIZE);
+  const { data } = imageData;
+  for (let i = 0; i < data.length; i += 4) {
+    if (
+      data[i] < CLOUD_TILE_WHITE_THRESHOLD ||
+      data[i + 1] < CLOUD_TILE_WHITE_THRESHOLD ||
+      data[i + 2] < CLOUD_TILE_WHITE_THRESHOLD
+    ) {
+      data[i + 3] = 0;
+    }
+  }
+  tileCtx.putImageData(imageData, 0, 0);
+  recoloredCloudTileCache = { skyColor, tile };
+  return tile;
+}
+
 /**
  * Draws the background sky — fixed to the viewport, not the camera or the
  * level (same "no originX/originY" convention as `drawHearts`'s HUD) — so it
  * always covers the same screen area regardless of how far the camera has
- * scrolled. `SKY_WHITE_ROW_COUNT` rows of solid white, one row of the cloud
- * tile, then `skyColor` filling the rest of the canvas height.
+ * scrolled. `SKY_WHITE_ROW_COUNT` rows of solid white, one row of the
+ * recolored cloud tile (see `recoloredCloudTile`) over a `skyColor` backing
+ * fill, then `skyColor` filling the rest of the canvas height.
  */
 export function drawSkyBackground(
   ctx: CanvasRenderingContext2D,
@@ -109,7 +163,12 @@ export function drawSkyBackground(
 
   const cols = Math.ceil(canvasWidth / RENDERED_TILE_SIZE);
   const cloudRowY = SKY_WHITE_ROW_COUNT * RENDERED_TILE_SIZE;
-  const blueStartY = cloudRowY + RENDERED_TILE_SIZE;
+  const cloudTileSize = RENDERED_TILE_SIZE * CLOUD_TILE_SCALE;
+  // Must clear the full height of the (larger) cloud tile, not just one
+  // RENDERED_TILE_SIZE row — otherwise the flat sky fill below would paint
+  // over the bottom of the enlarged cloud tile, cutting it off.
+  const blueStartY = cloudRowY + cloudTileSize;
+  const cloudTile = recoloredCloudTile(tileset, skyColor);
 
   for (let col = 0; col < cols; col++) {
     const x = col * RENDERED_TILE_SIZE;
@@ -117,17 +176,21 @@ export function drawSkyBackground(
       const y = row * RENDERED_TILE_SIZE;
       ctx.drawImage(tileset, SKY_TILE_SX, SKY_WHITE_SY, TILE_SIZE, TILE_SIZE, x, y, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
     }
-    ctx.drawImage(
-      tileset,
-      SKY_TILE_SX,
-      SKY_CLOUD_SY,
-      TILE_SIZE,
-      TILE_SIZE,
-      x,
-      cloudRowY,
-      RENDERED_TILE_SIZE,
-      RENDERED_TILE_SIZE,
-    );
+  }
+
+  // Filled BEHIND the cloud row first — the recolored tile's cut-out pixels
+  // are fully transparent, so without this the cloud row would show
+  // whatever was drawn underneath (or nothing) instead of the flat sky.
+  ctx.fillStyle = skyColor;
+  ctx.fillRect(0, cloudRowY, canvasWidth, cloudTileSize);
+
+  // A separate loop/stride from the white rows above: the cloud tile's own
+  // size (cloudTileSize) differs from RENDERED_TILE_SIZE, so it tiles at a
+  // different column width.
+  const cloudCols = Math.ceil(canvasWidth / cloudTileSize);
+  for (let col = 0; col < cloudCols; col++) {
+    const x = col * cloudTileSize;
+    ctx.drawImage(cloudTile, 0, 0, TILE_SIZE, TILE_SIZE, x, cloudRowY, cloudTileSize, cloudTileSize);
   }
 
   if (blueStartY < canvasHeight) {
