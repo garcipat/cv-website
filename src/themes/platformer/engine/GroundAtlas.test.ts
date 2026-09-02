@@ -57,29 +57,43 @@ describe('groundAtlasCell', () => {
     }
   });
 
-  it('noNeighbours-returnsTheBrightThreeSidedCellAtC6R0', () => {
-    // Air on all four sides. The bottom edge is ignored for a top-exposed tile,
-    // so an isolated platform uses the same cell as a one-wide column's top.
-    expect(groundAtlasCell(0)).toEqual({
+  it('oneTileTallShapes-keepTheirBottomBorder', () => {
+    // A one-tile-tall platform has air above AND below, so its cell must close
+    // the bottom too — that is what distinguishes these from the top of a
+    // taller run.
+    expect(groundAtlasCell(0)).toEqual({ sx: 0, sy: 0, rotation: 2, kind: 'bright' });
+    expect(groundAtlasCell(NEIGHBOUR_RIGHT)).toEqual({
+      sx: 6 * ATLAS_STRIDE,
+      sy: 0,
+      rotation: 3,
+      kind: 'bright',
+    });
+    expect(groundAtlasCell(NEIGHBOUR_LEFT)).toEqual({
+      sx: 6 * ATLAS_STRIDE,
+      sy: 0,
+      rotation: 1,
+      kind: 'bright',
+    });
+    expect(groundAtlasCell(NEIGHBOUR_LEFT | NEIGHBOUR_RIGHT)).toEqual({
+      sx: 6 * ATLAS_STRIDE,
+      sy: 1 * ATLAS_STRIDE,
+      rotation: 1,
+      kind: 'bright',
+    });
+  });
+
+  it('topOfATallerRun-differsFromTheOneTileTallShape', () => {
+    // Same three closed sides, but the bottom edge is open because ground
+    // continues below — so a different cell, and no rotation.
+    expect(groundAtlasCell(NEIGHBOUR_DOWN)).toEqual({
       sx: 6 * ATLAS_STRIDE,
       sy: 0,
       rotation: 0,
       kind: 'bright',
     });
-  });
-
-  it('topExposedMasks-ignoreTheDownBitWhenChoosingACell', () => {
-    // 0/2/8/10 differ from 4/6/12/14 only in the DOWN bit, which no longer
-    // changes the choice.
-    expect(groundAtlasCell(0)).toEqual(groundAtlasCell(NEIGHBOUR_DOWN));
-    expect(groundAtlasCell(NEIGHBOUR_RIGHT)).toEqual(
+    expect(groundAtlasCell(0)).not.toEqual(groundAtlasCell(NEIGHBOUR_DOWN));
+    expect(groundAtlasCell(NEIGHBOUR_RIGHT)).not.toEqual(
       groundAtlasCell(NEIGHBOUR_RIGHT | NEIGHBOUR_DOWN),
-    );
-    expect(groundAtlasCell(NEIGHBOUR_LEFT)).toEqual(
-      groundAtlasCell(NEIGHBOUR_LEFT | NEIGHBOUR_DOWN),
-    );
-    expect(groundAtlasCell(NEIGHBOUR_LEFT | NEIGHBOUR_RIGHT)).toEqual(
-      groundAtlasCell(NEIGHBOUR_LEFT | NEIGHBOUR_RIGHT | NEIGHBOUR_DOWN),
     );
   });
 
@@ -112,12 +126,31 @@ describe('groundAtlasCell', () => {
     });
   });
 
-  it('onlyFlatDarkTilesAreRotated', () => {
-    // Rotation is safe only where the texture is direction-neutral.
+  it('quarterTurnsOnlyUseFlatCells', () => {
+    // A quarter turn moves a border onto an adjacent edge, which would also
+    // swing a vertical brightness ramp sideways — so it is only safe on cells
+    // measured flat: c1r1 (the dark bottom edge), c6r0 and c6r1 (ramps 24 and
+    // -4). A HALF turn is exempt: it maps every edge onto its opposite and
+    // flips the ramp end-for-end, which is exactly why mask 0 uses one.
+    const FLAT = [
+      { sx: 1 * ATLAS_STRIDE, sy: 1 * ATLAS_STRIDE },
+      { sx: 6 * ATLAS_STRIDE, sy: 0 },
+      { sx: 6 * ATLAS_STRIDE, sy: 1 * ATLAS_STRIDE },
+    ];
     for (const mask of ALL_MASKS) {
       const entry = groundAtlasCell(mask);
-      if (entry.rotation !== 0) expect(entry.kind).toBe('dark');
+      if (entry.rotation === 0 || entry.rotation === 2) continue;
+      expect(FLAT).toContainEqual({ sx: entry.sx, sy: entry.sy });
     }
+  });
+
+  it('isolatedTile-usesAHalfTurnToPutTheBrightEndBelowTheGrass', () => {
+    // c0r0 ramps bright (185) at the top to dark (82) at the bottom. A half
+    // turn buries the dark end under the 9px grass strip and leaves the bright
+    // end in the visible band below it, and preserves all four borders.
+    const entry = groundAtlasCell(0);
+    expect(entry.rotation).toBe(2);
+    expect({ sx: entry.sx, sy: entry.sy }).toEqual({ sx: 0, sy: 0 });
   });
 
   it('oneWideColumn-topMiddleBottom-useDistinctCells', () => {
