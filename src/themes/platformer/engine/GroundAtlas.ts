@@ -1,5 +1,5 @@
 import { NEIGHBOUR_UP } from '../level/Terrain';
-import type { RunPosition, VerticalRun } from '../level/Terrain';
+import type { RunPosition } from '../level/Terrain';
 
 /**
  * `tile_atlas.png` holds 16px tiles on a uniform 19px stride (16px tile plus
@@ -17,10 +17,7 @@ function cell(col: number, row: number): { sx: number; sy: number } {
   return { sx: col * ATLAS_STRIDE, sy: row * ATLAS_STRIDE };
 }
 
-export type GroundTileKind = 'bright' | 'brightSecond' | 'dark';
-
-/** A run this tall or taller gets a two-cell bright band instead of one. */
-export const SECOND_BAND_MIN_RUN_HEIGHT = 4;
+export type GroundTileKind = 'bright' | 'dark';
 
 /** Quarter-turns clockwise applied when drawing. A half turn (2) is used to
  *  flip a vertical brightness ramp end-for-end; the quarter turns move a
@@ -40,20 +37,12 @@ export interface GroundAtlasEntry {
  * dark. The bottom edge does not enter into it — a one-tile-tall platform is
  * just as much a surface as the top of a deep mass.
  *
- * The one exception is depth-dependent, which is why the cell's position
- * within its vertical run is needed on top of its four edges: on a run of
- * `SECOND_BAND_MIN_RUN_HEIGHT` or more, the cell directly below the surface
- * is a second bright band (`'brightSecond'`, drawn from `SECOND_BAND_ATLAS`)
- * rather than the first dark cell.
- *
  * This is deliberately independent of `GROUND_ATLAS` below.
  * `GroundAtlas.test.ts` asserts every table entry's `kind` agrees with it, so
  * editing this function surfaces exactly which entries need re-pointing.
  */
-export function groundTileKind(mask: number, run: VerticalRun): GroundTileKind {
-  if ((mask & NEIGHBOUR_UP) === 0) return 'bright';
-  if (run.depth === 1 && run.height >= SECOND_BAND_MIN_RUN_HEIGHT) return 'brightSecond';
-  return 'dark';
+export function groundTileKind(mask: number): GroundTileKind {
+  return (mask & NEIGHBOUR_UP) === 0 ? 'bright' : 'dark';
 }
 
 /**
@@ -98,27 +87,6 @@ export function groundAtlasCell(mask: number): GroundAtlasEntry {
   const entry = GROUND_ATLAS[mask];
   if (!entry) {
     throw new Error(`No ground atlas entry for neighbour mask ${mask}`);
-  }
-  return entry;
-}
-
-/**
- * Cells for the second row of a two-cell bright band. Such a cell always has
- * terrain above it (it is not the surface) and terrain below it (the band only
- * appears on runs of SECOND_BAND_MIN_RUN_HEIGHT or more), so only these four
- * masks can occur.
- */
-const SECOND_BAND_ATLAS: Record<number, GroundAtlasEntry> = {
-  5: { ...cell(6, 1), rotation: 0, kind: 'brightSecond' }, //   L R - one-wide column
-  7: { ...cell(4, 0), rotation: 3, kind: 'brightSecond' }, //   L   - mass's left edge
-  13: { ...cell(4, 0), rotation: 1, kind: 'brightSecond' }, //    R - mass's right edge
-  15: { ...cell(5, 2), rotation: 0, kind: 'brightSecond' }, // (none) - wide mass interior
-};
-
-export function secondBandCell(mask: number): GroundAtlasEntry {
-  const entry = SECOND_BAND_ATLAS[mask];
-  if (!entry) {
-    throw new Error(`Mask ${mask} cannot be a second-band cell`);
   }
   return entry;
 }

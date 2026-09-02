@@ -3,7 +3,6 @@ import {
   GRASS_SOURCE_HEIGHT,
   groundTileKind,
   groundAtlasCell,
-  secondBandCell,
   grassCell,
 } from './GroundAtlas';
 import {
@@ -15,106 +14,21 @@ import {
 
 const ALL_MASKS = Array.from({ length: 16 }, (_, mask) => mask);
 
-/** The run position a top-closed mask always implies: such a cell is its
- *  run's topmost, so depth 0. */
-const SURFACE_RUN = { depth: 0, height: 1 };
-/** A run position that is buried but outside the two-cell bright band, so a
- *  top-open mask reduces to the original bright/dark rule. */
-const BURIED_RUN = { depth: 2, height: 3 };
-
 describe('groundTileKind', () => {
-  it('topOpen-outsideTheSecondBand-returnsDark', () => {
+  it('topOpen-returnsDark', () => {
     // Anything with terrain above it is buried, however deep.
-    expect(groundTileKind(NEIGHBOUR_UP, BURIED_RUN)).toBe('dark');
-    expect(groundTileKind(NEIGHBOUR_UP | NEIGHBOUR_DOWN, BURIED_RUN)).toBe('dark');
-    expect(groundTileKind(15, BURIED_RUN)).toBe('dark');
+    expect(groundTileKind(NEIGHBOUR_UP)).toBe('dark');
+    expect(groundTileKind(NEIGHBOUR_UP | NEIGHBOUR_DOWN)).toBe('dark');
+    expect(groundTileKind(15)).toBe('dark');
   });
 
   it('topClosed-returnsBright-regardlessOfTheBottomEdge', () => {
     // A one-tile-tall platform is bright, exactly like the top of a deep mass:
     // the bottom edge does not darken a tile that faces air above.
-    expect(groundTileKind(NEIGHBOUR_DOWN, SURFACE_RUN)).toBe('bright');
-    expect(groundTileKind(0, SURFACE_RUN)).toBe('bright');
-    expect(groundTileKind(NEIGHBOUR_LEFT | NEIGHBOUR_RIGHT, SURFACE_RUN)).toBe('bright');
-    expect(groundTileKind(NEIGHBOUR_DOWN | NEIGHBOUR_LEFT | NEIGHBOUR_RIGHT, SURFACE_RUN)).toBe(
-      'bright',
-    );
-  });
-});
-
-describe('groundTileKind with run position', () => {
-  it('depthZero-topClosed-isAlwaysBright-howeverTallTheRun', () => {
-    // The surface cell of a run stays bright whether the run is one cell or
-    // nine — the second band never displaces the first.
-    const topClosed = NEIGHBOUR_RIGHT | NEIGHBOUR_DOWN | NEIGHBOUR_LEFT;
-    expect(groundTileKind(topClosed, { depth: 0, height: 1 })).toBe('bright');
-    expect(groundTileKind(topClosed, { depth: 0, height: 9 })).toBe('bright');
-  });
-
-  it('depthZero-butTopOpen-isDark-theRunIsCappedByAnotherMaterial', () => {
-    // A grass run can start at depth 0 and still have its UP bit set, when the
-    // cell above is solid but not grass (rock or wall). Then the cell faces no
-    // open air, so it is buried and dark — depth alone does not make it bright.
-    expect(groundTileKind(15, { depth: 0, height: 1 })).toBe('dark');
-    expect(groundTileKind(15, { depth: 0, height: 9 })).toBe('dark');
-  });
-
-  it('depthOne-runShorterThanFour-isDark', () => {
-    expect(groundTileKind(15, { depth: 1, height: 2 })).toBe('dark');
-    expect(groundTileKind(15, { depth: 1, height: 3 })).toBe('dark');
-  });
-
-  it('depthOne-runFourOrTaller-isSecondBand', () => {
-    expect(groundTileKind(15, { depth: 1, height: 4 })).toBe('brightSecond');
-    expect(groundTileKind(15, { depth: 1, height: 12 })).toBe('brightSecond');
-  });
-
-  it('depthTwoOrMore-isAlwaysDark-howeverTallTheRun', () => {
-    expect(groundTileKind(15, { depth: 2, height: 4 })).toBe('dark');
-    expect(groundTileKind(15, { depth: 3, height: 20 })).toBe('dark');
-  });
-});
-
-describe('secondBandCell', () => {
-  it('interiorOfAWideMass-usesTheBorderlessBrightTileAtC5R2', () => {
-    expect(secondBandCell(15)).toEqual({
-      sx: 5 * ATLAS_STRIDE,
-      sy: 2 * ATLAS_STRIDE,
-      rotation: 0,
-      kind: 'brightSecond',
-    });
-  });
-
-  it('oneWideColumn-usesTheBrightLeftRightCellAtC6R1', () => {
-    expect(secondBandCell(NEIGHBOUR_UP | NEIGHBOUR_DOWN)).toEqual({
-      sx: 6 * ATLAS_STRIDE,
-      sy: 1 * ATLAS_STRIDE,
-      rotation: 0,
-      kind: 'brightSecond',
-    });
-  });
-
-  it('massEdges-rotateTheBrightTopCell', () => {
-    // c4r0 is bright with only its top edge closed, so a quarter turn puts
-    // that border on the side the mass ends at.
-    expect(secondBandCell(NEIGHBOUR_UP | NEIGHBOUR_RIGHT | NEIGHBOUR_DOWN)).toEqual({
-      sx: 4 * ATLAS_STRIDE,
-      sy: 0,
-      rotation: 3,
-      kind: 'brightSecond',
-    });
-    expect(secondBandCell(NEIGHBOUR_UP | NEIGHBOUR_DOWN | NEIGHBOUR_LEFT)).toEqual({
-      sx: 4 * ATLAS_STRIDE,
-      sy: 0,
-      rotation: 1,
-      kind: 'brightSecond',
-    });
-  });
-
-  it('maskThatCannotBeASecondBandCell-throws', () => {
-    // A second-band cell always has terrain above AND below it.
-    expect(() => secondBandCell(0)).toThrow();
-    expect(() => secondBandCell(NEIGHBOUR_DOWN)).toThrow();
+    expect(groundTileKind(NEIGHBOUR_DOWN)).toBe('bright');
+    expect(groundTileKind(0)).toBe('bright');
+    expect(groundTileKind(NEIGHBOUR_LEFT | NEIGHBOUR_RIGHT)).toBe('bright');
+    expect(groundTileKind(NEIGHBOUR_DOWN | NEIGHBOUR_LEFT | NEIGHBOUR_RIGHT)).toBe('bright');
   });
 });
 
@@ -128,13 +42,8 @@ describe('groundAtlasCell', () => {
   it('everyEntry-kindAgreesWithBandingRule', () => {
     // The table is the source of truth for rendering; this pins it to the
     // rule so changing groundTileKind reveals which entries need re-pointing.
-    // GROUND_ATLAS serves the surface and the plain-dark cases only (the
-    // second band has its own table), so each mask is checked at the run
-    // position it implies: depth 0 for a top-closed mask, and a buried
-    // position outside the band for a top-open one.
     for (const mask of ALL_MASKS) {
-      const run = (mask & NEIGHBOUR_UP) === 0 ? SURFACE_RUN : BURIED_RUN;
-      expect(groundAtlasCell(mask).kind).toBe(groundTileKind(mask, run));
+      expect(groundAtlasCell(mask).kind).toBe(groundTileKind(mask));
     }
   });
 
