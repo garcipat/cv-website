@@ -1,5 +1,7 @@
 import { ENEMY_TYPES } from './index';
+import { slimeGreen } from './SlimeGreen';
 import { slimePurple, SPIKE_COOLDOWN_DURATION_SECONDS } from './SlimePurple';
+import { takeHit } from './shared';
 import type { SlimePurpleState } from './SlimePurple';
 import type { EnemyPlacement } from '../../level/EnemyMapper';
 import type { PlayerState } from '../Player';
@@ -90,18 +92,47 @@ describe('slimePurple.onTick', () => {
 });
 
 describe('slimePurple.onPlayerCollide top contact', () => {
-  it('killingStomp-hitPointsReachZero-doesNotBecomeSpiked', () => {
-    const enemy = makePurpleEnemy({ hitPoints: 1, spiked: false, spikeTimer: 0 });
-    const outcome = slimePurple.onPlayerCollide(enemy, makePlayer(), makeTopContact());
-    expect(outcome.self?.hitPoints).toBe(0);
-    expect(outcome.self?.spiked).toBe(false);
-  });
-
-  it('survivingStomp-hitPointsRemain-becomesSpikedWithResetTimer', () => {
+  it('onPlayerCollide-topContact-appliesTheHitAndBounces', () => {
+    // Deciding what the contact MEANS is all this hook does; what surviving
+    // the hit costs the slime is `onDamaged`'s business.
     const enemy = makePurpleEnemy({ hitPoints: 3, spiked: false, spikeTimer: 0 });
     const outcome = slimePurple.onPlayerCollide(enemy, makePlayer(), makeTopContact());
     expect(outcome.self?.hitPoints).toBe(2);
-    expect(outcome.self?.spiked).toBe(true);
-    expect(outcome.self?.spikeTimer).toBe(0);
+    expect(outcome.bouncePlayer).toBe(true);
+  });
+});
+
+describe('slimePurple.onDamaged', () => {
+  it('survivingStomp-growsSpikesWithAResetTimer', () => {
+    const enemy = { ...makePurpleEnemy(), hitPoints: 3 };
+    const damaged = slimePurple.onDamaged!(takeHit(enemy), 1);
+    expect(damaged.spiked).toBe(true);
+    expect(damaged.spikeTimer).toBe(0);
+  });
+
+  it('killingStomp-doesNotGrowSpikes', () => {
+    const enemy = { ...makePurpleEnemy(), hitPoints: 1 };
+    const damaged = slimePurple.onDamaged!(takeHit(enemy), 1);
+    expect(damaged.spiked).toBe(false);
+  });
+
+  it('spikesGrownByOnDamaged-retractOnceTheCooldownElapses', () => {
+    // The cooldown `onTick` runs is the one `onDamaged` starts — the two
+    // halves of the mechanic still meet.
+    const enemy = { ...makePurpleEnemy(), hitPoints: 3 };
+    const spiked = slimePurple.onDamaged!(takeHit(enemy), 1);
+    const midCooldown = slimePurple.onTick!(spiked, SPIKE_COOLDOWN_DURATION_SECONDS - 0.1);
+    expect(midCooldown.spiked).toBe(true);
+    const retracted = slimePurple.onTick!(midCooldown, 0.1);
+    expect(retracted.spiked).toBe(false);
+    expect(retracted.spikeTimer).toBe(0);
+  });
+});
+
+describe('green slime', () => {
+  it('hasNoOnDamagedHook', () => {
+    // Nothing happens to a green slime beyond the shared hit reaction, so it
+    // implements no hook at all.
+    expect(slimeGreen.onDamaged).toBeUndefined();
   });
 });

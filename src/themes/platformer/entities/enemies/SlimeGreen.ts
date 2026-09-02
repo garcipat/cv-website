@@ -37,7 +37,7 @@ export const slimeGreen: EnemyType<SlimeGreenState> = {
     // to a second stomp. Without that, bouncing off a stomp while still
     // overlapping the now-frozen enemy registers as a spurious side-hit
     // against the very enemy just stomped.
-    if (isInvulnerable(enemy, ENEMY_HIT_REACTION_SECONDS) || enemy.hitPoints <= 0) return {};
+    if (isInvulnerable(enemy, slimeGreen.hitReactionSeconds) || enemy.hitPoints <= 0) return {};
     if (contact.side === 'top') return { self: takeHit(enemy), bouncePlayer: true };
     return { damagePlayer: 1, knockback: 'away' };
   },

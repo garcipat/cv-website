@@ -210,20 +210,22 @@ export const slimePurple: EnemyType<SlimePurpleState> = {
     // to a second stomp. Without that, bouncing off a stomp while still
     // overlapping the now-frozen enemy registers as a spurious side-hit
     // against the very enemy just stomped.
-    if (isInvulnerable(enemy, ENEMY_HIT_REACTION_SECONDS) || enemy.hitPoints <= 0) return {};
+    if (isInvulnerable(enemy, slimePurple.hitReactionSeconds) || enemy.hitPoints <= 0) return {};
     if (enemy.spiked) {
       // A failed stomp should read as bouncing off the spikes, not as an
       // ordinary side touch.
       return { damagePlayer: 1, knockback: contact.side === 'top' ? 'awayAndUp' : 'away' };
     }
-    if (contact.side === 'top') {
-      const hit = takeHit(enemy);
-      // Surviving a stomp grows spikes that make the top un-stompable until
-      // they retract. A fresh stomp always restarts the cooldown.
-      return { self: { ...hit, spiked: hit.hitPoints > 0, spikeTimer: 0 }, bouncePlayer: true };
-    }
+    if (contact.side === 'top') return { self: takeHit(enemy), bouncePlayer: true };
     return { damagePlayer: 1, knockback: 'away' };
   },
+
+  /** Surviving a hit grows spikes that make the top un-stompable until they
+   *  retract, and any fresh hit restarts the cooldown. A hit that finished
+   *  this slime off grows nothing — a corpse with spikes out would be both
+   *  wrong to look at and, for the frame before it is cleared away, wrong to
+   *  touch. */
+  onDamaged: (enemy) => ({ ...enemy, spiked: enemy.hitPoints > 0, spikeTimer: 0 }),
 };
 
 /**

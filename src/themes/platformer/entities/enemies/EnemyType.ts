@@ -1,4 +1,4 @@
-import type { Moving, SelfAnimated, Damageable } from '../capabilities';
+import type { Moving, SelfAnimated, Damageable, DamageableType } from '../capabilities';
 import type { SpriteDescriptor } from '../sprites/SpriteSheet';
 import type { EnemyPlacement } from '../../level/EnemyMapper';
 import type { CollectedFact, EnemyDef } from '../../types';
@@ -36,14 +36,9 @@ export interface BaseEnemyState extends EnemyPlacement, Moving, SelfAnimated, Da
  * sprite registry needs editing either: the loader discovers assets from
  * `sprite.sheet`.
  */
-export interface EnemyType<S extends BaseEnemyState> {
+export interface EnemyType<S extends BaseEnemyState> extends DamageableType<S> {
   /** Must equal this module's slot in ENEMY_TYPES — see index.test.ts. */
   key: string;
-  maxHitPoints: number;
-  /** Seconds this type's post-hit reaction lasts. It is one window with two
-   *  jobs: the `hit` animation plays for exactly this long, and
-   *  `isInvulnerable` reports the enemy untouchable for exactly this long. */
-  hitReactionSeconds: number;
   patrolSpeedMultiplier: number;
   /** Transparent margin inside the native frame, in pre-scale pixels. */
   hitboxPaddingNative: { side: number; top: number };
@@ -60,7 +55,9 @@ export interface EnemyType<S extends BaseEnemyState> {
   draw(enemy: S, dc: DrawContext): void;
   /** Decides what a contact means for this type. The engine supplies the
    *  geometry; everything else — whether the top is safe to land on, whether
-   *  a mechanic is currently active — is this module's business alone. */
+   *  a mechanic is currently active — is this module's business alone. It
+   *  decides only what the contact MEANS: whatever a landed hit then costs
+   *  this type belongs in `onDamaged`, which the engine applies afterward. */
   onPlayerCollide(enemy: S, player: PlayerState, contact: Contact): CollisionOutcome<S>;
   /** Advances any per-tick state this type owns beyond patrol/hit-reaction
    *  (both handled generically by EnemyAI.ts) — a temporary defense's
