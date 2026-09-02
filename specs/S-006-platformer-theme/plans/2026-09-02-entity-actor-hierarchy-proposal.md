@@ -17,7 +17,7 @@ the registry key:
 | | Layer | Lives | Holds |
 |---|---|---|---|
 | **State** | per instance | in signals, plain immutable data | `x`, `y`, `hitPoints`, `animFrame`, … |
-| **Type** | per type | a module constant | `SpriteDescriptor`, `draw()`, `box()`, behavior hooks |
+| **Type** | per type | a module constant | `SpriteDescriptor`, `draw()`, `box()`, numbers, behavior hooks |
 
 Fifty coins share one `PICKUP_TYPES.coin` carrying a single sprite descriptor and a
 single `draw`; each coin instance stores only its position. Putting rendering on the
@@ -25,9 +25,9 @@ instance would give every coin a function reference and a descriptor, and would 
 entity state being plain serializable data — which the level editor needs, and which
 signals' reference-equality change detection depends on.
 
-The animation split shows the boundary: an instance stores `animFrame`/`animTimer`
-(where *this* slime is in its cycle — two slimes animate out of phase), while the type
-stores `ENEMY_ANIMATIONS` (which frames make up a walk).
+The split recurs throughout: an instance stores *where it is in its cycle*, the type
+stores *what the cycle is*; an instance stores `hitPoints`, the type stores
+`maxHitPoints`.
 
 ## The problem
 
@@ -45,27 +45,25 @@ export interface Entity {
 }
 ```
 
-That is not a description of an entity. It bundles three independent capabilities —
-position, movement, animation — into one shape, and is adopted by exactly one family:
+That is not a description of an entity. It bundles independent capabilities — position,
+movement, animation — into one shape, and is adopted by exactly one family:
 
 ```
 BaseEnemyState extends EnemyPlacement, Entity, Damageable   ← the only implementor
 ```
 
 `BlockState`, `ChestState` and the pickup states kept their own shapes and were right
-to. A chest has no velocity, facing or animation; satisfying `Entity` would mean
-carrying five meaningless fields. A block is the sharper case: it **animates without
-moving**, so it wants half of `Entity` and not the other half — which no single
-interface can express.
+to. A chest has no velocity, facing or animation. A block is the sharper case: it
+**animates without moving**, so it wants half of `Entity` and not the other half — which
+no single interface can express.
 
 Two smaller symptoms of the same mis-naming:
 
 - **The registry key has three names.** `EnemyDef.type`, `BlockDef.blockKind`,
-  `CollectibleDef.spriteType` — one concept, three spellings — and chests have none,
-  being a single kind.
+  `CollectibleDef.spriteType` — one concept, three spellings — and chests have none.
 - **Two hitboxes are still built in the engine.** `Collision.ts:257` constructs the
-  chest's box inside `chestPlayerIsStandingOn`, and `:282` a sign's inside
-  `checkSignOverlap`. Those are the only boxes left outside the generic overlap helper.
+  chest's box inside `chestPlayerIsStandingOn`, `:282` a sign's inside
+  `checkSignOverlap`. The only boxes left outside the generic overlap helper.
 
 ## Two kinds of box
 
@@ -84,19 +82,19 @@ Physics.ts:71    blockPlacements: readonly BlockPlacement[] = NO_BLOCKS,
 Physics.ts:393   const solid = isSolidExcludingBridge(tileAt(level, col, headRow)) || blockId !== undefined;
 ```
 
-A **block is solid** — physics takes block placements and treats a block as terrain
-during collision resolution. A **chest does not appear in `Physics.ts` at all**. That is
-why a sign feels like a chest and a block does not: chests and signs are both triggers;
-a block is solid geometry that happens to react to being struck.
+A **block is solid** — physics takes block placements and treats a block as terrain. A
+**chest does not appear in `Physics.ts` at all**. That is why a sign feels like a chest
+and a block does not: chests and signs are both triggers; a block is solid geometry that
+happens to react to being struck.
 
 ## Categories — vocabulary, not interfaces
 
-These names are for reasoning about the code. They are deliberately **not** declared
-types; composition happens through the capability interfaces below.
+Names for reasoning about the code. Deliberately **not** declared types; composition
+happens through the capability interfaces below.
 
 | Category | Family | Box | What the player's presence does to it |
 |---|---|---|---|
-| **Actor** | player | collision | — |
+| **Actor** | player | collision | damaged, then dies |
 | | green slime, purple slime | collision | damaged, then dies |
 | **Solid** | crate, question-mark, fragile rock | collision | struck from below → damaged → consumed (question-mark persists, spent) |
 | **Trigger** | coin, fruit | trigger | consumed on overlap |
@@ -105,12 +103,10 @@ types; composition happens through the capability interfaces below.
 | | chest | trigger | permanent state flip; needs Up and a held key |
 | | sign | trigger | nothing — the sign never changes; the UI does |
 
-Terrain tiles are solid too, but they are a character grid with no per-instance state,
-so they sit outside this discussion. Blocks are the bridge: solid like terrain, stateful
-like an object.
+Terrain tiles are solid too, but they are a character grid with no per-instance state.
+Blocks are the bridge: solid like terrain, stateful like an object.
 
-Inside **Trigger**, the sub-axis is what happens to the trigger itself, and it maps
-exactly onto how the current code differs:
+Inside **Trigger**, the sub-axis is what happens to the trigger itself:
 
 | Sub-shape | Families | Eligibility rule |
 |---|---|---|
@@ -119,14 +115,13 @@ exactly onto how the current code differs:
 | never changes | sign | none — there is nothing to exhaust |
 
 The sign is the cleanest evidence for the model: `SignPlacement` is `{ id, hintId, x, y }`
-and nothing else. A taxonomy that cannot place a sign comfortably is wrong, and
-"entity" could not.
+and nothing else. A taxonomy that cannot place a sign comfortably is wrong.
 
 ## Proposal
 
 ### 1. Replace `Entity` with capability interfaces
 
-Delete `Entity`. Its three capabilities become independent interfaces a family composes:
+Delete `Entity`. Its capabilities become independent interfaces a family composes:
 
 ```ts
 // entities/capabilities.ts
@@ -138,53 +133,116 @@ export interface Moving {
   direction: Direction;
 }
 
-/** Carries its own animation state, advancing on its own timer. */
-export interface Animated {
+/**
+ * Advances its own animation on a per-instance timer, so two of the same type
+ * can be out of phase. A type whose frames come from the shared world clock —
+ * a spinning coin, a bobbing key — needs none of this; its `frameIndex` reads
+ * `elapsed` instead. Both are animated; only this one stores state.
+ */
+export interface SelfAnimated {
   animState: string;
   animFrame: number;
   animTimer: number;
 }
 
-/** Has hit points that count down, and is gone at zero. */
+/**
+ * Takes damage, and is gone at zero. `hitTimer` counts seconds since the last
+ * hit landed; while it is below the type's `hitReactionSeconds`, further hits
+ * are ignored — the post-hit refractory window.
+ */
 export interface Damageable {
   hitPoints: number;
   alive: boolean;
+  hitTimer: number;
 }
 ```
 
 Position (`x`, `y`) stays declared by each family's `Placement` type, as it already is.
-An interface for two fields every family already has would be ceremony.
+An interface for two fields every family has would be ceremony.
 
 Composition per family:
 
-| Family | Moving | Animated | Damageable | Its own fields |
+| Family | Moving | SelfAnimated | Damageable | Its own fields |
 |---|---|---|---|---|
-| player | ✅ | ✅ | ❌ *(see below)* | `grounded`, `climbing`, `invincibleTimer`, `knockbackTimer`, … |
-| enemies | ✅ | ✅ | ✅ | `homeX/homeY`, `hitTimer`, `rewardGiven`; purple adds `spiked`/`spikeTimer` |
+| player | ✅ | ✅ | ✅ | `grounded`, `climbing`, `knockbackTimer`, `bounceAscending`, … |
+| enemies | ✅ | ✅ | ✅ | `homeX/homeY`, `rewardGiven`; purple adds `spiked`/`spikeTimer` |
 | blocks | ❌ | ✅ | ❌ *(see below)* | `hitsTaken` |
 | chests | ❌ | ❌ | ❌ | `state: 'closed' \| 'open'` |
-| coin, fruit, key | ❌ | ❌ *(see below)* | ❌ | — (key adds `collected`) |
+| coin, fruit, key | ❌ | ❌ | ❌ | key adds `collected` |
 | bonus fruit | ❌ | ❌ | ❌ | `elapsed`, `startY`, `restY`, `iconIndex` |
 | signs | ❌ | ❌ | ❌ | `hintId` |
 
-Three details this table settles deliberately:
+### 2. The player is `Damageable` — hearts become presentation
 
-- **`vy` stays on `Moving`.** A flying or jumping enemy is plausible, so vertical
-  velocity is a capability of moving things, not dead weight. This differs from
-  `spiked`, which was one *type's* mechanic on a shared shape.
-- **The player is not `Damageable`, and blocks are not either.** The player's health is
-  the module-level `healthState` signal in half-hearts, deliberately apart from position
-  and animation so full-heal-on-death touches one signal. A block's `hitsTaken` counts
-  *up* to a per-kind max rather than *down* to zero, and a spent question-mark stays in
-  the world, so `alive` has no meaning for it. Three families take damage in three
-  genuinely different shapes; `Damageable` describes only the enemy one, and that is
-  correct rather than incomplete.
-- **Coins are animated but not `Animated`.** They spin and bob off the shared
-  `worldElapsed` clock with no per-instance state — `Coin.ts` says so explicitly.
-  `Animated` means "carries its own animation state", not "moves visually". A family
-  animating off the world clock needs no capability at all.
+The player's health currently lives in a standalone `healthState` signal. It should be
+`hitPoints` on the player like any other damageable thing.
 
-### 2. One type base, with optional hooks
+**The data is already right.** `MAX_HALF_HEARTS = MAX_HEARTS * 2 = 6`, and health is
+already tracked in half-heart integers. So the player has **6 hit points, displayed as 3
+hearts** — and `heartRemaining`, `heartFrameIndex` and `drawHearts` all take a plain
+number and need no change whatsoever. The three-heart display was always pure
+presentation; it simply was not labelled as such.
+
+The unit is a per-type concern, exactly like `maxHitPoints` already is for enemies:
+
+| | `hitPoints` counts | max on the type | presented as |
+|---|---|---|---|
+| enemy | stomps | `EnemyType.maxHitPoints` | the hit reaction |
+| player | half-hearts | `PLAYER_TYPE.maxHitPoints` = 6 | three heart sprites |
+
+`takeDamage(current, amount)` is already a pure function on a number and works unchanged
+for both. `alive: false` replaces `healthState.value === 0` as the death trigger, and
+respawn becomes the same `revive` shape enemies already have.
+
+Six production reads of `healthState` change, all in `PlatformerPage.tsx`.
+
+### 3. One refractory window, not two
+
+`invincibleTimer` and `hitTimer` are the same concept in two encodings:
+
+| | Player `invincibleTimer` | Enemy `hitTimer` |
+|---|---|---|
+| Direction | counts **down** from `INVINCIBILITY_DURATION_SECONDS` | counts **up** from 0 |
+| Gates further hits | directly — `invincibleTimer <= 0` | indirectly — `isStunned` reads `animState === 'hit'` |
+| Also drives | the render blink | the hit animation, then revert-or-die |
+
+The gating only looks different: `animState === 'hit'` is true **exactly while**
+`hitTimer < HIT_REACTION_DURATION_SECONDS`. Both are a post-hit window during which
+further hits do not land.
+
+Unify as `Damageable.hitTimer`, **counting up**, with the duration on the type:
+
+```ts
+EnemyType.hitReactionSeconds     // 0.4 today
+PLAYER_TYPE.hitReactionSeconds   // 1.2 today (INVINCIBILITY_DURATION_SECONDS)
+```
+
+One shared predicate replaces both `player.invincibleTimer > 0` and `isStunned(enemy)`:
+
+```ts
+isInvulnerable(state, type.hitReactionSeconds)
+```
+
+Counting up matters: counting down bakes the duration into the initial value so every
+instance carries a copy, while counting up leaves it on the type — which is what lets a
+new damageable thing get its refractory window by declaring one number.
+
+What stays type-specific is what *happens* during and after the window — the player
+blinks then becomes vulnerable; an enemy plays its hit animation then reverts or dies.
+That is `onTick` business, not interface business.
+
+### 4. Blocks are the one exception to `Damageable`
+
+A block's `hitsTaken` counts **up** to a per-kind max rather than down to zero, and a
+spent question-mark **stays solid in the world**, so `alive` has no meaning for it.
+Blocks take `SelfAnimated` plus their own `hitsTaken`.
+
+This is worth leaving as-is rather than forcing: two of three damage models unify
+cleanly, and the third is genuinely a different shape. If blocks are ever reworked to
+count down with a `removeWhenUsedUp` type flag deciding whether `alive: false` removes
+them, they could join — but that is a behavior change, not a typing exercise.
+
+### 5. One type base, with optional hooks
 
 The universal capability — *has a box and can be drawn* — belongs on the type layer:
 
@@ -206,13 +264,12 @@ export interface WorldType<S> {
 an oversight.
 
 **Optional hooks are what serve the extensibility goal.** `EnemyType` already works this
-way — `onTick` is optional and only the purple slime implements it. A new type opts into
-the hooks it needs; the base does not grow.
+way — `onTick` is optional and only the purple slime implements it.
 
-### 3. Unify the triggers
+### 6. Unify the triggers
 
 Chests, signs and pickups share one shape: a trigger box, an eligibility rule, and an
-effect on overlap. These three functions are already the same function:
+effect on overlap. These three are already the same function:
 
 ```ts
 overlappingPickups(player, items, boxOf, eligible)   // all matches
@@ -226,16 +283,12 @@ shared helper**.
 
 Keep the eligibility predicate caller-supplied, as `overlappingPickups` already does.
 The pickup families record "collected" three different ways; unifying that is a separate
-decision (see the follow-ups document), and the mechanism unifies without it.
+decision, and the mechanism unifies without it.
 
 ## What this deliberately does not do
 
-- **No universal behavior base.** No shared damage or death contract. Three families take
-  damage three different ways, as above; merging them would unify names, not behavior.
-- **No declared `Actor` / `Solid` / `Trigger` types.** They are vocabulary. Beyond
-  `WorldType` they share no members, so declaring them would be taxonomy for its own
-  sake — and a family's membership is already evident from which capabilities it
-  composes.
+- **No declared `Actor` / `Solid` / `Trigger` types.** Vocabulary only. A family's
+  membership is already evident from which capabilities it composes.
 - **No change to how blocks or chests are triggered.** A block is struck from below via
   `player.hitBlockIds` from ceiling collision; a chest opens on standing plus Up plus a
   held key.
@@ -244,12 +297,11 @@ decision (see the follow-ups document), and the mechanism unifies without it.
 
 ## What still blocks the extensibility goal
 
-Worth stating plainly: **the interfaces are not the remaining friction.** Adding an
-enemy or block already costs one module plus one registry line, with no edit to
-`Renderer.ts`, `Collision.ts` or `EnemyAI.ts`, and the loader discovers the sprite by
-itself.
+**The interfaces are not the remaining friction.** Adding an enemy or block already costs
+one module plus one registry line, with no edit to `Renderer.ts`, `Collision.ts` or
+`EnemyAI.ts`, and the loader discovers the sprite by itself.
 
-What still forces edits to shared code when adding a thing is the **placement pipeline**:
+What still forces edits to shared code is the **placement pipeline**:
 
 - `types.ts`'s unions — `EnemyDef.type`, `BlockDef.blockKind`, `CollectibleDef.spriteType`
 - `LevelParser.ts` — a marker character
@@ -264,37 +316,41 @@ target than anything in this proposal.
 ## Risk, stated plainly
 
 Every time this codebase shared behavior through a **base interface**, it grew dead
-members: `spiked` on every enemy including one that could never spike; `Entity` itself
-is the larger instance. Every time it shared through **functions and data models** —
+members: `spiked` on every enemy including one that could never spike; `Entity` itself is
+the larger instance. Every time it shared through **functions and data models** —
 `overlappingPickups`, `SpriteSheet`/`SpriteDescriptor`, `DrawContext` — it worked without
 residue.
 
-This proposal therefore removes a base, replaces it with small capability interfaces a
-family opts into, adds exactly one type base whose two required members are genuinely
-universal, and puts its real weight on a shared *function*. **If `WorldType` starts
-accumulating required members, that is the signal it was the wrong tool.**
+This proposal removes a base, replaces it with small capability interfaces a family opts
+into, adds exactly one type base whose required members are genuinely universal, and puts
+weight on a shared *function*. **If `WorldType` starts accumulating required members,
+that is the signal it was the wrong tool.**
 
 ## Rough shape of the work
 
 Not a plan — a sketch, to convey size. Each would be a task with tests first.
 
-1. Add `Moving` / `Animated` / `Damageable`; point `BaseEnemyState` at them; delete
+1. Add `Moving` / `SelfAnimated` / `Damageable`; point `BaseEnemyState` at them; delete
    `Entity`. Type-level only.
-2. `PlayerState implements Moving, Animated`. Free — it already has the fields.
-3. `BlockState implements Animated`. Also free.
-4. Add `WorldType`; have the four type modules extend it. Compile-error-driven.
-5. Give `ChestType` a `box()` and repoint `chestPlayerIsStandingOn`.
-6. Give signs a `box()` and repoint `checkSignOverlap`.
-7. Collapse the three overlap functions onto one trigger helper.
+2. `BlockState implements SelfAnimated`. Free — it already has the fields.
+3. Move the player's health onto `PlayerState` as `hitPoints`/`alive`; `PLAYER_TYPE`
+   holds `maxHitPoints: 6`. Six call sites; `drawHearts` and the heart helpers unchanged.
+4. Unify `invincibleTimer` and `hitTimer` into `Damageable.hitTimer` counting up, with
+   `hitReactionSeconds` on the type and one `isInvulnerable` predicate.
+5. Add `WorldType`; have the four type modules extend it. Compile-error-driven.
+6. Give `ChestType` a `box()` and repoint `chestPlayerIsStandingOn`.
+7. Give signs a `box()` and repoint `checkSignOverlap`.
+8. Collapse the three overlap functions onto one trigger helper.
 
-Steps 5–7 carry the only behavioral risk. The boxes must come out byte-identical — the
-chest's includes `CHEST_CLOSED_OFFSET_X` — so they need a browser check alongside tests:
-standing on a chest must still offer to open it, and walking past a sign must still show
-its hint.
+Steps 1, 2 and 5 are type-level. **Steps 3, 4, 6, 7 and 8 carry behavioral risk** and
+each needs a browser check alongside tests: health must still decrease and the hearts
+still render; invincibility must still blink and still block a second hit; standing on a
+chest must still offer to open it; walking past a sign must still show its hint. The
+chest and sign boxes must come out byte-identical — the chest's includes
+`CHEST_CLOSED_OFFSET_X`.
 
 ## Open question
 
 Should signs get a full type module, or is a `box()` helper enough? A sign has no state
-and no per-type variation beyond its `hintId`. Step 6 assumes a module for symmetry with
-the other triggers; the cheaper alternative is a bare `signBox(sign)` function next to
-the placement type.
+and no per-type variation beyond its `hintId`. Step 7 assumes a module for symmetry; the
+cheaper alternative is a bare `signBox(sign)` function next to the placement type.
