@@ -12,11 +12,21 @@ today, and the loose ends worth closing. Read it before picking any of this up.
 | Pickups | ✅ `entities/pickups/` | ✅ | ✅ | — geometry only |
 | Blocks | ✅ `entities/blocks/` | ✅ | ✅ | — per-kind rules only |
 | Chests | ✅ `entities/chests/` | ✅ | ✅ | — appearance only |
-| **Player** | ❌ | ❌ | ❌ | ❌ |
+| **Player** | ❌ — no type module | ❌ | ❌ | ✅ composes `Moving`, `SelfAnimated`, `Damageable` |
 
 Sprites are modelled as indexed sheets (`entities/sprites/`), discovered from the type
 registries rather than from a hand-maintained asset list. `Renderer.ts` and
 `Collision.ts` contain no enemy, pickup or block type literals.
+
+State composes three capability interfaces — `Moving`, `SelfAnimated`, `Damageable` —
+and the type layer composes `WorldType` (`key`, `draw`) with `Boxed` (`box`) and
+`DamageableType` (`maxHitPoints`, `hitReactionSeconds`, `onDamaged`). Blocks compose
+neither `SelfAnimated` nor `Boxed`: they have a timed transform rather than frame
+animation, and physics locates them by grid cell rather than by rectangle.
+
+**No hitbox is constructed inside `engine/Collision.ts`** except the player's own, and a
+single `overlappingTriggers` helper resolves every player-versus-trigger overlap with
+eligibility supplied by each caller.
 
 ## Remaining work, in the order I'd do it
 
@@ -38,15 +48,17 @@ This is the highest-value remaining item: it is visible and every family now has
 module hook to attach it to. Needs a `brainstorming` pass to agree the seam before
 implementation. Filed as **B-003**.
 
-### 2. The player
+### 2. A player type module
 
-The last family without a module. `PLAYER_TYPE` would hold `PLAYER_SIDE_PADDING`,
-`PLAYER_HEAD_PADDING`, `PLAYER_FOOT_PADDING` and a sprite descriptor, with
-`onDamage`/`onDeath` hooks.
+The player's *state* now composes all three capabilities and its damage model matches an
+enemy's. What it still lacks is a **type module**: a `PLAYER_TYPE` holding
+`PLAYER_SIDE_PADDING`, `PLAYER_HEAD_PADDING`, `PLAYER_FOOT_PADDING`, a sprite descriptor,
+`maxHitPoints` and `hitReactionSeconds` — the numbers currently living as loose constants
+— so the player composes `WorldType`, `Boxed` and `DamageableType` like every other
+family.
 
-**Deliberately last, and genuinely low priority.** `Physics.ts` is ~500 lines and
-`Physics.test.ts` ~1250, there is exactly one playable character, and the payoff is
-consistency rather than capability. Worth doing eventually; not worth doing next.
+**Genuinely low priority.** `Physics.ts` is ~500 lines and `Physics.test.ts` ~1250, there
+is exactly one playable character, and the payoff is consistency rather than capability.
 
 ### 3. Pickup lifecycle
 
@@ -130,6 +142,21 @@ None of these affect behavior. Grouped by whether they're worth a deliberate pas
   `ENEMY_TILE_OFFSET_Y` survive as green-slime aliases used only by tests.
 - `key.png` loads twice — once via `keySpriteRef` for the HUD counter, once via the
   registry. Consolidating touches five sites in `PlatformerPage.tsx`.
+- `engine/Collision.ts`'s `Box` and `entities/geometry.ts`'s `Rect` are structurally
+  identical duplicate interfaces. `signBox` returns `Box` while every other box returns
+  `Rect`; it compiles by structural typing. One should be an alias of the other.
+- `entities/Enemy.ts`'s `enemyHitboxTopPadding` is now consumed only by tests — where it
+  deliberately restates the pre-refactor hitbox formula as an independent check, so
+  deleting it would remove the evidence that the geometry did not move.
+  `enemyHitboxSidePadding` is still live in `EnemyAI.ts`.
+- Both padding helpers' doc comments still describe them as producing "the collision
+  box". No collision box is built from them any more — `spriteSheetHitbox` computes its
+  own. Stale by role rather than by fact.
+- `Boxed.box` could take a `this: void` parameter. Every `box` is an arrow property
+  closing over module constants, so passing `CHEST_TYPE.box` as a bare reference is safe
+  today — but if one were ever rewritten as method shorthand using `this`, the detached
+  reference would throw at runtime and TypeScript would not flag it, since
+  `this`-parameter checking does not apply to a property read.
 
 **Filed as bug tickets** (see `docs/Bugs.md`):
 
