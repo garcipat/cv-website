@@ -7,7 +7,7 @@ import { bonusFruitY, type BonusFruitState } from '../BonusFruit';
  *  BonusFruit.ts remains the source of truth for every constant. `box`'s
  *  `y` is state-dependent because the fruit tweens upward while rising (see
  *  bonusFruitY). Unlike a coin/fruit/key, a bonus fruit does not bob —
- *  Renderer.ts's drawBonusFruits draws it at bonusFruitY(fruit) with no bob
+ *  this module's own `draw` draws it at bonusFruitY(fruit) with no bob
  *  offset added, since its own rise tween already supplies its vertical
  *  motion. `frameIndex` returns the fruit's own `iconIndex` as-is — that is
  *  already the LOGICAL index (spawnBonusFruit wraps it mod
@@ -18,12 +18,10 @@ export const bonusFruit: PickupType<BonusFruitState> = {
   sprite: {
     sheet: FRUIT_SHEET,
     renderScale: 1,
-    animations: {
-      idle: {
-        frames: [0],
-        frameDuration: 1, // unused — a single-frame animation never advances.
-      },
-    },
+    // Frame selection goes through frameIndex (fruit.iconIndex), not through
+    // named animations — this stays empty rather than restating unread
+    // frame/duration data.
+    animations: {},
   },
   box: (fruit) => ({
     x: fruit.x,
@@ -31,10 +29,9 @@ export const bonusFruit: PickupType<BonusFruitState> = {
     width: FRUIT_RENDERED_SIZE,
     height: FRUIT_RENDERED_SIZE,
   }),
-  frameIndex: (fruit, _elapsed, _index) => fruit.iconIndex,
+  frameIndex: (fruit) => fruit.iconIndex,
   bobOffset: () => 0,
-  // Relocated from Renderer.ts's drawBonusFruits, unchanged — no bob offset
-  // added (see bobOffset above and the doc comment on this module).
+  // No bob offset added (see bobOffset above and the doc comment on this module).
   draw: (fruitState, dc) => {
     const image = dc.sprites[FRUIT_SHEET.src];
     if (!image) return;
