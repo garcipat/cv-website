@@ -88,15 +88,14 @@ import { advanceEnemyAnimation } from './entities/Enemy';
 import {
   SLIME_GREEN_SHEET,
   KEY_SHEET,
-  WORLD_TILESET_SHEET,
   CRACK_OVERLAY_SHEET,
-  CHEST_CLOSED_SHEET,
-  CHEST_OPEN_SHEET,
 } from './entities/sprites/sheets';
 import { frameSource, collectSheetSources } from './entities/sprites/SpriteSheet';
 import type { SpriteLookup } from './entities/sprites/SpriteSheet';
 import { ENEMY_TYPES, typeOf } from './entities/enemies';
 import { PICKUP_TYPES } from './entities/pickups';
+import { BLOCK_TYPES } from './entities/blocks';
+import { CHEST_TYPE } from './entities/chests';
 import type { EnemyState } from './entities/Enemy';
 import { takeDamage, PIT_FALL_DAMAGE, INVINCIBILITY_DURATION_SECONDS } from './entities/Health';
 import {
@@ -1414,27 +1413,30 @@ export const PlatformerPage = () => {
         // the rest of the game still show.
       });
     // Discovers every enemy sheet from the type registry (plus the key
-    // sheet, for a purple slime's held-key shine-through) and every pickup
-    // sheet from PICKUP_TYPES rather than hand-listing each one — adding an
-    // enemy or pickup type needs no new loadImage call here. coin.png and
-    // fruit.png are also loaded individually above into
-    // coinSpriteRef/fruitSpriteRef, which the HUD counters
-    // (drawCollectibleCounter) still read directly — the two loads race
-    // harmlessly (same convention KEY_SHEET already established alongside
-    // keySpriteRef's own individual load below). world_tileset.png is
-    // likewise still loaded individually above into tilesetRef, which
+    // sheet, for a purple slime's held-key shine-through), every pickup
+    // sheet from PICKUP_TYPES, every block sheet from BLOCK_TYPES and both
+    // chest sheets (closed/open) from CHEST_TYPE, rather than hand-listing
+    // each one — adding an enemy, pickup, block or chest type needs no new
+    // loadImage call here. coin.png and fruit.png are also loaded
+    // individually above into coinSpriteRef/fruitSpriteRef, which the HUD
+    // counters (drawCollectibleCounter) still read directly — the two loads
+    // race harmlessly (same convention KEY_SHEET already established
+    // alongside keySpriteRef's own individual load below). world_tileset.png
+    // is likewise still loaded individually above into tilesetRef, which
     // drawTerrain/drawSigns read directly — its block-drawing modules
     // (entities/blocks/) read the copy landing here in spritesRef instead.
-    // crack_overlay.png has no dedicated ref at all; only a crate's own
-    // module reads it, via spritesRef.
+    // crack_overlay.png has no dedicated ref at all and no type's primary
+    // sprite — only a crate's own module reads it, as a secondary overlay it
+    // composites on top of its own tile, via spritesRef, so it stays
+    // hand-listed here rather than discovered through a registry.
     for (const src of collectSheetSources([
       ...Object.values(ENEMY_TYPES).map((t) => t.sprite),
       ...Object.values(PICKUP_TYPES).map((t) => t.sprite),
+      ...Object.values(BLOCK_TYPES).map((t) => t.sprite),
+      CHEST_TYPE.closed,
+      CHEST_TYPE.open,
       { sheet: KEY_SHEET, renderScale: 1, animations: {} },
-      { sheet: WORLD_TILESET_SHEET, renderScale: 1, animations: {} },
       { sheet: CRACK_OVERLAY_SHEET, renderScale: 1, animations: {} },
-      { sheet: CHEST_CLOSED_SHEET, renderScale: 1, animations: {} },
-      { sheet: CHEST_OPEN_SHEET, renderScale: 1, animations: {} },
     ])) {
       loadImage(src)
         .then((img) => {

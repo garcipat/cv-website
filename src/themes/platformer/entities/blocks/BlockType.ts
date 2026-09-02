@@ -5,9 +5,15 @@ import type { BlockState } from '../Block';
 /**
  * Everything the engine needs to know about one block kind, owned entirely by
  * that kind's own module. Adding a block means writing one of these and adding
- * one line to `blocks/index.ts` — nothing in Renderer.ts or PlatformerPage.tsx
- * needs to change, and no sprite registry needs editing: the loader discovers
- * assets from `sprite.sheet`.
+ * one line to `blocks/index.ts` — nothing in Renderer.ts needs to change. If
+ * the new kind draws from an already-registered sheet (`WORLD_TILESET_SHEET`,
+ * as every kind does today), PlatformerPage.tsx's loader needs no edit either
+ * — it discovers `sprite.sheet` from `BLOCK_TYPES` directly. A kind
+ * introducing a brand-new sheet adds it to `sprites/sheets.ts`, and — only if
+ * it's a secondary overlay rather than the kind's own primary `sprite.sheet`
+ * (the way `Crate.ts`'s crack overlay is) — also to that loader's hand-listed
+ * exceptions, since a spread over `BLOCK_TYPES` can't discover a sheet that
+ * isn't any type's primary descriptor.
  *
  * Carries no trigger mechanism. A block is hit from below, detected during
  * ceiling collision in Physics.ts, which writes `player.hitBlockIds`; the

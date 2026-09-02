@@ -379,7 +379,7 @@ const BUBBLE_TEXT_COLOR = '#241a0e';
  * fixed (where the tail meets it) — the caller passes
  * `hintTooltipGrowthAndOpacity`'s `growth` straight through. `growth <= 0`
  * draws nothing at all. `opacity` (default 1) is applied via
- * `ctx.globalAlpha`, the same mechanism `drawBlocks`'s crate-shatter fade
+ * `ctx.globalAlpha`, the same mechanism `Crate.ts`'s crate-shatter fade
  * already uses.
  */
 /** Clamps a corner radius so `roundRect` never receives a radius bigger than
