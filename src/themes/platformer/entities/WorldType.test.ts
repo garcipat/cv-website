@@ -99,7 +99,7 @@ describe('enemy box equivalence', () => {
 
   it('box-slimePurple-scalesOffsetAndInsetWithRenderScale', () => {
     // size=96, tileOffsetX=-32, tileOffsetY=-64, sidePad=20, topPad=36 ->
-    // x=enemy.x-22, y=enemy.y-28, width=56, height=60.
+    // x=enemy.x-12, y=enemy.y-28, width=56, height=60.
     const enemy = makeEnemy('slimePurple', 10, 20);
     expect(typeOf(enemy).box(enemy)).toEqual({ x: -2, y: -8, width: 56, height: 60 });
   });

@@ -236,6 +236,17 @@ describe('chestPlayerIsStandingOn', () => {
     const player = makePlayer(0, 0);
     expect(chestPlayerIsStandingOn(player, [])).toBeUndefined();
   });
+
+  it('playerOverlappingOnlyTheOffsetShiftedRegion-stillReturnsItsId', () => {
+    // The closed box's x is chest.x + CHEST_CLOSED_OFFSET_X (a negative
+    // number — see entities/Chest.ts), so its left edge sits to the LEFT of
+    // chest.x. A player hitbox at x 72..96 overlaps that shifted-left sliver
+    // (box spans 93.6..138.4) but would miss a box that started at chest.x
+    // unshifted (100..144.8) entirely — this is the case a dropped offset
+    // breaks.
+    const player = makePlayer(52, closedChest.y);
+    expect(chestPlayerIsStandingOn(player, [closedChest])).toBe('chest-1');
+  });
 });
 
 describe('checkSignOverlap', () => {
@@ -277,9 +288,10 @@ function makeSpikedPurpleEnemy(overrides: Partial<EnemyState> = {}): EnemyState 
  * only the engine — decides when more than one enemy is contacted in the same
  * tick.
  *
- * Positions come from the hitbox arithmetic anchored in 'enemy box equivalence'
- * below: a green slime at (x, y) has a hitbox of (x+2, y+2, 28x30), a purple
- * one (x-12, y-28, 56x60), and the player's is (x+20, y+18, 24x38).
+ * Positions come from the hitbox arithmetic anchored in WorldType.test.ts's
+ * 'enemy box equivalence': a green slime at (x, y) has a hitbox of
+ * (x+2, y+2, 28x30), a purple one (x-12, y-28, 56x60), and the player's is
+ * (x+20, y+18, 24x38).
  */
 describe('resolveEnemyContacts aggregation', () => {
   it('twoDamagingEnemiesTouchedAtOnce-appliesDamageOnce', () => {
