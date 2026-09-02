@@ -4,7 +4,7 @@
 
 **Goal:** Replace the `Entity` interface — which bundles position, movement and animation into one shape no family fully wants — with three independent capability interfaces that each family composes.
 
-**Architecture:** `Moving`, `SelfAnimated` and `Damageable` become separate interfaces in `entities/capabilities.ts`; the geometry types `Direction` and `Rect` move to `entities/geometry.ts`. `BaseEnemyState` composes all three, `BlockState` composes `SelfAnimated` alone (it animates without moving), and `PlayerState` composes `Moving` and `SelfAnimated`. `Entity` is deleted.
+**Architecture:** `Moving`, `SelfAnimated` and `Damageable` become separate interfaces in `entities/capabilities.ts`; the geometry types `Direction` and `Rect` move to `entities/geometry.ts`. `BaseEnemyState` composes all three and `PlayerState` composes `Moving` and `SelfAnimated`. Blocks compose nothing — they have a timed transform, not frame animation. `Entity` is deleted.
 
 **Tech Stack:** TypeScript 5 (strict), React 19, `@preact/signals-react`, Vitest + React Testing Library + jsdom.
 
@@ -14,7 +14,7 @@
 
 ## Scope
 
-**In scope:** the three capability interfaces, the file split, and composing them onto enemy, block and player state.
+**In scope:** the three capability interfaces, the file split, and composing them onto enemy and player state.
 
 **Out of scope, each with its own later plan:**
 
@@ -50,7 +50,7 @@
 Fields already present, which is why most of this plan is free:
 
 - `BaseEnemyState` already has `vx`, `vy`, `direction`, `animState`, `animFrame`, `animTimer`, `hitPoints`, `alive` **and `hitTimer`**.
-- `BlockState` already has `animState` and `animTimer` — but **not** `animFrame`. See Task 2.
+- `BlockState` has `animState` and `animTimer` but **no** `animFrame`, and no block cycles sprite frames — see Task 2, which is dropped for that reason.
 - `PlayerState` already has `vx`, `vy`, `facing`, `animState`, `animFrame`, `animTimer`. Note the field is named `facing`, **not** `direction`. See Task 3.
 
 ## Model guidance
