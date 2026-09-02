@@ -1,5 +1,6 @@
 import { TILE_SIZE, RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { BlockPlacement } from '../level/BlockMapper';
+import type { EffectAnchor } from './Enemy';
 import { BLOCK_TYPES } from './blocks';
 import { frameSource } from './sprites/SpriteSheet';
 
@@ -93,4 +94,17 @@ export function isBlockRemoved(block: BlockState): boolean {
 export function applyBlockHit(block: BlockState): BlockState {
   if (isBlockUsedUp(block)) return block;
   return { ...block, hitsTaken: block.hitsTaken + 1, animState: 'bump', animTimer: 0 };
+}
+
+/** A world-space anchor point + size scale for a one-shot visual effect at
+ *  this block's position — see entities/Enemy.ts's enemyEffectAnchor for the
+ *  enemy equivalent and B-003 for why this exists. Every block kind is
+ *  exactly one tile, so unlike enemies there is no per-kind size variance —
+ *  scale is always 1. */
+export function blockEffectAnchor(block: BlockState): EffectAnchor {
+  return {
+    x: block.x + BLOCK_RENDERED_SIZE / 2,
+    y: block.y + BLOCK_RENDERED_SIZE / 2,
+    scale: 1,
+  };
 }
