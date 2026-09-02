@@ -151,13 +151,13 @@ export const slimePurple: EnemyType<SlimePurpleState> = {
     spikeTimer: 0,
   }),
 
+  box: (enemy) => spriteSheetHitbox(enemy, SLIME_PURPLE_SPRITE, HITBOX_PADDING_NATIVE),
+
   /** Advances the spiked cooldown by `dt` seconds. No-op (returns the same
    *  reference) while not currently `spiked` — this timer runs independently
    *  of `animState`/`hitTimer`: this slime keeps counting up toward the
    *  cooldown's end while patrolling normally, not just while mid
    *  hit-reaction. */
-  box: (enemy) => spriteSheetHitbox(enemy, SLIME_PURPLE_SPRITE, HITBOX_PADDING_NATIVE),
-
   onTick: (enemy, dt) => {
     if (!enemy.spiked) return enemy;
     const spikeTimer = enemy.spikeTimer + dt;

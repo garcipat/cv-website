@@ -11,14 +11,10 @@ import { typeOf } from '../entities/enemies';
 import type { ContactSide } from './Contact';
 import { BONUS_FRUIT_RISE_DURATION_SECONDS } from '../entities/BonusFruit';
 import type { BonusFruitState } from '../entities/BonusFruit';
-import {
-  CHEST_CLOSED_RENDERED_WIDTH,
-  CHEST_CLOSED_RENDERED_HEIGHT,
-  CHEST_CLOSED_OFFSET_X,
-  isChestOpen,
-} from '../entities/Chest';
+import { isChestOpen } from '../entities/Chest';
 import type { ChestState } from '../entities/Chest';
-import { RENDERED_TILE_SIZE } from '../level/Terrain';
+import { CHEST_TYPE } from '../entities/chests';
+import { signBox } from '../level/SignMapper';
 import type { SignPlacement } from '../level/SignMapper';
 import type { HintId } from '../types';
 import type { KeyPickupState } from '../entities/KeyPickup';
@@ -222,10 +218,10 @@ export function checkBonusFruitCollisions(
  * this tick. Only a chest's CLOSED footprint is checked (its open sprite is a
  * different size and the chest is un-openable again anyway, so an open
  * chest's box is irrelevant here) — mirrors checkBonusFruitCollisions'
- * single-box-per-item convention. The box's x is shifted by
- * CHEST_CLOSED_OFFSET_X (see entities/Chest.ts) so it matches exactly where
- * the closed chest is now drawn (centered on its tile, not left-aligned to
- * the tile's top-left corner).
+ * single-box-per-item convention. The box comes from `CHEST_TYPE.box`,
+ * which shifts its x by CHEST_CLOSED_OFFSET_X (see entities/Chest.ts) so it
+ * matches exactly where the closed chest is drawn (centered on its tile,
+ * not left-aligned to the tile's top-left corner).
  */
 export function chestPlayerIsStandingOn(
   player: PlayerState,
@@ -234,13 +230,7 @@ export function chestPlayerIsStandingOn(
   const hitbox = playerHitbox(player);
   for (const chest of chests) {
     if (isChestOpen(chest)) continue;
-    const box: Box = {
-      x: chest.x + CHEST_CLOSED_OFFSET_X,
-      y: chest.y,
-      width: CHEST_CLOSED_RENDERED_WIDTH,
-      height: CHEST_CLOSED_RENDERED_HEIGHT,
-    };
-    if (aabbOverlap(hitbox, box)) return chest.id;
+    if (aabbOverlap(hitbox, CHEST_TYPE.box(chest))) return chest.id;
   }
   return undefined;
 }
@@ -250,8 +240,9 @@ export function chestPlayerIsStandingOn(
  * overlaps, or `undefined` if none. Unlike checkCollectibleCollisions, this
  * is NOT destructive/dedup-tracked — a sign is reusable, so the same sign
  * returns its hintId every tick the player stands on it, and again the next
- * time they walk back onto it. A sign's box is exactly one rendered tile
- * (RENDERED_TILE_SIZE square), matching how it's drawn (Renderer.ts).
+ * time they walk back onto it. The box comes from `signBox`
+ * (level/SignMapper.ts) — exactly one rendered tile, matching how it's
+ * drawn (Renderer.ts).
  */
 export function checkSignOverlap(
   player: PlayerState,
@@ -259,8 +250,7 @@ export function checkSignOverlap(
 ): HintId | undefined {
   const hitbox = playerHitbox(player);
   for (const sign of signs) {
-    const box: Box = { x: sign.x, y: sign.y, width: RENDERED_TILE_SIZE, height: RENDERED_TILE_SIZE };
-    if (aabbOverlap(hitbox, box)) return sign.hintId;
+    if (aabbOverlap(hitbox, signBox(sign))) return sign.hintId;
   }
   return undefined;
 }
