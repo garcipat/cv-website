@@ -68,14 +68,16 @@ export function isTopExposed(level: LevelDef, col: number, row: number): boolean
 }
 
 /**
- * Neighbour-mask bits. A SET bit means the neighbour on that side is solid,
- * so the tile's edge there continues into more terrain and is drawn WITHOUT
- * a border ("open"). A CLEAR bit means that edge faces non-solid space and
- * is drawn WITH its dark border ("closed").
+ * Neighbour-mask bits. A SET bit means the neighbour on that side is terrain
+ * this tile merges with, so the edge continues and is drawn WITHOUT a border
+ * ("open"). A CLEAR bit means that edge faces open space and is drawn WITH
+ * its dark border ("closed").
  *
- * Closure is deliberately about facing air rather than matching materials,
- * so `isTopExposed` is exactly "the UP bit is clear" — see
- * `neighbourMask-upBitClear-matchesIsTopExposed`.
+ * A `bridge` counts as open space, not terrain: it is a thin walkway you can
+ * see past, so ground beside or beneath one must read exactly as if it faced
+ * air. That is why this uses `isSolidExcludingBridge` rather than `isSolid`,
+ * and why the UP bit is NOT equivalent to `isTopExposed` for a bridge — that
+ * helper still serves `groundRock`, whose rendering is unchanged.
  */
 export const NEIGHBOUR_UP = 1;
 export const NEIGHBOUR_RIGHT = 2;
@@ -84,10 +86,10 @@ export const NEIGHBOUR_LEFT = 8;
 
 export function neighbourMask(level: LevelDef, col: number, row: number): number {
   return (
-    (isSolid(tileAt(level, col, row - 1)) ? NEIGHBOUR_UP : 0) |
-    (isSolid(tileAt(level, col + 1, row)) ? NEIGHBOUR_RIGHT : 0) |
-    (isSolid(tileAt(level, col, row + 1)) ? NEIGHBOUR_DOWN : 0) |
-    (isSolid(tileAt(level, col - 1, row)) ? NEIGHBOUR_LEFT : 0)
+    (isSolidExcludingBridge(tileAt(level, col, row - 1)) ? NEIGHBOUR_UP : 0) |
+    (isSolidExcludingBridge(tileAt(level, col + 1, row)) ? NEIGHBOUR_RIGHT : 0) |
+    (isSolidExcludingBridge(tileAt(level, col, row + 1)) ? NEIGHBOUR_DOWN : 0) |
+    (isSolidExcludingBridge(tileAt(level, col - 1, row)) ? NEIGHBOUR_LEFT : 0)
   );
 }
 

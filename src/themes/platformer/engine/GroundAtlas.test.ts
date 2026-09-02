@@ -22,16 +22,13 @@ describe('groundTileKind', () => {
     expect(groundTileKind(15)).toBe('dark');
   });
 
-  it('topClosedBottomOpen-returnsBright', () => {
-    // Topmost cell of a run two or more cells tall.
+  it('topClosed-returnsBright-regardlessOfTheBottomEdge', () => {
+    // A one-tile-tall platform is bright, exactly like the top of a deep mass:
+    // the bottom edge does not darken a tile that faces air above.
     expect(groundTileKind(NEIGHBOUR_DOWN)).toBe('bright');
+    expect(groundTileKind(0)).toBe('bright');
+    expect(groundTileKind(NEIGHBOUR_LEFT | NEIGHBOUR_RIGHT)).toBe('bright');
     expect(groundTileKind(NEIGHBOUR_DOWN | NEIGHBOUR_LEFT | NEIGHBOUR_RIGHT)).toBe('bright');
-  });
-
-  it('topAndBottomClosed-returnsGradient', () => {
-    // A run exactly one cell tall carries the whole ramp in one tile.
-    expect(groundTileKind(0)).toBe('gradient');
-    expect(groundTileKind(NEIGHBOUR_LEFT | NEIGHBOUR_RIGHT)).toBe('gradient');
   });
 });
 
@@ -60,8 +57,30 @@ describe('groundAtlasCell', () => {
     }
   });
 
-  it('noNeighbours-returnsIsolatedGradientTileAtC0R0', () => {
-    expect(groundAtlasCell(0)).toEqual({ sx: 0, sy: 0, rotation: 0, kind: 'gradient' });
+  it('noNeighbours-returnsTheBrightThreeSidedCellAtC6R0', () => {
+    // Air on all four sides. The bottom edge is ignored for a top-exposed tile,
+    // so an isolated platform uses the same cell as a one-wide column's top.
+    expect(groundAtlasCell(0)).toEqual({
+      sx: 6 * ATLAS_STRIDE,
+      sy: 0,
+      rotation: 0,
+      kind: 'bright',
+    });
+  });
+
+  it('topExposedMasks-ignoreTheDownBitWhenChoosingACell', () => {
+    // 0/2/8/10 differ from 4/6/12/14 only in the DOWN bit, which no longer
+    // changes the choice.
+    expect(groundAtlasCell(0)).toEqual(groundAtlasCell(NEIGHBOUR_DOWN));
+    expect(groundAtlasCell(NEIGHBOUR_RIGHT)).toEqual(
+      groundAtlasCell(NEIGHBOUR_RIGHT | NEIGHBOUR_DOWN),
+    );
+    expect(groundAtlasCell(NEIGHBOUR_LEFT)).toEqual(
+      groundAtlasCell(NEIGHBOUR_LEFT | NEIGHBOUR_DOWN),
+    );
+    expect(groundAtlasCell(NEIGHBOUR_LEFT | NEIGHBOUR_RIGHT)).toEqual(
+      groundAtlasCell(NEIGHBOUR_LEFT | NEIGHBOUR_RIGHT | NEIGHBOUR_DOWN),
+    );
   });
 
   it('allNeighbours-returnsBuriedInteriorAtC5R1', () => {
@@ -93,12 +112,11 @@ describe('groundAtlasCell', () => {
     });
   });
 
-  it('onlyBrightAndDarkTilesAreRotated', () => {
-    // A vertical brightness ramp turned sideways reads as broken, so the
-    // gradient tiles must never carry a rotation.
+  it('onlyFlatDarkTilesAreRotated', () => {
+    // Rotation is safe only where the texture is direction-neutral.
     for (const mask of ALL_MASKS) {
       const entry = groundAtlasCell(mask);
-      if (entry.kind === 'gradient') expect(entry.rotation).toBe(0);
+      if (entry.rotation !== 0) expect(entry.kind).toBe('dark');
     }
   });
 

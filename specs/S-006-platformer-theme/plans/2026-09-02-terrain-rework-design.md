@@ -29,72 +29,84 @@ edit.
 uniform 19px stride** (16px tile + 3px transparent gutter), laid out 7 columns × 3 rows.
 Cell `(c, r)` is at `sx = c * 19`, `sy = r * 19`.
 
-Ground tiles are drawn with a dark border on each edge that faces **air**, and no border
-on edges where the ground continues. A tile's borders are always drawn, including its
-top edge — the grass overlay is allowed to cover it.
+Ground tiles are drawn with a dark border on each edge that faces **open space**, and no
+border on edges where the ground continues. A tile's borders are always drawn, including
+its top edge — the grass overlay is allowed to cover it.
+
+A `bridge` neighbour counts as **open space**, not as terrain. A bridge is a thin walkway
+you can see past, so ground beside or beneath one must read exactly as if it faced air.
+The mask therefore tests `isSolidExcludingBridge`, not `isSolid`. A consequence worth
+knowing: the mask's UP bit is *not* equivalent to `Terrain.ts`'s `isTopExposed`, which
+still counts a bridge as solid because it also serves `groundRock`, whose rendering is
+unchanged. Anything in the `groundGrass` path — the cell choice and the grass pass alike —
+reads exposure from the mask so the two stay consistent with each other.
 
 ### Vertical banding rule
 
-A *vertical run* is a maximal stretch of contiguous ground cells in one column. Every
-run is banded the same way regardless of its height:
+Colour is decided by the top edge alone, in two cases:
 
-- The **bright band is always exactly one tile tall** — the topmost cell of the run.
-- Everything below it is **dark**, however deep the run goes.
-- The **gradient** (a bright-to-dark ramp inside a single tile) is used **only** when the
-  run is one cell tall, because that cell is simultaneously the surface and the underside.
-- Neither the bright band nor the gradient ever spans more than one tile, so no mid-tone
-  transition tiles exist and the bright→dark boundary always falls between the first and
-  second cell of a run.
+- Top edge **closed** (open space above) — the tile is an exposed surface and is
+  **bright**.
+- Top edge **open** (terrain above) — the tile is buried and is **dark**, however deep.
 
-| Run height | Cell index from top | Colour |
-| --- | --- | --- |
-| 1 | 0 (the only cell) | gradient |
-| ≥ 2 | 0 | bright |
-| ≥ 2 | ≥ 1 | dark |
+The bottom edge does not participate, and there is no gradient kind: a one-tile-tall
+platform is just as much a surface as the top of a deep mass, and is bright. The
+consequence is accepted deliberately — such a platform has no darkened underside border,
+because the bright cells leave their bottom edge open.
+
+| Top edge | Colour |
+| --- | --- |
+| closed (faces open space) | **bright** |
+| open (terrain above) | **dark** |
+
+The bright band is therefore always exactly one tile tall — the topmost cell of a
+*vertical run* (a maximal stretch of contiguous ground cells in one column) — with
+everything below it dark. No mid-tone transition tiles exist, so the bright→dark boundary
+always falls between the first and second cell of a run.
 
 Each column is banded independently, so on a stepped hillside every column gets its own
 bright cap. A column broken by a gap contains two runs and is banded twice — once per
 run — which is correct, since each run has its own exposed surface.
 
-**This rule needs no row counting.** It follows entirely from the cell's own two vertical
-edges, so the 4-neighbour mask already determines colour:
-
-| Top edge | Bottom edge | Colour |
-| --- | --- | --- |
-| closed (faces air) | open | **bright** — topmost cell of a run of 2+ |
-| closed | closed | **gradient** — a run exactly one cell tall |
-| open (ground above) | either | **dark** — anything below the top cell |
+**This rule needs no row counting.** It follows entirely from the cell's own top edge, so
+the 4-neighbour mask already determines colour.
 
 ### Ground tile table
 
 Closed sides are listed as T/B/L/R; a side is closed when the neighbour in that
-direction is not ground.
+direction is not ground (a `bridge` neighbour leaves the side closed).
+
+Because the bottom edge never affects a top-exposed tile's cell, each T-closed mask
+shares the cell of its bottom-open counterpart: `T B L R` uses `T L R`'s cell, `T B L`
+uses `T L`'s, `T B R` uses `T R`'s, and `T B` uses `T`'s.
 
 | Closed sides | Cell | Colour | Role |
 | --- | --- | --- | --- |
 | — | `c5r1` | dark | fully buried interior |
-| T | `c4r0` | bright | top edge of a wide mass |
+| T | `c4r0` | bright | middle of a surface run |
 | B | `c1r1` | dark | bottom edge |
 | L | *rotate `c1r1` +90°* | dark | left edge below the corner |
 | R | *rotate `c1r1` −90°* | dark | right edge below the corner |
-| T B | `c3r1` | dark | middle of a one-tile-tall strip |
+| T B | `c4r0` | bright | middle of a surface run, one tile tall |
 | L R | `c4r1` | dark | middle of a one-tile-wide column |
-| T L | `c3r0` | bright | top-left corner |
-| T R | `c5r0` | bright | top-right corner |
+| T L | `c3r0` | bright | left end of a surface run |
+| T R | `c5r0` | bright | right end of a surface run |
 | B L | `c0r1` | dark | bottom-left corner |
 | B R | `c2r1` | dark | bottom-right corner |
 | T L R | `c6r0` | bright | top of a one-tile-wide column |
-| T B L | `c1r0` | gradient | left end of a one-tile-tall strip |
-| T B R | `c2r0` | gradient | right end of a one-tile-tall strip |
+| T B L | `c3r0` | bright | left end of a surface run, one tile tall |
+| T B R | `c5r0` | bright | right end of a surface run, one tile tall |
 | B L R | `c0r2` | dark | bottom of a one-tile-wide column |
-| T B L R | `c0r0` | gradient | isolated single tile |
+| T B L R | `c6r0` | bright | isolated single tile; bottom edge ignored |
 
+`c0r0`, `c1r0`, `c2r0` and `c3r1` are **unreferenced** — they were the gradient shapes,
+and no mask selects them now. They stay in the sheet; removing art is not worth the churn.
 `c5r2` and `c6r2` are free. `c6r1` holds a bright L+R tile that the colour rule above
 never selects (L+R means the top edge is open, which is a buried tile).
 
 **Rotation** is safe for the dark tiles, whose texture is flat and direction-neutral, and
-is how L-only and R-only are obtained. It must not be applied to the bright or gradient
-tiles, whose vertical brightness ramp would end up running sideways.
+is how L-only and R-only are obtained. It must not be applied to the bright tiles, whose
+vertical brightness ramp would end up running sideways.
 
 ### Grass overlay
 
@@ -109,8 +121,9 @@ any ground tile can be grassed.
 | `c3r2` | right end |
 | `c4r2` | single (isolated) |
 
-Run position is computed over horizontally adjacent tiles that are themselves ground
-**and** top-exposed, so grass caps off wherever the terrain steps up or ends. This yields
+Run position is computed over horizontally adjacent tiles that are themselves
+`groundGrass` **and** have their top edge closed by the same mask the ground pass uses, so
+grass caps off wherever the terrain steps up, changes material, or ends. This yields
 the run-length cases directly: a run of 1 uses `c4r2`; a run of 2 uses `c1r2` + `c3r2`;
 a run of 3 or more uses `c1r2`, `c2r2` repeated, then `c3r2`.
 
@@ -137,7 +150,7 @@ with depth, are both plausible later). Three structural requirements keep that c
   yielding `{ sx, sy, rotation }`. Swapping atlas cells, or the whole atlas for a
   different material, is then an edit to values only.
 - **The banding rule is one pure function**, separate from the table and from the render
-  loop — `groundTileKind(mask)` returning `'bright' | 'gradient' | 'dark'`. Changing which
+  loop — `groundTileKind(mask)` returning `'bright' | 'dark'`. Changing which
   closure gets which colour touches this function alone.
 - **Nothing else reads the mask.** `Renderer.ts` asks for a tile source and draws it; it
   holds no banding knowledge, so a rule change never reaches it.
@@ -154,8 +167,9 @@ past its two free slots (`c5r2`, `c6r2`) for anything larger.
 - **`Terrain.ts`** — add a neighbour-mask helper and generalize `bridgeRunPosition` into
   `horizontalRunPosition(level, col, row, matches)` taking a neighbour predicate, with
   `bridgeRunPosition` becoming a one-line wrapper. The grass pass uses it with a
-  "ground and top-exposed" predicate. `isSolid`, `isSolidExcludingBridge` and the
-  bridge/ladder helpers are unchanged.
+  "`groundGrass` and top edge closed" predicate. `isSolid`, `isSolidExcludingBridge`,
+  `isTopExposed` and the bridge/ladder helpers are unchanged — the mask helper calls
+  `isSolidExcludingBridge`.
 - **`Renderer.ts`** — `tileSource`'s `groundGrass` branch consults the mask table instead
   of the fixed top/under lookup; `drawTerrain` takes the atlas as an additional image
   (only `groundGrass` sources from it) and gains a grass pass plus rotation support for
@@ -177,13 +191,6 @@ Manual verification uses the existing dev-only level editor to draw arbitrary te
 columns, thin platforms, overhangs, staircases, isolated tiles — and confirm each renders
 correctly in the running game.
 
-## Required art fix
-
-`c3r1` (closed T+B) is the middle of a one-cell-tall run, so the banding rule assigns it
-the **gradient**. It is currently flat dark, while the other T+B shapes (`c0r0`, `c1r0`,
-`c2r0`) carry the full ramp. Until it matches them, a thin platform three or more cells
-wide renders gradient ends around flat-dark middles.
-
 ## Open items
 
 - The bright→dark step at a run's first/second cell boundary is abrupt: `c4r0` ends near
@@ -195,9 +202,13 @@ wide renders gradient ends around flat-dark middles.
   is open and therefore dark. Treated as a spare slot.
 - L-only and R-only rely on rotating `c1r1`. If its mild vertical ramp reads badly
   rotated, draw them explicitly into `c5r2` / `c6r2`.
+- A one-tile-tall platform has no darkened underside border, since its bright cell leaves
+  the bottom edge open. Accepted: the top-edge-only rule is worth more than the border.
+  Restoring it would mean bringing back bottom-closed bright variants of the four bright
+  shapes — four new tiles, and the atlas has only two free slots.
 
-Note for any future gradient tiles: **mirror horizontally, never rotate.** A horizontal
-mirror preserves a vertical brightness ramp; rotation turns it sideways.
+Note for any tile carrying a vertical brightness ramp: **mirror horizontally, never
+rotate.** A horizontal mirror preserves the ramp; rotation turns it sideways.
 
 ## Retained reference material
 
