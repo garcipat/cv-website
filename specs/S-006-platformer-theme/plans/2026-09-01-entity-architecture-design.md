@@ -378,7 +378,7 @@ plan leaves a half-migrated world.
 | **1 — Lifecycle** (`2026-09-01-entity-lifecycle.md`) | Characterization tests, then `alive`/`rewardGiven`, revive-in-place, deletion of all three id-keyed ledgers. No abstraction. | The defect fix, independently |
 | **2 — Enemy modules** (`2026-09-01-enemy-modules.md`) | `Entity` base, sprite sheets and the discovering loader, per-type enemy modules, type-owned rendering, contact resolution, spikes relocated into `SlimePurple.ts`. | The enemy architecture and the shared sprite model |
 | **3 — Pickups** (`2026-09-02-pickup-modules.md`) | Sheet descriptors and per-type modules for coin, fruit, dropped key and bonus fruit; one overlap helper; type-owned rendering. | The pickup family |
-| **4 — Blocks and chests** (not yet written) | The same treatment for crate, question-mark, fragile rock and chest. | Those two families |
+| **4 — Blocks and chests** (`2026-09-02-block-chest-modules.md`) | The shared `world_tileset.png` as a sheet, per-kind modules for crate, question-mark and fragile rock, and the chest's two one-frame sheets. | Those two families |
 | **5 — Player** (not yet written) | `PLAYER_TYPE` holding the padding constants and sprite descriptor; `onDamage`/`onDeath` hooks. | The last family |
 
 Each plan is written via `superpowers:writing-plans` once its predecessor
