@@ -40,4 +40,7 @@ export const platformerPage = {
   get controlsOverlay() {
     return screen.getByTestId('platformer-controls-overlay');
   },
+  get floatingControlsThemeCombobox() {
+    return screen.getAllByRole('combobox')[0];
+  },
 };

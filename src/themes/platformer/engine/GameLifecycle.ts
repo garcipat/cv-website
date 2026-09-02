@@ -14,9 +14,9 @@ import {
  * `dying`: circle shrinking closed on death, game loop paused.
  * `awaitingRestart`: fully black, "Press any button to restart" shown,
  * game loop paused, waiting for input.
- * `paused`: the journal overlay is open (or, in a later step, the floating
- * controls are open) — game loop paused, no iris overlay drawn (the DOM
- * overlay covers the screen instead).
+ * `paused`: the journal overlay or the floating theme/locale controls are
+ * open — game loop paused, no iris overlay drawn (the DOM overlay covers the
+ * screen instead).
  * `ending-screen`: the Thank You screen is open (every chest in the level has
  * been opened, spec.md FR-024) — game loop paused, no iris overlay drawn (the
  * DOM overlay covers the screen instead), same as `paused`.

@@ -266,6 +266,24 @@ export const PlatformerPage = () => {
     setJournalClosing(false);
   }, []);
 
+  /**
+   * Pauses/resumes the game loop while the floating theme/locale controls
+   * (top-right, rendered below) are open — mirrors handleJournalToggle's
+   * phase guards. Only pauses from 'playing' (so it's a no-op while the
+   * journal or ending screen already own the pause), and only resumes if
+   * nothing else is still the reason the game is paused.
+   */
+  const handleFloatingControlsOpenChange = (open: boolean) => {
+    const phase = lifecycleState.value.phase;
+    if (open) {
+      if (phase !== 'playing') return;
+      lifecycleState.value = pauseForJournal(lifecycleState.value);
+    } else {
+      if (phase !== 'paused' || journalOpenRef.current || endingScreenOpen.value) return;
+      lifecycleState.value = resumeFromJournal(lifecycleState.value);
+    }
+  };
+
   // Wrapped in useCallback (empty deps, same reasoning as
   // handleJournalReallyClosed above) since ThankYouScreen depends on it for
   // its own keydown-listener effect.
@@ -1548,7 +1566,7 @@ export const PlatformerPage = () => {
   return (
     <div className="relative h-screen w-screen overflow-hidden">
       <canvas ref={canvasRef} data-testid="platformer-canvas" className="block" tabIndex={-1} />
-      <FloatingControls />
+      <FloatingControls onOpenChange={handleFloatingControlsOpenChange} />
       <ControlsOverlay />
       {journalOpen && (
         <Journal
