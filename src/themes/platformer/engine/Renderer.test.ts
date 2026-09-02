@@ -69,7 +69,7 @@ import {
 import type { DrawContext } from './DrawContext';
 
 const ENEMY_FRAME_SIZE = SLIME_GREEN_SHEET.frameWidth;
-import { RENDERED_TILE_SIZE } from '../level/Terrain';
+import { RENDERED_TILE_SIZE, TILE_SIZE } from '../level/Terrain';
 import {
   CHEST_CLOSED_WIDTH,
   CHEST_CLOSED_HEIGHT,
@@ -115,6 +115,61 @@ function makeMockContext() {
     lineWidth: 1,
     globalAlpha: 1,
   } as unknown as CanvasRenderingContext2D;
+}
+
+/** The subset of CanvasRenderingContext2D drawSkyBackground's offscreen
+ *  cloud-recolor canvas actually calls — see `stubOffscreenCanvas` below. */
+interface MockOffscreenCtx {
+  drawImage: ReturnType<typeof vi.fn>;
+  getImageData: ReturnType<typeof vi.fn>;
+  putImageData: ReturnType<typeof vi.fn>;
+}
+
+/**
+ * Watches `document.createElement('canvas')` for the duration of one test —
+ * used by drawSkyBackground's cloud-recolor tests, which create a small
+ * offscreen canvas internally. Delegates to the REAL `createElement` (this
+ * project's `src/test/setup.ts` already stubs every `HTMLCanvasElement`'s
+ * `getContext('2d')` globally, `getImageData`/`putImageData` included — see
+ * that file's own comment — so a real jsdom canvas works fine here without
+ * a second, parallel fake). Optionally pre-seeds the created canvas's
+ * `getImageData` return value (before production code ever calls it, by
+ * warming the context eagerly right after creation — the setup.ts mock
+ * caches one context object per canvas element, so this is the same object
+ * production code goes on to use) for tests that need to control the
+ * "source pixels" the recolor pass reads. `getCanvas()`/`getCtx()` are
+ * getters (not plain values) since the canvas doesn't exist until
+ * production code actually creates one. Call `restore()` in the test's own
+ * cleanup to un-watch `document.createElement`.
+ */
+function stubOffscreenCanvas(options?: { imageData?: Uint8ClampedArray }): {
+  getCanvas: () => HTMLCanvasElement;
+  getCtx: () => MockOffscreenCtx;
+  createElementSpy: ReturnType<typeof vi.spyOn>;
+  restore: () => void;
+} {
+  const realCreateElement = document.createElement.bind(document);
+  let canvas: HTMLCanvasElement | undefined;
+  let ctx: MockOffscreenCtx | undefined;
+  const createElementSpy = vi
+    .spyOn(document, 'createElement')
+    .mockImplementation((tag: string, opts?: ElementCreationOptions) => {
+      const el = realCreateElement(tag, opts);
+      if (tag === 'canvas') {
+        canvas = el as HTMLCanvasElement;
+        ctx = canvas.getContext('2d') as unknown as MockOffscreenCtx;
+        if (options?.imageData) {
+          ctx.getImageData.mockReturnValue({ data: options.imageData });
+        }
+      }
+      return el;
+    });
+  return {
+    getCanvas: () => canvas!,
+    getCtx: () => ctx!,
+    createElementSpy,
+    restore: () => createElementSpy.mockRestore(),
+  };
 }
 
 const fakeTileset = {} as HTMLImageElement;
@@ -1866,60 +1921,168 @@ describe('drawEnemies spike overlay', () => {
 describe('drawSkyBackground', () => {
   const SKY_COLOR = 'oklch(0.72 0.11 232)';
 
-  it('oneColumn-drawsWhiteRowsThenCloudRowThenFillsSkyColorDownToCanvasHeight', () => {
-    const ctx = makeMockContext() as unknown as {
-      drawImage: ReturnType<typeof vi.fn>;
-      fillRect: ReturnType<typeof vi.fn>;
-      fillStyle: string;
-    };
-    const canvasHeight = RENDERED_TILE_SIZE * (SKY_WHITE_ROW_COUNT + 2);
+  it('oneColumn-drawsWhiteRowsThenFillsSkyColorBehindTheRecoloredCloudTileThenFillsSkyColorDownToCanvasHeight', () => {
+    // Unique to this test — see sameSkyColorAcrossCalls's comment below on
+    // why the module-level cloud-tile cache makes shared colors order-dependent.
+    const UNIQUE_SKY_COLOR = 'oklch(0.72 0.11 232) /* oneColumn */';
+    const { getCanvas, restore } = stubOffscreenCanvas();
+    try {
+      const ctx = makeMockContext() as unknown as {
+        drawImage: ReturnType<typeof vi.fn>;
+        fillRect: ReturnType<typeof vi.fn>;
+        fillStyle: string;
+      };
+      const canvasHeight = RENDERED_TILE_SIZE * (SKY_WHITE_ROW_COUNT + 2);
 
-    drawSkyBackground(ctx as unknown as CanvasRenderingContext2D, fakeTileset, RENDERED_TILE_SIZE, canvasHeight, SKY_COLOR);
+      drawSkyBackground(ctx as unknown as CanvasRenderingContext2D, fakeTileset, RENDERED_TILE_SIZE, canvasHeight, UNIQUE_SKY_COLOR);
 
-    const calls = ctx.drawImage.mock.calls;
-    for (let row = 0; row < SKY_WHITE_ROW_COUNT; row++) {
-      expect(calls[row]).toEqual([fakeTileset, 0, 144, 16, 16, 0, row * RENDERED_TILE_SIZE, 32, 32]);
+      const calls = ctx.drawImage.mock.calls;
+      for (let row = 0; row < SKY_WHITE_ROW_COUNT; row++) {
+        expect(calls[row]).toEqual([fakeTileset, 0, 144, 16, 16, 0, row * RENDERED_TILE_SIZE, 32, 32]);
+      }
+      // The cloud tile itself is no longer blitted straight from `fakeTileset`
+      // (see `recoloredCloudTile`'s doc comment) — it's drawn from the
+      // recolored offscreen canvas, at the offscreen canvas's own (0, 0)
+      // origin rather than the tileset's SKY_CLOUD_SY source row, and at
+      // CLOUD_TILE_SCALE's larger destination size, not RENDERED_TILE_SIZE.
+      const cloudTileSize = RENDERED_TILE_SIZE * 1.5;
+      expect(calls[SKY_WHITE_ROW_COUNT]).toEqual([
+        getCanvas(),
+        0,
+        0,
+        16,
+        16,
+        0,
+        SKY_WHITE_ROW_COUNT * RENDERED_TILE_SIZE,
+        cloudTileSize,
+        cloudTileSize,
+      ]);
+      expect(calls).toHaveLength(SKY_WHITE_ROW_COUNT + 1);
+      expect(ctx.fillStyle).toBe(UNIQUE_SKY_COLOR);
+      // Filled once behind the cloud row (so the recolored tile's transparent
+      // pixels show skyColor, not whatever was drawn underneath before), and
+      // once more for the flat sky below the cloud row down to canvas height.
+      const cloudRowY = SKY_WHITE_ROW_COUNT * RENDERED_TILE_SIZE;
+      expect(ctx.fillRect).toHaveBeenCalledWith(0, cloudRowY, RENDERED_TILE_SIZE, cloudTileSize);
+      const blueStartY = cloudRowY + cloudTileSize;
+      expect(ctx.fillRect).toHaveBeenCalledWith(0, blueStartY, RENDERED_TILE_SIZE, canvasHeight - blueStartY);
+    } finally {
+      restore();
     }
-    expect(calls[SKY_WHITE_ROW_COUNT]).toEqual([
-      fakeTileset,
-      0,
-      160,
-      16,
-      16,
-      0,
-      SKY_WHITE_ROW_COUNT * RENDERED_TILE_SIZE,
-      32,
-      32,
-    ]);
-    expect(calls).toHaveLength(SKY_WHITE_ROW_COUNT + 1);
-    expect(ctx.fillStyle).toBe(SKY_COLOR);
-    const blueStartY = (SKY_WHITE_ROW_COUNT + 1) * RENDERED_TILE_SIZE;
-    expect(ctx.fillRect).toHaveBeenCalledWith(0, blueStartY, RENDERED_TILE_SIZE, canvasHeight - blueStartY);
   });
 
-  it('multipleColumns-tilesWhiteAndCloudBandsAcrossFullCanvasWidth', () => {
-    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-    const canvasHeight = RENDERED_TILE_SIZE * (SKY_WHITE_ROW_COUNT + 1);
+  it('multipleColumns-tilesWhiteRowsAtRenderedTileSizeAndCloudRowAtItsOwnLargerStride', () => {
+    // The cloud tile is bigger than RENDERED_TILE_SIZE (CLOUD_TILE_SCALE), so
+    // it tiles at its own stride, independent of the white rows' — this test
+    // checks each band's x positions separately rather than pooling them
+    // into one set, since they're no longer the same values.
+    const { getCanvas, restore } = stubOffscreenCanvas();
+    try {
+      const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+      const canvasWidth = RENDERED_TILE_SIZE * 3;
+      const canvasHeight = RENDERED_TILE_SIZE * (SKY_WHITE_ROW_COUNT + 2);
 
-    drawSkyBackground(
-      ctx as unknown as CanvasRenderingContext2D,
-      fakeTileset,
-      RENDERED_TILE_SIZE * 2,
-      canvasHeight,
-      SKY_COLOR,
-    );
+      drawSkyBackground(ctx as unknown as CanvasRenderingContext2D, fakeTileset, canvasWidth, canvasHeight, SKY_COLOR);
 
-    const xPositions = new Set(ctx.drawImage.mock.calls.map((c: unknown[]) => c[5]));
-    expect(xPositions).toEqual(new Set([0, RENDERED_TILE_SIZE]));
+      const cloudCanvas = getCanvas();
+      const whiteXPositions = new Set(
+        ctx.drawImage.mock.calls.filter((c: unknown[]) => c[0] === fakeTileset).map((c: unknown[]) => c[5]),
+      );
+      expect(whiteXPositions).toEqual(new Set([0, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE * 2]));
+
+      const cloudTileSize = RENDERED_TILE_SIZE * 1.5;
+      const cloudXPositions = new Set(
+        ctx.drawImage.mock.calls.filter((c: unknown[]) => c[0] === cloudCanvas).map((c: unknown[]) => c[5]),
+      );
+      expect(cloudXPositions).toEqual(new Set([0, cloudTileSize]));
+    } finally {
+      restore();
+    }
   });
 
-  it('shortCanvas-fillsNoSkyColor', () => {
-    const ctx = makeMockContext() as unknown as { fillRect: ReturnType<typeof vi.fn> };
-    const canvasHeight = RENDERED_TILE_SIZE * (SKY_WHITE_ROW_COUNT + 1);
+  it('shortCanvas-stillFillsBehindTheCloudRowButNotTheSkyBelowIt', () => {
+    const { restore } = stubOffscreenCanvas();
+    try {
+      const ctx = makeMockContext() as unknown as { fillRect: ReturnType<typeof vi.fn> };
+      // Exactly tall enough for the cloud row and nothing more — the old
+      // "no fillRect at all" behavior no longer applies, since the cloud
+      // row itself always needs its skyColor backing fill regardless of
+      // canvas height; only the sky fill BELOW the cloud row is skipped.
+      const canvasHeight = RENDERED_TILE_SIZE * (SKY_WHITE_ROW_COUNT + 1);
 
-    drawSkyBackground(ctx as unknown as CanvasRenderingContext2D, fakeTileset, RENDERED_TILE_SIZE, canvasHeight, SKY_COLOR);
+      drawSkyBackground(ctx as unknown as CanvasRenderingContext2D, fakeTileset, RENDERED_TILE_SIZE, canvasHeight, SKY_COLOR);
 
-    expect(ctx.fillRect).not.toHaveBeenCalled();
+      const cloudRowY = SKY_WHITE_ROW_COUNT * RENDERED_TILE_SIZE;
+      const cloudTileSize = RENDERED_TILE_SIZE * 1.5;
+      expect(ctx.fillRect).toHaveBeenCalledTimes(1);
+      expect(ctx.fillRect).toHaveBeenCalledWith(0, cloudRowY, RENDERED_TILE_SIZE, cloudTileSize);
+    } finally {
+      restore();
+    }
+  });
+
+  it('cloudTileSourcePixels-onlyNearWhitePixelsSurviveRecoloring', () => {
+    // A 2-pixel fake source: pixel 0 near-white (should survive, alpha kept),
+    // pixel 1 the tileset's own blue (should be cut to fully transparent).
+    // Unique color, same reasoning as oneColumn's comment above. Seeded via
+    // stubOffscreenCanvas's `imageData` option — the offscreen ctx doesn't
+    // exist until drawSkyBackground creates it, so this must be provided
+    // up front rather than configured on a ctx object we don't have yet.
+    const UNIQUE_SKY_COLOR = 'oklch(0.72 0.11 232) /* cloudTileSourcePixels */';
+    const data = new Uint8ClampedArray(TILE_SIZE * TILE_SIZE * 4).fill(0);
+    data.set([255, 255, 255, 255], 0); // near-white pixel
+    data.set([40, 90, 200, 255], 4); // the tileset's own blue
+    const { getCtx, restore } = stubOffscreenCanvas({ imageData: data });
+    try {
+      const ctx = makeMockContext();
+      drawSkyBackground(ctx, fakeTileset, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE * (SKY_WHITE_ROW_COUNT + 1), UNIQUE_SKY_COLOR);
+
+      const putData = getCtx().putImageData.mock.calls[0][0].data as Uint8ClampedArray;
+      expect(putData[3]).toBe(255); // near-white pixel's alpha untouched
+      expect(putData[7]).toBe(0); // blue pixel's alpha zeroed
+    } finally {
+      restore();
+    }
+  });
+
+  it('sameSkyColorAcrossCalls-recolorsTheCloudTileOnlyOnce', () => {
+    // A skyColor literal used nowhere else in this file — the cache is
+    // module-level and persists across tests, so reusing SKY_COLOR here
+    // would make this assertion depend on what earlier tests already
+    // cached, which is exactly what this test must NOT depend on.
+    const UNIQUE_SKY_COLOR = 'oklch(0.51 0.07 111) /* sameSkyColorAcrossCalls */';
+    const { createElementSpy, restore } = stubOffscreenCanvas();
+    try {
+      const ctx = makeMockContext();
+      const canvasHeight = RENDERED_TILE_SIZE * (SKY_WHITE_ROW_COUNT + 1);
+
+      drawSkyBackground(ctx, fakeTileset, RENDERED_TILE_SIZE, canvasHeight, UNIQUE_SKY_COLOR);
+      drawSkyBackground(ctx, fakeTileset, RENDERED_TILE_SIZE, canvasHeight, UNIQUE_SKY_COLOR);
+
+      const canvasCreations = createElementSpy.mock.calls.filter((c: unknown[]) => c[0] === 'canvas');
+      expect(canvasCreations).toHaveLength(1);
+    } finally {
+      restore();
+    }
+  });
+
+  it('differentSkyColor-recolorsTheCloudTileAgain', () => {
+    // Same reasoning as above: both colors here are unique to this test.
+    const FIRST_SKY_COLOR = 'oklch(0.12 0.03 20) /* differentSkyColor-a */';
+    const SECOND_SKY_COLOR = 'oklch(0.34 0.09 300) /* differentSkyColor-b */';
+    const { createElementSpy, restore } = stubOffscreenCanvas();
+    try {
+      const ctx = makeMockContext();
+      const canvasHeight = RENDERED_TILE_SIZE * (SKY_WHITE_ROW_COUNT + 1);
+
+      drawSkyBackground(ctx, fakeTileset, RENDERED_TILE_SIZE, canvasHeight, FIRST_SKY_COLOR);
+      drawSkyBackground(ctx, fakeTileset, RENDERED_TILE_SIZE, canvasHeight, SECOND_SKY_COLOR);
+
+      const canvasCreations = createElementSpy.mock.calls.filter((c: unknown[]) => c[0] === 'canvas');
+      expect(canvasCreations).toHaveLength(2);
+    } finally {
+      restore();
+    }
   });
 });
 
