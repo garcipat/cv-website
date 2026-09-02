@@ -293,10 +293,7 @@ describe('EditorCanvas', () => {
     expect(drawChests).toHaveBeenCalledWith(
       expect.anything(),
       expect.arrayContaining([expect.objectContaining({ id: 'editor-chest-0' })]),
-      null,
-      null,
-      5,
-      7,
+      expect.objectContaining({ originX: 5, originY: 7 }),
     );
   });
 
