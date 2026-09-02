@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FloatingControls } from './components/FloatingControls';
+import { FloatingControls } from '@/components/FloatingControls';
 import { loadImage } from './engine/SpriteLoader';
 import { loadFont } from './engine/FontLoader';
 import {

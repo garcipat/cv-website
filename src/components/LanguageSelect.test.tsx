@@ -44,4 +44,14 @@ describe('LanguageSelect', () => {
     expect(screen.getAllByText('Englisch').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Deutsch').length).toBeGreaterThanOrEqual(1);
   });
+
+  it('open-doesNotAlignItemWithTrigger', async () => {
+    const { LanguageSelect } = await setupEnglish();
+    render(<LanguageSelect />);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('combobox'));
+
+    const popup = document.querySelector('[data-slot="select-content"]');
+    expect(popup).toHaveAttribute('data-align-trigger', 'false');
+  });
 });

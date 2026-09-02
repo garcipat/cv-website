@@ -33,7 +33,7 @@ export const ThemeSelect = () => {
       <SelectTrigger className="w-[160px]">
         <SelectValue placeholder={currentUI.value.themes.select} />
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent alignItemWithTrigger={false}>
         {themeIds.map((id) => (
           <SelectItem key={id} value={id}>
             {currentUI.value.themes[id]}
