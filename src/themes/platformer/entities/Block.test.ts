@@ -7,6 +7,7 @@ import {
   isBlockUsedUp,
   isBlockRemoved,
   applyBlockHit,
+  blockEffectAnchor,
 } from './Block';
 import { TILE_SIZE, RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { BlockPlacement } from '../level/BlockMapper';
@@ -131,5 +132,19 @@ describe('applyBlockHit', () => {
   it('alreadyUsedUpBlock-isANoOp', () => {
     const usedUp = { ...toBlockState(placement('fragileRock')), hitsTaken: 1, animState: 'idle' as const };
     expect(applyBlockHit(usedUp)).toBe(usedUp);
+  });
+});
+
+describe('blockEffectAnchor', () => {
+  it('anyBlock-centersOnItsOwnTile-notTopLeftCorner', () => {
+    const block = toBlockState({ id: 'rock-1', blockKind: 'fragileRock', x: 320, y: 96 });
+    const anchor = blockEffectAnchor(block);
+    expect(anchor.x).toBe(320 + BLOCK_RENDERED_SIZE / 2);
+    expect(anchor.y).toBe(96 + BLOCK_RENDERED_SIZE / 2);
+  });
+
+  it('anyBlock-scaleIsAlways1-blocksAreAllOneTileSize', () => {
+    const block = toBlockState({ id: 'crate-1', blockKind: 'crate', x: 0, y: 0 });
+    expect(blockEffectAnchor(block).scale).toBe(1);
   });
 });

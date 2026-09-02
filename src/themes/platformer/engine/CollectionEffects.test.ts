@@ -12,7 +12,10 @@ import {
   startCounterPopup,
   tickCounterPopup,
   counterPopupOpacity,
+  startPuffEffect,
+  tickPuffEffect,
 } from './CollectionEffects';
+import type { PuffEffect } from './CollectionEffects';
 
 describe('startFlightEffect', () => {
   it('called-returns-risingPhaseAtZeroElapsed', () => {
@@ -158,6 +161,42 @@ describe('sparkleParticles', () => {
 
   it('pastDuration-returnsEmptyArray', () => {
     expect(sparkleParticles(SPARKLE_DURATION_SECONDS + 0.01)).toEqual([]);
+  });
+});
+
+describe('sparkleParticles scale', () => {
+  it('scaleOf2-doublesEveryParticlesOffsetFromDefault', () => {
+    const base = sparkleParticles(SPARKLE_DURATION_SECONDS / 2);
+    const scaled = sparkleParticles(SPARKLE_DURATION_SECONDS / 2, 2);
+    expect(scaled).toHaveLength(base.length);
+    scaled.forEach((particle, i) => {
+      expect(particle.dx).toBeCloseTo(base[i].dx * 2);
+      expect(particle.dy).toBeCloseTo(base[i].dy * 2);
+    });
+  });
+
+  it('noScaleArgument-behavesExactlyLikeScaleOf1', () => {
+    const withDefault = sparkleParticles(SPARKLE_DURATION_SECONDS / 2);
+    const explicit = sparkleParticles(SPARKLE_DURATION_SECONDS / 2, 1);
+    expect(withDefault).toEqual(explicit);
+  });
+});
+
+describe('startPuffEffect / tickPuffEffect', () => {
+  it('startPuffEffect-noScaleArgument-defaultsScaleTo1', () => {
+    const effect = startPuffEffect('rock-1', 100, 200);
+    expect(effect).toEqual<PuffEffect>({ id: 'rock-1', x: 100, y: 200, scale: 1, elapsed: 0 });
+  });
+
+  it('startPuffEffect-withScale-storesIt', () => {
+    const effect = startPuffEffect('slime-1', 50, 60, 1.5);
+    expect(effect.scale).toBe(1.5);
+  });
+
+  it('tickPuffEffect-advancesElapsedByDt-preservesEverythingElse', () => {
+    const effect = startPuffEffect('rock-1', 100, 200, 1.5);
+    const ticked = tickPuffEffect(effect, 0.1);
+    expect(ticked).toEqual<PuffEffect>({ id: 'rock-1', x: 100, y: 200, scale: 1.5, elapsed: 0.1 });
   });
 });
 

@@ -2,7 +2,7 @@
 
 **Bug ID**: B-003
 **Found In**: S-006 (Platformer theme), entity architecture work
-**Status**: Open
+**Status**: Resolved — fixed in roadmap step 34 (branch `S-006-step34-world-event-puff`)
 **Severity**: Minor (visual feedback missing in reachable cases)
 
 ## Description

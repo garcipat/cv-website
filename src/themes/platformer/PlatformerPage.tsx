@@ -11,6 +11,7 @@ import {
   drawBlocks,
   drawBonusFruits,
   drawCollectionEffects,
+  drawPuffEffects,
   drawCounterPopups,
   drawChests,
   drawChestCounter,
@@ -61,7 +62,14 @@ import {
 } from './engine/Collision';
 import { openChest, allChestsOpen, isChestOpen, CHEST_CLOSED_OFFSET_X } from './entities/Chest';
 import { stepBlockAnimation } from './engine/BlockAI';
-import { applyBlockHit, isBlockUsedUp, isBlockRemoved, blockFrameSource, BLOCK_FRAME_SIZE } from './entities/Block';
+import {
+  applyBlockHit,
+  isBlockUsedUp,
+  isBlockRemoved,
+  blockFrameSource,
+  BLOCK_FRAME_SIZE,
+  blockEffectAnchor,
+} from './entities/Block';
 import { spawnBonusFruit, tickBonusFruit, bonusFruitY } from './entities/BonusFruit';
 import { spawnKeyPickup, KEY_TILE_OFFSET_X, KEY_TILE_OFFSET_Y } from './entities/KeyPickup';
 import {
@@ -71,6 +79,9 @@ import {
   startCounterPopup,
   tickCounterPopup,
   counterPopupOpacity,
+  startPuffEffect,
+  tickPuffEffect,
+  SPARKLE_DURATION_SECONDS,
 } from './engine/CollectionEffects';
 import { coinFrameSource, COIN_FRAME_SIZE } from './entities/Coin';
 import { fruitFrameSource, FRUIT_FRAME_SIZE } from './entities/Fruit';
@@ -89,7 +100,7 @@ import {
   PLAYER_HEAD_PADDING,
 } from './entities/Player';
 import { isInvulnerable } from './entities/capabilities';
-import { advanceEnemyAnimation } from './entities/Enemy';
+import { advanceEnemyAnimation, enemyEffectAnchor } from './entities/Enemy';
 import {
   SLIME_GREEN_SHEET,
   KEY_SHEET,
@@ -129,6 +140,7 @@ import {
   hintTooltipState,
   keyPickupStates,
   collectedKeys,
+  activePuffs,
 } from './PlatformerState';
 import { useSignals } from '@preact/signals-react/runtime';
 import { Journal } from './components/Journal';
@@ -451,6 +463,7 @@ export const PlatformerPage = () => {
       }
 
       drawCollectionEffects(ctx, activeEffects.value);
+      drawPuffEffects(ctx, activePuffs.value);
 
       // Trial counter popups (see activeCounterPopups's doc comment in
       // PlatformerState.ts): drawn above
@@ -685,19 +698,27 @@ export const PlatformerPage = () => {
       // `enemyStates` — render and collision already skip a dead enemy, so
       // there's nothing left to remove.
       //
-      // An enemy is rewarded exactly once for the lifetime of the session:
-      // `alive` goes false on the finishing stomp and `rewardGiven` is set the
-      // same tick (see the end of this block), so a revived enemy stomped
-      // again in a later life is never selected here again.
+      // `alive` goes false on the finishing stomp; `deathEffectGiven` is set
+      // the same tick (see the end of this block) and resets on revive, so a
+      // revived enemy stomped again in a later life IS selected here again —
+      // its new death still deserves its own puff/flight effect. `rewardGiven`
+      // is separate and permanent: it gates whether anything is actually paid
+      // out (fact or key), not whether the enemy is selected below.
       //
       // Checked before the collectible block so both effects can coexist in
       // `newEffects` without one clobbering the other within the same tick —
       // each block builds off `activeEffects.value` as it stands when it
       // runs, same convention the collectible block already uses.
-      const justDefeated = enemyStates.value.filter((e) => !e.alive && !e.rewardGiven);
+      // !deathEffectGiven (not !rewardGiven) is what makes a revived enemy
+      // defeated a second time show up here again — rewardGiven stays true
+      // forever once anything has been given (see Enemy.ts's baseRevive doc
+      // comment), but deathEffectGiven resets on revive, since a new life's
+      // death still deserves its own visual effect. See B-003.
+      const justDefeated = enemyStates.value.filter((e) => !e.alive && !e.deathEffectGiven);
       if (justDefeated.length > 0) {
         const newFacts = [...collectedFacts.value];
         const newEffects = [...activeEffects.value];
+        const newPuffs = [...activePuffs.value];
         const journalRect = journalButtonRef.current?.getBoundingClientRect();
         const targetX = journalRect ? journalRect.left + journalRect.width / 2 : canvas.width - 32;
         const targetY = journalRect ? journalRect.top + journalRect.height / 2 : canvas.height - 32;
@@ -709,25 +730,44 @@ export const PlatformerPage = () => {
 
         let anyEnemyRewarded = false;
         for (const enemy of justDefeated) {
+          const anchor = enemyEffectAnchor(enemy);
+          const puffX = anchor.x + originX;
+          const puffY = anchor.y + originY;
+
           // A defeated purple slime carries no fact at all — it drops a key
-          // pickup instead (spec.md User Story 4). `justDefeated`'s
-          // `!rewardGiven` filter already guarantees this fires once per
-          // enemy for the whole session, so no membership check against
-          // `keyPickupStates` is needed here.
+          // pickup instead (spec.md User Story 4).
           if (typeOf(enemy).heldItem === 'key') {
-            keyPickupStates.value = [...keyPickupStates.value, spawnKeyPickup(enemy.id, enemy.x, enemy.y)];
+            // A purple slime carries no fact — its finishing stomp always
+            // gets a puff. A key pickup is dropped only the FIRST time
+            // (rewardGiven false); a revived-and-redefeated purple slime
+            // still puffs on later deaths but drops nothing further, since
+            // it already gave its one key.
+            if (!enemy.rewardGiven) {
+              keyPickupStates.value = [...keyPickupStates.value, spawnKeyPickup(enemy.id, enemy.x, enemy.y)];
+            }
+            newPuffs.push(startPuffEffect(enemy.id, puffX, puffY, anchor.scale));
             continue;
           }
-          // A "plain" enemy (a marker beyond its color's CVData course
-          // count, see EnemyMapper.ts) carries no fact at all — it stays dead
-          // in the array with no reward.
-          //
-          // Facts are 1:1 with enemies by construction (EnemyMapper.ts zips
-          // each CVData entry to exactly one marker), and `rewardGiven`
-          // already guarantees one payout per enemy, so no membership check
-          // against `newFacts` is needed.
+
           const fact = enemy.fact;
-          if (!fact) continue;
+          if (!fact || enemy.rewardGiven) {
+            // Either a "plain" enemy (a marker beyond its color's CVData
+            // course count, see EnemyMapper.ts) that never had a fact to
+            // give, or a revived enemy defeated again after already paying
+            // out its fact (rewardGiven permanent — see Enemy.ts's
+            // baseRevive doc comment). Either way: nothing left to reward,
+            // but the defeat itself is still a world event that deserves a
+            // puff (B-003).
+            newPuffs.push(startPuffEffect(enemy.id, puffX, puffY, anchor.scale));
+            continue;
+          }
+
+          // A fresh fact-bearing defeat: puff and reward are fully decoupled
+          // layers (puff = destruction/defeat feedback, flight text = reward
+          // feedback), same as crate destruction below — the defeat is a
+          // world event that always deserves a puff, independent of whether
+          // it also happens to award a fact (B-003).
+          newPuffs.push(startPuffEffect(enemy.id, puffX, puffY, anchor.scale));
           anyEnemyRewarded = true;
           newFacts.push(fact);
           // Reuses the journal's own title/icon derivation — formatJournalEntry
@@ -753,18 +793,20 @@ export const PlatformerPage = () => {
           );
         }
 
-        // Flag every selected enemy — including plain enemies with no reward
-        // at all — so `justDefeated`'s `!rewardGiven` filter never selects it
-        // again. This is the one remaining id use, and it is local to a
-        // single tick: it maps a just-computed subset back onto the array,
-        // not a lookup into persisted state.
-        const rewardedIds = new Set(justDefeated.map((e) => e.id));
+        // Every defeated enemy is marked processed (deathEffectGiven) so it
+        // isn't selected into justDefeated again next tick. rewardGiven is
+        // ALSO set for every one of them, not only fact-bearing ones — a
+        // "plain" enemy or a purple slime's key drop are just as much "its
+        // one payout" as a fact is (see Enemy.ts's baseRevive doc comment):
+        // there is nothing further to ever give any of them again.
+        const processedIds = new Set(justDefeated.map((e) => e.id));
         enemyStates.value = enemyStates.value.map((e) =>
-          rewardedIds.has(e.id) ? { ...e, rewardGiven: true } : e,
+          processedIds.has(e.id) ? { ...e, rewardGiven: true, deathEffectGiven: true } : e,
         );
 
         collectedFacts.value = newFacts;
         activeEffects.value = newEffects;
+        activePuffs.value = newPuffs;
         if (anyEnemyRewarded) {
           const enemyDefeated = newFacts.filter((f) => f.sourceType === 'enemy').length;
           // Denominator counts only fact-bearing placements — a "plain"
@@ -781,6 +823,10 @@ export const PlatformerPage = () => {
       activeEffects.value = activeEffects.value
         .map((effect) => tickFlightEffect(effect, dt))
         .filter((effect) => effect.phase !== 'done');
+
+      activePuffs.value = activePuffs.value
+        .map((puff) => tickPuffEffect(puff, dt))
+        .filter((puff) => puff.elapsed <= SPARKLE_DURATION_SECONDS);
 
       const tickedPopups = { ...activeCounterPopups.value };
       let popupsChanged = false;
@@ -1203,29 +1249,20 @@ export const PlatformerPage = () => {
             ];
           }
 
-          // FragileRock's terminal hit (breaks to empty space, no fact, no
-          // reward — FR-022c) still gets a visual "puff": the same
-          // sparkle-burst mechanism every other reward pickup already plays
-          // (drawCollectionEffects reads
-          // `effect.startX/startY`, independent of `effect.text`), with an
-          // empty label and no target-flight destination that matters since
-          // nothing is actually flying anywhere — the sparkle at the
-          // collection point is the only visible part.
-          if (block.blockKind === 'fragileRock') {
-            // Centered on the fragileRock's own tile, not its top-left
-            // corner. The burst's size itself (SPARKLE_RADIUS_PX/
-            // SPARKLE_MAX_RADIUS in CollectionEffects.ts/Renderer.ts) is a
-            // shared constant every collection effect uses, not
-            // parameterized per-effect — scaling it up just for rocks would
-            // mean threading a size override through
-            // FlightEffect/sparkleParticles/drawCollectionEffects, affecting
-            // every other effect's call sites too, so it stays at the shared
-            // default.
-            const puffX = block.x + originX + RENDERED_TILE_SIZE / 2;
-            const puffY = block.y + originY + RENDERED_TILE_SIZE / 2;
-            activeEffects.value = [
-              ...activeEffects.value,
-              startFlightEffect(block.id, '', puffX, puffY, puffX, puffY, puffX, puffY),
+          // A block's terminal hit — any kind that's removed once used up
+          // (crate, fragileRock; not questionMark, which never breaks) —
+          // gets a visual "puff": a standalone world-event burst
+          // (CollectionEffects.ts's PuffEffect / Renderer.ts's
+          // drawPuffEffects), independent of whether a reward is also
+          // awarded below. This used to be duplicated per block kind (and
+          // fragileRock used to fake a burst-only effect via an empty-label
+          // FlightEffect with all coordinates equal); both hacks are gone —
+          // see B-003.
+          if (BLOCK_TYPES[block.blockKind].removeWhenUsedUp && isBlockUsedUp(block)) {
+            const anchor = blockEffectAnchor(block);
+            activePuffs.value = [
+              ...activePuffs.value,
+              startPuffEffect(block.id, anchor.x + originX, anchor.y + originY, anchor.scale),
             ];
           }
 
