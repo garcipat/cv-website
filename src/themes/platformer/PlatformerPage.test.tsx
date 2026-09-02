@@ -226,9 +226,15 @@ describe('PlatformerPage', () => {
 
     await waitFor(() => expect(ctx.drawImage).toHaveBeenCalled());
 
-    const bottomEdges = ctx.drawImage.mock.calls.map(
-      (call: unknown[]) => (call[6] as number) + (call[8] as number), // dy + dh
-    );
+    // Excludes the water foreground's own tiles (sx 64 — see Renderer.ts's
+    // WATER_TILE_SX): that band is deliberately drawn to overhang the
+    // canvas's bottom edge by half a tile (drawWaterForeground's half-tile
+    // overlap with the level's last row), which is a different, intentional
+    // invariant from THIS test's — that the level's own TERRAIN is
+    // bottom-anchored flush with the canvas.
+    const bottomEdges = ctx.drawImage.mock.calls
+      .filter((call: unknown[]) => call[1] !== 64)
+      .map((call: unknown[]) => (call[6] as number) + (call[8] as number)); // dy + dh
     expect(Math.max(...bottomEdges)).toBe(768);
   });
 
