@@ -722,6 +722,14 @@ they aren't lost, not in priority order.
   design captured in `docs/ideas/platformer-level-editor.md`; not yet a
   numbered step.
 
+- **Entity architecture follow-ups** — enemies, pickups, blocks and chests are now
+  self-contained type modules owning their sprites, data and rendering. What remains
+  (the player family, world-event puffs, pickup lifecycle), what adding a new type
+  actually costs across the level/editor surface, and the loose ends worth closing are
+  recorded in
+  `plans/2026-09-02-entity-architecture-followups.md`. Defects found during that work
+  are filed as B-003, B-004 and B-005 in `docs/Bugs.md`.
+
 ## Working agreement
 
 - One step = one small implementation plan (via `writing-plans`), TDD (tests first,
