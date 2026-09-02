@@ -174,15 +174,47 @@ export interface SparkleParticle {
  * fading, in place of a full particle system — see the coin-collection
  * plan's "Key design decisions". Returns offsets (dx/dy) relative to the
  * collection point, not absolute positions, so the caller (Renderer.ts)
- * just adds them to wherever the collectible was.
+ * just adds them to wherever the collectible was. `scale` multiplies the
+ * ring's radius (default 1, unchanged from before this parameter existed) —
+ * PuffEffect below uses it to make a bigger entity's puff visibly bigger.
  */
-export function sparkleParticles(elapsedSinceCollect: number): SparkleParticle[] {
+export function sparkleParticles(elapsedSinceCollect: number, scale = 1): SparkleParticle[] {
   if (elapsedSinceCollect < 0 || elapsedSinceCollect > SPARKLE_DURATION_SECONDS) return [];
   const progress = elapsedSinceCollect / SPARKLE_DURATION_SECONDS;
-  const radius = SPARKLE_MAX_RADIUS * progress;
+  const radius = SPARKLE_MAX_RADIUS * scale * progress;
   const opacity = 1 - progress;
   return Array.from({ length: SPARKLE_COUNT }, (_, i) => {
     const angle = (i / SPARKLE_COUNT) * Math.PI * 2;
     return { dx: Math.cos(angle) * radius, dy: Math.sin(angle) * radius, opacity };
   });
+}
+
+/**
+ * A standalone sparkle burst at a world event — an enemy defeated, a block
+ * broken — that carries no fact and flies nowhere (unlike FlightEffect,
+ * which is always fact-bearing). Kept as its own type rather than a
+ * degenerate FlightEffect (empty text, equal start/mid/target coordinates):
+ * see B-003 (docs/bugs/B-003-puff-bound-to-fact-reward/ticket.md) for why
+ * that hack was the wrong shape. `scale` lets a bigger entity (a purple
+ * slime vs. a green slime) produce a visibly bigger burst — see
+ * entities/Enemy.ts's `enemyEffectAnchor`.
+ */
+export interface PuffEffect {
+  id: string;
+  x: number;
+  y: number;
+  scale: number;
+  elapsed: number;
+}
+
+export function startPuffEffect(id: string, x: number, y: number, scale = 1): PuffEffect {
+  return { id, x, y, scale, elapsed: 0 };
+}
+
+/** Advances the puff by `dt` seconds. No phase machine (unlike
+ *  tickFlightEffect) — a puff has exactly one phase, bursting, and callers
+ *  filter it out once `elapsed` passes SPARKLE_DURATION_SECONDS (same bound
+ *  `sparkleParticles` itself already enforces by returning `[]`). */
+export function tickPuffEffect(effect: PuffEffect, dt: number): PuffEffect {
+  return { ...effect, elapsed: effect.elapsed + dt };
 }
