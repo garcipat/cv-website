@@ -892,36 +892,16 @@ describe('drawCollectionEffects', () => {
     expect(ctx.fillText).not.toHaveBeenCalled();
   });
 
-  it('freshEffect-drawsSixSparkleCircles', () => {
+  it('freshEffect-drawsNoSparkleCircles-sparkleIsNowPuffOnly', () => {
+    // Sparkle bursts are exclusively PuffEffect's concern now (see
+    // drawPuffEffects below) — a flight effect (coin/fruit/key/enemy-fact
+    // collection) shows only its flying text, never a sparkle ring.
     const ctx = makeMockContext() as unknown as { arc: ReturnType<typeof vi.fn> };
     const effect = startFlightEffect('a', 'German', 50, 60, 400, 300, 900, 900);
-
-    drawCollectionEffects(ctx as unknown as CanvasRenderingContext2D, [effect]);
-
-    expect(ctx.arc).toHaveBeenCalledTimes(6);
-  });
-
-  it('sparkleExpired-doesNotDrawSparkleCircles', () => {
-    const ctx = makeMockContext() as unknown as { arc: ReturnType<typeof vi.fn> };
-    const effect = tickFlightEffect(
-      startFlightEffect('a', 'German', 50, 60, 400, 300, 900, 900),
-      SPARKLE_DURATION_SECONDS + 0.01,
-    );
 
     drawCollectionEffects(ctx as unknown as CanvasRenderingContext2D, [effect]);
 
     expect(ctx.arc).not.toHaveBeenCalled();
-  });
-
-  it('freshEffect-sparkleRadiusUnchangedByThePuffRefactor', () => {
-    const ctx = makeMockContext() as unknown as { arc: ReturnType<typeof vi.fn> };
-    const effect = startFlightEffect('a', 'German', 50, 60, 400, 300, 900, 900);
-
-    drawCollectionEffects(ctx as unknown as CanvasRenderingContext2D, [effect]);
-
-    // SPARKLE_RADIUS_PX is 3 and not exported — asserted by value, matching
-    // this file's existing convention of asserting on ctx.arc's 3rd argument.
-    expect(ctx.arc.mock.calls[0][2]).toBe(3);
   });
 });
 
