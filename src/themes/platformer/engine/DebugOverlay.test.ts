@@ -41,6 +41,9 @@ const idlePlayer: PlayerState = {
   knockbackTimer: 0,
   bounceAscending: false,
   hitBlockIds: [],
+  hitPoints: 6,
+  alive: true,
+  hitTimer: 0,
 };
 
 describe('drawDebugOverlay', () => {

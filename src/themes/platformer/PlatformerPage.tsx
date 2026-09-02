@@ -102,7 +102,6 @@ import {
   playerState,
   cameraPositionX,
   cameraPositionY,
-  healthState,
   lifecycleState,
   spawnCenter,
   resetGame,
@@ -296,7 +295,7 @@ export const PlatformerPage = () => {
   };
 
   const handleDebugKill = () => {
-    healthState.value = 0;
+    playerState.value = { ...playerState.value, hitPoints: 0 };
     const p = playerState.value;
     lifecycleState.value = startDeath(p.x + PLAYER_RENDERED_SIZE / 2, p.y + PLAYER_VISUAL_CENTER_Y_OFFSET);
     // Death immediately halts the hint-tick block below (the game loop skips
@@ -499,7 +498,7 @@ export const PlatformerPage = () => {
         drawDebugOverlay(ctx, playerState.value, currentLevel.value, originX, originY, enemyStates.value);
 
       if (heartsSpriteRef.current) {
-        drawHearts(ctx, healthState.value, heartsSpriteRef.current, HEARTS_START_X);
+        drawHearts(ctx, playerState.value.hitPoints, heartsSpriteRef.current, HEARTS_START_X);
       }
 
       if (chestClosedSpriteRef.current && chestPlacements.value.length > 0) {
@@ -1099,7 +1098,10 @@ export const PlatformerPage = () => {
       // Damage is dropped entirely while invincible, so one persisting
       // overlap can't register a fresh hit every tick.
       if (contacts.damagePlayer > 0 && playerState.value.invincibleTimer <= 0) {
-        healthState.value = takeDamage(healthState.value, contacts.damagePlayer);
+        playerState.value = {
+          ...playerState.value,
+          hitPoints: takeDamage(playerState.value.hitPoints, contacts.damagePlayer),
+        };
         playerState.value = applyKnockback(
           playerState.value,
           contacts.knockbackDirection,
@@ -1264,7 +1266,7 @@ export const PlatformerPage = () => {
         // or the character would keep falling forever while merely
         // invincible from an earlier, unrelated hit.
         if (next.invincibleTimer <= 0) {
-          healthState.value = takeDamage(healthState.value, PIT_FALL_DAMAGE);
+          next = { ...next, hitPoints: takeDamage(next.hitPoints, PIT_FALL_DAMAGE) };
           next = grantInvincibility(next, INVINCIBILITY_DURATION_SECONDS);
         }
         next = resolvePitFall(next);
@@ -1302,7 +1304,7 @@ export const PlatformerPage = () => {
       // falls), 0 health starts the death iris centered on wherever the
       // player ended up this frame. Otherwise, keep advancing 'intro' (a
       // no-op once already 'playing' — see GameLifecycle.ts's tickLifecycle).
-      if (healthState.value === 0) {
+      if (next.hitPoints === 0) {
         lifecycleState.value = startDeath(
           next.x + PLAYER_RENDERED_SIZE / 2,
           next.y + PLAYER_VISUAL_CENTER_Y_OFFSET,

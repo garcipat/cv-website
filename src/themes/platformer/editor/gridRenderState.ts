@@ -3,6 +3,7 @@ import type { LevelDef, TileMap } from '../level/LevelData';
 import { tileToPixel, RENDERED_TILE_SIZE } from '../level/Terrain';
 import { PLAYER_RENDERED_SIZE, PLAYER_FOOT_PADDING } from '../entities/Player';
 import type { PlayerState } from '../entities/Player';
+import { MAX_HALF_HEARTS } from '../entities/Health';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
 import { toEnemyState, type EnemyState } from '../entities/Enemy';
 import type { EnemyPlacement } from '../level/EnemyMapper';
@@ -82,6 +83,9 @@ export function synthesizePlayerState(grid: TileChar[][]): PlayerState | null {
     knockbackTimer: 0,
     hitBlockIds: [],
     bounceAscending: false,
+    hitPoints: MAX_HALF_HEARTS,
+    alive: true,
+    hitTimer: 0,
   };
 }
 

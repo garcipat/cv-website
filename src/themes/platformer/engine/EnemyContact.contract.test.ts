@@ -37,6 +37,9 @@ function makePlayer(x: number, y: number, vy: number): PlayerState {
     knockbackTimer: 0,
     bounceAscending: false,
     hitBlockIds: [],
+    hitPoints: 6,
+    alive: true,
+    hitTimer: 0,
   };
 }
 

@@ -74,6 +74,12 @@ export function spawnPlayerState(): PlayerState {
     knockbackTimer: 0,
     bounceAscending: false,
     hitBlockIds: [],
+    hitPoints: MAX_HALF_HEARTS,
+    alive: true,
+    // Behaviorally inert seed: nothing reads hitTimer this task —
+    // invincibleTimer above is what currently gates further hits. A later
+    // task gives hitTimer real meaning and picks a deliberate seed for it.
+    hitTimer: 0,
   };
 }
 
@@ -98,14 +104,6 @@ export const cameraPositionX = signal(0);
  * assumption.
  */
 export const cameraPositionY = signal(0);
-
-/**
- * Current health in half-heart units (0-MAX_HALF_HEARTS). Kept separate from
- * `playerState` since damage sources (pit falls, enemy hits) are a distinct
- * concern from position/animation, and full-heal-on-death only needs to
- * touch this signal, not reconstruct player position/state.
- */
-export const healthState = signal(MAX_HALF_HEARTS);
 
 /**
  * Every collectible in the level, placed once at module load from the
@@ -315,8 +313,7 @@ export const collectedFacts = signal<CollectedFact[]>([]);
  * FR-020c) — kept separate from `collectedFacts` since a collectible's
  * removal-from-the-world state and its fact-content-in-the-journal state,
  * while always updated together (see PlatformerPage.tsx's collection
- * handler), are conceptually different concerns, matching how
- * `healthState`/`playerState` are already kept separate.
+ * handler), are conceptually different concerns.
  */
 export const collectedCollectibleIds = signal<Set<string>>(new Set());
 
@@ -402,7 +399,6 @@ export const lifecycleState = signal<LifecycleState>(
  */
 export function resetGame(): void {
   playerState.value = spawnPlayerState();
-  healthState.value = MAX_HALF_HEARTS;
   cameraPositionX.value = 0;
   cameraPositionY.value = 0;
   enemyStates.value = enemyStates.value.map(reviveEnemy);
