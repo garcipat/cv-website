@@ -703,29 +703,39 @@ original slot for traceability with git history (branch names, commit messages).
   spikes again; a plain side/below touch on a non-spiked enemy still knocks
   back correctly with no upward component. Confirm a green slime never
   visibly grows spikes (always defeated in one stomp).*
-- [ ] **34. World-event puff, decoupled from fact rewards** — fixes B-003
+- [x] **34. World-event puff, decoupled from fact rewards** — fixes B-003
   (`docs/bugs/B-003-puff-bound-to-fact-reward/ticket.md`). Splits the sparkle
   burst out of `FlightEffect` into its own `PuffEffect` (`CollectionEffects.ts`:
   `startPuffEffect`/`tickPuffEffect`, a `scale`-aware `sparkleParticles`) drawn by
-  a new `drawPuffEffects` in `Renderer.ts`, tracked in its own `activePuffs`
-  signal. Fact-bearing events (coins, bonus fruit, green-slime defeats,
-  crate/chest facts) are untouched — they keep their existing flight-effect
-  sparkle and do not additionally trigger a puff. `PlatformerPage.tsx` calls
-  `startPuffEffect` at the factless branches that currently show nothing: a
-  purple slime's defeat (before it drops its key), a revived enemy defeated a
-  second time, and the `fragileRock` terminal break (replacing its empty-label
-  `startFlightEffect` hack). Each entity family gets a small `effectAnchor`
-  helper (`enemyEffectAnchor`, `blockEffectAnchor`, ...) returning a world-space
-  `{ x, y, scale }`, reusing each type's existing render-size math (e.g.
-  `enemyRenderedSize`) so a bigger enemy (a purple slime) produces a visibly
-  bigger puff than a green slime.
-  *Verify: defeat a purple slime — a puff shows immediately on defeat (before
-  the key drops), visibly bigger than a green slime's puff. Defeat a green
-  slime, die, respawn, defeat the same (revived) slime again — a puff shows
-  on the second defeat even though no fact/journal entry is added. Break a
-  fragile rock — same visual puff as before, no `FlightEffect` involved.
-  Collecting a coin/fruit/crate/chest fact still shows exactly one sparkle
-  burst (the existing flight-effect one), not two.*
+  `drawPuffEffects` in `Renderer.ts`, tracked in its own `activePuffs` signal.
+  Design evolved beyond the original plan during live manual testing: the
+  sparkle burst was removed from `FlightEffect`/`drawCollectionEffects`
+  entirely (a fact-bearing collection — coin, fruit, key, chest — now shows
+  only its flying text, never a sparkle), and a `PuffEffect` now fires on
+  every destruction/defeat event unconditionally — every enemy defeat
+  (purple slime, plain, revived-redefeated, and a fresh fact-bearing green
+  slime alike) and every `crate`/`fragileRock` destruction — independent of
+  whether a fact/reward is also awarded alongside it. Puff (destruction
+  feedback) and flight-text (reward feedback) are now two fully independent
+  layers rather than mutually exclusive. `enemyEffectAnchor`/
+  `blockEffectAnchor` (`entities/Enemy.ts`/`entities/Block.ts`) turn an
+  entity's position into a world-space `{ x, y, scale }`; `enemyEffectAnchor`
+  centers on the enemy's own hitbox (`typeOf(enemy).box(enemy)`), not the
+  full transparent render slot — a slime's sprite has a large empty margin
+  above its visible body, so centering on the render slot put the burst
+  visibly too high (caught during manual testing, worse on `slimePurple`'s
+  2x scale). `deathEffectGiven` (`entities/enemies/EnemyType.ts`/`shared.ts`)
+  gates one puff per enemy per life, separate from the permanent
+  `rewardGiven`, so a revived-and-redefeated enemy is noticed again for a
+  puff without being noticed again for a reward.
+  *Verify: defeat a purple slime — a puff shows immediately on defeat,
+  centered on its body, visibly bigger than a green slime's puff. Defeat a
+  green slime with a fact — both the puff and the fact-flight text show, not
+  either/or. Die, respawn, defeat the same (revived) slime again — a puff
+  shows on the second defeat even though no fact/journal entry is added.
+  Break a fragile rock or destroy a crate — same puff mechanism; a crate
+  with an uncollected fact shows both the puff and the reward. Collecting a
+  coin/fruit/key never shows a sparkle burst — flying text only.*
 
 ## Unscheduled additions (not yet numbered)
 
