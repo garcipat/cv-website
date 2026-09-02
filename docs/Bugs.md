@@ -12,9 +12,6 @@ mirrors how `specs/` holds one folder per feature. Bug IDs use the prefix
 - [ ] **B-002** — `FloatingControls` duplicated across the Space and
   Platformer themes —
   [ticket](bugs/B-002-shared-floating-controls-duplication/ticket.md)
-- [ ] **B-003** — Defeat/break puff fires on the CV reward instead of the world
-  event, so a purple slime never puffs and a re-killed green slime doesn't either —
-  [ticket](bugs/B-003-puff-bound-to-fact-reward/ticket.md)
 - [ ] **B-004** — Held key can draw with no slime body during the first-load asset
   race — [ticket](bugs/B-004-held-key-drawn-without-slime-body/ticket.md)
 - [ ] **B-005** — Enemy spikes can be overlapped by a later enemy's body (not
@@ -23,7 +20,10 @@ mirrors how `specs/` holds one folder per feature. Bug IDs use the prefix
 
 ## Resolved
 
-_None yet._
+- [x] **B-003** — Defeat/break puff fires on the CV reward instead of the world
+  event, so a purple slime never puffs and a re-killed green slime doesn't either —
+  fixed in roadmap step 34 (branch `S-006-step34-world-event-puff`) —
+  [ticket](bugs/B-003-puff-bound-to-fact-reward/ticket.md)
 
 ---
 
@@ -33,7 +33,7 @@ _None yet._
 | ----- | ------------------------------------------ | ------ | -------- | ----------------------------------------------------------------------- |
 | B-001 | Space locale gaps + dropdown scroll-arrow  | Open   | Minor    | [ticket](bugs/B-001-space-theme-locale-and-dropdown/ticket.md)       |
 | B-002 | FloatingControls duplicated across themes  | Open   | Minor    | [ticket](bugs/B-002-shared-floating-controls-duplication/ticket.md)  |
-| B-003 | Puff bound to CV reward, not world event   | Open   | Minor    | [ticket](bugs/B-003-puff-bound-to-fact-reward/ticket.md)              |
+| B-003 | Puff bound to CV reward, not world event   | Resolved | Minor  | [ticket](bugs/B-003-puff-bound-to-fact-reward/ticket.md)              |
 | B-004 | Held key drawn without its slime body      | Open   | Trivial  | [ticket](bugs/B-004-held-key-drawn-without-slime-body/ticket.md)      |
 | B-005 | Enemy spikes overlapped by a later body    | Open   | Trivial  | [ticket](bugs/B-005-enemy-spikes-drawn-per-enemy-z-order/ticket.md)   |
 

@@ -317,7 +317,8 @@ export const collectedFacts = signal<CollectedFact[]>([]);
  */
 export const collectedCollectibleIds = signal<Set<string>>(new Set());
 
-/** Currently animating fact-flight/sparkle effects (see engine/CollectionEffects.ts). */
+/** Currently animating fact-flight text effects (see engine/CollectionEffects.ts) —
+ *  flying text only; the sparkle burst is `activePuffs`'s concern, not this one. */
 export const activeEffects = signal<FlightEffect[]>([]);
 
 /** Currently animating world-event puffs — see engine/CollectionEffects.ts's
@@ -421,7 +422,7 @@ export function resetGame(): void {
  * makes already-collected coins/fruits reappear in the level, since the
  * render/collision loop reads it live), the remembered active journal
  * bookmark (falls back to Journal.tsx's default section afterward), and any
- * in-flight fact-flight/sparkle animation (`activeEffects`) so a pickup
+ * in-flight fact-flight text animation (`activeEffects`) so a pickup
  * triggered just before Reset Game is clicked doesn't keep animating after
  * the journal closes. `lifecycleState` is deliberately left untouched: the
  * journal can only be opened from the `'playing'` phase

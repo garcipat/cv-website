@@ -28,11 +28,13 @@ export interface BaseEnemyState extends EnemyPlacement, Moving, SelfAnimated, Da
   /** True once this enemy's one reward has been handed out. Survives death
    *  and respawn; cleared only by resetGameProgress(). */
   rewardGiven: boolean;
-  /** True once this life's defeat has shown a visual effect (a reward's
-   *  fact-flight, or a factless world-event puff — see B-003). Unlike
-   *  `rewardGiven`, this is reset on revive: a revived-and-redefeated enemy
-   *  gets nothing further to give (rewardGiven stays true forever) but still
-   *  deserves a puff for THIS death, so it needs its own once-per-life gate. */
+  /** True once this life's defeat has shown its world-event puff (see
+   *  B-003) — gates one puff per enemy per life, independent of whether a
+   *  fact-flight reward also fires (that's gated separately, by
+   *  `rewardGiven`/`fact` in PlatformerPage.tsx). Unlike `rewardGiven`, this
+   *  is reset on revive: a revived-and-redefeated enemy gets nothing further
+   *  to give (rewardGiven stays true forever) but still deserves a puff for
+   *  THIS death, so it needs its own once-per-life gate. */
   deathEffectGiven: boolean;
 }
 
