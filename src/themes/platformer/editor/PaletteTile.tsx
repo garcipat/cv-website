@@ -22,7 +22,10 @@ const SPRITE_PADDING = 10;
  * of the whole sheet, absolutely positioned inside an `overflow: hidden`
  * box, both scaled up so the target frame fills most of `TILE_BOX_SIZE` —
  * a CSS "sprite sheet" crop, no canvas involved) or, when `sprite` is
- * `null` (the Eraser tool), an empty square with just a border.
+ * `null` (the Eraser tool), an empty square with just a border. When the
+ * spec carries an `overlay`, a second `<img>` of the same sheet is drawn on
+ * top, cropped to the overlay's own offset — used to composite grass over
+ * the ground block, since the atlas keeps grass out of every ground cell.
  */
 export const PaletteTile = ({ label, sprite, selected, onClick }: PaletteTileProps) => {
   const scale = sprite
@@ -63,6 +66,21 @@ export const PaletteTile = ({ label, sprite, selected, onClick }: PaletteTilePro
               imageRendering: 'pixelated',
             }}
           />
+          {sprite.overlay && (
+            <img
+              src={sprite.sheet}
+              alt=""
+              style={{
+                position: 'absolute',
+                left: -sprite.overlay.sx * scale,
+                top: -sprite.overlay.sy * scale,
+                width: sprite.sheetWidth * scale,
+                height: sprite.sheetHeight * scale,
+                maxWidth: 'none',
+                imageRendering: 'pixelated',
+              }}
+            />
+          )}
         </div>
       ) : (
         <span className="block h-full w-full rounded-sm border border-dashed border-muted-foreground" />

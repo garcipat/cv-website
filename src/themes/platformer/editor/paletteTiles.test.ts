@@ -79,3 +79,18 @@ describe('sign marker', () => {
     expect(PALETTE_TILE_LABELS['1']).toBe('Sign');
   });
 });
+
+describe('ground marker', () => {
+  it('G-hasASpriteCompositingGrassOverTheGroundBlock', () => {
+    expect(PALETTE_TILE_SPRITES['G']).toEqual({
+      sheet: '/sprites/tile_atlas.png',
+      sheetWidth: 130,
+      sheetHeight: 54,
+      sx: 114,
+      sy: 0,
+      frameWidth: 16,
+      frameHeight: 16,
+      overlay: { sx: 76, sy: 38 },
+    });
+  });
+});
