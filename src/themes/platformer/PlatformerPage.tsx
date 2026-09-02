@@ -1261,6 +1261,18 @@ export const PlatformerPage = () => {
             ];
           }
 
+          if (block.blockKind === 'crate' && block.hitsTaken >= 2) {
+            // Destruction feedback (B-003, same mechanism as fragileRock
+            // above) — unconditional on whether a reward fires below, since
+            // this is feedback for the block breaking, not for the fact
+            // reward itself.
+            const anchor = blockEffectAnchor(block);
+            activePuffs.value = [
+              ...activePuffs.value,
+              startPuffEffect(block.id, anchor.x + originX, anchor.y + originY, anchor.scale),
+            ];
+          }
+
           if (block.blockKind === 'crate' && block.hitsTaken >= 2 && block.fact) {
             // Dedup by fact id, same defensive guard the enemy-defeat reward
             // already uses (FR-020c) — not actually reachable for crates
