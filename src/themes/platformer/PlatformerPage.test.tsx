@@ -977,6 +977,52 @@ describe('PlatformerPage', () => {
     expect(collectedFacts.value).toHaveLength(factsBefore);
   });
 
+  it('playerFallsOntoAPlainEnemyWithNoFact-firstDefeat-stillQueuesAPuff', () => {
+    // The `!fact || enemy.rewardGiven` branch in PlatformerPage.tsx covers
+    // two distinct cases: a revived enemy defeated again (rewardGiven true,
+    // covered by greenSlimeRevivedAndDefeatedAgain-secondDefeat-...), and a
+    // "plain" enemy (no fact at all, EnemyMapper.ts's excess-marker case)
+    // defeated for the very first time (!fact, rewardGiven still false at
+    // that point). Either way the defeat is still a world event that
+    // deserves a puff (B-003) — this asserts the !fact disjunct specifically.
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const real = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
+    // Offset well clear of `real`'s position — otherwise both enemies sit
+    // exactly on top of each other and a single stomp defeats both,
+    // muddying what this test is actually checking.
+    const plain = toEnemyState(
+      { ...real, id: 'enemy-plain-slimeGreen-test-puff', x: real.x + 500, fact: undefined },
+      0,
+    );
+    enemyStates.value = [...enemyStates.value, plain];
+
+    playerState.value = {
+      ...playerState.value,
+      x: plain.x,
+      y: stompLandingY(plain),
+      vy: 300,
+    };
+
+    let t = 16;
+    frameCallback!(t);
+    for (let i = 0; i < 30; i++) {
+      t += 16;
+      frameCallback!(t);
+    }
+
+    expect(enemyStates.value.find((e) => e.id === plain.id)?.alive).toBe(false);
+    expect(activePuffs.value.some((p) => p.id === plain.id)).toBe(true);
+  });
+
   it('purpleSlimeDefeat-thirdStomp-spawnsKeyPickupInsteadOfJournalFact', () => {
     // Purple slimes carry no CV fact (EnemyMapper.ts) — defeating one drops a
     // key pickup instead of banking a journal fact. A purple slime's
