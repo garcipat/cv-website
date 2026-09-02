@@ -4,7 +4,7 @@
 
 | Plan | Content | Risk |
 |---|---|---|
-| **A — Capability interfaces** (`2026-09-02-capability-interfaces.md`) | `Moving` / `SelfAnimated` / `Damageable`; enemies, blocks and the player compose them; `Entity` deleted. | Type-level only |
+| **A — Capability interfaces** (`2026-09-02-capability-interfaces.md`) | `Moving` / `SelfAnimated` / `Damageable`; enemy and player state compose them; `Entity` deleted. | Type-level only |
 | **B — Player damage model** (`2026-09-02-player-damage-model.md`) | Health onto `PlayerState` as `hitPoints`; the two post-hit timers unified into one refractory window. | Behavioral |
 | **C — `WorldType` and trigger unification** (`2026-09-02-worldtype-and-triggers.md`) | One type base with optional hooks; chest and sign boxes into their modules; three overlap functions collapsed into one. | Behavioral |
 
