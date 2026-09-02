@@ -1910,6 +1910,49 @@ describe('PlatformerPage', () => {
     expect(lifecycleState.value.phase).toBe('paused');
   });
 
+  it('floatingControlsOpened-whilePlaying-pausesGameLoop', () => {
+    vi.stubGlobal('requestAnimationFrame', () => 1);
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    lifecycleState.value = { ...lifecycleState.value, phase: 'playing' };
+
+    fireEvent.click(platformerPage.floatingControlsThemeCombobox);
+
+    expect(lifecycleState.value.phase).toBe('paused');
+  });
+
+  it('floatingControlsClosed-whilePaused-resumesGameLoop', () => {
+    vi.stubGlobal('requestAnimationFrame', () => 1);
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    lifecycleState.value = { ...lifecycleState.value, phase: 'playing' };
+    fireEvent.click(platformerPage.floatingControlsThemeCombobox);
+    expect(lifecycleState.value.phase).toBe('paused');
+
+    fireEvent.click(screen.getByRole('option', { name: /^ide$/i }));
+
+    expect(lifecycleState.value.phase).toBe('playing');
+  });
+
+  it('floatingControlsOpened-whileJournalOpen-doesNotChangePhase', () => {
+    vi.stubGlobal('requestAnimationFrame', () => 1);
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    lifecycleState.value = { ...lifecycleState.value, phase: 'playing' };
+    fireEvent.click(platformerPage.journalOpenButton);
+    expect(lifecycleState.value.phase).toBe('paused');
+
+    fireEvent.click(platformerPage.floatingControlsThemeCombobox);
+    fireEvent.click(screen.getByRole('option', { name: /^ide$/i }));
+
+    // Closing the (harmlessly opened) dropdown must not resume the game
+    // while the journal is still open.
+    expect(lifecycleState.value.phase).toBe('paused');
+  });
+
   it('journalOpenButtonClicked-whileJournalOpen-closesJournalAndResumesLoop', () => {
     vi.useFakeTimers();
     vi.stubGlobal('requestAnimationFrame', () => 1);
