@@ -99,6 +99,7 @@ function makeMockContext() {
     save: vi.fn(),
     translate: vi.fn(),
     scale: vi.fn(),
+    rotate: vi.fn(),
     restore: vi.fn(),
     beginPath: vi.fn(),
     rect: vi.fn(),
@@ -174,6 +175,7 @@ function stubOffscreenCanvas(options?: { imageData?: Uint8ClampedArray }): {
 }
 
 const fakeTileset = {} as HTMLImageElement;
+const fakeGroundAtlas = {} as HTMLImageElement;
 
 function makePlacement(id: string, spriteType: 'coin' | 'fruit', x: number, y: number): CollectiblePlacement {
   return {
@@ -1127,16 +1129,18 @@ describe('drawCounterPopups', () => {
 });
 
 describe('drawTerrain', () => {
-  it('groundGrassTopExposed-draws-fromGrassTopSource', () => {
+  it('groundGrassIsolatedTile-draws-fromGradientCellC0R0', () => {
     const level: LevelDef = { width: 1, height: 1, terrain: [['groundGrass']] };
     const ctx = makeMockContext();
 
-    drawTerrain(ctx, level, fakeTileset);
+    drawTerrain(ctx, level, fakeTileset, fakeGroundAtlas);
 
-    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 0, 0, 16, 16, 0, 0, 32, 32);
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(
+      1, fakeGroundAtlas, 0, 0, 16, 16, 0, 0, 32, 32,
+    );
   });
 
-  it('groundGrassNotExposed-draws-fromGrassFillSource', () => {
+  it('groundGrassTopOfTwoTallColumn-draws-fromBrightColumnTopCellC6R0', () => {
     const level: LevelDef = {
       width: 1,
       height: 2,
@@ -1144,16 +1148,90 @@ describe('drawTerrain', () => {
     };
     const ctx = makeMockContext();
 
-    drawTerrain(ctx, level, fakeTileset);
+    drawTerrain(ctx, level, fakeTileset, fakeGroundAtlas);
 
-    expect(ctx.drawImage).toHaveBeenNthCalledWith(2, fakeTileset, 0, 16, 16, 16, 0, 32, 32, 32);
+    // Down neighbour only -> closed T L R -> c6r0 at 6*19 = 114.
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(
+      1, fakeGroundAtlas, 114, 0, 16, 16, 0, 0, 32, 32,
+    );
+  });
+
+  it('groundGrassBottomOfTwoTallColumn-draws-fromDarkColumnBottomCellC0R2', () => {
+    const level: LevelDef = {
+      width: 1,
+      height: 2,
+      terrain: [['groundGrass'], ['groundGrass']],
+    };
+    const ctx = makeMockContext();
+
+    drawTerrain(ctx, level, fakeTileset, fakeGroundAtlas);
+
+    // Up neighbour only -> closed B L R -> c0r2 at sx 0, sy 2*19 = 38, drawn
+    // into the second row. Asserted in full rather than by filtering on sy,
+    // because the grass row shares sy = 38.
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeGroundAtlas, 0, 38, 16, 16, 0, 32, 32, 32,
+    );
+  });
+
+  it('groundGrassBuriedInterior-draws-fromDarkInteriorCellC5R1', () => {
+    const level: LevelDef = {
+      width: 3,
+      height: 3,
+      terrain: [
+        ['groundGrass', 'groundGrass', 'groundGrass'],
+        ['groundGrass', 'groundGrass', 'groundGrass'],
+        ['groundGrass', 'groundGrass', 'groundGrass'],
+      ],
+    };
+    const ctx = makeMockContext();
+
+    drawTerrain(ctx, level, fakeTileset, fakeGroundAtlas);
+
+    // The centre cell has all four neighbours -> c5r1 at 5*19, 1*19.
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeGroundAtlas, 95, 19, 16, 16, 32, 32, 32, 32,
+    );
+  });
+
+  it('groundGrassLeftEdgeOfTallMass-rotatesTheBottomEdgeTile', () => {
+    const level: LevelDef = {
+      width: 2,
+      height: 3,
+      terrain: [
+        ['groundGrass', 'groundGrass'],
+        ['groundGrass', 'groundGrass'],
+        ['groundGrass', 'groundGrass'],
+      ],
+    };
+    const ctx = makeMockContext();
+
+    drawTerrain(ctx, level, fakeTileset, fakeGroundAtlas);
+
+    // Cell (0,1): up, down and right are ground -> closed L only -> the
+    // bottom-edge tile c1r1 turned a quarter-turn clockwise, so it is drawn
+    // through a rotated transform centred on the cell rather than at its
+    // top-left corner.
+    expect(ctx.rotate).toHaveBeenCalledWith(Math.PI / 2);
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeGroundAtlas, 19, 19, 16, 16, -16, -16, 32, 32,
+    );
+  });
+
+  it('nonGroundGrassTiles-stillDrawFromTheWorldTileset', () => {
+    const level: LevelDef = { width: 1, height: 1, terrain: [['wall']] };
+    const ctx = makeMockContext();
+
+    drawTerrain(ctx, level, fakeTileset, fakeGroundAtlas);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 128, 0, 16, 16, 0, 0, 32, 32);
   });
 
   it('groundRockTopExposed-draws-fromRockTopSource', () => {
     const level: LevelDef = { width: 1, height: 1, terrain: [['groundRock']] };
     const ctx = makeMockContext();
 
-    drawTerrain(ctx, level, fakeTileset);
+    drawTerrain(ctx, level, fakeTileset, fakeGroundAtlas);
 
     expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 16, 0, 16, 16, 0, 0, 32, 32);
   });
@@ -1162,7 +1240,7 @@ describe('drawTerrain', () => {
     const level: LevelDef = { width: 1, height: 1, terrain: [['wall']] };
     const ctx = makeMockContext();
 
-    drawTerrain(ctx, level, fakeTileset);
+    drawTerrain(ctx, level, fakeTileset, fakeGroundAtlas);
 
     expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 128, 0, 16, 16, 0, 0, 32, 32);
   });
@@ -1171,7 +1249,7 @@ describe('drawTerrain', () => {
     const level: LevelDef = { width: 1, height: 1, terrain: [['bridge']] };
     const ctx = makeMockContext();
 
-    drawTerrain(ctx, level, fakeTileset);
+    drawTerrain(ctx, level, fakeTileset, fakeGroundAtlas);
 
     expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 160, 32, 16, 16, 0, 0, 32, 32);
   });
@@ -1180,7 +1258,7 @@ describe('drawTerrain', () => {
     const level: LevelDef = { width: 2, height: 1, terrain: [['bridge', 'bridge']] };
     const ctx = makeMockContext();
 
-    drawTerrain(ctx, level, fakeTileset);
+    drawTerrain(ctx, level, fakeTileset, fakeGroundAtlas);
 
     expect(ctx.drawImage).toHaveBeenNthCalledWith(1, fakeTileset, 144, 32, 16, 16, 0, 0, 32, 32);
     expect(ctx.drawImage).toHaveBeenNthCalledWith(2, fakeTileset, 176, 32, 16, 16, 32, 0, 32, 32);
@@ -1190,7 +1268,7 @@ describe('drawTerrain', () => {
     const level: LevelDef = { width: 3, height: 1, terrain: [['bridge', 'bridge', 'bridge']] };
     const ctx = makeMockContext();
 
-    drawTerrain(ctx, level, fakeTileset);
+    drawTerrain(ctx, level, fakeTileset, fakeGroundAtlas);
 
     expect(ctx.drawImage).toHaveBeenNthCalledWith(1, fakeTileset, 144, 32, 16, 16, 0, 0, 32, 32);
     expect(ctx.drawImage).toHaveBeenNthCalledWith(2, fakeTileset, 160, 32, 16, 16, 32, 0, 32, 32);
@@ -1201,7 +1279,7 @@ describe('drawTerrain', () => {
     const level: LevelDef = { width: 1, height: 1, terrain: [['empty']] };
     const ctx = makeMockContext();
 
-    drawTerrain(ctx, level, fakeTileset);
+    drawTerrain(ctx, level, fakeTileset, fakeGroundAtlas);
 
     expect(ctx.drawImage).not.toHaveBeenCalled();
   });
@@ -1210,7 +1288,7 @@ describe('drawTerrain', () => {
     const level: LevelDef = { width: 1, height: 1, terrain: [['ladder']] };
     const ctx = makeMockContext();
 
-    drawTerrain(ctx, level, fakeTileset);
+    drawTerrain(ctx, level, fakeTileset, fakeGroundAtlas);
 
     expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 144, 48, 16, 16, 0, 0, 32, 32);
   });
@@ -1219,44 +1297,47 @@ describe('drawTerrain', () => {
     const level: LevelDef = { width: 2, height: 1, terrain: [['groundGrass', 'wall']] };
     const ctx = makeMockContext();
 
-    drawTerrain(ctx, level, fakeTileset);
+    drawTerrain(ctx, level, fakeTileset, fakeGroundAtlas);
 
-    expect(ctx.drawImage).toHaveBeenNthCalledWith(1, fakeTileset, 0, 0, 16, 16, 0, 0, 32, 32);
-    expect(ctx.drawImage).toHaveBeenNthCalledWith(2, fakeTileset, 128, 0, 16, 16, 32, 0, 32, 32);
+    // The grass cell draws from the atlas (plus a grass overlay), the wall
+    // from the world tileset — both at their own grid position. The wall is
+    // solid, so the grass cell's right edge is open -> c1r0 at sx 19.
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(1, fakeGroundAtlas, 19, 0, 16, 16, 0, 0, 32, 32);
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 128, 0, 16, 16, 32, 0, 32, 32);
   });
 
   it('originY-shiftsEveryTileVertically', () => {
     const level: LevelDef = { width: 1, height: 1, terrain: [['groundGrass']] };
     const ctx = makeMockContext();
 
-    drawTerrain(ctx, level, fakeTileset, 0, 100);
+    drawTerrain(ctx, level, fakeTileset, fakeGroundAtlas, 0, 100);
 
-    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 0, 0, 16, 16, 0, 100, 32, 32);
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(1, fakeGroundAtlas, 0, 0, 16, 16, 0, 100, 32, 32);
   });
 
   it('originX-shiftsEveryTileHorizontally', () => {
     const level: LevelDef = { width: 1, height: 1, terrain: [['groundGrass']] };
     const ctx = makeMockContext();
 
-    drawTerrain(ctx, level, fakeTileset, 100);
+    drawTerrain(ctx, level, fakeTileset, fakeGroundAtlas, 100);
 
-    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 0, 0, 16, 16, 100, 0, 32, 32);
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(1, fakeGroundAtlas, 0, 0, 16, 16, 100, 0, 32, 32);
   });
 
   it('originY-omitted-defaultsToZero', () => {
     const level: LevelDef = { width: 1, height: 1, terrain: [['groundGrass']] };
     const ctx = makeMockContext();
 
-    drawTerrain(ctx, level, fakeTileset);
+    drawTerrain(ctx, level, fakeTileset, fakeGroundAtlas);
 
-    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 0, 0, 16, 16, 0, 0, 32, 32);
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(1, fakeGroundAtlas, 0, 0, 16, 16, 0, 0, 32, 32);
   });
 
   it('draws-setsImageSmoothingEnabledFalse', () => {
     const level: LevelDef = { width: 1, height: 1, terrain: [['groundGrass']] };
     const ctx = makeMockContext();
 
-    drawTerrain(ctx, level, fakeTileset);
+    drawTerrain(ctx, level, fakeTileset, fakeGroundAtlas);
 
     expect(ctx.imageSmoothingEnabled).toBe(false);
   });
