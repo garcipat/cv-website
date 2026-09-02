@@ -931,6 +931,10 @@ describe('PlatformerPage', () => {
 
     expect(enemyStates.value.find((e) => e.id === target.id)?.alive).toBe(false);
     expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(true);
+    // A fresh fact-bearing defeat still queues a puff — puff (defeat
+    // feedback) and the fact/flight-text reward are fully decoupled layers,
+    // same as crate destruction (B-003).
+    expect(activePuffs.value.some((p) => p.id === target.id)).toBe(true);
   });
 
   it('playerFallsOntoAPlainEnemyWithNoFact-tick-defeatsItButAwardsNoFact', () => {
