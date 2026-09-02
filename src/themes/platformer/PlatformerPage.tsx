@@ -698,10 +698,12 @@ export const PlatformerPage = () => {
       // `enemyStates` — render and collision already skip a dead enemy, so
       // there's nothing left to remove.
       //
-      // An enemy is rewarded exactly once for the lifetime of the session:
-      // `alive` goes false on the finishing stomp and `rewardGiven` is set the
-      // same tick (see the end of this block), so a revived enemy stomped
-      // again in a later life is never selected here again.
+      // `alive` goes false on the finishing stomp; `deathEffectGiven` is set
+      // the same tick (see the end of this block) and resets on revive, so a
+      // revived enemy stomped again in a later life IS selected here again —
+      // its new death still deserves its own puff/flight effect. `rewardGiven`
+      // is separate and permanent: it gates whether anything is actually paid
+      // out (fact or key), not whether the enemy is selected below.
       //
       // Checked before the collectible block so both effects can coexist in
       // `newEffects` without one clobbering the other within the same tick —
