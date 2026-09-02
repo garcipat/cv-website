@@ -2,7 +2,7 @@
 
 **Bug ID**: B-004
 **Found In**: S-006 (Platformer theme), entity architecture work
-**Status**: Open
+**Status**: Resolved
 **Severity**: Trivial (visible for at most a frame or two, only on first load)
 
 ## Description
@@ -29,6 +29,16 @@ same condition.
 Add a `Renderer.test.ts` case covering the mixed-load state — key sheet present, body
 sheet null — asserting no key `drawImage` call. The existing tests cover both sheets
 present and both absent, but not the mixed case, which is why this slipped through.
+
+## Resolution
+
+`SlimePurple.ts`'s `showsHeldKey` now also requires `dc.sprites[SLIME_PURPLE_SHEET.src]
+!= null`, matching the suggested fix exactly — the overlay no longer draws until both
+the key sheet and the slime's own body sheet have loaded. Added
+`keySpriteLoadedBeforeBodySprite-purpleSlimeDrawsNoFloatingKey` to `Renderer.test.ts`
+covering the mixed-load state (key sheet present, body sheet absent), asserting zero
+`drawImage` calls; written first and confirmed failing against the old gate before the
+fix landed.
 
 ## Related
 

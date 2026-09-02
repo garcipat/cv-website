@@ -520,6 +520,20 @@ describe('drawEnemies', () => {
     expect(ctx.drawImage.mock.calls).toHaveLength(1);
     expect(ctx.drawImage.mock.calls[0][0]).toBe(dc.sprites[SLIME_PURPLE_SHEET.src]);
   });
+
+  it('keySpriteLoadedBeforeBodySprite-purpleSlimeDrawsNoFloatingKey', () => {
+    // First-mount asset-load race (B-004): the key sheet can resolve before
+    // the slime's own body sheet does. The overlay must not draw a key with
+    // no body underneath it.
+    const ctx = makeMockCtx() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D, {
+      sprites: { [KEY_SHEET.src]: { tag: 'key' } as unknown as HTMLImageElement },
+    });
+
+    drawEnemies(ctx as unknown as CanvasRenderingContext2D, [makePurpleEnemy({ id: 'a', x: 100, y: 100 })], dc);
+
+    expect(ctx.drawImage.mock.calls).toHaveLength(0);
+  });
 });
 
 describe('drawEnemies with type-owned rendering', () => {
