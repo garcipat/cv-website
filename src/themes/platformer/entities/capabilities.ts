@@ -1,0 +1,45 @@
+import type { Direction } from './geometry';
+
+/**
+ * Moves under its own power. `vy` is a capability of moving things rather than
+ * a field every mover uses today — enemies patrol along one row and leave it
+ * at zero — but a flying or jumping enemy would need it, and the player
+ * already does.
+ */
+export interface Moving {
+  vx: number;
+  vy: number;
+  direction: Direction;
+}
+
+/**
+ * Advances its own animation on a per-instance timer, so two instances of one
+ * type can be out of phase — the stagger enemies get at spawn and keep across
+ * a respawn.
+ *
+ * A type whose frames come from the shared world clock instead — a spinning
+ * coin, a bobbing key — needs none of this; its `frameIndex` reads `elapsed`.
+ * Both are animated; only this one stores state.
+ */
+export interface SelfAnimated {
+  animState: string;
+  animFrame: number;
+  animTimer: number;
+}
+
+/**
+ * Takes damage and is gone at zero. `hitTimer` counts seconds since the last
+ * hit landed; while it is below the type's reaction duration, the entity is in
+ * its post-hit refractory window and further hits do not land.
+ *
+ * Blocks deliberately do NOT compose this: their `hitsTaken` counts up to a
+ * per-kind maximum rather than down to zero, and a spent question-mark stays
+ * solid in the world, so `alive` has no meaning for it.
+ */
+export interface Damageable {
+  hitPoints: number;
+  /** False once dead. A dead entity stays in its array at its index for the
+   *  whole session so per-instance progress survives a respawn. */
+  alive: boolean;
+  hitTimer: number;
+}

@@ -14,7 +14,7 @@ import { ENEMY_ANIMATIONS } from './enemies/EnemyAnimation';
 export type { EnemyState } from './enemies';
 export type { EnemyAnimState } from './enemies/EnemyAnimation';
 export { walkAnimFrameCount, WALK_FRAME_DURATION } from './enemies/EnemyAnimation';
-export type { Direction as EnemyDirection } from './Entity';
+export type { Direction as EnemyDirection } from './geometry';
 
 /** Actual rendered size for a given type — the sheet's native frame scaled by
  *  RENDER_SCALE and the type's own render scale. Collision.ts's enemyHitbox

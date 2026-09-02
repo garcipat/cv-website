@@ -1,4 +1,4 @@
-import type { Entity, Damageable } from '../Entity';
+import type { Moving, SelfAnimated, Damageable } from '../capabilities';
 import type { SpriteDescriptor } from '../sprites/SpriteSheet';
 import type { EnemyPlacement } from '../../level/EnemyMapper';
 import type { CollectedFact, EnemyDef } from '../../types';
@@ -15,14 +15,13 @@ export type ItemKind = 'key';
  * temporary defense a stomped enemy grows, for example — is declared by that
  * type's own module, which extends this.
  */
-export interface BaseEnemyState extends EnemyPlacement, Entity, Damageable {
+export interface BaseEnemyState extends EnemyPlacement, Moving, SelfAnimated, Damageable {
   /** Key into ENEMY_TYPES. Each type module narrows this to its own literal. */
   type: EnemyDef['type'];
   animState: EnemyAnimState;
   /** Placement position; `revive` restores x/y from these. */
   homeX: number;
   homeY: number;
-  hitTimer: number;
   fact?: CollectedFact;
   /** True once this enemy's one reward has been handed out. Survives death
    *  and respawn; cleared only by resetGameProgress(). */

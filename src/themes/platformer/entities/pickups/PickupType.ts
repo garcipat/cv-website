@@ -1,4 +1,4 @@
-import type { Rect } from '../Entity';
+import type { Rect } from '../geometry';
 import type { SpriteDescriptor } from '../sprites/SpriteSheet';
 import type { DrawContext } from '../../engine/DrawContext';
 
