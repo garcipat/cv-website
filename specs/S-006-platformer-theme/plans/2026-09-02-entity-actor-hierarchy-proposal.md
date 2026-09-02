@@ -195,7 +195,7 @@ Composition per family:
 |---|---|---|---|---|
 | player | ✅ | ✅ | ✅ | `grounded`, `climbing`, `knockbackTimer`, `bounceAscending`, … |
 | enemies | ✅ | ✅ | ✅ | `homeX/homeY`, `rewardGiven`; purple adds `spiked`/`spikeTimer` |
-| blocks | ❌ | ✅ | ❌ *(see below)* | `hitsTaken` |
+| blocks | ❌ | ❌ *(see below)* | ❌ | `hitsTaken` |
 | chests | ❌ | ❌ | ❌ | `state: 'closed' \| 'open'` |
 | coin, fruit, key | ❌ | ❌ | ❌ | key adds `collected` |
 | bonus fruit | ❌ | ❌ | ❌ | `elapsed`, `startY`, `restY`, `iconIndex` |
@@ -287,11 +287,17 @@ hardcoded durations. `onDamaged` gives the purple slime's spike growth a home se
 from interpreting a contact: today it happens inside `onPlayerCollide`, which conflates
 *what this contact means* with *what happens to me when hit*.
 
-### 4. Blocks are the one exception to `Damageable`
+### 4. Blocks compose neither `Damageable` nor `SelfAnimated`
 
 A block's `hitsTaken` counts **up** to a per-kind max rather than down to zero, and a
 spent question-mark **stays solid in the world**, so `alive` has no meaning for it.
-Blocks take `SelfAnimated` plus their own `hitsTaken`.
+
+Blocks also compose no `SelfAnimated`: no block cycles sprite frames — `Crate` and
+`FragileRock`'s `frameIndex` are constants, and `QuestionMark`'s is a function of
+`hitsTaken`, not of time. A block's `animTimer` only drives `blockBumpOffsetY` (a
+y-offset) and `crateShatterOpacity` (an alpha) — transforms applied to a static sprite
+rather than animation through frames. Blocks keep their own `animState`, `animTimer` and
+`hitsTaken`.
 
 This is worth leaving as-is rather than forcing: two of three damage models unify
 cleanly, and the third is genuinely a different shape. If blocks are ever reworked to
