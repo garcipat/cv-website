@@ -3,6 +3,7 @@ import { slimePurple, SPIKE_COOLDOWN_DURATION_SECONDS } from './SlimePurple';
 import type { SlimePurpleState } from './SlimePurple';
 import type { EnemyPlacement } from '../../level/EnemyMapper';
 import type { PlayerState } from '../Player';
+import { PLAYER_HIT_REACTION_SECONDS } from '../Player';
 import type { Contact } from '../../engine/Contact';
 
 function makePurpleEnemy(overrides: Partial<SlimePurpleState> = {}): SlimePurpleState {
@@ -25,13 +26,12 @@ function makePlayer(): PlayerState {
     animState: 'jump',
     animFrame: 0,
     animTimer: 0,
-    invincibleTimer: 0,
     knockbackTimer: 0,
     bounceAscending: false,
     hitBlockIds: [],
     hitPoints: 6,
     alive: true,
-    hitTimer: 0,
+    hitTimer: PLAYER_HIT_REACTION_SECONDS,
   };
 }
 

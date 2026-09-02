@@ -8,12 +8,15 @@ import {
   advancePlayerAnimation,
   updatePlayerAnimState,
   IDLE_FRAME_DURATION,
-  tickInvincibility,
   applyKnockback,
-  grantInvincibility,
+  beginHitReaction,
+  advancePlayerHitTimer,
+  isPlayerBlinkVisible,
+  PLAYER_HIT_REACTION_SECONDS,
 } from './Player';
 import type { PlayerState } from './Player';
 import type { Moving, SelfAnimated, Damageable } from './capabilities';
+import { isInvulnerable } from './capabilities';
 import { spawnPlayerState } from '../PlatformerState';
 import { RENDER_SCALE } from '../level/Terrain';
 import { MAX_HALF_HEARTS } from './Health';
@@ -33,13 +36,12 @@ function idlePlayer(overrides: Partial<PlayerState> = {}): PlayerState {
     animState: 'idle',
     animFrame: 0,
     animTimer: 0,
-    invincibleTimer: 0,
     knockbackTimer: 0,
     bounceAscending: false,
     hitBlockIds: [],
     hitPoints: MAX_HALF_HEARTS,
     alive: true,
-    hitTimer: 0,
+    hitTimer: PLAYER_HIT_REACTION_SECONDS,
     ...overrides,
   };
 }
@@ -251,39 +253,46 @@ describe('updatePlayerAnimState climbing priority', () => {
   });
 });
 
-describe('tickInvincibility', () => {
-  it('zeroTimer-returnsSameReference', () => {
-    const player = idlePlayer({ invincibleTimer: 0 });
-    const next = tickInvincibility(player, 1 / 30);
+describe('advancePlayerHitTimer', () => {
+  it('alreadyPastTheWindow-returnsSameReference', () => {
+    const player = idlePlayer({ hitTimer: PLAYER_HIT_REACTION_SECONDS });
+    const next = advancePlayerHitTimer(player, 1 / 30);
     expect(next).toBe(player);
   });
 
-  it('positiveTimer-decrementsByDt', () => {
-    const player = idlePlayer({ invincibleTimer: 1.2 });
-    const next = tickInvincibility(player, 0.2);
-    expect(next.invincibleTimer).toBeCloseTo(1.0);
+  it('freshHit-incrementsByDt', () => {
+    const player = idlePlayer({ hitTimer: 0 });
+    const next = advancePlayerHitTimer(player, 0.2);
+    expect(next.hitTimer).toBeCloseTo(0.2);
   });
 
-  it('timerBelowDt-clampsToZeroNotNegative', () => {
-    const player = idlePlayer({ invincibleTimer: 0.1 });
-    const next = tickInvincibility(player, 0.2);
-    expect(next.invincibleTimer).toBe(0);
+  it('dtOvershootingTheWindow-clampsToTheReactionDurationNotBeyond', () => {
+    const player = idlePlayer({ hitTimer: PLAYER_HIT_REACTION_SECONDS - 0.1 });
+    const next = advancePlayerHitTimer(player, 0.2);
+    expect(next.hitTimer).toBe(PLAYER_HIT_REACTION_SECONDS);
+  });
+
+  it('manyTicksAfterTheWindow-neverGrowsUnbounded', () => {
+    let player = idlePlayer({ hitTimer: 0 });
+    for (let i = 0; i < 1000; i++) player = advancePlayerHitTimer(player, 1 / 60);
+    expect(player.hitTimer).toBe(PLAYER_HIT_REACTION_SECONDS);
   });
 });
 
 describe('applyKnockback', () => {
   it('directionLeft-setsNegativeVxFacingLeftAndBothTimers', () => {
     const player = idlePlayer({ vx: 0, direction: 'right' });
-    const next = applyKnockback(player, -1, 250, 0.25, 1.2);
+    const next = applyKnockback(player, -1, 250, 0.25);
     expect(next.vx).toBe(-250);
     expect(next.direction).toBe('left');
     expect(next.knockbackTimer).toBe(0.25);
-    expect(next.invincibleTimer).toBe(1.2);
+    expect(next.hitTimer).toBe(0);
+    expect(isInvulnerable(next, PLAYER_HIT_REACTION_SECONDS)).toBe(true);
   });
 
   it('directionRight-setsPositiveVxAndFacingRight', () => {
     const player = idlePlayer({ vx: 0, direction: 'left' });
-    const next = applyKnockback(player, 1, 250, 0.25, 1.2);
+    const next = applyKnockback(player, 1, 250, 0.25);
     expect(next.vx).toBe(250);
     expect(next.direction).toBe('right');
   });
@@ -297,13 +306,14 @@ it('playerState-assignedToMovingAndSelfAnimated-satisfiesBothShapes', () => {
   expect(player.animState).toBe('idle');
 });
 
-describe('grantInvincibility', () => {
-  it('setsInvincibleTimerToDuration-leavesVxFacingKnockbackTimerUntouched', () => {
+describe('beginHitReaction', () => {
+  it('restartsTheHitTimer-leavesVxFacingKnockbackTimerUntouched', () => {
     // Unlike applyKnockback, a pit fall has no "direction to knock away
     // from" and no horizontal push at all — only the timer changes.
     const player = idlePlayer({ vx: 42, direction: 'left', knockbackTimer: 0 });
-    const next = grantInvincibility(player, 1.2);
-    expect(next.invincibleTimer).toBe(1.2);
+    const next = beginHitReaction(player);
+    expect(next.hitTimer).toBe(0);
+    expect(isInvulnerable(next, PLAYER_HIT_REACTION_SECONDS)).toBe(true);
     expect(next.vx).toBe(42);
     expect(next.direction).toBe('left');
     expect(next.knockbackTimer).toBe(0);
@@ -321,5 +331,35 @@ describe('player as a damageable', () => {
     // The heart display is presentation over a plain hit-point count: three
     // hearts of two halves each.
     expect(MAX_HALF_HEARTS).toBe(6);
+  });
+});
+
+describe('spawned player vulnerability', () => {
+  it('freshlySpawnedPlayer-isNotInvulnerable', () => {
+    // A respawn must leave the player immediately hittable. `hitTimer` counts
+    // UP, so "no recent hit" is a value at or past the reaction duration —
+    // seeding it to 0 would instead grant a free 1.2 s after every respawn.
+    expect(isInvulnerable(spawnPlayerState(), PLAYER_HIT_REACTION_SECONDS)).toBe(false);
+  });
+});
+
+describe('isPlayerBlinkVisible', () => {
+  // Pins the blink PHASE, not merely its cadence. A count-up timer fed
+  // straight into `floor(t / interval) % 2 === 0` would blink for the same
+  // duration at the same rate but with every on/off frame swapped; these two
+  // sample points are one blink interval apart and land on opposite phases,
+  // so an inverted implementation flips both.
+  it('halfABlinkIntervalAfterTheHit-isHidden', () => {
+    expect(isPlayerBlinkVisible(0.05, PLAYER_HIT_REACTION_SECONDS)).toBe(false);
+  });
+
+  it('oneAndAHalfBlinkIntervalsAfterTheHit-isVisible', () => {
+    expect(isPlayerBlinkVisible(0.15, PLAYER_HIT_REACTION_SECONDS)).toBe(true);
+  });
+
+  it('theInstantOfTheHit-isHidden', () => {
+    // The window opens on a hidden frame — the hit reads as the sprite
+    // vanishing. An elapsed-time parity would show it instead.
+    expect(isPlayerBlinkVisible(0, PLAYER_HIT_REACTION_SECONDS)).toBe(false);
   });
 });

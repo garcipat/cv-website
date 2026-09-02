@@ -15,6 +15,7 @@ import {
   PLAYER_RENDERED_SIZE,
   PLAYER_FOOT_PADDING,
   PLAYER_VISUAL_CENTER_Y_OFFSET,
+  PLAYER_HIT_REACTION_SECONDS,
 } from './entities/Player';
 import { MAX_HALF_HEARTS } from './entities/Health';
 import { toEnemyState, reviveEnemy } from './entities/Enemy';
@@ -70,16 +71,15 @@ export function spawnPlayerState(): PlayerState {
     animState: 'idle',
     animFrame: 0,
     animTimer: 0,
-    invincibleTimer: 0,
     knockbackTimer: 0,
     bounceAscending: false,
     hitBlockIds: [],
     hitPoints: MAX_HALF_HEARTS,
     alive: true,
-    // Behaviorally inert seed: nothing reads hitTimer this task —
-    // invincibleTimer above is what currently gates further hits. A later
-    // task gives hitTimer real meaning and picks a deliberate seed for it.
-    hitTimer: 0,
+    // `hitTimer` counts UP from a hit, so "no hit recently" is a value at or
+    // past the reaction duration, not 0. Seeding 0 would hand the player a
+    // free 1.2 s of invulnerability after every respawn.
+    hitTimer: PLAYER_HIT_REACTION_SECONDS,
   };
 }
 

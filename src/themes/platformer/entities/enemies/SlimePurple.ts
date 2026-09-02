@@ -1,6 +1,6 @@
 import type { EnemyType, BaseEnemyState } from './EnemyType';
-import { baseEnemyState, baseRevive, takeHit } from './shared';
-import { isStunned } from './stunnedGuard';
+import { baseEnemyState, baseRevive, takeHit, ENEMY_HIT_REACTION_SECONDS } from './shared';
+import { isInvulnerable } from '../capabilities';
 import { ENEMY_ANIMATIONS } from './EnemyAnimation';
 import { SLIME_PURPLE_SHEET, KEY_SHEET } from '../sprites/sheets';
 import type { SpriteDescriptor } from '../sprites/SpriteSheet';
@@ -131,6 +131,7 @@ function fillSpikeTriangle(
 export const slimePurple: EnemyType<SlimePurpleState> = {
   key: 'slimePurple',
   maxHitPoints: 3,
+  hitReactionSeconds: ENEMY_HIT_REACTION_SECONDS,
   patrolSpeedMultiplier: 0.7,
   hitboxPaddingNative: HITBOX_PADDING_NATIVE,
   sprite: SLIME_PURPLE_SPRITE,
@@ -205,7 +206,11 @@ export const slimePurple: EnemyType<SlimePurpleState> = {
   },
 
   onPlayerCollide: (enemy, _player, contact) => {
-    if (isStunned(enemy) || enemy.hitPoints <= 0) return {};
+    // Mid-reaction, this slime is harmless in every way — not merely immune
+    // to a second stomp. Without that, bouncing off a stomp while still
+    // overlapping the now-frozen enemy registers as a spurious side-hit
+    // against the very enemy just stomped.
+    if (isInvulnerable(enemy, ENEMY_HIT_REACTION_SECONDS) || enemy.hitPoints <= 0) return {};
     if (enemy.spiked) {
       // A failed stomp should read as bouncing off the spikes, not as an
       // ordinary side touch.

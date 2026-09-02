@@ -51,3 +51,17 @@ export interface Damageable {
   alive: boolean;
   hitTimer: number;
 }
+
+/**
+ * Whether `state` is still inside its post-hit refractory window, during
+ * which further hits do not land. The window is `hitTimer < reactionSeconds`,
+ * so a `hitTimer` exactly at the duration is already outside it — the same
+ * boundary the reaction animation uses when it ends.
+ *
+ * `reactionSeconds` is supplied by the caller rather than stored on the
+ * capability: the player's window and each enemy type's window are different
+ * lengths, and each family already owns its own constant.
+ */
+export function isInvulnerable(state: Damageable, reactionSeconds: number): boolean {
+  return state.hitTimer < reactionSeconds;
+}

@@ -11,6 +11,7 @@ import {
   PLAYER_SIDE_PADDING,
 } from '../entities/Player';
 import type { PlayerState } from '../entities/Player';
+import { PLAYER_HIT_REACTION_SECONDS } from '../entities/Player';
 
 function basePlayer(overrides: Partial<PlayerState> = {}): PlayerState {
   return {
@@ -27,13 +28,12 @@ function basePlayer(overrides: Partial<PlayerState> = {}): PlayerState {
     isDroppingThroughBridge: false,
     lastGroundedX: 0,
     lastGroundedY: 0,
-    invincibleTimer: 0,
     knockbackTimer: 0,
     bounceAscending: false,
     hitBlockIds: [],
     hitPoints: 6,
     alive: true,
-    hitTimer: 0,
+    hitTimer: PLAYER_HIT_REACTION_SECONDS,
     ...overrides,
   };
 }

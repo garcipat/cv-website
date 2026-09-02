@@ -21,7 +21,7 @@ describe('takeHit', () => {
     // takeHit itself never refuses a second call (see its doc comment) —
     // calling it again mid-reaction must replay from frame 0, not continue
     // wherever the first stomp's animation had gotten to. The type module's
-    // own `onPlayerCollide` (via `isStunned`) is what actually prevents this
+    // own `onPlayerCollide` (via `isInvulnerable`) is what actually prevents this
     // from happening via real player input while mid-reaction — this test
     // exercises the function directly, bypassing that gate.
     const placement: EnemyPlacement = { id: 'enemy-cert-x', type: 'slimePurple', x: 320, y: 96 };

@@ -5,6 +5,16 @@ import type { EnemyPlacement } from '../../level/EnemyMapper';
 import { walkAnimFrameCount, WALK_FRAME_DURATION } from './EnemyAnimation';
 
 /**
+ * Seconds an enemy's post-hit refractory window lasts — the red-flash/
+ * dissolve `hit` reaction plays for exactly this long, and the enemy is
+ * harmless and untouchable for the whole of it. Matches EnemyAnimation.ts's
+ * `hit` animation: 4 frames at 0.1s each. Every current type uses this value
+ * through its own `hitReactionSeconds`; a type wanting a longer stun sets a
+ * different one there.
+ */
+export const ENEMY_HIT_REACTION_SECONDS = 0.4;
+
+/**
  * The fields every enemy starts with. `index` offsets the starting walk frame
  * and timer so multiple enemies don't animate in perfect lockstep — each
  * enemy's frame advance is driven by its own dt-accumulated timer, not a
@@ -26,7 +36,10 @@ export function baseEnemyState(
     animFrame: index % walkAnimFrameCount(),
     animTimer: (index * 0.05) % WALK_FRAME_DURATION,
     hitPoints: maxHitPoints,
-    hitTimer: 0,
+    // At or past the reaction duration means "no hit is being reacted to",
+    // i.e. vulnerable — `isInvulnerable` asks `hitTimer < hitReactionSeconds`.
+    // Seeding 0 would make every enemy harmless and unstompable at spawn.
+    hitTimer: ENEMY_HIT_REACTION_SECONDS,
     alive: true,
     rewardGiven: false,
   };
@@ -44,7 +57,9 @@ export function baseEnemyState(
  * decide defeat here — EnemyAI.ts's `stepEnemyHitReaction` checks
  * `hitPoints` once the reaction animation finishes playing, so the player
  * always sees the same brief "stunned" reaction whether or not this hit was
- * the finishing blow.
+ * the finishing blow. Zeroing `hitTimer` both starts the reaction animation's
+ * clock and opens the refractory window `isInvulnerable` reads — they are one
+ * window, not two.
  */
 export function takeHit<S extends BaseEnemyState>(enemy: S): S {
   const hitPoints = enemy.hitPoints - 1;
@@ -76,7 +91,8 @@ export function baseRevive(
     direction: 'right',
     animState: 'walk',
     hitPoints: maxHitPoints,
-    hitTimer: 0,
+    // Vulnerable again on revival — see baseEnemyState's note on this seed.
+    hitTimer: ENEMY_HIT_REACTION_SECONDS,
     alive: true,
   };
 }

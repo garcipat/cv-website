@@ -1,6 +1,7 @@
 import { drawDebugOverlay } from './DebugOverlay';
 import type { LevelDef } from '../level/LevelData';
 import type { PlayerState } from '../entities/Player';
+import { PLAYER_HIT_REACTION_SECONDS } from '../entities/Player';
 import {
   PLAYER_RENDERED_SIZE,
   PLAYER_SIDE_PADDING,
@@ -37,13 +38,12 @@ const idlePlayer: PlayerState = {
   animTimer: 0,
   animState: 'idle',
   animFrame: 0,
-  invincibleTimer: 0,
   knockbackTimer: 0,
   bounceAscending: false,
   hitBlockIds: [],
   hitPoints: 6,
   alive: true,
-  hitTimer: 0,
+  hitTimer: PLAYER_HIT_REACTION_SECONDS,
 };
 
 describe('drawDebugOverlay', () => {

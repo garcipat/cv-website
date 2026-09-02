@@ -84,7 +84,7 @@ export const PHYSICS_CONFIG = {
    * Seconds the knockback velocity above overrides normal input-driven
    * horizontal movement (see Physics.ts's `stepPlayerPhysics` and
    * `PlayerState.knockbackTimer`) — brief on purpose so the player regains
-   * full control well before `INVINCIBILITY_DURATION_SECONDS` (Health.ts,
+   * full control well before `PLAYER_HIT_REACTION_SECONDS` (Player.ts,
    * 1.2s) elapses.
    */
   sideHitKnockbackDuration: 0.25,

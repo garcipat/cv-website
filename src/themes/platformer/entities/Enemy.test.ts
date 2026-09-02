@@ -12,6 +12,7 @@ import {
 import type { EnemyState } from './Enemy';
 import { ENEMY_TYPES } from './enemies';
 import { enemyFrameIndex } from './enemies/EnemyAnimation';
+import { ENEMY_HIT_REACTION_SECONDS } from './enemies/shared';
 import { SLIME_GREEN_SHEET } from './sprites/sheets';
 import { frameSource } from './sprites/SpriteSheet';
 
@@ -92,7 +93,7 @@ describe('toEnemyState', () => {
     const state = toEnemyState(makePlacement());
     expect(state.hitPoints).toBe(1);
     expect(state.alive).toBe(true);
-    expect(state.hitTimer).toBe(0);
+    expect(state.hitTimer).toBe(ENEMY_HIT_REACTION_SECONDS);
   });
 
   it('purpleSlime-startsWithThreeHitPoints', () => {
@@ -229,7 +230,7 @@ describe('reviveEnemy', () => {
     expect(revived.hitPoints).toBe(ENEMY_TYPES[enemy.type].maxHitPoints);
     expect(revived.alive).toBe(true);
     expect(revived.animState).toBe('walk');
-    expect(revived.hitTimer).toBe(0);
+    expect(revived.hitTimer).toBe(ENEMY_HIT_REACTION_SECONDS);
   });
 
   it('livingEnemy-stillResetsToSpawnState', () => {

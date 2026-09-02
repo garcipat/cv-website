@@ -15,8 +15,10 @@ import {
   PLAYER_HEAD_PADDING,
   PLAYER_FOOT_PADDING,
   PLAYER_RENDERED_SIZE,
+  PLAYER_HIT_REACTION_SECONDS,
 } from '../entities/Player';
 import type { PlayerState } from '../entities/Player';
+import { ENEMY_HIT_REACTION_SECONDS } from '../entities/enemies/shared';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
 import {
   toEnemyState,
@@ -50,13 +52,12 @@ function makePlayer(x: number, y: number): PlayerState {
     animState: 'idle',
     animFrame: 0,
     animTimer: 0,
-    invincibleTimer: 0,
     knockbackTimer: 0,
     bounceAscending: false,
     hitBlockIds: [],
     hitPoints: 6,
     alive: true,
-    hitTimer: 0,
+    hitTimer: PLAYER_HIT_REACTION_SECONDS,
   };
 }
 
@@ -270,7 +271,7 @@ function makeSpikedPurpleEnemy(overrides: Partial<EnemyState> = {}): EnemyState 
   return {
     id: 'e1', type: 'slimePurple', x: 10, y: 20, vx: 0, vy: 0,
     direction: 'right', animState: 'walk', animFrame: 0,
-    animTimer: 0, hitPoints: 2, hitTimer: 0, alive: true,
+    animTimer: 0, hitPoints: 2, hitTimer: ENEMY_HIT_REACTION_SECONDS, alive: true,
     spiked: true, spikeTimer: 0.1, homeX: 10, homeY: 20,
     rewardGiven: false,
     ...overrides,
@@ -386,8 +387,8 @@ describe('checkKeyPickupCollisions', () => {
   const player = {
     x: 0, y: 0, vx: 0, vy: 0, direction: 'right' as const, grounded: true, climbing: false,
     isDroppingThroughBridge: false, lastGroundedX: 0, lastGroundedY: 0, animState: 'idle' as const,
-    animFrame: 0, animTimer: 0, invincibleTimer: 0, knockbackTimer: 0, bounceAscending: false, hitBlockIds: [],
-    hitPoints: 6, alive: true, hitTimer: 0,
+    animFrame: 0, animTimer: 0, knockbackTimer: 0, bounceAscending: false, hitBlockIds: [],
+    hitPoints: 6, alive: true, hitTimer: PLAYER_HIT_REACTION_SECONDS,
   };
 
   it('checkKeyPickupCollisions-overlappingUncollectedPickup-returnsItsId', () => {
