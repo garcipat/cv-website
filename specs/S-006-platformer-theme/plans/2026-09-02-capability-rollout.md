@@ -29,33 +29,31 @@ type-level. Steps 1-4 cannot change behavior at all; 5 onward can.
 | # | Step | Plan | Risk | What proves it |
 |---|---|---|---|---|
 | 1 | Split `Entity.ts` into `geometry.ts` + `capabilities.ts`; add `Moving` / `SelfAnimated` / `Damageable`; enemy state composes all three; delete `Entity` | A | type-level | Standing gates. `grep -rn "entities/Entity" src/` returns nothing. |
-| 2 | *(resolved, no change)* Blocks compose no capability — no block cycles sprite frames, so `animTimer` only drives a bump offset and a shatter alpha | A | type-level | Standing gates. **Decision point — see below.** |
+| 2 | *(resolved, no change)* Blocks compose no capability — no block cycles sprite frames, so `animTimer` only drives a bump offset and a shatter alpha | A | — | Investigated and settled; nothing to implement. |
 | 3 | `PlayerState.facing` → `direction` | A | rename only | Standing gates, plus `Physics.test.ts` unmodified apart from the rename. **Browser:** player faces its movement direction; sprite still mirrors left. |
 | 4 | `PlayerState` composes `Moving` + `SelfAnimated` | A | type-level | Standing gates. |
 | 5 | Player health moves onto `PlayerState` as `hitPoints` (6) and `alive` | B | **behavioral** | **Browser:** take a pit fall and an enemy hit — hearts decrease correctly; at zero the death/respawn iris still plays. |
 | 6 | `invincibleTimer` + enemy `hitTimer` unified into `Damageable.hitTimer` counting up, duration on the type | B | **behavioral** | **Browser:** after a hit the player blinks for ~1.2s and a second touch does not land during it; a stomped slime is harmless during its ~0.4s reaction. |
-| 7 | `DamageableType` with `onDamaged` / `onDeath`; purple's spike growth moves out of `onPlayerCollide` | B | **behavioral** | `EnemyContact.contract.test.ts` unmodified. **Browser:** spikes still grow on a non-fatal stomp and retract on the same timing. |
+| 7 | `DamageableType` with `onDamaged`; purple's spike growth moves out of `onPlayerCollide`. `onDeath` deferred — it takes a `WorldApi` nothing creates yet | B | **behavioral** | `EnemyContact.contract.test.ts` unmodified. **Browser:** spikes still grow on a non-fatal stomp and retract on the same timing. |
 | 8 | `WorldType` added; the four type modules extend it; `ChestType` gains `box()` | C | type-level | Standing gates. The chest's `box()` must return the rect `chestPlayerIsStandingOn` builds today, `CHEST_CLOSED_OFFSET_X` included. |
 | 9 | `chestPlayerIsStandingOn` reads `ChestType.box()` | C | **behavioral** | **Browser:** standing on a closed chest with a key still opens it; standing without one still shows the locked hint. |
 | 10 | Signs get a `box()`; `checkSignOverlap` reads it | C | **behavioral** | **Browser:** walking past each sign still shows its hint at the same spot. |
 | 11 | The three overlap functions collapse into one trigger helper | C | **behavioral** | **Browser:** collect a coin, a fruit, a dropped key and a bonus fruit; open a chest; pass a sign. All four eligibility rules still hold. |
 
-## Two decisions to settle before the steps that need them
+## Decisions taken during the rollout
 
-**Before step 2 — does a block satisfy all of `SelfAnimated`?**
-`BlockState` has `animState` and `animTimer` but **no `animFrame`**; a block's appearance
-comes from `BLOCK_TYPES[kind].frameIndex(hitsTaken)`. If that holds, forcing
-`animFrame: 0` onto it would be exactly the dead field this refactor exists to remove.
-Plan A's Task 2 is written to **stop and report** rather than decide. The resolution is
-either splitting `SelfAnimated` into a timer part and a frame part, or blocks keeping
-their own two fields and not composing it. Both are defensible.
+**Blocks compose no capability.** `BlockState` has `animState` and `animTimer` but no
+`animFrame`, and no block cycles sprite frames — every `frameIndex` is a constant or a
+function of `hitsTaken`. A block's `animTimer` drives only `blockBumpOffsetY` and
+`crateShatterOpacity`: transforms on a static sprite. `EnemyAnimState` and
+`BlockAnimState` also denote different kinds of state machine, so composing
+`SelfAnimated` would share a field name rather than a concept. Splitting it into a timer
+half was rejected as taxonomy — nothing else has a timed transform.
 
-**Before step 7 — is `DamageableType` in scope?**
-The type-side counterpart to `Damageable`: `maxHitPoints`, `hitReactionSeconds`,
-`onDamaged?`, `onDeath?`, extended by `EnemyType` and `PLAYER_TYPE`. It gives purple's
-spike growth a home separate from interpreting a contact, and makes "add a damageable
-thing" mean composing two halves. Not yet in the proposal; folding it in is cheaper than
-discovering it mid-Plan-B.
+**`DamageableType` is in scope and built**, carrying `maxHitPoints`, `hitReactionSeconds`
+and `onDamaged`. `onDeath` is **deferred**: it takes a `WorldApi` that does not exist and
+no plan creates, so implementing it would mean an invented empty type with no implementer
+and no caller. See `2026-09-02-entity-architecture-followups.md` for where it should land.
 
 ## Verification that spans the whole rollout
 
