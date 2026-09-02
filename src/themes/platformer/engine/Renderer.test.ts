@@ -1142,7 +1142,7 @@ describe('drawPlayer', () => {
     y: 256,
     vx: 0,
     vy: 0,
-    facing: 'right',
+    direction: 'right',
     grounded: true,
     climbing: false,
     isDroppingThroughBridge: false,
@@ -1234,7 +1234,7 @@ describe('drawPlayer', () => {
 
   it('facingLeft-draws-flippedAroundSpriteBoundingBox', () => {
     const ctx = makeMockContext();
-    const player: PlayerState = { ...idlePlayer, facing: 'left' };
+    const player: PlayerState = { ...idlePlayer, direction: 'left' };
 
     drawPlayer(ctx, player, fakeSpriteSheet);
 
@@ -1260,7 +1260,7 @@ describe('drawPlayer', () => {
 
   it('facingLeft-withOriginX-translatesIncludingHorizontalShift', () => {
     const ctx = makeMockContext();
-    const player: PlayerState = { ...idlePlayer, facing: 'left' };
+    const player: PlayerState = { ...idlePlayer, direction: 'left' };
 
     drawPlayer(ctx, player, fakeSpriteSheet, 100);
 
@@ -1345,7 +1345,7 @@ describe('drawPlayer', () => {
       ...idlePlayer,
       animState: 'jump',
       vy: -300,
-      facing: 'left',
+      direction: 'left',
     };
 
     drawPlayer(ctx, player, fakeSpriteSheet, 0, 0, jumpSheet);

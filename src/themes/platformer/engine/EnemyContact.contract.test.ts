@@ -24,7 +24,7 @@ function makePlayer(x: number, y: number, vy: number): PlayerState {
     y,
     vx: 0,
     vy,
-    facing: 'right',
+    direction: 'right',
     grounded: false,
     climbing: false,
     isDroppingThroughBridge: false,

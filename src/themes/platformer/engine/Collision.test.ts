@@ -41,7 +41,7 @@ function makePlayer(x: number, y: number): PlayerState {
     y,
     vx: 0,
     vy: 0,
-    facing: 'right',
+    direction: 'right',
     grounded: true,
     climbing: false,
     isDroppingThroughBridge: false,
@@ -381,7 +381,7 @@ describe('enemyHitbox per type', () => {
 
 describe('checkKeyPickupCollisions', () => {
   const player = {
-    x: 0, y: 0, vx: 0, vy: 0, facing: 'right' as const, grounded: true, climbing: false,
+    x: 0, y: 0, vx: 0, vy: 0, direction: 'right' as const, grounded: true, climbing: false,
     isDroppingThroughBridge: false, lastGroundedX: 0, lastGroundedY: 0, animState: 'idle' as const,
     animFrame: 0, animTimer: 0, invincibleTimer: 0, knockbackTimer: 0, bounceAscending: false, hitBlockIds: [],
   };

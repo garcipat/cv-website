@@ -120,7 +120,7 @@ export function drawTerrain(
  * Draws the player sprite. `originX` and `originY` shift it horizontally and
  * vertically by the same amounts as `drawTerrain`'s `originX`/`originY`, so
  * the player stays aligned with the terrain (bottom-anchored, camera-scrolled,
- * or both). When `player.facing` is `'left'`, the sprite is mirrored
+ * or both). When `player.direction` is `'left'`, the sprite is mirrored
  * horizontally around its own bounding box — the sheet only needs to depict
  * the character facing one direction. `jumpSpriteSheet` is a separate,
  * higher-resolution sheet used only while `animState === 'jump'` (the
@@ -154,7 +154,7 @@ export function drawPlayer(
       ? climbFrameSource(player.animFrame)
       : jumpFrameSource(player.vy, player.animFrame);
 
-  if (player.facing === 'left') {
+  if (player.direction === 'left') {
     ctx.save();
     ctx.translate(player.x + originX + PLAYER_RENDERED_SIZE, player.y + originY);
     ctx.scale(-1, 1);

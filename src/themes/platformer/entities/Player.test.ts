@@ -13,6 +13,8 @@ import {
   grantInvincibility,
 } from './Player';
 import type { PlayerState } from './Player';
+import type { Moving, SelfAnimated } from './capabilities';
+import { spawnPlayerState } from '../PlatformerState';
 import { RENDER_SCALE } from '../level/Terrain';
 
 function idlePlayer(overrides: Partial<PlayerState> = {}): PlayerState {
@@ -21,7 +23,7 @@ function idlePlayer(overrides: Partial<PlayerState> = {}): PlayerState {
     y: 0,
     vx: 0,
     vy: 0,
-    facing: 'right',
+    direction: 'right',
     grounded: true,
     climbing: false,
     isDroppingThroughBridge: false,
@@ -267,31 +269,39 @@ describe('tickInvincibility', () => {
 
 describe('applyKnockback', () => {
   it('directionLeft-setsNegativeVxFacingLeftAndBothTimers', () => {
-    const player = idlePlayer({ vx: 0, facing: 'right' });
+    const player = idlePlayer({ vx: 0, direction: 'right' });
     const next = applyKnockback(player, -1, 250, 0.25, 1.2);
     expect(next.vx).toBe(-250);
-    expect(next.facing).toBe('left');
+    expect(next.direction).toBe('left');
     expect(next.knockbackTimer).toBe(0.25);
     expect(next.invincibleTimer).toBe(1.2);
   });
 
   it('directionRight-setsPositiveVxAndFacingRight', () => {
-    const player = idlePlayer({ vx: 0, facing: 'left' });
+    const player = idlePlayer({ vx: 0, direction: 'left' });
     const next = applyKnockback(player, 1, 250, 0.25, 1.2);
     expect(next.vx).toBe(250);
-    expect(next.facing).toBe('right');
+    expect(next.direction).toBe('right');
   });
+});
+
+it('playerState-assignedToMovingAndSelfAnimated-satisfiesBothShapes', () => {
+  const player: Moving & SelfAnimated = spawnPlayerState();
+  expect(player.vx).toBe(0);
+  expect(player.vy).toBe(0);
+  expect(player.direction).toBe('right');
+  expect(player.animState).toBe('idle');
 });
 
 describe('grantInvincibility', () => {
   it('setsInvincibleTimerToDuration-leavesVxFacingKnockbackTimerUntouched', () => {
     // Unlike applyKnockback, a pit fall has no "direction to knock away
     // from" and no horizontal push at all — only the timer changes.
-    const player = idlePlayer({ vx: 42, facing: 'left', knockbackTimer: 0 });
+    const player = idlePlayer({ vx: 42, direction: 'left', knockbackTimer: 0 });
     const next = grantInvincibility(player, 1.2);
     expect(next.invincibleTimer).toBe(1.2);
     expect(next.vx).toBe(42);
-    expect(next.facing).toBe('left');
+    expect(next.direction).toBe('left');
     expect(next.knockbackTimer).toBe(0);
   });
 });
