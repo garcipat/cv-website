@@ -20,7 +20,8 @@ import {
 import { collectiblesSummary } from '../entities/CollectiblesSummary';
 import { COIN_FRAME_SIZE, COIN_FRAME_COUNT } from '../entities/Coin';
 import { FRUIT_FRAME_SIZE } from '../entities/Fruit';
-import { ENEMY_FRAME_SIZE } from '../entities/Enemy';
+import { SLIME_GREEN_SHEET } from '../entities/sprites/sheets';
+import { frameSource } from '../entities/sprites/SpriteSheet';
 import { blockFrameSource, BLOCK_FRAME_SIZE } from '../entities/Block';
 import {
   journalOpenFrameSrc,
@@ -191,10 +192,10 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
   // Renders the same coin.png/fruit.png sprites used in the level/HUD (not
   // emoji) for the personality page's collectibles summary, per user
   // feedback — cropped to each sheet's first frame (matching the HUD
-  // counter's static icon, drawCollectibleCounter's `coinFrameSource(0)`/
-  // `fruitFrameSource(0)` in Renderer.ts/PlatformerPage.tsx) at a small
-  // fixed display size, scaling the whole sheet's `background-size` up so
-  // that one frame lands exactly on the crop.
+  // counter's static icon, `coinFrameSource(0)`/`fruitFrameSource(0)` in
+  // PlatformerPage.tsx, passed into Renderer.ts's drawCollectibleCounter as
+  // its `iconFrame`) at a small fixed display size, scaling the whole
+  // sheet's `background-size` up so that one frame lands exactly on the crop.
   const COLLECTIBLE_ICON_DISPLAY_SIZE = 32;
   // Crates are drawn from world_tileset.png's edge-to-edge terrain art (no
   // transparent padding the way coin.png/fruit.png's centered icons have),
@@ -240,14 +241,14 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
           ? FRUIT_FRAME_SIZE
           : labelKey === 'crates'
             ? BLOCK_FRAME_SIZE
-            : ENEMY_FRAME_SIZE;
+            : SLIME_GREEN_SHEET.frameWidth;
     const sheetCols = labelKey === 'coins' ? COIN_FRAME_COUNT : labelKey === 'crates' ? 16 : 4;
     const sheetRows = labelKey === 'coins' ? 1 : labelKey === 'fruits' ? 4 : labelKey === 'crates' ? 16 : 3;
     const displaySize = labelKey === 'crates' ? CRATE_ICON_DISPLAY_SIZE : COLLECTIBLE_ICON_DISPLAY_SIZE;
     const scale = displaySize / frameSize;
     const { sx, sy } =
       labelKey === 'enemies'
-        ? { sx: 2 * ENEMY_FRAME_SIZE, sy: 0 }
+        ? frameSource(SLIME_GREEN_SHEET, 2)
         : labelKey === 'crates'
           ? blockFrameSource('crate')
           : { sx: 0, sy: 0 };
@@ -269,8 +270,8 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
             backgroundPosition: `-${sx * scale}px -${sy * scale}px`,
             backgroundSize: `${sheetCols * frameSize * scale}px ${sheetRows * frameSize * scale}px`,
             imageRendering: 'pixelated',
-            // Enemy.ts's slime frames are bottom-anchored within their
-            // native cell (no transparent padding below the feet, so any
+            // A slime's sprite frames (entities/sprites/sheets.ts) are
+            // bottom-anchored within their native cell (no transparent padding below the feet, so any
             // empty space sits above instead) — unlike coin.png/fruit.png's
             // centered artwork, this reads as sitting too low next to the
             // row's text once cropped into a fixed-size icon box. Nudged up

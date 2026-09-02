@@ -615,7 +615,7 @@ FloatingControls (P3)
 
 - Q: What happens if the player stomps a purple slime from the top again while it's spiked? A: The player takes damage. Landing on the spiked top hurts the player, the same as touching an enemy from the side already does today (checkEnemySideCollisions), not a harmless bounce-off.
 - Q: Does "go to the side to stomp it again" mean a new side-attack mechanic? A: No. That was shorthand for "don't stomp again immediately." Spikes are purely temporary: the cooldown expires, spikes retract, and the top is stompable again as normal. No new side-contact-defeats-enemy mechanic is introduced.
-- Q: Where is this idea captured? A: docs/ideas/platformer-purple-slime-spikes.md. Not yet a numbered roadmap step; deliberately scoped separately from roadmap step 30 (purple slime rework) since it reverses that step's intentionally-documented chain-stomp behavior rather than extending it.
+- Q: Where is this idea captured? A: It was scoped separately from roadmap step 30 (purple slime rework) since it reverses that step's intentionally-documented chain-stomp behavior rather than extending it. Since shipped: the behavior and its timing constants live in `src/themes/platformer/entities/enemies/SlimePurple.ts`, covered by `SlimePurple.test.ts` and `EnemyContact.contract.test.ts`.
 
 ## Iteration Plan
 

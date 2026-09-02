@@ -1,4 +1,5 @@
-import { stepEnemyPatrol, stepEnemyHitReaction, HIT_REACTION_DURATION_SECONDS, stepEnemySpikeCooldown, SPIKE_COOLDOWN_DURATION_SECONDS } from './EnemyAI';
+import { stepEnemyPatrol, stepEnemyHitReaction } from './EnemyAI';
+import { ENEMY_HIT_REACTION_SECONDS } from '../entities/enemies/shared';
 import { toEnemyState } from '../entities/Enemy';
 import type { EnemyState } from '../entities/Enemy';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
@@ -23,7 +24,7 @@ function makeLevel(width: number, wallCols: number[], pitCols: number[]): LevelD
 function makeEnemyAt(col: number) {
   const placement: EnemyPlacement = {
     id: 'enemy-cert-x',
-    spriteType: 'slimeGreen',
+    type: 'slimeGreen',
     fact: {
       id: 'enemy-cert-x',
       sectionId: 'certificates',
@@ -69,9 +70,11 @@ describe('stepEnemyPatrol', () => {
 
   it('wallAhead-movingRight-reversesAndClampsBeforeTheWall', () => {
     // Wall at col 7, enemy starting at col 5 moving right. dt=1s moves it
-    // 60px (nextX=220) — far enough in one step that its leading edge lands
-    // inside col 7 (wall), so the clamp/reversal is exercised deterministically
-    // in a single call rather than relying on many small frames adding up.
+    // 60px (nextX=220) — far enough in one step that its leading edge (44px
+    // ahead of the tile-anchor for a green slime: offsetX -8 + size 48 -
+    // sidePadding 10) lands inside col 7 (wall), so the clamp/reversal is
+    // exercised deterministically in a single call rather than relying on
+    // many small frames adding up.
     const level = makeLevel(10, [7], []);
     const enemy = { ...makeEnemyAt(5), direction: 'right' as const };
 
@@ -79,20 +82,27 @@ describe('stepEnemyPatrol', () => {
 
     expect(next.direction).toBe('left');
     expect(next.vx).toBe(-SPEED);
-    expect(next.x).toBe(6 * RENDERED_TILE_SIZE);
+    // leadingCol(7)*TILE - offsetX(-8) - size(48) + sidePadding(10) = 224+8-48+10
+    // = 194 — the sprite's actual VISIBLE (hitbox-padding-inset) right edge,
+    // not its narrower tile-anchor nor its full (mostly transparent) render
+    // frame, stops exactly at the wall (col 7's left boundary, x=224).
+    expect(next.x).toBe(194);
   });
 
   it('wallAhead-movingLeft-reversesAndClampsBeforeTheWall', () => {
-    // Wall at col 2, enemy starting at col 5 moving left. dt=1.1s moves it
-    // 66px (nextX=94), landing the leading edge inside col 2 (wall).
-    const level = makeLevel(10, [2], []);
+    // Wall at col 3, enemy starting at col 5 moving left. dt=1.1s moves it
+    // 66px (nextX=94), landing the leading edge inside col 3 (wall).
+    const level = makeLevel(10, [3], []);
     const enemy = { ...makeEnemyAt(5), direction: 'left' as const };
 
     const next = stepEnemyPatrol(enemy, level, 1.1, []);
 
     expect(next.direction).toBe('right');
     expect(next.vx).toBe(SPEED);
-    expect(next.x).toBe(3 * RENDERED_TILE_SIZE);
+    // (leadingCol(3)+1)*TILE - offsetX(-8) - sidePadding(10) = 128+8-10 = 126
+    // — the sprite's actual visible left edge stops at the wall (col 3's
+    // right boundary, x=128).
+    expect(next.x).toBe(126);
   });
 
   it('pitAheadMovingRight-noSolidGroundBelow-reversesAtTheEdgeInsteadOfFalling', () => {
@@ -104,26 +114,29 @@ describe('stepEnemyPatrol', () => {
     const next = stepEnemyPatrol(enemy, level, 1, []);
 
     expect(next.direction).toBe('left');
-    expect(next.x).toBe(6 * RENDERED_TILE_SIZE);
+    expect(next.x).toBe(194);
   });
 
   it('pitAheadMovingLeft-noSolidGroundBelow-reversesAtTheEdge', () => {
-    const level = makeLevel(10, [], [2]);
+    const level = makeLevel(10, [], [3]);
     const enemy = { ...makeEnemyAt(5), direction: 'left' as const };
 
     const next = stepEnemyPatrol(enemy, level, 1.1, []);
 
     expect(next.direction).toBe('right');
-    expect(next.x).toBe(3 * RENDERED_TILE_SIZE);
+    expect(next.x).toBe(126);
   });
 
   it('wallOnLeftAndPitOnRight-patrolsBackAndForthWithoutEscaping', () => {
     // The user-requested "wall - enemy - pit" sandwich: wall at col 3, pit at
-    // col 7, enemy starts at col 5 patrolling cols 4-6.
+    // col 7, enemy starts at col 5. Bounds are the exact resting x values
+    // from the two single-jump tests above (126 left, 194 right) — the
+    // small-dt loop here approaches the same visible-edge-touches-wall
+    // positions, just gradually instead of in one deterministic jump.
     const level = makeLevel(10, [3], [7]);
     let enemy: EnemyState = { ...makeEnemyAt(5), direction: 'right' };
-    const minX = 4 * RENDERED_TILE_SIZE;
-    const maxX = 6 * RENDERED_TILE_SIZE;
+    const minX = 126;
+    const maxX = 194;
 
     for (let i = 0; i < 200; i++) {
       enemy = stepEnemyPatrol(enemy, level, DT, []);
@@ -157,7 +170,7 @@ describe('stepEnemyPatrol', () => {
 
     expect(next.direction).toBe('left');
     expect(next.vx).toBe(-SPEED);
-    expect(next.x).toBe(6 * RENDERED_TILE_SIZE);
+    expect(next.x).toBe(194);
   });
 
   it('pitAheadMovingRight-blockedTilesDoNotCoverTheGap-stillReverses', () => {
@@ -170,7 +183,50 @@ describe('stepEnemyPatrol', () => {
     const next = stepEnemyPatrol(enemy, level, 1, [{ col: 2, row: 1 }]);
 
     expect(next.direction).toBe('left');
-    expect(next.x).toBe(6 * RENDERED_TILE_SIZE);
+    expect(next.x).toBe(194);
+  });
+
+  it('slimePurple-laneNarrowerThanItsOwnOverhangOnBothSides-standsStillInsteadOfFlipFlopping', () => {
+    // Regression test: a render-scaled-up purple slime (sprite
+    // renderScale 2) needs clearance on both sides before it may safely turn around —
+    // scaling with its own visible-silhouette size, not a flat one-tile
+    // assumption (see stepEnemyPatrol's own doc comment). Spawned here (col
+    // 5) in a lane too narrow for that on BOTH sides at once — wall
+    // immediately at col 4, pit immediately at col 6. Reported live:
+    // without the stand-still fallback, this made the slime flip direction
+    // every single call while barely moving — reading as violently
+    // vibrating in place, never actually patrolling.
+    const level = makeLevel(10, [4], [6]);
+    const enemy: EnemyState = {
+      id: 'e1',
+      type: 'slimePurple',
+      x: 5 * RENDERED_TILE_SIZE,
+      y: 0,
+      vx: 0,
+      vy: 0,
+      direction: 'right',
+      animState: 'walk',
+      animFrame: 0,
+      animTimer: 0,
+      hitPoints: 2,
+      hitTimer: 0,
+      spiked: false,
+      spikeTimer: 0,
+      alive: true,
+      homeX: 5 * RENDERED_TILE_SIZE,
+      homeY: 0,
+      rewardGiven: false,
+    };
+
+    const first = stepEnemyPatrol(enemy, level, DT, []);
+    expect(first.vx).toBe(0);
+
+    // Stable, not just a one-off: re-running from the returned state must
+    // keep reporting stuck (not flip direction, not start moving) — this is
+    // what distinguishes "parked" from "flip-flops every OTHER call".
+    const second = stepEnemyPatrol(first, level, DT, []);
+    expect(second.vx).toBe(0);
+    expect(second.x).toBe(first.x);
   });
 
   it('stepEnemyPatrol-slimePurple-movesSlowerThanGreen', () => {
@@ -180,6 +236,7 @@ describe('stepEnemyPatrol', () => {
       x: 3 * RENDERED_TILE_SIZE,
       y: 0,
       vx: 0,
+      vy: 0,
       direction: 'right' as const,
       animState: 'walk' as const,
       animFrame: 0,
@@ -188,10 +245,13 @@ describe('stepEnemyPatrol', () => {
       hitTimer: 0,
       spiked: false,
       spikeTimer: 0,
-      defeated: false,
+      alive: true,
+      homeX: 3 * RENDERED_TILE_SIZE,
+      homeY: 0,
+      rewardGiven: false,
     };
-    const green = stepEnemyPatrol({ ...base, spriteType: 'slimeGreen' as const }, level, 1, []);
-    const purple = stepEnemyPatrol({ ...base, spriteType: 'slimePurple' as const }, level, 1, []);
+    const green = stepEnemyPatrol({ ...base, type: 'slimeGreen' as const }, level, 1, []);
+    const purple = stepEnemyPatrol({ ...base, type: 'slimePurple' as const }, level, 1, []);
     const greenDelta = green.x - base.x;
     const purpleDelta = purple.x - base.x;
     expect(purpleDelta).toBeCloseTo(greenDelta * 0.7, 5);
@@ -210,53 +270,47 @@ describe('stepEnemyHitReaction', () => {
     const next = stepEnemyHitReaction(enemy, 0.1);
     expect(next.animState).toBe('hit');
     expect(next.hitTimer).toBeCloseTo(0.1);
-    expect(next.defeated).toBe(false);
+    expect(next.alive).toBe(true);
   });
 
   it('reactionDurationElapsed-hitPointsRemaining-revertsToWalk', () => {
     const enemy = makeHitEnemy(1);
-    const next = stepEnemyHitReaction(enemy, HIT_REACTION_DURATION_SECONDS);
+    const next = stepEnemyHitReaction(enemy, ENEMY_HIT_REACTION_SECONDS);
     expect(next.animState).toBe('walk');
     expect(next.animFrame).toBe(0);
     expect(next.animTimer).toBe(0);
-    expect(next.hitTimer).toBe(0);
-    expect(next.defeated).toBe(false);
+    // Left at its accumulated value, not reset: the same timer is what
+    // `isInvulnerable` reads, and a reset would leave the reverted enemy
+    // permanently untouchable.
+    expect(next.hitTimer).toBeGreaterThanOrEqual(ENEMY_HIT_REACTION_SECONDS);
+    expect(next.alive).toBe(true);
   });
 
   it('reactionDurationElapsed-noHitPointsRemaining-flagsDefeated', () => {
     const enemy = makeHitEnemy(0);
-    const next = stepEnemyHitReaction(enemy, HIT_REACTION_DURATION_SECONDS);
-    expect(next.defeated).toBe(true);
+    const next = stepEnemyHitReaction(enemy, ENEMY_HIT_REACTION_SECONDS);
+    expect(next.alive).toBe(false);
     expect(next.animState).toBe('hit'); // stays on its last frame until removed
   });
 
   it('reactionDuration-splitAcrossTwoTicks-stillCompletesCorrectly', () => {
     let enemy = makeHitEnemy(0);
-    enemy = stepEnemyHitReaction(enemy, HIT_REACTION_DURATION_SECONDS / 2);
-    expect(enemy.defeated).toBe(false);
-    enemy = stepEnemyHitReaction(enemy, HIT_REACTION_DURATION_SECONDS / 2);
-    expect(enemy.defeated).toBe(true);
-  });
-});
-
-describe('stepEnemySpikeCooldown', () => {
-  it('stepEnemySpikeCooldown-notSpiked-isNoOp', () => {
-    const enemy = { ...makeEnemyAt(5), spiked: false, spikeTimer: 0 };
-    const next = stepEnemySpikeCooldown(enemy, 1);
-    expect(next).toBe(enemy);
+    enemy = stepEnemyHitReaction(enemy, ENEMY_HIT_REACTION_SECONDS / 2);
+    expect(enemy.alive).toBe(true);
+    enemy = stepEnemyHitReaction(enemy, ENEMY_HIT_REACTION_SECONDS / 2);
+    expect(enemy.alive).toBe(false);
   });
 
-  it('stepEnemySpikeCooldown-spikedBelowDuration-accumulatesTimer', () => {
-    const enemy = { ...makeEnemyAt(5), spiked: true, spikeTimer: 0 };
-    const next = stepEnemySpikeCooldown(enemy, 0.5);
-    expect(next.spiked).toBe(true);
-    expect(next.spikeTimer).toBe(0.5);
+  it('reactionFinishedWithNoHitPoints-flagsNotAlive', () => {
+    const enemy = makeHitEnemy(0);
+    const stepped = stepEnemyHitReaction(enemy, ENEMY_HIT_REACTION_SECONDS);
+    expect(stepped.alive).toBe(false);
   });
 
-  it('stepEnemySpikeCooldown-reachesDuration-clearsSpiked', () => {
-    const enemy = { ...makeEnemyAt(5), spiked: true, spikeTimer: SPIKE_COOLDOWN_DURATION_SECONDS - 0.1 };
-    const next = stepEnemySpikeCooldown(enemy, 0.2);
-    expect(next.spiked).toBe(false);
-    expect(next.spikeTimer).toBe(0);
+  it('reactionFinishedWithHitPointsRemaining-staysAlive', () => {
+    const enemy = makeHitEnemy(2);
+    const stepped = stepEnemyHitReaction(enemy, ENEMY_HIT_REACTION_SECONDS);
+    expect(stepped.alive).toBe(true);
+    expect(stepped.animState).toBe('walk');
   });
 });

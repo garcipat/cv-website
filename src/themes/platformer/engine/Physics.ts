@@ -71,7 +71,7 @@ export function stepPlayerPhysics(
   blockPlacements: readonly BlockPlacement[] = NO_BLOCKS,
 ): PlayerState {
   // While a side-hit's knockback is still active, held movement keys are
-  // ignored entirely and the knockback velocity/facing set
+  // ignored entirely and the knockback velocity/direction set
   // by Player.ts's `applyKnockback` is held steady — otherwise this branch
   // would recompute `vx` from input every single frame (as it does normally)
   // and silently erase the knockback the instant this function next runs.
@@ -90,7 +90,7 @@ export function stepPlayerPhysics(
       : moveLeft
         ? -PHYSICS_CONFIG.walkSpeed
         : 0;
-  const facing = knockbackActive ? player.facing : moveRight ? 'right' : moveLeft ? 'left' : player.facing;
+  const direction = knockbackActive ? player.direction : moveRight ? 'right' : moveLeft ? 'left' : player.direction;
 
   let x = player.x + vx * dt;
   // Excludes the head-padding sliver (like the vertical ceiling check below)
@@ -245,7 +245,7 @@ export function stepPlayerPhysics(
         y: minClimbY, // feet exactly on the shaft's top edge
         vx,
         vy: 0,
-        facing,
+        direction,
         grounded: true,
         climbing: false,
         isDroppingThroughBridge: false,
@@ -263,7 +263,7 @@ export function stepPlayerPhysics(
       y: climbY,
       vx,
       vy,
-      facing,
+      direction,
       grounded: false,
       climbing: true,
       isDroppingThroughBridge: false,
@@ -306,7 +306,7 @@ export function stepPlayerPhysics(
       y: player.y + vy * dt,
       vx,
       vy,
-      facing,
+      direction,
       grounded: false,
       climbing: false,
       isDroppingThroughBridge: false,
@@ -451,7 +451,7 @@ export function stepPlayerPhysics(
     y,
     vx,
     vy: resolvedVy,
-    facing,
+    direction,
     grounded,
     climbing: false,
     isDroppingThroughBridge: grounded ? false : droppingThroughBridge,

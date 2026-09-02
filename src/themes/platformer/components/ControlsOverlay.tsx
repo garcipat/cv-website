@@ -187,7 +187,16 @@ export const ControlsOverlay = () => {
       className={`pointer-events-none fixed inset-x-0 top-[30vh] z-40 flex flex-col items-center transition-[opacity,transform] ease-out ${opacityClass}`}
       style={{
         transitionDuration: `${transitionDurationMs}ms`,
-        transform: `translateX(${translateX}px)`,
+        // Omitted (rather than `translateX(0px)`) once at rest: any non-
+        // 'none' transform value promotes this element to its own
+        // GPU-composited layer, and on displays with a fractional device
+        // pixel ratio (e.g. Windows' 125%/150% scaling) Chromium rasterizes
+        // that layer at a rounded scale, softening the text inside it for
+        // as long as the layer exists — even while translateX is exactly 0.
+        // Dropping the transform at rest keeps the text in normal (crisp)
+        // layout for the vast majority of the overlay's visible lifetime;
+        // it still applies during the brief slide-in/slide-out transitions.
+        transform: translateX !== 0 ? `translateX(${translateX}px)` : undefined,
       }}
     >
       <div className="relative w-fit">

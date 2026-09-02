@@ -15,9 +15,10 @@ import {
   PLAYER_RENDERED_SIZE,
   PLAYER_FOOT_PADDING,
   PLAYER_VISUAL_CENTER_Y_OFFSET,
+  PLAYER_HIT_REACTION_SECONDS,
 } from './entities/Player';
 import { MAX_HALF_HEARTS } from './entities/Health';
-import { toEnemyState } from './entities/Enemy';
+import { toEnemyState, reviveEnemy } from './entities/Enemy';
 import type { EnemyState } from './entities/Enemy';
 import { toBlockState } from './entities/Block';
 import type { BlockState } from './entities/Block';
@@ -61,7 +62,7 @@ export function spawnPlayerState(): PlayerState {
     y,
     vx: 0,
     vy: 0,
-    facing: 'right',
+    direction: 'right',
     grounded: false,
     climbing: false,
     isDroppingThroughBridge: false,
@@ -70,10 +71,15 @@ export function spawnPlayerState(): PlayerState {
     animState: 'idle',
     animFrame: 0,
     animTimer: 0,
-    invincibleTimer: 0,
     knockbackTimer: 0,
     bounceAscending: false,
     hitBlockIds: [],
+    hitPoints: MAX_HALF_HEARTS,
+    alive: true,
+    // `hitTimer` counts UP from a hit, so "no hit recently" is a value at or
+    // past the reaction duration, not 0. Seeding 0 would hand the player a
+    // free 1.2 s of invulnerability after every respawn.
+    hitTimer: PLAYER_HIT_REACTION_SECONDS,
   };
 }
 
@@ -98,14 +104,6 @@ export const cameraPositionX = signal(0);
  * assumption.
  */
 export const cameraPositionY = signal(0);
-
-/**
- * Current health in half-heart units (0-MAX_HALF_HEARTS). Kept separate from
- * `playerState` since damage sources (pit falls, enemy hits) are a distinct
- * concern from position/animation, and full-heal-on-death only needs to
- * touch this signal, not reconstruct player position/state.
- */
-export const healthState = signal(MAX_HALF_HEARTS);
 
 /**
  * Every collectible in the level, placed once at module load from the
@@ -286,11 +284,13 @@ export const bonusFruitStates = signal<BonusFruitState[]>([]);
 /**
  * Dropped-key pickups (one per purple-slime finishing stomp) — starts empty.
  * Collected entries stay in this array flagged `collected: true` rather than
- * being removed (see entities/KeyPickup.ts's doc comment: this is what lets
- * PlatformerPage.tsx's defeat handler tell whether a given purple slime has
- * already paid out its key across a death/respawn). Persists across a
- * death/respawn (resetGame()), same as blockStates/bonusFruitStates — cleared
- * only by resetGameProgress().
+ * being removed so the renderer's skip-if-collected logic (see
+ * entities/KeyPickup.ts's doc comment) keeps working across a death/respawn.
+ * The guarantee that a defeated purple slime can never drop a second key
+ * lives elsewhere now: on the source enemy's own `rewardGiven` flag
+ * (Enemy.ts), not on anything read from this array. Persists across a
+ * death/respawn (resetGame()), same as blockStates/bonusFruitStates —
+ * cleared only by resetGameProgress().
  */
 export const keyPickupStates = signal<KeyPickupState[]>([]);
 
@@ -313,8 +313,7 @@ export const collectedFacts = signal<CollectedFact[]>([]);
  * FR-020c) — kept separate from `collectedFacts` since a collectible's
  * removal-from-the-world state and its fact-content-in-the-journal state,
  * while always updated together (see PlatformerPage.tsx's collection
- * handler), are conceptually different concerns, matching how
- * `healthState`/`playerState` are already kept separate.
+ * handler), are conceptually different concerns.
  */
 export const collectedCollectibleIds = signal<Set<string>>(new Set());
 
@@ -378,14 +377,21 @@ export const lifecycleState = signal<LifecycleState>(
 
 /**
  * Resets the game world to its spawn state: player back at the spawn point,
- * full health, enemies back at their spawn placements, camera scrolled back
- * to the level start. Does NOT touch `lifecycleState`, `collectedFacts`, or
- * `collectedCollectibleIds` — per FR-020c, a death/respawn preserves
- * everything already discovered; only the "Reset Game" button clears those
- * (see `resetGameProgress()` below). Callers (restart-on-input and the debug
- * Respawn button, both wired to the `intro` iris-in) decide the lifecycle
- * transition themselves, since not every caller of a "reset" necessarily
- * wants the iris animation.
+ * full health, enemies revived in place at their spawn placements, camera
+ * scrolled back to the level start. Does NOT touch `lifecycleState`,
+ * `collectedFacts`, or `collectedCollectibleIds` — per FR-020c, a
+ * death/respawn preserves everything already discovered; only the "Reset
+ * Game" button clears those (see `resetGameProgress()` below). Callers
+ * (restart-on-input and the debug Respawn button, both wired to the `intro`
+ * iris-in) decide the lifecycle transition themselves, since not every
+ * caller of a "reset" necessarily wants the iris animation.
+ *
+ * Enemies are revived via `reviveEnemy` on the existing `enemyStates`
+ * objects rather than rebuilt from `enemyPlacements` — the same enemy
+ * objects survive a death/respawn cycle so per-instance session state (see
+ * `EnemyState.rewardGiven`) isn't wiped out by a fresh rebuild.
+ * `resetGameProgress()` below is the only place still allowed to rebuild
+ * from placements, which is what actually clears that session state.
  *
  * This is the single reset seam a full "Reset Game" button extends: enemies
  * are reset here; `resetGameProgress()` additionally clears collected facts
@@ -393,10 +399,9 @@ export const lifecycleState = signal<LifecycleState>(
  */
 export function resetGame(): void {
   playerState.value = spawnPlayerState();
-  healthState.value = MAX_HALF_HEARTS;
   cameraPositionX.value = 0;
   cameraPositionY.value = 0;
-  enemyStates.value = enemyPlacements.value.map((placement, index) => toEnemyState(placement, index));
+  enemyStates.value = enemyStates.value.map(reviveEnemy);
   hintTooltipState.value = null;
 }
 
@@ -432,4 +437,5 @@ export function resetGameProgress(): void {
   bonusFruitStates.value = [];
   keyPickupStates.value = [];
   collectedKeys.value = 0;
+  enemyStates.value = enemyPlacements.value.map((placement, index) => toEnemyState(placement, index));
 }

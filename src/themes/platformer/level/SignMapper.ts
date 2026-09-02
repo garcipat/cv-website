@@ -1,9 +1,22 @@
-import { tileToPixel } from './Terrain';
+import { tileToPixel, RENDERED_TILE_SIZE } from './Terrain';
+import type { Box } from '../engine/Collision';
 import type { SignDef, HintId } from '../types';
 
 export interface SignPlacement extends SignDef {
   x: number;
   y: number;
+}
+
+/**
+ * A sign's collision box — exactly one rendered tile (`RENDERED_TILE_SIZE`
+ * square), matching how it's drawn (Renderer.ts). A bare function rather
+ * than a full type module (compare `PICKUP_TYPES`/`BLOCK_TYPES`/`CHEST_TYPE`):
+ * a sign has no state and no per-instance variation beyond its `hintId`
+ * payload, so there is no second method or per-kind registry for a type
+ * object to carry.
+ */
+export function signBox(sign: SignPlacement): Box {
+  return { x: sign.x, y: sign.y, width: RENDERED_TILE_SIZE, height: RENDERED_TILE_SIZE };
 }
 
 /**

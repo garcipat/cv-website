@@ -1,6 +1,7 @@
 import { drawDebugOverlay } from './DebugOverlay';
 import type { LevelDef } from '../level/LevelData';
 import type { PlayerState } from '../entities/Player';
+import { PLAYER_HIT_REACTION_SECONDS } from '../entities/Player';
 import {
   PLAYER_RENDERED_SIZE,
   PLAYER_SIDE_PADDING,
@@ -8,7 +9,7 @@ import {
   PLAYER_HEAD_PADDING,
 } from '../entities/Player';
 import { toEnemyState, enemyRenderedSize, enemyTileOffsetX, enemyTileOffsetY } from '../entities/Enemy';
-import { enemyHitbox } from './Collision';
+import { typeOf } from '../entities/enemies';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 
 function makeMockContext() {
@@ -28,7 +29,7 @@ const idlePlayer: PlayerState = {
   y: 256,
   vx: 0,
   vy: 0,
-  facing: 'right',
+  direction: 'right',
   grounded: true,
   climbing: false,
   isDroppingThroughBridge: false,
@@ -37,10 +38,12 @@ const idlePlayer: PlayerState = {
   animTimer: 0,
   animState: 'idle',
   animFrame: 0,
-  invincibleTimer: 0,
   knockbackTimer: 0,
   bounceAscending: false,
   hitBlockIds: [],
+  hitPoints: 6,
+  alive: true,
+  hitTimer: PLAYER_HIT_REACTION_SECONDS,
 };
 
 describe('drawDebugOverlay', () => {
@@ -199,7 +202,7 @@ describe('drawDebugOverlay', () => {
   it('purpleEnemy-drawsOrangeRenderSlotRectAtFullScaledSize', () => {
     const ctx = makeMockContext();
     const level: LevelDef = { width: 1, height: 1, terrain: [['empty']] };
-    const enemy = toEnemyState({ id: 'e1', spriteType: 'slimePurple', x: 100, y: 200 });
+    const enemy = toEnemyState({ id: 'e1', type: 'slimePurple', x: 100, y: 200 });
 
     drawDebugOverlay(ctx, idlePlayer, level, 0, 0, [enemy]);
 
@@ -217,11 +220,11 @@ describe('drawDebugOverlay', () => {
   it('purpleEnemy-drawsBlueHitboxRectNarrowerThanRenderSlot', () => {
     const ctx = makeMockContext();
     const level: LevelDef = { width: 1, height: 1, terrain: [['empty']] };
-    const enemy = toEnemyState({ id: 'e1', spriteType: 'slimePurple', x: 100, y: 200 });
+    const enemy = toEnemyState({ id: 'e1', type: 'slimePurple', x: 100, y: 200 });
 
     drawDebugOverlay(ctx, idlePlayer, level, 0, 0, [enemy]);
 
-    const box = enemyHitbox(enemy);
+    const box = typeOf(enemy).box(enemy);
     const hitboxCalls = (ctx.strokeRect as ReturnType<typeof vi.fn>).mock.calls.filter(
       (call) => call[0] === box.x && call[1] === box.y && call[2] === box.width && call[3] === box.height,
     );
@@ -232,7 +235,7 @@ describe('drawDebugOverlay', () => {
   it('enemies-originXY-offsetsEnemyRectsToo', () => {
     const ctx = makeMockContext();
     const level: LevelDef = { width: 1, height: 1, terrain: [['empty']] };
-    const enemy = toEnemyState({ id: 'e1', spriteType: 'slimeGreen', x: 50, y: 60 });
+    const enemy = toEnemyState({ id: 'e1', type: 'slimeGreen', x: 50, y: 60 });
     const originX = 10;
     const originY = 20;
 

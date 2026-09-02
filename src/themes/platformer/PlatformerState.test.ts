@@ -2,7 +2,6 @@ import {
   playerState,
   cameraPositionX,
   cameraPositionY,
-  healthState,
   lifecycleState,
   spawnPlayerState,
   spawnCenter,
@@ -56,8 +55,8 @@ describe('PlatformerState', () => {
     // level.ts's doc comment), not a regression.
     const allPossibleDefs = mapCVDataToEnemies(currentCV.value);
     expect(allPossibleDefs.length).toBeGreaterThan(enemyPlacements.value.length);
-    expect(enemyPlacements.value.filter((p) => p.spriteType === 'slimeGreen')).toHaveLength(1);
-    expect(enemyPlacements.value.filter((p) => p.spriteType === 'slimePurple')).toHaveLength(2);
+    expect(enemyPlacements.value.filter((p) => p.type === 'slimeGreen')).toHaveLength(1);
+    expect(enemyPlacements.value.filter((p) => p.type === 'slimePurple')).toHaveLength(2);
   });
 
   it('blockPlacements-initial-hasTwoOfEachKindMatchingLevel1sMarkers', () => {
@@ -145,6 +144,32 @@ describe('PlatformerState', () => {
     expect(collectedFacts.value).toHaveLength(1);
   });
 
+  it('resetGame-afterEnemyMovedAndDied-revivesTheSameObjectsInPlace', () => {
+    const before = enemyStates.value;
+    enemyStates.value = before.map((e) => ({ ...e, x: e.x + 200, hitPoints: 0, alive: false }));
+
+    resetGame();
+
+    expect(enemyStates.value).toHaveLength(before.length);
+    expect(enemyStates.value.every((e) => e.alive)).toBe(true);
+    enemyStates.value.forEach((e, i) => {
+      expect(e.x).toBe(before[i].x);
+      expect(e.id).toBe(before[i].id);
+    });
+  });
+
+  it('resetGame-enemyCarryingSessionState-preservesThatStateAcrossRevive', () => {
+    // The property the whole plan exists for: resetGame() must not be able to
+    // erase per-enemy session progress by rebuilding the array from placements.
+    enemyStates.value = enemyStates.value.map((e, i) => (i === 0 ? { ...e, alive: false } : e));
+    const targetId = enemyStates.value[0].id;
+
+    resetGame();
+
+    expect(enemyStates.value[0].id).toBe(targetId);
+    expect(enemyStates.value[0].alive).toBe(true);
+  });
+
   it('playerState-initial-hasIdleAnimAtFrameZero', () => {
     expect(playerState.value.animState).toBe('idle');
     expect(playerState.value.animFrame).toBe(0);
@@ -174,7 +199,7 @@ describe('PlatformerState', () => {
 
   it('playerState-initial-hasZeroHorizontalVelocityAndFacesRight', () => {
     expect(playerState.value.vx).toBe(0);
-    expect(playerState.value.facing).toBe('right');
+    expect(playerState.value.direction).toBe('right');
   });
 
   it('cameraPositionX-initial-isZero', () => {
@@ -187,8 +212,8 @@ describe('PlatformerState', () => {
     });
   });
 
-  it('healthState-initial-isMaxHalfHearts', () => {
-    expect(healthState.value).toBe(MAX_HALF_HEARTS);
+  it('playerState-initial-hasMaxHalfHeartsHitPoints', () => {
+    expect(playerState.value.hitPoints).toBe(MAX_HALF_HEARTS);
   });
 
   it('spawnPlayerState-called-matchesPlayerStateInitialValue', () => {
@@ -213,14 +238,13 @@ describe('PlatformerState', () => {
   });
 
   it('resetGame-calledAfterMutation-restoresSpawnHealthAndZeroCamera', () => {
-    playerState.value = { ...playerState.value, x: 999, y: 999, vx: 5 };
-    healthState.value = 0;
+    playerState.value = { ...playerState.value, x: 999, y: 999, vx: 5, hitPoints: 0 };
     cameraPositionX.value = 300;
 
     resetGame();
 
     expect(playerState.value).toEqual(spawnPlayerState());
-    expect(healthState.value).toBe(MAX_HALF_HEARTS);
+    expect(playerState.value.hitPoints).toBe(MAX_HALF_HEARTS);
     expect(cameraPositionX.value).toBe(0);
   });
 
@@ -293,14 +317,13 @@ describe('resetGameProgress', () => {
   it('called-alsoRestoresSpawnHealthAndCamera', () => {
     // Reuses resetGame()'s existing behavior (position/health/camera) —
     // this asserts the seam is actually called, not just facts/ids cleared.
-    playerState.value = { ...playerState.value, x: 999 };
-    healthState.value = 0;
+    playerState.value = { ...playerState.value, x: 999, hitPoints: 0 };
     cameraPositionX.value = 300;
 
     resetGameProgress();
 
     expect(playerState.value).toEqual(spawnPlayerState());
-    expect(healthState.value).toBe(MAX_HALF_HEARTS);
+    expect(playerState.value.hitPoints).toBe(MAX_HALF_HEARTS);
     expect(cameraPositionX.value).toBe(0);
   });
 

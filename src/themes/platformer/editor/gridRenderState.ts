@@ -1,8 +1,13 @@
 import { TERRAIN_CHARS, SIGN_CHARS, type TileChar } from '../level/LevelParser';
 import type { LevelDef, TileMap } from '../level/LevelData';
 import { tileToPixel, RENDERED_TILE_SIZE } from '../level/Terrain';
-import { PLAYER_RENDERED_SIZE, PLAYER_FOOT_PADDING } from '../entities/Player';
+import {
+  PLAYER_RENDERED_SIZE,
+  PLAYER_FOOT_PADDING,
+  PLAYER_HIT_REACTION_SECONDS,
+} from '../entities/Player';
 import type { PlayerState } from '../entities/Player';
+import { MAX_HALF_HEARTS } from '../entities/Health';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
 import { toEnemyState, type EnemyState } from '../entities/Enemy';
 import type { EnemyPlacement } from '../level/EnemyMapper';
@@ -69,7 +74,7 @@ export function synthesizePlayerState(grid: TileChar[][]): PlayerState | null {
     y,
     vx: 0,
     vy: 0,
-    facing: 'right',
+    direction: 'right',
     grounded: true,
     climbing: false,
     isDroppingThroughBridge: false,
@@ -78,10 +83,12 @@ export function synthesizePlayerState(grid: TileChar[][]): PlayerState | null {
     animState: 'idle',
     animFrame: 0,
     animTimer: 0,
-    invincibleTimer: 0,
     knockbackTimer: 0,
     hitBlockIds: [],
     bounceAscending: false,
+    hitPoints: MAX_HALF_HEARTS,
+    alive: true,
+    hitTimer: PLAYER_HIT_REACTION_SECONDS,
   };
 }
 
@@ -104,12 +111,12 @@ export function synthesizeCollectiblePlacements(grid: TileChar[][]): Collectible
 function synthesizeEnemyPlacements(
   grid: TileChar[][],
   char: TileChar,
-  spriteType: EnemyPlacement['spriteType'],
+  type: EnemyPlacement['type'],
   idPrefix: string,
 ): EnemyPlacement[] {
   return findAllPositions(grid, char).map(({ col, row }, index) => {
     const { x, y } = tileToPixel(col, row);
-    return { id: `${idPrefix}-${index}`, spriteType, fact: PLACEHOLDER_FACT, x, y };
+    return { id: `${idPrefix}-${index}`, type, fact: PLACEHOLDER_FACT, x, y };
   });
 }
 
