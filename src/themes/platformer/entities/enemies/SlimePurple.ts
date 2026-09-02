@@ -173,7 +173,8 @@ export const slimePurple: EnemyType<SlimePurpleState> = {
     const dy = enemy.y + (RENDERED_TILE_SIZE - size) + dc.originY;
 
     const keySprite = dc.sprites[KEY_SHEET.src];
-    const showsHeldKey = keySprite != null && !enemy.rewardGiven;
+    const bodySprite = dc.sprites[SLIME_PURPLE_SHEET.src];
+    const showsHeldKey = keySprite != null && bodySprite != null && !enemy.rewardGiven;
 
     if (showsHeldKey) {
       // Centered against the sprite's ACTUAL opaque silhouette, not its full

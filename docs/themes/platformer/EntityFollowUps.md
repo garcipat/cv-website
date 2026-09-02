@@ -153,13 +153,17 @@ None of these affect behavior. Grouped by whether they're worth a deliberate pas
 - **B-004** — the held-key overlay is gated on the key sheet being loaded but not on
   the slime's body sheet, so a floating key with no body is reachable for a frame or
   two during the initial asset-load race.
-- **B-005** — enemy spikes now draw inside each enemy's own `draw` rather than in a
-  separate pass after all bodies, so a later-drawn enemy's body can overlap an earlier
-  one's spikes. Unreachable in the shipped level: its enemies are ~72px apart against a
-  24px player hitbox, so no two can be contacted on the same tick.
 
 **Known and accepted, not worth a ticket:**
 
+- Enemy spikes draw inside each enemy's own `draw` rather than in a separate pass
+  after all bodies, so a later-drawn enemy's body can in principle overlap an earlier
+  one's spikes. Unreachable in the shipped level — every purple slime patrols a
+  wall/pit-bounded pocket, so no two enemies' hitboxes ever get close enough on screen
+  (closest edges ~1292-1364px apart). Was filed as B-005 and discarded: fixing it means
+  a second per-frame loop over every enemy to guard something no shipped level can
+  trigger. Revisit only if a future level places two purple slimes close enough to
+  touch on screen.
 - `engine/Collision.ts`'s `EnemyContactResult.knockbackDirection` is non-optional and
   defaults to `1` when nothing damaging happened, so its type is slightly wider than
   its meaning.

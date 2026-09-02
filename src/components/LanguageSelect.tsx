@@ -26,7 +26,7 @@ export const LanguageSelect = () => {
       <SelectTrigger className="w-[160px]">
         <SelectValue placeholder="Select language" />
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent alignItemWithTrigger={false}>
         {supportedLocales.map((loc) => (
           <SelectItem key={loc} value={loc}>
             {currentUI.value.language.names[loc]}

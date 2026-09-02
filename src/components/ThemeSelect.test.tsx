@@ -43,4 +43,12 @@ describe('ThemeSelect', () => {
     expect(screen.getByRole('option', { name: /space/i })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: /terminal/i })).toBeInTheDocument();
   });
+
+  it('open-doesNotAlignItemWithTrigger', () => {
+    render(<ThemeSelect />);
+    openDropdown();
+
+    const popup = document.querySelector('[data-slot="select-content"]');
+    expect(popup).toHaveAttribute('data-align-trigger', 'false');
+  });
 });
