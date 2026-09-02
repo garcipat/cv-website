@@ -36,6 +36,12 @@ export const CHEST_TYPE: ChestType = {
   key: 'chest',
   closed: { sheet: CHEST_CLOSED_SHEET, renderScale: 1, animations: {} },
   open: { sheet: CHEST_OPEN_SHEET, renderScale: 1, animations: {} },
+  box: (chest) => ({
+    x: chest.x + CHEST_CLOSED_OFFSET_X,
+    y: chest.y,
+    width: CHEST_CLOSED_RENDERED_WIDTH,
+    height: CHEST_CLOSED_RENDERED_HEIGHT,
+  }),
   draw: (chest, dc) => {
     const open = isChestOpen(chest);
     const sprite = dc.sprites[open ? CHEST_OPEN_SHEET.src : CHEST_CLOSED_SHEET.src];

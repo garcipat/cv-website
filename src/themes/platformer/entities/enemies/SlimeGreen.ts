@@ -5,10 +5,15 @@ import { ENEMY_ANIMATIONS } from './EnemyAnimation';
 import { SLIME_GREEN_SHEET } from '../sprites/sheets';
 import type { SpriteDescriptor } from '../sprites/SpriteSheet';
 import { drawSpriteSheetEntity } from './drawSpriteSheetEntity';
+import { spriteSheetHitbox } from './spriteSheetHitbox';
 
 export interface SlimeGreenState extends BaseEnemyState {
   type: 'slimeGreen';
 }
+
+/** Transparent margin inside the native frame, in pre-scale pixels — the
+ *  inset `box` below takes the collision hitbox in from the render slot by. */
+const HITBOX_PADDING_NATIVE = { side: 5, top: 9 };
 
 const SLIME_GREEN_SPRITE: SpriteDescriptor = {
   sheet: SLIME_GREEN_SHEET,
@@ -21,7 +26,7 @@ export const slimeGreen: EnemyType<SlimeGreenState> = {
   maxHitPoints: 1,
   hitReactionSeconds: ENEMY_HIT_REACTION_SECONDS,
   patrolSpeedMultiplier: 1,
-  hitboxPaddingNative: { side: 5, top: 9 },
+  hitboxPaddingNative: HITBOX_PADDING_NATIVE,
   sprite: SLIME_GREEN_SPRITE,
   heldItem: null,
 
@@ -33,6 +38,7 @@ export const slimeGreen: EnemyType<SlimeGreenState> = {
     ...baseRevive(enemy, 1, slimeGreen.hitReactionSeconds),
     type: 'slimeGreen',
   }),
+  box: (enemy) => spriteSheetHitbox(enemy, SLIME_GREEN_SPRITE, HITBOX_PADDING_NATIVE),
   draw: (enemy, dc) => drawSpriteSheetEntity(enemy, dc, SLIME_GREEN_SPRITE),
 
   onPlayerCollide: (enemy, _player, contact) => {

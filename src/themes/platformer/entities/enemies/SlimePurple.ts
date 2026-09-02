@@ -5,6 +5,7 @@ import { ENEMY_ANIMATIONS } from './EnemyAnimation';
 import { SLIME_PURPLE_SHEET, KEY_SHEET } from '../sprites/sheets';
 import type { SpriteDescriptor } from '../sprites/SpriteSheet';
 import { drawSpriteSheetEntity } from './drawSpriteSheetEntity';
+import { spriteSheetHitbox } from './spriteSheetHitbox';
 import { RENDER_SCALE, RENDERED_TILE_SIZE } from '../../level/Terrain';
 import { KEY_FRAME_WIDTH, KEY_FRAME_HEIGHT } from '../KeyPickup';
 import type { DrawContext } from '../../engine/DrawContext';
@@ -25,8 +26,8 @@ const SLIME_PURPLE_SPRITE: SpriteDescriptor = {
   animations: ENEMY_ANIMATIONS,
 };
 
-/** Transparent margin inside the native frame, in pre-scale pixels — same
- *  values Collision.ts's enemyHitbox reads via `hitboxPaddingNative` below. */
+/** Transparent margin inside the native frame, in pre-scale pixels — the
+ *  inset `box` below takes the collision hitbox in from the render slot by. */
 const HITBOX_PADDING_NATIVE = { side: 5, top: 9 };
 
 /** The held key is drawn at a FRACTION of the slime's own opaque silhouette
@@ -155,6 +156,8 @@ export const slimePurple: EnemyType<SlimePurpleState> = {
    *  of `animState`/`hitTimer`: this slime keeps counting up toward the
    *  cooldown's end while patrolling normally, not just while mid
    *  hit-reaction. */
+  box: (enemy) => spriteSheetHitbox(enemy, SLIME_PURPLE_SPRITE, HITBOX_PADDING_NATIVE),
+
   onTick: (enemy, dt) => {
     if (!enemy.spiked) return enemy;
     const spikeTimer = enemy.spikeTimer + dt;
@@ -236,7 +239,7 @@ export const slimePurple: EnemyType<SlimePurpleState> = {
  * the hitbox (not flush with the edge), and each triangle itself is kept
  * short, so the visible part reads as a short spike breaking the surface
  * close to the slime's body, not a shape hovering apart from it. Insets by
- * the same hitbox padding `enemyHitbox` (Collision.ts) uses, so the spikes
+ * the same hitbox padding `box` (above) uses, so the spikes
  * are positioned relative to the actual visible slime blob, not the
  * sprite's transparent render-slot margin. `enemy.spikeTimer` drives a
  * one-shot grow-then-shrink size curve (`spikeGrowthScale`) independently —

@@ -6,7 +6,6 @@ import {
   checkBonusFruitCollisions,
   chestPlayerIsStandingOn,
   checkSignOverlap,
-  enemyHitbox,
   checkKeyPickupCollisions,
   overlappingPickups,
 } from './Collision';
@@ -20,15 +19,9 @@ import {
 import type { PlayerState } from '../entities/Player';
 import { ENEMY_HIT_REACTION_SECONDS } from '../entities/enemies/shared';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
-import {
-  toEnemyState,
-  enemyRenderedSize,
-  enemyTileOffsetX,
-  enemyTileOffsetY,
-  enemyHitboxSidePadding,
-  enemyHitboxTopPadding,
-} from '../entities/Enemy';
+import { toEnemyState } from '../entities/Enemy';
 import type { EnemyState } from '../entities/Enemy';
+import { typeOf } from '../entities/enemies';
 import type { SlimeGreenState } from '../entities/enemies/SlimeGreen';
 import type { EnemyPlacement } from '../level/EnemyMapper';
 import { spawnBonusFruit, tickBonusFruit, BONUS_FRUIT_RISE_DURATION_SECONDS } from '../entities/BonusFruit';
@@ -174,13 +167,13 @@ describe('checkCollectibleCollisions', () => {
 /**
  * Positions a player so its hitbox bottom lands a few px into the given
  * enemy's hitbox from the top — comfortably within its upper half (a
- * "landing on top" stomp), derived from the real enemyHitbox/playerHitbox
+ * "landing on top" stomp), derived from the real enemy box/playerHitbox
  * geometry rather than a hand-computed magic number, so this stays correct
  * regardless of future padding/offset tuning. `overlapPx` must stay well
  * under half the enemy hitbox's height to guarantee an upper-half landing.
  */
 function playerLandingOnTopOf(enemy: EnemyState, overlapPx = 4): PlayerState {
-  const box = enemyHitbox(enemy);
+  const box = typeOf(enemy).box(enemy);
   const playerHitboxHeight = PLAYER_RENDERED_SIZE - PLAYER_HEAD_PADDING - PLAYER_FOOT_PADDING;
   const y = box.y + overlapPx - playerHitboxHeight - PLAYER_HEAD_PADDING;
   return makePlayer(enemy.x, y);
@@ -284,7 +277,7 @@ function makeSpikedPurpleEnemy(overrides: Partial<EnemyState> = {}): EnemyState 
  * only the engine — decides when more than one enemy is contacted in the same
  * tick.
  *
- * Positions come from the hitbox arithmetic anchored in 'enemyHitbox per type'
+ * Positions come from the hitbox arithmetic anchored in 'enemy box equivalence'
  * below: a green slime at (x, y) has a hitbox of (x+2, y+2, 28x30), a purple
  * one (x-12, y-28, 56x60), and the player's is (x+20, y+18, 24x38).
  */
@@ -354,56 +347,6 @@ describe('resolveEnemyContacts aggregation', () => {
 
     expect(result.enemies[1]).toBe(faraway);
     expect(result.enemies[0]).not.toBe(stomped);
-  });
-});
-
-describe('enemyHitbox per type', () => {
-  it('enemyHitbox-slimeGreen-insetFromRenderSlotByMeasuredSpriteConstants', () => {
-    // Concrete anchor values (not derived from the functions under test):
-    // size=48, tileOffsetX=-8, tileOffsetY=-16, sidePad=10, topPad=18 ->
-    // x=enemy.x+2, y=enemy.y+2, width=28, height=30.
-    const enemy = {
-      id: 'e1', type: 'slimeGreen' as const, x: 10, y: 20, vx: 0, vy: 0,
-      direction: 'right' as const, animState: 'walk' as const, animFrame: 0,
-      animTimer: 0, hitPoints: 1, hitTimer: 0, alive: true,
-      spiked: false, spikeTimer: 0, homeX: 10, homeY: 20, rewardGiven: false,
-    };
-    expect(enemyHitbox(enemy)).toEqual({ x: 12, y: 22, width: 28, height: 30 });
-  });
-
-  it('enemyHitbox-slimePurple-scalesOffsetAndInsetWithRenderScale', () => {
-    // size=96, tileOffsetX=-32, tileOffsetY=-64, sidePad=20, topPad=36 ->
-    // x=enemy.x-22, y=enemy.y-28, width=56, height=60.
-    const enemy = {
-      id: 'e1', type: 'slimePurple' as const, x: 10, y: 20, vx: 0, vy: 0,
-      direction: 'right' as const, animState: 'walk' as const, animFrame: 0,
-      animTimer: 0, hitPoints: 3, hitTimer: 0, alive: true,
-      spiked: false, spikeTimer: 0, homeX: 10, homeY: 20, rewardGiven: false,
-    };
-    expect(enemyHitbox(enemy)).toEqual({ x: -2, y: -8, width: 56, height: 60 });
-  });
-
-  it('enemyHitbox-anySpriteType-matchesTheRenderedSpritesBoundingBox', () => {
-    // Cross-checks against the same offset/padding helpers drawEnemies
-    // itself uses, so the hitbox and the visible sprite can never silently
-    // drift apart again.
-    for (const type of ['slimeGreen', 'slimePurple'] as const) {
-      const enemy = {
-        id: 'e1', type, x: 100, y: 200, vx: 0, vy: 0,
-        direction: 'right' as const, animState: 'walk' as const, animFrame: 0,
-        animTimer: 0, hitPoints: 1, hitTimer: 0, alive: true,
-        spiked: false, spikeTimer: 0, homeX: 100, homeY: 200, rewardGiven: false,
-      };
-      const size = enemyRenderedSize(type);
-      const sidePad = enemyHitboxSidePadding(type);
-      const topPad = enemyHitboxTopPadding(type);
-      expect(enemyHitbox(enemy)).toEqual({
-        x: 100 + enemyTileOffsetX(type) + sidePad,
-        y: 200 + enemyTileOffsetY(type) + topPad,
-        width: size - 2 * sidePad,
-        height: size - topPad,
-      });
-    }
   });
 });
 

@@ -17,9 +17,9 @@ export { walkAnimFrameCount, WALK_FRAME_DURATION } from './enemies/EnemyAnimatio
 export type { Direction as EnemyDirection } from './geometry';
 
 /** Actual rendered size for a given type — the sheet's native frame scaled by
- *  RENDER_SCALE and the type's own render scale. Collision.ts's enemyHitbox
- *  and Renderer.ts's drawEnemies both call this so a bigger purple slime gets
- *  a proportionally bigger hitbox and draw rect. */
+ *  RENDER_SCALE and the type's own render scale. Renderer.ts's drawEnemies
+ *  and DebugOverlay.ts's render slot both call this, so a bigger purple slime
+ *  gets a proportionally bigger draw rect. */
 export function enemyRenderedSize(type: EnemyTypeKey): number {
   const { sheet, renderScale } = ENEMY_TYPES[type].sprite;
   return sheet.frameWidth * RENDER_SCALE * renderScale;

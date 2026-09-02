@@ -1,4 +1,6 @@
 import type { Moving, SelfAnimated, Damageable, DamageableType } from '../capabilities';
+import type { WorldType, Boxed } from '../WorldType';
+import type { Rect } from '../geometry';
 import type { SpriteDescriptor } from '../sprites/SpriteSheet';
 import type { EnemyPlacement } from '../../level/EnemyMapper';
 import type { CollectedFact, EnemyDef } from '../../types';
@@ -36,7 +38,10 @@ export interface BaseEnemyState extends EnemyPlacement, Moving, SelfAnimated, Da
  * sprite registry needs editing either: the loader discovers assets from
  * `sprite.sheet`.
  */
-export interface EnemyType<S extends BaseEnemyState> extends DamageableType<S> {
+export interface EnemyType<S extends BaseEnemyState>
+  extends DamageableType<S>,
+    WorldType<S>,
+    Boxed<S> {
   /** Must equal this module's slot in ENEMY_TYPES — see index.test.ts. */
   key: string;
   patrolSpeedMultiplier: number;
@@ -49,6 +54,14 @@ export interface EnemyType<S extends BaseEnemyState> extends DamageableType<S> {
 
   create(placement: EnemyPlacement, index: number): S;
   revive(enemy: S): S;
+  /**
+   * This enemy's collision box — the visible silhouette, inset from the full
+   * render slot by the sprite's own transparent margins, so a touch against
+   * empty space never registers as a hit. Owned here rather than in
+   * Collision.ts so the box and the sprite it is derived from stay in one
+   * file.
+   */
+  box(enemy: S): Rect;
   /** Renders this enemy. Owning rendering here is what lets a new enemy type
    *  ship as one file: Renderer.ts iterates and supplies the camera, and
    *  never branches on type. */

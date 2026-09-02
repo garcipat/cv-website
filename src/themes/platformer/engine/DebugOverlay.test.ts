@@ -9,7 +9,7 @@ import {
   PLAYER_HEAD_PADDING,
 } from '../entities/Player';
 import { toEnemyState, enemyRenderedSize, enemyTileOffsetX, enemyTileOffsetY } from '../entities/Enemy';
-import { enemyHitbox } from './Collision';
+import { typeOf } from '../entities/enemies';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 
 function makeMockContext() {
@@ -224,7 +224,7 @@ describe('drawDebugOverlay', () => {
 
     drawDebugOverlay(ctx, idlePlayer, level, 0, 0, [enemy]);
 
-    const box = enemyHitbox(enemy);
+    const box = typeOf(enemy).box(enemy);
     const hitboxCalls = (ctx.strokeRect as ReturnType<typeof vi.fn>).mock.calls.filter(
       (call) => call[0] === box.x && call[1] === box.y && call[2] === box.width && call[3] === box.height,
     );
