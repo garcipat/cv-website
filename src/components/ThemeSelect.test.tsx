@@ -1,4 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
+import { vi } from 'vitest';
 import { ThemeSelect } from './ThemeSelect';
 import { currentTheme, platformerPrototypeUnlocked } from '@/state/theme';
 
@@ -50,5 +51,24 @@ describe('ThemeSelect', () => {
 
     const popup = document.querySelector('[data-slot="select-content"]');
     expect(popup).toHaveAttribute('data-align-trigger', 'false');
+  });
+
+  it('opened-callsOnOpenChangeWithTrue', () => {
+    const onOpenChange = vi.fn();
+    render(<ThemeSelect onOpenChange={onOpenChange} />);
+
+    openDropdown();
+
+    expect(onOpenChange).toHaveBeenCalledWith(true);
+  });
+
+  it('closedAfterOpen-callsOnOpenChangeWithFalse', () => {
+    const onOpenChange = vi.fn();
+    render(<ThemeSelect onOpenChange={onOpenChange} />);
+    openDropdown();
+
+    fireEvent.click(screen.getByRole('option', { name: /^ide$/i }));
+
+    expect(onOpenChange).toHaveBeenLastCalledWith(false);
   });
 });
