@@ -12,10 +12,14 @@ import {
   editorSelectedToolSignal,
   editorLoadedLevelNameSignal,
   editorDirtySignal,
+  editorBackgroundSignal,
+  editorActiveLayerSignal,
+  editorSelectedBackgroundPieceSignal,
 } from './editorLevelState';
 import { currentTheme } from '@/state/theme';
 import { currentPath } from '@/state/navigation';
 import { enemyPlacements, enemyStates, collectedFacts, collectedCollectibleIds } from '../PlatformerState';
+import { currentBackground } from '../level/level';
 
 vi.mock('../engine/SpriteLoader', () => ({
   loadImage: vi.fn((src: string) => Promise.resolve({ src } as unknown as HTMLImageElement)),
@@ -29,6 +33,7 @@ vi.mock('../engine/Renderer', () => ({
   drawBlocks: vi.fn(),
   drawChests: vi.fn(),
   drawSigns: vi.fn(),
+  drawBackgroundTiles: vi.fn(),
 }));
 
 import { drawTerrain } from '../engine/Renderer';
@@ -41,6 +46,10 @@ beforeEach(() => {
   editorLevelSignal.value = importLayout(LEVEL_1_LAYOUT);
   editorLoadedLevelNameSignal.value = 'main';
   editorDirtySignal.value = false;
+  editorBackgroundSignal.value = [];
+  editorActiveLayerSignal.value = 'foreground';
+  editorSelectedBackgroundPieceSignal.value = null;
+  currentBackground.value = [];
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
     fillRect: vi.fn(),
     fillStyle: '',
@@ -600,5 +609,50 @@ describe('LevelEditorPage - Try button', () => {
     expect(enemyStates.value).toHaveLength(enemyPlacements.value.length);
     expect(collectedFacts.value).toEqual([]);
     expect(collectedCollectibleIds.value.size).toBe(0);
+  });
+});
+
+describe('LevelEditorPage — background layer', () => {
+  function paintBackgroundOnce() {
+    const canvas = document.querySelector('canvas')!;
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
+    fireEvent.mouseDown(canvas, { clientX: 1, clientY: 1, button: 0 });
+  }
+
+  it('selectingTheBackgroundLayerThenAPieceThenPaintingOnCanvas-addsAPlacement', async () => {
+    render(<LevelEditorPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Background' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Dirt Column A' }));
+
+    paintBackgroundOnce();
+
+    await waitFor(() => expect(editorBackgroundSignal.value.length).toBeGreaterThan(0));
+  });
+
+  it('tryingTheLevelWithBackgroundPlacementsPainted-carriesThemIntoCurrentBackground', async () => {
+    render(<LevelEditorPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Background' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Dirt Column A' }));
+    paintBackgroundOnce();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Try' }));
+
+    expect(currentBackground.value.length).toBeGreaterThan(0);
+  });
+
+  it('loadingALevelWithBackgroundPlacements-populatesTheLocalBackgroundState', async () => {
+    render(<LevelEditorPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Background' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Dirt Column A' }));
+    paintBackgroundOnce();
+    await waitFor(() => expect(editorBackgroundSignal.value.length).toBeGreaterThan(0));
+
+    // Loading 'empty' (a built-in level with no background) must clear the
+    // placements back out rather than leaving the previous level's painted
+    // pieces stuck on screen.
+    fireEvent.click(screen.getByRole('combobox'));
+    await userEvent.click(await screen.findByRole('option', { name: 'empty' }));
+
+    await waitFor(() => expect(editorBackgroundSignal.value).toEqual([]));
   });
 });
