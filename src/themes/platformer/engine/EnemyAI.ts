@@ -7,6 +7,7 @@ import {
   enemyRenderedSize,
   enemyTileOffsetX,
   enemyHitboxSidePadding,
+  enemyHitboxTopPadding,
 } from '../entities/Enemy';
 
 /**
@@ -94,7 +95,13 @@ export function stepEnemyPatrol(
       ? Math.floor((nextX + leadingEdgeAhead - 1) / RENDERED_TILE_SIZE)
       : Math.floor((nextX - leadingEdgeAhead) / RENDERED_TILE_SIZE);
 
-    const rowsSpanned = Math.ceil(size / RENDERED_TILE_SIZE);
+    // Rows spanned by the sprite's actual visible silhouette, not its full
+    // (mostly transparent) render frame — same reasoning as sidePadding
+    // above. Its feet already touch the render slot's bottom edge (no
+    // bottom inset, see enemyHitboxTopPadding's doc comment), so only the
+    // top inset shrinks the frame height into a silhouette height here.
+    const visibleHeight = size - enemyHitboxTopPadding(enemy.type);
+    const rowsSpanned = Math.ceil(visibleHeight / RENDERED_TILE_SIZE);
     // A `patrol` tile is invisible and never solid (the player walks right
     // through it), so it has to be checked by name here rather than through
     // `isSolid` — it is a boundary for enemies only.
