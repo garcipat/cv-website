@@ -353,7 +353,15 @@ export const LevelEditorPage = () => {
           backgroundPlacements={backgroundPlacements}
           activeLayer={activeLayer}
           selectedBackgroundPiece={selectedBackgroundPiece}
-          onPaintBackground={setBackgroundPlacements}
+          onPaintBackground={(next) => {
+            setBackgroundPlacements(next);
+            // Same dirty-flag bookkeeping as the foreground onPaint below —
+            // painting the background layer also leaves the loaded level
+            // behind, so switching levels afterward must still ask before
+            // discarding it (see LevelSelect's isDirty prop).
+            if (!isDirty) setDirty(true);
+            if (saveResult !== null) setSaveResult(null);
+          }}
           onPaint={({ grid: nextGrid, colShift, rowShift }) => {
             setGrid(nextGrid);
             // Every paint and erase goes through here, so this is the one
