@@ -16,8 +16,10 @@ import {
  * narrower tile-anchor `x`, and not its full render frame's edge either —
  * exactly touches the boundary, never overshooting into/over the obstacle,
  * nor stopping short with a visible gap) whenever the tile its leading edge
- * is about to enter, at the enemy's own grid row, is either a wall or has no
- * solid ground beneath it (a ledge/pit edge) — FR-019's "reverse at platform
+ * is about to enter is either a wall at any row the sprite's body spans (a
+ * render-scaled-up enemy occupies multiple tile rows above its anchor row,
+ * so an obstacle at head height blocks it just as a foot-height one does) or
+ * has no solid ground beneath the anchor row (a ledge/pit edge) — FR-019's "reverse at platform
  * edges or designated patrol boundaries". How far that leading edge sits
  * ahead of the tile-anchor scales with the sprite's own render size, inset
  * by the same hitbox padding used for the player-collision hitbox and for
@@ -82,7 +84,10 @@ export function stepEnemyPatrol(
       ? Math.floor((nextX + leadingEdgeAhead - 1) / RENDERED_TILE_SIZE)
       : Math.floor((nextX - leadingEdgeAhead) / RENDERED_TILE_SIZE);
 
-    const wallAhead = isSolid(tileAt(level, leadingCol, row)) || isBlockedTile(leadingCol, row);
+    const rowsSpanned = Math.ceil(size / RENDERED_TILE_SIZE);
+    const wallAhead = Array.from({ length: rowsSpanned }, (_, i) => row - i).some(
+      (r) => isSolid(tileAt(level, leadingCol, r)) || isBlockedTile(leadingCol, r),
+    );
     const noGroundAhead = !isSolid(tileAt(level, leadingCol, row + 1)) && !isBlockedTile(leadingCol, row + 1);
 
     const snapX = movingRight
