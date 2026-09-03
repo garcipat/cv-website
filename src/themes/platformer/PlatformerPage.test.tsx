@@ -52,7 +52,9 @@ import { isInvulnerable } from './entities/capabilities';
 import { PLAYER_HIT_REACTION_SECONDS } from './entities/Player';
 import { SPIKE_COOLDOWN_DURATION_SECONDS } from './entities/enemies/SlimePurple';
 import { PHYSICS_CONFIG } from './engine/PhysicsConfig';
-import { tileToPixel, RENDERED_TILE_SIZE } from './level/Terrain';
+import { tileToPixel, RENDERED_TILE_SIZE, isClimbable, tileAt } from './level/Terrain';
+import { currentLevel } from './level/level';
+import type { LevelDef, TileType } from './level/LevelData';
 import {
   JOURNAL_OPEN_FRAME_COUNT,
   JOURNAL_OPEN_FRAME_INTERVAL_MS,
@@ -94,6 +96,27 @@ const initialPlayerState = playerState.value;
 const initialLifecycleState = lifecycleState.value;
 const initialCollectedFacts = collectedFacts.value;
 const originalLocation = window.location;
+
+/** The first tile of `type` in reading order that also satisfies `also`, so
+ *  level-driven tests name the terrain they need instead of pinning the
+ *  coordinates it happens to sit at today. */
+const firstTileOfType = (
+  type: TileType,
+  also: (level: LevelDef, col: number, row: number) => boolean = () => true,
+): { col: number; row: number } => {
+  const level = currentLevel.value;
+  for (let row = 0; row < level.height; row++) {
+    for (let col = 0; col < level.width; col++) {
+      if (level.terrain[row][col] === type && also(level, col, row)) return { col, row };
+    }
+  }
+  throw new Error(`level has no ${type} tile matching the given condition`);
+};
+
+/** How far right of a real green slime the synthetic "plain" enemy in the
+ *  two tests below is placed: far enough that one stomp cannot defeat both,
+ *  close enough to stay on the same stretch of ground. */
+const PLAIN_ENEMY_OFFSET_X = 5 * RENDERED_TILE_SIZE;
 
 describe('PlatformerPage', () => {
   beforeEach(() => {
@@ -516,15 +539,16 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    // Place the character resting on currentLevel's ground-level bridge (row 6,
-    // columns 2-3 — see level.ts; the ladder shaft at the top of the layout
-    // shifts this down 2 rows) directly, rather than navigating there by
-    // walking, since only the drop-through wiring is under test here (the
-    // underlying physics is covered by Physics.test.ts).
+    // Place the character resting on the level's first ground-level bridge
+    // directly, rather than navigating there by walking, since only the
+    // drop-through wiring is under test here (the underlying physics is
+    // covered by Physics.test.ts). The tile is looked up rather than
+    // hardcoded so redrawing the level never breaks this test.
+    const bridge = firstTileOfType('bridge');
     playerState.value = {
       ...playerState.value,
-      x: 64,
-      y: 136,
+      x: bridge.col * RENDERED_TILE_SIZE,
+      y: bridge.row * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING,
       vx: 0,
       vy: 0,
       grounded: true,
@@ -953,11 +977,14 @@ describe('PlatformerPage', () => {
     frameCallback!(0);
 
     const real = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
-    // Offset well clear of `real`'s position — otherwise both enemies sit
-    // exactly on top of each other and a single stomp defeats both,
-    // muddying what this test is actually checking.
+    // Offset a few tiles clear of `real`'s position — otherwise both enemies
+    // sit exactly on top of each other and a single stomp defeats both,
+    // muddying what this test is actually checking. Kept small and reused
+    // from `real`'s own y: the level's surface climbs and drops between
+    // terraces, so a large offset would drop this enemy (and the player
+    // landing on it) somewhere the ground is at a different height.
     const plain = toEnemyState(
-      { ...real, id: 'enemy-plain-slimeGreen-test', x: real.x + 500, fact: undefined },
+      { ...real, id: 'enemy-plain-slimeGreen-test', x: real.x + PLAIN_ENEMY_OFFSET_X, fact: undefined },
       0,
     );
     enemyStates.value = [...enemyStates.value, plain];
@@ -1000,11 +1027,14 @@ describe('PlatformerPage', () => {
     frameCallback!(0);
 
     const real = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
-    // Offset well clear of `real`'s position — otherwise both enemies sit
-    // exactly on top of each other and a single stomp defeats both,
-    // muddying what this test is actually checking.
+    // Offset a few tiles clear of `real`'s position — otherwise both enemies
+    // sit exactly on top of each other and a single stomp defeats both,
+    // muddying what this test is actually checking. Kept small and reused
+    // from `real`'s own y: the level's surface climbs and drops between
+    // terraces, so a large offset would drop this enemy (and the player
+    // landing on it) somewhere the ground is at a different height.
     const plain = toEnemyState(
-      { ...real, id: 'enemy-plain-slimeGreen-test-puff', x: real.x + 500, fact: undefined },
+      { ...real, id: 'enemy-plain-slimeGreen-test-puff', x: real.x + PLAIN_ENEMY_OFFSET_X, fact: undefined },
       0,
     );
     enemyStates.value = [...enemyStates.value, plain];
@@ -3084,11 +3114,13 @@ describe('PlatformerPage', () => {
 
       render(<PlatformerPage />);
 
-      // Position the character directly on the new ladder shaft (col 15,
-      // in the shaft's middle — see level.ts).
-      const ladderCol = 15;
-      const ladderRow = 1;
-      const { x, y } = tileToPixel(ladderCol, ladderRow);
+      // Position the character mid-shaft on one of the level's ladders —
+      // looked up rather than hardcoded, so redrawing the level never breaks
+      // this test. Mid-shaft means there is a rung above to climb onto.
+      const rung = firstTileOfType('ladder', (level, col, row) =>
+        isClimbable(tileAt(level, col, row - 1)),
+      );
+      const { x, y } = tileToPixel(rung.col, rung.row);
       playerState.value = { ...playerState.value, x, y, vy: 50, grounded: false, climbing: false };
 
       window.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowUp' }));
@@ -3101,6 +3133,15 @@ describe('PlatformerPage', () => {
   });
 
   describe('PlatformerPage — hint signs', () => {
+    /** The level places one sign per hint, so these tests name the sign they
+     *  drive rather than taking whichever happens to come first in reading
+     *  order — that order shifts whenever the level is redrawn. */
+    const bridgeSign = () => {
+      const sign = signPlacements.value.find((s) => s.hintId === 'bridgeDropThrough');
+      if (!sign) throw new Error('level has no bridgeDropThrough sign');
+      return sign;
+    };
+
     it('render-tilesetLoaded-drawsSignpostAtItsPosition', async () => {
       // jsdom's real Image never fires onload, so tilesetRef.current would
       // otherwise stay null forever — same stub every other "waits for the
@@ -3110,7 +3151,7 @@ describe('PlatformerPage', () => {
       render(<PlatformerPage />);
 
       const ctx = platformerPage.context;
-      const sign = signPlacements.value[0];
+      const sign = bridgeSign();
       await waitFor(() =>
         expect(ctx.drawImage).toHaveBeenCalledWith(
           expect.anything(),
@@ -3124,7 +3165,7 @@ describe('PlatformerPage', () => {
           32,
         ),
       );
-      // Sanity: the level actually has the one bridge sign this test expects.
+      // Sanity: the level actually has the bridge sign this test expects.
       expect(sign.hintId).toBe('bridgeDropThrough');
     });
 
@@ -3137,7 +3178,7 @@ describe('PlatformerPage', () => {
       vi.stubGlobal('cancelAnimationFrame', vi.fn());
 
       render(<PlatformerPage />);
-      const sign = signPlacements.value[0];
+      const sign = bridgeSign();
       playerState.value = { ...playerState.value, x: sign.x, y: sign.y };
       frameCallback!(0);
       frameCallback!(16);
@@ -3154,7 +3195,7 @@ describe('PlatformerPage', () => {
       vi.stubGlobal('cancelAnimationFrame', vi.fn());
 
       render(<PlatformerPage />);
-      const sign = signPlacements.value[0];
+      const sign = bridgeSign();
       playerState.value = { ...playerState.value, x: sign.x, y: sign.y };
       fireEvent.keyDown(window, { code: 'ArrowUp' });
       frameCallback!(0);
@@ -3187,7 +3228,7 @@ describe('PlatformerPage', () => {
       vi.stubGlobal('cancelAnimationFrame', vi.fn());
 
       render(<PlatformerPage />);
-      const sign = signPlacements.value[0];
+      const sign = bridgeSign();
       playerState.value = { ...playerState.value, x: sign.x, y: sign.y };
       fireEvent.keyDown(window, { code: 'KeyW' });
       frameCallback!(0);
@@ -3205,7 +3246,7 @@ describe('PlatformerPage', () => {
       vi.stubGlobal('cancelAnimationFrame', vi.fn());
 
       render(<PlatformerPage />);
-      const sign = signPlacements.value[0];
+      const sign = bridgeSign();
       playerState.value = { ...playerState.value, x: sign.x, y: sign.y };
       fireEvent.keyDown(window, { code: 'ArrowUp' });
       let t = 0;
@@ -3239,7 +3280,7 @@ describe('PlatformerPage', () => {
       vi.stubGlobal('cancelAnimationFrame', vi.fn());
 
       render(<PlatformerPage />);
-      const sign = signPlacements.value[0];
+      const sign = bridgeSign();
       playerState.value = { ...playerState.value, x: sign.x, y: sign.y };
       fireEvent.keyDown(window, { code: 'ArrowUp' });
       let t = 0;
@@ -3277,7 +3318,7 @@ describe('PlatformerPage', () => {
       vi.stubGlobal('cancelAnimationFrame', vi.fn());
 
       render(<PlatformerPage />);
-      const sign = signPlacements.value[0];
+      const sign = bridgeSign();
       playerState.value = { ...playerState.value, x: sign.x, y: sign.y };
       frameCallback!(0);
       frameCallback!(16);
@@ -3304,7 +3345,7 @@ describe('PlatformerPage', () => {
       vi.stubGlobal('cancelAnimationFrame', vi.fn());
 
       render(<PlatformerPage />);
-      const sign = signPlacements.value[0];
+      const sign = bridgeSign();
       playerState.value = { ...playerState.value, x: sign.x, y: sign.y };
       fireEvent.keyDown(window, { code: 'ArrowUp' });
       let t = 0;

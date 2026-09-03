@@ -29,7 +29,17 @@ import { mapCVDataToEnemies } from './level/EnemyMapper';
 import { currentCV } from '@/state/locale';
 import { MAX_HALF_HEARTS } from './entities/Health';
 import { tileToPixel, RENDERED_TILE_SIZE } from './level/Terrain';
-import { SPAWN_TILE, currentLayout, LEVEL_1_LAYOUT } from './level/level';
+import {
+  SPAWN_TILE,
+  currentLayout,
+  LEVEL_1_LAYOUT,
+  ENEMY_TILES_PURPLE,
+  CRATE_TILES,
+  QUESTIONMARK_TILES,
+  FRAGILE_ROCK_TILES,
+  CHEST_TILES,
+  SIGN_TILES,
+} from './level/level';
 import {
   PLAYER_RENDERED_SIZE,
   PLAYER_FOOT_PADDING,
@@ -51,33 +61,40 @@ describe('PlatformerState', () => {
   });
 
   it('enemyPlacements-initial-oneEnemyPerLevelMarkerNotPerFullCVData', () => {
-    // currentLevel currently has exactly one `E` and two `M` markers — placement
-    // count tracks the level's markers, not CVData's (larger) certificate/
-    // project counts. This is expected for a mechanics-test level (see
-    // level.ts's doc comment), not a regression.
+    // Placement count tracks the level's markers, never CVData's length —
+    // the level now carries one green slime per course, so those two happen
+    // to match, while purple slimes have no CV defs at all and are placed
+    // purely from markers (one per chest, see level.ts).
     const allPossibleDefs = mapCVDataToEnemies(currentCV.value);
-    expect(allPossibleDefs.length).toBeGreaterThan(enemyPlacements.value.length);
-    expect(enemyPlacements.value.filter((p) => p.type === 'slimeGreen')).toHaveLength(1);
-    expect(enemyPlacements.value.filter((p) => p.type === 'slimePurple')).toHaveLength(2);
+    expect(enemyPlacements.value.filter((p) => p.type === 'slimeGreen')).toHaveLength(
+      allPossibleDefs.length,
+    );
+    expect(enemyPlacements.value.filter((p) => p.type === 'slimePurple')).toHaveLength(
+      ENEMY_TILES_PURPLE.value.length,
+    );
   });
 
-  it('blockPlacements-initial-hasTwoOfEachKindMatchingLevel1sMarkers', () => {
-    // currentLevel currently has exactly two X/Q/F markers each (see level.ts's
-    // doc comment) — placement count tracks the level's markers, same
-    // convention as enemyPlacements/collectiblePlacements.
-    expect(blockPlacements.value.filter((p) => p.blockKind === 'crate')).toHaveLength(2);
-    expect(blockPlacements.value.filter((p) => p.blockKind === 'questionMark')).toHaveLength(2);
-    expect(blockPlacements.value.filter((p) => p.blockKind === 'fragileRock')).toHaveLength(2);
+  it('blockPlacements-initial-hasOnePlacementPerLevelMarkerOfEachKind', () => {
+    // Placement count tracks the level's markers, same convention as
+    // enemyPlacements/collectiblePlacements.
+    expect(blockPlacements.value.filter((p) => p.blockKind === 'crate')).toHaveLength(
+      CRATE_TILES.value.length,
+    );
+    expect(blockPlacements.value.filter((p) => p.blockKind === 'questionMark')).toHaveLength(
+      QUESTIONMARK_TILES.value.length,
+    );
+    expect(blockPlacements.value.filter((p) => p.blockKind === 'fragileRock')).toHaveLength(
+      FRAGILE_ROCK_TILES.value.length,
+    );
   });
 
   describe('chestPlacements', () => {
-    it('module-places-oneChestPerMarker-cappedByAvailableMarkers', () => {
-      // currentLevel has 2 `T` markers (trimmed from 5, both near spawn — live user
-      // feedback, 2026-08-30) but the real CVData has 5 Experience entries
-      // (see level.ts's CHEST_TILES and cv.en.json) — placeChests has no
-      // auto-placement fallback, so only the first 2 (oldest-first, after
-      // this batch's D5 chest-ordering reversal) actually get placed.
-      expect(chestPlacements.value).toHaveLength(2);
+    it('module-places-oneChestPerMarker', () => {
+      // The level carries one `T` marker per Experience entry, so every
+      // chest def finds a slot — placeChests has no auto-placement fallback,
+      // and a missing marker would silently drop an Experience entry.
+      expect(chestPlacements.value).toHaveLength(CHEST_TILES.value.length);
+      expect(chestPlacements.value).toHaveLength(currentCV.value.experience.length);
     });
   });
 
@@ -88,9 +105,9 @@ describe('PlatformerState', () => {
   });
 
   describe('signPlacements', () => {
-    it('level1-hasExactlyOneSignPlacement', () => {
-      expect(signPlacements.value).toHaveLength(1);
-      expect(signPlacements.value[0].hintId).toBe('bridgeDropThrough');
+    it('level1-placesOneSignPerHintMarker', () => {
+      expect(signPlacements.value).toHaveLength(SIGN_TILES.value.length);
+      expect(signPlacements.value.map((sign) => sign.hintId)).toContain('bridgeDropThrough');
     });
   });
 

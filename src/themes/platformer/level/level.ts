@@ -14,116 +14,155 @@ import {
 } from './LevelParser';
 
 // Visual layout of currentLevel — one character per tile (see LevelParser.ts's
-// TERRAIN_CHARS/ENTITY_CHARS). Every row must be the same length (the level's
-// width in tiles), but the number of rows (the level's height) is NOT a fixed
-// constant — it's however many rows this array has. The array is
-// bottom-anchored: its LAST row is always the lowest ground row, and rows
-// above it add height only as far up as the tallest actual feature needs (no
-// filler rows of empty sky above that). Renderer.ts/Camera.ts already anchor
-// the level to the bottom of the canvas, so adding or removing purely-empty
-// leading rows here has no visual effect — it only changes how much unused
-// vertical space this file has to contain. Each row is written as its full
-// literal string (not built from padding calls), so the level's shape is
-// readable directly here — what you see is what's on screen, left edge to
-// right edge.
+// TERRAIN_CHARS/ENTITY_CHARS/SIGN_CHARS). Every row is the same length (the
+// level's width in tiles, 220), and the array is bottom-anchored: its LAST row
+// is the bedrock stratum, and rows above it add height only as far up as the
+// tallest actual feature needs — there is no leading row of empty sky, which
+// would only add unused vertical space here (the Level Editor's export crops
+// it away anyway). Each row is written as its full literal string (not built
+// from padding calls), so the level's shape is readable directly here — what
+// you see is what's on screen, left edge to right edge. Renderer.ts/Camera.ts
+// anchor the level to the bottom of the canvas and scroll vertically once it
+// is taller than the viewport, which this one is.
 //
-// Grass ground (cols 0-11) meets rock ground (cols 12-79) partway across; a
-// 3-tile pit (cols 2-4) is bridged at ground level with NO floor below — it's
-// a genuine bottomless drop, so walking off the bridge's edge or dropping
-// through it on purpose (Down/S) both trigger real pit-fall damage. A
-// floating ground strip (row 3 below, above the ladder shaft) spans cols
-// 8-14 as
-// ground-ground-ground-bridge-bridge-ground-ground (cols 8-10 /
-// 11-12 / 13-14) — the bridge segment is passable from below (jump up
-// through it) and from above via Down/S (drop-through), with solid ground
-// two tiles below for both to land on.
+// ## Vertical structure
 //
-// Every collectible/enemy on this map is a hand-placed marker, not
-// auto-placed: `S` (spawn), `E` (green Course enemy), `M` (purple slime —
-// delivers key collectible instead of CV facts), `C` (Skill-category
-// coin), `T` (chest — Experience fact). A marker is a slot on the map —
-// EnemyMapper.ts's placeEnemies and CollectibleMapper.ts's
-// placeCollectibles each draw the next fact from CVData (in its own section
-// order) per marker of that type, with no auto-placement fallback. This
-// level intentionally has only 1 `E`, 2 `M`s, and 4 `C`s — a mechanics test
-// layout, not a complete one; most of the real CV's courses/skills simply
-// aren't represented on the map yet. The actual level design comes later,
-// once the mechanics it exercises are all built. The level's two purple
-// slimes (`M` markers) produce two keys (one per slime), which enables both
-// chests (`T` markers) to be unlocked — each chest requires one key to open.
-// Question-mark blocks spawn their own bonus fruit (see BlockMapper.ts's
-// certificateToBlock/projectToBlock); where Languages themselves get
-// surfaced is still an open design question. `F` marks fragileRock blocks,
-// kept distinct from the unrelated `groundRock` terrain tile (see
-// LevelParser.ts's ENTITY_CHARS).
+// The map is not a flat line with a few holes in it. Its surface climbs and
+// drops between four terraces, and two stacked cave galleries run underneath:
 //
-// One of the four Skill coins sits at col 18 (a second nearby pickup,
-// alongside the one at col 10); the other three coins/both fruits cluster at
-// cols 43-46, right after the col 40-42 pit. The level's second purple slime
-// (col 47) sits on the same flat, open rock ground right after that coin
-// cluster — clear of the first purple slime's wall/pit sandwich pocket (cols
-// 37-39) and of the col 43/45 coin markers. Three block marker kinds sit at
-// cols 19-24, two of each: `X` (crate block), `Q` (question-mark block), `F`
-// (fragileRock block), at row 3 (elevated), with rows 4-5 kept empty beneath
-// them — the same "2 rows of clearance above solid ground" shape the
-// floating platform at cols 8-14 uses, so the "jump up and hit from below"
-// gesture reads correctly. Like the enemy/coin markers, a level's marker
-// count decides on-map coverage, not CVData's length — this mechanics-test
-// level intentionally has just 2 of each block marker type (BlockMapper.ts's
-// placeBlocks has no auto-placement fallback, same as
-// EnemyMapper.ts/CollectibleMapper.ts).
+//   row 2      markers standing on the summit plateau
+//   row 3      HIGH   — summit plateau ground
+//   row 5      markers standing on the upper terrace
+//   row 6      UPPER  — upper terrace ground
+//   row 8      markers standing on the mid terrace / floating platforms
+//   row 9      MID    — mid terrace and floating-platform ground
+//   row 11     markers standing on the base
+//   row 12     BASE   — the ground most of the level walks on
+//   rows 13-15 upper cave gallery
+//   row 16     upper cave floor
+//   rows 17-19 lower cave gallery (the Deep Mine only)
+//   row 20     lower cave floor
+//   row 21     bedrock
 //
-// Patrol test cases sit close to spawn (cols ~26-42), well past the player's
-// critical walk-right threshold (~21 tiles), keeping manual testing
-// convenient:
-//   - Green enemy (col 28): bounded by two `W` walls (cols 26 and 31) — the
-//     "patrol bounded by two walls" case.
-//   - Purple enemy (col 38): bounded by a `W` wall on its left (col 31 — the
-//     same wall that bounds the green enemy's pocket on its right; the wall
-//     that used to sit at col 36 was removed once the sprite renderScale bumped
-//     slimePurple to 2x, since a slime that wide needs roughly a tile of
-//     clearance to its left and two to its right just to turn around
-//     without visually overlapping the obstacle — see EnemyAI.ts's
-//     stepEnemyPatrol doc comment — and the original 3-tile pocket (cols
-//     37-39) left no room to patrol at all once turn-around correctly
-//     accounted for that) and a genuine bottomless pit on its right (cols
-//     40-42, no bridge) — the "wall, enemy, pit" sandwich, exercising BOTH
-//     the wall-reversal and the ledge/pit-edge-reversal branches of
-//     EnemyAI.ts's stepEnemyPatrol on a single enemy. The pocket this
-//     sandwich now forms (cols 32-39) is 8 tiles wide, sized for this one
-//     purple slime only; the level's second purple slime lives well clear of
-//     it, at col 47 (see below).
+// (The emitted array drops the two all-empty sky rows above row 2, so these
+// row numbers are the layout's own indices minus 2.)
 //
-// A blank leading row (row 0) sits above the elevated block row (row 1) so
-// FR-022b's fruit-pop mechanic has somewhere for the popped fruit to rise
-// into — the array is bottom-anchored, so this costs nothing visually.
+// The terraces sit exactly 3 rows apart, which is what makes them work
+// against PhysicsConfig.ts: a jump peaks at roughly 3.5 tiles, so one jump
+// climbs exactly one terrace and no step ever needs a ladder it doesn't have.
+// The same 3-row spacing gives every block marker its 2 empty rows of
+// clearance above solid ground, so "jump up and hit it from below" reads
+// correctly everywhere.
 //
-// Two `T` (chest) markers sit close together near spawn (cols 6 and 12)
-// rather than spread across the level — see CHEST_TILES's doc comment below
-// for the full reasoning (same mechanics-test-level convention as this
-// file's other collectible/enemy marker counts).
+// ## Materials
+//
+// `groundGrass` is the default material — the earth the whole map is made of,
+// autotiled with its grass overlay wherever a tile is top-exposed (see
+// Terrain.ts). `groundRock` is an accent, painted only where stone is meant to
+// be SEEN rather than as a material filling whole columns: the single bedrock
+// stratum along the bottom, the floor of each dug-out cave, and two short
+// surface patches (the Deep Mine's mouth, the gauntlet's middle step).
+// Everything buried behind those faces stays ground.
+//
+// ## Routes
+//
+// The level is deliberately NOT a single corridor. Surface and caves run in
+// parallel over most of the map, joined at several points, and CV content is
+// split across both — so seeing all of it means using both:
+//
+//   - Zone A, Meadow (cols 0-27): flat base ground, a bridged pit with no
+//     floor beneath it (walking off the bridge's edge, or dropping through it
+//     with Down/S, is a genuine pit fall), and the first elevated blocks.
+//   - Zone B, Hillside (cols 28-57): the surface climbs a terrace, while a
+//     cave underneath (ladders at cols 31 and 54) holds the level's FIRST
+//     chest — deliberately placed before any key exists, so the player has to
+//     come back for it.
+//   - Zone C, Bridge Terrace (cols 58-90): a second cave, entered either by
+//     the ladder at col 61 or by dropping through the bridge at cols 64-66,
+//     holding the first purple slime and so the first key. The ladder is the
+//     reliable way out; the two fragileRock blocks plugging the surface at
+//     cols 84-85 are an optional shortcut, broken from below while standing
+//     on the ledge underneath them.
+//   - Zone D, Pit Run (cols 91-125): a ground route (jump the open pit, cross
+//     the bridged one) and a mid-terrace platform route carrying a coin and
+//     the second key — two independent ways past the same stretch.
+//   - Zone E, Deep Mine (cols 126-170): two stacked galleries. A ladder at
+//     col 128 drops to the upper one, col 140 continues to the lower, and col
+//     166 is one long shaft running surface-to-bottom. Two keys and two chests
+//     live down here, plus a second fragileRock plug (cols 152-153) over the
+//     ledge that reaches it.
+//   - Zone F, Terraced Gauntlet (cols 171-198): wall-bounded patrol pockets
+//     exercising EnemyAI.ts's wall-reversal branch, on a staircase that climbs
+//     base → mid → upper terrace.
+//   - Zone G, Summit (cols 199-219): a ladder at col 206 up to the summit
+//     plateau, holding the fifth key and the fourth chest, then a drop back to
+//     the upper terrace where the fifth chest ends the run.
+//
+// ## Markers
+//
+// Every collectible/enemy/block/chest is a hand-placed marker, never
+// auto-placed, and the counts now cover the WHOLE of CVData, so the Journal
+// can be completed:
+//
+//   S  1   spawn
+//   E  12  green slime — one per course
+//   M  5   purple slime — no CV fact; each drops one key
+//   C  16  coin — one per skill category
+//   X  8   crate — 2 education + 3 activities + 3 languages
+//   Q  5   question-mark block — 2 certificates + 3 projects, each popping a
+//          bonus fruit rather than carrying a fact of its own
+//   F  5   fragileRock block — no fact; the two surface plugs plus filler
+//   T  5   chest — one per experience entry; opening all five ends the run
+//
+// A question-mark's fruit rests in the tile directly above the block and stays
+// there, so a `Q` is only ever placed under open sky — one inside a cave would
+// pop its fruit into the ceiling, where nothing could reach it. Crates and
+// fragileRocks have no such constraint and do go underground.
+//
+// Keys and chests are deliberately kept apart. Chest 1 (col 40) sits in zone
+// B's cave, while the first key is a zone C cave slime — so the first chest
+// found cannot be opened yet, and the player either backtracks or remembers
+// it. Five slimes for five chests means every key is needed and none is spare.
+//
+// `1`-`5` are hint signs (LevelParser.ts's SIGN_CHARS), each placed where its
+// mechanic is first needed AND actually pays off: `5` (open all the chests) at
+// spawn, `2` (ladder) beside the first ladder, `4` (chests need a key) beside
+// the first chest, `3` (fragile rocks break from below) on the ledge under
+// zone C's plug, and `1` (bridge drop-through) on zone C's cave-mouth bridge —
+// deliberately NOT on the meadow bridge, where dropping through only earns a
+// pit fall. On the cave mouth, dropping through is the way in.
 export const LEVEL_1_LAYOUT: readonly string[] = [
-  // --- Ladder shaft — placeholder content, not final level design. Exists
-  // only to give climbing a real manual browser Verify: a short 4-rung shaft
-  // between the pre-existing floating platform (its bottom row) and a small
-  // landing platform beside its top rung. Deliberately short so climbing to
-  // the top — and the standing-on-the-top-rung behavior at the end of it —
-  // is a couple of seconds of play-testing rather than a long haul. Vertical
-  // camera follow does not depend on this shaft's height for coverage;
-  // Camera.test.ts's updateCameraY tests exercise it directly, at any
-  // level size.
-  '.............GGL', // top tier: ground beside the ladder's top tile (col 15), same row — not stacked above it
-  '...............L',
-  '...............L',
-  // The shaft's bottom rung sits IN the floating ground strip's own row (col
-  // 15, one column right of the strip's rightmost tile), so stepping off the
-  // strip onto the ladder needs no jump.
-  '........GGGBBGGL...XQFXQF.......................................................',
-  '................................................................................',
-  '.S.1..T...C.T.....C.......W.E..W......M....C.C.M................................',
-  'GGBBBGGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRR...RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
-  'GG...GGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRR...RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
+  '..................................................................................................................................................................................................................M.C..T....',
+  '.............................................................................................................................................................................................Q..........X.....LGGGGGGGGGGG..',
+  '..............................................................................................................................................................................................................LGGGGGGGGGGG..',
+  '................................................................................................................................................................................................E..C..........LGGGGGGGGGGG.T',
+  '..............................................X......................................................................................................................................X.....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  '...........................................................................................................................................................................................GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  '........................................E...C....................................................C...........M........................................................................E..C.GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  '........................XQ........GGGGGGGGGGGGGGG.......................................Q......GGGGGGG.....GGGGGGG....XQFQ.........................................................RRRRRRRRGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  '..................................GGGGGGGGGGGGGGG..................................................................................................................................GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  '..S.5..C...C.........E.......E..2.GGGGGGGGGGGGGGG.........E......1.....................................E.C..........E.....E.......E........................E.................W.E..WGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  'GGGGGGGGGGGGGGBBBGGGGGGGGGGGGGGLGGGGGGGGGGGGGGGGGGGGGGLGGGGGGLGGBBBGGGGGGGGGGGGGGGGGFFGGGGGGGGGG...GGGGGGGGGBBBGGGGGGGGGGGGGGGRRLRRRRRRRRRRRRGGGGGGGGGGGGGGGGGGGGGGGGGLGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.L......................L.GGGG.L..........X................GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..L...............X...X.................L....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.L......................L.GGGG.L.....................3.....GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..L.....................................L....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.L..C...4.T.............L.GGGG.L.....C..M....C....C.RRRRR..GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..L..C.M..T.............................L....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  'GGGGGGGGGGGGGG...GGGGGGGGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRRRGGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGGRRRRRRRRRRRRRRLRRRRRRRRRRRFFRRRRRRRRRRRRLRRRRGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  'GGGGGGGGGGGGGG...GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..............L.........................L....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  'GGGGGGGGGGGGGG...GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..............L.........................L....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  'GGGGGGGGGGGGGG...GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..............L....C.M...RRRR...C..C.T..L....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  'GGGGGGGGGGGGGG...GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  'RRRRRRRRRRRRRR...RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR...RRRRRRRRR...RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
 ];
+
+/**
+ * The smallest layout that is still a playable level: three ground tiles with
+ * the spawn on the middle one. The Level Editor's Scratch button loads this
+ * so a layout can be built up from nothing instead of by carving down
+ * `LEVEL_1_LAYOUT` — the editor grows the grid in any direction as soon as a
+ * tile is painted outside it (see `editor/growGrid.ts`), so starting this
+ * small costs nothing.
+ */
+export const SCRATCH_LAYOUT: readonly string[] = ['.S.', 'GGG'];
 
 /**
  * The layout the GAME actually renders/simulates against — starts out equal
@@ -156,36 +195,37 @@ export const SPAWN_TILE = computed(() => findSpawnTile(currentLayout.value));
 /** Hand-placed green (Course) enemy positions, from `currentLayout`'s `E` markers. */
 export const ENEMY_TILES_GREEN = computed(() => findGreenEnemyTiles(currentLayout.value));
 
-/** Hand-placed purple (Course) enemy positions, from `currentLayout`'s `M`
- *  markers; see this file's top doc comment for how green/purple share the
- *  Courses pool. */
+/** Hand-placed purple enemy positions, from `currentLayout`'s `M` markers.
+ *  Purple slimes carry no CV fact — each drops one key, and the level holds
+ *  exactly as many of them as it has chests. */
 export const ENEMY_TILES_PURPLE = computed(() => findPurpleEnemyTiles(currentLayout.value));
 
 /** Hand-placed Skill-category coin positions, from `currentLayout`'s `C` markers. */
 export const COIN_TILES = computed(() => findCoinTiles(currentLayout.value));
 
-/** Hand-placed crate block positions (2), from `currentLayout`'s `X` markers. */
+/** Hand-placed crate block positions (8 — one per Education, Activity and
+ *  Language entry), from `currentLayout`'s `X` markers. */
 export const CRATE_TILES = computed(() => findCrateTiles(currentLayout.value));
 
-/** Hand-placed question-mark block positions (2), from `currentLayout`'s `Q` markers. */
+/** Hand-placed question-mark block positions (5 — one per Certificate and
+ *  Project), from `currentLayout`'s `Q` markers. */
 export const QUESTIONMARK_TILES = computed(() => findQuestionMarkTiles(currentLayout.value));
 
-/** Hand-placed fragileRock block positions (2), from `currentLayout`'s `F`
- *  markers, kept distinct from the unrelated `groundRock` terrain tile. */
+/** Hand-placed fragileRock block positions, from `currentLayout`'s `F`
+ *  markers, kept distinct from the unrelated `groundRock` terrain tile. Two
+ *  pairs plug holes in the surface above a cave (cols 65-66 and 134-135),
+ *  opening a shortcut when broken from below; the rest is filler. */
 export const FRAGILE_ROCK_TILES = computed(() => findFragileRockTiles(currentLayout.value));
 
-/** Hand-placed chest positions (2), from `currentLayout`'s `T` markers
- *  (spec.md FR-023). Both markers sit close to spawn (cols 6 and 12) for
- *  easier manual testing. Same mechanics-test convention as this file's
- *  other collectible/enemy marker counts (e.g. only 1 `E` and 1 `M` enemy
- *  despite far more courses/certificates existing in the real CV data): a
- *  level's marker count decides on-map coverage, not CVData's length, and
- *  `placeChests` has no auto-placement fallback — the remaining Experience
- *  entries simply have no chest yet. */
+/** Hand-placed chest positions (5 — one per Experience entry), from
+ *  `currentLayout`'s `T` markers (spec.md FR-023). Opening all five is the
+ *  level's win condition, so this count must stay equal to CVData's
+ *  `experience` length: `placeChests` has no auto-placement fallback, and a
+ *  missing marker would leave an Experience entry unreachable. */
 export const CHEST_TILES = computed(() => findChestTiles(currentLayout.value));
 
 /** Hand-placed hint-sign positions, from `currentLayout`'s digit markers
- *  (`1`-`9`, see LevelParser.ts's SIGN_CHARS). Only one marker (`1`,
- *  bridgeDropThrough) exists today — placed right above `currentLayout`'s
- *  first ground-level pit bridge (spec.md FR-040). */
+ *  (`1`-`9`, see LevelParser.ts's SIGN_CHARS, spec.md FR-040). One sign per
+ *  hint, each standing where its mechanic is first needed — see this file's
+ *  top doc comment. */
 export const SIGN_TILES = computed(() => findSignTiles(currentLayout.value));
