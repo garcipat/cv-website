@@ -1,5 +1,5 @@
 import { signal, computed } from '@preact/signals-react';
-import type { LevelDef } from './LevelData';
+import type { LevelDef, BackgroundPlacement } from './LevelData';
 import {
   parseLevel,
   findSpawnTile,
@@ -181,13 +181,21 @@ export const SCRATCH_LAYOUT: readonly string[] = ['.S.', 'GGG'];
  */
 export const currentLayout = signal<readonly string[]>(LEVEL_1_LAYOUT);
 
+/** The GAME's background-layer placements — parallel to `currentLayout`
+ *  above, and reset the same way (in-memory only, not localStorage-backed).
+ *  Written by the Level Editor's Try button, the only place that sets it. */
+export const currentBackground = signal<BackgroundPlacement[]>([]);
+
 /** Parsed terrain/dimensions for `currentLayout`. Recomputes whenever the
  *  Level Editor's Try button changes `currentLayout` (see its doc comment
  *  above); every other read site (PlatformerPage.tsx, PlatformerState.ts)
  *  reads this reactively via `.value` instead of a plain module-load-time
  *  constant, so a Try'd layout actually renders/simulates instead of the
  *  stale default. */
-export const currentLevel = computed<LevelDef>(() => parseLevel(currentLayout.value));
+export const currentLevel = computed<LevelDef>(() => ({
+  ...parseLevel(currentLayout.value),
+  background: currentBackground.value,
+}));
 
 /** Player spawn point, read from `currentLayout`'s `S` marker. */
 export const SPAWN_TILE = computed(() => findSpawnTile(currentLayout.value));

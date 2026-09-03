@@ -1,6 +1,7 @@
 import {
   currentLevel,
   currentLayout,
+  currentBackground,
   LEVEL_1_LAYOUT,
   SPAWN_TILE,
   ENEMY_TILES_GREEN,
@@ -334,5 +335,20 @@ describe('currentLayout reactivity', () => {
     expect(FRAGILE_ROCK_TILES.value).toEqual([]);
     expect(CHEST_TILES.value).toEqual([]);
     expect(SIGN_TILES.value).toEqual([]);
+  });
+});
+
+describe('currentBackground', () => {
+  afterEach(() => {
+    currentBackground.value = [];
+  });
+
+  it('defaultValue-isAnEmptyList', () => {
+    expect(currentBackground.value).toEqual([]);
+  });
+
+  it('settingCurrentBackground-appearsOnCurrentLevelsBackgroundField', () => {
+    currentBackground.value = [{ pieceId: 'dirtColumnA', col: 0, row: 0 }];
+    expect(currentLevel.value.background).toEqual([{ pieceId: 'dirtColumnA', col: 0, row: 0 }]);
   });
 });
