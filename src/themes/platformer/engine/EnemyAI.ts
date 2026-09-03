@@ -16,9 +16,15 @@ import {
  * narrower tile-anchor `x`, and not its full render frame's edge either —
  * exactly touches the boundary, never overshooting into/over the obstacle,
  * nor stopping short with a visible gap) whenever the tile its leading edge
- * is about to enter, at the enemy's own grid row, is either a wall or has no
- * solid ground beneath it (a ledge/pit edge) — FR-019's "reverse at platform
- * edges or designated patrol boundaries". How far that leading edge sits
+ * is about to enter, at the enemy's own grid row, is a wall, is a `patrol`
+ * tile, or has no solid ground beneath it (a ledge/pit edge) — FR-019's
+ * "reverse at platform edges or designated patrol boundaries". A `patrol`
+ * tile is the designated-boundary half of that: invisible, non-solid terrain
+ * (the player walks straight through it) whose only effect is to turn an
+ * enemy around here, with the same snapping a wall gets — which is how a
+ * level author pens an enemy into a stretch of open ground without putting a
+ * visible obstacle in the way. It bounds only the row it sits on, so one
+ * marker never silently fences off the whole column. How far that leading edge sits
  * ahead of the tile-anchor scales with the sprite's own render size, inset
  * by the same hitbox padding used for the player-collision hitbox and for
  * centering a purple slime's held key (see enemyHitboxSidePadding's doc
@@ -82,7 +88,12 @@ export function stepEnemyPatrol(
       ? Math.floor((nextX + leadingEdgeAhead - 1) / RENDERED_TILE_SIZE)
       : Math.floor((nextX - leadingEdgeAhead) / RENDERED_TILE_SIZE);
 
-    const wallAhead = isSolid(tileAt(level, leadingCol, row)) || isBlockedTile(leadingCol, row);
+    const tileAhead = tileAt(level, leadingCol, row);
+    // A `patrol` tile is invisible and never solid (the player walks right
+    // through it), so it has to be checked by name here rather than through
+    // `isSolid` — it is a boundary for enemies only.
+    const wallAhead =
+      isSolid(tileAhead) || tileAhead === 'patrol' || isBlockedTile(leadingCol, row);
     const noGroundAhead = !isSolid(tileAt(level, leadingCol, row + 1)) && !isBlockedTile(leadingCol, row + 1);
 
     const snapX = movingRight

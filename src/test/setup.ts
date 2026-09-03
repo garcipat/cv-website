@@ -28,8 +28,13 @@ HTMLCanvasElement.prototype.getContext = function (
       textAlign: 'start',
       textBaseline: 'alphabetic',
       imageSmoothingEnabled: true,
+      lineJoin: 'miter',
       fillRect: vi.fn(),
       fillText: vi.fn(),
+      // Text drawn as a dark core inside a light halo (the Level Editor's
+      // patrol markers) strokes before it fills, so both halves have to
+      // exist here or any level holding such a tile throws mid-render.
+      strokeText: vi.fn(),
       // Returns a fixed, non-zero width — real glyph metrics don't matter
       // for any test (nothing asserts on measured text width), only that
       // callers relying on it (e.g. Renderer.ts's icon-positioning next to

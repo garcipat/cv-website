@@ -74,6 +74,11 @@ export const LevelEditorPage = () => {
     editorSelectedToolSignal.value = tool;
   };
   const [panOffset, setPanOffset] = useState<PanOffset>({ x: 0, y: 0 });
+  // Bumped to ask EditorCanvas to center the view on the spawn tile; it
+  // starts at 1 rather than 0 so opening the editor is itself a request, and
+  // the view lands on the player instead of on the grid's top-left corner.
+  const [centerRequestId, setCenterRequestId] = useState(1);
+  const requestCenterOnSpawn = () => setCenterRequestId((id) => id + 1);
   const [images, setImages] = useState<EditorImages>(EMPTY_IMAGES);
   // In-app confirmation dialog for Reset — replaces a native `window.confirm()`,
   // which doesn't fire reliably in every browser/embedded context (e.g. some
@@ -111,7 +116,7 @@ export const LevelEditorPage = () => {
   const resetToDefaultLayout = () => {
     const defaultGrid = importLayout(LEVEL_1_LAYOUT);
     setGrid(defaultGrid);
-    setPanOffset({ x: 0, y: 0 });
+    requestCenterOnSpawn();
     // Resets the persisted (localStorage-backed) copy too, not just local
     // state — otherwise the debounced sync effect above would shortly
     // overwrite this reset back with the (still-pending) pre-reset grid, or
@@ -131,7 +136,7 @@ export const LevelEditorPage = () => {
   const startFromScratch = () => {
     const scratchGrid = importLayout(SCRATCH_LAYOUT);
     setGrid(scratchGrid);
-    setPanOffset({ x: 0, y: 0 });
+    requestCenterOnSpawn();
     editorLevelSignal.value = scratchGrid;
     setScratchDialogOpen(false);
   };
@@ -240,6 +245,7 @@ export const LevelEditorPage = () => {
           selectedTool={selectedTool}
           panOffset={panOffset}
           images={images}
+          centerRequestId={centerRequestId}
           onPaint={({ grid: nextGrid, colShift, rowShift }) => {
             setGrid(nextGrid);
             if (colShift !== 0 || rowShift !== 0) {

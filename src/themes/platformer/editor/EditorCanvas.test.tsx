@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, fireEvent, act } from '@testing-library/react';
-import { EditorCanvas } from './EditorCanvas';
+import { EditorCanvas, PATROL_MARKER_GLYPH } from './EditorCanvas';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
+import { centerPanOnSpawn } from './EditorPan';
 import type { TileChar } from '../level/LevelParser';
 import type { EditorImages } from './EditorCanvas';
 import { COIN_SHEET } from '../entities/sprites/sheets';
@@ -52,7 +53,9 @@ function stubCanvasContext() {
     font: '',
     textAlign: '',
     textBaseline: '',
+    lineJoin: '',
     fillText: vi.fn(),
+    strokeText: vi.fn(),
   } as unknown as CanvasRenderingContext2D;
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(ctx);
   return ctx;
@@ -558,5 +561,191 @@ describe('EditorCanvas', () => {
     );
 
     fireEvent.mouseUp(canvas, { button: 2 });
+  });
+});
+
+describe('EditorCanvas patrol markers', () => {
+  it('draws an editor-only marker over every patrol tile, which the game itself never shows', () => {
+    const ctx = stubCanvasContext() as unknown as {
+      fillText: ReturnType<typeof vi.fn>;
+      fillRect: ReturnType<typeof vi.fn>;
+    };
+
+    render(
+      <EditorCanvas
+        grid={[['P']]}
+        selectedTool="P"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+
+    const glyphCalls = ctx.fillText.mock.calls.filter(
+      (call: unknown[]) => call[0] === PATROL_MARKER_GLYPH,
+    );
+    expect(glyphCalls).not.toHaveLength(0);
+    // Tinted cell behind the glyph, at the tile's own top-left corner.
+    expect(ctx.fillRect).toHaveBeenCalledWith(0, 0, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+  });
+
+  it('offsets the patrol marker by the pan offset, like every other drawn layer', () => {
+    const ctx = stubCanvasContext() as unknown as { fillRect: ReturnType<typeof vi.fn> };
+
+    render(
+      <EditorCanvas
+        grid={[['P']]}
+        selectedTool="P"
+        panOffset={{ x: 100, y: 40 }}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+
+    expect(ctx.fillRect).toHaveBeenCalledWith(100, 40, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+  });
+
+  it('draws no patrol marker for a grid without any patrol tile', () => {
+    const ctx = stubCanvasContext() as unknown as { fillText: ReturnType<typeof vi.fn> };
+
+    render(
+      <EditorCanvas
+        grid={[['G']]}
+        selectedTool="G"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+
+    const glyphCalls = ctx.fillText.mock.calls.filter(
+      (call: unknown[]) => call[0] === PATROL_MARKER_GLYPH,
+    );
+    expect(glyphCalls).toHaveLength(0);
+  });
+});
+
+describe('EditorCanvas centering', () => {
+  it('centers the view on the spawn tile when the centering request id changes', () => {
+    stubCanvasContext();
+    const onPan = vi.fn();
+    const grid: TileChar[][] = [['.', 'S', '.']];
+
+    const { rerender } = render(
+      <EditorCanvas
+        grid={grid}
+        selectedTool="G"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        centerRequestId={1}
+        onPaint={() => {}}
+        onPan={onPan}
+      />,
+    );
+    onPan.mockClear();
+
+    rerender(
+      <EditorCanvas
+        grid={grid}
+        selectedTool="G"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        centerRequestId={2}
+        onPaint={() => {}}
+        onPan={onPan}
+      />,
+    );
+
+    expect(onPan).toHaveBeenCalledWith(centerPanOnSpawn(grid, 800, 480));
+  });
+
+  it('centers once on mount, so opening the editor lands on the player', () => {
+    stubCanvasContext();
+    const onPan = vi.fn();
+    const grid: TileChar[][] = [['.', 'S', '.']];
+
+    render(
+      <EditorCanvas
+        grid={grid}
+        selectedTool="G"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        centerRequestId={1}
+        onPaint={() => {}}
+        onPan={onPan}
+      />,
+    );
+
+    expect(onPan).toHaveBeenCalledWith(centerPanOnSpawn(grid, 800, 480));
+  });
+
+  it('does not re-center on an unrelated re-render, so a manual pan survives', () => {
+    stubCanvasContext();
+    const onPan = vi.fn();
+    const grid: TileChar[][] = [['.', 'S', '.']];
+    const props = {
+      grid,
+      selectedTool: 'G' as TileChar,
+      images: EMPTY_IMAGES,
+      centerRequestId: 1,
+      onPaint: () => {},
+      onPan,
+    };
+
+    const { rerender } = render(<EditorCanvas {...props} panOffset={{ x: 0, y: 0 }} />);
+    onPan.mockClear();
+
+    rerender(<EditorCanvas {...props} panOffset={{ x: 120, y: 60 }} />);
+
+    expect(onPan).not.toHaveBeenCalled();
+  });
+});
+
+describe('EditorCanvas centering waits for a real measurement', () => {
+  it('centers against the measured canvas size, not the pre-measurement fallback', () => {
+    // The ResizeObserver's first measurement lands AFTER mount. Centering
+    // against the fallback size and disarming leaves the view off-center by
+    // half the difference between the two heights — which is what actually
+    // happened in the browser: the spawn sat in the upper third.
+    stubCanvasContext();
+    const onPan = vi.fn();
+    let resizeCallback: ResizeObserverCallback = () => {};
+    class FakeResizeObserver {
+      constructor(callback: ResizeObserverCallback) {
+        resizeCallback = callback;
+      }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+    vi.stubGlobal('ResizeObserver', FakeResizeObserver);
+    const grid: TileChar[][] = [['.', 'S', '.']];
+
+    render(
+      <EditorCanvas
+        grid={grid}
+        selectedTool="G"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        centerRequestId={1}
+        onPaint={() => {}}
+        onPan={onPan}
+      />,
+    );
+
+    expect(onPan).not.toHaveBeenCalled();
+
+    act(() => {
+      resizeCallback(
+        [{ contentRect: { width: 714, height: 838 } } as ResizeObserverEntry],
+        {} as ResizeObserver,
+      );
+    });
+
+    expect(onPan).toHaveBeenCalledWith(centerPanOnSpawn(grid, 714, 838));
+    vi.unstubAllGlobals();
   });
 });
