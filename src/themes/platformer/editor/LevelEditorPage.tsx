@@ -5,7 +5,7 @@ import { Palette } from './Palette';
 import { EditorCanvas, type EditorImages } from './EditorCanvas';
 import { updatePanOffset, type PanOffset } from './EditorPan';
 import type { TileChar } from '../level/LevelParser';
-import { LEVEL_1_LAYOUT, currentLayout } from '../level/level';
+import { LEVEL_1_LAYOUT, SCRATCH_LAYOUT, currentLayout } from '../level/level';
 import { editorLevelSignal, editorSelectedToolSignal } from './editorLevelState';
 import { resetGameProgress } from '../PlatformerState';
 import { loadImage } from '../engine/SpriteLoader';
@@ -79,6 +79,7 @@ export const LevelEditorPage = () => {
   // which doesn't fire reliably in every browser/embedded context (e.g. some
   // automated/sandboxed viewers suppress it outright and it silently no-ops).
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [scratchDialogOpen, setScratchDialogOpen] = useState(false);
 
   useEffect(() => {
     IMAGE_SOURCES.forEach(({ key, src }) => {
@@ -118,6 +119,21 @@ export const LevelEditorPage = () => {
     // discarded edits from storage.
     editorLevelSignal.value = defaultGrid;
     setResetDialogOpen(false);
+  };
+
+  /**
+   * Scratch: the same shape as `resetToDefaultLayout` above (including its
+   * persistence, for the same reason), but loading `SCRATCH_LAYOUT` — three
+   * ground tiles with the spawn on the middle one — instead of the shipped
+   * level. Reset answers "put back what ships"; this answers "give me an
+   * empty page", which carving `LEVEL_1_LAYOUT` down by hand never could.
+   */
+  const startFromScratch = () => {
+    const scratchGrid = importLayout(SCRATCH_LAYOUT);
+    setGrid(scratchGrid);
+    setPanOffset({ x: 0, y: 0 });
+    editorLevelSignal.value = scratchGrid;
+    setScratchDialogOpen(false);
   };
 
   /**
@@ -191,6 +207,26 @@ export const LevelEditorPage = () => {
                 <DialogClose render={<Button type="button" variant="outline" />}>Cancel</DialogClose>
                 <Button type="button" variant="destructive" onClick={resetToDefaultLayout}>
                   Reset level
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          <Button type="button" variant="outline" onClick={() => setScratchDialogOpen(true)}>
+            Scratch
+          </Button>
+          <Dialog open={scratchDialogOpen} onOpenChange={setScratchDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Start from scratch?</DialogTitle>
+                <DialogDescription>
+                  This replaces the level with three ground tiles and the player standing on the
+                  middle one, discarding all unsaved edits.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <DialogClose render={<Button type="button" variant="outline" />}>Cancel</DialogClose>
+                <Button type="button" variant="destructive" onClick={startFromScratch}>
+                  Start from scratch
                 </Button>
               </DialogFooter>
             </DialogContent>
