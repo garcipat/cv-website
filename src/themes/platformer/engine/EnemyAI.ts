@@ -16,11 +16,21 @@ import {
  * narrower tile-anchor `x`, and not its full render frame's edge either —
  * exactly touches the boundary, never overshooting into/over the obstacle,
  * nor stopping short with a visible gap) whenever the tile its leading edge
- * is about to enter is either a wall at any row the sprite's body spans (a
- * render-scaled-up enemy occupies multiple tile rows above its anchor row,
- * so an obstacle at head height blocks it just as a foot-height one does) or
- * has no solid ground beneath the anchor row (a ledge/pit edge) — FR-019's "reverse at platform
- * edges or designated patrol boundaries". How far that leading edge sits
+ * is about to enter, at any row the sprite's body spans (a render-scaled-up
+ * enemy occupies multiple tile rows above its anchor row, so an obstacle at
+ * head height blocks it just as a foot-height one does), is a wall, is a
+ * `patrol` tile, or — testing the anchor row alone — has no solid ground
+ * beneath it (a ledge/pit edge) — FR-019's "reverse at platform edges or
+ * designated patrol boundaries". A `patrol` tile is the designated-boundary
+ * half of that: invisible, non-solid terrain (the player walks straight
+ * through it) whose only effect is to turn an enemy around here, with the
+ * same snapping a wall gets — which is how a level author pens an enemy into
+ * a stretch of open ground without putting a visible obstacle in the way. It
+ * bounds only the row it's painted on, so one marker never silently fences
+ * off a tall sprite's whole column — a purple slime is only turned around by
+ * a `patrol` tile on its anchor row or the row directly above (the two rows
+ * its own body spans), never by one further away. How far that leading edge
+ * sits
  * ahead of the tile-anchor scales with the sprite's own render size, inset
  * by the same hitbox padding used for the player-collision hitbox and for
  * centering a purple slime's held key (see enemyHitboxSidePadding's doc
@@ -85,9 +95,13 @@ export function stepEnemyPatrol(
       : Math.floor((nextX - leadingEdgeAhead) / RENDERED_TILE_SIZE);
 
     const rowsSpanned = Math.ceil(size / RENDERED_TILE_SIZE);
-    const wallAhead = Array.from({ length: rowsSpanned }, (_, i) => row - i).some(
-      (r) => isSolid(tileAt(level, leadingCol, r)) || isBlockedTile(leadingCol, r),
-    );
+    // A `patrol` tile is invisible and never solid (the player walks right
+    // through it), so it has to be checked by name here rather than through
+    // `isSolid` — it is a boundary for enemies only.
+    const wallAhead = Array.from({ length: rowsSpanned }, (_, i) => row - i).some((r) => {
+      const tile = tileAt(level, leadingCol, r);
+      return isSolid(tile) || tile === 'patrol' || isBlockedTile(leadingCol, r);
+    });
     const noGroundAhead = !isSolid(tileAt(level, leadingCol, row + 1)) && !isBlockedTile(leadingCol, row + 1);
 
     const snapX = movingRight

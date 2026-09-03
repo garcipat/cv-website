@@ -145,6 +145,109 @@ The developer clicks "Copy Layout". The grid's current state is serialized into 
 
 ---
 
+### User Story 7 - Choose Which Level to Edit (Priority: P2)
+
+The developer opens a level dropdown in the editor sidebar and picks the level they want to
+work on. The list always holds two built-in entries - `main` (the shipped `LEVEL_1_LAYOUT`)
+and `empty` (`SCRATCH_LAYOUT`: three ground tiles with the spawn on the middle one) - plus one
+entry per JSON level file present in `src/themes/platformer/level/levels/`. Picking an entry
+replaces the grid with that level's layout and recenters the view on its spawn tile. There is
+no separate Reset or Scratch control: "put back what ships" is picking `main` again, and "give
+me an empty page" is picking `empty`.
+
+Because loading discards whatever is currently on the grid, the dropdown guards the edits it
+would throw away. The editor tracks a single "edited since loaded or saved" flag, set by any
+paint or erase and cleared on load and save. While it is clear, picking a level loads it
+immediately with no interruption. While it is set, a confirmation dialog names both levels -
+the one whose edits are at stake and the one about to load - and loads only on explicit
+confirmation.
+
+**Why this priority**: Painting (User Story 1) and export (User Story 6) are what the editor
+is for; choosing among several layouts makes it usable for more than one level at a time but
+is not required for either. P2.
+
+**Independent Test**: Open the editor, pick `empty` from the dropdown, verify the grid becomes
+three ground tiles with a centered spawn. Paint one cell, pick `main`, verify the confirmation
+dialog appears naming both levels; cancel it and verify the painted cell is still there;
+reopen, confirm, and verify the grid matches `LEVEL_1_LAYOUT`.
+
+**Acceptance Scenarios**:
+
+1. **Given** the editor is loaded, **When** the developer opens the level dropdown, **Then** it
+   lists `main`, `empty`, and one entry per valid JSON file in `levels/`.
+2. **Given** nothing has been painted since the grid was loaded or saved, **When** the developer
+   picks a different level, **Then** the grid is replaced with that level's layout, the view
+   recenters on its spawn tile, and no confirmation dialog appears.
+3. **Given** the grid has been painted since it was loaded or saved, **When** the developer picks
+   a different level, **Then** a confirmation dialog naming the current and target level appears
+   and the grid is left untouched until it is confirmed.
+3a. **Given** the grid has been painted, **When** the developer picks the level that is already
+   loaded, **Then** it reloads (after confirmation) rather than being ignored as a no-op - this
+   is how the editor spells "reset".
+4. **Given** that confirmation dialog is open, **When** the developer cancels it, **Then** the
+   grid, the selected tool, and the persisted copy of the grid are all unchanged, and the edited
+   flag stays set so the next selection confirms again.
+5. **Given** a JSON file in `levels/` is malformed (not an object, missing `layout`, or a
+   `layout` that is not an array of strings), **When** the editor loads, **Then** that file is
+   skipped and every other entry - built-in and custom - still appears in the dropdown.
+
+---
+
+### User Story 8 - Save the Current Level as a JSON Level File (Priority: P2)
+
+The developer clicks Save, types a name for the level, and the file lands in
+`src/themes/platformer/level/levels/` - the folder the level dropdown reads (User Story 7) - so
+it needs no moving afterwards. Reloading the editor shows it in the list.
+
+The write is done by the dev server, not the page: the editor POSTs the file to a route a
+dev-only Vite plugin serves, and that plugin writes it. Nothing about this reaches a built site,
+where the route does not exist; there, and anywhere else the endpoint is unreachable, Save falls
+back to downloading the file for the developer to move in by hand.
+
+A successful write closes the dialog and leaves the path it wrote in the sidebar - there is
+nothing further to do with it. A fallback download keeps the dialog open instead, because the
+file then still has to be moved, and that is worth saying before the dialog is dismissed. Either
+way the developer is told which of the two happened, so a download is never mistaken for a file
+that landed in the repository.
+
+**Why this priority**: Without saving, every level but the two built-ins has to be round-tripped
+by hand through the export text area and a hand-written file. Saving makes the dropdown's custom
+entries reachable from inside the editor, but export (User Story 6) remains the path that gets a
+layout into `level.ts` itself. P2.
+
+**Independent Test**: With the dev server running, paint a known small grid, click Save, enter a
+name with spaces and mixed case, and verify a file appears at
+`src/themes/platformer/level/levels/<slug>.json` whose contents parse to `{ name, layout }` with
+`layout` equal to `exportLayout(grid)`. Reload the editor and verify the level is in the
+dropdown. Then repeat with the endpoint unreachable and verify the same file is downloaded
+instead, and that the dialog says so.
+
+**Acceptance Scenarios**:
+
+1. **Given** a painted grid, **When** the developer saves it under a name, **Then** the file is
+   valid JSON of the shape `{ "name": string, "layout": string[] }` whose `layout` equals
+   `exportLayout(grid)`.
+2. **Given** a name with spaces, uppercase letters, or punctuation, **When** the file is
+   produced, **Then** its filename is that name slugified (lowercased, non-alphanumerics
+   collapsed to single hyphens, leading/trailing hyphens trimmed) plus `.json`.
+3. **Given** the dev server is running, **When** the developer saves, **Then** the file is
+   written into `src/themes/platformer/level/levels/`, the dialog closes, and the path it wrote
+   is shown in the sidebar.
+3a. **Given** the endpoint is unreachable or refuses the write, **When** the developer saves,
+   **Then** the file is downloaded instead and the dialog stays open saying so, naming both the
+   folder to move it into and (when the server gave one) the reason it declined.
+3c. **Given** a level was saved, **When** the developer paints again or loads another level,
+   **Then** the sidebar's saved-path line disappears, because the file on disk no longer matches
+   what is on screen.
+3b. **Given** a request naming anything but a bare slugified `.json` file, or carrying contents
+   the level registry would not accept, **When** the dev server handles it, **Then** it writes
+   nothing and answers with an error.
+4. **Given** the developer saves the current grid, **Then** the edited flag is cleared and the
+   saved name becomes the open level's name, so picking another level immediately afterward
+   does not warn about discarding edits.
+
+---
+
 ## Edge Cases
 
 - **Grid with no spawn marker at all**: Since the grid initializes from `LEVEL_1_LAYOUT` (which has exactly one `S`), this only occurs if the developer erases the spawn cell without placing a new one. The editor does not require a spawn to exist before allowing export — enforcing that would need extra validation UI out of scope for v1 (see Out of Scope). The developer is responsible for placing one before using the exported layout in the real game (`findSpawnTile` throws if it's missing).
@@ -164,9 +267,11 @@ The developer clicks "Copy Layout". The grid's current state is serialized into 
 
 ### Design Decisions
 
-#### Output Flow: Copy/Export Only
+#### Output Flow: Copy/Export, Plus a Dev-Server Write
 
-No direct file writes (not feasible from a deployed static site regardless). The editor displays the generated `readonly string[]` and a copy-to-clipboard button; pasting it into a level file is a manual step.
+Getting a layout into `level.ts` is still copy/paste: the editor displays the generated `readonly string[]` with a copy-to-clipboard button, and pasting it in is a manual step.
+
+Saving a level as its own JSON file is not. The page itself writes nothing — it POSTs to a route served by a dev-only Vite plugin (`apply: 'serve'`), and the dev server does the write, into the one folder the level registry reads. This keeps the deployed site exactly as static as before (the route is absent from every build, and Save there falls back to a download), while removing the "now go move the file" step from the only environment the editor is ever used in. See FR-032/FR-033.
 
 #### Access: Hidden Dev-Only Route (Plain Pathname Check, No Router)
 
@@ -271,7 +376,18 @@ On mount, `LevelEditorPage` calls a new pure function `importLayout(layout: read
 
 - **FR-022**: System MUST provide a pure function `exportLayout(grid: TileChar[][]): readonly string[]` that first crops `grid` to the tightest bounding box containing every non-`.` cell, then joins each row of that cropped region's characters into one string per row, in the exact shape `parseLevel` expects (equal-length rows, top row first). If no non-`.` cell exists, it returns `['.']`.
 - **FR-023**: System MUST display the current export output in a read-only text area, updated live as the grid changes (or on demand — implementation's choice of live vs. on-click is not constrained further), plus a button that copies the exact displayed text to the clipboard.
-- **FR-023a**: System MUST provide a Reset control that reloads the grid from `LEVEL_1_LAYOUT` (discarding all in-progress edits) and resets `panOffset` to `{x: 0, y: 0}`, gated behind a confirmation prompt — unlike every other action in the editor (which never confirms), a full reset discards the entire session's work in one click, not just one cell.
+- **FR-023a**: System MUST reload the grid from a chosen level's layout (discarding all in-progress edits) and recenter the view on that layout's spawn tile, gated behind a confirmation prompt whenever the grid differs from the level it was loaded from — unlike every other action in the editor (which never confirms), loading a level discards the entire session's work in one click, not just one cell. Reloading the shipped layout is picking the `main` entry; clearing to a bare starting grid is picking the `empty` entry (see FR-026).
+
+#### Level Selection & Saving
+
+- **FR-026**: System MUST expose a level registry listing, in order, a built-in `main` entry (`LEVEL_1_LAYOUT`), a built-in `empty` entry (`SCRATCH_LAYOUT`), and one entry per JSON file in `src/themes/platformer/level/levels/`, discovered at build time via `import.meta.glob`. Each entry MUST carry an `id` (the filename stem for custom levels), a human-readable `name`, and a `layout: readonly string[]`.
+- **FR-027**: System MUST skip any `levels/*.json` file that is not an object, lacks a `layout`, or whose `layout` is not an array of strings, without preventing the remaining entries from loading.
+- **FR-028**: System MUST provide a level dropdown that loads the selected entry: `importLayout` of its layout into `grid`, a recenter request on the spawn tile, and a write-through to the persisted grid so a reload does not restore the discarded edits. System MUST NOT provide separate Reset or Scratch controls — `main` and `empty` are dropdown entries.
+- **FR-029**: System MUST remember the name of the level the grid was loaded from (or last saved as) and whether it has been edited since, both persisted across reloads the same way `grid` and `selectedTool` are, so the open level's name and the discard guard survive closing the tab. The remembered name MUST NOT have to resolve to a registry entry — a level that has been saved but whose file has not been moved into `levels/` yet has no entry of its own.
+- **FR-030**: System MUST set an edited flag on every paint and erase, and clear it on every level load and save. A dropdown selection MUST open a confirmation dialog naming both levels while the flag is set, and load without a dialog while it is clear. Cancelling MUST leave `grid`, `selectedTool`, the persisted grid, and the flag itself untouched. The flag is deliberately not a comparison of `grid` against the loaded layout: painting a cell and painting it back still counts as an edit, which costs one unnecessary confirmation and avoids diffing a 220-column grid on every stroke.
+- **FR-031**: System MUST provide a Save control that asks for a level name (prefilled with the open level's name) and saves `{ "name": <name>, "layout": exportLayout(grid) }` as pretty-printed JSON under the slugified name plus `.json`. A save MUST clear the edited flag and adopt the entered name as the open level's name (FR-029, FR-030). A successful write MUST close the dialog and report the written path outside it; that report MUST be dropped as soon as the grid is painted again or another level is loaded.
+- **FR-032**: System MUST save by POSTing `{ fileName, contents }` to a dev-server route that writes the file into `src/themes/platformer/level/levels/`, so a saved level needs no moving to appear in the dropdown. When that route answers with anything but a written path — including not existing at all, which is the case in every built site — the System MUST fall back to downloading the file via a Blob object URL that is revoked after the download is triggered, and MUST keep the save dialog open telling the developer that is what happened, rather than implying a file reached the repository.
+- **FR-033**: The route MUST be served by a Vite plugin declared `apply: 'serve'`, so it is served only under `npm run dev` and no build ships the middleware (the built client still references the path, and falls back when nothing answers). Before writing, it MUST reject any `fileName` that is not a bare slugified name ending in `.json` (no path separators, no `..`, no other extension), MUST reject any resolved path outside the levels folder, and MUST reject contents that are not JSON carrying a non-empty `layout` array of strings — writing nothing in each case. It MUST create the levels folder if it is absent, and MUST overwrite an existing file of the same name.
 
 #### TypeScript
 
@@ -289,6 +405,13 @@ On mount, `LevelEditorPage` calls a new pure function `importLayout(layout: read
 - **`growGrid.ts`**: Pure function module. `growGrid(grid, col, row): { grid, colShift, rowShift }` — grows the array just enough to include `(col, row)`, reporting how much the origin shifted so the caller can compensate `panOffset`.
 - **`exportLayout.ts`**: Pure function module. `exportLayout(grid): readonly string[]` — crops to the tightest non-`.` bounding box before serializing.
 - **`importLayout.ts`**: Pure function module, the inverse of `exportLayout.ts`'s serialization (not its cropping). `importLayout(layout: readonly string[]): TileChar[][]`. Used once, on `LevelEditorPage` mount, against `LEVEL_1_LAYOUT`.
+- **`levelRegistry.ts`**: Module listing every level the editor can load — the two built-ins (`main`, `empty`) followed by the `levels/*.json` files, discovered eagerly via `import.meta.glob` and filtered to the well-formed ones. Exports `LevelEntry { id, name, layout }` and the assembled list; holds no React state.
+- **`saveLevelFile.ts`**: Two pure functions (`levelFileJson(name, grid)` → the JSON text, `levelFileName(name)` → the slugified filename), `saveLevel` (POSTs to the dev-server route, falling back to the download and reporting which happened), and `downloadLevelFile` (the Blob-download wrapper that fallback uses).
+- **`saveLevelEndpoint.ts`**: The two constants both runtimes need — `LEVELS_FOLDER` and `SAVE_LEVEL_ENDPOINT`. Import-free on purpose: the Vite plugin reads it from Node inside `vite.config.ts`, the editor from the browser.
+- **`vite/writeLevelFile.ts`**: Node-side write with all of FR-033's validation. Takes the repository root and the request, returns a status and body; touches the filesystem only once everything has passed.
+- **`vite/levelWritePlugin.ts`**: The `apply: 'serve'` Vite plugin. Mounts one POST middleware on `SAVE_LEVEL_ENDPOINT`, reads the body, and hands it to `writeLevelFile`; non-POST requests fall through to the next middleware.
+- **`LevelSelect` (component)**: The level dropdown plus its confirmation dialog. Reads `levelRegistry`, takes the open level's name and the edited flag as props, and reports the chosen `LevelEntry` up to `LevelEditorPage`. Driven as an action menu (its `value` pinned to `null`, the open level's name shown as the trigger's text) rather than bound to the open level, because a value-bound Select swallows the selection of the already-selected item — which is exactly the reset case.
+- **`editorLoadedLevelNameSignal` / `editorDirtySignal`** (added to `editorLevelState.ts`): the open level's name and the edited flag, both `localStorage`-backed like `editorLevelSignal` and `editorSelectedToolSignal`.
 - **`TileChar` (type, added to `LevelParser.ts`)**: hardcoded literal union of every valid layout character (`'.'`, `'G'`, `'R'`, `'W'`, `'B'`, `'S'`, `'E'`, `'M'`, `'C'`, `'X'`, `'Q'`, `'F'`, `'T'`), kept in sync with `TERRAIN_CHARS`/`ENTITY_CHARS` via a drift-guard test rather than direct `keyof` derivation (which would collapse to plain `string` given those maps' existing wide annotations). Consumed by the editor's grid state.
 - **Placeholder state objects** (constructed in the editor, not exported as reusable types beyond local helpers): minimal `PlayerState`/`CollectiblePlacement`/`EnemyState`/`BlockState`/`ChestState`-shaped objects built per marker found in the grid, with position + kind set from the grid and every other required field set to its "at rest" default (see Design Decisions' Sprite Reuse section).
 
@@ -335,12 +458,17 @@ EditorCanvas (per redraw)
 - **SC-009 — Unedited load round-trips to content, cropped**: Loading the editor and immediately exporting (no edits) produces a `readonly string[]` equal to `LEVEL_1_LAYOUT` cropped to its own tightest non-`.` bounding box — content-cropping is unconditional (SC-010), so a leading/trailing all-`.` row or column already present in the source data is cropped away exactly as it would be for any other grid, even one that has never been painted on. `LEVEL_1_LAYOUT` is also jagged (its ladder-shaft rows are shorter than the rest); `importLayout` right-pads every row to the widest row's length with `.`, exactly matching `parseLevel`'s own convention, before this cropping ever runs. Verified by unit test: `exportLayout(importLayout(LEVEL_1_LAYOUT))` deep-equals `importLayout(LEVEL_1_LAYOUT)`'s rows re-joined, with every leading/trailing all-`.` row and column stripped (as of this writing, `LEVEL_1_LAYOUT`'s only all-`.` row sits between two content rows — interior, not leading/trailing — so nothing is actually cropped; this can change again as the level's content changes, which is why the test computes the expected value from `importLayout`'s own padding rather than a value hardcoded against today's exact layout).
 - **SC-010 — Export always crops to the tightest content bounding box**: Regardless of how much the stored array has grown or been erased, `exportLayout`'s output dimensions equal the smallest rectangle containing every non-`.` cell — never larger (leftover empty padding from earlier growth) and never smaller (clipping real content). Verified by unit test: grow the grid far beyond content in every direction, then assert the exported layout's row/column count matches only the painted extent.
 
+- **SC-011 — Level loading never silently discards edits**: Once anything has been painted, picking a level (including the one already loaded) leaves the grid, the selected tool, and the persisted grid untouched until the confirmation dialog is confirmed; with nothing painted since the last load or save, no dialog appears at all. Verified by component test covering both cases, the reselect-the-loaded-level case, and the cancel path.
+- **SC-012 — A saved level round-trips back into the dropdown**: The JSON a save produces satisfies the registry's own validity check and, placed in `levels/`, yields a dropdown entry whose layout re-imports to a grid equal to the one that was saved. Verified by unit test feeding `levelFileJson`'s output through the registry's parse/validate path and back through `importLayout`, and end-to-end by saving from the editor against a running dev server and reloading.
+- **SC-013 — Saving needs no manual file move, and never lies about it**: With the dev server running, a save leaves the file in `src/themes/platformer/level/levels/`, closes the dialog, and names that path in the sidebar until the grid changes again; with the endpoint unreachable, the file is downloaded instead and the dialog stays open saying so. Verified by component tests over both outcomes, the refusal case, and the two ways the saved-path report goes stale.
+- **SC-014 — The write route cannot reach outside the levels folder, and is not served by a build**: No `fileName` containing a path separator, a `..`, a drive letter, or a non-`.json` extension results in a write. Verified by unit tests over the rejected filenames, and by the plugin's `apply: 'serve'` keeping the middleware out of every build — the built client still contains the endpoint's path string, because it is the client that requests it and falls back when nothing answers.
+
 ---
 
 ## Assumptions
 
 - **S-006 (2D Platformer Theme) is implemented far enough to have `LevelParser.ts`, `Renderer.ts`'s draw functions, and the entity mapper/state modules in their current shape.** This editor is a v2+ authoring tool layered on top of that existing engine, not a co-requirement.
-- **`docs/ideas/platformer-level-editor.md`'s YAGNI list stands**: zoom, undo/redo, `localStorage` persistence, direct file writes, and multi-level project management are all out of scope for this spec (see Out of Scope).
+- **`docs/ideas/platformer-level-editor.md`'s YAGNI list mostly stands**: zoom, undo/redo, and direct file writes are all out of scope for this spec (see Out of Scope). Its `localStorage`-persistence and single-layout items no longer hold: the grid, selected tool, open level, and edited flag are persisted, and the level dropdown offers more than one layout.
 - **A fruit-producing question-mark block's spawned fruit is not itself placeable** — only the question-mark block marker (`Q`) is placed; fruit only appears in the real game after the block is hit. The editor has no notion of "spawn a fruit here" as a distinct palette entry.
 - **Placeholder `fact: CollectedFact` stubs are safe** because none of the reused draw functions (`drawCollectibles`, `drawEnemies`, `drawBlocks`, `drawChests`) read the `fact` field — confirmed by inspecting `Renderer.ts`'s draw function bodies, which only touch position/kind/animation fields.
 - **No validation of exported layouts beyond `parseLevel`'s own row-length/char checks** — e.g. the editor does not warn about an unreachable coin or an enemy placed inside solid terrain. That kind of playtesting-equivalent validation is out of scope (see Out of Scope).
@@ -373,13 +501,14 @@ Record of design decisions made during specification.
 - Manual size controls (width/height inputs, shrink confirmation dialogs) — sizing is fully automatic via seamless growth, cropped on export (see Clarifications #7)
 - Canvas virtualization / maximum grid size enforcement — acceptable for a human-click-paced dev tool at realistic level sizes (see Clarifications #8)
 - Undo/redo
-- `localStorage` persistence of in-progress edits
-- Direct file writes (not feasible from a deployed static site; copy/export only)
-- Multi-level project management (working on more than one layout at a time)
+- Direct file writes from the page itself, and any write outside `levels/` — pasting an exported layout into `level.ts` stays manual
 - Animated sprites (coin bob, enemy walk-cycle, block bump/shatter, chest opening) — every sprite renders at a single fixed "at rest" frame
 - Playtesting-equivalent validation (unreachable collectibles, enemies embedded in solid terrain, missing spawn marker before export)
 - A distinct "spawn placement guard" dialog/warning — resolved as silent auto-relocate instead (see Clarifications #2)
-- A generic "import any layout" UI (e.g. a paste-in text area for arbitrary `readonly string[]` layouts) — v1 only loads `LEVEL_1_LAYOUT`, hardcoded (see Clarifications #6)
+- A generic "import any layout" UI (e.g. a paste-in text area for arbitrary `readonly string[]` layouts) — layouts enter the editor only through the level registry (see FR-026)
+- Writes into the repository from a built site — the write route is dev-server only, and Save falls back to a download everywhere else (see FR-032, FR-033)
+- A visitor-facing level picker in the game itself — the dropdown is editor-only (roadmap step 31 covers the game side)
+- Renaming, deleting, or overwriting existing level files from the editor
 - Mobile/touch input support
 - Public navigation entry point — the route is reachable by direct URL only
 
@@ -398,6 +527,18 @@ Record of design decisions made during specification.
 | `src/themes/platformer/editor/growGrid.ts` | Pure function: grows `grid` just enough to include a target `(col, row)`, reporting `colShift`/`rowShift` for `panOffset` compensation |
 | `src/themes/platformer/editor/exportLayout.ts` | Pure function: `grid` → `readonly string[]`, cropped to the tightest non-`.` bounding box, matching `parseLevel`'s expected shape |
 | `src/themes/platformer/editor/importLayout.ts` | Pure function: `readonly string[]` → `grid` (inverse of `exportLayout.ts`'s serialization); used on mount against `LEVEL_1_LAYOUT` |
+| `src/themes/platformer/level/levelRegistry.ts` | The list of loadable levels: built-in `main`/`empty` plus validated `levels/*.json`, discovered via `import.meta.glob`; exports `LevelEntry` |
+| `src/themes/platformer/level/levels/` | Folder holding saved JSON level files (`{ name, layout }`), picked up by `levelRegistry.ts`; its `README.md` documents the file shape |
+| `src/themes/platformer/editor/saveLevelFile.ts` | Pure JSON-text and filename-slug builders, the dev-server save with its download fallback, and the Blob download wrapper |
+| `src/themes/platformer/editor/saveLevelEndpoint.ts` | `LEVELS_FOLDER` and `SAVE_LEVEL_ENDPOINT`, shared by the editor and the Vite plugin; deliberately import-free |
+| `vite/writeLevelFile.ts` | Node-side validated write into the levels folder |
+| `vite/levelWritePlugin.ts` | Dev-only (`apply: 'serve'`) Vite plugin serving the write route |
+| `vite/writeLevelFile.test.ts` | Unit tests: writes into the levels folder, creates it, overwrites, rejects every escaping filename and every non-level body |
+| `vite/levelWritePlugin.test.ts` | Unit tests: mounts on the endpoint, writes on POST, rejects a bad envelope, passes non-POST requests on, applies only on serve |
+| `src/themes/platformer/editor/LevelSelect.tsx` | Level dropdown + discard-changes confirmation dialog; reports the chosen `LevelEntry` upward |
+| `src/themes/platformer/level/levelRegistry.test.ts` | Unit tests: built-ins present and ordered, valid JSON adopted, malformed files skipped |
+| `src/themes/platformer/editor/saveLevelFile.test.ts` | Unit tests: JSON shape, name slugging, registry round-trip, the POST it sends, and the download fallback on every failure path |
+| `src/themes/platformer/editor/LevelSelect.test.tsx` | Component tests: lists entries, loads on a clean selection, confirms on a changed one, cancel is a no-op |
 | `src/themes/platformer/editor/exportLayout.test.ts` | Unit tests for cropping, row joining, round-trip through `parseLevel` |
 | `src/themes/platformer/editor/importLayout.test.ts` | Unit tests for import shape, and `exportLayout(importLayout(LEVEL_1_LAYOUT))` deep-equals `LEVEL_1_LAYOUT` |
 | `src/themes/platformer/editor/growGrid.test.ts` | Unit tests: growth in each of the 4 directions and a corner case, value preservation, `colShift`/`rowShift` correctness, no-op when already in bounds |
@@ -413,11 +554,13 @@ Record of design decisions made during specification.
 | `src/themes/platformer/level/LevelParser.ts` | Add hardcoded literal union `export type TileChar = '.' \| 'G' \| ... \| 'T';` after the `sharedChars` guard |
 | `src/themes/platformer/level/level1.ts` | Export `LEVEL_1_LAYOUT` (currently a private module-level `const`) so `importLayout`/the editor can import it directly |
 | `src/App.tsx` | Add a `window.location.pathname === '/platformer/editor'` check ahead of the `themePages[currentTheme.value]` lookup, rendering `LevelEditorPage` directly when it matches |
+| `vite.config.ts` | Register `levelWritePlugin()` alongside the React and Tailwind plugins |
+| `tsconfig.node.json` | Include `vite/` and add `vitest/globals` to its types, so the plugin and its tests typecheck as Node-side code |
 
 ---
 
 ## Testing
 
-- **Unit**: `exportLayout.test.ts` (bounding-box cropping, row joining, round-trip through real `parseLevel`, all-`.` grid returns `['.']`), `importLayout.test.ts` (char-to-grid mapping, `exportLayout(importLayout(LEVEL_1_LAYOUT))` deep-equals `LEVEL_1_LAYOUT`), `growGrid.test.ts` (growth in each of the 4 directions plus a corner case, value preservation at shifted indices, `colShift`/`rowShift` correctness, no-op when already in bounds), `EditorPan.test.ts` (drag delta → offset math).
-- **Component**: `Palette.test.tsx` (tool selection/highlight), `EditorCanvas.test.tsx` (click-paint, drag-paint run, right-drag pan with `contextmenu` prevented, overwrite-on-place, spawn auto-relocate invariant, real-sprite draw calls via mocked `draw*` engine functions, out-of-bounds paint grows the grid and compensates `panOffset`, panning past content renders empty grid not blank space), `LevelEditorPage.test.tsx` (initial grid matches `LEVEL_1_LAYOUT`).
-- Coverage targets per constitution: 100% for the pure modules (`exportLayout.ts`, `importLayout.ts`, `growGrid.ts`, `EditorPan.ts`), 80%+ for components (`LevelEditorPage`, `Palette`, `EditorCanvas`).
+- **Unit**: `exportLayout.test.ts` (bounding-box cropping, row joining, round-trip through real `parseLevel`, all-`.` grid returns `['.']`), `importLayout.test.ts` (char-to-grid mapping, `exportLayout(importLayout(LEVEL_1_LAYOUT))` deep-equals `LEVEL_1_LAYOUT`), `growGrid.test.ts` (growth in each of the 4 directions plus a corner case, value preservation at shifted indices, `colShift`/`rowShift` correctness, no-op when already in bounds), `EditorPan.test.ts` (drag delta → offset math), `levelRegistry.test.ts` (built-in entries and ordering, valid JSON adopted, malformed files skipped), `saveLevelFile.test.ts` (JSON shape, filename slugging, registry round-trip, the POST body it sends, download fallback when the endpoint is missing/throws/refuses), `vite/writeLevelFile.test.ts` (validated writes into a temp root: folder creation, overwrite, every rejected filename and body), `vite/levelWritePlugin.test.ts` (endpoint mounting, POST write, bad envelope, non-POST passthrough, `apply: 'serve'`).
+- **Component**: `Palette.test.tsx` (tool selection/highlight), `EditorCanvas.test.tsx` (click-paint, drag-paint run, right-drag pan with `contextmenu` prevented, overwrite-on-place, spawn auto-relocate invariant, real-sprite draw calls via mocked `draw*` engine functions, out-of-bounds paint grows the grid and compensates `panOffset`, panning past content renders empty grid not blank space), `LevelEditorPage.test.tsx` (initial grid matches `LEVEL_1_LAYOUT`, level selection replaces the grid and recenters on its spawn, painting marks the editor edited, loading clears it, save writes via the dev server, falls back to a download without it, reports which happened, and adopts the entered name), `LevelSelect.test.tsx` (entry list, clean selection loads immediately, changed selection confirms first, cancel leaves the grid alone).
+- Coverage targets per constitution: 100% for the pure modules (`exportLayout.ts`, `importLayout.ts`, `growGrid.ts`, `EditorPan.ts`, `saveLevelFile.ts`'s pure builders), 80%+ for components (`LevelEditorPage`, `Palette`, `EditorCanvas`, `LevelSelect`).
