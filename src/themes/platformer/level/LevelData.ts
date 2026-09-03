@@ -18,4 +18,25 @@ export interface LevelDef {
   terrain: TileMap;
   width: number;
   height: number;
+  background?: BackgroundPlacement[];
+}
+
+export type BackgroundPieceId =
+  | 'dirtBlock3x3'
+  | 'dirtBlock2x3'
+  | 'dirtColumnA'
+  | 'dirtColumnB'
+  | 'charcoalBlock3x3'
+  | 'charcoalBlock2x3'
+  | 'charcoalColumnA'
+  | 'charcoalColumnB';
+
+/** One stone piece anchored at its top-left cell. Purely decorative — never
+ *  read by collision/physics; only the renderer and the Level Editor
+ *  consume it. See BackgroundCatalog.ts for each piece's pixel rect and
+ *  tile footprint. */
+export interface BackgroundPlacement {
+  pieceId: BackgroundPieceId;
+  col: number;
+  row: number;
 }
