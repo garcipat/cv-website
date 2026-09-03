@@ -1,4 +1,5 @@
 import { LEVEL_1_LAYOUT, SCRATCH_LAYOUT } from './level';
+import type { BackgroundPlacement } from './LevelData';
 
 /**
  * One level the Level Editor can load. `layout` is the same
@@ -9,6 +10,7 @@ export interface LevelEntry {
   readonly id: string;
   readonly name: string;
   readonly layout: readonly string[];
+  readonly background?: readonly BackgroundPlacement[];
 }
 
 /**
@@ -29,6 +31,16 @@ const idFromPath = (path: string): string =>
 
 const isLayout = (value: unknown): value is string[] =>
   Array.isArray(value) && value.length > 0 && value.every((row) => typeof row === 'string');
+
+const isBackgroundPlacement = (value: unknown): value is BackgroundPlacement =>
+  value !== null &&
+  typeof value === 'object' &&
+  typeof (value as { pieceId?: unknown }).pieceId === 'string' &&
+  typeof (value as { col?: unknown }).col === 'number' &&
+  typeof (value as { row?: unknown }).row === 'number';
+
+const isBackground = (value: unknown): value is BackgroundPlacement[] =>
+  Array.isArray(value) && value.every(isBackgroundPlacement);
 
 /**
  * Turns an `import.meta.glob` result into registry entries, skipping anything
@@ -51,11 +63,16 @@ export const parseLevelModules = (modules: Record<string, unknown>): LevelEntry[
           : module;
       if (raw === null || typeof raw !== 'object') return null;
 
-      const { name, layout } = raw as { name?: unknown; layout?: unknown };
+      const { name, layout, background } = raw as { name?: unknown; layout?: unknown; background?: unknown };
       if (!isLayout(layout)) return null;
 
       const id = idFromPath(path);
-      return { id, name: typeof name === 'string' && name !== '' ? name : id, layout };
+      return {
+        id,
+        name: typeof name === 'string' && name !== '' ? name : id,
+        layout,
+        ...(isBackground(background) ? { background } : {}),
+      };
     })
     .filter((entry): entry is LevelEntry => entry !== null)
     .sort((a, b) => a.id.localeCompare(b.id));
