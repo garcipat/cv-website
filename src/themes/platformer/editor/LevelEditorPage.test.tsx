@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { LevelEditorPage } from './LevelEditorPage';
-import { LEVEL_1_LAYOUT, currentLayout } from '../level/level';
+import { LEVEL_1_LAYOUT, SCRATCH_LAYOUT, currentLayout } from '../level/level';
 import { importLayout } from './importLayout';
 import { exportLayout } from './exportLayout';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
@@ -29,6 +29,10 @@ import { drawTerrain } from '../engine/Renderer';
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // editorLevelSignal is a module-level, localStorage-backed signal, so a test
+  // that loads a different layout (Reset, Scratch) would otherwise seed the
+  // next test's editor with it and make this suite order-dependent.
+  editorLevelSignal.value = importLayout(LEVEL_1_LAYOUT);
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
     fillRect: vi.fn(),
     fillStyle: '',
@@ -161,6 +165,43 @@ describe('LevelEditorPage', () => {
     await openExportDialog();
     const resetTextarea = (await screen.findByTestId('export-output')) as HTMLTextAreaElement;
     expect(resetTextarea.value).toBe(EXPECTED_EXPORT_TEXT);
+  });
+
+  it('confirming the Scratch dialog replaces the level with the minimal scratch layout', async () => {
+    render(<LevelEditorPage />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Scratch' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Start from scratch' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('heading', { name: /start from scratch/i })).not.toBeInTheDocument(),
+    );
+
+    await openExportDialog();
+    const textarea = (await screen.findByTestId('export-output')) as HTMLTextAreaElement;
+    expect(textarea.value).toBe(SCRATCH_LAYOUT.map((row) => `  '${row}',`).join('\n'));
+  });
+
+  it('Scratch persists to the editor signal, so the debounced sync cannot undo it', async () => {
+    // Same reasoning as Reset's own persistence: without writing the signal
+    // here, the pending debounced sync would shortly overwrite the scratch
+    // grid with the pre-scratch one.
+    render(<LevelEditorPage />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Scratch' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Start from scratch' }));
+
+    await waitFor(() => expect(editorLevelSignal.value).toEqual(importLayout(SCRATCH_LAYOUT)));
+  });
+
+  it('does not start from scratch when the confirmation dialog is cancelled', async () => {
+    render(<LevelEditorPage />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Scratch' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Cancel' }));
+
+    await openExportDialog();
+    const textarea = (await screen.findByTestId('export-output')) as HTMLTextAreaElement;
+    expect(textarea.value).toBe(EXPECTED_EXPORT_TEXT);
   });
 
   it('does not reset when the confirmation dialog is cancelled', async () => {
