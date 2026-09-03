@@ -649,10 +649,23 @@ describe('LevelEditorPage — background layer', () => {
 
     // Loading 'empty' (a built-in level with no background) must clear the
     // placements back out rather than leaving the previous level's painted
-    // pieces stuck on screen.
+    // pieces stuck on screen. Painting the background marks the editor dirty
+    // (see the dirty-flag test below), so the level select now asks to
+    // confirm the discard first, same as a foreground paint would.
     fireEvent.click(screen.getByRole('combobox'));
     await userEvent.click(await screen.findByRole('option', { name: 'empty' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Discard and load' }));
 
     await waitFor(() => expect(editorBackgroundSignal.value).toEqual([]));
+  });
+
+  it('paintingABackgroundCell-marksTheEditorDirty', async () => {
+    render(<LevelEditorPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Background' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Dirt Column A' }));
+
+    paintBackgroundOnce();
+
+    await waitFor(() => expect(editorDirtySignal.value).toBe(true));
   });
 });
