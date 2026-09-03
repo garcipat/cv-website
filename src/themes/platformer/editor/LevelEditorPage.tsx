@@ -14,7 +14,6 @@ import {
   editorSelectedToolSignal,
   editorLoadedLevelNameSignal,
   editorDirtySignal,
-  editorBackgroundSignal,
 } from './editorLevelState';
 import { resetGameProgress } from '../PlatformerState';
 import { loadImage } from '../engine/SpriteLoader';
@@ -155,7 +154,6 @@ export const LevelEditorPage = () => {
     setGrid(levelGrid);
     requestCenterOnSpawn();
     editorLevelSignal.value = levelGrid;
-    editorBackgroundSignal.value = level.background ?? [];
     setLoadedLevelName(level.name);
     setDirty(false);
     setSaveResult(null);
