@@ -6,13 +6,11 @@ mirrors how `specs/` holds one folder per feature. Bug IDs use the prefix
 
 ## Open
 
-- [ ] **B-005** — A purple slime is two tiles tall but `stepEnemyPatrol` only tests
-  its anchor row, so an obstacle at head height is invisible and the slime walks
-  through it —
-  [ticket](bugs/B-005-oversized-enemy-ignores-head-height-obstacles/ticket.md)
-
 ## Resolved
 
+- [x] **B-005** — A purple slime is two tiles tall but `stepEnemyPatrol` only tested
+  its anchor row; `wallAhead` now checks every row the sprite's `renderScale`
+  spans, so an obstacle at head height blocks it same as one at its feet
 - [x] **B-004** — Held key could draw with no slime body during the first-load
   asset race — `showsHeldKey` now also requires the slime's own body sheet to
   be loaded, not just the key sheet —
@@ -42,7 +40,7 @@ mirrors how `specs/` holds one folder per feature. Bug IDs use the prefix
 | B-002 | FloatingControls duplicated across themes  | Resolved | Minor  | [ticket](bugs/B-002-shared-floating-controls-duplication/ticket.md)  |
 | B-003 | Puff bound to CV reward, not world event   | Resolved | Minor  | [ticket](bugs/B-003-puff-bound-to-fact-reward/ticket.md)              |
 | B-004 | Held key drawn without its slime body      | Resolved | Trivial | [ticket](bugs/B-004-held-key-drawn-without-slime-body/ticket.md)      |
-| B-005 | Oversized enemy ignores head-height walls   | Open     | Major   | [ticket](bugs/B-005-oversized-enemy-ignores-head-height-obstacles/ticket.md) |
+| B-005 | Oversized enemy ignores head-height walls   | Resolved | Major   | —                                                                      |
 
 ---
 
