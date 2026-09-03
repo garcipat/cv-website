@@ -39,8 +39,3 @@ the key sheet and the slime's own body sheet have loaded. Added
 covering the mixed-load state (key sheet present, body sheet absent), asserting zero
 `drawImage` calls; written first and confirmed failing against the old gate before the
 fix landed.
-
-## Related
-
-- `docs/themes/platformer/EntityFollowUps.md` —
-  listed under "Known and accepted".
