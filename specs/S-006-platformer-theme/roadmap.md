@@ -78,9 +78,12 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
 
 - [x] **30. Purple slime rework** — purple slimes become bigger, slower, tougher, and
   drop a key instead of a CV fact; keys are needed to open chests.
-- [ ] **31. Level selection** — not yet designed. Needs its own brainstorming session
-  before a plan exists: a way to choose among multiple levels instead of always
-  loading the current one.
+- [ ] **31. Level selection** — the visitor-facing half is not yet designed and needs
+  its own brainstorming session before a plan exists: a way for a visitor to choose
+  among multiple levels instead of always loading the current one. The editor-facing
+  half is done: the Level Editor has a level dropdown (`main`, `empty`, plus saved JSON
+  files) and a Save button, specified in
+  `specs/O-002-platformer-level-editor/spec.md`'s User Stories 7 and 8.
 - [x] **32. Terrain rework** — `groundGrass` is autotiled from `tile_atlas.png` via a
   4-neighbour mask, with grass drawn as a decoupled overlay pass. Design in
   `plans/2026-09-02-terrain-rework-design.md`.
