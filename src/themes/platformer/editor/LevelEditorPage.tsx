@@ -5,8 +5,16 @@ import { Palette } from './Palette';
 import { EditorCanvas, type EditorImages } from './EditorCanvas';
 import { updatePanOffset, type PanOffset } from './EditorPan';
 import type { TileChar } from '../level/LevelParser';
-import { LEVEL_1_LAYOUT, SCRATCH_LAYOUT, currentLayout } from '../level/level';
-import { editorLevelSignal, editorSelectedToolSignal } from './editorLevelState';
+import { currentLayout } from '../level/level';
+import type { LevelEntry } from '../level/levelRegistry';
+import { LevelSelect } from './LevelSelect';
+import { saveLevel, LEVELS_FOLDER, type SaveLevelResult } from './saveLevelFile';
+import {
+  editorLevelSignal,
+  editorSelectedToolSignal,
+  editorLoadedLevelNameSignal,
+  editorDirtySignal,
+} from './editorLevelState';
 import { resetGameProgress } from '../PlatformerState';
 import { loadImage } from '../engine/SpriteLoader';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
@@ -74,12 +82,36 @@ export const LevelEditorPage = () => {
     editorSelectedToolSignal.value = tool;
   };
   const [panOffset, setPanOffset] = useState<PanOffset>({ x: 0, y: 0 });
+  // Bumped to ask EditorCanvas to center the view on the spawn tile; it
+  // starts at 1 rather than 0 so opening the editor is itself a request, and
+  // the view lands on the player instead of on the grid's top-left corner.
+  const [centerRequestId, setCenterRequestId] = useState(1);
+  const requestCenterOnSpawn = () => setCenterRequestId((id) => id + 1);
   const [images, setImages] = useState<EditorImages>(EMPTY_IMAGES);
-  // In-app confirmation dialog for Reset — replaces a native `window.confirm()`,
-  // which doesn't fire reliably in every browser/embedded context (e.g. some
-  // automated/sandboxed viewers suppress it outright and it silently no-ops).
-  const [resetDialogOpen, setResetDialogOpen] = useState(false);
-  const [scratchDialogOpen, setScratchDialogOpen] = useState(false);
+  // Which level the grid came from, and whether it has been touched since —
+  // both persisted (see editorLevelState.ts) so reopening the editor still
+  // knows what is open and whether there is anything to lose. The dirty flag
+  // is what makes the level dropdown ask before it discards work.
+  const [loadedLevelName, setLoadedLevelNameState] = useState(
+    () => editorLoadedLevelNameSignal.value,
+  );
+  const [isDirty, setIsDirtyState] = useState(() => editorDirtySignal.value);
+  const setLoadedLevelName = (name: string) => {
+    setLoadedLevelNameState(name);
+    editorLoadedLevelNameSignal.value = name;
+  };
+  const setDirty = (dirty: boolean) => {
+    setIsDirtyState(dirty);
+    editorDirtySignal.value = dirty;
+  };
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [saveName, setSaveName] = useState(loadedLevelName);
+  // What the last save actually did — the dev server wrote the file, or the
+  // browser downloaded it instead. Reported rather than assumed, since the two
+  // leave the file in very different places: a successful write closes the
+  // dialog and says where it went in the sidebar, while a fallback download
+  // keeps the dialog open, because then there is something left to do.
+  const [saveResult, setSaveResult] = useState<SaveLevelResult | null>(null);
 
   useEffect(() => {
     IMAGE_SOURCES.forEach(({ key, src }) => {
@@ -106,34 +138,46 @@ export const LevelEditorPage = () => {
     .map((row) => `  '${row}',`)
     .join('\n');
 
-  // Called only once the in-app confirmation dialog is actually accepted
-  // (see resetDialogOpen above) — no browser-native confirm() involved.
-  const resetToDefaultLayout = () => {
-    const defaultGrid = importLayout(LEVEL_1_LAYOUT);
-    setGrid(defaultGrid);
-    setPanOffset({ x: 0, y: 0 });
-    // Resets the persisted (localStorage-backed) copy too, not just local
-    // state — otherwise the debounced sync effect above would shortly
-    // overwrite this reset back with the (still-pending) pre-reset grid, or
-    // reopening the editor after a reload would silently restore the
-    // discarded edits from storage.
-    editorLevelSignal.value = defaultGrid;
-    setResetDialogOpen(false);
+  /**
+   * Loads a level picked from the dropdown, which is also how the editor's
+   * former Reset and Scratch buttons are now spelled: `main` puts back what
+   * ships, `empty` gives a bare starting grid (see `LevelSelect`, which has
+   * already confirmed the discard if there was anything to lose).
+   *
+   * The persisted (localStorage-backed) copy is written too, not just local
+   * state — otherwise the debounced sync effect above would shortly overwrite
+   * the freshly loaded grid with the still-pending previous one, and
+   * reopening the editor would silently restore the discarded edits.
+   */
+  const loadLevel = (level: LevelEntry) => {
+    const levelGrid = importLayout(level.layout);
+    setGrid(levelGrid);
+    requestCenterOnSpawn();
+    editorLevelSignal.value = levelGrid;
+    setLoadedLevelName(level.name);
+    setDirty(false);
+    setSaveResult(null);
   };
 
   /**
-   * Scratch: the same shape as `resetToDefaultLayout` above (including its
-   * persistence, for the same reason), but loading `SCRATCH_LAYOUT` — three
-   * ground tiles with the spawn on the middle one — instead of the shipped
-   * level. Reset answers "put back what ships"; this answers "give me an
-   * empty page", which carving `LEVEL_1_LAYOUT` down by hand never could.
+   * Saving asks the dev server to write the level into `LEVELS_FOLDER` — the
+   * folder the level registry reads — and falls back to a plain download when
+   * there is no dev server behind the page (see `saveLevel` in
+   * `saveLevelFile.ts`). Either way the saved name becomes the open level's
+   * name and the dirty flag clears: the work is out of the editor now, so
+   * loading something else has nothing left to warn about.
+   *
+   * A write that succeeded closes the dialog — there is nothing left to do
+   * with it — and leaves the path in the sidebar. A fallback download keeps
+   * the dialog open instead, because the file then still has to be moved and
+   * that is worth saying before it is dismissed.
    */
-  const startFromScratch = () => {
-    const scratchGrid = importLayout(SCRATCH_LAYOUT);
-    setGrid(scratchGrid);
-    setPanOffset({ x: 0, y: 0 });
-    editorLevelSignal.value = scratchGrid;
-    setScratchDialogOpen(false);
+  const saveCurrentLevel = async () => {
+    const result = await saveLevel(saveName, grid);
+    setSaveResult(result);
+    setLoadedLevelName(saveName);
+    setDirty(false);
+    if (result.written) setSaveDialogOpen(false);
   };
 
   /**
@@ -168,6 +212,11 @@ export const LevelEditorPage = () => {
       <div className="flex min-h-0 flex-1 flex-row items-stretch gap-4">
         <div className="flex flex-col gap-2">
           <Palette selectedTool={selectedTool} onSelectTool={setSelectedTool} />
+          <LevelSelect
+            loadedLevelName={loadedLevelName}
+            isDirty={isDirty}
+            onLoadLevel={loadLevel}
+          />
           <Dialog>
             <DialogTrigger render={<Button type="button" variant="outline">Export</Button>} />
             <DialogContent>
@@ -192,41 +241,48 @@ export const LevelEditorPage = () => {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-          <Button type="button" variant="outline" onClick={() => setResetDialogOpen(true)}>
-            Reset
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              setSaveName(loadedLevelName);
+              setSaveResult(null);
+              setSaveDialogOpen(true);
+            }}
+          >
+            Save
           </Button>
-          <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+          <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Reset the level?</DialogTitle>
+                <DialogTitle>Save this level</DialogTitle>
                 <DialogDescription>
-                  This reloads the default layout and discards all unsaved edits.
+                  Writes the level as a JSON file into <code>{LEVELS_FOLDER}</code>, where the level
+                  list reads it from. Reload the editor afterwards to see it there.
                 </DialogDescription>
               </DialogHeader>
+              <label className="flex flex-col gap-1 text-sm" htmlFor="save-level-name">
+                Level name
+                <input
+                  id="save-level-name"
+                  value={saveName}
+                  onChange={(event) => setSaveName(event.target.value)}
+                  className="rounded border px-2 py-1 font-mono text-xs"
+                />
+              </label>
+              {saveResult !== null && !saveResult.written && (
+                <p className="text-sm" role="status">
+                  No dev server to write it
+                  {saveResult.error === undefined ? '' : ` (${saveResult.error})`}, so it went to
+                  your downloads instead. Move it into <code>{LEVELS_FOLDER}</code> yourself.
+                </p>
+              )}
               <DialogFooter>
-                <DialogClose render={<Button type="button" variant="outline" />}>Cancel</DialogClose>
-                <Button type="button" variant="destructive" onClick={resetToDefaultLayout}>
-                  Reset level
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-          <Button type="button" variant="outline" onClick={() => setScratchDialogOpen(true)}>
-            Scratch
-          </Button>
-          <Dialog open={scratchDialogOpen} onOpenChange={setScratchDialogOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Start from scratch?</DialogTitle>
-                <DialogDescription>
-                  This replaces the level with three ground tiles and the player standing on the
-                  middle one, discarding all unsaved edits.
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter>
-                <DialogClose render={<Button type="button" variant="outline" />}>Cancel</DialogClose>
-                <Button type="button" variant="destructive" onClick={startFromScratch}>
-                  Start from scratch
+                <DialogClose render={<Button type="button" variant="outline" />}>
+                  {saveResult === null ? 'Cancel' : 'Done'}
+                </DialogClose>
+                <Button type="button" onClick={saveCurrentLevel}>
+                  Save level file
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -234,14 +290,26 @@ export const LevelEditorPage = () => {
           <Button type="button" onClick={tryLayout}>
             Try
           </Button>
+          {saveResult?.written === true && (
+            <p className="max-w-40 text-xs break-all text-muted-foreground" role="status">
+              Saved to <code>{saveResult.path}</code> — reload to see it in the level list.
+            </p>
+          )}
         </div>
         <EditorCanvas
           grid={grid}
           selectedTool={selectedTool}
           panOffset={panOffset}
           images={images}
+          centerRequestId={centerRequestId}
           onPaint={({ grid: nextGrid, colShift, rowShift }) => {
             setGrid(nextGrid);
+            // Every paint and erase goes through here, so this is the one
+            // place the grid can start differing from the loaded level. The
+            // "saved to ..." line goes with it: the file on disk no longer
+            // matches what is on screen.
+            if (!isDirty) setDirty(true);
+            if (saveResult !== null) setSaveResult(null);
             if (colShift !== 0 || rowShift !== 0) {
               // A cell at index i draws at i * RENDERED_TILE_SIZE + panOffset.x.
               // Growth increases every existing cell's index by colShift/rowShift,

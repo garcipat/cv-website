@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { PALETTE_TILE_SPRITES, PALETTE_TILE_LABELS } from './paletteTiles';
+import {
+  PALETTE_TILE_SPRITES,
+  PALETTE_TILE_LABELS,
+  PALETTE_TILE_GLYPHS,
+  PALETTE_TILE_DESCRIPTIONS,
+} from './paletteTiles';
 import { TERRAIN_CHARS, ENTITY_CHARS, SIGN_CHARS } from '../level/LevelParser';
 import type { TileChar } from '../level/LevelParser';
 
@@ -15,10 +20,26 @@ describe('PALETTE_TILE_SPRITES', () => {
     expect(PALETTE_TILE_SPRITES['.']).toBeNull();
   });
 
-  it('gives every non-"." tile a spec with a positive frame size', () => {
+  it('maps "P" (Patrol Boundary) to null — it is invisible, so it has no sprite', () => {
+    expect(PALETTE_TILE_SPRITES.P).toBeNull();
+  });
+
+  it('gives every sprite-less tile a glyph so the palette never shows two blank squares', () => {
+    // '.' (Eraser) and 'P' (Patrol Boundary) are the only two tiles with no
+    // sprite; without a glyph to tell them apart they would render as
+    // identical empty squares.
+    const spriteless = (Object.keys(PALETTE_TILE_SPRITES) as TileChar[]).filter(
+      (key) => PALETTE_TILE_SPRITES[key] === null,
+    );
+    expect(spriteless).toEqual(['.', 'P']);
+    expect(PALETTE_TILE_GLYPHS['.']).toBeUndefined();
+    expect(PALETTE_TILE_GLYPHS.P).toBeTruthy();
+  });
+
+  it('gives every non-sprite-less tile a spec with a positive frame size', () => {
     const keys = Object.keys(PALETTE_TILE_SPRITES) as TileChar[];
     for (const key of keys) {
-      if (key === '.') continue;
+      if (key === '.' || key === 'P') continue;
       const spec = PALETTE_TILE_SPRITES[key];
       expect(spec).not.toBeNull();
       expect(spec!.frameWidth).toBeGreaterThan(0);
@@ -26,6 +47,21 @@ describe('PALETTE_TILE_SPRITES', () => {
       expect(spec!.sheetWidth).toBeGreaterThanOrEqual(spec!.sx + spec!.frameWidth);
       expect(spec!.sheetHeight).toBeGreaterThanOrEqual(spec!.sy + spec!.frameHeight);
     }
+  });
+
+  it('describes every tile, so no palette button hovers without an explanation', () => {
+    const keys = Object.keys(PALETTE_TILE_SPRITES) as TileChar[];
+    for (const key of keys) {
+      expect(PALETTE_TILE_DESCRIPTIONS[key]).toBeTruthy();
+    }
+  });
+
+  it('describes the patrol tile by the two things that are not visible about it', () => {
+    expect(PALETTE_TILE_DESCRIPTIONS.P).toBe('Invisible in game; turns patrolling enemies around');
+  });
+
+  it('labels the patrol tile by what it does, not by its character', () => {
+    expect(PALETTE_TILE_LABELS.P).toBe('Patrol Boundary');
   });
 
   it('uses the coin sprite sheet for the coin tile', () => {

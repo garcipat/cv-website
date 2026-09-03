@@ -50,6 +50,12 @@ describe('Terrain', () => {
     expect(isSolid('bridge')).toBe(true);
   });
 
+  it('isSolid-patrol-returnsFalse', () => {
+    // A patrol tile bounds enemies only — the player, and physics in
+    // general, must walk straight through it.
+    expect(isSolid('patrol')).toBe(false);
+  });
+
   it('isSolid-empty-returnsFalse', () => {
     expect(isSolid('empty')).toBe(false);
   });
@@ -287,6 +293,7 @@ describe('isClimbable', () => {
     expect(isClimbable('wall')).toBe(false);
     expect(isClimbable('bridge')).toBe(false);
     expect(isClimbable('empty')).toBe(false);
+    expect(isClimbable('patrol')).toBe(false);
   });
 });
 

@@ -21,6 +21,18 @@ function makeLevel(width: number, wallCols: number[], pitCols: number[]): LevelD
   return { terrain: [entityRow, groundRow], width, height: 2 };
 }
 
+/** A level whose entity row carries `patrol` marker tiles at the given
+ *  columns — the invisible, non-solid patrol boundaries an author paints
+ *  with `P` — over ground that is solid everywhere, so a reversal here can
+ *  only come from the patrol tile and never from a wall or a ledge. */
+function makePatrolLevel(width: number, patrolCols: number[]): LevelDef {
+  const entityRow: TileType[] = Array.from({ length: width }, (_, c) =>
+    patrolCols.includes(c) ? 'patrol' : 'empty',
+  );
+  const groundRow: TileType[] = Array.from({ length: width }, () => 'groundRock');
+  return { terrain: [entityRow, groundRow], width, height: 2 };
+}
+
 function makeEnemyAt(col: number) {
   const placement: EnemyPlacement = {
     id: 'enemy-cert-x',
@@ -125,6 +137,84 @@ describe('stepEnemyPatrol', () => {
 
     expect(next.direction).toBe('right');
     expect(next.x).toBe(126);
+  });
+
+  it('patrolTileAhead-movingRight-reversesAndClampsExactlyLikeAWall', () => {
+    // Same geometry as wallAhead-movingRight above, with the wall replaced by
+    // an invisible patrol tile at col 7: the turn-around point must be
+    // identical (x=194), since a patrol boundary is meant to feel like a wall
+    // the player simply cannot see.
+    const level = makePatrolLevel(10, [7]);
+    const enemy = { ...makeEnemyAt(5), direction: 'right' as const };
+
+    const next = stepEnemyPatrol(enemy, level, 1, []);
+
+    expect(next.direction).toBe('left');
+    expect(next.vx).toBe(-SPEED);
+    expect(next.x).toBe(194);
+  });
+
+  it('patrolTileAhead-movingLeft-reversesAndClampsExactlyLikeAWall', () => {
+    const level = makePatrolLevel(10, [3]);
+    const enemy = { ...makeEnemyAt(5), direction: 'left' as const };
+
+    const next = stepEnemyPatrol(enemy, level, 1.1, []);
+
+    expect(next.direction).toBe('right');
+    expect(next.vx).toBe(SPEED);
+    expect(next.x).toBe(126);
+  });
+
+  it('patrolTilesOnBothSides-keepsTheEnemyInsideThePocket', () => {
+    const level = makePatrolLevel(10, [3, 7]);
+    let enemy: EnemyState = { ...makeEnemyAt(5), direction: 'right' };
+
+    for (let i = 0; i < 200; i++) {
+      enemy = stepEnemyPatrol(enemy, level, DT, []);
+      expect(enemy.x).toBeGreaterThanOrEqual(126);
+      expect(enemy.x).toBeLessThanOrEqual(194);
+    }
+  });
+
+  it('patrolTileOnADifferentRow-doesNotTurnTheEnemyAround', () => {
+    // A patrol tile only bounds the row it sits on — one painted in the air
+    // above (row 0) must leave an enemy walking on row 1 alone, or a single
+    // marker would silently bound every enemy in its whole column.
+    const width = 10;
+    const skyRow: TileType[] = Array.from({ length: width }, (_, c) =>
+      c === 7 ? 'patrol' : 'empty',
+    );
+    const entityRow: TileType[] = Array.from({ length: width }, () => 'empty');
+    const groundRow: TileType[] = Array.from({ length: width }, () => 'groundRock');
+    const level: LevelDef = { terrain: [skyRow, entityRow, groundRow], width, height: 3 };
+    const enemy = {
+      ...makeEnemyAt(5),
+      y: RENDERED_TILE_SIZE,
+      direction: 'right' as const,
+    };
+
+    const next = stepEnemyPatrol(enemy, level, 1, []);
+
+    expect(next.direction).toBe('right');
+    expect(next.x).toBe(enemy.x + SPEED);
+  });
+
+  it('patrolTileUnderfoot-isNotGroundSoTheEnemyTurnsAtItLikeAPit', () => {
+    // A patrol tile is never solid, so painting one into the ground row
+    // reads as a hole, not as floor — worth pinning so nobody mistakes it
+    // for a walkable marker.
+    const width = 10;
+    const entityRow: TileType[] = Array.from({ length: width }, () => 'empty');
+    const groundRow: TileType[] = Array.from({ length: width }, (_, c) =>
+      c === 7 ? 'patrol' : 'groundRock',
+    );
+    const level: LevelDef = { terrain: [entityRow, groundRow], width, height: 2 };
+    const enemy = { ...makeEnemyAt(5), direction: 'right' as const };
+
+    const next = stepEnemyPatrol(enemy, level, 1, []);
+
+    expect(next.direction).toBe('left');
+    expect(next.x).toBe(194);
   });
 
   it('wallOnLeftAndPitOnRight-patrolsBackAndForthWithoutEscaping', () => {

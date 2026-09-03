@@ -27,7 +27,7 @@
 ### Optional
 
 - [ ] **O-001** **Checkpoint Persistence** — Saves collected facts and spawn position at each checkpoint, persisting across theme switches so the player can continue later
-- [x] **O-002** **Platformer Level Editor** — Hidden dev-only grid tool for authoring platformer level layouts with real game sprites, exported as copy-pasteable `readonly string[]`
+- [x] **O-002** **Platformer Level Editor** — Hidden dev-only grid tool for authoring platformer level layouts with real game sprites, exported as copy-pasteable `readonly string[]`, with a level dropdown (`main`, `empty`, plus saved JSON levels) and a save-to-JSON button
 
 - _TBD_
 
