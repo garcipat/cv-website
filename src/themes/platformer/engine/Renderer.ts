@@ -12,6 +12,7 @@ import {
 } from '../level/Terrain';
 import { groundAtlasCell, grassCell, GRASS_SOURCE_HEIGHT } from './GroundAtlas';
 import type { GroundAtlasEntry } from './GroundAtlas';
+import { backgroundCatalogEntry } from './BackgroundCatalog';
 import type { LevelDef, TileType } from '../level/LevelData';
 import type { SignPlacement } from '../level/SignMapper';
 import {
@@ -351,6 +352,36 @@ export function drawTerrain(
         destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
       );
     }
+  }
+}
+
+/**
+ * Draws every placement in the level's purely-decorative background layer —
+ * stone chunks anchored at their top-left cell, scaled from their catalog
+ * source rect to RENDERED_TILE_SIZE. Same originX/originY convention as
+ * drawTerrain. Levels with no `background` field draw nothing.
+ */
+export function drawBackgroundTiles(
+  ctx: CanvasRenderingContext2D,
+  level: LevelDef,
+  backgroundAtlas: HTMLImageElement,
+  originX = 0,
+  originY = 0,
+): void {
+  const placements = level.background ?? [];
+  for (const placement of placements) {
+    const entry = backgroundCatalogEntry(placement.pieceId);
+    ctx.drawImage(
+      backgroundAtlas,
+      entry.sx,
+      entry.sy,
+      entry.widthTiles * TILE_SIZE,
+      entry.heightTiles * TILE_SIZE,
+      placement.col * RENDERED_TILE_SIZE + originX,
+      placement.row * RENDERED_TILE_SIZE + originY,
+      entry.widthTiles * RENDERED_TILE_SIZE,
+      entry.heightTiles * RENDERED_TILE_SIZE,
+    );
   }
 }
 
