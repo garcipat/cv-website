@@ -320,6 +320,78 @@ describe('stepEnemyPatrol', () => {
     expect(second.x).toBe(first.x);
   });
 
+  it('slimePurple-wallAtHeadHeightOnly-reversesInsteadOfWalkingThroughIt', () => {
+    // B-005: a purple slime renders at 2x and spans two rows (its anchor row
+    // and the row above it), but stepEnemyPatrol only ever tested the anchor
+    // row. Wall placed ONLY in the row above the slime's row (row -1) with
+    // the slime's own row left clear — the anchor-row-only check must not
+    // see it, so this must fail before the fix.
+    const width = 10;
+    const aboveRow: TileType[] = Array.from({ length: width }, (_, c) => (c === 7 ? 'wall' : 'empty'));
+    const entityRow: TileType[] = Array.from({ length: width }, () => 'empty');
+    const groundRow: TileType[] = Array.from({ length: width }, () => 'groundRock');
+    const level: LevelDef = { terrain: [aboveRow, entityRow, groundRow], width, height: 3 };
+    const enemy: EnemyState = {
+      id: 'e1',
+      type: 'slimePurple',
+      x: 5 * RENDERED_TILE_SIZE,
+      y: RENDERED_TILE_SIZE, // anchor row is row 1 (entityRow); row 0 (aboveRow) holds the wall
+      vx: 0,
+      vy: 0,
+      direction: 'right',
+      animState: 'walk',
+      animFrame: 0,
+      animTimer: 0,
+      hitPoints: 2,
+      hitTimer: 0,
+      spiked: false,
+      spikeTimer: 0,
+      alive: true,
+      homeX: 5 * RENDERED_TILE_SIZE,
+      homeY: RENDERED_TILE_SIZE,
+      rewardGiven: false,
+      deathEffectGiven: false,
+    };
+
+    const next = stepEnemyPatrol(enemy, level, 1, []);
+
+    expect(next.direction).toBe('left');
+    expect(next.vx).toBeLessThan(0);
+  });
+
+  it('slimePurple-wallAtFootHeightOnly-stillReverses', () => {
+    // Companion case: wall only in the slime's own (anchor) row, nothing
+    // above — must still reverse, confirming the multi-row check doesn't
+    // regress the pre-existing single-row behavior.
+    const level = makeLevel(10, [7], []);
+    const enemy: EnemyState = {
+      id: 'e1',
+      type: 'slimePurple',
+      x: 5 * RENDERED_TILE_SIZE,
+      y: 0,
+      vx: 0,
+      vy: 0,
+      direction: 'right',
+      animState: 'walk',
+      animFrame: 0,
+      animTimer: 0,
+      hitPoints: 2,
+      hitTimer: 0,
+      spiked: false,
+      spikeTimer: 0,
+      alive: true,
+      homeX: 5 * RENDERED_TILE_SIZE,
+      homeY: 0,
+      rewardGiven: false,
+      deathEffectGiven: false,
+    };
+
+    const next = stepEnemyPatrol(enemy, level, 1, []);
+
+    expect(next.direction).toBe('left');
+    expect(next.vx).toBeLessThan(0);
+  });
+
   it('stepEnemyPatrol-slimePurple-movesSlowerThanGreen', () => {
     const level = makeLevel(10, [], []);
     const base = {
