@@ -3,7 +3,7 @@ import { SIGN_CHARS, type TileChar } from '../level/LevelParser';
 
 const PATROL_CHAR: TileChar = 'P';
 import { paintCell, type PaintResult } from './paintCell';
-import { updatePanOffset, type PanOffset } from './EditorPan';
+import { updatePanOffset, centerPanOnSpawn, type PanOffset } from './EditorPan';
 import {
   gridToLevelDef,
   synthesizePlayerState,
@@ -52,6 +52,10 @@ interface EditorCanvasProps {
   selectedTool: TileChar;
   panOffset: PanOffset;
   images: EditorImages;
+  /** Bump this to ask the canvas to re-center itself on the spawn tile (see
+   *  the effect below). It is a request id rather than a boolean so a
+   *  repeated request — Reset pressed twice, say — still fires each time. */
+  centerRequestId?: number;
   onPaint: (result: PaintResult) => void;
   onPan: (offset: PanOffset) => void;
 }
@@ -189,6 +193,7 @@ export const EditorCanvas = ({
   selectedTool,
   panOffset,
   images,
+  centerRequestId,
   onPaint,
   onPan,
 }: EditorCanvasProps) => {
@@ -202,6 +207,14 @@ export const EditorCanvas = ({
     width: DEFAULT_CANVAS_WIDTH_PX,
     height: DEFAULT_CANVAS_HEIGHT_PX,
   });
+  // Whether `canvasSize` reflects a real measurement yet, rather than the
+  // fallback above. Only the centering effect below cares: centering against
+  // the fallback leaves the view off by half the difference between the two
+  // sizes. Starts true where there is no ResizeObserver to wait for (some
+  // test runners), since then the fallback is all there will ever be.
+  const [canvasMeasured, setCanvasMeasured] = useState(
+    () => typeof ResizeObserver === 'undefined',
+  );
 
   useEffect(() => {
     const container = containerRef.current;
@@ -212,11 +225,36 @@ export const EditorCanvas = ({
       const { width, height } = entry.contentRect;
       if (width > 0 && height > 0) {
         setCanvasSize({ width: Math.floor(width), height: Math.floor(height) });
+        setCanvasMeasured(true);
       }
     });
     observer.observe(container);
     return () => observer.disconnect();
   }, []);
+
+  // Centering the view on the spawn is the CANVAS's job rather than the
+  // page's, because only this component knows its measured size. The pending
+  // ref is what makes it fire exactly once per request: a fresh request id
+  // arms it, and the effect can then only act once the ResizeObserver above
+  // has delivered a real size (its first measurement lands AFTER mount, so
+  // acting before `canvasMeasured` would center against the fallback size
+  // and never correct itself). Once it has centered, it disarms — which is also what
+  // stops a later window resize, or any unrelated re-render, from yanking a
+  // hand-panned view back to the spawn.
+  const pendingCenterRef = useRef<number | undefined>(centerRequestId);
+  useEffect(() => {
+    pendingCenterRef.current = centerRequestId;
+  }, [centerRequestId]);
+  useEffect(() => {
+    if (!canvasMeasured || pendingCenterRef.current === undefined) return;
+    pendingCenterRef.current = undefined;
+    onPan(centerPanOnSpawn(grid, canvasSize.width, canvasSize.height));
+    // `grid`/`onPan` are deliberately NOT dependencies: this must run when a
+    // centering is requested or a new size arrives, not on every paint
+    // stroke (which would re-center mid-edit the moment a request happened
+    // to still be armed).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [centerRequestId, canvasSize, canvasMeasured]);
 
   useEffect(() => {
     const canvas = canvasRef.current;

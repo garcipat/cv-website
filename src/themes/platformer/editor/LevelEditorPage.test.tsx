@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { LevelEditorPage } from './LevelEditorPage';
 import { LEVEL_1_LAYOUT, SCRATCH_LAYOUT, currentLayout } from '../level/level';
 import { importLayout } from './importLayout';
+import { centerPanOnSpawn } from './EditorPan';
 import { exportLayout } from './exportLayout';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import { editorLevelSignal, editorSelectedToolSignal } from './editorLevelState';
@@ -47,7 +48,9 @@ beforeEach(() => {
     font: '',
     textAlign: '',
     textBaseline: '',
+    lineJoin: '',
     fillText: vi.fn(),
+    strokeText: vi.fn(),
   } as unknown as CanvasRenderingContext2D);
 });
 
@@ -181,6 +184,46 @@ describe('LevelEditorPage', () => {
     expect(textarea.value).toBe(SCRATCH_LAYOUT.map((row) => `  '${row}',`).join('\n'));
   });
 
+  it('scratch-recentersTheViewOnTheNewSpawnRatherThanLeavingItWhereTheOldLevelWas', async () => {
+    render(<LevelEditorPage />);
+    await waitFor(() => expect(drawTerrain).toHaveBeenCalled());
+
+    await userEvent.click(screen.getByRole('button', { name: 'Scratch' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Start from scratch' }));
+
+    const canvas = document.querySelector('canvas') as HTMLCanvasElement;
+    const expected = centerPanOnSpawn(
+      importLayout(SCRATCH_LAYOUT),
+      canvas.width,
+      canvas.height,
+    );
+    await waitFor(() => {
+      const calls = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls;
+      const [, , , , originX, originY] = calls[calls.length - 1];
+      expect({ x: originX, y: originY }).toEqual(expected);
+    });
+  });
+
+  it('reset-recentersTheViewOnTheDefaultLayoutsSpawn', async () => {
+    render(<LevelEditorPage />);
+    await waitFor(() => expect(drawTerrain).toHaveBeenCalled());
+
+    await userEvent.click(screen.getByRole('button', { name: 'Reset' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Reset level' }));
+
+    const canvas = document.querySelector('canvas') as HTMLCanvasElement;
+    const expected = centerPanOnSpawn(
+      importLayout(LEVEL_1_LAYOUT),
+      canvas.width,
+      canvas.height,
+    );
+    await waitFor(() => {
+      const calls = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls;
+      const [, , , , originX, originY] = calls[calls.length - 1];
+      expect({ x: originX, y: originY }).toEqual(expected);
+    });
+  });
+
   it('Scratch persists to the editor signal, so the debounced sync cannot undo it', async () => {
     // Same reasoning as Reset's own persistence: without writing the signal
     // here, the pending debounced sync would shortly overwrite the scratch
@@ -229,21 +272,21 @@ describe('LevelEditorPage', () => {
     await waitFor(() => expect(drawTerrain).toHaveBeenCalled());
 
     const callsBefore = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls;
-    const [, , , , originXBefore, originYBefore] = callsBefore[callsBefore.length - 1];
-    expect(originXBefore).toBe(0);
-    expect(originYBefore).toBe(0);
+    const [, , , , originXBefore] = callsBefore[callsBefore.length - 1];
 
     const canvas = document.querySelector('canvas')!;
     vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
-    // LEVEL_1_LAYOUT's leftmost column is column 0 — clicking one tile-width
-    // left of the canvas origin targets column -1, which must grow the grid
-    // left by exactly one column (colShift 1).
-    fireEvent.mouseDown(canvas, { button: 0, clientX: -1, clientY: 1 });
+    // LEVEL_1_LAYOUT's leftmost column is column 0 — clicking one pixel left
+    // of where column 0 currently draws targets column -1, which must grow
+    // the grid left by exactly one column (colShift 1). The click is taken
+    // relative to the CURRENT origin rather than to 0, since the editor
+    // opens centered on the spawn rather than unpanned.
+    fireEvent.mouseDown(canvas, { button: 0, clientX: originXBefore - 1, clientY: 1 });
 
     await waitFor(() => {
       const callsAfter = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls;
       const [, , , , originXAfter] = callsAfter[callsAfter.length - 1];
-      expect(originXAfter).toBe(-RENDERED_TILE_SIZE);
+      expect(originXAfter).toBe(originXBefore - RENDERED_TILE_SIZE);
     });
   });
 });
