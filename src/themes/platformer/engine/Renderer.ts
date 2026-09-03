@@ -73,6 +73,11 @@ function tileSource(
     }
     case 'ladder':
       return { sx: 9 * TILE_SIZE, sy: 3 * TILE_SIZE };
+    case 'patrol':
+      // An enemy patrol boundary is deliberately invisible in game — only
+      // the Level Editor draws a marker for it (EditorCanvas.tsx's
+      // drawPatrolMarkers), the same way it badges sign digits.
+      return null;
     case 'empty':
       return null;
     default: {
