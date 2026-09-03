@@ -4,6 +4,10 @@ import { cn } from '@/lib/utils';
 interface PaletteTileProps {
   label: string;
   sprite: TileSpriteSpec | null;
+  /** Character drawn inside the empty square when `sprite` is `null`, so two
+   *  sprite-less tools don't render as the same blank button (see
+   *  `PALETTE_TILE_GLYPHS`). Ignored when a sprite is given. */
+  glyph?: string;
   selected: boolean;
   onClick: () => void;
 }
@@ -22,12 +26,13 @@ const SPRITE_PADDING = 10;
  * of the whole sheet, absolutely positioned inside an `overflow: hidden`
  * box, both scaled up so the target frame fills most of `TILE_BOX_SIZE` —
  * a CSS "sprite sheet" crop, no canvas involved) or, when `sprite` is
- * `null` (the Eraser tool), an empty square with just a border. When the
+ * `null` (the Eraser and Patrol Boundary tools), an empty square with just a
+ * border, holding `glyph` if one was given. When the
  * spec carries an `overlay`, a second `<img>` of the same sheet is drawn on
  * top, cropped to the overlay's own offset — used to composite grass over
  * the ground block, since the atlas keeps grass out of every ground cell.
  */
-export const PaletteTile = ({ label, sprite, selected, onClick }: PaletteTileProps) => {
+export const PaletteTile = ({ label, sprite, glyph, selected, onClick }: PaletteTileProps) => {
   const scale = sprite
     ? (TILE_BOX_SIZE - SPRITE_PADDING) / Math.max(sprite.frameWidth, sprite.frameHeight)
     : 1;
@@ -83,7 +88,9 @@ export const PaletteTile = ({ label, sprite, selected, onClick }: PaletteTilePro
           )}
         </div>
       ) : (
-        <span className="block h-full w-full rounded-sm border border-dashed border-muted-foreground" />
+        <span className="flex h-full w-full items-center justify-center rounded-sm border border-dashed border-muted-foreground text-muted-foreground">
+          {glyph}
+        </span>
       )}
     </button>
   );

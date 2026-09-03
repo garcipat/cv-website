@@ -37,8 +37,10 @@ const WORLD_TILESET = '/sprites/world_tileset.png';
 const TILE_ATLAS = '/sprites/tile_atlas.png';
 
 /**
- * One sprite spec per `TileChar`, or `null` for `.` (the Eraser tool, which
- * has no sprite — it renders as an empty bordered square instead).
+ * One sprite spec per `TileChar`, or `null` for the two tiles that have no
+ * sprite at all: `.` (the Eraser tool) and `P` (the patrol boundary, which
+ * is invisible in game by design). Both render as an empty bordered square,
+ * told apart by `PALETTE_TILE_GLYPHS` below.
  */
 export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
   '.': null,
@@ -88,6 +90,7 @@ export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
     frameWidth: 16,
     frameHeight: 16,
   },
+  P: null,
   S: {
     sheet: '/sprites/knight.png',
     sheetWidth: 256,
@@ -212,6 +215,22 @@ export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
   },
 };
 
+/** The turn-around character standing in for the patrol boundary's missing
+ *  sprite — in the palette button below, and on the tile itself in the
+ *  editor canvas (`EditorCanvas.tsx` re-exports it as
+ *  `PATROL_MARKER_GLYPH`), so both always show the same symbol. */
+export const PATROL_GLYPH = '⇄';
+
+/**
+ * The character drawn inside a sprite-less tile's empty palette square, so
+ * two of them are never indistinguishable. Only `P` needs one today — the
+ * Eraser's empty square already reads as "erase", and giving it a glyph
+ * would make it look like a tile you can paint.
+ */
+export const PALETTE_TILE_GLYPHS: Partial<Record<TileChar, string>> = {
+  P: PATROL_GLYPH,
+};
+
 /** Human-readable name per `TileChar`, so the palette reads by name rather
  *  than by memorized character — matches `TERRAIN_CHARS`/`ENTITY_CHARS`'s
  *  own `TileType`/`EntityKind` values, just spaced and capitalized. */
@@ -222,6 +241,7 @@ export const PALETTE_TILE_LABELS: Record<TileChar, string> = {
   W: 'Wall',
   B: 'Bridge',
   L: 'Ladder',
+  P: 'Patrol Boundary',
   S: 'Spawn',
   E: 'Enemy Green',
   M: 'Enemy Purple',

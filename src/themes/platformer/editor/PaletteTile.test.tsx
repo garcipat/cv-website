@@ -27,6 +27,20 @@ describe('PaletteTile', () => {
     expect(screen.getByRole('button', { name: 'Eraser' })).toBeInTheDocument();
   });
 
+  it('renders the glyph inside the empty square when a sprite-less tile has one', () => {
+    render(
+      <PaletteTile
+        label="Patrol Boundary"
+        sprite={null}
+        glyph="⇄"
+        selected={false}
+        onClick={() => {}}
+      />,
+    );
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Patrol Boundary' })).toHaveTextContent('⇄');
+  });
+
   it('marks the button as pressed when selected', () => {
     render(<PaletteTile label="Coin" sprite={SPRITE} selected={true} onClick={() => {}} />);
     expect(screen.getByRole('button', { name: 'Coin' })).toHaveAttribute('aria-pressed', 'true');
