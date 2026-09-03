@@ -2,6 +2,7 @@ import { createLocalStorageSignal } from '@/lib/utils';
 import { importLayout } from './importLayout';
 import { LEVEL_1_LAYOUT } from '../level/level';
 import type { TileChar } from '../level/LevelParser';
+import type { BackgroundPlacement, BackgroundPieceId } from '../level/LevelData';
 
 /**
  * The Level Editor's grid, persisted to localStorage — separate from
@@ -49,4 +50,30 @@ export const editorLoadedLevelNameSignal = createLocalStorageSignal<string>(
 export const editorDirtySignal = createLocalStorageSignal<boolean>(
   'platformer-editor-dirty',
   false,
+);
+
+/**
+ * The Level Editor's background-layer placements, persisted the same way
+ * `editorLevelSignal` is above.
+ */
+export const editorBackgroundSignal = createLocalStorageSignal<BackgroundPlacement[]>(
+  'platformer-editor-background',
+  [],
+);
+
+/**
+ * Which layer the palette and canvas clicks currently target.
+ */
+export const editorActiveLayerSignal = createLocalStorageSignal<'foreground' | 'background'>(
+  'platformer-editor-active-layer',
+  'foreground',
+);
+
+/**
+ * The currently-selected background piece, persisted like
+ * `editorSelectedToolSignal` above — `null` until the developer picks one.
+ */
+export const editorSelectedBackgroundPieceSignal = createLocalStorageSignal<BackgroundPieceId | null>(
+  'platformer-editor-selected-background-piece',
+  null,
 );
