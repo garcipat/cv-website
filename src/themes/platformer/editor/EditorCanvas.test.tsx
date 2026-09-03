@@ -15,6 +15,7 @@ vi.mock('../engine/Renderer', () => ({
   drawBlocks: vi.fn(),
   drawChests: vi.fn(),
   drawSigns: vi.fn(),
+  drawBackgroundTiles: vi.fn(),
 }));
 
 import {
@@ -24,6 +25,7 @@ import {
   drawEnemies,
   drawBlocks,
   drawChests,
+  drawBackgroundTiles,
 } from '../engine/Renderer';
 
 const EMPTY_IMAGES: EditorImages = {
@@ -36,6 +38,17 @@ const EMPTY_IMAGES: EditorImages = {
   slimePurple: null,
   crackOverlay: null,
   chestClosed: null,
+  backgroundAtlas: null,
+};
+
+// Default props shared by every pre-existing test in this file (all of
+// which predate the background layer and only care about the foreground):
+// the background layer stays inactive/empty so it doesn't affect them.
+const BACKGROUND_LAYER_DEFAULT_PROPS = {
+  backgroundPlacements: [],
+  activeLayer: 'foreground' as const,
+  selectedBackgroundPiece: null,
+  onPaintBackground: () => {},
 };
 
 function stubCanvasContext() {
@@ -66,10 +79,11 @@ beforeEach(() => {
 });
 
 describe('EditorCanvas', () => {
-  it('takes the canvas out of its container\'s layout flow (absolute positioning) so the container\'s size never depends on the canvas\'s own content size — otherwise the ResizeObserver below watches a target whose size the canvas itself helps determine, a feedback loop that spirals toward 0x0 and leaves the canvas invisible', () => {
+  it("takes the canvas out of its container's layout flow (absolute positioning) so the container's size never depends on the canvas's own content size — otherwise the ResizeObserver below watches a target whose size the canvas itself helps determine, a feedback loop that spirals toward 0x0 and leaves the canvas invisible", () => {
     stubCanvasContext();
     const { container } = render(
       <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
         grid={[['.']]}
         selectedTool="G"
         panOffset={{ x: 0, y: 0 }}
@@ -99,6 +113,7 @@ describe('EditorCanvas', () => {
 
     const { container } = render(
       <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
         grid={[['.']]}
         selectedTool="G"
         panOffset={{ x: 0, y: 0 }}
@@ -139,6 +154,7 @@ describe('EditorCanvas', () => {
 
     render(
       <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
         grid={[['.']]}
         selectedTool="G"
         panOffset={{ x: 0, y: 0 }}
@@ -164,12 +180,12 @@ describe('EditorCanvas', () => {
     vi.unstubAllGlobals();
   });
 
-
   it('renders every visible cell as background before drawing terrain, so panning never shows blank canvas', () => {
     const ctx = stubCanvasContext();
     const grid: TileChar[][] = [['G']];
     render(
       <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
         grid={grid}
         selectedTool="G"
         panOffset={{ x: 0, y: 0 }}
@@ -185,6 +201,7 @@ describe('EditorCanvas', () => {
     const ctx = stubCanvasContext();
     render(
       <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
         grid={[['.']]}
         selectedTool="G"
         panOffset={{ x: 0, y: 0 }}
@@ -204,6 +221,7 @@ describe('EditorCanvas', () => {
     const grid: TileChar[][] = [['G']];
     render(
       <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
         grid={grid}
         selectedTool="G"
         panOffset={{ x: 0, y: 0 }}
@@ -227,6 +245,7 @@ describe('EditorCanvas', () => {
     const tileset = {} as HTMLImageElement;
     render(
       <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
         grid={[['G']]}
         selectedTool="G"
         panOffset={{ x: 0, y: 0 }}
@@ -242,6 +261,7 @@ describe('EditorCanvas', () => {
     stubCanvasContext();
     render(
       <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
         grid={[['G']]}
         selectedTool="G"
         panOffset={{ x: 0, y: 0 }}
@@ -258,6 +278,7 @@ describe('EditorCanvas', () => {
     const player = {} as HTMLImageElement;
     render(
       <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
         grid={[['S']]}
         selectedTool="G"
         panOffset={{ x: 0, y: 0 }}
@@ -284,6 +305,7 @@ describe('EditorCanvas', () => {
     const grid: TileChar[][] = [['C', 'E', 'X', 'T']];
     render(
       <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
         grid={grid}
         selectedTool="G"
         panOffset={{ x: 5, y: 7 }}
@@ -328,6 +350,7 @@ describe('EditorCanvas', () => {
     ];
     const { container } = render(
       <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
         grid={grid}
         selectedTool="G"
         panOffset={{ x: 0, y: 0 }}
@@ -362,6 +385,7 @@ describe('EditorCanvas', () => {
     const grid: TileChar[][] = [['.', '.', '.']];
     const { container } = render(
       <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
         grid={grid}
         selectedTool="R"
         panOffset={{ x: 0, y: 0 }}
@@ -387,6 +411,7 @@ describe('EditorCanvas', () => {
     const grid: TileChar[][] = [['.', '.', '.']];
     const { container, rerender } = render(
       <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
         grid={grid}
         selectedTool="R"
         panOffset={{ x: 0, y: 0 }}
@@ -411,6 +436,7 @@ describe('EditorCanvas', () => {
     const rerenderWithPan = () => {
       rerender(
         <EditorCanvas
+          {...BACKGROUND_LAYER_DEFAULT_PROPS}
           grid={grid}
           selectedTool="R"
           panOffset={panOffset}
@@ -455,6 +481,7 @@ describe('EditorCanvas', () => {
     const grid: TileChar[][] = [['.'], ['.'], ['.']];
     const { container, rerender } = render(
       <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
         grid={grid}
         selectedTool="R"
         panOffset={{ x: 0, y: 0 }}
@@ -473,6 +500,7 @@ describe('EditorCanvas', () => {
     const rerenderWithPan = () => {
       rerender(
         <EditorCanvas
+          {...BACKGROUND_LAYER_DEFAULT_PROPS}
           grid={grid}
           selectedTool="R"
           panOffset={panOffset}
@@ -507,6 +535,7 @@ describe('EditorCanvas', () => {
     const onPan = vi.fn();
     const { container } = render(
       <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
         grid={[['.']]}
         selectedTool="G"
         panOffset={{ x: 0, y: 0 }}
@@ -532,6 +561,7 @@ describe('EditorCanvas', () => {
     const grid: TileChar[][] = [['G', 'G', 'G']];
     const { container } = render(
       <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
         grid={grid}
         selectedTool="R"
         panOffset={{ x: 0, y: 0 }}
@@ -547,18 +577,14 @@ describe('EditorCanvas', () => {
     } as DOMRect);
 
     fireEvent.mouseDown(canvas, { button: 2, clientX: 1, clientY: 1 });
-    expect(onPaint).toHaveBeenCalledWith(
-      expect.objectContaining({ grid: [['.', 'G', 'G']] }),
-    );
+    expect(onPaint).toHaveBeenCalledWith(expect.objectContaining({ grid: [['.', 'G', 'G']] }));
 
     // The `grid` prop isn't updated between events in this test (the real
     // app re-renders EditorCanvas with the new grid after each onPaint —
     // see LevelEditorPage), so this second paint is still computed against
     // the original grid: only the newly-entered column (1) is erased.
     fireEvent.mouseMove(canvas, { button: 2, clientX: RENDERED_TILE_SIZE + 1, clientY: 1 });
-    expect(onPaint).toHaveBeenLastCalledWith(
-      expect.objectContaining({ grid: [['G', '.', 'G']] }),
-    );
+    expect(onPaint).toHaveBeenLastCalledWith(expect.objectContaining({ grid: [['G', '.', 'G']] }));
 
     fireEvent.mouseUp(canvas, { button: 2 });
   });
@@ -573,6 +599,7 @@ describe('EditorCanvas patrol markers', () => {
 
     render(
       <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
         grid={[['P']]}
         selectedTool="P"
         panOffset={{ x: 0, y: 0 }}
@@ -595,6 +622,7 @@ describe('EditorCanvas patrol markers', () => {
 
     render(
       <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
         grid={[['P']]}
         selectedTool="P"
         panOffset={{ x: 100, y: 40 }}
@@ -612,6 +640,7 @@ describe('EditorCanvas patrol markers', () => {
 
     render(
       <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
         grid={[['G']]}
         selectedTool="G"
         panOffset={{ x: 0, y: 0 }}
@@ -636,6 +665,7 @@ describe('EditorCanvas centering', () => {
 
     const { rerender } = render(
       <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
         grid={grid}
         selectedTool="G"
         panOffset={{ x: 0, y: 0 }}
@@ -649,6 +679,7 @@ describe('EditorCanvas centering', () => {
 
     rerender(
       <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
         grid={grid}
         selectedTool="G"
         panOffset={{ x: 0, y: 0 }}
@@ -669,6 +700,7 @@ describe('EditorCanvas centering', () => {
 
     render(
       <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
         grid={grid}
         selectedTool="G"
         panOffset={{ x: 0, y: 0 }}
@@ -687,6 +719,7 @@ describe('EditorCanvas centering', () => {
     const onPan = vi.fn();
     const grid: TileChar[][] = [['.', 'S', '.']];
     const props = {
+      ...BACKGROUND_LAYER_DEFAULT_PROPS,
       grid,
       selectedTool: 'G' as TileChar,
       images: EMPTY_IMAGES,
@@ -726,6 +759,7 @@ describe('EditorCanvas centering waits for a real measurement', () => {
 
     render(
       <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
         grid={grid}
         selectedTool="G"
         panOffset={{ x: 0, y: 0 }}
@@ -747,5 +781,132 @@ describe('EditorCanvas centering waits for a real measurement', () => {
 
     expect(onPan).toHaveBeenCalledWith(centerPanOnSpawn(grid, 714, 838));
     vi.unstubAllGlobals();
+  });
+});
+
+describe('EditorCanvas — background layer', () => {
+  it('backgroundAtlasLoaded-callsDrawBackgroundTilesBeforeDrawTerrain', () => {
+    stubCanvasContext();
+    const tileset = {} as HTMLImageElement;
+    const groundAtlas = {} as HTMLImageElement;
+    const calls: string[] = [];
+    (drawBackgroundTiles as ReturnType<typeof vi.fn>).mockImplementation(() =>
+      calls.push('background'),
+    );
+    (drawTerrain as ReturnType<typeof vi.fn>).mockImplementation(() => calls.push('terrain'));
+
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['.']]}
+        selectedTool="."
+        panOffset={{ x: 0, y: 0 }}
+        images={{ ...EMPTY_IMAGES, tileset, groundAtlas, backgroundAtlas: {} as HTMLImageElement }}
+        onPaint={vi.fn()}
+        onPan={vi.fn()}
+      />,
+    );
+
+    expect(calls.indexOf('background')).toBeGreaterThanOrEqual(0);
+    expect(calls.indexOf('background')).toBeLessThan(calls.indexOf('terrain'));
+  });
+
+  it('leftClickWithBackgroundLayerActiveAndAPieceSelected-callsOnPaintBackgroundWithThePlacementAdded', () => {
+    stubCanvasContext();
+    const onPaintBackground = vi.fn();
+    const { container } = render(
+      <EditorCanvas
+        grid={[['.']]}
+        selectedTool="."
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        backgroundPlacements={[]}
+        activeLayer="background"
+        selectedBackgroundPiece="dirtColumnA"
+        onPaint={vi.fn()}
+        onPaintBackground={onPaintBackground}
+        onPan={vi.fn()}
+      />,
+    );
+
+    const canvas = container.querySelector('canvas')!;
+    fireEvent.mouseDown(canvas, { clientX: 0, clientY: 0, button: 0 });
+
+    expect(onPaintBackground).toHaveBeenCalledWith([{ pieceId: 'dirtColumnA', col: 0, row: 0 }]);
+  });
+
+  it('rightClickWithBackgroundLayerActive-callsOnPaintBackgroundWithThePlacementErased', () => {
+    stubCanvasContext();
+    const onPaintBackground = vi.fn();
+    const { container } = render(
+      <EditorCanvas
+        grid={[['.']]}
+        selectedTool="."
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        backgroundPlacements={[{ pieceId: 'dirtColumnA', col: 0, row: 0 }]}
+        activeLayer="background"
+        selectedBackgroundPiece={null}
+        onPaint={vi.fn()}
+        onPaintBackground={onPaintBackground}
+        onPan={vi.fn()}
+      />,
+    );
+
+    const canvas = container.querySelector('canvas')!;
+    fireEvent.mouseDown(canvas, { clientX: 0, clientY: 0, button: 2 });
+
+    expect(onPaintBackground).toHaveBeenCalledWith([]);
+  });
+
+  it('backgroundLayerActive-drawsForegroundTerrainAtReducedOpacity', () => {
+    stubCanvasContext();
+    const tileset = {} as HTMLImageElement;
+    const groundAtlas = {} as HTMLImageElement;
+    let alphaDuringDrawTerrain: number | undefined;
+    (drawTerrain as ReturnType<typeof vi.fn>).mockImplementation((ctx: CanvasRenderingContext2D) => {
+      alphaDuringDrawTerrain = ctx.globalAlpha;
+    });
+
+    render(
+      <EditorCanvas
+        grid={[['.']]}
+        selectedTool="."
+        panOffset={{ x: 0, y: 0 }}
+        images={{ ...EMPTY_IMAGES, tileset, groundAtlas }}
+        backgroundPlacements={[]}
+        activeLayer="background"
+        selectedBackgroundPiece={null}
+        onPaint={vi.fn()}
+        onPaintBackground={vi.fn()}
+        onPan={vi.fn()}
+      />,
+    );
+
+    expect(alphaDuringDrawTerrain).toBe(0.35);
+  });
+
+  it('foregroundLayerActive-drawsForegroundTerrainAtFullOpacity', () => {
+    stubCanvasContext();
+    const tileset = {} as HTMLImageElement;
+    const groundAtlas = {} as HTMLImageElement;
+    let alphaDuringDrawTerrain: number | undefined;
+    (drawTerrain as ReturnType<typeof vi.fn>).mockImplementation((ctx: CanvasRenderingContext2D) => {
+      alphaDuringDrawTerrain = ctx.globalAlpha;
+    });
+
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['.']]}
+        selectedTool="."
+        panOffset={{ x: 0, y: 0 }}
+        images={{ ...EMPTY_IMAGES, tileset, groundAtlas }}
+        onPaint={vi.fn()}
+        onPan={vi.fn()}
+      />,
+    );
+
+    expect(alphaDuringDrawTerrain).toBe(1);
   });
 });
