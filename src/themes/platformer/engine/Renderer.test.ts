@@ -27,6 +27,7 @@ import {
   drawSkyBackground,
   drawWaterForeground,
   SKY_WHITE_ROW_COUNT,
+  drawBackgroundTiles,
 } from './Renderer';
 import type { LevelDef } from '../level/LevelData';
 import type { SignPlacement } from '../level/SignMapper';
@@ -2415,5 +2416,55 @@ describe('drawWaterForeground', () => {
     drawWaterForeground(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, 10, 0, 50);
 
     expect(ctx.drawImage).not.toHaveBeenCalled();
+  });
+});
+
+describe('drawBackgroundTiles', () => {
+  it('levelWithNoBackgroundField-drawsNothing', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = { terrain: [], width: 0, height: 0 };
+
+    drawBackgroundTiles(ctx as unknown as CanvasRenderingContext2D, level, {} as HTMLImageElement);
+
+    expect(ctx.drawImage).not.toHaveBeenCalled();
+  });
+
+  it('onePlacement-drawsItScaledToRenderedTileSizeAtItsGridPosition', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = {
+      terrain: [],
+      width: 0,
+      height: 0,
+      background: [{ pieceId: 'dirtColumnA', col: 2, row: 1 }],
+    };
+
+    drawBackgroundTiles(ctx as unknown as CanvasRenderingContext2D, level, {} as HTMLImageElement, 0, 0);
+
+    // dirtColumnA: sx=80, sy=32, 1x3 tiles (16x48 source).
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      expect.anything(),
+      80, 32, 16, 48,
+      2 * 32, 1 * 32,
+      1 * 32, 3 * 32,
+    );
+  });
+
+  it('originOffset-shiftsTheDestinationRect', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = {
+      terrain: [],
+      width: 0,
+      height: 0,
+      background: [{ pieceId: 'dirtColumnA', col: 0, row: 0 }],
+    };
+
+    drawBackgroundTiles(ctx as unknown as CanvasRenderingContext2D, level, {} as HTMLImageElement, 100, -50);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      expect.anything(),
+      80, 32, 16, 48,
+      100, -50,
+      32, 96,
+    );
   });
 });
