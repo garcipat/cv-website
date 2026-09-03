@@ -231,6 +231,38 @@ export const PALETTE_TILE_GLYPHS: Partial<Record<TileChar, string>> = {
   P: PATROL_GLYPH,
 };
 
+/**
+ * What each tile actually does, shown as the palette button's hover tooltip
+ * next to its name. The palette is a grid of 16px icons with no captions, and
+ * several tiles are not self-explanatory from their sprite alone — a crate
+ * and a fragile rock look equally breakable, and the patrol boundary has no
+ * sprite at all — so this is where an author finds out which is which.
+ * Phrased as what the tile does in the finished level, not as how to paint
+ * it.
+ */
+export const PALETTE_TILE_DESCRIPTIONS: Record<TileChar, string> = {
+  '.': 'Clears a tile back to empty',
+  G: 'Solid earth; grows a grass top wherever it is exposed',
+  R: 'Solid stone, for exposed rock faces and cave floors',
+  W: 'Solid wall block',
+  B: 'Solid from above; the player drops through it with Down',
+  L: 'Climbed with Up and Down',
+  P: 'Invisible in game; turns patrolling enemies around',
+  S: 'Where the player starts',
+  E: 'Green slime; stomping it reveals one CV fact',
+  M: 'Purple slime; stomping it drops a key',
+  C: 'Coin; collecting it reveals one skill category',
+  X: 'Crate block; hit it from below to reveal a CV fact',
+  Q: 'Question block; hit it from below to pop a bonus fruit',
+  F: 'Fragile rock; hit it from below to break it open',
+  T: 'Chest; costs a key, and holds one experience entry',
+  '1': 'Hint sign; click it again on the canvas to cycle its hint',
+  '2': 'Hint sign; click it again on the canvas to cycle its hint',
+  '3': 'Hint sign; click it again on the canvas to cycle its hint',
+  '4': 'Hint sign; click it again on the canvas to cycle its hint',
+  '5': 'Hint sign; click it again on the canvas to cycle its hint',
+};
+
 /** Human-readable name per `TileChar`, so the palette reads by name rather
  *  than by memorized character — matches `TERRAIN_CHARS`/`ENTITY_CHARS`'s
  *  own `TileType`/`EntityKind` values, just spaced and capitalized. */

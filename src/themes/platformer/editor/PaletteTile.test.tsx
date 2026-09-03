@@ -41,6 +41,27 @@ describe('PaletteTile', () => {
     expect(screen.getByRole('button', { name: 'Patrol Boundary' })).toHaveTextContent('⇄');
   });
 
+  it('sets a hover tooltip combining the tile name and what it does', () => {
+    render(
+      <PaletteTile
+        label="Patrol Boundary"
+        description="Invisible in game; turns patrolling enemies around"
+        sprite={null}
+        selected={false}
+        onClick={() => {}}
+      />,
+    );
+    expect(screen.getByRole('button', { name: 'Patrol Boundary' })).toHaveAttribute(
+      'title',
+      'Patrol Boundary — Invisible in game; turns patrolling enemies around',
+    );
+  });
+
+  it('falls back to the bare name when a tile has no description', () => {
+    render(<PaletteTile label="Coin" sprite={SPRITE} selected={false} onClick={() => {}} />);
+    expect(screen.getByRole('button', { name: 'Coin' })).toHaveAttribute('title', 'Coin');
+  });
+
   it('marks the button as pressed when selected', () => {
     render(<PaletteTile label="Coin" sprite={SPRITE} selected={true} onClick={() => {}} />);
     expect(screen.getByRole('button', { name: 'Coin' })).toHaveAttribute('aria-pressed', 'true');

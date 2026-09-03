@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { PALETTE_TILE_SPRITES, PALETTE_TILE_LABELS, PALETTE_TILE_GLYPHS } from './paletteTiles';
+import {
+  PALETTE_TILE_SPRITES,
+  PALETTE_TILE_LABELS,
+  PALETTE_TILE_GLYPHS,
+  PALETTE_TILE_DESCRIPTIONS,
+} from './paletteTiles';
 import { TERRAIN_CHARS, ENTITY_CHARS, SIGN_CHARS } from '../level/LevelParser';
 import type { TileChar } from '../level/LevelParser';
 
@@ -42,6 +47,17 @@ describe('PALETTE_TILE_SPRITES', () => {
       expect(spec!.sheetWidth).toBeGreaterThanOrEqual(spec!.sx + spec!.frameWidth);
       expect(spec!.sheetHeight).toBeGreaterThanOrEqual(spec!.sy + spec!.frameHeight);
     }
+  });
+
+  it('describes every tile, so no palette button hovers without an explanation', () => {
+    const keys = Object.keys(PALETTE_TILE_SPRITES) as TileChar[];
+    for (const key of keys) {
+      expect(PALETTE_TILE_DESCRIPTIONS[key]).toBeTruthy();
+    }
+  });
+
+  it('describes the patrol tile by the two things that are not visible about it', () => {
+    expect(PALETTE_TILE_DESCRIPTIONS.P).toBe('Invisible in game; turns patrolling enemies around');
   });
 
   it('labels the patrol tile by what it does, not by its character', () => {
