@@ -13,6 +13,8 @@ import {
   SIGN_TILES,
 } from './level';
 import { isTopExposed, isSolid, isClimbable, isStandableLadderTop, tileAt } from './Terrain';
+import { SIGN_CHARS } from './LevelParser';
+import cvEn from '@/data/cv.en.json';
 
 /** Every hand-placed marker must sit on an empty tile directly above a solid
  *  one — the same "standable" shape a level author expects any marker to
@@ -22,6 +24,30 @@ function expectStandable(tile: { col: number; row: number }) {
   expect(isSolid(tileAt(currentLevel.value, tile.col, tile.row + 1))).toBe(true);
 }
 
+/** The row the character walks on at ground level. Derived from the spawn
+ *  marker rather than by scanning for a material: ground is the level's
+ *  default material, so platform rows are made of it too. */
+function surfaceRow(): number {
+  return SPAWN_TILE.value.row + 1;
+}
+
+/** Rows/cols of every cell in the layout, for whole-map scans. */
+function everyCell(): { col: number; row: number }[] {
+  const cells: { col: number; row: number }[] = [];
+  for (let row = 0; row < currentLevel.value.height; row++) {
+    for (let col = 0; col < currentLevel.value.width; col++) {
+      cells.push({ col, row });
+    }
+  }
+  return cells;
+}
+
+// These assert the level's DESIGN INVARIANTS, not hand-authored coordinates:
+// the layout is expected to be re-drawn (by hand or via the Level Editor)
+// without rewriting this file, so a test that pinned a specific column would
+// only ever cost an edit. What must not silently break is reachability
+// (nothing floats, nothing is boxed in, no gap is wider than a jump) and CV
+// coverage (a missing marker means a CV fact no visitor can ever reach).
 describe('currentLevel', () => {
   it('dimensions-matchTerrainGridShape', () => {
     expect(currentLevel.value.terrain).toHaveLength(currentLevel.value.height);
@@ -30,146 +56,17 @@ describe('currentLevel', () => {
     }
   });
 
-  it('groundStrip-usesGrassBiomeOnLeftAndRockBiomeOnRight', () => {
-    const lastRow = currentLevel.value.terrain[currentLevel.value.height - 1];
-    expect(lastRow[0]).toBe('groundGrass');
-    expect(lastRow[11]).toBe('groundGrass');
-    expect(lastRow[12]).toBe('groundRock');
-    expect(lastRow[19]).toBe('groundRock');
-  });
-
-  it('pit-atColumns2Through4-hasNoFloorAtBottomRow', () => {
-    // Deliberately a genuine bottomless drop: walking off the bridge's edge,
-    // or dropping through it on purpose (Down/S), both must trigger real
-    // pit-fall damage — a floor here would silently negate that.
-    expect(currentLevel.value.terrain[currentLevel.value.height - 1][2]).toBe('empty');
-    expect(currentLevel.value.terrain[currentLevel.value.height - 1][3]).toBe('empty');
-    expect(currentLevel.value.terrain[currentLevel.value.height - 1][4]).toBe('empty');
-  });
-
-  it('bridge-spansThePitAtRowAboveBottomRow', () => {
-    expect(currentLevel.value.terrain[currentLevel.value.height - 2][2]).toBe('bridge');
-    expect(currentLevel.value.terrain[currentLevel.value.height - 2][3]).toBe('bridge');
-    expect(currentLevel.value.terrain[currentLevel.value.height - 2][4]).toBe('bridge');
-  });
-
-  it('groundStrip-rockZoneContinuesFlatToLevelEnd', () => {
-    const lastRow = currentLevel.value.terrain[currentLevel.value.height - 1];
-    expect(currentLevel.value.width).toBe(80);
-    expect(lastRow[79]).toBe('groundRock');
-  });
-
-  it('greenEnemyWallPocket-boundsTheGreenEnemyMarkerAtTheEnemysOwnRow', () => {
-    // Two wall tiles (cols 26/31) flank the green enemy marker (col 28) —
-    // deliberately at the marker's own row, not the ground row below, since
-    // EnemyAI.ts's stepEnemyPatrol tests the tile at the enemy's row, not the
-    // ground it stands on. Both walls: the "bounded by two walls" patrol case.
-    expect(ENEMY_TILES_GREEN.value).toHaveLength(1);
-    const [green] = ENEMY_TILES_GREEN.value;
-    expect(currentLevel.value.terrain[green.row][26]).toBe('wall');
-    expect(currentLevel.value.terrain[green.row][31]).toBe('wall');
-    expect(green.col).toBeGreaterThan(26);
-    expect(green.col).toBeLessThan(31);
-  });
-
-  it('purpleEnemyWallPitSandwich-hasAWallOnOneSideAndARealPitOnTheOther', () => {
-    // The user-requested "wall, enemy, pit" case: a wall (col 31 — the same
-    // wall bounding the green enemy's pocket on its right; the pocket was
-    // widened from cols 37-39 to cols 32-39 once the sprite renderScale bumped
-    // slimePurple to 2x and needed more clearance to turn around without
-    // overlapping — see level.ts's own doc comment) on one side, a genuine
-    // bottomless pit (cols 40-42, no bridge — unlike the spawn pit's bridge)
-    // on the other, with a purple enemy marker between them. Exercises both
-    // stepEnemyPatrol's wall-reversal and its ledge/pit-edge-reversal branch
-    // on a single enemy. The first purple slime is specifically in this
-    // sandwich (the second one sits elsewhere).
-    expect(ENEMY_TILES_PURPLE.value.length).toBeGreaterThanOrEqual(1);
-    const [purple] = ENEMY_TILES_PURPLE.value;
-    expect(currentLevel.value.terrain[purple.row][31]).toBe('wall');
-    expect(purple.col).toBeGreaterThan(31);
-    for (const col of [40, 41, 42]) {
-      expect(currentLevel.value.terrain[currentLevel.value.height - 1][col]).toBe('empty');
-      expect(currentLevel.value.terrain[currentLevel.value.height - 2][col]).toBe('empty');
-    }
-    expect(purple.col).toBeLessThan(40);
-  });
-
-  it('markers-eachStandsOnAnEmptyTileAboveSolidGround', () => {
-    for (const tile of [...ENEMY_TILES_GREEN.value, ...ENEMY_TILES_PURPLE.value, ...COIN_TILES.value]) {
-      expectStandable(tile);
-    }
-  });
-
-  it('markerCounts-matchThisMechanicsTestLevelsIntentionalDesign', () => {
-    // currentLevel deliberately covers only a slice of real CVData (see its doc
-    // comment) — these counts are the level's own intentional design, not
-    // derived from CVData length. Question-mark blocks spawn their own bonus
-    // fruit; there is no separate Language-fruit marker.
-    expect(ENEMY_TILES_GREEN.value).toHaveLength(1);
-    expect(ENEMY_TILES_PURPLE.value).toHaveLength(2);
-    expect(COIN_TILES.value).toHaveLength(4);
-    expect(CRATE_TILES.value).toHaveLength(2);
-    expect(QUESTIONMARK_TILES.value).toHaveLength(2);
-    expect(FRAGILE_ROCK_TILES.value).toHaveLength(2);
-  });
-
-  it('newBlockMarkers-sitElevatedAboveGroundCloseToSpawn', () => {
-    // Elevated to the floating-platform row (2 empty rows of clearance above
-    // solid ground, same shape as the existing floating platform at cols
-    // 8-14) at cols 19-24 — right after the second coin (col 18), well
-    // before the wall/enemy/pit gauntlet at cols 26-42.
-    const blockRow = 3;
-    expect(CRATE_TILES.value.map((t) => t.col)).toEqual([19, 22]);
-    expect(QUESTIONMARK_TILES.value.map((t) => t.col)).toEqual([20, 23]);
-    expect(FRAGILE_ROCK_TILES.value.map((t) => t.col)).toEqual([21, 24]);
-    for (const tile of [...CRATE_TILES.value, ...QUESTIONMARK_TILES.value, ...FRAGILE_ROCK_TILES.value]) {
-      expect(tile.row).toBe(blockRow);
-    }
-  });
-
-  it('newBlockMarkers-haveTwoRowsOfClearanceAboveReachableGroundBelow', () => {
-    // Same clearance shape as the elevatedBridge tests above: 2 empty rows
-    // between the elevated block row and solid ground, so the player can
-    // jump up into a block from below.
-    for (const col of [19, 20, 21, 22, 23, 24]) {
-      expect(currentLevel.value.terrain[4][col]).toBe('empty');
-      expect(currentLevel.value.terrain[5][col]).toBe('empty');
-      expect(isSolid(currentLevel.value.terrain[6][col])).toBe(true);
-    }
-  });
-
-  it('secondCoin-sitsSoonAfterSpawnNotOnlyPastThePit', () => {
-    // One of the four coins sits at col 18 (just past the wall pocket) so
-    // there's a second nearby pickup alongside the col 10 one.
-    expect(COIN_TILES.value.map((t) => t.col)).toContain(18);
-  });
-
-  it('blockMarkers-sitOnEmptyTileTwoRowsAboveSolidGround', () => {
-    for (const tile of [...CRATE_TILES.value, ...QUESTIONMARK_TILES.value, ...FRAGILE_ROCK_TILES.value]) {
-      expect(currentLevel.value.terrain[tile.row][tile.col]).toBe('empty');
-      expect(isSolid(currentLevel.value.terrain[tile.row + 3][tile.col])).toBe(true);
-    }
-  });
-
-  it('elevatedBridge-spansGapBetweenTwoFloatingGroundStripsAtElevatedRow', () => {
-    const row = 3;
-    expect(currentLevel.value.terrain[row][8]).toBe('groundGrass');
-    expect(currentLevel.value.terrain[row][9]).toBe('groundGrass');
-    expect(currentLevel.value.terrain[row][10]).toBe('groundGrass');
-    expect(currentLevel.value.terrain[row][11]).toBe('bridge');
-    expect(currentLevel.value.terrain[row][12]).toBe('bridge');
-    expect(currentLevel.value.terrain[row][13]).toBe('groundGrass');
-    expect(currentLevel.value.terrain[row][14]).toBe('groundGrass');
-  });
-
-  it('elevatedBridge-hasTwoRowsOfClearanceAboveReachableGroundBelow', () => {
-    // Enough clearance (2 empty rows) to jump up into the bridge from the
-    // ground below, and solid ground to land on after dropping through it.
-    for (const col of [11, 12]) {
-      expect(currentLevel.value.terrain[4][col]).toBe('empty');
-      expect(currentLevel.value.terrain[5][col]).toBe('empty');
-      expect(isSolid(currentLevel.value.terrain[6][col])).toBe(true);
-    }
+  it('groundIsTheDefaultMaterial-withRockOnlyAsAnAccent', () => {
+    // The map is made of ground, with rock painted back in for the bedrock
+    // stratum, cave floors and the two deliberately stony zones. Rock
+    // outnumbering ground would mean that accent has swallowed the level.
+    const tiles = currentLevel.value.terrain.flat();
+    const grass = tiles.filter((tile) => tile === 'groundGrass').length;
+    const rock = tiles.filter((tile) => tile === 'groundRock').length;
+    expect(grass).toBeGreaterThan(0);
+    expect(rock).toBeGreaterThan(0);
+    expect(grass).toBeGreaterThan(rock);
+    expect(currentLevel.value.terrain[surfaceRow()]).toContain('groundGrass');
   });
 
   it('spawnTile-isEmptySpaceAboveTopExposedGroundGrass', () => {
@@ -179,39 +76,229 @@ describe('currentLevel', () => {
     expect(isTopExposed(currentLevel.value, col, row + 1)).toBe(true);
   });
 
-  it('enemiesAndCollectibles-sitCloseToSpawnForEasyManualTesting', () => {
-    // The green slime and the level's first purple slime sit inside the
-    // patrol-test zone (see this file's top doc comment) — reachable within
-    // a short walk from spawn.
-    for (const tile of [...ENEMY_TILES_GREEN.value, ENEMY_TILES_PURPLE.value[0]]) {
-      expect(tile.col - SPAWN_TILE.value.col).toBeLessThan(40);
+  it('markers-eachStandsOnAnEmptyTileAboveSolidGround', () => {
+    for (const tile of [
+      ...ENEMY_TILES_GREEN.value,
+      ...ENEMY_TILES_PURPLE.value,
+      ...COIN_TILES.value,
+      ...CHEST_TILES.value,
+      ...SIGN_TILES.value,
+    ]) {
+      expectStandable(tile);
     }
-    // The level's second purple slime intentionally lives past the col
-    // 40-42 pit (open ground at col 47, alongside the coin cluster) — the
-    // wall/pit sandwich pocket at cols 37-39 only fits one 1.5x-scaled
-    // purple slime (see purpleEnemyWallPitSandwich above), so a second one
-    // there would permanently overlap it. Still a short walk from spawn,
-    // just a slightly longer one than the patrol-test zone's markers.
-    expect(ENEMY_TILES_PURPLE.value[1].col - SPAWN_TILE.value.col).toBeLessThan(50);
+  });
+
+  it('blockMarkers-haveTwoEmptyRowsBeneathThemAboveSolidGround', () => {
+    // A block is only ever broken by being hit from below (Physics.ts's
+    // ceiling collision), so every block needs a floor to jump from and room
+    // to jump in. The two fragileRock plugs set into the surface itself are
+    // the deliberate exception — they are hit from inside the cave below,
+    // whose floor is further down than this shape describes.
+    const plugs = FRAGILE_ROCK_TILES.value.filter((tile) =>
+      isSolid(tileAt(currentLevel.value, tile.col - 1, tile.row)),
+    );
+    const floating = [
+      ...CRATE_TILES.value,
+      ...QUESTIONMARK_TILES.value,
+      ...FRAGILE_ROCK_TILES.value,
+    ].filter((tile) => !plugs.includes(tile));
+
+    for (const { col, row } of floating) {
+      expect(currentLevel.value.terrain[row][col]).toBe('empty');
+      expect(currentLevel.value.terrain[row + 1][col]).toBe('empty');
+      expect(currentLevel.value.terrain[row + 2][col]).toBe('empty');
+      expect(isSolid(currentLevel.value.terrain[row + 3][col])).toBe(true);
+    }
+  });
+
+  it('fragileRockPlugs-sitInTheSurfaceAboveAnOpenCave', () => {
+    // The two plugged holes are the level's optional shortcuts: broken from
+    // the cave below, they open a way back up to the surface. That only works
+    // if the tile under the plug is open cave, not solid rock.
+    const plugs = FRAGILE_ROCK_TILES.value.filter((tile) =>
+      isSolid(tileAt(currentLevel.value, tile.col - 1, tile.row)),
+    );
+    expect(plugs.length).toBeGreaterThanOrEqual(2);
+    for (const { col, row } of plugs) {
+      expect(tileAt(currentLevel.value, col, row + 1)).toBe('empty');
+    }
+  });
+
+  it('purpleSlimes-haveHeadroomAndRoomToTurnAround', () => {
+    // A purple slime renders at 2x (SlimePurple.ts's renderScale), so it is
+    // two tiles tall and two wide: a pocket sized for a green slime would
+    // leave it visually overlapping the obstacle it turns at, and a low
+    // ceiling would bury its top half. See EnemyAI.ts's stepEnemyPatrol.
+    for (const { col, row } of ENEMY_TILES_PURPLE.value) {
+      expect(isSolid(tileAt(currentLevel.value, col, row - 1))).toBe(false);
+      for (const offset of [1, 2, 3]) {
+        expect(isSolid(tileAt(currentLevel.value, col + offset, row))).toBe(false);
+      }
+      for (const offset of [1, 2]) {
+        expect(isSolid(tileAt(currentLevel.value, col - offset, row))).toBe(false);
+      }
+    }
+  });
+
+  it('everyLadderTop-hasOpenSpaceAboveIt-soAClimbEndsStandingOnIt', () => {
+    // A capped shaft dead-ends the climb under a ceiling instead of letting
+    // the character step out onto the top rung (Terrain.ts's
+    // isStandableLadderTop).
+    for (const { col, row } of everyCell()) {
+      const isTopRung =
+        isClimbable(tileAt(currentLevel.value, col, row)) &&
+        !isClimbable(tileAt(currentLevel.value, col, row - 1));
+      if (isTopRung) {
+        expect(isStandableLadderTop(currentLevel.value, col, row)).toBe(true);
+      }
+    }
+  });
+
+  it('surfaceGaps-areNeverWiderThanASingleJumpCanClear', () => {
+    // PhysicsConfig.ts's jump peaks at ~3.5 tiles and carries ~5 tiles of
+    // horizontal air-reach, so a gap of at most 4 tiles is always crossable.
+    // Anything wider would strand the player mid-level with no way forward.
+    const surface = surfaceRow();
+    let gap = 0;
+    for (let col = 0; col < currentLevel.value.width; col++) {
+      const walkable =
+        isSolid(currentLevel.value.terrain[surface][col]) ||
+        isClimbable(currentLevel.value.terrain[surface][col]) ||
+        FRAGILE_ROCK_TILES.value.some((tile) => tile.col === col && tile.row === surface);
+      gap = walkable ? 0 : gap + 1;
+      expect(gap).toBeLessThanOrEqual(4);
+    }
+  });
+
+  it('pits-haveNoFloorBeneathThem-soFallingThroughOneIsARealPitFall', () => {
+    // A pit only reads as a pit if it is open all the way to the grid floor
+    // (Physics.ts's checkPitFall is position-only). A gap in the surface with
+    // solid rock a few rows down is a cave entrance instead — both exist in
+    // this level, and the difference must stay deliberate.
+    const surface = surfaceRow();
+    const bottom = currentLevel.value.height - 1;
+    const openToTheBottom = (col: number) =>
+      !isSolid(currentLevel.value.terrain[bottom][col]);
+    const pitColumns = Array.from({ length: currentLevel.value.width }, (_, col) => col).filter(
+      openToTheBottom,
+    );
+
+    expect(pitColumns.length).toBeGreaterThan(0);
+    for (const col of pitColumns) {
+      for (let row = surface + 1; row <= bottom; row++) {
+        expect(isSolid(currentLevel.value.terrain[row][col])).toBe(false);
+      }
+    }
+  });
+
+  it('bridges-spanAPitOrACaveMouth-neverSolidGround', () => {
+    // A bridge exists to be dropped through (Down/S). One laid over solid
+    // ground would make that gesture a no-op and the hint sign a lie.
+    for (const { col, row } of everyCell()) {
+      if (currentLevel.value.terrain[row][col] !== 'bridge') continue;
+      expect(isSolid(tileAt(currentLevel.value, col, row + 1))).toBe(false);
+    }
   });
 });
 
-describe('CHEST_TILES', () => {
-  it('level1Layout-has-twoChestMarkers', () => {
-    expect(CHEST_TILES.value).toHaveLength(2);
+describe('CV coverage', () => {
+  // Unlike the mechanics-test layout this replaced, the level now carries one
+  // marker per CV fact, so the Journal can actually be completed. A marker is
+  // a slot: no mapper auto-places, so a fact with no marker is a fact no
+  // visitor can ever reach.
+  it('chestMarkers-oneForEachExperienceEntry', () => {
+    expect(CHEST_TILES.value).toHaveLength(cvEn.experience.length);
+  });
+
+  it('coinMarkers-oneForEachSkillCategory', () => {
+    expect(COIN_TILES.value).toHaveLength(cvEn.skills.length);
+  });
+
+  it('greenSlimeMarkers-oneForEachCourse', () => {
+    expect(ENEMY_TILES_GREEN.value).toHaveLength(cvEn.courses.length);
+  });
+
+  it('crateMarkers-oneForEachEducationActivityAndLanguageEntry', () => {
+    expect(CRATE_TILES.value).toHaveLength(
+      cvEn.education.length + cvEn.activities.length + cvEn.languages.length,
+    );
+  });
+
+  it('questionMarkMarkers-oneForEachCertificateAndProject', () => {
+    expect(QUESTIONMARK_TILES.value).toHaveLength(
+      cvEn.certificates.length + cvEn.projects.length,
+    );
+  });
+
+  it('purpleSlimeMarkerCount-equalsChestMarkerCount', () => {
+    // Every chest costs exactly one key and a purple slime drops exactly one,
+    // so fewer slimes than chests makes the ending unreachable — and more
+    // makes a key meaningless.
+    expect(ENEMY_TILES_PURPLE.value).toHaveLength(CHEST_TILES.value.length);
+  });
+
+  it('firstChest-comesBeforeTheFirstKey-soTheRunNeedsBacktracking', () => {
+    // A deliberate design choice: the earliest chest cannot be opened when
+    // it is first found, which is what makes the map a loop rather than a
+    // corridor. `noKeyForChest` is the hint that fires there.
+    const firstChest = Math.min(...CHEST_TILES.value.map((tile) => tile.col));
+    const firstKey = Math.min(...ENEMY_TILES_PURPLE.value.map((tile) => tile.col));
+    expect(firstChest).toBeLessThan(firstKey);
   });
 });
 
 describe('SIGN_TILES', () => {
-  it('level1Layout-hasExactlyOneBridgeDropThroughSign', () => {
-    expect(SIGN_TILES.value).toHaveLength(1);
-    expect(SIGN_TILES.value[0].hintId).toBe('bridgeDropThrough');
+  it('everyHint-hasExactlyOneSignInTheLevel', () => {
+    // A hint with no sign can never be shown; two signs for one hint is
+    // repetition. `noKeyForChest` is the exception — it fires from the chest
+    // itself, not from a signpost, so it has no SIGN_CHARS entry.
+    const placed = SIGN_TILES.value.map((sign) => sign.hintId).sort();
+    expect(placed).toEqual(Object.values(SIGN_CHARS).sort());
   });
 
-  it('signMarker-sitsDirectlyAboveTheFirstBridgeNearSpawn', () => {
-    const [sign] = SIGN_TILES.value;
-    expect(currentLevel.value.terrain[sign.row][sign.col]).toBe('empty');
-    expect(currentLevel.value.terrain[sign.row + 1][sign.col]).toBe('bridge');
+  it('bridgeDropThroughSign-standsOnTheBridgeItExplains', () => {
+    const sign = SIGN_TILES.value.find((tile) => tile.hintId === 'bridgeDropThrough');
+    expect(sign).toBeDefined();
+    expect(currentLevel.value.terrain[sign!.row + 1][sign!.col]).toBe('bridge');
+  });
+
+  it('ladderClimbUpSign-standsBesideALadder', () => {
+    const sign = SIGN_TILES.value.find((tile) => tile.hintId === 'ladderClimbUp');
+    expect(sign).toBeDefined();
+    // A shaft's top rung sits in the surface row itself (flush with the
+    // ground beside it, so stepping on needs no jump), one row below where a
+    // sign standing on that ground is drawn — hence both rows here.
+    const neighbours = [-2, -1, 1, 2].flatMap((offset) => [
+      tileAt(currentLevel.value, sign!.col + offset, sign!.row),
+      tileAt(currentLevel.value, sign!.col + offset, sign!.row + 1),
+    ]);
+    expect(neighbours.some(isClimbable)).toBe(true);
+  });
+
+  it('chestNeedsKeySign-standsNearAChest', () => {
+    const sign = SIGN_TILES.value.find((tile) => tile.hintId === 'chestNeedsKey');
+    expect(sign).toBeDefined();
+    const nearest = Math.min(
+      ...CHEST_TILES.value.map((chest) => Math.abs(chest.col - sign!.col) + Math.abs(chest.row - sign!.row)),
+    );
+    expect(nearest).toBeLessThanOrEqual(5);
+  });
+
+  it('fragileRockSign-standsUnderneathAFragileRock', () => {
+    const sign = SIGN_TILES.value.find((tile) => tile.hintId === 'fragileRockBreaksFromBelow');
+    expect(sign).toBeDefined();
+    const nearest = Math.min(
+      ...FRAGILE_ROCK_TILES.value.map(
+        (rock) => Math.abs(rock.col - sign!.col) + Math.abs(rock.row - sign!.row),
+      ),
+    );
+    expect(nearest).toBeLessThanOrEqual(4);
+  });
+
+  it('openAllChestsSign-standsAtSpawn', () => {
+    const sign = SIGN_TILES.value.find((tile) => tile.hintId === 'openAllChestsHaveFun');
+    expect(sign).toBeDefined();
+    expect(Math.abs(sign!.col - SPAWN_TILE.value.col)).toBeLessThanOrEqual(4);
   });
 });
 
@@ -247,43 +334,5 @@ describe('currentLayout reactivity', () => {
     expect(FRAGILE_ROCK_TILES.value).toEqual([]);
     expect(CHEST_TILES.value).toEqual([]);
     expect(SIGN_TILES.value).toEqual([]);
-  });
-});
-
-describe('ladder shaft', () => {
-  it('ladderTopTile-sitsBesideTheLandingGroundNotAboveIt', () => {
-    expect(currentLevel.value.terrain[0][14]).toBe('groundGrass');
-    expect(currentLevel.value.terrain[0][15]).toBe('ladder');
-  });
-
-  it('shaftIsLadderAtCol15-fourTilesTall-flushWithBothPlatformRows', () => {
-    for (let row = 0; row <= 3; row++) {
-      expect(currentLevel.value.terrain[row][15]).toBe('ladder');
-      expect(isClimbable(currentLevel.value.terrain[row][15])).toBe(true);
-    }
-  });
-
-  it('ladderBottomTile-sitsBesideTheExistingFloatingGroundStripNotBelowIt', () => {
-    // Row 3 is the pre-existing floating ground strip. The ladder's bottom
-    // tile is IN row 3 too (col 15, one column right of the strip's
-    // rightmost tile at col 14) — same row, adjacent column — so standing on
-    // the strip and walking one tile right puts the player's feet directly
-    // on a ladder tile without needing to jump.
-    expect(currentLevel.value.terrain[3][14]).toBe('groundGrass');
-    expect(currentLevel.value.terrain[3][15]).toBe('ladder');
-  });
-
-  it('aboveTheShaftsTopRung-isOpenSpace-soTheClimbEndsStandingOnTopOfIt', () => {
-    // The top rung (row 0) has nothing above it — that open space is what
-    // makes it standable (Terrain.ts's isStandableLadderTop): the climb
-    // ends with the character standing on the rung, level with the landing
-    // platform beside it, rather than dead-ending under a ceiling.
-    expect(isStandableLadderTop(currentLevel.value, 15, 0)).toBe(true);
-  });
-});
-
-describe('purple slime count matches chest count', () => {
-  it('purpleEnemyMarkerCount-equalsChestMarkerCount', () => {
-    expect(ENEMY_TILES_PURPLE.value.length).toBe(CHEST_TILES.value.length);
   });
 });
