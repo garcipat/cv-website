@@ -637,9 +637,9 @@ describe('PlatformerPage', () => {
 
   it('cameraPositionX-nonZero-shiftsTerrainDrawCallsHorizontally', async () => {
     vi.stubGlobal('Image', MockTilesetImage);
-    cameraPositionX.value = 50;
 
     render(<PlatformerPage />);
+    cameraPositionX.value = 50;
     const ctx = platformerPage.context;
 
     await waitFor(() => expect(ctx.drawImage).toHaveBeenCalled());
@@ -804,9 +804,9 @@ describe('PlatformerPage', () => {
 
   it('render-collectedKeysAboveZero-drawsKeyCounter', async () => {
     vi.stubGlobal('Image', MockTilesetImage);
-    collectedKeys.value = 1;
 
     render(<PlatformerPage />);
+    collectedKeys.value = 1;
     const canvas = screen.getByTestId('platformer-canvas');
     const ctx = (canvas as HTMLCanvasElement).getContext('2d') as unknown as {
       fillText: ReturnType<typeof vi.fn>;
@@ -3038,20 +3038,14 @@ describe('PlatformerPage', () => {
     expect(playerState.value.vy).toBeGreaterThanOrEqual(0);
   });
 
-  it('unmountingAndRemountingWhileEndingScreenShowing-stillShowsItAndStaysRecoverable', () => {
+  it('unmountAndRemount-whileEndingScreenShowing-resetsToFreshSessionInstead', () => {
     // Simulates switching away from the Platformer theme (unmounting this
     // component) and back (remounting it) while the Thank You screen is
-    // showing — theme-switch reset isn't implemented yet, so every
-    // module-level signal (lifecycleState, chestStates, endingScreenShown,
-    // endingScreenOpen) must survive that round-trip unchanged.
-    // `endingScreenOpen` is module-level, not component-local useState, for
-    // exactly this reason: a component-local flag would reset to false on
-    // remount even though lifecycleState stayed 'ending-screen' —
-    // <ThankYouScreen> would never render, with no way to dismiss and no way
-    // for the "all chests open" check to ever re-fire either (blocked by the
-    // still-true endingScreenShown latch), permanently freezing the game. A
-    // remount must still show the screen, and dismissing it must still
-    // resume play.
+    // showing. Unlike the pre-theme-switch-reset behavior, a remount must
+    // now start a fresh session: every chest closes back up, the Thank You
+    // screen is gone, and the module-level one-shot latches
+    // (endingScreenShown/endingScreenOpen) are cleared so a visitor could
+    // see the screen again by re-opening every chest.
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frameCallback = cb;
@@ -3078,20 +3072,45 @@ describe('PlatformerPage', () => {
     unmount();
     frameCallback = null;
     render(<PlatformerPage />);
-    frameCallback!(0);
 
-    // The screen must still be showing immediately after remount — no
-    // player action re-triggered it, the module-level state simply
-    // persisted through the unmount/remount.
-    expect(lifecycleState.value.phase).toBe('ending-screen');
-    expect(screen.getByTestId('platformer-thank-you-screen')).toBeInTheDocument();
-
-    // And it must still be genuinely dismissible/recoverable — not frozen.
-    fireEvent.keyDown(window, { code: 'Space' });
-    act(() => frameCallback!(16));
-
-    expect(lifecycleState.value.phase).toBe('playing');
+    expect(lifecycleState.value.phase).not.toBe('ending-screen');
+    expect(endingScreenOpen.value).toBe(false);
+    expect(endingScreenShown.value).toBe(false);
     expect(screen.queryByTestId('platformer-thank-you-screen')).not.toBeInTheDocument();
+    expect(chestPlacements.value.map(toChestState).every((c) => !isChestOpen(c))).toBe(true);
+  });
+
+  it('unmountAndRemount-afterCollectingFactsAndKeys-clearsCollectedProgress', () => {
+    // A visitor who discovered facts and picked up a key before switching
+    // away should come back to a genuinely fresh session — spec.md's User
+    // Story 8 ("fresh session, no collected facts") — not find their
+    // progress from the previous visit still there.
+    const { unmount } = render(<PlatformerPage />);
+
+    collectedFacts.value = [collectiblePlacements.value[0].fact];
+    collectedCollectibleIds.value = new Set([collectiblePlacements.value[0].id]);
+    collectedKeys.value = 1;
+
+    unmount();
+    render(<PlatformerPage />);
+
+    expect(collectedFacts.value).toEqual([]);
+    expect(collectedCollectibleIds.value.size).toBe(0);
+    expect(collectedKeys.value).toBe(0);
+  });
+
+  it('unmountAndRemount-afterControlsOverlayDismissed-showsOverlayAgain', () => {
+    // The controls overlay is a one-shot-per-session latch (FR-036) that the
+    // Reset Game button deliberately leaves alone, since Reset Game is still
+    // the same session. A theme switch is a genuinely new session, so the
+    // overlay should be showable again after switching back.
+    const { unmount } = render(<PlatformerPage />);
+    controlsOverlayDismissed.value = true;
+
+    unmount();
+    render(<PlatformerPage />);
+
+    expect(controlsOverlayDismissed.value).toBe(false);
   });
 
   it('render-lifecyclePlaying-showsControlsOverlay', () => {

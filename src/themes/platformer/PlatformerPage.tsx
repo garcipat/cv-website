@@ -123,6 +123,7 @@ import {
   spawnCenter,
   resetGame,
   resetGameProgress,
+  controlsOverlayDismissed,
   collectiblePlacements,
   enemyPlacements,
   enemyStates,
@@ -236,6 +237,25 @@ export const PlatformerPage = () => {
     debugHitboxesRef.current = debugHitboxesOn;
     journalOpenRef.current = journalOpen;
   });
+
+  /**
+   * Theme-switch reset (spec.md User Story 8): `App.tsx` mounts/unmounts
+   * `PlatformerPage` whenever `currentTheme` changes, so a mount-only effect
+   * fires exactly when a visitor switches into (or back into) the Platformer
+   * theme. Every piece of game state this resets is module-level (see
+   * PlatformerState.ts), so it would otherwise survive an unmount/remount
+   * round-trip unchanged — the same durability that makes `resetGameProgress`
+   * safe to call here, mirroring `handleResetGameRequested`'s full reset.
+   * `controlsOverlayDismissed` is reset too, unlike Reset Game's deliberate
+   * choice to leave it alone (FR-036's "session" is the same session for
+   * Reset Game, but a genuinely new one for a theme switch).
+   */
+  useEffect(() => {
+    resetGameProgress();
+    controlsOverlayDismissed.value = false;
+    const center = spawnCenter();
+    lifecycleState.value = introState(center.x, center.y);
+  }, []);
 
   /**
    * Toggles the journal. Opening is only allowed from 'playing' (not

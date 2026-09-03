@@ -2,8 +2,7 @@
 
 How every drawable thing in the platformer — the player, enemies, blocks, chests,
 pickups and signs — is modelled, and why it is modelled that way. A durable reference
-for the system as it stands; open work and known loose ends live in
-[EntityFollowUps.md](EntityFollowUps.md).
+for the system as it stands.
 
 The goal the whole design serves: **adding a new enemy, interactable or block should
 mean writing one module.** The shared interfaces should not have to change, and the new
