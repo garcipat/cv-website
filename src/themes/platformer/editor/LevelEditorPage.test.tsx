@@ -7,7 +7,12 @@ import { importLayout } from './importLayout';
 import { centerPanOnSpawn } from './EditorPan';
 import { exportLayout } from './exportLayout';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
-import { editorLevelSignal, editorSelectedToolSignal } from './editorLevelState';
+import {
+  editorLevelSignal,
+  editorSelectedToolSignal,
+  editorLoadedLevelNameSignal,
+  editorDirtySignal,
+} from './editorLevelState';
 import { currentTheme } from '@/state/theme';
 import { currentPath } from '@/state/navigation';
 import { enemyPlacements, enemyStates, collectedFacts, collectedCollectibleIds } from '../PlatformerState';
@@ -30,10 +35,12 @@ import { drawTerrain } from '../engine/Renderer';
 
 beforeEach(() => {
   vi.clearAllMocks();
-  // editorLevelSignal is a module-level, localStorage-backed signal, so a test
-  // that loads a different layout (Reset, Scratch) would otherwise seed the
-  // next test's editor with it and make this suite order-dependent.
+  // These are module-level, localStorage-backed signals, so a test that loads
+  // a different level (or edits one) would otherwise seed the next test's
+  // editor with it and make this suite order-dependent.
   editorLevelSignal.value = importLayout(LEVEL_1_LAYOUT);
+  editorLoadedLevelNameSignal.value = 'main';
+  editorDirtySignal.value = false;
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
     fillRect: vi.fn(),
     fillStyle: '',
@@ -65,6 +72,60 @@ const EXPECTED_EXPORT_TEXT = importLayout(LEVEL_1_LAYOUT)
 async function openExportDialog() {
   await userEvent.click(screen.getByRole('button', { name: 'Export' }));
 }
+
+// The level dropdown's options are only mounted once it is opened (Base UI
+// Select portals its popup content), so every selection opens it first.
+async function selectLevel(name: string) {
+  fireEvent.click(screen.getByRole('combobox'));
+  await userEvent.click(await screen.findByRole('option', { name }));
+}
+
+function paintOneCell() {
+  const canvas = document.querySelector('canvas')!;
+  vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
+  fireEvent.mouseDown(canvas, { button: 0, clientX: 1, clientY: 1 });
+}
+
+// jsdom has no Blob-URL support and would navigate on a real anchor click, so
+// the download fallback is observed through the anchor it builds. `fetch` is
+// stubbed too: unstubbed, every save would attempt a real request to the
+// dev-server write endpoint.
+function stubDownloads() {
+  vi.stubGlobal('URL', {
+    ...URL,
+    createObjectURL: vi.fn(() => 'blob:level'),
+    revokeObjectURL: vi.fn(),
+  });
+  vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('no dev server'))));
+  const anchorClick = vi
+    .spyOn(HTMLAnchorElement.prototype, 'click')
+    .mockImplementation(() => {});
+  return { anchorClick };
+}
+
+/** A dev server that accepts the write, so nothing is downloaded. */
+function stubDevServerWrite(path = 'src/themes/platformer/level/levels/cave-run.json') {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ path }) } as Response)),
+  );
+  const anchorClick = vi
+    .spyOn(HTMLAnchorElement.prototype, 'click')
+    .mockImplementation(() => {});
+  return { anchorClick };
+}
+
+async function saveAs(name: string) {
+  await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+  const nameField = await screen.findByLabelText(/level name/i);
+  await userEvent.clear(nameField);
+  await userEvent.type(nameField, name);
+  await userEvent.click(screen.getByRole('button', { name: 'Save level file' }));
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe('LevelEditorPage', () => {
   it('renders a page title', () => {
@@ -122,147 +183,260 @@ describe('LevelEditorPage', () => {
     expect(writeText).toHaveBeenCalledWith(EXPECTED_EXPORT_TEXT);
   });
 
-  it('clicking Reset opens an in-app confirmation dialog rather than resetting immediately', async () => {
+  it('selectingAnotherLevelWithAnUnchangedGrid-loadsItWithNoConfirmation', async () => {
     render(<LevelEditorPage />);
 
-    const canvas = document.querySelector('canvas')!;
-    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
-    fireEvent.mouseDown(canvas, { button: 0, clientX: 1, clientY: 1 });
-
-    await userEvent.click(screen.getByRole('button', { name: 'Reset' }));
-
-    expect(
-      await screen.findByRole('heading', { name: /reset the level/i }),
-    ).toBeInTheDocument();
-    // Not reset yet — only the confirmation dialog opened.
-    await userEvent.keyboard('{Escape}');
-    await waitFor(() =>
-      expect(screen.queryByRole('heading', { name: /reset the level/i })).not.toBeInTheDocument(),
-    );
-    await openExportDialog();
-    const textarea = (await screen.findByTestId('export-output')) as HTMLTextAreaElement;
-    expect(textarea.value).not.toBe(EXPECTED_EXPORT_TEXT);
-  });
-
-  it('confirming the in-app Reset dialog reloads the default layout, discarding edits', async () => {
-    render(<LevelEditorPage />);
-
-    const canvas = document.querySelector('canvas')!;
-    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
-    fireEvent.mouseDown(canvas, { button: 0, clientX: 1, clientY: 1 });
-
-    await openExportDialog();
-    const editedTextarea = (await screen.findByTestId('export-output')) as HTMLTextAreaElement;
-    expect(editedTextarea.value).not.toBe(EXPECTED_EXPORT_TEXT);
-    // The Dialog hides the rest of the page from the accessibility tree
-    // while open — close it before interacting with anything outside it.
-    await userEvent.keyboard('{Escape}');
-    await waitFor(() => expect(screen.queryByTestId('export-output')).not.toBeInTheDocument());
-
-    await userEvent.click(screen.getByRole('button', { name: 'Reset' }));
-    await userEvent.click(await screen.findByRole('button', { name: 'Reset level' }));
-    await waitFor(() =>
-      expect(screen.queryByRole('heading', { name: /reset the level/i })).not.toBeInTheDocument(),
-    );
-
-    await openExportDialog();
-    const resetTextarea = (await screen.findByTestId('export-output')) as HTMLTextAreaElement;
-    expect(resetTextarea.value).toBe(EXPECTED_EXPORT_TEXT);
-  });
-
-  it('confirming the Scratch dialog replaces the level with the minimal scratch layout', async () => {
-    render(<LevelEditorPage />);
-
-    await userEvent.click(screen.getByRole('button', { name: 'Scratch' }));
-    await userEvent.click(await screen.findByRole('button', { name: 'Start from scratch' }));
-    await waitFor(() =>
-      expect(screen.queryByRole('heading', { name: /start from scratch/i })).not.toBeInTheDocument(),
-    );
+    await selectLevel('empty');
 
     await openExportDialog();
     const textarea = (await screen.findByTestId('export-output')) as HTMLTextAreaElement;
     expect(textarea.value).toBe(SCRATCH_LAYOUT.map((row) => `  '${row}',`).join('\n'));
   });
 
-  it('scratch-recentersTheViewOnTheNewSpawnRatherThanLeavingItWhereTheOldLevelWas', async () => {
+  it('selectingALevelAfterEditing-opensTheDiscardDialogRatherThanLoadingImmediately', async () => {
     render(<LevelEditorPage />);
-    await waitFor(() => expect(drawTerrain).toHaveBeenCalled());
+    paintOneCell();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Scratch' }));
-    await userEvent.click(await screen.findByRole('button', { name: 'Start from scratch' }));
+    await selectLevel('empty');
 
-    const canvas = document.querySelector('canvas') as HTMLCanvasElement;
-    const expected = centerPanOnSpawn(
-      importLayout(SCRATCH_LAYOUT),
-      canvas.width,
-      canvas.height,
+    expect(await screen.findByRole('heading', { name: /discard changes/i })).toBeInTheDocument();
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() =>
+      expect(screen.queryByRole('heading', { name: /discard changes/i })).not.toBeInTheDocument(),
     );
-    await waitFor(() => {
-      const calls = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls;
-      const [, , , , originX, originY] = calls[calls.length - 1];
-      expect({ x: originX, y: originY }).toEqual(expected);
-    });
+    // Not loaded — only the confirmation dialog opened.
+    await openExportDialog();
+    const textarea = (await screen.findByTestId('export-output')) as HTMLTextAreaElement;
+    expect(textarea.value).not.toBe(EXPECTED_EXPORT_TEXT);
   });
 
-  it('reset-recentersTheViewOnTheDefaultLayoutsSpawn', async () => {
+  it('confirmingTheDiscardDialog-reloadsTheShippedLayoutDiscardingEdits', async () => {
     render(<LevelEditorPage />);
-    await waitFor(() => expect(drawTerrain).toHaveBeenCalled());
+    paintOneCell();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Reset' }));
-    await userEvent.click(await screen.findByRole('button', { name: 'Reset level' }));
-
-    const canvas = document.querySelector('canvas') as HTMLCanvasElement;
-    const expected = centerPanOnSpawn(
-      importLayout(LEVEL_1_LAYOUT),
-      canvas.width,
-      canvas.height,
+    await selectLevel('main');
+    await userEvent.click(await screen.findByRole('button', { name: 'Discard and load' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('heading', { name: /discard changes/i })).not.toBeInTheDocument(),
     );
-    await waitFor(() => {
-      const calls = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls;
-      const [, , , , originX, originY] = calls[calls.length - 1];
-      expect({ x: originX, y: originY }).toEqual(expected);
-    });
-  });
-
-  it('Scratch persists to the editor signal, so the debounced sync cannot undo it', async () => {
-    // Same reasoning as Reset's own persistence: without writing the signal
-    // here, the pending debounced sync would shortly overwrite the scratch
-    // grid with the pre-scratch one.
-    render(<LevelEditorPage />);
-
-    await userEvent.click(screen.getByRole('button', { name: 'Scratch' }));
-    await userEvent.click(await screen.findByRole('button', { name: 'Start from scratch' }));
-
-    await waitFor(() => expect(editorLevelSignal.value).toEqual(importLayout(SCRATCH_LAYOUT)));
-  });
-
-  it('does not start from scratch when the confirmation dialog is cancelled', async () => {
-    render(<LevelEditorPage />);
-
-    await userEvent.click(screen.getByRole('button', { name: 'Scratch' }));
-    await userEvent.click(await screen.findByRole('button', { name: 'Cancel' }));
 
     await openExportDialog();
     const textarea = (await screen.findByTestId('export-output')) as HTMLTextAreaElement;
     expect(textarea.value).toBe(EXPECTED_EXPORT_TEXT);
   });
 
-  it('does not reset when the confirmation dialog is cancelled', async () => {
+  it('cancellingTheDiscardDialog-keepsTheEdits', async () => {
     render(<LevelEditorPage />);
+    paintOneCell();
 
-    const canvas = document.querySelector('canvas')!;
-    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
-    fireEvent.mouseDown(canvas, { button: 0, clientX: 1, clientY: 1 });
-
-    await userEvent.click(screen.getByRole('button', { name: 'Reset' }));
+    await selectLevel('main');
     await userEvent.click(await screen.findByRole('button', { name: 'Cancel' }));
     await waitFor(() =>
-      expect(screen.queryByRole('heading', { name: /reset the level/i })).not.toBeInTheDocument(),
+      expect(screen.queryByRole('heading', { name: /discard changes/i })).not.toBeInTheDocument(),
     );
 
     await openExportDialog();
     const textarea = (await screen.findByTestId('export-output')) as HTMLTextAreaElement;
     expect(textarea.value).not.toBe(EXPECTED_EXPORT_TEXT);
+  });
+
+  it('selectingEmpty-recentersTheViewOnItsSpawnRatherThanLeavingItWhereTheOldLevelWas', async () => {
+    render(<LevelEditorPage />);
+    await waitFor(() => expect(drawTerrain).toHaveBeenCalled());
+
+    await selectLevel('empty');
+
+    const canvas = document.querySelector('canvas') as HTMLCanvasElement;
+    const expected = centerPanOnSpawn(importLayout(SCRATCH_LAYOUT), canvas.width, canvas.height);
+    await waitFor(() => {
+      const calls = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls;
+      const [, , , , originX, originY] = calls[calls.length - 1];
+      expect({ x: originX, y: originY }).toEqual(expected);
+    });
+  });
+
+  it('selectingMain-recentersTheViewOnTheShippedLayoutsSpawn', async () => {
+    render(<LevelEditorPage />);
+    await waitFor(() => expect(drawTerrain).toHaveBeenCalled());
+
+    await selectLevel('empty');
+    await selectLevel('main');
+
+    const canvas = document.querySelector('canvas') as HTMLCanvasElement;
+    const expected = centerPanOnSpawn(importLayout(LEVEL_1_LAYOUT), canvas.width, canvas.height);
+    await waitFor(() => {
+      const calls = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls;
+      const [, , , , originX, originY] = calls[calls.length - 1];
+      expect({ x: originX, y: originY }).toEqual(expected);
+    });
+  });
+
+  it('selectingALevel-persistsToTheEditorSignalSoTheDebouncedSyncCannotUndoIt', async () => {
+    render(<LevelEditorPage />);
+
+    await selectLevel('empty');
+
+    await waitFor(() => expect(editorLevelSignal.value).toEqual(importLayout(SCRATCH_LAYOUT)));
+  });
+
+  it('selectingALevel-remountingThePage-stillComparesAgainstThatLevelRatherThanTheShippedOne', async () => {
+    render(<LevelEditorPage />);
+    await selectLevel('empty');
+    await waitFor(() => expect(editorLoadedLevelNameSignal.value).toBe('empty'));
+    cleanup();
+
+    render(<LevelEditorPage />);
+
+    // Nothing has been painted since `empty` was loaded, so selecting another
+    // level must not warn — proving the remounted page compares against
+    // `empty`, not the shipped layout it was originally seeded from.
+    await selectLevel('main');
+    expect(screen.queryByRole('heading', { name: /discard changes/i })).not.toBeInTheDocument();
+  });
+
+  it('doesNotRenderTheOldResetOrScratchButtons', () => {
+    render(<LevelEditorPage />);
+
+    expect(screen.queryByRole('button', { name: 'Reset' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Scratch' })).not.toBeInTheDocument();
+  });
+
+  it('save-devServerWrites-closesTheDialogAndDownloadsNothing', async () => {
+    const { anchorClick } = stubDevServerWrite();
+    render(<LevelEditorPage />);
+
+    await saveAs('Cave Run');
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(anchorClick).not.toHaveBeenCalled();
+  });
+
+  it('save-devServerWrites-reportsThePathItWasWrittenToInTheSidebar', async () => {
+    stubDevServerWrite();
+    render(<LevelEditorPage />);
+
+    await saveAs('Cave Run');
+
+    expect(await screen.findByText(/levels\/cave-run\.json/)).toBeInTheDocument();
+  });
+
+  it('save-devServerWrites-paintingAgain-dropsTheSavedPathBecauseTheFileIsNowStale', async () => {
+    stubDevServerWrite();
+    render(<LevelEditorPage />);
+    await saveAs('Cave Run');
+    await screen.findByText(/levels\/cave-run\.json/);
+
+    paintOneCell();
+
+    await waitFor(() =>
+      expect(screen.queryByText(/levels\/cave-run\.json/)).not.toBeInTheDocument(),
+    );
+  });
+
+  it('save-devServerWrites-loadingAnotherLevel-dropsTheSavedPath', async () => {
+    stubDevServerWrite();
+    render(<LevelEditorPage />);
+    await saveAs('Cave Run');
+    await screen.findByText(/levels\/cave-run\.json/);
+
+    await selectLevel('empty');
+
+    await waitFor(() =>
+      expect(screen.queryByText(/levels\/cave-run\.json/)).not.toBeInTheDocument(),
+    );
+  });
+
+  it('save-noDevServer-fallsBackToDownloadingTheGridAsJsonUnderTheEnteredName', async () => {
+    const { anchorClick } = stubDownloads();
+    render(<LevelEditorPage />);
+
+    await saveAs('Cave Run');
+
+    await waitFor(() => expect(anchorClick).toHaveBeenCalled());
+    const anchor = anchorClick.mock.instances[0] as HTMLAnchorElement;
+    expect(anchor.download).toBe('cave-run.json');
+  });
+
+  it('save-noDevServer-keepsTheDialogOpenAndSaysToMoveTheDownloadedFileIn', async () => {
+    stubDownloads();
+    render(<LevelEditorPage />);
+
+    await saveAs('Cave Run');
+
+    expect(await screen.findByText(/move it into/i)).toHaveTextContent(
+      'src/themes/platformer/level/levels/',
+    );
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('save-devServerRefuses-showsTheReasonItGaveRatherThanClaimingSuccess', async () => {
+    vi.stubGlobal('URL', {
+      ...URL,
+      createObjectURL: vi.fn(() => 'blob:level'),
+      revokeObjectURL: vi.fn(),
+    });
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve({
+          ok: false,
+          json: () => Promise.resolve({ error: 'contents must be JSON' }),
+        } as Response),
+      ),
+    );
+    render(<LevelEditorPage />);
+
+    await saveAs('Cave Run');
+
+    expect(await screen.findByText(/contents must be JSON/)).toBeInTheDocument();
+  });
+
+  it('saveDialog-beforeSaving-namesTheFolderTheLevelIsWrittenTo', async () => {
+    render(<LevelEditorPage />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(await screen.findByRole('dialog')).toHaveTextContent(
+      'src/themes/platformer/level/levels/',
+    );
+  });
+
+  it('saveDialog-reopenedAfterAFallbackDownload-noLongerShowsThePreviousResult', async () => {
+    stubDownloads();
+    render(<LevelEditorPage />);
+    await saveAs('Cave Run');
+    await screen.findByText(/move it into/i);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Done' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(screen.queryByText(/move it into/i)).not.toBeInTheDocument();
+  });
+
+  it('save-thenSelectingAnotherLevel-doesNotWarnAboutDiscardingChanges', async () => {
+    stubDevServerWrite();
+    render(<LevelEditorPage />);
+    paintOneCell();
+
+    await saveAs('Cave Run');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    await selectLevel('empty');
+
+    expect(screen.queryByRole('heading', { name: /discard changes/i })).not.toBeInTheDocument();
+  });
+
+  it('save-namesTheSavedLevelOnTheDropdownTrigger', async () => {
+    stubDevServerWrite();
+    render(<LevelEditorPage />);
+
+    await saveAs('Cave Run');
+
+    // A successful save closes the dialog, which is what makes the trigger
+    // reachable again — an open dialog hides the page from the a11y tree.
+    await waitFor(() => expect(screen.getByRole('combobox')).toHaveTextContent('Cave Run'));
   });
 
   it('compensates panOffset by exactly -colShift * RENDERED_TILE_SIZE when a paint grows the grid leftward, so existing content does not visually move (spec SC-006)', async () => {
@@ -345,7 +519,7 @@ describe('LevelEditorPage - debounced localStorage sync (editorLevelSignal)', ()
     expect(editorLevelSignal.value).not.toEqual(defaultGrid);
   });
 
-  it('reset-afterConfirmation-alsoResetsEditorLevelSignalBackToTheDefaultLayout', async () => {
+  it('reloadingMainAfterConfirmation-alsoResetsEditorLevelSignalBackToTheDefaultLayout', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     render(<LevelEditorPage />);
     const canvas = document.querySelector('canvas')!;
@@ -356,10 +530,28 @@ describe('LevelEditorPage - debounced localStorage sync (editorLevelSignal)', ()
     });
     expect(editorLevelSignal.value).not.toEqual(defaultGrid);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Reset' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Reset level' }));
+    await selectLevel('main');
+    fireEvent.click(await screen.findByRole('button', { name: 'Discard and load' }));
 
     expect(editorLevelSignal.value).toEqual(defaultGrid);
+  });
+
+  it('paintingACell-marksTheEditorDirty', () => {
+    render(<LevelEditorPage />);
+
+    paintOneCell();
+
+    expect(editorDirtySignal.value).toBe(true);
+  });
+
+  it('loadingALevel-clearsTheDirtyFlag', async () => {
+    render(<LevelEditorPage />);
+    paintOneCell();
+
+    await selectLevel('empty');
+    fireEvent.click(await screen.findByRole('button', { name: 'Discard and load' }));
+
+    expect(editorDirtySignal.value).toBe(false);
   });
 });
 

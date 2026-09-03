@@ -25,3 +25,28 @@ export const editorLevelSignal = createLocalStorageSignal<TileChar[][]>(
  * Ground Grass.
  */
 export const editorSelectedToolSignal = createLocalStorageSignal<TileChar>('platformer-editor-selected-tool', 'G');
+
+/**
+ * The name of the level the grid was last loaded from (or last saved as) —
+ * what the level dropdown shows on its trigger. Persisted like the two
+ * signals above, so reopening the editor still says which level is open
+ * rather than claiming it's the shipped one.
+ */
+export const editorLoadedLevelNameSignal = createLocalStorageSignal<string>(
+  'platformer-editor-loaded-level',
+  'main',
+);
+
+/**
+ * Whether the grid has been edited since it was loaded or saved. Set on every
+ * paint/erase and cleared on load and save — deliberately a plain flag rather
+ * than a comparison against the loaded layout, so nothing has to diff a
+ * 220-column grid on every stroke. The cost is that painting a cell and
+ * painting it back still counts as a change, which is how tile editors
+ * generally behave anyway: the flag only decides whether loading another
+ * level asks first.
+ */
+export const editorDirtySignal = createLocalStorageSignal<boolean>(
+  'platformer-editor-dirty',
+  false,
+);
