@@ -213,7 +213,7 @@ export const LevelEditorPage = () => {
    * that is worth saying before it is dismissed.
    */
   const saveCurrentLevel = async () => {
-    const result = await saveLevel(saveName, grid);
+    const result = await saveLevel(saveName, grid, backgroundPlacements);
     setSaveResult(result);
     setLoadedLevelName(saveName);
     setDirty(false);
