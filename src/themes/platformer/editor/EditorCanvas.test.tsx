@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, fireEvent, act } from '@testing-library/react';
-import { EditorCanvas } from './EditorCanvas';
+import { EditorCanvas, PATROL_MARKER_GLYPH } from './EditorCanvas';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { TileChar } from '../level/LevelParser';
 import type { EditorImages } from './EditorCanvas';
@@ -52,7 +52,9 @@ function stubCanvasContext() {
     font: '',
     textAlign: '',
     textBaseline: '',
+    lineJoin: '',
     fillText: vi.fn(),
+    strokeText: vi.fn(),
   } as unknown as CanvasRenderingContext2D;
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(ctx);
   return ctx;
@@ -558,5 +560,69 @@ describe('EditorCanvas', () => {
     );
 
     fireEvent.mouseUp(canvas, { button: 2 });
+  });
+});
+
+describe('EditorCanvas patrol markers', () => {
+  it('draws an editor-only marker over every patrol tile, which the game itself never shows', () => {
+    const ctx = stubCanvasContext() as unknown as {
+      fillText: ReturnType<typeof vi.fn>;
+      fillRect: ReturnType<typeof vi.fn>;
+    };
+
+    render(
+      <EditorCanvas
+        grid={[['P']]}
+        selectedTool="P"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+
+    const glyphCalls = ctx.fillText.mock.calls.filter(
+      (call: unknown[]) => call[0] === PATROL_MARKER_GLYPH,
+    );
+    expect(glyphCalls).not.toHaveLength(0);
+    // Tinted cell behind the glyph, at the tile's own top-left corner.
+    expect(ctx.fillRect).toHaveBeenCalledWith(0, 0, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+  });
+
+  it('offsets the patrol marker by the pan offset, like every other drawn layer', () => {
+    const ctx = stubCanvasContext() as unknown as { fillRect: ReturnType<typeof vi.fn> };
+
+    render(
+      <EditorCanvas
+        grid={[['P']]}
+        selectedTool="P"
+        panOffset={{ x: 100, y: 40 }}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+
+    expect(ctx.fillRect).toHaveBeenCalledWith(100, 40, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+  });
+
+  it('draws no patrol marker for a grid without any patrol tile', () => {
+    const ctx = stubCanvasContext() as unknown as { fillText: ReturnType<typeof vi.fn> };
+
+    render(
+      <EditorCanvas
+        grid={[['G']]}
+        selectedTool="G"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+
+    const glyphCalls = ctx.fillText.mock.calls.filter(
+      (call: unknown[]) => call[0] === PATROL_MARKER_GLYPH,
+    );
+    expect(glyphCalls).toHaveLength(0);
   });
 });

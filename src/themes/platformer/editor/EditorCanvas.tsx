@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { SIGN_CHARS, type TileChar } from '../level/LevelParser';
+
+const PATROL_CHAR: TileChar = 'P';
 import { paintCell, type PaintResult } from './paintCell';
 import { updatePanOffset, type PanOffset } from './EditorPan';
 import {
@@ -12,6 +14,7 @@ import {
   synthesizeSignPlacements,
 } from './gridRenderState';
 import { RENDERED_TILE_SIZE, tileToPixel } from '../level/Terrain';
+import { PATROL_GLYPH } from './paletteTiles';
 import {
   drawTerrain,
   drawPlayer,
@@ -130,6 +133,57 @@ function drawSignBadges(
   ctx.restore();
 }
 
+/** The character drawn on a patrol tile in the editor — the same one its
+ *  palette button shows, so a placed tile is recognizable as the tool that
+ *  painted it. */
+export const PATROL_MARKER_GLYPH = PATROL_GLYPH;
+
+const PATROL_MARKER_TINT = 'rgba(255, 96, 96, 0.35)';
+const PATROL_MARKER_FONT_SIZE = 18;
+// The glyph is drawn as a dark core inside a light halo rather than in one
+// flat color: a patrol tile can sit over anything the editor draws — pale
+// sky, dark ground, a ladder — and the editor itself renders in both a light
+// and a dark theme, so no single fill stays legible everywhere.
+const PATROL_MARKER_GLYPH_COLOR = '#3d0a0a';
+const PATROL_MARKER_HALO_COLOR = 'rgba(255, 255, 255, 0.9)';
+const PATROL_MARKER_HALO_WIDTH = 3;
+
+/** Draws a tinted cell with a turn-around glyph on every patrol tile.
+ *  Editor-only, exactly like drawSignBadges above: a patrol boundary is
+ *  invisible in the real game by design (Renderer.ts's tileSource returns
+ *  null for it), which would otherwise leave an author painting tiles they
+ *  cannot see. */
+function drawPatrolMarkers(
+  ctx: CanvasRenderingContext2D,
+  grid: TileChar[][],
+  originX: number,
+  originY: number,
+): void {
+  ctx.save();
+  ctx.font = `${PATROL_MARKER_FONT_SIZE}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (let row = 0; row < grid.length; row++) {
+    for (let col = 0; col < grid[row].length; col++) {
+      if (grid[row][col] !== PATROL_CHAR) continue;
+      const { x, y } = tileToPixel(col, row);
+      const destX = x + originX;
+      const destY = y + originY;
+      ctx.fillStyle = PATROL_MARKER_TINT;
+      ctx.fillRect(destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+      const centerX = destX + RENDERED_TILE_SIZE / 2;
+      const centerY = destY + RENDERED_TILE_SIZE / 2;
+      ctx.lineWidth = PATROL_MARKER_HALO_WIDTH;
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = PATROL_MARKER_HALO_COLOR;
+      ctx.strokeText(PATROL_MARKER_GLYPH, centerX, centerY);
+      ctx.fillStyle = PATROL_MARKER_GLYPH_COLOR;
+      ctx.fillText(PATROL_MARKER_GLYPH, centerX, centerY);
+    }
+  }
+  ctx.restore();
+}
+
 export const EditorCanvas = ({
   grid,
   selectedTool,
@@ -188,6 +242,7 @@ export const EditorCanvas = ({
       drawSigns(ctx, synthesizeSignPlacements(grid), images.tileset, panOffset.x, panOffset.y);
     }
     drawSignBadges(ctx, grid, panOffset.x, panOffset.y);
+    drawPatrolMarkers(ctx, grid, panOffset.x, panOffset.y);
 
     const drawContext: DrawContext = {
       ctx,

@@ -104,6 +104,22 @@ describe('parseLevel ragged rows (padding, not throwing)', () => {
   });
 });
 
+describe('patrol terrain character', () => {
+  it('P-mapsToThePatrolTileType', () => {
+    expect(TERRAIN_CHARS.P).toBe('patrol');
+  });
+
+  it('parseLevel-patrolChar-keepsItAsItsOwnTileRatherThanEmpty', () => {
+    // A patrol tile is invisible in game, but it is NOT empty — EnemyAI
+    // reads it straight out of the terrain grid to reverse a patrol.
+    expect(parseLevel(['.P.'])).toEqual({
+      terrain: [['empty', 'patrol', 'empty']],
+      width: 3,
+      height: 1,
+    });
+  });
+});
+
 describe('ladder terrain character', () => {
   it('terrainChars-mapsLToLadder', () => {
     expect(TERRAIN_CHARS.L).toBe('ladder');
@@ -296,7 +312,7 @@ describe('findSignTiles', () => {
 describe('TileChar', () => {
   it('includes every TERRAIN_CHARS, ENTITY_CHARS, and SIGN_CHARS key', () => {
     const tileChars: readonly TileChar[] = [
-      '.', 'G', 'R', 'W', 'B', 'L', 'S', 'E', 'M', 'C', 'X', 'Q', 'F', 'T',
+      '.', 'G', 'R', 'W', 'B', 'L', 'P', 'S', 'E', 'M', 'C', 'X', 'Q', 'F', 'T',
       '1', '2', '3', '4', '5',
     ];
     const allKeys = [...Object.keys(TERRAIN_CHARS), ...Object.keys(ENTITY_CHARS), ...Object.keys(SIGN_CHARS)];

@@ -1,6 +1,6 @@
 import { TERRAIN_CHARS, ENTITY_CHARS, SIGN_CHARS } from '../level/LevelParser';
 import type { TileChar } from '../level/LevelParser';
-import { PALETTE_TILE_SPRITES, PALETTE_TILE_LABELS } from './paletteTiles';
+import { PALETTE_TILE_SPRITES, PALETTE_TILE_LABELS, PALETTE_TILE_GLYPHS } from './paletteTiles';
 import { PaletteTile } from './PaletteTile';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
@@ -33,6 +33,7 @@ export const Palette = ({ selectedTool, onSelectTool }: PaletteProps) => {
             key={key}
             label={PALETTE_TILE_LABELS[key]}
             sprite={PALETTE_TILE_SPRITES[key]}
+            glyph={PALETTE_TILE_GLYPHS[key]}
             selected={selectedTool === key}
             onClick={() => onSelectTool(key)}
           />

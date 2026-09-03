@@ -1129,6 +1129,15 @@ describe('drawCounterPopups', () => {
 });
 
 describe('drawTerrain', () => {
+  it('patrolTile-drawsNothing-soThePatrolBoundaryStaysInvisibleInGame', () => {
+    const level: LevelDef = { width: 1, height: 1, terrain: [['patrol']] };
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas);
+
+    expect(ctx.drawImage).not.toHaveBeenCalled();
+  });
+
   it('groundGrassIsolatedTile-draws-fromAllSidesClosedCellC0R0HalfTurned', () => {
     const level: LevelDef = { width: 1, height: 1, terrain: [['groundGrass']] };
     const ctx = makeMockContext() as unknown as {
