@@ -78,12 +78,12 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
 
 - [x] **30. Purple slime rework** — purple slimes become bigger, slower, tougher, and
   drop a key instead of a CV fact; keys are needed to open chests.
-- [ ] **31. Level selection** — the visitor-facing half is not yet designed and needs
-  its own brainstorming session before a plan exists: a way for a visitor to choose
-  among multiple levels instead of always loading the current one. The editor-facing
-  half is done: the Level Editor has a level dropdown (`main`, `empty`, plus saved JSON
-  files) and a Save button, specified in
-  `specs/O-002-platformer-level-editor/spec.md`'s User Stories 7 and 8.
+- [x] **31. Level selection** — implemented as an editor-only feature: the Level Editor
+  has a level dropdown (`main`, `empty`, plus saved JSON files) and a Save button,
+  specified in `specs/O-002-platformer-level-editor/spec.md`'s User Stories 7 and 8. A
+  visitor-facing equivalent (choosing among multiple levels while playing, instead of
+  always loading `main`) is a separate, not-yet-designed idea — add it to "Unscheduled
+  additions" below if picked up later.
 - [x] **32. Terrain rework** — `groundGrass` is autotiled from `tile_atlas.png` via a
   4-neighbour mask, with grass drawn as a decoupled overlay pass. Design in
   `plans/2026-09-02-terrain-rework-design.md`.
@@ -100,16 +100,18 @@ Ideas raised but not yet slotted into the roadmap. Each needs its own
 `writing-plans` pass (and likely a `brainstorming` session first) before it becomes a
 numbered step.
 
-- **Persistent foreground/background water bands** — decorative water strips fixed to
-  the viewport edges.
+- [x] **Persistent foreground/background water bands** — a viewport-fixed sky
+  background and a level-anchored foreground water band (`drawWaterForeground` in
+  `Renderer.ts`), using the wave-crest/solid-blue water tiles from `world_tileset.png`.
 - [x] **Level editor** — a dev-only visual level editor, instead of hand-editing raw
-  level text. Design captured in `docs/ideas/platformer-level-editor.md`.
+  level text.
 - [x] **Entity architecture follow-ups** — cleanup/consistency work across how enemies,
-  pickups, blocks, and chests are structured, tracked in
-  `docs/themes/platformer/EntityFollowUps.md`.
+  pickups, blocks, and chests are structured.
 - **Audio** — background music and sound effects, muted by default.
-- **Theme-switch reset** — decide whether leaving and returning to the Platformer
-  theme should reset progress.
+- [x] **Theme-switch reset** — switching away from the Platformer theme and back
+  calls `resetGameProgress()` (a mount-only effect in `PlatformerPage.tsx`), clears
+  `controlsOverlayDismissed`, and restarts the intro transition — a full fresh
+  session, per spec.md User Story 8.
 - **Polish pass** — animation/effects refinement and a frame-rate check with many
   collectibles on screen.
 

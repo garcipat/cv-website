@@ -183,7 +183,7 @@ As with all CV themes, floating translucent controls in the top-left corner prov
 
 1. **Given** the Platformer theme is active, **When** the page loads, **Then** floating translucent controls are visible in the top-left corner.
 2. **Given** the visitor clicks the language toggle, **When** they switch locales, **Then** journal facts update to the selected language and in-game notifications use the selected language.
-3. **Given** the visitor switches to another theme, **When** they switch back to the Platformer theme, **Then** the game resets to the start (fresh session, no collected facts). *Not yet implemented — see roadmap.md's "Maybe / reconsider later" section (Theme-switch reset).*
+3. **Given** the visitor switches to another theme, **When** they switch back to the Platformer theme, **Then** the game resets to the start (fresh session, no collected facts).
 
 ---
 
@@ -220,7 +220,7 @@ As a new visitor starts the game, a small translucent overlay listing the univer
 - **Collectible counts at boundaries**: In Iteration 1 (coins only), only Skills appear as collectibles and in the journal. Other sections show the placeholder message until Iteration 2 when blocks, enemies, and chests are added. This is expected — each iteration incrementally unlocks CV sections.
 - **Game state across page reload**: Game state (collected coins, defeated enemies, destroyed blocks, opened chests) is NOT persisted across page reloads. Each visit is a fresh session.
 - **Game state across death/respawn** (see FR-020c): `collectedFacts` is preserved across a death/respawn — previously discovered CV content is never lost to a death. Enemies and destroyable blocks reset to their initial state on respawn (so the level plays the same each attempt) but grant no duplicate fact/fruit if re-collected; already-collected coins stay gone permanently rather than reappearing. Only the deliberate "Reset Game" button (FR-018b) clears `collectedFacts` and respawns coins too.
-- **Game state across theme switches**: Switching to another theme and back is intended to reset the game to its initial state (fresh session, no collected facts) — see User Story 8, currently unimplemented.
+- **Game state across theme switches**: Switching to another theme and back resets the game to its initial state (fresh session, no collected facts) — see User Story 8.
 - **Touch/mobile input**: The game is designed for keyboard input only. Mobile/touch controls are permanently out of scope — no on-screen D-pad or action buttons are planned; see the "Out of Scope" section below.
 
 ## Requirements _(mandatory)_
@@ -547,7 +547,7 @@ FloatingControls (P3)
 
 - **SC-005 — Game runs at 30 FPS**: The game loop maintains consistent 30 FPS on a modern desktop browser (Chrome/Firefox) with the character, terrain, and 20+ collectibles rendered. Verified by: frame timing instrumentation in test.
 
-- **SC-006 — Theme and locale switching work**: Switching to another theme replaces the game. Switching locale updates journal content. Switching back to Platformer is intended to reset the game (see User Story 8, currently unimplemented). Verified by: component tests that exercise theme/locale signals.
+- **SC-006 — Theme and locale switching work**: Switching to another theme replaces the game. Switching locale updates journal content. Switching back to Platformer resets the game (see User Story 8). Verified by: component tests that exercise theme/locale signals.
 
 - **SC-007 — Zero TypeScript errors**: The entire Platformer theme implementation compiles under `strict: true` with no `any` types and no `@ts-ignore` directives. Verified by: `npm run build` passes cleanly.
 
