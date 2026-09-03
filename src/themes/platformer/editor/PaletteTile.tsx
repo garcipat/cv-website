@@ -3,6 +3,10 @@ import { cn } from '@/lib/utils';
 
 interface PaletteTileProps {
   label: string;
+  /** What the tile does, appended to `label` in the button's hover tooltip
+   *  (see `PALETTE_TILE_DESCRIPTIONS`). Omitted, the tooltip is just the
+   *  name. */
+  description?: string;
   sprite: TileSpriteSpec | null;
   /** Character drawn inside the empty square when `sprite` is `null`, so two
    *  sprite-less tools don't render as the same blank button (see
@@ -32,7 +36,14 @@ const SPRITE_PADDING = 10;
  * top, cropped to the overlay's own offset — used to composite grass over
  * the ground block, since the atlas keeps grass out of every ground cell.
  */
-export const PaletteTile = ({ label, sprite, glyph, selected, onClick }: PaletteTileProps) => {
+export const PaletteTile = ({
+  label,
+  description,
+  sprite,
+  glyph,
+  selected,
+  onClick,
+}: PaletteTileProps) => {
   const scale = sprite
     ? (TILE_BOX_SIZE - SPRITE_PADDING) / Math.max(sprite.frameWidth, sprite.frameHeight)
     : 1;
@@ -41,6 +52,7 @@ export const PaletteTile = ({ label, sprite, glyph, selected, onClick }: Palette
     <button
       type="button"
       aria-label={label}
+      title={description ? `${label} — ${description}` : label}
       aria-pressed={selected}
       onClick={onClick}
       className={cn(
