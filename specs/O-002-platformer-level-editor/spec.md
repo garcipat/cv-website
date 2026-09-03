@@ -4,7 +4,7 @@
 **Created**: 2026-08-31
 **Status**: Draft
 **Parent Feature**: S-006 (2D Platformer Theme)
-**Input**: A hidden, dev-only in-app tool for authoring platformer level layouts by hand via a grid UI, instead of hand-typing `readonly string[]` layout arrays directly in files like `level1.ts`. Originates from `docs/ideas/platformer-level-editor.md` (design exploration, out of scope for S-006 v1).
+**Input**: A hidden, dev-only in-app tool for authoring platformer level layouts by hand via a grid UI, instead of hand-typing `readonly string[]` layout arrays directly in files like `level1.ts`. Originates from an earlier design-exploration idea doc (out of scope for S-006 v1), since superseded by this spec.
 
 ---
 
@@ -468,7 +468,7 @@ EditorCanvas (per redraw)
 ## Assumptions
 
 - **S-006 (2D Platformer Theme) is implemented far enough to have `LevelParser.ts`, `Renderer.ts`'s draw functions, and the entity mapper/state modules in their current shape.** This editor is a v2+ authoring tool layered on top of that existing engine, not a co-requirement.
-- **`docs/ideas/platformer-level-editor.md`'s YAGNI list mostly stands**: zoom, undo/redo, and direct file writes are all out of scope for this spec (see Out of Scope). Its `localStorage`-persistence and single-layout items no longer hold: the grid, selected tool, open level, and edited flag are persisted, and the level dropdown offers more than one layout.
+- **The original idea doc's YAGNI list mostly stands**: zoom, undo/redo, and direct file writes are all out of scope for this spec (see Out of Scope). Its `localStorage`-persistence and single-layout items no longer hold: the grid, selected tool, open level, and edited flag are persisted, and the level dropdown offers more than one layout.
 - **A fruit-producing question-mark block's spawned fruit is not itself placeable** — only the question-mark block marker (`Q`) is placed; fruit only appears in the real game after the block is hit. The editor has no notion of "spawn a fruit here" as a distinct palette entry.
 - **Placeholder `fact: CollectedFact` stubs are safe** because none of the reused draw functions (`drawCollectibles`, `drawEnemies`, `drawBlocks`, `drawChests`) read the `fact` field — confirmed by inspecting `Renderer.ts`'s draw function bodies, which only touch position/kind/animation fields.
 - **No validation of exported layouts beyond `parseLevel`'s own row-length/char checks** — e.g. the editor does not warn about an unreachable coin or an enemy placed inside solid terrain. That kind of playtesting-equivalent validation is out of scope (see Out of Scope).
