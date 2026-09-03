@@ -23,7 +23,10 @@ import {
   drawBlocks,
   drawChests,
   drawSigns,
+  drawBackgroundTiles,
 } from '../engine/Renderer';
+import { placeBackgroundPiece, eraseBackgroundCell } from './paintBackgroundCell';
+import type { BackgroundPlacement, BackgroundPieceId } from '../level/LevelData';
 import type { DrawContext } from '../engine/DrawContext';
 import {
   SLIME_GREEN_SHEET,
@@ -45,6 +48,7 @@ export interface EditorImages {
   slimePurple: HTMLImageElement | null;
   crackOverlay: HTMLImageElement | null;
   chestClosed: HTMLImageElement | null;
+  backgroundAtlas: HTMLImageElement | null;
 }
 
 interface EditorCanvasProps {
@@ -56,7 +60,11 @@ interface EditorCanvasProps {
    *  the effect below). It is a request id rather than a boolean so a
    *  repeated request — Reset pressed twice, say — still fires each time. */
   centerRequestId?: number;
+  backgroundPlacements: BackgroundPlacement[];
+  activeLayer: 'foreground' | 'background';
+  selectedBackgroundPiece: BackgroundPieceId | null;
   onPaint: (result: PaintResult) => void;
+  onPaintBackground: (next: BackgroundPlacement[]) => void;
   onPan: (offset: PanOffset) => void;
 }
 
@@ -194,13 +202,18 @@ export const EditorCanvas = ({
   panOffset,
   images,
   centerRequestId,
+  backgroundPlacements,
+  activeLayer,
+  selectedBackgroundPiece,
   onPaint,
+  onPaintBackground,
   onPan,
 }: EditorCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   type DragState =
     | { mode: 'paint'; tool: TileChar; lastCol: number; lastRow: number }
+    | { mode: 'paintBackground'; isErase: boolean; lastCol: number; lastRow: number }
     | { mode: 'pan'; lastX: number; lastY: number };
   const dragRef = useRef<DragState | null>(null);
   const [canvasSize, setCanvasSize] = useState({
@@ -265,7 +278,24 @@ export const EditorCanvas = ({
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     drawGridLines(ctx, canvas.width, canvas.height, panOffset);
 
+    if (images.backgroundAtlas) {
+      drawBackgroundTiles(
+        ctx,
+        { terrain: [], width: 0, height: 0, background: backgroundPlacements },
+        images.backgroundAtlas,
+        panOffset.x,
+        panOffset.y,
+      );
+    }
+
+    // While the Background layer is active, the foreground terrain is dimmed
+    // (rather than hidden) so the painter can still see where platforms will
+    // sit without them obscuring the background pieces being placed
+    // underneath — mid-execution addition to the original design.
+    const foregroundAlpha = activeLayer === 'background' ? 0.35 : 1;
     if (images.tileset && images.groundAtlas) {
+      ctx.save();
+      ctx.globalAlpha = foregroundAlpha;
       drawTerrain(
         ctx,
         gridToLevelDef(grid),
@@ -274,6 +304,7 @@ export const EditorCanvas = ({
         panOffset.x,
         panOffset.y,
       );
+      ctx.restore();
     }
 
     if (images.tileset) {
@@ -319,7 +350,7 @@ export const EditorCanvas = ({
     // nothing would redraw it until some unrelated state change (a paint
     // or pan) happened to run this effect again — the canvas would sit
     // invisible until the next interaction "fixed" it as a side effect.
-  }, [grid, panOffset, images, canvasSize]);
+  }, [grid, panOffset, images, canvasSize, backgroundPlacements, activeLayer]);
 
   const cellFromEvent = (clientX: number, clientY: number) => {
     const rect = canvasRef.current!.getBoundingClientRect();
@@ -341,6 +372,20 @@ export const EditorCanvas = ({
       };
       return;
     }
+
+    if (activeLayer === 'background') {
+      const { col, row } = cellFromEvent(event.clientX, event.clientY);
+      const isErase = event.button === 2;
+      const next = isErase
+        ? eraseBackgroundCell(backgroundPlacements, col, row)
+        : selectedBackgroundPiece
+          ? placeBackgroundPiece(backgroundPlacements, selectedBackgroundPiece, col, row)
+          : backgroundPlacements;
+      dragRef.current = { mode: 'paintBackground', isErase, lastCol: col, lastRow: row };
+      onPaintBackground(next);
+      return;
+    }
+
     // Right-click always erases, regardless of the selected palette tool;
     // left-click paints with it.
     const tool = event.button === 2 ? '.' : selectedTool;
@@ -364,6 +409,19 @@ export const EditorCanvas = ({
       const dy = event.clientY - drag.lastY;
       dragRef.current = { ...drag, lastX: event.clientX, lastY: event.clientY };
       onPan(updatePanOffset(panOffset, dx, dy));
+      return;
+    }
+
+    if (drag.mode === 'paintBackground') {
+      const { col, row } = cellFromEvent(event.clientX, event.clientY);
+      if (col === drag.lastCol && row === drag.lastRow) return;
+      const next = drag.isErase
+        ? eraseBackgroundCell(backgroundPlacements, col, row)
+        : selectedBackgroundPiece
+          ? placeBackgroundPiece(backgroundPlacements, selectedBackgroundPiece, col, row)
+          : backgroundPlacements;
+      dragRef.current = { ...drag, lastCol: col, lastRow: row };
+      onPaintBackground(next);
       return;
     }
 
