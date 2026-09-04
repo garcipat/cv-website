@@ -5,7 +5,7 @@ import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import { centerPanOnSpawn } from './EditorPan';
 import type { TileChar } from '../level/LevelParser';
 import type { EditorImages } from './EditorCanvas';
-import { COIN_SHEET } from '../entities/sprites/sheets';
+import { COIN_SHEET, STATIC_OBJECTS_SHEET } from '../entities/sprites/sheets';
 
 vi.mock('../engine/Renderer', () => ({
   drawTerrain: vi.fn(),
@@ -304,14 +304,15 @@ describe('EditorCanvas', () => {
     stubCanvasContext();
     const tileset = {} as HTMLImageElement;
     const coin = {} as HTMLImageElement;
-    const grid: TileChar[][] = [['C', 'E', 'X', 'T']];
+    const staticObjects = {} as HTMLImageElement;
+    const grid: TileChar[][] = [['C', 'E', 'X', 'T', 'u']];
     render(
       <EditorCanvas
         {...BACKGROUND_LAYER_DEFAULT_PROPS}
         grid={grid}
         selectedTool="G"
         panOffset={{ x: 5, y: 7 }}
-        images={{ ...EMPTY_IMAGES, tileset, coin }}
+        images={{ ...EMPTY_IMAGES, tileset, coin, staticObjects }}
         onPaint={() => {}}
         onPan={() => {}}
       />,
@@ -331,10 +332,29 @@ describe('EditorCanvas', () => {
       expect.arrayContaining([expect.objectContaining({ type: 'slimeGreen' })]),
       expect.objectContaining({ originX: 5, originY: 7 }),
     );
+    // Regression test (see EditorCanvas.ts's coinPotPlan/STATIC_OBJECTS_SHEET
+    // wiring): a real bug found by manual play-testing was that the editor's
+    // drawContext never included STATIC_OBJECTS_SHEET at all (only used for
+    // bush/fence via drawTerrain's own dedicated argument, never for a
+    // generic block before coinPot), nor a coinPotPlan — coinPot fell back
+    // to CoinPot.ts's "no plan provided" isolated-fallback path silently,
+    // and without the sheet it rendered nothing at all.
     expect(drawBlocks).toHaveBeenCalledWith(
       expect.anything(),
-      expect.arrayContaining([expect.objectContaining({ blockKind: 'crate' })]),
-      expect.objectContaining({ originX: 5, originY: 7 }),
+      expect.arrayContaining([
+        expect.objectContaining({ blockKind: 'crate' }),
+        expect.objectContaining({ blockKind: 'coinPot' }),
+      ]),
+      expect.objectContaining({
+        originX: 5,
+        originY: 7,
+        sprites: expect.objectContaining({ [STATIC_OBJECTS_SHEET.src]: staticObjects }),
+        coinPotPlan: expect.objectContaining({
+          variantByBlockId: expect.any(Map),
+          ownerBlockId: expect.any(Map),
+          runsByOwnerId: expect.any(Map),
+        }),
+      }),
     );
     expect(drawChests).toHaveBeenCalledWith(
       expect.anything(),
