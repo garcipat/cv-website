@@ -1,5 +1,5 @@
 import { BLOCK_TYPES } from './index';
-import { WORLD_TILESET_SHEET } from '../sprites/sheets';
+import { WORLD_TILESET_SHEET, STATIC_OBJECTS_SHEET } from '../sprites/sheets';
 
 describe('BLOCK_TYPES', () => {
   it('everyEntry-declaresItsOwnKey', () => {
@@ -8,10 +8,18 @@ describe('BLOCK_TYPES', () => {
     }
   });
 
-  it('everyEntry-drawsFromTheSharedTileset', () => {
-    for (const type of Object.values(BLOCK_TYPES)) {
+  it('mostEntries-drawFromTheSharedTileset', () => {
+    // coinPot is the one exception — it draws from staticObjects.png's pot
+    // variants instead (see CoinPot.ts), so it's excluded here and checked
+    // separately below.
+    for (const [key, type] of Object.entries(BLOCK_TYPES)) {
+      if (key === 'coinPot') continue;
       expect(type.sprite.sheet).toBe(WORLD_TILESET_SHEET);
     }
+  });
+
+  it('coinPot-drawsFromTheStaticObjectsSheet', () => {
+    expect(BLOCK_TYPES.coinPot.sprite.sheet).toBe(STATIC_OBJECTS_SHEET);
   });
 
   // These are the values maxHitsForBlock and isBlockRemoved encoded as
