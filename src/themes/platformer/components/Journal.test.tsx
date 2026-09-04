@@ -10,6 +10,7 @@ import {
   blockPlacements,
   enemyPlacements,
 } from '../PlatformerState';
+import { currentLayout, LEVEL_1_LAYOUT } from '../level/level';
 import { JOURNAL_OPEN_FRAME_COUNT, JOURNAL_OPEN_FRAME_INTERVAL_MS } from '../entities/JournalAnimation';
 import { sectionTotal } from '../entities/JournalSections';
 import type { CollectedFact } from '../types';
@@ -598,24 +599,30 @@ describe('Journal', () => {
       // always drops a coin regardless of any fact (see
       // CollectibleMapper.ts's mapCVDataToSkillFactPool doc comment), so
       // there's no "with fact vs without" distinction left to make.
-      const coinPotA = { id: 'coinpot-a', blockKind: 'coinPot' as const, x: 100, y: 200 };
-      const coinPotB = { id: 'coinpot-b', blockKind: 'coinPot' as const, x: 200, y: 200 };
-      const blockPlacementsSpy = vi
-        .spyOn(blockPlacements, 'value', 'get')
-        .mockReturnValue([coinPotA, coinPotB]);
+      //
+      // Driven through a real `currentLayout` write rather than a
+      // `vi.spyOn(blockPlacements, 'value', 'get')` getter override: the
+      // coins total is now sourced from `levelTotals`, a `computed()` in
+      // PlatformerState.ts, and a getter override never notifies a
+      // `computed`'s dependents (it isn't a real signal write), so a
+      // `levelTotals` already read once with the real placements would stay
+      // permanently stale — see task-2-report.md for the reproduction. A
+      // real `currentLayout` write is the same pattern
+      // `PlatformerState.test.ts`'s `describe('marker-derived placements
+      // react to currentLayout', ...)` block uses.
       try {
-        const total =
-          collectiblePlacements.value.filter((p) => p.spriteType === 'coin').length +
-          blockPlacements.value.filter((b) => b.blockKind === 'coinPot').length;
+        // S spawn, one placed coin (C), two coin-pots (u, u) -> coins total = 3.
+        currentLayout.value = ['SCuu', 'GGGG'];
         collectedFacts.value = [];
+        collectedCollectibleIds.value = new Set();
 
         render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
         openBookAnimation();
 
         const summary = journalPage.collectiblesSummary;
-        expect(summary).toHaveTextContent(`0 / ${total}`);
+        expect(summary).toHaveTextContent('0 / 3');
       } finally {
-        blockPlacementsSpy.mockRestore();
+        currentLayout.value = LEVEL_1_LAYOUT;
       }
     });
 

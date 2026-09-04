@@ -134,16 +134,13 @@ import {
   spawnedCoinPlacements,
   allCollectiblePlacements,
   skillFactPool,
-  enemyPlacements,
   enemyStates,
-  blockPlacements,
   blockStates,
   bonusFruitStates,
   collectedCollectibleIds,
   activeEffects,
   activeCounterPopups,
   collectedFacts,
-  chestPlacements,
   chestStates,
   endingScreenShown,
   endingScreenOpen,
@@ -152,6 +149,7 @@ import {
   keyPickupStates,
   collectedKeys,
   activePuffs,
+  levelTotals,
 } from './PlatformerState';
 import { useSignals } from '@preact/signals-react/runtime';
 import { Journal } from './components/Journal';
@@ -591,12 +589,12 @@ export const PlatformerPage = () => {
         drawHearts(ctx, playerState.value.hitPoints, heartsSpriteRef.current, HEARTS_START_X);
       }
 
-      if (chestClosedSpriteRef.current && chestPlacements.value.length > 0) {
+      if (chestClosedSpriteRef.current && levelTotals.value.chests > 0) {
         drawChestCounter(
           ctx,
           chestClosedSpriteRef.current,
           chestStates.value.filter(isChestOpen).length,
-          chestPlacements.value.length,
+          levelTotals.value.chests,
           CHEST_COUNTER_X,
           CHEST_COUNTER_Y,
         );
@@ -606,7 +604,7 @@ export const PlatformerPage = () => {
         const keyX = keyCounterX(
           ctx,
           chestStates.value.filter(isChestOpen).length,
-          chestPlacements.value.length,
+          levelTotals.value.chests,
         );
         drawKeyCounter(ctx, keySpriteRef.current, collectedKeys.value, keyX, KEY_COUNTER_Y);
       }
@@ -873,14 +871,13 @@ export const PlatformerPage = () => {
         activeEffects.value = newEffects;
         activePuffs.value = newPuffs;
         if (anyEnemyRewarded) {
-          const enemyDefeated = newFacts.filter((f) => f.sourceType === 'enemy').length;
+          const enemyDefeated = countCollectedFor('enemies', newFacts);
           // Denominator counts only fact-bearing placements — a "plain"
           // enemy (EnemyMapper.ts's excess-marker case) never contributes a
           // fact, so counting it here would make the ratio unreachable.
-          const enemyTotal = enemyPlacements.value.filter((p) => p.fact).length;
           activeCounterPopups.value = {
             ...activeCounterPopups.value,
-            enemies: startCounterPopup('enemies', enemyDefeated, enemyTotal),
+            enemies: startCounterPopup('enemies', enemyDefeated, levelTotals.value.enemies),
           };
         }
       }
@@ -935,20 +932,6 @@ export const PlatformerPage = () => {
         const midX = canvas.width / 2;
         const midY = canvas.height * 0.3;
 
-        // Every coin-pot WILL drop a coin eventually (see
-        // spawnedCoinPlacements's doc comment — a pot's coin doesn't exist
-        // in `allCollectiblePlacements` until it's actually destroyed), so
-        // `totalCoinCount` counts every coin-pot block up front — otherwise
-        // it would creep up each time a pot is broken instead of staying
-        // fixed all session. Once a pot HAS dropped its coin (id = the
-        // block's own id, see the landed-on-top handler below), that coin
-        // already appears in `allCollectiblePlacements` and is counted by
-        // the plain filter above — the `!allCollectiblePlacements.value.some(...)`
-        // guard excludes it here so it isn't double-counted.
-        const coinPotIds = blockPlacements.value.filter((b) => b.blockKind === 'coinPot').map((b) => b.id);
-        const totalCoinCount =
-          allCollectiblePlacements.value.filter((p) => p.spriteType === 'coin').length +
-          coinPotIds.filter((cpId) => !allCollectiblePlacements.value.some((p) => p.id === cpId)).length;
         const poolLength = skillFactPool.value.length;
         // A coin carries no fact of its own (see CollectibleMapper.ts's
         // mapCVDataToSkillFactPool doc comment) — how many facts should be
@@ -968,15 +951,15 @@ export const PlatformerPage = () => {
           nextCollected.add(id);
           if (placement.spriteType !== 'coin') continue; // fruit carries no fact-pool entry
 
-          const factCountBefore = revealedFactCountFor(coinsCollectedSoFar, totalCoinCount, poolLength);
+          const factCountBefore = revealedFactCountFor(coinsCollectedSoFar, levelTotals.value.coins, poolLength);
           coinsCollectedSoFar++;
-          const factCountAfter = revealedFactCountFor(coinsCollectedSoFar, totalCoinCount, poolLength);
+          const factCountAfter = revealedFactCountFor(coinsCollectedSoFar, levelTotals.value.coins, poolLength);
 
           for (let factIndex = factCountBefore; factIndex < factCountAfter; factIndex++) {
             const fact = skillFactPool.value[factIndex];
             if (!fact) continue; // defensive only — factCountAfter never exceeds poolLength
             // Same dedup guard every other reward path (crate/enemy/chest)
-            // already has: `totalCoinCount` is only a de-facto session
+            // already has: `levelTotals.value.coins` is only a de-facto session
             // constant, not a guaranteed one — switching levels mid-session
             // (the editor's "Try") changes COIN_TILES/COIN_POT_TILES, which
             // could otherwise make factCountBefore come out below the
@@ -1027,7 +1010,7 @@ export const PlatformerPage = () => {
         if (touchedIds.some((id) => allCollectiblePlacements.value.find((p) => p.id === id)?.spriteType === 'coin')) {
           activeCounterPopups.value = {
             ...activeCounterPopups.value,
-            coins: startCounterPopup('coins', coinsCollectedSoFar, totalCoinCount),
+            coins: startCounterPopup('coins', coinsCollectedSoFar, levelTotals.value.coins),
           };
         }
       }
@@ -1083,15 +1066,10 @@ export const PlatformerPage = () => {
           (fruit) => !touchedBonusFruitIds.includes(fruit.id),
         );
         if (anyBonusFruitRewarded) {
-          const bonusFruitTotal = blockPlacements.value.filter(
-            (b) => b.blockKind === 'questionMark' && b.fact,
-          ).length;
-          const bonusFruitCollected = newFacts.filter(
-            (f) => f.sectionId === 'certificates' || f.sectionId === 'projects',
-          ).length;
+          const bonusFruitCollected = countCollectedFor('fruits', newFacts);
           activeCounterPopups.value = {
             ...activeCounterPopups.value,
-            fruits: startCounterPopup('fruits', bonusFruitCollected, bonusFruitTotal),
+            fruits: startCounterPopup('fruits', bonusFruitCollected, levelTotals.value.fruits),
           };
         }
       }
@@ -1117,7 +1095,7 @@ export const PlatformerPage = () => {
         const midY = canvas.height * 0.3;
         const hudCtx = canvas.getContext('2d');
         const keyX = hudCtx
-          ? keyCounterX(hudCtx, chestStates.value.filter(isChestOpen).length, chestPlacements.value.length)
+          ? keyCounterX(hudCtx, chestStates.value.filter(isChestOpen).length, levelTotals.value.chests)
           : CHEST_COUNTER_X;
         for (const pickup of keyPickupStates.value) {
           if (!touchedKeyIds.includes(pickup.id)) continue;
@@ -1404,11 +1382,10 @@ export const PlatformerPage = () => {
               nextTextSlot = (nextTextSlot + 1) % COLLECTION_TEXT_SLOT_COUNT;
               const stackOffsetY = slot * COLLECTION_TEXT_STACK_ROW_HEIGHT;
               collectedFacts.value = [...collectedFacts.value, block.fact];
-              const crateTotal = blockPlacements.value.filter((b) => b.blockKind === 'crate').length;
               const crateCollected = countCollectedFor('crates', collectedFacts.value);
               activeCounterPopups.value = {
                 ...activeCounterPopups.value,
-                crates: startCounterPopup('crates', crateCollected, crateTotal),
+                crates: startCounterPopup('crates', crateCollected, levelTotals.value.crates),
               };
               activeEffects.value = [
                 ...activeEffects.value,
