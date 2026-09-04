@@ -30,6 +30,7 @@ import {
   drawBackgroundTiles,
 } from './Renderer';
 import type { LevelDef, BackgroundPieceId } from '../level/LevelData';
+import { parseLevel } from '../level/LevelParser';
 import type { SignPlacement } from '../level/SignMapper';
 import type { PlayerState } from '../entities/Player';
 import { PLAYER_RENDERED_SIZE, PLAYER_HIT_REACTION_SECONDS } from '../entities/Player';
@@ -1558,6 +1559,34 @@ describe('drawTerrain — bush/fence', () => {
     expect(ctx.drawImage).not.toHaveBeenCalledWith(
       expect.anything(), 0, expect.anything(), expect.anything(), expect.anything(),
       0, 0, expect.anything(), expect.anything(),
+    );
+  });
+
+  it('levelLayoutWithStackedNCharacters-rendersRootTrunkCanopyThroughTheFullChain', () => {
+    // Spans the full chain from a raw level layout character all the way to
+    // the canvas call: parseLevel's 'n' -> 'bush' terrain, then drawTerrain's
+    // per-role sprite lookup -> drawImage. LevelParser.test.ts and this
+    // file's other drawTerrain tests each cover one half of that chain in
+    // isolation; nothing previously joined the two.
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level = parseLevel(['n', 'n', 'n']);
+
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, fakeStaticObjects);
+
+    // row 0: top of the run (canopy) at sx:16, sy:16
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeStaticObjects, 16, 16, 16, 16,
+      0, 0, 32, 32,
+    );
+    // row 1: middle of the run (trunk) at sx:16, sy:32
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeStaticObjects, 16, 32, 16, 16,
+      0, 32, 32, 32,
+    );
+    // row 2: bottom of the run (root) at sx:16, sy:48
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeStaticObjects, 16, 48, 16, 16,
+      0, 64, 32, 32,
     );
   });
 });
