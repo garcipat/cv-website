@@ -40,6 +40,14 @@ describe('parseLevel', () => {
     expect(TERRAIN_CHARS.B).toBe('bridge');
   });
 
+  it('TERRAIN_CHARS-n-mapsToBush', () => {
+    expect(TERRAIN_CHARS.n).toBe('bush');
+  });
+
+  it('TERRAIN_CHARS-N-mapsToFence', () => {
+    expect(TERRAIN_CHARS.N).toBe('fence');
+  });
+
   it('entityChars-mapsEveryEntityMarker', () => {
     expect(ENTITY_CHARS.S).toBe('spawn');
     expect(ENTITY_CHARS.E).toBe('enemyGreen');
@@ -313,7 +321,7 @@ describe('TileChar', () => {
   it('includes every TERRAIN_CHARS, ENTITY_CHARS, and SIGN_CHARS key', () => {
     const tileChars: readonly TileChar[] = [
       '.', 'G', 'R', 'W', 'B', 'L', 'P', 'S', 'E', 'M', 'C', 'X', 'Q', 'F', 'T',
-      '1', '2', '3', '4', '5',
+      '1', '2', '3', '4', '5', 'n', 'N',
     ];
     const allKeys = [...Object.keys(TERRAIN_CHARS), ...Object.keys(ENTITY_CHARS), ...Object.keys(SIGN_CHARS)];
     for (const key of allKeys) {
