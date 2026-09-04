@@ -26,6 +26,7 @@ import {
   collectedKeys,
   spawnedCoinPlacements,
   allCollectiblePlacements,
+  levelTotals,
 } from './PlatformerState';
 import type { CollectedFact } from './types';
 import { mapCVDataToEnemies } from './level/EnemyMapper';
@@ -483,5 +484,50 @@ describe('blockPlacements — coinPot', () => {
     // documents that expectation and will fail loudly if that task is
     // skipped or the marker is later removed.
     expect(blockPlacements.value.some((b) => b.blockKind === 'coinPot')).toBe(true);
+  });
+});
+
+describe('levelTotals', () => {
+  afterEach(() => {
+    // currentLayout is module-level (see level.ts's doc comment) — restore it
+    // so this describe block doesn't leak a stripped-down layout into every
+    // other test in this file.
+    currentLayout.value = LEVEL_1_LAYOUT;
+  });
+
+  it('layoutWithNoMarkers-isAllZeroes', () => {
+    currentLayout.value = ['GGG'];
+
+    expect(levelTotals.value).toEqual({ coins: 0, fruits: 0, enemies: 0, crates: 0, chests: 0 });
+  });
+
+  // A coin-pot's coin does not exist in allCollectiblePlacements until the pot
+  // is destroyed, so the total counts placed coins PLUS every pot up front —
+  // otherwise the denominator would creep upward during play instead of
+  // staying fixed all session.
+  it('layoutWithOneCoinAndOneCoinPot-countsBothAsCoins', () => {
+    currentLayout.value = ['SCu', 'GGG'];
+
+    expect(levelTotals.value.coins).toBe(2);
+  });
+
+  it('layoutWithOneCoinAndOneCoinPot-countsNoOtherCollectible', () => {
+    currentLayout.value = ['SCu', 'GGG'];
+
+    expect(levelTotals.value).toMatchObject({ fruits: 0, enemies: 0, crates: 0, chests: 0 });
+  });
+
+  it('level1Layout-matchesTheSamePlacementFiltersEveryCallSiteUsedBefore', () => {
+    // Guards against a mis-wired field (crates reading questionMark, say) —
+    // each field must equal the exact expression its former call site used.
+    expect(levelTotals.value).toEqual({
+      coins:
+        collectiblePlacements.value.filter((p) => p.spriteType === 'coin').length +
+        blockPlacements.value.filter((b) => b.blockKind === 'coinPot').length,
+      fruits: blockPlacements.value.filter((b) => b.blockKind === 'questionMark' && b.fact).length,
+      enemies: enemyPlacements.value.filter((p) => p.fact).length,
+      crates: blockPlacements.value.filter((b) => b.blockKind === 'crate').length,
+      chests: chestPlacements.value.length,
+    });
   });
 });

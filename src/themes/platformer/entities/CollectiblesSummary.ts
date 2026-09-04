@@ -48,20 +48,22 @@ export interface CollectibleSummaryRow {
 }
 
 /**
- * Every placed-in-level count this summary needs, one per row — the caller
- * (`Journal.tsx`) computes these from the same placement arrays
- * (`collectiblePlacements`/`blockPlacements`/`enemyPlacements`) the HUD's
- * own counters already use, so both places always agree. Totaling against
- * placement counts rather than raw CVData length avoids a row showing more
- * than the level actually has placed — e.g. Projects showing "0/3" forever
- * when 0 of its 3 entries have a question-mark marker.
+ * Every placed-in-level count, one per collectible counter. Derived once by
+ * `PlatformerState.ts`'s `levelTotals` computed and read by both the journal's
+ * summary rows and the HUD's counter popups, so the two can never disagree.
+ * Totalling against placement counts rather than raw CVData length avoids a
+ * row showing more than the level actually has placed — e.g. Projects showing
+ * "0/3" forever when 0 of its 3 entries have a question-mark marker.
  */
-export interface CollectibleSummaryTotals {
+export interface LevelTotals {
   coins: number;
   fruits: number;
   enemies: number;
   crates: number;
   chests: number;
+}
+
+export type CollectibleSummaryTotals = LevelTotals & {
   /**
    * Overrides the coins row's "collected" count — needed because a coin no
    * longer carries a fixed 1:1 fact binding (see CollectibleMapper.ts's
@@ -70,12 +72,11 @@ export interface CollectibleSummaryTotals {
    * are different numbers whenever the coin count and the skill-category
    * count differ, so deriving "collected" from `facts` the way every other
    * row still does would show a numerator in different units than the
-   * denominator (and could even exceed it). Falls back to the old
-   * facts-derived count when omitted, purely so this file's own pre-existing
-   * tests (which don't know about pacing) keep passing unchanged.
+   * denominator (and could even exceed it). Falls back to the
+   * facts-derived count when omitted.
    */
   coinsCollected?: number;
-}
+};
 
 /**
  * Collectible-type summary for the personality/"About Me" page's right
