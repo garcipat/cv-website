@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { importLayout } from './importLayout';
 import { exportLayout } from './exportLayout';
+import { cropLevelForExport } from './cropLevelForExport';
 import { Palette } from './Palette';
 import { EditorCanvas, type EditorImages } from './EditorCanvas';
 import { updatePanOffset, type PanOffset } from './EditorPan';
@@ -215,7 +216,8 @@ export const LevelEditorPage = () => {
    * that is worth saying before it is dismissed.
    */
   const saveCurrentLevel = async () => {
-    const result = await saveLevel(saveName, grid, backgroundPlacements);
+    const cropped = cropLevelForExport(grid, backgroundPlacements);
+    const result = await saveLevel(saveName, cropped.layout, cropped.background);
     setSaveResult(result);
     setLoadedLevelName(saveName);
     setDirty(false);
@@ -242,8 +244,9 @@ export const LevelEditorPage = () => {
    * available for testing the layout.
    */
   const tryLayout = () => {
-    currentLayout.value = exportLayout(grid);
-    currentBackground.value = backgroundPlacements;
+    const cropped = cropLevelForExport(grid, backgroundPlacements);
+    currentLayout.value = cropped.layout;
+    currentBackground.value = cropped.background;
     resetGameProgress();
     currentTheme.value = 'platformer';
     navigateTo('/?debug=1');
@@ -400,6 +403,21 @@ export const LevelEditorPage = () => {
                   -colShift * RENDERED_TILE_SIZE,
                   -rowShift * RENDERED_TILE_SIZE,
                 ),
+              );
+              // Foreground grid growth shifts every existing index the same
+              // way (see growGrid.ts) — background placements are a
+              // separate, unbounded list that growGrid never touches, so
+              // without this a piece placed near an edge visually drifts
+              // away from the foreground content it was placed next to the
+              // moment a later paint grows the grid leftward/upward (Task 20
+              // gap #1, confirmed by the project owner: the two layers'
+              // effective bounds must never be able to drift apart).
+              setBackgroundPlacements((prev) =>
+                prev.map((placement) => ({
+                  ...placement,
+                  col: placement.col + colShift,
+                  row: placement.row + rowShift,
+                })),
               );
             }
           }}
