@@ -133,7 +133,7 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   entity like `Crate`/`QuestionMark` (placed on top of terrain) vs. a terrain `TileType`
   like `wall`/`ladder`. Needs its own brainstorming pass first: instant-death vs. heart
   damage, and how they read visually against the existing tile atlas.
-- [ ] **41. Blocks own their outcomes, one shared reveal trigger** — blocks get the
+- [x] **41. Blocks own their outcomes, one shared reveal trigger** — blocks get the
   behavior half of the pattern enemies already have: `BlockType.triggerSides` +
   `onHit` returning a declarative outcome, so `PlatformerPage.tsx`'s tick handler
   stops branching on `blockKind` and its two near-duplicate hit loops collapse into
