@@ -10,6 +10,8 @@ export type TileType =
    *  author pens an enemy into a stretch of open ground without putting a
    *  visible obstacle there. */
   | 'patrol'
+  | 'bush'
+  | 'fence'
   | 'empty';
 
 export type TileMap = TileType[][];

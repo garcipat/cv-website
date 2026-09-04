@@ -39,6 +39,7 @@ const EMPTY_IMAGES: EditorImages = {
   crackOverlay: null,
   chestClosed: null,
   backgroundAtlas: null,
+  staticObjects: null,
 };
 
 // Default props shared by every pre-existing test in this file (all of
@@ -237,6 +238,7 @@ describe('EditorCanvas', () => {
       groundAtlas,
       0,
       0,
+      null,
     );
   });
 
@@ -908,6 +910,32 @@ describe('EditorCanvas — background layer', () => {
     );
 
     expect(alphaDuringDrawTerrain).toBe(1);
+  });
+
+  it('staticObjectsLoaded-passedThroughToDrawTerrain', () => {
+    stubCanvasContext();
+    const tileset = {} as HTMLImageElement;
+    const groundAtlas = {} as HTMLImageElement;
+    const fakeStaticObjects = {} as HTMLImageElement;
+    render(
+      <EditorCanvas
+        grid={[['.']]}
+        selectedTool="."
+        panOffset={{ x: 0, y: 0 }}
+        images={{ ...EMPTY_IMAGES, tileset, groundAtlas, staticObjects: fakeStaticObjects }}
+        backgroundPlacements={[]}
+        activeLayer="foreground"
+        selectedBackgroundPiece={null}
+        onPaint={vi.fn()}
+        onPaintBackground={vi.fn()}
+        onPan={vi.fn()}
+      />,
+    );
+
+    expect(drawTerrain).toHaveBeenCalledWith(
+      expect.anything(), expect.anything(), expect.anything(), expect.anything(),
+      expect.anything(), expect.anything(), fakeStaticObjects,
+    );
   });
 
   it('backgroundLayerActive-drawsPlayerAtReducedOpacityToo', () => {
