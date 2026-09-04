@@ -62,6 +62,7 @@ import {
   checkKeyPickupCollisions,
 } from './engine/Collision';
 import { openChest, allChestsOpen, isChestOpen, CHEST_CLOSED_OFFSET_X } from './entities/Chest';
+import { countCollectedFor } from './entities/CollectiblesSummary';
 import { stepBlockAnimation } from './engine/BlockAI';
 import {
   applyBlockHit,
@@ -1404,9 +1405,7 @@ export const PlatformerPage = () => {
               const stackOffsetY = slot * COLLECTION_TEXT_STACK_ROW_HEIGHT;
               collectedFacts.value = [...collectedFacts.value, block.fact];
               const crateTotal = blockPlacements.value.filter((b) => b.blockKind === 'crate').length;
-              const crateCollected = collectedFacts.value.filter(
-                (f) => f.sectionId === 'experience' || f.sectionId === 'education',
-              ).length;
+              const crateCollected = countCollectedFor('crates', collectedFacts.value);
               activeCounterPopups.value = {
                 ...activeCounterPopups.value,
                 crates: startCounterPopup('crates', crateCollected, crateTotal),
