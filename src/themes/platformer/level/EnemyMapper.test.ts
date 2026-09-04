@@ -1,4 +1,4 @@
-import { mapCVDataToEnemies, placeEnemies } from './EnemyMapper';
+import { mapCVDataToEnemies, mapCVDataToEnemyFactPool, placeEnemies } from './EnemyMapper';
 import { tileToPixel } from './Terrain';
 import type { CVData } from '@/types/cv';
 
@@ -70,6 +70,23 @@ describe('mapCVDataToEnemies (green-only Courses)', () => {
 
   it('mapCVDataToEnemies-emptyCourses-returnsEmptyArray', () => {
     expect(mapCVDataToEnemies({ courses: [] } as unknown as CVData)).toEqual([]);
+  });
+});
+
+describe('mapCVDataToEnemyFactPool', () => {
+  it('called-returnsOneFactPerCourse', () => {
+    const pool = mapCVDataToEnemyFactPool(cv);
+    expect(pool).toHaveLength(3);
+  });
+
+  it('called-matchesTheFactsOnMapCVDataToEnemiesInOrder', () => {
+    const defs = mapCVDataToEnemies(cv);
+    const pool = mapCVDataToEnemyFactPool(cv);
+    expect(pool).toEqual(defs.map((d) => d.fact));
+  });
+
+  it('noCourses-returnsEmptyPool', () => {
+    expect(mapCVDataToEnemyFactPool({ ...cv, courses: [] })).toEqual([]);
   });
 });
 

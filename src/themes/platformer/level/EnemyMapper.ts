@@ -1,7 +1,7 @@
 import { tileToPixel } from './Terrain';
 import { slugify } from './CollectibleMapper';
 import type { CVData, Course } from '@/types/cv';
-import type { EnemyDef } from '../types';
+import type { EnemyDef, CollectedFact } from '../types';
 
 /**
  * Certificates and Projects are revealed by the question-mark blocks' bonus
@@ -32,6 +32,21 @@ function courseToEnemy(course: Course, type: EnemyDef['type']): EnemyDef {
  */
 export function mapCVDataToEnemies(cv: CVData): EnemyDef[] {
   return cv.courses.map((course) => courseToEnemy(course, 'slimeGreen'));
+}
+
+/**
+ * The ordered pool of course facts a defeated green slime can reveal — same
+ * facts and order as `mapCVDataToEnemies`' defs, just exposed as a pool
+ * rather than zipped 1:1 to a specific enemy. Every def `mapCVDataToEnemies`
+ * produces has a fact (see its own doc comment), so mapping `.fact` directly
+ * is exhaustive. `PlatformerPage.tsx` resolves how many of this pool's
+ * entries have been revealed so far — and therefore which one a given
+ * defeated enemy reveals — via `level/SkillFactPacing.ts`'s
+ * `revealedFactCountFor`, proportionally across every green slime the level
+ * has, mirroring how `skillFactPool` already works for coins.
+ */
+export function mapCVDataToEnemyFactPool(cv: CVData): CollectedFact[] {
+  return mapCVDataToEnemies(cv).map((d) => d.fact!);
 }
 
 export interface EnemyPlacement extends EnemyDef {

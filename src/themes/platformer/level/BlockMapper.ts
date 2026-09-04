@@ -2,6 +2,7 @@ import { tileToPixel, RENDERED_TILE_SIZE } from './Terrain';
 import { slugify } from './CollectibleMapper';
 import type { CVData, Education, Certificate, Project, Activity, Language } from '@/types/cv';
 import type { BlockDef } from '../types';
+import type { CollectedFact } from '../types';
 
 function educationToBlock(education: Education): BlockDef {
   const id = `block-edu-${slugify(`${education.degree}-${education.institution}`)}`;
@@ -95,6 +96,24 @@ export function mapCVDataToBlocks(cv: CVData): BlockDef[] {
     ...cv.certificates.map(certificateToBlock),
     ...cv.projects.map(projectToBlock),
   ];
+}
+
+/**
+ * The ordered pool of Education/Activity/Language facts a destroyed crate
+ * can reveal — same facts and order as the crate defs in `mapCVDataToBlocks`,
+ * just exposed as a pool rather than zipped 1:1 to a specific crate. Every
+ * crate `mapCVDataToBlocks` produces has a fact (see its own doc comment),
+ * so filtering to `blockKind === 'crate'` and reading `.fact` is exhaustive.
+ * `PlatformerPage.tsx` resolves how many of this pool's entries have been
+ * revealed so far — and therefore which one a given destroyed crate reveals —
+ * via `level/SkillFactPacing.ts`'s `revealedFactCountFor`, proportionally
+ * across every crate the level has, mirroring how `skillFactPool` already
+ * works for coins.
+ */
+export function mapCVDataToCrateFactPool(cv: CVData): CollectedFact[] {
+  return mapCVDataToBlocks(cv)
+    .filter((d) => d.blockKind === 'crate')
+    .map((d) => d.fact!);
 }
 
 export interface BlockPlacement extends BlockDef {

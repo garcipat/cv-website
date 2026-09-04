@@ -1,4 +1,4 @@
-import { mapCVDataToBlocks, placeBlocks, isBlockOccupied, blockIdAt } from './BlockMapper';
+import { mapCVDataToBlocks, mapCVDataToCrateFactPool, placeBlocks, isBlockOccupied, blockIdAt } from './BlockMapper';
 import { tileToPixel } from './Terrain';
 import type { CVData } from '@/types/cv';
 
@@ -106,6 +106,30 @@ describe('mapCVDataToBlocks', () => {
   it('noCertificatesOrProjects-returnsNoQuestionMarkBlocks', () => {
     const defs = mapCVDataToBlocks({ ...cv, certificates: [], projects: [] });
     expect(defs.filter((d) => d.blockKind === 'questionMark')).toHaveLength(0);
+  });
+});
+
+describe('mapCVDataToCrateFactPool', () => {
+  it('called-returnsOneFactPerEducationPlusActivityPlusLanguage', () => {
+    const pool = mapCVDataToCrateFactPool(cv); // 1 education + 1 activity + 0 languages
+    expect(pool).toHaveLength(2);
+  });
+
+  it('called-matchesTheFactsOnMapCVDataToBlocksCrateDefsInOrder', () => {
+    const crateDefs = mapCVDataToBlocks(cv).filter((d) => d.blockKind === 'crate');
+    const pool = mapCVDataToCrateFactPool(cv);
+    expect(pool).toEqual(crateDefs.map((d) => d.fact));
+  });
+
+  it('noEducationActivitiesOrLanguages-returnsEmptyPool', () => {
+    const pool = mapCVDataToCrateFactPool({ ...cv, education: [], activities: [], languages: [] });
+    expect(pool).toEqual([]);
+  });
+
+  it('poolEntries-excludeQuestionMarkFacts', () => {
+    // Certificates/Projects feed question-mark fruit, not the crate pool.
+    const pool = mapCVDataToCrateFactPool(cv);
+    expect(pool.some((f) => f.sectionId === 'certificates' || f.sectionId === 'projects')).toBe(false);
   });
 });
 

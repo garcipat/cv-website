@@ -21,6 +21,8 @@ import {
   activeJournalSection,
   collectiblePlacements,
   skillFactPool,
+  crateFactPool,
+  enemyFactPool,
   collectedCollectibleIds,
   activeEffects,
   enemyPlacements,
@@ -119,11 +121,6 @@ const firstTileOfType = (
   }
   throw new Error(`level has no ${type} tile matching the given condition`);
 };
-
-/** How far right of a real green slime the synthetic "plain" enemy in the
- *  two tests below is placed: far enough that one stomp cannot defeat both,
- *  close enough to stay on the same stretch of ground. */
-const PLAIN_ENEMY_OFFSET_X = 5 * RENDERED_TILE_SIZE;
 
 /** How far right of a real crate the synthetic coin-pot blocks in the
  *  coin-pot landing tests below are placed — same reasoning as
@@ -1073,11 +1070,14 @@ describe('PlatformerPage', () => {
     expect(activePuffs.value.some((p) => p.id === target.id)).toBe(true);
   });
 
-  it('playerFallsOntoAPlainEnemyWithNoFact-tick-defeatsItButAwardsNoFact', () => {
-    // A "plain" enemy (EnemyMapper.ts's excess-marker case — enemies are not
-    // capped at CVData's length) has no `fact` — stomping it must still
-    // flag it dead like any other enemy, just without banking a fact or
-    // bumping the enemy counter popup.
+  it('enemyFactPoolExhausted-defeatingAGreenEnemy-awardsNoNewFact', () => {
+    // A green slime no longer carries a fixed fact of its own — which fact
+    // (if any) a defeat reveals is resolved dynamically from the shared
+    // enemy fact pool, proportionally across every green slime the level has
+    // (see PlatformerState.ts's enemyFactPool doc comment), the same way a
+    // coin pickup already works. Once every pool entry is already banked,
+    // defeating a fresh green slime must still flag it dead, just without
+    // banking a duplicate/new fact.
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frameCallback = cb;
@@ -1088,26 +1088,13 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const real = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
-    // Offset a few tiles clear of `real`'s position — otherwise both enemies
-    // sit exactly on top of each other and a single stomp defeats both,
-    // muddying what this test is actually checking. Kept small and reused
-    // from `real`'s own y: the level's surface climbs and drops between
-    // terraces, so a large offset would drop this enemy (and the player
-    // landing on it) somewhere the ground is at a different height.
-    const plain = toEnemyState(
-      { ...real, id: 'enemy-plain-slimeGreen-test', x: real.x + PLAIN_ENEMY_OFFSET_X, fact: undefined },
-      0,
-    );
-    enemyStates.value = [...enemyStates.value, plain];
-    const factsBefore = collectedFacts.value.length;
+    // Exhaust the pool: every course fact is already banked, so whichever
+    // pool slot this defeat's pacing points at is deduped away by the
+    // trigger and nothing new is revealed.
+    collectedFacts.value = [...enemyFactPool.value];
 
-    playerState.value = {
-      ...playerState.value,
-      x: plain.x,
-      y: stompLandingY(plain),
-      vy: 300,
-    };
+    const target = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
+    playerState.value = { ...playerState.value, x: target.x, y: stompLandingY(target), vy: 300 };
 
     let t = 16;
     frameCallback!(t);
@@ -1116,18 +1103,14 @@ describe('PlatformerPage', () => {
       frameCallback!(t);
     }
 
-    expect(enemyStates.value.find((e) => e.id === plain.id)?.alive).toBe(false);
-    expect(collectedFacts.value).toHaveLength(factsBefore);
+    expect(enemyStates.value.find((e) => e.id === target.id)?.alive).toBe(false);
+    expect(collectedFacts.value).toHaveLength(enemyFactPool.value.length);
   });
 
-  it('playerFallsOntoAPlainEnemyWithNoFact-firstDefeat-stillQueuesAPuff', () => {
-    // The `!fact || enemy.rewardGiven` branch in PlatformerPage.tsx covers
-    // two distinct cases: a revived enemy defeated again (rewardGiven true,
-    // covered by greenSlimeRevivedAndDefeatedAgain-secondDefeat-...), and a
-    // "plain" enemy (no fact at all, EnemyMapper.ts's excess-marker case)
-    // defeated for the very first time (!fact, rewardGiven still false at
-    // that point). Either way the defeat is still a world event that
-    // deserves a puff (B-003) — this asserts the !fact disjunct specifically.
+  it('enemyFactPoolExhausted-defeatingAGreenEnemy-stillQueuesAPuff', () => {
+    // Puff (defeat feedback) and the fact/flight-text reward are fully
+    // decoupled layers (B-003) — a defeat that awards nothing because the
+    // pool is already exhausted is still a world event that deserves a puff.
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frameCallback = cb;
@@ -1138,25 +1121,10 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const real = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
-    // Offset a few tiles clear of `real`'s position — otherwise both enemies
-    // sit exactly on top of each other and a single stomp defeats both,
-    // muddying what this test is actually checking. Kept small and reused
-    // from `real`'s own y: the level's surface climbs and drops between
-    // terraces, so a large offset would drop this enemy (and the player
-    // landing on it) somewhere the ground is at a different height.
-    const plain = toEnemyState(
-      { ...real, id: 'enemy-plain-slimeGreen-test-puff', x: real.x + PLAIN_ENEMY_OFFSET_X, fact: undefined },
-      0,
-    );
-    enemyStates.value = [...enemyStates.value, plain];
+    collectedFacts.value = [...enemyFactPool.value];
 
-    playerState.value = {
-      ...playerState.value,
-      x: plain.x,
-      y: stompLandingY(plain),
-      vy: 300,
-    };
+    const target = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
+    playerState.value = { ...playerState.value, x: target.x, y: stompLandingY(target), vy: 300 };
 
     let t = 16;
     frameCallback!(t);
@@ -1165,8 +1133,8 @@ describe('PlatformerPage', () => {
       frameCallback!(t);
     }
 
-    expect(enemyStates.value.find((e) => e.id === plain.id)?.alive).toBe(false);
-    expect(activePuffs.value.some((p) => p.id === plain.id)).toBe(true);
+    expect(enemyStates.value.find((e) => e.id === target.id)?.alive).toBe(false);
+    expect(activePuffs.value.some((p) => p.id === target.id)).toBe(true);
   });
 
   it('purpleSlimeDefeat-thirdStomp-spawnsKeyPickupInsteadOfJournalFact', () => {
@@ -1464,12 +1432,15 @@ describe('PlatformerPage', () => {
       frameCallback!(t);
     }
     expect(activePuffs.value.some((p) => p.id === crate.id)).toBe(false);
-    expect(activeEffects.value.some((e) => e.id === crate.id)).toBe(false);
+    expect(activeEffects.value.some((e) => e.id.startsWith(`${crate.id}-`))).toBe(false);
 
     // Second hit — the terminal one — must ALWAYS queue a puff (destruction
     // feedback, reusing the same blockEffectAnchor/startPuffEffect mechanism
-    // as fragileRock above) AND independently still award the existing
-    // fact/flight-effect reward, since every real crate carries a fact.
+    // as fragileRock above) AND independently still award a fact/flight-effect
+    // reward: this is the very first crate destroyed this session, and the
+    // crate pool is at least as long as the level's crate count, so its
+    // proportional pacing slot always reveals something (see
+    // PlatformerState.ts's crateFactPool doc comment).
     playerState.value = { ...playerState.value, ...bumpPosition };
     t += 16;
     frameCallback!(t);
@@ -1479,8 +1450,11 @@ describe('PlatformerPage', () => {
     }
 
     expect(activePuffs.value.some((p) => p.id === crate.id)).toBe(true);
-    expect(activeEffects.value.some((e) => e.id === crate.id)).toBe(true);
-    expect(collectedFacts.value.some((f) => f.id === crate.fact?.id)).toBe(true);
+    // The flight effect's id is `${crateId}-${factIndex}`, not the crate's
+    // own id — a single crate can reveal more than one fact when fewer
+    // crates are placed than there are crate-pool facts.
+    expect(activeEffects.value.some((e) => e.id.startsWith(`${crate.id}-`))).toBe(true);
+    expect(collectedFacts.value).toEqual([crateFactPool.value[0]]);
   });
 
   it('crateDestroyedFromBelow-terminalHit-bumpsTheCratesCounterPopup', () => {

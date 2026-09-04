@@ -636,12 +636,14 @@ describe('Journal', () => {
       expect(journalPage.collectiblesSummary).not.toBeInTheDocument();
     });
 
-    it('enemyMarkerBeyondCourseCount-plainEnemyDoesNotInflateEnemiesTotal', () => {
-      // Enemy placement is not capped at CVData's course count — a "plain"
-      // enemy marker beyond that count has no `fact` (EnemyDef.fact is
-      // optional) and must not count toward the Journal's "Enemies"
-      // denominator, matching how the `fruits` row already filters block
-      // placements down to fact-bearing ones.
+    it('enemyMarkerBeyondCourseCount-everyGreenMarkerCountsTowardEnemiesTotal', () => {
+      // Enemy placement is not capped at CVData's course count — a green
+      // marker beyond that count still counts toward the Journal's
+      // "Enemies" denominator: a green slime no longer carries a fixed fact
+      // of its own, so every green placement participates in the shared
+      // enemy fact pool's proportional pacing (see PlatformerState.ts's
+      // enemyFactPool doc comment), the same way the coin/skill-fact pool
+      // already spreads across every coin regardless of individual pickup.
       //
       // Driven through a real `currentLayout` write rather than a
       // `vi.spyOn(enemyPlacements, 'value', 'get')` getter override: the
@@ -654,8 +656,7 @@ describe('Journal', () => {
       // is the same pattern the sibling `coinsTotal-includesEveryCoinPotBlock`
       // test above uses. Here the layout carries far more green-slime (`E`)
       // markers than CVData has courses, so the excess placements are
-      // guaranteed to be fact-less "plain" enemies (see EnemyMapper.ts's
-      // placeQueue).
+      // guaranteed to exceed the enemy fact pool's length.
       try {
         const enemyMarkerCount = 20;
         currentLayout.value = ['S' + 'E'.repeat(enemyMarkerCount), 'G'.repeat(enemyMarkerCount + 1)];
@@ -664,19 +665,16 @@ describe('Journal', () => {
         render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
         openBookAnimation();
 
-        // Derived from the real reactive placements, not hardcoded — so this
-        // stays correct whenever CVData's course count changes.
-        const expectedEnemiesTotal = enemyPlacements.value.filter((p) => p.fact).length;
         // Confirms the layout actually exercises the beyond-count case: if
-        // every marker got a fact, the "plain enemy" scenario this test names
+        // every marker had a matching course, the scenario this test names
         // would go untested even though the assertion below still passed.
-        expect(expectedEnemiesTotal).toBeLessThan(enemyMarkerCount);
+        expect(enemyPlacements.value.filter((p) => p.fact).length).toBeLessThan(enemyMarkerCount);
 
         const summary = journalPage.collectiblesSummary;
         // Anchored so a substring of a different total (e.g. "1" inside "12")
         // can't satisfy the assertion — the unanchored regex this replaced is
         // half of why the old spy-based test went silently vacuous.
-        expect(summary).toHaveTextContent(new RegExp(`Enemies 0 / ${expectedEnemiesTotal}(?!\\d)`));
+        expect(summary).toHaveTextContent(new RegExp(`Enemies 0 / ${enemyMarkerCount}(?!\\d)`));
       } finally {
         currentLayout.value = LEVEL_1_LAYOUT;
       }
