@@ -1252,7 +1252,10 @@ export const PlatformerPage = () => {
               x: block.x,
               y: block.y,
               effectId: block.id,
-              counterKey: 'crates',
+              // Supplied by the block's own outcome, not assumed here: which
+              // counter a reveal feeds is per-kind knowledge and belongs to
+              // the kind.
+              counterKey: outcome.counterKey,
             });
           }
         }

@@ -54,7 +54,16 @@ describe('crate.onHit', () => {
   it('terminalHit-revealsItsFact', () => {
     const outcome = crate.onHit!(block({ hitsTaken: 2, fact: crateFact }));
 
-    expect(outcome).toEqual({ revealFact: crateFact });
+    expect(outcome).toEqual({ revealFact: crateFact, counterKey: 'crates' });
+  });
+
+  it('terminalHit-attributesItsRewardToTheCratesCounter', () => {
+    // The kind owns this, not the engine: without it a second fact-bearing
+    // block kind would have its reveal attributed to whatever counter the
+    // engine happened to hardcode.
+    const outcome = crate.onHit!(block({ hitsTaken: 2, fact: crateFact }));
+
+    expect(outcome.counterKey).toBe('crates');
   });
 
   it('terminalHitWithNoFact-revealsNothing', () => {

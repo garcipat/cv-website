@@ -64,7 +64,7 @@ Modified files, by task:
 
 This is the one task that changes user-visible behavior. Keep it as its own commit.
 
-The bug: `PlatformerPage.tsx`'s crate popup numerator counts `sectionId === 'experience' || sectionId === 'education'`, but `level/BlockMapper.ts` maps crates from **education, activities, languages** — `'experience'` is the CHEST pool. So chest facts inflate the crate counter and activities/languages crates never increment it, while `CollectiblesSummary.ts` has the mapping right. The buggy expression is inline inside the `requestAnimationFrame` closure and cannot be reached from a test, so making it testable requires extracting the mapping — that extraction IS the fix.
+The bug: `PlatformerPage.tsx`'s crate popup numerator counts `sectionId === 'experience' || sectionId === 'education'`, but `level/BlockMapper.ts` maps crates from **education, activities, languages** — `'experience'` is the CHEST pool. So chest facts inflate the crate counter and activities/languages crates never increment it, while `CollectiblesSummary.ts` has the mapping right. The buggy expression is inline inside the `requestAnimationFrame` closure, so it has no unit-test seam of its own; writing a failing test for the MAPPING requires extracting it — that extraction IS the fix. (The closure itself is driven by `PlatformerPage.test.tsx`, which is where the fixed wiring is pinned at the call site.)
 
 **Files:**
 
@@ -1184,7 +1184,7 @@ Expected: no hits inside the tick handler. (A `blockKind` mention may legitimate
 - [ ] **Step 5: Run the tests and lint**
 
 Run: `npm test`
-Expected: PASS. `PlatformerPage.test.tsx` does not drive the RAF loop, so it will not catch a logic error here — Task 7's browser check is what verifies this task.
+Expected: PASS. `PlatformerPage.test.tsx` stubs `requestAnimationFrame` and drives real ticks, so its crate, coin-pot and land-on-top tests exercise this block-hit pass directly and will catch a logic error here. Task 7's browser check covers what the suite cannot see (timing, layering, visual jank).
 
 Run: `npm run lint`
 Expected: no errors.
@@ -1593,7 +1593,7 @@ The puff push, the `rewardGiven`/`deathEffectGiven` marking, and the purple-slim
             });
 ```
 
-The pacing loop, `coinsCollectedSoFar` bookkeeping and `collectedCollectibleIds` update all stay. The separate `if (touchedIds.some(...coin...)) { ... startCounterPopup('coins', ...) }` block at the end goes away — the trigger bumps the popup per reveal now. **Behavior note to verify in the browser:** a coin that reveals no fact (the pacing formula's `factCountBefore === factCountAfter` case) previously still refreshed the coins popup, and now will not. If that regression is visible, re-add an explicit `startCounterPopup('coins', coinsCollectedSoFar, levelTotals.value.coins)` for the no-fact case rather than changing the trigger.
+The pacing loop, `coinsCollectedSoFar` bookkeeping and `collectedCollectibleIds` update all stay. The `if (touchedIds.some(...coin...)) { ... startCounterPopup('coins', ...) }` block at the end also STAYS, and the coin's `revealFact` call omits `counterKey`: a coin's reward is resolved dynamically at pickup time and most coins reveal no fact, so routing the coins popup through the trigger would leave the tail of a level collecting coins with no "coins collected / total" feedback at all. This is the one popup bumped at its own site rather than by the trigger, and `PlatformerPage.test.tsx` pins it (`coinThatRevealsNoFact-tick-stillBumpsTheCoinsCounterPopup`).
 
 3. **Bonus fruit** (around line 1058):
 
@@ -1644,10 +1644,10 @@ The `openChest` state change and the `collectedKeys` decrement stay.
 - [ ] **Step 8: Verify no duplicated reveal machinery remains**
 
 Run: `grep -c "startFlightEffect" src/themes/platformer/PlatformerPage.tsx`
-Expected: 1 — only the key pickup's own call (which deliberately stays outside the trigger).
+Expected: 2 matching LINES — the import, plus the key pickup's own call (which deliberately stays outside the trigger). `grep -c` counts lines, not occurrences.
 
 Run: `grep -c "startCounterPopup" src/themes/platformer/PlatformerPage.tsx`
-Expected: 0 — every popup now goes through the trigger.
+Expected: 2 matching LINES — the import, plus ONE call site: the coin pickup, which deliberately stays outside the trigger (see Task 6's coin site above). Every other popup goes through the trigger.
 
 - [ ] **Step 9: Run the tests and lint**
 
@@ -1681,7 +1681,7 @@ Expected: all clean. Do not proceed to Step 2 with any of them failing.
 
 - [ ] **Step 2: Verify in the browser**
 
-Start the dev server via the preview tooling (never a raw `npm run dev` in a shell) and walk the level. The tick handler has no test harness, so this IS the integration test for Tasks 5 and 6. Check each:
+Start the dev server via the preview tooling (never a raw `npm run dev` in a shell) and walk the level. `PlatformerPage.test.tsx` already drives real ticks through a stubbed `requestAnimationFrame`, so Tasks 5 and 6 have automated integration coverage; this check is for what the suite cannot see — sprites, timing, layering and visual jank. Check each:
 
 1. **Crate, hit 1** — cracks, bumps, no fact text, no puff.
 2. **Crate, hit 2** — shatters, puff fires, fact text flies to the journal, crate popup increments.
