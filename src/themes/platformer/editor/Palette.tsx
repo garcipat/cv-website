@@ -21,6 +21,7 @@ interface PaletteProps {
 }
 
 const EMPTY_CHAR: TileChar = '.';
+const PATROL_CHAR: TileChar = 'P';
 const BACKGROUND_PIECE_IDS = Object.keys(BACKGROUND_CATALOG) as BackgroundPieceId[];
 const DECORATION_CHARS: TileChar[] = ['n', 'N'];
 
@@ -32,7 +33,9 @@ export const Palette = ({
   onSelectBackgroundPiece,
 }: PaletteProps) => {
   const allTerrainKeys = (Object.keys(TERRAIN_CHARS) as TileChar[]).filter((key) => key !== EMPTY_CHAR);
-  const terrainKeys = allTerrainKeys.filter((key) => !DECORATION_CHARS.includes(key));
+  const terrainKeys = allTerrainKeys.filter(
+    (key) => !DECORATION_CHARS.includes(key) && key !== PATROL_CHAR,
+  );
   const decorationKeys = allTerrainKeys.filter((key) => DECORATION_CHARS.includes(key));
   const entityKeys = Object.keys(ENTITY_CHARS) as TileChar[];
   // Only the FIRST registered sign character becomes a palette tile — clicking
@@ -40,7 +43,10 @@ export const Palette = ({
   // (Task 7's paintCell.ts), so the palette itself never needs to grow past one
   // "Sign" entry no matter how many distinct hints get registered later.
   const [firstSignKey] = Object.keys(SIGN_CHARS) as TileChar[];
-  const toolKeys: TileChar[] = [...(firstSignKey ? [firstSignKey] : []), EMPTY_CHAR];
+  // Patrol lives here rather than in "Terrain": it's an invisible marker, not
+  // physical ground, so it reads more like a level-authoring tool (same
+  // category as the Eraser and Sign) than like grass/rock/wall.
+  const toolKeys: TileChar[] = [...(firstSignKey ? [firstSignKey] : []), PATROL_CHAR, EMPTY_CHAR];
 
   const renderGroup = (title: string, keys: TileChar[]) => (
     <section key={title} aria-label={title}>
