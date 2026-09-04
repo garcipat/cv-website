@@ -125,11 +125,11 @@ describe('parseLevelModules — background field', () => {
       './levels/cave.json': {
         name: 'Cave',
         layout: ['.S.', 'GGG'],
-        background: [{ pieceId: 'dirtColumnA', col: 0, row: 0 }],
+        background: [{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }],
       },
     };
     const [entry] = parseLevelModules(modules);
-    expect(entry.background).toEqual([{ pieceId: 'dirtColumnA', col: 0, row: 0 }]);
+    expect(entry.background).toEqual([{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }]);
   });
 
   it('moduleWithNoBackgroundField-hasUndefinedBackgroundOnTheEntry', () => {

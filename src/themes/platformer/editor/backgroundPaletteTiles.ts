@@ -27,7 +27,13 @@ export const BACKGROUND_PALETTE_SPRITES: Record<BackgroundPieceId, TileSpriteSpe
 
 export const BACKGROUND_PALETTE_LABELS: Record<BackgroundPieceId, string> = {
   dirtBlock3x3: 'Dirt Block (3×3)',
-  dirtColumnA: 'Dirt Column A',
+  dirtBlockTop2x1: 'Dirt Block Top (2×1)',
+  dirtBlockBottom2x2: 'Dirt Block Bottom (2×2)',
+  dirtColumnTop1x1: 'Dirt Column Top (1×1)',
+  dirtColumnBottom1x2: 'Dirt Column Bottom (1×2)',
   charcoalBlock3x3: 'Charcoal Block (3×3)',
-  charcoalColumnA: 'Charcoal Column A',
+  charcoalBlockTop2x1: 'Charcoal Block Top (2×1)',
+  charcoalBlockBottom2x2: 'Charcoal Block Bottom (2×2)',
+  charcoalColumnTop1x1: 'Charcoal Column Top (1×1)',
+  charcoalColumnBottom1x2: 'Charcoal Column Bottom (1×2)',
 };

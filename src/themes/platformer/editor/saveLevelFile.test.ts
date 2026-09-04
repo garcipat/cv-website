@@ -68,11 +68,11 @@ describe('levelFileJson', () => {
 
 describe('levelFileJson — background field', () => {
   it('nonEmptyBackground-isIncludedInTheSerializedJson', () => {
-    const json = levelFileJson('Cave', [['S']], [{ pieceId: 'dirtColumnA', col: 0, row: 0 }]);
+    const json = levelFileJson('Cave', [['S']], [{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }]);
     expect(JSON.parse(json)).toEqual({
       name: 'Cave',
       layout: ['S'],
-      background: [{ pieceId: 'dirtColumnA', col: 0, row: 0 }],
+      background: [{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }],
     });
   });
 

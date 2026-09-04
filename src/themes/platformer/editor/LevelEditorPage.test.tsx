@@ -622,7 +622,7 @@ describe('LevelEditorPage — background layer', () => {
   it('selectingTheBackgroundLayerThenAPieceThenPaintingOnCanvas-addsAPlacement', async () => {
     render(<LevelEditorPage />);
     fireEvent.click(screen.getByRole('button', { name: 'Background' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Dirt Column A' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Dirt Column Top (1×1)' }));
 
     paintBackgroundOnce();
 
@@ -632,7 +632,7 @@ describe('LevelEditorPage — background layer', () => {
   it('tryingTheLevelWithBackgroundPlacementsPainted-carriesThemIntoCurrentBackground', async () => {
     render(<LevelEditorPage />);
     fireEvent.click(screen.getByRole('button', { name: 'Background' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Dirt Column A' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Dirt Column Top (1×1)' }));
     paintBackgroundOnce();
 
     fireEvent.click(screen.getByRole('button', { name: 'Try' }));
@@ -643,7 +643,7 @@ describe('LevelEditorPage — background layer', () => {
   it('loadingALevelWithBackgroundPlacements-populatesTheLocalBackgroundState', async () => {
     render(<LevelEditorPage />);
     fireEvent.click(screen.getByRole('button', { name: 'Background' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Dirt Column A' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Dirt Column Top (1×1)' }));
     paintBackgroundOnce();
     await waitFor(() => expect(editorBackgroundSignal.value.length).toBeGreaterThan(0));
 
@@ -662,7 +662,7 @@ describe('LevelEditorPage — background layer', () => {
   it('paintingABackgroundCell-marksTheEditorDirty', async () => {
     render(<LevelEditorPage />);
     fireEvent.click(screen.getByRole('button', { name: 'Background' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Dirt Column A' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Dirt Column Top (1×1)' }));
 
     paintBackgroundOnce();
 
