@@ -1,4 +1,5 @@
 import type { Rect } from '../entities/geometry';
+import type { PlayerEffects } from './Outcome';
 
 export type ContactSide = 'top' | 'side' | 'bottom';
 
@@ -29,12 +30,7 @@ export interface Contact {
  * scattered conditionals it replaced. Anything exotic goes through an
  * `onDefeat(entity, world)` style hook receiving a narrow WorldApi instead.
  */
-export interface CollisionOutcome<S> {
+export interface CollisionOutcome<S> extends PlayerEffects {
   /** Replacement state, if the contact changed this entity. */
   self?: S;
-  /** Half-hearts to deal to the player. The engine ignores this while the
-   *  player is invulnerable; no entity ever knows invulnerability exists. */
-  damagePlayer?: number;
-  bouncePlayer?: boolean;
-  knockback?: 'none' | 'away' | 'awayAndUp';
 }

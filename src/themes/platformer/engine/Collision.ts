@@ -114,7 +114,10 @@ export interface EnemyContactResult {
   enemies: EnemyState[];
   /** Half-hearts. The caller drops this while the player is invulnerable. */
   damagePlayer: number;
-  bouncePlayer: boolean;
+  /** The strongest (most negative) bounce any contacted enemy asked for, or
+   *  undefined if none did. Most-negative-wins rather than last-wins so the
+   *  result does not depend on enemy array order. */
+  bounceVelocity?: number;
   knockback: 'none' | 'away' | 'awayAndUp';
   /** Which way "away" points: -1 pushes the player left, 1 right. Derived from
    *  the first damaging contact's hitbox centers — the geometry stays here so
@@ -129,8 +132,8 @@ const KNOCKBACK_RANK = { none: 0, away: 1, awayAndUp: 2 } as const;
  * type what the contact means, then aggregates.
  *
  * Aggregation rules, owned here and nowhere else: at most one damage applies
- * per tick regardless of how many enemies are touched; a bounce applies if any
- * outcome requests one; 'awayAndUp' wins over 'away', which wins over 'none'.
+ * per tick regardless of how many enemies are touched; the strongest requested
+ * bounce applies; 'awayAndUp' wins over 'away', which wins over 'none'.
  */
 export function resolveEnemyContacts(
   player: PlayerState,
@@ -139,7 +142,7 @@ export function resolveEnemyContacts(
   const playerBox = playerHitbox(player);
   let merged: EnemyState[] | undefined;
   let damagePlayer = 0;
-  let bouncePlayer = false;
+  let bounceVelocity: number | undefined;
   let knockback: 'none' | 'away' | 'awayAndUp' = 'none';
   let knockbackDirection: -1 | 1 = 1;
 
@@ -170,7 +173,12 @@ export function resolveEnemyContacts(
       merged[i] =
         damage > 0 && enemyType.onDamaged ? enemyType.onDamaged(outcome.self, damage) : outcome.self;
     }
-    if (outcome.bouncePlayer) bouncePlayer = true;
+    if (
+      outcome.bounceVelocity !== undefined &&
+      (bounceVelocity === undefined || outcome.bounceVelocity < bounceVelocity)
+    ) {
+      bounceVelocity = outcome.bounceVelocity;
+    }
     if (outcome.damagePlayer && outcome.damagePlayer > damagePlayer) {
       // Max, not sum: touching two enemies in one tick still costs one hit.
       damagePlayer = outcome.damagePlayer;
@@ -189,7 +197,7 @@ export function resolveEnemyContacts(
   return {
     enemies: merged ?? enemies.slice(),
     damagePlayer,
-    bouncePlayer,
+    bounceVelocity,
     knockback,
     knockbackDirection,
   };

@@ -1232,10 +1232,10 @@ export const PlatformerPage = () => {
       const contacts = resolveEnemyContacts(playerState.value, enemyStates.value);
       enemyStates.value = contacts.enemies;
 
-      if (contacts.bouncePlayer) {
+      if (contacts.bounceVelocity !== undefined) {
         playerState.value = {
           ...playerState.value,
-          vy: PHYSICS_CONFIG.stompBounceVelocity,
+          vy: contacts.bounceVelocity,
           bounceAscending: true,
         };
       }
@@ -1295,7 +1295,7 @@ export const PlatformerPage = () => {
           jumpHeld,
           dropThroughHeld,
           climbUpHeld,
-          suppressJumpCut: contacts.bouncePlayer,
+          suppressJumpCut: contacts.bounceVelocity !== undefined,
         },
         blockStates.value,
       );
