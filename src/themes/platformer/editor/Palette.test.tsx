@@ -91,7 +91,7 @@ describe('Palette — layer tab', () => {
         onSelectBackgroundPiece={onSelectBackgroundPiece}
       />,
     );
-    fireEvent.click(screen.getByRole('button', { name: /Dirt Column A/ }));
-    expect(onSelectBackgroundPiece).toHaveBeenCalledWith('dirtColumnA');
+    fireEvent.click(screen.getByRole('button', { name: /Dirt Column Top/ }));
+    expect(onSelectBackgroundPiece).toHaveBeenCalledWith('dirtColumnTop1x1');
   });
 });

@@ -348,7 +348,7 @@ describe('currentBackground', () => {
   });
 
   it('settingCurrentBackground-appearsOnCurrentLevelsBackgroundField', () => {
-    currentBackground.value = [{ pieceId: 'dirtColumnA', col: 0, row: 0 }];
-    expect(currentLevel.value.background).toEqual([{ pieceId: 'dirtColumnA', col: 0, row: 0 }]);
+    currentBackground.value = [{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }];
+    expect(currentLevel.value.background).toEqual([{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }]);
   });
 });

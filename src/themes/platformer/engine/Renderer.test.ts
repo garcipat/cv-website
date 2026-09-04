@@ -2435,17 +2435,17 @@ describe('drawBackgroundTiles', () => {
       terrain: [],
       width: 0,
       height: 0,
-      background: [{ pieceId: 'dirtColumnA', col: 2, row: 1 }],
+      background: [{ pieceId: 'dirtColumnTop1x1', col: 2, row: 1 }],
     };
 
     drawBackgroundTiles(ctx as unknown as CanvasRenderingContext2D, level, {} as HTMLImageElement, 0, 0);
 
-    // dirtColumnA: sx=80, sy=32, 1x3 tiles (16x48 source).
+    // dirtColumnTop1x1: sx=80, sy=32, 1x1 tile (16x16 source).
     expect(ctx.drawImage).toHaveBeenCalledWith(
       expect.anything(),
-      80, 32, 16, 48,
+      80, 32, 16, 16,
       2 * 32, 1 * 32,
-      1 * 32, 3 * 32,
+      1 * 32, 1 * 32,
     );
   });
 
@@ -2455,16 +2455,16 @@ describe('drawBackgroundTiles', () => {
       terrain: [],
       width: 0,
       height: 0,
-      background: [{ pieceId: 'dirtColumnA', col: 0, row: 0 }],
+      background: [{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }],
     };
 
     drawBackgroundTiles(ctx as unknown as CanvasRenderingContext2D, level, {} as HTMLImageElement, 100, -50);
 
     expect(ctx.drawImage).toHaveBeenCalledWith(
       expect.anything(),
-      80, 32, 16, 48,
+      80, 32, 16, 16,
       100, -50,
-      32, 96,
+      32, 32,
     );
   });
 });

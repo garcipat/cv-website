@@ -822,7 +822,7 @@ describe('EditorCanvas — background layer', () => {
         images={EMPTY_IMAGES}
         backgroundPlacements={[]}
         activeLayer="background"
-        selectedBackgroundPiece="dirtColumnA"
+        selectedBackgroundPiece="dirtColumnTop1x1"
         onPaint={vi.fn()}
         onPaintBackground={onPaintBackground}
         onPan={vi.fn()}
@@ -832,7 +832,7 @@ describe('EditorCanvas — background layer', () => {
     const canvas = container.querySelector('canvas')!;
     fireEvent.mouseDown(canvas, { clientX: 0, clientY: 0, button: 0 });
 
-    expect(onPaintBackground).toHaveBeenCalledWith([{ pieceId: 'dirtColumnA', col: 0, row: 0 }]);
+    expect(onPaintBackground).toHaveBeenCalledWith([{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }]);
   });
 
   it('rightClickWithBackgroundLayerActive-callsOnPaintBackgroundWithThePlacementErased', () => {
@@ -844,7 +844,7 @@ describe('EditorCanvas — background layer', () => {
         selectedTool="."
         panOffset={{ x: 0, y: 0 }}
         images={EMPTY_IMAGES}
-        backgroundPlacements={[{ pieceId: 'dirtColumnA', col: 0, row: 0 }]}
+        backgroundPlacements={[{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }]}
         activeLayer="background"
         selectedBackgroundPiece={null}
         onPaint={vi.fn()}
