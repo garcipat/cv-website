@@ -163,6 +163,24 @@ export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
     frameWidth: 28,
     frameHeight: 20,
   },
+  n: {
+    sheet: '/sprites/staticObjects.png',
+    sheetWidth: 288,
+    sheetHeight: 144,
+    sx: 0,
+    sy: 0,
+    frameWidth: 16,
+    frameHeight: 16,
+  },
+  N: {
+    sheet: '/sprites/staticObjects.png',
+    sheetWidth: 288,
+    sheetHeight: 144,
+    sx: 96,
+    sy: 128,
+    frameWidth: 16,
+    frameHeight: 16,
+  },
   // '1'-'5' are all the same signpost sprite — the digit is what
   // distinguishes a sign's hint content (SIGN_CHARS), not its appearance.
   // Only the first (`'1'`) ever renders as its own palette button (see
@@ -256,6 +274,8 @@ export const PALETTE_TILE_DESCRIPTIONS: Record<TileChar, string> = {
   Q: 'Question block; hit it from below to pop a bonus fruit',
   F: 'Fragile rock; hit it from below to break it open',
   T: 'Chest; costs a key, and holds one experience entry',
+  n: 'Bush; stack vertically to grow a tree (root, trunk, canopy)',
+  N: 'Fence',
   '1': 'Hint sign; click it again on the canvas to cycle its hint',
   '2': 'Hint sign; click it again on the canvas to cycle its hint',
   '3': 'Hint sign; click it again on the canvas to cycle its hint',
@@ -282,6 +302,8 @@ export const PALETTE_TILE_LABELS: Record<TileChar, string> = {
   Q: 'Question Mark',
   F: 'Fragile Rock',
   T: 'Chest',
+  n: 'Bush / Tree',
+  N: 'Fence',
   '1': 'Sign',
   '2': 'Sign 2',
   '3': 'Sign 3',
