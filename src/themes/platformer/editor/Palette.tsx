@@ -22,6 +22,7 @@ interface PaletteProps {
 
 const EMPTY_CHAR: TileChar = '.';
 const BACKGROUND_PIECE_IDS = Object.keys(BACKGROUND_CATALOG) as BackgroundPieceId[];
+const DECORATION_CHARS: TileChar[] = ['n', 'N'];
 
 export const Palette = ({
   selectedTool,
@@ -30,35 +31,52 @@ export const Palette = ({
   selectedBackgroundPiece,
   onSelectBackgroundPiece,
 }: PaletteProps) => {
-  const terrainKeys = (Object.keys(TERRAIN_CHARS) as TileChar[]).filter((key) => key !== EMPTY_CHAR);
+  const allTerrainKeys = (Object.keys(TERRAIN_CHARS) as TileChar[]).filter((key) => key !== EMPTY_CHAR);
+  const terrainKeys = allTerrainKeys.filter((key) => !DECORATION_CHARS.includes(key));
+  const decorationKeys = allTerrainKeys.filter((key) => DECORATION_CHARS.includes(key));
   const entityKeys = Object.keys(ENTITY_CHARS) as TileChar[];
   // Only the FIRST registered sign character becomes a palette tile — clicking
   // it repeatedly on the canvas cycles through every other registered hint
   // (Task 7's paintCell.ts), so the palette itself never needs to grow past one
   // "Sign" entry no matter how many distinct hints get registered later.
   const [firstSignKey] = Object.keys(SIGN_CHARS) as TileChar[];
-  const signKeys: TileChar[] = firstSignKey ? [firstSignKey] : [];
-  const tileKeys = [...terrainKeys, ...entityKeys, ...signKeys, EMPTY_CHAR];
+  const toolKeys: TileChar[] = [...(firstSignKey ? [firstSignKey] : []), EMPTY_CHAR];
+
+  const renderGroup = (title: string, keys: TileChar[]) => (
+    <section key={title} aria-label={title}>
+      <p className="mb-1 text-xs font-medium text-muted-foreground">{title}</p>
+      <div className="grid grid-cols-2 gap-2">
+        {keys.map((key) => (
+          <PaletteTile
+            key={key}
+            label={PALETTE_TILE_LABELS[key]}
+            description={PALETTE_TILE_DESCRIPTIONS[key]}
+            sprite={PALETTE_TILE_SPRITES[key]}
+            glyph={PALETTE_TILE_GLYPHS[key]}
+            selected={selectedTool === key}
+            onClick={() => onSelectTool(key)}
+          />
+        ))}
+      </div>
+    </section>
+  );
 
   return (
     <Card role="toolbar" aria-label="Palette">
       <CardHeader>
         <CardTitle>Palette</CardTitle>
       </CardHeader>
-      <CardContent className="grid grid-cols-2 gap-2">
-        {activeLayer === 'foreground'
-          ? tileKeys.map((key) => (
-              <PaletteTile
-                key={key}
-                label={PALETTE_TILE_LABELS[key]}
-                description={PALETTE_TILE_DESCRIPTIONS[key]}
-                sprite={PALETTE_TILE_SPRITES[key]}
-                glyph={PALETTE_TILE_GLYPHS[key]}
-                selected={selectedTool === key}
-                onClick={() => onSelectTool(key)}
-              />
-            ))
-          : BACKGROUND_PIECE_IDS.map((pieceId) => (
+      <CardContent>
+        {activeLayer === 'foreground' ? (
+          <div className="flex flex-col gap-3">
+            {renderGroup('Terrain', terrainKeys)}
+            {renderGroup('Decoration', decorationKeys)}
+            {renderGroup('Entities', entityKeys)}
+            {renderGroup('Tools', toolKeys)}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            {BACKGROUND_PIECE_IDS.map((pieceId) => (
               <PaletteTile
                 key={pieceId}
                 label={BACKGROUND_PALETTE_LABELS[pieceId]}
@@ -67,6 +85,8 @@ export const Palette = ({
                 onClick={() => onSelectBackgroundPiece(pieceId)}
               />
             ))}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
