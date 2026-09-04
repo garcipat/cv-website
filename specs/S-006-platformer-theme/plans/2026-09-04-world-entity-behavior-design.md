@@ -121,11 +121,13 @@ read that currently treats `bouncePlayer` as a boolean.
 ### 2. `BlockType` gains two members
 
 ```ts
-/** Which contact sides register a hit on this kind. Required and non-empty
- *  for every kind — the engine filters `blockContacts` against it generically,
- *  replacing the hardcoded `blockKind !== 'coinPot'` / `=== 'coinPot'`
- *  filters. */
-triggerSides: readonly ContactSide[];
+/** Which contact sides register a hit on this kind, in the block's own
+ *  four-face vocabulary (`BlockContactSide`, from `PlayerState.blockContacts`
+ *  — 'top' | 'bottom' | 'left' | 'right'), not the enemy `ContactSide`
+ *  classification. Required and non-empty for every kind — the engine
+ *  filters `blockContacts` against it generically, replacing the hardcoded
+ *  `blockKind !== 'coinPot'` / `=== 'coinPot'` filters. */
+triggerSides: readonly BlockContactSide[];
 /** What a registering hit MEANS for this kind. Receives the block AFTER
  *  `applyBlockHit`, so comparing `block.hitsTaken` against this kind's own
  *  `maxHits` constant is how it knows this hit was its terminal one.

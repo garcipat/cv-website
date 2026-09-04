@@ -2,7 +2,7 @@ import type { SpriteDescriptor } from '../sprites/SpriteSheet';
 import type { DrawContext } from '../../engine/DrawContext';
 import type { BlockState } from '../Block';
 import type { WorldType } from '../WorldType';
-import type { ContactSide } from '../../engine/Contact';
+import type { BlockContactSide } from '../Player';
 import type { PlayerEffects, RewardEffects } from '../../engine/Outcome';
 
 /** What a registering hit on a block MEANS — the block equivalent of
@@ -57,13 +57,15 @@ export interface BlockType extends WorldType<BlockState> {
   frameIndex(hitsTaken: number): number;
   draw(block: BlockState, dc: DrawContext): void;
   /**
-   * Which contact sides register a hit on this kind. The engine filters
-   * `player.blockContacts` against this generically — it used to hardcode
-   * `blockKind !== 'coinPot'` for its below-hit loop and
-   * `blockKind === 'coinPot'` for its landed-on-top loop, which is exactly
-   * the per-kind knowledge that belongs here instead.
+   * Which contact sides register a hit on this kind, in the block's own
+   * four-face vocabulary (`BlockContactSide`, from `PlayerState.blockContacts`
+   * — 'top' | 'bottom' | 'left' | 'right'), not the enemy `ContactSide`
+   * classification. The engine filters `player.blockContacts` against this
+   * generically — it used to hardcode `blockKind !== 'coinPot'` for its
+   * below-hit loop and `blockKind === 'coinPot'` for its landed-on-top loop,
+   * which is exactly the per-kind knowledge that belongs here instead.
    */
-  triggerSides: readonly ContactSide[];
+  triggerSides: readonly BlockContactSide[];
   /**
    * What a registering hit MEANS for this kind. Receives the block AFTER
    * `applyBlockHit`, so comparing `block.hitsTaken` against this kind's own

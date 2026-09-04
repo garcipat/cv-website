@@ -790,7 +790,9 @@ The engine still uses its old hardcoded filters after this task — nothing chan
 - Consumes: `PlayerEffects`, `RewardEffects` (Task 3).
 - Produces:
   - `export type BlockHitOutcome = PlayerEffects & RewardEffects` in `blocks/BlockType.ts`
-  - `BlockType.triggerSides: readonly ContactSide[]` (required on every kind)
+  - `BlockType.triggerSides: readonly BlockContactSide[]` (required on every kind;
+    the block's own four-face vocabulary from `PlayerState.blockContacts`
+    — 'top' | 'bottom' | 'left' | 'right' — not the enemy `ContactSide` union)
   - `BlockType.onHit?(block: BlockState): BlockHitOutcome`
   - All consumed by Task 5.
 
@@ -915,7 +917,7 @@ Expected: FAIL — `triggerSides` and `onHit` do not exist on `BlockType`.
 In `src/themes/platformer/entities/blocks/BlockType.ts`, add the imports and the type alias above the interface:
 
 ```ts
-import type { ContactSide } from '../../engine/Contact';
+import type { BlockContactSide } from '../Player';
 import type { PlayerEffects, RewardEffects } from '../../engine/Outcome';
 
 /** What a registering hit on a block MEANS — the block equivalent of
@@ -929,13 +931,15 @@ Then add these two members to the `BlockType` interface, and delete the sentence
 
 ```ts
   /**
-   * Which contact sides register a hit on this kind. The engine filters
-   * `player.blockContacts` against this generically — it used to hardcode
-   * `blockKind !== 'coinPot'` for its below-hit loop and
-   * `blockKind === 'coinPot'` for its landed-on-top loop, which is exactly
-   * the per-kind knowledge that belongs here instead.
+   * Which contact sides register a hit on this kind, in the block's own
+   * four-face vocabulary (`BlockContactSide`, from `PlayerState.blockContacts`
+   * — 'top' | 'bottom' | 'left' | 'right'), not the enemy `ContactSide`
+   * classification. The engine filters `player.blockContacts` against this
+   * generically — it used to hardcode `blockKind !== 'coinPot'` for its
+   * below-hit loop and `blockKind === 'coinPot'` for its landed-on-top loop,
+   * which is exactly the per-kind knowledge that belongs here instead.
    */
-  triggerSides: readonly ContactSide[];
+  triggerSides: readonly BlockContactSide[];
   /**
    * What a registering hit MEANS for this kind. Receives the block AFTER
    * `applyBlockHit`, so comparing `block.hitsTaken` against this kind's own

@@ -1341,14 +1341,7 @@ export const PlatformerPage = () => {
           (entry): entry is { contact: BlockContact; block: BlockState } =>
             entry.block !== undefined &&
             !isBlockUsedUp(entry.block) &&
-            // Compared rather than `.includes`d because the two side unions
-            // are not the same type: `triggerSides` is `ContactSide`
-            // ('top' | 'side' | 'bottom'), while a block contact carries a
-            // `BlockContactSide` ('top' | 'bottom' | 'left' | 'right'). They
-            // overlap on exactly the sides any block kind declares.
-            BLOCK_TYPES[entry.block.blockKind].triggerSides.some(
-              (side) => side === entry.contact.side,
-            ),
+            BLOCK_TYPES[entry.block.blockKind].triggerSides.includes(entry.contact.side),
         );
 
       if (hitBlocks.length > 0) {
