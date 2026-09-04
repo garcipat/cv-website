@@ -14,7 +14,7 @@
 
 - **Trigger:** landing on top (not hitting from below). One hit destroys it (`maxHits: 1`, `removeWhenUsedUp: true`, like `FragileRock`). Solid from every side, like every block.
 - **Bounce:** a new `PHYSICS_CONFIG.coinPotBounceVelocity`, weaker than the enemy-stomp `stompBounceVelocity` (-330) but with more hang-time than the purple-slime-defense `awayAndUpKnockbackVy` (-150) — long enough to actually see the coin land.
-- **Reward:** on destruction, a real walk-over `Coin` collectible appears at that tile (same mechanism as any other coin — walk over it, reveal its skill-category fact). The fact comes from the SAME 16-category pool `mapCVDataToCollectibles` produces for walk-over `C` coins: a level's `C` markers claim the first N defs in category order, and coin-pot (`J`) markers claim the remainder — no double-counting, no new CVData mapping.
+- **Reward:** on destruction, a real walk-over `Coin` collectible appears at that tile (same mechanism as any other coin — walk over it, reveal its skill-category fact). The fact comes from the SAME 16-category pool `mapCVDataToCollectibles` produces for walk-over `C` coins: a level's `C` markers claim the first N defs in category order, and coin-pot (`u`) markers claim the remainder — no double-counting, no new CVData mapping.
 - **Rendering:** uses only the 3 single-pot sprites at `staticObjects.png` row 7 (native tile row index 7, i.e. pixel y=112): column 0 = small round jar (sx=0,sy=112), column 1 = tall narrow urn (sx=16,sy=112), column 2 = wide square brick urn (sx=32,sy=112). The 2-tile-wide "cluster" sprite at row 8 is explicitly NOT used. Every live coin-pot tile draws its own base pot; every pair of horizontally-adjacent live coin-pot tiles (same row) also gets one "filler" pot centered on the shared seam, drawn on top. Consecutive rendered pots (base and filler alike) cycle through one of the 6 permutations of the 3 variants (seeded off the run's leftmost column) so no two neighbors ever repeat, and a run of exactly 2 tiles (3 rendered slots) shows all 3 variants exactly once. This is recomputed fresh every frame from the live block list, so destroying one tile immediately reshuffles how its former neighbors render.
 - **Explicitly out of scope for this step** (confirmed too large / unnecessary): splitting skill categories into per-skill coins (189 skills vs. 16 categories today), any dedicated multi-tile-wide cluster art or block.
 
@@ -277,7 +277,7 @@ Expected: FAIL — `Property 'blockContacts' does not exist` (TypeScript compile
 
 Add the import: `import type { BlockContact } from '../entities/Player';` (alongside the existing `PlayerState` type import).
 
-Declare the shared array at the TOP of `stepPlayerPhysics`, before the horizontal-movement section starts (right after the existing `const HITBOX_WIDTH = ...` usage begins, i.e. near the top of the function body, since both the horizontal and vertical sections below need to push into it):
+Declare the shared array as the very FIRST statement inside `stepPlayerPhysics`'s function body — before the existing `const knockbackActive = player.knockbackTimer > 0;` line — since both the horizontal-movement section and the vertical section further down need to push into the same array:
 
 ```ts
   const blockContacts: BlockContact[] = [];
@@ -412,14 +412,17 @@ git commit -m "refactor(platformer): generalize hitBlockIds into side-tagged blo
 
 ---
 
-### Task 4: Level marker `J` (`coinPot`) in `LevelParser.ts`
+### Task 4: Level marker `u` (`coinPot`) in `LevelParser.ts`
+
+> **Addendum (discovered during execution, not in the original brief):** widening `TileChar` breaks TypeScript compilation of `src/themes/platformer/editor/paletteTiles.ts`, which declares three exhaustive `Record<TileChar, ...>` maps for the dev-only Level Editor's tile palette (`PALETTE_TILE_SPRITES`, `PALETTE_TILE_DESCRIPTIONS`, `PALETTE_TILE_LABELS`) that the rest of this plan never otherwise touches. This task's scope includes adding a `u` entry to all three, following the exact pattern each existing `F` (fragileRock) entry uses — sprite spec on `staticObjects.png` at the small-pot icon (`sx: 0, sy: 112`, the same coordinates `CoinPot.ts`'s variant 0 uses in Task 7), description `'Coin-pot; land on it from above to break it and drop a coin'`, label `'Coin Pot'`. Verify with `npx tsc --noEmit -p tsconfig.app.json` (NOT the bare `npx tsc --noEmit` used to appear in this plan — that command is inert against this repo's root tsconfig, project-references only, and always exits 0 regardless of real errors).
 
 **Files:**
 - Modify: `src/themes/platformer/level/LevelParser.ts`
+- Modify: `src/themes/platformer/editor/paletteTiles.ts` (addendum above)
 - Modify: `src/themes/platformer/level/LevelParser.test.ts`
 
 **Interfaces:**
-- Produces: `findCoinPotTiles(layout): {col,row}[]`, `ENTITY_CHARS.J === 'coinPot'`, `TileChar` includes `'J'`. Consumed by Task 6 (`level.ts`'s `COIN_POT_TILES`).
+- Produces: `findCoinPotTiles(layout): {col,row}[]`, `ENTITY_CHARS.u === 'coinPot'`, `TileChar` includes `'u'`. Consumed by Task 6 (`level.ts`'s `COIN_POT_TILES`).
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -444,10 +447,10 @@ describe('findCoinPotTiles', () => {
 });
 ```
 
-Also add `'J'` to the `TileChar` describe block's literal array (line ~323):
+Also add `'u'` to the `TileChar` describe block's literal array (line ~323):
 
 ```ts
-      '.', 'G', 'R', 'W', 'B', 'L', 'P', 'S', 'E', 'M', 'C', 'X', 'Q', 'F', 'T', 'J',
+      '.', 'G', 'R', 'W', 'B', 'L', 'P', 'S', 'E', 'M', 'C', 'X', 'Q', 'F', 'T', 'u',
       '1', '2', '3', '4', '5', 'n', 'N',
 ```
 
@@ -488,13 +491,13 @@ export const ENTITY_CHARS: Record<string, EntityKind | undefined> = {
   T: 'chest',
 };
 ```
-(Update the doc comment above it to mention `J` (coin-pot block — destroyed by landing on top, drops a coin) alongside the existing `F` entry.)
+(Update the doc comment above it to mention `u` (coin-pot block — destroyed by landing on top, drops a coin) alongside the existing `F` entry.)
 
-Widen `TileChar` (line 103-125) — add `| 'J'` to the union.
+Widen `TileChar` (line 103-125) — add `| 'u'` to the union.
 
 Add the finder function, mirroring `findFragileRockTiles` (after it, before `findChestTiles`):
 ```ts
-/** Finds every `J` (coin-pot block) marker's position in a level layout —
+/** Finds every `u` (coin-pot block) marker's position in a level layout —
  *  same convention as findCrateTiles: zipped against leftover
  *  skill-category collectible defs a `C` marker didn't already claim (see
  *  BlockMapper.ts's `mapSkillCollectiblesToCoinPotBlocks`), not against a
@@ -513,7 +516,7 @@ Expected: PASS.
 
 ```bash
 git add src/themes/platformer/level/LevelParser.ts src/themes/platformer/level/LevelParser.test.ts
-git commit -m "feat(platformer): add J (coin-pot) level marker"
+git commit -m "feat(platformer): add u (coin-pot) level marker"
 ```
 
 ---
@@ -636,7 +639,7 @@ Add the new function, right after `mapCVDataToBlocks` (before the `BlockPlacemen
  * Turns leftover skill-category `CollectibleDef`s — the SAME pool
  * `CollectibleMapper.ts`'s `mapCVDataToCollectibles` produces for walk-over
  * coins — into coin-pot `BlockDef`s. A level author places some categories
- * as walk-over `C` coins and others as `J` coin-pots; `coinMarkerCount` is
+ * as walk-over `C` coins and others as `u` coin-pots; `coinMarkerCount` is
  * how many `C` markers the level actually has, so this function only offers
  * the REMAINDER (in the same category order `mapCVDataToCollectibles`
  * produced them in) to coin-pot markers — no double-counting, and no new
@@ -1200,7 +1203,7 @@ describe('allCollectiblePlacements', () => {
 
 describe('blockPlacements — coinPot', () => {
   it('someCoinPotBlocksExist-becauseTheDefaultLevelHasJMarkers', () => {
-    // Task 12 adds at least one `J` marker to LEVEL_1_LAYOUT — this test
+    // Task 12 adds at least one `u` marker to LEVEL_1_LAYOUT — this test
     // documents that expectation and will fail loudly if that task is
     // skipped or the marker is later removed.
     expect(blockPlacements.value.some((b) => b.blockKind === 'coinPot')).toBe(true);
@@ -1234,7 +1237,7 @@ import {
 ```
 
 ```ts
-/** Hand-placed coin-pot block positions, from `currentLayout`'s `J` markers
+/** Hand-placed coin-pot block positions, from `currentLayout`'s `u` markers
  *  — zipped against leftover skill-category defs a `C` marker didn't
  *  already claim (see BlockMapper.ts's `mapSkillCollectiblesToCoinPotBlocks`
  *  and PlatformerState.ts's `blockPlacements`). */
@@ -1309,7 +1312,7 @@ Add `spawnedCoinPlacements.value = [];` inside `resetGameProgress()`, next to th
 - [ ] **Step 5: Run the tests**
 
 Run: `npm test -- PlatformerState.test.ts`
-Expected: The `allCollectiblePlacements` tests PASS. The `blockPlacements — coinPot` test still FAILS (expected — no `J` marker exists in `LEVEL_1_LAYOUT` yet; that's Task 12). Confirm the failure message is specifically "expected true to be false" / an empty-array assertion, not a compile error — if it's a compile error, something above was missed.
+Expected: The `allCollectiblePlacements` tests PASS. The `blockPlacements — coinPot` test still FAILS (expected — no `u` marker exists in `LEVEL_1_LAYOUT` yet; that's Task 12). Confirm the failure message is specifically "expected true to be false" / an empty-array assertion, not a compile error — if it's a compile error, something above was missed.
 
 - [ ] **Step 6: Run the full suite**
 
@@ -1577,7 +1580,7 @@ git commit -m "feat(platformer): count coin-pot coins in the journal's coins tot
 
 ---
 
-### Task 11: Place `J` markers in `LEVEL_1_LAYOUT`, including a run of adjacent tiles
+### Task 11: Place `u` markers in `LEVEL_1_LAYOUT`, including a run of adjacent tiles
 
 **Files:**
 - Modify: `src/themes/platformer/level/level.ts`
@@ -1587,15 +1590,15 @@ git commit -m "feat(platformer): count coin-pot coins in the journal's coins tot
 
 - [ ] **Step 1: Choose placement spots**
 
-Read `level.ts`'s existing top-of-file doc comment (the "Zones"/"Markers" sections) to find open floor space not already used by another marker. A safe, low-risk choice: the Zone A meadow's flat base ground (cols 0-27) has open floor before the first elevated blocks — place a run of 2 adjacent `J` markers plus one isolated `J` marker there, replacing three `.` characters on the base-ground row (row index 9 in the layout array, the row just above the `GGGG...` ground row 10 — the same row other ground-level entity markers like `S`/`E` already sit on).
+Read `level.ts`'s existing top-of-file doc comment (the "Zones"/"Markers" sections) to find open floor space not already used by another marker. A safe, low-risk choice: the Zone A meadow's flat base ground (cols 0-27) has open floor before the first elevated blocks — place a run of 2 adjacent `u` markers plus one isolated `u` marker there, replacing three `.` characters on the base-ground row (row index 9 in the layout array, the row just above the `GGGG...` ground row 10 — the same row other ground-level entity markers like `S`/`E` already sit on).
 
 - [ ] **Step 2: Edit `LEVEL_1_LAYOUT`**
 
-Open `src/themes/platformer/level/level.ts`. On the row currently reading (row index 9, starting `..S.5..C...C.........E.......E..2.GGGGGGGGGGGGGGG...`), replace three consecutive `.` characters somewhere in the open stretch between two existing markers with `JJ.J` (a run of 2, a gap, then 1 isolated) — e.g. change:
+Open `src/themes/platformer/level/level.ts`. On the row currently reading (row index 9, starting `..S.5..C...C.........E.......E..2.GGGGGGGGGGGGGGG...`), replace three consecutive `.` characters somewhere in the open stretch between two existing markers with `uu.u` (a run of 2, a gap, then 1 isolated) — e.g. change:
 ```
 ..S.5..C...C.........E.......E..2.GGGGGGGGGGGGGGG.........E......1.....................................E.C..........E.....E.......E........................E.................W.E..WGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 ```
-by replacing four `.` characters right after the `5..C` group (cols 8-11, currently `...C` → keep the existing `C` at col 11 untouched, use cols 7-10's `..` — pick any 4 untouched `.` columns in that stretch and verify with a quick visual count) with `JJ.J`. Since editing a 220-character string by column index is error-prone by hand, do this precisely with a small one-off Node script rather than manual character counting:
+by replacing four `.` characters right after the `5..C` group (cols 8-11, currently `...C` → keep the existing `C` at col 11 untouched, use cols 7-10's `..` — pick any 4 untouched `.` columns in that stretch and verify with a quick visual count) with `uu.u`. Since editing a 220-character string by column index is error-prone by hand, do this precisely with a small one-off Node script rather than manual character counting:
 
 ```bash
 node -e "
@@ -1608,10 +1611,10 @@ let src = fs.readFileSync(path, 'utf8');
 "
 ```
 
-Run that confirmation snippet first (adjust `startCol` until the printed slice is `....`), then actually apply the edit by hand in the editor at that exact column range, changing it to `JJ.J`. Update the file's own top-of-file "Markers" doc comment table to add a `J` row (mirroring the existing `F` row's style):
+Run that confirmation snippet first (adjust `startCol` until the printed slice is `....`), then actually apply the edit by hand in the editor at that exact column range, changing it to `uu.u`. Update the file's own top-of-file "Markers" doc comment table to add a `u` row (mirroring the existing `F` row's style):
 
 ```
-//   J  3   coin-pot — destroyed by landing on top, drops a coin (2 adjacent
+//   u  3   coin-pot — destroyed by landing on top, drops a coin (2 adjacent
 //          + 1 isolated, to exercise the merged-run rendering)
 ```
 
@@ -1635,11 +1638,11 @@ git commit -m "feat(platformer): place coin-pot markers in the default level, in
 
 - [ ] **Step 1: Start the dev server and open the Platformer theme**
 
-Unlock `platformerPrototypeUnlocked` (via whatever debug/localStorage toggle the rest of this epic already uses — check `src/state/theme.ts` and any existing debug panel), start the level, and navigate to the Zone A meadow stretch where Task 11 placed the `J` markers.
+Unlock `platformerPrototypeUnlocked` (via whatever debug/localStorage toggle the rest of this epic already uses — check `src/state/theme.ts` and any existing debug panel), start the level, and navigate to the Zone A meadow stretch where Task 11 placed the `u` markers.
 
 - [ ] **Step 2: Verify the merged-run rendering**
 
-Confirm the 2 adjacent coin-pot tiles render as one visually merged cluster (3 pots total: 2 base + 1 filler between them, all different sizes) and the isolated third `J` renders as a single pot, sized by its column.
+Confirm the 2 adjacent coin-pot tiles render as one visually merged cluster (3 pots total: 2 base + 1 filler between them, all different sizes) and the isolated third `u` renders as a single pot, sized by its column.
 
 - [ ] **Step 3: Verify the destroy mechanic**
 
