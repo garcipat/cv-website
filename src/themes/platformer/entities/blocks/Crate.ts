@@ -38,7 +38,12 @@ export const crate: BlockType = {
   // Receives the block after applyBlockHit, so hitsTaken is already
   // incremented — the terminal hit is the one that reaches MAX_HITS. This
   // check used to live in PlatformerPage.tsx as `hitsTaken >= 2`.
-  onHit: (block) => (block.hitsTaken >= MAX_HITS && block.fact ? { revealFact: block.fact } : {}),
+  // The crate declares which counter its reveal feeds — the engine no longer
+  // assumes every block reveal is a crate.
+  onHit: (block) =>
+    block.hitsTaken >= MAX_HITS && block.fact
+      ? { revealFact: block.fact, counterKey: 'crates' }
+      : {},
   frameIndex: () => CRATE_FRAME,
   // Its own copy of the plain blit (see drawBlockTile.ts's doc comment for
   // why this isn't shared) — wrapped in the shatter opacity, plus the crack

@@ -1,3 +1,5 @@
+import type { CounterKey } from '../entities/CollectiblesSummary';
+
 /** Seconds each phase of a collected-fact animation takes: a quick rise from
  *  the collection point to the middle of the screen, a hold there so the
  *  fact is actually readable, then the flight to the journal icon. */
@@ -150,7 +152,14 @@ export const COUNTER_POPUP_HOLD_SECONDS = 1.7;
 export const COUNTER_POPUP_FADE_SECONDS = 0.4;
 export const COUNTER_POPUP_DURATION_SECONDS = COUNTER_POPUP_HOLD_SECONDS + COUNTER_POPUP_FADE_SECONDS;
 
-export type CounterPopupLabelKey = 'coins' | 'fruits' | 'enemies' | 'crates';
+/**
+ * Which collectible counters get a TRANSIENT popup — derived from `CounterKey`
+ * rather than spelled out again, so adding a sixth counter cannot leave this
+ * union silently stale. `'chests'` is the one exclusion: chests already have a
+ * PERMANENT HUD counter (see Renderer.ts's chest counter), so a chest reveal
+ * deliberately bumps no popup.
+ */
+export type CounterPopupLabelKey = Exclude<CounterKey, 'chests'>;
 
 /**
  * One "(icon) collected / total" counter popup for a single collectible

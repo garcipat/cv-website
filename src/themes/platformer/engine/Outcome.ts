@@ -1,5 +1,6 @@
 import type { CollectedFact } from '../types';
 import type { PickupKind } from '../entities/pickups';
+import type { CounterPopupLabelKey } from './CollectionEffects';
 
 /**
  * What an entity asks the engine to do to the PLAYER about a contact.
@@ -41,6 +42,15 @@ export interface RewardEffects {
    *  and counted in its counter popup, all by `RewardReveal.ts`. */
   revealFact?: CollectedFact;
   /**
+   * Which HUD counter popup this reward feeds, declared by the entity rather
+   * than assumed by the engine — a second fact-bearing block kind would
+   * otherwise have its reveal silently attributed to whatever counter the
+   * engine happened to hardcode. Omitting it means no transient popup at all,
+   * which is the chest case: chests have a permanent HUD counter instead
+   * (hence `CounterPopupLabelKey` having no `'chests'` member).
+   */
+  counterKey?: CounterPopupLabelKey;
+  /**
    * Which pickup to spawn at this entity's position, keyed by `PICKUP_TYPES` —
    * one field rather than a boolean per spawnable thing, so a block that drops
    * a key needs no new field here.
@@ -66,6 +76,11 @@ export interface RewardEffects {
  * the rule is testable with differing values: every entity type that bounces
  * today happens to use the same constant, which makes the tie-break
  * unobservable through either caller.
+ *
+ * The rule aggregates WITHIN a family, not across families: the enemy applier
+ * writes `playerState.value` while the block applier writes the tick-local
+ * `next`, so a stomp and a coin-pot landing in the same tick resolve
+ * independently rather than picking the stronger of the two.
  */
 export function strongerBounce(current: number | undefined, candidate: number | undefined): number | undefined {
   if (candidate === undefined) return current;

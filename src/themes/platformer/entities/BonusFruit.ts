@@ -47,8 +47,8 @@ export interface BonusFruitState {
  *  question-mark marker beyond the available Certificate/Project data).
  *  `iconIndex` is caller-supplied (`PlatformerPage.tsx` cycles a counter,
  *  the same convention `createSlotAllocator` uses for text slots) rather than
- *  derived here, so
- *  successive spawns visibly differ without needing shared module state. */
+ *  derived here, so successive spawns visibly differ without needing shared
+ *  module state. */
 export function spawnBonusFruit(
   id: string,
   blockX: number,

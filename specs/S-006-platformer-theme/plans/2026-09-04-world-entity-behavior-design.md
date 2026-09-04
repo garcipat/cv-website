@@ -52,8 +52,8 @@ Fixed FIRST, as its own commit, so the fix is reviewable separately and
 everything after it is a behavior-preserving refactor.
 
 The buggy expression is inline inside the `requestAnimationFrame` closure and
-so is unreachable from a test. Writing the failing test first therefore
-*requires* extracting it: the fix commit introduces `COUNTER_SECTIONS` and a
+so has no unit-test seam of its own. Writing the failing test for the mapping
+therefore *requires* extracting it: the fix commit introduces `COUNTER_SECTIONS` and a
 `countCollectedFor(counterKey, facts)` helper (section 5), tests that against
 both mappings, and calls it from the crate site. That extraction is the
 smallest change that makes the bug testable at all — not scope creep bolted
@@ -79,6 +79,10 @@ export interface PlayerEffects {
 
 export interface RewardEffects {
   revealFact?: CollectedFact;
+  /** Which HUD counter popup this reward feeds, declared by the entity rather
+   *  than assumed by the engine. Omitted means no transient popup — the chest
+   *  case, which has a permanent HUD counter instead. */
+  counterKey?: CounterPopupLabelKey;
   /** Which pickup to spawn at this entity's position, keyed by PICKUP_TYPES —
    *  one field rather than a boolean per spawnable thing, so a block that
    *  drops a key needs no new field here. Deliberately NOT named
@@ -305,19 +309,28 @@ TDD throughout, tests before implementation.
 | ------------------------ | -------------------------------------------------------------------------------------------------- |
 | crate numerator bug      | Regression test asserting the popup numerator and the Journal's crate row agree — written first, failing |
 | `COUNTER_SECTIONS`       | Every `CounterPopupLabelKey` has a non-empty section list; no section belongs to two counters      |
-| `Crate.onHit`            | No reveal on hit 1; reveals on hit 2; no reveal without a fact                                     |
+| `Crate.onHit`            | No reveal on hit 1; reveals on hit 2 with `counterKey: 'crates'`; no reveal without a fact          |
 | `QuestionMark.onHit`     | Returns `spawnPickup: 'bonusFruit'`                                                                |
 | `CoinPot.onHit`          | Returns `spawnPickup: 'coin'` and the coin-pot bounce velocity                                     |
 | `blocks/index.test.ts`   | Every kind declares a non-empty `triggerSides`, alongside the existing key-equals-slot invariant    |
 | `RewardReveal`           | Dedup guard; slot cycling from the seeded in-flight count; popup numerator/denominator; flight-effect coordinates including stack offset |
 | `levelTotals`            | Each field against a known layout; reactivity across a `currentLayout` switch                      |
 | `CollectiblesSummary`, `Journal` | Existing tests pass unchanged — the regression net on `COUNTER_SECTIONS` and the spread   |
+| `PlatformerPage` (real ticks) | Crate terminal hit bumps the crates popup; a coin revealing no fact still bumps the coins popup; a chest open bumps no transient popup |
 
-The tick handler has no test harness (it lives in a `.tsx` page inside a
-`requestAnimationFrame` loop), so its integration is covered by the manual
-browser check the roadmap's working agreement requires: break a crate at each
-hit stage, land on a coin pot, hit a question mark, open a chest, defeat an
-enemy, and confirm every popup's numerator matches the Journal's row.
+The tick handler IS reachable from the suite: `PlatformerPage.test.tsx` stubs
+`requestAnimationFrame`, captures the frame callback and drives real ticks, so
+the single block-hit pass and all five reveal sites run under test. The
+counter-popup wiring is asserted there directly against
+`activeCounterPopups` — the crate site bumping the crates popup, a coin that
+reveals no fact still bumping the coins popup, and the chest site bumping no
+transient popup at all.
+
+The manual browser check the roadmap's working agreement requires still
+covers what the suite cannot see — timing, layering and visual jank: break a
+crate at each hit stage, land on a coin pot, hit a question mark, open a
+chest, defeat an enemy, and confirm every popup's numerator matches the
+Journal's row.
 
 ## Constitution check
 
