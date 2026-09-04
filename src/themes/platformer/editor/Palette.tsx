@@ -51,7 +51,7 @@ export const Palette = ({
   const renderGroup = (title: string, keys: TileChar[]) => (
     <section key={title} aria-label={title}>
       <p className="mb-1 text-xs font-medium text-muted-foreground">{title}</p>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-[repeat(3,max-content)] gap-2">
         {keys.map((key) => (
           <PaletteTile
             key={key}
@@ -68,7 +68,7 @@ export const Palette = ({
   );
 
   return (
-    <Card role="toolbar" aria-label="Palette">
+    <Card role="toolbar" aria-label="Palette" className="w-fit self-start">
       <CardHeader>
         <CardTitle>Palette</CardTitle>
       </CardHeader>
@@ -81,7 +81,7 @@ export const Palette = ({
             {renderGroup('Tools', toolKeys)}
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-[repeat(3,max-content)] gap-2">
             {BACKGROUND_PIECE_IDS.map((pieceId) => (
               <PaletteTile
                 key={pieceId}
