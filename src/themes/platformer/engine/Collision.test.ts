@@ -30,6 +30,7 @@ import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { ChestState } from '../entities/Chest';
 import type { SignPlacement } from '../level/SignMapper';
 import type { KeyPickupState } from '../entities/KeyPickup';
+import { PHYSICS_CONFIG } from './PhysicsConfig';
 
 function makePlayer(x: number, y: number): PlayerState {
   return {
@@ -347,7 +348,7 @@ describe('resolveEnemyContacts aggregation', () => {
 
     expect(result.damagePlayer).toBe(1);
     expect(result.knockback).toBe('away');
-    expect(result.bouncePlayer).toBe(false);
+    expect(result.bounceVelocity).toBeUndefined();
   });
 
   it('oneStompableAndOneDamagingEnemy-appliesBothBounceAndDamage', () => {
@@ -361,7 +362,7 @@ describe('resolveEnemyContacts aggregation', () => {
 
     const result = resolveEnemyContacts(player, [green, spikedPurple]);
 
-    expect(result.bouncePlayer).toBe(true);
+    expect(result.bounceVelocity).toBe(PHYSICS_CONFIG.stompBounceVelocity);
     expect(result.enemies[0].hitPoints).toBe(green.hitPoints - 1);
     expect(result.damagePlayer).toBe(1);
     expect(result.knockback).toBe('awayAndUp');
@@ -401,6 +402,24 @@ describe('resolveEnemyContacts aggregation', () => {
 
     expect(result.enemies[1]).toBe(faraway);
     expect(result.enemies[0]).not.toBe(stomped);
+  });
+
+  it('twoStompedEnemiesInOneTick-appliesTheStrongestBounce', () => {
+    // Aggregation is "most negative wins", not last-wins, so the result is
+    // deterministic regardless of array order. Both green slimes bounce with
+    // the same constant today, so this pins the rule rather than depending on
+    // two different constants existing.
+    //
+    // Positions follow the same hitbox arithmetic the surrounding aggregation
+    // tests use: the two green hitboxes span x 2..30 and 26..54, and the
+    // player's spans 20..44, so it lands on both at once.
+    const left = makeEnemy(0, 100);
+    const right = makeEnemy(24, 100);
+    const player = { ...playerLandingOnTopOf(left), vy: 300, grounded: false };
+
+    const result = resolveEnemyContacts(player, [left, right]);
+
+    expect(result.bounceVelocity).toBe(PHYSICS_CONFIG.stompBounceVelocity);
   });
 });
 

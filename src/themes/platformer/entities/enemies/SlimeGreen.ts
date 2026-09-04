@@ -6,6 +6,7 @@ import { SLIME_GREEN_SHEET } from '../sprites/sheets';
 import type { SpriteDescriptor } from '../sprites/SpriteSheet';
 import { drawSpriteSheetEntity } from './drawSpriteSheetEntity';
 import { spriteSheetHitbox } from './spriteSheetHitbox';
+import { PHYSICS_CONFIG } from '../../engine/PhysicsConfig';
 
 export interface SlimeGreenState extends BaseEnemyState {
   type: 'slimeGreen';
@@ -47,7 +48,9 @@ export const slimeGreen: EnemyType<SlimeGreenState> = {
     // overlapping the now-frozen enemy registers as a spurious side-hit
     // against the very enemy just stomped.
     if (isInvulnerable(enemy, slimeGreen.hitReactionSeconds) || enemy.hitPoints <= 0) return {};
-    if (contact.side === 'top') return { self: takeHit(enemy), bouncePlayer: true };
+    if (contact.side === 'top') {
+      return { self: takeHit(enemy), bounceVelocity: PHYSICS_CONFIG.stompBounceVelocity };
+    }
     return { damagePlayer: 1, knockback: 'away' };
   },
 };
