@@ -20,6 +20,14 @@ const BUSH_OR_TREE_VARIANTS: Record<VerticalRunRole, StaticObjectEntry[]> = {
 const FENCE_VARIANTS: StaticObjectEntry[] = [{ sx: 240, sy: 112 }];
 
 function pickVariant<T>(variants: readonly T[], col: number, row: number): T {
+  // Every variants array today is a non-empty literal declared above, but
+  // nothing in the types enforces that. Guard explicitly rather than
+  // letting `% 0` produce NaN and silently index to `undefined` — that
+  // would only surface later as a confusing "undefined.sx" crash deep in
+  // the render loop, far from the actual cause.
+  if (variants.length === 0) {
+    throw new Error('pickVariant: no variants provided');
+  }
   const index = (col * 31 + row * 17) % variants.length;
   return variants[index];
 }
