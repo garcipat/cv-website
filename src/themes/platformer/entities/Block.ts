@@ -10,7 +10,7 @@ import { frameSource } from './sprites/SpriteSheet';
 export const BLOCK_FRAME_SIZE = TILE_SIZE;
 export const BLOCK_RENDERED_SIZE = RENDERED_TILE_SIZE;
 
-export type BlockKind = 'crate' | 'questionMark' | 'fragileRock';
+export type BlockKind = 'crate' | 'questionMark' | 'fragileRock' | 'coinPot';
 
 /**
  * Sprite-sheet source rect (in `world_tileset.png`) for a block's current
