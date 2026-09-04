@@ -154,7 +154,7 @@ export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
     frameWidth: 16,
     frameHeight: 16,
   },
-  J: {
+  u: {
     sheet: '/sprites/staticObjects.png',
     sheetWidth: 288,
     sheetHeight: 144,
@@ -282,7 +282,7 @@ export const PALETTE_TILE_DESCRIPTIONS: Record<TileChar, string> = {
   X: 'Crate block; hit it from below to reveal a CV fact',
   Q: 'Question block; hit it from below to pop a bonus fruit',
   F: 'Fragile rock; hit it from below to break it open',
-  J: 'Coin-pot; land on it from above to break it and drop a coin',
+  u: 'Coin-pot; land on it from above to break it and drop a coin',
   T: 'Chest; costs a key, and holds one experience entry',
   n: 'Bush; stack vertically to grow a tree (root, trunk, canopy)',
   N: 'Fence',
@@ -311,7 +311,7 @@ export const PALETTE_TILE_LABELS: Record<TileChar, string> = {
   X: 'Crate',
   Q: 'Question Mark',
   F: 'Fragile Rock',
-  J: 'Coin Pot',
+  u: 'Coin Pot',
   T: 'Chest',
   n: 'Bush / Tree',
   N: 'Fence',

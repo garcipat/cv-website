@@ -35,8 +35,9 @@ export const TERRAIN_CHARS: Record<string, TileType | undefined> = {
  * marks: `S` (spawn), `E` (green/Course enemy), `M` (purple enemy — carries
  * no CV fact, drops a key on defeat), `C` (Skill-category coin), `X` (crate block — Education/Activity/
  * Language fact), `Q` (question-mark block — no fact, spawns a bonus fruit),
- * `F` (fragileRock block — no fact, level-design filler), `J` (coin-pot block —
- * destroyed by landing on top, drops a coin), `T` (chest —
+ * `F` (fragileRock block — no fact, level-design filler), `u` (coin-pot block —
+ * destroyed by landing on top, drops a coin; lowercase, a small urn-shaped
+ * glyph, unlike every other entity marker which is uppercase), `T` (chest —
  * Experience fact, opened via Arrow Up while standing on it, spec.md
  * FR-023). Kept as its own
  * map, separate from TERRAIN_CHARS, since an entity marker isn't a terrain
@@ -52,7 +53,7 @@ export const ENTITY_CHARS: Record<string, EntityKind | undefined> = {
   X: 'crate',
   Q: 'questionMark',
   F: 'fragileRock',
-  J: 'coinPot',
+  u: 'coinPot',
   T: 'chest',
 };
 
@@ -119,7 +120,7 @@ export type TileChar =
   | 'Q'
   | 'F'
   | 'T'
-  | 'J'
+  | 'u'
   | 'n'
   | 'N'
   | '1'
@@ -230,7 +231,7 @@ export function findFragileRockTiles(layout: readonly string[]): { col: number; 
   return findAllOfKind(layout, 'fragileRock');
 }
 
-/** Finds every `J` (coin-pot block) marker's position in a level layout —
+/** Finds every `u` (coin-pot block) marker's position in a level layout —
  *  same convention as findCrateTiles: zipped against leftover
  *  skill-category collectible defs a `C` marker didn't already claim (see
  *  BlockMapper.ts's `mapSkillCollectiblesToCoinPotBlocks`), not against a
