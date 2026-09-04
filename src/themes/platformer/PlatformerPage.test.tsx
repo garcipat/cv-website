@@ -25,6 +25,8 @@ import {
   enemyPlacements,
   enemyStates,
   blockPlacements,
+  blockStates,
+  spawnedCoinPlacements,
   chestPlacements,
   chestStates,
   endingScreenShown,
@@ -37,6 +39,8 @@ import {
   resetGame,
   activePuffs,
 } from './PlatformerState';
+import { toBlockState } from './entities/Block';
+import type { BlockState } from './entities/Block';
 import { startPuffEffect } from './engine/CollectionEffects';
 import { toChestState, isChestOpen } from './entities/Chest';
 import { spawnKeyPickup } from './entities/KeyPickup';
@@ -117,6 +121,42 @@ const firstTileOfType = (
  *  two tests below is placed: far enough that one stomp cannot defeat both,
  *  close enough to stay on the same stretch of ground. */
 const PLAIN_ENEMY_OFFSET_X = 5 * RENDERED_TILE_SIZE;
+
+/** How far right of a real crate the synthetic coin-pot blocks in the
+ *  coin-pot landing tests below are placed — same reasoning as
+ *  PLAIN_ENEMY_OFFSET_X above (real level has no `u` marker yet, so a
+ *  coin-pot block for these tests is injected directly into `blockStates`
+ *  rather than sourced from `blockPlacements`; offsetting keeps it clear of
+ *  the real crate it borrows its row from). */
+const COIN_POT_TEST_OFFSET_X = 5 * RENDERED_TILE_SIZE;
+
+/** Builds a synthetic coin-pot `BlockState` positioned a fixed offset right
+ *  of a real crate's own row (borrowing its y so the block sits somewhere
+ *  the level already has open space), and injects it into `blockStates` —
+ *  the level layout has no `u` marker yet (Task 12), so `blockPlacements`
+ *  carries no real coin-pot to find; this constructs the live BlockState
+ *  directly instead, per this task's brief. */
+function placeTestCoinPot(id: string, fact?: BlockState['fact']): BlockState {
+  const crate = blockPlacements.value.find((b) => b.blockKind === 'crate')!;
+  const pot = toBlockState({
+    id,
+    blockKind: 'coinPot',
+    x: crate.x + COIN_POT_TEST_OFFSET_X,
+    y: crate.y,
+    fact,
+  });
+  blockStates.value = [...blockStates.value, pot];
+  return pot;
+}
+
+/** The player.y to set so a falling player's feet resolve to rest exactly on
+ *  top of the given block's tile — mirrors `stompLandingY` above, but for
+ *  landing on a solid block tile (`Physics.ts`'s ground-collision branch)
+ *  rather than an enemy's hitbox. A few px above the resting position with a
+ *  positive `vy` so the very first tick's collision resolves the landing. */
+function blockLandingY(block: BlockState, approachPx = 4): number {
+  return block.y - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING - approachPx;
+}
 
 describe('PlatformerPage', () => {
   beforeEach(() => {
@@ -1369,6 +1409,115 @@ describe('PlatformerPage', () => {
     expect(activePuffs.value.some((p) => p.id === crate.id)).toBe(true);
     expect(activeEffects.value.some((e) => e.id === crate.id)).toBe(true);
     expect(collectedFacts.value.some((f) => f.id === crate.fact?.id)).toBe(true);
+  });
+
+  describe('coinPot — landing destroys it and drops a coin', () => {
+    beforeEach(() => {
+      spawnedCoinPlacements.value = [];
+    });
+
+    it('landingOnACoinPot-destroysItAndBouncesThePlayer', () => {
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+      render(<PlatformerPage />);
+      frameCallback!(0);
+
+      const pot = placeTestCoinPot('coinpot-test-bounce');
+      playerState.value = { ...playerState.value, x: pot.x, y: blockLandingY(pot), vy: 300 };
+
+      // Exactly one tick — the landing tick itself. `vy` must be asserted
+      // here, not a few frames later: the very next tick's gravity
+      // integration would already have nudged the bounce velocity away from
+      // its just-applied exact value. `hitsTaken` similarly must be read
+      // before the coin-pot's bump animation finishes (100ms —
+      // BLOCK_BUMP_DURATION_SECONDS in BlockAI.ts) and it's filtered out of
+      // `blockStates` entirely (Block.ts's isBlockRemoved).
+      frameCallback!(16);
+
+      expect(blockStates.value.find((b) => b.blockKind === 'coinPot')?.hitsTaken).toBe(1);
+      expect(playerState.value.vy).toBe(PHYSICS_CONFIG.coinPotBounceVelocity);
+      expect(playerState.value.bounceAscending).toBe(true);
+    });
+
+    it('landingOnACoinPotWithAFact-addsACoinToSpawnedCoinPlacements', () => {
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+      render(<PlatformerPage />);
+      frameCallback!(0);
+
+      const crateFact = blockPlacements.value.find((b) => b.blockKind === 'crate')!.fact!;
+      const pot = placeTestCoinPot('coinpot-test-fact', crateFact);
+      playerState.value = { ...playerState.value, x: pot.x, y: blockLandingY(pot), vy: 300 };
+
+      let t = 16;
+      frameCallback!(t);
+      for (let i = 0; i < 10; i++) {
+        t += 16;
+        frameCallback!(t);
+      }
+
+      expect(spawnedCoinPlacements.value).toHaveLength(1);
+      expect(spawnedCoinPlacements.value[0].spriteType).toBe('coin');
+      expect(spawnedCoinPlacements.value[0].fact).toBe(crateFact);
+    });
+
+    it('landingOnACoinPotWithNoFact-destroysItButAddsNoCoin', () => {
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+      render(<PlatformerPage />);
+      frameCallback!(0);
+
+      const pot = placeTestCoinPot('coinpot-test-nofact');
+      playerState.value = { ...playerState.value, x: pot.x, y: blockLandingY(pot), vy: 300 };
+
+      let t = 16;
+      frameCallback!(t);
+      for (let i = 0; i < 10; i++) {
+        t += 16;
+        frameCallback!(t);
+      }
+
+      expect(spawnedCoinPlacements.value).toEqual([]);
+    });
+
+    it('landingOnACoinPot-firesThePuffEffectLikeAnyOtherDestroyedBlock', () => {
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+      render(<PlatformerPage />);
+      frameCallback!(0);
+
+      const pot = placeTestCoinPot('coinpot-test-puff');
+      playerState.value = { ...playerState.value, x: pot.x, y: blockLandingY(pot), vy: 300 };
+
+      let t = 16;
+      frameCallback!(t);
+      for (let i = 0; i < 10; i++) {
+        t += 16;
+        frameCallback!(t);
+      }
+
+      expect(activePuffs.value.some((p) => p.id === pot.id)).toBe(true);
+    });
   });
 
   it('coinCollection-queuesAFlightEffectOnly-neverAlsoAPuff', () => {

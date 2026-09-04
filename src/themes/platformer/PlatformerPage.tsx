@@ -71,6 +71,8 @@ import {
   BLOCK_FRAME_SIZE,
   blockEffectAnchor,
 } from './entities/Block';
+import type { BlockState } from './entities/Block';
+import { computeCoinPotRenderPlan } from './entities/blocks/coinPotRenderPlan';
 import { spawnBonusFruit, tickBonusFruit, bonusFruitY } from './entities/BonusFruit';
 import { spawnKeyPickup, KEY_TILE_OFFSET_X, KEY_TILE_OFFSET_Y } from './entities/KeyPickup';
 import {
@@ -127,7 +129,8 @@ import {
   resetGame,
   resetGameProgress,
   controlsOverlayDismissed,
-  collectiblePlacements,
+  spawnedCoinPlacements,
+  allCollectiblePlacements,
   enemyPlacements,
   enemyStates,
   blockPlacements,
@@ -465,6 +468,7 @@ export const PlatformerPage = () => {
         originX,
         originY,
         worldElapsed: worldAnimElapsed,
+        coinPotPlan: computeCoinPotRenderPlan(blockStates.value),
       };
 
       // Drawn BEFORE blocks: a bonus fruit spawns at its source block's own
@@ -493,7 +497,7 @@ export const PlatformerPage = () => {
         );
       }
 
-      drawCollectibles(ctx, collectiblePlacements.value, collectedCollectibleIds.value, drawContext);
+      drawCollectibles(ctx, allCollectiblePlacements.value, collectedCollectibleIds.value, drawContext);
 
       drawEnemies(ctx, enemyStates.value, drawContext);
 
@@ -909,7 +913,7 @@ export const PlatformerPage = () => {
 
       const touchedIds = checkCollectibleCollisions(
         playerState.value,
-        collectiblePlacements.value,
+        allCollectiblePlacements.value,
         collectedCollectibleIds.value,
       );
       if (touchedIds.length > 0) {
@@ -929,7 +933,7 @@ export const PlatformerPage = () => {
         const midY = canvas.height * 0.3;
 
         for (const id of touchedIds) {
-          const placement = collectiblePlacements.value.find((p) => p.id === id);
+          const placement = allCollectiblePlacements.value.find((p) => p.id === id);
           if (!placement) continue;
           nextCollected.add(id);
           newFacts.push(placement.fact);
@@ -969,11 +973,29 @@ export const PlatformerPage = () => {
         collectedFacts.value = newFacts;
         activeEffects.value = newEffects;
 
-        if (touchedIds.some((id) => collectiblePlacements.value.find((p) => p.id === id)?.spriteType === 'coin')) {
-          const coinTotal = collectiblePlacements.value.filter((p) => p.spriteType === 'coin').length;
-          const coinCollected = collectiblePlacements.value.filter(
-            (p) => p.spriteType === 'coin' && nextCollected.has(p.id),
-          ).length;
+        if (touchedIds.some((id) => allCollectiblePlacements.value.find((p) => p.id === id)?.spriteType === 'coin')) {
+          // A coin-pot that carries a fact but hasn't been destroyed yet has
+          // no entry in `allCollectiblePlacements` (its coin doesn't exist
+          // until the pot drops it — see `spawnedCoinPlacements`'s doc
+          // comment), so the displayed total would otherwise creep up each
+          // time a pot is destroyed instead of staying fixed all session.
+          // Counting these fact-bearing pots here keeps the total constant.
+          // Once a pot HAS dropped its coin, that coin already appears in
+          // `allCollectiblePlacements` (via `spawnedCoinPlacements`) and is
+          // counted by the plain filter above — the
+          // `!allCollectiblePlacements.value.some(...)` guard below excludes
+          // it here so it isn't double-counted.
+          const coinPotFactIds = blockPlacements.value
+            .filter((b) => b.blockKind === 'coinPot' && b.fact)
+            .map((b) => b.fact!.id);
+          const coinTotal =
+            allCollectiblePlacements.value.filter((p) => p.spriteType === 'coin').length +
+            coinPotFactIds.filter((id) => !allCollectiblePlacements.value.some((p) => p.id === id)).length;
+          const coinCollected =
+            allCollectiblePlacements.value.filter((p) => p.spriteType === 'coin' && nextCollected.has(p.id))
+              .length +
+            coinPotFactIds.filter((id) => nextCollected.has(id) && !allCollectiblePlacements.value.some((p) => p.id === id))
+              .length;
           activeCounterPopups.value = {
             ...activeCounterPopups.value,
             coins: startCounterPopup('coins', coinCollected, coinTotal),
@@ -1278,6 +1300,29 @@ export const PlatformerPage = () => {
       // question-mark that already popped its fruit, or a still-mid-bump
       // crate/fragileRock about to be filtered out, must not register a second hit
       // just because the player's head is still under it this frame).
+      // `originX`/`originY` (this tick's world-to-screen origin) are already
+      // in scope from the collectible-collision block above — reused here
+      // (not redeclared) for `firePuffIfJustUsedUp`'s puff-position math, so
+      // it's available to both the hittableBlockIds and landedOnTopIds
+      // blocks below regardless of which (if either) is non-empty this tick.
+
+      // A block's terminal hit — any kind that's removed once used up
+      // (crate, fragileRock, coinPot; not questionMark, which never breaks)
+      // — gets a visual "puff": a standalone world-event burst
+      // (CollectionEffects.ts's PuffEffect / Renderer.ts's
+      // drawPuffEffects), independent of whether a reward is also awarded
+      // alongside it. Shared between the hittableBlockIds ('bottom'-hit)
+      // and landedOnTopIds ('top'-hit) loops below so the same
+      // used-up/anchor/puff logic isn't duplicated per trigger direction.
+      const firePuffIfJustUsedUp = (block: BlockState): void => {
+        if (!BLOCK_TYPES[block.blockKind].removeWhenUsedUp || !isBlockUsedUp(block)) return;
+        const anchor = blockEffectAnchor(block);
+        activePuffs.value = [
+          ...activePuffs.value,
+          startPuffEffect(block.id, anchor.x + originX, anchor.y + originY, anchor.scale),
+        ];
+      };
+
       const hittableBlockIds = next.blockContacts
         .filter((c) => c.side === 'bottom')
         .map((c) => c.id)
@@ -1290,9 +1335,6 @@ export const PlatformerPage = () => {
           hittableBlockIds.includes(block.id) ? applyBlockHit(block) : block,
         );
 
-        const originX = -cameraPositionX.value;
-        const levelPixelHeight = currentLevel.value.height * RENDERED_TILE_SIZE;
-        const originY = canvas.height - levelPixelHeight + cameraPositionY.value;
         const journalRect = journalButtonRef.current?.getBoundingClientRect();
         const targetX = journalRect ? journalRect.left + journalRect.width / 2 : canvas.width - 32;
         const targetY = journalRect ? journalRect.top + journalRect.height / 2 : canvas.height - 32;
@@ -1310,22 +1352,11 @@ export const PlatformerPage = () => {
             ];
           }
 
-          // A block's terminal hit — any kind that's removed once used up
-          // (crate, fragileRock; not questionMark, which never breaks) —
-          // gets a visual "puff": a standalone world-event burst
-          // (CollectionEffects.ts's PuffEffect / Renderer.ts's
-          // drawPuffEffects), independent of whether a reward is also
-          // awarded below. This used to be duplicated per block kind (and
-          // fragileRock used to fake a burst-only effect via an empty-label
-          // FlightEffect with all coordinates equal); both hacks are gone —
-          // see B-003.
-          if (BLOCK_TYPES[block.blockKind].removeWhenUsedUp && isBlockUsedUp(block)) {
-            const anchor = blockEffectAnchor(block);
-            activePuffs.value = [
-              ...activePuffs.value,
-              startPuffEffect(block.id, anchor.x + originX, anchor.y + originY, anchor.scale),
-            ];
-          }
+          // Terminal-hit puff (crate/fragileRock destruction) — this used to
+          // be duplicated per block kind (and fragileRock used to fake a
+          // burst-only effect via an empty-label FlightEffect with all
+          // coordinates equal); both hacks are gone — see B-003.
+          firePuffIfJustUsedUp(block);
 
           if (block.blockKind === 'crate' && block.hitsTaken >= 2 && block.fact) {
             // Dedup by fact id, same defensive guard the enemy-defeat reward
@@ -1364,6 +1395,47 @@ export const PlatformerPage = () => {
                 ),
               ];
             }
+          }
+        }
+      }
+
+      // Coin-pot destruction: filters next.blockContacts (Task 3's
+      // generalized, side-tagged replacement for the old hitBlockIds) down
+      // to blocks landed ON TOP of this tick. Mirrors the hittableBlockIds
+      // block above exactly (same used-up guard), but for the 'top' side
+      // instead of 'bottom' — only coinPot blocks react to this today;
+      // every other kind simply never triggers anything on a 'top' contact.
+      const landedOnTopIds = next.blockContacts
+        .filter((c) => c.side === 'top')
+        .map((c) => c.id)
+        .filter((id) => {
+          const block = blockStates.value.find((b) => b.id === id);
+          return block !== undefined && !isBlockUsedUp(block);
+        });
+      if (landedOnTopIds.length > 0) {
+        blockStates.value = blockStates.value.map((block) =>
+          landedOnTopIds.includes(block.id) ? applyBlockHit(block) : block,
+        );
+        // Mutates `next` (not `playerState.value` directly) — `next` is what
+        // eventually gets persisted to `playerState.value` a bit further
+        // down (after the pit-fall check and anim-state updates), so a
+        // direct `playerState.value` write here would just be silently
+        // clobbered by that later assignment.
+        next = {
+          ...next,
+          vy: PHYSICS_CONFIG.coinPotBounceVelocity,
+          bounceAscending: true,
+        };
+
+        for (const id of landedOnTopIds) {
+          const block = blockStates.value.find((b) => b.id === id);
+          if (!block) continue;
+          firePuffIfJustUsedUp(block);
+          if (block.blockKind === 'coinPot' && block.fact) {
+            spawnedCoinPlacements.value = [
+              ...spawnedCoinPlacements.value,
+              { id: block.fact.id, spriteType: 'coin', fact: block.fact, x: block.x, y: block.y },
+            ];
           }
         }
       }
