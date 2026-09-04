@@ -28,13 +28,9 @@ function block(variant: Variant, col: number, widthTiles: number, heightTiles: n
 
 export const BACKGROUND_CATALOG: Record<BackgroundPieceId, BackgroundCatalogEntry> = {
   dirtBlock3x3: block('dirt', 0, 3, 3),
-  dirtBlock2x3: block('dirt', 3, 2, 3),
   dirtColumnA: block('dirt', 5, 1, 3),
-  dirtColumnB: block('dirt', 6, 1, 3),
   charcoalBlock3x3: block('charcoal', 0, 3, 3),
-  charcoalBlock2x3: block('charcoal', 3, 2, 3),
   charcoalColumnA: block('charcoal', 5, 1, 3),
-  charcoalColumnB: block('charcoal', 6, 1, 3),
 };
 
 export function backgroundCatalogEntry(pieceId: BackgroundPieceId): BackgroundCatalogEntry {

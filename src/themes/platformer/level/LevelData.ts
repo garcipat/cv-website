@@ -21,15 +21,7 @@ export interface LevelDef {
   background?: BackgroundPlacement[];
 }
 
-export type BackgroundPieceId =
-  | 'dirtBlock3x3'
-  | 'dirtBlock2x3'
-  | 'dirtColumnA'
-  | 'dirtColumnB'
-  | 'charcoalBlock3x3'
-  | 'charcoalBlock2x3'
-  | 'charcoalColumnA'
-  | 'charcoalColumnB';
+export type BackgroundPieceId = 'dirtBlock3x3' | 'dirtColumnA' | 'charcoalBlock3x3' | 'charcoalColumnA';
 
 /** One stone piece anchored at its top-left cell. Purely decorative — never
  *  read by collision/physics; only the renderer and the Level Editor

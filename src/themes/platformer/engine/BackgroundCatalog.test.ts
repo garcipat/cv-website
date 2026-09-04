@@ -7,13 +7,9 @@ const SHEET_HEIGHT = 320;
 const TILE_SIZE = 16;
 const PIECE_IDS: BackgroundPieceId[] = [
   'dirtBlock3x3',
-  'dirtBlock2x3',
   'dirtColumnA',
-  'dirtColumnB',
   'charcoalBlock3x3',
-  'charcoalBlock2x3',
   'charcoalColumnA',
-  'charcoalColumnB',
 ];
 
 describe('BackgroundCatalog', () => {
