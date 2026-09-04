@@ -883,7 +883,7 @@ describe('EditorCanvas — background layer', () => {
       />,
     );
 
-    expect(alphaDuringDrawTerrain).toBe(0.35);
+    expect(alphaDuringDrawTerrain).toBe(0.2);
   });
 
   it('foregroundLayerActive-drawsForegroundTerrainAtFullOpacity', () => {
@@ -933,6 +933,6 @@ describe('EditorCanvas — background layer', () => {
       />,
     );
 
-    expect(alphaDuringDrawPlayer).toBe(0.35);
+    expect(alphaDuringDrawPlayer).toBe(0.2);
   });
 });

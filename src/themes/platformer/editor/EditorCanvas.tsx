@@ -295,7 +295,7 @@ export const EditorCanvas = ({
     // placed underneath. `drawBackgroundTiles` above stays outside this
     // wrapper always, since it's the layer being emphasized, never dimmed —
     // mid-execution addition to the original design.
-    const foregroundAlpha = activeLayer === 'background' ? 0.35 : 1;
+    const foregroundAlpha = activeLayer === 'background' ? 0.2 : 1;
     ctx.save();
     ctx.globalAlpha = foregroundAlpha;
 
