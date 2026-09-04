@@ -12,13 +12,13 @@ export interface StaticObjectEntry {
  *  role gains more than one variant — with exactly one variant per role
  *  today, every position resolves to that single entry. */
 const BUSH_OR_TREE_VARIANTS: Record<VerticalRunRole, StaticObjectEntry[]> = {
-  only: [{ sx: 0, sy: 0 }],
-  bottom: [{ sx: 0, sy: 48 }],
-  middle: [{ sx: 0, sy: 64 }],
-  top: [{ sx: 0, sy: 16 }],
+  only: [{ sx: 0, sy: 48 }],
+  bottom: [{ sx: 16, sy: 48 }],
+  middle: [{ sx: 16, sy: 32 }],
+  top: [{ sx: 16, sy: 16 }],
 };
 
-const FENCE_VARIANTS: StaticObjectEntry[] = [{ sx: 96, sy: 128 }];
+const FENCE_VARIANTS: StaticObjectEntry[] = [{ sx: 240, sy: 112 }];
 
 function pickVariant<T>(variants: readonly T[], col: number, row: number): T {
   const index = (col * 31 + row * 17) % variants.length;
