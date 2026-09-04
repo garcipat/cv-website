@@ -8,6 +8,7 @@ import {
   CRATE_TILES,
   QUESTIONMARK_TILES,
   FRAGILE_ROCK_TILES,
+  COIN_POT_TILES,
   CHEST_TILES,
   SIGN_TILES,
 } from './level/level';
@@ -30,7 +31,7 @@ import { introState } from './engine/GameLifecycle';
 import { currentCV } from '@/state/locale';
 import { mapCVDataToCollectibles, placeCollectibles } from './level/CollectibleMapper';
 import { mapCVDataToEnemies, placeEnemies } from './level/EnemyMapper';
-import { mapCVDataToBlocks, placeBlocks } from './level/BlockMapper';
+import { mapCVDataToBlocks, placeBlocks, mapSkillCollectiblesToCoinPotBlocks } from './level/BlockMapper';
 import { mapCVDataToChests, placeChests } from './level/ChestMapper';
 import type { ChestPlacement } from './level/ChestMapper';
 import { placeSigns } from './level/SignMapper';
@@ -122,6 +123,29 @@ export const collectiblePlacements = computed<CollectiblePlacement[]>(() =>
 );
 
 /**
+ * Coins dropped by a destroyed coin-pot this session — starts empty. Unlike
+ * every other collectible (placed once at load time via
+ * `collectiblePlacements`), a coin-pot's reward coin doesn't exist — and
+ * isn't reachable/collectible — until its block is destroyed;
+ * `PlatformerPage.tsx` appends to this the instant that happens. Reset to
+ * `[]` by `resetGameProgress()` alongside `blockStates`, so a full "Reset
+ * Game" also re-hides these behind their (now-restored) pots.
+ */
+export const spawnedCoinPlacements = signal<CollectiblePlacement[]>([]);
+
+/**
+ * Every currently-collectible coin/fruit: `collectiblePlacements`'s fixed,
+ * load-time set plus any coin-pot drops so far this session. Every
+ * player-facing read (collision, rendering, totals) that used to read
+ * `collectiblePlacements` directly now reads this instead, so a dropped
+ * coin behaves exactly like any other one.
+ */
+export const allCollectiblePlacements = computed<CollectiblePlacement[]>(() => [
+  ...collectiblePlacements.value,
+  ...spawnedCoinPlacements.value,
+]);
+
+/**
  * Every enemy in the level, placed once at module load — same non-reactive
  * convention as collectiblePlacements above (see its comment): no
  * locale-reactivity. Every position comes from currentLevel's hand-placed
@@ -146,17 +170,24 @@ export const enemyPlacements = computed<EnemyPlacement[]>(() =>
  * enemyPlacements above. Crates come from
  * `mapCVDataToBlocks` zipped against currentLevel's `X` markers; question-mark
  * and fragileRock blocks have no CVData mapping and are placed directly from
- * their `Q`/`F` markers (see BlockMapper.ts's placeBlocks). This placement
- * carries no live per-instance state (no hitsTaken/broken) — that lives in
- * `blockStates` below, once blocks respond to hits.
+ * their `Q`/`F` markers (see BlockMapper.ts's placeBlocks). Coin-pot blocks
+ * are different again: they draw no dedicated CVData mapping of their own,
+ * but instead zip against whichever skill-category collectible defs a `C`
+ * marker didn't already claim (see BlockMapper.ts's
+ * `mapSkillCollectiblesToCoinPotBlocks`), placed at the level's `u` markers.
+ * This placement carries no live per-instance state (no hitsTaken/broken) —
+ * that lives in `blockStates` below, once blocks respond to hits.
  */
-export const blockPlacements = computed<BlockPlacement[]>(() =>
-  placeBlocks(mapCVDataToBlocks(currentCV.value), {
+export const blockPlacements = computed<BlockPlacement[]>(() => {
+  const cv = currentCV.value;
+  const coinPotDefs = mapSkillCollectiblesToCoinPotBlocks(mapCVDataToCollectibles(cv), COIN_TILES.value.length);
+  return placeBlocks([...mapCVDataToBlocks(cv), ...coinPotDefs], {
     crate: CRATE_TILES.value,
     questionMark: QUESTIONMARK_TILES.value,
     fragileRock: FRAGILE_ROCK_TILES.value,
-  }),
-);
+    coinPot: COIN_POT_TILES.value,
+  });
+});
 
 /**
  * Every chest in the level, placed once at module load — same non-reactive,
@@ -441,6 +472,7 @@ export function resetGameProgress(): void {
   activePuffs.value = [];
   activeCounterPopups.value = {};
   blockStates.value = blockPlacements.value.map(toBlockState);
+  spawnedCoinPlacements.value = [];
   chestStates.value = chestPlacements.value.map(toChestState);
   endingScreenShown.value = false;
   endingScreenOpen.value = false;
