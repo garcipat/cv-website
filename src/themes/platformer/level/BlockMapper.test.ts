@@ -1,4 +1,5 @@
-import { mapCVDataToBlocks, placeBlocks, isBlockOccupied, blockIdAt } from './BlockMapper';
+import { mapCVDataToBlocks, placeBlocks, isBlockOccupied, blockIdAt, mapSkillCollectiblesToCoinPotBlocks } from './BlockMapper';
+import { mapCVDataToCollectibles } from './CollectibleMapper';
 import { tileToPixel } from './Terrain';
 import type { CVData } from '@/types/cv';
 
@@ -21,6 +22,15 @@ const cv: CVData = {
   certificates: [{ name: 'AWS Solutions Architect', issuer: 'AWS', date: '2023-06' }],
   languages: [],
   projects: [{ name: 'Open Source Task Runner', description: 'A CLI task runner.' }],
+};
+
+const cvWithSkills: CVData = {
+  ...cv,
+  skills: [
+    { category: 'Backend', skills: [{ name: 'Node.js', level: 90 }] },
+    { category: 'Frontend', skills: [{ name: 'React', level: 95 }] },
+    { category: 'DevOps', skills: [{ name: 'Docker', level: 80 }] },
+  ],
 };
 
 describe('mapCVDataToBlocks', () => {
@@ -238,5 +248,71 @@ describe('blockIdAt', () => {
 
   it('noPlacements-returnsUndefined', () => {
     expect(blockIdAt([], 5, 2)).toBeUndefined();
+  });
+});
+
+describe('mapSkillCollectiblesToCoinPotBlocks', () => {
+  it('coinMarkerCountZero-turnsEveryDefIntoACoinPotBlock', () => {
+    const defs = mapCVDataToCollectibles(cvWithSkills);
+    const blocks = mapSkillCollectiblesToCoinPotBlocks(defs, 0);
+    expect(blocks).toHaveLength(defs.length);
+    expect(blocks.every((b) => b.blockKind === 'coinPot')).toBe(true);
+  });
+
+  it('coinMarkerCountEqualsAllDefs-returnsNoCoinPotBlocks', () => {
+    const defs = mapCVDataToCollectibles(cvWithSkills);
+    expect(mapSkillCollectiblesToCoinPotBlocks(defs, defs.length)).toEqual([]);
+  });
+
+  it('coinMarkerCountLessThanDefs-returnsOnlyTheRemainder', () => {
+    const defs = mapCVDataToCollectibles(cvWithSkills);
+    const blocks = mapSkillCollectiblesToCoinPotBlocks(defs, 1);
+    expect(blocks).toHaveLength(defs.length - 1);
+    expect(blocks.map((b) => b.fact?.id)).toEqual(defs.slice(1).map((d) => d.fact.id));
+  });
+
+  it('everyProducedBlock-carriesTheSameFactItsSourceDefHad', () => {
+    const defs = mapCVDataToCollectibles(cvWithSkills);
+    const [block] = mapSkillCollectiblesToCoinPotBlocks(defs, 0);
+    expect(block.fact).toBe(defs[0].fact);
+  });
+
+  it('everyProducedBlock-hasAUniqueIdDistinctFromItsSourceDefId', () => {
+    // The block's own id must not collide with the walk-over coin's own
+    // CollectiblePlacement id (BlockPlacement/CollectiblePlacement ids share
+    // no namespace, but keeping them visibly distinct avoids confusion when
+    // debugging) — only the nested fact.id is shared/reused for dedup.
+    const defs = mapCVDataToCollectibles(cvWithSkills);
+    const [block] = mapSkillCollectiblesToCoinPotBlocks(defs, 0);
+    expect(block.id).not.toBe(defs[0].id);
+    expect(block.fact?.id).toBe(defs[0].id);
+  });
+});
+
+describe('placeBlocks — coinPot markers', () => {
+  it('coinPotMarkerWithNoDefs-stillProducesAPlacementWithNoFact', () => {
+    const placed = placeBlocks([], { crate: [], questionMark: [], fragileRock: [], coinPot: [{ col: 5, row: 2 }] });
+    expect(placed).toHaveLength(1);
+    expect(placed[0].blockKind).toBe('coinPot');
+    expect(placed[0].fact).toBeUndefined();
+  });
+
+  it('coinPotMarkerWithADef-carriesItsFact', () => {
+    const defs = mapSkillCollectiblesToCoinPotBlocks(mapCVDataToCollectibles(cvWithSkills), 0);
+    const placed = placeBlocks(defs, {
+      crate: [],
+      questionMark: [],
+      fragileRock: [],
+      coinPot: [{ col: 5, row: 2 }],
+    });
+    expect(placed).toHaveLength(1);
+    expect(placed[0].fact).toBe(defs[0].fact);
+  });
+
+  it('coinPotOmittedFromMarkers-behavesAsEmptyArray', () => {
+    // BlockMarkerPositions.coinPot is optional so every pre-existing call
+    // site (production and test) that doesn't know about coin-pots yet
+    // keeps compiling unchanged.
+    expect(placeBlocks([], { crate: [], questionMark: [], fragileRock: [] })).toEqual([]);
   });
 });

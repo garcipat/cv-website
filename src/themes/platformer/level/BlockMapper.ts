@@ -1,7 +1,7 @@
 import { tileToPixel, RENDERED_TILE_SIZE } from './Terrain';
 import { slugify } from './CollectibleMapper';
 import type { CVData, Education, Certificate, Project, Activity, Language } from '@/types/cv';
-import type { BlockDef } from '../types';
+import type { BlockDef, CollectibleDef } from '../types';
 
 function educationToBlock(education: Education): BlockDef {
   const id = `block-edu-${slugify(`${education.degree}-${education.institution}`)}`;
@@ -97,6 +97,27 @@ export function mapCVDataToBlocks(cv: CVData): BlockDef[] {
   ];
 }
 
+/**
+ * Turns leftover skill-category `CollectibleDef`s — the SAME pool
+ * `CollectibleMapper.ts`'s `mapCVDataToCollectibles` produces for walk-over
+ * coins — into coin-pot `BlockDef`s. A level author places some categories
+ * as walk-over `C` coins and others as `u` coin-pots; `coinMarkerCount` is
+ * how many `C` markers the level actually has, so this function only offers
+ * the REMAINDER (in the same category order `mapCVDataToCollectibles`
+ * produced them in) to coin-pot markers — no double-counting, and no new
+ * CVData mapping of its own.
+ */
+export function mapSkillCollectiblesToCoinPotBlocks(
+  collectibleDefs: readonly CollectibleDef[],
+  coinMarkerCount: number,
+): BlockDef[] {
+  return collectibleDefs.slice(coinMarkerCount).map((def) => ({
+    id: `coinpot-${def.id}`,
+    blockKind: 'coinPot',
+    fact: def.fact,
+  }));
+}
+
 export interface BlockPlacement extends BlockDef {
   x: number;
   y: number;
@@ -108,6 +129,10 @@ export interface BlockMarkerPositions {
   crate: readonly { col: number; row: number }[];
   questionMark: readonly { col: number; row: number }[];
   fragileRock: readonly { col: number; row: number }[];
+  /** Optional so every pre-existing caller (production and test) that
+   *  doesn't yet place coin-pots keeps compiling unchanged — treated as `[]`
+   *  when omitted. */
+  coinPot?: readonly { col: number; row: number }[];
 }
 
 /**
@@ -145,6 +170,13 @@ export function placeBlocks(defs: BlockDef[], markers: BlockMarkerPositions): Bl
     const { x, y } = tileToPixel(col, row);
     placements.push({ id: `fragileRock-${col}-${row}`, blockKind: 'fragileRock', x, y });
   }
+
+  const coinPotDefs = defs.filter((d) => d.blockKind === 'coinPot');
+  (markers.coinPot ?? []).forEach(({ col, row }, index) => {
+    const { x, y } = tileToPixel(col, row);
+    const def = coinPotDefs[index];
+    placements.push(def ? { ...def, x, y } : { id: `coinpot-${col}-${row}`, blockKind: 'coinPot', x, y });
+  });
 
   return placements;
 }
