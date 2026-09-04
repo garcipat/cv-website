@@ -73,7 +73,7 @@ export function spawnPlayerState(): PlayerState {
     animTimer: 0,
     knockbackTimer: 0,
     bounceAscending: false,
-    hitBlockIds: [],
+    blockContacts: [],
     hitPoints: MAX_HALF_HEARTS,
     alive: true,
     // `hitTimer` counts UP from a hit, so "no hit recently" is a value at or

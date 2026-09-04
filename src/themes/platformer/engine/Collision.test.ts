@@ -48,7 +48,7 @@ function makePlayer(x: number, y: number): PlayerState {
     animTimer: 0,
     knockbackTimer: 0,
     bounceAscending: false,
-    hitBlockIds: [],
+    blockContacts: [],
     hitPoints: 6,
     alive: true,
     hitTimer: PLAYER_HIT_REACTION_SECONDS,
@@ -414,7 +414,7 @@ describe('checkKeyPickupCollisions', () => {
   const player = {
     x: 0, y: 0, vx: 0, vy: 0, direction: 'right' as const, grounded: true, climbing: false,
     isDroppingThroughBridge: false, lastGroundedX: 0, lastGroundedY: 0, animState: 'idle' as const,
-    animFrame: 0, animTimer: 0, knockbackTimer: 0, bounceAscending: false, hitBlockIds: [],
+    animFrame: 0, animTimer: 0, knockbackTimer: 0, bounceAscending: false, blockContacts: [],
     hitPoints: 6, alive: true, hitTimer: PLAYER_HIT_REACTION_SECONDS,
   };
 

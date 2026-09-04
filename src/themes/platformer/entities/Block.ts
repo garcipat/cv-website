@@ -87,9 +87,9 @@ export function isBlockRemoved(block: BlockState): boolean {
  * `'bump'` nudge animation from frame zero (FR-022d — every upward hit, not
  * just intermediate ones, plays this). A no-op (returns the same reference)
  * if the block is already used up — callers (`PlatformerPage.tsx`) are
- * expected to already exclude used-up blocks from `hitBlockIds` before
- * calling this, but this guard keeps the function safe to call
- * unconditionally regardless.
+ * expected to already exclude used-up blocks from the `'bottom'`-filtered
+ * `blockContacts` list before calling this, but this guard keeps the
+ * function safe to call unconditionally regardless.
  */
 export function applyBlockHit(block: BlockState): BlockState {
   if (isBlockUsedUp(block)) return block;
