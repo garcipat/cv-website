@@ -130,3 +130,20 @@ describe('ground marker', () => {
     });
   });
 });
+
+describe('paletteTiles — bush/fence', () => {
+  it('n-hasANonNullSprite', () => {
+    expect(PALETTE_TILE_SPRITES.n).not.toBeNull();
+  });
+
+  it('N-hasANonNullSprite', () => {
+    expect(PALETTE_TILE_SPRITES.N).not.toBeNull();
+  });
+
+  it('nAndN-haveNonEmptyLabelsAndDescriptions', () => {
+    expect(PALETTE_TILE_LABELS.n.length).toBeGreaterThan(0);
+    expect(PALETTE_TILE_LABELS.N.length).toBeGreaterThan(0);
+    expect(PALETTE_TILE_DESCRIPTIONS.n.length).toBeGreaterThan(0);
+    expect(PALETTE_TILE_DESCRIPTIONS.N.length).toBeGreaterThan(0);
+  });
+});
