@@ -103,6 +103,8 @@ import {
   PLAYER_VISUAL_CENTER_Y_OFFSET,
   PLAYER_HEAD_PADDING,
 } from './entities/Player';
+import type { BlockContact } from './entities/Player';
+import { strongerBounce } from './engine/Outcome';
 import { isInvulnerable } from './entities/capabilities';
 import { advanceEnemyAnimation, enemyEffectAnchor } from './entities/Enemy';
 import {
@@ -1301,26 +1303,23 @@ export const PlatformerPage = () => {
       );
 
       // Block hit mechanics: `next.blockContacts` (set by Physics.ts's
-      // collision checks, same call above), filtered to `'bottom'` side,
-      // reports every block whose underside the player's head just hit this
-      // tick — but only a block that ISN'T already used up actually reacts (a
-      // question-mark that already popped its fruit, or a still-mid-bump
-      // crate/fragileRock about to be filtered out, must not register a second hit
-      // just because the player's head is still under it this frame).
+      // collision checks, same call above) reports every side-tagged block
+      // contact from this tick — but a contact only registers as a hit if the
+      // block's kind actually reacts to that side, and the block ISN'T
+      // already used up (a question-mark that already popped its fruit, or a
+      // still-mid-bump crate/fragileRock about to be filtered out, must not
+      // register a second hit just because the player's head is still under
+      // it this frame).
       // `originX`/`originY` (this tick's world-to-screen origin) are already
       // in scope from the collectible-collision block above — reused here
-      // (not redeclared) for `firePuffIfJustUsedUp`'s puff-position math, so
-      // it's available to both the hittableBlockIds and landedOnTopIds
-      // blocks below regardless of which (if either) is non-empty this tick.
+      // (not redeclared) for `firePuffIfJustUsedUp`'s puff-position math.
 
       // A block's terminal hit — any kind that's removed once used up
       // (crate, fragileRock, coinPot; not questionMark, which never breaks)
       // — gets a visual "puff": a standalone world-event burst
       // (CollectionEffects.ts's PuffEffect / Renderer.ts's
       // drawPuffEffects), independent of whether a reward is also awarded
-      // alongside it. Shared between the hittableBlockIds ('bottom'-hit)
-      // and landedOnTopIds ('top'-hit) loops below so the same
-      // used-up/anchor/puff logic isn't duplicated per trigger direction.
+      // alongside it.
       const firePuffIfJustUsedUp = (block: BlockState): void => {
         if (!BLOCK_TYPES[block.blockKind].removeWhenUsedUp || !isBlockUsedUp(block)) return;
         const anchor = blockEffectAnchor(block);
@@ -1330,19 +1329,32 @@ export const PlatformerPage = () => {
         ];
       };
 
-      const hittableBlockIds = next.blockContacts
-        .filter((c) => c.side === 'bottom')
-        .map((c) => c.id)
-        .filter((id) => {
-          const block = blockStates.value.find((b) => b.id === id);
-          // coinPot reacts only to a 'top' contact (landing on it) — a
-          // 'bottom' contact against it (walking under it, jumping into its
-          // underside) must never register as a hit.
-          return block !== undefined && block.blockKind !== 'coinPot' && !isBlockUsedUp(block);
-        });
-      if (hittableBlockIds.length > 0) {
+      // Every block whose contact side this kind actually reacts to (see
+      // BlockType.triggerSides) and that isn't already used up. This replaces
+      // two near-duplicate loops — one for 'bottom' contacts that excluded
+      // coinPot by name, one for 'top' contacts that admitted only coinPot —
+      // whose only real difference was per-kind knowledge that now lives in
+      // the registry.
+      const hitBlocks = next.blockContacts
+        .map((contact) => ({ contact, block: blockStates.value.find((b) => b.id === contact.id) }))
+        .filter(
+          (entry): entry is { contact: BlockContact; block: BlockState } =>
+            entry.block !== undefined &&
+            !isBlockUsedUp(entry.block) &&
+            // Compared rather than `.includes`d because the two side unions
+            // are not the same type: `triggerSides` is `ContactSide`
+            // ('top' | 'side' | 'bottom'), while a block contact carries a
+            // `BlockContactSide` ('top' | 'bottom' | 'left' | 'right'). They
+            // overlap on exactly the sides any block kind declares.
+            BLOCK_TYPES[entry.block.blockKind].triggerSides.some(
+              (side) => side === entry.contact.side,
+            ),
+        );
+
+      if (hitBlocks.length > 0) {
+        const hitIds = new Set(hitBlocks.map((entry) => entry.block.id));
         blockStates.value = blockStates.value.map((block) =>
-          hittableBlockIds.includes(block.id) ? applyBlockHit(block) : block,
+          hitIds.has(block.id) ? applyBlockHit(block) : block,
         );
 
         const journalRect = journalButtonRef.current?.getBoundingClientRect();
@@ -1351,41 +1363,61 @@ export const PlatformerPage = () => {
         const midX = canvas.width / 2;
         const midY = canvas.height * 0.3;
 
-        for (const id of hittableBlockIds) {
+        // Most negative wins, so several blocks bouncing the player in one
+        // tick is deterministic regardless of iteration order.
+        let bounceVelocity: number | undefined;
+
+        for (const id of hitIds) {
+          // Re-read from the post-applyBlockHit array: onHit must see the
+          // incremented hitsTaken, which is how a kind knows this hit was its
+          // terminal one.
           const block = blockStates.value.find((b) => b.id === id);
           if (!block) continue;
 
-          if (block.blockKind === 'questionMark') {
+          // A world-event burst on destruction, independent of whether a
+          // reward is also awarded alongside it (B-003).
+          firePuffIfJustUsedUp(block);
+
+          const outcome = BLOCK_TYPES[block.blockKind].onHit?.(block) ?? {};
+
+          bounceVelocity = strongerBounce(bounceVelocity, outcome.bounceVelocity);
+
+          // One dispatch keyed by pickup type, replacing the old per-blockKind
+          // branches. The two arms differ because their target arrays differ,
+          // and each keeps what is the engine's business rather than the
+          // block's: the fruit icon cycle, and the dropped coin's id/position.
+          if (outcome.spawnPickup === 'bonusFruit') {
             bonusFruitStates.value = [
               ...bonusFruitStates.value,
               spawnBonusFruit(block.id, block.x, block.y, block.fact, nextBonusFruitIcon++),
             ];
+          } else if (outcome.spawnPickup === 'coin') {
+            // `block.id` is the pot's own id, not a fact id (the block never
+            // had one) — this is what the coin-total dedup guard matches
+            // against once this coin exists in allCollectiblePlacements.
+            spawnedCoinPlacements.value = [
+              ...spawnedCoinPlacements.value,
+              { id: block.id, spriteType: 'coin', x: block.x, y: block.y },
+            ];
           }
 
-          // Terminal-hit puff (crate/fragileRock destruction) — this used to
-          // be duplicated per block kind (and fragileRock used to fake a
-          // burst-only effect via an empty-label FlightEffect with all
-          // coordinates equal); both hacks are gone — see B-003.
-          firePuffIfJustUsedUp(block);
-
-          if (block.blockKind === 'crate' && block.hitsTaken >= 2 && block.fact) {
-            // Dedup by fact id, same defensive guard the enemy-defeat reward
-            // already uses (FR-020c) — not actually reachable for crates
-            // today (they never reset mid-session), but keeps the two reward
-            // paths consistent.
-            if (!collectedFacts.value.some((f) => f.id === block.fact!.id)) {
-              // Reuses the journal's own title/icon derivation — see the
-              // enemy-defeat block above. Uses the role/degree rather than
-              // the generic "Experience"/"Education" section label.
-              const { icon, title: label } = formatJournalEntry(block.fact);
+          if (outcome.revealFact) {
+            const fact = outcome.revealFact;
+            // Dedup by fact id, same defensive guard every other reward path
+            // uses (FR-020c).
+            if (!collectedFacts.value.some((f) => f.id === fact.id)) {
+              const { icon, title: label } = formatJournalEntry(fact);
               const slot = nextTextSlot;
               nextTextSlot = (nextTextSlot + 1) % COLLECTION_TEXT_SLOT_COUNT;
               const stackOffsetY = slot * COLLECTION_TEXT_STACK_ROW_HEIGHT;
-              collectedFacts.value = [...collectedFacts.value, block.fact];
-              const crateCollected = countCollectedFor('crates', collectedFacts.value);
+              collectedFacts.value = [...collectedFacts.value, fact];
               activeCounterPopups.value = {
                 ...activeCounterPopups.value,
-                crates: startCounterPopup('crates', crateCollected, levelTotals.value.crates),
+                crates: startCounterPopup(
+                  'crates',
+                  countCollectedFor('crates', collectedFacts.value),
+                  levelTotals.value.crates,
+                ),
               };
               activeEffects.value = [
                 ...activeEffects.value,
@@ -1404,58 +1436,13 @@ export const PlatformerPage = () => {
             }
           }
         }
-      }
 
-      // Coin-pot destruction: filters next.blockContacts (Task 3's
-      // generalized, side-tagged replacement for the old hitBlockIds) down
-      // to blocks landed ON TOP of this tick. Mirrors the hittableBlockIds
-      // block above exactly (same used-up guard), but for the 'top' side
-      // instead of 'bottom' — only coinPot blocks react to this today;
-      // every other kind simply never triggers anything on a 'top' contact.
-      const landedOnTopIds = next.blockContacts
-        .filter((c) => c.side === 'top')
-        .map((c) => c.id)
-        .filter((id) => {
-          const block = blockStates.value.find((b) => b.id === id);
-          // Only coinPot reacts to a 'top' contact (landing on it) — every
-          // other kind (crate/questionMark/fragileRock) only ever reacts
-          // from below, so simply standing/landing on top of one must never
-          // register as a hit.
-          return block !== undefined && block.blockKind === 'coinPot' && !isBlockUsedUp(block);
-        });
-      if (landedOnTopIds.length > 0) {
-        blockStates.value = blockStates.value.map((block) =>
-          landedOnTopIds.includes(block.id) ? applyBlockHit(block) : block,
-        );
-        // Mutates `next` (not `playerState.value` directly) — `next` is what
-        // eventually gets persisted to `playerState.value` a bit further
-        // down (after the pit-fall check and anim-state updates), so a
-        // direct `playerState.value` write here would just be silently
-        // clobbered by that later assignment.
-        next = {
-          ...next,
-          vy: PHYSICS_CONFIG.coinPotBounceVelocity,
-          bounceAscending: true,
-        };
-
-        for (const id of landedOnTopIds) {
-          const block = blockStates.value.find((b) => b.id === id);
-          if (!block) continue;
-          firePuffIfJustUsedUp(block);
-          // Every id in landedOnTopIds is already guaranteed to be a
-          // coinPot (enforced by the filter above, not just true "today")
-          // — no blockKind check needed here. Always drops a coin,
-          // regardless of whether the skill-fact pool still has anything
-          // left — see mapCVDataToSkillFactPool's doc comment: WHICH fact
-          // (if any) this reveals is resolved dynamically once it's
-          // actually walked over, not decided here. `id` is the pot's own
-          // id, not a fact id (the block never had one) — this is what the
-          // coin-total dedup guard above matches against once this coin
-          // exists in allCollectiblePlacements.
-          spawnedCoinPlacements.value = [
-            ...spawnedCoinPlacements.value,
-            { id: block.id, spriteType: 'coin', x: block.x, y: block.y },
-          ];
+        if (bounceVelocity !== undefined) {
+          // Mutates `next`, not `playerState.value` — `next` is what gets
+          // persisted further down this tick (after the pit-fall check and
+          // anim-state updates), so a direct playerState.value write here
+          // would be silently clobbered by that later assignment.
+          next = { ...next, vy: bounceVelocity, bounceAscending: true };
         }
       }
 
