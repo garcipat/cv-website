@@ -8,6 +8,9 @@ import { blockBumpOffsetY, CRATE_SHATTER_DURATION_SECONDS } from '../../engine/B
 /** Row 3, column 7 of the shared tileset. */
 const CRATE_FRAME = 55;
 
+/** Two hits: the first cracks it, the second shatters it. */
+const MAX_HITS = 2;
+
 /** Whether a crate's cracked-overlay sprite (`crack_overlay.png`) should be
  *  composited over its base tile — only between its first hit (cracked) and
  *  second hit (shattered/removed), never on an intact or fully-broken
@@ -29,9 +32,18 @@ export function crateShatterOpacity(block: BlockState): number {
 export const crate: BlockType = {
   key: 'crate',
   sprite: { sheet: WORLD_TILESET_SHEET, renderScale: 1, animations: {} },
-  // Two hits: the first cracks it, the second shatters it.
-  maxHits: 2,
+  maxHits: MAX_HITS,
   removeWhenUsedUp: true,
+  triggerSides: ['bottom'],
+  // Receives the block after applyBlockHit, so hitsTaken is already
+  // incremented — the terminal hit is the one that reaches MAX_HITS. This
+  // check used to live in PlatformerPage.tsx as `hitsTaken >= 2`.
+  // The crate declares which counter its reveal feeds — the engine no longer
+  // assumes every block reveal is a crate.
+  onHit: (block) =>
+    block.hitsTaken >= MAX_HITS && block.fact
+      ? { revealFact: block.fact, counterKey: 'crates' }
+      : {},
   frameIndex: () => CRATE_FRAME,
   // Its own copy of the plain blit (see drawBlockTile.ts's doc comment for
   // why this isn't shared) — wrapped in the shatter opacity, plus the crack

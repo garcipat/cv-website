@@ -19,6 +19,11 @@ export const questionMark: BlockType = {
   maxHits: 1,
   // Stays as a permanent solid block once spent; only its frame changes.
   removeWhenUsedUp: false,
+  triggerSides: ['bottom'],
+  // maxHits is 1, so its only registering hit is always its terminal one.
+  // The engine supplies the icon index (see PlatformerPage.tsx's
+  // nextBonusFruitIcon) — a block never picks its fruit's appearance.
+  onHit: () => ({ spawnPickup: 'bonusFruit' }),
   frameIndex: questionMarkFrameIndex,
   draw: (block, dc) => drawBlockTile(block, dc, questionMarkFrameIndex(block.hitsTaken)),
 };

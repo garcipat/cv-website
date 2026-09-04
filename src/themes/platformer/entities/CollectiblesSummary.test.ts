@@ -1,5 +1,5 @@
-import { collectiblesSummary } from './CollectiblesSummary';
-import type { CollectedFact } from '../types';
+import { collectiblesSummary, countCollectedFor, COUNTER_SECTIONS } from './CollectiblesSummary';
+import type { CollectedFact, SectionId } from '../types';
 
 describe('collectiblesSummary', () => {
   it('coinsAndFruitsPlaced-noneCollected-returnsBothRowsWithZeroCollected', () => {
@@ -220,5 +220,77 @@ describe('collectiblesSummary', () => {
       coinsCollected: 3,
     });
     expect(rows).toEqual([{ labelKey: 'coins', collected: 3, total: 10 }]);
+  });
+});
+
+/** A minimal fact in the given section — only `sectionId` matters to
+ *  countCollectedFor, but CollectedFact requires the rest. */
+const factIn = (id: string, sectionId: SectionId): CollectedFact => ({
+  id,
+  sectionId,
+  sectionLabel: sectionId,
+  data: { category: 'x', skills: [] },
+  sourceType: 'block',
+});
+
+describe('countCollectedFor', () => {
+  it('crates-crateSectionFacts-countsEveryOne', () => {
+    const facts = [
+      factIn('a', 'education'),
+      factIn('b', 'activities'),
+      factIn('c', 'languages'),
+    ];
+
+    expect(countCollectedFor('crates', facts)).toBe(3);
+  });
+
+  // The bug this task fixes: PlatformerPage.tsx counted 'experience' (the
+  // chest pool) as a crate, which let the crate popup read 3/3 with a single
+  // crate broken.
+  it('crates-factFromChestPool-isNotCounted', () => {
+    expect(countCollectedFor('crates', [factIn('a', 'experience')])).toBe(0);
+  });
+
+  it('chests-experienceFact-isCounted', () => {
+    expect(countCollectedFor('chests', [factIn('a', 'experience')])).toBe(1);
+  });
+
+  it('fruits-certificateAndProjectFacts-countsBoth', () => {
+    const facts = [factIn('a', 'certificates'), factIn('b', 'projects')];
+
+    expect(countCollectedFor('fruits', facts)).toBe(2);
+  });
+
+  it('coins-skillFact-isCounted', () => {
+    expect(countCollectedFor('coins', [factIn('a', 'skills')])).toBe(1);
+  });
+
+  it('enemies-courseFact-isCounted', () => {
+    expect(countCollectedFor('enemies', [factIn('a', 'courses')])).toBe(1);
+  });
+
+  it('anyCounter-noMatchingFacts-returnsZero', () => {
+    expect(countCollectedFor('enemies', [factIn('a', 'skills')])).toBe(0);
+  });
+});
+
+describe('COUNTER_SECTIONS', () => {
+  it('everyCounter-hasAtLeastOneSection', () => {
+    for (const sections of Object.values(COUNTER_SECTIONS)) {
+      expect(sections.length).toBeGreaterThan(0);
+    }
+  });
+
+  // The invariant that made the crate bug possible: 'experience' belonged to
+  // both crates and chests in the two mappings. No section may feed two
+  // counters, or a fact would be double-counted across popups.
+  it('everySection-belongsToAtMostOneCounter', () => {
+    const seen = new Set<SectionId>();
+    for (const sections of Object.values(COUNTER_SECTIONS)) {
+      for (const section of sections) {
+        expect(seen.has(section)).toBe(false);
+        seen.add(section);
+      }
+    }
   });
 });

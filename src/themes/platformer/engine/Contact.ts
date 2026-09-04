@@ -1,4 +1,5 @@
 import type { Rect } from '../entities/geometry';
+import type { PlayerEffects } from './Outcome';
 
 export type ContactSide = 'top' | 'side' | 'bottom';
 
@@ -24,17 +25,18 @@ export interface Contact {
  * rather than applied directly so the hook stays a pure function — no signals,
  * no canvas — and the engine remains the only writer of game state.
  *
+ * `RewardReveal.ts` is the one sanctioned exception to that "only writer"
+ * rule: the per-tick reveal trigger writes `collectedFacts`/`activeEffects`/
+ * `activeCounterPopups` directly rather than staging them back through the
+ * engine, because five call sites across three families would otherwise each
+ * need their own staging array.
+ *
  * Keep this small. It is the shared vocabulary of everything that can happen
  * in the world; if it grows past a handful of fields it has become the
  * scattered conditionals it replaced. Anything exotic goes through an
  * `onDefeat(entity, world)` style hook receiving a narrow WorldApi instead.
  */
-export interface CollisionOutcome<S> {
+export interface CollisionOutcome<S> extends PlayerEffects {
   /** Replacement state, if the contact changed this entity. */
   self?: S;
-  /** Half-hearts to deal to the player. The engine ignores this while the
-   *  player is invulnerable; no entity ever knows invulnerability exists. */
-  damagePlayer?: number;
-  bouncePlayer?: boolean;
-  knockback?: 'none' | 'away' | 'awayAndUp';
 }

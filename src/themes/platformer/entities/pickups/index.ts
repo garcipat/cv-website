@@ -9,4 +9,8 @@ import { bonusFruit } from './BonusFruit';
  *  and no dispatcher is needed. */
 export const PICKUP_TYPES = { coin, fruit, key, bonusFruit };
 
-export type PickupTypeKey = keyof typeof PICKUP_TYPES;
+/** Which pickup kind — named for this codebase's existing convention for
+ *  "which variant" (`BlockKind`, `blockKind`, `ItemKind`). Deliberately not
+ *  `PickupKey`: there IS a key pickup (`ItemKind = 'key'`), so that name would
+ *  read as "the key pickup". */
+export type PickupKind = keyof typeof PICKUP_TYPES;

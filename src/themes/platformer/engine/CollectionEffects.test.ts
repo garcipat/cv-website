@@ -14,6 +14,9 @@ import {
   counterPopupOpacity,
   startPuffEffect,
   tickPuffEffect,
+  createSlotAllocator,
+  COLLECTION_TEXT_SLOT_COUNT,
+  COLLECTION_TEXT_STACK_ROW_HEIGHT,
 } from './CollectionEffects';
 import type { PuffEffect } from './CollectionEffects';
 
@@ -235,4 +238,46 @@ describe('counterPopupOpacity', () => {
     )!;
     expect(counterPopupOpacity(effect)).toBeCloseTo(0.5);
   });
+});
+
+describe('createSlotAllocator', () => {
+  it('zeroInFlight-startsAtOffsetZero', () => {
+    const allocate = createSlotAllocator(0);
+
+    expect(allocate()).toBe(0);
+  });
+
+  it('successiveCalls-advanceByOneRow', () => {
+    const allocate = createSlotAllocator(0);
+
+    allocate();
+
+    expect(allocate()).toBe(COLLECTION_TEXT_STACK_ROW_HEIGHT);
+  });
+
+  it('nonZeroInFlight-startsSeededByThatCount', () => {
+    const allocate = createSlotAllocator(1);
+
+    expect(allocate()).toBe(COLLECTION_TEXT_STACK_ROW_HEIGHT);
+  });
+
+  it('inFlightCountAboveSlotCount-wrapsTheSeed', () => {
+    const allocate = createSlotAllocator(COLLECTION_TEXT_SLOT_COUNT);
+
+    expect(allocate()).toBe(0);
+  });
+
+  it('pastTheSlotCount-cyclesBackToOffsetZero', () => {
+    const allocate = createSlotAllocator(0);
+    const offsets = Array.from({ length: COLLECTION_TEXT_SLOT_COUNT + 1 }, () => allocate());
+
+    expect(offsets[COLLECTION_TEXT_SLOT_COUNT]).toBe(offsets[0]);
+    expect(new Set(offsets.slice(0, COLLECTION_TEXT_SLOT_COUNT)).size).toBe(COLLECTION_TEXT_SLOT_COUNT);
+  });
+
+  // The property that TWO CONSUMERS sharing one allocator never take the same
+  // slot is pinned in RewardReveal.test.ts's
+  // 'allocatorSharedWithAnotherConsumer-theyNeverTakeTheSameSlot' — that test
+  // shares one allocator between the reveal trigger and a second consumer,
+  // which two separate calls on one allocator here cannot exercise.
 });

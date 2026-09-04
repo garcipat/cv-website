@@ -10,6 +10,7 @@ import {
   blockPlacements,
   enemyPlacements,
 } from '../PlatformerState';
+import { currentLayout, LEVEL_1_LAYOUT } from '../level/level';
 import { JOURNAL_OPEN_FRAME_COUNT, JOURNAL_OPEN_FRAME_INTERVAL_MS } from '../entities/JournalAnimation';
 import { sectionTotal } from '../entities/JournalSections';
 import type { CollectedFact } from '../types';
@@ -598,24 +599,30 @@ describe('Journal', () => {
       // always drops a coin regardless of any fact (see
       // CollectibleMapper.ts's mapCVDataToSkillFactPool doc comment), so
       // there's no "with fact vs without" distinction left to make.
-      const coinPotA = { id: 'coinpot-a', blockKind: 'coinPot' as const, x: 100, y: 200 };
-      const coinPotB = { id: 'coinpot-b', blockKind: 'coinPot' as const, x: 200, y: 200 };
-      const blockPlacementsSpy = vi
-        .spyOn(blockPlacements, 'value', 'get')
-        .mockReturnValue([coinPotA, coinPotB]);
+      //
+      // Driven through a real `currentLayout` write rather than a
+      // `vi.spyOn(blockPlacements, 'value', 'get')` getter override: the
+      // coins total is now sourced from `levelTotals`, a `computed()` in
+      // PlatformerState.ts, and a getter override never notifies a
+      // `computed`'s dependents (it isn't a real signal write), so a
+      // `levelTotals` already read once with the real placements would stay
+      // permanently stale — see task-2-report.md for the reproduction. A
+      // real `currentLayout` write is the same pattern
+      // `PlatformerState.test.ts`'s `describe('marker-derived placements
+      // react to currentLayout', ...)` block uses.
       try {
-        const total =
-          collectiblePlacements.value.filter((p) => p.spriteType === 'coin').length +
-          blockPlacements.value.filter((b) => b.blockKind === 'coinPot').length;
+        // S spawn, one placed coin (C), two coin-pots (u, u) -> coins total = 3.
+        currentLayout.value = ['SCuu', 'GGGG'];
         collectedFacts.value = [];
+        collectedCollectibleIds.value = new Set();
 
         render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
         openBookAnimation();
 
         const summary = journalPage.collectiblesSummary;
-        expect(summary).toHaveTextContent(`0 / ${total}`);
+        expect(summary).toHaveTextContent('0 / 3');
       } finally {
-        blockPlacementsSpy.mockRestore();
+        currentLayout.value = LEVEL_1_LAYOUT;
       }
     });
 
@@ -635,41 +642,43 @@ describe('Journal', () => {
       // optional) and must not count toward the Journal's "Enemies"
       // denominator, matching how the `fruits` row already filters block
       // placements down to fact-bearing ones.
-      const factBearingEnemy = {
-        id: 'enemy-course-0',
-        type: 'slimeGreen' as const,
-        x: 0,
-        y: 0,
-        fact: {
-          id: 'course-0',
-          sectionId: 'courses' as const,
-          sectionLabel: 'Courses',
-          data: { title: 'Test Course', provider: 'Test', date: '2024-01', category: 'Test' },
-          sourceType: 'enemy' as const,
-        },
-      };
-      const plainEnemy = {
-        id: 'enemy-plain-slimeGreen-9-9',
-        type: 'slimeGreen' as const,
-        x: 100,
-        y: 0,
-        fact: undefined,
-      };
-      const enemyPlacementsSpy = vi
-        .spyOn(enemyPlacements, 'value', 'get')
-        .mockReturnValue([factBearingEnemy, plainEnemy]);
-      // try/finally so a failed assertion still restores the spy — otherwise
-      // this 2-element mock would leak into every later test in this file.
+      //
+      // Driven through a real `currentLayout` write rather than a
+      // `vi.spyOn(enemyPlacements, 'value', 'get')` getter override: the
+      // enemies total is sourced from `levelTotals`, a `computed()` in
+      // PlatformerState.ts, and a getter override never notifies a
+      // `computed`'s dependents (it isn't a real signal write), so a
+      // `levelTotals` already read once with the real placements (by an
+      // earlier test in this describe block) stays permanently stale — see
+      // task-2-report.md for the reproduction. A real `currentLayout` write
+      // is the same pattern the sibling `coinsTotal-includesEveryCoinPotBlock`
+      // test above uses. Here the layout carries far more green-slime (`E`)
+      // markers than CVData has courses, so the excess placements are
+      // guaranteed to be fact-less "plain" enemies (see EnemyMapper.ts's
+      // placeQueue).
       try {
+        const enemyMarkerCount = 20;
+        currentLayout.value = ['S' + 'E'.repeat(enemyMarkerCount), 'G'.repeat(enemyMarkerCount + 1)];
         collectedFacts.value = [];
 
         render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
         openBookAnimation();
 
+        // Derived from the real reactive placements, not hardcoded — so this
+        // stays correct whenever CVData's course count changes.
+        const expectedEnemiesTotal = enemyPlacements.value.filter((p) => p.fact).length;
+        // Confirms the layout actually exercises the beyond-count case: if
+        // every marker got a fact, the "plain enemy" scenario this test names
+        // would go untested even though the assertion below still passed.
+        expect(expectedEnemiesTotal).toBeLessThan(enemyMarkerCount);
+
         const summary = journalPage.collectiblesSummary;
-        expect(summary).toHaveTextContent(/Enemies 0 \/ 1/);
+        // Anchored so a substring of a different total (e.g. "1" inside "12")
+        // can't satisfy the assertion — the unanchored regex this replaced is
+        // half of why the old spy-based test went silently vacuous.
+        expect(summary).toHaveTextContent(new RegExp(`Enemies 0 / ${expectedEnemiesTotal}(?!\\d)`));
       } finally {
-        enemyPlacementsSpy.mockRestore();
+        currentLayout.value = LEVEL_1_LAYOUT;
       }
     });
   });

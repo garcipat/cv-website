@@ -78,7 +78,8 @@ import { spawnKeyPickup, KEY_TILE_OFFSET_X, KEY_TILE_OFFSET_Y } from './entities
 import {
   startFlightEffect,
   tickFlightEffect,
-  COLLECTION_TEXT_SLOT_COUNT,
+  createSlotAllocator,
+  COLLECTION_TEXT_STACK_ROW_HEIGHT,
   startCounterPopup,
   tickCounterPopup,
   counterPopupOpacity,
@@ -88,7 +89,7 @@ import {
 } from './engine/CollectionEffects';
 import { coinFrameSource, COIN_FRAME_SIZE } from './entities/Coin';
 import { fruitFrameSource, FRUIT_FRAME_SIZE } from './entities/Fruit';
-import { formatJournalEntry } from './entities/JournalEntry';
+import { createRewardReveal } from './engine/RewardReveal';
 import { RENDERED_TILE_SIZE } from './level/Terrain';
 import {
   advancePlayerAnimation,
@@ -102,6 +103,8 @@ import {
   PLAYER_VISUAL_CENTER_Y_OFFSET,
   PLAYER_HEAD_PADDING,
 } from './entities/Player';
+import type { BlockContact } from './entities/Player';
+import { strongerBounce } from './engine/Outcome';
 import { isInvulnerable } from './entities/capabilities';
 import { advanceEnemyAnimation, enemyEffectAnchor } from './entities/Enemy';
 import {
@@ -133,16 +136,12 @@ import {
   spawnedCoinPlacements,
   allCollectiblePlacements,
   skillFactPool,
-  enemyPlacements,
   enemyStates,
-  blockPlacements,
   blockStates,
   bonusFruitStates,
   collectedCollectibleIds,
   activeEffects,
   activeCounterPopups,
-  collectedFacts,
-  chestPlacements,
   chestStates,
   endingScreenShown,
   endingScreenOpen,
@@ -151,6 +150,7 @@ import {
   keyPickupStates,
   collectedKeys,
   activePuffs,
+  levelTotals,
 } from './PlatformerState';
 import { useSignals } from '@preact/signals-react/runtime';
 import { Journal } from './components/Journal';
@@ -165,12 +165,6 @@ import {
   hintTooltipGrowthAndOpacity,
 } from './engine/HintTooltip';
 import type { HintId } from './types';
-
-// Vertical spacing between stacked fact-flight rows when several pickups are
-// collected close together — a bit more than the 28px collection-effect
-// font size (Renderer.ts's COLLECTION_EFFECT_FONT_SIZE) so stacked lines
-// don't touch.
-const COLLECTION_TEXT_STACK_ROW_HEIGHT = 34;
 
 export const PlatformerPage = () => {
   // Subscribes this component's render to any signal `.value` read during
@@ -403,22 +397,10 @@ export const PlatformerPage = () => {
     // independently.
     let worldAnimElapsed = 0;
 
-    // Which vertical slot the next collection's fact text lands in — reseeded
-    // every tick from how many fact-flight effects are actually still in
-    // flight (see below), NOT a plain ever-incrementing counter: a plain
-    // ever-incrementing counter would let a single item collected in
-    // isolation land on slot 1 or 2 (visibly offset below the primary spot)
-    // purely because of how many items were collected earlier in the
-    // session, even minutes apart with nothing overlapping. Reseeding from
-    // the live in-flight count instead means an isolated pickup always lands
-    // on slot 0, and only pickups that are actually concurrent (their
-    // effects still mid-animation) spread across further slots.
-    let nextTextSlot = 0;
-
     // Cycles through fruit.png's icon frames (see Fruit.ts's
     // FRUIT_ICON_COUNT) so successive question-mark bonus fruits look
-    // visibly different from each other — same "just keep incrementing, let
-    // spawnBonusFruit wrap it" convention as nextTextSlot above.
+    // visibly different from each other — "just keep incrementing, let
+    // spawnBonusFruit wrap it".
     let nextBonusFruitIcon = 0;
 
     const resize = () => {
@@ -590,12 +572,12 @@ export const PlatformerPage = () => {
         drawHearts(ctx, playerState.value.hitPoints, heartsSpriteRef.current, HEARTS_START_X);
       }
 
-      if (chestClosedSpriteRef.current && chestPlacements.value.length > 0) {
+      if (chestClosedSpriteRef.current && levelTotals.value.chests > 0) {
         drawChestCounter(
           ctx,
           chestClosedSpriteRef.current,
           chestStates.value.filter(isChestOpen).length,
-          chestPlacements.value.length,
+          levelTotals.value.chests,
           CHEST_COUNTER_X,
           CHEST_COUNTER_Y,
         );
@@ -605,7 +587,7 @@ export const PlatformerPage = () => {
         const keyX = keyCounterX(
           ctx,
           chestStates.value.filter(isChestOpen).length,
-          chestPlacements.value.length,
+          levelTotals.value.chests,
         );
         drawKeyCounter(ctx, keySpriteRef.current, collectedKeys.value, keyX, KEY_COUNTER_Y);
       }
@@ -702,12 +684,32 @@ export const PlatformerPage = () => {
       // than ticking on a wall-clock independent of the paused state.
       worldAnimElapsed += dt;
 
-      // Reseeded every tick from the number of fact-flight effects still
-      // in flight from previous ticks (already filtered for 'done' ones at
-      // the end of the previous tick — see the activeEffects tick/filter
-      // below) — see nextTextSlot's doc comment above for why this isn't a
-      // plain ever-incrementing counter.
-      nextTextSlot = activeEffects.value.length % COLLECTION_TEXT_SLOT_COUNT;
+      // Computed once per tick and shared by every reveal site below — these
+      // same two expressions used to be duplicated in the enemy-defeat block
+      // and the collectible block. `originX`/`originY` convert a world-space
+      // entity position into the screen-space coordinates FlightEffect
+      // requires (see CollectionEffects.ts's doc comment); the level is
+      // anchored to the bottom of the canvas, same as render()'s own copy.
+      const levelPixelHeight = currentLevel.value.height * RENDERED_TILE_SIZE;
+      const originX = -cameraPositionX.value;
+      const originY = canvas.height - levelPixelHeight + cameraPositionY.value;
+      // ONE slot allocator for the whole tick, shared by the reveal trigger
+      // and the key pickup below — two flight texts appearing in the same tick
+      // must never land on the same vertical row, which takes a single counter
+      // across every flight-text site (see createSlotAllocator's doc comment).
+      // Seeded from the number of fact-flight effects still in the air from
+      // previous ticks (already filtered for 'done' ones at the end of the
+      // previous tick — see the activeEffects tick/filter below).
+      const allocateSlotOffset = createSlotAllocator(activeEffects.value.length);
+      // The one fact-reveal trigger every reveal site below goes through.
+      const revealFact = createRewardReveal({
+        originX,
+        originY,
+        canvasWidth: canvas.width,
+        canvasHeight: canvas.height,
+        journalRect: journalButtonRef.current?.getBoundingClientRect() ?? null,
+        allocateSlotOffset,
+      });
 
       // Enemies currently reacting to a stomp (animState 'hit') run their
       // reaction timer instead of patrolling — stepEnemyHitReaction either
@@ -769,10 +771,6 @@ export const PlatformerPage = () => {
       // is separate and permanent: it gates whether anything is actually paid
       // out (fact or key), not whether the enemy is selected below.
       //
-      // Checked before the collectible block so both effects can coexist in
-      // `newEffects` without one clobbering the other within the same tick —
-      // each block builds off `activeEffects.value` as it stands when it
-      // runs, same convention the collectible block already uses.
       // !deathEffectGiven (not !rewardGiven) is what makes a revived enemy
       // defeated a second time show up here again — rewardGiven stays true
       // forever once anything has been given (see Enemy.ts's baseRevive doc
@@ -780,19 +778,8 @@ export const PlatformerPage = () => {
       // death still deserves its own visual effect. See B-003.
       const justDefeated = enemyStates.value.filter((e) => !e.alive && !e.deathEffectGiven);
       if (justDefeated.length > 0) {
-        const newFacts = [...collectedFacts.value];
-        const newEffects = [...activeEffects.value];
         const newPuffs = [...activePuffs.value];
-        const journalRect = journalButtonRef.current?.getBoundingClientRect();
-        const targetX = journalRect ? journalRect.left + journalRect.width / 2 : canvas.width - 32;
-        const targetY = journalRect ? journalRect.top + journalRect.height / 2 : canvas.height - 32;
-        const midX = canvas.width / 2;
-        const midY = canvas.height * 0.3;
-        const originX = -cameraPositionX.value;
-        const levelPixelHeight = currentLevel.value.height * RENDERED_TILE_SIZE;
-        const originY = canvas.height - levelPixelHeight + cameraPositionY.value;
 
-        let anyEnemyRewarded = false;
         for (const enemy of justDefeated) {
           const anchor = enemyEffectAnchor(enemy);
           const puffX = anchor.x + originX;
@@ -832,29 +819,7 @@ export const PlatformerPage = () => {
           // world event that always deserves a puff, independent of whether
           // it also happens to award a fact (B-003).
           newPuffs.push(startPuffEffect(enemy.id, puffX, puffY, anchor.scale));
-          anyEnemyRewarded = true;
-          newFacts.push(fact);
-          // Reuses the journal's own title/icon derivation — formatJournalEntry
-          // gets every section's display title right (Course's `title` field,
-          // Experience's `role`/`company`, Education's `degree`, etc.), unlike
-          // an ad-hoc `'name' in data` check would.
-          const { icon, title: label } = formatJournalEntry(fact);
-          const slot = nextTextSlot;
-          nextTextSlot = (nextTextSlot + 1) % COLLECTION_TEXT_SLOT_COUNT;
-          const stackOffsetY = slot * COLLECTION_TEXT_STACK_ROW_HEIGHT;
-          newEffects.push(
-            startFlightEffect(
-              enemy.id,
-              label,
-              enemy.x + originX,
-              enemy.y + originY + stackOffsetY,
-              midX,
-              midY + stackOffsetY,
-              targetX,
-              targetY,
-              icon,
-            ),
-          );
+          revealFact(fact, { x: enemy.x, y: enemy.y, effectId: enemy.id, counterKey: 'enemies' });
         }
 
         // Every defeated enemy is marked processed (deathEffectGiven) so it
@@ -868,20 +833,7 @@ export const PlatformerPage = () => {
           processedIds.has(e.id) ? { ...e, rewardGiven: true, deathEffectGiven: true } : e,
         );
 
-        collectedFacts.value = newFacts;
-        activeEffects.value = newEffects;
         activePuffs.value = newPuffs;
-        if (anyEnemyRewarded) {
-          const enemyDefeated = newFacts.filter((f) => f.sourceType === 'enemy').length;
-          // Denominator counts only fact-bearing placements — a "plain"
-          // enemy (EnemyMapper.ts's excess-marker case) never contributes a
-          // fact, so counting it here would make the ratio unreachable.
-          const enemyTotal = enemyPlacements.value.filter((p) => p.fact).length;
-          activeCounterPopups.value = {
-            ...activeCounterPopups.value,
-            enemies: startCounterPopup('enemies', enemyDefeated, enemyTotal),
-          };
-        }
       }
 
       activeEffects.value = activeEffects.value
@@ -905,14 +857,6 @@ export const PlatformerPage = () => {
       }
       if (popupsChanged) activeCounterPopups.value = tickedPopups;
 
-      // Same origin math as render()'s local originX/originY (that scope
-      // isn't reachable from here) — needed to convert a just-collected
-      // placement's world-space position into the screen-space coordinates
-      // FlightEffect requires (see CollectionEffects.ts's doc comment).
-      const levelPixelHeight = currentLevel.value.height * RENDERED_TILE_SIZE;
-      const originY = canvas.height - levelPixelHeight + cameraPositionY.value;
-      const originX = -cameraPositionX.value;
-
       const touchedIds = checkCollectibleCollisions(
         playerState.value,
         allCollectiblePlacements.value,
@@ -920,34 +864,7 @@ export const PlatformerPage = () => {
       );
       if (touchedIds.length > 0) {
         const nextCollected = new Set(collectedCollectibleIds.value);
-        const newFacts = [...collectedFacts.value];
-        const newEffects = [...activeEffects.value];
-        const journalRect = journalButtonRef.current?.getBoundingClientRect();
-        const targetX = journalRect ? journalRect.left + journalRect.width / 2 : canvas.width - 32;
-        const targetY = journalRect ? journalRect.top + journalRect.height / 2 : canvas.height - 32;
-        // Fact text rises toward the upper-middle of the screen and holds
-        // there before flying on to the journal icon, so it's actually
-        // readable rather than flying past in one motion. Deliberately above
-        // dead-center (0.5) — vertical-center read as "too low" in review,
-        // since gameplay (terrain/player) sits in the lower half of the
-        // screen and a dead-center pause competes with it.
-        const midX = canvas.width / 2;
-        const midY = canvas.height * 0.3;
 
-        // Every coin-pot WILL drop a coin eventually (see
-        // spawnedCoinPlacements's doc comment — a pot's coin doesn't exist
-        // in `allCollectiblePlacements` until it's actually destroyed), so
-        // `totalCoinCount` counts every coin-pot block up front — otherwise
-        // it would creep up each time a pot is broken instead of staying
-        // fixed all session. Once a pot HAS dropped its coin (id = the
-        // block's own id, see the landed-on-top handler below), that coin
-        // already appears in `allCollectiblePlacements` and is counted by
-        // the plain filter above — the `!allCollectiblePlacements.value.some(...)`
-        // guard excludes it here so it isn't double-counted.
-        const coinPotIds = blockPlacements.value.filter((b) => b.blockKind === 'coinPot').map((b) => b.id);
-        const totalCoinCount =
-          allCollectiblePlacements.value.filter((p) => p.spriteType === 'coin').length +
-          coinPotIds.filter((cpId) => !allCollectiblePlacements.value.some((p) => p.id === cpId)).length;
         const poolLength = skillFactPool.value.length;
         // A coin carries no fact of its own (see CollectibleMapper.ts's
         // mapCVDataToSkillFactPool doc comment) — how many facts should be
@@ -967,66 +884,44 @@ export const PlatformerPage = () => {
           nextCollected.add(id);
           if (placement.spriteType !== 'coin') continue; // fruit carries no fact-pool entry
 
-          const factCountBefore = revealedFactCountFor(coinsCollectedSoFar, totalCoinCount, poolLength);
+          const factCountBefore = revealedFactCountFor(coinsCollectedSoFar, levelTotals.value.coins, poolLength);
           coinsCollectedSoFar++;
-          const factCountAfter = revealedFactCountFor(coinsCollectedSoFar, totalCoinCount, poolLength);
+          const factCountAfter = revealedFactCountFor(coinsCollectedSoFar, levelTotals.value.coins, poolLength);
 
           for (let factIndex = factCountBefore; factIndex < factCountAfter; factIndex++) {
             const fact = skillFactPool.value[factIndex];
             if (!fact) continue; // defensive only — factCountAfter never exceeds poolLength
-            // Same dedup guard every other reward path (crate/enemy/chest)
-            // already has: `totalCoinCount` is only a de-facto session
+            // The trigger's own dedup guard covers what this site used to do
+            // inline: `levelTotals.value.coins` is only a de-facto session
             // constant, not a guaranteed one — switching levels mid-session
             // (the editor's "Try") changes COIN_TILES/COIN_POT_TILES, which
             // could otherwise make factCountBefore come out below the
             // number of facts already revealed and replay an old entry.
-            if (newFacts.some((f) => f.id === fact.id)) continue;
-            newFacts.push(fact);
-
-            // Reuses the journal's own title/icon derivation — see the
-            // enemy-defeat block above for why an ad-hoc `'name' in data`
-            // check would be wrong for several sections.
-            // `icon` is passed to `startFlightEffect` separately, NOT
-            // concatenated into `label`: Renderer.ts draws it in a different
-            // font (the pixel font `label` uses has no emoji glyphs).
-            const { icon, title: label } = formatJournalEntry(fact);
-            // Fast/simultaneous pickups cycle through a fixed set of vertical
-            // slots (1, 2, 3, 1, 2, 3, ...) instead of every fact text landing
-            // on the same spot. The offset applies to BOTH the rise's start
-            // and its mid hold point (not just mid) — offsetting mid alone
-            // still let two effects starting near the same world position
-            // overlap through most of the rise, only separating at the end.
-            const slot = nextTextSlot;
-            nextTextSlot = (nextTextSlot + 1) % COLLECTION_TEXT_SLOT_COUNT;
-            const stackOffsetY = slot * COLLECTION_TEXT_STACK_ROW_HEIGHT;
-            newEffects.push(
-              startFlightEffect(
-                // A unique key per revealed fact, not just per coin — the
-                // rare case of one coin revealing more than one fact
-                // (fewer coins placed than CVData facts) still needs
-                // distinct flight-effect ids.
-                `${id}-${factIndex}`,
-                label,
-                placement.x + originX,
-                placement.y + originY + stackOffsetY,
-                midX,
-                midY + stackOffsetY,
-                targetX,
-                targetY,
-                icon,
-              ),
-            );
+            revealFact(fact, {
+              x: placement.x,
+              y: placement.y,
+              // A unique key per revealed fact, not just per coin — one coin
+              // can reveal more than one fact when fewer coins are placed than
+              // there are CVData facts.
+              effectId: `${id}-${factIndex}`,
+              // No counterKey: the coins popup is bumped below instead, for
+              // every coin rather than only for the ones that reveal a fact.
+            });
           }
         }
 
         collectedCollectibleIds.value = nextCollected;
-        collectedFacts.value = newFacts;
-        activeEffects.value = newEffects;
 
+        // The one counter popup bumped here rather than by the reveal trigger.
+        // A coin's reward is resolved dynamically at pickup time (see
+        // revealedFactCountFor above) and most coins reveal NO fact, so gating
+        // this on a reveal would leave the tail of a level collecting coins
+        // with no "coins collected / total" feedback at all. Fires once per
+        // tick in which any coin was touched, with the tick-final count.
         if (touchedIds.some((id) => allCollectiblePlacements.value.find((p) => p.id === id)?.spriteType === 'coin')) {
           activeCounterPopups.value = {
             ...activeCounterPopups.value,
-            coins: startCounterPopup('coins', coinsCollectedSoFar, totalCoinCount),
+            coins: startCounterPopup('coins', coinsCollectedSoFar, levelTotals.value.coins),
           };
         }
       }
@@ -1039,60 +934,21 @@ export const PlatformerPage = () => {
       // (`fruit.fact === undefined`) still removes silently, same as before.
       const touchedBonusFruitIds = checkBonusFruitCollisions(playerState.value, bonusFruitStates.value);
       if (touchedBonusFruitIds.length > 0) {
-        const newFacts = [...collectedFacts.value];
-        const newEffects = [...activeEffects.value];
-        const journalRect = journalButtonRef.current?.getBoundingClientRect();
-        const targetX = journalRect ? journalRect.left + journalRect.width / 2 : canvas.width - 32;
-        const targetY = journalRect ? journalRect.top + journalRect.height / 2 : canvas.height - 32;
-        const midX = canvas.width / 2;
-        const midY = canvas.height * 0.3;
-
-        let anyBonusFruitRewarded = false;
         for (const id of touchedBonusFruitIds) {
           const fruit = bonusFruitStates.value.find((f) => f.id === id);
           if (!fruit || !fruit.fact) continue;
-          if (newFacts.some((f) => f.id === fruit.fact!.id)) continue;
 
-          anyBonusFruitRewarded = true;
-          newFacts.push(fruit.fact);
-          // Reuses the journal's own title/icon derivation — see the
-          // enemy-defeat block above.
-          const { icon, title: label } = formatJournalEntry(fruit.fact);
-          const slot = nextTextSlot;
-          nextTextSlot = (nextTextSlot + 1) % COLLECTION_TEXT_SLOT_COUNT;
-          const stackOffsetY = slot * COLLECTION_TEXT_STACK_ROW_HEIGHT;
-          newEffects.push(
-            startFlightEffect(
-              id,
-              label,
-              fruit.x + originX,
-              bonusFruitY(fruit) + originY + stackOffsetY,
-              midX,
-              midY + stackOffsetY,
-              targetX,
-              targetY,
-              icon,
-            ),
-          );
+          revealFact(fruit.fact, {
+            x: fruit.x,
+            y: bonusFruitY(fruit),
+            effectId: id,
+            counterKey: 'fruits',
+          });
         }
 
-        collectedFacts.value = newFacts;
-        activeEffects.value = newEffects;
         bonusFruitStates.value = bonusFruitStates.value.filter(
           (fruit) => !touchedBonusFruitIds.includes(fruit.id),
         );
-        if (anyBonusFruitRewarded) {
-          const bonusFruitTotal = blockPlacements.value.filter(
-            (b) => b.blockKind === 'questionMark' && b.fact,
-          ).length;
-          const bonusFruitCollected = newFacts.filter(
-            (f) => f.sectionId === 'certificates' || f.sectionId === 'projects',
-          ).length;
-          activeCounterPopups.value = {
-            ...activeCounterPopups.value,
-            fruits: startCounterPopup('fruits', bonusFruitCollected, bonusFruitTotal),
-          };
-        }
       }
 
       // Key pickups: dropped by defeated purple slimes (see the justDefeated
@@ -1116,13 +972,16 @@ export const PlatformerPage = () => {
         const midY = canvas.height * 0.3;
         const hudCtx = canvas.getContext('2d');
         const keyX = hudCtx
-          ? keyCounterX(hudCtx, chestStates.value.filter(isChestOpen).length, chestPlacements.value.length)
+          ? keyCounterX(hudCtx, chestStates.value.filter(isChestOpen).length, levelTotals.value.chests)
           : CHEST_COUNTER_X;
         for (const pickup of keyPickupStates.value) {
           if (!touchedKeyIds.includes(pickup.id)) continue;
-          const slot = nextTextSlot;
-          nextTextSlot = (nextTextSlot + 1) % COLLECTION_TEXT_SLOT_COUNT;
-          const stackOffsetY = slot * COLLECTION_TEXT_STACK_ROW_HEIGHT;
+          // The key pickup stays outside `revealFact` (no fact, static
+          // caption, HUD target), but takes its slot from the SAME per-tick
+          // allocator the trigger uses — so a key collected alongside a fact
+          // reveal can't land on that fact's row, and successive keys in one
+          // tick still step down a row.
+          const stackOffsetY = allocateSlotOffset();
           newEffects.push(
             startFlightEffect(
               pickup.id,
@@ -1168,36 +1027,17 @@ export const PlatformerPage = () => {
             c.id === standingChestId ? openChest(c) : c,
           );
           collectedKeys.value -= 1;
-          if (!collectedFacts.value.some((f) => f.id === chest.fact.id)) {
-            const journalRect = journalButtonRef.current?.getBoundingClientRect();
-            const targetX = journalRect ? journalRect.left + journalRect.width / 2 : canvas.width - 32;
-            const targetY = journalRect ? journalRect.top + journalRect.height / 2 : canvas.height - 32;
-            const midX = canvas.width / 2;
-            const midY = canvas.height * 0.3;
-            const { icon, title: label } = formatJournalEntry(chest.fact);
-            const slot = nextTextSlot;
-            nextTextSlot = (nextTextSlot + 1) % COLLECTION_TEXT_SLOT_COUNT;
-            const stackOffsetY = slot * COLLECTION_TEXT_STACK_ROW_HEIGHT;
-            collectedFacts.value = [...collectedFacts.value, chest.fact];
-            activeEffects.value = [
-              ...activeEffects.value,
-              startFlightEffect(
-                chest.id,
-                label,
-                // Shifted by CHEST_CLOSED_OFFSET_X (see entities/Chest.ts) to
-                // start from the chest's actual centered-on-tile left edge —
-                // only the closed offset applies here, since this only fires
-                // the instant a closed chest is opened.
-                chest.x + originX + CHEST_CLOSED_OFFSET_X,
-                chest.y + originY + stackOffsetY,
-                midX,
-                midY + stackOffsetY,
-                targetX,
-                targetY,
-                icon,
-              ),
-            ];
-          }
+          revealFact(chest.fact, {
+            // Shifted by CHEST_CLOSED_OFFSET_X (see entities/Chest.ts) to start
+            // from the chest's actual centered-on-tile left edge — only the
+            // closed offset applies, since this fires the instant a closed
+            // chest is opened.
+            x: chest.x + CHEST_CLOSED_OFFSET_X,
+            y: chest.y,
+            effectId: chest.id,
+            // No counterKey: chests have a permanent HUD counter, so this
+            // reveal deliberately bumps no transient popup — same as today.
+          });
         }
       }
 
@@ -1253,10 +1093,10 @@ export const PlatformerPage = () => {
       const contacts = resolveEnemyContacts(playerState.value, enemyStates.value);
       enemyStates.value = contacts.enemies;
 
-      if (contacts.bouncePlayer) {
+      if (contacts.bounceVelocity !== undefined) {
         playerState.value = {
           ...playerState.value,
-          vy: PHYSICS_CONFIG.stompBounceVelocity,
+          vy: contacts.bounceVelocity,
           bounceAscending: true,
         };
       }
@@ -1316,32 +1156,29 @@ export const PlatformerPage = () => {
           jumpHeld,
           dropThroughHeld,
           climbUpHeld,
-          suppressJumpCut: contacts.bouncePlayer,
+          suppressJumpCut: contacts.bounceVelocity !== undefined,
         },
         blockStates.value,
       );
 
       // Block hit mechanics: `next.blockContacts` (set by Physics.ts's
-      // collision checks, same call above), filtered to `'bottom'` side,
-      // reports every block whose underside the player's head just hit this
-      // tick — but only a block that ISN'T already used up actually reacts (a
-      // question-mark that already popped its fruit, or a still-mid-bump
-      // crate/fragileRock about to be filtered out, must not register a second hit
-      // just because the player's head is still under it this frame).
+      // collision checks, same call above) reports every side-tagged block
+      // contact from this tick — but a contact only registers as a hit if the
+      // block's kind actually reacts to that side, and the block ISN'T
+      // already used up (a question-mark that already popped its fruit, or a
+      // still-mid-bump crate/fragileRock about to be filtered out, must not
+      // register a second hit just because the player's head is still under
+      // it this frame).
       // `originX`/`originY` (this tick's world-to-screen origin) are already
-      // in scope from the collectible-collision block above — reused here
-      // (not redeclared) for `firePuffIfJustUsedUp`'s puff-position math, so
-      // it's available to both the hittableBlockIds and landedOnTopIds
-      // blocks below regardless of which (if either) is non-empty this tick.
+      // in scope from the top of this tick — reused here (not redeclared) for
+      // `firePuffIfJustUsedUp`'s puff-position math.
 
       // A block's terminal hit — any kind that's removed once used up
       // (crate, fragileRock, coinPot; not questionMark, which never breaks)
       // — gets a visual "puff": a standalone world-event burst
       // (CollectionEffects.ts's PuffEffect / Renderer.ts's
       // drawPuffEffects), independent of whether a reward is also awarded
-      // alongside it. Shared between the hittableBlockIds ('bottom'-hit)
-      // and landedOnTopIds ('top'-hit) loops below so the same
-      // used-up/anchor/puff logic isn't duplicated per trigger direction.
+      // alongside it.
       const firePuffIfJustUsedUp = (block: BlockState): void => {
         if (!BLOCK_TYPES[block.blockKind].removeWhenUsedUp || !isBlockUsedUp(block)) return;
         const anchor = blockEffectAnchor(block);
@@ -1351,135 +1188,84 @@ export const PlatformerPage = () => {
         ];
       };
 
-      const hittableBlockIds = next.blockContacts
-        .filter((c) => c.side === 'bottom')
-        .map((c) => c.id)
-        .filter((id) => {
-          const block = blockStates.value.find((b) => b.id === id);
-          // coinPot reacts only to a 'top' contact (landing on it) — a
-          // 'bottom' contact against it (walking under it, jumping into its
-          // underside) must never register as a hit.
-          return block !== undefined && block.blockKind !== 'coinPot' && !isBlockUsedUp(block);
-        });
-      if (hittableBlockIds.length > 0) {
-        blockStates.value = blockStates.value.map((block) =>
-          hittableBlockIds.includes(block.id) ? applyBlockHit(block) : block,
+      // Every block whose contact side this kind actually reacts to (see
+      // BlockType.triggerSides) and that isn't already used up. This replaces
+      // two near-duplicate loops — one for 'bottom' contacts that excluded
+      // coinPot by name, one for 'top' contacts that admitted only coinPot —
+      // whose only real difference was per-kind knowledge that now lives in
+      // the registry.
+      const hitBlocks = next.blockContacts
+        .map((contact) => ({ contact, block: blockStates.value.find((b) => b.id === contact.id) }))
+        .filter(
+          (entry): entry is { contact: BlockContact; block: BlockState } =>
+            entry.block !== undefined &&
+            !isBlockUsedUp(entry.block) &&
+            BLOCK_TYPES[entry.block.blockKind].triggerSides.includes(entry.contact.side),
         );
 
-        const journalRect = journalButtonRef.current?.getBoundingClientRect();
-        const targetX = journalRect ? journalRect.left + journalRect.width / 2 : canvas.width - 32;
-        const targetY = journalRect ? journalRect.top + journalRect.height / 2 : canvas.height - 32;
-        const midX = canvas.width / 2;
-        const midY = canvas.height * 0.3;
+      if (hitBlocks.length > 0) {
+        const hitIds = new Set(hitBlocks.map((entry) => entry.block.id));
+        blockStates.value = blockStates.value.map((block) =>
+          hitIds.has(block.id) ? applyBlockHit(block) : block,
+        );
 
-        for (const id of hittableBlockIds) {
+        // Most negative wins, so several blocks bouncing the player in one
+        // tick is deterministic regardless of iteration order.
+        let bounceVelocity: number | undefined;
+
+        for (const id of hitIds) {
+          // Re-read from the post-applyBlockHit array: onHit must see the
+          // incremented hitsTaken, which is how a kind knows this hit was its
+          // terminal one.
           const block = blockStates.value.find((b) => b.id === id);
           if (!block) continue;
 
-          if (block.blockKind === 'questionMark') {
+          // A world-event burst on destruction, independent of whether a
+          // reward is also awarded alongside it (B-003).
+          firePuffIfJustUsedUp(block);
+
+          const outcome = BLOCK_TYPES[block.blockKind].onHit?.(block) ?? {};
+
+          bounceVelocity = strongerBounce(bounceVelocity, outcome.bounceVelocity);
+
+          // One dispatch keyed by pickup type, replacing the old per-blockKind
+          // branches. The two arms differ because their target arrays differ,
+          // and each keeps what is the engine's business rather than the
+          // block's: the fruit icon cycle, and the dropped coin's id/position.
+          if (outcome.spawnPickup === 'bonusFruit') {
             bonusFruitStates.value = [
               ...bonusFruitStates.value,
               spawnBonusFruit(block.id, block.x, block.y, block.fact, nextBonusFruitIcon++),
             ];
+          } else if (outcome.spawnPickup === 'coin') {
+            // `block.id` is the pot's own id, not a fact id (the block never
+            // had one) — this is what the coin-total dedup guard matches
+            // against once this coin exists in allCollectiblePlacements.
+            spawnedCoinPlacements.value = [
+              ...spawnedCoinPlacements.value,
+              { id: block.id, spriteType: 'coin', x: block.x, y: block.y },
+            ];
           }
 
-          // Terminal-hit puff (crate/fragileRock destruction) — this used to
-          // be duplicated per block kind (and fragileRock used to fake a
-          // burst-only effect via an empty-label FlightEffect with all
-          // coordinates equal); both hacks are gone — see B-003.
-          firePuffIfJustUsedUp(block);
-
-          if (block.blockKind === 'crate' && block.hitsTaken >= 2 && block.fact) {
-            // Dedup by fact id, same defensive guard the enemy-defeat reward
-            // already uses (FR-020c) — not actually reachable for crates
-            // today (they never reset mid-session), but keeps the two reward
-            // paths consistent.
-            if (!collectedFacts.value.some((f) => f.id === block.fact!.id)) {
-              // Reuses the journal's own title/icon derivation — see the
-              // enemy-defeat block above. Uses the role/degree rather than
-              // the generic "Experience"/"Education" section label.
-              const { icon, title: label } = formatJournalEntry(block.fact);
-              const slot = nextTextSlot;
-              nextTextSlot = (nextTextSlot + 1) % COLLECTION_TEXT_SLOT_COUNT;
-              const stackOffsetY = slot * COLLECTION_TEXT_STACK_ROW_HEIGHT;
-              collectedFacts.value = [...collectedFacts.value, block.fact];
-              const crateTotal = blockPlacements.value.filter((b) => b.blockKind === 'crate').length;
-              const crateCollected = collectedFacts.value.filter(
-                (f) => f.sectionId === 'experience' || f.sectionId === 'education',
-              ).length;
-              activeCounterPopups.value = {
-                ...activeCounterPopups.value,
-                crates: startCounterPopup('crates', crateCollected, crateTotal),
-              };
-              activeEffects.value = [
-                ...activeEffects.value,
-                startFlightEffect(
-                  block.id,
-                  label,
-                  block.x + originX,
-                  block.y + originY + stackOffsetY,
-                  midX,
-                  midY + stackOffsetY,
-                  targetX,
-                  targetY,
-                  icon,
-                ),
-              ];
-            }
+          if (outcome.revealFact) {
+            revealFact(outcome.revealFact, {
+              x: block.x,
+              y: block.y,
+              effectId: block.id,
+              // Supplied by the block's own outcome, not assumed here: which
+              // counter a reveal feeds is per-kind knowledge and belongs to
+              // the kind.
+              counterKey: outcome.counterKey,
+            });
           }
         }
-      }
 
-      // Coin-pot destruction: filters next.blockContacts (Task 3's
-      // generalized, side-tagged replacement for the old hitBlockIds) down
-      // to blocks landed ON TOP of this tick. Mirrors the hittableBlockIds
-      // block above exactly (same used-up guard), but for the 'top' side
-      // instead of 'bottom' — only coinPot blocks react to this today;
-      // every other kind simply never triggers anything on a 'top' contact.
-      const landedOnTopIds = next.blockContacts
-        .filter((c) => c.side === 'top')
-        .map((c) => c.id)
-        .filter((id) => {
-          const block = blockStates.value.find((b) => b.id === id);
-          // Only coinPot reacts to a 'top' contact (landing on it) — every
-          // other kind (crate/questionMark/fragileRock) only ever reacts
-          // from below, so simply standing/landing on top of one must never
-          // register as a hit.
-          return block !== undefined && block.blockKind === 'coinPot' && !isBlockUsedUp(block);
-        });
-      if (landedOnTopIds.length > 0) {
-        blockStates.value = blockStates.value.map((block) =>
-          landedOnTopIds.includes(block.id) ? applyBlockHit(block) : block,
-        );
-        // Mutates `next` (not `playerState.value` directly) — `next` is what
-        // eventually gets persisted to `playerState.value` a bit further
-        // down (after the pit-fall check and anim-state updates), so a
-        // direct `playerState.value` write here would just be silently
-        // clobbered by that later assignment.
-        next = {
-          ...next,
-          vy: PHYSICS_CONFIG.coinPotBounceVelocity,
-          bounceAscending: true,
-        };
-
-        for (const id of landedOnTopIds) {
-          const block = blockStates.value.find((b) => b.id === id);
-          if (!block) continue;
-          firePuffIfJustUsedUp(block);
-          // Every id in landedOnTopIds is already guaranteed to be a
-          // coinPot (enforced by the filter above, not just true "today")
-          // — no blockKind check needed here. Always drops a coin,
-          // regardless of whether the skill-fact pool still has anything
-          // left — see mapCVDataToSkillFactPool's doc comment: WHICH fact
-          // (if any) this reveals is resolved dynamically once it's
-          // actually walked over, not decided here. `id` is the pot's own
-          // id, not a fact id (the block never had one) — this is what the
-          // coin-total dedup guard above matches against once this coin
-          // exists in allCollectiblePlacements.
-          spawnedCoinPlacements.value = [
-            ...spawnedCoinPlacements.value,
-            { id: block.id, spriteType: 'coin', x: block.x, y: block.y },
-          ];
+        if (bounceVelocity !== undefined) {
+          // Mutates `next`, not `playerState.value` — `next` is what gets
+          // persisted further down this tick (after the pit-fall check and
+          // anim-state updates), so a direct playerState.value write here
+          // would be silently clobbered by that later assignment.
+          next = { ...next, vy: bounceVelocity, bounceAscending: true };
         }
       }
 
