@@ -20,6 +20,7 @@ import {
   collectedFacts,
   activeJournalSection,
   collectiblePlacements,
+  skillFactPool,
   collectedCollectibleIds,
   activeEffects,
   enemyPlacements,
@@ -136,14 +137,13 @@ const COIN_POT_TEST_OFFSET_X = 5 * RENDERED_TILE_SIZE;
  *  these tests independent of exactly where the level layout's real `u`
  *  markers sit. Callers must look the block up by the returned `id`, not by
  *  `blockKind`, since the real level now has its own coin-pots too. */
-function placeTestCoinPot(id: string, fact?: BlockState['fact']): BlockState {
+function placeTestCoinPot(id: string): BlockState {
   const crate = blockPlacements.value.find((b) => b.blockKind === 'crate')!;
   const pot = toBlockState({
     id,
     blockKind: 'coinPot',
     x: crate.x + COIN_POT_TEST_OFFSET_X,
     y: crate.y,
-    fact,
   });
   blockStates.value = [...blockStates.value, pot];
   return pot;
@@ -902,7 +902,11 @@ describe('PlatformerPage', () => {
     frameCallback!(16);
 
     expect(collectedCollectibleIds.value.has(target.id)).toBe(true);
-    expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(true);
+    // A coin carries no fact of its own (see CollectibleMapper.ts's
+    // mapCVDataToSkillFactPool doc comment) — collecting the very first
+    // coin this session reveals the pool's first entry, not a fact matching
+    // the coin's own (position-derived) id.
+    expect(collectedFacts.value).toEqual([skillFactPool.value[0]]);
   });
 
   it('playerOverlapsACollectible-tick-flightEffectCarriesAnIconSeparateFromText', () => {
@@ -926,7 +930,10 @@ describe('PlatformerPage', () => {
 
     frameCallback!(16);
 
-    const effect = activeEffects.value.find((e) => e.id === target.id);
+    // The flight effect's id is `${coinId}-${factIndex}`, not the coin's
+    // own id (a single coin can reveal more than one fact under the
+    // proportional-fill pacing — see PlatformerPage.tsx's revealedFactCountFor).
+    const effect = activeEffects.value.find((e) => e.id.startsWith(`${target.id}-`));
     expect(effect?.icon).toBe('💡');
     expect(effect?.text).not.toContain('💡');
   });
@@ -1444,7 +1451,11 @@ describe('PlatformerPage', () => {
       expect(playerState.value.bounceAscending).toBe(true);
     });
 
-    it('landingOnACoinPotWithAFact-addsACoinToSpawnedCoinPlacements', () => {
+    it('landingOnACoinPot-alwaysAddsACoinToSpawnedCoinPlacements', () => {
+      // A coin-pot never carries a fact of its own (see
+      // CollectibleMapper.ts's mapCVDataToSkillFactPool doc comment) — it
+      // always drops a coin regardless, and WHICH fact (if any) that coin
+      // eventually reveals is resolved only once it's actually walked over.
       let frameCallback: FrameRequestCallback | null = null;
       vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
         frameCallback = cb;
@@ -1455,8 +1466,7 @@ describe('PlatformerPage', () => {
       render(<PlatformerPage />);
       frameCallback!(0);
 
-      const crateFact = blockPlacements.value.find((b) => b.blockKind === 'crate')!.fact!;
-      const pot = placeTestCoinPot('coinpot-test-fact', crateFact);
+      const pot = placeTestCoinPot('coinpot-test-drop');
       playerState.value = { ...playerState.value, x: pot.x, y: blockLandingY(pot), vy: 300 };
 
       let t = 16;
@@ -1468,31 +1478,9 @@ describe('PlatformerPage', () => {
 
       expect(spawnedCoinPlacements.value).toHaveLength(1);
       expect(spawnedCoinPlacements.value[0].spriteType).toBe('coin');
-      expect(spawnedCoinPlacements.value[0].fact).toBe(crateFact);
-    });
-
-    it('landingOnACoinPotWithNoFact-destroysItButAddsNoCoin', () => {
-      let frameCallback: FrameRequestCallback | null = null;
-      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
-        frameCallback = cb;
-        return 1;
-      });
-      vi.stubGlobal('cancelAnimationFrame', vi.fn());
-
-      render(<PlatformerPage />);
-      frameCallback!(0);
-
-      const pot = placeTestCoinPot('coinpot-test-nofact');
-      playerState.value = { ...playerState.value, x: pot.x, y: blockLandingY(pot), vy: 300 };
-
-      let t = 16;
-      frameCallback!(t);
-      for (let i = 0; i < 10; i++) {
-        t += 16;
-        frameCallback!(t);
-      }
-
-      expect(spawnedCoinPlacements.value).toEqual([]);
+      // The dropped coin's id is the pot's own id — it never had a fact id
+      // to reuse.
+      expect(spawnedCoinPlacements.value[0].id).toBe(pot.id);
     });
 
     it('landingOnACoinPot-firesThePuffEffectLikeAnyOtherDestroyedBlock', () => {
@@ -1518,6 +1506,76 @@ describe('PlatformerPage', () => {
 
       expect(activePuffs.value.some((p) => p.id === pot.id)).toBe(true);
     });
+
+    it('hittingACoinPotFromBelow-doesNotBreakItOrDropACoin', () => {
+      // Regression test for a real bug found by manual play-testing: the
+      // 'bottom'-side (hittableBlockIds) and 'top'-side (landedOnTopIds)
+      // filters must be mutually exclusive by blockKind — a coinPot must
+      // only ever react to being landed on, never to being hit from below,
+      // even though Physics.ts reports a 'bottom' blockContacts entry for
+      // ANY solid block regardless of kind.
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+      render(<PlatformerPage />);
+      frameCallback!(0);
+
+      const pot = placeTestCoinPot('coinpot-test-from-below');
+      const ceilingBottomY = pot.y + RENDERED_TILE_SIZE;
+      playerState.value = {
+        ...playerState.value,
+        x: pot.x,
+        y: ceilingBottomY - PLAYER_HEAD_PADDING + 1,
+        vy: -1000,
+      };
+
+      let t = 16;
+      frameCallback!(t);
+      for (let i = 0; i < 10; i++) {
+        t += 16;
+        frameCallback!(t);
+      }
+
+      expect(blockStates.value.find((b) => b.id === pot.id)?.hitsTaken).toBe(0);
+      expect(spawnedCoinPlacements.value).toEqual([]);
+      expect(activePuffs.value.some((p) => p.id === pot.id)).toBe(false);
+    });
+  });
+
+  it('landingOnTopOfACrate-doesNotBreakItOrBounceThePlayer', () => {
+    // Regression test for the same real bug as
+    // hittingACoinPotFromBelow-doesNotBreakItOrDropACoin above, from the
+    // other direction: every OTHER block kind must only ever react to
+    // being hit from below, never to being landed on, even though
+    // Physics.ts reports a 'top' blockContacts entry for ANY solid block
+    // the player lands on regardless of kind.
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const crate = blockStates.value.find((b) => b.blockKind === 'crate')!;
+    playerState.value = { ...playerState.value, x: crate.x, y: blockLandingY(crate), vy: 300 };
+
+    // Exactly one tick — the landing tick itself, same convention as
+    // landingOnACoinPot-destroysItAndBouncesThePlayer above (a bounce, if
+    // wrongly applied, would only be exactly PHYSICS_CONFIG.coinPotBounceVelocity
+    // on this very tick — a few frames later gravity would already have
+    // changed vy regardless of whether a bounce fired).
+    frameCallback!(16);
+
+    expect(blockStates.value.find((b) => b.id === crate.id)?.hitsTaken).toBe(0);
+    expect(playerState.value.vy).not.toBe(PHYSICS_CONFIG.coinPotBounceVelocity);
+    expect(playerState.value.bounceAscending).toBe(false);
   });
 
   it('coinCollection-queuesAFlightEffectOnly-neverAlsoAPuff', () => {
@@ -1535,7 +1593,7 @@ describe('PlatformerPage', () => {
     playerState.value = { ...playerState.value, x: coin.x, y: coin.y };
     frameCallback!(16);
 
-    expect(activeEffects.value.some((e) => e.id === coin.id)).toBe(true);
+    expect(activeEffects.value.some((e) => e.id.startsWith(`${coin.id}-`))).toBe(true);
     expect(activePuffs.value.some((p) => p.id === coin.id)).toBe(false);
   });
 
@@ -3236,7 +3294,13 @@ describe('PlatformerPage', () => {
     // progress from the previous visit still there.
     const { unmount } = render(<PlatformerPage />);
 
-    collectedFacts.value = [collectiblePlacements.value[0].fact];
+    // A coin carries no fact of its own (see CollectibleMapper.ts's
+    // mapCVDataToSkillFactPool doc comment) — this test only cares that
+    // collectedFacts/collectedCollectibleIds are cleared on remount, not
+    // which fact was "collected", so a minimal standalone one suffices.
+    collectedFacts.value = [
+      { id: 'test-fact', sectionId: 'skills', sectionLabel: 'Skills', data: { category: 'Test', skills: [] }, sourceType: 'coin' },
+    ];
     collectedCollectibleIds.value = new Set([collectiblePlacements.value[0].id]);
     collectedKeys.value = 1;
 

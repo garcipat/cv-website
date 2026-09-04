@@ -1,7 +1,7 @@
 import { tileToPixel, RENDERED_TILE_SIZE } from './Terrain';
 import { slugify } from './CollectibleMapper';
 import type { CVData, Education, Certificate, Project, Activity, Language } from '@/types/cv';
-import type { BlockDef, CollectibleDef } from '../types';
+import type { BlockDef } from '../types';
 
 function educationToBlock(education: Education): BlockDef {
   const id = `block-edu-${slugify(`${education.degree}-${education.institution}`)}`;
@@ -97,27 +97,6 @@ export function mapCVDataToBlocks(cv: CVData): BlockDef[] {
   ];
 }
 
-/**
- * Turns leftover skill-category `CollectibleDef`s — the SAME pool
- * `CollectibleMapper.ts`'s `mapCVDataToCollectibles` produces for walk-over
- * coins — into coin-pot `BlockDef`s. A level author places some categories
- * as walk-over `C` coins and others as `u` coin-pots; `coinMarkerCount` is
- * how many `C` markers the level actually has, so this function only offers
- * the REMAINDER (in the same category order `mapCVDataToCollectibles`
- * produced them in) to coin-pot markers — no double-counting, and no new
- * CVData mapping of its own.
- */
-export function mapSkillCollectiblesToCoinPotBlocks(
-  collectibleDefs: readonly CollectibleDef[],
-  coinMarkerCount: number,
-): BlockDef[] {
-  return collectibleDefs.slice(coinMarkerCount).map((def) => ({
-    id: `coinpot-${def.id}`,
-    blockKind: 'coinPot',
-    fact: def.fact,
-  }));
-}
-
 export interface BlockPlacement extends BlockDef {
   x: number;
   y: number;
@@ -146,7 +125,11 @@ export interface BlockMarkerPositions {
  * `mapCVDataToBlocks`'s comment). FragileRock blocks have no CVData mapping
  * at all (spec.md FR-021) — every fragileRock marker becomes a placement
  * directly, with a position-derived id since there's no CVData-derived one
- * available.
+ * available. coinPot markers follow the same no-CVData-mapping convention
+ * as fragileRock: a coin-pot carries no fact of its own — which CV fact it
+ * eventually reveals is resolved dynamically at pickup time from the dropped
+ * coin's own pool lookup (see `CollectibleMapper.ts`'s `mapCVDataToSkillFactPool`
+ * doc comment), not bound to the block at placement time.
  */
 export function placeBlocks(defs: BlockDef[], markers: BlockMarkerPositions): BlockPlacement[] {
   const placements: BlockPlacement[] = [];
@@ -171,14 +154,27 @@ export function placeBlocks(defs: BlockDef[], markers: BlockMarkerPositions): Bl
     placements.push({ id: `fragileRock-${col}-${row}`, blockKind: 'fragileRock', x, y });
   }
 
-  const coinPotDefs = defs.filter((d) => d.blockKind === 'coinPot');
-  (markers.coinPot ?? []).forEach(({ col, row }, index) => {
+  for (const { col, row } of markers.coinPot ?? []) {
     const { x, y } = tileToPixel(col, row);
-    const def = coinPotDefs[index];
-    placements.push(def ? { ...def, x, y } : { id: `coinpot-${col}-${row}`, blockKind: 'coinPot', x, y });
-  });
+    placements.push({ id: `coinpot-${col}-${row}`, blockKind: 'coinPot', x, y });
+  }
 
   return placements;
+}
+
+/**
+ * The block placement occupying tile (col, row), if any — the shared lookup
+ * `blockIdAt` (just the id) and Physics.ts's per-kind hitbox inset (the
+ * whole placement, to read its `blockKind`) both build on.
+ */
+export function blockAt(
+  blockPlacements: readonly BlockPlacement[],
+  col: number,
+  row: number,
+): BlockPlacement | undefined {
+  return blockPlacements.find(
+    (b) => Math.floor(b.x / RENDERED_TILE_SIZE) === col && Math.floor(b.y / RENDERED_TILE_SIZE) === row,
+  );
 }
 
 /**
@@ -192,10 +188,7 @@ export function blockIdAt(
   col: number,
   row: number,
 ): string | undefined {
-  const found = blockPlacements.find(
-    (b) => Math.floor(b.x / RENDERED_TILE_SIZE) === col && Math.floor(b.y / RENDERED_TILE_SIZE) === row,
-  );
-  return found?.id;
+  return blockAt(blockPlacements, col, row)?.id;
 }
 
 /**

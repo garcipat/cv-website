@@ -5,6 +5,8 @@ import {
   collectedFacts,
   activeJournalSection,
   collectiblePlacements,
+  allCollectiblePlacements,
+  collectedCollectibleIds,
   blockPlacements,
   enemyPlacements,
   chestPlacements,
@@ -420,7 +422,20 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
                         {collectiblesSummary(facts, {
                           coins:
                             collectiblePlacements.value.filter((p) => p.spriteType === 'coin').length +
-                            blockPlacements.value.filter((b) => b.blockKind === 'coinPot' && b.fact).length,
+                            blockPlacements.value.filter((b) => b.blockKind === 'coinPot').length,
+                          // Explicit override, not derived from `facts` —
+                          // under proportional fact pacing (a coin carries
+                          // no fixed fact of its own, see
+                          // CollectibleMapper.ts's mapCVDataToSkillFactPool
+                          // doc comment), "skill facts revealed" and "coins
+                          // collected" are different numbers whenever the
+                          // coin count and skill-category count differ. This
+                          // counts actual collected coin placements, the
+                          // same quantity the in-game HUD popup shows, so the
+                          // two never disagree.
+                          coinsCollected: allCollectiblePlacements.value.filter(
+                            (p) => p.spriteType === 'coin' && collectedCollectibleIds.value.has(p.id),
+                          ).length,
                           fruits: blockPlacements.value.filter((b) => b.blockKind === 'questionMark' && b.fact).length,
                           enemies: enemyPlacements.value.filter((p) => p.fact).length,
                           crates: blockPlacements.value.filter((b) => b.blockKind === 'crate').length,

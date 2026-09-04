@@ -180,13 +180,7 @@ const fakeTileset = {} as HTMLImageElement;
 const fakeGroundAtlas = {} as HTMLImageElement;
 
 function makePlacement(id: string, spriteType: 'coin' | 'fruit', x: number, y: number): CollectiblePlacement {
-  return {
-    id,
-    spriteType,
-    fact: { id, sectionId: 'skills', sectionLabel: 'Skills', data: { category: 'X', skills: [] }, sourceType: 'coin' },
-    x,
-    y,
-  };
+  return { id, spriteType, x, y };
 }
 
 function makeCoinPlacement(id = 'coin-1', x = 100, y = 100): CollectiblePlacement {

@@ -8,8 +8,9 @@ import {
   RENDERED_TILE_SIZE,
 } from '../level/Terrain';
 import type { LevelDef } from '../level/LevelData';
-import { isBlockOccupied, blockIdAt } from '../level/BlockMapper';
+import { isBlockOccupied, blockIdAt, blockAt } from '../level/BlockMapper';
 import type { BlockPlacement } from '../level/BlockMapper';
+import { hitboxInsetXForBlock } from '../entities/Block';
 import {
   PLAYER_RENDERED_SIZE,
   PLAYER_FOOT_PADDING,
@@ -126,15 +127,35 @@ export function stepPlayerPhysics(
       (player.x + PLAYER_SIDE_PADDING + HITBOX_WIDTH - 1) / RENDERED_TILE_SIZE,
     );
     const isWall = rightCol === prevRightCol ? isSolidExcludingBridge : isSolid;
-    let rightResolved = false;
+    let rightWallFound = false;
+    // The MINIMUM inset among every row this column's wall spans, not just
+    // the first one found — a coinPot's hitboxInsetX only applies safely
+    // when every solid row in the same column tolerates it. Using the
+    // first-found row's inset (whatever kind it happened to be) could let
+    // the player resolve to a position that's still inside a DIFFERENT
+    // row's full-tile (inset-0) solid terrain or block in the same column.
+    // NOTE: a non-zero inset also widens which column registers as "already
+    // occupying" the wall for the bridge-tunneling check above (a coinPot in
+    // the player's row span could flip a same-column bridge tile to
+    // passable a frame early) and joins the ground/ceiling scan spans a
+    // pixel sooner than a full-tile block would. Not reachable in the
+    // shipped level (no coinPot shares a column with a bridge or another
+    // block today) — worth a real fix only if a future level stacks them.
+    let rightMinInset = Infinity;
     for (let row = topRow; row <= bottomRow; row++) {
       if (!isWall(tileAt(level, rightCol, row)) && !isBlockOccupied(blockPlacements, rightCol, row)) continue;
-      if (!rightResolved) {
-        x = rightCol * RENDERED_TILE_SIZE - PLAYER_SIDE_PADDING - HITBOX_WIDTH;
-        rightResolved = true;
-      }
-      const blockId = blockIdAt(blockPlacements, rightCol, row);
-      if (blockId !== undefined) blockContacts.push({ id: blockId, side: 'left' });
+      rightWallFound = true;
+      // A block whose art doesn't fill its tile (e.g. coinPot) declares a
+      // hitboxInsetX so the player can approach closer than the raw tile
+      // boundary, matching where its sprite actually looks solid — plain
+      // terrain (no block here) keeps the exact tile boundary (inset 0).
+      const block = blockAt(blockPlacements, rightCol, row);
+      const inset = block ? hitboxInsetXForBlock(block.blockKind) : 0;
+      if (inset < rightMinInset) rightMinInset = inset;
+      if (block !== undefined) blockContacts.push({ id: block.id, side: 'left' });
+    }
+    if (rightWallFound) {
+      x = rightCol * RENDERED_TILE_SIZE + rightMinInset - PLAYER_SIDE_PADDING - HITBOX_WIDTH;
     }
   } else if (vx < 0) {
     const leftCol = Math.floor((x + PLAYER_SIDE_PADDING) / RENDERED_TILE_SIZE);
@@ -142,15 +163,20 @@ export function stepPlayerPhysics(
     // hitbox wasn't already occupying before this frame's move still blocks.
     const prevLeftCol = Math.floor((player.x + PLAYER_SIDE_PADDING) / RENDERED_TILE_SIZE);
     const isWall = leftCol === prevLeftCol ? isSolidExcludingBridge : isSolid;
-    let leftResolved = false;
+    let leftWallFound = false;
+    // Mirrors the rightward branch's "minimum inset across every row this
+    // column's wall spans" handling above.
+    let leftMinInset = Infinity;
     for (let row = topRow; row <= bottomRow; row++) {
       if (!isWall(tileAt(level, leftCol, row)) && !isBlockOccupied(blockPlacements, leftCol, row)) continue;
-      if (!leftResolved) {
-        x = (leftCol + 1) * RENDERED_TILE_SIZE - PLAYER_SIDE_PADDING;
-        leftResolved = true;
-      }
-      const blockId = blockIdAt(blockPlacements, leftCol, row);
-      if (blockId !== undefined) blockContacts.push({ id: blockId, side: 'right' });
+      leftWallFound = true;
+      const block = blockAt(blockPlacements, leftCol, row);
+      const inset = block ? hitboxInsetXForBlock(block.blockKind) : 0;
+      if (inset < leftMinInset) leftMinInset = inset;
+      if (block !== undefined) blockContacts.push({ id: block.id, side: 'right' });
+    }
+    if (leftWallFound) {
+      x = (leftCol + 1) * RENDERED_TILE_SIZE - leftMinInset - PLAYER_SIDE_PADDING;
     }
   }
 

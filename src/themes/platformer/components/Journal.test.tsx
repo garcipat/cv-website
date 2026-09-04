@@ -558,8 +558,13 @@ describe('Journal', () => {
     it('oneSkillsFactCollected-summaryRowShowsCollectedOverPlacedCoinCount', () => {
       // The "About Me" summary's total is the number of coin markers
       // actually placed in the level (collectiblePlacements), not the raw
-      // CVData skills count — see CollectiblesSummary.ts's doc comment.
-      const total = collectiblePlacements.value.filter((p) => p.spriteType === 'coin').length;
+      // CVData skills count — see CollectiblesSummary.ts's doc comment. A
+      // coin-pot block always counts too (it always drops a coin — see
+      // CollectibleMapper.ts's mapCVDataToSkillFactPool doc comment) — same
+      // formula Journal.tsx itself uses.
+      const total =
+        collectiblePlacements.value.filter((p) => p.spriteType === 'coin').length +
+        blockPlacements.value.filter((b) => b.blockKind === 'coinPot').length;
       collectedFacts.value = [
         {
           id: 'coin-frontend',
@@ -569,6 +574,15 @@ describe('Journal', () => {
           sourceType: 'coin',
         },
       ];
+      // The coins row's "collected" count is now an explicit override (see
+      // Journal.tsx/CollectiblesSummary.ts) derived from
+      // `collectedCollectibleIds` matching a real coin placement, not from
+      // `collectedFacts` alone — under proportional fact pacing those are
+      // different numbers whenever the coin count and skill-category count
+      // differ (see CollectibleMapper.ts's mapCVDataToSkillFactPool doc
+      // comment), so this test must mark an actual coin placement as
+      // collected too, not just push a fact.
+      collectedCollectibleIds.value = new Set([collectiblePlacements.value[0].id]);
 
       render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
       openBookAnimation();
@@ -578,36 +592,21 @@ describe('Journal', () => {
       expect(summary).toHaveTextContent(`1 / ${total}`);
     });
 
-    it('coinsTotal-includesCoinPotBlocksWithAFact', () => {
-      // Coin-pot blocks with facts should count toward the coins total,
-      // matching how the PlatformerPage's coin counter popup works (Task 9).
-      // A coin-pot without a fact (rare but possible) must not count.
-      const coinPotWithFact = {
-        id: 'coinpot-skills-0',
-        blockKind: 'coinPot' as const,
-        x: 100,
-        y: 200,
-        fact: {
-          id: 'fact-coinpot-skills-0',
-          sectionId: 'skills' as const,
-          sectionLabel: 'Skills',
-          data: { category: 'Frontend', skills: [{ name: 'Vue', level: 70 }] },
-          sourceType: 'block' as const,
-        },
-      };
-      const coinPotWithoutFact = {
-        id: 'coinpot-plain-0',
-        blockKind: 'coinPot' as const,
-        x: 200,
-        y: 200,
-      };
+    it('coinsTotal-includesEveryCoinPotBlock', () => {
+      // Every coin-pot block counts toward the coins total, matching how
+      // the PlatformerPage's coin counter popup works (Task 9) — a coin-pot
+      // always drops a coin regardless of any fact (see
+      // CollectibleMapper.ts's mapCVDataToSkillFactPool doc comment), so
+      // there's no "with fact vs without" distinction left to make.
+      const coinPotA = { id: 'coinpot-a', blockKind: 'coinPot' as const, x: 100, y: 200 };
+      const coinPotB = { id: 'coinpot-b', blockKind: 'coinPot' as const, x: 200, y: 200 };
       const blockPlacementsSpy = vi
         .spyOn(blockPlacements, 'value', 'get')
-        .mockReturnValue([coinPotWithFact, coinPotWithoutFact]);
+        .mockReturnValue([coinPotA, coinPotB]);
       try {
         const total =
           collectiblePlacements.value.filter((p) => p.spriteType === 'coin').length +
-          blockPlacements.value.filter((b) => b.blockKind === 'coinPot' && b.fact).length;
+          blockPlacements.value.filter((b) => b.blockKind === 'coinPot').length;
         collectedFacts.value = [];
 
         render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);

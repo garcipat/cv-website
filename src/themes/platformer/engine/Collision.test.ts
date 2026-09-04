@@ -56,13 +56,7 @@ function makePlayer(x: number, y: number): PlayerState {
 }
 
 function makePlacement(id: string, x: number, y: number): CollectiblePlacement {
-  return {
-    id,
-    spriteType: 'coin',
-    fact: { id, sectionId: 'skills', sectionLabel: 'Skills', data: { category: 'X', skills: [] }, sourceType: 'coin' },
-    x,
-    y,
-  };
+  return { id, spriteType: 'coin', x, y };
 }
 
 function makeEnemy(x: number, y: number, overrides: Partial<SlimeGreenState> = {}): EnemyState {

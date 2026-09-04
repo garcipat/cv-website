@@ -5,13 +5,7 @@ import { spawnBonusFruit, BONUS_FRUIT_RISE_DURATION_SECONDS, bonusFruitY } from 
 import type { CollectiblePlacement } from '../../level/CollectibleMapper';
 
 function makePlacement(x: number, y: number): CollectiblePlacement {
-  return {
-    id: 'coin-x',
-    spriteType: 'coin',
-    fact: { id: 'coin-x', sectionId: 'skills', sectionLabel: 'Skills', data: { category: 'X', skills: [] }, sourceType: 'coin' },
-    x,
-    y,
-  };
+  return { id: 'coin-x', spriteType: 'coin', x, y };
 }
 
 describe('PICKUP_TYPES', () => {
