@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { BACKGROUND_PALETTE_SPRITES, BACKGROUND_PALETTE_LABELS } from './backgroundPaletteTiles';
 import { BACKGROUND_CATALOG } from '../engine/BackgroundCatalog';
 import type { BackgroundPieceId } from '../level/LevelData';
+import { TERRAIN_BACKGROUND_SHEET } from '../entities/sprites/sheets';
 
 describe('backgroundPaletteTiles', () => {
   it.each(Object.keys(BACKGROUND_CATALOG) as BackgroundPieceId[])(
@@ -10,7 +11,7 @@ describe('backgroundPaletteTiles', () => {
       const catalogEntry = BACKGROUND_CATALOG[pieceId];
       const sprite = BACKGROUND_PALETTE_SPRITES[pieceId];
 
-      expect(sprite.sheet).toBe('/sprites/terrain_.png');
+      expect(sprite.sheet).toBe(TERRAIN_BACKGROUND_SHEET.src);
       expect(sprite.sheetWidth).toBe(128);
       expect(sprite.sheetHeight).toBe(320);
       expect(sprite.sx).toBe(catalogEntry.sx);

@@ -93,6 +93,15 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
 - [x] **34. World-event puff, decoupled from fact rewards** — a destruction sparkle
   effect now plays on every enemy defeat and block break, independent of whether a CV
   fact is also revealed.
+- [x] **35a. Background tile layer — freeform placement** — a second, purely-visual tile
+  layer painted behind the terrain layer (dirt/charcoal stone pieces, single tiles up to
+  3x3 chunks), so platforms read as solid mass instead of floating over flat sky. A
+  Level Editor catalog lets pieces be placed and erased freely, no autotiling yet. Design
+  in `plans/2026-09-03-background-tile-layer-design.md`.
+- [ ] **35b. Background tile layer — pattern repeat tool** — once a liked arrangement
+  exists from 35a, capture it as a reusable pattern and add an editor action that
+  expands it (staggered, to avoid a visible repeat seam) across a larger area. Depends
+  on 35a landing first.
 
 ## Unscheduled additions (not yet numbered)
 
