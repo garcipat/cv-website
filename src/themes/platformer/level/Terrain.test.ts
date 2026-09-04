@@ -342,12 +342,12 @@ describe('verticalRunRole', () => {
     expect(verticalRunRole(level, 0, 1, 'bush')).toBe('only');
   });
 
-  it('matchingTileBelowButNotAbove-returnsBottom', () => {
+  it('matchingTileAboveButNotBelow-returnsBottom', () => {
     const level: LevelDef = { terrain: [['empty'], ['bush'], ['bush']], width: 1, height: 3 };
     expect(verticalRunRole(level, 0, 2, 'bush')).toBe('bottom');
   });
 
-  it('matchingTileAboveButNotBelow-returnsTop', () => {
+  it('matchingTileBelowButNotAbove-returnsTop', () => {
     const level: LevelDef = { terrain: [['bush'], ['bush'], ['empty']], width: 1, height: 3 };
     expect(verticalRunRole(level, 0, 0, 'bush')).toBe('top');
   });
