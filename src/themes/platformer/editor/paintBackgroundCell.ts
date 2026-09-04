@@ -6,8 +6,17 @@ interface Cell {
   row: number;
 }
 
+/** Every `pieceId` reaching this file comes from the editor's currently
+ *  selected catalog piece — never a stale persisted one (unlike the render
+ *  path in Renderer.ts) — but `backgroundCatalogEntry`'s return type is
+ *  honestly `| undefined` since it's a plain catalog lookup. Treating an
+ *  unresolvable placement's footprint as empty (rather than asserting
+ *  non-null) keeps this file safe even if that assumption is ever violated,
+ *  at the cost of nothing in the expected case. */
 function footprintCells(placement: BackgroundPlacement): Cell[] {
-  const { widthTiles, heightTiles } = backgroundCatalogEntry(placement.pieceId);
+  const entry = backgroundCatalogEntry(placement.pieceId);
+  if (!entry) return [];
+  const { widthTiles, heightTiles } = entry;
   const cells: Cell[] = [];
   for (let dr = 0; dr < heightTiles; dr++) {
     for (let dc = 0; dc < widthTiles; dc++) {

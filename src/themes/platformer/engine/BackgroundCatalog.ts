@@ -46,6 +46,13 @@ export const BACKGROUND_CATALOG: Record<BackgroundPieceId, BackgroundCatalogEntr
   charcoalColumnBottom1x2: block('charcoal', 5, 1, 2, SPLIT_PIECE_BOTTOM_ROW_OFFSET),
 };
 
-export function backgroundCatalogEntry(pieceId: BackgroundPieceId): BackgroundCatalogEntry {
+/**
+ * A `pieceId` reaching this function at runtime isn't guaranteed to be a
+ * *current* `BackgroundPieceId` — it can come from `localStorage` or a saved
+ * level JSON file written before a catalog trim. Returns `undefined` for an
+ * unrecognized id rather than throwing; callers (see `drawBackgroundTiles`)
+ * must handle that case instead of assuming the entry always exists.
+ */
+export function backgroundCatalogEntry(pieceId: BackgroundPieceId): BackgroundCatalogEntry | undefined {
   return BACKGROUND_CATALOG[pieceId];
 }

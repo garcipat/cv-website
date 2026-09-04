@@ -371,6 +371,7 @@ export function drawBackgroundTiles(
   const placements = level.background ?? [];
   for (const placement of placements) {
     const entry = backgroundCatalogEntry(placement.pieceId);
+    if (!entry) continue; // stale/unknown pieceId (e.g. from a pre-trim catalog) — skip, don't crash
     ctx.drawImage(
       backgroundAtlas,
       entry.sx,

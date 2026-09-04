@@ -29,7 +29,7 @@ import {
   SKY_WHITE_ROW_COUNT,
   drawBackgroundTiles,
 } from './Renderer';
-import type { LevelDef } from '../level/LevelData';
+import type { LevelDef, BackgroundPieceId } from '../level/LevelData';
 import type { SignPlacement } from '../level/SignMapper';
 import type { PlayerState } from '../entities/Player';
 import { PLAYER_RENDERED_SIZE, PLAYER_HIT_REACTION_SECONDS } from '../entities/Player';
@@ -2466,5 +2466,23 @@ describe('drawBackgroundTiles', () => {
       100, -50,
       32, 32,
     );
+  });
+
+  it('placementWithAnUnknownPieceId-isSkippedRatherThanThrown', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = {
+      terrain: [],
+      width: 0,
+      height: 0,
+      background: [
+        { pieceId: 'notARealPieceId' as BackgroundPieceId, col: 0, row: 0 },
+        { pieceId: 'dirtBlock3x3', col: 5, row: 0 },
+      ],
+    };
+
+    expect(() =>
+      drawBackgroundTiles(ctx as unknown as CanvasRenderingContext2D, level, {} as HTMLImageElement),
+    ).not.toThrow();
+    expect(ctx.drawImage).toHaveBeenCalledTimes(1);
   });
 });
