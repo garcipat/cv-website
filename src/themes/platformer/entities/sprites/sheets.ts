@@ -128,3 +128,15 @@ export const GROUND_ATLAS_SHEET: SpriteSheet = {
   frameHeight: TILE_SIZE,
   columns: 7,
 };
+
+/** `staticObjects.png` is a 288x144 sheet of 16px tiles: bush/tree pieces and
+ *  a fence piece for the foreground decoration tiles. `StaticObjectsCatalog.ts`
+ *  addresses it through its own sx/sy lookup, not by frame index — like
+ *  `TERRAIN_BACKGROUND_SHEET`, this registration exists for loading, not
+ *  addressing. */
+export const STATIC_OBJECTS_SHEET: SpriteSheet = {
+  src: '/sprites/staticObjects.png',
+  frameWidth: TILE_SIZE,
+  frameHeight: TILE_SIZE,
+  columns: 18,
+};
