@@ -126,7 +126,6 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   entity like `Crate`/`QuestionMark` (placed on top of terrain) vs. a terrain `TileType`
   like `wall`/`ladder`. Needs its own brainstorming pass first: instant-death vs. heart
   damage, and how they read visually against the existing tile atlas.
->>>>>>> 15a4f99 (feat(platformer): add bush and fence tile types)
 
 ## Unscheduled additions (not yet numbered)
 
