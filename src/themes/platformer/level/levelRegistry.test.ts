@@ -118,3 +118,32 @@ describe('findLevel', () => {
     expect(findLevel('no-such-level')).toBeUndefined();
   });
 });
+
+describe('parseLevelModules — background field', () => {
+  it('moduleWithAValidBackgroundArray-carriesItOntoTheEntry', () => {
+    const modules = {
+      './levels/cave.json': {
+        name: 'Cave',
+        layout: ['.S.', 'GGG'],
+        background: [{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }],
+      },
+    };
+    const [entry] = parseLevelModules(modules);
+    expect(entry.background).toEqual([{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }]);
+  });
+
+  it('moduleWithNoBackgroundField-hasUndefinedBackgroundOnTheEntry', () => {
+    const modules = { './levels/plain.json': { name: 'Plain', layout: ['.S.', 'GGG'] } };
+    const [entry] = parseLevelModules(modules);
+    expect(entry.background).toBeUndefined();
+  });
+
+  it('moduleWithAMalformedBackgroundField-dropsOnlyTheBackgroundFieldNotTheWholeEntry', () => {
+    const modules = {
+      './levels/broken-bg.json': { name: 'Broken', layout: ['.S.', 'GGG'], background: 'not-an-array' },
+    };
+    const [entry] = parseLevelModules(modules);
+    expect(entry).toBeDefined();
+    expect(entry.background).toBeUndefined();
+  });
+});

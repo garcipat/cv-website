@@ -1,24 +1,32 @@
 import { useEffect, useState } from 'react';
 import { importLayout } from './importLayout';
 import { exportLayout } from './exportLayout';
+import { cropLevelForExport } from './cropLevelForExport';
 import { Palette } from './Palette';
 import { EditorCanvas, type EditorImages } from './EditorCanvas';
 import { updatePanOffset, type PanOffset } from './EditorPan';
 import type { TileChar } from '../level/LevelParser';
-import { currentLayout } from '../level/level';
+import { currentLayout, currentBackground } from '../level/level';
 import type { LevelEntry } from '../level/levelRegistry';
 import { LevelSelect } from './LevelSelect';
 import { saveLevel, LEVELS_FOLDER, type SaveLevelResult } from './saveLevelFile';
+import type { BackgroundPlacement, BackgroundPieceId } from '../level/LevelData';
+import { backgroundCatalogEntry } from '../engine/BackgroundCatalog';
 import {
   editorLevelSignal,
   editorSelectedToolSignal,
   editorLoadedLevelNameSignal,
   editorDirtySignal,
+  editorBackgroundSignal,
+  editorActiveLayerSignal,
+  editorSelectedBackgroundPieceSignal,
 } from './editorLevelState';
 import { resetGameProgress } from '../PlatformerState';
 import { loadImage } from '../engine/SpriteLoader';
+import { TERRAIN_BACKGROUND_SHEET } from '../entities/sprites/sheets';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { currentTheme } from '@/state/theme';
 import { navigateTo } from '@/state/navigation';
 import {
@@ -42,6 +50,7 @@ const EMPTY_IMAGES: EditorImages = {
   slimePurple: null,
   crackOverlay: null,
   chestClosed: null,
+  backgroundAtlas: null,
 };
 
 const IMAGE_SOURCES: { key: keyof EditorImages; src: string }[] = [
@@ -54,6 +63,7 @@ const IMAGE_SOURCES: { key: keyof EditorImages; src: string }[] = [
   { key: 'slimePurple', src: '/sprites/slime_purple.png' },
   { key: 'crackOverlay', src: '/sprites/crack_overlay.png' },
   { key: 'chestClosed', src: '/sprites/chest_closed.png' },
+  { key: 'backgroundAtlas', src: TERRAIN_BACKGROUND_SHEET.src },
 ];
 
 // How long to wait after the last paint stroke before syncing `grid` into
@@ -80,6 +90,27 @@ export const LevelEditorPage = () => {
   const setSelectedTool = (tool: TileChar) => {
     setSelectedToolState(tool);
     editorSelectedToolSignal.value = tool;
+  };
+  // Background-layer counterparts of `grid`/`selectedTool` above, following
+  // exactly the same pattern: local state seeded from the persisted signal,
+  // synced back debounced (placements) or straight through (the active layer
+  // and the selected piece — discrete clicks, not a hot drag path).
+  const [backgroundPlacements, setBackgroundPlacements] = useState<BackgroundPlacement[]>(
+    () => editorBackgroundSignal.value,
+  );
+  const [activeLayer, setActiveLayerState] = useState<'foreground' | 'background'>(
+    () => editorActiveLayerSignal.value,
+  );
+  const setActiveLayer = (layer: 'foreground' | 'background') => {
+    setActiveLayerState(layer);
+    editorActiveLayerSignal.value = layer;
+  };
+  const [selectedBackgroundPiece, setSelectedBackgroundPieceState] = useState<BackgroundPieceId | null>(
+    () => editorSelectedBackgroundPieceSignal.value,
+  );
+  const setSelectedBackgroundPiece = (pieceId: BackgroundPieceId) => {
+    setSelectedBackgroundPieceState(pieceId);
+    editorSelectedBackgroundPieceSignal.value = pieceId;
   };
   const [panOffset, setPanOffset] = useState<PanOffset>({ x: 0, y: 0 });
   // Bumped to ask EditorCanvas to center the view on the spawn tile; it
@@ -134,6 +165,16 @@ export const LevelEditorPage = () => {
     return () => window.clearTimeout(timer);
   }, [grid]);
 
+  // Same debounced sync as `grid` above, for the background layer's
+  // placements — a rapid drag-paint stroke over the background writes once at
+  // the end instead of on every cell.
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      editorBackgroundSignal.value = backgroundPlacements;
+    }, EDITOR_LEVEL_SYNC_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [backgroundPlacements]);
+
   const exportedText = exportLayout(grid)
     .map((row) => `  '${row}',`)
     .join('\n');
@@ -148,12 +189,26 @@ export const LevelEditorPage = () => {
    * state — otherwise the debounced sync effect above would shortly overwrite
    * the freshly loaded grid with the still-pending previous one, and
    * reopening the editor would silently restore the discarded edits.
+   *
+   * `level.background` is filtered against the current catalog before it
+   * goes anywhere: a placement whose `pieceId` no longer resolves (left over
+   * from a since-trimmed catalog, e.g. in a stale `localStorage` copy or an
+   * old saved level JSON) renders as nothing (Task 19) and, because
+   * `paintBackgroundCell.ts`'s empty-footprint fallback means right-click can
+   * never find it, would otherwise stay invisible AND permanently
+   * un-erasable in the editor while round-tripping through every subsequent
+   * save forever. Dropping it here, once, at load time closes that gap.
    */
   const loadLevel = (level: LevelEntry) => {
     const levelGrid = importLayout(level.layout);
     setGrid(levelGrid);
     requestCenterOnSpawn();
     editorLevelSignal.value = levelGrid;
+    const validBackground = (level.background ?? []).filter(
+      (placement) => backgroundCatalogEntry(placement.pieceId) !== undefined,
+    );
+    setBackgroundPlacements(validBackground);
+    editorBackgroundSignal.value = validBackground;
     setLoadedLevelName(level.name);
     setDirty(false);
     setSaveResult(null);
@@ -173,7 +228,8 @@ export const LevelEditorPage = () => {
    * that is worth saying before it is dismissed.
    */
   const saveCurrentLevel = async () => {
-    const result = await saveLevel(saveName, grid);
+    const cropped = cropLevelForExport(grid, backgroundPlacements);
+    const result = await saveLevel(saveName, cropped.layout, cropped.background);
     setSaveResult(result);
     setLoadedLevelName(saveName);
     setDirty(false);
@@ -200,7 +256,9 @@ export const LevelEditorPage = () => {
    * available for testing the layout.
    */
   const tryLayout = () => {
-    currentLayout.value = exportLayout(grid);
+    const cropped = cropLevelForExport(grid, backgroundPlacements);
+    currentLayout.value = cropped.layout;
+    currentBackground.value = cropped.background;
     resetGameProgress();
     currentTheme.value = 'platformer';
     navigateTo('/?debug=1');
@@ -211,7 +269,31 @@ export const LevelEditorPage = () => {
       <h1 className="text-xl font-semibold">Platformer Level Editor</h1>
       <div className="flex min-h-0 flex-1 flex-row items-stretch gap-4">
         <div className="flex flex-col gap-2">
-          <Palette selectedTool={selectedTool} onSelectTool={setSelectedTool} />
+          <div className="flex gap-2" role="group" aria-label="Layer">
+            <button
+              type="button"
+              aria-pressed={activeLayer === 'foreground'}
+              className={cn('rounded px-2 py-1 text-sm', activeLayer === 'foreground' && 'bg-muted font-medium')}
+              onClick={() => setActiveLayer('foreground')}
+            >
+              Foreground
+            </button>
+            <button
+              type="button"
+              aria-pressed={activeLayer === 'background'}
+              className={cn('rounded px-2 py-1 text-sm', activeLayer === 'background' && 'bg-muted font-medium')}
+              onClick={() => setActiveLayer('background')}
+            >
+              Background
+            </button>
+          </div>
+          <Palette
+            selectedTool={selectedTool}
+            onSelectTool={setSelectedTool}
+            activeLayer={activeLayer}
+            selectedBackgroundPiece={selectedBackgroundPiece}
+            onSelectBackgroundPiece={setSelectedBackgroundPiece}
+          />
           <LevelSelect
             loadedLevelName={loadedLevelName}
             isDirty={isDirty}
@@ -302,6 +384,18 @@ export const LevelEditorPage = () => {
           panOffset={panOffset}
           images={images}
           centerRequestId={centerRequestId}
+          backgroundPlacements={backgroundPlacements}
+          activeLayer={activeLayer}
+          selectedBackgroundPiece={selectedBackgroundPiece}
+          onPaintBackground={(next) => {
+            setBackgroundPlacements(next);
+            // Same dirty-flag bookkeeping as the foreground onPaint below —
+            // painting the background layer also leaves the loaded level
+            // behind, so switching levels afterward must still ask before
+            // discarding it (see LevelSelect's isDirty prop).
+            if (!isDirty) setDirty(true);
+            if (saveResult !== null) setSaveResult(null);
+          }}
           onPaint={({ grid: nextGrid, colShift, rowShift }) => {
             setGrid(nextGrid);
             // Every paint and erase goes through here, so this is the one
@@ -321,6 +415,21 @@ export const LevelEditorPage = () => {
                   -colShift * RENDERED_TILE_SIZE,
                   -rowShift * RENDERED_TILE_SIZE,
                 ),
+              );
+              // Foreground grid growth shifts every existing index the same
+              // way (see growGrid.ts) — background placements are a
+              // separate, unbounded list that growGrid never touches, so
+              // without this a piece placed near an edge visually drifts
+              // away from the foreground content it was placed next to the
+              // moment a later paint grows the grid leftward/upward (Task 20
+              // gap #1, confirmed by the project owner: the two layers'
+              // effective bounds must never be able to drift apart).
+              setBackgroundPlacements((prev) =>
+                prev.map((placement) => ({
+                  ...placement,
+                  col: placement.col + colShift,
+                  row: placement.row + rowShift,
+                })),
               );
             }
           }}

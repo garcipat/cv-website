@@ -12,10 +12,14 @@ import {
   editorSelectedToolSignal,
   editorLoadedLevelNameSignal,
   editorDirtySignal,
+  editorBackgroundSignal,
+  editorActiveLayerSignal,
+  editorSelectedBackgroundPieceSignal,
 } from './editorLevelState';
 import { currentTheme } from '@/state/theme';
 import { currentPath } from '@/state/navigation';
 import { enemyPlacements, enemyStates, collectedFacts, collectedCollectibleIds } from '../PlatformerState';
+import { currentBackground } from '../level/level';
 
 vi.mock('../engine/SpriteLoader', () => ({
   loadImage: vi.fn((src: string) => Promise.resolve({ src } as unknown as HTMLImageElement)),
@@ -29,7 +33,42 @@ vi.mock('../engine/Renderer', () => ({
   drawBlocks: vi.fn(),
   drawChests: vi.fn(),
   drawSigns: vi.fn(),
+  drawBackgroundTiles: vi.fn(),
 }));
+
+// Adds one extra registry entry whose `background` mixes a valid, current
+// pieceId with an unresolvable one — simulating a placement left over from a
+// since-trimmed catalog (this branch's own catalog has been trimmed twice
+// already). Every other test keeps using the real registry unchanged; this
+// entry is additional, not a replacement, so it can't affect any test that
+// picks 'main'/'empty'/'Cave Run' etc. by name.
+//
+// Defined via vi.hoisted since vi.mock factories are hoisted above normal
+// top-level const declarations — referencing a plain const here would throw
+// a "before initialization" error.
+const { STALE_BACKGROUND_LEVEL } = vi.hoisted(() => ({
+  STALE_BACKGROUND_LEVEL: {
+    id: 'stale-background-level',
+    name: 'stale-background-level',
+    layout: ['...', '...', '...'],
+    background: [
+      { pieceId: 'dirtColumnTop1x1', col: 0, row: 0 },
+      // Simulates a placement left over from a since-trimmed catalog — not a
+      // real BackgroundPieceId, hence the cast.
+      { pieceId: 'notARealPieceId', col: 1, row: 0 },
+    ],
+  },
+}));
+
+vi.mock('../level/levelRegistry', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../level/levelRegistry')>();
+  const LEVELS = [...actual.LEVELS, STALE_BACKGROUND_LEVEL];
+  return {
+    ...actual,
+    LEVELS,
+    findLevel: (id: string) => LEVELS.find((entry) => entry.id === id),
+  };
+});
 
 import { drawTerrain } from '../engine/Renderer';
 
@@ -41,6 +80,10 @@ beforeEach(() => {
   editorLevelSignal.value = importLayout(LEVEL_1_LAYOUT);
   editorLoadedLevelNameSignal.value = 'main';
   editorDirtySignal.value = false;
+  editorBackgroundSignal.value = [];
+  editorActiveLayerSignal.value = 'foreground';
+  editorSelectedBackgroundPieceSignal.value = null;
+  currentBackground.value = [];
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
     fillRect: vi.fn(),
     fillStyle: '',
@@ -600,5 +643,107 @@ describe('LevelEditorPage - Try button', () => {
     expect(enemyStates.value).toHaveLength(enemyPlacements.value.length);
     expect(collectedFacts.value).toEqual([]);
     expect(collectedCollectibleIds.value.size).toBe(0);
+  });
+});
+
+describe('LevelEditorPage — background layer', () => {
+  function paintBackgroundOnce() {
+    const canvas = document.querySelector('canvas')!;
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
+    fireEvent.mouseDown(canvas, { clientX: 1, clientY: 1, button: 0 });
+  }
+
+  it('selectingTheBackgroundLayerThenAPieceThenPaintingOnCanvas-addsAPlacement', async () => {
+    render(<LevelEditorPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Background' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Dirt Column Top (1×1)' }));
+
+    paintBackgroundOnce();
+
+    await waitFor(() => expect(editorBackgroundSignal.value.length).toBeGreaterThan(0));
+  });
+
+  it('tryingTheLevelWithBackgroundPlacementsPainted-carriesThemIntoCurrentBackground', async () => {
+    render(<LevelEditorPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Background' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Dirt Column Top (1×1)' }));
+    paintBackgroundOnce();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Try' }));
+
+    expect(currentBackground.value.length).toBeGreaterThan(0);
+  });
+
+  it('loadingALevelWithBackgroundPlacements-populatesTheLocalBackgroundState', async () => {
+    render(<LevelEditorPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Background' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Dirt Column Top (1×1)' }));
+    paintBackgroundOnce();
+    await waitFor(() => expect(editorBackgroundSignal.value.length).toBeGreaterThan(0));
+
+    // Loading 'empty' (a built-in level with no background) must clear the
+    // placements back out rather than leaving the previous level's painted
+    // pieces stuck on screen. Painting the background marks the editor dirty
+    // (see the dirty-flag test below), so the level select now asks to
+    // confirm the discard first, same as a foreground paint would.
+    fireEvent.click(screen.getByRole('combobox'));
+    await userEvent.click(await screen.findByRole('option', { name: 'empty' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Discard and load' }));
+
+    await waitFor(() => expect(editorBackgroundSignal.value).toEqual([]));
+  });
+
+  it('paintingABackgroundCell-marksTheEditorDirty', async () => {
+    render(<LevelEditorPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Background' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Dirt Column Top (1×1)' }));
+
+    paintBackgroundOnce();
+
+    await waitFor(() => expect(editorDirtySignal.value).toBe(true));
+  });
+
+  it('shifts existing backgroundPlacements by colShift/rowShift when a FOREGROUND paint grows the grid, keeping the two layers from drifting apart (Task 20 gap #1)', async () => {
+    render(<LevelEditorPage />);
+    await waitFor(() => expect(drawTerrain).toHaveBeenCalled());
+
+    // Place a background piece first, well inside the current grid (no
+    // growth expected from this paint) — this is the placement that must
+    // move when the FOREGROUND grid grows next.
+    fireEvent.click(screen.getByRole('button', { name: 'Background' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Dirt Column Top (1×1)' }));
+    paintBackgroundOnce();
+    await waitFor(() => expect(editorBackgroundSignal.value.length).toBeGreaterThan(0));
+    const placedCol = editorBackgroundSignal.value[0].col;
+    const placedRow = editorBackgroundSignal.value[0].row;
+
+    // Switch back to the foreground layer and paint one column left of the
+    // grid's current left edge, growing it left by one column.
+    fireEvent.click(screen.getByRole('button', { name: 'Foreground' }));
+    const canvas = document.querySelector('canvas')!;
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
+    const callsBefore = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls;
+    const [, , , , originXBefore] = callsBefore[callsBefore.length - 1];
+    fireEvent.mouseDown(canvas, { button: 0, clientX: originXBefore - 1, clientY: 1 });
+
+    await waitFor(() => {
+      expect(editorBackgroundSignal.value[0].col).toBe(placedCol + 1);
+      expect(editorBackgroundSignal.value[0].row).toBe(placedRow);
+    });
+  });
+
+  it('loadingALevelWithAnUnresolvablePieceId-silentlyDropsOnlyThatPlacement', async () => {
+    render(<LevelEditorPage />);
+
+    fireEvent.click(screen.getByRole('combobox'));
+    await userEvent.click(
+      await screen.findByRole('option', { name: 'stale-background-level' }),
+    );
+
+    await waitFor(() => {
+      expect(editorBackgroundSignal.value).toEqual([
+        { pieceId: 'dirtColumnTop1x1', col: 0, row: 0 },
+      ]);
+    });
   });
 });
