@@ -525,9 +525,22 @@ describe('levelTotals', () => {
         collectiblePlacements.value.filter((p) => p.spriteType === 'coin').length +
         blockPlacements.value.filter((b) => b.blockKind === 'coinPot').length,
       fruits: blockPlacements.value.filter((b) => b.blockKind === 'questionMark' && b.fact).length,
-      enemies: enemyPlacements.value.filter((p) => p.fact).length,
+      enemies: enemyPlacements.value.filter((p) => p.type === 'slimeGreen').length,
       crates: blockPlacements.value.filter((b) => b.blockKind === 'crate').length,
       chests: chestPlacements.value.length,
     });
+  });
+
+  // Every green slime now draws from a shared fact pool at defeat time (see
+  // EnemyMapper.ts's mapCVDataToEnemyFactPool) rather than carrying a fixed
+  // 1:1 fact — so the denominator for that pool must be every green slime
+  // placed, not just the ones that happened to get a fact under the old
+  // fixed-zip scheme.
+  it('moreGreenEnemyMarkersThanCourses-enemiesTotalCountsEveryGreenMarkerNotJustFactBearingOnes', () => {
+    const courseCount = mapCVDataToEnemies(currentCV.value).length;
+    const markerCount = courseCount + 2; // guaranteed to exceed the fact pool
+    currentLayout.value = ['S' + 'E'.repeat(markerCount) + 'G', 'G'.repeat(markerCount + 2)];
+
+    expect(levelTotals.value.enemies).toBe(markerCount);
   });
 });

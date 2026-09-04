@@ -136,6 +136,8 @@ import {
   spawnedCoinPlacements,
   allCollectiblePlacements,
   skillFactPool,
+  crateFactPool,
+  enemyFactPool,
   enemyStates,
   blockStates,
   bonusFruitStates,
@@ -780,6 +782,19 @@ export const PlatformerPage = () => {
       if (justDefeated.length > 0) {
         const newPuffs = [...activePuffs.value];
 
+        // A green slime carries no fixed fact of its own (see
+        // PlatformerState.ts's enemyFactPool doc comment) — which fact, if
+        // any, a given defeat reveals is resolved dynamically here from how
+        // many green slimes are ALREADY defeated, the same proportional-
+        // pacing pattern crate destruction and the coin loop above use.
+        // Seeded from every green slime that has already paid out
+        // (`rewardGiven` is permanent — see Enemy.ts's baseRevive doc
+        // comment), then advanced locally so multiple green slimes defeated
+        // in the same tick are staged in order.
+        let greenEnemiesDefeatedSoFar = enemyStates.value.filter(
+          (e) => e.type === 'slimeGreen' && e.rewardGiven,
+        ).length;
+
         for (const enemy of justDefeated) {
           const anchor = enemyEffectAnchor(enemy);
           const puffX = anchor.x + originX;
@@ -800,26 +815,48 @@ export const PlatformerPage = () => {
             continue;
           }
 
-          const fact = enemy.fact;
-          if (!fact || enemy.rewardGiven) {
-            // Either a "plain" enemy (a marker beyond its color's CVData
-            // course count, see EnemyMapper.ts) that never had a fact to
-            // give, or a revived enemy defeated again after already paying
-            // out its fact (rewardGiven permanent — see Enemy.ts's
-            // baseRevive doc comment). Either way: nothing left to reward,
-            // but the defeat itself is still a world event that deserves a
-            // puff (B-003).
+          if (enemy.rewardGiven) {
+            // A revived enemy defeated again after already paying out
+            // (rewardGiven permanent — see Enemy.ts's baseRevive doc
+            // comment): nothing left to reward, but the defeat itself is
+            // still a world event that deserves a puff (B-003).
             newPuffs.push(startPuffEffect(enemy.id, puffX, puffY, anchor.scale));
             continue;
           }
 
-          // A fresh fact-bearing defeat: puff and reward are fully decoupled
-          // layers (puff = destruction/defeat feedback, flight text = reward
-          // feedback), same as crate destruction below — the defeat is a
-          // world event that always deserves a puff, independent of whether
-          // it also happens to award a fact (B-003).
+          // A fresh defeat: puff and reward are fully decoupled layers (puff
+          // = destruction/defeat feedback, flight text = reward feedback),
+          // same as crate destruction below — the defeat is a world event
+          // that always deserves a puff, independent of whether it also
+          // happens to award a fact. Proportional pool draw, mirroring the
+          // coin/crate loops: reveals zero, one, or more enemy-pool entries
+          // depending on how the level's green-slime count compares to the
+          // pool's length.
           newPuffs.push(startPuffEffect(enemy.id, puffX, puffY, anchor.scale));
-          revealFact(fact, { x: enemy.x, y: enemy.y, effectId: enemy.id, counterKey: 'enemies' });
+          const factCountBefore = revealedFactCountFor(
+            greenEnemiesDefeatedSoFar,
+            levelTotals.value.enemies,
+            enemyFactPool.value.length,
+          );
+          greenEnemiesDefeatedSoFar++;
+          const factCountAfter = revealedFactCountFor(
+            greenEnemiesDefeatedSoFar,
+            levelTotals.value.enemies,
+            enemyFactPool.value.length,
+          );
+          for (let factIndex = factCountBefore; factIndex < factCountAfter; factIndex++) {
+            const fact = enemyFactPool.value[factIndex];
+            if (!fact) continue; // defensive only — factCountAfter never exceeds poolLength
+            revealFact(fact, {
+              x: enemy.x,
+              y: enemy.y,
+              // Unique per revealed fact, not just per enemy — one green
+              // slime can reveal more than one fact when fewer are placed
+              // than there are enemy-pool facts.
+              effectId: `${enemy.id}-${factIndex}`,
+              counterKey: 'enemies',
+            });
+          }
         }
 
         // Every defeated enemy is marked processed (deathEffectGiven) so it
@@ -1205,6 +1242,18 @@ export const PlatformerPage = () => {
 
       if (hitBlocks.length > 0) {
         const hitIds = new Set(hitBlocks.map((entry) => entry.block.id));
+
+        // A crate carries no fixed fact of its own (see PlatformerState.ts's
+        // crateFactPool doc comment) — which fact, if any, a given
+        // destruction reveals is resolved dynamically here from how many
+        // crates are ALREADY destroyed, the same proportional-pacing pattern
+        // the coin loop above uses. Seeded before this tick's hits are
+        // applied, then advanced locally so multiple crates destroyed in the
+        // same tick are staged in order.
+        let cratesDestroyedSoFar = blockStates.value.filter(
+          (b) => b.blockKind === 'crate' && isBlockUsedUp(b),
+        ).length;
+
         blockStates.value = blockStates.value.map((block) =>
           hitIds.has(block.id) ? applyBlockHit(block) : block,
         );
@@ -1247,7 +1296,35 @@ export const PlatformerPage = () => {
             ];
           }
 
-          if (outcome.revealFact) {
+          if (outcome.counterKey === 'crates') {
+            // Proportional pool draw — mirrors the coin loop above. Reveals
+            // zero, one, or more crate-pool entries depending on how the
+            // level's crate count compares to the pool's length.
+            const factCountBefore = revealedFactCountFor(
+              cratesDestroyedSoFar,
+              levelTotals.value.crates,
+              crateFactPool.value.length,
+            );
+            cratesDestroyedSoFar++;
+            const factCountAfter = revealedFactCountFor(
+              cratesDestroyedSoFar,
+              levelTotals.value.crates,
+              crateFactPool.value.length,
+            );
+            for (let factIndex = factCountBefore; factIndex < factCountAfter; factIndex++) {
+              const fact = crateFactPool.value[factIndex];
+              if (!fact) continue; // defensive only — factCountAfter never exceeds poolLength
+              revealFact(fact, {
+                x: block.x,
+                y: block.y,
+                // Unique per revealed fact, not just per crate — one crate
+                // can reveal more than one fact when fewer crates are placed
+                // than there are crate-pool facts.
+                effectId: `${block.id}-${factIndex}`,
+                counterKey: 'crates',
+              });
+            }
+          } else if (outcome.revealFact) {
             revealFact(outcome.revealFact, {
               x: block.x,
               y: block.y,
