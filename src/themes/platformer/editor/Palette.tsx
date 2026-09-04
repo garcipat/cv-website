@@ -11,13 +11,11 @@ import { BACKGROUND_CATALOG } from '../engine/BackgroundCatalog';
 import type { BackgroundPieceId } from '../level/LevelData';
 import { PaletteTile } from './PaletteTile';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { cn } from '@/lib/utils';
 
 interface PaletteProps {
   selectedTool: TileChar;
   onSelectTool: (tool: TileChar) => void;
   activeLayer: 'foreground' | 'background';
-  onSelectLayer: (layer: 'foreground' | 'background') => void;
   selectedBackgroundPiece: BackgroundPieceId | null;
   onSelectBackgroundPiece: (pieceId: BackgroundPieceId) => void;
 }
@@ -29,7 +27,6 @@ export const Palette = ({
   selectedTool,
   onSelectTool,
   activeLayer,
-  onSelectLayer,
   selectedBackgroundPiece,
   onSelectBackgroundPiece,
 }: PaletteProps) => {
@@ -47,24 +44,6 @@ export const Palette = ({
     <Card role="toolbar" aria-label="Palette">
       <CardHeader>
         <CardTitle>Palette</CardTitle>
-        <div className="flex gap-2" aria-label="Layer">
-          <button
-            type="button"
-            aria-pressed={activeLayer === 'foreground'}
-            className={cn('rounded px-2 py-1 text-sm', activeLayer === 'foreground' && 'bg-muted font-medium')}
-            onClick={() => onSelectLayer('foreground')}
-          >
-            Foreground
-          </button>
-          <button
-            type="button"
-            aria-pressed={activeLayer === 'background'}
-            className={cn('rounded px-2 py-1 text-sm', activeLayer === 'background' && 'bg-muted font-medium')}
-            onClick={() => onSelectLayer('background')}
-          >
-            Background
-          </button>
-        </div>
       </CardHeader>
       <CardContent className="grid grid-cols-2 gap-2">
         {activeLayer === 'foreground'

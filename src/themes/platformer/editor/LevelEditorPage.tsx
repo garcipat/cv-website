@@ -23,6 +23,7 @@ import { resetGameProgress } from '../PlatformerState';
 import { loadImage } from '../engine/SpriteLoader';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { currentTheme } from '@/state/theme';
 import { navigateTo } from '@/state/navigation';
 import {
@@ -252,11 +253,28 @@ export const LevelEditorPage = () => {
       <h1 className="text-xl font-semibold">Platformer Level Editor</h1>
       <div className="flex min-h-0 flex-1 flex-row items-stretch gap-4">
         <div className="flex flex-col gap-2">
+          <div className="flex gap-2" aria-label="Layer">
+            <button
+              type="button"
+              aria-pressed={activeLayer === 'foreground'}
+              className={cn('rounded px-2 py-1 text-sm', activeLayer === 'foreground' && 'bg-muted font-medium')}
+              onClick={() => setActiveLayer('foreground')}
+            >
+              Foreground
+            </button>
+            <button
+              type="button"
+              aria-pressed={activeLayer === 'background'}
+              className={cn('rounded px-2 py-1 text-sm', activeLayer === 'background' && 'bg-muted font-medium')}
+              onClick={() => setActiveLayer('background')}
+            >
+              Background
+            </button>
+          </div>
           <Palette
             selectedTool={selectedTool}
             onSelectTool={setSelectedTool}
             activeLayer={activeLayer}
-            onSelectLayer={setActiveLayer}
             selectedBackgroundPiece={selectedBackgroundPiece}
             onSelectBackgroundPiece={setSelectedBackgroundPiece}
           />

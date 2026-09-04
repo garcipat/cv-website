@@ -11,7 +11,6 @@ const defaultProps = {
   selectedTool: 'G' as const,
   onSelectTool: vi.fn(),
   activeLayer: 'foreground' as const,
-  onSelectLayer: vi.fn(),
   selectedBackgroundPiece: null,
   onSelectBackgroundPiece: vi.fn(),
 };
@@ -22,8 +21,7 @@ describe('Palette', () => {
     const terrainCount = Object.keys(TERRAIN_CHARS).filter((k) => k !== '.').length;
     const entityCount = Object.keys(ENTITY_CHARS).length;
     // +1 for the single representative Sign tile, +1 for the Eraser tile.
-    // +2 for the Foreground/Background layer tabs.
-    expect(screen.getAllByRole('button')).toHaveLength(terrainCount + entityCount + 1 + 1 + 2);
+    expect(screen.getAllByRole('button')).toHaveLength(terrainCount + entityCount + 1 + 1);
   });
 
   it('renders a "Palette" title', () => {
@@ -82,13 +80,6 @@ describe('Palette — layer tab', () => {
         screen.getByRole('button', { name: BACKGROUND_PALETTE_LABELS[pieceId] }),
       ).toBeInTheDocument();
     }
-  });
-
-  it('clickingABackgroundLayerTab-callsOnSelectLayerWithBackground', () => {
-    const onSelectLayer = vi.fn();
-    render(<Palette {...defaultProps} onSelectLayer={onSelectLayer} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Background' }));
-    expect(onSelectLayer).toHaveBeenCalledWith('background');
   });
 
   it('clickingABackgroundPieceButton-callsOnSelectBackgroundPieceWithItsId', () => {
