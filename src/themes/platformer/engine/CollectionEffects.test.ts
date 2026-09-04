@@ -14,6 +14,9 @@ import {
   counterPopupOpacity,
   startPuffEffect,
   tickPuffEffect,
+  createSlotAllocator,
+  COLLECTION_TEXT_SLOT_COUNT,
+  COLLECTION_TEXT_STACK_ROW_HEIGHT,
 } from './CollectionEffects';
 import type { PuffEffect } from './CollectionEffects';
 
@@ -234,5 +237,53 @@ describe('counterPopupOpacity', () => {
       COUNTER_POPUP_DURATION_SECONDS - (COUNTER_POPUP_DURATION_SECONDS - COUNTER_POPUP_HOLD_SECONDS) / 2,
     )!;
     expect(counterPopupOpacity(effect)).toBeCloseTo(0.5);
+  });
+});
+
+describe('createSlotAllocator', () => {
+  it('zeroInFlight-startsAtOffsetZero', () => {
+    const allocate = createSlotAllocator(0);
+
+    expect(allocate()).toBe(0);
+  });
+
+  it('successiveCalls-advanceByOneRow', () => {
+    const allocate = createSlotAllocator(0);
+
+    allocate();
+
+    expect(allocate()).toBe(COLLECTION_TEXT_STACK_ROW_HEIGHT);
+  });
+
+  it('nonZeroInFlight-startsSeededByThatCount', () => {
+    const allocate = createSlotAllocator(1);
+
+    expect(allocate()).toBe(COLLECTION_TEXT_STACK_ROW_HEIGHT);
+  });
+
+  it('inFlightCountAboveSlotCount-wrapsTheSeed', () => {
+    const allocate = createSlotAllocator(COLLECTION_TEXT_SLOT_COUNT);
+
+    expect(allocate()).toBe(0);
+  });
+
+  it('pastTheSlotCount-cyclesBackToOffsetZero', () => {
+    const allocate = createSlotAllocator(0);
+    const offsets = Array.from({ length: COLLECTION_TEXT_SLOT_COUNT + 1 }, () => allocate());
+
+    expect(offsets[COLLECTION_TEXT_SLOT_COUNT]).toBe(offsets[0]);
+    expect(new Set(offsets.slice(0, COLLECTION_TEXT_SLOT_COUNT)).size).toBe(COLLECTION_TEXT_SLOT_COUNT);
+  });
+
+  it('twoConsumersSharingOneAllocator-neverTakeTheSameSlot', () => {
+    // The load-bearing property: the reveal trigger and the key pickup both
+    // draw from ONE per-tick allocator, so a key collected in the same tick as
+    // a fact reveal cannot land on the fact's row. Two separate allocators
+    // would both hand out 0 here.
+    const allocate = createSlotAllocator(0);
+    const revealOffset = allocate();
+    const keyPickupOffset = allocate();
+
+    expect(revealOffset).not.toBe(keyPickupOffset);
   });
 });

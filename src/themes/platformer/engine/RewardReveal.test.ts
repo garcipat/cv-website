@@ -1,6 +1,7 @@
 import { createRewardReveal } from './RewardReveal';
 import { collectedFacts, activeEffects, activeCounterPopups } from '../PlatformerState';
-import { COLLECTION_TEXT_SLOT_COUNT } from './CollectionEffects';
+import { COLLECTION_TEXT_SLOT_COUNT, createSlotAllocator } from './CollectionEffects';
+import type { SlotAllocator } from './CollectionEffects';
 import type { CollectedFact } from '../types';
 
 const factIn = (id: string, sectionId: CollectedFact['sectionId']): CollectedFact => ({
@@ -11,14 +12,17 @@ const factIn = (id: string, sectionId: CollectedFact['sectionId']): CollectedFac
   sourceType: 'block',
 });
 
-const ctx = {
+// The allocator is stateful, so every context gets its own — except where a
+// test deliberately shares one, which is the whole point of it living outside
+// the trigger.
+const ctxWith = (allocateSlotOffset: SlotAllocator = createSlotAllocator(0)) => ({
   originX: 0,
   originY: 0,
   canvasWidth: 800,
   canvasHeight: 600,
   journalRect: null,
-  inFlightCount: 0,
-};
+  allocateSlotOffset,
+});
 
 describe('createRewardReveal', () => {
   beforeEach(() => {
@@ -34,7 +38,7 @@ describe('createRewardReveal', () => {
   });
 
   it('freshFact-collectsItAndReturnsTrue', () => {
-    const reveal = createRewardReveal(ctx);
+    const reveal = createRewardReveal(ctxWith());
 
     const revealed = reveal(factIn('a', 'education'), {
       x: 100,
@@ -48,7 +52,7 @@ describe('createRewardReveal', () => {
   });
 
   it('freshFact-startsOneFlightEffect', () => {
-    const reveal = createRewardReveal(ctx);
+    const reveal = createRewardReveal(ctxWith());
 
     reveal(factIn('a', 'education'), { x: 100, y: 200, effectId: 'block-1', counterKey: 'crates' });
 
@@ -59,7 +63,7 @@ describe('createRewardReveal', () => {
   it('alreadyCollectedFact-revealsNothingAndReturnsFalse', () => {
     const fact = factIn('a', 'education');
     collectedFacts.value = [fact];
-    const reveal = createRewardReveal(ctx);
+    const reveal = createRewardReveal(ctxWith());
 
     const revealed = reveal(fact, { x: 0, y: 0, effectId: 'block-1', counterKey: 'crates' });
 
@@ -69,19 +73,19 @@ describe('createRewardReveal', () => {
   });
 
   it('twoRevealsInOneTick-stackTheirTextOnSuccessiveSlots', () => {
-    const reveal = createRewardReveal(ctx);
+    const reveal = createRewardReveal(ctxWith());
 
     reveal(factIn('a', 'education'), { x: 0, y: 0, effectId: 'e1', counterKey: 'crates' });
     reveal(factIn('b', 'activities'), { x: 0, y: 0, effectId: 'e2', counterKey: 'crates' });
 
-    // Slot 0 then slot 1 — the same vertical stacking the five inline call
-    // sites produced via the shared nextTextSlot counter.
+    // Slot 0 then slot 1 — successive reveals step down a row rather than
+    // stacking on top of each other.
     expect(activeEffects.value[0].startY).toBeLessThan(activeEffects.value[1].startY);
   });
 
   it('contextWithEffectsAlreadyInFlight-seedsTheFirstSlotFromThatCount', () => {
-    const reveal = createRewardReveal({ ...ctx, inFlightCount: 1 });
-    const fresh = createRewardReveal(ctx);
+    const reveal = createRewardReveal(ctxWith(createSlotAllocator(1)));
+    const fresh = createRewardReveal(ctxWith());
 
     reveal(factIn('a', 'education'), { x: 0, y: 0, effectId: 'e1', counterKey: 'crates' });
     const seededY = activeEffects.value[0].startY;
@@ -96,31 +100,31 @@ describe('createRewardReveal', () => {
   });
 
   it('crateFact-bumpsTheCrateCounterWithTheSectionDerivedNumerator', () => {
-    const reveal = createRewardReveal(ctx);
+    const reveal = createRewardReveal(ctxWith());
 
     reveal(factIn('a', 'education'), { x: 0, y: 0, effectId: 'e1', counterKey: 'crates' });
 
     expect(activeCounterPopups.value.crates).toMatchObject({ labelKey: 'crates', collected: 1 });
   });
 
-  it('collectedOverride-winsOverTheSectionDerivedNumerator', () => {
-    const reveal = createRewardReveal(ctx);
+  it('allocatorSharedWithAnotherConsumer-theyNeverTakeTheSameSlot', () => {
+    // The key pickup takes its slot from the SAME per-tick allocator, because
+    // it is outside this trigger. Sharing one counter is what stops a key
+    // caption from landing on a fact reveal's row.
+    const allocateSlotOffset = createSlotAllocator(0);
+    const reveal = createRewardReveal(ctxWith(allocateSlotOffset));
 
-    reveal(factIn('a', 'skills'), {
-      x: 0,
-      y: 0,
-      effectId: 'e1',
-      counterKey: 'coins',
-      collectedOverride: 7,
-    });
+    reveal(factIn('a', 'education'), { x: 0, y: 0, effectId: 'e1', counterKey: 'crates' });
+    const keyPickupOffset = allocateSlotOffset();
 
-    expect(activeCounterPopups.value.coins).toMatchObject({ collected: 7 });
+    expect(activeEffects.value[0].startY).not.toBe(keyPickupOffset);
+    expect(keyPickupOffset).toBeGreaterThan(0);
   });
 
   it('noCounterKey-revealsTheFactWithoutBumpingAnyPopup', () => {
     // The chest site: chests have a permanent HUD counter, so opening one
     // must not create a transient popup.
-    const reveal = createRewardReveal(ctx);
+    const reveal = createRewardReveal(ctxWith());
 
     const revealed = reveal(factIn('a', 'experience'), { x: 0, y: 0, effectId: 'chest-1' });
 
@@ -130,7 +134,7 @@ describe('createRewardReveal', () => {
   });
 
   it('slotCycling-wrapsAfterTheSlotCount', () => {
-    const reveal = createRewardReveal(ctx);
+    const reveal = createRewardReveal(ctxWith());
 
     for (let i = 0; i <= COLLECTION_TEXT_SLOT_COUNT; i += 1) {
       reveal(factIn(`f${i}`, 'education'), { x: 0, y: 0, effectId: `e${i}`, counterKey: 'crates' });

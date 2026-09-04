@@ -1,12 +1,7 @@
 import { collectedFacts, activeEffects, activeCounterPopups, levelTotals } from '../PlatformerState';
-import {
-  startFlightEffect,
-  startCounterPopup,
-  COLLECTION_TEXT_SLOT_COUNT,
-  COLLECTION_TEXT_STACK_ROW_HEIGHT,
-} from './CollectionEffects';
+import { startFlightEffect, startCounterPopup } from './CollectionEffects';
 import { countCollectedFor } from '../entities/CollectiblesSummary';
-import type { CounterPopupLabelKey } from './CollectionEffects';
+import type { CounterPopupLabelKey, SlotAllocator } from './CollectionEffects';
 import { formatJournalEntry } from '../entities/JournalEntry';
 import type { CollectedFact } from '../types';
 
@@ -23,10 +18,12 @@ export interface RevealContext {
   /** The journal button's screen rect, or null when it hasn't mounted yet —
    *  the flight then targets the bottom-right corner instead. */
   journalRect: DOMRect | null;
-  /** `activeEffects.value.length` at the top of this tick. Seeds the first
-   *  slot, so an isolated pickup always lands on slot 0 and only genuinely
-   *  concurrent pickups spread across further slots. */
-  inFlightCount: number;
+  /** This tick's collection-text slot allocator (see `createSlotAllocator`).
+   *  Passed in rather than built here because it is SHARED with the key
+   *  pickup, which is outside this trigger: one counter across every
+   *  flight-text site is what keeps two texts in the same tick off the same
+   *  row. */
+  allocateSlotOffset: SlotAllocator;
 }
 
 export interface RevealOptions {
@@ -42,16 +39,13 @@ export interface RevealOptions {
    * `'chests'`) rather than `CounterKey`: chests already have a PERMANENT HUD
    * counter, so the chest site omits this and gets no transient popup. That
    * is a spec non-goal, not an oversight.
+   *
+   * The coin site also omits it, for a different reason: a coin's reward is
+   * resolved dynamically at pickup time and most coins reveal no fact, so its
+   * popup must not be gated on a reveal and is bumped at the pickup site
+   * itself.
    */
   counterKey?: CounterPopupLabelKey;
-  /**
-   * Overrides the counter popup's numerator. Coins need it: under
-   * proportional pacing (level/SkillFactPacing.ts) a coin carries no fixed
-   * fact, so "skill facts revealed" and "coins collected" are different
-   * numbers, and a section-derived numerator would be in different units than
-   * its denominator.
-   */
-  collectedOverride?: number;
 }
 
 /**
@@ -91,8 +85,6 @@ export function createRewardReveal(
   const midX = ctx.canvasWidth / 2;
   const midY = ctx.canvasHeight * 0.3;
 
-  let nextSlot = ctx.inFlightCount % COLLECTION_TEXT_SLOT_COUNT;
-
   return (fact, options) => {
     // Dedup by fact id — the guard every one of the five original sites had.
     if (collectedFacts.value.some((f) => f.id === fact.id)) return false;
@@ -104,12 +96,10 @@ export function createRewardReveal(
     // separately, NOT concatenated into `label`: Renderer.ts draws it in a
     // different font, and the pixel font `label` uses has no emoji glyphs.
     const { icon, title: label } = formatJournalEntry(fact);
-    const slot = nextSlot;
-    nextSlot = (nextSlot + 1) % COLLECTION_TEXT_SLOT_COUNT;
     // The offset applies to BOTH the rise's start and its mid hold point —
     // offsetting mid alone still let two effects starting near the same world
     // position overlap through most of the rise.
-    const stackOffsetY = slot * COLLECTION_TEXT_STACK_ROW_HEIGHT;
+    const stackOffsetY = ctx.allocateSlotOffset();
 
     collectedFacts.value = [...collectedFacts.value, fact];
 
@@ -119,7 +109,7 @@ export function createRewardReveal(
         ...activeCounterPopups.value,
         [counterKey]: startCounterPopup(
           counterKey,
-          options.collectedOverride ?? countCollectedFor(counterKey, collectedFacts.value),
+          countCollectedFor(counterKey, collectedFacts.value),
           levelTotals.value[counterKey],
         ),
       };
