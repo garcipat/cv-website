@@ -418,7 +418,9 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
                       <p className="text-xl font-semibold">{ui.platformer.journal.collectibles}</p>
                       <ul className="mt-2 space-y-1.5">
                         {collectiblesSummary(facts, {
-                          coins: collectiblePlacements.value.filter((p) => p.spriteType === 'coin').length,
+                          coins:
+                            collectiblePlacements.value.filter((p) => p.spriteType === 'coin').length +
+                            blockPlacements.value.filter((b) => b.blockKind === 'coinPot' && b.fact).length,
                           fruits: blockPlacements.value.filter((b) => b.blockKind === 'questionMark' && b.fact).length,
                           enemies: enemyPlacements.value.filter((p) => p.fact).length,
                           crates: blockPlacements.value.filter((b) => b.blockKind === 'crate').length,
