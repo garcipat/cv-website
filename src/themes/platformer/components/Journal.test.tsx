@@ -7,6 +7,7 @@ import {
   activeJournalSection,
   collectedCollectibleIds,
   collectiblePlacements,
+  blockPlacements,
   enemyPlacements,
 } from '../PlatformerState';
 import { JOURNAL_OPEN_FRAME_COUNT, JOURNAL_OPEN_FRAME_INTERVAL_MS } from '../entities/JournalAnimation';
@@ -575,6 +576,48 @@ describe('Journal', () => {
 
       const summary = journalPage.collectiblesSummary;
       expect(summary).toHaveTextContent(`1 / ${total}`);
+    });
+
+    it('coinsTotal-includesCoinPotBlocksWithAFact', () => {
+      // Coin-pot blocks with facts should count toward the coins total,
+      // matching how the PlatformerPage's coin counter popup works (Task 9).
+      // A coin-pot without a fact (rare but possible) must not count.
+      const coinPotWithFact = {
+        id: 'coinpot-skills-0',
+        blockKind: 'coinPot' as const,
+        x: 100,
+        y: 200,
+        fact: {
+          id: 'fact-coinpot-skills-0',
+          sectionId: 'skills' as const,
+          sectionLabel: 'Skills',
+          data: { category: 'Frontend', skills: [{ name: 'Vue', level: 70 }] },
+          sourceType: 'block' as const,
+        },
+      };
+      const coinPotWithoutFact = {
+        id: 'coinpot-plain-0',
+        blockKind: 'coinPot' as const,
+        x: 200,
+        y: 200,
+      };
+      const blockPlacementsSpy = vi
+        .spyOn(blockPlacements, 'value', 'get')
+        .mockReturnValue([coinPotWithFact, coinPotWithoutFact]);
+      try {
+        const total =
+          collectiblePlacements.value.filter((p) => p.spriteType === 'coin').length +
+          blockPlacements.value.filter((b) => b.blockKind === 'coinPot' && b.fact).length;
+        collectedFacts.value = [];
+
+        render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
+        openBookAnimation();
+
+        const summary = journalPage.collectiblesSummary;
+        expect(summary).toHaveTextContent(`0 / ${total}`);
+      } finally {
+        blockPlacementsSpy.mockRestore();
+      }
     });
 
     it('otherSectionActive-hidesCollectiblesSummary', () => {
