@@ -8,8 +8,9 @@ import {
   RENDERED_TILE_SIZE,
 } from '../level/Terrain';
 import type { LevelDef } from '../level/LevelData';
-import { isBlockOccupied, blockIdAt } from '../level/BlockMapper';
+import { isBlockOccupied, blockIdAt, blockAt } from '../level/BlockMapper';
 import type { BlockPlacement } from '../level/BlockMapper';
+import { hitboxInsetXForBlock } from '../entities/Block';
 import {
   PLAYER_RENDERED_SIZE,
   PLAYER_FOOT_PADDING,
@@ -17,6 +18,7 @@ import {
   PLAYER_SIDE_PADDING,
 } from '../entities/Player';
 import type { PlayerState } from '../entities/Player';
+import type { BlockContact } from '../entities/Player';
 
 /**
  * One frame's worth of player input. `left`/`right` default to no movement so
@@ -70,6 +72,7 @@ export function stepPlayerPhysics(
   input: PlayerInput = NO_INPUT,
   blockPlacements: readonly BlockPlacement[] = NO_BLOCKS,
 ): PlayerState {
+  const blockContacts: BlockContact[] = [];
   // While a side-hit's knockback is still active, held movement keys are
   // ignored entirely and the knockback velocity/direction set
   // by Player.ts's `applyKnockback` is held steady — otherwise this branch
@@ -124,11 +127,35 @@ export function stepPlayerPhysics(
       (player.x + PLAYER_SIDE_PADDING + HITBOX_WIDTH - 1) / RENDERED_TILE_SIZE,
     );
     const isWall = rightCol === prevRightCol ? isSolidExcludingBridge : isSolid;
+    let rightWallFound = false;
+    // The MINIMUM inset among every row this column's wall spans, not just
+    // the first one found — a coinPot's hitboxInsetX only applies safely
+    // when every solid row in the same column tolerates it. Using the
+    // first-found row's inset (whatever kind it happened to be) could let
+    // the player resolve to a position that's still inside a DIFFERENT
+    // row's full-tile (inset-0) solid terrain or block in the same column.
+    // NOTE: a non-zero inset also widens which column registers as "already
+    // occupying" the wall for the bridge-tunneling check above (a coinPot in
+    // the player's row span could flip a same-column bridge tile to
+    // passable a frame early) and joins the ground/ceiling scan spans a
+    // pixel sooner than a full-tile block would. Not reachable in the
+    // shipped level (no coinPot shares a column with a bridge or another
+    // block today) — worth a real fix only if a future level stacks them.
+    let rightMinInset = Infinity;
     for (let row = topRow; row <= bottomRow; row++) {
-      if (isWall(tileAt(level, rightCol, row)) || isBlockOccupied(blockPlacements, rightCol, row)) {
-        x = rightCol * RENDERED_TILE_SIZE - PLAYER_SIDE_PADDING - HITBOX_WIDTH;
-        break;
-      }
+      if (!isWall(tileAt(level, rightCol, row)) && !isBlockOccupied(blockPlacements, rightCol, row)) continue;
+      rightWallFound = true;
+      // A block whose art doesn't fill its tile (e.g. coinPot) declares a
+      // hitboxInsetX so the player can approach closer than the raw tile
+      // boundary, matching where its sprite actually looks solid — plain
+      // terrain (no block here) keeps the exact tile boundary (inset 0).
+      const block = blockAt(blockPlacements, rightCol, row);
+      const inset = block ? hitboxInsetXForBlock(block.blockKind) : 0;
+      if (inset < rightMinInset) rightMinInset = inset;
+      if (block !== undefined) blockContacts.push({ id: block.id, side: 'left' });
+    }
+    if (rightWallFound) {
+      x = rightCol * RENDERED_TILE_SIZE + rightMinInset - PLAYER_SIDE_PADDING - HITBOX_WIDTH;
     }
   } else if (vx < 0) {
     const leftCol = Math.floor((x + PLAYER_SIDE_PADDING) / RENDERED_TILE_SIZE);
@@ -136,11 +163,20 @@ export function stepPlayerPhysics(
     // hitbox wasn't already occupying before this frame's move still blocks.
     const prevLeftCol = Math.floor((player.x + PLAYER_SIDE_PADDING) / RENDERED_TILE_SIZE);
     const isWall = leftCol === prevLeftCol ? isSolidExcludingBridge : isSolid;
+    let leftWallFound = false;
+    // Mirrors the rightward branch's "minimum inset across every row this
+    // column's wall spans" handling above.
+    let leftMinInset = Infinity;
     for (let row = topRow; row <= bottomRow; row++) {
-      if (isWall(tileAt(level, leftCol, row)) || isBlockOccupied(blockPlacements, leftCol, row)) {
-        x = (leftCol + 1) * RENDERED_TILE_SIZE - PLAYER_SIDE_PADDING;
-        break;
-      }
+      if (!isWall(tileAt(level, leftCol, row)) && !isBlockOccupied(blockPlacements, leftCol, row)) continue;
+      leftWallFound = true;
+      const block = blockAt(blockPlacements, leftCol, row);
+      const inset = block ? hitboxInsetXForBlock(block.blockKind) : 0;
+      if (inset < leftMinInset) leftMinInset = inset;
+      if (block !== undefined) blockContacts.push({ id: block.id, side: 'right' });
+    }
+    if (leftWallFound) {
+      x = (leftCol + 1) * RENDERED_TILE_SIZE - leftMinInset - PLAYER_SIDE_PADDING;
     }
   }
 
@@ -253,7 +289,7 @@ export function stepPlayerPhysics(
         lastGroundedY: minClimbY,
         knockbackTimer: Math.max(0, player.knockbackTimer - dt),
         bounceAscending: false,
-        hitBlockIds: [],
+        blockContacts: [],
       };
     }
 
@@ -269,7 +305,7 @@ export function stepPlayerPhysics(
       isDroppingThroughBridge: false,
       knockbackTimer: Math.max(0, player.knockbackTimer - dt),
       bounceAscending: false,
-      hitBlockIds: [],
+      blockContacts: [],
     };
   }
 
@@ -312,7 +348,7 @@ export function stepPlayerPhysics(
       isDroppingThroughBridge: false,
       knockbackTimer: Math.max(0, player.knockbackTimer - dt),
       bounceAscending: false,
-      hitBlockIds: [],
+      blockContacts: [],
     };
   }
 
@@ -376,7 +412,6 @@ export function stepPlayerPhysics(
     player.isDroppingThroughBridge ||
     (player.grounded && standingOnBridge && Boolean(input.dropThroughHeld));
 
-  const hitBlockIds: string[] = [];
   if (vy < 0) {
     // Ceiling collision: symmetric to the landing case below, but for the
     // player's head hitting a solid tile from underneath while rising.
@@ -395,14 +430,14 @@ export function stepPlayerPhysics(
       // Position is resolved against only the FIRST solid column found
       // (matches the pre-existing single-collision behavior) — but every
       // column at this row is scanned so a block spanning any of them is
-      // still reported in `hitBlockIds`, even if it wasn't the column that
+      // still reported in `blockContacts`, even if it wasn't the column that
       // stopped the ascent.
       if (!ceilingResolved) {
         y = (headRow + 1) * RENDERED_TILE_SIZE - PLAYER_HEAD_PADDING;
         resolvedVy = 0;
         ceilingResolved = true;
       }
-      if (blockId !== undefined) hitBlockIds.push(blockId);
+      if (blockId !== undefined) blockContacts.push({ id: blockId, side: 'bottom' });
     }
   } else {
     const feetY = y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING;
@@ -424,14 +459,18 @@ export function stepPlayerPhysics(
       isStandableLadderTop(level, col, footRow) ||
       isBlockOccupied(blockPlacements, col, footRow);
 
+    let groundResolved = false;
     for (let col = leftCol; col <= rightCol; col++) {
-      if (columnIsGround(col)) {
+      if (!columnIsGround(col)) continue;
+      if (!groundResolved) {
         const groundSurfaceY = footRow * RENDERED_TILE_SIZE;
         y = groundSurfaceY - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
         resolvedVy = 0;
         grounded = true;
-        break;
+        groundResolved = true;
       }
+      const blockId = blockIdAt(blockPlacements, col, footRow);
+      if (blockId !== undefined) blockContacts.push({ id: blockId, side: 'top' });
     }
 
     if (grounded) {
@@ -462,7 +501,7 @@ export function stepPlayerPhysics(
     // moment the bounce's apex passes (resolvedVy >= 0) or a ceiling stops
     // it early, so it never lingers into a later, unrelated jump.
     bounceAscending: player.bounceAscending && resolvedVy < 0,
-    hitBlockIds,
+    blockContacts,
   };
 }
 

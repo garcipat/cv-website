@@ -108,6 +108,10 @@ export interface BlockMarkerPositions {
   crate: readonly { col: number; row: number }[];
   questionMark: readonly { col: number; row: number }[];
   fragileRock: readonly { col: number; row: number }[];
+  /** Optional so every pre-existing caller (production and test) that
+   *  doesn't yet place coin-pots keeps compiling unchanged — treated as `[]`
+   *  when omitted. */
+  coinPot?: readonly { col: number; row: number }[];
 }
 
 /**
@@ -121,7 +125,11 @@ export interface BlockMarkerPositions {
  * `mapCVDataToBlocks`'s comment). FragileRock blocks have no CVData mapping
  * at all (spec.md FR-021) — every fragileRock marker becomes a placement
  * directly, with a position-derived id since there's no CVData-derived one
- * available.
+ * available. coinPot markers follow the same no-CVData-mapping convention
+ * as fragileRock: a coin-pot carries no fact of its own — which CV fact it
+ * eventually reveals is resolved dynamically at pickup time from the dropped
+ * coin's own pool lookup (see `CollectibleMapper.ts`'s `mapCVDataToSkillFactPool`
+ * doc comment), not bound to the block at placement time.
  */
 export function placeBlocks(defs: BlockDef[], markers: BlockMarkerPositions): BlockPlacement[] {
   const placements: BlockPlacement[] = [];
@@ -146,7 +154,27 @@ export function placeBlocks(defs: BlockDef[], markers: BlockMarkerPositions): Bl
     placements.push({ id: `fragileRock-${col}-${row}`, blockKind: 'fragileRock', x, y });
   }
 
+  for (const { col, row } of markers.coinPot ?? []) {
+    const { x, y } = tileToPixel(col, row);
+    placements.push({ id: `coinpot-${col}-${row}`, blockKind: 'coinPot', x, y });
+  }
+
   return placements;
+}
+
+/**
+ * The block placement occupying tile (col, row), if any — the shared lookup
+ * `blockIdAt` (just the id) and Physics.ts's per-kind hitbox inset (the
+ * whole placement, to read its `blockKind`) both build on.
+ */
+export function blockAt(
+  blockPlacements: readonly BlockPlacement[],
+  col: number,
+  row: number,
+): BlockPlacement | undefined {
+  return blockPlacements.find(
+    (b) => Math.floor(b.x / RENDERED_TILE_SIZE) === col && Math.floor(b.y / RENDERED_TILE_SIZE) === row,
+  );
 }
 
 /**
@@ -160,10 +188,7 @@ export function blockIdAt(
   col: number,
   row: number,
 ): string | undefined {
-  const found = blockPlacements.find(
-    (b) => Math.floor(b.x / RENDERED_TILE_SIZE) === col && Math.floor(b.y / RENDERED_TILE_SIZE) === row,
-  );
-  return found?.id;
+  return blockAt(blockPlacements, col, row)?.id;
 }
 
 /**

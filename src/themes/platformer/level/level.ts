@@ -9,6 +9,7 @@ import {
   findCrateTiles,
   findQuestionMarkTiles,
   findFragileRockTiles,
+  findCoinPotTiles,
   findChestTiles,
   findSignTiles,
 } from './LevelParser';
@@ -107,12 +108,19 @@ import {
 //   S  1   spawn
 //   E  12  green slime — one per course
 //   M  5   purple slime — no CV fact; each drops one key
-//   C  16  coin — one per skill category
+//   C  13  coin — walk-over coins (16 skill categories total; the other 3 are
+//          reachable via the `u` coin-pots below instead). A coin carries no
+//          CVData binding of its own — see CollectibleMapper.ts's
+//          mapCVDataToSkillFactPool doc comment — so this split is purely a
+//          level-authoring choice, not a bookkeeping requirement.
 //   X  8   crate — 2 education + 3 activities + 3 languages
 //   Q  5   question-mark block — 2 certificates + 3 projects, each popping a
 //          bonus fruit rather than carrying a fact of its own
 //   F  5   fragileRock block — no fact; the two surface plugs plus filler
 //   T  5   chest — one per experience entry; opening all five ends the run
+//   u  3   coin-pot — destroyed by landing on top, drops a coin (2 adjacent
+//          + 1 isolated, to exercise the merged-run rendering); same
+//          no-CVData-binding convention as every other block kind
 //
 // A question-mark's fruit rests in the tile directly above the block and stays
 // there, so a `Q` is only ever placed under open sky — one inside a cave would
@@ -132,16 +140,16 @@ import {
 // deliberately NOT on the meadow bridge, where dropping through only earns a
 // pit fall. On the cave mouth, dropping through is the way in.
 export const LEVEL_1_LAYOUT: readonly string[] = [
-  '..................................................................................................................................................................................................................M.C..T....',
+  '..................................................................................................................................................................................................................M....T....',
   '.............................................................................................................................................................................................Q..........X.....LGGGGGGGGGGG..',
   '..............................................................................................................................................................................................................LGGGGGGGGGGG..',
-  '................................................................................................................................................................................................E..C..........LGGGGGGGGGGG.T',
+  '................................................................................................................................................................................................E.............LGGGGGGGGGGG.T',
   '..............................................X......................................................................................................................................X.....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   '...........................................................................................................................................................................................GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
-  '........................................E...C....................................................C...........M........................................................................E..C.GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  '........................................E........................................................C...........M........................................................................E..C.GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   '........................XQ........GGGGGGGGGGGGGGG.......................................Q......GGGGGGG.....GGGGGGG....XQFQ.........................................................RRRRRRRRGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   '..................................GGGGGGGGGGGGGGG..................................................................................................................................GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
-  '..S.5..C...C.........E.......E..2.GGGGGGGGGGGGGGG.........E......1.....................................E.C..........E.....E.......E........................E.................W.E..WGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  '..S.5..C...C.........E.......E..2.GGGGGGGGGGGGGGGuu.u.....E......1.....................................E.C..........E.....E.......E........................E.................W.E..WGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGGBBBGGGGGGGGGGGGGGLGGGGGGGGGGGGGGGGGGGGGGLGGGGGGLGGBBBGGGGGGGGGGGGGGGGGFFGGGGGGGGGG...GGGGGGGGGBBBGGGGGGGGGGGGGGGRRLRRRRRRRRRRRRGGGGGGGGGGGGGGGGGGGGGGGGGLGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.L......................L.GGGG.L..........X................GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..L...............X...X.................L....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.L......................L.GGGG.L.....................3.....GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..L.....................................L....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
@@ -224,6 +232,11 @@ export const QUESTIONMARK_TILES = computed(() => findQuestionMarkTiles(currentLa
  *  pairs plug holes in the surface above a cave (cols 65-66 and 134-135),
  *  opening a shortcut when broken from below; the rest is filler. */
 export const FRAGILE_ROCK_TILES = computed(() => findFragileRockTiles(currentLayout.value));
+
+/** Hand-placed coin-pot block positions, from `currentLayout`'s `u` markers
+ *  — purely positional, no CVData binding (see CollectibleMapper.ts's
+ *  mapCVDataToSkillFactPool doc comment and BlockMapper.ts's placeBlocks). */
+export const COIN_POT_TILES = computed(() => findCoinPotTiles(currentLayout.value));
 
 /** Hand-placed chest positions (5 — one per Experience entry), from
  *  `currentLayout`'s `T` markers (spec.md FR-023). Opening all five is the

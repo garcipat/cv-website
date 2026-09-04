@@ -240,3 +240,38 @@ describe('blockIdAt', () => {
     expect(blockIdAt([], 5, 2)).toBeUndefined();
   });
 });
+
+describe('placeBlocks — coinPot markers', () => {
+  // coinPot carries no CVData mapping at all (same convention as
+  // fragileRock) — which fact (if any) its dropped coin eventually reveals
+  // is resolved dynamically at pickup time (see CollectibleMapper.ts's
+  // mapCVDataToSkillFactPool), never bound to the block itself.
+  it('coinPotMarker-producesAPlacementWithNoFact', () => {
+    const placed = placeBlocks([], { crate: [], questionMark: [], fragileRock: [], coinPot: [{ col: 5, row: 2 }] });
+    expect(placed).toHaveLength(1);
+    expect(placed[0].blockKind).toBe('coinPot');
+    expect(placed[0].fact).toBeUndefined();
+  });
+
+  it('multipleCoinPotMarkers-eachGetsAPositionDerivedId', () => {
+    const placed = placeBlocks([], {
+      crate: [],
+      questionMark: [],
+      fragileRock: [],
+      coinPot: [
+        { col: 5, row: 2 },
+        { col: 6, row: 2 },
+      ],
+    });
+    expect(placed).toHaveLength(2);
+    const ids = placed.map((p) => p.id);
+    expect(new Set(ids).size).toBe(2);
+  });
+
+  it('coinPotOmittedFromMarkers-behavesAsEmptyArray', () => {
+    // BlockMarkerPositions.coinPot is optional so every pre-existing call
+    // site (production and test) that doesn't know about coin-pots yet
+    // keeps compiling unchanged.
+    expect(placeBlocks([], { crate: [], questionMark: [], fragileRock: [] })).toEqual([]);
+  });
+});

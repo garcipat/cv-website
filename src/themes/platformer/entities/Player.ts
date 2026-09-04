@@ -35,6 +35,19 @@ export const PLAYER_SIDE_PADDING = 10 * RENDER_SCALE; // 20 rendered px
 
 export type PlayerAnimState = 'idle' | 'walk' | 'jump' | 'climb';
 
+/** Which of a touched block's four faces the player's collision resolved
+ *  against, from the block's own perspective — `'bottom'` means the
+ *  player's head hit its underside while rising, `'top'` means the player
+ *  landed on it from above, `'left'`/`'right'` mean the player walked into
+ *  that side wall. */
+export type BlockContactSide = 'top' | 'bottom' | 'left' | 'right';
+
+/** One block the player touched this tick, tagged with which side. */
+export interface BlockContact {
+  id: string;
+  side: BlockContactSide;
+}
+
 /**
  * Player-only state, layered onto `Moving`'s `vx`/`vy` (px/s, positive
  * right/down) and `direction` (the direction the sprite is drawn facing —
@@ -88,14 +101,18 @@ export interface PlayerState extends Moving, SelfAnimated, Damageable {
    *  it. */
   knockbackTimer: number;
   /**
-   * Ids of every block whose underside was hit this tick — always freshly
-   * computed by `Physics.ts`'s ceiling-collision check, never
-   * carried over from a previous tick (unlike `bounceAscending`). Empty on
-   * every tick with no upward block collision. `PlatformerPage.tsx` reads
-   * this once per tick to apply block hits/rewards, then it's naturally
-   * replaced by next tick's fresh (usually empty) array.
+   * Every block the player touched this tick, tagged with which side (see
+   * `BlockContact`) — always freshly computed by `Physics.ts`'s collision
+   * checks (all four directions), never carried over from a previous tick.
+   * Empty on any tick with no block collision at all. `PlatformerPage.tsx`
+   * reads this once per tick, filtered by the side a given mechanic cares
+   * about (`'bottom'` for crate/questionMark/fragileRock's existing
+   * hit-from-below reaction, `'top'` for coin-pot's landing reaction) — a
+   * block kind simply never reacts to a side it doesn't filter for, so
+   * adding a new side-sensitive mechanic (e.g. a future spike hazard
+   * reacting to any side) never requires touching `Physics.ts` again.
    */
-  hitBlockIds: string[];
+  blockContacts: BlockContact[];
   /**
    * True while the player is ascending from a stomp bounce — suppresses
    * `stepPlayerPhysics`'s variable-jump-height cut for every tick of the
