@@ -9,6 +9,7 @@ import {
   findCrateTiles,
   findQuestionMarkTiles,
   findFragileRockTiles,
+  findCoinPotTiles,
   findChestTiles,
   findSignTiles,
 } from './LevelParser';
@@ -224,6 +225,12 @@ export const QUESTIONMARK_TILES = computed(() => findQuestionMarkTiles(currentLa
  *  pairs plug holes in the surface above a cave (cols 65-66 and 134-135),
  *  opening a shortcut when broken from below; the rest is filler. */
 export const FRAGILE_ROCK_TILES = computed(() => findFragileRockTiles(currentLayout.value));
+
+/** Hand-placed coin-pot block positions, from `currentLayout`'s `u` markers
+ *  — zipped against leftover skill-category defs a `C` marker didn't
+ *  already claim (see BlockMapper.ts's `mapSkillCollectiblesToCoinPotBlocks`
+ *  and PlatformerState.ts's `blockPlacements`). */
+export const COIN_POT_TILES = computed(() => findCoinPotTiles(currentLayout.value));
 
 /** Hand-placed chest positions (5 — one per Experience entry), from
  *  `currentLayout`'s `T` markers (spec.md FR-023). Opening all five is the

@@ -24,7 +24,10 @@ import {
   controlsOverlayDismissed,
   keyPickupStates,
   collectedKeys,
+  spawnedCoinPlacements,
+  allCollectiblePlacements,
 } from './PlatformerState';
+import type { CollectedFact } from './types';
 import { mapCVDataToEnemies } from './level/EnemyMapper';
 import { currentCV } from '@/state/locale';
 import { MAX_HALF_HEARTS } from './entities/Health';
@@ -47,6 +50,10 @@ import {
 } from './entities/Player';
 import { toChestState, isChestOpen } from './entities/Chest';
 import { startPuffEffect } from './engine/CollectionEffects';
+
+function collectedFactFixture(): CollectedFact {
+  return { id: 'f1', sectionId: 'skills', sectionLabel: 'Skills', data: { category: 'Test', skills: [] }, sourceType: 'coin' };
+}
 
 describe('PlatformerState', () => {
   it('collectedFacts-initial-isEmpty', () => {
@@ -454,5 +461,27 @@ describe('marker-derived placements react to currentLayout', () => {
     expect(blockPlacements.value).toEqual([]);
     expect(chestPlacements.value).toEqual([]);
     expect(signPlacements.value).toEqual([]);
+  });
+});
+
+describe('allCollectiblePlacements', () => {
+  it('initially-equalsCollectiblePlacementsAlone', () => {
+    expect(allCollectiblePlacements.value).toEqual(collectiblePlacements.value);
+  });
+
+  it('afterASpawnedCoinIsAdded-includesIt', () => {
+    const extra = { id: 'spawned-1', spriteType: 'coin' as const, fact: collectedFactFixture(), x: 0, y: 0 };
+    spawnedCoinPlacements.value = [extra];
+    expect(allCollectiblePlacements.value).toContainEqual(extra);
+    spawnedCoinPlacements.value = []; // don't leak into other tests
+  });
+});
+
+describe('blockPlacements — coinPot', () => {
+  it('someCoinPotBlocksExist-becauseTheDefaultLevelHasUMarkers', () => {
+    // Task 12 adds at least one `u` marker to LEVEL_1_LAYOUT — this test
+    // documents that expectation and will fail loudly if that task is
+    // skipped or the marker is later removed.
+    expect(blockPlacements.value.some((b) => b.blockKind === 'coinPot')).toBe(true);
   });
 });
