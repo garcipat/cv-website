@@ -108,10 +108,17 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   upper limit grows a tree from a root, repeatable trunk, and canopy piece) and `N`
   (fence). Non-solid, walked through freely. Design in
   `plans/2026-09-04-foreground-decoration-layer-design.md`.
-- [ ] **37. Coin-pot container block** — a new hittable block (like `Crate`/
-  `QuestionMark` in `entities/blocks/`) that spawns coins when hit, for cave/dungeon-style
-  decoration scenes. Needs its own brainstorming pass to nail down reward amount,
-  animation, and one-time-vs-repeatable behavior before a design doc.
+- [x] **37. Coin-pot container block** — a new block (`entities/blocks/CoinPot.ts`)
+  destroyed by landing on top of it (unlike every other block, which reacts from
+  below), always dropping a real walk-over coin. Adjacent coin-pot tiles visually
+  merge into one bunch (`entities/blocks/coinPotRenderPlan.ts`), cycling through 3
+  pot-size sprites so no two neighbors repeat. Declares a narrower solid hitbox
+  (`BlockType.hitboxInsetX`) since its art doesn't fill its tile edge-to-edge.
+  Coins (walk-over and pot-dropped alike) no longer bind to a specific CV fact at
+  placement time — a shared skill-fact pool is resolved proportionally across every
+  coin the level has (`level/SkillFactPacing.ts`), so a level's coin/coin-pot count
+  never has to match CVData's skill-category count exactly. Level marker: `u`
+  (lowercase — a pot-shaped glyph, unlike every other entity marker).
 - [ ] **38. Chain ladder skin** — a chain-sprite tile that climbs exactly like a ladder.
   Open design question to resolve first: a new `TileType` (e.g. `'chain'`) treated
   identically to `'ladder'` in `Physics.ts`, vs. a decorative overlay drawn on top of a
