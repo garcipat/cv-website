@@ -405,10 +405,12 @@ describe('resolveEnemyContacts aggregation', () => {
   });
 
   it('twoStompedEnemiesInOneTick-appliesTheStrongestBounce', () => {
-    // Aggregation is "most negative wins", not last-wins, so the result is
-    // deterministic regardless of array order. Both green slimes bounce with
-    // the same constant today, so this pins the rule rather than depending on
-    // two different constants existing.
+    // Covers that a bounce actually propagates through the real multi-enemy
+    // contact path, NOT the most-negative-wins tie-break itself: both green
+    // slimes bounce with the identical stompBounceVelocity constant, so this
+    // case can't distinguish most-negative-wins from first-wins/last-wins.
+    // The tie-break rule is pinned with genuinely differing values against
+    // `strongerBounce` directly in Outcome.test.ts.
     //
     // Positions follow the same hitbox arithmetic the surrounding aggregation
     // tests use: the two green hitboxes span x 2..30 and 26..54, and the

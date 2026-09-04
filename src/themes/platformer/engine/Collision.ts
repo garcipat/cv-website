@@ -19,6 +19,7 @@ import type { SignPlacement } from '../level/SignMapper';
 import type { HintId } from '../types';
 import type { KeyPickupState } from '../entities/KeyPickup';
 import { PICKUP_TYPES } from '../entities/pickups';
+import { strongerBounce } from './Outcome';
 
 export interface Box {
   x: number;
@@ -173,12 +174,7 @@ export function resolveEnemyContacts(
       merged[i] =
         damage > 0 && enemyType.onDamaged ? enemyType.onDamaged(outcome.self, damage) : outcome.self;
     }
-    if (
-      outcome.bounceVelocity !== undefined &&
-      (bounceVelocity === undefined || outcome.bounceVelocity < bounceVelocity)
-    ) {
-      bounceVelocity = outcome.bounceVelocity;
-    }
+    bounceVelocity = strongerBounce(bounceVelocity, outcome.bounceVelocity);
     if (outcome.damagePlayer && outcome.damagePlayer > damagePlayer) {
       // Max, not sum: touching two enemies in one tick still costs one hit.
       damagePlayer = outcome.damagePlayer;
