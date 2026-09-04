@@ -103,4 +103,18 @@ export const PHYSICS_CONFIG = {
    * below RENDERED_TILE_SIZE (32px): Math.abs(-150) * (1/30) = 5 < 32. ✓
    */
   awayAndUpKnockbackVy: -150,
+  /**
+   * Upward velocity impulse applied to the player on destroying a coin-pot
+   * by landing on it, in px/s (negative = up) — weaker than the enemy-stomp
+   * `stompBounceVelocity` (-330) so it doesn't read as a full stomp bounce,
+   * but noticeably stronger/longer-hanging than `awayAndUpKnockbackVy`
+   * (-150) so there's enough hang-time to actually see the dropped coin
+   * land before the player comes back down. Gated by
+   * `PlayerState.bounceAscending` the same way `stompBounceVelocity` is (see
+   * PlatformerPage.tsx), so the variable-jump-height cut doesn't shear it
+   * down. Same tunneling invariant as every other velocity constant here:
+   * `Math.abs(coinPotBounceVelocity) * MAX_DT` must stay below
+   * RENDERED_TILE_SIZE (32px): Math.abs(-220) * (1/30) ≈ 7.33 < 32. ✓
+   */
+  coinPotBounceVelocity: -220,
 } as const;
