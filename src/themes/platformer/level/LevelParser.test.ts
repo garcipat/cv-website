@@ -57,7 +57,7 @@ describe('parseLevel', () => {
     expect(ENTITY_CHARS.X).toBe('crate');
     expect(ENTITY_CHARS.Q).toBe('questionMark');
     expect(ENTITY_CHARS.F).toBe('fragileRock');
-    expect(ENTITY_CHARS.J).toBe('coinPot');
+    expect(ENTITY_CHARS.u).toBe('coinPot');
     expect(ENTITY_CHARS.T).toBe('chest');
   });
 
@@ -259,7 +259,7 @@ describe('findCoinPotTiles', () => {
   });
 
   it('multipleMarkers-returnsAllInReadingOrder', () => {
-    expect(findCoinPotTiles(['.J', 'J.'])).toEqual([
+    expect(findCoinPotTiles(['.u', 'u.'])).toEqual([
       { col: 1, row: 0 },
       { col: 0, row: 1 },
     ]);
@@ -339,7 +339,7 @@ describe('findSignTiles', () => {
 describe('TileChar', () => {
   it('includes every TERRAIN_CHARS, ENTITY_CHARS, and SIGN_CHARS key', () => {
     const tileChars: readonly TileChar[] = [
-      '.', 'G', 'R', 'W', 'B', 'L', 'P', 'S', 'E', 'M', 'C', 'X', 'Q', 'F', 'T', 'J',
+      '.', 'G', 'R', 'W', 'B', 'L', 'P', 'S', 'E', 'M', 'C', 'X', 'Q', 'F', 'T', 'u',
       '1', '2', '3', '4', '5', 'n', 'N',
     ];
     const allKeys = [...Object.keys(TERRAIN_CHARS), ...Object.keys(ENTITY_CHARS), ...Object.keys(SIGN_CHARS)];
