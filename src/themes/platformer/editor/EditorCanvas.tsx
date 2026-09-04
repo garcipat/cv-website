@@ -28,6 +28,7 @@ import {
 import { placeBackgroundPiece, eraseBackgroundCell } from './paintBackgroundCell';
 import type { BackgroundPlacement, BackgroundPieceId } from '../level/LevelData';
 import type { DrawContext } from '../engine/DrawContext';
+import { computeCoinPotRenderPlan } from '../entities/blocks/coinPotRenderPlan';
 import {
   SLIME_GREEN_SHEET,
   SLIME_PURPLE_SHEET,
@@ -36,6 +37,7 @@ import {
   WORLD_TILESET_SHEET,
   CRACK_OVERLAY_SHEET,
   CHEST_CLOSED_SHEET,
+  STATIC_OBJECTS_SHEET,
 } from '../entities/sprites/sheets';
 
 export interface EditorImages {
@@ -319,6 +321,8 @@ export const EditorCanvas = ({
       drawSignBadges(ctx, grid, panOffset.x, panOffset.y);
       drawPatrolMarkers(ctx, grid, panOffset.x, panOffset.y);
 
+      const editorBlockStates = synthesizeBlockStates(grid);
+
       const drawContext: DrawContext = {
         ctx,
         sprites: {
@@ -329,17 +333,24 @@ export const EditorCanvas = ({
           [WORLD_TILESET_SHEET.src]: images.tileset,
           [CRACK_OVERLAY_SHEET.src]: images.crackOverlay,
           [CHEST_CLOSED_SHEET.src]: images.chestClosed,
+          [STATIC_OBJECTS_SHEET.src]: images.staticObjects,
         },
         originX: panOffset.x,
         originY: panOffset.y,
         worldElapsed: 0,
+        // Same per-frame computation the real game does (PlatformerPage.tsx)
+        // — without this, every coinPot falls back to CoinPot.ts's isolated
+        // fallback path (always variant 0, never merged with a neighbor),
+        // which is why the editor preview used to look different from the
+        // actual game.
+        coinPotPlan: computeCoinPotRenderPlan(editorBlockStates),
       };
 
       drawCollectibles(ctx, synthesizeCollectiblePlacements(grid), new Set(), drawContext);
 
       drawEnemies(ctx, synthesizeEnemyStates(grid), drawContext);
 
-      drawBlocks(ctx, synthesizeBlockStates(grid), drawContext);
+      drawBlocks(ctx, editorBlockStates, drawContext);
 
       drawChests(ctx, synthesizeChestStates(grid), drawContext);
 

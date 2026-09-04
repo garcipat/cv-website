@@ -79,27 +79,15 @@ export interface CollectedFact {
 }
 
 /**
- * One mapped, not-yet-placed collectible — `CollectibleMapper.ts` produces
- * these from `CVData`; `placeCollectibles` adds x/y to turn each into a
- * `CollectiblePlacement`. `id` is the dedup key `collectedCollectibleIds`
- * (PlatformerState.ts) tracks and MUST equal `fact.id` (FR-020c: collected
- * state is deduplicated by the source collectible's id) — enforced by
- * construction in `CollectibleMapper.ts`, not re-validated here.
- */
-export interface CollectibleDef {
-  id: string;
-  spriteType: 'coin' | 'fruit';
-  fact: CollectedFact;
-}
-
-/**
  * One mapped, not-yet-placed enemy — `EnemyMapper.ts` produces these from
  * `CVData`; `placeEnemies` adds x/y to turn each into an `EnemyPlacement`.
- * Deliberately a separate type from `CollectibleDef` rather than widening
- * its `spriteType` union: an enemy's type ('slimeGreen'/'slimePurple')
- * has no meaning for a coin/fruit collectible, and enemies don't join
- * `collectedCollectibleIds` — their defeat dedups by fact id in
- * `collectedFacts` instead.
+ * An enemy's type ('slimeGreen'/'slimePurple') has no meaning for a
+ * coin/fruit collectible, and enemies don't join `collectedCollectibleIds`
+ * — their defeat dedups by fact id in `collectedFacts` instead. (Coins no
+ * longer have their own "Def" type — see `CollectibleMapper.ts`'s
+ * `CollectiblePlacement`: a coin is a plain position now, and which CV fact
+ * it reveals is resolved dynamically at pickup time from `skillFactPool`,
+ * not bound to a specific coin at creation.)
  */
 export interface EnemyDef {
   id: string;
@@ -117,15 +105,18 @@ export interface EnemyDef {
 /**
  * One mapped, not-yet-placed block — `BlockMapper.ts` produces crate defs
  * from CVData (`fact` present); `placeBlocks` also synthesizes
- * question-mark and fragileRock defs directly from level markers (`fact` absent —
- * they carry no CV mapping, per spec.md FR-021). `placeBlocks` adds
- * x/y to turn each into a `BlockPlacement`.
+ * question-mark, fragileRock, and coinPot defs directly from level markers
+ * (`fact` absent — they carry no CV mapping). A coin-pot's eventual reward
+ * comes from the coin it drops on destruction, resolved dynamically at
+ * pickup time (see `CollectibleMapper.ts`'s `mapCVDataToSkillFactPool`), not
+ * from anything bound to the block itself. `placeBlocks` adds x/y to turn
+ * each into a `BlockPlacement`.
  */
 export interface BlockDef {
   id: string;
-  blockKind: 'crate' | 'questionMark' | 'fragileRock';
-  /** Present only when `blockKind === 'crate'` — question-mark and fragileRock
-   *  blocks reveal no CV fact. */
+  blockKind: 'crate' | 'questionMark' | 'fragileRock' | 'coinPot';
+  /** Present only when `blockKind === 'crate'` — every other kind
+   *  (question-mark, fragileRock, coinPot) never carries a fact. */
   fact?: CollectedFact;
 }
 
@@ -152,8 +143,8 @@ export interface ChestDef {
 export type HintId = keyof Translation['platformer']['hints'];
 
 /**
- * A hand-authored hint sign (spec.md FR-037). Unlike CollectibleDef/
- * EnemyDef/BlockDef/ChestDef, a sign carries no CV mapping at all — no
+ * A hand-authored hint sign (spec.md FR-037). Unlike EnemyDef/BlockDef/
+ * ChestDef, a sign carries no CV mapping at all — no
  * `fact`, no `cvSection`/`cvIndex` — its only content is `hintId`, which
  * `SignMapper.ts`'s `placeSigns` turns into a `SignPlacement` (adds x/y),
  * mirroring every other Def/Placement pair in this codebase.

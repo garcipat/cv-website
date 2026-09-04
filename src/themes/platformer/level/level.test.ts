@@ -10,6 +10,7 @@ import {
   CRATE_TILES,
   QUESTIONMARK_TILES,
   FRAGILE_ROCK_TILES,
+  COIN_POT_TILES,
   CHEST_TILES,
   SIGN_TILES,
 } from './level';
@@ -211,8 +212,16 @@ describe('CV coverage', () => {
     expect(CHEST_TILES.value).toHaveLength(cvEn.experience.length);
   });
 
-  it('coinMarkers-oneForEachSkillCategory', () => {
-    expect(COIN_TILES.value).toHaveLength(cvEn.skills.length);
+  it('coinMarkers-plusCoinPotMarkers-oneForEachSkillCategory', () => {
+    // A coin/coin-pot no longer needs to match CVData 1:1 to work correctly
+    // (see CollectibleMapper.ts's mapCVDataToSkillFactPool doc comment —
+    // which fact a pickup reveals is resolved dynamically via proportional
+    // pacing, not bound to a specific marker; more markers than categories
+    // is explicitly supported). This asserts an exact match anyway as a
+    // deliberate content-authoring choice for THIS level specifically (no
+    // markers wasted, no category under-exposed) — not a structural
+    // requirement the mechanism itself enforces.
+    expect(COIN_TILES.value.length + COIN_POT_TILES.value.length).toBe(cvEn.skills.length);
   });
 
   it('greenSlimeMarkers-oneForEachCourse', () => {

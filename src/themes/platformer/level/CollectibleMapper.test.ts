@@ -1,8 +1,7 @@
-import { mapCVDataToCollectibles, placeCollectibles } from './CollectibleMapper';
+import { mapCVDataToSkillFactPool, placeCollectibles } from './CollectibleMapper';
 import { tileToPixel } from './Terrain';
 import { isSkillCategoryFact } from '../types';
 import type { CVData } from '@/types/cv';
-import type { CollectibleDef } from '../types';
 
 const cv: CVData = {
   personality: { name: 'Test', tagline: 'Test', summary: '' },
@@ -31,110 +30,73 @@ const cv: CVData = {
   projects: [],
 };
 
-function fruitDef(id: string): CollectibleDef {
-  return {
-    id,
-    spriteType: 'fruit',
-    fact: { id, sectionId: 'languages', sectionLabel: 'Languages', data: { name: id, level: 50 }, sourceType: 'coin' },
-  };
-}
-
-describe('mapCVDataToCollectibles', () => {
-  it('called-returns-oneCoinPerCategory', () => {
-    const defs = mapCVDataToCollectibles(cv);
-    expect(defs.filter((d) => d.spriteType === 'coin')).toHaveLength(2); // Backend, Frontend
+describe('mapCVDataToSkillFactPool', () => {
+  it('called-returns-oneFactPerCategory', () => {
+    const pool = mapCVDataToSkillFactPool(cv);
+    expect(pool).toHaveLength(2); // Backend, Frontend
   });
 
   it('called-returns-uniqueIds', () => {
-    const defs = mapCVDataToCollectibles(cv);
-    const ids = defs.map((d) => d.id);
+    const pool = mapCVDataToSkillFactPool(cv);
+    const ids = pool.map((f) => f.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
 
   it('categoryWithSections-includesSectionSkillsInFactSkillList', () => {
-    const defs = mapCVDataToCollectibles(cv);
-    const frontend = defs.find((d) => d.spriteType === 'coin' && d.fact.data && isSkillCategoryFact(d.fact.data) && d.fact.data.category === 'Frontend');
+    const pool = mapCVDataToSkillFactPool(cv);
+    const frontend = pool.find((f) => isSkillCategoryFact(f.data) && f.data.category === 'Frontend');
     expect(frontend).toBeDefined();
-    if (!frontend || !isSkillCategoryFact(frontend.fact.data)) throw new Error('unreachable');
-    const names = frontend.fact.data.skills.map((s) => s.name);
+    if (!frontend || !isSkillCategoryFact(frontend.data)) throw new Error('unreachable');
+    const names = frontend.data.skills.map((s) => s.name);
     expect(names).toEqual(['React', 'Vite']);
   });
 
-  // Languages do not produce `fruit` collectibles — see
-  // CollectibleMapper.ts's mapCVDataToCollectibles comment.
-  it('languagesPresent-stillProducesNoFruitCollectibles', () => {
-    const defs = mapCVDataToCollectibles(cv);
-    expect(defs.filter((d) => d.spriteType === 'fruit')).toHaveLength(0);
+  it('everyEntry-hasSkillsSectionIdAndCoinSourceType', () => {
+    const pool = mapCVDataToSkillFactPool(cv);
+    expect(pool.every((f) => f.sectionId === 'skills' && f.sourceType === 'coin')).toBe(true);
   });
 
-  it('noSkills-returnsNoCollectibles', () => {
-    const defs = mapCVDataToCollectibles({ ...cv, skills: [] });
-    expect(defs).toHaveLength(0);
-  });
-
-  it('everyCollectedFactId-matchesItsCollectibleId', () => {
-    const defs = mapCVDataToCollectibles(cv);
-    expect(defs.every((d) => d.id === d.fact.id)).toBe(true);
+  it('noSkills-returnsEmptyPool', () => {
+    expect(mapCVDataToSkillFactPool({ ...cv, skills: [] })).toHaveLength(0);
   });
 });
 
 describe('placeCollectibles', () => {
-  it('enoughMarkersOfEachType-returnsPlacementsAtMarkedPositionsInDefsOrder', () => {
-    // fruit-type defs are hand-built here (not via mapCVDataToCollectibles,
-    // which no longer produces any) — placeCollectibles's fruit marker queue
-    // is generic, reusable placement infrastructure, exercised directly.
-    const defs = [...mapCVDataToCollectibles(cv), fruitDef('fruit-german'), fruitDef('fruit-english')];
+  it('coinAndFruitMarkers-returnsOnePlacementPerMarkerInReadingOrder', () => {
+    // Purely positional now — no CVData involved (see
+    // mapCVDataToSkillFactPool's doc comment for why).
     const coinMarkers = [
       { col: 5, row: 2 },
       { col: 6, row: 2 },
     ];
-    const fruitMarkers = [
-      { col: 7, row: 2 },
-      { col: 8, row: 2 },
-    ];
-    const placed = placeCollectibles(defs, { coin: coinMarkers, fruit: fruitMarkers });
+    const fruitMarkers = [{ col: 7, row: 2 }];
+    const placed = placeCollectibles({ coin: coinMarkers, fruit: fruitMarkers });
 
-    expect(placed.map((p) => p.id)).toEqual(defs.map((d) => d.id));
-    expect(placed[0]).toMatchObject(tileToPixel(coinMarkers[0].col, coinMarkers[0].row));
-    expect(placed[1]).toMatchObject(tileToPixel(coinMarkers[1].col, coinMarkers[1].row));
-    expect(placed[2]).toMatchObject(tileToPixel(fruitMarkers[0].col, fruitMarkers[0].row));
-    expect(placed[3]).toMatchObject(tileToPixel(fruitMarkers[1].col, fruitMarkers[1].row));
-  });
-
-  it('fewerCoinMarkersThanCoinDefs-onlyMarkedCountGetsPlaced', () => {
-    const defs = [...mapCVDataToCollectibles(cv), fruitDef('fruit-german'), fruitDef('fruit-english')]; // 2 coin defs, 2 fruit defs
-    const placed = placeCollectibles(defs, {
-      coin: [{ col: 1, row: 0 }],
-      fruit: [
-        { col: 2, row: 0 },
-        { col: 3, row: 0 },
-      ],
-    });
-
-    // Only the first coin def had a marker — the second isn't on the map
-    // yet, not an error (see placeCollectibles's doc comment).
-    expect(placed.filter((p) => p.spriteType === 'coin')).toHaveLength(1);
-    expect(placed.filter((p) => p.spriteType === 'fruit')).toHaveLength(2);
     expect(placed).toHaveLength(3);
+    expect(placed[0]).toMatchObject({ spriteType: 'coin', ...tileToPixel(coinMarkers[0].col, coinMarkers[0].row) });
+    expect(placed[1]).toMatchObject({ spriteType: 'coin', ...tileToPixel(coinMarkers[1].col, coinMarkers[1].row) });
+    expect(placed[2]).toMatchObject({ spriteType: 'fruit', ...tileToPixel(fruitMarkers[0].col, fruitMarkers[0].row) });
   });
 
-  it('noFruitMarkers-noFruitDefsPlacedButCoinDefsStillAre', () => {
-    const defs = [...mapCVDataToCollectibles(cv), fruitDef('fruit-german'), fruitDef('fruit-english')]; // 2 coin defs, 2 fruit defs
-    const placed = placeCollectibles(defs, {
+  it('everyPlacement-hasAUniquePositionDerivedId', () => {
+    const placed = placeCollectibles({
       coin: [
         { col: 1, row: 0 },
         { col: 2, row: 0 },
       ],
-      fruit: [],
+      fruit: [{ col: 3, row: 0 }],
     });
-
-    expect(placed.filter((p) => p.spriteType === 'coin')).toHaveLength(2);
-    expect(placed.filter((p) => p.spriteType === 'fruit')).toHaveLength(0);
-    expect(placed).toHaveLength(2);
+    const ids = placed.map((p) => p.id);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('noMarkersAtAll-noDefs-returnsEmptyArray', () => {
-    const defs = mapCVDataToCollectibles({ ...cv, skills: [] });
-    expect(placeCollectibles(defs, { coin: [], fruit: [] })).toEqual([]);
+  it('noMarkersAtAll-returnsEmptyArray', () => {
+    expect(placeCollectibles({ coin: [], fruit: [] })).toEqual([]);
+  });
+
+  it('onlyCoinMarkers-noFruitPlacements', () => {
+    const placed = placeCollectibles({ coin: [{ col: 1, row: 0 }], fruit: [] });
+    expect(placed).toHaveLength(1);
+    expect(placed[0].spriteType).toBe('coin');
   });
 });

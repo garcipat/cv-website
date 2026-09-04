@@ -10,7 +10,7 @@ import { frameSource } from './sprites/SpriteSheet';
 export const BLOCK_FRAME_SIZE = TILE_SIZE;
 export const BLOCK_RENDERED_SIZE = RENDERED_TILE_SIZE;
 
-export type BlockKind = 'crate' | 'questionMark' | 'fragileRock';
+export type BlockKind = 'crate' | 'questionMark' | 'fragileRock' | 'coinPot';
 
 /**
  * Sprite-sheet source rect (in `world_tileset.png`) for a block's current
@@ -36,6 +36,14 @@ export function blockFrameSource(blockKind: BlockKind, hitsTaken = 0): { sx: num
  *  shatter); question-mark and fragileRock each take just 1 (spec.md FR-022b/c). */
 export function maxHitsForBlock(blockKind: BlockKind): number {
   return BLOCK_TYPES[blockKind].maxHits;
+}
+
+/** Rendered px this kind's solid hitbox is shrunk by on each side, relative
+ *  to the full tile — 0 for every kind whose sprite already fills its tile
+ *  edge-to-edge (crate/questionMark/fragileRock), non-zero for a kind like
+ *  coinPot whose art doesn't (see `BlockType.hitboxInsetX`'s doc comment). */
+export function hitboxInsetXForBlock(blockKind: BlockKind): number {
+  return BLOCK_TYPES[blockKind].hitboxInsetX ?? 0;
 }
 
 export type BlockAnimState = 'idle' | 'bump' | 'shatter';
@@ -87,9 +95,9 @@ export function isBlockRemoved(block: BlockState): boolean {
  * `'bump'` nudge animation from frame zero (FR-022d — every upward hit, not
  * just intermediate ones, plays this). A no-op (returns the same reference)
  * if the block is already used up — callers (`PlatformerPage.tsx`) are
- * expected to already exclude used-up blocks from `hitBlockIds` before
- * calling this, but this guard keeps the function safe to call
- * unconditionally regardless.
+ * expected to already exclude used-up blocks from the `'bottom'`-filtered
+ * `blockContacts` list before calling this, but this guard keeps the
+ * function safe to call unconditionally regardless.
  */
 export function applyBlockHit(block: BlockState): BlockState {
   if (isBlockUsedUp(block)) return block;

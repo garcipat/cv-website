@@ -84,7 +84,7 @@ export function synthesizePlayerState(grid: TileChar[][]): PlayerState | null {
     animFrame: 0,
     animTimer: 0,
     knockbackTimer: 0,
-    hitBlockIds: [],
+    blockContacts: [],
     bounceAscending: false,
     hitPoints: MAX_HALF_HEARTS,
     alive: true,
@@ -94,14 +94,16 @@ export function synthesizePlayerState(grid: TileChar[][]): PlayerState | null {
 
 /** Returns one fixed-frame coin placeholder per `C` marker. There is no
  *  fruit marker character — fruit only spawns from a hit question-mark
- *  block in the real game, so `spriteType` is always `'coin'` here. */
+ *  block in the real game, so `spriteType` is always `'coin'` here. A coin
+ *  carries no fact of its own even in the real game (see
+ *  CollectibleMapper.ts's mapCVDataToSkillFactPool), so there's none to
+ *  stub here either. */
 export function synthesizeCollectiblePlacements(grid: TileChar[][]): CollectiblePlacement[] {
   return findAllPositions(grid, 'C').map(({ col, row }, index) => {
     const { x, y } = tileToPixel(col, row);
     return {
       id: `editor-coin-${index}`,
       spriteType: 'coin',
-      fact: PLACEHOLDER_FACT,
       x,
       y,
     };
@@ -141,12 +143,16 @@ function synthesizeBlockPlacements(
 }
 
 /** Returns one intact (never-hit) placeholder `BlockState` per `X` (crate),
- *  `Q` (questionMark), and `F` (fragileRock) marker, via `toBlockState`. */
+ *  `Q` (questionMark), `F` (fragileRock), and `u` (coinPot) marker, via
+ *  `toBlockState`. No `fact` is attached to any of them (editor preview
+ *  only, never played) — `coinPot`'s `draw` doesn't need one; it only
+ *  affects the in-game reward. */
 export function synthesizeBlockStates(grid: TileChar[][]): BlockState[] {
   const crates = synthesizeBlockPlacements(grid, 'X', 'crate', 'editor-crate');
   const questionMarks = synthesizeBlockPlacements(grid, 'Q', 'questionMark', 'editor-question');
   const fragileRocks = synthesizeBlockPlacements(grid, 'F', 'fragileRock', 'editor-fragile');
-  return [...crates, ...questionMarks, ...fragileRocks].map((placement) => toBlockState(placement));
+  const coinPots = synthesizeBlockPlacements(grid, 'u', 'coinPot', 'editor-coinpot');
+  return [...crates, ...questionMarks, ...fragileRocks, ...coinPots].map((placement) => toBlockState(placement));
 }
 
 /** Returns one always-closed placeholder `ChestState` per `T` marker, via

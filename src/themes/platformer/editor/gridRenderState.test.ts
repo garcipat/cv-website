@@ -67,12 +67,16 @@ describe('synthesizeEnemyStates', () => {
 });
 
 describe('synthesizeBlockStates', () => {
-  it('returns one block placeholder per crate/questionMark/fragileRock marker, intact', () => {
-    const grid: TileChar[][] = [['X', 'Q', 'F']];
+  it('returns one block placeholder per crate/questionMark/fragileRock/coinPot marker, intact', () => {
+    // Regression test: the editor's preview canvas didn't know about
+    // coinPot ('u') at all until this was added — a real bug found by
+    // manual play-testing, not caught by the test suite (this test didn't
+    // exist yet).
+    const grid: TileChar[][] = [['X', 'Q', 'F', 'u']];
     const blocks = synthesizeBlockStates(grid);
-    expect(blocks).toHaveLength(3);
+    expect(blocks).toHaveLength(4);
     expect(blocks.map((b) => b.blockKind).sort()).toEqual(
-      ['crate', 'fragileRock', 'questionMark'].sort(),
+      ['coinPot', 'crate', 'fragileRock', 'questionMark'].sort(),
     );
     expect(blocks.every((b) => b.hitsTaken === 0)).toBe(true);
   });

@@ -21,6 +21,19 @@ export interface CollectibleSummaryTotals {
   enemies: number;
   crates: number;
   chests: number;
+  /**
+   * Overrides the coins row's "collected" count — needed because a coin no
+   * longer carries a fixed 1:1 fact binding (see CollectibleMapper.ts's
+   * mapCVDataToSkillFactPool doc comment): under proportional fact pacing
+   * (level/SkillFactPacing.ts), "skill facts revealed" and "coins collected"
+   * are different numbers whenever the coin count and the skill-category
+   * count differ, so deriving "collected" from `facts` the way every other
+   * row still does would show a numerator in different units than the
+   * denominator (and could even exceed it). Falls back to the old
+   * facts-derived count when omitted, purely so this file's own pre-existing
+   * tests (which don't know about pacing) keep passing unchanged.
+   */
+  coinsCollected?: number;
 }
 
 /**
@@ -52,7 +65,7 @@ export function collectiblesSummary(
   if (totals.coins > 0) {
     rows.push({
       labelKey: 'coins',
-      collected: facts.filter((f) => f.sectionId === 'skills').length,
+      collected: totals.coinsCollected ?? facts.filter((f) => f.sectionId === 'skills').length,
       total: totals.coins,
     });
   }

@@ -4,6 +4,7 @@ import {
   BLOCK_RENDERED_SIZE,
   toBlockState,
   maxHitsForBlock,
+  hitboxInsetXForBlock,
   isBlockUsedUp,
   isBlockRemoved,
   applyBlockHit,
@@ -71,6 +72,13 @@ describe('maxHitsForBlock', () => {
   it('crate-returnsTwo', () => expect(maxHitsForBlock('crate')).toBe(2));
   it('questionMark-returnsOne', () => expect(maxHitsForBlock('questionMark')).toBe(1));
   it('fragileRock-returnsOne', () => expect(maxHitsForBlock('fragileRock')).toBe(1));
+});
+
+describe('hitboxInsetXForBlock', () => {
+  it('crate-returnsZero', () => expect(hitboxInsetXForBlock('crate')).toBe(0));
+  it('questionMark-returnsZero', () => expect(hitboxInsetXForBlock('questionMark')).toBe(0));
+  it('fragileRock-returnsZero', () => expect(hitboxInsetXForBlock('fragileRock')).toBe(0));
+  it('coinPot-returnsANonZeroInset', () => expect(hitboxInsetXForBlock('coinPot')).toBeGreaterThan(0));
 });
 
 describe('toBlockState', () => {
