@@ -38,6 +38,14 @@ export function maxHitsForBlock(blockKind: BlockKind): number {
   return BLOCK_TYPES[blockKind].maxHits;
 }
 
+/** Rendered px this kind's solid hitbox is shrunk by on each side, relative
+ *  to the full tile — 0 for every kind whose sprite already fills its tile
+ *  edge-to-edge (crate/questionMark/fragileRock), non-zero for a kind like
+ *  coinPot whose art doesn't (see `BlockType.hitboxInsetX`'s doc comment). */
+export function hitboxInsetXForBlock(blockKind: BlockKind): number {
+  return BLOCK_TYPES[blockKind].hitboxInsetX ?? 0;
+}
+
 export type BlockAnimState = 'idle' | 'bump' | 'shatter';
 
 /**

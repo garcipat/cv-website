@@ -32,6 +32,18 @@ export interface BlockType extends WorldType<BlockState> {
    * settled. False for a kind that stays as a permanent, solid, spent block.
    */
   removeWhenUsedUp: boolean;
+  /**
+   * Rendered px to shrink this kind's horizontal solid hitbox by on EACH
+   * side, relative to the full tile — omitted (or 0) means the full tile is
+   * solid, same as every block kind before this field existed. Exists for a
+   * kind whose sprite doesn't fill its tile edge-to-edge (unlike
+   * crate/questionMark/fragileRock's `world_tileset.png` art): without it,
+   * the player stops at the full tile boundary well outside the visible
+   * sprite, reading as an invisible wall. Physics.ts's horizontal collision
+   * resolves against `tile boundary ± hitboxInsetX`, not the raw tile
+   * boundary, whenever the occupying block declares one.
+   */
+  hitboxInsetX?: number;
   /** Which frame of `sprite.sheet` to draw for the given hit count — a kind
    *  whose appearance does not change ignores the argument. */
   frameIndex(hitsTaken: number): number;

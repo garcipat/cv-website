@@ -1,6 +1,6 @@
 import { tileToPixel } from './Terrain';
 import type { CVData, SkillCategory, Skill } from '@/types/cv';
-import type { CollectibleDef } from '../types';
+import type { CollectedFact } from '../types';
 
 /** Lowercases and hyphenates a label into a stable id fragment (e.g.
  *  "DevOps & Tools" -> "devops-tools"). Not full slugify (no unicode
@@ -12,93 +12,91 @@ export function slugify(label: string): string {
     .replace(/(^-|-$)/g, '');
 }
 
-function categoryToCollectible(category: SkillCategory): CollectibleDef {
+function categoryToSkillFact(category: SkillCategory): CollectedFact {
   const skills: Skill[] = [
     ...category.skills,
     ...(category.sections?.flatMap((s) => s.skills) ?? []),
   ];
-  const id = `coin-${slugify(category.category)}`;
   return {
-    id,
-    spriteType: 'coin',
-    fact: {
-      id,
-      sectionId: 'skills',
-      sectionLabel: 'Skills',
-      data: { category: category.category, skills },
-      sourceType: 'coin',
-    },
+    id: `coin-${slugify(category.category)}`,
+    sectionId: 'skills',
+    sectionLabel: 'Skills',
+    data: { category: category.category, skills },
+    sourceType: 'coin',
   };
 }
 
 /**
- * Flattens CVData into one collectible per skill category (rendered as
- * coin.png) — see this plan's "Key design decisions" for why categories
- * aren't split further. An empty `skills` array simply produces no
- * collectibles.
+ * The ordered pool of skill-category facts a coin can reveal, one per
+ * CVData skill category, in CVData's own order.
  *
- * Languages do not produce `fruit` collectibles here — question-mark blocks
- * spawn their own bonus fruit instead (see `BlockMapper.ts`'s
- * `certificateToBlock`/`projectToBlock`); `placeCollectibles`'s `fruit`
- * marker queue is left in place as generic, reusable placement
- * infrastructure, just with no def ever produced to fill it today. Where
- * Languages themselves get surfaced instead is still an open design
- * question.
+ * Unlike every other reward source (a crate/question-mark/enemy/chest each
+ * carries ONE specific CV item it alone reveals), a coin is a plain
+ * position — see `CollectiblePlacement` below — with no fact bound to it at
+ * creation. This is deliberate — which physical coin maps to which skill
+ * category was never meaningful to a player, so binding them at placement
+ * time only bought fragility (the level's coin-marker count had to exactly
+ * match CVData's skill count, or a coin-pot's leftover-defs bookkeeping
+ * could silently run dry).
+ *
+ * HOW MANY of this pool's entries have been revealed as of a given
+ * collected-coin count — and therefore which entry a specific pickup
+ * reveals — is resolved dynamically at collection time
+ * (`PlatformerPage.tsx`), via `level/SkillFactPacing.ts`'s
+ * `revealedFactCountFor`: see that function's doc comment for the exact
+ * proportional-fill rule (it spreads this pool's entries evenly across
+ * every coin the level has, so a level with more coins than skill
+ * categories never has a coin that reveals nothing, and a level with fewer
+ * still reaches every category by the time everything is collected).
  */
-export function mapCVDataToCollectibles(cv: CVData): CollectibleDef[] {
-  return cv.skills.map(categoryToCollectible);
+export function mapCVDataToSkillFactPool(cv: CVData): CollectedFact[] {
+  return cv.skills.map(categoryToSkillFact);
 }
 
-export interface CollectiblePlacement extends CollectibleDef {
+/**
+ * A placed coin or fruit collectible — purely positional (see
+ * `mapCVDataToSkillFactPool`'s doc comment for why a coin carries no fact of
+ * its own). `id` is derived from its marker position, stable and unique,
+ * used only for `collectedCollectibleIds` dedup — it has no relationship to
+ * which fact a pickup ends up revealing.
+ */
+export interface CollectiblePlacement {
+  id: string;
+  spriteType: 'coin' | 'fruit';
   x: number;
   y: number;
 }
 
 /** Hand-authored marker positions for each collectible type, keyed the
- *  same way `CollectibleDef.spriteType` is — see `placeCollectibles` below. */
+ *  same way `CollectiblePlacement.spriteType` is — see `placeCollectibles`
+ *  below. */
 export interface CollectibleMarkerPositions {
   coin: readonly { col: number; row: number }[];
   fruit: readonly { col: number; row: number }[];
 }
 
 /**
- * Places collectible defs at hand-authored marker positions — `C` markers
- * (LevelParser.ts's findCoinTiles) for `coin` defs; `fruit` defs have no
- * level marker (the `F` character marks the fragileRock block instead, see
- * LevelParser.ts's ENTITY_CHARS and this file's top comment), so callers
- * pass an empty array for `markers.fruit`. Each type is matched to its own
- * marker queue in reading order. The level's marker count decides how many
- * collectibles actually appear, not CVData's length: a marker is a slot on
- * the map, and each slot draws the next available fact from `defs` (in
- * `mapCVDataToCollectibles`'s Skills-then-Languages order) as its reward.
- * If a level has fewer markers of a type than CVData has facts of that
- * type, the excess facts simply have no collectible yet — not an error,
- * mirroring EnemyMapper.ts's placeEnemies. There is no auto-placement: a
+ * Places one plain collectible per hand-authored marker — `C` markers
+ * (LevelParser.ts's findCoinTiles) for coins; `fruit` has no level marker of
+ * its own today (a hit question-mark spawns its own bonus fruit instead —
+ * see BlockMapper.ts's certificateToBlock/projectToBlock), so callers pass
+ * an empty array for `markers.fruit`. There is no auto-placement: a
  * collectible's position is always exactly where a level author put its
- * marker.
+ * marker, mirroring EnemyMapper.ts's placeEnemies/BlockMapper.ts's
+ * placeBlocks.
  */
-export function placeCollectibles(
-  defs: CollectibleDef[],
-  markers: CollectibleMarkerPositions,
-): CollectiblePlacement[] {
-  let coinIndex = 0;
-  let fruitIndex = 0;
+export function placeCollectibles(markers: CollectibleMarkerPositions): CollectiblePlacement[] {
   const placements: CollectiblePlacement[] = [];
 
-  for (const def of defs) {
-    const isCoin = def.spriteType === 'coin';
-    const queue = isCoin ? markers.coin : markers.fruit;
-    const index = isCoin ? coinIndex : fruitIndex;
-
-    if (index >= queue.length) continue; // no marker left for this fact — not placed yet
-
-    if (isCoin) coinIndex++;
-    else fruitIndex++;
-
-    const { col, row } = queue[index];
+  markers.coin.forEach(({ col, row }) => {
     const { x, y } = tileToPixel(col, row);
-    placements.push({ ...def, x, y });
-  }
+    placements.push({ id: `coin-${col}-${row}`, spriteType: 'coin', x, y });
+  });
+
+  markers.fruit.forEach(({ col, row }) => {
+    const { x, y } = tileToPixel(col, row);
+    placements.push({ id: `fruit-${col}-${row}`, spriteType: 'fruit', x, y });
+  });
 
   return placements;
 }

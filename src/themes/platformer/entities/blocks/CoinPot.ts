@@ -2,7 +2,7 @@ import type { BlockType } from './BlockType';
 import type { BlockState } from '../Block';
 import type { DrawContext } from '../../engine/DrawContext';
 import { STATIC_OBJECTS_SHEET } from '../sprites/sheets';
-import { TILE_SIZE, RENDERED_TILE_SIZE } from '../../level/Terrain';
+import { TILE_SIZE, RENDERED_TILE_SIZE, RENDER_SCALE } from '../../level/Terrain';
 import { blockBumpOffsetY } from '../../engine/BlockAI';
 import { permutationForColumn } from './coinPotRenderPlan';
 
@@ -12,6 +12,19 @@ import { permutationForColumn } from './coinPotRenderPlan';
  *  see this step's plan for how these were located on the sheet and why. */
 const VARIANT_TILE_COLUMNS: readonly number[] = [0, 1, 2];
 const VARIANT_ROW = 7;
+
+/**
+ * Rendered px to shrink the solid hitbox by on each side (see
+ * `BlockType.hitboxInsetX`'s doc comment). Measured directly from the 3
+ * variant sprites' actual drawn pixels within their native 16x16 tile: the
+ * narrowest (small pot) leaves ~3px of transparent margin on each side, the
+ * widest (square pot) ~2px — 3px native * RENDER_SCALE (2) = 6 rendered px
+ * is a single value close to every variant's real margin, used regardless
+ * of which variant a given instance happens to render as (the displayed
+ * variant is decided per-frame by `computeCoinPotRenderPlan`, not fixed per
+ * block, so the hitbox can't reasonably vary with it).
+ */
+const HITBOX_INSET_X = 3 * RENDER_SCALE;
 
 function drawVariantAt(dc: DrawContext, x: number, y: number, variantIndex: number, bumpOffsetY = 0): void {
   const image = dc.sprites[STATIC_OBJECTS_SHEET.src];
@@ -36,6 +49,7 @@ export const coinPot: BlockType = {
   sprite: { sheet: STATIC_OBJECTS_SHEET, renderScale: 1, animations: {} },
   maxHits: 1,
   removeWhenUsedUp: true,
+  hitboxInsetX: HITBOX_INSET_X,
   // Only a generic fallback for callers outside draw (e.g. blockFrameSource)
   // — the real per-instance variant comes from dc.coinPotPlan inside draw.
   frameIndex: () => 0,

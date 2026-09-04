@@ -194,4 +194,31 @@ describe('collectiblesSummary', () => {
   it('nothingPlacedForAnyRow-omitsAllRows', () => {
     expect(collectiblesSummary([], { coins: 0, fruits: 0, enemies: 0, crates: 0, chests: 0 })).toEqual([]);
   });
+
+  it('coinsCollectedProvided-overridesTheFactsDerivedCount', () => {
+    // Under proportional fact pacing (level/SkillFactPacing.ts), "skill
+    // facts revealed" and "coins collected" are different numbers whenever
+    // the coin count and skill-category count differ — passing
+    // `coinsCollected` explicitly (as Journal.tsx now does) must win over
+    // deriving it from `facts`, even when `facts` alone would suggest a
+    // different, wrong number.
+    const facts: CollectedFact[] = [
+      {
+        id: 'coin-frontend',
+        sectionId: 'skills',
+        sectionLabel: 'Skills',
+        data: { category: 'Frontend', skills: [] },
+        sourceType: 'coin',
+      },
+    ];
+    const rows = collectiblesSummary(facts, {
+      coins: 10,
+      fruits: 0,
+      enemies: 0,
+      crates: 0,
+      chests: 0,
+      coinsCollected: 3,
+    });
+    expect(rows).toEqual([{ labelKey: 'coins', collected: 3, total: 10 }]);
+  });
 });

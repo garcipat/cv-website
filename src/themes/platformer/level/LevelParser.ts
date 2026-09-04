@@ -202,9 +202,9 @@ export function findPurpleEnemyTiles(layout: readonly string[]): { col: number; 
 
 /** Finds every `C` (Skill-category coin) marker's position in a level
  *  layout, in reading order — `CollectibleMapper.ts`'s `placeCollectibles`
- *  zips this against `mapCVDataToCollectibles`'s skill-category-derived
- *  defs the same way findGreenEnemyTiles/findPurpleEnemyTiles do for
- *  enemies. */
+ *  turns each into a purely positional placement; which skill-category fact
+ *  (if any) a given coin reveals is resolved dynamically at pickup time
+ *  (see `mapCVDataToSkillFactPool`'s doc comment), not bound here. */
 export function findCoinTiles(layout: readonly string[]): { col: number; row: number }[] {
   return findAllOfKind(layout, 'coin');
 }
@@ -232,10 +232,9 @@ export function findFragileRockTiles(layout: readonly string[]): { col: number; 
 }
 
 /** Finds every `u` (coin-pot block) marker's position in a level layout —
- *  same convention as findCrateTiles: zipped against leftover
- *  skill-category collectible defs a `C` marker didn't already claim (see
- *  BlockMapper.ts's `mapSkillCollectiblesToCoinPotBlocks`), not against a
- *  dedicated CVData mapping of its own. */
+ *  same no-CVData-mapping convention as findFragileRockTiles; the coin a
+ *  destroyed coin-pot drops is resolved dynamically at pickup time (see
+ *  CollectibleMapper.ts's mapCVDataToSkillFactPool doc comment). */
 export function findCoinPotTiles(layout: readonly string[]): { col: number; row: number }[] {
   return findAllOfKind(layout, 'coinPot');
 }

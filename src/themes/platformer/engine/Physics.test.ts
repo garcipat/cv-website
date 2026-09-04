@@ -4,6 +4,7 @@ import { MAX_DT } from './GameLoop';
 import { parseLevel } from '../level/LevelParser';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import { placeBlocks } from '../level/BlockMapper';
+import { hitboxInsetXForBlock } from '../entities/Block';
 import {
   PLAYER_RENDERED_SIZE,
   PLAYER_FOOT_PADDING,
@@ -451,6 +452,40 @@ describe('stepPlayerPhysics block solidity', () => {
     const player = basePlayer({ x: restX + 1, y: 1 * RENDERED_TILE_SIZE, grounded: true });
     const next = stepPlayerPhysics(player, BLOCK_LEVEL, 1 / 60, { left: true, right: false }, blockAtCol2Row2);
     expect(next.blockContacts).toEqual([{ id: blockAtCol2Row2[0].id, side: 'right' }]);
+  });
+
+  describe('a coinPot (declares a hitboxInsetX, unlike questionMark above)', () => {
+    // Same fixture shape as blockAtCol2Row2 above, just a coinPot instead —
+    // its sprite doesn't fill its tile edge-to-edge, so it declares
+    // BlockType.hitboxInsetX (see CoinPot.ts) letting the player stop
+    // HITBOX_INSET_X rendered px closer than a full-tile block like
+    // questionMark would.
+    const coinPotAtCol2Row2 = placeBlocks([], {
+      crate: [],
+      questionMark: [],
+      fragileRock: [],
+      coinPot: [{ col: 2, row: 2 }],
+    });
+    const HITBOX_INSET_X = hitboxInsetXForBlock('coinPot');
+
+    it('walkingRightIntoACoinPot-stopsInsetXCloserThanAFullTileBlock', () => {
+      // Same "start 1px before where a full-tile block would stop it, then
+      // overshoot in one frame" convention as walkingRightIntoABlock above —
+      // the coinPot's resolved x must land HITBOX_INSET_X further right.
+      const wallCol = 2;
+      const fullTileRestX = wallCol * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_SIDE_PADDING;
+      const player = basePlayer({ x: fullTileRestX - 1, y: 1 * RENDERED_TILE_SIZE, grounded: true });
+      const next = stepPlayerPhysics(player, BLOCK_LEVEL, 1 / 60, { left: false, right: true }, coinPotAtCol2Row2);
+      expect(next.x).toBe(fullTileRestX + HITBOX_INSET_X);
+    });
+
+    it('walkingLeftIntoACoinPot-stopsInsetXCloserThanAFullTileBlock', () => {
+      const wallCol = 2;
+      const fullTileRestX = (wallCol + 1) * RENDERED_TILE_SIZE - PLAYER_SIDE_PADDING;
+      const player = basePlayer({ x: fullTileRestX + 1, y: 1 * RENDERED_TILE_SIZE, grounded: true });
+      const next = stepPlayerPhysics(player, BLOCK_LEVEL, 1 / 60, { left: true, right: false }, coinPotAtCol2Row2);
+      expect(next.x).toBe(fullTileRestX - HITBOX_INSET_X);
+    });
   });
 });
 
