@@ -1,7 +1,48 @@
-import type { CollectedFact } from '../types';
+import type { CollectedFact, SectionId } from '../types';
+
+/** Which collectible counters exist — the HUD's transient popups
+ *  (`CounterPopupLabelKey`, which omits `chests`: chests have a permanent HUD
+ *  counter instead) plus the journal's summary rows, which do include it. */
+export type CounterKey = 'coins' | 'fruits' | 'enemies' | 'crates' | 'chests';
+
+/**
+ * Which CV sections each collectible counter is fed by — the single source of
+ * truth for both the journal's summary rows and the in-game counter popups.
+ *
+ * This mapping used to exist twice, and the two copies disagreed: the crate
+ * popup counted `'experience'` (the CHEST pool) as a crate and ignored
+ * activities/languages entirely, so the HUD and the journal reported
+ * different numbers for the same thing. One map, two consumers, no way to
+ * drift again — `COUNTER_SECTIONS`'s own test asserts no section feeds two
+ * counters, which is exactly the invariant that broke.
+ *
+ * Keyed by `sectionId` rather than `sourceType`: a fact's `sourceType` alone
+ * cannot distinguish which pool it came from (`'block'` covers both crates and
+ * question-mark fruit).
+ */
+export const COUNTER_SECTIONS: Record<CounterKey, readonly SectionId[]> = {
+  coins: ['skills'],
+  fruits: ['certificates', 'projects'],
+  enemies: ['courses'],
+  crates: ['education', 'activities', 'languages'],
+  chests: ['experience'],
+};
+
+/** How many of `facts` feed the given counter. The numerator for every
+ *  counter popup and summary row — except the coins row, which overrides it
+ *  (see `CollectibleSummaryTotals.coinsCollected`): under proportional
+ *  pacing a coin carries no fixed fact, so "skill facts revealed" and "coins
+ *  collected" are different numbers. */
+export function countCollectedFor(
+  counterKey: CounterKey,
+  facts: readonly CollectedFact[],
+): number {
+  const sections = COUNTER_SECTIONS[counterKey];
+  return facts.filter((fact) => sections.includes(fact.sectionId)).length;
+}
 
 export interface CollectibleSummaryRow {
-  labelKey: 'coins' | 'fruits' | 'enemies' | 'crates' | 'chests';
+  labelKey: CounterKey;
   collected: number;
   total: number;
 }
@@ -65,43 +106,25 @@ export function collectiblesSummary(
   if (totals.coins > 0) {
     rows.push({
       labelKey: 'coins',
-      collected: totals.coinsCollected ?? facts.filter((f) => f.sectionId === 'skills').length,
+      collected: totals.coinsCollected ?? countCollectedFor('coins', facts),
       total: totals.coins,
     });
   }
 
   if (totals.fruits > 0) {
-    rows.push({
-      labelKey: 'fruits',
-      collected: facts.filter((f) => f.sectionId === 'certificates' || f.sectionId === 'projects').length,
-      total: totals.fruits,
-    });
+    rows.push({ labelKey: 'fruits', collected: countCollectedFor('fruits', facts), total: totals.fruits });
   }
 
   if (totals.enemies > 0) {
-    rows.push({
-      labelKey: 'enemies',
-      collected: facts.filter((f) => f.sectionId === 'courses').length,
-      total: totals.enemies,
-    });
+    rows.push({ labelKey: 'enemies', collected: countCollectedFor('enemies', facts), total: totals.enemies });
   }
 
   if (totals.crates > 0) {
-    rows.push({
-      labelKey: 'crates',
-      collected: facts.filter(
-        (f) => f.sectionId === 'education' || f.sectionId === 'activities' || f.sectionId === 'languages',
-      ).length,
-      total: totals.crates,
-    });
+    rows.push({ labelKey: 'crates', collected: countCollectedFor('crates', facts), total: totals.crates });
   }
 
   if (totals.chests > 0) {
-    rows.push({
-      labelKey: 'chests',
-      collected: facts.filter((f) => f.sectionId === 'experience').length,
-      total: totals.chests,
-    });
+    rows.push({ labelKey: 'chests', collected: countCollectedFor('chests', facts), total: totals.chests });
   }
 
   return rows;
