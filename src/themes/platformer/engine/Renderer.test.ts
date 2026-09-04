@@ -1496,7 +1496,7 @@ describe('drawTerrain — bush/fence', () => {
     drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, fakeStaticObjects);
 
     expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeStaticObjects, 96, 128, 16, 16,
+      fakeStaticObjects, 240, 112, 16, 16,
       0, 0, 32, 32,
     );
   });
@@ -1508,7 +1508,7 @@ describe('drawTerrain — bush/fence', () => {
     drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, fakeStaticObjects);
 
     expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeStaticObjects, 0, 0, 16, 16,
+      fakeStaticObjects, 0, 48, 16, 16,
       0, 0, 32, 32,
     );
   });
@@ -1519,14 +1519,14 @@ describe('drawTerrain — bush/fence', () => {
 
     drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, fakeStaticObjects);
 
-    // row 0 (top of the level, top of the run) draws canopy art at sy: 16
+    // row 0 (top of the level, top of the run) draws canopy art at sx:16, sy:16
     expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeStaticObjects, 0, 16, 16, 16,
+      fakeStaticObjects, 16, 16, 16, 16,
       0, 0, 32, 32,
     );
-    // row 1 (bottom of the run) draws root art at sy: 48
+    // row 1 (bottom of the run) draws root art at sx:16, sy:48
     expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeStaticObjects, 0, 48, 16, 16,
+      fakeStaticObjects, 16, 48, 16, 16,
       0, 32, 32, 32,
     );
   });
@@ -1537,9 +1537,9 @@ describe('drawTerrain — bush/fence', () => {
 
     drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, fakeStaticObjects);
 
-    // row 1 (middle of the run) draws trunk art at sy: 64
+    // row 1 (middle of the run) draws trunk art at sx:16, sy:32
     expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeStaticObjects, 0, 64, 16, 16,
+      fakeStaticObjects, 16, 32, 16, 16,
       0, 32, 32, 32,
     );
   });
