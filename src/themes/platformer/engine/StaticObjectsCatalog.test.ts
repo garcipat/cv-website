@@ -1,18 +1,23 @@
 import { describe, it, expect } from 'vitest';
 import { bushOrTreeEntry, staticObjectEntry } from './StaticObjectsCatalog';
 
-const SHEET_WIDTH = 288;
-const SHEET_HEIGHT = 144;
+// Bush/tree art comes from world_tileset.png (256x256); fence art comes from
+// the separate staticObjects.png (288x144) — two different sheets, so each
+// gets its own bounds check.
+const TILESET_SHEET_WIDTH = 256;
+const TILESET_SHEET_HEIGHT = 256;
+const STATIC_OBJECTS_SHEET_WIDTH = 288;
+const STATIC_OBJECTS_SHEET_HEIGHT = 144;
 const TILE_SIZE = 16;
 const ROLES = ['only', 'bottom', 'middle', 'top'] as const;
 
 describe('StaticObjectsCatalog', () => {
-  it.each(ROLES)('bushOrTreeEntry-%s-resolvesToARectInsideTheSheetOnA16pxGrid', (role) => {
+  it.each(ROLES)('bushOrTreeEntry-%s-resolvesToARectInsideTheTilesetOnA16pxGrid', (role) => {
     const entry = bushOrTreeEntry(role, 0, 0);
     expect(entry.sx % TILE_SIZE).toBe(0);
     expect(entry.sy % TILE_SIZE).toBe(0);
-    expect(entry.sx + TILE_SIZE).toBeLessThanOrEqual(SHEET_WIDTH);
-    expect(entry.sy + TILE_SIZE).toBeLessThanOrEqual(SHEET_HEIGHT);
+    expect(entry.sx + TILE_SIZE).toBeLessThanOrEqual(TILESET_SHEET_WIDTH);
+    expect(entry.sy + TILE_SIZE).toBeLessThanOrEqual(TILESET_SHEET_HEIGHT);
   });
 
   it('bushOrTreeEntry-sameRoleAndPosition-isDeterministic', () => {
@@ -34,8 +39,8 @@ describe('StaticObjectsCatalog', () => {
     const entry = staticObjectEntry('fence', 0, 0);
     expect(entry.sx % TILE_SIZE).toBe(0);
     expect(entry.sy % TILE_SIZE).toBe(0);
-    expect(entry.sx + TILE_SIZE).toBeLessThanOrEqual(SHEET_WIDTH);
-    expect(entry.sy + TILE_SIZE).toBeLessThanOrEqual(SHEET_HEIGHT);
+    expect(entry.sx + TILE_SIZE).toBeLessThanOrEqual(STATIC_OBJECTS_SHEET_WIDTH);
+    expect(entry.sy + TILE_SIZE).toBeLessThanOrEqual(STATIC_OBJECTS_SHEET_HEIGHT);
   });
 
   it('staticObjectEntry-fence-ignoresPositionAndAlwaysReturnsTheSameEntry', () => {
