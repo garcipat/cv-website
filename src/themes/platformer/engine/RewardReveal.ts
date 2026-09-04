@@ -7,8 +7,8 @@ import type { CollectedFact } from '../types';
 
 /**
  * Everything a tick's reveals share: this frame's world-to-screen origin, the
- * canvas size, where the journal button currently is, and how many fact-flight
- * effects are still in the air from previous ticks.
+ * canvas size, where the journal button currently is, and the tick's shared
+ * collection-text slot allocator.
  */
 export interface RevealContext {
   originX: number;

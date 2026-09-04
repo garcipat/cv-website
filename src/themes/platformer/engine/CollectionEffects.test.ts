@@ -275,15 +275,9 @@ describe('createSlotAllocator', () => {
     expect(new Set(offsets.slice(0, COLLECTION_TEXT_SLOT_COUNT)).size).toBe(COLLECTION_TEXT_SLOT_COUNT);
   });
 
-  it('twoConsumersSharingOneAllocator-neverTakeTheSameSlot', () => {
-    // The load-bearing property: the reveal trigger and the key pickup both
-    // draw from ONE per-tick allocator, so a key collected in the same tick as
-    // a fact reveal cannot land on the fact's row. Two separate allocators
-    // would both hand out 0 here.
-    const allocate = createSlotAllocator(0);
-    const revealOffset = allocate();
-    const keyPickupOffset = allocate();
-
-    expect(revealOffset).not.toBe(keyPickupOffset);
-  });
+  // The property that TWO CONSUMERS sharing one allocator never take the same
+  // slot is pinned in RewardReveal.test.ts's
+  // 'allocatorSharedWithAnotherConsumer-theyNeverTakeTheSameSlot' — that test
+  // shares one allocator between the reveal trigger and a second consumer,
+  // which two separate calls on one allocator here cannot exercise.
 });

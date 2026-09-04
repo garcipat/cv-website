@@ -143,4 +143,33 @@ describe('createRewardReveal', () => {
     // The (COLLECTION_TEXT_SLOT_COUNT + 1)-th reveal is back on slot 0.
     expect(activeEffects.value[COLLECTION_TEXT_SLOT_COUNT].startY).toBe(activeEffects.value[0].startY);
   });
+
+  it('twoRevealsInOneTick-applyTheSameStackOffsetToStartYAndMidY', () => {
+    const reveal = createRewardReveal(ctxWith());
+
+    reveal(factIn('a', 'education'), { x: 0, y: 0, effectId: 'e1', counterKey: 'crates' });
+    reveal(factIn('b', 'activities'), { x: 0, y: 0, effectId: 'e2', counterKey: 'crates' });
+
+    // If the offset only moved startY (leaving every effect's midY at the
+    // same screen row), the two effects would overlap through the entire
+    // hold phase — the exact bug this design rejected. Pinning that the
+    // startY gap and the midY gap match (and are non-zero) proves the
+    // offset moves both points together, without hardcoding the row height.
+    const [first, second] = activeEffects.value;
+    const startYGap = second.startY - first.startY;
+    const midYGap = second.midY - first.midY;
+
+    expect(startYGap).not.toBe(0);
+    expect(midYGap).toBe(startYGap);
+  });
+
+  it('nonZeroOrigin-addsItToTheEffectsStartCoordinates', () => {
+    const reveal = createRewardReveal({ ...ctxWith(), originX: 40, originY: 25 });
+
+    reveal(factIn('a', 'education'), { x: 100, y: 200, effectId: 'e1', counterKey: 'crates' });
+
+    // Slot 0 contributes no stack offset, so startY is exactly y + originY.
+    expect(activeEffects.value[0].startX).toBe(140);
+    expect(activeEffects.value[0].startY).toBe(225);
+  });
 });
