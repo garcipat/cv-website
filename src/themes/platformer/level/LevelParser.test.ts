@@ -7,6 +7,7 @@ import {
   findCrateTiles,
   findQuestionMarkTiles,
   findFragileRockTiles,
+  findCoinPotTiles,
   findChestTiles,
   TERRAIN_CHARS,
   ENTITY_CHARS,
@@ -56,6 +57,7 @@ describe('parseLevel', () => {
     expect(ENTITY_CHARS.X).toBe('crate');
     expect(ENTITY_CHARS.Q).toBe('questionMark');
     expect(ENTITY_CHARS.F).toBe('fragileRock');
+    expect(ENTITY_CHARS.J).toBe('coinPot');
     expect(ENTITY_CHARS.T).toBe('chest');
   });
 
@@ -251,6 +253,23 @@ describe('findFragileRockTiles', () => {
   });
 });
 
+describe('findCoinPotTiles', () => {
+  it('noMarkers-returnsEmptyArray', () => {
+    expect(findCoinPotTiles(['GG', 'GG'])).toEqual([]);
+  });
+
+  it('multipleMarkers-returnsAllInReadingOrder', () => {
+    expect(findCoinPotTiles(['.J', 'J.'])).toEqual([
+      { col: 1, row: 0 },
+      { col: 0, row: 1 },
+    ]);
+  });
+
+  it('crateOrQuestionMarkMarker-isNotCountedAsCoinPot', () => {
+    expect(findCoinPotTiles(['XQ'])).toEqual([]);
+  });
+});
+
 describe('findChestTiles', () => {
   it('noMarkers-returnsEmptyArray', () => {
     expect(findChestTiles(['GG', 'GG'])).toEqual([]);
@@ -320,7 +339,7 @@ describe('findSignTiles', () => {
 describe('TileChar', () => {
   it('includes every TERRAIN_CHARS, ENTITY_CHARS, and SIGN_CHARS key', () => {
     const tileChars: readonly TileChar[] = [
-      '.', 'G', 'R', 'W', 'B', 'L', 'P', 'S', 'E', 'M', 'C', 'X', 'Q', 'F', 'T',
+      '.', 'G', 'R', 'W', 'B', 'L', 'P', 'S', 'E', 'M', 'C', 'X', 'Q', 'F', 'T', 'J',
       '1', '2', '3', '4', '5', 'n', 'N',
     ];
     const allKeys = [...Object.keys(TERRAIN_CHARS), ...Object.keys(ENTITY_CHARS), ...Object.keys(SIGN_CHARS)];
