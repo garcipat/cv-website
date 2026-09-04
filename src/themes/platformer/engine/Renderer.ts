@@ -9,8 +9,10 @@ import {
   TILE_SIZE,
   RENDER_SCALE,
   RENDERED_TILE_SIZE,
+  verticalRunRole,
 } from '../level/Terrain';
 import { groundAtlasCell, grassCell, GRASS_SOURCE_HEIGHT } from './GroundAtlas';
+import { bushOrTreeEntry, staticObjectEntry } from './StaticObjectsCatalog';
 import type { GroundAtlasEntry } from './GroundAtlas';
 import { backgroundCatalogEntry } from './BackgroundCatalog';
 import type { LevelDef, TileType } from '../level/LevelData';
@@ -78,6 +80,12 @@ function tileSource(
       // An enemy patrol boundary is deliberately invisible in game — only
       // the Level Editor draws a marker for it (EditorCanvas.tsx's
       // drawPatrolMarkers), the same way it badges sign digits.
+      return null;
+    case 'bush':
+    case 'fence':
+      // Drawn by drawTerrain's own staticObjects branch when that sheet is
+      // loaded; this shared lookup only runs when it isn't, so there is
+      // nothing to draw here.
       return null;
     case 'empty':
       return null;
@@ -320,6 +328,7 @@ export function drawTerrain(
   groundAtlas: HTMLImageElement,
   originX = 0,
   originY = 0,
+  staticObjects: HTMLImageElement | null = null,
 ): void {
   ctx.imageSmoothingEnabled = false;
 
@@ -341,6 +350,18 @@ export function drawTerrain(
             destX, destY, RENDERED_TILE_SIZE, GRASS_SOURCE_HEIGHT * RENDER_SCALE,
           );
         }
+        continue;
+      }
+
+      if (staticObjects && (tile === 'fence' || tile === 'bush')) {
+        const entry =
+          tile === 'fence'
+            ? staticObjectEntry('fence', col, row)
+            : bushOrTreeEntry(verticalRunRole(level, col, row, 'bush'), col, row);
+        ctx.drawImage(
+          staticObjects, entry.sx, entry.sy, TILE_SIZE, TILE_SIZE,
+          destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
+        );
         continue;
       }
 
