@@ -102,6 +102,31 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   exists from 35a, capture it as a reusable pattern and add an editor action that
   expands it (staggered, to avoid a visible repeat seam) across a larger area. Depends
   on 35a landing first.
+- [ ] **36. Foreground decoration tiles (bush/tree, fence)** — two new purely-visual
+  terrain tiles painted directly into the level layout like any other terrain
+  character: `n` (bush/tree — a lone tile is a bush, stacking `n` vertically with no
+  upper limit grows a tree from a root, repeatable trunk, and canopy piece) and `N`
+  (fence). Non-solid, walked through freely. Design in
+  `plans/2026-09-04-foreground-decoration-layer-design.md`.
+- [ ] **37. Coin-pot container block** — a new hittable block (like `Crate`/
+  `QuestionMark` in `entities/blocks/`) that spawns coins when hit, for cave/dungeon-style
+  decoration scenes. Needs its own brainstorming pass to nail down reward amount,
+  animation, and one-time-vs-repeatable behavior before a design doc.
+- [ ] **38. Chain ladder skin** — a chain-sprite tile that climbs exactly like a ladder.
+  Open design question to resolve first: a new `TileType` (e.g. `'chain'`) treated
+  identically to `'ladder'` in `Physics.ts`, vs. a decorative overlay drawn on top of a
+  normal ladder tile.
+- [ ] **39. Level layout character remap** — re-letter some ASCII tile/entity characters
+  so they visually suggest the element: coin `C`→`o`, ladder `L`→`H`, wall `W`→`I`, green
+  slime `E`→`M`, purple slime `M`→`m`. Touches `LevelParser.ts`'s char maps, the authored
+  level layout(s), comments, and any editor legend/tooltips referencing the old letters.
+- [ ] **40. Spike hazard tiles** — a hazard that damages the player (and presumably
+  knocks back, reusing the side/below-damage + invincibility-frame mechanics from step
+  19) on touch, no stomp-defeat like enemies. Open design question: modeled as a block
+  entity like `Crate`/`QuestionMark` (placed on top of terrain) vs. a terrain `TileType`
+  like `wall`/`ladder`. Needs its own brainstorming pass first: instant-death vs. heart
+  damage, and how they read visually against the existing tile atlas.
+>>>>>>> 15a4f99 (feat(platformer): add bush and fence tile types)
 
 ## Unscheduled additions (not yet numbered)
 

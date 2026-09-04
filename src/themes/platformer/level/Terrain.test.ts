@@ -56,6 +56,11 @@ describe('Terrain', () => {
     expect(isSolid('patrol')).toBe(false);
   });
 
+  it('isSolid-bushAndFence-returnFalse', () => {
+    expect(isSolid('bush')).toBe(false);
+    expect(isSolid('fence')).toBe(false);
+  });
+
   it('isSolid-empty-returnsFalse', () => {
     expect(isSolid('empty')).toBe(false);
   });
@@ -294,6 +299,11 @@ describe('isClimbable', () => {
     expect(isClimbable('bridge')).toBe(false);
     expect(isClimbable('empty')).toBe(false);
     expect(isClimbable('patrol')).toBe(false);
+  });
+
+  it('isClimbable-bushAndFence-returnFalse', () => {
+    expect(isClimbable('bush')).toBe(false);
+    expect(isClimbable('fence')).toBe(false);
   });
 });
 
