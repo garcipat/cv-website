@@ -78,8 +78,9 @@ import { spawnKeyPickup, KEY_TILE_OFFSET_X, KEY_TILE_OFFSET_Y } from './entities
 import {
   startFlightEffect,
   tickFlightEffect,
-  COLLECTION_TEXT_SLOT_COUNT,
+  createSlotAllocator,
   COLLECTION_TEXT_STACK_ROW_HEIGHT,
+  startCounterPopup,
   tickCounterPopup,
   counterPopupOpacity,
   startPuffEffect,
@@ -692,25 +693,22 @@ export const PlatformerPage = () => {
       const levelPixelHeight = currentLevel.value.height * RENDERED_TILE_SIZE;
       const originX = -cameraPositionX.value;
       const originY = canvas.height - levelPixelHeight + cameraPositionY.value;
+      // ONE slot allocator for the whole tick, shared by the reveal trigger
+      // and the key pickup below — two flight texts appearing in the same tick
+      // must never land on the same vertical row, which takes a single counter
+      // across every flight-text site (see createSlotAllocator's doc comment).
+      // Seeded from the number of fact-flight effects still in the air from
+      // previous ticks (already filtered for 'done' ones at the end of the
+      // previous tick — see the activeEffects tick/filter below).
+      const allocateSlotOffset = createSlotAllocator(activeEffects.value.length);
       // The one fact-reveal trigger every reveal site below goes through.
-      // `inFlightCount` is the number of fact-flight effects still in flight
-      // from previous ticks (already filtered for 'done' ones at the end of
-      // the previous tick — see the activeEffects tick/filter below), which
-      // seeds the trigger's slot allocation: NOT a plain ever-incrementing
-      // counter, because that would let a single item collected in isolation
-      // land on slot 1 or 2 (visibly offset below the primary spot) purely
-      // because of how many items were collected earlier in the session, even
-      // minutes apart with nothing overlapping. Seeding from the live
-      // in-flight count instead means an isolated pickup always lands on slot
-      // 0, and only pickups that are actually concurrent (their effects still
-      // mid-animation) spread across further slots.
       const revealFact = createRewardReveal({
         originX,
         originY,
         canvasWidth: canvas.width,
         canvasHeight: canvas.height,
         journalRect: journalButtonRef.current?.getBoundingClientRect() ?? null,
-        inFlightCount: activeEffects.value.length,
+        allocateSlotOffset,
       });
 
       // Enemies currently reacting to a stomp (animState 'hit') run their
@@ -906,15 +904,26 @@ export const PlatformerPage = () => {
               // can reveal more than one fact when fewer coins are placed than
               // there are CVData facts.
               effectId: `${id}-${factIndex}`,
-              counterKey: 'coins',
-              // Coins collected, not skill facts revealed — see
-              // RevealOptions.collectedOverride.
-              collectedOverride: coinsCollectedSoFar,
+              // No counterKey: the coins popup is bumped below instead, for
+              // every coin rather than only for the ones that reveal a fact.
             });
           }
         }
 
         collectedCollectibleIds.value = nextCollected;
+
+        // The one counter popup bumped here rather than by the reveal trigger.
+        // A coin's reward is resolved dynamically at pickup time (see
+        // revealedFactCountFor above) and most coins reveal NO fact, so gating
+        // this on a reveal would leave the tail of a level collecting coins
+        // with no "coins collected / total" feedback at all. Fires once per
+        // tick in which any coin was touched, with the tick-final count.
+        if (touchedIds.some((id) => allCollectiblePlacements.value.find((p) => p.id === id)?.spriteType === 'coin')) {
+          activeCounterPopups.value = {
+            ...activeCounterPopups.value,
+            coins: startCounterPopup('coins', coinsCollectedSoFar, levelTotals.value.coins),
+          };
+        }
       }
 
       // Bonus fruits: a question-mark's spawned fruit carries a CV fact
@@ -968,15 +977,11 @@ export const PlatformerPage = () => {
         for (const pickup of keyPickupStates.value) {
           if (!touchedKeyIds.includes(pickup.id)) continue;
           // The key pickup stays outside `revealFact` (no fact, static
-          // caption, HUD target), so it allocates its own vertical slot. Same
-          // rule the trigger seeds itself with — how many fact-flight effects
-          // are live right now, including any this tick's reveals already
-          // pushed — so a key collected alongside a fact doesn't land on top
-          // of it, and successive keys in one tick still step down a row
-          // (each push grows `newEffects`, and `activeEffects` was written by
-          // every reveal site above before this one runs).
-          const slot = newEffects.length % COLLECTION_TEXT_SLOT_COUNT;
-          const stackOffsetY = slot * COLLECTION_TEXT_STACK_ROW_HEIGHT;
+          // caption, HUD target), but takes its slot from the SAME per-tick
+          // allocator the trigger uses — so a key collected alongside a fact
+          // reveal can't land on that fact's row, and successive keys in one
+          // tick still step down a row.
+          const stackOffsetY = allocateSlotOffset();
           newEffects.push(
             startFlightEffect(
               pickup.id,
