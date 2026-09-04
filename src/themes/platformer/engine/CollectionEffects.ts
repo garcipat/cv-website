@@ -58,6 +58,10 @@ export function startFlightEffect(
  *  screen position. */
 export const COLLECTION_TEXT_SLOT_COUNT = 3;
 
+/** Vertical gap between successive collection-text slots, in screen px (see
+ *  COLLECTION_TEXT_SLOT_COUNT). */
+export const COLLECTION_TEXT_STACK_ROW_HEIGHT = 34;
+
 /** Advances the effect by `dt` seconds, transitioning
  *  rising -> holding -> flying -> done as RISE_DURATION_SECONDS, then
  *  HOLD_DURATION_SECONDS, then FLIGHT_DURATION_SECONDS elapse. No-op (same

@@ -62,7 +62,6 @@ import {
   checkKeyPickupCollisions,
 } from './engine/Collision';
 import { openChest, allChestsOpen, isChestOpen, CHEST_CLOSED_OFFSET_X } from './entities/Chest';
-import { countCollectedFor } from './entities/CollectiblesSummary';
 import { stepBlockAnimation } from './engine/BlockAI';
 import {
   applyBlockHit,
@@ -80,7 +79,7 @@ import {
   startFlightEffect,
   tickFlightEffect,
   COLLECTION_TEXT_SLOT_COUNT,
-  startCounterPopup,
+  COLLECTION_TEXT_STACK_ROW_HEIGHT,
   tickCounterPopup,
   counterPopupOpacity,
   startPuffEffect,
@@ -89,7 +88,7 @@ import {
 } from './engine/CollectionEffects';
 import { coinFrameSource, COIN_FRAME_SIZE } from './entities/Coin';
 import { fruitFrameSource, FRUIT_FRAME_SIZE } from './entities/Fruit';
-import { formatJournalEntry } from './entities/JournalEntry';
+import { createRewardReveal } from './engine/RewardReveal';
 import { RENDERED_TILE_SIZE } from './level/Terrain';
 import {
   advancePlayerAnimation,
@@ -142,7 +141,6 @@ import {
   collectedCollectibleIds,
   activeEffects,
   activeCounterPopups,
-  collectedFacts,
   chestStates,
   endingScreenShown,
   endingScreenOpen,
@@ -166,12 +164,6 @@ import {
   hintTooltipGrowthAndOpacity,
 } from './engine/HintTooltip';
 import type { HintId } from './types';
-
-// Vertical spacing between stacked fact-flight rows when several pickups are
-// collected close together — a bit more than the 28px collection-effect
-// font size (Renderer.ts's COLLECTION_EFFECT_FONT_SIZE) so stacked lines
-// don't touch.
-const COLLECTION_TEXT_STACK_ROW_HEIGHT = 34;
 
 export const PlatformerPage = () => {
   // Subscribes this component's render to any signal `.value` read during
@@ -404,22 +396,10 @@ export const PlatformerPage = () => {
     // independently.
     let worldAnimElapsed = 0;
 
-    // Which vertical slot the next collection's fact text lands in — reseeded
-    // every tick from how many fact-flight effects are actually still in
-    // flight (see below), NOT a plain ever-incrementing counter: a plain
-    // ever-incrementing counter would let a single item collected in
-    // isolation land on slot 1 or 2 (visibly offset below the primary spot)
-    // purely because of how many items were collected earlier in the
-    // session, even minutes apart with nothing overlapping. Reseeding from
-    // the live in-flight count instead means an isolated pickup always lands
-    // on slot 0, and only pickups that are actually concurrent (their
-    // effects still mid-animation) spread across further slots.
-    let nextTextSlot = 0;
-
     // Cycles through fruit.png's icon frames (see Fruit.ts's
     // FRUIT_ICON_COUNT) so successive question-mark bonus fruits look
-    // visibly different from each other — same "just keep incrementing, let
-    // spawnBonusFruit wrap it" convention as nextTextSlot above.
+    // visibly different from each other — "just keep incrementing, let
+    // spawnBonusFruit wrap it".
     let nextBonusFruitIcon = 0;
 
     const resize = () => {
@@ -703,12 +683,35 @@ export const PlatformerPage = () => {
       // than ticking on a wall-clock independent of the paused state.
       worldAnimElapsed += dt;
 
-      // Reseeded every tick from the number of fact-flight effects still
-      // in flight from previous ticks (already filtered for 'done' ones at
-      // the end of the previous tick — see the activeEffects tick/filter
-      // below) — see nextTextSlot's doc comment above for why this isn't a
-      // plain ever-incrementing counter.
-      nextTextSlot = activeEffects.value.length % COLLECTION_TEXT_SLOT_COUNT;
+      // Computed once per tick and shared by every reveal site below — these
+      // same two expressions used to be duplicated in the enemy-defeat block
+      // and the collectible block. `originX`/`originY` convert a world-space
+      // entity position into the screen-space coordinates FlightEffect
+      // requires (see CollectionEffects.ts's doc comment); the level is
+      // anchored to the bottom of the canvas, same as render()'s own copy.
+      const levelPixelHeight = currentLevel.value.height * RENDERED_TILE_SIZE;
+      const originX = -cameraPositionX.value;
+      const originY = canvas.height - levelPixelHeight + cameraPositionY.value;
+      // The one fact-reveal trigger every reveal site below goes through.
+      // `inFlightCount` is the number of fact-flight effects still in flight
+      // from previous ticks (already filtered for 'done' ones at the end of
+      // the previous tick — see the activeEffects tick/filter below), which
+      // seeds the trigger's slot allocation: NOT a plain ever-incrementing
+      // counter, because that would let a single item collected in isolation
+      // land on slot 1 or 2 (visibly offset below the primary spot) purely
+      // because of how many items were collected earlier in the session, even
+      // minutes apart with nothing overlapping. Seeding from the live
+      // in-flight count instead means an isolated pickup always lands on slot
+      // 0, and only pickups that are actually concurrent (their effects still
+      // mid-animation) spread across further slots.
+      const revealFact = createRewardReveal({
+        originX,
+        originY,
+        canvasWidth: canvas.width,
+        canvasHeight: canvas.height,
+        journalRect: journalButtonRef.current?.getBoundingClientRect() ?? null,
+        inFlightCount: activeEffects.value.length,
+      });
 
       // Enemies currently reacting to a stomp (animState 'hit') run their
       // reaction timer instead of patrolling — stepEnemyHitReaction either
@@ -770,10 +773,6 @@ export const PlatformerPage = () => {
       // is separate and permanent: it gates whether anything is actually paid
       // out (fact or key), not whether the enemy is selected below.
       //
-      // Checked before the collectible block so both effects can coexist in
-      // `newEffects` without one clobbering the other within the same tick —
-      // each block builds off `activeEffects.value` as it stands when it
-      // runs, same convention the collectible block already uses.
       // !deathEffectGiven (not !rewardGiven) is what makes a revived enemy
       // defeated a second time show up here again — rewardGiven stays true
       // forever once anything has been given (see Enemy.ts's baseRevive doc
@@ -781,19 +780,8 @@ export const PlatformerPage = () => {
       // death still deserves its own visual effect. See B-003.
       const justDefeated = enemyStates.value.filter((e) => !e.alive && !e.deathEffectGiven);
       if (justDefeated.length > 0) {
-        const newFacts = [...collectedFacts.value];
-        const newEffects = [...activeEffects.value];
         const newPuffs = [...activePuffs.value];
-        const journalRect = journalButtonRef.current?.getBoundingClientRect();
-        const targetX = journalRect ? journalRect.left + journalRect.width / 2 : canvas.width - 32;
-        const targetY = journalRect ? journalRect.top + journalRect.height / 2 : canvas.height - 32;
-        const midX = canvas.width / 2;
-        const midY = canvas.height * 0.3;
-        const originX = -cameraPositionX.value;
-        const levelPixelHeight = currentLevel.value.height * RENDERED_TILE_SIZE;
-        const originY = canvas.height - levelPixelHeight + cameraPositionY.value;
 
-        let anyEnemyRewarded = false;
         for (const enemy of justDefeated) {
           const anchor = enemyEffectAnchor(enemy);
           const puffX = anchor.x + originX;
@@ -833,29 +821,7 @@ export const PlatformerPage = () => {
           // world event that always deserves a puff, independent of whether
           // it also happens to award a fact (B-003).
           newPuffs.push(startPuffEffect(enemy.id, puffX, puffY, anchor.scale));
-          anyEnemyRewarded = true;
-          newFacts.push(fact);
-          // Reuses the journal's own title/icon derivation — formatJournalEntry
-          // gets every section's display title right (Course's `title` field,
-          // Experience's `role`/`company`, Education's `degree`, etc.), unlike
-          // an ad-hoc `'name' in data` check would.
-          const { icon, title: label } = formatJournalEntry(fact);
-          const slot = nextTextSlot;
-          nextTextSlot = (nextTextSlot + 1) % COLLECTION_TEXT_SLOT_COUNT;
-          const stackOffsetY = slot * COLLECTION_TEXT_STACK_ROW_HEIGHT;
-          newEffects.push(
-            startFlightEffect(
-              enemy.id,
-              label,
-              enemy.x + originX,
-              enemy.y + originY + stackOffsetY,
-              midX,
-              midY + stackOffsetY,
-              targetX,
-              targetY,
-              icon,
-            ),
-          );
+          revealFact(fact, { x: enemy.x, y: enemy.y, effectId: enemy.id, counterKey: 'enemies' });
         }
 
         // Every defeated enemy is marked processed (deathEffectGiven) so it
@@ -869,19 +835,7 @@ export const PlatformerPage = () => {
           processedIds.has(e.id) ? { ...e, rewardGiven: true, deathEffectGiven: true } : e,
         );
 
-        collectedFacts.value = newFacts;
-        activeEffects.value = newEffects;
         activePuffs.value = newPuffs;
-        if (anyEnemyRewarded) {
-          const enemyDefeated = countCollectedFor('enemies', newFacts);
-          // Denominator counts only fact-bearing placements — a "plain"
-          // enemy (EnemyMapper.ts's excess-marker case) never contributes a
-          // fact, so counting it here would make the ratio unreachable.
-          activeCounterPopups.value = {
-            ...activeCounterPopups.value,
-            enemies: startCounterPopup('enemies', enemyDefeated, levelTotals.value.enemies),
-          };
-        }
       }
 
       activeEffects.value = activeEffects.value
@@ -905,14 +859,6 @@ export const PlatformerPage = () => {
       }
       if (popupsChanged) activeCounterPopups.value = tickedPopups;
 
-      // Same origin math as render()'s local originX/originY (that scope
-      // isn't reachable from here) — needed to convert a just-collected
-      // placement's world-space position into the screen-space coordinates
-      // FlightEffect requires (see CollectionEffects.ts's doc comment).
-      const levelPixelHeight = currentLevel.value.height * RENDERED_TILE_SIZE;
-      const originY = canvas.height - levelPixelHeight + cameraPositionY.value;
-      const originX = -cameraPositionX.value;
-
       const touchedIds = checkCollectibleCollisions(
         playerState.value,
         allCollectiblePlacements.value,
@@ -920,19 +866,6 @@ export const PlatformerPage = () => {
       );
       if (touchedIds.length > 0) {
         const nextCollected = new Set(collectedCollectibleIds.value);
-        const newFacts = [...collectedFacts.value];
-        const newEffects = [...activeEffects.value];
-        const journalRect = journalButtonRef.current?.getBoundingClientRect();
-        const targetX = journalRect ? journalRect.left + journalRect.width / 2 : canvas.width - 32;
-        const targetY = journalRect ? journalRect.top + journalRect.height / 2 : canvas.height - 32;
-        // Fact text rises toward the upper-middle of the screen and holds
-        // there before flying on to the journal icon, so it's actually
-        // readable rather than flying past in one motion. Deliberately above
-        // dead-center (0.5) — vertical-center read as "too low" in review,
-        // since gameplay (terrain/player) sits in the lower half of the
-        // screen and a dead-center pause competes with it.
-        const midX = canvas.width / 2;
-        const midY = canvas.height * 0.3;
 
         const poolLength = skillFactPool.value.length;
         // A coin carries no fact of its own (see CollectibleMapper.ts's
@@ -960,61 +893,28 @@ export const PlatformerPage = () => {
           for (let factIndex = factCountBefore; factIndex < factCountAfter; factIndex++) {
             const fact = skillFactPool.value[factIndex];
             if (!fact) continue; // defensive only — factCountAfter never exceeds poolLength
-            // Same dedup guard every other reward path (crate/enemy/chest)
-            // already has: `levelTotals.value.coins` is only a de-facto session
+            // The trigger's own dedup guard covers what this site used to do
+            // inline: `levelTotals.value.coins` is only a de-facto session
             // constant, not a guaranteed one — switching levels mid-session
             // (the editor's "Try") changes COIN_TILES/COIN_POT_TILES, which
             // could otherwise make factCountBefore come out below the
             // number of facts already revealed and replay an old entry.
-            if (newFacts.some((f) => f.id === fact.id)) continue;
-            newFacts.push(fact);
-
-            // Reuses the journal's own title/icon derivation — see the
-            // enemy-defeat block above for why an ad-hoc `'name' in data`
-            // check would be wrong for several sections.
-            // `icon` is passed to `startFlightEffect` separately, NOT
-            // concatenated into `label`: Renderer.ts draws it in a different
-            // font (the pixel font `label` uses has no emoji glyphs).
-            const { icon, title: label } = formatJournalEntry(fact);
-            // Fast/simultaneous pickups cycle through a fixed set of vertical
-            // slots (1, 2, 3, 1, 2, 3, ...) instead of every fact text landing
-            // on the same spot. The offset applies to BOTH the rise's start
-            // and its mid hold point (not just mid) — offsetting mid alone
-            // still let two effects starting near the same world position
-            // overlap through most of the rise, only separating at the end.
-            const slot = nextTextSlot;
-            nextTextSlot = (nextTextSlot + 1) % COLLECTION_TEXT_SLOT_COUNT;
-            const stackOffsetY = slot * COLLECTION_TEXT_STACK_ROW_HEIGHT;
-            newEffects.push(
-              startFlightEffect(
-                // A unique key per revealed fact, not just per coin — the
-                // rare case of one coin revealing more than one fact
-                // (fewer coins placed than CVData facts) still needs
-                // distinct flight-effect ids.
-                `${id}-${factIndex}`,
-                label,
-                placement.x + originX,
-                placement.y + originY + stackOffsetY,
-                midX,
-                midY + stackOffsetY,
-                targetX,
-                targetY,
-                icon,
-              ),
-            );
+            revealFact(fact, {
+              x: placement.x,
+              y: placement.y,
+              // A unique key per revealed fact, not just per coin — one coin
+              // can reveal more than one fact when fewer coins are placed than
+              // there are CVData facts.
+              effectId: `${id}-${factIndex}`,
+              counterKey: 'coins',
+              // Coins collected, not skill facts revealed — see
+              // RevealOptions.collectedOverride.
+              collectedOverride: coinsCollectedSoFar,
+            });
           }
         }
 
         collectedCollectibleIds.value = nextCollected;
-        collectedFacts.value = newFacts;
-        activeEffects.value = newEffects;
-
-        if (touchedIds.some((id) => allCollectiblePlacements.value.find((p) => p.id === id)?.spriteType === 'coin')) {
-          activeCounterPopups.value = {
-            ...activeCounterPopups.value,
-            coins: startCounterPopup('coins', coinsCollectedSoFar, levelTotals.value.coins),
-          };
-        }
       }
 
       // Bonus fruits: a question-mark's spawned fruit carries a CV fact
@@ -1025,55 +925,21 @@ export const PlatformerPage = () => {
       // (`fruit.fact === undefined`) still removes silently, same as before.
       const touchedBonusFruitIds = checkBonusFruitCollisions(playerState.value, bonusFruitStates.value);
       if (touchedBonusFruitIds.length > 0) {
-        const newFacts = [...collectedFacts.value];
-        const newEffects = [...activeEffects.value];
-        const journalRect = journalButtonRef.current?.getBoundingClientRect();
-        const targetX = journalRect ? journalRect.left + journalRect.width / 2 : canvas.width - 32;
-        const targetY = journalRect ? journalRect.top + journalRect.height / 2 : canvas.height - 32;
-        const midX = canvas.width / 2;
-        const midY = canvas.height * 0.3;
-
-        let anyBonusFruitRewarded = false;
         for (const id of touchedBonusFruitIds) {
           const fruit = bonusFruitStates.value.find((f) => f.id === id);
           if (!fruit || !fruit.fact) continue;
-          if (newFacts.some((f) => f.id === fruit.fact!.id)) continue;
 
-          anyBonusFruitRewarded = true;
-          newFacts.push(fruit.fact);
-          // Reuses the journal's own title/icon derivation — see the
-          // enemy-defeat block above.
-          const { icon, title: label } = formatJournalEntry(fruit.fact);
-          const slot = nextTextSlot;
-          nextTextSlot = (nextTextSlot + 1) % COLLECTION_TEXT_SLOT_COUNT;
-          const stackOffsetY = slot * COLLECTION_TEXT_STACK_ROW_HEIGHT;
-          newEffects.push(
-            startFlightEffect(
-              id,
-              label,
-              fruit.x + originX,
-              bonusFruitY(fruit) + originY + stackOffsetY,
-              midX,
-              midY + stackOffsetY,
-              targetX,
-              targetY,
-              icon,
-            ),
-          );
+          revealFact(fruit.fact, {
+            x: fruit.x,
+            y: bonusFruitY(fruit),
+            effectId: id,
+            counterKey: 'fruits',
+          });
         }
 
-        collectedFacts.value = newFacts;
-        activeEffects.value = newEffects;
         bonusFruitStates.value = bonusFruitStates.value.filter(
           (fruit) => !touchedBonusFruitIds.includes(fruit.id),
         );
-        if (anyBonusFruitRewarded) {
-          const bonusFruitCollected = countCollectedFor('fruits', newFacts);
-          activeCounterPopups.value = {
-            ...activeCounterPopups.value,
-            fruits: startCounterPopup('fruits', bonusFruitCollected, levelTotals.value.fruits),
-          };
-        }
       }
 
       // Key pickups: dropped by defeated purple slimes (see the justDefeated
@@ -1101,8 +967,15 @@ export const PlatformerPage = () => {
           : CHEST_COUNTER_X;
         for (const pickup of keyPickupStates.value) {
           if (!touchedKeyIds.includes(pickup.id)) continue;
-          const slot = nextTextSlot;
-          nextTextSlot = (nextTextSlot + 1) % COLLECTION_TEXT_SLOT_COUNT;
+          // The key pickup stays outside `revealFact` (no fact, static
+          // caption, HUD target), so it allocates its own vertical slot. Same
+          // rule the trigger seeds itself with — how many fact-flight effects
+          // are live right now, including any this tick's reveals already
+          // pushed — so a key collected alongside a fact doesn't land on top
+          // of it, and successive keys in one tick still step down a row
+          // (each push grows `newEffects`, and `activeEffects` was written by
+          // every reveal site above before this one runs).
+          const slot = newEffects.length % COLLECTION_TEXT_SLOT_COUNT;
           const stackOffsetY = slot * COLLECTION_TEXT_STACK_ROW_HEIGHT;
           newEffects.push(
             startFlightEffect(
@@ -1149,36 +1022,17 @@ export const PlatformerPage = () => {
             c.id === standingChestId ? openChest(c) : c,
           );
           collectedKeys.value -= 1;
-          if (!collectedFacts.value.some((f) => f.id === chest.fact.id)) {
-            const journalRect = journalButtonRef.current?.getBoundingClientRect();
-            const targetX = journalRect ? journalRect.left + journalRect.width / 2 : canvas.width - 32;
-            const targetY = journalRect ? journalRect.top + journalRect.height / 2 : canvas.height - 32;
-            const midX = canvas.width / 2;
-            const midY = canvas.height * 0.3;
-            const { icon, title: label } = formatJournalEntry(chest.fact);
-            const slot = nextTextSlot;
-            nextTextSlot = (nextTextSlot + 1) % COLLECTION_TEXT_SLOT_COUNT;
-            const stackOffsetY = slot * COLLECTION_TEXT_STACK_ROW_HEIGHT;
-            collectedFacts.value = [...collectedFacts.value, chest.fact];
-            activeEffects.value = [
-              ...activeEffects.value,
-              startFlightEffect(
-                chest.id,
-                label,
-                // Shifted by CHEST_CLOSED_OFFSET_X (see entities/Chest.ts) to
-                // start from the chest's actual centered-on-tile left edge —
-                // only the closed offset applies here, since this only fires
-                // the instant a closed chest is opened.
-                chest.x + originX + CHEST_CLOSED_OFFSET_X,
-                chest.y + originY + stackOffsetY,
-                midX,
-                midY + stackOffsetY,
-                targetX,
-                targetY,
-                icon,
-              ),
-            ];
-          }
+          revealFact(chest.fact, {
+            // Shifted by CHEST_CLOSED_OFFSET_X (see entities/Chest.ts) to start
+            // from the chest's actual centered-on-tile left edge — only the
+            // closed offset applies, since this fires the instant a closed
+            // chest is opened.
+            x: chest.x + CHEST_CLOSED_OFFSET_X,
+            y: chest.y,
+            effectId: chest.id,
+            // No counterKey: chests have a permanent HUD counter, so this
+            // reveal deliberately bumps no transient popup — same as today.
+          });
         }
       }
 
@@ -1311,8 +1165,8 @@ export const PlatformerPage = () => {
       // register a second hit just because the player's head is still under
       // it this frame).
       // `originX`/`originY` (this tick's world-to-screen origin) are already
-      // in scope from the collectible-collision block above — reused here
-      // (not redeclared) for `firePuffIfJustUsedUp`'s puff-position math.
+      // in scope from the top of this tick — reused here (not redeclared) for
+      // `firePuffIfJustUsedUp`'s puff-position math.
 
       // A block's terminal hit — any kind that's removed once used up
       // (crate, fragileRock, coinPot; not questionMark, which never breaks)
@@ -1349,12 +1203,6 @@ export const PlatformerPage = () => {
         blockStates.value = blockStates.value.map((block) =>
           hitIds.has(block.id) ? applyBlockHit(block) : block,
         );
-
-        const journalRect = journalButtonRef.current?.getBoundingClientRect();
-        const targetX = journalRect ? journalRect.left + journalRect.width / 2 : canvas.width - 32;
-        const targetY = journalRect ? journalRect.top + journalRect.height / 2 : canvas.height - 32;
-        const midX = canvas.width / 2;
-        const midY = canvas.height * 0.3;
 
         // Most negative wins, so several blocks bouncing the player in one
         // tick is deterministic regardless of iteration order.
@@ -1395,38 +1243,12 @@ export const PlatformerPage = () => {
           }
 
           if (outcome.revealFact) {
-            const fact = outcome.revealFact;
-            // Dedup by fact id, same defensive guard every other reward path
-            // uses (FR-020c).
-            if (!collectedFacts.value.some((f) => f.id === fact.id)) {
-              const { icon, title: label } = formatJournalEntry(fact);
-              const slot = nextTextSlot;
-              nextTextSlot = (nextTextSlot + 1) % COLLECTION_TEXT_SLOT_COUNT;
-              const stackOffsetY = slot * COLLECTION_TEXT_STACK_ROW_HEIGHT;
-              collectedFacts.value = [...collectedFacts.value, fact];
-              activeCounterPopups.value = {
-                ...activeCounterPopups.value,
-                crates: startCounterPopup(
-                  'crates',
-                  countCollectedFor('crates', collectedFacts.value),
-                  levelTotals.value.crates,
-                ),
-              };
-              activeEffects.value = [
-                ...activeEffects.value,
-                startFlightEffect(
-                  block.id,
-                  label,
-                  block.x + originX,
-                  block.y + originY + stackOffsetY,
-                  midX,
-                  midY + stackOffsetY,
-                  targetX,
-                  targetY,
-                  icon,
-                ),
-              ];
-            }
+            revealFact(outcome.revealFact, {
+              x: block.x,
+              y: block.y,
+              effectId: block.id,
+              counterKey: 'crates',
+            });
           }
         }
 
