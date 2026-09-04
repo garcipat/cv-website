@@ -39,6 +39,8 @@ import {
   collectedKeys,
   resetGame,
   activePuffs,
+  activeCounterPopups,
+  levelTotals,
 } from './PlatformerState';
 import { toBlockState } from './entities/Block';
 import type { BlockState } from './entities/Block';
@@ -149,6 +151,24 @@ function placeTestCoinPot(id: string): BlockState {
   return pot;
 }
 
+/** How far right of a real crate the synthetic crate in the crate-counter
+ *  test below is placed — same reasoning as COIN_POT_TEST_OFFSET_X above, but
+ *  a different offset so the two synthetic blocks (both of which persist in
+ *  `blockStates` for the rest of the run) can never land on each other. */
+const CRATE_TEST_OFFSET_X = 9 * RENDERED_TILE_SIZE;
+
+/** Builds a synthetic crate carrying a real crate-pool fact, cloned from the
+ *  level's own first fact-bearing crate and shifted clear of it, then injected
+ *  into `blockStates` directly. Cloning rather than reusing the level's crate
+ *  keeps the test independent of whether an earlier test already destroyed
+ *  that crate (`blockStates` is not reset between tests). */
+function placeTestCrate(id: string): BlockState {
+  const source = blockPlacements.value.find((b) => b.blockKind === 'crate' && b.fact)!;
+  const crate = toBlockState({ ...source, id, x: source.x + CRATE_TEST_OFFSET_X });
+  blockStates.value = [...blockStates.value, crate];
+  return crate;
+}
+
 /** The player.y to set so a falling player's feet resolve to rest exactly on
  *  top of the given block's tile — mirrors `stompLandingY` above, but for
  *  landing on a solid block tile (`Physics.ts`'s ground-collision branch)
@@ -209,6 +229,12 @@ describe('PlatformerPage', () => {
     // that no keys have been dropped/banked yet.
     keyPickupStates.value = [];
     collectedKeys.value = 0;
+    // Module-level signal like the others above — a counter popup started by
+    // one test would otherwise still be present (popups only clear via
+    // tickCounterPopup, which no render-only test drives long enough), so a
+    // later test asserting "no popup for X" could pass or fail on inherited
+    // state rather than on its own tick.
+    activeCounterPopups.value = {};
   });
 
   afterEach(() => {
@@ -938,6 +964,45 @@ describe('PlatformerPage', () => {
     expect(effect?.text).not.toContain('💡');
   });
 
+  it('coinThatRevealsNoFact-tick-stillBumpsTheCoinsCounterPopup', () => {
+    // The coins popup is deliberately the ONE counter bumped at its pickup
+    // site rather than through the fact-reveal trigger. A coin carries no
+    // fixed fact: under proportional pacing (level/SkillFactPacing.ts) plenty
+    // of coins reveal nothing, and once the skill-fact pool is exhausted no
+    // coin reveals anything at all. Gating the popup on a reveal would leave
+    // those pickups with no "coins collected / total" feedback whatsoever.
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    // Exhaust the pool: every skill fact is already banked, so whichever fact
+    // this coin's pacing slot points at is deduped away by the trigger and
+    // nothing is revealed.
+    collectedFacts.value = [...skillFactPool.value];
+
+    const target = collectiblePlacements.value.find((p) => p.spriteType === 'coin')!;
+    playerState.value = { ...playerState.value, x: target.x, y: target.y };
+
+    frameCallback!(16);
+
+    // Nothing revealed: no new fact, and no flight effect for this coin.
+    expect(collectedFacts.value).toHaveLength(skillFactPool.value.length);
+    expect(activeEffects.value.some((e) => e.id.startsWith(`${target.id}-`))).toBe(false);
+    // ...but the coin still counts, and still says so.
+    expect(activeCounterPopups.value.coins).toEqual({
+      labelKey: 'coins',
+      collected: 1,
+      total: levelTotals.value.coins,
+      elapsed: expect.any(Number),
+    });
+  });
+
   it('alreadyCollected-touchedAgainAfterRespawn-doesNotDuplicateFact', () => {
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
@@ -1418,6 +1483,47 @@ describe('PlatformerPage', () => {
     expect(collectedFacts.value.some((f) => f.id === crate.fact?.id)).toBe(true);
   });
 
+  it('crateDestroyedFromBelow-terminalHit-bumpsTheCratesCounterPopup', () => {
+    // The wiring of the bug this whole branch exists to fix: a crate's reveal
+    // must feed the CRATES popup, counted over the crate fact pool
+    // (Education/Activities/Languages — COUNTER_SECTIONS) rather than the
+    // chest pool. The crate declares `counterKey: 'crates'` in its own onHit
+    // outcome; the engine only forwards it.
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const crate = placeTestCrate('crate-test-counter-popup');
+    const ceilingBottomY = crate.y + RENDERED_TILE_SIZE;
+    const bumpPosition = { x: crate.x, y: ceilingBottomY - PLAYER_HEAD_PADDING + 1, vy: -1000 };
+
+    // Two hits — a crate only reveals on its terminal (second) one.
+    let t = 16;
+    for (let hit = 0; hit < 2; hit++) {
+      playerState.value = { ...playerState.value, ...bumpPosition };
+      t += 16;
+      frameCallback!(t);
+      for (let i = 0; i < 10; i++) {
+        t += 16;
+        frameCallback!(t);
+      }
+    }
+
+    expect(collectedFacts.value.some((f) => f.id === crate.fact?.id)).toBe(true);
+    expect(activeCounterPopups.value.crates).toEqual({
+      labelKey: 'crates',
+      collected: 1,
+      total: levelTotals.value.crates,
+      elapsed: expect.any(Number),
+    });
+  });
+
   describe('coinPot — landing destroys it and drops a coin', () => {
     beforeEach(() => {
       spawnedCoinPlacements.value = [];
@@ -1509,8 +1615,8 @@ describe('PlatformerPage', () => {
 
     it('hittingACoinPotFromBelow-doesNotBreakItOrDropACoin', () => {
       // Regression test for a real bug found by manual play-testing: the
-      // 'bottom'-side (hittableBlockIds) and 'top'-side (landedOnTopIds)
-      // filters must be mutually exclusive by blockKind — a coinPot must
+      // single block-hit pass filters contacts through the kind's own
+      // `BlockType.triggerSides`, so a coinPot (`triggerSides: ['top']`) must
       // only ever react to being landed on, never to being hit from below,
       // even though Physics.ts reports a 'bottom' blockContacts entry for
       // ANY solid block regardless of kind.
@@ -2979,6 +3085,33 @@ describe('PlatformerPage', () => {
 
     expect(chestStates.value.find((c) => c.id === target.id)?.state).toBe('open');
     expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(true);
+  });
+
+  it('arrowUpPressed-whileStandingOnClosedChest-bumpsNoTransientCounterPopup', () => {
+    // Chests are the one fact-reveal site that deliberately feeds no popup:
+    // they already have a PERMANENT HUD counter (Renderer.ts's chest
+    // counter), which is why `CounterPopupLabelKey` has no 'chests' member at
+    // all. The chest site therefore omits `counterKey` entirely.
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    collectedKeys.value = 1;
+    const target = chestPlacements.value[0];
+    playerState.value = { ...playerState.value, x: target.x, y: target.y };
+    fireEvent.keyDown(window, { code: 'ArrowUp' });
+    frameCallback!(16);
+
+    // The reveal really did happen — otherwise "no popup" would be vacuous.
+    expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(true);
+    expect(Object.keys(activeCounterPopups.value)).not.toContain('chests');
+    expect(activeCounterPopups.value).toEqual({});
   });
 
   it('keyWPressed-whileStandingOnClosedChest-opensItAndRevealsExperienceFact', () => {

@@ -133,6 +133,18 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   entity like `Crate`/`QuestionMark` (placed on top of terrain) vs. a terrain `TileType`
   like `wall`/`ladder`. Needs its own brainstorming pass first: instant-death vs. heart
   damage, and how they read visually against the existing tile atlas.
+- [x] **41. Blocks own their outcomes, one shared reveal trigger** — blocks get the
+  behavior half of the pattern enemies already have: `BlockType.triggerSides` +
+  `onHit` returning a declarative outcome, so `PlatformerPage.tsx`'s tick handler
+  stops branching on `blockKind` and its two near-duplicate hit loops collapse into
+  one. Adds a shared reveal trigger (`engine/RewardReveal.ts`) used by all five
+  fact-reveal sites, a single `levelTotals` computed replacing seven
+  `.filter(...).length` sites, and one `COUNTER_SECTIONS` map — which fixes a live
+  bug where the crate counter popup counts chest facts as crates and ignores
+  activities/languages crates. Design:
+  `plans/2026-09-04-world-entity-behavior-design.md`. Pieces C (pickups/chests) and
+  D (terrain registry) of that program stay unscheduled — see
+  `plans/2026-09-04-block-item-architecture-followup-notes.md`.
 
 ## Unscheduled additions (not yet numbered)
 

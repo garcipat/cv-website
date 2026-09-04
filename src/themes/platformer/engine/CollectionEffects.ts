@@ -1,3 +1,5 @@
+import type { CounterKey } from '../entities/CollectiblesSummary';
+
 /** Seconds each phase of a collected-fact animation takes: a quick rise from
  *  the collection point to the middle of the screen, a hold there so the
  *  fact is actually readable, then the flight to the journal icon. */
@@ -10,7 +12,8 @@ export const FLIGHT_DURATION_SECONDS = 0.6;
  * point), `midX/midY` (the screen's center — where the text pauses to be
  * read), and `targetX/targetY` (the journal icon) are all SCREEN-space (not
  * world-space) — computed once at collection time by the caller
- * (PlatformerPage.tsx) using the camera origin and canvas size at that
+ * (RewardReveal.ts for fact reveals, PlatformerPage.tsx's key pickup) using
+ * the camera origin and canvas size at that
  * instant, since the animation is short-lived (~2s) and re-deriving
  * world-to-screen every frame isn't worth the complexity for an effect this
  * brief. `text` is the short label shown throughout (the category or
@@ -52,11 +55,45 @@ export function startFlightEffect(
 }
 
 /** Fixed number of vertical text "slots" fast/simultaneous collections cycle
- *  through (see PlatformerPage.tsx's `nextTextSlot`) — 1, 2, 3, 1, 2, 3, ...
+ *  through (handed out by `createSlotAllocator` below) — 1, 2, 3, 1, 2, 3, ...
  *  so collecting several pickups in quick succession reads as a short
  *  rotating list instead of every fact text landing on the exact same
  *  screen position. */
 export const COLLECTION_TEXT_SLOT_COUNT = 3;
+
+/** Vertical gap between successive collection-text slots, in screen px (see
+ *  COLLECTION_TEXT_SLOT_COUNT). */
+export const COLLECTION_TEXT_STACK_ROW_HEIGHT = 34;
+
+/** Hands out the next collection-text stack offset, in screen px. */
+export type SlotAllocator = () => number;
+
+/**
+ * Builds one tick's collection-text slot allocator: successive calls step down
+ * a row (`COLLECTION_TEXT_STACK_ROW_HEIGHT`) and cycle through
+ * `COLLECTION_TEXT_SLOT_COUNT` slots, starting from `inFlightCount` — how many
+ * flight effects are still in the air from previous ticks.
+ *
+ * Seeded from the live in-flight count rather than an ever-incrementing
+ * counter, so a pickup collected in isolation always lands on slot 0 (the
+ * primary spot) and only genuinely concurrent pickups — whose effects are
+ * still mid-animation — spread across further slots.
+ *
+ * ONE allocator is created per tick and SHARED by every flight-text site,
+ * because two texts appearing in the same tick must never land on the same
+ * row. That includes the key pickup, which is otherwise outside the fact-reveal
+ * trigger (it reveals no fact, has a static caption and flies to the HUD key
+ * counter): a per-site counter would let a key and a fact reveal both take
+ * slot 0 and overlap.
+ */
+export function createSlotAllocator(inFlightCount: number): SlotAllocator {
+  let nextSlot = inFlightCount % COLLECTION_TEXT_SLOT_COUNT;
+  return () => {
+    const slot = nextSlot;
+    nextSlot = (nextSlot + 1) % COLLECTION_TEXT_SLOT_COUNT;
+    return slot * COLLECTION_TEXT_STACK_ROW_HEIGHT;
+  };
+}
 
 /** Advances the effect by `dt` seconds, transitioning
  *  rising -> holding -> flying -> done as RISE_DURATION_SECONDS, then
@@ -115,7 +152,14 @@ export const COUNTER_POPUP_HOLD_SECONDS = 1.7;
 export const COUNTER_POPUP_FADE_SECONDS = 0.4;
 export const COUNTER_POPUP_DURATION_SECONDS = COUNTER_POPUP_HOLD_SECONDS + COUNTER_POPUP_FADE_SECONDS;
 
-export type CounterPopupLabelKey = 'coins' | 'fruits' | 'enemies' | 'crates';
+/**
+ * Which collectible counters get a TRANSIENT popup — derived from `CounterKey`
+ * rather than spelled out again, so adding a sixth counter cannot leave this
+ * union silently stale. `'chests'` is the one exclusion: chests already have a
+ * PERMANENT HUD counter (see Renderer.ts's chest counter), so a chest reveal
+ * deliberately bumps no popup.
+ */
+export type CounterPopupLabelKey = Exclude<CounterKey, 'chests'>;
 
 /**
  * One "(icon) collected / total" counter popup for a single collectible
@@ -125,9 +169,10 @@ export type CounterPopupLabelKey = 'coins' | 'fruits' | 'enemies' | 'crates';
  * restarted) rather than queuing a second one, but collecting a coin and a
  * fruit close together shows both side by side, since they're genuinely
  * different information (unlike the fact-flight text's rotating slots, which
- * exist purely to avoid overlapping the SAME kind of text). Drawn at a fixed
- * screen position above the fact-flight text's stacked slots (see
- * PlatformerPage.tsx/Renderer.ts), not tied to the collection point.
+ * exist purely to avoid overlapping the SAME kind of text). Started by
+ * RewardReveal.ts (and, for coins, by PlatformerPage.tsx's pickup site) and
+ * drawn by Renderer.ts at a fixed screen position above the fact-flight text's
+ * stacked slots, not tied to the collection point.
  */
 export interface CounterPopupEffect {
   labelKey: CounterPopupLabelKey;

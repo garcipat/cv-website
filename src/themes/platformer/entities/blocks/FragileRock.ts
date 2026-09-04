@@ -10,6 +10,7 @@ export const fragileRock: BlockType = {
   sprite: { sheet: WORLD_TILESET_SHEET, renderScale: 1, animations: {} },
   maxHits: 1,
   removeWhenUsedUp: true,
+  triggerSides: ['bottom'],
   frameIndex: () => FRAGILE_ROCK_FRAME,
   draw: (block, dc) => drawBlockTile(block, dc, FRAGILE_ROCK_FRAME),
 };

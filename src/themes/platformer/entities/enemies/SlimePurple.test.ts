@@ -7,6 +7,7 @@ import type { EnemyPlacement } from '../../level/EnemyMapper';
 import type { PlayerState } from '../Player';
 import { PLAYER_HIT_REACTION_SECONDS } from '../Player';
 import type { Contact } from '../../engine/Contact';
+import { PHYSICS_CONFIG } from '../../engine/PhysicsConfig';
 
 function makePurpleEnemy(overrides: Partial<SlimePurpleState> = {}): SlimePurpleState {
   const placement: EnemyPlacement = { id: 'p1', type: 'slimePurple', x: 5, y: 0 };
@@ -98,7 +99,7 @@ describe('slimePurple.onPlayerCollide top contact', () => {
     const enemy = makePurpleEnemy({ hitPoints: 3, spiked: false, spikeTimer: 0 });
     const outcome = slimePurple.onPlayerCollide(enemy, makePlayer(), makeTopContact());
     expect(outcome.self?.hitPoints).toBe(2);
-    expect(outcome.bouncePlayer).toBe(true);
+    expect(outcome.bounceVelocity).toBe(PHYSICS_CONFIG.stompBounceVelocity);
   });
 });
 

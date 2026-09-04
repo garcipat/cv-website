@@ -9,6 +9,7 @@ import { spriteSheetHitbox } from './spriteSheetHitbox';
 import { RENDER_SCALE, RENDERED_TILE_SIZE } from '../../level/Terrain';
 import { KEY_FRAME_WIDTH, KEY_FRAME_HEIGHT } from '../KeyPickup';
 import type { DrawContext } from '../../engine/DrawContext';
+import { PHYSICS_CONFIG } from '../../engine/PhysicsConfig';
 
 export interface SlimePurpleState extends BaseEnemyState {
   type: 'slimePurple';
@@ -221,7 +222,9 @@ export const slimePurple: EnemyType<SlimePurpleState> = {
       // ordinary side touch.
       return { damagePlayer: 1, knockback: contact.side === 'top' ? 'awayAndUp' : 'away' };
     }
-    if (contact.side === 'top') return { self: takeHit(enemy), bouncePlayer: true };
+    if (contact.side === 'top') {
+      return { self: takeHit(enemy), bounceVelocity: PHYSICS_CONFIG.stompBounceVelocity };
+    }
     return { damagePlayer: 1, knockback: 'away' };
   },
 
