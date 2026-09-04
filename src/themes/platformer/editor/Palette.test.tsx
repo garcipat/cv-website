@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Palette } from './Palette';
 import { TERRAIN_CHARS, ENTITY_CHARS } from '../level/LevelParser';
@@ -93,5 +93,24 @@ describe('Palette — layer tab', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: /Dirt Column Top/ }));
     expect(onSelectBackgroundPiece).toHaveBeenCalledWith('dirtColumnTop1x1');
+  });
+});
+
+describe('Palette — subtitle groups', () => {
+  it('foregroundLayer-rendersFourGroupHeadings', () => {
+    render(<Palette {...defaultProps} />);
+    expect(screen.getByText('Terrain')).toBeInTheDocument();
+    expect(screen.getByText('Decoration')).toBeInTheDocument();
+    expect(screen.getByText('Entities')).toBeInTheDocument();
+    expect(screen.getByText('Tools')).toBeInTheDocument();
+  });
+
+  it('decorationGroup-containsBushAndFenceButNoOtherTerrainChar', () => {
+    render(<Palette {...defaultProps} />);
+    const decorationHeading = screen.getByText('Decoration');
+    const decorationGroup = decorationHeading.closest('section') ?? decorationHeading.parentElement!;
+    expect(within(decorationGroup).getByRole('button', { name: /Bush/ })).toBeInTheDocument();
+    expect(within(decorationGroup).getByRole('button', { name: /Fence/ })).toBeInTheDocument();
+    expect(within(decorationGroup).queryByRole('button', { name: 'Wall' })).not.toBeInTheDocument();
   });
 });
