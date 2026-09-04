@@ -11,6 +11,7 @@ import type { LevelEntry } from '../level/levelRegistry';
 import { LevelSelect } from './LevelSelect';
 import { saveLevel, LEVELS_FOLDER, type SaveLevelResult } from './saveLevelFile';
 import type { BackgroundPlacement, BackgroundPieceId } from '../level/LevelData';
+import { backgroundCatalogEntry } from '../engine/BackgroundCatalog';
 import {
   editorLevelSignal,
   editorSelectedToolSignal,
@@ -188,15 +189,26 @@ export const LevelEditorPage = () => {
    * state — otherwise the debounced sync effect above would shortly overwrite
    * the freshly loaded grid with the still-pending previous one, and
    * reopening the editor would silently restore the discarded edits.
+   *
+   * `level.background` is filtered against the current catalog before it
+   * goes anywhere: a placement whose `pieceId` no longer resolves (left over
+   * from a since-trimmed catalog, e.g. in a stale `localStorage` copy or an
+   * old saved level JSON) renders as nothing (Task 19) and, because
+   * `paintBackgroundCell.ts`'s empty-footprint fallback means right-click can
+   * never find it, would otherwise stay invisible AND permanently
+   * un-erasable in the editor while round-tripping through every subsequent
+   * save forever. Dropping it here, once, at load time closes that gap.
    */
   const loadLevel = (level: LevelEntry) => {
     const levelGrid = importLayout(level.layout);
     setGrid(levelGrid);
     requestCenterOnSpawn();
     editorLevelSignal.value = levelGrid;
-    const levelBackground = level.background ? [...level.background] : [];
-    setBackgroundPlacements(levelBackground);
-    editorBackgroundSignal.value = levelBackground;
+    const validBackground = (level.background ?? []).filter(
+      (placement) => backgroundCatalogEntry(placement.pieceId) !== undefined,
+    );
+    setBackgroundPlacements(validBackground);
+    editorBackgroundSignal.value = validBackground;
     setLoadedLevelName(level.name);
     setDirty(false);
     setSaveResult(null);
