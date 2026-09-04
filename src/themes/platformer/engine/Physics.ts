@@ -17,6 +17,7 @@ import {
   PLAYER_SIDE_PADDING,
 } from '../entities/Player';
 import type { PlayerState } from '../entities/Player';
+import type { BlockContact } from '../entities/Player';
 
 /**
  * One frame's worth of player input. `left`/`right` default to no movement so
@@ -70,6 +71,7 @@ export function stepPlayerPhysics(
   input: PlayerInput = NO_INPUT,
   blockPlacements: readonly BlockPlacement[] = NO_BLOCKS,
 ): PlayerState {
+  const blockContacts: BlockContact[] = [];
   // While a side-hit's knockback is still active, held movement keys are
   // ignored entirely and the knockback velocity/direction set
   // by Player.ts's `applyKnockback` is held steady — otherwise this branch
@@ -124,11 +126,15 @@ export function stepPlayerPhysics(
       (player.x + PLAYER_SIDE_PADDING + HITBOX_WIDTH - 1) / RENDERED_TILE_SIZE,
     );
     const isWall = rightCol === prevRightCol ? isSolidExcludingBridge : isSolid;
+    let rightResolved = false;
     for (let row = topRow; row <= bottomRow; row++) {
-      if (isWall(tileAt(level, rightCol, row)) || isBlockOccupied(blockPlacements, rightCol, row)) {
+      if (!isWall(tileAt(level, rightCol, row)) && !isBlockOccupied(blockPlacements, rightCol, row)) continue;
+      if (!rightResolved) {
         x = rightCol * RENDERED_TILE_SIZE - PLAYER_SIDE_PADDING - HITBOX_WIDTH;
-        break;
+        rightResolved = true;
       }
+      const blockId = blockIdAt(blockPlacements, rightCol, row);
+      if (blockId !== undefined) blockContacts.push({ id: blockId, side: 'left' });
     }
   } else if (vx < 0) {
     const leftCol = Math.floor((x + PLAYER_SIDE_PADDING) / RENDERED_TILE_SIZE);
@@ -136,11 +142,15 @@ export function stepPlayerPhysics(
     // hitbox wasn't already occupying before this frame's move still blocks.
     const prevLeftCol = Math.floor((player.x + PLAYER_SIDE_PADDING) / RENDERED_TILE_SIZE);
     const isWall = leftCol === prevLeftCol ? isSolidExcludingBridge : isSolid;
+    let leftResolved = false;
     for (let row = topRow; row <= bottomRow; row++) {
-      if (isWall(tileAt(level, leftCol, row)) || isBlockOccupied(blockPlacements, leftCol, row)) {
+      if (!isWall(tileAt(level, leftCol, row)) && !isBlockOccupied(blockPlacements, leftCol, row)) continue;
+      if (!leftResolved) {
         x = (leftCol + 1) * RENDERED_TILE_SIZE - PLAYER_SIDE_PADDING;
-        break;
+        leftResolved = true;
       }
+      const blockId = blockIdAt(blockPlacements, leftCol, row);
+      if (blockId !== undefined) blockContacts.push({ id: blockId, side: 'right' });
     }
   }
 
@@ -253,7 +263,7 @@ export function stepPlayerPhysics(
         lastGroundedY: minClimbY,
         knockbackTimer: Math.max(0, player.knockbackTimer - dt),
         bounceAscending: false,
-        hitBlockIds: [],
+        blockContacts: [],
       };
     }
 
@@ -269,7 +279,7 @@ export function stepPlayerPhysics(
       isDroppingThroughBridge: false,
       knockbackTimer: Math.max(0, player.knockbackTimer - dt),
       bounceAscending: false,
-      hitBlockIds: [],
+      blockContacts: [],
     };
   }
 
@@ -312,7 +322,7 @@ export function stepPlayerPhysics(
       isDroppingThroughBridge: false,
       knockbackTimer: Math.max(0, player.knockbackTimer - dt),
       bounceAscending: false,
-      hitBlockIds: [],
+      blockContacts: [],
     };
   }
 
@@ -376,7 +386,6 @@ export function stepPlayerPhysics(
     player.isDroppingThroughBridge ||
     (player.grounded && standingOnBridge && Boolean(input.dropThroughHeld));
 
-  const hitBlockIds: string[] = [];
   if (vy < 0) {
     // Ceiling collision: symmetric to the landing case below, but for the
     // player's head hitting a solid tile from underneath while rising.
@@ -395,14 +404,14 @@ export function stepPlayerPhysics(
       // Position is resolved against only the FIRST solid column found
       // (matches the pre-existing single-collision behavior) — but every
       // column at this row is scanned so a block spanning any of them is
-      // still reported in `hitBlockIds`, even if it wasn't the column that
+      // still reported in `blockContacts`, even if it wasn't the column that
       // stopped the ascent.
       if (!ceilingResolved) {
         y = (headRow + 1) * RENDERED_TILE_SIZE - PLAYER_HEAD_PADDING;
         resolvedVy = 0;
         ceilingResolved = true;
       }
-      if (blockId !== undefined) hitBlockIds.push(blockId);
+      if (blockId !== undefined) blockContacts.push({ id: blockId, side: 'bottom' });
     }
   } else {
     const feetY = y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING;
@@ -424,14 +433,18 @@ export function stepPlayerPhysics(
       isStandableLadderTop(level, col, footRow) ||
       isBlockOccupied(blockPlacements, col, footRow);
 
+    let groundResolved = false;
     for (let col = leftCol; col <= rightCol; col++) {
-      if (columnIsGround(col)) {
+      if (!columnIsGround(col)) continue;
+      if (!groundResolved) {
         const groundSurfaceY = footRow * RENDERED_TILE_SIZE;
         y = groundSurfaceY - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
         resolvedVy = 0;
         grounded = true;
-        break;
+        groundResolved = true;
       }
+      const blockId = blockIdAt(blockPlacements, col, footRow);
+      if (blockId !== undefined) blockContacts.push({ id: blockId, side: 'top' });
     }
 
     if (grounded) {
@@ -462,7 +475,7 @@ export function stepPlayerPhysics(
     // moment the bounce's apex passes (resolvedVy >= 0) or a ceiling stops
     // it early, so it never lingers into a later, unrelated jump.
     bounceAscending: player.bounceAscending && resolvedVy < 0,
-    hitBlockIds,
+    blockContacts,
   };
 }
 

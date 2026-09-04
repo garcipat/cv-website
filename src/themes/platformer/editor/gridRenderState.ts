@@ -84,7 +84,7 @@ export function synthesizePlayerState(grid: TileChar[][]): PlayerState | null {
     animFrame: 0,
     animTimer: 0,
     knockbackTimer: 0,
-    hitBlockIds: [],
+    blockContacts: [],
     bounceAscending: false,
     hitPoints: MAX_HALF_HEARTS,
     alive: true,

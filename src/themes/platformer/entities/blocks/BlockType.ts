@@ -17,9 +17,9 @@ import type { WorldType } from '../WorldType';
  * isn't any type's primary descriptor.
  *
  * Carries no trigger mechanism. A block is hit from below, detected during
- * ceiling collision in Physics.ts, which writes `player.hitBlockIds`; the
- * caller reads that and applies the hit. This interface owns appearance and
- * per-kind rules only.
+ * ceiling collision in Physics.ts, which writes `player.blockContacts`
+ * (tagged `'bottom'`); the caller reads that and applies the hit. This
+ * interface owns appearance and per-kind rules only.
  */
 export interface BlockType extends WorldType<BlockState> {
   /** Must equal this module's slot in BLOCK_TYPES. */

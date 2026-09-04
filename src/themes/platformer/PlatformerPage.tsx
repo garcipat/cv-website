@@ -1271,17 +1271,20 @@ export const PlatformerPage = () => {
         blockStates.value,
       );
 
-      // Block hit mechanics: `next.hitBlockIds` (set by
-      // Physics.ts's ceiling-collision check, same call above) reports every
-      // block whose underside the player's head just hit this tick — but
-      // only a block that ISN'T already used up actually reacts (a
+      // Block hit mechanics: `next.blockContacts` (set by Physics.ts's
+      // collision checks, same call above), filtered to `'bottom'` side,
+      // reports every block whose underside the player's head just hit this
+      // tick — but only a block that ISN'T already used up actually reacts (a
       // question-mark that already popped its fruit, or a still-mid-bump
       // crate/fragileRock about to be filtered out, must not register a second hit
       // just because the player's head is still under it this frame).
-      const hittableBlockIds = next.hitBlockIds.filter((id) => {
-        const block = blockStates.value.find((b) => b.id === id);
-        return block !== undefined && !isBlockUsedUp(block);
-      });
+      const hittableBlockIds = next.blockContacts
+        .filter((c) => c.side === 'bottom')
+        .map((c) => c.id)
+        .filter((id) => {
+          const block = blockStates.value.find((b) => b.id === id);
+          return block !== undefined && !isBlockUsedUp(block);
+        });
       if (hittableBlockIds.length > 0) {
         blockStates.value = blockStates.value.map((block) =>
           hittableBlockIds.includes(block.id) ? applyBlockHit(block) : block,

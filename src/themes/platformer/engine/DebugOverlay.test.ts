@@ -40,7 +40,7 @@ const idlePlayer: PlayerState = {
   animFrame: 0,
   knockbackTimer: 0,
   bounceAscending: false,
-  hitBlockIds: [],
+  blockContacts: [],
   hitPoints: 6,
   alive: true,
   hitTimer: PLAYER_HIT_REACTION_SECONDS,
