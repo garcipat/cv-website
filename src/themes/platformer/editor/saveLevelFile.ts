@@ -1,6 +1,5 @@
-import { exportLayout } from './exportLayout';
 import { LEVELS_FOLDER, SAVE_LEVEL_ENDPOINT } from './saveLevelEndpoint';
-import type { TileChar } from '../level/LevelParser';
+import type { BackgroundPlacement } from '../level/LevelData';
 
 export { LEVELS_FOLDER };
 
@@ -20,12 +19,30 @@ export const levelFileName = (name: string): string => {
 };
 
 /**
- * The file's contents: the level's name plus its exported (cropped) layout,
+ * The file's contents: the level's name plus its already-cropped layout,
  * pretty-printed and newline-terminated so the file reads like the rest of
- * the repo's JSON rather than one long line.
+ * the repo's JSON rather than one long line. The background layer is only
+ * included when it holds placements, so levels without one keep the same
+ * shape they had before the background layer existed.
+ *
+ * Takes the cropped `layout` (and `background`, already rebased against the
+ * same origin) rather than a raw grid and re-cropping here itself — see
+ * `cropLevelForExport.ts`. Re-cropping here with the foreground-only
+ * `exportLayout` would silently undo the caller's union crop (foreground +
+ * background footprints) whenever a background placement reaches further
+ * out than any foreground cell, re-introducing the exact
+ * foreground/background drift Task 20 closes.
  */
-export const levelFileJson = (name: string, grid: TileChar[][]): string =>
-  `${JSON.stringify({ name, layout: exportLayout(grid) }, null, 2)}\n`;
+export const levelFileJson = (
+  name: string,
+  layout: readonly string[],
+  background: BackgroundPlacement[],
+): string =>
+  `${JSON.stringify(
+    { name, layout, ...(background.length > 0 ? { background } : {}) },
+    null,
+    2,
+  )}\n`;
 
 /**
  * Hands the level to the browser as a download — the only way a static site
@@ -57,14 +74,18 @@ export interface SaveLevelResult {
  * moves themselves. The caller gets told which of the two happened so the UI
  * can say so rather than implying a file landed somewhere it didn't.
  */
-export const saveLevel = async (name: string, grid: TileChar[][]): Promise<SaveLevelResult> => {
+export const saveLevel = async (
+  name: string,
+  layout: readonly string[],
+  background: BackgroundPlacement[],
+): Promise<SaveLevelResult> => {
   try {
     const response = await fetch(SAVE_LEVEL_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         fileName: levelFileName(name),
-        contents: levelFileJson(name, grid),
+        contents: levelFileJson(name, layout, background),
       }),
     });
     const body = (await response.json()) as { path?: string; error?: string };
@@ -73,17 +94,21 @@ export const saveLevel = async (name: string, grid: TileChar[][]): Promise<SaveL
       return { written: true, path: body.path };
     }
 
-    downloadLevelFile(name, grid);
+    downloadLevelFile(name, layout, background);
     return body.error === undefined ? { written: false } : { written: false, error: body.error };
   } catch {
     // No dev server behind this page at all (built site, or served statically).
-    downloadLevelFile(name, grid);
+    downloadLevelFile(name, layout, background);
     return { written: false };
   }
 };
 
-export const downloadLevelFile = (name: string, grid: TileChar[][]): void => {
-  const blob = new Blob([levelFileJson(name, grid)], { type: 'application/json' });
+export const downloadLevelFile = (
+  name: string,
+  layout: readonly string[],
+  background: BackgroundPlacement[],
+): void => {
+  const blob = new Blob([levelFileJson(name, layout, background)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;

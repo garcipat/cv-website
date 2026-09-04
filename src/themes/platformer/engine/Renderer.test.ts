@@ -27,8 +27,9 @@ import {
   drawSkyBackground,
   drawWaterForeground,
   SKY_WHITE_ROW_COUNT,
+  drawBackgroundTiles,
 } from './Renderer';
-import type { LevelDef } from '../level/LevelData';
+import type { LevelDef, BackgroundPieceId } from '../level/LevelData';
 import type { SignPlacement } from '../level/SignMapper';
 import type { PlayerState } from '../entities/Player';
 import { PLAYER_RENDERED_SIZE, PLAYER_HIT_REACTION_SECONDS } from '../entities/Player';
@@ -2415,5 +2416,73 @@ describe('drawWaterForeground', () => {
     drawWaterForeground(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, 10, 0, 50);
 
     expect(ctx.drawImage).not.toHaveBeenCalled();
+  });
+});
+
+describe('drawBackgroundTiles', () => {
+  it('levelWithNoBackgroundField-drawsNothing', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = { terrain: [], width: 0, height: 0 };
+
+    drawBackgroundTiles(ctx as unknown as CanvasRenderingContext2D, level, {} as HTMLImageElement);
+
+    expect(ctx.drawImage).not.toHaveBeenCalled();
+  });
+
+  it('onePlacement-drawsItScaledToRenderedTileSizeAtItsGridPosition', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = {
+      terrain: [],
+      width: 0,
+      height: 0,
+      background: [{ pieceId: 'dirtColumnTop1x1', col: 2, row: 1 }],
+    };
+
+    drawBackgroundTiles(ctx as unknown as CanvasRenderingContext2D, level, {} as HTMLImageElement, 0, 0);
+
+    // dirtColumnTop1x1: sx=80, sy=32, 1x1 tile (16x16 source).
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      expect.anything(),
+      80, 32, 16, 16,
+      2 * 32, 1 * 32,
+      1 * 32, 1 * 32,
+    );
+  });
+
+  it('originOffset-shiftsTheDestinationRect', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = {
+      terrain: [],
+      width: 0,
+      height: 0,
+      background: [{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }],
+    };
+
+    drawBackgroundTiles(ctx as unknown as CanvasRenderingContext2D, level, {} as HTMLImageElement, 100, -50);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      expect.anything(),
+      80, 32, 16, 16,
+      100, -50,
+      32, 32,
+    );
+  });
+
+  it('placementWithAnUnknownPieceId-isSkippedRatherThanThrown', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = {
+      terrain: [],
+      width: 0,
+      height: 0,
+      background: [
+        { pieceId: 'notARealPieceId' as BackgroundPieceId, col: 0, row: 0 },
+        { pieceId: 'dirtBlock3x3', col: 5, row: 0 },
+      ],
+    };
+
+    expect(() =>
+      drawBackgroundTiles(ctx as unknown as CanvasRenderingContext2D, level, {} as HTMLImageElement),
+    ).not.toThrow();
+    expect(ctx.drawImage).toHaveBeenCalledTimes(1);
   });
 });

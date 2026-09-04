@@ -23,7 +23,10 @@ import {
   drawBlocks,
   drawChests,
   drawSigns,
+  drawBackgroundTiles,
 } from '../engine/Renderer';
+import { placeBackgroundPiece, eraseBackgroundCell } from './paintBackgroundCell';
+import type { BackgroundPlacement, BackgroundPieceId } from '../level/LevelData';
 import type { DrawContext } from '../engine/DrawContext';
 import {
   SLIME_GREEN_SHEET,
@@ -45,6 +48,7 @@ export interface EditorImages {
   slimePurple: HTMLImageElement | null;
   crackOverlay: HTMLImageElement | null;
   chestClosed: HTMLImageElement | null;
+  backgroundAtlas: HTMLImageElement | null;
 }
 
 interface EditorCanvasProps {
@@ -56,7 +60,11 @@ interface EditorCanvasProps {
    *  the effect below). It is a request id rather than a boolean so a
    *  repeated request — Reset pressed twice, say — still fires each time. */
   centerRequestId?: number;
+  backgroundPlacements: BackgroundPlacement[];
+  activeLayer: 'foreground' | 'background';
+  selectedBackgroundPiece: BackgroundPieceId | null;
   onPaint: (result: PaintResult) => void;
+  onPaintBackground: (next: BackgroundPlacement[]) => void;
   onPan: (offset: PanOffset) => void;
 }
 
@@ -194,13 +202,18 @@ export const EditorCanvas = ({
   panOffset,
   images,
   centerRequestId,
+  backgroundPlacements,
+  activeLayer,
+  selectedBackgroundPiece,
   onPaint,
+  onPaintBackground,
   onPan,
 }: EditorCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   type DragState =
     | { mode: 'paint'; tool: TileChar; lastCol: number; lastRow: number }
+    | { mode: 'paintBackground'; isErase: boolean; lastCol: number; lastRow: number }
     | { mode: 'pan'; lastX: number; lastY: number };
   const dragRef = useRef<DragState | null>(null);
   const [canvasSize, setCanvasSize] = useState({
@@ -265,50 +278,75 @@ export const EditorCanvas = ({
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     drawGridLines(ctx, canvas.width, canvas.height, panOffset);
 
-    if (images.tileset && images.groundAtlas) {
-      drawTerrain(
+    if (images.backgroundAtlas) {
+      drawBackgroundTiles(
         ctx,
-        gridToLevelDef(grid),
-        images.tileset,
-        images.groundAtlas,
+        { terrain: [], width: 0, height: 0, background: backgroundPlacements },
+        images.backgroundAtlas,
         panOffset.x,
         panOffset.y,
       );
     }
 
-    if (images.tileset) {
-      drawSigns(ctx, synthesizeSignPlacements(grid), images.tileset, panOffset.x, panOffset.y);
-    }
-    drawSignBadges(ctx, grid, panOffset.x, panOffset.y);
-    drawPatrolMarkers(ctx, grid, panOffset.x, panOffset.y);
+    // While the Background layer is active, the entire foreground scene —
+    // terrain plus every entity/marker drawn on top of it — is dimmed
+    // (rather than hidden) so the painter can still see where platforms and
+    // entities will sit without them obscuring the background pieces being
+    // placed underneath. `drawBackgroundTiles` above stays outside this
+    // wrapper always, since it's the layer being emphasized, never dimmed —
+    // mid-execution addition to the original design.
+    const foregroundAlpha = activeLayer === 'background' ? 0.2 : 1;
+    ctx.save();
+    try {
+      ctx.globalAlpha = foregroundAlpha;
 
-    const drawContext: DrawContext = {
-      ctx,
-      sprites: {
-        [SLIME_GREEN_SHEET.src]: images.slimeGreen,
-        [SLIME_PURPLE_SHEET.src]: images.slimePurple,
-        [COIN_SHEET.src]: images.coin,
-        [FRUIT_SHEET.src]: images.fruit,
-        [WORLD_TILESET_SHEET.src]: images.tileset,
-        [CRACK_OVERLAY_SHEET.src]: images.crackOverlay,
-        [CHEST_CLOSED_SHEET.src]: images.chestClosed,
-      },
-      originX: panOffset.x,
-      originY: panOffset.y,
-      worldElapsed: 0,
-    };
+      if (images.tileset && images.groundAtlas) {
+        drawTerrain(
+          ctx,
+          gridToLevelDef(grid),
+          images.tileset,
+          images.groundAtlas,
+          panOffset.x,
+          panOffset.y,
+        );
+      }
 
-    drawCollectibles(ctx, synthesizeCollectiblePlacements(grid), new Set(), drawContext);
+      if (images.tileset) {
+        drawSigns(ctx, synthesizeSignPlacements(grid), images.tileset, panOffset.x, panOffset.y);
+      }
+      drawSignBadges(ctx, grid, panOffset.x, panOffset.y);
+      drawPatrolMarkers(ctx, grid, panOffset.x, panOffset.y);
 
-    drawEnemies(ctx, synthesizeEnemyStates(grid), drawContext);
+      const drawContext: DrawContext = {
+        ctx,
+        sprites: {
+          [SLIME_GREEN_SHEET.src]: images.slimeGreen,
+          [SLIME_PURPLE_SHEET.src]: images.slimePurple,
+          [COIN_SHEET.src]: images.coin,
+          [FRUIT_SHEET.src]: images.fruit,
+          [WORLD_TILESET_SHEET.src]: images.tileset,
+          [CRACK_OVERLAY_SHEET.src]: images.crackOverlay,
+          [CHEST_CLOSED_SHEET.src]: images.chestClosed,
+        },
+        originX: panOffset.x,
+        originY: panOffset.y,
+        worldElapsed: 0,
+      };
 
-    drawBlocks(ctx, synthesizeBlockStates(grid), drawContext);
+      drawCollectibles(ctx, synthesizeCollectiblePlacements(grid), new Set(), drawContext);
 
-    drawChests(ctx, synthesizeChestStates(grid), drawContext);
+      drawEnemies(ctx, synthesizeEnemyStates(grid), drawContext);
 
-    const player = synthesizePlayerState(grid);
-    if (player && images.player) {
-      drawPlayer(ctx, player, images.player, panOffset.x, panOffset.y, null, true);
+      drawBlocks(ctx, synthesizeBlockStates(grid), drawContext);
+
+      drawChests(ctx, synthesizeChestStates(grid), drawContext);
+
+      const player = synthesizePlayerState(grid);
+      if (player && images.player) {
+        drawPlayer(ctx, player, images.player, panOffset.x, panOffset.y, null, true);
+      }
+    } finally {
+      ctx.restore();
     }
     // `canvasSize` is read only via `canvas.width`/`canvas.height` above,
     // not referenced directly here — but it MUST stay a dependency.
@@ -319,7 +357,7 @@ export const EditorCanvas = ({
     // nothing would redraw it until some unrelated state change (a paint
     // or pan) happened to run this effect again — the canvas would sit
     // invisible until the next interaction "fixed" it as a side effect.
-  }, [grid, panOffset, images, canvasSize]);
+  }, [grid, panOffset, images, canvasSize, backgroundPlacements, activeLayer]);
 
   const cellFromEvent = (clientX: number, clientY: number) => {
     const rect = canvasRef.current!.getBoundingClientRect();
@@ -341,6 +379,20 @@ export const EditorCanvas = ({
       };
       return;
     }
+
+    if (activeLayer === 'background') {
+      const { col, row } = cellFromEvent(event.clientX, event.clientY);
+      const isErase = event.button === 2;
+      const next = isErase
+        ? eraseBackgroundCell(backgroundPlacements, col, row)
+        : selectedBackgroundPiece
+          ? placeBackgroundPiece(backgroundPlacements, selectedBackgroundPiece, col, row)
+          : backgroundPlacements;
+      dragRef.current = { mode: 'paintBackground', isErase, lastCol: col, lastRow: row };
+      onPaintBackground(next);
+      return;
+    }
+
     // Right-click always erases, regardless of the selected palette tool;
     // left-click paints with it.
     const tool = event.button === 2 ? '.' : selectedTool;
@@ -364,6 +416,19 @@ export const EditorCanvas = ({
       const dy = event.clientY - drag.lastY;
       dragRef.current = { ...drag, lastX: event.clientX, lastY: event.clientY };
       onPan(updatePanOffset(panOffset, dx, dy));
+      return;
+    }
+
+    if (drag.mode === 'paintBackground') {
+      const { col, row } = cellFromEvent(event.clientX, event.clientY);
+      if (col === drag.lastCol && row === drag.lastRow) return;
+      const next = drag.isErase
+        ? eraseBackgroundCell(backgroundPlacements, col, row)
+        : selectedBackgroundPiece
+          ? placeBackgroundPiece(backgroundPlacements, selectedBackgroundPiece, col, row)
+          : backgroundPlacements;
+      dragRef.current = { ...drag, lastCol: col, lastRow: row };
+      onPaintBackground(next);
       return;
     }
 

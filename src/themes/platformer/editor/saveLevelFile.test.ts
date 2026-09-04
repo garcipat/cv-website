@@ -37,32 +37,48 @@ describe('levelFileName', () => {
 });
 
 describe('levelFileJson', () => {
-  const grid = importLayout(SCRATCH_LAYOUT);
+  const layout = exportLayout(importLayout(SCRATCH_LAYOUT));
 
-  it('holdsTheGivenNameAndTheExportedLayout', () => {
-    expect(JSON.parse(levelFileJson('Cave Run', grid))).toEqual({
+  it('holdsTheGivenNameAndLayout', () => {
+    expect(JSON.parse(levelFileJson('Cave Run', layout, []))).toEqual({
       name: 'Cave Run',
-      layout: exportLayout(grid),
+      layout,
     });
   });
 
   it('isPrettyPrintedSoTheFileIsReadableInTheRepo', () => {
-    expect(levelFileJson('Cave Run', grid)).toContain('\n  "name"');
+    expect(levelFileJson('Cave Run', layout, [])).toContain('\n  "name"');
   });
 
   it('endsWithANewline', () => {
-    expect(levelFileJson('Cave Run', grid).endsWith('\n')).toBe(true);
+    expect(levelFileJson('Cave Run', layout, []).endsWith('\n')).toBe(true);
   });
 
   // SC-012: a file the editor saved has to be a file the registry accepts.
   it('roundTripsBackThroughTheRegistryToAGridEqualToTheSavedOne', () => {
     const entries = parseLevelModules({
-      './levels/cave-run.json': { default: JSON.parse(levelFileJson('Cave Run', grid)) },
+      './levels/cave-run.json': { default: JSON.parse(levelFileJson('Cave Run', layout, [])) },
     });
 
     expect(entries).toHaveLength(1);
     expect(entries[0].name).toBe('Cave Run');
-    expect(importLayout(entries[0].layout)).toEqual(grid);
+    expect(importLayout(entries[0].layout)).toEqual(importLayout(layout));
+  });
+});
+
+describe('levelFileJson — background field', () => {
+  it('nonEmptyBackground-isIncludedInTheSerializedJson', () => {
+    const json = levelFileJson('Cave', ['S'], [{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }]);
+    expect(JSON.parse(json)).toEqual({
+      name: 'Cave',
+      layout: ['S'],
+      background: [{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }],
+    });
+  });
+
+  it('emptyBackground-isOmittedFromTheSerializedJson', () => {
+    const json = levelFileJson('Plain', ['S'], []);
+    expect(JSON.parse(json)).toEqual({ name: 'Plain', layout: ['S'] });
   });
 });
 
@@ -82,7 +98,7 @@ describe('downloadLevelFile', () => {
     setUpObjectUrl();
     const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
 
-    downloadLevelFile('Cave Run', importLayout(SCRATCH_LAYOUT));
+    downloadLevelFile('Cave Run', SCRATCH_LAYOUT, []);
 
     expect(click).toHaveBeenCalledOnce();
     const anchor = click.mock.instances[0] as HTMLAnchorElement;
@@ -94,7 +110,7 @@ describe('downloadLevelFile', () => {
     const { createObjectURL, revokeObjectURL } = setUpObjectUrl();
     vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
 
-    downloadLevelFile('Cave Run', importLayout(SCRATCH_LAYOUT));
+    downloadLevelFile('Cave Run', SCRATCH_LAYOUT, []);
 
     expect(createObjectURL).toHaveBeenCalledOnce();
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:level');
@@ -104,7 +120,7 @@ describe('downloadLevelFile', () => {
     setUpObjectUrl();
     vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
 
-    downloadLevelFile('Cave Run', importLayout(SCRATCH_LAYOUT));
+    downloadLevelFile('Cave Run', SCRATCH_LAYOUT, []);
 
     expect(document.querySelectorAll('a[download]')).toHaveLength(0);
   });
@@ -138,12 +154,12 @@ describe('saveLevel', () => {
     json: () => Promise.resolve({ path }),
   });
 
-  const grid = importLayout(SCRATCH_LAYOUT);
+  const layout = SCRATCH_LAYOUT;
 
   it('devServerAccepts-postsTheSlugifiedFileNameAndContentsToTheWriteEndpoint', async () => {
     const fetchMock = stubFetch(okResponse('src/themes/platformer/level/levels/cave-run.json'));
 
-    await saveLevel('Cave Run', grid);
+    await saveLevel('Cave Run', layout, []);
 
     expect(fetchMock).toHaveBeenCalledOnce();
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
@@ -151,7 +167,7 @@ describe('saveLevel', () => {
     expect(init.method).toBe('POST');
     expect(JSON.parse(init.body as string)).toEqual({
       fileName: 'cave-run.json',
-      contents: levelFileJson('Cave Run', grid),
+      contents: levelFileJson('Cave Run', layout, []),
     });
   });
 
@@ -159,7 +175,7 @@ describe('saveLevel', () => {
     stubFetch(okResponse('src/themes/platformer/level/levels/cave-run.json'));
     const click = stubDownload();
 
-    const result = await saveLevel('Cave Run', grid);
+    const result = await saveLevel('Cave Run', layout, []);
 
     expect(result).toEqual({
       written: true,
@@ -172,7 +188,7 @@ describe('saveLevel', () => {
     stubFetch({ ok: false, status: 404, json: () => Promise.resolve({}) });
     const click = stubDownload();
 
-    const result = await saveLevel('Cave Run', grid);
+    const result = await saveLevel('Cave Run', layout, []);
 
     expect(result.written).toBe(false);
     expect(click).toHaveBeenCalledOnce();
@@ -183,7 +199,7 @@ describe('saveLevel', () => {
     stubFetch(new Error('offline'));
     const click = stubDownload();
 
-    const result = await saveLevel('Cave Run', grid);
+    const result = await saveLevel('Cave Run', layout, []);
 
     expect(result.written).toBe(false);
     expect(click).toHaveBeenCalledOnce();
@@ -197,7 +213,7 @@ describe('saveLevel', () => {
     });
     const click = stubDownload();
 
-    const result = await saveLevel('Cave Run', grid);
+    const result = await saveLevel('Cave Run', layout, []);
 
     expect(result).toEqual({
       written: false,
