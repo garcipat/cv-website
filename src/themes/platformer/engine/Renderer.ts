@@ -353,11 +353,17 @@ export function drawTerrain(
         continue;
       }
 
-      if (staticObjects && (tile === 'fence' || tile === 'bush')) {
-        const entry =
-          tile === 'fence'
-            ? staticObjectEntry('fence', col, row)
-            : bushOrTreeEntry(verticalRunRole(level, col, row, 'bush'), col, row);
+      if (tile === 'bush') {
+        const entry = bushOrTreeEntry(verticalRunRole(level, col, row, 'bush'), col, row);
+        ctx.drawImage(
+          tileset, entry.sx, entry.sy, TILE_SIZE, TILE_SIZE,
+          destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
+        );
+        continue;
+      }
+
+      if (staticObjects && tile === 'fence') {
+        const entry = staticObjectEntry('fence', col, row);
         ctx.drawImage(
           staticObjects, entry.sx, entry.sy, TILE_SIZE, TILE_SIZE,
           destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,

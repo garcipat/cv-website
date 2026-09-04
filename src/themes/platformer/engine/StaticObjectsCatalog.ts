@@ -11,13 +11,18 @@ export interface StaticObjectEntry {
  *  role gains more than one variant — with exactly one variant per role
  *  today, every position resolves to that single entry. */
 const BUSH_OR_TREE_VARIANTS: Record<VerticalRunRole, StaticObjectEntry[]> = {
-  only: [{ sx: 0, sy: 48 }],
-  bottom: [{ sx: 16, sy: 48 }],
-  middle: [{ sx: 16, sy: 32 }],
-  top: [{ sx: 16, sy: 16 }],
+  only: [
+    { sx: 16, sy: 48 },
+    { sx: 16, sy: 64 },
+    { sx: 16, sy: 80 },
+    { sx: 16, sy: 96 },
+  ],
+  bottom: [{ sx: 0, sy: 80 }],
+  middle: [{ sx: 0, sy: 64 }],
+  top: [{ sx: 0, sy: 48 }],
 };
 
-const FENCE_VARIANTS: StaticObjectEntry[] = [{ sx: 240, sy: 112 }];
+const FENCE_VARIANTS: StaticObjectEntry[] = [{ sx: 32, sy: 64 }];
 
 function pickVariant<T>(variants: readonly T[], col: number, row: number): T {
   // Every variants array today is a non-empty literal declared above, but
@@ -28,7 +33,15 @@ function pickVariant<T>(variants: readonly T[], col: number, row: number): T {
   if (variants.length === 0) {
     throw new Error('pickVariant: no variants provided');
   }
-  const index = (col * 31 + row * 17) % variants.length;
+  // A plain `(col * a + row * b) % n` cycles through variants in a fixed
+  // order as col increases by 1 (period `n`) — visually that reads as
+  // "small, medium, large, small, medium, large, ..." rather than varied,
+  // especially when `n` is small (like 4 bush sizes). Multiplying by two
+  // large, unrelated constants (Math.imul keeps this in 32-bit int math)
+  // before XOR-ing scrambles the low bits enough that adjacent columns
+  // don't fall into an obvious short repeating sequence.
+  const hash = (Math.imul(col, 374761393) ^ Math.imul(row, 668265263)) >>> 0;
+  const index = hash % variants.length;
   return variants[index];
 }
 
