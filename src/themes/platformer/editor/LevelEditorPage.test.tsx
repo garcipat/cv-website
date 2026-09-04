@@ -668,4 +668,33 @@ describe('LevelEditorPage — background layer', () => {
 
     await waitFor(() => expect(editorDirtySignal.value).toBe(true));
   });
+
+  it('shifts existing backgroundPlacements by colShift/rowShift when a FOREGROUND paint grows the grid, keeping the two layers from drifting apart (Task 20 gap #1)', async () => {
+    render(<LevelEditorPage />);
+    await waitFor(() => expect(drawTerrain).toHaveBeenCalled());
+
+    // Place a background piece first, well inside the current grid (no
+    // growth expected from this paint) — this is the placement that must
+    // move when the FOREGROUND grid grows next.
+    fireEvent.click(screen.getByRole('button', { name: 'Background' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Dirt Column Top (1×1)' }));
+    paintBackgroundOnce();
+    await waitFor(() => expect(editorBackgroundSignal.value.length).toBeGreaterThan(0));
+    const placedCol = editorBackgroundSignal.value[0].col;
+    const placedRow = editorBackgroundSignal.value[0].row;
+
+    // Switch back to the foreground layer and paint one column left of the
+    // grid's current left edge, growing it left by one column.
+    fireEvent.click(screen.getByRole('button', { name: 'Foreground' }));
+    const canvas = document.querySelector('canvas')!;
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
+    const callsBefore = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls;
+    const [, , , , originXBefore] = callsBefore[callsBefore.length - 1];
+    fireEvent.mouseDown(canvas, { button: 0, clientX: originXBefore - 1, clientY: 1 });
+
+    await waitFor(() => {
+      expect(editorBackgroundSignal.value[0].col).toBe(placedCol + 1);
+      expect(editorBackgroundSignal.value[0].row).toBe(placedRow);
+    });
+  });
 });
