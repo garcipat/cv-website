@@ -49,6 +49,7 @@ export interface EditorImages {
   crackOverlay: HTMLImageElement | null;
   chestClosed: HTMLImageElement | null;
   backgroundAtlas: HTMLImageElement | null;
+  staticObjects: HTMLImageElement | null;
 }
 
 interface EditorCanvasProps {
@@ -308,6 +309,7 @@ export const EditorCanvas = ({
           images.groundAtlas,
           panOffset.x,
           panOffset.y,
+          images.staticObjects,
         );
       }
 

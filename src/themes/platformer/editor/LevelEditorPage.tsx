@@ -23,7 +23,7 @@ import {
 } from './editorLevelState';
 import { resetGameProgress } from '../PlatformerState';
 import { loadImage } from '../engine/SpriteLoader';
-import { TERRAIN_BACKGROUND_SHEET } from '../entities/sprites/sheets';
+import { TERRAIN_BACKGROUND_SHEET, STATIC_OBJECTS_SHEET } from '../entities/sprites/sheets';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -51,6 +51,7 @@ const EMPTY_IMAGES: EditorImages = {
   crackOverlay: null,
   chestClosed: null,
   backgroundAtlas: null,
+  staticObjects: null,
 };
 
 const IMAGE_SOURCES: { key: keyof EditorImages; src: string }[] = [
@@ -64,6 +65,7 @@ const IMAGE_SOURCES: { key: keyof EditorImages; src: string }[] = [
   { key: 'crackOverlay', src: '/sprites/crack_overlay.png' },
   { key: 'chestClosed', src: '/sprites/chest_closed.png' },
   { key: 'backgroundAtlas', src: TERRAIN_BACKGROUND_SHEET.src },
+  { key: 'staticObjects', src: STATIC_OBJECTS_SHEET.src },
 ];
 
 // How long to wait after the last paint stroke before syncing `grid` into

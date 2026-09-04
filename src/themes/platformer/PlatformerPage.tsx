@@ -108,6 +108,7 @@ import {
   CRACK_OVERLAY_SHEET,
   GROUND_ATLAS_SHEET,
   TERRAIN_BACKGROUND_SHEET,
+  STATIC_OBJECTS_SHEET,
 } from './entities/sprites/sheets';
 import { frameSource, collectSheetSources } from './entities/sprites/SpriteSheet';
 import type { SpriteLookup } from './entities/sprites/SpriteSheet';
@@ -177,6 +178,7 @@ export const PlatformerPage = () => {
   const tilesetRef = useRef<HTMLImageElement | null>(null);
   const groundAtlasRef = useRef<HTMLImageElement | null>(null);
   const backgroundAtlasRef = useRef<HTMLImageElement | null>(null);
+  const staticObjectsRef = useRef<HTMLImageElement | null>(null);
   const playerSpriteRef = useRef<HTMLImageElement | null>(null);
   const playerJumpSpriteRef = useRef<HTMLImageElement | null>(null);
   const heartsSpriteRef = useRef<HTMLImageElement | null>(null);
@@ -451,6 +453,7 @@ export const PlatformerPage = () => {
             groundAtlasRef.current,
             originX,
             originY,
+            staticObjectsRef.current,
           );
         }
         drawSigns(ctx, signPlacements.value, tilesetRef.current, originX, originY);
@@ -1490,6 +1493,16 @@ export const PlatformerPage = () => {
         // The background tile layer is purely decorative — it simply won't
         // render if this atlas fails to load; the sky, terrain and the rest
         // of the game still show.
+      });
+    loadImage(STATIC_OBJECTS_SHEET.src)
+      .then((img) => {
+        if (cancelled) return;
+        staticObjectsRef.current = img;
+        render();
+      })
+      .catch(() => {
+        // Bush/fence are purely decorative — they simply won't render if this
+        // atlas fails to load; the rest of the level still shows.
       });
     loadImage('/sprites/knight.png')
       .then((img) => {
