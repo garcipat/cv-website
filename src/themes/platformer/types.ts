@@ -123,9 +123,13 @@ export interface EnemyDef {
  */
 export interface BlockDef {
   id: string;
-  blockKind: 'crate' | 'questionMark' | 'fragileRock';
-  /** Present only when `blockKind === 'crate'` — question-mark and fragileRock
-   *  blocks reveal no CV fact. */
+  blockKind: 'crate' | 'questionMark' | 'fragileRock' | 'coinPot';
+  /** Present when `blockKind === 'crate'`, or when a `coinPot` claimed a
+   *  leftover skill-category def (see BlockMapper.ts's
+   *  `mapSkillCollectiblesToCoinPotBlocks`) — question-mark and fragileRock
+   *  blocks never carry a fact, and a coin-pot marker beyond the available
+   *  leftover defs is still placed, just with no fact (mirrors
+   *  questionMark's own "marker beyond CVData's length" tolerance). */
   fact?: CollectedFact;
 }
 
