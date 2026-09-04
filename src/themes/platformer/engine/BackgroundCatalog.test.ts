@@ -70,4 +70,8 @@ describe('BackgroundCatalog', () => {
     const entry = backgroundCatalogEntry(pieceId);
     expect(entry).toEqual(EXPECTED_ENTRIES[pieceId]);
   });
+
+  it('unknownPieceId-returnsUndefinedInsteadOfThrowing', () => {
+    expect(backgroundCatalogEntry('notARealPieceId' as BackgroundPieceId)).toBeUndefined();
+  });
 });
