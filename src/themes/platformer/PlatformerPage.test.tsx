@@ -124,18 +124,18 @@ const PLAIN_ENEMY_OFFSET_X = 5 * RENDERED_TILE_SIZE;
 
 /** How far right of a real crate the synthetic coin-pot blocks in the
  *  coin-pot landing tests below are placed — same reasoning as
- *  PLAIN_ENEMY_OFFSET_X above (real level has no `u` marker yet, so a
- *  coin-pot block for these tests is injected directly into `blockStates`
- *  rather than sourced from `blockPlacements`; offsetting keeps it clear of
- *  the real crate it borrows its row from). */
+ *  PLAIN_ENEMY_OFFSET_X above (offsetting keeps the synthetic block clear of
+ *  the real crate it borrows its row from, and of any real coin-pot already
+ *  placed nearby by the level layout). */
 const COIN_POT_TEST_OFFSET_X = 5 * RENDERED_TILE_SIZE;
 
 /** Builds a synthetic coin-pot `BlockState` positioned a fixed offset right
  *  of a real crate's own row (borrowing its y so the block sits somewhere
- *  the level already has open space), and injects it into `blockStates` —
- *  the level layout has no `u` marker yet (Task 12), so `blockPlacements`
- *  carries no real coin-pot to find; this constructs the live BlockState
- *  directly instead, per this task's brief. */
+ *  the level already has open space), and injects it into `blockStates`
+ *  directly rather than sourcing it from `blockPlacements` — this keeps
+ *  these tests independent of exactly where the level layout's real `u`
+ *  markers sit. Callers must look the block up by the returned `id`, not by
+ *  `blockKind`, since the real level now has its own coin-pots too. */
 function placeTestCoinPot(id: string, fact?: BlockState['fact']): BlockState {
   const crate = blockPlacements.value.find((b) => b.blockKind === 'crate')!;
   const pot = toBlockState({
@@ -1439,7 +1439,7 @@ describe('PlatformerPage', () => {
       // `blockStates` entirely (Block.ts's isBlockRemoved).
       frameCallback!(16);
 
-      expect(blockStates.value.find((b) => b.blockKind === 'coinPot')?.hitsTaken).toBe(1);
+      expect(blockStates.value.find((b) => b.id === pot.id)?.hitsTaken).toBe(1);
       expect(playerState.value.vy).toBe(PHYSICS_CONFIG.coinPotBounceVelocity);
       expect(playerState.value.bounceAscending).toBe(true);
     });

@@ -114,6 +114,8 @@ import {
 //          bonus fruit rather than carrying a fact of its own
 //   F  5   fragileRock block — no fact; the two surface plugs plus filler
 //   T  5   chest — one per experience entry; opening all five ends the run
+//   u  3   coin-pot — destroyed by landing on top, drops a coin (2 adjacent
+//          + 1 isolated, to exercise the merged-run rendering)
 //
 // A question-mark's fruit rests in the tile directly above the block and stays
 // there, so a `Q` is only ever placed under open sky — one inside a cave would
@@ -142,7 +144,7 @@ export const LEVEL_1_LAYOUT: readonly string[] = [
   '........................................E...C....................................................C...........M........................................................................E..C.GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   '........................XQ........GGGGGGGGGGGGGGG.......................................Q......GGGGGGG.....GGGGGGG....XQFQ.........................................................RRRRRRRRGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   '..................................GGGGGGGGGGGGGGG..................................................................................................................................GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
-  '..S.5..C...C.........E.......E..2.GGGGGGGGGGGGGGG.........E......1.....................................E.C..........E.....E.......E........................E.................W.E..WGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  '..S.5..C...C.........E.......E..2.GGGGGGGGGGGGGGGuu.u.....E......1.....................................E.C..........E.....E.......E........................E.................W.E..WGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGGBBBGGGGGGGGGGGGGGLGGGGGGGGGGGGGGGGGGGGGGLGGGGGGLGGBBBGGGGGGGGGGGGGGGGGFFGGGGGGGGGG...GGGGGGGGGBBBGGGGGGGGGGGGGGGRRLRRRRRRRRRRRRGGGGGGGGGGGGGGGGGGGGGGGGGLGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.L......................L.GGGG.L..........X................GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..L...............X...X.................L....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.L......................L.GGGG.L.....................3.....GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..L.....................................L....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
