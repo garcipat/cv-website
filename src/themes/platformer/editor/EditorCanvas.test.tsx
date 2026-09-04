@@ -909,4 +909,30 @@ describe('EditorCanvas — background layer', () => {
 
     expect(alphaDuringDrawTerrain).toBe(1);
   });
+
+  it('backgroundLayerActive-drawsPlayerAtReducedOpacityToo', () => {
+    stubCanvasContext();
+    const player = {} as HTMLImageElement;
+    let alphaDuringDrawPlayer: number | undefined;
+    (drawPlayer as ReturnType<typeof vi.fn>).mockImplementation((ctx: CanvasRenderingContext2D) => {
+      alphaDuringDrawPlayer = ctx.globalAlpha;
+    });
+
+    render(
+      <EditorCanvas
+        grid={[['S']]}
+        selectedTool="."
+        panOffset={{ x: 0, y: 0 }}
+        images={{ ...EMPTY_IMAGES, player }}
+        backgroundPlacements={[]}
+        activeLayer="background"
+        selectedBackgroundPiece={null}
+        onPaint={vi.fn()}
+        onPaintBackground={vi.fn()}
+        onPan={vi.fn()}
+      />,
+    );
+
+    expect(alphaDuringDrawPlayer).toBe(0.35);
+  });
 });

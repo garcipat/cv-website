@@ -288,14 +288,18 @@ export const EditorCanvas = ({
       );
     }
 
-    // While the Background layer is active, the foreground terrain is dimmed
-    // (rather than hidden) so the painter can still see where platforms will
-    // sit without them obscuring the background pieces being placed
-    // underneath — mid-execution addition to the original design.
+    // While the Background layer is active, the entire foreground scene —
+    // terrain plus every entity/marker drawn on top of it — is dimmed
+    // (rather than hidden) so the painter can still see where platforms and
+    // entities will sit without them obscuring the background pieces being
+    // placed underneath. `drawBackgroundTiles` above stays outside this
+    // wrapper always, since it's the layer being emphasized, never dimmed —
+    // mid-execution addition to the original design.
     const foregroundAlpha = activeLayer === 'background' ? 0.35 : 1;
+    ctx.save();
+    ctx.globalAlpha = foregroundAlpha;
+
     if (images.tileset && images.groundAtlas) {
-      ctx.save();
-      ctx.globalAlpha = foregroundAlpha;
       drawTerrain(
         ctx,
         gridToLevelDef(grid),
@@ -304,7 +308,6 @@ export const EditorCanvas = ({
         panOffset.x,
         panOffset.y,
       );
-      ctx.restore();
     }
 
     if (images.tileset) {
@@ -341,6 +344,8 @@ export const EditorCanvas = ({
     if (player && images.player) {
       drawPlayer(ctx, player, images.player, panOffset.x, panOffset.y, null, true);
     }
+
+    ctx.restore();
     // `canvasSize` is read only via `canvas.width`/`canvas.height` above,
     // not referenced directly here — but it MUST stay a dependency.
     // Changing a <canvas> element's width/height attribute clears its
