@@ -36,6 +36,40 @@ vi.mock('../engine/Renderer', () => ({
   drawBackgroundTiles: vi.fn(),
 }));
 
+// Adds one extra registry entry whose `background` mixes a valid, current
+// pieceId with an unresolvable one — simulating a placement left over from a
+// since-trimmed catalog (this branch's own catalog has been trimmed twice
+// already). Every other test keeps using the real registry unchanged; this
+// entry is additional, not a replacement, so it can't affect any test that
+// picks 'main'/'empty'/'Cave Run' etc. by name.
+//
+// Defined via vi.hoisted since vi.mock factories are hoisted above normal
+// top-level const declarations — referencing a plain const here would throw
+// a "before initialization" error.
+const { STALE_BACKGROUND_LEVEL } = vi.hoisted(() => ({
+  STALE_BACKGROUND_LEVEL: {
+    id: 'stale-background-level',
+    name: 'stale-background-level',
+    layout: ['...', '...', '...'],
+    background: [
+      { pieceId: 'dirtColumnTop1x1', col: 0, row: 0 },
+      // Simulates a placement left over from a since-trimmed catalog — not a
+      // real BackgroundPieceId, hence the cast.
+      { pieceId: 'notARealPieceId', col: 1, row: 0 },
+    ],
+  },
+}));
+
+vi.mock('../level/levelRegistry', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../level/levelRegistry')>();
+  const LEVELS = [...actual.LEVELS, STALE_BACKGROUND_LEVEL];
+  return {
+    ...actual,
+    LEVELS,
+    findLevel: (id: string) => LEVELS.find((entry) => entry.id === id),
+  };
+});
+
 import { drawTerrain } from '../engine/Renderer';
 
 beforeEach(() => {
@@ -695,6 +729,21 @@ describe('LevelEditorPage — background layer', () => {
     await waitFor(() => {
       expect(editorBackgroundSignal.value[0].col).toBe(placedCol + 1);
       expect(editorBackgroundSignal.value[0].row).toBe(placedRow);
+    });
+  });
+
+  it('loadingALevelWithAnUnresolvablePieceId-silentlyDropsOnlyThatPlacement', async () => {
+    render(<LevelEditorPage />);
+
+    fireEvent.click(screen.getByRole('combobox'));
+    await userEvent.click(
+      await screen.findByRole('option', { name: 'stale-background-level' }),
+    );
+
+    await waitFor(() => {
+      expect(editorBackgroundSignal.value).toEqual([
+        { pieceId: 'dirtColumnTop1x1', col: 0, row: 0 },
+      ]);
     });
   });
 });
