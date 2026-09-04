@@ -102,7 +102,7 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   exists from 35a, capture it as a reusable pattern and add an editor action that
   expands it (staggered, to avoid a visible repeat seam) across a larger area. Depends
   on 35a landing first.
-- [ ] **36. Foreground decoration tiles (bush/tree, fence)** — two new purely-visual
+- [x] **36. Foreground decoration tiles (bush/tree, fence)** — two new purely-visual
   terrain tiles painted directly into the level layout like any other terrain
   character: `n` (bush/tree — a lone tile is a bush, stacking `n` vertically with no
   upper limit grows a tree from a root, repeatable trunk, and canopy piece) and `N`
