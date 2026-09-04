@@ -47,4 +47,14 @@ describe('eraseBackgroundCell', () => {
     const result = eraseBackgroundCell(existing, 5, 0);
     expect(result).toEqual([{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }]);
   });
+
+  it('erasingAtAnUnresolvablePlacementsAnchor-leavesItInPlace', () => {
+    // An unknown pieceId has no catalog entry, so its footprint is treated as
+    // empty and it never reports as covering its own anchor cell.
+    const existing: BackgroundPlacement[] = [
+      { pieceId: 'notARealPieceId' as BackgroundPlacement['pieceId'], col: 0, row: 0 },
+    ];
+    const result = eraseBackgroundCell(existing, 0, 0);
+    expect(result).toEqual(existing);
+  });
 });

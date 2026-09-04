@@ -21,11 +21,12 @@ const PIECE_IDS: BackgroundPieceId[] = [
 describe('BackgroundCatalog', () => {
   it.each(PIECE_IDS)('%s-resolvesToARectInsideTheSheetOnA16pxGrid', (pieceId) => {
     const entry = backgroundCatalogEntry(pieceId);
+    expect(entry).toBeDefined();
 
-    expect(entry.sx % TILE_SIZE).toBe(0);
-    expect(entry.sy % TILE_SIZE).toBe(0);
-    expect(entry.sx + entry.widthTiles * TILE_SIZE).toBeLessThanOrEqual(SHEET_WIDTH);
-    expect(entry.sy + entry.heightTiles * TILE_SIZE).toBeLessThanOrEqual(SHEET_HEIGHT);
+    expect(entry!.sx % TILE_SIZE).toBe(0);
+    expect(entry!.sy % TILE_SIZE).toBe(0);
+    expect(entry!.sx + entry!.widthTiles * TILE_SIZE).toBeLessThanOrEqual(SHEET_WIDTH);
+    expect(entry!.sy + entry!.heightTiles * TILE_SIZE).toBeLessThanOrEqual(SHEET_HEIGHT);
   });
 
   it('everyPieceFootprint-isNoBiggerThan3x3Tiles', () => {
@@ -47,10 +48,12 @@ describe('BackgroundCatalog', () => {
   it.each(DIRT_CHARCOAL_PAIRS)('%s-and-%s-shareTheSameShapeAt80pxApart', (dirtId, charcoalId) => {
     const dirt = backgroundCatalogEntry(dirtId);
     const charcoal = backgroundCatalogEntry(charcoalId);
-    expect(charcoal.sx).toBe(dirt.sx);
-    expect(charcoal.sy).toBe(dirt.sy + 80);
-    expect(charcoal.widthTiles).toBe(dirt.widthTiles);
-    expect(charcoal.heightTiles).toBe(dirt.heightTiles);
+    expect(dirt).toBeDefined();
+    expect(charcoal).toBeDefined();
+    expect(charcoal!.sx).toBe(dirt!.sx);
+    expect(charcoal!.sy).toBe(dirt!.sy + 80);
+    expect(charcoal!.widthTiles).toBe(dirt!.widthTiles);
+    expect(charcoal!.heightTiles).toBe(dirt!.heightTiles);
   });
 
   const EXPECTED_ENTRIES: Record<BackgroundPieceId, { sx: number; sy: number; widthTiles: number; heightTiles: number }> = {

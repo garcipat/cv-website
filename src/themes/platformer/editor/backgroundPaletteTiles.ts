@@ -1,8 +1,9 @@
 import type { TileSpriteSpec } from './paletteTiles';
 import { BACKGROUND_CATALOG } from '../engine/BackgroundCatalog';
 import type { BackgroundPieceId } from '../level/LevelData';
+import { TERRAIN_BACKGROUND_SHEET } from '../entities/sprites/sheets';
 
-const SHEET = '/sprites/terrain_.png';
+const SHEET = TERRAIN_BACKGROUND_SHEET.src;
 const SHEET_WIDTH = 128;
 const SHEET_HEIGHT = 320;
 

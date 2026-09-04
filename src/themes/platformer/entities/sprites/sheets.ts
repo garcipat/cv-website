@@ -89,6 +89,18 @@ export const CRACK_OVERLAY_SHEET: SpriteSheet = {
   columns: 1,
 };
 
+/** `terrain_.png` is a 128x320 sheet of 16px tiles: the purely-visual
+ *  background layer's dirt/charcoal pieces. `BackgroundCatalog.ts` addresses
+ *  it through its own sx/sy lookup per piece, not by frame index — like
+ *  `WORLD_TILESET_SHEET`/`GROUND_ATLAS_SHEET`, this registration exists for
+ *  loading, not addressing. */
+export const TERRAIN_BACKGROUND_SHEET: SpriteSheet = {
+  src: '/sprites/terrain_.png',
+  frameWidth: TILE_SIZE,
+  frameHeight: TILE_SIZE,
+  columns: 8,
+};
+
 /** The chest's two states are separate standalone images of different sizes,
  *  so each is its own one-frame sheet. */
 export const CHEST_CLOSED_SHEET: SpriteSheet = {

@@ -297,55 +297,57 @@ export const EditorCanvas = ({
     // mid-execution addition to the original design.
     const foregroundAlpha = activeLayer === 'background' ? 0.2 : 1;
     ctx.save();
-    ctx.globalAlpha = foregroundAlpha;
+    try {
+      ctx.globalAlpha = foregroundAlpha;
 
-    if (images.tileset && images.groundAtlas) {
-      drawTerrain(
+      if (images.tileset && images.groundAtlas) {
+        drawTerrain(
+          ctx,
+          gridToLevelDef(grid),
+          images.tileset,
+          images.groundAtlas,
+          panOffset.x,
+          panOffset.y,
+        );
+      }
+
+      if (images.tileset) {
+        drawSigns(ctx, synthesizeSignPlacements(grid), images.tileset, panOffset.x, panOffset.y);
+      }
+      drawSignBadges(ctx, grid, panOffset.x, panOffset.y);
+      drawPatrolMarkers(ctx, grid, panOffset.x, panOffset.y);
+
+      const drawContext: DrawContext = {
         ctx,
-        gridToLevelDef(grid),
-        images.tileset,
-        images.groundAtlas,
-        panOffset.x,
-        panOffset.y,
-      );
+        sprites: {
+          [SLIME_GREEN_SHEET.src]: images.slimeGreen,
+          [SLIME_PURPLE_SHEET.src]: images.slimePurple,
+          [COIN_SHEET.src]: images.coin,
+          [FRUIT_SHEET.src]: images.fruit,
+          [WORLD_TILESET_SHEET.src]: images.tileset,
+          [CRACK_OVERLAY_SHEET.src]: images.crackOverlay,
+          [CHEST_CLOSED_SHEET.src]: images.chestClosed,
+        },
+        originX: panOffset.x,
+        originY: panOffset.y,
+        worldElapsed: 0,
+      };
+
+      drawCollectibles(ctx, synthesizeCollectiblePlacements(grid), new Set(), drawContext);
+
+      drawEnemies(ctx, synthesizeEnemyStates(grid), drawContext);
+
+      drawBlocks(ctx, synthesizeBlockStates(grid), drawContext);
+
+      drawChests(ctx, synthesizeChestStates(grid), drawContext);
+
+      const player = synthesizePlayerState(grid);
+      if (player && images.player) {
+        drawPlayer(ctx, player, images.player, panOffset.x, panOffset.y, null, true);
+      }
+    } finally {
+      ctx.restore();
     }
-
-    if (images.tileset) {
-      drawSigns(ctx, synthesizeSignPlacements(grid), images.tileset, panOffset.x, panOffset.y);
-    }
-    drawSignBadges(ctx, grid, panOffset.x, panOffset.y);
-    drawPatrolMarkers(ctx, grid, panOffset.x, panOffset.y);
-
-    const drawContext: DrawContext = {
-      ctx,
-      sprites: {
-        [SLIME_GREEN_SHEET.src]: images.slimeGreen,
-        [SLIME_PURPLE_SHEET.src]: images.slimePurple,
-        [COIN_SHEET.src]: images.coin,
-        [FRUIT_SHEET.src]: images.fruit,
-        [WORLD_TILESET_SHEET.src]: images.tileset,
-        [CRACK_OVERLAY_SHEET.src]: images.crackOverlay,
-        [CHEST_CLOSED_SHEET.src]: images.chestClosed,
-      },
-      originX: panOffset.x,
-      originY: panOffset.y,
-      worldElapsed: 0,
-    };
-
-    drawCollectibles(ctx, synthesizeCollectiblePlacements(grid), new Set(), drawContext);
-
-    drawEnemies(ctx, synthesizeEnemyStates(grid), drawContext);
-
-    drawBlocks(ctx, synthesizeBlockStates(grid), drawContext);
-
-    drawChests(ctx, synthesizeChestStates(grid), drawContext);
-
-    const player = synthesizePlayerState(grid);
-    if (player && images.player) {
-      drawPlayer(ctx, player, images.player, panOffset.x, panOffset.y, null, true);
-    }
-
-    ctx.restore();
     // `canvasSize` is read only via `canvas.width`/`canvas.height` above,
     // not referenced directly here — but it MUST stay a dependency.
     // Changing a <canvas> element's width/height attribute clears its

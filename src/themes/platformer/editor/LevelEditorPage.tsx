@@ -21,6 +21,7 @@ import {
 } from './editorLevelState';
 import { resetGameProgress } from '../PlatformerState';
 import { loadImage } from '../engine/SpriteLoader';
+import { TERRAIN_BACKGROUND_SHEET } from '../entities/sprites/sheets';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -60,7 +61,7 @@ const IMAGE_SOURCES: { key: keyof EditorImages; src: string }[] = [
   { key: 'slimePurple', src: '/sprites/slime_purple.png' },
   { key: 'crackOverlay', src: '/sprites/crack_overlay.png' },
   { key: 'chestClosed', src: '/sprites/chest_closed.png' },
-  { key: 'backgroundAtlas', src: '/sprites/terrain_.png' },
+  { key: 'backgroundAtlas', src: TERRAIN_BACKGROUND_SHEET.src },
 ];
 
 // How long to wait after the last paint stroke before syncing `grid` into
@@ -253,7 +254,7 @@ export const LevelEditorPage = () => {
       <h1 className="text-xl font-semibold">Platformer Level Editor</h1>
       <div className="flex min-h-0 flex-1 flex-row items-stretch gap-4">
         <div className="flex flex-col gap-2">
-          <div className="flex gap-2" aria-label="Layer">
+          <div className="flex gap-2" role="group" aria-label="Layer">
             <button
               type="button"
               aria-pressed={activeLayer === 'foreground'}

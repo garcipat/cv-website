@@ -107,6 +107,7 @@ import {
   KEY_SHEET,
   CRACK_OVERLAY_SHEET,
   GROUND_ATLAS_SHEET,
+  TERRAIN_BACKGROUND_SHEET,
 } from './entities/sprites/sheets';
 import { frameSource, collectSheetSources } from './entities/sprites/SpriteSheet';
 import type { SpriteLookup } from './entities/sprites/SpriteSheet';
@@ -1459,7 +1460,7 @@ export const PlatformerPage = () => {
         // Ground simply won't render if the atlas fails to load; the sky and
         // the background fill still show so the page isn't blank.
       });
-    loadImage('/sprites/terrain_.png')
+    loadImage(TERRAIN_BACKGROUND_SHEET.src)
       .then((img) => {
         if (cancelled) return;
         backgroundAtlasRef.current = img;
