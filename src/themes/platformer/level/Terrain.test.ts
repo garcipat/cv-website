@@ -9,6 +9,7 @@ import {
   bridgeRunPosition,
   horizontalRunPosition,
   neighbourMask,
+  verticalRunRole,
   NEIGHBOUR_UP,
   NEIGHBOUR_RIGHT,
   NEIGHBOUR_DOWN,
@@ -332,5 +333,42 @@ describe('isStandableLadderTop', () => {
   it('nonLadderTile-returnsFalse-regardlessOfWhatsAbove', () => {
     const level = parseLevel(['.', 'G', 'G']);
     expect(isStandableLadderTop(level, 0, 1)).toBe(false);
+  });
+});
+
+describe('verticalRunRole', () => {
+  it('noMatchingTileAboveOrBelow-returnsOnly', () => {
+    const level: LevelDef = { terrain: [['empty'], ['bush'], ['empty']], width: 1, height: 3 };
+    expect(verticalRunRole(level, 0, 1, 'bush')).toBe('only');
+  });
+
+  it('matchingTileBelowButNotAbove-returnsBottom', () => {
+    const level: LevelDef = { terrain: [['empty'], ['bush'], ['bush']], width: 1, height: 3 };
+    expect(verticalRunRole(level, 0, 2, 'bush')).toBe('bottom');
+  });
+
+  it('matchingTileAboveButNotBelow-returnsTop', () => {
+    const level: LevelDef = { terrain: [['bush'], ['bush'], ['empty']], width: 1, height: 3 };
+    expect(verticalRunRole(level, 0, 0, 'bush')).toBe('top');
+  });
+
+  it('matchingTilesAboveAndBelow-returnsMiddle', () => {
+    const level: LevelDef = { terrain: [['bush'], ['bush'], ['bush']], width: 1, height: 3 };
+    expect(verticalRunRole(level, 0, 1, 'bush')).toBe('middle');
+  });
+
+  it('topOfLevel-outOfBoundsAboveCountsAsEmpty-returnsTopNotMiddle', () => {
+    const level: LevelDef = { terrain: [['bush'], ['bush']], width: 1, height: 2 };
+    expect(verticalRunRole(level, 0, 0, 'bush')).toBe('top');
+  });
+
+  it('bottomOfLevel-outOfBoundsBelowCountsAsEmpty-returnsBottomNotMiddle', () => {
+    const level: LevelDef = { terrain: [['bush'], ['bush']], width: 1, height: 2 };
+    expect(verticalRunRole(level, 0, 1, 'bush')).toBe('bottom');
+  });
+
+  it('differentTileTypeAboveAndBelow-doesNotCountAsAMatch', () => {
+    const level: LevelDef = { terrain: [['wall'], ['bush'], ['wall']], width: 1, height: 3 };
+    expect(verticalRunRole(level, 0, 1, 'bush')).toBe('only');
   });
 });

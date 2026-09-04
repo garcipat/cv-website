@@ -129,3 +129,29 @@ export type BridgeRunPosition = RunPosition;
 export function bridgeRunPosition(level: LevelDef, col: number, row: number): RunPosition {
   return horizontalRunPosition(level, col, row, (l, c, r) => tileAt(l, c, r) === 'bridge');
 }
+
+export type VerticalRunRole = 'only' | 'bottom' | 'middle' | 'top';
+
+/**
+ * Classifies `(col, row)`'s position within a vertical run of `tile`-typed
+ * cells, by comparing only its immediate neighbours above and below —
+ * unlike `horizontalRunPosition`, this never counts a run's full length, so
+ * an arbitrarily tall stack (e.g. a tree with no height cap) costs no more
+ * to classify than a lone tile. `tileAt` already returns `'empty'` for any
+ * out-of-bounds row, so a cell at the top or bottom of the level correctly
+ * reads as having no matching neighbour there.
+ */
+export function verticalRunRole(
+  level: LevelDef,
+  col: number,
+  row: number,
+  tile: TileType,
+): VerticalRunRole {
+  const above = tileAt(level, col, row - 1) === tile;
+  const below = tileAt(level, col, row + 1) === tile;
+
+  if (!above && !below) return 'only';
+  if (!above && below) return 'top';
+  if (above && !below) return 'bottom';
+  return 'middle';
+}
