@@ -1,4 +1,3 @@
-import { TILE_SIZE } from '../level/Terrain';
 import type { VerticalRunRole } from '../level/Terrain';
 
 export interface StaticObjectEntry {
