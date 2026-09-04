@@ -5,6 +5,7 @@ import { STATIC_OBJECTS_SHEET } from '../sprites/sheets';
 import { TILE_SIZE, RENDERED_TILE_SIZE, RENDER_SCALE } from '../../level/Terrain';
 import { blockBumpOffsetY } from '../../engine/BlockAI';
 import { permutationForColumn } from './coinPotRenderPlan';
+import { PHYSICS_CONFIG } from '../../engine/PhysicsConfig';
 
 /** Native tile column of each single-pot sprite on `staticObjects.png`'s row
  *  7 (16px tiles): 0=small round jar, 1=tall narrow urn, 2=wide square brick
@@ -50,6 +51,15 @@ export const coinPot: BlockType = {
   maxHits: 1,
   removeWhenUsedUp: true,
   hitboxInsetX: HITBOX_INSET_X,
+  triggerSides: ['top'],
+  // Destroyed by landing on it, not by a hit from below. Always drops a coin,
+  // regardless of whether the skill-fact pool still has anything left — see
+  // mapCVDataToSkillFactPool's doc comment: WHICH fact (if any) that coin
+  // reveals is resolved when it is walked over, not here.
+  onHit: () => ({
+    spawnPickup: 'coin',
+    bounceVelocity: PHYSICS_CONFIG.coinPotBounceVelocity,
+  }),
   // Only a generic fallback for callers outside draw (e.g. blockFrameSource)
   // — the real per-instance variant comes from dc.coinPotPlan inside draw.
   frameIndex: () => 0,

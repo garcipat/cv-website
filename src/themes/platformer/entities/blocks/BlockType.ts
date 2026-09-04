@@ -2,6 +2,14 @@ import type { SpriteDescriptor } from '../sprites/SpriteSheet';
 import type { DrawContext } from '../../engine/DrawContext';
 import type { BlockState } from '../Block';
 import type { WorldType } from '../WorldType';
+import type { ContactSide } from '../../engine/Contact';
+import type { PlayerEffects, RewardEffects } from '../../engine/Outcome';
+
+/** What a registering hit on a block MEANS — the block equivalent of
+ *  `CollisionOutcome`. Carries no `self`: block hit counting stays generic
+ *  (`maxHits` + `applyBlockHit`), so no kind needs to return replacement
+ *  state. */
+export type BlockHitOutcome = PlayerEffects & RewardEffects;
 
 /**
  * Everything the engine needs to know about one block kind, owned entirely by
@@ -16,10 +24,10 @@ import type { WorldType } from '../WorldType';
  * exceptions, since a spread over `BLOCK_TYPES` can't discover a sheet that
  * isn't any type's primary descriptor.
  *
- * Carries no trigger mechanism. A block is hit from below, detected during
- * ceiling collision in Physics.ts, which writes `player.blockContacts`
- * (tagged `'bottom'`); the caller reads that and applies the hit. This
- * interface owns appearance and per-kind rules only.
+ * A block is hit from below, detected during ceiling collision in
+ * Physics.ts, which writes `player.blockContacts` (tagged `'bottom'`); the
+ * caller reads that and applies the hit. This interface owns appearance and
+ * per-kind rules only.
  */
 export interface BlockType extends WorldType<BlockState> {
   /** Must equal this module's slot in BLOCK_TYPES. */
@@ -48,4 +56,27 @@ export interface BlockType extends WorldType<BlockState> {
    *  whose appearance does not change ignores the argument. */
   frameIndex(hitsTaken: number): number;
   draw(block: BlockState, dc: DrawContext): void;
+  /**
+   * Which contact sides register a hit on this kind. The engine filters
+   * `player.blockContacts` against this generically — it used to hardcode
+   * `blockKind !== 'coinPot'` for its below-hit loop and
+   * `blockKind === 'coinPot'` for its landed-on-top loop, which is exactly
+   * the per-kind knowledge that belongs here instead.
+   */
+  triggerSides: readonly ContactSide[];
+  /**
+   * What a registering hit MEANS for this kind. Receives the block AFTER
+   * `applyBlockHit`, so comparing `block.hitsTaken` against this kind's own
+   * max-hits constant is how it knows this hit was its terminal one.
+   *
+   * Deliberately NOT `isBlockUsedUp(block)`: that lives in `entities/Block.ts`,
+   * which imports `BLOCK_TYPES`, so a block module calling it would close an
+   * import cycle (Block.ts -> blocks/index.ts -> Crate.ts -> Block.ts). The
+   * type-only `import type { BlockState }` these modules already have is
+   * erased at build time and so is fine.
+   *
+   * Omitted by a kind whose destruction has no consequences beyond the
+   * generic puff and removal (fragileRock).
+   */
+  onHit?(block: BlockState): BlockHitOutcome;
 }
