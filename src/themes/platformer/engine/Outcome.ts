@@ -54,3 +54,21 @@ export interface RewardEffects {
    */
   spawnPickup?: PickupKind;
 }
+
+/**
+ * The stronger of two bounce impulses, where "stronger" means more negative
+ * (velocities are px/s with negative = up). Returns `candidate` when nothing
+ * has been chosen yet, and keeps `current` on a tie.
+ *
+ * Exists so both aggregation sites — several enemies contacted in one tick
+ * (`Collision.ts`) and several blocks hit in one tick
+ * (`PlatformerPage.tsx`) — share one rule rather than re-deriving it, and so
+ * the rule is testable with differing values: every entity type that bounces
+ * today happens to use the same constant, which makes the tie-break
+ * unobservable through either caller.
+ */
+export function strongerBounce(current: number | undefined, candidate: number | undefined): number | undefined {
+  if (candidate === undefined) return current;
+  if (current === undefined) return candidate;
+  return candidate < current ? candidate : current;
+}
