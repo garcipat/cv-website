@@ -10,7 +10,8 @@ import {
   cratesDestroyed,
   enemiesDefeated,
 } from '../PlatformerState';
-import { formatJournalEntry } from '../entities/JournalEntry';
+import { formatJournalEntry, splitIntoTwoColumns } from '../entities/JournalEntry';
+import type { JournalEntryDisplay } from '../entities/JournalEntry';
 import {
   JOURNAL_SECTION_ORDER,
   nonEmptySections,
@@ -165,6 +166,11 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
   // source of truth for which bookmark is active and what the header shows.
   const currentPageEntry = flatPages[flatIndex];
   const effectiveSection: SectionId | undefined = currentPageEntry?.section;
+  // Computed once here (not inline in the JSX ternary below) so checking
+  // whether this page needs the skill-category layout doesn't format the
+  // same fact twice.
+  const currentFactEntry =
+    currentPageEntry?.content.kind === 'fact' ? formatJournalEntry(currentPageEntry.content.fact) : null;
   const setActiveSection = (section: SectionId) => {
     const idx = flatPages.findIndex((p) => p.section === section);
     if (idx >= 0) goToPage(idx);
@@ -285,36 +291,62 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
     );
   };
 
+  /**
+   * A skill category's page: title, then its skills split into two REAL
+   * columns (`splitIntoTwoColumns`), not CSS `columns-2`. A category can
+   * have arbitrarily many skills, and CSS multi-column layout with a fixed
+   * container height silently drops rows past that height instead of
+   * scrolling to them (its "ink overflow" doesn't count toward an
+   * ancestor's scrollable area — a well-known CSS multicol limitation,
+   * confirmed live: `scrollHeight === clientHeight` even with rows visibly
+   * spilling past the page). Two plain arrays rendered as ordinary block
+   * content can't lose a row regardless of length, and `overflow-y-auto`
+   * here (not `h-full` + `column-fill`) genuinely scrolls when they don't
+   * fit.
+   */
+  const renderSkillCategoryPage = (entry: JournalEntryDisplay) => {
+    const [left, right] = splitIntoTwoColumns(entry.ratedItems ?? []);
+    return (
+      <div data-testid="journal-fact-item" className="font-caveat h-full overflow-y-auto text-sm">
+        <p>
+          {entry.icon} {entry.title}
+        </p>
+        <div className="grid grid-cols-2 gap-x-[9%]">
+          {[left, right].map((column, i) => (
+            <ul key={i} className="ml-6">
+              {column.map((item) => (
+                <li key={item.name} className="flex justify-between gap-2 text-xs text-gray-500">
+                  <span>{item.name}</span>
+                  <span>{item.stars}</span>
+                </li>
+              ))}
+            </ul>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   const renderFactRow = (fact: CollectedFact) => {
     const entry = formatJournalEntry(fact);
     return (
-      <li key={fact.id} data-testid="journal-fact-item">
-        <span className="break-inside-avoid-column">
+      <li
+        key={fact.id}
+        data-testid="journal-fact-item"
+        // Keeps a title+subtitle pair together across the book's column
+        // break — without this, a title landing at the bottom of one
+        // column left its subtitle stranded alone at the top of the next
+        // (seen live with courses, whose grouped page is exactly where
+        // this bites: a title/subtitle entry, unlike languages' title-only
+        // one). A ratedItems (skills) entry never reaches this function —
+        // see renderSkillCategoryPage above.
+        className="break-inside-avoid-column"
+      >
+        <span>
           {entry.icon} {entry.title}
         </span>
-        {entry.ratedItems ? (
-          // One flex row per skill, name and stars pinned to opposite
-          // edges — plain joined text left the stars ragged against
-          // variable-length names (Caveat is not monospace), per user
-          // feedback. No `break-inside-avoid` on the outer `<li>` — a long
-          // category's skill list is exactly what should flow across the
-          // book's column break (per user feedback); only each individual
-          // skill row avoids splitting mid-row.
-          <ul className="ml-6">
-            {entry.ratedItems.map((item) => (
-              <li
-                key={item.name}
-                className="flex justify-between gap-2 break-inside-avoid-column text-xs text-gray-500"
-              >
-                <span>{item.name}</span>
-                <span>{item.stars}</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          entry.subtitle && (
-            <span className="ml-6 block text-xs whitespace-pre-line text-gray-500">{entry.subtitle}</span>
-          )
+        {entry.subtitle && (
+          <span className="ml-6 block text-xs whitespace-pre-line text-gray-500">{entry.subtitle}</span>
         )}
       </li>
     );
@@ -460,14 +492,27 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
                     {ui.platformer.journal.emptyState}
                   </p>
                 ) : currentPageEntry.content.kind === 'fact' ? (
+                  currentFactEntry?.ratedItems ? (
+                    renderSkillCategoryPage(currentFactEntry)
+                  ) : (
+                    <ul
+                      className="font-caveat h-full columns-2 gap-[9%] space-y-1 text-sm"
+                      style={{ columnFill: 'auto' }}
+                    >
+                      {renderFactRow(currentPageEntry.content.fact)}
+                    </ul>
+                  )
+                ) : (
+                  // h-full + columnFill: 'auto', matching the 'fact' branch
+                  // above — without an explicit height the column-fill
+                  // property has no box to fill sequentially within, and
+                  // without it entries balance evenly across both columns
+                  // (browser default) instead of filling the left one first
+                  // like a real book page.
                   <ul
                     className="font-caveat h-full columns-2 gap-[9%] space-y-1 text-sm"
                     style={{ columnFill: 'auto' }}
                   >
-                    {renderFactRow(currentPageEntry.content.fact)}
-                  </ul>
-                ) : (
-                  <ul className="font-caveat columns-2 gap-[9%] space-y-1 text-sm">
                     {currentPageEntry.content.facts.map(renderFactRow)}
                   </ul>
                 )}
