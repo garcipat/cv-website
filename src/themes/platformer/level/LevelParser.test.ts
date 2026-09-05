@@ -143,6 +143,17 @@ describe('ladder terrain character', () => {
   });
 });
 
+describe('chain terrain character', () => {
+  it('terrainChars-mapsIToChain', () => {
+    expect(TERRAIN_CHARS.I).toBe('chain');
+  });
+
+  it('chainChar-parsesAsChainTile', () => {
+    const result = parseLevel(['I.', 'GG']);
+    expect(result.terrain[0][0]).toBe('chain');
+  });
+});
+
 describe('findSpawnTile', () => {
   it('spawnMarkerPresent-returnsItsColAndRow', () => {
     expect(findSpawnTile(['..', '.S'])).toEqual({ col: 1, row: 1 });
@@ -379,7 +390,7 @@ describe('findHazardTiles', () => {
 describe('TileChar', () => {
   it('includes every TERRAIN_CHARS, ENTITY_CHARS, SIGN_CHARS, and HAZARD_CHARS key', () => {
     const tileChars: readonly TileChar[] = [
-      '.', 'G', 'R', '#', 'B', 'H', 'P', 'S', 'M', 'm', 'o', 'X', 'Q', 'F', 'T', 'u',
+      '.', 'G', 'R', '#', 'B', 'H', 'I', 'P', 'S', 'M', 'm', 'o', 'X', 'Q', 'F', 'T', 'u',
       '1', '2', '3', '4', '5', 'n', 'N', '^', 'v', '<', '>',
     ];
     const allKeys = [
