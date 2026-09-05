@@ -1592,59 +1592,110 @@ describe('drawTerrain — bush/fence', () => {
     );
   });
 
-  it('chainTile-ceilingAttached-drawsCenteredFromStaticObjects', () => {
+  it('chainTile-ceilingAttached-drawsALeftLeaningVariantCenteredInItsCell', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const level: LevelDef = { terrain: [['wall'], ['chain']], width: 1, height: 2 };
 
     drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, fakeStaticObjects);
 
-    // (col:0, row:1) has a solid tile above -> 'ceiling', no x offset.
-    // Variant index for (0,1) -> sx:128, sy:112 (see StaticObjectsCatalog.ts's CHAIN_VARIANTS).
+    // (col:0, row:1) has a solid tile above -> 'ceiling'. col 0 is even ->
+    // chainEntry('ceiling', 0) alternates to the left-leaning pair's first
+    // entry, sx:80, sy:112 (see StaticObjectsCatalog.ts's chainEntry). No
+    // destination offset — drawn at the cell's own destX/destY (0, 32).
     expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeStaticObjects, 128, 112, 16, 16,
+      fakeStaticObjects, 80, 112, 16, 16,
       0, 32, 32, 32,
     );
   });
 
-  it('chainTile-leftAttached-drawsOffsetTowardTheLeftWall', () => {
+  it('chainTile-leftAttached-drawsALeftLeaningVariantAtItsOwnCellDestination', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const level: LevelDef = { terrain: [['wall', 'chain']], width: 2, height: 1 };
 
     drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, fakeStaticObjects);
 
-    // (col:1, row:0): nothing above, solid to the left -> 'left', destX shifts
-    // by -RENDERED_TILE_SIZE/4 (-8). Cell destX is 1*32=32 -> 24.
-    // Variant index for (1,0) -> sx:96, sy:112.
+    // (col:1, row:0): nothing above, solid to the left -> 'left'. col 1 is
+    // odd -> chainEntry('left', 1) is the left-leaning pair's second entry,
+    // sx:112, sy:112. No offset — destX is the cell's own 1*32=32.
     expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeStaticObjects, 96, 112, 16, 16,
-      24, 0, 32, 32,
+      fakeStaticObjects, 112, 112, 16, 16,
+      32, 0, 32, 32,
     );
   });
 
-  it('chainTile-rightAttached-drawsOffsetTowardTheRightWall', () => {
+  it('chainTile-rightAttached-drawsARightLeaningVariantAtItsOwnCellDestination', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const level: LevelDef = { terrain: [['chain', 'wall']], width: 2, height: 1 };
 
     drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, fakeStaticObjects);
 
-    // (col:0, row:0): nothing above or left, solid to the right -> 'right',
-    // destX shifts by +8. Cell destX is 0 -> 8. Variant index for (0,0) -> sx:80, sy:112.
+    // (col:0, row:0): nothing above or left, solid to the right -> 'right'.
+    // col 0 is even -> chainEntry('right', 0) is the right-leaning pair's
+    // first entry, sx:96, sy:112. No offset — destX is the cell's own 0.
     expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeStaticObjects, 80, 112, 16, 16,
-      8, 0, 32, 32,
+      fakeStaticObjects, 96, 112, 16, 16,
+      0, 0, 32, 32,
     );
   });
 
-  it('chainTile-noSolidNeighbour-fallsBackToCenteredCeiling', () => {
+  it('chainTile-noSolidNeighbour-fallsBackToCeilingAttachment', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const level: LevelDef = { terrain: [['chain']], width: 1, height: 1 };
 
     drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, fakeStaticObjects);
 
+    // col 0 even -> chainEntry('ceiling', 0) -> sx:80, sy:112. No offset.
     expect(ctx.drawImage).toHaveBeenCalledWith(
       fakeStaticObjects, 80, 112, 16, 16,
       0, 0, 32, 32,
     );
+  });
+
+  it('chainShaft-threeRowsFallingBackToCeiling-rendersTheSameVariantAndXOnEveryRow', () => {
+    // Regression pin: this is the exact bug the fix corrects. Before this
+    // fix, hashing the variant on col+row meant adjacent rows of one shaft
+    // could pick a different left/right-leaning variant at random — a
+    // visible zig-zag. A single column of chain with no solid neighbour
+    // anywhere falls back to 'ceiling' on every row; every row must now
+    // render the identical sprite at the identical destX.
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = { terrain: [['chain'], ['chain'], ['chain']], width: 1, height: 3 };
+
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, fakeStaticObjects);
+
+    for (const destY of [0, 32, 64]) {
+      expect(ctx.drawImage).toHaveBeenCalledWith(
+        fakeStaticObjects, 80, 112, 16, 16,
+        0, destY, 32, 32,
+      );
+    }
+  });
+
+  it('chainShaft-threeRowsHuggingARightWall-rendersTheSameRightLeaningVariantOnEveryRow', () => {
+    // Same regression pin as above, for the more common authored pattern: a
+    // chain column running the full height of an adjacent wall column, with
+    // open space above (so 'ceiling' never applies) — every row resolves to
+    // 'right' and must render identically, not zig-zag between the two
+    // right-leaning variants.
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = {
+      terrain: [
+        ['chain', 'wall'],
+        ['chain', 'wall'],
+        ['chain', 'wall'],
+      ],
+      width: 2,
+      height: 3,
+    };
+
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, fakeStaticObjects);
+
+    for (const destY of [0, 32, 64]) {
+      expect(ctx.drawImage).toHaveBeenCalledWith(
+        fakeStaticObjects, 96, 112, 16, 16,
+        0, destY, 32, 32,
+      );
+    }
   });
 
   it('staticObjectsNotLoaded-chainDrawsNothing', () => {

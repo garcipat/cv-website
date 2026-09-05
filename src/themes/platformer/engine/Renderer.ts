@@ -13,7 +13,7 @@ import {
   verticalRunRole,
 } from '../level/Terrain';
 import { groundAtlasCell, grassCell, GRASS_SOURCE_HEIGHT } from './GroundAtlas';
-import { bushOrTreeEntry, staticObjectEntry } from './StaticObjectsCatalog';
+import { bushOrTreeEntry, staticObjectEntry, chainEntry } from './StaticObjectsCatalog';
 import type { GroundAtlasEntry } from './GroundAtlas';
 import { backgroundCatalogEntry } from './BackgroundCatalog';
 import type { LevelDef, TileType } from '../level/LevelData';
@@ -379,18 +379,15 @@ export function drawTerrain(
 
       if (staticObjects && tile === 'chain') {
         const attachment = chainAttachment(level, col, row);
-        const entry = staticObjectEntry('chain', col, row);
-        // The only tile in this codebase that offsets its DESTINATION rect
-        // rather than only varying its source rect (contrast bridge/bush/
-        // fence, which always draw at the cell's own destX/destY) — a
-        // deliberate trick to fake a "left/right attached" look from one
-        // uniform sprite instead of drawing dedicated left/right art.
-        const offsetX =
-          attachment === 'left' ? -RENDERED_TILE_SIZE / 4 :
-          attachment === 'right' ? RENDERED_TILE_SIZE / 4 : 0;
+        const entry = chainEntry(attachment, col);
+        // Unlike the original (buggy) approach, this draws at the cell's
+        // own destX/destY like every other terrain tile — the art itself
+        // (a left- or right-leaning link, picked by chainEntry) already
+        // reads as attached to the matching wall, so no destination-rect
+        // offset is needed.
         ctx.drawImage(
           staticObjects, entry.sx, entry.sy, TILE_SIZE, TILE_SIZE,
-          destX + offsetX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
+          destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
         );
         continue;
       }
