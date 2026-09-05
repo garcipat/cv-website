@@ -24,6 +24,19 @@ const BUSH_OR_TREE_VARIANTS: Record<VerticalRunRole, StaticObjectEntry[]> = {
 
 const FENCE_VARIANTS: StaticObjectEntry[] = [{ sx: 32, sy: 64 }];
 
+/** A vertical hanging-chain link, uniform and seamlessly repeatable row to
+ *  row — unlike BUSH_OR_TREE_VARIANTS there is no distinct top/bottom
+ *  end-cap art, so (like `Renderer.ts`'s ladder sprite) the same frame is
+ *  reused for every row of a shaft regardless of length. The 4 near-identical
+ *  columns exist purely for `pickVariant`'s per-cell visual variety, the
+ *  same reason BUSH_OR_TREE_VARIANTS.only has 4 entries. */
+const CHAIN_VARIANTS: StaticObjectEntry[] = [
+  { sx: 80, sy: 112 },
+  { sx: 96, sy: 112 },
+  { sx: 112, sy: 112 },
+  { sx: 128, sy: 112 },
+];
+
 function pickVariant<T>(variants: readonly T[], col: number, row: number): T {
   // Every variants array today is a non-empty literal declared above, but
   // nothing in the types enforces that. Guard explicitly rather than
@@ -49,7 +62,6 @@ export function bushOrTreeEntry(role: VerticalRunRole, col: number, row: number)
   return pickVariant(BUSH_OR_TREE_VARIANTS[role], col, row);
 }
 
-export function staticObjectEntry(tile: 'fence', col: number, row: number): StaticObjectEntry {
-  void tile; // only one static-object kind uses this function today
-  return pickVariant(FENCE_VARIANTS, col, row);
+export function staticObjectEntry(tile: 'fence' | 'chain', col: number, row: number): StaticObjectEntry {
+  return pickVariant(tile === 'fence' ? FENCE_VARIANTS : CHAIN_VARIANTS, col, row);
 }
