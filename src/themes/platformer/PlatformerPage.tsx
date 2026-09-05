@@ -138,6 +138,8 @@ import {
   skillFactPool,
   enemyStates,
   blockStates,
+  cratesDestroyed,
+  enemiesDefeated,
   bonusFruitStates,
   collectedCollectibleIds,
   activeEffects,
@@ -779,6 +781,10 @@ export const PlatformerPage = () => {
       const justDefeated = enemyStates.value.filter((e) => !e.alive && !e.deathEffectGiven);
       if (justDefeated.length > 0) {
         const newPuffs = [...activePuffs.value];
+        // Whether any green slime was freshly defeated this tick — gates
+        // the popup bump below, computed from the raw defeated-enemy count
+        // rather than facts revealed (see that bump's own comment).
+        let greenDefeatedThisTick = false;
 
         for (const enemy of justDefeated) {
           const anchor = enemyEffectAnchor(enemy);
@@ -817,7 +823,11 @@ export const PlatformerPage = () => {
           // placement time (see EnemyMapper.ts's placeGreenSlimes doc
           // comment) — reveal its own `fact` plus any `extraFacts` (when
           // this level has fewer green slimes than course facts, one slime
-          // can own more than one).
+          // can own more than one). No counterKey here: the enemies popup is
+          // bumped below instead, for every defeated green slime rather than
+          // only ones that happen to reveal a fact (see that bump's own
+          // comment).
+          greenDefeatedThisTick = true;
           newPuffs.push(startPuffEffect(enemy.id, puffX, puffY, anchor.scale));
           const facts = [enemy.fact, ...(enemy.extraFacts ?? [])].filter(
             (fact): fact is CollectedFact => fact !== undefined,
@@ -828,7 +838,6 @@ export const PlatformerPage = () => {
               y: enemy.y,
               // Unique per revealed fact, not just per enemy.
               effectId: `${enemy.id}-${index}`,
-              counterKey: 'enemies',
             });
           });
         }
@@ -843,6 +852,24 @@ export const PlatformerPage = () => {
         enemyStates.value = enemyStates.value.map((e) =>
           processedIds.has(e.id) ? { ...e, rewardGiven: true, deathEffectGiven: true } : e,
         );
+
+        // The enemies popup bumped here rather than by the reveal trigger,
+        // mirroring the coins/crates loops: a green slime's fact(s) are a
+        // fixed pool slice (see EnemyMapper.ts's placeGreenSlimes), so most
+        // slimes can reveal zero facts whenever there are more green slimes
+        // than course facts — gating this on a reveal would leave those
+        // defeats with no "enemies defeated / total" feedback, and could
+        // even show more facts revealed than enemies exist. Uses
+        // `enemiesDefeated` (PlatformerState.ts), not `countCollectedFor`,
+        // for the same reason `coinsCollectedSoFar` does above — read AFTER
+        // the rewardGiven update above, so this tick's own defeats are
+        // included (it's a computed off `enemyStates`, so it already is).
+        if (greenDefeatedThisTick) {
+          activeCounterPopups.value = {
+            ...activeCounterPopups.value,
+            enemies: startCounterPopup('enemies', enemiesDefeated.value, levelTotals.value.enemies),
+          };
+        }
 
         activePuffs.value = newPuffs;
       }
@@ -1224,6 +1251,10 @@ export const PlatformerPage = () => {
         // Most negative wins, so several blocks bouncing the player in one
         // tick is deterministic regardless of iteration order.
         let bounceVelocity: number | undefined;
+        // Whether any crate reached its terminal hit this tick — gates the
+        // popup bump below, computed from the raw destroyed-crate count
+        // rather than facts revealed (see that bump's own comment).
+        let crateDestroyedThisTick = false;
 
         for (const id of hitIds) {
           // Re-read from the post-applyBlockHit array: onHit must see the
@@ -1260,10 +1291,14 @@ export const PlatformerPage = () => {
           }
 
           if (outcome.counterKey === 'crates') {
+            crateDestroyedThisTick = true;
             // A crate's fact(s) were fixed at placement time (see
             // BlockMapper.ts's placeCrates doc comment) — reveal its own
             // `fact` plus any `extraFacts` (when this level has fewer crates
-            // than crate-pool facts, one crate can own more than one).
+            // than crate-pool facts, one crate can own more than one). No
+            // counterKey here: the crates popup is bumped below instead,
+            // for every destroyed crate rather than only ones that happen
+            // to reveal a fact (see that bump's own comment).
             const facts = [block.fact, ...(block.extraFacts ?? [])].filter(
               (fact): fact is CollectedFact => fact !== undefined,
             );
@@ -1273,7 +1308,6 @@ export const PlatformerPage = () => {
                 y: block.y,
                 // Unique per revealed fact, not just per crate.
                 effectId: `${block.id}-${index}`,
-                counterKey: 'crates',
               });
             });
           } else if (outcome.revealFact) {
@@ -1287,6 +1321,25 @@ export const PlatformerPage = () => {
               counterKey: outcome.counterKey,
             });
           }
+        }
+
+        // The crates popup bumped here rather than by the reveal trigger,
+        // mirroring the coins loop above: a crate's fact(s) are a fixed
+        // pool slice (see BlockMapper.ts's placeCrates), so most crates can
+        // reveal zero facts whenever there are more crates than crate-pool
+        // facts — gating this on a reveal would leave those destructions
+        // with no "crates destroyed / total" feedback, and could even show
+        // more facts revealed than crates exist. Uses `cratesDestroyed`
+        // (PlatformerState.ts), not `countCollectedFor`, for the same
+        // reason `coinsCollectedSoFar` does above — and NOT a plain
+        // `blockStates` filter, since a destroyed crate is eventually
+        // spliced out of that array (see `cratesDestroyed`'s own doc
+        // comment for why that would undercount).
+        if (crateDestroyedThisTick) {
+          activeCounterPopups.value = {
+            ...activeCounterPopups.value,
+            crates: startCounterPopup('crates', cratesDestroyed.value, levelTotals.value.crates),
+          };
         }
 
         if (bounceVelocity !== undefined) {

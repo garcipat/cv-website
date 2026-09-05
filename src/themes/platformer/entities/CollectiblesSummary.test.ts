@@ -221,6 +221,49 @@ describe('collectiblesSummary', () => {
     });
     expect(rows).toEqual([{ labelKey: 'coins', collected: 3, total: 10 }]);
   });
+
+  it('enemiesDefeatedProvided-overridesTheFactsDerivedCount', () => {
+    // A green slime's course fact(s) are now a fixed, position-based slice
+    // of the pool (see EnemyMapper.ts's placeGreenSlimes) — with fewer green
+    // enemies than courses, one defeat can reveal several facts at once, so
+    // "courses revealed" and "enemies defeated" are different numbers.
+    // Passing `enemiesDefeated` explicitly (as Journal.tsx now does) must win
+    // over deriving it from `facts`, even when `facts` alone would suggest a
+    // different, wrong (and here, nonsensical — bigger than the total) number.
+    const facts: CollectedFact[] = [
+      factIn('enemy-course-a', 'courses'),
+      factIn('enemy-course-b', 'courses'),
+      factIn('enemy-course-c', 'courses'),
+    ];
+    const rows = collectiblesSummary(facts, {
+      coins: 0,
+      fruits: 0,
+      enemies: 2,
+      crates: 0,
+      chests: 0,
+      enemiesDefeated: 1,
+    });
+    expect(rows).toEqual([{ labelKey: 'enemies', collected: 1, total: 2 }]);
+  });
+
+  it('cratesDestroyedProvided-overridesTheFactsDerivedCount', () => {
+    // Same reasoning as enemiesDefeated above, for crates (see
+    // BlockMapper.ts's placeCrates).
+    const facts: CollectedFact[] = [
+      factIn('block-edu-a', 'education'),
+      factIn('block-activity-b', 'activities'),
+      factIn('block-lang-c', 'languages'),
+    ];
+    const rows = collectiblesSummary(facts, {
+      coins: 0,
+      fruits: 0,
+      enemies: 0,
+      crates: 2,
+      chests: 0,
+      cratesDestroyed: 1,
+    });
+    expect(rows).toEqual([{ labelKey: 'crates', collected: 1, total: 2 }]);
+  });
 });
 
 /** A minimal fact in the given section — only `sectionId` matters to

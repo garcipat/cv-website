@@ -27,6 +27,9 @@ import {
   spawnedCoinPlacements,
   allCollectiblePlacements,
   levelTotals,
+  blockStates,
+  cratesDestroyed,
+  enemiesDefeated,
 } from './PlatformerState';
 import type { CollectedFact } from './types';
 import { mapCVDataToEnemies } from './level/EnemyMapper';
@@ -542,5 +545,91 @@ describe('levelTotals', () => {
     currentLayout.value = ['S' + 'E'.repeat(markerCount) + 'G', 'G'.repeat(markerCount + 2)];
 
     expect(levelTotals.value.enemies).toBe(markerCount);
+  });
+});
+
+describe('cratesDestroyed', () => {
+  afterEach(() => {
+    // blockStates is a plain signal — restore it so this describe block
+    // doesn't leak a mutated array into every other test in this file.
+    blockStates.value = blockPlacements.value.map((b) => ({ ...b, hitsTaken: 0, animState: 'idle', animTimer: 0 }));
+  });
+
+  it('noCratesTouched-isZero', () => {
+    expect(cratesDestroyed.value).toBe(0);
+  });
+
+  it('oneCrateMidShatterButStillPresentInBlockStates-countsAsDestroyedImmediately', () => {
+    // Counted the instant it's used up (hitsTaken reaches max), not only
+    // once its shatter animation finishes and it's spliced out of
+    // blockStates (see isBlockRemoved) — no lag waiting for the animation.
+    const crate = blockPlacements.value.find((b) => b.blockKind === 'crate')!;
+    blockStates.value = blockStates.value.map((b) =>
+      b.id === crate.id ? { ...b, hitsTaken: 2, animState: 'shatter', animTimer: 0 } : b,
+    );
+
+    expect(cratesDestroyed.value).toBe(1);
+  });
+
+  it('extraSyntheticCrateInBlockStatesBeyondRealPlacements-doesNotCorruptTheCount', () => {
+    // A test helper (or anything else) injecting a crate-kind BlockState
+    // whose id isn't one of blockPlacements's real crates must not affect
+    // this count — it's derived from real placements checked by id, not
+    // from blockStates's raw length.
+    const realCrate = blockPlacements.value.find((b) => b.blockKind === 'crate')!;
+    blockStates.value = [
+      ...blockStates.value,
+      { ...realCrate, id: 'synthetic-extra-crate', hitsTaken: 0, animState: 'idle', animTimer: 0 },
+    ];
+
+    expect(cratesDestroyed.value).toBe(0);
+  });
+
+  // The regression this computed exists to prevent: a destroyed crate is
+  // spliced out of blockStates entirely once its shatter animation finishes
+  // (see PlatformerPage.tsx's isBlockRemoved filtering) — naively filtering
+  // blockStates for "used up" crates would undercount back to 0 the instant
+  // that happens, even though the crate is very much still destroyed.
+  it('oneCrateRemovedFromBlockStatesAfterItsShatterAnimationFinished-stillCountsAsDestroyed', () => {
+    const crate = blockPlacements.value.find((b) => b.blockKind === 'crate')!;
+    blockStates.value = blockStates.value.filter((b) => b.id !== crate.id);
+
+    expect(cratesDestroyed.value).toBe(1);
+  });
+
+  it('everyCrateDestroyedAndRemoved-equalsLevelTotal', () => {
+    blockStates.value = blockStates.value.filter((b) => b.blockKind !== 'crate');
+
+    expect(cratesDestroyed.value).toBe(levelTotals.value.crates);
+  });
+});
+
+describe('enemiesDefeated', () => {
+  afterEach(() => {
+    // enemyStates is a plain signal — restore rewardGiven so this describe
+    // block doesn't leak into every other test in this file.
+    enemyStates.value = enemyStates.value.map((e) => ({ ...e, rewardGiven: false }));
+  });
+
+  it('noEnemiesDefeated-isZero', () => {
+    expect(enemiesDefeated.value).toBe(0);
+  });
+
+  it('oneGreenSlimeRewardGiven-countsAsDefeated', () => {
+    const [first] = enemyStates.value.filter((e) => e.type === 'slimeGreen');
+    enemyStates.value = enemyStates.value.map((e) => (e.id === first.id ? { ...e, rewardGiven: true } : e));
+
+    expect(enemiesDefeated.value).toBe(1);
+  });
+
+  it('purpleSlimeRewardGiven-doesNotCountTowardEnemiesDefeated', () => {
+    // A purple slime's rewardGiven is set by its key drop, not a course
+    // fact — the "enemies" counter is specifically about green slimes/
+    // courses (see COUNTER_SECTIONS), so a purple defeat must not inflate it.
+    const [purple] = enemyStates.value.filter((e) => e.type === 'slimePurple');
+    if (!purple) return; // this level may have no purple markers
+    enemyStates.value = enemyStates.value.map((e) => (e.id === purple.id ? { ...e, rewardGiven: true } : e));
+
+    expect(enemiesDefeated.value).toBe(0);
   });
 });
