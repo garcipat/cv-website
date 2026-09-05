@@ -30,8 +30,8 @@ import type { KeyPickupState } from './entities/KeyPickup';
 import { introState } from './engine/GameLifecycle';
 import { currentCV } from '@/state/locale';
 import { mapCVDataToSkillFactPool, placeCollectibles } from './level/CollectibleMapper';
-import { mapCVDataToEnemies, mapCVDataToEnemyFactPool, placeEnemies } from './level/EnemyMapper';
-import { mapCVDataToBlocks, mapCVDataToCrateFactPool, placeBlocks } from './level/BlockMapper';
+import { mapCVDataToEnemies, placeEnemies } from './level/EnemyMapper';
+import { mapCVDataToBlocks, placeBlocks } from './level/BlockMapper';
 import { mapCVDataToChests, placeChests } from './level/ChestMapper';
 import type { ChestPlacement } from './level/ChestMapper';
 import { placeSigns } from './level/SignMapper';
@@ -174,15 +174,6 @@ export const enemyPlacements = computed<EnemyPlacement[]>(() =>
 );
 
 /**
- * The ordered pool of course facts a defeated green slime can reveal — see
- * `EnemyMapper.ts`'s `mapCVDataToEnemyFactPool` doc comment. Mirrors
- * `skillFactPool` above: level-independent (CVData-derived only), resolved
- * against `levelTotals.enemies` by `PlatformerPage.tsx` via
- * `revealedFactCountFor`.
- */
-export const enemyFactPool = computed<CollectedFact[]>(() => mapCVDataToEnemyFactPool(currentCV.value));
-
-/**
  * Every block in the level, placed once at module load — same
  * non-reactive, marker-driven convention as collectiblePlacements/
  * enemyPlacements above. Crates come from
@@ -202,15 +193,6 @@ export const blockPlacements = computed<BlockPlacement[]>(() =>
     coinPot: COIN_POT_TILES.value,
   }),
 );
-
-/**
- * The ordered pool of Education/Activity/Language facts a destroyed crate
- * can reveal — see `BlockMapper.ts`'s `mapCVDataToCrateFactPool` doc comment.
- * Mirrors `skillFactPool` above: level-independent (CVData-derived only),
- * resolved against `levelTotals.crates` by `PlatformerPage.tsx` via
- * `revealedFactCountFor`.
- */
-export const crateFactPool = computed<CollectedFact[]>(() => mapCVDataToCrateFactPool(currentCV.value));
 
 /**
  * Every chest in the level, placed once at module load — same non-reactive,
@@ -254,9 +236,10 @@ export const levelTotals = computed<LevelTotals>(() => ({
     blockPlacements.value.filter((b) => b.blockKind === 'coinPot').length,
   fruits: blockPlacements.value.filter((b) => b.blockKind === 'questionMark' && b.fact).length,
   // Every green slime placed, not just the ones that happen to have a fact —
-  // like coins/crates, a green slime's fact is now resolved proportionally
-  // at defeat time (see enemyFactPool below), so the denominator must be
-  // every instance of the type, not a fixed 1:1-bound subset.
+  // a green slime's fact(s) are now assigned proportionally by position
+  // among every green marker (see EnemyMapper.ts's placeGreenSlimes), so the
+  // denominator must be every instance of the type, not a fixed
+  // 1:1-bound subset.
   enemies: enemyPlacements.value.filter((p) => p.type === 'slimeGreen').length,
   crates: blockPlacements.value.filter((b) => b.blockKind === 'crate').length,
   chests: chestPlacements.value.length,

@@ -40,11 +40,11 @@ export const crate: BlockType = {
   // check used to live in PlatformerPage.tsx as `hitsTaken >= 2`.
   // The crate declares which counter it feeds via counterKey — the engine no
   // longer assumes every block destruction is a crate. It does NOT return
-  // `revealFact`: a crate carries no fixed fact of its own (see
-  // PlatformerState.ts's crateFactPool doc comment) — which fact, if any,
-  // this destruction reveals is resolved dynamically by PlatformerPage.tsx
-  // from the shared crate pool, proportionally across however many crates
-  // the level has, the same way a coin pickup already works.
+  // `revealFact` itself: which fact(s), if any, this crate owns was already
+  // decided at placement time (see BlockMapper.ts's placeCrates) — a fixed,
+  // position-based slice of the level's Education/Activity/Language pool,
+  // independent of the order the player breaks crates in. PlatformerPage.tsx
+  // reads `block.fact`/`block.extraFacts` directly rather than this outcome.
   onHit: (block) => (block.hitsTaken >= MAX_HITS ? { counterKey: 'crates' } : {}),
   frameIndex: () => CRATE_FRAME,
   // Its own copy of the plain blit (see drawBlockTile.ts's doc comment for
