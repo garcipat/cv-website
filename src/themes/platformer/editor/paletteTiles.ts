@@ -283,7 +283,7 @@ export const PALETTE_TILE_DESCRIPTIONS: Record<TileChar, string> = {
   W: 'Solid wall block',
   B: 'Solid from above; the player drops through it with Down',
   L: 'Climbed with Up and Down',
-  I: 'Chain; climbs exactly like a ladder, offset toward whichever wall (if any) it hangs against',
+  I: 'Chain; climbs like a ladder, art hugs whichever wall (if any) it hangs against',
   P: 'Invisible in game; turns patrolling enemies around',
   S: 'Where the player starts',
   E: 'Green slime; stomping it reveals one CV fact',

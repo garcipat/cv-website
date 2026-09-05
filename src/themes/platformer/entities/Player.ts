@@ -65,9 +65,9 @@ export interface PlayerState extends Moving, SelfAnimated, Damageable {
   y: number;
   /** Whether the player is currently resting on a solid tile. */
   grounded: boolean;
-  /** Whether the player is currently climbing a `'ladder'` tile — while
-   *  true, `Physics.ts`'s stepPlayerPhysics suspends gravity and drives
-   *  vertical movement directly from Up/Down instead. */
+  /** Whether the player is currently climbing a `'ladder'` or `'chain'` tile
+   *  — while true, `Physics.ts`'s stepPlayerPhysics suspends gravity and
+   *  drives vertical movement directly from Up/Down instead. */
   climbing: boolean;
   /** Whether the player is currently dropping through a `bridge` tile
    *  they deliberately fell through (Down held while resting on one) —

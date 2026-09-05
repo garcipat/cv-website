@@ -124,14 +124,16 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   step 39's wall remap until this step claimed it first; step 39's wall target moved to `#`
   to avoid the collision). `isClimbable`/`isStandableLadderTop` generalize to cover both
   `'ladder'` and `'chain'` (both already route through `isClimbable`, so `Physics.ts` needs
-  no changes of its own). Rendering: reuses the single chain-link sprite already in
-  `staticObjects.png` (cols 5-8, row 7 — 4 near-identical variants, picked the same way
-  `bushOrTreeEntry` picks bush variants) for every row of a shaft, like ladder's own single
-  fixed sprite. A new `chainAttachment` helper in `Terrain.ts` decides how it reads:
-  ceiling-attached (solid tile above — centered) takes priority over side-attached (solid
-  tile to the left or right — offset a quarter-tile toward that wall), falling back to
-  centered when neither neighbor is solid. The left/right "attachment" is a same-sprite
-  destination-offset, not new art — the first tile in this codebase to use one; see
+  no changes of its own). Rendering: `staticObjects.png` has 4 chain-link sprites at row 7 (cols 5-8) that
+  turned out NOT to be interchangeable/centered as first assumed — 2 are
+  left-leaning, 2 are right-leaning (pixel-verified during final review). A new
+  `chainAttachment` helper in `Terrain.ts` decides ceiling (solid tile above,
+  checked first) vs. left/right (solid tile to that side) vs. a ceiling
+  fallback when isolated; `StaticObjectsCatalog.ts`'s `chainEntry` then picks
+  the matching left- or right-leaning sprite pair for that attachment (hashed
+  on column only, so one shaft stays visually consistent top-to-bottom) — no
+  destination-offset trick needed, the art itself already reads as attached to
+  the right wall. See
   `plans/2026-09-05-chain-ladder-skin-step38-plan.md`.
 - [ ] **39. Level layout character remap** — re-letter some ASCII tile/entity characters
   so they visually suggest the element: coin `C`→`o`, ladder `L`→`H`, wall `W`→`#`, green

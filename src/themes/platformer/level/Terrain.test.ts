@@ -317,6 +317,10 @@ describe('isSolid ladder exception', () => {
   it('ladder-isNotSolid', () => {
     expect(isSolid('ladder')).toBe(false);
   });
+
+  it('chain-isNotSolid', () => {
+    expect(isSolid('chain')).toBe(false);
+  });
 });
 
 describe('isStandableLadderTop', () => {

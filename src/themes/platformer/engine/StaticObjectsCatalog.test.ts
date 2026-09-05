@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { bushOrTreeEntry, staticObjectEntry } from './StaticObjectsCatalog';
+import { bushOrTreeEntry, staticObjectEntry, chainEntry } from './StaticObjectsCatalog';
 
 // Bush/tree art comes from world_tileset.png (256x256); fence art comes from
 // the separate staticObjects.png (288x144) — two different sheets, so each
@@ -47,23 +47,45 @@ describe('StaticObjectsCatalog', () => {
     expect(staticObjectEntry('fence', 1, 1)).toEqual(staticObjectEntry('fence', 9, 9));
   });
 
-  it('chain-resolvesToARectInsideTheSheetOnA16pxGrid', () => {
-    const entry = staticObjectEntry('chain', 0, 0);
-    expect(entry.sx % TILE_SIZE).toBe(0);
-    expect(entry.sy % TILE_SIZE).toBe(0);
-    expect(entry.sx + TILE_SIZE).toBeLessThanOrEqual(STATIC_OBJECTS_SHEET_WIDTH);
-    expect(entry.sy + TILE_SIZE).toBeLessThanOrEqual(STATIC_OBJECTS_SHEET_HEIGHT);
+  it('chainEntry-anyAttachmentAndColumn-resolvesToARectInsideTheSheetOnA16pxGrid', () => {
+    for (const attachment of ['ceiling', 'left', 'right'] as const) {
+      for (const col of [0, 1, 2, 3]) {
+        const entry = chainEntry(attachment, col);
+        expect(entry.sx % TILE_SIZE).toBe(0);
+        expect(entry.sy % TILE_SIZE).toBe(0);
+        expect(entry.sx + TILE_SIZE).toBeLessThanOrEqual(STATIC_OBJECTS_SHEET_WIDTH);
+        expect(entry.sy + TILE_SIZE).toBeLessThanOrEqual(STATIC_OBJECTS_SHEET_HEIGHT);
+      }
+    }
   });
 
-  it('chain-sameColAndRow-isDeterministic', () => {
-    expect(staticObjectEntry('chain', 3, 5)).toEqual(staticObjectEntry('chain', 3, 5));
+  it('chainEntry-sameAttachmentAndColumn-isDeterministic', () => {
+    expect(chainEntry('left', 3)).toEqual(chainEntry('left', 3));
   });
 
-  it('chain-differentPositions-canResolveToDifferentVariants', () => {
-    // (0,0) and (1,1) land on different variants of the 4 available (see
-    // StaticObjectsCatalog.ts's CHAIN_VARIANTS) — confirms position actually
-    // drives variant choice, unlike fence's single-variant array.
-    expect(staticObjectEntry('chain', 0, 0)).toEqual({ sx: 80, sy: 112 });
-    expect(staticObjectEntry('chain', 1, 1)).toEqual({ sx: 112, sy: 112 });
+  it('chainEntry-leftAttachment-alwaysPicksALeftLeaningVariant', () => {
+    expect(chainEntry('left', 0)).toEqual({ sx: 80, sy: 112 });
+    expect(chainEntry('left', 1)).toEqual({ sx: 112, sy: 112 });
+  });
+
+  it('chainEntry-rightAttachment-alwaysPicksARightLeaningVariant', () => {
+    expect(chainEntry('right', 0)).toEqual({ sx: 96, sy: 112 });
+    expect(chainEntry('right', 1)).toEqual({ sx: 128, sy: 112 });
+  });
+
+  it('chainEntry-ceilingAttachment-alternatesByColumnParity', () => {
+    expect(chainEntry('ceiling', 0)).toEqual({ sx: 80, sy: 112 });
+    expect(chainEntry('ceiling', 1)).toEqual({ sx: 128, sy: 112 });
+  });
+
+  it('chainEntry-sameColumnDifferentRows-wouldBeIdentical-becauseRowIsNotHashed', () => {
+    // Regression pin for the bug this fix corrects: a chain shaft's variant
+    // must depend on column only, never row, so every cell of one vertical
+    // shaft renders the same sprite. chainEntry doesn't take a row
+    // parameter at all — this test just re-states that guarantee for a
+    // reader who might otherwise expect row-based variety like
+    // bushOrTreeEntry has.
+    expect(chainEntry('left', 5)).toEqual(chainEntry('left', 5));
+    expect(chainEntry('right', 5)).toEqual(chainEntry('right', 5));
   });
 });
