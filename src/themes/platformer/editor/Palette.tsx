@@ -1,4 +1,4 @@
-import { TERRAIN_CHARS, ENTITY_CHARS, SIGN_CHARS } from '../level/LevelParser';
+import { TERRAIN_CHARS, ENTITY_CHARS, SIGN_CHARS, HAZARD_CHARS } from '../level/LevelParser';
 import type { TileChar } from '../level/LevelParser';
 import {
   PALETTE_TILE_SPRITES,
@@ -38,6 +38,7 @@ export const Palette = ({
   );
   const decorationKeys = allTerrainKeys.filter((key) => DECORATION_CHARS.includes(key));
   const entityKeys = Object.keys(ENTITY_CHARS) as TileChar[];
+  const hazardKeys = Object.keys(HAZARD_CHARS) as TileChar[];
   // Only the FIRST registered sign character becomes a palette tile — clicking
   // it repeatedly on the canvas cycles through every other registered hint
   // (Task 7's paintCell.ts), so the palette itself never needs to grow past one
@@ -78,6 +79,7 @@ export const Palette = ({
             {renderGroup('Terrain', terrainKeys)}
             {renderGroup('Decoration', decorationKeys)}
             {renderGroup('Entities', entityKeys)}
+            {renderGroup('Hazards', hazardKeys)}
             {renderGroup('Tools', toolKeys)}
           </div>
         ) : (
