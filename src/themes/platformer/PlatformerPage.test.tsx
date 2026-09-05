@@ -60,7 +60,7 @@ import { PLAYER_HIT_REACTION_SECONDS } from './entities/Player';
 import { SPIKE_COOLDOWN_DURATION_SECONDS } from './entities/enemies/SlimePurple';
 import { PHYSICS_CONFIG } from './engine/PhysicsConfig';
 import { tileToPixel, RENDERED_TILE_SIZE, isClimbable, tileAt } from './level/Terrain';
-import { currentLevel } from './level/level';
+import { currentLevel, currentLayout, currentBackground, SCRATCH_LAYOUT } from './level/level';
 import type { LevelDef, TileType } from './level/LevelData';
 import {
   JOURNAL_OPEN_FRAME_COUNT,
@@ -103,6 +103,11 @@ const initialPlayerState = playerState.value;
 const initialLifecycleState = lifecycleState.value;
 const initialCollectedFacts = collectedFacts.value;
 const originalLocation = window.location;
+// Module-level signals (see level/level.ts) — a `?level=` test that swaps in
+// a different registry level must not leak that layout/background into
+// later tests, which all assume the real default level.
+const initialLayout = currentLayout.value;
+const initialBackground = currentBackground.value;
 
 /** The first tile of `type` in reading order that also satisfies `also`, so
  *  level-driven tests name the terrain they need instead of pinning the
@@ -160,6 +165,8 @@ describe('PlatformerPage', () => {
     vi.stubGlobal('requestAnimationFrame', () => 1);
     vi.stubGlobal('cancelAnimationFrame', () => {});
     playerState.value = initialPlayerState;
+    currentLayout.value = initialLayout;
+    currentBackground.value = initialBackground;
     cameraPositionX.value = 0;
     cameraPositionY.value = 0;
     lifecycleState.value = initialLifecycleState;
@@ -344,7 +351,7 @@ describe('PlatformerPage', () => {
 
   it('debugHitboxesQueryParam-present-drawsDebugOverlayHitboxes', async () => {
     Object.defineProperty(window, 'location', {
-      value: new URL('http://localhost/?debug=hitboxes'),
+      value: new URL('http://localhost/platformer?debug=hitboxes'),
       writable: true,
       configurable: true,
     });
@@ -367,6 +374,63 @@ describe('PlatformerPage', () => {
     await waitFor(() => expect(ctx.drawImage).toHaveBeenCalled());
 
     expect(ctx.strokeRect).not.toHaveBeenCalled();
+  });
+
+  it('debugHitboxesQueryParam-presentButNotOnPlatformerRoute-doesNotDrawDebugOverlay', async () => {
+    // `/`, not `/platformer` — same query string as the "present" test above,
+    // but the route gate must still suppress it.
+    Object.defineProperty(window, 'location', {
+      value: new URL('http://localhost/?debug=hitboxes'),
+      writable: true,
+      configurable: true,
+    });
+    vi.stubGlobal('Image', MockTilesetImage);
+
+    render(<PlatformerPage />);
+    const ctx = platformerPage.context;
+
+    await waitFor(() => expect(ctx.drawImage).toHaveBeenCalled());
+
+    expect(ctx.strokeRect).not.toHaveBeenCalled();
+  });
+
+  it('levelQueryParam-validRegistryId-loadsThatLevelsLayout', () => {
+    Object.defineProperty(window, 'location', {
+      value: new URL('http://localhost/platformer?level=empty'),
+      writable: true,
+      configurable: true,
+    });
+    vi.stubGlobal('Image', MockTilesetImage);
+
+    render(<PlatformerPage />);
+
+    expect(currentLayout.value).toEqual(SCRATCH_LAYOUT);
+  });
+
+  it('levelQueryParam-unknownId-leavesLayoutAtItsShippedDefault', () => {
+    Object.defineProperty(window, 'location', {
+      value: new URL('http://localhost/platformer?level=does-not-exist'),
+      writable: true,
+      configurable: true,
+    });
+    vi.stubGlobal('Image', MockTilesetImage);
+
+    render(<PlatformerPage />);
+
+    expect(currentLayout.value).toEqual(initialLayout);
+  });
+
+  it('levelQueryParam-presentButNotOnPlatformerRoute-isIgnored', () => {
+    Object.defineProperty(window, 'location', {
+      value: new URL('http://localhost/?level=empty'),
+      writable: true,
+      configurable: true,
+    });
+    vi.stubGlobal('Image', MockTilesetImage);
+
+    render(<PlatformerPage />);
+
+    expect(currentLayout.value).toEqual(initialLayout);
   });
 
   it('mount-onRender-startsTheGameLoop', () => {
@@ -2504,7 +2568,7 @@ describe('PlatformerPage', () => {
 
   it('debugQueryParamPresent-render-showsKillAndRespawnButtons', () => {
     Object.defineProperty(window, 'location', {
-      value: new URL('http://localhost/?debug=hitboxes'),
+      value: new URL('http://localhost/platformer?debug=hitboxes'),
       writable: true,
       configurable: true,
     });
@@ -2517,7 +2581,7 @@ describe('PlatformerPage', () => {
 
   it('killButtonClicked-whilePlaying-setsHealthZeroAndEntersDyingPhase', () => {
     Object.defineProperty(window, 'location', {
-      value: new URL('http://localhost/?debug=hitboxes'),
+      value: new URL('http://localhost/platformer?debug=hitboxes'),
       writable: true,
       configurable: true,
     });
@@ -2542,7 +2606,7 @@ describe('PlatformerPage', () => {
 
   it('respawnButtonClicked-anyPhase-resetsHealthPositionAndEntersIntroAtSpawn', () => {
     Object.defineProperty(window, 'location', {
-      value: new URL('http://localhost/?debug=hitboxes'),
+      value: new URL('http://localhost/platformer?debug=hitboxes'),
       writable: true,
       configurable: true,
     });
@@ -2570,7 +2634,7 @@ describe('PlatformerPage', () => {
 
   it('debugQueryParamPresent-render-showsHitboxesToggleButton', () => {
     Object.defineProperty(window, 'location', {
-      value: new URL('http://localhost/?debug=hitboxes'),
+      value: new URL('http://localhost/platformer?debug=hitboxes'),
       writable: true,
       configurable: true,
     });
@@ -2582,7 +2646,7 @@ describe('PlatformerPage', () => {
 
   it('hitboxesToggleClicked-startingOnFromQueryParam-turnsOffAndStopsDrawingOverlay', async () => {
     Object.defineProperty(window, 'location', {
-      value: new URL('http://localhost/?debug=hitboxes'),
+      value: new URL('http://localhost/platformer?debug=hitboxes'),
       writable: true,
       configurable: true,
     });
@@ -2607,7 +2671,7 @@ describe('PlatformerPage', () => {
 
   it('hitboxesToggleClicked-startingOffWithOtherDebugParam-turnsOnAndDrawsOverlay', () => {
     Object.defineProperty(window, 'location', {
-      value: new URL('http://localhost/?debug=1'),
+      value: new URL('http://localhost/platformer?debug=1'),
       writable: true,
       configurable: true,
     });
