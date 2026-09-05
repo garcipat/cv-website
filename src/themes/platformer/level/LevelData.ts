@@ -4,6 +4,11 @@ export type TileType =
   | 'wall'
   | 'bridge'
   | 'ladder'
+  /** Climbs exactly like `'ladder'` (see Terrain.ts's `isClimbable`) — a
+   *  purely visual alternative skin. Renders centered when hanging free
+   *  from a solid ceiling, or offset toward whichever side (if any) has
+   *  solid terrain next to it (Terrain.ts's `chainAttachment`). */
+  | 'chain'
   /** An invisible, non-solid enemy patrol boundary: nothing renders it, and
    *  the player passes straight through, but `EnemyAI.ts` reverses a patrol
    *  that walks into one exactly as if it were a wall — the way a level

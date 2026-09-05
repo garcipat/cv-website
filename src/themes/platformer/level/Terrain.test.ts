@@ -4,6 +4,8 @@ import {
   isSolidExcludingBridge,
   isClimbable,
   isStandableLadderTop,
+  chainAttachment,
+  chainRunLength,
   isTopExposed,
   tileToPixel,
   bridgeRunPosition,
@@ -293,6 +295,10 @@ describe('isClimbable', () => {
     expect(isClimbable('ladder')).toBe(true);
   });
 
+  it('chain-returnsTrue', () => {
+    expect(isClimbable('chain')).toBe(true);
+  });
+
   it('everyOtherTile-returnsFalse', () => {
     expect(isClimbable('groundGrass')).toBe(false);
     expect(isClimbable('groundRock')).toBe(false);
@@ -312,11 +318,20 @@ describe('isSolid ladder exception', () => {
   it('ladder-isNotSolid', () => {
     expect(isSolid('ladder')).toBe(false);
   });
+
+  it('chain-isNotSolid', () => {
+    expect(isSolid('chain')).toBe(false);
+  });
 });
 
 describe('isStandableLadderTop', () => {
   it('ladderWithOpenSpaceAbove-returnsTrue', () => {
     const level = parseLevel(['.', 'H', 'G']);
+    expect(isStandableLadderTop(level, 0, 1)).toBe(true);
+  });
+
+  it('chainWithOpenSpaceAbove-returnsTrue-sameGeneralizationAsLadder', () => {
+    const level = parseLevel(['.', 'I', 'G']);
     expect(isStandableLadderTop(level, 0, 1)).toBe(true);
   });
 
@@ -333,6 +348,69 @@ describe('isStandableLadderTop', () => {
   it('nonLadderTile-returnsFalse-regardlessOfWhatsAbove', () => {
     const level = parseLevel(['.', 'G', 'G']);
     expect(isStandableLadderTop(level, 0, 1)).toBe(false);
+  });
+});
+
+describe('chainAttachment', () => {
+  it('solidTileDirectlyAbove-returnsCeiling', () => {
+    const level: LevelDef = { width: 1, height: 2, terrain: [['wall'], ['chain']] };
+    expect(chainAttachment(level, 0, 1)).toBe('ceiling');
+  });
+
+  it('solidTileToTheLeft-nothingSolidAbove-returnsLeft', () => {
+    const level: LevelDef = { width: 2, height: 1, terrain: [['wall', 'chain']] };
+    expect(chainAttachment(level, 1, 0)).toBe('left');
+  });
+
+  it('solidTileToTheRight-nothingSolidAboveOrLeft-returnsRight', () => {
+    const level: LevelDef = { width: 2, height: 1, terrain: [['chain', 'wall']] };
+    expect(chainAttachment(level, 0, 0)).toBe('right');
+  });
+
+  it('solidAboveAndToTheSide-ceilingTakesPriorityOverSide', () => {
+    const level: LevelDef = {
+      width: 3,
+      height: 2,
+      terrain: [
+        ['empty', 'wall', 'empty'],
+        ['wall', 'chain', 'empty'],
+      ],
+    };
+    expect(chainAttachment(level, 1, 1)).toBe('ceiling');
+  });
+
+  it('noSolidNeighbourAnywhere-returnsFloating', () => {
+    const level: LevelDef = { width: 1, height: 1, terrain: [['chain']] };
+    expect(chainAttachment(level, 0, 0)).toBe('floating');
+  });
+});
+
+describe('chainRunLength', () => {
+  it('chainBelowIsNotAChainTile-returnsOne', () => {
+    const level: LevelDef = { width: 1, height: 1, terrain: [['chain']] };
+    expect(chainRunLength(level, 0, 0)).toBe(1);
+  });
+
+  it('threeConsecutiveChainTilesDownward-returnsThree', () => {
+    const level: LevelDef = { width: 1, height: 3, terrain: [['chain'], ['chain'], ['chain']] };
+    expect(chainRunLength(level, 0, 0)).toBe(3);
+  });
+
+  it('chainRunEndsBeforeLevelBottom-doesNotCountTilesPastTheNonChainBoundary', () => {
+    const level: LevelDef = {
+      width: 1,
+      height: 4,
+      terrain: [['chain'], ['chain'], ['wall'], ['chain']],
+    };
+    expect(chainRunLength(level, 0, 0)).toBe(2);
+  });
+
+  it('calledFromAMiddleCell-countsOnlyFromThatCellDownward', () => {
+    // chainRunLength itself doesn't know or care whether (col,row) is a
+    // run's actual top — it's the caller's job (Renderer.ts) to only call
+    // this when tileAt(level, col, row-1) !== 'chain'.
+    const level: LevelDef = { width: 1, height: 3, terrain: [['chain'], ['chain'], ['chain']] };
+    expect(chainRunLength(level, 0, 1)).toBe(2);
   });
 });
 
