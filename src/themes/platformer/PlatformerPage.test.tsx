@@ -120,11 +120,6 @@ const firstTileOfType = (
   throw new Error(`level has no ${type} tile matching the given condition`);
 };
 
-/** How far right of a real green slime the synthetic "plain" enemy in the
- *  two tests below is placed: far enough that one stomp cannot defeat both,
- *  close enough to stay on the same stretch of ground. */
-const PLAIN_ENEMY_OFFSET_X = 5 * RENDERED_TILE_SIZE;
-
 /** How far right of a real crate the synthetic coin-pot blocks in the
  *  coin-pot landing tests below are placed — same reasoning as
  *  PLAIN_ENEMY_OFFSET_X above (offsetting keeps the synthetic block clear of
@@ -149,24 +144,6 @@ function placeTestCoinPot(id: string): BlockState {
   });
   blockStates.value = [...blockStates.value, pot];
   return pot;
-}
-
-/** How far right of a real crate the synthetic crate in the crate-counter
- *  test below is placed — same reasoning as COIN_POT_TEST_OFFSET_X above, but
- *  a different offset so the two synthetic blocks (both of which persist in
- *  `blockStates` for the rest of the run) can never land on each other. */
-const CRATE_TEST_OFFSET_X = 9 * RENDERED_TILE_SIZE;
-
-/** Builds a synthetic crate carrying a real crate-pool fact, cloned from the
- *  level's own first fact-bearing crate and shifted clear of it, then injected
- *  into `blockStates` directly. Cloning rather than reusing the level's crate
- *  keeps the test independent of whether an earlier test already destroyed
- *  that crate (`blockStates` is not reset between tests). */
-function placeTestCrate(id: string): BlockState {
-  const source = blockPlacements.value.find((b) => b.blockKind === 'crate' && b.fact)!;
-  const crate = toBlockState({ ...source, id, x: source.x + CRATE_TEST_OFFSET_X });
-  blockStates.value = [...blockStates.value, crate];
-  return crate;
 }
 
 /** The player.y to set so a falling player's feet resolve to rest exactly on
@@ -1066,18 +1043,22 @@ describe('PlatformerPage', () => {
     }
 
     expect(enemyStates.value.find((e) => e.id === target.id)?.alive).toBe(false);
-    expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(true);
+    // The target's own id is now position-derived (see EnemyMapper.ts's
+    // placeGreenSlimes), not the fact's id — the fact it owns was fixed at
+    // placement time and is asserted against directly.
+    expect(collectedFacts.value.some((f) => f.id === target.fact?.id)).toBe(true);
     // A fresh fact-bearing defeat still queues a puff — puff (defeat
     // feedback) and the fact/flight-text reward are fully decoupled layers,
     // same as crate destruction (B-003).
     expect(activePuffs.value.some((p) => p.id === target.id)).toBe(true);
   });
 
-  it('playerFallsOntoAPlainEnemyWithNoFact-tick-defeatsItButAwardsNoFact', () => {
-    // A "plain" enemy (EnemyMapper.ts's excess-marker case — enemies are not
-    // capped at CVData's length) has no `fact` — stomping it must still
-    // flag it dead like any other enemy, just without banking a fact or
-    // bumping the enemy counter popup.
+  it('enemiesPopup-collectedReflectsDefeatedEnemyCountNotFactsAlreadyBanked', () => {
+    // A green slime's fact(s) are a fixed, position-based pool slice (see
+    // EnemyMapper.ts's placeGreenSlimes) — with fewer green slimes than
+    // courses, defeating one can bank several facts at once. The popup's
+    // "collected" must track enemies actually defeated, not facts banked,
+    // or it could show a number bigger than the total (the bug this guards).
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frameCallback = cb;
@@ -1088,26 +1069,13 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const real = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
-    // Offset a few tiles clear of `real`'s position — otherwise both enemies
-    // sit exactly on top of each other and a single stomp defeats both,
-    // muddying what this test is actually checking. Kept small and reused
-    // from `real`'s own y: the level's surface climbs and drops between
-    // terraces, so a large offset would drop this enemy (and the player
-    // landing on it) somewhere the ground is at a different height.
-    const plain = toEnemyState(
-      { ...real, id: 'enemy-plain-slimeGreen-test', x: real.x + PLAIN_ENEMY_OFFSET_X, fact: undefined },
-      0,
-    );
-    enemyStates.value = [...enemyStates.value, plain];
-    const factsBefore = collectedFacts.value.length;
+    const greens = enemyStates.value.filter((e) => e.type === 'slimeGreen');
+    // Two OTHER green enemies' facts already banked, as if their slice held
+    // more than one fact — without actually defeating those enemies.
+    collectedFacts.value = greens.slice(1, 3).map((e) => e.fact!);
 
-    playerState.value = {
-      ...playerState.value,
-      x: plain.x,
-      y: stompLandingY(plain),
-      vy: 300,
-    };
+    const target = greens[0];
+    playerState.value = { ...playerState.value, x: target.x, y: stompLandingY(target), vy: 300 };
 
     let t = 16;
     frameCallback!(t);
@@ -1116,18 +1084,15 @@ describe('PlatformerPage', () => {
       frameCallback!(t);
     }
 
-    expect(enemyStates.value.find((e) => e.id === plain.id)?.alive).toBe(false);
-    expect(collectedFacts.value).toHaveLength(factsBefore);
+    expect(activeCounterPopups.value.enemies).toMatchObject({ collected: 1, total: levelTotals.value.enemies });
   });
 
-  it('playerFallsOntoAPlainEnemyWithNoFact-firstDefeat-stillQueuesAPuff', () => {
-    // The `!fact || enemy.rewardGiven` branch in PlatformerPage.tsx covers
-    // two distinct cases: a revived enemy defeated again (rewardGiven true,
-    // covered by greenSlimeRevivedAndDefeatedAgain-secondDefeat-...), and a
-    // "plain" enemy (no fact at all, EnemyMapper.ts's excess-marker case)
-    // defeated for the very first time (!fact, rewardGiven still false at
-    // that point). Either way the defeat is still a world event that
-    // deserves a puff (B-003) — this asserts the !fact disjunct specifically.
+  it('enemyAlreadyDefeatedFromAPriorLife-defeatingItAgain-awardsNoNewFact', () => {
+    // A green slime's course fact(s) are fixed at placement time (see
+    // EnemyMapper.ts's placeGreenSlimes doc comment) and paid out at most
+    // once — `rewardGiven` is permanent (see Enemy.ts's baseRevive doc
+    // comment). Redefeating a revived enemy must still flag it dead, just
+    // without banking a duplicate fact.
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frameCallback = cb;
@@ -1138,25 +1103,14 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const real = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
-    // Offset a few tiles clear of `real`'s position — otherwise both enemies
-    // sit exactly on top of each other and a single stomp defeats both,
-    // muddying what this test is actually checking. Kept small and reused
-    // from `real`'s own y: the level's surface climbs and drops between
-    // terraces, so a large offset would drop this enemy (and the player
-    // landing on it) somewhere the ground is at a different height.
-    const plain = toEnemyState(
-      { ...real, id: 'enemy-plain-slimeGreen-test-puff', x: real.x + PLAIN_ENEMY_OFFSET_X, fact: undefined },
-      0,
+    // Mark every green enemy as already rewarded, as if each had already
+    // paid out in a prior life this session.
+    enemyStates.value = enemyStates.value.map((e) =>
+      e.type === 'slimeGreen' ? { ...e, rewardGiven: true } : e,
     );
-    enemyStates.value = [...enemyStates.value, plain];
 
-    playerState.value = {
-      ...playerState.value,
-      x: plain.x,
-      y: stompLandingY(plain),
-      vy: 300,
-    };
+    const target = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
+    playerState.value = { ...playerState.value, x: target.x, y: stompLandingY(target), vy: 300 };
 
     let t = 16;
     frameCallback!(t);
@@ -1165,8 +1119,41 @@ describe('PlatformerPage', () => {
       frameCallback!(t);
     }
 
-    expect(enemyStates.value.find((e) => e.id === plain.id)?.alive).toBe(false);
-    expect(activePuffs.value.some((p) => p.id === plain.id)).toBe(true);
+    expect(enemyStates.value.find((e) => e.id === target.id)?.alive).toBe(false);
+    expect(collectedFacts.value).toHaveLength(0);
+  });
+
+  it('enemyAlreadyDefeatedFromAPriorLife-defeatingItAgain-stillQueuesAPuff', () => {
+    // Puff (defeat feedback) and the fact/flight-text reward are fully
+    // decoupled layers (B-003) — a defeat that awards nothing because it
+    // already paid out in a prior life is still a world event that
+    // deserves a puff.
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    enemyStates.value = enemyStates.value.map((e) =>
+      e.type === 'slimeGreen' ? { ...e, rewardGiven: true } : e,
+    );
+
+    const target = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
+    playerState.value = { ...playerState.value, x: target.x, y: stompLandingY(target), vy: 300 };
+
+    let t = 16;
+    frameCallback!(t);
+    for (let i = 0; i < 30; i++) {
+      t += 16;
+      frameCallback!(t);
+    }
+
+    expect(enemyStates.value.find((e) => e.id === target.id)?.alive).toBe(false);
+    expect(activePuffs.value.some((p) => p.id === target.id)).toBe(true);
   });
 
   it('purpleSlimeDefeat-thirdStomp-spawnsKeyPickupInsteadOfJournalFact', () => {
@@ -1464,12 +1451,13 @@ describe('PlatformerPage', () => {
       frameCallback!(t);
     }
     expect(activePuffs.value.some((p) => p.id === crate.id)).toBe(false);
-    expect(activeEffects.value.some((e) => e.id === crate.id)).toBe(false);
+    expect(activeEffects.value.some((e) => e.id.startsWith(`${crate.id}-`))).toBe(false);
 
     // Second hit — the terminal one — must ALWAYS queue a puff (destruction
     // feedback, reusing the same blockEffectAnchor/startPuffEffect mechanism
-    // as fragileRock above) AND independently still award the existing
-    // fact/flight-effect reward, since every real crate carries a fact.
+    // as fragileRock above) AND independently still award its own
+    // fact/flight-effect reward, fixed at placement time (see
+    // BlockMapper.ts's placeCrates doc comment).
     playerState.value = { ...playerState.value, ...bumpPosition };
     t += 16;
     frameCallback!(t);
@@ -1479,8 +1467,11 @@ describe('PlatformerPage', () => {
     }
 
     expect(activePuffs.value.some((p) => p.id === crate.id)).toBe(true);
-    expect(activeEffects.value.some((e) => e.id === crate.id)).toBe(true);
-    expect(collectedFacts.value.some((f) => f.id === crate.fact?.id)).toBe(true);
+    // The flight effect's id is `${crateId}-${factIndex}`, not the crate's
+    // own id — a single crate can reveal more than one fact when fewer
+    // crates are placed than there are crate-pool facts.
+    expect(activeEffects.value.some((e) => e.id.startsWith(`${crate.id}-`))).toBe(true);
+    expect(collectedFacts.value).toEqual([crate.fact]);
   });
 
   it('crateDestroyedFromBelow-terminalHit-bumpsTheCratesCounterPopup', () => {
@@ -1499,7 +1490,10 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const crate = placeTestCrate('crate-test-counter-popup');
+    // A real placement, not placeTestCrate's synthetic clone: cratesDestroyed
+    // (PlatformerState.ts) counts by real blockPlacements id, so a synthetic
+    // crate outside those placements would never register as "destroyed".
+    const crate = blockPlacements.value.find((b) => b.blockKind === 'crate')!;
     const ceilingBottomY = crate.y + RENDERED_TILE_SIZE;
     const bumpPosition = { x: crate.x, y: ceilingBottomY - PLAYER_HEAD_PADDING + 1, vy: -1000 };
 
@@ -1522,6 +1516,46 @@ describe('PlatformerPage', () => {
       total: levelTotals.value.crates,
       elapsed: expect.any(Number),
     });
+  });
+
+  it('cratePopup-collectedReflectsDestroyedCrateCountNotFactsAlreadyBanked', () => {
+    // A crate's fact(s) are a fixed, position-based pool slice (see
+    // BlockMapper.ts's placeCrates) — with fewer crates than crate-pool
+    // facts, destroying one crate can bank several facts at once. The
+    // popup's "collected" must track crates actually destroyed, not facts
+    // banked, or it could show a number bigger than the total (the bug this
+    // guards).
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const crates = blockPlacements.value.filter((b) => b.blockKind === 'crate');
+    // Two OTHER crates' facts already banked, as if their slice held more
+    // than one fact — without actually destroying those crates.
+    collectedFacts.value = crates.slice(1, 3).map((c) => c.fact!);
+
+    const target = crates[0];
+    const ceilingBottomY = target.y + RENDERED_TILE_SIZE;
+    const bumpPosition = { x: target.x, y: ceilingBottomY - PLAYER_HEAD_PADDING + 1, vy: -1000 };
+
+    let t = 16;
+    for (let hit = 0; hit < 2; hit++) {
+      playerState.value = { ...playerState.value, ...bumpPosition };
+      t += 16;
+      frameCallback!(t);
+      for (let i = 0; i < 10; i++) {
+        t += 16;
+        frameCallback!(t);
+      }
+    }
+
+    expect(activeCounterPopups.value.crates).toMatchObject({ collected: 1, total: levelTotals.value.crates });
   });
 
   describe('coinPot — landing destroys it and drops a coin', () => {
@@ -1820,7 +1854,10 @@ describe('PlatformerPage', () => {
     frameCallback!(0);
 
     const target = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
-    const factId = target.id;
+    // The target's own id is now position-derived (see EnemyMapper.ts's
+    // placeGreenSlimes), not the fact's id — the fact it owns was fixed at
+    // placement time.
+    const factId = target.fact?.id;
     playerState.value = {
       ...playerState.value,
       x: target.x,
@@ -1855,7 +1892,7 @@ describe('PlatformerPage', () => {
     fireEvent.keyDown(window, { code: 'Enter' });
 
     // Stomp the SAME (now-revived) enemy again.
-    const revived = enemyStates.value.find((e) => e.id === factId)!;
+    const revived = enemyStates.value.find((e) => e.id === target.id)!;
     playerState.value = {
       ...playerState.value,
       x: revived.x,
