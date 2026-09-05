@@ -31,6 +31,15 @@ describe('App', () => {
     expect(platformerPage.canvas).toBeInTheDocument();
     currentTheme.value = 'ide';
   });
+
+  it('renders the Platformer game at /platformer regardless of currentTheme', () => {
+    currentTheme.value = 'ide';
+    navigateTo('/platformer');
+    render(<App />);
+    expect(platformerPage.canvas).toBeInTheDocument();
+    navigateTo('/');
+    currentTheme.value = 'ide';
+  });
 });
 
 describe('App - level editor route', () => {
