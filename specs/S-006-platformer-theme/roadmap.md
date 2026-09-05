@@ -146,6 +146,12 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   D (terrain registry) of that program stay unscheduled — see
   `plans/2026-09-04-block-item-architecture-followup-notes.md`.
 
+- [ ] **42. Query-parameter level loading** — a URL query parameter (e.g.
+  `?level=minimal`) loads a specific saved level directly on mount, instead of
+  always loading `main`. Useful for both visitors (once step 31's visitor-facing
+  level selection lands) and for debugging/testing a specific saved layout
+  without going through the Level Editor's Try button each time.
+
 ## Unscheduled additions (not yet numbered)
 
 Ideas raised but not yet slotted into the roadmap. Each needs its own
