@@ -63,7 +63,7 @@ export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
     frameWidth: 16,
     frameHeight: 16,
   },
-  W: {
+  '#': {
     sheet: WORLD_TILESET,
     sheetWidth: 256,
     sheetHeight: 256,
@@ -81,7 +81,7 @@ export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
     frameWidth: 16,
     frameHeight: 16,
   },
-  L: {
+  H: {
     sheet: WORLD_TILESET,
     sheetWidth: 256,
     sheetHeight: 256,
@@ -100,7 +100,7 @@ export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
     frameWidth: 32,
     frameHeight: 32,
   },
-  E: {
+  M: {
     sheet: '/sprites/slime_green.png',
     sheetWidth: 96,
     sheetHeight: 72,
@@ -109,7 +109,7 @@ export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
     frameWidth: 24,
     frameHeight: 24,
   },
-  M: {
+  m: {
     sheet: '/sprites/slime_purple.png',
     sheetWidth: 96,
     sheetHeight: 72,
@@ -118,7 +118,7 @@ export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
     frameWidth: 24,
     frameHeight: 24,
   },
-  C: {
+  o: {
     sheet: '/sprites/coin.png',
     sheetWidth: 192,
     sheetHeight: 16,
@@ -271,14 +271,14 @@ export const PALETTE_TILE_DESCRIPTIONS: Record<TileChar, string> = {
   '.': 'Clears a tile back to empty',
   G: 'Solid earth; grows a grass top wherever it is exposed',
   R: 'Solid stone, for exposed rock faces and cave floors',
-  W: 'Solid wall block',
+  '#': 'Solid wall block',
   B: 'Solid from above; the player drops through it with Down',
-  L: 'Climbed with Up and Down',
+  H: 'Climbed with Up and Down',
   P: 'Invisible in game; turns patrolling enemies around',
   S: 'Where the player starts',
-  E: 'Green slime; stomping it reveals one CV fact',
-  M: 'Purple slime; stomping it drops a key',
-  C: 'Coin; collecting it reveals one skill category',
+  M: 'Green slime; stomping it reveals one CV fact',
+  m: 'Purple slime; stomping it drops a key',
+  o: 'Coin; collecting it reveals one skill category',
   X: 'Crate block; hit it from below to reveal a CV fact',
   Q: 'Question block; hit it from below to pop a bonus fruit',
   F: 'Fragile rock; hit it from below to break it open',
@@ -300,14 +300,14 @@ export const PALETTE_TILE_LABELS: Record<TileChar, string> = {
   '.': 'Eraser',
   G: 'Ground Grass',
   R: 'Ground Rock',
-  W: 'Wall',
+  '#': 'Wall',
   B: 'Bridge',
-  L: 'Ladder',
+  H: 'Ladder',
   P: 'Patrol Boundary',
   S: 'Spawn',
-  E: 'Enemy Green',
-  M: 'Enemy Purple',
-  C: 'Coin',
+  M: 'Enemy Green',
+  m: 'Enemy Purple',
+  o: 'Coin',
   X: 'Crate',
   Q: 'Question Mark',
   F: 'Fragile Rock',

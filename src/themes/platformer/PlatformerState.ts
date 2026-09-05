@@ -111,7 +111,7 @@ export const cameraPositionY = signal(0);
  * Every collectible in the level — purely positional now (see
  * `CollectibleMapper.ts`'s `mapCVDataToSkillFactPool` doc comment for why a
  * coin carries no CVData binding of its own), so this needs only the
- * level's hand-placed `C` markers (see COIN_TILES), not `currentCV` at all.
+ * level's hand-placed `o` markers (see COIN_TILES), not `currentCV` at all.
  * `fruit` is passed an empty array (see level.ts's doc comment) since
  * `CollectibleMarkerPositions` still legitimately has that field for future
  * use. placeCollectibles has no auto-placement, same as placeEnemies below.
@@ -158,10 +158,10 @@ export const allCollectiblePlacements = computed<CollectiblePlacement[]>(() => [
  * Every enemy in the level, placed once at module load — same non-reactive
  * convention as collectiblePlacements above (see its comment): no
  * locale-reactivity. Every position comes from currentLevel's hand-placed
- * `E`/`M` markers (see ENEMY_TILES_GREEN/
+ * `M`/`m` markers (see ENEMY_TILES_GREEN/
  * ENEMY_TILES_PURPLE) — placeEnemies has no auto-placement. A marker is a
  * slot on the map; each slot draws the next fact from CVData as its reward.
- * currentLevel currently has one `E` and one `M`, so only the first course
+ * currentLevel currently has one `M` and one `m`, so only the first course
  * and first certificate actually have an enemy — the rest of CVData's
  * certificates/projects/courses simply aren't on the map yet, which is expected for
  * this mechanics-test level, not a bug (see level.ts's doc comment).

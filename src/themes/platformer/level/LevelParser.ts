@@ -22,9 +22,9 @@ export const TERRAIN_CHARS: Record<string, TileType | undefined> = {
   '.': 'empty',
   G: 'groundGrass',
   R: 'groundRock',
-  W: 'wall',
+  '#': 'wall',
   B: 'bridge',
-  L: 'ladder',
+  H: 'ladder',
   P: 'patrol',
   n: 'bush',
   N: 'fence',
@@ -32,8 +32,8 @@ export const TERRAIN_CHARS: Record<string, TileType | undefined> = {
 
 /**
  * Maps each entity-marker character usable in a level layout to what it
- * marks: `S` (spawn), `E` (green/Course enemy), `M` (purple enemy — carries
- * no CV fact, drops a key on defeat), `C` (Skill-category coin), `X` (crate block — Education/Activity/
+ * marks: `S` (spawn), `M` (green/Course enemy), `m` (purple enemy — carries
+ * no CV fact, drops a key on defeat), `o` (Skill-category coin), `X` (crate block — Education/Activity/
  * Language fact), `Q` (question-mark block — no fact, spawns a bonus fruit),
  * `F` (fragileRock block — no fact, level-design filler), `u` (coin-pot block —
  * destroyed by landing on top, drops a coin; lowercase, a small urn-shaped
@@ -47,9 +47,9 @@ export const TERRAIN_CHARS: Record<string, TileType | undefined> = {
  */
 export const ENTITY_CHARS: Record<string, EntityKind | undefined> = {
   S: 'spawn',
-  E: 'enemyGreen',
-  M: 'enemyPurple',
-  C: 'coin',
+  M: 'enemyGreen',
+  m: 'enemyPurple',
+  o: 'coin',
   X: 'crate',
   Q: 'questionMark',
   F: 'fragileRock',
@@ -108,14 +108,14 @@ export type TileChar =
   | '.'
   | 'G'
   | 'R'
-  | 'W'
+  | '#'
   | 'B'
-  | 'L'
+  | 'H'
   | 'P'
   | 'S'
-  | 'E'
   | 'M'
-  | 'C'
+  | 'm'
+  | 'o'
   | 'X'
   | 'Q'
   | 'F'
@@ -182,7 +182,7 @@ export function findSpawnTile(layout: readonly string[]): { col: number; row: nu
 }
 
 /**
- * Finds every `E` (green/Project) enemy marker's position in a level
+ * Finds every `M` (green/Project) enemy marker's position in a level
  * layout, in reading order — this order is what `EnemyMapper.ts`'s
  * `placeEnemies` zips against the project-derived enemy defs (in
  * `mapCVDataToEnemies`'s output order) to assign hand-authored positions to
@@ -193,14 +193,14 @@ export function findGreenEnemyTiles(layout: readonly string[]): { col: number; r
   return findAllOfKind(layout, 'enemyGreen');
 }
 
-/** Finds every `M` (purple/Certificate) enemy marker's position in a level
+/** Finds every `m` (purple/Certificate) enemy marker's position in a level
  *  layout — same convention as findGreenEnemyTiles, for certificate-derived
  *  enemy defs instead of project-derived ones. */
 export function findPurpleEnemyTiles(layout: readonly string[]): { col: number; row: number }[] {
   return findAllOfKind(layout, 'enemyPurple');
 }
 
-/** Finds every `C` (Skill-category coin) marker's position in a level
+/** Finds every `o` (Skill-category coin) marker's position in a level
  *  layout, in reading order — `CollectibleMapper.ts`'s `placeCollectibles`
  *  turns each into a purely positional placement; which skill-category fact
  *  (if any) a given coin reveals is resolved dynamically at pickup time

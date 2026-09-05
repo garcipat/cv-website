@@ -106,9 +106,9 @@ import {
 // can be completed:
 //
 //   S  1   spawn
-//   E  12  green slime — one per course
-//   M  5   purple slime — no CV fact; each drops one key
-//   C  13  coin — walk-over coins (16 skill categories total; the other 3 are
+//   M  12  green slime — one per course
+//   m  5   purple slime — no CV fact; each drops one key
+//   o  13  coin — walk-over coins (16 skill categories total; the other 3 are
 //          reachable via the `u` coin-pots below instead). A coin carries no
 //          CVData binding of its own — see CollectibleMapper.ts's
 //          mapCVDataToSkillFactPool doc comment — so this split is purely a
@@ -140,24 +140,24 @@ import {
 // deliberately NOT on the meadow bridge, where dropping through only earns a
 // pit fall. On the cave mouth, dropping through is the way in.
 export const LEVEL_1_LAYOUT: readonly string[] = [
-  '..................................................................................................................................................................................................................M....T....',
-  '.............................................................................................................................................................................................Q..........X.....LGGGGGGGGGGG..',
-  '..............................................................................................................................................................................................................LGGGGGGGGGGG..',
-  '................................................................................................................................................................................................E.............LGGGGGGGGGGG.T',
+  '..................................................................................................................................................................................................................m....T....',
+  '.............................................................................................................................................................................................Q..........X.....HGGGGGGGGGGG..',
+  '..............................................................................................................................................................................................................HGGGGGGGGGGG..',
+  '................................................................................................................................................................................................M.............HGGGGGGGGGGG.T',
   '..............................................X......................................................................................................................................X.....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   '...........................................................................................................................................................................................GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
-  '........................................E........................................................C...........M........................................................................E..C.GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  '........................................M........................................................o...........m........................................................................M..o.GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   '........................XQ........GGGGGGGGGGGGGGG.......................................Q......GGGGGGG.....GGGGGGG....XQFQ.........................................................RRRRRRRRGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   '..................................GGGGGGGGGGGGGGG..................................................................................................................................GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
-  '..S.5..C...C.........E.......E..2.GGGGGGGGGGGGGGGuu.u.....E......1.....................................E.C..........E.....E.......E........................E.................W.E..WGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
-  'GGGGGGGGGGGGGGBBBGGGGGGGGGGGGGGLGGGGGGGGGGGGGGGGGGGGGGLGGGGGGLGGBBBGGGGGGGGGGGGGGGGGFFGGGGGGGGGG...GGGGGGGGGBBBGGGGGGGGGGGGGGGRRLRRRRRRRRRRRRGGGGGGGGGGGGGGGGGGGGGGGGGLGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
-  'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.L......................L.GGGG.L..........X................GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..L...............X...X.................L....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
-  'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.L......................L.GGGG.L.....................3.....GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..L.....................................L....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
-  'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.L..C...4.T.............L.GGGG.L.....C..M....C....C.RRRRR..GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..L..C.M..T.............................L....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
-  'GGGGGGGGGGGGGG...GGGGGGGGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRRRGGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGGRRRRRRRRRRRRRRLRRRRRRRRRRRFFRRRRRRRRRRRRLRRRRGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
-  'GGGGGGGGGGGGGG...GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..............L.........................L....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
-  'GGGGGGGGGGGGGG...GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..............L.........................L....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
-  'GGGGGGGGGGGGGG...GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..............L....C.M...RRRR...C..C.T..L....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  '..S.5..o...o.........M.......M..2.GGGGGGGGGGGGGGGuu.u.....M......1.....................................M.o..........M.....M.......M........................M.................#.M..#GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  'GGGGGGGGGGGGGGBBBGGGGGGGGGGGGGGHGGGGGGGGGGGGGGGGGGGGGGHGGGGGGHGGBBBGGGGGGGGGGGGGGGGGFFGGGGGGGGGG...GGGGGGGGGBBBGGGGGGGGGGGGGGGRRHRRRRRRRRRRRRGGGGGGGGGGGGGGGGGGGGGGGGGHGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.H......................H.GGGG.H..........X................GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..H...............X...X.................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.H......................H.GGGG.H.....................3.....GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..H.....................................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.H..o...4.T.............H.GGGG.H.....o..m....o....o.RRRRR..GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..H..o.m..T.............................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  'GGGGGGGGGGGGGG...GGGGGGGGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRRRGGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGGRRRRRRRRRRRRRRHRRRRRRRRRRRFFRRRRRRRRRRRRHRRRRGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  'GGGGGGGGGGGGGG...GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..............H.........................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  'GGGGGGGGGGGGGG...GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..............H.........................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  'GGGGGGGGGGGGGG...GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..............H....o.m...RRRR...o..o.T..H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGG...GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'RRRRRRRRRRRRRR...RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR...RRRRRRRRR...RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
 ];
@@ -208,15 +208,15 @@ export const currentLevel = computed<LevelDef>(() => ({
 /** Player spawn point, read from `currentLayout`'s `S` marker. */
 export const SPAWN_TILE = computed(() => findSpawnTile(currentLayout.value));
 
-/** Hand-placed green (Course) enemy positions, from `currentLayout`'s `E` markers. */
+/** Hand-placed green (Course) enemy positions, from `currentLayout`'s `M` markers. */
 export const ENEMY_TILES_GREEN = computed(() => findGreenEnemyTiles(currentLayout.value));
 
-/** Hand-placed purple enemy positions, from `currentLayout`'s `M` markers.
+/** Hand-placed purple enemy positions, from `currentLayout`'s `m` markers.
  *  Purple slimes carry no CV fact — each drops one key, and the level holds
  *  exactly as many of them as it has chests. */
 export const ENEMY_TILES_PURPLE = computed(() => findPurpleEnemyTiles(currentLayout.value));
 
-/** Hand-placed Skill-category coin positions, from `currentLayout`'s `C` markers. */
+/** Hand-placed Skill-category coin positions, from `currentLayout`'s `o` markers. */
 export const COIN_TILES = computed(() => findCoinTiles(currentLayout.value));
 
 /** Hand-placed crate block positions (8 — one per Education, Activity and

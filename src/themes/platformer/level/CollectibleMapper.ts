@@ -76,7 +76,7 @@ export interface CollectibleMarkerPositions {
 }
 
 /**
- * Places one plain collectible per hand-authored marker — `C` markers
+ * Places one plain collectible per hand-authored marker — `o` markers
  * (LevelParser.ts's findCoinTiles) for coins; `fruit` has no level marker of
  * its own today (a hit question-mark spawns its own bonus fruit instead —
  * see BlockMapper.ts's certificateToBlock/projectToBlock), so callers pass
