@@ -128,7 +128,6 @@ describe('isPaginatedSection', () => {
     expect(isPaginatedSection('experience')).toBe(true);
     expect(isPaginatedSection('projects')).toBe(true);
     expect(isPaginatedSection('education')).toBe(true);
-    expect(isPaginatedSection('courses')).toBe(true);
     expect(isPaginatedSection('certificates')).toBe(true);
     expect(isPaginatedSection('skills')).toBe(true);
   });
@@ -138,6 +137,14 @@ describe('isPaginatedSection', () => {
     // together on one page, unlike skill categories (whose skill lists can
     // run long) or the other long-entry sections.
     expect(isPaginatedSection('languages')).toBe(false);
+  });
+
+  it('courses-returnsFalse', () => {
+    // A course entry (see JournalEntry.ts's formatJournalEntry) is one short
+    // title + subtitle line, same shape as a language entry — every course
+    // fits together on one grouped page instead of burning a full page each,
+    // which felt like far too much for how little each entry says.
+    expect(isPaginatedSection('courses')).toBe(false);
   });
 });
 

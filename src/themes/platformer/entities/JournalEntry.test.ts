@@ -1,4 +1,4 @@
-import { formatJournalEntry } from './JournalEntry';
+import { formatJournalEntry, splitIntoTwoColumns } from './JournalEntry';
 import type { CollectedFact } from '../types';
 
 const fact = (overrides: Partial<CollectedFact>): CollectedFact => ({
@@ -164,5 +164,35 @@ describe('formatJournalEntry', () => {
       }),
     );
     expect(result.title).toBe('Profile');
+  });
+});
+
+describe('splitIntoTwoColumns', () => {
+  it('evenLength-splitsExactlyInHalf', () => {
+    expect(splitIntoTwoColumns([1, 2, 3, 4])).toEqual([[1, 2], [3, 4]]);
+  });
+
+  it('oddLength-leftColumnGetsTheExtraOne', () => {
+    expect(splitIntoTwoColumns([1, 2, 3])).toEqual([[1, 2], [3]]);
+  });
+
+  it('empty-returnsTwoEmptyColumns', () => {
+    expect(splitIntoTwoColumns([])).toEqual([[], []]);
+  });
+
+  it('singleItem-allInLeftColumn', () => {
+    expect(splitIntoTwoColumns(['only'])).toEqual([['only'], []]);
+  });
+
+  it('everyItemStillAccountedFor-regardlessOfLength', () => {
+    // The bug this exists to fix: CSS multi-column layout with a fixed
+    // container height and column-fill: auto silently drops rows past the
+    // container's height instead of scrolling to them (a long skill
+    // category's ink overflow doesn't count toward the ancestor's
+    // scrollable area). A manual split into two real arrays can never lose
+    // an item, no matter how long the list is.
+    const items = Array.from({ length: 47 }, (_, i) => i);
+    const [left, right] = splitIntoTwoColumns(items);
+    expect([...left, ...right]).toEqual(items);
   });
 });
