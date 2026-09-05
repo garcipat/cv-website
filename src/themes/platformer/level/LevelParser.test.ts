@@ -18,7 +18,7 @@ import {
 
 describe('parseLevel', () => {
   it('charLayout-parsesInto-matchingTileMap', () => {
-    const result = parseLevel(['G.', '.W']);
+    const result = parseLevel(['G.', '.#']);
     expect(result).toEqual({
       terrain: [
         ['groundGrass', 'empty'],
@@ -37,7 +37,7 @@ describe('parseLevel', () => {
     expect(TERRAIN_CHARS['.']).toBe('empty');
     expect(TERRAIN_CHARS.G).toBe('groundGrass');
     expect(TERRAIN_CHARS.R).toBe('groundRock');
-    expect(TERRAIN_CHARS.W).toBe('wall');
+    expect(TERRAIN_CHARS['#']).toBe('wall');
     expect(TERRAIN_CHARS.B).toBe('bridge');
   });
 
@@ -51,9 +51,9 @@ describe('parseLevel', () => {
 
   it('entityChars-mapsEveryEntityMarker', () => {
     expect(ENTITY_CHARS.S).toBe('spawn');
-    expect(ENTITY_CHARS.E).toBe('enemyGreen');
-    expect(ENTITY_CHARS.M).toBe('enemyPurple');
-    expect(ENTITY_CHARS.C).toBe('coin');
+    expect(ENTITY_CHARS.M).toBe('enemyGreen');
+    expect(ENTITY_CHARS.m).toBe('enemyPurple');
+    expect(ENTITY_CHARS.o).toBe('coin');
     expect(ENTITY_CHARS.X).toBe('crate');
     expect(ENTITY_CHARS.Q).toBe('questionMark');
     expect(ENTITY_CHARS.F).toBe('fragileRock');
@@ -77,13 +77,13 @@ describe('parseLevel', () => {
   });
 
   it('enemyMarkers-parseAsEmptyWalkableTile', () => {
-    const result = parseLevel(['EM', 'GG']);
+    const result = parseLevel(['Mm', 'GG']);
     expect(result.terrain[0][0]).toBe('empty');
     expect(result.terrain[0][1]).toBe('empty');
   });
 
   it('coinAndFragileRockMarkers-parseAsEmptyWalkableTile', () => {
-    const result = parseLevel(['CF', 'GG']);
+    const result = parseLevel(['oF', 'GG']);
     expect(result.terrain[0][0]).toBe('empty');
     expect(result.terrain[0][1]).toBe('empty');
   });
@@ -105,7 +105,7 @@ describe('parseLevel ragged rows (padding, not throwing)', () => {
   });
 
   it('allRowsAlreadyEqualLength-behavesExactlyAsBefore', () => {
-    const result = parseLevel(['GG', 'WW']);
+    const result = parseLevel(['GG', '##']);
     expect(result.width).toBe(2);
     expect(result.terrain).toEqual([
       ['groundGrass', 'groundGrass'],
@@ -132,11 +132,11 @@ describe('patrol terrain character', () => {
 
 describe('ladder terrain character', () => {
   it('terrainChars-mapsLToLadder', () => {
-    expect(TERRAIN_CHARS.L).toBe('ladder');
+    expect(TERRAIN_CHARS.H).toBe('ladder');
   });
 
   it('ladderChar-parsesAsLadderTile', () => {
-    const result = parseLevel(['L.', 'GG']);
+    const result = parseLevel(['H.', 'GG']);
     expect(result.terrain[0][0]).toBe('ladder');
   });
 });
@@ -168,14 +168,14 @@ describe('findGreenEnemyTiles', () => {
   });
 
   it('multipleMarkers-returnsAllInReadingOrder', () => {
-    expect(findGreenEnemyTiles(['.E', 'E.'])).toEqual([
+    expect(findGreenEnemyTiles(['.M', 'M.'])).toEqual([
       { col: 1, row: 0 },
       { col: 0, row: 1 },
     ]);
   });
 
   it('purpleMarker-isNotCountedAsGreen', () => {
-    expect(findGreenEnemyTiles(['M.'])).toEqual([]);
+    expect(findGreenEnemyTiles(['m.'])).toEqual([]);
   });
 });
 
@@ -185,14 +185,14 @@ describe('findPurpleEnemyTiles', () => {
   });
 
   it('multipleMarkers-returnsAllInReadingOrder', () => {
-    expect(findPurpleEnemyTiles(['.M', 'M.'])).toEqual([
+    expect(findPurpleEnemyTiles(['.m', 'm.'])).toEqual([
       { col: 1, row: 0 },
       { col: 0, row: 1 },
     ]);
   });
 
   it('greenMarker-isNotCountedAsPurple', () => {
-    expect(findPurpleEnemyTiles(['E.'])).toEqual([]);
+    expect(findPurpleEnemyTiles(['M.'])).toEqual([]);
   });
 });
 
@@ -202,7 +202,7 @@ describe('findCoinTiles', () => {
   });
 
   it('multipleMarkers-returnsAllInReadingOrder', () => {
-    expect(findCoinTiles(['.C', 'C.'])).toEqual([
+    expect(findCoinTiles(['.o', 'o.'])).toEqual([
       { col: 1, row: 0 },
       { col: 0, row: 1 },
     ]);
@@ -350,7 +350,7 @@ describe('findSignTiles', () => {
 describe('TileChar', () => {
   it('includes every TERRAIN_CHARS, ENTITY_CHARS, and SIGN_CHARS key', () => {
     const tileChars: readonly TileChar[] = [
-      '.', 'G', 'R', 'W', 'B', 'L', 'I', 'P', 'S', 'E', 'M', 'C', 'X', 'Q', 'F', 'T', 'u',
+      '.', 'G', 'R', '#', 'B', 'H', 'I', 'P', 'S', 'M', 'm', 'o', 'X', 'Q', 'F', 'T', 'u',
       '1', '2', '3', '4', '5', 'n', 'N',
     ];
     const allKeys = [...Object.keys(TERRAIN_CHARS), ...Object.keys(ENTITY_CHARS), ...Object.keys(SIGN_CHARS)];

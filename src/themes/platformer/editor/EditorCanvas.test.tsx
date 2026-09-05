@@ -305,7 +305,7 @@ describe('EditorCanvas', () => {
     const tileset = {} as HTMLImageElement;
     const coin = {} as HTMLImageElement;
     const staticObjects = {} as HTMLImageElement;
-    const grid: TileChar[][] = [['C', 'E', 'X', 'T', 'u']];
+    const grid: TileChar[][] = [['o', 'M', 'X', 'T', 'u']];
     render(
       <EditorCanvas
         {...BACKGROUND_LAYER_DEFAULT_PROPS}
