@@ -83,6 +83,14 @@ export const SIGN_CHARS: Record<string, HintId | undefined> = {
  *  facing only selects the sprite. */
 export type HazardFacing = 'up' | 'down' | 'left' | 'right';
 
+/** Every hazard kind the game knows about. Currently just `spike`, but every
+ *  place that would otherwise hardcode the literal `'spike'` (HAZARD_CHARS's
+ *  value type below, findHazardTiles's return type, HazardMapper.ts's
+ *  HazardPlacement/placeHazards) is typed against this instead — adding a
+ *  second kind is one line here plus its own module and registry entry
+ *  (entities/hazards/index.ts), nothing else widens by hand. */
+export type HazardKind = 'spike';
+
 /**
  * Maps each hazard-marker character to the hazard it places. Same
  * hand-authored-content convention as SIGN_CHARS (the character itself
@@ -93,7 +101,7 @@ export type HazardFacing = 'up' | 'down' | 'left' | 'right';
  * here plus a new `HAZARD_TYPES` registry line (entities/hazards/index.ts) —
  * nothing else in this file changes.
  */
-export const HAZARD_CHARS: Record<string, { hazardType: 'spike'; facing: HazardFacing } | undefined> = {
+export const HAZARD_CHARS: Record<string, { hazardType: HazardKind; facing: HazardFacing } | undefined> = {
   '^': { hazardType: 'spike', facing: 'up' },
   v: { hazardType: 'spike', facing: 'down' },
   '<': { hazardType: 'spike', facing: 'left' },
@@ -114,7 +122,7 @@ const sharedChars = Object.entries(charOwners)
   .map(([char]) => char);
 if (sharedChars.length > 0) {
   throw new Error(
-    `Level character(s) defined as more than one of terrain/entity/sign: ${sharedChars.join(', ')}`,
+    `Level character(s) defined as more than one of terrain/entity/sign/hazard: ${sharedChars.join(', ')}`,
   );
 }
 
@@ -306,8 +314,8 @@ export function findSignTiles(
  */
 export function findHazardTiles(
   layout: readonly string[],
-): { col: number; row: number; hazardType: 'spike'; facing: HazardFacing }[] {
-  const tiles: { col: number; row: number; hazardType: 'spike'; facing: HazardFacing }[] = [];
+): { col: number; row: number; hazardType: HazardKind; facing: HazardFacing }[] {
+  const tiles: { col: number; row: number; hazardType: HazardKind; facing: HazardFacing }[] = [];
   for (let row = 0; row < layout.length; row++) {
     for (let col = 0; col < layout[row].length; col++) {
       const hazard = HAZARD_CHARS[layout[row][col]];

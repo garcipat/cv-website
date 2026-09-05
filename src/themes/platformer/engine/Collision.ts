@@ -16,7 +16,7 @@ import type { ChestState } from '../entities/Chest';
 import { CHEST_TYPE } from '../entities/chests';
 import { signBox } from '../level/SignMapper';
 import type { SignPlacement } from '../level/SignMapper';
-import { hazardBox } from '../level/HazardMapper';
+import { typeOf as hazardTypeOf } from '../entities/hazards';
 import type { HazardPlacement } from '../level/HazardMapper';
 import type { HintId } from '../types';
 import type { KeyPickupState } from '../entities/KeyPickup';
@@ -272,7 +272,7 @@ export function checkHazardCollisions(
   player: PlayerState,
   hazards: readonly HazardPlacement[],
 ): HazardPlacement[] {
-  return overlappingTriggers(player, hazards, hazardBox);
+  return overlappingTriggers(player, hazards, (h) => hazardTypeOf(h).box(h));
 }
 
 /**

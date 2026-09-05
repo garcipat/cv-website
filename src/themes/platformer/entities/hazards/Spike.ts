@@ -1,4 +1,5 @@
 import type { HazardType } from './HazardType';
+import { hazardBox } from '../../level/HazardMapper';
 import type { HazardPlacement } from '../../level/HazardMapper';
 import type { HazardFacing } from '../../level/LevelParser';
 import { STATIC_OBJECTS_SHEET } from '../sprites/sheets';
@@ -31,7 +32,7 @@ export const spike: HazardType<HazardPlacement> & { spriteCoords: typeof spriteC
   key: 'spike',
   damage: SIDE_HIT_DAMAGE,
   spriteCoords,
-  box: (hazard) => ({ x: hazard.x, y: hazard.y, width: RENDERED_TILE_SIZE, height: RENDERED_TILE_SIZE }),
+  box: hazardBox,
   draw: (hazard, dc) => {
     const image = dc.sprites[STATIC_OBJECTS_SHEET.src];
     if (!image) return;
