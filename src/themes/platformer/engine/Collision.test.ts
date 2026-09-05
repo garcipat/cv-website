@@ -7,6 +7,7 @@ import {
   chestPlayerIsStandingOn,
   checkSignOverlap,
   checkKeyPickupCollisions,
+  checkHazardCollisions,
   overlappingTriggers,
 } from './Collision';
 import type { Box } from './Collision';
@@ -29,6 +30,7 @@ import { spawnBonusFruit, tickBonusFruit, BONUS_FRUIT_RISE_DURATION_SECONDS } fr
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { ChestState } from '../entities/Chest';
 import type { SignPlacement } from '../level/SignMapper';
+import type { HazardPlacement } from '../level/HazardMapper';
 import type { KeyPickupState } from '../entities/KeyPickup';
 import { PHYSICS_CONFIG } from './PhysicsConfig';
 
@@ -310,6 +312,33 @@ describe('checkSignOverlap', () => {
     const player = makePlayer(100, 100);
 
     expect(checkSignOverlap(player, [])).toBeUndefined();
+  });
+});
+
+describe('checkHazardCollisions', () => {
+  const hazard: HazardPlacement = { id: 'h1', hazardType: 'spike', facing: 'up', x: 100, y: 100 };
+
+  it('playerOverlappingHazard-returnsIt', () => {
+    const player = makePlayer(100, 100);
+    expect(checkHazardCollisions(player, [hazard])).toEqual([hazard]);
+  });
+
+  it('playerFarFromHazard-returnsEmpty', () => {
+    const player = makePlayer(1000, 1000);
+    expect(checkHazardCollisions(player, [hazard])).toEqual([]);
+  });
+
+  it('noHazardsInLevel-returnsEmpty', () => {
+    const player = makePlayer(100, 100);
+    expect(checkHazardCollisions(player, [])).toEqual([]);
+  });
+
+  it('touchingAnyFacing-stillReturnsIt', () => {
+    // Facing is cosmetic only — hazardBox ignores it, so every facing must
+    // damage on overlap exactly the same as 'up' does above.
+    const player = makePlayer(100, 100);
+    const leftFacing: HazardPlacement = { ...hazard, facing: 'left' };
+    expect(checkHazardCollisions(player, [leftFacing])).toEqual([leftFacing]);
   });
 });
 
