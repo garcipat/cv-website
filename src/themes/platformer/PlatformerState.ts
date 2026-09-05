@@ -21,7 +21,7 @@ import {
 import { MAX_HALF_HEARTS } from './entities/Health';
 import { toEnemyState, reviveEnemy } from './entities/Enemy';
 import type { EnemyState } from './entities/Enemy';
-import { toBlockState } from './entities/Block';
+import { toBlockState, isBlockUsedUp } from './entities/Block';
 import type { BlockState } from './entities/Block';
 import { toChestState } from './entities/Chest';
 import type { ChestState } from './entities/Chest';
@@ -274,6 +274,43 @@ export const enemyStates = signal<EnemyState[]>(
  * respawn).
  */
 export const blockStates = signal<BlockState[]>(blockPlacements.value.map(toBlockState));
+
+/**
+ * How many crates have been destroyed this session — read by
+ * `PlatformerPage.tsx`'s crates counter popup and `Journal.tsx`'s summary
+ * row, so the two can never disagree.
+ *
+ * Checks each of `blockPlacements`'s real crates by id rather than filtering
+ * `blockStates` directly, for two reasons: (1) a destroyed crate is spliced
+ * out of `blockStates` entirely once its shatter animation finishes (see
+ * `isBlockRemoved`, applied in `PlatformerPage.tsx`'s per-tick block-state
+ * update) — a placement whose id is no longer found there is destroyed just
+ * as much as one still present with `isBlockUsedUp` true (mid-shatter), so
+ * both must count immediately, not just the latter; and (2) `blockStates`
+ * can carry EXTRA crate-kind entries beyond the level's real placements
+ * (test helpers inject synthetic ones, id-distinct from any real crate) —
+ * counting by placement id ignores those rather than corrupting the total.
+ */
+export const cratesDestroyed = computed<number>(
+  () =>
+    blockPlacements.value.filter((placement) => {
+      if (placement.blockKind !== 'crate') return false;
+      const live = blockStates.value.find((b) => b.id === placement.id);
+      return !live || isBlockUsedUp(live);
+    }).length,
+);
+
+/**
+ * How many green slimes have been defeated this session — read by
+ * `PlatformerPage.tsx`'s enemies counter popup and `Journal.tsx`'s summary
+ * row, so the two can never disagree. Unlike `cratesDestroyed` above, a
+ * defeated enemy is never removed from `enemyStates` (it stays, revivable —
+ * see `Enemy.ts`'s `reviveEnemy`), so filtering by the permanent
+ * `rewardGiven` flag is exact with no analogous undercount risk.
+ */
+export const enemiesDefeated = computed<number>(
+  () => enemyStates.value.filter((e) => e.type === 'slimeGreen' && e.rewardGiven).length,
+);
 
 /**
  * Live open/closed state for every chest — mirrors blockStates above.

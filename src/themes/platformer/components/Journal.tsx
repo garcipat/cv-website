@@ -7,6 +7,8 @@ import {
   allCollectiblePlacements,
   collectedCollectibleIds,
   levelTotals,
+  cratesDestroyed,
+  enemiesDefeated,
 } from '../PlatformerState';
 import { formatJournalEntry } from '../entities/JournalEntry';
 import {
@@ -429,6 +431,21 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
                           coinsCollected: allCollectiblePlacements.value.filter(
                             (p) => p.spriteType === 'coin' && collectedCollectibleIds.value.has(p.id),
                           ).length,
+                          // Same reasoning as coinsCollected above, for
+                          // enemies/crates: a green slime's/crate's course
+                          // fact(s) are now a fixed, position-based slice of
+                          // the pool (see EnemyMapper.ts's placeGreenSlimes /
+                          // BlockMapper.ts's placeCrates), so whenever the
+                          // level's enemy/crate count and its fact-pool
+                          // length differ, "facts revealed" and "defeated/
+                          // destroyed" are different numbers. Read from
+                          // PlatformerState.ts's own computeds (not a plain
+                          // filter here) — see cratesDestroyed's doc comment
+                          // for why a destroyed crate can't just be filtered
+                          // out of blockStates directly. Same values
+                          // PlatformerPage.tsx's HUD popups show.
+                          enemiesDefeated: enemiesDefeated.value,
+                          cratesDestroyed: cratesDestroyed.value,
                         }).map((row) => (
                           <li key={row.labelKey} className="flex items-center">
                             {renderCollectibleIcon(row.labelKey)}

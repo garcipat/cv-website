@@ -146,24 +146,6 @@ function placeTestCoinPot(id: string): BlockState {
   return pot;
 }
 
-/** How far right of a real crate the synthetic crate in the crate-counter
- *  test below is placed — same reasoning as COIN_POT_TEST_OFFSET_X above, but
- *  a different offset so the two synthetic blocks (both of which persist in
- *  `blockStates` for the rest of the run) can never land on each other. */
-const CRATE_TEST_OFFSET_X = 9 * RENDERED_TILE_SIZE;
-
-/** Builds a synthetic crate carrying a real crate-pool fact, cloned from the
- *  level's own first fact-bearing crate and shifted clear of it, then injected
- *  into `blockStates` directly. Cloning rather than reusing the level's crate
- *  keeps the test independent of whether an earlier test already destroyed
- *  that crate (`blockStates` is not reset between tests). */
-function placeTestCrate(id: string): BlockState {
-  const source = blockPlacements.value.find((b) => b.blockKind === 'crate' && b.fact)!;
-  const crate = toBlockState({ ...source, id, x: source.x + CRATE_TEST_OFFSET_X });
-  blockStates.value = [...blockStates.value, crate];
-  return crate;
-}
-
 /** The player.y to set so a falling player's feet resolve to rest exactly on
  *  top of the given block's tile — mirrors `stompLandingY` above, but for
  *  landing on a solid block tile (`Physics.ts`'s ground-collision branch)
@@ -1071,6 +1053,40 @@ describe('PlatformerPage', () => {
     expect(activePuffs.value.some((p) => p.id === target.id)).toBe(true);
   });
 
+  it('enemiesPopup-collectedReflectsDefeatedEnemyCountNotFactsAlreadyBanked', () => {
+    // A green slime's fact(s) are a fixed, position-based pool slice (see
+    // EnemyMapper.ts's placeGreenSlimes) — with fewer green slimes than
+    // courses, defeating one can bank several facts at once. The popup's
+    // "collected" must track enemies actually defeated, not facts banked,
+    // or it could show a number bigger than the total (the bug this guards).
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const greens = enemyStates.value.filter((e) => e.type === 'slimeGreen');
+    // Two OTHER green enemies' facts already banked, as if their slice held
+    // more than one fact — without actually defeating those enemies.
+    collectedFacts.value = greens.slice(1, 3).map((e) => e.fact!);
+
+    const target = greens[0];
+    playerState.value = { ...playerState.value, x: target.x, y: stompLandingY(target), vy: 300 };
+
+    let t = 16;
+    frameCallback!(t);
+    for (let i = 0; i < 30; i++) {
+      t += 16;
+      frameCallback!(t);
+    }
+
+    expect(activeCounterPopups.value.enemies).toMatchObject({ collected: 1, total: levelTotals.value.enemies });
+  });
+
   it('enemyAlreadyDefeatedFromAPriorLife-defeatingItAgain-awardsNoNewFact', () => {
     // A green slime's course fact(s) are fixed at placement time (see
     // EnemyMapper.ts's placeGreenSlimes doc comment) and paid out at most
@@ -1474,7 +1490,10 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const crate = placeTestCrate('crate-test-counter-popup');
+    // A real placement, not placeTestCrate's synthetic clone: cratesDestroyed
+    // (PlatformerState.ts) counts by real blockPlacements id, so a synthetic
+    // crate outside those placements would never register as "destroyed".
+    const crate = blockPlacements.value.find((b) => b.blockKind === 'crate')!;
     const ceilingBottomY = crate.y + RENDERED_TILE_SIZE;
     const bumpPosition = { x: crate.x, y: ceilingBottomY - PLAYER_HEAD_PADDING + 1, vy: -1000 };
 
@@ -1497,6 +1516,46 @@ describe('PlatformerPage', () => {
       total: levelTotals.value.crates,
       elapsed: expect.any(Number),
     });
+  });
+
+  it('cratePopup-collectedReflectsDestroyedCrateCountNotFactsAlreadyBanked', () => {
+    // A crate's fact(s) are a fixed, position-based pool slice (see
+    // BlockMapper.ts's placeCrates) — with fewer crates than crate-pool
+    // facts, destroying one crate can bank several facts at once. The
+    // popup's "collected" must track crates actually destroyed, not facts
+    // banked, or it could show a number bigger than the total (the bug this
+    // guards).
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const crates = blockPlacements.value.filter((b) => b.blockKind === 'crate');
+    // Two OTHER crates' facts already banked, as if their slice held more
+    // than one fact — without actually destroying those crates.
+    collectedFacts.value = crates.slice(1, 3).map((c) => c.fact!);
+
+    const target = crates[0];
+    const ceilingBottomY = target.y + RENDERED_TILE_SIZE;
+    const bumpPosition = { x: target.x, y: ceilingBottomY - PLAYER_HEAD_PADDING + 1, vy: -1000 };
+
+    let t = 16;
+    for (let hit = 0; hit < 2; hit++) {
+      playerState.value = { ...playerState.value, ...bumpPosition };
+      t += 16;
+      frameCallback!(t);
+      for (let i = 0; i < 10; i++) {
+        t += 16;
+        frameCallback!(t);
+      }
+    }
+
+    expect(activeCounterPopups.value.crates).toMatchObject({ collected: 1, total: levelTotals.value.crates });
   });
 
   describe('coinPot — landing destroys it and drops a coin', () => {

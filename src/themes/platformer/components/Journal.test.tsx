@@ -8,9 +8,12 @@ import {
   collectedCollectibleIds,
   collectiblePlacements,
   blockPlacements,
+  blockStates,
   enemyPlacements,
+  enemyStates,
 } from '../PlatformerState';
 import { currentLayout, LEVEL_1_LAYOUT } from '../level/level';
+import { toEnemyState } from '../entities/Enemy';
 import { JOURNAL_OPEN_FRAME_COUNT, JOURNAL_OPEN_FRAME_INTERVAL_MS } from '../entities/JournalAnimation';
 import { sectionTotal } from '../entities/JournalSections';
 import type { CollectedFact } from '../types';
@@ -634,6 +637,58 @@ describe('Journal', () => {
       fireEvent.click(journalPage.bookmarkTabs.experience);
 
       expect(journalPage.collectiblesSummary).not.toBeInTheDocument();
+    });
+
+    it('fewerGreenEnemiesThanCourses-enemiesRowShowsDefeatedCountNotFactsRevealedCount', () => {
+      // With fewer green enemies than courses, one defeat can reveal several
+      // course facts at once (see EnemyMapper.ts's placeGreenSlimes) — the
+      // "Enemies" row must still track how many enemies were actually
+      // defeated, not how many facts came out of that, or the numerator
+      // could even exceed the denominator (the bug this test guards).
+      try {
+        currentLayout.value = ['SEE', 'GGG']; // 2 green markers, 12 courses
+        // enemyStates is a plain signal, not reactive to currentLayout — it
+        // only rebuilds via resetGameProgress()/mount, so rebuild it here to
+        // match the new layout's placements, same as PlatformerState.ts does.
+        enemyStates.value = enemyPlacements.value.map((p, i) => toEnemyState(p, i));
+
+        // Defeat only the first of the 2 green enemies — its slice alone is
+        // most of the pool (6 of 12 courses with an even split).
+        const [first] = enemyStates.value.filter((e) => e.type === 'slimeGreen');
+        enemyStates.value = enemyStates.value.map((e) => (e.id === first.id ? { ...e, rewardGiven: true } : e));
+        collectedFacts.value = [first.fact!, ...(first.extraFacts ?? [])];
+
+        render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
+        openBookAnimation();
+
+        const summary = journalPage.collectiblesSummary;
+        expect(summary).toHaveTextContent(new RegExp('Enemies 1 / 2(?!\\d)'));
+      } finally {
+        currentLayout.value = LEVEL_1_LAYOUT;
+        enemyStates.value = enemyPlacements.value.map((p, i) => toEnemyState(p, i));
+      }
+    });
+
+    it('crateFewerThanPoolFacts-cratesRowShowsDestroyedCountNotFactsRevealedCount', () => {
+      // Same reasoning as the enemies test above, for crates (see
+      // BlockMapper.ts's placeCrates) — only ONE crate is actually broken
+      // here, but several crate-sectioned facts are already banked (as if
+      // an earlier crate's slice had more than one fact), which would make
+      // the facts-derived count diverge from the real destroyed count.
+      const crates = blockPlacements.value.filter((b) => b.blockKind === 'crate');
+      try {
+        blockStates.value = blockStates.value.map((b) => (b.id === crates[0].id ? { ...b, hitsTaken: 2 } : b));
+        collectedFacts.value = crates.slice(0, 3).map((c) => c.fact!);
+
+        render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
+        openBookAnimation();
+
+        const summary = journalPage.collectiblesSummary;
+        const total = crates.length;
+        expect(summary).toHaveTextContent(new RegExp(`Crates 1 / ${total}(?!\\d)`));
+      } finally {
+        blockStates.value = blockPlacements.value.map((b) => ({ ...b, hitsTaken: 0, animState: 'idle', animTimer: 0 }));
+      }
     });
 
     it('enemyMarkerBeyondCourseCount-everyGreenMarkerCountsTowardEnemiesTotal', () => {
