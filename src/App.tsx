@@ -27,6 +27,15 @@ export const App = () => {
       </Suspense>
     );
   }
+  // `/platformer` always renders the game, regardless of whichever theme is
+  // currently persisted — this is what makes it a real, deep-linkable route
+  // (e.g. `/platformer?debug=1&level=cave-run`), rather than the game only
+  // showing up incidentally when `currentTheme` happens to already be
+  // `'platformer'`. Every other path falls back to the theme-selected page,
+  // same as before.
+  if (currentPath.value === '/platformer') {
+    return <PlatformerPage />;
+  }
   const Page = themePages[currentTheme.value] ?? IdePage;
   return <Page />;
 };
