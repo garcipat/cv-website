@@ -46,4 +46,24 @@ describe('StaticObjectsCatalog', () => {
   it('staticObjectEntry-fence-ignoresPositionAndAlwaysReturnsTheSameEntry', () => {
     expect(staticObjectEntry('fence', 1, 1)).toEqual(staticObjectEntry('fence', 9, 9));
   });
+
+  it('chain-resolvesToARectInsideTheSheetOnA16pxGrid', () => {
+    const entry = staticObjectEntry('chain', 0, 0);
+    expect(entry.sx % TILE_SIZE).toBe(0);
+    expect(entry.sy % TILE_SIZE).toBe(0);
+    expect(entry.sx + TILE_SIZE).toBeLessThanOrEqual(STATIC_OBJECTS_SHEET_WIDTH);
+    expect(entry.sy + TILE_SIZE).toBeLessThanOrEqual(STATIC_OBJECTS_SHEET_HEIGHT);
+  });
+
+  it('chain-sameColAndRow-isDeterministic', () => {
+    expect(staticObjectEntry('chain', 3, 5)).toEqual(staticObjectEntry('chain', 3, 5));
+  });
+
+  it('chain-differentPositions-canResolveToDifferentVariants', () => {
+    // (0,0) and (1,1) land on different variants of the 4 available (see
+    // StaticObjectsCatalog.ts's CHAIN_VARIANTS) — confirms position actually
+    // drives variant choice, unlike fence's single-variant array.
+    expect(staticObjectEntry('chain', 0, 0)).toEqual({ sx: 80, sy: 112 });
+    expect(staticObjectEntry('chain', 1, 1)).toEqual({ sx: 112, sy: 112 });
+  });
 });
