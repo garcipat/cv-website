@@ -97,3 +97,23 @@ export function formatJournalEntry(fact: CollectedFact): JournalEntryDisplay {
       return { icon, title: fact.sectionLabel };
   }
 }
+
+/**
+ * Splits a list into two column-order halves — left gets the first half
+ * (the extra item on an odd length), right the rest.
+ *
+ * Used instead of CSS multi-column layout (`columns-2` + `column-fill:
+ * auto`) for a skill category's `ratedItems` list: that CSS approach needs
+ * a fixed container height to fill the left column first, but a category
+ * long enough to overflow both columns at that height silently drops the
+ * remainder — its "ink overflow" doesn't count toward an ancestor's
+ * scrollable area (a well-known CSS multicol limitation), so those rows
+ * are never shown and never reachable by scrolling either. Two real JS
+ * arrays rendered as ordinary block content can't lose an item regardless
+ * of length, and their combined height correctly drives an ancestor
+ * scrollbar when there are enough of them.
+ */
+export function splitIntoTwoColumns<T>(items: readonly T[]): [T[], T[]] {
+  const mid = Math.ceil(items.length / 2);
+  return [items.slice(0, mid), items.slice(mid)];
+}

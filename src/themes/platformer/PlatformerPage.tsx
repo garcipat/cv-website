@@ -138,6 +138,8 @@ import {
   skillFactPool,
   enemyStates,
   blockStates,
+  cratesDestroyed,
+  enemiesDefeated,
   bonusFruitStates,
   collectedCollectibleIds,
   activeEffects,
@@ -164,7 +166,7 @@ import {
   tickHintTooltip,
   hintTooltipGrowthAndOpacity,
 } from './engine/HintTooltip';
-import type { HintId } from './types';
+import type { HintId, CollectedFact } from './types';
 
 export const PlatformerPage = () => {
   // Subscribes this component's render to any signal `.value` read during
@@ -779,6 +781,10 @@ export const PlatformerPage = () => {
       const justDefeated = enemyStates.value.filter((e) => !e.alive && !e.deathEffectGiven);
       if (justDefeated.length > 0) {
         const newPuffs = [...activePuffs.value];
+        // Whether any green slime was freshly defeated this tick — gates
+        // the popup bump below, computed from the raw defeated-enemy count
+        // rather than facts revealed (see that bump's own comment).
+        let greenDefeatedThisTick = false;
 
         for (const enemy of justDefeated) {
           const anchor = enemyEffectAnchor(enemy);
@@ -800,26 +806,40 @@ export const PlatformerPage = () => {
             continue;
           }
 
-          const fact = enemy.fact;
-          if (!fact || enemy.rewardGiven) {
-            // Either a "plain" enemy (a marker beyond its color's CVData
-            // course count, see EnemyMapper.ts) that never had a fact to
-            // give, or a revived enemy defeated again after already paying
-            // out its fact (rewardGiven permanent — see Enemy.ts's
-            // baseRevive doc comment). Either way: nothing left to reward,
-            // but the defeat itself is still a world event that deserves a
-            // puff (B-003).
+          if (enemy.rewardGiven) {
+            // A revived enemy defeated again after already paying out
+            // (rewardGiven permanent — see Enemy.ts's baseRevive doc
+            // comment): nothing left to reward, but the defeat itself is
+            // still a world event that deserves a puff (B-003).
             newPuffs.push(startPuffEffect(enemy.id, puffX, puffY, anchor.scale));
             continue;
           }
 
-          // A fresh fact-bearing defeat: puff and reward are fully decoupled
-          // layers (puff = destruction/defeat feedback, flight text = reward
-          // feedback), same as crate destruction below — the defeat is a
-          // world event that always deserves a puff, independent of whether
-          // it also happens to award a fact (B-003).
+          // A fresh defeat: puff and reward are fully decoupled layers (puff
+          // = destruction/defeat feedback, flight text = reward feedback),
+          // same as crate destruction below — the defeat is a world event
+          // that always deserves a puff, independent of whether it also
+          // happens to award a fact. A green slime's fact(s) were fixed at
+          // placement time (see EnemyMapper.ts's placeGreenSlimes doc
+          // comment) — reveal its own `fact` plus any `extraFacts` (when
+          // this level has fewer green slimes than course facts, one slime
+          // can own more than one). No counterKey here: the enemies popup is
+          // bumped below instead, for every defeated green slime rather than
+          // only ones that happen to reveal a fact (see that bump's own
+          // comment).
+          greenDefeatedThisTick = true;
           newPuffs.push(startPuffEffect(enemy.id, puffX, puffY, anchor.scale));
-          revealFact(fact, { x: enemy.x, y: enemy.y, effectId: enemy.id, counterKey: 'enemies' });
+          const facts = [enemy.fact, ...(enemy.extraFacts ?? [])].filter(
+            (fact): fact is CollectedFact => fact !== undefined,
+          );
+          facts.forEach((fact, index) => {
+            revealFact(fact, {
+              x: enemy.x,
+              y: enemy.y,
+              // Unique per revealed fact, not just per enemy.
+              effectId: `${enemy.id}-${index}`,
+            });
+          });
         }
 
         // Every defeated enemy is marked processed (deathEffectGiven) so it
@@ -832,6 +852,24 @@ export const PlatformerPage = () => {
         enemyStates.value = enemyStates.value.map((e) =>
           processedIds.has(e.id) ? { ...e, rewardGiven: true, deathEffectGiven: true } : e,
         );
+
+        // The enemies popup bumped here rather than by the reveal trigger,
+        // mirroring the coins/crates loops: a green slime's fact(s) are a
+        // fixed pool slice (see EnemyMapper.ts's placeGreenSlimes), so most
+        // slimes can reveal zero facts whenever there are more green slimes
+        // than course facts — gating this on a reveal would leave those
+        // defeats with no "enemies defeated / total" feedback, and could
+        // even show more facts revealed than enemies exist. Uses
+        // `enemiesDefeated` (PlatformerState.ts), not `countCollectedFor`,
+        // for the same reason `coinsCollectedSoFar` does above — read AFTER
+        // the rewardGiven update above, so this tick's own defeats are
+        // included (it's a computed off `enemyStates`, so it already is).
+        if (greenDefeatedThisTick) {
+          activeCounterPopups.value = {
+            ...activeCounterPopups.value,
+            enemies: startCounterPopup('enemies', enemiesDefeated.value, levelTotals.value.enemies),
+          };
+        }
 
         activePuffs.value = newPuffs;
       }
@@ -1205,6 +1243,7 @@ export const PlatformerPage = () => {
 
       if (hitBlocks.length > 0) {
         const hitIds = new Set(hitBlocks.map((entry) => entry.block.id));
+
         blockStates.value = blockStates.value.map((block) =>
           hitIds.has(block.id) ? applyBlockHit(block) : block,
         );
@@ -1212,6 +1251,10 @@ export const PlatformerPage = () => {
         // Most negative wins, so several blocks bouncing the player in one
         // tick is deterministic regardless of iteration order.
         let bounceVelocity: number | undefined;
+        // Whether any crate reached its terminal hit this tick — gates the
+        // popup bump below, computed from the raw destroyed-crate count
+        // rather than facts revealed (see that bump's own comment).
+        let crateDestroyedThisTick = false;
 
         for (const id of hitIds) {
           // Re-read from the post-applyBlockHit array: onHit must see the
@@ -1247,7 +1290,27 @@ export const PlatformerPage = () => {
             ];
           }
 
-          if (outcome.revealFact) {
+          if (outcome.counterKey === 'crates') {
+            crateDestroyedThisTick = true;
+            // A crate's fact(s) were fixed at placement time (see
+            // BlockMapper.ts's placeCrates doc comment) — reveal its own
+            // `fact` plus any `extraFacts` (when this level has fewer crates
+            // than crate-pool facts, one crate can own more than one). No
+            // counterKey here: the crates popup is bumped below instead,
+            // for every destroyed crate rather than only ones that happen
+            // to reveal a fact (see that bump's own comment).
+            const facts = [block.fact, ...(block.extraFacts ?? [])].filter(
+              (fact): fact is CollectedFact => fact !== undefined,
+            );
+            facts.forEach((fact, index) => {
+              revealFact(fact, {
+                x: block.x,
+                y: block.y,
+                // Unique per revealed fact, not just per crate.
+                effectId: `${block.id}-${index}`,
+              });
+            });
+          } else if (outcome.revealFact) {
             revealFact(outcome.revealFact, {
               x: block.x,
               y: block.y,
@@ -1258,6 +1321,25 @@ export const PlatformerPage = () => {
               counterKey: outcome.counterKey,
             });
           }
+        }
+
+        // The crates popup bumped here rather than by the reveal trigger,
+        // mirroring the coins loop above: a crate's fact(s) are a fixed
+        // pool slice (see BlockMapper.ts's placeCrates), so most crates can
+        // reveal zero facts whenever there are more crates than crate-pool
+        // facts — gating this on a reveal would leave those destructions
+        // with no "crates destroyed / total" feedback, and could even show
+        // more facts revealed than crates exist. Uses `cratesDestroyed`
+        // (PlatformerState.ts), not `countCollectedFor`, for the same
+        // reason `coinsCollectedSoFar` does above — and NOT a plain
+        // `blockStates` filter, since a destroyed crate is eventually
+        // spliced out of that array (see `cratesDestroyed`'s own doc
+        // comment for why that would undercount).
+        if (crateDestroyedThisTick) {
+          activeCounterPopups.value = {
+            ...activeCounterPopups.value,
+            crates: startCounterPopup('crates', cratesDestroyed.value, levelTotals.value.crates),
+          };
         }
 
         if (bounceVelocity !== undefined) {
