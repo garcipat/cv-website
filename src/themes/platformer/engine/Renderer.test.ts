@@ -1591,6 +1591,140 @@ describe('drawTerrain — bush/fence', () => {
       0, 64, 32, 32,
     );
   });
+
+  it('chainRun-length1-ceilingAttached-drawsOnlyTheCeilingCapCenteredInItsCell', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = { terrain: [['wall'], ['chain']], width: 1, height: 2 };
+
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, fakeStaticObjects);
+
+    // (col:0, row:1) has a solid tile above -> 'ceiling', run length 1 -> the
+    // ceiling cap alone (sx:91,sy:101,5x13 native -> 10x26 rendered),
+    // centered: destX = (32-10)/2 = 11. destY is the cell's own row*32=32.
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeStaticObjects, 91, 101, 5, 13,
+      11, 32, 10, 26,
+    );
+  });
+
+  it('chainRun-length1-leftAttached-drawsOnlyTheLeftCapFlushHorizontallyButOffsetDownFromTheTop', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = { terrain: [['wall', 'chain']], width: 2, height: 1 };
+
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, fakeStaticObjects);
+
+    // (col:1, row:0): nothing above, solid to the left -> 'left', run length
+    // 1 -> the left cap (sx:99,sy:102,7x12 native -> 14x24 rendered). It's
+    // the run's TOP (and only) piece: no horizontal CHAIN_WALL_GAP (its own
+    // art already reads as attached to the wall) — destX = col1*32 = 32 —
+    // but it DOES get the vertical CHAIN_WALL_GAP (4 rendered px), since its
+    // hook art has no top-side neck margin: destY = 0 + 4 = 4.
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeStaticObjects, 99, 102, 7, 12,
+      32, 4, 14, 24,
+    );
+  });
+
+  it('chainRun-length1-rightAttached-drawsOnlyTheRightCapFlushHorizontallyButOffsetDownFromTheTop', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = { terrain: [['chain', 'wall']], width: 2, height: 1 };
+
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, fakeStaticObjects);
+
+    // (col:0, row:0): nothing above or left, solid to the right -> 'right',
+    // run length 1 -> the right cap (sx:110,sy:102,7x12 native -> 14x24
+    // rendered), the run's top (and only) piece — flush horizontally against
+    // the RIGHT edge (destX = 0 + 32 - 14 = 18), offset down vertically
+    // (destY = 0 + 4 = 4).
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeStaticObjects, 110, 102, 7, 12,
+      18, 4, 14, 24,
+    );
+  });
+
+  it('chainRun-length1-noSolidNeighbourAnywhere-drawsTheFloatingCapCentered', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = { terrain: [['chain']], width: 1, height: 1 };
+
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, fakeStaticObjects);
+
+    // floating cap (sx:119,sy:102,5x12 native -> 10x24 rendered), centered:
+    // destX = (32-10)/2 = 11.
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeStaticObjects, 119, 102, 5, 12,
+      11, 0, 10, 24,
+    );
+  });
+
+  it('chainRun-onlyTheTopCellDraws-noCallsOriginateFromCellsBelowIt', () => {
+    // The core of the run-composition architecture: a shaft's cells below
+    // the top must never independently draw anything — everything for the
+    // whole run comes from the top cell's one set of drawImage calls.
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = { terrain: [['chain'], ['chain'], ['chain']], width: 1, height: 3 };
+
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, fakeStaticObjects);
+
+    // Composing a floating run of length 3: continues(15) + middle(18) +
+    // bottom(15) = 48 > 3*16=48? No — 48 == 48 exactly, so one middle fits.
+    expect(ctx.drawImage).toHaveBeenCalledTimes(3);
+  });
+
+  it('chainRun-length4-ceilingAttached-composesContinuesThenOneMiddleThenBottom-cappedNotOverflowing', () => {
+    // continues(16 native, ceiling) + middle(18) + bottom(15) = 49 native px
+    // <= 4*16=64 native px budget, but a second middle (49+18=67) would not
+    // fit — so exactly one middle, and the composed total (49 native = 98
+    // rendered) falls short of the full 128 rendered px rather than
+    // overflowing into whatever is below the shaft (there's nothing below
+    // here, but the cap logic must not depend on that).
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = {
+      terrain: [['wall'], ['chain'], ['chain'], ['chain'], ['chain']],
+      width: 1,
+      height: 5,
+    };
+
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, fakeStaticObjects);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeStaticObjects, 91, 120, 5, 16, 11, 32, 10, 32);
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeStaticObjects, 128, 118, 5, 18, 11, 64, 10, 36);
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeStaticObjects, 137, 118, 5, 15, 11, 100, 10, 30);
+    // wall (1 call) + the 3 chain pieces above — nothing else.
+    expect(ctx.drawImage).toHaveBeenCalledTimes(4);
+  });
+
+  it('chainRun-length2-leftAttached-composesContinuesThenBottomWithNoMiddle-topFlushBottomOffset', () => {
+    // continues(15, left) + middle(18) + bottom(15) = 48 > 2*16=32, so no
+    // middle fits — just the two pieces. The top (continues) piece draws
+    // flush horizontally against the wall like the length-1 cap, offset
+    // down 4 rendered px from the cell's top; the bottom piece below it
+    // gets the horizontal CHAIN_WALL_GAP offset instead (only the top
+    // piece's own art has that gap built in) and simply continues where the
+    // top piece's draw left off vertically.
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = {
+      terrain: [
+        ['wall', 'chain'],
+        ['wall', 'chain'],
+      ],
+      width: 2,
+      height: 2,
+    };
+
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, fakeStaticObjects);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeStaticObjects, 99, 121, 7, 15, 32, 4, 14, 30);
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeStaticObjects, 137, 118, 5, 15, 36, 34, 10, 30);
+  });
+
+  it('staticObjectsNotLoaded-chainDrawsNothing', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = { terrain: [['chain']], width: 1, height: 1 };
+
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null);
+
+    expect(ctx.drawImage).not.toHaveBeenCalled();
+  });
 });
 
 describe('drawPlayer', () => {
