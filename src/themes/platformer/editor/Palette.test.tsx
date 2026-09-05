@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Palette } from './Palette';
-import { TERRAIN_CHARS, ENTITY_CHARS } from '../level/LevelParser';
+import { TERRAIN_CHARS, ENTITY_CHARS, HAZARD_CHARS } from '../level/LevelParser';
 import { BACKGROUND_CATALOG } from '../engine/BackgroundCatalog';
 import { BACKGROUND_PALETTE_LABELS } from './backgroundPaletteTiles';
 import type { BackgroundPieceId } from '../level/LevelData';
@@ -16,12 +16,13 @@ const defaultProps = {
 };
 
 describe('Palette', () => {
-  it('renders one tile for every terrain char (excluding "."), every entity char, one representative Sign tile, and the Eraser', () => {
+  it('renders one tile for every terrain char (excluding "."), every entity char, every hazard char, one representative Sign tile, and the Eraser', () => {
     render(<Palette {...defaultProps} />);
     const terrainCount = Object.keys(TERRAIN_CHARS).filter((k) => k !== '.').length;
     const entityCount = Object.keys(ENTITY_CHARS).length;
+    const hazardCount = Object.keys(HAZARD_CHARS).length;
     // +1 for the single representative Sign tile, +1 for the Eraser tile.
-    expect(screen.getAllByRole('button')).toHaveLength(terrainCount + entityCount + 1 + 1);
+    expect(screen.getAllByRole('button')).toHaveLength(terrainCount + entityCount + hazardCount + 1 + 1);
   });
 
   it('renders a "Palette" title', () => {
@@ -97,11 +98,12 @@ describe('Palette — layer tab', () => {
 });
 
 describe('Palette — subtitle groups', () => {
-  it('foregroundLayer-rendersFourGroupHeadings', () => {
+  it('foregroundLayer-rendersFiveGroupHeadings', () => {
     render(<Palette {...defaultProps} />);
     expect(screen.getByText('Terrain')).toBeInTheDocument();
     expect(screen.getByText('Decoration')).toBeInTheDocument();
     expect(screen.getByText('Entities')).toBeInTheDocument();
+    expect(screen.getByText('Hazards')).toBeInTheDocument();
     expect(screen.getByText('Tools')).toBeInTheDocument();
   });
 
@@ -112,5 +114,15 @@ describe('Palette — subtitle groups', () => {
     expect(within(decorationGroup).getByRole('button', { name: /Bush/ })).toBeInTheDocument();
     expect(within(decorationGroup).getByRole('button', { name: /Fence/ })).toBeInTheDocument();
     expect(within(decorationGroup).queryByRole('button', { name: 'Wall' })).not.toBeInTheDocument();
+  });
+
+  it('hazardsGroup-containsAllFourSpikeDirections', () => {
+    render(<Palette {...defaultProps} />);
+    const hazardsHeading = screen.getByText('Hazards');
+    const hazardsGroup = hazardsHeading.closest('section') ?? hazardsHeading.parentElement!;
+    expect(within(hazardsGroup).getByRole('button', { name: 'Spike Up' })).toBeInTheDocument();
+    expect(within(hazardsGroup).getByRole('button', { name: 'Spike Down' })).toBeInTheDocument();
+    expect(within(hazardsGroup).getByRole('button', { name: 'Spike Left' })).toBeInTheDocument();
+    expect(within(hazardsGroup).getByRole('button', { name: 'Spike Right' })).toBeInTheDocument();
   });
 });
