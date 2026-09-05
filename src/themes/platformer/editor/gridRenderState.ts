@@ -92,14 +92,14 @@ export function synthesizePlayerState(grid: TileChar[][]): PlayerState | null {
   };
 }
 
-/** Returns one fixed-frame coin placeholder per `C` marker. There is no
+/** Returns one fixed-frame coin placeholder per `o` marker. There is no
  *  fruit marker character — fruit only spawns from a hit question-mark
  *  block in the real game, so `spriteType` is always `'coin'` here. A coin
  *  carries no fact of its own even in the real game (see
  *  CollectibleMapper.ts's mapCVDataToSkillFactPool), so there's none to
  *  stub here either. */
 export function synthesizeCollectiblePlacements(grid: TileChar[][]): CollectiblePlacement[] {
-  return findAllPositions(grid, 'C').map(({ col, row }, index) => {
+  return findAllPositions(grid, 'o').map(({ col, row }, index) => {
     const { x, y } = tileToPixel(col, row);
     return {
       id: `editor-coin-${index}`,
@@ -122,11 +122,11 @@ function synthesizeEnemyPlacements(
   });
 }
 
-/** Returns one fixed-idle-walk placeholder `EnemyState` per `E` (slimeGreen)
- *  and `M` (slimePurple) marker, built via the engine's own `toEnemyState`. */
+/** Returns one fixed-idle-walk placeholder `EnemyState` per `M` (slimeGreen)
+ *  and `m` (slimePurple) marker, built via the engine's own `toEnemyState`. */
 export function synthesizeEnemyStates(grid: TileChar[][]): EnemyState[] {
-  const green = synthesizeEnemyPlacements(grid, 'E', 'slimeGreen', 'editor-enemy-green');
-  const purple = synthesizeEnemyPlacements(grid, 'M', 'slimePurple', 'editor-enemy-purple');
+  const green = synthesizeEnemyPlacements(grid, 'M', 'slimeGreen', 'editor-enemy-green');
+  const purple = synthesizeEnemyPlacements(grid, 'm', 'slimePurple', 'editor-enemy-purple');
   return [...green, ...purple].map((placement) => toEnemyState(placement));
 }
 

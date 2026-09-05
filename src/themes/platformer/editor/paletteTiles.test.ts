@@ -65,7 +65,7 @@ describe('PALETTE_TILE_SPRITES', () => {
   });
 
   it('uses the coin sprite sheet for the coin tile', () => {
-    expect(PALETTE_TILE_SPRITES.C?.sheet).toBe('/sprites/coin.png');
+    expect(PALETTE_TILE_SPRITES.o?.sheet).toBe('/sprites/coin.png');
   });
 
   it('uses the chest-closed sprite for the chest tile, sized to the whole image', () => {
