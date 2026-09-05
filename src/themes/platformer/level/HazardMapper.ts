@@ -1,10 +1,10 @@
 import { tileToPixel, RENDERED_TILE_SIZE } from './Terrain';
 import type { Box } from '../engine/Collision';
-import type { HazardFacing } from './LevelParser';
+import type { HazardFacing, HazardKind } from './LevelParser';
 
 export interface HazardPlacement {
   id: string;
-  hazardType: 'spike';
+  hazardType: HazardKind;
   facing: HazardFacing;
   x: number;
   y: number;
@@ -29,7 +29,7 @@ export function hazardBox(hazard: HazardPlacement): Box {
  * zip against).
  */
 export function placeHazards(
-  markers: readonly { col: number; row: number; hazardType: 'spike'; facing: HazardFacing }[],
+  markers: readonly { col: number; row: number; hazardType: HazardKind; facing: HazardFacing }[],
 ): HazardPlacement[] {
   return markers.map(({ col, row, hazardType, facing }) => {
     const { x, y } = tileToPixel(col, row);

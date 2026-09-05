@@ -7,6 +7,7 @@ import {
   synthesizeBlockStates,
   synthesizeChestStates,
   synthesizeSignPlacements,
+  synthesizeHazardPlacements,
 } from './gridRenderState';
 import { RENDERED_TILE_SIZE, tileToPixel } from '../level/Terrain';
 import { PLAYER_RENDERED_SIZE, PLAYER_FOOT_PADDING } from '../entities/Player';
@@ -103,5 +104,28 @@ describe('synthesizeSignPlacements', () => {
     ]);
     const { x, y } = tileToPixel(1, 1);
     expect(result).toEqual([{ id: 'editor-sign-1-1', hintId: 'bridgeDropThrough', x, y }]);
+  });
+});
+
+describe('synthesizeHazardPlacements', () => {
+  it('noHazardMarkers-returnsEmptyArray', () => {
+    expect(synthesizeHazardPlacements([['G', 'G']])).toEqual([]);
+  });
+
+  it('oneHazardMarker-returnsItsHazardTypeFacingAndPixelPosition', () => {
+    const result = synthesizeHazardPlacements([
+      ['.', '.'],
+      ['.', '^'],
+    ]);
+    const { x, y } = tileToPixel(1, 1);
+    expect(result).toEqual([
+      { id: 'editor-hazard-1-1', hazardType: 'spike', facing: 'up', x, y },
+    ]);
+  });
+
+  it('everyFacingCharacter-mapsToItsOwnFacing', () => {
+    const result = synthesizeHazardPlacements([['^', 'v', '<', '>']]);
+    expect(result.map((h) => h.facing)).toEqual(['up', 'down', 'left', 'right']);
+    expect(result.every((h) => h.hazardType === 'spike')).toBe(true);
   });
 });

@@ -377,12 +377,17 @@ describe('findHazardTiles', () => {
 });
 
 describe('TileChar', () => {
-  it('includes every TERRAIN_CHARS, ENTITY_CHARS, and SIGN_CHARS key', () => {
+  it('includes every TERRAIN_CHARS, ENTITY_CHARS, SIGN_CHARS, and HAZARD_CHARS key', () => {
     const tileChars: readonly TileChar[] = [
       '.', 'G', 'R', '#', 'B', 'H', 'P', 'S', 'M', 'm', 'o', 'X', 'Q', 'F', 'T', 'u',
       '1', '2', '3', '4', '5', 'n', 'N', '^', 'v', '<', '>',
     ];
-    const allKeys = [...Object.keys(TERRAIN_CHARS), ...Object.keys(ENTITY_CHARS), ...Object.keys(SIGN_CHARS)];
+    const allKeys = [
+      ...Object.keys(TERRAIN_CHARS),
+      ...Object.keys(ENTITY_CHARS),
+      ...Object.keys(SIGN_CHARS),
+      ...Object.keys(HAZARD_CHARS),
+    ];
     for (const key of allKeys) {
       expect(tileChars).toContain(key);
     }
