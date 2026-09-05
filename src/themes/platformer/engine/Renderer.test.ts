@@ -1591,6 +1591,70 @@ describe('drawTerrain — bush/fence', () => {
       0, 64, 32, 32,
     );
   });
+
+  it('chainTile-ceilingAttached-drawsCenteredFromStaticObjects', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = { terrain: [['wall'], ['chain']], width: 1, height: 2 };
+
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, fakeStaticObjects);
+
+    // (col:0, row:1) has a solid tile above -> 'ceiling', no x offset.
+    // Variant index for (0,1) -> sx:128, sy:112 (see StaticObjectsCatalog.ts's CHAIN_VARIANTS).
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeStaticObjects, 128, 112, 16, 16,
+      0, 32, 32, 32,
+    );
+  });
+
+  it('chainTile-leftAttached-drawsOffsetTowardTheLeftWall', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = { terrain: [['wall', 'chain']], width: 2, height: 1 };
+
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, fakeStaticObjects);
+
+    // (col:1, row:0): nothing above, solid to the left -> 'left', destX shifts
+    // by -RENDERED_TILE_SIZE/4 (-8). Cell destX is 1*32=32 -> 24.
+    // Variant index for (1,0) -> sx:96, sy:112.
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeStaticObjects, 96, 112, 16, 16,
+      24, 0, 32, 32,
+    );
+  });
+
+  it('chainTile-rightAttached-drawsOffsetTowardTheRightWall', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = { terrain: [['chain', 'wall']], width: 2, height: 1 };
+
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, fakeStaticObjects);
+
+    // (col:0, row:0): nothing above or left, solid to the right -> 'right',
+    // destX shifts by +8. Cell destX is 0 -> 8. Variant index for (0,0) -> sx:80, sy:112.
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeStaticObjects, 80, 112, 16, 16,
+      8, 0, 32, 32,
+    );
+  });
+
+  it('chainTile-noSolidNeighbour-fallsBackToCenteredCeiling', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = { terrain: [['chain']], width: 1, height: 1 };
+
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, fakeStaticObjects);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeStaticObjects, 80, 112, 16, 16,
+      0, 0, 32, 32,
+    );
+  });
+
+  it('staticObjectsNotLoaded-chainDrawsNothing', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = { terrain: [['chain']], width: 1, height: 1 };
+
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null);
+
+    expect(ctx.drawImage).not.toHaveBeenCalled();
+  });
 });
 
 describe('drawPlayer', () => {
