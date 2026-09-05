@@ -2,7 +2,6 @@ import { crate, crateCrackOverlayVisible, crateShatterOpacity } from './Crate';
 import { toBlockState } from '../Block';
 import type { BlockState } from '../Block';
 import type { BlockPlacement } from '../../level/BlockMapper';
-import type { CollectedFact } from '../../types';
 import { CRATE_SHATTER_DURATION_SECONDS } from '../../engine/BlockAI';
 
 function block(overrides: Partial<BlockState> = {}): BlockState {
@@ -34,41 +33,26 @@ describe('crate.key', () => {
 });
 
 describe('crate.onHit', () => {
-  const crateFact: CollectedFact = {
-    id: 'crate-edu-1',
-    sectionId: 'education',
-    sectionLabel: 'Education',
-    data: { degree: 'BSc', institution: 'X', startDate: '2010-01' },
-    sourceType: 'block',
-  };
-
   // A crate takes two hits: the first cracks it, the second shatters it and
   // pays out. onHit receives the block AFTER applyBlockHit, so hitsTaken is
   // already incremented when it runs.
-  it('firstOfTwoHits-revealsNothing', () => {
-    const outcome = crate.onHit!(block({ hitsTaken: 1, fact: crateFact }));
+  //
+  // Which fact (if any) a destroyed crate reveals is no longer decided here:
+  // a crate carries no fixed fact of its own — PlatformerPage.tsx resolves
+  // that dynamically from the shared crate fact pool, proportionally across
+  // however many crates the level has (see PlatformerState.ts's
+  // crateFactPool doc comment), the same way a coin pickup already works.
+  // onHit's only job is to signal "a crate was just destroyed" via
+  // counterKey, regardless of whether this specific crate has a `fact`.
+  it('firstOfTwoHits-signalsNothing', () => {
+    const outcome = crate.onHit!(block({ hitsTaken: 1 }));
 
     expect(outcome).toEqual({});
   });
 
-  it('terminalHit-revealsItsFact', () => {
-    const outcome = crate.onHit!(block({ hitsTaken: 2, fact: crateFact }));
+  it('terminalHit-signalsTheCratesCounter', () => {
+    const outcome = crate.onHit!(block({ hitsTaken: 2 }));
 
-    expect(outcome).toEqual({ revealFact: crateFact, counterKey: 'crates' });
-  });
-
-  it('terminalHit-attributesItsRewardToTheCratesCounter', () => {
-    // The kind owns this, not the engine: without it a second fact-bearing
-    // block kind would have its reveal attributed to whatever counter the
-    // engine happened to hardcode.
-    const outcome = crate.onHit!(block({ hitsTaken: 2, fact: crateFact }));
-
-    expect(outcome.counterKey).toBe('crates');
-  });
-
-  it('terminalHitWithNoFact-revealsNothing', () => {
-    const outcome = crate.onHit!(block({ hitsTaken: 2, fact: undefined }));
-
-    expect(outcome).toEqual({});
+    expect(outcome).toEqual({ counterKey: 'crates' });
   });
 });

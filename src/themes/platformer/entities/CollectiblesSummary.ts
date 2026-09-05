@@ -76,6 +76,22 @@ export type CollectibleSummaryTotals = LevelTotals & {
    * facts-derived count when omitted.
    */
   coinsCollected?: number;
+  /**
+   * Overrides the enemies row's "collected" count — needed for the same
+   * reason `coinsCollected` exists: a green slime's course fact(s) are now a
+   * fixed, position-based slice of the pool (see `EnemyMapper.ts`'s
+   * `placeGreenSlimes`), so whenever the level's green-enemy count and its
+   * course count differ, "courses revealed" and "enemies defeated" are
+   * different numbers — deriving "collected" from `facts` could even exceed
+   * `total`. Falls back to the facts-derived count when omitted.
+   */
+  enemiesDefeated?: number;
+  /**
+   * Overrides the crates row's "collected" count — same reasoning as
+   * `enemiesDefeated` above, for crates (see `BlockMapper.ts`'s
+   * `placeCrates`).
+   */
+  cratesDestroyed?: number;
 };
 
 /**
@@ -117,11 +133,19 @@ export function collectiblesSummary(
   }
 
   if (totals.enemies > 0) {
-    rows.push({ labelKey: 'enemies', collected: countCollectedFor('enemies', facts), total: totals.enemies });
+    rows.push({
+      labelKey: 'enemies',
+      collected: totals.enemiesDefeated ?? countCollectedFor('enemies', facts),
+      total: totals.enemies,
+    });
   }
 
   if (totals.crates > 0) {
-    rows.push({ labelKey: 'crates', collected: countCollectedFor('crates', facts), total: totals.crates });
+    rows.push({
+      labelKey: 'crates',
+      collected: totals.cratesDestroyed ?? countCollectedFor('crates', facts),
+      total: totals.crates,
+    });
   }
 
   if (totals.chests > 0) {

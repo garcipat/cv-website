@@ -109,9 +109,23 @@ describe('mapCVDataToBlocks', () => {
   });
 });
 
+/** Every fact a crate placement owns, in the order `placeBlocks` assigns
+ *  them — see EnemyMapper.test.ts's identical helper for the reasoning. */
+function factsOf(placement: { fact?: unknown; extraFacts?: unknown[] }): unknown[] {
+  return [...(placement.fact ? [placement.fact] : []), ...(placement.extraFacts ?? [])];
+}
+
 describe('placeBlocks', () => {
-  it('enoughCrateMarkers-returnsCratePlacementsAtMarkedPositionsInDefsOrder', () => {
-    const defs = mapCVDataToBlocks(cv); // [experience(crate), education(crate), cert(questionMark), project(questionMark)]
+  // A crate no longer carries a fixed fact bound to a specific CVData-derived
+  // def — placement assigns each crate marker its own fixed slice of the
+  // Education/Activity/Language pool, based on its position among every
+  // crate marker (independent of the order the player later breaks them in),
+  // the same proportional formula `level/SkillFactPacing.ts`'s
+  // `revealedFactCountFor` already uses for coins (see EnemyMapper.ts's
+  // placeGreenSlimes for the enemy-side equivalent).
+
+  it('crateMarkerCountEqualsCrateFactCount-oneFactPerMarkerInOrder', () => {
+    const defs = mapCVDataToBlocks(cv); // 2 crate defs (education + activity)
     const crateDefs = defs.filter((d) => d.blockKind === 'crate');
     const crateMarkers = [
       { col: 5, row: 2 },
@@ -119,15 +133,39 @@ describe('placeBlocks', () => {
     ];
     const placed = placeBlocks(defs, { crate: crateMarkers, questionMark: [], fragileRock: [] });
 
-    expect(placed.map((p) => p.id)).toEqual(crateDefs.map((d) => d.id));
+    expect(placed.map((p) => p.fact)).toEqual(crateDefs.map((d) => d.fact));
+    expect(placed.every((p) => p.extraFacts === undefined)).toBe(true);
     expect(placed[0]).toMatchObject(tileToPixel(crateMarkers[0].col, crateMarkers[0].row));
     expect(placed[1]).toMatchObject(tileToPixel(crateMarkers[1].col, crateMarkers[1].row));
   });
 
-  it('fewerCrateMarkersThanCrateDefs-onlyMarkedCountGetsPlaced', () => {
+  it('onlyOneCrateMarker-thatOneCrateOwnsEveryEducationActivityAndLanguageFact', () => {
+    // The example this feature was designed around: with only one crate on
+    // the map, breaking it must reveal every education/activity/language
+    // fact the CV has.
     const defs = mapCVDataToBlocks(cv); // 2 crate defs
     const placed = placeBlocks(defs, { crate: [{ col: 1, row: 0 }], questionMark: [], fragileRock: [] });
-    expect(placed.filter((p) => p.blockKind === 'crate')).toHaveLength(1);
+    const crateDefs = defs.filter((d) => d.blockKind === 'crate');
+
+    const crates = placed.filter((p) => p.blockKind === 'crate');
+    expect(crates).toHaveLength(1);
+    expect(factsOf(crates[0])).toEqual(crateDefs.map((d) => d.fact));
+  });
+
+  it('moreCrateMarkersThanCrateFacts-everyFactStillReachableButSomeCratesGetNone', () => {
+    const defs = mapCVDataToBlocks(cv); // 2 crate defs
+    const crateDefs = defs.filter((d) => d.blockKind === 'crate');
+    const crateMarkers = [
+      { col: 1, row: 0 },
+      { col: 2, row: 0 },
+      { col: 3, row: 0 },
+    ]; // 3 markers, 2 facts
+    const placed = placeBlocks(defs, { crate: crateMarkers, questionMark: [], fragileRock: [] });
+    const crates = placed.filter((p) => p.blockKind === 'crate');
+
+    expect(crates).toHaveLength(3);
+    expect(crates.some((p) => p.fact === undefined)).toBe(true);
+    expect(crates.flatMap(factsOf)).toEqual(crateDefs.map((d) => d.fact));
   });
 
   it('noCrateMarkers-noCrateDefsPlaced', () => {
