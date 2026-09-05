@@ -2,6 +2,7 @@ import {
   tileAt,
   isTopExposed,
   bridgeRunPosition,
+  chainAttachment,
   horizontalRunPosition,
   neighbourMask,
   NEIGHBOUR_UP,
@@ -76,6 +77,11 @@ function tileSource(
     }
     case 'ladder':
       return { sx: 9 * TILE_SIZE, sy: 3 * TILE_SIZE };
+    case 'chain':
+      // Drawn by drawTerrain's own staticObjects branch (position depends on
+      // attachment — ceiling/left/right — which this shared lookup has no
+      // col/row-aware way to express), like bush/fence.
+      return null;
     case 'patrol':
       // An enemy patrol boundary is deliberately invisible in game — only
       // the Level Editor draws a marker for it (EditorCanvas.tsx's
@@ -367,6 +373,24 @@ export function drawTerrain(
         ctx.drawImage(
           staticObjects, entry.sx, entry.sy, TILE_SIZE, TILE_SIZE,
           destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
+        );
+        continue;
+      }
+
+      if (staticObjects && tile === 'chain') {
+        const attachment = chainAttachment(level, col, row);
+        const entry = staticObjectEntry('chain', col, row);
+        // The only tile in this codebase that offsets its DESTINATION rect
+        // rather than only varying its source rect (contrast bridge/bush/
+        // fence, which always draw at the cell's own destX/destY) — a
+        // deliberate trick to fake a "left/right attached" look from one
+        // uniform sprite instead of drawing dedicated left/right art.
+        const offsetX =
+          attachment === 'left' ? -RENDERED_TILE_SIZE / 4 :
+          attachment === 'right' ? RENDERED_TILE_SIZE / 4 : 0;
+        ctx.drawImage(
+          staticObjects, entry.sx, entry.sy, TILE_SIZE, TILE_SIZE,
+          destX + offsetX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
         );
         continue;
       }
