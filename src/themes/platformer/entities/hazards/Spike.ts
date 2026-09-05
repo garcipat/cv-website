@@ -1,10 +1,10 @@
 import type { HazardType } from './HazardType';
-import { hazardBox } from '../../level/HazardMapper';
 import type { HazardPlacement } from '../../level/HazardMapper';
 import type { HazardFacing } from '../../level/LevelParser';
 import { STATIC_OBJECTS_SHEET } from '../sprites/sheets';
-import { TILE_SIZE, RENDERED_TILE_SIZE } from '../../level/Terrain';
+import { TILE_SIZE, RENDERED_TILE_SIZE, RENDER_SCALE } from '../../level/Terrain';
 import { SIDE_HIT_DAMAGE } from '../Health';
+import type { Rect } from '../geometry';
 
 /**
  * Native tile coordinates (columns 3-4, rows 6-7 of staticObjects.png, 16px
@@ -28,11 +28,41 @@ function spriteCoords(facing: HazardFacing): { sx: number; sy: number } {
   return { sx: col * TILE_SIZE, sy: row * TILE_SIZE };
 }
 
+/**
+ * The visible spiky pixels' own native-tile band, per facing — measured
+ * directly from the actual sprite (every facing's art occupies only 5 of
+ * the tile's 16 native rows/columns, on the side its tip points away from:
+ * up's spikes sit in the bottom 5 rows and point up into empty space above
+ * them, down's sit in the top 5 rows, right's in the left 5 columns
+ * (mounted on a wall to the left), left's in the right 5 columns). Only
+ * this band is hazardous — a player passing through the rest of the tile
+ * (e.g. jumping well clear of a floor spike's tip) never takes damage,
+ * unlike an earlier design that made the whole tile hazardous regardless
+ * of facing. `BAND_NATIVE` is one length (how many native px the visible
+ * band spans) since every facing's band is the same size, just anchored to
+ * a different edge.
+ */
+const BAND_NATIVE = 5;
+
+function facingBox(hazard: HazardPlacement): Rect {
+  const band = BAND_NATIVE * RENDER_SCALE;
+  switch (hazard.facing) {
+    case 'up':
+      return { x: hazard.x, y: hazard.y + RENDERED_TILE_SIZE - band, width: RENDERED_TILE_SIZE, height: band };
+    case 'down':
+      return { x: hazard.x, y: hazard.y, width: RENDERED_TILE_SIZE, height: band };
+    case 'right':
+      return { x: hazard.x, y: hazard.y, width: band, height: RENDERED_TILE_SIZE };
+    case 'left':
+      return { x: hazard.x + RENDERED_TILE_SIZE - band, y: hazard.y, width: band, height: RENDERED_TILE_SIZE };
+  }
+}
+
 export const spike: HazardType<HazardPlacement> & { spriteCoords: typeof spriteCoords } = {
   key: 'spike',
   damage: SIDE_HIT_DAMAGE,
   spriteCoords,
-  box: hazardBox,
+  box: facingBox,
   draw: (hazard, dc) => {
     const image = dc.sprites[STATIC_OBJECTS_SHEET.src];
     if (!image) return;

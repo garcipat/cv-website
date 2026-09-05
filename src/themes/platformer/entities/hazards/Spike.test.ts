@@ -16,15 +16,40 @@ describe('spike', () => {
     expect(spike.damage).toBe(SIDE_HIT_DAMAGE);
   });
 
-  it('box-isTheFullTileRegardlessOfFacing', () => {
-    for (const facing of ['up', 'down', 'left', 'right'] as const) {
-      expect(spike.box(hazardAt(facing))).toEqual({
-        x: 16,
-        y: 32,
-        width: RENDERED_TILE_SIZE,
-        height: RENDERED_TILE_SIZE,
-      });
-    }
+  // Each facing's hitbox is only the band of the tile its visible spikes
+  // actually occupy (measured directly from staticObjects.png: 5 of the
+  // tile's 16 native px, i.e. 10 of its 32 rendered px, anchored to the
+  // edge the tip points away from) — not the full tile. A player passing
+  // through the rest of the cell (e.g. jumping well clear of a floor
+  // spike's tip) never takes damage.
+  const BAND = 10;
+
+  it('up-hitboxIsTheBottomBandOnly', () => {
+    expect(spike.box(hazardAt('up'))).toEqual({
+      x: 16,
+      y: 32 + RENDERED_TILE_SIZE - BAND,
+      width: RENDERED_TILE_SIZE,
+      height: BAND,
+    });
+  });
+
+  it('down-hitboxIsTheTopBandOnly', () => {
+    expect(spike.box(hazardAt('down'))).toEqual({ x: 16, y: 32, width: RENDERED_TILE_SIZE, height: BAND });
+  });
+
+  it('right-hitboxIsTheLeftBandOnly', () => {
+    // Mounted on a wall to the left, sticking out only partway — the
+    // visible spikes are the LEFT band of the tile, nearest that wall.
+    expect(spike.box(hazardAt('right'))).toEqual({ x: 16, y: 32, width: BAND, height: RENDERED_TILE_SIZE });
+  });
+
+  it('left-hitboxIsTheRightBandOnly', () => {
+    expect(spike.box(hazardAt('left'))).toEqual({
+      x: 16 + RENDERED_TILE_SIZE - BAND,
+      y: 32,
+      width: BAND,
+      height: RENDERED_TILE_SIZE,
+    });
   });
 });
 

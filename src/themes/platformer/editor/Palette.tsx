@@ -38,12 +38,17 @@ export const Palette = ({
   );
   const decorationKeys = allTerrainKeys.filter((key) => DECORATION_CHARS.includes(key));
   const entityKeys = Object.keys(ENTITY_CHARS) as TileChar[];
-  const hazardKeys = Object.keys(HAZARD_CHARS) as TileChar[];
   // Only the FIRST registered sign character becomes a palette tile — clicking
   // it repeatedly on the canvas cycles through every other registered hint
   // (Task 7's paintCell.ts), so the palette itself never needs to grow past one
   // "Sign" entry no matter how many distinct hints get registered later.
   const [firstSignKey] = Object.keys(SIGN_CHARS) as TileChar[];
+  // Same one-button convention as signs: only the FIRST registered hazard
+  // character becomes a palette tile. Clicking the canvas auto-detects a
+  // facing from the surrounding terrain, and clicking an already-placed
+  // hazard again cycles to the next neighbor-backed facing (paintCell.ts's
+  // nextHazardChar) — the palette itself never needs a button per facing.
+  const [firstHazardKey] = Object.keys(HAZARD_CHARS) as TileChar[];
   // Patrol lives here rather than in "Terrain": it's an invisible marker, not
   // physical ground, so it reads more like a level-authoring tool (same
   // category as the Eraser and Sign) than like grass/rock/wall.
@@ -79,7 +84,7 @@ export const Palette = ({
             {renderGroup('Terrain', terrainKeys)}
             {renderGroup('Decoration', decorationKeys)}
             {renderGroup('Entities', entityKeys)}
-            {renderGroup('Hazards', hazardKeys)}
+            {renderGroup('Hazards', firstHazardKey ? [firstHazardKey] : [])}
             {renderGroup('Tools', toolKeys)}
           </div>
         ) : (

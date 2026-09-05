@@ -8,6 +8,8 @@ import type { PlayerState } from '../entities/Player';
 import { enemyRenderedSize, enemyTileOffsetX, enemyTileOffsetY } from '../entities/Enemy';
 import type { EnemyState } from '../entities/Enemy';
 import { typeOf } from '../entities/enemies';
+import { typeOf as hazardTypeOf } from '../entities/hazards';
+import type { HazardPlacement } from '../level/HazardMapper';
 import { isSolid, tileAt, tileToPixel, RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { LevelDef } from '../level/LevelData';
 
@@ -31,6 +33,7 @@ export function drawDebugOverlay(
   originX: number,
   originY: number,
   enemies: EnemyState[] = [],
+  hazards: HazardPlacement[] = [],
 ): void {
   ctx.lineWidth = 1;
 
@@ -98,6 +101,16 @@ export function drawDebugOverlay(
 
     const box = typeOf(enemy).box(enemy);
     ctx.strokeStyle = 'yellow';
+    ctx.strokeRect(box.x + originX, box.y + originY, box.width, box.height);
+  }
+
+  // Hazards: a single box (orange) — a hazard's render slot and its
+  // collision hitbox are the same rect (the full tile, regardless of
+  // facing — see entities/hazards/Spike.ts's box()), so there's no
+  // separate render-slot/hitbox pair to draw the way enemies get one.
+  ctx.strokeStyle = 'orange';
+  for (const hazard of hazards) {
+    const box = hazardTypeOf(hazard).box(hazard);
     ctx.strokeRect(box.x + originX, box.y + originY, box.width, box.height);
   }
 }

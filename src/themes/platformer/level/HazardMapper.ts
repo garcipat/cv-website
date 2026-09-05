@@ -1,5 +1,4 @@
-import { tileToPixel, RENDERED_TILE_SIZE } from './Terrain';
-import type { Box } from '../engine/Collision';
+import { tileToPixel } from './Terrain';
 import type { HazardFacing, HazardKind } from './LevelParser';
 
 export interface HazardPlacement {
@@ -8,17 +7,6 @@ export interface HazardPlacement {
   facing: HazardFacing;
   x: number;
   y: number;
-}
-
-/**
- * A hazard's collision box — the full rendered tile, regardless of facing:
- * touching any part of a spike's tile damages the player, so facing only
- * ever selects which sprite Spike.ts draws (see its own doc comment), never
- * the hitbox shape. Same "one rendered tile, no per-instance variation
- * beyond a payload field" shape as SignMapper.ts's signBox.
- */
-export function hazardBox(hazard: HazardPlacement): Box {
-  return { x: hazard.x, y: hazard.y, width: RENDERED_TILE_SIZE, height: RENDERED_TILE_SIZE };
 }
 
 /**
