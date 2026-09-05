@@ -52,7 +52,7 @@ import {
   dismissEndingScreen,
 } from './engine/GameLifecycle';
 import { maxIrisRadius } from './engine/IrisTransition';
-import { currentLevel } from './level/level';
+import { currentLevel, currentLayout, CHAIN_TEST_LAYOUT } from './level/level';
 import {
   checkCollectibleCollisions,
   resolveEnemyContacts,
@@ -206,6 +206,11 @@ export const PlatformerPage = () => {
   // death/respawn iris transition and collision geometry without navigating
   // pits repeatedly, not a feature end users should see.
   const debugControls = debugParams.has('debug');
+  // `?level=chain-test` swaps in CHAIN_TEST_LAYOUT (level.ts) — a dev-only
+  // scene exercising every chain attachment/run-length combination, for
+  // eyeballing the run-composited chain rendering live instead of via a
+  // static mockup. Not a feature end users should see or rely on.
+  const testLevelParam = debugParams.get('level');
   // `?debug=hitboxes` still seeds the initial toggle state (so the existing
   // "open at ?debug=hitboxes" manual-testing habit keeps working), but it's
   // now a runtime toggle via the panel button rather than fixed for the
@@ -257,10 +262,16 @@ export const PlatformerPage = () => {
    * Reset Game, but a genuinely new one for a theme switch).
    */
   useEffect(() => {
+    if (testLevelParam === 'chain-test') {
+      currentLayout.value = CHAIN_TEST_LAYOUT;
+    }
     resetGameProgress();
     controlsOverlayDismissed.value = false;
     const center = spawnCenter();
     lifecycleState.value = introState(center.x, center.y);
+    // mount-only by design (see the doc comment above); testLevelParam is
+    // read once here, not tracked across future renders.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /**

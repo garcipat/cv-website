@@ -90,6 +90,19 @@ export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
     frameWidth: 16,
     frameHeight: 16,
   },
+  I: {
+    // The ceiling-attachment "cap" piece (Renderer.ts's chainRunPieces) —
+    // not 16x16 like most other entries here, since chain art was
+    // redesigned (roadmap step 38 final review) to keep its own true native
+    // size rather than fit the tile grid; see StaticObjectsCatalog.ts.
+    sheet: '/sprites/staticObjects.png',
+    sheetWidth: 288,
+    sheetHeight: 144,
+    sx: 91,
+    sy: 101,
+    frameWidth: 5,
+    frameHeight: 13,
+  },
   P: null,
   S: {
     sheet: '/sprites/knight.png',
@@ -274,6 +287,7 @@ export const PALETTE_TILE_DESCRIPTIONS: Record<TileChar, string> = {
   '#': 'Solid wall block',
   B: 'Solid from above; the player drops through it with Down',
   H: 'Climbed with Up and Down',
+  I: 'Chain; climbs like a ladder, art hugs whichever wall (if any) it hangs against',
   P: 'Invisible in game; turns patrolling enemies around',
   S: 'Where the player starts',
   M: 'Green slime; stomping it reveals one CV fact',
@@ -303,6 +317,7 @@ export const PALETTE_TILE_LABELS: Record<TileChar, string> = {
   '#': 'Wall',
   B: 'Bridge',
   H: 'Ladder',
+  I: 'Chain',
   P: 'Patrol Boundary',
   S: 'Spawn',
   M: 'Enemy Green',

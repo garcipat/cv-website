@@ -2,6 +2,8 @@ import {
   tileAt,
   isTopExposed,
   bridgeRunPosition,
+  chainAttachment,
+  chainRunLength,
   horizontalRunPosition,
   neighbourMask,
   NEIGHBOUR_UP,
@@ -11,8 +13,9 @@ import {
   RENDERED_TILE_SIZE,
   verticalRunRole,
 } from '../level/Terrain';
+import type { ChainAttachment } from '../level/Terrain';
 import { groundAtlasCell, grassCell, GRASS_SOURCE_HEIGHT } from './GroundAtlas';
-import { bushOrTreeEntry, staticObjectEntry } from './StaticObjectsCatalog';
+import { bushOrTreeEntry, staticObjectEntry, chainRunPieces } from './StaticObjectsCatalog';
 import type { GroundAtlasEntry } from './GroundAtlas';
 import { backgroundCatalogEntry } from './BackgroundCatalog';
 import type { LevelDef, TileType } from '../level/LevelData';
@@ -76,6 +79,11 @@ function tileSource(
     }
     case 'ladder':
       return { sx: 9 * TILE_SIZE, sy: 3 * TILE_SIZE };
+    case 'chain':
+      // Drawn by drawTerrain's own staticObjects branch — an entire shaft is
+      // composited as one run from its top cell, which this shared
+      // single-tile lookup has no way to express.
+      return null;
     case 'patrol':
       // An enemy patrol boundary is deliberately invisible in game — only
       // the Level Editor draws a marker for it (EditorCanvas.tsx's
@@ -313,6 +321,41 @@ function isGrassSurface(level: LevelDef, col: number, row: number): boolean {
   );
 }
 
+/** Native-pixel offset used two ways for a wall-hugging chain shaft
+ *  (left/right attachment): vertically, its TOP piece starts this far below
+ *  the cell's own top (its hook art has no top-side neck margin the way
+ *  ceiling/floating pieces do, so without this it reads as sitting higher
+ *  than a ceiling-attached shaft's top at the same row); horizontally, every
+ *  piece BELOW the top one is offset this far in from the wall tile beside
+ *  it, instead of flush against it — deliberately leaving room to draw a
+ *  small connector piece bridging the seam later. Never applied to the top
+ *  piece's own horizontal position (its art already has that gap baked in —
+ *  that's what makes the hook read as "attached to the wall"), and never
+ *  applied at all to ceiling/floating shafts, which have no wall edge. */
+const CHAIN_WALL_GAP = 2 * RENDER_SCALE;
+
+/**
+ * Horizontal destination for one chain piece within its cell. `left`/`right`
+ * pieces are 7px (not 5) wide — the extra width is a connector bar baked
+ * into the art — and only the run's TOP piece draws flush against its wall
+ * (`isTopPiece`): its own art already has the wall gap baked in, which is
+ * what makes the hook read as "attached" in the first place. Every piece
+ * below it is a plain, symmetric shape with no such gap built in, so
+ * `CHAIN_WALL_GAP` is added there instead, to land at the same offset the
+ * top piece's own art already reads as. Ceiling/floating pieces are always
+ * centered, having no wall to hug at all.
+ */
+function chainPieceDestX(
+  attachment: ChainAttachment,
+  isTopPiece: boolean,
+  destX: number,
+  renderedWidth: number,
+): number {
+  if (attachment === 'left') return destX + (isTopPiece ? 0 : CHAIN_WALL_GAP);
+  if (attachment === 'right') return destX + RENDERED_TILE_SIZE - renderedWidth - (isTopPiece ? 0 : CHAIN_WALL_GAP);
+  return destX + (RENDERED_TILE_SIZE - renderedWidth) / 2;
+}
+
 /**
  * Draws the level's terrain. `originX` shifts every tile horizontally and
  * `originY` shifts every tile vertically (e.g. to anchor the level to the
@@ -368,6 +411,44 @@ export function drawTerrain(
           staticObjects, entry.sx, entry.sy, TILE_SIZE, TILE_SIZE,
           destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
         );
+        continue;
+      }
+
+      if (staticObjects && tile === 'chain') {
+        // Only a run's TOP cell draws anything — every cell below it is
+        // part of the same composited shaft and is skipped here (drawn
+        // already, from the top). Chain pieces don't fit the 16px tile grid
+        // (the artist's link art has a 6px vertical repeat, not a divisor of
+        // 16), so unlike every other tile in this file, a chain shaft is
+        // composited as one continuous stack of native-sized pieces rather
+        // than one sprite per cell.
+        if (tileAt(level, col, row - 1) !== 'chain') {
+          const attachment = chainAttachment(level, col, row);
+          const runLength = chainRunLength(level, col, row);
+          const pieces = chainRunPieces(attachment, runLength);
+          const capY = destY + runLength * RENDERED_TILE_SIZE;
+          // A wall-hugging shaft's top piece starts a couple of native px
+          // below the cell's own top — its hook art has no top-side neck
+          // margin the way the ceiling/floating pieces do, so without this
+          // it reads as sitting visibly higher than a ceiling-attached
+          // shaft's top would at the same row. Applies to the top piece
+          // only; pieces below it continue directly, no added offset.
+          const isWallAttached = attachment === 'left' || attachment === 'right';
+          let drawY = isWallAttached ? destY + CHAIN_WALL_GAP : destY;
+          for (let index = 0; index < pieces.length; index++) {
+            const piece = pieces[index];
+            const renderedWidth = piece.width * RENDER_SCALE;
+            const renderedHeight = piece.height * RENDER_SCALE;
+            const drawHeight = Math.min(renderedHeight, capY - drawY);
+            if (drawHeight <= 0) break;
+            const pieceDestX = chainPieceDestX(attachment, index === 0, destX, renderedWidth);
+            ctx.drawImage(
+              staticObjects, piece.sx, piece.sy, piece.width, drawHeight / RENDER_SCALE,
+              pieceDestX, drawY, renderedWidth, drawHeight,
+            );
+            drawY += drawHeight;
+          }
+        }
         continue;
       }
 

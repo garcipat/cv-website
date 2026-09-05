@@ -33,13 +33,18 @@ export function isSolidExcludingBridge(tile: TileType): boolean {
 }
 
 /**
- * Whether the player can climb this tile — currently only `'ladder'`.
- * Deliberately NOT part of `isSolid`: a ladder never blocks horizontal
- * movement or counts as ground; `Physics.ts`'s climbing branch is the only
- * place vertical movement through a ladder tile is resolved.
+ * Whether the player can climb this tile — `'ladder'` and its purely visual
+ * `'chain'` skin (roadmap step 38) behave identically here and everywhere
+ * else in this file/Physics.ts, which is exactly why `'chain'` needs no
+ * physics code of its own: every consumer of `isClimbable`/
+ * `isStandableLadderTop` already goes through these two functions rather
+ * than checking `tile === 'ladder'` directly.
+ * Deliberately NOT part of `isSolid`: a climbable tile never blocks
+ * horizontal movement or counts as ground; `Physics.ts`'s climbing branch is
+ * the only place vertical movement through one is resolved.
  */
 export function isClimbable(tile: TileType): boolean {
-  return tile === 'ladder';
+  return tile === 'ladder' || tile === 'chain';
 }
 
 /**
@@ -154,4 +159,38 @@ export function verticalRunRole(
   if (!above && below) return 'top';
   if (above && !below) return 'bottom';
   return 'middle';
+}
+
+export type ChainAttachment = 'ceiling' | 'left' | 'right' | 'floating';
+
+/**
+ * Where a `chain` shaft's TOP cell reads as attached — decides which sprite
+ * family `chainRunPieces` (StaticObjectsCatalog.ts) draws for the whole run
+ * below it (see `chainRunLength`). Has no bearing on physics, which treats
+ * every chain tile identically regardless of attachment (see `isClimbable`).
+ * Checked in this priority order: a solid tile directly above wins
+ * ('ceiling') even when a side is ALSO solid (e.g. a shaft corner) — only
+ * when nothing solid is above does a solid neighbour to the left or right
+ * decide 'left'/'right'. `'floating'` is its own distinct case (not a reuse
+ * of 'ceiling') for a chain with nothing solid anywhere around its top cell
+ * — it gets its own plain, hookless sprite family.
+ */
+export function chainAttachment(level: LevelDef, col: number, row: number): ChainAttachment {
+  if (isSolid(tileAt(level, col, row - 1))) return 'ceiling';
+  if (isSolid(tileAt(level, col - 1, row))) return 'left';
+  if (isSolid(tileAt(level, col + 1, row))) return 'right';
+  return 'floating';
+}
+
+/**
+ * How many consecutive `chain` tiles make up the vertical run starting at
+ * (col, row) and continuing downward — 1 if the tile below isn't `chain`.
+ * Only ever called with (col, row) at the TOP of a run (Renderer.ts checks
+ * `tileAt(level, col, row - 1) !== 'chain'` first) since only the top cell
+ * of a run draws anything; every other cell in it is skipped.
+ */
+export function chainRunLength(level: LevelDef, col: number, row: number): number {
+  let length = 1;
+  while (tileAt(level, col, row + length) === 'chain') length++;
+  return length;
 }
