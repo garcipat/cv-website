@@ -46,8 +46,8 @@ describe('synthesizePlayerState', () => {
 });
 
 describe('synthesizeCollectiblePlacements', () => {
-  it('returns one coin placeholder per "C" marker', () => {
-    const grid: TileChar[][] = [['C', '.', 'C']];
+  it('returns one coin placeholder per "o" marker', () => {
+    const grid: TileChar[][] = [['o', '.', 'o']];
     const placements = synthesizeCollectiblePlacements(grid);
     expect(placements).toHaveLength(2);
     expect(placements[0].spriteType).toBe('coin');
@@ -57,8 +57,8 @@ describe('synthesizeCollectiblePlacements', () => {
 });
 
 describe('synthesizeEnemyStates', () => {
-  it('returns a slimeGreen placeholder per "E" marker and slimePurple per "M" marker', () => {
-    const grid: TileChar[][] = [['E', 'M']];
+  it('returns a slimeGreen placeholder per "M" marker and slimePurple per "m" marker', () => {
+    const grid: TileChar[][] = [['M', 'm']];
     const enemies = synthesizeEnemyStates(grid);
     expect(enemies).toHaveLength(2);
     expect(enemies.find((e) => e.type === 'slimeGreen')).toBeDefined();

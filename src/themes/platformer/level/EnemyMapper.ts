@@ -103,8 +103,8 @@ function placePurpleSlimes(markers: readonly { col: number; row: number }[]): En
 }
 
 /**
- * Places enemy defs at hand-authored marker positions — `E` markers
- * (LevelParser.ts's findGreenEnemyTiles) become green slimes, `M` markers
+ * Places enemy defs at hand-authored marker positions — `M` markers
+ * (LevelParser.ts's findGreenEnemyTiles) become green slimes, `m` markers
  * (findPurpleEnemyTiles) become purple ones. There is no auto-placement: an
  * enemy's position is always exactly where a level author put its marker.
  * Every green marker's course fact(s) come from a fixed, position-based

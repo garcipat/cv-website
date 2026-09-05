@@ -123,10 +123,15 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   Open design question to resolve first: a new `TileType` (e.g. `'chain'`) treated
   identically to `'ladder'` in `Physics.ts`, vs. a decorative overlay drawn on top of a
   normal ladder tile.
-- [ ] **39. Level layout character remap** — re-letter some ASCII tile/entity characters
-  so they visually suggest the element: coin `C`→`o`, ladder `L`→`H`, wall `W`→`I`, green
-  slime `E`→`M`, purple slime `M`→`m`. Touches `LevelParser.ts`'s char maps, the authored
-  level layout(s), comments, and any editor legend/tooltips referencing the old letters.
+- [x] **39. Level layout character remap** — re-letter some ASCII tile/entity characters
+  so they visually suggest the element: coin `C`→`o`, ladder `L`→`H`, wall `W`→`#`, green
+  slime `E`→`M`, purple slime `M`→`m`. `I` is deliberately left free for step 38's chain
+  ladder skin. Touched `LevelParser.ts`'s char maps (`TERRAIN_CHARS`/
+  `ENTITY_CHARS`/`TileChar`), `level.ts`'s `LEVEL_1_LAYOUT` and marker-table comment, the
+  Level Editor's palette (`paletteTiles.ts`'s sprites/descriptions/labels) and
+  `gridRenderState.ts`, and every test fixture hardcoding the old letters. Pre-existing
+  `platformer-editor-*` localStorage state from before this change (if any) still holds
+  old-letter layouts — the editor has no migration for that, out of scope here.
 - [ ] **40. Spike hazard tiles** — a hazard that damages the player (and presumably
   knocks back, reusing the side/below-damage + invincibility-frame mechanics from step
   19) on touch, no stomp-defeat like enemies. Open design question: modeled as a block

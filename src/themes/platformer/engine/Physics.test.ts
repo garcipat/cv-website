@@ -84,18 +84,18 @@ const NARROW_PLATFORM_LEVEL = parseLevel(['.GGG.....']);
 // directly above the ladder's top rung, per FR-006); rows 1-2 are ladder in
 // col 0; row 3 is solid ground the ladder starts from. Mirrors currentLevel's real
 // "ladder leads up to a platform" shape at a testable scale.
-const LADDER_LEVEL = parseLevel(['G.', 'L.', 'L.', 'G.']);
+const LADDER_LEVEL = parseLevel(['G.', 'H.', 'H.', 'G.']);
 
 // Row 0 is ladder with nothing above it (out-of-bounds) — reproduces the
 // real currentLevel top-of-shaft scenario: climbing off the top must clamp,
 // not overshoot into the void.
-const TOP_LADDER_LEVEL = parseLevel(['L.', 'L.', 'G.']);
+const TOP_LADDER_LEVEL = parseLevel(['H.', 'H.', 'G.']);
 
 // Same shape as TOP_LADDER_LEVEL but with the shaft's top tile in the MIDDLE
 // of the level (row 3) rather than at row 0, with open air above it — the
 // ladder-top standing rule is a property of the ladder, not of the level's
 // topmost row, so every top-of-shaft behaviour must hold here too.
-const MID_LADDER_LEVEL = parseLevel(['..', '..', '..', 'L.', 'L.', 'G.']);
+const MID_LADDER_LEVEL = parseLevel(['..', '..', '..', 'H.', 'H.', 'G.']);
 
 /** Y at which the player's feet rest exactly on the top edge of `row`. */
 function standingYOnRow(row: number): number {
@@ -108,7 +108,7 @@ function standingYOnRow(row: number): number {
 // the standable top tile is one-way exactly like `bridge` — solid from
 // above, but never solid horizontally (isSolid('ladder') is always false,
 // standable or not).
-const STANDABLE_LADDER_TOP_SIDE_LEVEL = parseLevel(['.L.', '.L.', '.G.']);
+const STANDABLE_LADDER_TOP_SIDE_LEVEL = parseLevel(['.H.', '.H.', '.G.']);
 
 describe('stepPlayerPhysics', () => {
   it('stepPlayerPhysics-inMidAir-appliesGravityToVelocityAndMovesDown', () => {
@@ -191,17 +191,17 @@ describe('stepPlayerPhysics', () => {
 const OPEN_LEVEL = parseLevel(['......', '......']);
 
 // Solid wall at col 4, both rows — blocks rightward movement.
-const RIGHT_WALL_LEVEL = parseLevel(['....W.', '....W.']);
+const RIGHT_WALL_LEVEL = parseLevel(['....#.', '....#.']);
 
 // Solid wall at col 1, both rows — blocks leftward movement.
-const LEFT_WALL_LEVEL = parseLevel(['.W....', '.W....']);
+const LEFT_WALL_LEVEL = parseLevel(['.#....', '.#....']);
 
 // 3 rows tall, 6 cols wide. Solid wall at col 4, but ONLY on row 0 — rows 1-2
 // are open. Used to prove the horizontal wall check excludes the
 // PLAYER_HEAD_PADDING band: a player positioned so their padded head lands in
 // row 1 (not row 0) must NOT be blocked by the row-0 wall tile, even though
 // the top of their (mostly-empty) render frame is still numerically in row 0.
-const HEAD_PADDING_WALL_LEVEL = parseLevel(['....W.', '......', '......']);
+const HEAD_PADDING_WALL_LEVEL = parseLevel(['....#.', '......', '......']);
 
 describe('stepPlayerPhysics horizontal movement', () => {
   it('noHorizontalInput-defaultParam-leavesXAndVxUnchanged', () => {
@@ -1262,7 +1262,7 @@ describe('stepPlayerPhysics climbing lands on the ladder\'s own top tile', () =>
   it('climbingUp-stillWithinTheShaft-notYetAtTheTop-continuesClimbingNormally', () => {
     // Sanity: the new branch must not fire prematurely while there's still
     // a climbable tile above. y=0 puts the feet in row 1 of TOP_LADDER_LEVEL
-    // (still 'L'), with row 0 (also 'L') directly above — NOT y=20, which
+    // (still 'H'), with row 0 (also 'H') directly above — NOT y=20, which
     // (on this 3-row-tall fixture) already puts the feet in row 2, the
     // solid ground row below the shaft, not the shaft itself.
     const player = basePlayer({ x: 0, y: 0, grounded: false, climbing: true });
