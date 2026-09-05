@@ -316,17 +316,17 @@ describe('isSolid ladder exception', () => {
 
 describe('isStandableLadderTop', () => {
   it('ladderWithOpenSpaceAbove-returnsTrue', () => {
-    const level = parseLevel(['.', 'L', 'G']);
+    const level = parseLevel(['.', 'H', 'G']);
     expect(isStandableLadderTop(level, 0, 1)).toBe(true);
   });
 
   it('ladderWithAnotherLadderAbove-returnsFalse-notTheTopRung', () => {
-    const level = parseLevel(['L', 'L', 'G']);
+    const level = parseLevel(['H', 'H', 'G']);
     expect(isStandableLadderTop(level, 0, 1)).toBe(false);
   });
 
   it('ladderWithSolidTileAbove-returnsFalse-noRoomToStand', () => {
-    const level = parseLevel(['G', 'L', 'G']);
+    const level = parseLevel(['G', 'H', 'G']);
     expect(isStandableLadderTop(level, 0, 1)).toBe(false);
   });
 

@@ -36,9 +36,9 @@ describe('editorSelectedToolSignal', () => {
   });
 
   it('writingValue-persistsToLocalStorageUnderTheExpectedKey', () => {
-    editorSelectedToolSignal.value = 'E';
+    editorSelectedToolSignal.value = 'M';
 
-    expect(JSON.parse(localStorage.getItem('platformer-editor-selected-tool')!)).toBe('E');
+    expect(JSON.parse(localStorage.getItem('platformer-editor-selected-tool')!)).toBe('M');
   });
 });
 

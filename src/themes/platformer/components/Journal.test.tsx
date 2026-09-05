@@ -614,8 +614,8 @@ describe('Journal', () => {
       // `PlatformerState.test.ts`'s `describe('marker-derived placements
       // react to currentLayout', ...)` block uses.
       try {
-        // S spawn, one placed coin (C), two coin-pots (u, u) -> coins total = 3.
-        currentLayout.value = ['SCuu', 'GGGG'];
+        // S spawn, one placed coin (o), two coin-pots (u, u) -> coins total = 3.
+        currentLayout.value = ['Souu', 'GGGG'];
         collectedFacts.value = [];
         collectedCollectibleIds.value = new Set();
 
@@ -646,7 +646,7 @@ describe('Journal', () => {
       // defeated, not how many facts came out of that, or the numerator
       // could even exceed the denominator (the bug this test guards).
       try {
-        currentLayout.value = ['SEE', 'GGG']; // 2 green markers, 12 courses
+        currentLayout.value = ['SMM', 'GGG']; // 2 green markers, 12 courses
         // enemyStates is a plain signal, not reactive to currentLayout — it
         // only rebuilds via resetGameProgress()/mount, so rebuild it here to
         // match the new layout's placements, same as PlatformerState.ts does.
@@ -709,12 +709,12 @@ describe('Journal', () => {
       // earlier test in this describe block) stays permanently stale — see
       // task-2-report.md for the reproduction. A real `currentLayout` write
       // is the same pattern the sibling `coinsTotal-includesEveryCoinPotBlock`
-      // test above uses. Here the layout carries far more green-slime (`E`)
+      // test above uses. Here the layout carries far more green-slime (`M`)
       // markers than CVData has courses, so the excess placements are
       // guaranteed to exceed the enemy fact pool's length.
       try {
         const enemyMarkerCount = 20;
-        currentLayout.value = ['S' + 'E'.repeat(enemyMarkerCount), 'G'.repeat(enemyMarkerCount + 1)];
+        currentLayout.value = ['S' + 'M'.repeat(enemyMarkerCount), 'G'.repeat(enemyMarkerCount + 1)];
         collectedFacts.value = [];
 
         render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);

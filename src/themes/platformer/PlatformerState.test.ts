@@ -509,13 +509,13 @@ describe('levelTotals', () => {
   // otherwise the denominator would creep upward during play instead of
   // staying fixed all session.
   it('layoutWithOneCoinAndOneCoinPot-countsBothAsCoins', () => {
-    currentLayout.value = ['SCu', 'GGG'];
+    currentLayout.value = ['Sou', 'GGG'];
 
     expect(levelTotals.value.coins).toBe(2);
   });
 
   it('layoutWithOneCoinAndOneCoinPot-countsNoOtherCollectible', () => {
-    currentLayout.value = ['SCu', 'GGG'];
+    currentLayout.value = ['Sou', 'GGG'];
 
     expect(levelTotals.value).toMatchObject({ fruits: 0, enemies: 0, crates: 0, chests: 0 });
   });
@@ -542,7 +542,7 @@ describe('levelTotals', () => {
   it('moreGreenEnemyMarkersThanCourses-enemiesTotalCountsEveryGreenMarkerNotJustFactBearingOnes', () => {
     const courseCount = mapCVDataToEnemies(currentCV.value).length;
     const markerCount = courseCount + 2; // guaranteed to exceed the fact pool
-    currentLayout.value = ['S' + 'E'.repeat(markerCount) + 'G', 'G'.repeat(markerCount + 2)];
+    currentLayout.value = ['S' + 'M'.repeat(markerCount) + 'G', 'G'.repeat(markerCount + 2)];
 
     expect(levelTotals.value.enemies).toBe(markerCount);
   });
