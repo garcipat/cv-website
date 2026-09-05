@@ -21,8 +21,6 @@ import {
   activeJournalSection,
   collectiblePlacements,
   skillFactPool,
-  crateFactPool,
-  enemyFactPool,
   collectedCollectibleIds,
   activeEffects,
   enemyPlacements,
@@ -1063,21 +1061,22 @@ describe('PlatformerPage', () => {
     }
 
     expect(enemyStates.value.find((e) => e.id === target.id)?.alive).toBe(false);
-    expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(true);
+    // The target's own id is now position-derived (see EnemyMapper.ts's
+    // placeGreenSlimes), not the fact's id — the fact it owns was fixed at
+    // placement time and is asserted against directly.
+    expect(collectedFacts.value.some((f) => f.id === target.fact?.id)).toBe(true);
     // A fresh fact-bearing defeat still queues a puff — puff (defeat
     // feedback) and the fact/flight-text reward are fully decoupled layers,
     // same as crate destruction (B-003).
     expect(activePuffs.value.some((p) => p.id === target.id)).toBe(true);
   });
 
-  it('enemyFactPoolExhausted-defeatingAGreenEnemy-awardsNoNewFact', () => {
-    // A green slime no longer carries a fixed fact of its own — which fact
-    // (if any) a defeat reveals is resolved dynamically from the shared
-    // enemy fact pool, proportionally across every green slime the level has
-    // (see PlatformerState.ts's enemyFactPool doc comment), the same way a
-    // coin pickup already works. Once every pool entry is already banked,
-    // defeating a fresh green slime must still flag it dead, just without
-    // banking a duplicate/new fact.
+  it('enemyAlreadyDefeatedFromAPriorLife-defeatingItAgain-awardsNoNewFact', () => {
+    // A green slime's course fact(s) are fixed at placement time (see
+    // EnemyMapper.ts's placeGreenSlimes doc comment) and paid out at most
+    // once — `rewardGiven` is permanent (see Enemy.ts's baseRevive doc
+    // comment). Redefeating a revived enemy must still flag it dead, just
+    // without banking a duplicate fact.
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frameCallback = cb;
@@ -1088,10 +1087,11 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    // Exhaust the pool: every course fact is already banked, so whichever
-    // pool slot this defeat's pacing points at is deduped away by the
-    // trigger and nothing new is revealed.
-    collectedFacts.value = [...enemyFactPool.value];
+    // Mark every green enemy as already rewarded, as if each had already
+    // paid out in a prior life this session.
+    enemyStates.value = enemyStates.value.map((e) =>
+      e.type === 'slimeGreen' ? { ...e, rewardGiven: true } : e,
+    );
 
     const target = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
     playerState.value = { ...playerState.value, x: target.x, y: stompLandingY(target), vy: 300 };
@@ -1104,13 +1104,14 @@ describe('PlatformerPage', () => {
     }
 
     expect(enemyStates.value.find((e) => e.id === target.id)?.alive).toBe(false);
-    expect(collectedFacts.value).toHaveLength(enemyFactPool.value.length);
+    expect(collectedFacts.value).toHaveLength(0);
   });
 
-  it('enemyFactPoolExhausted-defeatingAGreenEnemy-stillQueuesAPuff', () => {
+  it('enemyAlreadyDefeatedFromAPriorLife-defeatingItAgain-stillQueuesAPuff', () => {
     // Puff (defeat feedback) and the fact/flight-text reward are fully
-    // decoupled layers (B-003) — a defeat that awards nothing because the
-    // pool is already exhausted is still a world event that deserves a puff.
+    // decoupled layers (B-003) — a defeat that awards nothing because it
+    // already paid out in a prior life is still a world event that
+    // deserves a puff.
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frameCallback = cb;
@@ -1121,7 +1122,9 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    collectedFacts.value = [...enemyFactPool.value];
+    enemyStates.value = enemyStates.value.map((e) =>
+      e.type === 'slimeGreen' ? { ...e, rewardGiven: true } : e,
+    );
 
     const target = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
     playerState.value = { ...playerState.value, x: target.x, y: stompLandingY(target), vy: 300 };
@@ -1436,11 +1439,9 @@ describe('PlatformerPage', () => {
 
     // Second hit — the terminal one — must ALWAYS queue a puff (destruction
     // feedback, reusing the same blockEffectAnchor/startPuffEffect mechanism
-    // as fragileRock above) AND independently still award a fact/flight-effect
-    // reward: this is the very first crate destroyed this session, and the
-    // crate pool is at least as long as the level's crate count, so its
-    // proportional pacing slot always reveals something (see
-    // PlatformerState.ts's crateFactPool doc comment).
+    // as fragileRock above) AND independently still award its own
+    // fact/flight-effect reward, fixed at placement time (see
+    // BlockMapper.ts's placeCrates doc comment).
     playerState.value = { ...playerState.value, ...bumpPosition };
     t += 16;
     frameCallback!(t);
@@ -1454,7 +1455,7 @@ describe('PlatformerPage', () => {
     // own id — a single crate can reveal more than one fact when fewer
     // crates are placed than there are crate-pool facts.
     expect(activeEffects.value.some((e) => e.id.startsWith(`${crate.id}-`))).toBe(true);
-    expect(collectedFacts.value).toEqual([crateFactPool.value[0]]);
+    expect(collectedFacts.value).toEqual([crate.fact]);
   });
 
   it('crateDestroyedFromBelow-terminalHit-bumpsTheCratesCounterPopup', () => {
@@ -1794,7 +1795,10 @@ describe('PlatformerPage', () => {
     frameCallback!(0);
 
     const target = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
-    const factId = target.id;
+    // The target's own id is now position-derived (see EnemyMapper.ts's
+    // placeGreenSlimes), not the fact's id — the fact it owns was fixed at
+    // placement time.
+    const factId = target.fact?.id;
     playerState.value = {
       ...playerState.value,
       x: target.x,
@@ -1829,7 +1833,7 @@ describe('PlatformerPage', () => {
     fireEvent.keyDown(window, { code: 'Enter' });
 
     // Stomp the SAME (now-revived) enemy again.
-    const revived = enemyStates.value.find((e) => e.id === factId)!;
+    const revived = enemyStates.value.find((e) => e.id === target.id)!;
     playerState.value = {
       ...playerState.value,
       x: revived.x,
