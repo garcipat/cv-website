@@ -25,6 +25,7 @@ import {
   drawSigns,
   drawSignBubble,
   drawKeyPickups,
+  drawHazards,
   drawKeyCounter,
   keyCounterX,
   KEY_COUNTER_Y,
@@ -148,6 +149,7 @@ import {
   endingScreenShown,
   endingScreenOpen,
   signPlacements,
+  hazardPlacements,
   hintTooltipState,
   keyPickupStates,
   collectedKeys,
@@ -465,6 +467,8 @@ export const PlatformerPage = () => {
       drawBonusFruits(ctx, bonusFruitStates.value, drawContext);
 
       drawBlocks(ctx, blockStates.value, drawContext);
+
+      drawHazards(ctx, hazardPlacements.value, drawContext);
 
       drawChests(ctx, chestStates.value, drawContext);
 
