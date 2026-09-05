@@ -25,6 +25,7 @@ export const TERRAIN_CHARS: Record<string, TileType | undefined> = {
   W: 'wall',
   B: 'bridge',
   L: 'ladder',
+  I: 'chain',
   P: 'patrol',
   n: 'bush',
   N: 'fence',
@@ -111,6 +112,7 @@ export type TileChar =
   | 'W'
   | 'B'
   | 'L'
+  | 'I'
   | 'P'
   | 'S'
   | 'E'
