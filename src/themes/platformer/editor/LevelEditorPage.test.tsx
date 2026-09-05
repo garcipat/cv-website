@@ -617,10 +617,11 @@ describe('LevelEditorPage - Try button', () => {
 
     expect(currentLayout.value).toEqual(exportLayout(importLayout(LEVEL_1_LAYOUT)));
     expect(currentTheme.value).toBe('platformer');
-    // PlatformerPage.tsx gates its debug panel on `new
+    // PlatformerPage.tsx only reads `debug`/`level` query params on the
+    // dedicated `/platformer` route, and gates its debug panel on `new
     // URLSearchParams(window.location.search).has('debug')` — any `debug`
-    // param shows it, so this must land on a URL satisfying that exactly.
-    expect(currentPath.value).toBe('/?debug=1');
+    // param shows it, so this must land on a URL satisfying both exactly.
+    expect(currentPath.value).toBe('/platformer?debug=1');
   });
 
   it('click-alsoResetsGameProgressSoStaleStateFromAnEarlierLayoutDoesNotLeakIn', async () => {
