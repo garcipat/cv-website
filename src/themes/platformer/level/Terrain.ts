@@ -33,13 +33,18 @@ export function isSolidExcludingBridge(tile: TileType): boolean {
 }
 
 /**
- * Whether the player can climb this tile — currently only `'ladder'`.
- * Deliberately NOT part of `isSolid`: a ladder never blocks horizontal
- * movement or counts as ground; `Physics.ts`'s climbing branch is the only
- * place vertical movement through a ladder tile is resolved.
+ * Whether the player can climb this tile — `'ladder'` and its purely visual
+ * `'chain'` skin (roadmap step 38) behave identically here and everywhere
+ * else in this file/Physics.ts, which is exactly why `'chain'` needs no
+ * physics code of its own: every consumer of `isClimbable`/
+ * `isStandableLadderTop` already goes through these two functions rather
+ * than checking `tile === 'ladder'` directly.
+ * Deliberately NOT part of `isSolid`: a climbable tile never blocks
+ * horizontal movement or counts as ground; `Physics.ts`'s climbing branch is
+ * the only place vertical movement through one is resolved.
  */
 export function isClimbable(tile: TileType): boolean {
-  return tile === 'ladder';
+  return tile === 'ladder' || tile === 'chain';
 }
 
 /**
@@ -154,4 +159,25 @@ export function verticalRunRole(
   if (!above && below) return 'top';
   if (above && !below) return 'bottom';
   return 'middle';
+}
+
+export type ChainAttachment = 'ceiling' | 'left' | 'right';
+
+/**
+ * Where a `chain` tile's sprite should read as attached, purely for
+ * rendering (Renderer.ts) — has no bearing on physics, which treats every
+ * chain tile identically regardless of attachment (see `isClimbable`).
+ * Checked in this priority order: a solid tile directly above wins
+ * ('ceiling', drawn centered) even when a side is ALSO solid (e.g. a shaft
+ * corner) — only when nothing solid is above does a solid neighbour to the
+ * left or right decide 'left'/'right' (drawn hugging that wall). Falls back
+ * to 'ceiling' when no neighbour is solid at all, so an isolated or
+ * mis-authored chain tile still renders in a well-defined position rather
+ * than an implicit fourth case.
+ */
+export function chainAttachment(level: LevelDef, col: number, row: number): ChainAttachment {
+  if (isSolid(tileAt(level, col, row - 1))) return 'ceiling';
+  if (isSolid(tileAt(level, col - 1, row))) return 'left';
+  if (isSolid(tileAt(level, col + 1, row))) return 'right';
+  return 'ceiling';
 }
