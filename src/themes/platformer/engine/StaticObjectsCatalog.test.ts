@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { bushOrTreeEntry, staticObjectEntry, chainEntry } from './StaticObjectsCatalog';
+import { bushOrTreeEntry, staticObjectEntry, chainRunPieces } from './StaticObjectsCatalog';
+import type { ChainAttachment } from '../level/Terrain';
 
 // Bush/tree art comes from world_tileset.png (256x256); fence art comes from
 // the separate staticObjects.png (288x144) — two different sheets, so each
@@ -47,45 +48,51 @@ describe('StaticObjectsCatalog', () => {
     expect(staticObjectEntry('fence', 1, 1)).toEqual(staticObjectEntry('fence', 9, 9));
   });
 
-  it('chainEntry-anyAttachmentAndColumn-resolvesToARectInsideTheSheetOnA16pxGrid', () => {
-    for (const attachment of ['ceiling', 'left', 'right'] as const) {
-      for (const col of [0, 1, 2, 3]) {
-        const entry = chainEntry(attachment, col);
-        expect(entry.sx % TILE_SIZE).toBe(0);
-        expect(entry.sy % TILE_SIZE).toBe(0);
-        expect(entry.sx + TILE_SIZE).toBeLessThanOrEqual(STATIC_OBJECTS_SHEET_WIDTH);
-        expect(entry.sy + TILE_SIZE).toBeLessThanOrEqual(STATIC_OBJECTS_SHEET_HEIGHT);
-      }
-    }
+  const ATTACHMENTS: readonly ChainAttachment[] = ['ceiling', 'left', 'right', 'floating'];
+
+  it.each(ATTACHMENTS)('chainRunPieces-%s-runLength1-isJustThatAttachmentsCap', (attachment) => {
+    const pieces = chainRunPieces(attachment, 1);
+    expect(pieces).toHaveLength(1);
+    expect(pieces[0].height).toBeGreaterThan(0);
+    expect(pieces[0].width).toBeGreaterThan(0);
   });
 
-  it('chainEntry-sameAttachmentAndColumn-isDeterministic', () => {
-    expect(chainEntry('left', 3)).toEqual(chainEntry('left', 3));
+  it('chainRunPieces-ceilingRunLength4-continuesThenOneMiddleThenBottom', () => {
+    // continues(16) + middle(18) + bottom(15) = 49 <= 4*16=64;
+    // a second middle would make 67 > 64, so exactly one middle fits.
+    const pieces = chainRunPieces('ceiling', 4);
+    expect(pieces).toHaveLength(3);
+    expect(pieces[0]).toEqual({ sx: 91, sy: 120, width: 5, height: 16 });
+    expect(pieces[1]).toEqual({ sx: 128, sy: 118, width: 5, height: 18 });
+    expect(pieces[2]).toEqual({ sx: 137, sy: 118, width: 5, height: 15 });
   });
 
-  it('chainEntry-leftAttachment-alwaysPicksALeftLeaningVariant', () => {
-    expect(chainEntry('left', 0)).toEqual({ sx: 80, sy: 112 });
-    expect(chainEntry('left', 1)).toEqual({ sx: 112, sy: 112 });
+  it('chainRunPieces-leftRunLength2-continuesThenBottomWithNoMiddle', () => {
+    // continues(15) + middle(18) + bottom(15) = 48 > 2*16=32, so no middle fits.
+    const pieces = chainRunPieces('left', 2);
+    expect(pieces).toHaveLength(2);
+    expect(pieces[0]).toEqual({ sx: 99, sy: 121, width: 7, height: 15 });
+    expect(pieces[1]).toEqual({ sx: 137, sy: 118, width: 5, height: 15 });
   });
 
-  it('chainEntry-rightAttachment-alwaysPicksARightLeaningVariant', () => {
-    expect(chainEntry('right', 0)).toEqual({ sx: 96, sy: 112 });
-    expect(chainEntry('right', 1)).toEqual({ sx: 128, sy: 112 });
+  it('chainRunPieces-rightRunLength3-fitsExactlyOneMiddle', () => {
+    // continues(15) + middle(18) + bottom(15) = 48 == 3*16=48 exactly.
+    const pieces = chainRunPieces('right', 3);
+    expect(pieces).toHaveLength(3);
+    expect(pieces[0]).toEqual({ sx: 110, sy: 121, width: 7, height: 15 });
+    expect(pieces[1]).toEqual({ sx: 128, sy: 118, width: 5, height: 18 });
+    expect(pieces[2]).toEqual({ sx: 137, sy: 118, width: 5, height: 15 });
   });
 
-  it('chainEntry-ceilingAttachment-alternatesByColumnParity', () => {
-    expect(chainEntry('ceiling', 0)).toEqual({ sx: 80, sy: 112 });
-    expect(chainEntry('ceiling', 1)).toEqual({ sx: 128, sy: 112 });
+  it('chainRunPieces-floatingRunLength1-isTheFloatingCap', () => {
+    expect(chainRunPieces('floating', 1)).toEqual([{ sx: 119, sy: 102, width: 5, height: 12 }]);
   });
 
-  it('chainEntry-sameColumnDifferentRows-wouldBeIdentical-becauseRowIsNotHashed', () => {
-    // Regression pin for the bug this fix corrects: a chain shaft's variant
-    // must depend on column only, never row, so every cell of one vertical
-    // shaft renders the same sprite. chainEntry doesn't take a row
-    // parameter at all — this test just re-states that guarantee for a
-    // reader who might otherwise expect row-based variety like
-    // bushOrTreeEntry has.
-    expect(chainEntry('left', 5)).toEqual(chainEntry('left', 5));
-    expect(chainEntry('right', 5)).toEqual(chainEntry('right', 5));
+  it('chainRunPieces-leftAndRight-are7pxWide-widerThanCeilingAndFloating', () => {
+    // The extra 2px is the connector bar baked into the hook art itself.
+    expect(chainRunPieces('left', 1)[0].width).toBe(7);
+    expect(chainRunPieces('right', 1)[0].width).toBe(7);
+    expect(chainRunPieces('ceiling', 1)[0].width).toBe(5);
+    expect(chainRunPieces('floating', 1)[0].width).toBe(5);
   });
 });

@@ -120,21 +120,36 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   never has to match CVData's skill-category count exactly. Level marker: `u`
   (lowercase — a pot-shaped glyph, unlike every other entity marker).
 - [x] **38. Chain ladder skin** — a chain-sprite tile that climbs exactly like a ladder.
-  Design resolved: a new `TileType` (`'chain'`), level marker `I` (unclaimed — reserved for
-  step 39's wall remap until this step claimed it first; step 39's wall target moved to `#`
-  to avoid the collision). `isClimbable`/`isStandableLadderTop` generalize to cover both
-  `'ladder'` and `'chain'` (both already route through `isClimbable`, so `Physics.ts` needs
-  no changes of its own). Rendering: `staticObjects.png` has 4 chain-link sprites at row 7 (cols 5-8) that
-  turned out NOT to be interchangeable/centered as first assumed — 2 are
-  left-leaning, 2 are right-leaning (pixel-verified during final review). A new
-  `chainAttachment` helper in `Terrain.ts` decides ceiling (solid tile above,
-  checked first) vs. left/right (solid tile to that side) vs. a ceiling
-  fallback when isolated; `StaticObjectsCatalog.ts`'s `chainEntry` then picks
-  the matching left- or right-leaning sprite pair for that attachment (hashed
-  on column only, so one shaft stays visually consistent top-to-bottom) — no
-  destination-offset trick needed, the art itself already reads as attached to
-  the right wall. See
-  `plans/2026-09-05-chain-ladder-skin-step38-plan.md`.
+  A new `TileType` (`'chain'`), level marker `I` (unclaimed — reserved for step 39's wall
+  remap until this step claimed it first; step 39's wall target moved to `#` to avoid the
+  collision). `isClimbable`/`isStandableLadderTop` generalize to cover both `'ladder'` and
+  `'chain'` (both already route through `isClimbable`, so `Physics.ts` needs no changes of
+  its own).
+
+  Rendering went through several redesigns before landing (see the plan's own history for
+  the two rejected approaches): the artist redrew `staticObjects.png`'s chain art as a small
+  set of true-native-size pieces rather than 16px-grid tiles (a link's real vertical repeat
+  is 6px, not a divisor of 16, so no fixed-height crop tiles seamlessly). `Terrain.ts`'s
+  `chainAttachment` classifies a shaft's TOP cell as `'ceiling'` (solid tile above, checked
+  first) / `'left'` / `'right'` (solid tile to that side) / `'floating'` (its own case, not a
+  ceiling fallback — nothing solid anywhere); `chainRunLength` counts how many consecutive
+  `chain` tiles follow downward. `StaticObjectsCatalog.ts`'s `chainRunPieces(attachment,
+  runLength)` composes the whole shaft: a 1-tile shaft is just that attachment's cap piece;
+  a longer one stacks the attachment's "continues" piece, then as many plain hookless
+  middle-connector pieces as fit the remaining native-pixel budget, then a plain hookless
+  bottom cap — capped rather than exact, since piece heights don't divide evenly into
+  `16 * runLength` (a deliberate shortfall, never an overflow into the tile below).
+  `Renderer.ts`'s `drawTerrain` only ever draws from a run's TOP cell (every cell below it
+  is skipped — already covered by the top cell's stack of `drawImage` calls), which makes
+  chain the first tile in this codebase composited as a multi-cell run instead of per-cell.
+  Left/right (wall-hugging) pieces are 7px wide, not 5 — a connector bar baked into the art
+  — and only the run's TOP piece draws flush against its wall (its own art already has the
+  attachment gap baked in); every piece below it gets a small `CHAIN_WALL_GAP` offset
+  instead, and the top piece additionally starts a couple of native px below its cell's own
+  top edge, so it lines up with a ceiling-attached shaft's own starting height. Verified
+  live via a dev-only `?level=chain-test` query param (`PlatformerPage.tsx`, `level.ts`'s
+  `CHAIN_TEST_LAYOUT`) exercising every attachment/run-length combination in the real game
+  rather than a static mockup. See `plans/2026-09-05-chain-ladder-skin-step38-plan.md`.
 - [ ] **39. Level layout character remap** — re-letter some ASCII tile/entity characters
   so they visually suggest the element: coin `C`→`o`, ladder `L`→`H`, wall `W`→`#`, green
   slime `E`→`M`, purple slime `M`→`m`. (Wall's target moved from the originally-proposed `I`

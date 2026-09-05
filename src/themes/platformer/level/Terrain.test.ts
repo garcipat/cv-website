@@ -5,6 +5,7 @@ import {
   isClimbable,
   isStandableLadderTop,
   chainAttachment,
+  chainRunLength,
   isTopExposed,
   tileToPixel,
   bridgeRunPosition,
@@ -378,9 +379,38 @@ describe('chainAttachment', () => {
     expect(chainAttachment(level, 1, 1)).toBe('ceiling');
   });
 
-  it('noSolidNeighbourAnywhere-fallsBackToCeiling', () => {
+  it('noSolidNeighbourAnywhere-returnsFloating', () => {
     const level: LevelDef = { width: 1, height: 1, terrain: [['chain']] };
-    expect(chainAttachment(level, 0, 0)).toBe('ceiling');
+    expect(chainAttachment(level, 0, 0)).toBe('floating');
+  });
+});
+
+describe('chainRunLength', () => {
+  it('chainBelowIsNotAChainTile-returnsOne', () => {
+    const level: LevelDef = { width: 1, height: 1, terrain: [['chain']] };
+    expect(chainRunLength(level, 0, 0)).toBe(1);
+  });
+
+  it('threeConsecutiveChainTilesDownward-returnsThree', () => {
+    const level: LevelDef = { width: 1, height: 3, terrain: [['chain'], ['chain'], ['chain']] };
+    expect(chainRunLength(level, 0, 0)).toBe(3);
+  });
+
+  it('chainRunEndsBeforeLevelBottom-doesNotCountTilesPastTheNonChainBoundary', () => {
+    const level: LevelDef = {
+      width: 1,
+      height: 4,
+      terrain: [['chain'], ['chain'], ['wall'], ['chain']],
+    };
+    expect(chainRunLength(level, 0, 0)).toBe(2);
+  });
+
+  it('calledFromAMiddleCell-countsOnlyFromThatCellDownward', () => {
+    // chainRunLength itself doesn't know or care whether (col,row) is a
+    // run's actual top — it's the caller's job (Renderer.ts) to only call
+    // this when tileAt(level, col, row-1) !== 'chain'.
+    const level: LevelDef = { width: 1, height: 3, terrain: [['chain'], ['chain'], ['chain']] };
+    expect(chainRunLength(level, 0, 1)).toBe(2);
   });
 });
 

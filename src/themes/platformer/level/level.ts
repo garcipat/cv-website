@@ -173,6 +173,29 @@ export const LEVEL_1_LAYOUT: readonly string[] = [
 export const SCRATCH_LAYOUT: readonly string[] = ['.S.', 'GGG'];
 
 /**
+ * Dev-only scene exercising every `chain` (`I`) attachment/run-length
+ * combination, loadable via `?level=chain-test` (see `PlatformerPage.tsx`) —
+ * a faster, more faithful way to eyeball the run-composited chain rendering
+ * (Renderer.ts) than a static mockup image. Left to right: a 1-tile ceiling
+ * chain (col 2), a 4-tile ceiling chain (col 6), a 4-tile left-wall-hugging
+ * chain (cols 10-11), a 4-tile right-wall-hugging chain (cols 14-15), and an
+ * isolated 1-tile floating chain (col 18, row 3 — nothing solid anywhere
+ * near it). Not part of the shipped level; never referenced by
+ * `LEVEL_1_LAYOUT` or the Level Editor's own saved levels.
+ */
+export const CHAIN_TEST_LAYOUT: readonly string[] = [
+  '..W...W...............',
+  '..I...I...WI..IW......',
+  '......I...WI..IW......',
+  '......I...WI..IW..I...',
+  '......I...WI..IW......',
+  '......................',
+  '......................',
+  'S.....................',
+  'GGGGGGGGGGGGGGGGGGGGGG',
+];
+
+/**
  * The layout the GAME actually renders/simulates against — starts out equal
  * to the hardcoded `LEVEL_1_LAYOUT` above, but is deliberately an in-memory
  * signal (NOT localStorage-backed, unlike the Level Editor's own
