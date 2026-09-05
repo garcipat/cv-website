@@ -41,6 +41,7 @@ import {
   activePuffs,
   activeCounterPopups,
   levelTotals,
+  hazardPlacements,
 } from './PlatformerState';
 import { toBlockState } from './entities/Block';
 import type { BlockState } from './entities/Block';
@@ -60,7 +61,7 @@ import { PLAYER_HIT_REACTION_SECONDS } from './entities/Player';
 import { SPIKE_COOLDOWN_DURATION_SECONDS } from './entities/enemies/SlimePurple';
 import { PHYSICS_CONFIG } from './engine/PhysicsConfig';
 import { tileToPixel, RENDERED_TILE_SIZE, isClimbable, tileAt } from './level/Terrain';
-import { currentLevel } from './level/level';
+import { currentLevel, currentLayout } from './level/level';
 import type { LevelDef, TileType } from './level/LevelData';
 import {
   JOURNAL_OPEN_FRAME_COUNT,
@@ -103,6 +104,10 @@ const initialPlayerState = playerState.value;
 const initialLifecycleState = lifecycleState.value;
 const initialCollectedFacts = collectedFacts.value;
 const originalLocation = window.location;
+// Module-level signal (see level/level.ts) — a hazard test that swaps in a
+// synthetic layout must not leak that layout into later tests, which all
+// assume the real default level.
+const initialLayout = currentLayout.value;
 
 /** The first tile of `type` in reading order that also satisfies `also`, so
  *  level-driven tests name the terrain they need instead of pinning the
@@ -160,6 +165,7 @@ describe('PlatformerPage', () => {
     vi.stubGlobal('requestAnimationFrame', () => 1);
     vi.stubGlobal('cancelAnimationFrame', () => {});
     playerState.value = initialPlayerState;
+    currentLayout.value = initialLayout;
     cameraPositionX.value = 0;
     cameraPositionY.value = 0;
     lifecycleState.value = initialLifecycleState;
@@ -2800,6 +2806,62 @@ describe('PlatformerPage', () => {
     frameCallback!(32);
 
     expect(playerState.value.hitPoints).toBe(healthAfterFirstHit);
+  });
+
+  it('playerTouchingASpikeHazard-tick-losesOneHalfHeartAndGetsKnockedBack', () => {
+    // A synthetic layout with a real spike marker — the shipped level has no
+    // hazard tiles of its own yet, unlike the enemy-contact tests above,
+    // which can teleport onto a real enemy from the default layout.
+    currentLayout.value = ['S^', 'GG'];
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const hazard = hazardPlacements.value[0];
+    const startingHealth = playerState.value.hitPoints;
+    playerState.value = { ...playerState.value, x: hazard.x, y: hazard.y, vx: 0, vy: 0 };
+
+    frameCallback!(16);
+
+    expect(playerState.value.hitPoints).toBe(startingHealth - SIDE_HIT_DAMAGE);
+    expect(playerState.value.vx).not.toBe(0);
+    expect(isInvulnerable(playerState.value, PLAYER_HIT_REACTION_SECONDS)).toBe(true);
+  });
+
+  it('playerAlreadyInvulnerable-touchingASpikeHazard-takesNoDamage', () => {
+    currentLayout.value = ['S^', 'GG'];
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const hazard = hazardPlacements.value[0];
+    const startingHealth = playerState.value.hitPoints;
+    // Mid-refractory window (see isInvulnerable/PLAYER_HIT_REACTION_SECONDS)
+    // — a hazard touched during this window must not register a fresh hit.
+    playerState.value = {
+      ...playerState.value,
+      x: hazard.x,
+      y: hazard.y,
+      vx: 0,
+      vy: 0,
+      hitTimer: 0,
+    };
+
+    frameCallback!(16);
+
+    expect(playerState.value.hitPoints).toBe(startingHealth);
   });
 
   it('playerFallsOntoEnemyFromAbove-tick-noSideHitDamageOnlyAStomp', () => {
