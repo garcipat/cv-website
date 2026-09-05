@@ -114,3 +114,109 @@ describe('paintCell — sign markers', () => {
     expect(result.grid[0][0]).toBe('1'); // unrelated cell untouched
   });
 });
+
+describe('paintCell — hazard markers', () => {
+  it('freshPlacementOnGroundWithOpenSpaceAbove-autoOrientsUp', () => {
+    // Solid below only — a floor spike.
+    const grid: TileChar[][] = [
+      ['.', '.'],
+      ['G', 'G'],
+    ];
+    const result = paintCell(grid, 0, 0, '^');
+    expect(result.grid[0][0]).toBe('^');
+  });
+
+  it('freshPlacementUnderACeilingWithOpenSpaceBelow-autoOrientsDown', () => {
+    // Solid above only — a ceiling spike.
+    const grid: TileChar[][] = [
+      ['G', 'G'],
+      ['.', '.'],
+    ];
+    const result = paintCell(grid, 0, 1, '^');
+    expect(result.grid[1][0]).toBe('v');
+  });
+
+  it('freshPlacementBesideALeftWall-autoOrientsRight', () => {
+    // Solid to the left only, nothing below — mounted on a wall, pointing
+    // away from it (right), not a floor spike.
+    const grid: TileChar[][] = [['G', '.']];
+    const result = paintCell(grid, 1, 0, '^');
+    expect(result.grid[0][1]).toBe('>');
+  });
+
+  it('freshPlacementBesideARightWall-autoOrientsLeft', () => {
+    const grid: TileChar[][] = [['.', 'G']];
+    const result = paintCell(grid, 0, 0, '^');
+    expect(result.grid[0][0]).toBe('<');
+  });
+
+  it('freshPlacementWithMultipleSolidNeighbors-picksTheHighestPriorityFacing', () => {
+    // Solid below (up valid), above (down valid), AND to the left (right
+    // valid) — 'up' wins as the highest-priority of the three
+    // (FACING_PRIORITY: up, down, right, left).
+    const grid: TileChar[][] = [
+      ['.', 'G', '.'],
+      ['G', '.', '.'],
+      ['.', 'G', '.'],
+    ];
+    const result = paintCell(grid, 1, 1, '^');
+    expect(result.grid[1][1]).toBe('^');
+  });
+
+  it('freshPlacementWithNoSolidNeighborAtAll-fallsBackToUp', () => {
+    const grid: TileChar[][] = [['.', '.', '.']];
+    const result = paintCell(grid, 1, 0, '^');
+    expect(result.grid[0][1]).toBe('^');
+  });
+
+  it('clickingAnAlreadyPlacedSpikeWithTwoValidFacings-cyclesToTheNextOne', () => {
+    // Solid both below and above: 'up' and 'down' are both valid, in that
+    // priority order. Starting from 'up' (already placed), the next click
+    // cycles to 'down'.
+    const grid: TileChar[][] = [
+      ['G'],
+      ['^'],
+      ['G'],
+    ];
+    const result = paintCell(grid, 0, 1, '^');
+    expect(result.grid[1][0]).toBe('v');
+  });
+
+  it('clickingRepeatedly-wrapsAroundThroughEveryValidFacing', () => {
+    let grid: TileChar[][] = [
+      ['G'],
+      ['^'],
+      ['G'],
+    ];
+    const seen: TileChar[] = [];
+    for (let i = 0; i < 3; i++) {
+      const result = paintCell(grid, 0, 1, '^');
+      seen.push(result.grid[1][0]);
+      grid = result.grid;
+    }
+    expect(seen).toEqual(['v', '^', 'v']);
+  });
+
+  it('clickingASpikeWhoseFacingIsNoLongerValid-startsFromTheFirstCurrentlyValidFacingInstead', () => {
+    // Placed as 'up' when the ground below was still solid; the author
+    // since erased it (both neighbors now empty except a wall to the
+    // right, added after placement) — 'up' is no longer valid, so cycling
+    // must not try to count forward from a facing that no longer applies.
+    const grid: TileChar[][] = [['^', 'G']];
+    const result = paintCell(grid, 0, 0, '^');
+    expect(result.grid[0][0]).toBe('<');
+  });
+
+  it('clickingASpikeWithNoLongerAnyValidNeighbor-fallsBackToUp', () => {
+    const grid: TileChar[][] = [['.', '^', '.']];
+    const result = paintCell(grid, 1, 0, '^');
+    expect(result.grid[0][1]).toBe('^');
+  });
+
+  it('paintingNonHazardTool-behavesExactlyAsBefore', () => {
+    const grid: TileChar[][] = [['^', '.']];
+    const result = paintCell(grid, 1, 0, 'G');
+    expect(result.grid[0][1]).toBe('G');
+    expect(result.grid[0][0]).toBe('^'); // unrelated cell untouched
+  });
+});

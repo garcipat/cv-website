@@ -62,7 +62,6 @@ import {
   checkSignOverlap,
   checkKeyPickupCollisions,
   checkHazardCollisions,
-  playerHitbox,
 } from './engine/Collision';
 import { openChest, allChestsOpen, isChestOpen, CHEST_CLOSED_OFFSET_X } from './entities/Chest';
 import { stepBlockAnimation } from './engine/BlockAI';
@@ -586,7 +585,15 @@ export const PlatformerPage = () => {
       );
 
       if (debugHitboxesRef.current)
-        drawDebugOverlay(ctx, playerState.value, currentLevel.value, originX, originY, enemyStates.value);
+        drawDebugOverlay(
+          ctx,
+          playerState.value,
+          currentLevel.value,
+          originX,
+          originY,
+          enemyStates.value,
+          hazardPlacements.value,
+        );
 
       if (heartsSpriteRef.current) {
         drawHearts(ctx, playerState.value.hitPoints, heartsSpriteRef.current, HEARTS_START_X);
@@ -1202,15 +1209,13 @@ export const PlatformerPage = () => {
         const damage = HAZARD_TYPES[hazard.hazardType].damage;
         const hitPoints = takeDamage(playerState.value.hitPoints, damage);
         playerState.value = { ...playerState.value, hitPoints, alive: hitPoints > 0 };
-        const playerCenterX = playerHitbox(playerState.value).x + playerHitbox(playerState.value).width / 2;
-        const hazardCenterX = hazard.x + RENDERED_TILE_SIZE / 2;
-        const knockbackDirection: -1 | 1 = playerCenterX <= hazardCenterX ? -1 : 1;
-        playerState.value = applyKnockback(
-          playerState.value,
-          knockbackDirection,
-          PHYSICS_CONFIG.sideHitKnockbackVx,
-          PHYSICS_CONFIG.sideHitKnockbackDuration,
-        );
+        // No knockback — a spike hurts but doesn't shove the player, same
+        // convention as a pit fall's beginHitReaction (this only starts the
+        // refractory window). Unlike a side/below enemy touch, there's no
+        // "direction to push away from" that reads naturally here: the
+        // player is standing on/beside the spike's own tile, not colliding
+        // with a separate solid body.
+        playerState.value = beginHitReaction(playerState.value);
       }
 
       // A/D accepted as an alternate to Arrow Left/Right (FR-007 only

@@ -2808,7 +2808,7 @@ describe('PlatformerPage', () => {
     expect(playerState.value.hitPoints).toBe(healthAfterFirstHit);
   });
 
-  it('playerTouchingASpikeHazard-tick-losesOneHalfHeartAndGetsKnockedBack', () => {
+  it('playerTouchingASpikeHazard-tick-losesOneHalfHeartWithNoKnockback', () => {
     // A synthetic layout with a real spike marker — the shipped level has no
     // hazard tiles of its own yet, unlike the enemy-contact tests above,
     // which can teleport onto a real enemy from the default layout.
@@ -2830,7 +2830,9 @@ describe('PlatformerPage', () => {
     frameCallback!(16);
 
     expect(playerState.value.hitPoints).toBe(startingHealth - SIDE_HIT_DAMAGE);
-    expect(playerState.value.vx).not.toBe(0);
+    // No knockback — a spike hurts but doesn't push the player around,
+    // unlike a side/below enemy touch.
+    expect(playerState.value.vx).toBe(0);
     expect(isInvulnerable(playerState.value, PLAYER_HIT_REACTION_SECONDS)).toBe(true);
   });
 

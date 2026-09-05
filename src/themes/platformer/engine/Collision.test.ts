@@ -333,12 +333,18 @@ describe('checkHazardCollisions', () => {
     expect(checkHazardCollisions(player, [])).toEqual([]);
   });
 
-  it('touchingAnyFacing-stillReturnsIt', () => {
-    // Facing is cosmetic only — hazardBox ignores it, so every facing must
-    // damage on overlap exactly the same as 'up' does above.
+  it('facingChangesWhichPartOfTheTileIsHazardous-sameOverlapMissesADifferentFacing', () => {
+    // checkHazardCollisions dispatches through the HAZARD_TYPES registry
+    // (typeOf(h).box(h)), so each facing's own narrower hitbox — the band
+    // of the tile its visible spikes actually occupy, see Spike.ts's
+    // facingBox — is what gets checked, not a facing-agnostic full tile.
+    // 'up's band is the tile's bottom 10 rendered px; the player position
+    // above (which overlaps it) sits well below the tile's TOP edge, so a
+    // 'down'-facing hazard (band at the top instead) at the same spot must
+    // miss.
     const player = makePlayer(100, 100);
-    const leftFacing: HazardPlacement = { ...hazard, facing: 'left' };
-    expect(checkHazardCollisions(player, [leftFacing])).toEqual([leftFacing]);
+    const downFacing: HazardPlacement = { ...hazard, facing: 'down' };
+    expect(checkHazardCollisions(player, [downFacing])).toEqual([]);
   });
 });
 
