@@ -12,6 +12,7 @@ import {
   findCoinPotTiles,
   findChestTiles,
   findSignTiles,
+  findHazardTiles,
 } from './LevelParser';
 
 // Visual layout of currentLevel — one character per tile (see LevelParser.ts's
@@ -250,3 +251,8 @@ export const CHEST_TILES = computed(() => findChestTiles(currentLayout.value));
  *  hint, each standing where its mechanic is first needed — see this file's
  *  top doc comment. */
 export const SIGN_TILES = computed(() => findSignTiles(currentLayout.value));
+
+/** Hand-placed spike-hazard positions, from `currentLayout`'s `^`/`v`/`<`/`>`
+ *  markers (LevelParser.ts's HAZARD_CHARS) — purely positional/cosmetic-
+ *  facing, no CVData binding, same convention as SIGN_TILES. */
+export const HAZARD_TILES = computed(() => findHazardTiles(currentLayout.value));
