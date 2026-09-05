@@ -119,14 +119,26 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   coin the level has (`level/SkillFactPacing.ts`), so a level's coin/coin-pot count
   never has to match CVData's skill-category count exactly. Level marker: `u`
   (lowercase — a pot-shaped glyph, unlike every other entity marker).
-- [ ] **38. Chain ladder skin** — a chain-sprite tile that climbs exactly like a ladder.
-  Open design question to resolve first: a new `TileType` (e.g. `'chain'`) treated
-  identically to `'ladder'` in `Physics.ts`, vs. a decorative overlay drawn on top of a
-  normal ladder tile.
+- [x] **38. Chain ladder skin** — a chain-sprite tile that climbs exactly like a ladder.
+  Design resolved: a new `TileType` (`'chain'`), level marker `I` (unclaimed — reserved for
+  step 39's wall remap until this step claimed it first; step 39's wall target moved to `#`
+  to avoid the collision). `isClimbable`/`isStandableLadderTop` generalize to cover both
+  `'ladder'` and `'chain'` (both already route through `isClimbable`, so `Physics.ts` needs
+  no changes of its own). Rendering: reuses the single chain-link sprite already in
+  `staticObjects.png` (cols 5-8, row 7 — 4 near-identical variants, picked the same way
+  `bushOrTreeEntry` picks bush variants) for every row of a shaft, like ladder's own single
+  fixed sprite. A new `chainAttachment` helper in `Terrain.ts` decides how it reads:
+  ceiling-attached (solid tile above — centered) takes priority over side-attached (solid
+  tile to the left or right — offset a quarter-tile toward that wall), falling back to
+  centered when neither neighbor is solid. The left/right "attachment" is a same-sprite
+  destination-offset, not new art — the first tile in this codebase to use one; see
+  `plans/2026-09-05-chain-ladder-skin-step38-plan.md`.
 - [ ] **39. Level layout character remap** — re-letter some ASCII tile/entity characters
-  so they visually suggest the element: coin `C`→`o`, ladder `L`→`H`, wall `W`→`I`, green
-  slime `E`→`M`, purple slime `M`→`m`. Touches `LevelParser.ts`'s char maps, the authored
-  level layout(s), comments, and any editor legend/tooltips referencing the old letters.
+  so they visually suggest the element: coin `C`→`o`, ladder `L`→`H`, wall `W`→`#`, green
+  slime `E`→`M`, purple slime `M`→`m`. (Wall's target moved from the originally-proposed `I`
+  to `#` — step 38 claimed `I` for its new chain tile first.) Touches `LevelParser.ts`'s char
+  maps, the authored level layout(s), comments, and any editor legend/tooltips referencing
+  the old letters.
 - [ ] **40. Spike hazard tiles** — a hazard that damages the player (and presumably
   knocks back, reusing the side/below-damage + invincibility-frame mechanics from step
   19) on touch, no stomp-defeat like enemies. Open design question: modeled as a block
