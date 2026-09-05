@@ -91,13 +91,17 @@ export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
     frameHeight: 16,
   },
   I: {
+    // The ceiling-attachment "cap" piece (Renderer.ts's chainRunPieces) —
+    // not 16x16 like most other entries here, since chain art was
+    // redesigned (roadmap step 38 final review) to keep its own true native
+    // size rather than fit the tile grid; see StaticObjectsCatalog.ts.
     sheet: '/sprites/staticObjects.png',
     sheetWidth: 288,
     sheetHeight: 144,
-    sx: 80,
-    sy: 112,
-    frameWidth: 16,
-    frameHeight: 16,
+    sx: 91,
+    sy: 101,
+    frameWidth: 5,
+    frameHeight: 13,
   },
   P: null,
   S: {
