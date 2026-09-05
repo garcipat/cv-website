@@ -61,6 +61,8 @@ import {
   chestPlayerIsStandingOn,
   checkSignOverlap,
   checkKeyPickupCollisions,
+  checkHazardCollisions,
+  playerHitbox,
 } from './engine/Collision';
 import { openChest, allChestsOpen, isChestOpen, CHEST_CLOSED_OFFSET_X } from './entities/Chest';
 import { stepBlockAnimation } from './engine/BlockAI';
@@ -119,6 +121,7 @@ import {
 import { frameSource, collectSheetSources } from './entities/sprites/SpriteSheet';
 import type { SpriteLookup } from './entities/sprites/SpriteSheet';
 import { ENEMY_TYPES, typeOf } from './entities/enemies';
+import { HAZARD_TYPES } from './entities/hazards';
 import { PICKUP_TYPES } from './entities/pickups';
 import { BLOCK_TYPES } from './entities/blocks';
 import { CHEST_TYPE } from './entities/chests';
@@ -1171,6 +1174,32 @@ export const PlatformerPage = () => {
             bounceAscending: true,
           };
         }
+      }
+
+      // Spike hazards: an entirely separate, independent damage source from
+      // enemy contacts above. Sequencing after the enemy block (rather than
+      // merging the two) is deliberate and safe: applyKnockback resets
+      // hitTimer to 0, and isInvulnerable(player, PLAYER_HIT_REACTION_SECONDS)
+      // treats hitTimer 0 as WITHIN the refractory window (0 < 1.2) — so if
+      // an enemy contact already damaged the player this very tick, this
+      // block's own isInvulnerable check reads that just-updated state and
+      // correctly skips, giving "at most one hit per tick" for free with no
+      // shared aggregation code.
+      const touchedHazards = checkHazardCollisions(playerState.value, hazardPlacements.value);
+      if (touchedHazards.length > 0 && !isInvulnerable(playerState.value, PLAYER_HIT_REACTION_SECONDS)) {
+        const hazard = touchedHazards[0];
+        const damage = HAZARD_TYPES[hazard.hazardType].damage;
+        const hitPoints = takeDamage(playerState.value.hitPoints, damage);
+        playerState.value = { ...playerState.value, hitPoints, alive: hitPoints > 0 };
+        const playerCenterX = playerHitbox(playerState.value).x + playerHitbox(playerState.value).width / 2;
+        const hazardCenterX = hazard.x + RENDERED_TILE_SIZE / 2;
+        const knockbackDirection: -1 | 1 = playerCenterX <= hazardCenterX ? -1 : 1;
+        playerState.value = applyKnockback(
+          playerState.value,
+          knockbackDirection,
+          PHYSICS_CONFIG.sideHitKnockbackVx,
+          PHYSICS_CONFIG.sideHitKnockbackDuration,
+        );
       }
 
       // A/D accepted as an alternate to Arrow Left/Right (FR-007 only
