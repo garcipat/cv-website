@@ -4,6 +4,9 @@ import {
   PALETTE_TILE_LABELS,
   PALETTE_TILE_GLYPHS,
   PALETTE_TILE_DESCRIPTIONS,
+  BLUEPRINT_GLYPH,
+  PATROL_GLYPH,
+  CONNECTION_POINT_GLYPH,
 } from './paletteTiles';
 import { TERRAIN_CHARS, ENTITY_CHARS, SIGN_CHARS } from '../level/LevelParser';
 import type { TileChar } from '../level/LevelParser';
@@ -167,6 +170,20 @@ describe('paletteTiles — bush/fence', () => {
     expect(PALETTE_TILE_LABELS.N.length).toBeGreaterThan(0);
     expect(PALETTE_TILE_DESCRIPTIONS.n.length).toBeGreaterThan(0);
     expect(PALETTE_TILE_DESCRIPTIONS.N.length).toBeGreaterThan(0);
+  });
+});
+
+describe('BLUEPRINT_GLYPH', () => {
+  // Prose `it(...)` name, matching every other test in this file (see the
+  // `blueprint connection point marker` describe just above it) rather than
+  // importing the camel-case convention from elsewhere.
+  it('gives a blueprint tile its own glyph, distinct from the other sprite-less tools', () => {
+    // A Blueprints tile is another empty bordered square; sharing a symbol with
+    // the patrol boundary or a connection point would make the palette
+    // unreadable.
+    expect(BLUEPRINT_GLYPH).toBeTruthy();
+    expect(BLUEPRINT_GLYPH).not.toBe(PATROL_GLYPH);
+    expect(BLUEPRINT_GLYPH).not.toBe(CONNECTION_POINT_GLYPH);
   });
 });
 

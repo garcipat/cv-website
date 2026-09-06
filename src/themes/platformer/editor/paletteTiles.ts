@@ -355,6 +355,15 @@ export const PATROL_GLYPH = '⇄';
  *  markers and would otherwise be indistinguishable on the canvas. */
 export const CONNECTION_POINT_GLYPH = '⊕';
 
+/** The room character standing in for a saved blueprint's missing sprite in the
+ *  Palette's Blueprints section (roadmap step 44c) — a room has no single tile
+ *  to show. Deliberately distinct from `PATROL_GLYPH` and
+ *  `CONNECTION_POINT_GLYPH`: all three render inside the same empty bordered
+ *  square and would otherwise be indistinguishable. Not part of
+ *  `PALETTE_TILE_GLYPHS`, which is keyed by `TileChar` — a blueprint is not a
+ *  tile character (see `editorArmedBlueprintIdSignal`). */
+export const BLUEPRINT_GLYPH = '▦';
+
 /**
  * The character drawn inside a sprite-less tile's empty palette square, so
  * two of them are never indistinguishable. `P` and `+` need one; the
