@@ -1121,6 +1121,30 @@ describe('EditorCanvas — placement clicks (step 44c)', () => {
     expect(onPaint).not.toHaveBeenCalled();
   });
 
+  it('blueprintArmed-leftClickWithBackgroundLayerActive-reportsTheClickedCellInsteadOfPaintingBackground', () => {
+    // The armed-placement branch in handleMouseDown is checked BEFORE the
+    // activeLayer === 'background' branch, so an armed blueprint must win
+    // even while the Background layer (not just Foreground) is active.
+    // Every other placement test above uses BACKGROUND_LAYER_DEFAULT_PROPS,
+    // whose activeLayer is 'foreground' — none of them would catch the
+    // placement check accidentally being moved after the background branch.
+    stubCanvasContext();
+    const onPaint = vi.fn();
+    const onPaintBackground = vi.fn();
+    const onPlace = vi.fn();
+    const { container } = render(
+      <EditorCanvas
+        {...placementProps({ onPaint, activeLayer: 'background', onPaintBackground })}
+        placement={{ preview: null, onPlace, onCancel: vi.fn() }}
+      />,
+    );
+
+    clickCanvas(container.querySelector('canvas')!, 1, 1);
+
+    expect(onPlace).toHaveBeenCalledWith({ col: 1, row: 1 });
+    expect(onPaintBackground).not.toHaveBeenCalled();
+  });
+
   it('blueprintArmed-rightClick-cancelsInsteadOfErasing', () => {
     // Right-click has no erase meaning during a placement preview — nothing is
     // being painted — so it is repurposed as an immediate cancel, saving a trip
