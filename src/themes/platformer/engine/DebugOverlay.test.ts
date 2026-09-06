@@ -10,6 +10,7 @@ import {
 } from '../entities/Player';
 import { toEnemyState, enemyRenderedSize, enemyTileOffsetX, enemyTileOffsetY } from '../entities/Enemy';
 import { typeOf } from '../entities/enemies';
+import type { HazardPlacement } from '../level/HazardMapper';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 
 function makeMockContext() {
@@ -257,5 +258,35 @@ describe('drawDebugOverlay', () => {
     const level: LevelDef = { width: 1, height: 1, terrain: [['empty']] };
 
     expect(() => drawDebugOverlay(ctx, idlePlayer, level, 0, 0)).not.toThrow();
+  });
+
+  it('hazard-drawsOrangeBoxAtItsOwnFacingSpecificBand', () => {
+    // Delegates to the HAZARD_TYPES registry (typeOf(h).box(h)), so a
+    // 'left'-facing spike's box is its own narrower band (see Spike.ts's
+    // facingBox) — the tile's right-hand 10 rendered px — not the full tile.
+    const ctx = makeMockContext();
+    const level: LevelDef = { width: 1, height: 1, terrain: [['empty']] };
+    const hazard: HazardPlacement = { id: 'h1', hazardType: 'spike', facing: 'left', x: 100, y: 200 };
+    const originX = 10;
+    const originY = 20;
+    const band = 10;
+
+    drawDebugOverlay(ctx, idlePlayer, level, originX, originY, [], [hazard]);
+
+    const orangeCalls = (ctx.strokeRect as ReturnType<typeof vi.fn>).mock.calls.filter(
+      (call) =>
+        call[0] === hazard.x + RENDERED_TILE_SIZE - band + originX &&
+        call[1] === hazard.y + originY &&
+        call[2] === band &&
+        call[3] === RENDERED_TILE_SIZE,
+    );
+    expect(orangeCalls).toHaveLength(1);
+  });
+
+  it('noHazardsArgument-defaultsToEmptyArrayWithoutThrowing', () => {
+    const ctx = makeMockContext();
+    const level: LevelDef = { width: 1, height: 1, terrain: [['empty']] };
+
+    expect(() => drawDebugOverlay(ctx, idlePlayer, level, 0, 0, [])).not.toThrow();
   });
 });

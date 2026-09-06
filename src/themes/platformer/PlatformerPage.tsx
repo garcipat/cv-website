@@ -25,6 +25,7 @@ import {
   drawSigns,
   drawSignBubble,
   drawKeyPickups,
+  drawHazards,
   drawKeyCounter,
   keyCounterX,
   KEY_COUNTER_Y,
@@ -61,6 +62,7 @@ import {
   chestPlayerIsStandingOn,
   checkSignOverlap,
   checkKeyPickupCollisions,
+  checkHazardCollisions,
 } from './engine/Collision';
 import { openChest, allChestsOpen, isChestOpen, CHEST_CLOSED_OFFSET_X } from './entities/Chest';
 import { stepBlockAnimation } from './engine/BlockAI';
@@ -119,6 +121,7 @@ import {
 import { frameSource, collectSheetSources } from './entities/sprites/SpriteSheet';
 import type { SpriteLookup } from './entities/sprites/SpriteSheet';
 import { ENEMY_TYPES, typeOf } from './entities/enemies';
+import { HAZARD_TYPES } from './entities/hazards';
 import { PICKUP_TYPES } from './entities/pickups';
 import { BLOCK_TYPES } from './entities/blocks';
 import { CHEST_TYPE } from './entities/chests';
@@ -149,6 +152,7 @@ import {
   endingScreenShown,
   endingScreenOpen,
   signPlacements,
+  hazardPlacements,
   hintTooltipState,
   keyPickupStates,
   collectedKeys,
@@ -487,6 +491,8 @@ export const PlatformerPage = () => {
 
       drawBlocks(ctx, blockStates.value, drawContext);
 
+      drawHazards(ctx, hazardPlacements.value, drawContext);
+
       drawChests(ctx, chestStates.value, drawContext);
 
       if (playerSpriteRef.current) {
@@ -589,7 +595,15 @@ export const PlatformerPage = () => {
       );
 
       if (debugHitboxesRef.current)
-        drawDebugOverlay(ctx, playerState.value, currentLevel.value, originX, originY, enemyStates.value);
+        drawDebugOverlay(
+          ctx,
+          playerState.value,
+          currentLevel.value,
+          originX,
+          originY,
+          enemyStates.value,
+          hazardPlacements.value,
+        );
 
       if (heartsSpriteRef.current) {
         drawHearts(ctx, playerState.value.hitPoints, heartsSpriteRef.current, HEARTS_START_X);
@@ -1188,6 +1202,30 @@ export const PlatformerPage = () => {
             bounceAscending: true,
           };
         }
+      }
+
+      // Spike hazards: an entirely separate, independent damage source from
+      // enemy contacts above. Sequencing after the enemy block (rather than
+      // merging the two) is deliberate and safe: applyKnockback resets
+      // hitTimer to 0, and isInvulnerable(player, PLAYER_HIT_REACTION_SECONDS)
+      // treats hitTimer 0 as WITHIN the refractory window (0 < 1.2) — so if
+      // an enemy contact already damaged the player this very tick, this
+      // block's own isInvulnerable check reads that just-updated state and
+      // correctly skips, giving "at most one hit per tick" for free with no
+      // shared aggregation code.
+      const touchedHazards = checkHazardCollisions(playerState.value, hazardPlacements.value);
+      if (touchedHazards.length > 0 && !isInvulnerable(playerState.value, PLAYER_HIT_REACTION_SECONDS)) {
+        const hazard = touchedHazards[0];
+        const damage = HAZARD_TYPES[hazard.hazardType].damage;
+        const hitPoints = takeDamage(playerState.value.hitPoints, damage);
+        playerState.value = { ...playerState.value, hitPoints, alive: hitPoints > 0 };
+        // No knockback — a spike hurts but doesn't shove the player, same
+        // convention as a pit fall's beginHitReaction (this only starts the
+        // refractory window). Unlike a side/below enemy touch, there's no
+        // "direction to push away from" that reads naturally here: the
+        // player is standing on/beside the spike's own tile, not colliding
+        // with a separate solid body.
+        playerState.value = beginHitReaction(playerState.value);
       }
 
       // A/D accepted as an alternate to Arrow Left/Right (FR-007 only

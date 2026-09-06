@@ -11,6 +11,7 @@ import {
   COIN_POT_TILES,
   CHEST_TILES,
   SIGN_TILES,
+  HAZARD_TILES,
 } from './level/level';
 import {
   PLAYER_RENDERED_SIZE,
@@ -36,6 +37,8 @@ import { mapCVDataToChests, placeChests } from './level/ChestMapper';
 import type { ChestPlacement } from './level/ChestMapper';
 import { placeSigns } from './level/SignMapper';
 import type { SignPlacement } from './level/SignMapper';
+import { placeHazards } from './level/HazardMapper';
+import type { HazardPlacement } from './level/HazardMapper';
 import type { PlayerState } from './entities/Player';
 import type { LifecycleState } from './engine/GameLifecycle';
 import type { CollectedFact, SectionId } from './types';
@@ -253,6 +256,14 @@ export const levelTotals = computed<LevelTotals>(() => ({
  * SignMapper.ts's placeSigns).
  */
 export const signPlacements = computed<SignPlacement[]>(() => placeSigns(SIGN_TILES.value));
+
+/**
+ * Every spike hazard in the level, placed once at module load — same
+ * non-reactive-to-CVData-but-reactive-to-`currentLayout` convention as
+ * signPlacements above (a marker's character alone determines its
+ * hazardType/facing, see HazardMapper.ts's placeHazards).
+ */
+export const hazardPlacements = computed<HazardPlacement[]>(() => placeHazards(HAZARD_TILES.value));
 
 /**
  * Live, per-frame patrol state for every enemy — position/velocity/

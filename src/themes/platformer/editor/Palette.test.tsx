@@ -16,12 +16,13 @@ const defaultProps = {
 };
 
 describe('Palette', () => {
-  it('renders one tile for every terrain char (excluding "."), every entity char, one representative Sign tile, and the Eraser', () => {
+  it('renders one tile for every terrain char (excluding "."), every entity char, one representative Sign tile, one representative Hazard tile, and the Eraser', () => {
     render(<Palette {...defaultProps} />);
     const terrainCount = Object.keys(TERRAIN_CHARS).filter((k) => k !== '.').length;
     const entityCount = Object.keys(ENTITY_CHARS).length;
-    // +1 for the single representative Sign tile, +1 for the Eraser tile.
-    expect(screen.getAllByRole('button')).toHaveLength(terrainCount + entityCount + 1 + 1);
+    // +1 for the single representative Sign tile, +1 for the single
+    // representative Hazard tile, +1 for the Eraser tile.
+    expect(screen.getAllByRole('button')).toHaveLength(terrainCount + entityCount + 1 + 1 + 1);
   });
 
   it('renders a "Palette" title', () => {
@@ -97,11 +98,12 @@ describe('Palette — layer tab', () => {
 });
 
 describe('Palette — subtitle groups', () => {
-  it('foregroundLayer-rendersFourGroupHeadings', () => {
+  it('foregroundLayer-rendersFiveGroupHeadings', () => {
     render(<Palette {...defaultProps} />);
     expect(screen.getByText('Terrain')).toBeInTheDocument();
     expect(screen.getByText('Decoration')).toBeInTheDocument();
     expect(screen.getByText('Entities')).toBeInTheDocument();
+    expect(screen.getByText('Hazards')).toBeInTheDocument();
     expect(screen.getByText('Tools')).toBeInTheDocument();
   });
 
@@ -112,5 +114,17 @@ describe('Palette — subtitle groups', () => {
     expect(within(decorationGroup).getByRole('button', { name: /Bush/ })).toBeInTheDocument();
     expect(within(decorationGroup).getByRole('button', { name: /Fence/ })).toBeInTheDocument();
     expect(within(decorationGroup).queryByRole('button', { name: 'Wall' })).not.toBeInTheDocument();
+  });
+
+  it('hazardsGroup-containsExactlyOneRepresentativeSpikeTile', () => {
+    // Same one-button convention as signs: clicking the canvas auto-detects
+    // a facing from the surrounding terrain, and clicking an already-placed
+    // spike again cycles to the next valid facing (paintCell.ts) — so the
+    // palette never needs a button per facing.
+    render(<Palette {...defaultProps} />);
+    const hazardsHeading = screen.getByText('Hazards');
+    const hazardsGroup = hazardsHeading.closest('section') ?? hazardsHeading.parentElement!;
+    expect(within(hazardsGroup).getByRole('button', { name: 'Spike' })).toBeInTheDocument();
+    expect(within(hazardsGroup).getAllByRole('button')).toHaveLength(1);
   });
 });
