@@ -59,6 +59,24 @@ export interface EditorImages {
   decorations: HTMLImageElement | null;
 }
 
+/** The cells a pending placement would write, in absolute grid coordinates,
+ *  and whether it currently fits (`blueprintFit.ts`) — blue when it does, red
+ *  when it does not. */
+export interface PlacementPreview {
+  cells: readonly { row: number; col: number }[];
+  valid: boolean;
+}
+
+/** Everything the canvas needs while a blueprint is armed for placement
+ *  (roadmap step 44c). Its non-null-ness IS "a blueprint is armed": while it is
+ *  set, clicks preview/place/cancel instead of painting. */
+export interface PlacementMode {
+  /** `null` until the first click has chosen an anchor. */
+  preview: PlacementPreview | null;
+  onPlace: (cell: { col: number; row: number }) => void;
+  onCancel: () => void;
+}
+
 interface EditorCanvasProps {
   grid: TileChar[][];
   selectedTool: TileChar;
@@ -71,6 +89,9 @@ interface EditorCanvasProps {
   backgroundPlacements: BackgroundPlacement[];
   activeLayer: 'foreground' | 'background';
   selectedBackgroundPiece: BackgroundPieceId | null;
+  /** Set while a blueprint is armed for placement; omitted/`null` otherwise, so
+   *  every existing render site is unaffected. */
+  placement?: PlacementMode | null;
   onPaint: (result: PaintResult) => void;
   onPaintBackground: (next: BackgroundPlacement[]) => void;
   onPan: (offset: PanOffset) => void;
@@ -227,6 +248,7 @@ export const EditorCanvas = ({
   backgroundPlacements,
   activeLayer,
   selectedBackgroundPiece,
+  placement = null,
   onPaint,
   onPaintBackground,
   onPan,
@@ -432,6 +454,21 @@ export const EditorCanvas = ({
         lastX: event.clientX,
         lastY: event.clientY,
       };
+      return;
+    }
+
+    // An armed blueprint owns every remaining button, checked BEFORE the
+    // background and paint branches so it can never paint a tile and preview at
+    // the same time. Right-click cancels rather than erases: nothing is being
+    // painted during a preview, so there is nothing to erase (design, Step 44c
+    // — Placement). No `dragRef` is set, so a placement click starts no drag.
+    if (placement) {
+      if (event.button === 2) {
+        placement.onCancel();
+        return;
+      }
+      if (event.button !== 0) return;
+      placement.onPlace(cellFromEvent(event.clientX, event.clientY));
       return;
     }
 
