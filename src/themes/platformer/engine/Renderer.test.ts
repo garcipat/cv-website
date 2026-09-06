@@ -2422,17 +2422,11 @@ describe('drawWaterForeground', () => {
     expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 64, 144, 16, 16, 32, 16, 32, 32);
   });
 
-  it('bodyFillNeverOvershootsTheMapsBottomEdge-noBodyTileIsDrawnAtAll', () => {
-    // mapBottomY (level.height * RENDERED_TILE_SIZE + originY) sits exactly
-    // RENDERED_TILE_SIZE/2 below topY by construction (see the doc comment),
-    // and the crest tile itself already extends a further full tile below
-    // topY — i.e. RENDERED_TILE_SIZE/2 *past* mapBottomY. So the first body
-    // candidate (topY + RENDERED_TILE_SIZE) is always past mapBottomY too,
-    // for any level height, canvas height, or camera origin: no body tile
-    // ever fits between the crest and the map's true bottom edge. A taller
-    // level (height: 3) and a generously tall canvas are used here so the
-    // OLD (canvasHeight-only) bound would clearly have kept drawing several
-    // body tiles well past the map's real edge — demonstrating this is a
+  it('waterIsCrestOnly-noBodyTileIsEverDrawnEvenWithATallCanvas', () => {
+    // Water renders as a single crest tile per column, nothing filled in
+    // beneath it. A taller level (height: 3) and a generously tall canvas
+    // are used here so the OLD body-fill loop would clearly have kept
+    // drawing several body tiles past the crest — demonstrating this is a
     // genuine behavior change, not just an unreachable edge case.
     const level: LevelDef = { width: 1, height: 3, terrain: [['groundGrass'], ['groundGrass'], ['groundGrass']] };
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
