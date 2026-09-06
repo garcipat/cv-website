@@ -164,3 +164,15 @@ export const BACKGROUND_LAYER_GRASS_SHEET: SpriteSheet = {
   frameHeight: 20,
   columns: 1,
 };
+
+/** Two 30px-tall wave-line animation frames stacked vertically (frame 0 on
+ *  top, frame 1 below), cropped and chroma-keyed from `backgrounds.png`.
+ *  Overlaid on the village layer by `BackgroundLayers.ts`, alternating over
+ *  time — not addressed by frame index here either, same loading-only
+ *  registration convention as the other background-layer sheets. */
+export const BACKGROUND_LAYER_RIVER_SHEET: SpriteSheet = {
+  src: '/sprites/background_layer_river.png',
+  frameWidth: 160,
+  frameHeight: 30,
+  columns: 1,
+};

@@ -4,6 +4,7 @@ import {
   SKY_SOURCE_RECT,
   CLOUDS_SOURCE_RECT,
   VILLAGE_SOURCE_RECT,
+  RIVER_FRAME_DURATION_MS,
   type BackgroundLayerImages,
 } from './BackgroundLayers';
 
@@ -15,6 +16,7 @@ function fakeImages(): BackgroundLayerImages {
   return {
     layers: fakeImage(160, 141),
     grass: fakeImage(7, 20),
+    river: fakeImage(160, 60),
   };
 }
 
@@ -39,7 +41,7 @@ describe('drawBackgroundLayers', () => {
     const ctx = fakeCtx();
     const images = fakeImages();
 
-    drawBackgroundLayers(ctx, images, 320, 200, 500);
+    drawBackgroundLayers(ctx, images, 320, 200, 500, 0);
 
     const skyCalls = callsForSourceY(ctx.drawImage.mock.calls, images.layers, SKY_SOURCE_RECT.sy);
     expect(skyCalls.length).toBeGreaterThan(0);
@@ -52,7 +54,7 @@ describe('drawBackgroundLayers', () => {
     const ctx = fakeCtx();
     const images = fakeImages();
 
-    drawBackgroundLayers(ctx, images, 320, 400, 0);
+    drawBackgroundLayers(ctx, images, 320, 400, 0, 0);
 
     const villageCalls = callsForSourceY(ctx.drawImage.mock.calls, images.layers, VILLAGE_SOURCE_RECT.sy);
     expect(villageCalls.length).toBeGreaterThan(0);
@@ -61,7 +63,7 @@ describe('drawBackgroundLayers', () => {
     expect(destY + destHeight).toBeLessThanOrEqual(400);
 
     const ctx2 = fakeCtx();
-    drawBackgroundLayers(ctx2, images, 320, 250, 0);
+    drawBackgroundLayers(ctx2, images, 320, 250, 0, 0);
     const villageCalls2 = callsForSourceY(ctx2.drawImage.mock.calls, images.layers, VILLAGE_SOURCE_RECT.sy);
     const destY2 = villageCalls2[0][ARG.dy] as number;
     const destHeight2 = villageCalls2[0][ARG.dh] as number;
@@ -72,7 +74,7 @@ describe('drawBackgroundLayers', () => {
     const ctx = fakeCtx();
     const images = fakeImages();
 
-    drawBackgroundLayers(ctx, images, 320, 300, 0);
+    drawBackgroundLayers(ctx, images, 320, 300, 0, 0);
 
     const villageCalls = callsForSourceY(ctx.drawImage.mock.calls, images.layers, VILLAGE_SOURCE_RECT.sy);
     const villageBottom = (villageCalls[0][ARG.dy] as number) + (villageCalls[0][ARG.dh] as number);
@@ -89,7 +91,7 @@ describe('drawBackgroundLayers', () => {
     const ctx = fakeCtx();
     const images = fakeImages();
 
-    drawBackgroundLayers(ctx, images, 320, 500, 0);
+    drawBackgroundLayers(ctx, images, 320, 500, 0, 0);
 
     const skyCalls = callsForSourceY(ctx.drawImage.mock.calls, images.layers, SKY_SOURCE_RECT.sy);
     const skyBottom = Math.max(...skyCalls.map((call) => (call[ARG.dy] as number) + (call[ARG.dh] as number)));
@@ -108,7 +110,7 @@ describe('drawBackgroundLayers', () => {
     const ctx = fakeCtx();
     const images = fakeImages();
 
-    drawBackgroundLayers(ctx, images, 500, 200, 0);
+    drawBackgroundLayers(ctx, images, 500, 200, 0, 0);
 
     for (const sy of [SKY_SOURCE_RECT.sy, CLOUDS_SOURCE_RECT.sy, VILLAGE_SOURCE_RECT.sy]) {
       const calls = callsForSourceY(ctx.drawImage.mock.calls, images.layers, sy);
@@ -122,8 +124,8 @@ describe('drawBackgroundLayers', () => {
     const ctxB = fakeCtx();
     const images = fakeImages();
 
-    drawBackgroundLayers(ctxA, images, 320, 200, 0);
-    drawBackgroundLayers(ctxB, images, 320, 200, 999);
+    drawBackgroundLayers(ctxA, images, 320, 200, 0, 0);
+    drawBackgroundLayers(ctxB, images, 320, 200, 999, 0);
 
     const skyCallsA = callsForSourceY(ctxA.drawImage.mock.calls, images.layers, SKY_SOURCE_RECT.sy);
     const skyCallsB = callsForSourceY(ctxB.drawImage.mock.calls, images.layers, SKY_SOURCE_RECT.sy);
@@ -135,8 +137,8 @@ describe('drawBackgroundLayers', () => {
     const ctxAtOffset = fakeCtx();
     const images = fakeImages();
 
-    drawBackgroundLayers(ctxAtZero, images, 320, 200, 0);
-    drawBackgroundLayers(ctxAtOffset, images, 320, 200, 5);
+    drawBackgroundLayers(ctxAtZero, images, 320, 200, 0, 0);
+    drawBackgroundLayers(ctxAtOffset, images, 320, 200, 5, 0);
 
     const firstCloudX = (calls: unknown[][]) =>
       Math.min(...callsForSourceY(calls, images.layers, CLOUDS_SOURCE_RECT.sy).map((call) => call[ARG.dx] as number));
@@ -147,5 +149,31 @@ describe('drawBackgroundLayers', () => {
     const grassShift = Math.abs(firstGrassX(ctxAtOffset.drawImage.mock.calls) - firstGrassX(ctxAtZero.drawImage.mock.calls));
 
     expect(cloudShift).toBeLessThan(grassShift);
+  });
+
+  it('river-alternatesFrame-basedOnWorldElapsedMs', () => {
+    const ctx0 = fakeCtx();
+    const ctx1 = fakeCtx();
+    const images = fakeImages();
+
+    drawBackgroundLayers(ctx0, images, 320, 200, 0, 0);
+    drawBackgroundLayers(ctx1, images, 320, 200, 0, RIVER_FRAME_DURATION_MS);
+
+    const riverCalls0 = ctx0.drawImage.mock.calls.filter((call) => call[ARG.image] === images.river);
+    const riverCalls1 = ctx1.drawImage.mock.calls.filter((call) => call[ARG.image] === images.river);
+    expect(riverCalls0.length).toBeGreaterThan(0);
+    expect(riverCalls1[0][ARG.sy]).not.toBe(riverCalls0[0][ARG.sy]);
+  });
+
+  it('river-drawnAtSamePositionAndSpeedAsVillage', () => {
+    const ctx = fakeCtx();
+    const images = fakeImages();
+
+    drawBackgroundLayers(ctx, images, 320, 400, 250, 0);
+
+    const villageCalls = callsForSourceY(ctx.drawImage.mock.calls, images.layers, VILLAGE_SOURCE_RECT.sy);
+    const riverCalls = ctx.drawImage.mock.calls.filter((call) => call[ARG.image] === images.river);
+    expect(riverCalls[0][ARG.dy]).toBe(villageCalls[0][ARG.dy]);
+    expect(riverCalls[0][ARG.dx]).toBe(villageCalls[0][ARG.dx]);
   });
 });
