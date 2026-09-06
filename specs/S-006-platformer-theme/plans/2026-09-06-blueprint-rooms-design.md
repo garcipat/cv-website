@@ -4,17 +4,35 @@
 
 Slotted into `roadmap.md` as Iteration 4 steps **44a** (blueprint canvas), **44b**
 (connection points), **44c** (placement), after step 43. Delivered in that order — 44b
-depends on 44a's blueprint canvas existing to paint connection points onto; 44c depends
-on 44b's connection points existing to validate fit against.
+depends on 44a's blueprint canvas existing to paint connection points onto. 44c does
+**not** depend on 44b's connection points for validation (see the Placement section below
+— that dependency was cut after a real design flaw surfaced): 44c only needs 44a's saved
+`Blueprint` shape to place one.
 
 ## Goal and scope
 
 Give the Level Editor a way to author a "room" on its own small canvas as a named,
-reusable **blueprint**, tag spots on its border where other blueprints can attach, then
-stamp saved blueprints back into a level with placement validated against those
-attachment spots. The immediate use is hand-assembling a level from a library of rooms
-instead of painting every level from scratch; a stated future goal (out of scope here)
-is generating levels by combining blueprints automatically.
+reusable **blueprint**, tag spots on its border as connection points (an authoring/legibility
+aid — see the note below), then stamp saved blueprints back into a level with placement
+validated only against overlap with existing terrain. The immediate use is hand-assembling
+a level from a library of rooms instead of painting every level from scratch; a stated
+future goal (out of scope here) is generating levels by combining blueprints
+automatically.
+
+**Why placement validation dropped connection-point matching.** The original design had a
+placed blueprint's connection point re-derive its "open side" from which neighbor fell
+outside its *source* blueprint's bounds — but once a blueprint's cells are stamped into a
+level, that information is gone: a `'+'` sitting in the level grid has no memory of which
+blueprint it came from or what that blueprint's bounds were, so a *second* placement
+validated against an *already-placed* blueprint's connection point had no sound way to
+recover its facing. Rather than patch this with a heuristic (e.g. "whichever neighbor is
+currently empty"), the simpler and more flexible rule below was chosen instead:
+overlap-only validation, with connection points staying purely an authoring/legibility aid
+(and, per the Goal above, useful to a future auto-generator working directly from
+blueprint files, where the degenerate case above never arises — it never touches an
+already-assembled level). Overlap-only is also strictly more flexible for hand-assembly:
+it allows placing two blueprints apart and connecting them with hand-painted terrain in
+between, rather than forcing a rigid snap-together model.
 
 Purely an editor-time concept, like `patrol`: nothing about a blueprint or a connection
 point changes runtime gameplay. A placed blueprint's cells become ordinary terrain/entity
@@ -50,8 +68,11 @@ A new `TileChar`/`TileType` — `'blueprintConnectionPoint'` — follows the `pa
 precedent exactly: invisible in normal gameplay rendering, non-solid, no collision
 behavior, just another character a blueprint's `layout` can contain. Connection points
 are simply the layout's `blueprintConnectionPoint` cells — no separate list, no stored
-facing direction. A point's open side is derived at placement time (see Fit rule) from
-which neighbor of that cell falls outside the blueprint's own layout bounds.
+facing direction, and (as of the Placement section below) no facing derivation of any
+kind: placement validation never reads them. They remain purely an authoring/legibility
+aid — marking, for a human (or a future auto-generator reading blueprint files directly),
+where a room's intended attachment spots are — with zero effect on whether a placement is
+considered valid.
 
 ## Step 44a — A dedicated Blueprint canvas
 
@@ -100,11 +121,13 @@ this mode is active:
 `blueprintConnectionPoint` is just another Palette entry, available whenever blueprint
 mode is active (alongside the normal foreground terrain/entity tools, minus Spawn) — the
 author paints it directly onto `blueprintGrid`'s border cells exactly like any other
-tile, no separate "marking mode" needed. "Border cell" isn't a stored property: at
-placement time (step 44c), a connection point's open side is derived on the fly from
-which of its 4-neighbors falls outside the blueprint's own layout bounds. No limit on how
-many per side; the only implicit constraint is the one painting already gives for free
-(one tile type per cell, so two connection points can never occupy the same cell).
+tile, no separate "marking mode" needed. "Border cell" isn't a stored property, and
+(per the Goal section's note) nothing at placement time ever reads a connection point's
+side/facing — it is purely an authoring/legibility marker, for a human (or a future
+auto-generator reading blueprint files directly) to see where a room's intended
+attachment spots are. No limit on how many per side; the only implicit constraint is the
+one painting already gives for free (one tile type per cell, so two connection points can
+never occupy the same cell).
 
 ## Step 44c — Saving and the palette library
 
@@ -149,14 +172,20 @@ same per-character mapping `importLayout` already does:
   parsed cell anchored at the clicked cell (origin → clicked cell), overlaid on the
   canvas. Border tinted:
   - **Blue** (valid) if none of those cells lands on an already-occupied (non-`.`) cell
-    in the live grid, **and** either the grid has no `blueprintConnectionPoint` cell at
-    all yet, or at least one of the preview's connection points is orthogonally adjacent
-    to an existing `blueprintConnectionPoint` cell with both cells' open side (the
-    4-neighbor that falls outside their own blueprint's own layout bounds) facing each
-    other.
+    in the live grid — overlap-only validation (see the Goal section's note on why
+    connection-point matching was dropped: it degenerates once a blueprint's connection
+    points are stamped into a level, since a placed `'+'` carries no memory of its source
+    blueprint's bounds). `blueprintConnectionPoint` cells participate in the overlap check
+    exactly like any other non-`.` cell — they still count as "occupied" once placed —
+    but are never treated specially beyond that.
   - **Red** (invalid) otherwise.
   - Clicking elsewhere while still armed re-previews at the new position instead of
     committing.
+  - **Right-click cancels** the armed placement entirely (no preview, blueprint disarmed)
+    instead of committing anywhere — right-click has no "erase" meaning during a
+    placement preview (nothing is being painted to erase), so repurposing it as an
+    immediate cancel gesture costs nothing and needs no dropdown navigation back to the
+    Palette.
 - **2nd click on the same cell** (or an explicit confirm) commits: every non-`.` parsed
   cell is written into the live grid at its shifted position, through the same
   `growGrid` path normal painting uses, so placing near the current edge grows the grid
@@ -177,8 +206,8 @@ Per the constitution, tests first:
   `blueprintBackgroundPlacements`; the Spawn tool is absent from the Palette while
   blueprint mode is active; Foreground/Background still switches which of the
   blueprint's own two layers is being painted.
-- `blueprintFit.ts` (44c) — overlap detection; adjacent-facing-connection-point
-  detection; the "no connection points exist yet" unconstrained case.
+- `blueprintFit.ts` (44c) — overlap detection only (see the Goal section's note on why
+  connection-point matching was dropped from this check).
 - `saveBlueprintFile.test.ts` / `blueprintRegistry.test.ts` — mirror the existing
   `saveLevelFile.test.ts`/`levelRegistry.test.ts` coverage exactly (naming, JSON shape,
   malformed-file skipping).
