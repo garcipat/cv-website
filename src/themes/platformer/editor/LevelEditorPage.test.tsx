@@ -120,6 +120,7 @@ beforeEach(() => {
   isDevEnvironmentSignal.value = true;
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
     fillRect: vi.fn(),
+    strokeRect: vi.fn(),
     fillStyle: '',
     strokeStyle: '',
     lineWidth: 0,
@@ -1470,5 +1471,162 @@ describe('LevelEditorPage — arming a blueprint for placement (step 44c)', () =
 
     expect(editorDirtySignal.value).toBe(true);
     await waitFor(() => expect(editorLevelSignal.value[1][1]).toBe('G'));
+  });
+});
+
+describe('LevelEditorPage — placing a blueprint (step 44c)', () => {
+  const armCaveRoom = () => fireEvent.click(screen.getByRole('button', { name: 'Cave Room' }));
+
+  it('firstClick-previewsWithoutWritingAnythingOrDirtyingTheLevel', () => {
+    renderEditorWithBlueprints(CAVE_ROOM);
+    armCaveRoom();
+
+    clickLevelCell(1, 1);
+
+    // Painting sets the dirty flag synchronously, so this genuinely proves no
+    // paint happened (the grid signal itself is debounced and would not have
+    // changed yet either way).
+    expect(editorDirtySignal.value).toBe(false);
+  });
+
+  it('secondClickOnTheSameCell-stampsEveryCellOfTheRoomIntoTheLevelGrid', async () => {
+    // A 3x3 level, ['##'] anchored at (col 1, row 1): absolute (1,1) and (1,2),
+    // both in bounds, so neither growGrid call grows anything and both shifts
+    // are 0.
+    renderEditorWithBlueprints(CAVE_ROOM);
+    armCaveRoom();
+
+    clickLevelCell(1, 1);
+    clickLevelCell(1, 1);
+
+    await waitFor(() => {
+      expect(editorLevelSignal.value).toEqual(importLayout(['...', '.##', '...']));
+    });
+    expect(editorDirtySignal.value).toBe(true);
+  });
+
+  it('secondClickOnADifferentCell-movesThePreviewInsteadOfCommitting', () => {
+    renderEditorWithBlueprints(CAVE_ROOM);
+    armCaveRoom();
+
+    clickLevelCell(1, 1);
+    clickLevelCell(2, 2);
+
+    expect(editorDirtySignal.value).toBe(false);
+  });
+
+  it('anchoredPastTheTopLeftCorner-growsTheGridTheSameWayPaintingThereWould', async () => {
+    // Anchored at (col -1, row -1) on a 3x3 grid: growGrid(-1,-1) prepends one
+    // column and one row (4 wide x 4 high, both shifts 1), the second grow is a
+    // no-op, and the two cells land at (0,0) and (0,1) of the grown grid.
+    renderEditorWithBlueprints(CAVE_ROOM);
+    armCaveRoom();
+
+    clickLevelCell(-1, -1);
+    clickLevelCell(-1, -1);
+
+    await waitFor(() => {
+      expect(editorLevelSignal.value).toEqual(
+        importLayout(['##..', '....', '....', '....']),
+      );
+    });
+  });
+
+  it('overlappingExistingTerrain-secondClickOnTheSameCell-writesNothing', async () => {
+    blueprintEntries.push(CAVE_ROOM);
+    editorLevelSignal.value = importLayout(['G..', '...', '...']);
+    render(<LevelEditorPage />);
+    armCaveRoom();
+
+    // Anchored at (col 0, row 0) the room would land on (0,0), which holds 'G'.
+    clickLevelCell(0, 0);
+    clickLevelCell(0, 0);
+
+    expect(editorDirtySignal.value).toBe(false);
+    await waitFor(() => expect(editorLevelSignal.value).toEqual(importLayout(['G..', '...', '...'])));
+  });
+
+  it('committing-keepsTheBlueprintArmedSoAnotherCopyCanBePlaced', () => {
+    renderEditorWithBlueprints(CAVE_ROOM);
+    armCaveRoom();
+
+    clickLevelCell(1, 1);
+    clickLevelCell(1, 1);
+
+    expect(editorArmedBlueprintIdSignal.value).toBe('cave-room');
+  });
+
+  it('rightClickWhileArmed-cancelsThePlacementAndDisarmsWithoutErasingAnything', async () => {
+    blueprintEntries.push(CAVE_ROOM);
+    editorLevelSignal.value = importLayout(['G..', '...', '...']);
+    render(<LevelEditorPage />);
+    armCaveRoom();
+    clickLevelCell(1, 1);
+
+    clickLevelCell(0, 0, 2);
+
+    expect(editorArmedBlueprintIdSignal.value).toBeNull();
+    // Right-click normally erases, which would blank the 'G' and dirty the
+    // level — during a placement it must do neither.
+    expect(editorDirtySignal.value).toBe(false);
+    await waitFor(() => expect(editorLevelSignal.value[0][0]).toBe('G'));
+  });
+
+  it('aBlueprintWithBackgroundPieces-appendsThemRebasedOntoTheAnchor', async () => {
+    renderEditorWithBlueprints({
+      id: 'cave-room',
+      name: 'Cave Room',
+      layout: ['##'],
+      background: [{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }],
+    });
+    armCaveRoom();
+
+    // Anchor (col 1, row 1) with no growth, so the piece rebases to (1,1).
+    clickLevelCell(1, 1);
+    clickLevelCell(1, 1);
+
+    await waitFor(() => {
+      expect(editorBackgroundSignal.value).toEqual([
+        { pieceId: 'dirtColumnTop1x1', col: 1, row: 1 },
+      ]);
+    });
+  });
+
+  it('growthOnCommit-shiftsTheLevelsOwnBackgroundButNotTheBlueprintsOwn', async () => {
+    // The level already has a piece at (0,0); the placement grows one column and
+    // one row, so that piece moves to (1,1). The blueprint's own piece is
+    // rebased with the same shift already folded in — (0 + -1 + 1) = 0 on both
+    // axes — and must not be shifted a second time.
+    blueprintEntries.push({
+      id: 'cave-room',
+      name: 'Cave Room',
+      layout: ['##'],
+      background: [{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }],
+    });
+    editorLevelSignal.value = importLayout(['...', '...', '...']);
+    editorBackgroundSignal.value = [{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }];
+    render(<LevelEditorPage />);
+    armCaveRoom();
+
+    clickLevelCell(-1, -1);
+    clickLevelCell(-1, -1);
+
+    await waitFor(() => {
+      expect(editorBackgroundSignal.value).toEqual([
+        { pieceId: 'dirtColumnTop1x1', col: 1, row: 1 },
+        { pieceId: 'dirtColumnTop1x1', col: 0, row: 0 },
+      ]);
+    });
+  });
+
+  it('backgroundLayerActive-clicksStillPaintTheBackgroundEvenWithABlueprintArmed', async () => {
+    renderEditorWithBlueprints(CAVE_ROOM);
+    armCaveRoom();
+    fireEvent.click(screen.getByRole('button', { name: 'Background' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Dirt Column Top (1×1)' }));
+
+    clickLevelCell(1, 1);
+
+    await waitFor(() => expect(editorBackgroundSignal.value).toHaveLength(1));
   });
 });
