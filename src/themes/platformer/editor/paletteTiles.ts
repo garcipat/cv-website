@@ -262,6 +262,42 @@ export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
     frameWidth: 16,
     frameHeight: 16,
   },
+  '^': {
+    sheet: '/sprites/staticObjects.png',
+    sheetWidth: 288,
+    sheetHeight: 144,
+    sx: 48,
+    sy: 112,
+    frameWidth: 16,
+    frameHeight: 16,
+  },
+  v: {
+    sheet: '/sprites/staticObjects.png',
+    sheetWidth: 288,
+    sheetHeight: 144,
+    sx: 64,
+    sy: 96,
+    frameWidth: 16,
+    frameHeight: 16,
+  },
+  '<': {
+    sheet: '/sprites/staticObjects.png',
+    sheetWidth: 288,
+    sheetHeight: 144,
+    sx: 64,
+    sy: 112,
+    frameWidth: 16,
+    frameHeight: 16,
+  },
+  '>': {
+    sheet: '/sprites/staticObjects.png',
+    sheetWidth: 288,
+    sheetHeight: 144,
+    sx: 48,
+    sy: 96,
+    frameWidth: 16,
+    frameHeight: 16,
+  },
 };
 
 /** The turn-around character standing in for the patrol boundary's missing
@@ -315,6 +351,10 @@ export const PALETTE_TILE_DESCRIPTIONS: Record<TileChar, string> = {
   '3': 'Hint sign; click it again on the canvas to cycle its hint',
   '4': 'Hint sign; click it again on the canvas to cycle its hint',
   '5': 'Hint sign; click it again on the canvas to cycle its hint',
+  '^': 'Spike; auto-orients to solid terrain nearby, click an already-placed one again to cycle its facing',
+  v: 'Spike (ceiling); damages the player on touch',
+  '<': 'Spike (right wall); damages the player on touch',
+  '>': 'Spike (left wall); damages the player on touch',
 };
 
 /** Human-readable name per `TileChar`, so the palette reads by name rather
@@ -346,4 +386,8 @@ export const PALETTE_TILE_LABELS: Record<TileChar, string> = {
   '3': 'Sign 3',
   '4': 'Sign 4',
   '5': 'Sign 5',
+  '^': 'Spike',
+  v: 'Spike Down',
+  '<': 'Spike Left',
+  '>': 'Spike Right',
 };

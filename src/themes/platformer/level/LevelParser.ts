@@ -82,33 +82,66 @@ export const SIGN_CHARS: Record<string, HintId | undefined> = {
   '5': 'openAllChestsHaveFun',
 };
 
+/** A spike hazard's facing — which of the 4 pre-drawn sprites in
+ *  `staticObjects.png` (columns 3-4, rows 6-7) is shown. Purely cosmetic for
+ *  collision purposes: touching any part of a spike's tile damages the
+ *  player regardless of which face was touched (see Spike.ts's `box`) —
+ *  facing only selects the sprite. */
+export type HazardFacing = 'up' | 'down' | 'left' | 'right';
+
+/** Every hazard kind the game knows about. Currently just `spike`, but every
+ *  place that would otherwise hardcode the literal `'spike'` (HAZARD_CHARS's
+ *  value type below, findHazardTiles's return type, HazardMapper.ts's
+ *  HazardPlacement/placeHazards) is typed against this instead — adding a
+ *  second kind is one line here plus its own module and registry entry
+ *  (entities/hazards/index.ts), nothing else widens by hand. */
+export type HazardKind = 'spike';
+
+/**
+ * Maps each hazard-marker character to the hazard it places. Same
+ * hand-authored-content convention as SIGN_CHARS (the character itself
+ * carries the identity directly, no CVData zip) — a level author picks the
+ * exact facing per cell, the same way every other tile is placed explicitly.
+ * `hazardType` is carried on every entry (not hardcoded to `'spike'`
+ * elsewhere) so a future hazard kind beyond spike only needs a new entry
+ * here plus a new `HAZARD_TYPES` registry line (entities/hazards/index.ts) —
+ * nothing else in this file changes.
+ */
+export const HAZARD_CHARS: Record<string, { hazardType: HazardKind; facing: HazardFacing } | undefined> = {
+  '^': { hazardType: 'spike', facing: 'up' },
+  v: { hazardType: 'spike', facing: 'down' },
+  '<': { hazardType: 'spike', facing: 'left' },
+  '>': { hazardType: 'spike', facing: 'right' },
+};
+
 // A character can only mean one thing — guard against TERRAIN_CHARS,
-// ENTITY_CHARS, and SIGN_CHARS accidentally sharing a key, which three
+// ENTITY_CHARS, SIGN_CHARS, and HAZARD_CHARS accidentally sharing a key, which
 // independent maps don't prevent on their own the way one unified table
 // would.
 const charOwners: Record<string, string[]> = {};
 for (const char of Object.keys(TERRAIN_CHARS)) (charOwners[char] ??= []).push('terrain');
 for (const char of Object.keys(ENTITY_CHARS)) (charOwners[char] ??= []).push('entity');
 for (const char of Object.keys(SIGN_CHARS)) (charOwners[char] ??= []).push('sign');
+for (const char of Object.keys(HAZARD_CHARS)) (charOwners[char] ??= []).push('hazard');
 const sharedChars = Object.entries(charOwners)
   .filter(([, owners]) => owners.length > 1)
   .map(([char]) => char);
 if (sharedChars.length > 0) {
   throw new Error(
-    `Level character(s) defined as more than one of terrain/entity/sign: ${sharedChars.join(', ')}`,
+    `Level character(s) defined as more than one of terrain/entity/sign/hazard: ${sharedChars.join(', ')}`,
   );
 }
 
 /**
  * Every character a level layout string may legally contain — the union of
- * every `TERRAIN_CHARS` and `ENTITY_CHARS` key. Deliberately NOT derived via
- * `keyof typeof TERRAIN_CHARS | keyof typeof ENTITY_CHARS`: both maps are
- * annotated `Record<string, ... | undefined>` (required so `parseLevel`'s
- * and `findAllOfKind`'s existing `TERRAIN_CHARS[char]`/`ENTITY_CHARS[char]`
- * lookups can index by a plain `string`), which makes `keyof typeof` widen
- * to plain `string` — a `TileChar` derived that way would carry no type
- * safety at all. Kept in sync with the two maps by a test asserting every
- * key of both appears here, not by direct derivation.
+ * every `TERRAIN_CHARS`, `ENTITY_CHARS`, `SIGN_CHARS`, and `HAZARD_CHARS` key.
+ * Deliberately NOT derived via `keyof typeof TERRAIN_CHARS | keyof typeof
+ * ENTITY_CHARS`: the maps are annotated `Record<string, ... | undefined>`
+ * (required so `parseLevel`'s and finder functions' lookups can index by a
+ * plain `string`), which makes `keyof typeof` widen to plain `string` — a
+ * `TileChar` derived that way would carry no type safety at all. Kept in sync
+ * with the maps by a test asserting every key of all appears here, not by
+ * direct derivation.
  */
 export type TileChar =
   | '.'
@@ -135,7 +168,11 @@ export type TileChar =
   | '2'
   | '3'
   | '4'
-  | '5';
+  | '5'
+  | '^'
+  | 'v'
+  | '<'
+  | '>';
 
 /**
  * Parses a level's raw ASCII layout (one character per tile, see
@@ -154,7 +191,7 @@ export function parseLevel(layout: readonly string[]): LevelDef {
     const chars = row.split('').map((char) => {
       const tile = TERRAIN_CHARS[char];
       if (tile) return tile;
-      if (ENTITY_CHARS[char] || SIGN_CHARS[char]) return 'empty';
+      if (ENTITY_CHARS[char] || SIGN_CHARS[char] || HAZARD_CHARS[char]) return 'empty';
       throw new Error(`Unknown level tile character: "${char}"`);
     });
     while (chars.length < width) chars.push('empty');
@@ -279,6 +316,26 @@ export function findSignTiles(
     for (let col = 0; col < layout[row].length; col++) {
       const hintId = SIGN_CHARS[layout[row][col]];
       if (hintId) tiles.push({ col, row, hintId });
+    }
+  }
+  return tiles;
+}
+
+/**
+ * Finds every hazard marker's position in a level layout, in reading order,
+ * paired with its hazard kind and facing (HAZARD_CHARS) — same
+ * scan-for-any-key convention as findSignTiles, since a hazard marker's
+ * identity is fully carried by its character, not zipped against a
+ * CVData-derived list.
+ */
+export function findHazardTiles(
+  layout: readonly string[],
+): { col: number; row: number; hazardType: HazardKind; facing: HazardFacing }[] {
+  const tiles: { col: number; row: number; hazardType: HazardKind; facing: HazardFacing }[] = [];
+  for (let row = 0; row < layout.length; row++) {
+    for (let col = 0; col < layout[row].length; col++) {
+      const hazard = HAZARD_CHARS[layout[row][col]];
+      if (hazard) tiles.push({ col, row, ...hazard });
     }
   }
   return tiles;

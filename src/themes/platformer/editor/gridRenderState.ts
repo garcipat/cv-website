@@ -1,4 +1,4 @@
-import { TERRAIN_CHARS, SIGN_CHARS, type TileChar } from '../level/LevelParser';
+import { TERRAIN_CHARS, SIGN_CHARS, HAZARD_CHARS, type TileChar } from '../level/LevelParser';
 import type { LevelDef, TileMap } from '../level/LevelData';
 import { tileToPixel, RENDERED_TILE_SIZE } from '../level/Terrain';
 import {
@@ -16,6 +16,7 @@ import type { BlockPlacement } from '../level/BlockMapper';
 import { toChestState, type ChestState } from '../entities/Chest';
 import type { ChestPlacement } from '../level/ChestMapper';
 import type { SignPlacement } from '../level/SignMapper';
+import type { HazardPlacement } from '../level/HazardMapper';
 import type { CollectedFact } from '../types';
 
 /**
@@ -183,6 +184,33 @@ export function synthesizeSignPlacements(grid: TileChar[][]): SignPlacement[] {
       if (!hintId) continue;
       const { x, y } = tileToPixel(col, row);
       placements.push({ id: `editor-sign-${col}-${row}`, hintId, x, y });
+    }
+  }
+  return placements;
+}
+
+/** Returns a `HazardPlacement` for every cell whose character is registered
+ *  in `HAZARD_CHARS` — same scan-for-any-key, direct marker-to-placement
+ *  conversion as `synthesizeSignPlacements` above (a hazard marker's
+ *  hazardType/facing is fully carried by its character, no CVData zip),
+ *  mirroring `LevelParser.ts`'s `findHazardTiles`/`HazardMapper.ts`'s
+ *  `placeHazards` (the real game's own hazard-placement path) rather than
+ *  reusing them directly, since those operate on the level's raw
+ *  string-array layout, not the editor's in-memory `TileChar[][]` grid. */
+export function synthesizeHazardPlacements(grid: TileChar[][]): HazardPlacement[] {
+  const placements: HazardPlacement[] = [];
+  for (let row = 0; row < grid.length; row++) {
+    for (let col = 0; col < grid[row].length; col++) {
+      const hazard = HAZARD_CHARS[grid[row][col]];
+      if (!hazard) continue;
+      const { x, y } = tileToPixel(col, row);
+      placements.push({
+        id: `editor-hazard-${col}-${row}`,
+        hazardType: hazard.hazardType,
+        facing: hazard.facing,
+        x,
+        y,
+      });
     }
   }
   return placements;

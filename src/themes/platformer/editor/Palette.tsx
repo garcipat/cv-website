@@ -1,4 +1,4 @@
-import { TERRAIN_CHARS, ENTITY_CHARS, SIGN_CHARS } from '../level/LevelParser';
+import { TERRAIN_CHARS, ENTITY_CHARS, SIGN_CHARS, HAZARD_CHARS } from '../level/LevelParser';
 import type { TileChar } from '../level/LevelParser';
 import {
   PALETTE_TILE_SPRITES,
@@ -43,6 +43,12 @@ export const Palette = ({
   // (Task 7's paintCell.ts), so the palette itself never needs to grow past one
   // "Sign" entry no matter how many distinct hints get registered later.
   const [firstSignKey] = Object.keys(SIGN_CHARS) as TileChar[];
+  // Same one-button convention as signs: only the FIRST registered hazard
+  // character becomes a palette tile. Clicking the canvas auto-detects a
+  // facing from the surrounding terrain, and clicking an already-placed
+  // hazard again cycles to the next neighbor-backed facing (paintCell.ts's
+  // nextHazardChar) — the palette itself never needs a button per facing.
+  const [firstHazardKey] = Object.keys(HAZARD_CHARS) as TileChar[];
   // Patrol lives here rather than in "Terrain": it's an invisible marker, not
   // physical ground, so it reads more like a level-authoring tool (same
   // category as the Eraser and Sign) than like grass/rock/wall.
@@ -78,6 +84,7 @@ export const Palette = ({
             {renderGroup('Terrain', terrainKeys)}
             {renderGroup('Decoration', decorationKeys)}
             {renderGroup('Entities', entityKeys)}
+            {renderGroup('Hazards', firstHazardKey ? [firstHazardKey] : [])}
             {renderGroup('Tools', toolKeys)}
           </div>
         ) : (
