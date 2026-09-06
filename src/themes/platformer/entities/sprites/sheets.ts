@@ -140,3 +140,27 @@ export const STATIC_OBJECTS_SHEET: SpriteSheet = {
   frameHeight: TILE_SIZE,
   columns: 18,
 };
+
+/** The combined sky/clouds/village parallax background sheet — sky, clouds/hills,
+ *  and village/treeline stacked vertically in that order, cropped and chroma-keyed
+ *  from `backgrounds.png`'s day/green scene (see
+ *  `specs/S-006-platformer-theme/plans/2026-09-06-background-image-layers-design.md`).
+ *  `BackgroundLayers.ts` addresses it through its own sx/sy sub-rects, not by frame
+ *  index — like `TERRAIN_BACKGROUND_SHEET`, this registration exists for loading, not
+ *  addressing. */
+export const BACKGROUND_LAYERS_SHEET: SpriteSheet = {
+  src: '/sprites/background_layers.png',
+  frameWidth: 160,
+  frameHeight: 141,
+  columns: 1,
+};
+
+/** A small (7x20) tileable grass-texture swatch, separate from
+ *  `BACKGROUND_LAYERS_SHEET` since it repeats both horizontally and vertically at a
+ *  different scroll speed (full camera speed) than the village layer above it. */
+export const BACKGROUND_LAYER_GRASS_SHEET: SpriteSheet = {
+  src: '/sprites/background_layer_grass.png',
+  frameWidth: 7,
+  frameHeight: 20,
+  columns: 1,
+};
