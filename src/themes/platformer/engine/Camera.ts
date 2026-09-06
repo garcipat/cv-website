@@ -39,20 +39,15 @@ export function updateCamera(
 }
 
 /**
- * Half-height (rendered px) of the vertical dead-zone band — same value as
- * `CAMERA_DEAD_ZONE_HALF_WIDTH`, no reason yet to differ.
+ * Half-height (rendered px) of the vertical dead-zone band. Deliberately much
+ * tighter than `CAMERA_DEAD_ZONE_HALF_WIDTH` — a wide vertical band combined
+ * with the unclamped `cameraY` (see `updateCameraY`) let a jump's upward
+ * camera correction persist after landing without reversing, since landing
+ * back at the resting row often still fell inside a wide band and never
+ * re-triggered a downward correction. A tight band means landing almost
+ * always exceeds it, reliably snapping the camera back to the target row.
  */
-export const CAMERA_DEAD_ZONE_HALF_HEIGHT = 96;
-
-/**
- * Extra scroll room past the level's actual top edge, in rendered px —
- * purely a feel tweak so reaching maximum vertical scroll doesn't read as
- * an abrupt hard stop. Only ever applied on top of an already-positive
- * `baseMaxCameraY` (see `updateCameraY`) — a level that fits the viewport
- * must still get exactly 0, so this constant never causes scrolling on its
- * own.
- */
-export const CAMERA_TOP_OVERSCROLL = 2 * RENDERED_TILE_SIZE; // 64px
+export const CAMERA_DEAD_ZONE_HALF_HEIGHT = 8;
 
 /** How many rendered-tile rows up from the BOTTOM of the viewport the
  *  camera's dead-zone targets — not a percentage of viewport height, and not
@@ -61,20 +56,14 @@ export const CAMERA_TOP_OVERSCROLL = 2 * RENDERED_TILE_SIZE; // 64px
  *  the bottom keeps the player near the ground with most of the canvas above
  *  them showing the sky/clouds/village background layers, regardless of how
  *  tall the level itself is. Tunable. */
-export const PLAYER_TARGET_ROWS_FROM_BOTTOM = 4;
+export const PLAYER_TARGET_ROWS_FROM_BOTTOM = 1;
 
 /**
  * Computes the next vertical camera offset — an ADDITIVE amount on top of
  * the existing bottom-anchor baseline (`viewportHeight - levelPixelHeight`),
  * not a replacement for it. At 0 (its minimum), the level is exactly
- * bottom-anchored; it grows as the player climbs toward the level's top.
- * Clamped to `[0, max(0, levelPixelHeight - viewportHeight) +
- * CAMERA_TOP_OVERSCROLL]` when that base is positive — letting the origin
- * scroll a little past the level's very top row instead of hard-stopping
- * there (`CAMERA_TOP_OVERSCROLL`) — or exactly `0` when it isn't: a level
- * that already fits the viewport ALWAYS returns 0 here, regardless of the
- * dead-zone math below — a level shorter than the viewport can never need
- * to scroll, by construction.
+ * bottom-anchored; it grows as needed to keep the player pinned at the
+ * dead-zone's target row.
  *
  * The dead-zone's target is `PLAYER_TARGET_ROWS_FROM_BOTTOM` rows from the
  * BOTTOM of the viewport, not a percentage of viewport height — so the player
@@ -86,6 +75,25 @@ export const PLAYER_TARGET_ROWS_FROM_BOTTOM = 4;
  * this one formula change handles both the initial spawn framing (no
  * special-case "initial camera" code needed — frame 1 already resolves to
  * the same dead-zone math) and ongoing behavior anywhere later in the level.
+ *
+ * Deliberately UNCLAMPED — no floor, no ceiling. Earlier versions clamped
+ * to a floor of `0` (never scroll below the bottom-anchor baseline) and/or a
+ * ceiling tied to level height (never scroll past the level's own top edge
+ * plus a little overscroll). Both turned out to be the same class of bug on
+ * opposite edges: either one forces `cameraY` back to a level-geometry-derived
+ * bound regardless of where the dead-zone target actually needs the camera,
+ * silently overriding `PLAYER_TARGET_ROWS_FROM_BOTTOM` — the ceiling did this
+ * for any level shorter than the viewport (player renders wherever their row
+ * falls in the fully-visible level, ignoring the target), and the floor did
+ * the exact same thing in the opposite direction once the player is near the
+ * level's bottom edge (needed a negative `cameraY` to keep tracking the
+ * target while descending, got clamped back to 0 instead). Scrolling the
+ * level's top edge below the canvas's own top edge, or its bottom edge above
+ * the canvas's own bottom edge, is now the INTENDED outcome whenever framing
+ * the player at the target row requires it — the background layers are built
+ * to fill exactly that resulting empty space, both above and below the
+ * level's own bounds. `playerY` is always bounded by the level's own
+ * dimensions in practice, so this can't run away unboundedly.
  */
 export function updateCameraY(
   previousCameraY: number,
@@ -108,12 +116,5 @@ export function updateCameraY(
     cameraY = deadZoneBottom - playerCenterY - originYBase;
   }
 
-  const baseMaxCameraY = Math.max(0, levelPixelHeight - viewportHeight);
-  // Small breathing room past the level's actual top edge so reaching max
-  // scroll doesn't feel like an abrupt hard stop. Only added when the level
-  // already needs scrolling (baseMaxCameraY > 0) — a level that fits the
-  // viewport must still clamp to exactly 0, preserving the no-op guarantee
-  // verified below.
-  const maxCameraY = baseMaxCameraY > 0 ? baseMaxCameraY + CAMERA_TOP_OVERSCROLL : 0;
-  return Math.min(Math.max(cameraY, 0), maxCameraY);
+  return cameraY;
 }

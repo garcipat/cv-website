@@ -96,6 +96,12 @@ export const CLOUDS_VILLAGE_GAP = 8;
  *  instead of needing the tile to repeat. */
 const GRASS_FILL_COLOR = 'rgb(46, 74, 68)';
 
+/** Nudges the grass tile up by half a tile (in already-scaled screen px) from
+ *  the village layer's bottom edge, so it overlaps the village row slightly
+ *  instead of sitting flush against it — a small visual correction, tuned by
+ *  eye against the running game. */
+export const GRASS_VERTICAL_NUDGE = 16;
+
 /** Draws one source rect tiled horizontally across `canvasWidth`, with its
  *  top-left at `destY`, offset by `cameraX * parallaxFactor` (wrapped to the
  *  rect's own SOURCE width so the tiling never visibly seams). `destScale`
@@ -217,11 +223,12 @@ export function drawBackgroundLayers(
 
   const grassDestHeight = images.grass.height * BACKGROUND_RENDER_SCALE;
   const grassSource: SourceRect = { sx: 0, sy: 0, width: images.grass.width, height: images.grass.height };
+  const grassTop = villageBottom - GRASS_VERTICAL_NUDGE;
   drawTiledRow(
-    ctx, images.grass, grassSource, villageBottom, canvasWidth, cameraX, GRASS_PARALLAX_FACTOR,
+    ctx, images.grass, grassSource, grassTop, canvasWidth, cameraX, GRASS_PARALLAX_FACTOR,
     BACKGROUND_RENDER_SCALE,
   );
-  const grassBottom = villageBottom + grassDestHeight;
+  const grassBottom = grassTop + grassDestHeight;
 
   if (grassBottom < canvasHeight) {
     ctx.fillStyle = GRASS_FILL_COLOR;

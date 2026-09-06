@@ -52,52 +52,57 @@ describe('updateCamera', () => {
 
 describe('updateCameraY', () => {
   const PLAYER_HEIGHT = 64;
-  // Target: viewportHeight(480) - PLAYER_TARGET_ROWS_FROM_BOTTOM(4) *
-  // RENDERED_TILE_SIZE(32) = 480 - 128 = 352; dead zone: [256, 448] around
-  // that fixed row, measured from the BOTTOM of the viewport.
+  // Target: viewportHeight(480) - PLAYER_TARGET_ROWS_FROM_BOTTOM(1) *
+  // RENDERED_TILE_SIZE(32) = 480 - 32 = 448; dead zone: [440, 456] around
+  // that fixed row (CAMERA_DEAD_ZONE_HALF_HEIGHT = 8 — deliberately tight,
+  // see its own doc comment), measured from the BOTTOM of the viewport.
   const VIEWPORT_HEIGHT = 480;
 
   it('levelShorterThanViewport-stillAppliesDeadZoneTarget-cameraGoesNonZero', () => {
     // levelPixelHeight 400 < viewport 480 (level fits, no ceiling should ever
     // force cameraY back to 0). originYBase = viewportHeight - levelPixelHeight
     // = 480-400 = 80. playerY 0 (top of the level) -> center 32 -> screenCenterY
-    // (previousCameraY 0) = 32+80+0 = 112, past deadZoneTop (256) on the low
-    // side — camera shifts up: 256-32-80 = 144. A nonzero result here proves
+    // (previousCameraY 0) = 32+80+0 = 112, past deadZoneTop (440) on the low
+    // side — camera shifts up: 440-32-80 = 328. A nonzero result here proves
     // the dead-zone target row still takes effect for a short level, instead
     // of being overridden back to 0 by the old (now-removed) ceiling.
     const result = updateCameraY(0, 0, PLAYER_HEIGHT, VIEWPORT_HEIGHT, 400);
-    expect(result).toBe(144);
+    expect(result).toBe(328);
   });
 
   it('tallLevel-playerWithinDeadZone-cameraStaysAtPreviousPosition', () => {
     // levelPixelHeight 800, originYBase = 480-800 = -320. previousCameraY 160
-    // -> playerY 468 -> center 500 -> screenCenterY 500-320+160 = 340, inside
-    // the band [256, 448] — no movement.
-    const result = updateCameraY(160, 468, PLAYER_HEIGHT, VIEWPORT_HEIGHT, 800);
+    // -> playerY 576 -> center 608 -> screenCenterY 608-320+160 = 448, inside
+    // the band [440, 456] — no movement.
+    const result = updateCameraY(160, 576, PLAYER_HEIGHT, VIEWPORT_HEIGHT, 800);
     expect(result).toBe(160);
   });
 
   it('playerExitsTopEdgeOfDeadZone-cameraShiftsUpToKeepPlayerAtEdge', () => {
     // playerY 200 -> center 232 -> screenCenterY (previousCameraY 0,
-    // originYBase -320) = 232-320 = -88, past deadZoneTop (256) on the low
-    // side — camera shifts up: 256-232-(-320) = 344.
+    // originYBase -320) = 232-320 = -88, past deadZoneTop (440) on the low
+    // side — camera shifts up: 440-232-(-320) = 528.
     const result = updateCameraY(0, 200, PLAYER_HEIGHT, VIEWPORT_HEIGHT, 800);
-    expect(result).toBe(344);
+    expect(result).toBe(528);
   });
 
   it('playerExitsBottomEdgeOfDeadZone-cameraShiftsDownToKeepPlayerAtEdge', () => {
-    // playerY 568 -> center 600 -> screenCenterY (previousCameraY 200,
-    // originYBase -320) = 600-320+200 = 480, past deadZoneBottom (448) —
-    // camera shifts down: 448-600-(-320) = 168.
-    const result = updateCameraY(200, 568, PLAYER_HEIGHT, VIEWPORT_HEIGHT, 800);
-    expect(result).toBe(168);
+    // playerY 640 -> center 672 -> screenCenterY (previousCameraY 200,
+    // originYBase -320) = 672-320+200 = 552, past deadZoneBottom (456) —
+    // camera shifts down: 456-672-(-320) = 104.
+    const result = updateCameraY(200, 640, PLAYER_HEIGHT, VIEWPORT_HEIGHT, 800);
+    expect(result).toBe(104);
   });
 
-  it('cameraWouldGoNegative-clampsToZero', () => {
-    // playerY 760 -> center 792 -> screenCenterY (originYBase -320) =
-    // 792-320 = 472, past deadZoneBottom (448) — uncorrected camera would be
-    // 448-792-(-320) = -24, clamped to 0.
-    const result = updateCameraY(0, 760, PLAYER_HEIGHT, VIEWPORT_HEIGHT, 800);
-    expect(result).toBe(0);
+  it('deepDescent-cameraGoesNegative-noLongerClampedToZero', () => {
+    // playerY 1000 -> center 1032 -> screenCenterY (previousCameraY 0,
+    // originYBase -320) = 1032-320 = 712, past deadZoneBottom (456) —
+    // uncorrected camera: 456-1032-(-320) = -256. Deliberately negative and
+    // NOT clamped: a floor at 0 here would reproduce the same bug the
+    // removed ceiling had (silently overriding the dead-zone target once the
+    // player descends far enough), which the background layers are built to
+    // tolerate — see updateCameraY's own doc comment.
+    const result = updateCameraY(0, 1000, PLAYER_HEIGHT, VIEWPORT_HEIGHT, 800);
+    expect(result).toBe(-256);
   });
 });
