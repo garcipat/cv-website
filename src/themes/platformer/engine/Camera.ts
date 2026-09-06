@@ -54,16 +54,14 @@ export const CAMERA_DEAD_ZONE_HALF_HEIGHT = 96;
  */
 export const CAMERA_TOP_OVERSCROLL = 2 * RENDERED_TILE_SIZE; // 64px
 
-/**
- * The vertical row (from the top of the viewport, in rendered tile units)
- * the camera's dead-zone targets — not a percentage of viewport height, so
- * the player consistently starts (and stays, via the dead-zone) this many
- * rows from the top regardless of viewport size or how far the level
- * extends below. Chosen so a level with a deep section below the player
- * (e.g. a cave) doesn't show more terrain below than necessary, keeping
- * more of the background layers visible above instead. Tunable.
- */
-export const PLAYER_TARGET_ROW = 5;
+/** How many rendered-tile rows up from the BOTTOM of the viewport the
+ *  camera's dead-zone targets — not a percentage of viewport height, and not
+ *  measured from the top. The play-mode canvas is a fixed, short height (see
+ *  PlatformerPage.tsx's `PLAY_CANVAS_ROWS`), so a small, fixed distance from
+ *  the bottom keeps the player near the ground with most of the canvas above
+ *  them showing the sky/clouds/village background layers, regardless of how
+ *  tall the level itself is. Tunable. */
+export const PLAYER_TARGET_ROWS_FROM_BOTTOM = 4;
 
 /**
  * Computes the next vertical camera offset — an ADDITIVE amount on top of
@@ -78,11 +76,11 @@ export const PLAYER_TARGET_ROW = 5;
  * dead-zone math below — a level shorter than the viewport can never need
  * to scroll, by construction.
  *
- * The dead-zone's target is `PLAYER_TARGET_ROW` rows from the TOP of the
- * viewport, not a percentage of viewport height — so the player consistently
- * starts around that row rather than vertically centered (which would show
- * as much terrain below as background above, wasteful in a level with a
- * deep section below the player). Since the camera below snaps directly to
+ * The dead-zone's target is `PLAYER_TARGET_ROWS_FROM_BOTTOM` rows from the
+ * BOTTOM of the viewport, not a percentage of viewport height — so the player
+ * consistently starts near the bottom rather than vertically centered (which
+ * would show as much terrain below as background above, wasteful in a level
+ * with a deep section below the player). Since the camera below snaps directly to
  * whatever value keeps the player pinned at the dead-zone edge (no gradual
  * lerp — it's a single assignment, not an interpolation toward a target),
  * this one formula change handles both the initial spawn framing (no
@@ -99,7 +97,7 @@ export function updateCameraY(
   const originYBase = viewportHeight - levelPixelHeight;
   const playerCenterY = playerY + playerHeight / 2;
   const screenCenterY = playerCenterY + originYBase + previousCameraY;
-  const targetY = PLAYER_TARGET_ROW * RENDERED_TILE_SIZE;
+  const targetY = viewportHeight - PLAYER_TARGET_ROWS_FROM_BOTTOM * RENDERED_TILE_SIZE;
   const deadZoneTop = targetY - CAMERA_DEAD_ZONE_HALF_HEIGHT;
   const deadZoneBottom = targetY + CAMERA_DEAD_ZONE_HALF_HEIGHT;
 

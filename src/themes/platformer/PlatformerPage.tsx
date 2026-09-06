@@ -176,6 +176,16 @@ import {
 } from './engine/HintTooltip';
 import type { HintId, CollectedFact } from './types';
 
+/** Play mode renders at a fixed, short canvas height — a deliberately
+ *  small number of tile rows, not the full browser window — so the player
+ *  sits low in frame with most of the canvas showing the background layers
+ *  above them (paired with Camera.ts's PLAYER_TARGET_ROWS_FROM_BOTTOM).
+ *  Capped by the actual window height too, as a safety net so it never
+ *  overflows a window shorter than this many rows. The level editor is
+ *  unaffected — it sizes its own canvas separately, not from
+ *  window.innerHeight at all. */
+const PLAY_CANVAS_ROWS = 12;
+
 export const PlatformerPage = () => {
   // Subscribes this component's render to any signal `.value` read during
   // it — needed for `endingScreenOpen.value` in the JSX below to actually
@@ -438,7 +448,7 @@ export const PlatformerPage = () => {
 
     const resize = () => {
       canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      canvas.height = Math.min(PLAY_CANVAS_ROWS * RENDERED_TILE_SIZE, window.innerHeight);
 
       backgroundColor =
         getComputedStyle(document.documentElement).getPropertyValue('--background').trim() ||

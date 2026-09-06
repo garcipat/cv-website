@@ -233,7 +233,7 @@ describe('PlatformerPage', () => {
     });
   });
 
-  it('render-default-showsFullViewportCanvas', () => {
+  it('render-default-showsFixedShortCanvasHeight', () => {
     Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 1024 });
     Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 768 });
 
@@ -242,10 +242,12 @@ describe('PlatformerPage', () => {
     const canvas = platformerPage.canvas;
     expect(canvas).toBeInTheDocument();
     expect(canvas).toHaveAttribute('width', '1024');
-    expect(canvas).toHaveAttribute('height', '768');
+    // Canvas height is capped at PLAY_CANVAS_ROWS(12) * RENDERED_TILE_SIZE(32)
+    // = 384, not the full window height, even though the window is taller.
+    expect(canvas).toHaveAttribute('height', '384');
   });
 
-  it('windowResize-afterMount-updatesCanvasDimensions', () => {
+  it('windowResize-afterMount-widthTracksWindowHeightStaysFixed', () => {
     Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 1024 });
     Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 768 });
 
@@ -257,7 +259,27 @@ describe('PlatformerPage', () => {
 
     const canvas = platformerPage.canvas;
     expect(canvas).toHaveAttribute('width', '800');
-    expect(canvas).toHaveAttribute('height', '600');
+    // Still capped at 384 (12 * 32) — the fixed play-canvas height doesn't
+    // change with the window, since 600 > 384.
+    expect(canvas).toHaveAttribute('height', '384');
+  });
+
+  it('windowResize-windowShorterThanFixedCanvas-heightCapsToWindowHeight', () => {
+    Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 1024 });
+    Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 768 });
+
+    render(<PlatformerPage />);
+
+    // A window shorter than the fixed play-canvas height (384) falls back
+    // to the window's own height as a safety net so the canvas never
+    // overflows it.
+    Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 300 });
+    Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 200 });
+    fireEvent(window, new Event('resize'));
+
+    const canvas = platformerPage.canvas;
+    expect(canvas).toHaveAttribute('width', '300');
+    expect(canvas).toHaveAttribute('height', '200');
   });
 
   it('render-default-showsFloatingControlsOverCanvas', () => {
@@ -312,7 +334,9 @@ describe('PlatformerPage', () => {
     const bottomEdges = ctx.drawImage.mock.calls
       .filter((call: unknown[]) => call[1] !== 64)
       .map((call: unknown[]) => (call[6] as number) + (call[8] as number)); // dy + dh
-    expect(Math.max(...bottomEdges)).toBe(768);
+    // Canvas height is capped at PLAY_CANVAS_ROWS(12) * RENDERED_TILE_SIZE(32)
+    // = 384 regardless of the (taller) mocked window.innerHeight (768).
+    expect(Math.max(...bottomEdges)).toBe(384);
   });
 
   it('render-afterPlayerSpriteLoads-drawsPlayerAtIdleSize', async () => {
