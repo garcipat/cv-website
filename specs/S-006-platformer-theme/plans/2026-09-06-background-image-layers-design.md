@@ -8,6 +8,25 @@ Unscheduled in `roadmap.md` until this design is approved; on approval it become
 levels a selectable sky/backdrop from `backgrounds.png` (the 4 scene images) — that
 would be its own design, built on top of this one."
 
+## Revision (post-implementation, after a first look in the browser)
+
+After implementing and viewing the first version in the running game, two changes to
+the rendering approach in the section below:
+
+- **Clouds/hills no longer tile vertically.** The original design tiled the clouds
+  band repeatedly to fill the (variable, canvas-height-dependent) gap between the sky
+  and the village layer. In practice this reads as a visibly repeating stack of
+  identical cloud/hill bands on a tall window — worse than intended. Clouds/hills now
+  draws exactly **once**, positioned directly under the sky; the remaining gap down to
+  the village layer (whatever height it happens to be) is filled with a flat color
+  sampled from the sky/clouds art's own light-blue, not a second repeat of the tile.
+- **All 4 static layers (sky, clouds/hills, village, grass) render at a uniform 2x
+  scale**, matching the foreground terrain's own `RENDERED_TILE_SIZE` (2x native) and
+  the grass tile's scale from the final-review fix wave — previously only grass was
+  scaled. The river overlay inherits the village layer's scale and position (its own
+  destination offset scales proportionally, since it's positioned relative to the
+  village band).
+
 ## Goal and scope
 
 Replace the platformer's procedural sky (`drawSkyBackground` in `Renderer.ts` — solid
