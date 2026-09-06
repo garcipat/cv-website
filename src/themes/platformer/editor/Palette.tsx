@@ -20,7 +20,8 @@ interface PaletteProps {
   onSelectBackgroundPiece: (pieceId: BackgroundPieceId) => void;
   /** Which canvas the palette is arming tools for. Optional and defaulting to
    *  `'level'` so every existing render site is unaffected; `'blueprint'`
-   *  drops the Spawn tool (roadmap step 44a). */
+   *  drops the Spawn tool (roadmap step 44a) and adds the Connection Point tool
+   *  (step 44b). */
   canvasMode?: 'level' | 'blueprint';
 }
 
