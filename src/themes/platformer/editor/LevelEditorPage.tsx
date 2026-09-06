@@ -540,9 +540,12 @@ export const LevelEditorPage = () => {
       }
       setPendingPlacement(null);
     },
-    // `applyGrowthShift` is a plain closure recreated every render (like the
-    // rest of this component's handlers), not a memoized value — listing it
-    // here would just make this callback recreate on every render too.
+    // `applyGrowthShift` is a plain closure recreated every render, not a
+    // memoized value, so it can't be listed as a dependency. This is safe:
+    // `armedCells` (`blueprintCells(...)`) is itself a fresh array every
+    // render, so this callback is recreated on every render regardless —
+    // the useCallback wrapper here satisfies react-hooks/immutability lint,
+    // it does not actually memoize anything, and no stale closure is possible.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [armedBlueprint, armedCells, grid, isDirty, saveResult],
   );
