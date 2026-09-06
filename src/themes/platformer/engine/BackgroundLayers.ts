@@ -65,10 +65,11 @@ const RIVER_FRAME_HEIGHT = 30;
  *  it's positioned relative to the village layer. */
 export const BACKGROUND_RENDER_SCALE = 2;
 
-/** Flat fill used for whatever vertical gap remains between the sky's bottom
- *  edge and the clouds/hills layer (now positioned just above the village,
- *  not directly under the sky) — sampled directly from the sky/clouds art's
- *  own light-blue, so the fill blends seamlessly. */
+/** Flat fill used for vertical gaps between layers:
+ *  - Sky's bottom edge and the clouds/hills layer's top edge
+ *  - Clouds/hills layer's bottom edge and the village/treeline layer's top edge
+ *  Sampled directly from the sky/clouds art's own light-blue, so fills blend
+ *  seamlessly. */
 const SKY_FILL_COLOR = 'rgb(66, 154, 215)';
 
 /** Extra flat dark-blue margin drawn above the sky image itself, in native
@@ -85,18 +86,9 @@ const SKY_DARK_COLOR = 'rgb(72, 102, 197)';
 /** Extra gap between the clouds/hills layer's bottom edge and the village
  *  layer's top edge, in native (unscaled) pixels — so clouds read as
  *  floating a bit above the treeline rather than touching it directly.
- *  Filled by `CLOUDS_VILLAGE_GAP_COLOR` (see `drawBackgroundLayers`).
+ *  Filled by `SKY_FILL_COLOR` (see `drawBackgroundLayers`).
  *  Scaled by `BACKGROUND_RENDER_SCALE` at the point of use. Tunable. */
 export const CLOUDS_VILLAGE_GAP = 8;
-
-/** Flat fill for the small gap between the clouds/hills layer's bottom edge
- *  and the village layer's top edge (see `CLOUDS_VILLAGE_GAP`) — sampled
- *  directly from the clouds/hills band's own cyan hill-wave tone (the only
- *  "hill" color present in that band, confirmed by sampling every distinct
- *  color in the band: sky-blue, white clouds, and this cyan — no darker
- *  shade exists in the current art), so the small gap reads as a
- *  continuation of the hills rather than a bare gap. */
-const CLOUDS_VILLAGE_GAP_COLOR = 'rgb(127, 213, 205)';
 
 /** Flat fill used below the single grass draw, down to the canvas bottom —
  *  sampled directly from `background_layer_grass.png`'s own solid bottom
@@ -158,8 +150,8 @@ function drawTiledRow(
  *   parallax.
  * - **Clouds-to-village gap fill**: fills the `CLOUDS_VILLAGE_GAP` (scaled)
  *   px gap between the clouds/hills layer's bottom edge and the village
- *   layer's top edge with `CLOUDS_VILLAGE_GAP_COLOR`, so it reads as a
- *   continuation of the hills rather than a bare gap.
+ *   layer's top edge with `SKY_FILL_COLOR`, matching the sky-to-clouds gap
+ *   fill per explicit user preference.
  * - **Village/treeline**: pinned `VILLAGE_BOTTOM_OFFSET` (scaled) px above
  *   the canvas bottom. Medium parallax.
  * - **River overlay**: a 2-frame alternating flipbook drawn on top of the
@@ -207,7 +199,7 @@ export function drawBackgroundLayers(
 
   const cloudsBottom = cloudsTop + cloudsDestHeight;
   if (villageTop > cloudsBottom) {
-    ctx.fillStyle = CLOUDS_VILLAGE_GAP_COLOR;
+    ctx.fillStyle = SKY_FILL_COLOR;
     ctx.fillRect(0, cloudsBottom, canvasWidth, villageTop - cloudsBottom);
   }
 
