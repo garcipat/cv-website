@@ -82,10 +82,12 @@ const IMAGE_SOURCES: { key: keyof EditorImages; src: string }[] = [
 // still persists it.
 const EDITOR_LEVEL_SYNC_DEBOUNCE_MS = 400;
 
-// Blueprint mode has no Spawn tool (Task 4), so an already-armed Spawn is
-// swapped for this when the blueprint canvas becomes active.
+// Blueprint mode has no Spawn tool and level mode has no Connection Point
+// tool (Palette.tsx), so an already-armed one of either is swapped for this
+// when the canvas it does not belong to becomes active.
 const SPAWN_CHAR: TileChar = 'S';
-const BLUEPRINT_FALLBACK_TOOL: TileChar = 'G';
+const CONNECTION_POINT_CHAR: TileChar = '+';
+const FALLBACK_TOOL: TileChar = 'G';
 
 export const LevelEditorPage = () => {
   // Seeded from editorLevelSignal.value (localStorage-backed, see
@@ -153,7 +155,10 @@ export const LevelEditorPage = () => {
     setCanvasModeState(mode);
     editorCanvasModeSignal.value = mode;
     if (mode === 'blueprint' && selectedTool === SPAWN_CHAR) {
-      setSelectedTool(BLUEPRINT_FALLBACK_TOOL);
+      setSelectedTool(FALLBACK_TOOL);
+    }
+    if (mode === 'level' && selectedTool === CONNECTION_POINT_CHAR) {
+      setSelectedTool(FALLBACK_TOOL);
     }
     if (mode === 'level' && levelCenterPendingRef.current) {
       levelCenterPendingRef.current = false;
@@ -251,18 +256,17 @@ export const LevelEditorPage = () => {
     return () => window.clearTimeout(timer);
   }, [backgroundPlacements]);
 
-  // Mount-time counterpart of setCanvasMode's Spawn disarm: the mode is
-  // persisted, so the editor can come back up already on the blueprint
-  // canvas with 'S' still armed, without any toggle click ever happening
-  // (design note 4). Deliberately mount-only — a later mode switch is the
-  // other handler's job, and re-running this on every `selectedTool` change
-  // would fight the (currently impossible, but not worth wiring a trap for)
-  // case of Spawn being selected some other way.
+  // Mount-time counterpart of setCanvasMode's two disarms: the mode and the
+  // tool are both persisted, so the editor can come back up on either canvas
+  // with the other canvas's exclusive tool still armed, without any toggle
+  // click ever happening. Deliberately mount-only — a later mode switch is
+  // the other handler's job.
   useEffect(() => {
     // Deliberate one-shot mount-time correction of persisted state (see
     // comment above), not a render derived from a prop/state change.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (isBlueprintMode && selectedTool === SPAWN_CHAR) setSelectedTool(BLUEPRINT_FALLBACK_TOOL);
+    if (isBlueprintMode && selectedTool === SPAWN_CHAR) setSelectedTool(FALLBACK_TOOL);
+    if (!isBlueprintMode && selectedTool === CONNECTION_POINT_CHAR) setSelectedTool(FALLBACK_TOOL);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
