@@ -1,6 +1,7 @@
 import { createLocalStorageSignal } from '@/lib/utils';
 import { importLayout } from './importLayout';
 import { LEVEL_1_LAYOUT } from '../level/level';
+import { BLANK_BLUEPRINT } from '../level/BlueprintData';
 import type { TileChar } from '../level/LevelParser';
 import type { BackgroundPlacement, BackgroundPieceId } from '../level/LevelData';
 
@@ -75,5 +76,67 @@ export const editorActiveLayerSignal = createLocalStorageSignal<'foreground' | '
  */
 export const editorSelectedBackgroundPieceSignal = createLocalStorageSignal<BackgroundPieceId | null>(
   'platformer-editor-selected-background-piece',
+  null,
+);
+
+/**
+ * Which canvas the editor is currently painting: the level's own `grid`, or
+ * the separate blueprint canvas below. Independent of
+ * `editorActiveLayerSignal` — that one says which LAYER (foreground or
+ * background) of whichever canvas is active gets painted, and both toggles
+ * keep working together (roadmap step 44a).
+ */
+export const editorCanvasModeSignal = createLocalStorageSignal<'level' | 'blueprint'>(
+  'platformer-editor-canvas-mode',
+  'level',
+);
+
+/**
+ * The blueprint canvas's own foreground grid — a second, fully independent
+ * grid, NOT a region of the level. Starts as one empty cell (the same blank
+ * `BLANK_BLUEPRINT.layout` the Blueprint Select dropdown's `new` entry
+ * loads) and is persisted exactly like `editorLevelSignal` above, so a room
+ * half-painted yesterday is still there today.
+ */
+export const editorBlueprintSignal = createLocalStorageSignal<TileChar[][]>(
+  'platformer-editor-blueprint',
+  importLayout(BLANK_BLUEPRINT.layout),
+);
+
+/** The blueprint canvas's background-layer placements — the blueprint's
+ *  counterpart of `editorBackgroundSignal`. Blueprints carry the same
+ *  decorative background layer levels do. */
+export const editorBlueprintBackgroundSignal = createLocalStorageSignal<BackgroundPlacement[]>(
+  'platformer-editor-blueprint-background',
+  [],
+);
+
+/** The name of the blueprint the canvas was last loaded from (or last saved
+ *  as) — what the Blueprint Select trigger shows, mirroring
+ *  `editorLoadedLevelNameSignal`. */
+export const editorLoadedBlueprintNameSignal = createLocalStorageSignal<string>(
+  'platformer-editor-loaded-blueprint',
+  BLANK_BLUEPRINT.name,
+);
+
+/**
+ * The id of the blueprint currently armed for placement, or `null` when none
+ * is (roadmap step 44c). Deliberately a SECOND axis alongside
+ * `editorSelectedToolSignal` rather than a value inside it: `selectedTool` is a
+ * `TileChar`, and a blueprint is a multi-cell object with an id, a name and a
+ * layout — there is no character to give it, and inventing one would mean a
+ * `TileChar` `parseLevel` must never see in a layout.
+ *
+ * Mutual exclusion between the two is enforced by `LevelEditorPage`'s setters
+ * (arming clears nothing, selecting a tile tool disarms), not by the type: that
+ * keeps `selectedTool` available to restore the author's previous tool when
+ * they disarm, instead of dumping them on a fallback.
+ *
+ * Persisted like the armed tool is, so reopening the editor still shows what is
+ * armed. An id whose blueprint file has since been deleted simply resolves to
+ * nothing through `findBlueprint`, which reads as "not armed" everywhere.
+ */
+export const editorArmedBlueprintIdSignal = createLocalStorageSignal<string | null>(
+  'platformer-editor-armed-blueprint',
   null,
 );

@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { importLayout } from './importLayout';
+import { blueprintFits } from './blueprintFit';
+import { placeBlueprint, rebaseBlueprintBackground } from './placeBlueprint';
 import { exportLayout } from './exportLayout';
 import { cropLevelForExport } from './cropLevelForExport';
 import { Palette } from './Palette';
@@ -9,9 +11,15 @@ import type { TileChar } from '../level/LevelParser';
 import { currentLayout, currentBackground } from '../level/level';
 import type { LevelEntry } from '../level/levelRegistry';
 import { LevelSelect } from './LevelSelect';
+import { BlueprintSelect } from './BlueprintSelect';
 import { saveLevel, LEVELS_FOLDER, type SaveLevelResult } from './saveLevelFile';
+import { saveBlueprint, BLUEPRINTS_FOLDER, type SaveBlueprintResult } from './saveBlueprintFile';
+import { isDevEnvironmentSignal, probeDevEnvironment } from './devEnvironment';
+import type { Blueprint } from '../level/BlueprintData';
 import type { BackgroundPlacement, BackgroundPieceId } from '../level/LevelData';
 import { backgroundCatalogEntry } from '../engine/BackgroundCatalog';
+import { findBlueprint } from '../level/blueprintRegistry';
+import { blueprintCells } from './blueprintCells';
 import {
   editorLevelSignal,
   editorSelectedToolSignal,
@@ -20,6 +28,11 @@ import {
   editorBackgroundSignal,
   editorActiveLayerSignal,
   editorSelectedBackgroundPieceSignal,
+  editorCanvasModeSignal,
+  editorBlueprintSignal,
+  editorBlueprintBackgroundSignal,
+  editorLoadedBlueprintNameSignal,
+  editorArmedBlueprintIdSignal,
 } from './editorLevelState';
 import { resetGameProgress } from '../PlatformerState';
 import { loadImage } from '../engine/SpriteLoader';
@@ -77,6 +90,13 @@ const IMAGE_SOURCES: { key: keyof EditorImages; src: string }[] = [
 // still persists it.
 const EDITOR_LEVEL_SYNC_DEBOUNCE_MS = 400;
 
+// Blueprint mode has no Spawn tool and level mode has no Connection Point
+// tool (Palette.tsx), so an already-armed one of either is swapped for this
+// when the canvas it does not belong to becomes active.
+const SPAWN_CHAR: TileChar = 'S';
+const CONNECTION_POINT_CHAR: TileChar = '+';
+const FALLBACK_TOOL: TileChar = 'G';
+
 export const LevelEditorPage = () => {
   // Seeded from editorLevelSignal.value (localStorage-backed, see
   // editorLevelState.ts), not always the hardcoded default — this is what
@@ -86,6 +106,49 @@ export const LevelEditorPage = () => {
   // dragged cell) stays snappy; the effect further down is what pushes it
   // back into the signal, debounced.
   const [grid, setGrid] = useState<TileChar[][]>(() => editorLevelSignal.value);
+  // Which saved blueprint is armed for placement (roadmap step 44c), and
+  // which cell the mouse is currently hovering while armed — the preview
+  // follows this live, with no click required. The armed id is persisted
+  // like the armed tool; the hovered cell deliberately is NOT — a stale
+  // preview position must not survive a reload.
+  const [armedBlueprintId, setArmedBlueprintIdState] = useState<string | null>(
+    () => editorArmedBlueprintIdSignal.value,
+  );
+  const [hoveredCell, setHoveredCell] = useState<{ col: number; row: number } | null>(null);
+  const setArmedBlueprintId = (id: string | null) => {
+    setArmedBlueprintIdState(id);
+    editorArmedBlueprintIdSignal.value = id;
+    // Any change of what is armed invalidates a preview hovered for the old
+    // one.
+    setHoveredCell(null);
+  };
+  /** Clicking a blueprint's Palette tile arms it; clicking the armed one again
+   *  disarms it, which restores the tile tool that was selected before. */
+  const armBlueprint = (id: string) => {
+    setArmedBlueprintId(armedBlueprintId === id ? null : id);
+  };
+  // A persisted id whose blueprint file has since been deleted resolves to
+  // nothing here, which reads as "not armed" through the whole page: no Palette
+  // tile is pressed, no preview is produced, and clicks paint as usual.
+  // Derived HERE, in the same block, rather than further down next to
+  // `exportedText`: Task 9's `commitPlacement` reads both, and this file's
+  // house rule (see the comment above `centerRequestId`) is that nothing
+  // forward-references a `const` declared later in the component body.
+  const armedBlueprint =
+    armedBlueprintId === null ? null : (findBlueprint(armedBlueprintId) ?? null);
+  const armedCells = armedBlueprint === null ? null : blueprintCells(armedBlueprint.layout);
+  // The grid + background from immediately before the most recently
+  // committed placement, for a one-shot "Undo placement" button. A single
+  // slot, not a full history — cleared by any other edit (painting, erasing,
+  // a background change, loading a different level, or committing another
+  // placement) so it only ever offers to undo the one placement just made,
+  // never a stale one from several actions ago. Declared here for the same
+  // forward-reference reason as `armedBlueprint`/`armedCells` above:
+  // `commitPlacement` both reads and writes it.
+  const [lastPlacementSnapshot, setLastPlacementSnapshot] = useState<{
+    grid: TileChar[][];
+    background: BackgroundPlacement[];
+  } | null>(null);
   // Seeded from editorSelectedToolSignal.value (localStorage-backed) the
   // same way `grid` is seeded from editorLevelSignal above — a tool
   // selection is a discrete click, not a hot drag path, so it's written
@@ -94,6 +157,10 @@ export const LevelEditorPage = () => {
   const setSelectedTool = (tool: TileChar) => {
     setSelectedToolState(tool);
     editorSelectedToolSignal.value = tool;
+    // Picking a tile tool is unambiguously "I want to paint again". The reverse
+    // is deliberately not true: arming a blueprint leaves `selectedTool` alone,
+    // so disarming restores it rather than falling back to Ground Grass.
+    setArmedBlueprintId(null);
   };
   // Background-layer counterparts of `grid`/`selectedTool` above, following
   // exactly the same pattern: local state seeded from the persisted signal,
@@ -116,12 +183,78 @@ export const LevelEditorPage = () => {
     setSelectedBackgroundPieceState(pieceId);
     editorSelectedBackgroundPieceSignal.value = pieceId;
   };
-  const [panOffset, setPanOffset] = useState<PanOffset>({ x: 0, y: 0 });
+  // Which canvas is being edited (roadmap step 44a). Orthogonal to
+  // `activeLayer` above: that one picks foreground/background WITHIN
+  // whichever canvas this one selects, and both toggles stay visible and
+  // keep working together.
+  const [canvasMode, setCanvasModeState] = useState<'level' | 'blueprint'>(
+    () => editorCanvasModeSignal.value,
+  );
+  // Whether the level canvas still owes itself a spawn-centering. Mounting
+  // already in blueprint mode lets that canvas consume EditorCanvas's
+  // one-shot centering request (a no-op on a spawn-less grid), so the debt
+  // is tracked here and spent on the FIRST switch back to Level — never on
+  // later ones, which would yank a hand-panned view back to the spawn
+  // (design note 5).
+  const levelCenterPendingRef = useRef(editorCanvasModeSignal.value === 'blueprint');
   // Bumped to ask EditorCanvas to center the view on the spawn tile; it
   // starts at 1 rather than 0 so opening the editor is itself a request, and
   // the view lands on the player instead of on the grid's top-left corner.
+  // Declared here (rather than alongside `panOffset` below) so
+  // `setCanvasMode` just below can call it directly instead of forward
+  // -referencing it — a forward reference is what the project's
+  // react-hooks/immutability lint rule flags as an unsafe mutation.
   const [centerRequestId, setCenterRequestId] = useState(1);
   const requestCenterOnSpawn = () => setCenterRequestId((id) => id + 1);
+  const setCanvasMode = (mode: 'level' | 'blueprint') => {
+    setCanvasModeState(mode);
+    editorCanvasModeSignal.value = mode;
+    if (mode === 'blueprint' && selectedTool === SPAWN_CHAR) {
+      setSelectedTool(FALLBACK_TOOL);
+    }
+    if (mode === 'level' && selectedTool === CONNECTION_POINT_CHAR) {
+      setSelectedTool(FALLBACK_TOOL);
+    }
+    if (mode === 'level' && levelCenterPendingRef.current) {
+      levelCenterPendingRef.current = false;
+      requestCenterOnSpawn();
+    }
+    // Placement targets the level grid only — nesting a blueprint inside a
+    // blueprint is out of scope.
+    if (mode === 'blueprint') setArmedBlueprintId(null);
+  };
+  const isBlueprintMode = canvasMode === 'blueprint';
+  // The blueprint canvas's own grid/background/name — a second, fully
+  // independent canvas, not a region of the level. Same
+  // seeded-from-a-persisted-signal, debounce-synced-back pattern as `grid`
+  // and `backgroundPlacements` above.
+  const [blueprintGrid, setBlueprintGrid] = useState<TileChar[][]>(
+    () => editorBlueprintSignal.value,
+  );
+  const [blueprintBackgroundPlacements, setBlueprintBackgroundPlacements] = useState<
+    BackgroundPlacement[]
+  >(() => editorBlueprintBackgroundSignal.value);
+  const [loadedBlueprintName, setLoadedBlueprintNameState] = useState(
+    () => editorLoadedBlueprintNameSignal.value,
+  );
+  const setLoadedBlueprintName = (name: string) => {
+    setLoadedBlueprintNameState(name);
+    editorLoadedBlueprintNameSignal.value = name;
+  };
+  // Deliberately separate from the level's `isDirty`: painting a room must
+  // not make the LEVEL dropdown warn about discarding work, and editing the
+  // level must not make the blueprint dropdown warn either. Not persisted —
+  // unlike the level's flag it guards nothing across reloads, since a
+  // freshly reopened blueprint canvas is whatever was last painted on it.
+  const [blueprintDirty, setBlueprintDirty] = useState(false);
+  const [panOffset, setPanOffset] = useState<PanOffset>({ x: 0, y: 0 });
+  // Each canvas keeps its own view. The level's pan is spawn-centered and
+  // typically thousands of pixels from the origin; reusing it for a
+  // one-cell blueprint would park that cell far outside the viewport and
+  // make blueprint mode look broken.
+  const [blueprintPanOffset, setBlueprintPanOffset] = useState<PanOffset>({ x: 0, y: 0 });
+  const activePanOffset = isBlueprintMode ? blueprintPanOffset : panOffset;
+  const setActivePanOffset = isBlueprintMode ? setBlueprintPanOffset : setPanOffset;
   const [images, setImages] = useState<EditorImages>(EMPTY_IMAGES);
   // Which level the grid came from, and whether it has been touched since —
   // both persisted (see editorLevelState.ts) so reopening the editor still
@@ -141,12 +274,22 @@ export const LevelEditorPage = () => {
   };
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [saveName, setSaveName] = useState(loadedLevelName);
+  const [blueprintSaveDialogOpen, setBlueprintSaveDialogOpen] = useState(false);
+  const [blueprintSaveName, setBlueprintSaveName] = useState(loadedBlueprintName);
+  const [blueprintSaveResult, setBlueprintSaveResult] = useState<SaveBlueprintResult | null>(null);
   // What the last save actually did — the dev server wrote the file, or the
   // browser downloaded it instead. Reported rather than assumed, since the two
   // leave the file in very different places: a successful write closes the
   // dialog and says where it went in the sidebar, while a fallback download
   // keeps the dialog open, because then there is something left to do.
   const [saveResult, setSaveResult] = useState<SaveLevelResult | null>(null);
+  // Whether this page is served by `npm run dev`, i.e. whether Save can
+  // actually write a file. Mirrored into local state from
+  // `isDevEnvironmentSignal` rather than read through `useSignals()`: this
+  // component seeds six persisted signals in `useState` initializers, and
+  // `useSignals()` would make every later write to any of them (including the
+  // debounced grid sync) re-render the whole editor.
+  const [isDevEnvironment, setIsDevEnvironment] = useState(isDevEnvironmentSignal.value);
 
   useEffect(() => {
     IMAGE_SOURCES.forEach(({ key, src }) => {
@@ -154,6 +297,18 @@ export const LevelEditorPage = () => {
         .then((img) => setImages((prev) => ({ ...prev, [key]: img })))
         .catch(() => {});
     });
+  }, []);
+
+  // One ping, on mount: the dev server answers `/__dev-environment`, a built
+  // site cannot, and the Save controls follow that answer (see
+  // `devEnvironment.ts`). The subscription is what applies the answer when it
+  // lands, since the ping resolves after this effect has already run.
+  // `signal.subscribe` also invokes its callback once immediately, with the
+  // value the `useState` initializer above already seeded — so that first call
+  // is a same-value setState React bails out of, not an extra render.
+  useEffect(() => {
+    void probeDevEnvironment();
+    return isDevEnvironmentSignal.subscribe(setIsDevEnvironment);
   }, []);
 
   // Debounced localStorage persistence: every `grid` change (re)starts a
@@ -178,6 +333,39 @@ export const LevelEditorPage = () => {
     }, EDITOR_LEVEL_SYNC_DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
   }, [backgroundPlacements]);
+
+  // Mount-time counterpart of setCanvasMode's two disarms: the mode and the
+  // tool are both persisted, so the editor can come back up on either canvas
+  // with the other canvas's exclusive tool still armed, without any toggle
+  // click ever happening. Deliberately mount-only — a later mode switch is
+  // the other handler's job.
+  useEffect(() => {
+    // Deliberate one-shot mount-time correction of persisted state (see
+    // comment above), not a render derived from a prop/state change.
+    /* eslint-disable react-hooks/set-state-in-effect */
+    if (isBlueprintMode && selectedTool === SPAWN_CHAR) setSelectedTool(FALLBACK_TOOL);
+    if (!isBlueprintMode && selectedTool === CONNECTION_POINT_CHAR) setSelectedTool(FALLBACK_TOOL);
+    if (isBlueprintMode && armedBlueprintId !== null) setArmedBlueprintId(null);
+    /* eslint-enable react-hooks/set-state-in-effect */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Same debounced localStorage sync the level's own grid/background get
+  // above — the blueprint canvas is persisted for exactly the same reason: a
+  // half-painted room must still be there after a reload.
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      editorBlueprintSignal.value = blueprintGrid;
+    }, EDITOR_LEVEL_SYNC_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [blueprintGrid]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      editorBlueprintBackgroundSignal.value = blueprintBackgroundPlacements;
+    }, EDITOR_LEVEL_SYNC_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [blueprintBackgroundPlacements]);
 
   const exportedText = exportLayout(grid)
     .map((row) => `  '${row}',`)
@@ -206,7 +394,26 @@ export const LevelEditorPage = () => {
   const loadLevel = (level: LevelEntry) => {
     const levelGrid = importLayout(level.layout);
     setGrid(levelGrid);
-    requestCenterOnSpawn();
+    // As of this task, LevelSelect (and thus this function) is only ever
+    // reachable with isBlueprintMode === false — it's unconditionally hidden
+    // while the blueprint canvas is on screen (see the `{!isBlueprintMode &&
+    // (...)}` wrapper around LevelSelect below). So the `if` branch here is
+    // currently dead code, kept rather than deleted because a future step
+    // (44c) may end up letting a level be loaded while the blueprint canvas
+    // is the one on screen, at which point it becomes reachable again and
+    // this guard is what's needed: firing the centering request
+    // unconditionally would let the CURRENTLY ACTIVE canvas — the
+    // blueprint's — consume it (EditorCanvas's centering effect targets
+    // whichever grid is active right now, regardless of which grid just
+    // changed), silently resetting a hand-panned blueprint view AND leaving
+    // the level never centered once the user switches back to it. So this
+    // arms the same debt `setCanvasMode` already pays back on the first
+    // switch to Level, instead of spending the one-shot request immediately.
+    if (isBlueprintMode) {
+      levelCenterPendingRef.current = true;
+    } else {
+      requestCenterOnSpawn();
+    }
     editorLevelSignal.value = levelGrid;
     const validBackground = (level.background ?? []).filter(
       (placement) => backgroundCatalogEntry(placement.pieceId) !== undefined,
@@ -216,6 +423,8 @@ export const LevelEditorPage = () => {
     setLoadedLevelName(level.name);
     setDirty(false);
     setSaveResult(null);
+    setHoveredCell(null);
+    setLastPlacementSnapshot(null);
   };
 
   /**
@@ -239,6 +448,179 @@ export const LevelEditorPage = () => {
     setDirty(false);
     if (result.written) setSaveDialogOpen(false);
   };
+
+  /**
+   * Loads a blueprint picked from the dropdown onto the blueprint canvas —
+   * the blueprint counterpart of `loadLevel` above, including its reason for
+   * writing the persisted signals directly and not only local state: without
+   * that, the debounced sync effect would shortly overwrite the freshly
+   * loaded canvas with the still-pending previous one. `BlueprintSelect` has
+   * already confirmed the discard if there was anything to lose.
+   */
+  const loadBlueprint = (blueprint: Blueprint) => {
+    const grid = importLayout(blueprint.layout);
+    setBlueprintGrid(grid);
+    editorBlueprintSignal.value = grid;
+    const background = [...(blueprint.background ?? [])];
+    setBlueprintBackgroundPlacements(background);
+    editorBlueprintBackgroundSignal.value = background;
+    setLoadedBlueprintName(blueprint.name);
+    setBlueprintDirty(false);
+  };
+
+  /**
+   * Saves the blueprint canvas as a real file, cropped through the very same
+   * `cropLevelForExport` a level save uses (tightest non-`.` bounding box,
+   * background placements rebased onto that same origin) — a `Blueprint` is
+   * deliberately the same `{ name, layout, background? }` shape a saved level
+   * file is, so both go down identical paths from here: POST to the dev
+   * server, falling back to a browser download when there is none.
+   *
+   * A write that succeeded closes the dialog; a fallback download keeps it
+   * open, because the file then still has to be moved and that is worth saying
+   * before it is dismissed. Same rule `saveCurrentLevel` above follows.
+   */
+  const saveCurrentBlueprint = async () => {
+    const cropped = cropLevelForExport(blueprintGrid, blueprintBackgroundPlacements);
+    const result = await saveBlueprint(blueprintSaveName, cropped.layout, cropped.background);
+    setBlueprintSaveResult(result);
+    setLoadedBlueprintName(blueprintSaveName);
+    setBlueprintDirty(false);
+    if (result.written) setBlueprintSaveDialogOpen(false);
+  };
+
+  /**
+   * What both canvases do when a paint grew their grid: a cell at index i
+   * draws at i * RENDERED_TILE_SIZE + pan, and growth increases every
+   * existing index by colShift/rowShift, so the active pan moves by the
+   * negative of that to cancel it out (spec FR-020/SC-006) and every
+   * background placement shifts with it, since `growGrid` never touches that
+   * separate list (Task 20 gap #1).
+   */
+  const applyGrowthShift = (
+    colShift: number,
+    rowShift: number,
+    setPlacements: Dispatch<SetStateAction<BackgroundPlacement[]>>,
+  ) => {
+    if (colShift === 0 && rowShift === 0) return;
+    setActivePanOffset((prev) =>
+      updatePanOffset(prev, -colShift * RENDERED_TILE_SIZE, -rowShift * RENDERED_TILE_SIZE),
+    );
+    setPlacements((prev) =>
+      prev.map((placement) => ({
+        ...placement,
+        col: placement.col + colShift,
+        row: placement.row + rowShift,
+      })),
+    );
+  };
+
+  /**
+   * Commits a placement at the hovered cell: every non-`.` cell of the armed
+   * blueprint is written into the level grid there, through the same
+   * `growGrid` path painting uses — so placing past the current edge grows the
+   * grid exactly as painting there would (`placeBlueprint.ts` explains why this
+   * is two grows and a bulk write rather than a loop over `paintCell`).
+   *
+   * A placement that does not fit is refused outright rather than committed:
+   * the preview is already red, and writing it would overwrite terrain, which
+   * is the one thing the rule exists to prevent. The blueprint stays armed
+   * afterwards, so another copy of the same room can be stamped without going
+   * back to the palette — the same way a tile tool stays selected after
+   * painting. The grid + background from just before the write are kept in
+   * `lastPlacementSnapshot` so a misplaced room can be undone with one click.
+   */
+  const commitPlacement = useCallback(
+    (col: number, row: number) => {
+      if (armedBlueprint === null || armedCells === null) return;
+      if (!blueprintFits(grid, armedCells, col, row)) return;
+
+      setLastPlacementSnapshot({ grid, background: backgroundPlacements });
+
+      const result = placeBlueprint(grid, armedCells, col, row);
+      setGrid(result.grid);
+      if (!isDirty) setDirty(true);
+      if (saveResult !== null) setSaveResult(null);
+      // Order matters: this shifts the placements the level ALREADY had by the
+      // growth, and the blueprint's own are rebased with that same shift already
+      // folded in — appending them first would shift them twice.
+      applyGrowthShift(result.colShift, result.rowShift, setBackgroundPlacements);
+      const rebased = rebaseBlueprintBackground(
+        armedBlueprint.background ?? [],
+        col + result.colShift,
+        row + result.rowShift,
+      );
+      if (rebased.length > 0) {
+        setBackgroundPlacements((prev) => [...prev, ...rebased]);
+      }
+    },
+    // `applyGrowthShift` is a plain closure recreated every render, not a
+    // memoized value, so it can't be listed as a dependency. This is safe:
+    // `armedCells` (`blueprintCells(...)`) is itself a fresh array every
+    // render, so this callback is recreated on every render regardless —
+    // the useCallback wrapper here satisfies react-hooks/immutability lint,
+    // it does not actually memoize anything, and no stale closure is possible.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [armedBlueprint, armedCells, grid, isDirty, saveResult, backgroundPlacements],
+  );
+
+  /** A single left-click commits at whichever cell is currently hovered — the
+   *  live preview from `onHover` already shows exactly where it will land, so
+   *  there is no separate "anchor, then confirm" step. */
+  const handlePlacementClick = useCallback(
+    ({ col, row }: { col: number; row: number }) => {
+      commitPlacement(col, row);
+    },
+    [commitPlacement],
+  );
+
+  /** Restores the grid and background to how they were immediately before the
+   *  most recently committed placement. A no-op once anything else has
+   *  happened since (see `lastPlacementSnapshot`'s own doc comment above). */
+  const undoLastPlacement = () => {
+    if (lastPlacementSnapshot === null) return;
+    setGrid(lastPlacementSnapshot.grid);
+    setBackgroundPlacements(lastPlacementSnapshot.background);
+    setLastPlacementSnapshot(null);
+  };
+
+  // Ctrl+Z (Cmd+Z on Mac) is the same "Undo placement" the button offers, not
+  // a general editor undo — there is nothing else to undo yet. Ignored while
+  // typing in a text field (the Save/Export dialogs' inputs) so the browser's
+  // own field-level undo keeps working there, and while the blueprint canvas
+  // is active, matching the button's own `!isBlueprintMode` visibility.
+  useEffect(() => {
+    if (isBlueprintMode || lastPlacementSnapshot === null) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'z' && event.key !== 'Z') return;
+      if (!(event.ctrlKey || event.metaKey) || event.shiftKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable) {
+        return;
+      }
+      event.preventDefault();
+      undoLastPlacement();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isBlueprintMode, lastPlacementSnapshot]);
+
+  // Placement only makes sense on the level's foreground: the blueprint canvas
+  // is excluded (no nesting) and the background layer paints a different
+  // catalog entirely, so clicks there keep working exactly as they do today.
+  const placementActive = !isBlueprintMode && activeLayer === 'foreground' && armedCells !== null;
+  const placementPreview =
+    placementActive && armedCells !== null && hoveredCell !== null
+      ? {
+          cells: armedCells.map(({ row, col, char }) => ({
+            row: row + hoveredCell.row,
+            col: col + hoveredCell.col,
+            char,
+          })),
+          valid: blueprintFits(grid, armedCells, hoveredCell.col, hoveredCell.row),
+        }
+      : null;
 
   /**
    * Try (roadmap: editor/game round-trip): exports the current grid, sets it
@@ -278,7 +660,7 @@ export const LevelEditorPage = () => {
             <button
               type="button"
               aria-pressed={activeLayer === 'foreground'}
-              className={cn('rounded px-2 py-1 text-sm', activeLayer === 'foreground' && 'bg-muted font-medium')}
+              className={cn('rounded px-1.5 py-0.5 text-xs', activeLayer === 'foreground' && 'bg-muted font-medium')}
               onClick={() => setActiveLayer('foreground')}
             >
               Foreground
@@ -286,10 +668,28 @@ export const LevelEditorPage = () => {
             <button
               type="button"
               aria-pressed={activeLayer === 'background'}
-              className={cn('rounded px-2 py-1 text-sm', activeLayer === 'background' && 'bg-muted font-medium')}
+              className={cn('rounded px-1.5 py-0.5 text-xs', activeLayer === 'background' && 'bg-muted font-medium')}
               onClick={() => setActiveLayer('background')}
             >
               Background
+            </button>
+          </div>
+          <div className="flex gap-2" role="group" aria-label="Canvas">
+            <button
+              type="button"
+              aria-pressed={!isBlueprintMode}
+              className={cn('rounded px-1.5 py-0.5 text-xs', !isBlueprintMode && 'bg-muted font-medium')}
+              onClick={() => setCanvasMode('level')}
+            >
+              Level
+            </button>
+            <button
+              type="button"
+              aria-pressed={isBlueprintMode}
+              className={cn('rounded px-1.5 py-0.5 text-xs', isBlueprintMode && 'bg-muted font-medium')}
+              onClick={() => setCanvasMode('blueprint')}
+            >
+              Blueprint
             </button>
           </div>
           <Palette
@@ -298,101 +698,199 @@ export const LevelEditorPage = () => {
             activeLayer={activeLayer}
             selectedBackgroundPiece={selectedBackgroundPiece}
             onSelectBackgroundPiece={setSelectedBackgroundPiece}
+            canvasMode={canvasMode}
+            armedBlueprintId={armedBlueprintId}
+            onArmBlueprint={armBlueprint}
           />
-          <LevelSelect
-            loadedLevelName={loadedLevelName}
-            isDirty={isDirty}
-            onLoadLevel={loadLevel}
-          />
-          <Dialog>
-            <DialogTrigger render={<Button type="button" variant="outline">Export</Button>} />
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Export Layout</DialogTitle>
-              </DialogHeader>
-              <textarea
-                readOnly
-                data-testid="export-output"
-                value={exportedText}
-                className="h-64 w-full resize-none font-mono text-xs"
+          {!isBlueprintMode && (
+            <>
+              <LevelSelect
+                loadedLevelName={loadedLevelName}
+                isDirty={isDirty}
+                onLoadLevel={loadLevel}
               />
-              <DialogFooter>
-                <Button
-                  type="button"
-                  onClick={() => {
-                    navigator.clipboard.writeText(exportedText).catch(() => {});
-                  }}
-                >
-                  Copy Layout
+              {lastPlacementSnapshot !== null && (
+                <Button type="button" variant="outline" onClick={undoLastPlacement}>
+                  Undo placement
                 </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              setSaveName(loadedLevelName);
-              setSaveResult(null);
-              setSaveDialogOpen(true);
-            }}
-          >
-            Save
-          </Button>
-          <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Save this level</DialogTitle>
-                <DialogDescription>
-                  Writes the level as a JSON file into <code>{LEVELS_FOLDER}</code>, where the level
-                  list reads it from. Reload the editor afterwards to see it there.
-                </DialogDescription>
-              </DialogHeader>
-              <label className="flex flex-col gap-1 text-sm" htmlFor="save-level-name">
-                Level name
-                <input
-                  id="save-level-name"
-                  value={saveName}
-                  onChange={(event) => setSaveName(event.target.value)}
-                  className="rounded border px-2 py-1 font-mono text-xs"
-                />
-              </label>
-              {saveResult !== null && !saveResult.written && (
-                <p className="text-sm" role="status">
-                  No dev server to write it
-                  {saveResult.error === undefined ? '' : ` (${saveResult.error})`}, so it went to
-                  your downloads instead. Move it into <code>{LEVELS_FOLDER}</code> yourself.
+              )}
+              <Dialog>
+                <DialogTrigger render={<Button type="button" variant="outline">Export</Button>} />
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Export Layout</DialogTitle>
+                  </DialogHeader>
+                  <textarea
+                    readOnly
+                    data-testid="export-output"
+                    value={exportedText}
+                    className="h-64 w-full resize-none font-mono text-xs"
+                  />
+                  <DialogFooter>
+                    <Button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(exportedText).catch(() => {});
+                      }}
+                    >
+                      Copy Layout
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+              {isDevEnvironment && (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setSaveName(loadedLevelName);
+                      setSaveResult(null);
+                      setSaveDialogOpen(true);
+                    }}
+                  >
+                    Save
+                  </Button>
+                  <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Save this level</DialogTitle>
+                        <DialogDescription>
+                          Writes the level as a JSON file into <code>{LEVELS_FOLDER}</code>, where the level
+                          list reads it from. Reload the editor afterwards to see it there.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <label className="flex flex-col gap-1 text-sm" htmlFor="save-level-name">
+                        Level name
+                        <input
+                          id="save-level-name"
+                          value={saveName}
+                          onChange={(event) => setSaveName(event.target.value)}
+                          className="rounded border px-2 py-1 font-mono text-xs"
+                        />
+                      </label>
+                      {saveResult !== null && !saveResult.written && (
+                        <p className="text-sm" role="status">
+                          No dev server to write it
+                          {saveResult.error === undefined ? '' : ` (${saveResult.error})`}, so it went to
+                          your downloads instead. Move it into <code>{LEVELS_FOLDER}</code> yourself.
+                        </p>
+                      )}
+                      <DialogFooter>
+                        <DialogClose render={<Button type="button" variant="outline" />}>
+                          {saveResult === null ? 'Cancel' : 'Done'}
+                        </DialogClose>
+                        <Button type="button" onClick={saveCurrentLevel}>
+                          Save level file
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </>
+              )}
+            </>
+          )}
+          {isBlueprintMode && (
+            <>
+              <BlueprintSelect
+                loadedBlueprintName={loadedBlueprintName}
+                isDirty={blueprintDirty}
+                onLoadBlueprint={loadBlueprint}
+              />
+              {isDevEnvironment && (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setBlueprintSaveName(loadedBlueprintName);
+                      setBlueprintSaveResult(null);
+                      setBlueprintSaveDialogOpen(true);
+                    }}
+                  >
+                    Save Blueprint
+                  </Button>
+                  <Dialog open={blueprintSaveDialogOpen} onOpenChange={setBlueprintSaveDialogOpen}>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Save this blueprint</DialogTitle>
+                        <DialogDescription>
+                          Writes the blueprint as a JSON file into <code>{BLUEPRINTS_FOLDER}</code>,
+                          where the blueprint list reads it from. Reload the editor afterwards to see
+                          it there.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <label className="flex flex-col gap-1 text-sm" htmlFor="save-blueprint-name">
+                        Blueprint name
+                        <input
+                          id="save-blueprint-name"
+                          value={blueprintSaveName}
+                          onChange={(event) => setBlueprintSaveName(event.target.value)}
+                          className="rounded border px-2 py-1 font-mono text-xs"
+                        />
+                      </label>
+                      {blueprintSaveResult !== null && !blueprintSaveResult.written && (
+                        <p className="text-sm" role="status">
+                          No dev server to write it
+                          {blueprintSaveResult.error === undefined
+                            ? ''
+                            : ` (${blueprintSaveResult.error})`}
+                          , so it went to your downloads instead. Move it into{' '}
+                          <code>{BLUEPRINTS_FOLDER}</code> yourself.
+                        </p>
+                      )}
+                      <DialogFooter>
+                        <DialogClose render={<Button type="button" variant="outline" />}>
+                          {blueprintSaveResult === null ? 'Cancel' : 'Done'}
+                        </DialogClose>
+                        <Button type="button" onClick={saveCurrentBlueprint}>
+                          Save blueprint
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </>
+              )}
+            </>
+          )}
+          {!isBlueprintMode && (
+            <>
+              <Button type="button" onClick={tryLayout}>
+                Try
+              </Button>
+              {saveResult?.written === true && (
+                <p className="max-w-40 text-xs break-all text-muted-foreground" role="status">
+                  Saved to <code>{saveResult.path}</code> — reload to see it in the level list.
                 </p>
               )}
-              <DialogFooter>
-                <DialogClose render={<Button type="button" variant="outline" />}>
-                  {saveResult === null ? 'Cancel' : 'Done'}
-                </DialogClose>
-                <Button type="button" onClick={saveCurrentLevel}>
-                  Save level file
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-          <Button type="button" onClick={tryLayout}>
-            Try
-          </Button>
-          {saveResult?.written === true && (
-            <p className="max-w-40 text-xs break-all text-muted-foreground" role="status">
-              Saved to <code>{saveResult.path}</code> — reload to see it in the level list.
-            </p>
+            </>
           )}
         </div>
         <EditorCanvas
-          grid={grid}
+          grid={isBlueprintMode ? blueprintGrid : grid}
           selectedTool={selectedTool}
-          panOffset={panOffset}
+          panOffset={activePanOffset}
           images={images}
           centerRequestId={centerRequestId}
-          backgroundPlacements={backgroundPlacements}
+          backgroundPlacements={isBlueprintMode ? blueprintBackgroundPlacements : backgroundPlacements}
           activeLayer={activeLayer}
           selectedBackgroundPiece={selectedBackgroundPiece}
+          placement={
+            placementActive
+              ? {
+                  preview: placementPreview,
+                  onHover: setHoveredCell,
+                  onPlace: handlePlacementClick,
+                  onCancel: () => setArmedBlueprintId(null),
+                }
+              : null
+          }
           onPaintBackground={(next) => {
+            if (isBlueprintMode) {
+              setBlueprintBackgroundPlacements(next);
+              setBlueprintDirty(true);
+              return;
+            }
             setBackgroundPlacements(next);
             // Same dirty-flag bookkeeping as the foreground onPaint below —
             // painting the background layer also leaves the loaded level
@@ -400,8 +898,19 @@ export const LevelEditorPage = () => {
             // discarding it (see LevelSelect's isDirty prop).
             if (!isDirty) setDirty(true);
             if (saveResult !== null) setSaveResult(null);
+            // A hand edit after a placement invalidates undoing it — the
+            // snapshot would no longer be "everything since the placement".
+            if (lastPlacementSnapshot !== null) setLastPlacementSnapshot(null);
           }}
           onPaint={({ grid: nextGrid, colShift, rowShift }) => {
+            // The blueprint canvas paints through the exact same
+            // paintCell/growGrid path — only the state it lands in differs.
+            if (isBlueprintMode) {
+              setBlueprintGrid(nextGrid);
+              setBlueprintDirty(true);
+              applyGrowthShift(colShift, rowShift, setBlueprintBackgroundPlacements);
+              return;
+            }
             setGrid(nextGrid);
             // Every paint and erase goes through here, so this is the one
             // place the grid can start differing from the loaded level. The
@@ -409,36 +918,11 @@ export const LevelEditorPage = () => {
             // matches what is on screen.
             if (!isDirty) setDirty(true);
             if (saveResult !== null) setSaveResult(null);
-            if (colShift !== 0 || rowShift !== 0) {
-              // A cell at index i draws at i * RENDERED_TILE_SIZE + panOffset.x.
-              // Growth increases every existing cell's index by colShift/rowShift,
-              // so panOffset must move by the negative of that to cancel it out —
-              // otherwise already-painted content jumps on screen (spec FR-020/SC-006).
-              setPanOffset((prev) =>
-                updatePanOffset(
-                  prev,
-                  -colShift * RENDERED_TILE_SIZE,
-                  -rowShift * RENDERED_TILE_SIZE,
-                ),
-              );
-              // Foreground grid growth shifts every existing index the same
-              // way (see growGrid.ts) — background placements are a
-              // separate, unbounded list that growGrid never touches, so
-              // without this a piece placed near an edge visually drifts
-              // away from the foreground content it was placed next to the
-              // moment a later paint grows the grid leftward/upward (Task 20
-              // gap #1, confirmed by the project owner: the two layers'
-              // effective bounds must never be able to drift apart).
-              setBackgroundPlacements((prev) =>
-                prev.map((placement) => ({
-                  ...placement,
-                  col: placement.col + colShift,
-                  row: placement.row + rowShift,
-                })),
-              );
-            }
+            applyGrowthShift(colShift, rowShift, setBackgroundPlacements);
+            // See the matching comment in onPaintBackground above.
+            if (lastPlacementSnapshot !== null) setLastPlacementSnapshot(null);
           }}
-          onPan={setPanOffset}
+          onPan={setActivePanOffset}
         />
       </div>
     </div>
