@@ -463,7 +463,7 @@ export const LevelEditorPage = () => {
             <button
               type="button"
               aria-pressed={activeLayer === 'foreground'}
-              className={cn('rounded px-2 py-1 text-sm', activeLayer === 'foreground' && 'bg-muted font-medium')}
+              className={cn('rounded px-1.5 py-0.5 text-xs', activeLayer === 'foreground' && 'bg-muted font-medium')}
               onClick={() => setActiveLayer('foreground')}
             >
               Foreground
@@ -471,7 +471,7 @@ export const LevelEditorPage = () => {
             <button
               type="button"
               aria-pressed={activeLayer === 'background'}
-              className={cn('rounded px-2 py-1 text-sm', activeLayer === 'background' && 'bg-muted font-medium')}
+              className={cn('rounded px-1.5 py-0.5 text-xs', activeLayer === 'background' && 'bg-muted font-medium')}
               onClick={() => setActiveLayer('background')}
             >
               Background
@@ -481,7 +481,7 @@ export const LevelEditorPage = () => {
             <button
               type="button"
               aria-pressed={!isBlueprintMode}
-              className={cn('rounded px-2 py-1 text-sm', !isBlueprintMode && 'bg-muted font-medium')}
+              className={cn('rounded px-1.5 py-0.5 text-xs', !isBlueprintMode && 'bg-muted font-medium')}
               onClick={() => setCanvasMode('level')}
             >
               Level
@@ -489,7 +489,7 @@ export const LevelEditorPage = () => {
             <button
               type="button"
               aria-pressed={isBlueprintMode}
-              className={cn('rounded px-2 py-1 text-sm', isBlueprintMode && 'bg-muted font-medium')}
+              className={cn('rounded px-1.5 py-0.5 text-xs', isBlueprintMode && 'bg-muted font-medium')}
               onClick={() => setCanvasMode('blueprint')}
             >
               Blueprint
