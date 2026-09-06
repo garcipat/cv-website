@@ -12,6 +12,12 @@ import { typeOf as hazardTypeOf } from '../entities/hazards';
 import type { HazardPlacement } from '../level/HazardMapper';
 import { isSolid, tileAt, tileToPixel, RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { LevelDef } from '../level/LevelData';
+import {
+  CAMERA_DEAD_ZONE_HALF_WIDTH,
+  CAMERA_DEAD_ZONE_TOP_MARGIN_ROWS,
+  CAMERA_DEAD_ZONE_BOTTOM_SLACK,
+  PLAYER_TARGET_ROWS_FROM_BOTTOM,
+} from './Camera';
 
 /**
  * Draws the player's actual collision geometry, every enemy's render slot
@@ -113,4 +119,28 @@ export function drawDebugOverlay(
     const box = hazardTypeOf(hazard).box(hazard);
     ctx.strokeRect(box.x + originX, box.y + originY, box.width, box.height);
   }
+}
+
+/**
+ * Draws the camera's dead zone (red) — the screen-space rectangle the
+ * player's center can move within without `updateCamera`/`updateCameraY`
+ * reacting. Fixed relative to the canvas, not the world (no `originX`/
+ * `originY` offset), since the dead zone is defined in screen space:
+ * horizontally centered on the viewport, vertically anchored
+ * `PLAYER_TARGET_ROWS_FROM_BOTTOM` rows up from the canvas bottom.
+ */
+export function drawCameraDeadZoneOverlay(
+  ctx: CanvasRenderingContext2D,
+  canvasWidth: number,
+  canvasHeight: number,
+): void {
+  const targetY = canvasHeight - PLAYER_TARGET_ROWS_FROM_BOTTOM * RENDERED_TILE_SIZE;
+  const top = CAMERA_DEAD_ZONE_TOP_MARGIN_ROWS * RENDERED_TILE_SIZE;
+  const bottom = targetY + CAMERA_DEAD_ZONE_BOTTOM_SLACK;
+  const left = canvasWidth / 2 - CAMERA_DEAD_ZONE_HALF_WIDTH;
+  const right = canvasWidth / 2 + CAMERA_DEAD_ZONE_HALF_WIDTH;
+
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'red';
+  ctx.strokeRect(left, top, right - left, bottom - top);
 }

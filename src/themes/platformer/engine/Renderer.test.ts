@@ -2415,48 +2415,97 @@ describe('drawWaterForeground', () => {
   it('drawsCrestAcrossFullLevelWidthOverlappingTheLevelsBottomRow', () => {
     const level: LevelDef = { width: 2, height: 1, terrain: [['groundGrass', 'groundGrass']] };
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    // Canvas exactly as wide/tall as the level's own rendered extent (2*32
+    // wide, crest sits flush with the bottom edge at 3*32 tall) — no gap on
+    // either axis, so this test stays focused on the crest tiles alone.
+    const canvasWidth = RENDERED_TILE_SIZE * 2;
+    const canvasHeight = RENDERED_TILE_SIZE * 3;
 
-    drawWaterForeground(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, RENDERED_TILE_SIZE * 3);
+    drawWaterForeground(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, canvasWidth, canvasHeight);
 
     expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 64, 144, 16, 16, 0, 16, 32, 32);
     expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 64, 144, 16, 16, 32, 16, 32, 32);
   });
 
-  it('waterIsCrestOnly-noBodyTileIsEverDrawnEvenWithATallCanvas', () => {
-    // Water renders as a single crest tile per column, nothing filled in
-    // beneath it. A taller level (height: 3) and a generously tall canvas
-    // are used here so the OLD body-fill loop would clearly have kept
-    // drawing several body tiles past the crest — demonstrating this is a
-    // genuine behavior change, not just an unreachable edge case.
+  it('crestOnly-noBodyTileIsEverDrawn', () => {
+    // Water renders as a single crest tile per column — the body below it is
+    // a flat fill (see the next tests), never a repeated tile.
     const level: LevelDef = { width: 1, height: 3, terrain: [['groundGrass'], ['groundGrass'], ['groundGrass']] };
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
 
-    drawWaterForeground(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, RENDERED_TILE_SIZE * 10);
+    drawWaterForeground(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      fakeTileset,
+      RENDERED_TILE_SIZE,
+      RENDERED_TILE_SIZE * 3,
+    );
 
     // Crest still drawn, overlapping the level's last terrain row as before.
     expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 64, 144, 16, 16, 0, 80, 32, 32);
-    // No body tile at all — neither at the map's true bottom edge (96) nor
-    // anywhere the old canvasHeight-bound loop would have reached (up to 320).
-    expect(ctx.drawImage).not.toHaveBeenCalledWith(fakeTileset, 64, 160, 16, 16, expect.anything(), expect.anything(), 32, 32);
     expect(ctx.drawImage).toHaveBeenCalledTimes(1);
+  });
+
+  it('gapBelowTheMap-fillsDownToCanvasBottomWithSolidWaterColor', () => {
+    // The vertical camera is unclamped (see Camera.ts), so a spawn/descent
+    // low in the map can leave the level's bottom row scrolled above the
+    // canvas's own bottom edge — simulated here with a generously tall
+    // canvas relative to a single-row level. Without the fill, that gap
+    // would expose the parallax background layers instead of reading as
+    // more water.
+    const level: LevelDef = { width: 1, height: 1, terrain: [['groundGrass']] };
+    const ctx = makeMockContext() as unknown as {
+      drawImage: ReturnType<typeof vi.fn>;
+      fillRect: ReturnType<typeof vi.fn>;
+    };
+
+    drawWaterForeground(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, 32, 200);
+
+    // Crest bottom edge is at topY(16) + RENDERED_TILE_SIZE(32) = 48; fill
+    // covers from there down to the full canvas height (200).
+    expect(ctx.fillRect).toHaveBeenCalledWith(0, 48, 32, 152);
+  });
+
+  it('canvasWiderThanTheMap-crestTilingContinuesToTheCanvasEdge', () => {
+    // The horizontal camera clamps to 0 rather than scrolling past the
+    // level's own edges (see Camera.ts's updateCamera), so a canvas wider
+    // than the level would otherwise leave a gap past the map's right edge.
+    // The crest keeps tiling across the full canvas width (not just the
+    // level's own width) so the wave texture reads as continuous water
+    // rather than stopping abruptly at the map's edge.
+    const level: LevelDef = { width: 1, height: 1, terrain: [['groundGrass']] };
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+
+    drawWaterForeground(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, 100, RENDERED_TILE_SIZE);
+
+    // Tiles at x = 0, 32, 64, 96 (the next, 128, is past canvasWidth 100).
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 64, 144, 16, 16, 0, 16, 32, 32);
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 64, 144, 16, 16, 32, 16, 32, 32);
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 64, 144, 16, 16, 64, 16, 32, 32);
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 64, 144, 16, 16, 96, 16, 32, 32);
+    expect(ctx.drawImage).toHaveBeenCalledTimes(4);
   });
 
   it('cameraOrigin-shiftsWaterWithTheLevelLikeTerrain', () => {
     const level: LevelDef = { width: 1, height: 1, terrain: [['groundGrass']] };
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
 
-    drawWaterForeground(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, 200, 10, -20);
+    drawWaterForeground(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, 42, 200, 10, -20);
 
     expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 64, 144, 16, 16, 10, -4, 32, 32);
   });
 
   it('bandScrolledFullyBelowTheViewport-drawsNothing', () => {
     const level: LevelDef = { width: 1, height: 1, terrain: [['groundGrass']] };
-    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const ctx = makeMockContext() as unknown as {
+      drawImage: ReturnType<typeof vi.fn>;
+      fillRect: ReturnType<typeof vi.fn>;
+    };
 
-    drawWaterForeground(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, 10, 0, 50);
+    drawWaterForeground(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, 32, 10, 0, 50);
 
     expect(ctx.drawImage).not.toHaveBeenCalled();
+    expect(ctx.fillRect).not.toHaveBeenCalled();
   });
 });
 

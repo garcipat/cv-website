@@ -38,16 +38,30 @@ export function updateCamera(
   return Math.min(Math.max(cameraX, 0), maxCameraX);
 }
 
+/** How many rendered-tile rows down from the TOP of the viewport the
+ *  dead zone's own top edge sits — small on purpose, so the dead zone spans
+ *  almost the entire canvas height above the bottom target row. The camera
+ *  should only react once the player genuinely nears the top of the visible
+ *  canvas (a big jump or climb), not whenever they're merely above the
+ *  bottom target row — for a level shorter than the viewport especially,
+ *  the player can sit anywhere in the upper portion of the canvas without
+ *  the camera dragging them down toward the bottom target. Tunable. */
+export const CAMERA_DEAD_ZONE_TOP_MARGIN_ROWS = 7;
+
 /**
- * Half-height (rendered px) of the vertical dead-zone band. Deliberately much
- * tighter than `CAMERA_DEAD_ZONE_HALF_WIDTH` — a wide vertical band combined
- * with the unclamped `cameraY` (see `updateCameraY`) let a jump's upward
- * camera correction persist after landing without reversing, since landing
- * back at the resting row often still fell inside a wide band and never
- * re-triggered a downward correction. A tight band means landing almost
- * always exceeds it, reliably snapping the camera back to the target row.
+ * Vertical dead-zone slack BELOW the target row (rendered px) — zero. The
+ * target row IS the player's resting position: standing still (or landing)
+ * puts the player exactly at this row with no tolerance, so any downward
+ * motion past it corrects the camera immediately. Asymmetric with the
+ * generous top margin (`CAMERA_DEAD_ZONE_TOP_MARGIN_ROWS`) on purpose —
+ * jumping shouldn't scroll the camera until the player genuinely gets some
+ * real height, but
+ * descending (falling, or coming back down from a jump) should track without
+ * delay, and since standing rests exactly at this edge there's no separate
+ * "grounded" formula needed — the same dead-zone math naturally pins the
+ * player here whether they're landing or already at rest.
  */
-export const CAMERA_DEAD_ZONE_HALF_HEIGHT = 8;
+export const CAMERA_DEAD_ZONE_BOTTOM_SLACK = 0;
 
 /** How many rendered-tile rows up from the BOTTOM of the viewport the
  *  camera's dead-zone targets — not a percentage of viewport height, and not
@@ -56,7 +70,7 @@ export const CAMERA_DEAD_ZONE_HALF_HEIGHT = 8;
  *  the bottom keeps the player near the ground with most of the canvas above
  *  them showing the sky/clouds/village background layers, regardless of how
  *  tall the level itself is. Tunable. */
-export const PLAYER_TARGET_ROWS_FROM_BOTTOM = 1;
+export const PLAYER_TARGET_ROWS_FROM_BOTTOM = 3;
 
 /**
  * Computes the next vertical camera offset — an ADDITIVE amount on top of
@@ -94,6 +108,12 @@ export const PLAYER_TARGET_ROWS_FROM_BOTTOM = 1;
  * to fill exactly that resulting empty space, both above and below the
  * level's own bounds. `playerY` is always bounded by the level's own
  * dimensions in practice, so this can't run away unboundedly.
+ *
+ * The camera follows the player continuously — there is no grounded/airborne
+ * branch. The same dead-zone formula applies every frame regardless of
+ * whether the player is standing, jumping, or falling; it's the asymmetric
+ * slack (generous above, zero below) that produces the desired feel, not a
+ * state check.
  */
 export function updateCameraY(
   previousCameraY: number,
@@ -104,10 +124,11 @@ export function updateCameraY(
 ): number {
   const originYBase = viewportHeight - levelPixelHeight;
   const playerCenterY = playerY + playerHeight / 2;
-  const screenCenterY = playerCenterY + originYBase + previousCameraY;
   const targetY = viewportHeight - PLAYER_TARGET_ROWS_FROM_BOTTOM * RENDERED_TILE_SIZE;
-  const deadZoneTop = targetY - CAMERA_DEAD_ZONE_HALF_HEIGHT;
-  const deadZoneBottom = targetY + CAMERA_DEAD_ZONE_HALF_HEIGHT;
+  const screenCenterY = playerCenterY + originYBase + previousCameraY;
+
+  const deadZoneTop = CAMERA_DEAD_ZONE_TOP_MARGIN_ROWS * RENDERED_TILE_SIZE;
+  const deadZoneBottom = targetY + CAMERA_DEAD_ZONE_BOTTOM_SLACK;
 
   let cameraY = previousCameraY;
   if (screenCenterY < deadZoneTop) {
@@ -117,4 +138,27 @@ export function updateCameraY(
   }
 
   return cameraY;
+}
+
+/**
+ * Computes the vertical camera offset that exactly frames the player at the
+ * dead-zone's own target row — a ONE-TIME initializer for spawn/respawn, not
+ * a per-frame branch. `updateCameraY` only corrects once the player exits
+ * the dead-zone band, so on a fresh spawn (previousCameraY unknown/stale,
+ * e.g. 0) the player can land anywhere inside the band with no correction at
+ * all, appearing wherever their raw world position happens to be rather
+ * than reliably framed near the bottom target row. Callers use this once
+ * right after resetting player position (initial mount, respawn, restart),
+ * then let `updateCameraY` take over every frame after that.
+ */
+export function initialCameraY(
+  playerY: number,
+  playerHeight: number,
+  viewportHeight: number,
+  levelPixelHeight: number,
+): number {
+  const originYBase = viewportHeight - levelPixelHeight;
+  const playerCenterY = playerY + playerHeight / 2;
+  const targetY = viewportHeight - PLAYER_TARGET_ROWS_FROM_BOTTOM * RENDERED_TILE_SIZE;
+  return targetY - playerCenterY - originYBase;
 }
