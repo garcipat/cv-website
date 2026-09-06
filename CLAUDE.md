@@ -56,3 +56,21 @@ Feature IDs use the prefix of their tier: `F-NNN` (Core), `S-NNN` (Should Have),
 `O-NNN` (Optional). The node ID in the diagram omits the hyphen: `F002`, `S001`, `O001`.
 Prefix the node label with `✅ ` and add `class <NodeID> done` alongside its existing
 category class.
+
+A feature's tier prefix is authoritative. A feature that changes tier is **renumbered**
+into its new tier rather than kept under its old prefix. Retired IDs are never reused.
+
+## Specs vs. Documentation
+
+Two homes, two subjects — do not duplicate content across them:
+
+- **`specs/<ID>-<name>/spec.md`** describes *behavior*: what the software does, the user
+  scenarios it serves, the rules and conditions that must hold, and how success is
+  judged. A spec names behavior, not implementation — no type fields, no module paths,
+  no "how to add one" instructions. A `design.md` beside a spec carries *rationale* at
+  the same altitude: why a model was chosen over its alternatives.
+- **`docs/themes/<theme>/`** describes *code*: how the implementation is organized, the
+  APIs field by field, which file to open, and what it costs to extend.
+
+Where a spec must gesture at mechanism, it links to the reference doc instead of
+restating it.
