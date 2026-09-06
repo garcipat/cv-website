@@ -195,6 +195,30 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   heart in the world is tied to its now-restored pot. Level marker `p`; not yet
   placed anywhere in the shipped level (mechanism only, no level-design placement
   decision made yet).
+- [x] **44a. Blueprint rooms — a dedicated blueprint canvas** — a second, independent,
+  initially-blank canvas in the Level Editor for authoring a reusable "blueprint" room.
+  A Level/Blueprint toggle (independent of the existing Foreground/Background layer
+  toggle) picks which canvas is active; painting either one reuses the same
+  `paintCell`/`growGrid`/`placeBackgroundPiece`/`eraseBackgroundCell` functions. A saved
+  blueprint (`{ id, name, layout, background? }`) is the same shape a saved level file
+  already has, persisted as a JSON file under `src/themes/platformer/level/blueprints/`
+  (step 44c). Design in `plans/2026-09-06-blueprint-rooms-design.md`; implementation plan
+  in `plans/2026-09-06-blueprint-rooms-step44a-plan.md`.
+- [ ] **44b. Blueprint rooms — connection points** — `blueprintConnectionPoint` (a new
+  invisible, non-solid `TileType`, editor-only like `patrol`) becomes just another
+  Palette entry available in blueprint mode, painted directly onto the blueprint
+  canvas's border cells like any other tile — the spots other blueprints can attach to.
+  Depends on 44a.
+- [x] **44c. Blueprint rooms — save, library, and placement** — the 44a `localStorage`
+  stash is replaced with real persistence (`src/themes/platformer/level/blueprints/`,
+  mirroring the level Save flow, gated behind a new `isDevEnvironmentSignal` so Save
+  controls disappear on a built/statically-served site) and saved blueprints show up as
+  a Blueprints section in the Palette; placing one shows a live blue/red border
+  preview that follows the mouse (blue = no overlap with existing terrain, red =
+  overlap), commits on a single left-click, and offers a one-shot "Undo placement"
+  button for the most recent commit. Depends only on 44a's saved-blueprint shape — not
+  on 44b's connection points, which placement does not read or validate (that dependency
+  was cut after a design flaw surfaced; see the design doc's Placement section).
 
 ## Unscheduled additions (not yet numbered)
 
@@ -216,6 +240,31 @@ numbered step.
   session, per spec.md User Story 8.
 - **Polish pass** — animation/effects refinement and a frame-rate check with many
   collectibles on screen.
+- **Background tile layer — visual clarity rework** — step 35a's background decoration
+  layer reads as visually busy in practice, making it harder to tell foreground
+  (solid, walkable) apart from background (decorative fill) at a glance. Raised while
+  manually testing step 44a (blueprint canvas, which also paints this layer). Needs
+  its own brainstorming pass — options might include dimming/desaturating the
+  background layer more, a starker color/contrast split between the two layers, or
+  reworking the piece art itself.
+- **A dedicated control/marker layer, separate from terrain** — today a tile is one
+  `TileType` per cell, so painting an invisible marker (`patrol`, `blueprintConnectionPoint`)
+  onto a cell replaces whatever terrain was there rather than overlaying it. Patrol has
+  shipped with this tradeoff since it's usually placed over open ground, but a blueprint
+  connection point is meant to sit on a room's *border*, typically a wall — painting one
+  there could leave an invisible, non-solid gap in the wall once a blueprint is placed
+  (step 44c). Raised while building step 44b; deliberately not acted on yet — 44c may end
+  up converting/stripping connection points at placement time rather than leaving literal
+  gaps in a shipped level, which would make a separate layer unnecessary. Revisit once
+  44c's placement behavior is actually built and this either does or doesn't turn out to
+  be a real problem.
+- **Level Editor zoom** — the canvas has no zoom, only 1:1 tiles at a fixed 32px plus
+  panning. Raised while designing step 44c (placing a blueprint into a level) as a way to
+  get more overview while lining a room up against existing content. Postponed
+  deliberately: zoom is a bigger feature on its own (new coordinate math touching
+  basically every draw call), and the existing middle-click-drag pan should be enough for
+  placement given blueprints are typically small. Revisit only if placement in practice
+  turns out to feel cramped.
 
 ## Working agreement
 

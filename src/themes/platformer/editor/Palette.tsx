@@ -5,10 +5,12 @@ import {
   PALETTE_TILE_LABELS,
   PALETTE_TILE_GLYPHS,
   PALETTE_TILE_DESCRIPTIONS,
+  BLUEPRINT_GLYPH,
 } from './paletteTiles';
 import { BACKGROUND_PALETTE_SPRITES, BACKGROUND_PALETTE_LABELS } from './backgroundPaletteTiles';
 import { BACKGROUND_CATALOG } from '../engine/BackgroundCatalog';
 import type { BackgroundPieceId } from '../level/LevelData';
+import { BLUEPRINTS } from '../level/blueprintRegistry';
 import { PaletteTile } from './PaletteTile';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
@@ -18,10 +20,24 @@ interface PaletteProps {
   activeLayer: 'foreground' | 'background';
   selectedBackgroundPiece: BackgroundPieceId | null;
   onSelectBackgroundPiece: (pieceId: BackgroundPieceId) => void;
+  /** Which canvas the palette is arming tools for. Optional and defaulting to
+   *  `'level'` so every existing render site is unaffected; `'blueprint'`
+   *  drops the Spawn tool (roadmap step 44a) and adds the Connection Point tool
+   *  (step 44b). */
+  canvasMode?: 'level' | 'blueprint';
+  /** Id of the blueprint currently armed for placement, or `null`/omitted when
+   *  none is (roadmap step 44c). A second axis alongside `selectedTool`, not a
+   *  value inside it — see `editorArmedBlueprintIdSignal`. */
+  armedBlueprintId?: string | null;
+  /** Arms (or, when it is already armed, disarms) a blueprint for placement.
+   *  Optional so every existing render site is unaffected. */
+  onArmBlueprint?: (id: string) => void;
 }
 
 const EMPTY_CHAR: TileChar = '.';
 const PATROL_CHAR: TileChar = 'P';
+const SPAWN_CHAR: TileChar = 'S';
+const CONNECTION_POINT_CHAR: TileChar = '+';
 const BACKGROUND_PIECE_IDS = Object.keys(BACKGROUND_CATALOG) as BackgroundPieceId[];
 const DECORATION_CHARS: TileChar[] = ['n', 'N', 'X', 'c', '⊤', '⊥'];
 
@@ -31,13 +47,22 @@ export const Palette = ({
   activeLayer,
   selectedBackgroundPiece,
   onSelectBackgroundPiece,
+  canvasMode = 'level',
+  armedBlueprintId = null,
+  onArmBlueprint,
 }: PaletteProps) => {
   const allTerrainKeys = (Object.keys(TERRAIN_CHARS) as TileChar[]).filter((key) => key !== EMPTY_CHAR);
   const terrainKeys = allTerrainKeys.filter(
-    (key) => !DECORATION_CHARS.includes(key) && key !== PATROL_CHAR,
+    (key) =>
+      !DECORATION_CHARS.includes(key) && key !== PATROL_CHAR && key !== CONNECTION_POINT_CHAR,
   );
   const decorationKeys = allTerrainKeys.filter((key) => DECORATION_CHARS.includes(key));
-  const entityKeys = Object.keys(ENTITY_CHARS) as TileChar[];
+  // Spawn is dropped on the blueprint canvas: a blueprint has no spawn point
+  // (roadmap step 44a), and offering the button would just invite a marker
+  // nothing downstream expects to find outside a real level's layout.
+  const entityKeys = (Object.keys(ENTITY_CHARS) as TileChar[]).filter(
+    (key) => canvasMode === 'level' || key !== SPAWN_CHAR,
+  );
   // Only the FIRST registered sign character becomes a palette tile — clicking
   // it repeatedly on the canvas cycles through every other registered hint
   // (Task 7's paintCell.ts), so the palette itself never needs to grow past one
@@ -51,8 +76,24 @@ export const Palette = ({
   const [firstHazardKey] = Object.keys(HAZARD_CHARS) as TileChar[];
   // Patrol lives here rather than in "Terrain": it's an invisible marker, not
   // physical ground, so it reads more like a level-authoring tool (same
-  // category as the Eraser and Sign) than like grass/rock/wall.
-  const toolKeys: TileChar[] = [...(firstSignKey ? [firstSignKey] : []), PATROL_CHAR, EMPTY_CHAR];
+  // category as the Eraser and Sign) than like grass/rock/wall. The blueprint
+  // connection point is the same kind of marker and joins it — but only while
+  // the blueprint canvas is active (roadmap step 44b), the mirror image of the
+  // Spawn filter on `entityKeys` above: a connection point marks a spot on a
+  // ROOM's border, so on a level it would be an inert character nothing reads.
+  // It stays ahead of the Eraser so the Eraser is last in the group either way.
+  const toolKeys: TileChar[] = [
+    ...(firstSignKey ? [firstSignKey] : []),
+    PATROL_CHAR,
+    ...(canvasMode === 'blueprint' ? [CONNECTION_POINT_CHAR] : []),
+    EMPTY_CHAR,
+  ];
+
+  // Placement targets the level's own grid, so the section is hidden on the
+  // blueprint canvas — which is what keeps nesting (a blueprint containing a
+  // blueprint) out of scope for free. Nothing renders at all when no blueprint
+  // has been saved yet, rather than an empty headed section.
+  const showBlueprints = canvasMode === 'level' && BLUEPRINTS.length > 0;
 
   const renderGroup = (title: string, keys: TileChar[]) => (
     <section key={title} aria-label={title}>
@@ -86,6 +127,24 @@ export const Palette = ({
             {renderGroup('Entities', entityKeys)}
             {renderGroup('Hazards', firstHazardKey ? [firstHazardKey] : [])}
             {renderGroup('Tools', toolKeys)}
+            {showBlueprints && (
+              <section aria-label="Blueprints">
+                <p className="mb-1 text-xs font-medium text-muted-foreground">Blueprints</p>
+                <div className="grid grid-cols-[repeat(3,max-content)] gap-2">
+                  {BLUEPRINTS.map((blueprint) => (
+                    <PaletteTile
+                      key={blueprint.id}
+                      label={blueprint.name}
+                      description="Click the canvas to preview this room here, then click the same cell again to place it"
+                      sprite={null}
+                      glyph={BLUEPRINT_GLYPH}
+                      selected={armedBlueprintId === blueprint.id}
+                      onClick={() => onArmBlueprint?.(blueprint.id)}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-[repeat(3,max-content)] gap-2">

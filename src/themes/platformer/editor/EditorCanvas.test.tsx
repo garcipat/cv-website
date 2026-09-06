@@ -1,6 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, fireEvent, act } from '@testing-library/react';
-import { EditorCanvas, PATROL_MARKER_GLYPH } from './EditorCanvas';
+import { render, fireEvent, act, cleanup } from '@testing-library/react';
+import {
+  EditorCanvas,
+  PATROL_MARKER_GLYPH,
+  CONNECTION_POINT_MARKER_GLYPH,
+  PLACEMENT_VALID_COLOR,
+  PLACEMENT_INVALID_COLOR,
+} from './EditorCanvas';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import { centerPanOnSpawn } from './EditorPan';
 import type { TileChar } from '../level/LevelParser';
@@ -72,6 +78,7 @@ function stubCanvasContext() {
     lineJoin: '',
     fillText: vi.fn(),
     strokeText: vi.fn(),
+    strokeRect: vi.fn(),
   } as unknown as CanvasRenderingContext2D;
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(ctx);
   return ctx;
@@ -682,6 +689,96 @@ describe('EditorCanvas patrol markers', () => {
   });
 });
 
+describe('EditorCanvas blueprint connection point markers', () => {
+  it('draws an editor-only marker over every connection point tile, which the game itself never shows', () => {
+    const ctx = stubCanvasContext() as unknown as {
+      fillText: ReturnType<typeof vi.fn>;
+      fillRect: ReturnType<typeof vi.fn>;
+    };
+
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['+']]}
+        selectedTool="+"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+
+    const glyphCalls = ctx.fillText.mock.calls.filter(
+      (call: unknown[]) => call[0] === CONNECTION_POINT_MARKER_GLYPH,
+    );
+    expect(glyphCalls).not.toHaveLength(0);
+    // Tinted cell behind the glyph, at the tile's own top-left corner.
+    expect(ctx.fillRect).toHaveBeenCalledWith(0, 0, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+  });
+
+  it('offsets the connection point marker by the pan offset, like every other drawn layer', () => {
+    const ctx = stubCanvasContext() as unknown as { fillRect: ReturnType<typeof vi.fn> };
+
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['+']]}
+        selectedTool="+"
+        panOffset={{ x: 100, y: 40 }}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+
+    expect(ctx.fillRect).toHaveBeenCalledWith(100, 40, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+  });
+
+  it('draws no connection point marker for a grid without any connection point tile', () => {
+    const ctx = stubCanvasContext() as unknown as { fillText: ReturnType<typeof vi.fn> };
+
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['G']]}
+        selectedTool="G"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+
+    const glyphCalls = ctx.fillText.mock.calls.filter(
+      (call: unknown[]) => call[0] === CONNECTION_POINT_MARKER_GLYPH,
+    );
+    expect(glyphCalls).toHaveLength(0);
+  });
+
+  it('gives the patrol tile and the connection point tile their own distinct glyphs in one grid', () => {
+    // Both are sprite-less markers; one shared symbol would make a room's
+    // border unreadable.
+    const ctx = stubCanvasContext() as unknown as { fillText: ReturnType<typeof vi.fn> };
+    expect(CONNECTION_POINT_MARKER_GLYPH).not.toBe(PATROL_MARKER_GLYPH);
+
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['P', '+']]}
+        selectedTool="+"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+
+    const drawn = ctx.fillText.mock.calls.map((call: unknown[]) => call[0]);
+    expect(drawn).toContain(PATROL_MARKER_GLYPH);
+    expect(drawn).toContain(CONNECTION_POINT_MARKER_GLYPH);
+  });
+});
+
 describe('EditorCanvas centering', () => {
   it('centers the view on the spawn tile when the centering request id changes', () => {
     stubCanvasContext();
@@ -985,5 +1082,368 @@ describe('EditorCanvas — background layer', () => {
     );
 
     expect(alphaDuringDrawPlayer).toBe(0.2);
+  });
+});
+
+describe('EditorCanvas — placement clicks (step 44c)', () => {
+  const placementProps = (overrides: Partial<Parameters<typeof EditorCanvas>[0]> = {}) => ({
+    ...BACKGROUND_LAYER_DEFAULT_PROPS,
+    grid: [['.', '.'], ['.', '.']] as TileChar[][],
+    selectedTool: 'G' as TileChar,
+    panOffset: { x: 0, y: 0 },
+    images: EMPTY_IMAGES,
+    onPaint: vi.fn(),
+    onPan: vi.fn(),
+    ...overrides,
+  });
+
+  const clickCanvas = (
+    canvas: HTMLCanvasElement,
+    col: number,
+    row: number,
+    button = 0,
+  ) => {
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
+    fireEvent.mouseDown(canvas, {
+      button,
+      clientX: col * RENDERED_TILE_SIZE + 1,
+      clientY: row * RENDERED_TILE_SIZE + 1,
+    });
+  };
+
+  it('blueprintArmed-leftClick-reportsTheClickedCellInsteadOfPainting', () => {
+    stubCanvasContext();
+    const onPaint = vi.fn();
+    const onPlace = vi.fn();
+    const { container } = render(
+      <EditorCanvas
+        {...placementProps({ onPaint })}
+        placement={{ preview: null, onHover: vi.fn(), onPlace, onCancel: vi.fn() }}
+      />,
+    );
+
+    clickCanvas(container.querySelector('canvas')!, 1, 1);
+
+    expect(onPlace).toHaveBeenCalledWith({ col: 1, row: 1 });
+    expect(onPaint).not.toHaveBeenCalled();
+  });
+
+  it('blueprintArmed-leftClickWithBackgroundLayerActive-reportsTheClickedCellInsteadOfPaintingBackground', () => {
+    // The armed-placement branch in handleMouseDown is checked BEFORE the
+    // activeLayer === 'background' branch, so an armed blueprint must win
+    // even while the Background layer (not just Foreground) is active.
+    // Every other placement test above uses BACKGROUND_LAYER_DEFAULT_PROPS,
+    // whose activeLayer is 'foreground' — none of them would catch the
+    // placement check accidentally being moved after the background branch.
+    stubCanvasContext();
+    const onPaint = vi.fn();
+    const onPaintBackground = vi.fn();
+    const onPlace = vi.fn();
+    const { container } = render(
+      <EditorCanvas
+        {...placementProps({ onPaint, activeLayer: 'background', onPaintBackground })}
+        placement={{ preview: null, onHover: vi.fn(), onPlace, onCancel: vi.fn() }}
+      />,
+    );
+
+    clickCanvas(container.querySelector('canvas')!, 1, 1);
+
+    expect(onPlace).toHaveBeenCalledWith({ col: 1, row: 1 });
+    expect(onPaintBackground).not.toHaveBeenCalled();
+  });
+
+  it('blueprintArmed-rightClick-cancelsInsteadOfErasing', () => {
+    // Right-click has no erase meaning during a placement preview — nothing is
+    // being painted — so it is repurposed as an immediate cancel, saving a trip
+    // back to the palette (design, Step 44c — Placement).
+    stubCanvasContext();
+    const onPaint = vi.fn();
+    const onCancel = vi.fn();
+    const { container } = render(
+      <EditorCanvas
+        {...placementProps({ onPaint })}
+        placement={{ preview: null, onHover: vi.fn(), onPlace: vi.fn(), onCancel }}
+      />,
+    );
+
+    clickCanvas(container.querySelector('canvas')!, 1, 1, 2);
+
+    expect(onCancel).toHaveBeenCalledOnce();
+    expect(onPaint).not.toHaveBeenCalled();
+  });
+
+  it('blueprintArmed-middleClick-stillPansSoARoomCanBeLinedUp', () => {
+    stubCanvasContext();
+    const onPan = vi.fn();
+    const onPlace = vi.fn();
+    const { container } = render(
+      <EditorCanvas
+        {...placementProps({ onPan })}
+        placement={{ preview: null, onHover: vi.fn(), onPlace, onCancel: vi.fn() }}
+      />,
+    );
+    const canvas = container.querySelector('canvas')!;
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
+
+    fireEvent.mouseDown(canvas, { button: 1, clientX: 0, clientY: 0 });
+    fireEvent.mouseMove(canvas, { clientX: 40, clientY: 0 });
+
+    expect(onPan).toHaveBeenCalledWith({ x: 40, y: 0 });
+    expect(onPlace).not.toHaveBeenCalled();
+  });
+
+  it('blueprintArmed-draggingAfterAPlacementClick-paintsNothing', () => {
+    stubCanvasContext();
+    const onPaint = vi.fn();
+    const { container } = render(
+      <EditorCanvas
+        {...placementProps({ onPaint })}
+        placement={{ preview: null, onHover: vi.fn(), onPlace: vi.fn(), onCancel: vi.fn() }}
+      />,
+    );
+    const canvas = container.querySelector('canvas')!;
+
+    clickCanvas(canvas, 0, 0);
+    fireEvent.mouseMove(canvas, { clientX: 40, clientY: 40 });
+
+    expect(onPaint).not.toHaveBeenCalled();
+  });
+
+  it('blueprintArmed-mouseMove-reportsTheHoveredCellForALivePreview', () => {
+    stubCanvasContext();
+    const onHover = vi.fn();
+    const { container } = render(
+      <EditorCanvas
+        {...placementProps({})}
+        placement={{ preview: null, onHover, onPlace: vi.fn(), onCancel: vi.fn() }}
+      />,
+    );
+    const canvas = container.querySelector('canvas')!;
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
+
+    fireEvent.mouseMove(canvas, {
+      clientX: 2 * RENDERED_TILE_SIZE + 1,
+      clientY: RENDERED_TILE_SIZE + 1,
+    });
+
+    expect(onHover).toHaveBeenCalledWith({ col: 2, row: 1 });
+  });
+
+  it('blueprintArmed-mouseLeavesTheCanvas-clearsTheHoveredCell', () => {
+    stubCanvasContext();
+    const onHover = vi.fn();
+    const { container } = render(
+      <EditorCanvas
+        {...placementProps({})}
+        placement={{ preview: null, onHover, onPlace: vi.fn(), onCancel: vi.fn() }}
+      />,
+    );
+    const canvas = container.querySelector('canvas')!;
+
+    fireEvent.mouseLeave(canvas);
+
+    expect(onHover).toHaveBeenCalledWith(null);
+  });
+
+  it('noPlacementProp-mouseLeavesTheCanvas-doesNotThrowOrCallAnything', () => {
+    stubCanvasContext();
+    const { container } = render(<EditorCanvas {...placementProps({})} />);
+    const canvas = container.querySelector('canvas')!;
+
+    expect(() => fireEvent.mouseLeave(canvas)).not.toThrow();
+  });
+
+  it('noPlacementProp-leftClickStillPaintsExactlyAsBefore', () => {
+    stubCanvasContext();
+    const onPaint = vi.fn();
+    const { container } = render(<EditorCanvas {...placementProps({ onPaint })} />);
+
+    clickCanvas(container.querySelector('canvas')!, 1, 1);
+
+    expect(onPaint).toHaveBeenCalledOnce();
+  });
+
+  it('placementPropExplicitlyNull-leftClickStillPaints', () => {
+    stubCanvasContext();
+    const onPaint = vi.fn();
+    const { container } = render(
+      <EditorCanvas {...placementProps({ onPaint })} placement={null} />,
+    );
+
+    clickCanvas(container.querySelector('canvas')!, 1, 1);
+
+    expect(onPaint).toHaveBeenCalledOnce();
+  });
+});
+
+describe('EditorCanvas — placement preview (step 44c)', () => {
+  const previewProps = (preview: {
+    cells: { row: number; col: number; char?: TileChar }[];
+    valid: boolean;
+  }) => ({
+    ...BACKGROUND_LAYER_DEFAULT_PROPS,
+    grid: [['.', '.'], ['.', '.']] as TileChar[][],
+    selectedTool: 'G' as TileChar,
+    images: EMPTY_IMAGES,
+    onPaint: () => {},
+    onPan: () => {},
+    placement: {
+      preview: {
+        cells: preview.cells.map(({ row, col, char = 'R' as TileChar }) => ({ row, col, char })),
+        valid: preview.valid,
+      },
+      onHover: () => {},
+      onPlace: () => {},
+      onCancel: () => {},
+    },
+  });
+
+  it('tints every previewed cell and strokes one border around the whole room', () => {
+    const ctx = stubCanvasContext() as unknown as {
+      fillRect: ReturnType<typeof vi.fn>;
+      strokeRect: ReturnType<typeof vi.fn>;
+    };
+
+    render(
+      <EditorCanvas
+        {...previewProps({
+          cells: [
+            { row: 0, col: 0 },
+            { row: 1, col: 1 },
+          ],
+          valid: true,
+        })}
+        panOffset={{ x: 0, y: 0 }}
+      />,
+    );
+
+    expect(ctx.fillRect).toHaveBeenCalledWith(0, 0, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+    expect(ctx.fillRect).toHaveBeenCalledWith(
+      RENDERED_TILE_SIZE,
+      RENDERED_TILE_SIZE,
+      RENDERED_TILE_SIZE,
+      RENDERED_TILE_SIZE,
+    );
+    // One border around the 2x2 bounding box the two cells span — not one per
+    // cell, which would read as another 44b-style cell marker.
+    expect(ctx.strokeRect).toHaveBeenCalledTimes(1);
+    expect(ctx.strokeRect).toHaveBeenCalledWith(
+      0,
+      0,
+      2 * RENDERED_TILE_SIZE,
+      2 * RENDERED_TILE_SIZE,
+    );
+  });
+
+  it('offsets the preview by the pan offset, like every other drawn layer', () => {
+    const ctx = stubCanvasContext() as unknown as { strokeRect: ReturnType<typeof vi.fn> };
+
+    render(
+      <EditorCanvas
+        {...previewProps({ cells: [{ row: 0, col: 0 }], valid: true })}
+        panOffset={{ x: 100, y: 40 }}
+      />,
+    );
+
+    expect(ctx.strokeRect).toHaveBeenCalledWith(100, 40, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+  });
+
+  it('handles a preview anchored at negative coordinates, where growth would happen', () => {
+    const ctx = stubCanvasContext() as unknown as { strokeRect: ReturnType<typeof vi.fn> };
+
+    render(
+      <EditorCanvas
+        {...previewProps({ cells: [{ row: -1, col: -1 }], valid: true })}
+        panOffset={{ x: 0, y: 0 }}
+      />,
+    );
+
+    expect(ctx.strokeRect).toHaveBeenCalledWith(
+      -RENDERED_TILE_SIZE,
+      -RENDERED_TILE_SIZE,
+      RENDERED_TILE_SIZE,
+      RENDERED_TILE_SIZE,
+    );
+  });
+
+  it('borders a valid placement in blue and an invalid one in red', () => {
+    // The preview is the LAST thing the draw effect does and the stubbed
+    // save/restore are no-ops, so the context's strokeStyle still holds the
+    // colour the preview chose.
+    const validCtx = stubCanvasContext();
+    render(
+      <EditorCanvas
+        {...previewProps({ cells: [{ row: 0, col: 0 }], valid: true })}
+        panOffset={{ x: 0, y: 0 }}
+      />,
+    );
+    expect(validCtx.strokeStyle).toBe(PLACEMENT_VALID_COLOR);
+
+    cleanup();
+
+    const invalidCtx = stubCanvasContext();
+    render(
+      <EditorCanvas
+        {...previewProps({ cells: [{ row: 0, col: 0 }], valid: false })}
+        panOffset={{ x: 0, y: 0 }}
+      />,
+    );
+    expect(invalidCtx.strokeStyle).toBe(PLACEMENT_INVALID_COLOR);
+    expect(PLACEMENT_INVALID_COLOR).not.toBe(PLACEMENT_VALID_COLOR);
+  });
+
+  it('drawsTheConnectionPointGlyphOnAConnectionPointCellInThePreview', () => {
+    const ctx = stubCanvasContext() as unknown as { fillText: ReturnType<typeof vi.fn> };
+
+    render(
+      <EditorCanvas
+        {...previewProps({
+          cells: [
+            { row: 0, col: 0, char: 'R' as TileChar },
+            { row: 0, col: 1, char: '+' as TileChar },
+          ],
+          valid: true,
+        })}
+        panOffset={{ x: 0, y: 0 }}
+      />,
+    );
+
+    expect(ctx.fillText).toHaveBeenCalledWith(
+      CONNECTION_POINT_MARKER_GLYPH,
+      RENDERED_TILE_SIZE + RENDERED_TILE_SIZE / 2,
+      RENDERED_TILE_SIZE / 2,
+    );
+  });
+
+  it('drawsNoGlyphWhenThePreviewHasNoConnectionPointCells', () => {
+    const ctx = stubCanvasContext() as unknown as { fillText: ReturnType<typeof vi.fn> };
+
+    render(
+      <EditorCanvas
+        {...previewProps({ cells: [{ row: 0, col: 0, char: 'R' as TileChar }], valid: true })}
+        panOffset={{ x: 0, y: 0 }}
+      />,
+    );
+
+    expect(ctx.fillText).not.toHaveBeenCalled();
+  });
+
+  it('draws nothing extra while a blueprint is armed but no anchor has been clicked yet', () => {
+    const ctx = stubCanvasContext() as unknown as { strokeRect: ReturnType<typeof vi.fn> };
+
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['.']]}
+        selectedTool="G"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+        placement={{ preview: null, onHover: () => {}, onPlace: () => {}, onCancel: () => {} }}
+      />,
+    );
+
+    expect(ctx.strokeRect).not.toHaveBeenCalled();
   });
 });

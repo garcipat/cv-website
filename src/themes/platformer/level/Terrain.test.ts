@@ -60,6 +60,13 @@ describe('Terrain', () => {
     expect(isSolid('patrol')).toBe(false);
   });
 
+  it('isSolid-blueprintConnectionPoint-returnsFalse', () => {
+    // Editor-only marker (roadmap step 44b) — even if one ends up in a real
+    // level's terrain via a placed blueprint (step 44c), the player must
+    // walk straight through it, exactly like a patrol tile.
+    expect(isSolid('blueprintConnectionPoint')).toBe(false);
+  });
+
   it('isSolid-bushAndFence-returnFalse', () => {
     expect(isSolid('bush')).toBe(false);
     expect(isSolid('fence')).toBe(false);
@@ -307,6 +314,7 @@ describe('isClimbable', () => {
     expect(isClimbable('bridge')).toBe(false);
     expect(isClimbable('empty')).toBe(false);
     expect(isClimbable('patrol')).toBe(false);
+    expect(isClimbable('blueprintConnectionPoint')).toBe(false);
   });
 
   it('isClimbable-bushAndFence-returnFalse', () => {

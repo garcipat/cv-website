@@ -40,10 +40,11 @@ const DECORATIONS_SHEET_WIDTH = 64;
 const DECORATIONS_SHEET_HEIGHT = 32;
 
 /**
- * One sprite spec per `TileChar`, or `null` for the two tiles that have no
- * sprite at all: `.` (the Eraser tool) and `P` (the patrol boundary, which
- * is invisible in game by design). Both render as an empty bordered square,
- * told apart by `PALETTE_TILE_GLYPHS` below.
+ * One sprite spec per `TileChar`, or `null` for the three tiles that have no
+ * sprite at all: `.` (the Eraser tool), `P` (the patrol boundary, which is
+ * invisible in game by design) and `+` (the blueprint connection point,
+ * likewise invisible — and editor-only besides). All three render as an
+ * empty bordered square, told apart by `PALETTE_TILE_GLYPHS` below.
  */
 export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
   '.': null,
@@ -107,6 +108,7 @@ export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
     frameHeight: 13,
   },
   P: null,
+  '+': null,
   S: {
     sheet: '/sprites/knight.png',
     sheetWidth: 256,
@@ -345,14 +347,32 @@ export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
  *  `PATROL_MARKER_GLYPH`), so both always show the same symbol. */
 export const PATROL_GLYPH = '⇄';
 
+/** The socket character standing in for the blueprint connection point's
+ *  missing sprite — in the palette button below, and on the tile itself in
+ *  the editor canvas (`EditorCanvas.tsx` re-exports it as
+ *  `CONNECTION_POINT_MARKER_GLYPH`), so both always show the same symbol.
+ *  Deliberately distinct from `PATROL_GLYPH`: both tiles are sprite-less
+ *  markers and would otherwise be indistinguishable on the canvas. */
+export const CONNECTION_POINT_GLYPH = '⊕';
+
+/** The room character standing in for a saved blueprint's missing sprite in the
+ *  Palette's Blueprints section (roadmap step 44c) — a room has no single tile
+ *  to show. Deliberately distinct from `PATROL_GLYPH` and
+ *  `CONNECTION_POINT_GLYPH`: all three render inside the same empty bordered
+ *  square and would otherwise be indistinguishable. Not part of
+ *  `PALETTE_TILE_GLYPHS`, which is keyed by `TileChar` — a blueprint is not a
+ *  tile character (see `editorArmedBlueprintIdSignal`). */
+export const BLUEPRINT_GLYPH = '▦';
+
 /**
  * The character drawn inside a sprite-less tile's empty palette square, so
- * two of them are never indistinguishable. Only `P` needs one today — the
+ * two of them are never indistinguishable. `P` and `+` need one; the
  * Eraser's empty square already reads as "erase", and giving it a glyph
  * would make it look like a tile you can paint.
  */
 export const PALETTE_TILE_GLYPHS: Partial<Record<TileChar, string>> = {
   P: PATROL_GLYPH,
+  '+': CONNECTION_POINT_GLYPH,
 };
 
 /**
@@ -373,6 +393,7 @@ export const PALETTE_TILE_DESCRIPTIONS: Record<TileChar, string> = {
   H: 'Climbed with Up and Down',
   I: 'Chain; climbs like a ladder, art hugs whichever wall (if any) it hangs against',
   P: 'Invisible in game; turns patrolling enemies around',
+  '+': 'Blueprint only; marks a border cell another blueprint can attach to',
   S: 'Where the player starts',
   M: 'Green slime; stomping it reveals one CV fact',
   m: 'Purple slime; stomping it drops a key',
@@ -412,6 +433,7 @@ export const PALETTE_TILE_LABELS: Record<TileChar, string> = {
   H: 'Ladder',
   I: 'Chain',
   P: 'Patrol Boundary',
+  '+': 'Connection Point',
   S: 'Spawn',
   M: 'Enemy Green',
   m: 'Enemy Purple',
