@@ -8,6 +8,15 @@ The goal the whole design serves: **adding a new enemy, interactable or block sh
 mean writing one module.** The shared interfaces should not have to change, and the new
 thing's specifics should stay inside its own file.
 
+## Documents in this folder
+
+| Document | Covers |
+|---|---|
+| [LevelFormat.md](LevelFormat.md) | The level character table, the layer model, and the saved level and blueprint file shapes |
+| [Terrain.md](Terrain.md) | The `TileType` API, autotiling, multi-cell runs, and adding a tile |
+| [Enemies.md](Enemies.md) | The `EnemyType` API, patrol and contact behavior, and adding an enemy |
+| [Blocks.md](Blocks.md) | The `BlockType` API, hit outcomes, container blocks, and adding a block |
+
 ## Two layers
 
 Rendering is not part of an entity. There are two parallel hierarchies, joined only by
@@ -55,8 +64,8 @@ happens through the capability interfaces below.
 | Category | Family | Box | What the player's presence does to it |
 |---|---|---|---|
 | **Actor** | player | collision | damaged, then dies |
-| | green slime, purple slime | collision | damaged, then dies |
-| **Solid** | crate, question-mark, fragile rock | collision | struck from below → damaged → consumed (question-mark persists, spent) |
+| | enemies — see [Enemies.md](Enemies.md) | collision | damaged, then dies |
+| **Solid** | blocks — see [Blocks.md](Blocks.md) | collision | struck on a side the kind reacts to → damaged → consumed (some kinds persist, spent) |
 | **Trigger** | coin, fruit | trigger | consumed on overlap |
 | | dropped key | trigger | consumed on overlap |
 | | bonus fruit | trigger | consumed on overlap, once its rise finishes |
@@ -83,19 +92,19 @@ meaning lives in who calls it.
 
 ### Invariant: state is only for things that change
 
-**Terrain must never become entities.** It is a character grid; `drawTerrain` iterates
-that grid and `tileSource` derives each sprite from the grid plus its neighbours. A wall
-costs one character, not an object.
+**Terrain must never become entities.** It is a character grid, drawn straight from that
+grid and its neighbours — see [Terrain.md](Terrain.md). A wall costs one character, not
+an object.
 
 Only markers that can *change* become stateful — the markers producing `blockStates`
-entries with `hitsTaken`, `animState` and `animTimer`. In the current level that is
-**six stateful blocks** against hundreds of terrain tiles.
+entries with `hitsTaken`, `animState` and `animTimer` ([Blocks.md](Blocks.md)). In the
+current level that is a handful of stateful blocks against hundreds of terrain tiles.
 
 This is what keeps a large map affordable: ten times the map is ten times the
 *characters*, not ten times the *objects*. Two rules follow.
 
-- A new **static decorative** tile is a terrain character and a `tileSource` case, **not**
-  a block type. The block registry is for things with state.
+- A new **static decorative** tile is a terrain character, **not** a block type. The
+  block registry is for things with state.
 - A new **block kind** is only justified if instances genuinely differ over time. If
   every instance always looks and behaves identically, it is terrain.
 
@@ -146,12 +155,12 @@ type whose frames come from the shared world clock — a spinning coin, a bobbin
 needs none of it: its `frameIndex` reads `elapsed` instead. Both are animated; only one
 stores state.
 
-**Blocks compose no capability at all.** No block cycles sprite frames — two
-`frameIndex` implementations are constants and the third is a function of `hitsTaken`,
-not of time. A block's `animTimer` drives only a y-offset and an alpha: transforms on a
-static sprite. And its `hitsTaken` counts *up* to a per-kind maximum rather than down to
-zero, with a spent question-mark staying solid in the world, so `alive` has no meaning
-for it. Blocks keep their own fields.
+**Blocks compose no capability at all.** No block cycles sprite frames — a block's
+`frameIndex` is a constant or a function of `hitsTaken`, never of time — and its
+`animTimer` drives only a y-offset and an alpha: transforms on a static sprite. Its
+`hitsTaken` counts *up* to a per-kind maximum rather than down to zero, and a spent kind
+can stay solid in the world, so `alive` has no meaning for it. Blocks keep their own
+fields; see [Blocks.md](Blocks.md).
 
 ### The player is `Damageable`
 
@@ -236,8 +245,9 @@ business once a hit is a fact.
 
 ### Type variance
 
-Per-type state — `spiked`/`spikeTimer` on the purple slime — is declared in that type's
-own module, so `EnemyState` is a discriminated union over its type key. TypeScript
+Per-type state — the purple slime's spike timer ([Enemies.md](Enemies.md)) — is declared
+in that type's own module, so `EnemyState` is a discriminated union over its type key.
+TypeScript
 cannot prove a dispatch over a registry of differing state types sound, so there is
 **one generic dispatcher containing a single documented cast**, confined to a few lines.
 It is a cast, not `any`.
@@ -334,11 +344,12 @@ signals.
   `self`.
 - **Dead entities are not consulted.**
 
-Blocks and chests do **not** go through this model. A block is struck from below,
-detected during ceiling collision, which records the hit on the player; there is no
-player-versus-block overlap test. A chest opens on standing on it *and* pressing Up
-*and* holding a key. Unifying them would require physics to emit contacts and
-`CollisionOutcome` to carry input state, which is deliberately not done.
+Blocks and chests do **not** go through this model. Physics records a block contact on
+the player and the block's own kind decides whether that side registers a hit — there is
+no player-versus-block overlap test; see [Blocks.md](Blocks.md). A chest opens on
+standing on it *and* pressing Up *and* holding a key. Unifying them would require
+physics to emit contacts and `CollisionOutcome` to carry input state, which is
+deliberately not done.
 
 ## Triggers
 
@@ -382,16 +393,16 @@ it worked without residue.
 "One module, one registry line, one sprite asset" holds for the **appearance, geometry
 and rendering** axis. Reaching the rest of the game costs more.
 
-**A new enemy type:** its module, one line in `enemies/index.ts`, its literal in the
-enemy definition union, a sheet constant, the PNG. `Collision.ts`, `Renderer.ts`,
-`EnemyAI.ts` and `DebugOverlay.ts` need no edit.
+**A new enemy type:** its module and one registry line, plus its literal in the enemy
+definition union and its sheet. The collision, rendering and AI code need no edit. Full
+walkthrough in [Enemies.md](Enemies.md).
 
-**A new block kind:** its module, one registry line, its frame index inside its own
-module — plus its literal in two parallel unions to be reachable.
+**A new block kind:** its module and one registry line, plus its literal in two parallel
+unions to be reachable. Full walkthrough in [Blocks.md](Blocks.md).
 
 **A new placed-collectible variant:** about nine files, almost none of it interface
 design — the union, the mapper's hardcoded marker keys and its two-way branch, the level
-parser's marker character, and three editor files.
+parser's marker character ([LevelFormat.md](LevelFormat.md)), and three editor files.
 
 **The interfaces are not the remaining friction.** What still forces edits to shared code
 is the **placement pipeline** — the unions in `types.ts`, `LevelParser.ts`, the mappers,

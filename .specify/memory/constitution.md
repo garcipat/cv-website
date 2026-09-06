@@ -1,4 +1,21 @@
 <!--
+Sync Impact Report — 1.0.0 → 1.0.1 (PATCH)
+- Rationale: three clarifications of existing rules, no new principles and no
+  redefinitions, so PATCH per the versioning policy below.
+  1. Principle IV gains an explicit statement that work is tracked as features, not as
+     roadmaps or numbered step lists. Principle IV already required every feature to
+     originate from a spec in `specs/`; roadmaps were the loophole through which the
+     Platformer theme grew into a 44-step epic outside the feature registry.
+  2. The feature-branch rule gains the two details it was missing: no intermediate
+     integration branch, and the branch is deleted after merging.
+  3. A manual browser check is added as a quality gate for changes with visible
+     behavior.
+- Impact: rules 2 and 3 are absorbed from the Platformer roadmap's "Working agreement"
+  and "Branch strategy" sections, which were repository-wide process rather than
+  platformer work; that roadmap is deleted, so they are recorded here instead. No
+  existing principle changes meaning; no template or guidance file requires an update.
+- Prior report retained below.
+
 Sync Impact Report
 - Version change: 3.0.0 → 1.0.0 (full reset — project changed from Bingo Anything / Blazor Server to CV Website / React+TypeScript)
 - Modified principles (complete replacement):
@@ -76,8 +93,17 @@ implementation begins. No exploratory changes — features are built as discrete
 specified units. The feature list in `docs/Features.md` MUST be kept current
 (tracked status, dependency diagram updated on completion).
 
+New work MUST be tracked as a feature, with its own ID and spec folder. Roadmaps
+and numbered step lists MUST NOT be used to schedule work: a feature that proves
+too large MUST be split into more features rather than into steps beneath one.
+Work that is not yet done is an unchecked feature in `docs/Features.md` or an
+explicitly flagged open requirement inside a feature's spec — never a step in a
+list that lives outside the feature registry.
+
 Rationale: A CV website has a well-defined, bounded scope. Preventing feature
-creep keeps the project focused, maintainable, and always deployable.
+creep keeps the project focused, maintainable, and always deployable. A roadmap
+is how scope grows unobserved — one tracked feature accumulating dozens of steps
+looks like a single item in the registry while being an epic in fact.
 See [docs/Features.md](docs/Features.md).
 
 ### V. Performance and Static Delivery
@@ -114,11 +140,16 @@ See [docs/Architecture.md](docs/Architecture.md) and
 
 - **No auto-commits**: Never commit changes automatically. Always wait for the user to explicitly request a commit.
 - All changes via feature branches and pull requests — no direct commits to
-  `main`.
+  `main`. Each unit of work gets its own branch off `main` and lands via its own
+  pull request directly into `main`; there is no intermediate integration branch,
+  and the branch is deleted after merging.
 - Specification-first delivery: clarify → spec → plan → tasks → analyze → implementation.
 - Constitution Check in planning MUST enumerate principle-specific pass/fail
   outcomes and document mitigations for any exception.
 - Pull requests MUST pass all tests and linting (when configured).
+- Changes with visible behavior MUST additionally be verified by a manual browser
+  check before review — a passing test suite is not evidence that the change looks
+  or feels right.
 - Commit messages MUST be clear and represent one logical unit of work.
 - Feature completion tracking: when implementation and tests are fully done,
   update `docs/Features.md` immediately (check off the feature, update
@@ -155,4 +186,4 @@ Compliance review expectations:
 - Any approved exception MUST be explicit, time-bounded, and tracked as
   follow-up work.
 
-**Version**: 1.0.0 | **Ratified**: 2026-06-20 | **Last Amended**: 2026-06-20
+**Version**: 1.0.1 | **Ratified**: 2026-06-20 | **Last Amended**: 2026-09-06

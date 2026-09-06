@@ -1,7 +1,7 @@
 # Bug Ticket: FloatingControls duplicated across themes
 
 **Bug ID**: B-002
-**Found In**: S-006 (Platformer theme) step 1 implementation
+**Found In**: F-015 (Platformer theme) — floating controls
 **Status**: Resolved
 **Severity**: Minor (code duplication / maintainability)
 

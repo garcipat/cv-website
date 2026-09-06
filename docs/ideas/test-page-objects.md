@@ -12,7 +12,7 @@ component needs a manual find-and-replace instead of a one-line update.
 
 ## Motivation
 
-Noticed while implementing S-006 roadmap step 15 (journal counters/pagination/Reset Game,
+Noticed while implementing F-015's journal (counters, pagination, Reset Game;
 `src/themes/platformer/components/Journal.tsx`): that one component alone accumulated ~10
 `data-testid`s across step 13/14/15 (`journal-book`, `journal-close-button`,
 `journal-fact-item`, `journal-empty-state`, `bookmark-tab-{section}`, `journal-section-counter`,

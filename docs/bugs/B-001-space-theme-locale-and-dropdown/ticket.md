@@ -1,7 +1,7 @@
 # Bug Ticket: Space theme locale gaps + dropdown scroll-arrow quirk
 
 **Bug ID**: B-001
-**Found In**: S-006 (Platformer theme) manual testing, but affects the Space theme and the shared `Select` component — not caused by S-006
+**Found In**: F-015 (Platformer theme) manual testing, but affects the Space theme and the shared `Select` component — not caused by F-015
 **Status**: Resolved
 **Severity**: Minor (cosmetic / i18n completeness)
 
