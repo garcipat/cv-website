@@ -2,11 +2,10 @@
 
 ## Roadmap status
 
-Listed under "Unscheduled additions" in `roadmap.md`, not yet slotted into the numbered
-iteration — it's tooling for a longer-term goal (hand-assembling, later auto-generating,
-levels from a room library), not something a near-term step depends on. When picked up,
-it delivers in three sub-steps: **capture**, **connection points** (depends on capture),
-**save/library/placement** (depends on connection points).
+Slotted into `roadmap.md` as Iteration 4 steps **44a** (capture), **44b** (connection
+points), **44c** (placement), after step 43. Delivered in that order — 44b depends on
+44a's captured region existing to mark points on; 44c depends on 44b's connection points
+existing to validate fit against.
 
 ## Goal and scope
 
@@ -51,7 +50,7 @@ Connection points are simply the cells in `Blueprint.cells` whose `tile ===
 open side is derived at placement time (see Fit rule) from which neighbor of that cell
 falls outside the blueprint's shape.
 
-## Capturing a region
+## Step 44a — Capturing a region
 
 New editor mode, "Draw Blueprint" (a `Palette` toggle alongside the existing
 Foreground/Background tabs). While active:
@@ -74,7 +73,7 @@ Foreground/Background tabs). While active:
 - Capturing a blueprint does not remove or alter the source cells in the main grid —
   it's a copy, like export is a copy of the whole level.
 
-## Marking connection points
+## Step 44b — Marking connection points
 
 After a capture, "Mark Connection Points" mode lets the user click any of the captured
 region's border cells (a cell in `cells` with at least one 4-neighbor outside the
@@ -86,7 +85,7 @@ type per cell).
 This mode operates on the in-progress capture, before "Save as Blueprint" — the saved
 `Blueprint.cells` already reflects any connection points marked.
 
-## Saving and the palette library
+## Step 44c — Saving and the palette library
 
 Mirrors `saveLevelFile.ts`/`saveLevelEndpoint.ts` exactly:
 
@@ -102,7 +101,7 @@ Mirrors `saveLevelFile.ts`/`saveLevelEndpoint.ts` exactly:
   `blueprints/*.json` at build time into `Blueprint[]`, skipping any file that isn't a
   well-formed `Blueprint`.
 - `Palette.tsx` gains a Blueprints section listing every registry entry. Selecting one
-  arms "Place Blueprint" mode (Placement, below).
+  arms "Place Blueprint" mode (Step 44c placement, below).
 
 ### Hiding dev-only actions when there's no dev server
 
@@ -117,7 +116,7 @@ the new "Save as Blueprint" control render only while that signal is `true`. Pla
 already-saved blueprint needs no server (the registry is a static import) and stays
 visible regardless.
 
-## Placement
+## Step 44c — Placement
 
 - **1st click** on the grid with a blueprint armed: renders a preview of `cells` anchored
   at the clicked cell (origin → clicked cell), overlaid on the canvas. Border tinted:
@@ -138,11 +137,11 @@ visible regardless.
 
 Per the constitution, tests first:
 
-- `floodFillRegion.ts` (capture) — enclosed vs. leaking shapes, including one with an
+- `floodFillRegion.ts` (44a) — enclosed vs. leaking shapes, including one with an
   interior `.` gap that must still be included in the captured set.
 - `blueprintCapture` → `Blueprint.cells` — origin normalization (top-left of the
   captured set becomes `{row: 0, col: 0}`).
-- `blueprintFit.ts` (placement) — overlap detection; adjacent-facing-connection-point
+- `blueprintFit.ts` (44c) — overlap detection; adjacent-facing-connection-point
   detection; the "no connection points exist yet" unconstrained case.
 - `saveBlueprintFile.test.ts` / `blueprintRegistry.test.ts` — mirror the existing
   `saveLevelFile.test.ts`/`levelRegistry.test.ts` coverage exactly (naming, JSON shape,
