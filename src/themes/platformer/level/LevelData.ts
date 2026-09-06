@@ -19,10 +19,9 @@ export type TileType =
    *  blueprint may attach (roadmap step 44b). Follows `'patrol'` above
    *  exactly — invisible in normal gameplay rendering, never solid, no
    *  collision behavior — and goes one step further: nothing in the running
-   *  game reads it at all. Neither "is a border cell" nor "which way it
-   *  opens" is stored; placement (step 44c) derives a point's open side from
-   *  whichever of its 4-neighbors falls outside its own blueprint's layout
-   *  bounds. */
+   *  game reads it at all. Purely a visual cue for the blueprint's author;
+   *  placement (step 44c) validates overlap only and does not read or match
+   *  connection points at all — a stamped `'+'` is just another cell. */
   | 'blueprintConnectionPoint'
   | 'bush'
   | 'fence'

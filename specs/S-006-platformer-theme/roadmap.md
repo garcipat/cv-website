@@ -201,8 +201,8 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   toggle) picks which canvas is active; painting either one reuses the same
   `paintCell`/`growGrid`/`placeBackgroundPiece`/`eraseBackgroundCell` functions. A saved
   blueprint (`{ id, name, layout, background? }`) is the same shape a saved level file
-  already has, stored for now in a `localStorage` placeholder stash (real persistence is
-  44c's job). Design in `plans/2026-09-06-blueprint-rooms-design.md`; implementation plan
+  already has, persisted as a JSON file under `src/themes/platformer/level/blueprints/`
+  (step 44c). Design in `plans/2026-09-06-blueprint-rooms-design.md`; implementation plan
   in `plans/2026-09-06-blueprint-rooms-step44a-plan.md`.
 - [ ] **44b. Blueprint rooms — connection points** — `blueprintConnectionPoint` (a new
   invisible, non-solid `TileType`, editor-only like `patrol`) becomes just another
@@ -215,7 +215,9 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   controls disappear on a built/statically-served site) and saved blueprints show up as
   a Blueprints section in the Palette; placing one previews with a blue/red border
   (blue = no overlap with existing terrain, red = overlap) and commits on a second
-  click. Depends on 44b.
+  click. Depends only on 44a's saved-blueprint shape — not on 44b's connection points,
+  which placement does not read or validate (that dependency was cut after a design flaw
+  surfaced; see the design doc's Placement section).
 
 ## Unscheduled additions (not yet numbered)
 
