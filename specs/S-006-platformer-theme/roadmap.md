@@ -195,20 +195,27 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   heart in the world is tied to its now-restored pot. Level marker `p`; not yet
   placed anywhere in the shipped level (mechanism only, no level-design placement
   decision made yet).
-- [ ] **44a. Blueprint rooms — capture** — draw a freeform border in the editor, flood-fill
-  from a clicked interior cell to validate it's enclosed (blue) or leaking (red), and
-  save the enclosed region as a named, reusable "blueprint." Design in
-  `plans/2026-09-06-blueprint-rooms-design.md`.
-- [ ] **44b. Blueprint rooms — connection points** — mark border cells of a captured
-  region as `blueprintConnectionPoint` tiles (a new invisible, non-solid `TileType`,
-  editor-only like `patrol`), the spots other blueprints can attach to. Depends on 44a.
-- [ ] **44c. Blueprint rooms — save, library, and placement** — saved blueprints persist
-  to `src/themes/platformer/level/blueprints/` (mirroring the level Save flow, gated
-  behind a new `isDevEnvironmentSignal` so Save controls disappear on a built/statically-
-  served site) and show up as a Blueprints section in the Palette; placing one previews
-  with a blue/red border (blue = no overlap and, if any connection points already exist
-  in the level, at least one lines up facing an existing one) and commits on a second
-  click. Depends on 44b.
+- [x] **44a. Blueprint rooms — a dedicated blueprint canvas** — a second, independent,
+  initially-blank canvas in the Level Editor for authoring a reusable "blueprint" room.
+  A Level/Blueprint toggle (independent of the existing Foreground/Background layer
+  toggle) picks which canvas is active; painting either one reuses the same
+  `paintCell`/`growGrid`/`placeBackgroundPiece`/`eraseBackgroundCell` functions. A saved
+  blueprint (`{ id, name, layout, background? }`) is the same shape a saved level file
+  already has, stored for now in a `localStorage` placeholder stash (real persistence is
+  44c's job). Design in `plans/2026-09-06-blueprint-rooms-design.md`; implementation plan
+  in `plans/2026-09-06-blueprint-rooms-step44a-plan.md`.
+- [ ] **44b. Blueprint rooms — connection points** — `blueprintConnectionPoint` (a new
+  invisible, non-solid `TileType`, editor-only like `patrol`) becomes just another
+  Palette entry available in blueprint mode, painted directly onto the blueprint
+  canvas's border cells like any other tile — the spots other blueprints can attach to.
+  Depends on 44a.
+- [ ] **44c. Blueprint rooms — save, library, and placement** — the 44a `localStorage`
+  stash is replaced with real persistence (`src/themes/platformer/level/blueprints/`,
+  mirroring the level Save flow, gated behind a new `isDevEnvironmentSignal` so Save
+  controls disappear on a built/statically-served site) and saved blueprints show up as
+  a Blueprints section in the Palette; placing one previews with a blue/red border
+  (blue = no overlap and, if any connection points already exist in the level, at least
+  one lines up facing an existing one) and commits on a second click. Depends on 44b.
 
 ## Unscheduled additions (not yet numbered)
 
