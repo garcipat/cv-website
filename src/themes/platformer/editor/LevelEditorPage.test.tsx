@@ -19,6 +19,7 @@ import {
   editorBlueprintSignal,
   editorBlueprintBackgroundSignal,
   editorLoadedBlueprintNameSignal,
+  editorArmedBlueprintIdSignal,
 } from './editorLevelState';
 import { isDevEnvironmentSignal } from './devEnvironment';
 import { BLANK_BLUEPRINT } from '../level/BlueprintData';
@@ -106,6 +107,7 @@ beforeEach(() => {
   editorBlueprintSignal.value = importLayout(BLANK_BLUEPRINT.layout);
   editorBlueprintBackgroundSignal.value = [];
   editorLoadedBlueprintNameSignal.value = BLANK_BLUEPRINT.name;
+  editorArmedBlueprintIdSignal.value = null;
   blueprintEntries.length = 0;
   // Not reset by the suite today, and the new Spawn-disarm test writes 'S'
   // into it — without this, that write would leak into every test that runs
@@ -1340,5 +1342,133 @@ describe('LevelEditorPage — dev-only Save controls (step 44c)', () => {
     render(<LevelEditorPage />);
 
     expect(await screen.findByRole('button', { name: 'Save' })).toBeInTheDocument();
+  });
+});
+
+const CAVE_ROOM: Blueprint = { id: 'cave-room', name: 'Cave Room', layout: ['##'] };
+
+/**
+ * A spawn-less 3x3 level. `centerPanOnSpawn` falls back to `{ x: 0, y: 0 }` on a
+ * grid with no 'S', so the level canvas's pan is a known zero and a click at
+ * `col * RENDERED_TILE_SIZE + 1` lands on exactly that column — the same
+ * determinism trick `paintBlueprintCell` relies on for the blueprint canvas.
+ */
+function renderEditorWithBlueprints(...blueprints: Blueprint[]) {
+  blueprintEntries.push(...blueprints);
+  editorLevelSignal.value = importLayout(['...', '...', '...']);
+  render(<LevelEditorPage />);
+}
+
+function clickLevelCell(col: number, row: number, button = 0) {
+  const canvas = document.querySelector('canvas')!;
+  vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
+  fireEvent.mouseDown(canvas, {
+    button,
+    clientX: col * RENDERED_TILE_SIZE + 1,
+    clientY: row * RENDERED_TILE_SIZE + 1,
+  });
+}
+
+describe('LevelEditorPage — arming a blueprint for placement (step 44c)', () => {
+  it('levelMode-thePaletteListsTheSavedBlueprints', () => {
+    renderEditorWithBlueprints(CAVE_ROOM);
+
+    expect(screen.getByRole('button', { name: 'Cave Room' })).toBeInTheDocument();
+  });
+
+  it('blueprintMode-thePaletteListsNoBlueprintsToPlace', () => {
+    // Nesting is out of scope: a blueprint cannot be placed into a blueprint.
+    renderEditorWithBlueprints(CAVE_ROOM);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
+
+    expect(screen.queryByRole('button', { name: 'Cave Room' })).not.toBeInTheDocument();
+  });
+
+  it('clickingABlueprintTile-armsItAndPersistsThat', () => {
+    renderEditorWithBlueprints(CAVE_ROOM);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cave Room' }));
+
+    expect(screen.getByRole('button', { name: 'Cave Room' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(editorArmedBlueprintIdSignal.value).toBe('cave-room');
+  });
+
+  it('clickingTheArmedBlueprintAgain-disarmsIt', () => {
+    renderEditorWithBlueprints(CAVE_ROOM);
+    fireEvent.click(screen.getByRole('button', { name: 'Cave Room' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cave Room' }));
+
+    expect(editorArmedBlueprintIdSignal.value).toBeNull();
+    expect(screen.getByRole('button', { name: 'Cave Room' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+  });
+
+  it('armingABlueprint-leavesTheSelectedTileToolAloneSoDisarmingRestoresIt', () => {
+    renderEditorWithBlueprints(CAVE_ROOM);
+    fireEvent.click(screen.getByRole('button', { name: 'Ground Rock' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cave Room' }));
+
+    expect(editorSelectedToolSignal.value).toBe('R');
+    expect(screen.getByRole('button', { name: 'Ground Rock' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+  });
+
+  it('pickingATileTool-disarmsTheBlueprint', () => {
+    renderEditorWithBlueprints(CAVE_ROOM);
+    fireEvent.click(screen.getByRole('button', { name: 'Cave Room' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ground Rock' }));
+
+    expect(editorArmedBlueprintIdSignal.value).toBeNull();
+    expect(screen.getByRole('button', { name: 'Cave Room' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+  });
+
+  it('armedBlueprint-switchingToTheBlueprintCanvas-disarmsIt', () => {
+    renderEditorWithBlueprints(CAVE_ROOM);
+    fireEvent.click(screen.getByRole('button', { name: 'Cave Room' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
+
+    expect(editorArmedBlueprintIdSignal.value).toBeNull();
+  });
+
+  it('mountedInBlueprintModeWithABlueprintArmed-disarmsItWithoutAnyToggleClick', () => {
+    // Both the mode and the armed id are persisted, so the editor can come back
+    // up on the blueprint canvas with a blueprint still armed — the mirror of
+    // the Spawn and Connection Point mount-time corrections.
+    blueprintEntries.push(CAVE_ROOM);
+    editorCanvasModeSignal.value = 'blueprint';
+    editorArmedBlueprintIdSignal.value = 'cave-room';
+
+    render(<LevelEditorPage />);
+
+    expect(editorArmedBlueprintIdSignal.value).toBeNull();
+  });
+
+  it('aPersistedArmedIdWithNoBlueprintBehindIt-behavesAsNotArmedAndStillPaints', async () => {
+    // The blueprint's file can be deleted between sessions. `findBlueprint`
+    // returns undefined, which reads as "nothing armed" everywhere, so clicks
+    // paint instead of silently doing nothing.
+    editorArmedBlueprintIdSignal.value = 'deleted-room';
+    editorLevelSignal.value = importLayout(['...', '...', '...']);
+    render(<LevelEditorPage />);
+
+    clickLevelCell(1, 1);
+
+    expect(editorDirtySignal.value).toBe(true);
+    await waitFor(() => expect(editorLevelSignal.value[1][1]).toBe('G'));
   });
 });
