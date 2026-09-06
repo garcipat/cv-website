@@ -2422,14 +2422,29 @@ describe('drawWaterForeground', () => {
     expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 64, 144, 16, 16, 32, 16, 32, 32);
   });
 
-  it('fillsBodyTilesBelowTheCrestDownToCanvasHeight', () => {
-    const level: LevelDef = { width: 1, height: 1, terrain: [['groundGrass']] };
+  it('bodyFillNeverOvershootsTheMapsBottomEdge-noBodyTileIsDrawnAtAll', () => {
+    // mapBottomY (level.height * RENDERED_TILE_SIZE + originY) sits exactly
+    // RENDERED_TILE_SIZE/2 below topY by construction (see the doc comment),
+    // and the crest tile itself already extends a further full tile below
+    // topY — i.e. RENDERED_TILE_SIZE/2 *past* mapBottomY. So the first body
+    // candidate (topY + RENDERED_TILE_SIZE) is always past mapBottomY too,
+    // for any level height, canvas height, or camera origin: no body tile
+    // ever fits between the crest and the map's true bottom edge. A taller
+    // level (height: 3) and a generously tall canvas are used here so the
+    // OLD (canvasHeight-only) bound would clearly have kept drawing several
+    // body tiles well past the map's real edge — demonstrating this is a
+    // genuine behavior change, not just an unreachable edge case.
+    const level: LevelDef = { width: 1, height: 3, terrain: [['groundGrass'], ['groundGrass'], ['groundGrass']] };
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
 
-    drawWaterForeground(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, RENDERED_TILE_SIZE * 3);
+    drawWaterForeground(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, RENDERED_TILE_SIZE * 10);
 
-    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 64, 160, 16, 16, 0, 48, 32, 32);
-    expect(ctx.drawImage).not.toHaveBeenCalledWith(fakeTileset, 64, 160, 16, 16, 0, 112, 32, 32);
+    // Crest still drawn, overlapping the level's last terrain row as before.
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 64, 144, 16, 16, 0, 80, 32, 32);
+    // No body tile at all — neither at the map's true bottom edge (96) nor
+    // anywhere the old canvasHeight-bound loop would have reached (up to 320).
+    expect(ctx.drawImage).not.toHaveBeenCalledWith(fakeTileset, 64, 160, 16, 16, expect.anything(), expect.anything(), 32, 32);
+    expect(ctx.drawImage).toHaveBeenCalledTimes(1);
   });
 
   it('cameraOrigin-shiftsWaterWithTheLevelLikeTerrain', () => {

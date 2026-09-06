@@ -117,15 +117,31 @@ const WATER_BODY_SY = 10 * TILE_SIZE;
  * the viewport) — same `originX`/`originY` camera-scroll convention as
  * `drawTerrain`, so it scrolls with the level rather than the screen.
  * Overlaps the BOTTOM HALF of the level's own last terrain row (rather than
- * sitting below it) because the camera formula in PlatformerPage.tsx already
- * bottom-anchors that row flush against the canvas edge — a band drawn
+ * sitting below it) because the camera formula in PlatformerPage.tsx used to
+ * always bottom-anchor that row flush against the canvas edge — a band drawn
  * strictly beneath it would always land at/past the canvas edge and never
  * actually be visible. Half a tile keeps the top of that row (and its grass
  * edge) readable while still reading as "waves lapping in front of the
  * ground" rather than fully submerging it. The crest tile tiles across the
  * full level width at that half-tile line; the plain body tile fills every
- * row beneath it down to the bottom of the canvas. Draws nothing once the
- * band has scrolled entirely below the visible viewport.
+ * row beneath it down to `mapBottomY` — the level's own bottom edge in this
+ * same screen-space, `level.height * RENDERED_TILE_SIZE + originY`. The
+ * camera no longer always bottom-anchors the level against the viewport
+ * (it can target a fixed row near the top of the screen instead), so the
+ * map's true bottom edge can now sit well above the canvas's own bottom
+ * edge; without this bound the body fill would keep drawing water past the
+ * map's real edge, into space that should show whatever is below the map
+ * (e.g. background layers) instead. `canvasHeight` is kept as a second,
+ * looser bound purely to avoid wasted draw calls when it is the smaller of
+ * the two. Draws nothing once the band has scrolled entirely below the
+ * visible viewport.
+ *
+ * Note: `mapBottomY` is always exactly `RENDERED_TILE_SIZE / 2` below
+ * `topY`, and the crest tile's own bottom edge (`topY + RENDERED_TILE_SIZE`)
+ * already sits a further half tile past that — so with the crest's current
+ * overlap, no body tile ever actually fits before `mapBottomY` for any level
+ * height or camera origin. The loop is kept regardless, both as the correct
+ * general-case bound and in case the crest's overlap is ever reduced.
  */
 export function drawWaterForeground(
   ctx: CanvasRenderingContext2D,
@@ -138,12 +154,15 @@ export function drawWaterForeground(
   const topY = (level.height - 1) * RENDERED_TILE_SIZE + RENDERED_TILE_SIZE / 2 + originY;
   if (topY >= canvasHeight) return;
 
+  const mapBottomY = level.height * RENDERED_TILE_SIZE + originY;
+  const bodyBottomY = Math.min(canvasHeight, mapBottomY);
+
   ctx.imageSmoothingEnabled = false;
 
   for (let col = 0; col < level.width; col++) {
     const x = col * RENDERED_TILE_SIZE + originX;
     ctx.drawImage(tileset, WATER_TILE_SX, WATER_CREST_SY, TILE_SIZE, TILE_SIZE, x, topY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
-    for (let y = topY + RENDERED_TILE_SIZE; y < canvasHeight; y += RENDERED_TILE_SIZE) {
+    for (let y = topY + RENDERED_TILE_SIZE; y < bodyBottomY; y += RENDERED_TILE_SIZE) {
       ctx.drawImage(tileset, WATER_TILE_SX, WATER_BODY_SY, TILE_SIZE, TILE_SIZE, x, y, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
     }
   }
