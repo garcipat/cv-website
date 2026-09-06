@@ -1791,6 +1791,77 @@ describe('drawTerrain — bush/fence', () => {
   });
 });
 
+describe('drawTerrain — cave decorations', () => {
+  const fakeDecorations = {} as HTMLImageElement;
+
+  it('cobwebTile-cornerOrientation-drawnFromDecorationsRotatedAboutTheCellCenter', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    // The cobweb cell (col 0, row 1) has a solid neighbour above (wall) and
+    // to its right (wall) — an up+right corner, so rotation 1.
+    const level: LevelDef = {
+      terrain: [
+        ['wall', 'empty'],
+        ['cobweb', 'wall'],
+      ],
+      width: 2,
+      height: 2,
+    };
+
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, fakeDecorations);
+
+    // up+right -> rotation 1, so the corner sprite (0,0) is drawn rotated
+    // about the cell's own center (destX+16, destY+32 at RENDERED_TILE_SIZE=32).
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeDecorations, 0, 0, 16, 16,
+      -16, -16, 32, 32,
+    );
+  });
+
+  it('cobwebTile-flatOrientation-drawnPlainFromDecorations', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = { terrain: [['cobweb']], width: 1, height: 1 };
+
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, fakeDecorations);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeDecorations, 16, 0, 16, 16,
+      0, 0, 32, 32,
+    );
+  });
+
+  it('stalagmiteTile-drawnFromDecorationsAtTheRightDestination', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = { terrain: [['stalagmite']], width: 1, height: 1 };
+
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, fakeDecorations);
+
+    // (0, 0)'s position hash deterministically picks the "large" variant
+    // (sx 16, sy 16) — see StaticObjectsCatalog.test.ts for the general
+    // determinism/bounds coverage of stalagmiteEntry itself.
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeDecorations, 16, 16, 16, 16,
+      0, 0, 32, 32,
+    );
+  });
+
+  it('decorationsNotLoaded-cobwebDrawsNothingButOtherTerrainStillRenders', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = { terrain: [['cobweb', 'wall']], width: 2, height: 1 };
+
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, null);
+
+    // wall (sx: 8*16=128, sy: 0) still draws from the tileset.
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeTileset, 128, 0, 16, 16,
+      32, 0, 32, 32,
+    );
+    expect(ctx.drawImage).not.toHaveBeenCalledWith(
+      fakeDecorations, expect.anything(), expect.anything(), expect.anything(), expect.anything(),
+      0, 0, expect.anything(), expect.anything(),
+    );
+  });
+});
+
 describe('drawPlayer', () => {
   const fakeSpriteSheet = {} as HTMLImageElement;
   const idlePlayer: PlayerState = {

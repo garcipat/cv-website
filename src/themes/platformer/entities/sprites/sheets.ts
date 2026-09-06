@@ -154,3 +154,15 @@ export const STATIC_OBJECTS_SHEET: SpriteSheet = {
   frameHeight: TILE_SIZE,
   columns: 18,
 };
+
+/** `decorations.png` is a 64x32 sheet of 16px tiles: cave-dressing pieces
+ *  (cobwebs, crystals, stalactites/stalagmites) for the foreground decoration
+ *  tiles. `StaticObjectsCatalog.ts` addresses it through its own sx/sy
+ *  lookup, not by frame index — like `STATIC_OBJECTS_SHEET`, this
+ *  registration exists for loading, not addressing. */
+export const DECORATIONS_SHEET: SpriteSheet = {
+  src: '/sprites/decorations.png',
+  frameWidth: TILE_SIZE,
+  frameHeight: TILE_SIZE,
+  columns: 4,
+};
