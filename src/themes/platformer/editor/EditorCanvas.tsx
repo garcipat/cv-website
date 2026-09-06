@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { SIGN_CHARS, type TileChar } from '../level/LevelParser';
 
 const PATROL_CHAR: TileChar = 'P';
+const CONNECTION_POINT_CHAR: TileChar = '+';
 import { paintCell, type PaintResult } from './paintCell';
 import { updatePanOffset, centerPanOnSpawn, type PanOffset } from './EditorPan';
 import {
@@ -15,7 +16,7 @@ import {
   synthesizeHazardPlacements,
 } from './gridRenderState';
 import { RENDERED_TILE_SIZE, tileToPixel } from '../level/Terrain';
-import { PATROL_GLYPH } from './paletteTiles';
+import { PATROL_GLYPH, CONNECTION_POINT_GLYPH } from './paletteTiles';
 import {
   drawTerrain,
   drawPlayer,
@@ -155,47 +156,61 @@ function drawSignBadges(
  *  painted it. */
 export const PATROL_MARKER_GLYPH = PATROL_GLYPH;
 
+/** Same idea for the blueprint connection point (roadmap step 44b): the tile
+ *  is invisible in game, so the editor draws its palette glyph on it. */
+export const CONNECTION_POINT_MARKER_GLYPH = CONNECTION_POINT_GLYPH;
+
 const PATROL_MARKER_TINT = 'rgba(255, 96, 96, 0.35)';
-const PATROL_MARKER_FONT_SIZE = 18;
+const PATROL_MARKER_GLYPH_COLOR = '#3d0a0a';
+// Blue, so a connection point is never mistaken for a patrol boundary at a
+// glance — both are tinted, sprite-less marker cells. Unrelated to step 44c's
+// blue/red PLACEMENT PREVIEW border, which outlines a whole pending placement
+// rather than tinting one cell.
+const CONNECTION_POINT_MARKER_TINT = 'rgba(96, 168, 255, 0.4)';
+const CONNECTION_POINT_MARKER_GLYPH_COLOR = '#0a2a4d';
+const MARKER_FONT_SIZE = 18;
 // The glyph is drawn as a dark core inside a light halo rather than in one
-// flat color: a patrol tile can sit over anything the editor draws — pale
+// flat color: a marker tile can sit over anything the editor draws — pale
 // sky, dark ground, a ladder — and the editor itself renders in both a light
 // and a dark theme, so no single fill stays legible everywhere.
-const PATROL_MARKER_GLYPH_COLOR = '#3d0a0a';
-const PATROL_MARKER_HALO_COLOR = 'rgba(255, 255, 255, 0.9)';
-const PATROL_MARKER_HALO_WIDTH = 3;
+const MARKER_HALO_COLOR = 'rgba(255, 255, 255, 0.9)';
+const MARKER_HALO_WIDTH = 3;
 
-/** Draws a tinted cell with a turn-around glyph on every patrol tile.
- *  Editor-only, exactly like drawSignBadges above: a patrol boundary is
- *  invisible in the real game by design (Renderer.ts's tileSource returns
- *  null for it), which would otherwise leave an author painting tiles they
- *  cannot see. */
-function drawPatrolMarkers(
+/** Draws a tinted cell with `glyph` on every `char` tile. Editor-only,
+ *  exactly like drawSignBadges above: both markers that use this — the patrol
+ *  boundary and the blueprint connection point — are invisible in the real
+ *  game by design (Renderer.ts's tileSource returns null for both), which
+ *  would otherwise leave an author painting tiles they cannot see. */
+function drawTileMarkers(
   ctx: CanvasRenderingContext2D,
   grid: TileChar[][],
+  char: TileChar,
+  glyph: string,
+  tint: string,
+  glyphColor: string,
   originX: number,
   originY: number,
 ): void {
   ctx.save();
-  ctx.font = `${PATROL_MARKER_FONT_SIZE}px sans-serif`;
+  ctx.font = `${MARKER_FONT_SIZE}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   for (let row = 0; row < grid.length; row++) {
     for (let col = 0; col < grid[row].length; col++) {
-      if (grid[row][col] !== PATROL_CHAR) continue;
+      if (grid[row][col] !== char) continue;
       const { x, y } = tileToPixel(col, row);
       const destX = x + originX;
       const destY = y + originY;
-      ctx.fillStyle = PATROL_MARKER_TINT;
+      ctx.fillStyle = tint;
       ctx.fillRect(destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
       const centerX = destX + RENDERED_TILE_SIZE / 2;
       const centerY = destY + RENDERED_TILE_SIZE / 2;
-      ctx.lineWidth = PATROL_MARKER_HALO_WIDTH;
+      ctx.lineWidth = MARKER_HALO_WIDTH;
       ctx.lineJoin = 'round';
-      ctx.strokeStyle = PATROL_MARKER_HALO_COLOR;
-      ctx.strokeText(PATROL_MARKER_GLYPH, centerX, centerY);
-      ctx.fillStyle = PATROL_MARKER_GLYPH_COLOR;
-      ctx.fillText(PATROL_MARKER_GLYPH, centerX, centerY);
+      ctx.strokeStyle = MARKER_HALO_COLOR;
+      ctx.strokeText(glyph, centerX, centerY);
+      ctx.fillStyle = glyphColor;
+      ctx.fillText(glyph, centerX, centerY);
     }
   }
   ctx.restore();
@@ -321,7 +336,26 @@ export const EditorCanvas = ({
         drawSigns(ctx, synthesizeSignPlacements(grid), images.tileset, panOffset.x, panOffset.y);
       }
       drawSignBadges(ctx, grid, panOffset.x, panOffset.y);
-      drawPatrolMarkers(ctx, grid, panOffset.x, panOffset.y);
+      drawTileMarkers(
+        ctx,
+        grid,
+        PATROL_CHAR,
+        PATROL_MARKER_GLYPH,
+        PATROL_MARKER_TINT,
+        PATROL_MARKER_GLYPH_COLOR,
+        panOffset.x,
+        panOffset.y,
+      );
+      drawTileMarkers(
+        ctx,
+        grid,
+        CONNECTION_POINT_CHAR,
+        CONNECTION_POINT_MARKER_GLYPH,
+        CONNECTION_POINT_MARKER_TINT,
+        CONNECTION_POINT_MARKER_GLYPH_COLOR,
+        panOffset.x,
+        panOffset.y,
+      );
 
       const editorBlockStates = synthesizeBlockStates(grid);
 
