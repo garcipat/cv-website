@@ -1,6 +1,7 @@
 import { PICKUP_TYPES } from './index';
-import { COIN_SHEET, FRUIT_SHEET, KEY_SHEET } from '../sprites/sheets';
+import { COIN_SHEET, FRUIT_SHEET, KEY_SHEET, HEARTS_SHEET } from '../sprites/sheets';
 import { spawnKeyPickup } from '../KeyPickup';
+import { spawnHeartPickup, HEART_PICKUP_RENDERED_SIZE, HEART_PICKUP_TILE_OFFSET_X } from '../HeartPickup';
 import { spawnBonusFruit, BONUS_FRUIT_RISE_DURATION_SECONDS, bonusFruitY } from '../BonusFruit';
 import type { CollectiblePlacement } from '../../level/CollectibleMapper';
 
@@ -20,6 +21,7 @@ describe('PICKUP_TYPES', () => {
     expect(PICKUP_TYPES.fruit.sprite.sheet).toBe(FRUIT_SHEET);
     expect(PICKUP_TYPES.key.sprite.sheet).toBe(KEY_SHEET);
     expect(PICKUP_TYPES.bonusFruit.sprite.sheet).toBe(FRUIT_SHEET);
+    expect(PICKUP_TYPES.heart.sprite.sheet).toBe(HEARTS_SHEET);
   });
 });
 
@@ -51,6 +53,15 @@ describe('pickup boxes match the boxes collision uses today', () => {
     const risen = { ...fruit, elapsed: BONUS_FRUIT_RISE_DURATION_SECONDS };
     expect(PICKUP_TYPES.bonusFruit.box(risen).y).toBe(risen.restY);
   });
+
+  it('heart-boxIsCenteredAtItsSmallerRenderedSize', () => {
+    expect(PICKUP_TYPES.heart.box(spawnHeartPickup('h', 100, 200))).toEqual({
+      x: 100 + HEART_PICKUP_TILE_OFFSET_X,
+      y: 200 + HEART_PICKUP_TILE_OFFSET_X,
+      width: HEART_PICKUP_RENDERED_SIZE,
+      height: HEART_PICKUP_RENDERED_SIZE,
+    });
+  });
 });
 
 describe('pickup frames match their existing frame functions', () => {
@@ -67,5 +78,11 @@ describe('pickup frames match their existing frame functions', () => {
     const placement = makePlacement(0, 0);
     expect(PICKUP_TYPES.fruit.frameIndex(placement, 0, 0)).toBe(0);
     expect(PICKUP_TYPES.fruit.frameIndex(placement, 0, 1)).toBe(1);
+  });
+
+  it('heart-alwaysShowsTheFullHeartFrame', () => {
+    // Frame 0 of hearts.png (see Health.ts's heartFrameIndex) — a dropped
+    // heart is always a whole half-heart's worth, never half or empty.
+    expect(PICKUP_TYPES.heart.frameIndex(spawnHeartPickup('h', 0, 0), 99, 0)).toBe(0);
   });
 });

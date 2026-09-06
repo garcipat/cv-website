@@ -4,7 +4,9 @@ import {
   PIT_FALL_DAMAGE,
   HEART_FRAME_SIZE,
   HEART_RENDERED_SIZE,
+  HEART_PICKUP_HEAL_AMOUNT,
   takeDamage,
+  healDamage,
   heartRemaining,
   heartFrameIndex,
 } from './Health';
@@ -42,6 +44,24 @@ describe('takeDamage', () => {
     let health = MAX_HALF_HEARTS;
     for (let i = 0; i < 6; i++) health = takeDamage(health, PIT_FALL_DAMAGE);
     expect(health).toBe(0);
+  });
+});
+
+describe('healDamage', () => {
+  it('belowMax-healingHalfHeart-addsAmount', () => {
+    expect(healDamage(4, HEART_PICKUP_HEAL_AMOUNT)).toBe(5);
+  });
+
+  it('atMax-furtherHealing-staysAtMax', () => {
+    expect(healDamage(MAX_HALF_HEARTS, HEART_PICKUP_HEAL_AMOUNT)).toBe(MAX_HALF_HEARTS);
+  });
+
+  it('amountWouldExceedMax-clampsToMax', () => {
+    expect(healDamage(MAX_HALF_HEARTS - 0, 5)).toBe(MAX_HALF_HEARTS);
+  });
+
+  it('atZero-healingHalfHeart-addsAmount', () => {
+    expect(healDamage(0, HEART_PICKUP_HEAL_AMOUNT)).toBe(1);
   });
 });
 

@@ -2,12 +2,13 @@ import { coin } from './Coin';
 import { fruit } from './Fruit';
 import { key } from './Key';
 import { bonusFruit } from './BonusFruit';
+import { heart } from './Heart';
 
 /** Every pickup type in the game. Adding a pickup is one line here plus its
  *  own module — pickups live in separate homogeneous arrays (unlike enemies),
  *  so every call site already knows statically which type it is iterating
  *  and no dispatcher is needed. */
-export const PICKUP_TYPES = { coin, fruit, key, bonusFruit };
+export const PICKUP_TYPES = { coin, fruit, key, bonusFruit, heart };
 
 /** Which pickup kind — named for this codebase's existing convention for
  *  "which variant" (`BlockKind`, `blockKind`, `ItemKind`). Deliberately not

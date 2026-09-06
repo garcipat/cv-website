@@ -17,6 +17,7 @@ import {
   drawSigns,
   drawSignBubble,
   drawKeyPickups,
+  drawHeartPickups,
   drawKeyCounter,
   keyCounterX,
   KEY_COUNTER_Y,
@@ -60,6 +61,8 @@ import {
   spawnKeyPickup,
 } from '../entities/KeyPickup';
 import type { KeyPickupState } from '../entities/KeyPickup';
+import { spawnHeartPickup, HEART_PICKUP_RENDERED_SIZE, HEART_PICKUP_TILE_OFFSET_X, HEART_PICKUP_TILE_OFFSET_Y } from '../entities/HeartPickup';
+import type { HeartPickupState } from '../entities/HeartPickup';
 import {
   SLIME_GREEN_SHEET,
   SLIME_PURPLE_SHEET,
@@ -68,6 +71,7 @@ import {
   FRUIT_SHEET,
   WORLD_TILESET_SHEET,
   CRACK_OVERLAY_SHEET,
+  HEARTS_SHEET,
 } from '../entities/sprites/sheets';
 import type { DrawContext } from './DrawContext';
 
@@ -362,6 +366,7 @@ function makeDrawContext(
       [COIN_SHEET.src]: { tag: 'coin' } as unknown as HTMLImageElement,
       [FRUIT_SHEET.src]: { tag: 'fruit' } as unknown as HTMLImageElement,
       [WORLD_TILESET_SHEET.src]: { tag: 'worldTileset' } as unknown as HTMLImageElement,
+      [HEARTS_SHEET.src]: { tag: 'hearts' } as unknown as HTMLImageElement,
       [CRACK_OVERLAY_SHEET.src]: { tag: 'crackOverlay' } as unknown as HTMLImageElement,
       [CHEST_CLOSED_SHEET.src]: { tag: 'chestClosed' } as unknown as HTMLImageElement,
       [CHEST_OPEN_SHEET.src]: { tag: 'chestOpen' } as unknown as HTMLImageElement,
@@ -2332,6 +2337,38 @@ describe('drawKeyPickups', () => {
       KEY_RENDERED_WIDTH,
       KEY_RENDERED_HEIGHT,
     );
+  });
+});
+
+describe('drawHeartPickups', () => {
+  it('someHearts-drawsTheFullHeartFrameAtItsSmallerRenderedSize', () => {
+    const ctx = makeMockContext();
+    // No bob: worldElapsed 0 gives coinBobOffset(0) === 0.
+    const dc = makeDrawContext(ctx, { worldElapsed: 0 });
+    const hearts: HeartPickupState[] = [spawnHeartPickup('h1', 100, 200)];
+
+    drawHeartPickups(ctx, hearts, dc);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      dc.sprites[HEARTS_SHEET.src],
+      0,
+      0,
+      HEARTS_SHEET.frameWidth,
+      HEARTS_SHEET.frameHeight,
+      100 + HEART_PICKUP_TILE_OFFSET_X,
+      200 + HEART_PICKUP_TILE_OFFSET_Y,
+      HEART_PICKUP_RENDERED_SIZE,
+      HEART_PICKUP_RENDERED_SIZE,
+    );
+  });
+
+  it('noHearts-drawsNothing', () => {
+    const ctx = makeMockContext();
+    const dc = makeDrawContext(ctx);
+
+    drawHeartPickups(ctx, [], dc);
+
+    expect(ctx.drawImage).not.toHaveBeenCalled();
   });
 });
 

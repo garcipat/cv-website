@@ -25,6 +25,7 @@ import {
   drawSigns,
   drawSignBubble,
   drawKeyPickups,
+  drawHeartPickups,
   drawKeyCounter,
   keyCounterX,
   KEY_COUNTER_Y,
@@ -60,6 +61,7 @@ import {
   chestPlayerIsStandingOn,
   checkSignOverlap,
   checkKeyPickupCollisions,
+  checkHeartPickupCollisions,
 } from './engine/Collision';
 import { openChest, allChestsOpen, isChestOpen, CHEST_CLOSED_OFFSET_X } from './entities/Chest';
 import { stepBlockAnimation } from './engine/BlockAI';
@@ -75,6 +77,7 @@ import type { BlockState } from './entities/Block';
 import { computeCoinPotRenderPlan } from './entities/blocks/coinPotRenderPlan';
 import { spawnBonusFruit, tickBonusFruit, bonusFruitY } from './entities/BonusFruit';
 import { spawnKeyPickup, KEY_TILE_OFFSET_X, KEY_TILE_OFFSET_Y } from './entities/KeyPickup';
+import { spawnHeartPickup } from './entities/HeartPickup';
 import {
   startFlightEffect,
   tickFlightEffect,
@@ -122,7 +125,7 @@ import { PICKUP_TYPES } from './entities/pickups';
 import { BLOCK_TYPES } from './entities/blocks';
 import { CHEST_TYPE } from './entities/chests';
 import type { EnemyState } from './entities/Enemy';
-import { takeDamage, PIT_FALL_DAMAGE } from './entities/Health';
+import { takeDamage, healDamage, PIT_FALL_DAMAGE, HEART_PICKUP_HEAL_AMOUNT } from './entities/Health';
 import { revealedFactCountFor } from './level/SkillFactPacing';
 import {
   playerState,
@@ -151,6 +154,7 @@ import {
   hintTooltipState,
   keyPickupStates,
   collectedKeys,
+  heartPickupStates,
   activePuffs,
   levelTotals,
 } from './PlatformerState';
@@ -499,6 +503,8 @@ export const PlatformerPage = () => {
       drawEnemies(ctx, enemyStates.value, drawContext);
 
       drawKeyPickups(ctx, keyPickupStates.value, drawContext);
+
+      drawHeartPickups(ctx, heartPickupStates.value, drawContext);
 
       // Very-foreground water band, anchored to the LEVEL's bottom edge (not
       // the viewport) — drawn after every world entity so it sits in front
@@ -1000,6 +1006,24 @@ export const PlatformerPage = () => {
         );
       }
 
+      // Heart pickups: dropped by destroyed potion-pots, healed on touch and
+      // removed outright — same array-filter convention as bonus fruits
+      // above, not the flagged-`collected` convention key pickups use, since
+      // there's no HUD counter a heart needs to keep contributing to.
+      // Healing is a no-op once at MAX_HALF_HEARTS (healDamage clamps), but
+      // the pickup is still consumed either way — same "always drops/always
+      // collects" convention as a coin-pot's coin.
+      const touchedHeartIds = checkHeartPickupCollisions(playerState.value, heartPickupStates.value);
+      if (touchedHeartIds.length > 0) {
+        playerState.value = {
+          ...playerState.value,
+          hitPoints: healDamage(playerState.value.hitPoints, HEART_PICKUP_HEAL_AMOUNT),
+        };
+        heartPickupStates.value = heartPickupStates.value.filter(
+          (heart) => !touchedHeartIds.includes(heart.id),
+        );
+      }
+
       // Key pickups: dropped by defeated purple slimes (see the justDefeated
       // block above), collected on touch like a coin, but banked as a count
       // rather than a per-item fact — flagged `collected: true` in place
@@ -1298,6 +1322,13 @@ export const PlatformerPage = () => {
             spawnedCoinPlacements.value = [
               ...spawnedCoinPlacements.value,
               { id: block.id, spriteType: 'coin', x: block.x, y: block.y },
+            ];
+          } else if (outcome.spawnPickup === 'heart') {
+            // `block.id` is the pot's own id — a potion-pot carries no fact,
+            // same convention as coinPot's dropped coin above.
+            heartPickupStates.value = [
+              ...heartPickupStates.value,
+              spawnHeartPickup(block.id, block.x, block.y),
             ];
           }
 

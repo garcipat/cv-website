@@ -183,6 +183,18 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   always loading `main`. Useful for both visitors (once step 31's visitor-facing
   level selection lands) and for debugging/testing a specific saved layout
   without going through the Level Editor's Try button each time.
+- [x] **43. Potion-pot heart drop** — a new block (`entities/blocks/PotionPot.ts`),
+  same "destroyed by landing on top" pattern as step 37's coin-pot, drawing the
+  purple potion-bottle frame from `world_tileset.png` (row 8, col 1). Always drops
+  a heart pickup (`entities/HeartPickup.ts` + `entities/pickups/Heart.ts`, drawn
+  smaller than the HUD heart icon — 24px vs. 32px) that heals half a heart on touch
+  (`Health.ts`'s new `healDamage`/`HEART_PICKUP_HEAL_AMOUNT`), a no-op past full
+  health. Unlike every other block kind, a potion-pot is the one exception to
+  "blocks persist across a death/respawn": `resetGame()` rebuilds every potionPot
+  placement back to intact and clears any dropped-but-uncollected heart, since a
+  heart in the world is tied to its now-restored pot. Level marker `p`; not yet
+  placed anywhere in the shipped level (mechanism only, no level-design placement
+  decision made yet).
 
 ## Unscheduled additions (not yet numbered)
 

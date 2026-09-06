@@ -10,6 +10,7 @@ import {
   findQuestionMarkTiles,
   findFragileRockTiles,
   findCoinPotTiles,
+  findPotionPotTiles,
   findChestTiles,
   findSignTiles,
 } from './LevelParser';
@@ -121,6 +122,10 @@ import {
 //   u  3   coin-pot — destroyed by landing on top, drops a coin (2 adjacent
 //          + 1 isolated, to exercise the merged-run rendering); same
 //          no-CVData-binding convention as every other block kind
+//   p  0   potion-pot — destroyed by landing on top, drops a heart pickup
+//          that heals half a heart; no fact. Not yet placed anywhere in this
+//          level — the mechanism exists (see entities/blocks/PotionPot.ts)
+//          but no level-design placement decision has been made for it yet.
 //
 // A question-mark's fruit rests in the tile directly above the block and stays
 // there, so a `Q` is only ever placed under open sky — one inside a cave would
@@ -260,6 +265,13 @@ export const FRAGILE_ROCK_TILES = computed(() => findFragileRockTiles(currentLay
  *  — purely positional, no CVData binding (see CollectibleMapper.ts's
  *  mapCVDataToSkillFactPool doc comment and BlockMapper.ts's placeBlocks). */
 export const COIN_POT_TILES = computed(() => findCoinPotTiles(currentLayout.value));
+
+/** Hand-placed potion-pot block positions, from `currentLayout`'s `p` markers
+ *  — purely positional, no CVData binding (same convention as COIN_POT_TILES
+ *  above; a potion-pot's dropped heart heals a fixed amount, never reveals a
+ *  fact). currentLevel has none of these yet — this is the mechanism only,
+ *  not a level-design placement decision. */
+export const POTION_POT_TILES = computed(() => findPotionPotTiles(currentLayout.value));
 
 /** Hand-placed chest positions (5 — one per Experience entry), from
  *  `currentLayout`'s `T` markers (spec.md FR-023). Opening all five is the

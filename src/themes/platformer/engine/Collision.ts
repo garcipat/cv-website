@@ -18,6 +18,7 @@ import { signBox } from '../level/SignMapper';
 import type { SignPlacement } from '../level/SignMapper';
 import type { HintId } from '../types';
 import type { KeyPickupState } from '../entities/KeyPickup';
+import type { HeartPickupState } from '../entities/HeartPickup';
 import { PICKUP_TYPES } from '../entities/pickups';
 import { strongerBounce } from './Outcome';
 
@@ -280,4 +281,17 @@ export function checkKeyPickupCollisions(
     (p) => PICKUP_TYPES.key.box(p),
     (p) => !p.collected,
   ).map((p) => p.id);
+}
+
+/**
+ * Returns the ids of every heart pickup the player's hitbox currently
+ * overlaps — mirrors `checkBonusFruitCollisions` exactly (no rise gate, no
+ * `collectedIds`/`collected` flag): `PlatformerPage.tsx` removes a touched
+ * heart from its live array entirely the same tick, same as a bonus fruit.
+ */
+export function checkHeartPickupCollisions(
+  player: PlayerState,
+  hearts: readonly HeartPickupState[],
+): string[] {
+  return overlappingTriggers(player, hearts, (h) => PICKUP_TYPES.heart.box(h)).map((h) => h.id);
 }
