@@ -40,6 +40,7 @@ import {
   CRACK_OVERLAY_SHEET,
   CHEST_CLOSED_SHEET,
   STATIC_OBJECTS_SHEET,
+  DECORATIONS_SHEET,
 } from '../entities/sprites/sheets';
 
 export interface EditorImages {
@@ -54,6 +55,7 @@ export interface EditorImages {
   chestClosed: HTMLImageElement | null;
   backgroundAtlas: HTMLImageElement | null;
   staticObjects: HTMLImageElement | null;
+  decorations: HTMLImageElement | null;
 }
 
 interface EditorCanvasProps {
@@ -314,6 +316,7 @@ export const EditorCanvas = ({
           panOffset.x,
           panOffset.y,
           images.staticObjects,
+          images.decorations,
         );
       }
 
@@ -336,6 +339,7 @@ export const EditorCanvas = ({
           [CRACK_OVERLAY_SHEET.src]: images.crackOverlay,
           [CHEST_CLOSED_SHEET.src]: images.chestClosed,
           [STATIC_OBJECTS_SHEET.src]: images.staticObjects,
+          [DECORATIONS_SHEET.src]: images.decorations,
         },
         originX: panOffset.x,
         originY: panOffset.y,

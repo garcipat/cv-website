@@ -124,6 +124,7 @@ import {
   GROUND_ATLAS_SHEET,
   TERRAIN_BACKGROUND_SHEET,
   STATIC_OBJECTS_SHEET,
+  DECORATIONS_SHEET,
 } from './entities/sprites/sheets';
 import { frameSource, collectSheetSources } from './entities/sprites/SpriteSheet';
 import type { SpriteLookup } from './entities/sprites/SpriteSheet';
@@ -194,6 +195,7 @@ export const PlatformerPage = () => {
   const groundAtlasRef = useRef<HTMLImageElement | null>(null);
   const backgroundAtlasRef = useRef<HTMLImageElement | null>(null);
   const staticObjectsRef = useRef<HTMLImageElement | null>(null);
+  const decorationsRef = useRef<HTMLImageElement | null>(null);
   const playerSpriteRef = useRef<HTMLImageElement | null>(null);
   const playerJumpSpriteRef = useRef<HTMLImageElement | null>(null);
   const heartsSpriteRef = useRef<HTMLImageElement | null>(null);
@@ -477,6 +479,7 @@ export const PlatformerPage = () => {
             originX,
             originY,
             staticObjectsRef.current,
+            decorationsRef.current,
           );
         }
         drawSigns(ctx, signPlacements.value, tilesetRef.current, originX, originY);
@@ -1603,6 +1606,17 @@ export const PlatformerPage = () => {
       .catch(() => {
         // Bush/fence are purely decorative — they simply won't render if this
         // atlas fails to load; the rest of the level still shows.
+      });
+    loadImage(DECORATIONS_SHEET.src)
+      .then((img) => {
+        if (cancelled) return;
+        decorationsRef.current = img;
+        render();
+      })
+      .catch(() => {
+        // Cave-dressing tiles are purely decorative — they simply won't
+        // render if this atlas fails to load; the rest of the level still
+        // shows.
       });
     loadImage('/sprites/knight.png')
       .then((img) => {

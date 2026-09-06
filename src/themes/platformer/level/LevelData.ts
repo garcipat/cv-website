@@ -17,6 +17,21 @@ export type TileType =
   | 'patrol'
   | 'bush'
   | 'fence'
+  /** Purely decorative cave-dressing tiles from `decorations.png`, never
+   *  solid, never form multi-tile runs, and carry no CVData mapping.
+   *  `crystalCluster` is a single-fixed-sprite tile (same convention as
+   *  `fence` — see StaticObjectsCatalog.ts's `staticObjectEntry`).
+   *  `stalactite`/`stalagmite` each cover two size variants (large/twin)
+   *  picked automatically by position hash (StaticObjectsCatalog.ts's
+   *  `stalactiteEntry`/`stalagmiteEntry`), the same way `bush` already picks
+   *  its own size variants — the level author places one tile, not a size
+   *  choice. `cobweb` covers both the corner and flat art, with the
+   *  corner-vs-flat choice and its rotation auto-detected from neighbouring
+   *  solid terrain (Terrain.ts's `cobwebOrientation`). */
+  | 'cobweb'
+  | 'crystalCluster'
+  | 'stalactite'
+  | 'stalagmite'
   | 'empty';
 
 export type TileMap = TileType[][];

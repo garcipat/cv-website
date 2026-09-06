@@ -115,7 +115,7 @@ import {
 //          CVData binding of its own — see CollectibleMapper.ts's
 //          mapCVDataToSkillFactPool doc comment — so this split is purely a
 //          level-authoring choice, not a bookkeeping requirement.
-//   X  8   crate — 2 education + 3 activities + 3 languages
+//   =  8   crate — 2 education + 3 activities + 3 languages
 //   Q  5   question-mark block — 2 certificates + 3 projects, each popping a
 //          bonus fruit rather than carrying a fact of its own
 //   F  5   fragileRock block — no fact; the two surface plugs plus filler
@@ -151,23 +151,23 @@ import {
 // pit fall. On the cave mouth, dropping through is the way in.
 export const LEVEL_1_LAYOUT: readonly string[] = [
   '..................................................................................................................................................................................................................m....T....',
-  '.............................................................................................................................................................................................Q..........X.....HGGGGGGGGGGG..',
+  '.............................................................................................................................................................................................Q..........=.....HGGGGGGGGGGG..',
   '..............................................................................................................................................................................................................HGGGGGGGGGGG..',
   '................................................................................................................................................................................................M.............HGGGGGGGGGGG.T',
-  '..............................................X......................................................................................................................................X.....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  '..............................................=......................................................................................................................................=.....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   '...........................................................................................................................................................................................GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   '........................................M........................................................o...........m........................................................................M..o.GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
-  '........................XQ........GGGGGGGGGGGGGGG.......................................Q......GGGGGGG.....GGGGGGG....XQFQ.........................................................RRRRRRRRGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  '........................=Q........GGGGGGGGGGGGGGG.......................................Q......GGGGGGG.....GGGGGGG....=QFQ.........................................................RRRRRRRRGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   '..................................GGGGGGGGGGGGGGG..................................................................................................................................GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   '..S.5..o...o.........M.......M..2.GGGGGGGGGGGGGGGuu.u.....M......1.........^...........................M.o..........M.....M.......M........................M.................#.M..#GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGGBBBGGGGGGGGGGGGGGHGGGGGGGGGGGGGGGGGGGGGGHGGGGGGHGGBBBGGGGGGGGGGGGGGGGGFFGGGGGGGGGG...GGGGGGGGGBBBGGGGGGGGGGGGGGGRRHRRRRRRRRRRRRGGGGGGGGGGGGGGGGGGGGGGGGGHGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
-  'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.H......................H<GGGG>H..........X................GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..H.......v.......X...X.................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.H........d....d........H<GGGG>H..........=................GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..H.......v.......=...=.................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.H......................H.GGGG.H.....................3.....GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..H.....................................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
-  'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.H..o...4.T.............H.GGGG.H.....o..m....o....o.RRRRR..GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..H..o.m..T.............................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.H..o...4.T.a...a.......H.GGGG.H.....o..m....o....o.RRRRR..GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..H..o.m..T.............................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGG...GGGGGGGGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRRRGGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGGRRRRRRRRRRRRRRHRRRRRRRRRRRFFRRRRRRRRRRRRHRRRRGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGG...GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..............H.........................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
-  'GGGGGGGGGGGGGG...GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..............H.........................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
-  'GGGGGGGGGGGGGG...GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..............H....o.m...RRRR...o..o.T..H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  'GGGGGGGGGGGGGG...GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGGX.....X.......H.........................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  'GGGGGGGGGGGGGG...GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGGc.............H....o.m...RRRR...o..o.T..H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGG...GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'RRRRRRRRRRRRRR...RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR...RRRRRRRRR...RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
 ];
@@ -230,7 +230,7 @@ export const ENEMY_TILES_PURPLE = computed(() => findPurpleEnemyTiles(currentLay
 export const COIN_TILES = computed(() => findCoinTiles(currentLayout.value));
 
 /** Hand-placed crate block positions (8 — one per Education, Activity and
- *  Language entry), from `currentLayout`'s `X` markers. */
+ *  Language entry), from `currentLayout`'s `=` markers. */
 export const CRATE_TILES = computed(() => findCrateTiles(currentLayout.value));
 
 /** Hand-placed question-mark block positions (5 — one per Certificate and
