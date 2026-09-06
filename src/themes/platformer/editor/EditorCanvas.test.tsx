@@ -1,6 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, fireEvent, act } from '@testing-library/react';
-import { EditorCanvas, PATROL_MARKER_GLYPH, CONNECTION_POINT_MARKER_GLYPH } from './EditorCanvas';
+import { render, fireEvent, act, cleanup } from '@testing-library/react';
+import {
+  EditorCanvas,
+  PATROL_MARKER_GLYPH,
+  CONNECTION_POINT_MARKER_GLYPH,
+  PLACEMENT_VALID_COLOR,
+  PLACEMENT_INVALID_COLOR,
+} from './EditorCanvas';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import { centerPanOnSpawn } from './EditorPan';
 import type { TileChar } from '../level/LevelParser';
@@ -72,6 +78,7 @@ function stubCanvasContext() {
     lineJoin: '',
     fillText: vi.fn(),
     strokeText: vi.fn(),
+    strokeRect: vi.fn(),
   } as unknown as CanvasRenderingContext2D;
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(ctx);
   return ctx;
@@ -1222,5 +1229,130 @@ describe('EditorCanvas — placement clicks (step 44c)', () => {
     clickCanvas(container.querySelector('canvas')!, 1, 1);
 
     expect(onPaint).toHaveBeenCalledOnce();
+  });
+});
+
+describe('EditorCanvas — placement preview (step 44c)', () => {
+  const previewProps = (preview: { cells: { row: number; col: number }[]; valid: boolean }) => ({
+    ...BACKGROUND_LAYER_DEFAULT_PROPS,
+    grid: [['.', '.'], ['.', '.']] as TileChar[][],
+    selectedTool: 'G' as TileChar,
+    images: EMPTY_IMAGES,
+    onPaint: () => {},
+    onPan: () => {},
+    placement: { preview, onPlace: () => {}, onCancel: () => {} },
+  });
+
+  it('tints every previewed cell and strokes one border around the whole room', () => {
+    const ctx = stubCanvasContext() as unknown as {
+      fillRect: ReturnType<typeof vi.fn>;
+      strokeRect: ReturnType<typeof vi.fn>;
+    };
+
+    render(
+      <EditorCanvas
+        {...previewProps({
+          cells: [
+            { row: 0, col: 0 },
+            { row: 1, col: 1 },
+          ],
+          valid: true,
+        })}
+        panOffset={{ x: 0, y: 0 }}
+      />,
+    );
+
+    expect(ctx.fillRect).toHaveBeenCalledWith(0, 0, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+    expect(ctx.fillRect).toHaveBeenCalledWith(
+      RENDERED_TILE_SIZE,
+      RENDERED_TILE_SIZE,
+      RENDERED_TILE_SIZE,
+      RENDERED_TILE_SIZE,
+    );
+    // One border around the 2x2 bounding box the two cells span — not one per
+    // cell, which would read as another 44b-style cell marker.
+    expect(ctx.strokeRect).toHaveBeenCalledTimes(1);
+    expect(ctx.strokeRect).toHaveBeenCalledWith(
+      0,
+      0,
+      2 * RENDERED_TILE_SIZE,
+      2 * RENDERED_TILE_SIZE,
+    );
+  });
+
+  it('offsets the preview by the pan offset, like every other drawn layer', () => {
+    const ctx = stubCanvasContext() as unknown as { strokeRect: ReturnType<typeof vi.fn> };
+
+    render(
+      <EditorCanvas
+        {...previewProps({ cells: [{ row: 0, col: 0 }], valid: true })}
+        panOffset={{ x: 100, y: 40 }}
+      />,
+    );
+
+    expect(ctx.strokeRect).toHaveBeenCalledWith(100, 40, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+  });
+
+  it('handles a preview anchored at negative coordinates, where growth would happen', () => {
+    const ctx = stubCanvasContext() as unknown as { strokeRect: ReturnType<typeof vi.fn> };
+
+    render(
+      <EditorCanvas
+        {...previewProps({ cells: [{ row: -1, col: -1 }], valid: true })}
+        panOffset={{ x: 0, y: 0 }}
+      />,
+    );
+
+    expect(ctx.strokeRect).toHaveBeenCalledWith(
+      -RENDERED_TILE_SIZE,
+      -RENDERED_TILE_SIZE,
+      RENDERED_TILE_SIZE,
+      RENDERED_TILE_SIZE,
+    );
+  });
+
+  it('borders a valid placement in blue and an invalid one in red', () => {
+    // The preview is the LAST thing the draw effect does and the stubbed
+    // save/restore are no-ops, so the context's strokeStyle still holds the
+    // colour the preview chose.
+    const validCtx = stubCanvasContext();
+    render(
+      <EditorCanvas
+        {...previewProps({ cells: [{ row: 0, col: 0 }], valid: true })}
+        panOffset={{ x: 0, y: 0 }}
+      />,
+    );
+    expect(validCtx.strokeStyle).toBe(PLACEMENT_VALID_COLOR);
+
+    cleanup();
+
+    const invalidCtx = stubCanvasContext();
+    render(
+      <EditorCanvas
+        {...previewProps({ cells: [{ row: 0, col: 0 }], valid: false })}
+        panOffset={{ x: 0, y: 0 }}
+      />,
+    );
+    expect(invalidCtx.strokeStyle).toBe(PLACEMENT_INVALID_COLOR);
+    expect(PLACEMENT_INVALID_COLOR).not.toBe(PLACEMENT_VALID_COLOR);
+  });
+
+  it('draws nothing extra while a blueprint is armed but no anchor has been clicked yet', () => {
+    const ctx = stubCanvasContext() as unknown as { strokeRect: ReturnType<typeof vi.fn> };
+
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['.']]}
+        selectedTool="G"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+        placement={{ preview: null, onPlace: () => {}, onCancel: () => {} }}
+      />,
+    );
+
+    expect(ctx.strokeRect).not.toHaveBeenCalled();
   });
 });

@@ -199,6 +199,63 @@ const MARKER_FONT_SIZE = 18;
 const MARKER_HALO_COLOR = 'rgba(255, 255, 255, 0.9)';
 const MARKER_HALO_WIDTH = 3;
 
+/** Border colour of a placement preview that fits — a saturated stroke around
+ *  the whole room, deliberately NOT the pale per-cell blue 44b tints a
+ *  connection point with, so the two never read as the same thing. */
+export const PLACEMENT_VALID_COLOR = '#1d4ed8';
+/** Border colour of a placement that would overlap existing terrain. */
+export const PLACEMENT_INVALID_COLOR = '#b91c1c';
+const PLACEMENT_VALID_FILL = 'rgba(29, 78, 216, 0.28)';
+const PLACEMENT_INVALID_FILL = 'rgba(185, 28, 28, 0.28)';
+const PLACEMENT_BORDER_WIDTH = 3;
+
+/**
+ * The pending placement: every cell the blueprint would write, tinted, plus one
+ * border around their bounding box — blue when the placement fits, red when it
+ * overlaps something (`blueprintFit.ts`). One border rather than a per-cell
+ * outline is deliberate: a per-cell blue would be indistinguishable from 44b's
+ * connection-point tint at a glance.
+ *
+ * Coordinates are absolute grid cells and may be negative — a room anchored
+ * past the grid's top-left corner previews exactly where committing would grow
+ * the grid to put it.
+ */
+function drawPlacementPreview(
+  ctx: CanvasRenderingContext2D,
+  preview: PlacementPreview,
+  originX: number,
+  originY: number,
+): void {
+  if (preview.cells.length === 0) return;
+
+  ctx.save();
+  ctx.fillStyle = preview.valid ? PLACEMENT_VALID_FILL : PLACEMENT_INVALID_FILL;
+
+  let minCol = Infinity;
+  let minRow = Infinity;
+  let maxCol = -Infinity;
+  let maxRow = -Infinity;
+  for (const { col, row } of preview.cells) {
+    const { x, y } = tileToPixel(col, row);
+    ctx.fillRect(x + originX, y + originY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+    if (col < minCol) minCol = col;
+    if (row < minRow) minRow = row;
+    if (col > maxCol) maxCol = col;
+    if (row > maxRow) maxRow = row;
+  }
+
+  const topLeft = tileToPixel(minCol, minRow);
+  ctx.lineWidth = PLACEMENT_BORDER_WIDTH;
+  ctx.strokeStyle = preview.valid ? PLACEMENT_VALID_COLOR : PLACEMENT_INVALID_COLOR;
+  ctx.strokeRect(
+    topLeft.x + originX,
+    topLeft.y + originY,
+    (maxCol - minCol + 1) * RENDERED_TILE_SIZE,
+    (maxRow - minRow + 1) * RENDERED_TILE_SIZE,
+  );
+  ctx.restore();
+}
+
 /** Draws a tinted cell with `glyph` on every `char` tile. Editor-only,
  *  exactly like drawSignBadges above: both markers that use this — the patrol
  *  boundary and the blueprint connection point — are invisible in the real
@@ -425,6 +482,13 @@ export const EditorCanvas = ({
     } finally {
       ctx.restore();
     }
+
+    // Outside the alpha block on purpose: a pending placement is the thing the
+    // author is looking at, so it is drawn last and at full opacity even while
+    // the background layer dims everything else.
+    if (placement?.preview) {
+      drawPlacementPreview(ctx, placement.preview, panOffset.x, panOffset.y);
+    }
     // `canvasSize` is read only via `canvas.width`/`canvas.height` above,
     // not referenced directly here — but it MUST stay a dependency.
     // Changing a <canvas> element's width/height attribute clears its
@@ -434,7 +498,7 @@ export const EditorCanvas = ({
     // nothing would redraw it until some unrelated state change (a paint
     // or pan) happened to run this effect again — the canvas would sit
     // invisible until the next interaction "fixed" it as a side effect.
-  }, [grid, panOffset, images, canvasSize, backgroundPlacements, activeLayer]);
+  }, [grid, panOffset, images, canvasSize, backgroundPlacements, activeLayer, placement]);
 
   const cellFromEvent = (clientX: number, clientY: number) => {
     const rect = canvasRef.current!.getBoundingClientRect();
