@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Palette } from './Palette';
@@ -6,6 +6,24 @@ import { TERRAIN_CHARS, ENTITY_CHARS } from '../level/LevelParser';
 import { BACKGROUND_CATALOG } from '../engine/BackgroundCatalog';
 import { BACKGROUND_PALETTE_LABELS } from './backgroundPaletteTiles';
 import type { BackgroundPieceId } from '../level/LevelData';
+import type { Blueprint } from '../level/BlueprintData';
+
+// The registry is a build-time glob of `level/blueprints/*.json`, and that
+// folder can hold an untracked file left over from manual testing — so every
+// test in this file, including the pre-existing button-count one, would
+// otherwise pass or fail depending on the machine. A stable array the tests
+// mutate is the same approach `BlueprintSelect.test.tsx` takes, and for the
+// same reason: the component reads the module binding at render time.
+const { registryEntries } = vi.hoisted(() => ({ registryEntries: [] as Blueprint[] }));
+
+vi.mock('../level/blueprintRegistry', () => ({
+  BLUEPRINTS: registryEntries,
+  findBlueprint: (id: string) => registryEntries.find((entry) => entry.id === id),
+}));
+
+beforeEach(() => {
+  registryEntries.length = 0;
+});
 
 const defaultProps = {
   selectedTool: 'G' as const,
@@ -215,5 +233,93 @@ describe('Palette — blueprint connection point tool', () => {
 
     const buttons = within(toolsGroup()).getAllByRole('button');
     expect(buttons.at(-1)).toHaveAccessibleName('Eraser');
+  });
+});
+
+describe('Palette — blueprints section (step 44c placement)', () => {
+  const CAVE: Blueprint = { id: 'cave-room', name: 'Cave Room', layout: ['##'] };
+
+  const blueprintsSection = () => {
+    const heading = screen.getByText('Blueprints');
+    return heading.closest('section') ?? heading.parentElement!;
+  };
+
+  it('levelCanvasModeWithSavedBlueprints-listsOneTilePerRegistryEntry', () => {
+    registryEntries.push(CAVE);
+    render(<Palette {...defaultProps} canvasMode="level" />);
+
+    expect(
+      within(blueprintsSection()).getByRole('button', { name: 'Cave Room' }),
+    ).toBeInTheDocument();
+  });
+
+  it('noSavedBlueprints-rendersNoBlueprintsSectionAtAll', () => {
+    render(<Palette {...defaultProps} canvasMode="level" />);
+
+    expect(screen.queryByText('Blueprints')).not.toBeInTheDocument();
+  });
+
+  it('blueprintCanvasMode-offersNoBlueprintsSection', () => {
+    // Placing a blueprint while editing another blueprint's canvas (nesting) is
+    // explicitly out of scope; hiding the section is what enforces it.
+    registryEntries.push(CAVE);
+    render(<Palette {...defaultProps} canvasMode="blueprint" />);
+
+    expect(screen.queryByText('Blueprints')).not.toBeInTheDocument();
+  });
+
+  it('backgroundLayerActive-offersNoBlueprintsSection', () => {
+    // Placement writes the foreground grid; the background layer's palette is a
+    // different catalog entirely.
+    registryEntries.push(CAVE);
+    render(<Palette {...defaultProps} canvasMode="level" activeLayer="background" />);
+
+    expect(screen.queryByText('Blueprints')).not.toBeInTheDocument();
+  });
+
+  it('clickingABlueprintTile-callsOnArmBlueprintWithItsId', async () => {
+    registryEntries.push(CAVE);
+    const onArmBlueprint = vi.fn();
+    render(<Palette {...defaultProps} canvasMode="level" onArmBlueprint={onArmBlueprint} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Cave Room' }));
+
+    expect(onArmBlueprint).toHaveBeenCalledWith('cave-room');
+  });
+
+  it('theArmedBlueprint-isTheOnlyOneMarkedPressed', () => {
+    registryEntries.push(CAVE, { id: 'hall', name: 'Hall', layout: ['##'] });
+    render(<Palette {...defaultProps} canvasMode="level" armedBlueprintId="cave-room" />);
+
+    expect(screen.getByRole('button', { name: 'Cave Room' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(screen.getByRole('button', { name: 'Hall' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+  });
+
+  it('omittedArmedBlueprintId-marksNoBlueprintPressed', () => {
+    registryEntries.push(CAVE);
+    render(<Palette {...defaultProps} canvasMode="level" />);
+
+    expect(screen.getByRole('button', { name: 'Cave Room' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+  });
+
+  it('blueprintTiles-stayOutOfTheTerrainAndToolsGroups', () => {
+    registryEntries.push(CAVE);
+    render(<Palette {...defaultProps} canvasMode="level" />);
+
+    const terrainHeading = screen.getByText('Terrain');
+    const terrain = terrainHeading.closest('section') ?? terrainHeading.parentElement!;
+    const toolsHeading = screen.getByText('Tools');
+    const tools = toolsHeading.closest('section') ?? toolsHeading.parentElement!;
+    expect(within(terrain).queryByRole('button', { name: 'Cave Room' })).not.toBeInTheDocument();
+    expect(within(tools).queryByRole('button', { name: 'Cave Room' })).not.toBeInTheDocument();
   });
 });

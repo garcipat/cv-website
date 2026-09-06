@@ -5,10 +5,12 @@ import {
   PALETTE_TILE_LABELS,
   PALETTE_TILE_GLYPHS,
   PALETTE_TILE_DESCRIPTIONS,
+  BLUEPRINT_GLYPH,
 } from './paletteTiles';
 import { BACKGROUND_PALETTE_SPRITES, BACKGROUND_PALETTE_LABELS } from './backgroundPaletteTiles';
 import { BACKGROUND_CATALOG } from '../engine/BackgroundCatalog';
 import type { BackgroundPieceId } from '../level/LevelData';
+import { BLUEPRINTS } from '../level/blueprintRegistry';
 import { PaletteTile } from './PaletteTile';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
@@ -23,6 +25,13 @@ interface PaletteProps {
    *  drops the Spawn tool (roadmap step 44a) and adds the Connection Point tool
    *  (step 44b). */
   canvasMode?: 'level' | 'blueprint';
+  /** Id of the blueprint currently armed for placement, or `null`/omitted when
+   *  none is (roadmap step 44c). A second axis alongside `selectedTool`, not a
+   *  value inside it — see `editorArmedBlueprintIdSignal`. */
+  armedBlueprintId?: string | null;
+  /** Arms (or, when it is already armed, disarms) a blueprint for placement.
+   *  Optional so every existing render site is unaffected. */
+  onArmBlueprint?: (id: string) => void;
 }
 
 const EMPTY_CHAR: TileChar = '.';
@@ -39,6 +48,8 @@ export const Palette = ({
   selectedBackgroundPiece,
   onSelectBackgroundPiece,
   canvasMode = 'level',
+  armedBlueprintId = null,
+  onArmBlueprint,
 }: PaletteProps) => {
   const allTerrainKeys = (Object.keys(TERRAIN_CHARS) as TileChar[]).filter((key) => key !== EMPTY_CHAR);
   const terrainKeys = allTerrainKeys.filter(
@@ -78,6 +89,12 @@ export const Palette = ({
     EMPTY_CHAR,
   ];
 
+  // Placement targets the level's own grid, so the section is hidden on the
+  // blueprint canvas — which is what keeps nesting (a blueprint containing a
+  // blueprint) out of scope for free. Nothing renders at all when no blueprint
+  // has been saved yet, rather than an empty headed section.
+  const showBlueprints = canvasMode === 'level' && BLUEPRINTS.length > 0;
+
   const renderGroup = (title: string, keys: TileChar[]) => (
     <section key={title} aria-label={title}>
       <p className="mb-1 text-xs font-medium text-muted-foreground">{title}</p>
@@ -110,6 +127,24 @@ export const Palette = ({
             {renderGroup('Entities', entityKeys)}
             {renderGroup('Hazards', firstHazardKey ? [firstHazardKey] : [])}
             {renderGroup('Tools', toolKeys)}
+            {showBlueprints && (
+              <section aria-label="Blueprints">
+                <p className="mb-1 text-xs font-medium text-muted-foreground">Blueprints</p>
+                <div className="grid grid-cols-[repeat(3,max-content)] gap-2">
+                  {BLUEPRINTS.map((blueprint) => (
+                    <PaletteTile
+                      key={blueprint.id}
+                      label={blueprint.name}
+                      description="Click the canvas to preview this room here, then click the same cell again to place it"
+                      sprite={null}
+                      glyph={BLUEPRINT_GLYPH}
+                      selected={armedBlueprintId === blueprint.id}
+                      onClick={() => onArmBlueprint?.(blueprint.id)}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-[repeat(3,max-content)] gap-2">
