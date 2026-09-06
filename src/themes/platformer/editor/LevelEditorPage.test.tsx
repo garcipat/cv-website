@@ -1007,6 +1007,16 @@ async function saveBlueprintAs(name: string) {
 }
 
 describe('LevelEditorPage — blueprint select and save (step 44a)', () => {
+  // Belt-and-suspenders alongside the file's top-level afterEach above (which
+  // already unstubs every global after every test in this file): the
+  // dev-server-write test below stubs `fetch` directly with a bare `vi.fn()`
+  // rather than going through stubDownloads/stubDevServerWrite, so this
+  // makes the cleanup for that stub explicit right next to the describe
+  // block that introduces it.
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it('levelMode-showsTheLevelSelectAndSaveButOfferNoBlueprintPair', () => {
     render(<LevelEditorPage />);
 
