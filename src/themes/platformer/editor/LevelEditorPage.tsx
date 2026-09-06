@@ -1,5 +1,7 @@
-import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { importLayout } from './importLayout';
+import { blueprintFits } from './blueprintFit';
+import { placeBlueprint, rebaseBlueprintBackground } from './placeBlueprint';
 import { exportLayout } from './exportLayout';
 import { cropLevelForExport } from './cropLevelForExport';
 import { Palette } from './Palette';
@@ -410,6 +412,7 @@ export const LevelEditorPage = () => {
     setLoadedLevelName(level.name);
     setDirty(false);
     setSaveResult(null);
+    setPendingPlacement(null);
   };
 
   /**
@@ -499,6 +502,78 @@ export const LevelEditorPage = () => {
       })),
     );
   };
+
+  /**
+   * Commits the pending placement: every non-`.` cell of the armed blueprint is
+   * written into the level grid at the clicked anchor, through the same
+   * `growGrid` path painting uses — so placing past the current edge grows the
+   * grid exactly as painting there would (`placeBlueprint.ts` explains why this
+   * is two grows and a bulk write rather than a loop over `paintCell`).
+   *
+   * A placement that does not fit is refused outright rather than committed:
+   * the preview is already red, and writing it would overwrite terrain, which
+   * is the one thing the rule exists to prevent. The blueprint stays armed
+   * afterwards, so another copy of the same room can be stamped without going
+   * back to the palette — the same way a tile tool stays selected after
+   * painting.
+   */
+  const commitPlacement = useCallback(
+    (col: number, row: number) => {
+      if (armedBlueprint === null || armedCells === null) return;
+      if (!blueprintFits(grid, armedCells, col, row)) return;
+
+      const result = placeBlueprint(grid, armedCells, col, row);
+      setGrid(result.grid);
+      if (!isDirty) setDirty(true);
+      if (saveResult !== null) setSaveResult(null);
+      // Order matters: this shifts the placements the level ALREADY had by the
+      // growth, and the blueprint's own are rebased with that same shift already
+      // folded in — appending them first would shift them twice.
+      applyGrowthShift(result.colShift, result.rowShift, setBackgroundPlacements);
+      const rebased = rebaseBlueprintBackground(
+        armedBlueprint.background ?? [],
+        col + result.colShift,
+        row + result.rowShift,
+      );
+      if (rebased.length > 0) {
+        setBackgroundPlacements((prev) => [...prev, ...rebased]);
+      }
+      setPendingPlacement(null);
+    },
+    // `applyGrowthShift` is a plain closure recreated every render (like the
+    // rest of this component's handlers), not a memoized value — listing it
+    // here would just make this callback recreate on every render too.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [armedBlueprint, armedCells, grid, isDirty, saveResult],
+  );
+
+  /** First click anchors a preview; a second click on that same cell commits;
+   *  a click anywhere else re-anchors instead of committing. */
+  const handlePlacementClick = useCallback(
+    ({ col, row }: { col: number; row: number }) => {
+      if (pendingPlacement !== null && pendingPlacement.col === col && pendingPlacement.row === row) {
+        commitPlacement(col, row);
+        return;
+      }
+      setPendingPlacement({ col, row });
+    },
+    [pendingPlacement, commitPlacement],
+  );
+
+  // Placement only makes sense on the level's foreground: the blueprint canvas
+  // is excluded (no nesting) and the background layer paints a different
+  // catalog entirely, so clicks there keep working exactly as they do today.
+  const placementActive = !isBlueprintMode && activeLayer === 'foreground' && armedCells !== null;
+  const placementPreview =
+    placementActive && armedCells !== null && pendingPlacement !== null
+      ? {
+          cells: armedCells.map(({ row, col }) => ({
+            row: row + pendingPlacement.row,
+            col: col + pendingPlacement.col,
+          })),
+          valid: blueprintFits(grid, armedCells, pendingPlacement.col, pendingPlacement.row),
+        }
+      : null;
 
   /**
    * Try (roadmap: editor/game round-trip): exports the current grid, sets it
@@ -748,6 +823,15 @@ export const LevelEditorPage = () => {
           backgroundPlacements={isBlueprintMode ? blueprintBackgroundPlacements : backgroundPlacements}
           activeLayer={activeLayer}
           selectedBackgroundPiece={selectedBackgroundPiece}
+          placement={
+            placementActive
+              ? {
+                  preview: placementPreview,
+                  onPlace: handlePlacementClick,
+                  onCancel: () => setArmedBlueprintId(null),
+                }
+              : null
+          }
           onPaintBackground={(next) => {
             if (isBlueprintMode) {
               setBlueprintBackgroundPlacements(next);
