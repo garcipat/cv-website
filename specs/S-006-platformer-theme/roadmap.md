@@ -237,6 +237,13 @@ numbered step.
   session, per spec.md User Story 8.
 - **Polish pass** — animation/effects refinement and a frame-rate check with many
   collectibles on screen.
+- **Background tile layer — visual clarity rework** — step 35a's background decoration
+  layer reads as visually busy in practice, making it harder to tell foreground
+  (solid, walkable) apart from background (decorative fill) at a glance. Raised while
+  manually testing step 44a (blueprint canvas, which also paints this layer). Needs
+  its own brainstorming pass — options might include dimming/desaturating the
+  background layer more, a starker color/contrast split between the two layers, or
+  reworking the piece art itself.
 
 ## Working agreement
 
