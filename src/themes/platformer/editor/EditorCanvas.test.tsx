@@ -1077,3 +1077,126 @@ describe('EditorCanvas — background layer', () => {
     expect(alphaDuringDrawPlayer).toBe(0.2);
   });
 });
+
+describe('EditorCanvas — placement clicks (step 44c)', () => {
+  const placementProps = (overrides: Partial<Parameters<typeof EditorCanvas>[0]> = {}) => ({
+    ...BACKGROUND_LAYER_DEFAULT_PROPS,
+    grid: [['.', '.'], ['.', '.']] as TileChar[][],
+    selectedTool: 'G' as TileChar,
+    panOffset: { x: 0, y: 0 },
+    images: EMPTY_IMAGES,
+    onPaint: vi.fn(),
+    onPan: vi.fn(),
+    ...overrides,
+  });
+
+  const clickCanvas = (
+    canvas: HTMLCanvasElement,
+    col: number,
+    row: number,
+    button = 0,
+  ) => {
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
+    fireEvent.mouseDown(canvas, {
+      button,
+      clientX: col * RENDERED_TILE_SIZE + 1,
+      clientY: row * RENDERED_TILE_SIZE + 1,
+    });
+  };
+
+  it('blueprintArmed-leftClick-reportsTheClickedCellInsteadOfPainting', () => {
+    stubCanvasContext();
+    const onPaint = vi.fn();
+    const onPlace = vi.fn();
+    const { container } = render(
+      <EditorCanvas
+        {...placementProps({ onPaint })}
+        placement={{ preview: null, onPlace, onCancel: vi.fn() }}
+      />,
+    );
+
+    clickCanvas(container.querySelector('canvas')!, 1, 1);
+
+    expect(onPlace).toHaveBeenCalledWith({ col: 1, row: 1 });
+    expect(onPaint).not.toHaveBeenCalled();
+  });
+
+  it('blueprintArmed-rightClick-cancelsInsteadOfErasing', () => {
+    // Right-click has no erase meaning during a placement preview — nothing is
+    // being painted — so it is repurposed as an immediate cancel, saving a trip
+    // back to the palette (design, Step 44c — Placement).
+    stubCanvasContext();
+    const onPaint = vi.fn();
+    const onCancel = vi.fn();
+    const { container } = render(
+      <EditorCanvas
+        {...placementProps({ onPaint })}
+        placement={{ preview: null, onPlace: vi.fn(), onCancel }}
+      />,
+    );
+
+    clickCanvas(container.querySelector('canvas')!, 1, 1, 2);
+
+    expect(onCancel).toHaveBeenCalledOnce();
+    expect(onPaint).not.toHaveBeenCalled();
+  });
+
+  it('blueprintArmed-middleClick-stillPansSoARoomCanBeLinedUp', () => {
+    stubCanvasContext();
+    const onPan = vi.fn();
+    const onPlace = vi.fn();
+    const { container } = render(
+      <EditorCanvas
+        {...placementProps({ onPan })}
+        placement={{ preview: null, onPlace, onCancel: vi.fn() }}
+      />,
+    );
+    const canvas = container.querySelector('canvas')!;
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
+
+    fireEvent.mouseDown(canvas, { button: 1, clientX: 0, clientY: 0 });
+    fireEvent.mouseMove(canvas, { clientX: 40, clientY: 0 });
+
+    expect(onPan).toHaveBeenCalledWith({ x: 40, y: 0 });
+    expect(onPlace).not.toHaveBeenCalled();
+  });
+
+  it('blueprintArmed-draggingAfterAPlacementClick-paintsNothing', () => {
+    stubCanvasContext();
+    const onPaint = vi.fn();
+    const { container } = render(
+      <EditorCanvas
+        {...placementProps({ onPaint })}
+        placement={{ preview: null, onPlace: vi.fn(), onCancel: vi.fn() }}
+      />,
+    );
+    const canvas = container.querySelector('canvas')!;
+
+    clickCanvas(canvas, 0, 0);
+    fireEvent.mouseMove(canvas, { clientX: 40, clientY: 40 });
+
+    expect(onPaint).not.toHaveBeenCalled();
+  });
+
+  it('noPlacementProp-leftClickStillPaintsExactlyAsBefore', () => {
+    stubCanvasContext();
+    const onPaint = vi.fn();
+    const { container } = render(<EditorCanvas {...placementProps({ onPaint })} />);
+
+    clickCanvas(container.querySelector('canvas')!, 1, 1);
+
+    expect(onPaint).toHaveBeenCalledOnce();
+  });
+
+  it('placementPropExplicitlyNull-leftClickStillPaints', () => {
+    stubCanvasContext();
+    const onPaint = vi.fn();
+    const { container } = render(
+      <EditorCanvas {...placementProps({ onPaint })} placement={null} />,
+    );
+
+    clickCanvas(container.querySelector('canvas')!, 1, 1);
+
+    expect(onPaint).toHaveBeenCalledOnce();
+  });
+});
