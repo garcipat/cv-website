@@ -159,7 +159,7 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   `gridRenderState.ts`, and every test fixture hardcoding the old letters. Pre-existing
   `platformer-editor-*` localStorage state from before this change (if any) still holds
   old-letter layouts — the editor has no migration for that, out of scope here.
-- [ ] **40. Spike hazard tiles** — a hazard that damages the player (and presumably
+- [x] **40. Spike hazard tiles** — a hazard that damages the player (and presumably
   knocks back, reusing the side/below-damage + invincibility-frame mechanics from step
   19) on touch, no stomp-defeat like enemies. Open design question: modeled as a block
   entity like `Crate`/`QuestionMark` (placed on top of terrain) vs. a terrain `TileType`

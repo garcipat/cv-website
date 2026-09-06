@@ -7,6 +7,7 @@ import {
   chestPlayerIsStandingOn,
   checkSignOverlap,
   checkKeyPickupCollisions,
+  checkHazardCollisions,
   overlappingTriggers,
 } from './Collision';
 import type { Box } from './Collision';
@@ -29,6 +30,7 @@ import { spawnBonusFruit, tickBonusFruit, BONUS_FRUIT_RISE_DURATION_SECONDS } fr
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { ChestState } from '../entities/Chest';
 import type { SignPlacement } from '../level/SignMapper';
+import type { HazardPlacement } from '../level/HazardMapper';
 import type { KeyPickupState } from '../entities/KeyPickup';
 import { PHYSICS_CONFIG } from './PhysicsConfig';
 
@@ -310,6 +312,39 @@ describe('checkSignOverlap', () => {
     const player = makePlayer(100, 100);
 
     expect(checkSignOverlap(player, [])).toBeUndefined();
+  });
+});
+
+describe('checkHazardCollisions', () => {
+  const hazard: HazardPlacement = { id: 'h1', hazardType: 'spike', facing: 'up', x: 100, y: 100 };
+
+  it('playerOverlappingHazard-returnsIt', () => {
+    const player = makePlayer(100, 100);
+    expect(checkHazardCollisions(player, [hazard])).toEqual([hazard]);
+  });
+
+  it('playerFarFromHazard-returnsEmpty', () => {
+    const player = makePlayer(1000, 1000);
+    expect(checkHazardCollisions(player, [hazard])).toEqual([]);
+  });
+
+  it('noHazardsInLevel-returnsEmpty', () => {
+    const player = makePlayer(100, 100);
+    expect(checkHazardCollisions(player, [])).toEqual([]);
+  });
+
+  it('facingChangesWhichPartOfTheTileIsHazardous-sameOverlapMissesADifferentFacing', () => {
+    // checkHazardCollisions dispatches through the HAZARD_TYPES registry
+    // (typeOf(h).box(h)), so each facing's own narrower hitbox — the band
+    // of the tile its visible spikes actually occupy, see Spike.ts's
+    // facingBox — is what gets checked, not a facing-agnostic full tile.
+    // 'up's band is the tile's bottom 10 rendered px; the player position
+    // above (which overlaps it) sits well below the tile's TOP edge, so a
+    // 'down'-facing hazard (band at the top instead) at the same spot must
+    // miss.
+    const player = makePlayer(100, 100);
+    const downFacing: HazardPlacement = { ...hazard, facing: 'down' };
+    expect(checkHazardCollisions(player, [downFacing])).toEqual([]);
   });
 });
 

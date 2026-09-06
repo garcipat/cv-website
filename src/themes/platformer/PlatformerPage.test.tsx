@@ -41,6 +41,7 @@ import {
   activePuffs,
   activeCounterPopups,
   levelTotals,
+  hazardPlacements,
 } from './PlatformerState';
 import { toBlockState } from './entities/Block';
 import type { BlockState } from './entities/Block';
@@ -103,9 +104,10 @@ const initialPlayerState = playerState.value;
 const initialLifecycleState = lifecycleState.value;
 const initialCollectedFacts = collectedFacts.value;
 const originalLocation = window.location;
-// Module-level signals (see level/level.ts) — a `?level=` test that swaps in
-// a different registry level must not leak that layout/background into
-// later tests, which all assume the real default level.
+// Module-level signals (see level/level.ts) — a hazard test or a `?level=`
+// test that swaps in a synthetic layout/different registry level must not
+// leak that layout/background into later tests, which all assume the real
+// default level.
 const initialLayout = currentLayout.value;
 const initialBackground = currentBackground.value;
 
@@ -2864,6 +2866,64 @@ describe('PlatformerPage', () => {
     frameCallback!(32);
 
     expect(playerState.value.hitPoints).toBe(healthAfterFirstHit);
+  });
+
+  it('playerTouchingASpikeHazard-tick-losesOneHalfHeartWithNoKnockback', () => {
+    // A synthetic layout with a real spike marker — the shipped level has no
+    // hazard tiles of its own yet, unlike the enemy-contact tests above,
+    // which can teleport onto a real enemy from the default layout.
+    currentLayout.value = ['S^', 'GG'];
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const hazard = hazardPlacements.value[0];
+    const startingHealth = playerState.value.hitPoints;
+    playerState.value = { ...playerState.value, x: hazard.x, y: hazard.y, vx: 0, vy: 0 };
+
+    frameCallback!(16);
+
+    expect(playerState.value.hitPoints).toBe(startingHealth - SIDE_HIT_DAMAGE);
+    // No knockback — a spike hurts but doesn't push the player around,
+    // unlike a side/below enemy touch.
+    expect(playerState.value.vx).toBe(0);
+    expect(isInvulnerable(playerState.value, PLAYER_HIT_REACTION_SECONDS)).toBe(true);
+  });
+
+  it('playerAlreadyInvulnerable-touchingASpikeHazard-takesNoDamage', () => {
+    currentLayout.value = ['S^', 'GG'];
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const hazard = hazardPlacements.value[0];
+    const startingHealth = playerState.value.hitPoints;
+    // Mid-refractory window (see isInvulnerable/PLAYER_HIT_REACTION_SECONDS)
+    // — a hazard touched during this window must not register a fresh hit.
+    playerState.value = {
+      ...playerState.value,
+      x: hazard.x,
+      y: hazard.y,
+      vx: 0,
+      vy: 0,
+      hitTimer: 0,
+    };
+
+    frameCallback!(16);
+
+    expect(playerState.value.hitPoints).toBe(startingHealth);
   });
 
   it('playerFallsOntoEnemyFromAbove-tick-noSideHitDamageOnlyAStomp', () => {

@@ -13,6 +13,8 @@ import {
   ENTITY_CHARS,
   SIGN_CHARS,
   findSignTiles,
+  HAZARD_CHARS,
+  findHazardTiles,
   type TileChar,
 } from './LevelParser';
 
@@ -347,13 +349,56 @@ describe('findSignTiles', () => {
   });
 });
 
+describe('HAZARD_CHARS', () => {
+  it('eachDirectionCharacter-mapsToSpikeWithItsFacing', () => {
+    expect(HAZARD_CHARS['^']).toEqual({ hazardType: 'spike', facing: 'up' });
+    expect(HAZARD_CHARS.v).toEqual({ hazardType: 'spike', facing: 'down' });
+    expect(HAZARD_CHARS['<']).toEqual({ hazardType: 'spike', facing: 'left' });
+    expect(HAZARD_CHARS['>']).toEqual({ hazardType: 'spike', facing: 'right' });
+  });
+
+  it('noOverlapWithTerrainEntityOrSignChars-documentedByTheModuleLoadGuard', () => {
+    const keys = Object.keys(HAZARD_CHARS);
+    expect(keys.filter((char) => char in TERRAIN_CHARS)).toEqual([]);
+    expect(keys.filter((char) => char in ENTITY_CHARS)).toEqual([]);
+    expect(keys.filter((char) => char in SIGN_CHARS)).toEqual([]);
+  });
+});
+
+describe('parseLevel — hazard markers', () => {
+  it('hazardMarker-parsesAsEmptyWalkableTile', () => {
+    const result = parseLevel(['^.', 'GG']);
+    expect(result.terrain[0][0]).toBe('empty');
+  });
+});
+
+describe('findHazardTiles', () => {
+  it('noMarkers-returnsEmptyArray', () => {
+    expect(findHazardTiles(['GG', 'GG'])).toEqual([]);
+  });
+
+  it('oneOfEachDirection-returnsAllWithTheirFacing', () => {
+    expect(findHazardTiles(['^v', '<>'])).toEqual([
+      { col: 0, row: 0, hazardType: 'spike', facing: 'up' },
+      { col: 1, row: 0, hazardType: 'spike', facing: 'down' },
+      { col: 0, row: 1, hazardType: 'spike', facing: 'left' },
+      { col: 1, row: 1, hazardType: 'spike', facing: 'right' },
+    ]);
+  });
+});
+
 describe('TileChar', () => {
-  it('includes every TERRAIN_CHARS, ENTITY_CHARS, and SIGN_CHARS key', () => {
+  it('includes every TERRAIN_CHARS, ENTITY_CHARS, SIGN_CHARS, and HAZARD_CHARS key', () => {
     const tileChars: readonly TileChar[] = [
       '.', 'G', 'R', '#', 'B', 'H', 'I', 'P', 'S', 'M', 'm', 'o', 'X', 'Q', 'F', 'T', 'u',
-      '1', '2', '3', '4', '5', 'n', 'N',
+      '1', '2', '3', '4', '5', 'n', 'N', '^', 'v', '<', '>',
     ];
-    const allKeys = [...Object.keys(TERRAIN_CHARS), ...Object.keys(ENTITY_CHARS), ...Object.keys(SIGN_CHARS)];
+    const allKeys = [
+      ...Object.keys(TERRAIN_CHARS),
+      ...Object.keys(ENTITY_CHARS),
+      ...Object.keys(SIGN_CHARS),
+      ...Object.keys(HAZARD_CHARS),
+    ];
     for (const key of allKeys) {
       expect(tileChars).toContain(key);
     }

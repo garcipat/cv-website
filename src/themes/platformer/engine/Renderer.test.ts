@@ -17,6 +17,7 @@ import {
   drawSigns,
   drawSignBubble,
   drawKeyPickups,
+  drawHazards,
   drawKeyCounter,
   keyCounterX,
   KEY_COUNTER_Y,
@@ -89,6 +90,8 @@ import { toChestState, openChest } from '../entities/Chest';
 import type { ChestState } from '../entities/Chest';
 import type { ChestPlacement } from '../level/ChestMapper';
 import { CHEST_CLOSED_SHEET, CHEST_OPEN_SHEET } from '../entities/sprites/sheets';
+import { spike } from '../entities/hazards/Spike';
+import type { HazardPlacement } from '../level/HazardMapper';
 
 function makeMockContext() {
   return {
@@ -2366,6 +2369,19 @@ describe('pickup drawing delegates to the type modules', () => {
       dc,
     );
     expect(ctx.drawImage).not.toHaveBeenCalled();
+  });
+});
+
+describe('drawHazards', () => {
+  it('everyHazard-callsItsTypesDrawWithItself', () => {
+    const ctx = makeMockContext();
+    const dc = makeDrawContext(ctx);
+    const drawSpy = vi.spyOn(spike, 'draw');
+    const hazards: HazardPlacement[] = [{ id: 'h1', hazardType: 'spike', facing: 'up', x: 0, y: 0 }];
+
+    drawHazards(ctx, hazards, dc);
+
+    expect(drawSpy).toHaveBeenCalledWith(hazards[0], dc);
   });
 });
 
