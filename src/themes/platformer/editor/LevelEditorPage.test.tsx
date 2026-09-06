@@ -1763,4 +1763,84 @@ describe('LevelEditorPage — undoing a placement (step 44c follow-up)', () => {
       expect(editorLevelSignal.value).toEqual(importLayout(['...', '.##', '...']));
     });
   });
+
+  it('pressingCtrlZ-undoesTheMostRecentPlacementJustLikeTheButton', async () => {
+    renderEditorWithBlueprints(CAVE_ROOM);
+    armCaveRoom();
+    hoverLevelCell(1, 1);
+    clickLevelCell(1, 1);
+    await waitFor(() => {
+      expect(editorLevelSignal.value).toEqual(importLayout(['...', '.##', '...']));
+    });
+
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true });
+
+    await waitFor(() => {
+      expect(editorLevelSignal.value).toEqual(importLayout(['...', '...', '...']));
+    });
+    expect(screen.queryByRole('button', { name: 'Undo placement' })).not.toBeInTheDocument();
+  });
+
+  it('pressingCmdZ-alsoUndoes', async () => {
+    // Mac uses Cmd instead of Ctrl for the same shortcut.
+    renderEditorWithBlueprints(CAVE_ROOM);
+    armCaveRoom();
+    hoverLevelCell(1, 1);
+    clickLevelCell(1, 1);
+    await waitFor(() => {
+      expect(editorLevelSignal.value).toEqual(importLayout(['...', '.##', '...']));
+    });
+
+    fireEvent.keyDown(window, { key: 'z', metaKey: true });
+
+    await waitFor(() => {
+      expect(editorLevelSignal.value).toEqual(importLayout(['...', '...', '...']));
+    });
+  });
+
+  it('pressingCtrlZWithNothingToUndo-doesNothing', () => {
+    renderEditorWithBlueprints(CAVE_ROOM);
+
+    expect(() => fireEvent.keyDown(window, { key: 'z', ctrlKey: true })).not.toThrow();
+    expect(editorLevelSignal.value).toEqual(importLayout(['...', '...', '...']));
+  });
+
+  it('pressingCtrlZWhileTypingInATextField-doesNotUndo', async () => {
+    renderEditorWithBlueprints(CAVE_ROOM);
+    armCaveRoom();
+    hoverLevelCell(1, 1);
+    clickLevelCell(1, 1);
+    await waitFor(() => {
+      expect(editorLevelSignal.value).toEqual(importLayout(['...', '.##', '...']));
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    const nameInput = screen.getByLabelText('Level name');
+
+    fireEvent.keyDown(nameInput, { key: 'z', ctrlKey: true });
+
+    // The browser's own field-level undo, not this page's, owns Ctrl+Z here.
+    // (Not asserting the "Undo placement" button's presence here: opening the
+    // Save dialog makes the rest of the page aria-hidden, which getByRole
+    // correctly treats as not present regardless of this shortcut.)
+    expect(editorLevelSignal.value).toEqual(importLayout(['...', '.##', '...']));
+  });
+
+  it('pressingCtrlZInBlueprintMode-doesNothing', async () => {
+    renderEditorWithBlueprints(CAVE_ROOM);
+    armCaveRoom();
+    hoverLevelCell(1, 1);
+    clickLevelCell(1, 1);
+    await waitFor(() => {
+      expect(editorLevelSignal.value).toEqual(importLayout(['...', '.##', '...']));
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
+
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true });
+
+    // Undoing a level placement while looking at the blueprint canvas would
+    // be invisible and confusing — the shortcut matches the button's own
+    // Level-only visibility (see `placementActive`'s `!isBlueprintMode`).
+    fireEvent.click(screen.getByRole('button', { name: 'Level' }));
+    expect(editorLevelSignal.value).toEqual(importLayout(['...', '.##', '...']));
+  });
 });

@@ -1277,14 +1277,25 @@ describe('EditorCanvas — placement clicks (step 44c)', () => {
 });
 
 describe('EditorCanvas — placement preview (step 44c)', () => {
-  const previewProps = (preview: { cells: { row: number; col: number }[]; valid: boolean }) => ({
+  const previewProps = (preview: {
+    cells: { row: number; col: number; char?: TileChar }[];
+    valid: boolean;
+  }) => ({
     ...BACKGROUND_LAYER_DEFAULT_PROPS,
     grid: [['.', '.'], ['.', '.']] as TileChar[][],
     selectedTool: 'G' as TileChar,
     images: EMPTY_IMAGES,
     onPaint: () => {},
     onPan: () => {},
-    placement: { preview, onHover: () => {}, onPlace: () => {}, onCancel: () => {} },
+    placement: {
+      preview: {
+        cells: preview.cells.map(({ row, col, char = 'R' as TileChar }) => ({ row, col, char })),
+        valid: preview.valid,
+      },
+      onHover: () => {},
+      onPlace: () => {},
+      onCancel: () => {},
+    },
   });
 
   it('tints every previewed cell and strokes one border around the whole room', () => {
@@ -1379,6 +1390,42 @@ describe('EditorCanvas — placement preview (step 44c)', () => {
     );
     expect(invalidCtx.strokeStyle).toBe(PLACEMENT_INVALID_COLOR);
     expect(PLACEMENT_INVALID_COLOR).not.toBe(PLACEMENT_VALID_COLOR);
+  });
+
+  it('drawsTheConnectionPointGlyphOnAConnectionPointCellInThePreview', () => {
+    const ctx = stubCanvasContext() as unknown as { fillText: ReturnType<typeof vi.fn> };
+
+    render(
+      <EditorCanvas
+        {...previewProps({
+          cells: [
+            { row: 0, col: 0, char: 'R' as TileChar },
+            { row: 0, col: 1, char: '+' as TileChar },
+          ],
+          valid: true,
+        })}
+        panOffset={{ x: 0, y: 0 }}
+      />,
+    );
+
+    expect(ctx.fillText).toHaveBeenCalledWith(
+      CONNECTION_POINT_MARKER_GLYPH,
+      RENDERED_TILE_SIZE + RENDERED_TILE_SIZE / 2,
+      RENDERED_TILE_SIZE / 2,
+    );
+  });
+
+  it('drawsNoGlyphWhenThePreviewHasNoConnectionPointCells', () => {
+    const ctx = stubCanvasContext() as unknown as { fillText: ReturnType<typeof vi.fn> };
+
+    render(
+      <EditorCanvas
+        {...previewProps({ cells: [{ row: 0, col: 0, char: 'R' as TileChar }], valid: true })}
+        panOffset={{ x: 0, y: 0 }}
+      />,
+    );
+
+    expect(ctx.fillText).not.toHaveBeenCalled();
   });
 
   it('draws nothing extra while a blueprint is armed but no anchor has been clicked yet', () => {

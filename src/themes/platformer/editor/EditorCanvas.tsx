@@ -61,9 +61,11 @@ export interface EditorImages {
 
 /** The cells a pending placement would write, in absolute grid coordinates,
  *  and whether it currently fits (`blueprintFit.ts`) — blue when it does, red
- *  when it does not. */
+ *  when it does not. Each cell carries its own `char` so the preview can draw
+ *  a connection point's glyph the same way the level canvas does once it's
+ *  actually placed, rather than letting it disappear into the tint. */
 export interface PlacementPreview {
-  cells: readonly { row: number; col: number }[];
+  cells: readonly { row: number; col: number; char: TileChar }[];
   valid: boolean;
 }
 
@@ -225,6 +227,26 @@ const PLACEMENT_BORDER_WIDTH = 3;
  * past the grid's top-left corner previews exactly where committing would grow
  * the grid to put it.
  */
+/** Draws `glyph` centered on the tile whose top-left pixel is `(destX, destY)`,
+ *  as a dark core inside a light halo (see `MARKER_HALO_COLOR`'s doc comment).
+ *  Assumes the caller has already set `ctx.font`/`textAlign`/`textBaseline`. */
+function drawMarkerGlyph(
+  ctx: CanvasRenderingContext2D,
+  destX: number,
+  destY: number,
+  glyph: string,
+  glyphColor: string,
+): void {
+  const centerX = destX + RENDERED_TILE_SIZE / 2;
+  const centerY = destY + RENDERED_TILE_SIZE / 2;
+  ctx.lineWidth = MARKER_HALO_WIDTH;
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = MARKER_HALO_COLOR;
+  ctx.strokeText(glyph, centerX, centerY);
+  ctx.fillStyle = glyphColor;
+  ctx.fillText(glyph, centerX, centerY);
+}
+
 function drawPlacementPreview(
   ctx: CanvasRenderingContext2D,
   preview: PlacementPreview,
@@ -258,6 +280,24 @@ function drawPlacementPreview(
     (maxCol - minCol + 1) * RENDERED_TILE_SIZE,
     (maxRow - minRow + 1) * RENDERED_TILE_SIZE,
   );
+
+  // A connection point would otherwise disappear into the tint — draw its
+  // glyph on top, same as it renders once actually placed (drawTileMarkers
+  // below), so the preview shows exactly what committing would leave behind.
+  ctx.font = `${MARKER_FONT_SIZE}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (const { col, row, char } of preview.cells) {
+    if (char !== CONNECTION_POINT_CHAR) continue;
+    const { x, y } = tileToPixel(col, row);
+    drawMarkerGlyph(
+      ctx,
+      x + originX,
+      y + originY,
+      CONNECTION_POINT_MARKER_GLYPH,
+      CONNECTION_POINT_MARKER_GLYPH_COLOR,
+    );
+  }
   ctx.restore();
 }
 
@@ -288,14 +328,7 @@ function drawTileMarkers(
       const destY = y + originY;
       ctx.fillStyle = tint;
       ctx.fillRect(destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
-      const centerX = destX + RENDERED_TILE_SIZE / 2;
-      const centerY = destY + RENDERED_TILE_SIZE / 2;
-      ctx.lineWidth = MARKER_HALO_WIDTH;
-      ctx.lineJoin = 'round';
-      ctx.strokeStyle = MARKER_HALO_COLOR;
-      ctx.strokeText(glyph, centerX, centerY);
-      ctx.fillStyle = glyphColor;
-      ctx.fillText(glyph, centerX, centerY);
+      drawMarkerGlyph(ctx, destX, destY, glyph, glyphColor);
     }
   }
   ctx.restore();
