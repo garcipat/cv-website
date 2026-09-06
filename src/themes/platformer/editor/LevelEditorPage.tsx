@@ -584,6 +584,28 @@ export const LevelEditorPage = () => {
     setLastPlacementSnapshot(null);
   };
 
+  // Ctrl+Z (Cmd+Z on Mac) is the same "Undo placement" the button offers, not
+  // a general editor undo — there is nothing else to undo yet. Ignored while
+  // typing in a text field (the Save/Export dialogs' inputs) so the browser's
+  // own field-level undo keeps working there, and while the blueprint canvas
+  // is active, matching the button's own `!isBlueprintMode` visibility.
+  useEffect(() => {
+    if (isBlueprintMode || lastPlacementSnapshot === null) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'z' && event.key !== 'Z') return;
+      if (!(event.ctrlKey || event.metaKey) || event.shiftKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable) {
+        return;
+      }
+      event.preventDefault();
+      undoLastPlacement();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isBlueprintMode, lastPlacementSnapshot]);
+
   // Placement only makes sense on the level's foreground: the blueprint canvas
   // is excluded (no nesting) and the background layer paints a different
   // catalog entirely, so clicks there keep working exactly as they do today.
@@ -591,9 +613,10 @@ export const LevelEditorPage = () => {
   const placementPreview =
     placementActive && armedCells !== null && hoveredCell !== null
       ? {
-          cells: armedCells.map(({ row, col }) => ({
+          cells: armedCells.map(({ row, col, char }) => ({
             row: row + hoveredCell.row,
             col: col + hoveredCell.col,
+            char,
           })),
           valid: blueprintFits(grid, armedCells, hoveredCell.col, hoveredCell.row),
         }
@@ -686,6 +709,11 @@ export const LevelEditorPage = () => {
                 isDirty={isDirty}
                 onLoadLevel={loadLevel}
               />
+              {lastPlacementSnapshot !== null && (
+                <Button type="button" variant="outline" onClick={undoLastPlacement}>
+                  Undo placement
+                </Button>
+              )}
               <Dialog>
                 <DialogTrigger render={<Button type="button" variant="outline">Export</Button>} />
                 <DialogContent>
@@ -830,11 +858,6 @@ export const LevelEditorPage = () => {
               <Button type="button" onClick={tryLayout}>
                 Try
               </Button>
-              {lastPlacementSnapshot !== null && (
-                <Button type="button" variant="outline" onClick={undoLastPlacement}>
-                  Undo placement
-                </Button>
-              )}
               {saveResult?.written === true && (
                 <p className="max-w-40 text-xs break-all text-muted-foreground" role="status">
                   Saved to <code>{saveResult.path}</code> — reload to see it in the level list.
