@@ -1,5 +1,5 @@
 import { createLocalStorageSignal } from '@/lib/utils';
-import { isBlueprint, type Blueprint } from '../level/BlueprintData';
+import { BLANK_BLUEPRINT, isBlueprint, type Blueprint } from '../level/BlueprintData';
 import type { BackgroundPlacement } from '../level/LevelData';
 
 export const BLUEPRINT_STASH_KEY = 'platformer-editor-saved-blueprints';
@@ -22,14 +22,26 @@ export const savedBlueprintsSignal = createLocalStorageSignal<Blueprint[]>(
  * `'Cave Room Two'` → `'cave-room-two'`. The exact slug rule
  * `saveLevelFile.ts`'s `levelFileName` uses, minus the `.json` suffix, since
  * a blueprint's id is likewise its future filename stem. A name with nothing
- * slug-worthy in it still has to produce a usable id, hence the fallback.
+ * slug-worthy in it still has to produce a usable id, hence the `blueprint`
+ * fallback.
+ *
+ * `BLANK_BLUEPRINT.id` is `'new'`, and the save dialog prefills the name
+ * field with whatever blueprint is currently loaded — which starts out as
+ * `'new'` too — so accepting that default slugs straight into the same id
+ * the dropdown's built-in blank entry already owns. Left alone, that
+ * collision would make the dropdown's `Array.prototype.find` always resolve
+ * to the blank entry instead of the one just saved (and render two
+ * `<SelectItem>`s with the same key), so a name that slugs to `'new'` gets
+ * the same disambiguating suffix the `blueprint` fallback gives an
+ * unslugabble name.
  */
 export const blueprintId = (name: string): string => {
   const slug = name
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
-  return slug === '' ? 'blueprint' : slug;
+  const fallback = slug === '' ? 'blueprint' : slug;
+  return fallback === BLANK_BLUEPRINT.id ? `${fallback}-1` : fallback;
 };
 
 /** Every well-formed stored blueprint. Anything malformed is skipped rather

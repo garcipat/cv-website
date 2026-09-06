@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { BLANK_BLUEPRINT } from '../level/BlueprintData';
 import {
   BLUEPRINT_STASH_KEY,
   blueprintId,
@@ -19,6 +20,12 @@ describe('blueprintId', () => {
 
   it('nameWithNothingSlugWorthy-fallsBackToBlueprint', () => {
     expect(blueprintId('!!!')).toBe('blueprint');
+  });
+
+  it('nameThatSlugsToNew-getsADisambiguatingSuffixInsteadOfCollidingWithTheBlankEntry', () => {
+    expect(blueprintId('new')).toBe('new-1');
+    expect(blueprintId('New')).toBe('new-1');
+    expect(blueprintId('new')).not.toBe(BLANK_BLUEPRINT.id);
   });
 });
 
@@ -49,6 +56,22 @@ describe('saveBlueprintToStash', () => {
 
     expect(readSavedBlueprints()).toHaveLength(1);
     expect(readSavedBlueprints()[0].layout).toEqual(['GG']);
+  });
+
+  it('savingUnderTheNamePrefilledByTheBlankEntry-doesNotCollideWithTheBlankEntrysId', () => {
+    // The save dialog prefills the name field with the currently-loaded
+    // blueprint's name, which defaults to BLANK_BLUEPRINT.name ('new') — the
+    // most likely path is a user hitting Enter without retyping anything.
+    const saved = saveBlueprintToStash('new', ['#G'], []);
+
+    expect(saved.id).not.toBe(BLANK_BLUEPRINT.id);
+    // Both the blank entry and the just-saved one must resolve correctly —
+    // simulating BlueprintSelect's `entries.find((entry) => entry.id === value)`.
+    const entries = [BLANK_BLUEPRINT, ...readSavedBlueprints()];
+    expect(entries.find((entry) => entry.id === BLANK_BLUEPRINT.id)).toEqual(BLANK_BLUEPRINT);
+    expect(entries.find((entry) => entry.id === saved.id)).toEqual(saved);
+    // No duplicate ids/keys among the dropdown's entries.
+    expect(new Set(entries.map((entry) => entry.id)).size).toBe(entries.length);
   });
 
   it('severalBlueprints-areListedSortedById', () => {

@@ -310,16 +310,21 @@ export const LevelEditorPage = () => {
   const loadLevel = (level: LevelEntry) => {
     const levelGrid = importLayout(level.layout);
     setGrid(levelGrid);
-    // LevelSelect stays usable even while the blueprint canvas is the one
-    // currently on screen (Task 7 is what will hide it). Firing the request
-    // unconditionally here would let the CURRENTLY ACTIVE canvas — the
+    // As of this task, LevelSelect (and thus this function) is only ever
+    // reachable with isBlueprintMode === false — it's unconditionally hidden
+    // while the blueprint canvas is on screen (see the `{!isBlueprintMode &&
+    // (...)}` wrapper around LevelSelect below). So the `if` branch here is
+    // currently dead code, kept rather than deleted because a future step
+    // (44c) may end up letting a level be loaded while the blueprint canvas
+    // is the one on screen, at which point it becomes reachable again and
+    // this guard is what's needed: firing the centering request
+    // unconditionally would let the CURRENTLY ACTIVE canvas — the
     // blueprint's — consume it (EditorCanvas's centering effect targets
     // whichever grid is active right now, regardless of which grid just
     // changed), silently resetting a hand-panned blueprint view AND leaving
-    // the level never centered once the user switches back to it. So while
-    // in blueprint mode this arms the same debt `setCanvasMode` already pays
-    // back on the first switch to Level, instead of spending the one-shot
-    // request immediately.
+    // the level never centered once the user switches back to it. So this
+    // arms the same debt `setCanvasMode` already pays back on the first
+    // switch to Level, instead of spending the one-shot request immediately.
     if (isBlueprintMode) {
       levelCenterPendingRef.current = true;
     } else {
