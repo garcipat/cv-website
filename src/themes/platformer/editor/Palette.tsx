@@ -30,7 +30,7 @@ const PATROL_CHAR: TileChar = 'P';
 const SPAWN_CHAR: TileChar = 'S';
 const CONNECTION_POINT_CHAR: TileChar = '+';
 const BACKGROUND_PIECE_IDS = Object.keys(BACKGROUND_CATALOG) as BackgroundPieceId[];
-const DECORATION_CHARS: TileChar[] = ['n', 'N'];
+const DECORATION_CHARS: TileChar[] = ['n', 'N', 'X', 'c', '⊤', '⊥'];
 
 export const Palette = ({
   selectedTool,

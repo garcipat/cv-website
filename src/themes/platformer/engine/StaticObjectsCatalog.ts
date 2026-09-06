@@ -24,6 +24,41 @@ const BUSH_OR_TREE_VARIANTS: Record<VerticalRunRole, StaticObjectEntry[]> = {
 
 const FENCE_VARIANTS: StaticObjectEntry[] = [{ sx: 32, sy: 64 }];
 
+/**
+ * One fixed sprite for `crystalCluster`, from the separate `decorations.png`
+ * sheet (see `sprites/sheets.ts`'s `DECORATIONS_SHEET`) — same "one variant per
+ * role" convention as `FENCE_VARIANTS` above: it never forms multi-tile runs
+ * and never varies by position, so it's a length-1 array rather than a
+ * `VerticalRunRole`-keyed record like `BUSH_OR_TREE_VARIANTS`.
+ */
+const CRYSTAL_CLUSTER_VARIANTS: StaticObjectEntry[] = [{ sx: 32, sy: 0 }];
+
+/**
+ * The corner and flat cobweb sprites, from `decorations.png`. Unlike
+ * `crystalCluster`/`stalactite`/`stalagmite`, which of these two draws is NOT
+ * picked from position hash — it's driven entirely by
+ * `Terrain.ts`'s `cobwebOrientation` (does this cell sit in a corner formed by
+ * two adjacent solid neighbours?), so each is kept as its own named single
+ * entry rather than routed through `pickVariant`.
+ */
+export const COBWEB_CORNER_ENTRY: StaticObjectEntry = { sx: 0, sy: 0 };
+export const COBWEB_FLAT_ENTRY: StaticObjectEntry = { sx: 16, sy: 0 };
+
+/**
+ * Size variants for `stalactite`/`stalagmite` — a level author places one
+ * tile each; which size (large or twin) renders at a given cell is picked
+ * deterministically from its own position (see `pickVariant`), the same way
+ * `BUSH_OR_TREE_VARIANTS`'s `only` role already picks among 4 bush sizes.
+ */
+const STALACTITE_VARIANTS: StaticObjectEntry[] = [
+  { sx: 48, sy: 0 }, // large
+  { sx: 0, sy: 16 }, // twin
+];
+const STALAGMITE_VARIANTS: StaticObjectEntry[] = [
+  { sx: 16, sy: 16 }, // large
+  { sx: 32, sy: 16 }, // twin
+];
+
 /** One hand-drawn chain sprite, sized to its own true pixel dimensions —
  *  unlike every other `StaticObjectEntry` here, chain art is NOT 16x16:
  *  the artist's link pieces don't divide evenly into a 16px tile (a link's
@@ -130,7 +165,23 @@ export function bushOrTreeEntry(role: VerticalRunRole, col: number, row: number)
   return pickVariant(BUSH_OR_TREE_VARIANTS[role], col, row);
 }
 
-export function staticObjectEntry(tile: 'fence', col: number, row: number): StaticObjectEntry {
-  void tile; // only one static-object kind uses this function today
-  return pickVariant(FENCE_VARIANTS, col, row);
+const STATIC_OBJECT_VARIANTS: Record<'fence' | 'crystalCluster', StaticObjectEntry[]> = {
+  fence: FENCE_VARIANTS,
+  crystalCluster: CRYSTAL_CLUSTER_VARIANTS,
+};
+
+export function staticObjectEntry(tile: 'fence' | 'crystalCluster', col: number, row: number): StaticObjectEntry {
+  return pickVariant(STATIC_OBJECT_VARIANTS[tile], col, row);
+}
+
+/** Picks a `stalactite` tile's large-vs-twin sprite deterministically from its
+ *  own position — see `STALACTITE_VARIANTS`'s doc comment. */
+export function stalactiteEntry(col: number, row: number): StaticObjectEntry {
+  return pickVariant(STALACTITE_VARIANTS, col, row);
+}
+
+/** Picks a `stalagmite` tile's large-vs-twin sprite deterministically from its
+ *  own position — see `STALAGMITE_VARIANTS`'s doc comment. */
+export function stalagmiteEntry(col: number, row: number): StaticObjectEntry {
+  return pickVariant(STALAGMITE_VARIANTS, col, row);
 }
