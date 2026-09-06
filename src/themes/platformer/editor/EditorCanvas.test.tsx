@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, fireEvent, act } from '@testing-library/react';
-import { EditorCanvas, PATROL_MARKER_GLYPH } from './EditorCanvas';
+import { EditorCanvas, PATROL_MARKER_GLYPH, CONNECTION_POINT_MARKER_GLYPH } from './EditorCanvas';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import { centerPanOnSpawn } from './EditorPan';
 import type { TileChar } from '../level/LevelParser';
@@ -677,6 +677,96 @@ describe('EditorCanvas patrol markers', () => {
       (call: unknown[]) => call[0] === PATROL_MARKER_GLYPH,
     );
     expect(glyphCalls).toHaveLength(0);
+  });
+});
+
+describe('EditorCanvas blueprint connection point markers', () => {
+  it('draws an editor-only marker over every connection point tile, which the game itself never shows', () => {
+    const ctx = stubCanvasContext() as unknown as {
+      fillText: ReturnType<typeof vi.fn>;
+      fillRect: ReturnType<typeof vi.fn>;
+    };
+
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['+']]}
+        selectedTool="+"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+
+    const glyphCalls = ctx.fillText.mock.calls.filter(
+      (call: unknown[]) => call[0] === CONNECTION_POINT_MARKER_GLYPH,
+    );
+    expect(glyphCalls).not.toHaveLength(0);
+    // Tinted cell behind the glyph, at the tile's own top-left corner.
+    expect(ctx.fillRect).toHaveBeenCalledWith(0, 0, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+  });
+
+  it('offsets the connection point marker by the pan offset, like every other drawn layer', () => {
+    const ctx = stubCanvasContext() as unknown as { fillRect: ReturnType<typeof vi.fn> };
+
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['+']]}
+        selectedTool="+"
+        panOffset={{ x: 100, y: 40 }}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+
+    expect(ctx.fillRect).toHaveBeenCalledWith(100, 40, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+  });
+
+  it('draws no connection point marker for a grid without any connection point tile', () => {
+    const ctx = stubCanvasContext() as unknown as { fillText: ReturnType<typeof vi.fn> };
+
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['G']]}
+        selectedTool="G"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+
+    const glyphCalls = ctx.fillText.mock.calls.filter(
+      (call: unknown[]) => call[0] === CONNECTION_POINT_MARKER_GLYPH,
+    );
+    expect(glyphCalls).toHaveLength(0);
+  });
+
+  it('gives the patrol tile and the connection point tile their own distinct glyphs in one grid', () => {
+    // Both are sprite-less markers; one shared symbol would make a room's
+    // border unreadable.
+    const ctx = stubCanvasContext() as unknown as { fillText: ReturnType<typeof vi.fn> };
+    expect(CONNECTION_POINT_MARKER_GLYPH).not.toBe(PATROL_MARKER_GLYPH);
+
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['P', '+']]}
+        selectedTool="+"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+
+    const drawn = ctx.fillText.mock.calls.map((call: unknown[]) => call[0]);
+    expect(drawn).toContain(PATROL_MARKER_GLYPH);
+    expect(drawn).toContain(CONNECTION_POINT_MARKER_GLYPH);
   });
 });
 
