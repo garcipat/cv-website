@@ -872,7 +872,17 @@ describe('LevelEditorPage — Level/Blueprint canvas toggle (step 44a)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Level' }));
     fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
 
-    expect(editorBlueprintSignal.value[1][2]).toBe('G');
+    // Assert on what actually got RENDERED after switching back, not on the
+    // persisted signal — that signal's debounced write from before the
+    // toggles already landed, so re-reading it here would still pass even if
+    // the component's local `blueprintGrid` state were wrongly reset on every
+    // mode switch. `gridToLevelDef` maps 'G' to the tile type 'groundGrass'
+    // (see LevelParser.ts's TERRAIN_CHARS).
+    await waitFor(() => {
+      const calls = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls;
+      const [, level] = calls[calls.length - 1] as [unknown, { terrain: string[][] }];
+      expect(level.terrain[1][2]).toBe('groundGrass');
+    });
   });
 
   it('spawnToolStillArmed-switchingToBlueprint-disarmsItSoClicksCannotPaintASpawn', () => {
@@ -930,28 +940,70 @@ describe('LevelEditorPage — Level/Blueprint canvas toggle (step 44a)', () => {
   });
 
   it('switchingBackToLevelASecondTime-doesNotYankAHandPannedViewBackToTheSpawn', async () => {
+    // Mount already in Blueprint mode so there IS a centering debt to spend —
+    // mounting in Level mode (the default) starts with the debt already
+    // false and never proves the "only once" half of design note 5: the
+    // first switch to Level must center (paying the debt), but a SECOND
+    // switch must not re-center a view the user has since hand-panned.
+    editorCanvasModeSignal.value = 'blueprint';
     render(<LevelEditorPage />);
     await waitFor(() => expect(drawTerrain).toHaveBeenCalled());
-    // Pan the level view away from where it opened (middle-button drag).
-    const canvas = document.querySelector('canvas')!;
+
+    // First switch to Level: pays back the mount-time debt and centers.
+    fireEvent.click(screen.getByRole('button', { name: 'Level' }));
+    const canvas = document.querySelector('canvas') as HTMLCanvasElement;
+    const expectedCenterX = centerPanOnSpawn(
+      importLayout(LEVEL_1_LAYOUT),
+      canvas.width,
+      canvas.height,
+    ).x;
+    await waitFor(() => {
+      const calls = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls;
+      expect(calls[calls.length - 1][4]).toBe(expectedCenterX);
+    });
+
+    // Pan the level view away from where it just centered.
     vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
     fireEvent.mouseDown(canvas, { button: 1, clientX: 0, clientY: 0 });
     fireEvent.mouseMove(canvas, { clientX: 40, clientY: 0 });
     fireEvent.mouseUp(canvas);
     await waitFor(() => {
       const calls = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls;
-      expect(calls[calls.length - 1][4]).not.toBe(
-        centerPanOnSpawn(importLayout(LEVEL_1_LAYOUT), canvas.width, canvas.height).x,
-      );
+      expect(calls[calls.length - 1][4]).not.toBe(expectedCenterX);
     });
     const pannedX = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls.at(-1)![4];
 
+    // Second round trip: the debt was already spent by the first switch, so
+    // this switch back to Level must not re-center and yank the hand-panned
+    // view back to the spawn.
     fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
     fireEvent.click(screen.getByRole('button', { name: 'Level' }));
 
     await waitFor(() => {
       const calls = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls;
       expect(calls[calls.length - 1][4]).toBe(pannedX);
+    });
+  });
+
+  it('loadingADifferentLevelWhileInBlueprintMode-stillCentersItOnceSwitchedBackToLevel', async () => {
+    // Critical fix regression test: LevelSelect stays rendered and usable
+    // while the blueprint canvas is the active one (only Task 7 hides it).
+    // Loading a level from it must not let the CURRENTLY VISIBLE blueprint
+    // canvas eat the one-shot centering request — the debt must instead be
+    // armed and paid back on the next switch to Level.
+    renderEditorInBlueprintMode();
+    await waitFor(() => expect(drawTerrain).toHaveBeenCalled());
+
+    await selectLevel('empty');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Level' }));
+
+    const canvas = document.querySelector('canvas') as HTMLCanvasElement;
+    const expected = centerPanOnSpawn(importLayout(SCRATCH_LAYOUT), canvas.width, canvas.height);
+    await waitFor(() => {
+      const calls = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls;
+      const [, , , , originX, originY] = calls[calls.length - 1];
+      expect({ x: originX, y: originY }).toEqual(expected);
     });
   });
 });
