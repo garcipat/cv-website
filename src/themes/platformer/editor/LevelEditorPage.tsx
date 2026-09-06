@@ -11,7 +11,7 @@ import type { LevelEntry } from '../level/levelRegistry';
 import { LevelSelect } from './LevelSelect';
 import { BlueprintSelect } from './BlueprintSelect';
 import { saveLevel, LEVELS_FOLDER, type SaveLevelResult } from './saveLevelFile';
-import { saveBlueprintToStash } from './blueprintStash';
+import { saveBlueprint, BLUEPRINTS_FOLDER, type SaveBlueprintResult } from './saveBlueprintFile';
 import type { Blueprint } from '../level/BlueprintData';
 import type { BackgroundPlacement, BackgroundPieceId } from '../level/LevelData';
 import { backgroundCatalogEntry } from '../engine/BackgroundCatalog';
@@ -220,6 +220,7 @@ export const LevelEditorPage = () => {
   const [saveName, setSaveName] = useState(loadedLevelName);
   const [blueprintSaveDialogOpen, setBlueprintSaveDialogOpen] = useState(false);
   const [blueprintSaveName, setBlueprintSaveName] = useState(loadedBlueprintName);
+  const [blueprintSaveResult, setBlueprintSaveResult] = useState<SaveBlueprintResult | null>(null);
   // What the last save actually did — the dev server wrote the file, or the
   // browser downloaded it instead. Reported rather than assumed, since the two
   // leave the file in very different places: a successful write closes the
@@ -390,20 +391,24 @@ export const LevelEditorPage = () => {
   };
 
   /**
-   * Saves the blueprint canvas under a name, cropped through the very same
+   * Saves the blueprint canvas as a real file, cropped through the very same
    * `cropLevelForExport` a level save uses (tightest non-`.` bounding box,
    * background placements rebased onto that same origin) — a `Blueprint` is
    * deliberately the same `{ name, layout, background? }` shape a saved level
-   * file is. Step 44a stores it in a `localStorage` stash; step 44c replaces
-   * that with a real file written next to the levels, at which point only
-   * `blueprintStash.ts` changes, not this call site.
+   * file is, so both go down identical paths from here: POST to the dev
+   * server, falling back to a browser download when there is none.
+   *
+   * A write that succeeded closes the dialog; a fallback download keeps it
+   * open, because the file then still has to be moved and that is worth saying
+   * before it is dismissed. Same rule `saveCurrentLevel` above follows.
    */
-  const saveCurrentBlueprint = () => {
+  const saveCurrentBlueprint = async () => {
     const cropped = cropLevelForExport(blueprintGrid, blueprintBackgroundPlacements);
-    saveBlueprintToStash(blueprintSaveName, cropped.layout, cropped.background);
+    const result = await saveBlueprint(blueprintSaveName, cropped.layout, cropped.background);
+    setBlueprintSaveResult(result);
     setLoadedBlueprintName(blueprintSaveName);
     setBlueprintDirty(false);
-    setBlueprintSaveDialogOpen(false);
+    if (result.written) setBlueprintSaveDialogOpen(false);
   };
 
   /**
@@ -601,6 +606,7 @@ export const LevelEditorPage = () => {
                 variant="outline"
                 onClick={() => {
                   setBlueprintSaveName(loadedBlueprintName);
+                  setBlueprintSaveResult(null);
                   setBlueprintSaveDialogOpen(true);
                 }}
               >
@@ -611,9 +617,9 @@ export const LevelEditorPage = () => {
                   <DialogHeader>
                     <DialogTitle>Save this blueprint</DialogTitle>
                     <DialogDescription>
-                      Stores the blueprint canvas in this browser, cropped to the cells you
-                      painted. Step 44c replaces this with a real file written next to the
-                      levels.
+                      Writes the blueprint as a JSON file into <code>{BLUEPRINTS_FOLDER}</code>,
+                      where the blueprint list reads it from. Reload the editor afterwards to see
+                      it there.
                     </DialogDescription>
                   </DialogHeader>
                   <label className="flex flex-col gap-1 text-sm" htmlFor="save-blueprint-name">
@@ -625,9 +631,19 @@ export const LevelEditorPage = () => {
                       className="rounded border px-2 py-1 font-mono text-xs"
                     />
                   </label>
+                  {blueprintSaveResult !== null && !blueprintSaveResult.written && (
+                    <p className="text-sm" role="status">
+                      No dev server to write it
+                      {blueprintSaveResult.error === undefined
+                        ? ''
+                        : ` (${blueprintSaveResult.error})`}
+                      , so it went to your downloads instead. Move it into{' '}
+                      <code>{BLUEPRINTS_FOLDER}</code> yourself.
+                    </p>
+                  )}
                   <DialogFooter>
                     <DialogClose render={<Button type="button" variant="outline" />}>
-                      Cancel
+                      {blueprintSaveResult === null ? 'Cancel' : 'Done'}
                     </DialogClose>
                     <Button type="button" onClick={saveCurrentBlueprint}>
                       Save blueprint
