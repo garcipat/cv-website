@@ -244,6 +244,17 @@ numbered step.
   its own brainstorming pass — options might include dimming/desaturating the
   background layer more, a starker color/contrast split between the two layers, or
   reworking the piece art itself.
+- **A dedicated control/marker layer, separate from terrain** — today a tile is one
+  `TileType` per cell, so painting an invisible marker (`patrol`, `blueprintConnectionPoint`)
+  onto a cell replaces whatever terrain was there rather than overlaying it. Patrol has
+  shipped with this tradeoff since it's usually placed over open ground, but a blueprint
+  connection point is meant to sit on a room's *border*, typically a wall — painting one
+  there could leave an invisible, non-solid gap in the wall once a blueprint is placed
+  (step 44c). Raised while building step 44b; deliberately not acted on yet — 44c may end
+  up converting/stripping connection points at placement time rather than leaving literal
+  gaps in a shipped level, which would make a separate layer unnecessary. Revisit once
+  44c's placement behavior is actually built and this either does or doesn't turn out to
+  be a real problem.
 
 ## Working agreement
 
