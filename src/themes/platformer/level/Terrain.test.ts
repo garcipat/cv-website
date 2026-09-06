@@ -6,6 +6,7 @@ import {
   isStandableLadderTop,
   chainAttachment,
   chainRunLength,
+  cobwebOrientation,
   isTopExposed,
   tileToPixel,
   bridgeRunPosition,
@@ -57,6 +58,13 @@ describe('Terrain', () => {
     // A patrol tile bounds enemies only — the player, and physics in
     // general, must walk straight through it.
     expect(isSolid('patrol')).toBe(false);
+  });
+
+  it('isSolid-blueprintConnectionPoint-returnsFalse', () => {
+    // Editor-only marker (roadmap step 44b) — even if one ends up in a real
+    // level's terrain via a placed blueprint (step 44c), the player must
+    // walk straight through it, exactly like a patrol tile.
+    expect(isSolid('blueprintConnectionPoint')).toBe(false);
   });
 
   it('isSolid-bushAndFence-returnFalse', () => {
@@ -306,6 +314,7 @@ describe('isClimbable', () => {
     expect(isClimbable('bridge')).toBe(false);
     expect(isClimbable('empty')).toBe(false);
     expect(isClimbable('patrol')).toBe(false);
+    expect(isClimbable('blueprintConnectionPoint')).toBe(false);
   });
 
   it('isClimbable-bushAndFence-returnFalse', () => {
@@ -411,6 +420,85 @@ describe('chainRunLength', () => {
     // this when tileAt(level, col, row-1) !== 'chain'.
     const level: LevelDef = { width: 1, height: 3, terrain: [['chain'], ['chain'], ['chain']] };
     expect(chainRunLength(level, 0, 1)).toBe(2);
+  });
+});
+
+describe('cobwebOrientation', () => {
+  it('solidAboveAndLeft-returnsCornerRotation0', () => {
+    const level: LevelDef = {
+      width: 2,
+      height: 2,
+      terrain: [
+        ['empty', 'wall'],
+        ['wall', 'cobweb'],
+      ],
+    };
+    expect(cobwebOrientation(level, 1, 1)).toEqual({ corner: true, rotation: 0 });
+  });
+
+  it('solidAboveAndRight-returnsCornerRotation1', () => {
+    const level: LevelDef = {
+      width: 2,
+      height: 2,
+      terrain: [
+        ['wall', 'empty'],
+        ['cobweb', 'wall'],
+      ],
+    };
+    expect(cobwebOrientation(level, 0, 1)).toEqual({ corner: true, rotation: 1 });
+  });
+
+  it('solidBelowAndRight-returnsCornerRotation2', () => {
+    const level: LevelDef = {
+      width: 2,
+      height: 2,
+      terrain: [
+        ['cobweb', 'wall'],
+        ['wall', 'empty'],
+      ],
+    };
+    expect(cobwebOrientation(level, 0, 0)).toEqual({ corner: true, rotation: 2 });
+  });
+
+  it('solidBelowAndLeft-returnsCornerRotation3', () => {
+    const level: LevelDef = {
+      width: 2,
+      height: 2,
+      terrain: [
+        ['wall', 'cobweb'],
+        ['empty', 'wall'],
+      ],
+    };
+    expect(cobwebOrientation(level, 1, 0)).toEqual({ corner: true, rotation: 3 });
+  });
+
+  it('noAdjacentSolidPair-returnsFlat', () => {
+    // Only 'up' is solid — up+down and left+right are opposite sides, not a
+    // corner, so a lone solid neighbour never forms one.
+    const level: LevelDef = {
+      width: 1,
+      height: 2,
+      terrain: [['wall'], ['cobweb']],
+    };
+    expect(cobwebOrientation(level, 0, 1)).toEqual({ corner: false, rotation: 0 });
+  });
+
+  it('noSolidNeighbourAtAll-returnsFlat', () => {
+    const level: LevelDef = { width: 1, height: 1, terrain: [['cobweb']] };
+    expect(cobwebOrientation(level, 0, 0)).toEqual({ corner: false, rotation: 0 });
+  });
+
+  it('allFourSidesSolid-preferUpLeftFirst', () => {
+    const level: LevelDef = {
+      width: 3,
+      height: 3,
+      terrain: [
+        ['empty', 'wall', 'empty'],
+        ['wall', 'cobweb', 'wall'],
+        ['empty', 'wall', 'empty'],
+      ],
+    };
+    expect(cobwebOrientation(level, 1, 1)).toEqual({ corner: true, rotation: 0 });
   });
 });
 

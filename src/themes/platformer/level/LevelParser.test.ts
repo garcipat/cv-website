@@ -8,6 +8,7 @@ import {
   findQuestionMarkTiles,
   findFragileRockTiles,
   findCoinPotTiles,
+  findPotionPotTiles,
   findChestTiles,
   TERRAIN_CHARS,
   ENTITY_CHARS,
@@ -56,11 +57,12 @@ describe('parseLevel', () => {
     expect(ENTITY_CHARS.M).toBe('enemyGreen');
     expect(ENTITY_CHARS.m).toBe('enemyPurple');
     expect(ENTITY_CHARS.o).toBe('coin');
-    expect(ENTITY_CHARS.X).toBe('crate');
+    expect(ENTITY_CHARS['=']).toBe('crate');
     expect(ENTITY_CHARS.Q).toBe('questionMark');
     expect(ENTITY_CHARS.F).toBe('fragileRock');
     expect(ENTITY_CHARS.u).toBe('coinPot');
-    expect(ENTITY_CHARS.T).toBe('chest');
+    expect(ENTITY_CHARS.p).toBe('potionPot');
+    expect(ENTITY_CHARS.$).toBe('chest');
   });
 
   it('noTerrainAndEntityCharOverlap-documentedByTheModuleLoadGuard', () => {
@@ -129,6 +131,33 @@ describe('patrol terrain character', () => {
       width: 3,
       height: 1,
     });
+  });
+});
+
+describe('blueprint connection point terrain character', () => {
+  it('plus-mapsToTheBlueprintConnectionPointTileType', () => {
+    expect(TERRAIN_CHARS['+']).toBe('blueprintConnectionPoint');
+  });
+
+  it('parseLevel-connectionPointChar-keepsItAsItsOwnTileRatherThanEmpty', () => {
+    // Same reason a patrol tile is not parsed to `empty`: the character has
+    // to survive a parse/export round trip so a saved blueprint still knows
+    // where its connection points are (step 44c reads them back out of the
+    // layout).
+    expect(parseLevel(['.+.'])).toEqual({
+      terrain: [['empty', 'blueprintConnectionPoint', 'empty']],
+      width: 3,
+      height: 1,
+    });
+  });
+
+  it('connectionPointChar-collidesWithNoOtherCharacterMap', () => {
+    // The module-load guard in LevelParser.ts already throws on a shared
+    // key; this names the invariant for '+' specifically, since 44b is the
+    // step that claimed it.
+    expect('+' in ENTITY_CHARS).toBe(false);
+    expect('+' in SIGN_CHARS).toBe(false);
+    expect('+' in HAZARD_CHARS).toBe(false);
   });
 });
 
@@ -221,7 +250,7 @@ describe('findCrateTiles', () => {
   });
 
   it('multipleMarkers-returnsAllInReadingOrder', () => {
-    expect(findCrateTiles(['.X', 'X.'])).toEqual([
+    expect(findCrateTiles(['.=', '=.'])).toEqual([
       { col: 1, row: 0 },
       { col: 0, row: 1 },
     ]);
@@ -245,7 +274,7 @@ describe('findQuestionMarkTiles', () => {
   });
 
   it('crateOrFragileRockMarker-isNotCountedAsQuestionMark', () => {
-    expect(findQuestionMarkTiles(['XF'])).toEqual([]);
+    expect(findQuestionMarkTiles(['=F'])).toEqual([]);
   });
 });
 
@@ -262,7 +291,7 @@ describe('findFragileRockTiles', () => {
   });
 
   it('crateOrQuestionMarkMarker-isNotCountedAsFragileRock', () => {
-    expect(findFragileRockTiles(['XQ'])).toEqual([]);
+    expect(findFragileRockTiles(['=Q'])).toEqual([]);
   });
 });
 
@@ -279,7 +308,24 @@ describe('findCoinPotTiles', () => {
   });
 
   it('crateOrQuestionMarkMarker-isNotCountedAsCoinPot', () => {
-    expect(findCoinPotTiles(['XQ'])).toEqual([]);
+    expect(findCoinPotTiles(['=Q'])).toEqual([]);
+  });
+});
+
+describe('findPotionPotTiles', () => {
+  it('noMarkers-returnsEmptyArray', () => {
+    expect(findPotionPotTiles(['GG', 'GG'])).toEqual([]);
+  });
+
+  it('multipleMarkers-returnsAllInReadingOrder', () => {
+    expect(findPotionPotTiles(['.p', 'p.'])).toEqual([
+      { col: 1, row: 0 },
+      { col: 0, row: 1 },
+    ]);
+  });
+
+  it('coinPotMarker-isNotCountedAsPotionPot', () => {
+    expect(findPotionPotTiles(['uQ'])).toEqual([]);
   });
 });
 
@@ -289,14 +335,14 @@ describe('findChestTiles', () => {
   });
 
   it('multipleMarkers-returnsAllInReadingOrder', () => {
-    expect(findChestTiles(['.T', 'T.'])).toEqual([
+    expect(findChestTiles(['.$', '$.'])).toEqual([
       { col: 1, row: 0 },
       { col: 0, row: 1 },
     ]);
   });
 
   it('crateOrFragileRockMarker-isNotCountedAsChest', () => {
-    expect(findChestTiles(['XF'])).toEqual([]);
+    expect(findChestTiles(['=F'])).toEqual([]);
   });
 });
 
@@ -390,8 +436,8 @@ describe('findHazardTiles', () => {
 describe('TileChar', () => {
   it('includes every TERRAIN_CHARS, ENTITY_CHARS, SIGN_CHARS, and HAZARD_CHARS key', () => {
     const tileChars: readonly TileChar[] = [
-      '.', 'G', 'R', '#', 'B', 'H', 'I', 'P', 'S', 'M', 'm', 'o', 'X', 'Q', 'F', 'T', 'u',
-      '1', '2', '3', '4', '5', 'n', 'N', '^', 'v', '<', '>',
+      '.', 'G', 'R', '#', 'B', 'H', 'I', 'P', '+', 'S', 'M', 'm', 'o', '=', 'Q', 'F', '$', 'u', 'p',
+      'n', 'N', 'X', 'c', '⊤', '⊥', '1', '2', '3', '4', '5', '^', 'v', '<', '>',
     ];
     const allKeys = [
       ...Object.keys(TERRAIN_CHARS),

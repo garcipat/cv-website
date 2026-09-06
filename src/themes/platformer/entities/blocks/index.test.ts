@@ -50,9 +50,13 @@ describe('BLOCK_TYPES', () => {
     expect(BLOCK_TYPES.coinPot.triggerSides).toEqual(['top']);
   });
 
+  it('potionPot-reactsOnlyToALandingFromAbove', () => {
+    expect(BLOCK_TYPES.potionPot.triggerSides).toEqual(['top']);
+  });
+
   it('everyOtherKind-reactsOnlyToAHitFromBelow', () => {
     for (const [key, type] of Object.entries(BLOCK_TYPES)) {
-      if (key === 'coinPot') continue;
+      if (key === 'coinPot' || key === 'potionPot') continue;
       expect(type.triggerSides).toEqual(['bottom']);
     }
   });

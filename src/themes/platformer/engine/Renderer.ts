@@ -4,6 +4,7 @@ import {
   bridgeRunPosition,
   chainAttachment,
   chainRunLength,
+  cobwebOrientation,
   horizontalRunPosition,
   neighbourMask,
   NEIGHBOUR_UP,
@@ -15,7 +16,15 @@ import {
 } from '../level/Terrain';
 import type { ChainAttachment } from '../level/Terrain';
 import { groundAtlasCell, grassCell, GRASS_SOURCE_HEIGHT } from './GroundAtlas';
-import { bushOrTreeEntry, staticObjectEntry, chainRunPieces } from './StaticObjectsCatalog';
+import {
+  bushOrTreeEntry,
+  staticObjectEntry,
+  stalactiteEntry,
+  stalagmiteEntry,
+  chainRunPieces,
+  COBWEB_CORNER_ENTRY,
+  COBWEB_FLAT_ENTRY,
+} from './StaticObjectsCatalog';
 import type { GroundAtlasEntry } from './GroundAtlas';
 import { backgroundCatalogEntry } from './BackgroundCatalog';
 import type { LevelDef, TileType } from '../level/LevelData';
@@ -39,6 +48,7 @@ import {
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
 import { PICKUP_TYPES } from '../entities/pickups';
 import { key } from '../entities/pickups/Key';
+import { heart } from '../entities/pickups/Heart';
 import { bonusFruit } from '../entities/pickups/BonusFruit';
 import { typeOf } from '../entities/enemies';
 import type { EnemyState } from '../entities/Enemy';
@@ -46,6 +56,7 @@ import { typeOf as hazardTypeOf } from '../entities/hazards';
 import type { HazardPlacement } from '../level/HazardMapper';
 import type { DrawContext } from './DrawContext';
 import type { KeyPickupState } from '../entities/KeyPickup';
+import type { HeartPickupState } from '../entities/HeartPickup';
 import { KEY_FRAME_WIDTH, KEY_FRAME_HEIGHT } from '../entities/KeyPickup';
 import type { BlockState } from '../entities/Block';
 import { BLOCK_TYPES } from '../entities/blocks';
@@ -53,8 +64,14 @@ import { CHEST_TYPE } from '../entities/chests';
 import { CHEST_CLOSED_WIDTH, CHEST_CLOSED_HEIGHT } from '../entities/Chest';
 import type { ChestState } from '../entities/Chest';
 import type { BonusFruitState } from '../entities/BonusFruit';
-import { flightEffectPosition, sparkleParticles } from './CollectionEffects';
-import type { FlightEffect, PuffEffect } from './CollectionEffects';
+import {
+  flightEffectPosition,
+  sparkleParticles,
+  healAuraOpacity,
+  healAuraRays,
+  healAuraSparkles,
+} from './CollectionEffects';
+import type { FlightEffect, PuffEffect, HealAuraEffect } from './CollectionEffects';
 
 function tileSource(
   level: LevelDef,
@@ -89,13 +106,24 @@ function tileSource(
     case 'patrol':
       // An enemy patrol boundary is deliberately invisible in game — only
       // the Level Editor draws a marker for it (EditorCanvas.tsx's
-      // drawPatrolMarkers), the same way it badges sign digits.
+      // drawTileMarkers), the same way it badges sign digits.
+      return null;
+    case 'blueprintConnectionPoint':
+      // Editor-only, exactly like 'patrol' above: only the Level Editor
+      // draws anything for a connection point (EditorCanvas.tsx's
+      // drawTileMarkers). It can reach a real level's terrain at all only
+      // by way of a blueprint stamped down in the editor (step 44c), and
+      // even then it must stay invisible in game.
       return null;
     case 'bush':
     case 'fence':
-      // Drawn by drawTerrain's own staticObjects branch when that sheet is
-      // loaded; this shared lookup only runs when it isn't, so there is
-      // nothing to draw here.
+    case 'cobweb':
+    case 'crystalCluster':
+    case 'stalactite':
+    case 'stalagmite':
+      // Drawn by drawTerrain's own staticObjects/decorations branch when that
+      // sheet is loaded; this shared lookup only runs when it isn't, so there
+      // is nothing to draw here.
       return null;
     case 'empty':
       return null;
@@ -268,6 +296,7 @@ export function drawTerrain(
   originX = 0,
   originY = 0,
   staticObjects: HTMLImageElement | null = null,
+  decorations: HTMLImageElement | null = null,
 ): void {
   ctx.imageSmoothingEnabled = false;
 
@@ -305,6 +334,59 @@ export function drawTerrain(
         const entry = staticObjectEntry('fence', col, row);
         ctx.drawImage(
           staticObjects, entry.sx, entry.sy, TILE_SIZE, TILE_SIZE,
+          destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
+        );
+        continue;
+      }
+
+      if (decorations && tile === 'cobweb') {
+        const orientation = cobwebOrientation(level, col, row);
+        if (!orientation.corner) {
+          ctx.drawImage(
+            decorations, COBWEB_FLAT_ENTRY.sx, COBWEB_FLAT_ENTRY.sy, TILE_SIZE, TILE_SIZE,
+            destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
+          );
+        } else if (orientation.rotation === 0) {
+          ctx.drawImage(
+            decorations, COBWEB_CORNER_ENTRY.sx, COBWEB_CORNER_ENTRY.sy, TILE_SIZE, TILE_SIZE,
+            destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
+          );
+        } else {
+          const half = RENDERED_TILE_SIZE / 2;
+          ctx.save();
+          ctx.translate(destX + half, destY + half);
+          ctx.rotate((orientation.rotation * Math.PI) / 2);
+          ctx.drawImage(
+            decorations, COBWEB_CORNER_ENTRY.sx, COBWEB_CORNER_ENTRY.sy, TILE_SIZE, TILE_SIZE,
+            -half, -half, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
+          );
+          ctx.restore();
+        }
+        continue;
+      }
+
+      if (decorations && tile === 'crystalCluster') {
+        const entry = staticObjectEntry('crystalCluster', col, row);
+        ctx.drawImage(
+          decorations, entry.sx, entry.sy, TILE_SIZE, TILE_SIZE,
+          destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
+        );
+        continue;
+      }
+
+      if (decorations && tile === 'stalactite') {
+        const entry = stalactiteEntry(col, row);
+        ctx.drawImage(
+          decorations, entry.sx, entry.sy, TILE_SIZE, TILE_SIZE,
+          destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
+        );
+        continue;
+      }
+
+      if (decorations && tile === 'stalagmite') {
+        const entry = stalagmiteEntry(col, row);
+        ctx.drawImage(
+          decorations, entry.sx, entry.sy, TILE_SIZE, TILE_SIZE,
           destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
         );
         continue;
@@ -801,6 +883,22 @@ export function drawKeyPickups(
   }
 }
 
+/** Draws every potion-pot's dropped heart — each one renders itself (see
+ *  entities/pickups/Heart.ts). Unlike drawKeyPickups, there's no `collected`
+ *  filter: a touched heart is removed from its live array entirely the same
+ *  tick (see PlatformerState.ts's heartPickupStates doc comment), same
+ *  convention as drawBonusFruits below. */
+export function drawHeartPickups(
+  ctx: CanvasRenderingContext2D,
+  pickups: readonly HeartPickupState[],
+  dc: DrawContext,
+): void {
+  ctx.imageSmoothingEnabled = false;
+  for (const pickup of pickups) {
+    heart.draw(pickup, dc);
+  }
+}
+
 /** Draws every spike hazard. Knows nothing about any specific hazard kind —
  *  each one renders itself (see entities/hazards/). */
 export function drawHazards(
@@ -932,6 +1030,68 @@ export function drawCollectionEffects(ctx: CanvasRenderingContext2D, effects: Fl
 export function drawPuffEffects(ctx: CanvasRenderingContext2D, effects: PuffEffect[]): void {
   for (const effect of effects) {
     drawSparkleBurst(ctx, effect.x, effect.y, effect.elapsed, effect.scale);
+  }
+}
+
+/**
+ * Draws every active heal aura — a soft golden glow, a handful of rising
+ * light rays, and a few sparkle motes, all anchored at (anchorX, anchorY)
+ * and sized relative to `width` (the player's own rendered width, so the
+ * effect hugs the player rather than spreading across the screen — see
+ * CollectionEffects.ts's HealAuraEffect doc comment). The caller re-derives
+ * the anchor from the live player position every frame, unlike
+ * drawPuffEffects's fixed per-effect x/y. Every part shares the same fade
+ * curve (healAuraOpacity), so an expired effect (opacity 0) draws nothing.
+ */
+export function drawHealAuraEffects(
+  ctx: CanvasRenderingContext2D,
+  effects: readonly HealAuraEffect[],
+  anchorX: number,
+  anchorY: number,
+  width: number,
+): void {
+  for (const effect of effects) {
+    const opacity = healAuraOpacity(effect.elapsed);
+    if (opacity <= 0) continue;
+
+    const glowRadius = width * 0.9;
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    const glow = ctx.createRadialGradient(anchorX, anchorY, 0, anchorX, anchorY, glowRadius);
+    glow.addColorStop(0, 'rgba(255,224,120,0.9)');
+    glow.addColorStop(0.5, 'rgba(255,200,60,0.4)');
+    glow.addColorStop(1, 'rgba(255,200,60,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(anchorX, anchorY, glowRadius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    for (const ray of healAuraRays(effect.elapsed, width)) {
+      ctx.save();
+      ctx.globalAlpha = opacity;
+      const rayGradient = ctx.createLinearGradient(
+        anchorX + ray.dx,
+        anchorY,
+        anchorX + ray.dx,
+        anchorY - ray.height,
+      );
+      rayGradient.addColorStop(0, 'rgba(255,230,140,0.95)');
+      rayGradient.addColorStop(1, 'rgba(255,230,140,0)');
+      ctx.fillStyle = rayGradient;
+      ctx.fillRect(anchorX + ray.dx - 1, anchorY - ray.height, 2, ray.height);
+      ctx.restore();
+    }
+
+    for (const sparkle of healAuraSparkles(effect.elapsed, width)) {
+      ctx.save();
+      ctx.globalAlpha = opacity;
+      ctx.fillStyle = '#fff8d6';
+      ctx.beginPath();
+      ctx.arc(anchorX + sparkle.dx, anchorY + sparkle.dy, 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
   }
 }
 

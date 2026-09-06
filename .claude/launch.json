@@ -9,10 +9,22 @@
       "autoPort": true
     },
     {
+      "name": "decorations-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--", "--host", "0.0.0.0", "--port", "5177"],
+      "port": 5177
+    },
+    {
       "name": "background-water-tiles-dev",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "C:/Git/github/garcipat/cv-website/.claude/worktrees/S-006-background-water-tiles", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5175"],
       "port": 5175
+    },
+    {
+      "name": "potion-heart-drop-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "C:/Git/github/garcipat/cv-website/.claude/worktrees/S-006-step41-potion-heart-drop", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5176"],
+      "port": 5176
     }
   ]
 }

@@ -17,6 +17,8 @@ import {
   drawSigns,
   drawSignBubble,
   drawKeyPickups,
+  drawHeartPickups,
+  drawHealAuraEffects,
   drawHazards,
   drawKeyCounter,
   keyCounterX,
@@ -34,7 +36,7 @@ import type { SignPlacement } from '../level/SignMapper';
 import type { PlayerState } from '../entities/Player';
 import { PLAYER_RENDERED_SIZE, PLAYER_HIT_REACTION_SECONDS } from '../entities/Player';
 import { MAX_HALF_HEARTS, HEART_RENDERED_SIZE } from '../entities/Health';
-import { startFlightEffect, tickFlightEffect, RISE_DURATION_SECONDS, SPARKLE_DURATION_SECONDS, startPuffEffect, tickPuffEffect } from './CollectionEffects';
+import { startFlightEffect, tickFlightEffect, RISE_DURATION_SECONDS, SPARKLE_DURATION_SECONDS, startPuffEffect, tickPuffEffect, startHealAuraEffect, HEAL_AURA_DURATION_SECONDS } from './CollectionEffects';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
 import type { BlockPlacement } from '../level/BlockMapper';
 import { toBlockState, blockFrameSource } from '../entities/Block';
@@ -59,6 +61,8 @@ import {
   spawnKeyPickup,
 } from '../entities/KeyPickup';
 import type { KeyPickupState } from '../entities/KeyPickup';
+import { spawnHeartPickup, HEART_PICKUP_RENDERED_SIZE, HEART_PICKUP_TILE_OFFSET_X, HEART_PICKUP_TILE_OFFSET_Y } from '../entities/HeartPickup';
+import type { HeartPickupState } from '../entities/HeartPickup';
 import {
   SLIME_GREEN_SHEET,
   SLIME_PURPLE_SHEET,
@@ -67,6 +71,7 @@ import {
   FRUIT_SHEET,
   WORLD_TILESET_SHEET,
   CRACK_OVERLAY_SHEET,
+  HEARTS_SHEET,
 } from '../entities/sprites/sheets';
 import type { DrawContext } from './DrawContext';
 
@@ -119,6 +124,8 @@ function makeMockContext() {
     strokeStyle: '',
     lineWidth: 1,
     globalAlpha: 1,
+    createRadialGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
+    createLinearGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
   } as unknown as CanvasRenderingContext2D;
 }
 
@@ -308,6 +315,7 @@ function makeDrawContext(
       [COIN_SHEET.src]: { tag: 'coin' } as unknown as HTMLImageElement,
       [FRUIT_SHEET.src]: { tag: 'fruit' } as unknown as HTMLImageElement,
       [WORLD_TILESET_SHEET.src]: { tag: 'worldTileset' } as unknown as HTMLImageElement,
+      [HEARTS_SHEET.src]: { tag: 'hearts' } as unknown as HTMLImageElement,
       [CRACK_OVERLAY_SHEET.src]: { tag: 'crackOverlay' } as unknown as HTMLImageElement,
       [CHEST_CLOSED_SHEET.src]: { tag: 'chestClosed' } as unknown as HTMLImageElement,
       [CHEST_OPEN_SHEET.src]: { tag: 'chestOpen' } as unknown as HTMLImageElement,
@@ -976,6 +984,59 @@ describe('drawPuffEffects', () => {
   it('noPuffs-drawsNothing', () => {
     const ctx = makeMockContext() as unknown as { arc: ReturnType<typeof vi.fn> };
     drawPuffEffects(ctx as unknown as CanvasRenderingContext2D, []);
+    expect(ctx.arc).not.toHaveBeenCalled();
+  });
+});
+
+describe('drawHealAuraEffects', () => {
+  it('freshAura-drawsGlowCircleAndSparkleCircles', () => {
+    const ctx = makeMockContext() as unknown as { arc: ReturnType<typeof vi.fn> };
+    const effect = startHealAuraEffect('h1');
+
+    drawHealAuraEffects(ctx as unknown as CanvasRenderingContext2D, [effect], 100, 200, 32);
+
+    // 1 glow circle + 4 sparkle circles (see CollectionEffects.ts's
+    // HEAL_AURA_SPARKLE_OFFSETS).
+    expect(ctx.arc).toHaveBeenCalledTimes(5);
+  });
+
+  it('freshAura-drawsOneRayRectPerHealAuraRay', () => {
+    const ctx = makeMockContext() as unknown as { fillRect: ReturnType<typeof vi.fn> };
+    const effect = startHealAuraEffect('h1');
+
+    drawHealAuraEffects(ctx as unknown as CanvasRenderingContext2D, [effect], 100, 200, 32);
+
+    // 5 rays (see CollectionEffects.ts's HEAL_AURA_RAY_COUNT).
+    expect(ctx.fillRect).toHaveBeenCalledTimes(5);
+  });
+
+  it('auraAtItsAnchor-drawsGlowCircleCenteredThere-notAt0-0', () => {
+    const ctx = makeMockContext() as unknown as { arc: ReturnType<typeof vi.fn> };
+    const effect = startHealAuraEffect('h1');
+
+    drawHealAuraEffects(ctx as unknown as CanvasRenderingContext2D, [effect], 100, 200, 32);
+
+    const [cx, cy] = ctx.arc.mock.calls[0];
+    expect(cx).toBeCloseTo(100, 0);
+    expect(cy).toBeCloseTo(200, 0);
+  });
+
+  it('expiredAura-drawsNothing', () => {
+    const ctx = makeMockContext() as unknown as {
+      arc: ReturnType<typeof vi.fn>;
+      fillRect: ReturnType<typeof vi.fn>;
+    };
+    const effect = { id: 'h1', elapsed: HEAL_AURA_DURATION_SECONDS + 0.01 };
+
+    drawHealAuraEffects(ctx as unknown as CanvasRenderingContext2D, [effect], 100, 200, 32);
+
+    expect(ctx.arc).not.toHaveBeenCalled();
+    expect(ctx.fillRect).not.toHaveBeenCalled();
+  });
+
+  it('noAuras-drawsNothing', () => {
+    const ctx = makeMockContext() as unknown as { arc: ReturnType<typeof vi.fn> };
+    drawHealAuraEffects(ctx as unknown as CanvasRenderingContext2D, [], 100, 200, 32);
     expect(ctx.arc).not.toHaveBeenCalled();
   });
 });
@@ -1673,6 +1734,77 @@ describe('drawTerrain — bush/fence', () => {
   });
 });
 
+describe('drawTerrain — cave decorations', () => {
+  const fakeDecorations = {} as HTMLImageElement;
+
+  it('cobwebTile-cornerOrientation-drawnFromDecorationsRotatedAboutTheCellCenter', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    // The cobweb cell (col 0, row 1) has a solid neighbour above (wall) and
+    // to its right (wall) — an up+right corner, so rotation 1.
+    const level: LevelDef = {
+      terrain: [
+        ['wall', 'empty'],
+        ['cobweb', 'wall'],
+      ],
+      width: 2,
+      height: 2,
+    };
+
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, fakeDecorations);
+
+    // up+right -> rotation 1, so the corner sprite (0,0) is drawn rotated
+    // about the cell's own center (destX+16, destY+32 at RENDERED_TILE_SIZE=32).
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeDecorations, 0, 0, 16, 16,
+      -16, -16, 32, 32,
+    );
+  });
+
+  it('cobwebTile-flatOrientation-drawnPlainFromDecorations', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = { terrain: [['cobweb']], width: 1, height: 1 };
+
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, fakeDecorations);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeDecorations, 16, 0, 16, 16,
+      0, 0, 32, 32,
+    );
+  });
+
+  it('stalagmiteTile-drawnFromDecorationsAtTheRightDestination', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = { terrain: [['stalagmite']], width: 1, height: 1 };
+
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, fakeDecorations);
+
+    // (0, 0)'s position hash deterministically picks the "large" variant
+    // (sx 16, sy 16) — see StaticObjectsCatalog.test.ts for the general
+    // determinism/bounds coverage of stalagmiteEntry itself.
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeDecorations, 16, 16, 16, 16,
+      0, 0, 32, 32,
+    );
+  });
+
+  it('decorationsNotLoaded-cobwebDrawsNothingButOtherTerrainStillRenders', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = { terrain: [['cobweb', 'wall']], width: 2, height: 1 };
+
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, null);
+
+    // wall (sx: 8*16=128, sy: 0) still draws from the tileset.
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeTileset, 128, 0, 16, 16,
+      32, 0, 32, 32,
+    );
+    expect(ctx.drawImage).not.toHaveBeenCalledWith(
+      fakeDecorations, expect.anything(), expect.anything(), expect.anything(), expect.anything(),
+      0, 0, expect.anything(), expect.anything(),
+    );
+  });
+});
+
 describe('drawPlayer', () => {
   const fakeSpriteSheet = {} as HTMLImageElement;
   const idlePlayer: PlayerState = {
@@ -2278,6 +2410,38 @@ describe('drawKeyPickups', () => {
       KEY_RENDERED_WIDTH,
       KEY_RENDERED_HEIGHT,
     );
+  });
+});
+
+describe('drawHeartPickups', () => {
+  it('someHearts-drawsTheFullHeartFrameAtItsSmallerRenderedSize', () => {
+    const ctx = makeMockContext();
+    // No bob: worldElapsed 0 gives coinBobOffset(0) === 0.
+    const dc = makeDrawContext(ctx, { worldElapsed: 0 });
+    const hearts: HeartPickupState[] = [spawnHeartPickup('h1', 100, 200)];
+
+    drawHeartPickups(ctx, hearts, dc);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      dc.sprites[HEARTS_SHEET.src],
+      0,
+      0,
+      HEARTS_SHEET.frameWidth,
+      HEARTS_SHEET.frameHeight,
+      100 + HEART_PICKUP_TILE_OFFSET_X,
+      200 + HEART_PICKUP_TILE_OFFSET_Y,
+      HEART_PICKUP_RENDERED_SIZE,
+      HEART_PICKUP_RENDERED_SIZE,
+    );
+  });
+
+  it('noHearts-drawsNothing', () => {
+    const ctx = makeMockContext();
+    const dc = makeDrawContext(ctx);
+
+    drawHeartPickups(ctx, [], dc);
+
+    expect(ctx.drawImage).not.toHaveBeenCalled();
   });
 });
 

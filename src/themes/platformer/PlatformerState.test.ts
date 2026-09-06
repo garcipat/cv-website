@@ -16,6 +16,7 @@ import {
   collectedCollectibleIds,
   activeEffects,
   activePuffs,
+  activeHealAuraEffects,
   blockPlacements,
   chestPlacements,
   chestStates,
@@ -24,6 +25,7 @@ import {
   controlsOverlayDismissed,
   keyPickupStates,
   collectedKeys,
+  heartPickupStates,
   spawnedCoinPlacements,
   allCollectiblePlacements,
   levelTotals,
@@ -33,6 +35,7 @@ import {
 } from './PlatformerState';
 import type { CollectedFact } from './types';
 import { mapCVDataToEnemies } from './level/EnemyMapper';
+import { toBlockState } from './entities/Block';
 import { currentCV } from '@/state/locale';
 import { MAX_HALF_HEARTS } from './entities/Health';
 import { tileToPixel, RENDERED_TILE_SIZE } from './level/Terrain';
@@ -53,7 +56,7 @@ import {
   PLAYER_VISUAL_CENTER_Y_OFFSET,
 } from './entities/Player';
 import { toChestState, isChestOpen } from './entities/Chest';
-import { startPuffEffect } from './engine/CollectionEffects';
+import { startPuffEffect, startHealAuraEffect } from './engine/CollectionEffects';
 
 function collectedFactFixture(): CollectedFact {
   return { id: 'f1', sectionId: 'skills', sectionLabel: 'Skills', data: { category: 'Test', skills: [] }, sourceType: 'coin' };
@@ -399,6 +402,30 @@ describe('activePuffs', () => {
   });
 });
 
+describe('activeHealAuraEffects', () => {
+  afterEach(() => {
+    activeHealAuraEffects.value = [];
+  });
+
+  it('startsEmpty', () => {
+    expect(activeHealAuraEffects.value).toEqual([]);
+  });
+
+  it('resetGame-doesNotClearActiveHealAuraEffects', () => {
+    const aura = startHealAuraEffect('h1');
+    activeHealAuraEffects.value = [aura];
+    resetGame();
+    expect(activeHealAuraEffects.value).toHaveLength(1);
+    expect(activeHealAuraEffects.value[0]).toBe(aura);
+  });
+
+  it('resetGameProgress-clearsActiveHealAuraEffects', () => {
+    activeHealAuraEffects.value = [startHealAuraEffect('h1')];
+    resetGameProgress();
+    expect(activeHealAuraEffects.value).toEqual([]);
+  });
+});
+
 describe('activeJournalSection', () => {
   it('initialValue-onModuleLoad-isUndefined', () => {
     // undefined until the user manually picks a bookmark tab — Journal.tsx
@@ -438,6 +465,83 @@ describe('keyPickupStates / collectedKeys persistence', () => {
     resetGameProgress();
     expect(keyPickupStates.value).toEqual([]);
     expect(collectedKeys.value).toBe(0);
+  });
+});
+
+describe('heartPickupStates', () => {
+  afterEach(() => {
+    heartPickupStates.value = [];
+  });
+
+  it('initialValue-onModuleLoad-isEmpty', () => {
+    expect(heartPickupStates.value).toEqual([]);
+  });
+
+  it('resetGameProgress-clearsHeartPickups', () => {
+    heartPickupStates.value = [{ id: 'h1', x: 0, y: 0 }];
+    resetGameProgress();
+    expect(heartPickupStates.value).toEqual([]);
+  });
+});
+
+describe('blockPlacements — potionPot', () => {
+  afterEach(() => {
+    // currentLayout is module-level (see level.ts's doc comment) — restore
+    // it so this describe block doesn't leak a stripped-down layout into
+    // every other test in this file.
+    currentLayout.value = LEVEL_1_LAYOUT;
+  });
+
+  it('layoutWithAPotionPotMarker-producesAPotionPotPlacement', () => {
+    currentLayout.value = ['Sp', 'GG'];
+    expect(blockPlacements.value.some((b) => b.blockKind === 'potionPot')).toBe(true);
+  });
+});
+
+describe('resetGame — potion-pots restore, dropped hearts vanish', () => {
+  afterEach(() => {
+    currentLayout.value = LEVEL_1_LAYOUT;
+    blockStates.value = blockPlacements.value.map(toBlockState);
+    heartPickupStates.value = [];
+  });
+
+  it('resetGame-clearsDroppedHeartPickups', () => {
+    // Unlike keyPickupStates/bonusFruitStates (which persist across a
+    // death/respawn, cleared only by resetGameProgress), a dropped heart
+    // disappears on every death — the user's call: a heart in the world is
+    // tied to its still-broken pot, and the pot itself is about to reappear.
+    heartPickupStates.value = [{ id: 'h1', x: 0, y: 0 }];
+    resetGame();
+    expect(heartPickupStates.value).toEqual([]);
+  });
+
+  it('resetGame-restoresADestroyedPotionPotBackToIntact', () => {
+    currentLayout.value = ['Sp', 'GG'];
+    const placement = blockPlacements.value.find((b) => b.blockKind === 'potionPot')!;
+    // Simulate the pot having been destroyed and its shatter animation
+    // settled: isBlockRemoved splices a used-up, removeWhenUsedUp block out
+    // of blockStates entirely (see Block.ts's doc comment), so there is
+    // nothing left in blockStates for this placement's id at all.
+    blockStates.value = blockPlacements.value.map(toBlockState).filter((b) => b.id !== placement.id);
+    expect(blockStates.value.some((b) => b.id === placement.id)).toBe(false);
+
+    resetGame();
+
+    expect(blockStates.value.find((b) => b.id === placement.id)).toMatchObject({
+      blockKind: 'potionPot',
+      hitsTaken: 0,
+    });
+  });
+
+  it('resetGame-doesNotTouchOtherBlockKindsProgress', () => {
+    // Every other block kind's progress persists across a death/respawn
+    // (see resetGame's own doc comment) — only potionPot is special-cased.
+    const crate = blockStates.value.find((b) => b.blockKind === 'crate')!;
+    blockStates.value = blockStates.value.map((b) => (b.id === crate.id ? { ...b, hitsTaken: 1 } : b));
+
+    resetGame();
+
+    expect(blockStates.value.find((b) => b.id === crate.id)?.hitsTaken).toBe(1);
   });
 });
 

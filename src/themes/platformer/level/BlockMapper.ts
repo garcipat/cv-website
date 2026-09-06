@@ -120,6 +120,9 @@ export interface BlockMarkerPositions {
    *  doesn't yet place coin-pots keeps compiling unchanged — treated as `[]`
    *  when omitted. */
   coinPot?: readonly { col: number; row: number }[];
+  /** Optional for the same reason as `coinPot` above — every pre-existing
+   *  caller that doesn't yet place potion-pots keeps compiling unchanged. */
+  potionPot?: readonly { col: number; row: number }[];
 }
 
 /**
@@ -178,7 +181,9 @@ function placeCrates(
  * coin-pot carries no fact of its own — which CV fact it eventually reveals
  * is resolved dynamically at pickup time from the dropped coin's own pool
  * lookup (see `CollectibleMapper.ts`'s `mapCVDataToSkillFactPool` doc
- * comment), not bound to the block at placement time.
+ * comment), not bound to the block at placement time. potionPot markers
+ * follow the exact same convention as coinPot: no fact of its own, the heart
+ * it drops always heals a fixed amount (Health.ts's HEART_PICKUP_HEAL_AMOUNT).
  */
 export function placeBlocks(defs: BlockDef[], markers: BlockMarkerPositions): BlockPlacement[] {
   const placements: BlockPlacement[] = [];
@@ -201,6 +206,11 @@ export function placeBlocks(defs: BlockDef[], markers: BlockMarkerPositions): Bl
   for (const { col, row } of markers.coinPot ?? []) {
     const { x, y } = tileToPixel(col, row);
     placements.push({ id: `coinpot-${col}-${row}`, blockKind: 'coinPot', x, y });
+  }
+
+  for (const { col, row } of markers.potionPot ?? []) {
+    const { x, y } = tileToPixel(col, row);
+    placements.push({ id: `potionpot-${col}-${row}`, blockKind: 'potionPot', x, y });
   }
 
   return placements;
