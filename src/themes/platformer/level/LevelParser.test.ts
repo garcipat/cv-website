@@ -134,6 +134,33 @@ describe('patrol terrain character', () => {
   });
 });
 
+describe('blueprint connection point terrain character', () => {
+  it('plus-mapsToTheBlueprintConnectionPointTileType', () => {
+    expect(TERRAIN_CHARS['+']).toBe('blueprintConnectionPoint');
+  });
+
+  it('parseLevel-connectionPointChar-keepsItAsItsOwnTileRatherThanEmpty', () => {
+    // Same reason a patrol tile is not parsed to `empty`: the character has
+    // to survive a parse/export round trip so a saved blueprint still knows
+    // where its connection points are (step 44c reads them back out of the
+    // layout).
+    expect(parseLevel(['.+.'])).toEqual({
+      terrain: [['empty', 'blueprintConnectionPoint', 'empty']],
+      width: 3,
+      height: 1,
+    });
+  });
+
+  it('connectionPointChar-collidesWithNoOtherCharacterMap', () => {
+    // The module-load guard in LevelParser.ts already throws on a shared
+    // key; this names the invariant for '+' specifically, since 44b is the
+    // step that claimed it.
+    expect('+' in ENTITY_CHARS).toBe(false);
+    expect('+' in SIGN_CHARS).toBe(false);
+    expect('+' in HAZARD_CHARS).toBe(false);
+  });
+});
+
 describe('ladder terrain character', () => {
   it('terrainChars-mapsLToLadder', () => {
     expect(TERRAIN_CHARS.H).toBe('ladder');
@@ -409,7 +436,7 @@ describe('findHazardTiles', () => {
 describe('TileChar', () => {
   it('includes every TERRAIN_CHARS, ENTITY_CHARS, SIGN_CHARS, and HAZARD_CHARS key', () => {
     const tileChars: readonly TileChar[] = [
-      '.', 'G', 'R', '#', 'B', 'H', 'I', 'P', 'S', 'M', 'm', 'o', 'X', 'Q', 'F', 'T', 'u', 'p',
+      '.', 'G', 'R', '#', 'B', 'H', 'I', 'P', '+', 'S', 'M', 'm', 'o', 'X', 'Q', 'F', 'T', 'u', 'p',
       '1', '2', '3', '4', '5', 'n', 'N', '^', 'v', '<', '>',
     ];
     const allKeys = [

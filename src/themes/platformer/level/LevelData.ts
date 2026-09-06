@@ -15,6 +15,15 @@ export type TileType =
    *  author pens an enemy into a stretch of open ground without putting a
    *  visible obstacle there. */
   | 'patrol'
+  /** An editor-only marker for a cell on a blueprint's border where another
+   *  blueprint may attach (roadmap step 44b). Follows `'patrol'` above
+   *  exactly — invisible in normal gameplay rendering, never solid, no
+   *  collision behavior — and goes one step further: nothing in the running
+   *  game reads it at all. Neither "is a border cell" nor "which way it
+   *  opens" is stored; placement (step 44c) derives a point's open side from
+   *  whichever of its 4-neighbors falls outside its own blueprint's layout
+   *  bounds. */
+  | 'blueprintConnectionPoint'
   | 'bush'
   | 'fence'
   | 'empty';

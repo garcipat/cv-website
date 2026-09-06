@@ -25,21 +25,23 @@ describe('PALETTE_TILE_SPRITES', () => {
   });
 
   it('gives every sprite-less tile a glyph so the palette never shows two blank squares', () => {
-    // '.' (Eraser) and 'P' (Patrol Boundary) are the only two tiles with no
-    // sprite; without a glyph to tell them apart they would render as
-    // identical empty squares.
+    // '.' (Eraser), 'P' (Patrol Boundary) and '+' (blueprint Connection
+    // Point) are the tiles with no sprite; without a glyph to tell them
+    // apart they would render as identical empty squares. The Eraser is the
+    // deliberate exception — an empty square already reads as "erase".
     const spriteless = (Object.keys(PALETTE_TILE_SPRITES) as TileChar[]).filter(
       (key) => PALETTE_TILE_SPRITES[key] === null,
     );
-    expect(spriteless).toEqual(['.', 'P']);
+    expect(spriteless).toEqual(['.', 'P', '+']);
     expect(PALETTE_TILE_GLYPHS['.']).toBeUndefined();
     expect(PALETTE_TILE_GLYPHS.P).toBeTruthy();
+    expect(PALETTE_TILE_GLYPHS['+']).toBeTruthy();
   });
 
   it('gives every non-sprite-less tile a spec with a positive frame size', () => {
     const keys = Object.keys(PALETTE_TILE_SPRITES) as TileChar[];
     for (const key of keys) {
-      if (key === '.' || key === 'P') continue;
+      if (key === '.' || key === 'P' || key === '+') continue;
       const spec = PALETTE_TILE_SPRITES[key];
       expect(spec).not.toBeNull();
       expect(spec!.frameWidth).toBeGreaterThan(0);
@@ -165,5 +167,26 @@ describe('paletteTiles — bush/fence', () => {
     expect(PALETTE_TILE_LABELS.N.length).toBeGreaterThan(0);
     expect(PALETTE_TILE_DESCRIPTIONS.n.length).toBeGreaterThan(0);
     expect(PALETTE_TILE_DESCRIPTIONS.N.length).toBeGreaterThan(0);
+  });
+});
+
+describe('blueprint connection point marker', () => {
+  it('maps "+" (Connection Point) to null — like the patrol tile, it has no in-game sprite', () => {
+    expect(PALETTE_TILE_SPRITES['+']).toBeNull();
+  });
+
+  it('gives "+" a glyph, so it is not a second blank square next to the patrol tile', () => {
+    expect(PALETTE_TILE_GLYPHS['+']).toBeTruthy();
+    expect(PALETTE_TILE_GLYPHS['+']).not.toBe(PALETTE_TILE_GLYPHS.P);
+  });
+
+  it('labels "+" by what it is, not by its character', () => {
+    expect(PALETTE_TILE_LABELS['+']).toBe('Connection Point');
+  });
+
+  it('describes "+" by where it belongs and what it is for', () => {
+    expect(PALETTE_TILE_DESCRIPTIONS['+']).toBe(
+      'Blueprint only; marks a border cell another blueprint can attach to',
+    );
   });
 });

@@ -99,6 +99,13 @@ function tileSource(
       // the Level Editor draws a marker for it (EditorCanvas.tsx's
       // drawPatrolMarkers), the same way it badges sign digits.
       return null;
+    case 'blueprintConnectionPoint':
+      // Editor-only, exactly like 'patrol' above: only the Level Editor
+      // draws anything for a connection point (EditorCanvas.tsx's
+      // drawTileMarkers). It can reach a real level's terrain at all only
+      // by way of a blueprint stamped down in the editor (step 44c), and
+      // even then it must stay invisible in game.
+      return null;
     case 'bush':
     case 'fence':
       // Drawn by drawTerrain's own staticObjects branch when that sheet is
