@@ -6,6 +6,7 @@
 export interface BackgroundLayerImages {
   layers: HTMLImageElement;
   grass: HTMLImageElement;
+  river: HTMLImageElement;
 }
 
 interface SourceRect {
@@ -37,6 +38,11 @@ const VILLAGE_BOTTOM_OFFSET = 64;
 const CLOUDS_PARALLAX_FACTOR = 0.2;
 const VILLAGE_PARALLAX_FACTOR = 0.5;
 const GRASS_PARALLAX_FACTOR = 1;
+
+/** How long each of the river's 2 wave-line frames stays on screen before
+ *  swapping to the other — a plain alternating flipbook, not a scroll. */
+export const RIVER_FRAME_DURATION_MS = 500;
+const RIVER_FRAME_HEIGHT = 30;
 
 /** Draws one source rect tiled horizontally across `canvasWidth`, at native
  *  size, with its top-left at `destY`, offset by `cameraX * parallaxFactor`
@@ -103,6 +109,7 @@ export function drawBackgroundLayers(
   canvasWidth: number,
   canvasHeight: number,
   cameraX: number,
+  worldElapsedMs: number,
 ): void {
   ctx.imageSmoothingEnabled = false;
 
@@ -116,6 +123,10 @@ export function drawBackgroundLayers(
   );
 
   drawTiledRow(ctx, images.layers, VILLAGE_SOURCE_RECT, villageTop, canvasWidth, cameraX, VILLAGE_PARALLAX_FACTOR);
+
+  const riverFrameIndex = Math.floor(worldElapsedMs / RIVER_FRAME_DURATION_MS) % 2;
+  const riverRect: SourceRect = { sx: 0, sy: riverFrameIndex * RIVER_FRAME_HEIGHT, width: 160, height: RIVER_FRAME_HEIGHT };
+  drawTiledRow(ctx, images.river, riverRect, villageTop, canvasWidth, cameraX, VILLAGE_PARALLAX_FACTOR);
 
   const grassSource: SourceRect = { sx: 0, sy: 0, width: images.grass.width, height: images.grass.height };
   drawTiledArea(ctx, images.grass, grassSource, villageBottom, canvasHeight, canvasWidth, cameraX, GRASS_PARALLAX_FACTOR);

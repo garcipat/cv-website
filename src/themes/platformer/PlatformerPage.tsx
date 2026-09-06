@@ -119,6 +119,7 @@ import {
   STATIC_OBJECTS_SHEET,
   BACKGROUND_LAYERS_SHEET,
   BACKGROUND_LAYER_GRASS_SHEET,
+  BACKGROUND_LAYER_RIVER_SHEET,
 } from './entities/sprites/sheets';
 import { frameSource, collectSheetSources } from './entities/sprites/SpriteSheet';
 import type { SpriteLookup } from './entities/sprites/SpriteSheet';
@@ -186,6 +187,7 @@ export const PlatformerPage = () => {
   const tilesetRef = useRef<HTMLImageElement | null>(null);
   const backgroundLayersRef = useRef<HTMLImageElement | null>(null);
   const backgroundLayerGrassRef = useRef<HTMLImageElement | null>(null);
+  const backgroundLayerRiverRef = useRef<HTMLImageElement | null>(null);
   const groundAtlasRef = useRef<HTMLImageElement | null>(null);
   const backgroundAtlasRef = useRef<HTMLImageElement | null>(null);
   const staticObjectsRef = useRef<HTMLImageElement | null>(null);
@@ -456,13 +458,22 @@ export const PlatformerPage = () => {
       const originY = canvas.height - levelPixelHeight + cameraPositionY.value;
       const originX = -cameraPositionX.value;
 
-      if (backgroundLayersRef.current && backgroundLayerGrassRef.current) {
+      if (
+        backgroundLayersRef.current &&
+        backgroundLayerGrassRef.current &&
+        backgroundLayerRiverRef.current
+      ) {
         drawBackgroundLayers(
           ctx,
-          { layers: backgroundLayersRef.current, grass: backgroundLayerGrassRef.current },
+          {
+            layers: backgroundLayersRef.current,
+            grass: backgroundLayerGrassRef.current,
+            river: backgroundLayerRiverRef.current,
+          },
           canvas.width,
           canvas.height,
           cameraPositionX.value,
+          worldAnimElapsed,
         );
       }
 
@@ -1557,6 +1568,16 @@ export const PlatformerPage = () => {
       })
       .catch(() => {
         // Same fallback as the layers sheet above.
+      });
+    loadImage(BACKGROUND_LAYER_RIVER_SHEET.src)
+      .then((img) => {
+        if (cancelled) return;
+        backgroundLayerRiverRef.current = img;
+        render();
+      })
+      .catch(() => {
+        // The river simply won't animate if this asset fails to load; the
+        // rest of the background still shows.
       });
     loadImage(TERRAIN_BACKGROUND_SHEET.src)
       .then((img) => {
