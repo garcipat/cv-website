@@ -1,4 +1,4 @@
-import { editorLevelSignal, editorSelectedToolSignal, editorBackgroundSignal, editorActiveLayerSignal, editorSelectedBackgroundPieceSignal, editorCanvasModeSignal, editorBlueprintSignal, editorBlueprintBackgroundSignal, editorLoadedBlueprintNameSignal } from './editorLevelState';
+import { editorLevelSignal, editorSelectedToolSignal, editorBackgroundSignal, editorActiveLayerSignal, editorSelectedBackgroundPieceSignal, editorCanvasModeSignal, editorBlueprintSignal, editorBlueprintBackgroundSignal, editorLoadedBlueprintNameSignal, editorArmedBlueprintIdSignal } from './editorLevelState';
 import { importLayout } from './importLayout';
 import { LEVEL_1_LAYOUT } from '../level/level';
 import { BLANK_BLUEPRINT } from '../level/BlueprintData';
@@ -84,5 +84,25 @@ describe('editorLevelState — blueprint canvas signals', () => {
     } finally {
       editorBlueprintSignal.value = original;
     }
+  });
+});
+
+describe('editorArmedBlueprintIdSignal', () => {
+  const original = editorArmedBlueprintIdSignal.value;
+
+  afterEach(() => {
+    editorArmedBlueprintIdSignal.value = original;
+  });
+
+  it('initialValue-onModuleLoad-withNothingInLocalStorage-isNullSoNothingIsArmed', () => {
+    expect(editorArmedBlueprintIdSignal.value).toBeNull();
+  });
+
+  it('writingValue-persistsToLocalStorageUnderTheExpectedKey', () => {
+    editorArmedBlueprintIdSignal.value = 'cave-room';
+
+    expect(JSON.parse(localStorage.getItem('platformer-editor-armed-blueprint')!)).toBe(
+      'cave-room',
+    );
   });
 });
