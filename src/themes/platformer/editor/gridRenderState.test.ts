@@ -73,7 +73,7 @@ describe('synthesizeBlockStates', () => {
     // coinPot ('u') at all until this was added — a real bug found by
     // manual play-testing, not caught by the test suite (this test didn't
     // exist yet).
-    const grid: TileChar[][] = [['X', 'Q', 'F', 'u', 'p']];
+    const grid: TileChar[][] = [['=', 'Q', 'F', 'u', 'p']];
     const blocks = synthesizeBlockStates(grid);
     expect(blocks).toHaveLength(5);
     expect(blocks.map((b) => b.blockKind).sort()).toEqual(
@@ -84,8 +84,8 @@ describe('synthesizeBlockStates', () => {
 });
 
 describe('synthesizeChestStates', () => {
-  it('returns one closed chest placeholder per "T" marker', () => {
-    const grid: TileChar[][] = [['T']];
+  it('returns one closed chest placeholder per "$" marker', () => {
+    const grid: TileChar[][] = [['$']];
     const chests = synthesizeChestStates(grid);
     expect(chests).toHaveLength(1);
     expect(chests[0].state).toBe('closed');

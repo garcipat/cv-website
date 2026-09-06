@@ -194,3 +194,41 @@ export function chainRunLength(level: LevelDef, col: number, row: number): numbe
   while (tileAt(level, col, row + length) === 'chain') length++;
   return length;
 }
+
+/**
+ * Decides how a `cobweb` tile at (col, row) should render, auto-detected from
+ * its 4 orthogonal neighbours' solidity — a level author places one `cobweb`
+ * tile and the game picks corner-vs-flat art and rotation, the same way
+ * `bushOrTreeEntry` already auto-picks a bush's size.
+ *
+ * Only an ADJACENT pair of solid sides forms a corner a web can nest into
+ * (up+left, up+right, down+right, down+left) — up+down or left+right are
+ * opposite sides, not a corner, so a web spanning between them wouldn't read
+ * as attached to anything. Checked in that exact order, first match wins,
+ * which also resolves the ambiguous case of 3 or 4 solid sides by always
+ * preferring up+left. `rotation` is a quarter-turn COUNT (0-3), read the same
+ * way `GroundAtlasEntry.rotation` already is by Renderer.ts's
+ * `drawGroundTile` (`ctx.rotate((entry.rotation * Math.PI) / 2)` about the
+ * cell's own center): the corner sprite's native art already nests into an
+ * up+left corner (ceiling above, wall to the left), so up+left is rotation 0
+ * and each subsequent pair is one more quarter-turn clockwise. No solid
+ * adjacent pair at all means there's nothing for a corner web to attach to,
+ * so it falls back to the flat/neutral sprite, for which `rotation` is
+ * unused (always drawn plain).
+ */
+export function cobwebOrientation(
+  level: LevelDef,
+  col: number,
+  row: number,
+): { corner: boolean; rotation: 0 | 1 | 2 | 3 } {
+  const up = isSolid(tileAt(level, col, row - 1));
+  const right = isSolid(tileAt(level, col + 1, row));
+  const down = isSolid(tileAt(level, col, row + 1));
+  const left = isSolid(tileAt(level, col - 1, row));
+
+  if (up && left) return { corner: true, rotation: 0 };
+  if (up && right) return { corner: true, rotation: 1 };
+  if (down && right) return { corner: true, rotation: 2 };
+  if (down && left) return { corner: true, rotation: 3 };
+  return { corner: false, rotation: 0 };
+}

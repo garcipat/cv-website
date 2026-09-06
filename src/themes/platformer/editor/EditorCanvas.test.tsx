@@ -41,6 +41,7 @@ const EMPTY_IMAGES: EditorImages = {
   chestClosed: null,
   backgroundAtlas: null,
   staticObjects: null,
+  decorations: null,
 };
 
 // Default props shared by every pre-existing test in this file (all of
@@ -240,6 +241,7 @@ describe('EditorCanvas', () => {
       0,
       0,
       null,
+      null,
     );
   });
 
@@ -306,7 +308,7 @@ describe('EditorCanvas', () => {
     const tileset = {} as HTMLImageElement;
     const coin = {} as HTMLImageElement;
     const staticObjects = {} as HTMLImageElement;
-    const grid: TileChar[][] = [['o', 'M', 'X', 'T', 'u']];
+    const grid: TileChar[][] = [['o', 'M', '=', '$', 'u']];
     render(
       <EditorCanvas
         {...BACKGROUND_LAYER_DEFAULT_PROPS}
@@ -955,7 +957,7 @@ describe('EditorCanvas — background layer', () => {
 
     expect(drawTerrain).toHaveBeenCalledWith(
       expect.anything(), expect.anything(), expect.anything(), expect.anything(),
-      expect.anything(), expect.anything(), fakeStaticObjects,
+      expect.anything(), expect.anything(), fakeStaticObjects, null,
     );
   });
 
