@@ -18,11 +18,11 @@ interface SourceRect {
 
 /** Sub-rects within `BACKGROUND_LAYERS_SHEET`'s image (see `sheets.ts`) — sky,
  *  clouds/hills, and village/treeline stacked vertically in that order, each
- *  spanning the sheet's full 152px width. Exported so tests (and any future
+ *  spanning the sheet's full 160px width. Exported so tests (and any future
  *  caller) address a band by name instead of a hardcoded sy. */
-export const SKY_SOURCE_RECT: SourceRect = { sx: 0, sy: 0, width: 152, height: 24 };
-export const CLOUDS_SOURCE_RECT: SourceRect = { sx: 0, sy: 24, width: 152, height: 60 };
-export const VILLAGE_SOURCE_RECT: SourceRect = { sx: 0, sy: 84, width: 152, height: 57 };
+export const SKY_SOURCE_RECT: SourceRect = { sx: 0, sy: 0, width: 160, height: 24 };
+export const CLOUDS_SOURCE_RECT: SourceRect = { sx: 0, sy: 24, width: 160, height: 60 };
+export const VILLAGE_SOURCE_RECT: SourceRect = { sx: 0, sy: 84, width: 160, height: 57 };
 
 /** How far the village layer's bottom edge sits above the canvas bottom, in
  *  native (unscaled) pixels — chosen so typical foreground terrain height
