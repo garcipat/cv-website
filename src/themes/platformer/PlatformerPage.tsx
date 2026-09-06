@@ -29,10 +29,10 @@ import {
   drawKeyCounter,
   keyCounterX,
   KEY_COUNTER_Y,
-  drawSkyBackground,
   drawWaterForeground,
   drawBackgroundTiles,
 } from './engine/Renderer';
+import { drawBackgroundLayers } from './engine/BackgroundLayers';
 import type { DrawContext } from './engine/DrawContext';
 import { drawDebugOverlay } from './engine/DebugOverlay';
 import { createGameLoop } from './engine/GameLoop';
@@ -117,6 +117,8 @@ import {
   GROUND_ATLAS_SHEET,
   TERRAIN_BACKGROUND_SHEET,
   STATIC_OBJECTS_SHEET,
+  BACKGROUND_LAYERS_SHEET,
+  BACKGROUND_LAYER_GRASS_SHEET,
 } from './entities/sprites/sheets';
 import { frameSource, collectSheetSources } from './entities/sprites/SpriteSheet';
 import type { SpriteLookup } from './entities/sprites/SpriteSheet';
@@ -182,6 +184,8 @@ export const PlatformerPage = () => {
   useSignals();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const tilesetRef = useRef<HTMLImageElement | null>(null);
+  const backgroundLayersRef = useRef<HTMLImageElement | null>(null);
+  const backgroundLayerGrassRef = useRef<HTMLImageElement | null>(null);
   const groundAtlasRef = useRef<HTMLImageElement | null>(null);
   const backgroundAtlasRef = useRef<HTMLImageElement | null>(null);
   const staticObjectsRef = useRef<HTMLImageElement | null>(null);
@@ -452,10 +456,17 @@ export const PlatformerPage = () => {
       const originY = canvas.height - levelPixelHeight + cameraPositionY.value;
       const originX = -cameraPositionX.value;
 
+      if (backgroundLayersRef.current && backgroundLayerGrassRef.current) {
+        drawBackgroundLayers(
+          ctx,
+          { layers: backgroundLayersRef.current, grass: backgroundLayerGrassRef.current },
+          canvas.width,
+          canvas.height,
+          cameraPositionX.value,
+        );
+      }
+
       if (tilesetRef.current) {
-        // Fixed to the viewport, not the camera — drawn over the plain
-        // fillRect fallback above, once the tileset has actually loaded.
-        drawSkyBackground(ctx, tilesetRef.current, canvas.width, canvas.height, backgroundColor);
         if (backgroundAtlasRef.current) {
           drawBackgroundTiles(ctx, currentLevel.value, backgroundAtlasRef.current, originX, originY);
         }
@@ -1527,6 +1538,25 @@ export const PlatformerPage = () => {
       .catch(() => {
         // Ground simply won't render if the atlas fails to load; the sky and
         // the background fill still show so the page isn't blank.
+      });
+    loadImage(BACKGROUND_LAYERS_SHEET.src)
+      .then((img) => {
+        if (cancelled) return;
+        backgroundLayersRef.current = img;
+        render();
+      })
+      .catch(() => {
+        // The background simply won't render if this asset fails to load;
+        // the plain fillRect fallback still shows so the page isn't blank.
+      });
+    loadImage(BACKGROUND_LAYER_GRASS_SHEET.src)
+      .then((img) => {
+        if (cancelled) return;
+        backgroundLayerGrassRef.current = img;
+        render();
+      })
+      .catch(() => {
+        // Same fallback as the layers sheet above.
       });
     loadImage(TERRAIN_BACKGROUND_SHEET.src)
       .then((img) => {
