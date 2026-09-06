@@ -143,23 +143,26 @@ function synthesizeBlockPlacements(
   });
 }
 
-/** Returns one intact (never-hit) placeholder `BlockState` per `X` (crate),
- *  `Q` (questionMark), `F` (fragileRock), and `u` (coinPot) marker, via
- *  `toBlockState`. No `fact` is attached to any of them (editor preview
- *  only, never played) — `coinPot`'s `draw` doesn't need one; it only
- *  affects the in-game reward. */
+/** Returns one intact (never-hit) placeholder `BlockState` per `=` (crate),
+ *  `Q` (questionMark), `F` (fragileRock), `u` (coinPot), and `p` (potionPot)
+ *  marker, via `toBlockState`. No `fact` is attached to any of them (editor
+ *  preview only, never played) — `coinPot`'s/`potionPot`'s `draw` doesn't
+ *  need one; it only affects the in-game reward. */
 export function synthesizeBlockStates(grid: TileChar[][]): BlockState[] {
-  const crates = synthesizeBlockPlacements(grid, 'X', 'crate', 'editor-crate');
+  const crates = synthesizeBlockPlacements(grid, '=', 'crate', 'editor-crate');
   const questionMarks = synthesizeBlockPlacements(grid, 'Q', 'questionMark', 'editor-question');
   const fragileRocks = synthesizeBlockPlacements(grid, 'F', 'fragileRock', 'editor-fragile');
   const coinPots = synthesizeBlockPlacements(grid, 'u', 'coinPot', 'editor-coinpot');
-  return [...crates, ...questionMarks, ...fragileRocks, ...coinPots].map((placement) => toBlockState(placement));
+  const potionPots = synthesizeBlockPlacements(grid, 'p', 'potionPot', 'editor-potionpot');
+  return [...crates, ...questionMarks, ...fragileRocks, ...coinPots, ...potionPots].map((placement) =>
+    toBlockState(placement),
+  );
 }
 
-/** Returns one always-closed placeholder `ChestState` per `T` marker, via
+/** Returns one always-closed placeholder `ChestState` per `$` marker, via
  *  `toChestState` (which always defaults to `'closed'`). */
 export function synthesizeChestStates(grid: TileChar[][]): ChestState[] {
-  const placements: ChestPlacement[] = findAllPositions(grid, 'T').map(({ col, row }, index) => {
+  const placements: ChestPlacement[] = findAllPositions(grid, '$').map(({ col, row }, index) => {
     const { x, y } = tileToPixel(col, row);
     return { id: `editor-chest-${index}`, fact: PLACEHOLDER_FACT, x, y };
   });

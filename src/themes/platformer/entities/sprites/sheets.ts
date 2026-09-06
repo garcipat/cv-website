@@ -2,6 +2,7 @@ import type { SpriteSheet } from './SpriteSheet';
 import { KEY_FRAME_WIDTH, KEY_FRAME_HEIGHT } from '../KeyPickup';
 import { COIN_FRAME_SIZE, COIN_FRAME_COUNT } from '../Coin';
 import { FRUIT_FRAME_SIZE, FRUIT_ICON_COLUMNS } from '../Fruit';
+import { HEART_FRAME_SIZE } from '../Health';
 import { TILE_SIZE } from '../../level/Terrain';
 import {
   CHEST_CLOSED_WIDTH,
@@ -56,6 +57,19 @@ export const COIN_SHEET: SpriteSheet = {
   frameWidth: COIN_FRAME_SIZE,
   frameHeight: COIN_FRAME_SIZE,
   columns: COIN_FRAME_COUNT,
+};
+
+/** `hearts.png` is a 48x16 strip: 3 frames (full/half/empty — see
+ *  `Health.ts`'s `heartFrameIndex`). Registered here so a heart PICKUP
+ *  (`entities/pickups/Heart.ts`) can be discovered/loaded through the same
+ *  `PICKUP_TYPES`-driven sprite loader as every other pickup — the HUD's own
+ *  direct `heartsSpriteRef` load in PlatformerPage.tsx stays as is, same dual-
+ *  load convention `COIN_SHEET`/`KEY_SHEET` already established. */
+export const HEARTS_SHEET: SpriteSheet = {
+  src: '/sprites/hearts.png',
+  frameWidth: HEART_FRAME_SIZE,
+  frameHeight: HEART_FRAME_SIZE,
+  columns: 3,
 };
 
 /** `fruit.png` is physically 64x64, but only its first three 16px columns
@@ -175,4 +189,16 @@ export const BACKGROUND_LAYER_RIVER_SHEET: SpriteSheet = {
   frameWidth: 160,
   frameHeight: 30,
   columns: 1,
+};
+
+/** `decorations.png` is a 64x32 sheet of 16px tiles: cave-dressing pieces
+ *  (cobwebs, crystals, stalactites/stalagmites) for the foreground decoration
+ *  tiles. `StaticObjectsCatalog.ts` addresses it through its own sx/sy
+ *  lookup, not by frame index — like `STATIC_OBJECTS_SHEET`, this
+ *  registration exists for loading, not addressing. */
+export const DECORATIONS_SHEET: SpriteSheet = {
+  src: '/sprites/decorations.png',
+  frameWidth: TILE_SIZE,
+  frameHeight: TILE_SIZE,
+  columns: 4,
 };

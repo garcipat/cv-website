@@ -20,6 +20,8 @@ import { typeOf as hazardTypeOf } from '../entities/hazards';
 import type { HazardPlacement } from '../level/HazardMapper';
 import type { HintId } from '../types';
 import type { KeyPickupState } from '../entities/KeyPickup';
+import type { HeartPickupState } from '../entities/HeartPickup';
+import { MAX_HALF_HEARTS } from '../entities/Health';
 import { PICKUP_TYPES } from '../entities/pickups';
 import { strongerBounce } from './Outcome';
 
@@ -299,4 +301,21 @@ export function checkKeyPickupCollisions(
     (p) => PICKUP_TYPES.key.box(p),
     (p) => !p.collected,
   ).map((p) => p.id);
+}
+
+/**
+ * Returns the ids of every heart pickup the player's hitbox currently
+ * overlaps AND that the player can actually benefit from — gated on
+ * `hitPoints < MAX_HALF_HEARTS` so a heart waits in the world rather than
+ * being consumed for nothing at full health. Otherwise mirrors
+ * `checkBonusFruitCollisions` (no `collectedIds`/`collected` flag):
+ * `PlatformerPage.tsx` removes a touched heart from its live array entirely
+ * the same tick, same as a bonus fruit.
+ */
+export function checkHeartPickupCollisions(
+  player: PlayerState,
+  hearts: readonly HeartPickupState[],
+): string[] {
+  if (player.hitPoints >= MAX_HALF_HEARTS) return [];
+  return overlappingTriggers(player, hearts, (h) => PICKUP_TYPES.heart.box(h)).map((h) => h.id);
 }

@@ -15,11 +15,29 @@ import {
   editorBackgroundSignal,
   editorActiveLayerSignal,
   editorSelectedBackgroundPieceSignal,
+  editorCanvasModeSignal,
+  editorBlueprintSignal,
+  editorBlueprintBackgroundSignal,
+  editorLoadedBlueprintNameSignal,
+  editorArmedBlueprintIdSignal,
 } from './editorLevelState';
+import { isDevEnvironmentSignal } from './devEnvironment';
+import { BLANK_BLUEPRINT } from '../level/BlueprintData';
+import { blueprintFileJson } from './saveBlueprintFile';
+import { SAVE_BLUEPRINT_ENDPOINT } from './saveBlueprintEndpoint';
+import { SAVE_LEVEL_ENDPOINT } from './saveLevelEndpoint';
+import type { Blueprint } from '../level/BlueprintData';
 import { currentTheme } from '@/state/theme';
 import { currentPath } from '@/state/navigation';
 import { enemyPlacements, enemyStates, collectedFacts, collectedCollectibleIds } from '../PlatformerState';
 import { currentBackground } from '../level/level';
+
+const { blueprintEntries } = vi.hoisted(() => ({ blueprintEntries: [] as Blueprint[] }));
+
+vi.mock('../level/blueprintRegistry', () => ({
+  BLUEPRINTS: blueprintEntries,
+  findBlueprint: (id: string) => blueprintEntries.find((entry) => entry.id === id),
+}));
 
 vi.mock('../engine/SpriteLoader', () => ({
   loadImage: vi.fn((src: string) => Promise.resolve({ src } as unknown as HTMLImageElement)),
@@ -85,8 +103,24 @@ beforeEach(() => {
   editorActiveLayerSignal.value = 'foreground';
   editorSelectedBackgroundPieceSignal.value = null;
   currentBackground.value = [];
+  editorCanvasModeSignal.value = 'level';
+  editorBlueprintSignal.value = importLayout(BLANK_BLUEPRINT.layout);
+  editorBlueprintBackgroundSignal.value = [];
+  editorLoadedBlueprintNameSignal.value = BLANK_BLUEPRINT.name;
+  editorArmedBlueprintIdSignal.value = null;
+  blueprintEntries.length = 0;
+  // Not reset by the suite today, and the new Spawn-disarm test writes 'S'
+  // into it — without this, that write would leak into every test that runs
+  // after it and silently change which tool their clicks paint.
+  editorSelectedToolSignal.value = 'G';
+  // Every pre-existing Save/Save Blueprint test in this file assumes the
+  // controls are on screen, which is now conditional. The editor is a
+  // dev-only tool, so "there is a dev server" is the realistic default for
+  // the suite; the gate's own tests below set it false explicitly.
+  isDevEnvironmentSignal.value = true;
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
     fillRect: vi.fn(),
+    strokeRect: vi.fn(),
     fillStyle: '',
     strokeStyle: '',
     lineWidth: 0,
@@ -159,6 +193,39 @@ function stubDevServerWrite(path = 'src/themes/platformer/level/levels/cave-run.
   return { anchorClick };
 }
 
+/**
+ * A dev server that accepts a blueprint write, so nothing is downloaded.
+ *
+ * `fetchCalls` rather than the mock itself: `vi.fn(() => …)` types
+ * `mock.calls` from its zero-argument factory, i.e. as `[][]`, so
+ * `calls.find(([url]) => …)` is a `strict` compile error ("Tuple type '[]' of
+ * length '0' has no element at index '0'"). The real calls come from `fetch`
+ * with arguments, so the widened view is the honest one — the same reason
+ * `saveLevelFile.test.ts` reads `mock.calls[0]` through
+ * `as unknown as [string, RequestInit]`.
+ */
+function stubBlueprintWrite(path = 'src/themes/platformer/level/blueprints/test-room.json') {
+  const fetchMock = vi.fn(() =>
+    Promise.resolve({ ok: true, json: () => Promise.resolve({ path }) } as Response),
+  );
+  vi.stubGlobal('fetch', fetchMock);
+  const anchorClick = vi
+    .spyOn(HTMLAnchorElement.prototype, 'click')
+    .mockImplementation(() => {});
+  const fetchCalls = (): unknown[][] => fetchMock.mock.calls as unknown as unknown[][];
+  return { fetchCalls, anchorClick };
+}
+
+/** The body of the one POST that went to the blueprint write endpoint. */
+function blueprintPostBody(fetchCalls: () => unknown[][]) {
+  const call = fetchCalls().find(([url]) => url === SAVE_BLUEPRINT_ENDPOINT);
+  expect(call).toBeDefined();
+  return JSON.parse((call![1] as RequestInit).body as string) as {
+    fileName: string;
+    contents: string;
+  };
+}
+
 async function saveAs(name: string) {
   await userEvent.click(screen.getByRole('button', { name: 'Save' }));
   const nameField = await screen.findByLabelText(/level name/i);
@@ -169,6 +236,7 @@ async function saveAs(name: string) {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  isDevEnvironmentSignal.value = false;
 });
 
 describe('LevelEditorPage', () => {
@@ -747,5 +815,1032 @@ describe('LevelEditorPage — background layer', () => {
         { pieceId: 'dirtColumnTop1x1', col: 0, row: 0 },
       ]);
     });
+  });
+});
+
+// The blueprint canvas starts as one empty cell at pan {0,0}, so a click at
+// col * RENDERED_TILE_SIZE + 1 lands on exactly that column (see the
+// test-determinism notes in the plan).
+function paintBlueprintCell(col: number, row: number) {
+  const canvas = document.querySelector('canvas')!;
+  vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
+  fireEvent.mouseDown(canvas, {
+    button: 0,
+    clientX: col * RENDERED_TILE_SIZE + 1,
+    clientY: row * RENDERED_TILE_SIZE + 1,
+  });
+}
+
+function renderEditorInBlueprintMode() {
+  editorSelectedToolSignal.value = 'G';
+  render(<LevelEditorPage />);
+  fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
+}
+
+describe('LevelEditorPage — Level/Blueprint canvas toggle (step 44a)', () => {
+  it('onMount-theLevelCanvasIsActiveAndTheLayerToggleIsStillThere', () => {
+    render(<LevelEditorPage />);
+
+    expect(screen.getByRole('button', { name: 'Level' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(screen.getByRole('button', { name: 'Blueprint' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+    // Two independent axes: picking a canvas never removes the layer toggle.
+    expect(screen.getByRole('button', { name: 'Foreground' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Background' })).toBeInTheDocument();
+  });
+
+  it('clickingBlueprint-marksTheBlueprintCanvasActiveAndPersistsTheMode', () => {
+    render(<LevelEditorPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
+
+    expect(screen.getByRole('button', { name: 'Blueprint' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(editorCanvasModeSignal.value).toBe('blueprint');
+  });
+
+  it('blueprintModeActive-thePaletteDropsTheSpawnTool', () => {
+    render(<LevelEditorPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
+
+    expect(screen.queryByRole('button', { name: 'Spawn' })).not.toBeInTheDocument();
+  });
+
+  it('backToLevelMode-thePaletteOffersSpawnAgain', () => {
+    render(<LevelEditorPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Level' }));
+
+    expect(screen.getByRole('button', { name: 'Spawn' })).toBeInTheDocument();
+  });
+
+  it('paintingInBlueprintMode-writesToTheBlueprintGridAndLeavesTheLevelGridAlone', async () => {
+    const levelGridBefore = editorLevelSignal.value;
+    renderEditorInBlueprintMode();
+
+    paintBlueprintCell(2, 1);
+
+    await waitFor(() => {
+      expect(editorBlueprintSignal.value[1][2]).toBe('G');
+    });
+    expect(editorLevelSignal.value).toEqual(levelGridBefore);
+  });
+
+  it('paintingInBlueprintMode-doesNotMarkTheLevelDirty', async () => {
+    renderEditorInBlueprintMode();
+
+    paintBlueprintCell(2, 1);
+
+    await waitFor(() => expect(editorBlueprintSignal.value[1][2]).toBe('G'));
+    expect(editorDirtySignal.value).toBe(false);
+  });
+
+  it('paintingTheBackgroundLayerInBlueprintMode-writesToTheBlueprintBackgroundOnly', async () => {
+    renderEditorInBlueprintMode();
+    // The Foreground/Background toggle keeps switching LAYERS, now on the
+    // blueprint's own two layers.
+    fireEvent.click(screen.getByRole('button', { name: 'Background' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Dirt Column Top (1×1)' }));
+
+    paintBlueprintCell(0, 0);
+
+    await waitFor(() => expect(editorBlueprintBackgroundSignal.value).toHaveLength(1));
+    expect(editorBackgroundSignal.value).toEqual([]);
+  });
+
+  it('blueprintCanvasContent-survivesSwitchingToTheLevelAndBack', async () => {
+    renderEditorInBlueprintMode();
+    paintBlueprintCell(2, 1);
+    await waitFor(() => expect(editorBlueprintSignal.value[1][2]).toBe('G'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Level' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
+
+    // Assert on what actually got RENDERED after switching back, not on the
+    // persisted signal — that signal's debounced write from before the
+    // toggles already landed, so re-reading it here would still pass even if
+    // the component's local `blueprintGrid` state were wrongly reset on every
+    // mode switch. `gridToLevelDef` maps 'G' to the tile type 'groundGrass'
+    // (see LevelParser.ts's TERRAIN_CHARS).
+    await waitFor(() => {
+      const calls = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls;
+      const [, level] = calls[calls.length - 1] as [unknown, { terrain: string[][] }];
+      expect(level.terrain[1][2]).toBe('groundGrass');
+    });
+  });
+
+  it('spawnToolStillArmed-switchingToBlueprint-disarmsItSoClicksCannotPaintASpawn', () => {
+    // The palette merely stops OFFERING Spawn (Task 4). `selectedTool` is
+    // persisted and shared by both canvases, so without an explicit disarm a
+    // session that left 'S' armed would paint spawn markers into a blueprint
+    // through a palette showing nothing selected (design note 4).
+    editorSelectedToolSignal.value = 'S';
+    render(<LevelEditorPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
+
+    expect(editorSelectedToolSignal.value).not.toBe('S');
+    expect(screen.getByRole('button', { name: 'Ground Grass' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+  });
+
+  it('mountedInBlueprintModeWithSpawnArmed-disarmsItWithoutAnyToggleClick', () => {
+    // Both the mode and the tool are persisted, so the editor can come back
+    // up already on the blueprint canvas with 'S' selected and no toggle
+    // click to trigger the other disarm path.
+    editorCanvasModeSignal.value = 'blueprint';
+    editorSelectedToolSignal.value = 'S';
+
+    render(<LevelEditorPage />);
+
+    expect(editorSelectedToolSignal.value).not.toBe('S');
+    expect(screen.queryByRole('button', { name: 'Spawn' })).not.toBeInTheDocument();
+  });
+
+  it('mountedInBlueprintMode-firstSwitchToLevel-centersTheLevelOnItsSpawn', async () => {
+    // Mounting in blueprint mode lets the blueprint canvas consume the
+    // editor's one-shot centering request, which is a no-op on a spawn-less
+    // grid — the level must still get centered when it first becomes active
+    // (design note 5), rather than sitting unpanned at its top-left corner.
+    editorCanvasModeSignal.value = 'blueprint';
+    render(<LevelEditorPage />);
+    await waitFor(() => expect(drawTerrain).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Level' }));
+
+    const canvas = document.querySelector('canvas') as HTMLCanvasElement;
+    const expected = centerPanOnSpawn(
+      importLayout(LEVEL_1_LAYOUT),
+      canvas.width,
+      canvas.height,
+    );
+    await waitFor(() => {
+      const calls = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls;
+      const [, , , , originX, originY] = calls[calls.length - 1];
+      expect({ x: originX, y: originY }).toEqual(expected);
+    });
+  });
+
+  it('switchingBackToLevelASecondTime-doesNotYankAHandPannedViewBackToTheSpawn', async () => {
+    // Mount already in Blueprint mode so there IS a centering debt to spend —
+    // mounting in Level mode (the default) starts with the debt already
+    // false and never proves the "only once" half of design note 5: the
+    // first switch to Level must center (paying the debt), but a SECOND
+    // switch must not re-center a view the user has since hand-panned.
+    editorCanvasModeSignal.value = 'blueprint';
+    render(<LevelEditorPage />);
+    await waitFor(() => expect(drawTerrain).toHaveBeenCalled());
+
+    // First switch to Level: pays back the mount-time debt and centers.
+    fireEvent.click(screen.getByRole('button', { name: 'Level' }));
+    const canvas = document.querySelector('canvas') as HTMLCanvasElement;
+    const expectedCenterX = centerPanOnSpawn(
+      importLayout(LEVEL_1_LAYOUT),
+      canvas.width,
+      canvas.height,
+    ).x;
+    await waitFor(() => {
+      const calls = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls;
+      expect(calls[calls.length - 1][4]).toBe(expectedCenterX);
+    });
+
+    // Pan the level view away from where it just centered.
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
+    fireEvent.mouseDown(canvas, { button: 1, clientX: 0, clientY: 0 });
+    fireEvent.mouseMove(canvas, { clientX: 40, clientY: 0 });
+    fireEvent.mouseUp(canvas);
+    await waitFor(() => {
+      const calls = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls;
+      expect(calls[calls.length - 1][4]).not.toBe(expectedCenterX);
+    });
+    const pannedX = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls.at(-1)![4];
+
+    // Second round trip: the debt was already spent by the first switch, so
+    // this switch back to Level must not re-center and yank the hand-panned
+    // view back to the spawn.
+    fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Level' }));
+
+    await waitFor(() => {
+      const calls = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls;
+      expect(calls[calls.length - 1][4]).toBe(pannedX);
+    });
+  });
+
+  // A prior version of this test ("loadingADifferentLevelWhileInBlueprintMode
+  // -stillCentersItOnceSwitchedBackToLevel") exercised loadLevel while the
+  // blueprint canvas was active, which required LevelSelect to stay rendered
+  // in blueprint mode — the test's own comment noted "only Task 7 hides it".
+  // Task 7 does hide the Level Select+Save pair whenever the blueprint canvas
+  // is active (see the swap tests below), which makes that scenario
+  // unreachable through the UI: there is no LevelSelect to pick a level from
+  // while in blueprint mode. The `levelCenterPendingRef`/`isBlueprintMode`
+  // arming logic inside `loadLevel` itself is left untouched (Task 7's brief
+  // does not ask for it to be removed), but the regression test for it is
+  // retired here since it can no longer be driven through the rendered page.
+});
+
+async function saveBlueprintAs(name: string) {
+  await userEvent.click(screen.getByRole('button', { name: 'Save Blueprint' }));
+  const nameField = await screen.findByLabelText(/blueprint name/i);
+  await userEvent.clear(nameField);
+  await userEvent.type(nameField, name);
+  await userEvent.click(screen.getByRole('button', { name: 'Save blueprint' }));
+}
+
+describe('LevelEditorPage — blueprint select and save (step 44a)', () => {
+  // Belt-and-suspenders alongside the file's top-level afterEach above: every
+  // test in this block stubs `fetch` (stubBlueprintWrite/stubDownloads), and
+  // a leaked stub here would silently answer the next test's dev-environment
+  // ping as well as its saves.
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('levelMode-showsTheLevelSelectAndSaveButOfferNoBlueprintPair', () => {
+    render(<LevelEditorPage />);
+
+    // Exactly one combobox — getByRole throws on a second, so this is also
+    // the "never both pairs stacked" assertion.
+    expect(screen.getByRole('combobox')).toHaveTextContent('main');
+    expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Export' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Save Blueprint' })).not.toBeInTheDocument();
+  });
+
+  it('blueprintMode-swapsInTheBlueprintPairAndHidesTheLevelPair', () => {
+    render(<LevelEditorPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
+
+    expect(screen.getByRole('combobox')).toHaveTextContent('new');
+    expect(screen.getByRole('button', { name: 'Save Blueprint' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
+    // Export serializes the level grid and Try boots the game from it —
+    // both meaningless for a spawn-less blueprint, so they go with the
+    // level pair rather than staying visible and broken.
+    expect(screen.queryByRole('button', { name: 'Export' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Try' })).not.toBeInTheDocument();
+  });
+
+  it('savingTheBlueprintCanvas-postsTheCroppedLayoutToTheBlueprintWriteEndpoint', async () => {
+    const { fetchCalls } = stubBlueprintWrite();
+    renderEditorInBlueprintMode();
+    // One cell painted at (col 2, row 1) of an otherwise-empty canvas: the
+    // crop's tightest non-'.' bounding box is that single cell, so the saved
+    // layout is exactly ['G'].
+    paintBlueprintCell(2, 1);
+
+    await saveBlueprintAs('Test Room');
+
+    expect(blueprintPostBody(fetchCalls)).toEqual({
+      fileName: 'test-room.json',
+      contents: blueprintFileJson('Test Room', ['G'], []),
+    });
+  });
+
+  it('savingTheBlueprintCanvas-namesItOnTheDropdownTriggerAndClosesTheDialog', async () => {
+    stubBlueprintWrite();
+    renderEditorInBlueprintMode();
+    paintBlueprintCell(2, 1);
+
+    await saveBlueprintAs('Test Room');
+
+    expect(screen.getByRole('combobox')).toHaveTextContent('Test Room');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('savingTheBlueprintCanvas-writesNoLevelFileAndLeavesTheLevelUntouched', async () => {
+    const levelGridBefore = editorLevelSignal.value;
+    const { fetchCalls } = stubBlueprintWrite();
+    renderEditorInBlueprintMode();
+    paintBlueprintCell(2, 1);
+
+    await saveBlueprintAs('Test Room');
+
+    // The blueprint save must never reach the LEVEL write endpoint, and must
+    // not disturb the level canvas sitting behind it.
+    expect(fetchCalls().every(([url]) => url !== SAVE_LEVEL_ENDPOINT)).toBe(true);
+    expect(editorLevelSignal.value).toEqual(levelGridBefore);
+  });
+
+  it('savingABlueprintWithBackgroundPieces-postsThemRebasedOntoTheSameOrigin', async () => {
+    const { fetchCalls } = stubBlueprintWrite();
+    renderEditorInBlueprintMode();
+    paintBlueprintCell(2, 1);
+    fireEvent.click(screen.getByRole('button', { name: 'Background' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Dirt Column Top (1×1)' }));
+    paintBlueprintCell(2, 1);
+
+    await saveBlueprintAs('Test Room');
+
+    // The foreground crop's origin is (col 2, row 1) — the only painted cell —
+    // so a background piece placed on that same cell rebases to (col 0, row 0).
+    expect(JSON.parse(blueprintPostBody(fetchCalls).contents).background).toEqual([
+      { pieceId: 'dirtColumnTop1x1', col: 0, row: 0 },
+    ]);
+  });
+
+  it('noDevServer-savingABlueprint-saysSoAndKeepsTheDialogOpenWithTheDownloadedFile', async () => {
+    const { anchorClick } = stubDownloads();
+    renderEditorInBlueprintMode();
+    paintBlueprintCell(2, 1);
+
+    await saveBlueprintAs('Test Room');
+
+    expect(anchorClick).toHaveBeenCalledOnce();
+    expect((anchorClick.mock.instances[0] as HTMLAnchorElement).download).toBe('test-room.json');
+    // Same convention as a level save: a fallback download leaves the dialog
+    // open, because the file still has to be moved.
+    expect(await screen.findByText(/move it into/i)).toBeInTheDocument();
+  });
+
+  it('reopeningABlueprintFromTheRegistry-loadsItsLayoutOntoTheCanvas', async () => {
+    // A saved file only reaches the dropdown once Vite has picked it up, so
+    // this stands in for "after the reload" — the registry entry is present
+    // and the dropdown must load it onto the canvas.
+    blueprintEntries.push({ id: 'test-room', name: 'Test Room', layout: ['G+'] });
+    renderEditorInBlueprintMode();
+
+    fireEvent.click(screen.getByRole('combobox'));
+    await userEvent.click(await screen.findByRole('option', { name: 'Test Room' }));
+
+    await waitFor(() => {
+      expect(editorBlueprintSignal.value).toEqual(importLayout(['G+']));
+    });
+    expect(screen.getByRole('combobox')).toHaveTextContent('Test Room');
+  });
+
+  it('loadingABlueprintWithUnsavedEdits-asksBeforeDiscardingThem', async () => {
+    renderEditorInBlueprintMode();
+    paintBlueprintCell(2, 1);
+    // Wait for the debounced sync FIRST. Without it the signal would still
+    // hold the pre-paint blank canvas, and the "was not replaced" assertion
+    // below would pass for the wrong reason (or fail, depending on timing) —
+    // the blank canvas is exactly what loading would have written.
+    await waitFor(() => expect(editorBlueprintSignal.value[1][2]).toBe('G'));
+
+    fireEvent.click(screen.getByRole('combobox'));
+    await userEvent.click(await screen.findByRole('option', { name: 'new' }));
+
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    // `loadBlueprint` writes the signal directly (not only local state), so
+    // the painted cell still being there proves nothing was loaded yet.
+    expect(editorBlueprintSignal.value[1][2]).toBe('G');
+  });
+});
+
+describe('LevelEditorPage — blueprint connection points (step 44b)', () => {
+  it('blueprintMode-thePaletteOffersTheConnectionPointTool', () => {
+    render(<LevelEditorPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
+
+    expect(screen.getByRole('button', { name: 'Connection Point' })).toBeInTheDocument();
+  });
+
+  it('levelMode-thePaletteDoesNotOfferTheConnectionPointTool', () => {
+    render(<LevelEditorPage />);
+
+    expect(screen.queryByRole('button', { name: 'Connection Point' })).not.toBeInTheDocument();
+  });
+
+  it('paintingWithTheConnectionPointTool-writesItsCharacterIntoTheBlueprintGrid', async () => {
+    renderEditorInBlueprintMode();
+    fireEvent.click(screen.getByRole('button', { name: 'Connection Point' }));
+
+    paintBlueprintCell(2, 1);
+
+    await waitFor(() => {
+      expect(editorBlueprintSignal.value[1][2]).toBe('+');
+    });
+  });
+
+  it('savingABlueprintWithAConnectionPoint-keepsTheCharacterInThePostedLayout', async () => {
+    // The crop/export path carries '+' like any other character — nothing in
+    // saveBlueprint/cropLevelForExport knows about connection points, which is
+    // exactly what Part 2's placement relies on to read them back.
+    const { fetchCalls } = stubBlueprintWrite();
+    renderEditorInBlueprintMode();
+    paintBlueprintCell(2, 1);
+    fireEvent.click(screen.getByRole('button', { name: 'Connection Point' }));
+    paintBlueprintCell(3, 1);
+
+    await saveBlueprintAs('Test Room');
+
+    expect(JSON.parse(blueprintPostBody(fetchCalls).contents).layout).toEqual(['G+']);
+  });
+
+  it('connectionPointArmed-switchingToLevel-disarmsItSoClicksCannotPaintOneIntoTheLevel', () => {
+    // The palette merely stops OFFERING the tool (Task 3). `selectedTool` is
+    // persisted and shared by both canvases, so without an explicit disarm a
+    // session that left '+' armed would paint inert markers into a real
+    // level through a palette showing nothing selected.
+    editorCanvasModeSignal.value = 'blueprint';
+    editorSelectedToolSignal.value = '+';
+    render(<LevelEditorPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Level' }));
+
+    expect(editorSelectedToolSignal.value).not.toBe('+');
+    expect(screen.getByRole('button', { name: 'Ground Grass' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+  });
+
+  it('mountedInLevelModeWithTheConnectionPointArmed-disarmsItWithoutAnyToggleClick', () => {
+    // Both the mode and the tool are persisted, so the editor can come back
+    // up on the level canvas with '+' selected and no toggle click to
+    // trigger the other disarm path.
+    editorCanvasModeSignal.value = 'level';
+    editorSelectedToolSignal.value = '+';
+
+    render(<LevelEditorPage />);
+
+    expect(editorSelectedToolSignal.value).not.toBe('+');
+    expect(screen.queryByRole('button', { name: 'Connection Point' })).not.toBeInTheDocument();
+  });
+
+  it('blueprintModeWithTheConnectionPointArmed-keepsItArmedAcrossAMountInThatMode', () => {
+    // The mirror case must NOT be disarmed: '+' is a perfectly valid armed
+    // tool on the blueprint canvas.
+    editorCanvasModeSignal.value = 'blueprint';
+    editorSelectedToolSignal.value = '+';
+
+    render(<LevelEditorPage />);
+
+    expect(editorSelectedToolSignal.value).toBe('+');
+    expect(screen.getByRole('button', { name: 'Connection Point' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+  });
+});
+
+describe('LevelEditorPage — dev-only Save controls (step 44c)', () => {
+  it('noDevEnvironment-levelMode-offersNoSaveButtonAtAll', () => {
+    // A built/statically-served site cannot write a file, so the control is
+    // hidden rather than left to fall back to a download nobody asked for.
+    isDevEnvironmentSignal.value = false;
+    render(<LevelEditorPage />);
+
+    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
+  });
+
+  it('noDevEnvironment-levelMode-keepsEverythingThatNeedsNoServer', () => {
+    isDevEnvironmentSignal.value = false;
+    render(<LevelEditorPage />);
+
+    expect(screen.getByRole('combobox')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Export' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try' })).toBeInTheDocument();
+  });
+
+  it('noDevEnvironment-blueprintMode-offersNoSaveBlueprintButtonButKeepsTheDropdown', () => {
+    isDevEnvironmentSignal.value = false;
+    render(<LevelEditorPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
+
+    expect(screen.queryByRole('button', { name: 'Save Blueprint' })).not.toBeInTheDocument();
+    // Loading an already-saved blueprint needs no server — the registry is a
+    // static import — so the dropdown stays.
+    expect(screen.getByRole('combobox')).toBeInTheDocument();
+  });
+
+  it('devEnvironment-showsBothSaveControlsInTheirOwnModes', () => {
+    render(<LevelEditorPage />);
+
+    expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
+
+    expect(screen.getByRole('button', { name: 'Save Blueprint' })).toBeInTheDocument();
+  });
+
+  it('theMountPing-answeringIsDevTrue-bringsTheSaveButtonBack', async () => {
+    // The realistic startup order: the page mounts with the signal still
+    // false, pings, and the control appears when the answer lands.
+    isDevEnvironmentSignal.value = false;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ isDev: true }) } as Response)),
+    );
+
+    render(<LevelEditorPage />);
+
+    expect(await screen.findByRole('button', { name: 'Save' })).toBeInTheDocument();
+  });
+});
+
+const CAVE_ROOM: Blueprint = { id: 'cave-room', name: 'Cave Room', layout: ['##'] };
+
+/**
+ * A spawn-less 3x3 level. `centerPanOnSpawn` falls back to `{ x: 0, y: 0 }` on a
+ * grid with no 'S', so the level canvas's pan is a known zero and a click at
+ * `col * RENDERED_TILE_SIZE + 1` lands on exactly that column — the same
+ * determinism trick `paintBlueprintCell` relies on for the blueprint canvas.
+ */
+function renderEditorWithBlueprints(...blueprints: Blueprint[]) {
+  blueprintEntries.push(...blueprints);
+  editorLevelSignal.value = importLayout(['...', '...', '...']);
+  render(<LevelEditorPage />);
+}
+
+function clickLevelCell(col: number, row: number, button = 0) {
+  const canvas = document.querySelector('canvas')!;
+  vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
+  fireEvent.mouseDown(canvas, {
+    button,
+    clientX: col * RENDERED_TILE_SIZE + 1,
+    clientY: row * RENDERED_TILE_SIZE + 1,
+  });
+}
+
+// The live hover preview is driven by mouse movement, not a click — this is
+// the hover-only half of what a real mouse move over an armed placement does.
+function hoverLevelCell(col: number, row: number) {
+  const canvas = document.querySelector('canvas')!;
+  vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
+  fireEvent.mouseMove(canvas, {
+    clientX: col * RENDERED_TILE_SIZE + 1,
+    clientY: row * RENDERED_TILE_SIZE + 1,
+  });
+}
+
+describe('LevelEditorPage — arming a blueprint for placement (step 44c)', () => {
+  it('levelMode-thePaletteListsTheSavedBlueprints', () => {
+    renderEditorWithBlueprints(CAVE_ROOM);
+
+    expect(screen.getByRole('button', { name: 'Cave Room' })).toBeInTheDocument();
+  });
+
+  it('blueprintMode-thePaletteListsNoBlueprintsToPlace', () => {
+    // Nesting is out of scope: a blueprint cannot be placed into a blueprint.
+    renderEditorWithBlueprints(CAVE_ROOM);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
+
+    expect(screen.queryByRole('button', { name: 'Cave Room' })).not.toBeInTheDocument();
+  });
+
+  it('clickingABlueprintTile-armsItAndPersistsThat', () => {
+    renderEditorWithBlueprints(CAVE_ROOM);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cave Room' }));
+
+    expect(screen.getByRole('button', { name: 'Cave Room' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(editorArmedBlueprintIdSignal.value).toBe('cave-room');
+  });
+
+  it('clickingTheArmedBlueprintAgain-disarmsIt', () => {
+    renderEditorWithBlueprints(CAVE_ROOM);
+    fireEvent.click(screen.getByRole('button', { name: 'Cave Room' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cave Room' }));
+
+    expect(editorArmedBlueprintIdSignal.value).toBeNull();
+    expect(screen.getByRole('button', { name: 'Cave Room' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+  });
+
+  it('armingABlueprint-leavesTheSelectedTileToolAloneSoDisarmingRestoresIt', () => {
+    renderEditorWithBlueprints(CAVE_ROOM);
+    fireEvent.click(screen.getByRole('button', { name: 'Ground Rock' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cave Room' }));
+
+    expect(editorSelectedToolSignal.value).toBe('R');
+    expect(screen.getByRole('button', { name: 'Ground Rock' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+  });
+
+  it('pickingATileTool-disarmsTheBlueprint', () => {
+    renderEditorWithBlueprints(CAVE_ROOM);
+    fireEvent.click(screen.getByRole('button', { name: 'Cave Room' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ground Rock' }));
+
+    expect(editorArmedBlueprintIdSignal.value).toBeNull();
+    expect(screen.getByRole('button', { name: 'Cave Room' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+  });
+
+  it('armedBlueprint-switchingToTheBlueprintCanvas-disarmsIt', () => {
+    renderEditorWithBlueprints(CAVE_ROOM);
+    fireEvent.click(screen.getByRole('button', { name: 'Cave Room' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
+
+    expect(editorArmedBlueprintIdSignal.value).toBeNull();
+  });
+
+  it('mountedInBlueprintModeWithABlueprintArmed-disarmsItWithoutAnyToggleClick', () => {
+    // Both the mode and the armed id are persisted, so the editor can come back
+    // up on the blueprint canvas with a blueprint still armed — the mirror of
+    // the Spawn and Connection Point mount-time corrections.
+    blueprintEntries.push(CAVE_ROOM);
+    editorCanvasModeSignal.value = 'blueprint';
+    editorArmedBlueprintIdSignal.value = 'cave-room';
+
+    render(<LevelEditorPage />);
+
+    expect(editorArmedBlueprintIdSignal.value).toBeNull();
+  });
+
+  it('aPersistedArmedIdWithNoBlueprintBehindIt-behavesAsNotArmedAndStillPaints', async () => {
+    // The blueprint's file can be deleted between sessions. `findBlueprint`
+    // returns undefined, which reads as "nothing armed" everywhere, so clicks
+    // paint instead of silently doing nothing.
+    editorArmedBlueprintIdSignal.value = 'deleted-room';
+    editorLevelSignal.value = importLayout(['...', '...', '...']);
+    render(<LevelEditorPage />);
+
+    clickLevelCell(1, 1);
+
+    expect(editorDirtySignal.value).toBe(true);
+    await waitFor(() => expect(editorLevelSignal.value[1][1]).toBe('G'));
+  });
+});
+
+describe('LevelEditorPage — placing a blueprint (step 44c)', () => {
+  const armCaveRoom = () => fireEvent.click(screen.getByRole('button', { name: 'Cave Room' }));
+
+  it('hovering-previewsWithoutWritingAnythingOrDirtyingTheLevel', () => {
+    renderEditorWithBlueprints(CAVE_ROOM);
+    armCaveRoom();
+
+    hoverLevelCell(1, 1);
+
+    // Painting sets the dirty flag synchronously, so this genuinely proves no
+    // paint happened (the grid signal itself is debounced and would not have
+    // changed yet either way).
+    expect(editorDirtySignal.value).toBe(false);
+  });
+
+  it('hoverThenClick-stampsEveryCellOfTheRoomIntoTheLevelGrid', async () => {
+    // A 3x3 level, ['##'] anchored at (col 1, row 1): absolute (1,1) and (1,2),
+    // both in bounds, so neither growGrid call grows anything and both shifts
+    // are 0.
+    renderEditorWithBlueprints(CAVE_ROOM);
+    armCaveRoom();
+
+    hoverLevelCell(1, 1);
+    clickLevelCell(1, 1);
+
+    await waitFor(() => {
+      expect(editorLevelSignal.value).toEqual(importLayout(['...', '.##', '...']));
+    });
+    expect(editorDirtySignal.value).toBe(true);
+  });
+
+  it('hoveringElsewhereThenClicking-commitsAtTheNewHoverPositionNotTheOldOne', async () => {
+    renderEditorWithBlueprints(CAVE_ROOM);
+    armCaveRoom();
+
+    hoverLevelCell(0, 0);
+    hoverLevelCell(1, 1);
+    clickLevelCell(1, 1);
+
+    await waitFor(() => {
+      expect(editorLevelSignal.value).toEqual(importLayout(['...', '.##', '...']));
+    });
+  });
+
+  it('placingPastTheTopLeftCorner-growsTheGridTheSameWayPaintingThereWould', async () => {
+    // Anchored at (col -1, row -1) on a 3x3 grid: growGrid(-1,-1) prepends one
+    // column and one row (4 wide x 4 high, both shifts 1), the second grow is a
+    // no-op, and the two cells land at (0,0) and (0,1) of the grown grid.
+    renderEditorWithBlueprints(CAVE_ROOM);
+    armCaveRoom();
+
+    hoverLevelCell(-1, -1);
+    clickLevelCell(-1, -1);
+
+    await waitFor(() => {
+      expect(editorLevelSignal.value).toEqual(
+        importLayout(['##..', '....', '....', '....']),
+      );
+    });
+  });
+
+  it('overlappingExistingTerrain-clickWritesNothing', async () => {
+    blueprintEntries.push(CAVE_ROOM);
+    editorLevelSignal.value = importLayout(['G..', '...', '...']);
+    render(<LevelEditorPage />);
+    armCaveRoom();
+
+    // Hovering (col 0, row 0) the room would land on (0,0), which holds 'G'.
+    hoverLevelCell(0, 0);
+    clickLevelCell(0, 0);
+
+    expect(editorDirtySignal.value).toBe(false);
+    await waitFor(() => expect(editorLevelSignal.value).toEqual(importLayout(['G..', '...', '...'])));
+  });
+
+  it('committing-keepsTheBlueprintArmedSoAnotherCopyCanBePlaced', () => {
+    renderEditorWithBlueprints(CAVE_ROOM);
+    armCaveRoom();
+
+    hoverLevelCell(1, 1);
+    clickLevelCell(1, 1);
+
+    expect(editorArmedBlueprintIdSignal.value).toBe('cave-room');
+  });
+
+  it('rightClickWhileArmed-cancelsThePlacementAndDisarmsWithoutErasingAnything', async () => {
+    blueprintEntries.push(CAVE_ROOM);
+    editorLevelSignal.value = importLayout(['G..', '...', '...']);
+    render(<LevelEditorPage />);
+    armCaveRoom();
+    hoverLevelCell(1, 1);
+
+    clickLevelCell(0, 0, 2);
+
+    expect(editorArmedBlueprintIdSignal.value).toBeNull();
+    // Right-click normally erases, which would blank the 'G' and dirty the
+    // level — during a placement it must do neither.
+    expect(editorDirtySignal.value).toBe(false);
+    await waitFor(() => expect(editorLevelSignal.value[0][0]).toBe('G'));
+  });
+
+  it('aBlueprintWithBackgroundPieces-appendsThemRebasedOntoTheAnchor', async () => {
+    renderEditorWithBlueprints({
+      id: 'cave-room',
+      name: 'Cave Room',
+      layout: ['##'],
+      background: [{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }],
+    });
+    armCaveRoom();
+
+    // Hovering (col 1, row 1) with no growth, so the piece rebases to (1,1).
+    hoverLevelCell(1, 1);
+    clickLevelCell(1, 1);
+
+    await waitFor(() => {
+      expect(editorBackgroundSignal.value).toEqual([
+        { pieceId: 'dirtColumnTop1x1', col: 1, row: 1 },
+      ]);
+    });
+  });
+
+  it('growthOnCommit-shiftsTheLevelsOwnBackgroundButNotTheBlueprintsOwn', async () => {
+    // The level already has a piece at (0,0); the placement grows one column and
+    // one row, so that piece moves to (1,1). The blueprint's own piece is
+    // rebased with the same shift already folded in — (0 + -1 + 1) = 0 on both
+    // axes — and must not be shifted a second time.
+    blueprintEntries.push({
+      id: 'cave-room',
+      name: 'Cave Room',
+      layout: ['##'],
+      background: [{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }],
+    });
+    editorLevelSignal.value = importLayout(['...', '...', '...']);
+    editorBackgroundSignal.value = [{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }];
+    render(<LevelEditorPage />);
+    armCaveRoom();
+
+    hoverLevelCell(-1, -1);
+    clickLevelCell(-1, -1);
+
+    await waitFor(() => {
+      expect(editorBackgroundSignal.value).toEqual([
+        { pieceId: 'dirtColumnTop1x1', col: 1, row: 1 },
+        { pieceId: 'dirtColumnTop1x1', col: 0, row: 0 },
+      ]);
+    });
+  });
+
+  it('backgroundLayerActive-clicksStillPaintTheBackgroundEvenWithABlueprintArmed', async () => {
+    renderEditorWithBlueprints(CAVE_ROOM);
+    armCaveRoom();
+    fireEvent.click(screen.getByRole('button', { name: 'Background' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Dirt Column Top (1×1)' }));
+
+    clickLevelCell(1, 1);
+
+    await waitFor(() => expect(editorBackgroundSignal.value).toHaveLength(1));
+  });
+});
+
+describe('LevelEditorPage — undoing a placement (step 44c follow-up)', () => {
+  const armCaveRoom = () => fireEvent.click(screen.getByRole('button', { name: 'Cave Room' }));
+
+  it('beforeAnyPlacement-thereIsNoUndoButton', () => {
+    renderEditorWithBlueprints(CAVE_ROOM);
+
+    expect(screen.queryByRole('button', { name: 'Undo placement' })).not.toBeInTheDocument();
+  });
+
+  it('afterCommittingAPlacement-anUndoButtonAppears', async () => {
+    renderEditorWithBlueprints(CAVE_ROOM);
+    armCaveRoom();
+    hoverLevelCell(1, 1);
+
+    clickLevelCell(1, 1);
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Undo placement' })).toBeInTheDocument(),
+    );
+  });
+
+  it('clickingUndo-restoresTheGridAndBackgroundFromBeforeThatPlacementAndHidesTheButton', async () => {
+    blueprintEntries.push({
+      id: 'cave-room',
+      name: 'Cave Room',
+      layout: ['##'],
+      background: [{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }],
+    });
+    editorLevelSignal.value = importLayout(['...', '...', '...']);
+    editorBackgroundSignal.value = [];
+    render(<LevelEditorPage />);
+    armCaveRoom();
+    hoverLevelCell(1, 1);
+    clickLevelCell(1, 1);
+    await waitFor(() => {
+      expect(editorLevelSignal.value).toEqual(importLayout(['...', '.##', '...']));
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Undo placement' }));
+
+    await waitFor(() => {
+      expect(editorLevelSignal.value).toEqual(importLayout(['...', '...', '...']));
+    });
+    expect(editorBackgroundSignal.value).toEqual([]);
+    expect(screen.queryByRole('button', { name: 'Undo placement' })).not.toBeInTheDocument();
+  });
+
+  it('paintingAfterAPlacement-clearsTheUndoButton', async () => {
+    renderEditorWithBlueprints(CAVE_ROOM);
+    armCaveRoom();
+    hoverLevelCell(1, 1);
+    clickLevelCell(1, 1);
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Undo placement' })).toBeInTheDocument(),
+    );
+
+    // Picking a tile tool disarms the blueprint; painting with it is a
+    // regular edit that must invalidate undoing the earlier placement.
+    fireEvent.click(screen.getByRole('button', { name: 'Ground Rock' }));
+    clickLevelCell(0, 0);
+
+    expect(screen.queryByRole('button', { name: 'Undo placement' })).not.toBeInTheDocument();
+  });
+
+  it('erasingAfterAPlacement-clearsTheUndoButton', async () => {
+    renderEditorWithBlueprints(CAVE_ROOM);
+    armCaveRoom();
+    hoverLevelCell(1, 1);
+    clickLevelCell(1, 1);
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Undo placement' })).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ground Rock' }));
+    clickLevelCell(0, 0, 2); // right-click erases once nothing is armed
+
+    expect(screen.queryByRole('button', { name: 'Undo placement' })).not.toBeInTheDocument();
+  });
+
+  it('paintingTheBackgroundLayerAfterAPlacement-clearsTheUndoButton', async () => {
+    renderEditorWithBlueprints(CAVE_ROOM);
+    armCaveRoom();
+    hoverLevelCell(1, 1);
+    clickLevelCell(1, 1);
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Undo placement' })).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Background' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Dirt Column Top (1×1)' }));
+    clickLevelCell(0, 0);
+
+    expect(screen.queryByRole('button', { name: 'Undo placement' })).not.toBeInTheDocument();
+  });
+
+  it('committingASecondPlacement-replacesTheUndoTargetWithTheNewOne', async () => {
+    renderEditorWithBlueprints(CAVE_ROOM);
+    armCaveRoom();
+    hoverLevelCell(1, 1);
+    clickLevelCell(1, 1);
+    await waitFor(() => {
+      expect(editorLevelSignal.value).toEqual(importLayout(['...', '.##', '...']));
+    });
+
+    hoverLevelCell(0, 0);
+    clickLevelCell(0, 0);
+    await waitFor(() => {
+      expect(editorLevelSignal.value).toEqual(importLayout(['##.', '.##', '...']));
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Undo placement' }));
+
+    // Undo restores to just before the SECOND placement — the first stamped
+    // room is still there — not all the way back to the original empty grid.
+    await waitFor(() => {
+      expect(editorLevelSignal.value).toEqual(importLayout(['...', '.##', '...']));
+    });
+  });
+
+  it('pressingCtrlZ-undoesTheMostRecentPlacementJustLikeTheButton', async () => {
+    renderEditorWithBlueprints(CAVE_ROOM);
+    armCaveRoom();
+    hoverLevelCell(1, 1);
+    clickLevelCell(1, 1);
+    await waitFor(() => {
+      expect(editorLevelSignal.value).toEqual(importLayout(['...', '.##', '...']));
+    });
+
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true });
+
+    await waitFor(() => {
+      expect(editorLevelSignal.value).toEqual(importLayout(['...', '...', '...']));
+    });
+    expect(screen.queryByRole('button', { name: 'Undo placement' })).not.toBeInTheDocument();
+  });
+
+  it('pressingCmdZ-alsoUndoes', async () => {
+    // Mac uses Cmd instead of Ctrl for the same shortcut.
+    renderEditorWithBlueprints(CAVE_ROOM);
+    armCaveRoom();
+    hoverLevelCell(1, 1);
+    clickLevelCell(1, 1);
+    await waitFor(() => {
+      expect(editorLevelSignal.value).toEqual(importLayout(['...', '.##', '...']));
+    });
+
+    fireEvent.keyDown(window, { key: 'z', metaKey: true });
+
+    await waitFor(() => {
+      expect(editorLevelSignal.value).toEqual(importLayout(['...', '...', '...']));
+    });
+  });
+
+  it('pressingCtrlZWithNothingToUndo-doesNothing', () => {
+    renderEditorWithBlueprints(CAVE_ROOM);
+
+    expect(() => fireEvent.keyDown(window, { key: 'z', ctrlKey: true })).not.toThrow();
+    expect(editorLevelSignal.value).toEqual(importLayout(['...', '...', '...']));
+  });
+
+  it('pressingCtrlZWhileTypingInATextField-doesNotUndo', async () => {
+    renderEditorWithBlueprints(CAVE_ROOM);
+    armCaveRoom();
+    hoverLevelCell(1, 1);
+    clickLevelCell(1, 1);
+    await waitFor(() => {
+      expect(editorLevelSignal.value).toEqual(importLayout(['...', '.##', '...']));
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    const nameInput = screen.getByLabelText('Level name');
+
+    fireEvent.keyDown(nameInput, { key: 'z', ctrlKey: true });
+
+    // The browser's own field-level undo, not this page's, owns Ctrl+Z here.
+    // (Not asserting the "Undo placement" button's presence here: opening the
+    // Save dialog makes the rest of the page aria-hidden, which getByRole
+    // correctly treats as not present regardless of this shortcut.)
+    expect(editorLevelSignal.value).toEqual(importLayout(['...', '.##', '...']));
+  });
+
+  it('pressingCtrlZInBlueprintMode-doesNothing', async () => {
+    renderEditorWithBlueprints(CAVE_ROOM);
+    armCaveRoom();
+    hoverLevelCell(1, 1);
+    clickLevelCell(1, 1);
+    await waitFor(() => {
+      expect(editorLevelSignal.value).toEqual(importLayout(['...', '.##', '...']));
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
+
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true });
+
+    // Undoing a level placement while looking at the blueprint canvas would
+    // be invisible and confusing — the shortcut matches the button's own
+    // Level-only visibility (see `placementActive`'s `!isBlueprintMode`).
+    fireEvent.click(screen.getByRole('button', { name: 'Level' }));
+    expect(editorLevelSignal.value).toEqual(importLayout(['...', '.##', '...']));
   });
 });

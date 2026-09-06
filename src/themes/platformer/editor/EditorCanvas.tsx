@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { SIGN_CHARS, type TileChar } from '../level/LevelParser';
 
 const PATROL_CHAR: TileChar = 'P';
+const CONNECTION_POINT_CHAR: TileChar = '+';
 import { paintCell, type PaintResult } from './paintCell';
 import { updatePanOffset, centerPanOnSpawn, type PanOffset } from './EditorPan';
 import {
@@ -15,7 +16,7 @@ import {
   synthesizeHazardPlacements,
 } from './gridRenderState';
 import { RENDERED_TILE_SIZE, tileToPixel } from '../level/Terrain';
-import { PATROL_GLYPH } from './paletteTiles';
+import { PATROL_GLYPH, CONNECTION_POINT_GLYPH } from './paletteTiles';
 import {
   drawTerrain,
   drawPlayer,
@@ -40,6 +41,7 @@ import {
   CRACK_OVERLAY_SHEET,
   CHEST_CLOSED_SHEET,
   STATIC_OBJECTS_SHEET,
+  DECORATIONS_SHEET,
 } from '../entities/sprites/sheets';
 
 export interface EditorImages {
@@ -54,6 +56,32 @@ export interface EditorImages {
   chestClosed: HTMLImageElement | null;
   backgroundAtlas: HTMLImageElement | null;
   staticObjects: HTMLImageElement | null;
+  decorations: HTMLImageElement | null;
+}
+
+/** The cells a pending placement would write, in absolute grid coordinates,
+ *  and whether it currently fits (`blueprintFit.ts`) — blue when it does, red
+ *  when it does not. Each cell carries its own `char` so the preview can draw
+ *  a connection point's glyph the same way the level canvas does once it's
+ *  actually placed, rather than letting it disappear into the tint. */
+export interface PlacementPreview {
+  cells: readonly { row: number; col: number; char: TileChar }[];
+  valid: boolean;
+}
+
+/** Everything the canvas needs while a blueprint is armed for placement
+ *  (roadmap step 44c). Its non-null-ness IS "a blueprint is armed": while it is
+ *  set, clicks preview/place/cancel instead of painting. */
+export interface PlacementMode {
+  /** `null` until the mouse has hovered over the canvas at least once since
+   *  arming (see `onHover`) — cleared again once it leaves. */
+  preview: PlacementPreview | null;
+  /** Fires on every mouse move over the canvas while armed, reporting the
+   *  cell under the cursor so the preview can follow it live with no click
+   *  required; fires with `null` when the cursor leaves the canvas. */
+  onHover: (cell: { col: number; row: number } | null) => void;
+  onPlace: (cell: { col: number; row: number }) => void;
+  onCancel: () => void;
 }
 
 interface EditorCanvasProps {
@@ -68,6 +96,9 @@ interface EditorCanvasProps {
   backgroundPlacements: BackgroundPlacement[];
   activeLayer: 'foreground' | 'background';
   selectedBackgroundPiece: BackgroundPieceId | null;
+  /** Set while a blueprint is armed for placement; omitted/`null` otherwise, so
+   *  every existing render site is unaffected. */
+  placement?: PlacementMode | null;
   onPaint: (result: PaintResult) => void;
   onPaintBackground: (next: BackgroundPlacement[]) => void;
   onPan: (offset: PanOffset) => void;
@@ -155,47 +186,149 @@ function drawSignBadges(
  *  painted it. */
 export const PATROL_MARKER_GLYPH = PATROL_GLYPH;
 
+/** Same idea for the blueprint connection point (roadmap step 44b): the tile
+ *  is invisible in game, so the editor draws its palette glyph on it. */
+export const CONNECTION_POINT_MARKER_GLYPH = CONNECTION_POINT_GLYPH;
+
 const PATROL_MARKER_TINT = 'rgba(255, 96, 96, 0.35)';
-const PATROL_MARKER_FONT_SIZE = 18;
+const PATROL_MARKER_GLYPH_COLOR = '#3d0a0a';
+// Blue, so a connection point is never mistaken for a patrol boundary at a
+// glance — both are tinted, sprite-less marker cells. Unrelated to step 44c's
+// blue/red PLACEMENT PREVIEW border, which outlines a whole pending placement
+// rather than tinting one cell.
+const CONNECTION_POINT_MARKER_TINT = 'rgba(96, 168, 255, 0.4)';
+const CONNECTION_POINT_MARKER_GLYPH_COLOR = '#0a2a4d';
+const MARKER_FONT_SIZE = 18;
 // The glyph is drawn as a dark core inside a light halo rather than in one
-// flat color: a patrol tile can sit over anything the editor draws — pale
+// flat color: a marker tile can sit over anything the editor draws — pale
 // sky, dark ground, a ladder — and the editor itself renders in both a light
 // and a dark theme, so no single fill stays legible everywhere.
-const PATROL_MARKER_GLYPH_COLOR = '#3d0a0a';
-const PATROL_MARKER_HALO_COLOR = 'rgba(255, 255, 255, 0.9)';
-const PATROL_MARKER_HALO_WIDTH = 3;
+const MARKER_HALO_COLOR = 'rgba(255, 255, 255, 0.9)';
+const MARKER_HALO_WIDTH = 3;
 
-/** Draws a tinted cell with a turn-around glyph on every patrol tile.
- *  Editor-only, exactly like drawSignBadges above: a patrol boundary is
- *  invisible in the real game by design (Renderer.ts's tileSource returns
- *  null for it), which would otherwise leave an author painting tiles they
- *  cannot see. */
-function drawPatrolMarkers(
+/** Border colour of a placement preview that fits — a saturated stroke around
+ *  the whole room, deliberately NOT the pale per-cell blue 44b tints a
+ *  connection point with, so the two never read as the same thing. */
+export const PLACEMENT_VALID_COLOR = '#1d4ed8';
+/** Border colour of a placement that would overlap existing terrain. */
+export const PLACEMENT_INVALID_COLOR = '#b91c1c';
+const PLACEMENT_VALID_FILL = 'rgba(29, 78, 216, 0.28)';
+const PLACEMENT_INVALID_FILL = 'rgba(185, 28, 28, 0.28)';
+const PLACEMENT_BORDER_WIDTH = 3;
+
+/**
+ * The pending placement: every cell the blueprint would write, tinted, plus one
+ * border around their bounding box — blue when the placement fits, red when it
+ * overlaps something (`blueprintFit.ts`). One border rather than a per-cell
+ * outline is deliberate: a per-cell blue would be indistinguishable from 44b's
+ * connection-point tint at a glance.
+ *
+ * Coordinates are absolute grid cells and may be negative — a room anchored
+ * past the grid's top-left corner previews exactly where committing would grow
+ * the grid to put it.
+ */
+/** Draws `glyph` centered on the tile whose top-left pixel is `(destX, destY)`,
+ *  as a dark core inside a light halo (see `MARKER_HALO_COLOR`'s doc comment).
+ *  Assumes the caller has already set `ctx.font`/`textAlign`/`textBaseline`. */
+function drawMarkerGlyph(
+  ctx: CanvasRenderingContext2D,
+  destX: number,
+  destY: number,
+  glyph: string,
+  glyphColor: string,
+): void {
+  const centerX = destX + RENDERED_TILE_SIZE / 2;
+  const centerY = destY + RENDERED_TILE_SIZE / 2;
+  ctx.lineWidth = MARKER_HALO_WIDTH;
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = MARKER_HALO_COLOR;
+  ctx.strokeText(glyph, centerX, centerY);
+  ctx.fillStyle = glyphColor;
+  ctx.fillText(glyph, centerX, centerY);
+}
+
+function drawPlacementPreview(
+  ctx: CanvasRenderingContext2D,
+  preview: PlacementPreview,
+  originX: number,
+  originY: number,
+): void {
+  if (preview.cells.length === 0) return;
+
+  ctx.save();
+  ctx.fillStyle = preview.valid ? PLACEMENT_VALID_FILL : PLACEMENT_INVALID_FILL;
+
+  let minCol = Infinity;
+  let minRow = Infinity;
+  let maxCol = -Infinity;
+  let maxRow = -Infinity;
+  for (const { col, row } of preview.cells) {
+    const { x, y } = tileToPixel(col, row);
+    ctx.fillRect(x + originX, y + originY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+    if (col < minCol) minCol = col;
+    if (row < minRow) minRow = row;
+    if (col > maxCol) maxCol = col;
+    if (row > maxRow) maxRow = row;
+  }
+
+  const topLeft = tileToPixel(minCol, minRow);
+  ctx.lineWidth = PLACEMENT_BORDER_WIDTH;
+  ctx.strokeStyle = preview.valid ? PLACEMENT_VALID_COLOR : PLACEMENT_INVALID_COLOR;
+  ctx.strokeRect(
+    topLeft.x + originX,
+    topLeft.y + originY,
+    (maxCol - minCol + 1) * RENDERED_TILE_SIZE,
+    (maxRow - minRow + 1) * RENDERED_TILE_SIZE,
+  );
+
+  // A connection point would otherwise disappear into the tint — draw its
+  // glyph on top, same as it renders once actually placed (drawTileMarkers
+  // below), so the preview shows exactly what committing would leave behind.
+  ctx.font = `${MARKER_FONT_SIZE}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (const { col, row, char } of preview.cells) {
+    if (char !== CONNECTION_POINT_CHAR) continue;
+    const { x, y } = tileToPixel(col, row);
+    drawMarkerGlyph(
+      ctx,
+      x + originX,
+      y + originY,
+      CONNECTION_POINT_MARKER_GLYPH,
+      CONNECTION_POINT_MARKER_GLYPH_COLOR,
+    );
+  }
+  ctx.restore();
+}
+
+/** Draws a tinted cell with `glyph` on every `char` tile. Editor-only,
+ *  exactly like drawSignBadges above: both markers that use this — the patrol
+ *  boundary and the blueprint connection point — are invisible in the real
+ *  game by design (Renderer.ts's tileSource returns null for both), which
+ *  would otherwise leave an author painting tiles they cannot see. */
+function drawTileMarkers(
   ctx: CanvasRenderingContext2D,
   grid: TileChar[][],
+  char: TileChar,
+  glyph: string,
+  tint: string,
+  glyphColor: string,
   originX: number,
   originY: number,
 ): void {
   ctx.save();
-  ctx.font = `${PATROL_MARKER_FONT_SIZE}px sans-serif`;
+  ctx.font = `${MARKER_FONT_SIZE}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   for (let row = 0; row < grid.length; row++) {
     for (let col = 0; col < grid[row].length; col++) {
-      if (grid[row][col] !== PATROL_CHAR) continue;
+      if (grid[row][col] !== char) continue;
       const { x, y } = tileToPixel(col, row);
       const destX = x + originX;
       const destY = y + originY;
-      ctx.fillStyle = PATROL_MARKER_TINT;
+      ctx.fillStyle = tint;
       ctx.fillRect(destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
-      const centerX = destX + RENDERED_TILE_SIZE / 2;
-      const centerY = destY + RENDERED_TILE_SIZE / 2;
-      ctx.lineWidth = PATROL_MARKER_HALO_WIDTH;
-      ctx.lineJoin = 'round';
-      ctx.strokeStyle = PATROL_MARKER_HALO_COLOR;
-      ctx.strokeText(PATROL_MARKER_GLYPH, centerX, centerY);
-      ctx.fillStyle = PATROL_MARKER_GLYPH_COLOR;
-      ctx.fillText(PATROL_MARKER_GLYPH, centerX, centerY);
+      drawMarkerGlyph(ctx, destX, destY, glyph, glyphColor);
     }
   }
   ctx.restore();
@@ -210,6 +343,7 @@ export const EditorCanvas = ({
   backgroundPlacements,
   activeLayer,
   selectedBackgroundPiece,
+  placement = null,
   onPaint,
   onPaintBackground,
   onPan,
@@ -314,6 +448,7 @@ export const EditorCanvas = ({
           panOffset.x,
           panOffset.y,
           images.staticObjects,
+          images.decorations,
         );
       }
 
@@ -321,7 +456,26 @@ export const EditorCanvas = ({
         drawSigns(ctx, synthesizeSignPlacements(grid), images.tileset, panOffset.x, panOffset.y);
       }
       drawSignBadges(ctx, grid, panOffset.x, panOffset.y);
-      drawPatrolMarkers(ctx, grid, panOffset.x, panOffset.y);
+      drawTileMarkers(
+        ctx,
+        grid,
+        PATROL_CHAR,
+        PATROL_MARKER_GLYPH,
+        PATROL_MARKER_TINT,
+        PATROL_MARKER_GLYPH_COLOR,
+        panOffset.x,
+        panOffset.y,
+      );
+      drawTileMarkers(
+        ctx,
+        grid,
+        CONNECTION_POINT_CHAR,
+        CONNECTION_POINT_MARKER_GLYPH,
+        CONNECTION_POINT_MARKER_TINT,
+        CONNECTION_POINT_MARKER_GLYPH_COLOR,
+        panOffset.x,
+        panOffset.y,
+      );
 
       const editorBlockStates = synthesizeBlockStates(grid);
 
@@ -336,6 +490,7 @@ export const EditorCanvas = ({
           [CRACK_OVERLAY_SHEET.src]: images.crackOverlay,
           [CHEST_CLOSED_SHEET.src]: images.chestClosed,
           [STATIC_OBJECTS_SHEET.src]: images.staticObjects,
+          [DECORATIONS_SHEET.src]: images.decorations,
         },
         originX: panOffset.x,
         originY: panOffset.y,
@@ -365,6 +520,13 @@ export const EditorCanvas = ({
     } finally {
       ctx.restore();
     }
+
+    // Outside the alpha block on purpose: a pending placement is the thing the
+    // author is looking at, so it is drawn last and at full opacity even while
+    // the background layer dims everything else.
+    if (placement?.preview) {
+      drawPlacementPreview(ctx, placement.preview, panOffset.x, panOffset.y);
+    }
     // `canvasSize` is read only via `canvas.width`/`canvas.height` above,
     // not referenced directly here — but it MUST stay a dependency.
     // Changing a <canvas> element's width/height attribute clears its
@@ -374,7 +536,7 @@ export const EditorCanvas = ({
     // nothing would redraw it until some unrelated state change (a paint
     // or pan) happened to run this effect again — the canvas would sit
     // invisible until the next interaction "fixed" it as a side effect.
-  }, [grid, panOffset, images, canvasSize, backgroundPlacements, activeLayer]);
+  }, [grid, panOffset, images, canvasSize, backgroundPlacements, activeLayer, placement]);
 
   const cellFromEvent = (clientX: number, clientY: number) => {
     const rect = canvasRef.current!.getBoundingClientRect();
@@ -394,6 +556,21 @@ export const EditorCanvas = ({
         lastX: event.clientX,
         lastY: event.clientY,
       };
+      return;
+    }
+
+    // An armed blueprint owns every remaining button, checked BEFORE the
+    // background and paint branches so it can never paint a tile and preview at
+    // the same time. Right-click cancels rather than erases: nothing is being
+    // painted during a preview, so there is nothing to erase (design, Step 44c
+    // — Placement). No `dragRef` is set, so a placement click starts no drag.
+    if (placement) {
+      if (event.button === 2) {
+        placement.onCancel();
+        return;
+      }
+      if (event.button !== 0) return;
+      placement.onPlace(cellFromEvent(event.clientX, event.clientY));
       return;
     }
 
@@ -426,15 +603,28 @@ export const EditorCanvas = ({
 
   const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
     const drag = dragRef.current;
-    if (!drag) return;
 
-    if (drag.mode === 'pan') {
+    // Middle-click panning is checked first because it is the one drag mode
+    // that CAN coexist with an armed placement (handleMouseDown's button-1
+    // branch runs before its placement check) — a room still needs to be
+    // lined up against content off to the side while armed.
+    if (drag?.mode === 'pan') {
       const dx = event.clientX - drag.lastX;
       const dy = event.clientY - drag.lastY;
       dragRef.current = { ...drag, lastX: event.clientX, lastY: event.clientY };
       onPan(updatePanOffset(panOffset, dx, dy));
       return;
     }
+
+    // An armed blueprint never sets any OTHER drag mode (see handleMouseDown
+    // above), so this branch fully replaces the remaining drag-based logic
+    // below while armed rather than needing to coexist with it.
+    if (placement) {
+      placement.onHover(cellFromEvent(event.clientX, event.clientY));
+      return;
+    }
+
+    if (!drag) return;
 
     if (drag.mode === 'paintBackground') {
       const { col, row } = cellFromEvent(event.clientX, event.clientY);
@@ -464,6 +654,15 @@ export const EditorCanvas = ({
     dragRef.current = null;
   };
 
+  // Separate from handleMouseUp (used for onMouseUp too): releasing a button
+  // without the cursor leaving the canvas must not clear a live hover
+  // preview, but the cursor actually leaving it must — nothing should stay
+  // previewed at a position the mouse is no longer over.
+  const handleMouseLeave = () => {
+    handleMouseUp();
+    if (placement) placement.onHover(null);
+  };
+
   return (
     // `position: relative` + the canvas absolutely positioned (`inset-0`)
     // takes the canvas out of this container's layout flow entirely, so
@@ -484,7 +683,7 @@ export const EditorCanvas = ({
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
         onContextMenu={(event) => event.preventDefault()}
       />
     </div>

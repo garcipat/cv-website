@@ -122,7 +122,13 @@ export const ControlsOverlay = () => {
     if (!shouldShow) {
       spawnXRef.current = null;
       triggeredRef.current = false;
+      // Deliberate one-shot reset of local state on a shouldShow transition
+      // (see this effect's own doc comment above), not a render derived
+      // from a prop/state change — same justification as
+      // LevelEditorPage.tsx's own mount-time correction block.
+      /* eslint-disable react-hooks/set-state-in-effect */
       if (revealed) setRevealed(false);
+      /* eslint-enable react-hooks/set-state-in-effect */
       return;
     }
     // playerX is always a number here — it's only null when !shouldShow,

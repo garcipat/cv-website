@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { bushOrTreeEntry, staticObjectEntry, chainRunPieces } from './StaticObjectsCatalog';
+import {
+  bushOrTreeEntry,
+  staticObjectEntry,
+  stalactiteEntry,
+  stalagmiteEntry,
+  chainRunPieces,
+  COBWEB_CORNER_ENTRY,
+  COBWEB_FLAT_ENTRY,
+} from './StaticObjectsCatalog';
 import type { ChainAttachment } from '../level/Terrain';
 
 // Bush/tree art comes from world_tileset.png (256x256); fence art comes from
@@ -9,6 +17,8 @@ const TILESET_SHEET_WIDTH = 256;
 const TILESET_SHEET_HEIGHT = 256;
 const STATIC_OBJECTS_SHEET_WIDTH = 288;
 const STATIC_OBJECTS_SHEET_HEIGHT = 144;
+const DECORATIONS_SHEET_WIDTH = 64;
+const DECORATIONS_SHEET_HEIGHT = 32;
 const TILE_SIZE = 16;
 const ROLES = ['only', 'bottom', 'middle', 'top'] as const;
 
@@ -47,6 +57,69 @@ describe('StaticObjectsCatalog', () => {
   it('staticObjectEntry-fence-ignoresPositionAndAlwaysReturnsTheSameEntry', () => {
     expect(staticObjectEntry('fence', 1, 1)).toEqual(staticObjectEntry('fence', 9, 9));
   });
+
+  const DECORATION_TILES = ['crystalCluster'] as const;
+
+  it.each(DECORATION_TILES)('staticObjectEntry-%s-resolvesToARectInsideTheDecorationsSheetOnA16pxGrid', (tile) => {
+    const entry = staticObjectEntry(tile, 0, 0);
+    expect(entry.sx % TILE_SIZE).toBe(0);
+    expect(entry.sy % TILE_SIZE).toBe(0);
+    expect(entry.sx + TILE_SIZE).toBeLessThanOrEqual(DECORATIONS_SHEET_WIDTH);
+    expect(entry.sy + TILE_SIZE).toBeLessThanOrEqual(DECORATIONS_SHEET_HEIGHT);
+  });
+
+  it('staticObjectEntry-crystalCluster-ignoresPositionAndAlwaysReturnsTheSameEntry', () => {
+    expect(staticObjectEntry('crystalCluster', 1, 1)).toEqual(staticObjectEntry('crystalCluster', 9, 9));
+  });
+
+  it('cobwebCornerEntry-and-cobwebFlatEntry-resolveToRectsInsideTheDecorationsSheetOnA16pxGrid', () => {
+    for (const entry of [COBWEB_CORNER_ENTRY, COBWEB_FLAT_ENTRY]) {
+      expect(entry.sx % TILE_SIZE).toBe(0);
+      expect(entry.sy % TILE_SIZE).toBe(0);
+      expect(entry.sx + TILE_SIZE).toBeLessThanOrEqual(DECORATIONS_SHEET_WIDTH);
+      expect(entry.sy + TILE_SIZE).toBeLessThanOrEqual(DECORATIONS_SHEET_HEIGHT);
+    }
+    expect(COBWEB_CORNER_ENTRY).not.toEqual(COBWEB_FLAT_ENTRY);
+  });
+
+  it.each(['stalactiteEntry', 'stalagmiteEntry'] as const)(
+    '%s-resolvesToARectInsideTheDecorationsSheetOnA16pxGridForEveryPosition',
+    (fnName) => {
+      const fn = fnName === 'stalactiteEntry' ? stalactiteEntry : stalagmiteEntry;
+      for (let col = 0; col < 8; col++) {
+        for (let row = 0; row < 8; row++) {
+          const entry = fn(col, row);
+          expect(entry.sx % TILE_SIZE).toBe(0);
+          expect(entry.sy % TILE_SIZE).toBe(0);
+          expect(entry.sx + TILE_SIZE).toBeLessThanOrEqual(DECORATIONS_SHEET_WIDTH);
+          expect(entry.sy + TILE_SIZE).toBeLessThanOrEqual(DECORATIONS_SHEET_HEIGHT);
+        }
+      }
+    },
+  );
+
+  it('stalactiteEntry-sameColAndRow-isDeterministic', () => {
+    expect(stalactiteEntry(4, 6)).toEqual(stalactiteEntry(4, 6));
+  });
+
+  it('stalagmiteEntry-sameColAndRow-isDeterministic', () => {
+    expect(stalagmiteEntry(4, 6)).toEqual(stalagmiteEntry(4, 6));
+  });
+
+  it.each(['stalactiteEntry', 'stalagmiteEntry'] as const)(
+    '%s-acrossManyPositions-reachesBothSizeVariants',
+    (fnName) => {
+      const fn = fnName === 'stalactiteEntry' ? stalactiteEntry : stalagmiteEntry;
+      const seen = new Set<string>();
+      for (let col = 0; col < 20; col++) {
+        for (let row = 0; row < 20; row++) {
+          const entry = fn(col, row);
+          seen.add(`${entry.sx},${entry.sy}`);
+        }
+      }
+      expect(seen.size).toBe(2);
+    },
+  );
 
   const ATTACHMENTS: readonly ChainAttachment[] = ['ceiling', 'left', 'right', 'floating'];
 

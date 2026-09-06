@@ -10,6 +10,7 @@ import {
   findQuestionMarkTiles,
   findFragileRockTiles,
   findCoinPotTiles,
+  findPotionPotTiles,
   findChestTiles,
   findSignTiles,
   findHazardTiles,
@@ -114,14 +115,18 @@ import {
 //          CVData binding of its own — see CollectibleMapper.ts's
 //          mapCVDataToSkillFactPool doc comment — so this split is purely a
 //          level-authoring choice, not a bookkeeping requirement.
-//   X  8   crate — 2 education + 3 activities + 3 languages
+//   =  8   crate — 2 education + 3 activities + 3 languages
 //   Q  5   question-mark block — 2 certificates + 3 projects, each popping a
 //          bonus fruit rather than carrying a fact of its own
 //   F  5   fragileRock block — no fact; the two surface plugs plus filler
-//   T  5   chest — one per experience entry; opening all five ends the run
+//   $  5   chest — one per experience entry; opening all five ends the run
 //   u  3   coin-pot — destroyed by landing on top, drops a coin (2 adjacent
 //          + 1 isolated, to exercise the merged-run rendering); same
 //          no-CVData-binding convention as every other block kind
+//   p  0   potion-pot — destroyed by landing on top, drops a heart pickup
+//          that heals half a heart; no fact. Not yet placed anywhere in this
+//          level — the mechanism exists (see entities/blocks/PotionPot.ts)
+//          but no level-design placement decision has been made for it yet.
 //   ^  1   spike (floor) — damages the player on touch, no stomp-defeat
 //   v  1   spike (ceiling)
 //   <  1   spike (right wall)
@@ -145,24 +150,24 @@ import {
 // deliberately NOT on the meadow bridge, where dropping through only earns a
 // pit fall. On the cave mouth, dropping through is the way in.
 export const LEVEL_1_LAYOUT: readonly string[] = [
-  '..................................................................................................................................................................................................................m....T....',
-  '.............................................................................................................................................................................................Q..........X.....HGGGGGGGGGGG..',
+  '..................................................................................................................................................................................................................m....$....',
+  '.............................................................................................................................................................................................Q..........=.....HGGGGGGGGGGG..',
   '..............................................................................................................................................................................................................HGGGGGGGGGGG..',
-  '................................................................................................................................................................................................M.............HGGGGGGGGGGG.T',
-  '..............................................X......................................................................................................................................X.....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  '................................................................................................................................................................................................M.............HGGGGGGGGGGG.$',
+  '..............................................=......................................................................................................................................=.....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   '...........................................................................................................................................................................................GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   '........................................M........................................................o...........m........................................................................M..o.GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
-  '........................XQ........GGGGGGGGGGGGGGG.......................................Q......GGGGGGG.....GGGGGGG....XQFQ.........................................................RRRRRRRRGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  '........................=Q........GGGGGGGGGGGGGGG.......................................Q......GGGGGGG.....GGGGGGG....=QFQ.........................................................RRRRRRRRGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   '..................................GGGGGGGGGGGGGGG..................................................................................................................................GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   '..S.5..o...o.........M.......M..2.GGGGGGGGGGGGGGGuu.u.....M......1.........^...........................M.o..........M.....M.......M........................M.................#.M..#GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGGBBBGGGGGGGGGGGGGGHGGGGGGGGGGGGGGGGGGGGGGHGGGGGGHGGBBBGGGGGGGGGGGGGGGGGFFGGGGGGGGGG...GGGGGGGGGBBBGGGGGGGGGGGGGGGRRHRRRRRRRRRRRRGGGGGGGGGGGGGGGGGGGGGGGGGHGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
-  'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.H......................H<GGGG>H..........X................GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..H.......v.......X...X.................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.H........⊤....⊤........H<GGGG>H..........=................GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..H.......v.......=...=.................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.H......................H.GGGG.H.....................3.....GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..H.....................................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
-  'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.H..o...4.T.............H.GGGG.H.....o..m....o....o.RRRRR..GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..H..o.m..T.............................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.H..o...4.$.⊥...⊥.......H.GGGG.H.....o..m....o....o.RRRRR..GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..H..o.m..$.............................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGG...GGGGGGGGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRRRGGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGGRRRRRRRRRRRRRRHRRRRRRRRRRRFFRRRRRRRRRRRRHRRRRGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGG...GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..............H.........................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
-  'GGGGGGGGGGGGGG...GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..............H.........................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
-  'GGGGGGGGGGGGGG...GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..............H....o.m...RRRR...o..o.T..H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  'GGGGGGGGGGGGGG...GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGGX.....X.......H.........................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  'GGGGGGGGGGGGGG...GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGGc.............H....o.m...RRRR...o..o.$..H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGG...GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'RRRRRRRRRRRRRR...RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR...RRRRRRRRR...RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
 ];
@@ -225,7 +230,7 @@ export const ENEMY_TILES_PURPLE = computed(() => findPurpleEnemyTiles(currentLay
 export const COIN_TILES = computed(() => findCoinTiles(currentLayout.value));
 
 /** Hand-placed crate block positions (8 — one per Education, Activity and
- *  Language entry), from `currentLayout`'s `X` markers. */
+ *  Language entry), from `currentLayout`'s `=` markers. */
 export const CRATE_TILES = computed(() => findCrateTiles(currentLayout.value));
 
 /** Hand-placed question-mark block positions (5 — one per Certificate and
@@ -243,8 +248,15 @@ export const FRAGILE_ROCK_TILES = computed(() => findFragileRockTiles(currentLay
  *  mapCVDataToSkillFactPool doc comment and BlockMapper.ts's placeBlocks). */
 export const COIN_POT_TILES = computed(() => findCoinPotTiles(currentLayout.value));
 
+/** Hand-placed potion-pot block positions, from `currentLayout`'s `p` markers
+ *  — purely positional, no CVData binding (same convention as COIN_POT_TILES
+ *  above; a potion-pot's dropped heart heals a fixed amount, never reveals a
+ *  fact). currentLevel has none of these yet — this is the mechanism only,
+ *  not a level-design placement decision. */
+export const POTION_POT_TILES = computed(() => findPotionPotTiles(currentLayout.value));
+
 /** Hand-placed chest positions (5 — one per Experience entry), from
- *  `currentLayout`'s `T` markers (spec.md FR-023). Opening all five is the
+ *  `currentLayout`'s `$` markers (spec.md FR-023). Opening all five is the
  *  level's win condition, so this count must stay equal to CVData's
  *  `experience` length: `placeChests` has no auto-placement fallback, and a
  *  missing marker would leave an Experience entry unreachable. */
