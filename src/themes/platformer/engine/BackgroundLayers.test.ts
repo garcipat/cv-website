@@ -176,12 +176,13 @@ describe('drawBackgroundLayers', () => {
     const cloudsBottom = cloudDys[0] + cloudsDestHeight;
 
     // The remaining gap between the clouds' bottom edge and the village's
-    // top edge is filled with a flat rect in the sampled clouds/hills color,
-    // not a second copy of the clouds tile.
+    // top edge is filled with a flat rect in SKY_FILL_COLOR (matching the
+    // sky-to-clouds gap fill per explicit user preference), not a second
+    // copy of the clouds tile.
     // Note: ctx.fillStyle is a single mutable property (not per-call), and
     // later fills overwrite it — so the color itself is verified via the
-    // CLOUDS_VILLAGE_GAP_COLOR constant's usage in BackgroundLayers.ts
-    // rather than asserted here against the final fillStyle value.
+    // SKY_FILL_COLOR constant's usage in BackgroundLayers.ts rather than
+    // asserted here against the final fillStyle value.
     const fillCalls = (ctx.fillRect as ReturnType<typeof vi.fn>).mock.calls;
     const cloudsVillageFillCall = fillCalls.find((call) => call[1] === cloudsBottom);
     expect(cloudsVillageFillCall).toEqual([0, cloudsBottom, 320, villageTop - cloudsBottom]);
