@@ -111,29 +111,26 @@ distinct shape and that the character passes through all of them.
 
 ---
 
-### User Story 4 - Sky and Water Framing (Priority: P2)
+### User Story 4 - Water Framing (Priority: P2)
 
-A visitor sees a sky behind everything — solid white at the very top, a band of clouds,
-then open colour filling the rest of the view. The sky is fixed to the viewport, so it
-stays put no matter how far the camera has scrolled. At the bottom of the level, a band of
-water laps in front of the lowest terrain row, cresting with a foam edge and filling
-everything below it. The water is anchored to the level, not the screen, so it scrolls with
-the terrain and disappears once the camera has moved above it.
+At the bottom of the level, a band of water laps in front of the lowest terrain row,
+cresting with a foam edge and filling everything below it. The water is anchored to the
+level, not the screen, so it scrolls with the terrain and disappears once the camera has
+moved above it. The backdrop behind everything is not part of this feature — it is the
+illustrated parallax scene of
+[O-009](../O-009-platformer-background-layers/spec.md).
 
-**Why this priority**: These two bands frame the playfield top and bottom. They are cheap
-and purely visual, but without them the level has no top or bottom edge.
+**Why this priority**: The water band frames the bottom of the playfield. It is cheap and
+purely visual, but without it the level has no bottom edge.
 
-**Independent Test**: Scroll the camera the full width of the level and confirm the sky
-does not shift. Confirm the water band sits over the bottom half of the level's last
+**Independent Test**: Confirm the water band sits over the bottom half of the level's last
 terrain row, and that it stops drawing entirely once it is off screen.
 
 **Acceptance Scenarios**:
 
-1. **Given** the camera scrolls horizontally, **When** the sky renders, **Then** it is
-   unchanged — it does not scroll with the level.
-2. **Given** the water band, **When** it renders, **Then** it covers the lower half of the
+1. **Given** the water band, **When** it renders, **Then** it covers the lower half of the
    level's bottom terrain row, leaving that row's grassed top edge readable.
-3. **Given** the camera has moved so the water band is entirely below the visible area,
+2. **Given** the camera has moved so the water band is entirely below the visible area,
    **When** the frame draws, **Then** the water draws nothing at all.
 
 ---
@@ -219,12 +216,12 @@ character table and the shape of a background placement record live in
   terrain from decoration from entities, so a decorative tile is not mistaken for a
   walkable one in the palette.
 
-#### Sky and water
+#### Water
 
-- **FR-018**: The game MUST draw a sky behind everything else, fixed to the viewport so it
-  does not move as the camera scrolls: solid white rows at the top, a band of cloud, then
-  open sky colour filling the remaining height.
-- **FR-019**: The game MUST draw a water band anchored to the level's bottom row and
+The backdrop drawn behind everything else is not a requirement of this feature; see
+[O-009](../O-009-platformer-background-layers/spec.md).
+
+- **FR-018**: The game MUST draw a water band anchored to the level's bottom row and
   scrolling with the level, overlapping the lower half of that row so the row's grassed top
   edge stays readable, with a foam crest at its top and solid water beneath it down to the
   bottom of the view. It MUST draw nothing once it has scrolled out of view.
@@ -258,7 +255,6 @@ chosen.
   in cells, a colour family, and no gameplay meaning at all.
 - **Decoration tile** — a non-solid terrain cell that draws scenery: a bush or part of a
   tree, a fence, or a cave-dressing piece.
-- **Sky band** — the viewport-fixed backdrop drawn behind everything.
 - **Water band** — the level-anchored foreground strip at the bottom of the level.
 
 ## Success Criteria _(mandatory)_
@@ -297,12 +293,13 @@ chosen.
 
 ## Out of Scope
 
-- Full-scene parallax backdrops, and letting a level choose among several of them.
+- The illustrated parallax backdrop behind the level, and letting a level choose among
+  several backdrops — see [O-009](../O-009-platformer-background-layers/spec.md).
 - Autotiling for any terrain kind other than grass ground — rock, wall, bridge, ladder and
   chain keep their own rendering.
 - Neighbour-aware fences that connect posts into a continuous rail.
 - Preventing an entity or sign from drawing in front of a tall tree.
-- Any gameplay effect from water, sky, background fill or decoration — none of them damage,
+- Any gameplay effect from water, background fill or decoration — none of them damage,
   carry, slow or block the character.
 - A separate marker or overlay layer that would let a decoration sit on top of terrain
   rather than replace it.

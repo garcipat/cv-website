@@ -40,6 +40,7 @@
 - [~] **O-006** **Platformer Blueprint Rooms** — Authoring reusable rooms on a second editor canvas, saved to a library and placed with an overlap-checked preview (connection points still open)
 - [ ] **O-007** **Platformer Level Selection** — Visitor-facing level choice and `?level=` URL loading, instead of always loading `main`
 - [ ] **O-008** **Platformer Audio** — Background music and sound effects, muted by default (not committed)
+- [x] **O-009** **Platformer Background Image Layers** — Illustrated parallax backdrop (sky, clouds, village, grass) replacing the procedural sky
 
 - _TBD_
 
@@ -78,6 +79,7 @@
 | O-006 | Platformer blueprint rooms | 🔶 Partial  | [spec](../specs/O-006-platformer-blueprints/spec.md) / [design](../specs/O-006-platformer-blueprints/design.md) | ✅ | ✅ |
 | O-007 | Platformer level selection | 📋 Planned  | [spec](../specs/O-007-platformer-level-selection/spec.md) | ❌ | ❌ |
 | O-008 | Platformer audio        | 📋 Planned     | [spec](../specs/O-008-platformer-audio/spec.md) | ❌ | ❌ |
+| O-009 | Platformer background image layers | ✅ Done | [spec](../specs/O-009-platformer-background-layers/spec.md) / [design](../specs/O-009-platformer-background-layers/design.md) | ✅ | ✅ |
 
 ---
 
@@ -130,6 +132,7 @@ graph RL
         O006["O-006: Blueprint Rooms"]
         O007["O-007: Level Selection"]
         O008["O-008: Audio"]
+        O009["✅ O-009: Background Image Layers"]
     end
 
     F003 --> F002
@@ -179,6 +182,7 @@ graph RL
     O006 --> F019
     O007 --> F019
     O008 --> F015
+    O009 --> F015
     O001 --> F015
 
     classDef done stroke:#FFD600,stroke-width:3px
@@ -203,9 +207,9 @@ graph RL
     class S004 done
     class S002,S005,O001 enhancements
     class S005 done
-    class F015,F016,F017,F018,S007,S008,S009,O003,O004,O005,O008 themes
+    class F015,F016,F017,F018,S007,S008,S009,O003,O004,O005,O008,O009 themes
     class F019,O006,O007 enhancements
-    class F015,F016,F017,F018,F019,S007,S008,S009,O004,O005 done
+    class F015,F016,F017,F018,F019,S007,S008,S009,O004,O005,O009 done
 ```
 
 **Critical Path**: F-001 → F-012 → F-013 → F-002 → F-014 (foundation → theme system → multilanguage → data model → IDE theme, then Space and Terminal themes)

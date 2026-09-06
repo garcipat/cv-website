@@ -253,31 +253,53 @@ describe('PlatformerPage', () => {
     });
   });
 
-  it('render-default-showsFullViewportCanvas', () => {
+  it('render-default-showsFixedShortCanvasHeight', () => {
     Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 1024 });
-    Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 768 });
+    Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 900 });
 
     render(<PlatformerPage />);
 
     const canvas = platformerPage.canvas;
     expect(canvas).toBeInTheDocument();
     expect(canvas).toHaveAttribute('width', '1024');
+    // Canvas height is capped at PLAY_CANVAS_ROWS(24) * RENDERED_TILE_SIZE(32)
+    // = 768, not the full window height, even though the window is taller.
     expect(canvas).toHaveAttribute('height', '768');
   });
 
-  it('windowResize-afterMount-updatesCanvasDimensions', () => {
+  it('windowResize-afterMount-widthTracksWindowHeightStaysFixed', () => {
+    Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 1024 });
+    Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 900 });
+
+    render(<PlatformerPage />);
+
+    Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 800 });
+    Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 850 });
+    fireEvent(window, new Event('resize'));
+
+    const canvas = platformerPage.canvas;
+    expect(canvas).toHaveAttribute('width', '800');
+    // Still capped at 768 (24 * 32) — the fixed play-canvas height doesn't
+    // change with the window, since 850 > 768.
+    expect(canvas).toHaveAttribute('height', '768');
+  });
+
+  it('windowResize-windowShorterThanFixedCanvas-heightCapsToWindowHeight', () => {
     Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 1024 });
     Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 768 });
 
     render(<PlatformerPage />);
 
-    Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 800 });
-    Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 600 });
+    // A window shorter than the fixed play-canvas height (384) falls back
+    // to the window's own height as a safety net so the canvas never
+    // overflows it.
+    Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 300 });
+    Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 200 });
     fireEvent(window, new Event('resize'));
 
     const canvas = platformerPage.canvas;
-    expect(canvas).toHaveAttribute('width', '800');
-    expect(canvas).toHaveAttribute('height', '600');
+    expect(canvas).toHaveAttribute('width', '300');
+    expect(canvas).toHaveAttribute('height', '200');
   });
 
   it('render-default-showsFloatingControlsOverCanvas', () => {
@@ -315,7 +337,7 @@ describe('PlatformerPage', () => {
 
   it('render-tallViewport-anchorsLevelBottomToCanvasBottom', async () => {
     Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 1024 });
-    Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 768 });
+    Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 900 });
     vi.stubGlobal('Image', MockTilesetImage);
 
     render(<PlatformerPage />);
@@ -327,12 +349,20 @@ describe('PlatformerPage', () => {
     // WATER_TILE_SX): that band is deliberately drawn to overhang the
     // canvas's bottom edge by half a tile (drawWaterForeground's half-tile
     // overlap with the level's last row), which is a different, intentional
-    // invariant from THIS test's — that the level's own TERRAIN is
-    // bottom-anchored flush with the canvas.
+    // invariant from THIS test's — that the level's own TERRAIN bottom sits
+    // wherever `snapCameraYToSpawn` (PlatformerPage.tsx) placed it to frame
+    // the spawn at the dead-zone's target row (see `initialCameraY` in
+    // Camera.ts), not necessarily flush with the canvas bottom.
     const bottomEdges = ctx.drawImage.mock.calls
       .filter((call: unknown[]) => call[1] !== 64)
       .map((call: unknown[]) => (call[6] as number) + (call[8] as number)); // dy + dh
-    expect(Math.max(...bottomEdges)).toBe(768);
+    // Canvas height is capped at PLAY_CANVAS_ROWS(24) * RENDERED_TILE_SIZE(32)
+    // = 768 regardless of the (taller) mocked window.innerHeight (900).
+    // LEVEL_1's spawn row (see level.ts's `S` marker) sits well above the
+    // level's own bottom edge, so the initial camera snap shifts the level
+    // up by a fixed, deterministic offset (768 + 248 = 1016) to frame the
+    // player at the target row instead of leaving the level bottom-anchored.
+    expect(Math.max(...bottomEdges)).toBe(1016);
   });
 
   it('render-afterPlayerSpriteLoads-drawsPlayerAtIdleSize', async () => {

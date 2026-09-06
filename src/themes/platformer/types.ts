@@ -114,9 +114,9 @@ export interface EnemyDef {
  */
 export interface BlockDef {
   id: string;
-  blockKind: 'crate' | 'questionMark' | 'fragileRock' | 'coinPot';
+  blockKind: 'crate' | 'questionMark' | 'fragileRock' | 'coinPot' | 'potionPot';
   /** Present only when `blockKind === 'crate'` — every other kind
-   *  (question-mark, fragileRock, coinPot) never carries a fact. */
+   *  (question-mark, fragileRock, coinPot, potionPot) never carries a fact. */
   fact?: CollectedFact;
 }
 
