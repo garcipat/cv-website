@@ -9,6 +9,7 @@ import {
   BACKGROUND_RENDER_SCALE,
   SKY_TOP_MARGIN,
   CLOUDS_VILLAGE_GAP,
+  GRASS_VERTICAL_NUDGE,
   type BackgroundLayerImages,
 } from './BackgroundLayers';
 
@@ -96,12 +97,14 @@ describe('drawBackgroundLayers', () => {
     const villageBottom = (villageCalls[0][ARG.dy] as number) + (villageCalls[0][ARG.dh] as number);
 
     // Grass is drawn exactly once (no vertical tiling): every grass call
-    // shares the same dy, positioned at the village layer's bottom edge.
+    // shares the same dy, positioned half a tile above the village layer's
+    // bottom edge (GRASS_VERTICAL_NUDGE), overlapping it slightly.
     const grassCalls = ctx.drawImage.mock.calls.filter((call) => call[ARG.image] === images.grass);
     expect(grassCalls.length).toBeGreaterThan(0);
     const grassDys = [...new Set(grassCalls.map((call) => call[ARG.dy] as number))];
-    expect(grassDys).toEqual([villageBottom]);
-    const grassBottom = villageBottom + images.grass.height * BACKGROUND_RENDER_SCALE;
+    const grassTop = villageBottom - GRASS_VERTICAL_NUDGE;
+    expect(grassDys).toEqual([grassTop]);
+    const grassBottom = grassTop + images.grass.height * BACKGROUND_RENDER_SCALE;
 
     // The remaining gap between the grass's bottom edge and the canvas
     // bottom is filled with a flat rect in the sampled grass color, not a

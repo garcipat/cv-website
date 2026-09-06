@@ -184,7 +184,7 @@ import type { HintId, CollectedFact } from './types';
  *  overflows a window shorter than this many rows. The level editor is
  *  unaffected — it sizes its own canvas separately, not from
  *  window.innerHeight at all. */
-const PLAY_CANVAS_ROWS = 12;
+const PLAY_CANVAS_ROWS = 24;
 
 export const PlatformerPage = () => {
   // Subscribes this component's render to any signal `.value` read during
@@ -1742,7 +1742,39 @@ export const PlatformerPage = () => {
 
   return (
     <div className="relative flex h-screen w-screen items-center justify-center overflow-hidden bg-black">
-      <canvas ref={canvasRef} data-testid="platformer-canvas" className="block" tabIndex={-1} />
+      {/* Sized to exactly wrap the canvas (a plain div with no explicit
+          size shrinks to its child's rendered dimensions), so the journal
+          button below can anchor to the CANVAS's own corner via `absolute`
+          instead of the page's corner — the canvas is vertically centered
+          within the taller page now (see PLAY_CANVAS_ROWS), so a
+          page-anchored `fixed` position no longer lines up with it. */}
+      <div className="relative">
+        <canvas
+          ref={canvasRef}
+          data-testid="platformer-canvas"
+          className="block border border-border select-none"
+          tabIndex={-1}
+        />
+        {/* Sits top-left, left of the hearts HUD, which HEARTS_START_X shifts
+            right to make room — top-left keeps it easy to spot against the
+            terrain. size-10 (40px) must match the 40 baked into
+            HEARTS_START_X's computation in Renderer.ts. */}
+        <button
+          ref={journalButtonRef}
+          type="button"
+          onClick={handleJournalToggle}
+          aria-label="Toggle journal"
+          className="absolute top-4 left-4 z-50 size-10 overflow-hidden rounded"
+        >
+          <img
+            src="/sprites/journal.png"
+            alt=""
+            data-testid="journal-open-button"
+            className="h-full w-full object-contain"
+            style={{ imageRendering: 'pixelated' }}
+          />
+        </button>
+      </div>
       <FloatingControls onOpenChange={handleFloatingControlsOpenChange} />
       <ControlsOverlay />
       {journalOpen && (
@@ -1753,25 +1785,6 @@ export const PlatformerPage = () => {
         />
       )}
       {endingScreenOpen.value && <ThankYouScreen onDismiss={handleDismissEndingScreen} />}
-      {/* Sits top-left, left of the hearts HUD, which HEARTS_START_X shifts
-          right to make room — top-left keeps it easy to spot against the
-          terrain. size-10 (40px) must match the 40 baked into
-          HEARTS_START_X's computation in Renderer.ts. */}
-      <button
-        ref={journalButtonRef}
-        type="button"
-        onClick={handleJournalToggle}
-        aria-label="Toggle journal"
-        className="fixed top-4 left-4 z-50 size-10 overflow-hidden rounded"
-      >
-        <img
-          src="/sprites/journal.png"
-          alt=""
-          data-testid="journal-open-button"
-          className="h-full w-full object-contain"
-          style={{ imageRendering: 'pixelated' }}
-        />
-      </button>
       {debugControls && (
         // Stacked below FloatingControls' top-right theme/locale selectors
         // (which sit at top-4, ~36-40px tall) rather than bottom-left, so
