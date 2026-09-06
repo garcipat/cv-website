@@ -18,7 +18,7 @@ function fakeImage(width: number, height: number): HTMLImageElement {
 
 function fakeImages(): BackgroundLayerImages {
   return {
-    layers: fakeImage(152, 141),
+    layers: fakeImage(160, 141),
     grass: fakeImage(7, 20),
     river: fakeImage(160, 60),
   };

@@ -150,7 +150,7 @@ export const STATIC_OBJECTS_SHEET: SpriteSheet = {
  *  addressing. */
 export const BACKGROUND_LAYERS_SHEET: SpriteSheet = {
   src: '/sprites/background_layers.png',
-  frameWidth: 152,
+  frameWidth: 160,
   frameHeight: 141,
   columns: 1,
 };
