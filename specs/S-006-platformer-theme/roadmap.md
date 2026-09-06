@@ -210,6 +210,14 @@ numbered step.
 - [x] **Entity architecture follow-ups** — cleanup/consistency work across how enemies,
   pickups, blocks, and chests are structured.
 - **Audio** — background music and sound effects, muted by default.
+- **Blueprint rooms** — capture a freeform, already-built region of the grid (border
+  drawn by hand, flood-filled to confirm it's enclosed) as a named, reusable "blueprint,"
+  tag border cells as `blueprintConnectionPoint` attachment spots, and place saved
+  blueprints elsewhere with blue/red fit feedback (no overlap, connection points facing
+  each other). Design in `plans/2026-09-06-blueprint-rooms-design.md`; not yet slotted
+  into the numbered roadmap since it's tooling for a longer-term goal (hand-assembling,
+  later auto-generating, levels from a room library) rather than something a near-term
+  step depends on — pick it up once a second/third hand-built room is actually wanted.
 - [x] **Theme-switch reset** — switching away from the Platformer theme and back
   calls `resetGameProgress()` (a mount-only effect in `PlatformerPage.tsx`), clears
   `controlsOverlayDismissed`, and restarts the intro transition — a full fresh
