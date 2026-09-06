@@ -85,10 +85,18 @@ const SKY_DARK_COLOR = 'rgb(72, 102, 197)';
 /** Extra gap between the clouds/hills layer's bottom edge and the village
  *  layer's top edge, in native (unscaled) pixels — so clouds read as
  *  floating a bit above the treeline rather than touching it directly.
- *  Filled by the same `SKY_FILL_COLOR` flat fill that already covers the
- *  sky-to-clouds gap (see `drawBackgroundLayers`) — no separate fill needed.
+ *  Filled by `CLOUDS_VILLAGE_GAP_COLOR` (see `drawBackgroundLayers`).
  *  Scaled by `BACKGROUND_RENDER_SCALE` at the point of use. Tunable. */
 export const CLOUDS_VILLAGE_GAP = 8;
+
+/** Flat fill for the small gap between the clouds/hills layer's bottom edge
+ *  and the village layer's top edge (see `CLOUDS_VILLAGE_GAP`) — sampled
+ *  directly from the clouds/hills band's own cyan hill-wave tone (the only
+ *  "hill" color present in that band, confirmed by sampling every distinct
+ *  color in the band: sky-blue, white clouds, and this cyan — no darker
+ *  shade exists in the current art), so the small gap reads as a
+ *  continuation of the hills rather than a bare gap. */
+const CLOUDS_VILLAGE_GAP_COLOR = 'rgb(127, 213, 205)';
 
 /** Flat fill used below the single grass draw, down to the canvas bottom —
  *  sampled directly from `background_layer_grass.png`'s own solid bottom
@@ -148,6 +156,10 @@ function drawTiledRow(
  *   (scaled) px ABOVE the village layer (not directly under the sky) — reads
  *   as floating a bit above the treeline rather than touching it. Slow
  *   parallax.
+ * - **Clouds-to-village gap fill**: fills the `CLOUDS_VILLAGE_GAP` (scaled)
+ *   px gap between the clouds/hills layer's bottom edge and the village
+ *   layer's top edge with `CLOUDS_VILLAGE_GAP_COLOR`, so it reads as a
+ *   continuation of the hills rather than a bare gap.
  * - **Village/treeline**: pinned `VILLAGE_BOTTOM_OFFSET` (scaled) px above
  *   the canvas bottom. Medium parallax.
  * - **River overlay**: a 2-frame alternating flipbook drawn on top of the
@@ -192,6 +204,12 @@ export function drawBackgroundLayers(
     ctx, images.layers, CLOUDS_SOURCE_RECT, cloudsTop, canvasWidth, cameraX, CLOUDS_PARALLAX_FACTOR,
     BACKGROUND_RENDER_SCALE,
   );
+
+  const cloudsBottom = cloudsTop + cloudsDestHeight;
+  if (villageTop > cloudsBottom) {
+    ctx.fillStyle = CLOUDS_VILLAGE_GAP_COLOR;
+    ctx.fillRect(0, cloudsBottom, canvasWidth, villageTop - cloudsBottom);
+  }
 
   drawTiledRow(
     ctx, images.layers, VILLAGE_SOURCE_RECT, villageTop, canvasWidth, cameraX, VILLAGE_PARALLAX_FACTOR,

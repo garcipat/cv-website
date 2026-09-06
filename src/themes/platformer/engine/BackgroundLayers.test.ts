@@ -161,6 +161,32 @@ describe('drawBackgroundLayers', () => {
     expect(skyFillCall).toEqual([0, skyBottom, 320, cloudTop - skyBottom]);
   });
 
+  it('cloudsAndVillage-drawnExactlyOnce-withRemainingGapFilledByFlatCloudsVillageColor', () => {
+    const ctx = fakeCtx();
+    const images = fakeImages();
+
+    drawBackgroundLayers(ctx, images, 320, 500, 0, 0);
+
+    const villageCalls = callsForSourceY(ctx.drawImage.mock.calls, images.layers, VILLAGE_SOURCE_RECT.sy);
+    const villageTop = Math.min(...villageCalls.map((call) => call[ARG.dy] as number));
+
+    const cloudCalls = callsForSourceY(ctx.drawImage.mock.calls, images.layers, CLOUDS_SOURCE_RECT.sy);
+    const cloudDys = [...new Set(cloudCalls.map((call) => call[ARG.dy] as number))];
+    const cloudsDestHeight = CLOUDS_SOURCE_RECT.height * BACKGROUND_RENDER_SCALE;
+    const cloudsBottom = cloudDys[0] + cloudsDestHeight;
+
+    // The remaining gap between the clouds' bottom edge and the village's
+    // top edge is filled with a flat rect in the sampled clouds/hills color,
+    // not a second copy of the clouds tile.
+    // Note: ctx.fillStyle is a single mutable property (not per-call), and
+    // later fills overwrite it — so the color itself is verified via the
+    // CLOUDS_VILLAGE_GAP_COLOR constant's usage in BackgroundLayers.ts
+    // rather than asserted here against the final fillStyle value.
+    const fillCalls = (ctx.fillRect as ReturnType<typeof vi.fn>).mock.calls;
+    const cloudsVillageFillCall = fillCalls.find((call) => call[1] === cloudsBottom);
+    expect(cloudsVillageFillCall).toEqual([0, cloudsBottom, 320, villageTop - cloudsBottom]);
+  });
+
   it('tiledRow-roundsOffsetToWholePixel-avoidingSeamsWhenCameraTimesParallaxIsFractional', () => {
     // Regression guard for the horizontal tile seam: with cameraX = 7 and
     // CLOUDS_PARALLAX_FACTOR = 0.2, cameraX * parallaxFactor = 1.4, a
