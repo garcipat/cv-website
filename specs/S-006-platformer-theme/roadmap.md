@@ -220,6 +220,14 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   on 44b's connection points, which placement does not read or validate (that dependency
   was cut after a design flaw surfaced; see the design doc's Placement section).
 
+- [x] **43. Background image layers** — replaced the procedural sky
+  (`drawSkyBackground`) with a real illustrated backdrop cropped from
+  `backgrounds.png`, composited as 4 depth layers (sky, clouds/hills,
+  village/treeline, grass) with independent parallax scroll speeds, plus a
+  2-frame animated river overlay on the village layer. Design:
+  `plans/2026-09-06-background-image-layers-design.md`, plan:
+  `plans/2026-09-06-background-image-layers-plan.md`.
+
 ## Unscheduled additions (not yet numbered)
 
 Ideas raised but not yet slotted into the roadmap. Each needs its own

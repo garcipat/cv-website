@@ -134,154 +134,46 @@ function tileSource(
   }
 }
 
-/** Sky tiles live in `world_tileset.png` column 0: row 9 is solid white, row
- *  10 has white cloud silhouettes cut into blue. The fill below the clouds
- *  uses `skyColor` (the theme's own `--background` CSS value) rather than
- *  that sheet's row-11 solid-blue tile — the tileset's blue reads more
- *  saturated/darker than the theme's original flat sky color, which is what
- *  this is meant to preserve. */
-const SKY_TILE_SX = 0;
-const SKY_WHITE_SY = 9 * TILE_SIZE;
-const SKY_CLOUD_SY = 10 * TILE_SIZE;
-
-/** How many solid-white rows sit above the cloud band — tunable without
- *  touching the draw loop itself. Exported so tests can address rows by
- *  position instead of a hardcoded count. */
-export const SKY_WHITE_ROW_COUNT = 2;
-
-/** The cloud tile is drawn larger than the other sky tiles (which are all
- *  exactly RENDERED_TILE_SIZE) — the tileset's cloud silhouette reads as too
- *  fine/busy at native size once recolored to blend with the flat sky below
- *  it; scaling it up reads as fewer, chunkier, more legible clouds. Its own
- *  tiling stride (see the `cloudCols` loop below) is independent of the
- *  white rows' stride, since it's a different tile size. */
-const CLOUD_TILE_SCALE = 1.5;
-
-/** A channel value at or above this (out of 255) counts as "near white" when
- *  recoloring the cloud tile below — the tileset's cloud silhouette is a
- *  flat white, so this is a generous cutoff, not a fine-tuned threshold. */
-const CLOUD_TILE_WHITE_THRESHOLD = 200;
-
-/** Cache of the cloud tile with its own blue background cut to fully
- *  transparent, keyed by `skyColor` — recomputed only when `skyColor`
- *  changes (a theme switch), not on every frame. A 16x16 getImageData/
- *  putImageData pass is unnecessary work to repeat 60 times a second when
- *  the tileset and the theme's sky color are both static between frames. */
-let recoloredCloudTileCache: { skyColor: string; tile: HTMLCanvasElement } | null = null;
-
-/**
- * Returns a `TILE_SIZE`-square canvas holding the cloud tile with every
- * pixel that isn't near-white (the tileset's own blue background — see this
- * file's `SKY_CLOUD_SY` comment) cut to fully transparent. Drawing this over
- * a `skyColor`-filled rect lets the cloud silhouette blend into the theme's
- * own sky color instead of showing the tileset's more saturated blue as a
- * visible seam against the flat sky fill below it.
- */
-function recoloredCloudTile(tileset: HTMLImageElement, skyColor: string): HTMLCanvasElement {
-  if (recoloredCloudTileCache && recoloredCloudTileCache.skyColor === skyColor) {
-    return recoloredCloudTileCache.tile;
-  }
-  const tile = document.createElement('canvas');
-  tile.width = TILE_SIZE;
-  tile.height = TILE_SIZE;
-  const tileCtx = tile.getContext('2d')!;
-  tileCtx.drawImage(tileset, SKY_TILE_SX, SKY_CLOUD_SY, TILE_SIZE, TILE_SIZE, 0, 0, TILE_SIZE, TILE_SIZE);
-  const imageData = tileCtx.getImageData(0, 0, TILE_SIZE, TILE_SIZE);
-  const { data } = imageData;
-  for (let i = 0; i < data.length; i += 4) {
-    if (
-      data[i] < CLOUD_TILE_WHITE_THRESHOLD ||
-      data[i + 1] < CLOUD_TILE_WHITE_THRESHOLD ||
-      data[i + 2] < CLOUD_TILE_WHITE_THRESHOLD
-    ) {
-      data[i + 3] = 0;
-    }
-  }
-  tileCtx.putImageData(imageData, 0, 0);
-  recoloredCloudTileCache = { skyColor, tile };
-  return tile;
-}
-
-/**
- * Draws the background sky — fixed to the viewport, not the camera or the
- * level (same "no originX/originY" convention as `drawHearts`'s HUD) — so it
- * always covers the same screen area regardless of how far the camera has
- * scrolled. `SKY_WHITE_ROW_COUNT` rows of solid white, one row of the
- * recolored cloud tile (see `recoloredCloudTile`) over a `skyColor` backing
- * fill, then `skyColor` filling the rest of the canvas height.
- */
-export function drawSkyBackground(
-  ctx: CanvasRenderingContext2D,
-  tileset: HTMLImageElement,
-  canvasWidth: number,
-  canvasHeight: number,
-  skyColor: string,
-): void {
-  ctx.imageSmoothingEnabled = false;
-
-  const cols = Math.ceil(canvasWidth / RENDERED_TILE_SIZE);
-  const cloudRowY = SKY_WHITE_ROW_COUNT * RENDERED_TILE_SIZE;
-  const cloudTileSize = RENDERED_TILE_SIZE * CLOUD_TILE_SCALE;
-  // Must clear the full height of the (larger) cloud tile, not just one
-  // RENDERED_TILE_SIZE row — otherwise the flat sky fill below would paint
-  // over the bottom of the enlarged cloud tile, cutting it off.
-  const blueStartY = cloudRowY + cloudTileSize;
-  const cloudTile = recoloredCloudTile(tileset, skyColor);
-
-  for (let col = 0; col < cols; col++) {
-    const x = col * RENDERED_TILE_SIZE;
-    for (let row = 0; row < SKY_WHITE_ROW_COUNT; row++) {
-      const y = row * RENDERED_TILE_SIZE;
-      ctx.drawImage(tileset, SKY_TILE_SX, SKY_WHITE_SY, TILE_SIZE, TILE_SIZE, x, y, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
-    }
-  }
-
-  // Filled BEHIND the cloud row first — the recolored tile's cut-out pixels
-  // are fully transparent, so without this the cloud row would show
-  // whatever was drawn underneath (or nothing) instead of the flat sky.
-  ctx.fillStyle = skyColor;
-  ctx.fillRect(0, cloudRowY, canvasWidth, cloudTileSize);
-
-  // A separate loop/stride from the white rows above: the cloud tile's own
-  // size (cloudTileSize) differs from RENDERED_TILE_SIZE, so it tiles at a
-  // different column width.
-  const cloudCols = Math.ceil(canvasWidth / cloudTileSize);
-  for (let col = 0; col < cloudCols; col++) {
-    const x = col * cloudTileSize;
-    ctx.drawImage(cloudTile, 0, 0, TILE_SIZE, TILE_SIZE, x, cloudRowY, cloudTileSize, cloudTileSize);
-  }
-
-  if (blueStartY < canvasHeight) {
-    ctx.fillStyle = skyColor;
-    ctx.fillRect(0, blueStartY, canvasWidth, canvasHeight - blueStartY);
-  }
-}
-
-/** Water tiles live in `world_tileset.png` column 4: row 9 is the wave-crest
- *  (foam edge over blue), row 10 is the plain solid-blue body beneath it. */
+/** Water tiles live in `world_tileset.png` column 4, row 9: the wave-crest
+ *  (foam edge over blue). */
 const WATER_TILE_SX = 4 * TILE_SIZE;
 const WATER_CREST_SY = 9 * TILE_SIZE;
-const WATER_BODY_SY = 10 * TILE_SIZE;
+
+/** Solid water blue sampled directly from the crest tile's own body (below
+ *  its foam edge, at world_tileset.png's (4,9) tile, a few rows down) — used
+ *  to fill any gap the crest line itself doesn't cover (see `drawWaterForeground`). */
+const WATER_BODY_COLOR = 'rgb(20, 152, 220)';
 
 /**
  * Draws the foreground water band anchored to the LEVEL's bottom row (not
  * the viewport) — same `originX`/`originY` camera-scroll convention as
  * `drawTerrain`, so it scrolls with the level rather than the screen.
  * Overlaps the BOTTOM HALF of the level's own last terrain row (rather than
- * sitting below it) because the camera formula in PlatformerPage.tsx already
- * bottom-anchors that row flush against the canvas edge — a band drawn
- * strictly beneath it would always land at/past the canvas edge and never
- * actually be visible. Half a tile keeps the top of that row (and its grass
- * edge) readable while still reading as "waves lapping in front of the
- * ground" rather than fully submerging it. The crest tile tiles across the
- * full level width at that half-tile line; the plain body tile fills every
- * row beneath it down to the bottom of the canvas. Draws nothing once the
- * band has scrolled entirely below the visible viewport.
+ * sitting below it) so the top of that row (and its grass edge) stays
+ * readable while still reading as "waves lapping in front of the ground"
+ * rather than fully submerging it.
+ *
+ * Tiles across the full `canvasWidth` — NOT just the level's own width —
+ * starting from `originX` (always <= 0, since the horizontal camera clamps
+ * to 0 rather than scrolling past the level's own edges) so tiles stay
+ * aligned to world columns. A canvas wider than the level itself (the
+ * horizontal camera can't scroll to compensate) would otherwise leave the
+ * crest texture stopping short of the canvas's right edge.
+ *
+ * Below the crest line, fills solid `WATER_BODY_COLOR` across the full
+ * canvas width down to the canvas bottom. The vertical camera
+ * (`updateCameraY`/`initialCameraY` in Camera.ts) is deliberately unclamped,
+ * so a spawn or descent low in the map can leave the level's own bottom row
+ * scrolled above the canvas's bottom edge. Without this fill, that gap would
+ * expose the parallax background layers behind the foreground, breaking the
+ * illusion that the map simply floats in a body of water. Draws nothing
+ * once the band has scrolled entirely below the visible viewport.
  */
 export function drawWaterForeground(
   ctx: CanvasRenderingContext2D,
   level: LevelDef,
   tileset: HTMLImageElement,
+  canvasWidth: number,
   canvasHeight: number,
   originX = 0,
   originY = 0,
@@ -291,12 +183,14 @@ export function drawWaterForeground(
 
   ctx.imageSmoothingEnabled = false;
 
-  for (let col = 0; col < level.width; col++) {
-    const x = col * RENDERED_TILE_SIZE + originX;
+  for (let x = originX; x < canvasWidth; x += RENDERED_TILE_SIZE) {
     ctx.drawImage(tileset, WATER_TILE_SX, WATER_CREST_SY, TILE_SIZE, TILE_SIZE, x, topY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
-    for (let y = topY + RENDERED_TILE_SIZE; y < canvasHeight; y += RENDERED_TILE_SIZE) {
-      ctx.drawImage(tileset, WATER_TILE_SX, WATER_BODY_SY, TILE_SIZE, TILE_SIZE, x, y, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
-    }
+  }
+
+  const bodyTop = topY + RENDERED_TILE_SIZE;
+  if (bodyTop < canvasHeight) {
+    ctx.fillStyle = WATER_BODY_COLOR;
+    ctx.fillRect(0, bodyTop, canvasWidth, canvasHeight - bodyTop);
   }
 }
 
