@@ -255,6 +255,13 @@ numbered step.
   gaps in a shipped level, which would make a separate layer unnecessary. Revisit once
   44c's placement behavior is actually built and this either does or doesn't turn out to
   be a real problem.
+- **Level Editor zoom** — the canvas has no zoom, only 1:1 tiles at a fixed 32px plus
+  panning. Raised while designing step 44c (placing a blueprint into a level) as a way to
+  get more overview while lining a room up against existing content. Postponed
+  deliberately: zoom is a bigger feature on its own (new coordinate math touching
+  basically every draw call), and the existing middle-click-drag pan should be enough for
+  placement given blueprints are typically small. Revisit only if placement in practice
+  turns out to feel cramped.
 
 ## Working agreement
 
