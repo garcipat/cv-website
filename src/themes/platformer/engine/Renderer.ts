@@ -97,7 +97,7 @@ function tileSource(
     case 'patrol':
       // An enemy patrol boundary is deliberately invisible in game — only
       // the Level Editor draws a marker for it (EditorCanvas.tsx's
-      // drawPatrolMarkers), the same way it badges sign digits.
+      // drawTileMarkers), the same way it badges sign digits.
       return null;
     case 'blueprintConnectionPoint':
       // Editor-only, exactly like 'patrol' above: only the Level Editor

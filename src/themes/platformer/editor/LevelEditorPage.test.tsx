@@ -1137,3 +1137,92 @@ describe('LevelEditorPage — blueprint select and save (step 44a)', () => {
     expect(editorBlueprintSignal.value[1][2]).toBe('G');
   });
 });
+
+describe('LevelEditorPage — blueprint connection points (step 44b)', () => {
+  it('blueprintMode-thePaletteOffersTheConnectionPointTool', () => {
+    render(<LevelEditorPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
+
+    expect(screen.getByRole('button', { name: 'Connection Point' })).toBeInTheDocument();
+  });
+
+  it('levelMode-thePaletteDoesNotOfferTheConnectionPointTool', () => {
+    render(<LevelEditorPage />);
+
+    expect(screen.queryByRole('button', { name: 'Connection Point' })).not.toBeInTheDocument();
+  });
+
+  it('paintingWithTheConnectionPointTool-writesItsCharacterIntoTheBlueprintGrid', async () => {
+    renderEditorInBlueprintMode();
+    fireEvent.click(screen.getByRole('button', { name: 'Connection Point' }));
+
+    paintBlueprintCell(2, 1);
+
+    await waitFor(() => {
+      expect(editorBlueprintSignal.value[1][2]).toBe('+');
+    });
+  });
+
+  it('savingABlueprintWithAConnectionPoint-keepsTheCharacterInTheStoredLayout', async () => {
+    // The crop/export path carries '+' like any other character — nothing in
+    // saveBlueprintToStash/cropLevelForExport knows about connection points,
+    // which is exactly what step 44c relies on to read them back.
+    renderEditorInBlueprintMode();
+    paintBlueprintCell(2, 1);
+    fireEvent.click(screen.getByRole('button', { name: 'Connection Point' }));
+    paintBlueprintCell(3, 1);
+
+    await saveBlueprintAs('Test Room');
+
+    expect(readSavedBlueprints()).toEqual([
+      { id: 'test-room', name: 'Test Room', layout: ['G+'] },
+    ]);
+  });
+
+  it('connectionPointArmed-switchingToLevel-disarmsItSoClicksCannotPaintOneIntoTheLevel', () => {
+    // The palette merely stops OFFERING the tool (Task 3). `selectedTool` is
+    // persisted and shared by both canvases, so without an explicit disarm a
+    // session that left '+' armed would paint inert markers into a real
+    // level through a palette showing nothing selected.
+    editorCanvasModeSignal.value = 'blueprint';
+    editorSelectedToolSignal.value = '+';
+    render(<LevelEditorPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Level' }));
+
+    expect(editorSelectedToolSignal.value).not.toBe('+');
+    expect(screen.getByRole('button', { name: 'Ground Grass' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+  });
+
+  it('mountedInLevelModeWithTheConnectionPointArmed-disarmsItWithoutAnyToggleClick', () => {
+    // Both the mode and the tool are persisted, so the editor can come back
+    // up on the level canvas with '+' selected and no toggle click to
+    // trigger the other disarm path.
+    editorCanvasModeSignal.value = 'level';
+    editorSelectedToolSignal.value = '+';
+
+    render(<LevelEditorPage />);
+
+    expect(editorSelectedToolSignal.value).not.toBe('+');
+    expect(screen.queryByRole('button', { name: 'Connection Point' })).not.toBeInTheDocument();
+  });
+
+  it('blueprintModeWithTheConnectionPointArmed-keepsItArmedAcrossAMountInThatMode', () => {
+    // The mirror case must NOT be disarmed: '+' is a perfectly valid armed
+    // tool on the blueprint canvas.
+    editorCanvasModeSignal.value = 'blueprint';
+    editorSelectedToolSignal.value = '+';
+
+    render(<LevelEditorPage />);
+
+    expect(editorSelectedToolSignal.value).toBe('+');
+    expect(screen.getByRole('button', { name: 'Connection Point' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+  });
+});
