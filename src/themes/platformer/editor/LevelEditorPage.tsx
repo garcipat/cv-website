@@ -16,6 +16,8 @@ import { isDevEnvironmentSignal, probeDevEnvironment } from './devEnvironment';
 import type { Blueprint } from '../level/BlueprintData';
 import type { BackgroundPlacement, BackgroundPieceId } from '../level/LevelData';
 import { backgroundCatalogEntry } from '../engine/BackgroundCatalog';
+import { findBlueprint } from '../level/blueprintRegistry';
+import { blueprintCells } from './blueprintCells';
 import {
   editorLevelSignal,
   editorSelectedToolSignal,
@@ -28,6 +30,7 @@ import {
   editorBlueprintSignal,
   editorBlueprintBackgroundSignal,
   editorLoadedBlueprintNameSignal,
+  editorArmedBlueprintIdSignal,
 } from './editorLevelState';
 import { resetGameProgress } from '../PlatformerState';
 import { loadImage } from '../engine/SpriteLoader';
@@ -101,6 +104,38 @@ export const LevelEditorPage = () => {
   // dragged cell) stays snappy; the effect further down is what pushes it
   // back into the signal, debounced.
   const [grid, setGrid] = useState<TileChar[][]>(() => editorLevelSignal.value);
+  // Which saved blueprint is armed for placement (roadmap step 44c), and where
+  // its pending preview is anchored. The armed id is persisted like the armed
+  // tool; the pending anchor deliberately is NOT — a half-finished placement
+  // must not survive a reload.
+  const [armedBlueprintId, setArmedBlueprintIdState] = useState<string | null>(
+    () => editorArmedBlueprintIdSignal.value,
+  );
+  const [pendingPlacement, setPendingPlacement] = useState<{ col: number; row: number } | null>(
+    null,
+  );
+  const setArmedBlueprintId = (id: string | null) => {
+    setArmedBlueprintIdState(id);
+    editorArmedBlueprintIdSignal.value = id;
+    // Any change of what is armed invalidates a preview anchored for the old
+    // one.
+    setPendingPlacement(null);
+  };
+  /** Clicking a blueprint's Palette tile arms it; clicking the armed one again
+   *  disarms it, which restores the tile tool that was selected before. */
+  const armBlueprint = (id: string) => {
+    setArmedBlueprintId(armedBlueprintId === id ? null : id);
+  };
+  // A persisted id whose blueprint file has since been deleted resolves to
+  // nothing here, which reads as "not armed" through the whole page: no Palette
+  // tile is pressed, no preview is produced, and clicks paint as usual.
+  // Derived HERE, in the same block, rather than further down next to
+  // `exportedText`: Task 9's `commitPlacement` reads both, and this file's
+  // house rule (see the comment above `centerRequestId`) is that nothing
+  // forward-references a `const` declared later in the component body.
+  const armedBlueprint =
+    armedBlueprintId === null ? null : (findBlueprint(armedBlueprintId) ?? null);
+  const armedCells = armedBlueprint === null ? null : blueprintCells(armedBlueprint.layout);
   // Seeded from editorSelectedToolSignal.value (localStorage-backed) the
   // same way `grid` is seeded from editorLevelSignal above — a tool
   // selection is a discrete click, not a hot drag path, so it's written
@@ -109,6 +144,10 @@ export const LevelEditorPage = () => {
   const setSelectedTool = (tool: TileChar) => {
     setSelectedToolState(tool);
     editorSelectedToolSignal.value = tool;
+    // Picking a tile tool is unambiguously "I want to paint again". The reverse
+    // is deliberately not true: arming a blueprint leaves `selectedTool` alone,
+    // so disarming restores it rather than falling back to Ground Grass.
+    setArmedBlueprintId(null);
   };
   // Background-layer counterparts of `grid`/`selectedTool` above, following
   // exactly the same pattern: local state seeded from the persisted signal,
@@ -167,6 +206,9 @@ export const LevelEditorPage = () => {
       levelCenterPendingRef.current = false;
       requestCenterOnSpawn();
     }
+    // Placement targets the level grid only — nesting a blueprint inside a
+    // blueprint is out of scope.
+    if (mode === 'blueprint') setArmedBlueprintId(null);
   };
   const isBlueprintMode = canvasMode === 'blueprint';
   // The blueprint canvas's own grid/background/name — a second, fully
@@ -290,6 +332,7 @@ export const LevelEditorPage = () => {
     /* eslint-disable react-hooks/set-state-in-effect */
     if (isBlueprintMode && selectedTool === SPAWN_CHAR) setSelectedTool(FALLBACK_TOOL);
     if (!isBlueprintMode && selectedTool === CONNECTION_POINT_CHAR) setSelectedTool(FALLBACK_TOOL);
+    if (isBlueprintMode && armedBlueprintId !== null) setArmedBlueprintId(null);
     /* eslint-enable react-hooks/set-state-in-effect */
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -534,6 +577,8 @@ export const LevelEditorPage = () => {
             selectedBackgroundPiece={selectedBackgroundPiece}
             onSelectBackgroundPiece={setSelectedBackgroundPiece}
             canvasMode={canvasMode}
+            armedBlueprintId={armedBlueprintId}
+            onArmBlueprint={armBlueprint}
           />
           {!isBlueprintMode && (
             <>
