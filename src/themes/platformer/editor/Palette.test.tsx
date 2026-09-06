@@ -18,7 +18,10 @@ const defaultProps = {
 describe('Palette', () => {
   it('renders one tile for every terrain char (excluding "."), every entity char, one representative Sign tile, one representative Hazard tile, and the Eraser', () => {
     render(<Palette {...defaultProps} />);
-    const terrainCount = Object.keys(TERRAIN_CHARS).filter((k) => k !== '.').length;
+    // '.' is the Eraser, counted separately below; '+' is the blueprint
+    // connection point, offered only on the blueprint canvas (step 44b) and
+    // never from the Terrain group in either mode.
+    const terrainCount = Object.keys(TERRAIN_CHARS).filter((k) => k !== '.' && k !== '+').length;
     const entityCount = Object.keys(ENTITY_CHARS).length;
     // +1 for the single representative Sign tile, +1 for the single
     // representative Hazard tile, +1 for the Eraser tile.
@@ -151,5 +154,66 @@ describe('Palette — blueprint canvas mode', () => {
     render(<Palette {...defaultProps} />);
 
     expect(screen.getByRole('button', { name: 'Spawn' })).toBeInTheDocument();
+  });
+});
+
+describe('Palette — blueprint connection point tool', () => {
+  const toolsGroup = () => {
+    const heading = screen.getByText('Tools');
+    return heading.closest('section') ?? heading.parentElement!;
+  };
+
+  it('blueprintCanvasMode-offersTheConnectionPointToolInTheToolsGroup', () => {
+    render(<Palette {...defaultProps} canvasMode="blueprint" />);
+
+    expect(
+      within(toolsGroup()).getByRole('button', { name: 'Connection Point' }),
+    ).toBeInTheDocument();
+  });
+
+  it('levelCanvasMode-doesNotOfferTheConnectionPointToolAtAll', () => {
+    // A connection point only means something on a blueprint's border — on a
+    // level it would be an inert marker nothing downstream reads (step 44b).
+    render(<Palette {...defaultProps} canvasMode="level" />);
+
+    expect(screen.queryByRole('button', { name: 'Connection Point' })).not.toBeInTheDocument();
+  });
+
+  // Deliberately NOT named `omittedCanvasMode-behavesLikeLevelMode`: that exact
+  // name is already taken by step 44a's Spawn test in the
+  // `Palette — blueprint canvas mode` describe above, and a duplicate would
+  // make `vitest -t` ambiguous and the two indistinguishable in the reporter.
+  it('omittedCanvasMode-offersNoConnectionPointToolEither', () => {
+    render(<Palette {...defaultProps} />);
+
+    expect(screen.queryByRole('button', { name: 'Connection Point' })).not.toBeInTheDocument();
+  });
+
+  it('blueprintCanvasMode-keepsTheConnectionPointOutOfTheTerrainGroup', () => {
+    // It is an invisible marker, not physical ground — same reason the
+    // patrol boundary lives in Tools rather than Terrain.
+    render(<Palette {...defaultProps} canvasMode="blueprint" />);
+
+    const terrainHeading = screen.getByText('Terrain');
+    const terrainGroup = terrainHeading.closest('section') ?? terrainHeading.parentElement!;
+    expect(
+      within(terrainGroup).queryByRole('button', { name: 'Connection Point' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('blueprintCanvasMode-clickingTheConnectionPointTool-armsItsCharacter', async () => {
+    const onSelectTool = vi.fn();
+    render(<Palette {...defaultProps} canvasMode="blueprint" onSelectTool={onSelectTool} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Connection Point' }));
+
+    expect(onSelectTool).toHaveBeenCalledWith('+');
+  });
+
+  it('blueprintCanvasMode-theEraserStaysTheLastToolInTheGroup', () => {
+    render(<Palette {...defaultProps} canvasMode="blueprint" />);
+
+    const buttons = within(toolsGroup()).getAllByRole('button');
+    expect(buttons.at(-1)).toHaveAccessibleName('Eraser');
   });
 });

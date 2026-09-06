@@ -27,6 +27,7 @@ interface PaletteProps {
 const EMPTY_CHAR: TileChar = '.';
 const PATROL_CHAR: TileChar = 'P';
 const SPAWN_CHAR: TileChar = 'S';
+const CONNECTION_POINT_CHAR: TileChar = '+';
 const BACKGROUND_PIECE_IDS = Object.keys(BACKGROUND_CATALOG) as BackgroundPieceId[];
 const DECORATION_CHARS: TileChar[] = ['n', 'N'];
 
@@ -40,7 +41,8 @@ export const Palette = ({
 }: PaletteProps) => {
   const allTerrainKeys = (Object.keys(TERRAIN_CHARS) as TileChar[]).filter((key) => key !== EMPTY_CHAR);
   const terrainKeys = allTerrainKeys.filter(
-    (key) => !DECORATION_CHARS.includes(key) && key !== PATROL_CHAR,
+    (key) =>
+      !DECORATION_CHARS.includes(key) && key !== PATROL_CHAR && key !== CONNECTION_POINT_CHAR,
   );
   const decorationKeys = allTerrainKeys.filter((key) => DECORATION_CHARS.includes(key));
   // Spawn is dropped on the blueprint canvas: a blueprint has no spawn point
@@ -62,8 +64,18 @@ export const Palette = ({
   const [firstHazardKey] = Object.keys(HAZARD_CHARS) as TileChar[];
   // Patrol lives here rather than in "Terrain": it's an invisible marker, not
   // physical ground, so it reads more like a level-authoring tool (same
-  // category as the Eraser and Sign) than like grass/rock/wall.
-  const toolKeys: TileChar[] = [...(firstSignKey ? [firstSignKey] : []), PATROL_CHAR, EMPTY_CHAR];
+  // category as the Eraser and Sign) than like grass/rock/wall. The blueprint
+  // connection point is the same kind of marker and joins it — but only while
+  // the blueprint canvas is active (roadmap step 44b), the mirror image of the
+  // Spawn filter on `entityKeys` above: a connection point marks a spot on a
+  // ROOM's border, so on a level it would be an inert character nothing reads.
+  // It stays ahead of the Eraser so the Eraser is last in the group either way.
+  const toolKeys: TileChar[] = [
+    ...(firstSignKey ? [firstSignKey] : []),
+    PATROL_CHAR,
+    ...(canvasMode === 'blueprint' ? [CONNECTION_POINT_CHAR] : []),
+    EMPTY_CHAR,
+  ];
 
   const renderGroup = (title: string, keys: TileChar[]) => (
     <section key={title} aria-label={title}>
