@@ -7,6 +7,8 @@ import {
   RIVER_FRAME_DURATION_SECONDS,
   RIVER_DEST_OFFSET,
   BACKGROUND_RENDER_SCALE,
+  SKY_TOP_MARGIN,
+  CLOUDS_VILLAGE_GAP,
   type BackgroundLayerImages,
 } from './BackgroundLayers';
 
@@ -39,17 +41,29 @@ function callsForSourceY(calls: unknown[][], image: HTMLImageElement, sy: number
 }
 
 describe('drawBackgroundLayers', () => {
-  it('sky-alwaysDrawnAtOrigin-pinnedToTopRegardlessOfCameraX', () => {
+  it('sky-alwaysDrawnBelowTopMargin-pinnedRegardlessOfCameraX', () => {
     const ctx = fakeCtx();
     const images = fakeImages();
+    const skyTopMarginHeight = SKY_TOP_MARGIN * BACKGROUND_RENDER_SCALE;
 
     drawBackgroundLayers(ctx, images, 320, 200, 500, 0);
 
+    // The sky image itself is drawn just below the flat dark-blue top
+    // margin, not at dy=0 — the margin fill (checked below) occupies
+    // [0, skyTopMarginHeight).
     const skyCalls = callsForSourceY(ctx.drawImage.mock.calls, images.layers, SKY_SOURCE_RECT.sy);
     expect(skyCalls.length).toBeGreaterThan(0);
     for (const call of skyCalls) {
-      expect(call[ARG.dy]).toBe(0);
+      expect(call[ARG.dy]).toBe(skyTopMarginHeight);
     }
+
+    // A flat fill covers the top margin above the sky image — verified by
+    // position/size here; the color itself is verified via the
+    // SKY_DARK_COLOR constant's usage in BackgroundLayers.ts (same pattern
+    // as the sky-fill/grass-fill tests below).
+    const fillCalls = (ctx.fillRect as ReturnType<typeof vi.fn>).mock.calls;
+    const marginFillCall = fillCalls.find((call) => call[1] === 0 && call[3] === skyTopMarginHeight);
+    expect(marginFillCall).toEqual([0, 0, 320, skyTopMarginHeight]);
   });
 
   it('village-pinnedAboveCanvasBottom-atFixedOffsetRegardlessOfCanvasHeight', () => {
@@ -123,15 +137,16 @@ describe('drawBackgroundLayers', () => {
 
     const villageCalls = callsForSourceY(ctx.drawImage.mock.calls, images.layers, VILLAGE_SOURCE_RECT.sy);
     const villageTop = Math.min(...villageCalls.map((call) => call[ARG.dy] as number));
-    const skyBottom = SKY_SOURCE_RECT.height * BACKGROUND_RENDER_SCALE;
+    const skyBottom = SKY_TOP_MARGIN * BACKGROUND_RENDER_SCALE + SKY_SOURCE_RECT.height * BACKGROUND_RENDER_SCALE;
 
     // Clouds/hills is drawn exactly once (no vertical tiling): every clouds
-    // call shares the same dy, positioned directly above the village layer.
+    // call shares the same dy, positioned above the village layer with the
+    // extra CLOUDS_VILLAGE_GAP so it reads as floating above the treeline.
     const cloudCalls = callsForSourceY(ctx.drawImage.mock.calls, images.layers, CLOUDS_SOURCE_RECT.sy);
     expect(cloudCalls.length).toBeGreaterThan(0);
     const cloudDys = [...new Set(cloudCalls.map((call) => call[ARG.dy] as number))];
     const cloudsDestHeight = CLOUDS_SOURCE_RECT.height * BACKGROUND_RENDER_SCALE;
-    expect(cloudDys).toEqual([villageTop - cloudsDestHeight]);
+    expect(cloudDys).toEqual([villageTop - cloudsDestHeight - CLOUDS_VILLAGE_GAP * BACKGROUND_RENDER_SCALE]);
     const cloudTop = cloudDys[0];
 
     // The remaining gap between the sky's bottom edge and the clouds' top
