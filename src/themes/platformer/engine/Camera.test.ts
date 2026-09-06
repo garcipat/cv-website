@@ -52,44 +52,60 @@ describe('updateCamera', () => {
 
 describe('updateCameraY', () => {
   const PLAYER_HEIGHT = 64;
-  const VIEWPORT_HEIGHT = 480; // dead zone: [144, 336] around center 240
+  // Target row 5 * RENDERED_TILE_SIZE(32) = 160; dead zone: [64, 256] around
+  // that fixed row (no longer a function of VIEWPORT_HEIGHT).
+  const VIEWPORT_HEIGHT = 480;
 
   it('levelShorterThanViewport-cameraStaysAtZeroRegardlessOfPlayerPosition', () => {
     const result = updateCameraY(0, 1000, PLAYER_HEIGHT, VIEWPORT_HEIGHT, 192);
     expect(result).toBe(0);
   });
 
-  it('tallLevel-playerCenteredWithinDeadZone-cameraStaysAtPreviousPosition', () => {
+  it('tallLevel-playerWithinDeadZone-cameraStaysAtPreviousPosition', () => {
     // levelPixelHeight 800, originYBase = 480-800 = -320. previousCameraY 160
     // -> effective originY -160. playerY 368 -> center 400 -> screenCenterY
-    // 400-160 = 240, dead-center — no movement.
+    // 400-160 = 240, inside the new band [64, 256] (no longer dead-center,
+    // just within it) — no movement.
     const result = updateCameraY(160, 368, PLAYER_HEIGHT, VIEWPORT_HEIGHT, 800);
     expect(result).toBe(160);
   });
 
   it('playerExitsTopEdgeOfDeadZone-cameraShiftsUpToKeepPlayerAtEdge', () => {
-    // playerY 382 -> center 414 -> screenCenterY (previousCameraY 0) =
-    // 414-320 = 94, past deadZoneTop (144) on the low side — camera shifts
-    // up: 144-414-(-320) = 50.
-    const result = updateCameraY(0, 382, PLAYER_HEIGHT, VIEWPORT_HEIGHT, 800);
-    expect(result).toBe(50);
+    // playerY 100 -> center 132 -> screenCenterY (previousCameraY 0,
+    // originYBase -320) = 132-320 = -188, past deadZoneTop (64) on the low
+    // side — camera shifts up: 64-132-(-320) = 252.
+    const result = updateCameraY(0, 100, PLAYER_HEIGHT, VIEWPORT_HEIGHT, 800);
+    expect(result).toBe(252);
   });
 
   it('playerExitsBottomEdgeOfDeadZone-cameraShiftsDownToKeepPlayerAtEdge', () => {
-    // playerY 518 -> center 550 -> screenCenterY (previousCameraY 160) =
-    // 550-320+160 = 390, past deadZoneBottom (336) — camera shifts down:
-    // 336-550-(-320) = 106.
+    // playerY 518 -> center 550 -> screenCenterY (previousCameraY 160,
+    // originYBase -320) = 550-320+160 = 390, past deadZoneBottom (256) —
+    // camera shifts down: 256-550-(-320) = 26.
     const result = updateCameraY(160, 518, PLAYER_HEIGHT, VIEWPORT_HEIGHT, 800);
-    expect(result).toBe(106);
+    expect(result).toBe(26);
   });
 
   it('cameraWouldGoNegative-clampsToZero', () => {
+    // playerY 668 -> center 700 -> screenCenterY (originYBase -320) =
+    // 700-320 = 380, past deadZoneBottom (256) — uncorrected camera would be
+    // 256-700-(-320) = -124, clamped to 0.
     const result = updateCameraY(0, 668, PLAYER_HEIGHT, VIEWPORT_HEIGHT, 800);
     expect(result).toBe(0);
   });
 
   it('cameraWouldExceedLevelTop-clampsToLevelHeightMinusViewportPlusOverscroll', () => {
-    const result = updateCameraY(0, 32, PLAYER_HEIGHT, VIEWPORT_HEIGHT, 800);
+    // With PLAYER_TARGET_ROW=5, CAMERA_DEAD_ZONE_HALF_HEIGHT=96 and
+    // CAMERA_TOP_OVERSCROLL=64, deadZoneTop(64) - CAMERA_TOP_OVERSCROLL(64)
+    // = 0 exactly, so the top clamp can only trigger for a playerCenterY
+    // below 0 — i.e. a player positioned above the level's own top edge.
+    // That's not reachable in normal play, but the clamp must still hold as
+    // a safety net (e.g. if some other bug ever hands the camera an
+    // out-of-range Y), so this test constructs that synthetic case
+    // directly: playerY -400 -> center -368 -> originYBase -320 ->
+    // uncorrected camera = 64-(-368)-(-320) = 752, far past
+    // maxCameraY = (800-480) + 64 = 384 -> clamps to 384.
+    const result = updateCameraY(0, -400, PLAYER_HEIGHT, VIEWPORT_HEIGHT, 800);
     expect(result).toBe(320 + CAMERA_TOP_OVERSCROLL); // max = (800 - 480) + overscroll
   });
 });
