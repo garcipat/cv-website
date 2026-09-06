@@ -15,7 +15,13 @@ import {
   editorBackgroundSignal,
   editorActiveLayerSignal,
   editorSelectedBackgroundPieceSignal,
+  editorCanvasModeSignal,
+  editorBlueprintSignal,
+  editorBlueprintBackgroundSignal,
+  editorLoadedBlueprintNameSignal,
 } from './editorLevelState';
+import { BLANK_BLUEPRINT } from '../level/BlueprintData';
+import { savedBlueprintsSignal } from './blueprintStash';
 import { currentTheme } from '@/state/theme';
 import { currentPath } from '@/state/navigation';
 import { enemyPlacements, enemyStates, collectedFacts, collectedCollectibleIds } from '../PlatformerState';
@@ -85,6 +91,15 @@ beforeEach(() => {
   editorActiveLayerSignal.value = 'foreground';
   editorSelectedBackgroundPieceSignal.value = null;
   currentBackground.value = [];
+  editorCanvasModeSignal.value = 'level';
+  editorBlueprintSignal.value = importLayout(BLANK_BLUEPRINT.layout);
+  editorBlueprintBackgroundSignal.value = [];
+  editorLoadedBlueprintNameSignal.value = BLANK_BLUEPRINT.name;
+  savedBlueprintsSignal.value = [];
+  // Not reset by the suite today, and the new Spawn-disarm test writes 'S'
+  // into it — without this, that write would leak into every test that runs
+  // after it and silently change which tool their clicks paint.
+  editorSelectedToolSignal.value = 'G';
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
     fillRect: vi.fn(),
     fillStyle: '',
@@ -746,6 +761,197 @@ describe('LevelEditorPage — background layer', () => {
       expect(editorBackgroundSignal.value).toEqual([
         { pieceId: 'dirtColumnTop1x1', col: 0, row: 0 },
       ]);
+    });
+  });
+});
+
+// The blueprint canvas starts as one empty cell at pan {0,0}, so a click at
+// col * RENDERED_TILE_SIZE + 1 lands on exactly that column (see the
+// test-determinism notes in the plan).
+function paintBlueprintCell(col: number, row: number) {
+  const canvas = document.querySelector('canvas')!;
+  vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
+  fireEvent.mouseDown(canvas, {
+    button: 0,
+    clientX: col * RENDERED_TILE_SIZE + 1,
+    clientY: row * RENDERED_TILE_SIZE + 1,
+  });
+}
+
+function renderEditorInBlueprintMode() {
+  editorSelectedToolSignal.value = 'G';
+  render(<LevelEditorPage />);
+  fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
+}
+
+describe('LevelEditorPage — Level/Blueprint canvas toggle (step 44a)', () => {
+  it('onMount-theLevelCanvasIsActiveAndTheLayerToggleIsStillThere', () => {
+    render(<LevelEditorPage />);
+
+    expect(screen.getByRole('button', { name: 'Level' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(screen.getByRole('button', { name: 'Blueprint' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+    // Two independent axes: picking a canvas never removes the layer toggle.
+    expect(screen.getByRole('button', { name: 'Foreground' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Background' })).toBeInTheDocument();
+  });
+
+  it('clickingBlueprint-marksTheBlueprintCanvasActiveAndPersistsTheMode', () => {
+    render(<LevelEditorPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
+
+    expect(screen.getByRole('button', { name: 'Blueprint' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(editorCanvasModeSignal.value).toBe('blueprint');
+  });
+
+  it('blueprintModeActive-thePaletteDropsTheSpawnTool', () => {
+    render(<LevelEditorPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
+
+    expect(screen.queryByRole('button', { name: 'Spawn' })).not.toBeInTheDocument();
+  });
+
+  it('backToLevelMode-thePaletteOffersSpawnAgain', () => {
+    render(<LevelEditorPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Level' }));
+
+    expect(screen.getByRole('button', { name: 'Spawn' })).toBeInTheDocument();
+  });
+
+  it('paintingInBlueprintMode-writesToTheBlueprintGridAndLeavesTheLevelGridAlone', async () => {
+    const levelGridBefore = editorLevelSignal.value;
+    renderEditorInBlueprintMode();
+
+    paintBlueprintCell(2, 1);
+
+    await waitFor(() => {
+      expect(editorBlueprintSignal.value[1][2]).toBe('G');
+    });
+    expect(editorLevelSignal.value).toEqual(levelGridBefore);
+  });
+
+  it('paintingInBlueprintMode-doesNotMarkTheLevelDirty', async () => {
+    renderEditorInBlueprintMode();
+
+    paintBlueprintCell(2, 1);
+
+    await waitFor(() => expect(editorBlueprintSignal.value[1][2]).toBe('G'));
+    expect(editorDirtySignal.value).toBe(false);
+  });
+
+  it('paintingTheBackgroundLayerInBlueprintMode-writesToTheBlueprintBackgroundOnly', async () => {
+    renderEditorInBlueprintMode();
+    // The Foreground/Background toggle keeps switching LAYERS, now on the
+    // blueprint's own two layers.
+    fireEvent.click(screen.getByRole('button', { name: 'Background' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Dirt Column Top (1×1)' }));
+
+    paintBlueprintCell(0, 0);
+
+    await waitFor(() => expect(editorBlueprintBackgroundSignal.value).toHaveLength(1));
+    expect(editorBackgroundSignal.value).toEqual([]);
+  });
+
+  it('blueprintCanvasContent-survivesSwitchingToTheLevelAndBack', async () => {
+    renderEditorInBlueprintMode();
+    paintBlueprintCell(2, 1);
+    await waitFor(() => expect(editorBlueprintSignal.value[1][2]).toBe('G'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Level' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
+
+    expect(editorBlueprintSignal.value[1][2]).toBe('G');
+  });
+
+  it('spawnToolStillArmed-switchingToBlueprint-disarmsItSoClicksCannotPaintASpawn', () => {
+    // The palette merely stops OFFERING Spawn (Task 4). `selectedTool` is
+    // persisted and shared by both canvases, so without an explicit disarm a
+    // session that left 'S' armed would paint spawn markers into a blueprint
+    // through a palette showing nothing selected (design note 4).
+    editorSelectedToolSignal.value = 'S';
+    render(<LevelEditorPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
+
+    expect(editorSelectedToolSignal.value).not.toBe('S');
+    expect(screen.getByRole('button', { name: 'Ground Grass' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+  });
+
+  it('mountedInBlueprintModeWithSpawnArmed-disarmsItWithoutAnyToggleClick', () => {
+    // Both the mode and the tool are persisted, so the editor can come back
+    // up already on the blueprint canvas with 'S' selected and no toggle
+    // click to trigger the other disarm path.
+    editorCanvasModeSignal.value = 'blueprint';
+    editorSelectedToolSignal.value = 'S';
+
+    render(<LevelEditorPage />);
+
+    expect(editorSelectedToolSignal.value).not.toBe('S');
+    expect(screen.queryByRole('button', { name: 'Spawn' })).not.toBeInTheDocument();
+  });
+
+  it('mountedInBlueprintMode-firstSwitchToLevel-centersTheLevelOnItsSpawn', async () => {
+    // Mounting in blueprint mode lets the blueprint canvas consume the
+    // editor's one-shot centering request, which is a no-op on a spawn-less
+    // grid — the level must still get centered when it first becomes active
+    // (design note 5), rather than sitting unpanned at its top-left corner.
+    editorCanvasModeSignal.value = 'blueprint';
+    render(<LevelEditorPage />);
+    await waitFor(() => expect(drawTerrain).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Level' }));
+
+    const canvas = document.querySelector('canvas') as HTMLCanvasElement;
+    const expected = centerPanOnSpawn(
+      importLayout(LEVEL_1_LAYOUT),
+      canvas.width,
+      canvas.height,
+    );
+    await waitFor(() => {
+      const calls = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls;
+      const [, , , , originX, originY] = calls[calls.length - 1];
+      expect({ x: originX, y: originY }).toEqual(expected);
+    });
+  });
+
+  it('switchingBackToLevelASecondTime-doesNotYankAHandPannedViewBackToTheSpawn', async () => {
+    render(<LevelEditorPage />);
+    await waitFor(() => expect(drawTerrain).toHaveBeenCalled());
+    // Pan the level view away from where it opened (middle-button drag).
+    const canvas = document.querySelector('canvas')!;
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
+    fireEvent.mouseDown(canvas, { button: 1, clientX: 0, clientY: 0 });
+    fireEvent.mouseMove(canvas, { clientX: 40, clientY: 0 });
+    fireEvent.mouseUp(canvas);
+    await waitFor(() => {
+      const calls = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls;
+      expect(calls[calls.length - 1][4]).not.toBe(
+        centerPanOnSpawn(importLayout(LEVEL_1_LAYOUT), canvas.width, canvas.height).x,
+      );
+    });
+    const pannedX = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls.at(-1)![4];
+
+    fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Level' }));
+
+    await waitFor(() => {
+      const calls = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls;
+      expect(calls[calls.length - 1][4]).toBe(pannedX);
     });
   });
 });

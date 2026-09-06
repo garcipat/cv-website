@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { importLayout } from './importLayout';
 import { exportLayout } from './exportLayout';
 import { cropLevelForExport } from './cropLevelForExport';
@@ -20,6 +20,10 @@ import {
   editorBackgroundSignal,
   editorActiveLayerSignal,
   editorSelectedBackgroundPieceSignal,
+  editorCanvasModeSignal,
+  editorBlueprintSignal,
+  editorBlueprintBackgroundSignal,
+  editorLoadedBlueprintNameSignal,
 } from './editorLevelState';
 import { resetGameProgress } from '../PlatformerState';
 import { loadImage } from '../engine/SpriteLoader';
@@ -75,6 +79,11 @@ const IMAGE_SOURCES: { key: keyof EditorImages; src: string }[] = [
 // still persists it.
 const EDITOR_LEVEL_SYNC_DEBOUNCE_MS = 400;
 
+// Blueprint mode has no Spawn tool (Task 4), so an already-armed Spawn is
+// swapped for this when the blueprint canvas becomes active.
+const SPAWN_CHAR: TileChar = 'S';
+const BLUEPRINT_FALLBACK_TOOL: TileChar = 'G';
+
 export const LevelEditorPage = () => {
   // Seeded from editorLevelSignal.value (localStorage-backed, see
   // editorLevelState.ts), not always the hardcoded default — this is what
@@ -114,12 +123,81 @@ export const LevelEditorPage = () => {
     setSelectedBackgroundPieceState(pieceId);
     editorSelectedBackgroundPieceSignal.value = pieceId;
   };
-  const [panOffset, setPanOffset] = useState<PanOffset>({ x: 0, y: 0 });
+  // Which canvas is being edited (roadmap step 44a). Orthogonal to
+  // `activeLayer` above: that one picks foreground/background WITHIN
+  // whichever canvas this one selects, and both toggles stay visible and
+  // keep working together.
+  const [canvasMode, setCanvasModeState] = useState<'level' | 'blueprint'>(
+    () => editorCanvasModeSignal.value,
+  );
+  // Whether the level canvas still owes itself a spawn-centering. Mounting
+  // already in blueprint mode lets that canvas consume EditorCanvas's
+  // one-shot centering request (a no-op on a spawn-less grid), so the debt
+  // is tracked here and spent on the FIRST switch back to Level — never on
+  // later ones, which would yank a hand-panned view back to the spawn
+  // (design note 5).
+  const levelCenterPendingRef = useRef(editorCanvasModeSignal.value === 'blueprint');
   // Bumped to ask EditorCanvas to center the view on the spawn tile; it
   // starts at 1 rather than 0 so opening the editor is itself a request, and
   // the view lands on the player instead of on the grid's top-left corner.
+  // Declared here (rather than alongside `panOffset` below) so
+  // `setCanvasMode` just below can call it directly instead of forward
+  // -referencing it — a forward reference is what the project's
+  // react-hooks/immutability lint rule flags as an unsafe mutation.
   const [centerRequestId, setCenterRequestId] = useState(1);
   const requestCenterOnSpawn = () => setCenterRequestId((id) => id + 1);
+  const setCanvasMode = (mode: 'level' | 'blueprint') => {
+    setCanvasModeState(mode);
+    editorCanvasModeSignal.value = mode;
+    if (mode === 'blueprint' && selectedTool === SPAWN_CHAR) {
+      setSelectedTool(BLUEPRINT_FALLBACK_TOOL);
+    }
+    if (mode === 'level' && levelCenterPendingRef.current) {
+      levelCenterPendingRef.current = false;
+      requestCenterOnSpawn();
+    }
+  };
+  const isBlueprintMode = canvasMode === 'blueprint';
+  // The blueprint canvas's own grid/background/name — a second, fully
+  // independent canvas, not a region of the level. Same
+  // seeded-from-a-persisted-signal, debounce-synced-back pattern as `grid`
+  // and `backgroundPlacements` above.
+  const [blueprintGrid, setBlueprintGrid] = useState<TileChar[][]>(
+    () => editorBlueprintSignal.value,
+  );
+  const [blueprintBackgroundPlacements, setBlueprintBackgroundPlacements] = useState<
+    BackgroundPlacement[]
+  >(() => editorBlueprintBackgroundSignal.value);
+  // Not read anywhere yet — a later task (BlueprintSelect/Save Blueprint
+  // wiring) is what displays and clears this. Declared here now so that
+  // work lands as a pure consumer of existing state rather than having to
+  // touch these declarations too.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [loadedBlueprintName, setLoadedBlueprintNameState] = useState(
+    () => editorLoadedBlueprintNameSignal.value,
+  );
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const setLoadedBlueprintName = (name: string) => {
+    setLoadedBlueprintNameState(name);
+    editorLoadedBlueprintNameSignal.value = name;
+  };
+  // Deliberately separate from the level's `isDirty`: painting a room must
+  // not make the LEVEL dropdown warn about discarding work, and editing the
+  // level must not make the blueprint dropdown warn either. Not persisted —
+  // unlike the level's flag it guards nothing across reloads, since a
+  // freshly reopened blueprint canvas is whatever was last painted on it.
+  // The value itself isn't read yet — same later-task wiring as
+  // `loadedBlueprintName` above.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [blueprintDirty, setBlueprintDirty] = useState(false);
+  const [panOffset, setPanOffset] = useState<PanOffset>({ x: 0, y: 0 });
+  // Each canvas keeps its own view. The level's pan is spawn-centered and
+  // typically thousands of pixels from the origin; reusing it for a
+  // one-cell blueprint would park that cell far outside the viewport and
+  // make blueprint mode look broken.
+  const [blueprintPanOffset, setBlueprintPanOffset] = useState<PanOffset>({ x: 0, y: 0 });
+  const activePanOffset = isBlueprintMode ? blueprintPanOffset : panOffset;
+  const setActivePanOffset = isBlueprintMode ? setBlueprintPanOffset : setPanOffset;
   const [images, setImages] = useState<EditorImages>(EMPTY_IMAGES);
   // Which level the grid came from, and whether it has been touched since —
   // both persisted (see editorLevelState.ts) so reopening the editor still
@@ -176,6 +254,38 @@ export const LevelEditorPage = () => {
     }, EDITOR_LEVEL_SYNC_DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
   }, [backgroundPlacements]);
+
+  // Mount-time counterpart of setCanvasMode's Spawn disarm: the mode is
+  // persisted, so the editor can come back up already on the blueprint
+  // canvas with 'S' still armed, without any toggle click ever happening
+  // (design note 4). Deliberately mount-only — a later mode switch is the
+  // other handler's job, and re-running this on every `selectedTool` change
+  // would fight the (currently impossible, but not worth wiring a trap for)
+  // case of Spawn being selected some other way.
+  useEffect(() => {
+    // Deliberate one-shot mount-time correction of persisted state (see
+    // comment above), not a render derived from a prop/state change.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (isBlueprintMode && selectedTool === SPAWN_CHAR) setSelectedTool(BLUEPRINT_FALLBACK_TOOL);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Same debounced localStorage sync the level's own grid/background get
+  // above — the blueprint canvas is persisted for exactly the same reason: a
+  // half-painted room must still be there after a reload.
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      editorBlueprintSignal.value = blueprintGrid;
+    }, EDITOR_LEVEL_SYNC_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [blueprintGrid]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      editorBlueprintBackgroundSignal.value = blueprintBackgroundPlacements;
+    }, EDITOR_LEVEL_SYNC_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [blueprintBackgroundPlacements]);
 
   const exportedText = exportLayout(grid)
     .map((row) => `  '${row}',`)
@@ -239,6 +349,32 @@ export const LevelEditorPage = () => {
   };
 
   /**
+   * What both canvases do when a paint grew their grid: a cell at index i
+   * draws at i * RENDERED_TILE_SIZE + pan, and growth increases every
+   * existing index by colShift/rowShift, so the active pan moves by the
+   * negative of that to cancel it out (spec FR-020/SC-006) and every
+   * background placement shifts with it, since `growGrid` never touches that
+   * separate list (Task 20 gap #1).
+   */
+  const applyGrowthShift = (
+    colShift: number,
+    rowShift: number,
+    setPlacements: Dispatch<SetStateAction<BackgroundPlacement[]>>,
+  ) => {
+    if (colShift === 0 && rowShift === 0) return;
+    setActivePanOffset((prev) =>
+      updatePanOffset(prev, -colShift * RENDERED_TILE_SIZE, -rowShift * RENDERED_TILE_SIZE),
+    );
+    setPlacements((prev) =>
+      prev.map((placement) => ({
+        ...placement,
+        col: placement.col + colShift,
+        row: placement.row + rowShift,
+      })),
+    );
+  };
+
+  /**
    * Try (roadmap: editor/game round-trip): exports the current grid, sets it
    * as the in-memory layout the GAME reads (`level.ts`'s `currentLayout` —
    * deliberately NOT this editor's own localStorage-backed signal, see its
@@ -290,12 +426,31 @@ export const LevelEditorPage = () => {
               Background
             </button>
           </div>
+          <div className="flex gap-2" role="group" aria-label="Canvas">
+            <button
+              type="button"
+              aria-pressed={!isBlueprintMode}
+              className={cn('rounded px-2 py-1 text-sm', !isBlueprintMode && 'bg-muted font-medium')}
+              onClick={() => setCanvasMode('level')}
+            >
+              Level
+            </button>
+            <button
+              type="button"
+              aria-pressed={isBlueprintMode}
+              className={cn('rounded px-2 py-1 text-sm', isBlueprintMode && 'bg-muted font-medium')}
+              onClick={() => setCanvasMode('blueprint')}
+            >
+              Blueprint
+            </button>
+          </div>
           <Palette
             selectedTool={selectedTool}
             onSelectTool={setSelectedTool}
             activeLayer={activeLayer}
             selectedBackgroundPiece={selectedBackgroundPiece}
             onSelectBackgroundPiece={setSelectedBackgroundPiece}
+            canvasMode={canvasMode}
           />
           <LevelSelect
             loadedLevelName={loadedLevelName}
@@ -382,15 +537,20 @@ export const LevelEditorPage = () => {
           )}
         </div>
         <EditorCanvas
-          grid={grid}
+          grid={isBlueprintMode ? blueprintGrid : grid}
           selectedTool={selectedTool}
-          panOffset={panOffset}
+          panOffset={activePanOffset}
           images={images}
           centerRequestId={centerRequestId}
-          backgroundPlacements={backgroundPlacements}
+          backgroundPlacements={isBlueprintMode ? blueprintBackgroundPlacements : backgroundPlacements}
           activeLayer={activeLayer}
           selectedBackgroundPiece={selectedBackgroundPiece}
           onPaintBackground={(next) => {
+            if (isBlueprintMode) {
+              setBlueprintBackgroundPlacements(next);
+              setBlueprintDirty(true);
+              return;
+            }
             setBackgroundPlacements(next);
             // Same dirty-flag bookkeeping as the foreground onPaint below —
             // painting the background layer also leaves the loaded level
@@ -400,6 +560,14 @@ export const LevelEditorPage = () => {
             if (saveResult !== null) setSaveResult(null);
           }}
           onPaint={({ grid: nextGrid, colShift, rowShift }) => {
+            // The blueprint canvas paints through the exact same
+            // paintCell/growGrid path — only the state it lands in differs.
+            if (isBlueprintMode) {
+              setBlueprintGrid(nextGrid);
+              setBlueprintDirty(true);
+              applyGrowthShift(colShift, rowShift, setBlueprintBackgroundPlacements);
+              return;
+            }
             setGrid(nextGrid);
             // Every paint and erase goes through here, so this is the one
             // place the grid can start differing from the loaded level. The
@@ -407,36 +575,9 @@ export const LevelEditorPage = () => {
             // matches what is on screen.
             if (!isDirty) setDirty(true);
             if (saveResult !== null) setSaveResult(null);
-            if (colShift !== 0 || rowShift !== 0) {
-              // A cell at index i draws at i * RENDERED_TILE_SIZE + panOffset.x.
-              // Growth increases every existing cell's index by colShift/rowShift,
-              // so panOffset must move by the negative of that to cancel it out —
-              // otherwise already-painted content jumps on screen (spec FR-020/SC-006).
-              setPanOffset((prev) =>
-                updatePanOffset(
-                  prev,
-                  -colShift * RENDERED_TILE_SIZE,
-                  -rowShift * RENDERED_TILE_SIZE,
-                ),
-              );
-              // Foreground grid growth shifts every existing index the same
-              // way (see growGrid.ts) — background placements are a
-              // separate, unbounded list that growGrid never touches, so
-              // without this a piece placed near an edge visually drifts
-              // away from the foreground content it was placed next to the
-              // moment a later paint grows the grid leftward/upward (Task 20
-              // gap #1, confirmed by the project owner: the two layers'
-              // effective bounds must never be able to drift apart).
-              setBackgroundPlacements((prev) =>
-                prev.map((placement) => ({
-                  ...placement,
-                  col: placement.col + colShift,
-                  row: placement.row + rowShift,
-                })),
-              );
-            }
+            applyGrowthShift(colShift, rowShift, setBackgroundPlacements);
           }}
-          onPan={setPanOffset}
+          onPan={setActivePanOffset}
         />
       </div>
     </div>
