@@ -288,7 +288,7 @@ function fakeImage(width: number, height: number): HTMLImageElement {
 
 function fakeImages(): BackgroundLayerImages {
   return {
-    layers: fakeImage(160, 104),
+    layers: fakeImage(160, 141),
     grass: fakeImage(7, 20),
   };
 }
@@ -437,7 +437,7 @@ Expected: FAIL — `Cannot find module './BackgroundLayers'`.
 - [ ] **Step 3: Implement `BackgroundLayers.ts`**
 
 Use the real dimensions confirmed in Task 1's Step 3/Task 2 if the combined sheet's
-actual layout differs from the 160×104 (48/40/16 band heights) assumed below.
+actual layout differs from the 160×141 (24/60/57 band heights) assumed below.
 
 ```typescript
 // src/themes/platformer/engine/BackgroundLayers.ts
@@ -463,9 +463,9 @@ interface SourceRect {
  *  clouds/hills, and village/treeline stacked vertically in that order, each
  *  spanning the sheet's full 160px width. Exported so tests (and any future
  *  caller) address a band by name instead of a hardcoded sy. */
-export const SKY_SOURCE_RECT: SourceRect = { sx: 0, sy: 0, width: 160, height: 48 };
-export const CLOUDS_SOURCE_RECT: SourceRect = { sx: 0, sy: 48, width: 160, height: 40 };
-export const VILLAGE_SOURCE_RECT: SourceRect = { sx: 0, sy: 88, width: 160, height: 16 };
+export const SKY_SOURCE_RECT: SourceRect = { sx: 0, sy: 0, width: 160, height: 24 };
+export const CLOUDS_SOURCE_RECT: SourceRect = { sx: 0, sy: 24, width: 160, height: 60 };
+export const VILLAGE_SOURCE_RECT: SourceRect = { sx: 0, sy: 84, width: 160, height: 57 };
 
 /** How far the village layer's bottom edge sits above the canvas bottom, in
  *  native (unscaled) pixels — chosen so typical foreground terrain height
