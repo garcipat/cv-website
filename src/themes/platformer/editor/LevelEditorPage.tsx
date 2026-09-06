@@ -9,7 +9,10 @@ import type { TileChar } from '../level/LevelParser';
 import { currentLayout, currentBackground } from '../level/level';
 import type { LevelEntry } from '../level/levelRegistry';
 import { LevelSelect } from './LevelSelect';
+import { BlueprintSelect } from './BlueprintSelect';
 import { saveLevel, LEVELS_FOLDER, type SaveLevelResult } from './saveLevelFile';
+import { saveBlueprintToStash } from './blueprintStash';
+import type { Blueprint } from '../level/BlueprintData';
 import type { BackgroundPlacement, BackgroundPieceId } from '../level/LevelData';
 import { backgroundCatalogEntry } from '../engine/BackgroundCatalog';
 import {
@@ -168,15 +171,9 @@ export const LevelEditorPage = () => {
   const [blueprintBackgroundPlacements, setBlueprintBackgroundPlacements] = useState<
     BackgroundPlacement[]
   >(() => editorBlueprintBackgroundSignal.value);
-  // Not read anywhere yet — a later task (BlueprintSelect/Save Blueprint
-  // wiring) is what displays and clears this. Declared here now so that
-  // work lands as a pure consumer of existing state rather than having to
-  // touch these declarations too.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [loadedBlueprintName, setLoadedBlueprintNameState] = useState(
     () => editorLoadedBlueprintNameSignal.value,
   );
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const setLoadedBlueprintName = (name: string) => {
     setLoadedBlueprintNameState(name);
     editorLoadedBlueprintNameSignal.value = name;
@@ -186,9 +183,6 @@ export const LevelEditorPage = () => {
   // level must not make the blueprint dropdown warn either. Not persisted —
   // unlike the level's flag it guards nothing across reloads, since a
   // freshly reopened blueprint canvas is whatever was last painted on it.
-  // The value itself isn't read yet — same later-task wiring as
-  // `loadedBlueprintName` above.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [blueprintDirty, setBlueprintDirty] = useState(false);
   const [panOffset, setPanOffset] = useState<PanOffset>({ x: 0, y: 0 });
   // Each canvas keeps its own view. The level's pan is spawn-centered and
@@ -217,6 +211,8 @@ export const LevelEditorPage = () => {
   };
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [saveName, setSaveName] = useState(loadedLevelName);
+  const [blueprintSaveDialogOpen, setBlueprintSaveDialogOpen] = useState(false);
+  const [blueprintSaveName, setBlueprintSaveName] = useState(loadedBlueprintName);
   // What the last save actually did — the dev server wrote the file, or the
   // browser downloaded it instead. Reported rather than assumed, since the two
   // leave the file in very different places: a successful write closes the
@@ -363,6 +359,42 @@ export const LevelEditorPage = () => {
   };
 
   /**
+   * Loads a blueprint picked from the dropdown onto the blueprint canvas —
+   * the blueprint counterpart of `loadLevel` above, including its reason for
+   * writing the persisted signals directly and not only local state: without
+   * that, the debounced sync effect would shortly overwrite the freshly
+   * loaded canvas with the still-pending previous one. `BlueprintSelect` has
+   * already confirmed the discard if there was anything to lose.
+   */
+  const loadBlueprint = (blueprint: Blueprint) => {
+    const grid = importLayout(blueprint.layout);
+    setBlueprintGrid(grid);
+    editorBlueprintSignal.value = grid;
+    const background = [...(blueprint.background ?? [])];
+    setBlueprintBackgroundPlacements(background);
+    editorBlueprintBackgroundSignal.value = background;
+    setLoadedBlueprintName(blueprint.name);
+    setBlueprintDirty(false);
+  };
+
+  /**
+   * Saves the blueprint canvas under a name, cropped through the very same
+   * `cropLevelForExport` a level save uses (tightest non-`.` bounding box,
+   * background placements rebased onto that same origin) — a `Blueprint` is
+   * deliberately the same `{ name, layout, background? }` shape a saved level
+   * file is. Step 44a stores it in a `localStorage` stash; step 44c replaces
+   * that with a real file written next to the levels, at which point only
+   * `blueprintStash.ts` changes, not this call site.
+   */
+  const saveCurrentBlueprint = () => {
+    const cropped = cropLevelForExport(blueprintGrid, blueprintBackgroundPlacements);
+    saveBlueprintToStash(blueprintSaveName, cropped.layout, cropped.background);
+    setLoadedBlueprintName(blueprintSaveName);
+    setBlueprintDirty(false);
+    setBlueprintSaveDialogOpen(false);
+  };
+
+  /**
    * What both canvases do when a paint grew their grid: a cell at index i
    * draws at i * RENDERED_TILE_SIZE + pan, and growth increases every
    * existing index by colShift/rowShift, so the active pan moves by the
@@ -466,88 +498,144 @@ export const LevelEditorPage = () => {
             onSelectBackgroundPiece={setSelectedBackgroundPiece}
             canvasMode={canvasMode}
           />
-          <LevelSelect
-            loadedLevelName={loadedLevelName}
-            isDirty={isDirty}
-            onLoadLevel={loadLevel}
-          />
-          <Dialog>
-            <DialogTrigger render={<Button type="button" variant="outline">Export</Button>} />
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Export Layout</DialogTitle>
-              </DialogHeader>
-              <textarea
-                readOnly
-                data-testid="export-output"
-                value={exportedText}
-                className="h-64 w-full resize-none font-mono text-xs"
+          {!isBlueprintMode && (
+            <>
+              <LevelSelect
+                loadedLevelName={loadedLevelName}
+                isDirty={isDirty}
+                onLoadLevel={loadLevel}
               />
-              <DialogFooter>
-                <Button
-                  type="button"
-                  onClick={() => {
-                    navigator.clipboard.writeText(exportedText).catch(() => {});
-                  }}
-                >
-                  Copy Layout
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              setSaveName(loadedLevelName);
-              setSaveResult(null);
-              setSaveDialogOpen(true);
-            }}
-          >
-            Save
-          </Button>
-          <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Save this level</DialogTitle>
-                <DialogDescription>
-                  Writes the level as a JSON file into <code>{LEVELS_FOLDER}</code>, where the level
-                  list reads it from. Reload the editor afterwards to see it there.
-                </DialogDescription>
-              </DialogHeader>
-              <label className="flex flex-col gap-1 text-sm" htmlFor="save-level-name">
-                Level name
-                <input
-                  id="save-level-name"
-                  value={saveName}
-                  onChange={(event) => setSaveName(event.target.value)}
-                  className="rounded border px-2 py-1 font-mono text-xs"
-                />
-              </label>
-              {saveResult !== null && !saveResult.written && (
-                <p className="text-sm" role="status">
-                  No dev server to write it
-                  {saveResult.error === undefined ? '' : ` (${saveResult.error})`}, so it went to
-                  your downloads instead. Move it into <code>{LEVELS_FOLDER}</code> yourself.
+              <Dialog>
+                <DialogTrigger render={<Button type="button" variant="outline">Export</Button>} />
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Export Layout</DialogTitle>
+                  </DialogHeader>
+                  <textarea
+                    readOnly
+                    data-testid="export-output"
+                    value={exportedText}
+                    className="h-64 w-full resize-none font-mono text-xs"
+                  />
+                  <DialogFooter>
+                    <Button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(exportedText).catch(() => {});
+                      }}
+                    >
+                      Copy Layout
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setSaveName(loadedLevelName);
+                  setSaveResult(null);
+                  setSaveDialogOpen(true);
+                }}
+              >
+                Save
+              </Button>
+              <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Save this level</DialogTitle>
+                    <DialogDescription>
+                      Writes the level as a JSON file into <code>{LEVELS_FOLDER}</code>, where the level
+                      list reads it from. Reload the editor afterwards to see it there.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <label className="flex flex-col gap-1 text-sm" htmlFor="save-level-name">
+                    Level name
+                    <input
+                      id="save-level-name"
+                      value={saveName}
+                      onChange={(event) => setSaveName(event.target.value)}
+                      className="rounded border px-2 py-1 font-mono text-xs"
+                    />
+                  </label>
+                  {saveResult !== null && !saveResult.written && (
+                    <p className="text-sm" role="status">
+                      No dev server to write it
+                      {saveResult.error === undefined ? '' : ` (${saveResult.error})`}, so it went to
+                      your downloads instead. Move it into <code>{LEVELS_FOLDER}</code> yourself.
+                    </p>
+                  )}
+                  <DialogFooter>
+                    <DialogClose render={<Button type="button" variant="outline" />}>
+                      {saveResult === null ? 'Cancel' : 'Done'}
+                    </DialogClose>
+                    <Button type="button" onClick={saveCurrentLevel}>
+                      Save level file
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </>
+          )}
+          {isBlueprintMode && (
+            <>
+              <BlueprintSelect
+                loadedBlueprintName={loadedBlueprintName}
+                isDirty={blueprintDirty}
+                onLoadBlueprint={loadBlueprint}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setBlueprintSaveName(loadedBlueprintName);
+                  setBlueprintSaveDialogOpen(true);
+                }}
+              >
+                Save Blueprint
+              </Button>
+              <Dialog open={blueprintSaveDialogOpen} onOpenChange={setBlueprintSaveDialogOpen}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Save this blueprint</DialogTitle>
+                    <DialogDescription>
+                      Stores the blueprint canvas in this browser, cropped to the cells you
+                      painted. Step 44c replaces this with a real file written next to the
+                      levels.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <label className="flex flex-col gap-1 text-sm" htmlFor="save-blueprint-name">
+                    Blueprint name
+                    <input
+                      id="save-blueprint-name"
+                      value={blueprintSaveName}
+                      onChange={(event) => setBlueprintSaveName(event.target.value)}
+                      className="rounded border px-2 py-1 font-mono text-xs"
+                    />
+                  </label>
+                  <DialogFooter>
+                    <DialogClose render={<Button type="button" variant="outline" />}>
+                      Cancel
+                    </DialogClose>
+                    <Button type="button" onClick={saveCurrentBlueprint}>
+                      Save blueprint
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </>
+          )}
+          {!isBlueprintMode && (
+            <>
+              <Button type="button" onClick={tryLayout}>
+                Try
+              </Button>
+              {saveResult?.written === true && (
+                <p className="max-w-40 text-xs break-all text-muted-foreground" role="status">
+                  Saved to <code>{saveResult.path}</code> — reload to see it in the level list.
                 </p>
               )}
-              <DialogFooter>
-                <DialogClose render={<Button type="button" variant="outline" />}>
-                  {saveResult === null ? 'Cancel' : 'Done'}
-                </DialogClose>
-                <Button type="button" onClick={saveCurrentLevel}>
-                  Save level file
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-          <Button type="button" onClick={tryLayout}>
-            Try
-          </Button>
-          {saveResult?.written === true && (
-            <p className="max-w-40 text-xs break-all text-muted-foreground" role="status">
-              Saved to <code>{saveResult.path}</code> — reload to see it in the level list.
-            </p>
+            </>
           )}
         </div>
         <EditorCanvas
