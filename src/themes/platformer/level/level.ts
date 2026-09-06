@@ -119,7 +119,7 @@ import {
 //   Q  5   question-mark block — 2 certificates + 3 projects, each popping a
 //          bonus fruit rather than carrying a fact of its own
 //   F  5   fragileRock block — no fact; the two surface plugs plus filler
-//   T  5   chest — one per experience entry; opening all five ends the run
+//   $  5   chest — one per experience entry; opening all five ends the run
 //   u  3   coin-pot — destroyed by landing on top, drops a coin (2 adjacent
 //          + 1 isolated, to exercise the merged-run rendering); same
 //          no-CVData-binding convention as every other block kind
@@ -150,10 +150,10 @@ import {
 // deliberately NOT on the meadow bridge, where dropping through only earns a
 // pit fall. On the cave mouth, dropping through is the way in.
 export const LEVEL_1_LAYOUT: readonly string[] = [
-  '..................................................................................................................................................................................................................m....T....',
+  '..................................................................................................................................................................................................................m....$....',
   '.............................................................................................................................................................................................Q..........=.....HGGGGGGGGGGG..',
   '..............................................................................................................................................................................................................HGGGGGGGGGGG..',
-  '................................................................................................................................................................................................M.............HGGGGGGGGGGG.T',
+  '................................................................................................................................................................................................M.............HGGGGGGGGGGG.$',
   '..............................................=......................................................................................................................................=.....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   '...........................................................................................................................................................................................GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   '........................................M........................................................o...........m........................................................................M..o.GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
@@ -161,13 +161,13 @@ export const LEVEL_1_LAYOUT: readonly string[] = [
   '..................................GGGGGGGGGGGGGGG..................................................................................................................................GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   '..S.5..o...o.........M.......M..2.GGGGGGGGGGGGGGGuu.u.....M......1.........^...........................M.o..........M.....M.......M........................M.................#.M..#GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGGBBBGGGGGGGGGGGGGGHGGGGGGGGGGGGGGGGGGGGGGHGGGGGGHGGBBBGGGGGGGGGGGGGGGGGFFGGGGGGGGGG...GGGGGGGGGBBBGGGGGGGGGGGGGGGRRHRRRRRRRRRRRRGGGGGGGGGGGGGGGGGGGGGGGGGHGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
-  'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.H........d....d........H<GGGG>H..........=................GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..H.......v.......=...=.................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.H........⊤....⊤........H<GGGG>H..........=................GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..H.......v.......=...=.................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.H......................H.GGGG.H.....................3.....GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..H.....................................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
-  'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.H..o...4.T.a...a.......H.GGGG.H.....o..m....o....o.RRRRR..GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..H..o.m..T.............................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.H..o...4.$.⊥...⊥.......H.GGGG.H.....o..m....o....o.RRRRR..GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..H..o.m..$.............................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGG...GGGGGGGGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRRRGGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGGRRRRRRRRRRRRRRHRRRRRRRRRRRFFRRRRRRRRRRRRHRRRRGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGG...GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..............H.........................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGG...GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGGX.....X.......H.........................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
-  'GGGGGGGGGGGGGG...GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGGc.............H....o.m...RRRR...o..o.T..H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  'GGGGGGGGGGGGGG...GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGGc.............H....o.m...RRRR...o..o.$..H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGG...GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'RRRRRRRRRRRRRR...RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR...RRRRRRRRR...RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
 ];
@@ -256,7 +256,7 @@ export const COIN_POT_TILES = computed(() => findCoinPotTiles(currentLayout.valu
 export const POTION_POT_TILES = computed(() => findPotionPotTiles(currentLayout.value));
 
 /** Hand-placed chest positions (5 — one per Experience entry), from
- *  `currentLayout`'s `T` markers (spec.md FR-023). Opening all five is the
+ *  `currentLayout`'s `$` markers (spec.md FR-023). Opening all five is the
  *  level's win condition, so this count must stay equal to CVData's
  *  `experience` length: `placeChests` has no auto-placement fallback, and a
  *  missing marker would leave an Experience entry unreachable. */
