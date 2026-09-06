@@ -195,6 +195,20 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   heart in the world is tied to its now-restored pot. Level marker `p`; not yet
   placed anywhere in the shipped level (mechanism only, no level-design placement
   decision made yet).
+- [ ] **44a. Blueprint rooms — capture** — draw a freeform border in the editor, flood-fill
+  from a clicked interior cell to validate it's enclosed (blue) or leaking (red), and
+  save the enclosed region as a named, reusable "blueprint." Design in
+  `plans/2026-09-06-blueprint-rooms-design.md`.
+- [ ] **44b. Blueprint rooms — connection points** — mark border cells of a captured
+  region as `blueprintConnectionPoint` tiles (a new invisible, non-solid `TileType`,
+  editor-only like `patrol`), the spots other blueprints can attach to. Depends on 44a.
+- [ ] **44c. Blueprint rooms — save, library, and placement** — saved blueprints persist
+  to `src/themes/platformer/level/blueprints/` (mirroring the level Save flow, gated
+  behind a new `isDevEnvironmentSignal` so Save controls disappear on a built/statically-
+  served site) and show up as a Blueprints section in the Palette; placing one previews
+  with a blue/red border (blue = no overlap and, if any connection points already exist
+  in the level, at least one lines up facing an existing one) and commits on a second
+  click. Depends on 44b.
 
 ## Unscheduled additions (not yet numbered)
 
@@ -210,14 +224,6 @@ numbered step.
 - [x] **Entity architecture follow-ups** — cleanup/consistency work across how enemies,
   pickups, blocks, and chests are structured.
 - **Audio** — background music and sound effects, muted by default.
-- **Blueprint rooms** — capture a freeform, already-built region of the grid (border
-  drawn by hand, flood-filled to confirm it's enclosed) as a named, reusable "blueprint,"
-  tag border cells as `blueprintConnectionPoint` attachment spots, and place saved
-  blueprints elsewhere with blue/red fit feedback (no overlap, connection points facing
-  each other). Design in `plans/2026-09-06-blueprint-rooms-design.md`; not yet slotted
-  into the numbered roadmap since it's tooling for a longer-term goal (hand-assembling,
-  later auto-generating, levels from a room library) rather than something a near-term
-  step depends on — pick it up once a second/third hand-built room is actually wanted.
 - [x] **Theme-switch reset** — switching away from the Platformer theme and back
   calls `resetGameProgress()` (a mount-only effect in `PlatformerPage.tsx`), clears
   `controlsOverlayDismissed`, and restarts the intro transition — a full fresh
