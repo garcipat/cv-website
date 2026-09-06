@@ -2,20 +2,19 @@
 
 ## Roadmap status
 
-Slotted into `roadmap.md` as Iteration 4 steps **44a** (capture), **44b** (connection
-points), **44c** (placement), after step 43. Delivered in that order — 44b depends on
-44a's captured region existing to mark points on; 44c depends on 44b's connection points
-existing to validate fit against.
+Slotted into `roadmap.md` as Iteration 4 steps **44a** (blueprint canvas), **44b**
+(connection points), **44c** (placement), after step 43. Delivered in that order — 44b
+depends on 44a's blueprint canvas existing to paint connection points onto; 44c depends
+on 44b's connection points existing to validate fit against.
 
 ## Goal and scope
 
-Give the Level Editor a way to capture an arbitrary-shaped, already-built region of the
-grid — a "room" — as a named, reusable **blueprint**, tag spots on its border where
-other blueprints can attach, then stamp saved blueprints back into a level with
-placement validated against those attachment spots. The immediate use is hand-assembling
-a level from a library of rooms instead of painting every level from scratch; a stated
-future goal (out of scope here) is generating levels by combining blueprints
-automatically.
+Give the Level Editor a way to author a "room" on its own small canvas as a named,
+reusable **blueprint**, tag spots on its border where other blueprints can attach, then
+stamp saved blueprints back into a level with placement validated against those
+attachment spots. The immediate use is hand-assembling a level from a library of rooms
+instead of painting every level from scratch; a stated future goal (out of scope here)
+is generating levels by combining blueprints automatically.
 
 Purely an editor-time concept, like `patrol`: nothing about a blueprint or a connection
 point changes runtime gameplay. A placed blueprint's cells become ordinary terrain/entity
@@ -23,80 +22,105 @@ tiles in the level the moment they're stamped down.
 
 ## Data model
 
-A blueprint is a sparse list of cells relative to a local origin — not a bounding-box
-grid — since captured shapes are freeform, not rectangles:
+A blueprint is authored on its own small grid, in its own editor mode — not carved out of
+an existing level — so it needs no sparse cell list or capture algorithm: it's exactly a
+level layout in miniature, reusing `exportLayout`/`importLayout`'s existing
+`readonly string[]` shape (crop to the tightest non-`.` bounding box, one string per row),
+plus an optional `background` list in exactly the shape `LevelDef.background` already
+has, since blueprints support the same decorative background layer levels do:
 
 ```typescript
 // src/themes/platformer/level/BlueprintData.ts
-interface BlueprintCell {
-  row: number;
-  col: number;
-  tile: TileChar;
-}
-
 interface Blueprint {
   id: string;    // slug, also the filename stem — mirrors LevelEntry's id
   name: string;
-  cells: BlueprintCell[];
+  layout: readonly string[];
+  background?: BackgroundPlacement[];
 }
 ```
 
+A blueprint's own interior `.` cells are captured too, since the crop only trims the
+bounding box's *outer* empty rows/columns — an intentionally-empty patch in the middle of
+a room (a floor gap, say) survives untouched. Placing a blueprint later (step 44c) stamps
+every foreground cell of its `layout`, `.` included, into the target grid at the chosen
+origin; its `background` placements are rebased onto that same origin and appended to the
+target level's own background list.
+
 A new `TileChar`/`TileType` — `'blueprintConnectionPoint'` — follows the `patrol`
 precedent exactly: invisible in normal gameplay rendering, non-solid, no collision
-behavior. It's just a tile like any other, so "two connection points on one cell" is
-already impossible (painting one overwrites the other) and needs no extra validation.
-Connection points are simply the cells in `Blueprint.cells` whose `tile ===
-'blueprintConnectionPoint'` — no separate list, no stored facing direction. A point's
-open side is derived at placement time (see Fit rule) from which neighbor of that cell
-falls outside the blueprint's shape.
+behavior, just another character a blueprint's `layout` can contain. Connection points
+are simply the layout's `blueprintConnectionPoint` cells — no separate list, no stored
+facing direction. A point's open side is derived at placement time (see Fit rule) from
+which neighbor of that cell falls outside the blueprint's own layout bounds.
 
-## Step 44a — Capturing a region
+## Step 44a — A dedicated Blueprint canvas
 
-New editor mode, "Draw Blueprint" (a `Palette` toggle alongside the existing
-Foreground/Background tabs). While active:
+Blueprints are authored on their own small grid, in a distinct editor mode — not carved
+out of an already-built level. A new **Level / Blueprint** toggle sits in
+`LevelEditorPage`'s sidebar, in its own group alongside (not merged into) the existing
+Foreground/Background toggle — these are two independent axes, not three options on one
+switch: Foreground/Background says *which layer* of whichever canvas is active gets
+painted; Level/Blueprint says *which canvas* — the level's `grid`, or a second,
+independent `blueprintGrid` (with its own `blueprintBackgroundPlacements`) — is currently
+active. Both stay visible and both keep working exactly as they do today, just
+retargeted: with Blueprint selected, Foreground/Background still switches which of the
+*blueprint's own* two layers is being painted, the same way it does for a level.
 
-- The user paints border tiles with the normal palette/paint tool — any solid terrain
-  works as a wall, exactly like painting the level itself.
-- The user then clicks once **inside** the drawn loop to say "flood from here." A flood
-  fill runs outward from that cell, treating any solid tile (`isSolid`) as a boundary it
-  cannot cross.
-  - **Enclosed**: the flood never reaches the edge of the currently-grown grid. Every
-    reached cell, plus the solid cells that stopped it, is the captured region —
-    highlighted with a blue tint (fill + border) over the canvas.
-  - **Not enclosed**: the flood escapes to the grid's edge. Nothing is captured; the
-    attempted region is tinted red instead, and the user keeps painting/closing the gap
-    and re-clicking inside.
-- With a valid (blue) capture showing, a "Save as Blueprint" action prompts for a name
-  and writes every reached cell (including untouched `.` cells inside the loop — "filling
-  in the holes" — and the solid border cells themselves) as `Blueprint.cells`, relative to
-  the capture's own top-left bounding cell as origin.
-- Capturing a blueprint does not remove or alter the source cells in the main grid —
-  it's a copy, like export is a copy of the whole level.
+The Level Select dropdown and Save button below them become two pairs that swap with the
+same toggle — only one pair showing at a time, not both stacked: **Level Select** +
+**Save Level** (today's controls, unchanged) while Level is selected, **Blueprint
+Select** + **Save Blueprint** while Blueprint is selected.
+
+`blueprintGrid` starts empty (a single `.` cell, same as the existing `empty`/
+`SCRATCH_LAYOUT` level entry) unless a saved blueprint has been loaded into it. While
+this mode is active:
+
+- Painting works exactly like painting a level — same `paintCell`/`growGrid`/
+  `placeBackgroundPiece`/`eraseBackgroundCell` paths, same right-click-always-erases
+  convention — just targeting `blueprintGrid`/`blueprintBackgroundPlacements` instead of
+  the level's own. Every painted cell simply *is* part of the blueprint; there is no
+  border to draw, no enclosed/leaking check, and no blue/red tint at this stage — those
+  only matter later, at placement time (step 44c), once connection points exist to
+  validate a fit against.
+- The Palette drops the Spawn tool while blueprint mode is active — a blueprint has no
+  concept of a spawn point, and offering the button would just invite a marker nothing
+  downstream expects to find outside a real level's layout.
+- A **Blueprint Select** dropdown, mirroring `LevelSelect` exactly, lists a blank `new`
+  entry plus every saved blueprint (discovered the same way `levelRegistry.ts` discovers
+  saved levels — see step 44c). Picking one loads its `layout`/`background` into
+  `blueprintGrid`/`blueprintBackgroundPlacements`, so an already-saved blueprint can be
+  reopened and edited, same as reopening a saved level.
+- A **Save Blueprint** action, mirroring the Level Editor's own Save Level dialog, prompts
+  for a name and exports the blueprint canvas via the existing `exportLayout`/
+  `cropLevelForExport`-style cropping (tightest non-`.` bounding box, background
+  placements rebased to the same origin) into `Blueprint.layout`/`Blueprint.background`.
 
 ## Step 44b — Marking connection points
 
-After a capture, "Mark Connection Points" mode lets the user click any of the captured
-region's border cells (a cell in `cells` with at least one 4-neighbor outside the
-captured set) to toggle it to `blueprintConnectionPoint`, overwriting whatever tile was
-there — same silent-overwrite convention as normal painting. No limit on how many per
-side; the only implicit constraint is the one painting already gives for free (one tile
-type per cell).
-
-This mode operates on the in-progress capture, before "Save as Blueprint" — the saved
-`Blueprint.cells` already reflects any connection points marked.
+`blueprintConnectionPoint` is just another Palette entry, available whenever blueprint
+mode is active (alongside the normal foreground terrain/entity tools, minus Spawn) — the
+author paints it directly onto `blueprintGrid`'s border cells exactly like any other
+tile, no separate "marking mode" needed. "Border cell" isn't a stored property: at
+placement time (step 44c), a connection point's open side is derived on the fly from
+which of its 4-neighbors falls outside the blueprint's own layout bounds. No limit on how
+many per side; the only implicit constraint is the one painting already gives for free
+(one tile type per cell, so two connection points can never occupy the same cell).
 
 ## Step 44c — Saving and the palette library
 
 Mirrors `saveLevelFile.ts`/`saveLevelEndpoint.ts` exactly:
 
-- `saveBlueprintFile.ts`: `blueprintFileJson(name, cells)`, `blueprintFileName(name)`,
-  `saveBlueprint` (POST, falling back to download), `downloadBlueprintFile`.
+- `saveBlueprintFile.ts`: `blueprintFileJson(name, layout, background)`,
+  `blueprintFileName(name)`, `saveBlueprint` (POST, falling back to download),
+  `downloadBlueprintFile` — the same four-function shape `saveLevelFile.ts` already has,
+  since a `Blueprint` is now the same `{ name, layout, background? }` shape a saved level
+  is.
 - `saveBlueprintEndpoint.ts`: `BLUEPRINTS_FOLDER =
   'src/themes/platformer/level/blueprints/'`, `SAVE_BLUEPRINT_ENDPOINT =
   '/__save-blueprint'`.
 - `vite/writeBlueprintFile.ts` + `vite/blueprintWritePlugin.ts` (`apply: 'serve'`): same
   validation shape as `writeLevelFile.ts` (slugified filename only, no path traversal,
-  well-formed JSON with a non-empty `cells` array).
+  well-formed JSON with a non-empty `layout` array of strings).
 - `blueprintRegistry.ts` (mirrors `levelRegistry.ts`): `import.meta.glob`s
   `blueprints/*.json` at build time into `Blueprint[]`, skipping any file that isn't a
   well-formed `Blueprint`.
@@ -118,29 +142,41 @@ visible regardless.
 
 ## Step 44c — Placement
 
-- **1st click** on the grid with a blueprint armed: renders a preview of `cells` anchored
-  at the clicked cell (origin → clicked cell), overlaid on the canvas. Border tinted:
-  - **Blue** (valid) if no `cells` entry lands on an already-occupied (non-`.`) cell in
-    the live grid, **and** either the grid has no `blueprintConnectionPoint` cell at all
-    yet, or at least one of the preview's connection points is orthogonally adjacent to
-    an existing `blueprintConnectionPoint` cell with both cells' open side (the
-    4-neighbor that falls outside their own blueprint's shape) facing each other.
+Placing a blueprint parses its `layout` into absolute `{ row, col, tile }` cells via the
+same per-character mapping `importLayout` already does:
+
+- **1st click** on the grid with a blueprint armed: renders a preview of every non-`.`
+  parsed cell anchored at the clicked cell (origin → clicked cell), overlaid on the
+  canvas. Border tinted:
+  - **Blue** (valid) if none of those cells lands on an already-occupied (non-`.`) cell
+    in the live grid, **and** either the grid has no `blueprintConnectionPoint` cell at
+    all yet, or at least one of the preview's connection points is orthogonally adjacent
+    to an existing `blueprintConnectionPoint` cell with both cells' open side (the
+    4-neighbor that falls outside their own blueprint's own layout bounds) facing each
+    other.
   - **Red** (invalid) otherwise.
   - Clicking elsewhere while still armed re-previews at the new position instead of
     committing.
-- **2nd click on the same cell** (or an explicit confirm) commits: every `cells` entry is
-  written into the live grid at its shifted position, through the same `growGrid` path
-  normal painting uses, so placing near the current edge grows the grid exactly like
-  painting there would.
+- **2nd click on the same cell** (or an explicit confirm) commits: every non-`.` parsed
+  cell is written into the live grid at its shifted position, through the same
+  `growGrid` path normal painting uses, so placing near the current edge grows the grid
+  exactly like painting there would. A blueprint's own `.` cells are never written — they
+  are bounding-box padding around its shape, not "erase this spot," so placing a
+  blueprint can never blank out terrain the target level already had there. Its
+  `background` placements (if any) are rebased onto the same origin and appended to the
+  target level's own background list, unconditionally (no overlap check — background
+  placements already silently replace on overlap, matching how painting the background
+  layer works today).
 
 ## Testing
 
 Per the constitution, tests first:
 
-- `floodFillRegion.ts` (44a) — enclosed vs. leaking shapes, including one with an
-  interior `.` gap that must still be included in the captured set.
-- `blueprintCapture` → `Blueprint.cells` — origin normalization (top-left of the
-  captured set becomes `{row: 0, col: 0}`).
+- `BlueprintSelect` (44a) — mirrors `LevelSelect.test.tsx`'s coverage: loading an entry
+  (including the blank `new` entry) replaces `blueprintGrid`/
+  `blueprintBackgroundPlacements`; the Spawn tool is absent from the Palette while
+  blueprint mode is active; Foreground/Background still switches which of the
+  blueprint's own two layers is being painted.
 - `blueprintFit.ts` (44c) — overlap detection; adjacent-facing-connection-point
   detection; the "no connection points exist yet" unconstrained case.
 - `saveBlueprintFile.test.ts` / `blueprintRegistry.test.ts` — mirror the existing
@@ -149,15 +185,17 @@ Per the constitution, tests first:
 - `isDevEnvironmentSignal` — resolves `true` only when the ping endpoint answers,
   `false` on fetch failure/no route.
 
-Manual verification: draw an irregular (non-rectangular) border, confirm the flood-fill
-correctly tints blue only once closed; save it; place a second blueprint next to it and
-confirm the border goes blue only when a connection point lines up and nothing overlaps.
+Manual verification: enter Draw Blueprint mode, paint a small irregular room (mixing
+foreground terrain and a background piece or two), save it, reopen it via Blueprint
+Select and confirm it's editable; place a second blueprint next to it and confirm the
+border goes blue only when a connection point lines up and nothing overlaps.
 
 ## Out of scope
 
 - Rotating or mirroring a blueprint before placement.
-- Nesting — capturing a region that contains an already-placed blueprint's connection
-  points as a blueprint of its own.
+- Nesting — placing an already-saved blueprint while editing another blueprint's own
+  canvas (a blueprint containing a blueprint). Placement (step 44c) targets the level
+  grid only.
 - Auto-generating a full level from a library of blueprints (the longer-term goal this
   feature is a building block for, not part of it).
 - Any gameplay-visible behavior for connection points (no runtime transition/teleport —
