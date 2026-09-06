@@ -20,6 +20,7 @@ import {
   editorBlueprintBackgroundSignal,
   editorLoadedBlueprintNameSignal,
 } from './editorLevelState';
+import { isDevEnvironmentSignal } from './devEnvironment';
 import { BLANK_BLUEPRINT } from '../level/BlueprintData';
 import { blueprintFileJson } from './saveBlueprintFile';
 import { SAVE_BLUEPRINT_ENDPOINT } from './saveBlueprintEndpoint';
@@ -110,6 +111,11 @@ beforeEach(() => {
   // into it — without this, that write would leak into every test that runs
   // after it and silently change which tool their clicks paint.
   editorSelectedToolSignal.value = 'G';
+  // Every pre-existing Save/Save Blueprint test in this file assumes the
+  // controls are on screen, which is now conditional. The editor is a
+  // dev-only tool, so "there is a dev server" is the realistic default for
+  // the suite; the gate's own tests below set it false explicitly.
+  isDevEnvironmentSignal.value = true;
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
     fillRect: vi.fn(),
     fillStyle: '',
@@ -227,6 +233,7 @@ async function saveAs(name: string) {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  isDevEnvironmentSignal.value = false;
 });
 
 describe('LevelEditorPage', () => {
@@ -1277,5 +1284,61 @@ describe('LevelEditorPage — blueprint connection points (step 44b)', () => {
       'aria-pressed',
       'true',
     );
+  });
+});
+
+describe('LevelEditorPage — dev-only Save controls (step 44c)', () => {
+  it('noDevEnvironment-levelMode-offersNoSaveButtonAtAll', () => {
+    // A built/statically-served site cannot write a file, so the control is
+    // hidden rather than left to fall back to a download nobody asked for.
+    isDevEnvironmentSignal.value = false;
+    render(<LevelEditorPage />);
+
+    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
+  });
+
+  it('noDevEnvironment-levelMode-keepsEverythingThatNeedsNoServer', () => {
+    isDevEnvironmentSignal.value = false;
+    render(<LevelEditorPage />);
+
+    expect(screen.getByRole('combobox')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Export' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try' })).toBeInTheDocument();
+  });
+
+  it('noDevEnvironment-blueprintMode-offersNoSaveBlueprintButtonButKeepsTheDropdown', () => {
+    isDevEnvironmentSignal.value = false;
+    render(<LevelEditorPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
+
+    expect(screen.queryByRole('button', { name: 'Save Blueprint' })).not.toBeInTheDocument();
+    // Loading an already-saved blueprint needs no server — the registry is a
+    // static import — so the dropdown stays.
+    expect(screen.getByRole('combobox')).toBeInTheDocument();
+  });
+
+  it('devEnvironment-showsBothSaveControlsInTheirOwnModes', () => {
+    render(<LevelEditorPage />);
+
+    expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
+
+    expect(screen.getByRole('button', { name: 'Save Blueprint' })).toBeInTheDocument();
+  });
+
+  it('theMountPing-answeringIsDevTrue-bringsTheSaveButtonBack', async () => {
+    // The realistic startup order: the page mounts with the signal still
+    // false, pings, and the control appears when the answer lands.
+    isDevEnvironmentSignal.value = false;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ isDev: true }) } as Response)),
+    );
+
+    render(<LevelEditorPage />);
+
+    expect(await screen.findByRole('button', { name: 'Save' })).toBeInTheDocument();
   });
 });

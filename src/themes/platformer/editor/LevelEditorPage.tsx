@@ -12,6 +12,7 @@ import { LevelSelect } from './LevelSelect';
 import { BlueprintSelect } from './BlueprintSelect';
 import { saveLevel, LEVELS_FOLDER, type SaveLevelResult } from './saveLevelFile';
 import { saveBlueprint, BLUEPRINTS_FOLDER, type SaveBlueprintResult } from './saveBlueprintFile';
+import { isDevEnvironmentSignal, probeDevEnvironment } from './devEnvironment';
 import type { Blueprint } from '../level/BlueprintData';
 import type { BackgroundPlacement, BackgroundPieceId } from '../level/LevelData';
 import { backgroundCatalogEntry } from '../engine/BackgroundCatalog';
@@ -227,6 +228,13 @@ export const LevelEditorPage = () => {
   // dialog and says where it went in the sidebar, while a fallback download
   // keeps the dialog open, because then there is something left to do.
   const [saveResult, setSaveResult] = useState<SaveLevelResult | null>(null);
+  // Whether this page is served by `npm run dev`, i.e. whether Save can
+  // actually write a file. Mirrored into local state from
+  // `isDevEnvironmentSignal` rather than read through `useSignals()`: this
+  // component seeds six persisted signals in `useState` initializers, and
+  // `useSignals()` would make every later write to any of them (including the
+  // debounced grid sync) re-render the whole editor.
+  const [isDevEnvironment, setIsDevEnvironment] = useState(isDevEnvironmentSignal.value);
 
   useEffect(() => {
     IMAGE_SOURCES.forEach(({ key, src }) => {
@@ -234,6 +242,18 @@ export const LevelEditorPage = () => {
         .then((img) => setImages((prev) => ({ ...prev, [key]: img })))
         .catch(() => {});
     });
+  }, []);
+
+  // One ping, on mount: the dev server answers `/__dev-environment`, a built
+  // site cannot, and the Save controls follow that answer (see
+  // `devEnvironment.ts`). The subscription is what applies the answer when it
+  // lands, since the ping resolves after this effect has already run.
+  // `signal.subscribe` also invokes its callback once immediately, with the
+  // value the `useState` initializer above already seeded — so that first call
+  // is a same-value setState React bails out of, not an extra render.
+  useEffect(() => {
+    void probeDevEnvironment();
+    return isDevEnvironmentSignal.subscribe(setIsDevEnvironment);
   }, []);
 
   // Debounced localStorage persistence: every `grid` change (re)starts a
@@ -546,52 +566,56 @@ export const LevelEditorPage = () => {
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setSaveName(loadedLevelName);
-                  setSaveResult(null);
-                  setSaveDialogOpen(true);
-                }}
-              >
-                Save
-              </Button>
-              <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Save this level</DialogTitle>
-                    <DialogDescription>
-                      Writes the level as a JSON file into <code>{LEVELS_FOLDER}</code>, where the level
-                      list reads it from. Reload the editor afterwards to see it there.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <label className="flex flex-col gap-1 text-sm" htmlFor="save-level-name">
-                    Level name
-                    <input
-                      id="save-level-name"
-                      value={saveName}
-                      onChange={(event) => setSaveName(event.target.value)}
-                      className="rounded border px-2 py-1 font-mono text-xs"
-                    />
-                  </label>
-                  {saveResult !== null && !saveResult.written && (
-                    <p className="text-sm" role="status">
-                      No dev server to write it
-                      {saveResult.error === undefined ? '' : ` (${saveResult.error})`}, so it went to
-                      your downloads instead. Move it into <code>{LEVELS_FOLDER}</code> yourself.
-                    </p>
-                  )}
-                  <DialogFooter>
-                    <DialogClose render={<Button type="button" variant="outline" />}>
-                      {saveResult === null ? 'Cancel' : 'Done'}
-                    </DialogClose>
-                    <Button type="button" onClick={saveCurrentLevel}>
-                      Save level file
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+              {isDevEnvironment && (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setSaveName(loadedLevelName);
+                      setSaveResult(null);
+                      setSaveDialogOpen(true);
+                    }}
+                  >
+                    Save
+                  </Button>
+                  <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Save this level</DialogTitle>
+                        <DialogDescription>
+                          Writes the level as a JSON file into <code>{LEVELS_FOLDER}</code>, where the level
+                          list reads it from. Reload the editor afterwards to see it there.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <label className="flex flex-col gap-1 text-sm" htmlFor="save-level-name">
+                        Level name
+                        <input
+                          id="save-level-name"
+                          value={saveName}
+                          onChange={(event) => setSaveName(event.target.value)}
+                          className="rounded border px-2 py-1 font-mono text-xs"
+                        />
+                      </label>
+                      {saveResult !== null && !saveResult.written && (
+                        <p className="text-sm" role="status">
+                          No dev server to write it
+                          {saveResult.error === undefined ? '' : ` (${saveResult.error})`}, so it went to
+                          your downloads instead. Move it into <code>{LEVELS_FOLDER}</code> yourself.
+                        </p>
+                      )}
+                      <DialogFooter>
+                        <DialogClose render={<Button type="button" variant="outline" />}>
+                          {saveResult === null ? 'Cancel' : 'Done'}
+                        </DialogClose>
+                        <Button type="button" onClick={saveCurrentLevel}>
+                          Save level file
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </>
+              )}
             </>
           )}
           {isBlueprintMode && (
@@ -601,56 +625,60 @@ export const LevelEditorPage = () => {
                 isDirty={blueprintDirty}
                 onLoadBlueprint={loadBlueprint}
               />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setBlueprintSaveName(loadedBlueprintName);
-                  setBlueprintSaveResult(null);
-                  setBlueprintSaveDialogOpen(true);
-                }}
-              >
-                Save Blueprint
-              </Button>
-              <Dialog open={blueprintSaveDialogOpen} onOpenChange={setBlueprintSaveDialogOpen}>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Save this blueprint</DialogTitle>
-                    <DialogDescription>
-                      Writes the blueprint as a JSON file into <code>{BLUEPRINTS_FOLDER}</code>,
-                      where the blueprint list reads it from. Reload the editor afterwards to see
-                      it there.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <label className="flex flex-col gap-1 text-sm" htmlFor="save-blueprint-name">
-                    Blueprint name
-                    <input
-                      id="save-blueprint-name"
-                      value={blueprintSaveName}
-                      onChange={(event) => setBlueprintSaveName(event.target.value)}
-                      className="rounded border px-2 py-1 font-mono text-xs"
-                    />
-                  </label>
-                  {blueprintSaveResult !== null && !blueprintSaveResult.written && (
-                    <p className="text-sm" role="status">
-                      No dev server to write it
-                      {blueprintSaveResult.error === undefined
-                        ? ''
-                        : ` (${blueprintSaveResult.error})`}
-                      , so it went to your downloads instead. Move it into{' '}
-                      <code>{BLUEPRINTS_FOLDER}</code> yourself.
-                    </p>
-                  )}
-                  <DialogFooter>
-                    <DialogClose render={<Button type="button" variant="outline" />}>
-                      {blueprintSaveResult === null ? 'Cancel' : 'Done'}
-                    </DialogClose>
-                    <Button type="button" onClick={saveCurrentBlueprint}>
-                      Save blueprint
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+              {isDevEnvironment && (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setBlueprintSaveName(loadedBlueprintName);
+                      setBlueprintSaveResult(null);
+                      setBlueprintSaveDialogOpen(true);
+                    }}
+                  >
+                    Save Blueprint
+                  </Button>
+                  <Dialog open={blueprintSaveDialogOpen} onOpenChange={setBlueprintSaveDialogOpen}>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Save this blueprint</DialogTitle>
+                        <DialogDescription>
+                          Writes the blueprint as a JSON file into <code>{BLUEPRINTS_FOLDER}</code>,
+                          where the blueprint list reads it from. Reload the editor afterwards to see
+                          it there.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <label className="flex flex-col gap-1 text-sm" htmlFor="save-blueprint-name">
+                        Blueprint name
+                        <input
+                          id="save-blueprint-name"
+                          value={blueprintSaveName}
+                          onChange={(event) => setBlueprintSaveName(event.target.value)}
+                          className="rounded border px-2 py-1 font-mono text-xs"
+                        />
+                      </label>
+                      {blueprintSaveResult !== null && !blueprintSaveResult.written && (
+                        <p className="text-sm" role="status">
+                          No dev server to write it
+                          {blueprintSaveResult.error === undefined
+                            ? ''
+                            : ` (${blueprintSaveResult.error})`}
+                          , so it went to your downloads instead. Move it into{' '}
+                          <code>{BLUEPRINTS_FOLDER}</code> yourself.
+                        </p>
+                      )}
+                      <DialogFooter>
+                        <DialogClose render={<Button type="button" variant="outline" />}>
+                          {blueprintSaveResult === null ? 'Cancel' : 'Done'}
+                        </DialogClose>
+                        <Button type="button" onClick={saveCurrentBlueprint}>
+                          Save blueprint
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </>
+              )}
             </>
           )}
           {!isBlueprintMode && (
