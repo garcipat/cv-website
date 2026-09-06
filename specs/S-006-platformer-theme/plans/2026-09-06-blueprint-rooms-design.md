@@ -168,9 +168,10 @@ visible regardless.
 Placing a blueprint parses its `layout` into absolute `{ row, col, tile }` cells via the
 same per-character mapping `importLayout` already does:
 
-- **1st click** on the grid with a blueprint armed: renders a preview of every non-`.`
-  parsed cell anchored at the clicked cell (origin → clicked cell), overlaid on the
-  canvas. Border tinted:
+- **Hovering** the grid with a blueprint armed renders a live preview of every non-`.`
+  parsed cell anchored at the hovered cell (origin → hovered cell), overlaid on the
+  canvas and following the mouse continuously — no click needed to see it. Border
+  tinted:
   - **Blue** (valid) if none of those cells lands on an already-occupied (non-`.`) cell
     in the live grid — overlap-only validation (see the Goal section's note on why
     connection-point matching was dropped: it degenerates once a blueprint's connection
@@ -179,23 +180,30 @@ same per-character mapping `importLayout` already does:
     exactly like any other non-`.` cell — they still count as "occupied" once placed —
     but are never treated specially beyond that.
   - **Red** (invalid) otherwise.
-  - Clicking elsewhere while still armed re-previews at the new position instead of
-    committing.
   - **Right-click cancels** the armed placement entirely (no preview, blueprint disarmed)
     instead of committing anywhere — right-click has no "erase" meaning during a
     placement preview (nothing is being painted to erase), so repurposing it as an
     immediate cancel gesture costs nothing and needs no dropdown navigation back to the
     Palette.
-- **2nd click on the same cell** (or an explicit confirm) commits: every non-`.` parsed
-  cell is written into the live grid at its shifted position, through the same
-  `growGrid` path normal painting uses, so placing near the current edge grows the grid
-  exactly like painting there would. A blueprint's own `.` cells are never written — they
-  are bounding-box padding around its shape, not "erase this spot," so placing a
-  blueprint can never blank out terrain the target level already had there. Its
-  `background` placements (if any) are rebased onto the same origin and appended to the
-  target level's own background list, unconditionally (no overlap check — background
+- **A single left-click** commits at the hovered cell: every non-`.` parsed cell is
+  written into the live grid at its shifted position, through the same `growGrid` path
+  normal painting uses, so placing near the current edge grows the grid exactly like
+  painting there would. A blueprint's own `.` cells are never written — they are
+  bounding-box padding around its shape, not "erase this spot," so placing a blueprint
+  can never blank out terrain the target level already had there. Its `background`
+  placements (if any) are rebased onto the same origin and appended to the target
+  level's own background list, unconditionally (no overlap check — background
   placements already silently replace on overlap, matching how painting the background
-  layer works today).
+  layer works today). The blueprint stays armed afterward, so stamping another copy
+  needs no trip back to the Palette.
+- **Undo placement**: the grid and background from immediately before the most recently
+  committed placement are kept in a single slot, surfaced as an "Undo placement" button
+  next to Save/Export/Try. It restores that snapshot and disappears again on use. Any
+  other edit since that placement — painting, erasing, a background change, loading a
+  different level, or committing another placement — clears the slot first, so the
+  button only ever offers to undo the one placement just made, never a stale one from
+  several actions ago. Deliberately scoped to placement only: no other editor action has
+  an undo today.
 
 ## Testing
 
