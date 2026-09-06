@@ -21,7 +21,7 @@ import {
   editorLoadedBlueprintNameSignal,
 } from './editorLevelState';
 import { BLANK_BLUEPRINT } from '../level/BlueprintData';
-import { savedBlueprintsSignal } from './blueprintStash';
+import { savedBlueprintsSignal, readSavedBlueprints } from './blueprintStash';
 import { currentTheme } from '@/state/theme';
 import { currentPath } from '@/state/navigation';
 import { enemyPlacements, enemyStates, collectedFacts, collectedCollectibleIds } from '../PlatformerState';
@@ -985,25 +985,145 @@ describe('LevelEditorPage — Level/Blueprint canvas toggle (step 44a)', () => {
     });
   });
 
-  it('loadingADifferentLevelWhileInBlueprintMode-stillCentersItOnceSwitchedBackToLevel', async () => {
-    // Critical fix regression test: LevelSelect stays rendered and usable
-    // while the blueprint canvas is the active one (only Task 7 hides it).
-    // Loading a level from it must not let the CURRENTLY VISIBLE blueprint
-    // canvas eat the one-shot centering request — the debt must instead be
-    // armed and paid back on the next switch to Level.
+  // A prior version of this test ("loadingADifferentLevelWhileInBlueprintMode
+  // -stillCentersItOnceSwitchedBackToLevel") exercised loadLevel while the
+  // blueprint canvas was active, which required LevelSelect to stay rendered
+  // in blueprint mode — the test's own comment noted "only Task 7 hides it".
+  // Task 7 does hide the Level Select+Save pair whenever the blueprint canvas
+  // is active (see the swap tests below), which makes that scenario
+  // unreachable through the UI: there is no LevelSelect to pick a level from
+  // while in blueprint mode. The `levelCenterPendingRef`/`isBlueprintMode`
+  // arming logic inside `loadLevel` itself is left untouched (Task 7's brief
+  // does not ask for it to be removed), but the regression test for it is
+  // retired here since it can no longer be driven through the rendered page.
+});
+
+async function saveBlueprintAs(name: string) {
+  await userEvent.click(screen.getByRole('button', { name: 'Save Blueprint' }));
+  const nameField = await screen.findByLabelText(/blueprint name/i);
+  await userEvent.clear(nameField);
+  await userEvent.type(nameField, name);
+  await userEvent.click(screen.getByRole('button', { name: 'Save blueprint' }));
+}
+
+describe('LevelEditorPage — blueprint select and save (step 44a)', () => {
+  it('levelMode-showsTheLevelSelectAndSaveButOfferNoBlueprintPair', () => {
+    render(<LevelEditorPage />);
+
+    // Exactly one combobox — getByRole throws on a second, so this is also
+    // the "never both pairs stacked" assertion.
+    expect(screen.getByRole('combobox')).toHaveTextContent('main');
+    expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Export' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Save Blueprint' })).not.toBeInTheDocument();
+  });
+
+  it('blueprintMode-swapsInTheBlueprintPairAndHidesTheLevelPair', () => {
+    render(<LevelEditorPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
+
+    expect(screen.getByRole('combobox')).toHaveTextContent('new');
+    expect(screen.getByRole('button', { name: 'Save Blueprint' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
+    // Export serializes the level grid and Try boots the game from it —
+    // both meaningless for a spawn-less blueprint, so they go with the
+    // level pair rather than staying visible and broken.
+    expect(screen.queryByRole('button', { name: 'Export' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Try' })).not.toBeInTheDocument();
+  });
+
+  it('savingTheBlueprintCanvas-storesItCroppedToItsPaintedCells', async () => {
     renderEditorInBlueprintMode();
-    await waitFor(() => expect(drawTerrain).toHaveBeenCalled());
+    // One cell painted at (col 2, row 1) of an otherwise-empty canvas: the
+    // crop's tightest non-'.' bounding box is that single cell, so the
+    // stored layout is exactly ['G'].
+    paintBlueprintCell(2, 1);
 
-    await selectLevel('empty');
+    await saveBlueprintAs('Test Room');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Level' }));
+    expect(readSavedBlueprints()).toEqual([
+      { id: 'test-room', name: 'Test Room', layout: ['G'] },
+    ]);
+  });
 
-    const canvas = document.querySelector('canvas') as HTMLCanvasElement;
-    const expected = centerPanOnSpawn(importLayout(SCRATCH_LAYOUT), canvas.width, canvas.height);
-    await waitFor(() => {
-      const calls = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls;
-      const [, , , , originX, originY] = calls[calls.length - 1];
-      expect({ x: originX, y: originY }).toEqual(expected);
-    });
+  it('savingTheBlueprintCanvas-namesItOnTheDropdownTriggerAndClosesTheDialog', async () => {
+    renderEditorInBlueprintMode();
+    paintBlueprintCell(2, 1);
+
+    await saveBlueprintAs('Test Room');
+
+    expect(screen.getByRole('combobox')).toHaveTextContent('Test Room');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('savingTheBlueprintCanvas-writesNoLevelFileAndLeavesTheLevelUntouched', async () => {
+    const levelGridBefore = editorLevelSignal.value;
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    renderEditorInBlueprintMode();
+    paintBlueprintCell(2, 1);
+
+    await saveBlueprintAs('Test Room');
+
+    // Step 44a's stash is localStorage-only; the dev-server write endpoint
+    // belongs to step 44c.
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(editorLevelSignal.value).toEqual(levelGridBefore);
+  });
+
+  it('savingABlueprintWithBackgroundPieces-storesThemRebasedOntoTheSameOrigin', async () => {
+    renderEditorInBlueprintMode();
+    paintBlueprintCell(2, 1);
+    fireEvent.click(screen.getByRole('button', { name: 'Background' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Dirt Column Top (1×1)' }));
+    paintBlueprintCell(2, 1);
+
+    await saveBlueprintAs('Test Room');
+
+    // The foreground crop's origin is (col 2, row 1) — the only painted
+    // cell — so a background piece placed on that same cell rebases to
+    // (col 0, row 0).
+    expect(readSavedBlueprints()[0].background).toEqual([
+      { pieceId: 'dirtColumnTop1x1', col: 0, row: 0 },
+    ]);
+  });
+
+  it('reopeningASavedBlueprint-loadsItsLayoutBackOntoTheCanvas', async () => {
+    renderEditorInBlueprintMode();
+    paintBlueprintCell(2, 1);
+    await saveBlueprintAs('Test Room');
+
+    // Load the blank entry first, then the saved one back — proving the
+    // dropdown really replaces the canvas both ways.
+    fireEvent.click(screen.getByRole('combobox'));
+    await userEvent.click(await screen.findByRole('option', { name: 'new' }));
+    await waitFor(() =>
+      expect(editorBlueprintSignal.value).toEqual(importLayout(BLANK_BLUEPRINT.layout)),
+    );
+
+    fireEvent.click(screen.getByRole('combobox'));
+    await userEvent.click(await screen.findByRole('option', { name: 'Test Room' }));
+
+    await waitFor(() => expect(editorBlueprintSignal.value).toEqual(importLayout(['G'])));
+  });
+
+  it('loadingABlueprintWithUnsavedEdits-asksBeforeDiscardingThem', async () => {
+    renderEditorInBlueprintMode();
+    paintBlueprintCell(2, 1);
+    // Wait for the debounced sync FIRST. Without it the signal would still
+    // hold the pre-paint blank canvas, and the "was not replaced" assertion
+    // below would pass for the wrong reason (or fail, depending on timing) —
+    // the blank canvas is exactly what loading would have written.
+    await waitFor(() => expect(editorBlueprintSignal.value[1][2]).toBe('G'));
+
+    fireEvent.click(screen.getByRole('combobox'));
+    await userEvent.click(await screen.findByRole('option', { name: 'new' }));
+
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    // `loadBlueprint` writes the signal directly (not only local state), so
+    // the painted cell still being there proves nothing was loaded yet.
+    expect(editorBlueprintSignal.value[1][2]).toBe('G');
   });
 });
