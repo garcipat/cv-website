@@ -155,6 +155,42 @@ export const STATIC_OBJECTS_SHEET: SpriteSheet = {
   columns: 18,
 };
 
+/** The combined sky/clouds/village parallax background sheet — sky, clouds/hills,
+ *  and village/treeline stacked vertically in that order, cropped and chroma-keyed
+ *  from `backgrounds.png`'s day/green scene (see
+ *  `specs/O-009-platformer-background-layers/design.md`).
+ *  `BackgroundLayers.ts` addresses it through its own sx/sy sub-rects, not by frame
+ *  index — like `TERRAIN_BACKGROUND_SHEET`, this registration exists for loading, not
+ *  addressing. */
+export const BACKGROUND_LAYERS_SHEET: SpriteSheet = {
+  src: '/sprites/background_layers.png',
+  frameWidth: 160,
+  frameHeight: 141,
+  columns: 1,
+};
+
+/** A small (7x20) tileable grass-texture swatch, separate from
+ *  `BACKGROUND_LAYERS_SHEET` since it repeats both horizontally and vertically at a
+ *  different scroll speed (full camera speed) than the village layer above it. */
+export const BACKGROUND_LAYER_GRASS_SHEET: SpriteSheet = {
+  src: '/sprites/background_layer_grass.png',
+  frameWidth: 7,
+  frameHeight: 20,
+  columns: 1,
+};
+
+/** Two 30px-tall wave-line animation frames stacked vertically (frame 0 on
+ *  top, frame 1 below), cropped and chroma-keyed from `backgrounds.png`.
+ *  Overlaid on the village layer by `BackgroundLayers.ts`, alternating over
+ *  time — not addressed by frame index here either, same loading-only
+ *  registration convention as the other background-layer sheets. */
+export const BACKGROUND_LAYER_RIVER_SHEET: SpriteSheet = {
+  src: '/sprites/background_layer_river.png',
+  frameWidth: 160,
+  frameHeight: 30,
+  columns: 1,
+};
+
 /** `decorations.png` is a 64x32 sheet of 16px tiles: cave-dressing pieces
  *  (cobwebs, crystals, stalactites/stalagmites) for the foreground decoration
  *  tiles. `StaticObjectsCatalog.ts` addresses it through its own sx/sy

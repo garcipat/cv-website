@@ -65,18 +65,24 @@ Where the shaft's top does have something solid or climbable above it, the plain
 
 ### User Story 4 - Follow the Character Vertically with the Camera (Priority: P2)
 
-Because a ladder shaft can be taller than the browser viewport, the camera follows the character vertically as well as horizontally, using the same dead-zone-follow-and-clamp behavior on both axes: the camera only moves once the character leaves a band centered on the viewport, and then only far enough to put it back at the band's edge. On a level whose full height already fits the viewport this is a no-op — the level stays bottom-anchored and the camera's vertical position never changes. Only once a level is taller than the viewport does vertical scrolling actually occur, clamped so it never scrolls below the level's bottom and only slightly past its top, so reaching the top of a tall level eases out instead of reading as an abrupt stop.
+Because a ladder shaft can be taller than the play area, the camera follows the character vertically as well as horizontally. Where the horizontal axis centres the character, the vertical axis deliberately does not: the character is framed low, a few rows up from the bottom of the play area, so most of the view shows what lies ahead and above rather than the ground already crossed.
+
+The vertical dead zone is asymmetric around that target. Above it there is a generous margin — the character can rise well up the view before the camera reacts, so a jump or a short climb does not jerk the view. Below it there is none at all: the moment the character falls past the target row the camera follows immediately, because ground rushing up is what a player needs to see. Within the band the camera holds still.
+
+The camera is not constrained by the level's own edges. If framing the character at the target row means showing empty space above the level's top or below its bottom, it does exactly that and the backdrop fills the gap — a short level is framed by the same rule as a tall one, not pinned to its floor. On spawn and on respawn the camera snaps straight to the framing rather than easing into it, so the character is correctly placed on the very first frame.
 
 **Why this priority**: Vertical follow is what makes tall level layouts playable at all, but it is only meaningful once such a layout exists.
 
-**Independent Test**: Build a level taller than the viewport and climb its ladder — the view scrolls up to keep the character visible and stops at the level's top. Play a level shorter than the viewport — the view never scrolls vertically.
+**Independent Test**: Climb a tall ladder — the view follows and the character settles low in frame. Walk off a ledge — the view follows downward at once, with no lag. Jump on the spot — the view does not move. Respawn — the character is framed at the target row on the first frame drawn.
 
 **Acceptance Scenarios**:
 
-1. **Given** a level taller than the viewport, **When** the character climbs or falls toward the edge of the visible area, **Then** the camera scrolls vertically to keep it in view.
-2. **Given** the camera is following vertically, **When** the character moves within the centered vertical dead-zone band, **Then** the camera does not move.
-3. **Given** a level whose total height is at most the viewport height, **When** the character moves anywhere in it, **Then** the camera's vertical position never changes and the level stays bottom-anchored.
-4. **Given** the character reaches the top or the bottom of a tall level, **When** the camera clamps, **Then** it never scrolls past the level's bottom edge, and past its top edge only by a small margin.
+1. **Given** the character is at rest, **When** the view settles, **Then** the character is framed a fixed few rows above the bottom of the play area, not centred.
+2. **Given** the character moves within the vertical dead zone, **When** it rises no higher than the band's generous top margin, **Then** the camera does not move.
+3. **Given** the character descends past the target row, **When** it falls or climbs down, **Then** the camera follows immediately, with no slack below the target.
+4. **Given** the character climbs above the dead zone's top margin, **When** it keeps ascending, **Then** the camera scrolls up only far enough to return it to that margin.
+5. **Given** framing the character requires it, **When** the camera reaches the level's top or bottom edge, **Then** it keeps going past that edge and the backdrop fills the empty space rather than the camera stopping.
+6. **Given** the character spawns or respawns, **When** the first frame is drawn, **Then** the camera is already at the correct framing rather than easing toward it.
 
 ---
 
@@ -119,9 +125,9 @@ A chain is a second climbable skin. It behaves identically to a ladder in every 
 - **FR-009**: Where a shaft's topmost tile has solid or climbable terrain above it, climbing MUST continue until the character's feet leave the climbable tiles, after which it falls.
 - **FR-010**: Pressing Down while standing on a standable shaft top MUST re-enter the climb moving downward.
 - **FR-011**: The character MUST render in a dedicated climbing pose whenever it is climbing, taking precedence over the idle, walking and jumping poses. That animation MUST advance only while the character is actually moving vertically.
-- **FR-012**: The camera MUST follow the character vertically using the same dead-zone-follow-and-clamp behavior it uses horizontally.
-- **FR-013**: Vertical camera movement MUST be exactly zero on a level whose total height is at most the viewport height — such a level stays bottom-anchored.
-- **FR-014**: Vertical camera movement MUST be clamped so it never scrolls below a level's bottom edge, and only slightly past its top edge so the limit eases out rather than stopping abruptly.
+- **FR-012**: The camera MUST follow the character vertically using a dead zone, holding still while the character stays inside the band and otherwise moving only far enough to return it to the band's edge.
+- **FR-013**: Vertical camera movement MUST keep the character framed at a fixed target height near the bottom of the viewport, with generous slack above it and none below, so that climbing reveals what is overhead while descending tracks the character immediately.
+- **FR-014**: Vertical camera movement MUST NOT be constrained by the level's own bounds. Where framing the character at the target height requires it, the camera scrolls the level's top edge below the top of the view, or its bottom edge above the bottom of the view, and the backdrop fills the space that opens up. A level shorter than the viewport is framed by the same rule as any other, not pinned to its bottom. See [O-009](../O-009-platformer-background-layers/spec.md) for the backdrop that fills it.
 - **FR-015**: The chain MUST be a second climbable skin whose behavior is identical to the ladder's in every respect listed above, differing only in appearance. Any rule stated for a ladder applies unchanged to a chain, including within a shaft that mixes both.
 
 ### Key Entities

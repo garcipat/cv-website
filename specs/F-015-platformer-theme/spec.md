@@ -5,7 +5,7 @@
 **Status**: Implemented
 **Input**: "2D platformer theme — the visitor plays a side-scrolling game where collecting things reveals CV information."
 
-The browser viewport becomes a playable 2D level. The visitor runs and jumps a pixel-art
+The browser window becomes a playable 2D level. The visitor runs and jumps a pixel-art
 character through hand-authored terrain, collects coins that reveal CV facts, and reads
 everything found so far in a handwritten journal that pauses the game while open.
 
@@ -22,7 +22,7 @@ knowledge and live under `docs/themes/platformer/` — see
 
 ### User Story 1 - Run and Jump Through the Level (Priority: P1)
 
-A visitor switches to the Platformer theme. A side-scrolling game view fills the viewport:
+A visitor switches to the Platformer theme. A side-scrolling game view fills the width of the window, as a band of fixed height centered against a plain surround:
 a pixel-art character stands on grassy terrain against a sky background. Arrow keys move
 the character left and right; Space jumps. The character animates — idle when still, walk
 when moving, jump while airborne — and its sprite faces the direction of travel. Terrain is
@@ -42,7 +42,7 @@ character drops through.
 **Acceptance Scenarios**:
 
 1. **Given** the Platformer theme is active, **When** the page loads, **Then** a
-   full-viewport side-scrolling game view renders with the character standing on terrain.
+   side-scrolling game view renders, centered in the window, with the character standing on terrain.
 2. **Given** the character is idle, **When** the visitor holds Right, **Then** the character
    moves right at a constant speed with the walk animation, facing right.
 3. **Given** the character is moving left, **When** the visitor presses Right instead,
@@ -208,7 +208,7 @@ the site falls back to the IDE theme.
 
 #### Rendering and the Game Loop
 
-- **FR-005**: The game MUST render into a full-viewport `<canvas>` using pixel-art sprites
+- **FR-005**: The game MUST render into a `<canvas>` spanning the window's width using pixel-art sprites
   drawn with nearest-neighbor scaling, so art stays crisp rather than blurring at scale.
 - **FR-006**: The game loop MUST run off the browser's paint cycle, advancing the world by
   the elapsed time of each frame with that step clamped to a maximum, so a stalled or
@@ -249,53 +249,65 @@ the site falls back to the IDE theme.
   enough to pin the character back to that band's edge. It MUST be clamped so it never
   scrolls past the level's start or end.
 
+- **FR-015**: The play area MUST be a band of fixed height — a set number of tile rows —
+  centered in the window against a plain surround, rather than filling the whole window.
+  On a window shorter than that band, the play area shrinks to the window instead of
+  overflowing it. A taller window does not show more of the level; it shows more surround.
+  The level editor sizes its own canvas independently and is unaffected.
+
+- **FR-016**: The level MUST be anchored to the bottom of the play area, so a level shorter
+  than the play area rests on its floor rather than floating. Vertical camera follow is
+  [S-008](../S-008-platformer-ladders/spec.md)'s; the backdrop filling any space the camera
+  opens up beyond the level's own edges is
+  [O-009](../O-009-platformer-background-layers/spec.md)'s.
+
 #### Level
 
-- **FR-015**: A level MUST be authored as a grid of ASCII rows, one character per cell, read
+- **FR-017**: A level MUST be authored as a grid of ASCII rows, one character per cell, read
   bottom-anchored so the last row is the level's floor. Rows shorter than the widest are
   padded with empty space. The character table itself — which glyph places which tile or
   entity — is code knowledge and lives in
   [LevelFormat.md](../../docs/themes/platformer/LevelFormat.md).
-- **FR-016**: Every collectible and entity MUST be placed by an explicit hand-authored
+- **FR-018**: Every collectible and entity MUST be placed by an explicit hand-authored
   marker in the level grid. There is no auto-placement fallback: a level's marker count, not
   the CV's length, decides how much of the CV that level covers.
 
 #### Collectibles and CV Facts
 
-- **FR-017**: Coins MUST map to the CV's Skills section, one coin per whole skill category —
+- **FR-019**: Coins MUST map to the CV's Skills section, one coin per whole skill category —
   collecting a coin adds the category and every skill inside it, with their ratings, in one
   step.
-- **FR-018**: Every fact reveal MUST play one shared animation: the fact's text floats up
+- **FR-020**: Every fact reveal MUST play one shared animation: the fact's text floats up
   from the point it was revealed, hovers briefly near the character, then animates toward
   the journal icon and disappears into it. Every source of facts runs through this same
   behavior so counters and journal state stay consistent regardless of where a fact came
   from.
-- **FR-019**: Collected state MUST be tracked for the session: a collected coin is removed
+- **FR-021**: Collected state MUST be tracked for the session: a collected coin is removed
   from the world and does not return, its fact is added to the journal, and re-revealing an
   already-collected fact MUST NOT create a duplicate entry. No game progress is persisted
   across a page reload.
 
 #### Journal
 
-- **FR-020**: The journal MUST open on `J` or a click of the HUD journal icon, pause the
+- **FR-022**: The journal MUST open on `J` or a click of the HUD journal icon, pause the
   game, and render as a centered bounded card — never a full-screen backdrop — with the
   canvas and HUD still visible around it. Pressing `J` again or clicking close resumes play
   from the exact paused state, discarding input buffered while paused.
-- **FR-021**: The journal MUST render as an open notebook: lined paper with a margin rule,
+- **FR-023**: The journal MUST render as an open notebook: lined paper with a margin rule,
   a handwriting font, and a page beneath for depth.
-- **FR-022**: The journal MUST show one bookmark tab per CV section it displays, colored per
+- **FR-024**: The journal MUST show one bookmark tab per CV section it displays, colored per
   section and labeled with the section's icon rather than text. The active tab extends and
   the others show a peek; clicking a tab jumps to that section's first page. The last
   selected section MUST be remembered across closing and reopening.
-- **FR-023**: Journal content MUST be paginated as one continuous sequence of pages across
+- **FR-025**: Journal content MUST be paginated as one continuous sequence of pages across
   the whole book rather than per section. Sections insert their own pages into that
   sequence, a section with nothing collected still contributing one placeholder page. Page
   controls walk the sequence and wrap around at both ends, and paging across a section
   boundary updates the active bookmark to match.
-- **FR-024**: Each section MUST show a counter of facts collected out of that section's
+- **FR-026**: Each section MUST show a counter of facts collected out of that section's
   total, so the visitor can tell whether anything is still undiscovered. Personality is the
   exception — it is a single always-visible fact and carries no counter.
-- **FR-025**: The journal MUST offer a Reset Game control rendered as a pixel-art icon.
+- **FR-027**: The journal MUST offer a Reset Game control rendered as a pixel-art icon.
   Activating it clears every collected fact, closes the journal immediately, resets the
   world to its initial state, and restarts the character at the spawn point.
 
