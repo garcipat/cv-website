@@ -13,6 +13,7 @@ import {
   findPotionPotTiles,
   findChestTiles,
   findSignTiles,
+  findHazardTiles,
 } from './LevelParser';
 
 // Visual layout of currentLevel — one character per tile (see LevelParser.ts's
@@ -126,6 +127,10 @@ import {
 //          that heals half a heart; no fact. Not yet placed anywhere in this
 //          level — the mechanism exists (see entities/blocks/PotionPot.ts)
 //          but no level-design placement decision has been made for it yet.
+//   ^  1   spike (floor) — damages the player on touch, no stomp-defeat
+//   v  1   spike (ceiling)
+//   <  1   spike (right wall)
+//   >  1   spike (left wall)
 //
 // A question-mark's fruit rests in the tile directly above the block and stays
 // there, so a `Q` is only ever placed under open sky — one inside a cave would
@@ -154,9 +159,9 @@ export const LEVEL_1_LAYOUT: readonly string[] = [
   '........................................M........................................................o...........m........................................................................M..o.GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   '........................XQ........GGGGGGGGGGGGGGG.......................................Q......GGGGGGG.....GGGGGGG....XQFQ.........................................................RRRRRRRRGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   '..................................GGGGGGGGGGGGGGG..................................................................................................................................GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
-  '..S.5..o...o.........M.......M..2.GGGGGGGGGGGGGGGuu.u.....M......1.....................................M.o..........M.....M.......M........................M.................#.M..#GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  '..S.5..o...o.........M.......M..2.GGGGGGGGGGGGGGGuu.u.....M......1.........^...........................M.o..........M.....M.......M........................M.................#.M..#GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGGBBBGGGGGGGGGGGGGGHGGGGGGGGGGGGGGGGGGGGGGHGGGGGGHGGBBBGGGGGGGGGGGGGGGGGFFGGGGGGGGGG...GGGGGGGGGBBBGGGGGGGGGGGGGGGRRHRRRRRRRRRRRRGGGGGGGGGGGGGGGGGGGGGGGGGHGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
-  'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.H......................H.GGGG.H..........X................GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..H...............X...X.................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.H......................H<GGGG>H..........X................GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..H.......v.......X...X.................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.H......................H.GGGG.H.....................3.....GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..H.....................................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.H..o...4.T.............H.GGGG.H.....o..m....o....o.RRRRR..GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..H..o.m..T.............................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGG...GGGGGGGGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRRRGGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGGRRRRRRRRRRRRRRHRRRRRRRRRRRFFRRRRRRRRRRRRHRRRRGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
@@ -176,29 +181,6 @@ export const LEVEL_1_LAYOUT: readonly string[] = [
  * small costs nothing.
  */
 export const SCRATCH_LAYOUT: readonly string[] = ['.S.', 'GGG'];
-
-/**
- * Dev-only scene exercising every `chain` (`I`) attachment/run-length
- * combination, loadable via `?level=chain-test` (see `PlatformerPage.tsx`) —
- * a faster, more faithful way to eyeball the run-composited chain rendering
- * (Renderer.ts) than a static mockup image. Left to right: a 1-tile ceiling
- * chain (col 2), a 4-tile ceiling chain (col 6), a 4-tile left-wall-hugging
- * chain (cols 10-11), a 4-tile right-wall-hugging chain (cols 14-15), and an
- * isolated 1-tile floating chain (col 18, row 3 — nothing solid anywhere
- * near it). Not part of the shipped level; never referenced by
- * `LEVEL_1_LAYOUT` or the Level Editor's own saved levels.
- */
-export const CHAIN_TEST_LAYOUT: readonly string[] = [
-  '..W...W...............',
-  '..I...I...WI..IW......',
-  '......I...WI..IW......',
-  '......I...WI..IW..I...',
-  '......I...WI..IW......',
-  '......................',
-  '......................',
-  'S.....................',
-  'GGGGGGGGGGGGGGGGGGGGGG',
-];
 
 /**
  * The layout the GAME actually renders/simulates against — starts out equal
@@ -285,3 +267,8 @@ export const CHEST_TILES = computed(() => findChestTiles(currentLayout.value));
  *  hint, each standing where its mechanic is first needed — see this file's
  *  top doc comment. */
 export const SIGN_TILES = computed(() => findSignTiles(currentLayout.value));
+
+/** Hand-placed spike-hazard positions, from `currentLayout`'s `^`/`v`/`<`/`>`
+ *  markers (LevelParser.ts's HAZARD_CHARS) — purely positional/cosmetic-
+ *  facing, no CVData binding, same convention as SIGN_TILES. */
+export const HAZARD_TILES = computed(() => findHazardTiles(currentLayout.value));

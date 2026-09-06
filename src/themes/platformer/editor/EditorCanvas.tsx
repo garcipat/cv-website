@@ -12,6 +12,7 @@ import {
   synthesizeBlockStates,
   synthesizeChestStates,
   synthesizeSignPlacements,
+  synthesizeHazardPlacements,
 } from './gridRenderState';
 import { RENDERED_TILE_SIZE, tileToPixel } from '../level/Terrain';
 import { PATROL_GLYPH } from './paletteTiles';
@@ -23,6 +24,7 @@ import {
   drawBlocks,
   drawChests,
   drawSigns,
+  drawHazards,
   drawBackgroundTiles,
 } from '../engine/Renderer';
 import { placeBackgroundPiece, eraseBackgroundCell } from './paintBackgroundCell';
@@ -347,6 +349,8 @@ export const EditorCanvas = ({
       };
 
       drawCollectibles(ctx, synthesizeCollectiblePlacements(grid), new Set(), drawContext);
+
+      drawHazards(ctx, synthesizeHazardPlacements(grid), drawContext);
 
       drawEnemies(ctx, synthesizeEnemyStates(grid), drawContext);
 

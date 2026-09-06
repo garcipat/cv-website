@@ -26,6 +26,7 @@ import {
   drawSignBubble,
   drawKeyPickups,
   drawHeartPickups,
+  drawHazards,
   drawKeyCounter,
   keyCounterX,
   KEY_COUNTER_Y,
@@ -53,7 +54,8 @@ import {
   dismissEndingScreen,
 } from './engine/GameLifecycle';
 import { maxIrisRadius } from './engine/IrisTransition';
-import { currentLevel, currentLayout, CHAIN_TEST_LAYOUT } from './level/level';
+import { currentLevel, currentLayout, currentBackground } from './level/level';
+import { findLevel } from './level/levelRegistry';
 import {
   checkCollectibleCollisions,
   resolveEnemyContacts,
@@ -62,6 +64,7 @@ import {
   checkSignOverlap,
   checkKeyPickupCollisions,
   checkHeartPickupCollisions,
+  checkHazardCollisions,
 } from './engine/Collision';
 import { openChest, allChestsOpen, isChestOpen, CHEST_CLOSED_OFFSET_X } from './entities/Chest';
 import { stepBlockAnimation } from './engine/BlockAI';
@@ -121,6 +124,7 @@ import {
 import { frameSource, collectSheetSources } from './entities/sprites/SpriteSheet';
 import type { SpriteLookup } from './entities/sprites/SpriteSheet';
 import { ENEMY_TYPES, typeOf } from './entities/enemies';
+import { HAZARD_TYPES } from './entities/hazards';
 import { PICKUP_TYPES } from './entities/pickups';
 import { BLOCK_TYPES } from './entities/blocks';
 import { CHEST_TYPE } from './entities/chests';
@@ -151,6 +155,7 @@ import {
   endingScreenShown,
   endingScreenOpen,
   signPlacements,
+  hazardPlacements,
   hintTooltipState,
   keyPickupStates,
   collectedKeys,
@@ -204,17 +209,24 @@ export const PlatformerPage = () => {
   // the dismiss keypress itself — see that handler's doc comment.
   const inputRef = useRef<KeyboardInput | null>(null);
   const journalButtonRef = useRef<HTMLButtonElement>(null);
+  // `?debug`/`?level` are dev-only conveniences and only take effect when
+  // this page is reached via the dedicated `/platformer` route — not e.g.
+  // `/` with the Platformer theme merely selected — so a stray `?debug=1` or
+  // `?level=...` left on a shared homepage link never flips on dev tooling
+  // for a regular visitor.
+  const onPlatformerRoute = window.location.pathname === '/platformer';
   const debugParams = new URLSearchParams(window.location.search);
   // Any `debug` param (not just `hitboxes`) shows the debug panel (Kill/
   // Respawn/Hitboxes toggle below) — a dev convenience for exercising the
   // death/respawn iris transition and collision geometry without navigating
   // pits repeatedly, not a feature end users should see.
-  const debugControls = debugParams.has('debug');
-  // `?level=chain-test` swaps in CHAIN_TEST_LAYOUT (level.ts) — a dev-only
-  // scene exercising every chain attachment/run-length combination, for
-  // eyeballing the run-composited chain rendering live instead of via a
-  // static mockup. Not a feature end users should see or rely on.
-  const testLevelParam = debugParams.get('level');
+  const debugControls = onPlatformerRoute && debugParams.has('debug');
+  // `?level=<id>` loads any level the Level Editor's own dropdown offers —
+  // i.e. anything in `levelRegistry.ts`'s `LEVELS` (built-ins plus saved
+  // `levels/*.json` files). An id that isn't a real, selectable level (typo,
+  // stale link, renamed/deleted file) is silently skipped and the game keeps
+  // its shipped default — not a feature end users should see or rely on.
+  const testLevelParam = onPlatformerRoute ? debugParams.get('level') : null;
   // `?debug=hitboxes` still seeds the initial toggle state (so the existing
   // "open at ?debug=hitboxes" manual-testing habit keeps working), but it's
   // now a runtime toggle via the panel button rather than fixed for the
@@ -222,7 +234,7 @@ export const PlatformerPage = () => {
   // once in the mount effect below) reads the latest value without needing
   // to restart the effect on every toggle.
   const [debugHitboxesOn, setDebugHitboxesOn] = useState(
-    () => debugParams.get('debug') === 'hitboxes',
+    () => onPlatformerRoute && debugParams.get('debug') === 'hitboxes',
   );
   const debugHitboxesRef = useRef(debugHitboxesOn);
 
@@ -266,8 +278,10 @@ export const PlatformerPage = () => {
    * Reset Game, but a genuinely new one for a theme switch).
    */
   useEffect(() => {
-    if (testLevelParam === 'chain-test') {
-      currentLayout.value = CHAIN_TEST_LAYOUT;
+    const testLevel = testLevelParam ? findLevel(testLevelParam) : undefined;
+    if (testLevel) {
+      currentLayout.value = testLevel.layout;
+      currentBackground.value = testLevel.background ? [...testLevel.background] : [];
     }
     resetGameProgress();
     controlsOverlayDismissed.value = false;
@@ -481,6 +495,8 @@ export const PlatformerPage = () => {
 
       drawBlocks(ctx, blockStates.value, drawContext);
 
+      drawHazards(ctx, hazardPlacements.value, drawContext);
+
       drawChests(ctx, chestStates.value, drawContext);
 
       if (playerSpriteRef.current) {
@@ -585,7 +601,15 @@ export const PlatformerPage = () => {
       );
 
       if (debugHitboxesRef.current)
-        drawDebugOverlay(ctx, playerState.value, currentLevel.value, originX, originY, enemyStates.value);
+        drawDebugOverlay(
+          ctx,
+          playerState.value,
+          currentLevel.value,
+          originX,
+          originY,
+          enemyStates.value,
+          hazardPlacements.value,
+        );
 
       if (heartsSpriteRef.current) {
         drawHearts(ctx, playerState.value.hitPoints, heartsSpriteRef.current, HEARTS_START_X);
@@ -1202,6 +1226,30 @@ export const PlatformerPage = () => {
             bounceAscending: true,
           };
         }
+      }
+
+      // Spike hazards: an entirely separate, independent damage source from
+      // enemy contacts above. Sequencing after the enemy block (rather than
+      // merging the two) is deliberate and safe: applyKnockback resets
+      // hitTimer to 0, and isInvulnerable(player, PLAYER_HIT_REACTION_SECONDS)
+      // treats hitTimer 0 as WITHIN the refractory window (0 < 1.2) — so if
+      // an enemy contact already damaged the player this very tick, this
+      // block's own isInvulnerable check reads that just-updated state and
+      // correctly skips, giving "at most one hit per tick" for free with no
+      // shared aggregation code.
+      const touchedHazards = checkHazardCollisions(playerState.value, hazardPlacements.value);
+      if (touchedHazards.length > 0 && !isInvulnerable(playerState.value, PLAYER_HIT_REACTION_SECONDS)) {
+        const hazard = touchedHazards[0];
+        const damage = HAZARD_TYPES[hazard.hazardType].damage;
+        const hitPoints = takeDamage(playerState.value.hitPoints, damage);
+        playerState.value = { ...playerState.value, hitPoints, alive: hitPoints > 0 };
+        // No knockback — a spike hurts but doesn't shove the player, same
+        // convention as a pit fall's beginHitReaction (this only starts the
+        // refractory window). Unlike a side/below enemy touch, there's no
+        // "direction to push away from" that reads naturally here: the
+        // player is standing on/beside the spike's own tile, not colliding
+        // with a separate solid body.
+        playerState.value = beginHitReaction(playerState.value);
       }
 
       // A/D accepted as an alternate to Arrow Left/Right (FR-007 only

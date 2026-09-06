@@ -43,6 +43,8 @@ import { heart } from '../entities/pickups/Heart';
 import { bonusFruit } from '../entities/pickups/BonusFruit';
 import { typeOf } from '../entities/enemies';
 import type { EnemyState } from '../entities/Enemy';
+import { typeOf as hazardTypeOf } from '../entities/hazards';
+import type { HazardPlacement } from '../level/HazardMapper';
 import type { DrawContext } from './DrawContext';
 import type { KeyPickupState } from '../entities/KeyPickup';
 import type { HeartPickupState } from '../entities/HeartPickup';
@@ -920,6 +922,19 @@ export function drawHeartPickups(
   ctx.imageSmoothingEnabled = false;
   for (const pickup of pickups) {
     heart.draw(pickup, dc);
+  }
+}
+
+/** Draws every spike hazard. Knows nothing about any specific hazard kind —
+ *  each one renders itself (see entities/hazards/). */
+export function drawHazards(
+  ctx: CanvasRenderingContext2D,
+  hazards: readonly HazardPlacement[],
+  dc: DrawContext,
+): void {
+  ctx.imageSmoothingEnabled = false;
+  for (const hazard of hazards) {
+    hazardTypeOf(hazard).draw(hazard, dc);
   }
 }
 

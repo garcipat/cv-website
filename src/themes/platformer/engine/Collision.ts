@@ -16,6 +16,8 @@ import type { ChestState } from '../entities/Chest';
 import { CHEST_TYPE } from '../entities/chests';
 import { signBox } from '../level/SignMapper';
 import type { SignPlacement } from '../level/SignMapper';
+import { typeOf as hazardTypeOf } from '../entities/hazards';
+import type { HazardPlacement } from '../level/HazardMapper';
 import type { HintId } from '../types';
 import type { KeyPickupState } from '../entities/KeyPickup';
 import type { HeartPickupState } from '../entities/HeartPickup';
@@ -255,6 +257,23 @@ export function checkSignOverlap(
   signs: readonly SignPlacement[],
 ): HintId | undefined {
   return overlappingTriggers(player, signs, signBox)[0]?.hintId;
+}
+
+/**
+ * Returns every hazard placement the player's hitbox currently overlaps.
+ * Unlike checkSignOverlap (which returns only the first hint), every
+ * touched hazard is returned — the caller (PlatformerPage.tsx) only ever
+ * acts on the first one this tick (at most one hit registers per tick,
+ * gated by the same invulnerability window every other damage source
+ * uses), but needs the full placement (not just an id) to look up its
+ * hazardType's own damage amount. Not destructive/dedup-tracked — a hazard
+ * is reusable, like a sign, not consumed like a coin.
+ */
+export function checkHazardCollisions(
+  player: PlayerState,
+  hazards: readonly HazardPlacement[],
+): HazardPlacement[] {
+  return overlappingTriggers(player, hazards, (h) => hazardTypeOf(h).box(h));
 }
 
 /**

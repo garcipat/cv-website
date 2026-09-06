@@ -42,6 +42,7 @@ import {
   activePuffs,
   activeCounterPopups,
   levelTotals,
+  hazardPlacements,
 } from './PlatformerState';
 import { toBlockState } from './entities/Block';
 import type { BlockState } from './entities/Block';
@@ -62,7 +63,7 @@ import { PLAYER_HIT_REACTION_SECONDS } from './entities/Player';
 import { SPIKE_COOLDOWN_DURATION_SECONDS } from './entities/enemies/SlimePurple';
 import { PHYSICS_CONFIG } from './engine/PhysicsConfig';
 import { tileToPixel, RENDERED_TILE_SIZE, isClimbable, tileAt } from './level/Terrain';
-import { currentLevel } from './level/level';
+import { currentLevel, currentLayout, currentBackground, SCRATCH_LAYOUT } from './level/level';
 import type { LevelDef, TileType } from './level/LevelData';
 import {
   JOURNAL_OPEN_FRAME_COUNT,
@@ -105,6 +106,12 @@ const initialPlayerState = playerState.value;
 const initialLifecycleState = lifecycleState.value;
 const initialCollectedFacts = collectedFacts.value;
 const originalLocation = window.location;
+// Module-level signals (see level/level.ts) — a hazard test or a `?level=`
+// test that swaps in a synthetic layout/different registry level must not
+// leak that layout/background into later tests, which all assume the real
+// default level.
+const initialLayout = currentLayout.value;
+const initialBackground = currentBackground.value;
 
 /** The first tile of `type` in reading order that also satisfies `also`, so
  *  level-driven tests name the terrain they need instead of pinning the
@@ -179,6 +186,8 @@ describe('PlatformerPage', () => {
     vi.stubGlobal('requestAnimationFrame', () => 1);
     vi.stubGlobal('cancelAnimationFrame', () => {});
     playerState.value = initialPlayerState;
+    currentLayout.value = initialLayout;
+    currentBackground.value = initialBackground;
     cameraPositionX.value = 0;
     cameraPositionY.value = 0;
     lifecycleState.value = initialLifecycleState;
@@ -364,7 +373,7 @@ describe('PlatformerPage', () => {
 
   it('debugHitboxesQueryParam-present-drawsDebugOverlayHitboxes', async () => {
     Object.defineProperty(window, 'location', {
-      value: new URL('http://localhost/?debug=hitboxes'),
+      value: new URL('http://localhost/platformer?debug=hitboxes'),
       writable: true,
       configurable: true,
     });
@@ -387,6 +396,63 @@ describe('PlatformerPage', () => {
     await waitFor(() => expect(ctx.drawImage).toHaveBeenCalled());
 
     expect(ctx.strokeRect).not.toHaveBeenCalled();
+  });
+
+  it('debugHitboxesQueryParam-presentButNotOnPlatformerRoute-doesNotDrawDebugOverlay', async () => {
+    // `/`, not `/platformer` — same query string as the "present" test above,
+    // but the route gate must still suppress it.
+    Object.defineProperty(window, 'location', {
+      value: new URL('http://localhost/?debug=hitboxes'),
+      writable: true,
+      configurable: true,
+    });
+    vi.stubGlobal('Image', MockTilesetImage);
+
+    render(<PlatformerPage />);
+    const ctx = platformerPage.context;
+
+    await waitFor(() => expect(ctx.drawImage).toHaveBeenCalled());
+
+    expect(ctx.strokeRect).not.toHaveBeenCalled();
+  });
+
+  it('levelQueryParam-validRegistryId-loadsThatLevelsLayout', () => {
+    Object.defineProperty(window, 'location', {
+      value: new URL('http://localhost/platformer?level=empty'),
+      writable: true,
+      configurable: true,
+    });
+    vi.stubGlobal('Image', MockTilesetImage);
+
+    render(<PlatformerPage />);
+
+    expect(currentLayout.value).toEqual(SCRATCH_LAYOUT);
+  });
+
+  it('levelQueryParam-unknownId-leavesLayoutAtItsShippedDefault', () => {
+    Object.defineProperty(window, 'location', {
+      value: new URL('http://localhost/platformer?level=does-not-exist'),
+      writable: true,
+      configurable: true,
+    });
+    vi.stubGlobal('Image', MockTilesetImage);
+
+    render(<PlatformerPage />);
+
+    expect(currentLayout.value).toEqual(initialLayout);
+  });
+
+  it('levelQueryParam-presentButNotOnPlatformerRoute-isIgnored', () => {
+    Object.defineProperty(window, 'location', {
+      value: new URL('http://localhost/?level=empty'),
+      writable: true,
+      configurable: true,
+    });
+    vi.stubGlobal('Image', MockTilesetImage);
+
+    render(<PlatformerPage />);
+
+    expect(currentLayout.value).toEqual(initialLayout);
   });
 
   it('mount-onRender-startsTheGameLoop', () => {
@@ -2657,7 +2723,7 @@ describe('PlatformerPage', () => {
 
   it('debugQueryParamPresent-render-showsKillAndRespawnButtons', () => {
     Object.defineProperty(window, 'location', {
-      value: new URL('http://localhost/?debug=hitboxes'),
+      value: new URL('http://localhost/platformer?debug=hitboxes'),
       writable: true,
       configurable: true,
     });
@@ -2670,7 +2736,7 @@ describe('PlatformerPage', () => {
 
   it('killButtonClicked-whilePlaying-setsHealthZeroAndEntersDyingPhase', () => {
     Object.defineProperty(window, 'location', {
-      value: new URL('http://localhost/?debug=hitboxes'),
+      value: new URL('http://localhost/platformer?debug=hitboxes'),
       writable: true,
       configurable: true,
     });
@@ -2695,7 +2761,7 @@ describe('PlatformerPage', () => {
 
   it('respawnButtonClicked-anyPhase-resetsHealthPositionAndEntersIntroAtSpawn', () => {
     Object.defineProperty(window, 'location', {
-      value: new URL('http://localhost/?debug=hitboxes'),
+      value: new URL('http://localhost/platformer?debug=hitboxes'),
       writable: true,
       configurable: true,
     });
@@ -2723,7 +2789,7 @@ describe('PlatformerPage', () => {
 
   it('debugQueryParamPresent-render-showsHitboxesToggleButton', () => {
     Object.defineProperty(window, 'location', {
-      value: new URL('http://localhost/?debug=hitboxes'),
+      value: new URL('http://localhost/platformer?debug=hitboxes'),
       writable: true,
       configurable: true,
     });
@@ -2735,7 +2801,7 @@ describe('PlatformerPage', () => {
 
   it('hitboxesToggleClicked-startingOnFromQueryParam-turnsOffAndStopsDrawingOverlay', async () => {
     Object.defineProperty(window, 'location', {
-      value: new URL('http://localhost/?debug=hitboxes'),
+      value: new URL('http://localhost/platformer?debug=hitboxes'),
       writable: true,
       configurable: true,
     });
@@ -2760,7 +2826,7 @@ describe('PlatformerPage', () => {
 
   it('hitboxesToggleClicked-startingOffWithOtherDebugParam-turnsOnAndDrawsOverlay', () => {
     Object.defineProperty(window, 'location', {
-      value: new URL('http://localhost/?debug=1'),
+      value: new URL('http://localhost/platformer?debug=1'),
       writable: true,
       configurable: true,
     });
@@ -2953,6 +3019,64 @@ describe('PlatformerPage', () => {
     frameCallback!(32);
 
     expect(playerState.value.hitPoints).toBe(healthAfterFirstHit);
+  });
+
+  it('playerTouchingASpikeHazard-tick-losesOneHalfHeartWithNoKnockback', () => {
+    // A synthetic layout with a real spike marker — the shipped level has no
+    // hazard tiles of its own yet, unlike the enemy-contact tests above,
+    // which can teleport onto a real enemy from the default layout.
+    currentLayout.value = ['S^', 'GG'];
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const hazard = hazardPlacements.value[0];
+    const startingHealth = playerState.value.hitPoints;
+    playerState.value = { ...playerState.value, x: hazard.x, y: hazard.y, vx: 0, vy: 0 };
+
+    frameCallback!(16);
+
+    expect(playerState.value.hitPoints).toBe(startingHealth - SIDE_HIT_DAMAGE);
+    // No knockback — a spike hurts but doesn't push the player around,
+    // unlike a side/below enemy touch.
+    expect(playerState.value.vx).toBe(0);
+    expect(isInvulnerable(playerState.value, PLAYER_HIT_REACTION_SECONDS)).toBe(true);
+  });
+
+  it('playerAlreadyInvulnerable-touchingASpikeHazard-takesNoDamage', () => {
+    currentLayout.value = ['S^', 'GG'];
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const hazard = hazardPlacements.value[0];
+    const startingHealth = playerState.value.hitPoints;
+    // Mid-refractory window (see isInvulnerable/PLAYER_HIT_REACTION_SECONDS)
+    // — a hazard touched during this window must not register a fresh hit.
+    playerState.value = {
+      ...playerState.value,
+      x: hazard.x,
+      y: hazard.y,
+      vx: 0,
+      vy: 0,
+      hitTimer: 0,
+    };
+
+    frameCallback!(16);
+
+    expect(playerState.value.hitPoints).toBe(startingHealth);
   });
 
   it('playerFallsOntoEnemyFromAbove-tick-noSideHitDamageOnlyAStomp', () => {

@@ -252,9 +252,10 @@ export const LevelEditorPage = () => {
    * always a clean slate, not tainted by prior progress. Then switches the
    * active theme to Platformer and navigates client-side (no real reload — a
    * reload would discard `currentLayout` back to the hardcoded default
-   * before the game ever saw it) straight into the game with its debug panel
-   * visible (`?debug=1` — matches PlatformerPage.tsx's `debugControls` gate,
-   * any `debug` param shows it) so Kill/Respawn/Hitboxes are immediately
+   * before the game ever saw it) straight into the game via its dedicated
+   * `/platformer` route, with the debug panel visible (`?debug=1` — matches
+   * PlatformerPage.tsx's `debugControls` gate, any `debug` param shows it,
+   * only recognized on that route) so Kill/Respawn/Hitboxes are immediately
    * available for testing the layout.
    */
   const tryLayout = () => {
@@ -263,7 +264,7 @@ export const LevelEditorPage = () => {
     currentBackground.value = cropped.background;
     resetGameProgress();
     currentTheme.value = 'platformer';
-    navigateTo('/?debug=1');
+    navigateTo('/platformer?debug=1');
   };
 
   return (
