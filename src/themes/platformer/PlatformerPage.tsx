@@ -1741,7 +1741,7 @@ export const PlatformerPage = () => {
   }, []);
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden">
+    <div className="relative flex h-screen w-screen items-center justify-center overflow-hidden bg-black">
       <canvas ref={canvasRef} data-testid="platformer-canvas" className="block" tabIndex={-1} />
       <FloatingControls onOpenChange={handleFloatingControlsOpenChange} />
       <ControlsOverlay />
