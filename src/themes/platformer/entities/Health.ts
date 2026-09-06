@@ -36,6 +36,16 @@ export function takeDamage(current: number, amount: number): number {
   return Math.max(0, Math.min(MAX_HALF_HEARTS, current - amount));
 }
 
+/** Half-heart units restored by collecting a heart pickup (see
+ *  entities/blocks/PotionPot.ts). */
+export const HEART_PICKUP_HEAL_AMOUNT = 1;
+
+/** Adds `amount` half-heart units to `current`, clamped to [0, MAX_HALF_HEARTS] —
+ *  the heal-direction counterpart to `takeDamage`. */
+export function healDamage(current: number, amount: number): number {
+  return Math.max(0, Math.min(MAX_HALF_HEARTS, current + amount));
+}
+
 /**
  * How many half-heart units (0, 1, or 2) the heart at `heartIndex` (0-based,
  * left to right) should show, given the total half-heart count. Heart 0

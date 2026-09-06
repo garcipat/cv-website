@@ -9,6 +9,7 @@ import {
   QUESTIONMARK_TILES,
   FRAGILE_ROCK_TILES,
   COIN_POT_TILES,
+  POTION_POT_TILES,
   CHEST_TILES,
   SIGN_TILES,
   HAZARD_TILES,
@@ -28,6 +29,7 @@ import { toChestState } from './entities/Chest';
 import type { ChestState } from './entities/Chest';
 import type { BonusFruitState } from './entities/BonusFruit';
 import type { KeyPickupState } from './entities/KeyPickup';
+import type { HeartPickupState } from './entities/HeartPickup';
 import { introState } from './engine/GameLifecycle';
 import { currentCV } from '@/state/locale';
 import { mapCVDataToSkillFactPool, placeCollectibles } from './level/CollectibleMapper';
@@ -45,7 +47,13 @@ import type { CollectedFact, SectionId } from './types';
 import type { CollectiblePlacement } from './level/CollectibleMapper';
 import type { EnemyPlacement } from './level/EnemyMapper';
 import type { BlockPlacement } from './level/BlockMapper';
-import type { FlightEffect, PuffEffect, CounterPopupEffect, CounterPopupLabelKey } from './engine/CollectionEffects';
+import type {
+  FlightEffect,
+  PuffEffect,
+  HealAuraEffect,
+  CounterPopupEffect,
+  CounterPopupLabelKey,
+} from './engine/CollectionEffects';
 import type { LevelTotals } from './entities/CollectiblesSummary';
 import type { HintTooltipState } from './engine/HintTooltip';
 
@@ -194,6 +202,7 @@ export const blockPlacements = computed<BlockPlacement[]>(() =>
     questionMark: QUESTIONMARK_TILES.value,
     fragileRock: FRAGILE_ROCK_TILES.value,
     coinPot: COIN_POT_TILES.value,
+    potionPot: POTION_POT_TILES.value,
   }),
 );
 
@@ -407,6 +416,16 @@ export const controlsOverlayDismissed = signal(false);
 export const bonusFruitStates = signal<BonusFruitState[]>([]);
 
 /**
+ * Hearts dropped by destroyed potion-pots this session — starts empty, same
+ * lifecycle as `bonusFruitStates` above: `PlatformerPage.tsx` appends one
+ * each time a potion-pot block is hit, and a touched heart is removed from
+ * this array outright (no `collected` flag — see `HeartPickup.ts`'s doc
+ * comment). Persists across a death/respawn; cleared only by
+ * `resetGameProgress()`.
+ */
+export const heartPickupStates = signal<HeartPickupState[]>([]);
+
+/**
  * Dropped-key pickups (one per purple-slime finishing stomp) — starts empty.
  * Collected entries stay in this array flagged `collected: true` rather than
  * being removed so the renderer's skip-if-collected logic (see
@@ -453,6 +472,13 @@ export const activeEffects = signal<FlightEffect[]>([]);
  *  different shapes (no text/flight-target fields here) and different
  *  render passes (drawPuffEffects vs. drawCollectionEffects). */
 export const activePuffs = signal<PuffEffect[]>([]);
+
+/** Currently animating heal auras, played on the player when a heart pickup
+ *  heals them — see engine/CollectionEffects.ts's HealAuraEffect doc
+ *  comment. Kept as its own array, parallel to activePuffs, for the same
+ *  reason: a different shape (no x/y — the player moves) and its own render
+ *  pass (drawHealAuraEffects). */
+export const activeHealAuraEffects = signal<HealAuraEffect[]>([]);
 
 /**
  * The currently-visible "(icon) collected / total" counter popups, one slot
@@ -530,6 +556,14 @@ export const lifecycleState = signal<LifecycleState>(
  * This is the single reset seam a full "Reset Game" button extends: enemies
  * are reset here; `resetGameProgress()` additionally clears collected facts
  * and respawns coins/blocks (FR-018b).
+ *
+ * potionPot blocks are the one exception to "blocks persist across a
+ * death/respawn": every potionPot placement is rebuilt back to intact here,
+ * and `heartPickupStates` is cleared — a dropped-but-uncollected heart is
+ * tied to its now-restored pot, so leaving it in the world would let a
+ * player collect a heal the pot itself is about to offer again. Every other
+ * block kind (crate/questionMark/fragileRock/coinPot) is left untouched, same
+ * as before.
  */
 export function resetGame(): void {
   playerState.value = spawnPlayerState();
@@ -537,6 +571,11 @@ export function resetGame(): void {
   cameraPositionY.value = 0;
   enemyStates.value = enemyStates.value.map(reviveEnemy);
   hintTooltipState.value = null;
+  blockStates.value = [
+    ...blockStates.value.filter((b) => b.blockKind !== 'potionPot'),
+    ...blockPlacements.value.filter((p) => p.blockKind === 'potionPot').map(toBlockState),
+  ];
+  heartPickupStates.value = [];
 }
 
 /**
@@ -564,6 +603,7 @@ export function resetGameProgress(): void {
   activeJournalSection.value = undefined;
   activeEffects.value = [];
   activePuffs.value = [];
+  activeHealAuraEffects.value = [];
   activeCounterPopups.value = {};
   blockStates.value = blockPlacements.value.map(toBlockState);
   spawnedCoinPlacements.value = [];
@@ -571,6 +611,7 @@ export function resetGameProgress(): void {
   endingScreenShown.value = false;
   endingScreenOpen.value = false;
   bonusFruitStates.value = [];
+  heartPickupStates.value = [];
   keyPickupStates.value = [];
   collectedKeys.value = 0;
   enemyStates.value = enemyPlacements.value.map((placement, index) => toEnemyState(placement, index));

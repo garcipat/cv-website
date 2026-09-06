@@ -313,3 +313,42 @@ describe('placeBlocks — coinPot markers', () => {
     expect(placeBlocks([], { crate: [], questionMark: [], fragileRock: [] })).toEqual([]);
   });
 });
+
+describe('placeBlocks — potionPot markers', () => {
+  // potionPot carries no CVData mapping at all (same convention as
+  // coinPot/fragileRock) — the heart it drops carries a fixed heal amount,
+  // never a CV fact.
+  it('potionPotMarker-producesAPlacementWithNoFact', () => {
+    const placed = placeBlocks([], {
+      crate: [],
+      questionMark: [],
+      fragileRock: [],
+      potionPot: [{ col: 5, row: 2 }],
+    });
+    expect(placed).toHaveLength(1);
+    expect(placed[0].blockKind).toBe('potionPot');
+    expect(placed[0].fact).toBeUndefined();
+  });
+
+  it('multiplePotionPotMarkers-eachGetsAPositionDerivedId', () => {
+    const placed = placeBlocks([], {
+      crate: [],
+      questionMark: [],
+      fragileRock: [],
+      potionPot: [
+        { col: 5, row: 2 },
+        { col: 6, row: 2 },
+      ],
+    });
+    expect(placed).toHaveLength(2);
+    const ids = placed.map((p) => p.id);
+    expect(new Set(ids).size).toBe(2);
+  });
+
+  it('potionPotOmittedFromMarkers-behavesAsEmptyArray', () => {
+    // BlockMarkerPositions.potionPot is optional so every pre-existing call
+    // site (production and test) that doesn't know about potion-pots yet
+    // keeps compiling unchanged.
+    expect(placeBlocks([], { crate: [], questionMark: [], fragileRock: [] })).toEqual([]);
+  });
+});

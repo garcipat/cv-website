@@ -12,6 +12,7 @@ export type EntityKind =
   | 'questionMark'
   | 'fragileRock'
   | 'coinPot'
+  | 'potionPot'
   | 'chest';
 
 /**
@@ -38,7 +39,10 @@ export const TERRAIN_CHARS: Record<string, TileType | undefined> = {
  * Language fact), `Q` (question-mark block — no fact, spawns a bonus fruit),
  * `F` (fragileRock block — no fact, level-design filler), `u` (coin-pot block —
  * destroyed by landing on top, drops a coin; lowercase, a small urn-shaped
- * glyph, unlike every other entity marker which is uppercase), `T` (chest —
+ * glyph, unlike every other entity marker which is uppercase), `p` (potion-pot
+ * block — destroyed by landing on top like a coin-pot, drops a heart pickup
+ * that heals half a heart; no fact, same no-CVData-binding convention as
+ * coin-pot/fragileRock), `T` (chest —
  * Experience fact, opened via Arrow Up while standing on it, spec.md
  * FR-023). Kept as its own
  * map, separate from TERRAIN_CHARS, since an entity marker isn't a terrain
@@ -55,6 +59,7 @@ export const ENTITY_CHARS: Record<string, EntityKind | undefined> = {
   Q: 'questionMark',
   F: 'fragileRock',
   u: 'coinPot',
+  p: 'potionPot',
   T: 'chest',
 };
 
@@ -156,6 +161,7 @@ export type TileChar =
   | 'F'
   | 'T'
   | 'u'
+  | 'p'
   | 'n'
   | 'N'
   | '1'
@@ -276,6 +282,14 @@ export function findFragileRockTiles(layout: readonly string[]): { col: number; 
  *  CollectibleMapper.ts's mapCVDataToSkillFactPool doc comment). */
 export function findCoinPotTiles(layout: readonly string[]): { col: number; row: number }[] {
   return findAllOfKind(layout, 'coinPot');
+}
+
+/** Finds every `p` (potion-pot block) marker's position in a level layout —
+ *  same no-CVData-mapping convention as findCoinPotTiles; the heart a
+ *  destroyed potion-pot drops carries no fact of its own, only a fixed heal
+ *  amount (see Health.ts's HEART_PICKUP_HEAL_AMOUNT). */
+export function findPotionPotTiles(layout: readonly string[]): { col: number; row: number }[] {
+  return findAllOfKind(layout, 'potionPot');
 }
 
 /** Finds every `T` (chest) marker's position in a level layout — same

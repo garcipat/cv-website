@@ -17,8 +17,14 @@ import {
   createSlotAllocator,
   COLLECTION_TEXT_SLOT_COUNT,
   COLLECTION_TEXT_STACK_ROW_HEIGHT,
+  HEAL_AURA_DURATION_SECONDS,
+  startHealAuraEffect,
+  tickHealAuraEffect,
+  healAuraOpacity,
+  healAuraRays,
+  healAuraSparkles,
 } from './CollectionEffects';
-import type { PuffEffect } from './CollectionEffects';
+import type { PuffEffect, HealAuraEffect } from './CollectionEffects';
 
 describe('startFlightEffect', () => {
   it('called-returns-risingPhaseAtZeroElapsed', () => {
@@ -200,6 +206,78 @@ describe('startPuffEffect / tickPuffEffect', () => {
     const effect = startPuffEffect('rock-1', 100, 200, 1.5);
     const ticked = tickPuffEffect(effect, 0.1);
     expect(ticked).toEqual<PuffEffect>({ id: 'rock-1', x: 100, y: 200, scale: 1.5, elapsed: 0.1 });
+  });
+});
+
+describe('startHealAuraEffect / tickHealAuraEffect', () => {
+  it('startHealAuraEffect-startsAtZeroElapsed', () => {
+    const effect = startHealAuraEffect('heart-1');
+    expect(effect).toEqual<HealAuraEffect>({ id: 'heart-1', elapsed: 0 });
+  });
+
+  it('tickHealAuraEffect-advancesElapsedByDt-preservesId', () => {
+    const effect = startHealAuraEffect('heart-1');
+    const ticked = tickHealAuraEffect(effect, 0.1);
+    expect(ticked).toEqual<HealAuraEffect>({ id: 'heart-1', elapsed: 0.1 });
+  });
+});
+
+describe('healAuraOpacity', () => {
+  it('atStart-isFullyOpaque', () => {
+    expect(healAuraOpacity(0)).toBe(1);
+  });
+
+  it('atHalfway-isHalfFaded', () => {
+    expect(healAuraOpacity(HEAL_AURA_DURATION_SECONDS / 2)).toBeCloseTo(0.5);
+  });
+
+  it('pastDuration-isZero', () => {
+    expect(healAuraOpacity(HEAL_AURA_DURATION_SECONDS + 0.01)).toBe(0);
+  });
+
+  it('negativeElapsed-isZero', () => {
+    expect(healAuraOpacity(-0.01)).toBe(0);
+  });
+});
+
+describe('healAuraRays', () => {
+  it('pastDuration-returnsNoRays', () => {
+    expect(healAuraRays(HEAL_AURA_DURATION_SECONDS + 0.01, 32)).toEqual([]);
+  });
+
+  it('withinDuration-returnsRaysSpreadAcrossTheGivenWidth', () => {
+    const rays = healAuraRays(HEAL_AURA_DURATION_SECONDS / 2, 32);
+    expect(rays.length).toBeGreaterThan(0);
+    for (const ray of rays) {
+      expect(Math.abs(ray.dx)).toBeLessThanOrEqual(16);
+      expect(ray.height).toBeGreaterThan(0);
+    }
+  });
+
+  it('laterElapsed-raysAreTaller', () => {
+    const early = healAuraRays(0, 32)[0].height;
+    const late = healAuraRays(HEAL_AURA_DURATION_SECONDS * 0.9, 32)[0].height;
+    expect(late).toBeGreaterThan(early);
+  });
+});
+
+describe('healAuraSparkles', () => {
+  it('pastDuration-returnsNoSparkles', () => {
+    expect(healAuraSparkles(HEAL_AURA_DURATION_SECONDS + 0.01, 32)).toEqual([]);
+  });
+
+  it('withinDuration-returnsSparklesRisingAboveTheAnchor', () => {
+    const sparkles = healAuraSparkles(HEAL_AURA_DURATION_SECONDS / 2, 32);
+    expect(sparkles.length).toBeGreaterThan(0);
+    for (const sparkle of sparkles) {
+      expect(sparkle.dy).toBeLessThan(0);
+    }
+  });
+
+  it('laterElapsed-sparklesRiseFurther', () => {
+    const early = healAuraSparkles(0.01, 32)[0].dy;
+    const late = healAuraSparkles(HEAL_AURA_DURATION_SECONDS * 0.9, 32)[0].dy;
+    expect(late).toBeLessThan(early);
   });
 });
 
