@@ -264,9 +264,10 @@ export const LevelEditorPage = () => {
   useEffect(() => {
     // Deliberate one-shot mount-time correction of persisted state (see
     // comment above), not a render derived from a prop/state change.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    /* eslint-disable react-hooks/set-state-in-effect */
     if (isBlueprintMode && selectedTool === SPAWN_CHAR) setSelectedTool(FALLBACK_TOOL);
     if (!isBlueprintMode && selectedTool === CONNECTION_POINT_CHAR) setSelectedTool(FALLBACK_TOOL);
+    /* eslint-enable react-hooks/set-state-in-effect */
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
