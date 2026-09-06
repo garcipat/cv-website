@@ -18,10 +18,15 @@ interface PaletteProps {
   activeLayer: 'foreground' | 'background';
   selectedBackgroundPiece: BackgroundPieceId | null;
   onSelectBackgroundPiece: (pieceId: BackgroundPieceId) => void;
+  /** Which canvas the palette is arming tools for. Optional and defaulting to
+   *  `'level'` so every existing render site is unaffected; `'blueprint'`
+   *  drops the Spawn tool (roadmap step 44a). */
+  canvasMode?: 'level' | 'blueprint';
 }
 
 const EMPTY_CHAR: TileChar = '.';
 const PATROL_CHAR: TileChar = 'P';
+const SPAWN_CHAR: TileChar = 'S';
 const BACKGROUND_PIECE_IDS = Object.keys(BACKGROUND_CATALOG) as BackgroundPieceId[];
 const DECORATION_CHARS: TileChar[] = ['n', 'N'];
 
@@ -31,13 +36,19 @@ export const Palette = ({
   activeLayer,
   selectedBackgroundPiece,
   onSelectBackgroundPiece,
+  canvasMode = 'level',
 }: PaletteProps) => {
   const allTerrainKeys = (Object.keys(TERRAIN_CHARS) as TileChar[]).filter((key) => key !== EMPTY_CHAR);
   const terrainKeys = allTerrainKeys.filter(
     (key) => !DECORATION_CHARS.includes(key) && key !== PATROL_CHAR,
   );
   const decorationKeys = allTerrainKeys.filter((key) => DECORATION_CHARS.includes(key));
-  const entityKeys = Object.keys(ENTITY_CHARS) as TileChar[];
+  // Spawn is dropped on the blueprint canvas: a blueprint has no spawn point
+  // (roadmap step 44a), and offering the button would just invite a marker
+  // nothing downstream expects to find outside a real level's layout.
+  const entityKeys = (Object.keys(ENTITY_CHARS) as TileChar[]).filter(
+    (key) => canvasMode === 'level' || key !== SPAWN_CHAR,
+  );
   // Only the FIRST registered sign character becomes a palette tile — clicking
   // it repeatedly on the canvas cycles through every other registered hint
   // (Task 7's paintCell.ts), so the palette itself never needs to grow past one

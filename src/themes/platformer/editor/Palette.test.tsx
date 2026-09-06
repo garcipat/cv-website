@@ -128,3 +128,28 @@ describe('Palette — subtitle groups', () => {
     expect(within(hazardsGroup).getAllByRole('button')).toHaveLength(1);
   });
 });
+
+describe('Palette — blueprint canvas mode', () => {
+  it('levelCanvasMode-stillOffersTheSpawnTool', () => {
+    render(<Palette {...defaultProps} canvasMode="level" />);
+
+    expect(screen.getByRole('button', { name: 'Spawn' })).toBeInTheDocument();
+  });
+
+  it('blueprintCanvasMode-dropsTheSpawnToolOnly', () => {
+    // A blueprint has no spawn point, and offering the button would invite a
+    // marker nothing downstream expects outside a real level's layout. Every
+    // other entity tool stays.
+    render(<Palette {...defaultProps} canvasMode="blueprint" />);
+
+    expect(screen.queryByRole('button', { name: 'Spawn' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Enemy Green' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Coin' })).toBeInTheDocument();
+  });
+
+  it('omittedCanvasMode-behavesLikeLevelMode', () => {
+    render(<Palette {...defaultProps} />);
+
+    expect(screen.getByRole('button', { name: 'Spawn' })).toBeInTheDocument();
+  });
+});
