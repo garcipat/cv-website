@@ -21,8 +21,10 @@
 >   1's `BLUEPRINTS` registry existing; nothing in Part 1 depends on Part 2.
 >
 > **Appendix A at the end of this plan is Part 2's design contract** — the arming mechanism
-> and the full fit/commit algorithm, with hand-verified coordinate arithmetic and one named
-> open question. It is written here, now, because those decisions constrain what Part 1
+> and the full fit/commit algorithm, with hand-verified coordinate arithmetic and the
+> settled overlap-only fit rule (no open questions remain — the one the appendix's first
+> draft raised was resolved with the project owner and the design doc updated accordingly).
+> It is written here, now, because those decisions constrain what Part 1
 > exports (`BLUEPRINTS`, `Blueprint`), and because they are the part of step 44c most likely
 > to drift if left unwritten. **Do not implement Appendix A in this plan.**
 
@@ -90,9 +92,14 @@ covers both parts, so it stays unticked until Part 2 lands.
   they stay, and the suite stays green at every commit.
 - Vitest runs with `globals: true` (confirmed in `vitest.config.ts`), but every file this
   plan creates or edits already imports its test helpers explicitly — match that.
-- **Known pre-existing failures, out of scope.** This branch's base already has a small
-  number of `npx tsc -b --noEmit` errors on `BlockKind`/`potionPot`, and one
-  `npm run lint` error in `src/themes/platformer/ControlsOverlay.tsx`. They are unrelated to
+- **Known pre-existing failures, out of scope.** This branch's base already has 9
+  `npx tsc -b --noEmit` errors, all of them the same `BlockKind`/`potionPot` desync
+  (`editor/gridRenderState.ts`, `entities/blocks/PotionPot.test.ts`,
+  `level/BlockMapper.ts`, `PlatformerPage.test.tsx`, `PlatformerState.test.ts` ×2,
+  `PlatformerState.ts` ×2), and one `npm run lint` error —
+  `react-hooks/set-state-in-effect` at
+  `src/themes/platformer/components/ControlsOverlay.tsx:125` (note the `components/`
+  segment). They are unrelated to
   blueprint rooms, they were there before this plan started, and **fixing them is not part
   of this work**. Record the exact baseline output of both commands before Task 1 and
   compare against it at Task 11 — the bar is "no NEW error", not "zero errors". Do not
@@ -143,8 +150,9 @@ Not modified: `EditorCanvas.tsx`, `Palette.tsx`, `paletteTiles.ts`, `editorLevel
 npx tsc -b --noEmit ; npm run lint
 ```
 
-Save both outputs somewhere you can diff against at Task 11. Expected today: a handful of
-`BlockKind`/`potionPot` type errors and one lint error in `ControlsOverlay.tsx`. Those are
+Save both outputs somewhere you can diff against at Task 11. Expected today: 9
+`BlockKind`/`potionPot` type errors and one lint error in
+`src/themes/platformer/components/ControlsOverlay.tsx`. Those are
 the baseline, not your problem (see Global Constraints).
 
 ---
@@ -585,7 +593,8 @@ export const downloadBlueprintFile = (
 - [ ] **Step 5: Run tests to verify they pass**
 
 Run: `npx vitest run src/themes/platformer/editor/saveBlueprintFile.test.ts`
-Expected: PASS (21 tests).
+Expected: PASS (23 tests — 3 `blueprintId`, 6 `blueprintFileName`, 6 `blueprintFileJson`,
+3 `downloadBlueprintFile`, 5 `saveBlueprint`).
 
 - [ ] **Step 6: Commit**
 
@@ -844,7 +853,8 @@ export const writeLevelFile = (root: string, request: LevelWriteRequest): LevelW
 
 Run: `npx vitest run vite/`
 Expected: PASS — the 6 new tests plus every pre-existing test in
-`writeLevelFile.test.ts` (25) and `levelWritePlugin.test.ts` (8), **all unedited**. Those two
+`writeLevelFile.test.ts` (21 — 4 top-level, plus the 10-shape filename table and the
+7-shape contents table) and `levelWritePlugin.test.ts` (9), **all unedited**. Those two
 files passing untouched is the whole proof that the extraction was behavior-preserving; if
 one fails, fix `writeLayoutJsonFile`, never the test.
 
@@ -1503,8 +1513,11 @@ touch src/themes/platformer/level/blueprints/.gitkeep
 - [ ] **Step 5: Run tests to verify they pass**
 
 Run: `npx vitest run src/themes/platformer/level/blueprintRegistry.test.ts`
-Expected: PASS (18 tests). If the three `BLUEPRINTS` tests fail with a glob error, the
-folder was not created — Step 4.
+Expected: PASS (19 tests — 8 `parseBlueprintModules`, the nested malformed block's 6
+generated + 1, 3 `BLUEPRINTS`, 1 `findBlueprint`). The three `BLUEPRINTS` tests pass
+trivially while the folder is empty (`import.meta.glob` on a missing or empty directory
+yields `{}` rather than erroring) — Step 4 exists so a fresh clone has the folder, not
+because the tests would otherwise fail.
 
 - [ ] **Step 6: Commit**
 
@@ -2047,6 +2060,7 @@ helper. Put the `vi.hoisted`/`vi.mock` pair next to the existing `levelRegistry`
 ```tsx
 import { blueprintFileJson } from './saveBlueprintFile';
 import { SAVE_BLUEPRINT_ENDPOINT } from './saveBlueprintEndpoint';
+import { SAVE_LEVEL_ENDPOINT } from './saveLevelEndpoint';
 import type { Blueprint } from '../level/BlueprintData';
 
 const { blueprintEntries } = vi.hoisted(() => ({ blueprintEntries: [] as Blueprint[] }));
@@ -2066,7 +2080,17 @@ vi.mock('../level/blueprintRegistry', () => ({
 (c) Add a blueprint-write stub next to `stubDevServerWrite`:
 
 ```tsx
-/** A dev server that accepts a blueprint write, so nothing is downloaded. */
+/**
+ * A dev server that accepts a blueprint write, so nothing is downloaded.
+ *
+ * `fetchCalls` rather than the mock itself: `vi.fn(() => …)` types
+ * `mock.calls` from its zero-argument factory, i.e. as `[][]`, so
+ * `calls.find(([url]) => …)` is a `strict` compile error ("Tuple type '[]' of
+ * length '0' has no element at index '0'"). The real calls come from `fetch`
+ * with arguments, so the widened view is the honest one — the same reason
+ * `saveLevelFile.test.ts` reads `mock.calls[0]` through
+ * `as unknown as [string, RequestInit]`.
+ */
 function stubBlueprintWrite(path = 'src/themes/platformer/level/blueprints/test-room.json') {
   const fetchMock = vi.fn(() =>
     Promise.resolve({ ok: true, json: () => Promise.resolve({ path }) } as Response),
@@ -2075,12 +2099,13 @@ function stubBlueprintWrite(path = 'src/themes/platformer/level/blueprints/test-
   const anchorClick = vi
     .spyOn(HTMLAnchorElement.prototype, 'click')
     .mockImplementation(() => {});
-  return { fetchMock, anchorClick };
+  const fetchCalls = (): unknown[][] => fetchMock.mock.calls as unknown as unknown[][];
+  return { fetchCalls, anchorClick };
 }
 
 /** The body of the one POST that went to the blueprint write endpoint. */
-function blueprintPostBody(fetchMock: ReturnType<typeof vi.fn>) {
-  const call = fetchMock.mock.calls.find(([url]) => url === SAVE_BLUEPRINT_ENDPOINT);
+function blueprintPostBody(fetchCalls: () => unknown[][]) {
+  const call = fetchCalls().find(([url]) => url === SAVE_BLUEPRINT_ENDPOINT);
   expect(call).toBeDefined();
   return JSON.parse((call![1] as RequestInit).body as string) as {
     fileName: string;
@@ -2089,12 +2114,16 @@ function blueprintPostBody(fetchMock: ReturnType<typeof vi.fn>) {
 }
 ```
 
+Note: from Task 10 onward the page also pings `/__dev-environment` on mount, so this same
+`fetchMock` sees that call too — which is exactly why `blueprintPostBody` *finds* the write
+call by URL instead of reading `calls[0]`.
+
 (d) Rewrite the four stash-asserting tests in
 `describe('LevelEditorPage — blueprint select and save (step 44a)')`:
 
 ```tsx
   it('savingTheBlueprintCanvas-postsTheCroppedLayoutToTheBlueprintWriteEndpoint', async () => {
-    const { fetchMock } = stubBlueprintWrite();
+    const { fetchCalls } = stubBlueprintWrite();
     renderEditorInBlueprintMode();
     // One cell painted at (col 2, row 1) of an otherwise-empty canvas: the
     // crop's tightest non-'.' bounding box is that single cell, so the saved
@@ -2103,7 +2132,7 @@ function blueprintPostBody(fetchMock: ReturnType<typeof vi.fn>) {
 
     await saveBlueprintAs('Test Room');
 
-    expect(blueprintPostBody(fetchMock)).toEqual({
+    expect(blueprintPostBody(fetchCalls)).toEqual({
       fileName: 'test-room.json',
       contents: blueprintFileJson('Test Room', ['G'], []),
     });
@@ -2122,7 +2151,7 @@ function blueprintPostBody(fetchMock: ReturnType<typeof vi.fn>) {
 
   it('savingTheBlueprintCanvas-writesNoLevelFileAndLeavesTheLevelUntouched', async () => {
     const levelGridBefore = editorLevelSignal.value;
-    const { fetchMock } = stubBlueprintWrite();
+    const { fetchCalls } = stubBlueprintWrite();
     renderEditorInBlueprintMode();
     paintBlueprintCell(2, 1);
 
@@ -2130,12 +2159,12 @@ function blueprintPostBody(fetchMock: ReturnType<typeof vi.fn>) {
 
     // The blueprint save must never reach the LEVEL write endpoint, and must
     // not disturb the level canvas sitting behind it.
-    expect(fetchMock.mock.calls.every(([url]) => url !== '/__save-level')).toBe(true);
+    expect(fetchCalls().every(([url]) => url !== SAVE_LEVEL_ENDPOINT)).toBe(true);
     expect(editorLevelSignal.value).toEqual(levelGridBefore);
   });
 
   it('savingABlueprintWithBackgroundPieces-postsThemRebasedOntoTheSameOrigin', async () => {
-    const { fetchMock } = stubBlueprintWrite();
+    const { fetchCalls } = stubBlueprintWrite();
     renderEditorInBlueprintMode();
     paintBlueprintCell(2, 1);
     fireEvent.click(screen.getByRole('button', { name: 'Background' }));
@@ -2146,7 +2175,7 @@ function blueprintPostBody(fetchMock: ReturnType<typeof vi.fn>) {
 
     // The foreground crop's origin is (col 2, row 1) — the only painted cell —
     // so a background piece placed on that same cell rebases to (col 0, row 0).
-    expect(JSON.parse(blueprintPostBody(fetchMock).contents).background).toEqual([
+    expect(JSON.parse(blueprintPostBody(fetchCalls).contents).background).toEqual([
       { pieceId: 'dirtColumnTop1x1', col: 0, row: 0 },
     ]);
   });
@@ -2201,7 +2230,7 @@ through `readSavedBlueprints()`:
     // The crop/export path carries '+' like any other character — nothing in
     // saveBlueprint/cropLevelForExport knows about connection points, which is
     // exactly what Part 2's placement relies on to read them back.
-    const { fetchMock } = stubBlueprintWrite();
+    const { fetchCalls } = stubBlueprintWrite();
     renderEditorInBlueprintMode();
     paintBlueprintCell(2, 1);
     fireEvent.click(screen.getByRole('button', { name: 'Connection Point' }));
@@ -2209,7 +2238,25 @@ through `readSavedBlueprints()`:
 
     await saveBlueprintAs('Test Room');
 
-    expect(JSON.parse(blueprintPostBody(fetchMock).contents).layout).toEqual(['G+']);
+    expect(JSON.parse(blueprintPostBody(fetchCalls).contents).layout).toEqual(['G+']);
+  });
+```
+
+(h) `describe('LevelEditorPage — blueprint select and save (step 44a)')` opens with its own
+`afterEach(() => { vi.unstubAllGlobals(); })` whose comment explains itself as covering "the
+dev-server-write test below [that] stubs `fetch` directly with a bare `vi.fn()` rather than
+going through stubDownloads/stubDevServerWrite". After (d) no test in the block does that any
+more — they all go through `stubBlueprintWrite`. Keep the `afterEach` (it is harmless and the
+top-level one already covers it) but rewrite its comment to say so, rather than leaving a
+justification that points at code that no longer exists:
+
+```tsx
+  // Belt-and-suspenders alongside the file's top-level afterEach above: every
+  // test in this block stubs `fetch` (stubBlueprintWrite/stubDownloads), and
+  // a leaked stub here would silently answer the next test's dev-environment
+  // ping as well as its saves.
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 ```
 
@@ -2319,8 +2366,15 @@ git rm src/themes/platformer/editor/blueprintStash.ts src/themes/platformer/edit
 Then grep to prove nothing still reaches for it:
 
 ```bash
-grep -rn "blueprintStash\|saveBlueprintToStash\|savedBlueprintsSignal\|readSavedBlueprints" src vite
+grep -rn "blueprintStash\|BLUEPRINT_STASH_KEY\|savedBlueprintsSignal\|saveBlueprintToStash\|readSavedBlueprints\|findSavedBlueprint" src vite
 ```
+
+That is every name the module exported (`BLUEPRINT_STASH_KEY`, `savedBlueprintsSignal`,
+`blueprintId`, `readSavedBlueprints`, `findSavedBlueprint`, `saveBlueprintToStash`) except
+`blueprintId`, which is deliberately excluded from the grep because Task 1 re-introduced it
+under the same name in `saveBlueprintFile.ts` — the `blueprintStash` path match is what
+proves no *stale import* of it survives. `findSavedBlueprint` never had a consumer outside
+`blueprintStash.test.ts`; `Blueprint`-by-id lookup is now `blueprintRegistry.findBlueprint`.
 
 Expected: no hits in `src/` or `vite/` (matches inside `specs/` are historical plan text and
 stay). Note that the old `localStorage` key `platformer-editor-saved-blueprints` is now
@@ -2332,7 +2386,9 @@ between 44a and 44c would be more code than the thing it migrates.
 
 Run: `npx vitest run src/themes/platformer/editor/LevelEditorPage.test.tsx`
 Expected: PASS — every test in the file, including the rewritten blueprint ones and the 1
-new. The 11 deleted `blueprintStash.test.ts` tests are gone from the suite total.
+new. The 13 deleted `blueprintStash.test.ts` tests (3 `blueprintId`, 7
+`saveBlueprintToStash`, 1 `readSavedBlueprints`, 2 `findSavedBlueprint`) are gone from the
+suite total.
 
 - [ ] **Step 6: Commit**
 
@@ -2481,6 +2537,9 @@ and the mount effect, next to the image-loading one:
   // site cannot, and the Save controls follow that answer (see
   // `devEnvironment.ts`). The subscription is what applies the answer when it
   // lands, since the ping resolves after this effect has already run.
+  // `signal.subscribe` also invokes its callback once immediately, with the
+  // value the `useState` initializer above already seeded — so that first call
+  // is a same-value setState React bails out of, not an extra render.
   useEffect(() => {
     void probeDevEnvironment();
     return isDevEnvironmentSignal.subscribe(setIsDevEnvironment);
@@ -2536,13 +2595,14 @@ npm run lint
 ```
 
 Expected: tests PASS. The total is the baseline recorded before this plan started, **minus**
-the 11 tests deleted with `blueprintStash.test.ts` and the 1 `BlueprintSelect` test replaced
-in kind, **plus** the tests this plan adds: 21 (Task 1) + 6 (Task 2) + 5 (Task 3) + 9
-(Task 4) + 18 (Task 5) + 7 (Task 6) + 5 (Task 7) + 1 (Task 8's replacement is net 0, the
-order test is +1) + 1 (Task 9's new download-fallback test) + 5 (Task 10) = **78 added, 11
-removed, net +67**. Typecheck and lint: **compare against the Step 0 baseline** — the bar is
-that no new error appears, since a handful of `BlockKind`/`potionPot` type errors and one
-`ControlsOverlay.tsx` lint error pre-date this work and are out of scope.
+the 13 tests deleted with `blueprintStash.test.ts`, **plus** the tests this plan adds:
+23 (Task 1) + 6 (Task 2) + 5 (Task 3) + 9 (Task 4) + 19 (Task 5) + 7 (Task 6) + 5 (Task 7)
++ 0 (Task 8 — its one deleted malformed-entry test is replaced one-for-one by the ordering
+test, so net 0) + 1 (Task 9's new download-fallback test; its other six blueprint tests are
+rewritten in place, net 0) + 5 (Task 10) = **80 added, 13 removed, net +67**.
+Typecheck and lint: **compare against the Step 0 baseline** — the bar is
+that no new error appears, since the 9 `BlockKind`/`potionPot` type errors and the one
+`components/ControlsOverlay.tsx` lint error pre-date this work and are out of scope.
 
 - [ ] **Step 2: Manual browser check**
 
@@ -2577,12 +2637,19 @@ Start the dev server and open `/platformer/editor`. Confirm, in order:
 - [ ] **Step 3: Update `docs/Features.md` if step 44c is tracked there**
 
 Per `CLAUDE.md`'s Feature Completion Tracking. **Already checked against the real file:**
-`docs/Features.md` has no blueprint-rooms entry of its own; its only relevant row is
-`S-006 | 2D Platformer theme | 📋 Planned`, the whole platformer theme, of which this is one
-step among many still open. This plan is also only *half* of step 44c — Part 2 (placement)
-is unstarted. So the correct action is to change nothing. Re-confirm `S-006` is still the
-only matching entry (someone may have added one since), then say "nothing to update" rather
-than ticking a feature that is not finished.
+`docs/Features.md` has no blueprint-rooms entry of its own. Two rows touch this area and
+neither should change:
+
+- `S-006 | 2D Platformer theme | 📋 Planned` — the whole platformer theme, of which this is
+  one step among many still open (and this plan is only *half* of step 44c; Part 2,
+  placement, is unstarted).
+- `O-002 | Platformer Level Editor | ✅ Done` — already ticked, and its bullet describes the
+  level dropdown and save-to-JSON button, not blueprints. Blueprint rooms are tracked under
+  S-006's roadmap (step 44c), not by widening O-002's already-complete entry.
+
+So the correct action is to change nothing. Re-confirm those are still the only matching
+entries (someone may have added one since), then say "nothing to update" rather than ticking
+a feature that is not finished.
 
 - [ ] **Step 4: Write Part 2's plan**
 
@@ -2812,13 +2879,22 @@ the normal paint path.
     right-only (4×2, shifts 0), `'+'` lands at `grid[1][3]`, and the crop spans cols 2..3 →
     `layout = ['G+']`.
   - `blueprintFileName('Cave Room Two')`: lowercase → `'cave room two'`, `[^a-z0-9]+` → `-`
-    gives `'cave-room-two'`, no leading/trailing hyphens to trim, `≠ 'new'` → 
-    `'cave-room-two.json'`. `blueprintFileName('  -- cave room -- ')` → `'--cave-room--'`
-    after the first replace? No: the replace collapses each run of non-alphanumerics to one
-    hyphen, giving `'-cave-room-'`, then the trim gives `'cave-room'` → `'cave-room.json'`,
-    which is what the test asserts (and matches `levelFileName`'s own identical test).
+    gives `'cave-room-two'`, no leading/trailing hyphens to trim, `≠ 'new'` →
+    `'cave-room-two.json'`. `blueprintFileName('  -- cave room -- ')`: the first replace
+    collapses each *run* of non-alphanumerics to a single hyphen (not one per character),
+    giving `'-cave-room-'`; the trim then gives `'cave-room'` → `'cave-room.json'`, which is
+    what the test asserts (and matches `levelFileName`'s own identical test).
   - Appendix A.4's growth arithmetic is worked twice above, once with a
     prepend-both-axes case and once with a fully-in-bounds case.
+- **`mock.calls` typing, confirmed by compiling it.** `vi.fn(() => …)` (Vitest 4) types
+  `mock.calls` from the zero-argument factory, i.e. as `[][]`, so reading a call's elements
+  directly — `calls.find(([url]) => …)`, `calls.every(([url]) => …)`, `calls[0][1]` — is a
+  `strict` compile error (`TS2493: Tuple type '[]' of length '0' has no element at index
+  '0'`), even though the real `fetch` calls do carry arguments. Every such read in this plan
+  goes through a widened view: Task 1 copies `saveLevelFile.test.ts`'s
+  `as unknown as [string, RequestInit]` cast, and Task 9's `stubBlueprintWrite` hands back a
+  `fetchCalls(): unknown[][]` accessor instead of the mock. `expect(mock).toHaveBeenCalledWith(arg)`
+  on the same zero-argument mock does *not* error (checked), so Task 6 uses it as written.
 - **Test-runner facts confirmed against the repo.** `vitest.config.ts` sets `globals: true`,
   but `saveLevelFile.test.ts`, `levelRegistry.test.ts`, `writeLevelFile.test.ts` and
   `levelWritePlugin.test.ts` all import their helpers explicitly, so the new files copy that.

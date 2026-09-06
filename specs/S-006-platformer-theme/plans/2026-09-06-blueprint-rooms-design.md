@@ -217,7 +217,8 @@ Per the constitution, tests first:
 Manual verification: enter Draw Blueprint mode, paint a small irregular room (mixing
 foreground terrain and a background piece or two), save it, reopen it via Blueprint
 Select and confirm it's editable; place a second blueprint next to it and confirm the
-border goes blue only when a connection point lines up and nothing overlaps.
+border goes blue whenever nothing overlaps (regardless of connection points) and red
+otherwise.
 
 ## Out of scope
 
