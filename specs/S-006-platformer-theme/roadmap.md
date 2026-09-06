@@ -209,13 +209,13 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   Palette entry available in blueprint mode, painted directly onto the blueprint
   canvas's border cells like any other tile — the spots other blueprints can attach to.
   Depends on 44a.
-- [ ] **44c. Blueprint rooms — save, library, and placement** — the 44a `localStorage`
+- [x] **44c. Blueprint rooms — save, library, and placement** — the 44a `localStorage`
   stash is replaced with real persistence (`src/themes/platformer/level/blueprints/`,
   mirroring the level Save flow, gated behind a new `isDevEnvironmentSignal` so Save
   controls disappear on a built/statically-served site) and saved blueprints show up as
   a Blueprints section in the Palette; placing one previews with a blue/red border
-  (blue = no overlap and, if any connection points already exist in the level, at least
-  one lines up facing an existing one) and commits on a second click. Depends on 44b.
+  (blue = no overlap with existing terrain, red = overlap) and commits on a second
+  click. Depends on 44b.
 
 ## Unscheduled additions (not yet numbered)
 
