@@ -1,4 +1,4 @@
-import { updateCamera, updateCameraY, CAMERA_TOP_OVERSCROLL } from './Camera';
+import { updateCamera, updateCameraY } from './Camera';
 
 describe('updateCamera', () => {
   const PLAYER_WIDTH = 64;
@@ -57,9 +57,16 @@ describe('updateCameraY', () => {
   // that fixed row, measured from the BOTTOM of the viewport.
   const VIEWPORT_HEIGHT = 480;
 
-  it('levelShorterThanViewport-cameraStaysAtZeroRegardlessOfPlayerPosition', () => {
-    const result = updateCameraY(0, 1000, PLAYER_HEIGHT, VIEWPORT_HEIGHT, 192);
-    expect(result).toBe(0);
+  it('levelShorterThanViewport-stillAppliesDeadZoneTarget-cameraGoesNonZero', () => {
+    // levelPixelHeight 400 < viewport 480 (level fits, no ceiling should ever
+    // force cameraY back to 0). originYBase = viewportHeight - levelPixelHeight
+    // = 480-400 = 80. playerY 0 (top of the level) -> center 32 -> screenCenterY
+    // (previousCameraY 0) = 32+80+0 = 112, past deadZoneTop (256) on the low
+    // side — camera shifts up: 256-32-80 = 144. A nonzero result here proves
+    // the dead-zone target row still takes effect for a short level, instead
+    // of being overridden back to 0 by the old (now-removed) ceiling.
+    const result = updateCameraY(0, 0, PLAYER_HEIGHT, VIEWPORT_HEIGHT, 400);
+    expect(result).toBe(144);
   });
 
   it('tallLevel-playerWithinDeadZone-cameraStaysAtPreviousPosition', () => {
@@ -92,19 +99,5 @@ describe('updateCameraY', () => {
     // 448-792-(-320) = -24, clamped to 0.
     const result = updateCameraY(0, 760, PLAYER_HEIGHT, VIEWPORT_HEIGHT, 800);
     expect(result).toBe(0);
-  });
-
-  it('cameraWouldExceedLevelTop-clampsToLevelHeightMinusViewportPlusOverscroll', () => {
-    // The top clamp is independent of the target row — it's driven entirely
-    // by baseMaxCameraY = levelPixelHeight - viewportHeight = 800 - 480 =
-    // 320, plus CAMERA_TOP_OVERSCROLL (64) = 384. This test constructs a
-    // synthetic out-of-range player position (above the level's own top
-    // edge — not reachable in normal play, but the clamp must still hold as
-    // a safety net): playerY -400 -> center -368 -> originYBase -320 ->
-    // screenCenterY -368-320 = -688, past deadZoneTop (256) — uncorrected
-    // camera = 256-(-368)-(-320) = 944, far past maxCameraY (384) -> clamps
-    // to 384.
-    const result = updateCameraY(0, -400, PLAYER_HEIGHT, VIEWPORT_HEIGHT, 800);
-    expect(result).toBe(320 + CAMERA_TOP_OVERSCROLL); // max = (800 - 480) + overscroll
   });
 });
