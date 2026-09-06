@@ -10,8 +10,8 @@ import type { BackgroundPlacement } from './LevelData';
  * see `specs/S-006-platformer-theme/plans/2026-09-06-blueprint-rooms-design.md`.
  */
 export interface Blueprint {
-  /** Slug, also the filename stem once step 44c writes real files — mirrors
-   *  `LevelEntry`'s id. */
+  /** Slug, also the filename stem of the saved `.json` file under
+   *  `blueprints/` — mirrors `LevelEntry`'s id. */
   id: string;
   name: string;
   layout: readonly string[];
@@ -35,9 +35,10 @@ const isBackgroundPlacement = (value: unknown): value is BackgroundPlacement =>
 
 /**
  * Whether `value` is a well-formed `Blueprint`. Same "skip anything
- * malformed" role `levelRegistry.ts`'s validation plays for level JSON: the
- * 44a store is hand-editable `localStorage`, and one bad entry must not take
- * the whole dropdown (or the editor) down with it.
+ * malformed" role `levelRegistry.ts`'s validation plays for level JSON:
+ * saved blueprints are hand-editable JSON files under `blueprints/`
+ * (`blueprintRegistry.ts` globs them at build time), and one bad file must
+ * not take the whole dropdown (or the editor) down with it.
  */
 export function isBlueprint(value: unknown): value is Blueprint {
   if (value === null || typeof value !== 'object') return false;
