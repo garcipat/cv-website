@@ -71,6 +71,25 @@ export const BACKGROUND_RENDER_SCALE = 2;
  *  own light-blue, so the fill blends seamlessly. */
 const SKY_FILL_COLOR = 'rgb(66, 154, 215)';
 
+/** Extra flat dark-blue margin drawn above the sky image itself, in native
+ *  (unscaled) pixels — gives HUD elements (hearts, coins, journal icon, drawn
+ *  elsewhere) more dark-blue backdrop to sit against at the very top of the
+ *  canvas, instead of extending into the sky's lighter blue. Sampled from the
+ *  sky art's own top-row color so it blends seamlessly with the image below
+ *  it. Scaled by `BACKGROUND_RENDER_SCALE` at the point of use, same
+ *  convention as every other native-unit constant here. Tunable — adjust to
+ *  taste. */
+export const SKY_TOP_MARGIN = 16;
+const SKY_DARK_COLOR = 'rgb(72, 102, 197)';
+
+/** Extra gap between the clouds/hills layer's bottom edge and the village
+ *  layer's top edge, in native (unscaled) pixels — so clouds read as
+ *  floating a bit above the treeline rather than touching it directly.
+ *  Filled by the same `SKY_FILL_COLOR` flat fill that already covers the
+ *  sky-to-clouds gap (see `drawBackgroundLayers`) — no separate fill needed.
+ *  Scaled by `BACKGROUND_RENDER_SCALE` at the point of use. Tunable. */
+export const CLOUDS_VILLAGE_GAP = 8;
+
 /** Flat fill used below the single grass draw, down to the canvas bottom —
  *  sampled directly from `background_layer_grass.png`'s own solid bottom
  *  rows (10-19), so it blends seamlessly with the tile's own bottom edge
@@ -117,12 +136,18 @@ function drawTiledRow(
  * its own fraction of `cameraX` for a parallax depth effect. All static
  * layers render at `BACKGROUND_RENDER_SCALE`:
  *
- * - **Sky**: pinned to y=0, never scrolls (`cameraX` ignored).
+ * - **Sky top margin**: a flat `SKY_DARK_COLOR` fill, `SKY_TOP_MARGIN`
+ *   (scaled) px tall, drawn above the sky image itself so HUD elements have
+ *   more dark-blue backdrop at the very top of the canvas.
+ * - **Sky**: pinned just below the top margin, never scrolls (`cameraX`
+ *   ignored).
  * - **Sky-color fill**: fills the gap between the sky's bottom edge and the
- *   clouds/hills layer's top edge with `SKY_FILL_COLOR`.
- * - **Clouds/hills**: drawn exactly ONCE, positioned directly ABOVE the
- *   village layer (not directly under the sky) — reads as sitting just above
- *   the treeline. Slow parallax.
+ *   clouds/hills layer's top edge (now widened by `CLOUDS_VILLAGE_GAP`) with
+ *   `SKY_FILL_COLOR`.
+ * - **Clouds/hills**: drawn exactly ONCE, positioned `CLOUDS_VILLAGE_GAP`
+ *   (scaled) px ABOVE the village layer (not directly under the sky) — reads
+ *   as floating a bit above the treeline rather than touching it. Slow
+ *   parallax.
  * - **Village/treeline**: pinned `VILLAGE_BOTTOM_OFFSET` (scaled) px above
  *   the canvas bottom. Medium parallax.
  * - **River overlay**: a 2-frame alternating flipbook drawn on top of the
@@ -144,15 +169,19 @@ export function drawBackgroundLayers(
 ): void {
   ctx.imageSmoothingEnabled = false;
 
-  drawTiledRow(ctx, images.layers, SKY_SOURCE_RECT, 0, canvasWidth, cameraX, 0, BACKGROUND_RENDER_SCALE);
-  const skyBottom = SKY_SOURCE_RECT.height * BACKGROUND_RENDER_SCALE;
+  const skyTopMarginHeight = SKY_TOP_MARGIN * BACKGROUND_RENDER_SCALE;
+  ctx.fillStyle = SKY_DARK_COLOR;
+  ctx.fillRect(0, 0, canvasWidth, skyTopMarginHeight);
+
+  drawTiledRow(ctx, images.layers, SKY_SOURCE_RECT, skyTopMarginHeight, canvasWidth, cameraX, 0, BACKGROUND_RENDER_SCALE);
+  const skyBottom = skyTopMarginHeight + SKY_SOURCE_RECT.height * BACKGROUND_RENDER_SCALE;
 
   const villageDestHeight = VILLAGE_SOURCE_RECT.height * BACKGROUND_RENDER_SCALE;
   const villageTop = canvasHeight - VILLAGE_BOTTOM_OFFSET * BACKGROUND_RENDER_SCALE - villageDestHeight;
   const villageBottom = villageTop + villageDestHeight;
 
   const cloudsDestHeight = CLOUDS_SOURCE_RECT.height * BACKGROUND_RENDER_SCALE;
-  const cloudsTop = villageTop - cloudsDestHeight;
+  const cloudsTop = villageTop - cloudsDestHeight - CLOUDS_VILLAGE_GAP * BACKGROUND_RENDER_SCALE;
 
   if (cloudsTop > skyBottom) {
     ctx.fillStyle = SKY_FILL_COLOR;
