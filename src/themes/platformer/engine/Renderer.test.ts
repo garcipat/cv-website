@@ -71,7 +71,7 @@ import {
 import type { DrawContext } from './DrawContext';
 
 const ENEMY_FRAME_SIZE = SLIME_GREEN_SHEET.frameWidth;
-import { RENDERED_TILE_SIZE, TILE_SIZE } from '../level/Terrain';
+import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import {
   CHEST_CLOSED_WIDTH,
   CHEST_CLOSED_HEIGHT,
