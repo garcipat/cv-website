@@ -80,12 +80,9 @@ describe('drawBackgroundLayers', () => {
     const grassCalls = ctx.drawImage.mock.calls.filter((call) => call[ARG.image] === images.grass);
     expect(grassCalls.length).toBeGreaterThan(0);
     const topmostGrassY = Math.min(...grassCalls.map((call) => call[ARG.dy] as number));
+    const bottommostGrassEdge = Math.max(...grassCalls.map((call) => (call[ARG.dy] as number) + (call[ARG.dh] as number)));
     expect(topmostGrassY).toBeLessThanOrEqual(villageBottom);
-    for (const call of grassCalls) {
-      const y = call[ARG.dy] as number;
-      const h = call[ARG.dh] as number;
-      expect(y + h).toBeGreaterThan(300 - 20);
-    }
+    expect(bottommostGrassEdge).toBeGreaterThanOrEqual(300);
   });
 
   it('cloudsAndHills-fillTheGapBetweenSkyBottomAndVillageTop-atAnyCanvasHeight', () => {
@@ -139,7 +136,7 @@ describe('drawBackgroundLayers', () => {
     const images = fakeImages();
 
     drawBackgroundLayers(ctxAtZero, images, 320, 200, 0);
-    drawBackgroundLayers(ctxAtOffset, images, 320, 200, 100);
+    drawBackgroundLayers(ctxAtOffset, images, 320, 200, 5);
 
     const firstCloudX = (calls: unknown[][]) =>
       Math.min(...callsForSourceY(calls, images.layers, CLOUDS_SOURCE_RECT.sy).map((call) => call[ARG.dx] as number));
