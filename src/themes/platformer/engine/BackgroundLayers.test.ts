@@ -6,7 +6,7 @@ import {
   VILLAGE_SOURCE_RECT,
   RIVER_FRAME_DURATION_SECONDS,
   RIVER_DEST_OFFSET,
-  GRASS_RENDER_SCALE,
+  BACKGROUND_RENDER_SCALE,
   type BackgroundLayerImages,
 } from './BackgroundLayers';
 
@@ -89,7 +89,7 @@ describe('drawBackgroundLayers', () => {
     expect(bottommostGrassEdge).toBeGreaterThanOrEqual(300);
   });
 
-  it('grass-drawnAtGrassRenderScale-sourceStaysNativeButDestinationIsScaled', () => {
+  it('grass-drawnAtBackgroundRenderScale-sourceStaysNativeButDestinationIsScaled', () => {
     const ctx = fakeCtx();
     const images = fakeImages();
 
@@ -101,9 +101,9 @@ describe('drawBackgroundLayers', () => {
       // Source rect (sw/sh) stays at the grass image's own native size...
       expect(call[ARG.sw]).toBe(images.grass.width);
       expect(call[ARG.sh]).toBe(images.grass.height);
-      // ...while the destination rect (dw/dh) is scaled up by GRASS_RENDER_SCALE.
-      expect(call[ARG.dw]).toBe(images.grass.width * GRASS_RENDER_SCALE);
-      expect(call[ARG.dh]).toBe(images.grass.height * GRASS_RENDER_SCALE);
+      // ...while the destination rect (dw/dh) is scaled up by BACKGROUND_RENDER_SCALE.
+      expect(call[ARG.dw]).toBe(images.grass.width * BACKGROUND_RENDER_SCALE);
+      expect(call[ARG.dh]).toBe(images.grass.height * BACKGROUND_RENDER_SCALE);
     }
   });
 
@@ -121,34 +121,42 @@ describe('drawBackgroundLayers', () => {
     const rowYs = [...new Set(grassCalls.map((call) => call[ARG.dy] as number))].sort((a, b) => a - b);
     expect(rowYs.length).toBeGreaterThan(1);
     for (let i = 1; i < rowYs.length; i++) {
-      expect(rowYs[i] - rowYs[i - 1]).toBe(images.grass.height * GRASS_RENDER_SCALE);
+      expect(rowYs[i] - rowYs[i - 1]).toBe(images.grass.height * BACKGROUND_RENDER_SCALE);
     }
 
     const firstRowCalls = grassCalls.filter((call) => call[ARG.dy] === rowYs[0]);
     const colXs = [...new Set(firstRowCalls.map((call) => call[ARG.dx] as number))].sort((a, b) => a - b);
     expect(colXs.length).toBeGreaterThan(1);
     for (let i = 1; i < colXs.length; i++) {
-      expect(colXs[i] - colXs[i - 1]).toBe(images.grass.width * GRASS_RENDER_SCALE);
+      expect(colXs[i] - colXs[i - 1]).toBe(images.grass.width * BACKGROUND_RENDER_SCALE);
     }
   });
 
-  it('cloudsAndHills-fillTheGapBetweenSkyBottomAndVillageTop-atAnyCanvasHeight', () => {
+  it('cloudsAndHills-drawnExactlyOnce-withRemainingGapFilledByFlatSkyColor', () => {
     const ctx = fakeCtx();
     const images = fakeImages();
 
     drawBackgroundLayers(ctx, images, 320, 500, 0, 0);
 
-    const skyCalls = callsForSourceY(ctx.drawImage.mock.calls, images.layers, SKY_SOURCE_RECT.sy);
-    const skyBottom = Math.max(...skyCalls.map((call) => (call[ARG.dy] as number) + (call[ARG.dh] as number)));
     const villageCalls = callsForSourceY(ctx.drawImage.mock.calls, images.layers, VILLAGE_SOURCE_RECT.sy);
     const villageTop = Math.min(...villageCalls.map((call) => call[ARG.dy] as number));
 
+    // Clouds/hills is drawn exactly once (no vertical tiling): every clouds
+    // call shares the same dy, positioned directly under the (scaled) sky.
     const cloudCalls = callsForSourceY(ctx.drawImage.mock.calls, images.layers, CLOUDS_SOURCE_RECT.sy);
     expect(cloudCalls.length).toBeGreaterThan(0);
-    const cloudTop = Math.min(...cloudCalls.map((call) => call[ARG.dy] as number));
-    const cloudBottom = Math.max(...cloudCalls.map((call) => (call[ARG.dy] as number) + (call[ARG.dh] as number)));
-    expect(cloudTop).toBeLessThanOrEqual(skyBottom);
-    expect(cloudBottom).toBeGreaterThanOrEqual(villageTop);
+    const cloudDys = [...new Set(cloudCalls.map((call) => call[ARG.dy] as number))];
+    expect(cloudDys).toEqual([SKY_SOURCE_RECT.height * BACKGROUND_RENDER_SCALE]);
+    const cloudTop = cloudDys[0];
+    const cloudBottom = cloudTop + CLOUDS_SOURCE_RECT.height * BACKGROUND_RENDER_SCALE;
+
+    // The remaining gap between the clouds' bottom edge and the village's top
+    // edge is filled with a flat rect in the sampled sky color, not a second
+    // copy of the clouds tile.
+    const fillCalls = (ctx.fillRect as ReturnType<typeof vi.fn>).mock.calls;
+    expect(fillCalls.length).toBe(1);
+    expect(fillCalls[0]).toEqual([0, cloudBottom, 320, villageTop - cloudBottom]);
+    expect(ctx.fillStyle).toBe('rgb(66, 154, 215)');
   });
 
   it('layers-tileHorizontally-coveringTheFullCanvasWidth', () => {
@@ -218,12 +226,14 @@ describe('drawBackgroundLayers', () => {
 
     const villageCalls = callsForSourceY(ctx.drawImage.mock.calls, images.layers, VILLAGE_SOURCE_RECT.sy);
     const riverCalls = ctx.drawImage.mock.calls.filter((call) => call[ARG.image] === images.river);
-    // The river overlay's own water-line sits 11px lower within its frame
-    // than the village band's baked-in river line sits within its own top —
-    // see RIVER_DEST_OFFSET's doc comment in BackgroundLayers.ts — so the
-    // overlay is intentionally drawn RIVER_DEST_OFFSET below the village
-    // row's dy, not at the exact same dy.
-    expect(riverCalls[0][ARG.dy]).toBe((villageCalls[0][ARG.dy] as number) + RIVER_DEST_OFFSET);
+    // The river overlay's own water-line sits 11px (native) lower within its
+    // frame than the village band's baked-in river line sits within its own
+    // top — see RIVER_DEST_OFFSET's doc comment in BackgroundLayers.ts — so
+    // the overlay is intentionally drawn RIVER_DEST_OFFSET (scaled) below the
+    // village row's dy, not at the exact same dy.
+    expect(riverCalls[0][ARG.dy]).toBe(
+      (villageCalls[0][ARG.dy] as number) + RIVER_DEST_OFFSET * BACKGROUND_RENDER_SCALE,
+    );
     // Same x position/parallax speed as the village row, unaffected by the
     // y offset above.
     expect(riverCalls[0][ARG.dx]).toBe(villageCalls[0][ARG.dx]);

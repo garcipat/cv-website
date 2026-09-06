@@ -26,8 +26,9 @@ export const VILLAGE_SOURCE_RECT: SourceRect = { sx: 0, sy: 84, width: 160, heig
 
 /** How far the village layer's bottom edge sits above the canvas bottom, in
  *  native (unscaled) pixels — chosen so typical foreground terrain height
- *  doesn't fully hide it. Tuned visually against a real level; see the
- *  design doc's Open items. */
+ *  doesn't fully hide it. Scaled by `BACKGROUND_RENDER_SCALE` at the point of
+ *  use, same convention as every other native-unit constant here. Tuned
+ *  visually against a real level; see the design doc's Open items. */
 const VILLAGE_BOTTOM_OFFSET = 64;
 
 /** The river overlay's own water-line sits at row 5-6 within its 30px-tall
@@ -35,7 +36,8 @@ const VILLAGE_BOTTOM_OFFSET = 64;
  *  from the village band's own top — so drawing the overlay flush with the
  *  village row (destY = villageTop) puts it 11px too high relative to the
  *  art it's meant to overlay. Confirmed via pixel sampling (16 - 5 = 11).
- *  Added to villageTop when positioning the river overlay so the two align. */
+ *  A native (unscaled) pixel distance — scaled by `BACKGROUND_RENDER_SCALE`
+ *  at the point of use, same as `VILLAGE_BOTTOM_OFFSET`. */
 export const RIVER_DEST_OFFSET = 11;
 
 /** Parallax speed factors: 0 = fixed to the viewport, 1 = full camera speed
@@ -56,13 +58,18 @@ const GRASS_PARALLAX_FACTOR = 1;
 export const RIVER_FRAME_DURATION_SECONDS = 0.5;
 const RIVER_FRAME_HEIGHT = 30;
 
-/** The grass tile is rendered at 2x its native pixel size — matching the
- *  foreground terrain's own `RENDERED_TILE_SIZE` render scale, so the
- *  background's pixel density doesn't jar against it — while every other
- *  layer (sky/clouds/village/river) stays at native 1x. This also roughly
- *  quarters the `drawImage` calls needed to fill the grass strip, a real
- *  perf win (a naive count showed ~900 calls/frame at 1x). */
-export const GRASS_RENDER_SCALE = 2;
+/** Every static background layer (sky, clouds/hills, village, grass) renders
+ *  at this uniform scale — matching the foreground terrain's own
+ *  `RENDERED_TILE_SIZE` render scale, so the background's pixel density
+ *  doesn't jar against it. The river overlay inherits this scale too, since
+ *  it's positioned relative to the village layer. */
+export const BACKGROUND_RENDER_SCALE = 2;
+
+/** Flat fill used for whatever vertical gap remains between the single
+ *  clouds/hills draw and the village layer — sampled directly from the
+ *  sky/clouds art's own light-blue, so the fill blends seamlessly rather
+ *  than reading as a visible seam or a mismatched color. */
+const SKY_FILL_COLOR = 'rgb(66, 154, 215)';
 
 /** Draws one source rect tiled horizontally across `canvasWidth`, with its
  *  top-left at `destY`, offset by `cameraX * parallaxFactor` (wrapped to the
@@ -119,23 +126,28 @@ function drawTiledArea(
  * `drawSkyBackground`. Fixed to the viewport (no `originX`/`originY`
  * level-camera convention — same reasoning as the old sky) except that each
  * layer scrolls horizontally at its own fraction of `cameraX` for a parallax
- * depth effect:
+ * depth effect. All static layers render at `BACKGROUND_RENDER_SCALE`:
  *
  * - **Sky**: pinned to y=0, never scrolls (`cameraX` ignored).
- * - **Clouds/hills**: tiles to fill the gap between the sky's bottom edge and
- *   the village layer's top edge — this gap grows/shrinks with canvas height.
- *   Slow parallax.
- * - **Village/treeline**: pinned `VILLAGE_BOTTOM_OFFSET` px above the canvas
- *   bottom. Medium parallax.
+ * - **Clouds/hills**: drawn exactly ONCE, directly under the sky — not tiled
+ *   vertically (an earlier version tiled it to fill the gap down to the
+ *   village layer, which read as a visibly repeating stack on a tall
+ *   window). Slow parallax.
+ * - **Sky-color fill**: whatever vertical gap remains between the bottom of
+ *   the single clouds draw and the top of the village layer is filled with
+ *   `SKY_FILL_COLOR`, a flat color matching the art rather than a second
+ *   copy of the clouds tile.
+ * - **Village/treeline**: pinned `VILLAGE_BOTTOM_OFFSET` (scaled) px above
+ *   the canvas bottom. Medium parallax.
  * - **River overlay**: a 2-frame alternating flipbook drawn on top of the
- *   village row, at `villageTop + RIVER_DEST_OFFSET` so its own water-line
- *   aligns with the village band's baked-in river line (see
- *   `RIVER_DEST_OFFSET`'s doc comment). Same parallax speed as the village.
+ *   village row, at `villageTop + RIVER_DEST_OFFSET * BACKGROUND_RENDER_SCALE`
+ *   so its own water-line aligns with the village band's baked-in river line
+ *   (see `RIVER_DEST_OFFSET`'s doc comment). Same parallax speed and scale as
+ *   the village.
  * - **Grass**: tiles both axes, filling from the village layer's bottom edge
  *   down to the canvas bottom. Drawn last, so it covers any seam at the
  *   village layer's own bottom edge. Full camera speed — matches the
- *   foreground terrain's own scroll exactly. Rendered at `GRASS_RENDER_SCALE`
- *   (2x), unlike every other layer here (native 1x).
+ *   foreground terrain's own scroll exactly.
  */
 export function drawBackgroundLayers(
   ctx: CanvasRenderingContext2D,
@@ -147,26 +159,39 @@ export function drawBackgroundLayers(
 ): void {
   ctx.imageSmoothingEnabled = false;
 
-  drawTiledRow(ctx, images.layers, SKY_SOURCE_RECT, 0, canvasWidth, cameraX, 0);
+  drawTiledRow(ctx, images.layers, SKY_SOURCE_RECT, 0, canvasWidth, cameraX, 0, BACKGROUND_RENDER_SCALE);
 
-  const villageTop = canvasHeight - VILLAGE_BOTTOM_OFFSET - VILLAGE_SOURCE_RECT.height;
-  const villageBottom = villageTop + VILLAGE_SOURCE_RECT.height;
-  drawTiledArea(
-    ctx, images.layers, CLOUDS_SOURCE_RECT,
-    SKY_SOURCE_RECT.height, villageTop, canvasWidth, cameraX, CLOUDS_PARALLAX_FACTOR,
+  const cloudsTop = SKY_SOURCE_RECT.height * BACKGROUND_RENDER_SCALE;
+  drawTiledRow(
+    ctx, images.layers, CLOUDS_SOURCE_RECT, cloudsTop, canvasWidth, cameraX, CLOUDS_PARALLAX_FACTOR,
+    BACKGROUND_RENDER_SCALE,
   );
+  const cloudsBottom = cloudsTop + CLOUDS_SOURCE_RECT.height * BACKGROUND_RENDER_SCALE;
 
-  drawTiledRow(ctx, images.layers, VILLAGE_SOURCE_RECT, villageTop, canvasWidth, cameraX, VILLAGE_PARALLAX_FACTOR);
+  const villageDestHeight = VILLAGE_SOURCE_RECT.height * BACKGROUND_RENDER_SCALE;
+  const villageTop = canvasHeight - VILLAGE_BOTTOM_OFFSET * BACKGROUND_RENDER_SCALE - villageDestHeight;
+  const villageBottom = villageTop + villageDestHeight;
+
+  if (villageTop > cloudsBottom) {
+    ctx.fillStyle = SKY_FILL_COLOR;
+    ctx.fillRect(0, cloudsBottom, canvasWidth, villageTop - cloudsBottom);
+  }
+
+  drawTiledRow(
+    ctx, images.layers, VILLAGE_SOURCE_RECT, villageTop, canvasWidth, cameraX, VILLAGE_PARALLAX_FACTOR,
+    BACKGROUND_RENDER_SCALE,
+  );
 
   const riverFrameIndex = Math.floor(worldElapsedSeconds / RIVER_FRAME_DURATION_SECONDS) % 2;
   const riverRect: SourceRect = { sx: 0, sy: riverFrameIndex * RIVER_FRAME_HEIGHT, width: 160, height: RIVER_FRAME_HEIGHT };
   drawTiledRow(
-    ctx, images.river, riverRect, villageTop + RIVER_DEST_OFFSET, canvasWidth, cameraX, VILLAGE_PARALLAX_FACTOR,
+    ctx, images.river, riverRect, villageTop + RIVER_DEST_OFFSET * BACKGROUND_RENDER_SCALE,
+    canvasWidth, cameraX, VILLAGE_PARALLAX_FACTOR, BACKGROUND_RENDER_SCALE,
   );
 
   const grassSource: SourceRect = { sx: 0, sy: 0, width: images.grass.width, height: images.grass.height };
   drawTiledArea(
     ctx, images.grass, grassSource, villageBottom, canvasHeight, canvasWidth, cameraX, GRASS_PARALLAX_FACTOR,
-    GRASS_RENDER_SCALE,
+    BACKGROUND_RENDER_SCALE,
   );
 }
