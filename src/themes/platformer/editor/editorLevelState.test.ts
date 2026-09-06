@@ -1,6 +1,7 @@
-import { editorLevelSignal, editorSelectedToolSignal, editorBackgroundSignal, editorActiveLayerSignal, editorSelectedBackgroundPieceSignal } from './editorLevelState';
+import { editorLevelSignal, editorSelectedToolSignal, editorBackgroundSignal, editorActiveLayerSignal, editorSelectedBackgroundPieceSignal, editorCanvasModeSignal, editorBlueprintSignal, editorBlueprintBackgroundSignal, editorLoadedBlueprintNameSignal } from './editorLevelState';
 import { importLayout } from './importLayout';
 import { LEVEL_1_LAYOUT } from '../level/level';
+import { BLANK_BLUEPRINT } from '../level/BlueprintData';
 
 describe('editorLevelSignal', () => {
   const original = editorLevelSignal.value;
@@ -53,5 +54,35 @@ describe('editorLevelState — background layer signals', () => {
 
   it('editorSelectedBackgroundPieceSignal-defaultsToNull', () => {
     expect(editorSelectedBackgroundPieceSignal.value).toBeNull();
+  });
+});
+
+describe('editorLevelState — blueprint canvas signals', () => {
+  it('editorCanvasModeSignal-defaultsToLevel', () => {
+    expect(editorCanvasModeSignal.value).toBe('level');
+  });
+
+  it('editorBlueprintSignal-defaultsToASingleEmptyCell', () => {
+    expect(editorBlueprintSignal.value).toEqual(importLayout(BLANK_BLUEPRINT.layout));
+  });
+
+  it('editorBlueprintBackgroundSignal-defaultsToAnEmptyList', () => {
+    expect(editorBlueprintBackgroundSignal.value).toEqual([]);
+  });
+
+  it('editorLoadedBlueprintNameSignal-defaultsToTheBlankEntrysName', () => {
+    expect(editorLoadedBlueprintNameSignal.value).toBe(BLANK_BLUEPRINT.name);
+  });
+
+  it('writingTheBlueprintGrid-persistsToLocalStorageUnderTheExpectedKey', () => {
+    const original = editorBlueprintSignal.value;
+    try {
+      const grid = importLayout(['##']);
+      editorBlueprintSignal.value = grid;
+
+      expect(JSON.parse(localStorage.getItem('platformer-editor-blueprint')!)).toEqual(grid);
+    } finally {
+      editorBlueprintSignal.value = original;
+    }
   });
 });

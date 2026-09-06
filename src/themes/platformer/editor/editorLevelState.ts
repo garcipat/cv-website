@@ -1,6 +1,7 @@
 import { createLocalStorageSignal } from '@/lib/utils';
 import { importLayout } from './importLayout';
 import { LEVEL_1_LAYOUT } from '../level/level';
+import { BLANK_BLUEPRINT } from '../level/BlueprintData';
 import type { TileChar } from '../level/LevelParser';
 import type { BackgroundPlacement, BackgroundPieceId } from '../level/LevelData';
 
@@ -76,4 +77,44 @@ export const editorActiveLayerSignal = createLocalStorageSignal<'foreground' | '
 export const editorSelectedBackgroundPieceSignal = createLocalStorageSignal<BackgroundPieceId | null>(
   'platformer-editor-selected-background-piece',
   null,
+);
+
+/**
+ * Which canvas the editor is currently painting: the level's own `grid`, or
+ * the separate blueprint canvas below. Independent of
+ * `editorActiveLayerSignal` — that one says which LAYER (foreground or
+ * background) of whichever canvas is active gets painted, and both toggles
+ * keep working together (roadmap step 44a).
+ */
+export const editorCanvasModeSignal = createLocalStorageSignal<'level' | 'blueprint'>(
+  'platformer-editor-canvas-mode',
+  'level',
+);
+
+/**
+ * The blueprint canvas's own foreground grid — a second, fully independent
+ * grid, NOT a region of the level. Starts as one empty cell (the same blank
+ * `BLANK_BLUEPRINT.layout` the Blueprint Select dropdown's `new` entry
+ * loads) and is persisted exactly like `editorLevelSignal` above, so a room
+ * half-painted yesterday is still there today.
+ */
+export const editorBlueprintSignal = createLocalStorageSignal<TileChar[][]>(
+  'platformer-editor-blueprint',
+  importLayout(BLANK_BLUEPRINT.layout),
+);
+
+/** The blueprint canvas's background-layer placements — the blueprint's
+ *  counterpart of `editorBackgroundSignal`. Blueprints carry the same
+ *  decorative background layer levels do. */
+export const editorBlueprintBackgroundSignal = createLocalStorageSignal<BackgroundPlacement[]>(
+  'platformer-editor-blueprint-background',
+  [],
+);
+
+/** The name of the blueprint the canvas was last loaded from (or last saved
+ *  as) — what the Blueprint Select trigger shows, mirroring
+ *  `editorLoadedLevelNameSignal`. */
+export const editorLoadedBlueprintNameSignal = createLocalStorageSignal<string>(
+  'platformer-editor-loaded-blueprint',
+  BLANK_BLUEPRINT.name,
 );
