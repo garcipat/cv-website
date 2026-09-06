@@ -2,13 +2,30 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BlueprintSelect } from './BlueprintSelect';
-import { savedBlueprintsSignal, saveBlueprintToStash } from './blueprintStash';
-import { BLANK_BLUEPRINT } from '../level/BlueprintData';
+import { BLANK_BLUEPRINT, type Blueprint } from '../level/BlueprintData';
+
+// The registry is a build-time glob, so the suite swaps in a list it can
+// control. It has to be a STABLE array the tests mutate rather than a fresh one
+// per test: the component reads the module binding at render time, so emptying
+// and refilling this same array is what makes each test's registry its own.
+const { registryEntries } = vi.hoisted(() => ({ registryEntries: [] as Blueprint[] }));
+
+vi.mock('../level/blueprintRegistry', () => ({
+  BLUEPRINTS: registryEntries,
+  findBlueprint: (id: string) => registryEntries.find((entry) => entry.id === id),
+}));
 
 const openDropdown = () => fireEvent.click(screen.getByRole('combobox'));
 
+const registerBlueprint = (blueprint: Blueprint): Blueprint => {
+  registryEntries.push(blueprint);
+  return blueprint;
+};
+
+const TEST_ROOM: Blueprint = { id: 'test-room', name: 'Test Room', layout: ['#'] };
+
 beforeEach(() => {
-  savedBlueprintsSignal.value = [];
+  registryEntries.length = 0;
 });
 
 describe('BlueprintSelect', () => {
@@ -20,7 +37,7 @@ describe('BlueprintSelect', () => {
   });
 
   it('open-listsEverySavedBlueprint', () => {
-    saveBlueprintToStash('Test Room', ['#'], []);
+    registerBlueprint(TEST_ROOM);
     render(<BlueprintSelect loadedBlueprintName="new" isDirty={false} onLoadBlueprint={vi.fn()} />);
     openDropdown();
 
@@ -36,7 +53,7 @@ describe('BlueprintSelect', () => {
   });
 
   it('notDirty-selectingASavedBlueprint-loadsItWithNoConfirmation', async () => {
-    const saved = saveBlueprintToStash('Test Room', ['#'], []);
+    const saved = registerBlueprint(TEST_ROOM);
     const onLoadBlueprint = vi.fn();
     render(
       <BlueprintSelect loadedBlueprintName="new" isDirty={false} onLoadBlueprint={onLoadBlueprint} />,
@@ -60,7 +77,7 @@ describe('BlueprintSelect', () => {
   });
 
   it('dirty-selectingAnotherBlueprint-doesNotLoadItYet', async () => {
-    saveBlueprintToStash('Test Room', ['#'], []);
+    registerBlueprint(TEST_ROOM);
     const onLoadBlueprint = vi.fn();
     render(
       <BlueprintSelect loadedBlueprintName="new" isDirty onLoadBlueprint={onLoadBlueprint} />,
@@ -73,7 +90,7 @@ describe('BlueprintSelect', () => {
   });
 
   it('dirty-confirmingTheDialog-loadsTheSelectedBlueprint', async () => {
-    const saved = saveBlueprintToStash('Test Room', ['#'], []);
+    const saved = registerBlueprint(TEST_ROOM);
     const onLoadBlueprint = vi.fn();
     render(
       <BlueprintSelect loadedBlueprintName="new" isDirty onLoadBlueprint={onLoadBlueprint} />,
@@ -86,7 +103,7 @@ describe('BlueprintSelect', () => {
   });
 
   it('dirty-cancellingTheDialog-loadsNothing', async () => {
-    saveBlueprintToStash('Test Room', ['#'], []);
+    registerBlueprint(TEST_ROOM);
     const onLoadBlueprint = vi.fn();
     render(
       <BlueprintSelect loadedBlueprintName="new" isDirty onLoadBlueprint={onLoadBlueprint} />,
@@ -102,7 +119,7 @@ describe('BlueprintSelect', () => {
   // Reopening the blueprint you are already on is "start this room over",
   // exactly the reset case LevelSelect's own action-menu Select preserves.
   it('dirty-reselectingTheLoadedBlueprint-reloadsItAfterConfirmation', async () => {
-    const saved = saveBlueprintToStash('Test Room', ['#'], []);
+    const saved = registerBlueprint(TEST_ROOM);
     const onLoadBlueprint = vi.fn();
     render(
       <BlueprintSelect loadedBlueprintName="Test Room" isDirty onLoadBlueprint={onLoadBlueprint} />,
@@ -114,11 +131,19 @@ describe('BlueprintSelect', () => {
     expect(onLoadBlueprint).toHaveBeenCalledWith(saved);
   });
 
-  it('malformedStoredEntry-isNotOfferedAsAnOption', () => {
-    savedBlueprintsSignal.value = [{ id: 'bad', name: 'Bad', layout: [] }];
+  it('registryEntries-areListedAfterTheBlankEntryInTheirRegistryOrder', () => {
+    // The registry already sorted by id and dropped anything malformed
+    // (blueprintRegistry.ts) — this component adds only the blank entry, at
+    // the front, and never re-sorts or re-validates.
+    registerBlueprint({ id: 'alpha', name: 'Alpha', layout: ['#'] });
+    registerBlueprint({ id: 'zulu', name: 'Zulu', layout: ['#'] });
     render(<BlueprintSelect loadedBlueprintName="new" isDirty={false} onLoadBlueprint={vi.fn()} />);
     openDropdown();
 
-    expect(screen.queryByRole('option', { name: 'Bad' })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
+      BLANK_BLUEPRINT.name,
+      'Alpha',
+      'Zulu',
+    ]);
   });
 });
