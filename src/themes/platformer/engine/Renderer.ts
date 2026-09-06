@@ -39,11 +39,13 @@ import {
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
 import { PICKUP_TYPES } from '../entities/pickups';
 import { key } from '../entities/pickups/Key';
+import { heart } from '../entities/pickups/Heart';
 import { bonusFruit } from '../entities/pickups/BonusFruit';
 import { typeOf } from '../entities/enemies';
 import type { EnemyState } from '../entities/Enemy';
 import type { DrawContext } from './DrawContext';
 import type { KeyPickupState } from '../entities/KeyPickup';
+import type { HeartPickupState } from '../entities/HeartPickup';
 import { KEY_FRAME_WIDTH, KEY_FRAME_HEIGHT } from '../entities/KeyPickup';
 import type { BlockState } from '../entities/Block';
 import { BLOCK_TYPES } from '../entities/blocks';
@@ -902,6 +904,22 @@ export function drawKeyPickups(
   for (const pickup of pickups) {
     if (pickup.collected) continue;
     key.draw(pickup, dc);
+  }
+}
+
+/** Draws every potion-pot's dropped heart — each one renders itself (see
+ *  entities/pickups/Heart.ts). Unlike drawKeyPickups, there's no `collected`
+ *  filter: a touched heart is removed from its live array entirely the same
+ *  tick (see PlatformerState.ts's heartPickupStates doc comment), same
+ *  convention as drawBonusFruits below. */
+export function drawHeartPickups(
+  ctx: CanvasRenderingContext2D,
+  pickups: readonly HeartPickupState[],
+  dc: DrawContext,
+): void {
+  ctx.imageSmoothingEnabled = false;
+  for (const pickup of pickups) {
+    heart.draw(pickup, dc);
   }
 }
 

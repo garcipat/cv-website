@@ -7,6 +7,7 @@ import {
   chestPlayerIsStandingOn,
   checkSignOverlap,
   checkKeyPickupCollisions,
+  checkHeartPickupCollisions,
   overlappingTriggers,
 } from './Collision';
 import type { Box } from './Collision';
@@ -30,6 +31,7 @@ import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { ChestState } from '../entities/Chest';
 import type { SignPlacement } from '../level/SignMapper';
 import type { KeyPickupState } from '../entities/KeyPickup';
+import { spawnHeartPickup } from '../entities/HeartPickup';
 import { PHYSICS_CONFIG } from './PhysicsConfig';
 
 function makePlayer(x: number, y: number): PlayerState {
@@ -240,6 +242,20 @@ describe('checkBonusFruitCollisions', () => {
     fruit = tickBonusFruit(fruit, BONUS_FRUIT_RISE_DURATION_SECONDS);
     const player = makePlayer(1000, 1000);
     expect(checkBonusFruitCollisions(player, [fruit])).toEqual([]);
+  });
+});
+
+describe('checkHeartPickupCollisions', () => {
+  it('playerOverlapsHeart-returnsItsId', () => {
+    const heart = spawnHeartPickup('h1', 0, 100);
+    const player = makePlayer(0, 100 - RENDERED_TILE_SIZE);
+    expect(checkHeartPickupCollisions(player, [heart])).toEqual(['h1']);
+  });
+
+  it('playerFarFromHeart-returnsNoIds', () => {
+    const heart = spawnHeartPickup('h1', 0, 100);
+    const player = makePlayer(1000, 1000);
+    expect(checkHeartPickupCollisions(player, [heart])).toEqual([]);
   });
 });
 
