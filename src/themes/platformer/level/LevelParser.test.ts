@@ -57,7 +57,7 @@ describe('parseLevel', () => {
     expect(ENTITY_CHARS.M).toBe('enemyGreen');
     expect(ENTITY_CHARS.m).toBe('enemyPurple');
     expect(ENTITY_CHARS.o).toBe('coin');
-    expect(ENTITY_CHARS.X).toBe('crate');
+    expect(ENTITY_CHARS['=']).toBe('crate');
     expect(ENTITY_CHARS.Q).toBe('questionMark');
     expect(ENTITY_CHARS.F).toBe('fragileRock');
     expect(ENTITY_CHARS.u).toBe('coinPot');
@@ -223,7 +223,7 @@ describe('findCrateTiles', () => {
   });
 
   it('multipleMarkers-returnsAllInReadingOrder', () => {
-    expect(findCrateTiles(['.X', 'X.'])).toEqual([
+    expect(findCrateTiles(['.=', '=.'])).toEqual([
       { col: 1, row: 0 },
       { col: 0, row: 1 },
     ]);
@@ -247,7 +247,7 @@ describe('findQuestionMarkTiles', () => {
   });
 
   it('crateOrFragileRockMarker-isNotCountedAsQuestionMark', () => {
-    expect(findQuestionMarkTiles(['XF'])).toEqual([]);
+    expect(findQuestionMarkTiles(['=F'])).toEqual([]);
   });
 });
 
@@ -264,7 +264,7 @@ describe('findFragileRockTiles', () => {
   });
 
   it('crateOrQuestionMarkMarker-isNotCountedAsFragileRock', () => {
-    expect(findFragileRockTiles(['XQ'])).toEqual([]);
+    expect(findFragileRockTiles(['=Q'])).toEqual([]);
   });
 });
 
@@ -281,7 +281,7 @@ describe('findCoinPotTiles', () => {
   });
 
   it('crateOrQuestionMarkMarker-isNotCountedAsCoinPot', () => {
-    expect(findCoinPotTiles(['XQ'])).toEqual([]);
+    expect(findCoinPotTiles(['=Q'])).toEqual([]);
   });
 });
 
@@ -315,7 +315,7 @@ describe('findChestTiles', () => {
   });
 
   it('crateOrFragileRockMarker-isNotCountedAsChest', () => {
-    expect(findChestTiles(['XF'])).toEqual([]);
+    expect(findChestTiles(['=F'])).toEqual([]);
   });
 });
 
@@ -409,8 +409,8 @@ describe('findHazardTiles', () => {
 describe('TileChar', () => {
   it('includes every TERRAIN_CHARS, ENTITY_CHARS, SIGN_CHARS, and HAZARD_CHARS key', () => {
     const tileChars: readonly TileChar[] = [
-      '.', 'G', 'R', '#', 'B', 'H', 'I', 'P', 'S', 'M', 'm', 'o', 'X', 'Q', 'F', 'T', 'u', 'p',
-      '1', '2', '3', '4', '5', 'n', 'N', '^', 'v', '<', '>',
+      '.', 'G', 'R', '#', 'B', 'H', 'I', 'P', 'S', 'M', 'm', 'o', '=', 'Q', 'F', 'T', 'u', 'p',
+      '1', '2', '3', '4', '5', 'n', 'N', 'X', 'c', 'd', 'a', '^', 'v', '<', '>',
     ];
     const allKeys = [
       ...Object.keys(TERRAIN_CHARS),

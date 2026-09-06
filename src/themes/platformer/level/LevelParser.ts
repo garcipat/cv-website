@@ -30,12 +30,16 @@ export const TERRAIN_CHARS: Record<string, TileType | undefined> = {
   P: 'patrol',
   n: 'bush',
   N: 'fence',
+  X: 'cobweb',
+  c: 'crystalCluster',
+  d: 'stalactite',
+  a: 'stalagmite',
 };
 
 /**
  * Maps each entity-marker character usable in a level layout to what it
  * marks: `S` (spawn), `M` (green/Course enemy), `m` (purple enemy — carries
- * no CV fact, drops a key on defeat), `o` (Skill-category coin), `X` (crate block — Education/Activity/
+ * no CV fact, drops a key on defeat), `o` (Skill-category coin), `=` (crate block — Education/Activity/
  * Language fact), `Q` (question-mark block — no fact, spawns a bonus fruit),
  * `F` (fragileRock block — no fact, level-design filler), `u` (coin-pot block —
  * destroyed by landing on top, drops a coin; lowercase, a small urn-shaped
@@ -55,7 +59,7 @@ export const ENTITY_CHARS: Record<string, EntityKind | undefined> = {
   M: 'enemyGreen',
   m: 'enemyPurple',
   o: 'coin',
-  X: 'crate',
+  '=': 'crate',
   Q: 'questionMark',
   F: 'fragileRock',
   u: 'coinPot',
@@ -156,7 +160,7 @@ export type TileChar =
   | 'M'
   | 'm'
   | 'o'
-  | 'X'
+  | '='
   | 'Q'
   | 'F'
   | 'T'
@@ -164,6 +168,10 @@ export type TileChar =
   | 'p'
   | 'n'
   | 'N'
+  | 'X'
+  | 'c'
+  | 'd'
+  | 'a'
   | '1'
   | '2'
   | '3'
@@ -254,7 +262,7 @@ export function findCoinTiles(layout: readonly string[]): { col: number; row: nu
   return findAllOfKind(layout, 'coin');
 }
 
-/** Finds every `X` (crate block) marker's position in a level layout — same
+/** Finds every `=` (crate block) marker's position in a level layout — same
  *  convention as findCoinTiles, for crate block defs instead
  *  of collectible defs (see BlockMapper.ts's placeBlocks). */
 export function findCrateTiles(layout: readonly string[]): { col: number; row: number }[] {
