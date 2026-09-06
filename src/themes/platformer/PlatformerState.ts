@@ -47,7 +47,13 @@ import type { CollectedFact, SectionId } from './types';
 import type { CollectiblePlacement } from './level/CollectibleMapper';
 import type { EnemyPlacement } from './level/EnemyMapper';
 import type { BlockPlacement } from './level/BlockMapper';
-import type { FlightEffect, PuffEffect, CounterPopupEffect, CounterPopupLabelKey } from './engine/CollectionEffects';
+import type {
+  FlightEffect,
+  PuffEffect,
+  HealAuraEffect,
+  CounterPopupEffect,
+  CounterPopupLabelKey,
+} from './engine/CollectionEffects';
 import type { LevelTotals } from './entities/CollectiblesSummary';
 import type { HintTooltipState } from './engine/HintTooltip';
 
@@ -467,6 +473,13 @@ export const activeEffects = signal<FlightEffect[]>([]);
  *  render passes (drawPuffEffects vs. drawCollectionEffects). */
 export const activePuffs = signal<PuffEffect[]>([]);
 
+/** Currently animating heal auras, played on the player when a heart pickup
+ *  heals them — see engine/CollectionEffects.ts's HealAuraEffect doc
+ *  comment. Kept as its own array, parallel to activePuffs, for the same
+ *  reason: a different shape (no x/y — the player moves) and its own render
+ *  pass (drawHealAuraEffects). */
+export const activeHealAuraEffects = signal<HealAuraEffect[]>([]);
+
 /**
  * The currently-visible "(icon) collected / total" counter popups, one slot
  * per collectible type. A missing key means that type has nothing showing.
@@ -590,6 +603,7 @@ export function resetGameProgress(): void {
   activeJournalSection.value = undefined;
   activeEffects.value = [];
   activePuffs.value = [];
+  activeHealAuraEffects.value = [];
   activeCounterPopups.value = {};
   blockStates.value = blockPlacements.value.map(toBlockState);
   spawnedCoinPlacements.value = [];

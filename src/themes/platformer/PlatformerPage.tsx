@@ -26,6 +26,7 @@ import {
   drawSignBubble,
   drawKeyPickups,
   drawHeartPickups,
+  drawHealAuraEffects,
   drawHazards,
   drawKeyCounter,
   keyCounterX,
@@ -91,6 +92,9 @@ import {
   counterPopupOpacity,
   startPuffEffect,
   tickPuffEffect,
+  startHealAuraEffect,
+  tickHealAuraEffect,
+  HEAL_AURA_DURATION_SECONDS,
   SPARKLE_DURATION_SECONDS,
 } from './engine/CollectionEffects';
 import { coinFrameSource, COIN_FRAME_SIZE } from './entities/Coin';
@@ -161,6 +165,7 @@ import {
   collectedKeys,
   heartPickupStates,
   activePuffs,
+  activeHealAuraEffects,
   levelTotals,
 } from './PlatformerState';
 import { useSignals } from '@preact/signals-react/runtime';
@@ -513,6 +518,14 @@ export const PlatformerPage = () => {
           playerVisible,
         );
       }
+
+      drawHealAuraEffects(
+        ctx,
+        activeHealAuraEffects.value,
+        playerState.value.x + PLAYER_RENDERED_SIZE / 2 + originX,
+        playerState.value.y + PLAYER_VISUAL_CENTER_Y_OFFSET + originY,
+        PLAYER_RENDERED_SIZE,
+      );
 
       drawCollectibles(ctx, allCollectiblePlacements.value, collectedCollectibleIds.value, drawContext);
 
@@ -923,6 +936,10 @@ export const PlatformerPage = () => {
         .map((puff) => tickPuffEffect(puff, dt))
         .filter((puff) => puff.elapsed <= SPARKLE_DURATION_SECONDS);
 
+      activeHealAuraEffects.value = activeHealAuraEffects.value
+        .map((aura) => tickHealAuraEffect(aura, dt))
+        .filter((aura) => aura.elapsed <= HEAL_AURA_DURATION_SECONDS);
+
       const tickedPopups = { ...activeCounterPopups.value };
       let popupsChanged = false;
       for (const key of Object.keys(tickedPopups) as Array<keyof typeof tickedPopups>) {
@@ -1034,9 +1051,9 @@ export const PlatformerPage = () => {
       // removed outright — same array-filter convention as bonus fruits
       // above, not the flagged-`collected` convention key pickups use, since
       // there's no HUD counter a heart needs to keep contributing to.
-      // Healing is a no-op once at MAX_HALF_HEARTS (healDamage clamps), but
-      // the pickup is still consumed either way — same "always drops/always
-      // collects" convention as a coin-pot's coin.
+      // checkHeartPickupCollisions itself gates on hitPoints < MAX_HALF_HEARTS,
+      // so a heart reaching this point always has something to heal — no
+      // no-op collection at full health (it waits in the world instead).
       const touchedHeartIds = checkHeartPickupCollisions(playerState.value, heartPickupStates.value);
       if (touchedHeartIds.length > 0) {
         playerState.value = {
@@ -1046,6 +1063,13 @@ export const PlatformerPage = () => {
         heartPickupStates.value = heartPickupStates.value.filter(
           (heart) => !touchedHeartIds.includes(heart.id),
         );
+        // One aura per touched heart (typically just one) — drawHealAuraEffects
+        // draws every active entry at the player's CURRENT position each
+        // frame, so several overlapping auras simply read as one brighter one.
+        activeHealAuraEffects.value = [
+          ...activeHealAuraEffects.value,
+          ...touchedHeartIds.map((id) => startHealAuraEffect(id)),
+        ];
       }
 
       // Key pickups: dropped by defeated purple slimes (see the justDefeated
