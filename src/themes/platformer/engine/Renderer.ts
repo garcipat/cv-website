@@ -4,6 +4,7 @@ import {
   bridgeRunPosition,
   chainAttachment,
   chainRunLength,
+  cobwebOrientation,
   horizontalRunPosition,
   neighbourMask,
   NEIGHBOUR_UP,
@@ -15,7 +16,15 @@ import {
 } from '../level/Terrain';
 import type { ChainAttachment } from '../level/Terrain';
 import { groundAtlasCell, grassCell, GRASS_SOURCE_HEIGHT } from './GroundAtlas';
-import { bushOrTreeEntry, staticObjectEntry, chainRunPieces } from './StaticObjectsCatalog';
+import {
+  bushOrTreeEntry,
+  staticObjectEntry,
+  stalactiteEntry,
+  stalagmiteEntry,
+  chainRunPieces,
+  COBWEB_CORNER_ENTRY,
+  COBWEB_FLAT_ENTRY,
+} from './StaticObjectsCatalog';
 import type { GroundAtlasEntry } from './GroundAtlas';
 import { backgroundCatalogEntry } from './BackgroundCatalog';
 import type { LevelDef, TileType } from '../level/LevelData';
@@ -101,9 +110,13 @@ function tileSource(
       return null;
     case 'bush':
     case 'fence':
-      // Drawn by drawTerrain's own staticObjects branch when that sheet is
-      // loaded; this shared lookup only runs when it isn't, so there is
-      // nothing to draw here.
+    case 'cobweb':
+    case 'crystalCluster':
+    case 'stalactite':
+    case 'stalagmite':
+      // Drawn by drawTerrain's own staticObjects/decorations branch when that
+      // sheet is loaded; this shared lookup only runs when it isn't, so there
+      // is nothing to draw here.
       return null;
     case 'empty':
       return null;
@@ -382,6 +395,7 @@ export function drawTerrain(
   originX = 0,
   originY = 0,
   staticObjects: HTMLImageElement | null = null,
+  decorations: HTMLImageElement | null = null,
 ): void {
   ctx.imageSmoothingEnabled = false;
 
@@ -419,6 +433,59 @@ export function drawTerrain(
         const entry = staticObjectEntry('fence', col, row);
         ctx.drawImage(
           staticObjects, entry.sx, entry.sy, TILE_SIZE, TILE_SIZE,
+          destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
+        );
+        continue;
+      }
+
+      if (decorations && tile === 'cobweb') {
+        const orientation = cobwebOrientation(level, col, row);
+        if (!orientation.corner) {
+          ctx.drawImage(
+            decorations, COBWEB_FLAT_ENTRY.sx, COBWEB_FLAT_ENTRY.sy, TILE_SIZE, TILE_SIZE,
+            destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
+          );
+        } else if (orientation.rotation === 0) {
+          ctx.drawImage(
+            decorations, COBWEB_CORNER_ENTRY.sx, COBWEB_CORNER_ENTRY.sy, TILE_SIZE, TILE_SIZE,
+            destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
+          );
+        } else {
+          const half = RENDERED_TILE_SIZE / 2;
+          ctx.save();
+          ctx.translate(destX + half, destY + half);
+          ctx.rotate((orientation.rotation * Math.PI) / 2);
+          ctx.drawImage(
+            decorations, COBWEB_CORNER_ENTRY.sx, COBWEB_CORNER_ENTRY.sy, TILE_SIZE, TILE_SIZE,
+            -half, -half, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
+          );
+          ctx.restore();
+        }
+        continue;
+      }
+
+      if (decorations && tile === 'crystalCluster') {
+        const entry = staticObjectEntry('crystalCluster', col, row);
+        ctx.drawImage(
+          decorations, entry.sx, entry.sy, TILE_SIZE, TILE_SIZE,
+          destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
+        );
+        continue;
+      }
+
+      if (decorations && tile === 'stalactite') {
+        const entry = stalactiteEntry(col, row);
+        ctx.drawImage(
+          decorations, entry.sx, entry.sy, TILE_SIZE, TILE_SIZE,
+          destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
+        );
+        continue;
+      }
+
+      if (decorations && tile === 'stalagmite') {
+        const entry = stalagmiteEntry(col, row);
+        ctx.drawImage(
+          decorations, entry.sx, entry.sy, TILE_SIZE, TILE_SIZE,
           destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
         );
         continue;
