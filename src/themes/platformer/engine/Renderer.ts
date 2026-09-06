@@ -111,27 +111,41 @@ function tileSource(
 const WATER_TILE_SX = 4 * TILE_SIZE;
 const WATER_CREST_SY = 9 * TILE_SIZE;
 
+/** Solid water blue sampled directly from the crest tile's own body (below
+ *  its foam edge, at world_tileset.png's (4,9) tile, a few rows down) — used
+ *  to fill any gap the crest line itself doesn't cover (see `drawWaterForeground`). */
+const WATER_BODY_COLOR = 'rgb(20, 152, 220)';
+
 /**
  * Draws the foreground water band anchored to the LEVEL's bottom row (not
  * the viewport) — same `originX`/`originY` camera-scroll convention as
  * `drawTerrain`, so it scrolls with the level rather than the screen.
  * Overlaps the BOTTOM HALF of the level's own last terrain row (rather than
- * sitting below it) because the camera formula in PlatformerPage.tsx used to
- * always bottom-anchor that row flush against the canvas edge — a band drawn
- * strictly beneath it would always land at/past the canvas edge and never
- * actually be visible. Half a tile keeps the top of that row (and its grass
- * edge) readable while still reading as "waves lapping in front of the
- * ground" rather than fully submerging it. Water is rendered as exactly this
- * single crest tile per column, tiling across the full level width at that
- * half-tile line — nothing is filled in beneath it. Whatever lies below the
- * map's last row (background layers, or nothing) shows through untouched.
- * Draws nothing once the band has scrolled entirely below the visible
- * viewport.
+ * sitting below it) so the top of that row (and its grass edge) stays
+ * readable while still reading as "waves lapping in front of the ground"
+ * rather than fully submerging it.
+ *
+ * Tiles across the full `canvasWidth` — NOT just the level's own width —
+ * starting from `originX` (always <= 0, since the horizontal camera clamps
+ * to 0 rather than scrolling past the level's own edges) so tiles stay
+ * aligned to world columns. A canvas wider than the level itself (the
+ * horizontal camera can't scroll to compensate) would otherwise leave the
+ * crest texture stopping short of the canvas's right edge.
+ *
+ * Below the crest line, fills solid `WATER_BODY_COLOR` across the full
+ * canvas width down to the canvas bottom. The vertical camera
+ * (`updateCameraY`/`initialCameraY` in Camera.ts) is deliberately unclamped,
+ * so a spawn or descent low in the map can leave the level's own bottom row
+ * scrolled above the canvas's bottom edge. Without this fill, that gap would
+ * expose the parallax background layers behind the foreground, breaking the
+ * illusion that the map simply floats in a body of water. Draws nothing
+ * once the band has scrolled entirely below the visible viewport.
  */
 export function drawWaterForeground(
   ctx: CanvasRenderingContext2D,
   level: LevelDef,
   tileset: HTMLImageElement,
+  canvasWidth: number,
   canvasHeight: number,
   originX = 0,
   originY = 0,
@@ -141,9 +155,14 @@ export function drawWaterForeground(
 
   ctx.imageSmoothingEnabled = false;
 
-  for (let col = 0; col < level.width; col++) {
-    const x = col * RENDERED_TILE_SIZE + originX;
+  for (let x = originX; x < canvasWidth; x += RENDERED_TILE_SIZE) {
     ctx.drawImage(tileset, WATER_TILE_SX, WATER_CREST_SY, TILE_SIZE, TILE_SIZE, x, topY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+  }
+
+  const bodyTop = topY + RENDERED_TILE_SIZE;
+  if (bodyTop < canvasHeight) {
+    ctx.fillStyle = WATER_BODY_COLOR;
+    ctx.fillRect(0, bodyTop, canvasWidth, canvasHeight - bodyTop);
   }
 }
 

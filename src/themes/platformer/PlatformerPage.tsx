@@ -34,12 +34,12 @@ import {
 } from './engine/Renderer';
 import { drawBackgroundLayers } from './engine/BackgroundLayers';
 import type { DrawContext } from './engine/DrawContext';
-import { drawDebugOverlay } from './engine/DebugOverlay';
+import { drawDebugOverlay, drawCameraDeadZoneOverlay } from './engine/DebugOverlay';
 import { createGameLoop } from './engine/GameLoop';
 import { stepPlayerPhysics, checkPitFall, resolvePitFall } from './engine/Physics';
 import { PHYSICS_CONFIG } from './engine/PhysicsConfig';
 import { stepEnemyPatrol, stepEnemyHitReaction } from './engine/EnemyAI';
-import { updateCamera, updateCameraY } from './engine/Camera';
+import { updateCamera, updateCameraY, initialCameraY } from './engine/Camera';
 import { createKeyboardInput } from './engine/Input';
 import type { KeyboardInput } from './engine/Input';
 import {
@@ -373,6 +373,26 @@ export const PlatformerPage = () => {
   }, []);
 
   /**
+   * One-time vertical-camera snap for spawn/respawn/restart — see
+   * `initialCameraY`'s own doc comment for why this can't just be left to
+   * `updateCameraY`'s per-frame dead-zone tracking (a fresh spawn can land
+   * anywhere inside the band with no correction at all). No-ops if the
+   * canvas hasn't sized itself yet (`canvas.height` starts at 0 before the
+   * mount effect's first `resize()` call).
+   */
+  const snapCameraYToSpawn = () => {
+    const canvas = canvasRef.current;
+    if (!canvas || canvas.height === 0) return;
+    const levelPixelHeight = currentLevel.value.height * RENDERED_TILE_SIZE;
+    cameraPositionY.value = initialCameraY(
+      playerState.value.y,
+      PLAYER_RENDERED_SIZE,
+      canvas.height,
+      levelPixelHeight,
+    );
+  };
+
+  /**
    * Reset Game (journal button, FR-018b): clears collected progress and
    * closes the journal immediately (no reverse-close animation — per user
    * request, just an instant close), then starts the same iris-in
@@ -391,6 +411,7 @@ export const PlatformerPage = () => {
     // reachable while the ending screen is showing today, but costs nothing
     // to keep in sync regardless).
     endingScreenOpen.value = false;
+    snapCameraYToSpawn();
     const center = spawnCenter();
     lifecycleState.value = introState(center.x, center.y);
   };
@@ -409,6 +430,7 @@ export const PlatformerPage = () => {
 
   const handleDebugRespawn = () => {
     resetGame();
+    snapCameraYToSpawn();
     const center = spawnCenter();
     lifecycleState.value = introState(center.x, center.y);
   };
@@ -553,7 +575,15 @@ export const PlatformerPage = () => {
       // of the player/enemies, same camera-scroll originX/originY as
       // drawTerrain so it stays attached to the level rather than the screen.
       if (tilesetRef.current) {
-        drawWaterForeground(ctx, currentLevel.value, tilesetRef.current, canvas.height, originX, originY);
+        drawWaterForeground(
+          ctx,
+          currentLevel.value,
+          tilesetRef.current,
+          canvas.width,
+          canvas.height,
+          originX,
+          originY,
+        );
       }
 
       const tooltip = hintTooltipState.value;
@@ -626,7 +656,7 @@ export const PlatformerPage = () => {
         canvas.height * 0.3 - COLLECTION_TEXT_STACK_ROW_HEIGHT,
       );
 
-      if (debugHitboxesRef.current)
+      if (debugHitboxesRef.current) {
         drawDebugOverlay(
           ctx,
           playerState.value,
@@ -636,6 +666,8 @@ export const PlatformerPage = () => {
           enemyStates.value,
           hazardPlacements.value,
         );
+        drawCameraDeadZoneOverlay(ctx, canvas.width, canvas.height);
+      }
 
       if (heartsSpriteRef.current) {
         drawHearts(ctx, playerState.value.hitPoints, heartsSpriteRef.current, HEARTS_START_X);
@@ -686,6 +718,7 @@ export const PlatformerPage = () => {
     };
 
     resize();
+    snapCameraYToSpawn();
     render();
     canvas.focus();
 
@@ -706,6 +739,7 @@ export const PlatformerPage = () => {
     const restartIfAwaiting = () => {
       if (lifecycleState.value.phase !== 'awaitingRestart') return;
       resetGame();
+      snapCameraYToSpawn();
       const center = spawnCenter();
       lifecycleState.value = introState(center.x, center.y);
       render();

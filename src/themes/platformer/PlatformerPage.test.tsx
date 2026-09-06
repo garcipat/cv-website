@@ -329,14 +329,20 @@ describe('PlatformerPage', () => {
     // WATER_TILE_SX): that band is deliberately drawn to overhang the
     // canvas's bottom edge by half a tile (drawWaterForeground's half-tile
     // overlap with the level's last row), which is a different, intentional
-    // invariant from THIS test's — that the level's own TERRAIN is
-    // bottom-anchored flush with the canvas.
+    // invariant from THIS test's — that the level's own TERRAIN bottom sits
+    // wherever `snapCameraYToSpawn` (PlatformerPage.tsx) placed it to frame
+    // the spawn at the dead-zone's target row (see `initialCameraY` in
+    // Camera.ts), not necessarily flush with the canvas bottom.
     const bottomEdges = ctx.drawImage.mock.calls
       .filter((call: unknown[]) => call[1] !== 64)
       .map((call: unknown[]) => (call[6] as number) + (call[8] as number)); // dy + dh
     // Canvas height is capped at PLAY_CANVAS_ROWS(24) * RENDERED_TILE_SIZE(32)
     // = 768 regardless of the (taller) mocked window.innerHeight (900).
-    expect(Math.max(...bottomEdges)).toBe(768);
+    // LEVEL_1's spawn row (see level.ts's `S` marker) sits well above the
+    // level's own bottom edge, so the initial camera snap shifts the level
+    // up by a fixed, deterministic offset (768 + 248 = 1016) to frame the
+    // player at the target row instead of leaving the level bottom-anchored.
+    expect(Math.max(...bottomEdges)).toBe(1016);
   });
 
   it('render-afterPlayerSpriteLoads-drawsPlayerAtIdleSize', async () => {

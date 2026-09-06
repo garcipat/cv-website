@@ -184,8 +184,15 @@ export const ControlsOverlay = () => {
   return (
     <div
       data-testid="platformer-controls-overlay"
-      className={`pointer-events-none fixed inset-x-0 top-[30vh] z-40 flex flex-col items-center transition-[opacity,transform] ease-out ${opacityClass}`}
+      className={`pointer-events-none fixed inset-x-0 z-40 flex flex-col items-center transition-[opacity,transform] ease-out ${opacityClass}`}
       style={{
+        // Base 30vh (see this component's own doc comment for where that
+        // figure comes from) plus a fixed 2-tile nudge down — the vertical
+        // camera now frames the player noticeably further south than when
+        // 30vh was originally tuned (see Camera.ts's `initialCameraY`), so a
+        // purely viewport-relative position alone no longer lines up with
+        // where the player actually renders.
+        top: `calc(30vh + ${RENDERED_TILE_SIZE * 2}px)`,
         transitionDuration: `${transitionDurationMs}ms`,
         // Omitted (rather than `translateX(0px)`) once at rest: any non-
         // 'none' transform value promotes this element to its own
