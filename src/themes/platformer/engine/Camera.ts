@@ -55,6 +55,17 @@ export const CAMERA_DEAD_ZONE_HALF_HEIGHT = 96;
 export const CAMERA_TOP_OVERSCROLL = 2 * RENDERED_TILE_SIZE; // 64px
 
 /**
+ * The vertical row (from the top of the viewport, in rendered tile units)
+ * the camera's dead-zone targets — not a percentage of viewport height, so
+ * the player consistently starts (and stays, via the dead-zone) this many
+ * rows from the top regardless of viewport size or how far the level
+ * extends below. Chosen so a level with a deep section below the player
+ * (e.g. a cave) doesn't show more terrain below than necessary, keeping
+ * more of the background layers visible above instead. Tunable.
+ */
+export const PLAYER_TARGET_ROW = 5;
+
+/**
  * Computes the next vertical camera offset — an ADDITIVE amount on top of
  * the existing bottom-anchor baseline (`viewportHeight - levelPixelHeight`),
  * not a replacement for it. At 0 (its minimum), the level is exactly
@@ -66,6 +77,17 @@ export const CAMERA_TOP_OVERSCROLL = 2 * RENDERED_TILE_SIZE; // 64px
  * that already fits the viewport ALWAYS returns 0 here, regardless of the
  * dead-zone math below — a level shorter than the viewport can never need
  * to scroll, by construction.
+ *
+ * The dead-zone's target is `PLAYER_TARGET_ROW` rows from the TOP of the
+ * viewport, not a percentage of viewport height — so the player consistently
+ * starts around that row rather than vertically centered (which would show
+ * as much terrain below as background above, wasteful in a level with a
+ * deep section below the player). Since the camera below snaps directly to
+ * whatever value keeps the player pinned at the dead-zone edge (no gradual
+ * lerp — it's a single assignment, not an interpolation toward a target),
+ * this one formula change handles both the initial spawn framing (no
+ * special-case "initial camera" code needed — frame 1 already resolves to
+ * the same dead-zone math) and ongoing behavior anywhere later in the level.
  */
 export function updateCameraY(
   previousCameraY: number,
@@ -77,8 +99,9 @@ export function updateCameraY(
   const originYBase = viewportHeight - levelPixelHeight;
   const playerCenterY = playerY + playerHeight / 2;
   const screenCenterY = playerCenterY + originYBase + previousCameraY;
-  const deadZoneTop = viewportHeight / 2 - CAMERA_DEAD_ZONE_HALF_HEIGHT;
-  const deadZoneBottom = viewportHeight / 2 + CAMERA_DEAD_ZONE_HALF_HEIGHT;
+  const targetY = PLAYER_TARGET_ROW * RENDERED_TILE_SIZE;
+  const deadZoneTop = targetY - CAMERA_DEAD_ZONE_HALF_HEIGHT;
+  const deadZoneBottom = targetY + CAMERA_DEAD_ZONE_HALF_HEIGHT;
 
   let cameraY = previousCameraY;
   if (screenCenterY < deadZoneTop) {
