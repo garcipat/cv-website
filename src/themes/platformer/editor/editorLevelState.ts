@@ -118,3 +118,25 @@ export const editorLoadedBlueprintNameSignal = createLocalStorageSignal<string>(
   'platformer-editor-loaded-blueprint',
   BLANK_BLUEPRINT.name,
 );
+
+/**
+ * The id of the blueprint currently armed for placement, or `null` when none
+ * is (roadmap step 44c). Deliberately a SECOND axis alongside
+ * `editorSelectedToolSignal` rather than a value inside it: `selectedTool` is a
+ * `TileChar`, and a blueprint is a multi-cell object with an id, a name and a
+ * layout — there is no character to give it, and inventing one would mean a
+ * `TileChar` `parseLevel` must never see in a layout.
+ *
+ * Mutual exclusion between the two is enforced by `LevelEditorPage`'s setters
+ * (arming clears nothing, selecting a tile tool disarms), not by the type: that
+ * keeps `selectedTool` available to restore the author's previous tool when
+ * they disarm, instead of dumping them on a fallback.
+ *
+ * Persisted like the armed tool is, so reopening the editor still shows what is
+ * armed. An id whose blueprint file has since been deleted simply resolves to
+ * nothing through `findBlueprint`, which reads as "not armed" everywhere.
+ */
+export const editorArmedBlueprintIdSignal = createLocalStorageSignal<string | null>(
+  'platformer-editor-armed-blueprint',
+  null,
+);
