@@ -1882,7 +1882,9 @@ describe('PlatformerPage', () => {
       expect(heartPickupStates.value).toEqual([]);
     });
 
-    it('walkingOverADroppedHeart-atFullHealth-removesThePickupWithoutOverhealing', () => {
+    it('walkingOverADroppedHeart-atFullHealth-staysInTheWorldUncollected', () => {
+      // The heart waits for the player to actually need it rather than being
+      // consumed for nothing (Collision.ts's checkHeartPickupCollisions).
       let frameCallback: FrameRequestCallback | null = null;
       vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
         frameCallback = cb;
@@ -1901,7 +1903,7 @@ describe('PlatformerPage', () => {
       frameCallback!(16);
 
       expect(playerState.value.hitPoints).toBe(MAX_HALF_HEARTS);
-      expect(heartPickupStates.value).toEqual([]);
+      expect(heartPickupStates.value).toEqual([{ id: 'heart-test-2', x: heartX, y: heartY }]);
     });
   });
 

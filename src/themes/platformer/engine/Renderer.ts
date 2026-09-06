@@ -55,8 +55,14 @@ import { CHEST_TYPE } from '../entities/chests';
 import { CHEST_CLOSED_WIDTH, CHEST_CLOSED_HEIGHT } from '../entities/Chest';
 import type { ChestState } from '../entities/Chest';
 import type { BonusFruitState } from '../entities/BonusFruit';
-import { flightEffectPosition, sparkleParticles } from './CollectionEffects';
-import type { FlightEffect, PuffEffect } from './CollectionEffects';
+import {
+  flightEffectPosition,
+  sparkleParticles,
+  healAuraOpacity,
+  healAuraRays,
+  healAuraSparkles,
+} from './CollectionEffects';
+import type { FlightEffect, PuffEffect, HealAuraEffect } from './CollectionEffects';
 
 function tileSource(
   level: LevelDef,
@@ -1056,6 +1062,68 @@ export function drawCollectionEffects(ctx: CanvasRenderingContext2D, effects: Fl
 export function drawPuffEffects(ctx: CanvasRenderingContext2D, effects: PuffEffect[]): void {
   for (const effect of effects) {
     drawSparkleBurst(ctx, effect.x, effect.y, effect.elapsed, effect.scale);
+  }
+}
+
+/**
+ * Draws every active heal aura — a soft golden glow, a handful of rising
+ * light rays, and a few sparkle motes, all anchored at (anchorX, anchorY)
+ * and sized relative to `width` (the player's own rendered width, so the
+ * effect hugs the player rather than spreading across the screen — see
+ * CollectionEffects.ts's HealAuraEffect doc comment). The caller re-derives
+ * the anchor from the live player position every frame, unlike
+ * drawPuffEffects's fixed per-effect x/y. Every part shares the same fade
+ * curve (healAuraOpacity), so an expired effect (opacity 0) draws nothing.
+ */
+export function drawHealAuraEffects(
+  ctx: CanvasRenderingContext2D,
+  effects: readonly HealAuraEffect[],
+  anchorX: number,
+  anchorY: number,
+  width: number,
+): void {
+  for (const effect of effects) {
+    const opacity = healAuraOpacity(effect.elapsed);
+    if (opacity <= 0) continue;
+
+    const glowRadius = width * 0.9;
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    const glow = ctx.createRadialGradient(anchorX, anchorY, 0, anchorX, anchorY, glowRadius);
+    glow.addColorStop(0, 'rgba(255,224,120,0.9)');
+    glow.addColorStop(0.5, 'rgba(255,200,60,0.4)');
+    glow.addColorStop(1, 'rgba(255,200,60,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(anchorX, anchorY, glowRadius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    for (const ray of healAuraRays(effect.elapsed, width)) {
+      ctx.save();
+      ctx.globalAlpha = opacity;
+      const rayGradient = ctx.createLinearGradient(
+        anchorX + ray.dx,
+        anchorY,
+        anchorX + ray.dx,
+        anchorY - ray.height,
+      );
+      rayGradient.addColorStop(0, 'rgba(255,230,140,0.95)');
+      rayGradient.addColorStop(1, 'rgba(255,230,140,0)');
+      ctx.fillStyle = rayGradient;
+      ctx.fillRect(anchorX + ray.dx - 1, anchorY - ray.height, 2, ray.height);
+      ctx.restore();
+    }
+
+    for (const sparkle of healAuraSparkles(effect.elapsed, width)) {
+      ctx.save();
+      ctx.globalAlpha = opacity;
+      ctx.fillStyle = '#fff8d6';
+      ctx.beginPath();
+      ctx.arc(anchorX + sparkle.dx, anchorY + sparkle.dy, 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
   }
 }
 

@@ -16,6 +16,7 @@ import {
   collectedCollectibleIds,
   activeEffects,
   activePuffs,
+  activeHealAuraEffects,
   blockPlacements,
   chestPlacements,
   chestStates,
@@ -55,7 +56,7 @@ import {
   PLAYER_VISUAL_CENTER_Y_OFFSET,
 } from './entities/Player';
 import { toChestState, isChestOpen } from './entities/Chest';
-import { startPuffEffect } from './engine/CollectionEffects';
+import { startPuffEffect, startHealAuraEffect } from './engine/CollectionEffects';
 
 function collectedFactFixture(): CollectedFact {
   return { id: 'f1', sectionId: 'skills', sectionLabel: 'Skills', data: { category: 'Test', skills: [] }, sourceType: 'coin' };
@@ -398,6 +399,30 @@ describe('activePuffs', () => {
     activePuffs.value = [startPuffEffect('a', 0, 0)];
     resetGameProgress();
     expect(activePuffs.value).toEqual([]);
+  });
+});
+
+describe('activeHealAuraEffects', () => {
+  afterEach(() => {
+    activeHealAuraEffects.value = [];
+  });
+
+  it('startsEmpty', () => {
+    expect(activeHealAuraEffects.value).toEqual([]);
+  });
+
+  it('resetGame-doesNotClearActiveHealAuraEffects', () => {
+    const aura = startHealAuraEffect('h1');
+    activeHealAuraEffects.value = [aura];
+    resetGame();
+    expect(activeHealAuraEffects.value).toHaveLength(1);
+    expect(activeHealAuraEffects.value[0]).toBe(aura);
+  });
+
+  it('resetGameProgress-clearsActiveHealAuraEffects', () => {
+    activeHealAuraEffects.value = [startHealAuraEffect('h1')];
+    resetGameProgress();
+    expect(activeHealAuraEffects.value).toEqual([]);
   });
 });
 

@@ -18,6 +18,7 @@ import {
   drawSignBubble,
   drawKeyPickups,
   drawHeartPickups,
+  drawHealAuraEffects,
   drawHazards,
   drawKeyCounter,
   keyCounterX,
@@ -37,7 +38,7 @@ import type { SignPlacement } from '../level/SignMapper';
 import type { PlayerState } from '../entities/Player';
 import { PLAYER_RENDERED_SIZE, PLAYER_HIT_REACTION_SECONDS } from '../entities/Player';
 import { MAX_HALF_HEARTS, HEART_RENDERED_SIZE } from '../entities/Health';
-import { startFlightEffect, tickFlightEffect, RISE_DURATION_SECONDS, SPARKLE_DURATION_SECONDS, startPuffEffect, tickPuffEffect } from './CollectionEffects';
+import { startFlightEffect, tickFlightEffect, RISE_DURATION_SECONDS, SPARKLE_DURATION_SECONDS, startPuffEffect, tickPuffEffect, startHealAuraEffect, HEAL_AURA_DURATION_SECONDS } from './CollectionEffects';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
 import type { BlockPlacement } from '../level/BlockMapper';
 import { toBlockState, blockFrameSource } from '../entities/Block';
@@ -125,6 +126,8 @@ function makeMockContext() {
     strokeStyle: '',
     lineWidth: 1,
     globalAlpha: 1,
+    createRadialGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
+    createLinearGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
   } as unknown as CanvasRenderingContext2D;
 }
 
@@ -1038,6 +1041,59 @@ describe('drawPuffEffects', () => {
   it('noPuffs-drawsNothing', () => {
     const ctx = makeMockContext() as unknown as { arc: ReturnType<typeof vi.fn> };
     drawPuffEffects(ctx as unknown as CanvasRenderingContext2D, []);
+    expect(ctx.arc).not.toHaveBeenCalled();
+  });
+});
+
+describe('drawHealAuraEffects', () => {
+  it('freshAura-drawsGlowCircleAndSparkleCircles', () => {
+    const ctx = makeMockContext() as unknown as { arc: ReturnType<typeof vi.fn> };
+    const effect = startHealAuraEffect('h1');
+
+    drawHealAuraEffects(ctx as unknown as CanvasRenderingContext2D, [effect], 100, 200, 32);
+
+    // 1 glow circle + 4 sparkle circles (see CollectionEffects.ts's
+    // HEAL_AURA_SPARKLE_OFFSETS).
+    expect(ctx.arc).toHaveBeenCalledTimes(5);
+  });
+
+  it('freshAura-drawsOneRayRectPerHealAuraRay', () => {
+    const ctx = makeMockContext() as unknown as { fillRect: ReturnType<typeof vi.fn> };
+    const effect = startHealAuraEffect('h1');
+
+    drawHealAuraEffects(ctx as unknown as CanvasRenderingContext2D, [effect], 100, 200, 32);
+
+    // 5 rays (see CollectionEffects.ts's HEAL_AURA_RAY_COUNT).
+    expect(ctx.fillRect).toHaveBeenCalledTimes(5);
+  });
+
+  it('auraAtItsAnchor-drawsGlowCircleCenteredThere-notAt0-0', () => {
+    const ctx = makeMockContext() as unknown as { arc: ReturnType<typeof vi.fn> };
+    const effect = startHealAuraEffect('h1');
+
+    drawHealAuraEffects(ctx as unknown as CanvasRenderingContext2D, [effect], 100, 200, 32);
+
+    const [cx, cy] = ctx.arc.mock.calls[0];
+    expect(cx).toBeCloseTo(100, 0);
+    expect(cy).toBeCloseTo(200, 0);
+  });
+
+  it('expiredAura-drawsNothing', () => {
+    const ctx = makeMockContext() as unknown as {
+      arc: ReturnType<typeof vi.fn>;
+      fillRect: ReturnType<typeof vi.fn>;
+    };
+    const effect = { id: 'h1', elapsed: HEAL_AURA_DURATION_SECONDS + 0.01 };
+
+    drawHealAuraEffects(ctx as unknown as CanvasRenderingContext2D, [effect], 100, 200, 32);
+
+    expect(ctx.arc).not.toHaveBeenCalled();
+    expect(ctx.fillRect).not.toHaveBeenCalled();
+  });
+
+  it('noAuras-drawsNothing', () => {
+    const ctx = makeMockContext() as unknown as { arc: ReturnType<typeof vi.fn> };
+    drawHealAuraEffects(ctx as unknown as CanvasRenderingContext2D, [], 100, 200, 32);
     expect(ctx.arc).not.toHaveBeenCalled();
   });
 });
