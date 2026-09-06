@@ -21,11 +21,21 @@ import {
   editorLoadedBlueprintNameSignal,
 } from './editorLevelState';
 import { BLANK_BLUEPRINT } from '../level/BlueprintData';
-import { savedBlueprintsSignal, readSavedBlueprints } from './blueprintStash';
+import { blueprintFileJson } from './saveBlueprintFile';
+import { SAVE_BLUEPRINT_ENDPOINT } from './saveBlueprintEndpoint';
+import { SAVE_LEVEL_ENDPOINT } from './saveLevelEndpoint';
+import type { Blueprint } from '../level/BlueprintData';
 import { currentTheme } from '@/state/theme';
 import { currentPath } from '@/state/navigation';
 import { enemyPlacements, enemyStates, collectedFacts, collectedCollectibleIds } from '../PlatformerState';
 import { currentBackground } from '../level/level';
+
+const { blueprintEntries } = vi.hoisted(() => ({ blueprintEntries: [] as Blueprint[] }));
+
+vi.mock('../level/blueprintRegistry', () => ({
+  BLUEPRINTS: blueprintEntries,
+  findBlueprint: (id: string) => blueprintEntries.find((entry) => entry.id === id),
+}));
 
 vi.mock('../engine/SpriteLoader', () => ({
   loadImage: vi.fn((src: string) => Promise.resolve({ src } as unknown as HTMLImageElement)),
@@ -95,7 +105,7 @@ beforeEach(() => {
   editorBlueprintSignal.value = importLayout(BLANK_BLUEPRINT.layout);
   editorBlueprintBackgroundSignal.value = [];
   editorLoadedBlueprintNameSignal.value = BLANK_BLUEPRINT.name;
-  savedBlueprintsSignal.value = [];
+  blueprintEntries.length = 0;
   // Not reset by the suite today, and the new Spawn-disarm test writes 'S'
   // into it — without this, that write would leak into every test that runs
   // after it and silently change which tool their clicks paint.
@@ -172,6 +182,39 @@ function stubDevServerWrite(path = 'src/themes/platformer/level/levels/cave-run.
     .spyOn(HTMLAnchorElement.prototype, 'click')
     .mockImplementation(() => {});
   return { anchorClick };
+}
+
+/**
+ * A dev server that accepts a blueprint write, so nothing is downloaded.
+ *
+ * `fetchCalls` rather than the mock itself: `vi.fn(() => …)` types
+ * `mock.calls` from its zero-argument factory, i.e. as `[][]`, so
+ * `calls.find(([url]) => …)` is a `strict` compile error ("Tuple type '[]' of
+ * length '0' has no element at index '0'"). The real calls come from `fetch`
+ * with arguments, so the widened view is the honest one — the same reason
+ * `saveLevelFile.test.ts` reads `mock.calls[0]` through
+ * `as unknown as [string, RequestInit]`.
+ */
+function stubBlueprintWrite(path = 'src/themes/platformer/level/blueprints/test-room.json') {
+  const fetchMock = vi.fn(() =>
+    Promise.resolve({ ok: true, json: () => Promise.resolve({ path }) } as Response),
+  );
+  vi.stubGlobal('fetch', fetchMock);
+  const anchorClick = vi
+    .spyOn(HTMLAnchorElement.prototype, 'click')
+    .mockImplementation(() => {});
+  const fetchCalls = (): unknown[][] => fetchMock.mock.calls as unknown as unknown[][];
+  return { fetchCalls, anchorClick };
+}
+
+/** The body of the one POST that went to the blueprint write endpoint. */
+function blueprintPostBody(fetchCalls: () => unknown[][]) {
+  const call = fetchCalls().find(([url]) => url === SAVE_BLUEPRINT_ENDPOINT);
+  expect(call).toBeDefined();
+  return JSON.parse((call![1] as RequestInit).body as string) as {
+    fileName: string;
+    contents: string;
+  };
 }
 
 async function saveAs(name: string) {
@@ -1007,12 +1050,10 @@ async function saveBlueprintAs(name: string) {
 }
 
 describe('LevelEditorPage — blueprint select and save (step 44a)', () => {
-  // Belt-and-suspenders alongside the file's top-level afterEach above (which
-  // already unstubs every global after every test in this file): the
-  // dev-server-write test below stubs `fetch` directly with a bare `vi.fn()`
-  // rather than going through stubDownloads/stubDevServerWrite, so this
-  // makes the cleanup for that stub explicit right next to the describe
-  // block that introduces it.
+  // Belt-and-suspenders alongside the file's top-level afterEach above: every
+  // test in this block stubs `fetch` (stubBlueprintWrite/stubDownloads), and
+  // a leaked stub here would silently answer the next test's dev-environment
+  // ping as well as its saves.
   afterEach(() => {
     vi.unstubAllGlobals();
   });
@@ -1044,46 +1085,49 @@ describe('LevelEditorPage — blueprint select and save (step 44a)', () => {
     expect(screen.queryByRole('button', { name: 'Try' })).not.toBeInTheDocument();
   });
 
-  it('savingTheBlueprintCanvas-storesItCroppedToItsPaintedCells', async () => {
+  it('savingTheBlueprintCanvas-postsTheCroppedLayoutToTheBlueprintWriteEndpoint', async () => {
+    const { fetchCalls } = stubBlueprintWrite();
     renderEditorInBlueprintMode();
     // One cell painted at (col 2, row 1) of an otherwise-empty canvas: the
-    // crop's tightest non-'.' bounding box is that single cell, so the
-    // stored layout is exactly ['G'].
+    // crop's tightest non-'.' bounding box is that single cell, so the saved
+    // layout is exactly ['G'].
     paintBlueprintCell(2, 1);
 
     await saveBlueprintAs('Test Room');
 
-    expect(readSavedBlueprints()).toEqual([
-      { id: 'test-room', name: 'Test Room', layout: ['G'] },
-    ]);
+    expect(blueprintPostBody(fetchCalls)).toEqual({
+      fileName: 'test-room.json',
+      contents: blueprintFileJson('Test Room', ['G'], []),
+    });
   });
 
   it('savingTheBlueprintCanvas-namesItOnTheDropdownTriggerAndClosesTheDialog', async () => {
+    stubBlueprintWrite();
     renderEditorInBlueprintMode();
     paintBlueprintCell(2, 1);
 
     await saveBlueprintAs('Test Room');
 
     expect(screen.getByRole('combobox')).toHaveTextContent('Test Room');
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
   it('savingTheBlueprintCanvas-writesNoLevelFileAndLeavesTheLevelUntouched', async () => {
     const levelGridBefore = editorLevelSignal.value;
-    const fetchSpy = vi.fn();
-    vi.stubGlobal('fetch', fetchSpy);
+    const { fetchCalls } = stubBlueprintWrite();
     renderEditorInBlueprintMode();
     paintBlueprintCell(2, 1);
 
     await saveBlueprintAs('Test Room');
 
-    // Step 44a's stash is localStorage-only; the dev-server write endpoint
-    // belongs to step 44c.
-    expect(fetchSpy).not.toHaveBeenCalled();
+    // The blueprint save must never reach the LEVEL write endpoint, and must
+    // not disturb the level canvas sitting behind it.
+    expect(fetchCalls().every(([url]) => url !== SAVE_LEVEL_ENDPOINT)).toBe(true);
     expect(editorLevelSignal.value).toEqual(levelGridBefore);
   });
 
-  it('savingABlueprintWithBackgroundPieces-storesThemRebasedOntoTheSameOrigin', async () => {
+  it('savingABlueprintWithBackgroundPieces-postsThemRebasedOntoTheSameOrigin', async () => {
+    const { fetchCalls } = stubBlueprintWrite();
     renderEditorInBlueprintMode();
     paintBlueprintCell(2, 1);
     fireEvent.click(screen.getByRole('button', { name: 'Background' }));
@@ -1092,31 +1136,41 @@ describe('LevelEditorPage — blueprint select and save (step 44a)', () => {
 
     await saveBlueprintAs('Test Room');
 
-    // The foreground crop's origin is (col 2, row 1) — the only painted
-    // cell — so a background piece placed on that same cell rebases to
-    // (col 0, row 0).
-    expect(readSavedBlueprints()[0].background).toEqual([
+    // The foreground crop's origin is (col 2, row 1) — the only painted cell —
+    // so a background piece placed on that same cell rebases to (col 0, row 0).
+    expect(JSON.parse(blueprintPostBody(fetchCalls).contents).background).toEqual([
       { pieceId: 'dirtColumnTop1x1', col: 0, row: 0 },
     ]);
   });
 
-  it('reopeningASavedBlueprint-loadsItsLayoutBackOntoTheCanvas', async () => {
+  it('noDevServer-savingABlueprint-saysSoAndKeepsTheDialogOpenWithTheDownloadedFile', async () => {
+    const { anchorClick } = stubDownloads();
     renderEditorInBlueprintMode();
     paintBlueprintCell(2, 1);
+
     await saveBlueprintAs('Test Room');
 
-    // Load the blank entry first, then the saved one back — proving the
-    // dropdown really replaces the canvas both ways.
-    fireEvent.click(screen.getByRole('combobox'));
-    await userEvent.click(await screen.findByRole('option', { name: 'new' }));
-    await waitFor(() =>
-      expect(editorBlueprintSignal.value).toEqual(importLayout(BLANK_BLUEPRINT.layout)),
-    );
+    expect(anchorClick).toHaveBeenCalledOnce();
+    expect((anchorClick.mock.instances[0] as HTMLAnchorElement).download).toBe('test-room.json');
+    // Same convention as a level save: a fallback download leaves the dialog
+    // open, because the file still has to be moved.
+    expect(await screen.findByText(/move it into/i)).toBeInTheDocument();
+  });
+
+  it('reopeningABlueprintFromTheRegistry-loadsItsLayoutOntoTheCanvas', async () => {
+    // A saved file only reaches the dropdown once Vite has picked it up, so
+    // this stands in for "after the reload" — the registry entry is present
+    // and the dropdown must load it onto the canvas.
+    blueprintEntries.push({ id: 'test-room', name: 'Test Room', layout: ['G+'] });
+    renderEditorInBlueprintMode();
 
     fireEvent.click(screen.getByRole('combobox'));
     await userEvent.click(await screen.findByRole('option', { name: 'Test Room' }));
 
-    await waitFor(() => expect(editorBlueprintSignal.value).toEqual(importLayout(['G'])));
+    await waitFor(() => {
+      expect(editorBlueprintSignal.value).toEqual(importLayout(['G+']));
+    });
+    expect(screen.getByRole('combobox')).toHaveTextContent('Test Room');
   });
 
   it('loadingABlueprintWithUnsavedEdits-asksBeforeDiscardingThem', async () => {
@@ -1164,10 +1218,11 @@ describe('LevelEditorPage — blueprint connection points (step 44b)', () => {
     });
   });
 
-  it('savingABlueprintWithAConnectionPoint-keepsTheCharacterInTheStoredLayout', async () => {
+  it('savingABlueprintWithAConnectionPoint-keepsTheCharacterInThePostedLayout', async () => {
     // The crop/export path carries '+' like any other character — nothing in
-    // saveBlueprintToStash/cropLevelForExport knows about connection points,
-    // which is exactly what step 44c relies on to read them back.
+    // saveBlueprint/cropLevelForExport knows about connection points, which is
+    // exactly what Part 2's placement relies on to read them back.
+    const { fetchCalls } = stubBlueprintWrite();
     renderEditorInBlueprintMode();
     paintBlueprintCell(2, 1);
     fireEvent.click(screen.getByRole('button', { name: 'Connection Point' }));
@@ -1175,9 +1230,7 @@ describe('LevelEditorPage — blueprint connection points (step 44b)', () => {
 
     await saveBlueprintAs('Test Room');
 
-    expect(readSavedBlueprints()).toEqual([
-      { id: 'test-room', name: 'Test Room', layout: ['G+'] },
-    ]);
+    expect(JSON.parse(blueprintPostBody(fetchCalls).contents).layout).toEqual(['G+']);
   });
 
   it('connectionPointArmed-switchingToLevel-disarmsItSoClicksCannotPaintOneIntoTheLevel', () => {
