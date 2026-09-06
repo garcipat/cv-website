@@ -4,7 +4,9 @@ import {
   SKY_SOURCE_RECT,
   CLOUDS_SOURCE_RECT,
   VILLAGE_SOURCE_RECT,
-  RIVER_FRAME_DURATION_MS,
+  RIVER_FRAME_DURATION_SECONDS,
+  RIVER_DEST_OFFSET,
+  GRASS_RENDER_SCALE,
   type BackgroundLayerImages,
 } from './BackgroundLayers';
 
@@ -87,6 +89,49 @@ describe('drawBackgroundLayers', () => {
     expect(bottommostGrassEdge).toBeGreaterThanOrEqual(300);
   });
 
+  it('grass-drawnAtGrassRenderScale-sourceStaysNativeButDestinationIsScaled', () => {
+    const ctx = fakeCtx();
+    const images = fakeImages();
+
+    drawBackgroundLayers(ctx, images, 320, 300, 0, 0);
+
+    const grassCalls = ctx.drawImage.mock.calls.filter((call) => call[ARG.image] === images.grass);
+    expect(grassCalls.length).toBeGreaterThan(0);
+    for (const call of grassCalls) {
+      // Source rect (sw/sh) stays at the grass image's own native size...
+      expect(call[ARG.sw]).toBe(images.grass.width);
+      expect(call[ARG.sh]).toBe(images.grass.height);
+      // ...while the destination rect (dw/dh) is scaled up by GRASS_RENDER_SCALE.
+      expect(call[ARG.dw]).toBe(images.grass.width * GRASS_RENDER_SCALE);
+      expect(call[ARG.dh]).toBe(images.grass.height * GRASS_RENDER_SCALE);
+    }
+  });
+
+  it('grass-tilesStepByTheScaledSize-noOverlapAndNoGapBetweenAdjacentTiles', () => {
+    // Regression guard for the fill-loop step size: if drawTiledArea/
+    // drawTiledRow ever stepped by the grass image's NATIVE height/width
+    // instead of the SCALED one, adjacent tiles would overlap (drawn too close
+    // together) rather than tiling edge-to-edge.
+    const ctx = fakeCtx();
+    const images = fakeImages();
+
+    drawBackgroundLayers(ctx, images, 320, 300, 0, 0);
+
+    const grassCalls = ctx.drawImage.mock.calls.filter((call) => call[ARG.image] === images.grass);
+    const rowYs = [...new Set(grassCalls.map((call) => call[ARG.dy] as number))].sort((a, b) => a - b);
+    expect(rowYs.length).toBeGreaterThan(1);
+    for (let i = 1; i < rowYs.length; i++) {
+      expect(rowYs[i] - rowYs[i - 1]).toBe(images.grass.height * GRASS_RENDER_SCALE);
+    }
+
+    const firstRowCalls = grassCalls.filter((call) => call[ARG.dy] === rowYs[0]);
+    const colXs = [...new Set(firstRowCalls.map((call) => call[ARG.dx] as number))].sort((a, b) => a - b);
+    expect(colXs.length).toBeGreaterThan(1);
+    for (let i = 1; i < colXs.length; i++) {
+      expect(colXs[i] - colXs[i - 1]).toBe(images.grass.width * GRASS_RENDER_SCALE);
+    }
+  });
+
   it('cloudsAndHills-fillTheGapBetweenSkyBottomAndVillageTop-atAnyCanvasHeight', () => {
     const ctx = fakeCtx();
     const images = fakeImages();
@@ -151,13 +196,13 @@ describe('drawBackgroundLayers', () => {
     expect(cloudShift).toBeLessThan(grassShift);
   });
 
-  it('river-alternatesFrame-basedOnWorldElapsedMs', () => {
+  it('river-alternatesFrame-basedOnWorldElapsedSeconds', () => {
     const ctx0 = fakeCtx();
     const ctx1 = fakeCtx();
     const images = fakeImages();
 
     drawBackgroundLayers(ctx0, images, 320, 200, 0, 0);
-    drawBackgroundLayers(ctx1, images, 320, 200, 0, RIVER_FRAME_DURATION_MS);
+    drawBackgroundLayers(ctx1, images, 320, 200, 0, RIVER_FRAME_DURATION_SECONDS);
 
     const riverCalls0 = ctx0.drawImage.mock.calls.filter((call) => call[ARG.image] === images.river);
     const riverCalls1 = ctx1.drawImage.mock.calls.filter((call) => call[ARG.image] === images.river);
@@ -165,7 +210,7 @@ describe('drawBackgroundLayers', () => {
     expect(riverCalls1[0][ARG.sy]).not.toBe(riverCalls0[0][ARG.sy]);
   });
 
-  it('river-drawnAtSamePositionAndSpeedAsVillage', () => {
+  it('river-drawnAtVillageDyPlusOffsetAndSameSpeedAsVillage', () => {
     const ctx = fakeCtx();
     const images = fakeImages();
 
@@ -173,7 +218,14 @@ describe('drawBackgroundLayers', () => {
 
     const villageCalls = callsForSourceY(ctx.drawImage.mock.calls, images.layers, VILLAGE_SOURCE_RECT.sy);
     const riverCalls = ctx.drawImage.mock.calls.filter((call) => call[ARG.image] === images.river);
-    expect(riverCalls[0][ARG.dy]).toBe(villageCalls[0][ARG.dy]);
+    // The river overlay's own water-line sits 11px lower within its frame
+    // than the village band's baked-in river line sits within its own top —
+    // see RIVER_DEST_OFFSET's doc comment in BackgroundLayers.ts — so the
+    // overlay is intentionally drawn RIVER_DEST_OFFSET below the village
+    // row's dy, not at the exact same dy.
+    expect(riverCalls[0][ARG.dy]).toBe((villageCalls[0][ARG.dy] as number) + RIVER_DEST_OFFSET);
+    // Same x position/parallax speed as the village row, unaffected by the
+    // y offset above.
     expect(riverCalls[0][ARG.dx]).toBe(villageCalls[0][ARG.dx]);
   });
 });
