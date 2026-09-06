@@ -31,17 +31,17 @@ import {
   drawKeyCounter,
   keyCounterX,
   KEY_COUNTER_Y,
-  drawSkyBackground,
   drawWaterForeground,
   drawBackgroundTiles,
 } from './engine/Renderer';
+import { drawBackgroundLayers } from './engine/BackgroundLayers';
 import type { DrawContext } from './engine/DrawContext';
-import { drawDebugOverlay } from './engine/DebugOverlay';
+import { drawDebugOverlay, drawCameraDeadZoneOverlay } from './engine/DebugOverlay';
 import { createGameLoop } from './engine/GameLoop';
 import { stepPlayerPhysics, checkPitFall, resolvePitFall } from './engine/Physics';
 import { PHYSICS_CONFIG } from './engine/PhysicsConfig';
 import { stepEnemyPatrol, stepEnemyHitReaction } from './engine/EnemyAI';
-import { updateCamera, updateCameraY } from './engine/Camera';
+import { updateCamera, updateCameraY, initialCameraY } from './engine/Camera';
 import { createKeyboardInput } from './engine/Input';
 import type { KeyboardInput } from './engine/Input';
 import {
@@ -124,6 +124,9 @@ import {
   GROUND_ATLAS_SHEET,
   TERRAIN_BACKGROUND_SHEET,
   STATIC_OBJECTS_SHEET,
+  BACKGROUND_LAYERS_SHEET,
+  BACKGROUND_LAYER_GRASS_SHEET,
+  BACKGROUND_LAYER_RIVER_SHEET,
   DECORATIONS_SHEET,
 } from './entities/sprites/sheets';
 import { frameSource, collectSheetSources } from './entities/sprites/SpriteSheet';
@@ -183,6 +186,16 @@ import {
 } from './engine/HintTooltip';
 import type { HintId, CollectedFact } from './types';
 
+/** Play mode renders at a fixed, short canvas height — a deliberately
+ *  small number of tile rows, not the full browser window — so the player
+ *  sits low in frame with most of the canvas showing the background layers
+ *  above them (paired with Camera.ts's PLAYER_TARGET_ROWS_FROM_BOTTOM).
+ *  Capped by the actual window height too, as a safety net so it never
+ *  overflows a window shorter than this many rows. The level editor is
+ *  unaffected — it sizes its own canvas separately, not from
+ *  window.innerHeight at all. */
+const PLAY_CANVAS_ROWS = 24;
+
 export const PlatformerPage = () => {
   // Subscribes this component's render to any signal `.value` read during
   // it — needed for `endingScreenOpen.value` in the JSX below to actually
@@ -192,6 +205,9 @@ export const PlatformerPage = () => {
   useSignals();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const tilesetRef = useRef<HTMLImageElement | null>(null);
+  const backgroundLayersRef = useRef<HTMLImageElement | null>(null);
+  const backgroundLayerGrassRef = useRef<HTMLImageElement | null>(null);
+  const backgroundLayerRiverRef = useRef<HTMLImageElement | null>(null);
   const groundAtlasRef = useRef<HTMLImageElement | null>(null);
   const backgroundAtlasRef = useRef<HTMLImageElement | null>(null);
   const staticObjectsRef = useRef<HTMLImageElement | null>(null);
@@ -368,6 +384,26 @@ export const PlatformerPage = () => {
   }, []);
 
   /**
+   * One-time vertical-camera snap for spawn/respawn/restart — see
+   * `initialCameraY`'s own doc comment for why this can't just be left to
+   * `updateCameraY`'s per-frame dead-zone tracking (a fresh spawn can land
+   * anywhere inside the band with no correction at all). No-ops if the
+   * canvas hasn't sized itself yet (`canvas.height` starts at 0 before the
+   * mount effect's first `resize()` call).
+   */
+  const snapCameraYToSpawn = () => {
+    const canvas = canvasRef.current;
+    if (!canvas || canvas.height === 0) return;
+    const levelPixelHeight = currentLevel.value.height * RENDERED_TILE_SIZE;
+    cameraPositionY.value = initialCameraY(
+      playerState.value.y,
+      PLAYER_RENDERED_SIZE,
+      canvas.height,
+      levelPixelHeight,
+    );
+  };
+
+  /**
    * Reset Game (journal button, FR-018b): clears collected progress and
    * closes the journal immediately (no reverse-close animation — per user
    * request, just an instant close), then starts the same iris-in
@@ -386,6 +422,7 @@ export const PlatformerPage = () => {
     // reachable while the ending screen is showing today, but costs nothing
     // to keep in sync regardless).
     endingScreenOpen.value = false;
+    snapCameraYToSpawn();
     const center = spawnCenter();
     lifecycleState.value = introState(center.x, center.y);
   };
@@ -404,6 +441,7 @@ export const PlatformerPage = () => {
 
   const handleDebugRespawn = () => {
     resetGame();
+    snapCameraYToSpawn();
     const center = spawnCenter();
     lifecycleState.value = introState(center.x, center.y);
   };
@@ -443,7 +481,7 @@ export const PlatformerPage = () => {
 
     const resize = () => {
       canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      canvas.height = Math.min(PLAY_CANVAS_ROWS * RENDERED_TILE_SIZE, window.innerHeight);
 
       backgroundColor =
         getComputedStyle(document.documentElement).getPropertyValue('--background').trim() ||
@@ -463,10 +501,26 @@ export const PlatformerPage = () => {
       const originY = canvas.height - levelPixelHeight + cameraPositionY.value;
       const originX = -cameraPositionX.value;
 
+      if (
+        backgroundLayersRef.current &&
+        backgroundLayerGrassRef.current &&
+        backgroundLayerRiverRef.current
+      ) {
+        drawBackgroundLayers(
+          ctx,
+          {
+            layers: backgroundLayersRef.current,
+            grass: backgroundLayerGrassRef.current,
+            river: backgroundLayerRiverRef.current,
+          },
+          canvas.width,
+          canvas.height,
+          cameraPositionX.value,
+          worldAnimElapsed,
+        );
+      }
+
       if (tilesetRef.current) {
-        // Fixed to the viewport, not the camera — drawn over the plain
-        // fillRect fallback above, once the tileset has actually loaded.
-        drawSkyBackground(ctx, tilesetRef.current, canvas.width, canvas.height, backgroundColor);
         if (backgroundAtlasRef.current) {
           drawBackgroundTiles(ctx, currentLevel.value, backgroundAtlasRef.current, originX, originY);
         }
@@ -543,7 +597,15 @@ export const PlatformerPage = () => {
       // of the player/enemies, same camera-scroll originX/originY as
       // drawTerrain so it stays attached to the level rather than the screen.
       if (tilesetRef.current) {
-        drawWaterForeground(ctx, currentLevel.value, tilesetRef.current, canvas.height, originX, originY);
+        drawWaterForeground(
+          ctx,
+          currentLevel.value,
+          tilesetRef.current,
+          canvas.width,
+          canvas.height,
+          originX,
+          originY,
+        );
       }
 
       const tooltip = hintTooltipState.value;
@@ -616,7 +678,7 @@ export const PlatformerPage = () => {
         canvas.height * 0.3 - COLLECTION_TEXT_STACK_ROW_HEIGHT,
       );
 
-      if (debugHitboxesRef.current)
+      if (debugHitboxesRef.current) {
         drawDebugOverlay(
           ctx,
           playerState.value,
@@ -626,6 +688,8 @@ export const PlatformerPage = () => {
           enemyStates.value,
           hazardPlacements.value,
         );
+        drawCameraDeadZoneOverlay(ctx, canvas.width, canvas.height);
+      }
 
       if (heartsSpriteRef.current) {
         drawHearts(ctx, playerState.value.hitPoints, heartsSpriteRef.current, HEARTS_START_X);
@@ -676,6 +740,7 @@ export const PlatformerPage = () => {
     };
 
     resize();
+    snapCameraYToSpawn();
     render();
     canvas.focus();
 
@@ -696,6 +761,7 @@ export const PlatformerPage = () => {
     const restartIfAwaiting = () => {
       if (lifecycleState.value.phase !== 'awaitingRestart') return;
       resetGame();
+      snapCameraYToSpawn();
       const center = spawnCenter();
       lifecycleState.value = introState(center.x, center.y);
       render();
@@ -1586,6 +1652,35 @@ export const PlatformerPage = () => {
         // Ground simply won't render if the atlas fails to load; the sky and
         // the background fill still show so the page isn't blank.
       });
+    loadImage(BACKGROUND_LAYERS_SHEET.src)
+      .then((img) => {
+        if (cancelled) return;
+        backgroundLayersRef.current = img;
+        render();
+      })
+      .catch(() => {
+        // The background simply won't render if this asset fails to load;
+        // the plain fillRect fallback still shows so the page isn't blank.
+      });
+    loadImage(BACKGROUND_LAYER_GRASS_SHEET.src)
+      .then((img) => {
+        if (cancelled) return;
+        backgroundLayerGrassRef.current = img;
+        render();
+      })
+      .catch(() => {
+        // Same fallback as the layers sheet above.
+      });
+    loadImage(BACKGROUND_LAYER_RIVER_SHEET.src)
+      .then((img) => {
+        if (cancelled) return;
+        backgroundLayerRiverRef.current = img;
+        render();
+      })
+      .catch(() => {
+        // The river simply won't animate if this asset fails to load; the
+        // rest of the background still shows.
+      });
     loadImage(TERRAIN_BACKGROUND_SHEET.src)
       .then((img) => {
         if (cancelled) return;
@@ -1749,8 +1844,40 @@ export const PlatformerPage = () => {
   }, []);
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden">
-      <canvas ref={canvasRef} data-testid="platformer-canvas" className="block" tabIndex={-1} />
+    <div className="relative flex h-screen w-screen items-center justify-center overflow-hidden bg-black">
+      {/* Sized to exactly wrap the canvas (a plain div with no explicit
+          size shrinks to its child's rendered dimensions), so the journal
+          button below can anchor to the CANVAS's own corner via `absolute`
+          instead of the page's corner — the canvas is vertically centered
+          within the taller page now (see PLAY_CANVAS_ROWS), so a
+          page-anchored `fixed` position no longer lines up with it. */}
+      <div className="relative">
+        <canvas
+          ref={canvasRef}
+          data-testid="platformer-canvas"
+          className="block border border-border outline-none select-none"
+          tabIndex={-1}
+        />
+        {/* Sits top-left, left of the hearts HUD, which HEARTS_START_X shifts
+            right to make room — top-left keeps it easy to spot against the
+            terrain. size-10 (40px) must match the 40 baked into
+            HEARTS_START_X's computation in Renderer.ts. */}
+        <button
+          ref={journalButtonRef}
+          type="button"
+          onClick={handleJournalToggle}
+          aria-label="Toggle journal"
+          className="absolute top-4 left-4 z-50 size-10 overflow-hidden rounded"
+        >
+          <img
+            src="/sprites/journal.png"
+            alt=""
+            data-testid="journal-open-button"
+            className="h-full w-full object-contain"
+            style={{ imageRendering: 'pixelated' }}
+          />
+        </button>
+      </div>
       <FloatingControls onOpenChange={handleFloatingControlsOpenChange} />
       <ControlsOverlay />
       {journalOpen && (
@@ -1761,25 +1888,6 @@ export const PlatformerPage = () => {
         />
       )}
       {endingScreenOpen.value && <ThankYouScreen onDismiss={handleDismissEndingScreen} />}
-      {/* Sits top-left, left of the hearts HUD, which HEARTS_START_X shifts
-          right to make room — top-left keeps it easy to spot against the
-          terrain. size-10 (40px) must match the 40 baked into
-          HEARTS_START_X's computation in Renderer.ts. */}
-      <button
-        ref={journalButtonRef}
-        type="button"
-        onClick={handleJournalToggle}
-        aria-label="Toggle journal"
-        className="fixed top-4 left-4 z-50 size-10 overflow-hidden rounded"
-      >
-        <img
-          src="/sprites/journal.png"
-          alt=""
-          data-testid="journal-open-button"
-          className="h-full w-full object-contain"
-          style={{ imageRendering: 'pixelated' }}
-        />
-      </button>
       {debugControls && (
         // Stacked below FloatingControls' top-right theme/locale selectors
         // (which sit at top-4, ~36-40px tall) rather than bottom-left, so
