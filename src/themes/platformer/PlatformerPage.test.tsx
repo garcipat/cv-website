@@ -37,6 +37,7 @@ import {
   hintTooltipState,
   keyPickupStates,
   collectedKeys,
+  heartPickupStates,
   resetGame,
   activePuffs,
   activeCounterPopups,
@@ -53,6 +54,7 @@ import {
   PIT_FALL_DAMAGE,
   SIDE_HIT_DAMAGE,
   HEART_RENDERED_SIZE,
+  HEART_PICKUP_HEAL_AMOUNT,
 } from './entities/Health';
 import { HEARTS_START_X, keyCounterX, KEY_COUNTER_Y } from './engine/Renderer';
 import { ENEMY_HIT_REACTION_SECONDS } from './entities/enemies/shared';
@@ -153,6 +155,23 @@ function placeTestCoinPot(id: string): BlockState {
   return pot;
 }
 
+/** Same convention as COIN_POT_TEST_OFFSET_X/placeTestCoinPot above, but for
+ *  a synthetic potion-pot — a different offset keeps it clear of both the
+ *  real crate and any synthetic coin-pot placed nearby by another test. */
+const POTION_POT_TEST_OFFSET_X = 6 * RENDERED_TILE_SIZE;
+
+function placeTestPotionPot(id: string): BlockState {
+  const crate = blockPlacements.value.find((b) => b.blockKind === 'crate')!;
+  const pot = toBlockState({
+    id,
+    blockKind: 'potionPot',
+    x: crate.x + POTION_POT_TEST_OFFSET_X,
+    y: crate.y,
+  });
+  blockStates.value = [...blockStates.value, pot];
+  return pot;
+}
+
 /** The player.y to set so a falling player's feet resolve to rest exactly on
  *  top of the given block's tile — mirrors `stompLandingY` above, but for
  *  landing on a solid block tile (`Physics.ts`'s ground-collision branch)
@@ -215,6 +234,7 @@ describe('PlatformerPage', () => {
     // that no keys have been dropped/banked yet.
     keyPickupStates.value = [];
     collectedKeys.value = 0;
+    heartPickupStates.value = [];
     // Module-level signal like the others above — a counter popup started by
     // one test would otherwise still be present (popups only clear via
     // tickCounterPopup, which no render-only test drives long enough), so a
@@ -1749,6 +1769,141 @@ describe('PlatformerPage', () => {
       expect(blockStates.value.find((b) => b.id === pot.id)?.hitsTaken).toBe(0);
       expect(spawnedCoinPlacements.value).toEqual([]);
       expect(activePuffs.value.some((p) => p.id === pot.id)).toBe(false);
+    });
+  });
+
+  describe('potionPot — landing destroys it and drops a heart', () => {
+    beforeEach(() => {
+      heartPickupStates.value = [];
+    });
+
+    it('landingOnAPotionPot-destroysItAndBouncesThePlayer', () => {
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+      render(<PlatformerPage />);
+      frameCallback!(0);
+
+      const pot = placeTestPotionPot('potionpot-test-bounce');
+      playerState.value = { ...playerState.value, x: pot.x, y: blockLandingY(pot), vy: 300 };
+
+      frameCallback!(16);
+
+      expect(blockStates.value.find((b) => b.id === pot.id)?.hitsTaken).toBe(1);
+      expect(playerState.value.vy).toBe(PHYSICS_CONFIG.coinPotBounceVelocity);
+      expect(playerState.value.bounceAscending).toBe(true);
+    });
+
+    it('landingOnAPotionPot-alwaysAddsAHeartToHeartPickupStates', () => {
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+      render(<PlatformerPage />);
+      frameCallback!(0);
+
+      const pot = placeTestPotionPot('potionpot-test-drop');
+      playerState.value = { ...playerState.value, x: pot.x, y: blockLandingY(pot), vy: 300 };
+
+      let t = 16;
+      frameCallback!(t);
+      for (let i = 0; i < 10; i++) {
+        t += 16;
+        frameCallback!(t);
+      }
+
+      expect(heartPickupStates.value).toHaveLength(1);
+      expect(heartPickupStates.value[0].id).toBe(pot.id);
+    });
+
+    it('hittingAPotionPotFromBelow-doesNotBreakItOrDropAHeart', () => {
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+      render(<PlatformerPage />);
+      frameCallback!(0);
+
+      const pot = placeTestPotionPot('potionpot-test-from-below');
+      const ceilingBottomY = pot.y + RENDERED_TILE_SIZE;
+      playerState.value = {
+        ...playerState.value,
+        x: pot.x,
+        y: ceilingBottomY - PLAYER_HEAD_PADDING + 1,
+        vy: -1000,
+      };
+
+      let t = 16;
+      frameCallback!(t);
+      for (let i = 0; i < 10; i++) {
+        t += 16;
+        frameCallback!(t);
+      }
+
+      expect(blockStates.value.find((b) => b.id === pot.id)?.hitsTaken).toBe(0);
+      expect(heartPickupStates.value).toEqual([]);
+    });
+  });
+
+  describe('heart pickup — collecting it heals the player', () => {
+    beforeEach(() => {
+      heartPickupStates.value = [];
+    });
+
+    it('walkingOverADroppedHeart-healsHalfAHeartAndRemovesThePickup', () => {
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+      render(<PlatformerPage />);
+      frameCallback!(0);
+
+      playerState.value = { ...playerState.value, hitPoints: MAX_HALF_HEARTS - 2 };
+      const heartX = playerState.value.x;
+      const heartY = playerState.value.y;
+      heartPickupStates.value = [{ id: 'heart-test-1', x: heartX, y: heartY }];
+
+      frameCallback!(16);
+
+      expect(playerState.value.hitPoints).toBe(MAX_HALF_HEARTS - 2 + HEART_PICKUP_HEAL_AMOUNT);
+      expect(heartPickupStates.value).toEqual([]);
+    });
+
+    it('walkingOverADroppedHeart-atFullHealth-staysInTheWorldUncollected', () => {
+      // The heart waits for the player to actually need it rather than being
+      // consumed for nothing (Collision.ts's checkHeartPickupCollisions).
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+      render(<PlatformerPage />);
+      frameCallback!(0);
+
+      playerState.value = { ...playerState.value, hitPoints: MAX_HALF_HEARTS };
+      const heartX = playerState.value.x;
+      const heartY = playerState.value.y;
+      heartPickupStates.value = [{ id: 'heart-test-2', x: heartX, y: heartY }];
+
+      frameCallback!(16);
+
+      expect(playerState.value.hitPoints).toBe(MAX_HALF_HEARTS);
+      expect(heartPickupStates.value).toEqual([{ id: 'heart-test-2', x: heartX, y: heartY }]);
     });
   });
 

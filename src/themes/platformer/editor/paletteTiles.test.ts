@@ -116,6 +116,26 @@ describe('sign marker', () => {
   });
 });
 
+describe('potionPot marker', () => {
+  it('p-hasASpriteMatchingThePurpleBottleFrame', () => {
+    // Row 8, column 1 of world_tileset.png (16px tiles) — see
+    // entities/blocks/PotionPot.ts's POTION_POT_FRAME.
+    expect(PALETTE_TILE_SPRITES.p).toEqual({
+      sheet: '/sprites/world_tileset.png',
+      sheetWidth: 256,
+      sheetHeight: 256,
+      sx: 16,
+      sy: 128,
+      frameWidth: 16,
+      frameHeight: 16,
+    });
+  });
+
+  it('p-hasAHumanReadableLabel', () => {
+    expect(PALETTE_TILE_LABELS.p).toBe('Potion Pot');
+  });
+});
+
 describe('ground marker', () => {
   it('G-hasASpriteCompositingGrassOverTheGroundBlock', () => {
     expect(PALETTE_TILE_SPRITES['G']).toEqual({

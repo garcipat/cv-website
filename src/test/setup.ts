@@ -70,6 +70,10 @@ HTMLCanvasElement.prototype.getContext = function (
         data: new Uint8ClampedArray(sw * sh * 4).fill(255),
       })),
       putImageData: vi.fn(),
+      // The heal aura's glow/rays (Renderer.ts's drawHealAuraEffects) paint
+      // via canvas gradients — a bare fillStyle assignment doesn't cover it.
+      createRadialGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
+      createLinearGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
     });
   }
 

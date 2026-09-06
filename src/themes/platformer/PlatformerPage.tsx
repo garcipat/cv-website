@@ -25,6 +25,8 @@ import {
   drawSigns,
   drawSignBubble,
   drawKeyPickups,
+  drawHeartPickups,
+  drawHealAuraEffects,
   drawHazards,
   drawKeyCounter,
   keyCounterX,
@@ -62,6 +64,7 @@ import {
   chestPlayerIsStandingOn,
   checkSignOverlap,
   checkKeyPickupCollisions,
+  checkHeartPickupCollisions,
   checkHazardCollisions,
 } from './engine/Collision';
 import { openChest, allChestsOpen, isChestOpen, CHEST_CLOSED_OFFSET_X } from './entities/Chest';
@@ -78,6 +81,7 @@ import type { BlockState } from './entities/Block';
 import { computeCoinPotRenderPlan } from './entities/blocks/coinPotRenderPlan';
 import { spawnBonusFruit, tickBonusFruit, bonusFruitY } from './entities/BonusFruit';
 import { spawnKeyPickup, KEY_TILE_OFFSET_X, KEY_TILE_OFFSET_Y } from './entities/KeyPickup';
+import { spawnHeartPickup } from './entities/HeartPickup';
 import {
   startFlightEffect,
   tickFlightEffect,
@@ -88,6 +92,9 @@ import {
   counterPopupOpacity,
   startPuffEffect,
   tickPuffEffect,
+  startHealAuraEffect,
+  tickHealAuraEffect,
+  HEAL_AURA_DURATION_SECONDS,
   SPARKLE_DURATION_SECONDS,
 } from './engine/CollectionEffects';
 import { coinFrameSource, COIN_FRAME_SIZE } from './entities/Coin';
@@ -126,7 +133,7 @@ import { PICKUP_TYPES } from './entities/pickups';
 import { BLOCK_TYPES } from './entities/blocks';
 import { CHEST_TYPE } from './entities/chests';
 import type { EnemyState } from './entities/Enemy';
-import { takeDamage, PIT_FALL_DAMAGE } from './entities/Health';
+import { takeDamage, healDamage, PIT_FALL_DAMAGE, HEART_PICKUP_HEAL_AMOUNT } from './entities/Health';
 import { revealedFactCountFor } from './level/SkillFactPacing';
 import {
   playerState,
@@ -156,7 +163,9 @@ import {
   hintTooltipState,
   keyPickupStates,
   collectedKeys,
+  heartPickupStates,
   activePuffs,
+  activeHealAuraEffects,
   levelTotals,
 } from './PlatformerState';
 import { useSignals } from '@preact/signals-react/runtime';
@@ -510,11 +519,21 @@ export const PlatformerPage = () => {
         );
       }
 
+      drawHealAuraEffects(
+        ctx,
+        activeHealAuraEffects.value,
+        playerState.value.x + PLAYER_RENDERED_SIZE / 2 + originX,
+        playerState.value.y + PLAYER_VISUAL_CENTER_Y_OFFSET + originY,
+        PLAYER_RENDERED_SIZE,
+      );
+
       drawCollectibles(ctx, allCollectiblePlacements.value, collectedCollectibleIds.value, drawContext);
 
       drawEnemies(ctx, enemyStates.value, drawContext);
 
       drawKeyPickups(ctx, keyPickupStates.value, drawContext);
+
+      drawHeartPickups(ctx, heartPickupStates.value, drawContext);
 
       // Very-foreground water band, anchored to the LEVEL's bottom edge (not
       // the viewport) — drawn after every world entity so it sits in front
@@ -917,6 +936,10 @@ export const PlatformerPage = () => {
         .map((puff) => tickPuffEffect(puff, dt))
         .filter((puff) => puff.elapsed <= SPARKLE_DURATION_SECONDS);
 
+      activeHealAuraEffects.value = activeHealAuraEffects.value
+        .map((aura) => tickHealAuraEffect(aura, dt))
+        .filter((aura) => aura.elapsed <= HEAL_AURA_DURATION_SECONDS);
+
       const tickedPopups = { ...activeCounterPopups.value };
       let popupsChanged = false;
       for (const key of Object.keys(tickedPopups) as Array<keyof typeof tickedPopups>) {
@@ -1022,6 +1045,31 @@ export const PlatformerPage = () => {
         bonusFruitStates.value = bonusFruitStates.value.filter(
           (fruit) => !touchedBonusFruitIds.includes(fruit.id),
         );
+      }
+
+      // Heart pickups: dropped by destroyed potion-pots, healed on touch and
+      // removed outright — same array-filter convention as bonus fruits
+      // above, not the flagged-`collected` convention key pickups use, since
+      // there's no HUD counter a heart needs to keep contributing to.
+      // checkHeartPickupCollisions itself gates on hitPoints < MAX_HALF_HEARTS,
+      // so a heart reaching this point always has something to heal — no
+      // no-op collection at full health (it waits in the world instead).
+      const touchedHeartIds = checkHeartPickupCollisions(playerState.value, heartPickupStates.value);
+      if (touchedHeartIds.length > 0) {
+        playerState.value = {
+          ...playerState.value,
+          hitPoints: healDamage(playerState.value.hitPoints, HEART_PICKUP_HEAL_AMOUNT),
+        };
+        heartPickupStates.value = heartPickupStates.value.filter(
+          (heart) => !touchedHeartIds.includes(heart.id),
+        );
+        // One aura per touched heart (typically just one) — drawHealAuraEffects
+        // draws every active entry at the player's CURRENT position each
+        // frame, so several overlapping auras simply read as one brighter one.
+        activeHealAuraEffects.value = [
+          ...activeHealAuraEffects.value,
+          ...touchedHeartIds.map((id) => startHealAuraEffect(id)),
+        ];
       }
 
       // Key pickups: dropped by defeated purple slimes (see the justDefeated
@@ -1346,6 +1394,13 @@ export const PlatformerPage = () => {
             spawnedCoinPlacements.value = [
               ...spawnedCoinPlacements.value,
               { id: block.id, spriteType: 'coin', x: block.x, y: block.y },
+            ];
+          } else if (outcome.spawnPickup === 'heart') {
+            // `block.id` is the pot's own id — a potion-pot carries no fact,
+            // same convention as coinPot's dropped coin above.
+            heartPickupStates.value = [
+              ...heartPickupStates.value,
+              spawnHeartPickup(block.id, block.x, block.y),
             ];
           }
 

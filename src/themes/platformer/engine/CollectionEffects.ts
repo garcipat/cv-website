@@ -263,3 +263,94 @@ export function startPuffEffect(id: string, x: number, y: number, scale = 1): Pu
 export function tickPuffEffect(effect: PuffEffect, dt: number): PuffEffect {
   return { ...effect, elapsed: effect.elapsed + dt };
 }
+
+/** One cycle of a heal aura's rise-and-fade takes this long. */
+export const HEAL_AURA_DURATION_SECONDS = 0.5;
+
+/**
+ * A one-shot golden aura played on the PLAYER when a heart pickup heals
+ * them — a glow, a handful of light rays, and a few sparkles, all anchored
+ * to wherever the player currently is (unlike `PuffEffect`, which is
+ * anchored to a fixed world point set once at spawn time: an enemy/block
+ * doesn't move, but the player does, so this effect carries no x/y of its
+ * own — the caller re-derives the anchor from the live `playerState` every
+ * frame it draws). Deliberately not a phase machine like `FlightEffect`:
+ * like `PuffEffect`, it has exactly one phase, and every visual (glow,
+ * rays, sparkles) shares the same single fade curve (`healAuraOpacity`)
+ * rather than needing its own.
+ */
+export interface HealAuraEffect {
+  id: string;
+  elapsed: number;
+}
+
+export function startHealAuraEffect(id: string): HealAuraEffect {
+  return { id, elapsed: 0 };
+}
+
+/** Advances the aura by `dt` seconds. No phase machine — same convention as
+ *  `tickPuffEffect`. */
+export function tickHealAuraEffect(effect: HealAuraEffect, dt: number): HealAuraEffect {
+  return { ...effect, elapsed: effect.elapsed + dt };
+}
+
+/** Shared fade curve for every part of the aura (glow, rays, sparkles) — 1
+ *  at the instant it starts, linearly down to 0 by `HEAL_AURA_DURATION_SECONDS`,
+ *  and 0 outside that range (before start, or after the caller should have
+ *  already filtered the effect out). */
+export function healAuraOpacity(elapsed: number): number {
+  if (elapsed < 0 || elapsed > HEAL_AURA_DURATION_SECONDS) return 0;
+  return 1 - elapsed / HEAL_AURA_DURATION_SECONDS;
+}
+
+const HEAL_AURA_RAY_COUNT = 5;
+
+/** One light ray's horizontal offset from the anchor (`dx`) and current
+ *  height, both in px. `dx` stays fixed for a ray's whole lifetime — only
+ *  `height` grows, from a short stub up to roughly `width` tall, so the
+ *  rays read as "shooting up" rather than appearing at full height at once. */
+export interface HealAuraRay {
+  dx: number;
+  height: number;
+}
+
+/**
+ * Returns the aura's light rays for the given elapsed time, spread evenly
+ * across `width` (the player's own rendered width, so the rays stay
+ * compact — hugging the player rather than spreading across the screen).
+ * Empty outside the effect's active window, same convention as
+ * `sparkleParticles`.
+ */
+export function healAuraRays(elapsed: number, width: number): HealAuraRay[] {
+  if (elapsed < 0 || elapsed > HEAL_AURA_DURATION_SECONDS) return [];
+  const progress = elapsed / HEAL_AURA_DURATION_SECONDS;
+  const height = width * (0.25 + 0.75 * progress);
+  const spacing = width / (HEAL_AURA_RAY_COUNT + 1);
+  return Array.from({ length: HEAL_AURA_RAY_COUNT }, (_, i) => ({
+    dx: spacing * (i + 1) - width / 2,
+    height,
+  }));
+}
+
+const HEAL_AURA_SPARKLE_OFFSETS = [-0.3, -0.1, 0.15, 0.35];
+
+/** One sparkle mote's offset from the anchor, in px — `dx` fixed, `dy`
+ *  negative and growing in magnitude as the sparkle rises. */
+export interface HealAuraSparkle {
+  dx: number;
+  dy: number;
+}
+
+/**
+ * Returns the aura's sparkle motes for the given elapsed time, drifting
+ * upward from the anchor by up to roughly `0.6 * width` — a shorter rise
+ * than `sparkleParticles`'s radial burst, since this stays compact around
+ * the player rather than spreading outward. Empty outside the effect's
+ * active window.
+ */
+export function healAuraSparkles(elapsed: number, width: number): HealAuraSparkle[] {
+  if (elapsed < 0 || elapsed > HEAL_AURA_DURATION_SECONDS) return [];
+  const progress = elapsed / HEAL_AURA_DURATION_SECONDS;
+  const rise = width * 0.6 * progress;
+  return HEAL_AURA_SPARKLE_OFFSETS.map((frac) => ({ dx: frac * width, dy: -rise }));
+}
