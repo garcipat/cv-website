@@ -23,7 +23,7 @@ interface PaletteProps {
 const EMPTY_CHAR: TileChar = '.';
 const PATROL_CHAR: TileChar = 'P';
 const BACKGROUND_PIECE_IDS = Object.keys(BACKGROUND_CATALOG) as BackgroundPieceId[];
-const DECORATION_CHARS: TileChar[] = ['n', 'N', 'X', 'c', 'd', 'a'];
+const DECORATION_CHARS: TileChar[] = ['n', 'N', 'X', 'c', '⊤', '⊥'];
 
 export const Palette = ({
   selectedTool,

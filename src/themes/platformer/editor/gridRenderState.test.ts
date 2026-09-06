@@ -84,8 +84,8 @@ describe('synthesizeBlockStates', () => {
 });
 
 describe('synthesizeChestStates', () => {
-  it('returns one closed chest placeholder per "T" marker', () => {
-    const grid: TileChar[][] = [['T']];
+  it('returns one closed chest placeholder per "$" marker', () => {
+    const grid: TileChar[][] = [['$']];
     const chests = synthesizeChestStates(grid);
     expect(chests).toHaveLength(1);
     expect(chests[0].state).toBe('closed');

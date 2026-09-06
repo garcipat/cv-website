@@ -69,7 +69,7 @@ describe('PALETTE_TILE_SPRITES', () => {
   });
 
   it('uses the chest-closed sprite for the chest tile, sized to the whole image', () => {
-    expect(PALETTE_TILE_SPRITES.T).toEqual({
+    expect(PALETTE_TILE_SPRITES.$).toEqual({
       sheet: '/sprites/chest_closed.png',
       sheetWidth: 28,
       sheetHeight: 20,

@@ -62,7 +62,7 @@ describe('parseLevel', () => {
     expect(ENTITY_CHARS.F).toBe('fragileRock');
     expect(ENTITY_CHARS.u).toBe('coinPot');
     expect(ENTITY_CHARS.p).toBe('potionPot');
-    expect(ENTITY_CHARS.T).toBe('chest');
+    expect(ENTITY_CHARS.$).toBe('chest');
   });
 
   it('noTerrainAndEntityCharOverlap-documentedByTheModuleLoadGuard', () => {
@@ -308,7 +308,7 @@ describe('findChestTiles', () => {
   });
 
   it('multipleMarkers-returnsAllInReadingOrder', () => {
-    expect(findChestTiles(['.T', 'T.'])).toEqual([
+    expect(findChestTiles(['.$', '$.'])).toEqual([
       { col: 1, row: 0 },
       { col: 0, row: 1 },
     ]);
@@ -409,8 +409,8 @@ describe('findHazardTiles', () => {
 describe('TileChar', () => {
   it('includes every TERRAIN_CHARS, ENTITY_CHARS, SIGN_CHARS, and HAZARD_CHARS key', () => {
     const tileChars: readonly TileChar[] = [
-      '.', 'G', 'R', '#', 'B', 'H', 'I', 'P', 'S', 'M', 'm', 'o', '=', 'Q', 'F', 'T', 'u', 'p',
-      '1', '2', '3', '4', '5', 'n', 'N', 'X', 'c', 'd', 'a', '^', 'v', '<', '>',
+      '.', 'G', 'R', '#', 'B', 'H', 'I', 'P', 'S', 'M', 'm', 'o', '=', 'Q', 'F', '$', 'u', 'p',
+      '1', '2', '3', '4', '5', 'n', 'N', 'X', 'c', '⊤', '⊥', '^', 'v', '<', '>',
     ];
     const allKeys = [
       ...Object.keys(TERRAIN_CHARS),

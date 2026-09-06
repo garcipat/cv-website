@@ -32,8 +32,8 @@ export const TERRAIN_CHARS: Record<string, TileType | undefined> = {
   N: 'fence',
   X: 'cobweb',
   c: 'crystalCluster',
-  d: 'stalactite',
-  a: 'stalagmite',
+  '⊤': 'stalactite',
+  '⊥': 'stalagmite',
 };
 
 /**
@@ -46,7 +46,7 @@ export const TERRAIN_CHARS: Record<string, TileType | undefined> = {
  * glyph, unlike every other entity marker which is uppercase), `p` (potion-pot
  * block — destroyed by landing on top like a coin-pot, drops a heart pickup
  * that heals half a heart; no fact, same no-CVData-binding convention as
- * coin-pot/fragileRock), `T` (chest —
+ * coin-pot/fragileRock), `$` (chest —
  * Experience fact, opened via Arrow Up while standing on it, spec.md
  * FR-023). Kept as its own
  * map, separate from TERRAIN_CHARS, since an entity marker isn't a terrain
@@ -64,7 +64,7 @@ export const ENTITY_CHARS: Record<string, EntityKind | undefined> = {
   F: 'fragileRock',
   u: 'coinPot',
   p: 'potionPot',
-  T: 'chest',
+  $: 'chest',
 };
 
 /**
@@ -163,15 +163,15 @@ export type TileChar =
   | '='
   | 'Q'
   | 'F'
-  | 'T'
+  | '$'
   | 'u'
   | 'p'
   | 'n'
   | 'N'
   | 'X'
   | 'c'
-  | 'd'
-  | 'a'
+  | '⊤'
+  | '⊥'
   | '1'
   | '2'
   | '3'
@@ -300,7 +300,7 @@ export function findPotionPotTiles(layout: readonly string[]): { col: number; ro
   return findAllOfKind(layout, 'potionPot');
 }
 
-/** Finds every `T` (chest) marker's position in a level layout — same
+/** Finds every `$` (chest) marker's position in a level layout — same
  *  convention as findCrateTiles/findFragileRockTiles. Unlike those, a chest marker
  *  IS zipped against CVData-derived defs (one chest per Experience entry,
  *  spec.md FR-023) — see ChestMapper.ts's placeChests. */

@@ -159,10 +159,10 @@ export function synthesizeBlockStates(grid: TileChar[][]): BlockState[] {
   );
 }
 
-/** Returns one always-closed placeholder `ChestState` per `T` marker, via
+/** Returns one always-closed placeholder `ChestState` per `$` marker, via
  *  `toChestState` (which always defaults to `'closed'`). */
 export function synthesizeChestStates(grid: TileChar[][]): ChestState[] {
-  const placements: ChestPlacement[] = findAllPositions(grid, 'T').map(({ col, row }, index) => {
+  const placements: ChestPlacement[] = findAllPositions(grid, '$').map(({ col, row }, index) => {
     const { x, y } = tileToPixel(col, row);
     return { id: `editor-chest-${index}`, fact: PLACEHOLDER_FACT, x, y };
   });
