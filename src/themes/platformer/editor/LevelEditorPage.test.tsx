@@ -1370,6 +1370,17 @@ function clickLevelCell(col: number, row: number, button = 0) {
   });
 }
 
+// The live hover preview is driven by mouse movement, not a click — this is
+// the hover-only half of what a real mouse move over an armed placement does.
+function hoverLevelCell(col: number, row: number) {
+  const canvas = document.querySelector('canvas')!;
+  vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
+  fireEvent.mouseMove(canvas, {
+    clientX: col * RENDERED_TILE_SIZE + 1,
+    clientY: row * RENDERED_TILE_SIZE + 1,
+  });
+}
+
 describe('LevelEditorPage — arming a blueprint for placement (step 44c)', () => {
   it('levelMode-thePaletteListsTheSavedBlueprints', () => {
     renderEditorWithBlueprints(CAVE_ROOM);
@@ -1477,11 +1488,11 @@ describe('LevelEditorPage — arming a blueprint for placement (step 44c)', () =
 describe('LevelEditorPage — placing a blueprint (step 44c)', () => {
   const armCaveRoom = () => fireEvent.click(screen.getByRole('button', { name: 'Cave Room' }));
 
-  it('firstClick-previewsWithoutWritingAnythingOrDirtyingTheLevel', () => {
+  it('hovering-previewsWithoutWritingAnythingOrDirtyingTheLevel', () => {
     renderEditorWithBlueprints(CAVE_ROOM);
     armCaveRoom();
 
-    clickLevelCell(1, 1);
+    hoverLevelCell(1, 1);
 
     // Painting sets the dirty flag synchronously, so this genuinely proves no
     // paint happened (the grid signal itself is debounced and would not have
@@ -1489,14 +1500,14 @@ describe('LevelEditorPage — placing a blueprint (step 44c)', () => {
     expect(editorDirtySignal.value).toBe(false);
   });
 
-  it('secondClickOnTheSameCell-stampsEveryCellOfTheRoomIntoTheLevelGrid', async () => {
+  it('hoverThenClick-stampsEveryCellOfTheRoomIntoTheLevelGrid', async () => {
     // A 3x3 level, ['##'] anchored at (col 1, row 1): absolute (1,1) and (1,2),
     // both in bounds, so neither growGrid call grows anything and both shifts
     // are 0.
     renderEditorWithBlueprints(CAVE_ROOM);
     armCaveRoom();
 
-    clickLevelCell(1, 1);
+    hoverLevelCell(1, 1);
     clickLevelCell(1, 1);
 
     await waitFor(() => {
@@ -1505,24 +1516,27 @@ describe('LevelEditorPage — placing a blueprint (step 44c)', () => {
     expect(editorDirtySignal.value).toBe(true);
   });
 
-  it('secondClickOnADifferentCell-movesThePreviewInsteadOfCommitting', () => {
+  it('hoveringElsewhereThenClicking-commitsAtTheNewHoverPositionNotTheOldOne', async () => {
     renderEditorWithBlueprints(CAVE_ROOM);
     armCaveRoom();
 
+    hoverLevelCell(0, 0);
+    hoverLevelCell(1, 1);
     clickLevelCell(1, 1);
-    clickLevelCell(2, 2);
 
-    expect(editorDirtySignal.value).toBe(false);
+    await waitFor(() => {
+      expect(editorLevelSignal.value).toEqual(importLayout(['...', '.##', '...']));
+    });
   });
 
-  it('anchoredPastTheTopLeftCorner-growsTheGridTheSameWayPaintingThereWould', async () => {
+  it('placingPastTheTopLeftCorner-growsTheGridTheSameWayPaintingThereWould', async () => {
     // Anchored at (col -1, row -1) on a 3x3 grid: growGrid(-1,-1) prepends one
     // column and one row (4 wide x 4 high, both shifts 1), the second grow is a
     // no-op, and the two cells land at (0,0) and (0,1) of the grown grid.
     renderEditorWithBlueprints(CAVE_ROOM);
     armCaveRoom();
 
-    clickLevelCell(-1, -1);
+    hoverLevelCell(-1, -1);
     clickLevelCell(-1, -1);
 
     await waitFor(() => {
@@ -1532,14 +1546,14 @@ describe('LevelEditorPage — placing a blueprint (step 44c)', () => {
     });
   });
 
-  it('overlappingExistingTerrain-secondClickOnTheSameCell-writesNothing', async () => {
+  it('overlappingExistingTerrain-clickWritesNothing', async () => {
     blueprintEntries.push(CAVE_ROOM);
     editorLevelSignal.value = importLayout(['G..', '...', '...']);
     render(<LevelEditorPage />);
     armCaveRoom();
 
-    // Anchored at (col 0, row 0) the room would land on (0,0), which holds 'G'.
-    clickLevelCell(0, 0);
+    // Hovering (col 0, row 0) the room would land on (0,0), which holds 'G'.
+    hoverLevelCell(0, 0);
     clickLevelCell(0, 0);
 
     expect(editorDirtySignal.value).toBe(false);
@@ -1550,7 +1564,7 @@ describe('LevelEditorPage — placing a blueprint (step 44c)', () => {
     renderEditorWithBlueprints(CAVE_ROOM);
     armCaveRoom();
 
-    clickLevelCell(1, 1);
+    hoverLevelCell(1, 1);
     clickLevelCell(1, 1);
 
     expect(editorArmedBlueprintIdSignal.value).toBe('cave-room');
@@ -1561,7 +1575,7 @@ describe('LevelEditorPage — placing a blueprint (step 44c)', () => {
     editorLevelSignal.value = importLayout(['G..', '...', '...']);
     render(<LevelEditorPage />);
     armCaveRoom();
-    clickLevelCell(1, 1);
+    hoverLevelCell(1, 1);
 
     clickLevelCell(0, 0, 2);
 
@@ -1581,8 +1595,8 @@ describe('LevelEditorPage — placing a blueprint (step 44c)', () => {
     });
     armCaveRoom();
 
-    // Anchor (col 1, row 1) with no growth, so the piece rebases to (1,1).
-    clickLevelCell(1, 1);
+    // Hovering (col 1, row 1) with no growth, so the piece rebases to (1,1).
+    hoverLevelCell(1, 1);
     clickLevelCell(1, 1);
 
     await waitFor(() => {
@@ -1608,7 +1622,7 @@ describe('LevelEditorPage — placing a blueprint (step 44c)', () => {
     render(<LevelEditorPage />);
     armCaveRoom();
 
-    clickLevelCell(-1, -1);
+    hoverLevelCell(-1, -1);
     clickLevelCell(-1, -1);
 
     await waitFor(() => {
@@ -1628,5 +1642,125 @@ describe('LevelEditorPage — placing a blueprint (step 44c)', () => {
     clickLevelCell(1, 1);
 
     await waitFor(() => expect(editorBackgroundSignal.value).toHaveLength(1));
+  });
+});
+
+describe('LevelEditorPage — undoing a placement (step 44c follow-up)', () => {
+  const armCaveRoom = () => fireEvent.click(screen.getByRole('button', { name: 'Cave Room' }));
+
+  it('beforeAnyPlacement-thereIsNoUndoButton', () => {
+    renderEditorWithBlueprints(CAVE_ROOM);
+
+    expect(screen.queryByRole('button', { name: 'Undo placement' })).not.toBeInTheDocument();
+  });
+
+  it('afterCommittingAPlacement-anUndoButtonAppears', async () => {
+    renderEditorWithBlueprints(CAVE_ROOM);
+    armCaveRoom();
+    hoverLevelCell(1, 1);
+
+    clickLevelCell(1, 1);
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Undo placement' })).toBeInTheDocument(),
+    );
+  });
+
+  it('clickingUndo-restoresTheGridAndBackgroundFromBeforeThatPlacementAndHidesTheButton', async () => {
+    blueprintEntries.push({
+      id: 'cave-room',
+      name: 'Cave Room',
+      layout: ['##'],
+      background: [{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }],
+    });
+    editorLevelSignal.value = importLayout(['...', '...', '...']);
+    editorBackgroundSignal.value = [];
+    render(<LevelEditorPage />);
+    armCaveRoom();
+    hoverLevelCell(1, 1);
+    clickLevelCell(1, 1);
+    await waitFor(() => {
+      expect(editorLevelSignal.value).toEqual(importLayout(['...', '.##', '...']));
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Undo placement' }));
+
+    await waitFor(() => {
+      expect(editorLevelSignal.value).toEqual(importLayout(['...', '...', '...']));
+    });
+    expect(editorBackgroundSignal.value).toEqual([]);
+    expect(screen.queryByRole('button', { name: 'Undo placement' })).not.toBeInTheDocument();
+  });
+
+  it('paintingAfterAPlacement-clearsTheUndoButton', async () => {
+    renderEditorWithBlueprints(CAVE_ROOM);
+    armCaveRoom();
+    hoverLevelCell(1, 1);
+    clickLevelCell(1, 1);
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Undo placement' })).toBeInTheDocument(),
+    );
+
+    // Picking a tile tool disarms the blueprint; painting with it is a
+    // regular edit that must invalidate undoing the earlier placement.
+    fireEvent.click(screen.getByRole('button', { name: 'Ground Rock' }));
+    clickLevelCell(0, 0);
+
+    expect(screen.queryByRole('button', { name: 'Undo placement' })).not.toBeInTheDocument();
+  });
+
+  it('erasingAfterAPlacement-clearsTheUndoButton', async () => {
+    renderEditorWithBlueprints(CAVE_ROOM);
+    armCaveRoom();
+    hoverLevelCell(1, 1);
+    clickLevelCell(1, 1);
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Undo placement' })).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ground Rock' }));
+    clickLevelCell(0, 0, 2); // right-click erases once nothing is armed
+
+    expect(screen.queryByRole('button', { name: 'Undo placement' })).not.toBeInTheDocument();
+  });
+
+  it('paintingTheBackgroundLayerAfterAPlacement-clearsTheUndoButton', async () => {
+    renderEditorWithBlueprints(CAVE_ROOM);
+    armCaveRoom();
+    hoverLevelCell(1, 1);
+    clickLevelCell(1, 1);
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Undo placement' })).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Background' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Dirt Column Top (1×1)' }));
+    clickLevelCell(0, 0);
+
+    expect(screen.queryByRole('button', { name: 'Undo placement' })).not.toBeInTheDocument();
+  });
+
+  it('committingASecondPlacement-replacesTheUndoTargetWithTheNewOne', async () => {
+    renderEditorWithBlueprints(CAVE_ROOM);
+    armCaveRoom();
+    hoverLevelCell(1, 1);
+    clickLevelCell(1, 1);
+    await waitFor(() => {
+      expect(editorLevelSignal.value).toEqual(importLayout(['...', '.##', '...']));
+    });
+
+    hoverLevelCell(0, 0);
+    clickLevelCell(0, 0);
+    await waitFor(() => {
+      expect(editorLevelSignal.value).toEqual(importLayout(['##.', '.##', '...']));
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Undo placement' }));
+
+    // Undo restores to just before the SECOND placement — the first stamped
+    // room is still there — not all the way back to the original empty grid.
+    await waitFor(() => {
+      expect(editorLevelSignal.value).toEqual(importLayout(['...', '.##', '...']));
+    });
   });
 });

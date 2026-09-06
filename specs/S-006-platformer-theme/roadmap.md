@@ -213,11 +213,12 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   stash is replaced with real persistence (`src/themes/platformer/level/blueprints/`,
   mirroring the level Save flow, gated behind a new `isDevEnvironmentSignal` so Save
   controls disappear on a built/statically-served site) and saved blueprints show up as
-  a Blueprints section in the Palette; placing one previews with a blue/red border
-  (blue = no overlap with existing terrain, red = overlap) and commits on a second
-  click. Depends only on 44a's saved-blueprint shape — not on 44b's connection points,
-  which placement does not read or validate (that dependency was cut after a design flaw
-  surfaced; see the design doc's Placement section).
+  a Blueprints section in the Palette; placing one shows a live blue/red border
+  preview that follows the mouse (blue = no overlap with existing terrain, red =
+  overlap), commits on a single left-click, and offers a one-shot "Undo placement"
+  button for the most recent commit. Depends only on 44a's saved-blueprint shape — not
+  on 44b's connection points, which placement does not read or validate (that dependency
+  was cut after a design flaw surfaced; see the design doc's Placement section).
 
 ## Unscheduled additions (not yet numbered)
 

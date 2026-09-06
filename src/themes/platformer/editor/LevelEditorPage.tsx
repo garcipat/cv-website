@@ -106,22 +106,21 @@ export const LevelEditorPage = () => {
   // dragged cell) stays snappy; the effect further down is what pushes it
   // back into the signal, debounced.
   const [grid, setGrid] = useState<TileChar[][]>(() => editorLevelSignal.value);
-  // Which saved blueprint is armed for placement (roadmap step 44c), and where
-  // its pending preview is anchored. The armed id is persisted like the armed
-  // tool; the pending anchor deliberately is NOT — a half-finished placement
-  // must not survive a reload.
+  // Which saved blueprint is armed for placement (roadmap step 44c), and
+  // which cell the mouse is currently hovering while armed — the preview
+  // follows this live, with no click required. The armed id is persisted
+  // like the armed tool; the hovered cell deliberately is NOT — a stale
+  // preview position must not survive a reload.
   const [armedBlueprintId, setArmedBlueprintIdState] = useState<string | null>(
     () => editorArmedBlueprintIdSignal.value,
   );
-  const [pendingPlacement, setPendingPlacement] = useState<{ col: number; row: number } | null>(
-    null,
-  );
+  const [hoveredCell, setHoveredCell] = useState<{ col: number; row: number } | null>(null);
   const setArmedBlueprintId = (id: string | null) => {
     setArmedBlueprintIdState(id);
     editorArmedBlueprintIdSignal.value = id;
-    // Any change of what is armed invalidates a preview anchored for the old
+    // Any change of what is armed invalidates a preview hovered for the old
     // one.
-    setPendingPlacement(null);
+    setHoveredCell(null);
   };
   /** Clicking a blueprint's Palette tile arms it; clicking the armed one again
    *  disarms it, which restores the tile tool that was selected before. */
@@ -138,6 +137,18 @@ export const LevelEditorPage = () => {
   const armedBlueprint =
     armedBlueprintId === null ? null : (findBlueprint(armedBlueprintId) ?? null);
   const armedCells = armedBlueprint === null ? null : blueprintCells(armedBlueprint.layout);
+  // The grid + background from immediately before the most recently
+  // committed placement, for a one-shot "Undo placement" button. A single
+  // slot, not a full history — cleared by any other edit (painting, erasing,
+  // a background change, loading a different level, or committing another
+  // placement) so it only ever offers to undo the one placement just made,
+  // never a stale one from several actions ago. Declared here for the same
+  // forward-reference reason as `armedBlueprint`/`armedCells` above:
+  // `commitPlacement` both reads and writes it.
+  const [lastPlacementSnapshot, setLastPlacementSnapshot] = useState<{
+    grid: TileChar[][];
+    background: BackgroundPlacement[];
+  } | null>(null);
   // Seeded from editorSelectedToolSignal.value (localStorage-backed) the
   // same way `grid` is seeded from editorLevelSignal above — a tool
   // selection is a discrete click, not a hot drag path, so it's written
@@ -412,7 +423,8 @@ export const LevelEditorPage = () => {
     setLoadedLevelName(level.name);
     setDirty(false);
     setSaveResult(null);
-    setPendingPlacement(null);
+    setHoveredCell(null);
+    setLastPlacementSnapshot(null);
   };
 
   /**
@@ -504,8 +516,8 @@ export const LevelEditorPage = () => {
   };
 
   /**
-   * Commits the pending placement: every non-`.` cell of the armed blueprint is
-   * written into the level grid at the clicked anchor, through the same
+   * Commits a placement at the hovered cell: every non-`.` cell of the armed
+   * blueprint is written into the level grid there, through the same
    * `growGrid` path painting uses — so placing past the current edge grows the
    * grid exactly as painting there would (`placeBlueprint.ts` explains why this
    * is two grows and a bulk write rather than a loop over `paintCell`).
@@ -515,12 +527,15 @@ export const LevelEditorPage = () => {
    * is the one thing the rule exists to prevent. The blueprint stays armed
    * afterwards, so another copy of the same room can be stamped without going
    * back to the palette — the same way a tile tool stays selected after
-   * painting.
+   * painting. The grid + background from just before the write are kept in
+   * `lastPlacementSnapshot` so a misplaced room can be undone with one click.
    */
   const commitPlacement = useCallback(
     (col: number, row: number) => {
       if (armedBlueprint === null || armedCells === null) return;
       if (!blueprintFits(grid, armedCells, col, row)) return;
+
+      setLastPlacementSnapshot({ grid, background: backgroundPlacements });
 
       const result = placeBlueprint(grid, armedCells, col, row);
       setGrid(result.grid);
@@ -538,7 +553,6 @@ export const LevelEditorPage = () => {
       if (rebased.length > 0) {
         setBackgroundPlacements((prev) => [...prev, ...rebased]);
       }
-      setPendingPlacement(null);
     },
     // `applyGrowthShift` is a plain closure recreated every render, not a
     // memoized value, so it can't be listed as a dependency. This is safe:
@@ -547,34 +561,41 @@ export const LevelEditorPage = () => {
     // the useCallback wrapper here satisfies react-hooks/immutability lint,
     // it does not actually memoize anything, and no stale closure is possible.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [armedBlueprint, armedCells, grid, isDirty, saveResult],
+    [armedBlueprint, armedCells, grid, isDirty, saveResult, backgroundPlacements],
   );
 
-  /** First click anchors a preview; a second click on that same cell commits;
-   *  a click anywhere else re-anchors instead of committing. */
+  /** A single left-click commits at whichever cell is currently hovered — the
+   *  live preview from `onHover` already shows exactly where it will land, so
+   *  there is no separate "anchor, then confirm" step. */
   const handlePlacementClick = useCallback(
     ({ col, row }: { col: number; row: number }) => {
-      if (pendingPlacement !== null && pendingPlacement.col === col && pendingPlacement.row === row) {
-        commitPlacement(col, row);
-        return;
-      }
-      setPendingPlacement({ col, row });
+      commitPlacement(col, row);
     },
-    [pendingPlacement, commitPlacement],
+    [commitPlacement],
   );
+
+  /** Restores the grid and background to how they were immediately before the
+   *  most recently committed placement. A no-op once anything else has
+   *  happened since (see `lastPlacementSnapshot`'s own doc comment above). */
+  const undoLastPlacement = () => {
+    if (lastPlacementSnapshot === null) return;
+    setGrid(lastPlacementSnapshot.grid);
+    setBackgroundPlacements(lastPlacementSnapshot.background);
+    setLastPlacementSnapshot(null);
+  };
 
   // Placement only makes sense on the level's foreground: the blueprint canvas
   // is excluded (no nesting) and the background layer paints a different
   // catalog entirely, so clicks there keep working exactly as they do today.
   const placementActive = !isBlueprintMode && activeLayer === 'foreground' && armedCells !== null;
   const placementPreview =
-    placementActive && armedCells !== null && pendingPlacement !== null
+    placementActive && armedCells !== null && hoveredCell !== null
       ? {
           cells: armedCells.map(({ row, col }) => ({
-            row: row + pendingPlacement.row,
-            col: col + pendingPlacement.col,
+            row: row + hoveredCell.row,
+            col: col + hoveredCell.col,
           })),
-          valid: blueprintFits(grid, armedCells, pendingPlacement.col, pendingPlacement.row),
+          valid: blueprintFits(grid, armedCells, hoveredCell.col, hoveredCell.row),
         }
       : null;
 
@@ -809,6 +830,11 @@ export const LevelEditorPage = () => {
               <Button type="button" onClick={tryLayout}>
                 Try
               </Button>
+              {lastPlacementSnapshot !== null && (
+                <Button type="button" variant="outline" onClick={undoLastPlacement}>
+                  Undo placement
+                </Button>
+              )}
               {saveResult?.written === true && (
                 <p className="max-w-40 text-xs break-all text-muted-foreground" role="status">
                   Saved to <code>{saveResult.path}</code> — reload to see it in the level list.
@@ -830,6 +856,7 @@ export const LevelEditorPage = () => {
             placementActive
               ? {
                   preview: placementPreview,
+                  onHover: setHoveredCell,
                   onPlace: handlePlacementClick,
                   onCancel: () => setArmedBlueprintId(null),
                 }
@@ -848,6 +875,9 @@ export const LevelEditorPage = () => {
             // discarding it (see LevelSelect's isDirty prop).
             if (!isDirty) setDirty(true);
             if (saveResult !== null) setSaveResult(null);
+            // A hand edit after a placement invalidates undoing it — the
+            // snapshot would no longer be "everything since the placement".
+            if (lastPlacementSnapshot !== null) setLastPlacementSnapshot(null);
           }}
           onPaint={({ grid: nextGrid, colShift, rowShift }) => {
             // The blueprint canvas paints through the exact same
@@ -866,6 +896,8 @@ export const LevelEditorPage = () => {
             if (!isDirty) setDirty(true);
             if (saveResult !== null) setSaveResult(null);
             applyGrowthShift(colShift, rowShift, setBackgroundPlacements);
+            // See the matching comment in onPaintBackground above.
+            if (lastPlacementSnapshot !== null) setLastPlacementSnapshot(null);
           }}
           onPan={setActivePanOffset}
         />

@@ -1118,7 +1118,7 @@ describe('EditorCanvas — placement clicks (step 44c)', () => {
     const { container } = render(
       <EditorCanvas
         {...placementProps({ onPaint })}
-        placement={{ preview: null, onPlace, onCancel: vi.fn() }}
+        placement={{ preview: null, onHover: vi.fn(), onPlace, onCancel: vi.fn() }}
       />,
     );
 
@@ -1142,7 +1142,7 @@ describe('EditorCanvas — placement clicks (step 44c)', () => {
     const { container } = render(
       <EditorCanvas
         {...placementProps({ onPaint, activeLayer: 'background', onPaintBackground })}
-        placement={{ preview: null, onPlace, onCancel: vi.fn() }}
+        placement={{ preview: null, onHover: vi.fn(), onPlace, onCancel: vi.fn() }}
       />,
     );
 
@@ -1162,7 +1162,7 @@ describe('EditorCanvas — placement clicks (step 44c)', () => {
     const { container } = render(
       <EditorCanvas
         {...placementProps({ onPaint })}
-        placement={{ preview: null, onPlace: vi.fn(), onCancel }}
+        placement={{ preview: null, onHover: vi.fn(), onPlace: vi.fn(), onCancel }}
       />,
     );
 
@@ -1179,7 +1179,7 @@ describe('EditorCanvas — placement clicks (step 44c)', () => {
     const { container } = render(
       <EditorCanvas
         {...placementProps({ onPan })}
-        placement={{ preview: null, onPlace, onCancel: vi.fn() }}
+        placement={{ preview: null, onHover: vi.fn(), onPlace, onCancel: vi.fn() }}
       />,
     );
     const canvas = container.querySelector('canvas')!;
@@ -1198,7 +1198,7 @@ describe('EditorCanvas — placement clicks (step 44c)', () => {
     const { container } = render(
       <EditorCanvas
         {...placementProps({ onPaint })}
-        placement={{ preview: null, onPlace: vi.fn(), onCancel: vi.fn() }}
+        placement={{ preview: null, onHover: vi.fn(), onPlace: vi.fn(), onCancel: vi.fn() }}
       />,
     );
     const canvas = container.querySelector('canvas')!;
@@ -1207,6 +1207,50 @@ describe('EditorCanvas — placement clicks (step 44c)', () => {
     fireEvent.mouseMove(canvas, { clientX: 40, clientY: 40 });
 
     expect(onPaint).not.toHaveBeenCalled();
+  });
+
+  it('blueprintArmed-mouseMove-reportsTheHoveredCellForALivePreview', () => {
+    stubCanvasContext();
+    const onHover = vi.fn();
+    const { container } = render(
+      <EditorCanvas
+        {...placementProps({})}
+        placement={{ preview: null, onHover, onPlace: vi.fn(), onCancel: vi.fn() }}
+      />,
+    );
+    const canvas = container.querySelector('canvas')!;
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
+
+    fireEvent.mouseMove(canvas, {
+      clientX: 2 * RENDERED_TILE_SIZE + 1,
+      clientY: RENDERED_TILE_SIZE + 1,
+    });
+
+    expect(onHover).toHaveBeenCalledWith({ col: 2, row: 1 });
+  });
+
+  it('blueprintArmed-mouseLeavesTheCanvas-clearsTheHoveredCell', () => {
+    stubCanvasContext();
+    const onHover = vi.fn();
+    const { container } = render(
+      <EditorCanvas
+        {...placementProps({})}
+        placement={{ preview: null, onHover, onPlace: vi.fn(), onCancel: vi.fn() }}
+      />,
+    );
+    const canvas = container.querySelector('canvas')!;
+
+    fireEvent.mouseLeave(canvas);
+
+    expect(onHover).toHaveBeenCalledWith(null);
+  });
+
+  it('noPlacementProp-mouseLeavesTheCanvas-doesNotThrowOrCallAnything', () => {
+    stubCanvasContext();
+    const { container } = render(<EditorCanvas {...placementProps({})} />);
+    const canvas = container.querySelector('canvas')!;
+
+    expect(() => fireEvent.mouseLeave(canvas)).not.toThrow();
   });
 
   it('noPlacementProp-leftClickStillPaintsExactlyAsBefore', () => {
@@ -1240,7 +1284,7 @@ describe('EditorCanvas — placement preview (step 44c)', () => {
     images: EMPTY_IMAGES,
     onPaint: () => {},
     onPan: () => {},
-    placement: { preview, onPlace: () => {}, onCancel: () => {} },
+    placement: { preview, onHover: () => {}, onPlace: () => {}, onCancel: () => {} },
   });
 
   it('tints every previewed cell and strokes one border around the whole room', () => {
@@ -1349,7 +1393,7 @@ describe('EditorCanvas — placement preview (step 44c)', () => {
         images={EMPTY_IMAGES}
         onPaint={() => {}}
         onPan={() => {}}
-        placement={{ preview: null, onPlace: () => {}, onCancel: () => {} }}
+        placement={{ preview: null, onHover: () => {}, onPlace: () => {}, onCancel: () => {} }}
       />,
     );
 

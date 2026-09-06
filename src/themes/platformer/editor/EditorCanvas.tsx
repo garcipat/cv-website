@@ -71,8 +71,13 @@ export interface PlacementPreview {
  *  (roadmap step 44c). Its non-null-ness IS "a blueprint is armed": while it is
  *  set, clicks preview/place/cancel instead of painting. */
 export interface PlacementMode {
-  /** `null` until the first click has chosen an anchor. */
+  /** `null` until the mouse has hovered over the canvas at least once since
+   *  arming (see `onHover`) — cleared again once it leaves. */
   preview: PlacementPreview | null;
+  /** Fires on every mouse move over the canvas while armed, reporting the
+   *  cell under the cursor so the preview can follow it live with no click
+   *  required; fires with `null` when the cursor leaves the canvas. */
+  onHover: (cell: { col: number; row: number } | null) => void;
   onPlace: (cell: { col: number; row: number }) => void;
   onCancel: () => void;
 }
@@ -565,15 +570,28 @@ export const EditorCanvas = ({
 
   const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
     const drag = dragRef.current;
-    if (!drag) return;
 
-    if (drag.mode === 'pan') {
+    // Middle-click panning is checked first because it is the one drag mode
+    // that CAN coexist with an armed placement (handleMouseDown's button-1
+    // branch runs before its placement check) — a room still needs to be
+    // lined up against content off to the side while armed.
+    if (drag?.mode === 'pan') {
       const dx = event.clientX - drag.lastX;
       const dy = event.clientY - drag.lastY;
       dragRef.current = { ...drag, lastX: event.clientX, lastY: event.clientY };
       onPan(updatePanOffset(panOffset, dx, dy));
       return;
     }
+
+    // An armed blueprint never sets any OTHER drag mode (see handleMouseDown
+    // above), so this branch fully replaces the remaining drag-based logic
+    // below while armed rather than needing to coexist with it.
+    if (placement) {
+      placement.onHover(cellFromEvent(event.clientX, event.clientY));
+      return;
+    }
+
+    if (!drag) return;
 
     if (drag.mode === 'paintBackground') {
       const { col, row } = cellFromEvent(event.clientX, event.clientY);
@@ -603,6 +621,15 @@ export const EditorCanvas = ({
     dragRef.current = null;
   };
 
+  // Separate from handleMouseUp (used for onMouseUp too): releasing a button
+  // without the cursor leaving the canvas must not clear a live hover
+  // preview, but the cursor actually leaving it must — nothing should stay
+  // previewed at a position the mouse is no longer over.
+  const handleMouseLeave = () => {
+    handleMouseUp();
+    if (placement) placement.onHover(null);
+  };
+
   return (
     // `position: relative` + the canvas absolutely positioned (`inset-0`)
     // takes the canvas out of this container's layout flow entirely, so
@@ -623,7 +650,7 @@ export const EditorCanvas = ({
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
         onContextMenu={(event) => event.preventDefault()}
       />
     </div>
