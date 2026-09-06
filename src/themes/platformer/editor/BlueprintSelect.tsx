@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useSignals } from '@preact/signals-react/runtime';
 import {
   Select,
   SelectContent,
@@ -18,7 +17,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { BLANK_BLUEPRINT, type Blueprint } from '../level/BlueprintData';
-import { readSavedBlueprints } from './blueprintStash';
+import { BLUEPRINTS } from '../level/blueprintRegistry';
 
 export interface BlueprintSelectProps {
   /** Name of the blueprint currently open — shown on the dropdown's trigger. */
@@ -37,20 +36,20 @@ export interface BlueprintSelectProps {
  * of this room, give me it back") instead of being swallowed as an
  * already-selected no-op.
  *
- * Unlike `LevelSelect`'s build-time `LEVELS` constant, the entries come from
- * a signal (`blueprintStash.ts` — a placeholder store step 44c replaces with
- * a real registry), hence `useSignals()`: a blueprint saved moments ago has
- * to appear without a reload.
+ * Entries come from `blueprintRegistry.ts`'s build-time glob of
+ * `level/blueprints/*.json`, exactly the way `LevelSelect` reads `LEVELS` — so
+ * a blueprint saved moments ago appears once Vite has picked the new file up,
+ * not instantly. The Save Blueprint dialog says as much, mirroring what the
+ * level Save dialog already tells the developer.
  */
 export const BlueprintSelect = ({
   loadedBlueprintName,
   isDirty,
   onLoadBlueprint,
 }: BlueprintSelectProps) => {
-  useSignals();
   const [pendingBlueprint, setPendingBlueprint] = useState<Blueprint | null>(null);
 
-  const entries: Blueprint[] = [BLANK_BLUEPRINT, ...readSavedBlueprints()];
+  const entries: Blueprint[] = [BLANK_BLUEPRINT, ...BLUEPRINTS];
 
   const handleSelect = (value: string | null) => {
     if (value === null) return;
