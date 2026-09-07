@@ -137,7 +137,7 @@
       "step4": "Schalten Sie zwischen EN und DE um"
     },
     "menuSubitems": {
-      "showPlatformerPrototype": "\"Platformer\" anzeigen"
+      "openLevelEditor": "Level-Editor"
     },
     "timeline": {
       "comment": "// Karriere-Zeitleiste — ziehen oder klicken zum Erkunden",
