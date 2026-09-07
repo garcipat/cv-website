@@ -1,13 +1,13 @@
 import type { BackgroundPlacement } from './LevelData';
 
 /**
- * A named, reusable room authored on the Level Editor's own blueprint canvas
- * (roadmap step 44a). Deliberately the SAME shape a saved level file has —
- * `layout` is `exportLayout`'s cropped `readonly string[]`, `background` is
+ * A named, reusable room authored on the Level Editor's own blueprint canvas.
+ * Deliberately the SAME shape a saved level file has — `layout` is
+ * `exportLayout`'s cropped `readonly string[]`, `background` is
  * `LevelDef.background` — so importLayout/parseLevel/cropLevelForExport all
- * apply unchanged and step 44c's placement can parse a blueprint with the
+ * apply unchanged and blueprint placement can parse a blueprint with the
  * same per-character mapping it already uses for levels. Purely editor-time:
- * see `specs/S-006-platformer-theme/plans/2026-09-06-blueprint-rooms-design.md`.
+ * see `specs/O-006-platformer-blueprints/design.md`.
  */
 export interface Blueprint {
   /** Slug, also the filename stem of the saved `.json` file under

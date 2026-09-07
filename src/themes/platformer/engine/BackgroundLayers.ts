@@ -1,7 +1,7 @@
 /**
  * The parallax background: a combined sky/clouds/village sheet plus a
  * separate small tileable grass swatch — see
- * `specs/S-006-platformer-theme/plans/2026-09-06-background-image-layers-design.md`.
+ * `specs/O-009-platformer-background-layers/design.md`.
  */
 export interface BackgroundLayerImages {
   layers: HTMLImageElement;
