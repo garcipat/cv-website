@@ -1,7 +1,7 @@
 # Bug Ticket: Held key can draw with no slime body during asset load
 
 **Bug ID**: B-004
-**Found In**: S-006 (Platformer theme), entity architecture work
+**Found In**: F-017 (Platformer enemies), entity architecture work
 **Status**: Resolved
 **Severity**: Trivial (visible for at most a frame or two, only on first load)
 

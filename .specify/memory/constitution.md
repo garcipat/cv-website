@@ -1,31 +1,3 @@
-<!--
-Sync Impact Report
-- Version change: 3.0.0 → 1.0.0 (full reset — project changed from Bingo Anything / Blazor Server to CV Website / React+TypeScript)
-- Modified principles (complete replacement):
-  - I. Code Quality → I. Typed Data Architecture
-  - II. Testing (NON-NEGOTIABLE) → II. Testing (NON-NEGOTIABLE) (retained, re-scoped to Vitest + React Testing Library)
-  - III. User Experience → III. Code Quality and Component Standards
-  - IV. Performance → IV. No Feature Bloat (new)
-  - V. Performance and Static Delivery (new — replaces old Blazor-specific performance targets)
-- Added sections:
-  - Principle IV: No Feature Bloat
-  - Principle V: Performance and Static Delivery
-  - Technical Constraints table rewritten for static-site / React stack
-- Removed sections:
-  - All C# / Blazor Server / MudBlazor / BingoAnything references
-  - Repository pattern / DI / Entity Framework constraints
-  - SignalR / Blazor-specific performance targets
-- Doc references updated:
-  - docs/Architecture.md, docs/CodingGuidelines.md, docs/TestingGuide.md, docs/Features.md (all exist and align)
-- Templates requiring updates:
-  - ✅ .specify/templates/plan-template.md (Constitution Check placeholder is generic — compatible)
-  - ✅ .specify/templates/spec-template.md (requirements and scenarios compatible)
-  - ✅ .specify/templates/tasks-template.md (task structure compatible; TDD emphasis aligns)
-  - ✅ .specify/templates/checklist-template.md (generic — compatible)
-  - N/A .specify/templates/commands/*.md (directory does not exist)
-- Follow-up TODOs: None
--->
-
 # CV Website Constitution
 
 ## Core Principles
@@ -76,8 +48,18 @@ implementation begins. No exploratory changes — features are built as discrete
 specified units. The feature list in `docs/Features.md` MUST be kept current
 (tracked status, dependency diagram updated on completion).
 
+New work MUST be tracked as a feature, with its own ID and spec folder. Roadmaps
+and numbered step lists MUST NOT be used to schedule work: a feature that proves
+too large MUST be split into more features rather than into steps beneath one.
+Work that is not yet done is an unchecked feature in `docs/Features.md` or an
+explicitly flagged open requirement inside a feature's spec — never a step in a
+list that lives outside the feature registry.
+
 Rationale: A CV website has a well-defined, bounded scope. Preventing feature
-creep keeps the project focused, maintainable, and always deployable.
+creep keeps the project focused, maintainable, and always deployable. A step
+list lets scope grow unobserved, because the registry keeps showing one item
+however much work collects beneath it; splitting into features instead keeps
+the real size of the work visible.
 See [docs/Features.md](docs/Features.md).
 
 ### V. Performance and Static Delivery
@@ -114,11 +96,16 @@ See [docs/Architecture.md](docs/Architecture.md) and
 
 - **No auto-commits**: Never commit changes automatically. Always wait for the user to explicitly request a commit.
 - All changes via feature branches and pull requests — no direct commits to
-  `main`.
+  `main`. Each unit of work gets its own branch off `main` and lands via its own
+  pull request directly into `main`; there is no intermediate integration branch,
+  and the branch is deleted after merging.
 - Specification-first delivery: clarify → spec → plan → tasks → analyze → implementation.
 - Constitution Check in planning MUST enumerate principle-specific pass/fail
   outcomes and document mitigations for any exception.
 - Pull requests MUST pass all tests and linting (when configured).
+- Changes with visible behavior MUST additionally be verified by a manual browser
+  check before review — a passing test suite is not evidence that the change looks
+  or feels right.
 - Commit messages MUST be clear and represent one logical unit of work.
 - Feature completion tracking: when implementation and tests are fully done,
   update `docs/Features.md` immediately (check off the feature, update
@@ -155,4 +142,4 @@ Compliance review expectations:
 - Any approved exception MUST be explicit, time-bounded, and tracked as
   follow-up work.
 
-**Version**: 1.0.0 | **Ratified**: 2026-06-20 | **Last Amended**: 2026-06-20
+**Version**: 1.0.1 | **Ratified**: 2026-06-20 | **Last Amended**: 2026-09-06

@@ -158,7 +158,7 @@ export const STATIC_OBJECTS_SHEET: SpriteSheet = {
 /** The combined sky/clouds/village parallax background sheet — sky, clouds/hills,
  *  and village/treeline stacked vertically in that order, cropped and chroma-keyed
  *  from `backgrounds.png`'s day/green scene (see
- *  `specs/S-006-platformer-theme/plans/2026-09-06-background-image-layers-design.md`).
+ *  `specs/O-009-platformer-background-layers/design.md`).
  *  `BackgroundLayers.ts` addresses it through its own sx/sy sub-rects, not by frame
  *  index — like `TERRAIN_BACKGROUND_SHEET`, this registration exists for loading, not
  *  addressing. */

@@ -244,7 +244,7 @@ const currentTheme: Signal<ThemeId>  // Persisted to localStorage
 
 - Three themes exist: IDE, 3D Room ("space"), Retro Terminal ("terminal").
 - shadcn/ui components are the shared component foundation — no alternative base component library.
-- Theme-specific layout structures (file tree UI for IDE, typed commands for Terminal, floating panels for 3D Room) are complex enough to warrant their own component trees and will be implemented in their respective features (F-014, S-006, S-005).
+- Theme-specific layout structures (file tree UI for IDE, typed commands for Terminal, floating panels for 3D Room) are complex enough to warrant their own component trees and will be implemented in their respective features (F-014, F-015, S-005).
 - The active theme is persisted to localStorage and restored on page load.
 - State management uses `@preact/signals-react` (project standard, per Architecture.md).
 - `createLocalStorageSignal` is built as part of F-010 (FR-011) and will be available in `src/lib/utils.ts`.

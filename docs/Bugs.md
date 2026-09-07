@@ -27,7 +27,7 @@ mirrors how `specs/` holds one folder per feature. Bug IDs use the prefix
   [ticket](bugs/B-002-shared-floating-controls-duplication/ticket.md)
 - [x] **B-003** — Defeat/break puff fires on the CV reward instead of the world
   event, so a purple slime never puffs and a re-killed green slime doesn't either —
-  fixed in roadmap step 34 (branch `S-006-step34-world-event-puff`) —
+  fixed as part of F-018 (destroyable blocks) —
   [ticket](bugs/B-003-puff-bound-to-fact-reward/ticket.md)
 
 ---
