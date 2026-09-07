@@ -66,7 +66,7 @@ export const CAMERA_DEAD_ZONE_BOTTOM_SLACK = 0;
 /** How many rendered-tile rows up from the BOTTOM of the viewport the
  *  camera's dead-zone targets — not a percentage of viewport height, and not
  *  measured from the top. The play-mode canvas is a fixed, short height (see
- *  PlatformerPage.tsx's `PLAY_CANVAS_ROWS`), so a small, fixed distance from
+ *  CanvasSize.ts's `PLAY_CANVAS_ROWS`), so a small, fixed distance from
  *  the bottom keeps the player near the ground with most of the canvas above
  *  them showing the sky/clouds/village background layers, regardless of how
  *  tall the level itself is. Tunable. */
