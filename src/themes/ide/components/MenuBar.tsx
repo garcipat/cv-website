@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useSignals } from '@preact/signals-react/runtime';
 import { currentUI } from '@/state/locale';
-import { platformerPrototypeUnlocked, setPlatformerPrototypeUnlocked } from '@/state/theme';
+import { navigateTo } from '@/state/navigation';
 
 interface MenuSubItem {
   key: string;
@@ -12,29 +12,28 @@ interface MenuSubItem {
 }
 
 /**
- * The IDE theme's top menu bar (File/Edit/Selection/View/Go/Run/Terminal)
- * was purely decorative — labels with a hover style and no click handler.
- * Menu items can now optionally carry a `submenu` (a dropdown opened by
- * clicking the label) whose entries are either a `toggle` (a checkbox-style
- * flag, e.g. unlocking a hidden theme) or a `link` (a plain action) — per
- * user request, giving the menu bar an actual purpose instead of just
- * dressing. Only "View" has a submenu today (unlocking the Platformer
- * theme in `ThemeSelect.tsx`'s dropdown, see `state/theme.ts`); the rest
- * stay decorative until something real needs to live there.
+ * The IDE theme's top menu bar (File/Edit/Selection/View/Go/Run/Terminal).
+ * A menu item may carry a `submenu` (a dropdown opened by clicking the
+ * label) whose entries are either a `link` (a plain action) or a `toggle`
+ * (a checkbox-style flag). Only "View" has a submenu — a link into the
+ * Platformer Level Editor route; the rest are decorative labels with a
+ * hover style and no click handler, until something real needs to live
+ * there.
  */
 export const MenuBar = () => {
   useSignals();
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const unlocked = platformerPrototypeUnlocked.value;
 
   const submenus: Partial<Record<string, MenuSubItem[]>> = {
     view: [
       {
-        key: 'showPlatformerPrototype',
-        label: currentUI.value.ide.menuSubitems.showPlatformerPrototype,
-        kind: 'toggle',
-        checked: unlocked,
-        onSelect: () => setPlatformerPrototypeUnlocked(!unlocked),
+        key: 'openLevelEditor',
+        label: currentUI.value.ide.menuSubitems.openLevelEditor,
+        kind: 'link',
+        // Client-side navigation (no reload) into the Level Editor's own
+        // `/platformer/editor` route — the only entry point into the editor
+        // that does not require the game's debug panel first.
+        onSelect: () => navigateTo('/platformer/editor'),
       },
     ],
   };
@@ -84,6 +83,7 @@ export const MenuBar = () => {
                     <button
                       key={item.key}
                       type="button"
+                      data-testid={`menu-item-${item.key}`}
                       role={item.kind === 'toggle' ? 'menuitemcheckbox' : 'menuitem'}
                       aria-checked={item.kind === 'toggle' ? item.checked : undefined}
                       onClick={() => {

@@ -191,10 +191,10 @@ the site falls back to the IDE theme.
 
 - **FR-001**: The theme MUST be registered in the application's theme map under the
   `platformer` key and render as a full-viewport page like any other theme.
-- **FR-002**: A `platformerPrototypeUnlocked` flag, persisted in `localStorage` and
-  defaulting to `false`, MUST gate whether any theme switcher offers the Platformer theme.
-  Every switcher reads this one source rather than filtering independently. Clearing the
-  flag while the Platformer theme is active MUST fall back to the IDE theme.
+- **FR-002**: Every theme switcher MUST offer the Platformer theme to every visitor,
+  alongside the other themes and with no unlock step. All switchers MUST read one shared
+  list rather than filtering independently, so the themes on offer cannot differ between
+  them.
 - **FR-003**: The theme MUST render the shared floating translucent theme and locale
   controls over the game, and MUST re-render journal and in-game text when the locale
   changes, preserving game state and position.
