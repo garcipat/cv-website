@@ -284,6 +284,22 @@ describe('PlatformerPage', () => {
     expect(canvas).toHaveAttribute('height', '768');
   });
 
+  it('windowResize-windowWiderThanFixedCanvas-widthCapsToTheIntendedFrame', () => {
+    Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 1024 });
+    Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 900 });
+
+    render(<PlatformerPage />);
+
+    Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 2560 });
+    fireEvent(window, new Event('resize'));
+
+    const canvas = platformerPage.canvas;
+    // Capped at 1280 (40 * 32) rather than filling the window, so a wide
+    // monitor can't see far ahead down the level (see CanvasSize.ts).
+    expect(canvas).toHaveAttribute('width', '1280');
+    expect(canvas).toHaveAttribute('height', '768');
+  });
+
   it('windowResize-windowShorterThanFixedCanvas-heightCapsToWindowHeight', () => {
     Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 1024 });
     Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 768 });
