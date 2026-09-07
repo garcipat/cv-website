@@ -1,48 +1,3 @@
-<!--
-Sync Impact Report — 1.0.0 → 1.0.1 (PATCH)
-- Rationale: three clarifications of existing rules, no new principles and no
-  redefinitions, so PATCH per the versioning policy below.
-  1. Principle IV gains an explicit statement that work is tracked as features, not as
-     roadmaps or numbered step lists. Principle IV already required every feature to
-     originate from a spec in `specs/`; roadmaps were the loophole through which the
-     Platformer theme grew into a 44-step epic outside the feature registry.
-  2. The feature-branch rule gains the two details it was missing: no intermediate
-     integration branch, and the branch is deleted after merging.
-  3. A manual browser check is added as a quality gate for changes with visible
-     behavior.
-- Impact: rules 2 and 3 are absorbed from the Platformer roadmap's "Working agreement"
-  and "Branch strategy" sections, which were repository-wide process rather than
-  platformer work; that roadmap is deleted, so they are recorded here instead. No
-  existing principle changes meaning; no template or guidance file requires an update.
-- Prior report retained below.
-
-Sync Impact Report
-- Version change: 3.0.0 → 1.0.0 (full reset — project changed from Bingo Anything / Blazor Server to CV Website / React+TypeScript)
-- Modified principles (complete replacement):
-  - I. Code Quality → I. Typed Data Architecture
-  - II. Testing (NON-NEGOTIABLE) → II. Testing (NON-NEGOTIABLE) (retained, re-scoped to Vitest + React Testing Library)
-  - III. User Experience → III. Code Quality and Component Standards
-  - IV. Performance → IV. No Feature Bloat (new)
-  - V. Performance and Static Delivery (new — replaces old Blazor-specific performance targets)
-- Added sections:
-  - Principle IV: No Feature Bloat
-  - Principle V: Performance and Static Delivery
-  - Technical Constraints table rewritten for static-site / React stack
-- Removed sections:
-  - All C# / Blazor Server / MudBlazor / BingoAnything references
-  - Repository pattern / DI / Entity Framework constraints
-  - SignalR / Blazor-specific performance targets
-- Doc references updated:
-  - docs/Architecture.md, docs/CodingGuidelines.md, docs/TestingGuide.md, docs/Features.md (all exist and align)
-- Templates requiring updates:
-  - ✅ .specify/templates/plan-template.md (Constitution Check placeholder is generic — compatible)
-  - ✅ .specify/templates/spec-template.md (requirements and scenarios compatible)
-  - ✅ .specify/templates/tasks-template.md (task structure compatible; TDD emphasis aligns)
-  - ✅ .specify/templates/checklist-template.md (generic — compatible)
-  - N/A .specify/templates/commands/*.md (directory does not exist)
-- Follow-up TODOs: None
--->
-
 # CV Website Constitution
 
 ## Core Principles
@@ -101,9 +56,10 @@ explicitly flagged open requirement inside a feature's spec — never a step in 
 list that lives outside the feature registry.
 
 Rationale: A CV website has a well-defined, bounded scope. Preventing feature
-creep keeps the project focused, maintainable, and always deployable. A roadmap
-is how scope grows unobserved — one tracked feature accumulating dozens of steps
-looks like a single item in the registry while being an epic in fact.
+creep keeps the project focused, maintainable, and always deployable. A step
+list lets scope grow unobserved, because the registry keeps showing one item
+however much work collects beneath it; splitting into features instead keeps
+the real size of the work visible.
 See [docs/Features.md](docs/Features.md).
 
 ### V. Performance and Static Delivery
