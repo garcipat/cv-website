@@ -1,5 +1,5 @@
 import { useSignals } from '@preact/signals-react/runtime';
-import { currentTheme, visibleThemes, type ThemeId } from '@/state/theme';
+import { currentTheme, themes, type ThemeId } from '@/state/theme';
 import { currentUI } from '@/state/locale';
 import {
   Select,
@@ -16,11 +16,10 @@ export interface ThemeSelectProps {
 export const ThemeSelect = ({ onOpenChange }: ThemeSelectProps = {}) => {
   useSignals();
 
-  // Derived from the shared `visibleThemes` computed signal (state/theme.ts)
-  // rather than re-filtering `themes` locally — every theme switcher UI
-  // (this dropdown, the IDE theme's sidebar radio list) reads the same
-  // source so Platformer's unlock state can't drift between them.
-  const themeIds: ThemeId[] = visibleThemes.value.map((t) => t.id);
+  // Read straight from the shared `themes` list (state/theme.ts) — every
+  // theme switcher UI (this dropdown, the IDE theme's sidebar radio list)
+  // renders the same source, so the offered themes can't drift between them.
+  const themeIds: ThemeId[] = themes.map((t) => t.id);
 
   const handleThemeChange = (value: string | null) => {
     if (value !== null) {

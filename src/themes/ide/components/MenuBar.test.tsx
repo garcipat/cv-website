@@ -1,13 +1,14 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MenuBar } from './MenuBar';
 import { menuBarPage } from './MenuBar.page';
-import { platformerPrototypeUnlocked } from '@/state/theme';
+import { currentPath } from '@/state/navigation';
 
-const originalUnlocked = platformerPrototypeUnlocked.value;
+const originalPath = currentPath.value;
 
 describe('MenuBar', () => {
   afterEach(() => {
-    platformerPrototypeUnlocked.value = originalUnlocked;
+    history.replaceState(null, '', originalPath);
+    currentPath.value = originalPath;
   });
 
   it('decorativeMenuItem-clicked-opensNoDropdown', () => {
@@ -18,41 +19,30 @@ describe('MenuBar', () => {
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });
 
-  it('viewMenuClicked-opensDropdownWithPlatformerToggle', () => {
+  it('viewMenuClicked-opensDropdownWithLevelEditorLink', () => {
     render(<MenuBar />);
 
     fireEvent.click(menuBarPage.view.trigger);
 
     expect(menuBarPage.view.dropdown).toBeInTheDocument();
-    expect(screen.getByRole('menuitemcheckbox')).toBeInTheDocument();
+    expect(menuBarPage.view.levelEditorItem).toBeInTheDocument();
   });
 
-  it('platformerLocked-toggleItemShowsUnchecked', () => {
-    platformerPrototypeUnlocked.value = false;
+  it('viewMenu-listsNoPlatformerUnlockToggle', () => {
+    render(<MenuBar />);
 
+    fireEvent.click(menuBarPage.view.trigger);
+
+    expect(screen.queryByRole('menuitemcheckbox')).not.toBeInTheDocument();
+  });
+
+  it('levelEditorItemClicked-navigatesToTheEditorRouteAndClosesTheDropdown', () => {
     render(<MenuBar />);
     fireEvent.click(menuBarPage.view.trigger);
 
-    expect(screen.getByRole('menuitemcheckbox')).toHaveAttribute('aria-checked', 'false');
-  });
+    fireEvent.click(menuBarPage.view.levelEditorItem);
 
-  it('platformerUnlocked-toggleItemShowsChecked', () => {
-    platformerPrototypeUnlocked.value = true;
-
-    render(<MenuBar />);
-    fireEvent.click(menuBarPage.view.trigger);
-
-    expect(screen.getByRole('menuitemcheckbox')).toHaveAttribute('aria-checked', 'true');
-  });
-
-  it('toggleItemClicked-flipsTheUnlockedSignalAndClosesTheDropdown', () => {
-    platformerPrototypeUnlocked.value = false;
-
-    render(<MenuBar />);
-    fireEvent.click(menuBarPage.view.trigger);
-    fireEvent.click(screen.getByRole('menuitemcheckbox'));
-
-    expect(platformerPrototypeUnlocked.value).toBe(true);
+    expect(currentPath.value).toBe('/platformer/editor');
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });
 

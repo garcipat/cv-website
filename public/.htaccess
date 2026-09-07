@@ -1,0 +1,9 @@
+# SPA fallback: this site's routing is client-side, so any request that is
+# not a real file or directory must return index.html and let the app read
+# the path. Matches on file existence rather than route names, so new
+# routes need no change here. Without it, a cold load of /platformer or
+# /platformer/editor 404s at the server before any JavaScript runs.
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /index.html [L]
