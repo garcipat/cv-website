@@ -16,8 +16,8 @@ the shape of a saved level file — is documented in
 
 ### User Story 1 - Author a Layout by Painting Tiles (Priority: P1)
 
-A developer navigates directly to `/platformer/editor`, a route not linked from the public
-CV navigation. The grid loads with a real, playable level already on it (see User Story 2).
+A developer opens the editor — from the IDE theme's View menu, or by navigating straight to
+`/platformer/editor`. The grid loads with a real, playable level already on it (see User Story 2).
 They select a terrain tool (e.g. "Ground Grass") from the palette and click-drag across a run
 of cells to paint them. They select an entity tool (e.g. "Coin") and click individual cells to
 place markers. Every click or drag overwrites whatever was in that cell before, with no
@@ -301,7 +301,7 @@ middle-click-drag left and right and verify the visible window of cells shifts a
 
 #### Access
 
-- **FR-001**: The editor MUST be reachable only by navigating directly to `/platformer/editor`, MUST NOT appear in any public navigation, and MUST render independently of the theme selection and of the platformer prototype flag that gates the game itself.
+- **FR-001**: The editor MUST be reachable both from an entry point in the IDE theme's View menu and by navigating directly to `/platformer/editor`, and MUST render independently of which theme is currently selected. Opening it from the menu MUST NOT reload the page, so state held only in memory survives the transition.
 
 #### Grid State and Painting
 
@@ -375,7 +375,7 @@ middle-click-drag left and right and verify the visible window of cells shifts a
 - **SC-011 — Saving needs no manual file move, and never lies about it**: with the dev server running, a save leaves the file in the levels folder, closes the dialog and names that path until the grid changes again; with the write unreachable, the file is downloaded instead and the dialog stays open saying so.
 - **SC-012 — The write can never reach outside the levels folder, and no build serves it**: no filename containing a path separator, a parent-directory step, a drive letter, or a non-level extension results in a write, and no built site serves the write route at all.
 - **SC-013 — Zero TypeScript errors**: the editor compiles under strict mode with no `any` and no suppressed errors.
-- **SC-014 — Not linked from public nav**: `/platformer/editor` appears in no navigation link reachable from the public CV pages.
+- **SC-014 — Reachable without the game's debug panel**: the editor can be opened from the IDE theme's View menu in every locale, without first entering the game or enabling its debug controls.
 
 ---
 
@@ -406,4 +406,3 @@ middle-click-drag left and right and verify the visible window of cells shifts a
 - A generic "paste in any layout" import area — layouts enter the editor only through the level list.
 - Renaming, deleting, or overwriting existing level files from the editor.
 - Mobile and touch input.
-- A public navigation entry point — the route is reachable by direct URL only.

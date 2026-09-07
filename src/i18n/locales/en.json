@@ -137,7 +137,7 @@
       "step4": "Toggle language between EN and DE"
     },
     "menuSubitems": {
-      "showPlatformerPrototype": "Show \"Platformer\""
+      "openLevelEditor": "Level Editor"
     },
     "timeline": {
       "comment": "// career timeline — drag or click to explore",
