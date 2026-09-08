@@ -14,8 +14,10 @@ Two halves, related but separable:
 
 **Animation and effects refinement.** Timing, easing, and weight across the theme's
 existing feedback — the fact-reveal float and its flight into the journal icon, the
-destruction sparkle on breaks and defeats, hit and knockback reactions, the journal's
-open and close. None of these were tuned; they were made to work and left there.
+destruction sparkle on breaks and defeats, the journal's open and close. None of these
+were tuned; they were made to work and left there. (Hit/hurt feedback specifically —
+a debris burst on every landed hit and a low-health canvas glow — has been carved out
+as its own feature: see [S-010](../../specs/S-010-platformer-hurt-feedback/spec.md).)
 
 **Frame-rate check under load.** The theme has never been measured with many collectibles,
 enemies, and effects on screen at once. The constitution sets a 200 ms interaction-feedback
