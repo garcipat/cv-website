@@ -128,6 +128,13 @@ export interface EnemyContactResult {
    *  the first damaging contact's hitbox centers — the geometry stays here so
    *  no caller has to re-derive it. Meaningless while `knockback` is 'none'. */
   knockbackDirection: -1 | 1;
+  /** Ids of every enemy that actually took damage this tick (hit points
+   *  decreased), whether or not that hit defeated it — drives the hit
+   *  splatter effect (S-010), independent of the existing defeat puff.
+   *  Unlike `damagePlayer` (max of one hit per tick, to protect the
+   *  player from a multi-enemy pile-on), there's no "at most one" rule
+   *  here: each contacted enemy is its own event. */
+  damagedEnemyIds: string[];
 }
 
 const KNOCKBACK_RANK = { none: 0, away: 1, awayAndUp: 2 } as const;
@@ -150,6 +157,7 @@ export function resolveEnemyContacts(
   let bounceVelocity: number | undefined;
   let knockback: 'none' | 'away' | 'awayAndUp' = 'none';
   let knockbackDirection: -1 | 1 = 1;
+  const damagedEnemyIds: string[] = [];
 
   for (let i = 0; i < enemies.length; i += 1) {
     const enemy = enemies[i];
@@ -174,6 +182,7 @@ export function resolveEnemyContacts(
       // is applied here — the type decides what a touch means, the engine
       // decides that the resulting hit is a fact and pays for it.
       const damage = enemy.hitPoints - outcome.self.hitPoints;
+      if (damage > 0) damagedEnemyIds.push(enemy.id);
       merged ??= [...enemies];
       merged[i] =
         damage > 0 && enemyType.onDamaged ? enemyType.onDamaged(outcome.self, damage) : outcome.self;
@@ -200,6 +209,7 @@ export function resolveEnemyContacts(
     bounceVelocity,
     knockback,
     knockbackDirection,
+    damagedEnemyIds,
   };
 }
 
