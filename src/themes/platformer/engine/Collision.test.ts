@@ -483,6 +483,53 @@ describe('resolveEnemyContacts aggregation', () => {
 
     expect(result.bounceVelocity).toBe(PHYSICS_CONFIG.stompBounceVelocity);
   });
+
+  it('killingStompOnAPurpleSlime-includesItInDamagedEnemyIds', () => {
+    const purple = makeSpikedPurpleEnemy({
+      x: 100, y: 100, homeX: 100, homeY: 100, hitPoints: 1, spiked: false, spikeTimer: 0,
+    });
+    const player = { ...makePlayer(90, 40), vy: 200, grounded: false };
+
+    const result = resolveEnemyContacts(player, [purple]);
+
+    expect(result.damagedEnemyIds).toEqual([purple.id]);
+  });
+
+  it('survivingStompOnAPurpleSlime-alsoIncludesItInDamagedEnemyIds', () => {
+    // A hit that does NOT defeat the enemy must still be reported — this is
+    // exactly the case that previously had no visible feedback at all
+    // (spec.md User Story 2).
+    const purple = makeSpikedPurpleEnemy({
+      x: 100, y: 100, homeX: 100, homeY: 100, hitPoints: 3, spiked: false, spikeTimer: 0,
+    });
+    const player = { ...makePlayer(90, 40), vy: 200, grounded: false };
+
+    const result = resolveEnemyContacts(player, [purple]);
+
+    expect(result.damagedEnemyIds).toEqual([purple.id]);
+  });
+
+  it('enemiesNotTouched-areNotInDamagedEnemyIds', () => {
+    const stomped = makeEnemy(0, 100);
+    const faraway = makeEnemy(2000, 2000);
+    const player = { ...playerLandingOnTopOf(stomped), vy: 300, grounded: false };
+
+    const result = resolveEnemyContacts(player, [stomped, faraway]);
+
+    expect(result.damagedEnemyIds).toEqual([stomped.id]);
+  });
+
+  it('failedStompAgainstSpikes-doesNotCountAsDamage', () => {
+    // A spiked purple slime survives a failed stomp with no hit-point loss
+    // (it damages the PLAYER instead) — must not appear in damagedEnemyIds.
+    const green = makeEnemy(0, 100);
+    const spikedPurple = makeSpikedPurpleEnemy({ x: 30, y: 105, homeX: 30, homeY: 105 });
+    const player = { ...playerLandingOnTopOf(green), vy: 300, grounded: false };
+
+    const result = resolveEnemyContacts(player, [green, spikedPurple]);
+
+    expect(result.damagedEnemyIds).toEqual([green.id]);
+  });
 });
 
 describe('checkKeyPickupCollisions', () => {
