@@ -15,8 +15,11 @@ export interface RevealContext {
   originY: number;
   canvasWidth: number;
   canvasHeight: number;
-  /** The journal button's screen rect, or null when it hasn't mounted yet —
-   *  the flight then targets the bottom-right corner instead. */
+  /** The journal button's rect in CANVAS-LOCAL coordinates (i.e. already
+   *  translated out of `getBoundingClientRect()`'s viewport-relative space
+   *  by subtracting the canvas's own bounding rect — see the call site),
+   *  or null when the button hasn't mounted yet, in which case the flight
+   *  targets the bottom-right corner instead. */
   journalRect: DOMRect | null;
   /** This tick's collection-text slot allocator (see `createSlotAllocator`).
    *  Passed in rather than built here because it is SHARED with the key
