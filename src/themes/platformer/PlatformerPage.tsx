@@ -832,12 +832,30 @@ export const PlatformerPage = () => {
       // previous tick — see the activeEffects tick/filter below).
       const allocateSlotOffset = createSlotAllocator(activeEffects.value.length);
       // The one fact-reveal trigger every reveal site below goes through.
+      const journalButtonRect = journalButtonRef.current?.getBoundingClientRect() ?? null;
+      // journalButtonRect is viewport-relative (getBoundingClientRect), but
+      // every other coordinate the flight effect uses (originX/originY,
+      // canvasWidth/canvasHeight) is canvas-local. That was harmless while
+      // the canvas filled the viewport from (0,0), but now that a short
+      // level leaves the canvas vertically centered within a taller
+      // viewport (see the wrapper's comment near the canvas JSX below), the
+      // viewport offset must be subtracted out or the flight lands wherever
+      // the button would be if the canvas started at the viewport's origin.
+      const canvasRect = canvas.getBoundingClientRect();
+      const journalRect = journalButtonRect
+        ? new DOMRect(
+            journalButtonRect.left - canvasRect.left,
+            journalButtonRect.top - canvasRect.top,
+            journalButtonRect.width,
+            journalButtonRect.height,
+          )
+        : null;
       const revealFact = createRewardReveal({
         originX,
         originY,
         canvasWidth: canvas.width,
         canvasHeight: canvas.height,
-        journalRect: journalButtonRef.current?.getBoundingClientRect() ?? null,
+        journalRect,
         allocateSlotOffset,
       });
 

@@ -7,6 +7,7 @@ import { journalPage } from './components/Journal.page';
 // { drawImage: ... }` cast.
 export interface MockCanvasContext2D {
   drawImage: ReturnType<typeof vi.fn>;
+  fillRect: ReturnType<typeof vi.fn>;
   fillText: ReturnType<typeof vi.fn>;
   strokeRect: ReturnType<typeof vi.fn>;
 }

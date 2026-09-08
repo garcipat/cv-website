@@ -1076,6 +1076,53 @@ describe('PlatformerPage', () => {
     expect(effect?.text).not.toContain('💡');
   });
 
+  it('canvasVerticallyCenteredInATallerViewport-flightEffectTargets-landsOnTheJournalButtonNotMidCanvas', () => {
+    // jsdom does no real layout, so getBoundingClientRect() is stubbed here to
+    // reproduce what a real browser reports once a short level leaves the
+    // fixed-height canvas vertically centered within a taller viewport (see
+    // the wrapper's comment in PlatformerPage.tsx): the canvas itself sits at
+    // some viewport-space top offset, and the journal button (top-4 left-4
+    // within the canvas-wrapping div) sits 16px further down/right than that.
+    // Before the canvas-local translation, the flight target used the
+    // button's raw viewport-space rect directly, which happens to sit close
+    // to the fact-flight text's canvas-local hold point (canvas.height * 0.3)
+    // — so the "flight" phase moved only a few pixels before fading, reading
+    // as the reward vanishing mid-flight instead of reaching the icon.
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 1024 });
+    Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 900 });
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    // Canvas height caps at PLAY_CANVAS_ROWS(24) * RENDERED_TILE_SIZE(32) =
+    // 768, so a 900px-tall viewport centers it with a 66px top offset.
+    const canvas = platformerPage.canvas;
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue(
+      new DOMRect(0, 66, 1024, 768),
+    );
+    const journalButton = platformerPage.journalOpenButton.closest('button')!;
+    vi.spyOn(journalButton, 'getBoundingClientRect').mockReturnValue(
+      new DOMRect(16, 82, 40, 40),
+    );
+
+    const target = collectiblePlacements.value.find((p) => p.spriteType === 'coin')!;
+    playerState.value = { ...playerState.value, x: target.x, y: target.y };
+
+    frameCallback!(16);
+
+    const effect = activeEffects.value.find((e) => e.id.startsWith(`${target.id}-`));
+    // Canvas-local journal button center: (16 - 0) + 40/2, (82 - 66) + 40/2.
+    expect(effect?.targetX).toBe(36);
+    expect(effect?.targetY).toBe(36);
+  });
+
   it('coinThatRevealsNoFact-tick-stillBumpsTheCoinsCounterPopup', () => {
     // The coins popup is deliberately the ONE counter bumped at its pickup
     // site rather than through the fact-reveal trigger. A coin carries no
