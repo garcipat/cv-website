@@ -29,6 +29,11 @@ import {
   CHEST_COUNTER_ICON_HEIGHT,
   drawWaterForeground,
   drawBackgroundTiles,
+  drawHitSplatterEffects,
+  drawLowHealthGlow,
+  lowHealthGlowAlpha,
+  LOW_HEALTH_GLOW_WIDTH_PX,
+  LOW_HEALTH_GLOW_PULSE_PERIOD_SECONDS,
 } from './Renderer';
 import type { LevelDef, BackgroundPieceId } from '../level/LevelData';
 import { parseLevel } from '../level/LevelParser';
@@ -36,7 +41,7 @@ import type { SignPlacement } from '../level/SignMapper';
 import type { PlayerState } from '../entities/Player';
 import { PLAYER_RENDERED_SIZE, PLAYER_HIT_REACTION_SECONDS } from '../entities/Player';
 import { MAX_HALF_HEARTS, HEART_RENDERED_SIZE } from '../entities/Health';
-import { startFlightEffect, tickFlightEffect, RISE_DURATION_SECONDS, SPARKLE_DURATION_SECONDS, startPuffEffect, tickPuffEffect, startHealAuraEffect, HEAL_AURA_DURATION_SECONDS } from './CollectionEffects';
+import { startFlightEffect, tickFlightEffect, RISE_DURATION_SECONDS, SPARKLE_DURATION_SECONDS, startPuffEffect, tickPuffEffect, startHealAuraEffect, HEAL_AURA_DURATION_SECONDS, startPlayerHitSplatter, startEnemyHitSplatter, tickHitSplatterEffect } from './CollectionEffects';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
 import type { BlockPlacement } from '../level/BlockMapper';
 import { toBlockState, blockFrameSource } from '../entities/Block';
@@ -1038,6 +1043,78 @@ describe('drawHealAuraEffects', () => {
     const ctx = makeMockContext() as unknown as { arc: ReturnType<typeof vi.fn> };
     drawHealAuraEffects(ctx as unknown as CanvasRenderingContext2D, [], 100, 200, 32);
     expect(ctx.arc).not.toHaveBeenCalled();
+  });
+});
+
+describe('drawHitSplatterEffects', () => {
+  it('freshEffect-drawsOneFillRectPerDroplet', () => {
+    const ctx = makeMockContext() as unknown as { fillRect: ReturnType<typeof vi.fn> };
+    const effect = startPlayerHitSplatter('p', 100, 200, 1);
+
+    drawHitSplatterEffects(ctx as unknown as CanvasRenderingContext2D, [effect]);
+
+    expect(ctx.fillRect).toHaveBeenCalledTimes(effect.dropletCount);
+  });
+
+  it('expiredEffect-drawsNothing', () => {
+    const ctx = makeMockContext() as unknown as { fillRect: ReturnType<typeof vi.fn> };
+    const effect = tickHitSplatterEffect(startPlayerHitSplatter('p', 100, 200, 1), 10);
+
+    drawHitSplatterEffects(ctx as unknown as CanvasRenderingContext2D, [effect]);
+
+    expect(ctx.fillRect).not.toHaveBeenCalled();
+  });
+
+  it('noEffects-drawsNothing', () => {
+    const ctx = makeMockContext() as unknown as { fillRect: ReturnType<typeof vi.fn> };
+    drawHitSplatterEffects(ctx as unknown as CanvasRenderingContext2D, []);
+    expect(ctx.fillRect).not.toHaveBeenCalled();
+  });
+
+  it('enemyEffect-usesTheEffectsOwnColorAsFillStyle', () => {
+    const ctx = makeMockContext() as unknown as { fillRect: ReturnType<typeof vi.fn> };
+    const setFillStyle = vi.fn();
+    Object.defineProperty(ctx, 'fillStyle', { set: setFillStyle, get: () => '' });
+    const effect = startEnemyHitSplatter('e', 10, 20, 'slimePurple');
+
+    drawHitSplatterEffects(ctx as unknown as CanvasRenderingContext2D, [effect]);
+
+    expect(setFillStyle).toHaveBeenCalledWith(effect.color);
+  });
+});
+
+describe('lowHealthGlowAlpha', () => {
+  it('atPulsePeak-returnsBasePlusFullPulse', () => {
+    const peakT = LOW_HEALTH_GLOW_PULSE_PERIOD_SECONDS / 4; // sin(2π·0.25) = 1
+    expect(lowHealthGlowAlpha(peakT)).toBeCloseTo(0.25 + 0.45);
+  });
+
+  it('atPulseTrough-returnsBaseAlphaOnly', () => {
+    const troughT = (LOW_HEALTH_GLOW_PULSE_PERIOD_SECONDS * 3) / 4; // sin(2π·0.75) = -1
+    expect(lowHealthGlowAlpha(troughT)).toBeCloseTo(0.25);
+  });
+});
+
+describe('drawLowHealthGlow', () => {
+  it('anyElapsed-drawsFourEdgeFillRects', () => {
+    const ctx = makeMockContext() as unknown as { fillRect: ReturnType<typeof vi.fn> };
+    drawLowHealthGlow(ctx as unknown as CanvasRenderingContext2D, 800, 600, 0);
+    expect(ctx.fillRect).toHaveBeenCalledTimes(4);
+  });
+
+  it('anyElapsed-callsCreateLinearGradientFourTimes', () => {
+    const ctx = makeMockContext() as unknown as { createLinearGradient: ReturnType<typeof vi.fn> };
+    drawLowHealthGlow(ctx as unknown as CanvasRenderingContext2D, 800, 600, 0);
+    expect(ctx.createLinearGradient).toHaveBeenCalledTimes(4);
+  });
+
+  it('canvasSize-edgeRectsSpanTheFullWidthOrHeight', () => {
+    const ctx = makeMockContext() as unknown as { fillRect: ReturnType<typeof vi.fn> };
+    drawLowHealthGlow(ctx as unknown as CanvasRenderingContext2D, 800, 600, 0);
+    const calls = ctx.fillRect.mock.calls as number[][];
+    // Left/right edges: height 600. Top/bottom edges: width 800.
+    expect(calls.some(([, , w, h]) => w === LOW_HEALTH_GLOW_WIDTH_PX && h === 600)).toBe(true);
+    expect(calls.some(([, , w, h]) => w === 800 && h === LOW_HEALTH_GLOW_WIDTH_PX)).toBe(true);
   });
 });
 
