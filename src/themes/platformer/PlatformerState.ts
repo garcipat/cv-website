@@ -51,6 +51,7 @@ import type {
   FlightEffect,
   PuffEffect,
   HealAuraEffect,
+  HitSplatterEffect,
   CounterPopupEffect,
   CounterPopupLabelKey,
 } from './engine/CollectionEffects';
@@ -480,6 +481,13 @@ export const activePuffs = signal<PuffEffect[]>([]);
  *  pass (drawHealAuraEffects). */
 export const activeHealAuraEffects = signal<HealAuraEffect[]>([]);
 
+/** Currently animating hit-splatter bursts — one per landed hit on the
+ *  character or an enemy (see engine/CollectionEffects.ts's
+ *  HitSplatterEffect doc comment). Kept as its own array, parallel to
+ *  activePuffs/activeHealAuraEffects, for the same reason: a different
+ *  shape and its own render pass (drawHitSplatterEffects). */
+export const activeHitSplatters = signal<HitSplatterEffect[]>([]);
+
 /**
  * The currently-visible "(icon) collected / total" counter popups, one slot
  * per collectible type. A missing key means that type has nothing showing.
@@ -604,6 +612,7 @@ export function resetGameProgress(): void {
   activeEffects.value = [];
   activePuffs.value = [];
   activeHealAuraEffects.value = [];
+  activeHitSplatters.value = [];
   activeCounterPopups.value = {};
   blockStates.value = blockPlacements.value.map(toBlockState);
   spawnedCoinPlacements.value = [];

@@ -9,6 +9,7 @@ import {
   healDamage,
   heartRemaining,
   heartFrameIndex,
+  isHealthCritical,
 } from './Health';
 
 describe('Health constants', () => {
@@ -102,5 +103,21 @@ describe('heartFrameIndex', () => {
 
   it('zeroRemaining-returnsEmptyFrame', () => {
     expect(heartFrameIndex(0)).toBe(2);
+  });
+});
+
+describe('isHealthCritical', () => {
+  it('lastHalfHeart-returnsTrue', () => {
+    expect(isHealthCritical(1)).toBe(true);
+  });
+
+  it('zeroHitPoints-returnsFalse', () => {
+    // Dead, not "critical" — the death transition takes over instead (FR-008).
+    expect(isHealthCritical(0)).toBe(false);
+  });
+
+  it('twoOrMoreHitPoints-returnsFalse', () => {
+    expect(isHealthCritical(2)).toBe(false);
+    expect(isHealthCritical(MAX_HALF_HEARTS)).toBe(false);
   });
 });

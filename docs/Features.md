@@ -30,6 +30,7 @@
 - [x] **S-007** **Platformer Chests & Level Completion** — Key-gated chests holding Experience facts; opening every one shows the Thank-You screen with contact info
 - [x] **S-008** **Platformer Ladders & Climbing** — Ladder and chain tiles, climb physics, and vertical camera follow
 - [x] **S-009** **Platformer Onboarding & Controls** — Controls overlay that fades on first movement, contextual hint signs, pause when the floating controls open
+- [x] **S-010** **Platformer Hurt Feedback** — Colored hit-debris burst on the character and on enemies for every landed hit, plus a pulsing low-health canvas glow
 
 ### Optional
 
@@ -72,6 +73,7 @@
 | S-007 | Platformer chests & completion | ✅ Done | [spec](../specs/S-007-platformer-chests/spec.md) | ✅ | ✅ |
 | S-008 | Platformer ladders & climbing | ✅ Done | [spec](../specs/S-008-platformer-ladders/spec.md) | ✅ | ✅ |
 | S-009 | Platformer onboarding & controls | ✅ Done | [spec](../specs/S-009-platformer-onboarding/spec.md) | ✅ | ✅ |
+| S-010 | Platformer hurt feedback | ✅ Done | [spec](../specs/S-010-platformer-hurt-feedback/spec.md) | ✅ | ✅ |
 | O-001 | Checkpoint Persistence  | 📋 Planned     | —                                       | ❌             | ❌    |
 | O-003 | Platformer tile layers  | 🔶 Partial     | [spec](../specs/O-003-platformer-tile-layers/spec.md) / [design](../specs/O-003-platformer-tile-layers/design.md) | ✅ | ✅ |
 | O-004 | Platformer container blocks | ✅ Done    | [spec](../specs/O-004-platformer-containers/spec.md) | ✅ | ✅ |
@@ -126,6 +128,7 @@ graph RL
         S007["✅ S-007: Chests & Completion"]
         S008["✅ S-008: Ladders & Climbing"]
         S009["✅ S-009: Onboarding & Controls"]
+        S010["✅ S-010: Hurt Feedback"]
         O003["O-003: Tile Layers"]
         O004["✅ O-004: Container Blocks"]
         O005["✅ O-005: Hazards"]
@@ -174,6 +177,8 @@ graph RL
     S007 --> F017
     S008 --> F015
     S009 --> F015
+    S010 --> F016
+    S010 --> F017
     O003 --> F015
     O004 --> F015
     O004 --> F018
@@ -207,9 +212,9 @@ graph RL
     class S004 done
     class S002,S005,O001 enhancements
     class S005 done
-    class F015,F016,F017,F018,S007,S008,S009,O003,O004,O005,O008,O009 themes
+    class F015,F016,F017,F018,S007,S008,S009,S010,O003,O004,O005,O008,O009 themes
     class F019,O006,O007 enhancements
-    class F015,F016,F017,F018,F019,S007,S008,S009,O004,O005,O009 done
+    class F015,F016,F017,F018,F019,S007,S008,S009,S010,O004,O005,O009 done
 ```
 
 **Critical Path**: F-001 → F-012 → F-013 → F-002 → F-014 (foundation → theme system → multilanguage → data model → IDE theme, then Space and Terminal themes)

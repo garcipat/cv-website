@@ -1,0 +1,147 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>S-010 mockup 2 — splatter anchor point</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #1c1c1e; color: #f5f5f7; padding: 24px; }
+  h2 { font-size: 1.5rem; font-weight: 600; margin-bottom: 0.5rem; }
+  h3 { font-size: 1.1rem; font-weight: 600; margin: 0 0 0.25rem; }
+  .subtitle { color: #a1a1a6; margin-bottom: 1.5rem; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
+  .card { background: #2c2c2e; border: 1px solid #3a3a3c; border-radius: 12px; overflow: hidden; }
+  .card-image { background: #3a3a3c; display: flex; align-items: center; justify-content: center; }
+  .card-body { padding: 1rem; }
+  .card-body p { color: #a1a1a6; font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<h2>Where should the blood splatter anchor?</h2>
+<p class="subtitle">Same splatter style (C) picked in mockup 1, three anchor points compared. Option B (contact side) was picked — see mockup 3 for the final version.</p>
+
+<div class="cards" id="cards">
+  <div class="card" data-choice="center" onclick="toggleSelect(this)">
+    <div class="card-image"><canvas id="cv-center" width="220" height="220"></canvas></div>
+    <div class="card-body">
+      <h3>A. Body center</h3>
+      <p>Anchored at the sprite's torso/center, symmetric regardless of which side the hit came from. Simple, consistent, works identically for player and enemy.</p>
+    </div>
+  </div>
+  <div class="card" data-choice="contact" onclick="toggleSelect(this)">
+    <div class="card-image"><canvas id="cv-contact" width="220" height="220"></canvas></div>
+    <div class="card-body">
+      <h3>B. Contact side</h3>
+      <p>Offset toward whichever side the hit came from (here: the right, where the enemy/hazard touched). Reads as "hit from there" but needs a direction at the moment of damage.</p>
+    </div>
+  </div>
+  <div class="card" data-choice="feet" onclick="toggleSelect(this)">
+    <div class="card-image"><canvas id="cv-feet" width="220" height="220"></canvas></div>
+    <div class="card-body">
+      <h3>C. Ground / feet level</h3>
+      <p>Low, near ground contact &mdash; matches where most hits actually happen (side-touch, stomp) and keeps the face/readable silhouette clear.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const KNIGHT_SRC = './knight.png';
+const SLIME_SRC = './slime_green.png';
+const PLAYER_FRAME = 32;
+const SLIME_FRAME = 24;
+const SCALE = 5;
+
+function loadImg(src) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.src = src;
+  });
+}
+
+function drawPlayerIdle(ctx, cx, cy) {
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(window.__knight, 0, 0, PLAYER_FRAME, PLAYER_FRAME, cx - (PLAYER_FRAME*SCALE)/2, cy - (PLAYER_FRAME*SCALE)/2, PLAYER_FRAME*SCALE, PLAYER_FRAME*SCALE);
+}
+function drawSlimeIdle(ctx, sx, sy) {
+  ctx.imageSmoothingEnabled = false;
+  const s = SLIME_FRAME*SCALE*0.8;
+  ctx.drawImage(window.__slime, 0, 0, SLIME_FRAME, SLIME_FRAME, sx - s/2, sy - s/2, s, s);
+}
+
+function bloodDroplets(t, seedList) {
+  return seedList.map((s) => ({
+    x: s.dx * t,
+    y: s.dy * t + 60 * t * t,
+    opacity: t < 0.7 ? 1 : 1 - (t - 0.7) / 0.3,
+  }));
+}
+function makeSeeds() {
+  return Array.from({length: 7}, () => ({
+    dx: (Math.random() - 0.5) * 60,
+    dy: -20 - Math.random() * 20,
+  }));
+}
+const seedsA = makeSeeds(), seedsB = makeSeeds(), seedsC = makeSeeds();
+
+function loop(canvasId, drawFrame) {
+  const canvas = document.getElementById(canvasId);
+  const ctx = canvas.getContext('2d');
+  const CYCLE = 1400;
+  function frame(ts) {
+    const t = (ts % CYCLE) / CYCLE;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#14361f';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#0c2415';
+    ctx.fillRect(0, canvas.height - 30, canvas.width, 30);
+    drawFrame(ctx, t, canvas);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+function drawSplatter(ctx, anchorX, anchorY, t, seeds) {
+  if (t >= 0.6) return;
+  const pt = t / 0.6;
+  const drops = bloodDroplets(pt, seeds);
+  for (const d of drops) {
+    ctx.globalAlpha = Math.max(0, d.opacity);
+    ctx.fillStyle = '#a30f1f';
+    ctx.fillRect(anchorX + d.x - 2, anchorY + d.y - 2, 4, 4);
+  }
+  ctx.globalAlpha = 1;
+}
+
+Promise.all([loadImg(KNIGHT_SRC), loadImg(SLIME_SRC)]).then(([knight, slime]) => {
+  window.__knight = knight;
+  window.__slime = slime;
+  const px = 105, py = 100;
+  const slx = 60, sly = 155;
+
+  // A. Body center: player torso center, slime's own center
+  loop('cv-center', (ctx, t) => {
+    drawPlayerIdle(ctx, px, py);
+    drawSlimeIdle(ctx, slx, sly);
+    drawSplatter(ctx, px, py, t, seedsA);
+    drawSplatter(ctx, slx, sly, t, seedsB);
+  });
+
+  // B. Contact side: offset toward the right (where the hit "came from")
+  loop('cv-contact', (ctx, t) => {
+    drawPlayerIdle(ctx, px, py);
+    drawSlimeIdle(ctx, slx, sly);
+    drawSplatter(ctx, px + 42, py + 10, t, seedsA);
+    drawSplatter(ctx, slx + 26, sly + 4, t, seedsC);
+  });
+
+  // C. Ground/feet level
+  loop('cv-feet', (ctx, t) => {
+    drawPlayerIdle(ctx, px, py);
+    drawSlimeIdle(ctx, slx, sly);
+    drawSplatter(ctx, px, py + 56, t, seedsB);
+    drawSplatter(ctx, slx, sly + 30, t, seedsA);
+  });
+});
+</script>
+</body>
+</html>

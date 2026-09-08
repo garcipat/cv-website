@@ -1,0 +1,258 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>S-010 mockup 1 — hit-effect style</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #1c1c1e; color: #f5f5f7; padding: 24px; }
+  h2 { font-size: 1.5rem; font-weight: 600; margin-bottom: 0.5rem; }
+  h3 { font-size: 1.1rem; font-weight: 600; margin: 0 0 0.25rem; }
+  .subtitle { color: #a1a1a6; margin-bottom: 1.5rem; }
+  .section { margin-bottom: 2rem; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
+  .card { background: #2c2c2e; border: 1px solid #3a3a3c; border-radius: 12px; overflow: hidden; }
+  .card-image { background: #3a3a3c; display: flex; align-items: center; justify-content: center; }
+  .card-body { padding: 1rem; }
+  .card-body p { color: #a1a1a6; font-size: 0.85rem; }
+  .mockup { background: #2c2c2e; border: 1px solid #3a3a3c; border-radius: 12px; overflow: hidden; margin-bottom: 1.5rem; }
+  .mockup-header { background: #3a3a3c; padding: 0.5rem 1rem; font-size: 0.75rem; color: #a1a1a6; border-bottom: 1px solid #3a3a3c; }
+</style>
+</head>
+<body>
+<h2>Which hit-effect style fits the game?</h2>
+<p class="subtitle">Each panel loops: idle &rarr; hit &rarr; recover, using the actual knight.png / slime_green.png sprites. Option C (blood/goo splatter) is the one that was picked — see mockup 3 for the final, tuned version.</p>
+
+<div class="cards" id="cards">
+  <div class="card" data-choice="burst">
+    <div class="card-image"><canvas id="cv-burst" width="220" height="220"></canvas></div>
+    <div class="card-body">
+      <h3>A. Stylized burst</h3>
+      <p>Small pixel spark/debris particles fly out from the hit point. Same visual family as the existing defeat/break sparkle. No red at all.</p>
+    </div>
+  </div>
+  <div class="card" data-choice="flash">
+    <div class="card-image"><canvas id="cv-flash" width="220" height="220"></canvas></div>
+    <div class="card-body">
+      <h3>B. Red flash tint</h3>
+      <p>Classic NES-style hit flash: the sprite itself pulses red/white. No particles, cheapest to build.</p>
+    </div>
+  </div>
+  <div class="card" data-choice="blood">
+    <div class="card-image"><canvas id="cv-blood" width="220" height="220"></canvas></div>
+    <div class="card-body">
+      <h3>C. Blood splatter — PICKED</h3>
+      <p>A few red pixel droplets scatter from the hit point and fall with gravity, same low-detail retro style as the rest of the game.</p>
+    </div>
+  </div>
+  <div class="card" data-choice="combo">
+    <div class="card-image"><canvas id="cv-combo" width="220" height="220"></canvas></div>
+    <div class="card-body">
+      <h3>D. Burst + flash combo</h3>
+      <p>Both the stylized particle burst AND a brief red flash tint together. More impactful, two effects tuned as one.</p>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:28px">
+  <h3>Low-health border glow (already decided: pulsing while critical)</h3>
+  <p class="subtitle">Reference preview only, not a choice &mdash; shows how the soft red pulse around the canvas edge would read.</p>
+  <div class="mockup" style="max-width:420px">
+    <div class="mockup-header">Preview: canvas at critical health</div>
+    <div class="mockup-body" style="padding:0">
+      <canvas id="cv-glow" width="400" height="220"></canvas>
+    </div>
+  </div>
+</div>
+
+<script>
+const KNIGHT_SRC = './knight.png';
+const SLIME_SRC = './slime_green.png';
+const PLAYER_FRAME = 32;
+const SLIME_FRAME = 24;
+const SCALE = 5;
+
+function loadImg(src) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.src = src;
+  });
+}
+
+// idle row 0, hit row baked into the sheet as labeled "HIT" (row index 3 of 5 label rows -> approx sy 3*32=96, but
+// the player currently has NO hit animState in code, so we just reuse the idle pose here and layer the effect on
+// top -- exactly what the real implementation would do if it doesn't adopt the sheet's unused HIT row).
+function drawPlayerIdle(ctx, cx, cy) {
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(window.__knight, 0, 0, PLAYER_FRAME, PLAYER_FRAME, cx - (PLAYER_FRAME*SCALE)/2, cy - (PLAYER_FRAME*SCALE)/2, PLAYER_FRAME*SCALE, PLAYER_FRAME*SCALE);
+}
+function drawSlimeIdle(ctx, cx, cy) {
+  ctx.imageSmoothingEnabled = false;
+  const s = SLIME_FRAME*SCALE*0.8;
+  ctx.drawImage(window.__slime, 0, 0, SLIME_FRAME, SLIME_FRAME, cx - s/2 - 55, cy - s/2 + 40, s, s);
+}
+
+function sparkleParticles(t, count, maxRadius) {
+  // t: 0..1 progress
+  const pts = [];
+  for (let i = 0; i < count; i++) {
+    const angle = (i / count) * Math.PI * 2;
+    const r = maxRadius * t;
+    pts.push({ x: Math.cos(angle) * r, y: Math.sin(angle) * r, opacity: 1 - t });
+  }
+  return pts;
+}
+
+function bloodDroplets(t, seedList) {
+  return seedList.map((s) => ({
+    x: s.dx * t,
+    y: s.dy * t + 60 * t * t, // gravity
+    opacity: t < 0.7 ? 1 : 1 - (t - 0.7) / 0.3,
+  }));
+}
+
+const bloodSeeds = Array.from({length: 7}, (_, i) => ({
+  dx: (Math.random() - 0.5) * 60,
+  dy: -20 - Math.random() * 20,
+}));
+
+function loop(canvasId, drawFrame) {
+  const canvas = document.getElementById(canvasId);
+  const ctx = canvas.getContext('2d');
+  const CYCLE = 1400; // ms
+  function frame(ts) {
+    const t = (ts % CYCLE) / CYCLE;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // checkerboard-free flat backdrop matching the game's dark canvas
+    ctx.fillStyle = '#14361f';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#0c2415';
+    ctx.fillRect(0, canvas.height - 30, canvas.width, 30);
+    drawFrame(ctx, t, canvas);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+Promise.all([loadImg(KNIGHT_SRC), loadImg(SLIME_SRC)]).then(([knight, slime]) => {
+  window.__knight = knight;
+  window.__slime = slime;
+  const cx = 110, cy = 100;
+
+  // A. Stylized burst — particles only, sprite unchanged
+  loop('cv-burst', (ctx, t) => {
+    drawPlayerIdle(ctx, cx, cy);
+    drawSlimeIdle(ctx, cx, cy);
+    // hit "pulse" window is the first 45% of the cycle
+    if (t < 0.45) {
+      const pt = t / 0.45;
+      const pts = sparkleParticles(pt, 8, 46);
+      for (const p of pts) {
+        ctx.globalAlpha = p.opacity;
+        ctx.fillStyle = '#fff6c9';
+        ctx.fillRect(cx + p.x - 2, cy + p.y - 2, 4, 4);
+      }
+      ctx.globalAlpha = 1;
+    }
+  });
+
+  // B. Red flash tint — sprite tinted red/white, no particles
+  loop('cv-flash', (ctx, t) => {
+    if (t < 0.45) {
+      // fast alternating flash within the hit window
+      const flashOn = Math.floor(t / 0.06) % 2 === 0;
+      drawPlayerIdle(ctx, cx, cy);
+      drawSlimeIdle(ctx, cx, cy);
+      if (flashOn) {
+        ctx.globalCompositeOperation = 'source-atop';
+        ctx.globalAlpha = 0.65;
+        ctx.fillStyle = '#ff2d2d';
+        ctx.fillRect(cx - 90, cy - 90, 180, 180);
+        ctx.globalAlpha = 1;
+        ctx.globalCompositeOperation = 'source-over';
+      }
+    } else {
+      drawPlayerIdle(ctx, cx, cy);
+      drawSlimeIdle(ctx, cx, cy);
+    }
+  });
+
+  // C. Blood splatter — red droplets scatter and fall
+  loop('cv-blood', (ctx, t) => {
+    drawPlayerIdle(ctx, cx, cy);
+    drawSlimeIdle(ctx, cx, cy);
+    if (t < 0.6) {
+      const pt = t / 0.6;
+      const drops = bloodDroplets(pt, bloodSeeds);
+      for (const d of drops) {
+        ctx.globalAlpha = Math.max(0, d.opacity);
+        ctx.fillStyle = '#a30f1f';
+        ctx.fillRect(cx + d.x - 2, cy + d.y - 2, 4, 4);
+      }
+      ctx.globalAlpha = 1;
+    }
+  });
+
+  // D. Combo — burst + flash together
+  loop('cv-combo', (ctx, t) => {
+    if (t < 0.45) {
+      const flashOn = Math.floor(t / 0.06) % 2 === 0;
+      drawPlayerIdle(ctx, cx, cy);
+      drawSlimeIdle(ctx, cx, cy);
+      if (flashOn) {
+        ctx.globalCompositeOperation = 'source-atop';
+        ctx.globalAlpha = 0.5;
+        ctx.fillStyle = '#ff2d2d';
+        ctx.fillRect(cx - 90, cy - 90, 180, 180);
+        ctx.globalAlpha = 1;
+        ctx.globalCompositeOperation = 'source-over';
+      }
+      const pt = t / 0.45;
+      const pts = sparkleParticles(pt, 8, 46);
+      for (const p of pts) {
+        ctx.globalAlpha = p.opacity;
+        ctx.fillStyle = '#fff6c9';
+        ctx.fillRect(cx + p.x - 2, cy + p.y - 2, 4, 4);
+      }
+      ctx.globalAlpha = 1;
+    } else {
+      drawPlayerIdle(ctx, cx, cy);
+      drawSlimeIdle(ctx, cx, cy);
+    }
+  });
+
+  // Low-health glow reference preview
+  loop('cv-glow', (ctx, t, canvas) => {
+    drawPlayerIdle(ctx, 90, 110);
+    // pulsing red inset border, breathing sine 0..1
+    const pulse = (Math.sin(t * Math.PI * 2 * 1.0) + 1) / 2; // ~1.4s cycle already handled by CYCLE
+    const alpha = 0.25 + pulse * 0.45;
+    const w = 18;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    const grad = ctx.createLinearGradient(0, 0, w, 0);
+    grad.addColorStop(0, '#ff1f1f');
+    grad.addColorStop(1, 'rgba(255,31,31,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, canvas.height);
+    const gradR = ctx.createLinearGradient(canvas.width, 0, canvas.width - w, 0);
+    gradR.addColorStop(0, '#ff1f1f');
+    gradR.addColorStop(1, 'rgba(255,31,31,0)');
+    ctx.fillStyle = gradR;
+    ctx.fillRect(canvas.width - w, 0, w, canvas.height);
+    const gradT = ctx.createLinearGradient(0, 0, 0, w);
+    gradT.addColorStop(0, '#ff1f1f');
+    gradT.addColorStop(1, 'rgba(255,31,31,0)');
+    ctx.fillStyle = gradT;
+    ctx.fillRect(0, 0, canvas.width, w);
+    const gradB = ctx.createLinearGradient(0, canvas.height, 0, canvas.height - w);
+    gradB.addColorStop(0, '#ff1f1f');
+    gradB.addColorStop(1, 'rgba(255,31,31,0)');
+    ctx.fillStyle = gradB;
+    ctx.fillRect(0, canvas.height - w, canvas.width, w);
+    ctx.restore();
+  });
+});
+</script>
+</body>
+</html>
