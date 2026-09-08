@@ -63,3 +63,13 @@ export function heartFrameIndex(remainingForThisHeart: number): number {
   if (remainingForThisHeart === 1) return 1;
   return 2;
 }
+
+/**
+ * True exactly while health is at its last half-heart unit — the "critical"
+ * state the low-health canvas glow (S-010) uses. Zero hit points is death,
+ * not critical: the death transition takes over the screen instead of a
+ * glow (see PlatformerPage.tsx's lifecycle handling).
+ */
+export function isHealthCritical(hitPoints: number): boolean {
+  return hitPoints === 1;
+}
