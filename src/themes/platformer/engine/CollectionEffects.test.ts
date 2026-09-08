@@ -29,7 +29,7 @@ import {
   hitSplatterDroplets,
   HIT_SPLATTER_DURATION_SECONDS,
 } from './CollectionEffects';
-import type { PuffEffect, HealAuraEffect, HitSplatterEffect } from './CollectionEffects';
+import type { PuffEffect, HealAuraEffect } from './CollectionEffects';
 
 describe('startFlightEffect', () => {
   it('called-returns-risingPhaseAtZeroElapsed', () => {

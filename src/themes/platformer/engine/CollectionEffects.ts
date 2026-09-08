@@ -511,6 +511,8 @@ export function hitSplatterDroplets(effect: HitSplatterEffect): HitSplatterDropl
     const spreadFracX = count === 1 ? 0 : i / (count - 1) - 0.5;
     const shuffled = (i * HIT_SPLATTER_SHUFFLE_STRIDE) % count;
     const spreadFracY = count === 1 ? 0 : shuffled / (count - 1) - 0.5;
+    // The `+ 0` terms normalize IEEE-754 −0 to +0: at progress 0, a negative base times zero yields −0,
+    // but fresh effect droplets should read as a clean +0 for tests using strict equality (e.g. Object.is).
     const dx = (effect.dirBiasX + spreadFracX * effect.spreadX) * progress + 0;
     const dy =
       (effect.dirBiasY + spreadFracY * effect.spreadY) * progress +
