@@ -23,8 +23,13 @@ import {
   healAuraOpacity,
   healAuraRays,
   healAuraSparkles,
+  startPlayerHitSplatter,
+  startEnemyHitSplatter,
+  tickHitSplatterEffect,
+  hitSplatterDroplets,
+  HIT_SPLATTER_DURATION_SECONDS,
 } from './CollectionEffects';
-import type { PuffEffect, HealAuraEffect } from './CollectionEffects';
+import type { PuffEffect, HealAuraEffect, HitSplatterEffect } from './CollectionEffects';
 
 describe('startFlightEffect', () => {
   it('called-returns-risingPhaseAtZeroElapsed', () => {
@@ -358,4 +363,148 @@ describe('createSlotAllocator', () => {
   // 'allocatorSharedWithAnotherConsumer-theyNeverTakeTheSameSlot' — that test
   // shares one allocator between the reveal trigger and a second consumer,
   // which two separate calls on one allocator here cannot exercise.
+});
+
+describe('startPlayerHitSplatter', () => {
+  it('contactSideRight-anchorsRightOfAndBelowCenter', () => {
+    const effect = startPlayerHitSplatter('p', 100, 200, 1);
+    expect(effect.x).toBeGreaterThan(100);
+    expect(effect.y).toBeGreaterThan(200);
+    expect(effect.dirBiasX).toBeGreaterThan(0);
+  });
+
+  it('contactSideLeft-anchorsLeftOfCenterMirroringTheRightCase', () => {
+    const right = startPlayerHitSplatter('p', 100, 200, 1);
+    const left = startPlayerHitSplatter('p', 100, 200, -1);
+    // Mirrored around the center x, not just "less than center" — pins the
+    // exact symmetry contactSide is supposed to guarantee.
+    expect(left.x - 100).toBeCloseTo(-(right.x - 100));
+    expect(left.dirBiasX).toBeCloseTo(-right.dirBiasX);
+  });
+
+  it('noContactSide-anchorsExactlyAtCenterX', () => {
+    // The pit-fall case (spec.md FR-001's "no clear side").
+    const effect = startPlayerHitSplatter('p', 100, 200, 0);
+    expect(effect.x).toBe(100);
+    expect(effect.dirBiasX).toBe(0);
+  });
+
+  it('called-usesRedAndSevenDroplets', () => {
+    const effect = startPlayerHitSplatter('p', 0, 0, 1);
+    expect(effect.color).toBe('#a30f1f');
+    expect(effect.dropletCount).toBe(7);
+    expect(effect.elapsed).toBe(0);
+  });
+});
+
+describe('startEnemyHitSplatter', () => {
+  it('greenSlime-usesGreenGooColor', () => {
+    const effect = startEnemyHitSplatter('e', 50, 60, 'slimeGreen');
+    expect(effect.color).toBe('#3ddc55');
+  });
+
+  it('purpleSlime-usesPurpleGooColorDistinctFromGreen', () => {
+    const green = startEnemyHitSplatter('e', 50, 60, 'slimeGreen');
+    const purple = startEnemyHitSplatter('e', 50, 60, 'slimePurple');
+    expect(purple.color).not.toBe(green.color);
+  });
+
+  it('called-anchorsExactlyAtGivenTopXY', () => {
+    // No further offset — the caller already passes the top of the
+    // enemy's own hitbox (see PlatformerPage.tsx's wiring in Task 6).
+    const effect = startEnemyHitSplatter('e', 50, 60, 'slimeGreen');
+    expect(effect.x).toBe(50);
+    expect(effect.y).toBe(60);
+  });
+
+  it('called-usesMoreDropletsThanThePlayersSplatter', () => {
+    const effect = startEnemyHitSplatter('e', 0, 0, 'slimeGreen');
+    expect(effect.dropletCount).toBe(13);
+    expect(effect.dropletCount).toBeGreaterThan(startPlayerHitSplatter('p', 0, 0, 1).dropletCount);
+  });
+
+  it('called-biasesUpwardNotSideways', () => {
+    const effect = startEnemyHitSplatter('e', 0, 0, 'slimeGreen');
+    expect(effect.dirBiasY).toBeLessThan(0);
+    expect(effect.dirBiasX).toBe(0);
+  });
+});
+
+describe('tickHitSplatterEffect', () => {
+  it('called-advancesElapsedByDt', () => {
+    const effect = tickHitSplatterEffect(startPlayerHitSplatter('p', 0, 0, 1), 0.1);
+    expect(effect.elapsed).toBeCloseTo(0.1);
+  });
+});
+
+describe('hitSplatterDroplets', () => {
+  it('freshEffect-returnsExactlyDropletCountEntriesAllAtAnchorFullOpacity', () => {
+    const effect = startPlayerHitSplatter('p', 0, 0, 1);
+    const droplets = hitSplatterDroplets(effect);
+    expect(droplets).toHaveLength(effect.dropletCount);
+    for (const d of droplets) {
+      expect(d.dx).toBe(0);
+      expect(d.dy).toBe(0);
+      expect(d.opacity).toBe(1);
+    }
+  });
+
+  it('sevenDroplets-verticalSpreadIsNotDegenerate', () => {
+    // Regression guard: an earlier draft shuffled each droplet's vertical
+    // position with `(i * 7) % count`, which for a 7-droplet burst collapses
+    // to 0 for every `i` (7 is a multiple of 7) — every droplet would fall
+    // in a single vertical line instead of scattering. The real stride must
+    // be coprime with every droplet count this effect uses (7 and 13).
+    const effect = tickHitSplatterEffect(startPlayerHitSplatter('p', 0, 0, 1), 0.3);
+    const droplets = hitSplatterDroplets(effect);
+    const dys = droplets.map((d) => d.dy);
+    expect(new Set(dys).size).toBeGreaterThan(1);
+  });
+
+  it('thirteenDroplets-verticalSpreadIsNotDegenerate', () => {
+    const effect = tickHitSplatterEffect(startEnemyHitSplatter('e', 0, 0, 'slimeGreen'), 0.3);
+    const droplets = hitSplatterDroplets(effect);
+    const dys = droplets.map((d) => d.dy);
+    expect(new Set(dys).size).toBeGreaterThan(1);
+  });
+
+  it('calledTwiceWithSameEffect-returnsIdenticalResult', () => {
+    // Determinism: the whole point of moving off Math.random() (see
+    // design.md) is that the same effect always produces the same burst.
+    const effect = tickHitSplatterEffect(startEnemyHitSplatter('e', 10, 20, 'slimePurple'), 0.2);
+    expect(hitSplatterDroplets(effect)).toEqual(hitSplatterDroplets(effect));
+  });
+
+  it('midway-appliesGravitySoDyExceedsLinearProjection', () => {
+    const early = tickHitSplatterEffect(startEnemyHitSplatter('e', 0, 0, 'slimeGreen'), 0.1);
+    const late = tickHitSplatterEffect(startEnemyHitSplatter('e', 0, 0, 'slimeGreen'), 0.5);
+    // Both bias upward (dirBiasY < 0); gravity pulls the LATE sample back
+    // down relative to a pure linear projection from the early sample.
+    const earlyDy0 = hitSplatterDroplets(early)[0].dy;
+    const lateDy0 = hitSplatterDroplets(late)[0].dy;
+    const linearProjection = (earlyDy0 / 0.1) * 0.5;
+    expect(lateDy0).toBeGreaterThan(linearProjection);
+  });
+
+  it('beforeFadeStart-opacityIsFullyOpaque', () => {
+    const effect = tickHitSplatterEffect(startPlayerHitSplatter('p', 0, 0, 1), 0.2); // 0.2/0.6 ≈ 0.33 < 0.7
+    expect(hitSplatterDroplets(effect)[0].opacity).toBe(1);
+  });
+
+  it('pastFadeStart-opacityIsBelowOne', () => {
+    const effect = tickHitSplatterEffect(
+      startPlayerHitSplatter('p', 0, 0, 1),
+      HIT_SPLATTER_DURATION_SECONDS * 0.85,
+    );
+    const opacity = hitSplatterDroplets(effect)[0].opacity;
+    expect(opacity).toBeLessThan(1);
+    expect(opacity).toBeGreaterThan(0);
+  });
+
+  it('atOrPastDuration-opacityIsZero', () => {
+    const effect = tickHitSplatterEffect(startPlayerHitSplatter('p', 0, 0, 1), HIT_SPLATTER_DURATION_SECONDS);
+    expect(hitSplatterDroplets(effect)[0].opacity).toBe(0);
+    const wayPast = tickHitSplatterEffect(startPlayerHitSplatter('p', 0, 0, 1), HIT_SPLATTER_DURATION_SECONDS + 5);
+    expect(hitSplatterDroplets(wayPast)[0].opacity).toBe(0);
+  });
 });
