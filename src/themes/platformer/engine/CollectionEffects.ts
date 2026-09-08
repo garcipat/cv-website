@@ -1,4 +1,5 @@
 import type { CounterKey } from '../entities/CollectiblesSummary';
+import type { EnemyTypeKey } from '../entities/enemies';
 
 /** Seconds each phase of a collected-fact animation takes: a quick rise from
  *  the collection point to the middle of the screen, a hold there so the
@@ -353,4 +354,175 @@ export function healAuraSparkles(elapsed: number, width: number): HealAuraSparkl
   const progress = elapsed / HEAL_AURA_DURATION_SECONDS;
   const rise = width * 0.6 * progress;
   return HEAL_AURA_SPARKLE_OFFSETS.map((frac) => ({ dx: frac * width, dy: -rise }));
+}
+
+/**
+ * A brief, deterministic burst of colored debris played the instant a hit
+ * lands on the character or an enemy (see S-010-platformer-hurt-feedback).
+ * Deliberately NOT randomized (unlike the throwaway visual mockups this was
+ * tuned against — see specs/S-010-platformer-hurt-feedback/design.md):
+ * every droplet's position is a fixed function of its own index, so the
+ * same effect always produces the same burst, same convention as
+ * `sparkleParticles`'s angle-per-index placement. `dirBiasX`/`dirBiasY` lean
+ * the burst toward the side contact came from (player: left/right; enemy:
+ * always upward, since the only thing that damages an enemy is a stomp from
+ * above); `spreadX`/`spreadY` control how wide it fans out.
+ */
+export interface HitSplatterEffect {
+  id: string;
+  x: number;
+  y: number;
+  color: string;
+  dropletCount: number;
+  dirBiasX: number;
+  dirBiasY: number;
+  spreadX: number;
+  spreadY: number;
+  elapsed: number;
+}
+
+/** Total seconds a hit splatter plays before it's fully faded and removed. */
+export const HIT_SPLATTER_DURATION_SECONDS = 0.6;
+/** Opaque until this fraction of the duration has elapsed, then fades
+ *  linearly to 0 by the end — same shape as FlightEffect's flight-phase
+ *  fade, just with different numbers. */
+const HIT_SPLATTER_FADE_START_FRACTION = 0.7;
+/** Downward pixel-acceleration term (`gravity * progress^2`) pulling every
+ *  droplet back down over the burst's lifetime, same curve the original
+ *  mockups were tuned against. */
+const HIT_SPLATTER_GRAVITY = 60;
+/**
+ * Stride used to shuffle which droplet index gets which vertical-spread
+ * slot (see `hitSplatterDroplets` below). MUST be coprime with every
+ * `dropletCount` this effect is ever started with (currently 7 and 13) —
+ * a stride sharing a factor with the count collapses every droplet to the
+ * same vertical slot instead of spreading them (caught by
+ * CollectionEffects.test.ts's "verticalSpreadIsNotDegenerate" tests).
+ */
+const HIT_SPLATTER_SHUFFLE_STRIDE = 3;
+
+const PLAYER_HIT_SPLATTER_COLOR = '#a30f1f';
+const PLAYER_HIT_SPLATTER_DROPLET_COUNT = 7;
+/** How far the anchor itself shifts toward the contact side, roughly torso
+ *  height on the vertical axis — see design.md's approved-parameters table. */
+const PLAYER_HIT_SPLATTER_ANCHOR_OFFSET_X = 28;
+const PLAYER_HIT_SPLATTER_ANCHOR_OFFSET_Y = 6;
+const PLAYER_HIT_SPLATTER_DIR_BIAS_X = 14;
+const PLAYER_HIT_SPLATTER_SPREAD_X = 42;
+const PLAYER_HIT_SPLATTER_SPREAD_Y = 30;
+
+/**
+ * Starts a red hit-splatter burst on the character. `contactSide` is -1
+ * (hit came from the left), 1 (from the right), or 0 when no side is known
+ * (a pit fall — spec.md FR-001's edge case) — the anchor offset and
+ * directional bias both scale by this, so 0 anchors dead-center with no
+ * lean, and -1/1 mirror each other exactly.
+ */
+export function startPlayerHitSplatter(
+  id: string,
+  playerCenterX: number,
+  playerCenterY: number,
+  contactSide: -1 | 0 | 1,
+): HitSplatterEffect {
+  return {
+    id,
+    x: playerCenterX + PLAYER_HIT_SPLATTER_ANCHOR_OFFSET_X * contactSide,
+    y: playerCenterY + PLAYER_HIT_SPLATTER_ANCHOR_OFFSET_Y,
+    color: PLAYER_HIT_SPLATTER_COLOR,
+    dropletCount: PLAYER_HIT_SPLATTER_DROPLET_COUNT,
+    dirBiasX: PLAYER_HIT_SPLATTER_DIR_BIAS_X * contactSide,
+    dirBiasY: 0,
+    spreadX: PLAYER_HIT_SPLATTER_SPREAD_X,
+    spreadY: PLAYER_HIT_SPLATTER_SPREAD_Y,
+    elapsed: 0,
+  };
+}
+
+const ENEMY_HIT_SPLATTER_DROPLET_COUNT = 13;
+const ENEMY_HIT_SPLATTER_DIR_BIAS_Y = -45;
+const ENEMY_HIT_SPLATTER_SPREAD_X = 64;
+const ENEMY_HIT_SPLATTER_SPREAD_Y = 44;
+
+/** Each enemy type splatters its own color, not one shared by every enemy
+ *  (spec.md FR-004) — matches that type's own body color, same choice
+ *  the green slime's goo color was picked with (design.md). Purple's exact
+ *  tone was not separately mocked; confirm it visually once this is on
+ *  screen and adjust here if it needs its own tuning pass. */
+const ENEMY_HIT_SPLATTER_COLOR: Record<EnemyTypeKey, string> = {
+  slimeGreen: '#3ddc55',
+  slimePurple: '#8e3dd9',
+};
+
+/**
+ * Starts a goo hit-splatter burst on an enemy, colored to match its type.
+ * `topX`/`topY` must already be the top of the enemy's own hitbox (where a
+ * stomp actually lands) — this function applies no further offset, unlike
+ * the player's version, since the caller (PlatformerPage.tsx) already has
+ * that exact point from the same collision geometry that decided the stomp
+ * landed.
+ */
+export function startEnemyHitSplatter(
+  id: string,
+  topX: number,
+  topY: number,
+  enemyType: EnemyTypeKey,
+): HitSplatterEffect {
+  return {
+    id,
+    x: topX,
+    y: topY,
+    color: ENEMY_HIT_SPLATTER_COLOR[enemyType],
+    dropletCount: ENEMY_HIT_SPLATTER_DROPLET_COUNT,
+    dirBiasX: 0,
+    dirBiasY: ENEMY_HIT_SPLATTER_DIR_BIAS_Y,
+    spreadX: ENEMY_HIT_SPLATTER_SPREAD_X,
+    spreadY: ENEMY_HIT_SPLATTER_SPREAD_Y,
+    elapsed: 0,
+  };
+}
+
+/** Advances a hit splatter by `dt` seconds. No phase machine (same
+ *  convention as `tickPuffEffect`) — callers filter out expired effects by
+ *  comparing `elapsed` against `HIT_SPLATTER_DURATION_SECONDS`. */
+export function tickHitSplatterEffect(effect: HitSplatterEffect, dt: number): HitSplatterEffect {
+  return { ...effect, elapsed: effect.elapsed + dt };
+}
+
+export interface HitSplatterDroplet {
+  dx: number;
+  dy: number;
+  opacity: number;
+}
+
+/**
+ * Current per-droplet offsets/opacity for a hit splatter. Every droplet's
+ * horizontal slot is evenly spaced across `spreadX` (so `dropletCount` and
+ * `spreadX` have an exact, reproducible relationship); its vertical slot
+ * uses a SHUFFLED index (`(i * HIT_SPLATTER_SHUFFLE_STRIDE) % count`) rather
+ * than the same even spacing, so droplets don't just draw a straight
+ * diagonal line pairing the same rank on both axes. Both axes are still a
+ * pure function of `i` — no randomness anywhere (see this file's own
+ * `sparkleParticles` for the same determinism convention).
+ */
+export function hitSplatterDroplets(effect: HitSplatterEffect): HitSplatterDroplet[] {
+  const progress = Math.min(1, effect.elapsed / HIT_SPLATTER_DURATION_SECONDS);
+  const count = effect.dropletCount;
+  return Array.from({ length: count }, (_, i) => {
+    const spreadFracX = count === 1 ? 0 : i / (count - 1) - 0.5;
+    const shuffled = (i * HIT_SPLATTER_SHUFFLE_STRIDE) % count;
+    const spreadFracY = count === 1 ? 0 : shuffled / (count - 1) - 0.5;
+    const dx = (effect.dirBiasX + spreadFracX * effect.spreadX) * progress + 0;
+    const dy =
+      (effect.dirBiasY + spreadFracY * effect.spreadY) * progress +
+      HIT_SPLATTER_GRAVITY * progress * progress +
+      0;
+    const opacity =
+      progress < HIT_SPLATTER_FADE_START_FRACTION
+        ? 1
+        : Math.max(
+            0,
+            1 - (progress - HIT_SPLATTER_FADE_START_FRACTION) / (1 - HIT_SPLATTER_FADE_START_FRACTION),
+          );
+    return { dx, dy, opacity };
+  });
 }
