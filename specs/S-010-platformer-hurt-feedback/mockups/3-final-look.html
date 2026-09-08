@@ -1,0 +1,161 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>S-010 mockup 3 — final tuned look (approved)</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #1c1c1e; color: #f5f5f7; padding: 24px; }
+  h2 { font-size: 1.5rem; font-weight: 600; margin-bottom: 0.5rem; }
+  h3 { font-size: 1.1rem; font-weight: 600; margin: 0 0 0.25rem; }
+  .subtitle, .label { color: #a1a1a6; }
+  .subtitle { margin-bottom: 1.5rem; }
+  .label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; display:block; }
+  .section { margin-bottom: 2rem; }
+  .mockup { background: #2c2c2e; border: 1px solid #3a3a3c; border-radius: 12px; overflow: hidden; margin-bottom: 1.5rem; }
+  .mockup-header { background: #3a3a3c; padding: 0.5rem 1rem; font-size: 0.75rem; color: #a1a1a6; border-bottom: 1px solid #3a3a3c; }
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+  .options { display: flex; flex-direction: column; gap: 0.75rem; max-width: 480px; }
+  .option { background: #2c2c2e; border: 2px solid #3a3a3c; border-radius: 12px; padding: 1rem 1.25rem; display:flex; gap:0.75rem; align-items:center; }
+  .option.selected { border-color: #3ddc55; }
+  .option .letter { width: 1.75rem; height: 1.75rem; border-radius: 6px; flex-shrink: 0; }
+  .option .content p { color: #a1a1a6; font-size: 0.85rem; margin: 0.15rem 0 0; }
+</style>
+</head>
+<body>
+<h2>Putting it together: contact-anchored, entity-colored splatter (APPROVED — final tuning)</h2>
+<p class="subtitle">Left: player hit from the side (red). Right: slime stomped from above (goo-green, the approved color). Loops idle &rarr; hit &rarr; recover. This is the version the spec's numbers are drawn from.</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">Player hit from the right side</div>
+    <div class="mockup-body" style="padding:0"><canvas id="cv-player" width="320" height="240"></canvas></div>
+  </div>
+  <div class="mockup">
+    <div class="mockup-header">Slime stomped from above</div>
+    <div class="mockup-body" style="padding:0"><canvas id="cv-slime" width="320" height="240"></canvas></div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:20px">
+  <p class="label">Slime splatter color options — goo green was picked for the GREEN slime; the same mockup logic uses purple for the PURPLE slime (not pictured here, same mechanics with a purple palette)</p>
+  <div class="options" id="color-options">
+    <div class="option selected" data-choice="goo-green">
+      <div class="letter" style="background:#3ddc55"></div>
+      <div class="content"><h3>Goo green — PICKED (green slime)</h3><p>Bright green, matches the slime's own body color.</p></div>
+    </div>
+    <div class="option" data-choice="goo-dark">
+      <div class="letter" style="background:#1f7a34"></div>
+      <div class="content"><h3>Dark goo</h3><p>Deeper forest green, reads more like "ichor" than candy.</p></div>
+    </div>
+    <div class="option" data-choice="goo-yellow">
+      <div class="letter" style="background:#c8d43a"></div>
+      <div class="content"><h3>Yellow-green</h3><p>Sickly yellow-green, most visually distinct from the player's red.</p></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const KNIGHT_SRC = './knight.png';
+const SLIME_SRC = './slime_green.png';
+const PLAYER_FRAME = 32;
+const SLIME_FRAME = 24;
+const SCALE = 5;
+
+function loadImg(src) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.src = src;
+  });
+}
+function drawPlayerIdle(ctx, cx, cy) {
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(window.__knight, 0, 0, PLAYER_FRAME, PLAYER_FRAME, cx - (PLAYER_FRAME*SCALE)/2, cy - (PLAYER_FRAME*SCALE)/2, PLAYER_FRAME*SCALE, PLAYER_FRAME*SCALE);
+}
+// hit-row frame (sy = SLIME_FRAME*2), same frame the game already uses for
+// the stomp/hit reaction pose — bigger and clearer than the walk frame.
+function drawSlimeIdle(ctx, sx, sy, scaleMul) {
+  ctx.imageSmoothingEnabled = false;
+  const s = SLIME_FRAME*SCALE*scaleMul;
+  ctx.drawImage(window.__slime, 0, SLIME_FRAME*2, SLIME_FRAME, SLIME_FRAME, sx - s/2, sy - s/2, s, s);
+}
+
+function droplets(t, seeds) {
+  return seeds.map((s) => ({
+    x: s.dx * t,
+    y: s.dy * t + 60 * t * t,
+    opacity: t < 0.7 ? 1 : 1 - (t - 0.7) / 0.3,
+  }));
+}
+function makeSeeds(dirBiasX, dirBiasY, count, spreadX, spreadY) {
+  return Array.from({length: count}, () => ({
+    dx: dirBiasX + (Math.random() - 0.5) * spreadX,
+    dy: dirBiasY + (Math.random() - 0.5) * spreadY - 6,
+  }));
+}
+// Side-hit: droplets bias outward to the right (where the hit came from) —
+// wider spread than before so 7 droplets still read as a spray, not a clump.
+const playerSeeds = makeSeeds(14, 0, 7, 42, 30);
+// Top-stomp: droplets bias upward (squashed out from above) — more of them
+// AND wider spread, so the extra droplets actually widen the burst instead
+// of just overlapping each other.
+const slimeSeeds = makeSeeds(0, -45, 13, 64, 44);
+
+function drawSplatter(ctx, anchorX, anchorY, t, seeds, color) {
+  if (t >= 0.6) return;
+  const pt = t / 0.6;
+  const drops = droplets(pt, seeds);
+  for (const d of drops) {
+    ctx.globalAlpha = Math.max(0, d.opacity);
+    ctx.fillStyle = color;
+    ctx.fillRect(anchorX + d.x - 2, anchorY + d.y - 2, 4, 4);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function loop(canvasId, drawFrame) {
+  const canvas = document.getElementById(canvasId);
+  const ctx = canvas.getContext('2d');
+  const CYCLE = 1400;
+  function frame(ts) {
+    const t = (ts % CYCLE) / CYCLE;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#14361f';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#0c2415';
+    ctx.fillRect(0, canvas.height - 40, canvas.width, 40);
+    drawFrame(ctx, t, canvas);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+let slimeColor = '#3ddc55';
+document.getElementById('color-options').addEventListener('click', (e) => {
+  const opt = e.target.closest('.option');
+  if (!opt) return;
+  const choice = opt.dataset.choice;
+  slimeColor = choice === 'goo-dark' ? '#1f7a34' : choice === 'goo-yellow' ? '#c8d43a' : '#3ddc55';
+});
+
+Promise.all([loadImg(KNIGHT_SRC), loadImg(SLIME_SRC)]).then(([knight, slime]) => {
+  window.__knight = knight;
+  window.__slime = slime;
+
+  loop('cv-player', (ctx, t) => {
+    const px = 130, py = 110;
+    drawPlayerIdle(ctx, px, py);
+    // contact point: right side of the sprite, roughly torso height
+    drawSplatter(ctx, px + 28, py + 6, t, playerSeeds, '#a30f1f');
+  });
+
+  loop('cv-slime', (ctx, t) => {
+    const sx = 160, sy = 165;
+    drawSlimeIdle(ctx, sx, sy, 4.2);
+    // contact point: top of the slime, where the boot lands
+    drawSplatter(ctx, sx, sy - 55, t, slimeSeeds, slimeColor);
+  });
+});
+</script>
+</body>
+</html>
