@@ -4142,6 +4142,33 @@ describe('PlatformerPage', () => {
       expect(activeHitSplatters.value.some((s) => s.color === '#a30f1f')).toBe(true);
     });
 
+    it('spikeHitKillsThePlayer-startsNoSplatter', () => {
+      // The death iris transition is centered and timed around the
+      // character's own sprite — a debris burst starting the same instant
+      // would read as covering the character up rather than as impact
+      // feedback, so the killing hit itself is deliberately silent here.
+      currentLayout.value = ['S^', 'GG'];
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+      render(<PlatformerPage />);
+      frameCallback!(0);
+
+      const hazard = hazardPlacements.value[0];
+      // Last half heart — this hazard's one hit brings health to exactly 0.
+      playerState.value = { ...playerState.value, x: hazard.x, y: hazard.y, vx: 0, vy: 0, hitPoints: 1 };
+
+      frameCallback!(16);
+
+      expect(playerState.value.hitPoints).toBe(0);
+      expect(playerState.value.alive).toBe(false);
+      expect(activeHitSplatters.value.length).toBe(0);
+    });
+
     it('playerFallsIntoPit-startsARedSplatterAnchoredAtCenter', () => {
       // No directional contact — spec.md FR-001's edge case.
       let frameCallback: FrameRequestCallback | null = null;

@@ -403,13 +403,21 @@ const HIT_SPLATTER_SHUFFLE_STRIDE = 3;
 
 const PLAYER_HIT_SPLATTER_COLOR = '#a30f1f';
 const PLAYER_HIT_SPLATTER_DROPLET_COUNT = 7;
-/** How far the anchor itself shifts toward the contact side, roughly torso
- *  height on the vertical axis — see design.md's approved-parameters table. */
-const PLAYER_HIT_SPLATTER_ANCHOR_OFFSET_X = 28;
-const PLAYER_HIT_SPLATTER_ANCHOR_OFFSET_Y = 6;
-const PLAYER_HIT_SPLATTER_DIR_BIAS_X = 14;
-const PLAYER_HIT_SPLATTER_SPREAD_X = 42;
-const PLAYER_HIT_SPLATTER_SPREAD_Y = 30;
+/**
+ * How far the anchor itself shifts toward the contact side, roughly torso
+ * height on the vertical axis. design.md's approved-parameters table was
+ * measured against the browser mockup's own sprite scale (the player drawn
+ * at 160px tall there), not this game's actual rendered size (64px — see
+ * `entities/Player.ts`'s `PLAYER_RENDERED_SIZE`, `PLAYER_FRAME_SIZE * 2`).
+ * These four constants are the mockup's numbers scaled down by that same
+ * 64/160 ratio (0.4x) — applying the mockup's literal pixel values here
+ * made the splatter read as floating well off the character.
+ */
+const PLAYER_HIT_SPLATTER_ANCHOR_OFFSET_X = 11;
+const PLAYER_HIT_SPLATTER_ANCHOR_OFFSET_Y = 2;
+const PLAYER_HIT_SPLATTER_DIR_BIAS_X = 6;
+const PLAYER_HIT_SPLATTER_SPREAD_X = 17;
+const PLAYER_HIT_SPLATTER_SPREAD_Y = 12;
 
 /**
  * Starts a red hit-splatter burst on the character. `contactSide` is -1

@@ -1348,13 +1348,20 @@ export const PlatformerPage = () => {
           };
         }
 
-        const contactSide = -contacts.knockbackDirection as -1 | 1;
-        const playerCenterX = playerState.value.x + PLAYER_RENDERED_SIZE / 2 + originX;
-        const playerCenterY = playerState.value.y + PLAYER_VISUAL_CENTER_Y_OFFSET + originY;
-        activeHitSplatters.value = [
-          ...activeHitSplatters.value,
-          startPlayerHitSplatter(`player-${activeHitSplatters.value.length}`, playerCenterX, playerCenterY, contactSide),
-        ];
+        // No splatter on the hit that kills the character — the death
+        // transition (GameLifecycle.ts's iris-out) is centered and timed
+        // around the character's own sprite, and a burst of debris starting
+        // at that same instant reads as covering it up rather than as
+        // impact feedback.
+        if (hitPoints > 0) {
+          const contactSide = -contacts.knockbackDirection as -1 | 1;
+          const playerCenterX = playerState.value.x + PLAYER_RENDERED_SIZE / 2 + originX;
+          const playerCenterY = playerState.value.y + PLAYER_VISUAL_CENTER_Y_OFFSET + originY;
+          activeHitSplatters.value = [
+            ...activeHitSplatters.value,
+            startPlayerHitSplatter(`player-${activeHitSplatters.value.length}`, playerCenterX, playerCenterY, contactSide),
+          ];
+        }
       }
 
       // Spike hazards: an entirely separate, independent damage source from
@@ -1380,13 +1387,17 @@ export const PlatformerPage = () => {
         // with a separate solid body.
         playerState.value = beginHitReaction(playerState.value);
 
-        const contactSide: -1 | 1 = hazard.x >= playerState.value.x ? 1 : -1;
-        const playerCenterX = playerState.value.x + PLAYER_RENDERED_SIZE / 2 + originX;
-        const playerCenterY = playerState.value.y + PLAYER_VISUAL_CENTER_Y_OFFSET + originY;
-        activeHitSplatters.value = [
-          ...activeHitSplatters.value,
-          startPlayerHitSplatter(`player-${activeHitSplatters.value.length}`, playerCenterX, playerCenterY, contactSide),
-        ];
+        // No splatter on the hit that kills the character — see the same
+        // guard on the enemy-contact site above.
+        if (hitPoints > 0) {
+          const contactSide: -1 | 1 = hazard.x >= playerState.value.x ? 1 : -1;
+          const playerCenterX = playerState.value.x + PLAYER_RENDERED_SIZE / 2 + originX;
+          const playerCenterY = playerState.value.y + PLAYER_VISUAL_CENTER_Y_OFFSET + originY;
+          activeHitSplatters.value = [
+            ...activeHitSplatters.value,
+            startPlayerHitSplatter(`player-${activeHitSplatters.value.length}`, playerCenterX, playerCenterY, contactSide),
+          ];
+        }
       }
 
       // A/D accepted as an alternate to Arrow Left/Right (FR-007 only
@@ -1590,13 +1601,16 @@ export const PlatformerPage = () => {
           next = { ...next, hitPoints, alive: hitPoints > 0 };
           next = beginHitReaction(next);
           // No clear contact side (spec.md FR-001's edge case) — anchored
-          // at center.
-          const playerCenterX = next.x + PLAYER_RENDERED_SIZE / 2 + originX;
-          const playerCenterY = next.y + PLAYER_VISUAL_CENTER_Y_OFFSET + originY;
-          activeHitSplatters.value = [
-            ...activeHitSplatters.value,
-            startPlayerHitSplatter(`player-${activeHitSplatters.value.length}`, playerCenterX, playerCenterY, 0),
-          ];
+          // at center. No splatter on the hit that kills the character —
+          // see the same guard on the enemy-contact site above.
+          if (hitPoints > 0) {
+            const playerCenterX = next.x + PLAYER_RENDERED_SIZE / 2 + originX;
+            const playerCenterY = next.y + PLAYER_VISUAL_CENTER_Y_OFFSET + originY;
+            activeHitSplatters.value = [
+              ...activeHitSplatters.value,
+              startPlayerHitSplatter(`player-${activeHitSplatters.value.length}`, playerCenterX, playerCenterY, 0),
+            ];
+          }
         }
         next = resolvePitFall(next);
       }
