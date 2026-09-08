@@ -43,6 +43,7 @@ import {
   activeCounterPopups,
   levelTotals,
   hazardPlacements,
+  activeHitSplatters,
 } from './PlatformerState';
 import { toBlockState } from './entities/Block';
 import type { BlockState } from './entities/Block';
@@ -56,7 +57,9 @@ import {
   HEART_RENDERED_SIZE,
   HEART_PICKUP_HEAL_AMOUNT,
 } from './entities/Health';
-import { HEARTS_START_X, keyCounterX, KEY_COUNTER_Y } from './engine/Renderer';
+import { HEARTS_START_X, keyCounterX, KEY_COUNTER_Y, LOW_HEALTH_GLOW_WIDTH_PX } from './engine/Renderer';
+import { pauseForJournal } from './engine/GameLifecycle';
+import { HIT_SPLATTER_DURATION_SECONDS } from './engine/CollectionEffects';
 import { ENEMY_HIT_REACTION_SECONDS } from './entities/enemies/shared';
 import { isInvulnerable } from './entities/capabilities';
 import { PLAYER_HIT_REACTION_SECONDS } from './entities/Player';
@@ -4089,6 +4092,253 @@ describe('PlatformerPage', () => {
 
       expect(lifecycleState.value.phase).toBe('dying');
       expect(hintTooltipState.value).toBeNull();
+    });
+  });
+
+  describe('hit splatter effects', () => {
+    it('playerTouchedBySideHitEnemy-startsARedSplatterOnTheContactSide', () => {
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+      render(<PlatformerPage />);
+      frameCallback!(0);
+
+      const enemy = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
+      // Approach from the left so the enemy is to the player's right — a
+      // side touch, not a stomp (vy 0).
+      playerState.value = { ...playerState.value, x: enemy.x - 20, y: enemy.y, vx: 0, vy: 0 };
+
+      frameCallback!(16);
+
+      expect(activeHitSplatters.value.length).toBeGreaterThan(0);
+      const splatter = activeHitSplatters.value[0];
+      expect(splatter.color).toBe('#a30f1f');
+      // Enemy is to the right, so the splatter's directional bias must lean
+      // right (positive), not left or centered.
+      expect(splatter.dirBiasX).toBeGreaterThan(0);
+    });
+
+    it('playerTouchingASpikeHazard-startsARedSplatter', () => {
+      currentLayout.value = ['S^', 'GG'];
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+      render(<PlatformerPage />);
+      frameCallback!(0);
+
+      const hazard = hazardPlacements.value[0];
+      playerState.value = { ...playerState.value, x: hazard.x, y: hazard.y, vx: 0, vy: 0 };
+
+      frameCallback!(16);
+
+      expect(activeHitSplatters.value.some((s) => s.color === '#a30f1f')).toBe(true);
+    });
+
+    it('spikeHitKillsThePlayer-startsNoSplatter', () => {
+      // The death iris transition is centered and timed around the
+      // character's own sprite — a debris burst starting the same instant
+      // would read as covering the character up rather than as impact
+      // feedback, so the killing hit itself is deliberately silent here.
+      currentLayout.value = ['S^', 'GG'];
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+      render(<PlatformerPage />);
+      frameCallback!(0);
+
+      const hazard = hazardPlacements.value[0];
+      // Last half heart — this hazard's one hit brings health to exactly 0.
+      playerState.value = { ...playerState.value, x: hazard.x, y: hazard.y, vx: 0, vy: 0, hitPoints: 1 };
+
+      frameCallback!(16);
+
+      expect(playerState.value.hitPoints).toBe(0);
+      expect(playerState.value.alive).toBe(false);
+      expect(activeHitSplatters.value.length).toBe(0);
+    });
+
+    it('playerFallsIntoPit-startsARedSplatterAnchoredAtCenter', () => {
+      // No directional contact — spec.md FR-001's edge case.
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+      render(<PlatformerPage />);
+      frameCallback!(0);
+
+      playerState.value = { ...playerState.value, y: 10000, vy: 50, grounded: false };
+      frameCallback!(16);
+
+      const splatter = activeHitSplatters.value.find((s) => s.color === '#a30f1f');
+      expect(splatter).toBeDefined();
+      expect(splatter!.dirBiasX).toBe(0);
+    });
+
+    it('purpleSlimeSurvivesAStomp-startsAPurpleSplatterWithNoDefeatPuff', () => {
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+      render(<PlatformerPage />);
+      frameCallback!(0);
+
+      const target = enemyStates.value.find((e) => e.type === 'slimePurple')!;
+      enemyStates.value = enemyStates.value.map((e) => (e.id === target.id ? { ...e, hitPoints: 3 } : e));
+      playerState.value = { ...playerState.value, x: target.x, y: stompLandingY(target), vy: 300 };
+
+      let t = 16;
+      frameCallback!(t);
+      for (let i = 0; i < 30; i++) {
+        t += 16;
+        frameCallback!(t);
+      }
+
+      expect(activeHitSplatters.value.some((s) => s.color === '#8e3dd9')).toBe(true);
+      expect(activePuffs.value.some((p) => p.id === target.id)).toBe(false);
+    });
+
+    it('greenSlimeDefeated-startsAGreenSplatterAlongsideTheExistingDefeatPuff', () => {
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+      render(<PlatformerPage />);
+      frameCallback!(0);
+
+      const target = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
+      playerState.value = { ...playerState.value, x: target.x, y: stompLandingY(target), vy: 300 };
+
+      let t = 16;
+      frameCallback!(t);
+      for (let i = 0; i < 30; i++) {
+        t += 16;
+        frameCallback!(t);
+      }
+
+      expect(activeHitSplatters.value.some((s) => s.color === '#3ddc55')).toBe(true);
+      expect(activePuffs.value.some((p) => p.id === target.id)).toBe(true);
+    });
+
+    it('splatterEffect-afterItsDuration-isRemovedFromActiveHitSplatters', () => {
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+      render(<PlatformerPage />);
+      frameCallback!(0);
+
+      currentLayout.value = ['S^', 'GG'];
+      const hazard = hazardPlacements.value[0];
+      playerState.value = { ...playerState.value, x: hazard.x, y: hazard.y, vx: 0, vy: 0 };
+      frameCallback!(16);
+      expect(activeHitSplatters.value.length).toBeGreaterThan(0);
+
+      // Advance well past HIT_SPLATTER_DURATION_SECONDS (0.6s) but still
+      // under PLAYER_HIT_REACTION_SECONDS (1.2s) — GameLoop's MAX_DT caps
+      // any single tick's dt at 1/30s regardless of the timestamp jump, so
+      // this steps through many small ticks (same convention as the
+      // 'activePuff-tick-elapsesAndEventuallyClearsItself' test above)
+      // rather than one big jump; staying under the invulnerability window
+      // avoids the still-standing player taking a second hazard hit and
+      // starting a fresh, not-yet-expired splatter.
+      let t = 16;
+      const totalMs = (HIT_SPLATTER_DURATION_SECONDS + 0.2) * 1000;
+      for (let elapsed = 0; elapsed < totalMs; elapsed += 16) {
+        t += 16;
+        frameCallback!(t);
+      }
+
+      expect(activeHitSplatters.value.length).toBe(0);
+    });
+  });
+
+  describe('low-health glow', () => {
+    it('criticalHealth-drawsLowHealthGlowBorder', async () => {
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+      render(<PlatformerPage />);
+      const ctx = platformerPage.context;
+      // The glow only draws while 'playing' — force past the 'intro' iris
+      // animation (mirrors the established convention elsewhere in this
+      // file, e.g. 'jKeyPressed-whilePlaying-opensJournalAndPausesLoop')
+      // rather than ticking ~2.15s of real 'intro' duration.
+      frameCallback!(0);
+      lifecycleState.value = { ...lifecycleState.value, phase: 'playing' };
+      playerState.value = { ...playerState.value, hitPoints: 1 };
+      frameCallback!(16);
+
+      await waitFor(() =>
+        expect(
+          ctx.fillRect.mock.calls.some((call: number[]) => call[2] === LOW_HEALTH_GLOW_WIDTH_PX),
+        ).toBe(true),
+      );
+    });
+
+    it('fullHealth-doesNotDrawLowHealthGlowBorder', () => {
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+      render(<PlatformerPage />);
+      const ctx = platformerPage.context;
+      frameCallback!(16);
+
+      expect(ctx.fillRect.mock.calls.some((call: number[]) => call[2] === LOW_HEALTH_GLOW_WIDTH_PX)).toBe(
+        false,
+      );
+    });
+
+    it('criticalHealthButJournalOpen-doesNotDrawLowHealthGlowBorder', () => {
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+      render(<PlatformerPage />);
+      const ctx = platformerPage.context;
+      playerState.value = { ...playerState.value, hitPoints: 1 };
+      lifecycleState.value = pauseForJournal(lifecycleState.value);
+      frameCallback!(16);
+      ctx.fillRect.mockClear();
+      frameCallback!(32);
+
+      expect(ctx.fillRect.mock.calls.some((call: number[]) => call[2] === LOW_HEALTH_GLOW_WIDTH_PX)).toBe(
+        false,
+      );
     });
   });
 });

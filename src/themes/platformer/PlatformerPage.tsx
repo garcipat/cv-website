@@ -27,6 +27,8 @@ import {
   drawKeyPickups,
   drawHeartPickups,
   drawHealAuraEffects,
+  drawHitSplatterEffects,
+  drawLowHealthGlow,
   drawHazards,
   drawKeyCounter,
   keyCounterX,
@@ -96,6 +98,10 @@ import {
   tickHealAuraEffect,
   HEAL_AURA_DURATION_SECONDS,
   SPARKLE_DURATION_SECONDS,
+  startPlayerHitSplatter,
+  startEnemyHitSplatter,
+  tickHitSplatterEffect,
+  HIT_SPLATTER_DURATION_SECONDS,
 } from './engine/CollectionEffects';
 import { coinFrameSource, COIN_FRAME_SIZE } from './entities/Coin';
 import { fruitFrameSource, FRUIT_FRAME_SIZE } from './entities/Fruit';
@@ -132,12 +138,13 @@ import {
 import { frameSource, collectSheetSources } from './entities/sprites/SpriteSheet';
 import type { SpriteLookup } from './entities/sprites/SpriteSheet';
 import { ENEMY_TYPES, typeOf } from './entities/enemies';
+import type { EnemyTypeKey } from './entities/enemies';
 import { HAZARD_TYPES } from './entities/hazards';
 import { PICKUP_TYPES } from './entities/pickups';
 import { BLOCK_TYPES } from './entities/blocks';
 import { CHEST_TYPE } from './entities/chests';
 import type { EnemyState } from './entities/Enemy';
-import { takeDamage, healDamage, PIT_FALL_DAMAGE, HEART_PICKUP_HEAL_AMOUNT } from './entities/Health';
+import { takeDamage, healDamage, PIT_FALL_DAMAGE, HEART_PICKUP_HEAL_AMOUNT, isHealthCritical } from './entities/Health';
 import { revealedFactCountFor } from './level/SkillFactPacing';
 import {
   playerState,
@@ -170,6 +177,7 @@ import {
   heartPickupStates,
   activePuffs,
   activeHealAuraEffects,
+  activeHitSplatters,
   levelTotals,
 } from './PlatformerState';
 import { useSignals } from '@preact/signals-react/runtime';
@@ -615,6 +623,7 @@ export const PlatformerPage = () => {
 
       drawCollectionEffects(ctx, activeEffects.value);
       drawPuffEffects(ctx, activePuffs.value);
+      drawHitSplatterEffects(ctx, activeHitSplatters.value);
 
       // Trial counter popups (see activeCounterPopups's doc comment in
       // PlatformerState.ts): drawn above
@@ -705,6 +714,10 @@ export const PlatformerPage = () => {
           levelTotals.value.chests,
         );
         drawKeyCounter(ctx, keySpriteRef.current, collectedKeys.value, keyX, KEY_COUNTER_Y);
+      }
+
+      if (lifecycleState.value.phase === 'playing' && isHealthCritical(playerState.value.hitPoints)) {
+        drawLowHealthGlow(ctx, canvas.width, canvas.height, worldAnimElapsed);
       }
 
       // Iris overlay: drawn on top of everything else whenever the current
@@ -1001,6 +1014,10 @@ export const PlatformerPage = () => {
         .map((aura) => tickHealAuraEffect(aura, dt))
         .filter((aura) => aura.elapsed <= HEAL_AURA_DURATION_SECONDS);
 
+      activeHitSplatters.value = activeHitSplatters.value
+        .map((splatter) => tickHitSplatterEffect(splatter, dt))
+        .filter((splatter) => splatter.elapsed <= HIT_SPLATTER_DURATION_SECONDS);
+
       const tickedPopups = { ...activeCounterPopups.value };
       let popupsChanged = false;
       for (const key of Object.keys(tickedPopups) as Array<keyof typeof tickedPopups>) {
@@ -1275,6 +1292,25 @@ export const PlatformerPage = () => {
       const contacts = resolveEnemyContacts(playerState.value, enemyStates.value);
       enemyStates.value = contacts.enemies;
 
+      if (contacts.damagedEnemyIds.length > 0) {
+        const newHitSplatters = [...activeHitSplatters.value];
+        for (const id of contacts.damagedEnemyIds) {
+          const enemy = contacts.enemies.find((e) => e.id === id);
+          if (!enemy) continue;
+          const anchor = enemyEffectAnchor(enemy);
+          const topY = typeOf(enemy).box(enemy).y + originY;
+          newHitSplatters.push(
+            startEnemyHitSplatter(
+              `${id}-${newHitSplatters.length}`,
+              anchor.x + originX,
+              topY,
+              enemy.type as EnemyTypeKey,
+            ),
+          );
+        }
+        activeHitSplatters.value = newHitSplatters;
+      }
+
       if (contacts.bounceVelocity !== undefined) {
         playerState.value = {
           ...playerState.value,
@@ -1311,6 +1347,21 @@ export const PlatformerPage = () => {
             bounceAscending: true,
           };
         }
+
+        // No splatter on the hit that kills the character — the death
+        // transition (GameLifecycle.ts's iris-out) is centered and timed
+        // around the character's own sprite, and a burst of debris starting
+        // at that same instant reads as covering it up rather than as
+        // impact feedback.
+        if (hitPoints > 0) {
+          const contactSide = -contacts.knockbackDirection as -1 | 1;
+          const playerCenterX = playerState.value.x + PLAYER_RENDERED_SIZE / 2 + originX;
+          const playerCenterY = playerState.value.y + PLAYER_VISUAL_CENTER_Y_OFFSET + originY;
+          activeHitSplatters.value = [
+            ...activeHitSplatters.value,
+            startPlayerHitSplatter(`player-${activeHitSplatters.value.length}`, playerCenterX, playerCenterY, contactSide),
+          ];
+        }
       }
 
       // Spike hazards: an entirely separate, independent damage source from
@@ -1335,6 +1386,18 @@ export const PlatformerPage = () => {
         // player is standing on/beside the spike's own tile, not colliding
         // with a separate solid body.
         playerState.value = beginHitReaction(playerState.value);
+
+        // No splatter on the hit that kills the character — see the same
+        // guard on the enemy-contact site above.
+        if (hitPoints > 0) {
+          const contactSide: -1 | 1 = hazard.x >= playerState.value.x ? 1 : -1;
+          const playerCenterX = playerState.value.x + PLAYER_RENDERED_SIZE / 2 + originX;
+          const playerCenterY = playerState.value.y + PLAYER_VISUAL_CENTER_Y_OFFSET + originY;
+          activeHitSplatters.value = [
+            ...activeHitSplatters.value,
+            startPlayerHitSplatter(`player-${activeHitSplatters.value.length}`, playerCenterX, playerCenterY, contactSide),
+          ];
+        }
       }
 
       // A/D accepted as an alternate to Arrow Left/Right (FR-007 only
@@ -1537,6 +1600,17 @@ export const PlatformerPage = () => {
           const hitPoints = takeDamage(next.hitPoints, PIT_FALL_DAMAGE);
           next = { ...next, hitPoints, alive: hitPoints > 0 };
           next = beginHitReaction(next);
+          // No clear contact side (spec.md FR-001's edge case) — anchored
+          // at center. No splatter on the hit that kills the character —
+          // see the same guard on the enemy-contact site above.
+          if (hitPoints > 0) {
+            const playerCenterX = next.x + PLAYER_RENDERED_SIZE / 2 + originX;
+            const playerCenterY = next.y + PLAYER_VISUAL_CENTER_Y_OFFSET + originY;
+            activeHitSplatters.value = [
+              ...activeHitSplatters.value,
+              startPlayerHitSplatter(`player-${activeHitSplatters.value.length}`, playerCenterX, playerCenterY, 0),
+            ];
+          }
         }
         next = resolvePitFall(next);
       }

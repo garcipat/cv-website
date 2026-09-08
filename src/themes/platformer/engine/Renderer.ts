@@ -70,8 +70,9 @@ import {
   healAuraOpacity,
   healAuraRays,
   healAuraSparkles,
+  hitSplatterDroplets,
 } from './CollectionEffects';
-import type { FlightEffect, PuffEffect, HealAuraEffect } from './CollectionEffects';
+import type { FlightEffect, PuffEffect, HealAuraEffect, HitSplatterEffect } from './CollectionEffects';
 
 function tileSource(
   level: LevelDef,
@@ -1093,6 +1094,94 @@ export function drawHealAuraEffects(
       ctx.restore();
     }
   }
+}
+
+const HIT_SPLATTER_DROPLET_SIZE_PX = 4;
+
+/** Draws every active hit splatter — one small filled square per droplet,
+ *  colored per-effect (red for the player, goo-green/purple for an enemy —
+ *  see CollectionEffects.ts's startPlayerHitSplatter/startEnemyHitSplatter).
+ *  Screen-space, fixed per-effect x/y, same convention as drawPuffEffects. */
+export function drawHitSplatterEffects(
+  ctx: CanvasRenderingContext2D,
+  effects: readonly HitSplatterEffect[],
+): void {
+  for (const effect of effects) {
+    for (const droplet of hitSplatterDroplets(effect)) {
+      if (droplet.opacity <= 0) continue;
+      ctx.save();
+      ctx.globalAlpha = droplet.opacity;
+      ctx.fillStyle = effect.color;
+      ctx.fillRect(
+        effect.x + droplet.dx - HIT_SPLATTER_DROPLET_SIZE_PX / 2,
+        effect.y + droplet.dy - HIT_SPLATTER_DROPLET_SIZE_PX / 2,
+        HIT_SPLATTER_DROPLET_SIZE_PX,
+        HIT_SPLATTER_DROPLET_SIZE_PX,
+      );
+      ctx.restore();
+    }
+  }
+}
+
+/** Border thickness of the low-health glow, in canvas px — a fixed HUD-style
+ *  size, not scaled to canvas width/height (same convention as the fixed-size
+ *  heart/journal HUD icons). */
+export const LOW_HEALTH_GLOW_WIDTH_PX = 18;
+/** Full breathe-in/breathe-out cycle length for the pulse. */
+export const LOW_HEALTH_GLOW_PULSE_PERIOD_SECONDS = 1.4;
+const LOW_HEALTH_GLOW_BASE_ALPHA = 0.25;
+const LOW_HEALTH_GLOW_PULSE_ALPHA = 0.45;
+const LOW_HEALTH_GLOW_COLOR = '#ff1f1f';
+
+/** 0..1 sine breathing curve mapped to [BASE, BASE+PULSE] alpha, driven by a
+ *  plain elapsed-seconds counter (not tied to any one effect's lifetime —
+ *  the glow is ambient and open-ended for as long as health stays critical,
+ *  see PlatformerPage.tsx's `worldAnimElapsed`). */
+export function lowHealthGlowAlpha(elapsedSeconds: number): number {
+  const pulse = (Math.sin((elapsedSeconds / LOW_HEALTH_GLOW_PULSE_PERIOD_SECONDS) * Math.PI * 2) + 1) / 2;
+  return LOW_HEALTH_GLOW_BASE_ALPHA + pulse * LOW_HEALTH_GLOW_PULSE_ALPHA;
+}
+
+/** Draws a soft red glow pulsing inward from all four canvas edges — the
+ *  low-health warning (spec.md FR-007/FR-008). The caller gates WHETHER
+ *  this is called at all (critical health, live gameplay only); this
+ *  function only draws, unconditionally, whenever it's invoked. */
+export function drawLowHealthGlow(
+  ctx: CanvasRenderingContext2D,
+  canvasWidth: number,
+  canvasHeight: number,
+  elapsedSeconds: number,
+): void {
+  const alpha = lowHealthGlowAlpha(elapsedSeconds);
+  const w = LOW_HEALTH_GLOW_WIDTH_PX;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+
+  const left = ctx.createLinearGradient(0, 0, w, 0);
+  left.addColorStop(0, LOW_HEALTH_GLOW_COLOR);
+  left.addColorStop(1, 'rgba(255,31,31,0)');
+  ctx.fillStyle = left;
+  ctx.fillRect(0, 0, w, canvasHeight);
+
+  const right = ctx.createLinearGradient(canvasWidth, 0, canvasWidth - w, 0);
+  right.addColorStop(0, LOW_HEALTH_GLOW_COLOR);
+  right.addColorStop(1, 'rgba(255,31,31,0)');
+  ctx.fillStyle = right;
+  ctx.fillRect(canvasWidth - w, 0, w, canvasHeight);
+
+  const top = ctx.createLinearGradient(0, 0, 0, w);
+  top.addColorStop(0, LOW_HEALTH_GLOW_COLOR);
+  top.addColorStop(1, 'rgba(255,31,31,0)');
+  ctx.fillStyle = top;
+  ctx.fillRect(0, 0, canvasWidth, w);
+
+  const bottom = ctx.createLinearGradient(0, canvasHeight, 0, canvasHeight - w);
+  bottom.addColorStop(0, LOW_HEALTH_GLOW_COLOR);
+  bottom.addColorStop(1, 'rgba(255,31,31,0)');
+  ctx.fillStyle = bottom;
+  ctx.fillRect(0, canvasHeight - w, canvasWidth, w);
+
+  ctx.restore();
 }
 
 /** Outline color used behind every "collected" HUD counter's text below —
