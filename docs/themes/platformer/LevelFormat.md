@@ -78,6 +78,7 @@ of the raw layout by the `find*` functions in `LevelParser.ts`.
 | `c` | `crystalCluster` | Decorative, non-solid cave dressing. Single fixed sprite. |
 | `⊤` | `stalactite` | Decorative, non-solid cave dressing. Size variant (large/twin) picked by position hash. |
 | `⊥` | `stalagmite` | Decorative, non-solid cave dressing. Size variant (large/twin) picked by position hash. |
+| `¥` | `torch` | Decorative, non-solid cave dressing. Its flame animates through a 4-frame sparkle loop; each cell's phase is derived from its grid position plus the shared world clock (`engine/Torch.ts`). |
 
 Decorative tiles never form multi-tile runs and carry no CV-data mapping. The two
 invisible kinds — `patrol` and `blueprintConnectionPoint` — still occupy the cell, so

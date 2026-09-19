@@ -36,6 +36,7 @@ export const TERRAIN_CHARS: Record<string, TileType | undefined> = {
   c: 'crystalCluster',
   '⊤': 'stalactite',
   '⊥': 'stalagmite',
+  '¥': 'torch',
 };
 
 /**
@@ -178,6 +179,7 @@ export type TileChar =
   | 'c'
   | '⊤'
   | '⊥'
+  | '¥'
   | '1'
   | '2'
   | '3'
@@ -197,21 +199,35 @@ export type TileChar =
  * this parser testable independently of any specific level's real data.
  * Entity markers resolve to `empty` terrain here — use findSpawnTile/
  * findGreenEnemyTiles/findPurpleEnemyTiles below to read their positions.
+ *
+ * An unrecognized character is skipped (treated as `empty`) and logged via
+ * `console.warn` once per distinct character, rather than throwing. A level
+ * authored against a newer palette (or a hand-edited layout with a typo)
+ * should still load and play — a single stray character must not turn the
+ * whole canvas blue — and the warning is what surfaces it to the author.
  */
 export function parseLevel(layout: readonly string[]): LevelDef {
   const height = layout.length;
   const width = layout.reduce((max, row) => Math.max(max, row.length), 0);
+  const unknownChars = new Set<string>();
 
   const terrain: TileMap = layout.map((row) => {
     const chars = row.split('').map((char) => {
       const tile = TERRAIN_CHARS[char];
       if (tile) return tile;
       if (ENTITY_CHARS[char] || SIGN_CHARS[char] || HAZARD_CHARS[char]) return 'empty';
-      throw new Error(`Unknown level tile character: "${char}"`);
+      unknownChars.add(char);
+      return 'empty';
     });
     while (chars.length < width) chars.push('empty');
     return chars;
   });
+
+  if (unknownChars.size > 0) {
+    console.warn(
+      `Skipping unknown level tile character(s): ${[...unknownChars].map((c) => `"${c}"`).join(', ')}`,
+    );
+  }
 
   return { terrain, width, height };
 }

@@ -1897,6 +1897,58 @@ describe('drawTerrain — cave decorations', () => {
   });
 });
 
+describe('drawTerrain — torch', () => {
+  const fakeTorch = {} as HTMLImageElement;
+
+  it('torchTile-loaded-drawsItsFrameBottomAlignedAndCentred', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = { terrain: [['torch']], width: 1, height: 1 };
+
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, null, fakeTorch, 0);
+
+    // (0,0) hashes to phase 0, so frame 0 (sx 0, sy 0) of torch.png draws.
+    // The 12x14 frame is centred horizontally (TORCH_INSET_X=2 -> 4 rendered
+    // px) and bottom-aligned ((16-14)*2 = 4 rendered px down), scaled 2x to
+    // 24x28.
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeTorch, 0, 0, 12, 14,
+      4, 4, 24, 28,
+    );
+  });
+
+  it('largerWorldElapsed-advancesToTheNextFrame', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = { terrain: [['torch']], width: 1, height: 1 };
+
+    // 0.2s is exactly one TORCH_FRAME_DURATION_SECONDS, so (0,0) advances from
+    // frame 0 to frame 1 — a 12px stride along the strip.
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, null, fakeTorch, 0.2);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeTorch, 12, 0, 12, 14,
+      4, 4, 24, 28,
+    );
+  });
+
+  it('torchNotLoaded-drawsNothingButOtherTerrainStillRenders', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = { terrain: [['torch', 'wall']], width: 2, height: 1 };
+
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, null, null, 0);
+
+    // wall (sx: 8*16=128, sy: 0) still draws from the tileset.
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeTileset, 128, 0, 16, 16,
+      32, 0, 32, 32,
+    );
+    // The unloaded torch contributes no drawImage call at all.
+    expect(ctx.drawImage).not.toHaveBeenCalledWith(
+      fakeTorch, expect.anything(), expect.anything(), 12, 14,
+      expect.anything(), expect.anything(), expect.anything(), expect.anything(),
+    );
+  });
+});
+
 describe('drawPlayer', () => {
   const fakeSpriteSheet = {} as HTMLImageElement;
   const idlePlayer: PlayerState = {

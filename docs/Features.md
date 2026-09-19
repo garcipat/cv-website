@@ -42,6 +42,7 @@
 - [ ] **O-007** **Platformer Level Selection** — Visitor-facing level choice and `?level=` URL loading, instead of always loading `main`
 - [ ] **O-008** **Platformer Audio** — Background music and sound effects, muted by default (not committed)
 - [x] **O-009** **Platformer Background Image Layers** — Illustrated parallax backdrop (sky, clouds, village, grass) replacing the procedural sky
+- [x] **O-013** **Platformer Wall Torches** — Decorative, non-solid wall torches whose flames sparkle through a 4-frame loop, each cell flickering out of phase based on its grid position
 
 - _TBD_
 
@@ -82,6 +83,7 @@
 | O-007 | Platformer level selection | 📋 Planned  | [spec](../specs/O-007-platformer-level-selection/spec.md) | ❌ | ❌ |
 | O-008 | Platformer audio        | 📋 Planned     | [spec](../specs/O-008-platformer-audio/spec.md) | ❌ | ❌ |
 | O-009 | Platformer background image layers | ✅ Done | [spec](../specs/O-009-platformer-background-layers/spec.md) / [design](../specs/O-009-platformer-background-layers/design.md) | ✅ | ✅ |
+| O-013 | Platformer wall torches | ✅ Done | [spec](../specs/O-013-platformer-wall-torches/spec.md) | ✅ | ✅ |
 
 ---
 
@@ -136,6 +138,7 @@ graph RL
         O007["O-007: Level Selection"]
         O008["O-008: Audio"]
         O009["✅ O-009: Background Image Layers"]
+        O013["✅ O-013: Wall Torches"]
     end
 
     F003 --> F002
@@ -189,6 +192,7 @@ graph RL
     O008 --> F015
     O009 --> F015
     O001 --> F015
+    O013 --> F015
 
     classDef done stroke:#FFD600,stroke-width:3px
     classDef projectSetup fill:#1565C0,color:#ffffff
@@ -213,9 +217,10 @@ graph RL
     class S002,S005,O001 enhancements
     class O001 done
     class S005 done
-    class F015,F016,F017,F018,S007,S008,S009,S010,O003,O004,O005,O008,O009 themes
+    class F015,F016,F017,F018,S007,S008,S009,S010,O003,O004,O005,O008,O009,O013 themes
     class F019,O006,O007 enhancements
     class F015,F016,F017,F018,F019,S007,S008,S009,S010,O004,O005,O009 done
+    class O013 done
 ```
 
 **Critical Path**: F-001 → F-012 → F-013 → F-002 → F-014 (foundation → theme system → multilanguage → data model → IDE theme, then Space and Terminal themes)
