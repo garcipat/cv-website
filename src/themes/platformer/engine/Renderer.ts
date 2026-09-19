@@ -64,6 +64,16 @@ import { BLOCK_TYPES } from '../entities/blocks';
 import { CHEST_TYPE } from '../entities/chests';
 import { CHEST_CLOSED_WIDTH, CHEST_CLOSED_HEIGHT } from '../entities/Chest';
 import type { ChestState } from '../entities/Chest';
+import {
+  CHECKPOINT_FLAG_SHEET,
+  CHECKPOINT_FRAME_WIDTH,
+  CHECKPOINT_FRAME_HEIGHT,
+  CHECKPOINT_RENDERED_WIDTH,
+  CHECKPOINT_RENDERED_HEIGHT,
+  checkpointFrameIndex,
+} from '../entities/Checkpoint';
+import type { CheckpointState } from '../entities/Checkpoint';
+import { frameSource } from '../entities/sprites/SpriteSheet';
 import type { BonusFruitState } from '../entities/BonusFruit';
 import {
   flightEffectPosition,
@@ -72,8 +82,9 @@ import {
   healAuraRays,
   healAuraSparkles,
   hitSplatterDroplets,
+  fadeOutTextOpacity,
 } from './CollectionEffects';
-import type { FlightEffect, PuffEffect, HealAuraEffect, HitSplatterEffect } from './CollectionEffects';
+import type { FlightEffect, PuffEffect, HealAuraEffect, HitSplatterEffect, FadeOutTextEffect } from './CollectionEffects';
 
 function tileSource(
   level: LevelDef,
@@ -966,6 +977,145 @@ export function drawChests(
   }
 }
 
+const CHECKPOINT_TWINKLE_COLOR = '#ffe9a8';
+/** Seconds per twinkle blink. */
+const CHECKPOINT_TWINKLE_PERIOD_SECONDS = 1.1;
+/** Arm length of one twinkle plus, in native px (1 -> a 3x3 plus). */
+const CHECKPOINT_TWINKLE_ARM = 1;
+/** Fixed twinkle spots, in screen px relative to the flag art's drawn
+ *  top-left, each with its own phase so they don't blink in unison. Kept few
+ *  and near the flag so the active marker stays subtle. */
+const CHECKPOINT_TWINKLE_SPOTS: readonly { dx: number; dy: number; phase: number }[] = [
+  { dx: 16, dy: -5, phase: 0 },
+  { dx: 30, dy: 9, phase: 0.45 },
+  { dx: 2, dy: 15, phase: 0.75 },
+];
+
+/** Draws one small pixel-art sparkle — an integer-aligned plus of native
+ *  pixels — so it stays crisp against the game's pixel art. */
+function drawPixelSparkle(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  arm: number,
+  color: string,
+  alpha: number,
+): void {
+  const s = RENDER_SCALE;
+  const nx = Math.round(cx / s) * s;
+  const ny = Math.round(cy / s) * s;
+  const a = arm * s;
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = color;
+  ctx.fillRect(nx - a, ny, a * 2 + s, s);
+  ctx.fillRect(nx, ny - a, s, a * 2 + s);
+}
+
+/**
+ * Draws the subtle pixel-art twinkles marking the active respawn target
+ * (FR-021). A rendered pass rather than a sprite frame, so exactly one
+ * checkpoint — the one whose id matches `activeCheckpointId` — twinkles while
+ * every touched flag still reads as raised. Each spot blinks on its own phase
+ * from the shared world clock (so it freezes with the rest of the world
+ * during death/pause). Draws nothing when `isActive` is false.
+ */
+export function drawCheckpointTwinkles(
+  state: CheckpointState,
+  dc: DrawContext,
+  isActive: boolean,
+): void {
+  if (!isActive) return;
+  const { ctx } = dc;
+  const flagX = state.x + dc.originX + (RENDERED_TILE_SIZE - CHECKPOINT_RENDERED_WIDTH) / 2;
+  const flagY = state.y + dc.originY + RENDERED_TILE_SIZE - CHECKPOINT_RENDERED_HEIGHT;
+
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  for (const spot of CHECKPOINT_TWINKLE_SPOTS) {
+    const t = dc.worldElapsed / CHECKPOINT_TWINKLE_PERIOD_SECONDS + spot.phase;
+    const wave = (Math.sin(t * Math.PI * 2) + 1) / 2;
+    drawPixelSparkle(
+      ctx,
+      flagX + spot.dx,
+      flagY + spot.dy,
+      CHECKPOINT_TWINKLE_ARM,
+      CHECKPOINT_TWINKLE_COLOR,
+      0.25 + 0.75 * wave,
+    );
+  }
+  ctx.restore();
+}
+
+/**
+ * Draws every checkpoint flag. A checkpoint is never removed, so nothing is
+ * skipped — the frame comes from the state's derived raise index (frame 0
+ * dormant, advancing to frame 3 as the shared clock passes
+ * `activatedAt`). The flag is bottom-anchored and centred on its tile
+ * (its art is taller than a cell). The active target's twinkles are drawn
+ * after its flag, so they sit on top (FR-021).
+ */
+export function drawCheckpoints(
+  ctx: CanvasRenderingContext2D,
+  states: readonly CheckpointState[],
+  image: HTMLImageElement | null,
+  activeCheckpointId: string | null,
+  dc: DrawContext,
+): void {
+  if (!image) return;
+  ctx.imageSmoothingEnabled = false;
+
+  for (const state of states) {
+    const frame = checkpointFrameIndex(state, dc.worldElapsed);
+    const { sx } = frameSource(CHECKPOINT_FLAG_SHEET, frame);
+    const destX = state.x + dc.originX + (RENDERED_TILE_SIZE - CHECKPOINT_RENDERED_WIDTH) / 2;
+    const destY = state.y + dc.originY + RENDERED_TILE_SIZE - CHECKPOINT_RENDERED_HEIGHT;
+    ctx.drawImage(
+      image,
+      sx,
+      0,
+      CHECKPOINT_FRAME_WIDTH,
+      CHECKPOINT_FRAME_HEIGHT,
+      destX,
+      destY,
+      CHECKPOINT_RENDERED_WIDTH,
+      CHECKPOINT_RENDERED_HEIGHT,
+    );
+
+    drawCheckpointTwinkles(state, dc, state.id === activeCheckpointId);
+  }
+}
+
+/** Font size of a fading world-anchored label — a touch smaller than the
+ *  collection-effect text so it reads as localized rather than a reward. */
+const FADE_OUT_TEXT_FONT_SIZE = 16;
+
+/**
+ * Draws every currently-fading world-anchored label in place (FR-022). Each
+ * effect carries its own already-localized `text`, so this pass takes no
+ * string argument — the checkpoint activation label is simply its first user.
+ * World-space x/y are shifted by the camera origin; the fade opacity comes
+ * from `fadeOutTextOpacity`, and an expired effect draws nothing.
+ */
+export function drawFadeOutTexts(
+  ctx: CanvasRenderingContext2D,
+  effects: readonly FadeOutTextEffect[],
+  dc: DrawContext,
+): void {
+  for (const effect of effects) {
+    const opacity = fadeOutTextOpacity(effect.elapsed);
+    if (opacity <= 0) continue;
+
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    ctx.fillStyle = '#fff';
+    ctx.font = `${FADE_OUT_TEXT_FONT_SIZE}px "${RESTART_PROMPT_FONT_FAMILY}", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    fillTextWithOutline(ctx, effect.text, effect.x + dc.originX, effect.y + dc.originY);
+    ctx.restore();
+  }
+}
+
 /** Draws every question-mark block's spawned bonus fruit — each one renders
  *  itself (see entities/pickups/BonusFruit.ts). */
 export function drawBonusFruits(
@@ -983,22 +1133,48 @@ const COLLECTION_EFFECT_FONT_SIZE = 28;
 const COLLECTION_EFFECT_ICON_FONT_SIZE = 20;
 const COLLECTION_EFFECT_ICON_GAP = 6;
 const SPARKLE_RADIUS_PX = 3;
+/** Screen-px side of one pixel-art burst square (2 native px) and its warm
+ *  gold colour — the pixel burst reads as a few crisp pixels rather than the
+ *  soft white dots the enemy/block puffs use. */
+const SPARKLE_PIXEL_SIZE = 4;
+const SPARKLE_PIXEL_COLOR = '#ffe9a8';
 
-/** Draws one sparkle burst — a ring of small fading dots radiating outward
- *  from (x, y) — called only by drawPuffEffects (a standalone world-event
- *  puff, whose scale varies with the entity that caused it). A flight effect
- *  (drawCollectionEffects) shows only its flying text and never a sparkle —
- *  sparkle is exclusively PuffEffect's concern, decoupled from CV-fact
- *  collection. This stays the one place that draws a sparkle ring, so the
- *  visual can't drift if a future call site needs one too. */
+/** Draws one sparkle burst — a ring of small fading particles radiating
+ *  outward from (x, y) — called only by drawPuffEffects (a standalone
+ *  world-event puff, whose scale varies with the entity that caused it). A
+ *  flight effect (drawCollectionEffects) shows only its flying text and never
+ *  a sparkle — sparkle is exclusively PuffEffect's concern, decoupled from
+ *  CV-fact collection. This stays the one place that draws a sparkle ring, so
+ *  the visual can't drift if a future call site needs one too. `pixel` swaps
+ *  the soft anti-aliased dots for small integer-aligned pixel squares; the
+ *  checkpoint's activation burst uses it so it matches the game's pixel art. */
 function drawSparkleBurst(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
   elapsedSinceCollect: number,
   scale = 1,
+  pixel = false,
 ): void {
-  for (const sparkle of sparkleParticles(elapsedSinceCollect, scale)) {
+  const particles = sparkleParticles(elapsedSinceCollect, scale);
+  if (pixel) {
+    const half = SPARKLE_PIXEL_SIZE / 2;
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.fillStyle = SPARKLE_PIXEL_COLOR;
+    for (const sparkle of particles) {
+      ctx.globalAlpha = sparkle.opacity;
+      ctx.fillRect(
+        Math.round(x + sparkle.dx - half),
+        Math.round(y + sparkle.dy - half),
+        SPARKLE_PIXEL_SIZE,
+        SPARKLE_PIXEL_SIZE,
+      );
+    }
+    ctx.restore();
+    return;
+  }
+  for (const sparkle of particles) {
     ctx.save();
     ctx.globalAlpha = sparkle.opacity;
     ctx.fillStyle = '#fff';
@@ -1043,7 +1219,7 @@ export function drawCollectionEffects(ctx: CanvasRenderingContext2D, effects: Fl
  *  no-camera-offset convention as drawCollectionEffects. */
 export function drawPuffEffects(ctx: CanvasRenderingContext2D, effects: PuffEffect[]): void {
   for (const effect of effects) {
-    drawSparkleBurst(ctx, effect.x, effect.y, effect.elapsed, effect.scale);
+    drawSparkleBurst(ctx, effect.x, effect.y, effect.elapsed, effect.scale, effect.pixel);
   }
 }
 

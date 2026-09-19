@@ -34,6 +34,8 @@ import {
   lowHealthGlowAlpha,
   LOW_HEALTH_GLOW_WIDTH_PX,
   LOW_HEALTH_GLOW_PULSE_PERIOD_SECONDS,
+  drawCheckpoints,
+  drawFadeOutTexts,
 } from './Renderer';
 import type { LevelDef, BackgroundPieceId } from '../level/LevelData';
 import { parseLevel } from '../level/LevelParser';
@@ -41,7 +43,7 @@ import type { SignPlacement } from '../level/SignMapper';
 import type { PlayerState } from '../entities/Player';
 import { PLAYER_RENDERED_SIZE, PLAYER_HIT_REACTION_SECONDS } from '../entities/Player';
 import { MAX_HALF_HEARTS, HEART_RENDERED_SIZE } from '../entities/Health';
-import { startFlightEffect, tickFlightEffect, RISE_DURATION_SECONDS, SPARKLE_DURATION_SECONDS, startPuffEffect, tickPuffEffect, startHealAuraEffect, HEAL_AURA_DURATION_SECONDS, startPlayerHitSplatter, startEnemyHitSplatter, tickHitSplatterEffect } from './CollectionEffects';
+import { startFlightEffect, tickFlightEffect, RISE_DURATION_SECONDS, SPARKLE_DURATION_SECONDS, startPuffEffect, tickPuffEffect, startHealAuraEffect, HEAL_AURA_DURATION_SECONDS, startPlayerHitSplatter, startEnemyHitSplatter, tickHitSplatterEffect, startFadeOutTextEffect, tickFadeOutTextEffect, FADE_OUT_TEXT_DURATION_SECONDS } from './CollectionEffects';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
 import type { BlockPlacement } from '../level/BlockMapper';
 import { toBlockState, blockFrameSource } from '../entities/Block';
@@ -100,6 +102,16 @@ import type { ChestPlacement } from '../level/ChestMapper';
 import { CHEST_CLOSED_SHEET, CHEST_OPEN_SHEET } from '../entities/sprites/sheets';
 import { spike } from '../entities/hazards/Spike';
 import type { HazardPlacement } from '../level/HazardMapper';
+import {
+  toCheckpointState,
+  activateCheckpoint,
+  CHECKPOINT_FRAME_WIDTH,
+  CHECKPOINT_FRAME_HEIGHT,
+  CHECKPOINT_RENDERED_WIDTH,
+  CHECKPOINT_RENDERED_HEIGHT,
+  CHECKPOINT_RAISE_DURATION_SECONDS,
+} from '../entities/Checkpoint';
+import type { CheckpointState } from '../entities/Checkpoint';
 
 function makeMockContext() {
   return {
@@ -2841,5 +2853,115 @@ describe('drawBackgroundTiles', () => {
       drawBackgroundTiles(ctx as unknown as CanvasRenderingContext2D, level, {} as HTMLImageElement),
     ).not.toThrow();
     expect(ctx.drawImage).toHaveBeenCalledTimes(1);
+  });
+});
+
+function makeCheckpoint(id: string, x: number, y: number): CheckpointState {
+  return toCheckpointState({ id, col: 0, row: 0, x, y });
+}
+
+describe('drawCheckpoints', () => {
+  const image = {} as HTMLImageElement;
+
+  it('dormantState-drawsTheDormantFrameBottomAnchoredAndCentredOnItsTile', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D, { originX: 5, originY: 7 });
+
+    drawCheckpoints(ctx as unknown as CanvasRenderingContext2D, [makeCheckpoint('c', 32, 64)], image, null, dc);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      image,
+      0,
+      0,
+      CHECKPOINT_FRAME_WIDTH,
+      CHECKPOINT_FRAME_HEIGHT,
+      32 + 5,
+      64 + 7 + RENDERED_TILE_SIZE - CHECKPOINT_RENDERED_HEIGHT,
+      CHECKPOINT_RENDERED_WIDTH,
+      CHECKPOINT_RENDERED_HEIGHT,
+    );
+  });
+
+  it('activatedState-drawsTheRaisedFrame', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D, {
+      worldElapsed: CHECKPOINT_RAISE_DURATION_SECONDS,
+    });
+    const state = activateCheckpoint(makeCheckpoint('c', 0, 0), 0);
+
+    drawCheckpoints(ctx as unknown as CanvasRenderingContext2D, [state], image, null, dc);
+
+    // Frame 3 -> sx 48.
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      image,
+      48,
+      0,
+      CHECKPOINT_FRAME_WIDTH,
+      CHECKPOINT_FRAME_HEIGHT,
+      expect.any(Number),
+      expect.any(Number),
+      CHECKPOINT_RENDERED_WIDTH,
+      CHECKPOINT_RENDERED_HEIGHT,
+    );
+  });
+
+  it('activeCheckpointId-drawsTwinklesForItOnly', () => {
+    const ctx = makeMockContext() as unknown as { fillRect: ReturnType<typeof vi.fn> };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
+    const states = [makeCheckpoint('a', 0, 0), makeCheckpoint('b', 32, 0)];
+
+    drawCheckpoints(ctx as unknown as CanvasRenderingContext2D, states, image, 'b', dc);
+
+    // Only the active checkpoint twinkles — 3 spots, two rects each.
+    expect(ctx.fillRect).toHaveBeenCalledTimes(6);
+  });
+
+  it('noActiveCheckpointId-drawsNoTwinkles', () => {
+    const ctx = makeMockContext() as unknown as { fillRect: ReturnType<typeof vi.fn> };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
+
+    drawCheckpoints(ctx as unknown as CanvasRenderingContext2D, [makeCheckpoint('a', 0, 0)], image, null, dc);
+
+    expect(ctx.fillRect).not.toHaveBeenCalled();
+  });
+
+  it('missingImage-drawsNothingRatherThanThrowing', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
+
+    expect(() =>
+      drawCheckpoints(ctx as unknown as CanvasRenderingContext2D, [makeCheckpoint('a', 0, 0)], null, null, dc),
+    ).not.toThrow();
+    expect(ctx.drawImage).not.toHaveBeenCalled();
+  });
+});
+
+describe('drawFadeOutTexts', () => {
+  it('drawsEachEffectsOwnTextAtItsOwnOriginShiftedPosition', () => {
+    const ctx = makeMockContext() as unknown as {
+      fillText: ReturnType<typeof vi.fn>;
+      globalAlpha: number;
+    };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D, { originX: 5, originY: 7 });
+    const a = startFadeOutTextEffect('a', 100, 200, 'Checkpoint');
+    const b = startFadeOutTextEffect('b', 300, 400, 'Kontrollpunkt');
+
+    drawFadeOutTexts(ctx as unknown as CanvasRenderingContext2D, [a, b], dc);
+
+    expect(ctx.fillText).toHaveBeenCalledWith('Checkpoint', 105, 207);
+    expect(ctx.fillText).toHaveBeenCalledWith('Kontrollpunkt', 305, 407);
+  });
+
+  it('anExpiredEffect-drawsNothing', () => {
+    const ctx = makeMockContext() as unknown as { fillText: ReturnType<typeof vi.fn> };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
+    const expired = tickFadeOutTextEffect(
+      startFadeOutTextEffect('a', 0, 0, 'x'),
+      FADE_OUT_TEXT_DURATION_SECONDS + 1,
+    );
+
+    drawFadeOutTexts(ctx as unknown as CanvasRenderingContext2D, [expired], dc);
+
+    expect(ctx.fillText).not.toHaveBeenCalled();
   });
 });

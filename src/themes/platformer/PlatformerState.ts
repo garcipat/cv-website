@@ -11,6 +11,7 @@ import {
   COIN_POT_TILES,
   POTION_POT_TILES,
   CHEST_TILES,
+  CHECKPOINT_TILES,
   SIGN_TILES,
   HAZARD_TILES,
 } from './level/level';
@@ -27,6 +28,8 @@ import { toBlockState, isBlockUsedUp } from './entities/Block';
 import type { BlockState } from './entities/Block';
 import { toChestState } from './entities/Chest';
 import type { ChestState } from './entities/Chest';
+import { toCheckpointState } from './entities/Checkpoint';
+import type { CheckpointState } from './entities/Checkpoint';
 import type { BonusFruitState } from './entities/BonusFruit';
 import type { KeyPickupState } from './entities/KeyPickup';
 import type { HeartPickupState } from './entities/HeartPickup';
@@ -37,6 +40,8 @@ import { mapCVDataToEnemies, placeEnemies } from './level/EnemyMapper';
 import { mapCVDataToBlocks, placeBlocks } from './level/BlockMapper';
 import { mapCVDataToChests, placeChests } from './level/ChestMapper';
 import type { ChestPlacement } from './level/ChestMapper';
+import { placeCheckpoints } from './level/CheckpointMapper';
+import type { CheckpointPlacement } from './level/CheckpointMapper';
 import { placeSigns } from './level/SignMapper';
 import type { SignPlacement } from './level/SignMapper';
 import { placeHazards } from './level/HazardMapper';
@@ -54,6 +59,7 @@ import type {
   HitSplatterEffect,
   CounterPopupEffect,
   CounterPopupLabelKey,
+  FadeOutTextEffect,
 } from './engine/CollectionEffects';
 import type { LevelTotals } from './entities/CollectiblesSummary';
 import type { HintTooltipState } from './engine/HintTooltip';
@@ -64,12 +70,20 @@ import type { HintTooltipState } from './engine/HintTooltip';
  * signal value) because restart logic (PlatformerPage.tsx) calls this again
  * to reset `playerState` back to spawn after a death.
  */
-export function spawnPlayerState(): PlayerState {
-  // SPAWN_TILE is the empty cell the character stands in (see level.ts's
-  // `S` marker) — the ground surface is that cell's bottom edge.
-  const spawnCell = tileToPixel(SPAWN_TILE.value.col, SPAWN_TILE.value.row);
-  const groundSurfaceY = spawnCell.y + RENDERED_TILE_SIZE;
-  const x = spawnCell.x - (PLAYER_RENDERED_SIZE - RENDERED_TILE_SIZE) / 2;
+/**
+ * The player's state standing in an arbitrary level cell — full health,
+ * motion cleared, `lastGroundedX/Y` seeded to the position, and `hitTimer` at
+ * the end of the refractory window (immediately vulnerable, FR-014). The cell
+ * is treated exactly as `spawnPlayerState` treats the spawn cell: the
+ * character is horizontally centred over it and its feet land on the cell's
+ * bottom edge (the ground surface FR-004 guarantees for a checkpoint). Pure
+ * and not reactive on its own; `respawnPlayerState` below composes it with
+ * the active checkpoint.
+ */
+export function playerStateAtTile(col: number, row: number): PlayerState {
+  const cell = tileToPixel(col, row);
+  const groundSurfaceY = cell.y + RENDERED_TILE_SIZE;
+  const x = cell.x - (PLAYER_RENDERED_SIZE - RENDERED_TILE_SIZE) / 2;
   const y = groundSurfaceY - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
   return {
     x,
@@ -95,6 +109,15 @@ export function spawnPlayerState(): PlayerState {
     // free 0.8 s of invulnerability after every respawn.
     hitTimer: PLAYER_HIT_REACTION_SECONDS,
   };
+}
+
+/**
+ * The player's state at the level's spawn point — full health's worth of
+ * idle standing on the ground. Delegates to `playerStateAtTile` so the spawn
+ * and a checkpoint respawn share one set of placement maths.
+ */
+export function spawnPlayerState(): PlayerState {
+  return playerStateAtTile(SPAWN_TILE.value.col, SPAWN_TILE.value.row);
 }
 
 /** Player position/animation state — mutated by the game loop. */
@@ -343,6 +366,78 @@ export const enemiesDefeated = computed<number>(
 export const chestStates = signal<ChestState[]>(chestPlacements.value.map(toChestState));
 
 /**
+ * Every checkpoint in the level, placed from `currentLayout`'s `C` markers
+ * (see CHECKPOINT_TILES) — purely positional, no CVData binding. A `computed`
+ * so the Level Editor's "Try" button updates it reactively like every other
+ * placement list. The shipped level has none (checkpoints are authorable,
+ * not shipped).
+ */
+export const checkpointPlacements = computed<CheckpointPlacement[]>(() =>
+  placeCheckpoints(CHECKPOINT_TILES.value),
+);
+
+/**
+ * Live per-instance checkpoint state — seeded dormant from
+ * `checkpointPlacements`. Unlike blocks/chests, a raised flag survives a
+ * death/respawn (`resetGame()` leaves this untouched, FR-015); only Reset
+ * Game (`resetGameProgress()`) rebuilds it dormant.
+ */
+export const checkpointStates = signal<CheckpointState[]>(
+  checkpointPlacements.value.map(toCheckpointState),
+);
+
+/**
+ * The id of the checkpoint a death currently respawns at, or `null` when the
+ * level's own spawn point is used. At most one id: set by the tick resolver
+ * (engine/CheckpointLogic.ts) to the winning checkpoint — the first dormant
+ * one entered this tick, else the first already-raised one entered
+ * (FR-007/FR-009). Persists across death/respawn; cleared only by
+ * `resetGameProgress()` (FR-015/FR-016).
+ */
+export const activeCheckpointId = signal<string | null>(null);
+
+/**
+ * The activation labels currently fading in place (see
+ * `FadeOutTextEffect`). At most one per checkpoint id. Cleared by both
+ * `resetGame()` and `resetGameProgress()` — a frozen label must not survive a
+ * respawn or a restart.
+ */
+export const activeFadeOutTexts = signal<FadeOutTextEffect[]>([]);
+
+/**
+ * The active checkpoint's static placement, or `null` when the level spawn is
+ * the respawn point. Derived (not stored) so it reacts to
+ * `activeCheckpointId`/`checkpointStates` like every other derived value.
+ */
+export const activeRespawnPlacement = computed<CheckpointPlacement | null>(() => {
+  const id = activeCheckpointId.value;
+  if (id === null) return null;
+  const state = checkpointStates.value.find((checkpoint) => checkpoint.id === id);
+  if (!state) return null;
+  return { id: state.id, col: state.col, row: state.row, x: state.x, y: state.y };
+});
+
+/**
+ * Where a death restarts the character: the active checkpoint's tile, or the
+ * level's own spawn point when there is none (FR-010/SC-003). A `computed` so
+ * `resetGame()` and the camera snap always see the current target.
+ */
+export const respawnPlayerState = computed<PlayerState>(() => {
+  const placement = activeRespawnPlacement.value;
+  return placement ? playerStateAtTile(placement.col, placement.row) : spawnPlayerState();
+});
+
+/** World-space visual centre of `respawnPlayerState` — what the restart/debug/
+ *  Reset Game iris is centered on (FR-012). */
+export const respawnCenter = computed<{ x: number; y: number }>(() => {
+  const state = respawnPlayerState.value;
+  return {
+    x: state.x + PLAYER_RENDERED_SIZE / 2,
+    y: state.y + PLAYER_VISUAL_CENTER_Y_OFFSET,
+  };
+});
+
+/**
  * One-shot latch: true once the Thank You screen has been shown this
  * "session" (i.e. since the last Reset Game). Without this,
  * `allChestsOpen(chestStates.value)` stays true forever after the last chest
@@ -544,12 +639,14 @@ export const lifecycleState = signal<LifecycleState>(
 );
 
 /**
- * Resets the game world to its spawn state: player back at the spawn point,
- * full health, enemies revived in place at their spawn placements, camera
- * scrolled back to the level start. Does NOT touch `lifecycleState`,
- * `collectedFacts`, or `collectedCollectibleIds` — per FR-020c, a
- * death/respawn preserves everything already discovered; only the "Reset
- * Game" button clears those (see `resetGameProgress()` below). Callers
+ * Resets the game world to its respawn state: player back at the active
+ * checkpoint (or the level's spawn point when none is active), full health,
+ * enemies revived in place at their spawn placements, camera scrolled back to
+ * the level start. Does NOT touch `lifecycleState`, `collectedFacts`,
+ * `collectedCollectibleIds`, or checkpoint memory (`checkpointStates`/
+ * `activeCheckpointId`) — per FR-015/FR-020c, a death/respawn preserves every
+ * raised flag and the active target; only the "Reset Game" button clears
+ * those (see `resetGameProgress()` below). Callers
  * (restart-on-input and the debug Respawn button, both wired to the `intro`
  * iris-in) decide the lifecycle transition themselves, since not every
  * caller of a "reset" necessarily wants the iris animation.
@@ -574,11 +671,15 @@ export const lifecycleState = signal<LifecycleState>(
  * as before.
  */
 export function resetGame(): void {
-  playerState.value = spawnPlayerState();
+  playerState.value = respawnPlayerState.value;
   cameraPositionX.value = 0;
   cameraPositionY.value = 0;
   enemyStates.value = enemyStates.value.map(reviveEnemy);
   hintTooltipState.value = null;
+  // A label fading when the death/respawn happened must not survive it — it
+  // would otherwise freeze on screen through the death animation and then
+  // flash at the new respawn point.
+  activeFadeOutTexts.value = [];
   blockStates.value = [
     ...blockStates.value.filter((b) => b.blockKind !== 'potionPot'),
     ...blockPlacements.value.filter((p) => p.blockKind === 'potionPot').map(toBlockState),
@@ -605,6 +706,11 @@ export function resetGame(): void {
  * (death/respawn) which explicitly transition through `introState(...)`.
  */
 export function resetGameProgress(): void {
+  // Clear checkpoint memory FIRST, so the `resetGame()` below sees no active
+  // checkpoint and returns the character to the level spawn (FR-016).
+  activeCheckpointId.value = null;
+  checkpointStates.value = checkpointPlacements.value.map(toCheckpointState);
+  activeFadeOutTexts.value = [];
   resetGame();
   collectedFacts.value = [];
   collectedCollectibleIds.value = new Set();
