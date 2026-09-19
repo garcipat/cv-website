@@ -335,3 +335,54 @@ describe('Palette — blueprints section (step 44c placement)', () => {
     expect(within(tools).queryByRole('button', { name: 'Cave Room' })).not.toBeInTheDocument();
   });
 });
+
+describe('Palette — background layer sections', () => {
+  const sectionFor = (title: string) => {
+    const heading = screen.getByText(title);
+    return heading.closest('section') ?? heading.parentElement!;
+  };
+
+  it('backgroundLayer-rendersSurfaceAndCaveHeadings', () => {
+    render(<Palette {...defaultProps} activeLayer="background" />);
+
+    expect(screen.getByText('Surface')).toBeInTheDocument();
+    expect(screen.getByText('Cave')).toBeInTheDocument();
+  });
+
+  it('backgroundLayer-everyDirtPieceSitsInSurfaceAndEveryCharcoalPieceInCave', () => {
+    render(<Palette {...defaultProps} activeLayer="background" />);
+    const surface = sectionFor('Surface');
+    const cave = sectionFor('Cave');
+
+    for (const pieceId of Object.keys(BACKGROUND_CATALOG) as BackgroundPieceId[]) {
+      const label = BACKGROUND_PALETTE_LABELS[pieceId];
+      const section = pieceId.startsWith('dirt') ? surface : cave;
+      expect(within(section).getByRole('button', { name: label })).toBeInTheDocument();
+    }
+  });
+
+  it('clickingAPieceInEitherSection-callsOnSelectBackgroundPieceWithItsId', () => {
+    const onSelectBackgroundPiece = vi.fn();
+    render(
+      <Palette
+        {...defaultProps}
+        activeLayer="background"
+        onSelectBackgroundPiece={onSelectBackgroundPiece}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Dirt Column Top/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Charcoal Column Top/ }));
+
+    expect(onSelectBackgroundPiece).toHaveBeenCalledWith('dirtColumnTop1x1');
+    expect(onSelectBackgroundPiece).toHaveBeenCalledWith('charcoalColumnTop1x1');
+  });
+
+  it('foregroundDecorationGroup-stillContainsTheTorchTile', () => {
+    render(<Palette {...defaultProps} />);
+
+    const decorationHeading = screen.getByText('Decoration');
+    const decorationGroup = decorationHeading.closest('section') ?? decorationHeading.parentElement!;
+    expect(within(decorationGroup).getByRole('button', { name: 'Torch' })).toBeInTheDocument();
+  });
+});

@@ -3,6 +3,7 @@ import {
   currentLayout,
   currentBackground,
   LEVEL_1_LAYOUT,
+  LEVEL_1_BACKGROUND,
   SPAWN_TILE,
   ENEMY_TILES_GREEN,
   ENEMY_TILES_PURPLE,
@@ -14,6 +15,7 @@ import {
   CHEST_TILES,
   CHECKPOINT_TILES,
   SIGN_TILES,
+  TORCH_TILES,
 } from './level';
 import { isTopExposed, isSolid, isClimbable, isStandableLadderTop, tileAt } from './Terrain';
 import { SIGN_CHARS } from './LevelParser';
@@ -370,15 +372,36 @@ describe('CHECKPOINT_TILES', () => {
 
 describe('currentBackground', () => {
   afterEach(() => {
-    currentBackground.value = [];
+    currentBackground.value = LEVEL_1_BACKGROUND;
   });
 
-  it('defaultValue-isAnEmptyList', () => {
-    expect(currentBackground.value).toEqual([]);
+  it('defaultValue-isTheShippedCaveBackground', () => {
+    expect(currentBackground.value).toEqual(LEVEL_1_BACKGROUND);
   });
 
   it('settingCurrentBackground-appearsOnCurrentLevelsBackgroundField', () => {
     currentBackground.value = [{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }];
     expect(currentLevel.value.background).toEqual([{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }]);
+  });
+});
+
+describe('TORCH_TILES', () => {
+  afterEach(() => {
+    currentLayout.value = LEVEL_1_LAYOUT;
+  });
+
+  it('shippedLevel-containsItsAuthoredTorches', () => {
+    currentLayout.value = LEVEL_1_LAYOUT;
+    expect(TORCH_TILES.value.length).toBeGreaterThan(0);
+  });
+
+  it('changingCurrentLayout-recomputesFromTheNewLayout', () => {
+    currentLayout.value = ['S.¥', 'GGG'];
+    expect(TORCH_TILES.value).toEqual([{ col: 2, row: 0 }]);
+  });
+
+  it('layoutWithNoTorches-returnsEmptyArray', () => {
+    currentLayout.value = ['S..', 'GGG'];
+    expect(TORCH_TILES.value).toEqual([]);
   });
 });

@@ -36,6 +36,10 @@ import {
   LOW_HEALTH_GLOW_PULSE_PERIOD_SECONDS,
   drawCheckpoints,
   drawFadeOutTexts,
+  drawDarkness,
+  drawEnemyEyes,
+  drawHeldTorch,
+  heldTorchLightPosition,
 } from './Renderer';
 import type { LevelDef, BackgroundPieceId } from '../level/LevelData';
 import { parseLevel } from '../level/LevelParser';
@@ -81,6 +85,17 @@ import {
   HEARTS_SHEET,
 } from '../entities/sprites/sheets';
 import type { DrawContext } from './DrawContext';
+import { TORCH_LIGHT_RADIUS_PX, torchPulseScale } from './Lighting';
+import type { TorchLight } from './Lighting';
+import {
+  MAX_DARKNESS,
+  PLAYER_LIGHT_RADIUS_PX,
+  ENEMY_EYE_COLOR,
+  ENEMY_EYE_SIZE_PX,
+  ENEMY_EYE_GAP_PX,
+  ENEMY_EYE_BOB_PERIOD_SECONDS,
+  ENEMY_EYE_BOB_AMPLITUDE_PX,
+} from './Lighting';
 
 const ENEMY_FRAME_SIZE = SLIME_GREEN_SHEET.frameWidth;
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
@@ -3015,5 +3030,371 @@ describe('drawFadeOutTexts', () => {
     drawFadeOutTexts(ctx as unknown as CanvasRenderingContext2D, [expired], dc);
 
     expect(ctx.fillText).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Records every assignment to a string property (e.g.
+ * `globalCompositeOperation`) so a test can prove the pass set it — and, when
+ * it ends back at `initial`, that it restored it. The shared setup mock has no
+ * such property, and a plain object field would only show the final value.
+ */
+function trackStringProperty(
+  target: Record<string, unknown>,
+  key: string,
+  initial: string,
+): string[] {
+  const assignments: string[] = [];
+  let current = initial;
+  Object.defineProperty(target, key, {
+    configurable: true,
+    get: () => current,
+    set: (value: string) => {
+      current = value;
+      assignments.push(value);
+    },
+  });
+  return assignments;
+}
+
+function makeLightingContext() {
+  const raw = {
+    imageSmoothingEnabled: true,
+    fillStyle: '',
+    globalAlpha: 1,
+    drawImage: vi.fn(),
+    save: vi.fn(),
+    restore: vi.fn(),
+    beginPath: vi.fn(),
+    arc: vi.fn(),
+    fill: vi.fn(),
+    fillRect: vi.fn(),
+    createRadialGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
+  };
+  const compositeOps = trackStringProperty(raw, 'globalCompositeOperation', 'source-over');
+  return { ctx: raw as unknown as CanvasRenderingContext2D, raw, compositeOps };
+}
+
+function makeLightingLayer(width = 320, height = 180) {
+  const layerCtx = {
+    fillStyle: '',
+    globalAlpha: 1,
+    globalCompositeOperation: 'source-over',
+    clearRect: vi.fn(),
+    fillRect: vi.fn(),
+    beginPath: vi.fn(),
+    arc: vi.fn(),
+    fill: vi.fn(),
+    createRadialGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
+  };
+  const compositeOps = trackStringProperty(layerCtx, 'globalCompositeOperation', 'source-over');
+  const layer = {
+    width,
+    height,
+    getContext: vi.fn(() => layerCtx),
+  } as unknown as HTMLCanvasElement;
+  return { layer, layerCtx, compositeOps };
+}
+
+function makeTorchLight(overrides: Partial<TorchLight> = {}): TorchLight {
+  return { col: 0, row: 0, x: 100, y: 100, ...overrides };
+}
+
+describe('drawDarkness', () => {
+  it('atOrBelowZero-darknessDrawsNothingAtAll', () => {
+    const { ctx, raw } = makeLightingContext();
+    const { layer, layerCtx } = makeLightingLayer();
+
+    drawDarkness(ctx, layer, 320, 180, 0, [], 0, 0, 0);
+
+    expect(raw.drawImage).not.toHaveBeenCalled();
+    expect(layerCtx.fillRect).not.toHaveBeenCalled();
+  });
+
+  it('aboveZero-fillsTheLayerWithBlackAtTheDarknessAlpha', () => {
+    const { ctx } = makeLightingContext();
+    const { layer, layerCtx } = makeLightingLayer();
+
+    drawDarkness(ctx, layer, 320, 180, 0.5, [], 0, 0, 0);
+
+    expect(layerCtx.fillRect).toHaveBeenCalledWith(0, 0, 320, 180);
+    expect(layerCtx.fillStyle).toBe('rgba(0, 0, 0, 0.5)');
+  });
+
+  it('aboveZero-compositesTheLayerOntoTheMainContextWithSourceOver', () => {
+    const { ctx, raw } = makeLightingContext();
+    const { layer, layerCtx, compositeOps } = makeLightingLayer();
+
+    drawDarkness(ctx, layer, 320, 180, 0.5, [], 0, 0, 0);
+
+    expect(raw.drawImage).toHaveBeenCalledWith(layer, 0, 0, 320, 180);
+    expect(compositeOps).toContain('source-over');
+    expect(layerCtx.globalCompositeOperation).toBe('source-over');
+  });
+
+  it('oneVisibleTorch-erasesOneHoleAndPaintsOneWarmGlow', () => {
+    const { ctx, raw, compositeOps: mainCompositeOps } = makeLightingContext();
+    const { layer, layerCtx, compositeOps } = makeLightingLayer();
+    const torch = makeTorchLight({ col: 0, row: 0, x: 100, y: 100 });
+    const radius = TORCH_LIGHT_RADIUS_PX * torchPulseScale(torch, 0);
+
+    drawDarkness(ctx, layer, 320, 180, 0.5, [torch], 0, 0, 0);
+
+    // Hole punched through the darkness layer.
+    expect(layerCtx.createRadialGradient).toHaveBeenCalledTimes(1);
+    expect(layerCtx.arc).toHaveBeenCalledWith(100, 100, radius, 0, Math.PI * 2);
+    expect(compositeOps).toContain('destination-out');
+    expect(layerCtx.globalCompositeOperation).toBe('source-over');
+
+    // Warm additive pool on the main context, kept inside the hole.
+    expect(raw.createRadialGradient).toHaveBeenCalledTimes(1);
+    const glowRadius = raw.arc.mock.calls[0][2] as number;
+    expect(glowRadius).toBeLessThan(radius);
+    expect(mainCompositeOps).toContain('lighter');
+  });
+
+  it('twoVisibleTorches-eraseTwoHolesAndPaintTwoGlows', () => {
+    const { ctx, raw } = makeLightingContext();
+    const { layer, layerCtx } = makeLightingLayer();
+    const torches = [
+      makeTorchLight({ col: 0, row: 0, x: 100, y: 100 }),
+      makeTorchLight({ col: 1, row: 0, x: 200, y: 100 }),
+    ];
+
+    drawDarkness(ctx, layer, 320, 180, 0.5, torches, 0, 0, 0);
+
+    expect(layerCtx.createRadialGradient).toHaveBeenCalledTimes(2);
+    expect(raw.createRadialGradient).toHaveBeenCalledTimes(2);
+  });
+
+  it('cameraOrigin-shiftsTheHoleAndGlowToTheScreenPosition', () => {
+    const { ctx, raw } = makeLightingContext();
+    const { layer, layerCtx } = makeLightingLayer();
+    const torch = makeTorchLight({ col: 0, row: 0, x: 100, y: 100 });
+    const radius = TORCH_LIGHT_RADIUS_PX * torchPulseScale(torch, 0);
+
+    drawDarkness(ctx, layer, 320, 180, 0.5, [torch], -40, 10, 0);
+
+    expect(layerCtx.arc).toHaveBeenCalledWith(60, 110, radius, 0, Math.PI * 2);
+    expect(raw.arc).toHaveBeenCalledWith(60, 110, expect.any(Number), 0, Math.PI * 2);
+  });
+
+  it('torchFullyOutsideTheViewport-contributesNoHoleOrGlow', () => {
+    const { ctx, raw } = makeLightingContext();
+    const { layer, layerCtx } = makeLightingLayer();
+    const torch = makeTorchLight({ x: -10000, y: -10000 });
+
+    drawDarkness(ctx, layer, 320, 180, 0.5, [torch], 0, 0, 0);
+
+    expect(layerCtx.createRadialGradient).not.toHaveBeenCalled();
+    expect(raw.createRadialGradient).not.toHaveBeenCalled();
+  });
+
+  it('playerLight-punchesASmallerHoleAndGlowThanATorch', () => {
+    const { ctx, raw } = makeLightingContext();
+    const { layer, layerCtx } = makeLightingLayer();
+
+    drawDarkness(ctx, layer, 320, 180, 0.5, [], 0, 0, 0, { x: 100, y: 100 });
+
+    expect(layerCtx.createRadialGradient).toHaveBeenCalledTimes(1);
+    expect(layerCtx.arc).toHaveBeenCalledWith(100, 100, PLAYER_LIGHT_RADIUS_PX, 0, Math.PI * 2);
+    expect(raw.createRadialGradient).toHaveBeenCalledTimes(1);
+    expect(PLAYER_LIGHT_RADIUS_PX).toBeLessThan(TORCH_LIGHT_RADIUS_PX);
+  });
+
+  it('noPlayerLight-doesNotPunchAPlayerHole', () => {
+    const { ctx, raw } = makeLightingContext();
+    const { layer, layerCtx } = makeLightingLayer();
+
+    drawDarkness(ctx, layer, 320, 180, 0.5, [], 0, 0, 0);
+
+    expect(layerCtx.createRadialGradient).not.toHaveBeenCalled();
+    expect(raw.createRadialGradient).not.toHaveBeenCalled();
+  });
+});
+
+describe('drawHeldTorch', () => {
+  const fakeTorchSheet = {} as HTMLImageElement;
+  const basePlayer: PlayerState = {
+    x: 100,
+    y: 100,
+    vx: 0,
+    vy: 0,
+    direction: 'right',
+    grounded: true,
+    climbing: false,
+    isDroppingThroughBridge: false,
+    lastGroundedX: 100,
+    lastGroundedY: 100,
+    animTimer: 0,
+    animState: 'walk',
+    animFrame: 0,
+    knockbackTimer: 0,
+    bounceAscending: false,
+    blockContacts: [],
+    hitPoints: 6,
+    alive: true,
+    hitTimer: PLAYER_HIT_REACTION_SECONDS,
+  };
+
+  it('walkingPlayerInDarkness-drawsTheTorchInHand', () => {
+    const ctx = makeMockContext();
+
+    drawHeldTorch(ctx, basePlayer, fakeTorchSheet, MAX_DARKNESS, 0, 0, 0);
+
+    expect(ctx.drawImage).toHaveBeenCalledTimes(1);
+  });
+
+  it('idlePlayerInDarkness-drawsTheTorchInHand', () => {
+    const ctx = makeMockContext();
+
+    drawHeldTorch(ctx, { ...basePlayer, animState: 'idle' }, fakeTorchSheet, MAX_DARKNESS, 0, 0, 0);
+
+    expect(ctx.drawImage).toHaveBeenCalledTimes(1);
+  });
+
+  it('atFullBrightness-drawsNothing', () => {
+    const ctx = makeMockContext();
+
+    drawHeldTorch(ctx, basePlayer, fakeTorchSheet, 0, 0, 0, 0);
+
+    expect(ctx.drawImage).not.toHaveBeenCalled();
+  });
+
+  it('jumpingOrClimbingPlayer-drawsNothing', () => {
+    for (const animState of ['jump', 'climb'] as const) {
+      const ctx = makeMockContext();
+      drawHeldTorch(ctx, { ...basePlayer, animState }, fakeTorchSheet, MAX_DARKNESS, 0, 0, 0);
+      expect(ctx.drawImage).not.toHaveBeenCalled();
+    }
+  });
+
+  it('missingTorchSheet-drawsNothing', () => {
+    const ctx = makeMockContext();
+
+    drawHeldTorch(ctx, basePlayer, null, MAX_DARKNESS, 0, 0, 0);
+
+    expect(ctx.drawImage).not.toHaveBeenCalled();
+  });
+
+  it('leftFacing-mirrorsTheTorch', () => {
+    const ctx = makeMockContext();
+
+    drawHeldTorch(ctx, { ...basePlayer, direction: 'left' }, fakeTorchSheet, MAX_DARKNESS, 0, 0, 0);
+
+    expect(ctx.scale).toHaveBeenCalledWith(-1, 1);
+  });
+});
+
+describe('heldTorchLightPosition', () => {
+  const basePlayer: PlayerState = {
+    x: 100,
+    y: 100,
+    vx: 0,
+    vy: 0,
+    direction: 'right',
+    grounded: true,
+    climbing: false,
+    isDroppingThroughBridge: false,
+    lastGroundedX: 100,
+    lastGroundedY: 100,
+    animTimer: 0,
+    animState: 'idle',
+    animFrame: 0,
+    knockbackTimer: 0,
+    bounceAscending: false,
+    blockContacts: [],
+    hitPoints: 6,
+    alive: true,
+    hitTimer: PLAYER_HIT_REACTION_SECONDS,
+  };
+
+  it('rightFacing-sitsToTheRightOfThePlayerCentre', () => {
+    const light = heldTorchLightPosition(basePlayer);
+
+    expect(light.x).toBeGreaterThan(basePlayer.x + PLAYER_RENDERED_SIZE / 2);
+  });
+
+  it('leftFacing-mirrorsToTheLeftOfThePlayerCentre', () => {
+    const right = heldTorchLightPosition(basePlayer);
+    const left = heldTorchLightPosition({ ...basePlayer, direction: 'left' });
+
+    expect(left.x).toBeLessThan(basePlayer.x + PLAYER_RENDERED_SIZE / 2);
+    expect(basePlayer.x + PLAYER_RENDERED_SIZE / 2 - left.x).toBeCloseTo(
+      right.x - (basePlayer.x + PLAYER_RENDERED_SIZE / 2),
+    );
+  });
+});
+
+describe('drawEnemyEyes', () => {
+  it('atOrBelowZeroDarkness-drawsNothingAtAll', () => {
+    const { ctx, raw } = makeLightingContext();
+
+    drawEnemyEyes(ctx, [makeGreenEnemy()], 0, [], 0, 0, 0);
+
+    expect(raw.fillRect).not.toHaveBeenCalled();
+  });
+
+  it('livingEnemyInDarkness-drawsTwoYellowEyesOfTheFixedSizeAndGap', () => {
+    const { ctx, raw } = makeLightingContext();
+
+    drawEnemyEyes(ctx, [makeGreenEnemy({ x: 100, y: 100 })], MAX_DARKNESS, [], 0, 0, 0);
+
+    expect(raw.fillStyle).toBe(ENEMY_EYE_COLOR);
+    const rects = raw.fillRect.mock.calls as [number, number, number, number][];
+    expect(rects).toHaveLength(2);
+    for (const [, , width, height] of rects) {
+      expect(width).toBe(ENEMY_EYE_SIZE_PX);
+      expect(height).toBe(ENEMY_EYE_SIZE_PX);
+    }
+    const centre0 = rects[0][0] + ENEMY_EYE_SIZE_PX / 2;
+    const centre1 = rects[1][0] + ENEMY_EYE_SIZE_PX / 2;
+    expect(Math.abs(centre1 - centre0)).toBe(ENEMY_EYE_GAP_PX);
+  });
+
+  it('defeatedEnemy-drawsNoEyes', () => {
+    const { ctx, raw } = makeLightingContext();
+
+    drawEnemyEyes(ctx, [makeGreenEnemy({ alive: false })], MAX_DARKNESS, [], 0, 0, 0);
+
+    expect(raw.fillRect).not.toHaveBeenCalled();
+  });
+
+  it('enemyInsideATorchPool-showsNoMarker', () => {
+    const { ctx, raw } = makeLightingContext();
+    // The torch sits exactly on the enemy's own effect anchor, so its local
+    // darkness is 0 — well below the eye threshold.
+    const torch = makeTorchLight({ col: 0, row: 0, x: 116, y: 125 });
+
+    drawEnemyEyes(ctx, [makeGreenEnemy({ x: 100, y: 100 })], MAX_DARKNESS, [torch], 0, 0, 0);
+
+    expect(raw.fillRect).not.toHaveBeenCalled();
+  });
+
+  it('cameraOrigin-shiftsTheEyesWithTheWorld', () => {
+    const enemy = makeGreenEnemy({ x: 100, y: 100 });
+    const { ctx: ctxAtOrigin, raw: rawAtOrigin } = makeLightingContext();
+    const { ctx: ctxScrolled, raw: rawScrolled } = makeLightingContext();
+
+    drawEnemyEyes(ctxAtOrigin, [enemy], MAX_DARKNESS, [], 0, 0, 0);
+    drawEnemyEyes(ctxScrolled, [enemy], MAX_DARKNESS, [], 0, -40, 10);
+
+    const [ax, ay] = rawAtOrigin.fillRect.mock.calls[0] as [number, number];
+    const [bx, by] = rawScrolled.fillRect.mock.calls[0] as [number, number];
+    expect(bx).toBe(ax - 40);
+    expect(by).toBe(ay + 10);
+  });
+
+  it('worldClock-bobsTheEyesUpAndDown', () => {
+    const enemy = makeGreenEnemy({ x: 100, y: 100 });
+    const { ctx: ctxRest, raw: rawRest } = makeLightingContext();
+    const { ctx: ctxPeak, raw: rawPeak } = makeLightingContext();
+
+    drawEnemyEyes(ctxRest, [enemy], MAX_DARKNESS, [], 0, 0, 0);
+    drawEnemyEyes(ctxPeak, [enemy], MAX_DARKNESS, [], ENEMY_EYE_BOB_PERIOD_SECONDS / 4, 0, 0);
+
+    const [, restY] = rawRest.fillRect.mock.calls[0] as [number, number];
+    const [, peakY] = rawPeak.fillRect.mock.calls[0] as [number, number];
+    expect(peakY).toBe(restY + ENEMY_EYE_BOB_AMPLITUDE_PX);
   });
 });

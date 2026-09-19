@@ -381,3 +381,23 @@ export function findHazardTiles(
   }
   return tiles;
 }
+
+/**
+ * Finds every `¥` (wall torch) tile's position in a level layout, in reading
+ * order. A torch is terrain, not an entity marker, so this is a direct scan of
+ * `TERRAIN_CHARS` — the same scan-for-a-known-character shape as
+ * `findSignTiles`/`findHazardTiles`, NOT the `ENTITY_CHARS`/`findAllOfKind`
+ * path `findCoinTiles` uses. The positions feed `TORCH_TILES` and, through it,
+ * the `torchPositions` light sources the lighting pass reads (research D4).
+ */
+export function findTorchTiles(layout: readonly string[]): { col: number; row: number }[] {
+  const tiles: { col: number; row: number }[] = [];
+  for (let row = 0; row < layout.length; row++) {
+    for (let col = 0; col < layout[row].length; col++) {
+      if (TERRAIN_CHARS[layout[row][col]] === 'torch') {
+        tiles.push({ col, row });
+      }
+    }
+  }
+  return tiles;
+}
