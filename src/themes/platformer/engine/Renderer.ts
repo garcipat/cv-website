@@ -92,10 +92,13 @@ import {
   TORCH_INSET_X,
   torchFrameIndex,
 } from './Torch';
-import type { TorchLight } from './Lighting';
+import type { Point, TorchLight } from './Lighting';
 import {
   TORCH_LIGHT_RADIUS_PX,
+  PLAYER_LIGHT_RADIUS_PX,
   TORCH_GLOW_COLOR,
+  PLAYER_GLOW_COLOR,
+  PLAYER_GLOW_INTENSITY,
   torchPulseScale,
   localDarknessAt,
   enemyEyeOpacity,
@@ -252,6 +255,9 @@ export function drawWaterForeground(
  *    radius stays inside the erased hole and whose alpha scales with
  *    `darknessLevel`, so the pool reads warm without tinting the surrounding
  *    darkness (FR-008/FR-009/FR-010/FR-013/FR-014).
+ *
+ * When `playerLight` is given, the player's own smaller, steadier carried
+ * light is punched and warmed the same way (FR-023/FR-024).
  */
 export function drawDarkness(
   ctx: CanvasRenderingContext2D,
@@ -263,6 +269,7 @@ export function drawDarkness(
   originX = 0,
   originY = 0,
   worldElapsed = 0,
+  playerLight: Point | null = null,
 ): void {
   if (darknessLevel <= 0) return;
 
@@ -305,6 +312,27 @@ export function drawDarkness(
     layerCtx.arc(screenX, screenY, radius, 0, Math.PI * 2);
     layerCtx.fill();
   }
+
+  const playerScreenX = playerLight ? playerLight.x + originX : 0;
+  const playerScreenY = playerLight ? playerLight.y + originY : 0;
+  if (playerLight) {
+    // The player's own smaller pool, steadier than a torch's (FR-023).
+    layerCtx.globalCompositeOperation = 'destination-out';
+    const hole = layerCtx.createRadialGradient(
+      playerScreenX,
+      playerScreenY,
+      0,
+      playerScreenX,
+      playerScreenY,
+      PLAYER_LIGHT_RADIUS_PX,
+    );
+    hole.addColorStop(0, 'rgba(0, 0, 0, 1)');
+    hole.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    layerCtx.fillStyle = hole;
+    layerCtx.beginPath();
+    layerCtx.arc(playerScreenX, playerScreenY, PLAYER_LIGHT_RADIUS_PX, 0, Math.PI * 2);
+    layerCtx.fill();
+  }
   layerCtx.globalCompositeOperation = 'source-over';
 
   ctx.drawImage(layer, 0, 0, canvasWidth, canvasHeight);
@@ -327,6 +355,29 @@ export function drawDarkness(
     ctx.fillStyle = glow;
     ctx.beginPath();
     ctx.arc(screenX, screenY, glowRadius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  if (playerLight) {
+    const glowRadius = PLAYER_LIGHT_RADIUS_PX * 0.7;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = darknessLevel * PLAYER_GLOW_INTENSITY;
+    const glow = ctx.createRadialGradient(
+      playerScreenX,
+      playerScreenY,
+      0,
+      playerScreenX,
+      playerScreenY,
+      glowRadius,
+    );
+    glow.addColorStop(0, PLAYER_GLOW_COLOR);
+    glow.addColorStop(0.55, 'rgba(255, 145, 45, 0.3)');
+    glow.addColorStop(1, 'rgba(255, 145, 45, 0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(playerScreenX, playerScreenY, glowRadius, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }
@@ -359,6 +410,7 @@ export function drawEnemyEyes(
   worldElapsed: number,
   originX = 0,
   originY = 0,
+  playerLight: Point | null = null,
 ): void {
   if (darknessLevel <= 0) return;
 
@@ -372,7 +424,7 @@ export function drawEnemyEyes(
     const box = typeOf(enemy).box(enemy);
     const anchorX = box.x + box.width / 2;
     const anchorY = box.y + box.height / 2;
-    const localDarkness = localDarknessAt(anchorX, anchorY, darknessLevel, torches, worldElapsed);
+    const localDarkness = localDarknessAt(anchorX, anchorY, darknessLevel, torches, worldElapsed, playerLight);
     const opacity = enemyEyeOpacity(localDarkness);
     if (opacity <= 0) continue;
 
@@ -771,6 +823,95 @@ export function drawPlayer(
     PLAYER_RENDERED_SIZE,
     PLAYER_RENDERED_SIZE,
   );
+}
+
+/** The held torch's size multiplier (native px → drawn px) and where it sits
+ *  relative to the player's render-slot centre for a right-facing player
+ *  (mirrored when facing left). Small and tucked against the character's hand;
+ *  tuned by eye. */
+const HELD_TORCH_SCALE = 1.25;
+const HELD_TORCH_OFFSET_X = 0;
+const HELD_TORCH_OFFSET_Y = 30;
+/** The held torch is drawn a little translucent so its bright flame doesn't
+ *  glare yellow against the dark (FR-025). */
+const HELD_TORCH_ALPHA = 0.8;
+
+/**
+ * The world-space centre of the player's held torch — where the player's own
+ * carried light sits, so the glow is centered on the flame rather than on the
+ * character (FR-023). Mirrors with the player's facing.
+ */
+export function heldTorchLightPosition(player: PlayerState): Point {
+  const width = TORCH_FRAME_WIDTH * HELD_TORCH_SCALE;
+  const height = TORCH_FRAME_HEIGHT * HELD_TORCH_SCALE;
+  const centerX = player.x + PLAYER_RENDERED_SIZE / 2;
+  const torchCenterX =
+    player.direction === 'left'
+      ? centerX - HELD_TORCH_OFFSET_X - width / 2
+      : centerX + HELD_TORCH_OFFSET_X + width / 2;
+  return {
+    x: torchCenterX,
+    y: player.y + HELD_TORCH_OFFSET_Y + height / 2,
+  };
+}
+
+/**
+ * Draws the very small torch the player carries, but only while standing or
+ * walking **and** only in the dark (FR-025/FR-026/FR-027). Reuses the wall
+ * torches' own flame frames so the style matches (FR-028), mirrored to face
+ * the player's direction. Drawn with the player, before the darkness overlay,
+ * so the player's own light reveals it.
+ */
+export function drawHeldTorch(
+  ctx: CanvasRenderingContext2D,
+  player: PlayerState,
+  torchSheet: HTMLImageElement | null,
+  darknessLevel: number,
+  originX = 0,
+  originY = 0,
+  worldElapsed = 0,
+): void {
+  if (!torchSheet) return;
+  if (darknessLevel <= 0) return;
+  if (player.animState !== 'walk' && player.animState !== 'idle') return;
+
+  const { sx, sy } = frameSource(TORCH_SHEET, torchFrameIndex(0, 0, worldElapsed));
+  const width = TORCH_FRAME_WIDTH * HELD_TORCH_SCALE;
+  const height = TORCH_FRAME_HEIGHT * HELD_TORCH_SCALE;
+  const centerX = player.x + originX + PLAYER_RENDERED_SIZE / 2;
+  const topY = player.y + originY + HELD_TORCH_OFFSET_Y;
+
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.globalAlpha = HELD_TORCH_ALPHA;
+  if (player.direction === 'left') {
+    ctx.translate(centerX, topY);
+    ctx.scale(-1, 1);
+    ctx.drawImage(
+      torchSheet,
+      sx,
+      sy,
+      TORCH_FRAME_WIDTH,
+      TORCH_FRAME_HEIGHT,
+      HELD_TORCH_OFFSET_X,
+      0,
+      width,
+      height,
+    );
+  } else {
+    ctx.drawImage(
+      torchSheet,
+      sx,
+      sy,
+      TORCH_FRAME_WIDTH,
+      TORCH_FRAME_HEIGHT,
+      centerX + HELD_TORCH_OFFSET_X,
+      topY,
+      width,
+      height,
+    );
+  }
+  ctx.restore();
 }
 
 const HUD_MARGIN = 16;

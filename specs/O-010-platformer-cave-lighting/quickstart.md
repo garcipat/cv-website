@@ -61,7 +61,20 @@ cave/background pieces and torches where needed.
 5. Confirm the **Torch** tile is still available in the foreground Decoration
    group.
 
-## 5. Freeze / UI / regression checks
+## 5. The player's carried light (User Story 5)
+
+1. Walk the player through a dark cave, away from every wall torch.
+2. **Expect**: a small warm glow around the player keeps them discernible, and a
+   very small torch sprite appears in their hand while walking (mirrored to the
+   direction of travel).
+3. Stop, jump, and climb.
+4. **Expect**: the glow stays, but the held-torch sprite is not drawn.
+5. Stand right next to a wall torch.
+6. **Expect**: the player's glow is clearly smaller than the wall torch's pool.
+7. Return to full brightness.
+8. **Expect**: neither the glow nor the held torch is drawn.
+
+## 6. Freeze / UI / regression checks
 
 1. Open the journal, or die, while standing in a dark cave.
 2. **Expect**: the darkness freezes — it does not keep animating or flicker.
@@ -74,9 +87,9 @@ cave/background pieces and torches where needed.
 
 | Area | Test file | What it proves |
 | --- | --- | --- |
-| Lighting math | `engine/Lighting.test.ts` | fade easing, footprint darkening, overlap cap, torch falloff/pulse, local darkness, eye opacity |
+| Lighting math | `engine/Lighting.test.ts` | fade easing, footprint darkening, overlap cap, torch falloff/pulse, local darkness, eye opacity, player glow |
 | Catalog family | `engine/BackgroundCatalog.test.ts` | dirt → surface, charcoal → cave, unknown id → undefined |
 | Torch discovery | `level/LevelParser.test.ts`, `level/level.test.ts` | `findTorchTiles` finds every `¥` cell |
 | State wiring | `PlatformerState.test.ts` | `torchPositions`, darkness reset on respawn |
-| Overlay no-op | `engine/Renderer.test.ts` | draws nothing at `darknessLevel <= 0` |
+| Overlay + player light + held torch + eyes | `engine/Renderer.test.ts` | draws nothing at `darknessLevel <= 0`; player-light hole/glow; held torch only while walking |
 | Palette sections | `editor/Palette.test.tsx`, `editor/backgroundPaletteTiles.test.ts` | Surface/Cave sections, membership, click behaviour |

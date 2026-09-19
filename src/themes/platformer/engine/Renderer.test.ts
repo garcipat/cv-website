@@ -38,6 +38,8 @@ import {
   drawFadeOutTexts,
   drawDarkness,
   drawEnemyEyes,
+  drawHeldTorch,
+  heldTorchLightPosition,
 } from './Renderer';
 import type { LevelDef, BackgroundPieceId } from '../level/LevelData';
 import { parseLevel } from '../level/LevelParser';
@@ -87,6 +89,7 @@ import { TORCH_LIGHT_RADIUS_PX, torchPulseScale } from './Lighting';
 import type { TorchLight } from './Lighting';
 import {
   MAX_DARKNESS,
+  PLAYER_LIGHT_RADIUS_PX,
   ENEMY_EYE_COLOR,
   ENEMY_EYE_SIZE_PX,
   ENEMY_EYE_GAP_PX,
@@ -3185,6 +3188,141 @@ describe('drawDarkness', () => {
 
     expect(layerCtx.createRadialGradient).not.toHaveBeenCalled();
     expect(raw.createRadialGradient).not.toHaveBeenCalled();
+  });
+
+  it('playerLight-punchesASmallerHoleAndGlowThanATorch', () => {
+    const { ctx, raw } = makeLightingContext();
+    const { layer, layerCtx } = makeLightingLayer();
+
+    drawDarkness(ctx, layer, 320, 180, 0.5, [], 0, 0, 0, { x: 100, y: 100 });
+
+    expect(layerCtx.createRadialGradient).toHaveBeenCalledTimes(1);
+    expect(layerCtx.arc).toHaveBeenCalledWith(100, 100, PLAYER_LIGHT_RADIUS_PX, 0, Math.PI * 2);
+    expect(raw.createRadialGradient).toHaveBeenCalledTimes(1);
+    expect(PLAYER_LIGHT_RADIUS_PX).toBeLessThan(TORCH_LIGHT_RADIUS_PX);
+  });
+
+  it('noPlayerLight-doesNotPunchAPlayerHole', () => {
+    const { ctx, raw } = makeLightingContext();
+    const { layer, layerCtx } = makeLightingLayer();
+
+    drawDarkness(ctx, layer, 320, 180, 0.5, [], 0, 0, 0);
+
+    expect(layerCtx.createRadialGradient).not.toHaveBeenCalled();
+    expect(raw.createRadialGradient).not.toHaveBeenCalled();
+  });
+});
+
+describe('drawHeldTorch', () => {
+  const fakeTorchSheet = {} as HTMLImageElement;
+  const basePlayer: PlayerState = {
+    x: 100,
+    y: 100,
+    vx: 0,
+    vy: 0,
+    direction: 'right',
+    grounded: true,
+    climbing: false,
+    isDroppingThroughBridge: false,
+    lastGroundedX: 100,
+    lastGroundedY: 100,
+    animTimer: 0,
+    animState: 'walk',
+    animFrame: 0,
+    knockbackTimer: 0,
+    bounceAscending: false,
+    blockContacts: [],
+    hitPoints: 6,
+    alive: true,
+    hitTimer: PLAYER_HIT_REACTION_SECONDS,
+  };
+
+  it('walkingPlayerInDarkness-drawsTheTorchInHand', () => {
+    const ctx = makeMockContext();
+
+    drawHeldTorch(ctx, basePlayer, fakeTorchSheet, MAX_DARKNESS, 0, 0, 0);
+
+    expect(ctx.drawImage).toHaveBeenCalledTimes(1);
+  });
+
+  it('idlePlayerInDarkness-drawsTheTorchInHand', () => {
+    const ctx = makeMockContext();
+
+    drawHeldTorch(ctx, { ...basePlayer, animState: 'idle' }, fakeTorchSheet, MAX_DARKNESS, 0, 0, 0);
+
+    expect(ctx.drawImage).toHaveBeenCalledTimes(1);
+  });
+
+  it('atFullBrightness-drawsNothing', () => {
+    const ctx = makeMockContext();
+
+    drawHeldTorch(ctx, basePlayer, fakeTorchSheet, 0, 0, 0, 0);
+
+    expect(ctx.drawImage).not.toHaveBeenCalled();
+  });
+
+  it('jumpingOrClimbingPlayer-drawsNothing', () => {
+    for (const animState of ['jump', 'climb'] as const) {
+      const ctx = makeMockContext();
+      drawHeldTorch(ctx, { ...basePlayer, animState }, fakeTorchSheet, MAX_DARKNESS, 0, 0, 0);
+      expect(ctx.drawImage).not.toHaveBeenCalled();
+    }
+  });
+
+  it('missingTorchSheet-drawsNothing', () => {
+    const ctx = makeMockContext();
+
+    drawHeldTorch(ctx, basePlayer, null, MAX_DARKNESS, 0, 0, 0);
+
+    expect(ctx.drawImage).not.toHaveBeenCalled();
+  });
+
+  it('leftFacing-mirrorsTheTorch', () => {
+    const ctx = makeMockContext();
+
+    drawHeldTorch(ctx, { ...basePlayer, direction: 'left' }, fakeTorchSheet, MAX_DARKNESS, 0, 0, 0);
+
+    expect(ctx.scale).toHaveBeenCalledWith(-1, 1);
+  });
+});
+
+describe('heldTorchLightPosition', () => {
+  const basePlayer: PlayerState = {
+    x: 100,
+    y: 100,
+    vx: 0,
+    vy: 0,
+    direction: 'right',
+    grounded: true,
+    climbing: false,
+    isDroppingThroughBridge: false,
+    lastGroundedX: 100,
+    lastGroundedY: 100,
+    animTimer: 0,
+    animState: 'idle',
+    animFrame: 0,
+    knockbackTimer: 0,
+    bounceAscending: false,
+    blockContacts: [],
+    hitPoints: 6,
+    alive: true,
+    hitTimer: PLAYER_HIT_REACTION_SECONDS,
+  };
+
+  it('rightFacing-sitsToTheRightOfThePlayerCentre', () => {
+    const light = heldTorchLightPosition(basePlayer);
+
+    expect(light.x).toBeGreaterThan(basePlayer.x + PLAYER_RENDERED_SIZE / 2);
+  });
+
+  it('leftFacing-mirrorsToTheLeftOfThePlayerCentre', () => {
+    const right = heldTorchLightPosition(basePlayer);
+    const left = heldTorchLightPosition({ ...basePlayer, direction: 'left' });
+
+    expect(left.x).toBeLessThan(basePlayer.x + PLAYER_RENDERED_SIZE / 2);
+    expect(basePlayer.x + PLAYER_RENDERED_SIZE / 2 - left.x).toBeCloseTo(
+      right.x - (basePlayer.x + PLAYER_RENDERED_SIZE / 2),
+    );
   });
 });
 

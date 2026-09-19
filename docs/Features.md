@@ -42,7 +42,7 @@
 - [ ] **O-007** **Platformer Level Selection** — Visitor-facing level choice and `?level=` URL loading, instead of always loading `main`
 - [ ] **O-008** **Platformer Audio** — Background music and sound effects, muted by default (not committed)
 - [x] **O-009** **Platformer Background Image Layers** — Illustrated parallax backdrop (sky, clouds, village, grass) replacing the procedural sky
-- [x] **O-010** **Platformer Cave Lighting** — Caves darkened where darkening background pieces sit; torch tiles punch radial light back, with a smooth fade on entry/exit
+- [x] **O-010** **Platformer Cave Lighting** — Caves darkened where darkening background pieces sit; torch tiles punch radial light back, with a smooth fade on entry/exit, plus the player's own small carried light
 - [ ] **O-011** **Platformer Deployable Ladders** — A rolled rope-ladder bundle that unrolls downward on Up until it lands on the next solid tile, then climbs like a ladder
 - [ ] **O-012** **Platformer Bombs** — Collectible bombs, placed on the ground, that explode on a fuse to destroy fragile rocks and damage enemies
 - [x] **O-013** **Platformer Wall Torches** — Decorative, non-solid wall torches whose flames sparkle through a 4-frame loop, each cell flickering out of phase based on its grid position

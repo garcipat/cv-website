@@ -88,6 +88,16 @@ list.
 - Zero torches is valid: a cave with none still darkens but stays faintly
   readable (FR-005, spec Edge Case).
 
+## Entity: `PlayerLight` (derived)
+
+The player's own carried light, derived each frame from the player's position.
+Not stored separately.
+
+| Field | Type | Rules |
+| --- | --- | --- |
+| x / y | `number` | World-space point at the held torch's centre (`heldTorchLightPosition`). |
+| radiusPx | `number` | `PLAYER_LIGHT_RADIUS_PX`, smaller than a torch's. |
+
 ## Entity: `EnemyEyeMarker` (derived, no stored state)
 
 A visual attached to a living enemy while that enemy's own position is dark.
@@ -131,6 +141,7 @@ TorchLightSource[] ────────────────────�
 | `MAX_DARKNESS` | ≈ 0.97 | Brightness floor; playability wins over mood (FR-005). |
 | `DARKNESS_FADE_SECONDS` | ≈ 0.4 | Enter/exit fade duration (FR-003, SC-001). |
 | `TORCH_LIGHT_RADIUS_PX` | ≈ 3.5 × `RENDERED_TILE_SIZE` | Soft glow radius in rendered pixels (FR-009). |
+| `PLAYER_LIGHT_RADIUS_PX` | ≈ 1.75 × `RENDERED_TILE_SIZE` | The player's carried light radius, smaller than a torch's (FR-023). |
 | `TORCH_PULSE_AMPLITUDE` | ≈ 0.02 | Pulse depth (FR-013, SC-007). |
 | `TORCH_PULSE_PERIOD_SECONDS` | ≈ 2.6 | Seconds per slow pulse breath (FR-013). |
 | `TORCH_GLOW_COLOR` | warm orange/gold | Distinct from the neutral darkness (FR-014). |
