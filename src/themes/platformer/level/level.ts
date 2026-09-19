@@ -15,6 +15,7 @@ import {
   findCheckpointTiles,
   findSignTiles,
   findHazardTiles,
+  findTorchTiles,
 } from './LevelParser';
 
 // Visual layout of currentLevel — one character per tile (see LevelParser.ts's
@@ -311,3 +312,9 @@ export const SIGN_TILES = computed(() => findSignTiles(currentLayout.value));
  *  markers (LevelParser.ts's HAZARD_CHARS) — purely positional/cosmetic-
  *  facing, no CVData binding, same convention as SIGN_TILES. */
 export const HAZARD_TILES = computed(() => findHazardTiles(currentLayout.value));
+
+/** Hand-placed wall-torch positions, from `currentLayout`'s `¥` markers (a
+ *  `torch` TERRAIN_CHARS entry). Torches are the only light sources the cave
+ *  lighting reads: `PlatformerState.ts`'s `torchPositions` maps each of these
+ *  cells to its world-space centre for the render pass (research D4). */
+export const TORCH_TILES = computed(() => findTorchTiles(currentLayout.value));

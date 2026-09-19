@@ -42,7 +42,7 @@
 - [ ] **O-007** **Platformer Level Selection** — Visitor-facing level choice and `?level=` URL loading, instead of always loading `main`
 - [ ] **O-008** **Platformer Audio** — Background music and sound effects, muted by default (not committed)
 - [x] **O-009** **Platformer Background Image Layers** — Illustrated parallax backdrop (sky, clouds, village, grass) replacing the procedural sky
-- [ ] **O-010** **Platformer Cave Lighting** — Caves darkened where darkening background pieces sit; torch tiles punch radial light back, with a smooth fade on entry/exit
+- [x] **O-010** **Platformer Cave Lighting** — Caves darkened where darkening background pieces sit; torch tiles punch radial light back, with a smooth fade on entry/exit
 - [ ] **O-011** **Platformer Deployable Ladders** — A rolled rope-ladder bundle that unrolls downward on Up until it lands on the next solid tile, then climbs like a ladder
 - [ ] **O-012** **Platformer Bombs** — Collectible bombs, placed on the ground, that explode on a fuse to destroy fragile rocks and damage enemies
 - [x] **O-013** **Platformer Wall Torches** — Decorative, non-solid wall torches whose flames sparkle through a 4-frame loop, each cell flickering out of phase based on its grid position
@@ -87,7 +87,7 @@
 | O-007 | Platformer level selection | 📋 Planned  | [spec](../specs/O-007-platformer-level-selection/spec.md) | ❌ | ❌ |
 | O-008 | Platformer audio        | 📋 Planned     | [spec](../specs/O-008-platformer-audio/spec.md) | ❌ | ❌ |
 | O-009 | Platformer background image layers | ✅ Done | [spec](../specs/O-009-platformer-background-layers/spec.md) / [design](../specs/O-009-platformer-background-layers/design.md) | ✅ | ✅ |
-| O-010 | Platformer cave lighting | 📋 Planned | [spec](../specs/O-010-platformer-cave-lighting/spec.md) | ❌ | ❌ |
+| O-010 | Platformer cave lighting | ✅ Done | [spec](../specs/O-010-platformer-cave-lighting/spec.md) | ✅ | ✅ |
 | O-011 | Platformer deployable ladders | 📋 Planned | [idea](ideas/platformer-deployable-ladders.md) | ❌ | ❌ |
 | O-012 | Platformer bombs | 📋 Planned | [idea](ideas/platformer-bombs.md) | ❌ | ❌ |
 | O-013 | Platformer wall torches | ✅ Done | [spec](../specs/O-013-platformer-wall-torches/spec.md) | ✅ | ✅ |
@@ -146,7 +146,7 @@ graph RL
         O007["O-007: Level Selection"]
         O008["O-008: Audio"]
         O009["✅ O-009: Background Image Layers"]
-        O010["O-010: Cave Lighting"]
+        O010["✅ O-010: Cave Lighting"]
         O011["O-011: Deployable Ladders"]
         O012["O-012: Bombs"]
         O013["✅ O-013: Wall Torches"]
@@ -243,6 +243,7 @@ graph RL
     class F019,O006,O007,O010,O011,O012 enhancements
     class F015,F016,F017,F018,F019,S007,S008,S009,S010,O004,O005,O009 done
     class O013 done
+    class O010 done
     class O014 themes
 ```
 

@@ -1,14 +1,24 @@
 import { TILE_SIZE } from '../level/Terrain';
-import type { BackgroundPieceId } from '../level/LevelData';
+import type { BackgroundPieceFamily, BackgroundPieceId } from '../level/LevelData';
 
 export interface BackgroundCatalogEntry {
   sx: number;
   sy: number;
   widthTiles: number;
   heightTiles: number;
+  /** Intrinsic darkening family (FR-001/FR-021): `'cave'` pieces darken the
+   *  view, `'surface'` pieces do not. */
+  family: BackgroundPieceFamily;
 }
 
 type Variant = 'dirt' | 'charcoal';
+
+/** `dirt` pieces are surface, `charcoal` pieces are cave — the one mapping
+ *  that turns the catalog's existing art variant into its darkening family. */
+const VARIANT_FAMILY: Record<Variant, BackgroundPieceFamily> = {
+  dirt: 'surface',
+  charcoal: 'cave',
+};
 
 const VARIANT_BASE_SY: Record<Variant, number> = {
   dirt: 0,
@@ -30,6 +40,7 @@ function block(
     sy: VARIANT_BASE_SY[variant] + rowOffset,
     widthTiles,
     heightTiles,
+    family: VARIANT_FAMILY[variant],
   };
 }
 
@@ -55,4 +66,15 @@ export const BACKGROUND_CATALOG: Record<BackgroundPieceId, BackgroundCatalogEntr
  */
 export function backgroundCatalogEntry(pieceId: BackgroundPieceId): BackgroundCatalogEntry | undefined {
   return BACKGROUND_CATALOG[pieceId];
+}
+
+/**
+ * A piece's intrinsic darkening family — the single fact the lighting pass
+ * reads to decide whether a covered cell darkens (FR-001/FR-021). Mirrors
+ * `backgroundCatalogEntry`'s stale-id contract: an id written before a
+ * catalog trim resolves to `undefined` rather than throwing, and a caller must
+ * treat `undefined` as "does not darken".
+ */
+export function backgroundPieceFamily(pieceId: BackgroundPieceId): BackgroundPieceFamily | undefined {
+  return BACKGROUND_CATALOG[pieceId]?.family;
 }

@@ -18,7 +18,7 @@
 - Q: Which point of the player decides the occupied cell that drives darkness? → A: The cell under the player's feet (bottom-center) — deterministic and matching the existing centered-on-a-tile player model.
 - Q: Are the yellow eyes driven by the global darkness or by the enemy's own location? → A: The local darkness at the enemy's own position — an enemy standing in a torch's light pool (local darkness low) shows its normal sprite, not eyes.
 - Q: Should a torch's light glow appear when no darkness is active? → A: No — the glow is drawn only while darkness is active; in fully lit areas a torch renders as its normal animated flame only.
-- Q: Should the torch's light pool flicker with its flame? → A: Yes, but very mildly — the glow pulses slowly and with low amplitude in sync with the torch's 4-frame flame animation, barely perceptible and never a nervous flicker or strobe.
+- Q: Should the torch's light pool flicker with its flame? → A: Yes, but very mildly — the glow breathes slowly (a few seconds per cycle, independent of the flame's fast frame rate) and with very low amplitude, barely perceptible and never a nervous flicker or strobe.
 
 ## User Scenarios & Testing _(mandatory)_
 
@@ -126,7 +126,7 @@ While building a cave, a level author opens the background palette and finds it 
 - **FR-010**: Multiple torches MUST each contribute their own light, and overlapping pools MUST combine without visual artifacts.
 - **FR-011**: Torch light MUST pass through walls and terrain by design — there is no shadow casting or occlusion.
 - **FR-012**: Light pools MUST be anchored to the torch's world position and scroll with the camera.
-- **FR-013**: The torch's existing flame animation MUST continue to play and stay visible inside its own light pool, and the light pool MUST pulse subtly in sync with that animation — so mildly that the pulse is barely perceptible and never reads as a nervous flicker or strobe.
+- **FR-013**: The torch's existing flame animation MUST continue to play and stay visible inside its own light pool, and the light pool MUST breathe slowly and gently — a very low-amplitude change over a few seconds, not locked to the flame's fast frame rate — so the pulse is barely perceptible and never reads as a nervous flicker or strobe.
 - **FR-014**: Torch light MUST use a warm tone (orange/gold), visually distinct from the neutral darkness.
 
 **Enemy eyes**
@@ -134,7 +134,7 @@ While building a cave, a level author opens the background palette and finds it 
 - **FR-015**: Every living enemy whose own position is above a low darkness threshold MUST be marked by a small pair of glowing yellow eyes that stays visible through the darkness. An enemy standing where local darkness is low — for example inside a torch's light pool — MUST NOT show the marker.
 - **FR-016**: The eye marker MUST fade with the local darkness at the enemy's position — fading in as that spot darkens and fading out as it is lit — so at full brightness, or in torch light, enemies render normally with no marker.
 - **FR-017**: Defeated or removed enemies MUST NOT show an eye marker.
-- **FR-018**: The eye marker MUST be small, fixed in position relative to the enemy, and MUST NOT obscure the enemy's normal sprite when that sprite is visible.
+- **FR-018**: The eye marker MUST be small and anchored to the enemy (moving and scrolling with it), MUST NOT obscure the enemy's normal sprite when that sprite is visible, and MUST bob gently up and down (a few rendered pixels, driven by the shared world clock) so it reads as alive rather than as a static dot.
 - **FR-019**: The eye marker MUST stay aligned to the enemy as it moves and scrolls with the camera.
 
 **Level authoring**
@@ -167,13 +167,14 @@ While building a cave, a level author opens the background palette and finds it 
 - **Which pieces darken**: Darkening is intrinsic to the piece family — the charcoal (cave) family darkens, the dirt (surface) family does not. There is no per-placement darkening flag; the editor's background palette is split into surface and cave sections so the distinction is visible while authoring. The exact membership of each family can be tuned during implementation.
 - **Trigger model**: Darkness is keyed to the single cell under the player's feet (bottom-center), not to a separately painted cave region or a global level setting. Walking under a darkening piece is what "entering the cave" means.
 - **Fade duration**: The darkening/brightening fade is roughly 0.3–0.6 seconds (default ~0.4s), fast enough to feel responsive but slow enough to avoid a snap.
-- **Maximum darkness**: Darkness is capped at roughly 85% (a brightness floor), tunable so playability always wins over mood.
-- **Torch light radius and falloff**: A torch's glow is clear at the flame and fades out over roughly a 2–3 tile radius, blending into the surrounding darkness; the exact radius and gradient curve are tuned during implementation.
+- **Maximum darkness**: Darkness is capped at roughly 97% (a brightness floor), tunable so playability always wins over mood.
+- **Torch light radius and falloff**: A torch's glow is clear at the flame and fades out over roughly a 3.5 tile radius, blending into the surrounding darkness; the exact radius and gradient curve are tuned during implementation.
 - **Torch light color**: Warm orange/gold, distinct from the neutral darkness overlay.
 - **Torch glow only in darkness**: The glow is not drawn in fully lit areas, so torches never read as glowing orbs in daylight.
-- **Torch glow pulses with the flame**: The light pool breathes very mildly in step with the torch's 4-frame flame animation rather than sitting perfectly static. The pulse is deliberately gentle — a slow, low-amplitude breathing, never a rapid or high-contrast flicker that would become distracting against the darkness.
+- **Torch glow breathes slowly**: The light pool breathes very mildly rather than sitting perfectly static — a slow cycle of a few seconds (≈2.6 s) with a radius change of only a couple of percent, deliberately decoupled from the flame's fast frame rate so it never reads as a flicker. Each torch keeps its own phase, so several torches never pulse in unison.
 - **Enemy eyes are rendered, not new sprite art**: The eyes are a small drawn overlay (like the existing checkpoint twinkles), generated for every enemy type generically, so no per-enemy art is required.
 - **Eye marker scope**: Only enemies receive the eye marker; hazards, pickups, blocks, and chests do not. It is driven by the local darkness at each enemy's own position, so an enemy inside a torch's light pool shows its normal sprite instead.
+- **Eye marker bobs gently**: The marker drifts a few rendered pixels up and down on a slow cycle (≈1.5 s), driven by the shared world clock so it freezes with the world like every other animation.
 - **No occlusion**: Light passes through walls and terrain by design — a deliberate simplicity tradeoff that keeps the effect cheap.
 - **Atmospheric only**: Darkness gates no gameplay. No door, item, or enemy requires light to interact with.
 - **Torch flame animation**: The existing torch sparkle animation is reused as-is; the light pool's very mild pulse follows that animation, per FR-013.

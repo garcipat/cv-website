@@ -57,6 +57,18 @@ export interface LevelDef {
   background?: BackgroundPlacement[];
 }
 
+/**
+ * The intrinsic family of a background piece — the single fact that decides
+ * whether the piece darkens the view when the player stands on a cell it
+ * covers (FR-001/FR-021). Declared here as the single source of truth;
+ * `engine/BackgroundCatalog.ts` and `engine/Lighting.ts` import it rather than
+ * re-declaring it.
+ *
+ * `dirt*` pieces are `'surface'` (they do not darken); `charcoal*` pieces are
+ * `'cave'` (they do). There is deliberately no per-placement darkening flag.
+ */
+export type BackgroundPieceFamily = 'surface' | 'cave';
+
 export type BackgroundPieceId =
   | 'dirtBlock3x3'
   | 'dirtBlockTop2x1'

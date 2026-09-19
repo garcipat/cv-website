@@ -17,6 +17,7 @@ import {
   findSignTiles,
   HAZARD_CHARS,
   findHazardTiles,
+  findTorchTiles,
   type TileChar,
 } from './LevelParser';
 
@@ -496,6 +497,23 @@ describe('findHazardTiles', () => {
       { col: 0, row: 1, hazardType: 'spike', facing: 'left' },
       { col: 1, row: 1, hazardType: 'spike', facing: 'right' },
     ]);
+  });
+});
+
+describe('findTorchTiles', () => {
+  it('noMarkers-returnsEmptyArray', () => {
+    expect(findTorchTiles(['GG', 'GG'])).toEqual([]);
+  });
+
+  it('multipleMarkers-returnsAllInReadingOrder', () => {
+    expect(findTorchTiles(['.¥', '¥.'])).toEqual([
+      { col: 1, row: 0 },
+      { col: 0, row: 1 },
+    ]);
+  });
+
+  it('otherTerrainAndEntityChars-areNotCountedAsTorches', () => {
+    expect(findTorchTiles(['=F', 'oC'])).toEqual([]);
   });
 });
 

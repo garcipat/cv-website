@@ -30,16 +30,19 @@ export interface TorchLight extends Point {
 
 ## Exported constants
 
-- `MAX_DARKNESS: number` — the darkness cap (≈ 0.85).
+- `MAX_DARKNESS: number` — the darkness cap (≈ 0.97).
 - `DARKNESS_FADE_SECONDS: number` — enter/exit fade duration (≈ 0.4).
-- `TORCH_LIGHT_RADIUS_PX: number` — glow radius in rendered pixels (≈ 2.5 × `RENDERED_TILE_SIZE`, i.e. the spec's 2–3 tile radius).
-- `TORCH_PULSE_AMPLITUDE: number` — pulse depth (≈ 0.06).
+- `TORCH_LIGHT_RADIUS_PX: number` — glow radius in rendered pixels (≈ 3.5 × `RENDERED_TILE_SIZE`).
+- `TORCH_PULSE_AMPLITUDE: number` — pulse depth (≈ 0.02).
+- `TORCH_PULSE_PERIOD_SECONDS: number` — seconds per pulse breath (≈ 2.6), much slower than the flame loop.
 - `TORCH_GLOW_COLOR: string` — warm orange/gold.
 - `ENEMY_EYE_DARKNESS_THRESHOLD: number`
 - `ENEMY_EYE_FADE_RANGE: number`
 - `ENEMY_EYE_COLOR: string`
-- `ENEMY_EYE_SIZE_PX: number` — eye square size in rendered pixels (≈ 2).
-- `ENEMY_EYE_GAP_PX: number` — centre-to-centre gap between the two eyes (≈ 3).
+- `ENEMY_EYE_SIZE_PX: number` — eye square size in rendered pixels (2 native px = 4 rendered px).
+- `ENEMY_EYE_GAP_PX: number` — centre-to-centre gap between the two eyes (4 native px = 8 rendered px).
+- `ENEMY_EYE_BOB_PERIOD_SECONDS: number` — seconds per up-down bob (≈ 1.5).
+- `ENEMY_EYE_BOB_AMPLITUDE_PX: number` — peak vertical travel of the bob, in rendered pixels (≈ 3).
 
 ## Functions
 
@@ -71,9 +74,8 @@ export interface TorchLight extends Point {
 ### `torchPulseScale(torch: TorchLight, worldElapsed: number): number`
 
 - Returns a multiplier around `1` whose depth is `TORCH_PULSE_AMPLITUDE` and
-  whose period/phase follow the torch's own flame loop
-  (`torchFrameIndex`'s `TORCH_FRAME_DURATION_SECONDS × TORCH_FRAME_COUNT` and
-  `torchPhase`).
+  whose period is the slow `TORCH_PULSE_PERIOD_SECONDS`, with a per-torch phase
+  offset from `torchPhase` (so neighbouring torches never breathe in unison).
 - Always within `[1 - TORCH_PULSE_AMPLITUDE, 1 + TORCH_PULSE_AMPLITUDE]`.
 - Deterministic for any `worldElapsed >= 0`.
 
@@ -98,6 +100,14 @@ export interface TorchLight extends Point {
 - Rises smoothly to `1` at
   `ENEMY_EYE_DARKNESS_THRESHOLD + ENEMY_EYE_FADE_RANGE`.
 - Clamped to `[0, 1]`; never negative.
+
+### `enemyEyeBobOffset(worldElapsed: number): number`
+
+- Returns a small vertical offset in rendered pixels that makes the eye marker
+  bob gently up and down, driven by the shared world clock (so it freezes with
+  the world).
+- Always within `[-ENEMY_EYE_BOB_AMPLITUDE_PX, ENEMY_EYE_BOB_AMPLITUDE_PX]`.
+- Deterministic for any `worldElapsed >= 0`.
 
 ## Invariants (asserted by `Lighting.test.ts`)
 

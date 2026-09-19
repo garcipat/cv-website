@@ -11,8 +11,11 @@ import {
   PALETTE_TILE_DESCRIPTIONS,
   BLUEPRINT_GLYPH,
 } from './paletteTiles';
-import { BACKGROUND_PALETTE_SPRITES, BACKGROUND_PALETTE_LABELS } from './backgroundPaletteTiles';
-import { BACKGROUND_CATALOG } from '../engine/BackgroundCatalog';
+import {
+  BACKGROUND_PALETTE_SPRITES,
+  BACKGROUND_PALETTE_LABELS,
+  BACKGROUND_PALETTE_SECTIONS,
+} from './backgroundPaletteTiles';
 import type { BackgroundPieceId } from '../level/LevelData';
 import { BLUEPRINTS } from '../level/blueprintRegistry';
 import { PaletteTile } from './PaletteTile';
@@ -43,7 +46,6 @@ const EMPTY_CHAR: TileChar = '.';
 const PATROL_CHAR: TileChar = 'P';
 const SPAWN_CHAR: TileChar = 'S';
 const CONNECTION_POINT_CHAR: TileChar = '+';
-const BACKGROUND_PIECE_IDS = Object.keys(BACKGROUND_CATALOG) as BackgroundPieceId[];
 const DECORATION_CHARS: TileChar[] = ['n', 'N', 'X', 'c', '⊤', '⊥', '¥'];
 
 /**
@@ -173,15 +175,21 @@ export const Palette = ({
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-[repeat(3,max-content)] gap-2">
-            {BACKGROUND_PIECE_IDS.map((pieceId) => (
-              <PaletteTile
-                key={pieceId}
-                label={BACKGROUND_PALETTE_LABELS[pieceId]}
-                sprite={BACKGROUND_PALETTE_SPRITES[pieceId]}
-                selected={selectedBackgroundPiece === pieceId}
-                onClick={() => onSelectBackgroundPiece(pieceId)}
-              />
+          <div className="flex flex-col gap-3">
+            {BACKGROUND_PALETTE_SECTIONS.map((section) => (
+              <PaletteGroup key={section.title} title={section.title}>
+                <div className="grid grid-cols-[repeat(3,max-content)] gap-2">
+                  {section.pieceIds.map((pieceId) => (
+                    <PaletteTile
+                      key={pieceId}
+                      label={BACKGROUND_PALETTE_LABELS[pieceId]}
+                      sprite={BACKGROUND_PALETTE_SPRITES[pieceId]}
+                      selected={selectedBackgroundPiece === pieceId}
+                      onClick={() => onSelectBackgroundPiece(pieceId)}
+                    />
+                  ))}
+                </div>
+              </PaletteGroup>
             ))}
           </div>
         )}
