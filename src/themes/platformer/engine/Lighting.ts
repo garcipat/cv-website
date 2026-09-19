@@ -50,6 +50,10 @@ export const DARKNESS_FADE_SECONDS = 0.4;
 /** Soft glow radius in rendered pixels — roughly a 3.5-tile radius (FR-009). */
 export const TORCH_LIGHT_RADIUS_PX = 3.5 * RENDERED_TILE_SIZE;
 
+/** Radius of the player's own carried light, in rendered pixels — deliberately
+ *  much smaller than a wall torch's so torches stay the landmarks (FR-023). */
+export const PLAYER_LIGHT_RADIUS_PX = 1.75 * RENDERED_TILE_SIZE;
+
 /** Pulse depth as a fraction of the light radius (FR-013, SC-007). */
 export const TORCH_PULSE_AMPLITUDE = 0.02;
 
@@ -63,6 +67,13 @@ export const TORCH_PULSE_PERIOD_SECONDS = 2.6;
 
 /** Warm orange/gold glow, visually distinct from the neutral darkness (FR-014). */
 export const TORCH_GLOW_COLOR = 'rgb(255, 176, 74)';
+
+/** The player's own carried glow — a touch more orange and less yellow than the
+ *  wall torches', and softer overall (FR-023). */
+export const PLAYER_GLOW_COLOR = 'rgb(255, 145, 45)';
+
+/** How strong the player's warm glow is relative to a torch's (FR-023). */
+export const PLAYER_GLOW_INTENSITY = 0.7;
 
 /** Below this local darkness, an enemy shows its normal sprite (FR-015). */
 export const ENEMY_EYE_DARKNESS_THRESHOLD = 0.25;
@@ -197,10 +208,10 @@ export function torchGlowStrengthAt(
 }
 
 /**
- * The darkness left at `(x, y)` after torch light: `clamp(darknessLevel -
- * max(torchGlowStrengthAt(...)), 0, darknessLevel)`. Uses the **maximum**
- * contribution, not a sum, so overlapping pools never over-brighten; returns
- * `darknessLevel` unchanged when `torches` is empty.
+ * The darkness left at `(x, y)` after torch light and the player's own carried
+ * light: `clamp(darknessLevel - strongestLight, 0, darknessLevel)`. Uses the
+ * **maximum** contribution, not a sum, so overlapping pools never
+ * over-brighten; returns `darknessLevel` unchanged when there are no lights.
  */
 export function localDarknessAt(
   x: number,
@@ -208,13 +219,31 @@ export function localDarknessAt(
   darknessLevel: number,
   torches: readonly TorchLight[],
   worldElapsed: number,
+  playerLight?: Point | null,
 ): number {
-  let strongest = 0;
+  let strongest = playerLight ? playerGlowStrengthAt(x, y, playerLight) : 0;
   for (const torch of torches) {
     const strength = torchGlowStrengthAt(torch, x, y, worldElapsed);
     if (strength > strongest) strongest = strength;
   }
   return Math.max(0, Math.min(darknessLevel, darknessLevel - strongest));
+}
+
+/**
+ * The player's own carried light at `(x, y)` in `[0, 1]`: `1` at the player's
+ * centre, falling smoothly (smoothstep) to `0` at `PLAYER_LIGHT_RADIUS_PX`.
+ * Steady rather than pulsing, so the player's readability never flickers
+ * (FR-023/FR-024).
+ */
+export function playerGlowStrengthAt(x: number, y: number, light: Point): number {
+  const radius = PLAYER_LIGHT_RADIUS_PX;
+  if (radius <= 0) return 0;
+
+  const distance = Math.hypot(x - light.x, y - light.y);
+  if (distance >= radius) return 0;
+
+  const t = 1 - distance / radius;
+  return t * t * (3 - 2 * t);
 }
 
 /**

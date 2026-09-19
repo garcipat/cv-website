@@ -143,6 +143,28 @@ Single static web app. All source paths are relative to the repository root and 
 
 ---
 
+## Phase 8: User Story 5 - The player carries a small torch of their own (Priority: P5)
+
+**Goal**: A small warm glow centered on the player keeps them readable in the dark, plus a very small held-torch sprite shown while walking.
+
+**Independent Test**: Walk the player through a dark cave away from wall torches and confirm a small warm glow around them (with a tiny held torch while walking) that is clearly smaller than a wall torch's pool; confirm no glow/held torch at full brightness.
+
+### Tests for User Story 5 (write first, observe them fail) ⚠️
+
+- [ ] T032 [P] [US5] Add `src/themes/platformer/engine/Lighting.test.ts` tests for the player light: `PLAYER_LIGHT_RADIUS_PX` is positive and smaller than `TORCH_LIGHT_RADIUS_PX`; `playerGlowStrengthAt` is `1` at the player centre, falls off smoothly to `0` at the radius; `localDarknessAt` with a player light erases darkness near the player and never over-brightens. Covers FR-023/FR-024.
+- [ ] T033 [P] [US5] Add `src/themes/platformer/engine/Renderer.test.ts` tests: `drawDarkness` punches a player-light hole/glow when a player light is supplied and draws nothing extra when it is not; `drawHeldTorch` draws a small torch in hand only for `animState === 'walk'`, mirrored for `direction === 'left'`, and nothing for idle/jump/climb. Covers FR-025/FR-026/FR-027.
+
+### Implementation for User Story 5
+
+- [ ] T034 [US5] Add `PLAYER_LIGHT_RADIUS_PX` (≈ 1.75 tiles) and a `playerGlowStrengthAt(x, y, px, py)` helper to `src/themes/platformer/engine/Lighting.ts`; extend `localDarknessAt` with an optional player light (max-combined with torches) and re-export what the render pass needs. Depends on T032.
+- [ ] T035 [US5] Extend `drawDarkness` in `src/themes/platformer/engine/Renderer.ts` to accept an optional player light and punch/soften a smaller warm pool for it, and add `drawHeldTorch(ctx, player, torchSheet, originX, originY, worldElapsed)` that reuses `torchFrameIndex` and mirrors with facing. Depends on T033, T034.
+- [ ] T036 [US5] Wire it in `src/themes/platformer/PlatformerPage.tsx`: pass the player's light position into `drawDarkness`, and call `drawHeldTorch` right after `drawPlayer`, passing the loaded torch sheet. Depends on T035.
+- [ ] T037 [US5] Re-mark O-010 as done in `docs/Features.md` (all three places) once the player light's implementation **and** tests are complete. Depends on T036.
+
+**Checkpoint**: The player is readable in the dark with a small carried light; O-010 is fully done again.
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -152,6 +174,7 @@ Single static web app. All source paths are relative to the repository root and 
 - **User Stories (Phases 3–6)**: All depend on Foundational completion.
   - US1 (P1) → US2 (P2) → US3 (P3) → US4 (P4) is the recommended sequential order because US1–US3 all edit `engine/Renderer.ts` and `PlatformerPage.tsx` (shared files, no parallel edits).
   - US4 is independent of US1–US3 (it only needs the Foundational family work) and can be done in parallel with the render stories by a second developer.
+  - US5 (P5, Phase 8) extends the torch-light model (US2) and touches `Renderer.ts`/`PlatformerPage.tsx`, so it follows US2.
 - **Polish (Phase 7)**: Depends on all desired stories being complete.
 
 ### User Story Dependencies
@@ -160,6 +183,7 @@ Single static web app. All source paths are relative to the repository root and 
 - **US2 (P2)**: Needs Foundational; builds on US1's `drawDarkness` pass and `PlatformerPage.tsx` wiring.
 - **US3 (P3)**: Needs Foundational; builds on US2's `torchPositions` (for local darkness) and `PlatformerPage.tsx` wiring.
 - **US4 (P4)**: Needs Foundational only (`BackgroundPieceFamily`); independent of US1–US3.
+- **US5 (P5)**: Needs Foundational and US2's torch-light pass; reuses the torch frames for the held sprite.
 
 ### Within Each User Story
 
@@ -175,6 +199,7 @@ Single static web app. All source paths are relative to the repository root and 
 - Within US2, T012–T015 (four different test files) can run in parallel.
 - Within US4, T024 and T025 (different test files) can run in parallel.
 - US4 can be developed in parallel with US1–US3 (no shared files).
+- Within US5, T032 and T033 (different test files) can run in parallel.
 - T028 (docs) can run alongside T029–T031 once the code is frozen.
 
 ---
@@ -216,7 +241,8 @@ Task: "Surface/Cave section tests in src/themes/platformer/editor/Palette.test.t
 3. US2 → validate → torch light pools make caves playable.
 4. US3 → validate → enemies stay fair in the dark.
 5. US4 → validate → authors can tell surface from cave.
-6. Polish → tracking, full suite/build, quickstart, performance.
+6. US5 → validate → the player stays readable with a small carried light.
+7. Polish → tracking, full suite/build, quickstart, performance.
 
 ### Notes
 

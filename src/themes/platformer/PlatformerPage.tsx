@@ -39,6 +39,8 @@ import {
   drawFadeOutTexts,
   drawDarkness,
   drawEnemyEyes,
+  drawHeldTorch,
+  heldTorchLightPosition,
 } from './engine/Renderer';
 import { drawBackgroundLayers } from './engine/BackgroundLayers';
 import type { DrawContext } from './engine/DrawContext';
@@ -651,6 +653,19 @@ export const PlatformerPage = () => {
           playerJumpSpriteRef.current,
           playerVisible,
         );
+        // The very small torch the player carries, only while walking — drawn
+        // with the player so the player's own light reveals it (FR-025).
+        if (playerVisible) {
+          drawHeldTorch(
+            ctx,
+            playerState.value,
+            torchRef.current,
+            darknessLevel.value,
+            originX,
+            originY,
+            worldAnimElapsed,
+          );
+        }
       }
 
       drawHealAuraEffects(
@@ -690,6 +705,10 @@ export const PlatformerPage = () => {
       // pass below, so hearts, counters, hint bubbles and popups stay fully
       // readable (FR-006). Each torch punches a warm, mildly pulsing pool
       // back through it, anchored to the torch's world position.
+      // The player's own carried light, in world coordinates — a small, steady
+      // pool centered on the held torch (FR-023).
+      const playerLight = heldTorchLightPosition(playerState.value);
+
       if (darknessLayerRef.current) {
         drawDarkness(
           ctx,
@@ -701,6 +720,7 @@ export const PlatformerPage = () => {
           originX,
           originY,
           worldAnimElapsed,
+          playerLight,
         );
       }
 
@@ -714,6 +734,7 @@ export const PlatformerPage = () => {
         worldAnimElapsed,
         originX,
         originY,
+        playerLight,
       );
 
       const tooltip = hintTooltipState.value;

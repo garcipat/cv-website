@@ -33,9 +33,12 @@ export interface TorchLight extends Point {
 - `MAX_DARKNESS: number` — the darkness cap (≈ 0.97).
 - `DARKNESS_FADE_SECONDS: number` — enter/exit fade duration (≈ 0.4).
 - `TORCH_LIGHT_RADIUS_PX: number` — glow radius in rendered pixels (≈ 3.5 × `RENDERED_TILE_SIZE`).
+- `PLAYER_LIGHT_RADIUS_PX: number` — the player's own carried light radius in rendered pixels (≈ 1.75 × `RENDERED_TILE_SIZE`), deliberately smaller than a torch's.
 - `TORCH_PULSE_AMPLITUDE: number` — pulse depth (≈ 0.02).
 - `TORCH_PULSE_PERIOD_SECONDS: number` — seconds per pulse breath (≈ 2.6), much slower than the flame loop.
 - `TORCH_GLOW_COLOR: string` — warm orange/gold.
+- `PLAYER_GLOW_COLOR: string` — the player's carried glow tone, more orange and softer than a torch's (FR-023).
+- `PLAYER_GLOW_INTENSITY: number` — the player glow's strength relative to a torch's (≈ 0.7).
 - `ENEMY_EYE_DARKNESS_THRESHOLD: number`
 - `ENEMY_EYE_FADE_RANGE: number`
 - `ENEMY_EYE_COLOR: string`
@@ -87,12 +90,20 @@ export interface TorchLight extends Point {
 - Soft falloff (smoothstep-style), never a hard edge (FR-009).
 - No occlusion: distance alone decides (FR-011).
 
-### `localDarknessAt(x: number, y: number, darknessLevel: number, torches: readonly TorchLight[], worldElapsed: number): number`
+### `localDarknessAt(x: number, y: number, darknessLevel: number, torches: readonly TorchLight[], worldElapsed: number, playerLight?: Point | null): number`
 
-- Returns `clamp(darknessLevel - max(torchGlowStrengthAt(...)), 0, darknessLevel)`.
-- Uses the **maximum** torch contribution, not a sum, so overlapping pools do
-  not over-brighten.
-- Returns `darknessLevel` unchanged when `torches` is empty.
+- Returns `clamp(darknessLevel - strongestLight, 0, darknessLevel)`, where
+  `strongestLight` is the **maximum** of every torch contribution and, when
+  given, the player's own glow.
+- Uses the maximum, not a sum, so overlapping pools do not over-brighten.
+- Returns `darknessLevel` unchanged when there are no lights.
+
+### `playerGlowStrengthAt(x: number, y: number, light: Point): number`
+
+- Returns the player's carried-light contribution in `[0, 1]`: `1` at the
+  player's centre, falling smoothly (smoothstep) to `0` at
+  `PLAYER_LIGHT_RADIUS_PX`, and `0` beyond it.
+- Steady (no pulse), so the player's readability never flickers (FR-023/FR-024).
 
 ### `enemyEyeOpacity(localDarkness: number): number`
 
@@ -123,3 +134,4 @@ export interface TorchLight extends Point {
 6. `enemyEyeOpacity` is `0` inside a torch pool and at full brightness.
 7. No function mutates its arguments and none throws on integer inputs.
 8. `ENEMY_EYE_SIZE_PX` and `ENEMY_EYE_GAP_PX` are positive integers, so the marker stays small and integer-aligned (FR-018).
+9. `playerGlowStrengthAt` is `1` at the light's centre, `0` at or beyond `PLAYER_LIGHT_RADIUS_PX`, and monotonically decreasing between (FR-023/FR-024).

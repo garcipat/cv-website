@@ -5,6 +5,7 @@ import {
   TORCH_LIGHT_RADIUS_PX,
   TORCH_PULSE_AMPLITUDE,
   TORCH_GLOW_COLOR,
+  PLAYER_LIGHT_RADIUS_PX,
   ENEMY_EYE_DARKNESS_THRESHOLD,
   ENEMY_EYE_FADE_RANGE,
   ENEMY_EYE_COLOR,
@@ -20,6 +21,7 @@ import {
   localDarknessAt,
   enemyEyeOpacity,
   enemyEyeBobOffset,
+  playerGlowStrengthAt,
 } from './Lighting';
 import type { TorchLight } from './Lighting';
 import { PLAYER_RENDERED_SIZE, PLAYER_FOOT_PADDING } from '../entities/Player';
@@ -305,5 +307,51 @@ describe('enemyEyeBobOffset', () => {
 
   it('sameInputs-areDeterministic', () => {
     expect(enemyEyeBobOffset(1.234)).toBe(enemyEyeBobOffset(1.234));
+  });
+});
+
+describe('playerGlowStrengthAt', () => {
+  const light = { x: 50, y: 60 };
+
+  it('playerLightRadius-isPositiveAndSmallerThanATorch', () => {
+    expect(PLAYER_LIGHT_RADIUS_PX).toBeGreaterThan(0);
+    expect(PLAYER_LIGHT_RADIUS_PX).toBeLessThan(TORCH_LIGHT_RADIUS_PX);
+  });
+
+  it('atThePlayerCentre-isFullStrength', () => {
+    expect(playerGlowStrengthAt(light.x, light.y, light)).toBe(1);
+  });
+
+  it('atOrBeyondTheRadius-isZero', () => {
+    expect(playerGlowStrengthAt(light.x + PLAYER_LIGHT_RADIUS_PX, light.y, light)).toBe(0);
+    expect(playerGlowStrengthAt(light.x + PLAYER_LIGHT_RADIUS_PX * 2, light.y, light)).toBe(0);
+  });
+
+  it('falloff-isSmoothAndMonotonicFromCentreToEdge', () => {
+    const near = playerGlowStrengthAt(light.x + PLAYER_LIGHT_RADIUS_PX * 0.25, light.y, light);
+    const mid = playerGlowStrengthAt(light.x + PLAYER_LIGHT_RADIUS_PX * 0.5, light.y, light);
+    const far = playerGlowStrengthAt(light.x + PLAYER_LIGHT_RADIUS_PX * 0.9, light.y, light);
+
+    expect(near).toBeGreaterThan(mid);
+    expect(mid).toBeGreaterThan(far);
+  });
+});
+
+describe('localDarknessAt with the player light', () => {
+  const light = { x: 50, y: 60 };
+
+  it('atThePlayerCentre-erasesAllDarkness', () => {
+    expect(localDarknessAt(light.x, light.y, MAX_DARKNESS, [], 0, light)).toBe(0);
+  });
+
+  it('farFromThePlayer-keepsTheBaseDarkness', () => {
+    expect(localDarknessAt(light.x + 10000, light.y, MAX_DARKNESS, [], 0, light)).toBe(MAX_DARKNESS);
+  });
+
+  it('playerLightAndTorch-useTheMaximumNotTheSum', () => {
+    const torch = makeTorch({ x: light.x, y: light.y });
+    const lit = localDarknessAt(light.x, light.y, MAX_DARKNESS, [torch], 0, light);
+
+    expect(lit).toBe(0);
   });
 });

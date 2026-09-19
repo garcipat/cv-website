@@ -19,6 +19,7 @@
 - Q: Are the yellow eyes driven by the global darkness or by the enemy's own location? → A: The local darkness at the enemy's own position — an enemy standing in a torch's light pool (local darkness low) shows its normal sprite, not eyes.
 - Q: Should a torch's light glow appear when no darkness is active? → A: No — the glow is drawn only while darkness is active; in fully lit areas a torch renders as its normal animated flame only.
 - Q: Should the torch's light pool flicker with its flame? → A: Yes, but very mildly — the glow breathes slowly (a few seconds per cycle, independent of the flame's fast frame rate) and with very low amplitude, barely perceptible and never a nervous flicker or strobe.
+- Q: Is the player-carried light a separate feature or part of this one? → A: Part of this one (O-010). The player carries a small warm glow, noticeably smaller and dimmer than a wall torch, plus a very small held-torch sprite shown only while walking; the glow stays on in darkness so the player never disappears.
 
 ## User Scenarios & Testing _(mandatory)_
 
@@ -92,18 +93,36 @@ While building a cave, a level author opens the background palette and finds it 
 
 ---
 
+### User Story 5 - The player carries a small torch of their own (Priority: P5)
+
+In a dark cave the player would otherwise be almost invisible between wall torches, so they carry a small torch: a soft warm glow around themselves, and — while walking — a tiny torch sprite in hand. The glow is deliberately much smaller and dimmer than a wall torch, so the cave stays dark and the wall torches remain the real landmarks.
+
+**Why this priority**: With darkness capped so dark, the player would otherwise be nearly invisible away from a torch. The carried light keeps them readable and the game fair without brightening the whole cave. It builds on the torch light model, so it comes after it.
+
+**Independent Test**: Walk the player through a dark cave away from any wall torch and confirm a small warm glow around them (with a tiny held torch while walking) that is clearly smaller than a wall torch's pool.
+
+**Acceptance Scenarios**:
+
+1. **Given** the player is in a dark cave, **When** the level renders, **Then** a small warm glow centered on the player's held torch keeps them discernible.
+2. **Given** the player stands or walks left or right in a dark cave, **When** the level renders, **Then** a very small torch sprite is drawn in their hand, mirrored to match the player's facing.
+3. **Given** the player jumps or climbs, **When** the level renders, **Then** the glow remains but the held-torch sprite is not drawn.
+4. **Given** the player stands next to a wall torch, **When** the level renders, **Then** the player's glow is visibly smaller than the wall torch's pool.
+5. **Given** the view is at full brightness, **When** the level renders, **Then** neither the player's glow nor the held-torch sprite is drawn.
+
+---
+
 ### Edge Cases
 
-- **Boundary cells**: When the player stands on a cell at the edge of a darkening area, the darkness must not flicker rapidly on and off — the fade smooths the transition, and a cell is either covered by a darkening piece or it is not.
-- **Overlapping darkening pieces**: Two or more darkening pieces covering the same cell must not stack into a darker-than-maximum result — darkness is capped once.
-- **No torches in a cave**: A darkening area with no torches must still leave the player faintly visible and the ground readable, so the game never becomes unplayable.
-- **Torch partially off-screen**: A torch at the edge of the viewport still lights the visible part of its pool correctly, and a torch scrolled fully off-screen contributes nothing.
-- **Mild light pulse**: Several torches pulsing together must never produce a busy, strobing scene — the pulse is slow and low-amplitude enough that a viewer reads the light as steady warmth, not as flickering.
-- **Paused / dead**: Darkness must freeze with the rest of the world while paused, dying, or on the restart screen — it must not keep animating or flicker.
-- **UI readability**: The heart HUD, counters, hint bubbles, journal, and collection popups must stay fully readable regardless of how dark the world is.
-- **Enemy during a hit reaction**: An enemy reacting to a stomp keeps its eye marker consistent with its current on-screen position.
-- **Level with many torches and enemies**: A cave with several torches and enemies on screen must keep the frame rate smooth.
-- **Full-brightness regression**: In any level or area without darkening pieces, the rendered view must be indistinguishable from before this feature.
+- ✅ **Boundary cells**: When the player stands on a cell at the edge of a darkening area, the darkness must not flicker rapidly on and off — the fade smooths the transition, and a cell is either covered by a darkening piece or it is not (FR-002, FR-003).
+- ✅ **Overlapping darkening pieces**: Two or more darkening pieces covering the same cell must not stack into a darker-than-maximum result — darkness is capped once (FR-007).
+- ✅ **No torches in a cave**: A darkening area with no torches must still leave the player faintly visible and the ground readable, so the game never becomes unplayable — the player's own carried glow guarantees this (FR-005, FR-023).
+- ✅ **Torch partially off-screen**: A torch at the edge of the viewport still lights the visible part of its pool correctly, and a torch scrolled fully off-screen contributes nothing (FR-012).
+- ✅ **Mild light pulse**: Several torches pulsing together must never produce a busy, strobing scene — the pulse is slow (≈2.6 s) and low-amplitude (a couple of percent) with per-torch phase offset, so a viewer reads the light as steady warmth, not as flickering (FR-013).
+- ✅ **Paused / dead**: Darkness must freeze with the rest of the world while paused, dying, or on the restart screen — it must not keep animating or flicker (Assumptions: Freeze with the world).
+- ✅ **UI readability**: The heart HUD, counters, hint bubbles, journal, and collection popups must stay fully readable regardless of how dark the world is (FR-006).
+- ✅ **Enemy during a hit reaction**: An enemy reacting to a stomp keeps its eye marker consistent with its current on-screen position (FR-018, FR-019).
+- ✅ **Level with many torches and enemies**: A cave with several torches and enemies on screen must keep the frame rate smooth (SC-006).
+- ✅ **Full-brightness regression**: In any level or area without darkening pieces, the rendered view must be indistinguishable from before this feature (SC-005, FR-004).
 
 ## Requirements _(mandatory)_
 
@@ -143,12 +162,22 @@ While building a cave, a level author opens the background palette and finds it 
 - **FR-021**: A piece's section MUST follow the piece's own family, so placing or removing a piece never requires the author to set a separate darkening flag.
 - **FR-022**: The torch MUST remain available as a paintable decorative tile in the editor.
 
+**Player light**
+
+- **FR-023**: The player MUST carry a small light source: a soft warm radial glow centered on the player's held torch, smaller and dimmer than a wall torch's pool, so the player stays discernible in the dark without brightening the whole cave.
+- **FR-024**: The player's glow MUST use the same soft gradient falloff as torches and MUST pass through walls (no occlusion).
+- **FR-025**: While the player is standing or walking, a very small held-torch sprite MUST be drawn in the player's hand, mirrored to match the facing direction.
+- **FR-026**: The held-torch sprite MUST NOT be drawn while the player is jumping, climbing, or in a hit/death reaction (standing and walking do draw it).
+- **FR-027**: At full brightness (darkness zero), neither the player's glow nor the held-torch sprite MUST be drawn.
+- **FR-028**: The held-torch sprite SHOULD reuse the existing torch animation frames so its style matches the wall torches.
+
 ### Key Entities _(include if feature involves data)_
 
 - **Darkening background piece**: A background placement whose piece family shades the view (charcoal/cave darkens; dirt/surface does not). Key attributes: which piece it is, its anchor position, its footprint, and its family (which decides whether it darkens).
 - **Darkness level**: A single world value describing how dark the view currently is (bright to maximum dark). It is derived from the cell under the player's feet and animated smoothly over time rather than stored per area.
 - **Light source (torch)**: A torch tile in the world. It contributes a warm radial glow with a soft gradient falloff that pulses with its flame, anchored to its world position.
 - **Enemy eye marker**: A derived visual attached to a living enemy, shown only while that enemy's own location is dark. It has no stored state of its own.
+- **Player light**: A small light source anchored to the player, contributing a warm radial glow with a radius smaller than a torch's, plus a small held-torch sprite drawn while walking.
 
 ## Success Criteria _(mandatory)_
 
@@ -161,6 +190,7 @@ While building a cave, a level author opens the background palette and finds it 
 - **SC-005**: At full brightness, the rendered view is indistinguishable from the pre-feature view — no residual darkening and no eye markers.
 - **SC-006**: A cave with several torches and enemies on screen runs without perceptible stutter.
 - **SC-007**: Watching a cave with several torches for several seconds never feels busy or flickery — the light reads as steady, gentle warmth, and no pulse is distracting enough to draw the eye away from play.
+- **SC-008**: In a dark cave away from wall torches, the player stays discernible thanks to their own small glow, and that glow is clearly smaller than a wall torch's pool.
 
 ## Assumptions
 
@@ -180,11 +210,14 @@ While building a cave, a level author opens the background palette and finds it 
 - **Torch flame animation**: The existing torch sparkle animation is reused as-is; the light pool's very mild pulse follows that animation, per FR-013.
 - **Editor preview**: The editor groups background pieces into surface and cave sections but does not need to render the full darkness effect while authoring.
 - **Background art rework is separate**: The quieter, less-noisy background art and simplified footprints the user wants are a separate feature, not part of this one; O-010 relies on the existing piece families and only adds the surface/cave palette split.
+- **Player light is always on in darkness**: The glow is centered on the player's held torch whenever darkness is active, so the player never disappears; the held-torch sprite is drawn while standing and walking (jump, climb and hit/death hide it).
+- **Player light radius**: Much smaller than a wall torch — roughly 1.5–2 tiles against the torch's ~3.5 — so wall torches stay the landmarks and the cave stays dark.
+- **Held-torch art**: A very small torch sprite drawn in the player's hand; reusing the existing torch flame frames keeps its style consistent with the wall torches.
 - **Freeze with the world**: Darkness animation follows the same pause/death freezing as the rest of the game world.
 
 ## Dependencies
 
-- **O-013 Platformer Wall Torches** — provides the torch tile and its flame animation, which this feature uses as light sources.
+- **O-013 Platformer Wall Torches** — provides the torch tile and its flame animation, which this feature uses as light sources and reuses for the player's held-torch sprite.
 - **O-009 Platformer Background Image Layers** and **O-003 Platformer Tile Layers** — provide the background placement system and the piece families this feature treats as darkening (cave) or non-darkening (surface).
 - **F-017 Platformer Enemies** — provides the living-enemy states the eye marker is attached to.
 - **F-019 Platformer Level Editor** — provides the authoring surface where the surface/cave palette sections and torches are authored.
@@ -192,15 +225,9 @@ While building a cave, a level author opens the background palette and finds it 
 ## Out of Scope
 
 - Day/night cycles or time-of-day lighting.
-- Dynamic light sources other than torches (projectiles, explosions, glowing pickups) — see Possible Extensions for the deferred player-carried light.
+- Dynamic light sources other than torches and the player's own carried light (projectiles, explosions, glowing pickups).
 - Shadow casting, occlusion, or raycast lighting.
 - Colored lighting beyond the warm torch tone.
 - Light-gated gameplay (locked doors, dark-only enemies, light-based puzzles).
 - Per-enemy bespoke eye art or enemy-specific darkness behavior.
 - The rework of the background art itself (quieter, less-noisy pieces and simplified footprints) — tracked as a separate feature; this feature only adds the surface/cave palette split.
-
-## Possible Extensions (Deferred)
-
-Not required by this feature, but deliberately left open so it can be added later without reworking the lighting model:
-
-- **Player-carried light**: a small soft glow around the player, and/or a small torch rendered in the player's hand, giving the player a faint light of their own in the dark. This feature's darkness, torch glow and enemy eyes are designed so the game is fully playable without it. If added, it would be a light source anchored to the player and would follow the same soft radial-gradient falloff as torches (FR-008/FR-009). It is intentionally not part of this specification's requirements.
