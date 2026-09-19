@@ -43,7 +43,9 @@ describe('Palette', () => {
     const entityCount = Object.keys(ENTITY_CHARS).length;
     // +1 for the single representative Sign tile, +1 for the single
     // representative Hazard tile, +1 for the Eraser tile.
-    expect(screen.getAllByRole('button')).toHaveLength(terrainCount + entityCount + 1 + 1 + 1);
+    // +5 for the collapsible group triggers (Terrain, Decoration, Entities,
+    // Hazards, Tools) — no Blueprints group with an empty registry.
+    expect(screen.getAllByRole('button')).toHaveLength(terrainCount + entityCount + 1 + 1 + 1 + 5);
   });
 
   it('renders a "Palette" title', () => {
@@ -146,7 +148,8 @@ describe('Palette — subtitle groups', () => {
     const hazardsHeading = screen.getByText('Hazards');
     const hazardsGroup = hazardsHeading.closest('section') ?? hazardsHeading.parentElement!;
     expect(within(hazardsGroup).getByRole('button', { name: 'Spike' })).toBeInTheDocument();
-    expect(within(hazardsGroup).getAllByRole('button')).toHaveLength(1);
+    // The Spike tile plus the group's own collapsible trigger.
+    expect(within(hazardsGroup).getAllByRole('button')).toHaveLength(2);
   });
 });
 

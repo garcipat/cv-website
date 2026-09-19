@@ -658,7 +658,7 @@ export const LevelEditorPage = () => {
     <div className="flex h-screen flex-col gap-4 p-4">
       <h1 className="text-xl font-semibold">Platformer Level Editor</h1>
       <div className="flex min-h-0 flex-1 flex-row items-stretch gap-4">
-        <div className="flex flex-col gap-2">
+        <div className="flex min-h-0 flex-col gap-2 overflow-y-auto">
           <div className="flex gap-2" role="group" aria-label="Layer">
             <button
               type="button"
