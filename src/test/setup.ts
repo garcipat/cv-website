@@ -31,6 +31,12 @@ HTMLCanvasElement.prototype.getContext = function (
       lineJoin: 'miter',
       fillRect: vi.fn(),
       fillText: vi.fn(),
+      // The cave-lighting pass (Renderer.ts's drawDarkness) clears its
+      // reusable offscreen layer before compositing the overlay. Without this
+      // the render loop would throw the moment a test's player stands in a
+      // cave and darkness becomes active.
+      clearRect: vi.fn(),
+      globalCompositeOperation: 'source-over',
       // Text drawn as a dark core inside a light halo (the Level Editor's
       // patrol markers) strokes before it fills, so both halves have to
       // exist here or any level holding such a tile throws mid-render.

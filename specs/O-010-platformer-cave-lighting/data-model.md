@@ -128,13 +128,16 @@ TorchLightSource[] ────────────────────�
 
 | Constant | Value (tunable) | Meaning |
 | --- | --- | --- |
-| `MAX_DARKNESS` | ≈ 0.85 | Brightness floor; playability wins over mood (FR-005). |
+| `MAX_DARKNESS` | ≈ 0.97 | Brightness floor; playability wins over mood (FR-005). |
 | `DARKNESS_FADE_SECONDS` | ≈ 0.4 | Enter/exit fade duration (FR-003, SC-001). |
-| `TORCH_LIGHT_RADIUS_PX` | ≈ 2.5 × `RENDERED_TILE_SIZE` | Soft glow radius in rendered pixels (FR-009). |
-| `TORCH_PULSE_AMPLITUDE` | ≈ 0.06 | Pulse depth (FR-013, SC-007). |
+| `TORCH_LIGHT_RADIUS_PX` | ≈ 3.5 × `RENDERED_TILE_SIZE` | Soft glow radius in rendered pixels (FR-009). |
+| `TORCH_PULSE_AMPLITUDE` | ≈ 0.02 | Pulse depth (FR-013, SC-007). |
+| `TORCH_PULSE_PERIOD_SECONDS` | ≈ 2.6 | Seconds per slow pulse breath (FR-013). |
 | `TORCH_GLOW_COLOR` | warm orange/gold | Distinct from the neutral darkness (FR-014). |
 | `ENEMY_EYE_DARKNESS_THRESHOLD` | ≈ 0.25 | Below this, no eye marker (FR-015). |
 | `ENEMY_EYE_FADE_RANGE` | ≈ 0.25 | Width of the fade band above the threshold (FR-016). |
 | `ENEMY_EYE_COLOR` | glowing yellow | Eye marker colour (FR-015). |
-| `ENEMY_EYE_SIZE_PX` | ≈ 2 | Eye square size in rendered pixels (FR-018). |
-| `ENEMY_EYE_GAP_PX` | ≈ 3 | Centre-to-centre gap between the two eyes (FR-018). |
+| `ENEMY_EYE_SIZE_PX` | 4 (2 native px) | Eye square size in rendered pixels (FR-018). |
+| `ENEMY_EYE_GAP_PX` | 8 (4 native px) | Centre-to-centre gap between the two eyes (FR-018). |
+| `ENEMY_EYE_BOB_PERIOD_SECONDS` | ≈ 1.5 | Seconds per up-down bob (FR-018). |
+| `ENEMY_EYE_BOB_AMPLITUDE_PX` | ≈ 3 | Peak vertical travel of the bob in rendered px (FR-018). |
