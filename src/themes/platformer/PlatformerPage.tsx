@@ -1431,9 +1431,13 @@ export const PlatformerPage = () => {
         // the refractory window lapses, since nothing ever moves the player
         // out of contact with it.
         const contactSide: -1 | 1 = hazard.x >= playerState.value.x ? 1 : -1;
+        // Pushed away from the hazard, not toward it — the opposite sign of
+        // contactSide, spelled out as its own conditional (rather than
+        // `-contactSide`) since TS widens a negated `-1 | 1` to `number`.
+        const knockbackDirection: -1 | 1 = contactSide === 1 ? -1 : 1;
         playerState.value = applyKnockback(
           playerState.value,
-          -contactSide,
+          knockbackDirection,
           PHYSICS_CONFIG.sideHitKnockbackVx,
           PHYSICS_CONFIG.sideHitKnockbackDuration,
         );
