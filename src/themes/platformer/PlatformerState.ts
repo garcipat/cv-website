@@ -92,7 +92,7 @@ export function spawnPlayerState(): PlayerState {
     alive: true,
     // `hitTimer` counts UP from a hit, so "no hit recently" is a value at or
     // past the reaction duration, not 0. Seeding 0 would hand the player a
-    // free 1.2 s of invulnerability after every respawn.
+    // free 0.8 s of invulnerability after every respawn.
     hitTimer: PLAYER_HIT_REACTION_SECONDS,
   };
 }

@@ -3,6 +3,15 @@ import type { ChainAttachment, VerticalRunRole } from '../level/Terrain';
 export interface StaticObjectEntry {
   sx: number;
   sy: number;
+  /** Source crop size in native sheet pixels — omitted (and treated as the
+   *  standard 16x16 tile) for every entry whose art actually fills a whole
+   *  cell. Only the hand-spaced `decorations.png` entries below set these
+   *  explicitly: that sheet's icons now have real gaps between them and
+   *  aren't all exactly 16x16, so a fixed 16x16 crop would clip them —
+   *  Renderer.ts reads these (falling back to 16) instead of hardcoding
+   *  TILE_SIZE for every decoration draw. */
+  width?: number;
+  height?: number;
 }
 
 /** One or more sprite variants per role. A cell's variant is picked
@@ -31,7 +40,7 @@ const FENCE_VARIANTS: StaticObjectEntry[] = [{ sx: 32, sy: 64 }];
  * and never varies by position, so it's a length-1 array rather than a
  * `VerticalRunRole`-keyed record like `BUSH_OR_TREE_VARIANTS`.
  */
-const CRYSTAL_CLUSTER_VARIANTS: StaticObjectEntry[] = [{ sx: 32, sy: 0 }];
+const CRYSTAL_CLUSTER_VARIANTS: StaticObjectEntry[] = [{ sx: 33, sy: 0, width: 18, height: 18 }];
 
 /**
  * The corner and flat cobweb sprites, from `decorations.png`. Unlike
@@ -41,8 +50,8 @@ const CRYSTAL_CLUSTER_VARIANTS: StaticObjectEntry[] = [{ sx: 32, sy: 0 }];
  * two adjacent solid neighbours?), so each is kept as its own named single
  * entry rather than routed through `pickVariant`.
  */
-export const COBWEB_CORNER_ENTRY: StaticObjectEntry = { sx: 0, sy: 0 };
-export const COBWEB_FLAT_ENTRY: StaticObjectEntry = { sx: 16, sy: 0 };
+export const COBWEB_CORNER_ENTRY: StaticObjectEntry = { sx: 0, sy: 0, width: 16, height: 16 };
+export const COBWEB_FLAT_ENTRY: StaticObjectEntry = { sx: 17, sy: 0, width: 16, height: 17 };
 
 /**
  * Size variants for `stalactite`/`stalagmite` — a level author places one
@@ -51,12 +60,12 @@ export const COBWEB_FLAT_ENTRY: StaticObjectEntry = { sx: 16, sy: 0 };
  * `BUSH_OR_TREE_VARIANTS`'s `only` role already picks among 4 bush sizes.
  */
 const STALACTITE_VARIANTS: StaticObjectEntry[] = [
-  { sx: 48, sy: 0 }, // large
-  { sx: 0, sy: 16 }, // twin
+  { sx: 51, sy: 0, width: 16, height: 17 }, // large
+  { sx: 0, sy: 19, width: 16, height: 16 }, // twin
 ];
 const STALAGMITE_VARIANTS: StaticObjectEntry[] = [
-  { sx: 16, sy: 16 }, // large
-  { sx: 32, sy: 16 }, // twin
+  { sx: 17, sy: 17, width: 16, height: 18 }, // large
+  { sx: 34, sy: 25, width: 16, height: 10 }, // twin
 ];
 
 /** One hand-drawn chain sprite, sized to its own true pixel dimensions —

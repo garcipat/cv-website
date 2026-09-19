@@ -17,8 +17,12 @@ const TILESET_SHEET_WIDTH = 256;
 const TILESET_SHEET_HEIGHT = 256;
 const STATIC_OBJECTS_SHEET_WIDTH = 288;
 const STATIC_OBJECTS_SHEET_HEIGHT = 144;
-const DECORATIONS_SHEET_WIDTH = 64;
-const DECORATIONS_SHEET_HEIGHT = 32;
+// decorations.png is hand-spaced, not a uniform 16px grid — each entry
+// carries its own width/height (StaticObjectEntry), so the tests below check
+// against those rather than assuming every crop is TILE_SIZE square or
+// grid-aligned.
+const DECORATIONS_SHEET_WIDTH = 67;
+const DECORATIONS_SHEET_HEIGHT = 35;
 const TILE_SIZE = 16;
 const ROLES = ['only', 'bottom', 'middle', 'top'] as const;
 
@@ -60,39 +64,33 @@ describe('StaticObjectsCatalog', () => {
 
   const DECORATION_TILES = ['crystalCluster'] as const;
 
-  it.each(DECORATION_TILES)('staticObjectEntry-%s-resolvesToARectInsideTheDecorationsSheetOnA16pxGrid', (tile) => {
+  it.each(DECORATION_TILES)('staticObjectEntry-%s-resolvesToARectInsideTheDecorationsSheet', (tile) => {
     const entry = staticObjectEntry(tile, 0, 0);
-    expect(entry.sx % TILE_SIZE).toBe(0);
-    expect(entry.sy % TILE_SIZE).toBe(0);
-    expect(entry.sx + TILE_SIZE).toBeLessThanOrEqual(DECORATIONS_SHEET_WIDTH);
-    expect(entry.sy + TILE_SIZE).toBeLessThanOrEqual(DECORATIONS_SHEET_HEIGHT);
+    expect(entry.sx + (entry.width ?? TILE_SIZE)).toBeLessThanOrEqual(DECORATIONS_SHEET_WIDTH);
+    expect(entry.sy + (entry.height ?? TILE_SIZE)).toBeLessThanOrEqual(DECORATIONS_SHEET_HEIGHT);
   });
 
   it('staticObjectEntry-crystalCluster-ignoresPositionAndAlwaysReturnsTheSameEntry', () => {
     expect(staticObjectEntry('crystalCluster', 1, 1)).toEqual(staticObjectEntry('crystalCluster', 9, 9));
   });
 
-  it('cobwebCornerEntry-and-cobwebFlatEntry-resolveToRectsInsideTheDecorationsSheetOnA16pxGrid', () => {
+  it('cobwebCornerEntry-and-cobwebFlatEntry-resolveToRectsInsideTheDecorationsSheet', () => {
     for (const entry of [COBWEB_CORNER_ENTRY, COBWEB_FLAT_ENTRY]) {
-      expect(entry.sx % TILE_SIZE).toBe(0);
-      expect(entry.sy % TILE_SIZE).toBe(0);
-      expect(entry.sx + TILE_SIZE).toBeLessThanOrEqual(DECORATIONS_SHEET_WIDTH);
-      expect(entry.sy + TILE_SIZE).toBeLessThanOrEqual(DECORATIONS_SHEET_HEIGHT);
+      expect(entry.sx + (entry.width ?? TILE_SIZE)).toBeLessThanOrEqual(DECORATIONS_SHEET_WIDTH);
+      expect(entry.sy + (entry.height ?? TILE_SIZE)).toBeLessThanOrEqual(DECORATIONS_SHEET_HEIGHT);
     }
     expect(COBWEB_CORNER_ENTRY).not.toEqual(COBWEB_FLAT_ENTRY);
   });
 
   it.each(['stalactiteEntry', 'stalagmiteEntry'] as const)(
-    '%s-resolvesToARectInsideTheDecorationsSheetOnA16pxGridForEveryPosition',
+    '%s-resolvesToARectInsideTheDecorationsSheetForEveryPosition',
     (fnName) => {
       const fn = fnName === 'stalactiteEntry' ? stalactiteEntry : stalagmiteEntry;
       for (let col = 0; col < 8; col++) {
         for (let row = 0; row < 8; row++) {
           const entry = fn(col, row);
-          expect(entry.sx % TILE_SIZE).toBe(0);
-          expect(entry.sy % TILE_SIZE).toBe(0);
-          expect(entry.sx + TILE_SIZE).toBeLessThanOrEqual(DECORATIONS_SHEET_WIDTH);
-          expect(entry.sy + TILE_SIZE).toBeLessThanOrEqual(DECORATIONS_SHEET_HEIGHT);
+          expect(entry.sx + (entry.width ?? TILE_SIZE)).toBeLessThanOrEqual(DECORATIONS_SHEET_WIDTH);
+          expect(entry.sy + (entry.height ?? TILE_SIZE)).toBeLessThanOrEqual(DECORATIONS_SHEET_HEIGHT);
         }
       }
     },
