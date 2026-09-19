@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { BACKGROUND_CATALOG, backgroundCatalogEntry } from './BackgroundCatalog';
-import type { BackgroundPieceId } from '../level/LevelData';
+import { BACKGROUND_CATALOG, backgroundCatalogEntry, backgroundPieceFamily } from './BackgroundCatalog';
+import type { BackgroundPieceFamily, BackgroundPieceId } from '../level/LevelData';
 
 const SHEET_WIDTH = 128;
 const SHEET_HEIGHT = 320;
@@ -56,17 +56,20 @@ describe('BackgroundCatalog', () => {
     expect(charcoal!.heightTiles).toBe(dirt!.heightTiles);
   });
 
-  const EXPECTED_ENTRIES: Record<BackgroundPieceId, { sx: number; sy: number; widthTiles: number; heightTiles: number }> = {
-    dirtBlock3x3: { sx: 0, sy: 32, widthTiles: 3, heightTiles: 3 },
-    dirtBlockTop2x1: { sx: 48, sy: 32, widthTiles: 2, heightTiles: 1 },
-    dirtBlockBottom2x2: { sx: 48, sy: 48, widthTiles: 2, heightTiles: 2 },
-    dirtColumnTop1x1: { sx: 80, sy: 32, widthTiles: 1, heightTiles: 1 },
-    dirtColumnBottom1x2: { sx: 80, sy: 48, widthTiles: 1, heightTiles: 2 },
-    charcoalBlock3x3: { sx: 0, sy: 112, widthTiles: 3, heightTiles: 3 },
-    charcoalBlockTop2x1: { sx: 48, sy: 112, widthTiles: 2, heightTiles: 1 },
-    charcoalBlockBottom2x2: { sx: 48, sy: 128, widthTiles: 2, heightTiles: 2 },
-    charcoalColumnTop1x1: { sx: 80, sy: 112, widthTiles: 1, heightTiles: 1 },
-    charcoalColumnBottom1x2: { sx: 80, sy: 128, widthTiles: 1, heightTiles: 2 },
+  const EXPECTED_ENTRIES: Record<
+    BackgroundPieceId,
+    { sx: number; sy: number; widthTiles: number; heightTiles: number; family: BackgroundPieceFamily }
+  > = {
+    dirtBlock3x3: { sx: 0, sy: 32, widthTiles: 3, heightTiles: 3, family: 'surface' },
+    dirtBlockTop2x1: { sx: 48, sy: 32, widthTiles: 2, heightTiles: 1, family: 'surface' },
+    dirtBlockBottom2x2: { sx: 48, sy: 48, widthTiles: 2, heightTiles: 2, family: 'surface' },
+    dirtColumnTop1x1: { sx: 80, sy: 32, widthTiles: 1, heightTiles: 1, family: 'surface' },
+    dirtColumnBottom1x2: { sx: 80, sy: 48, widthTiles: 1, heightTiles: 2, family: 'surface' },
+    charcoalBlock3x3: { sx: 0, sy: 112, widthTiles: 3, heightTiles: 3, family: 'cave' },
+    charcoalBlockTop2x1: { sx: 48, sy: 112, widthTiles: 2, heightTiles: 1, family: 'cave' },
+    charcoalBlockBottom2x2: { sx: 48, sy: 128, widthTiles: 2, heightTiles: 2, family: 'cave' },
+    charcoalColumnTop1x1: { sx: 80, sy: 112, widthTiles: 1, heightTiles: 1, family: 'cave' },
+    charcoalColumnBottom1x2: { sx: 80, sy: 128, widthTiles: 1, heightTiles: 2, family: 'cave' },
   };
 
   it.each(PIECE_IDS)('%s-matchesThePixelVerifiedRect', (pieceId) => {
@@ -76,5 +79,21 @@ describe('BackgroundCatalog', () => {
 
   it('unknownPieceId-returnsUndefinedInsteadOfThrowing', () => {
     expect(backgroundCatalogEntry('notARealPieceId' as BackgroundPieceId)).toBeUndefined();
+  });
+
+  it('everyDirtPiece-resolvesToTheSurfaceFamily', () => {
+    for (const pieceId of PIECE_IDS.filter((id) => id.startsWith('dirt'))) {
+      expect(backgroundPieceFamily(pieceId)).toBe('surface');
+    }
+  });
+
+  it('everyCharcoalPiece-resolvesToTheCaveFamily', () => {
+    for (const pieceId of PIECE_IDS.filter((id) => id.startsWith('charcoal'))) {
+      expect(backgroundPieceFamily(pieceId)).toBe('cave');
+    }
+  });
+
+  it('unknownPieceId-familyAccessorReturnsUndefinedInsteadOfThrowing', () => {
+    expect(backgroundPieceFamily('notARealPieceId' as BackgroundPieceId)).toBeUndefined();
   });
 });

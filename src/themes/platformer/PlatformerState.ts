@@ -14,7 +14,17 @@ import {
   CHECKPOINT_TILES,
   SIGN_TILES,
   HAZARD_TILES,
+  currentLevel,
+  TORCH_TILES,
 } from './level/level';
+import {
+  MAX_DARKNESS,
+  DARKNESS_FADE_SECONDS,
+  nextDarknessLevel,
+  isCellDarkening,
+  playerOccupiedCell,
+} from './engine/Lighting';
+import type { TorchLight } from './engine/Lighting';
 import {
   PLAYER_RENDERED_SIZE,
   PLAYER_FOOT_PADDING,
@@ -141,6 +151,50 @@ export const cameraPositionX = signal(0);
  * assumption.
  */
 export const cameraPositionY = signal(0);
+
+/**
+ * How dark the view currently is — `0` (fully bright) to `MAX_DARKNESS`
+ * (FR-005). The only new stored value this feature adds: it is eased every
+ * `playing` tick from the cell under the player's feet toward either
+ * `MAX_DARKNESS` (that cell is covered by a cave-family background piece) or
+ * `0` (it is not), so entering/leaving a cave fades rather than snapping
+ * (FR-002/FR-003). Because the tick only runs in the `playing` phase, the
+ * value freezes with the world during pause/death (research D2/D8).
+ */
+export const darknessLevel = signal(0);
+
+/**
+ * One game-loop tick of the darkness value. Reads the single cell under the
+ * player's feet (bottom-centre, `playerOccupiedCell`) and eases the current
+ * value toward `MAX_DARKNESS` or `0` over `DARKNESS_FADE_SECONDS`. Pure inputs
+ * in, one signal write out; `resetGame()` returns it to `0` on respawn.
+ */
+export function tickDarkness(dt: number): void {
+  const cell = playerOccupiedCell(playerState.value);
+  const target = isCellDarkening(currentLevel.value.background ?? [], cell.col, cell.row)
+    ? MAX_DARKNESS
+    : 0;
+  darknessLevel.value = nextDarknessLevel(darknessLevel.value, target, dt, DARKNESS_FADE_SECONDS);
+}
+
+/**
+ * Every torch tile's world-space centre (`tileToPixel` plus half a rendered
+ * tile), derived from `TORCH_TILES` so the Level Editor's Try button updates it
+ * reactively like every other placement list. This is the light-source list the
+ * render pass reads for both the darkness overlay's holes and the enemy-eye
+ * pass's local-darkness check (research D4).
+ */
+export const torchPositions = computed<TorchLight[]>(() =>
+  TORCH_TILES.value.map(({ col, row }) => {
+    const { x, y } = tileToPixel(col, row);
+    return {
+      col,
+      row,
+      x: x + RENDERED_TILE_SIZE / 2,
+      y: y + RENDERED_TILE_SIZE / 2,
+    };
+  }),
+);
 
 /**
  * Every collectible in the level — purely positional now (see
@@ -674,6 +728,7 @@ export function resetGame(): void {
   playerState.value = respawnPlayerState.value;
   cameraPositionX.value = 0;
   cameraPositionY.value = 0;
+  darknessLevel.value = 0;
   enemyStates.value = enemyStates.value.map(reviveEnemy);
   hintTooltipState.value = null;
   // A label fading when the death/respawn happened must not survive it — it

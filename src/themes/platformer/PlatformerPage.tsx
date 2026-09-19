@@ -37,6 +37,10 @@ import {
   drawBackgroundTiles,
   drawCheckpoints,
   drawFadeOutTexts,
+  drawDarkness,
+  drawEnemyEyes,
+  drawHeldTorch,
+  heldTorchLightPosition,
 } from './engine/Renderer';
 import { drawBackgroundLayers } from './engine/BackgroundLayers';
 import type { DrawContext } from './engine/DrawContext';
@@ -196,6 +200,9 @@ import {
   activeFadeOutTexts,
   respawnPlayerState,
   respawnCenter,
+  darknessLevel,
+  tickDarkness,
+  torchPositions,
 } from './PlatformerState';
 import { useSignals } from '@preact/signals-react/runtime';
 import { Journal } from './components/Journal';
@@ -232,6 +239,10 @@ export const PlatformerPage = () => {
   // and threaded into drawTerrain with the shared world clock (see the render
   // call below), since a torch's frame animates over time.
   const torchRef = useRef<HTMLImageElement | null>(null);
+  // Reusable offscreen canvas the darkness/torch pass draws its overlay onto
+  // before compositing it over the world. Created and sized alongside the main
+  // canvas in `resize()` below, so it is never reallocated per frame.
+  const darknessLayerRef = useRef<HTMLCanvasElement | null>(null);
   const playerSpriteRef = useRef<HTMLImageElement | null>(null);
   const playerJumpSpriteRef = useRef<HTMLImageElement | null>(null);
   const heartsSpriteRef = useRef<HTMLImageElement | null>(null);
@@ -522,6 +533,14 @@ export const PlatformerPage = () => {
       canvas.width = width;
       canvas.height = height;
 
+      // The darkness/torch overlay's own canvas, kept the same size as the
+      // play canvas and reused every frame (never reallocated in the loop).
+      if (!darknessLayerRef.current) {
+        darknessLayerRef.current = document.createElement('canvas');
+      }
+      darknessLayerRef.current.width = width;
+      darknessLayerRef.current.height = height;
+
       backgroundColor =
         getComputedStyle(document.documentElement).getPropertyValue('--background').trim() ||
         '#000';
@@ -634,6 +653,19 @@ export const PlatformerPage = () => {
           playerJumpSpriteRef.current,
           playerVisible,
         );
+        // The very small torch the player carries, only while walking — drawn
+        // with the player so the player's own light reveals it (FR-025).
+        if (playerVisible) {
+          drawHeldTorch(
+            ctx,
+            playerState.value,
+            torchRef.current,
+            darknessLevel.value,
+            originX,
+            originY,
+            worldAnimElapsed,
+          );
+        }
       }
 
       drawHealAuraEffects(
@@ -667,6 +699,43 @@ export const PlatformerPage = () => {
           originY,
         );
       }
+
+      // Cave-darkness overlay: drawn over the whole world (background,
+      // terrain, player, enemies, pickups, water) but before every HUD/UI
+      // pass below, so hearts, counters, hint bubbles and popups stay fully
+      // readable (FR-006). Each torch punches a warm, mildly pulsing pool
+      // back through it, anchored to the torch's world position.
+      // The player's own carried light, in world coordinates — a small, steady
+      // pool centered on the held torch (FR-023).
+      const playerLight = heldTorchLightPosition(playerState.value);
+
+      if (darknessLayerRef.current) {
+        drawDarkness(
+          ctx,
+          darknessLayerRef.current,
+          canvas.width,
+          canvas.height,
+          darknessLevel.value,
+          torchPositions.value,
+          originX,
+          originY,
+          worldAnimElapsed,
+          playerLight,
+        );
+      }
+
+      // Enemy eye markers are drawn AFTER the darkness overlay so they stay
+      // visible through it (FR-015), but before the hint tooltip/UI below.
+      drawEnemyEyes(
+        ctx,
+        enemyStates.value,
+        darknessLevel.value,
+        torchPositions.value,
+        worldAnimElapsed,
+        originX,
+        originY,
+        playerLight,
+      );
 
       const tooltip = hintTooltipState.value;
       if (tooltip) {
@@ -883,6 +952,10 @@ export const PlatformerPage = () => {
       // during death/restart/journal-pause, same as physics below, rather
       // than ticking on a wall-clock independent of the paused state.
       worldAnimElapsed += dt;
+
+      // Darkness is eased here, in the `playing` branch only, so it freezes
+      // with the rest of the world during pause/death (research D8).
+      tickDarkness(dt);
 
       // Computed once per tick and shared by every reveal site below — these
       // same two expressions used to be duplicated in the enemy-defeat block

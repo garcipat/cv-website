@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { BACKGROUND_PALETTE_SPRITES, BACKGROUND_PALETTE_LABELS } from './backgroundPaletteTiles';
+import {
+  BACKGROUND_PALETTE_SPRITES,
+  BACKGROUND_PALETTE_LABELS,
+  BACKGROUND_PALETTE_SECTIONS,
+} from './backgroundPaletteTiles';
 import { BACKGROUND_CATALOG } from '../engine/BackgroundCatalog';
 import type { BackgroundPieceId } from '../level/LevelData';
 import { TERRAIN_BACKGROUND_SHEET } from '../entities/sprites/sheets';
@@ -23,5 +27,37 @@ describe('backgroundPaletteTiles', () => {
 
   it.each(Object.keys(BACKGROUND_CATALOG) as BackgroundPieceId[])('%s-hasANonEmptyLabel', (pieceId) => {
     expect(BACKGROUND_PALETTE_LABELS[pieceId].length).toBeGreaterThan(0);
+  });
+});
+
+describe('BACKGROUND_PALETTE_SECTIONS', () => {
+  const allIds = Object.keys(BACKGROUND_CATALOG) as BackgroundPieceId[];
+
+  it('membership-isTotalAndDisjointOverTheCatalog', () => {
+    const listed = BACKGROUND_PALETTE_SECTIONS.flatMap((section) => section.pieceIds);
+    expect([...listed].sort()).toEqual([...allIds].sort());
+    expect(new Set(listed).size).toBe(listed.length);
+  });
+
+  it('surfaceSection-holdsEveryDirtPieceAndNoCharcoalPiece', () => {
+    const surface = BACKGROUND_PALETTE_SECTIONS.find((section) => section.title === 'Surface');
+    expect(surface).toBeDefined();
+    for (const pieceId of allIds.filter((id) => id.startsWith('dirt'))) {
+      expect(surface!.pieceIds).toContain(pieceId);
+    }
+    expect(surface!.pieceIds.some((id) => id.startsWith('charcoal'))).toBe(false);
+  });
+
+  it('caveSection-holdsEveryCharcoalPieceAndNoDirtPiece', () => {
+    const cave = BACKGROUND_PALETTE_SECTIONS.find((section) => section.title === 'Cave');
+    expect(cave).toBeDefined();
+    for (const pieceId of allIds.filter((id) => id.startsWith('charcoal'))) {
+      expect(cave!.pieceIds).toContain(pieceId);
+    }
+    expect(cave!.pieceIds.some((id) => id.startsWith('dirt'))).toBe(false);
+  });
+
+  it('sectionOrder-isStableSurfaceThenCave', () => {
+    expect(BACKGROUND_PALETTE_SECTIONS.map((section) => section.title)).toEqual(['Surface', 'Cave']);
   });
 });

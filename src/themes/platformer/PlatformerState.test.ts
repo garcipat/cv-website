@@ -40,6 +40,9 @@ import {
   activeRespawnPlacement,
   respawnPlayerState,
   respawnCenter,
+  darknessLevel,
+  tickDarkness,
+  torchPositions,
 } from './PlatformerState';
 import type { CollectedFact } from './types';
 import { mapCVDataToEnemies } from './level/EnemyMapper';
@@ -50,7 +53,9 @@ import { tileToPixel, RENDERED_TILE_SIZE } from './level/Terrain';
 import {
   SPAWN_TILE,
   currentLayout,
+  currentBackground,
   LEVEL_1_LAYOUT,
+  LEVEL_1_BACKGROUND,
   ENEMY_TILES_PURPLE,
   CRATE_TILES,
   QUESTIONMARK_TILES,
@@ -58,6 +63,7 @@ import {
   CHEST_TILES,
   CHECKPOINT_TILES,
   SIGN_TILES,
+  TORCH_TILES,
 } from './level/level';
 import {
   PLAYER_RENDERED_SIZE,
@@ -68,6 +74,7 @@ import {
 import { toChestState, isChestOpen } from './entities/Chest';
 import { toCheckpointState } from './entities/Checkpoint';
 import { startPuffEffect, startHealAuraEffect, startFadeOutTextEffect } from './engine/CollectionEffects';
+import { MAX_DARKNESS, DARKNESS_FADE_SECONDS, playerOccupiedCell } from './engine/Lighting';
 
 function collectedFactFixture(): CollectedFact {
   return { id: 'f1', sectionId: 'skills', sectionLabel: 'Skills', data: { category: 'Test', skills: [] }, sourceType: 'coin' };
@@ -888,5 +895,94 @@ describe('checkpoint reset semantics', () => {
     expect(checkpointStates.value).toHaveLength(1);
     expect(checkpointStates.value[0]).toMatchObject({ activated: false, activatedAt: null });
     expect(activeFadeOutTexts.value).toEqual([]);
+  });
+});
+
+describe('darkness', () => {
+  afterEach(() => {
+    // currentBackground/darknessLevel are module-level; restoring them keeps
+    // this block from leaking a dark state into every other test in the file.
+    currentBackground.value = LEVEL_1_BACKGROUND;
+    darknessLevel.value = 0;
+  });
+
+  it('darknessLevel-initial-isZero', () => {
+    expect(darknessLevel.value).toBe(0);
+  });
+
+  it('tickDarkness-playerFootCellCoveredByACavePiece-risesTowardMaxDarkness', () => {
+    // Arrange: cover the cell under the player's feet with a cave-family piece.
+    const cell = playerOccupiedCell(playerState.value);
+    currentBackground.value = [{ pieceId: 'charcoalBlock3x3', col: cell.col, row: cell.row }];
+
+    // Act: two half-fades.
+    tickDarkness(DARKNESS_FADE_SECONDS / 2);
+    const halfway = darknessLevel.value;
+    tickDarkness(DARKNESS_FADE_SECONDS / 2);
+
+    // Assert
+    expect(halfway).toBeCloseTo(MAX_DARKNESS / 2);
+    expect(darknessLevel.value).toBeCloseTo(MAX_DARKNESS);
+  });
+
+  it('tickDarkness-playerFootCellOnOpenGround-returnsTowardZero', () => {
+    // Arrange: darken fully first.
+    const cell = playerOccupiedCell(playerState.value);
+    currentBackground.value = [{ pieceId: 'charcoalBlock3x3', col: cell.col, row: cell.row }];
+    tickDarkness(DARKNESS_FADE_SECONDS);
+    expect(darknessLevel.value).toBeCloseTo(MAX_DARKNESS);
+
+    // Act: remove the cave piece and tick half a fade.
+    currentBackground.value = [];
+    tickDarkness(DARKNESS_FADE_SECONDS / 2);
+
+    // Assert
+    expect(darknessLevel.value).toBeCloseTo(MAX_DARKNESS / 2);
+  });
+
+  it('tickDarkness-surfaceBackground-neverDarkens', () => {
+    const cell = playerOccupiedCell(playerState.value);
+    currentBackground.value = [{ pieceId: 'dirtBlock3x3', col: cell.col, row: cell.row }];
+
+    tickDarkness(DARKNESS_FADE_SECONDS);
+
+    expect(darknessLevel.value).toBe(0);
+  });
+
+  it('resetGame-calledWhileDark-setsDarknessBackToZero', () => {
+    const cell = playerOccupiedCell(playerState.value);
+    currentBackground.value = [{ pieceId: 'charcoalBlock3x3', col: cell.col, row: cell.row }];
+    tickDarkness(DARKNESS_FADE_SECONDS);
+    expect(darknessLevel.value).toBeCloseTo(MAX_DARKNESS);
+
+    resetGame();
+
+    expect(darknessLevel.value).toBe(0);
+  });
+});
+
+describe('torchPositions', () => {
+  afterEach(() => {
+    currentLayout.value = LEVEL_1_LAYOUT;
+  });
+
+  it('eachTorchTile-mapsToItsWorldSpaceCentre', () => {
+    currentLayout.value = ['S.¥', 'GGG'];
+    const [torch] = TORCH_TILES.value;
+    const cell = tileToPixel(torch.col, torch.row);
+
+    expect(torchPositions.value).toEqual([
+      {
+        col: torch.col,
+        row: torch.row,
+        x: cell.x + RENDERED_TILE_SIZE / 2,
+        y: cell.y + RENDERED_TILE_SIZE / 2,
+      },
+    ]);
+  });
+
+  it('layoutWithNoTorches-yieldsAnEmptyArray', () => {
+    currentLayout.value = ['S..', 'GGG'];
+    expect(torchPositions.value).toEqual([]);
   });
 });

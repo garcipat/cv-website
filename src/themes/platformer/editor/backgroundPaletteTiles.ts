@@ -1,5 +1,5 @@
 import type { TileSpriteSpec } from './paletteTiles';
-import { BACKGROUND_CATALOG } from '../engine/BackgroundCatalog';
+import { BACKGROUND_CATALOG, backgroundPieceFamily } from '../engine/BackgroundCatalog';
 import type { BackgroundPieceId } from '../level/LevelData';
 import { TERRAIN_BACKGROUND_SHEET } from '../entities/sprites/sheets';
 
@@ -38,3 +38,28 @@ export const BACKGROUND_PALETTE_LABELS: Record<BackgroundPieceId, string> = {
   charcoalColumnTop1x1: 'Charcoal Column Top (1×1)',
   charcoalColumnBottom1x2: 'Charcoal Column Bottom (1×2)',
 };
+
+/** One labelled, collapsible group of background pieces in the editor's
+ *  background palette (contracts/editor-palette.md). */
+export interface BackgroundPaletteSection {
+  title: string;
+  pieceIds: BackgroundPieceId[];
+}
+
+/**
+ * The background palette's Surface/Cave split (FR-020/FR-021). Membership is
+ * derived from each piece's own catalog `family` — never hand-listed — so a
+ * new piece lands in the right section automatically. A single module-level
+ * constant computed once gives every call site the same stable order (Surface
+ * first, then Cave).
+ */
+export const BACKGROUND_PALETTE_SECTIONS: readonly BackgroundPaletteSection[] = [
+  {
+    title: 'Surface',
+    pieceIds: PIECE_IDS.filter((pieceId) => backgroundPieceFamily(pieceId) === 'surface'),
+  },
+  {
+    title: 'Cave',
+    pieceIds: PIECE_IDS.filter((pieceId) => backgroundPieceFamily(pieceId) === 'cave'),
+  },
+];

@@ -1,4 +1,4 @@
-import { LEVEL_1_LAYOUT, SCRATCH_LAYOUT } from './level';
+import { LEVEL_1_LAYOUT, LEVEL_1_BACKGROUND, SCRATCH_LAYOUT } from './level';
 import type { BackgroundPlacement } from './LevelData';
 
 /**
@@ -21,7 +21,7 @@ export interface LevelEntry {
  * editor has no separate Reset or Scratch button (spec FR-028).
  */
 export const BUILT_IN_LEVELS: readonly LevelEntry[] = [
-  { id: 'main', name: 'main', layout: LEVEL_1_LAYOUT },
+  { id: 'main', name: 'main', layout: LEVEL_1_LAYOUT, background: LEVEL_1_BACKGROUND },
   { id: 'empty', name: 'empty', layout: SCRATCH_LAYOUT },
 ];
 
