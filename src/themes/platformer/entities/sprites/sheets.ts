@@ -202,3 +202,18 @@ export const DECORATIONS_SHEET: SpriteSheet = {
   frameHeight: TILE_SIZE,
   columns: 4,
 };
+
+/** `torch.png` is a 48x14 horizontal strip: four 12x14 flame frames (spec
+ *  FR-003/FR-004). The sheet is addressed by frame index via
+ *  `frameSource(TORCH_SHEET, i)` — the same convention as `COIN_SHEET` — and
+ *  the frame comes from `engine/Torch.ts`'s `torchFrameIndex`, which always
+ *  passes a wrapped index in `[0, 4)`. Unlike the 16px-grid decoration
+ *  sheets, a torch frame is 12x14, narrower and shorter than a cell; the
+ *  artwork inside it is a 6x14 torch centred with a 3px transparent margin
+ *  per side. */
+export const TORCH_SHEET: SpriteSheet = {
+  src: '/sprites/torch.png',
+  frameWidth: 12,
+  frameHeight: 14,
+  columns: 4,
+};

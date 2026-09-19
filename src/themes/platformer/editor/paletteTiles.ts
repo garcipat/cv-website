@@ -265,6 +265,18 @@ export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
     frameWidth: 16,
     frameHeight: 18,
   },
+  '¥': {
+    // Frame 0 of torch.png's 48x14 strip (see TORCH_SHEET) — a representative
+    // still, since the in-game frame animates by position hash + world clock
+    // (engine/Torch.ts's torchFrameIndex).
+    sheet: '/sprites/torch.png',
+    sheetWidth: 48,
+    sheetHeight: 14,
+    sx: 0,
+    sy: 0,
+    frameWidth: 12,
+    frameHeight: 14,
+  },
   // '1'-'5' are all the same signpost sprite — the digit is what
   // distinguishes a sign's hint content (SIGN_CHARS), not its appearance.
   // Only the first (`'1'`) ever renders as its own palette button (see
@@ -423,6 +435,7 @@ export const PALETTE_TILE_DESCRIPTIONS: Record<TileChar, string> = {
   c: 'Crystal cluster; purely decorative',
   '⊤': 'Stalactite; purely decorative, auto-picks a size variant',
   '⊥': 'Stalagmite; purely decorative, auto-picks a size variant',
+  '¥': 'Wall torch; purely decorative, flame sparkles',
   '1': 'Hint sign; click it again on the canvas to cycle its hint',
   '2': 'Hint sign; click it again on the canvas to cycle its hint',
   '3': 'Hint sign; click it again on the canvas to cycle its hint',
@@ -464,6 +477,7 @@ export const PALETTE_TILE_LABELS: Record<TileChar, string> = {
   c: 'Crystal Cluster',
   '⊤': 'Stalactite',
   '⊥': 'Stalagmite',
+  '¥': 'Torch',
   '1': 'Sign',
   '2': 'Sign 2',
   '3': 'Sign 3',

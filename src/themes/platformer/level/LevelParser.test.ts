@@ -33,8 +33,16 @@ describe('parseLevel', () => {
     });
   });
 
-  it('unknownCharacter-throws', () => {
-    expect(() => parseLevel(['G?'])).toThrow('Unknown level tile character: "?"');
+  it('unknownCharacter-isSkippedAsEmptyAndWarns', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const result = parseLevel(['G?']);
+    expect(result).toEqual({
+      terrain: [['groundGrass', 'empty']],
+      width: 2,
+      height: 1,
+    });
+    expect(warn).toHaveBeenCalledWith('Skipping unknown level tile character(s): "?"');
+    warn.mockRestore();
   });
 
   it('terrainChars-mapsEveryTerrainCharacter', () => {
@@ -182,6 +190,26 @@ describe('chain terrain character', () => {
   it('chainChar-parsesAsChainTile', () => {
     const result = parseLevel(['I.', 'GG']);
     expect(result.terrain[0][0]).toBe('chain');
+  });
+});
+
+describe('torch terrain character', () => {
+  it('terrainChars-mapsYenSignToTorch', () => {
+    expect(TERRAIN_CHARS['¥']).toBe('torch');
+  });
+
+  it('torchChar-parsesAsTorchTile', () => {
+    const result = parseLevel(['¥.', 'GG']);
+    expect(result.terrain[0][0]).toBe('torch');
+  });
+
+  it('torchChar-collidesWithNoOtherCharacterMap', () => {
+    // The module-load guard in LevelParser.ts already throws on a shared
+    // key; this names the invariant for '¥' specifically, so a future tile
+    // cannot quietly claim the same glyph.
+    expect('¥' in ENTITY_CHARS).toBe(false);
+    expect('¥' in SIGN_CHARS).toBe(false);
+    expect('¥' in HAZARD_CHARS).toBe(false);
   });
 });
 
@@ -475,7 +503,7 @@ describe('TileChar', () => {
   it('includes every TERRAIN_CHARS, ENTITY_CHARS, SIGN_CHARS, and HAZARD_CHARS key', () => {
     const tileChars: readonly TileChar[] = [
       '.', 'G', 'R', '#', 'B', 'H', 'I', 'P', '+', 'S', 'M', 'm', 'o', '=', 'Q', 'F', '$', 'u', 'p',
-      'n', 'N', 'X', 'c', '⊤', '⊥', '1', '2', '3', '4', '5', '^', 'v', '<', '>', 'C',
+      'n', 'N', 'X', 'c', '⊤', '⊥', '¥', '1', '2', '3', '4', '5', '^', 'v', '<', '>', 'C',
     ];
     const allKeys = [
       ...Object.keys(TERRAIN_CHARS),

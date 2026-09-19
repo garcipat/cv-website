@@ -233,3 +233,29 @@ describe('blueprint connection point marker', () => {
     );
   });
 });
+
+describe('torch marker', () => {
+  it('yen-hasASpriteCroppingTheTorchSheetsFirstFrame', () => {
+    // A crop of torch.png's first frame (48x14 strip, 4 frames of 12x14) —
+    // the same frame the engine draws at rest for a cell whose position hash
+    // resolves to phase 0.
+    expect(PALETTE_TILE_SPRITES['¥']).toEqual({
+      sheet: '/sprites/torch.png',
+      sheetWidth: 48,
+      sheetHeight: 14,
+      sx: 0,
+      sy: 0,
+      frameWidth: 12,
+      frameHeight: 14,
+    });
+  });
+
+  it('yen-hasAHumanReadableLabel', () => {
+    expect(PALETTE_TILE_LABELS['¥']).toBe('Torch');
+  });
+
+  it('yen-hasANonEmptyDescription', () => {
+    expect(PALETTE_TILE_DESCRIPTIONS['¥']).toBeTruthy();
+  });
+});
+

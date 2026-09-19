@@ -51,6 +51,7 @@ const EMPTY_IMAGES: EditorImages = {
   backgroundAtlas: null,
   staticObjects: null,
   decorations: null,
+  torch: null,
 };
 
 // Default props shared by every pre-existing test in this file (all of
@@ -252,6 +253,8 @@ describe('EditorCanvas', () => {
       0,
       null,
       null,
+      null,
+      0,
     );
   });
 
@@ -1080,7 +1083,35 @@ describe('EditorCanvas — background layer', () => {
 
     expect(drawTerrain).toHaveBeenCalledWith(
       expect.anything(), expect.anything(), expect.anything(), expect.anything(),
-      expect.anything(), expect.anything(), fakeStaticObjects, null,
+      expect.anything(), expect.anything(), fakeStaticObjects, null, null, 0,
+    );
+  });
+
+  it('torchLoaded-passedThroughToDrawTerrainWithZeroElapsed', () => {
+    stubCanvasContext();
+    const tileset = {} as HTMLImageElement;
+    const groundAtlas = {} as HTMLImageElement;
+    const fakeTorch = {} as HTMLImageElement;
+    render(
+      <EditorCanvas
+        grid={[['¥']]}
+        selectedTool="."
+        panOffset={{ x: 0, y: 0 }}
+        images={{ ...EMPTY_IMAGES, tileset, groundAtlas, torch: fakeTorch }}
+        backgroundPlacements={[]}
+        activeLayer="foreground"
+        selectedBackgroundPiece={null}
+        onPaint={vi.fn()}
+        onPaintBackground={vi.fn()}
+        onPan={vi.fn()}
+      />,
+    );
+
+    // The editor previews each torch cell at worldElapsed 0, so it shows that
+    // cell's deterministic position-hashed frame rather than a live animation.
+    expect(drawTerrain).toHaveBeenCalledWith(
+      expect.anything(), expect.anything(), expect.anything(), expect.anything(),
+      expect.anything(), expect.anything(), null, null, fakeTorch, 0,
     );
   });
 

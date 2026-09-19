@@ -139,6 +139,15 @@ describe('Palette — subtitle groups', () => {
     expect(within(decorationGroup).queryByRole('button', { name: 'Wall' })).not.toBeInTheDocument();
   });
 
+  it('decorationGroup-containsTheTorchTile', () => {
+    // The torch is decorative cave dressing, so it joins the Decoration group
+    // rather than Terrain (see Palette.tsx's DECORATION_CHARS).
+    render(<Palette {...defaultProps} />);
+    const decorationHeading = screen.getByText('Decoration');
+    const decorationGroup = decorationHeading.closest('section') ?? decorationHeading.parentElement!;
+    expect(within(decorationGroup).getByRole('button', { name: 'Torch' })).toBeInTheDocument();
+  });
+
   it('hazardsGroup-containsExactlyOneRepresentativeSpikeTile', () => {
     // Same one-button convention as signs: clicking the canvas auto-detects
     // a facing from the surrounding terrain, and clicking an already-placed
