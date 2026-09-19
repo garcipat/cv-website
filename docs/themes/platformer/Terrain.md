@@ -35,6 +35,7 @@ Declared in `src/themes/platformer/level/LevelData.ts`.
 | `crystalCluster` | Decorative, non-solid, one fixed sprite. |
 | `stalactite` | Decorative, non-solid. Two size variants (large / twin) picked by position hash. |
 | `stalagmite` | Decorative, non-solid. Two size variants picked the same way. |
+| `torch` | Decorative, non-solid cave dressing. Its flame animates through a 4-frame sparkle loop — each cell's frame is a pure function of its grid position and the shared world clock (`engine/Torch.ts`'s `torchFrameIndex`), so neighbouring torches flicker out of phase and the tile carries no per-instance state. |
 | `empty` | Air. Out-of-bounds reads also resolve to `empty` — see `tileAt` below. |
 
 `tileAt(level, col, row)` in `src/themes/platformer/level/Terrain.ts` is the only sanctioned
@@ -64,7 +65,7 @@ plain "this blocks movement" test, used for horizontal wall collision and for la
 one-way half of the bridge contract.
 
 Decorative tiles are deliberately absent from both. A `bush`, `fence`, `cobweb`,
-`crystalCluster`, `stalactite` or `stalagmite` is walked through freely.
+`crystalCluster`, `stalactite`, `stalagmite` or `torch` is walked through freely.
 
 ### Climbable
 

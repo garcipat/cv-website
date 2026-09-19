@@ -61,6 +61,7 @@ export interface EditorImages {
   backgroundAtlas: HTMLImageElement | null;
   staticObjects: HTMLImageElement | null;
   decorations: HTMLImageElement | null;
+  torch: HTMLImageElement | null;
 }
 
 /** The cells a pending placement would write, in absolute grid coordinates,
@@ -453,6 +454,8 @@ export const EditorCanvas = ({
           panOffset.y,
           images.staticObjects,
           images.decorations,
+          images.torch,
+          0,
         );
       }
 

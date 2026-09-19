@@ -141,6 +141,7 @@ import {
   BACKGROUND_LAYER_GRASS_SHEET,
   BACKGROUND_LAYER_RIVER_SHEET,
   DECORATIONS_SHEET,
+  TORCH_SHEET,
 } from './entities/sprites/sheets';
 import { frameSource, collectSheetSources } from './entities/sprites/SpriteSheet';
 import type { SpriteLookup } from './entities/sprites/SpriteSheet';
@@ -227,6 +228,10 @@ export const PlatformerPage = () => {
   const backgroundAtlasRef = useRef<HTMLImageElement | null>(null);
   const staticObjectsRef = useRef<HTMLImageElement | null>(null);
   const decorationsRef = useRef<HTMLImageElement | null>(null);
+  // The torch animation strip — loaded alongside the other decorative sheets
+  // and threaded into drawTerrain with the shared world clock (see the render
+  // call below), since a torch's frame animates over time.
+  const torchRef = useRef<HTMLImageElement | null>(null);
   const playerSpriteRef = useRef<HTMLImageElement | null>(null);
   const playerJumpSpriteRef = useRef<HTMLImageElement | null>(null);
   const heartsSpriteRef = useRef<HTMLImageElement | null>(null);
@@ -568,6 +573,8 @@ export const PlatformerPage = () => {
             originY,
             staticObjectsRef.current,
             decorationsRef.current,
+            torchRef.current,
+            worldAnimElapsed,
           );
         }
         drawSigns(ctx, signPlacements.value, tilesetRef.current, originX, originY);
@@ -1901,6 +1908,16 @@ export const PlatformerPage = () => {
         // Cave-dressing tiles are purely decorative — they simply won't
         // render if this atlas fails to load; the rest of the level still
         // shows.
+      });
+    loadImage(TORCH_SHEET.src)
+      .then((img) => {
+        if (cancelled) return;
+        torchRef.current = img;
+        render();
+      })
+      .catch(() => {
+        // Torches are purely decorative — they simply won't render if this
+        // strip fails to load; the rest of the level still shows.
       });
     loadImage('/sprites/knight.png')
       .then((img) => {

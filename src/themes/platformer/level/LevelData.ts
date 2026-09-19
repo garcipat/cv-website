@@ -40,6 +40,12 @@ export type TileType =
   | 'crystalCluster'
   | 'stalactite'
   | 'stalagmite'
+  /** A wall-mounted torch — purely decorative, non-solid cave dressing.
+   *  Unlike every other decorative tile it animates: its flame cycles through
+   *  a 4-frame sparkle loop, with each cell's phase derived deterministically
+   *  from its own grid position plus the shared world clock (see
+   *  `engine/Torch.ts`'s `torchFrameIndex`). It carries no per-instance state. */
+  | 'torch'
   | 'empty';
 
 export type TileMap = TileType[][];

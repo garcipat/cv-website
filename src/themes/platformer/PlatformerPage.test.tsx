@@ -7,6 +7,7 @@ import {
   PLAYER_VISUAL_CENTER_Y_OFFSET,
   PLAYER_HEAD_PADDING,
   PLAYER_FOOT_PADDING,
+  PLAYER_SIDE_PADDING,
 } from './entities/Player';
 import type { EnemyState } from './entities/Enemy';
 import type { SlimePurpleState } from './entities/enemies/SlimePurple';
@@ -4646,6 +4647,67 @@ describe('PlatformerPage', () => {
       nextFrame()(48);
       expect(activeCheckpointId.value).toBe('checkpoint-0-0');
       expect(activePuffs.value.filter((p) => p.id === 'checkpoint-0-0')).toHaveLength(puffsBefore);
+    });
+  });
+
+  describe('torch tile', () => {
+    it('torchInLayout-afterImagesLoad-animatesThroughItsFrames', async () => {
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+      vi.stubGlobal('Image', MockTilesetImage);
+      // A torch at (col 2, row 0): its position hash resolves to phase 2, so
+      // the first frame drawn is index 2 (sx 24) and it advances to index 3
+      // (sx 36) once the shared world clock passes one 0.2s frame duration.
+      currentLayout.value = ['S.¥....', 'GGGGGGG'];
+
+      render(<PlatformerPage />);
+      const ctx = platformerPage.context;
+
+      const torchFrameSources = () =>
+        ctx.drawImage.mock.calls
+          .filter(
+            (call: unknown[]) =>
+              call[3] === 12 && call[4] === 14 && call[7] === 24 && call[8] === 28,
+          )
+          .map((call: unknown[]) => call[1]);
+
+      await waitFor(() => expect(torchFrameSources()).toContain(24));
+
+      frameCallback!(0);
+      // Seven ~33ms ticks push worldAnimElapsed past one 0.2s frame duration.
+      for (let i = 1; i <= 7; i++) frameCallback!(i * 33);
+
+      expect(torchFrameSources()).toContain(36);
+    });
+
+    it('torchTile-isNonSolid-playerWalksStraightThroughItsCell', () => {
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+      vi.stubGlobal('Image', MockTilesetImage);
+      currentLayout.value = ['S.¥....', 'GGGGGGG'];
+
+      render(<PlatformerPage />);
+      frameCallback!(0);
+      frameCallback!(16); // land the spawned player on the ground first
+
+      const torchX = tileToPixel(2, 0).x;
+      fireEvent.keyDown(window, { code: 'ArrowRight' });
+      for (let i = 1; i <= 22; i++) frameCallback!(16 + i * 33);
+
+      // A solid tile at column 2 would stop the hitbox's right edge at
+      // torchX; walking straight through puts the hitbox's LEFT edge past the
+      // cell's own right edge (FR-008/SC-005).
+      expect(playerState.value.x + PLAYER_SIDE_PADDING).toBeGreaterThan(
+        torchX + RENDERED_TILE_SIZE,
+      );
     });
   });
 });
