@@ -15,6 +15,7 @@ import { toBlockState, type BlockState, type BlockKind } from '../entities/Block
 import type { BlockPlacement } from '../level/BlockMapper';
 import { toChestState, type ChestState } from '../entities/Chest';
 import type { ChestPlacement } from '../level/ChestMapper';
+import { toCheckpointState, type CheckpointState } from '../entities/Checkpoint';
 import type { SignPlacement } from '../level/SignMapper';
 import type { HazardPlacement } from '../level/HazardMapper';
 import type { CollectedFact } from '../types';
@@ -167,6 +168,17 @@ export function synthesizeChestStates(grid: TileChar[][]): ChestState[] {
     return { id: `editor-chest-${index}`, fact: PLACEHOLDER_FACT, x, y };
   });
   return placements.map((placement) => toChestState(placement));
+}
+
+/** Returns one always-dormant placeholder `CheckpointState` per `C` marker,
+ *  via `toCheckpointState`. Editor-only: a `C` cell is `empty` terrain, so the
+ *  real game draws a checkpoint through its own placement pipeline, not this
+ *  one. */
+export function synthesizeCheckpointStates(grid: TileChar[][]): CheckpointState[] {
+  return findAllPositions(grid, 'C').map(({ col, row }, index) => {
+    const { x, y } = tileToPixel(col, row);
+    return toCheckpointState({ id: `editor-checkpoint-${index}`, col, row, x, y });
+  });
 }
 
 /** Returns a `SignPlacement` for every cell whose character is registered in

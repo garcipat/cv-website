@@ -93,7 +93,7 @@ See [Terrain.md](Terrain.md) for the tile API, autotiling and multi-cell runs.
 | Char | Places (`EntityKind`) | Notes |
 |---|---|---|
 | `S` | `spawn` | The player's start tile. Required — `findSpawnTile` throws if the layout has none. |
-| `M` | `enemyGreen` | Green slime. Zipped in reading order against course-derived enemy defs; reveals a Courses fact when stomped. |
+| `M` | `enemyGreen` | Green slime. Each marker owns a proportional slice of the course pool by position; reveals a Courses fact when stomped. |
 | `m` | `enemyPurple` | Purple slime. Bigger, slower, tougher; carries no CV fact and drops a key on defeat. |
 | `o` | `coin` | Walk-over coin. Purely positional — which skill-category fact it reveals is resolved from a shared pool at pickup time, not bound at placement. |
 | `=` | `crate` | Destroyable block, hit from below. Reveals an Education, Activities or Languages fact. |
@@ -102,6 +102,7 @@ See [Terrain.md](Terrain.md) for the tile API, autotiling and multi-cell runs.
 | `u` | `coinPot` | Container block destroyed by landing on top; drops a coin. Lowercase, a small urn-shaped glyph, unlike every other entity marker. Adjacent pots merge visually into one bunch. |
 | `p` | `potionPot` | Container block destroyed by landing on top; drops a heart pickup that heals half a heart. No fact. Implemented but not placed in the shipped level. |
 | `$` | `chest` | Treasure chest, opened with Arrow Up while standing on it and only with a key in hand. Zipped one-per-Experience-entry against CV data. |
+| `C` | `checkpoint` | Checkpoint flag. Non-solid; stepping onto it with solid ground directly below raises it once and makes that cell the active respawn point for the rest of the run. Carries no CV fact. Not placed in the shipped level — authorable in the editor only. |
 
 See [Enemies.md](Enemies.md) and [Blocks.md](Blocks.md) for the entity APIs.
 
@@ -145,7 +146,7 @@ hazard kind needs one entry here plus a registry line in
 ## `TileChar`
 
 `TileChar` (`LevelParser.ts`) is the union of every legal layout character — all four
-maps' keys, 34 characters in total. It is written out by hand rather than derived with
+maps' keys, 35 characters in total. It is written out by hand rather than derived with
 `keyof typeof`: the maps are annotated `Record<string, … | undefined>` so lookups can
 index by a plain `string`, which would widen a derived union to `string` and remove all
 type safety. A test asserts every map key appears in the union.

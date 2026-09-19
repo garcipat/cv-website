@@ -28,6 +28,10 @@ import {
   tickHitSplatterEffect,
   hitSplatterDroplets,
   HIT_SPLATTER_DURATION_SECONDS,
+  FADE_OUT_TEXT_DURATION_SECONDS,
+  startFadeOutTextEffect,
+  tickFadeOutTextEffect,
+  fadeOutTextOpacity,
 } from './CollectionEffects';
 import type { PuffEffect, HealAuraEffect } from './CollectionEffects';
 
@@ -197,9 +201,9 @@ describe('sparkleParticles scale', () => {
 });
 
 describe('startPuffEffect / tickPuffEffect', () => {
-  it('startPuffEffect-noScaleArgument-defaultsScaleTo1', () => {
+  it('startPuffEffect-noScaleArgument-defaultsScaleTo1AndSoftStyle', () => {
     const effect = startPuffEffect('rock-1', 100, 200);
-    expect(effect).toEqual<PuffEffect>({ id: 'rock-1', x: 100, y: 200, scale: 1, elapsed: 0 });
+    expect(effect).toEqual<PuffEffect>({ id: 'rock-1', x: 100, y: 200, scale: 1, pixel: false, elapsed: 0 });
   });
 
   it('startPuffEffect-withScale-storesIt', () => {
@@ -207,10 +211,15 @@ describe('startPuffEffect / tickPuffEffect', () => {
     expect(effect.scale).toBe(1.5);
   });
 
+  it('startPuffEffect-withPixelStyle-storesIt', () => {
+    const effect = startPuffEffect('checkpoint-0-0', 10, 20, 1, true);
+    expect(effect.pixel).toBe(true);
+  });
+
   it('tickPuffEffect-advancesElapsedByDt-preservesEverythingElse', () => {
     const effect = startPuffEffect('rock-1', 100, 200, 1.5);
     const ticked = tickPuffEffect(effect, 0.1);
-    expect(ticked).toEqual<PuffEffect>({ id: 'rock-1', x: 100, y: 200, scale: 1.5, elapsed: 0.1 });
+    expect(ticked).toEqual<PuffEffect>({ id: 'rock-1', x: 100, y: 200, scale: 1.5, pixel: false, elapsed: 0.1 });
   });
 });
 
@@ -506,5 +515,34 @@ describe('hitSplatterDroplets', () => {
     expect(hitSplatterDroplets(effect)[0].opacity).toBe(0);
     const wayPast = tickHitSplatterEffect(startPlayerHitSplatter('p', 0, 0, 1), HIT_SPLATTER_DURATION_SECONDS + 5);
     expect(hitSplatterDroplets(wayPast)[0].opacity).toBe(0);
+  });
+});
+
+describe('FadeOutTextEffect', () => {
+  it('startFadeOutTextEffect-carriesItsOwnTextAtZeroElapsed', () => {
+    const effect = startFadeOutTextEffect('checkpoint-1-2', 30, 40, 'Checkpoint');
+    expect(effect).toEqual({
+      id: 'checkpoint-1-2',
+      x: 30,
+      y: 40,
+      text: 'Checkpoint',
+      elapsed: 0,
+    });
+  });
+
+  it('tickFadeOutTextEffect-advancesElapsedByDt', () => {
+    const effect = tickFadeOutTextEffect(startFadeOutTextEffect('a', 0, 0, 't'), 0.2);
+    expect(effect.elapsed).toBeCloseTo(0.2);
+  });
+
+  it('fadeOutTextOpacity-isFullAtStartAndFadesLinearlyToZeroByTheDuration', () => {
+    expect(fadeOutTextOpacity(0)).toBe(1);
+    expect(fadeOutTextOpacity(FADE_OUT_TEXT_DURATION_SECONDS / 2)).toBeCloseTo(0.5);
+    expect(fadeOutTextOpacity(FADE_OUT_TEXT_DURATION_SECONDS)).toBe(0);
+  });
+
+  it('fadeOutTextOpacity-isZeroOutsideTheWindow', () => {
+    expect(fadeOutTextOpacity(-0.1)).toBe(0);
+    expect(fadeOutTextOpacity(FADE_OUT_TEXT_DURATION_SECONDS + 1)).toBe(0);
   });
 });

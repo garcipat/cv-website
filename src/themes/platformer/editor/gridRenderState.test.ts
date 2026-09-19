@@ -8,6 +8,7 @@ import {
   synthesizeChestStates,
   synthesizeSignPlacements,
   synthesizeHazardPlacements,
+  synthesizeCheckpointStates,
 } from './gridRenderState';
 import { RENDERED_TILE_SIZE, tileToPixel } from '../level/Terrain';
 import { PLAYER_RENDERED_SIZE, PLAYER_FOOT_PADDING } from '../entities/Player';
@@ -104,6 +105,31 @@ describe('synthesizeSignPlacements', () => {
     ]);
     const { x, y } = tileToPixel(1, 1);
     expect(result).toEqual([{ id: 'editor-sign-1-1', hintId: 'bridgeDropThrough', x, y }]);
+  });
+});
+
+describe('synthesizeCheckpointStates', () => {
+  it('noCheckpointMarkers-returnsEmptyArray', () => {
+    expect(synthesizeCheckpointStates([['G', 'G']])).toEqual([]);
+  });
+
+  it('oneMarker-returnsADormantStateAtItsCell', () => {
+    const { x, y } = tileToPixel(1, 0);
+    expect(synthesizeCheckpointStates([['.', 'C']])).toEqual([
+      { id: 'editor-checkpoint-0', col: 1, row: 0, x, y, activated: false, activatedAt: null },
+    ]);
+  });
+
+  it('multipleMarkers-returnsOnePerCellInReadingOrder', () => {
+    const result = synthesizeCheckpointStates([
+      ['C', '.'],
+      ['.', 'C'],
+    ]);
+    expect(result.map((c) => ({ col: c.col, row: c.row }))).toEqual([
+      { col: 0, row: 0 },
+      { col: 1, row: 1 },
+    ]);
+    expect(result.every((c) => !c.activated && c.activatedAt === null)).toBe(true);
   });
 });
 

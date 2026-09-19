@@ -32,6 +32,14 @@ import {
   blockStates,
   cratesDestroyed,
   enemiesDefeated,
+  checkpointPlacements,
+  checkpointStates,
+  activeCheckpointId,
+  activeFadeOutTexts,
+  playerStateAtTile,
+  activeRespawnPlacement,
+  respawnPlayerState,
+  respawnCenter,
 } from './PlatformerState';
 import type { CollectedFact } from './types';
 import { mapCVDataToEnemies } from './level/EnemyMapper';
@@ -48,15 +56,18 @@ import {
   QUESTIONMARK_TILES,
   FRAGILE_ROCK_TILES,
   CHEST_TILES,
+  CHECKPOINT_TILES,
   SIGN_TILES,
 } from './level/level';
 import {
   PLAYER_RENDERED_SIZE,
   PLAYER_FOOT_PADDING,
   PLAYER_VISUAL_CENTER_Y_OFFSET,
+  PLAYER_HIT_REACTION_SECONDS,
 } from './entities/Player';
 import { toChestState, isChestOpen } from './entities/Chest';
-import { startPuffEffect, startHealAuraEffect } from './engine/CollectionEffects';
+import { toCheckpointState } from './entities/Checkpoint';
+import { startPuffEffect, startHealAuraEffect, startFadeOutTextEffect } from './engine/CollectionEffects';
 
 function collectedFactFixture(): CollectedFact {
   return { id: 'f1', sectionId: 'skills', sectionLabel: 'Skills', data: { category: 'Test', skills: [] }, sourceType: 'coin' };
@@ -735,5 +746,147 @@ describe('enemiesDefeated', () => {
     enemyStates.value = enemyStates.value.map((e) => (e.id === purple.id ? { ...e, rewardGiven: true } : e));
 
     expect(enemiesDefeated.value).toBe(0);
+  });
+});
+
+describe('checkpointPlacements', () => {
+  afterEach(() => {
+    currentLayout.value = LEVEL_1_LAYOUT;
+    checkpointStates.value = checkpointPlacements.value.map(toCheckpointState);
+    activeCheckpointId.value = null;
+    activeFadeOutTexts.value = [];
+  });
+
+  it('shippedLevel-hasItsAuthoredCheckpoint', () => {
+    currentLayout.value = LEVEL_1_LAYOUT;
+    expect(checkpointPlacements.value.map((p) => p.id)).toEqual(['checkpoint-12-9']);
+    expect(CHECKPOINT_TILES.value).toEqual([{ col: 12, row: 9 }]);
+  });
+
+  it('layoutWithCheckpoints-derivesOnePlacementPerMarkerInReadingOrder', () => {
+    currentLayout.value = ['SC.', '.G.'];
+    expect(checkpointPlacements.value.map((p) => p.id)).toEqual(['checkpoint-1-0']);
+    expect(checkpointPlacements.value[0]).toMatchObject({ col: 1, row: 0 });
+  });
+});
+
+describe('checkpointStates', () => {
+  afterEach(() => {
+    currentLayout.value = LEVEL_1_LAYOUT;
+    checkpointStates.value = checkpointPlacements.value.map(toCheckpointState);
+    activeCheckpointId.value = null;
+    activeFadeOutTexts.value = [];
+  });
+
+  it('module-seedsOneDormantStatePerPlacement', () => {
+    // The signal is seeded once at module load (from the shipped level, which
+    // has no checkpoints) — rebuilding it for a new layout is
+    // resetGameProgress()'s job (FR-016), not a reactive recompute.
+    expect(checkpointStates.value).toEqual(checkpointPlacements.value.map(toCheckpointState));
+    expect(checkpointStates.value.every((c) => c.activated === false)).toBe(true);
+    expect(checkpointStates.value.every((c) => c.activatedAt === null)).toBe(true);
+  });
+
+  it('activeCheckpointId-startsNull', () => {
+    expect(activeCheckpointId.value).toBeNull();
+  });
+
+  it('activeFadeOutTexts-startsEmpty', () => {
+    expect(activeFadeOutTexts.value).toEqual([]);
+  });
+});
+
+describe('playerStateAtTile', () => {
+  it('placesTheCharacterCentredOnTheCellWithFeetOnItsBottomEdge', () => {
+    const cell = tileToPixel(3, 4);
+    const state = playerStateAtTile(3, 4);
+    const expectedX = cell.x - (PLAYER_RENDERED_SIZE - RENDERED_TILE_SIZE) / 2;
+    const expectedY = cell.y + RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
+
+    expect(state.x).toBe(expectedX);
+    expect(state.y).toBe(expectedY);
+    expect(state.lastGroundedX).toBe(expectedX);
+    expect(state.lastGroundedY).toBe(expectedY);
+    expect(state.vx).toBe(0);
+    expect(state.vy).toBe(0);
+    expect(state.grounded).toBe(false);
+    expect(state.hitPoints).toBe(MAX_HALF_HEARTS);
+    expect(state.alive).toBe(true);
+    // Immediately vulnerable: no free invulnerability window after respawn.
+    expect(state.hitTimer).toBe(PLAYER_HIT_REACTION_SECONDS);
+  });
+
+  it('spawnPlayerState-delegatesToTheSpawnTile', () => {
+    const { col, row } = SPAWN_TILE.value;
+    expect(spawnPlayerState()).toEqual(playerStateAtTile(col, row));
+  });
+});
+
+describe('respawn signals', () => {
+  afterEach(() => {
+    currentLayout.value = LEVEL_1_LAYOUT;
+    checkpointStates.value = checkpointPlacements.value.map(toCheckpointState);
+    activeCheckpointId.value = null;
+  });
+
+  it('noActiveCheckpoint-respawnsAtTheLevelSpawn', () => {
+    expect(activeRespawnPlacement.value).toBeNull();
+    expect(respawnPlayerState.value).toEqual(spawnPlayerState());
+  });
+
+  it('activeCheckpoint-respawnsAtTheCheckpointTile', () => {
+    const placement = { id: 'checkpoint-2-3', col: 2, row: 3, x: 64, y: 96 };
+    checkpointStates.value = [toCheckpointState(placement)];
+    activeCheckpointId.value = 'checkpoint-2-3';
+
+    expect(activeRespawnPlacement.value).toEqual(placement);
+    expect(respawnPlayerState.value).toEqual(playerStateAtTile(2, 3));
+  });
+
+  it('respawnCenter-isTheVisualCentreOfTheRespawnState', () => {
+    const state = respawnPlayerState.value;
+    expect(respawnCenter.value).toEqual({
+      x: state.x + PLAYER_RENDERED_SIZE / 2,
+      y: state.y + PLAYER_VISUAL_CENTER_Y_OFFSET,
+    });
+  });
+});
+
+describe('checkpoint reset semantics', () => {
+  afterEach(() => {
+    currentLayout.value = LEVEL_1_LAYOUT;
+    checkpointStates.value = checkpointPlacements.value.map(toCheckpointState);
+    activeCheckpointId.value = null;
+    activeFadeOutTexts.value = [];
+  });
+
+  it('resetGame-preservesRaisedFlagsAndTheActiveIdButClearsLabels', () => {
+    const placement = { id: 'checkpoint-1-1', col: 1, row: 1, x: 32, y: 32 };
+    checkpointStates.value = [{ ...toCheckpointState(placement), activated: true, activatedAt: 1 }];
+    activeCheckpointId.value = 'checkpoint-1-1';
+    activeFadeOutTexts.value = [startFadeOutTextEffect('checkpoint-1-1', 0, 0, 'Checkpoint')];
+
+    resetGame();
+
+    expect(checkpointStates.value).toHaveLength(1);
+    expect(checkpointStates.value[0].activated).toBe(true);
+    expect(activeCheckpointId.value).toBe('checkpoint-1-1');
+    // A frozen label must not survive a respawn.
+    expect(activeFadeOutTexts.value).toEqual([]);
+  });
+
+  it('resetGameProgress-clearsTheActiveIdRebuildsDormantAndClearsLabels', () => {
+    currentLayout.value = ['SC.', 'GGG'];
+    const placement = checkpointPlacements.value[0];
+    checkpointStates.value = [{ ...toCheckpointState(placement), activated: true, activatedAt: 1 }];
+    activeCheckpointId.value = placement.id;
+    activeFadeOutTexts.value = [startFadeOutTextEffect(placement.id, 0, 0, 'Checkpoint')];
+
+    resetGameProgress();
+
+    expect(activeCheckpointId.value).toBeNull();
+    expect(checkpointStates.value).toHaveLength(1);
+    expect(checkpointStates.value[0]).toMatchObject({ activated: false, activatedAt: null });
+    expect(activeFadeOutTexts.value).toEqual([]);
   });
 });

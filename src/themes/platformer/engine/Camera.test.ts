@@ -1,4 +1,4 @@
-import { updateCamera, updateCameraY } from './Camera';
+import { updateCamera, updateCameraY, initialCameraX } from './Camera';
 
 describe('updateCamera', () => {
   const PLAYER_WIDTH = 64;
@@ -119,5 +119,30 @@ describe('updateCameraY', () => {
     // 384+0+0 = 384, not past deadZoneBottom (strict >) — no correction.
     const result = updateCameraY(0, 352, PLAYER_HEIGHT, VIEWPORT_HEIGHT, 480);
     expect(result).toBe(0);
+  });
+});
+
+describe('initialCameraX', () => {
+  const PLAYER_WIDTH = 64;
+
+  it('playerWellInsideTheLevel-centresThePlayerHorizontally', () => {
+    // viewport 1024, level 2560 -> max camera 1536. playerX 1000 -> center
+    // 1032 -> camera 1032 - 512 = 520, within [0, 1536].
+    expect(initialCameraX(1000, PLAYER_WIDTH, 1024, 2560)).toBe(520);
+  });
+
+  it('playerNearTheLevelStart-clampsToZero', () => {
+    // playerX 10 -> center 42 -> 42 - 512 = -470, clamped to 0.
+    expect(initialCameraX(10, PLAYER_WIDTH, 1024, 2560)).toBe(0);
+  });
+
+  it('playerNearTheLevelEnd-clampsToLevelWidthMinusViewport', () => {
+    // playerX 2500 -> center 2532 -> 2532 - 512 = 2020, clamped to 1536.
+    expect(initialCameraX(2500, PLAYER_WIDTH, 1024, 2560)).toBe(1536);
+  });
+
+  it('viewportWiderThanLevel-clampsToZero', () => {
+    // max camera is max(0, 800 - 1024) = 0.
+    expect(initialCameraX(400, PLAYER_WIDTH, 1024, 800)).toBe(0);
   });
 });
