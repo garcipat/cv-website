@@ -42,12 +42,27 @@ export interface LifecycleState {
 const INTRO_TOTAL_SECONDS = IRIS_HOLD_SECONDS + IRIS_DURATION_SECONDS;
 
 /**
- * `dying` total timeline: shrinks maxRadius -> IRIS_SMALL_RADIUS over
- * IRIS_DURATION_SECONDS, holds there for IRIS_HOLD_SECONDS (the character is
- * fully encircled — a beat of held tension), then closes
- * IRIS_SMALL_RADIUS -> 0 over IRIS_CLOSE_SECONDS.
+ * Seconds the player's death animation (Player.ts's `'death'` animState, a
+ * 4-frame collapse) plays before the iris starts closing in — a lead-in
+ * during which `currentIrisRadius` holds at `maxRadius` (no visible mask, so
+ * the collapse plays over an otherwise-normal-looking frozen scene) and
+ * PlatformerPage.tsx's game loop advances the player's animation despite the
+ * rest of the 'dying' phase leaving it frozen. Matches Player.ts's
+ * `ANIM_CONFIG.death` (4 frames x 0.15s) exactly, so the animation lands on
+ * its last (collapsed) frame right as the lead-in ends, and that frame stays
+ * held for the rest of the 'dying' phase while the iris closes around it.
  */
-const DYING_TOTAL_SECONDS = IRIS_DURATION_SECONDS + IRIS_HOLD_SECONDS + IRIS_CLOSE_SECONDS;
+export const DEATH_ANIM_SECONDS = 0.6;
+
+/**
+ * `dying` total timeline: holds the player's death animation on screen for
+ * DEATH_ANIM_SECONDS (iris fully open, no visible mask), then shrinks
+ * maxRadius -> IRIS_SMALL_RADIUS over IRIS_DURATION_SECONDS, holds there for
+ * IRIS_HOLD_SECONDS (the character is fully encircled — a beat of held
+ * tension), then closes IRIS_SMALL_RADIUS -> 0 over IRIS_CLOSE_SECONDS.
+ */
+const DYING_TOTAL_SECONDS =
+  DEATH_ANIM_SECONDS + IRIS_DURATION_SECONDS + IRIS_HOLD_SECONDS + IRIS_CLOSE_SECONDS;
 
 export function introState(centerX: number, centerY: number): LifecycleState {
   return { phase: 'intro', elapsed: 0, centerX, centerY };
@@ -124,13 +139,16 @@ export function currentIrisRadius(state: LifecycleState, maxRadius: number): num
     return lerpRadius(growProgress, smallRadius, maxRadius);
   }
 
-  // 'dying'
-  if (state.elapsed < IRIS_DURATION_SECONDS) {
-    const shrinkProgress = state.elapsed / IRIS_DURATION_SECONDS;
+  // 'dying' — the death-animation lead-in holds the mask fully open (no
+  // visible circle) before the shrink/hold/close timeline below begins.
+  if (state.elapsed < DEATH_ANIM_SECONDS) return maxRadius;
+  const irisElapsed = state.elapsed - DEATH_ANIM_SECONDS;
+  if (irisElapsed < IRIS_DURATION_SECONDS) {
+    const shrinkProgress = irisElapsed / IRIS_DURATION_SECONDS;
     return lerpRadius(shrinkProgress, maxRadius, smallRadius);
   }
-  if (state.elapsed < IRIS_DURATION_SECONDS + IRIS_HOLD_SECONDS) return smallRadius;
+  if (irisElapsed < IRIS_DURATION_SECONDS + IRIS_HOLD_SECONDS) return smallRadius;
   const closeProgress =
-    (state.elapsed - IRIS_DURATION_SECONDS - IRIS_HOLD_SECONDS) / IRIS_CLOSE_SECONDS;
+    (irisElapsed - IRIS_DURATION_SECONDS - IRIS_HOLD_SECONDS) / IRIS_CLOSE_SECONDS;
   return lerpRadius(closeProgress, smallRadius, 0);
 }
