@@ -121,6 +121,32 @@ describe('sign marker', () => {
   });
 });
 
+describe('checkpoint marker', () => {
+  it('C-hasASpriteCroppingTheRaisedFrameOfTheFlagStrip', () => {
+    // checkpoint-flag-strip.png is 64x24: four 16x24 frames. Frame 3 (the
+    // raised/activated flag) is the palette preview — sx 48.
+    expect(PALETTE_TILE_SPRITES.C).toEqual({
+      sheet: '/sprites/checkpoint-flag-strip.png',
+      sheetWidth: 64,
+      sheetHeight: 24,
+      sx: 48,
+      sy: 0,
+      frameWidth: 16,
+      frameHeight: 24,
+    });
+  });
+
+  it('C-hasAHumanReadableLabel', () => {
+    expect(PALETTE_TILE_LABELS.C).toBe('Checkpoint');
+  });
+
+  it('C-describesTheFinishedLevelBehaviour', () => {
+    expect(PALETTE_TILE_DESCRIPTIONS.C).toBe(
+      'Checkpoint; step on it to set your respawn point',
+    );
+  });
+});
+
 describe('potionPot marker', () => {
   it('p-hasASpriteMatchingThePurpleBottleFrame', () => {
     // Row 8, column 1 of world_tileset.png (16px tiles) — see

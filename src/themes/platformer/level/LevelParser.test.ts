@@ -10,6 +10,7 @@ import {
   findCoinPotTiles,
   findPotionPotTiles,
   findChestTiles,
+  findCheckpointTiles,
   TERRAIN_CHARS,
   ENTITY_CHARS,
   SIGN_CHARS,
@@ -63,6 +64,7 @@ describe('parseLevel', () => {
     expect(ENTITY_CHARS.u).toBe('coinPot');
     expect(ENTITY_CHARS.p).toBe('potionPot');
     expect(ENTITY_CHARS.$).toBe('chest');
+    expect(ENTITY_CHARS.C).toBe('checkpoint');
   });
 
   it('noTerrainAndEntityCharOverlap-documentedByTheModuleLoadGuard', () => {
@@ -346,6 +348,42 @@ describe('findChestTiles', () => {
   });
 });
 
+describe('checkpoint marker', () => {
+  it('uppercaseC-mapsToTheCheckpointEntityKind', () => {
+    expect(ENTITY_CHARS.C).toBe('checkpoint');
+  });
+
+  it('parseLevel-checkpointChar-parsesAsEmptyWalkableTile', () => {
+    const result = parseLevel(['C', 'G']);
+    expect(result.terrain[0][0]).toBe('empty');
+  });
+
+  it('checkpointChar-collidesWithNoOtherCharacterMap', () => {
+    // The module-load guard in LevelParser.ts already throws on a shared
+    // key; this names the invariant for 'C' specifically.
+    expect('C' in TERRAIN_CHARS).toBe(false);
+    expect('C' in SIGN_CHARS).toBe(false);
+    expect('C' in HAZARD_CHARS).toBe(false);
+  });
+});
+
+describe('findCheckpointTiles', () => {
+  it('noMarkers-returnsEmptyArray', () => {
+    expect(findCheckpointTiles(['GG', 'GG'])).toEqual([]);
+  });
+
+  it('multipleMarkers-returnsAllInReadingOrder', () => {
+    expect(findCheckpointTiles(['.C', 'C.'])).toEqual([
+      { col: 1, row: 0 },
+      { col: 0, row: 1 },
+    ]);
+  });
+
+  it('chestMarker-isNotCountedAsCheckpoint', () => {
+    expect(findCheckpointTiles(['$'])).toEqual([]);
+  });
+});
+
 describe('SIGN_CHARS', () => {
   it('digitOne-mapsToBridgeDropThroughHint', () => {
     expect(SIGN_CHARS['1']).toBe('bridgeDropThrough');
@@ -437,7 +475,7 @@ describe('TileChar', () => {
   it('includes every TERRAIN_CHARS, ENTITY_CHARS, SIGN_CHARS, and HAZARD_CHARS key', () => {
     const tileChars: readonly TileChar[] = [
       '.', 'G', 'R', '#', 'B', 'H', 'I', 'P', '+', 'S', 'M', 'm', 'o', '=', 'Q', 'F', '$', 'u', 'p',
-      'n', 'N', 'X', 'c', '⊤', '⊥', '1', '2', '3', '4', '5', '^', 'v', '<', '>',
+      'n', 'N', 'X', 'c', '⊤', '⊥', '1', '2', '3', '4', '5', '^', 'v', '<', '>', 'C',
     ];
     const allKeys = [
       ...Object.keys(TERRAIN_CHARS),

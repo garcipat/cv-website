@@ -50,6 +50,7 @@ vi.mock('../engine/Renderer', () => ({
   drawEnemies: vi.fn(),
   drawBlocks: vi.fn(),
   drawChests: vi.fn(),
+  drawCheckpoints: vi.fn(),
   drawSigns: vi.fn(),
   drawHazards: vi.fn(),
   drawBackgroundTiles: vi.fn(),

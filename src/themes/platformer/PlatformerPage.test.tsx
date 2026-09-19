@@ -44,10 +44,17 @@ import {
   levelTotals,
   hazardPlacements,
   activeHitSplatters,
+  checkpointPlacements,
+  checkpointStates,
+  activeCheckpointId,
+  activeFadeOutTexts,
+  playerStateAtTile,
 } from './PlatformerState';
 import { toBlockState } from './entities/Block';
 import type { BlockState } from './entities/Block';
 import { startPuffEffect } from './engine/CollectionEffects';
+import { toCheckpointState } from './entities/Checkpoint';
+import { initialCameraX } from './engine/Camera';
 import { toChestState, isChestOpen } from './entities/Chest';
 import { spawnKeyPickup } from './entities/KeyPickup';
 import {
@@ -244,6 +251,12 @@ describe('PlatformerPage', () => {
     // later test asserting "no popup for X" could pass or fail on inherited
     // state rather than on its own tick.
     activeCounterPopups.value = {};
+    // Module-level checkpoint signals — a checkpoint activated or label
+    // started by one test must not leak into the next test's assumption that
+    // no checkpoint is active.
+    checkpointStates.value = checkpointPlacements.value.map(toCheckpointState);
+    activeCheckpointId.value = null;
+    activeFadeOutTexts.value = [];
   });
 
   afterEach(() => {
@@ -4387,6 +4400,252 @@ describe('PlatformerPage', () => {
       expect(ctx.fillRect.mock.calls.some((call: number[]) => call[2] === LOW_HEALTH_GLOW_WIDTH_PX)).toBe(
         false,
       );
+    });
+  });
+
+  describe('checkpoints', () => {
+    function captureLoop() {
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+      return () => {
+        if (!frameCallback) throw new Error('the game loop did not schedule a frame');
+        return frameCallback;
+      };
+    }
+
+    /** Authors a checkpoint layout and reseeds the checkpoint state signal —
+     *  the signal is seeded once at module load, so a new layout needs an
+     *  explicit reseed (the same thing resetGameProgress does). */
+    function useCheckpointLayout(layout: readonly string[]) {
+      currentLayout.value = layout;
+      checkpointStates.value = checkpointPlacements.value.map(toCheckpointState);
+      activeCheckpointId.value = null;
+      activeFadeOutTexts.value = [];
+    }
+
+    /** Presses the interact key (Up) so the next frame's checkpoint
+     *  resolution sees it — activation requires an explicit press. */
+    function pressInteract(): void {
+      fireEvent.keyDown(window, { code: 'ArrowUp' });
+    }
+
+    function advanceThroughDeath(nextFrame: () => FrameRequestCallback, from = 16): void {
+      let t = from;
+      for (let i = 0; i < 300; i++) {
+        t += 16;
+        nextFrame()(t);
+      }
+    }
+
+    it('pressingUpOnADormantCheckpointWithSolidGround-activatesOnceAndStartsPuffAndLabel', () => {
+      const nextFrame = captureLoop();
+      useCheckpointLayout(['C.S', 'GGG']);
+
+      render(<PlatformerPage />);
+      nextFrame()(0);
+      playerState.value = playerStateAtTile(0, 0);
+
+      // Walking over it without pressing Up is inert.
+      nextFrame()(16);
+      expect(checkpointStates.value.find((c) => c.id === 'checkpoint-0-0')?.activated).toBe(false);
+      expect(activeCheckpointId.value).toBeNull();
+
+      // Pressing Up on it activates it once.
+      pressInteract();
+      nextFrame()(32);
+      expect(checkpointStates.value.find((c) => c.id === 'checkpoint-0-0')?.activated).toBe(true);
+      expect(activeCheckpointId.value).toBe('checkpoint-0-0');
+      expect(activePuffs.value.filter((p) => p.id === 'checkpoint-0-0')).toHaveLength(1);
+      expect(activeFadeOutTexts.value.find((t) => t.id === 'checkpoint-0-0')?.text).toBe('Checkpoint');
+
+      // Standing on it and pressing Up again replays nothing.
+      pressInteract();
+      nextFrame()(48);
+      expect(activePuffs.value.filter((p) => p.id === 'checkpoint-0-0')).toHaveLength(1);
+      expect(activeFadeOutTexts.value.filter((t) => t.id === 'checkpoint-0-0')).toHaveLength(1);
+    });
+
+    it('theActivationLabelIsRemovedOnceItsFadeFinishes', () => {
+      const nextFrame = captureLoop();
+      useCheckpointLayout(['C.S', 'GGG']);
+      render(<PlatformerPage />);
+      nextFrame()(0);
+      playerState.value = playerStateAtTile(0, 0);
+      pressInteract();
+      nextFrame()(16);
+      expect(activeFadeOutTexts.value.some((t) => t.id === 'checkpoint-0-0')).toBe(true);
+
+      let t = 16;
+      for (let i = 0; i < 60; i++) {
+        t += 16;
+        nextFrame()(t);
+      }
+
+      expect(activeFadeOutTexts.value.some((t) => t.id === 'checkpoint-0-0')).toBe(false);
+    });
+
+    it('aMidAirCheckpointWithNoSolidGroundBelow-isInert', () => {
+      const nextFrame = captureLoop();
+      useCheckpointLayout(['C.S', '...', 'GGG']);
+      render(<PlatformerPage />);
+      nextFrame()(0);
+      playerState.value = playerStateAtTile(0, 0);
+      pressInteract();
+      nextFrame()(16);
+
+      expect(checkpointStates.value.find((c) => c.id === 'checkpoint-0-0')?.activated).toBe(false);
+      expect(activeCheckpointId.value).toBeNull();
+    });
+
+    it('deathWithAnActiveCheckpoint-respawnsOnItWithFullHealthAndTheCameraThere', () => {
+      Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 1024 });
+      Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 768 });
+      const nextFrame = captureLoop();
+      useCheckpointLayout(['C.S', 'GGG']);
+      render(<PlatformerPage />);
+      nextFrame()(0);
+      playerState.value = playerStateAtTile(0, 0);
+      pressInteract();
+      nextFrame()(16);
+      expect(activeCheckpointId.value).toBe('checkpoint-0-0');
+
+      playerState.value = { ...playerState.value, hitPoints: 0, alive: false };
+      nextFrame()(32);
+      advanceThroughDeath(nextFrame, 32);
+      expect(lifecycleState.value.phase).toBe('awaitingRestart');
+
+      fireEvent.keyDown(window, { code: 'Enter' });
+
+      const expected = playerStateAtTile(0, 0);
+      expect(playerState.value.x).toBe(expected.x);
+      expect(playerState.value.y).toBe(expected.y);
+      expect(playerState.value.hitPoints).toBe(MAX_HALF_HEARTS);
+      expect(lifecycleState.value.phase).toBe('intro');
+
+      const canvas = platformerPage.canvas;
+      expect(cameraPositionX.value).toBe(
+        initialCameraX(
+          expected.x,
+          PLAYER_RENDERED_SIZE,
+          canvas.width,
+          currentLevel.value.width * RENDERED_TILE_SIZE,
+        ),
+      );
+    });
+
+    it('deathWithNoActiveCheckpoint-restartsAtTheLevelSpawnExactlyAsBefore', () => {
+      const nextFrame = captureLoop();
+      render(<PlatformerPage />);
+      nextFrame()(0);
+      expect(activeCheckpointId.value).toBeNull();
+
+      playerState.value = { ...playerState.value, hitPoints: 0, alive: false };
+      nextFrame()(16);
+      advanceThroughDeath(nextFrame, 16);
+      expect(lifecycleState.value.phase).toBe('awaitingRestart');
+
+      fireEvent.keyDown(window, { code: 'Enter' });
+
+      expect(playerState.value.x).toBe(initialPlayerState.x);
+      expect(playerState.value.y).toBe(initialPlayerState.y);
+      expect(cameraPositionX.value).toBe(0);
+    });
+
+    it('deathRespawn-preservesCollectedFactsKeysChestsAndCheckpointMemory', () => {
+      const nextFrame = captureLoop();
+      render(<PlatformerPage />);
+      nextFrame()(0);
+
+      // An active checkpoint without authoring a layout: seed the state and
+      // the id directly (the shipped level has none).
+      const placement = { id: 'checkpoint-2-2', col: 2, row: 2, x: 64, y: 64 };
+      checkpointStates.value = [toCheckpointState(placement)];
+      activeCheckpointId.value = placement.id;
+
+      collectedFacts.value = [
+        {
+          id: 'f1',
+          sectionId: 'skills',
+          sectionLabel: 'Skills',
+          data: { category: 'Test', skills: [] },
+          sourceType: 'coin',
+        },
+      ];
+      collectedKeys.value = 2;
+      const chestId = chestPlacements.value[0]!.id;
+      chestStates.value = chestStates.value.map((c) => (c.id === chestId ? { ...c, state: 'open' } : c));
+
+      playerState.value = { ...playerState.value, hitPoints: 0, alive: false };
+      nextFrame()(16);
+      advanceThroughDeath(nextFrame, 16);
+      fireEvent.keyDown(window, { code: 'Enter' });
+
+      expect(collectedFacts.value).toHaveLength(1);
+      expect(collectedKeys.value).toBe(2);
+      expect(chestStates.value.find((c) => c.id === chestId)?.state).toBe('open');
+      expect(activeCheckpointId.value).toBe(placement.id);
+    });
+
+    it('pitFallWithAnActiveCheckpoint-costsHalfAHeartAndRecoversAtTheLastSafeGroundNotTheCheckpoint', () => {
+      const nextFrame = captureLoop();
+      useCheckpointLayout(['C.S', 'GGG']);
+      render(<PlatformerPage />);
+      nextFrame()(0);
+      playerState.value = playerStateAtTile(0, 0);
+      pressInteract();
+      nextFrame()(16);
+      expect(activeCheckpointId.value).toBe('checkpoint-0-0');
+
+      // Fall into a pit far from the checkpoint, with a distinct last-safe
+      // ground recorded — SC-008: the pit-fall anchor must win, not the
+      // checkpoint.
+      playerState.value = {
+        ...playerState.value,
+        x: 500,
+        y: 5000,
+        vx: 0,
+        vy: 900,
+        grounded: false,
+        lastGroundedX: 500,
+        lastGroundedY: 200,
+      };
+      nextFrame()(32);
+
+      expect(playerState.value.hitPoints).toBe(MAX_HALF_HEARTS - PIT_FALL_DAMAGE);
+      expect(playerState.value.x).toBe(500);
+      expect(playerState.value.y).toBe(200);
+    });
+
+    it('activatingASecondCheckpointKeepsTheFirstRaisedAndMovesTheGlow', () => {
+      const nextFrame = captureLoop();
+      useCheckpointLayout(['C.C.S', 'GGGGG']);
+      render(<PlatformerPage />);
+      nextFrame()(0);
+
+      playerState.value = playerStateAtTile(0, 0);
+      pressInteract();
+      nextFrame()(16);
+      expect(activeCheckpointId.value).toBe('checkpoint-0-0');
+
+      playerState.value = playerStateAtTile(2, 0);
+      pressInteract();
+      nextFrame()(32);
+
+      expect(checkpointStates.value.find((c) => c.id === 'checkpoint-0-0')?.activated).toBe(true);
+      expect(checkpointStates.value.find((c) => c.id === 'checkpoint-2-0')?.activated).toBe(true);
+      expect(activeCheckpointId.value).toBe('checkpoint-2-0');
+
+      // Pressing Up on the first again moves the glow with no replay.
+      const puffsBefore = activePuffs.value.filter((p) => p.id === 'checkpoint-0-0').length;
+      playerState.value = playerStateAtTile(0, 0);
+      pressInteract();
+      nextFrame()(48);
+      expect(activeCheckpointId.value).toBe('checkpoint-0-0');
+      expect(activePuffs.value.filter((p) => p.id === 'checkpoint-0-0')).toHaveLength(puffsBefore);
     });
   });
 });

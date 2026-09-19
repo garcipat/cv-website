@@ -199,6 +199,18 @@ export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
     frameWidth: 28,
     frameHeight: 20,
   },
+  C: {
+    // The RAISED frame (index 3 -> sx 48) of the 4-frame flag strip, per
+    // FR-017: the palette preview shows the activated flag, not the dormant
+    // one.
+    sheet: '/sprites/checkpoint-flag-strip.png',
+    sheetWidth: 64,
+    sheetHeight: 24,
+    sx: 48,
+    sy: 0,
+    frameWidth: 16,
+    frameHeight: 24,
+  },
   n: {
     sheet: WORLD_TILESET,
     sheetWidth: 256,
@@ -404,6 +416,7 @@ export const PALETTE_TILE_DESCRIPTIONS: Record<TileChar, string> = {
   u: 'Coin-pot; land on it from above to break it and drop a coin',
   p: 'Potion-pot; land on it from above to break it and drop a heart that heals half a heart',
   $: 'Chest; costs a key, and holds one experience entry',
+  C: 'Checkpoint; step on it to set your respawn point',
   n: 'Bush; stack vertically to grow a tree (root, trunk, canopy)',
   N: 'Fence',
   X: 'Cobweb; purely decorative, auto-orients to nearby solid terrain',
@@ -444,6 +457,7 @@ export const PALETTE_TILE_LABELS: Record<TileChar, string> = {
   u: 'Coin Pot',
   p: 'Potion Pot',
   $: 'Chest',
+  C: 'Checkpoint',
   n: 'Bush / Tree',
   N: 'Fence',
   X: 'Cobweb',

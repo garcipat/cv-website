@@ -162,3 +162,22 @@ export function initialCameraY(
   const targetY = viewportHeight - PLAYER_TARGET_ROWS_FROM_BOTTOM * RENDERED_TILE_SIZE;
   return targetY - playerCenterY - originYBase;
 }
+
+/**
+ * Computes the horizontal camera offset that centres the player in the
+ * viewport, clamped so the camera never scrolls past the level's start or end
+ * — the horizontal mirror of `initialCameraY`, and likewise a ONE-TIME
+ * initializer for spawn/respawn (`snapCameraToRespawn`), after which
+ * `updateCamera` takes over every frame. Clamped to
+ * `[0, max(0, levelPixelWidth - viewportWidth)]`.
+ */
+export function initialCameraX(
+  playerX: number,
+  playerWidth: number,
+  viewportWidth: number,
+  levelPixelWidth: number,
+): number {
+  const playerCenterX = playerX + playerWidth / 2;
+  const maxCameraX = Math.max(0, levelPixelWidth - viewportWidth);
+  return Math.min(Math.max(playerCenterX - viewportWidth / 2, 0), maxCameraX);
+}

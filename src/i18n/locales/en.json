@@ -179,6 +179,9 @@
       "jump": "Jump",
       "journal": "Journal",
       "interact": "Interact"
+    },
+    "checkpoint": {
+      "label": "Checkpoint"
     }
   }
 }

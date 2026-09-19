@@ -12,6 +12,7 @@ import {
   synthesizeEnemyStates,
   synthesizeBlockStates,
   synthesizeChestStates,
+  synthesizeCheckpointStates,
   synthesizeSignPlacements,
   synthesizeHazardPlacements,
 } from './gridRenderState';
@@ -24,6 +25,7 @@ import {
   drawEnemies,
   drawBlocks,
   drawChests,
+  drawCheckpoints,
   drawSigns,
   drawHazards,
   drawBackgroundTiles,
@@ -43,6 +45,7 @@ import {
   STATIC_OBJECTS_SHEET,
   DECORATIONS_SHEET,
 } from '../entities/sprites/sheets';
+import { CHECKPOINT_FLAG_SHEET } from '../entities/Checkpoint';
 
 export interface EditorImages {
   tileset: HTMLImageElement | null;
@@ -54,6 +57,7 @@ export interface EditorImages {
   slimePurple: HTMLImageElement | null;
   crackOverlay: HTMLImageElement | null;
   chestClosed: HTMLImageElement | null;
+  checkpoint: HTMLImageElement | null;
   backgroundAtlas: HTMLImageElement | null;
   staticObjects: HTMLImageElement | null;
   decorations: HTMLImageElement | null;
@@ -489,6 +493,7 @@ export const EditorCanvas = ({
           [WORLD_TILESET_SHEET.src]: images.tileset,
           [CRACK_OVERLAY_SHEET.src]: images.crackOverlay,
           [CHEST_CLOSED_SHEET.src]: images.chestClosed,
+          [CHECKPOINT_FLAG_SHEET.src]: images.checkpoint,
           [STATIC_OBJECTS_SHEET.src]: images.staticObjects,
           [DECORATIONS_SHEET.src]: images.decorations,
         },
@@ -512,6 +517,14 @@ export const EditorCanvas = ({
       drawBlocks(ctx, editorBlockStates, drawContext);
 
       drawChests(ctx, synthesizeChestStates(grid), drawContext);
+
+      drawCheckpoints(
+        ctx,
+        synthesizeCheckpointStates(grid),
+        images.checkpoint,
+        null,
+        drawContext,
+      );
 
       const player = synthesizePlayerState(grid);
       if (player && images.player) {

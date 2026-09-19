@@ -13,7 +13,8 @@ export type EntityKind =
   | 'fragileRock'
   | 'coinPot'
   | 'potionPot'
-  | 'chest';
+  | 'chest'
+  | 'checkpoint';
 
 /**
  * Maps each terrain character usable in a level layout to its tile type.
@@ -49,7 +50,9 @@ export const TERRAIN_CHARS: Record<string, TileType | undefined> = {
  * that heals half a heart; no fact, same no-CVData-binding convention as
  * coin-pot/fragileRock), `$` (chest —
  * Experience fact, opened via Arrow Up while standing on it, spec.md
- * FR-023). Kept as its own
+ * FR-023), `C` (checkpoint — no CV fact, raises a flag once stepped on with
+ * solid ground below and becomes the active respawn point for the rest of the
+ * run; O-001). Kept as its own
  * map, separate from TERRAIN_CHARS, since an entity marker isn't a terrain
  * tile — the ground it sits on is always `empty` (see parseLevel below), and
  * it's a fundamentally different kind of fact about a cell ("what starts
@@ -66,6 +69,7 @@ export const ENTITY_CHARS: Record<string, EntityKind | undefined> = {
   u: 'coinPot',
   p: 'potionPot',
   $: 'chest',
+  C: 'checkpoint',
 };
 
 /**
@@ -182,7 +186,8 @@ export type TileChar =
   | '^'
   | 'v'
   | '<'
-  | '>';
+  | '>'
+  | 'C';
 
 /**
  * Parses a level's raw ASCII layout (one character per tile, see
@@ -308,6 +313,16 @@ export function findPotionPotTiles(layout: readonly string[]): { col: number; ro
  *  spec.md FR-023) — see ChestMapper.ts's placeChests. */
 export function findChestTiles(layout: readonly string[]): { col: number; row: number }[] {
   return findAllOfKind(layout, 'chest');
+}
+
+/** Finds every `C` (checkpoint) marker's position in a level layout, in
+ *  reading order — same convention as findChestTiles. Unlike a chest, a
+ *  checkpoint carries no CVData binding at all: every marker found here
+ *  becomes one placement directly (see CheckpointMapper.ts's
+ *  placeCheckpoints), and the reading order is the contract the deterministic
+ *  same-tick tie-break depends on (see CheckpointLogic.ts). */
+export function findCheckpointTiles(layout: readonly string[]): { col: number; row: number }[] {
+  return findAllOfKind(layout, 'checkpoint');
 }
 
 /**
