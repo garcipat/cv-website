@@ -36,6 +36,7 @@ import {
   playerFrameSource,
   jumpFrameSource,
   climbFrameSource,
+  hitFrameFromTimer,
 } from '../entities/Player';
 import type { PlayerState } from '../entities/Player';
 import {
@@ -344,12 +345,16 @@ export function drawTerrain(
         const orientation = cobwebOrientation(level, col, row);
         if (!orientation.corner) {
           ctx.drawImage(
-            decorations, COBWEB_FLAT_ENTRY.sx, COBWEB_FLAT_ENTRY.sy, TILE_SIZE, TILE_SIZE,
+            decorations,
+            COBWEB_FLAT_ENTRY.sx, COBWEB_FLAT_ENTRY.sy,
+            COBWEB_FLAT_ENTRY.width ?? TILE_SIZE, COBWEB_FLAT_ENTRY.height ?? TILE_SIZE,
             destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
           );
         } else if (orientation.rotation === 0) {
           ctx.drawImage(
-            decorations, COBWEB_CORNER_ENTRY.sx, COBWEB_CORNER_ENTRY.sy, TILE_SIZE, TILE_SIZE,
+            decorations,
+            COBWEB_CORNER_ENTRY.sx, COBWEB_CORNER_ENTRY.sy,
+            COBWEB_CORNER_ENTRY.width ?? TILE_SIZE, COBWEB_CORNER_ENTRY.height ?? TILE_SIZE,
             destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
           );
         } else {
@@ -358,7 +363,9 @@ export function drawTerrain(
           ctx.translate(destX + half, destY + half);
           ctx.rotate((orientation.rotation * Math.PI) / 2);
           ctx.drawImage(
-            decorations, COBWEB_CORNER_ENTRY.sx, COBWEB_CORNER_ENTRY.sy, TILE_SIZE, TILE_SIZE,
+            decorations,
+            COBWEB_CORNER_ENTRY.sx, COBWEB_CORNER_ENTRY.sy,
+            COBWEB_CORNER_ENTRY.width ?? TILE_SIZE, COBWEB_CORNER_ENTRY.height ?? TILE_SIZE,
             -half, -half, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
           );
           ctx.restore();
@@ -369,7 +376,7 @@ export function drawTerrain(
       if (decorations && tile === 'crystalCluster') {
         const entry = staticObjectEntry('crystalCluster', col, row);
         ctx.drawImage(
-          decorations, entry.sx, entry.sy, TILE_SIZE, TILE_SIZE,
+          decorations, entry.sx, entry.sy, entry.width ?? TILE_SIZE, entry.height ?? TILE_SIZE,
           destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
         );
         continue;
@@ -378,7 +385,7 @@ export function drawTerrain(
       if (decorations && tile === 'stalactite') {
         const entry = stalactiteEntry(col, row);
         ctx.drawImage(
-          decorations, entry.sx, entry.sy, TILE_SIZE, TILE_SIZE,
+          decorations, entry.sx, entry.sy, entry.width ?? TILE_SIZE, entry.height ?? TILE_SIZE,
           destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
         );
         continue;
@@ -387,7 +394,7 @@ export function drawTerrain(
       if (decorations && tile === 'stalagmite') {
         const entry = stalagmiteEntry(col, row);
         ctx.drawImage(
-          decorations, entry.sx, entry.sy, TILE_SIZE, TILE_SIZE,
+          decorations, entry.sx, entry.sy, entry.width ?? TILE_SIZE, entry.height ?? TILE_SIZE,
           destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
         );
         continue;
@@ -505,8 +512,14 @@ export function drawPlayer(
     (player.animState === 'jump' || player.animState === 'climb') && jumpSpriteSheet !== null;
   const frameSize = useHighResSheet ? JUMP_FRAME_SIZE : PLAYER_FRAME_SIZE;
   const sheet = useHighResSheet ? jumpSpriteSheet : spriteSheet;
+  // `hit`'s frame comes from `hitTimer` directly (see hitFrameFromTimer's
+  // doc comment) rather than from `player.animFrame` — every other state
+  // still uses the incrementally-advanced counter.
   const { sx, sy } = !useHighResSheet
-    ? playerFrameSource(player.animState, player.animFrame)
+    ? playerFrameSource(
+        player.animState,
+        player.animState === 'hit' ? hitFrameFromTimer(player.hitTimer) : player.animFrame,
+      )
     : player.animState === 'climb'
       ? climbFrameSource(player.animFrame)
       : jumpFrameSource(player.vy, player.animFrame);

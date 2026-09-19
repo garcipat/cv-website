@@ -1,5 +1,6 @@
 import { RENDER_SCALE } from '../level/Terrain';
 import type { Moving, SelfAnimated, Damageable } from './capabilities';
+import { isInvulnerable } from './capabilities';
 
 export const PLAYER_FRAME_SIZE = 32;
 export const PLAYER_RENDERED_SIZE = PLAYER_FRAME_SIZE * RENDER_SCALE;
@@ -33,7 +34,7 @@ export const PLAYER_VISUAL_CENTER_Y_OFFSET =
  */
 export const PLAYER_SIDE_PADDING = 10 * RENDER_SCALE; // 20 rendered px
 
-export type PlayerAnimState = 'idle' | 'walk' | 'jump' | 'climb';
+export type PlayerAnimState = 'idle' | 'walk' | 'jump' | 'climb' | 'hit' | 'death';
 
 /** Which of a touched block's four faces the player's collision resolved
  *  against, from the block's own perspective — `'bottom'` means the
@@ -138,6 +139,18 @@ export interface PlayerState extends Moving, SelfAnimated, Damageable {
  * entry here, not new branches in both `playerFrameSource` and
  * `advancePlayerAnimation`.
  */
+/**
+ * `knight.png`'s 6th row (its 3rd frame red-tinted) — only the first 3 of
+ * its 4 columns are used (the 4th repeats the same neutral pose as the
+ * 1st/2nd with nothing added), so the red flash recurs every 0.3s instead of
+ * every 0.4s. Same per-frame timing as an enemy's own hit reaction
+ * (EnemyAnimation.ts's HIT_FRAME_DURATION). Named separately from
+ * `ANIM_CONFIG` (which still holds them too, for `playerFrameSource`'s sake)
+ * because `hitFrameFromTimer` below needs them directly.
+ */
+const HIT_FRAME_COUNT = 3;
+const HIT_FRAME_DURATION = 0.1;
+
 const ANIM_CONFIG: Record<
   PlayerAnimState,
   { frameCount: number; frameDuration: number; sy: number }
@@ -146,10 +159,34 @@ const ANIM_CONFIG: Record<
   walk: { frameCount: 8, frameDuration: 0.08, sy: PLAYER_FRAME_SIZE * 2 },
   jump: { frameCount: 7, frameDuration: 0.062, sy: 0 },
   climb: { frameCount: 4, frameDuration: 0.1, sy: 0 },
+  hit: { frameCount: HIT_FRAME_COUNT, frameDuration: HIT_FRAME_DURATION, sy: PLAYER_FRAME_SIZE * 6 },
+  // `knight.png`'s 7th row (its 4th frame a shrunken "collapsed" pose) —
+  // slower than `hit` so the collapse reads as weighty; played once by
+  // PlatformerPage.tsx's game loop during the 'dying' phase's lead-in (see
+  // GameLifecycle.ts's DEATH_ANIM_SECONDS), then held on its last frame.
+  death: { frameCount: 4, frameDuration: 0.15, sy: PLAYER_FRAME_SIZE * 7 },
 };
 
 /** Seconds each idle frame is held before advancing to the next. */
 export const IDLE_FRAME_DURATION = ANIM_CONFIG.idle.frameDuration;
+
+/**
+ * The `hit` sprite's frame index, computed directly from `hitTimer` rather
+ * than from `animFrame`/`animTimer` — unlike every other animState, `hit`'s
+ * frame is NOT incrementally advanced by `advancePlayerAnimation` (which
+ * treats `hit` as a no-op, the same way it already freezes `climb` while
+ * stationary). `hitTimer` is already the single source of truth the
+ * invulnerability window itself is built on (`isInvulnerable`,
+ * `isPlayerBlinkVisible`), advanced exactly once per tick by
+ * `advancePlayerHitTimer` — deriving the frame from it directly, the same
+ * way `isPlayerBlinkVisible` derives the blink phase, makes the red flash a
+ * pure function of elapsed time. An incrementally-advanced counter can only
+ * ever match that by construction; deriving it directly removes the
+ * possibility of drift entirely, rather than relying on it.
+ */
+export function hitFrameFromTimer(hitTimer: number): number {
+  return Math.floor(hitTimer / HIT_FRAME_DURATION) % HIT_FRAME_COUNT;
+}
 
 export function playerFrameSource(
   animState: PlayerAnimState,
@@ -204,8 +241,11 @@ export function climbFrameSource(frame: number): { sx: number; sy: number } {
   return { sx: (frame % CLIMB_ROW_FRAME_COUNT) * JUMP_FRAME_SIZE, sy: CLIMB_ROW_SY };
 }
 
-/** Advances the player's animation timer/frame by `dt` seconds. */
+/** Advances the player's animation timer/frame by `dt` seconds. No-op for
+ *  `'hit'` — its frame is derived directly from `hitTimer` at render time
+ *  instead (see `hitFrameFromTimer`), not advanced incrementally here. */
 export function advancePlayerAnimation(player: PlayerState, dt: number): PlayerState {
+  if (player.animState === 'hit') return player;
   if (player.animState === 'climb' && player.vy === 0) return player;
   const { frameCount, frameDuration } = ANIM_CONFIG[player.animState];
   const animTimer = player.animTimer + dt;
@@ -220,13 +260,33 @@ export function advancePlayerAnimation(player: PlayerState, dt: number): PlayerS
 }
 
 /**
- * Switches `animState` between `idle`/`walk`/`jump`/`climb`, resetting the animation
- * frame/timer whenever the state actually changes so a leftover frame index
- * from the previous state's cycle never carries over. Climbing takes priority
- * over airborne/grounded/velocity checks — the character can be moving or
- * airborne while climbing, but it still reads as `'climb'`, not other states.
+ * Switches `animState` between `idle`/`walk`/`jump`/`climb`, resetting the
+ * animation frame/timer whenever the state actually changes so a leftover
+ * frame index from the previous state's cycle never carries over.
+ * `'death'` is deliberately not derived here — it's driven externally
+ * (PlatformerPage.tsx sets it directly at the moment `alive` goes false),
+ * since this function only ever runs during live gameplay, never during the
+ * `'dying'` phase.
+ *
+ * `'hit'` is likewise never entered here — only a directional knockback
+ * (`applyKnockback`, called for an enemy or hazard touch, both of which push
+ * the character away from whatever hit them) enters it directly, the same
+ * way an enemy's own `takeHit` sets its `animState` straight to `'hit'`. A
+ * pit fall (`beginHitReaction`) has no attacker to react to, so it leaves
+ * `animState` alone and stays on the render blink instead (see
+ * PlatformerPage.tsx's `isPlayerBlinkVisible` use) — this function's only
+ * job regarding `'hit'` is holding it for as long as the invulnerability
+ * window from that knockback is still open (looping `advancePlayerAnimation`
+ * continuously via the same-reference return below, rather than restarting
+ * every tick) and falling back to a movement-derived state once it closes.
+ * Climbing takes priority over airborne/grounded/velocity checks — the
+ * character can be moving or airborne while climbing, but it still reads as
+ * `'climb'`, not other states.
  */
 export function updatePlayerAnimState(player: PlayerState): PlayerState {
+  if (player.animState === 'hit' && isInvulnerable(player, PLAYER_HIT_REACTION_SECONDS)) {
+    return player;
+  }
   const animState: PlayerAnimState = player.climbing
     ? 'climb'
     : !player.grounded
@@ -262,11 +322,17 @@ export function advancePlayerHitTimer(player: PlayerState, dt: number): PlayerSt
  * to `direction * knockbackVx` (facing to match, so the character visually
  * faces away from whatever hit it), starts `knockbackTimer` (how long
  * `stepPlayerPhysics` overrides input-driven horizontal movement) and
- * restarts `hitTimer` (how long further hits are ignored and the render
- * blink plays). The two run independently and differ a lot in length —
- * control comes back long before the blink ends. The refractory window takes
- * no duration argument: its length is PLAYER_HIT_REACTION_SECONDS, read by
- * whoever asks `isInvulnerable`, so starting one is just zeroing the timer.
+ * restarts `hitTimer` (how long further hits are ignored and the `hit`
+ * animation loops). The two run independently and differ a lot in length —
+ * control comes back long before the hit animation ends. The refractory
+ * window takes no duration argument: its length is
+ * PLAYER_HIT_REACTION_SECONDS, read by whoever asks `isInvulnerable`, so
+ * starting one is just zeroing the timer.
+ *
+ * Also switches `animState` straight to `'hit'` (frame/timer reset to 0),
+ * the same way an enemy's own `takeHit` does — this is a directional hit
+ * with a real "thing that hit you", unlike a pit fall's `beginHitReaction`,
+ * so the sprite flash reaction applies here but not there.
  */
 export function applyKnockback(
   player: PlayerState,
@@ -280,6 +346,9 @@ export function applyKnockback(
     direction: direction < 0 ? 'left' : 'right',
     knockbackTimer: knockbackDuration,
     hitTimer: 0,
+    animState: 'hit',
+    animFrame: 0,
+    animTimer: 0,
   };
 }
 
@@ -289,7 +358,10 @@ export function applyKnockback(
  * of enemy contact specifically. Unlike `applyKnockback`, there's no
  * "direction to push away from" for a pit fall, and no reason to touch
  * `vx`/`direction`/`knockbackTimer` at all — `resolvePitFall` already
- * handles repositioning the character back to solid ground.
+ * handles repositioning the character back to solid ground. `animState` is
+ * deliberately left untouched too: with no attacker to react to, the
+ * character stays on the render blink (`isPlayerBlinkVisible`) rather than
+ * switching to the `hit` sprite flash `applyKnockback` uses.
  */
 export function beginHitReaction(player: PlayerState): PlayerState {
   return { ...player, hitTimer: 0 };
@@ -297,28 +369,31 @@ export function beginHitReaction(player: PlayerState): PlayerState {
 
 /**
  * Seconds the player's post-hit refractory window lasts: further hits are
- * dropped and the render blink plays for this long after a hit lands. Long
+ * dropped, and either the `hit` animation loops (a directional knockback) or
+ * the render blink plays (a pit fall) for this long after a hit lands. Long
  * enough to read clearly as "just got hurt" without dragging on. The enemy
  * equivalent is each type's own `hitReactionSeconds`.
  */
-export const PLAYER_HIT_REACTION_SECONDS = 1.2;
+export const PLAYER_HIT_REACTION_SECONDS = 0.8;
 
-/** Seconds between blink phase flips while the player is invulnerable. */
+/** Seconds between blink phase flips while a pit fall's invulnerability
+ *  window is open and `animState` is not `'hit'` (see `beginHitReaction`'s
+ *  doc comment for why a pit fall never enters `'hit'`). */
 export const PLAYER_BLINK_INTERVAL_SECONDS = 0.1;
 
 /**
- * Whether the player sprite is drawn on this frame of the post-hit blink.
+ * Whether the player sprite is drawn on this frame of a pit fall's blink.
+ * Only meaningful while `animState !== 'hit'` — a directional knockback's
+ * `hit` sprite flash is always drawn, never blinked (see
+ * PlatformerPage.tsx's use of both).
  *
- * The phase is measured from the END of the window, not its start:
- * `reactionSeconds - hitTimer` is the time REMAINING, and it is that
- * remainder — not the elapsed time — whose blink-interval parity decides
- * on/off. Taking the parity of `hitTimer` directly would blink at the same
- * rate for the same duration with every frame's on/off state swapped.
- *
- * Callers gate this behind `isInvulnerable`; outside the window the
- * remainder goes negative and the result is meaningless.
+ * The phase is measured from the START of the window (elapsed `hitTimer`
+ * parity, flipped so the first interval is hidden): the instant of the hit
+ * must always read as the sprite vanishing, for any reaction duration —
+ * anchoring from the window's END instead would make that first-frame
+ * parity an accident of whether the duration happens to divide evenly by
+ * `PLAYER_BLINK_INTERVAL_SECONDS`.
  */
-export function isPlayerBlinkVisible(hitTimer: number, reactionSeconds: number): boolean {
-  const remaining = reactionSeconds - hitTimer;
-  return Math.floor(remaining / PLAYER_BLINK_INTERVAL_SECONDS) % 2 === 0;
+export function isPlayerBlinkVisible(hitTimer: number): boolean {
+  return Math.floor(hitTimer / PLAYER_BLINK_INTERVAL_SECONDS) % 2 === 1;
 }

@@ -7,6 +7,7 @@ import {
   resumeFromJournal,
   showEndingScreen,
   dismissEndingScreen,
+  DEATH_ANIM_SECONDS,
 } from './GameLifecycle';
 import type { LifecycleState } from './GameLifecycle';
 import {
@@ -17,7 +18,8 @@ import {
 } from './IrisTransition';
 
 const INTRO_TOTAL_SECONDS = IRIS_HOLD_SECONDS + IRIS_DURATION_SECONDS;
-const DYING_TOTAL_SECONDS = IRIS_DURATION_SECONDS + IRIS_HOLD_SECONDS + IRIS_CLOSE_SECONDS;
+const DYING_TOTAL_SECONDS =
+  DEATH_ANIM_SECONDS + IRIS_DURATION_SECONDS + IRIS_HOLD_SECONDS + IRIS_CLOSE_SECONDS;
 
 describe('introState', () => {
   it('called-returns-introPhaseAtZeroElapsedWithGivenCenter', () => {
@@ -94,6 +96,12 @@ describe('tickLifecycle', () => {
   it('introPhase-elapsedExceedsTotalDuration-transitionsToPlaying', () => {
     const next = tickLifecycle(introState(0, 0), INTRO_TOTAL_SECONDS + 1);
     expect(next.phase).toBe('playing');
+  });
+
+  it('dyingPhase-withinDeathAnimLeadIn-advancesElapsedStaysDying', () => {
+    const next = tickLifecycle(startDeath(0, 0), DEATH_ANIM_SECONDS / 2);
+    expect(next.phase).toBe('dying');
+    expect(next.elapsed).toBeCloseTo(DEATH_ANIM_SECONDS / 2);
   });
 
   it('dyingPhase-beforeTotalDuration-advancesElapsedStaysDying', () => {
@@ -179,10 +187,34 @@ describe('currentIrisRadius', () => {
     expect(currentIrisRadius(state, 500)).toBe(500);
   });
 
+  it('dyingPhase-stillWithinDeathAnimLeadIn-returnsMaxRadius', () => {
+    // The death animation is playing (Player.ts's 'death' animState) and the
+    // iris hasn't started closing yet — the mask stays fully open so the
+    // collapse reads over a normal-looking scene, not through a shrinking
+    // circle.
+    const state: LifecycleState = {
+      phase: 'dying',
+      elapsed: DEATH_ANIM_SECONDS / 2,
+      centerX: 0,
+      centerY: 0,
+    };
+    expect(currentIrisRadius(state, 500)).toBe(500);
+  });
+
+  it('dyingPhase-deathAnimLeadInJustEnded-shrinkStartsFromMaxRadius', () => {
+    const state: LifecycleState = {
+      phase: 'dying',
+      elapsed: DEATH_ANIM_SECONDS,
+      centerX: 0,
+      centerY: 0,
+    };
+    expect(currentIrisRadius(state, 500)).toBeCloseTo(500);
+  });
+
   it('dyingPhase-halfwayThroughShrink-returnsMidpointBetweenMaxAndSmallRadius', () => {
     const state: LifecycleState = {
       phase: 'dying',
-      elapsed: IRIS_DURATION_SECONDS / 2,
+      elapsed: DEATH_ANIM_SECONDS + IRIS_DURATION_SECONDS / 2,
       centerX: 0,
       centerY: 0,
     };
@@ -192,7 +224,7 @@ describe('currentIrisRadius', () => {
   it('dyingPhase-justAfterShrink-returnsSmallRadius', () => {
     const state: LifecycleState = {
       phase: 'dying',
-      elapsed: IRIS_DURATION_SECONDS,
+      elapsed: DEATH_ANIM_SECONDS + IRIS_DURATION_SECONDS,
       centerX: 0,
       centerY: 0,
     };
@@ -202,7 +234,7 @@ describe('currentIrisRadius', () => {
   it('dyingPhase-stillWithinHold-returnsSmallRadius', () => {
     const state: LifecycleState = {
       phase: 'dying',
-      elapsed: IRIS_DURATION_SECONDS + IRIS_HOLD_SECONDS / 2,
+      elapsed: DEATH_ANIM_SECONDS + IRIS_DURATION_SECONDS + IRIS_HOLD_SECONDS / 2,
       centerX: 0,
       centerY: 0,
     };
@@ -212,7 +244,8 @@ describe('currentIrisRadius', () => {
   it('dyingPhase-halfwayThroughFinalClose-returnsHalfSmallRadius', () => {
     const state: LifecycleState = {
       phase: 'dying',
-      elapsed: IRIS_DURATION_SECONDS + IRIS_HOLD_SECONDS + IRIS_CLOSE_SECONDS / 2,
+      elapsed:
+        DEATH_ANIM_SECONDS + IRIS_DURATION_SECONDS + IRIS_HOLD_SECONDS + IRIS_CLOSE_SECONDS / 2,
       centerX: 0,
       centerY: 0,
     };

@@ -1829,8 +1829,9 @@ describe('drawTerrain — cave decorations', () => {
 
     drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, fakeDecorations);
 
-    // up+right -> rotation 1, so the corner sprite (0,0) is drawn rotated
-    // about the cell's own center (destX+16, destY+32 at RENDERED_TILE_SIZE=32).
+    // up+right -> rotation 1, so the corner sprite (0,0, 16x16) is drawn
+    // rotated about the cell's own center (destX+16, destY+32 at
+    // RENDERED_TILE_SIZE=32).
     expect(ctx.drawImage).toHaveBeenCalledWith(
       fakeDecorations, 0, 0, 16, 16,
       -16, -16, 32, 32,
@@ -1843,8 +1844,10 @@ describe('drawTerrain — cave decorations', () => {
 
     drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, fakeDecorations);
 
+    // COBWEB_FLAT_ENTRY: sx 17, sy 0, 16x17 (decorations.png's hand-spaced
+    // layout — see StaticObjectsCatalog.ts).
     expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeDecorations, 16, 0, 16, 16,
+      fakeDecorations, 17, 0, 16, 17,
       0, 0, 32, 32,
     );
   });
@@ -1856,10 +1859,10 @@ describe('drawTerrain — cave decorations', () => {
     drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, fakeDecorations);
 
     // (0, 0)'s position hash deterministically picks the "large" variant
-    // (sx 16, sy 16) — see StaticObjectsCatalog.test.ts for the general
-    // determinism/bounds coverage of stalagmiteEntry itself.
+    // (sx 17, sy 17, 16x18) — see StaticObjectsCatalog.test.ts for the
+    // general determinism/bounds coverage of stalagmiteEntry itself.
     expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeDecorations, 16, 16, 16, 16,
+      fakeDecorations, 17, 17, 16, 18,
       0, 0, 32, 32,
     );
   });
@@ -1934,6 +1937,29 @@ describe('drawPlayer', () => {
       fakeSpriteSheet,
       64,
       0,
+      32,
+      32,
+      16,
+      256,
+      64,
+      64,
+    );
+  });
+
+  it('hitState-draws-fromHitTimerNotAnimFrame', () => {
+    // hitTimer 0.25 lands in the 3rd HIT column (the red-tint flash, sy
+    // 192) — animFrame is deliberately a different value (0) to prove the
+    // sprite source comes from hitTimer, not the incrementally-advanced
+    // counter (see Player.ts's hitFrameFromTimer).
+    const ctx = makeMockContext();
+    const player: PlayerState = { ...idlePlayer, animState: 'hit', animFrame: 0, hitTimer: 0.25 };
+
+    drawPlayer(ctx, player, fakeSpriteSheet);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeSpriteSheet,
+      64,
+      192,
       32,
       32,
       16,

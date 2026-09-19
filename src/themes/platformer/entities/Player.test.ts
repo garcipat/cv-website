@@ -12,6 +12,7 @@ import {
   beginHitReaction,
   advancePlayerHitTimer,
   isPlayerBlinkVisible,
+  hitFrameFromTimer,
   PLAYER_HIT_REACTION_SECONDS,
 } from './Player';
 import type { PlayerState } from './Player';
@@ -124,6 +125,14 @@ describe('advancePlayerAnimation walk timing', () => {
 });
 
 describe('advancePlayerAnimation climb-frozen-while-stationary', () => {
+  it('hitState-doesNotAdvanceFrameOrTimer-evenWithALargeDt', () => {
+    // The `hit` frame is derived from hitTimer at render time
+    // (hitFrameFromTimer), not advanced incrementally here.
+    const player = idlePlayer({ animState: 'hit', animFrame: 1, animTimer: 0.05 });
+    const next = advancePlayerAnimation(player, 1);
+    expect(next).toBe(player);
+  });
+
   it('climbingWithVyZero-doesNotAdvanceFrameOrTimer-evenWithALargeDt', () => {
     const player = idlePlayer({ animState: 'climb', vy: 0, animFrame: 1, animTimer: 0.05 });
     const next = advancePlayerAnimation(player, 1); // dt far larger than any real frame duration
@@ -296,6 +305,16 @@ describe('applyKnockback', () => {
     expect(next.vx).toBe(250);
     expect(next.direction).toBe('right');
   });
+
+  it('called-switchesAnimStateToHitAndResetsItsFrame', () => {
+    // A directional hit has a real "thing that hit you" — unlike a pit
+    // fall's beginHitReaction, this enters the sprite flash directly.
+    const player = idlePlayer({ animState: 'walk', animFrame: 5, animTimer: 0.03 });
+    const next = applyKnockback(player, 1, 250, 0.25);
+    expect(next.animState).toBe('hit');
+    expect(next.animFrame).toBe(0);
+    expect(next.animTimer).toBe(0);
+  });
 });
 
 it('playerState-assignedToMovingAndSelfAnimated-satisfiesBothShapes', () => {
@@ -318,6 +337,16 @@ describe('beginHitReaction', () => {
     expect(next.direction).toBe('left');
     expect(next.knockbackTimer).toBe(0);
   });
+
+  it('called-leavesAnimStateUntouched', () => {
+    // No attacker to react to, so this stays on the render blink rather
+    // than switching into the `hit` sprite flash applyKnockback uses.
+    const player = idlePlayer({ animState: 'walk', animFrame: 3, animTimer: 0.02 });
+    const next = beginHitReaction(player);
+    expect(next.animState).toBe('walk');
+    expect(next.animFrame).toBe(3);
+    expect(next.animTimer).toBe(0.02);
+  });
 });
 
 describe('player as a damageable', () => {
@@ -338,8 +367,131 @@ describe('spawned player vulnerability', () => {
   it('freshlySpawnedPlayer-isNotInvulnerable', () => {
     // A respawn must leave the player immediately hittable. `hitTimer` counts
     // UP, so "no recent hit" is a value at or past the reaction duration —
-    // seeding it to 0 would instead grant a free 1.2 s after every respawn.
+    // seeding it to 0 would instead grant a free 0.8 s after every respawn.
     expect(isInvulnerable(spawnPlayerState(), PLAYER_HIT_REACTION_SECONDS)).toBe(false);
+  });
+});
+
+describe('playerFrameSource hit row', () => {
+  it('playerFrameSource-hitFrame0-returnsFirstColumnAtHitRow', () => {
+    expect(playerFrameSource('hit', 0)).toEqual({ sx: 0, sy: PLAYER_FRAME_SIZE * 6 });
+  });
+
+  it('playerFrameSource-hitFrame2-returnsThirdColumnAtHitRow', () => {
+    // The red-tinted flash frame — same row, third column.
+    expect(playerFrameSource('hit', 2)).toEqual({
+      sx: 2 * PLAYER_FRAME_SIZE,
+      sy: PLAYER_FRAME_SIZE * 6,
+    });
+  });
+
+  it('playerFrameSource-hitFrame3-wrapsToFirstColumn', () => {
+    // Only the first 3 of the sheet's 4 HIT columns are used — the 4th is
+    // dropped so the red-tint flash (column 2) recurs sooner.
+    expect(playerFrameSource('hit', 3)).toEqual({ sx: 0, sy: PLAYER_FRAME_SIZE * 6 });
+  });
+});
+
+describe('hitFrameFromTimer', () => {
+  // A pure function of hitTimer — deterministic regardless of the game
+  // loop's actual frame rate/dt jitter, unlike an incrementally-advanced
+  // counter. 3 frames x 0.1s each: 0-0.1 -> 0, 0.1-0.2 -> 1, 0.2-0.3 -> 2
+  // (the red flash), then wraps.
+  it('withinFirstFrameWindow-returnsFrame0', () => {
+    expect(hitFrameFromTimer(0)).toBe(0);
+    expect(hitFrameFromTimer(0.05)).toBe(0);
+  });
+
+  it('withinSecondFrameWindow-returnsFrame1', () => {
+    expect(hitFrameFromTimer(0.1)).toBe(1);
+    expect(hitFrameFromTimer(0.15)).toBe(1);
+  });
+
+  it('withinThirdFrameWindow-returnsFrame2TheRedTintFlash', () => {
+    expect(hitFrameFromTimer(0.2)).toBe(2);
+    expect(hitFrameFromTimer(0.25)).toBe(2);
+  });
+
+  it('afterFullCycle-wrapsBackToFrame0', () => {
+    expect(hitFrameFromTimer(0.35)).toBe(0);
+  });
+
+  it('secondCycleThirdFrameWindow-returnsFrame2Again', () => {
+    // 0.5-0.6s is the second cycle's red-flash window (0.3 + 0.2 to 0.3).
+    expect(hitFrameFromTimer(0.55)).toBe(2);
+  });
+});
+
+describe('playerFrameSource death row', () => {
+  it('playerFrameSource-deathFrame0-returnsFirstColumnAtDeathRow', () => {
+    expect(playerFrameSource('death', 0)).toEqual({ sx: 0, sy: PLAYER_FRAME_SIZE * 7 });
+  });
+
+  it('playerFrameSource-deathFrame3-returnsFourthColumnAtDeathRow', () => {
+    // The shrunken "collapsed" final frame — same row, fourth column.
+    expect(playerFrameSource('death', 3)).toEqual({
+      sx: 3 * PLAYER_FRAME_SIZE,
+      sy: PLAYER_FRAME_SIZE * 7,
+    });
+  });
+
+  it('playerFrameSource-deathFrame4-wrapsToFirstColumn', () => {
+    // Only 4 real DEATH frames in the sheet.
+    expect(playerFrameSource('death', 4)).toEqual({ sx: 0, sy: PLAYER_FRAME_SIZE * 7 });
+  });
+});
+
+describe('updatePlayerAnimState hit priority', () => {
+  // Entry into 'hit' is NOT this function's job (see its doc comment) — only
+  // applyKnockback enters it directly, for a directional hit. This function
+  // only ever HOLDS 'hit' for as long as the window stays open, regardless
+  // of movement, and falls back to a movement-derived state once it closes.
+  it('alreadyHitAndStillInWindow-staysHitRegardlessOfMovement', () => {
+    const player = idlePlayer({ hitTimer: 0, vx: 200, grounded: true, animState: 'hit' });
+    const next = updatePlayerAnimState(player);
+    expect(next.animState).toBe('hit');
+  });
+
+  it('alreadyHitAndStillInWindow-staysHitNotClimb', () => {
+    const player = idlePlayer({ hitTimer: 0, climbing: true, animState: 'hit' });
+    const next = updatePlayerAnimState(player);
+    expect(next.animState).toBe('hit');
+  });
+
+  it('alreadyHitAndStillInWindow-staysHitNotJump', () => {
+    const player = idlePlayer({ hitTimer: 0, grounded: false, animState: 'hit' });
+    const next = updatePlayerAnimState(player);
+    expect(next.animState).toBe('hit');
+  });
+
+  it('hitTimerFreshButAnimStateNotYetHit-doesNotAutoEnterHit', () => {
+    // Confirms entry is external (applyKnockback), not derived from
+    // hitTimer/isInvulnerable by this function — e.g. a pit fall's
+    // beginHitReaction resets hitTimer without touching animState, and this
+    // function must not second-guess that by entering 'hit' anyway.
+    const player = idlePlayer({ hitTimer: 0, vx: 0, grounded: true, animState: 'idle' });
+    const next = updatePlayerAnimState(player);
+    expect(next.animState).toBe('idle');
+  });
+
+  it('stillInsideTheWindow-returnsSameReferenceSoFramesKeepLooping', () => {
+    // No frame/timer reset while still 'hit' — this is what lets the 3-frame
+    // cycle loop continuously for the whole reaction window instead of
+    // restarting every tick.
+    const player = idlePlayer({ hitTimer: 0.5, animState: 'hit', animFrame: 2, animTimer: 0.05 });
+    const next = updatePlayerAnimState(player);
+    expect(next).toBe(player);
+  });
+
+  it('windowJustEnded-fallsBackToMovementState', () => {
+    const player = idlePlayer({
+      hitTimer: PLAYER_HIT_REACTION_SECONDS,
+      animState: 'hit',
+      vx: 0,
+      grounded: true,
+    });
+    const next = updatePlayerAnimState(player);
+    expect(next.animState).toBe('idle');
   });
 });
 
@@ -350,16 +502,17 @@ describe('isPlayerBlinkVisible', () => {
   // sample points are one blink interval apart and land on opposite phases,
   // so an inverted implementation flips both.
   it('halfABlinkIntervalAfterTheHit-isHidden', () => {
-    expect(isPlayerBlinkVisible(0.05, PLAYER_HIT_REACTION_SECONDS)).toBe(false);
+    expect(isPlayerBlinkVisible(0.05)).toBe(false);
   });
 
   it('oneAndAHalfBlinkIntervalsAfterTheHit-isVisible', () => {
-    expect(isPlayerBlinkVisible(0.15, PLAYER_HIT_REACTION_SECONDS)).toBe(true);
+    expect(isPlayerBlinkVisible(0.15)).toBe(true);
   });
 
   it('theInstantOfTheHit-isHidden', () => {
     // The window opens on a hidden frame — the hit reads as the sprite
-    // vanishing. An elapsed-time parity would show it instead.
-    expect(isPlayerBlinkVisible(0, PLAYER_HIT_REACTION_SECONDS)).toBe(false);
+    // vanishing. An end-anchored implementation would make this an accident
+    // of the reaction duration's own value instead of a guaranteed frame.
+    expect(isPlayerBlinkVisible(0)).toBe(false);
   });
 });
