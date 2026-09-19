@@ -3,6 +3,7 @@ import {
   currentLayout,
   currentBackground,
   LEVEL_1_LAYOUT,
+  LEVEL_1_BACKGROUND,
   SPAWN_TILE,
   ENEMY_TILES_GREEN,
   ENEMY_TILES_PURPLE,
@@ -370,11 +371,11 @@ describe('CHECKPOINT_TILES', () => {
 
 describe('currentBackground', () => {
   afterEach(() => {
-    currentBackground.value = [];
+    currentBackground.value = LEVEL_1_BACKGROUND;
   });
 
-  it('defaultValue-isAnEmptyList', () => {
-    expect(currentBackground.value).toEqual([]);
+  it('defaultValue-isTheShippedCaveBackground', () => {
+    expect(currentBackground.value).toEqual(LEVEL_1_BACKGROUND);
   });
 
   it('settingCurrentBackground-appearsOnCurrentLevelsBackgroundField', () => {

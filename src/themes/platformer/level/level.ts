@@ -68,6 +68,11 @@ import {
 // surface patches (the Deep Mine's mouth, the gauntlet's middle step).
 // Everything buried behind those faces stays ground.
 //
+// The first cave (Zone B) is also the one cave with authored dressing: a
+// charcoal background layer behind its interior and three wall torches, so it
+// reads as a stone gallery rather than open sky showing through the air (see
+// `LEVEL_1_BACKGROUND` and the `¥` tiles in the layout below).
+//
 // ## Routes
 //
 // The level is deliberately NOT a single corridor. Surface and caves run in
@@ -167,7 +172,7 @@ export const LEVEL_1_LAYOUT: readonly string[] = [
   '..S.5..o...oC........M.......M..2.GGGGGGGGGGGGGGGuu.u.....M......1.........^...........................M.o..........M.....M.......M........................M.................#.M..#GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGGBBBGGGGGGGGGGGGGGHGGGGGGGGGGGGGGGGGGGGGGHGGGGGGHGGBBBGGGGGGGGGGGGGGGGGFFGGGGGGGGGG...GGGGGGGGGBBBGGGGGGGGGGGGGGGRRHRRRRRRRRRRRRGGGGGGGGGGGGGGGGGGGGGGGGGHGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.H........⊤....⊤........H<GGGG>H..........=................GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..H.......v.......=...=.................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
-  'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.H......................H.GGGG.H.....................3.....GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..H.....................................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.H..¥........¥........¥.H.GGGG.H.....................3.....GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..H.....................................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.H..o...4.$.⊥...⊥.......H.GGGG.H.....o..m....o....o.RRRRR..GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..H..o.m..$.............................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGG...GGGGGGGGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRRRGGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGGRRRRRRRRRRRRRRHRRRRRRRRRRRFFRRRRRRRRRRRRHRRRRGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGG...GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..............H.........................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
@@ -175,6 +180,26 @@ export const LEVEL_1_LAYOUT: readonly string[] = [
   'GGGGGGGGGGGGGG...GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGGc.............H....o.m...RRRR...o..o.$..H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGG...GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'RRRRRRRRRRRRRR...RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR...RRRRRRRRR...RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
+];
+
+/**
+ * The shipped level's background-layer placements. The first cave (Zone B,
+ * cols 30-55, rows 11-13 — the gallery under the hillside, reached by the
+ * ladders at cols 31 and 54) is backed with charcoal (cave) pieces so its
+ * interior reads as stone instead of showing the open parallax sky through
+ * the air. Nine 3x3 blocks tile the 3-tall pocket edge to edge; any part that
+ * lands behind a solid wall is simply hidden by the terrain drawn over it.
+ */
+export const LEVEL_1_BACKGROUND: BackgroundPlacement[] = [
+  { pieceId: 'charcoalBlock3x3', col: 30, row: 11 },
+  { pieceId: 'charcoalBlock3x3', col: 33, row: 11 },
+  { pieceId: 'charcoalBlock3x3', col: 36, row: 11 },
+  { pieceId: 'charcoalBlock3x3', col: 39, row: 11 },
+  { pieceId: 'charcoalBlock3x3', col: 42, row: 11 },
+  { pieceId: 'charcoalBlock3x3', col: 45, row: 11 },
+  { pieceId: 'charcoalBlock3x3', col: 48, row: 11 },
+  { pieceId: 'charcoalBlock3x3', col: 51, row: 11 },
+  { pieceId: 'charcoalBlock3x3', col: 54, row: 11 },
 ];
 
 /**
@@ -206,8 +231,9 @@ export const currentLayout = signal<readonly string[]>(LEVEL_1_LAYOUT);
 
 /** The GAME's background-layer placements — parallel to `currentLayout`
  *  above, and reset the same way (in-memory only, not localStorage-backed).
- *  Written by the Level Editor's Try button, the only place that sets it. */
-export const currentBackground = signal<BackgroundPlacement[]>([]);
+ *  Starts at the shipped cave backdrop (`LEVEL_1_BACKGROUND`); the Level
+ *  Editor's Try button is the only place that overwrites it at runtime. */
+export const currentBackground = signal<BackgroundPlacement[]>(LEVEL_1_BACKGROUND);
 
 /** Parsed terrain/dimensions for `currentLayout`. Recomputes whenever the
  *  Level Editor's Try button changes `currentLayout` (see its doc comment
