@@ -36,8 +36,8 @@ export interface TileSpriteSpec {
 const WORLD_TILESET = '/sprites/world_tileset.png';
 const TILE_ATLAS = '/sprites/tile_atlas.png';
 const DECORATIONS = '/sprites/decorations.png';
-const DECORATIONS_SHEET_WIDTH = 64;
-const DECORATIONS_SHEET_HEIGHT = 32;
+const DECORATIONS_SHEET_WIDTH = 67;
+const DECORATIONS_SHEET_HEIGHT = 35;
 
 /**
  * One sprite spec per `TileChar`, or `null` for the three tiles that have no
@@ -221,37 +221,37 @@ export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
     sheet: DECORATIONS,
     sheetWidth: DECORATIONS_SHEET_WIDTH,
     sheetHeight: DECORATIONS_SHEET_HEIGHT,
-    sx: 16,
+    sx: 17,
     sy: 0,
     frameWidth: 16,
-    frameHeight: 16,
+    frameHeight: 17,
   },
   c: {
     sheet: DECORATIONS,
     sheetWidth: DECORATIONS_SHEET_WIDTH,
     sheetHeight: DECORATIONS_SHEET_HEIGHT,
-    sx: 32,
+    sx: 33,
     sy: 0,
-    frameWidth: 16,
-    frameHeight: 16,
+    frameWidth: 18,
+    frameHeight: 18,
   },
   '⊤': {
     sheet: DECORATIONS,
     sheetWidth: DECORATIONS_SHEET_WIDTH,
     sheetHeight: DECORATIONS_SHEET_HEIGHT,
-    sx: 48,
+    sx: 51,
     sy: 0,
     frameWidth: 16,
-    frameHeight: 16,
+    frameHeight: 17,
   },
   '⊥': {
     sheet: DECORATIONS,
     sheetWidth: DECORATIONS_SHEET_WIDTH,
     sheetHeight: DECORATIONS_SHEET_HEIGHT,
-    sx: 16,
-    sy: 16,
+    sx: 17,
+    sy: 17,
     frameWidth: 16,
-    frameHeight: 16,
+    frameHeight: 18,
   },
   // '1'-'5' are all the same signpost sprite — the digit is what
   // distinguishes a sign's hint content (SIGN_CHARS), not its appearance.

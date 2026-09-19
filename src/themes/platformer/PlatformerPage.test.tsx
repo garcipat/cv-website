@@ -3119,7 +3119,7 @@ describe('PlatformerPage', () => {
     expect(playerState.value.hitPoints).toBe(healthAfterFirstHit);
   });
 
-  it('playerTouchingASpikeHazard-tick-losesOneHalfHeartWithNoKnockback', () => {
+  it('playerTouchingASpikeHazard-tick-losesOneHalfHeartAndIsKnockedAway', () => {
     // A synthetic layout with a real spike marker — the shipped level has no
     // hazard tiles of its own yet, unlike the enemy-contact tests above,
     // which can teleport onto a real enemy from the default layout.
@@ -3141,9 +3141,10 @@ describe('PlatformerPage', () => {
     frameCallback!(16);
 
     expect(playerState.value.hitPoints).toBe(startingHealth - SIDE_HIT_DAMAGE);
-    // No knockback — a spike hurts but doesn't push the player around,
-    // unlike a side/below enemy touch.
-    expect(playerState.value.vx).toBe(0);
+    // Pushed away from the hazard's tile, same knockback amount as a side
+    // enemy touch — this is what keeps a standing-still player from getting
+    // hit again the instant the refractory window lapses.
+    expect(Math.abs(playerState.value.vx)).toBe(PHYSICS_CONFIG.sideHitKnockbackVx);
     expect(isInvulnerable(playerState.value, PLAYER_HIT_REACTION_SECONDS)).toBe(true);
   });
 
@@ -4216,8 +4217,10 @@ describe('PlatformerPage', () => {
       expect(activeHitSplatters.value.length).toBe(0);
     });
 
-    it('playerFallsIntoPit-startsARedSplatterAnchoredAtCenter', () => {
-      // No directional contact — spec.md FR-001's edge case.
+    it('playerFallsIntoPit-startsNoSplatter', () => {
+      // Nothing visibly struck the character — a pit fall is damage with no
+      // attacker, so unlike an enemy/hazard touch it gets no debris burst,
+      // only the blink (S-011).
       let frameCallback: FrameRequestCallback | null = null;
       vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
         frameCallback = cb;
@@ -4231,9 +4234,7 @@ describe('PlatformerPage', () => {
       playerState.value = { ...playerState.value, y: 10000, vy: 50, grounded: false };
       frameCallback!(16);
 
-      const splatter = activeHitSplatters.value.find((s) => s.color === '#a30f1f');
-      expect(splatter).toBeDefined();
-      expect(splatter!.dirBiasX).toBe(0);
+      expect(activeHitSplatters.value.length).toBe(0);
     });
 
     it('purpleSlimeSurvivesAStomp-startsAPurpleSplatterWithNoDefeatPuff', () => {
@@ -4305,7 +4306,7 @@ describe('PlatformerPage', () => {
       expect(activeHitSplatters.value.length).toBeGreaterThan(0);
 
       // Advance well past HIT_SPLATTER_DURATION_SECONDS (0.6s) but still
-      // under PLAYER_HIT_REACTION_SECONDS (1.2s) — GameLoop's MAX_DT caps
+      // under PLAYER_HIT_REACTION_SECONDS (0.8s) — GameLoop's MAX_DT caps
       // any single tick's dt at 1/30s regardless of the timestamp jump, so
       // this steps through many small ticks (same convention as the
       // 'activePuff-tick-elapsesAndEventuallyClearsItself' test above)
@@ -4313,7 +4314,7 @@ describe('PlatformerPage', () => {
       // avoids the still-standing player taking a second hazard hit and
       // starting a fresh, not-yet-expired splatter.
       let t = 16;
-      const totalMs = (HIT_SPLATTER_DURATION_SECONDS + 0.2) * 1000;
+      const totalMs = (HIT_SPLATTER_DURATION_SECONDS + 0.1) * 1000;
       for (let elapsed = 0; elapsed < totalMs; elapsed += 16) {
         t += 16;
         frameCallback!(t);

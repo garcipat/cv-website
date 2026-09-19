@@ -55,6 +55,7 @@ import {
   resumeFromJournal,
   showEndingScreen,
   dismissEndingScreen,
+  DEATH_ANIM_SECONDS,
 } from './engine/GameLifecycle';
 import { maxIrisRadius } from './engine/IrisTransition';
 import { currentLevel, currentLayout, currentBackground } from './level/level';
@@ -427,7 +428,14 @@ export const PlatformerPage = () => {
   };
 
   const handleDebugKill = () => {
-    playerState.value = { ...playerState.value, hitPoints: 0, alive: false };
+    playerState.value = {
+      ...playerState.value,
+      hitPoints: 0,
+      alive: false,
+      animState: 'death',
+      animFrame: 0,
+      animTimer: 0,
+    };
     const p = playerState.value;
     lifecycleState.value = startDeath(p.x + PLAYER_RENDERED_SIZE / 2, p.y + PLAYER_VISUAL_CENTER_Y_OFFSET);
     // Death immediately halts the hint-tick block below (the game loop skips
@@ -562,9 +570,20 @@ export const PlatformerPage = () => {
       drawChests(ctx, chestStates.value, drawContext);
 
       if (playerSpriteRef.current) {
+        // A directional hit (enemy/hazard, both knock the player back) is
+        // always visible — its `hit` animState (3rd frame red-tinted) IS the
+        // "just got hurt" signal. `death` is likewise always visible — it's
+        // its own dedicated animation, not a blink cue, regardless of
+        // whatever `hitTimer` the killing hit happened to leave behind. A
+        // pit fall has no attacker to react to, so it's the only case left
+        // that stays on the old invulnerability blink (see Player.ts's
+        // beginHitReaction/applyKnockback doc comments for why these
+        // diverge).
         const playerVisible =
+          playerState.value.animState === 'hit' ||
+          playerState.value.animState === 'death' ||
           !isInvulnerable(playerState.value, PLAYER_HIT_REACTION_SECONDS) ||
-          isPlayerBlinkVisible(playerState.value.hitTimer, PLAYER_HIT_REACTION_SECONDS);
+          isPlayerBlinkVisible(playerState.value.hitTimer);
         drawPlayer(
           ctx,
           playerState.value,
@@ -786,6 +805,15 @@ export const PlatformerPage = () => {
       // (awaitingRestart) the iris animation and re-rendering.
       if (lifecycleState.value.phase === 'dying') {
         lifecycleState.value = tickLifecycle(lifecycleState.value, dt);
+        // The player's 'death' animState (set where this phase begins) plays
+        // out once during the lead-in before the iris starts closing (see
+        // GameLifecycle.ts's DEATH_ANIM_SECONDS) — everything else about the
+        // player stays frozen, same as the rest of this phase, and once the
+        // lead-in ends this stops advancing, holding the last (collapsed)
+        // frame for the remainder of the phase.
+        if (lifecycleState.value.elapsed < DEATH_ANIM_SECONDS) {
+          playerState.value = advancePlayerAnimation(playerState.value, dt);
+        }
         render();
         return;
       }
@@ -1386,7 +1414,7 @@ export const PlatformerPage = () => {
       // enemy contacts above. Sequencing after the enemy block (rather than
       // merging the two) is deliberate and safe: applyKnockback resets
       // hitTimer to 0, and isInvulnerable(player, PLAYER_HIT_REACTION_SECONDS)
-      // treats hitTimer 0 as WITHIN the refractory window (0 < 1.2) — so if
+      // treats hitTimer 0 as WITHIN the refractory window (0 < 0.8) — so if
       // an enemy contact already damaged the player this very tick, this
       // block's own isInvulnerable check reads that just-updated state and
       // correctly skips, giving "at most one hit per tick" for free with no
@@ -1397,18 +1425,26 @@ export const PlatformerPage = () => {
         const damage = HAZARD_TYPES[hazard.hazardType].damage;
         const hitPoints = takeDamage(playerState.value.hitPoints, damage);
         playerState.value = { ...playerState.value, hitPoints, alive: hitPoints > 0 };
-        // No knockback — a spike hurts but doesn't shove the player, same
-        // convention as a pit fall's beginHitReaction (this only starts the
-        // refractory window). Unlike a side/below enemy touch, there's no
-        // "direction to push away from" that reads naturally here: the
-        // player is standing on/beside the spike's own tile, not colliding
-        // with a separate solid body.
-        playerState.value = beginHitReaction(playerState.value);
+        // Pushed away from the hazard's own tile, same knockback amount as a
+        // side enemy touch — without this, standing still against a spike
+        // re-lands a fresh hit (and restarts the hit animation) the instant
+        // the refractory window lapses, since nothing ever moves the player
+        // out of contact with it.
+        const contactSide: -1 | 1 = hazard.x >= playerState.value.x ? 1 : -1;
+        // Pushed away from the hazard, not toward it — the opposite sign of
+        // contactSide, spelled out as its own conditional (rather than
+        // `-contactSide`) since TS widens a negated `-1 | 1` to `number`.
+        const knockbackDirection: -1 | 1 = contactSide === 1 ? -1 : 1;
+        playerState.value = applyKnockback(
+          playerState.value,
+          knockbackDirection,
+          PHYSICS_CONFIG.sideHitKnockbackVx,
+          PHYSICS_CONFIG.sideHitKnockbackDuration,
+        );
 
         // No splatter on the hit that kills the character — see the same
         // guard on the enemy-contact site above.
         if (hitPoints > 0) {
-          const contactSide: -1 | 1 = hazard.x >= playerState.value.x ? 1 : -1;
           const playerCenterX = playerState.value.x + PLAYER_RENDERED_SIZE / 2 + originX;
           const playerCenterY = playerState.value.y + PLAYER_VISUAL_CENTER_Y_OFFSET + originY;
           activeHitSplatters.value = [
@@ -1617,18 +1653,11 @@ export const PlatformerPage = () => {
         if (!isInvulnerable(next, PLAYER_HIT_REACTION_SECONDS)) {
           const hitPoints = takeDamage(next.hitPoints, PIT_FALL_DAMAGE);
           next = { ...next, hitPoints, alive: hitPoints > 0 };
+          // No debris burst — unlike an enemy/hazard touch, nothing visibly
+          // struck the character, so a blood splatter doesn't read right
+          // here (only the blink applies; see beginHitReaction's doc
+          // comment for why this never enters the `hit` animState either).
           next = beginHitReaction(next);
-          // No clear contact side (spec.md FR-001's edge case) — anchored
-          // at center. No splatter on the hit that kills the character —
-          // see the same guard on the enemy-contact site above.
-          if (hitPoints > 0) {
-            const playerCenterX = next.x + PLAYER_RENDERED_SIZE / 2 + originX;
-            const playerCenterY = next.y + PLAYER_VISUAL_CENTER_Y_OFFSET + originY;
-            activeHitSplatters.value = [
-              ...activeHitSplatters.value,
-              startPlayerHitSplatter(`player-${activeHitSplatters.value.length}`, playerCenterX, playerCenterY, 0),
-            ];
-          }
         }
         next = resolvePitFall(next);
       }
@@ -1667,6 +1696,7 @@ export const PlatformerPage = () => {
       // flag an enemy dies by. Otherwise, keep advancing 'intro' (a no-op
       // once already 'playing' — see GameLifecycle.ts's tickLifecycle).
       if (!next.alive) {
+        playerState.value = { ...next, animState: 'death', animFrame: 0, animTimer: 0 };
         lifecycleState.value = startDeath(
           next.x + PLAYER_RENDERED_SIZE / 2,
           next.y + PLAYER_VISUAL_CENTER_Y_OFFSET,
