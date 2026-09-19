@@ -85,6 +85,13 @@ import {
   fadeOutTextOpacity,
 } from './CollectionEffects';
 import type { FlightEffect, PuffEffect, HealAuraEffect, HitSplatterEffect, FadeOutTextEffect } from './CollectionEffects';
+import { TORCH_SHEET } from '../entities/sprites/sheets';
+import {
+  TORCH_FRAME_WIDTH,
+  TORCH_FRAME_HEIGHT,
+  TORCH_INSET_X,
+  torchFrameIndex,
+} from './Torch';
 
 function tileSource(
   level: LevelDef,
@@ -137,6 +144,11 @@ function tileSource(
       // Drawn by drawTerrain's own staticObjects/decorations branch when that
       // sheet is loaded; this shared lookup only runs when it isn't, so there
       // is nothing to draw here.
+      return null;
+    case 'torch':
+      // Drawn by drawTerrain's own torch branch (a frame picked from
+      // TORCH_SHEET by grid position + the world clock) — not a static
+      // sx/sy lookup, so there is nothing to return here.
       return null;
     case 'empty':
       return null;
@@ -310,6 +322,8 @@ export function drawTerrain(
   originY = 0,
   staticObjects: HTMLImageElement | null = null,
   decorations: HTMLImageElement | null = null,
+  torch: HTMLImageElement | null = null,
+  worldElapsed = 0,
 ): void {
   ctx.imageSmoothingEnabled = false;
 
@@ -407,6 +421,27 @@ export function drawTerrain(
         ctx.drawImage(
           decorations, entry.sx, entry.sy, entry.width ?? TILE_SIZE, entry.height ?? TILE_SIZE,
           destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
+        );
+        continue;
+      }
+
+      if (torch && tile === 'torch') {
+        // The frame is a pure function of the cell's grid position and the
+        // shared world clock (engine/Torch.ts) — no per-instance state, and
+        // neighbouring torches flicker out of phase. The 12x14 frame is
+        // bottom-aligned and horizontally centred in the 16px cell; never
+        // mirrored or rotated (single fixed front-facing sprite, spec FR-007).
+        const frame = frameSource(TORCH_SHEET, torchFrameIndex(col, row, worldElapsed));
+        ctx.drawImage(
+          torch,
+          frame.sx,
+          frame.sy,
+          TORCH_FRAME_WIDTH,
+          TORCH_FRAME_HEIGHT,
+          destX + TORCH_INSET_X * RENDER_SCALE,
+          destY + (TILE_SIZE - TORCH_FRAME_HEIGHT) * RENDER_SCALE,
+          TORCH_FRAME_WIDTH * RENDER_SCALE,
+          TORCH_FRAME_HEIGHT * RENDER_SCALE,
         );
         continue;
       }
