@@ -12,6 +12,7 @@ import {
   findCoinPotTiles,
   findPotionPotTiles,
   findChestTiles,
+  findCheckpointTiles,
   findSignTiles,
   findHazardTiles,
 } from './LevelParser';
@@ -120,6 +121,10 @@ import {
 //          bonus fruit rather than carrying a fact of its own
 //   F  5   fragileRock block — no fact; the two surface plugs plus filler
 //   $  5   chest — one per experience entry; opening all five ends the run
+//   C  0   checkpoint — no fact; raises its flag and becomes the active
+//          respawn point once stepped on with solid ground below. Shipped
+//          levels contain none: the tile is authorable in the editor only
+//          (O-001).
 //   u  3   coin-pot — destroyed by landing on top, drops a coin (2 adjacent
 //          + 1 isolated, to exercise the merged-run rendering); same
 //          no-CVData-binding convention as every other block kind
@@ -159,7 +164,7 @@ export const LEVEL_1_LAYOUT: readonly string[] = [
   '........................................M........................................................o...........m........................................................................M..o.GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   '........................=Q........GGGGGGGGGGGGGGG.......................................Q......GGGGGGG.....GGGGGGG....=QFQ.........................................................RRRRRRRRGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   '..................................GGGGGGGGGGGGGGG..................................................................................................................................GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
-  '..S.5..o...o.........M.......M..2.GGGGGGGGGGGGGGGuu.u.....M......1.........^...........................M.o..........M.....M.......M........................M.................#.M..#GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  '..S.5..o...oC........M.......M..2.GGGGGGGGGGGGGGGuu.u.....M......1.........^...........................M.o..........M.....M.......M........................M.................#.M..#GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGGBBBGGGGGGGGGGGGGGHGGGGGGGGGGGGGGGGGGGGGGHGGGGGGHGGBBBGGGGGGGGGGGGGGGGGFFGGGGGGGGGG...GGGGGGGGGBBBGGGGGGGGGGGGGGGRRHRRRRRRRRRRRRGGGGGGGGGGGGGGGGGGGGGGGGGHGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.H........⊤....⊤........H<GGGG>H..........=................GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..H.......v.......=...=.................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.H......................H.GGGG.H.....................3.....GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..H.....................................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
@@ -261,6 +266,14 @@ export const POTION_POT_TILES = computed(() => findPotionPotTiles(currentLayout.
  *  `experience` length: `placeChests` has no auto-placement fallback, and a
  *  missing marker would leave an Experience entry unreachable. */
 export const CHEST_TILES = computed(() => findChestTiles(currentLayout.value));
+
+/** Hand-placed checkpoint positions, from `currentLayout`'s `C` markers —
+ *  purely positional, no CVData binding (same convention as COIN_POT_TILES
+ *  above). Zero in the shipped level: checkpoints are authorable in the Level
+ *  Editor, not shipped (O-001 spec Out of Scope). Reading order is preserved
+ *  — the deterministic same-tick tie-break depends on it (see
+ *  CheckpointLogic.ts). */
+export const CHECKPOINT_TILES = computed(() => findCheckpointTiles(currentLayout.value));
 
 /** Hand-placed hint-sign positions, from `currentLayout`'s digit markers
  *  (`1`-`9`, see LevelParser.ts's SIGN_CHARS, spec.md FR-040). One sign per

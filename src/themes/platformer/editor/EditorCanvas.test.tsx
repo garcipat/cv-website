@@ -20,6 +20,7 @@ vi.mock('../engine/Renderer', () => ({
   drawEnemies: vi.fn(),
   drawBlocks: vi.fn(),
   drawChests: vi.fn(),
+  drawCheckpoints: vi.fn(),
   drawSigns: vi.fn(),
   drawHazards: vi.fn(),
   drawBackgroundTiles: vi.fn(),
@@ -32,6 +33,7 @@ import {
   drawEnemies,
   drawBlocks,
   drawChests,
+  drawCheckpoints,
   drawBackgroundTiles,
 } from '../engine/Renderer';
 
@@ -45,6 +47,7 @@ const EMPTY_IMAGES: EditorImages = {
   slimePurple: null,
   crackOverlay: null,
   chestClosed: null,
+  checkpoint: null,
   backgroundAtlas: null,
   staticObjects: null,
   decorations: null,
@@ -369,6 +372,29 @@ describe('EditorCanvas', () => {
     expect(drawChests).toHaveBeenCalledWith(
       expect.anything(),
       expect.arrayContaining([expect.objectContaining({ id: 'editor-chest-0' })]),
+      expect.objectContaining({ originX: 5, originY: 7 }),
+    );
+  });
+
+  it('draws a dormant checkpoint preview at each "C" cell', () => {
+    stubCanvasContext();
+    const checkpoint = {} as HTMLImageElement;
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['.', 'C']]}
+        selectedTool="G"
+        panOffset={{ x: 5, y: 7 }}
+        images={{ ...EMPTY_IMAGES, checkpoint }}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+    expect(drawCheckpoints).toHaveBeenCalledWith(
+      expect.anything(),
+      [expect.objectContaining({ col: 1, row: 0, activated: false, activatedAt: null })],
+      checkpoint,
+      null,
       expect.objectContaining({ originX: 5, originY: 7 }),
     );
   });

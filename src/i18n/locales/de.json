@@ -179,6 +179,9 @@
       "jump": "Springen",
       "journal": "Journal",
       "interact": "Interagieren"
+    },
+    "checkpoint": {
+      "label": "Kontrollpunkt"
     }
   }
 }

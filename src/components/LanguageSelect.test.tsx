@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -18,6 +18,15 @@ async function setupEnglish() {
   return { LanguageSelect };
 }
 
+// Base UI Select portals its popup, so every test must open it first.
+// `fireEvent.click` on the trigger reliably opens it and fires `onOpenChange`
+// (the same pattern ThemeSelect.test.tsx uses). Picking an item goes through
+// `userEvent` with its pointer-events guard disabled, since the positioner's
+// `pointer-events` comes from CSS classes jsdom doesn't apply.
+const openDropdown = () => fireEvent.click(screen.getByRole('combobox'));
+const clickOption = (name: string) =>
+  userEvent.setup({ pointerEventsCheck: 0 }).click(screen.getByRole('option', { name }));
+
 describe('LanguageSelect', () => {
   it('renders the current locale name in the trigger', async () => {
     const { LanguageSelect } = await setupEnglish();
@@ -28,19 +37,17 @@ describe('LanguageSelect', () => {
   it('switches locale to German when Deutsch is selected', async () => {
     const { LanguageSelect } = await setupEnglish();
     render(<LanguageSelect />);
-    const user = userEvent.setup();
-    await user.click(screen.getByRole('combobox'));
-    await user.click(screen.getAllByText('Deutsch')[0]);
+    openDropdown();
+    await clickOption('Deutsch');
     expect(screen.getByRole('combobox')).toHaveTextContent('Deutsch');
   });
 
   it('shows translated language names after switching locale', async () => {
     const { LanguageSelect } = await setupEnglish();
     render(<LanguageSelect />);
-    const user = userEvent.setup();
-    await user.click(screen.getByRole('combobox'));
-    await user.click(screen.getAllByText('Deutsch')[0]);
-    await user.click(screen.getByRole('combobox'));
+    openDropdown();
+    await clickOption('Deutsch');
+    openDropdown();
     expect(screen.getAllByText('Englisch').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Deutsch').length).toBeGreaterThanOrEqual(1);
   });
@@ -48,8 +55,7 @@ describe('LanguageSelect', () => {
   it('open-doesNotAlignItemWithTrigger', async () => {
     const { LanguageSelect } = await setupEnglish();
     render(<LanguageSelect />);
-    const user = userEvent.setup();
-    await user.click(screen.getByRole('combobox'));
+    openDropdown();
 
     const popup = document.querySelector('[data-slot="select-content"]');
     expect(popup).toHaveAttribute('data-align-trigger', 'false');
@@ -59,9 +65,8 @@ describe('LanguageSelect', () => {
     const { LanguageSelect } = await setupEnglish();
     const onOpenChange = vi.fn();
     render(<LanguageSelect onOpenChange={onOpenChange} />);
-    const user = userEvent.setup();
 
-    await user.click(screen.getByRole('combobox'));
+    openDropdown();
 
     expect(onOpenChange).toHaveBeenCalledWith(true);
   });
@@ -70,10 +75,9 @@ describe('LanguageSelect', () => {
     const { LanguageSelect } = await setupEnglish();
     const onOpenChange = vi.fn();
     render(<LanguageSelect onOpenChange={onOpenChange} />);
-    const user = userEvent.setup();
-    await user.click(screen.getByRole('combobox'));
+    openDropdown();
 
-    await user.click(screen.getAllByText('Deutsch')[0]);
+    await clickOption('Deutsch');
 
     expect(onOpenChange).toHaveBeenLastCalledWith(false);
   });

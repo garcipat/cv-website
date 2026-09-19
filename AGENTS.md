@@ -21,6 +21,7 @@
 - **Data pattern**: CV content is typed JSON. Define types in `src/types/`, data in `src/data/`. Components import the typed data directly.
 - **Specs**: Design documents live in `specs/` at the project root
 - **TypeScript strict**: No `any`, proper types for all data and component props
+- **Sprite art**: Game sprites are flat 2D pixel art — never 2.5D/3D (no cylindrical highlights, gradients, or perspective shading). When a sprite needs multiple frames or states, generate them in a single image (one sheet/strip) so every frame shares the same style, dimensions, and palette.
 
 ## Key Principles
 

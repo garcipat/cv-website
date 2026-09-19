@@ -1,3 +1,7 @@
+import { useState } from 'react';
+import type { ReactNode } from 'react';
+import { Collapsible } from '@base-ui/react/collapsible';
+import { ChevronDownIcon } from 'lucide-react';
 import { TERRAIN_CHARS, ENTITY_CHARS, SIGN_CHARS, HAZARD_CHARS } from '../level/LevelParser';
 import type { TileChar } from '../level/LevelParser';
 import {
@@ -13,6 +17,7 @@ import type { BackgroundPieceId } from '../level/LevelData';
 import { BLUEPRINTS } from '../level/blueprintRegistry';
 import { PaletteTile } from './PaletteTile';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 
 interface PaletteProps {
   selectedTool: TileChar;
@@ -40,6 +45,29 @@ const SPAWN_CHAR: TileChar = 'S';
 const CONNECTION_POINT_CHAR: TileChar = '+';
 const BACKGROUND_PIECE_IDS = Object.keys(BACKGROUND_CATALOG) as BackgroundPieceId[];
 const DECORATION_CHARS: TileChar[] = ['n', 'N', 'X', 'c', '⊤', '⊥'];
+
+/**
+ * One collapsible palette group. The trigger REPLACES the group's old plain
+ * `<p>` title (same `text-xs` line, now clickable with an inline chevron), so
+ * it costs no extra vertical space — collapsing the tiles below is what
+ * reclaims height as the catalog grows. Uncontrolled and open by default, so
+ * nothing is hidden until the author chooses to collapse it.
+ */
+const PaletteGroup = ({ title, children }: { title: string; children: ReactNode }) => {
+  const [open, setOpen] = useState(true);
+  return (
+    <Collapsible.Root open={open} onOpenChange={setOpen} render={<section aria-label={title} />}>
+      <Collapsible.Trigger className="mb-1 flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground">
+        <ChevronDownIcon
+          className={cn('size-3 shrink-0 transition-transform', open && 'rotate-180')}
+          aria-hidden
+        />
+        {title}
+      </Collapsible.Trigger>
+      <Collapsible.Panel>{children}</Collapsible.Panel>
+    </Collapsible.Root>
+  );
+};
 
 export const Palette = ({
   selectedTool,
@@ -96,8 +124,7 @@ export const Palette = ({
   const showBlueprints = canvasMode === 'level' && BLUEPRINTS.length > 0;
 
   const renderGroup = (title: string, keys: TileChar[]) => (
-    <section key={title} aria-label={title}>
-      <p className="mb-1 text-xs font-medium text-muted-foreground">{title}</p>
+    <PaletteGroup key={title} title={title}>
       <div className="grid grid-cols-[repeat(3,max-content)] gap-2">
         {keys.map((key) => (
           <PaletteTile
@@ -111,7 +138,7 @@ export const Palette = ({
           />
         ))}
       </div>
-    </section>
+    </PaletteGroup>
   );
 
   return (
@@ -128,8 +155,7 @@ export const Palette = ({
             {renderGroup('Hazards', firstHazardKey ? [firstHazardKey] : [])}
             {renderGroup('Tools', toolKeys)}
             {showBlueprints && (
-              <section aria-label="Blueprints">
-                <p className="mb-1 text-xs font-medium text-muted-foreground">Blueprints</p>
+              <PaletteGroup title="Blueprints">
                 <div className="grid grid-cols-[repeat(3,max-content)] gap-2">
                   {BLUEPRINTS.map((blueprint) => (
                     <PaletteTile
@@ -143,7 +169,7 @@ export const Palette = ({
                     />
                   ))}
                 </div>
-              </section>
+              </PaletteGroup>
             )}
           </div>
         ) : (

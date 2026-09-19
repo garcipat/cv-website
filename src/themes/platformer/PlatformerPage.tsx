@@ -35,6 +35,8 @@ import {
   KEY_COUNTER_Y,
   drawWaterForeground,
   drawBackgroundTiles,
+  drawCheckpoints,
+  drawFadeOutTexts,
 } from './engine/Renderer';
 import { drawBackgroundLayers } from './engine/BackgroundLayers';
 import type { DrawContext } from './engine/DrawContext';
@@ -43,7 +45,7 @@ import { createGameLoop } from './engine/GameLoop';
 import { stepPlayerPhysics, checkPitFall, resolvePitFall } from './engine/Physics';
 import { PHYSICS_CONFIG } from './engine/PhysicsConfig';
 import { stepEnemyPatrol, stepEnemyHitReaction } from './engine/EnemyAI';
-import { updateCamera, updateCameraY, initialCameraY } from './engine/Camera';
+import { updateCamera, updateCameraY, initialCameraX, initialCameraY } from './engine/Camera';
 import { createKeyboardInput } from './engine/Input';
 import type { KeyboardInput } from './engine/Input';
 import {
@@ -70,6 +72,7 @@ import {
   checkHeartPickupCollisions,
   checkHazardCollisions,
 } from './engine/Collision';
+import { resolveCheckpointContacts } from './engine/CheckpointLogic';
 import { openChest, allChestsOpen, isChestOpen, CHEST_CLOSED_OFFSET_X } from './entities/Chest';
 import { stepBlockAnimation } from './engine/BlockAI';
 import {
@@ -103,6 +106,9 @@ import {
   startEnemyHitSplatter,
   tickHitSplatterEffect,
   HIT_SPLATTER_DURATION_SECONDS,
+  startFadeOutTextEffect,
+  tickFadeOutTextEffect,
+  FADE_OUT_TEXT_DURATION_SECONDS,
 } from './engine/CollectionEffects';
 import { coinFrameSource, COIN_FRAME_SIZE } from './entities/Coin';
 import { fruitFrameSource, FRUIT_FRAME_SIZE } from './entities/Fruit';
@@ -144,6 +150,10 @@ import { HAZARD_TYPES } from './entities/hazards';
 import { PICKUP_TYPES } from './entities/pickups';
 import { BLOCK_TYPES } from './entities/blocks';
 import { CHEST_TYPE } from './entities/chests';
+import {
+  CHECKPOINT_FLAG_SHEET,
+  checkpointEffectAnchor,
+} from './entities/Checkpoint';
 import type { EnemyState } from './entities/Enemy';
 import { takeDamage, healDamage, PIT_FALL_DAMAGE, HEART_PICKUP_HEAL_AMOUNT, isHealthCritical } from './entities/Health';
 import { revealedFactCountFor } from './level/SkillFactPacing';
@@ -152,7 +162,6 @@ import {
   cameraPositionX,
   cameraPositionY,
   lifecycleState,
-  spawnCenter,
   resetGame,
   resetGameProgress,
   controlsOverlayDismissed,
@@ -180,6 +189,12 @@ import {
   activeHealAuraEffects,
   activeHitSplatters,
   levelTotals,
+  checkpointPlacements,
+  checkpointStates,
+  activeCheckpointId,
+  activeFadeOutTexts,
+  respawnPlayerState,
+  respawnCenter,
 } from './PlatformerState';
 import { useSignals } from '@preact/signals-react/runtime';
 import { Journal } from './components/Journal';
@@ -226,6 +241,7 @@ export const PlatformerPage = () => {
   // from spritesRef via CHEST_TYPE.draw.
   const chestClosedSpriteRef = useRef<HTMLImageElement | null>(null);
   const keySpriteRef = useRef<HTMLImageElement | null>(null);
+  const checkpointSpriteRef = useRef<HTMLImageElement | null>(null);
   // Ref to the game loop's KeyboardInput, set once inside the mount effect
   // below right after createKeyboardInput() runs. Needed by
   // handleDismissEndingScreen (defined outside that effect) so it can drain
@@ -308,7 +324,7 @@ export const PlatformerPage = () => {
     }
     resetGameProgress();
     controlsOverlayDismissed.value = false;
-    const center = spawnCenter();
+    const center = respawnCenter.value;
     lifecycleState.value = introState(center.x, center.y);
     // mount-only by design (see the doc comment above); testLevelParam is
     // read once here, not tracked across future renders.
@@ -384,19 +400,29 @@ export const PlatformerPage = () => {
   }, []);
 
   /**
-   * One-time vertical-camera snap for spawn/respawn/restart — see
-   * `initialCameraY`'s own doc comment for why this can't just be left to
-   * `updateCameraY`'s per-frame dead-zone tracking (a fresh spawn can land
-   * anywhere inside the band with no correction at all). No-ops if the
-   * canvas hasn't sized itself yet (`canvas.height` starts at 0 before the
-   * mount effect's first `resize()` call).
+   * One-time camera snap for spawn/respawn/restart — both axes, so a death
+   * after a checkpoint frames the character already standing on it (FR-012).
+   * See `initialCameraX`/`initialCameraY`'s own doc comments for why this
+   * can't just be left to the per-frame dead-zone tracking (a fresh spawn can
+   * land anywhere inside the band with no correction at all). Reads
+   * `respawnPlayerState` (the active checkpoint's tile, else the level spawn).
+   * No-ops if the canvas hasn't sized itself yet (`canvas.width`/`height`
+   * start at 0 before the mount effect's first `resize()` call).
    */
-  const snapCameraYToSpawn = () => {
+  const snapCameraToRespawn = () => {
     const canvas = canvasRef.current;
     if (!canvas || canvas.height === 0) return;
     const levelPixelHeight = currentLevel.value.height * RENDERED_TILE_SIZE;
+    const levelPixelWidth = currentLevel.value.width * RENDERED_TILE_SIZE;
+    const respawn = respawnPlayerState.value;
+    cameraPositionX.value = initialCameraX(
+      respawn.x,
+      PLAYER_RENDERED_SIZE,
+      canvas.width,
+      levelPixelWidth,
+    );
     cameraPositionY.value = initialCameraY(
-      playerState.value.y,
+      respawn.y,
       PLAYER_RENDERED_SIZE,
       canvas.height,
       levelPixelHeight,
@@ -422,8 +448,8 @@ export const PlatformerPage = () => {
     // reachable while the ending screen is showing today, but costs nothing
     // to keep in sync regardless).
     endingScreenOpen.value = false;
-    snapCameraYToSpawn();
-    const center = spawnCenter();
+    snapCameraToRespawn();
+    const center = respawnCenter.value;
     lifecycleState.value = introState(center.x, center.y);
   };
 
@@ -448,8 +474,8 @@ export const PlatformerPage = () => {
 
   const handleDebugRespawn = () => {
     resetGame();
-    snapCameraYToSpawn();
-    const center = spawnCenter();
+    snapCameraToRespawn();
+    const center = respawnCenter.value;
     lifecycleState.value = introState(center.x, center.y);
   };
 
@@ -569,6 +595,14 @@ export const PlatformerPage = () => {
 
       drawChests(ctx, chestStates.value, drawContext);
 
+      drawCheckpoints(
+        ctx,
+        checkpointStates.value,
+        checkpointSpriteRef.current,
+        activeCheckpointId.value,
+        drawContext,
+      );
+
       if (playerSpriteRef.current) {
         // A directional hit (enemy/hazard, both knock the player back) is
         // always visible — its `hit` animState (3rd frame red-tinted) IS the
@@ -643,6 +677,7 @@ export const PlatformerPage = () => {
       drawCollectionEffects(ctx, activeEffects.value);
       drawPuffEffects(ctx, activePuffs.value);
       drawHitSplatterEffects(ctx, activeHitSplatters.value);
+      drawFadeOutTexts(ctx, activeFadeOutTexts.value, drawContext);
 
       // Trial counter popups (see activeCounterPopups's doc comment in
       // PlatformerState.ts): drawn above
@@ -764,7 +799,7 @@ export const PlatformerPage = () => {
     };
 
     resize();
-    snapCameraYToSpawn();
+    snapCameraToRespawn();
     render();
     canvas.focus();
 
@@ -785,8 +820,8 @@ export const PlatformerPage = () => {
     const restartIfAwaiting = () => {
       if (lifecycleState.value.phase !== 'awaitingRestart') return;
       resetGame();
-      snapCameraYToSpawn();
-      const center = spawnCenter();
+      snapCameraToRespawn();
+      const center = respawnCenter.value;
       lifecycleState.value = introState(center.x, center.y);
       render();
     };
@@ -1063,6 +1098,12 @@ export const PlatformerPage = () => {
       activeHitSplatters.value = activeHitSplatters.value
         .map((splatter) => tickHitSplatterEffect(splatter, dt))
         .filter((splatter) => splatter.elapsed <= HIT_SPLATTER_DURATION_SECONDS);
+
+      // In-place checkpoint labels fade on their own timer; the caller drops
+      // each once its duration has elapsed (same convention as puffs).
+      activeFadeOutTexts.value = activeFadeOutTexts.value
+        .map((effect) => tickFadeOutTextEffect(effect, dt))
+        .filter((effect) => effect.elapsed <= FADE_OUT_TEXT_DURATION_SECONDS);
 
       const tickedPopups = { ...activeCounterPopups.value };
       let popupsChanged = false;
@@ -1672,6 +1713,40 @@ export const PlatformerPage = () => {
 
       playerState.value = next;
 
+      // Checkpoints: resolved against the frame's final player position, and
+      // only when the interaction key was pressed this tick (Up/W, the same
+      // explicit gesture chests use) — walking over a checkpoint is inert.
+      // `worldAnimElapsed` is the shared world clock, so a raise freezes with
+      // the rest of the world during death/pause and derives its frame at draw
+      // time (no per-frame state write). One pixel-art puff and one label per
+      // dormant winner; the flag raise itself needs no start call.
+      const checkpointResolution = resolveCheckpointContacts(
+        playerState.value,
+        checkpointPlacements.value,
+        checkpointStates.value,
+        currentLevel.value,
+        activeCheckpointId.value,
+        worldAnimElapsed,
+        interactPressed,
+      );
+      checkpointStates.value = checkpointResolution.states;
+      activeCheckpointId.value = checkpointResolution.activeId;
+      if (checkpointResolution.activatedIds.length > 0) {
+        const newPuffs = [...activePuffs.value];
+        const newTexts = [...activeFadeOutTexts.value];
+        for (const id of checkpointResolution.activatedIds) {
+          const state = checkpointResolution.states.find((s) => s.id === id);
+          if (!state) continue;
+          const anchor = checkpointEffectAnchor(state);
+          newPuffs.push(startPuffEffect(id, anchor.x + originX, anchor.y + originY, anchor.scale, true));
+          newTexts.push(
+            startFadeOutTextEffect(id, anchor.x, anchor.y, currentUI.value.platformer.checkpoint.label),
+          );
+        }
+        activePuffs.value = newPuffs;
+        activeFadeOutTexts.value = newTexts;
+      }
+
       const levelPixelWidth = currentLevel.value.width * RENDERED_TILE_SIZE;
       cameraPositionX.value = updateCamera(
         cameraPositionX.value,
@@ -1934,6 +2009,16 @@ export const PlatformerPage = () => {
         // Key pickups simply won't render if the sprite fails to load; the
         // rest of the game still works (collision doesn't depend on the
         // sprite being loaded).
+      });
+    loadImage(CHECKPOINT_FLAG_SHEET.src)
+      .then((img) => {
+        if (cancelled) return;
+        checkpointSpriteRef.current = img;
+        render();
+      })
+      .catch(() => {
+        // Checkpoint flags simply won't render if the strip fails to load;
+        // activation/state still work (collision doesn't depend on it).
       });
     loadFont(RESTART_PROMPT_FONT_FAMILY, RESTART_PROMPT_FONT_URL)
       .then(() => {

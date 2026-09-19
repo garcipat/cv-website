@@ -12,6 +12,7 @@ import {
   FRAGILE_ROCK_TILES,
   COIN_POT_TILES,
   CHEST_TILES,
+  CHECKPOINT_TILES,
   SIGN_TILES,
 } from './level';
 import { isTopExposed, isSolid, isClimbable, isStandableLadderTop, tileAt } from './Terrain';
@@ -343,7 +344,27 @@ describe('currentLayout reactivity', () => {
     expect(QUESTIONMARK_TILES.value).toEqual([]);
     expect(FRAGILE_ROCK_TILES.value).toEqual([]);
     expect(CHEST_TILES.value).toEqual([]);
+    expect(CHECKPOINT_TILES.value).toEqual([]);
     expect(SIGN_TILES.value).toEqual([]);
+  });
+});
+
+describe('CHECKPOINT_TILES', () => {
+  afterEach(() => {
+    currentLayout.value = LEVEL_1_LAYOUT;
+  });
+
+  it('shippedLevel-containsItsAuthoredCheckpoint', () => {
+    // The shipped level authors one checkpoint near spawn so the mechanic is
+    // reachable in play (it sits on solid ground at col 12, row 9). Further
+    // checkpoints are added in the editor as harder sections are built.
+    currentLayout.value = LEVEL_1_LAYOUT;
+    expect(CHECKPOINT_TILES.value).toEqual([{ col: 12, row: 9 }]);
+  });
+
+  it('changingCurrentLayout-recomputesFromTheNewLayout', () => {
+    currentLayout.value = ['GC.', '.S.'];
+    expect(CHECKPOINT_TILES.value).toEqual([{ col: 1, row: 0 }]);
   });
 });
 

@@ -250,11 +250,15 @@ export interface PuffEffect {
   x: number;
   y: number;
   scale: number;
+  /** Rendering style. `false` is the soft ring of dots every enemy/block puff
+   *  uses; `true` draws small pixel-art squares instead, used by the
+   *  checkpoint's activation burst so it matches the game's pixel art. */
+  pixel: boolean;
   elapsed: number;
 }
 
-export function startPuffEffect(id: string, x: number, y: number, scale = 1): PuffEffect {
-  return { id, x, y, scale, elapsed: 0 };
+export function startPuffEffect(id: string, x: number, y: number, scale = 1, pixel = false): PuffEffect {
+  return { id, x, y, scale, pixel, elapsed: 0 };
 }
 
 /** Advances the puff by `dt` seconds. No phase machine (unlike
@@ -535,4 +539,47 @@ export function hitSplatterDroplets(effect: HitSplatterEffect): HitSplatterDropl
           );
     return { dx, dy, opacity };
   });
+}
+
+/** Total seconds a `FadeOutTextEffect` stays on screen before it is removed. */
+export const FADE_OUT_TEXT_DURATION_SECONDS = 0.6;
+
+/**
+ * A world-anchored piece of text that fades in place — no flight, no target
+ * (FR-022). Deliberately generic: the effect carries its own already-localized
+ * `text`, so the draw pass takes no string argument and any future in-place
+ * fading text reuses this type without a rename. The checkpoint activation
+ * label is its first user. `id` is the source id (e.g. the checkpoint's own
+ * id), which keeps at most one label per source.
+ */
+export interface FadeOutTextEffect {
+  id: string;
+  x: number;
+  y: number;
+  text: string;
+  elapsed: number;
+}
+
+export function startFadeOutTextEffect(
+  id: string,
+  x: number,
+  y: number,
+  text: string,
+): FadeOutTextEffect {
+  return { id, x, y, text, elapsed: 0 };
+}
+
+/** Advances the effect by `dt` seconds. No phase machine — the caller drops
+ *  it once `elapsed >= FADE_OUT_TEXT_DURATION_SECONDS` (same convention as
+ *  `tickPuffEffect`). */
+export function tickFadeOutTextEffect(effect: FadeOutTextEffect, dt: number): FadeOutTextEffect {
+  return { ...effect, elapsed: effect.elapsed + dt };
+}
+
+/** 1 at the start, fading linearly to 0 by `FADE_OUT_TEXT_DURATION_SECONDS`,
+ *  and 0 outside that window (before start, or after the caller should have
+ *  already filtered the effect out). */
+export function fadeOutTextOpacity(elapsed: number): number {
+  if (elapsed < 0 || elapsed > FADE_OUT_TEXT_DURATION_SECONDS) return 0;
+  return 1 - elapsed / FADE_OUT_TEXT_DURATION_SECONDS;
 }

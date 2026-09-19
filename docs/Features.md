@@ -34,7 +34,7 @@
 
 ### Optional
 
-- [ ] **O-001** **Checkpoint Persistence** — Saves collected facts and spawn position at each checkpoint, persisting across theme switches so the player can continue later
+- [x] **O-001** **Platformer Checkpoints** — Placeable checkpoint flag tile: standing on it and pressing Up memorizes the respawn point, every activated flag stays raised, and the latest one twinkles as the active respawn target
 - [~] **O-003** **Platformer Tile Layers** — Ground autotiling, decorative background layer, foreground decoration tiles, sky and water bands (pattern-repeat tool and a visual-clarity rework still open)
 - [x] **O-004** **Platformer Container Blocks** — Coin pot and potion pot, both broken by landing on top, dropping a coin and a healing heart
 - [x] **O-005** **Platformer Hazards** — Spike tiles that cost half a heart on touch, with no knockback and no stomp defeat
@@ -74,7 +74,7 @@
 | S-008 | Platformer ladders & climbing | ✅ Done | [spec](../specs/S-008-platformer-ladders/spec.md) | ✅ | ✅ |
 | S-009 | Platformer onboarding & controls | ✅ Done | [spec](../specs/S-009-platformer-onboarding/spec.md) | ✅ | ✅ |
 | S-010 | Platformer hurt feedback | ✅ Done | [spec](../specs/S-010-platformer-hurt-feedback/spec.md) | ✅ | ✅ |
-| O-001 | Checkpoint Persistence  | 📋 Planned     | —                                       | ❌             | ❌    |
+| O-001 | Platformer checkpoints  | ✅ Done | [spec](../specs/O-001-platformer-checkpoints/spec.md) | ✅ | ✅ |
 | O-003 | Platformer tile layers  | 🔶 Partial     | [spec](../specs/O-003-platformer-tile-layers/spec.md) / [design](../specs/O-003-platformer-tile-layers/design.md) | ✅ | ✅ |
 | O-004 | Platformer container blocks | ✅ Done    | [spec](../specs/O-004-platformer-containers/spec.md) | ✅ | ✅ |
 | O-005 | Platformer hazards      | ✅ Done        | [spec](../specs/O-005-platformer-hazards/spec.md) | ✅ | ✅ |
@@ -117,7 +117,6 @@ graph RL
     S003["S-003: Scroll Animations"]
     S004["✅ S-004: Timeline Component"]
     S005["✅ S-005: Space Background Animations"]
-    O001["O-001: Checkpoint Persistence"]
 
     subgraph platformer["Platformer Theme"]
         F015["✅ F-015: 2D Platformer Theme"]
@@ -129,6 +128,7 @@ graph RL
         S008["✅ S-008: Ladders & Climbing"]
         S009["✅ S-009: Onboarding & Controls"]
         S010["✅ S-010: Hurt Feedback"]
+        O001["✅ O-001: Checkpoints"]
         O003["O-003: Tile Layers"]
         O004["✅ O-004: Container Blocks"]
         O005["✅ O-005: Hazards"]
@@ -211,6 +211,7 @@ graph RL
     class F014 done
     class S004 done
     class S002,S005,O001 enhancements
+    class O001 done
     class S005 done
     class F015,F016,F017,F018,S007,S008,S009,S010,O003,O004,O005,O008,O009 themes
     class F019,O006,O007 enhancements

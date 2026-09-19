@@ -13,6 +13,10 @@ thing's specifics should stay inside its own file.
 | Document | Covers |
 |---|---|
 | [LevelFormat.md](LevelFormat.md) | The level character table, the layer model, and the saved level and blueprint file shapes |
+| [LevelDesignPrinciples.md](LevelDesignPrinciples.md) | The design guide: purpose, goals, techniques, and the rules for teaching, readability, pacing, difficulty, structure and content mapping |
+| [LevelDesign.md](LevelDesign.md) | The element-and-how-to reference |
+| [LevelDesignExamples.md](LevelDesignExamples.md) | Worked zones in real characters |
+| [LevelDesignPlan.md](LevelDesignPlan.md) | The step-by-step roadmap for the level design work |
 | [Terrain.md](Terrain.md) | The `TileType` API, autotiling, multi-cell runs, and adding a tile |
 | [Enemies.md](Enemies.md) | The `EnemyType` API, patrol and contact behavior, and adding an enemy |
 | [Blocks.md](Blocks.md) | The `BlockType` API, hit outcomes, container blocks, and adding a block |
