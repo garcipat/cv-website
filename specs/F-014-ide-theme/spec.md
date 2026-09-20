@@ -5,7 +5,6 @@
 **Status**: Draft  
 **Input**: User description: "IDE theme feature to define our first theme to display the CV data. Define visuals and how the navigation should work."  
 **Clarifications session**: 2026-06-21 — 4 questions answered (see ## Clarifications).  
-**Ideas document**: `docs/ideas/ide-theme.md`
 
 ## User Scenarios & Testing _(mandatory)_
 
@@ -134,7 +133,7 @@ A static menu bar spans the top of the page with IDE-typical menu items: `File`,
   - **Editor area** (right, flexible width) — tab bar + content pane
   - **Status bar** (bottom, full width) — context info
 
-- **FR-002**: System MUST apply the Catppuccin Mocha color palette as the theme's visual foundation. The sidebar and status bar use `Mantle` (`#11111b`), the editor background uses `Base` (`#1e1e2e`), the tab bar uses `Surface` (`#181825`), primary text uses `Text` (`#cdd6f4`), and secondary text uses `Subtext` (`#a6adc8`). Refer to `docs/ideas/ide-theme.md` for the full token-to-role mapping.
+- **FR-002**: System MUST apply the Catppuccin Mocha color palette as the theme's visual foundation. The sidebar and status bar use `Mantle` (`#11111b`), the editor background uses `Base` (`#1e1e2e`), the tab bar uses `Surface` (`#181825`), primary text uses `Text` (`#cdd6f4`), and secondary text uses `Subtext` (`#a6adc8`).
 
 #### File Tree Sidebar
 
@@ -362,7 +361,7 @@ currentLocale (Signal<Locale>, from locale.ts)
 
 - **SC-006 — Zero TypeScript errors**: The entire IDE theme implementation compiles under `strict: true` with no `any` types, no `as` casts, and no `@ts-ignore` directives. Verified by: `npm run build` passes cleanly.
 
-- **SC-007 — Catppuccin Mocha palette applied**: The IDE theme uses colors exclusively from the Catppuccin Mocha palette as defined in `docs/ideas/ide-theme.md`. Verified by: visual inspection of the rendered theme — sidebar is `#11111b`, editor background is `#1e1e2e`, text is `#cdd6f4`, accent highlights use `#cba6f7` (Lavender) and `#89b4fa` (Blue).
+- **SC-007 — Catppuccin Mocha palette applied**: The IDE theme uses colors exclusively from the Catppuccin Mocha palette as defined by this feature's requirements. Verified by: visual inspection of the rendered theme — sidebar is `#11111b`, editor background is `#1e1e2e`, text is `#cdd6f4`, accent highlights use `#cba6f7` (Lavender) and `#89b4fa` (Blue).
 
 ## Assumptions
 

@@ -123,4 +123,4 @@ src/
 
 ## Design Decisions
 
-Design decisions for features are documented in `docs/ideas/` and `specs/` at the project root. Each spec covers a specific feature or setup phase with decisions, trade-offs, and rationale.
+Design decisions for features are documented in `specs/` at the project root, and feature ideas and bugs are tracked as GitHub Issues. Each spec covers a specific feature or setup phase with decisions, trade-offs, and rationale.
