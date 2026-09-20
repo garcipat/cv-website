@@ -72,15 +72,13 @@ describe('blueprintFileJson', () => {
     expect(blueprintFileJson('Cave Room', LAYOUT, []).endsWith('\n')).toBe(true);
   });
 
-  it('nonEmptyBackground-isIncludedInTheSerializedJson', () => {
-    const json = blueprintFileJson('Cave Room', LAYOUT, [
-      { pieceId: 'dirtColumnTop1x1', col: 0, row: 0 },
-    ]);
+  it('nonEmptyBackground-isIncludedInTheSerializedJsonAsAStringArray', () => {
+    const json = blueprintFileJson('Cave Room', LAYOUT, ['d']);
 
     expect(JSON.parse(json)).toEqual({
       name: 'Cave Room',
       layout: LAYOUT,
-      background: [{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }],
+      background: ['d'],
     });
   });
 

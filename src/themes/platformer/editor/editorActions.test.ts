@@ -12,7 +12,7 @@ import {
   reconcilePersistedEditorState,
   saveCurrentBlueprint,
   saveCurrentLevel,
-  selectBackgroundPiece,
+  selectBackgroundMaterial,
   selectTool,
   setActiveLayer,
   setCanvasMode,
@@ -37,7 +37,7 @@ import {
   editorLoadedBlueprintNameSignal,
   editorLoadedLevelNameSignal,
   editorSaveResultSignal,
-  editorSelectedBackgroundPieceSignal,
+  editorSelectedBackgroundMaterialSignal,
   editorSelectedToolSignal,
 } from './editorState';
 import { saveLevel } from './saveLevelFile';
@@ -62,7 +62,7 @@ const CAVE_ROOM: Blueprint = {
   id: 'cave-room',
   name: 'Cave Room',
   layout: ['##'],
-  background: [{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }],
+  background: ['d'],
 };
 
 beforeEach(() => {
@@ -73,7 +73,7 @@ beforeEach(() => {
   editorDirtySignal.value = false;
   editorBackgroundSignal.value = [];
   editorActiveLayerSignal.value = 'foreground';
-  editorSelectedBackgroundPieceSignal.value = null;
+  editorSelectedBackgroundMaterialSignal.value = null;
   editorCanvasModeSignal.value = 'level';
   editorBlueprintSignal.value = importLayout(BLANK_BLUEPRINT.layout);
   editorBlueprintBackgroundSignal.value = [];
@@ -100,9 +100,9 @@ describe('editorActions — selection and toggles', () => {
     expect(editorArmedBlueprintIdSignal.value).toBeNull();
   });
 
-  it('selectBackgroundPiece-setsTheSelectedPieceAndLeavesTheLayerAlone', () => {
-    selectBackgroundPiece('charcoalBlock3x3');
-    expect(editorSelectedBackgroundPieceSignal.value).toBe('charcoalBlock3x3');
+  it('selectBackgroundMaterial-setsTheSelectedMaterialAndLeavesTheLayerAlone', () => {
+    selectBackgroundMaterial('c');
+    expect(editorSelectedBackgroundMaterialSignal.value).toBe('c');
     expect(editorActiveLayerSignal.value).toBe('foreground');
   });
 
@@ -206,14 +206,12 @@ describe('editorActions — appearance', () => {
 
 describe('editorActions — canvas paint routing', () => {
   it('applyPaint-levelMode-writesTheLevelGridMarksDirtyAndShiftsBackground', () => {
-    editorBackgroundSignal.value = [{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }];
+    editorBackgroundSignal.value = [['d']];
     const result = applyPaint({ grid: importLayout(['GGG']), colShift: 1, rowShift: 0 });
 
     expect(editorLevelSignal.value).toEqual(importLayout(['GGG']));
     expect(editorDirtySignal.value).toBe(true);
-    expect(editorBackgroundSignal.value).toEqual([
-      { pieceId: 'dirtColumnTop1x1', col: 1, row: 0 },
-    ]);
+    expect(editorBackgroundSignal.value).toEqual([['.', 'd']]);
     expect(editorLastPlacementSnapshotSignal.value).toBeNull();
     expect(result).toEqual({ colShift: 1, rowShift: 0 });
   });
@@ -236,19 +234,15 @@ describe('editorActions — canvas paint routing', () => {
   });
 
   it('applyBackgroundPaint-levelMode-writesTheLevelBackgroundAndMarksDirty', () => {
-    applyBackgroundPaint([{ pieceId: 'charcoalBlock3x3', col: 2, row: 2 }]);
-    expect(editorBackgroundSignal.value).toEqual([
-      { pieceId: 'charcoalBlock3x3', col: 2, row: 2 },
-    ]);
+    applyBackgroundPaint([['c']]);
+    expect(editorBackgroundSignal.value).toEqual([['c']]);
     expect(editorDirtySignal.value).toBe(true);
   });
 
   it('applyBackgroundPaint-blueprintMode-writesTheBlueprintBackgroundOnly', () => {
     editorCanvasModeSignal.value = 'blueprint';
-    applyBackgroundPaint([{ pieceId: 'charcoalBlock3x3', col: 2, row: 2 }]);
-    expect(editorBlueprintBackgroundSignal.value).toEqual([
-      { pieceId: 'charcoalBlock3x3', col: 2, row: 2 },
-    ]);
+    applyBackgroundPaint([['c']]);
+    expect(editorBlueprintBackgroundSignal.value).toEqual([['c']]);
     expect(editorBackgroundSignal.value).toEqual([]);
   });
 });
@@ -280,10 +274,8 @@ describe('editorActions — placement snapshot and undo', () => {
     expect(editorDirtySignal.value).toBe(true);
     expect(editorLastPlacementSnapshotSignal.value).not.toBeNull();
     expect(editorArmedBlueprintIdSignal.value).toBe('cave-room');
-    // The blueprint's own background piece rebased onto the anchor.
-    expect(editorBackgroundSignal.value).toEqual([
-      { pieceId: 'dirtColumnTop1x1', col: 1, row: 1 },
-    ]);
+    // The blueprint's own background stamped onto the anchor.
+    expect(editorBackgroundSignal.value[1]?.[1]).toBe('d');
   });
 
   it('undoLastPlacement-restoresTheSnapshotAndClearsIt', () => {
@@ -318,17 +310,12 @@ describe('editorActions — load and save routing', () => {
       id: 'cave-run',
       name: 'Cave Run',
       layout: ['GG'],
-      background: [
-        { pieceId: 'dirtColumnTop1x1', col: 0, row: 0 },
-        // Unresolvable pieceIds are dropped at load time.
-        { pieceId: 'notARealPieceId' as never, col: 1, row: 0 },
-      ],
+      background: ['dz'],
     });
 
     expect(editorLevelSignal.value).toEqual(importLayout(['GG']));
-    expect(editorBackgroundSignal.value).toEqual([
-      { pieceId: 'dirtColumnTop1x1', col: 0, row: 0 },
-    ]);
+    // Unresolvable characters are dropped (replaced with '.') at load time.
+    expect(editorBackgroundSignal.value).toEqual([['d', '.']]);
     expect(editorLoadedLevelNameSignal.value).toBe('Cave Run');
     expect(editorDirtySignal.value).toBe(false);
     expect(editorSaveResultSignal.value).toBeNull();

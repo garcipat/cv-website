@@ -12,13 +12,13 @@ describe('isBlueprint', () => {
     expect(isBlueprint({ id: 'room', name: 'Room', layout: ['#'] })).toBe(true);
   });
 
-  it('blueprintWithABackgroundList-isAccepted', () => {
+  it('blueprintWithABackgroundLayout-isAccepted', () => {
     expect(
       isBlueprint({
         id: 'room',
         name: 'Room',
         layout: ['#'],
-        background: [{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }],
+        background: ['d'],
       }),
     ).toBe(true);
   });
@@ -38,10 +38,20 @@ describe('isBlueprint', () => {
     expect(isBlueprint({ id: 'room', layout: ['#'] })).toBe(false);
   });
 
-  it('backgroundThatIsNotAPlacementList-isRejected', () => {
-    expect(isBlueprint({ id: 'r', name: 'R', layout: ['#'], background: [{ col: 0 }] })).toBe(
-      false,
-    );
+  it('backgroundThatIsNotAnArrayOfStrings-isRejected', () => {
+    // The old flat BackgroundPlacement[] format (objects, not strings) and the
+    // pre-O-014-revision array-of-arrays BackgroundGrid format both fail the
+    // string[] shape check (FR-013).
+    expect(
+      isBlueprint({ id: 'r', name: 'R', layout: ['#'], background: [{ pieceId: 'dirtBlock3x3', col: 0, row: 0 }] }),
+    ).toBe(false);
+    expect(isBlueprint({ id: 'r', name: 'R', layout: ['#'], background: [['dirt']] })).toBe(false);
+  });
+
+  it('backgroundWithAnUnrecognizedCharacter-isStillAcceptedAtTheShapeLevel', () => {
+    // Shape validation only — an unrecognized character is a parseBackgroundLayout
+    // concern (it silently reads as empty), not a load-time rejection reason.
+    expect(isBlueprint({ id: 'r', name: 'R', layout: ['#'], background: ['?'] })).toBe(true);
   });
 
   it('nullOrNonObject-isRejected', () => {

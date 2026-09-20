@@ -1,5 +1,4 @@
 import { LEVELS_FOLDER, SAVE_LEVEL_ENDPOINT } from './saveLevelEndpoint';
-import type { BackgroundPlacement } from '../level/LevelData';
 
 export { LEVELS_FOLDER };
 
@@ -18,28 +17,32 @@ export const levelFileName = (name: string): string => {
   return `${slug === '' ? 'level' : slug}.json`;
 };
 
+/** Whether a background `string[]` layout holds at least one painted cell —
+ *  a layout cropped alongside an all-empty foreground still has rows (of
+ *  all-`.` characters), so this checks row content rather than just
+ *  `.length`. */
+const hasBackgroundContent = (background: readonly string[]): boolean =>
+  background.some((row) => [...row].some((char) => char !== '.'));
+
 /**
  * The file's contents: the level's name plus its already-cropped layout,
  * pretty-printed and newline-terminated so the file reads like the rest of
  * the repo's JSON rather than one long line. The background layer is only
- * included when it holds placements, so levels without one keep the same
- * shape they had before the background layer existed.
+ * included when it holds at least one painted cell, so levels without one
+ * keep the same shape they had before the background layer existed.
  *
- * Takes the cropped `layout` (and `background`, already rebased against the
- * same origin) rather than a raw grid and re-cropping here itself — see
+ * Takes the cropped `layout` (and `background`, already cropped to the same
+ * origin) rather than a raw grid and re-cropping here itself — see
  * `cropLevelForExport.ts`. Re-cropping here with the foreground-only
- * `exportLayout` would silently undo the caller's union crop (foreground +
- * background footprints) whenever a background placement reaches further
- * out than any foreground cell, re-introducing the exact
- * foreground/background drift Task 20 closes.
+ * `exportLayout` would silently undo the caller's crop.
  */
 export const levelFileJson = (
   name: string,
   layout: readonly string[],
-  background: BackgroundPlacement[],
+  background: readonly string[],
 ): string =>
   `${JSON.stringify(
-    { name, layout, ...(background.length > 0 ? { background } : {}) },
+    { name, layout, ...(hasBackgroundContent(background) ? { background } : {}) },
     null,
     2,
   )}\n`;
@@ -77,7 +80,7 @@ export interface SaveLevelResult {
 export const saveLevel = async (
   name: string,
   layout: readonly string[],
-  background: BackgroundPlacement[],
+  background: readonly string[],
 ): Promise<SaveLevelResult> => {
   try {
     const response = await fetch(SAVE_LEVEL_ENDPOINT, {
@@ -106,7 +109,7 @@ export const saveLevel = async (
 export const downloadLevelFile = (
   name: string,
   layout: readonly string[],
-  background: BackgroundPlacement[],
+  background: readonly string[],
 ): void => {
   const blob = new Blob([levelFileJson(name, layout, background)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
