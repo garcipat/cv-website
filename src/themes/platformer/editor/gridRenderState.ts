@@ -147,18 +147,19 @@ function synthesizeBlockPlacements(
 }
 
 /** Returns one intact (never-hit) placeholder `BlockState` per `=` (crate),
- *  `Q` (questionMark), `F` (fragileRock), `u` (coinPot), and `p` (potionPot)
- *  marker, via `toBlockState`. No `fact` is attached to any of them (editor
- *  preview only, never played) — `coinPot`'s/`potionPot`'s `draw` doesn't
- *  need one; it only affects the in-game reward. */
+ *  `Q` (questionMark), `F` (fragileRock), `u` (coinPot), `p` (potionPot) and
+ *  `b` (bombPot) marker, via `toBlockState`. No `fact` is attached to any of
+ *  them (editor preview only, never played) — `coinPot`'s/`potionPot`'s/
+ *  `bombPot`'s `draw` doesn't need one; it only affects the in-game reward. */
 export function synthesizeBlockStates(grid: TileChar[][]): BlockState[] {
   const crates = synthesizeBlockPlacements(grid, '=', 'crate', 'editor-crate');
   const questionMarks = synthesizeBlockPlacements(grid, 'Q', 'questionMark', 'editor-question');
   const fragileRocks = synthesizeBlockPlacements(grid, 'F', 'fragileRock', 'editor-fragile');
   const coinPots = synthesizeBlockPlacements(grid, 'u', 'coinPot', 'editor-coinpot');
   const potionPots = synthesizeBlockPlacements(grid, 'p', 'potionPot', 'editor-potionpot');
-  return [...crates, ...questionMarks, ...fragileRocks, ...coinPots, ...potionPots].map((placement) =>
-    toBlockState(placement),
+  const bombPots = synthesizeBlockPlacements(grid, 'b', 'bombPot', 'editor-bombpot');
+  return [...crates, ...questionMarks, ...fragileRocks, ...coinPots, ...potionPots, ...bombPots].map(
+    (placement) => toBlockState(placement),
   );
 }
 

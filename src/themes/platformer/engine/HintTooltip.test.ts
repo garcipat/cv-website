@@ -5,6 +5,7 @@ import {
   hintTooltipGrowthAndOpacity,
   HINT_TOOLTIP_FADE_IN_SECONDS,
   HINT_TOOLTIP_FADE_OUT_SECONDS,
+  HINT_TOOLTIP_TRANSIENT_DWELL_SECONDS,
 } from './HintTooltip';
 
 describe('startHintTooltip', () => {
@@ -56,6 +57,41 @@ describe('tickHintTooltip', () => {
     const ticked = tickHintTooltip(state, HINT_TOOLTIP_FADE_OUT_SECONDS);
 
     expect(ticked).toBeNull();
+  });
+});
+
+describe('transient tooltips', () => {
+  it('startHintTooltip-withTransient-marksTheStateTransient', () => {
+    const state = startHintTooltip('noBombs', { transient: true });
+    expect(state.transient).toBe(true);
+  });
+
+  it('startHintTooltip-withoutOptions-isNotTransient', () => {
+    expect(startHintTooltip('noBombs').transient).toBeUndefined();
+  });
+
+  it('transientShown-afterTheDwell-autoBeginsItsExit', () => {
+    const shown = { ...startHintTooltip('noBombs', { transient: true }), phase: 'shown' as const, elapsed: 0 };
+
+    const ticked = tickHintTooltip(shown, HINT_TOOLTIP_TRANSIENT_DWELL_SECONDS);
+
+    expect(ticked).toEqual({ ...shown, phase: 'exiting', elapsed: 0 });
+  });
+
+  it('transientShown-beforeTheDwell-staysShownAndAccumulatesElapsed', () => {
+    const shown = { ...startHintTooltip('noBombs', { transient: true }), phase: 'shown' as const, elapsed: 0 };
+
+    const ticked = tickHintTooltip(shown, HINT_TOOLTIP_TRANSIENT_DWELL_SECONDS / 2);
+
+    expect(ticked).toEqual({ ...shown, elapsed: HINT_TOOLTIP_TRANSIENT_DWELL_SECONDS / 2 });
+  });
+
+  it('nonTransientShown-pastTheDwell-stillWaitsForAnExplicitExit', () => {
+    const shown = { hintId: 'bridgeDropThrough' as const, phase: 'shown' as const, elapsed: 0 };
+
+    const ticked = tickHintTooltip(shown, HINT_TOOLTIP_TRANSIENT_DWELL_SECONDS * 10);
+
+    expect(ticked).toEqual({ ...shown, elapsed: HINT_TOOLTIP_TRANSIENT_DWELL_SECONDS * 10 });
   });
 });
 

@@ -26,12 +26,17 @@ import {
   drawSignBubble,
   drawKeyPickups,
   drawHeartPickups,
+  drawBombPickups,
+  drawPlacedBombs,
+  drawExplosions,
   drawHealAuraEffects,
   drawHitSplatterEffects,
   drawLowHealthGlow,
   drawHazards,
   drawKeyCounter,
+  drawBombCounter,
   keyCounterX,
+  bombCounterX,
   KEY_COUNTER_Y,
   drawWaterForeground,
   drawBackgroundTiles,
@@ -76,8 +81,17 @@ import {
   checkSignOverlap,
   checkKeyPickupCollisions,
   checkHeartPickupCollisions,
+  checkBombPickupCollisions,
   checkHazardCollisions,
+  playerHitbox,
 } from './engine/Collision';
+import {
+  createPlacedBomb,
+  stepPlacedBomb,
+  checkBombFellOut,
+  hasDetonated,
+} from './engine/PlacedBomb';
+import { blastTiles, blocksInBlast, enemiesInBlast, playerInBlast } from './engine/Blast';
 import { resolveCheckpointContacts } from './engine/CheckpointLogic';
 import { openChest, allChestsOpen, isChestOpen, CHEST_CLOSED_OFFSET_X } from './entities/Chest';
 import { stepBlockAnimation } from './engine/BlockAI';
@@ -94,6 +108,8 @@ import { computePotRenderPlan } from './entities/blocks/potRenderPlan';
 import { spawnBonusFruit, tickBonusFruit, bonusFruitY } from './entities/BonusFruit';
 import { spawnKeyPickup, KEY_TILE_OFFSET_X, KEY_TILE_OFFSET_Y } from './entities/KeyPickup';
 import { spawnHeartPickup } from './entities/HeartPickup';
+import { spawnBombPickup } from './entities/BombPickup';
+import type { BlockHitOutcome } from './entities/blocks/BlockType';
 import {
   startFlightEffect,
   tickFlightEffect,
@@ -115,11 +131,14 @@ import {
   startFadeOutTextEffect,
   tickFadeOutTextEffect,
   FADE_OUT_TEXT_DURATION_SECONDS,
+  startExplosionEffect,
+  tickExplosionEffect,
+  EXPLOSION_DURATION_SECONDS,
 } from './engine/CollectionEffects';
 import { coinFrameSource, COIN_FRAME_SIZE } from './entities/Coin';
 import { fruitFrameSource, FRUIT_FRAME_SIZE } from './entities/Fruit';
 import { createRewardReveal } from './engine/RewardReveal';
-import { RENDERED_TILE_SIZE } from './level/Terrain';
+import { RENDERED_TILE_SIZE, tileToPixel } from './level/Terrain';
 import {
   advancePlayerAnimation,
   updatePlayerAnimState,
@@ -131,6 +150,7 @@ import {
   PLAYER_RENDERED_SIZE,
   PLAYER_VISUAL_CENTER_Y_OFFSET,
   PLAYER_HEAD_PADDING,
+  PLAYER_FOOT_PADDING,
 } from './entities/Player';
 import type { BlockContact } from './entities/Player';
 import { strongerBounce } from './engine/Outcome';
@@ -149,6 +169,8 @@ import {
   DECORATIONS_SHEET,
   TORCH_SHEET,
   ROPE_LADDER_SHEET,
+  BOMB_SHEET,
+  EXPLOSION_SHEET,
 } from './entities/sprites/sheets';
 import { frameSource, collectSheetSources } from './entities/sprites/SpriteSheet';
 import type { SpriteLookup } from './entities/sprites/SpriteSheet';
@@ -193,6 +215,11 @@ import {
   keyPickupStates,
   collectedKeys,
   heartPickupStates,
+  MAX_BOMBS,
+  carriedBombs,
+  bombPickupStates,
+  placedBombs,
+  activeExplosions,
   activePuffs,
   activeHealAuraEffects,
   activeHitSplatters,
@@ -224,6 +251,10 @@ import {
 } from './engine/HintTooltip';
 import type { HintId, CollectedFact } from './types';
 import { playCanvasSize } from './engine/CanvasSize';
+
+/** Hitpoints a bomb blast deals to a character caught in it — 2 half-heart
+ *  units, one full heart (FR-021). */
+const BOMB_DAMAGE = 2;
 
 export const PlatformerPage = () => {
   // Subscribes this component's render to any signal `.value` read during
@@ -635,6 +666,8 @@ export const PlatformerPage = () => {
 
       drawBlocks(ctx, blockStates.value, drawContext);
 
+      drawPlacedBombs(ctx, placedBombs.value, drawContext);
+
       drawHazards(ctx, hazardPlacements.value, drawContext);
 
       drawChests(ctx, chestStates.value, drawContext);
@@ -701,6 +734,8 @@ export const PlatformerPage = () => {
       drawKeyPickups(ctx, keyPickupStates.value, drawContext);
 
       drawHeartPickups(ctx, heartPickupStates.value, drawContext);
+
+      drawBombPickups(ctx, bombPickupStates.value, drawContext);
 
       // Very-foreground water band, anchored to the LEVEL's bottom edge (not
       // the viewport) — drawn after every world entity so it sits in front
@@ -772,6 +807,11 @@ export const PlatformerPage = () => {
       drawPuffEffects(ctx, activePuffs.value);
       drawHitSplatterEffects(ctx, activeHitSplatters.value);
       drawFadeOutTexts(ctx, activeFadeOutTexts.value, drawContext);
+
+      // Explosions sit above the world effects and below the HUD — a bright,
+      // short-lived burst that reads over the terrain but never over the
+      // counters (FR-023).
+      drawExplosions(ctx, activeExplosions.value, drawContext);
 
       // Trial counter popups (see activeCounterPopups's doc comment in
       // PlatformerState.ts): drawn above
@@ -862,6 +902,18 @@ export const PlatformerPage = () => {
           levelTotals.value.chests,
         );
         drawKeyCounter(ctx, keySpriteRef.current, collectedKeys.value, keyX, KEY_COUNTER_Y);
+      }
+
+      // The bomb HUD group is hidden while the carried count is 0 (FR-010).
+      const bombSprite = spritesRef.current[BOMB_SHEET.src];
+      if (bombSprite && carriedBombs.value > 0) {
+        const bombX = bombCounterX(
+          ctx,
+          chestStates.value.filter(isChestOpen).length,
+          levelTotals.value.chests,
+          collectedKeys.value,
+        );
+        drawBombCounter(ctx, bombSprite, carriedBombs.value, bombX, KEY_COUNTER_Y);
       }
 
       if (lifecycleState.value.phase === 'playing' && isHealthCritical(playerState.value.hitPoints)) {
@@ -1201,6 +1253,12 @@ export const PlatformerPage = () => {
         .map((splatter) => tickHitSplatterEffect(splatter, dt))
         .filter((splatter) => splatter.elapsed <= HIT_SPLATTER_DURATION_SECONDS);
 
+      // Explosion visuals play once and are dropped — purely cosmetic, never
+      // a hazard (FR-023).
+      activeExplosions.value = activeExplosions.value
+        .map((effect) => tickExplosionEffect(effect, dt))
+        .filter((effect) => effect.elapsed <= EXPLOSION_DURATION_SECONDS);
+
       // In-place checkpoint labels fade on their own timer; the caller drops
       // each once its duration has elapsed (same convention as puffs).
       activeFadeOutTexts.value = activeFadeOutTexts.value
@@ -1337,6 +1395,24 @@ export const PlatformerPage = () => {
           ...activeHealAuraEffects.value,
           ...touchedHeartIds.map((id) => startHealAuraEffect(id)),
         ];
+      }
+
+      // Bomb pickups: dropped by destroyed bomb-pots, collected on touch and
+      // removed outright — same array-filter convention as hearts above.
+      // checkBombPickupCollisions is cap-aware, so at MAX_BOMBS it returns []
+      // and the pickup stays in the world, still bobbing, until the count
+      // drops (FR-008/FR-009).
+      const touchedBombIds = checkBombPickupCollisions(
+        playerState.value,
+        bombPickupStates.value,
+        carriedBombs.value,
+        MAX_BOMBS,
+      );
+      if (touchedBombIds.length > 0) {
+        carriedBombs.value += touchedBombIds.length;
+        bombPickupStates.value = bombPickupStates.value.filter(
+          (pickup) => !touchedBombIds.includes(pickup.id),
+        );
       }
 
       // Key pickups: dropped by defeated purple slimes (see the justDefeated
@@ -1643,6 +1719,39 @@ export const PlatformerPage = () => {
         blockStates.value,
       );
 
+      // Place-bomb input (`B`, FR-012/FR-013/FR-014): read once per tick as an
+      // edge-triggered press. The bomb goes in the tile the character occupies
+      // — the column containing the player's horizontal centre and the row
+      // containing its feet (the same `- 1` foot-row `Physics.ts` uses for the
+      // tile the character's feet are in). Placing with no bombs shows the
+      // transient "no bombs" bubble; placing on an occupied tile is a silent
+      // no-op; otherwise one bomb is placed and exactly one consumed.
+      const placeBombPressed = input.consumePress('KeyB');
+      if (placeBombPressed) {
+        const bombCol = Math.floor((next.x + PLAYER_RENDERED_SIZE / 2) / RENDERED_TILE_SIZE);
+        const bombRow = Math.floor(
+          (next.y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING - 1) / RENDERED_TILE_SIZE,
+        );
+        const tileOccupied = placedBombs.value.some(
+          (bomb) => bomb.col === bombCol && bomb.row === bombRow,
+        );
+        if (carriedBombs.value <= 0) {
+          hintTooltipState.value = startHintTooltip('noBombs', { transient: true });
+        } else if (!tileOccupied) {
+          placedBombs.value = [
+            ...placedBombs.value,
+            createPlacedBomb(
+              `bomb-${bombCol}-${bombRow}-${placedBombs.value.length}`,
+              currentLevel.value,
+              blockStates.value,
+              bombCol,
+              bombRow,
+            ),
+          ];
+          carriedBombs.value -= 1;
+        }
+      }
+
       // Block hit mechanics: `next.blockContacts` (set by Physics.ts's
       // collision checks, same call above) reports every side-tagged block
       // contact from this tick — but a contact only registers as a hit if the
@@ -1670,6 +1779,102 @@ export const PlatformerPage = () => {
         ];
       };
 
+      // Whether any crate reached its terminal hit this tick — gates the
+      // crates popup bump below, computed from the raw destroyed-crate count
+      // rather than facts revealed (see that bump's own comment). Declared
+      // here so BOTH the contact-hit loop and a blast can set it.
+      let crateDestroyedThisTick = false;
+
+      /**
+       * The one shared terminal-outcome resolver for a block that has just
+       * taken its registering hit: puff, pickup spawn, fact reveal and the
+       * permanent `rewardGiven` marking — exactly as a bump destruction does.
+       * Reused by the contact-hit loop and by a bomb's blast, so a blast
+       * destruction is identical to a normal one (FR-019). Bounce is
+       * deliberately NOT here — only a landed-on pot bounces the player.
+       */
+      const resolveBlockTerminalOutcome = (block: BlockState): BlockHitOutcome => {
+        firePuffIfJustUsedUp(block);
+
+        const outcome = BLOCK_TYPES[block.blockKind].onHit?.(block) ?? {};
+
+        // Mark a block that handed out its pickup as permanently paid out
+        // (surviving death/respawn; cleared only by Reset Game), exactly as
+        // every defeated enemy is marked. A 'once' pot never drops again.
+        if (outcome.spawnPickup !== undefined) {
+          blockStates.value = blockStates.value.map((b) =>
+            b.id === block.id ? { ...b, rewardGiven: true } : b,
+          );
+        }
+
+        // One dispatch keyed by pickup type, replacing the old per-blockKind
+        // branches. Each arm keeps what is the engine's business rather than
+        // the block's: the fruit icon cycle, and the dropped pickup's
+        // id/position.
+        if (outcome.spawnPickup === 'bonusFruit') {
+          bonusFruitStates.value = [
+            ...bonusFruitStates.value,
+            spawnBonusFruit(block.id, block.x, block.y, block.fact, nextBonusFruitIcon++),
+          ];
+        } else if (outcome.spawnPickup === 'coin') {
+          // `block.id` is the pot's own id, not a fact id (the block never
+          // had one) — this is what the coin-total dedup guard matches
+          // against once this coin exists in allCollectiblePlacements.
+          spawnedCoinPlacements.value = [
+            ...spawnedCoinPlacements.value,
+            { id: block.id, spriteType: 'coin', x: block.x, y: block.y },
+          ];
+        } else if (outcome.spawnPickup === 'heart') {
+          // `block.id` is the pot's own id — a potion-pot carries no fact,
+          // same convention as coinPot's dropped coin above.
+          heartPickupStates.value = [
+            ...heartPickupStates.value,
+            spawnHeartPickup(block.id, block.x, block.y),
+          ];
+        } else if (outcome.spawnPickup === 'bomb') {
+          // `block.id` is the pot's own id — a bomb-pot carries no fact, same
+          // convention as the other pots (O-012).
+          bombPickupStates.value = [
+            ...bombPickupStates.value,
+            spawnBombPickup(block.id, block.x, block.y),
+          ];
+        }
+
+        if (outcome.counterKey === 'crates') {
+          crateDestroyedThisTick = true;
+          // A crate's fact(s) were fixed at placement time (see
+          // BlockMapper.ts's placeCrates doc comment) — reveal its own
+          // `fact` plus any `extraFacts` (when this level has fewer crates
+          // than crate-pool facts, one crate can own more than one). No
+          // counterKey here: the crates popup is bumped below instead, for
+          // every destroyed crate rather than only ones that happen to reveal
+          // a fact.
+          const facts = [block.fact, ...(block.extraFacts ?? [])].filter(
+            (fact): fact is CollectedFact => fact !== undefined,
+          );
+          facts.forEach((fact, index) => {
+            revealFact(fact, {
+              x: block.x,
+              y: block.y,
+              // Unique per revealed fact, not just per crate.
+              effectId: `${block.id}-${index}`,
+            });
+          });
+        } else if (outcome.revealFact) {
+          revealFact(outcome.revealFact, {
+            x: block.x,
+            y: block.y,
+            effectId: block.id,
+            // Supplied by the block's own outcome, not assumed here: which
+            // counter a reveal feeds is per-kind knowledge and belongs to
+            // the kind.
+            counterKey: outcome.counterKey,
+          });
+        }
+
+        return outcome;
+      };
+
       // Every block whose contact side this kind actually reacts to (see
       // BlockType.triggerSides) and that isn't already used up. This replaces
       // two near-duplicate loops — one for 'bottom' contacts that excluded
@@ -1695,14 +1900,6 @@ export const PlatformerPage = () => {
         // Most negative wins, so several blocks bouncing the player in one
         // tick is deterministic regardless of iteration order.
         let bounceVelocity: number | undefined;
-        // Whether any crate reached its terminal hit this tick — gates the
-        // popup bump below, computed from the raw destroyed-crate count
-        // rather than facts revealed (see that bump's own comment).
-        let crateDestroyedThisTick = false;
-        // Blocks whose outcome handed out a pickup this tick — marked
-        // `rewardGiven` after the loop, so a 'once' pot records that it has
-        // paid out (the block analog of the enemy marking above).
-        const paidOutBlockIds = new Set<string>();
 
         for (const id of hitIds) {
           // Re-read from the post-applyBlockHit array: onHit must see the
@@ -1710,105 +1907,8 @@ export const PlatformerPage = () => {
           // terminal one.
           const block = blockStates.value.find((b) => b.id === id);
           if (!block) continue;
-
-          // A world-event burst on destruction, independent of whether a
-          // reward is also awarded alongside it (B-003).
-          firePuffIfJustUsedUp(block);
-
-          const outcome = BLOCK_TYPES[block.blockKind].onHit?.(block) ?? {};
-
+          const outcome = resolveBlockTerminalOutcome(block);
           bounceVelocity = strongerBounce(bounceVelocity, outcome.bounceVelocity);
-
-          // Record that this block handed out its pickup (if it did), so a
-          // 'once' pot never drops a second one — even if it is later
-          // restored. Mirrors the enemy `rewardGiven` marking above.
-          if (outcome.spawnPickup !== undefined) paidOutBlockIds.add(block.id);
-
-          // One dispatch keyed by pickup type, replacing the old per-blockKind
-          // branches. The two arms differ because their target arrays differ,
-          // and each keeps what is the engine's business rather than the
-          // block's: the fruit icon cycle, and the dropped coin's id/position.
-          if (outcome.spawnPickup === 'bonusFruit') {
-            bonusFruitStates.value = [
-              ...bonusFruitStates.value,
-              spawnBonusFruit(block.id, block.x, block.y, block.fact, nextBonusFruitIcon++),
-            ];
-          } else if (outcome.spawnPickup === 'coin') {
-            // `block.id` is the pot's own id, not a fact id (the block never
-            // had one) — this is what the coin-total dedup guard matches
-            // against once this coin exists in allCollectiblePlacements.
-            spawnedCoinPlacements.value = [
-              ...spawnedCoinPlacements.value,
-              { id: block.id, spriteType: 'coin', x: block.x, y: block.y },
-            ];
-          } else if (outcome.spawnPickup === 'heart') {
-            // `block.id` is the pot's own id — a potion-pot carries no fact,
-            // same convention as coinPot's dropped coin above.
-            heartPickupStates.value = [
-              ...heartPickupStates.value,
-              spawnHeartPickup(block.id, block.x, block.y),
-            ];
-          }
-
-          if (outcome.counterKey === 'crates') {
-            crateDestroyedThisTick = true;
-            // A crate's fact(s) were fixed at placement time (see
-            // BlockMapper.ts's placeCrates doc comment) — reveal its own
-            // `fact` plus any `extraFacts` (when this level has fewer crates
-            // than crate-pool facts, one crate can own more than one). No
-            // counterKey here: the crates popup is bumped below instead,
-            // for every destroyed crate rather than only ones that happen
-            // to reveal a fact (see that bump's own comment).
-            const facts = [block.fact, ...(block.extraFacts ?? [])].filter(
-              (fact): fact is CollectedFact => fact !== undefined,
-            );
-            facts.forEach((fact, index) => {
-              revealFact(fact, {
-                x: block.x,
-                y: block.y,
-                // Unique per revealed fact, not just per crate.
-                effectId: `${block.id}-${index}`,
-              });
-            });
-          } else if (outcome.revealFact) {
-            revealFact(outcome.revealFact, {
-              x: block.x,
-              y: block.y,
-              effectId: block.id,
-              // Supplied by the block's own outcome, not assumed here: which
-              // counter a reveal feeds is per-kind knowledge and belongs to
-              // the kind.
-              counterKey: outcome.counterKey,
-            });
-          }
-        }
-
-        // A block that handed out its pickup is marked permanently paid out
-        // (surviving death/respawn; cleared only by Reset Game), exactly as
-        // every defeated enemy is marked above.
-        if (paidOutBlockIds.size > 0) {
-          blockStates.value = blockStates.value.map((b) =>
-            paidOutBlockIds.has(b.id) ? { ...b, rewardGiven: true } : b,
-          );
-        }
-
-        // The crates popup bumped here rather than by the reveal trigger,
-        // mirroring the coins loop above: a crate's fact(s) are a fixed
-        // pool slice (see BlockMapper.ts's placeCrates), so most crates can
-        // reveal zero facts whenever there are more crates than crate-pool
-        // facts — gating this on a reveal would leave those destructions
-        // with no "crates destroyed / total" feedback, and could even show
-        // more facts revealed than crates exist. Uses `cratesDestroyed`
-        // (PlatformerState.ts), not `countCollectedFor`, for the same
-        // reason `coinsCollectedSoFar` does above — and NOT a plain
-        // `blockStates` filter, since a destroyed crate is eventually
-        // spliced out of that array (see `cratesDestroyed`'s own doc
-        // comment for why that would undercount).
-        if (crateDestroyedThisTick) {
-          activeCounterPopups.value = {
-            ...activeCounterPopups.value,
-            crates: startCounterPopup('crates', cratesDestroyed.value, levelTotals.value.crates),
-          };
         }
 
         if (bounceVelocity !== undefined) {
@@ -1818,6 +1918,119 @@ export const PlatformerPage = () => {
           // would be silently clobbered by that later assignment.
           next = { ...next, vy: bounceVelocity, bounceAscending: true };
         }
+      }
+
+      // Placed bombs: the fuse always advances (even while falling), gravity
+      // pulls a mid-air bomb to its landing row, and a bomb whose fuse has
+      // expired detonates once. A placed bomb is never in `blockPlacements`,
+      // so it never blocks the player (FR-015).
+      if (placedBombs.value.length > 0) {
+        const steppedBombs = placedBombs.value.map((bomb) =>
+          stepPlacedBomb(bomb, currentLevel.value, blockStates.value, dt),
+        );
+        const detonatingBombs = steppedBombs.filter(hasDetonated);
+
+        // At most one blast's damage per invincibility window, even when two
+        // blasts overlap in one tick (FR-021/edge case).
+        let bombDamagedPlayerThisTick = false;
+        for (const bomb of detonatingBombs) {
+          const tiles = blastTiles(
+            bomb.col,
+            bomb.row,
+            currentLevel.value.width,
+            currentLevel.value.height,
+          );
+
+          // Destructible blocks: drive each to its terminal hit, then run the
+          // shared terminal-outcome resolver — identical to a bump
+          // destruction (FR-019). A question-mark is never in this set.
+          const blastedBlocks = blocksInBlast(blockStates.value, tiles);
+          if (blastedBlocks.length > 0) {
+            const blastIds = new Set(blastedBlocks.map((b) => b.id));
+            blockStates.value = blockStates.value.map((block) => {
+              if (!blastIds.has(block.id)) return block;
+              let hit = block;
+              while (!isBlockUsedUp(hit)) hit = applyBlockHit(hit);
+              return hit;
+            });
+            for (const id of blastIds) {
+              const block = blockStates.value.find((b) => b.id === id);
+              if (block) resolveBlockTerminalOutcome(block);
+            }
+          }
+
+          // Enemies in the blast are marked defeated; the existing
+          // `justDefeated` pipeline pays their reward/drop/puff — exactly as
+          // a stomp does (FR-020).
+          const blastedEnemies = enemiesInBlast(enemyStates.value, tiles, RENDERED_TILE_SIZE);
+          if (blastedEnemies.length > 0) {
+            const blastEnemyIds = new Set(blastedEnemies.map((e) => e.id));
+            enemyStates.value = enemyStates.value.map((e) =>
+              blastEnemyIds.has(e.id) ? { ...e, hitPoints: 0, alive: false } : e,
+            );
+          }
+
+          // The player takes one full heart (2 hitpoints) if their hitbox
+          // overlaps the blast, subject to the shared invincibility window
+          // (FR-021/SC-007).
+          if (
+            !bombDamagedPlayerThisTick &&
+            !isInvulnerable(next, PLAYER_HIT_REACTION_SECONDS) &&
+            playerInBlast(playerHitbox(next), tiles, RENDERED_TILE_SIZE)
+          ) {
+            const hitPoints = takeDamage(next.hitPoints, BOMB_DAMAGE);
+            next = { ...next, hitPoints, alive: hitPoints > 0 };
+            // A blast has no single side to knock back from, so this opens the
+            // shared invincibility window without a directional push.
+            next = beginHitReaction(next);
+            bombDamagedPlayerThisTick = true;
+            if (hitPoints > 0) {
+              const playerCenterX = next.x + PLAYER_RENDERED_SIZE / 2 + originX;
+              const playerCenterY = next.y + PLAYER_VISUAL_CENTER_Y_OFFSET + originY;
+              activeHitSplatters.value = [
+                ...activeHitSplatters.value,
+                startPlayerHitSplatter(`bomb-${bomb.id}`, playerCenterX, playerCenterY, 0),
+              ];
+            }
+          }
+
+          // The explosion is purely cosmetic, centred on the bomb's own tile
+          // (FR-023). Never a hazard: the effects above resolved once, here.
+          const tileCenter = tileToPixel(bomb.col, bomb.row);
+          activeExplosions.value = [
+            ...activeExplosions.value,
+            startExplosionEffect(
+              bomb.id,
+              tileCenter.x + RENDERED_TILE_SIZE / 2,
+              tileCenter.y + RENDERED_TILE_SIZE / 2,
+            ),
+          ];
+        }
+
+        // Keep every bomb that neither detonated nor fell out of the level.
+        // A bomb that fell out is removed without exploding (FR-015).
+        placedBombs.value = steppedBombs.filter(
+          (bomb) => !hasDetonated(bomb) && !checkBombFellOut(bomb, currentLevel.value),
+        );
+      }
+
+      // The crates popup bumped here rather than by the reveal trigger,
+      // mirroring the coins loop above: a crate's fact(s) are a fixed pool
+      // slice (see BlockMapper.ts's placeCrates), so most crates can reveal
+      // zero facts whenever there are more crates than crate-pool facts —
+      // gating this on a reveal would leave those destructions with no
+      // "crates destroyed / total" feedback, and could even show more facts
+      // revealed than crates exist. Uses `cratesDestroyed` (PlatformerState.ts),
+      // not `countCollectedFor`, for the same reason `coinsCollectedSoFar`
+      // does above — and NOT a plain `blockStates` filter, since a destroyed
+      // crate is eventually spliced out of that array (see `cratesDestroyed`'s
+      // own doc comment for why that would undercount). Set by BOTH the
+      // contact-hit loop and a blast above.
+      if (crateDestroyedThisTick) {
+        activeCounterPopups.value = {
+          ...activeCounterPopups.value,
+          crates: startCounterPopup('crates', cratesDestroyed.value, levelTotals.value.crates),
+        };
       }
 
       if (checkPitFall(next, currentLevel.value)) {
@@ -2057,6 +2270,20 @@ export const PlatformerPage = () => {
       .catch(() => {
         // Deployable ladders simply won't render if this sheet fails to load;
         // the rest of the level still shows.
+      });
+    // The active explosion sheet is no type's primary sprite, so — like
+    // crack_overlay.png — it stays a hand-listed load rather than being
+    // discovered through a registry walk. Both explosion candidates are
+    // registered; `EXPLOSION_SHEET` selects the one loaded and drawn.
+    loadImage(EXPLOSION_SHEET.src)
+      .then((img) => {
+        if (cancelled) return;
+        spritesRef.current[EXPLOSION_SHEET.src] = img;
+        render();
+      })
+      .catch(() => {
+        // Explosions simply won't render if this strip fails to load; the
+        // rest of the game still shows.
       });
     loadImage('/sprites/knight.png')
       .then((img) => {

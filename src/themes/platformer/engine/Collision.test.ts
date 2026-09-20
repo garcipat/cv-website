@@ -8,6 +8,7 @@ import {
   checkSignOverlap,
   checkKeyPickupCollisions,
   checkHeartPickupCollisions,
+  checkBombPickupCollisions,
   checkHazardCollisions,
   overlappingTriggers,
 } from './Collision';
@@ -34,6 +35,7 @@ import type { SignPlacement } from '../level/SignMapper';
 import type { HazardPlacement } from '../level/HazardMapper';
 import type { KeyPickupState } from '../entities/KeyPickup';
 import { spawnHeartPickup } from '../entities/HeartPickup';
+import { spawnBombPickup } from '../entities/BombPickup';
 import { MAX_HALF_HEARTS } from '../entities/Health';
 import { PHYSICS_CONFIG } from './PhysicsConfig';
 
@@ -553,5 +555,34 @@ describe('checkKeyPickupCollisions', () => {
   it('checkKeyPickupCollisions-noOverlap-returnsEmpty', () => {
     const pickups: KeyPickupState[] = [{ id: 'k1', x: 1000, y: 1000, collected: false }];
     expect(checkKeyPickupCollisions(player, pickups)).toEqual([]);
+  });
+});
+
+describe('checkBombPickupCollisions', () => {
+  const player = { ...makePlayer(0, 100 - RENDERED_TILE_SIZE) };
+
+  it('belowTheCap-overlappingPickup-returnsItsId', () => {
+    const bomb = spawnBombPickup('b1', 0, 100);
+    expect(checkBombPickupCollisions(player, [bomb], 0, 5)).toEqual(['b1']);
+  });
+
+  it('atTheCap-overlappingPickup-isLeftInTheWorld', () => {
+    const bomb = spawnBombPickup('b1', 0, 100);
+    expect(checkBombPickupCollisions(player, [bomb], 5, 5)).toEqual([]);
+  });
+
+  it('severalPickupsInOneTick-clampsToTheRemainingCapacityInArrayOrder', () => {
+    const bombs = [
+      spawnBombPickup('b1', 0, 100),
+      spawnBombPickup('b2', 0, 100),
+      spawnBombPickup('b3', 0, 100),
+    ];
+    expect(checkBombPickupCollisions(player, bombs, 4, 5)).toEqual(['b1']);
+    expect(checkBombPickupCollisions(player, bombs, 3, 5)).toEqual(['b1', 'b2']);
+  });
+
+  it('noOverlap-returnsEmpty', () => {
+    const bomb = spawnBombPickup('b1', 1000, 1000);
+    expect(checkBombPickupCollisions(player, [bomb], 0, 5)).toEqual([]);
   });
 });

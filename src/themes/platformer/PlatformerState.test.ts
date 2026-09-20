@@ -26,6 +26,11 @@ import {
   keyPickupStates,
   collectedKeys,
   heartPickupStates,
+  MAX_BOMBS,
+  carriedBombs,
+  bombPickupStates,
+  placedBombs,
+  activeExplosions,
   spawnedCoinPlacements,
   allCollectiblePlacements,
   levelTotals,
@@ -63,6 +68,7 @@ import {
   CRATE_TILES,
   QUESTIONMARK_TILES,
   FRAGILE_ROCK_TILES,
+  BOMB_POT_TILES,
   CHEST_TILES,
   CHECKPOINT_TILES,
   SIGN_TILES,
@@ -516,6 +522,90 @@ describe('blockPlacements — potionPot', () => {
   it('layoutWithAPotionPotMarker-producesAPotionPotPlacement', () => {
     currentLayout.value = ['Sp', 'GG'];
     expect(blockPlacements.value.some((b) => b.blockKind === 'potionPot')).toBe(true);
+  });
+});
+
+describe('blockPlacements — bombPot', () => {
+  afterEach(() => {
+    // currentLayout is module-level (see level.ts's doc comment) — restore
+    // it so this describe block doesn't leak a stripped-down layout into
+    // every other test in this file.
+    currentLayout.value = LEVEL_1_LAYOUT;
+  });
+
+  it('layoutWithABombPotMarker-producesABombPotPlacement', () => {
+    currentLayout.value = ['Sb', 'GG'];
+    expect(BOMB_POT_TILES.value).toEqual([{ col: 1, row: 0 }]);
+    expect(blockPlacements.value.some((b) => b.blockKind === 'bombPot')).toBe(true);
+  });
+});
+
+describe('bomb inventory signals', () => {
+  it('MAX_BOMBS-isFive', () => {
+    expect(MAX_BOMBS).toBe(5);
+  });
+
+  it('module-load-seedsAnEmptyInventoryAndNoBombsInTheWorld', () => {
+    expect(carriedBombs.value).toBe(0);
+    expect(bombPickupStates.value).toEqual([]);
+    expect(placedBombs.value).toEqual([]);
+    expect(activeExplosions.value).toEqual([]);
+  });
+});
+
+describe('resetGame — bombs clear and bomb-pots restore', () => {
+  afterEach(() => {
+    currentLayout.value = LEVEL_1_LAYOUT;
+    blockStates.value = blockPlacements.value.map(toBlockState);
+  });
+
+  it('resetGame-clearsPlacedBombsCarriedCountAndDroppedBombPickups', () => {
+    placedBombs.value = [
+      {
+        id: 'bomb-1',
+        x: 0,
+        y: 0,
+        vy: 0,
+        col: 0,
+        row: 0,
+        landingRow: 0,
+        fuseElapsed: 1,
+        landed: true,
+      },
+    ];
+    carriedBombs.value = 3;
+    bombPickupStates.value = [{ id: 'b1', x: 0, y: 0 }];
+
+    resetGame();
+
+    expect(placedBombs.value).toEqual([]);
+    expect(carriedBombs.value).toBe(0);
+    expect(bombPickupStates.value).toEqual([]);
+  });
+
+  it('resetGame-restoresABrokenBombPotIntact', () => {
+    currentLayout.value = ['Sb', 'GG'];
+    const placement = blockPlacements.value.find((b) => b.blockKind === 'bombPot')!;
+    // Simulate the pot having been destroyed and its animation settled:
+    // isBlockRemoved splices a used-up, removeWhenUsedUp block out entirely.
+    blockStates.value = blockPlacements.value
+      .map(toBlockState)
+      .filter((b) => b.id !== placement.id);
+    expect(blockStates.value.some((b) => b.id === placement.id)).toBe(false);
+
+    resetGame();
+
+    const restored = blockStates.value.find((b) => b.id === placement.id);
+    expect(restored).toBeDefined();
+    expect(restored!.hitsTaken).toBe(0);
+  });
+
+  it('resetGameProgress-clearsActiveExplosions', () => {
+    activeExplosions.value = [{ id: 'bomb-1', x: 0, y: 0, elapsed: 0 }];
+
+    resetGameProgress();
+
+    expect(activeExplosions.value).toEqual([]);
   });
 });
 

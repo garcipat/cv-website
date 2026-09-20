@@ -1,5 +1,6 @@
 import type { CounterKey } from '../entities/CollectiblesSummary';
 import type { EnemyTypeKey } from '../entities/enemies';
+import { EXPLOSION_SHEET } from '../entities/sprites/sheets';
 
 /** Seconds each phase of a collected-fact animation takes: a quick rise from
  *  the collection point to the middle of the screen, a hold there so the
@@ -582,4 +583,46 @@ export function tickFadeOutTextEffect(effect: FadeOutTextEffect, dt: number): Fa
 export function fadeOutTextOpacity(elapsed: number): number {
   if (elapsed < 0 || elapsed > FADE_OUT_TEXT_DURATION_SECONDS) return 0;
   return 1 - elapsed / FADE_OUT_TEXT_DURATION_SECONDS;
+}
+
+/** Seconds each explosion frame is shown. */
+const EXPLOSION_FRAME_SECONDS = 0.05;
+/** Frames in the active explosion sheet — both candidates are registered, and
+ *  `EXPLOSION_SHEET` selects the one drawn (see entities/sprites/sheets.ts). */
+export const EXPLOSION_FRAME_COUNT = EXPLOSION_SHEET.columns;
+/** Total seconds an explosion plays before it is removed. */
+export const EXPLOSION_DURATION_SECONDS = EXPLOSION_FRAME_COUNT * EXPLOSION_FRAME_SECONDS;
+
+/**
+ * A one-shot explosion visual, played once at the instant a bomb detonates
+ * and centred on the bomb's tile (FR-023). Purely cosmetic: the destruction,
+ * defeat and damage all resolve at the instant of detonation, so this effect
+ * is never a hazard and has no collision — walking into the area while its
+ * frames play deals no damage.
+ */
+export interface ExplosionEffect {
+  /** The detonated bomb's id. */
+  id: string;
+  /** World px, blast centre. */
+  x: number;
+  y: number;
+  elapsed: number;
+}
+
+export function startExplosionEffect(id: string, x: number, y: number): ExplosionEffect {
+  return { id, x, y, elapsed: 0 };
+}
+
+/** Advances the effect by `dt` seconds. No phase machine — callers filter it
+ *  out once `elapsed >= EXPLOSION_DURATION_SECONDS` (same convention as
+ *  `tickPuffEffect`). */
+export function tickExplosionEffect(effect: ExplosionEffect, dt: number): ExplosionEffect {
+  return { ...effect, elapsed: effect.elapsed + dt };
+}
+
+/** The active sheet's frame to draw, playing each frame once in order and
+ *  clamping to the last frame at/past the duration. */
+export function explosionFrameIndex(effect: ExplosionEffect): number {
+  const progress = Math.min(1, Math.max(0, effect.elapsed / EXPLOSION_DURATION_SECONDS));
+  return Math.min(Math.floor(progress * EXPLOSION_FRAME_COUNT), EXPLOSION_FRAME_COUNT - 1);
 }

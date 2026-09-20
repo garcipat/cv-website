@@ -231,3 +231,34 @@ export const ROPE_LADDER_SHEET: SpriteSheet = {
   frameHeight: TILE_SIZE,
   columns: 2,
 };
+
+/** `bomb.png` — a 96x16 strip of six 16x16 frames: 0 = unlit bomb (the HUD
+ *  icon and world pickup), 1-3 = lit fuse burning down, 4 = pulse partner,
+ *  5 = orange pre-detonation glow (O-012). */
+export const BOMB_SHEET: SpriteSheet = {
+  src: '/sprites/bomb.png',
+  frameWidth: 16,
+  frameHeight: 16,
+  columns: 6,
+};
+
+/** `explosion1.png` — a 432x48 strip of nine 48x48 frames (round fireball). */
+export const EXPLOSION_1_SHEET: SpriteSheet = {
+  src: '/sprites/explosion1.png',
+  frameWidth: 48,
+  frameHeight: 48,
+  columns: 9,
+};
+
+/** `explosion2.png` — a 384x48 strip of eight 48x48 frames (spiky/cartoonish). */
+export const EXPLOSION_2_SHEET: SpriteSheet = {
+  src: '/sprites/explosion2.png',
+  frameWidth: 48,
+  frameHeight: 48,
+  columns: 8,
+};
+
+/** The active explosion sheet — both candidates are registered and loaded so
+ *  swapping between them is this one line. Default: explosion2 (cartoonish),
+ *  pending the in-engine comparison in quickstart.md. */
+export const EXPLOSION_SHEET: SpriteSheet = EXPLOSION_2_SHEET;

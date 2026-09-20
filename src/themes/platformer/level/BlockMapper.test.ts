@@ -352,3 +352,44 @@ describe('placeBlocks — potionPot markers', () => {
     expect(placeBlocks([], { crate: [], questionMark: [], fragileRock: [] })).toEqual([]);
   });
 });
+
+describe('placeBlocks — bombPot markers', () => {
+  // bombPot carries no CVData mapping at all (same convention as
+  // coinPot/potionPot/fragileRock) — the bomb it drops is an inventory
+  // resource, never a CV fact (O-012 FR-011).
+  it('bombPotMarker-producesAPlacementWithNoFact', () => {
+    const placed = placeBlocks([], {
+      crate: [],
+      questionMark: [],
+      fragileRock: [],
+      bombPot: [{ col: 5, row: 2 }],
+    });
+    expect(placed).toHaveLength(1);
+    expect(placed[0].blockKind).toBe('bombPot');
+    expect(placed[0].fact).toBeUndefined();
+    expect(placed[0].id).toBe('bombpot-5-2');
+    expect(placed[0]).toMatchObject(tileToPixel(5, 2));
+  });
+
+  it('multipleBombPotMarkers-eachGetsAPositionDerivedId', () => {
+    const placed = placeBlocks([], {
+      crate: [],
+      questionMark: [],
+      fragileRock: [],
+      bombPot: [
+        { col: 5, row: 2 },
+        { col: 6, row: 2 },
+      ],
+    });
+    expect(placed).toHaveLength(2);
+    const ids = placed.map((p) => p.id);
+    expect(new Set(ids).size).toBe(2);
+  });
+
+  it('bombPotOmittedFromMarkers-behavesAsEmptyArray', () => {
+    // BlockMarkerPositions.bombPot is optional so every pre-existing call
+    // site (production and test) that doesn't know about bomb-pots yet
+    // keeps compiling unchanged.
+    expect(placeBlocks([], { crate: [], questionMark: [], fragileRock: [] })).toEqual([]);
+  });
+});
