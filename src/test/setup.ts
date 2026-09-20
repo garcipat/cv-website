@@ -56,6 +56,10 @@ HTMLCanvasElement.prototype.getContext = function (
       rotate: vi.fn(),
       scale: vi.fn(),
       strokeRect: vi.fn(),
+      // The Level Editor's deployable-ladder landing marker (O-011) draws a
+      // dashed outline, so the mock needs setLineDash or the editor render
+      // throws for any grid holding a `@` bundle.
+      setLineDash: vi.fn(),
       beginPath: vi.fn(),
       closePath: vi.fn(),
       moveTo: vi.fn(),

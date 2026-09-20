@@ -1,6 +1,13 @@
 import { signal, computed } from '@preact/signals-react';
 import { tileToPixel, RENDERED_TILE_SIZE } from './level/Terrain';
 import {
+  createDeployableLadderState,
+  advanceDeployableLadder,
+  applyDeployedLadders,
+} from './engine/DeployableLadder';
+import type { DeployableLadderState } from './engine/DeployableLadder';
+import type { LevelDef } from './level/LevelData';
+import {
   SPAWN_TILE,
   ENEMY_TILES_GREEN,
   ENEMY_TILES_PURPLE,
@@ -16,6 +23,7 @@ import {
   HAZARD_TILES,
   currentLevel,
   TORCH_TILES,
+  LADDER_BUNDLE_TILES,
 } from './level/level';
 import {
   MAX_DARKNESS,
@@ -693,6 +701,51 @@ export const lifecycleState = signal<LifecycleState>(
 );
 
 /**
+ * Every deployable rope-ladder bundle in the level, from `currentLayout`'s `@`
+ * markers (see `LADDER_BUNDLE_TILES`). A `computed`, so the Level Editor's
+ * "Try" button updates it reactively like every other placement list.
+ */
+export const deployableLadderPlacements = computed<DeployableLadderState[]>(() =>
+  LADDER_BUNDLE_TILES.value.map(({ col, row }) =>
+    createDeployableLadderState(currentLevel.value, col, row),
+  ),
+);
+
+/**
+ * Live per-bundle deployment state — seeded `rolled` from
+ * `deployableLadderPlacements` (module load) and rebuilt from it only by
+ * `resetGameProgress()` (Reset Game / the editor's Try / the theme-switch
+ * remount), NOT by `resetGame()` (death/respawn). Same lifetime as blocks and
+ * chests: a deployed ladder survives a death but is rolled back on a full
+ * reset (FR-013).
+ */
+export const deployableLadderStates = signal<DeployableLadderState[]>(
+  deployableLadderPlacements.value.map((state) => ({ ...state })),
+);
+
+/**
+ * The effective terrain grid the physics simulation reads: the raw level with
+ * every completed bundle's cells written as `ropeLadder`. Identical (same
+ * object) to `currentLevel.value` when nothing is deployed, so the common case
+ * allocates nothing. Rendering and every other subsystem keep reading the raw
+ * `currentLevel` — only `stepPlayerPhysics` consumes this (O-011 research D2).
+ */
+export const activeLevel = computed<LevelDef>(() =>
+  applyDeployedLadders(currentLevel.value, deployableLadderStates.value),
+);
+
+/**
+ * Advances every in-progress unroll by `dt` seconds — called once per
+ * game-loop tick in the `playing` phase (so it freezes with the world during
+ * pause/death). Completed bundles are unchanged. O(bundles), not O(level).
+ */
+export function tickDeployableLadders(dt: number): void {
+  deployableLadderStates.value = deployableLadderStates.value.map((state) =>
+    advanceDeployableLadder(state, dt),
+  );
+}
+
+/**
  * Resets the game world to its respawn state: player back at the active
  * checkpoint (or the level's spawn point when none is active), full health,
  * enemies revived in place at their spawn placements, camera scrolled back to
@@ -784,5 +837,6 @@ export function resetGameProgress(): void {
   heartPickupStates.value = [];
   keyPickupStates.value = [];
   collectedKeys.value = 0;
+  deployableLadderStates.value = deployableLadderPlacements.value.map((state) => ({ ...state }));
   enemyStates.value = enemyPlacements.value.map((placement, index) => toEnemyState(placement, index));
 }
