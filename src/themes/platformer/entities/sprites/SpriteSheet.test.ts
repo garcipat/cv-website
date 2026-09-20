@@ -1,6 +1,11 @@
 import { frameSource, collectSheetSources } from './SpriteSheet';
 import type { SpriteDescriptor } from './SpriteSheet';
-import { SLIME_GREEN_SHEET, SLIME_PURPLE_SHEET } from './sheets';
+import {
+  SLIME_GREEN_SHEET,
+  SLIME_PURPLE_SHEET,
+  BOMB_SHEET,
+  EXPLOSION_SHEET,
+} from './sheets';
 
 describe('frameSource', () => {
   it('indexZero-returnsTopLeftFrame', () => {
@@ -41,6 +46,27 @@ describe('frameSource equivalence with the existing coordinate lists', () => {
       { sx: 72, sy: 48 },
     ];
     expect([8, 9, 10, 11].map((i) => frameSource(SLIME_GREEN_SHEET, i))).toEqual(expected);
+  });
+});
+
+describe('bomb and explosion sheet registrations', () => {
+  it('bombSheet-describesSix16pxFrames', () => {
+    expect(BOMB_SHEET).toEqual({
+      src: '/sprites/bomb.png',
+      frameWidth: 16,
+      frameHeight: 16,
+      columns: 6,
+    });
+    expect(frameSource(BOMB_SHEET, 5)).toEqual({ sx: 80, sy: 0 });
+  });
+
+  it('explosionSheet-describesTheComicBurstStrip', () => {
+    expect(EXPLOSION_SHEET).toEqual({
+      src: '/sprites/explosion.png',
+      frameWidth: 48,
+      frameHeight: 48,
+      columns: 8,
+    });
   });
 });
 

@@ -18,10 +18,16 @@ import {
   drawSignBubble,
   drawKeyPickups,
   drawHeartPickups,
+  drawBombPickups,
+  drawPlacedBombs,
+  drawExplosions,
+  EXPLOSION_DRAW_SCALE,
   drawHealAuraEffects,
   drawHazards,
   drawKeyCounter,
+  drawBombCounter,
   keyCounterX,
+  bombCounterX,
   KEY_COUNTER_Y,
   RESTART_PROMPT_FONT_FAMILY,
   HEARTS_START_X,
@@ -76,6 +82,26 @@ import type { KeyPickupState } from '../entities/KeyPickup';
 import { spawnHeartPickup, HEART_PICKUP_RENDERED_SIZE, HEART_PICKUP_TILE_OFFSET_X, HEART_PICKUP_TILE_OFFSET_Y } from '../entities/HeartPickup';
 import type { HeartPickupState } from '../entities/HeartPickup';
 import {
+  spawnBombPickup,
+  BOMB_PICKUP_RENDERED_SIZE,
+  BOMB_PICKUP_TILE_OFFSET_X,
+  BOMB_PICKUP_TILE_OFFSET_Y,
+} from '../entities/BombPickup';
+import type { BombPickupState } from '../entities/BombPickup';
+import {
+  bombFuseFrame,
+  BOMB_FUSE_SECONDS,
+  BOMB_FUSE_SEQUENCE,
+  BOMB_PULSE_SCALE,
+} from './PlacedBomb';
+import type { PlacedBombState } from './PlacedBomb';
+import { frameSource } from '../entities/sprites/SpriteSheet';
+import {
+  startExplosionEffect,
+  explosionFrameIndex,
+  EXPLOSION_DURATION_SECONDS,
+} from './CollectionEffects';
+import {
   SLIME_GREEN_SHEET,
   SLIME_PURPLE_SHEET,
   KEY_SHEET,
@@ -85,6 +111,8 @@ import {
   CRACK_OVERLAY_SHEET,
   HEARTS_SHEET,
   STATIC_OBJECTS_SHEET,
+  BOMB_SHEET,
+  EXPLOSION_SHEET,
 } from '../entities/sprites/sheets';
 import { computePotRenderPlan } from '../entities/blocks/potRenderPlan';
 import type { DrawContext } from './DrawContext';
@@ -181,7 +209,7 @@ function makeFruitPlacement(id = 'fruit-1', x = 300, y = 300): CollectiblePlacem
 
 function makeBlockPlacement(
   id: string,
-  blockKind: 'crate' | 'questionMark' | 'fragileRock' | 'coinPot' | 'potionPot',
+  blockKind: 'crate' | 'questionMark' | 'fragileRock' | 'coinPot' | 'potionPot' | 'bombPot',
   x: number,
   y: number,
 ): BlockPlacement {
@@ -355,6 +383,8 @@ function makeDrawContext(
       [CHEST_CLOSED_SHEET.src]: { tag: 'chestClosed' } as unknown as HTMLImageElement,
       [CHEST_OPEN_SHEET.src]: { tag: 'chestOpen' } as unknown as HTMLImageElement,
       [STATIC_OBJECTS_SHEET.src]: { tag: 'staticObjects' } as unknown as HTMLImageElement,
+      [BOMB_SHEET.src]: { tag: 'bomb' } as unknown as HTMLImageElement,
+      [EXPLOSION_SHEET.src]: { tag: 'explosion' } as unknown as HTMLImageElement,
     },
     originX: 0,
     originY: 0,
@@ -556,7 +586,7 @@ describe('drawEnemies with type-owned rendering', () => {
 });
 
 function makeBlock(
-  kind: 'crate' | 'questionMark' | 'fragileRock' | 'coinPot' | 'potionPot',
+  kind: 'crate' | 'questionMark' | 'fragileRock' | 'coinPot' | 'potionPot' | 'bombPot',
   overrides: Partial<BlockState> = {},
 ): BlockState {
   return { ...toBlockState(makeBlockPlacement(`${kind}-1`, kind, 0, 0)), ...overrides };
@@ -2646,6 +2676,194 @@ describe('drawHeartPickups', () => {
     drawHeartPickups(ctx, [], dc);
 
     expect(ctx.drawImage).not.toHaveBeenCalled();
+  });
+});
+
+describe('drawBombPickups', () => {
+  it('someBombs-drawsTheUnlitFrameAtItsSmallerRenderedSize', () => {
+    const ctx = makeMockContext();
+    const dc = makeDrawContext(ctx, { worldElapsed: 0 });
+    const bombs: BombPickupState[] = [spawnBombPickup('b1', 100, 200)];
+
+    drawBombPickups(ctx, bombs, dc);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      dc.sprites[BOMB_SHEET.src],
+      0,
+      0,
+      BOMB_SHEET.frameWidth,
+      BOMB_SHEET.frameHeight,
+      100 + BOMB_PICKUP_TILE_OFFSET_X,
+      200 + BOMB_PICKUP_TILE_OFFSET_Y,
+      BOMB_PICKUP_RENDERED_SIZE,
+      BOMB_PICKUP_RENDERED_SIZE,
+    );
+  });
+
+  it('noBombs-drawsNothing', () => {
+    const ctx = makeMockContext();
+    const dc = makeDrawContext(ctx);
+
+    drawBombPickups(ctx, [], dc);
+
+    expect(ctx.drawImage).not.toHaveBeenCalled();
+  });
+});
+
+describe('drawPlacedBombs', () => {
+  const baseBomb: PlacedBombState = {
+    id: 'bomb-1',
+    x: 64,
+    y: 32,
+    vy: 0,
+    col: 2,
+    row: 1,
+    landingRow: 1,
+    fuseElapsed: 0,
+    landed: true,
+  };
+
+  it('drawsTheFuseFrameForItsElapsedTime', () => {
+    const ctx = makeMockContext();
+    const dc = makeDrawContext(ctx, { worldElapsed: 0 });
+
+    drawPlacedBombs(ctx, [baseBomb], dc);
+
+    const { sx, sy } = frameSource(BOMB_SHEET, bombFuseFrame(0).frame);
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      dc.sprites[BOMB_SHEET.src],
+      sx,
+      sy,
+      BOMB_SHEET.frameWidth,
+      BOMB_SHEET.frameHeight,
+      expect.any(Number),
+      expect.any(Number),
+      RENDERED_TILE_SIZE,
+      RENDERED_TILE_SIZE,
+    );
+  });
+
+  it('acrossTheWholeFuse-neverDrawsTheUnlitFrame', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D, { worldElapsed: 0 });
+    const unlit = frameSource(BOMB_SHEET, 0);
+    const frames: number[] = [];
+
+    for (let i = 0; i < BOMB_FUSE_SEQUENCE.length; i++) {
+      const fuseElapsed = ((i + 0.5) * BOMB_FUSE_SECONDS) / BOMB_FUSE_SEQUENCE.length;
+      drawPlacedBombs(ctx as unknown as CanvasRenderingContext2D, [{ ...baseBomb, fuseElapsed }], dc);
+      frames.push(bombFuseFrame(fuseElapsed).frame);
+    }
+
+    expect(frames).not.toContain(0);
+    for (const call of ctx.drawImage.mock.calls) {
+      expect([call[1], call[2]]).not.toEqual([unlit.sx, unlit.sy]);
+    }
+  });
+
+  it('theOrangeFrame-isScaledUpAboutTheTileCentre', () => {
+    const ctx = makeMockContext() as unknown as {
+      scale: ReturnType<typeof vi.fn>;
+    };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D, { worldElapsed: 0 });
+
+    drawPlacedBombs(
+      ctx as unknown as CanvasRenderingContext2D,
+      [{ ...baseBomb, fuseElapsed: BOMB_FUSE_SECONDS * 0.999 }],
+      dc,
+    );
+
+    expect(ctx.scale).toHaveBeenCalledWith(BOMB_PULSE_SCALE, BOMB_PULSE_SCALE);
+  });
+
+  it('aFallingBomb-isDrawnAtItsCurrentY', () => {
+    const ctx = makeMockContext() as unknown as { translate: ReturnType<typeof vi.fn> };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D, { worldElapsed: 0 });
+
+    drawPlacedBombs(ctx as unknown as CanvasRenderingContext2D, [{ ...baseBomb, y: 96 }], dc);
+
+    expect(ctx.translate).toHaveBeenCalledWith(
+      64 + RENDERED_TILE_SIZE / 2,
+      96 + RENDERED_TILE_SIZE / 2,
+    );
+  });
+});
+
+describe('drawExplosions', () => {
+  it('drawsTheActiveSheetFrameAtTheEnlargedScaleCentredOnTheBlast', () => {
+    const ctx = makeMockContext();
+    const dc = makeDrawContext(ctx, { worldElapsed: 0 });
+    const effect = startExplosionEffect('bomb-1', 80, 48);
+
+    drawExplosions(ctx, [effect], dc);
+
+    const { sx, sy } = frameSource(EXPLOSION_SHEET, explosionFrameIndex(effect));
+    const size = EXPLOSION_SHEET.frameWidth * 2 * EXPLOSION_DRAW_SCALE;
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      dc.sprites[EXPLOSION_SHEET.src],
+      sx,
+      sy,
+      EXPLOSION_SHEET.frameWidth,
+      EXPLOSION_SHEET.frameHeight,
+      80 - size / 2,
+      48 - size / 2,
+      size,
+      size,
+    );
+  });
+
+  it('playsEachFrameOnceInOrder', () => {
+    const frames: number[] = [];
+    for (let i = 0; i < EXPLOSION_SHEET.columns; i++) {
+      const elapsed = ((i + 0.5) * EXPLOSION_DURATION_SECONDS) / EXPLOSION_SHEET.columns;
+      frames.push(explosionFrameIndex({ ...startExplosionEffect('b', 0, 0), elapsed }));
+    }
+    expect(frames).toEqual(Array.from({ length: EXPLOSION_SHEET.columns }, (_, i) => i));
+  });
+
+  it('noExplosions-drawsNothing', () => {
+    const ctx = makeMockContext();
+    const dc = makeDrawContext(ctx);
+
+    drawExplosions(ctx, [], dc);
+
+    expect(ctx.drawImage).not.toHaveBeenCalled();
+  });
+});
+
+describe('drawBombCounter', () => {
+  it('drawsTheUnlitBombIconAndTheCountWithNoDenominator', () => {
+    const ctx = makeMockContext();
+    const fakeBombSprite = {} as HTMLImageElement;
+
+    drawBombCounter(ctx, fakeBombSprite, 3, bombCounterX(ctx, 0, 0, 0), KEY_COUNTER_Y);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeBombSprite,
+      0,
+      0,
+      BOMB_SHEET.frameWidth,
+      BOMB_SHEET.frameHeight,
+      expect.any(Number),
+      expect.any(Number),
+      expect.any(Number),
+      expect.any(Number),
+    );
+    expect(ctx.fillText).toHaveBeenCalledWith('3', expect.any(Number), KEY_COUNTER_Y);
+  });
+});
+
+describe('bombCounterX', () => {
+  it('withNoKeys-landsExactlyAtTheKeyCounterX', () => {
+    // The key counter is hidden at zero keys, so the bomb group must not
+    // reserve a gap for it.
+    const ctx = makeMockContext();
+    expect(bombCounterX(ctx, 0, 0, 0)).toBe(keyCounterX(ctx, 0, 0));
+  });
+
+  it('withKeys-sitsStrictlyPastTheKeyCountersMeasuredWidth', () => {
+    const ctx = makeMockContext();
+    expect(bombCounterX(ctx, 0, 0, 3)).toBeGreaterThan(bombCounterX(ctx, 0, 0, 0));
   });
 });
 

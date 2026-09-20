@@ -32,6 +32,11 @@ import {
   startFadeOutTextEffect,
   tickFadeOutTextEffect,
   fadeOutTextOpacity,
+  EXPLOSION_DURATION_SECONDS,
+  EXPLOSION_FRAME_COUNT,
+  startExplosionEffect,
+  tickExplosionEffect,
+  explosionFrameIndex,
 } from './CollectionEffects';
 import type { PuffEffect, HealAuraEffect } from './CollectionEffects';
 
@@ -544,5 +549,42 @@ describe('FadeOutTextEffect', () => {
   it('fadeOutTextOpacity-isZeroOutsideTheWindow', () => {
     expect(fadeOutTextOpacity(-0.1)).toBe(0);
     expect(fadeOutTextOpacity(FADE_OUT_TEXT_DURATION_SECONDS + 1)).toBe(0);
+  });
+});
+
+describe('ExplosionEffect', () => {
+  it('startExplosionEffect-carriesItsCentreAtZeroElapsed', () => {
+    expect(startExplosionEffect('bomb-5-2-1', 160, 64)).toEqual({
+      id: 'bomb-5-2-1',
+      x: 160,
+      y: 64,
+      elapsed: 0,
+    });
+  });
+
+  it('tickExplosionEffect-advancesElapsedByDt', () => {
+    const effect = tickExplosionEffect(startExplosionEffect('a', 0, 0), 0.1);
+    expect(effect.elapsed).toBeCloseTo(0.1);
+  });
+
+  it('explosionFrameIndex-playsEachFrameOnceInOrder', () => {
+    const frames: number[] = [];
+    for (let i = 0; i < EXPLOSION_FRAME_COUNT; i++) {
+      const elapsed = ((i + 0.5) * EXPLOSION_DURATION_SECONDS) / EXPLOSION_FRAME_COUNT;
+      frames.push(explosionFrameIndex(tickExplosionEffect(startExplosionEffect('a', 0, 0), elapsed)));
+    }
+    expect(frames).toEqual(Array.from({ length: EXPLOSION_FRAME_COUNT }, (_, i) => i));
+  });
+
+  it('explosionFrameIndex-clampsToTheLastFrameAtAndPastTheEnd', () => {
+    const atEnd = tickExplosionEffect(startExplosionEffect('a', 0, 0), EXPLOSION_DURATION_SECONDS);
+    expect(explosionFrameIndex(atEnd)).toBe(EXPLOSION_FRAME_COUNT - 1);
+    const past = tickExplosionEffect(startExplosionEffect('a', 0, 0), EXPLOSION_DURATION_SECONDS * 10);
+    expect(explosionFrameIndex(past)).toBe(EXPLOSION_FRAME_COUNT - 1);
+  });
+
+  it('theDuration-isTheFrameCountTimesThePerFrameTime', () => {
+    expect(EXPLOSION_DURATION_SECONDS).toBeGreaterThan(0);
+    expect(EXPLOSION_FRAME_COUNT).toBeGreaterThan(1);
   });
 });

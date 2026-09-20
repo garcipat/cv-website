@@ -12,6 +12,7 @@ import {
   findFragileRockTiles,
   findCoinPotTiles,
   findPotionPotTiles,
+  findBombPotTiles,
   findChestTiles,
   findCheckpointTiles,
   findSignTiles,
@@ -140,6 +141,10 @@ import {
 //          that heals half a heart; no fact. Not yet placed anywhere in this
 //          level — the mechanism exists (see entities/blocks/PotionPot.ts)
 //          but no level-design placement decision has been made for it yet.
+//   b  1   bomb-pot — destroyed by landing on top, drops a bomb pickup the
+//          player carries and places (O-012); no fact, same
+//          no-CVData-binding convention as the other pots. One is placed on
+//          the base ground in zone A so the mechanic is reachable early.
 //   ^  1   spike (floor) — damages the player on touch, no stomp-defeat
 //   v  1   spike (ceiling)
 //   <  1   spike (right wall)
@@ -155,13 +160,14 @@ import {
 // found cannot be opened yet, and the player either backtracks or remembers
 // it. Five slimes for five chests means every key is needed and none is spare.
 //
-// `1`-`5` are hint signs (LevelParser.ts's SIGN_CHARS), each placed where its
+// `1`-`6` are hint signs (LevelParser.ts's SIGN_CHARS), each placed where its
 // mechanic is first needed AND actually pays off: `5` (open all the chests) at
 // spawn, `2` (ladder) beside the first ladder, `4` (chests need a key) beside
 // the first chest, `3` (fragile rocks break from below) on the ledge under
-// zone C's plug, and `1` (bridge drop-through) on zone C's cave-mouth bridge —
+// zone C's plug, `1` (bridge drop-through) on zone C's cave-mouth bridge —
 // deliberately NOT on the meadow bridge, where dropping through only earns a
-// pit fall. On the cave mouth, dropping through is the way in.
+// pit fall; on the cave mouth, dropping through is the way in — and `6`
+// (place a bomb with B) beside the first blue bomb-pot in zone A.
 export const LEVEL_1_LAYOUT: readonly string[] = [
   '..................................................................................................................................................................................................................m....$....',
   '.............................................................................................................................................................................................Q..........=.....HGGGGGGGGGGG..',
@@ -172,7 +178,7 @@ export const LEVEL_1_LAYOUT: readonly string[] = [
   '........................................M........................................................o...........m........................................................................M..o.GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   '.............HGGGGGGGG@.=Q........GGGGGGGGGGGGGGG.......................................Q......GGGGGGG.....GGGGGGG....=QFQ.........................................................RRRRRRRRGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   '.............H....................GGGGGGGGGGGGGGG..................................................................................................................................GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
-  '..S.5..o...oCH.......M.......M..2.GGGGGGGGGGGGGGGuu.u.....M......1.........^...........................M.o..........M.....M.......M........................M.................#.M..#GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  '..S.5..o...oCH.......M....6b.M..2.GGGGGGGGGGGGGGGuu.u.....M......1.........^...........................M.o..........M.....M.......M........................M.................#.M..#GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGGBBBGGGGGGGGGGGGGGHGGGGGGGGGGGGGGGGGGGGGGHGGGGGGHGGBBBGGGGGGGGGGGGGGGGGFFGGGGGGGGGG...GGGGGGGGGBBBGGGGGGGGGGGGGGGRRHRRRRRRRRRRRRGGGGGGGGGGGGGGGGGGGGGGGGGHGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.H........⊤....⊤........H<GGGG>H..........=................GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..H.......v.......=...=.................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.H..¥........¥........¥.H.GGGG.H.....................3.....GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..H.....................................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
@@ -296,6 +302,12 @@ export const COIN_POT_TILES = computed(() => findCoinPotTiles(currentLayout.valu
  *  fact). currentLevel has none of these yet — this is the mechanism only,
  *  not a level-design placement decision. */
 export const POTION_POT_TILES = computed(() => findPotionPotTiles(currentLayout.value));
+
+/** Hand-placed bomb-pot block positions, from `currentLayout`'s `b` markers
+ *  — purely positional, no CVData binding (same convention as
+ *  COIN_POT_TILES/POTION_POT_TILES above; a bomb-pot's dropped bomb is an
+ *  inventory resource carrying no fact). O-012. */
+export const BOMB_POT_TILES = computed(() => findBombPotTiles(currentLayout.value));
 
 /** Hand-placed chest positions (5 — one per Experience entry), from
  *  `currentLayout`'s `$` markers (spec.md FR-023). Opening all five is the

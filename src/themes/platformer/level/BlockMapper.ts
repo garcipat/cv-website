@@ -123,6 +123,9 @@ export interface BlockMarkerPositions {
   /** Optional for the same reason as `coinPot` above — every pre-existing
    *  caller that doesn't yet place potion-pots keeps compiling unchanged. */
   potionPot?: readonly { col: number; row: number }[];
+  /** Optional for the same reason as `coinPot` above — every pre-existing
+   *  caller that doesn't yet place bomb-pots keeps compiling unchanged. */
+  bombPot?: readonly { col: number; row: number }[];
 }
 
 /**
@@ -211,6 +214,11 @@ export function placeBlocks(defs: BlockDef[], markers: BlockMarkerPositions): Bl
   for (const { col, row } of markers.potionPot ?? []) {
     const { x, y } = tileToPixel(col, row);
     placements.push({ id: `potionpot-${col}-${row}`, blockKind: 'potionPot', x, y });
+  }
+
+  for (const { col, row } of markers.bombPot ?? []) {
+    const { x, y } = tileToPixel(col, row);
+    placements.push({ id: `bombpot-${col}-${row}`, blockKind: 'bombPot', x, y });
   }
 
   return placements;
