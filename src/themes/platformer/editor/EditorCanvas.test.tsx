@@ -9,6 +9,7 @@ import {
 } from './EditorCanvas';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import { centerPanOnSpawn } from './EditorPan';
+import { levelEditorPage } from './LevelEditorPage.page';
 import type { TileChar } from '../level/LevelParser';
 import type { EditorImages } from './EditorCanvas';
 import { COIN_SHEET, STATIC_OBJECTS_SHEET } from '../entities/sprites/sheets';
@@ -99,7 +100,7 @@ beforeEach(() => {
 describe('EditorCanvas', () => {
   it("takes the canvas out of its container's layout flow (absolute positioning) so the container's size never depends on the canvas's own content size — otherwise the ResizeObserver below watches a target whose size the canvas itself helps determine, a feedback loop that spirals toward 0x0 and leaves the canvas invisible", () => {
     stubCanvasContext();
-    const { container } = render(
+    render(
       <EditorCanvas
         {...BACKGROUND_LAYER_DEFAULT_PROPS}
         grid={[['.']]}
@@ -110,7 +111,7 @@ describe('EditorCanvas', () => {
         onPan={() => {}}
       />,
     );
-    const canvas = container.querySelector('canvas')!;
+    const canvas = levelEditorPage.canvas;
     const wrapper = canvas.parentElement!;
     expect(wrapper.className).toContain('relative');
     expect(canvas.className).toContain('absolute');
@@ -129,7 +130,7 @@ describe('EditorCanvas', () => {
     }
     vi.stubGlobal('ResizeObserver', FakeResizeObserver);
 
-    const { container } = render(
+    render(
       <EditorCanvas
         {...BACKGROUND_LAYER_DEFAULT_PROPS}
         grid={[['.']]}
@@ -140,7 +141,7 @@ describe('EditorCanvas', () => {
         onPan={() => {}}
       />,
     );
-    const canvas = container.querySelector('canvas')! as HTMLCanvasElement;
+    const canvas = levelEditorPage.canvas as HTMLCanvasElement;
     const defaultWidth = canvas.width;
 
     act(() => {
@@ -413,7 +414,7 @@ describe('EditorCanvas', () => {
       ['.', '.'],
       ['.', '.'],
     ];
-    const { container } = render(
+    render(
       <EditorCanvas
         {...BACKGROUND_LAYER_DEFAULT_PROPS}
         grid={grid}
@@ -424,7 +425,7 @@ describe('EditorCanvas', () => {
         onPan={() => {}}
       />,
     );
-    const canvas = container.querySelector('canvas')!;
+    const canvas = levelEditorPage.canvas;
     vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({
       left: 0,
       top: 0,
@@ -448,7 +449,7 @@ describe('EditorCanvas', () => {
     stubCanvasContext();
     const onPaint = vi.fn();
     const grid: TileChar[][] = [['.', '.', '.']];
-    const { container } = render(
+    render(
       <EditorCanvas
         {...BACKGROUND_LAYER_DEFAULT_PROPS}
         grid={grid}
@@ -459,7 +460,7 @@ describe('EditorCanvas', () => {
         onPan={() => {}}
       />,
     );
-    const canvas = container.querySelector('canvas')!;
+    const canvas = levelEditorPage.canvas;
     vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({
       left: 0,
       top: 0,
@@ -474,7 +475,7 @@ describe('EditorCanvas', () => {
     stubCanvasContext();
     const onPaint = vi.fn();
     const grid: TileChar[][] = [['.', '.', '.']];
-    const { container, rerender } = render(
+    const { rerender } = render(
       <EditorCanvas
         {...BACKGROUND_LAYER_DEFAULT_PROPS}
         grid={grid}
@@ -485,7 +486,7 @@ describe('EditorCanvas', () => {
         onPan={() => {}}
       />,
     );
-    const canvas = container.querySelector('canvas')!;
+    const canvas = levelEditorPage.canvas;
     vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({
       left: 0,
       top: 0,
@@ -544,7 +545,7 @@ describe('EditorCanvas', () => {
     stubCanvasContext();
     const onPaint = vi.fn();
     const grid: TileChar[][] = [['.'], ['.'], ['.']];
-    const { container, rerender } = render(
+    const { rerender } = render(
       <EditorCanvas
         {...BACKGROUND_LAYER_DEFAULT_PROPS}
         grid={grid}
@@ -555,7 +556,7 @@ describe('EditorCanvas', () => {
         onPan={() => {}}
       />,
     );
-    const canvas = container.querySelector('canvas')!;
+    const canvas = levelEditorPage.canvas;
     vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({
       left: 0,
       top: 0,
@@ -598,7 +599,7 @@ describe('EditorCanvas', () => {
   it('calls onPan on a middle-click drag and prevents the context menu', () => {
     stubCanvasContext();
     const onPan = vi.fn();
-    const { container } = render(
+    render(
       <EditorCanvas
         {...BACKGROUND_LAYER_DEFAULT_PROPS}
         grid={[['.']]}
@@ -609,7 +610,7 @@ describe('EditorCanvas', () => {
         onPan={onPan}
       />,
     );
-    const canvas = container.querySelector('canvas')!;
+    const canvas = levelEditorPage.canvas;
     fireEvent.mouseDown(canvas, { button: 1, clientX: 100, clientY: 100 });
     fireEvent.mouseMove(canvas, { button: 1, clientX: 90, clientY: 80 });
     fireEvent.mouseUp(canvas, { button: 1 });
@@ -624,7 +625,7 @@ describe('EditorCanvas', () => {
     stubCanvasContext();
     const onPaint = vi.fn();
     const grid: TileChar[][] = [['G', 'G', 'G']];
-    const { container } = render(
+    render(
       <EditorCanvas
         {...BACKGROUND_LAYER_DEFAULT_PROPS}
         grid={grid}
@@ -635,7 +636,7 @@ describe('EditorCanvas', () => {
         onPan={() => {}}
       />,
     );
-    const canvas = container.querySelector('canvas')!;
+    const canvas = levelEditorPage.canvas;
     vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({
       left: 0,
       top: 0,
@@ -969,7 +970,7 @@ describe('EditorCanvas — background layer', () => {
   it('leftClickWithBackgroundLayerActiveAndAPieceSelected-callsOnPaintBackgroundWithThePlacementAdded', () => {
     stubCanvasContext();
     const onPaintBackground = vi.fn();
-    const { container } = render(
+    render(
       <EditorCanvas
         grid={[['.']]}
         selectedTool="."
@@ -984,7 +985,7 @@ describe('EditorCanvas — background layer', () => {
       />,
     );
 
-    const canvas = container.querySelector('canvas')!;
+    const canvas = levelEditorPage.canvas;
     fireEvent.mouseDown(canvas, { clientX: 0, clientY: 0, button: 0 });
 
     expect(onPaintBackground).toHaveBeenCalledWith([{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }]);
@@ -993,7 +994,7 @@ describe('EditorCanvas — background layer', () => {
   it('rightClickWithBackgroundLayerActive-callsOnPaintBackgroundWithThePlacementErased', () => {
     stubCanvasContext();
     const onPaintBackground = vi.fn();
-    const { container } = render(
+    render(
       <EditorCanvas
         grid={[['.']]}
         selectedTool="."
@@ -1008,7 +1009,7 @@ describe('EditorCanvas — background layer', () => {
       />,
     );
 
-    const canvas = container.querySelector('canvas')!;
+    const canvas = levelEditorPage.canvas;
     fireEvent.mouseDown(canvas, { clientX: 0, clientY: 0, button: 2 });
 
     expect(onPaintBackground).toHaveBeenCalledWith([]);
@@ -1176,14 +1177,14 @@ describe('EditorCanvas — placement clicks (step 44c)', () => {
     stubCanvasContext();
     const onPaint = vi.fn();
     const onPlace = vi.fn();
-    const { container } = render(
+    render(
       <EditorCanvas
         {...placementProps({ onPaint })}
         placement={{ preview: null, onHover: vi.fn(), onPlace, onCancel: vi.fn() }}
       />,
     );
 
-    clickCanvas(container.querySelector('canvas')!, 1, 1);
+    clickCanvas(levelEditorPage.canvas, 1, 1);
 
     expect(onPlace).toHaveBeenCalledWith({ col: 1, row: 1 });
     expect(onPaint).not.toHaveBeenCalled();
@@ -1200,14 +1201,14 @@ describe('EditorCanvas — placement clicks (step 44c)', () => {
     const onPaint = vi.fn();
     const onPaintBackground = vi.fn();
     const onPlace = vi.fn();
-    const { container } = render(
+    render(
       <EditorCanvas
         {...placementProps({ onPaint, activeLayer: 'background', onPaintBackground })}
         placement={{ preview: null, onHover: vi.fn(), onPlace, onCancel: vi.fn() }}
       />,
     );
 
-    clickCanvas(container.querySelector('canvas')!, 1, 1);
+    clickCanvas(levelEditorPage.canvas, 1, 1);
 
     expect(onPlace).toHaveBeenCalledWith({ col: 1, row: 1 });
     expect(onPaintBackground).not.toHaveBeenCalled();
@@ -1220,14 +1221,14 @@ describe('EditorCanvas — placement clicks (step 44c)', () => {
     stubCanvasContext();
     const onPaint = vi.fn();
     const onCancel = vi.fn();
-    const { container } = render(
+    render(
       <EditorCanvas
         {...placementProps({ onPaint })}
         placement={{ preview: null, onHover: vi.fn(), onPlace: vi.fn(), onCancel }}
       />,
     );
 
-    clickCanvas(container.querySelector('canvas')!, 1, 1, 2);
+    clickCanvas(levelEditorPage.canvas, 1, 1, 2);
 
     expect(onCancel).toHaveBeenCalledOnce();
     expect(onPaint).not.toHaveBeenCalled();
@@ -1237,13 +1238,13 @@ describe('EditorCanvas — placement clicks (step 44c)', () => {
     stubCanvasContext();
     const onPan = vi.fn();
     const onPlace = vi.fn();
-    const { container } = render(
+    render(
       <EditorCanvas
         {...placementProps({ onPan })}
         placement={{ preview: null, onHover: vi.fn(), onPlace, onCancel: vi.fn() }}
       />,
     );
-    const canvas = container.querySelector('canvas')!;
+    const canvas = levelEditorPage.canvas;
     vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
 
     fireEvent.mouseDown(canvas, { button: 1, clientX: 0, clientY: 0 });
@@ -1256,13 +1257,13 @@ describe('EditorCanvas — placement clicks (step 44c)', () => {
   it('blueprintArmed-draggingAfterAPlacementClick-paintsNothing', () => {
     stubCanvasContext();
     const onPaint = vi.fn();
-    const { container } = render(
+    render(
       <EditorCanvas
         {...placementProps({ onPaint })}
         placement={{ preview: null, onHover: vi.fn(), onPlace: vi.fn(), onCancel: vi.fn() }}
       />,
     );
-    const canvas = container.querySelector('canvas')!;
+    const canvas = levelEditorPage.canvas;
 
     clickCanvas(canvas, 0, 0);
     fireEvent.mouseMove(canvas, { clientX: 40, clientY: 40 });
@@ -1273,13 +1274,13 @@ describe('EditorCanvas — placement clicks (step 44c)', () => {
   it('blueprintArmed-mouseMove-reportsTheHoveredCellForALivePreview', () => {
     stubCanvasContext();
     const onHover = vi.fn();
-    const { container } = render(
+    render(
       <EditorCanvas
         {...placementProps({})}
         placement={{ preview: null, onHover, onPlace: vi.fn(), onCancel: vi.fn() }}
       />,
     );
-    const canvas = container.querySelector('canvas')!;
+    const canvas = levelEditorPage.canvas;
     vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
 
     fireEvent.mouseMove(canvas, {
@@ -1293,13 +1294,13 @@ describe('EditorCanvas — placement clicks (step 44c)', () => {
   it('blueprintArmed-mouseLeavesTheCanvas-clearsTheHoveredCell', () => {
     stubCanvasContext();
     const onHover = vi.fn();
-    const { container } = render(
+    render(
       <EditorCanvas
         {...placementProps({})}
         placement={{ preview: null, onHover, onPlace: vi.fn(), onCancel: vi.fn() }}
       />,
     );
-    const canvas = container.querySelector('canvas')!;
+    const canvas = levelEditorPage.canvas;
 
     fireEvent.mouseLeave(canvas);
 
@@ -1308,8 +1309,8 @@ describe('EditorCanvas — placement clicks (step 44c)', () => {
 
   it('noPlacementProp-mouseLeavesTheCanvas-doesNotThrowOrCallAnything', () => {
     stubCanvasContext();
-    const { container } = render(<EditorCanvas {...placementProps({})} />);
-    const canvas = container.querySelector('canvas')!;
+    render(<EditorCanvas {...placementProps({})} />);
+    const canvas = levelEditorPage.canvas;
 
     expect(() => fireEvent.mouseLeave(canvas)).not.toThrow();
   });
@@ -1317,9 +1318,9 @@ describe('EditorCanvas — placement clicks (step 44c)', () => {
   it('noPlacementProp-leftClickStillPaintsExactlyAsBefore', () => {
     stubCanvasContext();
     const onPaint = vi.fn();
-    const { container } = render(<EditorCanvas {...placementProps({ onPaint })} />);
+    render(<EditorCanvas {...placementProps({ onPaint })} />);
 
-    clickCanvas(container.querySelector('canvas')!, 1, 1);
+    clickCanvas(levelEditorPage.canvas, 1, 1);
 
     expect(onPaint).toHaveBeenCalledOnce();
   });
@@ -1327,11 +1328,11 @@ describe('EditorCanvas — placement clicks (step 44c)', () => {
   it('placementPropExplicitlyNull-leftClickStillPaints', () => {
     stubCanvasContext();
     const onPaint = vi.fn();
-    const { container } = render(
+    render(
       <EditorCanvas {...placementProps({ onPaint })} placement={null} />,
     );
 
-    clickCanvas(container.querySelector('canvas')!, 1, 1);
+    clickCanvas(levelEditorPage.canvas, 1, 1);
 
     expect(onPaint).toHaveBeenCalledOnce();
   });

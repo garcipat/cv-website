@@ -55,10 +55,23 @@ const DECORATION_CHARS: TileChar[] = ['n', 'N', 'X', 'c', '⊤', '⊥', '¥'];
  * reclaims height as the catalog grows. Uncontrolled and open by default, so
  * nothing is hidden until the author chooses to collapse it.
  */
-const PaletteGroup = ({ title, children }: { title: string; children: ReactNode }) => {
+const PaletteGroup = ({
+  title,
+  slug,
+  children,
+}: {
+  title: string;
+  slug: string;
+  children: ReactNode;
+}) => {
   const [open, setOpen] = useState(true);
   return (
-    <Collapsible.Root open={open} onOpenChange={setOpen} render={<section aria-label={title} />}>
+    <Collapsible.Root
+      open={open}
+      onOpenChange={setOpen}
+      data-testid={`editor-palette-group-${slug}`}
+      render={<section aria-label={title} />}
+    >
       <Collapsible.Trigger className="mb-1 flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground">
         <ChevronDownIcon
           className={cn('size-3 shrink-0 transition-transform', open && 'rotate-180')}
@@ -125,13 +138,14 @@ export const Palette = ({
   // has been saved yet, rather than an empty headed section.
   const showBlueprints = canvasMode === 'level' && BLUEPRINTS.length > 0;
 
-  const renderGroup = (title: string, keys: TileChar[]) => (
-    <PaletteGroup key={title} title={title}>
+  const renderGroup = (title: string, slug: string, keys: TileChar[]) => (
+    <PaletteGroup key={title} title={title} slug={slug}>
       <div className="grid grid-cols-[repeat(3,max-content)] gap-2">
         {keys.map((key) => (
           <PaletteTile
             key={key}
             label={PALETTE_TILE_LABELS[key]}
+            testId={`editor-palette-tile-${key}`}
             description={PALETTE_TILE_DESCRIPTIONS[key]}
             sprite={PALETTE_TILE_SPRITES[key]}
             glyph={PALETTE_TILE_GLYPHS[key]}
@@ -144,25 +158,26 @@ export const Palette = ({
   );
 
   return (
-    <Card role="toolbar" aria-label="Palette" className="w-fit self-start">
+    <Card role="toolbar" aria-label="Palette" data-testid="editor-palette" className="w-fit self-start">
       <CardHeader>
         <CardTitle>Palette</CardTitle>
       </CardHeader>
       <CardContent>
         {activeLayer === 'foreground' ? (
           <div className="flex flex-col gap-3">
-            {renderGroup('Terrain', terrainKeys)}
-            {renderGroup('Decoration', decorationKeys)}
-            {renderGroup('Entities', entityKeys)}
-            {renderGroup('Hazards', firstHazardKey ? [firstHazardKey] : [])}
-            {renderGroup('Tools', toolKeys)}
+            {renderGroup('Terrain', 'terrain', terrainKeys)}
+            {renderGroup('Decoration', 'decoration', decorationKeys)}
+            {renderGroup('Entities', 'entities', entityKeys)}
+            {renderGroup('Hazards', 'hazards', firstHazardKey ? [firstHazardKey] : [])}
+            {renderGroup('Tools', 'tools', toolKeys)}
             {showBlueprints && (
-              <PaletteGroup title="Blueprints">
+              <PaletteGroup title="Blueprints" slug="blueprints">
                 <div className="grid grid-cols-[repeat(3,max-content)] gap-2">
                   {BLUEPRINTS.map((blueprint) => (
                     <PaletteTile
                       key={blueprint.id}
                       label={blueprint.name}
+                      testId={`editor-palette-tile-blueprint-${blueprint.id}`}
                       description="Click the canvas to preview this room here, then click the same cell again to place it"
                       sprite={null}
                       glyph={BLUEPRINT_GLYPH}
@@ -177,12 +192,17 @@ export const Palette = ({
         ) : (
           <div className="flex flex-col gap-3">
             {BACKGROUND_PALETTE_SECTIONS.map((section) => (
-              <PaletteGroup key={section.title} title={section.title}>
+              <PaletteGroup
+                key={section.title}
+                title={section.title}
+                slug={section.title.toLowerCase()}
+              >
                 <div className="grid grid-cols-[repeat(3,max-content)] gap-2">
                   {section.pieceIds.map((pieceId) => (
                     <PaletteTile
                       key={pieceId}
                       label={BACKGROUND_PALETTE_LABELS[pieceId]}
+                      testId={`editor-palette-tile-${pieceId}`}
                       sprite={BACKGROUND_PALETTE_SPRITES[pieceId]}
                       selected={selectedBackgroundPiece === pieceId}
                       onClick={() => onSelectBackgroundPiece(pieceId)}

@@ -20,7 +20,8 @@ import {
   editorBlueprintBackgroundSignal,
   editorLoadedBlueprintNameSignal,
   editorArmedBlueprintIdSignal,
-} from './editorLevelState';
+} from './editorState';
+import { levelEditorPage } from './LevelEditorPage.page';
 import { isDevEnvironmentSignal } from './devEnvironment';
 import { BLANK_BLUEPRINT } from '../level/BlueprintData';
 import { blueprintFileJson } from './saveBlueprintFile';
@@ -152,18 +153,18 @@ const EXPECTED_EXPORT_TEXT = importLayout(LEVEL_1_LAYOUT)
   .join('\n');
 
 async function openExportDialog() {
-  await userEvent.click(screen.getByRole('button', { name: 'Export' }));
+  await userEvent.click(levelEditorPage.toolbar.export);
 }
 
 // The level dropdown's options are only mounted once it is opened (Base UI
 // Select portals its popup content), so every selection opens it first.
-async function selectLevel(name: string) {
-  fireEvent.click(screen.getByRole('combobox'));
-  await userEvent.click(await screen.findByRole('option', { name }));
+async function selectLevel(id: string) {
+  fireEvent.click(levelEditorPage.entrySelect.trigger);
+  await userEvent.click(await levelEditorPage.entrySelect.findOption(id));
 }
 
 function paintOneCell() {
-  const canvas = document.querySelector('canvas')!;
+  const canvas = levelEditorPage.canvas;
   vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
   fireEvent.mouseDown(canvas, { button: 0, clientX: 1, clientY: 1 });
 }
@@ -231,11 +232,11 @@ function blueprintPostBody(fetchCalls: () => unknown[][]) {
 }
 
 async function saveAs(name: string) {
-  await userEvent.click(screen.getByRole('button', { name: 'Save' }));
-  const nameField = await screen.findByLabelText(/level name/i);
+  await userEvent.click(levelEditorPage.toolbar.save);
+  const nameField = levelEditorPage.saveDialog.nameInput;
   await userEvent.clear(nameField);
   await userEvent.type(nameField, name);
-  await userEvent.click(screen.getByRole('button', { name: 'Save level file' }));
+  await userEvent.click(levelEditorPage.saveDialog.confirm);
 }
 
 afterEach(() => {
@@ -251,40 +252,40 @@ describe('LevelEditorPage', () => {
 
   it('does not show the export output until the Export button is clicked', () => {
     render(<LevelEditorPage />);
-    expect(screen.queryByTestId('export-output')).not.toBeInTheDocument();
+    expect(levelEditorPage.exportDialog.queryRoot).not.toBeInTheDocument();
   });
 
   it('opens a dialog with the export textarea, whose content is LEVEL_1_LAYOUT cropped to its content (SC-009 ruling) and formatted as paste-ready quoted rows', async () => {
     render(<LevelEditorPage />);
     await openExportDialog();
-    const textarea = (await screen.findByTestId('export-output')) as HTMLTextAreaElement;
+    const textarea = (await levelEditorPage.exportDialog.findOutput()) as HTMLTextAreaElement;
     expect(textarea.value).toBe(EXPECTED_EXPORT_TEXT);
   });
 
   it('marks the export textarea read-only', async () => {
     render(<LevelEditorPage />);
     await openExportDialog();
-    expect(await screen.findByTestId('export-output')).toHaveAttribute('readonly');
+    expect(await levelEditorPage.exportDialog.findOutput()).toHaveAttribute('readonly');
   });
 
   it('renders the palette (as a grid catalog) and canvas', () => {
     render(<LevelEditorPage />);
-    expect(screen.getByRole('toolbar', { name: 'Palette' })).toBeInTheDocument();
-    expect(document.querySelector('canvas')).toBeInTheDocument();
+    expect(levelEditorPage.palette.root).toBeInTheDocument();
+    expect(levelEditorPage.canvas).toBeInTheDocument();
   });
 
   it('selectingAPaletteTool-remountingThePage-stillHasThatToolSelected', () => {
     const original = editorSelectedToolSignal.value;
     try {
       render(<LevelEditorPage />);
-      expect(screen.getByRole('button', { name: 'Ground Grass' })).toHaveAttribute('aria-pressed', 'true');
+      expect(levelEditorPage.palette.tile('G')).toHaveAttribute('aria-pressed', 'true');
 
-      fireEvent.click(screen.getByRole('button', { name: 'Enemy Green' }));
-      expect(screen.getByRole('button', { name: 'Enemy Green' })).toHaveAttribute('aria-pressed', 'true');
+      fireEvent.click(levelEditorPage.palette.tile('M'));
+      expect(levelEditorPage.palette.tile('M')).toHaveAttribute('aria-pressed', 'true');
 
       cleanup();
       render(<LevelEditorPage />);
-      expect(screen.getByRole('button', { name: 'Enemy Green' })).toHaveAttribute('aria-pressed', 'true');
+      expect(levelEditorPage.palette.tile('M')).toHaveAttribute('aria-pressed', 'true');
     } finally {
       editorSelectedToolSignal.value = original;
     }
@@ -295,7 +296,7 @@ describe('LevelEditorPage', () => {
     Object.assign(navigator, { clipboard: { writeText } });
     render(<LevelEditorPage />);
     await openExportDialog();
-    await userEvent.click(await screen.findByRole('button', { name: 'Copy Layout' }));
+    await userEvent.click(levelEditorPage.exportDialog.copy);
     expect(writeText).toHaveBeenCalledWith(EXPECTED_EXPORT_TEXT);
   });
 
@@ -305,7 +306,7 @@ describe('LevelEditorPage', () => {
     await selectLevel('empty');
 
     await openExportDialog();
-    const textarea = (await screen.findByTestId('export-output')) as HTMLTextAreaElement;
+    const textarea = (await levelEditorPage.exportDialog.findOutput()) as HTMLTextAreaElement;
     expect(textarea.value).toBe(SCRATCH_LAYOUT.map((row) => `  '${row}',`).join('\n'));
   });
 
@@ -315,14 +316,14 @@ describe('LevelEditorPage', () => {
 
     await selectLevel('empty');
 
-    expect(await screen.findByRole('heading', { name: /discard changes/i })).toBeInTheDocument();
+    expect(await levelEditorPage.entrySelect.findDiscardDialog()).toBeInTheDocument();
     await userEvent.keyboard('{Escape}');
     await waitFor(() =>
-      expect(screen.queryByRole('heading', { name: /discard changes/i })).not.toBeInTheDocument(),
+      expect(levelEditorPage.entrySelect.queryDiscardDialog).not.toBeInTheDocument(),
     );
     // Not loaded — only the confirmation dialog opened.
     await openExportDialog();
-    const textarea = (await screen.findByTestId('export-output')) as HTMLTextAreaElement;
+    const textarea = (await levelEditorPage.exportDialog.findOutput()) as HTMLTextAreaElement;
     expect(textarea.value).not.toBe(EXPECTED_EXPORT_TEXT);
   });
 
@@ -331,13 +332,13 @@ describe('LevelEditorPage', () => {
     paintOneCell();
 
     await selectLevel('main');
-    await userEvent.click(await screen.findByRole('button', { name: 'Discard and load' }));
+    await userEvent.click(await levelEditorPage.entrySelect.findDiscardConfirm());
     await waitFor(() =>
-      expect(screen.queryByRole('heading', { name: /discard changes/i })).not.toBeInTheDocument(),
+      expect(levelEditorPage.entrySelect.queryDiscardDialog).not.toBeInTheDocument(),
     );
 
     await openExportDialog();
-    const textarea = (await screen.findByTestId('export-output')) as HTMLTextAreaElement;
+    const textarea = (await levelEditorPage.exportDialog.findOutput()) as HTMLTextAreaElement;
     expect(textarea.value).toBe(EXPECTED_EXPORT_TEXT);
   });
 
@@ -346,13 +347,13 @@ describe('LevelEditorPage', () => {
     paintOneCell();
 
     await selectLevel('main');
-    await userEvent.click(await screen.findByRole('button', { name: 'Cancel' }));
+    await userEvent.click(await levelEditorPage.entrySelect.findDiscardCancel());
     await waitFor(() =>
-      expect(screen.queryByRole('heading', { name: /discard changes/i })).not.toBeInTheDocument(),
+      expect(levelEditorPage.entrySelect.queryDiscardDialog).not.toBeInTheDocument(),
     );
 
     await openExportDialog();
-    const textarea = (await screen.findByTestId('export-output')) as HTMLTextAreaElement;
+    const textarea = (await levelEditorPage.exportDialog.findOutput()) as HTMLTextAreaElement;
     expect(textarea.value).not.toBe(EXPECTED_EXPORT_TEXT);
   });
 
@@ -362,7 +363,7 @@ describe('LevelEditorPage', () => {
 
     await selectLevel('empty');
 
-    const canvas = document.querySelector('canvas') as HTMLCanvasElement;
+    const canvas = levelEditorPage.canvas;
     const expected = centerPanOnSpawn(importLayout(SCRATCH_LAYOUT), canvas.width, canvas.height);
     await waitFor(() => {
       const calls = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls;
@@ -378,7 +379,7 @@ describe('LevelEditorPage', () => {
     await selectLevel('empty');
     await selectLevel('main');
 
-    const canvas = document.querySelector('canvas') as HTMLCanvasElement;
+    const canvas = levelEditorPage.canvas;
     const expected = centerPanOnSpawn(importLayout(LEVEL_1_LAYOUT), canvas.width, canvas.height);
     await waitFor(() => {
       const calls = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls;
@@ -407,7 +408,7 @@ describe('LevelEditorPage', () => {
     // level must not warn — proving the remounted page compares against
     // `empty`, not the shipped layout it was originally seeded from.
     await selectLevel('main');
-    expect(screen.queryByRole('heading', { name: /discard changes/i })).not.toBeInTheDocument();
+    expect(levelEditorPage.entrySelect.queryDiscardDialog).not.toBeInTheDocument();
   });
 
   it('doesNotRenderTheOldResetOrScratchButtons', () => {
@@ -423,7 +424,7 @@ describe('LevelEditorPage', () => {
 
     await saveAs('Cave Run');
 
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() => expect(levelEditorPage.saveDialog.queryRoot).not.toBeInTheDocument());
     expect(anchorClick).not.toHaveBeenCalled();
   });
 
@@ -433,19 +434,19 @@ describe('LevelEditorPage', () => {
 
     await saveAs('Cave Run');
 
-    expect(await screen.findByText(/levels\/cave-run\.json/)).toBeInTheDocument();
+    expect(await levelEditorPage.toolbar.findSaveStatus()).toBeInTheDocument();
   });
 
   it('save-devServerWrites-paintingAgain-dropsTheSavedPathBecauseTheFileIsNowStale', async () => {
     stubDevServerWrite();
     render(<LevelEditorPage />);
     await saveAs('Cave Run');
-    await screen.findByText(/levels\/cave-run\.json/);
+    await levelEditorPage.toolbar.findSaveStatus();
 
     paintOneCell();
 
     await waitFor(() =>
-      expect(screen.queryByText(/levels\/cave-run\.json/)).not.toBeInTheDocument(),
+      expect(levelEditorPage.toolbar.querySaveStatus).not.toBeInTheDocument(),
     );
   });
 
@@ -453,12 +454,12 @@ describe('LevelEditorPage', () => {
     stubDevServerWrite();
     render(<LevelEditorPage />);
     await saveAs('Cave Run');
-    await screen.findByText(/levels\/cave-run\.json/);
+    await levelEditorPage.toolbar.findSaveStatus();
 
     await selectLevel('empty');
 
     await waitFor(() =>
-      expect(screen.queryByText(/levels\/cave-run\.json/)).not.toBeInTheDocument(),
+      expect(levelEditorPage.toolbar.querySaveStatus).not.toBeInTheDocument(),
     );
   });
 
@@ -479,10 +480,10 @@ describe('LevelEditorPage', () => {
 
     await saveAs('Cave Run');
 
-    expect(await screen.findByText(/move it into/i)).toHaveTextContent(
+    expect(await levelEditorPage.saveDialog.findResult()).toHaveTextContent(
       'src/themes/platformer/level/levels/',
     );
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(levelEditorPage.saveDialog.root).toBeInTheDocument();
   });
 
   it('save-devServerRefuses-showsTheReasonItGaveRatherThanClaimingSuccess', async () => {
@@ -505,15 +506,15 @@ describe('LevelEditorPage', () => {
 
     await saveAs('Cave Run');
 
-    expect(await screen.findByText(/contents must be JSON/)).toBeInTheDocument();
+    expect(await levelEditorPage.saveDialog.findResult()).toBeInTheDocument();
   });
 
   it('saveDialog-beforeSaving-namesTheFolderTheLevelIsWrittenTo', async () => {
     render(<LevelEditorPage />);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await userEvent.click(levelEditorPage.toolbar.save);
 
-    expect(await screen.findByRole('dialog')).toHaveTextContent(
+    expect(await levelEditorPage.saveDialog.findRoot()).toHaveTextContent(
       'src/themes/platformer/level/levels/',
     );
   });
@@ -522,13 +523,13 @@ describe('LevelEditorPage', () => {
     stubDownloads();
     render(<LevelEditorPage />);
     await saveAs('Cave Run');
-    await screen.findByText(/move it into/i);
+    await levelEditorPage.saveDialog.findResult();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Done' }));
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await userEvent.click(levelEditorPage.saveDialog.cancel);
+    await waitFor(() => expect(levelEditorPage.saveDialog.queryRoot).not.toBeInTheDocument());
+    await userEvent.click(levelEditorPage.toolbar.save);
 
-    expect(screen.queryByText(/move it into/i)).not.toBeInTheDocument();
+    expect(levelEditorPage.saveDialog.queryResult).not.toBeInTheDocument();
   });
 
   it('save-thenSelectingAnotherLevel-doesNotWarnAboutDiscardingChanges', async () => {
@@ -537,11 +538,11 @@ describe('LevelEditorPage', () => {
     paintOneCell();
 
     await saveAs('Cave Run');
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() => expect(levelEditorPage.saveDialog.queryRoot).not.toBeInTheDocument());
 
     await selectLevel('empty');
 
-    expect(screen.queryByRole('heading', { name: /discard changes/i })).not.toBeInTheDocument();
+    expect(levelEditorPage.entrySelect.queryDiscardDialog).not.toBeInTheDocument();
   });
 
   it('save-namesTheSavedLevelOnTheDropdownTrigger', async () => {
@@ -552,7 +553,7 @@ describe('LevelEditorPage', () => {
 
     // A successful save closes the dialog, which is what makes the trigger
     // reachable again — an open dialog hides the page from the a11y tree.
-    await waitFor(() => expect(screen.getByRole('combobox')).toHaveTextContent('Cave Run'));
+    await waitFor(() => expect(levelEditorPage.entrySelect.trigger).toHaveTextContent('Cave Run'));
   });
 
   it('compensates panOffset by exactly -colShift * RENDERED_TILE_SIZE when a paint grows the grid leftward, so existing content does not visually move (spec SC-006)', async () => {
@@ -564,7 +565,7 @@ describe('LevelEditorPage', () => {
     const callsBefore = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls;
     const [, , , , originXBefore] = callsBefore[callsBefore.length - 1];
 
-    const canvas = document.querySelector('canvas')!;
+    const canvas = levelEditorPage.canvas;
     vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
     // LEVEL_1_LAYOUT's leftmost column is column 0 — clicking one pixel left
     // of where column 0 currently draws targets column -1, which must grow
@@ -608,37 +609,41 @@ describe('LevelEditorPage - debounced localStorage sync (editorLevelSignal)', ()
     editorLevelSignal.value = editedGrid;
 
     render(<LevelEditorPage />);
-    await userEvent.click(screen.getByRole('button', { name: 'Export' }));
-    const textarea = (await screen.findByTestId('export-output')) as HTMLTextAreaElement;
+    await userEvent.click(levelEditorPage.toolbar.export);
+    const textarea = (await levelEditorPage.exportDialog.findOutput()) as HTMLTextAreaElement;
     expect(textarea.value).toBe(editedGrid.map((row) => `  '${row.join('')}',`).join('\n'));
   });
 
-  it('paintingACell-doesNotSyncToEditorLevelSignalImmediately', () => {
+  it('paintingACell-doesNotPersistToLocalStorageImmediately', () => {
     render(<LevelEditorPage />);
-    const canvas = document.querySelector('canvas')!;
+    const canvas = levelEditorPage.canvas;
+    localStorage.setItem('platformer-editor-level', JSON.stringify(defaultGrid));
 
     paint(canvas);
 
-    expect(editorLevelSignal.value).toEqual(defaultGrid);
+    // The signal is the single source of truth and updates immediately; only
+    // the localStorage write waits for the debounce window (FR-018).
+    expect(JSON.parse(localStorage.getItem('platformer-editor-level')!)).toEqual(defaultGrid);
   });
 
-  it('paintingACell-afterTheDebounceWindowElapses-syncsTheGridToEditorLevelSignal', () => {
+  it('paintingACell-afterTheDebounceWindowElapses-persistsTheGridToLocalStorage', () => {
     vi.useFakeTimers();
     render(<LevelEditorPage />);
-    const canvas = document.querySelector('canvas')!;
+    const canvas = levelEditorPage.canvas;
+    localStorage.setItem('platformer-editor-level', JSON.stringify(defaultGrid));
 
     paint(canvas);
     act(() => {
       vi.advanceTimersByTime(400);
     });
 
-    expect(editorLevelSignal.value).not.toEqual(defaultGrid);
+    expect(JSON.parse(localStorage.getItem('platformer-editor-level')!)).not.toEqual(defaultGrid);
   });
 
   it('reloadingMainAfterConfirmation-alsoResetsEditorLevelSignalBackToTheDefaultLayout', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     render(<LevelEditorPage />);
-    const canvas = document.querySelector('canvas')!;
+    const canvas = levelEditorPage.canvas;
 
     paint(canvas);
     act(() => {
@@ -647,7 +652,7 @@ describe('LevelEditorPage - debounced localStorage sync (editorLevelSignal)', ()
     expect(editorLevelSignal.value).not.toEqual(defaultGrid);
 
     await selectLevel('main');
-    fireEvent.click(await screen.findByRole('button', { name: 'Discard and load' }));
+    fireEvent.click(await levelEditorPage.entrySelect.findDiscardConfirm());
 
     expect(editorLevelSignal.value).toEqual(defaultGrid);
   });
@@ -665,7 +670,7 @@ describe('LevelEditorPage - debounced localStorage sync (editorLevelSignal)', ()
     paintOneCell();
 
     await selectLevel('empty');
-    fireEvent.click(await screen.findByRole('button', { name: 'Discard and load' }));
+    fireEvent.click(await levelEditorPage.entrySelect.findDiscardConfirm());
 
     expect(editorDirtySignal.value).toBe(false);
   });
@@ -686,7 +691,7 @@ describe('LevelEditorPage - Try button', () => {
   it('click-setsCurrentLayoutFromTheGridSetsTheThemeToPlatformerAndNavigatesToTheDebugGameRoute', async () => {
     render(<LevelEditorPage />);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Try' }));
+    await userEvent.click(levelEditorPage.toolbar.try);
 
     expect(currentLayout.value).toEqual(exportLayout(importLayout(LEVEL_1_LAYOUT)));
     expect(currentTheme.value).toBe('platformer');
@@ -712,7 +717,7 @@ describe('LevelEditorPage - Try button', () => {
     enemyStates.value = [];
 
     render(<LevelEditorPage />);
-    await userEvent.click(screen.getByRole('button', { name: 'Try' }));
+    await userEvent.click(levelEditorPage.toolbar.try);
 
     expect(enemyStates.value).toHaveLength(enemyPlacements.value.length);
     expect(collectedFacts.value).toEqual([]);
@@ -722,15 +727,15 @@ describe('LevelEditorPage - Try button', () => {
 
 describe('LevelEditorPage — background layer', () => {
   function paintBackgroundOnce() {
-    const canvas = document.querySelector('canvas')!;
+    const canvas = levelEditorPage.canvas;
     vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
     fireEvent.mouseDown(canvas, { clientX: 1, clientY: 1, button: 0 });
   }
 
   it('selectingTheBackgroundLayerThenAPieceThenPaintingOnCanvas-addsAPlacement', async () => {
     render(<LevelEditorPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Background' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Dirt Column Top (1×1)' }));
+    fireEvent.click(levelEditorPage.toolbar.layerBackground);
+    fireEvent.click(await levelEditorPage.palette.findBackgroundTile('dirtColumnTop1x1'));
 
     paintBackgroundOnce();
 
@@ -739,19 +744,19 @@ describe('LevelEditorPage — background layer', () => {
 
   it('tryingTheLevelWithBackgroundPlacementsPainted-carriesThemIntoCurrentBackground', async () => {
     render(<LevelEditorPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Background' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Dirt Column Top (1×1)' }));
+    fireEvent.click(levelEditorPage.toolbar.layerBackground);
+    fireEvent.click(await levelEditorPage.palette.findBackgroundTile('dirtColumnTop1x1'));
     paintBackgroundOnce();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Try' }));
+    fireEvent.click(levelEditorPage.toolbar.try);
 
     expect(currentBackground.value.length).toBeGreaterThan(0);
   });
 
   it('loadingALevelWithBackgroundPlacements-populatesTheLocalBackgroundState', async () => {
     render(<LevelEditorPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Background' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Dirt Column Top (1×1)' }));
+    fireEvent.click(levelEditorPage.toolbar.layerBackground);
+    fireEvent.click(await levelEditorPage.palette.findBackgroundTile('dirtColumnTop1x1'));
     paintBackgroundOnce();
     await waitFor(() => expect(editorBackgroundSignal.value.length).toBeGreaterThan(0));
 
@@ -760,17 +765,17 @@ describe('LevelEditorPage — background layer', () => {
     // pieces stuck on screen. Painting the background marks the editor dirty
     // (see the dirty-flag test below), so the level select now asks to
     // confirm the discard first, same as a foreground paint would.
-    fireEvent.click(screen.getByRole('combobox'));
-    await userEvent.click(await screen.findByRole('option', { name: 'empty' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Discard and load' }));
+    fireEvent.click(levelEditorPage.entrySelect.trigger);
+    await userEvent.click(await levelEditorPage.entrySelect.findOption('empty'));
+    fireEvent.click(await levelEditorPage.entrySelect.findDiscardConfirm());
 
     await waitFor(() => expect(editorBackgroundSignal.value).toEqual([]));
   });
 
   it('paintingABackgroundCell-marksTheEditorDirty', async () => {
     render(<LevelEditorPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Background' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Dirt Column Top (1×1)' }));
+    fireEvent.click(levelEditorPage.toolbar.layerBackground);
+    fireEvent.click(await levelEditorPage.palette.findBackgroundTile('dirtColumnTop1x1'));
 
     paintBackgroundOnce();
 
@@ -784,8 +789,8 @@ describe('LevelEditorPage — background layer', () => {
     // Place a background piece first, well inside the current grid (no
     // growth expected from this paint) — this is the placement that must
     // move when the FOREGROUND grid grows next.
-    fireEvent.click(screen.getByRole('button', { name: 'Background' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Dirt Column Top (1×1)' }));
+    fireEvent.click(levelEditorPage.toolbar.layerBackground);
+    fireEvent.click(await levelEditorPage.palette.findBackgroundTile('dirtColumnTop1x1'));
     paintBackgroundOnce();
     await waitFor(() => expect(editorBackgroundSignal.value.length).toBeGreaterThan(0));
     const placedCol = editorBackgroundSignal.value[0].col;
@@ -793,8 +798,8 @@ describe('LevelEditorPage — background layer', () => {
 
     // Switch back to the foreground layer and paint one column left of the
     // grid's current left edge, growing it left by one column.
-    fireEvent.click(screen.getByRole('button', { name: 'Foreground' }));
-    const canvas = document.querySelector('canvas')!;
+    fireEvent.click(levelEditorPage.toolbar.layerForeground);
+    const canvas = levelEditorPage.canvas;
     vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
     const callsBefore = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls;
     const [, , , , originXBefore] = callsBefore[callsBefore.length - 1];
@@ -809,9 +814,9 @@ describe('LevelEditorPage — background layer', () => {
   it('loadingALevelWithAnUnresolvablePieceId-silentlyDropsOnlyThatPlacement', async () => {
     render(<LevelEditorPage />);
 
-    fireEvent.click(screen.getByRole('combobox'));
+    fireEvent.click(levelEditorPage.entrySelect.trigger);
     await userEvent.click(
-      await screen.findByRole('option', { name: 'stale-background-level' }),
+      await levelEditorPage.entrySelect.findOption('stale-background-level'),
     );
 
     await waitFor(() => {
@@ -826,7 +831,7 @@ describe('LevelEditorPage — background layer', () => {
 // col * RENDERED_TILE_SIZE + 1 lands on exactly that column (see the
 // test-determinism notes in the plan).
 function paintBlueprintCell(col: number, row: number) {
-  const canvas = document.querySelector('canvas')!;
+  const canvas = levelEditorPage.canvas;
   vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
   fireEvent.mouseDown(canvas, {
     button: 0,
@@ -838,32 +843,32 @@ function paintBlueprintCell(col: number, row: number) {
 function renderEditorInBlueprintMode() {
   editorSelectedToolSignal.value = 'G';
   render(<LevelEditorPage />);
-  fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
+  fireEvent.click(levelEditorPage.toolbar.canvasBlueprint);
 }
 
 describe('LevelEditorPage — Level/Blueprint canvas toggle (step 44a)', () => {
   it('onMount-theLevelCanvasIsActiveAndTheLayerToggleIsStillThere', () => {
     render(<LevelEditorPage />);
 
-    expect(screen.getByRole('button', { name: 'Level' })).toHaveAttribute(
+    expect(levelEditorPage.toolbar.canvasLevel).toHaveAttribute(
       'aria-pressed',
       'true',
     );
-    expect(screen.getByRole('button', { name: 'Blueprint' })).toHaveAttribute(
+    expect(levelEditorPage.toolbar.canvasBlueprint).toHaveAttribute(
       'aria-pressed',
       'false',
     );
     // Two independent axes: picking a canvas never removes the layer toggle.
-    expect(screen.getByRole('button', { name: 'Foreground' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Background' })).toBeInTheDocument();
+    expect(levelEditorPage.toolbar.layerForeground).toBeInTheDocument();
+    expect(levelEditorPage.toolbar.layerBackground).toBeInTheDocument();
   });
 
   it('clickingBlueprint-marksTheBlueprintCanvasActiveAndPersistsTheMode', () => {
     render(<LevelEditorPage />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
+    fireEvent.click(levelEditorPage.toolbar.canvasBlueprint);
 
-    expect(screen.getByRole('button', { name: 'Blueprint' })).toHaveAttribute(
+    expect(levelEditorPage.toolbar.canvasBlueprint).toHaveAttribute(
       'aria-pressed',
       'true',
     );
@@ -873,18 +878,18 @@ describe('LevelEditorPage — Level/Blueprint canvas toggle (step 44a)', () => {
   it('blueprintModeActive-thePaletteDropsTheSpawnTool', () => {
     render(<LevelEditorPage />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
+    fireEvent.click(levelEditorPage.toolbar.canvasBlueprint);
 
-    expect(screen.queryByRole('button', { name: 'Spawn' })).not.toBeInTheDocument();
+    expect(levelEditorPage.palette.queryTile('S')).not.toBeInTheDocument();
   });
 
   it('backToLevelMode-thePaletteOffersSpawnAgain', () => {
     render(<LevelEditorPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
+    fireEvent.click(levelEditorPage.toolbar.canvasBlueprint);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Level' }));
+    fireEvent.click(levelEditorPage.toolbar.canvasLevel);
 
-    expect(screen.getByRole('button', { name: 'Spawn' })).toBeInTheDocument();
+    expect(levelEditorPage.palette.tile('S')).toBeInTheDocument();
   });
 
   it('paintingInBlueprintMode-writesToTheBlueprintGridAndLeavesTheLevelGridAlone', async () => {
@@ -912,8 +917,8 @@ describe('LevelEditorPage — Level/Blueprint canvas toggle (step 44a)', () => {
     renderEditorInBlueprintMode();
     // The Foreground/Background toggle keeps switching LAYERS, now on the
     // blueprint's own two layers.
-    fireEvent.click(screen.getByRole('button', { name: 'Background' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Dirt Column Top (1×1)' }));
+    fireEvent.click(levelEditorPage.toolbar.layerBackground);
+    fireEvent.click(await levelEditorPage.palette.findBackgroundTile('dirtColumnTop1x1'));
 
     paintBlueprintCell(0, 0);
 
@@ -926,8 +931,8 @@ describe('LevelEditorPage — Level/Blueprint canvas toggle (step 44a)', () => {
     paintBlueprintCell(2, 1);
     await waitFor(() => expect(editorBlueprintSignal.value[1][2]).toBe('G'));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Level' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
+    fireEvent.click(levelEditorPage.toolbar.canvasLevel);
+    fireEvent.click(levelEditorPage.toolbar.canvasBlueprint);
 
     // Assert on what actually got RENDERED after switching back, not on the
     // persisted signal — that signal's debounced write from before the
@@ -950,10 +955,10 @@ describe('LevelEditorPage — Level/Blueprint canvas toggle (step 44a)', () => {
     editorSelectedToolSignal.value = 'S';
     render(<LevelEditorPage />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
+    fireEvent.click(levelEditorPage.toolbar.canvasBlueprint);
 
     expect(editorSelectedToolSignal.value).not.toBe('S');
-    expect(screen.getByRole('button', { name: 'Ground Grass' })).toHaveAttribute(
+    expect(levelEditorPage.palette.tile('G')).toHaveAttribute(
       'aria-pressed',
       'true',
     );
@@ -969,7 +974,7 @@ describe('LevelEditorPage — Level/Blueprint canvas toggle (step 44a)', () => {
     render(<LevelEditorPage />);
 
     expect(editorSelectedToolSignal.value).not.toBe('S');
-    expect(screen.queryByRole('button', { name: 'Spawn' })).not.toBeInTheDocument();
+    expect(levelEditorPage.palette.queryTile('S')).not.toBeInTheDocument();
   });
 
   it('mountedInBlueprintMode-firstSwitchToLevel-centersTheLevelOnItsSpawn', async () => {
@@ -981,9 +986,9 @@ describe('LevelEditorPage — Level/Blueprint canvas toggle (step 44a)', () => {
     render(<LevelEditorPage />);
     await waitFor(() => expect(drawTerrain).toHaveBeenCalled());
 
-    fireEvent.click(screen.getByRole('button', { name: 'Level' }));
+    fireEvent.click(levelEditorPage.toolbar.canvasLevel);
 
-    const canvas = document.querySelector('canvas') as HTMLCanvasElement;
+    const canvas = levelEditorPage.canvas;
     const expected = centerPanOnSpawn(
       importLayout(LEVEL_1_LAYOUT),
       canvas.width,
@@ -1007,8 +1012,8 @@ describe('LevelEditorPage — Level/Blueprint canvas toggle (step 44a)', () => {
     await waitFor(() => expect(drawTerrain).toHaveBeenCalled());
 
     // First switch to Level: pays back the mount-time debt and centers.
-    fireEvent.click(screen.getByRole('button', { name: 'Level' }));
-    const canvas = document.querySelector('canvas') as HTMLCanvasElement;
+    fireEvent.click(levelEditorPage.toolbar.canvasLevel);
+    const canvas = levelEditorPage.canvas;
     const expectedCenterX = centerPanOnSpawn(
       importLayout(LEVEL_1_LAYOUT),
       canvas.width,
@@ -1033,8 +1038,8 @@ describe('LevelEditorPage — Level/Blueprint canvas toggle (step 44a)', () => {
     // Second round trip: the debt was already spent by the first switch, so
     // this switch back to Level must not re-center and yank the hand-panned
     // view back to the spawn.
-    fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Level' }));
+    fireEvent.click(levelEditorPage.toolbar.canvasBlueprint);
+    fireEvent.click(levelEditorPage.toolbar.canvasLevel);
 
     await waitFor(() => {
       const calls = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls;
@@ -1056,11 +1061,11 @@ describe('LevelEditorPage — Level/Blueprint canvas toggle (step 44a)', () => {
 });
 
 async function saveBlueprintAs(name: string) {
-  await userEvent.click(screen.getByRole('button', { name: 'Save Blueprint' }));
-  const nameField = await screen.findByLabelText(/blueprint name/i);
+  await userEvent.click(levelEditorPage.toolbar.save);
+  const nameField = levelEditorPage.saveDialog.nameInput;
   await userEvent.clear(nameField);
   await userEvent.type(nameField, name);
-  await userEvent.click(screen.getByRole('button', { name: 'Save blueprint' }));
+  await userEvent.click(levelEditorPage.saveDialog.confirm);
 }
 
 describe('LevelEditorPage — blueprint select and save (step 44a)', () => {
@@ -1072,31 +1077,35 @@ describe('LevelEditorPage — blueprint select and save (step 44a)', () => {
     vi.unstubAllGlobals();
   });
 
-  it('levelMode-showsTheLevelSelectAndSaveButOfferNoBlueprintPair', () => {
+  it('levelMode-showsTheLevelSelectAndSaveButOfferNoBlueprintPair', async () => {
     render(<LevelEditorPage />);
 
-    // Exactly one combobox — getByRole throws on a second, so this is also
-    // the "never both pairs stacked" assertion.
-    expect(screen.getByRole('combobox')).toHaveTextContent('main');
-    expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Export' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Try' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Save Blueprint' })).not.toBeInTheDocument();
+    // Exactly one selector — the shared component renders once, so this is
+    // also the "never both pairs stacked" assertion.
+    expect(levelEditorPage.entrySelect.trigger).toHaveTextContent('main');
+    expect(levelEditorPage.toolbar.save).toBeInTheDocument();
+    expect(levelEditorPage.toolbar.export).toBeInTheDocument();
+    expect(levelEditorPage.toolbar.try).toBeInTheDocument();
+
+    await userEvent.click(levelEditorPage.toolbar.save);
+    expect(await screen.findByText('Save this level')).toBeInTheDocument();
   });
 
-  it('blueprintMode-swapsInTheBlueprintPairAndHidesTheLevelPair', () => {
+  it('blueprintMode-swapsInTheBlueprintPairAndHidesTheLevelPair', async () => {
     render(<LevelEditorPage />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
+    fireEvent.click(levelEditorPage.toolbar.canvasBlueprint);
 
-    expect(screen.getByRole('combobox')).toHaveTextContent('new');
-    expect(screen.getByRole('button', { name: 'Save Blueprint' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
+    expect(levelEditorPage.entrySelect.trigger).toHaveTextContent('new');
+    expect(levelEditorPage.toolbar.save).toBeInTheDocument();
     // Export serializes the level grid and Try boots the game from it —
     // both meaningless for a spawn-less blueprint, so they go with the
     // level pair rather than staying visible and broken.
-    expect(screen.queryByRole('button', { name: 'Export' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Try' })).not.toBeInTheDocument();
+    expect(levelEditorPage.toolbar.queryExport).not.toBeInTheDocument();
+    expect(levelEditorPage.toolbar.queryTry).not.toBeInTheDocument();
+
+    await userEvent.click(levelEditorPage.toolbar.save);
+    expect(await screen.findByText('Save this blueprint')).toBeInTheDocument();
   });
 
   it('savingTheBlueprintCanvas-postsTheCroppedLayoutToTheBlueprintWriteEndpoint', async () => {
@@ -1122,8 +1131,8 @@ describe('LevelEditorPage — blueprint select and save (step 44a)', () => {
 
     await saveBlueprintAs('Test Room');
 
-    expect(screen.getByRole('combobox')).toHaveTextContent('Test Room');
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(levelEditorPage.entrySelect.trigger).toHaveTextContent('Test Room');
+    await waitFor(() => expect(levelEditorPage.saveDialog.queryRoot).not.toBeInTheDocument());
   });
 
   it('savingTheBlueprintCanvas-writesNoLevelFileAndLeavesTheLevelUntouched', async () => {
@@ -1144,8 +1153,8 @@ describe('LevelEditorPage — blueprint select and save (step 44a)', () => {
     const { fetchCalls } = stubBlueprintWrite();
     renderEditorInBlueprintMode();
     paintBlueprintCell(2, 1);
-    fireEvent.click(screen.getByRole('button', { name: 'Background' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Dirt Column Top (1×1)' }));
+    fireEvent.click(levelEditorPage.toolbar.layerBackground);
+    fireEvent.click(await levelEditorPage.palette.findBackgroundTile('dirtColumnTop1x1'));
     paintBlueprintCell(2, 1);
 
     await saveBlueprintAs('Test Room');
@@ -1168,7 +1177,7 @@ describe('LevelEditorPage — blueprint select and save (step 44a)', () => {
     expect((anchorClick.mock.instances[0] as HTMLAnchorElement).download).toBe('test-room.json');
     // Same convention as a level save: a fallback download leaves the dialog
     // open, because the file still has to be moved.
-    expect(await screen.findByText(/move it into/i)).toBeInTheDocument();
+    expect(await levelEditorPage.saveDialog.findResult()).toBeInTheDocument();
   });
 
   it('reopeningABlueprintFromTheRegistry-loadsItsLayoutOntoTheCanvas', async () => {
@@ -1178,13 +1187,13 @@ describe('LevelEditorPage — blueprint select and save (step 44a)', () => {
     blueprintEntries.push({ id: 'test-room', name: 'Test Room', layout: ['G+'] });
     renderEditorInBlueprintMode();
 
-    fireEvent.click(screen.getByRole('combobox'));
-    await userEvent.click(await screen.findByRole('option', { name: 'Test Room' }));
+    fireEvent.click(levelEditorPage.entrySelect.trigger);
+    await userEvent.click(await levelEditorPage.entrySelect.findOption('test-room'));
 
     await waitFor(() => {
       expect(editorBlueprintSignal.value).toEqual(importLayout(['G+']));
     });
-    expect(screen.getByRole('combobox')).toHaveTextContent('Test Room');
+    expect(levelEditorPage.entrySelect.trigger).toHaveTextContent('Test Room');
   });
 
   it('loadingABlueprintWithUnsavedEdits-asksBeforeDiscardingThem', async () => {
@@ -1196,10 +1205,10 @@ describe('LevelEditorPage — blueprint select and save (step 44a)', () => {
     // the blank canvas is exactly what loading would have written.
     await waitFor(() => expect(editorBlueprintSignal.value[1][2]).toBe('G'));
 
-    fireEvent.click(screen.getByRole('combobox'));
-    await userEvent.click(await screen.findByRole('option', { name: 'new' }));
+    fireEvent.click(levelEditorPage.entrySelect.trigger);
+    await userEvent.click(await levelEditorPage.entrySelect.findOption('new'));
 
-    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    expect(await levelEditorPage.entrySelect.findDiscardDialog()).toBeInTheDocument();
     // `loadBlueprint` writes the signal directly (not only local state), so
     // the painted cell still being there proves nothing was loaded yet.
     expect(editorBlueprintSignal.value[1][2]).toBe('G');
@@ -1210,20 +1219,20 @@ describe('LevelEditorPage — blueprint connection points (step 44b)', () => {
   it('blueprintMode-thePaletteOffersTheConnectionPointTool', () => {
     render(<LevelEditorPage />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
+    fireEvent.click(levelEditorPage.toolbar.canvasBlueprint);
 
-    expect(screen.getByRole('button', { name: 'Connection Point' })).toBeInTheDocument();
+    expect(levelEditorPage.palette.tile('+')).toBeInTheDocument();
   });
 
   it('levelMode-thePaletteDoesNotOfferTheConnectionPointTool', () => {
     render(<LevelEditorPage />);
 
-    expect(screen.queryByRole('button', { name: 'Connection Point' })).not.toBeInTheDocument();
+    expect(levelEditorPage.palette.queryTile('+')).not.toBeInTheDocument();
   });
 
   it('paintingWithTheConnectionPointTool-writesItsCharacterIntoTheBlueprintGrid', async () => {
     renderEditorInBlueprintMode();
-    fireEvent.click(screen.getByRole('button', { name: 'Connection Point' }));
+    fireEvent.click(levelEditorPage.palette.tile('+'));
 
     paintBlueprintCell(2, 1);
 
@@ -1239,7 +1248,7 @@ describe('LevelEditorPage — blueprint connection points (step 44b)', () => {
     const { fetchCalls } = stubBlueprintWrite();
     renderEditorInBlueprintMode();
     paintBlueprintCell(2, 1);
-    fireEvent.click(screen.getByRole('button', { name: 'Connection Point' }));
+    fireEvent.click(levelEditorPage.palette.tile('+'));
     paintBlueprintCell(3, 1);
 
     await saveBlueprintAs('Test Room');
@@ -1256,10 +1265,10 @@ describe('LevelEditorPage — blueprint connection points (step 44b)', () => {
     editorSelectedToolSignal.value = '+';
     render(<LevelEditorPage />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Level' }));
+    fireEvent.click(levelEditorPage.toolbar.canvasLevel);
 
     expect(editorSelectedToolSignal.value).not.toBe('+');
-    expect(screen.getByRole('button', { name: 'Ground Grass' })).toHaveAttribute(
+    expect(levelEditorPage.palette.tile('G')).toHaveAttribute(
       'aria-pressed',
       'true',
     );
@@ -1275,7 +1284,7 @@ describe('LevelEditorPage — blueprint connection points (step 44b)', () => {
     render(<LevelEditorPage />);
 
     expect(editorSelectedToolSignal.value).not.toBe('+');
-    expect(screen.queryByRole('button', { name: 'Connection Point' })).not.toBeInTheDocument();
+    expect(levelEditorPage.palette.queryTile('+')).not.toBeInTheDocument();
   });
 
   it('blueprintModeWithTheConnectionPointArmed-keepsItArmedAcrossAMountInThatMode', () => {
@@ -1287,7 +1296,7 @@ describe('LevelEditorPage — blueprint connection points (step 44b)', () => {
     render(<LevelEditorPage />);
 
     expect(editorSelectedToolSignal.value).toBe('+');
-    expect(screen.getByRole('button', { name: 'Connection Point' })).toHaveAttribute(
+    expect(levelEditorPage.palette.tile('+')).toHaveAttribute(
       'aria-pressed',
       'true',
     );
@@ -1301,38 +1310,43 @@ describe('LevelEditorPage — dev-only Save controls (step 44c)', () => {
     isDevEnvironmentSignal.value = false;
     render(<LevelEditorPage />);
 
-    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
+    expect(levelEditorPage.toolbar.querySave).not.toBeInTheDocument();
   });
 
   it('noDevEnvironment-levelMode-keepsEverythingThatNeedsNoServer', () => {
     isDevEnvironmentSignal.value = false;
     render(<LevelEditorPage />);
 
-    expect(screen.getByRole('combobox')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Export' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Try' })).toBeInTheDocument();
+    expect(levelEditorPage.entrySelect.trigger).toBeInTheDocument();
+    expect(levelEditorPage.toolbar.export).toBeInTheDocument();
+    expect(levelEditorPage.toolbar.try).toBeInTheDocument();
   });
 
   it('noDevEnvironment-blueprintMode-offersNoSaveBlueprintButtonButKeepsTheDropdown', () => {
     isDevEnvironmentSignal.value = false;
     render(<LevelEditorPage />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
+    fireEvent.click(levelEditorPage.toolbar.canvasBlueprint);
 
-    expect(screen.queryByRole('button', { name: 'Save Blueprint' })).not.toBeInTheDocument();
+    expect(levelEditorPage.toolbar.querySave).not.toBeInTheDocument();
     // Loading an already-saved blueprint needs no server — the registry is a
     // static import — so the dropdown stays.
-    expect(screen.getByRole('combobox')).toBeInTheDocument();
+    expect(levelEditorPage.entrySelect.trigger).toBeInTheDocument();
   });
 
-  it('devEnvironment-showsBothSaveControlsInTheirOwnModes', () => {
+  it('devEnvironment-showsBothSaveControlsInTheirOwnModes', async () => {
     render(<LevelEditorPage />);
 
-    expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
+    expect(levelEditorPage.toolbar.save).toBeInTheDocument();
+    await userEvent.click(levelEditorPage.toolbar.save);
+    expect(await screen.findByText('Save this level')).toBeInTheDocument();
+    await userEvent.click(levelEditorPage.saveDialog.cancel);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
+    fireEvent.click(levelEditorPage.toolbar.canvasBlueprint);
 
-    expect(screen.getByRole('button', { name: 'Save Blueprint' })).toBeInTheDocument();
+    expect(levelEditorPage.toolbar.save).toBeInTheDocument();
+    await userEvent.click(levelEditorPage.toolbar.save);
+    expect(await screen.findByText('Save this blueprint')).toBeInTheDocument();
   });
 
   it('theMountPing-answeringIsDevTrue-bringsTheSaveButtonBack', async () => {
@@ -1346,7 +1360,7 @@ describe('LevelEditorPage — dev-only Save controls (step 44c)', () => {
 
     render(<LevelEditorPage />);
 
-    expect(await screen.findByRole('button', { name: 'Save' })).toBeInTheDocument();
+    expect(await levelEditorPage.toolbar.findSave()).toBeInTheDocument();
   });
 });
 
@@ -1365,7 +1379,7 @@ function renderEditorWithBlueprints(...blueprints: Blueprint[]) {
 }
 
 function clickLevelCell(col: number, row: number, button = 0) {
-  const canvas = document.querySelector('canvas')!;
+  const canvas = levelEditorPage.canvas;
   vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
   fireEvent.mouseDown(canvas, {
     button,
@@ -1377,7 +1391,7 @@ function clickLevelCell(col: number, row: number, button = 0) {
 // The live hover preview is driven by mouse movement, not a click — this is
 // the hover-only half of what a real mouse move over an armed placement does.
 function hoverLevelCell(col: number, row: number) {
-  const canvas = document.querySelector('canvas')!;
+  const canvas = levelEditorPage.canvas;
   vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
   fireEvent.mouseMove(canvas, {
     clientX: col * RENDERED_TILE_SIZE + 1,
@@ -1389,24 +1403,24 @@ describe('LevelEditorPage — arming a blueprint for placement (step 44c)', () =
   it('levelMode-thePaletteListsTheSavedBlueprints', () => {
     renderEditorWithBlueprints(CAVE_ROOM);
 
-    expect(screen.getByRole('button', { name: 'Cave Room' })).toBeInTheDocument();
+    expect(levelEditorPage.palette.blueprintTile('cave-room')).toBeInTheDocument();
   });
 
   it('blueprintMode-thePaletteListsNoBlueprintsToPlace', () => {
     // Nesting is out of scope: a blueprint cannot be placed into a blueprint.
     renderEditorWithBlueprints(CAVE_ROOM);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
+    fireEvent.click(levelEditorPage.toolbar.canvasBlueprint);
 
-    expect(screen.queryByRole('button', { name: 'Cave Room' })).not.toBeInTheDocument();
+    expect(levelEditorPage.palette.queryBlueprintTile('cave-room')).not.toBeInTheDocument();
   });
 
   it('clickingABlueprintTile-armsItAndPersistsThat', () => {
     renderEditorWithBlueprints(CAVE_ROOM);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Cave Room' }));
+    fireEvent.click(levelEditorPage.palette.blueprintTile('cave-room'));
 
-    expect(screen.getByRole('button', { name: 'Cave Room' })).toHaveAttribute(
+    expect(levelEditorPage.palette.blueprintTile('cave-room')).toHaveAttribute(
       'aria-pressed',
       'true',
     );
@@ -1415,12 +1429,12 @@ describe('LevelEditorPage — arming a blueprint for placement (step 44c)', () =
 
   it('clickingTheArmedBlueprintAgain-disarmsIt', () => {
     renderEditorWithBlueprints(CAVE_ROOM);
-    fireEvent.click(screen.getByRole('button', { name: 'Cave Room' }));
+    fireEvent.click(levelEditorPage.palette.blueprintTile('cave-room'));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Cave Room' }));
+    fireEvent.click(levelEditorPage.palette.blueprintTile('cave-room'));
 
     expect(editorArmedBlueprintIdSignal.value).toBeNull();
-    expect(screen.getByRole('button', { name: 'Cave Room' })).toHaveAttribute(
+    expect(levelEditorPage.palette.blueprintTile('cave-room')).toHaveAttribute(
       'aria-pressed',
       'false',
     );
@@ -1428,12 +1442,12 @@ describe('LevelEditorPage — arming a blueprint for placement (step 44c)', () =
 
   it('armingABlueprint-leavesTheSelectedTileToolAloneSoDisarmingRestoresIt', () => {
     renderEditorWithBlueprints(CAVE_ROOM);
-    fireEvent.click(screen.getByRole('button', { name: 'Ground Rock' }));
+    fireEvent.click(levelEditorPage.palette.tile('R'));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Cave Room' }));
+    fireEvent.click(levelEditorPage.palette.blueprintTile('cave-room'));
 
     expect(editorSelectedToolSignal.value).toBe('R');
-    expect(screen.getByRole('button', { name: 'Ground Rock' })).toHaveAttribute(
+    expect(levelEditorPage.palette.tile('R')).toHaveAttribute(
       'aria-pressed',
       'true',
     );
@@ -1441,12 +1455,12 @@ describe('LevelEditorPage — arming a blueprint for placement (step 44c)', () =
 
   it('pickingATileTool-disarmsTheBlueprint', () => {
     renderEditorWithBlueprints(CAVE_ROOM);
-    fireEvent.click(screen.getByRole('button', { name: 'Cave Room' }));
+    fireEvent.click(levelEditorPage.palette.blueprintTile('cave-room'));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Ground Rock' }));
+    fireEvent.click(levelEditorPage.palette.tile('R'));
 
     expect(editorArmedBlueprintIdSignal.value).toBeNull();
-    expect(screen.getByRole('button', { name: 'Cave Room' })).toHaveAttribute(
+    expect(levelEditorPage.palette.blueprintTile('cave-room')).toHaveAttribute(
       'aria-pressed',
       'false',
     );
@@ -1454,9 +1468,9 @@ describe('LevelEditorPage — arming a blueprint for placement (step 44c)', () =
 
   it('armedBlueprint-switchingToTheBlueprintCanvas-disarmsIt', () => {
     renderEditorWithBlueprints(CAVE_ROOM);
-    fireEvent.click(screen.getByRole('button', { name: 'Cave Room' }));
+    fireEvent.click(levelEditorPage.palette.blueprintTile('cave-room'));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
+    fireEvent.click(levelEditorPage.toolbar.canvasBlueprint);
 
     expect(editorArmedBlueprintIdSignal.value).toBeNull();
   });
@@ -1490,7 +1504,7 @@ describe('LevelEditorPage — arming a blueprint for placement (step 44c)', () =
 });
 
 describe('LevelEditorPage — placing a blueprint (step 44c)', () => {
-  const armCaveRoom = () => fireEvent.click(screen.getByRole('button', { name: 'Cave Room' }));
+  const armCaveRoom = () => fireEvent.click(levelEditorPage.palette.blueprintTile('cave-room'));
 
   it('hovering-previewsWithoutWritingAnythingOrDirtyingTheLevel', () => {
     renderEditorWithBlueprints(CAVE_ROOM);
@@ -1640,8 +1654,8 @@ describe('LevelEditorPage — placing a blueprint (step 44c)', () => {
   it('backgroundLayerActive-clicksStillPaintTheBackgroundEvenWithABlueprintArmed', async () => {
     renderEditorWithBlueprints(CAVE_ROOM);
     armCaveRoom();
-    fireEvent.click(screen.getByRole('button', { name: 'Background' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Dirt Column Top (1×1)' }));
+    fireEvent.click(levelEditorPage.toolbar.layerBackground);
+    fireEvent.click(await levelEditorPage.palette.findBackgroundTile('dirtColumnTop1x1'));
 
     clickLevelCell(1, 1);
 
@@ -1650,12 +1664,12 @@ describe('LevelEditorPage — placing a blueprint (step 44c)', () => {
 });
 
 describe('LevelEditorPage — undoing a placement (step 44c follow-up)', () => {
-  const armCaveRoom = () => fireEvent.click(screen.getByRole('button', { name: 'Cave Room' }));
+  const armCaveRoom = () => fireEvent.click(levelEditorPage.palette.blueprintTile('cave-room'));
 
   it('beforeAnyPlacement-thereIsNoUndoButton', () => {
     renderEditorWithBlueprints(CAVE_ROOM);
 
-    expect(screen.queryByRole('button', { name: 'Undo placement' })).not.toBeInTheDocument();
+    expect(levelEditorPage.toolbar.queryUndo).not.toBeInTheDocument();
   });
 
   it('afterCommittingAPlacement-anUndoButtonAppears', async () => {
@@ -1666,7 +1680,7 @@ describe('LevelEditorPage — undoing a placement (step 44c follow-up)', () => {
     clickLevelCell(1, 1);
 
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Undo placement' })).toBeInTheDocument(),
+      expect(levelEditorPage.toolbar.undo).toBeInTheDocument(),
     );
   });
 
@@ -1687,13 +1701,13 @@ describe('LevelEditorPage — undoing a placement (step 44c follow-up)', () => {
       expect(editorLevelSignal.value).toEqual(importLayout(['...', '.##', '...']));
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Undo placement' }));
+    fireEvent.click(levelEditorPage.toolbar.undo);
 
     await waitFor(() => {
       expect(editorLevelSignal.value).toEqual(importLayout(['...', '...', '...']));
     });
     expect(editorBackgroundSignal.value).toEqual([]);
-    expect(screen.queryByRole('button', { name: 'Undo placement' })).not.toBeInTheDocument();
+    expect(levelEditorPage.toolbar.queryUndo).not.toBeInTheDocument();
   });
 
   it('paintingAfterAPlacement-clearsTheUndoButton', async () => {
@@ -1702,15 +1716,15 @@ describe('LevelEditorPage — undoing a placement (step 44c follow-up)', () => {
     hoverLevelCell(1, 1);
     clickLevelCell(1, 1);
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Undo placement' })).toBeInTheDocument(),
+      expect(levelEditorPage.toolbar.undo).toBeInTheDocument(),
     );
 
     // Picking a tile tool disarms the blueprint; painting with it is a
     // regular edit that must invalidate undoing the earlier placement.
-    fireEvent.click(screen.getByRole('button', { name: 'Ground Rock' }));
+    fireEvent.click(levelEditorPage.palette.tile('R'));
     clickLevelCell(0, 0);
 
-    expect(screen.queryByRole('button', { name: 'Undo placement' })).not.toBeInTheDocument();
+    expect(levelEditorPage.toolbar.queryUndo).not.toBeInTheDocument();
   });
 
   it('erasingAfterAPlacement-clearsTheUndoButton', async () => {
@@ -1719,13 +1733,13 @@ describe('LevelEditorPage — undoing a placement (step 44c follow-up)', () => {
     hoverLevelCell(1, 1);
     clickLevelCell(1, 1);
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Undo placement' })).toBeInTheDocument(),
+      expect(levelEditorPage.toolbar.undo).toBeInTheDocument(),
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Ground Rock' }));
+    fireEvent.click(levelEditorPage.palette.tile('R'));
     clickLevelCell(0, 0, 2); // right-click erases once nothing is armed
 
-    expect(screen.queryByRole('button', { name: 'Undo placement' })).not.toBeInTheDocument();
+    expect(levelEditorPage.toolbar.queryUndo).not.toBeInTheDocument();
   });
 
   it('paintingTheBackgroundLayerAfterAPlacement-clearsTheUndoButton', async () => {
@@ -1734,14 +1748,14 @@ describe('LevelEditorPage — undoing a placement (step 44c follow-up)', () => {
     hoverLevelCell(1, 1);
     clickLevelCell(1, 1);
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Undo placement' })).toBeInTheDocument(),
+      expect(levelEditorPage.toolbar.undo).toBeInTheDocument(),
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Background' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Dirt Column Top (1×1)' }));
+    fireEvent.click(levelEditorPage.toolbar.layerBackground);
+    fireEvent.click(await levelEditorPage.palette.findBackgroundTile('dirtColumnTop1x1'));
     clickLevelCell(0, 0);
 
-    expect(screen.queryByRole('button', { name: 'Undo placement' })).not.toBeInTheDocument();
+    expect(levelEditorPage.toolbar.queryUndo).not.toBeInTheDocument();
   });
 
   it('committingASecondPlacement-replacesTheUndoTargetWithTheNewOne', async () => {
@@ -1759,7 +1773,7 @@ describe('LevelEditorPage — undoing a placement (step 44c follow-up)', () => {
       expect(editorLevelSignal.value).toEqual(importLayout(['##.', '.##', '...']));
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Undo placement' }));
+    fireEvent.click(levelEditorPage.toolbar.undo);
 
     // Undo restores to just before the SECOND placement — the first stamped
     // room is still there — not all the way back to the original empty grid.
@@ -1782,7 +1796,7 @@ describe('LevelEditorPage — undoing a placement (step 44c follow-up)', () => {
     await waitFor(() => {
       expect(editorLevelSignal.value).toEqual(importLayout(['...', '...', '...']));
     });
-    expect(screen.queryByRole('button', { name: 'Undo placement' })).not.toBeInTheDocument();
+    expect(levelEditorPage.toolbar.queryUndo).not.toBeInTheDocument();
   });
 
   it('pressingCmdZ-alsoUndoes', async () => {
@@ -1817,8 +1831,8 @@ describe('LevelEditorPage — undoing a placement (step 44c follow-up)', () => {
     await waitFor(() => {
       expect(editorLevelSignal.value).toEqual(importLayout(['...', '.##', '...']));
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-    const nameInput = screen.getByLabelText('Level name');
+    fireEvent.click(levelEditorPage.toolbar.save);
+    const nameInput = levelEditorPage.saveDialog.nameInput;
 
     fireEvent.keyDown(nameInput, { key: 'z', ctrlKey: true });
 
@@ -1837,14 +1851,84 @@ describe('LevelEditorPage — undoing a placement (step 44c follow-up)', () => {
     await waitFor(() => {
       expect(editorLevelSignal.value).toEqual(importLayout(['...', '.##', '...']));
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Blueprint' }));
+    fireEvent.click(levelEditorPage.toolbar.canvasBlueprint);
 
     fireEvent.keyDown(window, { key: 'z', ctrlKey: true });
 
     // Undoing a level placement while looking at the blueprint canvas would
     // be invisible and confusing — the shortcut matches the button's own
     // Level-only visibility (see `placementActive`'s `!isBlueprintMode`).
-    fireEvent.click(screen.getByRole('button', { name: 'Level' }));
+    fireEvent.click(levelEditorPage.toolbar.canvasLevel);
     expect(editorLevelSignal.value).toEqual(importLayout(['...', '.##', '...']));
+  });
+});
+
+describe('LevelEditorPage — full authoring loop through the toolbar (US2)', () => {
+  const LOOP_ROOM: Blueprint = { id: 'cave-room', name: 'Cave Room', layout: ['##'] };
+
+  it('selectTool-paint-place-undo-export-save-tryAllWorkFromTheToolbar', async () => {
+    stubDevServerWrite();
+    blueprintEntries.push(LOOP_ROOM);
+    editorLevelSignal.value = importLayout(['...', '...', '...']);
+    render(<LevelEditorPage />);
+
+    // Pick a tool from the palette and paint a cell.
+    fireEvent.click(levelEditorPage.palette.tile('R'));
+    clickLevelCell(0, 0);
+    await waitFor(() => expect(editorLevelSignal.value[0][0]).toBe('R'));
+
+    // Arm a blueprint from the palette, hover and place it.
+    fireEvent.click(levelEditorPage.palette.blueprintTile('cave-room'));
+    hoverLevelCell(1, 1);
+    clickLevelCell(1, 1);
+    await waitFor(() =>
+      expect(editorLevelSignal.value).toEqual(importLayout(['R..', '.##', '...'])),
+    );
+    await waitFor(() => expect(levelEditorPage.toolbar.undo).toBeInTheDocument());
+
+    // Undo the placement from the toolbar.
+    await userEvent.click(levelEditorPage.toolbar.undo);
+    await waitFor(() =>
+      expect(editorLevelSignal.value).toEqual(importLayout(['R..', '...', '...'])),
+    );
+    expect(levelEditorPage.toolbar.queryUndo).not.toBeInTheDocument();
+
+    // Export the layout from the toolbar.
+    await userEvent.click(levelEditorPage.toolbar.export);
+    // exportLayout crops to the tightest non-'.' box — the single painted cell.
+    expect(await levelEditorPage.exportDialog.findOutput()).toHaveValue("  'R',");
+    await userEvent.keyboard('{Escape}');
+
+    // Save the layout from the toolbar.
+    await userEvent.click(levelEditorPage.toolbar.save);
+    await userEvent.clear(levelEditorPage.saveDialog.nameInput);
+    await userEvent.type(levelEditorPage.saveDialog.nameInput, 'Loop');
+    await userEvent.click(levelEditorPage.saveDialog.confirm);
+    expect(await levelEditorPage.toolbar.findSaveStatus()).toBeInTheDocument();
+
+    // Try the layout from the toolbar. `tryLayout` boots the game from the
+    // exported grid, which must hold a spawn marker, so seed one first.
+    editorLevelSignal.value = importLayout(['S.R', '...', '...']);
+    currentPath.value = '/platformer/editor';
+    await userEvent.click(levelEditorPage.toolbar.try);
+    expect(currentLayout.value).toEqual(exportLayout(importLayout(['S.R', '...', '...'])));
+    expect(currentPath.value).toBe('/platformer?debug=1');
+  });
+
+  it('ctrlZUndoesAPlacementThroughTheSameActionAsTheToolbarControl', async () => {
+    renderEditorWithBlueprints(LOOP_ROOM);
+    fireEvent.click(levelEditorPage.palette.blueprintTile('cave-room'));
+    hoverLevelCell(1, 1);
+    clickLevelCell(1, 1);
+    await waitFor(() =>
+      expect(editorLevelSignal.value).toEqual(importLayout(['...', '.##', '...'])),
+    );
+
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true });
+
+    await waitFor(() =>
+      expect(editorLevelSignal.value).toEqual(importLayout(['...', '...', '...'])),
+    );
+    expect(levelEditorPage.toolbar.queryUndo).not.toBeInTheDocument();
   });
 });

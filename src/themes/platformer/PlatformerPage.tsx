@@ -509,7 +509,7 @@ export const PlatformerPage = () => {
    * Debug-only shortcut into the Level Editor (dev convenience, same gating
    * as the Kill/Respawn/Hitboxes buttons above — see `debugControls`).
    * Deliberately does NOT touch `currentLayout`: the editor's own grid is
-   * independent, localStorage-backed state (`editor/editorLevelState.ts`)
+   * independent, localStorage-backed state (`editor/editorState.ts`)
    * that already restores itself on mount, regardless of whatever the game
    * is currently showing.
    */
