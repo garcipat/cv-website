@@ -57,6 +57,23 @@ describe('createKeyboardInput', () => {
     input.destroy();
   });
 
+  it('keydown-forKeyB-preventsDefault', () => {
+    // The place-bomb key is a game key, so its browser default is suppressed
+    // (O-012 FR-012).
+    const input = createKeyboardInput();
+    const event = dispatchKey('keydown', 'KeyB');
+    expect(event.defaultPrevented).toBe(true);
+    input.destroy();
+  });
+
+  it('consumePress-afterKeyBKeydown-returnsTrueOnce', () => {
+    const input = createKeyboardInput();
+    dispatchKey('keydown', 'KeyB');
+    expect(input.consumePress('KeyB')).toBe(true);
+    expect(input.consumePress('KeyB')).toBe(false);
+    input.destroy();
+  });
+
   it('keydown-forNonGameKey-doesNotPreventDefaultButStillTracksHeld', () => {
     const input = createKeyboardInput();
     const event = dispatchKey('keydown', 'KeyJ');

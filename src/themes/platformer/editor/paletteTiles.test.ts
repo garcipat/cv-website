@@ -167,6 +167,48 @@ describe('potionPot marker', () => {
   });
 });
 
+describe('bombPot marker', () => {
+  it('b-hasASpriteMatchingTheBlueBottleFrame', () => {
+    // Row 8, column 0 of world_tileset.png (16px tiles) — see
+    // entities/blocks/BombPot.ts's BOMB_POT_FRAME.
+    expect(PALETTE_TILE_SPRITES.b).toEqual({
+      sheet: '/sprites/world_tileset.png',
+      sheetWidth: 256,
+      sheetHeight: 256,
+      sx: 0,
+      sy: 128,
+      frameWidth: 16,
+      frameHeight: 16,
+    });
+  });
+
+  it('b-hasAHumanReadableLabel', () => {
+    expect(PALETTE_TILE_LABELS.b).toBe('Bomb Pot');
+  });
+
+  it('b-describesTheFinishedLevelBehaviour', () => {
+    expect(PALETTE_TILE_DESCRIPTIONS.b).toBe(
+      'Bomb-pot; land on it from above to break it and drop a bomb you can place',
+    );
+  });
+
+  it('six-hasASpriteMatchingTheInGameSignpostTile', () => {
+    expect(PALETTE_TILE_SPRITES['6']).toEqual({
+      sheet: '/sprites/world_tileset.png',
+      sheetWidth: 256,
+      sheetHeight: 256,
+      sx: 128,
+      sy: 48,
+      frameWidth: 16,
+      frameHeight: 16,
+    });
+  });
+
+  it('six-hasAHumanReadableLabel', () => {
+    expect(PALETTE_TILE_LABELS['6']).toBe('Sign 6');
+  });
+});
+
 describe('ground marker', () => {
   it('G-hasASpriteCompositingGrassOverTheGroundBlock', () => {
     expect(PALETTE_TILE_SPRITES['G']).toEqual({

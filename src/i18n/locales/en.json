@@ -158,7 +158,9 @@
       "fragileRockBreaksFromBelow": "Fragile rocks can be broken from below.",
       "chestNeedsKey": "Chests need a key to open.",
       "noKeyForChest": "I need a key.",
-      "openAllChestsHaveFun": "Open all the chests and have fun!"
+      "openAllChestsHaveFun": "Open all the chests and have fun!",
+      "bomb": "Press B to place a bomb.",
+      "noBombs": "I have no bombs."
     },
     "journal": {
       "collectibles": "Collectibles",

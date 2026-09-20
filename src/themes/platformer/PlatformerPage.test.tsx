@@ -21,6 +21,7 @@ import {
   collectedFacts,
   activeJournalSection,
   collectiblePlacements,
+  allCollectiblePlacements,
   skillFactPool,
   collectedCollectibleIds,
   activeEffects,
@@ -39,6 +40,11 @@ import {
   keyPickupStates,
   collectedKeys,
   heartPickupStates,
+  MAX_BOMBS,
+  carriedBombs,
+  bombPickupStates,
+  placedBombs,
+  activeExplosions,
   resetGame,
   activePuffs,
   activeCounterPopups,
@@ -54,6 +60,7 @@ import {
 import { toBlockState } from './entities/Block';
 import type { BlockState } from './entities/Block';
 import { startPuffEffect } from './engine/CollectionEffects';
+import { createPlacedBomb, BOMB_FUSE_SECONDS } from './engine/PlacedBomb';
 import { toCheckpointState } from './entities/Checkpoint';
 import { initialCameraX } from './engine/Camera';
 import { toChestState, isChestOpen } from './entities/Chest';
@@ -183,6 +190,23 @@ function placeTestPotionPot(id: string): BlockState {
   return pot;
 }
 
+/** Same convention as COIN_POT_TEST_OFFSET_X/placeTestPotionPot above, but
+ *  for a synthetic bomb-pot — a different offset keeps it clear of both the
+ *  real crate and the other synthetic pots. */
+const BOMB_POT_TEST_OFFSET_X = 7 * RENDERED_TILE_SIZE;
+
+function placeTestBombPot(id: string): BlockState {
+  const crate = blockPlacements.value.find((b) => b.blockKind === 'crate')!;
+  const pot = toBlockState({
+    id,
+    blockKind: 'bombPot',
+    x: crate.x + BOMB_POT_TEST_OFFSET_X,
+    y: crate.y,
+  });
+  blockStates.value = [...blockStates.value, pot];
+  return pot;
+}
+
 /** The player.y to set so a falling player's feet resolve to rest exactly on
  *  top of the given block's tile — mirrors `stompLandingY` above, but for
  *  landing on a solid block tile (`Physics.ts`'s ground-collision branch)
@@ -246,6 +270,13 @@ describe('PlatformerPage', () => {
     keyPickupStates.value = [];
     collectedKeys.value = 0;
     heartPickupStates.value = [];
+    // Module-level bomb signals (see PlatformerState.ts) — must be reset like
+    // the other session arrays, or a bomb placed/collected by one test would
+    // leak into the next test's assumptions.
+    carriedBombs.value = 0;
+    bombPickupStates.value = [];
+    placedBombs.value = [];
+    activeExplosions.value = [];
     // Module-level signal like the others above — a counter popup started by
     // one test would otherwise still be present (popups only clear via
     // tickCounterPopup, which no render-only test drives long enough), so a
@@ -4757,6 +4788,405 @@ describe('PlatformerPage', () => {
       expect(playerState.value.x + PLAYER_SIDE_PADDING).toBeGreaterThan(
         torchX + RENDERED_TILE_SIZE,
       );
+    });
+  });
+
+  describe('bombs (O-012)', () => {
+    /** Renders the page with a controllable game loop and returns an
+     *  `advance(steps, dtMs)` that drives the loop's frame callback. */
+    function mountWithLoop(): (steps?: number, dt?: number) => void {
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+      vi.stubGlobal('Image', MockTilesetImage);
+
+      render(<PlatformerPage />);
+      frameCallback!(0);
+
+      let t = 0;
+      return (steps = 1, dt = 16) => {
+        for (let i = 0; i < steps; i++) {
+          t += dt;
+          frameCallback!(t);
+        }
+      };
+    }
+
+    function injectBlock(
+      blockKind: BlockState['blockKind'],
+      col: number,
+      row: number,
+      id: string,
+    ): BlockState {
+      const { x, y } = tileToPixel(col, row);
+      const block = toBlockState({ id, blockKind, x, y });
+      blockStates.value = [...blockStates.value, block];
+      return block;
+    }
+
+    /** Places a bomb at `(col, row)` with its fuse one tick from expiring, so
+     *  the next tick detonates it. */
+    function placeBombAboutToDetonate(col: number, row: number, id: string): void {
+      placedBombs.value = [
+        ...placedBombs.value,
+        {
+          ...createPlacedBomb(id, currentLevel.value, blockStates.value, col, row),
+          fuseElapsed: BOMB_FUSE_SECONDS - 0.001,
+          landed: true,
+        },
+      ];
+    }
+
+    describe('US1 — the blue pot yields a bomb', () => {
+      it('breakingABombPot-spawnsOneBombPickupAtThePotsTile', () => {
+        const advance = mountWithLoop();
+        const pot = placeTestBombPot('bombpot-test-drop');
+        playerState.value = { ...playerState.value, x: pot.x, y: blockLandingY(pot), vy: 300 };
+
+        advance(1);
+        advance(10);
+
+        expect(bombPickupStates.value).toHaveLength(1);
+        expect(bombPickupStates.value[0].id).toBe(pot.id);
+      });
+
+      it('walkingOverABombPickup-incrementsCarriedBombsByExactlyOneAndRemovesIt', () => {
+        const advance = mountWithLoop();
+        const player = playerState.value;
+        bombPickupStates.value = [{ id: 'b1', x: player.x, y: player.y }];
+
+        advance(1);
+
+        expect(carriedBombs.value).toBe(1);
+        expect(bombPickupStates.value).toEqual([]);
+      });
+
+      it('collectingABomb-addsNoCollectiblePlacementAndLeavesTheCountersUnchanged', () => {
+        const advance = mountWithLoop();
+        const player = playerState.value;
+        const coinsBefore = levelTotals.value.coins;
+        const factsBefore = collectedFacts.value.length;
+        bombPickupStates.value = [{ id: 'b1', x: player.x, y: player.y }];
+
+        advance(1);
+
+        expect(carriedBombs.value).toBe(1);
+        expect(allCollectiblePlacements.value.some((p) => p.id === 'b1')).toBe(false);
+        expect(levelTotals.value.coins).toBe(coinsBefore);
+        expect(collectedFacts.value.length).toBe(factsBefore);
+      });
+    });
+
+    describe('US2 — place a bomb and get clear', () => {
+      it('pressingB-withABomb-placesOneBombAndDecrementsTheCount', () => {
+        currentLayout.value = ['S....', 'GGGGG'];
+        const advance = mountWithLoop();
+        carriedBombs.value = 2;
+        advance(3);
+
+        fireEvent.keyDown(window, { code: 'KeyB' });
+        advance(1);
+
+        expect(placedBombs.value).toHaveLength(1);
+        expect(carriedBombs.value).toBe(1);
+      });
+
+      it('aPlacedBomb-detontatesAfterTheFuseAndDamagesACharacterInTheBlast', () => {
+        currentLayout.value = ['S....', 'GGGGG'];
+        const advance = mountWithLoop();
+        carriedBombs.value = 1;
+        advance(3);
+
+        fireEvent.keyDown(window, { code: 'KeyB' });
+        advance(1);
+        expect(placedBombs.value).toHaveLength(1);
+
+        advance(Math.ceil(BOMB_FUSE_SECONDS / 0.016) + 2);
+
+        expect(placedBombs.value).toHaveLength(0);
+        expect(activeExplosions.value.length).toBeGreaterThan(0);
+        expect(playerState.value.hitPoints).toBe(MAX_HALF_HEARTS - 2);
+      });
+
+      it('aCharacterInTheBlastWhileInvincible-takesNoDamage', () => {
+        currentLayout.value = ['S....', 'GGGGG'];
+        const advance = mountWithLoop();
+        carriedBombs.value = 1;
+        advance(3);
+
+        fireEvent.keyDown(window, { code: 'KeyB' });
+        advance(1);
+        // Open the shared invincibility window right before detonation.
+        advance(Math.ceil(BOMB_FUSE_SECONDS / 0.016) - 2);
+        playerState.value = { ...playerState.value, hitTimer: 0 };
+
+        advance(3);
+
+        expect(playerState.value.hitPoints).toBe(MAX_HALF_HEARTS);
+      });
+
+      it('enteringTheBlastAfterDetonation-dealsNoDamageWhileTheFramesPlay', () => {
+        currentLayout.value = ['S..........', 'GGGGGGGGGGG'];
+        const advance = mountWithLoop();
+        carriedBombs.value = 1;
+        advance(3);
+
+        fireEvent.keyDown(window, { code: 'KeyB' });
+        advance(1);
+        const bomb = placedBombs.value[0];
+        // Move the character clear of the blast.
+        playerState.value = { ...playerState.value, x: 9 * RENDERED_TILE_SIZE, vy: 0 };
+        advance(Math.ceil(BOMB_FUSE_SECONDS / 0.016) + 2);
+        expect(activeExplosions.value.length).toBeGreaterThan(0);
+
+        const hitPointsBefore = playerState.value.hitPoints;
+        // Step into the (already inert) blast while the frames still play.
+        playerState.value = { ...playerState.value, x: bomb.x, y: bomb.y, vy: 0 };
+        advance(1);
+
+        expect(playerState.value.hitPoints).toBe(hitPointsBefore);
+      });
+
+      it('aBombInMidAir-fallsAndRestsOnTheFirstSolidSurface', () => {
+        currentLayout.value = ['S....', '.....', 'GGGGG'];
+        const advance = mountWithLoop();
+        const bomb = createPlacedBomb('bomb-midair', currentLevel.value, blockStates.value, 2, 0);
+        placedBombs.value = [bomb];
+
+        advance(1);
+        expect(placedBombs.value[0].y).toBeGreaterThan(bomb.y);
+
+        advance(60);
+        expect(placedBombs.value[0].landed).toBe(true);
+        expect(placedBombs.value[0].y).toBe(tileToPixel(2, 1).y);
+      });
+
+      it('aBombOnABridge-restsOnIt', () => {
+        currentLayout.value = ['S....', '..B..', '.....'];
+        const advance = mountWithLoop();
+        placedBombs.value = [
+          createPlacedBomb('bomb-bridge', currentLevel.value, blockStates.value, 2, 0),
+        ];
+
+        advance(10);
+
+        expect(placedBombs.value[0].landed).toBe(true);
+        expect(placedBombs.value[0].y).toBe(0);
+      });
+
+      it('aBombOnALadderTile-fallsThroughToTheSurfaceBelow', () => {
+        currentLayout.value = ['S....', '..H..', 'GGGGG'];
+        const advance = mountWithLoop();
+        placedBombs.value = [
+          createPlacedBomb('bomb-ladder', currentLevel.value, blockStates.value, 2, 0),
+        ];
+
+        advance(60);
+
+        expect(placedBombs.value[0].y).toBe(tileToPixel(2, 1).y);
+      });
+
+      it('aBombOverABottomlessColumn-isRemovedWithoutExploding', () => {
+        currentLayout.value = ['S..', 'GG.', '...'];
+        const advance = mountWithLoop();
+        placedBombs.value = [
+          createPlacedBomb('bomb-pit', currentLevel.value, blockStates.value, 2, 0),
+        ];
+
+        advance(40);
+
+        expect(placedBombs.value).toHaveLength(0);
+        expect(activeExplosions.value).toHaveLength(0);
+      });
+    });
+
+    describe('US3 — the blast clears the way', () => {
+      it('aCrateInTheBlast-isDestroyed', () => {
+        currentLayout.value = ['S....', 'GGGGG'];
+        const advance = mountWithLoop();
+        const crate = injectBlock('crate', 1, 0, 'blast-crate');
+        placeBombAboutToDetonate(0, 0, 'blast-crate-bomb');
+
+        advance(1);
+
+        const live = blockStates.value.find((b) => b.id === crate.id);
+        expect(live === undefined || live.hitsTaken >= 2).toBe(true);
+      });
+
+      it('aQuestionMarkInTheBlast-isUntouched', () => {
+        currentLayout.value = ['S....', 'GGGGG'];
+        const advance = mountWithLoop();
+        const questionMark = injectBlock('questionMark', 1, 0, 'blast-qmark');
+        placeBombAboutToDetonate(0, 0, 'blast-qmark-bomb');
+
+        advance(1);
+
+        expect(blockStates.value.find((b) => b.id === questionMark.id)?.hitsTaken).toBe(0);
+      });
+
+      it('anEnemyInTheBlast-isDefeated', () => {
+        currentLayout.value = ['S....', 'GGGGG'];
+        const advance = mountWithLoop();
+        const { x, y } = tileToPixel(1, 0);
+        enemyStates.value = [
+          ...enemyStates.value,
+          toEnemyState({ id: 'blast-enemy', type: 'slimeGreen', fact: undefined, x, y }),
+        ];
+        placeBombAboutToDetonate(0, 0, 'blast-enemy-bomb');
+
+        advance(1);
+
+        expect(enemyStates.value.find((e) => e.id === 'blast-enemy')?.alive).toBe(false);
+      });
+
+      it('aSecondPlacedBombInTheBlast-isUntouchedAndDoesNotChain', () => {
+        currentLayout.value = ['S....', 'GGGGG'];
+        const advance = mountWithLoop();
+        placeBombAboutToDetonate(0, 0, 'blast-bomb-a');
+        placedBombs.value = [
+          ...placedBombs.value,
+          createPlacedBomb('blast-bomb-b', currentLevel.value, blockStates.value, 1, 0),
+        ];
+
+        advance(1);
+
+        expect(placedBombs.value.some((b) => b.id === 'blast-bomb-b')).toBe(true);
+        expect(activeExplosions.value.some((e) => e.id === 'blast-bomb-a')).toBe(true);
+        expect(activeExplosions.value.some((e) => e.id === 'blast-bomb-b')).toBe(false);
+      });
+    });
+
+    describe('US4 — the inventory has limits', () => {
+      it('atTheCap-touchingABombPickupLeavesItInTheWorld', () => {
+        const advance = mountWithLoop();
+        carriedBombs.value = MAX_BOMBS;
+        const player = playerState.value;
+        bombPickupStates.value = [{ id: 'cap-bomb', x: player.x, y: player.y }];
+
+        advance(1);
+
+        expect(carriedBombs.value).toBe(MAX_BOMBS);
+        expect(bombPickupStates.value).toHaveLength(1);
+      });
+
+      it('pressingBWithZeroBombs-placesNothingAndShowsTheTransientNoBombsBubble', () => {
+        currentLayout.value = ['S....', 'GGGGG'];
+        const advance = mountWithLoop();
+        advance(3);
+        carriedBombs.value = 0;
+
+        fireEvent.keyDown(window, { code: 'KeyB' });
+        advance(1);
+
+        expect(placedBombs.value).toHaveLength(0);
+        expect(hintTooltipState.value?.hintId).toBe('noBombs');
+        expect(hintTooltipState.value?.transient).toBe(true);
+      });
+
+      it('pressingBOnATileThatAlreadyHoldsABomb-isASilentNoOp', () => {
+        currentLayout.value = ['S....', 'GGGGG'];
+        const advance = mountWithLoop();
+        carriedBombs.value = 2;
+        advance(3);
+
+        fireEvent.keyDown(window, { code: 'KeyB' });
+        advance(1);
+        const placedCount = placedBombs.value.length;
+        const carriedCount = carriedBombs.value;
+        hintTooltipState.value = null;
+
+        fireEvent.keyDown(window, { code: 'KeyB' });
+        advance(1);
+
+        expect(placedBombs.value).toHaveLength(placedCount);
+        expect(carriedBombs.value).toBe(carriedCount);
+        expect(hintTooltipState.value).toBeNull();
+      });
+
+      it('aPlacedBomb-isNotSolid', () => {
+        currentLayout.value = ['S......', 'GGGGGGG'];
+        const advance = mountWithLoop();
+        advance(3);
+
+        const player = playerState.value;
+        const col = Math.floor((player.x + PLAYER_RENDERED_SIZE / 2) / RENDERED_TILE_SIZE);
+        const row = Math.floor(
+          (player.y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING - 1) / RENDERED_TILE_SIZE,
+        );
+        placedBombs.value = [
+          createPlacedBomb('solid-test', currentLevel.value, blockStates.value, col, row),
+        ];
+
+        const startX = playerState.value.x;
+        fireEvent.keyDown(window, { code: 'ArrowRight' });
+        advance(20);
+
+        expect(playerState.value.x).toBeGreaterThan(startX + RENDERED_TILE_SIZE);
+      });
+    });
+
+    describe('US5 — death, respawn and refill', () => {
+      it('resetGame-clearsPlacedBombsAndTheCarriedCount', () => {
+        mountWithLoop();
+        carriedBombs.value = 3;
+        placedBombs.value = [
+          createPlacedBomb('respawn-bomb', currentLevel.value, blockStates.value, 0, 0),
+        ];
+
+        resetGame();
+
+        expect(placedBombs.value).toEqual([]);
+        expect(carriedBombs.value).toBe(0);
+      });
+
+      it('aBrokenBombPot-isRestoredOnRespawnAndReBreaksIntoAFreshBombPickup', () => {
+        currentLayout.value = ['Sb', 'GG'];
+        const advance = mountWithLoop();
+        const pot = toBlockState(blockPlacements.value.find((b) => b.blockKind === 'bombPot')!);
+        playerState.value = { ...playerState.value, x: pot.x, y: blockLandingY(pot), vy: 300 };
+        advance(1);
+        advance(10);
+        expect(bombPickupStates.value).toHaveLength(1);
+
+        resetGame();
+
+        expect(bombPickupStates.value).toEqual([]);
+        const restored = blockStates.value.find((b) => b.id === pot.id);
+        expect(restored).toBeDefined();
+        expect(restored!.hitsTaken).toBe(0);
+
+        playerState.value = {
+          ...playerState.value,
+          x: restored!.x,
+          y: blockLandingY(restored!),
+          vy: 300,
+        };
+        advance(1);
+        advance(10);
+
+        expect(bombPickupStates.value).toHaveLength(1);
+      });
+    });
+
+    describe('onboarding', () => {
+      it('theShippedLevel-containsABombPotAndABombHintSignBesideIt', () => {
+        // The `6` sign sits directly beside the `b` pot (see level.ts).
+        const bombPotTile = blockPlacements.value.find((b) => b.blockKind === 'bombPot')!;
+        const bombCol = Math.round(bombPotTile.x / RENDERED_TILE_SIZE);
+        const bombRow = Math.round(bombPotTile.y / RENDERED_TILE_SIZE);
+        const bombHint = signPlacements.value.find((s) => s.hintId === 'bomb');
+        expect(bombHint).toBeDefined();
+        expect(Math.abs(Math.round(bombHint!.x / RENDERED_TILE_SIZE) - bombCol)).toBe(1);
+        expect(Math.round(bombHint!.y / RENDERED_TILE_SIZE)).toBe(bombRow);
+      });
+
+      it('theStartOfGameControlsOverlay-doesNotAdvertiseABombKey', () => {
+        render(<PlatformerPage />);
+        expect(screen.queryByText(/bomb/i)).toBeNull();
+      });
     });
   });
 });

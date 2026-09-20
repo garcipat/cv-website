@@ -13,6 +13,8 @@ import {
 import { RENDERED_TILE_SIZE, tileToPixel } from '../level/Terrain';
 import { PLAYER_RENDERED_SIZE, PLAYER_FOOT_PADDING } from '../entities/Player';
 import type { TileChar } from '../level/LevelParser';
+import { computePotRenderPlan } from '../entities/blocks/potRenderPlan';
+import { PALETTE_TILE_SPRITES, PALETTE_TILE_LABELS } from './paletteTiles';
 
 describe('gridToLevelDef', () => {
   it('maps terrain characters to tile types and entity markers to empty', () => {
@@ -81,6 +83,33 @@ describe('synthesizeBlockStates', () => {
       ['coinPot', 'crate', 'fragileRock', 'potionPot', 'questionMark'].sort(),
     );
     expect(blocks.every((b) => b.hitsTaken === 0)).toBe(true);
+  });
+});
+
+describe('synthesizeBlockStates — bombPot', () => {
+  it('aBombPotMarker-synthesizesABombPotBlockState', () => {
+    const blocks = synthesizeBlockStates([['b']]);
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].blockKind).toBe('bombPot');
+    expect(blocks[0].hitsTaken).toBe(0);
+  });
+
+  it('aBombPotBesideAnotherPot-mergesThroughTheSharedRenderPlanWithASeamFiller', () => {
+    const blocks = synthesizeBlockStates([['b', 'u']]);
+    const bombBlock = blocks.find((b) => b.blockKind === 'bombPot')!;
+    const plan = computePotRenderPlan(blocks);
+    const run = plan.runsByOwnerId.get(bombBlock.id)!;
+    expect(run.blocks.map((m) => m.kind.drop)).toEqual(['bomb', 'coin']);
+    expect(run.fillers).toHaveLength(1);
+    expect(run.fillers[0].x).toBe(bombBlock.x + RENDERED_TILE_SIZE / 2);
+  });
+
+  it('theEditorPalette-hasNoPlacedBombOrExplosionEntry', () => {
+    const keys = Object.keys(PALETTE_TILE_SPRITES);
+    expect(keys).not.toContain('bomb');
+    expect(keys).not.toContain('explosion');
+    const labels = Object.values(PALETTE_TILE_LABELS);
+    expect(labels.some((label) => /placed bomb|explosion/i.test(label))).toBe(false);
   });
 });
 

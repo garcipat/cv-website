@@ -158,7 +158,9 @@
       "fragileRockBreaksFromBelow": "Brüchige Felsen können von unten zerbrochen werden.",
       "chestNeedsKey": "Truhen benötigen einen Schlüssel zum Öffnen.",
       "noKeyForChest": "Ich brauche einen Schlüssel.",
-      "openAllChestsHaveFun": "Öffne alle Truhen und viel Spaß!"
+      "openAllChestsHaveFun": "Öffne alle Truhen und viel Spaß!",
+      "bomb": "Drücke B, um eine Bombe zu platzieren.",
+      "noBombs": "Ich habe keine Bomben."
     },
     "journal": {
       "collectibles": "Sammelobjekte",

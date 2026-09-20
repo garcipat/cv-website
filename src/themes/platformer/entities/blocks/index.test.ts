@@ -23,6 +23,20 @@ describe('BLOCK_TYPES', () => {
     expect(BLOCK_TYPES.coinPot.sprite.sheet).toBe(STATIC_OBJECTS_SHEET);
   });
 
+  it('bombPot-isRegisteredUnderItsOwnKeyOnTheSharedTileset', () => {
+    expect(BLOCK_TYPES.bombPot.key).toBe('bombPot');
+    expect(BLOCK_TYPES.bombPot.sprite.sheet).toBe(WORLD_TILESET_SHEET);
+  });
+
+  it('bombPot-sharesThePotContract', () => {
+    expect(BLOCK_TYPES.bombPot).toMatchObject({
+      maxHits: 1,
+      removeWhenUsedUp: true,
+      triggerSides: ['top'],
+      pot: { drop: 'bomb', dropPolicy: 'everyBreak', restoredOnRespawn: true },
+    });
+  });
+
   // These are the values maxHitsForBlock and isBlockRemoved encoded as
   // conditionals before they read the registry.
   it('crate-takesTwoHitsAndLeavesTheWorld', () => {

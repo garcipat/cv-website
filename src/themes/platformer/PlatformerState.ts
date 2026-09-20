@@ -17,6 +17,7 @@ import {
   FRAGILE_ROCK_TILES,
   COIN_POT_TILES,
   POTION_POT_TILES,
+  BOMB_POT_TILES,
   CHEST_TILES,
   CHECKPOINT_TILES,
   SIGN_TILES,
@@ -51,6 +52,8 @@ import type { CheckpointState } from './entities/Checkpoint';
 import type { BonusFruitState } from './entities/BonusFruit';
 import type { KeyPickupState } from './entities/KeyPickup';
 import type { HeartPickupState } from './entities/HeartPickup';
+import type { BombPickupState } from './entities/BombPickup';
+import type { PlacedBombState } from './engine/PlacedBomb';
 import { introState } from './engine/GameLifecycle';
 import { currentCV } from '@/state/locale';
 import { mapCVDataToSkillFactPool, placeCollectibles } from './level/CollectibleMapper';
@@ -78,6 +81,7 @@ import type {
   CounterPopupEffect,
   CounterPopupLabelKey,
   FadeOutTextEffect,
+  ExplosionEffect,
 } from './engine/CollectionEffects';
 import type { LevelTotals } from './entities/CollectiblesSummary';
 import type { HintTooltipState } from './engine/HintTooltip';
@@ -289,6 +293,7 @@ export const blockPlacements = computed<BlockPlacement[]>(() =>
     fragileRock: FRAGILE_ROCK_TILES.value,
     coinPot: COIN_POT_TILES.value,
     potionPot: POTION_POT_TILES.value,
+    bombPot: BOMB_POT_TILES.value,
   }),
 );
 
@@ -603,6 +608,41 @@ export const keyPickupStates = signal<KeyPickupState[]>([]);
  */
 export const collectedKeys = signal<number>(0);
 
+/** The maximum number of bombs the character can carry (FR-008). */
+export const MAX_BOMBS = 5;
+
+/**
+ * How many bombs the character is carrying — always an integer in
+ * `[0, MAX_BOMBS]`. Collecting a bomb pickup increments this by one while
+ * below the cap (FR-007); placing consumes exactly one (FR-013). A `signal`
+ * like `collectedKeys`.
+ */
+export const carriedBombs = signal<number>(0);
+
+/**
+ * Bombs dropped by destroyed bomb-pots this session — starts empty, same
+ * lifecycle as `heartPickupStates`: appended when a bomb-pot breaks, removed
+ * outright when collected, and cleared by `resetGame()` (a dropped bomb is
+ * tied to its now-restored pot). A pickup at the cap is left in the world,
+ * still bobbing, until the count drops below the cap (FR-009).
+ */
+export const bombPickupStates = signal<BombPickupState[]>([]);
+
+/**
+ * Live placed bombs — each one a ticking fuse that falls under gravity and
+ * detonates after `BOMB_FUSE_SECONDS` (FR-015/FR-016). Never part of
+ * `blockPlacements` (a placed bomb is non-solid) and never a blast target
+ * (FR-025/FR-026). Cleared by `resetGame()` (FR-027).
+ */
+export const placedBombs = signal<PlacedBombState[]>([]);
+
+/**
+ * Transient explosion visuals — one per detonation, purely cosmetic and never
+ * a hazard (FR-023). Advanced/expired every tick; cleared by
+ * `resetGameProgress()`.
+ */
+export const activeExplosions = signal<ExplosionEffect[]>([]);
+
 /**
  * Facts discovered so far this session (see spec.md FR-032). Starts empty;
  * populated via real coin/fruit collection, enemy defeat, block hits, and
@@ -805,6 +845,14 @@ export function resetGame(): void {
       }),
   ];
   heartPickupStates.value = [];
+  // O-012: a death/respawn removes every live placed bomb (never exploding
+  // it), resets the carried count to zero, and clears dropped bomb pickups —
+  // a dropped bomb is tied to its now-restored pot, exactly like a heart
+  // (FR-027/FR-028). The `bombPot` restoration itself flows through the
+  // `restoredOnRespawnForBlock` path above.
+  placedBombs.value = [];
+  carriedBombs.value = 0;
+  bombPickupStates.value = [];
 }
 
 /**
@@ -851,4 +899,5 @@ export function resetGameProgress(): void {
   collectedKeys.value = 0;
   deployableLadderStates.value = deployableLadderPlacements.value.map((state) => ({ ...state }));
   enemyStates.value = enemyPlacements.value.map((placement, index) => toEnemyState(placement, index));
+  activeExplosions.value = [];
 }

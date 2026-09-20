@@ -60,6 +60,7 @@ import type { CollectiblePlacement } from '../level/CollectibleMapper';
 import { PICKUP_TYPES } from '../entities/pickups';
 import { key } from '../entities/pickups/Key';
 import { heart } from '../entities/pickups/Heart';
+import { bomb } from '../entities/pickups/Bomb';
 import { bonusFruit } from '../entities/pickups/BonusFruit';
 import { typeOf } from '../entities/enemies';
 import type { EnemyState } from '../entities/Enemy';
@@ -68,6 +69,7 @@ import type { HazardPlacement } from '../level/HazardMapper';
 import type { DrawContext } from './DrawContext';
 import type { KeyPickupState } from '../entities/KeyPickup';
 import type { HeartPickupState } from '../entities/HeartPickup';
+import type { BombPickupState } from '../entities/BombPickup';
 import { KEY_FRAME_WIDTH, KEY_FRAME_HEIGHT } from '../entities/KeyPickup';
 import type { BlockState } from '../entities/Block';
 import { BLOCK_TYPES } from '../entities/blocks';
@@ -94,8 +96,11 @@ import {
   hitSplatterDroplets,
   fadeOutTextOpacity,
 } from './CollectionEffects';
-import type { FlightEffect, PuffEffect, HealAuraEffect, HitSplatterEffect, FadeOutTextEffect } from './CollectionEffects';
-import { TORCH_SHEET } from '../entities/sprites/sheets';
+import type { FlightEffect, PuffEffect, HealAuraEffect, HitSplatterEffect, FadeOutTextEffect, ExplosionEffect } from './CollectionEffects';
+import { explosionFrameIndex } from './CollectionEffects';
+import { TORCH_SHEET, BOMB_SHEET, EXPLOSION_SHEET } from '../entities/sprites/sheets';
+import { bombFuseFrame } from './PlacedBomb';
+import type { PlacedBombState } from './PlacedBomb';
 import {
   TORCH_FRAME_WIDTH,
   TORCH_FRAME_HEIGHT,
@@ -1364,6 +1369,22 @@ export function drawHeartPickups(
   }
 }
 
+/** Draws every dropped bomb pickup — each one renders itself (see
+ *  entities/pickups/Bomb.ts). Same no-`collected`-flag convention as
+ *  drawHeartPickups: a touched bomb is removed from its live array entirely
+ *  the same tick (unless the inventory is at its cap — then it is left in the
+ *  world and simply keeps drawing). */
+export function drawBombPickups(
+  ctx: CanvasRenderingContext2D,
+  pickups: readonly BombPickupState[],
+  dc: DrawContext,
+): void {
+  ctx.imageSmoothingEnabled = false;
+  for (const pickup of pickups) {
+    bomb.draw(pickup, dc);
+  }
+}
+
 /** Draws every spike hazard. Knows nothing about any specific hazard kind —
  *  each one renders itself (see entities/hazards/). */
 export function drawHazards(
@@ -1401,6 +1422,76 @@ export function drawBlocks(
   ctx.imageSmoothingEnabled = false;
   for (const block of blocks) {
     BLOCK_TYPES[block.blockKind].draw(block, dc);
+  }
+}
+
+/**
+ * Draws every live placed bomb at its fuse frame (see `bombFuseFrame`),
+ * scaled about its tile centre — the orange pre-detonation frame is drawn
+ * slightly larger (FR-017). A still-falling bomb is drawn at its current `y`.
+ * Frame 0 (the unlit icon) is never drawn on a placed bomb.
+ */
+export function drawPlacedBombs(
+  ctx: CanvasRenderingContext2D,
+  bombs: readonly PlacedBombState[],
+  dc: DrawContext,
+): void {
+  ctx.imageSmoothingEnabled = false;
+  const image = dc.sprites[BOMB_SHEET.src];
+  if (!image) return;
+
+  for (const placed of bombs) {
+    const { frame, scale } = bombFuseFrame(placed.fuseElapsed);
+    const { sx, sy } = frameSource(BOMB_SHEET, frame);
+    const centerX = placed.x + RENDERED_TILE_SIZE / 2 + dc.originX;
+    const centerY = placed.y + RENDERED_TILE_SIZE / 2 + dc.originY;
+
+    ctx.save();
+    ctx.translate(centerX, centerY);
+    ctx.scale(scale, scale);
+    ctx.drawImage(
+      image,
+      sx,
+      sy,
+      BOMB_SHEET.frameWidth,
+      BOMB_SHEET.frameHeight,
+      -RENDERED_TILE_SIZE / 2,
+      -RENDERED_TILE_SIZE / 2,
+      RENDERED_TILE_SIZE,
+      RENDERED_TILE_SIZE,
+    );
+    ctx.restore();
+  }
+}
+
+/**
+ * Draws every active explosion — the active sheet's frame at `renderScale 2`
+ * (48 px native × 2 = 96 px, exactly the 3×3 footprint), centred on the
+ * effect's world point. Purely cosmetic (FR-023).
+ */
+export function drawExplosions(
+  ctx: CanvasRenderingContext2D,
+  explosions: readonly ExplosionEffect[],
+  dc: DrawContext,
+): void {
+  ctx.imageSmoothingEnabled = false;
+  const image = dc.sprites[EXPLOSION_SHEET.src];
+  if (!image) return;
+
+  const size = EXPLOSION_SHEET.frameWidth * RENDER_SCALE;
+  for (const effect of explosions) {
+    const { sx, sy } = frameSource(EXPLOSION_SHEET, explosionFrameIndex(effect));
+    ctx.drawImage(
+      image,
+      sx,
+      sy,
+      EXPLOSION_SHEET.frameWidth,
+      EXPLOSION_SHEET.frameHeight,
+      effect.x + dc.originX - size / 2,
+      effect.y + dc.originY - size / 2,
+      size,
+      size,
+    );
   }
 }
 
@@ -2112,4 +2203,71 @@ export function drawKeyCounter(
   ctx.textBaseline = 'middle';
   fillTextWithOutline(ctx, `${count}`, x + iconWidth + CHEST_COUNTER_TEXT_GAP, y);
   ctx.restore();
+}
+
+/** Between CHEST_COUNTER_ICON_HEIGHT (26) and HEART_RENDERED_SIZE (32) —
+ *  matches the key counter's own icon height so the two HUD groups read at
+ *  the same scale. */
+const BOMB_COUNTER_ICON_HEIGHT = 24;
+
+/** Draws the "[bomb icon] N" HUD counter — the unlit bomb (bomb.png frame 0)
+ *  plus the carried count, no denominator (FR-010). Called only while the
+ *  count is at least 1; at 0 the whole group is hidden. */
+export function drawBombCounter(
+  ctx: CanvasRenderingContext2D,
+  bombSprite: HTMLImageElement,
+  count: number,
+  x: number,
+  y: number,
+): void {
+  ctx.imageSmoothingEnabled = false;
+  const iconHeight = BOMB_COUNTER_ICON_HEIGHT;
+  const iconWidth = (BOMB_SHEET.frameWidth / BOMB_SHEET.frameHeight) * iconHeight;
+  ctx.drawImage(
+    bombSprite,
+    0,
+    0,
+    BOMB_SHEET.frameWidth,
+    BOMB_SHEET.frameHeight,
+    x,
+    y - iconHeight / 2,
+    iconWidth,
+    iconHeight,
+  );
+
+  ctx.save();
+  ctx.fillStyle = '#fff';
+  ctx.font = `22px "${RESTART_PROMPT_FONT_FAMILY}", monospace`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  fillTextWithOutline(ctx, `${count}`, x + iconWidth + CHEST_COUNTER_TEXT_GAP, y);
+  ctx.restore();
+}
+
+/** The key counter's actual on-screen content width — the same measurement
+ *  `chestCounterWidth` does for the chest counter, used to position the bomb
+ *  counter just past it. */
+function keyCounterWidth(ctx: CanvasRenderingContext2D, count: number): number {
+  const iconWidth = (KEY_FRAME_WIDTH / KEY_FRAME_HEIGHT) * KEY_COUNTER_ICON_HEIGHT;
+  ctx.font = `22px "${RESTART_PROMPT_FONT_FAMILY}", monospace`;
+  const textWidth = ctx.measureText(`${count}`).width;
+  return iconWidth + CHEST_COUNTER_TEXT_GAP + textWidth;
+}
+
+/**
+ * Horizontal screen position for the bomb counter — placed just to the right
+ * of the key counter, separated by `HUD_GROUP_GAP`. The key counter is itself
+ * hidden while `keyCount` is 0, so this adds its measured width plus the gap
+ * only when keys are actually shown; otherwise the bomb group takes the key
+ * counter's own position (FR-010).
+ */
+export function bombCounterX(
+  ctx: CanvasRenderingContext2D,
+  chestCollected: number,
+  chestTotal: number,
+  keyCount: number,
+): number {
+  const base = keyCounterX(ctx, chestCollected, chestTotal);
+  if (keyCount <= 0) return base;
+  return base + keyCounterWidth(ctx, keyCount) + HUD_GROUP_GAP;
 }
