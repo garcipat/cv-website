@@ -41,8 +41,10 @@ import {
   drawEnemyEyes,
   drawHeldTorch,
   heldTorchLightPosition,
+  drawDeployableLadders,
 } from './engine/Renderer';
 import { drawBackgroundLayers } from './engine/BackgroundLayers';
+import { ladderBundleForPlayer, beginDeploy } from './engine/DeployableLadder';
 import type { DrawContext } from './engine/DrawContext';
 import { drawDebugOverlay, drawCameraDeadZoneOverlay } from './engine/DebugOverlay';
 import { createGameLoop } from './engine/GameLoop';
@@ -146,6 +148,7 @@ import {
   BACKGROUND_LAYER_RIVER_SHEET,
   DECORATIONS_SHEET,
   TORCH_SHEET,
+  ROPE_LADDER_SHEET,
 } from './entities/sprites/sheets';
 import { frameSource, collectSheetSources } from './entities/sprites/SpriteSheet';
 import type { SpriteLookup } from './entities/sprites/SpriteSheet';
@@ -203,6 +206,9 @@ import {
   darknessLevel,
   tickDarkness,
   torchPositions,
+  deployableLadderStates,
+  activeLevel,
+  tickDeployableLadders,
 } from './PlatformerState';
 import { useSignals } from '@preact/signals-react/runtime';
 import { Journal } from './components/Journal';
@@ -239,6 +245,10 @@ export const PlatformerPage = () => {
   // and threaded into drawTerrain with the shared world clock (see the render
   // call below), since a torch's frame animates over time.
   const torchRef = useRef<HTMLImageElement | null>(null);
+  // The deployable rope-ladder sheet (bundle + shaft cap/step pieces) — loaded
+  // alongside the other decorative sheets and threaded into
+  // drawDeployableLadders (O-011).
+  const ropeLadderRef = useRef<HTMLImageElement | null>(null);
   // Reusable offscreen canvas the darkness/torch pass draws its overlay onto
   // before compositing it over the world. Created and sized alongside the main
   // canvas in `resize()` below, so it is never reallocated per frame.
@@ -596,6 +606,14 @@ export const PlatformerPage = () => {
             worldAnimElapsed,
           );
         }
+        drawDeployableLadders(
+          ctx,
+          currentLevel.value,
+          deployableLadderStates.value,
+          ropeLadderRef.current,
+          originX,
+          originY,
+        );
         drawSigns(ctx, signPlacements.value, tilesetRef.current, originX, originY);
       }
 
@@ -956,6 +974,10 @@ export const PlatformerPage = () => {
       // Darkness is eased here, in the `playing` branch only, so it freezes
       // with the rest of the world during pause/death (research D8).
       tickDarkness(dt);
+
+      // In-progress rope-ladder unrolls advance here too, so they freeze with
+      // the world on pause/death (O-011).
+      tickDeployableLadders(dt);
 
       // Computed once per tick and shared by every reveal site below — these
       // same two expressions used to be duplicated in the enemy-defeat block
@@ -1386,7 +1408,23 @@ export const PlatformerPage = () => {
       // closed chest with zero keys is itself the trigger condition for that
       // bubble, independent of whether Up was actually pressed this tick.
       const standingChestId = chestPlayerIsStandingOn(playerState.value, chestStates.value);
-      if (interactPressed) {
+
+      // A grounded character standing on (or one cell above) a rolled bundle
+      // takes the Up press to deploy it — before the chest/hint blocks below,
+      // so the press is consumed and never also opens a chest or reveals a
+      // hint this tick (FR-017). Holding Up afterwards is harmless: the bundle
+      // is not climbable while rolled/deploying.
+      const bundleForPlayer = interactPressed
+        ? ladderBundleForPlayer(currentLevel.value, deployableLadderStates.value, playerState.value)
+        : null;
+      const bundleDeployedThisTick = bundleForPlayer !== null;
+      if (bundleForPlayer) {
+        deployableLadderStates.value = deployableLadderStates.value.map((state) =>
+          state.id === bundleForPlayer.id ? beginDeploy(state) : state,
+        );
+      }
+
+      if (interactPressed && !bundleDeployedThisTick) {
         if (standingChestId && collectedKeys.value > 0) {
           const chest = chestStates.value.find((c) => c.id === standingChestId)!;
           chestStates.value = chestStates.value.map((c) =>
@@ -1438,7 +1476,7 @@ export const PlatformerPage = () => {
         !overlappingSignHintId && standingClosedChestId && collectedKeys.value <= 0 ? 'noKeyForChest' : undefined;
       const overlappingHintId = overlappingSignHintId ?? lockedChestHintId;
       const currentTooltip = hintTooltipState.value;
-      if (overlappingHintId && interactPressed) {
+      if (overlappingHintId && interactPressed && !bundleDeployedThisTick) {
         if (!currentTooltip || currentTooltip.hintId !== overlappingHintId) {
           hintTooltipState.value = startHintTooltip(overlappingHintId);
         } else if (currentTooltip.phase === 'exiting') {
@@ -1592,7 +1630,7 @@ export const PlatformerPage = () => {
 
       let next = stepPlayerPhysics(
         playerState.value,
-        currentLevel.value,
+        activeLevel.value,
         dt,
         {
           ...horizontal,
@@ -1991,6 +2029,16 @@ export const PlatformerPage = () => {
       .catch(() => {
         // Torches are purely decorative — they simply won't render if this
         // strip fails to load; the rest of the level still shows.
+      });
+    loadImage(ROPE_LADDER_SHEET.src)
+      .then((img) => {
+        if (cancelled) return;
+        ropeLadderRef.current = img;
+        render();
+      })
+      .catch(() => {
+        // Deployable ladders simply won't render if this sheet fails to load;
+        // the rest of the level still shows.
       });
     loadImage('/sprites/knight.png')
       .then((img) => {

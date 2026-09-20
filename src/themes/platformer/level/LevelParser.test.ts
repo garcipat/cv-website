@@ -18,6 +18,7 @@ import {
   HAZARD_CHARS,
   findHazardTiles,
   findTorchTiles,
+  findLadderBundleTiles,
   type TileChar,
 } from './LevelParser';
 
@@ -517,11 +518,36 @@ describe('findTorchTiles', () => {
   });
 });
 
+describe('findLadderBundleTiles', () => {
+  it('TERRAIN_CHARS-mapsAtToLadderBundle', () => {
+    expect(TERRAIN_CHARS['@']).toBe('ladderBundle');
+  });
+
+  it('noMarkers-returnsEmptyArray', () => {
+    expect(findLadderBundleTiles(['GG', 'GG'])).toEqual([]);
+  });
+
+  it('multipleMarkers-returnsAllInReadingOrder', () => {
+    expect(findLadderBundleTiles(['.@', '@.'])).toEqual([
+      { col: 1, row: 0 },
+      { col: 0, row: 1 },
+    ]);
+  });
+
+  it('otherTerrainAndEntityChars-areNotCountedAsBundles', () => {
+    expect(findLadderBundleTiles(['H=H', 'oG¥'])).toEqual([]);
+  });
+
+  it('ropeLadder-isNotALevelCharacter', () => {
+    expect(Object.values(TERRAIN_CHARS)).not.toContain('ropeLadder');
+  });
+});
+
 describe('TileChar', () => {
   it('includes every TERRAIN_CHARS, ENTITY_CHARS, SIGN_CHARS, and HAZARD_CHARS key', () => {
     const tileChars: readonly TileChar[] = [
       '.', 'G', 'R', '#', 'B', 'H', 'I', 'P', '+', 'S', 'M', 'm', 'o', '=', 'Q', 'F', '$', 'u', 'p',
-      'n', 'N', 'X', 'c', '⊤', '⊥', '¥', '1', '2', '3', '4', '5', '^', 'v', '<', '>', 'C',
+      'n', 'N', 'X', 'c', '⊤', '⊥', '¥', '1', '2', '3', '4', '5', '^', 'v', '<', '>', 'C', '@',
     ];
     const allKeys = [
       ...Object.keys(TERRAIN_CHARS),

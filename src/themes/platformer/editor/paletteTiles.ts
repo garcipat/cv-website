@@ -277,6 +277,17 @@ export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
     frameWidth: 12,
     frameHeight: 14,
   },
+  '@': {
+    // The rolled bundle crop (16x16 at 0,0) of the hand-authored
+    // rope_ladder.png sheet (see ROPE_LADDER_SHEET).
+    sheet: '/sprites/rope_ladder.png',
+    sheetWidth: 32,
+    sheetHeight: 32,
+    sx: 0,
+    sy: 0,
+    frameWidth: 16,
+    frameHeight: 16,
+  },
   // '1'-'5' are all the same signpost sprite — the digit is what
   // distinguishes a sign's hint content (SIGN_CHARS), not its appearance.
   // Only the first (`'1'`) ever renders as its own palette button (see
@@ -436,6 +447,7 @@ export const PALETTE_TILE_DESCRIPTIONS: Record<TileChar, string> = {
   '⊤': 'Stalactite; purely decorative, auto-picks a size variant',
   '⊥': 'Stalagmite; purely decorative, auto-picks a size variant',
   '¥': 'Wall torch; purely decorative, flame sparkles',
+  '@': 'Rope ladder bundle; press Up while standing on it to unroll a rope ladder down to the ground below',
   '1': 'Hint sign; click it again on the canvas to cycle its hint',
   '2': 'Hint sign; click it again on the canvas to cycle its hint',
   '3': 'Hint sign; click it again on the canvas to cycle its hint',
@@ -478,6 +490,7 @@ export const PALETTE_TILE_LABELS: Record<TileChar, string> = {
   '⊤': 'Stalactite',
   '⊥': 'Stalagmite',
   '¥': 'Torch',
+  '@': 'Rope Ladder Bundle',
   '1': 'Sign',
   '2': 'Sign 2',
   '3': 'Sign 3',

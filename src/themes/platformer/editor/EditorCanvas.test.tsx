@@ -24,6 +24,7 @@ vi.mock('../engine/Renderer', () => ({
   drawSigns: vi.fn(),
   drawHazards: vi.fn(),
   drawBackgroundTiles: vi.fn(),
+  drawDeployableLadders: vi.fn(),
 }));
 
 import {
@@ -52,6 +53,7 @@ const EMPTY_IMAGES: EditorImages = {
   staticObjects: null,
   decorations: null,
   torch: null,
+  ropeLadder: null,
 };
 
 // Default props shared by every pre-existing test in this file (all of
@@ -83,6 +85,8 @@ function stubCanvasContext() {
     fillText: vi.fn(),
     strokeText: vi.fn(),
     strokeRect: vi.fn(),
+    setLineDash: vi.fn(),
+    arc: vi.fn(),
   } as unknown as CanvasRenderingContext2D;
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(ctx);
   return ctx;
