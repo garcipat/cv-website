@@ -28,6 +28,47 @@ export function createLocalStorageSignal<T>(
   return themeSignal;
 }
 
+/**
+ * Creates a Preact Signal whose localStorage write is debounced.
+ *
+ * - On creation, reads `localStorage[key]`, parses as JSON, uses the value if
+ *   valid — exactly the same fallback rules as `createLocalStorageSignal`.
+ * - The signal itself updates synchronously on every write; only the
+ *   `localStorage` write waits for `delayMs` of quiet after the last change.
+ * - The pending write reads the signal's CURRENT value when its timer fires,
+ *   so a later change (e.g. loading a different level) can never be overwritten
+ *   by an earlier pending value.
+ * - All localStorage access is wrapped in try/catch.
+ */
+export function createDebouncedLocalStorageSignal<T>(
+  key: string,
+  defaultValue: T,
+  delayMs: number,
+): Signal<T> {
+  const stored = readLocalStorage<T>(key);
+  const debouncedSignal = signal<T>(stored !== undefined ? stored : defaultValue);
+
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  // `subscribe` invokes its callback once immediately on subscription, with the
+  // value just read — that first call is not a change and must not schedule a
+  // write of its own.
+  let initialized = false;
+
+  debouncedSignal.subscribe(() => {
+    if (!initialized) {
+      initialized = true;
+      return;
+    }
+    if (timer !== undefined) clearTimeout(timer);
+    timer = setTimeout(() => {
+      timer = undefined;
+      writeLocalStorage(key, debouncedSignal.value);
+    }, delayMs);
+  });
+
+  return debouncedSignal;
+}
+
 function readLocalStorage<T>(key: string): T | undefined {
   try {
     const raw = localStorage.getItem(key);

@@ -218,7 +218,7 @@ export const SCRATCH_LAYOUT: readonly string[] = ['.S.', 'GGG'];
  * The layout the GAME actually renders/simulates against — starts out equal
  * to the hardcoded `LEVEL_1_LAYOUT` above, but is deliberately an in-memory
  * signal (NOT localStorage-backed, unlike the Level Editor's own
- * `editorLevelSignal` in `editor/editorLevelState.ts`): a real page
+ * `editorLevelSignal` in `editor/editorState.ts`): a real page
  * load/reload must always fall back to whatever `LEVEL_1_LAYOUT` says in
  * code, so shipping a new default layout always takes effect for every
  * visitor, and a play-tester's in-progress edits never leak into the live

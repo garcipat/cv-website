@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BlueprintSelect } from './BlueprintSelect';
 import { BLANK_BLUEPRINT, type Blueprint } from '../level/BlueprintData';
+import { levelEditorPage } from './LevelEditorPage.page';
 
 // The registry is a build-time glob, so the suite swaps in a list it can
 // control. It has to be a STABLE array the tests mutate rather than a fresh one
@@ -15,7 +16,7 @@ vi.mock('../level/blueprintRegistry', () => ({
   findBlueprint: (id: string) => registryEntries.find((entry) => entry.id === id),
 }));
 
-const openDropdown = () => fireEvent.click(screen.getByRole('combobox'));
+const openDropdown = () => fireEvent.click(levelEditorPage.entrySelect.trigger);
 
 const registerBlueprint = (blueprint: Blueprint): Blueprint => {
   registryEntries.push(blueprint);
@@ -33,7 +34,7 @@ describe('BlueprintSelect', () => {
     render(<BlueprintSelect loadedBlueprintName="new" isDirty={false} onLoadBlueprint={vi.fn()} />);
     openDropdown();
 
-    expect(screen.getByRole('option', { name: 'new' })).toBeInTheDocument();
+    expect(levelEditorPage.entrySelect.option('new')).toBeInTheDocument();
   });
 
   it('open-listsEverySavedBlueprint', () => {
@@ -41,7 +42,7 @@ describe('BlueprintSelect', () => {
     render(<BlueprintSelect loadedBlueprintName="new" isDirty={false} onLoadBlueprint={vi.fn()} />);
     openDropdown();
 
-    expect(screen.getByRole('option', { name: 'Test Room' })).toBeInTheDocument();
+    expect(levelEditorPage.entrySelect.option('test-room')).toBeInTheDocument();
   });
 
   it('namesTheLoadedBlueprintOnTheTriggerSoItIsVisibleWithoutOpening', () => {
@@ -49,7 +50,7 @@ describe('BlueprintSelect', () => {
       <BlueprintSelect loadedBlueprintName="Test Room" isDirty={false} onLoadBlueprint={vi.fn()} />,
     );
 
-    expect(screen.getByRole('combobox')).toHaveTextContent('Test Room');
+    expect(levelEditorPage.entrySelect.trigger).toHaveTextContent('Test Room');
   });
 
   it('notDirty-selectingASavedBlueprint-loadsItWithNoConfirmation', async () => {
@@ -59,10 +60,10 @@ describe('BlueprintSelect', () => {
       <BlueprintSelect loadedBlueprintName="new" isDirty={false} onLoadBlueprint={onLoadBlueprint} />,
     );
     openDropdown();
-    await userEvent.click(screen.getByRole('option', { name: 'Test Room' }));
+    await userEvent.click(levelEditorPage.entrySelect.option('test-room'));
 
     expect(onLoadBlueprint).toHaveBeenCalledWith(saved);
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(levelEditorPage.entrySelect.queryDiscardDialog).not.toBeInTheDocument();
   });
 
   it('notDirty-selectingTheBlankEntry-loadsTheBlankBlueprint', async () => {
@@ -71,7 +72,7 @@ describe('BlueprintSelect', () => {
       <BlueprintSelect loadedBlueprintName="Test Room" isDirty={false} onLoadBlueprint={onLoadBlueprint} />,
     );
     openDropdown();
-    await userEvent.click(screen.getByRole('option', { name: 'new' }));
+    await userEvent.click(levelEditorPage.entrySelect.option('new'));
 
     expect(onLoadBlueprint).toHaveBeenCalledWith(BLANK_BLUEPRINT);
   });
@@ -83,10 +84,10 @@ describe('BlueprintSelect', () => {
       <BlueprintSelect loadedBlueprintName="new" isDirty onLoadBlueprint={onLoadBlueprint} />,
     );
     openDropdown();
-    await userEvent.click(screen.getByRole('option', { name: 'Test Room' }));
+    await userEvent.click(levelEditorPage.entrySelect.option('test-room'));
 
     expect(onLoadBlueprint).not.toHaveBeenCalled();
-    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    expect(levelEditorPage.entrySelect.discardDialog).toBeInTheDocument();
   });
 
   it('dirty-confirmingTheDialog-loadsTheSelectedBlueprint', async () => {
@@ -96,8 +97,8 @@ describe('BlueprintSelect', () => {
       <BlueprintSelect loadedBlueprintName="new" isDirty onLoadBlueprint={onLoadBlueprint} />,
     );
     openDropdown();
-    await userEvent.click(screen.getByRole('option', { name: 'Test Room' }));
-    await userEvent.click(await screen.findByRole('button', { name: 'Discard and load' }));
+    await userEvent.click(levelEditorPage.entrySelect.option('test-room'));
+    await userEvent.click(levelEditorPage.entrySelect.discardConfirm);
 
     expect(onLoadBlueprint).toHaveBeenCalledWith(saved);
   });
@@ -109,11 +110,11 @@ describe('BlueprintSelect', () => {
       <BlueprintSelect loadedBlueprintName="new" isDirty onLoadBlueprint={onLoadBlueprint} />,
     );
     openDropdown();
-    await userEvent.click(screen.getByRole('option', { name: 'Test Room' }));
-    await userEvent.click(await screen.findByRole('button', { name: 'Cancel' }));
+    await userEvent.click(levelEditorPage.entrySelect.option('test-room'));
+    await userEvent.click(levelEditorPage.entrySelect.discardCancel);
 
     expect(onLoadBlueprint).not.toHaveBeenCalled();
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(levelEditorPage.entrySelect.queryDiscardDialog).not.toBeInTheDocument();
   });
 
   // Reopening the blueprint you are already on is "start this room over",
@@ -125,8 +126,8 @@ describe('BlueprintSelect', () => {
       <BlueprintSelect loadedBlueprintName="Test Room" isDirty onLoadBlueprint={onLoadBlueprint} />,
     );
     openDropdown();
-    await userEvent.click(screen.getByRole('option', { name: 'Test Room' }));
-    await userEvent.click(await screen.findByRole('button', { name: 'Discard and load' }));
+    await userEvent.click(levelEditorPage.entrySelect.option('test-room'));
+    await userEvent.click(levelEditorPage.entrySelect.discardConfirm);
 
     expect(onLoadBlueprint).toHaveBeenCalledWith(saved);
   });
@@ -140,7 +141,7 @@ describe('BlueprintSelect', () => {
     render(<BlueprintSelect loadedBlueprintName="new" isDirty={false} onLoadBlueprint={vi.fn()} />);
     openDropdown();
 
-    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
+    expect(levelEditorPage.entrySelect.options.map((option) => option.textContent)).toEqual([
       BLANK_BLUEPRINT.name,
       'Alpha',
       'Zulu',

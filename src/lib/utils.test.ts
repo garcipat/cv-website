@@ -1,4 +1,4 @@
-import { cn, createLocalStorageSignal } from './utils';
+import { cn, createLocalStorageSignal, createDebouncedLocalStorageSignal } from './utils';
 
 describe('cn', () => {
   it('merges Tailwind classes correctly and resolves conflicts', () => {
@@ -85,5 +85,100 @@ describe('createLocalStorageSignal', () => {
     const newValue: Settings = { volume: 75, muted: true };
     sig.value = newValue;
     expect(JSON.parse(localStorage.getItem('settings')!)).toEqual(newValue);
+  });
+});
+
+describe('createDebouncedLocalStorageSignal', () => {
+  const KEY = 'debounced-key';
+  const DELAY_MS = 400;
+
+  beforeEach(() => {
+    localStorage.clear();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('initializes from localStorage when a value exists', () => {
+    localStorage.setItem(KEY, JSON.stringify('stored-value'));
+    const sig = createDebouncedLocalStorageSignal(KEY, 'default', DELAY_MS);
+    expect(sig.value).toBe('stored-value');
+  });
+
+  it('uses defaultValue when localStorage is empty', () => {
+    const sig = createDebouncedLocalStorageSignal(KEY, 'default', DELAY_MS);
+    expect(sig.value).toBe('default');
+  });
+
+  it('writingAValue-updatesTheSignalImmediatelyButDoesNotWriteStorageYet', () => {
+    const sig = createDebouncedLocalStorageSignal(KEY, 'default', DELAY_MS);
+    sig.value = 'next';
+
+    expect(sig.value).toBe('next');
+    expect(localStorage.getItem(KEY)).toBeNull();
+
+    vi.advanceTimersByTime(DELAY_MS - 1);
+    expect(localStorage.getItem(KEY)).toBeNull();
+
+    vi.advanceTimersByTime(1);
+    expect(localStorage.getItem(KEY)).toBe(JSON.stringify('next'));
+  });
+
+  it('writingManyValuesInABurst-writesStorageOnlyOnceAtTheEnd', () => {
+    const sig = createDebouncedLocalStorageSignal(KEY, 'default', DELAY_MS);
+    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem');
+
+    sig.value = 'one';
+    vi.advanceTimersByTime(100);
+    sig.value = 'two';
+    vi.advanceTimersByTime(100);
+    sig.value = 'three';
+    vi.advanceTimersByTime(DELAY_MS);
+
+    expect(setItemSpy).toHaveBeenCalledTimes(1);
+    expect(localStorage.getItem(KEY)).toBe(JSON.stringify('three'));
+    setItemSpy.mockRestore();
+  });
+
+  it('pendingWrite-readsTheCurrentValueAtFireTimeRatherThanTheScheduledOne', () => {
+    const sig = createDebouncedLocalStorageSignal(KEY, 'default', DELAY_MS);
+    sig.value = 'scheduled';
+    vi.advanceTimersByTime(DELAY_MS - 50);
+    // A later change (e.g. a level load) reschedules and must win.
+    sig.value = 'later';
+    vi.advanceTimersByTime(DELAY_MS);
+
+    expect(localStorage.getItem(KEY)).toBe(JSON.stringify('later'));
+  });
+
+  it('creatingTheSignal-withoutAnyChange-doesNotWriteStorage', () => {
+    createDebouncedLocalStorageSignal(KEY, 'default', DELAY_MS);
+    vi.advanceTimersByTime(DELAY_MS * 2);
+    expect(localStorage.getItem(KEY)).toBeNull();
+  });
+
+  it('writingValue-persistsUnderTheGivenKeyAndRoundTrips', () => {
+    const sig = createDebouncedLocalStorageSignal(KEY, 'default', DELAY_MS);
+    sig.value = 'persisted';
+    vi.advanceTimersByTime(DELAY_MS);
+
+    expect(localStorage.getItem(KEY)).toBe(JSON.stringify('persisted'));
+    const reread = createDebouncedLocalStorageSignal(KEY, 'fallback', DELAY_MS);
+    expect(reread.value).toBe('persisted');
+  });
+
+  it('handles localStorage setItem throwing gracefully', () => {
+    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('Storage full');
+    });
+    const sig = createDebouncedLocalStorageSignal(KEY, 'default', DELAY_MS);
+    sig.value = 'new-value';
+
+    expect(() => {
+      vi.advanceTimersByTime(DELAY_MS);
+    }).not.toThrow();
+    setItemSpy.mockRestore();
   });
 });

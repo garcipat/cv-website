@@ -7,6 +7,9 @@ import { BACKGROUND_CATALOG } from '../engine/BackgroundCatalog';
 import { BACKGROUND_PALETTE_LABELS } from './backgroundPaletteTiles';
 import type { BackgroundPieceId } from '../level/LevelData';
 import type { Blueprint } from '../level/BlueprintData';
+import { levelEditorPage } from './LevelEditorPage.page';
+
+const palette = levelEditorPage.palette;
 
 // The registry is a build-time glob of `level/blueprints/*.json`, and that
 // folder can hold an untracked file left over from manual testing — so every
@@ -50,59 +53,53 @@ describe('Palette', () => {
 
   it('renders a "Palette" title', () => {
     render(<Palette {...defaultProps} />);
-    expect(screen.getByText('Palette')).toBeInTheDocument();
+    expect(palette.root).toHaveTextContent('Palette');
   });
 
   it('renders a distinct Eraser tile', () => {
     render(<Palette {...defaultProps} />);
-    expect(screen.getByRole('button', { name: 'Eraser' })).toBeInTheDocument();
+    expect(palette.tile('.')).toBeInTheDocument();
   });
 
   it('renders tiles labeled by human-readable name, not raw character', () => {
     render(<Palette {...defaultProps} />);
-    expect(screen.getByRole('button', { name: 'Ground Rock' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Coin' })).toBeInTheDocument();
+    expect(palette.tile('R')).toHaveAccessibleName('Ground Rock');
+    expect(palette.tile('o')).toHaveAccessibleName('Coin');
   });
 
   it('calls onSelectTool with the clicked terrain char', async () => {
     const onSelectTool = vi.fn();
     render(<Palette {...defaultProps} onSelectTool={onSelectTool} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Ground Rock' }));
+    await userEvent.click(palette.tile('R'));
     expect(onSelectTool).toHaveBeenCalledWith('R');
   });
 
   it('calls onSelectTool with "." when the Eraser tile is clicked', async () => {
     const onSelectTool = vi.fn();
     render(<Palette {...defaultProps} onSelectTool={onSelectTool} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Eraser' }));
+    await userEvent.click(palette.tile('.'));
     expect(onSelectTool).toHaveBeenCalledWith('.');
   });
 
   it('marks the currently selected tool as pressed', () => {
     render(<Palette {...defaultProps} selectedTool="R" />);
-    expect(screen.getByRole('button', { name: 'Ground Rock' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
-    expect(screen.getByRole('button', { name: 'Ground Grass' })).toHaveAttribute(
-      'aria-pressed',
-      'false',
-    );
+    expect(palette.tile('R')).toHaveAttribute('aria-pressed', 'true');
+    expect(palette.tile('G')).toHaveAttribute('aria-pressed', 'false');
   });
 });
 
 describe('Palette — layer tab', () => {
   it('foregroundLayerActive-showsTheExistingTerrainAndEntityButtonsOnly', () => {
     render(<Palette {...defaultProps} />);
-    expect(screen.queryByRole('button', { name: /Dirt Block/ })).not.toBeInTheDocument();
+    expect(palette.queryBackgroundTile('dirtBlock3x3')).not.toBeInTheDocument();
   });
 
   it('backgroundLayerActive-showsOneButtonPerCatalogPiece', () => {
     render(<Palette {...defaultProps} activeLayer="background" />);
     for (const pieceId of Object.keys(BACKGROUND_CATALOG) as BackgroundPieceId[]) {
-      expect(
-        screen.getByRole('button', { name: BACKGROUND_PALETTE_LABELS[pieceId] }),
-      ).toBeInTheDocument();
+      expect(palette.backgroundTile(pieceId)).toHaveAccessibleName(
+        BACKGROUND_PALETTE_LABELS[pieceId],
+      );
     }
   });
 
@@ -115,7 +112,7 @@ describe('Palette — layer tab', () => {
         onSelectBackgroundPiece={onSelectBackgroundPiece}
       />,
     );
-    fireEvent.click(screen.getByRole('button', { name: /Dirt Column Top/ }));
+    fireEvent.click(palette.backgroundTile('dirtColumnTop1x1'));
     expect(onSelectBackgroundPiece).toHaveBeenCalledWith('dirtColumnTop1x1');
   });
 });
@@ -123,29 +120,28 @@ describe('Palette — layer tab', () => {
 describe('Palette — subtitle groups', () => {
   it('foregroundLayer-rendersFiveGroupHeadings', () => {
     render(<Palette {...defaultProps} />);
-    expect(screen.getByText('Terrain')).toBeInTheDocument();
-    expect(screen.getByText('Decoration')).toBeInTheDocument();
-    expect(screen.getByText('Entities')).toBeInTheDocument();
-    expect(screen.getByText('Hazards')).toBeInTheDocument();
-    expect(screen.getByText('Tools')).toBeInTheDocument();
+    expect(palette.group('terrain')).toHaveTextContent('Terrain');
+    expect(palette.group('decoration')).toHaveTextContent('Decoration');
+    expect(palette.group('entities')).toHaveTextContent('Entities');
+    expect(palette.group('hazards')).toHaveTextContent('Hazards');
+    expect(palette.group('tools')).toHaveTextContent('Tools');
   });
 
   it('decorationGroup-containsBushAndFenceButNoOtherTerrainChar', () => {
     render(<Palette {...defaultProps} />);
-    const decorationHeading = screen.getByText('Decoration');
-    const decorationGroup = decorationHeading.closest('section') ?? decorationHeading.parentElement!;
-    expect(within(decorationGroup).getByRole('button', { name: /Bush/ })).toBeInTheDocument();
-    expect(within(decorationGroup).getByRole('button', { name: /Fence/ })).toBeInTheDocument();
-    expect(within(decorationGroup).queryByRole('button', { name: 'Wall' })).not.toBeInTheDocument();
+    const decorationGroup = palette.group('decoration');
+    expect(within(decorationGroup).getByTestId('editor-palette-tile-n')).toBeInTheDocument();
+    expect(within(decorationGroup).getByTestId('editor-palette-tile-N')).toBeInTheDocument();
+    expect(within(decorationGroup).queryByTestId('editor-palette-tile-#')).not.toBeInTheDocument();
   });
 
   it('decorationGroup-containsTheTorchTile', () => {
     // The torch is decorative cave dressing, so it joins the Decoration group
     // rather than Terrain (see Palette.tsx's DECORATION_CHARS).
     render(<Palette {...defaultProps} />);
-    const decorationHeading = screen.getByText('Decoration');
-    const decorationGroup = decorationHeading.closest('section') ?? decorationHeading.parentElement!;
-    expect(within(decorationGroup).getByRole('button', { name: 'Torch' })).toBeInTheDocument();
+    expect(
+      within(palette.group('decoration')).getByTestId('editor-palette-tile-¥'),
+    ).toBeInTheDocument();
   });
 
   it('hazardsGroup-containsExactlyOneRepresentativeSpikeTile', () => {
@@ -154,9 +150,8 @@ describe('Palette — subtitle groups', () => {
     // spike again cycles to the next valid facing (paintCell.ts) — so the
     // palette never needs a button per facing.
     render(<Palette {...defaultProps} />);
-    const hazardsHeading = screen.getByText('Hazards');
-    const hazardsGroup = hazardsHeading.closest('section') ?? hazardsHeading.parentElement!;
-    expect(within(hazardsGroup).getByRole('button', { name: 'Spike' })).toBeInTheDocument();
+    const hazardsGroup = palette.group('hazards');
+    expect(within(hazardsGroup).getByTestId('editor-palette-tile-^')).toBeInTheDocument();
     // The Spike tile plus the group's own collapsible trigger.
     expect(within(hazardsGroup).getAllByRole('button')).toHaveLength(2);
   });
@@ -166,7 +161,7 @@ describe('Palette — blueprint canvas mode', () => {
   it('levelCanvasMode-stillOffersTheSpawnTool', () => {
     render(<Palette {...defaultProps} canvasMode="level" />);
 
-    expect(screen.getByRole('button', { name: 'Spawn' })).toBeInTheDocument();
+    expect(palette.tile('S')).toBeInTheDocument();
   });
 
   it('blueprintCanvasMode-dropsTheSpawnToolOnly', () => {
@@ -175,30 +170,25 @@ describe('Palette — blueprint canvas mode', () => {
     // other entity tool stays.
     render(<Palette {...defaultProps} canvasMode="blueprint" />);
 
-    expect(screen.queryByRole('button', { name: 'Spawn' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Enemy Green' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Coin' })).toBeInTheDocument();
+    expect(palette.queryTile('S')).not.toBeInTheDocument();
+    expect(palette.tile('M')).toBeInTheDocument();
+    expect(palette.tile('o')).toBeInTheDocument();
   });
 
   it('omittedCanvasMode-behavesLikeLevelMode', () => {
     render(<Palette {...defaultProps} />);
 
-    expect(screen.getByRole('button', { name: 'Spawn' })).toBeInTheDocument();
+    expect(palette.tile('S')).toBeInTheDocument();
   });
 });
 
 describe('Palette — blueprint connection point tool', () => {
-  const toolsGroup = () => {
-    const heading = screen.getByText('Tools');
-    return heading.closest('section') ?? heading.parentElement!;
-  };
+  const toolsGroup = () => palette.group('tools');
 
   it('blueprintCanvasMode-offersTheConnectionPointToolInTheToolsGroup', () => {
     render(<Palette {...defaultProps} canvasMode="blueprint" />);
 
-    expect(
-      within(toolsGroup()).getByRole('button', { name: 'Connection Point' }),
-    ).toBeInTheDocument();
+    expect(within(toolsGroup()).getByTestId('editor-palette-tile-+')).toBeInTheDocument();
   });
 
   it('levelCanvasMode-doesNotOfferTheConnectionPointToolAtAll', () => {
@@ -206,7 +196,7 @@ describe('Palette — blueprint connection point tool', () => {
     // level it would be an inert marker nothing downstream reads (step 44b).
     render(<Palette {...defaultProps} canvasMode="level" />);
 
-    expect(screen.queryByRole('button', { name: 'Connection Point' })).not.toBeInTheDocument();
+    expect(palette.queryTile('+')).not.toBeInTheDocument();
   });
 
   // Deliberately NOT named `omittedCanvasMode-behavesLikeLevelMode`: that exact
@@ -216,7 +206,7 @@ describe('Palette — blueprint connection point tool', () => {
   it('omittedCanvasMode-offersNoConnectionPointToolEither', () => {
     render(<Palette {...defaultProps} />);
 
-    expect(screen.queryByRole('button', { name: 'Connection Point' })).not.toBeInTheDocument();
+    expect(palette.queryTile('+')).not.toBeInTheDocument();
   });
 
   it('blueprintCanvasMode-keepsTheConnectionPointOutOfTheTerrainGroup', () => {
@@ -224,10 +214,8 @@ describe('Palette — blueprint connection point tool', () => {
     // patrol boundary lives in Tools rather than Terrain.
     render(<Palette {...defaultProps} canvasMode="blueprint" />);
 
-    const terrainHeading = screen.getByText('Terrain');
-    const terrainGroup = terrainHeading.closest('section') ?? terrainHeading.parentElement!;
     expect(
-      within(terrainGroup).queryByRole('button', { name: 'Connection Point' }),
+      within(palette.group('terrain')).queryByTestId('editor-palette-tile-+'),
     ).not.toBeInTheDocument();
   });
 
@@ -235,7 +223,7 @@ describe('Palette — blueprint connection point tool', () => {
     const onSelectTool = vi.fn();
     render(<Palette {...defaultProps} canvasMode="blueprint" onSelectTool={onSelectTool} />);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Connection Point' }));
+    await userEvent.click(palette.tile('+'));
 
     expect(onSelectTool).toHaveBeenCalledWith('+');
   });
@@ -243,32 +231,25 @@ describe('Palette — blueprint connection point tool', () => {
   it('blueprintCanvasMode-theEraserStaysTheLastToolInTheGroup', () => {
     render(<Palette {...defaultProps} canvasMode="blueprint" />);
 
-    const buttons = within(toolsGroup()).getAllByRole('button');
-    expect(buttons.at(-1)).toHaveAccessibleName('Eraser');
+    const tiles = within(toolsGroup()).getAllByTestId(/^editor-palette-tile-/);
+    expect(tiles.at(-1)).toHaveAccessibleName('Eraser');
   });
 });
 
 describe('Palette — blueprints section (step 44c placement)', () => {
   const CAVE: Blueprint = { id: 'cave-room', name: 'Cave Room', layout: ['##'] };
 
-  const blueprintsSection = () => {
-    const heading = screen.getByText('Blueprints');
-    return heading.closest('section') ?? heading.parentElement!;
-  };
-
   it('levelCanvasModeWithSavedBlueprints-listsOneTilePerRegistryEntry', () => {
     registryEntries.push(CAVE);
     render(<Palette {...defaultProps} canvasMode="level" />);
 
-    expect(
-      within(blueprintsSection()).getByRole('button', { name: 'Cave Room' }),
-    ).toBeInTheDocument();
+    expect(palette.blueprintTile('cave-room')).toBeInTheDocument();
   });
 
   it('noSavedBlueprints-rendersNoBlueprintsSectionAtAll', () => {
     render(<Palette {...defaultProps} canvasMode="level" />);
 
-    expect(screen.queryByText('Blueprints')).not.toBeInTheDocument();
+    expect(palette.queryGroup('blueprints')).not.toBeInTheDocument();
   });
 
   it('blueprintCanvasMode-offersNoBlueprintsSection', () => {
@@ -277,7 +258,7 @@ describe('Palette — blueprints section (step 44c placement)', () => {
     registryEntries.push(CAVE);
     render(<Palette {...defaultProps} canvasMode="blueprint" />);
 
-    expect(screen.queryByText('Blueprints')).not.toBeInTheDocument();
+    expect(palette.queryGroup('blueprints')).not.toBeInTheDocument();
   });
 
   it('backgroundLayerActive-offersNoBlueprintsSection', () => {
@@ -286,7 +267,7 @@ describe('Palette — blueprints section (step 44c placement)', () => {
     registryEntries.push(CAVE);
     render(<Palette {...defaultProps} canvasMode="level" activeLayer="background" />);
 
-    expect(screen.queryByText('Blueprints')).not.toBeInTheDocument();
+    expect(palette.queryGroup('blueprints')).not.toBeInTheDocument();
   });
 
   it('clickingABlueprintTile-callsOnArmBlueprintWithItsId', async () => {
@@ -294,7 +275,7 @@ describe('Palette — blueprints section (step 44c placement)', () => {
     const onArmBlueprint = vi.fn();
     render(<Palette {...defaultProps} canvasMode="level" onArmBlueprint={onArmBlueprint} />);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Cave Room' }));
+    await userEvent.click(palette.blueprintTile('cave-room'));
 
     expect(onArmBlueprint).toHaveBeenCalledWith('cave-room');
   });
@@ -303,61 +284,46 @@ describe('Palette — blueprints section (step 44c placement)', () => {
     registryEntries.push(CAVE, { id: 'hall', name: 'Hall', layout: ['##'] });
     render(<Palette {...defaultProps} canvasMode="level" armedBlueprintId="cave-room" />);
 
-    expect(screen.getByRole('button', { name: 'Cave Room' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
-    expect(screen.getByRole('button', { name: 'Hall' })).toHaveAttribute(
-      'aria-pressed',
-      'false',
-    );
+    expect(palette.blueprintTile('cave-room')).toHaveAttribute('aria-pressed', 'true');
+    expect(palette.blueprintTile('hall')).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('omittedArmedBlueprintId-marksNoBlueprintPressed', () => {
     registryEntries.push(CAVE);
     render(<Palette {...defaultProps} canvasMode="level" />);
 
-    expect(screen.getByRole('button', { name: 'Cave Room' })).toHaveAttribute(
-      'aria-pressed',
-      'false',
-    );
+    expect(palette.blueprintTile('cave-room')).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('blueprintTiles-stayOutOfTheTerrainAndToolsGroups', () => {
     registryEntries.push(CAVE);
     render(<Palette {...defaultProps} canvasMode="level" />);
 
-    const terrainHeading = screen.getByText('Terrain');
-    const terrain = terrainHeading.closest('section') ?? terrainHeading.parentElement!;
-    const toolsHeading = screen.getByText('Tools');
-    const tools = toolsHeading.closest('section') ?? toolsHeading.parentElement!;
-    expect(within(terrain).queryByRole('button', { name: 'Cave Room' })).not.toBeInTheDocument();
-    expect(within(tools).queryByRole('button', { name: 'Cave Room' })).not.toBeInTheDocument();
+    expect(
+      within(palette.group('terrain')).queryByTestId('editor-palette-tile-blueprint-cave-room'),
+    ).not.toBeInTheDocument();
+    expect(
+      within(palette.group('tools')).queryByTestId('editor-palette-tile-blueprint-cave-room'),
+    ).not.toBeInTheDocument();
   });
 });
 
 describe('Palette — background layer sections', () => {
-  const sectionFor = (title: string) => {
-    const heading = screen.getByText(title);
-    return heading.closest('section') ?? heading.parentElement!;
-  };
-
   it('backgroundLayer-rendersSurfaceAndCaveHeadings', () => {
     render(<Palette {...defaultProps} activeLayer="background" />);
 
-    expect(screen.getByText('Surface')).toBeInTheDocument();
-    expect(screen.getByText('Cave')).toBeInTheDocument();
+    expect(palette.group('surface')).toHaveTextContent('Surface');
+    expect(palette.group('cave')).toHaveTextContent('Cave');
   });
 
   it('backgroundLayer-everyDirtPieceSitsInSurfaceAndEveryCharcoalPieceInCave', () => {
     render(<Palette {...defaultProps} activeLayer="background" />);
-    const surface = sectionFor('Surface');
-    const cave = sectionFor('Cave');
+    const surface = palette.group('surface');
+    const cave = palette.group('cave');
 
     for (const pieceId of Object.keys(BACKGROUND_CATALOG) as BackgroundPieceId[]) {
-      const label = BACKGROUND_PALETTE_LABELS[pieceId];
       const section = pieceId.startsWith('dirt') ? surface : cave;
-      expect(within(section).getByRole('button', { name: label })).toBeInTheDocument();
+      expect(within(section).getByTestId(`editor-palette-tile-${pieceId}`)).toBeInTheDocument();
     }
   });
 
@@ -371,8 +337,8 @@ describe('Palette — background layer sections', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /Dirt Column Top/ }));
-    fireEvent.click(screen.getByRole('button', { name: /Charcoal Column Top/ }));
+    fireEvent.click(palette.backgroundTile('dirtColumnTop1x1'));
+    fireEvent.click(palette.backgroundTile('charcoalColumnTop1x1'));
 
     expect(onSelectBackgroundPiece).toHaveBeenCalledWith('dirtColumnTop1x1');
     expect(onSelectBackgroundPiece).toHaveBeenCalledWith('charcoalColumnTop1x1');
@@ -381,8 +347,8 @@ describe('Palette — background layer sections', () => {
   it('foregroundDecorationGroup-stillContainsTheTorchTile', () => {
     render(<Palette {...defaultProps} />);
 
-    const decorationHeading = screen.getByText('Decoration');
-    const decorationGroup = decorationHeading.closest('section') ?? decorationHeading.parentElement!;
-    expect(within(decorationGroup).getByRole('button', { name: 'Torch' })).toBeInTheDocument();
+    expect(
+      within(palette.group('decoration')).getByTestId('editor-palette-tile-¥'),
+    ).toBeInTheDocument();
   });
 });
