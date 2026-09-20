@@ -66,7 +66,7 @@ import {
   DEATH_ANIM_SECONDS,
 } from './engine/GameLifecycle';
 import { maxIrisRadius } from './engine/IrisTransition';
-import { currentLevel, currentLayout, currentBackground } from './level/level';
+import { currentLevel, currentLayout, currentBackgroundLayout } from './level/level';
 import { findLevel } from './level/levelRegistry';
 import {
   checkCollectibleCollisions,
@@ -141,7 +141,7 @@ import {
   KEY_SHEET,
   CRACK_OVERLAY_SHEET,
   GROUND_ATLAS_SHEET,
-  TERRAIN_BACKGROUND_SHEET,
+  BACKGROUND_TILES_SHEET,
   STATIC_OBJECTS_SHEET,
   BACKGROUND_LAYERS_SHEET,
   BACKGROUND_LAYER_GRASS_SHEET,
@@ -346,7 +346,7 @@ export const PlatformerPage = () => {
     const testLevel = testLevelParam ? findLevel(testLevelParam) : undefined;
     if (testLevel) {
       currentLayout.value = testLevel.layout;
-      currentBackground.value = testLevel.background ? [...testLevel.background] : [];
+      currentBackgroundLayout.value = testLevel.background ? [...testLevel.background] : [];
     }
     resetGameProgress();
     controlsOverlayDismissed.value = false;
@@ -590,7 +590,14 @@ export const PlatformerPage = () => {
 
       if (tilesetRef.current) {
         if (backgroundAtlasRef.current) {
-          drawBackgroundTiles(ctx, currentLevel.value, backgroundAtlasRef.current, originX, originY);
+          drawBackgroundTiles(
+            ctx,
+            currentLevel.value,
+            backgroundAtlasRef.current,
+            originX,
+            originY,
+            decorationsRef.current,
+          );
         }
         if (groundAtlasRef.current) {
           drawTerrain(
@@ -2006,7 +2013,7 @@ export const PlatformerPage = () => {
         // The river simply won't animate if this asset fails to load; the
         // rest of the background still shows.
       });
-    loadImage(TERRAIN_BACKGROUND_SHEET.src)
+    loadImage(BACKGROUND_TILES_SHEET.src)
       .then((img) => {
         if (cancelled) return;
         backgroundAtlasRef.current = img;

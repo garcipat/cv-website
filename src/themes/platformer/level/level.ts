@@ -1,7 +1,8 @@
 import { signal, computed } from '@preact/signals-react';
-import type { LevelDef, BackgroundPlacement } from './LevelData';
+import type { LevelDef } from './LevelData';
 import {
   parseLevel,
+  parseBackgroundLayout,
   findSpawnTile,
   findGreenEnemyTiles,
   findPurpleEnemyTiles,
@@ -185,24 +186,24 @@ export const LEVEL_1_LAYOUT: readonly string[] = [
 ];
 
 /**
- * The shipped level's background-layer placements. The first cave (Zone B,
- * cols 30-55, rows 11-13 — the gallery under the hillside, reached by the
- * ladders at cols 31 and 54) is backed with charcoal (cave) pieces so its
- * interior reads as stone instead of showing the open parallax sky through
- * the air. Nine 3x3 blocks tile the 3-tall pocket edge to edge; any part that
- * lands behind a solid wall is simply hidden by the terrain drawn over it.
+ * The shipped level's background layer — a `readonly string[]` layout
+ * (`BACKGROUND_CHARS`, `LevelParser.ts`) aligned 1:1 with `LEVEL_1_LAYOUT`,
+ * same row count, same storage shape `layout` itself has (O-014's storage-
+ * unification revision). The first cave (Zone B, cols 30-56, rows 11-13 —
+ * the gallery under the hillside, reached by the ladders at cols 31 and 54)
+ * is filled with `c` (`charcoal`, cave family) so its interior reads as one
+ * continuous stone mass instead of showing the open parallax sky through the
+ * air — the same footprint the old nine stamped `charcoalBlock3x3` pieces
+ * covered, now expressed as a dense fill rather than nine separate anchored
+ * stamps. `parseBackgroundLayout` (below, via `currentLevel`) turns this into
+ * the engine-facing `BackgroundGrid`, the same way `parseLevel` turns
+ * `LEVEL_1_LAYOUT` into `TileMap`.
  */
-export const LEVEL_1_BACKGROUND: BackgroundPlacement[] = [
-  { pieceId: 'charcoalBlock3x3', col: 30, row: 11 },
-  { pieceId: 'charcoalBlock3x3', col: 33, row: 11 },
-  { pieceId: 'charcoalBlock3x3', col: 36, row: 11 },
-  { pieceId: 'charcoalBlock3x3', col: 39, row: 11 },
-  { pieceId: 'charcoalBlock3x3', col: 42, row: 11 },
-  { pieceId: 'charcoalBlock3x3', col: 45, row: 11 },
-  { pieceId: 'charcoalBlock3x3', col: 48, row: 11 },
-  { pieceId: 'charcoalBlock3x3', col: 51, row: 11 },
-  { pieceId: 'charcoalBlock3x3', col: 54, row: 11 },
-];
+export const LEVEL_1_BACKGROUND: readonly string[] = LEVEL_1_LAYOUT.map((_, row) =>
+  Array.from({ length: LEVEL_1_LAYOUT[0].length }, (_, col) =>
+    row >= 11 && row <= 13 && col >= 30 && col <= 56 ? 'c' : '.',
+  ).join(''),
+);
 
 /**
  * The smallest layout that is still a playable level: three ground tiles with
@@ -231,22 +232,30 @@ export const SCRATCH_LAYOUT: readonly string[] = ['.S.', 'GGG'];
  */
 export const currentLayout = signal<readonly string[]>(LEVEL_1_LAYOUT);
 
-/** The GAME's background-layer placements — parallel to `currentLayout`
- *  above, and reset the same way (in-memory only, not localStorage-backed).
- *  Starts at the shipped cave backdrop (`LEVEL_1_BACKGROUND`); the Level
- *  Editor's Try button is the only place that overwrites it at runtime. */
-export const currentBackground = signal<BackgroundPlacement[]>(LEVEL_1_BACKGROUND);
+/** The GAME's background layer — parallel to `currentLayout` above, and
+ *  reset the same way (in-memory only, not localStorage-backed), holding the
+ *  same raw `readonly string[]` layout shape (not a parsed `BackgroundGrid`
+ *  — see `currentLevel` below, which is where parsing happens, mirroring
+ *  `currentLayout`'s own relationship to `parseLevel`). Starts at the
+ *  shipped cave backdrop (`LEVEL_1_BACKGROUND`); the Level Editor's Try
+ *  button is the only place that overwrites it at runtime. */
+export const currentBackgroundLayout = signal<readonly string[]>(LEVEL_1_BACKGROUND);
 
-/** Parsed terrain/dimensions for `currentLayout`. Recomputes whenever the
- *  Level Editor's Try button changes `currentLayout` (see its doc comment
- *  above); every other read site (PlatformerPage.tsx, PlatformerState.ts)
- *  reads this reactively via `.value` instead of a plain module-load-time
- *  constant, so a Try'd layout actually renders/simulates instead of the
- *  stale default. */
-export const currentLevel = computed<LevelDef>(() => ({
-  ...parseLevel(currentLayout.value),
-  background: currentBackground.value,
-}));
+/** Parsed terrain/dimensions for `currentLayout`, with `background` parsed
+ *  from `currentBackgroundLayout` via `parseBackgroundLayout` and clamped to
+ *  the freshly-parsed terrain's own bounds. Recomputes whenever the Level
+ *  Editor's Try button changes `currentLayout`/`currentBackgroundLayout` (see
+ *  their doc comments above); every other read site (PlatformerPage.tsx,
+ *  PlatformerState.ts) reads this reactively via `.value` instead of a plain
+ *  module-load-time constant, so a Try'd layout actually renders/simulates
+ *  instead of the stale default. */
+export const currentLevel = computed<LevelDef>(() => {
+  const terrain = parseLevel(currentLayout.value);
+  return {
+    ...terrain,
+    background: parseBackgroundLayout(currentBackgroundLayout.value, terrain.width, terrain.height),
+  };
+});
 
 /** Player spawn point, read from `currentLayout`'s `S` marker. */
 export const SPAWN_TILE = computed(() => findSpawnTile(currentLayout.value));

@@ -1,4 +1,4 @@
-import type { LevelDef, TileMap, TileType } from './LevelData';
+import type { LevelDef, TileMap, TileType, BackgroundGrid, BackgroundMaterialId } from './LevelData';
 import type { HintId } from '../types';
 
 /** An entity marker's kind — what it means, not what it looks like on the
@@ -232,6 +232,68 @@ export function parseLevel(layout: readonly string[]): LevelDef {
   }
 
   return { terrain, width, height };
+}
+
+/**
+ * Maps each background-layer character to the material it paints — the
+ * background's own analogue of `TERRAIN_CHARS`, mirroring it exactly except
+ * that `'.'` (empty) is deliberately absent rather than mapped to a sentinel
+ * value: there is no `BackgroundMaterialId` for "empty", `null` fills that
+ * role in `BackgroundGrid` (see `LevelData.ts`), so `'.'` simply falls
+ * through to `parseBackgroundLayout`'s unrecognized-character branch, which
+ * already resolves to `null`.
+ */
+export const BACKGROUND_CHARS: Record<string, BackgroundMaterialId | undefined> = {
+  d: 'dirt',
+  r: 'rust',
+  s: 'surfaceStone',
+  c: 'charcoal',
+  m: 'maroon',
+  v: 'caveStone',
+};
+
+/**
+ * Every character a background layout string may legally contain — the
+ * union of `BACKGROUND_CHARS`' keys plus `'.'` (empty), mirroring `TileChar`.
+ * Also the editor's background grid's own cell type (`BackgroundChar[][]`,
+ * the background-layer analogue of `editorLevelSignal`'s `TileChar[][]`).
+ */
+export type BackgroundChar = '.' | 'd' | 'r' | 's' | 'c' | 'm' | 'v';
+
+/**
+ * Parses a background layout (the same one-character-per-cell `string[]`
+ * shape as a foreground layout, via `BACKGROUND_CHARS`) into the dense
+ * `BackgroundGrid` the engine/renderer consume — mirrors `parseLevel`'s
+ * terrain-building loop, but simpler: no entity/sign/hazard concerns, and no
+ * unknown-character warning, since an unrecognized background character is
+ * purely decorative and silently reads as empty (`null`) rather than being
+ * a level-breaking authoring mistake worth surfacing.
+ *
+ * Always clamps/pads its result to exactly `terrainWidth` x `terrainHeight`
+ * rather than trusting the stored layout's own size: a background layout
+ * shorter or narrower than the terrain reads as empty beyond its own bounds
+ * (mirroring `backgroundAt`'s existing out-of-bounds-is-null contract), and
+ * one taller or wider than the terrain must not let background draw past
+ * where no terrain exists, so anything beyond the terrain's own bounds is
+ * dropped here at parse time rather than left for a renderer to bounds-check
+ * per cell.
+ */
+export function parseBackgroundLayout(
+  layout: readonly string[],
+  terrainWidth: number,
+  terrainHeight: number,
+): BackgroundGrid {
+  const grid: BackgroundGrid = [];
+  for (let row = 0; row < terrainHeight; row++) {
+    const sourceRow = layout[row];
+    const bgRow: (BackgroundMaterialId | null)[] = [];
+    for (let col = 0; col < terrainWidth; col++) {
+      const char = sourceRow?.[col];
+      bgRow.push(char !== undefined ? (BACKGROUND_CHARS[char] ?? null) : null);
+    }
+    grid.push(bgRow);
+  }
+  return grid;
 }
 
 /** Finds every character in a level layout whose ENTITY_CHARS entry has the

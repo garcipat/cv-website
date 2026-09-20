@@ -45,7 +45,7 @@ graph RL
         O011["✅ O-011: Deployable Ladders"]
         O012["O-012: Bombs"]
         O013["✅ O-013: Wall Torches"]
-        O014["O-014: Background Tile Rework"]
+        O014["✅ O-014: Background Tile Rework"]
         O015["✅ O-015: Editor Dark Mode"]
         O016["✅ O-016: Editor UI Rework"]
         O017["✅ O-017: Merge Pots of Different Colors"]
@@ -156,6 +156,7 @@ graph RL
     class O010 done
     class O011 done
     class O014 themes
+    class O014 done
     class O015 enhancements
     class O015 done
     class O016 enhancements

@@ -7,7 +7,8 @@ import {
   editorActiveLayerSignal,
   editorAppearanceSignal,
   editorArmedBlueprintIdSignal,
-  editorBackgroundPlacementsSignal,
+  editorBackgroundGridSignal,
+  editorBackgroundSignal,
   editorBlueprintDirtySignal,
   editorCanvasModeSignal,
   editorCenterRequestIdSignal,
@@ -19,7 +20,7 @@ import {
   editorLoadedBlueprintNameSignal,
   editorLoadedLevelNameSignal,
   editorSaveResultSignal,
-  editorSelectedBackgroundPieceSignal,
+  editorSelectedBackgroundMaterialSignal,
   editorSelectedToolSignal,
 } from './editorState';
 
@@ -72,6 +73,7 @@ export const EditorWorkspace = () => {
           blueprintDirty={editorBlueprintDirtySignal.value}
           saveResult={editorSaveResultSignal.value}
           levelGrid={editorLevelSignal.value}
+          backgroundGrid={editorBackgroundSignal.value}
         />
       </header>
       <div className="flex min-h-0 flex-1 flex-row items-stretch gap-4">
@@ -79,17 +81,17 @@ export const EditorWorkspace = () => {
           activeLayer={editorActiveLayerSignal.value}
           canvasMode={editorCanvasModeSignal.value}
           selectedTool={editorSelectedToolSignal.value}
-          selectedBackgroundPiece={editorSelectedBackgroundPieceSignal.value}
+          selectedBackgroundMaterial={editorSelectedBackgroundMaterialSignal.value}
           armedBlueprintId={editorArmedBlueprintIdSignal.value}
         />
         <EditorCanvasPane
           isBlueprintMode={isBlueprintMode}
           appearance={appearance}
           grid={editorGridSignal.value}
-          backgroundPlacements={editorBackgroundPlacementsSignal.value}
+          backgroundGrid={editorBackgroundGridSignal.value}
           selectedTool={editorSelectedToolSignal.value}
           activeLayer={editorActiveLayerSignal.value}
-          selectedBackgroundPiece={editorSelectedBackgroundPieceSignal.value}
+          selectedBackgroundMaterial={editorSelectedBackgroundMaterialSignal.value}
           armedBlueprintId={editorArmedBlueprintIdSignal.value}
           centerRequestId={editorCenterRequestIdSignal.value}
           lastPlacementSnapshot={editorLastPlacementSnapshotSignal.value}

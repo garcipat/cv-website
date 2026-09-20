@@ -1,14 +1,13 @@
 import { Palette } from './Palette';
-import { armBlueprint, selectBackgroundPiece, selectTool } from './editorActions';
+import { armBlueprint, selectBackgroundMaterial, selectTool } from './editorActions';
 import type { EditorCanvasMode, EditorLayer } from './editorState';
-import type { BackgroundPieceId } from '../level/LevelData';
-import type { TileChar } from '../level/LevelParser';
+import type { BackgroundChar, TileChar } from '../level/LevelParser';
 
 export interface EditorSidebarProps {
   activeLayer: EditorLayer;
   canvasMode: EditorCanvasMode;
   selectedTool: TileChar;
-  selectedBackgroundPiece: BackgroundPieceId | null;
+  selectedBackgroundMaterial: BackgroundChar | null;
   armedBlueprintId: string | null;
 }
 
@@ -21,7 +20,7 @@ export const EditorSidebar = ({
   activeLayer,
   canvasMode,
   selectedTool,
-  selectedBackgroundPiece,
+  selectedBackgroundMaterial,
   armedBlueprintId,
 }: EditorSidebarProps) => (
   <div data-testid="editor-sidebar" className="flex min-h-0 flex-col gap-2 overflow-y-auto">
@@ -29,8 +28,8 @@ export const EditorSidebar = ({
       selectedTool={selectedTool}
       onSelectTool={selectTool}
       activeLayer={activeLayer}
-      selectedBackgroundPiece={selectedBackgroundPiece}
-      onSelectBackgroundPiece={selectBackgroundPiece}
+      selectedBackgroundMaterial={selectedBackgroundMaterial}
+      onSelectBackgroundMaterial={selectBackgroundMaterial}
       canvasMode={canvasMode}
       armedBlueprintId={armedBlueprintId}
       onArmBlueprint={armBlueprint}

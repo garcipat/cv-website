@@ -17,7 +17,7 @@ import {
   editorLevelSignal,
   editorLoadedBlueprintNameSignal,
   editorLoadedLevelNameSignal,
-  editorSelectedBackgroundPieceSignal,
+  editorSelectedBackgroundMaterialSignal,
   editorSelectedToolSignal,
 } from './editorState';
 import { isDevEnvironmentSignal } from './devEnvironment';
@@ -56,7 +56,7 @@ beforeEach(() => {
   editorBlueprintBackgroundSignal.value = [];
   editorLoadedBlueprintNameSignal.value = BLANK_BLUEPRINT.name;
   editorArmedBlueprintIdSignal.value = null;
-  editorSelectedBackgroundPieceSignal.value = null;
+  editorSelectedBackgroundMaterialSignal.value = null;
   editorAppearanceSignal.value = 'light';
   isDevEnvironmentSignal.value = true;
 });
@@ -157,6 +157,22 @@ describe('EditorToolbar — per-canvas adaptation', () => {
 
     expect(levelEditorPage.toolbar.querySave).not.toBeInTheDocument();
     expect(levelEditorPage.entrySelect.trigger).toBeInTheDocument();
+  });
+});
+
+describe('EditorToolbar — export dialog background section', () => {
+  it('exportOutput-includesALabelledBackgroundSectionAlongsideTheForegroundLayout', async () => {
+    editorLevelSignal.value = importLayout(['G#']);
+    editorBackgroundSignal.value = [['d', 'c']];
+    render(<LevelEditorPage />);
+
+    await userEvent.click(levelEditorPage.toolbar.export);
+    const textarea = (await levelEditorPage.exportDialog.findOutput()) as HTMLTextAreaElement;
+
+    // One textarea, two paste-ready blocks: the foreground layout first,
+    // then a comment marking where LEVEL_1_BACKGROUND's own rows start —
+    // cropped to the SAME origin/bounds as the foreground layout above it.
+    expect(textarea.value).toBe("  'G#',\n// LEVEL_1_BACKGROUND\n  'dc',");
   });
 });
 

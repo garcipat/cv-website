@@ -41,7 +41,8 @@ import {
   drawHeldTorch,
   heldTorchLightPosition,
 } from './Renderer';
-import type { LevelDef, BackgroundPieceId } from '../level/LevelData';
+import type { LevelDef } from '../level/LevelData';
+import { backgroundAtlasCell } from './BackgroundAtlas';
 import { parseLevel } from '../level/LevelParser';
 import type { SignPlacement } from '../level/SignMapper';
 import type { PlayerState } from '../entities/Player';
@@ -2886,23 +2887,35 @@ describe('drawBackgroundTiles', () => {
     expect(ctx.drawImage).not.toHaveBeenCalled();
   });
 
-  it('onePlacement-drawsItScaledToRenderedTileSizeAtItsGridPosition', () => {
+  it('emptyGrid-drawsNothing', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = { terrain: [], width: 1, height: 1, background: [[null]] };
+
+    drawBackgroundTiles(ctx as unknown as CanvasRenderingContext2D, level, {} as HTMLImageElement);
+
+    expect(ctx.drawImage).not.toHaveBeenCalled();
+  });
+
+  it('oneIsolatedCell-drawsItScaledToRenderedTileSizeAtItsGridPosition', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const level: LevelDef = {
       terrain: [],
-      width: 0,
-      height: 0,
-      background: [{ pieceId: 'dirtColumnTop1x1', col: 2, row: 1 }],
+      width: 3,
+      height: 2,
+      background: [
+        [null, null, null],
+        [null, 'dirt', null],
+      ],
     };
 
     drawBackgroundTiles(ctx as unknown as CanvasRenderingContext2D, level, {} as HTMLImageElement, 0, 0);
 
-    // dirtColumnTop1x1: sx=80, sy=32, 1x1 tile (16x16 source).
+    const isolated = backgroundAtlasCell('dirt', 0);
     expect(ctx.drawImage).toHaveBeenCalledWith(
       expect.anything(),
-      80, 32, 16, 16,
-      2 * 32, 1 * 32,
+      isolated.sx, isolated.sy, 16, 16,
       1 * 32, 1 * 32,
+      32, 32,
     );
   });
 
@@ -2910,37 +2923,103 @@ describe('drawBackgroundTiles', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const level: LevelDef = {
       terrain: [],
-      width: 0,
-      height: 0,
-      background: [{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }],
+      width: 1,
+      height: 1,
+      background: [['dirt']],
     };
 
     drawBackgroundTiles(ctx as unknown as CanvasRenderingContext2D, level, {} as HTMLImageElement, 100, -50);
 
+    const isolated = backgroundAtlasCell('dirt', 0);
     expect(ctx.drawImage).toHaveBeenCalledWith(
       expect.anything(),
-      80, 32, 16, 16,
+      isolated.sx, isolated.sy, 16, 16,
       100, -50,
       32, 32,
     );
   });
 
-  it('placementWithAnUnknownPieceId-isSkippedRatherThanThrown', () => {
+  it('twoAdjacentSameMaterialCells-eachDrawWithTheOpenSideBitSet', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const level: LevelDef = {
       terrain: [],
-      width: 0,
-      height: 0,
+      width: 2,
+      height: 1,
+      background: [['dirt', 'dirt']],
+    };
+
+    drawBackgroundTiles(ctx as unknown as CanvasRenderingContext2D, level, {} as HTMLImageElement);
+
+    expect(ctx.drawImage).toHaveBeenCalledTimes(2);
+  });
+
+  it('twoDifferentAdjacentMaterials-neitherCountsAsConnected', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = {
+      terrain: [],
+      width: 2,
+      height: 1,
+      background: [['dirt', 'charcoal']],
+    };
+
+    drawBackgroundTiles(ctx as unknown as CanvasRenderingContext2D, level, {} as HTMLImageElement);
+
+    const isolatedDirt = backgroundAtlasCell('dirt', 0);
+    const isolatedCharcoal = backgroundAtlasCell('charcoal', 0);
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(
+      1, expect.anything(), isolatedDirt.sx, isolatedDirt.sy, 16, 16, 0, 0, 32, 32,
+    );
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(
+      2, expect.anything(), isolatedCharcoal.sx, isolatedCharcoal.sy, 16, 16, 32, 0, 32, 32,
+    );
+  });
+
+  it('fullyInteriorCellWithDecorationsLoaded-alsoDrawsARockOnTop', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = {
+      terrain: [],
+      width: 3,
+      height: 3,
       background: [
-        { pieceId: 'notARealPieceId' as BackgroundPieceId, col: 0, row: 0 },
-        { pieceId: 'dirtBlock3x3', col: 5, row: 0 },
+        ['dirt', 'dirt', 'dirt'],
+        ['dirt', 'dirt', 'dirt'],
+        ['dirt', 'dirt', 'dirt'],
+      ],
+    };
+    const decorations = {} as HTMLImageElement;
+
+    drawBackgroundTiles(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      {} as HTMLImageElement,
+      0,
+      0,
+      decorations,
+    );
+
+    // The centre cell (1,1) is the only fully-interior (mask 15) cell — its
+    // draw call is the background tile itself, then the rock on top.
+    const calls = (ctx.drawImage as ReturnType<typeof vi.fn>).mock.calls;
+    const rockCalls = calls.filter((call) => call[0] === decorations);
+    expect(rockCalls).toHaveLength(1);
+  });
+
+  it('noDecorationsImage-neverDrawsARockEvenOnAFullyInteriorCell', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = {
+      terrain: [],
+      width: 3,
+      height: 3,
+      background: [
+        ['dirt', 'dirt', 'dirt'],
+        ['dirt', 'dirt', 'dirt'],
+        ['dirt', 'dirt', 'dirt'],
       ],
     };
 
-    expect(() =>
-      drawBackgroundTiles(ctx as unknown as CanvasRenderingContext2D, level, {} as HTMLImageElement),
-    ).not.toThrow();
-    expect(ctx.drawImage).toHaveBeenCalledTimes(1);
+    drawBackgroundTiles(ctx as unknown as CanvasRenderingContext2D, level, {} as HTMLImageElement, 0, 0, null);
+
+    expect(ctx.drawImage).toHaveBeenCalledTimes(9);
   });
 });
 

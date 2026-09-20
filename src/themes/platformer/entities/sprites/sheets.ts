@@ -103,16 +103,17 @@ export const CRACK_OVERLAY_SHEET: SpriteSheet = {
   columns: 1,
 };
 
-/** `terrain_.png` is a 128x320 sheet of 16px tiles: the purely-visual
- *  background layer's dirt/charcoal pieces. `BackgroundCatalog.ts` addresses
- *  it through its own sx/sy lookup per piece, not by frame index — like
- *  `WORLD_TILESET_SHEET`/`GROUND_ATLAS_SHEET`, this registration exists for
- *  loading, not addressing. */
-export const TERRAIN_BACKGROUND_SHEET: SpriteSheet = {
-  src: '/sprites/terrain_.png',
+/** `background_tiles.png` is a 73x354 sheet of 16px tiles on a 19px stride:
+ *  the purely-visual autotiled background mass's six materials (O-014).
+ *  `BackgroundAtlas.ts` addresses it through its own sx/sy neighbour-mask
+ *  lookup, not by frame index — like `WORLD_TILESET_SHEET`/
+ *  `GROUND_ATLAS_SHEET`, this registration exists for loading, not
+ *  addressing. */
+export const BACKGROUND_TILES_SHEET: SpriteSheet = {
+  src: '/sprites/background_tiles.png',
   frameWidth: TILE_SIZE,
   frameHeight: TILE_SIZE,
-  columns: 8,
+  columns: 4,
 };
 
 /** The chest's two states are separate standalone images of different sizes,
@@ -146,7 +147,7 @@ export const GROUND_ATLAS_SHEET: SpriteSheet = {
 /** `staticObjects.png` is a 288x144 sheet of 16px tiles: bush/tree pieces and
  *  a fence piece for the foreground decoration tiles. `StaticObjectsCatalog.ts`
  *  addresses it through its own sx/sy lookup, not by frame index — like
- *  `TERRAIN_BACKGROUND_SHEET`, this registration exists for loading, not
+ *  `BACKGROUND_TILES_SHEET`, this registration exists for loading, not
  *  addressing. */
 export const STATIC_OBJECTS_SHEET: SpriteSheet = {
   src: '/sprites/staticObjects.png',
@@ -160,7 +161,7 @@ export const STATIC_OBJECTS_SHEET: SpriteSheet = {
  *  from `backgrounds.png`'s day/green scene (see
  *  `specs/O-009-platformer-background-layers/design.md`).
  *  `BackgroundLayers.ts` addresses it through its own sx/sy sub-rects, not by frame
- *  index — like `TERRAIN_BACKGROUND_SHEET`, this registration exists for loading, not
+ *  index — like `BACKGROUND_TILES_SHEET`, this registration exists for loading, not
  *  addressing. */
 export const BACKGROUND_LAYERS_SHEET: SpriteSheet = {
   src: '/sprites/background_layers.png',
@@ -220,7 +221,7 @@ export const TORCH_SHEET: SpriteSheet = {
 
 /** `rope_ladder.png` is a 32x32 hand-authored flat 2D pixel sheet: the rolled
  *  bundle (16x16 at 0,0) plus a top cap, two step segments and a bottom cap,
- *  each 16x8 in the right half. Like `TERRAIN_BACKGROUND_SHEET`/
+ *  each 16x8 in the right half. Like `BACKGROUND_TILES_SHEET`/
  *  `STATIC_OBJECTS_SHEET`, this registration exists for LOADING only — the
  *  pieces are addressed through `StaticObjectsCatalog.ts`'s own sx/sy rects
  *  (`ropeLadderShaftPieces`), not by frame index, so `frameWidth`/`frameHeight`/

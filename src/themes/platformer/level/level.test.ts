@@ -1,7 +1,7 @@
 import {
   currentLevel,
   currentLayout,
-  currentBackground,
+  currentBackgroundLayout,
   LEVEL_1_LAYOUT,
   LEVEL_1_BACKGROUND,
   SPAWN_TILE,
@@ -370,18 +370,54 @@ describe('CHECKPOINT_TILES', () => {
   });
 });
 
-describe('currentBackground', () => {
+describe('currentBackgroundLayout', () => {
   afterEach(() => {
-    currentBackground.value = LEVEL_1_BACKGROUND;
+    currentBackgroundLayout.value = LEVEL_1_BACKGROUND;
   });
 
-  it('defaultValue-isTheShippedCaveBackground', () => {
-    expect(currentBackground.value).toEqual(LEVEL_1_BACKGROUND);
+  it('defaultValue-isTheShippedCaveBackgroundLayout', () => {
+    expect(currentBackgroundLayout.value).toEqual(LEVEL_1_BACKGROUND);
   });
 
-  it('settingCurrentBackground-appearsOnCurrentLevelsBackgroundField', () => {
-    currentBackground.value = [{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }];
-    expect(currentLevel.value.background).toEqual([{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }]);
+  it('settingCurrentBackgroundLayout-appearsOnCurrentLevelsParsedBackgroundField', () => {
+    currentBackgroundLayout.value = ['d'];
+    expect(currentLevel.value.background?.[0][0]).toBe('dirt');
+  });
+});
+
+describe('LEVEL_1_BACKGROUND', () => {
+  it('hasOneRowPerLayoutRowAndEveryRowIsTheSameWidthAsTheLayout', () => {
+    expect(LEVEL_1_BACKGROUND).toHaveLength(LEVEL_1_LAYOUT.length);
+    for (const row of LEVEL_1_BACKGROUND) {
+      expect(row).toHaveLength(LEVEL_1_LAYOUT[0].length);
+    }
+  });
+
+  it('zoneBsCaveGallery-isFilledWithTheCharcoalCharacter', () => {
+    for (let row = 11; row <= 13; row++) {
+      for (let col = 30; col <= 56; col++) {
+        expect(LEVEL_1_BACKGROUND[row][col]).toBe('c');
+      }
+    }
+  });
+
+  it('outsideTheCaveGallery-staysEmpty', () => {
+    expect(LEVEL_1_BACKGROUND[0][0]).toBe('.');
+    expect(LEVEL_1_BACKGROUND[11][29]).toBe('.');
+    expect(LEVEL_1_BACKGROUND[11][57]).toBe('.');
+    expect(LEVEL_1_BACKGROUND[10][30]).toBe('.');
+    expect(LEVEL_1_BACKGROUND[14][30]).toBe('.');
+  });
+
+  it('parsesThroughParseBackgroundLayoutIntoTheSameCharcoalRectangle', () => {
+    const parsed = currentLevel.value.background;
+    expect(parsed).toBeDefined();
+    for (let row = 11; row <= 13; row++) {
+      for (let col = 30; col <= 56; col++) {
+        expect(parsed![row][col]).toBe('charcoal');
+      }
+    }
+    expect(parsed![0][0]).toBeNull();
   });
 });
 
