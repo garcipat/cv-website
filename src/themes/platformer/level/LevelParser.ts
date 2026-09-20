@@ -37,6 +37,7 @@ export const TERRAIN_CHARS: Record<string, TileType | undefined> = {
   '⊤': 'stalactite',
   '⊥': 'stalagmite',
   '¥': 'torch',
+  '@': 'ladderBundle',
 };
 
 /**
@@ -189,7 +190,8 @@ export type TileChar =
   | 'v'
   | '<'
   | '>'
-  | 'C';
+  | 'C'
+  | '@';
 
 /**
  * Parses a level's raw ASCII layout (one character per tile, see
@@ -395,6 +397,25 @@ export function findTorchTiles(layout: readonly string[]): { col: number; row: n
   for (let row = 0; row < layout.length; row++) {
     for (let col = 0; col < layout[row].length; col++) {
       if (TERRAIN_CHARS[layout[row][col]] === 'torch') {
+        tiles.push({ col, row });
+      }
+    }
+  }
+  return tiles;
+}
+
+/**
+ * Finds every `@` (deployable rope-ladder bundle) tile's position in a level
+ * layout, in reading order — the same direct `TERRAIN_CHARS` scan shape as
+ * `findTorchTiles`, since a bundle is terrain rather than an entity marker.
+ * The positions feed `LADDER_BUNDLE_TILES` and, through it, the per-bundle
+ * deployment state `PlatformerState.ts` seeds (O-011).
+ */
+export function findLadderBundleTiles(layout: readonly string[]): { col: number; row: number }[] {
+  const tiles: { col: number; row: number }[] = [];
+  for (let row = 0; row < layout.length; row++) {
+    for (let col = 0; col < layout[row].length; col++) {
+      if (TERRAIN_CHARS[layout[row][col]] === 'ladderBundle') {
         tiles.push({ col, row });
       }
     }

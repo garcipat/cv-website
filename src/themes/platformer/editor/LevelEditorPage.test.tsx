@@ -54,6 +54,7 @@ vi.mock('../engine/Renderer', () => ({
   drawSigns: vi.fn(),
   drawHazards: vi.fn(),
   drawBackgroundTiles: vi.fn(),
+  drawDeployableLadders: vi.fn(),
 }));
 
 // Adds one extra registry entry whose `background` mixes a valid, current
@@ -137,6 +138,8 @@ beforeEach(() => {
     lineJoin: '',
     fillText: vi.fn(),
     strokeText: vi.fn(),
+    setLineDash: vi.fn(),
+    arc: vi.fn(),
   } as unknown as CanvasRenderingContext2D);
 });
 

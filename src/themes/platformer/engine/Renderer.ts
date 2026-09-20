@@ -22,9 +22,19 @@ import {
   stalactiteEntry,
   stalagmiteEntry,
   chainRunPieces,
+  ROPE_BUNDLE,
+  ROPE_STEP,
+  ROPE_BOTTOM_CAP,
+  ropeLadderShaftPieces,
   COBWEB_CORNER_ENTRY,
   COBWEB_FLAT_ENTRY,
 } from './StaticObjectsCatalog';
+import {
+  revealedStepCount,
+  shaftCellCount,
+  LADDER_STEP_NATIVE_PX,
+} from './DeployableLadder';
+import type { DeployableLadderState } from './DeployableLadder';
 import type { GroundAtlasEntry } from './GroundAtlas';
 import { backgroundCatalogEntry } from './BackgroundCatalog';
 import type { LevelDef, TileType } from '../level/LevelData';
@@ -164,6 +174,12 @@ function tileSource(
       // Drawn by drawTerrain's own torch branch (a frame picked from
       // TORCH_SHEET by grid position + the world clock) — not a static
       // sx/sy lookup, so there is nothing to return here.
+      return null;
+    case 'ladderBundle':
+    case 'ropeLadder':
+      // Drawn by drawDeployableLadders (the rolled bundle parcel, and the
+      // deployed shaft's cap/step pieces), which needs the bundle's runtime
+      // state — not a static sx/sy lookup, so there is nothing to return here.
       return null;
     case 'empty':
       return null;
@@ -714,6 +730,83 @@ export function drawTerrain(
         tileset, source.sx, source.sy, TILE_SIZE, TILE_SIZE,
         destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
       );
+    }
+  }
+}
+
+/**
+ * Draws every deployable rope-ladder bundle and its deployed shaft — the one
+ * pass that maps bundle state to canvas coordinates (same `originX`/`originY`
+ * convention as `drawTerrain`), so the rope scrolls with the camera. Runs
+ * immediately after `drawTerrain` so it sits over the terrain it was placed on.
+ *
+ * Returns immediately when the sheet is not loaded (the same optional-sheet
+ * fallback every other decorative pass uses). A `rolled`/`deploying` bundle
+ * draws the rolled parcel plus the steps revealed so far (a fixed ~0.5 s
+ * reveal measured in 8 px steps — see `revealedStepCount`); a `deployed`
+ * bundle draws the full completed shaft as one stack of cap/step pieces. The
+ * bundle cell itself is always the shaft's top rung.
+ *
+ * `level` is accepted for signature parity with `drawTerrain` and reserved for
+ * future neighbour-aware art; the state already carries everything the draw
+ * needs (column, row, landing row), so it is not read here.
+ */
+export function drawDeployableLadders(
+  ctx: CanvasRenderingContext2D,
+  _level: LevelDef,
+  states: readonly DeployableLadderState[],
+  ropeSheet: HTMLImageElement | null,
+  originX = 0,
+  originY = 0,
+): void {
+  if (!ropeSheet) return;
+  ctx.imageSmoothingEnabled = false;
+
+  for (const state of states) {
+    const destX = state.col * RENDERED_TILE_SIZE + originX;
+    const destY = state.row * RENDERED_TILE_SIZE + originY;
+
+    if (state.phase === 'deployed') {
+      // Once complete, the bundle cell becomes the shaft's top rung: the top
+      // cap plus a plain step fill it, and the steps below sit at exactly the
+      // same rows the unroll had revealed them at, so nothing shifts.
+      const pieces = ropeLadderShaftPieces(shaftCellCount(state));
+      let drawY = destY;
+      for (const piece of pieces) {
+        ctx.drawImage(
+          ropeSheet,
+          piece.sx, piece.sy, piece.width, piece.height,
+          destX, drawY, piece.width * RENDER_SCALE, piece.height * RENDER_SCALE,
+        );
+        drawY += piece.height * RENDER_SCALE;
+      }
+      continue;
+    }
+
+    // rolled / deploying: the rolled parcel in its cell, then the steps
+    // revealed so far, starting at the bundle cell's bottom edge and clamped
+    // so no step spills past the landing cell's bottom. The bottom-most
+    // revealed step is the ladder's end (the knotted bottom cap), so it lands
+    // in the same place the completed shaft's bottom cap will.
+    ctx.drawImage(
+      ropeSheet,
+      ROPE_BUNDLE.sx, ROPE_BUNDLE.sy, ROPE_BUNDLE.width, ROPE_BUNDLE.height,
+      destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
+    );
+
+    const stepHeight = LADDER_STEP_NATIVE_PX * RENDER_SCALE;
+    const shaftBottomY = (state.landRow + 1) * RENDERED_TILE_SIZE + originY;
+    let drawY = destY + RENDERED_TILE_SIZE;
+    let remaining = revealedStepCount(state);
+    while (remaining > 0 && drawY + stepHeight <= shaftBottomY) {
+      const piece = remaining === 1 ? ROPE_BOTTOM_CAP : ROPE_STEP;
+      ctx.drawImage(
+        ropeSheet,
+        piece.sx, piece.sy, piece.width, piece.height,
+        destX, drawY, piece.width * RENDER_SCALE, piece.height * RENDER_SCALE,
+      );
+      drawY += stepHeight;
+      remaining -= 1;
     }
   }
 }

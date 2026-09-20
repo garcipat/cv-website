@@ -36,7 +36,7 @@ import {
 } from './editorLevelState';
 import { resetGameProgress } from '../PlatformerState';
 import { loadImage } from '../engine/SpriteLoader';
-import { TERRAIN_BACKGROUND_SHEET, STATIC_OBJECTS_SHEET, DECORATIONS_SHEET, TORCH_SHEET } from '../entities/sprites/sheets';
+import { TERRAIN_BACKGROUND_SHEET, STATIC_OBJECTS_SHEET, DECORATIONS_SHEET, TORCH_SHEET, ROPE_LADDER_SHEET } from '../entities/sprites/sheets';
 import { CHECKPOINT_FLAG_SHEET } from '../entities/Checkpoint';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import { Button } from '@/components/ui/button';
@@ -69,6 +69,7 @@ const EMPTY_IMAGES: EditorImages = {
   staticObjects: null,
   decorations: null,
   torch: null,
+  ropeLadder: null,
 };
 
 const IMAGE_SOURCES: { key: keyof EditorImages; src: string }[] = [
@@ -86,6 +87,7 @@ const IMAGE_SOURCES: { key: keyof EditorImages; src: string }[] = [
   { key: 'staticObjects', src: STATIC_OBJECTS_SHEET.src },
   { key: 'decorations', src: DECORATIONS_SHEET.src },
   { key: 'torch', src: TORCH_SHEET.src },
+  { key: 'ropeLadder', src: ROPE_LADDER_SHEET.src },
 ];
 
 // How long to wait after the last paint stroke before syncing `grid` into
