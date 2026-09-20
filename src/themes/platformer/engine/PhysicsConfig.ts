@@ -118,4 +118,16 @@ export const PHYSICS_CONFIG = {
    * RENDERED_TILE_SIZE (32px): Math.abs(-220) * (1/30) ≈ 7.33 < 32. ✓
    */
   potBounceVelocity: -220,
+  /**
+   * Upward velocity impulse applied to the player on a downward landing on a
+   * bouncy mushroom's cap, in px/s (negative = up). A dedicated super-jump,
+   * deliberately stronger than the player's own jump (`jumpVelocity`, -520)
+   * so bouncing is always a genuine traversal gain over standing on the cap
+   * and jumping off it: peak height ≈ 650²/(2*1200) ≈ 176px ≈ 5.5 tiles
+   * (RENDERED_TILE_SIZE=32px), ~1.6x a normal jump's peak. Gated by
+   * `PlayerState.bounceAscending` (see PlatformerPage.tsx) so the
+   * variable-jump-height cut does not shear it down. Tunneling check:
+   * Math.abs(-650) * (1/30) ≈ 21.7 < 32. ✓
+   */
+  mushroomBounceVelocity: -650,
 } as const;

@@ -6,6 +6,8 @@ import {
   applyDeployedLadders,
 } from './engine/DeployableLadder';
 import type { DeployableLadderState } from './engine/DeployableLadder';
+import { advanceMushroomSquashes } from './engine/MushroomSquash';
+import type { MushroomSquashState } from './engine/MushroomSquash';
 import type { LevelDef } from './level/LevelData';
 import {
   SPAWN_TILE,
@@ -784,6 +786,24 @@ export function tickDeployableLadders(dt: number): void {
 }
 
 /**
+ * The transient cosmetic dips of recently-bounced bouncy-mushroom caps — one
+ * entry per cap cell, each carrying how long ago it was hit. The only mutable
+ * state the mushroom feature introduces; purely visual, never consulted by
+ * collision or standability (FR-011/FR-015). Advanced/pruned by
+ * `tickMushroomSquashes` and cleared by `resetGame()`.
+ */
+export const mushroomSquashStates = signal<MushroomSquashState[]>([]);
+
+/**
+ * Advances every in-progress cap dip by `dt` and drops expired ones — called
+ * once per game-loop tick in the `playing` phase (so it freezes with the world
+ * during pause/death, alongside `tickDarkness`/`tickDeployableLadders`).
+ */
+export function tickMushroomSquashes(dt: number): void {
+  mushroomSquashStates.value = advanceMushroomSquashes(mushroomSquashStates.value, dt);
+}
+
+/**
  * Resets the game world to its respawn state: player back at the active
  * checkpoint (or the level's spawn point when none is active), full health,
  * enemies revived in place at their spawn placements, camera scrolled back to
@@ -823,6 +843,8 @@ export function resetGame(): void {
   cameraPositionX.value = 0;
   cameraPositionY.value = 0;
   darknessLevel.value = 0;
+  // An in-progress cap dip must not survive a death/respawn (FR-015).
+  mushroomSquashStates.value = [];
   enemyStates.value = enemyStates.value.map(reviveEnemy);
   hintTooltipState.value = null;
   // A label fading when the death/respawn happened must not survive it — it

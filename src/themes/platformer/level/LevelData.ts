@@ -57,6 +57,15 @@ export type TileType =
    *  bundle. Climbable exactly like `ladder`/`chain` (see Terrain.ts's
    *  `isClimbable`), so every climbing consumer treats it identically. */
   | 'ropeLadder'
+  /** The red bouncy mushroom. Non-solid and non-climbable: passable from the
+   *  side and from below. Its top cap is one-way ground — standable from above
+   *  only while the cell directly above is not solid (Terrain.ts's
+   *  `isStandableMushroomCap`). Art role (only/top/middle/bottom) is derived
+   *  from its vertical run by `verticalRunRole`, like `bush`. */
+  | 'bouncyMushroom'
+  /** The small non-solid dressing mushroom. No behaviour of any kind: never
+   *  solid, never standable, never bounces. Art is a single fixed cell. */
+  | 'decorativeMushroom'
   | 'empty';
 
 export type TileMap = TileType[][];

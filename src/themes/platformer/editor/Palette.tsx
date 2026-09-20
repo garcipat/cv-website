@@ -47,7 +47,7 @@ const EMPTY_CHAR: TileChar = '.';
 const PATROL_CHAR: TileChar = 'P';
 const SPAWN_CHAR: TileChar = 'S';
 const CONNECTION_POINT_CHAR: TileChar = '+';
-const DECORATION_CHARS: TileChar[] = ['n', 'N', 'X', 'c', '⊤', '⊥', '¥'];
+const DECORATION_CHARS: TileChar[] = ['n', 'N', 'X', 'c', '⊤', '⊥', '¥', 's'];
 
 /**
  * One collapsible palette group. The trigger REPLACES the group's old plain

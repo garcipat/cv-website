@@ -48,7 +48,10 @@ import {
   darknessLevel,
   tickDarkness,
   torchPositions,
+  mushroomSquashStates,
+  tickMushroomSquashes,
 } from './PlatformerState';
+import { MUSHROOM_SQUASH_DURATION_SECONDS } from './engine/MushroomSquash';
 import type { CollectedFact } from './types';
 import { mapCVDataToEnemies } from './level/EnemyMapper';
 import { toBlockState } from './entities/Block';
@@ -1173,5 +1176,43 @@ describe('torchPositions', () => {
   it('layoutWithNoTorches-yieldsAnEmptyArray', () => {
     currentLayout.value = ['S..', 'GGG'];
     expect(torchPositions.value).toEqual([]);
+  });
+});
+
+describe('mushroomSquashStates', () => {
+  afterEach(() => {
+    mushroomSquashStates.value = [];
+  });
+
+  it('initial-isEmpty', () => {
+    expect(mushroomSquashStates.value).toEqual([]);
+  });
+
+  it('tickMushroomSquashes-advancesAndPrunesTheList', () => {
+    mushroomSquashStates.value = [{ col: 1, row: 2, elapsed: 0 }];
+
+    tickMushroomSquashes(MUSHROOM_SQUASH_DURATION_SECONDS / 2);
+    expect(mushroomSquashStates.value).toEqual([
+      { col: 1, row: 2, elapsed: MUSHROOM_SQUASH_DURATION_SECONDS / 2 },
+    ]);
+
+    tickMushroomSquashes(MUSHROOM_SQUASH_DURATION_SECONDS);
+    expect(mushroomSquashStates.value).toEqual([]);
+  });
+
+  it('resetGame-called-whileSquashing-clearsTheList', () => {
+    mushroomSquashStates.value = [{ col: 1, row: 2, elapsed: 0 }];
+
+    resetGame();
+
+    expect(mushroomSquashStates.value).toEqual([]);
+  });
+
+  it('resetGameProgress-called-whileSquashing-clearsTheList', () => {
+    mushroomSquashStates.value = [{ col: 1, row: 2, elapsed: 0 }];
+
+    resetGameProgress();
+
+    expect(mushroomSquashStates.value).toEqual([]);
   });
 });

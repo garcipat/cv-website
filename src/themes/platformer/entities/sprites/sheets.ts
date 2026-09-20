@@ -204,6 +204,23 @@ export const DECORATIONS_SHEET: SpriteSheet = {
   columns: 4,
 };
 
+/** `mushroom.png` is a 64x64 sheet: a 4x4 grid of 16px cells, one row per cap
+ *  colour (red/orange/purple/green). O-018 uses only the red cap variant
+ *  (row 0): col 0 is the complete mushroom, col 1 the cap + connector, col 2
+ *  the small decorative mushroom, and col 3 the plain stalk at row 0. The one
+ *  cross-row read is the `bottom` foot at (48, 16) — row 1 is the orange row,
+ *  but that cell holds only the shared, colour-neutral tan stem/foot art (no
+ *  orange cap pixels), identical in palette to the red row's own stalk at
+ *  (48, 0); it is therefore not an orange-variant use. `StaticObjectsCatalog.ts`
+ *  addresses it through its own sx/sy lookup, not by frame index — like
+ *  `DECORATIONS_SHEET`, this registration exists for loading, not addressing. */
+export const MUSHROOM_SHEET: SpriteSheet = {
+  src: '/sprites/mushroom.png',
+  frameWidth: TILE_SIZE,
+  frameHeight: TILE_SIZE,
+  columns: 4,
+};
+
 /** `torch.png` is a 48x14 horizontal strip: four 12x14 flame frames (spec
  *  FR-003/FR-004). The sheet is addressed by frame index via
  *  `frameSource(TORCH_SHEET, i)` — the same convention as `COIN_SHEET` — and

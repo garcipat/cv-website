@@ -578,11 +578,46 @@ describe('findLadderBundleTiles', () => {
   });
 });
 
+describe('mushroom terrain characters', () => {
+  it('TERRAIN_CHARS-sectionSign-mapsToBouncyMushroom', () => {
+    expect(TERRAIN_CHARS['§']).toBe('bouncyMushroom');
+  });
+
+  it('TERRAIN_CHARS-s-mapsToDecorativeMushroom', () => {
+    expect(TERRAIN_CHARS.s).toBe('decorativeMushroom');
+  });
+
+  it('parseLevel-bouncyMushroomChar-parsesAsBouncyMushroomTile', () => {
+    const result = parseLevel(['§.', 'GG']);
+    expect(result.terrain[0][0]).toBe('bouncyMushroom');
+  });
+
+  it('parseLevel-decorativeMushroomChar-parsesAsDecorativeMushroomTile', () => {
+    const result = parseLevel(['s.', 'GG']);
+    expect(result.terrain[0][0]).toBe('decorativeMushroom');
+  });
+
+  it('mushroomChars-collideWithNoOtherForegroundCharacterMap', () => {
+    // The module-load guard in LevelParser.ts already throws on a shared
+    // key; this names the invariant for '§' and 's' specifically. ('s' also
+    // appears in BACKGROUND_CHARS as surfaceStone, which is allowed: the
+    // background is a separate layer whose characters may overlap the
+    // foreground ones.)
+    expect('§' in ENTITY_CHARS).toBe(false);
+    expect('§' in SIGN_CHARS).toBe(false);
+    expect('§' in HAZARD_CHARS).toBe(false);
+    expect('s' in ENTITY_CHARS).toBe(false);
+    expect('s' in SIGN_CHARS).toBe(false);
+    expect('s' in HAZARD_CHARS).toBe(false);
+  });
+});
+
 describe('TileChar', () => {
   it('includes every TERRAIN_CHARS, ENTITY_CHARS, SIGN_CHARS, and HAZARD_CHARS key', () => {
     const tileChars: readonly TileChar[] = [
       '.', 'G', 'R', '#', 'B', 'H', 'I', 'P', '+', 'S', 'M', 'm', 'o', '=', 'Q', 'F', '$', 'u', 'p',
       'b', 'n', 'N', 'X', 'c', '⊤', '⊥', '¥', '1', '2', '3', '4', '5', '6', '^', 'v', '<', '>', 'C', '@',
+      '§', 's',
     ];
     const allKeys = [
       ...Object.keys(TERRAIN_CHARS),

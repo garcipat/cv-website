@@ -1,7 +1,8 @@
-import { stepPlayerPhysics, checkPitFall, resolvePitFall } from './Physics';
+import { stepPlayerPhysics, checkPitFall, resolvePitFall, playerOnMushroomCap } from './Physics';
 import { PHYSICS_CONFIG } from './PhysicsConfig';
 import { MAX_DT } from './GameLoop';
 import { parseLevel } from '../level/LevelParser';
+import type { LevelDef } from '../level/LevelData';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import { placeBlocks } from '../level/BlockMapper';
 import { hitboxInsetXForBlock } from '../entities/Block';
@@ -1298,5 +1299,156 @@ describe('stepPlayerPhysics climbing re-entry guard after jump-cancel', () => {
     const next = stepPlayerPhysics(player, LADDER_LEVEL, 1 / 60, { climbUpHeld: true });
 
     expect(next.climbing).toBe(true);
+  });
+});
+
+// 2 cols, 4 rows: col 0 is a lone bouncy mushroom cap at row 2 (open sky
+// above) over solid ground at row 3; col 1 is empty throughout.
+const MUSHROOM_CAP_LEVEL = parseLevel(['..', '..', '§.', 'G.']);
+
+// Same footprint, but the cap's cell is covered by a solid tile at row 0, so
+// it is never standable (FR-006).
+const COVERED_MUSHROOM_CAP_LEVEL = parseLevel(['G.', '§.', 'G.']);
+
+// A two-cell bouncy-mushroom run: cap at row 1, stem at row 2, ground at
+// row 3. Only the cap (row 1) is one-way ground.
+const MUSHROOM_RUN_LEVEL = parseLevel(['..', '§.', '§.', 'G.']);
+
+// A three-cell run: cap at row 1, interior stem at row 2, bottom stem at
+// row 3, ground at row 4 — used to prove no stem cell is ever ground.
+const MUSHROOM_TALL_RUN_LEVEL = parseLevel(['..', '§.', '§.', '§.', 'G.']);
+
+// A bouncy mushroom cap at row 1 with open space below it, so the player can
+// rise into it from underneath.
+const MUSHROOM_CEILING_LEVEL = parseLevel(['..', '§.', '..', 'G.']);
+
+describe('stepPlayerPhysics bouncy mushroom cap is one-way ground', () => {
+  it('fallingOntoAnOpenSkyCap-groundsThePlayerWithFeetOnTheCapsTopEdge', () => {
+    const player = basePlayer({ x: -20, y: 4, vy: 400, grounded: false });
+
+    const next = stepPlayerPhysics(player, MUSHROOM_CAP_LEVEL, 1 / 60, {});
+
+    expect(next.grounded).toBe(true);
+    expect(next.y).toBeCloseTo(standingYOnRow(2));
+    expect(next.vy).toBe(0);
+  });
+
+  it('fallingOntoACoveredCap-doesNotGroundThePlayer', () => {
+    const player = basePlayer({ x: -20, y: -20, vy: 400, grounded: false });
+
+    const next = stepPlayerPhysics(player, COVERED_MUSHROOM_CAP_LEVEL, 1 / 60, {});
+
+    expect(next.grounded).toBe(false);
+  });
+
+  it('fallingOntoAStemCellBelowTheCap-doesNotGroundThePlayer', () => {
+    const player = basePlayer({ x: -20, y: standingYOnRow(2) - 4, vy: 400, grounded: false });
+
+    const next = stepPlayerPhysics(player, MUSHROOM_RUN_LEVEL, 1 / 60, {});
+
+    expect(next.grounded).toBe(false);
+  });
+
+  it('walkingSidewaysIntoTheCapColumn-isNotBlocked', () => {
+    const player = basePlayer({ x: 20, y: 40, vy: 0, grounded: false });
+
+    const next = stepPlayerPhysics(player, MUSHROOM_CAP_LEVEL, 1 / 60, { left: true });
+
+    expect(next.x).toBeLessThan(20);
+  });
+
+  it('risingIntoTheCapFromBelow-isNotBlockedByACeiling', () => {
+    const player = basePlayer({ x: -20, y: 40, vy: -400, grounded: false });
+
+    const next = stepPlayerPhysics(player, MUSHROOM_CEILING_LEVEL, 1 / 60, {});
+
+    expect(next.y).toBeLessThan(40);
+  });
+
+  it('fallingOntoTheTopAdjacentStemCell-neverGroundsThePlayer', () => {
+    // MUSHROOM_RUN_LEVEL's stem is at row 2, directly below the cap.
+    const player = basePlayer({ x: -20, y: standingYOnRow(2) - 4, vy: 400, grounded: false });
+
+    const next = stepPlayerPhysics(player, MUSHROOM_RUN_LEVEL, 1 / 60, {});
+
+    expect(next.grounded).toBe(false);
+  });
+
+  it('fallingOntoAnInteriorOrBottomStemCell-neverGroundsThePlayer', () => {
+    for (const row of [2, 3]) {
+      const player = basePlayer({ x: -20, y: standingYOnRow(row) - 4, vy: 400, grounded: false });
+
+      const next = stepPlayerPhysics(player, MUSHROOM_TALL_RUN_LEVEL, 1 / 60, {});
+
+      expect(next.grounded).toBe(false);
+    }
+  });
+
+  it('walkingHorizontallyInsideARun-isNeverStopped', () => {
+    // The hitbox spans the run's cap and stem rows while moving right; the
+    // mushroom is never solid, so it must not clamp horizontal movement.
+    const player = basePlayer({ x: -20, y: 20, vy: 0, grounded: false });
+
+    const next = stepPlayerPhysics(player, MUSHROOM_RUN_LEVEL, 1 / 60, { right: true });
+
+    expect(next.x).toBeGreaterThan(-20);
+  });
+});
+
+// A decorative mushroom at (1,1) with an empty row above it and a solid
+// ground row at row 2, so one tick of falling reaches the mushroom's own row
+// but not the ground below it.
+const DECORATIVE_MUSHROOM_LEVEL = parseLevel(['...', '.s.', 'GGG']);
+
+describe('stepPlayerPhysics decorative mushroom is never solid', () => {
+  it('fallingOntoADecorativeMushroom-neverGroundsThePlayer', () => {
+    const player = basePlayer({ x: 0, y: standingYOnRow(1) - 4, vy: 400, grounded: false });
+
+    const next = stepPlayerPhysics(player, DECORATIVE_MUSHROOM_LEVEL, 1 / 60, {});
+
+    // The hitbox spans the decorative mushroom's own row, but it is not
+    // ground, so the fall continues.
+    expect(next.grounded).toBe(false);
+  });
+
+  it('walkingIntoADecorativeMushroom-isNotBlocked', () => {
+    const level: LevelDef = { terrain: [['empty', 'decorativeMushroom', 'empty']], width: 3, height: 1 };
+    const player = basePlayer({ x: 0, y: 0, vy: 0, grounded: false });
+
+    const next = stepPlayerPhysics(player, level, 1 / 60, { right: true });
+
+    expect(next.x).toBeGreaterThan(0);
+  });
+});
+
+describe('playerOnMushroomCap', () => {
+  it('groundedPlayerCentredOnAnOpenSkyCap-returnsTheCapCell', () => {
+    const player = basePlayer({ x: -20, y: standingYOnRow(2), grounded: true });
+
+    expect(playerOnMushroomCap(MUSHROOM_CAP_LEVEL, player)).toEqual({ col: 0, row: 2 });
+  });
+
+  it('airbornePlayerOverAnOpenSkyCap-returnsNull', () => {
+    const player = basePlayer({ x: -20, y: standingYOnRow(2), grounded: false });
+
+    expect(playerOnMushroomCap(MUSHROOM_CAP_LEVEL, player)).toBeNull();
+  });
+
+  it('groundedPlayerWhoseCentreColumnIsOffTheCap-returnsNull', () => {
+    const player = basePlayer({ x: 20, y: standingYOnRow(2), grounded: true });
+
+    expect(playerOnMushroomCap(MUSHROOM_CAP_LEVEL, player)).toBeNull();
+  });
+
+  it('groundedPlayerOnACoveredCap-returnsNull', () => {
+    const player = basePlayer({ x: -20, y: standingYOnRow(1), grounded: true });
+
+    expect(playerOnMushroomCap(COVERED_MUSHROOM_CAP_LEVEL, player)).toBeNull();
+  });
+
+  it('groundedPlayerOnAStemCell-returnsNull', () => {
+    const player = basePlayer({ x: -20, y: standingYOnRow(2), grounded: true });
+
+    expect(playerOnMushroomCap(MUSHROOM_RUN_LEVEL, player)).toBeNull();
   });
 });
