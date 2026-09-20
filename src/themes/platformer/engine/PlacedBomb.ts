@@ -38,17 +38,27 @@ export interface BombFrame {
   scale: number;
 }
 
-/** Fixed fuse duration (FR-016). */
-export const BOMB_FUSE_SECONDS = 2;
 /** Falling acceleration (px/s²) — the player's own gravity, reused. */
 export const BOMB_GRAVITY = PHYSICS_CONFIG.gravity;
 /** Falling speed cap (px/s) — the player's own terminal velocity, reused. */
 export const BOMB_TERMINAL_VELOCITY = PHYSICS_CONFIG.terminalVelocity;
 /** Scale applied to the orange pre-detonation frame (FR-017). */
 export const BOMB_PULSE_SCALE = 1.25;
-/** Fixed pre-detonation frame order: 1-3 burn down, then 4/5 pulse three
- *  times, ending on 5 (FR-017). */
-export const BOMB_FUSE_SEQUENCE: readonly number[] = [1, 2, 3, 4, 5, 4, 5, 4, 5];
+/** The fuse burn-down frames (1-3): the thread visibly shortening. */
+export const BOMB_BURN_FRAMES: readonly number[] = [1, 2, 3];
+/** The pulse frames: the orange 5 alternating with its 4 partner, ending on 5. */
+export const BOMB_PULSE_FRAMES: readonly number[] = [4, 5, 4, 5, 4, 5];
+/** Fixed pre-detonation frame order (FR-017). */
+export const BOMB_FUSE_SEQUENCE: readonly number[] = [...BOMB_BURN_FRAMES, ...BOMB_PULSE_FRAMES];
+/** Seconds the burn-down frames occupy — deliberately the larger share, so the
+ *  early fuse stages read clearly instead of flashing past (each of frames
+ *  1-3 gets a third of this). */
+export const BOMB_BURN_SECONDS = 1.2;
+/** Seconds the pulse frames occupy — short, so the 4/5 alternation reads as
+ *  urgent. */
+export const BOMB_PULSE_SECONDS = 0.8;
+/** Fixed fuse duration (FR-016). */
+export const BOMB_FUSE_SECONDS = BOMB_BURN_SECONDS + BOMB_PULSE_SECONDS;
 
 /**
  * The lowest row a bomb placed at `(col, row)` rests in: scans downward from
@@ -140,16 +150,23 @@ export function checkBombFellOut(state: PlacedBombState, level: LevelDef): boole
 
 /**
  * Maps the fuse's elapsed time onto the fixed pre-detonation frame sequence.
- * `bombFuseFrame(0)` is frame 1, the final segment is frame 5, and frame 0
- * (the unlit icon) never appears (FR-017).
+ * The burn-down frames (1-3) share `BOMB_BURN_SECONDS` and the pulse frames
+ * share `BOMB_PULSE_SECONDS`, so the early stages linger while the final 4/5
+ * alternation is urgent. `bombFuseFrame(0)` is frame 1, the final segment is
+ * frame 5, and frame 0 (the unlit icon) never appears (FR-017).
  */
 export function bombFuseFrame(fuseElapsed: number): BombFrame {
-  const progress = Math.min(1, Math.max(0, fuseElapsed / BOMB_FUSE_SECONDS));
-  const index = Math.min(
-    Math.floor(progress * BOMB_FUSE_SEQUENCE.length),
-    BOMB_FUSE_SEQUENCE.length - 1,
-  );
-  const frame = BOMB_FUSE_SEQUENCE[index];
+  const t = Math.min(BOMB_FUSE_SECONDS, Math.max(0, fuseElapsed));
+  let frame: number;
+  if (t < BOMB_BURN_SECONDS) {
+    const per = BOMB_BURN_SECONDS / BOMB_BURN_FRAMES.length;
+    const index = Math.min(Math.floor(t / per), BOMB_BURN_FRAMES.length - 1);
+    frame = BOMB_BURN_FRAMES[index];
+  } else {
+    const per = BOMB_PULSE_SECONDS / BOMB_PULSE_FRAMES.length;
+    const index = Math.min(Math.floor((t - BOMB_BURN_SECONDS) / per), BOMB_PULSE_FRAMES.length - 1);
+    frame = BOMB_PULSE_FRAMES[index];
+  }
   return { frame, scale: frame === 5 ? BOMB_PULSE_SCALE : 1 };
 }
 

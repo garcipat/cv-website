@@ -128,7 +128,7 @@ export interface ExplosionEffect {
 ```ts
 export interface BlastTile { col: number; row: number; }
 
-blastTiles(col, row, width, height): BlastTile[]          // 3x3 clipped to bounds (FR-018)
+blastTiles(col, row, width, height): BlastTile[]          // rounded 5x5 clipped to bounds (FR-018)
 blocksInBlast(blocks, tiles): BlockState[]                 // live + removeWhenUsedUp (FR-019)
 enemiesInBlast(enemies, tiles, tileSize): EnemyState[]     // live + box overlap (FR-020)
 playerInBlast(playerBox, tiles, tileSize): boolean         // hitbox overlap (FR-021)
@@ -188,7 +188,7 @@ via `resetGame()`).
 
 1. `carriedBombs` is always an integer in `[0, MAX_BOMBS]`.
 2. `placedBombs` and `activeExplosions` are empty after a death/respawn.
-3. `blastTiles` always contains between 1 and 9 cells, all in bounds.
+3. `blastTiles` always contains between 1 and 21 cells (the rounded 5×5), all in bounds.
 4. A blast never mutates `placedBombs`.
 5. A placed bomb is never present in `blockPlacements` and never blocks physics.
 6. `bombFuseFrame(0).frame === 1` and the last segment's frame is `5`.

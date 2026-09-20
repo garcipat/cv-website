@@ -4,8 +4,6 @@ import {
   SLIME_GREEN_SHEET,
   SLIME_PURPLE_SHEET,
   BOMB_SHEET,
-  EXPLOSION_1_SHEET,
-  EXPLOSION_2_SHEET,
   EXPLOSION_SHEET,
 } from './sheets';
 
@@ -62,23 +60,13 @@ describe('bomb and explosion sheet registrations', () => {
     expect(frameSource(BOMB_SHEET, 5)).toEqual({ sx: 80, sy: 0 });
   });
 
-  it('explosionCandidateSheets-describeTheirStrips', () => {
-    expect(EXPLOSION_1_SHEET).toEqual({
-      src: '/sprites/explosion1.png',
-      frameWidth: 48,
-      frameHeight: 48,
-      columns: 9,
-    });
-    expect(EXPLOSION_2_SHEET).toEqual({
-      src: '/sprites/explosion2.png',
+  it('explosionSheet-describesTheComicBurstStrip', () => {
+    expect(EXPLOSION_SHEET).toEqual({
+      src: '/sprites/explosion.png',
       frameWidth: 48,
       frameHeight: 48,
       columns: 8,
     });
-  });
-
-  it('activeExplosionSheet-defaultsToCandidateTwo', () => {
-    expect(EXPLOSION_SHEET).toBe(EXPLOSION_2_SHEET);
   });
 });
 

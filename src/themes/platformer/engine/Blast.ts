@@ -6,22 +6,33 @@ import { typeOf } from '../entities/enemies';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import { aabbOverlap, type Box } from './Collision';
 
-/** One tile in a blast's 3×3 area. */
+/** Blast radius in tiles — a radius of 2 gives a rounded 5×5 area (FR-018). */
+export const BLAST_RADIUS = 2;
+
+/** One tile in a blast's area. */
 export interface BlastTile {
   col: number;
   row: number;
 }
 
 /**
- * The 3×3 block of cells centred on `(col, row)`, clipped to the level bounds
- * (FR-018). Always 1–9 distinct, in-bounds tiles. Pure; no side effects, and
- * no line-of-sight rule — a blast reaches through intervening blocks
- * (FR-024).
+ * The rounded block of cells centred on `(col, row)` — `BLAST_RADIUS` tiles in
+ * every direction (a 5×5 at the default radius of 2), minus the corner tiles,
+ * so the area reads as a circle rather than a square. A tile is kept when its
+ * centre lies within `BLAST_RADIUS + 0.5` tiles of the blast centre — the
+ * circle that touches the square's edge midpoints — which for radius 2 keeps
+ * 21 of the 25 cells (the four extreme `(±2, ±2)` corners are dropped).
+ * Clipped to the level bounds (FR-018). Pure; no side effects, and no
+ * line-of-sight rule — a blast reaches through intervening blocks (FR-024).
  */
 export function blastTiles(col: number, row: number, width: number, height: number): BlastTile[] {
   const tiles: BlastTile[] = [];
-  for (let r = row - 1; r <= row + 1; r++) {
-    for (let c = col - 1; c <= col + 1; c++) {
+  const reachSquared = (BLAST_RADIUS + 0.5) ** 2;
+  for (let r = row - BLAST_RADIUS; r <= row + BLAST_RADIUS; r++) {
+    for (let c = col - BLAST_RADIUS; c <= col + BLAST_RADIUS; c++) {
+      const dx = c - col;
+      const dy = r - row;
+      if (dx * dx + dy * dy > reachSquared) continue;
       if (c >= 0 && c < width && r >= 0 && r < height) tiles.push({ col: c, row: r });
     }
   }

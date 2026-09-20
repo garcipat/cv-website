@@ -3,6 +3,7 @@ import type { EnemyPlacement } from '../level/EnemyMapper';
 import { ENEMY_TYPES, typeOf } from './enemies';
 import type { EnemyState, EnemyTypeKey } from './enemies';
 import { ENEMY_ANIMATIONS } from './enemies/EnemyAnimation';
+import { takeHit } from './enemies/shared';
 
 /**
  * Enemy behavior that is the same for every type. Everything that differs per
@@ -134,6 +135,26 @@ export function toEnemyState(placement: EnemyPlacement, index = 0): EnemyState {
  */
 export function reviveEnemy(enemy: EnemyState): EnemyState {
   return typeOf(enemy).revive(enemy);
+}
+
+/**
+ * Applies `amount` hit points of damage to an enemy through the shared hit
+ * pipeline: one `takeHit` per point — starting the `hit` reaction and dropping
+ * `hitPoints` by `amount` — then the type's own `onDamaged` hook, so any
+ * type-specific consequence (a purple slime's temporary defense, say) is
+ * layered on exactly as it is for a stomp.
+ *
+ * Defeat is deliberately NOT decided here: `stepEnemyHitReaction` checks
+ * `hitPoints` once the reaction finishes, so the enemy always plays the same
+ * brief stun before dying. Used by the bomb blast (O-012), which deals more
+ * than a stomp's single point rather than killing outright.
+ */
+export function applyEnemyDamage(enemy: EnemyState, amount: number): EnemyState {
+  if (amount <= 0) return enemy;
+  let next = enemy;
+  for (let i = 0; i < amount; i++) next = takeHit(next);
+  const type = typeOf(next);
+  return type.onDamaged ? type.onDamaged(next, amount) : next;
 }
 
 /** Advances the enemy's animation timer/frame by `dt` seconds — same

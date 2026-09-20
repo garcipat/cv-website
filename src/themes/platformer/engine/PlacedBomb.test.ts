@@ -7,6 +7,10 @@ import {
   hasDetonated,
   BOMB_FUSE_SECONDS,
   BOMB_FUSE_SEQUENCE,
+  BOMB_BURN_FRAMES,
+  BOMB_BURN_SECONDS,
+  BOMB_PULSE_FRAMES,
+  BOMB_PULSE_SECONDS,
   BOMB_PULSE_SCALE,
 } from './PlacedBomb';
 import type { PlacedBombState } from './PlacedBomb';
@@ -135,23 +139,48 @@ describe('checkBombFellOut', () => {
 });
 
 describe('bombFuseFrame', () => {
+  const burnPer = BOMB_BURN_SECONDS / BOMB_BURN_FRAMES.length;
+  const pulsePer = BOMB_PULSE_SECONDS / BOMB_PULSE_FRAMES.length;
+
   it('startOfTheFuse-showsTheFirstLitFrame', () => {
     expect(bombFuseFrame(0).frame).toBe(1);
   });
 
-  it('overTheWholeFuse-playsTheFixedSequenceNeverFrameZero', () => {
-    const frames = BOMB_FUSE_SEQUENCE.map((_, i) =>
-      bombFuseFrame(((i + 0.5) * BOMB_FUSE_SECONDS) / BOMB_FUSE_SEQUENCE.length).frame,
+  it('overTheBurnDown-playsFramesOneThroughThree', () => {
+    const frames = BOMB_BURN_FRAMES.map((_, i) => bombFuseFrame((i + 0.5) * burnPer).frame);
+    expect(frames).toEqual([1, 2, 3]);
+  });
+
+  it('overThePulse-playsTheFourFiveAlternationEndingOnFive', () => {
+    const frames = BOMB_PULSE_FRAMES.map(
+      (_, i) => bombFuseFrame(BOMB_BURN_SECONDS + (i + 0.5) * pulsePer).frame,
     );
+    expect(frames).toEqual([4, 5, 4, 5, 4, 5]);
+  });
+
+  it('overTheWholeFuse-playsTheFixedSequenceNeverFrameZero', () => {
+    const times = [
+      ...BOMB_BURN_FRAMES.map((_, i) => (i + 0.5) * burnPer),
+      ...BOMB_PULSE_FRAMES.map((_, i) => BOMB_BURN_SECONDS + (i + 0.5) * pulsePer),
+    ];
+    const frames = times.map((t) => bombFuseFrame(t).frame);
     expect(frames).toEqual([1, 2, 3, 4, 5, 4, 5, 4, 5]);
+    expect(frames).toEqual([...BOMB_FUSE_SEQUENCE]);
     expect(frames).not.toContain(0);
   });
 
+  it('burnDownOccupiesMoreTimeThanThePulse-soTheEarlyStagesDoNotFlashPast', () => {
+    expect(BOMB_BURN_SECONDS).toBeGreaterThan(BOMB_PULSE_SECONDS);
+    expect(burnPer).toBeGreaterThan(pulsePer);
+  });
+
   it('onlyTheOrangeFrame-isScaledUp', () => {
-    for (let i = 0; i < BOMB_FUSE_SEQUENCE.length; i++) {
-      const { frame, scale } = bombFuseFrame(
-        ((i + 0.5) * BOMB_FUSE_SECONDS) / BOMB_FUSE_SEQUENCE.length,
-      );
+    const times = [
+      ...BOMB_BURN_FRAMES.map((_, i) => (i + 0.5) * burnPer),
+      ...BOMB_PULSE_FRAMES.map((_, i) => BOMB_BURN_SECONDS + (i + 0.5) * pulsePer),
+    ];
+    for (const t of times) {
+      const { frame, scale } = bombFuseFrame(t);
       expect(scale).toBe(frame === 5 ? BOMB_PULSE_SCALE : 1);
     }
   });

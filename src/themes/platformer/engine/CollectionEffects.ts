@@ -587,8 +587,7 @@ export function fadeOutTextOpacity(elapsed: number): number {
 
 /** Seconds each explosion frame is shown. */
 const EXPLOSION_FRAME_SECONDS = 0.05;
-/** Frames in the active explosion sheet — both candidates are registered, and
- *  `EXPLOSION_SHEET` selects the one drawn (see entities/sprites/sheets.ts). */
+/** Frames in the explosion sheet (see entities/sprites/sheets.ts). */
 export const EXPLOSION_FRAME_COUNT = EXPLOSION_SHEET.columns;
 /** Total seconds an explosion plays before it is removed. */
 export const EXPLOSION_DURATION_SECONDS = EXPLOSION_FRAME_COUNT * EXPLOSION_FRAME_SECONDS;

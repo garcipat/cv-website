@@ -1494,9 +1494,17 @@ export function drawPlacedBombs(
 }
 
 /**
+ * Extra draw multiplier for the explosion. The native 48px frame at
+ * `RENDER_SCALE` (2) is 96px; at 1.5× it draws at 144px (3× native), close to
+ * the 5×5 blast footprint (`BLAST_RADIUS = 2` → 5 × 32px = 160px) while
+ * keeping an integer native scale so the pixels stay even.
+ */
+export const EXPLOSION_DRAW_SCALE = 1.5;
+
+/**
  * Draws every active explosion — the active sheet's frame at `renderScale 2`
- * (48 px native × 2 = 96 px, exactly the 3×3 footprint), centred on the
- * effect's world point. Purely cosmetic (FR-023).
+ * scaled by `EXPLOSION_DRAW_SCALE`, centred on the effect's world point.
+ * Purely cosmetic (FR-023).
  */
 export function drawExplosions(
   ctx: CanvasRenderingContext2D,
@@ -1507,7 +1515,7 @@ export function drawExplosions(
   const image = dc.sprites[EXPLOSION_SHEET.src];
   if (!image) return;
 
-  const size = EXPLOSION_SHEET.frameWidth * RENDER_SCALE;
+  const size = EXPLOSION_SHEET.frameWidth * RENDER_SCALE * EXPLOSION_DRAW_SCALE;
   for (const effect of explosions) {
     const { sx, sy } = frameSource(EXPLOSION_SHEET, explosionFrameIndex(effect));
     ctx.drawImage(

@@ -1,7 +1,7 @@
 # Phase 0 Research: Platformer Bombs
 
 The spec's Clarifications session already settled every behavioural question
-(the bomb is carried and placed, the blast is a 3×3 square with no chains and no
+(the bomb is carried and placed, the blast is a rounded 5×5 square with no chains and no
 effect on loose pickups, the cap is 5, the key is `B`, blue pots restore on
 respawn, the shipped level gains a pot and a sign). These decisions cover the
 remaining implementation choices: how the pot, pickup, placed bomb, blast and
@@ -180,7 +180,7 @@ The sequence and the 1.25 scale are the spec's confirmed values.
 
 **Decision**: Add a pure `engine/Blast.ts`:
 
-- `blastTiles(col, row, width, height)` — the 3×3 cells centred on the bomb,
+- `blastTiles(col, row, width, height)` — the rounded 5×5 cells centred on the bomb,
   clipped to the level bounds (FR-018).
 - `blocksInBlast(blocks, tiles)` — every live, destructible block whose tile is
   in the set. "Destructible" = the kind's `removeWhenUsedUp === true` (crate,
@@ -214,7 +214,7 @@ FR-025/FR-026 hold by construction rather than by a guard.
 **Rationale**: The spec demands *identical* outcomes to the existing destruction,
 defeat and damage paths; sharing the code path is the only way to guarantee it.
 Keeping the target selection pure and side-effect-free in `Blast.ts` makes the
-3×3/clipping/overlap rules unit-testable without a DOM.
+rounded 5×5/clipping/overlap rules unit-testable without a DOM.
 
 **Alternatives considered**:
 - *A second, blast-specific destruction implementation* — rejected: it would
@@ -226,24 +226,23 @@ Keeping the target selection pure and side-effect-free in `Blast.ts` makes the
   invented behaviour.
 - *Chaining blasts* — explicitly out of scope; bombs are not blast targets.
 
-## D8 — The explosion is a transient visual effect; both sheets kept, one-constant swap
+## D8 — The explosion is a transient visual effect
 
 **Decision**: Add an `ExplosionEffect` to `engine/CollectionEffects.ts`
 (alongside `PuffEffect`/`HitSplatterEffect`), holding `id`, `x`, `y`, `elapsed`
-and a frame count. It plays the active sheet's frames once, in order, over a
+and a frame count. It plays `EXPLOSION_SHEET`'s frames once, in order, over a
 fixed duration and is then dropped. It carries **no hazard** (FR-023). Register
-both explosion sheets in `entities/sprites/sheets.ts` and load them in
-`PlatformerPage.tsx` (they are not any type's primary sprite, so the registry
-walk cannot discover them — the same hand-listed exception `crack_overlay.png`
-already has). Draw the effect centred on the bomb's tile at `renderScale 2`
-(48 px native × 2 = 96 px, exactly the 3×3 footprint).
+the explosion sheet in `entities/sprites/sheets.ts` and load it in
+`PlatformerPage.tsx` (it is not any type's primary sprite, so the registry walk
+cannot discover it — the same hand-listed exception `crack_overlay.png` already
+has). Draw the effect centred on the bomb's tile at `EXPLOSION_DRAW_SCALE` (1.5),
+which draws the native 48px frame at 144px — close to the rounded 5×5 blast footprint
+(160px) while keeping an integer native scale.
 
-**Both candidates are kept**: `explosion1.png` (432×48 = 9 × 48×48, round
-fireball) and `explosion2.png` (384×48 = 8 × 48×48, spiky/cartoonish). A single
-`EXPLOSION_SHEET` constant selects the one drawn, so switching is a one-line
-change. The **initial default is `explosion2.png`** (the cartoonish burst the
-requester asked for); the final choice is made by the in-engine comparison in
-`quickstart.md`, with `explosion1.png` available as the alternate.
+**The comic burst wins**: the delivered `explosion.png` (384×48 = 8 × 48×48) is
+the spiky, comic-style burst the requester preferred; the earlier round-fireball
+candidate was dropped, so there is a single `EXPLOSION_SHEET` with no swap
+constant.
 
 **Rationale**: Transient canvas effects already live in `CollectionEffects.ts`;
 putting the explosion there keeps the draw pass uniform and avoids a new

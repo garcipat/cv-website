@@ -8,7 +8,7 @@
 The platformer gains a **third pot kind — the blue bomb pot** — plus everything
 downstream of it: a **bomb pickup**, a **carried count (cap 5) shown in the HUD**,
 a **`B` place-bomb input**, a **ticking placed bomb that falls under gravity and
-detonates after ~2 s**, and a **3×3 blast** that destroys destructible blocks,
+detonates after ~2 s**, and a **rounded 5×5 blast** that destroys destructible blocks,
 defeats enemies and deals one full heart (2 hitpoints) to a character caught in
 it — with **no chain reactions**.
 
@@ -17,7 +17,7 @@ The pot itself is deliberately cheap: it is one more `createPotType` kind
 `world_tileset.png` frame 128) that merges into a bunch with coin and potion pots
 through the existing kind-agnostic render plan, with no new merge code. The real
 work is a small set of new pure engine modules — **`engine/PlacedBomb.ts`** (fuse,
-fall, animation), **`engine/Blast.ts`** (clipped 3×3 area and target selection) —
+fall, animation), **`engine/Blast.ts`** (clipped rounded 5×5 area and target selection) —
 and the orchestration that reuses the game's *existing* block-destruction,
 enemy-defeat and player-damage pipelines rather than duplicating them.
 
@@ -25,7 +25,7 @@ The design follows [docs/Architecture.md](../../docs/Architecture.md) (typed
 data, signals over context, canvas rendering, no backend) and
 [docs/TestingGuide.md](../../docs/TestingGuide.md) (Vitest unit tests for pure
 `engine/` modules, RTL/jsdom for the editor and page). All three new assets
-(`bomb.png`, `explosion1.png`, `explosion2.png`) are already authored and present
+(`bomb.png`, `explosion.png`) are already authored and present
 under `public/sprites/`; the blue pot needs no new art.
 
 ## Technical Context
@@ -97,7 +97,7 @@ src/themes/platformer/
 ├── engine/
 │   ├── PlacedBomb.ts                  # NEW: pure fuse/fall/animation state machine
 │   ├── PlacedBomb.test.ts             # NEW: landing scan, gravity, fuse timeline, frame sequence
-│   ├── Blast.ts                       # NEW: pure 3x3 area + block/enemy/player target selection
+│   ├── Blast.ts                       # NEW: pure rounded 5x5 area + block/enemy/player target selection
 │   ├── Blast.test.ts                  # NEW: clipping, block/enemy/player membership, exclusions
 │   ├── CollectionEffects.ts           # EDIT: ExplosionEffect (transient visual, tick/frame)
 │   ├── CollectionEffects.test.ts      # EDIT: explosion effect coverage

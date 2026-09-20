@@ -30,7 +30,7 @@ not evidence the blast looks or feels right (constitution workflow rule).
    the bomb's fuse lights and pulses — small, then bigger, then small again —
    ending on the larger orange frame.
 3. Stand still until it detonates.
-4. **Expect**: a 3×3 explosion plays once, and you lose a full heart (2
+4. **Expect**: a rounded 5×5 explosion plays once, and you lose a full heart (2
    hitpoints).
 5. Repeat but run clear first.
 6. **Expect**: no damage.
@@ -118,26 +118,21 @@ not evidence the blast looks or feels right (constitution workflow rule).
 6. **Expect**: all placed bombs, the carried count, dropped bomb pickups and any
    active explosion are cleared; blue pots are intact.
 
-## 10. Choose the explosion (both candidates kept)
+## 10. The explosion burst
 
-Both explosion sheets are registered and loaded; one `EXPLOSION_SHEET` constant
-selects the active one, so the comparison is a one-line swap.
+The comic-style burst (`explosion.png`, 8 × 48×48) is the only explosion sheet.
 
-1. Detonate a bomb with the default `EXPLOSION_SHEET = EXPLOSION_2_SHEET`
-   (spiky/cartoonish, 8 frames).
-2. **Expect**: the blast reads as a jagged comic burst.
-3. Switch the constant in `entities/sprites/sheets.ts` to `EXPLOSION_1_SHEET`
-   (round fireball, 9 frames) and detonate again.
-4. **Expect**: the blast reads as a round fireball.
-5. Keep whichever fits the game's art better; the other stays registered but
-   unused.
+1. Detonate a bomb.
+2. **Expect**: the blast reads as a jagged comic burst, played once, drawn larger
+   than the native frame (`EXPLOSION_DRAW_SCALE`) so it reads as a big, impactful
+   hit close to the rounded 5×5 blast footprint.
 
 ## Automated coverage expected
 
 | Area | Test file | What it proves |
 | --- | --- | --- |
 | Placed bomb math | `engine/PlacedBomb.test.ts` | landing scan (bridge/ladder/no floor), gravity, fuse timeline, frame sequence |
-| Blast math | `engine/Blast.test.ts` | 3×3 clipping, block/enemy/player membership, exclusions |
+| Blast math | `engine/Blast.test.ts` | rounded 5×5 clipping, block/enemy/player membership, exclusions |
 | Bomb pot | `entities/blocks/BombPot.test.ts` | kind contract, frame 128, everyBreak/restored, bunch merge |
 | Bomb pickup | `entities/BombPickup.test.ts` | spawn, box, centering |
 | Explosion effect | `engine/CollectionEffects.test.ts` | tick/frame/expiry |
