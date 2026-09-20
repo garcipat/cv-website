@@ -16,6 +16,7 @@ import {
   editorActiveLayerSignal,
   editorSelectedBackgroundPieceSignal,
   editorCanvasModeSignal,
+  editorAppearanceSignal,
   editorBlueprintSignal,
   editorBlueprintBackgroundSignal,
   editorLoadedBlueprintNameSignal,
@@ -30,6 +31,7 @@ import { SAVE_LEVEL_ENDPOINT } from './saveLevelEndpoint';
 import type { Blueprint } from '../level/BlueprintData';
 import { currentTheme } from '@/state/theme';
 import { currentPath } from '@/state/navigation';
+import { readFileSync } from 'node:fs';
 import { enemyPlacements, enemyStates, collectedFacts, collectedCollectibleIds } from '../PlatformerState';
 import { currentBackground } from '../level/level';
 
@@ -56,6 +58,10 @@ vi.mock('../engine/Renderer', () => ({
   drawHazards: vi.fn(),
   drawBackgroundTiles: vi.fn(),
   drawDeployableLadders: vi.fn(),
+  drawDarkness: vi.fn(),
+  drawEnemyEyes: vi.fn(),
+  drawHeldTorch: vi.fn(),
+  heldTorchLightPosition: vi.fn(() => ({ x: 0, y: 0 })),
 }));
 
 // Adds one extra registry entry whose `background` mixes a valid, current
@@ -107,6 +113,7 @@ beforeEach(() => {
   editorSelectedBackgroundPieceSignal.value = null;
   currentBackground.value = [];
   editorCanvasModeSignal.value = 'level';
+  editorAppearanceSignal.value = 'light';
   editorBlueprintSignal.value = importLayout(BLANK_BLUEPRINT.layout);
   editorBlueprintBackgroundSignal.value = [];
   editorLoadedBlueprintNameSignal.value = BLANK_BLUEPRINT.name;
@@ -1930,5 +1937,159 @@ describe('LevelEditorPage — full authoring loop through the toolbar (US2)', ()
       expect(editorLevelSignal.value).toEqual(importLayout(['...', '...', '...'])),
     );
     expect(levelEditorPage.toolbar.queryUndo).not.toBeInTheDocument();
+  });
+});
+
+describe('LevelEditorPage — editor appearance (O-015 US1)', () => {
+  it('editor-whenStoredAppearanceIsDark-rendersDarkOnMount', () => {
+    editorAppearanceSignal.value = 'dark';
+
+    render(<LevelEditorPage />);
+
+    expect(levelEditorPage.editorAppearanceAttribute).toBe('dark');
+    expect(levelEditorPage.toolbar.appearanceToggle).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('editor-whenToggledToDarkAndRemounted-restoresDark', async () => {
+    render(<LevelEditorPage />);
+    expect(levelEditorPage.editorAppearanceAttribute).toBe('light');
+
+    await levelEditorPage.toggleAppearance();
+    expect(levelEditorPage.editorAppearanceAttribute).toBe('dark');
+
+    cleanup();
+    render(<LevelEditorPage />);
+
+    expect(levelEditorPage.editorAppearanceAttribute).toBe('dark');
+  });
+
+  it('editor-whileMounted-setsTheAppearanceAttributeOnHtml', () => {
+    render(<LevelEditorPage />);
+
+    expect(levelEditorPage.editorAppearanceAttribute).toBe(editorAppearanceSignal.value);
+  });
+
+  it('editor-onUnmount-removesTheAppearanceAttribute', () => {
+    render(<LevelEditorPage />);
+    expect(levelEditorPage.editorAppearanceAttribute).toBe('light');
+
+    cleanup();
+
+    expect(levelEditorPage.editorAppearanceAttribute).toBeUndefined();
+  });
+});
+
+describe('LevelEditorPage — editor appearance is independent of the site theme (O-015 US2)', () => {
+  it('editor-whenCurrentThemeChanges-keepsItsOwnAppearanceValueAndAttribute', () => {
+    const themeBefore = currentTheme.value;
+    try {
+      editorAppearanceSignal.value = 'dark';
+      render(<LevelEditorPage />);
+      expect(levelEditorPage.editorAppearanceAttribute).toBe('dark');
+
+      currentTheme.value = 'space';
+      expect(editorAppearanceSignal.value).toBe('dark');
+      expect(levelEditorPage.editorAppearanceAttribute).toBe('dark');
+
+      currentTheme.value = 'terminal';
+      expect(editorAppearanceSignal.value).toBe('dark');
+      expect(levelEditorPage.editorAppearanceAttribute).toBe('dark');
+    } finally {
+      currentTheme.value = themeBefore;
+    }
+  });
+
+  it('editor-whenDarkAndAPortaledDialogIsOpen-keepsTheAttributeOnHtmlSoPortalsInheritThePalette', async () => {
+    editorAppearanceSignal.value = 'dark';
+    render(<LevelEditorPage />);
+
+    await openExportDialog();
+    await levelEditorPage.exportDialog.findOutput();
+
+    // The dialog portals out to <body>; the attribute on <html> is what lets
+    // its tokens resolve to the editor's dark palette (FR-005).
+    expect(levelEditorPage.editorAppearanceAttribute).toBe('dark');
+  });
+
+  it('editor-whenDarkWithANonIdeSiteTheme-resolvesTheDarkPaletteFromItsOwnBlock', () => {
+    // Vitest stubs CSS imports (including `?raw`), so read the stylesheet
+    // straight from disk for this static guard.
+    const editorCss = readFileSync('src/styles/themes/editor.css', 'utf8');
+    const darkStart = editorCss.indexOf("[data-editor-appearance='dark']");
+    expect(darkStart).toBeGreaterThanOrEqual(0);
+    const darkBlock = editorCss.slice(darkStart);
+
+    // Inlined values only: `var(--color-ctp-*)` is declared inside
+    // `[data-theme='ide']` and would resolve to nothing under any other theme.
+    expect(darkBlock).not.toContain('var(--color-ctp-');
+    expect(darkBlock).toContain('--background: #1e1e2e');
+    expect(darkBlock).toContain('--muted-foreground: #a6adc8');
+    expect(darkBlock).toContain('--editor-canvas-backdrop:');
+  });
+
+  it('editor-whenMounted-neverWritesTheDataThemeAttribute', () => {
+    document.documentElement.dataset.theme = 'space';
+    editorAppearanceSignal.value = 'dark';
+
+    render(<LevelEditorPage />);
+
+    expect(document.documentElement.dataset.theme).toBe('space');
+    expect(levelEditorPage.editorAppearanceAttribute).toBe('dark');
+  });
+});
+
+describe('LevelEditorPage — the cave preview is view-only (O-015 US3)', () => {
+  function stubLevelWrite() {
+    const fetchMock = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ path: 'src/themes/platformer/level/levels/parity.json' }),
+      } as Response),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    const levelPosts = (): { fileName: string; contents: string }[] =>
+      (fetchMock.mock.calls as unknown as [string, RequestInit][])
+        .filter(([url]) => url === SAVE_LEVEL_ENDPOINT)
+        .map(([, init]) => JSON.parse(init.body as string) as { fileName: string; contents: string });
+    return { levelPosts };
+  }
+
+  async function exportText() {
+    await userEvent.click(levelEditorPage.toolbar.export);
+    const textarea = (await levelEditorPage.exportDialog.findOutput()) as HTMLTextAreaElement;
+    const value = textarea.value;
+    await userEvent.keyboard('{Escape}');
+    return value;
+  }
+
+  async function saveAsParity() {
+    await userEvent.click(levelEditorPage.toolbar.save);
+    const nameField = levelEditorPage.saveDialog.nameInput;
+    await userEvent.clear(nameField);
+    await userEvent.type(nameField, 'Parity');
+    await userEvent.click(levelEditorPage.saveDialog.confirm);
+    await waitFor(() => expect(levelEditorPage.saveDialog.queryRoot).not.toBeInTheDocument());
+  }
+
+  it('editor-withDarkModeOn-exportsAndSavesTheSameLayoutAsWithItOff', async () => {
+    const { levelPosts } = stubLevelWrite();
+    editorLevelSignal.value = importLayout(['S..', 'G..', '...']);
+
+    // Light appearance.
+    render(<LevelEditorPage />);
+    const lightExport = await exportText();
+    await saveAsParity();
+    cleanup();
+
+    // Dark appearance — same level, same edits.
+    editorAppearanceSignal.value = 'dark';
+    render(<LevelEditorPage />);
+    const darkExport = await exportText();
+    await saveAsParity();
+
+    expect(darkExport).toBe(lightExport);
+    expect(levelPosts()).toHaveLength(2);
+    expect(levelPosts()[1]).toEqual(levelPosts()[0]);
   });
 });

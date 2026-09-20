@@ -88,6 +88,50 @@ describe('createLocalStorageSignal', () => {
   });
 });
 
+describe('createLocalStorageSignal — optional isValid predicate', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('createLocalStorageSignal-withValidPredicateAndStoredValue-keepsIt', () => {
+    localStorage.setItem('appearance', JSON.stringify('dark'));
+    const isValid = vi.fn((value: unknown) => value === 'light' || value === 'dark');
+
+    const sig = createLocalStorageSignal('appearance', 'light', isValid);
+
+    expect(sig.value).toBe('dark');
+    expect(isValid).toHaveBeenCalledWith('dark');
+  });
+
+  it('createLocalStorageSignal-withInvalidStoredValue-fallsBackToDefault', () => {
+    localStorage.setItem('appearance', JSON.stringify('blue'));
+    const isValid = (value: unknown) => value === 'light' || value === 'dark';
+
+    const sig = createLocalStorageSignal('appearance', 'light', isValid);
+
+    expect(sig.value).toBe('light');
+  });
+
+  it('createLocalStorageSignal-withoutStoredValue-usesDefaultWithoutCallingPredicate', () => {
+    const isValid = vi.fn(() => true);
+
+    const sig = createLocalStorageSignal('appearance', 'light', isValid);
+
+    expect(sig.value).toBe('light');
+    expect(isValid).not.toHaveBeenCalled();
+  });
+
+  it('createLocalStorageSignal-withoutAStoredPredicate-keepsTheExistingBehaviourUnchanged', () => {
+    localStorage.setItem('appearance', JSON.stringify('anything'));
+    const sig = createLocalStorageSignal('appearance', 'light');
+    expect(sig.value).toBe('anything');
+
+    localStorage.setItem('unparseable', 'not-json');
+    const fallback = createLocalStorageSignal('unparseable', 'light');
+    expect(fallback.value).toBe('light');
+  });
+});
+
 describe('createDebouncedLocalStorageSignal', () => {
   const KEY = 'debounced-key';
   const DELAY_MS = 400;

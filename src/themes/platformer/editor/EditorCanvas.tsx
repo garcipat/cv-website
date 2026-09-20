@@ -31,10 +31,15 @@ import {
   drawHazards,
   drawBackgroundTiles,
   drawDeployableLadders,
+  drawDarkness,
+  drawEnemyEyes,
+  drawHeldTorch,
 } from '../engine/Renderer';
+import { caveLightingPreview } from './caveLightingPreview';
 import { placeBackgroundPiece, eraseBackgroundCell } from './paintBackgroundCell';
 import type { BackgroundPlacement, BackgroundPieceId } from '../level/LevelData';
 import type { DrawContext } from '../engine/DrawContext';
+import type { EditorAppearance } from './editorState';
 import { computeCoinPotRenderPlan } from '../entities/blocks/coinPotRenderPlan';
 import {
   SLIME_GREEN_SHEET,
@@ -97,6 +102,12 @@ interface EditorCanvasProps {
   selectedTool: TileChar;
   panOffset: PanOffset;
   images: EditorImages;
+  /** The editor-owned appearance. Only `'dark'` draws the cave-lighting
+   *  preview; the default keeps every existing render site unchanged. */
+  appearance?: EditorAppearance;
+  /** True while the blueprint canvas is active. Blueprints carry no spawn
+   *  probe, so they never draw the cave-lighting preview (FR-011). */
+  isBlueprintMode?: boolean;
   /** Bump this to ask the canvas to re-center itself on the spawn tile (see
    *  the effect below). It is a request id rather than a boolean so a
    *  repeated request — Reset pressed twice, say — still fires each time. */
@@ -119,19 +130,30 @@ interface EditorCanvasProps {
 // window instead of staying fixed.
 const DEFAULT_CANVAS_WIDTH_PX = 800;
 const DEFAULT_CANVAS_HEIGHT_PX = 480;
-// Matches the platformer theme's own sky color (`--background` in
-// platformer.css) so the editor's canvas looks like the real game's
-// background rather than an arbitrary dev-tool color. Falls back to the
-// same color hardcoded (its computed value) for environments where the
-// CSS custom property isn't available (e.g. jsdom in tests).
+// Fallback colour used when the editor's `--editor-canvas-backdrop` token is
+// unavailable (e.g. jsdom in tests). Its value is the light appearance's
+// daylight sky (`editor.css`), so the editor's canvas looks like the real
+// game's background rather than an arbitrary dev-tool colour.
 const FALLBACK_BACKGROUND_COLOR = '#53b0de';
 const GRID_LINE_COLOR = 'rgba(255, 255, 255, 0.25)';
 
-function readGameBackgroundColor(): string {
+/**
+ * The editor canvas backdrop, read from the editor-owned
+ * `--editor-canvas-backdrop` token so it follows the light/dark appearance
+ * rather than the site-wide theme's `--background` (O-015 FR-006).
+ *
+ * Exported so its token lookup can be unit-tested directly; it is a pure
+ * helper rather than a component, which the fast-refresh heuristic cannot
+ * distinguish, so that one rule is silenced here.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export const readGameBackgroundColor = (): string => {
   if (typeof document === 'undefined') return FALLBACK_BACKGROUND_COLOR;
-  const value = getComputedStyle(document.documentElement).getPropertyValue('--background').trim();
+  const value = getComputedStyle(document.documentElement)
+    .getPropertyValue('--editor-canvas-backdrop')
+    .trim();
   return value || FALLBACK_BACKGROUND_COLOR;
-}
+};
 
 function drawGridLines(
   ctx: CanvasRenderingContext2D,
@@ -346,6 +368,8 @@ export const EditorCanvas = ({
   selectedTool,
   panOffset,
   images,
+  appearance = 'light',
+  isBlueprintMode = false,
   centerRequestId,
   backgroundPlacements,
   activeLayer,
@@ -356,6 +380,10 @@ export const EditorCanvas = ({
   onPan,
 }: EditorCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  // The reusable offscreen layer `drawDarkness` punches its light holes into —
+  // allocated once and resized with the canvas, mirroring PlatformerPage's own
+  // `darknessLayerRef` (O-015 D8).
+  const darknessLayerRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   type DragState =
     | { mode: 'paint'; tool: TileChar; lastCol: number; lastRow: number }
@@ -419,6 +447,12 @@ export const EditorCanvas = ({
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
+
+    // The cave-lighting preview is derived from the live grid/background and
+    // drawn only in the dark appearance on the level canvas (FR-008/FR-011).
+    const previewActive = appearance === 'dark' && !isBlueprintMode;
+    const preview = previewActive ? caveLightingPreview(grid) : null;
+    const showPreview = preview !== null && preview.darknessLevel > 0;
 
     ctx.fillStyle = readGameBackgroundColor();
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -563,8 +597,81 @@ export const EditorCanvas = ({
       if (player && images.player) {
         drawPlayer(ctx, player, images.player, panOffset.x, panOffset.y, null, true);
       }
+
+      // The preview composes the game's own draw passes unchanged, inside the
+      // foreground-alpha block so the background-layer dimming applies to it
+      // too. `worldElapsed = 0` keeps it static (FR-013).
+      if (preview && showPreview) {
+        const layer = darknessLayerRef.current ?? document.createElement('canvas');
+        darknessLayerRef.current = layer;
+        if (layer.width !== canvas.width) layer.width = canvas.width;
+        if (layer.height !== canvas.height) layer.height = canvas.height;
+
+        if (player !== null) {
+          drawHeldTorch(
+            ctx,
+            player,
+            images.torch,
+            preview.darknessLevel,
+            panOffset.x,
+            panOffset.y,
+            0,
+          );
+        }
+        drawDarkness(
+          ctx,
+          layer,
+          canvas.width,
+          canvas.height,
+          preview.darknessLevel,
+          preview.torches,
+          panOffset.x,
+          panOffset.y,
+          0,
+          preview.playerLight,
+        );
+        drawEnemyEyes(
+          ctx,
+          synthesizeEnemyStates(grid),
+          preview.darknessLevel,
+          preview.torches,
+          0,
+          panOffset.x,
+          panOffset.y,
+          preview.playerLight,
+        );
+      }
     } finally {
       ctx.restore();
+    }
+
+    // Re-draw the editor affordances above the darkness overlay so grid lines,
+    // sign badges and the tile markers stay legible while previewing (FR-012).
+    // Only when the preview is active, so the light frame is byte-for-byte the
+    // pre-feature frame (FR-007, SC-004).
+    if (showPreview) {
+      drawGridLines(ctx, canvas.width, canvas.height, panOffset);
+      drawSignBadges(ctx, grid, panOffset.x, panOffset.y);
+      drawTileMarkers(
+        ctx,
+        grid,
+        PATROL_CHAR,
+        PATROL_MARKER_GLYPH,
+        PATROL_MARKER_TINT,
+        PATROL_MARKER_GLYPH_COLOR,
+        panOffset.x,
+        panOffset.y,
+      );
+      drawTileMarkers(
+        ctx,
+        grid,
+        CONNECTION_POINT_CHAR,
+        CONNECTION_POINT_MARKER_GLYPH,
+        CONNECTION_POINT_MARKER_TINT,
+        CONNECTION_POINT_MARKER_GLYPH_COLOR,
+        panOffset.x,
+        panOffset.y,
+      );
     }
 
     // Outside the alpha block on purpose: a pending placement is the thing the
@@ -582,7 +689,7 @@ export const EditorCanvas = ({
     // nothing would redraw it until some unrelated state change (a paint
     // or pan) happened to run this effect again — the canvas would sit
     // invisible until the next interaction "fixed" it as a side effect.
-  }, [grid, panOffset, images, canvasSize, backgroundPlacements, activeLayer, placement]);
+  }, [grid, panOffset, images, canvasSize, backgroundPlacements, activeLayer, placement, appearance, isBlueprintMode]);
 
   const cellFromEvent = (clientX: number, clientY: number) => {
     const rect = canvasRef.current!.getBoundingClientRect();

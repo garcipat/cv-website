@@ -25,6 +25,12 @@ const toolbar = {
   get canvasBlueprint() {
     return screen.getByTestId('editor-canvas-blueprint');
   },
+  get appearanceToggle() {
+    return screen.getByTestId('editor-appearance-toggle');
+  },
+  get queryAppearanceToggle() {
+    return screen.queryByTestId('editor-appearance-toggle');
+  },
   get undo() {
     return screen.getByTestId('editor-toolbar-undo');
   },
@@ -209,6 +215,12 @@ export const levelEditorPage = {
     return screen.getByTestId('editor-sidebar');
   },
 
+  /** The editor-owned appearance attribute the palette is selected through
+   *  (`<html data-editor-appearance="…">`) — `undefined` once unmounted. */
+  get editorAppearanceAttribute() {
+    return document.documentElement.dataset.editorAppearance;
+  },
+
   // Interaction helpers — no assertions, just user actions.
   async selectTool(char: string) {
     await userEvent.click(palette.tile(char));
@@ -236,5 +248,8 @@ export const levelEditorPage = {
   async chooseEntry(id: string) {
     fireEvent.click(entrySelect.trigger);
     await userEvent.click(await screen.findByTestId(`editor-entry-select-option-${id}`));
+  },
+  async toggleAppearance() {
+    await userEvent.click(toolbar.appearanceToggle);
   },
 };

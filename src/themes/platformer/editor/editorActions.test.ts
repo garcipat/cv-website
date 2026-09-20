@@ -16,10 +16,13 @@ import {
   selectTool,
   setActiveLayer,
   setCanvasMode,
+  setEditorAppearance,
+  toggleEditorAppearance,
   undoLastPlacement,
 } from './editorActions';
 import {
   editorActiveLayerSignal,
+  editorAppearanceSignal,
   editorArmedBlueprintIdSignal,
   editorBackgroundSignal,
   editorBlueprintBackgroundSignal,
@@ -81,6 +84,7 @@ beforeEach(() => {
   editorSaveResultSignal.value = null;
   editorCenterRequestIdSignal.value = 1;
   editorLevelCenterPendingSignal.value = false;
+  editorAppearanceSignal.value = 'light';
   blueprintEntries.length = 0;
 });
 
@@ -161,6 +165,42 @@ describe('editorActions — selection and toggles', () => {
     editorSelectedToolSignal.value = '+';
     reconcilePersistedEditorState();
     expect(editorSelectedToolSignal.value).toBe('+');
+  });
+});
+
+describe('editorActions — appearance', () => {
+  it('toggleEditorAppearance-fromLight-setsDarkAndPersists', () => {
+    editorAppearanceSignal.value = 'light';
+
+    toggleEditorAppearance();
+
+    expect(editorAppearanceSignal.value).toBe('dark');
+    expect(JSON.parse(localStorage.getItem('platformer-editor-appearance')!)).toBe('dark');
+  });
+
+  it('toggleEditorAppearance-fromDark-setsLightAndPersists', () => {
+    editorAppearanceSignal.value = 'dark';
+
+    toggleEditorAppearance();
+
+    expect(editorAppearanceSignal.value).toBe('light');
+    expect(JSON.parse(localStorage.getItem('platformer-editor-appearance')!)).toBe('light');
+  });
+
+  it('setEditorAppearance-withEachLiteral-writesTheSignal', () => {
+    setEditorAppearance('dark');
+    expect(editorAppearanceSignal.value).toBe('dark');
+
+    setEditorAppearance('light');
+    expect(editorAppearanceSignal.value).toBe('light');
+  });
+
+  it('toggleEditorAppearance-whenRepeatedNeverLeavesSignalAndStorageOutOfStep', () => {
+    for (let i = 0; i < 12; i += 1) toggleEditorAppearance();
+
+    expect(JSON.parse(localStorage.getItem('platformer-editor-appearance')!)).toBe(
+      editorAppearanceSignal.value,
+    );
   });
 });
 
