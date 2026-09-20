@@ -1,21 +1,4 @@
-import { useState } from 'react';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { EditorEntrySelect } from './EditorEntrySelect';
 import { LEVELS, findLevel, type LevelEntry } from '../level/levelRegistry';
 
 export interface LevelSelectProps {
@@ -27,75 +10,29 @@ export interface LevelSelectProps {
 }
 
 /**
- * The editor's level dropdown (spec User Story 7). Replaces what used to be
- * separate Reset and Scratch buttons: `main` and `empty` are simply the first
- * two entries, so reloading the shipped level and clearing to a bare grid are
- * both "pick a level".
+ * The editor's level dropdown — a thin adapter over the shared
+ * `EditorEntrySelect` supplying the level registry and level wording
+ * (FR-021).
  *
- * The Select is deliberately driven as an action menu — `value` is pinned to
- * `null` and the loaded level's name is shown as the trigger's own text —
- * rather than bound to the loaded level. A value-bound Select swallows the
- * selection of the already-selected item, which is exactly the reset case
- * ("I've made a mess of `main`, give me `main` back").
+ * `main` and `empty` are simply the first two entries, so reloading the
+ * shipped level and clearing to a bare grid are both "pick a level" — the
+ * editor has no separate Reset or Scratch button.
  */
-export const LevelSelect = ({ loadedLevelName, isDirty, onLoadLevel }: LevelSelectProps) => {
-  const [pendingLevel, setPendingLevel] = useState<LevelEntry | null>(null);
-
-  const handleSelect = (value: string | null) => {
-    if (value === null) return;
-    const level = findLevel(value);
-    if (level === undefined) return;
-
-    if (isDirty) {
-      setPendingLevel(level);
-      return;
-    }
-    onLoadLevel(level);
-  };
-
-  const confirmPendingLevel = () => {
-    if (pendingLevel !== null) onLoadLevel(pendingLevel);
-    setPendingLevel(null);
-  };
-
-  const items = Object.fromEntries(LEVELS.map((level) => [level.id, level.name]));
-
-  return (
-    <>
-      <Select value={null} onValueChange={handleSelect} items={items}>
-        <SelectTrigger className="w-full" aria-label="Level">
-          <SelectValue placeholder={loadedLevelName} />
-        </SelectTrigger>
-        <SelectContent alignItemWithTrigger={false}>
-          {LEVELS.map((level) => (
-            <SelectItem key={level.id} value={level.id}>
-              {level.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Dialog
-        open={pendingLevel !== null}
-        onOpenChange={(open) => {
-          if (!open) setPendingLevel(null);
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Discard changes to “{loadedLevelName}”?</DialogTitle>
-            <DialogDescription>
-              Loading “{pendingLevel?.name}” replaces the grid and discards your unsaved edits to
-              “{loadedLevelName}”. Save it first if you want to keep it.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <DialogClose render={<Button type="button" variant="outline" />}>Cancel</DialogClose>
-            <Button type="button" variant="destructive" onClick={confirmPendingLevel}>
-              Discard and load
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
-  );
-};
+export const LevelSelect = ({ loadedLevelName, isDirty, onLoadLevel }: LevelSelectProps) => (
+  <EditorEntrySelect
+    entries={LEVELS}
+    loadedName={loadedLevelName}
+    isDirty={isDirty}
+    onLoad={(entry) => {
+      const level = findLevel(entry.id);
+      if (level !== undefined) onLoadLevel(level);
+    }}
+    labels={{
+      triggerAriaLabel: 'Level',
+      tooltip: 'Levels',
+      discardTitle: (loadedName) => `Discard changes to “${loadedName}”?`,
+      discardDescription: (loadedName, pendingName) =>
+        `Loading “${pendingName}” replaces the grid and discards your unsaved edits to “${loadedName}”. Save it first if you want to keep it.`,
+    }}
+  />
+);
