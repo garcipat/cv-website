@@ -26,7 +26,7 @@ import {
 import type { TorchLight } from './Lighting';
 import { PLAYER_RENDERED_SIZE, PLAYER_FOOT_PADDING } from '../entities/Player';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
-import type { BackgroundPlacement, BackgroundPieceId } from '../level/LevelData';
+import type { LevelDef } from '../level/LevelData';
 import type { PlayerState } from '../entities/Player';
 
 /** The lighting helpers only ever read `x`/`y` from a player, so a minimal
@@ -106,41 +106,63 @@ describe('nextDarknessLevel', () => {
 });
 
 describe('isCellDarkening', () => {
-  const cave: BackgroundPlacement = { pieceId: 'charcoalBlock3x3', col: 2, row: 2 };
+  const caveLevel: LevelDef = {
+    terrain: [],
+    width: 3,
+    height: 3,
+    background: [
+      [null, null, null],
+      [null, 'charcoal', null],
+      [null, null, null],
+    ],
+  };
 
-  it('cellInsideACaveFootprint-isDarkening', () => {
-    expect(isCellDarkening([cave], 2, 2)).toBe(true);
-    expect(isCellDarkening([cave], 4, 4)).toBe(true);
+  it('cellWithACaveFamilyMaterial-isDarkening', () => {
+    expect(isCellDarkening(caveLevel, 1, 1)).toBe(true);
   });
 
-  it('cellOutsideACaveFootprint-isNotDarkening', () => {
-    expect(isCellDarkening([cave], 1, 2)).toBe(false);
-    expect(isCellDarkening([cave], 5, 4)).toBe(false);
-    expect(isCellDarkening([cave], 3, 1)).toBe(false);
+  it('cellOutsideTheCaveCell-isNotDarkening', () => {
+    expect(isCellDarkening(caveLevel, 0, 1)).toBe(false);
+    expect(isCellDarkening(caveLevel, 2, 0)).toBe(false);
   });
 
   it('surfaceOnlyBackground-isNeverDarkening', () => {
-    const surface: BackgroundPlacement = { pieceId: 'dirtBlock3x3', col: 0, row: 0 };
-    expect(isCellDarkening([surface], 0, 0)).toBe(false);
-    expect(isCellDarkening([surface], 2, 2)).toBe(false);
+    const surfaceLevel: LevelDef = {
+      terrain: [],
+      width: 1,
+      height: 1,
+      background: [['dirt']],
+    };
+    expect(isCellDarkening(surfaceLevel, 0, 0)).toBe(false);
   });
 
-  it('overlappingCavePieces-stillProduceASingleBoolean', () => {
-    const overlapping: BackgroundPlacement[] = [cave, { pieceId: 'charcoalBlock3x3', col: 3, row: 3 }];
-    const result = isCellDarkening(overlapping, 3, 3);
-    expect(result).toBe(true);
-    expect(typeof result).toBe('boolean');
+  it('emptyCell-isNotDarkening', () => {
+    const level: LevelDef = { terrain: [], width: 1, height: 1, background: [[null]] };
+    expect(isCellDarkening(level, 0, 0)).toBe(false);
   });
 
-  it('unknownPieceId-contributesNoFootprint', () => {
-    const stale: BackgroundPlacement = { pieceId: 'notARealPieceId' as BackgroundPieceId, col: 0, row: 0 };
-    expect(() => isCellDarkening([stale], 0, 0)).not.toThrow();
-    expect(isCellDarkening([stale], 0, 0)).toBe(false);
+  it('levelWithNoBackgroundField-isNeverDarkening', () => {
+    const level: LevelDef = { terrain: [], width: 1, height: 1 };
+    expect(isCellDarkening(level, 0, 0)).toBe(false);
   });
 
   it('outOfRangeIntegerCells-returnFalseInsteadOfThrowing', () => {
-    expect(isCellDarkening([cave], -5, -5)).toBe(false);
-    expect(isCellDarkening([cave], 999, 999)).toBe(false);
+    expect(isCellDarkening(caveLevel, -5, -5)).toBe(false);
+    expect(isCellDarkening(caveLevel, 999, 999)).toBe(false);
+  });
+
+  it('everyCaveMaterial-isDarkening', () => {
+    for (const material of ['charcoal', 'maroon', 'caveStone'] as const) {
+      const level: LevelDef = { terrain: [], width: 1, height: 1, background: [[material]] };
+      expect(isCellDarkening(level, 0, 0)).toBe(true);
+    }
+  });
+
+  it('everySurfaceMaterial-isNeverDarkening', () => {
+    for (const material of ['dirt', 'rust', 'surfaceStone'] as const) {
+      const level: LevelDef = { terrain: [], width: 1, height: 1, background: [[material]] };
+      expect(isCellDarkening(level, 0, 0)).toBe(false);
+    }
   });
 });
 

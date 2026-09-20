@@ -8,12 +8,13 @@ Everything here is defined by code, and the code is the authority:
 
 | Concern | Source |
 |---|---|
-| Character maps and the `TileChar` union | `src/themes/platformer/level/LevelParser.ts` |
-| `TileType`, `LevelDef`, `BackgroundPlacement` | `src/themes/platformer/level/LevelData.ts` |
+| Character maps, the `TileChar`/`BackgroundChar` unions, `parseBackgroundLayout` | `src/themes/platformer/level/LevelParser.ts` |
+| `TileType`, `LevelDef`, `BackgroundGrid`, `BackgroundMaterialId` | `src/themes/platformer/level/LevelData.ts` |
 | The shipped level's layout and its structure notes | `src/themes/platformer/level/level.ts` |
 | Saved-level discovery and validation | `src/themes/platformer/level/levelRegistry.ts` |
 | Blueprint shape, discovery and validation | `src/themes/platformer/level/BlueprintData.ts`, `blueprintRegistry.ts` |
 | Solidity and climbability predicates | `src/themes/platformer/level/Terrain.ts` |
+| Background neighbour-mask autotiling | `src/themes/platformer/engine/BackgroundAtlas.ts` |
 
 ## The layout array
 
@@ -167,28 +168,107 @@ A level has two independent layers.
 **Foreground** is the layout array itself: terrain, entity, sign and hazard characters.
 This is the layer physics, collision and gameplay read.
 
-**Background** is a separate list of decorative stone pieces painted behind the terrain,
-so platforms read as solid mass rather than as shapes floating over flat sky. It is
-purely decorative: nothing in collision or physics ever reads it, only the renderer and
-the level editor do. It is freeform placement rather than autotiled — each entry anchors
-one multi-tile art piece at a top-left cell.
+**Background** is a dense per-cell grid aligned 1:1 with the terrain grid (O-014), so a
+filled region reads as one continuous autotiled mass behind the terrain rather than as
+scattered stamped pieces or shapes floating over flat sky. It is purely decorative:
+nothing in collision or physics ever reads it, only the renderer and the level editor
+do. Unlike the pre-O-014 freeform placement list, every cell is independently
+addressable — no footprint, no anchor, exactly like `terrain` itself.
 
 ```ts
-interface BackgroundPlacement {
-  pieceId: BackgroundPieceId; // which art piece
-  col: number;               // anchor cell, top-left
-  row: number;
-}
+type BackgroundGrid = (BackgroundMaterialId | null)[][]; // row-major, [row][col]
 ```
 
-`BackgroundPieceId` (`LevelData.ts`) currently covers two materials, dirt and charcoal,
-in five footprints each: `dirtBlock3x3`, `dirtBlockTop2x1`, `dirtBlockBottom2x2`,
-`dirtColumnTop1x1`, `dirtColumnBottom1x2`, and the matching `charcoal*` five. Each
-piece's pixel rect and tile footprint live in
-`src/themes/platformer/engine/BackgroundCatalog.ts`.
+`null` means empty (the parallax/void backdrop shows through); a material id means that
+cell is filled with that material. This is the shape `BackgroundAtlas`/`drawBackgroundTiles`/
+`isCellDarkening` consume — it is no longer what gets *stored*, see "Background storage"
+below.
+
+### Background characters
+
+`BACKGROUND_CHARS` in `src/themes/platformer/level/LevelParser.ts` — the background
+layer's own analogue of `TERRAIN_CHARS`, one character per `BackgroundMaterialId`:
+
+| Char | Material (`BackgroundMaterialId`) | Family |
+|---|---|---|
+| `.` | *(empty — not a `BACKGROUND_CHARS` key; see below)* | — |
+| `d` | `dirt` | `surface` |
+| `r` | `rust` | `surface` |
+| `s` | `surfaceStone` | `surface` |
+| `c` | `charcoal` | `cave` |
+| `m` | `maroon` | `cave` |
+| `v` | `caveStone` | `cave` |
+
+`'.'` is deliberately not a key of `BACKGROUND_CHARS` itself — there is no
+`BackgroundMaterialId` for "empty", `null` fills that role in `BackgroundGrid` — so it
+(and any other character `BACKGROUND_CHARS` doesn't recognize) simply falls through to
+`parseBackgroundLayout`'s unrecognized-character branch, which resolves to `null`
+silently, with no warning: an unrecognized background character is purely decorative,
+never a level-breaking authoring mistake worth surfacing the way an unrecognized
+foreground character is (`parseLevel`'s `console.warn`).
+
+`BackgroundChar` (`LevelParser.ts`) is the union of `'.'` plus every `BACKGROUND_CHARS`
+key — the background layer's analogue of `TileChar`, and also the editor's background
+grid's own cell type: `editorBackgroundSignal`/`editorBlueprintBackgroundSignal` hold a
+`BackgroundChar[][]`, the exact parallel `editorLevelSignal`'s `TileChar[][]` already is
+for the foreground.
+
+### Background storage: a `string[]` layout, not a stored grid
+
+Since O-014's storage-unification revision, `background` is stored (in saved level and
+blueprint JSON, and in `LEVEL_1_BACKGROUND`) as a `readonly string[]` layout — the exact
+same one-character-per-cell shape `layout` itself has, via `BACKGROUND_CHARS` above —
+rather than as a `BackgroundGrid` directly.
+
+```ts
+function parseBackgroundLayout(
+  layout: readonly string[],
+  terrainWidth: number,
+  terrainHeight: number,
+): BackgroundGrid;
+```
+
+`parseBackgroundLayout` (`LevelParser.ts`) turns a stored background layout into the
+`BackgroundGrid` the engine/renderer consume, mirroring `parseLevel`'s terrain-building
+loop — the same relationship `TileMap` has to `layout`. It always clamps/pads its result
+to exactly `terrainWidth` x `terrainHeight` rather than trusting the stored layout's own
+size: a background layout shorter or narrower than the terrain reads as empty beyond its
+own bounds (the same out-of-bounds-is-`null` contract `backgroundAt` already has), and
+one taller or wider than the terrain never lets background draw past where no terrain
+exists — both are resolved once at parse time rather than left for the renderer to
+bounds-check per cell.
+
+Before this revision, `background` was stored as a JSON array-of-arrays of material-name
+strings (`[[null, "charcoal", null], ...]`) — the `BackgroundGrid` shape directly. That
+shape is gone; every saved-file example and validator below reflects the current
+`string[]` shape.
+
+`BackgroundMaterialId` (`LevelData.ts`) is an open set of named materials, each with an
+intrinsic `BackgroundMaterialFamily` (`'surface' | 'cave'`) that decides whether it
+darkens the view (O-010's cave lighting). Six materials ship today:
+
+| Material | Family |
+|---|---|
+| `dirt` | `surface` |
+| `rust` | `surface` |
+| `surfaceStone` | `surface` |
+| `charcoal` | `cave` |
+| `maroon` | `cave` |
+| `caveStone` | `cave` |
+
+Rendering computes a 4-bit same-material neighbour mask per cell (`Terrain.ts`'s
+`backgroundNeighbourMask`, mirroring `neighbourMask` for terrain) and looks it up in
+`engine/BackgroundAtlas.ts`'s per-material mask table — a different material, an empty
+cell, or an out-of-bounds cell all count as a non-connecting (closed) neighbour, so
+adjacent materials never visually merge. A fully-interior cell (mask value covering all
+four sides) may additionally show a deterministic rock decoration from
+`engine/BackgroundDecorCatalog.ts`.
 
 The level editor's Foreground/Background toggle chooses which layer clicks target; it is
-independent of the Level/Blueprint toggle that chooses which canvas is active.
+independent of the Level/Blueprint toggle that chooses which canvas is active. Painting
+and erasing a background cell (`editor/paintBackgroundCell.ts`) works exactly like
+painting foreground terrain — a single-cell write, growing the grid the same way, no
+footprint/overlap reasoning.
 
 ## `LevelDef`
 
@@ -199,9 +279,14 @@ interface LevelDef {
   terrain: TileType[][];            // row-major, [row][col]
   width: number;                    // tiles, derived from the layout
   height: number;                   // tiles, the layout's length
-  background?: BackgroundPlacement[];
+  background?: BackgroundGrid;
 }
 ```
+
+`background` MAY be smaller than `terrain`'s own bounds — any cell outside the grid's
+own bounds (or a missing `background` field entirely) reads as `null` via
+`Terrain.ts`'s `backgroundAt`, the same out-of-bounds-is-empty convention `tileAt`
+already uses.
 
 ## Saved level files
 
@@ -216,16 +301,27 @@ committed like any other source file.
 {
   "name": "Cave Run",
   "layout": [".S.", "GGG"],
-  "background": [{ "pieceId": "dirtBlock3x3", "col": 4, "row": 9 }]
+  "background": ["...", ".c."]
 }
 ```
 
 - The **filename stem is the level's `id`** (`cave-run.json` → `cave-run`); `name` is
   what the dropdown shows and falls back to the id when missing or empty.
-- `background` is optional.
+- `background` is optional, and when present is only written when it holds at least one
+  non-`'.'` character — a level with an all-empty background layout keeps the same shape
+  it had before the background layer existed.
 - Validation is deliberately forgiving: a file that is not an object, or whose `layout`
   is not a non-empty array of strings, is skipped entirely — that level simply does not
-  appear and every other one still loads. A malformed `background` costs only that field.
+  appear and every other one still loads. `background` is validated with the same "array
+  of strings" shape check `layout` gets (it may legally be empty, unlike `layout`) — a
+  malformed `background` costs only that field. This includes both pre-storage-
+  unification-revision shapes: the pre-O-014 flat placement-list format (an array of
+  `{pieceId, col, row}` objects) and the O-014 array-of-arrays `BackgroundGrid` format
+  (`[[null, "charcoal", null], ...]`) both fail the `string[]` shape check — their rows
+  are objects/arrays, not strings — and the level simply loads with no background field
+  at all. A `background` string containing a character `BACKGROUND_CHARS` doesn't
+  recognize passes this shape check (the character itself is a `parseBackgroundLayout`
+  concern, resolved to empty at load time, not a load-time rejection reason).
 - The two built-in entries, `main` (the shipped level) and `empty` (the three-tile
   scratch grid), live in code as `BUILT_IN_LEVELS` rather than as files, come first in
   the dropdown, and cannot be removed.
@@ -244,13 +340,13 @@ interface Blueprint {
   id: string;                       // slug; also the saved file's stem
   name: string;
   layout: readonly string[];
-  background?: BackgroundPlacement[];
+  background?: readonly string[];
 }
 ```
 
 The shape is deliberately the same one a saved level has, so the export crop, the
-importer, `parseLevel` and blueprint placement all apply unchanged, with the same
-per-character mapping. Validation goes through `isBlueprint` and is as forgiving as the
+importer, `parseLevel`/`parseBackgroundLayout` and blueprint placement all apply
+unchanged, with the same per-character mapping. Validation goes through `isBlueprint` and is as forgiving as the
 level registry's.
 
 Two differences from levels:
@@ -265,9 +361,15 @@ The folder ships empty apart from a `.gitkeep`.
 
 The level editor persists its working state to `localStorage` — the grid
 (`platformer-editor-level`, a `TileChar[][]`), the selected tool
-(`platformer-editor-selected-tool`, a single `TileChar`), the background placements, the
-blueprint canvas and its background, the active layer, the canvas mode, and the loaded
-level/blueprint names (`src/themes/platformer/editor/editorLevelState.ts`).
+(`platformer-editor-selected-tool`, a single `TileChar`), the background grid
+(`platformer-editor-background`, a `BackgroundChar[][]`), the blueprint canvas and its
+background, the active layer, the canvas mode, and the loaded level/blueprint names
+(`src/themes/platformer/editor/editorState.ts` + `editorActions.ts`).
+
+Old saved levels/blueprints using either the pre-O-014 flat `BackgroundPlacement[]`
+format or the pre-storage-unification-revision array-of-arrays `BackgroundGrid` format
+load with an empty background layout — no attempt is made to convert either older shape
+to the current `string[]` layout (FR-013).
 
 Several layout characters were remapped at one point, and there is **no migration path**.
 A browser profile that opened the editor before that remap still holds the old letters in

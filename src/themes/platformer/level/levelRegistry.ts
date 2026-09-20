@@ -1,16 +1,21 @@
 import { LEVEL_1_LAYOUT, LEVEL_1_BACKGROUND, SCRATCH_LAYOUT } from './level';
-import type { BackgroundPlacement } from './LevelData';
 
 /**
  * One level the Level Editor can load. `layout` is the same
  * one-character-per-tile shape `parseLevel` and `importLayout` consume — a
  * registry entry is just a named layout, with no engine state attached.
+ * `background`, since O-014's storage-unification revision, is the SAME
+ * `readonly string[]` shape as `layout` (one character per cell, via
+ * `BACKGROUND_CHARS`) rather than a pre-parsed `BackgroundGrid` — a
+ * registry entry stores raw layouts only, exactly like `layout` itself;
+ * `parseBackgroundLayout` turns it into the engine-facing `BackgroundGrid`
+ * at load time.
  */
 export interface LevelEntry {
   readonly id: string;
   readonly name: string;
   readonly layout: readonly string[];
-  readonly background?: readonly BackgroundPlacement[];
+  readonly background?: readonly string[];
 }
 
 /**
@@ -32,15 +37,22 @@ const idFromPath = (path: string): string =>
 const isLayout = (value: unknown): value is string[] =>
   Array.isArray(value) && value.length > 0 && value.every((row) => typeof row === 'string');
 
-const isBackgroundPlacement = (value: unknown): value is BackgroundPlacement =>
-  value !== null &&
-  typeof value === 'object' &&
-  typeof (value as { pieceId?: unknown }).pieceId === 'string' &&
-  typeof (value as { col?: unknown }).col === 'number' &&
-  typeof (value as { row?: unknown }).row === 'number';
-
-const isBackground = (value: unknown): value is BackgroundPlacement[] =>
-  Array.isArray(value) && value.every(isBackgroundPlacement);
+/**
+ * `background`'s shape check, post-O-014: the exact same "array of strings"
+ * check `isLayout` applies to `layout` — mirroring it, not a hand-rolled
+ * variant, since the two fields are now the same shape. Unlike `layout`,
+ * `background` may legally be an empty array (an all-empty background layer
+ * that still holds SOME painted content elsewhere isn't required — this
+ * validator only gates the field's own shape, not its content), so this
+ * intentionally omits `isLayout`'s non-empty-array requirement. The old
+ * array-of-arrays `BackgroundGrid`/pre-O-014 `BackgroundPlacement[]` formats
+ * both fail this — their entries are arrays/objects, not strings — so a
+ * level saved under either format simply loads with `background` unset
+ * entirely, exactly the FR-013 "no conversion" behaviour, for free from the
+ * shape check alone.
+ */
+const isBackground = (value: unknown): value is string[] =>
+  Array.isArray(value) && value.every((row) => typeof row === 'string');
 
 /**
  * Turns an `import.meta.glob` result into registry entries, skipping anything

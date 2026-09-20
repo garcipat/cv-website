@@ -1,5 +1,5 @@
 import type { Signal } from '@preact/signals-react';
-import { importLayout } from './importLayout';
+import { importLayout, importBackgroundLayout } from './importLayout';
 import { blueprintCells } from './blueprintCells';
 import { blueprintFits } from './blueprintFit';
 import { placeBlueprint, rebaseBlueprintBackground } from './placeBlueprint';
@@ -7,12 +7,10 @@ import { cropLevelForExport } from './cropLevelForExport';
 import { saveLevel } from './saveLevelFile';
 import { saveBlueprint } from './saveBlueprintFile';
 import { findBlueprint } from '../level/blueprintRegistry';
-import { backgroundCatalogEntry } from '../engine/BackgroundCatalog';
-import { currentLayout, currentBackground } from '../level/level';
+import { currentLayout, currentBackgroundLayout } from '../level/level';
 import type { LevelEntry } from '../level/levelRegistry';
 import type { Blueprint } from '../level/BlueprintData';
-import type { BackgroundPlacement, BackgroundPieceId } from '../level/LevelData';
-import type { TileChar } from '../level/LevelParser';
+import type { BackgroundChar, TileChar } from '../level/LevelParser';
 import type { PaintResult } from './paintCell';
 import { resetGameProgress } from '../PlatformerState';
 import { currentTheme } from '@/state/theme';
@@ -34,7 +32,7 @@ import {
   editorLoadedBlueprintNameSignal,
   editorLoadedLevelNameSignal,
   editorSaveResultSignal,
-  editorSelectedBackgroundPieceSignal,
+  editorSelectedBackgroundMaterialSignal,
   editorSelectedToolSignal,
   type EditorAppearance,
   type EditorCanvasMode,
@@ -53,19 +51,28 @@ const SPAWN_CHAR: TileChar = 'S';
 const CONNECTION_POINT_CHAR: TileChar = '+';
 const FALLBACK_TOOL: TileChar = 'G';
 
-/** Shifts a background-placement list in place by a grid growth, mirroring the
- *  `growGrid` shift that moved every foreground cell. */
-const shiftBackgroundPlacements = (
-  target: Signal<BackgroundPlacement[]>,
+/**
+ * Shifts a background grid in place by a foreground grid growth, by inserting
+ * empty rows/columns at the start (a leftward/upward growth) or simply
+ * leaving the grid's own array alone (a rightward/downward growth needs no
+ * shift — new foreground cells appended past the background grid's own
+ * bounds already read as `null` via `backgroundAt`). Renamed from
+ * `shiftBackgroundPlacements` (there is no longer a placement list to shift —
+ * a grid grows, it doesn't shift discrete placements) and reimplemented as an
+ * array/row-shift over `BackgroundGrid` rather than a per-placement
+ * coordinate rebase.
+ */
+const shiftBackgroundGrid = (
+  target: Signal<BackgroundChar[][]>,
   colShift: number,
   rowShift: number,
 ): void => {
   if (colShift === 0 && rowShift === 0) return;
-  target.value = target.value.map((placement) => ({
-    ...placement,
-    col: placement.col + colShift,
-    row: placement.row + rowShift,
-  }));
+  const grid = target.value;
+  const shiftedRows = grid.map((row) => [...new Array<BackgroundChar>(colShift).fill('.'), ...row]);
+  const newWidth = (grid[0]?.length ?? 0) + colShift;
+  const emptyRow = (): BackgroundChar[] => new Array<BackgroundChar>(newWidth).fill('.');
+  target.value = [...Array.from({ length: rowShift }, emptyRow), ...shiftedRows];
 };
 
 // --- Selection / toggles -----------------------------------------------------
@@ -78,8 +85,8 @@ export const selectTool = (tool: TileChar): void => {
   editorArmedBlueprintIdSignal.value = null;
 };
 
-export const selectBackgroundPiece = (pieceId: BackgroundPieceId): void => {
-  editorSelectedBackgroundPieceSignal.value = pieceId;
+export const selectBackgroundMaterial = (material: BackgroundChar): void => {
+  editorSelectedBackgroundMaterialSignal.value = material;
 };
 
 export const setActiveLayer = (layer: EditorLayer): void => {
@@ -159,19 +166,19 @@ export const applyPaint = (result: PaintResult): GrowthShift => {
   if (editorCanvasModeSignal.value === 'blueprint') {
     editorBlueprintSignal.value = grid;
     editorBlueprintDirtySignal.value = true;
-    shiftBackgroundPlacements(editorBlueprintBackgroundSignal, colShift, rowShift);
+    shiftBackgroundGrid(editorBlueprintBackgroundSignal, colShift, rowShift);
     return { colShift, rowShift };
   }
 
   editorLevelSignal.value = grid;
   if (!editorDirtySignal.value) editorDirtySignal.value = true;
   editorSaveResultSignal.value = null;
-  shiftBackgroundPlacements(editorBackgroundSignal, colShift, rowShift);
+  shiftBackgroundGrid(editorBackgroundSignal, colShift, rowShift);
   editorLastPlacementSnapshotSignal.value = null;
   return { colShift, rowShift };
 };
 
-export const applyBackgroundPaint = (next: BackgroundPlacement[]): void => {
+export const applyBackgroundPaint = (next: BackgroundChar[][]): void => {
   if (editorCanvasModeSignal.value === 'blueprint') {
     editorBlueprintBackgroundSignal.value = next;
     editorBlueprintDirtySignal.value = true;
@@ -206,18 +213,16 @@ export const commitPlacement = (col: number, row: number): GrowthShift | null =>
   if (!editorDirtySignal.value) editorDirtySignal.value = true;
   editorSaveResultSignal.value = null;
 
-  // Order matters: shift the placements the level ALREADY had by the growth,
-  // then append the blueprint's own rebased with that same shift already folded
-  // in — appending first would shift them twice.
-  shiftBackgroundPlacements(editorBackgroundSignal, result.colShift, result.rowShift);
-  const rebased = rebaseBlueprintBackground(
-    armedBlueprint.background ?? [],
+  // Order matters: shift the grid the level ALREADY had by the growth, then
+  // stamp the blueprint's own background at that same shift already folded
+  // in — stamping first would shift it twice.
+  shiftBackgroundGrid(editorBackgroundSignal, result.colShift, result.rowShift);
+  editorBackgroundSignal.value = rebaseBlueprintBackground(
+    editorBackgroundSignal.value,
+    importBackgroundLayout(armedBlueprint.background ?? []),
     col + result.colShift,
     row + result.rowShift,
   );
-  if (rebased.length > 0) {
-    editorBackgroundSignal.value = [...editorBackgroundSignal.value, ...rebased];
-  }
 
   return { colShift: result.colShift, rowShift: result.rowShift };
 };
@@ -247,12 +252,11 @@ export const loadLevel = (level: LevelEntry): void => {
     editorCenterRequestIdSignal.value += 1;
   }
 
-  // A placement whose pieceId no longer resolves would render as nothing and
-  // be permanently un-erasable, so drop it once at load time.
-  const validBackground = (level.background ?? []).filter(
-    (placement) => backgroundCatalogEntry(placement.pieceId) !== undefined,
-  );
-  editorBackgroundSignal.value = validBackground;
+  // A character no longer a recognized BACKGROUND_CHARS key would render as
+  // nothing and be permanently un-erasable, so drop it once at load time
+  // (FR-012) rather than at every render — importBackgroundLayout already
+  // does this.
+  editorBackgroundSignal.value = importBackgroundLayout(level.background ?? []);
   editorLoadedLevelNameSignal.value = level.name;
   editorDirtySignal.value = false;
   editorSaveResultSignal.value = null;
@@ -262,8 +266,7 @@ export const loadLevel = (level: LevelEntry): void => {
 export const loadBlueprint = (blueprint: Blueprint): void => {
   const grid = importLayout(blueprint.layout);
   editorBlueprintSignal.value = grid;
-  const background = [...(blueprint.background ?? [])];
-  editorBlueprintBackgroundSignal.value = background;
+  editorBlueprintBackgroundSignal.value = importBackgroundLayout(blueprint.background ?? []);
   editorLoadedBlueprintNameSignal.value = blueprint.name;
   editorBlueprintDirtySignal.value = false;
 };
@@ -289,7 +292,7 @@ export const saveCurrentBlueprint = async (name: string): Promise<void> => {
 export const tryLayout = (): void => {
   const cropped = cropLevelForExport(editorLevelSignal.value, editorBackgroundSignal.value);
   currentLayout.value = cropped.layout;
-  currentBackground.value = cropped.background;
+  currentBackgroundLayout.value = cropped.background;
   resetGameProgress();
   currentTheme.value = 'platformer';
   navigateTo('/platformer?debug=1');

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { SIGN_CHARS, type TileChar } from '../level/LevelParser';
+import { SIGN_CHARS, parseBackgroundLayout, type TileChar, type BackgroundChar } from '../level/LevelParser';
 
 const PATROL_CHAR: TileChar = 'P';
 const CONNECTION_POINT_CHAR: TileChar = '+';
@@ -36,8 +36,7 @@ import {
   drawHeldTorch,
 } from '../engine/Renderer';
 import { caveLightingPreview } from './caveLightingPreview';
-import { placeBackgroundPiece, eraseBackgroundCell } from './paintBackgroundCell';
-import type { BackgroundPlacement, BackgroundPieceId } from '../level/LevelData';
+import { paintBackgroundCell, eraseBackgroundCell } from './paintBackgroundCell';
 import type { DrawContext } from '../engine/DrawContext';
 import type { EditorAppearance } from './editorState';
 import { computePotRenderPlan } from '../entities/blocks/potRenderPlan';
@@ -112,14 +111,14 @@ interface EditorCanvasProps {
    *  the effect below). It is a request id rather than a boolean so a
    *  repeated request — Reset pressed twice, say — still fires each time. */
   centerRequestId?: number;
-  backgroundPlacements: BackgroundPlacement[];
+  backgroundGrid: BackgroundChar[][];
   activeLayer: 'foreground' | 'background';
-  selectedBackgroundPiece: BackgroundPieceId | null;
+  selectedBackgroundMaterial: BackgroundChar | null;
   /** Set while a blueprint is armed for placement; omitted/`null` otherwise, so
    *  every existing render site is unaffected. */
   placement?: PlacementMode | null;
   onPaint: (result: PaintResult) => void;
-  onPaintBackground: (next: BackgroundPlacement[]) => void;
+  onPaintBackground: (next: BackgroundChar[][]) => void;
   onPan: (offset: PanOffset) => void;
 }
 
@@ -371,9 +370,9 @@ export const EditorCanvas = ({
   appearance = 'light',
   isBlueprintMode = false,
   centerRequestId,
-  backgroundPlacements,
+  backgroundGrid,
   activeLayer,
-  selectedBackgroundPiece,
+  selectedBackgroundMaterial,
   placement = null,
   onPaint,
   onPaintBackground,
@@ -459,12 +458,26 @@ export const EditorCanvas = ({
     drawGridLines(ctx, canvas.width, canvas.height, panOffset);
 
     if (images.backgroundAtlas) {
+      // Same conversion `gridToLevelDef` performs for the foreground
+      // `TileChar[][]` grid below, mirrored for background: the editor's own
+      // `BackgroundChar[][]` grid is joined into the `string[]` layout shape
+      // `parseBackgroundLayout` consumes, clamped to the grid's own bounds
+      // (not the foreground's) so nothing painted in the preview is dropped.
+      const backgroundHeight = backgroundGrid.length;
+      const backgroundWidth = backgroundGrid[0]?.length ?? 0;
+      const backgroundRows = backgroundGrid.map((row) => row.join(''));
       drawBackgroundTiles(
         ctx,
-        { terrain: [], width: 0, height: 0, background: backgroundPlacements },
+        {
+          terrain: [],
+          width: 0,
+          height: 0,
+          background: parseBackgroundLayout(backgroundRows, backgroundWidth, backgroundHeight),
+        },
         images.backgroundAtlas,
         panOffset.x,
         panOffset.y,
+        images.decorations,
       );
     }
 
@@ -688,7 +701,7 @@ export const EditorCanvas = ({
     // nothing would redraw it until some unrelated state change (a paint
     // or pan) happened to run this effect again — the canvas would sit
     // invisible until the next interaction "fixed" it as a side effect.
-  }, [grid, panOffset, images, canvasSize, backgroundPlacements, activeLayer, placement, appearance, isBlueprintMode]);
+  }, [grid, panOffset, images, canvasSize, backgroundGrid, activeLayer, placement, appearance, isBlueprintMode]);
 
   const cellFromEvent = (clientX: number, clientY: number) => {
     const rect = canvasRef.current!.getBoundingClientRect();
@@ -730,10 +743,10 @@ export const EditorCanvas = ({
       const { col, row } = cellFromEvent(event.clientX, event.clientY);
       const isErase = event.button === 2;
       const next = isErase
-        ? eraseBackgroundCell(backgroundPlacements, col, row)
-        : selectedBackgroundPiece
-          ? placeBackgroundPiece(backgroundPlacements, selectedBackgroundPiece, col, row)
-          : backgroundPlacements;
+        ? eraseBackgroundCell(backgroundGrid, col, row)
+        : selectedBackgroundMaterial
+          ? paintBackgroundCell(backgroundGrid, col, row, selectedBackgroundMaterial)
+          : backgroundGrid;
       dragRef.current = { mode: 'paintBackground', isErase, lastCol: col, lastRow: row };
       onPaintBackground(next);
       return;
@@ -782,10 +795,10 @@ export const EditorCanvas = ({
       const { col, row } = cellFromEvent(event.clientX, event.clientY);
       if (col === drag.lastCol && row === drag.lastRow) return;
       const next = drag.isErase
-        ? eraseBackgroundCell(backgroundPlacements, col, row)
-        : selectedBackgroundPiece
-          ? placeBackgroundPiece(backgroundPlacements, selectedBackgroundPiece, col, row)
-          : backgroundPlacements;
+        ? eraseBackgroundCell(backgroundGrid, col, row)
+        : selectedBackgroundMaterial
+          ? paintBackgroundCell(backgroundGrid, col, row, selectedBackgroundMaterial)
+          : backgroundGrid;
       dragRef.current = { ...drag, lastCol: col, lastRow: row };
       onPaintBackground(next);
       return;
