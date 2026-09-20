@@ -71,7 +71,7 @@ up against. Zoom would buy a wider overview at the cost of introducing a scale f
 coordinate conversion in the editor — every draw call, every hit test, every pan clamp, every preview
 anchor — and into the tests that cover them. That is a large, diffuse change for a convenience the
 feature does not need, so the canvas stays at one-to-one and the idea is parked
-(`docs/ideas/platformer-editor-zoom.md`).
+([issue #48](https://github.com/garcipat/cv-website/issues/48)).
 
 ## Blueprints are editor-time only
 

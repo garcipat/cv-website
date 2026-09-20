@@ -3,7 +3,7 @@
 **Feature Branch**: `F-013-multilanguage`  
 **Created**: 2026-06-20  
 **Status**: Draft  
-**Input**: Ideas document at `docs/ideas/multilanguage.md` with user clarifications on language toggle placement and localStorage-only locale persistence.  
+**Input**: User clarifications on language toggle placement and localStorage-only locale persistence.  
 **Clarifications session**: 2026-06-20 — 5 questions answered (see ## Clarifications).
 
 ## User Scenarios & Testing _(mandatory)_

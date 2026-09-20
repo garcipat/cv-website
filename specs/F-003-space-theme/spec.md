@@ -4,7 +4,6 @@
 **Created**: 2026-06-21  
 **Status**: Draft  
 **Input**: User description: "A scroll-driven circle parade — CV items appear as circles entering from the right, growing to full size to show content, then shrinking and exiting to the left. One circle is fully visible at a time, with brief overlap during transitions."
-**Ideas document**: `docs/ideas/3d-room-theme.md`
 **Clarifications session**: 2026-06-21 — 3 questions answered (see ## Clarifications).
 
 ## User Scenarios & Testing _(mandatory)_

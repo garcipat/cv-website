@@ -4,9 +4,7 @@
 **Created**: 2026-06-21
 **Status**: Draft
 **Input**: User description: "Define the F-004: Terminal Theme feature to have the retro-terminal theme setup and see how it should work and even make some mockups"
-**Ideas document**: `docs/ideas/retro-terminal-theme.md`
-
-> **Design details** (visual treatment, font stack, color values, CRT effects, ASCII layout mockups) live in the ideas document. This spec defines the functional requirements, user flows, and success criteria needed for implementation planning.
+> This spec defines the functional requirements, user flows, and success criteria needed for implementation planning.
 
 ## User Scenarios & Testing _(mandatory)_
 

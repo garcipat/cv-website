@@ -33,5 +33,4 @@
 
 - All items passed validation on 2026-06-21.
 - Spec references existing project infrastructure (Preact Signals, CSS custom properties, `src/state/` pattern) — these are established conventions from F-012, F-013, F-014 and are necessary for implementation clarity.
-- Design details (visual treatment, font stack, ASCII mockups, color values) live in `docs/ideas/retro-terminal-theme.md` to avoid spec bloat.
 - Ready for `/speckit.clarify` or `/speckit.plan`.
