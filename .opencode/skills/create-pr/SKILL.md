@@ -79,35 +79,23 @@ Do **not** mark a feature done while any task or test is still outstanding.
 
 ### 5. Build the PR body
 
-The template lives in `.github/PULL_REQUEST_TEMPLATE.md` — the single source shared with the web UI. Copy it, replace every `{{...}}` placeholder, write the result to a temp file, then pass it with `--body-file` — far more reliable than inline `--body` for multi-line bodies on Windows/PowerShell.
+Run the skill's own `build-pr-body.ps1` (beside this file). It fills the shared template (`.github/PULL_REQUEST_TEMPLATE.md`) — replacing every `{{...}}` placeholder and ticking the checklist boxes — and prints the path to pass to `--body-file` (far more reliable than inline `--body` for multi-line bodies on Windows/PowerShell).
 
-| Placeholder           | Fill with                                                                     |
-| --------------------- | ----------------------------------------------------------------------------- |
-| `{{SUMMARY}}`         | 1–3 bullets: what changed and why                                             |
-| `{{CLOSING_KEYWORD}}` | `Fixes` for a bug, `Closes` for a feature                                     |
-| `{{ISSUE_NUMBER}}`    | the issue number, digits only (no `#`)                                        |
-| `{{TESTING}}`         | the commands run and their results                                            |
-| `{{LINT}}`            | `x` once `npm run lint` passes                                                |
-| `{{TEST}}`            | `x` once `npm test` passes                                                    |
-| `{{BUILD}}`           | `x` once `npm run build` passes                                               |
-| `{{DOCS}}`            | `x` when affected docs are updated (or none are needed), else `" "`           |
-| `{{FEATURES}}`        | `x` when step 4 applied (feature complete); `" "` for bugs                    |
+| Argument          | Fill with                                            |
+| ----------------- | ---------------------------------------------------- |
+| `-Summary`        | 1–3 bullets: what changed and why                    |
+| `-ClosingKeyword` | `Closes` (feature, default) or `Fixes` (bug)         |
+| `-IssueNumber`    | the issue number, digits only (no `#`)               |
+| `-Testing`        | the commands run and their results                   |
+| `-Docs`           | pass to tick "Documentation updated"                 |
+| `-Features`       | pass to tick "docs/Features.md synced" (step 4)      |
 
-The checklist boxes are pre-ticked from what the workflow verified — a `x` fills the box (`- [x]`), a single space leaves it empty (`- [ ]`). Tick `{{DOCS}}` only after updating any docs the change affects; if docs are stale, update them before opening the PR.
+Lint/Test/Build are always ticked — the script is only reached after step 3 passes. Pass `-Docs` only after updating any docs the change affects; if docs are stale, update them before opening the PR.
 
 ```powershell
-$body = Get-Content -LiteralPath ".github/PULL_REQUEST_TEMPLATE.md" -Raw
-$body = $body.Replace("{{SUMMARY}}", $summary)
-$body = $body.Replace("{{CLOSING_KEYWORD}}", $keyword)
-$body = $body.Replace("{{ISSUE_NUMBER}}", "$issueNumber")
-$body = $body.Replace("{{TESTING}}", $testing)
-$body = $body.Replace("{{LINT}}", "x")
-$body = $body.Replace("{{TEST}}", "x")
-$body = $body.Replace("{{BUILD}}", "x")
-$body = $body.Replace("{{DOCS}}", $docs)      # "x" or " "
-$body = $body.Replace("{{FEATURES}}", $features)  # "x" or " "
-$tmp = Join-Path $env:TEMP "pr-body.md"
-Set-Content -LiteralPath $tmp -Value $body -Encoding utf8
+$tmp = & "<this-skill-directory>\build-pr-body.ps1" `
+  -Summary $summary -ClosingKeyword Closes -IssueNumber $issueNumber `
+  -Testing $testing -Docs -Features
 ```
 
 ### 6. Push and create the PR
