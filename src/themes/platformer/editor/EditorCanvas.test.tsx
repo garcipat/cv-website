@@ -11,7 +11,7 @@ import {
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import { centerPanOnSpawn } from './EditorPan';
 import { levelEditorPage } from './LevelEditorPage.page';
-import type { TileChar } from '../level/LevelParser';
+import type { TileChar, BackgroundChar } from '../level/LevelParser';
 import type { EditorImages } from './EditorCanvas';
 import { COIN_SHEET, STATIC_OBJECTS_SHEET } from '../entities/sprites/sheets';
 
@@ -47,7 +47,6 @@ import {
   drawHeldTorch,
 } from '../engine/Renderer';
 import { EDITOR_PREVIEW_DARKNESS } from './caveLightingPreview';
-import type { BackgroundPlacement } from '../level/LevelData';
 
 const EMPTY_IMAGES: EditorImages = {
   tileset: null,
@@ -1544,9 +1543,7 @@ describe('EditorCanvas — placement preview (step 44c)', () => {
 });
 
 describe('EditorCanvas — cave lighting preview (O-015 US3)', () => {
-  const CAVE_BACKGROUND: BackgroundPlacement[] = [
-    { pieceId: 'charcoalBlock3x3', col: 0, row: 0 },
-  ];
+  const CAVE_BACKGROUND: BackgroundChar[][] = [['c']];
   const SPAWN_IN_CAVE_GRID: TileChar[][] = [
     ['.', '.', '¥'],
     ['.', 'S', 'P'],
@@ -1560,7 +1557,7 @@ describe('EditorCanvas — cave lighting preview (O-015 US3)', () => {
     panOffset: { x: 0, y: 0 },
     images: EMPTY_IMAGES,
     appearance: 'dark' as const,
-    backgroundPlacements: CAVE_BACKGROUND,
+    backgroundGrid: CAVE_BACKGROUND,
     onPaint: () => {},
     onPan: () => {},
     ...overrides,
@@ -1627,7 +1624,7 @@ describe('EditorCanvas — cave lighting preview (O-015 US3)', () => {
   it('canvas-whenDarkEvenWithNoCaveBackground-callsDrawDarkness', () => {
     stubCanvasContext();
 
-    render(<EditorCanvas {...previewProps({ backgroundPlacements: [] })} />);
+    render(<EditorCanvas {...previewProps({ backgroundGrid: [] })} />);
 
     expect(drawDarkness).toHaveBeenCalled();
   });
