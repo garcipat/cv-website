@@ -12,6 +12,7 @@
 @import './styles/themes/space.css';
 @import './styles/themes/terminal.css';
 @import './styles/themes/platformer.css';
+@import './styles/themes/editor.css';
 
 @custom-variant dark (&:is(.dark *));
 

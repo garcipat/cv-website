@@ -3,10 +3,12 @@ import {
   ImageIcon,
   LayoutGridIcon,
   MapIcon,
+  MoonIcon,
   MountainIcon,
   PlayIcon,
   SaveIcon,
   ShareIcon,
+  SunIcon,
   Undo2Icon,
   type LucideIcon,
 } from 'lucide-react';
@@ -25,11 +27,13 @@ import {
   saveCurrentLevel,
   setActiveLayer,
   setCanvasMode,
+  toggleEditorAppearance,
   tryLayout,
   undoLastPlacement,
 } from './editorActions';
 import { editorSaveResultSignal } from './editorState';
 import type {
+  EditorAppearance,
   EditorLayer,
   PlacementSnapshot,
   SaveResultState,
@@ -114,7 +118,7 @@ interface ToggleOption {
  * rather than two unrelated buttons.
  */
 const ToolbarToggleGroup = ({ options }: { options: ToggleOption[] }) => (
-  <div className="inline-flex items-center gap-0.5 rounded-lg border bg-muted/40 p-0.5">
+  <div className="inline-flex items-center gap-0.5 rounded-xl border bg-muted/40 p-0.5">
     {options.map(({ testId, label, icon: Icon, active, onClick }) => (
       <Tooltip key={testId}>
         <TooltipTrigger
@@ -154,6 +158,7 @@ const ToolbarDivider = () => <span aria-hidden className="mx-0.5 h-6 w-px shrink
 export interface EditorToolbarProps {
   activeLayer: EditorLayer;
   isBlueprintMode: boolean;
+  appearance: EditorAppearance;
   lastPlacementSnapshot: PlacementSnapshot | null;
   loadedLevelName: string;
   isDirty: boolean;
@@ -174,6 +179,7 @@ export interface EditorToolbarProps {
 export const EditorToolbar = ({
   activeLayer,
   isBlueprintMode,
+  appearance,
   lastPlacementSnapshot,
   loadedLevelName,
   isDirty,
@@ -267,9 +273,31 @@ export const EditorToolbar = ({
             },
           ]}
         />
+        <div className="inline-flex items-center gap-0.5 rounded-xl border bg-muted/40 p-0.5">
+          <IconAction
+            label={appearance === 'dark' ? 'Dark mode: on' : 'Dark mode: off'}
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                data-testid="editor-appearance-toggle"
+                aria-pressed={appearance === 'dark'}
+                onClick={toggleEditorAppearance}
+                className={toolbarIconClass(appearance === 'dark')}
+              >
+                {appearance === 'dark' ? (
+                  <SunIcon className="size-4" />
+                ) : (
+                  <MoonIcon className="size-4" />
+                )}
+              </Button>
+            }
+          />
+        </div>
         {hasActions && <ToolbarDivider />}
         {hasActions && (
-          <div className="inline-flex items-center gap-0.5 rounded-lg border bg-muted/40 p-0.5">
+          <div className="inline-flex items-center gap-0.5 rounded-xl border bg-muted/40 p-0.5">
             {showUndo && (
               <IconAction
                 label="Undo placement"

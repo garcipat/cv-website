@@ -8,6 +8,7 @@ import type { BackgroundPlacement, BackgroundPieceId } from '../level/LevelData'
 
 export type EditorCanvasMode = 'level' | 'blueprint';
 export type EditorLayer = 'foreground' | 'background';
+export type EditorAppearance = 'light' | 'dark';
 
 /** The unified result of a level or blueprint save. Structurally identical to
  *  the two per-file result types it replaces (`SaveLevelResult`,
@@ -84,6 +85,18 @@ export const editorSelectedBackgroundPieceSignal = createLocalStorageSignal<Back
 export const editorCanvasModeSignal = createLocalStorageSignal<EditorCanvasMode>(
   'platformer-editor-canvas-mode',
   'level',
+);
+
+/**
+ * The editor's own light/dark look, persisted under its own key and validated
+ * against the two literals. Defaults to 'light'; an absent or invalid stored
+ * value also resolves to 'light' (O-015 FR-003). It is deliberately independent
+ * of the site-wide `currentTheme` (FR-004, SC-007).
+ */
+export const editorAppearanceSignal = createLocalStorageSignal<EditorAppearance>(
+  'platformer-editor-appearance',
+  'light',
+  (value): value is EditorAppearance => value === 'light' || value === 'dark',
 );
 
 export const editorBlueprintSignal = createDebouncedLocalStorageSignal<TileChar[][]>(

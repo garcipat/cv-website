@@ -5,16 +5,16 @@
 
 The current feature plan is:
 
-- [Platformer Deployable Ladders (O-011)](../specs/O-011-platformer-deployable-ladders/plan.md)
+- [Editor Dark Mode (O-015)](../specs/O-015-editor-dark-mode/plan.md)
 
 Supporting artifacts live alongside it in
-`specs/O-011-platformer-deployable-ladders/`:
+`specs/O-015-editor-dark-mode/`:
 
-- [spec.md](../specs/O-011-platformer-deployable-ladders/spec.md)
-- [research.md](../specs/O-011-platformer-deployable-ladders/research.md)
-- [data-model.md](../specs/O-011-platformer-deployable-ladders/data-model.md)
-- [quickstart.md](../specs/O-011-platformer-deployable-ladders/quickstart.md)
-- [contracts/](../specs/O-011-platformer-deployable-ladders/contracts/)
+- [spec.md](../specs/O-015-editor-dark-mode/spec.md)
+- [research.md](../specs/O-015-editor-dark-mode/research.md)
+- [data-model.md](../specs/O-015-editor-dark-mode/data-model.md)
+- [quickstart.md](../specs/O-015-editor-dark-mode/quickstart.md)
+- [contracts/](../specs/O-015-editor-dark-mode/contracts/)
 
 Follow [docs/Architecture.md](../docs/Architecture.md) and
 [docs/TestingGuide.md](../docs/TestingGuide.md) as authoritative project

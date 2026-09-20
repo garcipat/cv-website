@@ -158,7 +158,12 @@ export const Palette = ({
   );
 
   return (
-    <Card role="toolbar" aria-label="Palette" data-testid="editor-palette" className="w-fit self-start">
+    <Card
+      role="toolbar"
+      aria-label="Palette"
+      data-testid="editor-palette"
+      className="w-fit self-start border border-border ring-0"
+    >
       <CardHeader>
         <CardTitle>Palette</CardTitle>
       </CardHeader>

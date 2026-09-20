@@ -11,14 +11,18 @@ export function cn(...inputs: ClassValue[]) {
  *
  * - On creation, reads `localStorage[key]`, parses as JSON, uses the value if valid.
  * - Falls back to `defaultValue` on any error (storage unavailable, parse error, etc.).
+ * - An optional `isValid` predicate rejects a JSON-valid-but-wrong stored value
+ *   the same way a missing/unparseable one is rejected; omitting it preserves
+ *   the original "use whatever parsed" behaviour for existing callers.
  * - On signal write, persists the value back to localStorage as JSON.
  * - All localStorage access is wrapped in try/catch.
  */
 export function createLocalStorageSignal<T>(
   key: string,
   defaultValue: T,
+  isValid?: (value: unknown) => boolean,
 ): Signal<T> {
-  const stored = readLocalStorage<T>(key);
+  const stored = readLocalStorage<T>(key, isValid);
   const themeSignal = signal<T>(stored !== undefined ? stored : defaultValue);
 
   themeSignal.subscribe((value: T) => {
@@ -69,11 +73,13 @@ export function createDebouncedLocalStorageSignal<T>(
   return debouncedSignal;
 }
 
-function readLocalStorage<T>(key: string): T | undefined {
+function readLocalStorage<T>(key: string, isValid?: (value: unknown) => boolean): T | undefined {
   try {
     const raw = localStorage.getItem(key);
     if (raw === null) return undefined;
-    return JSON.parse(raw) as T;
+    const parsed = JSON.parse(raw) as unknown;
+    if (isValid !== undefined && !isValid(parsed)) return undefined;
+    return parsed as T;
   } catch {
     return undefined;
   }

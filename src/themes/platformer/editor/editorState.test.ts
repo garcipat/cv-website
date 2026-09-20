@@ -266,3 +266,37 @@ describe('editorState — derived signals', () => {
     expect(editorActiveDirtySignal.value).toBe(true);
   });
 });
+
+describe('editorState — editor appearance (O-015 FR-003)', () => {
+  // The appearance signal is created at module load, so its creation-time
+  // fallbacks can only be exercised by re-importing the module after seeding
+  // localStorage. `vi.resetModules()` gives each test a fresh signal without
+  // disturbing the statically-imported signals the other describes use.
+  beforeEach(() => {
+    localStorage.clear();
+    vi.resetModules();
+  });
+
+  it('editorAppearanceSignal-withNoStoredValue-defaultsToLight', async () => {
+    const { editorAppearanceSignal } = await import('./editorState');
+    expect(editorAppearanceSignal.value).toBe('light');
+  });
+
+  it('editorAppearanceSignal-withInvalidStoredValue-resolvesToLight', async () => {
+    localStorage.setItem('platformer-editor-appearance', JSON.stringify('blue'));
+    const { editorAppearanceSignal } = await import('./editorState');
+    expect(editorAppearanceSignal.value).toBe('light');
+  });
+
+  it('editorAppearanceSignal-withValidStoredDarkValue-initialisesDark', async () => {
+    localStorage.setItem('platformer-editor-appearance', JSON.stringify('dark'));
+    const { editorAppearanceSignal } = await import('./editorState');
+    expect(editorAppearanceSignal.value).toBe('dark');
+  });
+
+  it('editorAppearanceSignal-writingAValue-persistsUnderPlatformerEditorAppearance', async () => {
+    const { editorAppearanceSignal } = await import('./editorState');
+    editorAppearanceSignal.value = 'dark';
+    expect(JSON.parse(localStorage.getItem('platformer-editor-appearance')!)).toBe('dark');
+  });
+});
