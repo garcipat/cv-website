@@ -5,7 +5,7 @@ import { isSolid } from '../level/Terrain';
 /** Same shape as `growGrid`'s `GrowResult` — `paintCell` always returns a
  *  grown-and-painted grid plus whatever shift growth applied, so callers
  *  (see `EditorCanvas.tsx`) handle both the same way. */
-export type PaintResult = GrowResult;
+export type PaintResult = GrowResult<TileChar>;
 
 const SIGN_KEYS = Object.keys(SIGN_CHARS) as TileChar[];
 
@@ -134,7 +134,7 @@ export function paintCell(
   row: number,
   tool: TileChar,
 ): PaintResult {
-  const { grid: grownGrid, colShift, rowShift } = growGrid(grid, col, row);
+  const { grid: grownGrid, colShift, rowShift } = growGrid(grid, col, row, '.');
   const targetCol = col + colShift;
   const targetRow = row + rowShift;
 

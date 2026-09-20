@@ -8,20 +8,20 @@
  * positions and the shared clock. Nothing in this file stores state or draws.
  */
 
-import type { BackgroundPieceFamily, BackgroundPlacement } from '../level/LevelData';
+import type { BackgroundMaterialFamily, LevelDef } from '../level/LevelData';
+import { backgroundMaterialFamily } from '../level/LevelData';
 import type { PlayerState } from '../entities/Player';
 import { PLAYER_RENDERED_SIZE, PLAYER_FOOT_PADDING } from '../entities/Player';
-import { RENDERED_TILE_SIZE, RENDER_SCALE } from '../level/Terrain';
-import { backgroundCatalogEntry, backgroundPieceFamily } from './BackgroundCatalog';
+import { RENDERED_TILE_SIZE, RENDER_SCALE, backgroundAt } from '../level/Terrain';
 import { TORCH_FRAME_COUNT, torchPhase } from './Torch';
 
 /**
- * `BackgroundPieceFamily` is declared once in `level/LevelData.ts` (the single
- * source of truth) and re-exported here so lighting consumers can name it
- * without reaching into the level module. Deliberately a type-only re-export —
- * this module does not re-declare the union.
+ * `BackgroundMaterialFamily` is declared once in `level/LevelData.ts` (the
+ * single source of truth) and re-exported here so lighting consumers can name
+ * it without reaching into the level module. Deliberately a type-only
+ * re-export — this module does not re-declare the union.
  */
-export type { BackgroundPieceFamily };
+export type { BackgroundMaterialFamily };
 
 /** A grid cell. */
 export interface Cell {
@@ -123,30 +123,13 @@ export function nextDarknessLevel(
 }
 
 /**
- * Whether `(col, row)` is covered by at least one **cave-family** background
- * placement's footprint. A boolean by construction, so overlapping cave pieces
- * can never compound (FR-007). An unknown/stale `pieceId` contributes nothing
- * and never throws (mirroring `backgroundCatalogEntry`).
+ * Whether `(col, row)`'s background material belongs to the `cave` family —
+ * a direct grid lookup (FR-009), replacing the old AABB placement-footprint
+ * scan. An empty cell (`backgroundAt` returns `null`) never darkens.
  */
-export function isCellDarkening(
-  background: readonly BackgroundPlacement[],
-  col: number,
-  row: number,
-): boolean {
-  for (const placement of background) {
-    if (backgroundPieceFamily(placement.pieceId) !== 'cave') continue;
-    const entry = backgroundCatalogEntry(placement.pieceId);
-    if (!entry) continue;
-    if (
-      col >= placement.col &&
-      col < placement.col + entry.widthTiles &&
-      row >= placement.row &&
-      row < placement.row + entry.heightTiles
-    ) {
-      return true;
-    }
-  }
-  return false;
+export function isCellDarkening(level: LevelDef, col: number, row: number): boolean {
+  const material = backgroundAt(level, col, row);
+  return material !== null && backgroundMaterialFamily(material) === 'cave';
 }
 
 /**

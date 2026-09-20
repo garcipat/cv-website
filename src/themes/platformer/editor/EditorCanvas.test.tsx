@@ -71,9 +71,9 @@ const EMPTY_IMAGES: EditorImages = {
 // which predate the background layer and only care about the foreground):
 // the background layer stays inactive/empty so it doesn't affect them.
 const BACKGROUND_LAYER_DEFAULT_PROPS = {
-  backgroundPlacements: [],
+  backgroundGrid: [],
   activeLayer: 'foreground' as const,
-  selectedBackgroundPiece: null,
+  selectedBackgroundMaterial: null,
   onPaintBackground: () => {},
 };
 
@@ -986,9 +986,9 @@ describe('EditorCanvas — background layer', () => {
         selectedTool="."
         panOffset={{ x: 0, y: 0 }}
         images={EMPTY_IMAGES}
-        backgroundPlacements={[]}
+        backgroundGrid={[]}
         activeLayer="background"
-        selectedBackgroundPiece="dirtColumnTop1x1"
+        selectedBackgroundMaterial="d"
         onPaint={vi.fn()}
         onPaintBackground={onPaintBackground}
         onPan={vi.fn()}
@@ -998,7 +998,7 @@ describe('EditorCanvas — background layer', () => {
     const canvas = levelEditorPage.canvas;
     fireEvent.mouseDown(canvas, { clientX: 0, clientY: 0, button: 0 });
 
-    expect(onPaintBackground).toHaveBeenCalledWith([{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }]);
+    expect(onPaintBackground).toHaveBeenCalledWith([['d']]);
   });
 
   it('rightClickWithBackgroundLayerActive-callsOnPaintBackgroundWithThePlacementErased', () => {
@@ -1010,9 +1010,9 @@ describe('EditorCanvas — background layer', () => {
         selectedTool="."
         panOffset={{ x: 0, y: 0 }}
         images={EMPTY_IMAGES}
-        backgroundPlacements={[{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }]}
+        backgroundGrid={[['d']]}
         activeLayer="background"
-        selectedBackgroundPiece={null}
+        selectedBackgroundMaterial={null}
         onPaint={vi.fn()}
         onPaintBackground={onPaintBackground}
         onPan={vi.fn()}
@@ -1022,7 +1022,7 @@ describe('EditorCanvas — background layer', () => {
     const canvas = levelEditorPage.canvas;
     fireEvent.mouseDown(canvas, { clientX: 0, clientY: 0, button: 2 });
 
-    expect(onPaintBackground).toHaveBeenCalledWith([]);
+    expect(onPaintBackground).toHaveBeenCalledWith([['.']]);
   });
 
   it('backgroundLayerActive-drawsForegroundTerrainAtReducedOpacity', () => {
@@ -1040,9 +1040,9 @@ describe('EditorCanvas — background layer', () => {
         selectedTool="."
         panOffset={{ x: 0, y: 0 }}
         images={{ ...EMPTY_IMAGES, tileset, groundAtlas }}
-        backgroundPlacements={[]}
+        backgroundGrid={[]}
         activeLayer="background"
-        selectedBackgroundPiece={null}
+        selectedBackgroundMaterial={null}
         onPaint={vi.fn()}
         onPaintBackground={vi.fn()}
         onPan={vi.fn()}
@@ -1087,9 +1087,9 @@ describe('EditorCanvas — background layer', () => {
         selectedTool="."
         panOffset={{ x: 0, y: 0 }}
         images={{ ...EMPTY_IMAGES, tileset, groundAtlas, staticObjects: fakeStaticObjects }}
-        backgroundPlacements={[]}
+        backgroundGrid={[]}
         activeLayer="foreground"
-        selectedBackgroundPiece={null}
+        selectedBackgroundMaterial={null}
         onPaint={vi.fn()}
         onPaintBackground={vi.fn()}
         onPan={vi.fn()}
@@ -1113,9 +1113,9 @@ describe('EditorCanvas — background layer', () => {
         selectedTool="."
         panOffset={{ x: 0, y: 0 }}
         images={{ ...EMPTY_IMAGES, tileset, groundAtlas, torch: fakeTorch }}
-        backgroundPlacements={[]}
+        backgroundGrid={[]}
         activeLayer="foreground"
-        selectedBackgroundPiece={null}
+        selectedBackgroundMaterial={null}
         onPaint={vi.fn()}
         onPaintBackground={vi.fn()}
         onPan={vi.fn()}
@@ -1144,9 +1144,9 @@ describe('EditorCanvas — background layer', () => {
         selectedTool="."
         panOffset={{ x: 0, y: 0 }}
         images={{ ...EMPTY_IMAGES, player }}
-        backgroundPlacements={[]}
+        backgroundGrid={[]}
         activeLayer="background"
-        selectedBackgroundPiece={null}
+        selectedBackgroundMaterial={null}
         onPaint={vi.fn()}
         onPaintBackground={vi.fn()}
         onPan={vi.fn()}

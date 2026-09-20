@@ -19,7 +19,10 @@ import {
   findHazardTiles,
   findTorchTiles,
   findLadderBundleTiles,
+  BACKGROUND_CHARS,
+  parseBackgroundLayout,
   type TileChar,
+  type BackgroundChar,
 } from './LevelParser';
 
 describe('parseLevel', () => {
@@ -557,6 +560,68 @@ describe('TileChar', () => {
     ];
     for (const key of allKeys) {
       expect(tileChars).toContain(key);
+    }
+  });
+});
+
+describe('parseBackgroundLayout', () => {
+  it('charLayout-parsesIntoMatchingBackgroundGrid', () => {
+    const result = parseBackgroundLayout(['.d.', '.cv'], 3, 2);
+    expect(result).toEqual([
+      [null, 'dirt', null],
+      [null, 'charcoal', 'caveStone'],
+    ]);
+  });
+
+  it('everyBackgroundChar-mapsToItsDocumentedMaterial', () => {
+    expect(BACKGROUND_CHARS.d).toBe('dirt');
+    expect(BACKGROUND_CHARS.r).toBe('rust');
+    expect(BACKGROUND_CHARS.s).toBe('surfaceStone');
+    expect(BACKGROUND_CHARS.c).toBe('charcoal');
+    expect(BACKGROUND_CHARS.m).toBe('maroon');
+    expect(BACKGROUND_CHARS.v).toBe('caveStone');
+  });
+
+  it('unrecognizedCharacter-silentlyReadsAsEmptyWithNoWarning', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const result = parseBackgroundLayout(['?'], 1, 1);
+    expect(result).toEqual([[null]]);
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('layoutShorterThanTerrainHeight-padsMissingRowsAsAllEmpty', () => {
+    const result = parseBackgroundLayout(['d'], 1, 3);
+    expect(result).toEqual([['dirt'], [null], [null]]);
+  });
+
+  it('layoutNarrowerThanTerrainWidth-padsMissingColumnsAsEmpty', () => {
+    const result = parseBackgroundLayout(['d'], 3, 1);
+    expect(result).toEqual([['dirt', null, null]]);
+  });
+
+  it('layoutTallerThanTerrainHeight-clampsExtraRowsAway', () => {
+    const result = parseBackgroundLayout(['d', 'r', 'c'], 1, 1);
+    expect(result).toEqual([['dirt']]);
+  });
+
+  it('layoutWiderThanTerrainWidth-clampsExtraColumnsAway', () => {
+    const result = parseBackgroundLayout(['drc'], 1, 1);
+    expect(result).toEqual([['dirt']]);
+  });
+
+  it('emptyLayout-producesAnAllEmptyGridOfTheGivenSize', () => {
+    const result = parseBackgroundLayout([], 2, 2);
+    expect(result).toEqual([
+      [null, null],
+      [null, null],
+    ]);
+  });
+
+  it('backgroundCharUnion-coversEveryBackgroundCharsKeyPlusEmpty', () => {
+    const chars: BackgroundChar[] = ['.', 'd', 'r', 's', 'c', 'm', 'v'];
+    for (const key of Object.keys(BACKGROUND_CHARS)) {
+      expect(chars).toContain(key);
     }
   });
 });

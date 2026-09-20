@@ -3,8 +3,7 @@ import { createDebouncedLocalStorageSignal, createLocalStorageSignal } from '@/l
 import { importLayout } from './importLayout';
 import { LEVEL_1_LAYOUT } from '../level/level';
 import { BLANK_BLUEPRINT } from '../level/BlueprintData';
-import type { TileChar } from '../level/LevelParser';
-import type { BackgroundPlacement, BackgroundPieceId } from '../level/LevelData';
+import type { BackgroundChar, TileChar } from '../level/LevelParser';
 
 export type EditorCanvasMode = 'level' | 'blueprint';
 export type EditorLayer = 'foreground' | 'background';
@@ -26,7 +25,7 @@ export interface SaveResult {
  *  placement — the one-shot Undo slot. */
 export interface PlacementSnapshot {
   grid: TileChar[][];
-  background: BackgroundPlacement[];
+  background: BackgroundChar[][];
 }
 
 /** Which save last ran and what it did. */
@@ -66,7 +65,7 @@ export const editorLoadedLevelNameSignal = createLocalStorageSignal<string>(
 
 export const editorDirtySignal = createLocalStorageSignal<boolean>('platformer-editor-dirty', false);
 
-export const editorBackgroundSignal = createDebouncedLocalStorageSignal<BackgroundPlacement[]>(
+export const editorBackgroundSignal = createDebouncedLocalStorageSignal<BackgroundChar[][]>(
   'platformer-editor-background',
   [],
   EDITOR_STORAGE_DEBOUNCE_MS,
@@ -77,7 +76,7 @@ export const editorActiveLayerSignal = createLocalStorageSignal<EditorLayer>(
   'foreground',
 );
 
-export const editorSelectedBackgroundPieceSignal = createLocalStorageSignal<BackgroundPieceId | null>(
+export const editorSelectedBackgroundMaterialSignal = createLocalStorageSignal<BackgroundChar | null>(
   'platformer-editor-selected-background-piece',
   null,
 );
@@ -105,9 +104,11 @@ export const editorBlueprintSignal = createDebouncedLocalStorageSignal<TileChar[
   EDITOR_STORAGE_DEBOUNCE_MS,
 );
 
-export const editorBlueprintBackgroundSignal = createDebouncedLocalStorageSignal<
-  BackgroundPlacement[]
->('platformer-editor-blueprint-background', [], EDITOR_STORAGE_DEBOUNCE_MS);
+export const editorBlueprintBackgroundSignal = createDebouncedLocalStorageSignal<BackgroundChar[][]>(
+  'platformer-editor-blueprint-background',
+  [],
+  EDITOR_STORAGE_DEBOUNCE_MS,
+);
 
 export const editorLoadedBlueprintNameSignal = createLocalStorageSignal<string>(
   'platformer-editor-loaded-blueprint',
@@ -154,7 +155,9 @@ export const editorGridSignal: ReadonlySignal<TileChar[][]> = computed(() =>
   editorCanvasModeSignal.value === 'blueprint' ? editorBlueprintSignal.value : editorLevelSignal.value,
 );
 
-export const editorBackgroundPlacementsSignal: ReadonlySignal<BackgroundPlacement[]> = computed(() =>
+/** The active canvas's background grid — "placements" no longer exist as a
+ *  concept post-O-014, hence the rename from `editorBackgroundPlacementsSignal`. */
+export const editorBackgroundGridSignal: ReadonlySignal<BackgroundChar[][]> = computed(() =>
   editorCanvasModeSignal.value === 'blueprint'
     ? editorBlueprintBackgroundSignal.value
     : editorBackgroundSignal.value,

@@ -44,16 +44,16 @@ describe('parseBlueprintModules', () => {
     expect(parseBlueprintModules({})).toEqual([]);
   });
 
-  it('validBackgroundArray-isCarriedOntoTheEntry', () => {
+  it('validBackgroundLayout-isCarriedOntoTheEntry', () => {
     const entries = parseBlueprintModules({
       './blueprints/cave.json': {
         name: 'Cave',
         layout: ['G'],
-        background: [{ pieceId: 'dirtColumnTop1x1', col: -1, row: 2 }],
+        background: ['d.'],
       },
     });
 
-    expect(entries[0].background).toEqual([{ pieceId: 'dirtColumnTop1x1', col: -1, row: 2 }]);
+    expect(entries[0].background).toEqual(['d.']);
   });
 
   it('malformedBackgroundField-dropsOnlyThatFieldNotTheWholeEntry', () => {

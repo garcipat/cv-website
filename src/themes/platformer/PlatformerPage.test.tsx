@@ -74,7 +74,7 @@ import { PLAYER_HIT_REACTION_SECONDS } from './entities/Player';
 import { SPIKE_COOLDOWN_DURATION_SECONDS } from './entities/enemies/SlimePurple';
 import { PHYSICS_CONFIG } from './engine/PhysicsConfig';
 import { tileToPixel, RENDERED_TILE_SIZE, isClimbable, tileAt } from './level/Terrain';
-import { currentLevel, currentLayout, currentBackground, SCRATCH_LAYOUT } from './level/level';
+import { currentLevel, currentLayout, currentBackgroundLayout, SCRATCH_LAYOUT } from './level/level';
 import type { LevelDef, TileType } from './level/LevelData';
 import {
   JOURNAL_OPEN_FRAME_COUNT,
@@ -122,7 +122,7 @@ const originalLocation = window.location;
 // leak that layout/background into later tests, which all assume the real
 // default level.
 const initialLayout = currentLayout.value;
-const initialBackground = currentBackground.value;
+const initialBackground = currentBackgroundLayout.value;
 
 /** The first tile of `type` in reading order that also satisfies `also`, so
  *  level-driven tests name the terrain they need instead of pinning the
@@ -198,7 +198,7 @@ describe('PlatformerPage', () => {
     vi.stubGlobal('cancelAnimationFrame', () => {});
     playerState.value = initialPlayerState;
     currentLayout.value = initialLayout;
-    currentBackground.value = initialBackground;
+    currentBackgroundLayout.value = initialBackground;
     cameraPositionX.value = 0;
     cameraPositionY.value = 0;
     lifecycleState.value = initialLifecycleState;

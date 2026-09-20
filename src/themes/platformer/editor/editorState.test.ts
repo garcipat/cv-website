@@ -8,7 +8,7 @@ import {
   editorActiveDirtySignal,
   editorActiveLayerSignal,
   editorArmedBlueprintIdSignal,
-  editorBackgroundPlacementsSignal,
+  editorBackgroundGridSignal,
   editorBackgroundSignal,
   editorBlueprintBackgroundSignal,
   editorBlueprintDirtySignal,
@@ -24,7 +24,7 @@ import {
   editorLoadedBlueprintNameSignal,
   editorLoadedLevelNameSignal,
   editorSaveResultSignal,
-  editorSelectedBackgroundPieceSignal,
+  editorSelectedBackgroundMaterialSignal,
   editorSelectedToolSignal,
 } from './editorState';
 
@@ -53,7 +53,7 @@ describe('editorState — persisted signal defaults', () => {
     expect(editorDirtySignal.value).toBe(false);
   });
 
-  it('background-defaultsToAnEmptyList', () => {
+  it('background-defaultsToAnEmptyGrid', () => {
     expect(editorBackgroundSignal.value).toEqual([]);
   });
 
@@ -61,8 +61,8 @@ describe('editorState — persisted signal defaults', () => {
     expect(editorActiveLayerSignal.value).toBe('foreground');
   });
 
-  it('selectedBackgroundPiece-defaultsToNull', () => {
-    expect(editorSelectedBackgroundPieceSignal.value).toBeNull();
+  it('selectedBackgroundMaterial-defaultsToNull', () => {
+    expect(editorSelectedBackgroundMaterialSignal.value).toBeNull();
   });
 
   it('canvasMode-defaultsToLevel', () => {
@@ -73,7 +73,7 @@ describe('editorState — persisted signal defaults', () => {
     expect(editorBlueprintSignal.value).toEqual(importLayout(BLANK_BLUEPRINT.layout));
   });
 
-  it('blueprintBackground-defaultsToAnEmptyList', () => {
+  it('blueprintBackground-defaultsToAnEmptyGrid', () => {
     expect(editorBlueprintBackgroundSignal.value).toEqual([]);
   });
 
@@ -116,7 +116,7 @@ describe('editorState — storage-key round-trips (FR-022, SC-006)', () => {
     dirty: editorDirtySignal.value,
     background: editorBackgroundSignal.value,
     activeLayer: editorActiveLayerSignal.value,
-    selectedPiece: editorSelectedBackgroundPieceSignal.value,
+    selectedMaterial: editorSelectedBackgroundMaterialSignal.value,
     canvasMode: editorCanvasModeSignal.value,
     blueprint: editorBlueprintSignal.value,
     blueprintBackground: editorBlueprintBackgroundSignal.value,
@@ -135,7 +135,7 @@ describe('editorState — storage-key round-trips (FR-022, SC-006)', () => {
     editorDirtySignal.value = originals.dirty;
     editorBackgroundSignal.value = originals.background;
     editorActiveLayerSignal.value = originals.activeLayer;
-    editorSelectedBackgroundPieceSignal.value = originals.selectedPiece;
+    editorSelectedBackgroundMaterialSignal.value = originals.selectedMaterial;
     editorCanvasModeSignal.value = originals.canvasMode;
     editorBlueprintSignal.value = originals.blueprint;
     editorBlueprintBackgroundSignal.value = originals.blueprintBackground;
@@ -165,7 +165,7 @@ describe('editorState — storage-key round-trips (FR-022, SC-006)', () => {
     expectRoundTrip(
       editorBackgroundSignal,
       'platformer-editor-background',
-      [{ pieceId: 'dirtColumnTop1x1', col: 2, row: 3 }],
+      [['.', 'd']],
       true,
     );
   });
@@ -174,11 +174,11 @@ describe('editorState — storage-key round-trips (FR-022, SC-006)', () => {
     expectRoundTrip(editorActiveLayerSignal, 'platformer-editor-active-layer', 'background');
   });
 
-  it('editorSelectedBackgroundPieceSignal-persistsUnderPlatformerEditorSelectedBackgroundPiece', () => {
+  it('editorSelectedBackgroundMaterialSignal-persistsUnderPlatformerEditorSelectedBackgroundPiece', () => {
     expectRoundTrip(
-      editorSelectedBackgroundPieceSignal,
+      editorSelectedBackgroundMaterialSignal,
       'platformer-editor-selected-background-piece',
-      'charcoalBlock3x3',
+      'c',
     );
   });
 
@@ -194,7 +194,7 @@ describe('editorState — storage-key round-trips (FR-022, SC-006)', () => {
     expectRoundTrip(
       editorBlueprintBackgroundSignal,
       'platformer-editor-blueprint-background',
-      [{ pieceId: 'charcoalColumnTop1x1', col: 0, row: 0 }],
+      [['c']],
       true,
     );
   });
@@ -240,29 +240,25 @@ describe('editorState — derived signals', () => {
   it('levelMode-theDerivedSignalsReadTheLevelSignals', () => {
     editorCanvasModeSignal.value = 'level';
     editorLevelSignal.value = importLayout(['GG']);
-    editorBackgroundSignal.value = [{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }];
+    editorBackgroundSignal.value = [['d', '.']];
     editorDirtySignal.value = true;
 
     expect(editorIsBlueprintModeSignal.value).toBe(false);
     expect(editorGridSignal.value).toEqual(importLayout(['GG']));
-    expect(editorBackgroundPlacementsSignal.value).toEqual([
-      { pieceId: 'dirtColumnTop1x1', col: 0, row: 0 },
-    ]);
+    expect(editorBackgroundGridSignal.value).toEqual([['d', '.']]);
     expect(editorActiveDirtySignal.value).toBe(true);
   });
 
   it('blueprintMode-theDerivedSignalsReadTheBlueprintSignals', () => {
     editorCanvasModeSignal.value = 'blueprint';
     editorBlueprintSignal.value = importLayout(['##']);
-    editorBlueprintBackgroundSignal.value = [{ pieceId: 'charcoalBlock3x3', col: 1, row: 1 }];
+    editorBlueprintBackgroundSignal.value = [['c']];
     editorBlueprintDirtySignal.value = true;
     editorDirtySignal.value = false;
 
     expect(editorIsBlueprintModeSignal.value).toBe(true);
     expect(editorGridSignal.value).toEqual(importLayout(['##']));
-    expect(editorBackgroundPlacementsSignal.value).toEqual([
-      { pieceId: 'charcoalBlock3x3', col: 1, row: 1 },
-    ]);
+    expect(editorBackgroundGridSignal.value).toEqual([['c']]);
     expect(editorActiveDirtySignal.value).toBe(true);
   });
 });

@@ -120,16 +120,16 @@ describe('findLevel', () => {
 });
 
 describe('parseLevelModules — background field', () => {
-  it('moduleWithAValidBackgroundArray-carriesItOntoTheEntry', () => {
+  it('moduleWithAValidBackgroundLayout-carriesItOntoTheEntry', () => {
     const modules = {
       './levels/cave.json': {
         name: 'Cave',
         layout: ['.S.', 'GGG'],
-        background: [{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }],
+        background: ['d.'],
       },
     };
     const [entry] = parseLevelModules(modules);
-    expect(entry.background).toEqual([{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }]);
+    expect(entry.background).toEqual(['d.']);
   });
 
   it('moduleWithNoBackgroundField-hasUndefinedBackgroundOnTheEntry', () => {
@@ -144,6 +144,37 @@ describe('parseLevelModules — background field', () => {
     };
     const [entry] = parseLevelModules(modules);
     expect(entry).toBeDefined();
+    expect(entry.background).toBeUndefined();
+  });
+
+  it('moduleWithTheOldFlatPlacementListFormat-dropsTheBackgroundFieldRatherThanConvertingIt', () => {
+    // FR-013: a level saved under the pre-O-014 `BackgroundPlacement[]`
+    // format (a flat array of {pieceId, col, row} objects, not a string[]
+    // layout) fails the shape check and loads with no background field at
+    // all — no attempt to convert placements to cells.
+    const modules = {
+      './levels/old-format.json': {
+        name: 'Old',
+        layout: ['.S.', 'GGG'],
+        background: [{ pieceId: 'dirtBlock3x3', col: 0, row: 0 }],
+      },
+    };
+    const [entry] = parseLevelModules(modules);
+    expect(entry.background).toBeUndefined();
+  });
+
+  it('moduleWithTheOldArrayOfArraysBackgroundGridFormat-dropsTheBackgroundFieldRatherThanConvertingIt', () => {
+    // The pre-storage-unification-revision `BackgroundGrid` shape (array of
+    // arrays of material ids) also fails the new string[] shape check — its
+    // rows are arrays, not strings.
+    const modules = {
+      './levels/pre-revision.json': {
+        name: 'PreRevision',
+        layout: ['.S.', 'GGG'],
+        background: [['dirt', null]],
+      },
+    };
+    const [entry] = parseLevelModules(modules);
     expect(entry.background).toBeUndefined();
   });
 });

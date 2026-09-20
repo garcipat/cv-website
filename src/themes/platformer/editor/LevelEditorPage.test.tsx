@@ -2,10 +2,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { LevelEditorPage } from './LevelEditorPage';
-import { LEVEL_1_LAYOUT, SCRATCH_LAYOUT, currentLayout } from '../level/level';
-import { importLayout } from './importLayout';
+import { LEVEL_1_LAYOUT, LEVEL_1_BACKGROUND, SCRATCH_LAYOUT, currentLayout } from '../level/level';
+import { importLayout, importBackgroundLayout } from './importLayout';
 import { centerPanOnSpawn } from './EditorPan';
 import { exportLayout } from './exportLayout';
+import { cropLevelForExport } from './cropLevelForExport';
+import type { TileChar, BackgroundChar } from '../level/LevelParser';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import {
   editorLevelSignal,
@@ -14,7 +16,7 @@ import {
   editorDirtySignal,
   editorBackgroundSignal,
   editorActiveLayerSignal,
-  editorSelectedBackgroundPieceSignal,
+  editorSelectedBackgroundMaterialSignal,
   editorCanvasModeSignal,
   editorAppearanceSignal,
   editorBlueprintSignal,
@@ -33,7 +35,7 @@ import { currentTheme } from '@/state/theme';
 import { currentPath } from '@/state/navigation';
 import { readFileSync } from 'node:fs';
 import { enemyPlacements, enemyStates, collectedFacts, collectedCollectibleIds } from '../PlatformerState';
-import { currentBackground } from '../level/level';
+import { currentBackgroundLayout } from '../level/level';
 
 const { blueprintEntries } = vi.hoisted(() => ({ blueprintEntries: [] as Blueprint[] }));
 
@@ -64,12 +66,12 @@ vi.mock('../engine/Renderer', () => ({
   heldTorchLightPosition: vi.fn(() => ({ x: 0, y: 0 })),
 }));
 
-// Adds one extra registry entry whose `background` mixes a valid, current
-// pieceId with an unresolvable one — simulating a placement left over from a
-// since-trimmed catalog (this branch's own catalog has been trimmed twice
-// already). Every other test keeps using the real registry unchanged; this
-// entry is additional, not a replacement, so it can't affect any test that
-// picks 'main'/'empty'/'Cave Run' etc. by name.
+// Adds one extra registry entry whose `background` grid mixes a valid,
+// current material id with an unresolvable one — simulating a cell left over
+// from a since-trimmed catalog (this branch's own catalog has been trimmed
+// twice already). Every other test keeps using the real registry unchanged;
+// this entry is additional, not a replacement, so it can't affect any test
+// that picks 'main'/'empty'/'Cave Run' etc. by name.
 //
 // Defined via vi.hoisted since vi.mock factories are hoisted above normal
 // top-level const declarations — referencing a plain const here would throw
@@ -79,12 +81,9 @@ const { STALE_BACKGROUND_LEVEL } = vi.hoisted(() => ({
     id: 'stale-background-level',
     name: 'stale-background-level',
     layout: ['...', '...', '...'],
-    background: [
-      { pieceId: 'dirtColumnTop1x1', col: 0, row: 0 },
-      // Simulates a placement left over from a since-trimmed catalog — not a
-      // real BackgroundPieceId, hence the cast.
-      { pieceId: 'notARealPieceId', col: 1, row: 0 },
-    ],
+    // Simulates a leftover character from a since-trimmed catalog — 'z' is
+    // not a recognized BACKGROUND_CHARS key.
+    background: ['dz'],
   },
 }));
 
@@ -110,8 +109,8 @@ beforeEach(() => {
   editorDirtySignal.value = false;
   editorBackgroundSignal.value = [];
   editorActiveLayerSignal.value = 'foreground';
-  editorSelectedBackgroundPieceSignal.value = null;
-  currentBackground.value = [];
+  editorSelectedBackgroundMaterialSignal.value = null;
+  currentBackgroundLayout.value = [];
   editorCanvasModeSignal.value = 'level';
   editorAppearanceSignal.value = 'light';
   editorBlueprintSignal.value = importLayout(BLANK_BLUEPRINT.layout);
@@ -151,13 +150,25 @@ beforeEach(() => {
   } as unknown as CanvasRenderingContext2D);
 });
 
+/** Formats both crop layers into the exact `  'ROW',`-per-line, background-
+ *  section-appended shape `EditorToolbar`'s Export dialog produces (see its
+ *  `cropLevelForExport`-based `exportedText`), so every test asserting on
+ *  the dialog's textarea content can build the expectation from the same
+ *  grids the toolbar reads rather than hand-formatting a duplicate string. */
+function expectedExportText(
+  grid: TileChar[][],
+  background: BackgroundChar[][] = [],
+): string {
+  const cropped = cropLevelForExport(grid, background);
+  const formatRows = (rows: readonly string[]) => rows.map((row) => `  '${row}',`).join('\n');
+  return `${formatRows(cropped.layout)}\n// LEVEL_1_BACKGROUND\n${formatRows(cropped.background)}`;
+}
+
 // LEVEL_1_LAYOUT is jagged (its ladder-shaft rows are short); importLayout
 // right-pads to a rectangle the same way parseLevel does, and — as of this
 // writing — LEVEL_1_LAYOUT's only all-'.' row is interior (between content
 // rows), so content-cropping (exportLayout's job) removes nothing.
-const EXPECTED_EXPORT_TEXT = importLayout(LEVEL_1_LAYOUT)
-  .map((row) => `  '${row.join('')}',`)
-  .join('\n');
+const EXPECTED_EXPORT_TEXT = expectedExportText(importLayout(LEVEL_1_LAYOUT));
 
 async function openExportDialog() {
   await userEvent.click(levelEditorPage.toolbar.export);
@@ -314,7 +325,7 @@ describe('LevelEditorPage', () => {
 
     await openExportDialog();
     const textarea = (await levelEditorPage.exportDialog.findOutput()) as HTMLTextAreaElement;
-    expect(textarea.value).toBe(SCRATCH_LAYOUT.map((row) => `  '${row}',`).join('\n'));
+    expect(textarea.value).toBe(expectedExportText(importLayout(SCRATCH_LAYOUT)));
   });
 
   it('selectingALevelAfterEditing-opensTheDiscardDialogRatherThanLoadingImmediately', async () => {
@@ -346,7 +357,12 @@ describe('LevelEditorPage', () => {
 
     await openExportDialog();
     const textarea = (await levelEditorPage.exportDialog.findOutput()) as HTMLTextAreaElement;
-    expect(textarea.value).toBe(EXPECTED_EXPORT_TEXT);
+    // Reloading 'main' also reloads its shipped background (LEVEL_1_BACKGROUND),
+    // unlike the fresh-mount default (an empty background) EXPECTED_EXPORT_TEXT
+    // assumes elsewhere in this file.
+    expect(textarea.value).toBe(
+      expectedExportText(importLayout(LEVEL_1_LAYOUT), importBackgroundLayout(LEVEL_1_BACKGROUND)),
+    );
   });
 
   it('cancellingTheDiscardDialog-keepsTheEdits', async () => {
@@ -618,7 +634,7 @@ describe('LevelEditorPage - debounced localStorage sync (editorLevelSignal)', ()
     render(<LevelEditorPage />);
     await userEvent.click(levelEditorPage.toolbar.export);
     const textarea = (await levelEditorPage.exportDialog.findOutput()) as HTMLTextAreaElement;
-    expect(textarea.value).toBe(editedGrid.map((row) => `  '${row.join('')}',`).join('\n'));
+    expect(textarea.value).toBe(expectedExportText(editedGrid));
   });
 
   it('paintingACell-doesNotPersistToLocalStorageImmediately', () => {
@@ -739,39 +755,59 @@ describe('LevelEditorPage — background layer', () => {
     fireEvent.mouseDown(canvas, { clientX: 1, clientY: 1, button: 0 });
   }
 
-  it('selectingTheBackgroundLayerThenAPieceThenPaintingOnCanvas-addsAPlacement', async () => {
+  /** The `(col, row)` of the first non-empty cell in a background grid (a
+   *  `BackgroundChar[][]`) or layout (a `readonly string[]`), or `null` if
+   *  it's entirely empty — used to assert on a single painted cell without
+   *  caring about the grid's overall (possibly grown) dimensions. Accepts
+   *  both shapes since this suite reads both the editor's own char grid
+   *  (`editorBackgroundSignal`) and the game's parsed-from-layout background
+   *  (`currentBackgroundLayout`, a plain `readonly string[]`). */
+  function firstPaintedCell(
+    grid: readonly (readonly string[] | string)[],
+  ): { col: number; row: number } | null {
+    for (let row = 0; row < grid.length; row++) {
+      const rowChars = [...grid[row]];
+      for (let col = 0; col < rowChars.length; col++) {
+        if (rowChars[col] !== '.') return { col, row };
+      }
+    }
+    return null;
+  }
+
+  it('selectingTheBackgroundLayerThenAMaterialThenPaintingOnCanvas-paintsACell', async () => {
     render(<LevelEditorPage />);
     fireEvent.click(levelEditorPage.toolbar.layerBackground);
-    fireEvent.click(await levelEditorPage.palette.findBackgroundTile('dirtColumnTop1x1'));
+    fireEvent.click(await levelEditorPage.palette.findBackgroundTile('dirt'));
 
     paintBackgroundOnce();
 
-    await waitFor(() => expect(editorBackgroundSignal.value.length).toBeGreaterThan(0));
+    await waitFor(() => expect(firstPaintedCell(editorBackgroundSignal.value)).not.toBeNull());
   });
 
-  it('tryingTheLevelWithBackgroundPlacementsPainted-carriesThemIntoCurrentBackground', async () => {
+  it('tryingTheLevelWithABackgroundCellPainted-carriesItIntoCurrentBackground', async () => {
     render(<LevelEditorPage />);
     fireEvent.click(levelEditorPage.toolbar.layerBackground);
-    fireEvent.click(await levelEditorPage.palette.findBackgroundTile('dirtColumnTop1x1'));
+    fireEvent.click(await levelEditorPage.palette.findBackgroundTile('dirt'));
     paintBackgroundOnce();
+    await waitFor(() => expect(firstPaintedCell(editorBackgroundSignal.value)).not.toBeNull());
 
     fireEvent.click(levelEditorPage.toolbar.try);
 
-    expect(currentBackground.value.length).toBeGreaterThan(0);
+    expect(firstPaintedCell(currentBackgroundLayout.value)).not.toBeNull();
   });
 
-  it('loadingALevelWithBackgroundPlacements-populatesTheLocalBackgroundState', async () => {
+  it('loadingALevelWithAPaintedBackground-populatesTheLocalBackgroundState', async () => {
     render(<LevelEditorPage />);
     fireEvent.click(levelEditorPage.toolbar.layerBackground);
-    fireEvent.click(await levelEditorPage.palette.findBackgroundTile('dirtColumnTop1x1'));
+    fireEvent.click(await levelEditorPage.palette.findBackgroundTile('dirt'));
     paintBackgroundOnce();
-    await waitFor(() => expect(editorBackgroundSignal.value.length).toBeGreaterThan(0));
+    await waitFor(() => expect(firstPaintedCell(editorBackgroundSignal.value)).not.toBeNull());
 
     // Loading 'empty' (a built-in level with no background) must clear the
-    // placements back out rather than leaving the previous level's painted
-    // pieces stuck on screen. Painting the background marks the editor dirty
-    // (see the dirty-flag test below), so the level select now asks to
-    // confirm the discard first, same as a foreground paint would.
+    // grid back out rather than leaving the previous level's painted cells
+    // stuck on screen. Painting the background marks the editor dirty (see
+    // the dirty-flag test below), so the level select now asks to confirm
+    // the discard first, same as a foreground paint would.
     fireEvent.click(levelEditorPage.entrySelect.trigger);
     await userEvent.click(await levelEditorPage.entrySelect.findOption('empty'));
     fireEvent.click(await levelEditorPage.entrySelect.findDiscardConfirm());
@@ -782,26 +818,30 @@ describe('LevelEditorPage — background layer', () => {
   it('paintingABackgroundCell-marksTheEditorDirty', async () => {
     render(<LevelEditorPage />);
     fireEvent.click(levelEditorPage.toolbar.layerBackground);
-    fireEvent.click(await levelEditorPage.palette.findBackgroundTile('dirtColumnTop1x1'));
+    fireEvent.click(await levelEditorPage.palette.findBackgroundTile('dirt'));
 
     paintBackgroundOnce();
 
     await waitFor(() => expect(editorDirtySignal.value).toBe(true));
   });
 
-  it('shifts existing backgroundPlacements by colShift/rowShift when a FOREGROUND paint grows the grid, keeping the two layers from drifting apart (Task 20 gap #1)', async () => {
+  it('shifts the existing background grid by colShift/rowShift when a FOREGROUND paint grows the grid, keeping the two layers from drifting apart (Task 20 gap #1)', async () => {
     render(<LevelEditorPage />);
     await waitFor(() => expect(drawTerrain).toHaveBeenCalled());
 
-    // Place a background piece first, well inside the current grid (no
-    // growth expected from this paint) — this is the placement that must
-    // move when the FOREGROUND grid grows next.
+    // Paint a background cell first, well inside the current grid (no
+    // growth expected from this paint) — this is the cell that must move
+    // when the FOREGROUND grid grows next.
     fireEvent.click(levelEditorPage.toolbar.layerBackground);
-    fireEvent.click(await levelEditorPage.palette.findBackgroundTile('dirtColumnTop1x1'));
+    fireEvent.click(await levelEditorPage.palette.findBackgroundTile('dirt'));
     paintBackgroundOnce();
-    await waitFor(() => expect(editorBackgroundSignal.value.length).toBeGreaterThan(0));
-    const placedCol = editorBackgroundSignal.value[0].col;
-    const placedRow = editorBackgroundSignal.value[0].row;
+    let placed: { col: number; row: number } | null = null;
+    await waitFor(() => {
+      placed = firstPaintedCell(editorBackgroundSignal.value);
+      expect(placed).not.toBeNull();
+    });
+    const placedCol = placed!.col;
+    const placedRow = placed!.row;
 
     // Switch back to the foreground layer and paint one column left of the
     // grid's current left edge, growing it left by one column.
@@ -813,12 +853,12 @@ describe('LevelEditorPage — background layer', () => {
     fireEvent.mouseDown(canvas, { button: 0, clientX: originXBefore - 1, clientY: 1 });
 
     await waitFor(() => {
-      expect(editorBackgroundSignal.value[0].col).toBe(placedCol + 1);
-      expect(editorBackgroundSignal.value[0].row).toBe(placedRow);
+      const movedTo = firstPaintedCell(editorBackgroundSignal.value);
+      expect(movedTo).toEqual({ col: placedCol + 1, row: placedRow });
     });
   });
 
-  it('loadingALevelWithAnUnresolvablePieceId-silentlyDropsOnlyThatPlacement', async () => {
+  it('loadingALevelWithAnUnresolvableCharacter-silentlyDropsOnlyThatCell', async () => {
     render(<LevelEditorPage />);
 
     fireEvent.click(levelEditorPage.entrySelect.trigger);
@@ -827,9 +867,7 @@ describe('LevelEditorPage — background layer', () => {
     );
 
     await waitFor(() => {
-      expect(editorBackgroundSignal.value).toEqual([
-        { pieceId: 'dirtColumnTop1x1', col: 0, row: 0 },
-      ]);
+      expect(editorBackgroundSignal.value).toEqual([['d', '.']]);
     });
   });
 });
@@ -925,7 +963,7 @@ describe('LevelEditorPage — Level/Blueprint canvas toggle (step 44a)', () => {
     // The Foreground/Background toggle keeps switching LAYERS, now on the
     // blueprint's own two layers.
     fireEvent.click(levelEditorPage.toolbar.layerBackground);
-    fireEvent.click(await levelEditorPage.palette.findBackgroundTile('dirtColumnTop1x1'));
+    fireEvent.click(await levelEditorPage.palette.findBackgroundTile('dirt'));
 
     paintBlueprintCell(0, 0);
 
@@ -1156,21 +1194,20 @@ describe('LevelEditorPage — blueprint select and save (step 44a)', () => {
     expect(editorLevelSignal.value).toEqual(levelGridBefore);
   });
 
-  it('savingABlueprintWithBackgroundPieces-postsThemRebasedOntoTheSameOrigin', async () => {
+  it('savingABlueprintWithAPaintedBackgroundCell-postsItCroppedOntoTheSameOrigin', async () => {
     const { fetchCalls } = stubBlueprintWrite();
     renderEditorInBlueprintMode();
     paintBlueprintCell(2, 1);
     fireEvent.click(levelEditorPage.toolbar.layerBackground);
-    fireEvent.click(await levelEditorPage.palette.findBackgroundTile('dirtColumnTop1x1'));
+    fireEvent.click(await levelEditorPage.palette.findBackgroundTile('dirt'));
     paintBlueprintCell(2, 1);
 
     await saveBlueprintAs('Test Room');
 
     // The foreground crop's origin is (col 2, row 1) — the only painted cell —
-    // so a background piece placed on that same cell rebases to (col 0, row 0).
-    expect(JSON.parse(blueprintPostBody(fetchCalls).contents).background).toEqual([
-      { pieceId: 'dirtColumnTop1x1', col: 0, row: 0 },
-    ]);
+    // so a background cell painted on that same cell crops to a single-cell
+    // grid holding it.
+    expect(JSON.parse(blueprintPostBody(fetchCalls).contents).background).toEqual(['d']);
   });
 
   it('noDevServer-savingABlueprint-saysSoAndKeepsTheDialogOpenWithTheDownloadedFile', async () => {
@@ -1611,39 +1648,37 @@ describe('LevelEditorPage — placing a blueprint (step 44c)', () => {
     await waitFor(() => expect(editorLevelSignal.value[0][0]).toBe('G'));
   });
 
-  it('aBlueprintWithBackgroundPieces-appendsThemRebasedOntoTheAnchor', async () => {
+  it('aBlueprintWithABackgroundCell-stampsItRebasedOntoTheAnchor', async () => {
     renderEditorWithBlueprints({
       id: 'cave-room',
       name: 'Cave Room',
       layout: ['##'],
-      background: [{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }],
+      background: ['d'],
     });
     armCaveRoom();
 
-    // Hovering (col 1, row 1) with no growth, so the piece rebases to (1,1).
+    // Hovering (col 1, row 1) with no growth, so the cell rebases to (1,1).
     hoverLevelCell(1, 1);
     clickLevelCell(1, 1);
 
     await waitFor(() => {
-      expect(editorBackgroundSignal.value).toEqual([
-        { pieceId: 'dirtColumnTop1x1', col: 1, row: 1 },
-      ]);
+      expect(editorBackgroundSignal.value[1]?.[1]).toBe('d');
     });
   });
 
   it('growthOnCommit-shiftsTheLevelsOwnBackgroundButNotTheBlueprintsOwn', async () => {
-    // The level already has a piece at (0,0); the placement grows one column and
-    // one row, so that piece moves to (1,1). The blueprint's own piece is
+    // The level already has a cell at (0,0); the placement grows one column and
+    // one row, so that cell moves to (1,1). The blueprint's own cell is
     // rebased with the same shift already folded in — (0 + -1 + 1) = 0 on both
     // axes — and must not be shifted a second time.
     blueprintEntries.push({
       id: 'cave-room',
       name: 'Cave Room',
       layout: ['##'],
-      background: [{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }],
+      background: ['d'],
     });
     editorLevelSignal.value = importLayout(['...', '...', '...']);
-    editorBackgroundSignal.value = [{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }];
+    editorBackgroundSignal.value = [['d']];
     render(<LevelEditorPage />);
     armCaveRoom();
 
@@ -1651,10 +1686,8 @@ describe('LevelEditorPage — placing a blueprint (step 44c)', () => {
     clickLevelCell(-1, -1);
 
     await waitFor(() => {
-      expect(editorBackgroundSignal.value).toEqual([
-        { pieceId: 'dirtColumnTop1x1', col: 1, row: 1 },
-        { pieceId: 'dirtColumnTop1x1', col: 0, row: 0 },
-      ]);
+      expect(editorBackgroundSignal.value[1]?.[1]).toBe('d');
+      expect(editorBackgroundSignal.value[0]?.[0]).toBe('d');
     });
   });
 
@@ -1662,11 +1695,11 @@ describe('LevelEditorPage — placing a blueprint (step 44c)', () => {
     renderEditorWithBlueprints(CAVE_ROOM);
     armCaveRoom();
     fireEvent.click(levelEditorPage.toolbar.layerBackground);
-    fireEvent.click(await levelEditorPage.palette.findBackgroundTile('dirtColumnTop1x1'));
+    fireEvent.click(await levelEditorPage.palette.findBackgroundTile('dirt'));
 
     clickLevelCell(1, 1);
 
-    await waitFor(() => expect(editorBackgroundSignal.value).toHaveLength(1));
+    await waitFor(() => expect(editorBackgroundSignal.value[1]?.[1]).toBe('d'));
   });
 });
 
@@ -1696,7 +1729,7 @@ describe('LevelEditorPage — undoing a placement (step 44c follow-up)', () => {
       id: 'cave-room',
       name: 'Cave Room',
       layout: ['##'],
-      background: [{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }],
+      background: ['d'],
     });
     editorLevelSignal.value = importLayout(['...', '...', '...']);
     editorBackgroundSignal.value = [];
@@ -1759,7 +1792,7 @@ describe('LevelEditorPage — undoing a placement (step 44c follow-up)', () => {
     );
 
     fireEvent.click(levelEditorPage.toolbar.layerBackground);
-    fireEvent.click(await levelEditorPage.palette.findBackgroundTile('dirtColumnTop1x1'));
+    fireEvent.click(await levelEditorPage.palette.findBackgroundTile('dirt'));
     clickLevelCell(0, 0);
 
     expect(levelEditorPage.toolbar.queryUndo).not.toBeInTheDocument();
@@ -1902,8 +1935,10 @@ describe('LevelEditorPage — full authoring loop through the toolbar (US2)', ()
 
     // Export the layout from the toolbar.
     await userEvent.click(levelEditorPage.toolbar.export);
-    // exportLayout crops to the tightest non-'.' box — the single painted cell.
-    expect(await levelEditorPage.exportDialog.findOutput()).toHaveValue("  'R',");
+    // cropLevelForExport crops to the tightest non-'.' box — the single painted cell.
+    expect(await levelEditorPage.exportDialog.findOutput()).toHaveValue(
+      expectedExportText(importLayout(['R..', '...', '...'])),
+    );
     await userEvent.keyboard('{Escape}');
 
     // Save the layout from the toolbar.

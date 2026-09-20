@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { placeBlueprint, rebaseBlueprintBackground } from './placeBlueprint';
 import { blueprintCells } from './blueprintCells';
-import type { TileChar } from '../level/LevelParser';
+import type { TileChar, BackgroundChar } from '../level/LevelParser';
 
 const EMPTY_3X3: TileChar[][] = [
   ['.', '.', '.'],
@@ -116,19 +116,55 @@ describe('placeBlueprint — characters', () => {
 });
 
 describe('rebaseBlueprintBackground', () => {
-  it('shiftsEveryPlacementOntoTheGivenOrigin', () => {
-    expect(
-      rebaseBlueprintBackground([{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }], 3, 2),
-    ).toEqual([{ pieceId: 'dirtColumnTop1x1', col: 3, row: 2 }]);
+  it('stampsTheBlueprintsBackgroundAtTheGivenOffsetWithinAnAlreadyBigEnoughTarget', () => {
+    const target: BackgroundChar[][] = [
+      ['.', '.', '.'],
+      ['.', '.', '.'],
+    ];
+    const result = rebaseBlueprintBackground(target, [['d']], 1, 1);
+    expect(result).toEqual([
+      ['.', '.', '.'],
+      ['.', 'd', '.'],
+    ]);
   });
 
-  it('keepsEveryOtherFieldOfThePlacement', () => {
-    expect(
-      rebaseBlueprintBackground([{ pieceId: 'dirtColumnTop1x1', col: 1, row: 1 }], -1, -1),
-    ).toEqual([{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }]);
+  it('emptyCellsInTheBlueprintsBackground-leaveTheTargetsExistingContentUntouched', () => {
+    const target: BackgroundChar[][] = [['c', '.']];
+    const result = rebaseBlueprintBackground(target, [['.', 'd']], 0, 0);
+    expect(result).toEqual([['c', 'd']]);
   });
 
-  it('emptyBackground-staysEmpty', () => {
-    expect(rebaseBlueprintBackground([], 3, 2)).toEqual([]);
+  it('emptyBlueprintBackground-returnsTheTargetUnchanged', () => {
+    const target: BackgroundChar[][] = [['d']];
+    expect(rebaseBlueprintBackground(target, [], 3, 2)).toBe(target);
+  });
+
+  it('blueprintBackgroundOfOnlyEmptyCells-returnsTheTargetUnchanged', () => {
+    const target: BackgroundChar[][] = [['d']];
+    expect(rebaseBlueprintBackground(target, [['.', '.']], 3, 2)).toBe(target);
+  });
+
+  it('offsetPastTheTargetsRightOrBottomEdge-growsTheTargetToFit', () => {
+    const target: BackgroundChar[][] = [['d']];
+    const result = rebaseBlueprintBackground(target, [['c']], 2, 1);
+    expect(result).toEqual([
+      ['d', '.', '.'],
+      ['.', '.', 'c'],
+    ]);
+  });
+
+  it('negativeOffset-growsAndShiftsTheTargetsExistingContentIntoTheNewOrigin', () => {
+    const target: BackgroundChar[][] = [['d']];
+    const result = rebaseBlueprintBackground(target, [['c']], -1, -1);
+    expect(result).toEqual([
+      ['c', '.'],
+      ['.', 'd'],
+    ]);
+  });
+
+  it('doesNotMutateTheTargetItWasGiven', () => {
+    const target: BackgroundChar[][] = [['d']];
+    rebaseBlueprintBackground(target, [['c']], 0, 0);
+    expect(target).toEqual([['d']]);
   });
 });
