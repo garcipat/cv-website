@@ -45,18 +45,18 @@ describe('BLOCK_TYPES', () => {
 
   // These are the values PlatformerPage.tsx's two hardcoded
   // `blockKind === 'coinPot'` filters encoded before the engine read the
-  // registry.
-  it('coinPot-reactsOnlyToALandingFromAbove', () => {
-    expect(BLOCK_TYPES.coinPot.triggerSides).toEqual(['top']);
-  });
-
-  it('potionPot-reactsOnlyToALandingFromAbove', () => {
-    expect(BLOCK_TYPES.potionPot.triggerSides).toEqual(['top']);
+  // registry. Both pot kinds share one contract from `createPotType`.
+  it('everyPotKind-sharesOneHitTopTriggerAndRemoval', () => {
+    const potKinds = Object.values(BLOCK_TYPES).filter((type) => type.pot !== undefined);
+    expect(potKinds.length).toBeGreaterThanOrEqual(2);
+    for (const type of potKinds) {
+      expect(type).toMatchObject({ maxHits: 1, removeWhenUsedUp: true, triggerSides: ['top'] });
+    }
   });
 
   it('everyOtherKind-reactsOnlyToAHitFromBelow', () => {
-    for (const [key, type] of Object.entries(BLOCK_TYPES)) {
-      if (key === 'coinPot' || key === 'potionPot') continue;
+    for (const type of Object.values(BLOCK_TYPES)) {
+      if (type.pot !== undefined) continue;
       expect(type.triggerSides).toEqual(['bottom']);
     }
   });

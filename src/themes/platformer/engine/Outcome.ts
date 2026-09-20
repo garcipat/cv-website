@@ -20,8 +20,8 @@ export interface PlayerEffects {
   /**
    * Upward velocity impulse in px/s (negative = up), supplied by the TYPE
    * rather than chosen by the applier — an enemy stomp
-   * (`stompBounceVelocity`, -330) and a coin-pot landing
-   * (`coinPotBounceVelocity`, -220) are deliberately different strengths, so
+   * (`stompBounceVelocity`, -330) and a pot landing
+   * (`potBounceVelocity`, -220) are deliberately different strengths, so
    * a boolean here could not express both. The engine applies it uniformly as
    * `vy` + `bounceAscending: true` (the flag that protects the impulse from
    * the variable-jump-height cut). Not to be confused with `knockback`'s

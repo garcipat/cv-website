@@ -42,7 +42,7 @@ import {
 import { MAX_HALF_HEARTS } from './entities/Health';
 import { toEnemyState, reviveEnemy } from './entities/Enemy';
 import type { EnemyState } from './entities/Enemy';
-import { toBlockState, isBlockUsedUp } from './entities/Block';
+import { toBlockState, isBlockUsedUp, restoredOnRespawnForBlock } from './entities/Block';
 import type { BlockState } from './entities/Block';
 import { toChestState } from './entities/Chest';
 import type { ChestState } from './entities/Chest';
@@ -769,13 +769,16 @@ export function tickDeployableLadders(dt: number): void {
  * are reset here; `resetGameProgress()` additionally clears collected facts
  * and respawns coins/blocks (FR-018b).
  *
- * potionPot blocks are the one exception to "blocks persist across a
- * death/respawn": every potionPot placement is rebuilt back to intact here,
- * and `heartPickupStates` is cleared — a dropped-but-uncollected heart is
- * tied to its now-restored pot, so leaving it in the world would let a
+ * Blocks whose kind declares `restoredOnRespawn` (today only the potion pot)
+ * are the one exception to "blocks persist across a death/respawn": every
+ * such placement is rebuilt back to intact here — carrying over its
+ * `rewardGiven` flag from the prior instance with the same id — and
+ * `heartPickupStates` is cleared, since a dropped-but-uncollected heart is
+ * tied to its now-restored pot, and leaving it in the world would let a
  * player collect a heal the pot itself is about to offer again. Every other
  * block kind (crate/questionMark/fragileRock/coinPot) is left untouched, same
- * as before.
+ * as before. The flag is read from the registry (`restoredOnRespawnForBlock`)
+ * so a future restored kind needs no edit here (FR-002/FR-014).
  */
 export function resetGame(): void {
   playerState.value = respawnPlayerState.value;
@@ -789,8 +792,17 @@ export function resetGame(): void {
   // flash at the new respawn point.
   activeFadeOutTexts.value = [];
   blockStates.value = [
-    ...blockStates.value.filter((b) => b.blockKind !== 'potionPot'),
-    ...blockPlacements.value.filter((p) => p.blockKind === 'potionPot').map(toBlockState),
+    ...blockStates.value.filter((b) => !restoredOnRespawnForBlock(b.blockKind)),
+    ...blockPlacements.value
+      .filter((p) => restoredOnRespawnForBlock(p.blockKind))
+      .map((p) => {
+        const restored = toBlockState(p);
+        // Carry the drop-once flag over from the prior instance with the same
+        // id — the block analog of `reviveEnemy` preserving `rewardGiven` —
+        // so a restored 'once' pot never drops a second pickup (FR-017).
+        const prior = blockStates.value.find((b) => b.id === p.id);
+        return prior ? { ...restored, rewardGiven: prior.rewardGiven } : restored;
+      }),
   ];
   heartPickupStates.value = [];
 }

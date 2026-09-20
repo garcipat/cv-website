@@ -1783,7 +1783,7 @@ describe('PlatformerPage', () => {
       frameCallback!(16);
 
       expect(blockStates.value.find((b) => b.id === pot.id)?.hitsTaken).toBe(1);
-      expect(playerState.value.vy).toBe(PHYSICS_CONFIG.coinPotBounceVelocity);
+      expect(playerState.value.vy).toBe(PHYSICS_CONFIG.potBounceVelocity);
       expect(playerState.value.bounceAscending).toBe(true);
     });
 
@@ -1904,7 +1904,7 @@ describe('PlatformerPage', () => {
       frameCallback!(16);
 
       expect(blockStates.value.find((b) => b.id === pot.id)?.hitsTaken).toBe(1);
-      expect(playerState.value.vy).toBe(PHYSICS_CONFIG.coinPotBounceVelocity);
+      expect(playerState.value.vy).toBe(PHYSICS_CONFIG.potBounceVelocity);
       expect(playerState.value.bounceAscending).toBe(true);
     });
 
@@ -1961,6 +1961,55 @@ describe('PlatformerPage', () => {
       }
 
       expect(blockStates.value.find((b) => b.id === pot.id)?.hitsTaken).toBe(0);
+      expect(heartPickupStates.value).toEqual([]);
+    });
+  });
+
+  describe('mixed coin-pot/potion-pot bunch — landing breaks only the landed pot', () => {
+    beforeEach(() => {
+      spawnedCoinPlacements.value = [];
+      heartPickupStates.value = [];
+    });
+
+    it('landingOnTheCoinPotOfAnAdjacentPair-breaksOnlyItAndLeavesTheBottleIntact', () => {
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+      render(<PlatformerPage />);
+      frameCallback!(0);
+
+      const coinPot = placeTestCoinPot('mixed-bunch-coin');
+      const potionPot = placeTestPotionPot('mixed-bunch-potion');
+      // The two synthetic pots are one tile apart in the same row — a bunch
+      // for rendering, but still two independent solid tiles for physics.
+      expect(potionPot.x - coinPot.x).toBe(RENDERED_TILE_SIZE);
+      expect(potionPot.y).toBe(coinPot.y);
+
+      // The player's collision hitbox is narrower than its 64px sprite
+      // (PLAYER_SIDE_PADDING each side), so offsetting half a tile left puts
+      // the hitbox over the coin pot alone even though the sprite overlaps
+      // the bottle.
+      playerState.value = {
+        ...playerState.value,
+        x: coinPot.x - RENDERED_TILE_SIZE / 2,
+        y: blockLandingY(coinPot),
+        vy: 300,
+      };
+      frameCallback!(16);
+
+      const brokeCoinPot = blockStates.value.find((b) => b.id === coinPot.id);
+      expect(brokeCoinPot?.hitsTaken).toBe(1);
+      // The 'once' policy recorded that this pot has paid out (FR-017).
+      expect(brokeCoinPot?.rewardGiven).toBe(true);
+      expect(spawnedCoinPlacements.value.map((c) => c.id)).toContain(coinPot.id);
+
+      const survivingPotionPot = blockStates.value.find((b) => b.id === potionPot.id);
+      expect(survivingPotionPot?.hitsTaken).toBe(0);
+      expect(survivingPotionPot?.rewardGiven).toBe(false);
       expect(heartPickupStates.value).toEqual([]);
     });
   });
@@ -2039,13 +2088,13 @@ describe('PlatformerPage', () => {
 
     // Exactly one tick — the landing tick itself, same convention as
     // landingOnACoinPot-destroysItAndBouncesThePlayer above (a bounce, if
-    // wrongly applied, would only be exactly PHYSICS_CONFIG.coinPotBounceVelocity
+    // wrongly applied, would only be exactly PHYSICS_CONFIG.potBounceVelocity
     // on this very tick — a few frames later gravity would already have
     // changed vy regardless of whether a bounce fired).
     frameCallback!(16);
 
     expect(blockStates.value.find((b) => b.id === crate.id)?.hitsTaken).toBe(0);
-    expect(playerState.value.vy).not.toBe(PHYSICS_CONFIG.coinPotBounceVelocity);
+    expect(playerState.value.vy).not.toBe(PHYSICS_CONFIG.potBounceVelocity);
     expect(playerState.value.bounceAscending).toBe(false);
   });
 

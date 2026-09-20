@@ -46,6 +46,15 @@ export function hitboxInsetXForBlock(blockKind: BlockKind): number {
   return BLOCK_TYPES[blockKind].hitboxInsetX ?? 0;
 }
 
+/** Whether a death/respawn rebuilds this block kind intact — read from the
+ *  kind's own `BlockType.pot?.restoredOnRespawn`, defaulting to false for
+ *  every non-pot kind (and for a pot that doesn't opt in). The one input
+ *  `PlatformerState.ts`'s `resetGame()` uses to decide which placements are
+ *  rebuilt. */
+export function restoredOnRespawnForBlock(blockKind: BlockKind): boolean {
+  return BLOCK_TYPES[blockKind].pot?.restoredOnRespawn ?? false;
+}
+
 export type BlockAnimState = 'idle' | 'bump' | 'shatter';
 
 /**
@@ -62,12 +71,19 @@ export interface BlockState extends BlockPlacement {
   /** Seconds elapsed since entering the current `animState` — meaningless
    *  while `'idle'`. */
   animTimer: number;
+  /** True once this pot's one reward has been handed out. Survives death and
+   *  respawn; cleared only by `resetGameProgress()`. Mirrors
+   *  `BaseEnemyState.rewardGiven` (see `enemies/EnemyType.ts`) and gates a
+   *  `'once'` pot's drop, so it never drops a second pickup even if it is
+   *  ever restored. Seeded `false` for every kind by `toBlockState`; the
+   *  engine marks it when a block's hit handed out a `spawnPickup`. */
+  rewardGiven: boolean;
 }
 
 /** Converts a placed-but-static `BlockPlacement` into its initial live state —
  *  no hits taken, idle. */
 export function toBlockState(placement: BlockPlacement): BlockState {
-  return { ...placement, hitsTaken: 0, animState: 'idle', animTimer: 0 };
+  return { ...placement, hitsTaken: 0, animState: 'idle', animTimer: 0, rewardGiven: false };
 }
 
 /** Whether this block has taken all the hits its kind responds to — it may
