@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { exportLayout } from './exportLayout';
 import { importLayout } from './importLayout';
 import { parseLevel } from '../level/LevelParser';
@@ -46,6 +46,29 @@ describe('exportLayout', () => {
     expect(grid[0][0]).toBe('C');
     expect(exportLayout(grid)).toEqual(layout);
     expect(() => parseLevel(exportLayout(grid))).not.toThrow();
+  });
+
+  it('mushroomChars-roundTripVerbatimThroughImportAndExport', () => {
+    // A vertical `§` run plus a decorative `s`.
+    const layout = ['§.S', '§.s', 'GGG'];
+    const grid = importLayout(layout);
+    expect(grid[0][0]).toBe('§');
+    expect(grid[1][0]).toBe('§');
+    expect(grid[1][2]).toBe('s');
+    expect(exportLayout(grid)).toEqual(layout);
+  });
+
+  it('mushrooms-resolveThroughParseLevelWithNoUnknownCharacterWarning', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const layout = ['§.S', '§.s', 'GGG'];
+
+    const level = parseLevel(layout);
+
+    expect(level.terrain[0][0]).toBe('bouncyMushroom');
+    expect(level.terrain[1][0]).toBe('bouncyMushroom');
+    expect(level.terrain[1][2]).toBe('decorativeMushroom');
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
   });
 
   it('exportLayout(importLayout(LEVEL_1_LAYOUT)) keeps every row since LEVEL_1_LAYOUT (post ladder-shaft rows) has no longer any leading/trailing all-"." row, only an interior one (which stays, per crop semantics)', () => {

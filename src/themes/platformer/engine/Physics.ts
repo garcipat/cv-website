@@ -5,6 +5,7 @@ import {
   isClimbable,
   isStandableLadderTop,
   isStandableLadderBundleTop,
+  isStandableMushroomCap,
   tileAt,
   RENDERED_TILE_SIZE,
 } from '../level/Terrain';
@@ -459,6 +460,7 @@ export function stepPlayerPhysics(
       groundIsSolid(tileAt(level, col, footRow)) ||
       isStandableLadderTop(level, col, footRow) ||
       isStandableLadderBundleTop(level, col, footRow) ||
+      isStandableMushroomCap(level, col, footRow) ||
       isBlockOccupied(blockPlacements, col, footRow);
 
     let groundResolved = false;
@@ -544,4 +546,32 @@ export function resolvePitFall(player: PlayerState): PlayerState {
     grounded: true,
     isDroppingThroughBridge: false,
   };
+}
+
+/**
+ * The standable bouncy-mushroom cap the player is resting on this tick, or
+ * `null`. Only a grounded player counts: because the game loop launches them
+ * the instant this returns a cell, `grounded` is true for exactly the contact
+ * tick. Uses the player's CENTRE column so a sliver of the 24px hitbox clipping
+ * an adjacent cap while the character stands on neighbouring solid ground does
+ * not count as a landing.
+ *
+ * This CENTRE-column rule IS the spec's definition of "landing on a cap"
+ * (FR-007): a contact whose centre column is not over the cap — including a
+ * landing on the exact seam beside it — rests on the cap's corner without
+ * bouncing. Standability itself remains per-column (see Terrain.ts's
+ * `isStandableMushroomCap`).
+ */
+export function playerOnMushroomCap(
+  level: LevelDef,
+  player: PlayerState,
+): { col: number; row: number } | null {
+  if (!player.grounded) return null;
+  const footRow = Math.floor(
+    (player.y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING) / RENDERED_TILE_SIZE,
+  );
+  const centerCol = Math.floor((player.x + PLAYER_RENDERED_SIZE / 2) / RENDERED_TILE_SIZE);
+  return isStandableMushroomCap(level, centerCol, footRow)
+    ? { col: centerCol, row: footRow }
+    : null;
 }

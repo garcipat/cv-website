@@ -82,6 +82,22 @@ export function isStandableLadderBundleTop(level: LevelDef, col: number, row: nu
   return tileAt(level, col, row) === 'ladderBundle';
 }
 
+/**
+ * Whether a `bouncyMushroom` cell at (col, row) is the standable, one-way
+ * ground cap of its vertical run — true only for the run's topmost cell, and
+ * only when the cell directly above it is not solid (FR-005/FR-006). Mirrors
+ * `isStandableLadderTop`: the mushroom is never `isSolid` (so it blocks
+ * nothing horizontally and nothing from below) and never `isClimbable`, and
+ * `Physics.ts` consults this separately as a one-way ground term. A cap with
+ * a solid tile directly above has no room to land, so it is not standable —
+ * and out-of-bounds above resolves to `'empty'` via `tileAt`, so a cap in the
+ * level's top row is standable.
+ */
+export function isStandableMushroomCap(level: LevelDef, col: number, row: number): boolean {
+  const above = tileAt(level, col, row - 1);
+  return tileAt(level, col, row) === 'bouncyMushroom' && above !== 'bouncyMushroom' && !isSolid(above);
+}
+
 export function isTopExposed(level: LevelDef, col: number, row: number): boolean {
   return !isSolid(tileAt(level, col, row - 1));
 }

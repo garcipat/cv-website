@@ -2016,6 +2016,125 @@ describe('drawTerrain — torch', () => {
   });
 });
 
+describe('drawTerrain — bouncy mushroom', () => {
+  // Deliberately a distinct object (not a bare `{}`) so a
+  // `not.toHaveBeenCalledWith(fakeMushroom, …)` assertion can't accidentally
+  // match a `fakeTileset` draw — both would deep-equal `{}` otherwise.
+  const fakeMushroom = { src: 'mushroom' } as unknown as HTMLImageElement;
+
+  it('loneBouncyMushroom-drawsStemThenCapSubRects', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = { terrain: [['bouncyMushroom']], width: 1, height: 1 };
+
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, null, null, 0, fakeMushroom);
+
+    // `only` role: sx 0, sy 0. Stem sub-rect (rows 11-15) drawn unshifted at
+    // destY + 11*RENDER_SCALE = 22; cap sub-rect (rows 0-10) at destY.
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(1, fakeMushroom, 0, 11, 16, 5, 0, 22, 32, 10);
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(2, fakeMushroom, 0, 0, 16, 11, 0, 0, 32, 22);
+  });
+
+  it('topCellOfARun-drawsTheTopRoleCapAndConnector', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = { terrain: [['bouncyMushroom'], ['bouncyMushroom']], width: 1, height: 2 };
+
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, null, null, 0, fakeMushroom);
+
+    // `top` role: sx 16, sy 0.
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(1, fakeMushroom, 16, 11, 16, 5, 0, 22, 32, 10);
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(2, fakeMushroom, 16, 0, 16, 11, 0, 0, 32, 22);
+  });
+
+  it('activeSquash-shiftsOnlyTheCap', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = { terrain: [['bouncyMushroom']], width: 1, height: 1 };
+    const squashes = [{ col: 0, row: 0, elapsed: 0 }];
+
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, null, null, 0, fakeMushroom, squashes);
+
+    // Stem stays put; the cap moves down by the full 2px dip.
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(1, fakeMushroom, 0, 11, 16, 5, 0, 22, 32, 10);
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(2, fakeMushroom, 0, 0, 16, 11, 0, 2, 32, 22);
+  });
+
+  it('middleAndBottomCellsOfARun-drawOneWholeRoleCellEach', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level = parseLevel(['§', '§', '§']);
+
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, null, null, 0, fakeMushroom);
+
+    // row 0 is `top`, row 1 is `middle` (sx 48, sy 0), row 2 is `bottom`
+    // (sx 48, sy 16) — both drawn as one whole cell.
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeMushroom, 48, 0, 16, 16, 0, 32, 32, 32);
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeMushroom, 48, 16, 16, 16, 0, 64, 32, 32);
+  });
+
+  it('multiCellRun-drawsTopCapConnectorInteriorStemAndBottomFoot', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level = parseLevel(['§', '§', '§']);
+
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, null, null, 0, fakeMushroom);
+
+    // Top cell: cap + connector, split into stem then cap sub-rects.
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeMushroom, 16, 11, 16, 5, 0, 22, 32, 10);
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeMushroom, 16, 0, 16, 11, 0, 0, 32, 22);
+    // Interior cell: the plain stem cell.
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeMushroom, 48, 0, 16, 16, 0, 32, 32, 32);
+    // Bottom cell: the stem-with-foot cell.
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeMushroom, 48, 16, 16, 16, 0, 64, 32, 32);
+  });
+
+  it('loneMushroom-drawsTheCompleteOnlyCrop', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = { terrain: [['bouncyMushroom']], width: 1, height: 1 };
+
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, null, null, 0, fakeMushroom);
+
+    // `only` role (sx 0, sy 0), split into its stem and cap sub-rects.
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeMushroom, 0, 11, 16, 5, 0, 22, 32, 10);
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeMushroom, 0, 0, 16, 11, 0, 0, 32, 22);
+  });
+
+  it('mushroomSheetNotLoaded-drawsNothingButOtherTerrainStillRenders', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = { terrain: [['bouncyMushroom', 'wall']], width: 2, height: 1 };
+
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, null, null, 0, null);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeTileset, 128, 0, 16, 16,
+      32, 0, 32, 32,
+    );
+    expect(ctx.drawImage).not.toHaveBeenCalledWith(
+      fakeMushroom, expect.anything(), expect.anything(), expect.anything(), expect.anything(),
+      expect.anything(), expect.anything(), expect.anything(), expect.anything(),
+    );
+  });
+});
+
+describe('drawTerrain — decorative mushroom', () => {
+  const fakeMushroom = { src: 'mushroom' } as unknown as HTMLImageElement;
+
+  it('decorativeMushroom-loaded-drawsTheFixedCellAtTheTilesOwnDestination', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = { terrain: [['decorativeMushroom']], width: 1, height: 1 };
+
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, null, null, 0, fakeMushroom);
+
+    // The small mushroom's fixed (32, 0) crop, drawn as one whole cell.
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeMushroom, 32, 0, 16, 16, 0, 0, 32, 32);
+  });
+
+  it('decorativeMushroom-mushroomSheetNotLoaded-drawsNothing', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const level: LevelDef = { terrain: [['decorativeMushroom']], width: 1, height: 1 };
+
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, null, null, 0, null);
+
+    expect(ctx.drawImage).not.toHaveBeenCalled();
+  });
+});
+
 describe('drawPlayer', () => {
   const fakeSpriteSheet = {} as HTMLImageElement;
   const idlePlayer: PlayerState = {

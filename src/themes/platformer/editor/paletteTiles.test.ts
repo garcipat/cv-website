@@ -301,3 +301,42 @@ describe('torch marker', () => {
   });
 });
 
+describe('mushroom tiles', () => {
+  it('sectionSign-hasASpriteCroppingTheCompleteMushroom', () => {
+    expect(PALETTE_TILE_SPRITES['§']).toEqual({
+      sheet: '/sprites/mushroom.png',
+      sheetWidth: 64,
+      sheetHeight: 64,
+      sx: 0,
+      sy: 0,
+      frameWidth: 16,
+      frameHeight: 16,
+    });
+  });
+
+  it('s-hasASpriteCroppingTheSmallMushroom', () => {
+    expect(PALETTE_TILE_SPRITES.s).toEqual({
+      sheet: '/sprites/mushroom.png',
+      sheetWidth: 64,
+      sheetHeight: 64,
+      sx: 32,
+      sy: 0,
+      frameWidth: 16,
+      frameHeight: 16,
+    });
+  });
+
+  it('sectionSign-hasAHumanReadableLabel', () => {
+    expect(PALETTE_TILE_LABELS['§']).toBe('Bouncy Mushroom');
+  });
+
+  it('s-hasAHumanReadableLabel', () => {
+    expect(PALETTE_TILE_LABELS.s).toBe('Small Mushroom');
+  });
+
+  it('bothMushrooms-haveNonEmptyDescriptions', () => {
+    expect(PALETTE_TILE_DESCRIPTIONS['§'].length).toBeGreaterThan(0);
+    expect(PALETTE_TILE_DESCRIPTIONS.s.length).toBeGreaterThan(0);
+  });
+});
+

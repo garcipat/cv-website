@@ -478,3 +478,61 @@ describe('stepEnemyHitReaction', () => {
     expect(stepped.animState).toBe('walk');
   });
 });
+
+/** A level with a single non-solid feature tile in the entity row over solid
+ *  ground everywhere — used to prove an enemy never treats a mushroom as a
+ *  wall. */
+function makeEntityFeatureLevel(width: number, featureCol: number, feature: TileType): LevelDef {
+  const entityRow: TileType[] = Array.from({ length: width }, (_, c) =>
+    c === featureCol ? feature : 'empty',
+  );
+  const groundRow: TileType[] = Array.from({ length: width }, () => 'groundRock');
+  return { terrain: [entityRow, groundRow], width, height: 2 };
+}
+
+/** A level whose ground row is solid except under `gapCol`, where it holds
+ *  `gapTile` instead — used to prove an enemy reads a mushroom as no ground,
+ *  exactly like a pit. */
+function makeGroundFeatureLevel(width: number, gapCol: number, gapTile: TileType): LevelDef {
+  const entityRow: TileType[] = Array.from({ length: width }, () => 'empty');
+  const groundRow: TileType[] = Array.from({ length: width }, (_, c) =>
+    c === gapCol ? gapTile : 'groundRock',
+  );
+  return { terrain: [entityRow, groundRow], width, height: 2 };
+}
+
+describe('stepEnemyPatrol treats both mushroom kinds as non-solid (FR-014)', () => {
+  const MUSHROOM_TILES: readonly TileType[] = ['bouncyMushroom', 'decorativeMushroom'];
+
+  it.each(MUSHROOM_TILES)(
+    '%s-inTheEnemysPath-movingRight-neverReversesAsIfItWereAWall',
+    (tile) => {
+      const level = makeEntityFeatureLevel(10, 7, tile);
+      const enemy = { ...makeEnemyAt(5), direction: 'right' as const };
+
+      const next = stepEnemyPatrol(enemy, level, 1, []);
+
+      expect(next.direction).toBe('right');
+      expect(next.vx).toBe(SPEED);
+      expect(next.x).toBeGreaterThan(enemy.x);
+    },
+  );
+
+  it.each(MUSHROOM_TILES)(
+    '%s-asTheOnlyGroundBelow-movingRight-reversesAtTheLedgeLikeAPit',
+    (tile) => {
+      const overMushroom = makeGroundFeatureLevel(10, 7, tile);
+      const overPit = makeGroundFeatureLevel(10, 7, 'empty');
+      const enemy = { ...makeEnemyAt(5), direction: 'right' as const };
+
+      const nextOverMushroom = stepEnemyPatrol(enemy, overMushroom, 1, []);
+      const nextOverPit = stepEnemyPatrol(enemy, overPit, 1, []);
+
+      // The mushroom is no ground, so the enemy turns exactly as it would at
+      // a pit edge — it can never stand on a cap and be bounced.
+      expect(nextOverMushroom.direction).toBe('left');
+      expect(nextOverMushroom.direction).toBe(nextOverPit.direction);
+      expect(nextOverMushroom.x).toBeCloseTo(nextOverPit.x);
+    },
+  );
+});

@@ -69,6 +69,7 @@ export interface EditorImages {
   decorations: HTMLImageElement | null;
   torch: HTMLImageElement | null;
   ropeLadder: HTMLImageElement | null;
+  mushroom: HTMLImageElement | null;
 }
 
 /** The cells a pending placement would write, in absolute grid coordinates,
@@ -505,6 +506,7 @@ export const EditorCanvas = ({
           images.decorations,
           images.torch,
           0,
+          images.mushroom,
         );
       }
 

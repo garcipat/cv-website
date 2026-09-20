@@ -299,6 +299,28 @@ export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
     frameWidth: 16,
     frameHeight: 16,
   },
+  '§': {
+    // The complete-mushroom crop (16x16 at 0,0) of the red row of
+    // mushroom.png (see MUSHROOM_SHEET). '§' is quoted: it is not a valid JS
+    // identifier.
+    sheet: '/sprites/mushroom.png',
+    sheetWidth: 64,
+    sheetHeight: 64,
+    sx: 0,
+    sy: 0,
+    frameWidth: 16,
+    frameHeight: 16,
+  },
+  s: {
+    // The small decorative-mushroom crop (16x16 at 32,0) of mushroom.png.
+    sheet: '/sprites/mushroom.png',
+    sheetWidth: 64,
+    sheetHeight: 64,
+    sx: 32,
+    sy: 0,
+    frameWidth: 16,
+    frameHeight: 16,
+  },
   // '1'-'5' are all the same signpost sprite — the digit is what
   // distinguishes a sign's hint content (SIGN_CHARS), not its appearance.
   // Only the first (`'1'`) ever renders as its own palette button (see
@@ -469,6 +491,8 @@ export const PALETTE_TILE_DESCRIPTIONS: Record<TileChar, string> = {
   '⊥': 'Stalagmite; purely decorative, auto-picks a size variant',
   '¥': 'Wall torch; purely decorative, flame sparkles',
   '@': 'Rope ladder bundle; press Up while standing on it to unroll a rope ladder down to the ground below',
+  '§': 'Land on its cap to be launched upward; walk and jump through it freely',
+  s: 'Small mushroom; purely decorative, no effect',
   '1': 'Hint sign; click it again on the canvas to cycle its hint',
   '2': 'Hint sign; click it again on the canvas to cycle its hint',
   '3': 'Hint sign; click it again on the canvas to cycle its hint',
@@ -514,6 +538,8 @@ export const PALETTE_TILE_LABELS: Record<TileChar, string> = {
   '⊥': 'Stalagmite',
   '¥': 'Torch',
   '@': 'Rope Ladder Bundle',
+  '§': 'Bouncy Mushroom',
+  s: 'Small Mushroom',
   '1': 'Sign',
   '2': 'Sign 2',
   '3': 'Sign 3',
