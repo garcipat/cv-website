@@ -40,7 +40,7 @@ import { placeBackgroundPiece, eraseBackgroundCell } from './paintBackgroundCell
 import type { BackgroundPlacement, BackgroundPieceId } from '../level/LevelData';
 import type { DrawContext } from '../engine/DrawContext';
 import type { EditorAppearance } from './editorState';
-import { computeCoinPotRenderPlan } from '../entities/blocks/coinPotRenderPlan';
+import { computePotRenderPlan } from '../entities/blocks/potRenderPlan';
 import {
   SLIME_GREEN_SHEET,
   SLIME_PURPLE_SHEET,
@@ -568,11 +568,10 @@ export const EditorCanvas = ({
         originY: panOffset.y,
         worldElapsed: 0,
         // Same per-frame computation the real game does (PlatformerPage.tsx)
-        // — without this, every coinPot falls back to CoinPot.ts's isolated
-        // fallback path (always variant 0, never merged with a neighbor),
-        // which is why the editor preview used to look different from the
-        // actual game.
-        coinPotPlan: computeCoinPotRenderPlan(editorBlockStates),
+        // — without this, every pot falls back to its kind's isolated draw
+        // path (never merged with a neighbour), which is why the editor
+        // preview used to look different from the actual game.
+        potPlan: computePotRenderPlan(editorBlockStates),
       };
 
       drawCollectibles(ctx, synthesizeCollectiblePlacements(grid), new Set(), drawContext);

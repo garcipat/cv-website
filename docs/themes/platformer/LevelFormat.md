@@ -105,8 +105,8 @@ See [Terrain.md](Terrain.md) for the tile API, autotiling and multi-cell runs.
 | `=` | `crate` | Destroyable block, hit from below. Reveals an Education, Activities or Languages fact. |
 | `Q` | `questionMark` | Destroyable block, hit from below. Carries no fact of its own; pops a bonus fruit into the tile directly above, so it must be placed under open space. |
 | `F` | `fragileRock` | Destroyable block, hit from below. No reward — level-design filler and surface plugs. |
-| `u` | `coinPot` | Container block destroyed by landing on top; drops a coin. Lowercase, a small urn-shaped glyph, unlike every other entity marker. Adjacent pots merge visually into one bunch. |
-| `p` | `potionPot` | Container block destroyed by landing on top; drops a heart pickup that heals half a heart. No fact. Implemented but not placed in the shipped level. |
+| `u` | `coinPot` | Container block destroyed by landing on top; drops a coin. Lowercase, a small urn-shaped glyph, unlike every other entity marker. Adjacent pots of **any** kinds (`u`/`p`) merge visually into one bunch. |
+| `p` | `potionPot` | Container block destroyed by landing on top; drops a heart pickup that heals half a heart. No fact. Adjacent pots of **any** kinds (`u`/`p`) merge visually into one bunch. Implemented but not placed in the shipped level. |
 | `$` | `chest` | Treasure chest, opened with Arrow Up while standing on it and only with a key in hand. Zipped one-per-Experience-entry against CV data. |
 | `C` | `checkpoint` | Checkpoint flag. Non-solid; stepping onto it with solid ground directly below raises it once and makes that cell the active respawn point for the rest of the run. Carries no CV fact. Not placed in the shipped level — authorable in the editor only. |
 

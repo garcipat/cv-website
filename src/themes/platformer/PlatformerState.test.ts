@@ -47,6 +47,9 @@ import {
 import type { CollectedFact } from './types';
 import { mapCVDataToEnemies } from './level/EnemyMapper';
 import { toBlockState } from './entities/Block';
+import { computePotRenderPlan } from './entities/blocks/potRenderPlan';
+import { BLOCK_TYPES } from './entities/blocks';
+import { PHYSICS_CONFIG } from './engine/PhysicsConfig';
 import { currentCV } from '@/state/locale';
 import { MAX_HALF_HEARTS } from './entities/Health';
 import { tileToPixel, RENDERED_TILE_SIZE } from './level/Terrain';
@@ -563,6 +566,90 @@ describe('resetGame — potion-pots restore, dropped hearts vanish', () => {
   });
 });
 
+describe('resetGame — restored-on-respawn flag and rewardGiven carry-over', () => {
+  afterEach(() => {
+    currentLayout.value = LEVEL_1_LAYOUT;
+    blockStates.value = blockPlacements.value.map(toBlockState);
+    heartPickupStates.value = [];
+    spawnedCoinPlacements.value = [];
+  });
+
+  it('resetGame-rebuildsARestoredKindCarryingRewardGivenOverFromThePriorInstance', () => {
+    currentLayout.value = ['Sp', 'GG'];
+    const placement = blockPlacements.value.find((b) => b.blockKind === 'potionPot')!;
+    blockStates.value = blockPlacements.value.map((b) =>
+      b.id === placement.id ? { ...toBlockState(b), rewardGiven: true, hitsTaken: 1 } : toBlockState(b),
+    );
+
+    resetGame();
+
+    expect(blockStates.value.find((b) => b.id === placement.id)).toMatchObject({
+      blockKind: 'potionPot',
+      hitsTaken: 0,
+      rewardGiven: true,
+    });
+  });
+
+  it('resetGame-aNonRestoredKindIsLeftInItsBrokenState', () => {
+    currentLayout.value = ['Sup', 'GGG'];
+    const coin = blockPlacements.value.find((b) => b.blockKind === 'coinPot')!;
+    blockStates.value = blockPlacements.value.map((b) =>
+      b.id === coin.id ? { ...toBlockState(b), hitsTaken: 1, rewardGiven: true } : toBlockState(b),
+    );
+
+    resetGame();
+
+    expect(blockStates.value.find((b) => b.id === coin.id)).toMatchObject({
+      blockKind: 'coinPot',
+      hitsTaken: 1,
+      rewardGiven: true,
+    });
+  });
+
+  it('resetGame-restoredBottleBesideAStillBrokenPot-rendersIsolatedByThePlan', () => {
+    currentLayout.value = ['Sup', 'GGG'];
+    const coin = blockPlacements.value.find((b) => b.blockKind === 'coinPot')!;
+    const bottle = blockPlacements.value.find((b) => b.blockKind === 'potionPot')!;
+    blockStates.value = blockPlacements.value.map((b) =>
+      b.id === coin.id ? { ...toBlockState(b), hitsTaken: 1 } : toBlockState(b),
+    );
+
+    resetGame();
+
+    const plan = computePotRenderPlan(blockStates.value);
+    expect(plan.ownerBlockId.has(coin.id)).toBe(false);
+    expect(plan.ownerBlockId.get(bottle.id)).toBe(bottle.id);
+    expect(plan.runsByOwnerId.get(bottle.id)!.fillers).toEqual([]);
+  });
+
+  it('restoredEveryBreakPot-dropsAFreshHeartOnTheNextBreak', () => {
+    const block = toBlockState({ id: 'bottle-1', blockKind: 'potionPot', x: 0, y: 0 });
+
+    expect(BLOCK_TYPES.potionPot.onHit!({ ...block, hitsTaken: 1, rewardGiven: true })).toEqual({
+      spawnPickup: 'heart',
+      bounceVelocity: PHYSICS_CONFIG.potBounceVelocity,
+    });
+  });
+
+  it('oncePotThatAlreadyPaidOut-wouldNotDropASecondTimeEvenIfRestored', () => {
+    const block = toBlockState({ id: 'coin-1', blockKind: 'coinPot', x: 0, y: 0 });
+
+    expect(BLOCK_TYPES.coinPot.onHit!({ ...block, hitsTaken: 1, rewardGiven: true })).toEqual({
+      bounceVelocity: PHYSICS_CONFIG.potBounceVelocity,
+    });
+  });
+
+  it('resetGame-aPreviouslyDroppedCoinPickupSurvivesAndStaysCollectible', () => {
+    const droppedCoin = { id: 'coinpot-x', spriteType: 'coin' as const, x: 100, y: 100 };
+    spawnedCoinPlacements.value = [droppedCoin];
+
+    resetGame();
+
+    expect(spawnedCoinPlacements.value).toEqual([droppedCoin]);
+    expect(allCollectiblePlacements.value).toContainEqual(droppedCoin);
+  });
+});
+
 describe('marker-derived placements react to currentLayout', () => {
   afterEach(() => {
     // currentLayout is module-level (see level.ts's doc comment) — restore
@@ -674,7 +761,7 @@ describe('cratesDestroyed', () => {
   afterEach(() => {
     // blockStates is a plain signal — restore it so this describe block
     // doesn't leak a mutated array into every other test in this file.
-    blockStates.value = blockPlacements.value.map((b) => ({ ...b, hitsTaken: 0, animState: 'idle', animTimer: 0 }));
+    blockStates.value = blockPlacements.value.map(toBlockState);
   });
 
   it('noCratesTouched-isZero', () => {
@@ -701,7 +788,7 @@ describe('cratesDestroyed', () => {
     const realCrate = blockPlacements.value.find((b) => b.blockKind === 'crate')!;
     blockStates.value = [
       ...blockStates.value,
-      { ...realCrate, id: 'synthetic-extra-crate', hitsTaken: 0, animState: 'idle', animTimer: 0 },
+      { ...toBlockState(realCrate), id: 'synthetic-extra-crate' },
     ];
 
     expect(cratesDestroyed.value).toBe(0);

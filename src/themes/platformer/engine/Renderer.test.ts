@@ -83,7 +83,9 @@ import {
   WORLD_TILESET_SHEET,
   CRACK_OVERLAY_SHEET,
   HEARTS_SHEET,
+  STATIC_OBJECTS_SHEET,
 } from '../entities/sprites/sheets';
+import { computePotRenderPlan } from '../entities/blocks/potRenderPlan';
 import type { DrawContext } from './DrawContext';
 import { TORCH_LIGHT_RADIUS_PX, torchPulseScale } from './Lighting';
 import type { TorchLight } from './Lighting';
@@ -178,7 +180,7 @@ function makeFruitPlacement(id = 'fruit-1', x = 300, y = 300): CollectiblePlacem
 
 function makeBlockPlacement(
   id: string,
-  blockKind: 'crate' | 'questionMark' | 'fragileRock',
+  blockKind: 'crate' | 'questionMark' | 'fragileRock' | 'coinPot' | 'potionPot',
   x: number,
   y: number,
 ): BlockPlacement {
@@ -351,6 +353,7 @@ function makeDrawContext(
       [CRACK_OVERLAY_SHEET.src]: { tag: 'crackOverlay' } as unknown as HTMLImageElement,
       [CHEST_CLOSED_SHEET.src]: { tag: 'chestClosed' } as unknown as HTMLImageElement,
       [CHEST_OPEN_SHEET.src]: { tag: 'chestOpen' } as unknown as HTMLImageElement,
+      [STATIC_OBJECTS_SHEET.src]: { tag: 'staticObjects' } as unknown as HTMLImageElement,
     },
     originX: 0,
     originY: 0,
@@ -552,7 +555,7 @@ describe('drawEnemies with type-owned rendering', () => {
 });
 
 function makeBlock(
-  kind: 'crate' | 'questionMark' | 'fragileRock',
+  kind: 'crate' | 'questionMark' | 'fragileRock' | 'coinPot' | 'potionPot',
   overrides: Partial<BlockState> = {},
 ): BlockState {
   return { ...toBlockState(makeBlockPlacement(`${kind}-1`, kind, 0, 0)), ...overrides };
@@ -709,6 +712,24 @@ describe('block drawing delegates to the type modules', () => {
     });
     drawBlocks(ctx as unknown as CanvasRenderingContext2D, [makeBlock('crate')], dc);
     expect(ctx.drawImage).not.toHaveBeenCalled();
+  });
+});
+
+describe('drawBlocks with a pot render plan', () => {
+  it('mixedKindRun-ownerDrawsEachMemberAndEachFillerExactlyOnce', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
+    const coin = { ...makeBlock('coinPot'), x: 0 };
+    const potion = { ...makeBlock('potionPot'), x: RENDERED_TILE_SIZE };
+    const plan = computePotRenderPlan([coin, potion]);
+
+    drawBlocks(ctx as unknown as CanvasRenderingContext2D, [coin, potion], { ...dc, potPlan: plan });
+
+    // Only the run's owner (the coin pot) draws: one clay base + one clay
+    // filler from staticObjects.png, and the bottle once from the shared
+    // tileset — no member or filler is drawn twice.
+    expect(drawImageCallsFor(ctx, dc.sprites[STATIC_OBJECTS_SHEET.src])).toHaveLength(2);
+    expect(drawImageCallsFor(ctx, dc.sprites[WORLD_TILESET_SHEET.src])).toHaveLength(1);
   });
 });
 
