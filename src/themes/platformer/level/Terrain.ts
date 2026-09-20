@@ -1,4 +1,4 @@
-import type { LevelDef, TileType } from './LevelData';
+import type { LevelDef, TileType, BackgroundMaterialId } from './LevelData';
 
 export const TILE_SIZE = 16;
 export const RENDER_SCALE = 2;
@@ -114,6 +114,40 @@ export function neighbourMask(level: LevelDef, col: number, row: number): number
 
 export function tileToPixel(col: number, row: number): { x: number; y: number } {
   return { x: col * RENDERED_TILE_SIZE, y: row * RENDERED_TILE_SIZE };
+}
+
+/**
+ * The background material at `(col, row)`, or `null` for an empty cell.
+ * Out-of-bounds and a missing `background` field both resolve to `null`,
+ * mirroring `tileAt`'s out-of-bounds-returns-`'empty'` contract. The grid MAY
+ * be smaller than `terrain`'s own bounds (FR-013's dropped-on-load empty
+ * grid, or an editor grid grown less far than the foreground) — any cell
+ * outside the grid's own bounds is `null` too, never an out-of-bounds throw.
+ */
+export function backgroundAt(level: LevelDef, col: number, row: number): BackgroundMaterialId | null {
+  const gridRow = level.background?.[row];
+  if (!gridRow) return null;
+  return gridRow[col] ?? null;
+}
+
+/**
+ * A 4-bit same-material neighbour mask for the background cell at
+ * `(col, row)`, computed the same way `neighbourMask` computes it for
+ * terrain — but counting only a same-material neighbour as connected
+ * (FR-004). A different material, an empty cell, or an out-of-bounds cell
+ * all count as closed, which falls out for free from strict equality against
+ * `backgroundAt`'s own `null`-safe result: `null !== 'dirt'`, and
+ * `'charcoal' !== 'dirt'`, so neither an empty neighbour nor a
+ * different-material one is ever mistaken for a connection.
+ */
+export function backgroundNeighbourMask(level: LevelDef, col: number, row: number): number {
+  const material = backgroundAt(level, col, row);
+  return (
+    (backgroundAt(level, col, row - 1) === material ? NEIGHBOUR_UP : 0) |
+    (backgroundAt(level, col + 1, row) === material ? NEIGHBOUR_RIGHT : 0) |
+    (backgroundAt(level, col, row + 1) === material ? NEIGHBOUR_DOWN : 0) |
+    (backgroundAt(level, col - 1, row) === material ? NEIGHBOUR_LEFT : 0)
+  );
 }
 
 export type RunPosition = 'single' | 'left' | 'middle' | 'right';

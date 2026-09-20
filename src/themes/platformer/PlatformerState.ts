@@ -183,9 +183,7 @@ export const darknessLevel = signal(0);
  */
 export function tickDarkness(dt: number): void {
   const cell = playerOccupiedCell(playerState.value);
-  const target = isCellDarkening(currentLevel.value.background ?? [], cell.col, cell.row)
-    ? MAX_DARKNESS
-    : 0;
+  const target = isCellDarkening(currentLevel.value, cell.col, cell.row) ? MAX_DARKNESS : 0;
   darknessLevel.value = nextDarknessLevel(darknessLevel.value, target, dt, DARKNESS_FADE_SECONDS);
 }
 

@@ -1,6 +1,5 @@
 import { BLUEPRINTS_FOLDER, SAVE_BLUEPRINT_ENDPOINT } from './saveBlueprintEndpoint';
 import { BLANK_BLUEPRINT } from '../level/BlueprintData';
-import type { BackgroundPlacement } from '../level/LevelData';
 
 export { BLUEPRINTS_FOLDER };
 
@@ -31,25 +30,33 @@ export const blueprintId = (name: string): string => {
  *  the file's stem and the id derived back out of it cannot drift apart. */
 export const blueprintFileName = (name: string): string => `${blueprintId(name)}.json`;
 
+/** Whether a background `string[]` layout holds at least one painted cell —
+ *  a layout cropped alongside an all-empty foreground still has rows (of
+ *  all-`.` characters), so this checks row content rather than just
+ *  `.length`. */
+const hasBackgroundContent = (background: readonly string[]): boolean =>
+  background.some((row) => [...row].some((char) => char !== '.'));
+
 /**
  * The file's contents: the blueprint's name plus its already-cropped layout,
  * pretty-printed and newline-terminated so the file reads like the rest of the
- * repo's JSON. `background` is only included when it holds placements,
- * matching `levelFileJson` exactly — a `Blueprint` is deliberately the same
- * `{ name, layout, background? }` shape a saved level file is.
+ * repo's JSON. `background` is only included when it holds at least one
+ * painted cell, matching `levelFileJson` exactly — a `Blueprint` is
+ * deliberately the same `{ name, layout, background? }` shape a saved level
+ * file is.
  *
- * Takes the cropped `layout` (and `background`, already rebased against the
- * same origin) rather than a raw grid, for the same reason `levelFileJson`
- * does: re-cropping here with the foreground-only `exportLayout` would
- * silently undo the caller's `cropLevelForExport` union crop.
+ * Takes the cropped `layout` (and `background`, already cropped to the same
+ * origin) rather than a raw grid, for the same reason `levelFileJson` does:
+ * re-cropping here with the foreground-only `exportLayout` would silently
+ * undo the caller's `cropLevelForExport` crop.
  */
 export const blueprintFileJson = (
   name: string,
   layout: readonly string[],
-  background: BackgroundPlacement[],
+  background: readonly string[],
 ): string =>
   `${JSON.stringify(
-    { name, layout, ...(background.length > 0 ? { background } : {}) },
+    { name, layout, ...(hasBackgroundContent(background) ? { background } : {}) },
     null,
     2,
   )}\n`;
@@ -78,7 +85,7 @@ export interface SaveBlueprintResult {
 export const saveBlueprint = async (
   name: string,
   layout: readonly string[],
-  background: BackgroundPlacement[],
+  background: readonly string[],
 ): Promise<SaveBlueprintResult> => {
   try {
     const response = await fetch(SAVE_BLUEPRINT_ENDPOINT, {
@@ -107,7 +114,7 @@ export const saveBlueprint = async (
 export const downloadBlueprintFile = (
   name: string,
   layout: readonly string[],
-  background: BackgroundPlacement[],
+  background: readonly string[],
 ): void => {
   const blob = new Blob([blueprintFileJson(name, layout, background)], {
     type: 'application/json',

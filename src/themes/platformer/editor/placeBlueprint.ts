@@ -1,12 +1,11 @@
 import { growGrid, type GrowResult } from './growGrid';
 import type { BlueprintCell } from './blueprintCells';
-import type { BackgroundPlacement } from '../level/LevelData';
-import type { TileChar } from '../level/LevelParser';
+import type { BackgroundChar, TileChar } from '../level/LevelParser';
 
 /** Same shape `paintCell` returns, deliberately: a placement is just a bigger
  *  paint as far as `LevelEditorPage` is concerned, so it flows through the same
  *  grow/shift bookkeeping (`applyGrowthShift`) a single painted cell does. */
-export type PlacementResult = GrowResult;
+export type PlacementResult = GrowResult<TileChar>;
 
 /**
  * Stamps a blueprint's `cells` into `grid`, anchored so the blueprint's own
@@ -45,8 +44,8 @@ export const placeBlueprint = (
     if (absoluteRow > maxRow) maxRow = absoluteRow;
   }
 
-  const first = growGrid(grid, minCol, minRow);
-  const second = growGrid(first.grid, maxCol + first.colShift, maxRow + first.rowShift);
+  const first = growGrid(grid, minCol, minRow, '.');
+  const second = growGrid(first.grid, maxCol + first.colShift, maxRow + first.rowShift, '.');
   const colShift = first.colShift + second.colShift;
   const rowShift = first.rowShift + second.rowShift;
 
@@ -59,22 +58,58 @@ export const placeBlueprint = (
 };
 
 /**
- * A blueprint's own `background` placements moved onto the origin its
- * foreground cells were just written at — the mirror of the rebase
- * `cropLevelForExport` applies when the blueprint is saved.
+ * Stamps a blueprint's own `background` sub-region into `target`, anchored so
+ * the blueprint's own cell `(0,0)` lands on `(anchorRow, anchorCol)` — the
+ * grid-model mirror of the rebase `cropLevelForExport` applies when the
+ * blueprint is saved. Grows `target` as needed (the same right/down-append,
+ * left/up-prepend behaviour `paintBackgroundCell`'s grow uses) so a blueprint
+ * background reaching past the target's current bounds still lands correctly.
  *
- * Appended to the target level's background list unconditionally, with no
- * overlap check: background placements already silently replace on overlap,
- * matching how painting the background layer works today (design, Step 44c —
- * Placement).
+ * Every non-`null` cell overwrites unconditionally, with no overlap check —
+ * background painting has always silently replaced on overlap (design, Step
+ * 44c — Placement); a `null` cell in the blueprint's background leaves
+ * whatever was already in `target` at that position untouched, so placing a
+ * blueprint with a sparse background never erases surrounding cells outside
+ * its own footprint.
  */
 export const rebaseBlueprintBackground = (
-  background: readonly BackgroundPlacement[],
+  target: BackgroundChar[][],
+  background: BackgroundChar[][],
   colOffset: number,
   rowOffset: number,
-): BackgroundPlacement[] =>
-  background.map((placement) => ({
-    ...placement,
-    col: placement.col + colOffset,
-    row: placement.row + rowOffset,
-  }));
+): BackgroundChar[][] => {
+  if (background.length === 0) return target;
+
+  let minCol = Infinity;
+  let minRow = Infinity;
+  let maxCol = -Infinity;
+  let maxRow = -Infinity;
+  for (let row = 0; row < background.length; row++) {
+    for (let col = 0; col < background[row].length; col++) {
+      if (background[row][col] === '.') continue;
+      const absoluteCol = colOffset + col;
+      const absoluteRow = rowOffset + row;
+      if (absoluteCol < minCol) minCol = absoluteCol;
+      if (absoluteRow < minRow) minRow = absoluteRow;
+      if (absoluteCol > maxCol) maxCol = absoluteCol;
+      if (absoluteRow > maxRow) maxRow = absoluteRow;
+    }
+  }
+  if (minRow === Infinity) return target; // every cell was empty — nothing to stamp
+
+  const first = growGrid(target, minCol, minRow, '.');
+  const second = growGrid(first.grid, maxCol + first.colShift, maxRow + first.rowShift, '.');
+  const colShift = first.colShift + second.colShift;
+  const rowShift = first.rowShift + second.rowShift;
+
+  const nextGrid = second.grid.map((row) => [...row]);
+  for (let row = 0; row < background.length; row++) {
+    for (let col = 0; col < background[row].length; col++) {
+      const char = background[row][col];
+      if (char === '.') continue;
+      nextGrid[rowOffset + row + rowShift][colOffset + col + colShift] = char;
+    }
+  }
+
+  return nextGrid;
+};

@@ -1,22 +1,27 @@
-import type { TileChar } from '../level/LevelParser';
-
-export interface GrowResult {
-  grid: TileChar[][];
+export interface GrowResult<T> {
+  grid: T[][];
   colShift: number;
   rowShift: number;
 }
 
 /**
  * Grows `grid` just enough to include `(col, row)` as a valid index. Growing
- * right/down appends `.`-filled columns/rows at the end (no existing index
- * changes). Growing left/up prepends them at the start, which shifts every
- * existing cell's index — `colShift`/`rowShift` report exactly how much, so
- * the caller (see `paintCell.ts`) can compensate `panOffset` and remap the
- * target coordinates into the grown grid. Returns the input grid unchanged
- * (colShift/rowShift both 0) when `(col, row)` is already in bounds — this
- * is the common case on every paint that doesn't cross a boundary.
+ * right/down appends `emptyValue`-filled columns/rows at the end (no existing
+ * index changes). Growing left/up prepends them at the start, which shifts
+ * every existing cell's index — `colShift`/`rowShift` report exactly how
+ * much, so the caller (see `paintCell.ts`) can compensate `panOffset` and
+ * remap the target coordinates into the grown grid. Returns the input grid
+ * unchanged (colShift/rowShift both 0) when `(col, row)` is already in bounds
+ * — this is the common case on every paint that doesn't cross a boundary.
+ *
+ * Generic over the cell type `T` (a plain string-union "char" type in every
+ * caller — `TileChar` for the foreground grid, `BackgroundChar` for the
+ * background grid) rather than hardcoded to one of them: both grids share
+ * this exact grow-and-shift shape, and `'.'` as the common empty value in
+ * both unions is what lets a single implementation serve both, with the
+ * caller supplying which value `'.'` actually is via `emptyValue`.
  */
-export function growGrid(grid: TileChar[][], col: number, row: number): GrowResult {
+export function growGrid<T>(grid: T[][], col: number, row: number, emptyValue: T): GrowResult<T> {
   const height = grid.length;
   const width = grid[0]?.length ?? 0;
 
@@ -32,11 +37,11 @@ export function growGrid(grid: TileChar[][], col: number, row: number): GrowResu
   const newWidth = growLeft + width + growRight;
   const newHeight = growTop + height + growBottom;
 
-  const newGrid: TileChar[][] = [];
+  const newGrid: T[][] = [];
   for (let r = 0; r < newHeight; r++) {
-    const newRow: TileChar[] = [];
+    const newRow: T[] = [];
     for (let c = 0; c < newWidth; c++) {
-      newRow.push('.');
+      newRow.push(emptyValue);
     }
     newGrid.push(newRow);
   }

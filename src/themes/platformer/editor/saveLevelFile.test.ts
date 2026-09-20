@@ -67,18 +67,23 @@ describe('levelFileJson', () => {
 });
 
 describe('levelFileJson — background field', () => {
-  it('nonEmptyBackground-isIncludedInTheSerializedJson', () => {
-    const json = levelFileJson('Cave', ['S'], [{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }]);
+  it('nonEmptyBackground-isIncludedInTheSerializedJsonAsAStringArray', () => {
+    const json = levelFileJson('Cave', ['S'], ['d']);
     expect(JSON.parse(json)).toEqual({
       name: 'Cave',
       layout: ['S'],
-      background: [{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }],
+      background: ['d'],
     });
   });
 
   it('emptyBackground-isOmittedFromTheSerializedJson', () => {
     const json = levelFileJson('Plain', ['S'], []);
     expect(JSON.parse(json)).toEqual({ name: 'Plain', layout: ['S'] });
+  });
+
+  it('backgroundOfAllEmptyRows-isOmittedFromTheSerializedJson', () => {
+    const json = levelFileJson('Plain', ['SS'], ['..', '..']);
+    expect(JSON.parse(json)).toEqual({ name: 'Plain', layout: ['SS'] });
   });
 });
 

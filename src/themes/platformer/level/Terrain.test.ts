@@ -20,6 +20,8 @@ import {
   TILE_SIZE,
   RENDER_SCALE,
   RENDERED_TILE_SIZE,
+  backgroundAt,
+  backgroundNeighbourMask,
 } from './Terrain';
 import { parseLevel } from './LevelParser';
 import type { LevelDef } from './LevelData';
@@ -548,5 +550,106 @@ describe('verticalRunRole', () => {
   it('differentTileTypeAboveAndBelow-doesNotCountAsAMatch', () => {
     const level: LevelDef = { terrain: [['wall'], ['bush'], ['wall']], width: 1, height: 3 };
     expect(verticalRunRole(level, 0, 1, 'bush')).toBe('only');
+  });
+});
+
+describe('backgroundAt', () => {
+  const level: LevelDef = {
+    terrain: [],
+    width: 3,
+    height: 3,
+    background: [
+      ['dirt', null, 'charcoal'],
+      [null, 'dirt', null],
+    ],
+  };
+
+  it('cellWithAMaterial-returnsItsMaterialId', () => {
+    expect(backgroundAt(level, 0, 0)).toBe('dirt');
+    expect(backgroundAt(level, 2, 0)).toBe('charcoal');
+  });
+
+  it('emptyCell-returnsNull', () => {
+    expect(backgroundAt(level, 1, 0)).toBeNull();
+  });
+
+  it('outOfBoundsCell-returnsNull', () => {
+    expect(backgroundAt(level, -1, 0)).toBeNull();
+    expect(backgroundAt(level, 0, -1)).toBeNull();
+    expect(backgroundAt(level, 99, 99)).toBeNull();
+  });
+
+  it('rowBeyondTheGridsOwnBounds-returnsNullRatherThanThrowing', () => {
+    // The grid has only 2 rows even though the level is 3 tall.
+    expect(backgroundAt(level, 0, 2)).toBeNull();
+  });
+
+  it('levelWithNoBackgroundField-returnsNullEverywhere', () => {
+    const bare: LevelDef = { terrain: [], width: 1, height: 1 };
+    expect(backgroundAt(bare, 0, 0)).toBeNull();
+  });
+});
+
+describe('backgroundNeighbourMask', () => {
+  it('allFourNeighboursSameMaterial-returnsFifteen', () => {
+    const level: LevelDef = {
+      terrain: [],
+      width: 3,
+      height: 3,
+      background: [
+        [null, 'dirt', null],
+        ['dirt', 'dirt', 'dirt'],
+        [null, 'dirt', null],
+      ],
+    };
+    expect(backgroundNeighbourMask(level, 1, 1)).toBe(
+      NEIGHBOUR_UP | NEIGHBOUR_RIGHT | NEIGHBOUR_DOWN | NEIGHBOUR_LEFT,
+    );
+  });
+
+  it('isolatedCell-noSameMaterialNeighbour-returnsZero', () => {
+    const level: LevelDef = {
+      terrain: [],
+      width: 3,
+      height: 3,
+      background: [
+        [null, null, null],
+        [null, 'dirt', null],
+        [null, null, null],
+      ],
+    };
+    expect(backgroundNeighbourMask(level, 1, 1)).toBe(0);
+  });
+
+  it('differentMaterialNeighbour-doesNotCountAsConnected', () => {
+    const level: LevelDef = {
+      terrain: [],
+      width: 2,
+      height: 1,
+      background: [['dirt', 'charcoal']],
+    };
+    expect(backgroundNeighbourMask(level, 0, 0)).toBe(0);
+    expect(backgroundNeighbourMask(level, 1, 0)).toBe(0);
+  });
+
+  it('emptyNeighbour-doesNotCountAsConnected', () => {
+    const level: LevelDef = {
+      terrain: [],
+      width: 2,
+      height: 1,
+      background: [['dirt', null]],
+    };
+    expect(backgroundNeighbourMask(level, 0, 0)).toBe(0);
+  });
+
+  it('sameMaterialToTheRightOnly-returnsRightBit', () => {
+    const level: LevelDef = {
+      terrain: [],
+      width: 2,
+      height: 1,
+      background: [['dirt', 'dirt']],
+    };
+    expect(backgroundNeighbourMask(level, 0, 0)).toBe(NEIGHBOUR_RIGHT);
+    expect(backgroundNeighbourMask(level, 1, 0)).toBe(NEIGHBOUR_LEFT);
   });
 });

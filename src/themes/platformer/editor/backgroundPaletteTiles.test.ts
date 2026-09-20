@@ -3,61 +3,75 @@ import {
   BACKGROUND_PALETTE_SPRITES,
   BACKGROUND_PALETTE_LABELS,
   BACKGROUND_PALETTE_SECTIONS,
+  BACKGROUND_MATERIAL_CHAR,
 } from './backgroundPaletteTiles';
-import { BACKGROUND_CATALOG } from '../engine/BackgroundCatalog';
-import type { BackgroundPieceId } from '../level/LevelData';
-import { TERRAIN_BACKGROUND_SHEET } from '../entities/sprites/sheets';
+import { backgroundAtlasCell } from '../engine/BackgroundAtlas';
+import { BACKGROUND_MATERIAL_FAMILY } from '../level/LevelData';
+import type { BackgroundMaterialId } from '../level/LevelData';
+import { BACKGROUND_CHARS } from '../level/LevelParser';
+import { BACKGROUND_TILES_SHEET } from '../entities/sprites/sheets';
+
+const ALL_MATERIALS = Object.keys(BACKGROUND_MATERIAL_FAMILY) as BackgroundMaterialId[];
 
 describe('backgroundPaletteTiles', () => {
-  it.each(Object.keys(BACKGROUND_CATALOG) as BackgroundPieceId[])(
-    '%s-hasASpriteSpecMatchingItsCatalogEntry',
-    (pieceId) => {
-      const catalogEntry = BACKGROUND_CATALOG[pieceId];
-      const sprite = BACKGROUND_PALETTE_SPRITES[pieceId];
+  it.each(ALL_MATERIALS)('%s-hasASpriteSpecMatchingItsIsolatedAtlasEntry', (material) => {
+    const atlasEntry = backgroundAtlasCell(material, 0);
+    const sprite = BACKGROUND_PALETTE_SPRITES[material];
 
-      expect(sprite.sheet).toBe(TERRAIN_BACKGROUND_SHEET.src);
-      expect(sprite.sheetWidth).toBe(128);
-      expect(sprite.sheetHeight).toBe(320);
-      expect(sprite.sx).toBe(catalogEntry.sx);
-      expect(sprite.sy).toBe(catalogEntry.sy);
-      expect(sprite.frameWidth).toBe(catalogEntry.widthTiles * 16);
-      expect(sprite.frameHeight).toBe(catalogEntry.heightTiles * 16);
-    },
-  );
+    expect(sprite.sheet).toBe(BACKGROUND_TILES_SHEET.src);
+    expect(sprite.sheetWidth).toBe(73);
+    expect(sprite.sheetHeight).toBe(354);
+    expect(sprite.sx).toBe(atlasEntry.sx);
+    expect(sprite.sy).toBe(atlasEntry.sy);
+    expect(sprite.frameWidth).toBe(16);
+    expect(sprite.frameHeight).toBe(16);
+  });
 
-  it.each(Object.keys(BACKGROUND_CATALOG) as BackgroundPieceId[])('%s-hasANonEmptyLabel', (pieceId) => {
-    expect(BACKGROUND_PALETTE_LABELS[pieceId].length).toBeGreaterThan(0);
+  it.each(ALL_MATERIALS)('%s-hasANonEmptyLabel', (material) => {
+    expect(BACKGROUND_PALETTE_LABELS[material].length).toBeGreaterThan(0);
   });
 });
 
 describe('BACKGROUND_PALETTE_SECTIONS', () => {
-  const allIds = Object.keys(BACKGROUND_CATALOG) as BackgroundPieceId[];
-
-  it('membership-isTotalAndDisjointOverTheCatalog', () => {
-    const listed = BACKGROUND_PALETTE_SECTIONS.flatMap((section) => section.pieceIds);
-    expect([...listed].sort()).toEqual([...allIds].sort());
+  it('membership-isTotalAndDisjointOverTheMaterialSet', () => {
+    const listed = BACKGROUND_PALETTE_SECTIONS.flatMap((section) => section.materialIds);
+    expect([...listed].sort()).toEqual([...ALL_MATERIALS].sort());
     expect(new Set(listed).size).toBe(listed.length);
   });
 
-  it('surfaceSection-holdsEveryDirtPieceAndNoCharcoalPiece', () => {
+  it('surfaceSection-holdsExactlyTheSurfaceFamilyMaterials', () => {
     const surface = BACKGROUND_PALETTE_SECTIONS.find((section) => section.title === 'Surface');
     expect(surface).toBeDefined();
-    for (const pieceId of allIds.filter((id) => id.startsWith('dirt'))) {
-      expect(surface!.pieceIds).toContain(pieceId);
+    for (const material of ALL_MATERIALS) {
+      expect(surface!.materialIds.includes(material)).toBe(
+        BACKGROUND_MATERIAL_FAMILY[material] === 'surface',
+      );
     }
-    expect(surface!.pieceIds.some((id) => id.startsWith('charcoal'))).toBe(false);
   });
 
-  it('caveSection-holdsEveryCharcoalPieceAndNoDirtPiece', () => {
+  it('caveSection-holdsExactlyTheCaveFamilyMaterials', () => {
     const cave = BACKGROUND_PALETTE_SECTIONS.find((section) => section.title === 'Cave');
     expect(cave).toBeDefined();
-    for (const pieceId of allIds.filter((id) => id.startsWith('charcoal'))) {
-      expect(cave!.pieceIds).toContain(pieceId);
+    for (const material of ALL_MATERIALS) {
+      expect(cave!.materialIds.includes(material)).toBe(
+        BACKGROUND_MATERIAL_FAMILY[material] === 'cave',
+      );
     }
-    expect(cave!.pieceIds.some((id) => id.startsWith('dirt'))).toBe(false);
   });
 
   it('sectionOrder-isStableSurfaceThenCave', () => {
     expect(BACKGROUND_PALETTE_SECTIONS.map((section) => section.title)).toEqual(['Surface', 'Cave']);
+  });
+});
+
+describe('BACKGROUND_MATERIAL_CHAR', () => {
+  it.each(ALL_MATERIALS)('%s-isTheInverseOfBackgroundChars', (material) => {
+    const char = BACKGROUND_MATERIAL_CHAR[material];
+    expect(BACKGROUND_CHARS[char]).toBe(material);
+  });
+
+  it('everyMaterial-hasExactlyOneChar', () => {
+    const chars = ALL_MATERIALS.map((material) => BACKGROUND_MATERIAL_CHAR[material]);
+    expect(new Set(chars).size).toBe(ALL_MATERIALS.length);
   });
 });

@@ -91,14 +91,14 @@ const palette = {
   queryTile(char: string) {
     return screen.queryByTestId(`editor-palette-tile-${char}`);
   },
-  backgroundTile(pieceId: string) {
-    return screen.getByTestId(`editor-palette-tile-${pieceId}`);
+  backgroundTile(material: string) {
+    return screen.getByTestId(`editor-palette-tile-${material}`);
   },
-  findBackgroundTile(pieceId: string) {
-    return screen.findByTestId(`editor-palette-tile-${pieceId}`);
+  findBackgroundTile(material: string) {
+    return screen.findByTestId(`editor-palette-tile-${material}`);
   },
-  queryBackgroundTile(pieceId: string) {
-    return screen.queryByTestId(`editor-palette-tile-${pieceId}`);
+  queryBackgroundTile(material: string) {
+    return screen.queryByTestId(`editor-palette-tile-${material}`);
   },
   blueprintTile(id: string) {
     return screen.getByTestId(`editor-palette-tile-blueprint-${id}`);
@@ -225,8 +225,8 @@ export const levelEditorPage = {
   async selectTool(char: string) {
     await userEvent.click(palette.tile(char));
   },
-  async selectBackgroundPiece(pieceId: string) {
-    await userEvent.click(palette.backgroundTile(pieceId));
+  async selectBackgroundMaterial(material: string) {
+    await userEvent.click(palette.backgroundTile(material));
   },
   async setLayer(layer: 'foreground' | 'background') {
     const target = layer === 'foreground' ? toolbar.layerForeground : toolbar.layerBackground;

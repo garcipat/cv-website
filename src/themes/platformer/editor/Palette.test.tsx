@@ -3,9 +3,9 @@ import { render, screen, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Palette } from './Palette';
 import { TERRAIN_CHARS, ENTITY_CHARS } from '../level/LevelParser';
-import { BACKGROUND_CATALOG } from '../engine/BackgroundCatalog';
+import { BACKGROUND_MATERIAL_FAMILY } from '../level/LevelData';
 import { BACKGROUND_PALETTE_LABELS } from './backgroundPaletteTiles';
-import type { BackgroundPieceId } from '../level/LevelData';
+import type { BackgroundMaterialId } from '../level/LevelData';
 import type { Blueprint } from '../level/BlueprintData';
 import { levelEditorPage } from './LevelEditorPage.page';
 
@@ -32,8 +32,8 @@ const defaultProps = {
   selectedTool: 'G' as const,
   onSelectTool: vi.fn(),
   activeLayer: 'foreground' as const,
-  selectedBackgroundPiece: null,
-  onSelectBackgroundPiece: vi.fn(),
+  selectedBackgroundMaterial: null,
+  onSelectBackgroundMaterial: vi.fn(),
 };
 
 describe('Palette', () => {
@@ -91,29 +91,29 @@ describe('Palette', () => {
 describe('Palette — layer tab', () => {
   it('foregroundLayerActive-showsTheExistingTerrainAndEntityButtonsOnly', () => {
     render(<Palette {...defaultProps} />);
-    expect(palette.queryBackgroundTile('dirtBlock3x3')).not.toBeInTheDocument();
+    expect(palette.queryBackgroundTile('dirt')).not.toBeInTheDocument();
   });
 
-  it('backgroundLayerActive-showsOneButtonPerCatalogPiece', () => {
+  it('backgroundLayerActive-showsOneButtonPerMaterial', () => {
     render(<Palette {...defaultProps} activeLayer="background" />);
-    for (const pieceId of Object.keys(BACKGROUND_CATALOG) as BackgroundPieceId[]) {
-      expect(palette.backgroundTile(pieceId)).toHaveAccessibleName(
-        BACKGROUND_PALETTE_LABELS[pieceId],
+    for (const material of Object.keys(BACKGROUND_MATERIAL_FAMILY) as BackgroundMaterialId[]) {
+      expect(palette.backgroundTile(material)).toHaveAccessibleName(
+        BACKGROUND_PALETTE_LABELS[material],
       );
     }
   });
 
-  it('clickingABackgroundPieceButton-callsOnSelectBackgroundPieceWithItsId', () => {
-    const onSelectBackgroundPiece = vi.fn();
+  it('clickingABackgroundMaterialButton-callsOnSelectBackgroundMaterialWithItsChar', () => {
+    const onSelectBackgroundMaterial = vi.fn();
     render(
       <Palette
         {...defaultProps}
         activeLayer="background"
-        onSelectBackgroundPiece={onSelectBackgroundPiece}
+        onSelectBackgroundMaterial={onSelectBackgroundMaterial}
       />,
     );
-    fireEvent.click(palette.backgroundTile('dirtColumnTop1x1'));
-    expect(onSelectBackgroundPiece).toHaveBeenCalledWith('dirtColumnTop1x1');
+    fireEvent.click(palette.backgroundTile('dirt'));
+    expect(onSelectBackgroundMaterial).toHaveBeenCalledWith('d');
   });
 });
 
@@ -316,32 +316,32 @@ describe('Palette — background layer sections', () => {
     expect(palette.group('cave')).toHaveTextContent('Cave');
   });
 
-  it('backgroundLayer-everyDirtPieceSitsInSurfaceAndEveryCharcoalPieceInCave', () => {
+  it('backgroundLayer-everyMaterialSitsInTheSectionMatchingItsFamily', () => {
     render(<Palette {...defaultProps} activeLayer="background" />);
     const surface = palette.group('surface');
     const cave = palette.group('cave');
 
-    for (const pieceId of Object.keys(BACKGROUND_CATALOG) as BackgroundPieceId[]) {
-      const section = pieceId.startsWith('dirt') ? surface : cave;
-      expect(within(section).getByTestId(`editor-palette-tile-${pieceId}`)).toBeInTheDocument();
+    for (const material of Object.keys(BACKGROUND_MATERIAL_FAMILY) as BackgroundMaterialId[]) {
+      const section = BACKGROUND_MATERIAL_FAMILY[material] === 'surface' ? surface : cave;
+      expect(within(section).getByTestId(`editor-palette-tile-${material}`)).toBeInTheDocument();
     }
   });
 
-  it('clickingAPieceInEitherSection-callsOnSelectBackgroundPieceWithItsId', () => {
-    const onSelectBackgroundPiece = vi.fn();
+  it('clickingAMaterialInEitherSection-callsOnSelectBackgroundMaterialWithItsChar', () => {
+    const onSelectBackgroundMaterial = vi.fn();
     render(
       <Palette
         {...defaultProps}
         activeLayer="background"
-        onSelectBackgroundPiece={onSelectBackgroundPiece}
+        onSelectBackgroundMaterial={onSelectBackgroundMaterial}
       />,
     );
 
-    fireEvent.click(palette.backgroundTile('dirtColumnTop1x1'));
-    fireEvent.click(palette.backgroundTile('charcoalColumnTop1x1'));
+    fireEvent.click(palette.backgroundTile('dirt'));
+    fireEvent.click(palette.backgroundTile('charcoal'));
 
-    expect(onSelectBackgroundPiece).toHaveBeenCalledWith('dirtColumnTop1x1');
-    expect(onSelectBackgroundPiece).toHaveBeenCalledWith('charcoalColumnTop1x1');
+    expect(onSelectBackgroundMaterial).toHaveBeenCalledWith('d');
+    expect(onSelectBackgroundMaterial).toHaveBeenCalledWith('c');
   });
 
   it('foregroundDecorationGroup-stillContainsTheTorchTile', () => {
