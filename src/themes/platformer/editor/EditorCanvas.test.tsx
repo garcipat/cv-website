@@ -11,7 +11,7 @@ import {
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import { centerPanOnSpawn } from './EditorPan';
 import { levelEditorPage } from './LevelEditorPage.page';
-import type { TileChar } from '../level/LevelParser';
+import type { TileChar, BackgroundChar } from '../level/LevelParser';
 import type { EditorImages } from './EditorCanvas';
 import { COIN_SHEET, STATIC_OBJECTS_SHEET } from '../entities/sprites/sheets';
 
@@ -47,7 +47,6 @@ import {
   drawHeldTorch,
 } from '../engine/Renderer';
 import { EDITOR_PREVIEW_DARKNESS } from './caveLightingPreview';
-import type { BackgroundPlacement } from '../level/LevelData';
 
 const EMPTY_IMAGES: EditorImages = {
   tileset: null,
@@ -71,9 +70,9 @@ const EMPTY_IMAGES: EditorImages = {
 // which predate the background layer and only care about the foreground):
 // the background layer stays inactive/empty so it doesn't affect them.
 const BACKGROUND_LAYER_DEFAULT_PROPS = {
-  backgroundPlacements: [],
+  backgroundGrid: [],
   activeLayer: 'foreground' as const,
-  selectedBackgroundPiece: null,
+  selectedBackgroundMaterial: null,
   onPaintBackground: () => {},
 };
 
@@ -1008,9 +1007,9 @@ describe('EditorCanvas — background layer', () => {
         selectedTool="."
         panOffset={{ x: 0, y: 0 }}
         images={EMPTY_IMAGES}
-        backgroundPlacements={[]}
+        backgroundGrid={[]}
         activeLayer="background"
-        selectedBackgroundPiece="dirtColumnTop1x1"
+        selectedBackgroundMaterial="d"
         onPaint={vi.fn()}
         onPaintBackground={onPaintBackground}
         onPan={vi.fn()}
@@ -1020,7 +1019,7 @@ describe('EditorCanvas — background layer', () => {
     const canvas = levelEditorPage.canvas;
     fireEvent.mouseDown(canvas, { clientX: 0, clientY: 0, button: 0 });
 
-    expect(onPaintBackground).toHaveBeenCalledWith([{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }]);
+    expect(onPaintBackground).toHaveBeenCalledWith([['d']]);
   });
 
   it('rightClickWithBackgroundLayerActive-callsOnPaintBackgroundWithThePlacementErased', () => {
@@ -1032,9 +1031,9 @@ describe('EditorCanvas — background layer', () => {
         selectedTool="."
         panOffset={{ x: 0, y: 0 }}
         images={EMPTY_IMAGES}
-        backgroundPlacements={[{ pieceId: 'dirtColumnTop1x1', col: 0, row: 0 }]}
+        backgroundGrid={[['d']]}
         activeLayer="background"
-        selectedBackgroundPiece={null}
+        selectedBackgroundMaterial={null}
         onPaint={vi.fn()}
         onPaintBackground={onPaintBackground}
         onPan={vi.fn()}
@@ -1044,7 +1043,7 @@ describe('EditorCanvas — background layer', () => {
     const canvas = levelEditorPage.canvas;
     fireEvent.mouseDown(canvas, { clientX: 0, clientY: 0, button: 2 });
 
-    expect(onPaintBackground).toHaveBeenCalledWith([]);
+    expect(onPaintBackground).toHaveBeenCalledWith([['.']]);
   });
 
   it('backgroundLayerActive-drawsForegroundTerrainAtReducedOpacity', () => {
@@ -1062,9 +1061,9 @@ describe('EditorCanvas — background layer', () => {
         selectedTool="."
         panOffset={{ x: 0, y: 0 }}
         images={{ ...EMPTY_IMAGES, tileset, groundAtlas }}
-        backgroundPlacements={[]}
+        backgroundGrid={[]}
         activeLayer="background"
-        selectedBackgroundPiece={null}
+        selectedBackgroundMaterial={null}
         onPaint={vi.fn()}
         onPaintBackground={vi.fn()}
         onPan={vi.fn()}
@@ -1109,9 +1108,9 @@ describe('EditorCanvas — background layer', () => {
         selectedTool="."
         panOffset={{ x: 0, y: 0 }}
         images={{ ...EMPTY_IMAGES, tileset, groundAtlas, staticObjects: fakeStaticObjects }}
-        backgroundPlacements={[]}
+        backgroundGrid={[]}
         activeLayer="foreground"
-        selectedBackgroundPiece={null}
+        selectedBackgroundMaterial={null}
         onPaint={vi.fn()}
         onPaintBackground={vi.fn()}
         onPan={vi.fn()}
@@ -1135,9 +1134,9 @@ describe('EditorCanvas — background layer', () => {
         selectedTool="."
         panOffset={{ x: 0, y: 0 }}
         images={{ ...EMPTY_IMAGES, tileset, groundAtlas, torch: fakeTorch }}
-        backgroundPlacements={[]}
+        backgroundGrid={[]}
         activeLayer="foreground"
-        selectedBackgroundPiece={null}
+        selectedBackgroundMaterial={null}
         onPaint={vi.fn()}
         onPaintBackground={vi.fn()}
         onPan={vi.fn()}
@@ -1166,9 +1165,9 @@ describe('EditorCanvas — background layer', () => {
         selectedTool="."
         panOffset={{ x: 0, y: 0 }}
         images={{ ...EMPTY_IMAGES, player }}
-        backgroundPlacements={[]}
+        backgroundGrid={[]}
         activeLayer="background"
-        selectedBackgroundPiece={null}
+        selectedBackgroundMaterial={null}
         onPaint={vi.fn()}
         onPaintBackground={vi.fn()}
         onPan={vi.fn()}
@@ -1566,9 +1565,7 @@ describe('EditorCanvas — placement preview (step 44c)', () => {
 });
 
 describe('EditorCanvas — cave lighting preview (O-015 US3)', () => {
-  const CAVE_BACKGROUND: BackgroundPlacement[] = [
-    { pieceId: 'charcoalBlock3x3', col: 0, row: 0 },
-  ];
+  const CAVE_BACKGROUND: BackgroundChar[][] = [['c']];
   const SPAWN_IN_CAVE_GRID: TileChar[][] = [
     ['.', '.', '¥'],
     ['.', 'S', 'P'],
@@ -1582,7 +1579,7 @@ describe('EditorCanvas — cave lighting preview (O-015 US3)', () => {
     panOffset: { x: 0, y: 0 },
     images: EMPTY_IMAGES,
     appearance: 'dark' as const,
-    backgroundPlacements: CAVE_BACKGROUND,
+    backgroundGrid: CAVE_BACKGROUND,
     onPaint: () => {},
     onPan: () => {},
     ...overrides,
@@ -1649,7 +1646,7 @@ describe('EditorCanvas — cave lighting preview (O-015 US3)', () => {
   it('canvas-whenDarkEvenWithNoCaveBackground-callsDrawDarkness', () => {
     stubCanvasContext();
 
-    render(<EditorCanvas {...previewProps({ backgroundPlacements: [] })} />);
+    render(<EditorCanvas {...previewProps({ backgroundGrid: [] })} />);
 
     expect(drawDarkness).toHaveBeenCalled();
   });

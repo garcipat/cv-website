@@ -15,8 +15,9 @@ import {
   BACKGROUND_PALETTE_SPRITES,
   BACKGROUND_PALETTE_LABELS,
   BACKGROUND_PALETTE_SECTIONS,
+  BACKGROUND_MATERIAL_CHAR,
 } from './backgroundPaletteTiles';
-import type { BackgroundPieceId } from '../level/LevelData';
+import type { BackgroundChar } from '../level/LevelParser';
 import { BLUEPRINTS } from '../level/blueprintRegistry';
 import { PaletteTile } from './PaletteTile';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -26,8 +27,8 @@ interface PaletteProps {
   selectedTool: TileChar;
   onSelectTool: (tool: TileChar) => void;
   activeLayer: 'foreground' | 'background';
-  selectedBackgroundPiece: BackgroundPieceId | null;
-  onSelectBackgroundPiece: (pieceId: BackgroundPieceId) => void;
+  selectedBackgroundMaterial: BackgroundChar | null;
+  onSelectBackgroundMaterial: (material: BackgroundChar) => void;
   /** Which canvas the palette is arming tools for. Optional and defaulting to
    *  `'level'` so every existing render site is unaffected; `'blueprint'`
    *  drops the Spawn tool (roadmap step 44a) and adds the Connection Point tool
@@ -88,8 +89,8 @@ export const Palette = ({
   selectedTool,
   onSelectTool,
   activeLayer,
-  selectedBackgroundPiece,
-  onSelectBackgroundPiece,
+  selectedBackgroundMaterial,
+  onSelectBackgroundMaterial,
   canvasMode = 'level',
   armedBlueprintId = null,
   onArmBlueprint,
@@ -203,14 +204,14 @@ export const Palette = ({
                 slug={section.title.toLowerCase()}
               >
                 <div className="grid grid-cols-[repeat(3,max-content)] gap-2">
-                  {section.pieceIds.map((pieceId) => (
+                  {section.materialIds.map((material) => (
                     <PaletteTile
-                      key={pieceId}
-                      label={BACKGROUND_PALETTE_LABELS[pieceId]}
-                      testId={`editor-palette-tile-${pieceId}`}
-                      sprite={BACKGROUND_PALETTE_SPRITES[pieceId]}
-                      selected={selectedBackgroundPiece === pieceId}
-                      onClick={() => onSelectBackgroundPiece(pieceId)}
+                      key={material}
+                      label={BACKGROUND_PALETTE_LABELS[material]}
+                      testId={`editor-palette-tile-${material}`}
+                      sprite={BACKGROUND_PALETTE_SPRITES[material]}
+                      selected={selectedBackgroundMaterial === BACKGROUND_MATERIAL_CHAR[material]}
+                      onClick={() => onSelectBackgroundMaterial(BACKGROUND_MATERIAL_CHAR[material])}
                     />
                   ))}
                 </div>

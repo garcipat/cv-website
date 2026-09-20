@@ -13,9 +13,12 @@ import {
   RENDER_SCALE,
   RENDERED_TILE_SIZE,
   verticalRunRole,
+  backgroundNeighbourMask,
 } from '../level/Terrain';
 import type { ChainAttachment } from '../level/Terrain';
 import { groundAtlasCell, grassCell, GRASS_SOURCE_HEIGHT } from './GroundAtlas';
+import { backgroundAtlasCell } from './BackgroundAtlas';
+import { backgroundRockEntry } from './BackgroundDecorCatalog';
 import {
   bushOrTreeEntry,
   staticObjectEntry,
@@ -35,8 +38,6 @@ import {
   LADDER_STEP_NATIVE_PX,
 } from './DeployableLadder';
 import type { DeployableLadderState } from './DeployableLadder';
-import type { GroundAtlasEntry } from './GroundAtlas';
-import { backgroundCatalogEntry } from './BackgroundCatalog';
 import type { LevelDef, TileType } from '../level/LevelData';
 import type { SignPlacement } from '../level/SignMapper';
 import {
@@ -472,16 +473,27 @@ export function drawEnemyEyes(
  * end-for-end, which is exactly why the isolated-tile cell `c0r0` uses one —
  * it puts that cell's bright end in the strip visible below the grass.
  */
-function drawGroundTile(
+/**
+ * Draws one atlas cell into a tile-sized cell, applying the entry's rotation
+ * about the cell's own centre — the shared rotation-aware draw both
+ * `drawTerrain` (ground tiles) and `drawBackgroundTiles` (O-014's background
+ * mass) use, since both index into a 16px-tile atlas the same way and only
+ * differ in which atlas image and lookup table they use. A quarter turn moves
+ * a border onto an adjacent edge (and would also swing a vertical brightness
+ * ramp sideways for `GroundAtlas`, so that caller only uses one on cells
+ * measured flat — see `GroundAtlas.ts`'s own doc comment); a half turn maps
+ * every edge onto its opposite.
+ */
+function drawRotatedTile(
   ctx: CanvasRenderingContext2D,
-  groundAtlas: HTMLImageElement,
-  entry: GroundAtlasEntry,
+  atlas: HTMLImageElement,
+  entry: { sx: number; sy: number; rotation: 0 | 1 | 2 | 3 },
   destX: number,
   destY: number,
 ): void {
   if (entry.rotation === 0) {
     ctx.drawImage(
-      groundAtlas, entry.sx, entry.sy, TILE_SIZE, TILE_SIZE,
+      atlas, entry.sx, entry.sy, TILE_SIZE, TILE_SIZE,
       destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
     );
     return;
@@ -492,7 +504,7 @@ function drawGroundTile(
   ctx.translate(destX + half, destY + half);
   ctx.rotate((entry.rotation * Math.PI) / 2);
   ctx.drawImage(
-    groundAtlas, entry.sx, entry.sy, TILE_SIZE, TILE_SIZE,
+    atlas, entry.sx, entry.sy, TILE_SIZE, TILE_SIZE,
     -half, -half, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
   );
   ctx.restore();
@@ -580,7 +592,7 @@ export function drawTerrain(
 
       if (tile === 'groundGrass') {
         const mask = neighbourMask(level, col, row);
-        drawGroundTile(ctx, groundAtlas, groundAtlasCell(mask), destX, destY);
+        drawRotatedTile(ctx, groundAtlas, groundAtlasCell(mask), destX, destY);
 
         if ((mask & NEIGHBOUR_UP) === 0) {
           const grass = grassCell(horizontalRunPosition(level, col, row, isGrassSurface));
@@ -817,10 +829,19 @@ export function drawDeployableLadders(
 }
 
 /**
- * Draws every placement in the level's purely-decorative background layer —
- * stone chunks anchored at their top-left cell, scaled from their catalog
- * source rect to RENDERED_TILE_SIZE. Same originX/originY convention as
- * drawTerrain. Levels with no `background` field draw nothing.
+ * Draws the level's purely-decorative autotiled background mass (O-014) —
+ * one atlas cell per non-empty background cell, same double-loop shape as
+ * `drawTerrain`, same `originX`/`originY` scroll convention. Levels with no
+ * `background` field draw nothing.
+ *
+ * For each non-empty cell: computes its same-material neighbour mask, looks
+ * up the atlas entry for that material/mask, and draws it via the shared
+ * `drawRotatedTile` helper. A cell whose material is a stale/unrecognized id
+ * would already have been filtered to `null` at load time (FR-012), so every
+ * cell reaching this loop resolves to a real atlas entry. On top of a fully
+ * interior cell (mask 15 — the one shape guaranteed to carry no border art a
+ * rock could overlap), also draws a deterministic rock decoration from the
+ * decorations sheet (FR-008), when one is loaded.
  */
 export function drawBackgroundTiles(
   ctx: CanvasRenderingContext2D,
@@ -828,22 +849,30 @@ export function drawBackgroundTiles(
   backgroundAtlas: HTMLImageElement,
   originX = 0,
   originY = 0,
+  decorations: HTMLImageElement | null = null,
 ): void {
-  const placements = level.background ?? [];
-  for (const placement of placements) {
-    const entry = backgroundCatalogEntry(placement.pieceId);
-    if (!entry) continue; // stale/unknown pieceId (e.g. from a pre-trim catalog) — skip, don't crash
-    ctx.drawImage(
-      backgroundAtlas,
-      entry.sx,
-      entry.sy,
-      entry.widthTiles * TILE_SIZE,
-      entry.heightTiles * TILE_SIZE,
-      placement.col * RENDERED_TILE_SIZE + originX,
-      placement.row * RENDERED_TILE_SIZE + originY,
-      entry.widthTiles * RENDERED_TILE_SIZE,
-      entry.heightTiles * RENDERED_TILE_SIZE,
-    );
+  const grid = level.background ?? [];
+  for (let row = 0; row < grid.length; row++) {
+    const gridRow = grid[row];
+    for (let col = 0; col < gridRow.length; col++) {
+      const material = gridRow[col];
+      if (material === null || material === undefined) continue;
+
+      const { x, y } = tileToPixel(col, row);
+      const destX = x + originX;
+      const destY = y + originY;
+      const mask = backgroundNeighbourMask(level, col, row);
+      const entry = backgroundAtlasCell(material, mask);
+      drawRotatedTile(ctx, backgroundAtlas, entry, destX, destY);
+
+      if (decorations && mask === 15) {
+        const rock = backgroundRockEntry(col, row);
+        ctx.drawImage(
+          decorations, rock.sx, rock.sy, TILE_SIZE, TILE_SIZE,
+          destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
+        );
+      }
+    }
   }
 }
 

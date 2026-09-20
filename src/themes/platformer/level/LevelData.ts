@@ -65,39 +65,54 @@ export interface LevelDef {
   terrain: TileMap;
   width: number;
   height: number;
-  background?: BackgroundPlacement[];
+  background?: BackgroundGrid;
 }
 
 /**
- * The intrinsic family of a background piece — the single fact that decides
- * whether the piece darkens the view when the player stands on a cell it
- * covers (FR-001/FR-021). Declared here as the single source of truth;
- * `engine/BackgroundCatalog.ts` and `engine/Lighting.ts` import it rather than
- * re-declaring it.
- *
- * `dirt*` pieces are `'surface'` (they do not darken); `charcoal*` pieces are
- * `'cave'` (they do). There is deliberately no per-placement darkening flag.
+ * A named background material — an open set defined by the art sheet, not
+ * hardcoded to a fixed pair (see design.md's "Why materials are an open set,
+ * not a hardcoded pair"). Six materials ship: three `surface`, three `cave`.
  */
-export type BackgroundPieceFamily = 'surface' | 'cave';
+export type BackgroundMaterialId =
+  | 'dirt'
+  | 'rust'
+  | 'surfaceStone'
+  | 'charcoal'
+  | 'maroon'
+  | 'caveStone';
 
-export type BackgroundPieceId =
-  | 'dirtBlock3x3'
-  | 'dirtBlockTop2x1'
-  | 'dirtBlockBottom2x2'
-  | 'dirtColumnTop1x1'
-  | 'dirtColumnBottom1x2'
-  | 'charcoalBlock3x3'
-  | 'charcoalBlockTop2x1'
-  | 'charcoalBlockBottom2x2'
-  | 'charcoalColumnTop1x1'
-  | 'charcoalColumnBottom1x2';
+/**
+ * The intrinsic family of a background material — the single fact that
+ * decides whether a cell darkens the view when the player stands on it
+ * (FR-002). Declared here as the single source of truth; `engine/Lighting.ts`
+ * imports it rather than re-declaring it. There is deliberately no per-cell
+ * darkening flag — family is intrinsic to the material, not the placement.
+ */
+export type BackgroundMaterialFamily = 'surface' | 'cave';
 
-/** One stone piece anchored at its top-left cell. Purely decorative — never
- *  read by collision/physics; only the renderer and the Level Editor
- *  consume it. See BackgroundCatalog.ts for each piece's pixel rect and
- *  tile footprint. */
-export interface BackgroundPlacement {
-  pieceId: BackgroundPieceId;
-  col: number;
-  row: number;
+/** Every material's intrinsic family (FR-002/FR-003). */
+export const BACKGROUND_MATERIAL_FAMILY: Record<BackgroundMaterialId, BackgroundMaterialFamily> = {
+  dirt: 'surface',
+  rust: 'surface',
+  surfaceStone: 'surface',
+  charcoal: 'cave',
+  maroon: 'cave',
+  caveStone: 'cave',
+};
+
+/** `BackgroundMaterialId` is a closed union, so unlike the old
+ *  `backgroundPieceFamily` this never needs to return `undefined` — every
+ *  grid cell is narrowed to the union (or `null`) before anything calls this
+ *  (see `BackgroundGrid` below and FR-012). */
+export function backgroundMaterialFamily(material: BackgroundMaterialId): BackgroundMaterialFamily {
+  return BACKGROUND_MATERIAL_FAMILY[material];
 }
+
+/**
+ * The background layer as a dense per-cell grid, one entry per terrain cell
+ * — `null` means empty (the parallax/void shows through), a material id means
+ * that cell is filled with that material (FR-001). Replaces the old freeform
+ * `BackgroundPlacement[]` entirely; no footprint, no anchor, every cell is
+ * independently addressable exactly like `TileMap`.
+ */
+export type BackgroundGrid = (BackgroundMaterialId | null)[][];

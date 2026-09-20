@@ -61,7 +61,7 @@ import { tileToPixel, RENDERED_TILE_SIZE } from './level/Terrain';
 import {
   SPAWN_TILE,
   currentLayout,
-  currentBackground,
+  currentBackgroundLayout,
   LEVEL_1_LAYOUT,
   LEVEL_1_BACKGROUND,
   ENEMY_TILES_PURPLE,
@@ -1075,11 +1075,23 @@ describe('checkpoint reset semantics', () => {
   });
 });
 
+/** A background `string[]` layout just big enough to hold a single material
+ *  character at `(col, row)`, everything else empty — mirrors the old
+ *  single-placement fixtures these darkness tests used before O-014's grid
+ *  rework (and its later storage-unification revision). */
+function singleCellBackground(material: 'charcoal' | 'dirt', col: number, row: number): string[] {
+  const char = material === 'charcoal' ? 'c' : 'd';
+  const rows: string[] = Array.from({ length: row + 1 }, () => '.'.repeat(col + 1));
+  rows[row] = rows[row].slice(0, col) + char + rows[row].slice(col + 1);
+  return rows;
+}
+
 describe('darkness', () => {
   afterEach(() => {
-    // currentBackground/darknessLevel are module-level; restoring them keeps
-    // this block from leaking a dark state into every other test in the file.
-    currentBackground.value = LEVEL_1_BACKGROUND;
+    // currentBackgroundLayout/darknessLevel are module-level; restoring them
+    // keeps this block from leaking a dark state into every other test in
+    // the file.
+    currentBackgroundLayout.value = LEVEL_1_BACKGROUND;
     darknessLevel.value = 0;
   });
 
@@ -1090,7 +1102,7 @@ describe('darkness', () => {
   it('tickDarkness-playerFootCellCoveredByACavePiece-risesTowardMaxDarkness', () => {
     // Arrange: cover the cell under the player's feet with a cave-family piece.
     const cell = playerOccupiedCell(playerState.value);
-    currentBackground.value = [{ pieceId: 'charcoalBlock3x3', col: cell.col, row: cell.row }];
+    currentBackgroundLayout.value = singleCellBackground('charcoal', cell.col, cell.row);
 
     // Act: two half-fades.
     tickDarkness(DARKNESS_FADE_SECONDS / 2);
@@ -1105,12 +1117,12 @@ describe('darkness', () => {
   it('tickDarkness-playerFootCellOnOpenGround-returnsTowardZero', () => {
     // Arrange: darken fully first.
     const cell = playerOccupiedCell(playerState.value);
-    currentBackground.value = [{ pieceId: 'charcoalBlock3x3', col: cell.col, row: cell.row }];
+    currentBackgroundLayout.value = singleCellBackground('charcoal', cell.col, cell.row);
     tickDarkness(DARKNESS_FADE_SECONDS);
     expect(darknessLevel.value).toBeCloseTo(MAX_DARKNESS);
 
     // Act: remove the cave piece and tick half a fade.
-    currentBackground.value = [];
+    currentBackgroundLayout.value = [];
     tickDarkness(DARKNESS_FADE_SECONDS / 2);
 
     // Assert
@@ -1119,7 +1131,7 @@ describe('darkness', () => {
 
   it('tickDarkness-surfaceBackground-neverDarkens', () => {
     const cell = playerOccupiedCell(playerState.value);
-    currentBackground.value = [{ pieceId: 'dirtBlock3x3', col: cell.col, row: cell.row }];
+    currentBackgroundLayout.value = singleCellBackground('dirt', cell.col, cell.row);
 
     tickDarkness(DARKNESS_FADE_SECONDS);
 
@@ -1128,7 +1140,7 @@ describe('darkness', () => {
 
   it('resetGame-calledWhileDark-setsDarknessBackToZero', () => {
     const cell = playerOccupiedCell(playerState.value);
-    currentBackground.value = [{ pieceId: 'charcoalBlock3x3', col: cell.col, row: cell.row }];
+    currentBackgroundLayout.value = singleCellBackground('charcoal', cell.col, cell.row);
     tickDarkness(DARKNESS_FADE_SECONDS);
     expect(darknessLevel.value).toBeCloseTo(MAX_DARKNESS);
 

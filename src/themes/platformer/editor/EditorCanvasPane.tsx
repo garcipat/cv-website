@@ -8,7 +8,7 @@ import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import { loadImage } from '../engine/SpriteLoader';
 import { CHECKPOINT_FLAG_SHEET } from '../entities/Checkpoint';
 import {
-  TERRAIN_BACKGROUND_SHEET,
+  BACKGROUND_TILES_SHEET,
   STATIC_OBJECTS_SHEET,
   DECORATIONS_SHEET,
   TORCH_SHEET,
@@ -23,8 +23,7 @@ import {
   type GrowthShift,
 } from './editorActions';
 import type { EditorAppearance, EditorLayer, PlacementSnapshot } from './editorState';
-import type { BackgroundPlacement, BackgroundPieceId } from '../level/LevelData';
-import type { TileChar } from '../level/LevelParser';
+import type { BackgroundChar, TileChar } from '../level/LevelParser';
 
 const EMPTY_IMAGES: EditorImages = {
   tileset: null,
@@ -55,7 +54,7 @@ const IMAGE_SOURCES: { key: keyof EditorImages; src: string }[] = [
   { key: 'crackOverlay', src: '/sprites/crack_overlay.png' },
   { key: 'chestClosed', src: '/sprites/chest_closed.png' },
   { key: 'checkpoint', src: CHECKPOINT_FLAG_SHEET.src },
-  { key: 'backgroundAtlas', src: TERRAIN_BACKGROUND_SHEET.src },
+  { key: 'backgroundAtlas', src: BACKGROUND_TILES_SHEET.src },
   { key: 'staticObjects', src: STATIC_OBJECTS_SHEET.src },
   { key: 'decorations', src: DECORATIONS_SHEET.src },
   { key: 'torch', src: TORCH_SHEET.src },
@@ -66,10 +65,10 @@ export interface EditorCanvasPaneProps {
   isBlueprintMode: boolean;
   appearance: EditorAppearance;
   grid: TileChar[][];
-  backgroundPlacements: BackgroundPlacement[];
+  backgroundGrid: BackgroundChar[][];
   selectedTool: TileChar;
   activeLayer: EditorLayer;
-  selectedBackgroundPiece: BackgroundPieceId | null;
+  selectedBackgroundMaterial: BackgroundChar | null;
   armedBlueprintId: string | null;
   centerRequestId: number;
   lastPlacementSnapshot: PlacementSnapshot | null;
@@ -85,10 +84,10 @@ export const EditorCanvasPane = ({
   isBlueprintMode,
   appearance,
   grid,
-  backgroundPlacements,
+  backgroundGrid,
   selectedTool,
   activeLayer,
-  selectedBackgroundPiece,
+  selectedBackgroundMaterial,
   armedBlueprintId,
   centerRequestId,
   lastPlacementSnapshot,
@@ -188,9 +187,9 @@ export const EditorCanvasPane = ({
         appearance={appearance}
         isBlueprintMode={isBlueprintMode}
         centerRequestId={centerRequestId}
-        backgroundPlacements={backgroundPlacements}
+        backgroundGrid={backgroundGrid}
         activeLayer={activeLayer}
-        selectedBackgroundPiece={selectedBackgroundPiece}
+        selectedBackgroundMaterial={selectedBackgroundMaterial}
         placement={
           placementActive
             ? {
