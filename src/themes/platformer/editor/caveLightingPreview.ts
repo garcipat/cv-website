@@ -11,7 +11,7 @@ import { synthesizePlayerState } from './gridRenderState';
  * from any light — at the game's full darkness the level would read as a black
  * rectangle. Preview-only; it never changes the in-game darkness (O-015 FR-016).
  */
-export const EDITOR_PREVIEW_DARKNESS = 0.86;
+export const EDITOR_PREVIEW_DARKNESS = 0.82;
 
 /**
  * The three inputs the engine's cave-lighting draw passes need for the
