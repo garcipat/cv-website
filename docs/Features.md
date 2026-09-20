@@ -46,8 +46,10 @@ graph RL
         O012["O-012: Bombs"]
         O013["✅ O-013: Wall Torches"]
         O014["O-014: Background Tile Rework"]
-        O015["O-015: Editor Dark Mode"]
+        O015["✅ O-015: Editor Dark Mode"]
         O016["✅ O-016: Editor UI Rework"]
+        O017["O-017: Merge Pots of Different Colors"]
+        O018["O-018: Bouncy Mushroom Blocks"]
     end
 
     F003 --> F002
@@ -114,7 +116,12 @@ graph RL
     O014 --> O003
     O015 --> O010
     O015 --> F019
+    O015 --> O016
+    O015 --> F012
     O016 --> F019
+
+    O017 --> O004
+    O018 --> F015
 
     classDef done stroke:#FFD600,stroke-width:3px
     classDef projectSetup fill:#1565C0,color:#ffffff
@@ -140,6 +147,8 @@ graph RL
     class O001 done
     class S005 done
     class F015,F016,F017,F018,S007,S008,S009,S010,O003,O004,O005,O008,O009,O013,O014 themes
+    class O017 themes
+    class O018 themes
     class F019,O006,O007,O010,O011,O012,O015,O016 enhancements
     class F015,F016,F017,F018,F019,S007,S008,S009,S010,O004,O005,O009 done
     class O013 done
@@ -147,6 +156,7 @@ graph RL
     class O011 done
     class O014 themes
     class O015 enhancements
+    class O015 done
     class O016 enhancements
     class O016 done
 ```

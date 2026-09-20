@@ -22,7 +22,7 @@ import {
   undoLastPlacement,
   type GrowthShift,
 } from './editorActions';
-import type { EditorLayer, PlacementSnapshot } from './editorState';
+import type { EditorAppearance, EditorLayer, PlacementSnapshot } from './editorState';
 import type { BackgroundPlacement, BackgroundPieceId } from '../level/LevelData';
 import type { TileChar } from '../level/LevelParser';
 
@@ -64,6 +64,7 @@ const IMAGE_SOURCES: { key: keyof EditorImages; src: string }[] = [
 
 export interface EditorCanvasPaneProps {
   isBlueprintMode: boolean;
+  appearance: EditorAppearance;
   grid: TileChar[][];
   backgroundPlacements: BackgroundPlacement[];
   selectedTool: TileChar;
@@ -82,6 +83,7 @@ export interface EditorCanvasPaneProps {
  */
 export const EditorCanvasPane = ({
   isBlueprintMode,
+  appearance,
   grid,
   backgroundPlacements,
   selectedTool,
@@ -183,6 +185,8 @@ export const EditorCanvasPane = ({
         selectedTool={selectedTool}
         panOffset={activePanOffset}
         images={images}
+        appearance={appearance}
+        isBlueprintMode={isBlueprintMode}
         centerRequestId={centerRequestId}
         backgroundPlacements={backgroundPlacements}
         activeLayer={activeLayer}

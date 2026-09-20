@@ -1,0 +1,100 @@
+/*
+ * The Level Editor's own light/dark palette (O-015).
+ *
+ * The editor presents its own appearance rather than inheriting the site-wide
+ * theme (`data-theme`), so this file pins the shadcn token values under
+ * `[data-editor-appearance='light' | 'dark']` on `<html>`. It is imported from
+ * `src/index.css` AFTER the per-theme files, so these blocks beat
+ * `[data-theme='…']` at equal specificity and the editor's palette is the same
+ * whichever visitor theme is selected (FR-004, SC-007).
+ *
+ * The dark block inlines the IDE theme's Catppuccin Mocha values as resolved
+ * literals on purpose — `var(--color-ctp-*)` is declared inside
+ * `[data-theme='ide']` and would resolve to nothing under any other theme.
+ * `--muted-foreground` uses subtext1 (#a6adc8), not the IDE theme's undefined
+ * `var(--color-ctp-subtext)`.
+ */
+
+[data-editor-appearance='light'] {
+  /* Background & Foreground — the platformer theme's daylight values */
+  --background: oklch(0.72 0.11 232);
+  --foreground: oklch(0.22 0.03 255);
+
+  /* Card */
+  --card: oklch(0.93 0.035 232);
+  --card-foreground: oklch(0.22 0.03 255);
+
+  /* Popover */
+  --popover: oklch(0.93 0.035 232);
+  --popover-foreground: oklch(0.22 0.03 255);
+
+  /* Primary — Mario-red accent */
+  --primary: oklch(0.6 0.19 25);
+  --primary-foreground: oklch(0.98 0 0);
+
+  /* Secondary — grass green */
+  --secondary: oklch(0.58 0.15 145);
+  --secondary-foreground: oklch(0.98 0 0);
+
+  /* Muted */
+  --muted: oklch(0.85 0.04 232);
+  --muted-foreground: oklch(0.4 0.03 255);
+
+  /* Accent — coin gold */
+  --accent: oklch(0.82 0.15 85);
+  --accent-foreground: oklch(0.22 0.03 255);
+
+  /* Destructive */
+  --destructive: oklch(0.6 0.2 25);
+  --destructive-foreground: oklch(0.98 0 0);
+
+  /* Border, Input, Ring */
+  --border: oklch(0.4 0.03 255 / 0.3);
+  --input: oklch(0.4 0.03 255 / 0.4);
+  --ring: oklch(0.6 0.19 25);
+
+  /* The canvas backdrop — the game's daylight sky. */
+  --editor-canvas-backdrop: oklch(0.72 0.11 232);
+}
+
+[data-editor-appearance='dark'] {
+  /* Background & Foreground — Catppuccin Mocha base/text */
+  --background: #1e1e2e;
+  --foreground: #cdd6f4;
+
+  /* Card — Mocha surface */
+  --card: #181825;
+  --card-foreground: #cdd6f4;
+
+  /* Popover — Mocha surface */
+  --popover: #181825;
+  --popover-foreground: #cdd6f4;
+
+  /* Primary — Mocha lavender */
+  --primary: #cba6f7;
+  --primary-foreground: #1e1e2e;
+
+  /* Secondary — Mocha surface */
+  --secondary: #181825;
+  --secondary-foreground: #cdd6f4;
+
+  /* Muted — Mocha surface with subtext1 text */
+  --muted: #181825;
+  --muted-foreground: #a6adc8;
+
+  /* Accent — Mocha lavender */
+  --accent: #cba6f7;
+  --accent-foreground: #1e1e2e;
+
+  /* Destructive — Mocha red */
+  --destructive: #f38ba8;
+  --destructive-foreground: #1e1e2e;
+
+  /* Border, Input, Ring */
+  --border: #6c7086;
+  --input: #6c7086;
+  --ring: #cba6f7;
+
+  /* The canvas backdrop — a deep desaturated navy, distinct from the chrome. */
+  --editor-canvas-backdrop: #0b1220;
+}

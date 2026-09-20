@@ -19,6 +19,7 @@ import { currentTheme } from '@/state/theme';
 import { navigateTo } from '@/state/navigation';
 import {
   editorActiveLayerSignal,
+  editorAppearanceSignal,
   editorArmedBlueprintIdSignal,
   editorBackgroundSignal,
   editorBlueprintBackgroundSignal,
@@ -35,6 +36,7 @@ import {
   editorSaveResultSignal,
   editorSelectedBackgroundPieceSignal,
   editorSelectedToolSignal,
+  type EditorAppearance,
   type EditorCanvasMode,
   type EditorLayer,
 } from './editorState';
@@ -130,6 +132,19 @@ export const reconcilePersistedEditorState = (): void => {
   if (editorCanvasModeSignal.value === 'blueprint' && editorArmedBlueprintIdSignal.value !== null) {
     editorArmedBlueprintIdSignal.value = null;
   }
+};
+
+// --- Appearance --------------------------------------------------------------
+
+/** Writes the editor's own light/dark appearance; the signal's subscription
+ *  persists it immediately (a single scalar, so no debounce). */
+export const setEditorAppearance = (appearance: EditorAppearance): void => {
+  editorAppearanceSignal.value = appearance;
+};
+
+/** Flips the editor's appearance between light and dark (O-015 FR-001). */
+export const toggleEditorAppearance = (): void => {
+  editorAppearanceSignal.value = editorAppearanceSignal.value === 'dark' ? 'light' : 'dark';
 };
 
 // --- Canvas ------------------------------------------------------------------
