@@ -2,6 +2,7 @@ import {
   ENEMY_RENDERED_SIZE,
   toEnemyState,
   reviveEnemy,
+  applyEnemyDamage,
   advanceEnemyAnimation,
   enemyRenderedSize,
   enemyTileOffsetX,
@@ -308,5 +309,39 @@ describe('reviveEnemy', () => {
     expect(revivedA.animFrame !== revivedB.animFrame || revivedA.animTimer !== revivedB.animTimer).toBe(
       true,
     );
+  });
+});
+
+describe('applyEnemyDamage', () => {
+  it('greenSlimeWithTwoDamage-dropsBelowZeroAndEntersTheHitReactionWithoutDyingYet', () => {
+    const enemy = toEnemyState(makePlacement());
+    expect(enemy.hitPoints).toBe(1);
+
+    const damaged = applyEnemyDamage(enemy, 2);
+
+    expect(damaged.hitPoints).toBe(-1);
+    expect(damaged.animState).toBe('hit');
+    expect(damaged.hitTimer).toBe(0);
+    // Defeat is stepEnemyHitReaction's decision, not this function's: the hit
+    // reaction must play first.
+    expect(damaged.alive).toBe(true);
+  });
+
+  it('purpleSlimeWithTwoDamage-leavesOneHitPointAndRunsTheTypesOnDamaged', () => {
+    const purple = toEnemyState({ ...makePlacement(), id: 'enemy-purple', type: 'slimePurple' });
+    expect(purple.hitPoints).toBe(3);
+
+    const damaged = applyEnemyDamage(purple, 2);
+
+    expect(damaged.hitPoints).toBe(1);
+    expect(damaged.animState).toBe('hit');
+    // SlimePurple's own onDamaged raises its temporary defense while alive.
+    expect('spiked' in damaged && damaged.spiked).toBe(true);
+  });
+
+  it('zeroOrNegativeDamage-isANoOpAndNeverRunsOnDamaged', () => {
+    const purple = toEnemyState({ ...makePlacement(), id: 'enemy-purple', type: 'slimePurple' });
+    expect(applyEnemyDamage(purple, 0)).toEqual(purple);
+    expect(applyEnemyDamage(purple, -1)).toEqual(purple);
   });
 });

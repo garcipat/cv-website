@@ -4909,6 +4909,10 @@ describe('PlatformerPage', () => {
         expect(placedBombs.value).toHaveLength(0);
         expect(activeExplosions.value.length).toBeGreaterThan(0);
         expect(playerState.value.hitPoints).toBe(MAX_HALF_HEARTS - 2);
+        // The blast knocks the character away and enters the shared `hit`
+        // sprite flash — the same knockback + red flash a side hit uses.
+        expect(playerState.value.animState).toBe('hit');
+        expect(Math.abs(playerState.value.vx)).toBe(PHYSICS_CONFIG.sideHitKnockbackVx);
       });
 
       it('aCharacterInTheBlastWhileInvincible-takesNoDamage', () => {
@@ -4962,6 +4966,29 @@ describe('PlatformerPage', () => {
         advance(60);
         expect(placedBombs.value[0].landed).toBe(true);
         expect(placedBombs.value[0].y).toBe(tileToPixel(2, 1).y);
+      });
+
+      it('aBombPlacedInMidAir-detonatesWhereItLandedNotWhereItWasPlaced', () => {
+        // Placed high at (2,0), the bomb falls to the floor at row 3.
+        currentLayout.value = ['S....', '.....', '.....', '.....', 'GGGGG'];
+        const advance = mountWithLoop();
+        // A crate beside the landing tile (3,3) is inside the blast centred on
+        // (2,3) but OUTSIDE one centred on the placement tile (2,0) — so its
+        // destruction proves the blast followed the bomb down.
+        const crate = injectBlock('crate', 3, 3, 'blast-landed-crate');
+        placedBombs.value = [
+          createPlacedBomb('bomb-landed', currentLevel.value, blockStates.value, 2, 0),
+        ];
+
+        advance(Math.ceil(BOMB_FUSE_SECONDS / 0.016) + 4);
+
+        const live = blockStates.value.find((b) => b.id === crate.id);
+        expect(live === undefined || live.hitsTaken >= 2).toBe(true);
+
+        // The explosion visual is centred on the landing tile too.
+        const explosion = activeExplosions.value[0];
+        expect(explosion.x).toBe(tileToPixel(2, 3).x + RENDERED_TILE_SIZE / 2);
+        expect(explosion.y).toBe(tileToPixel(2, 3).y + RENDERED_TILE_SIZE / 2);
       });
 
       it('aBombOnABridge-restsOnIt', () => {
@@ -5027,7 +5054,7 @@ describe('PlatformerPage', () => {
         expect(blockStates.value.find((b) => b.id === questionMark.id)?.hitsTaken).toBe(0);
       });
 
-      it('anEnemyInTheBlast-isDefeated', () => {
+      it('aGreenSlimeInTheBlast-isHitByTheBlastAndDiesAfterItsReaction', () => {
         currentLayout.value = ['S....', 'GGGGG'];
         const advance = mountWithLoop();
         const { x, y } = tileToPixel(1, 0);
@@ -5039,7 +5066,40 @@ describe('PlatformerPage', () => {
 
         advance(1);
 
+        // The blast triggers a hit rather than killing outright: the slime is
+        // mid-reaction, its single hit point taken by the 2-point blast.
+        const reacting = enemyStates.value.find((e) => e.id === 'blast-enemy');
+        expect(reacting?.animState).toBe('hit');
+        expect(reacting?.hitPoints).toBeLessThanOrEqual(0);
+
+        // Advance past the hit reaction (ENEMY_HIT_REACTION_SECONDS at ~0.016s/tick).
+        advance(30);
+
         expect(enemyStates.value.find((e) => e.id === 'blast-enemy')?.alive).toBe(false);
+      });
+
+      it('aPurpleSlimeInTheBlast-takesOnlyTwoHitPointsAndSurvives', () => {
+        currentLayout.value = ['S....', 'GGGGG'];
+        const advance = mountWithLoop();
+        const { x, y } = tileToPixel(1, 0);
+        enemyStates.value = [
+          ...enemyStates.value,
+          toEnemyState({ id: 'blast-purple', type: 'slimePurple', fact: undefined, x, y }),
+        ];
+        placeBombAboutToDetonate(0, 0, 'blast-purple-bomb');
+
+        advance(1);
+
+        // maxHitPoints 3, the blast deals 2 -> 1 left: it reacts, it does not die.
+        const reacting = enemyStates.value.find((e) => e.id === 'blast-purple');
+        expect(reacting?.hitPoints).toBe(1);
+        expect(reacting?.animState).toBe('hit');
+
+        advance(30);
+
+        const after = enemyStates.value.find((e) => e.id === 'blast-purple');
+        expect(after?.alive).toBe(true);
+        expect(after?.hitPoints).toBe(1);
       });
 
       it('aSecondPlacedBombInTheBlast-isUntouchedAndDoesNotChain', () => {

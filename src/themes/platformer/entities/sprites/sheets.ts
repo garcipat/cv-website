@@ -243,23 +243,11 @@ export const BOMB_SHEET: SpriteSheet = {
   columns: 6,
 };
 
-/** `explosion1.png` — a 432x48 strip of nine 48x48 frames (round fireball). */
-export const EXPLOSION_1_SHEET: SpriteSheet = {
-  src: '/sprites/explosion1.png',
-  frameWidth: 48,
-  frameHeight: 48,
-  columns: 9,
-};
-
-/** `explosion2.png` — a 384x48 strip of eight 48x48 frames (spiky/cartoonish). */
-export const EXPLOSION_2_SHEET: SpriteSheet = {
-  src: '/sprites/explosion2.png',
+/** `explosion.png` — a 384x48 strip of eight 48x48 frames: the spiky,
+ *  comic-style burst (the round-fireball candidate was dropped). */
+export const EXPLOSION_SHEET: SpriteSheet = {
+  src: '/sprites/explosion.png',
   frameWidth: 48,
   frameHeight: 48,
   columns: 8,
 };
-
-/** The active explosion sheet — both candidates are registered and loaded so
- *  swapping between them is this one line. Default: explosion2 (cartoonish),
- *  pending the in-engine comparison in quickstart.md. */
-export const EXPLOSION_SHEET: SpriteSheet = EXPLOSION_2_SHEET;

@@ -21,6 +21,7 @@ import {
   drawBombPickups,
   drawPlacedBombs,
   drawExplosions,
+  EXPLOSION_DRAW_SCALE,
   drawHealAuraEffects,
   drawHazards,
   drawKeyCounter,
@@ -2789,7 +2790,7 @@ describe('drawPlacedBombs', () => {
 });
 
 describe('drawExplosions', () => {
-  it('drawsTheActiveSheetFrameAtDoubleScaleCentredOnTheBlast', () => {
+  it('drawsTheActiveSheetFrameAtTheEnlargedScaleCentredOnTheBlast', () => {
     const ctx = makeMockContext();
     const dc = makeDrawContext(ctx, { worldElapsed: 0 });
     const effect = startExplosionEffect('bomb-1', 80, 48);
@@ -2797,7 +2798,7 @@ describe('drawExplosions', () => {
     drawExplosions(ctx, [effect], dc);
 
     const { sx, sy } = frameSource(EXPLOSION_SHEET, explosionFrameIndex(effect));
-    const size = EXPLOSION_SHEET.frameWidth * 2;
+    const size = EXPLOSION_SHEET.frameWidth * 2 * EXPLOSION_DRAW_SCALE;
     expect(ctx.drawImage).toHaveBeenCalledWith(
       dc.sprites[EXPLOSION_SHEET.src],
       sx,

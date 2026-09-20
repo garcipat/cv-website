@@ -138,7 +138,7 @@ import {
 import { coinFrameSource, COIN_FRAME_SIZE } from './entities/Coin';
 import { fruitFrameSource, FRUIT_FRAME_SIZE } from './entities/Fruit';
 import { createRewardReveal } from './engine/RewardReveal';
-import { RENDERED_TILE_SIZE, tileToPixel } from './level/Terrain';
+import { RENDERED_TILE_SIZE } from './level/Terrain';
 import {
   advancePlayerAnimation,
   updatePlayerAnimState,
@@ -155,7 +155,7 @@ import {
 import type { BlockContact } from './entities/Player';
 import { strongerBounce } from './engine/Outcome';
 import { isInvulnerable } from './entities/capabilities';
-import { advanceEnemyAnimation, enemyEffectAnchor } from './entities/Enemy';
+import { advanceEnemyAnimation, applyEnemyDamage, enemyEffectAnchor } from './entities/Enemy';
 import {
   SLIME_GREEN_SHEET,
   KEY_SHEET,
@@ -1941,9 +1941,14 @@ export const PlatformerPage = () => {
         // blasts overlap in one tick (FR-021/edge case).
         let bombDamagedPlayerThisTick = false;
         for (const bomb of detonatingBombs) {
+          // A bomb can fall after placement, so the blast is centred on where
+          // it actually is now — its current tile — not where it was placed
+          // (FR-015/FR-018).
+          const bombCol = Math.round(bomb.x / RENDERED_TILE_SIZE);
+          const bombRow = Math.round(bomb.y / RENDERED_TILE_SIZE);
           const tiles = blastTiles(
-            bomb.col,
-            bomb.row,
+            bombCol,
+            bombRow,
             currentLevel.value.width,
             currentLevel.value.height,
           );
@@ -1966,14 +1971,17 @@ export const PlatformerPage = () => {
             }
           }
 
-          // Enemies in the blast are marked defeated; the existing
-          // `justDefeated` pipeline pays their reward/drop/puff — exactly as
-          // a stomp does (FR-020).
+          // Enemies in the blast take BOMB_DAMAGE hit points through the
+          // shared hit pipeline — a `hit` reaction, then the existing
+          // `justDefeated` pipeline pays their reward/drop/puff once the
+          // reaction finishes if they were finished off. The same shape a
+          // stomp takes, but more than one point, so a tougher enemy survives
+          // a blast (FR-020).
           const blastedEnemies = enemiesInBlast(enemyStates.value, tiles, RENDERED_TILE_SIZE);
           if (blastedEnemies.length > 0) {
             const blastEnemyIds = new Set(blastedEnemies.map((e) => e.id));
             enemyStates.value = enemyStates.value.map((e) =>
-              blastEnemyIds.has(e.id) ? { ...e, hitPoints: 0, alive: false } : e,
+              blastEnemyIds.has(e.id) ? applyEnemyDamage(e, BOMB_DAMAGE) : e,
             );
           }
 
@@ -1987,29 +1995,45 @@ export const PlatformerPage = () => {
           ) {
             const hitPoints = takeDamage(next.hitPoints, BOMB_DAMAGE);
             next = { ...next, hitPoints, alive: hitPoints > 0 };
-            // A blast has no single side to knock back from, so this opens the
-            // shared invincibility window without a directional push.
-            next = beginHitReaction(next);
+            // A blast has no single contact side, so the push direction is
+            // derived from the character's position relative to the bomb's
+            // centre — away from it. This is the same knockback + `hit` sprite
+            // flash a side hit uses, not the blink-only pit-fall reaction
+            // (FR-021).
+            const bombCenterX = bomb.x + RENDERED_TILE_SIZE / 2;
+            const knockbackDirection: -1 | 1 =
+              next.x + PLAYER_RENDERED_SIZE / 2 <= bombCenterX ? -1 : 1;
+            next = applyKnockback(
+              next,
+              knockbackDirection,
+              PHYSICS_CONFIG.sideHitKnockbackVx,
+              PHYSICS_CONFIG.sideHitKnockbackDuration,
+            );
             bombDamagedPlayerThisTick = true;
             if (hitPoints > 0) {
               const playerCenterX = next.x + PLAYER_RENDERED_SIZE / 2 + originX;
               const playerCenterY = next.y + PLAYER_VISUAL_CENTER_Y_OFFSET + originY;
               activeHitSplatters.value = [
                 ...activeHitSplatters.value,
-                startPlayerHitSplatter(`bomb-${bomb.id}`, playerCenterX, playerCenterY, 0),
+                startPlayerHitSplatter(
+                  `bomb-${bomb.id}`,
+                  playerCenterX,
+                  playerCenterY,
+                  knockbackDirection === 1 ? -1 : 1,
+                ),
               ];
             }
           }
 
-          // The explosion is purely cosmetic, centred on the bomb's own tile
-          // (FR-023). Never a hazard: the effects above resolved once, here.
-          const tileCenter = tileToPixel(bomb.col, bomb.row);
+          // The explosion is purely cosmetic, centred on the bomb's current
+          // position — where it actually is when the fuse expires (FR-023).
+          // Never a hazard: the effects above resolved once, here.
           activeExplosions.value = [
             ...activeExplosions.value,
             startExplosionEffect(
               bomb.id,
-              tileCenter.x + RENDERED_TILE_SIZE / 2,
-              tileCenter.y + RENDERED_TILE_SIZE / 2,
+              bomb.x + RENDERED_TILE_SIZE / 2,
+              bomb.y + RENDERED_TILE_SIZE / 2,
             ),
           ];
         }
@@ -2278,10 +2302,9 @@ export const PlatformerPage = () => {
         // Deployable ladders simply won't render if this sheet fails to load;
         // the rest of the level still shows.
       });
-    // The active explosion sheet is no type's primary sprite, so — like
+    // The explosion sheet is no type's primary sprite, so — like
     // crack_overlay.png — it stays a hand-listed load rather than being
-    // discovered through a registry walk. Both explosion candidates are
-    // registered; `EXPLOSION_SHEET` selects the one loaded and drawn.
+    // discovered through a registry walk.
     loadImage(EXPLOSION_SHEET.src)
       .then((img) => {
         if (cancelled) return;

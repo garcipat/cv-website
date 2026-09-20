@@ -32,7 +32,7 @@ story is independently implementable and testable.
 
 **Purpose**: Confirm the authored assets and a green baseline before touching code.
 
-- [X] T001 Verify the three authored sprite strips exist and match the spec's dimensions in `public/sprites/`: `bomb.png` (96×16, 6×16px frames), `explosion1.png` (432×48, 9×48px frames), `explosion2.png` (384×48, 8×48px frames); note the frame counts for the sheet registrations.
+- [X] T001 Verify the authored sprite strips exist and match the spec's dimensions in `public/sprites/`: `bomb.png` (96×16, 6×16px frames) and `explosion.png` (384×48, 8×48px frames); note the frame counts for the sheet registrations.
 - [X] T002 [P] Run the existing suite (`npm test`) and confirm a fully green baseline before any change.
 
 ---
@@ -43,7 +43,7 @@ story is independently implementable and testable.
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [X] T003 [P] Register the new sprite sheets in `src/themes/platformer/entities/sprites/sheets.ts`: `BOMB_SHEET` (`/sprites/bomb.png`, 16×16, 6 columns), `EXPLOSION_1_SHEET` (48×48, 9 columns), `EXPLOSION_2_SHEET` (48×48, 8 columns) and `EXPLOSION_SHEET = EXPLOSION_2_SHEET` (the one-line swap point); add a registration assertion to `src/themes/platformer/entities/sprites/SpriteSheet.test.ts`.
+- [X] T003 [P] Register the new sprite sheets in `src/themes/platformer/entities/sprites/sheets.ts`: `BOMB_SHEET` (`/sprites/bomb.png`, 16×16, 6 columns) and `EXPLOSION_SHEET` (`/sprites/explosion.png`, 48×48, 8 columns); add a registration assertion to `src/themes/platformer/entities/sprites/SpriteSheet.test.ts`.
 - [X] T004 [P] Widen the block kind unions with `'bombPot'`: `BlockKind` in `src/themes/platformer/entities/Block.ts` and `BlockDef['blockKind']` in `src/themes/platformer/types.ts`.
 - [X] T005 Extend `src/themes/platformer/level/LevelParser.ts`: add `'bombPot'` to `EntityKind`, `ENTITY_CHARS.b = 'bombPot'`, `SIGN_CHARS['6'] = 'bomb'`, `'b' | '6'` to `TileChar`, and `findBombPotTiles`; extend `src/themes/platformer/level/LevelParser.test.ts` (char mapping, `findBombPotTiles`, and the `TileChar`-sync assertion covering `b`/`6`).
 - [X] T006 Extend `src/themes/platformer/level/BlockMapper.ts`: add `bombPot?: readonly { col: number; row: number }[]` to `BlockMarkerPositions` and emit `bombpot-${col}-${row}` placements in `placeBlocks`; extend `src/themes/platformer/level/BlockMapper.test.ts`.
@@ -87,18 +87,18 @@ story is independently implementable and testable.
 
 ## Phase 4: User Story 2 - Place a Bomb and Get Clear (Priority: P1)
 
-**Goal**: `B` places a carried bomb at the character's feet; its fuse lights and pulses, it falls if placed in mid-air, and after ~2 s it detonates in a 3×3 burst that damages a character still in the blast.
+**Goal**: `B` places a carried bomb at the character's feet; its fuse lights and pulses, it falls if placed in mid-air, and after ~2 s it detonates in a rounded 5×5 burst that damages a character still in the blast.
 
 **Independent Test**: Carry a bomb, place it, verify a bomb appears at the character's tile, the fuse animation plays with an accelerating pulse, it detonates after the fuse duration, and a character still in the blast loses 2 hitpoints (a full heart).
 
 ### Tests for User Story 2 (write first, confirm they FAIL) ⚠️
 
 - [X] T024 [P] [US2] Write failing tests for `src/themes/platformer/engine/PlacedBomb.test.ts`: `bombLandingRow` (bridge stops a bomb, ladder is open air, `landingRow === row` when the cell below is solid, `null` when no floor), gravity/fuse stepping (monotonic `y`, snap on landing, `fuseElapsed += dt` even while falling, `dt <= 0` no-op, no input mutation), `checkBombFellOut`, `bombFuseFrame` over the whole fuse (never frame 0, sequence `[1,2,3,4,5,4,5,4,5]`, only frame 5 scaled by `BOMB_PULSE_SCALE`, ends on 5), and `hasDetonated` before/at `BOMB_FUSE_SECONDS`.
-- [X] T025 [P] [US2] Write failing tests for `src/themes/platformer/engine/Blast.test.ts`: `blastTiles` (full 9 interior, clipped to bounds at edges/corners, always 1–9 distinct in-bounds), `blocksInBlast` (only live `removeWhenUsedUp` blocks; excludes question-mark, terrain and used-up), `enemiesInBlast` (alive box overlap; excludes dead/outside), and `playerInBlast` (hitbox overlap true/false).
+- [X] T025 [P] [US2] Write failing tests for `src/themes/platformer/engine/Blast.test.ts`: `blastTiles` (full 21 rounded interior, corners cut, clipped to bounds at edges/corners, always 1–21 distinct in-bounds), `blocksInBlast` (only live `removeWhenUsedUp` blocks; excludes question-mark, terrain and used-up), `enemiesInBlast` (alive box overlap; excludes dead/outside), and `playerInBlast` (hitbox overlap true/false).
 - [X] T026 [P] [US2] Extend `src/themes/platformer/engine/CollectionEffects.test.ts` with the explosion effect: `startExplosionEffect`, `tickExplosionEffect` advancing `elapsed`, `explosionFrameIndex` playing each frame once in order and clamping, and expiry at `EXPLOSION_DURATION_SECONDS`.
 - [X] T027 [US2] Extend `src/themes/platformer/engine/Renderer.test.ts` for `drawPlacedBombs` (frame from `bombFuseFrame`, scaled about the tile centre, drawn at the current falling `y`, never frame 0) and `drawExplosions` (`EXPLOSION_SHEET` frame at `renderScale 2`, centred on the blast).
 - [X] T028 [P] [US2] Extend `src/themes/platformer/engine/Input.test.ts` to assert `'KeyB'` is in the suppressed game keys and edge-triggers once per press via `consumePress`.
-- [X] T029 [US2] Write failing integration tests in `src/themes/platformer/PlatformerPage.test.tsx`: `B` with `carriedBombs > 0` places one bomb in the player's feet tile and decrements the count by one; the bomb's fuse plays the fixed frame order; it detonates after `BOMB_FUSE_SECONDS`; a character in the blast takes 2 hitpoints, and none while invincible; entering the 3×3 area one tick after detonation, while the explosion frames still play, deals no damage (FR-023); a bomb placed in mid-air falls and rests on the first solid surface; a bomb on a bridge rests on it; a bomb on a ladder tile falls; a bomb over a bottomless column is removed without exploding.
+- [X] T029 [US2] Write failing integration tests in `src/themes/platformer/PlatformerPage.test.tsx`: `B` with `carriedBombs > 0` places one bomb in the player's feet tile and decrements the count by one; the bomb's fuse plays the fixed frame order; it detonates after `BOMB_FUSE_SECONDS`; a character in the blast takes 2 hitpoints, and none while invincible; entering the rounded 5×5 area one tick after detonation, while the explosion frames still play, deals no damage (FR-023); a bomb placed in mid-air falls and rests on the first solid surface; a bomb on a bridge rests on it; a bomb on a ladder tile falls; a bomb over a bottomless column is removed without exploding.
 - [X] T030 [US2] Write failing onboarding tests in `src/themes/platformer/PlatformerPage.test.tsx`: the shipped level contains a `6` sign beside the `b` pot whose tooltip names the `B` key (and a `b` pot), and `ControlsOverlay` renders no bomb keycap/caption (SC-014).
 
 ### Implementation for User Story 2
@@ -117,9 +117,9 @@ story is independently implementable and testable.
 
 ## Phase 5: User Story 3 - The Blast Clears the Way (Priority: P1)
 
-**Goal**: The detonation destroys destructible blocks in the 3×3 area (revealing their facts/drops) and defeats enemies in it (with their normal reward), leaving terrain, static objects, loose pickups and other bombs untouched.
+**Goal**: The detonation destroys destructible blocks in the rounded 5×5 area (revealing their facts/drops) and defeats enemies in it (with their normal reward), leaving terrain, static objects, loose pickups and other bombs untouched.
 
-**Independent Test**: Detonate a bomb whose 3×3 area contains a crate, a fragile rock and an enemy; verify the blocks are destroyed (and their facts revealed) and the enemy is defeated with its normal reward.
+**Independent Test**: Detonate a bomb whose rounded 5×5 area contains a crate, a fragile rock and an enemy; verify the blocks are destroyed (and their facts revealed) and the enemy is defeated with its normal reward.
 
 ### Tests for User Story 3 (write first, confirm they FAIL) ⚠️
 
@@ -197,7 +197,7 @@ story is independently implementable and testable.
 - [X] T049 [P] Update `docs/Features.md` per the completion-tracking convention: prefix the `O012` node label with `✅ ` (`O012["✅ O-012: Bombs"]`) and add `class O012 done` alongside its existing category class.
 - [X] T050 [P] Run the full automated suite (`npm test`) plus lint and production build; confirm all new and existing tests pass and the build is clean.
 - [ ] T051 Run the `quickstart.md` manual browser validation end to end (`npm run dev`, `/platformer` and `/platformer/editor`) — every scenario in sections 1–9, including the pause freeze and Reset Game clearing.
-- [ ] T052 Choose the explosion sheet by the in-engine comparison in `quickstart.md` §10: detonate with the default `EXPLOSION_SHEET = EXPLOSION_2_SHEET`, swap the single constant in `src/themes/platformer/entities/sprites/sheets.ts` to `EXPLOSION_1_SHEET`, compare, and keep the better fit (the other stays registered but unused).
+- [X] T052 Explosion choice made: the comic-style `explosion.png` (8 × 48×48) is the single explosion sheet; the round-fireball candidate was dropped. `EXPLOSION_DRAW_SCALE` (1.5) draws it larger than the native frame.
 
 ---
 

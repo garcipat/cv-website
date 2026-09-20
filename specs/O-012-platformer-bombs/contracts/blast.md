@@ -1,4 +1,4 @@
-# Contract: `engine/Blast.ts` (pure 3×3 blast area and target selection)
+# Contract: `engine/Blast.ts` (pure rounded 5×5 blast area and target selection)
 
 A **pure, canvas-free, DOM-free** module: it decides *what* a detonation affects,
 never *how* the effects are applied (that stays in `PlatformerPage.tsx`, reusing
@@ -17,10 +17,10 @@ export interface BlastTile {
 
 ### `blastTiles(col, row, width, height): BlastTile[]`
 
-- Returns the 3×3 block of cells centred on `(col, row)` — columns
-  `col - 1 … col + 1`, rows `row - 1 … row + 1` — clipped to
-  `0 <= c < width`, `0 <= r < height` (FR-018).
-- Between 1 and 9 tiles; never empty; never out of bounds.
+- Returns the rounded 5×5 block of cells centred on `(col, row)` — columns
+  `col - 2 … col + 2`, rows `row - 2 … row + 2`, minus the four corner tiles
+  (`(±2, ±2)`) — clipped to `0 <= c < width`, `0 <= r < height` (FR-018).
+- Between 1 and 21 tiles; never empty; never out of bounds.
 - Pure; no side effects.
 
 ### `blocksInBlast(blocks, tiles): BlockState[]`
@@ -69,8 +69,9 @@ The module only selects; the page applies, once, at detonation:
 
 ## Invariants (asserted by `Blast.test.ts`)
 
-1. `blastTiles` always returns 1–9 in-bounds, distinct tiles, and the full 9 when
-   the centre is at least one tile from every edge.
+1. `blastTiles` always returns 1–21 in-bounds, distinct tiles, and the full 21
+   when the centre is at least two tiles from every edge (the four corners are
+   always cut).
 2. `blocksInBlast` includes only live, `removeWhenUsedUp` blocks; a
    question-mark, terrain and a used-up block are excluded.
 3. `enemiesInBlast` includes an enemy whose box overlaps any blast tile and

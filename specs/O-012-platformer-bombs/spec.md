@@ -9,15 +9,15 @@
 
 The platformer's third pot kind: a **blue bomb pot**. Landing on it shatters it and yields a
 **bomb**, which the character carries. The character can **place** a carried bomb at its feet; the
-placed bomb lights its fuse, pulses as it nears detonation, and then **explodes** in a 3×3 burst
-that destroys destructible blocks, defeats enemies and hurts the character if it is still in the
+placed bomb lights its fuse, pulses as it nears detonation, and then **explodes** in a rounded 5×5 burst
+that destroys destructible blocks, damages enemies and hurts the character if it is still in the
 blast.
 
 This builds directly on [O-017](../O-017-merge-mixed-pots/spec.md)'s shared pot abstraction: the
 bomb pot is one more `createPotType` kind that declares only its key, sprite, drop, drop policy,
 respawn flag and single-pot draw, and merges into a bunch with coin and potion pots with no new
 merge code. What is genuinely new is everything **downstream of the pot**: a bomb pickup, a carried
-count, a place-bomb input, a ticking placed bomb, and a 3×3 explosion.
+count, a place-bomb input, a ticking placed bomb, and a rounded 5×5 explosion.
 
 The feature is deliberately the **largest** interpretation of the idea (a carried and placed bomb
 rather than a pot that explodes in place), confirmed in clarification below.
@@ -30,11 +30,13 @@ rather than a pot that explodes in place), confirmed in clarification below.
   bomb.** Landing on the blue pot yields a bomb to the character's inventory; the character places
   it later with a dedicated input. The bomb is not the pot exploding in place, and is not thrown.
 - Q: What does the explosion affect? → A: **Destructible blocks, enemies and the character.**
-  Blocks in the blast are destroyed, enemies in the blast are defeated, and the character takes
-  **2 hitpoints (a full heart)** if it is caught in the blast (subject to the existing invincibility
-  window).
-- Q: What is the blast's shape/size, and do explosions chain? → A: **A 3×3 square centred on the
-  bomb, with no chain reactions.** A blast never detonates another placed bomb.
+  Blocks in the blast are destroyed; enemies in the blast take **2 hitpoints** through the shared hit
+  pipeline (a fatal hit then defeats them as usual); and the character takes **2 hitpoints (a full
+  heart)**, is knocked back away from the bomb and enters the `hit` flash, subject to the existing
+  invincibility window.
+- Q: What is the blast's shape/size, and do explosions chain? → A: **A rounded 5×5 area centred on
+  the bomb (the 5×5 square with its four corner tiles cut, 21 tiles), with no chain reactions.** A
+  blast never detonates another placed bomb.
 - Q: How does the character deploy a carried bomb? → A: **Place at the feet only.** A dedicated
   input places one bomb in the tile the character currently occupies; there is no throwing or
   aiming.
@@ -74,7 +76,7 @@ rather than a pot that explodes in place), confirmed in clarification below.
   solid surface below and rests there. Its fuse keeps ticking while it falls, and a bomb that falls
   out of the level is removed without exploding.
 - Q: Is blast damage tied to the explosion animation frames (e.g. only the full fireball hurts)? →
-  A: **No.** Damage, block destruction and enemy defeat all resolve **once, at the instant of
+  A: **No.** Damage, block destruction and enemy damage all resolve **once, at the instant of
   detonation**, independent of the drawn frame. The whole animation — including the small first frame
   and the trailing smoke — is purely visual, and the area is inert afterward (walking in during the
   fireball or smoke deals no damage). This avoids a per-frame damage window that would make "which
@@ -87,6 +89,18 @@ rather than a pot that explodes in place), confirmed in clarification below.
   placed there falls to the first solid surface below.
 - Q: What does the bomb HUD show at zero? → A: **Nothing** — the bomb HUD group is hidden while the
   carried count is 0 and appears once the count is at least 1.
+- Q: How large is the blast? → A: **A rounded 5×5 (radius 2)**: the 5×5 square with its four corner
+  tiles cut (21 tiles), centred on the bomb and clipped to the level bounds. This was widened from
+  the original 3×3 so the damage reaches the edges of the enlarged explosion burst, and the corners
+  are cut so the area reads round; the blast still affects only whole blocks (FR-018).
+- Q: Does the blast kill enemies outright? → A: **No.** It deals **2 hitpoints** through the normal
+  hit pipeline: the enemy enters its `hit` reaction and loses 2 hitpoints, and only a fatal hit
+  (hit points at or below zero once the reaction finishes) defeats it. A green slime (1 hit point)
+  dies; a purple slime (3 hit points) survives with 1. The character hit by the blast is likewise
+  knocked back away from the bomb and enters the `hit` flash.
+- Q: Where does a bomb that fell after placement explode? → A: **Where it is at detonation, not where
+  it was placed.** A bomb placed in mid-air falls to the first solid surface below, and both the blast
+  area and the explosion visual are centred on its current (landed) tile when the fuse expires.
 
 ## User Scenarios & Testing _(mandatory)_
 
@@ -118,7 +132,7 @@ exactly one.
 
 The visitor presses the place-bomb input. A bomb drops at the character's feet, its fuse lights, and
 it begins to pulse — small, then bigger, then small again — faster as detonation approaches. The
-visitor runs clear. A moment later it explodes in a 3×3 burst. A visitor who does not move in time
+visitor runs clear. A moment later it explodes in a rounded 5×5 burst. A visitor who does not move in time
 takes 2 hitpoints (a full heart) of damage.
 
 **Why this priority**: The placed bomb and its fuse are the feature's core interaction and its main
@@ -152,9 +166,9 @@ leaves behind whatever it would have left from a stomp.
 **Why this priority**: This is what makes the bomb useful: a tool that opens paths and clears
 threats, not just a hazard.
 
-**Independent Test**: Detonate a bomb whose 3×3 area contains a crate, a fragile rock and an enemy;
-verify the blocks are destroyed (and their facts revealed) and the enemy is defeated with its normal
-reward.
+**Independent Test**: Detonate a bomb whose rounded 5×5 area contains a crate, a fragile rock and an enemy;
+verify the blocks are destroyed (and their facts revealed) and the enemy takes 2 hitpoints — defeated
+with its normal reward once its hit reaction finishes if that hit was fatal.
 
 **Acceptance Scenarios**:
 
@@ -162,8 +176,10 @@ reward.
    is destroyed as if it had taken its final hit.
 2. **Given** a crate in the blast area, **When** it is destroyed, **Then** the facts it carried are
    revealed and counted exactly as a stomp/bump destruction would.
-3. **Given** an enemy in the blast area, **When** the bomb explodes, **Then** the enemy is defeated
-   and drops the same reward it drops when stomped.
+3. **Given** a green slime (1 hit point) in the blast area, **When** the bomb explodes, **Then** it
+   takes 2 hitpoints, plays its `hit` reaction, and is then defeated, dropping the same reward it
+   drops when stomped. A tougher enemy (a purple slime, 3 hit points) survives the same blast with
+   1 hit point left.
 4. **Given** terrain (ground, wall, bridge, ladder) or a static object in the blast area, **When**
    the bomb explodes, **Then** it is untouched.
 5. **Given** a pot in the blast area, **When** the bomb explodes, **Then** the pot is destroyed and
@@ -254,7 +270,7 @@ match the game's rendering, and verify no runtime bomb or explosion can be paint
   as soon as the count drops below the cap.
 - ✅ **Placing in mid-air**: the bomb falls under gravity to the first solid surface below and rests
   there; it is not left hanging in the air.
-- ✅ **A bomb at the level edge**: the 3×3 area is clipped to the level bounds; the missing cells
+- ✅ **A bomb at the level edge**: the rounded 5×5 area is clipped to the level bounds; the missing cells
   simply have no effect.
 - ✅ **A second bomb inside a blast**: it is unaffected — it neither detonates nor is removed; only its
   own fuse detonates it (no chain reactions).
@@ -267,7 +283,10 @@ match the game's rendering, and verify no runtime bomb or explosion can be paint
 - ✅ **A crate destroyed by a blast**: it reveals its facts exactly as a bump/stomp destruction does.
 - ✅ **A blast reaches a question-mark block**: it is untouched — a question-mark never leaves the
   world, so it is not a blast target (and no bonus fruit is spawned).
-- ✅ **An enemy destroyed by a blast**: it drops the same reward it drops when stomped.
+- ✅ **An enemy defeated by a blast**: a fatal 2-hitpoint blast drops the same reward a stomp does,
+  after the enemy's `hit` reaction finishes.
+- ✅ **A purple slime in a blast**: takes 2 of its 3 hit points and survives with 1, returning to its
+  patrol after the reaction.
 - ✅ **A bomb pot destroyed by a blast** (not by landing on it): it is destroyed and drops its bomb
   pickup, which can be collected.
 - ✅ **The character dies with a bomb mid-fuse**: the bomb is removed and never explodes.
@@ -344,26 +363,34 @@ match the game's rendering, and verify no runtime bomb or explosion can be paint
     default approximately **1.25×**.
   - Frame 0 (the unlit bomb) MUST NOT appear in the placed bomb's animation; it is used only as the
     HUD counter icon.
-- **FR-018**: On detonation, a bomb MUST explode in a **3×3 tile area** centred on its own tile,
-  clipped to the level bounds.
+- **FR-018**: On detonation, a bomb MUST explode in a **rounded 5×5 tile area** centred on the tile it
+  currently occupies — the 5×5 square with its four corner tiles cut (21 tiles), so the area reads
+  round — clipped to the level bounds. A bomb that fell after placement detonates at its current
+  (landed) tile, not where it was placed.
 - **FR-019**: The explosion MUST destroy every **destructible block** whose tile lies in its area,
   applying the block's terminal-hit outcome (facts revealed, pickups spawned, counter popups
   updated) exactly as a normal destruction would. A **destructible block** here means one that leaves
   the world when used up — a crate, a fragile rock, or any pot. A **question-mark block** never
   leaves the world, so it is **not** a blast target and is left untouched.
-- **FR-020**: The explosion MUST defeat every enemy overlapping its area, applying the same defeat
-  outcome (rewards and drops) as a stomp defeat.
+- **FR-020**: The explosion MUST deal **2 hitpoints** of damage to every enemy overlapping its area,
+  through the same hit pipeline a stomp uses: the enemy enters its `hit` reaction and its hit points
+  drop by 2. A hit that leaves the enemy at zero or fewer hit points then runs the existing defeat
+  path (rewards and drops) once the reaction finishes, exactly as a stomp defeat does. A tougher
+  enemy (more than 2 hit points) survives the blast with reduced hit points rather than being killed
+  outright.
 - **FR-021**: The explosion MUST damage the character if the character's hitbox overlaps its area,
   dealing **2 hitpoints (2 half-heart units, one full heart)** through the shared damage mechanism
-  and the shared post-damage invincibility window.
+  and the shared post-damage invincibility window. A blast has no single contact side, so it MUST
+  knock the character back **away from the bomb's centre** and enter the same `hit` sprite-flash
+  reaction a side hit uses (not the blink-only pit-fall reaction).
 - **FR-022**: The explosion MUST NOT destroy terrain or static objects (ground, wall, bridge,
   ladder, decorations, and so on).
 - **FR-023**: The explosion's destructive, defeating and damaging effects MUST resolve exactly once,
   at the instant of detonation, regardless of which animation frame is drawn. The chosen explosion
   sheet's frames MUST then play once, in order, as a purely visual effect that MUST NOT persist as a
-  hazard. The blast area is fully inert for the rest of the animation: entering the 3×3 area after
+  hazard. The blast area is fully inert for the rest of the animation: entering the rounded 5×5 area after
   detonation (during the fireball or the smoke frames) MUST deal no damage.
-- **FR-024**: A blast MUST reach through intervening blocks — the 3×3 area is not blocked by
+- **FR-024**: A blast MUST reach through intervening blocks — the rounded 5×5 area is not blocked by
   line-of-sight.
 
 #### No chain reactions
@@ -414,8 +441,8 @@ match the game's rendering, and verify no runtime bomb or explosion can be paint
 - **Carried bomb count** — the character's inventory of bombs, capped (default 5), shown in the HUD.
 - **Placed bomb** — a runtime, non-solid entity with a fuse timer. Does not bob; placed on the ground
   it rests in its tile, and placed mid-air it falls under gravity to the first solid surface below.
-  Pulses as its fuse burns and detonates in a 3×3 area when the fuse expires. Never authorable.
-- **Explosion** — the transient 3×3 effect of a detonation that resolves destruction, enemy defeat
+  Pulses as its fuse burns and detonates in a rounded 5×5 area when the fuse expires. Never authorable.
+- **Explosion** — the transient rounded 5×5 effect of a detonation that resolves destruction, enemy damage
   and player damage once, then disappears. It never affects another placed bomb.
 - **Bomb hint sign** — a sign prop placed beside the first blue pot in the shipped level; standing
   on it and pressing Up shows the bomb hint (naming the `B` key), using the existing sign/hint
@@ -430,11 +457,10 @@ palette.
 |---|---|---|---|
 | `bomb.png` | 96×16 | 6 × 16×16 | Frame 0 = unlit bomb, the HUD counter icon. Frames 1–3 = lit fuse burning down. Frame 4 = pulse-partner frame. Frame 5 = orange pre-detonation glow, drawn slightly larger. |
 | `world_tileset.png` | 256×256 | 16×16 grid | The bomb pot reuses the **blue bottle at row 8, column 0 (frame 128)** — the blue bottle directly left of the potion pot's red bottle (row 8, column 1). No new art needed. |
-| `explosion1.png` | 432×48 | 9 × 48×48 | Explosion candidate A. |
-| `explosion2.png` | 384×48 | 8 × 48×48 | Explosion candidate B. |
+| `explosion.png` | 384×48 | 8 × 48×48 | The spiky, comic-style explosion burst. |
 
-Two explosion candidates are delivered; the better-fitting one is chosen during implementation and
-the other left unused. The chosen explosion's frames play once, in order, on detonation.
+The explosion's frames play once, in order, on detonation. (An earlier round-fireball candidate was
+dropped in favour of this comic burst.)
 
 Onboarding: a **bomb hint sign** is placed in the shipped level (reusing the existing sign-prop
 art); its text is a new `platformer.hints` string in `en`/`de`, plus a second `platformer.hints`
@@ -455,14 +481,15 @@ clay variants (O-017).
   automated tests.
 - **SC-004 — Fuse**: A placed bomb detonates after the fuse duration and never before it. Verified
   by automated tests over the fuse timeline.
-- **SC-005 — Blast area**: Detonation affects exactly the 3×3 tiles centred on the bomb, clipped to
-  level bounds. Verified by automated tests.
+- **SC-005 — Blast area**: Detonation affects exactly the rounded 5×5 area (21 tiles, corners cut)
+  centred on the bomb, clipped to level bounds. Verified by automated tests.
 - **SC-006 — Destruction**: Every live destructible block in the blast is destroyed with its
-  terminal-hit outcome, and every enemy in the blast is defeated with its normal reward. A
-  question-mark block is not a destructible block here and is left untouched. Verified by automated
-  tests.
+  terminal-hit outcome, and every enemy in the blast takes 2 hitpoints through the shared hit
+  pipeline (a fatal hit then pays the normal reward after the hit reaction). A question-mark block is
+  not a destructible block here and is left untouched. Verified by automated tests.
 - **SC-007 — Player damage**: A character in the blast takes exactly 2 hitpoints (one full heart),
-  and none while invincible. Verified by automated tests.
+  is knocked back away from the bomb and enters the `hit` flash, and takes none while invincible.
+  Verified by automated tests.
 - **SC-008 — Terrain safe**: No terrain or static object in the blast changes. Verified by automated
   tests.
 - **SC-009 — No chains**: A blast never detonates or removes another placed bomb; each bomb
@@ -491,7 +518,8 @@ clay variants (O-017).
   the blast reuses both rather than defining new ones.
 - **[F-016](../F-016-platformer-health/spec.md) (Health) is complete**: the half-heart damage unit
   and the shared post-damage invincibility window exist and are reused for blast damage.
-- **The blast is a plain 3×3 square**: it is not blocked by intervening blocks and has no
+- **The blast is a rounded 5×5 area**: the 5×5 square with its four corner tiles cut (21 tiles), so
+  it reads round rather than square. It is not blocked by intervening blocks and has no
   line-of-sight rule; this is the simplest rule that is still satisfying and testable.
 - **The fuse duration and the carry cap are fixed constants**: defaults of approximately 2 seconds
   and 5 bombs; exact values are tuning details, not spec-level requirements.
