@@ -64,6 +64,7 @@ const EMPTY_IMAGES: EditorImages = {
   decorations: null,
   torch: null,
   ropeLadder: null,
+  mushroom: null,
 };
 
 // Default props shared by every pre-existing test in this file (all of
@@ -269,6 +270,7 @@ describe('EditorCanvas', () => {
       null,
       null,
       0,
+      null,
     );
   });
 
@@ -1119,7 +1121,7 @@ describe('EditorCanvas — background layer', () => {
 
     expect(drawTerrain).toHaveBeenCalledWith(
       expect.anything(), expect.anything(), expect.anything(), expect.anything(),
-      expect.anything(), expect.anything(), fakeStaticObjects, null, null, 0,
+      expect.anything(), expect.anything(), fakeStaticObjects, null, null, 0, null,
     );
   });
 
@@ -1147,7 +1149,7 @@ describe('EditorCanvas — background layer', () => {
     // cell's deterministic position-hashed frame rather than a live animation.
     expect(drawTerrain).toHaveBeenCalledWith(
       expect.anything(), expect.anything(), expect.anything(), expect.anything(),
-      expect.anything(), expect.anything(), null, null, fakeTorch, 0,
+      expect.anything(), expect.anything(), null, null, fakeTorch, 0, null,
     );
   });
 

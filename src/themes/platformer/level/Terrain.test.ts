@@ -4,6 +4,7 @@ import {
   isSolidExcludingBridge,
   isClimbable,
   isStandableLadderTop,
+  isStandableMushroomCap,
   chainAttachment,
   chainRunLength,
   cobwebOrientation,
@@ -374,6 +375,49 @@ describe('isStandableLadderTop', () => {
   });
 });
 
+describe('isStandableMushroomCap', () => {
+  it('loneMushroomWithOpenSkyAbove-returnsTrue', () => {
+    const level = parseLevel(['§', 'G']);
+    expect(isStandableMushroomCap(level, 0, 0)).toBe(true);
+  });
+
+  it('topCellOfARunWithOpenSkyAbove-returnsTrue', () => {
+    const level = parseLevel(['§', '§', 'G']);
+    expect(isStandableMushroomCap(level, 0, 0)).toBe(true);
+  });
+
+  it('mushroomWithSolidTileAbove-returnsFalse-noRoomToLand', () => {
+    const level = parseLevel(['G', '§', 'G']);
+    expect(isStandableMushroomCap(level, 0, 1)).toBe(false);
+  });
+
+  it('middleCellOfARun-returnsFalse', () => {
+    const level = parseLevel(['§', '§', '§']);
+    expect(isStandableMushroomCap(level, 0, 1)).toBe(false);
+  });
+
+  it('bottomCellOfARun-returnsFalse', () => {
+    const level = parseLevel(['§', '§', '§']);
+    expect(isStandableMushroomCap(level, 0, 2)).toBe(false);
+  });
+
+  it('capInTheTopRow-outOfBoundsAboveIsOpen-returnsTrue', () => {
+    const level = parseLevel(['§']);
+    expect(isStandableMushroomCap(level, 0, 0)).toBe(true);
+  });
+
+  it('decorativeMushroom-returnsFalse', () => {
+    const level = parseLevel(['s', 'G']);
+    expect(isStandableMushroomCap(level, 0, 0)).toBe(false);
+  });
+
+  it('emptyAndGroundGrass-returnFalse', () => {
+    const level = parseLevel(['.', 'G']);
+    expect(isStandableMushroomCap(level, 0, 0)).toBe(false);
+    expect(isStandableMushroomCap(level, 0, 1)).toBe(false);
+  });
+});
+
 describe('chainAttachment', () => {
   it('solidTileDirectlyAbove-returnsCeiling', () => {
     const level: LevelDef = { width: 1, height: 2, terrain: [['wall'], ['chain']] };
@@ -550,6 +594,26 @@ describe('verticalRunRole', () => {
   it('differentTileTypeAboveAndBelow-doesNotCountAsAMatch', () => {
     const level: LevelDef = { terrain: [['wall'], ['bush'], ['wall']], width: 1, height: 3 };
     expect(verticalRunRole(level, 0, 1, 'bush')).toBe('only');
+  });
+
+  it('loneBouncyMushroom-returnsOnly', () => {
+    const level = parseLevel(['§']);
+    expect(verticalRunRole(level, 0, 0, 'bouncyMushroom')).toBe('only');
+  });
+
+  it('topCellOfABouncyMushroomRun-returnsTop', () => {
+    const level = parseLevel(['§', '§', '§']);
+    expect(verticalRunRole(level, 0, 0, 'bouncyMushroom')).toBe('top');
+  });
+
+  it('interiorCellOfABouncyMushroomRun-returnsMiddle', () => {
+    const level = parseLevel(['§', '§', '§']);
+    expect(verticalRunRole(level, 0, 1, 'bouncyMushroom')).toBe('middle');
+  });
+
+  it('bottomCellOfABouncyMushroomRun-returnsBottom', () => {
+    const level = parseLevel(['§', '§', '§']);
+    expect(verticalRunRole(level, 0, 2, 'bouncyMushroom')).toBe('bottom');
   });
 });
 

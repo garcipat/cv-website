@@ -7,5 +7,5 @@ conventions.
 <!-- SPECKIT START -->
 ## Active implementation plan
 
-- [O-012 Platformer Bombs](../specs/O-012-platformer-bombs/plan.md)
+- [O-018 Platformer Bouncy Mushroom Blocks](../specs/O-018-platformer-mushroom-blocks/plan.md)
 <!-- SPECKIT END -->

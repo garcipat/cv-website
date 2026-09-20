@@ -56,6 +56,7 @@ import {
   activeCheckpointId,
   activeFadeOutTexts,
   playerStateAtTile,
+  mushroomSquashStates,
 } from './PlatformerState';
 import { toBlockState } from './entities/Block';
 import type { BlockState } from './entities/Block';
@@ -2042,6 +2043,206 @@ describe('PlatformerPage', () => {
       expect(survivingPotionPot?.hitsTaken).toBe(0);
       expect(survivingPotionPot?.rewardGiven).toBe(false);
       expect(heartPickupStates.value).toEqual([]);
+    });
+  });
+
+  describe('bouncy mushroom — landing bounces, pass-through does not', () => {
+    // A lone cap at (1,1) with open sky above it, over a solid ground row.
+    const LONE_CAP_LAYOUT = ['S..', '.§.', 'GGG'];
+    // A two-cell run: cap at (0,1), stem at (0,2), ground at row 3.
+    const RUN_LAYOUT = ['S..', '§..', '§..', 'GGG'];
+    // A cap at (1,1) over a solid ground row, with open space at col 2 so the
+    // player can stand beside it and walk through its column.
+    const SIDE_LAYOUT = ['S...', '.§..', 'GGGG'];
+
+    /** The player.y that puts a falling player's feet just above the top of
+     *  `row` — mirrors blockLandingY, but for a terrain row. */
+    const capLandingY = (row: number, approachPx = 4): number =>
+      row * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING - approachPx;
+
+    const armFrameLoop = () => {
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+      return () => frameCallback!;
+    };
+
+    beforeEach(() => {
+      mushroomSquashStates.value = [];
+      currentLayout.value = LONE_CAP_LAYOUT;
+    });
+
+    afterEach(() => {
+      mushroomSquashStates.value = [];
+    });
+
+    it('fallingOntoACap-setsTheMushroomBounceVelocityAndStartsASquash', () => {
+      const frameCallback = armFrameLoop();
+      render(<PlatformerPage />);
+      frameCallback()(0);
+
+      playerState.value = { ...playerState.value, x: 0, y: capLandingY(1), vy: 300 };
+
+      frameCallback()(16);
+
+      expect(playerState.value.vy).toBe(PHYSICS_CONFIG.mushroomBounceVelocity);
+      expect(playerState.value.bounceAscending).toBe(true);
+      expect(mushroomSquashStates.value).toEqual([{ col: 1, row: 1, elapsed: expect.any(Number) }]);
+    });
+
+    it('aSecondLandingOnTheSameCap-bouncesIdenticallyAndRestartsTheSquash', () => {
+      const frameCallback = armFrameLoop();
+      render(<PlatformerPage />);
+      frameCallback()(0);
+
+      playerState.value = { ...playerState.value, x: 0, y: capLandingY(1), vy: 300 };
+      frameCallback()(16);
+      expect(playerState.value.vy).toBe(PHYSICS_CONFIG.mushroomBounceVelocity);
+
+      // Fall onto the same cap again.
+      playerState.value = { ...playerState.value, x: 0, y: capLandingY(1), vy: 300 };
+      frameCallback()(32);
+
+      expect(playerState.value.vy).toBe(PHYSICS_CONFIG.mushroomBounceVelocity);
+      expect(mushroomSquashStates.value).toHaveLength(1);
+      expect(mushroomSquashStates.value[0]).toMatchObject({ col: 1, row: 1 });
+    });
+
+    it('standingUnderARun-andWalkingThroughTheStem-neitherBouncesNorSquashes', () => {
+      currentLayout.value = RUN_LAYOUT;
+      const frameCallback = armFrameLoop();
+      render(<PlatformerPage />);
+      frameCallback()(0);
+
+      // Feet on the ground row 3, body inside the stem cell at (0,2).
+      playerState.value = { ...playerState.value, x: -20, y: 3 * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING, vy: 0 };
+
+      frameCallback()(16);
+
+      expect(playerState.value.vy).not.toBe(PHYSICS_CONFIG.mushroomBounceVelocity);
+      expect(mushroomSquashStates.value).toEqual([]);
+    });
+
+    it('walkingThroughTheCapColumnAtGroundLevel-doesNotBounce', () => {
+      currentLayout.value = SIDE_LAYOUT;
+      const frameCallback = armFrameLoop();
+      render(<PlatformerPage />);
+      frameCallback()(0);
+
+      // Standing on the ground row 2, centre column 2 (beside the cap).
+      playerState.value = { ...playerState.value, x: RENDERED_TILE_SIZE, y: 2 * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING, vy: 0 };
+      window.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowLeft' }));
+
+      frameCallback()(16);
+
+      expect(playerState.value.vy).not.toBe(PHYSICS_CONFIG.mushroomBounceVelocity);
+      expect(mushroomSquashStates.value).toEqual([]);
+    });
+
+    it('risingThroughTheCap-neitherBouncesNorSquashes', () => {
+      const frameCallback = armFrameLoop();
+      render(<PlatformerPage />);
+      frameCallback()(0);
+
+      // Rising with the head already in the cap's row — the cap is not solid
+      // from below, so the character passes through it.
+      playerState.value = { ...playerState.value, x: 0, y: 40, vy: -400 };
+
+      frameCallback()(16);
+
+      expect(playerState.value.vy).not.toBe(PHYSICS_CONFIG.mushroomBounceVelocity);
+      expect(mushroomSquashStates.value).toEqual([]);
+    });
+
+    it('sameTickPotLandingAndCapLanding-applyOnlyTheStrongerMushroomImpulse', () => {
+      const frameCallback = armFrameLoop();
+      render(<PlatformerPage />);
+      frameCallback()(0);
+
+      const capCell = tileToPixel(1, 1);
+      blockStates.value = [
+        ...blockStates.value,
+        toBlockState({ id: 'mushroom-pot-test', blockKind: 'coinPot', x: capCell.x, y: capCell.y }),
+      ];
+      playerState.value = { ...playerState.value, x: 0, y: capLandingY(1), vy: 300 };
+
+      frameCallback()(16);
+
+      expect(PHYSICS_CONFIG.mushroomBounceVelocity).toBeLessThan(PHYSICS_CONFIG.potBounceVelocity);
+      expect(playerState.value.vy).toBe(PHYSICS_CONFIG.mushroomBounceVelocity);
+    });
+
+    it('resetGame-called-whileASquashIsActive-clearsIt', () => {
+      mushroomSquashStates.value = [{ col: 1, row: 1, elapsed: 0 }];
+      resetGame();
+      expect(mushroomSquashStates.value).toEqual([]);
+    });
+  });
+
+  describe('decorative mushroom — pure dressing, no behaviour', () => {
+    const DECORATIVE_LAYOUT = ['S..', '.s.', 'GGG'];
+
+    beforeEach(() => {
+      mushroomSquashStates.value = [];
+      currentLayout.value = DECORATIVE_LAYOUT;
+    });
+
+    afterEach(() => {
+      mushroomSquashStates.value = [];
+    });
+
+    it('fallingOntoADecorativeMushroom-neitherBouncesNorSquashes', () => {
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+      render(<PlatformerPage />);
+      frameCallback!(0);
+
+      playerState.value = {
+        ...playerState.value,
+        x: 0,
+        y: RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING - 4,
+        vy: 300,
+      };
+
+      frameCallback!(16);
+
+      expect(playerState.value.vy).not.toBe(PHYSICS_CONFIG.mushroomBounceVelocity);
+      expect(playerState.value.bounceAscending).toBe(false);
+      expect(mushroomSquashStates.value).toEqual([]);
+    });
+
+    it('walkingThroughADecorativeMushroom-neitherBouncesNorSquashes', () => {
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+      render(<PlatformerPage />);
+      frameCallback!(0);
+
+      // Standing on the ground row 2, walking through the mushroom's column.
+      playerState.value = {
+        ...playerState.value,
+        x: 0,
+        y: 2 * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING,
+        vy: 0,
+      };
+      window.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowRight' }));
+
+      frameCallback!(16);
+
+      expect(playerState.value.vy).not.toBe(PHYSICS_CONFIG.mushroomBounceVelocity);
+      expect(mushroomSquashStates.value).toEqual([]);
     });
   });
 
