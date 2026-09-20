@@ -43,10 +43,12 @@
 - [ ] **O-008** **Platformer Audio** — Background music and sound effects, muted by default (not committed)
 - [x] **O-009** **Platformer Background Image Layers** — Illustrated parallax backdrop (sky, clouds, village, grass) replacing the procedural sky
 - [x] **O-010** **Platformer Cave Lighting** — Caves darkened where darkening background pieces sit; torch tiles punch radial light back, with a smooth fade on entry/exit, plus the player's own small carried light
-- [ ] **O-011** **Platformer Deployable Ladders** — A rolled rope-ladder bundle that unrolls downward on Up until it lands on the next solid tile, then climbs like a ladder
+- [x] **O-011** **Platformer Deployable Ladders** — A rolled rope-ladder bundle that unrolls downward on Up until it lands on the next solid tile, then climbs like a ladder
 - [ ] **O-012** **Platformer Bombs** — Collectible bombs, placed on the ground, that explode on a fuse to destroy fragile rocks and damage enemies
 - [x] **O-013** **Platformer Wall Torches** — Decorative, non-solid wall torches whose flames sparkle through a 4-frame loop, each cell flickering out of phase based on its grid position
 - [ ] **O-014** **Platformer Background Tile Rework** — Quieter, less-noisy background art with simplified footprints, so the backdrop supports the foreground instead of competing with it (the surface/cave palette split is owned by O-010)
+- [ ] **O-015** **Platformer Editor Dark Mode** — A dark/light toggle in the Level Editor that renders the cave darkness overlay and the torch light pools while authoring, so an author can see the real lighting without leaving the editor
+- [ ] **O-016** **Platformer Editor UI Rework** — A cleanup pass over the Level Editor's UI: regroup and simplify the toolbar and panels as the tool has grown
 
 - _TBD_
 
@@ -88,10 +90,12 @@
 | O-008 | Platformer audio        | 📋 Planned     | [spec](../specs/O-008-platformer-audio/spec.md) | ❌ | ❌ |
 | O-009 | Platformer background image layers | ✅ Done | [spec](../specs/O-009-platformer-background-layers/spec.md) / [design](../specs/O-009-platformer-background-layers/design.md) | ✅ | ✅ |
 | O-010 | Platformer cave lighting | ✅ Done | [spec](../specs/O-010-platformer-cave-lighting/spec.md) | ✅ | ✅ |
-| O-011 | Platformer deployable ladders | 📋 Planned | [idea](ideas/platformer-deployable-ladders.md) | ❌ | ❌ |
+| O-011 | Platformer deployable ladders | ✅ Done | [spec](../specs/O-011-platformer-deployable-ladders/spec.md) | ✅ | ✅ |
 | O-012 | Platformer bombs | 📋 Planned | [idea](ideas/platformer-bombs.md) | ❌ | ❌ |
 | O-013 | Platformer wall torches | ✅ Done | [spec](../specs/O-013-platformer-wall-torches/spec.md) | ✅ | ✅ |
 | O-014 | Platformer background tile rework | 📋 Planned | — | ❌ | ❌ |
+| O-015 | Platformer editor dark mode | 📋 Planned | — | ❌ | ❌ |
+| O-016 | Platformer editor UI rework | 📋 Planned | — | ❌ | ❌ |
 
 ---
 
@@ -147,10 +151,12 @@ graph RL
         O008["O-008: Audio"]
         O009["✅ O-009: Background Image Layers"]
         O010["✅ O-010: Cave Lighting"]
-        O011["O-011: Deployable Ladders"]
+        O011["✅ O-011: Deployable Ladders"]
         O012["O-012: Bombs"]
         O013["✅ O-013: Wall Torches"]
         O014["O-014: Background Tile Rework"]
+        O015["O-015: Editor Dark Mode"]
+        O016["O-016: Editor UI Rework"]
     end
 
     F003 --> F002
@@ -215,6 +221,9 @@ graph RL
     O013 --> F015
     O014 --> O009
     O014 --> O003
+    O015 --> O010
+    O015 --> F019
+    O016 --> F019
 
     classDef done stroke:#FFD600,stroke-width:3px
     classDef projectSetup fill:#1565C0,color:#ffffff
@@ -240,11 +249,14 @@ graph RL
     class O001 done
     class S005 done
     class F015,F016,F017,F018,S007,S008,S009,S010,O003,O004,O005,O008,O009,O013,O014 themes
-    class F019,O006,O007,O010,O011,O012 enhancements
+    class F019,O006,O007,O010,O011,O012,O015,O016 enhancements
     class F015,F016,F017,F018,F019,S007,S008,S009,S010,O004,O005,O009 done
     class O013 done
     class O010 done
+    class O011 done
     class O014 themes
+    class O015 enhancements
+    class O016 enhancements
 ```
 
 **Critical Path**: F-001 → F-012 → F-013 → F-002 → F-014 (foundation → theme system → multilanguage → data model → IDE theme, then Space and Terminal themes)

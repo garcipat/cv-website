@@ -44,7 +44,7 @@ export function isSolidExcludingBridge(tile: TileType): boolean {
  * the only place vertical movement through one is resolved.
  */
 export function isClimbable(tile: TileType): boolean {
-  return tile === 'ladder' || tile === 'chain';
+  return tile === 'ladder' || tile === 'chain' || tile === 'ropeLadder';
 }
 
 /**
@@ -66,6 +66,20 @@ export function isClimbable(tile: TileType): boolean {
 export function isStandableLadderTop(level: LevelDef, col: number, row: number): boolean {
   const above = tileAt(level, col, row - 1);
   return isClimbable(tileAt(level, col, row)) && !isClimbable(above) && !isSolid(above);
+}
+
+/**
+ * Whether a rolled `ladderBundle` cell at (col, row) is standable from above.
+ * Deliberately UNCONDITIONAL on the cell above — unlike `isStandableLadderTop`,
+ * a bundle is a solid little parcel the character stands ON regardless of what
+ * is overhead (FR-002/FR-009), and it must stay standable throughout its
+ * unroll so a character standing on it when it deploys does not fall. It is
+ * never `isSolid` (so it blocks nothing horizontally) and never `isClimbable`
+ * (so a rolled bundle cannot be climbed); Physics.ts consults this predicate
+ * exactly like it consults `isStandableLadderTop`, as a one-way ground term.
+ */
+export function isStandableLadderBundleTop(level: LevelDef, col: number, row: number): boolean {
+  return tileAt(level, col, row) === 'ladderBundle';
 }
 
 export function isTopExposed(level: LevelDef, col: number, row: number): boolean {

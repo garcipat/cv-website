@@ -217,3 +217,17 @@ export const TORCH_SHEET: SpriteSheet = {
   frameHeight: 14,
   columns: 4,
 };
+
+/** `rope_ladder.png` is a 32x32 hand-authored flat 2D pixel sheet: the rolled
+ *  bundle (16x16 at 0,0) plus a top cap, two step segments and a bottom cap,
+ *  each 16x8 in the right half. Like `TERRAIN_BACKGROUND_SHEET`/
+ *  `STATIC_OBJECTS_SHEET`, this registration exists for LOADING only — the
+ *  pieces are addressed through `StaticObjectsCatalog.ts`'s own sx/sy rects
+ *  (`ropeLadderShaftPieces`), not by frame index, so `frameWidth`/`frameHeight`/
+ *  `columns` do not describe the art. */
+export const ROPE_LADDER_SHEET: SpriteSheet = {
+  src: '/sprites/rope_ladder.png',
+  frameWidth: TILE_SIZE,
+  frameHeight: TILE_SIZE,
+  columns: 2,
+};

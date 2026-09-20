@@ -15,6 +15,7 @@ import {
   synthesizeCheckpointStates,
   synthesizeSignPlacements,
   synthesizeHazardPlacements,
+  synthesizeLadderBundleStates,
 } from './gridRenderState';
 import { RENDERED_TILE_SIZE, tileToPixel } from '../level/Terrain';
 import { PATROL_GLYPH, CONNECTION_POINT_GLYPH } from './paletteTiles';
@@ -29,6 +30,7 @@ import {
   drawSigns,
   drawHazards,
   drawBackgroundTiles,
+  drawDeployableLadders,
 } from '../engine/Renderer';
 import { placeBackgroundPiece, eraseBackgroundCell } from './paintBackgroundCell';
 import type { BackgroundPlacement, BackgroundPieceId } from '../level/LevelData';
@@ -62,6 +64,7 @@ export interface EditorImages {
   staticObjects: HTMLImageElement | null;
   decorations: HTMLImageElement | null;
   torch: HTMLImageElement | null;
+  ropeLadder: HTMLImageElement | null;
 }
 
 /** The cells a pending placement would write, in absolute grid coordinates,
@@ -190,7 +193,6 @@ function drawSignBadges(
  *  palette button shows, so a placed tile is recognizable as the tool that
  *  painted it. */
 export const PATROL_MARKER_GLYPH = PATROL_GLYPH;
-
 /** Same idea for the blueprint connection point (roadmap step 44b): the tile
  *  is invisible in game, so the editor draws its palette glyph on it. */
 export const CONNECTION_POINT_MARKER_GLYPH = CONNECTION_POINT_GLYPH;
@@ -458,6 +460,34 @@ export const EditorCanvas = ({
           0,
         );
       }
+
+      // Editor preview: a translucent ghost of the fully-deployed shaft below
+      // each bundle, so an author sees exactly how far the ladder will reach,
+      // then the opaque curled bundle drawn on top of it. Never drawn in game.
+      const bundleStates = synthesizeLadderBundleStates(grid);
+      const previousAlpha = ctx.globalAlpha;
+      ctx.save();
+      ctx.globalAlpha = 0.4;
+      drawDeployableLadders(
+        ctx,
+        gridToLevelDef(grid),
+        bundleStates.map((state) => ({ ...state, phase: 'deployed' as const })),
+        images.ropeLadder,
+        panOffset.x,
+        panOffset.y,
+      );
+      ctx.restore();
+      // Restore explicitly too: test canvas stubs make save()/restore() no-ops,
+      // so without this the ghost's alpha would leak into later draws.
+      ctx.globalAlpha = previousAlpha;
+      drawDeployableLadders(
+        ctx,
+        gridToLevelDef(grid),
+        bundleStates,
+        images.ropeLadder,
+        panOffset.x,
+        panOffset.y,
+      );
 
       if (images.tileset) {
         drawSigns(ctx, synthesizeSignPlacements(grid), images.tileset, panOffset.x, panOffset.y);

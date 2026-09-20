@@ -16,6 +16,7 @@ import {
   findSignTiles,
   findHazardTiles,
   findTorchTiles,
+  findLadderBundleTiles,
 } from './LevelParser';
 
 // Visual layout of currentLevel — one character per tile (see LevelParser.ts's
@@ -168,9 +169,9 @@ export const LEVEL_1_LAYOUT: readonly string[] = [
   '..............................................=......................................................................................................................................=.....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   '...........................................................................................................................................................................................GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   '........................................M........................................................o...........m........................................................................M..o.GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
-  '........................=Q........GGGGGGGGGGGGGGG.......................................Q......GGGGGGG.....GGGGGGG....=QFQ.........................................................RRRRRRRRGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
-  '..................................GGGGGGGGGGGGGGG..................................................................................................................................GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
-  '..S.5..o...oC........M.......M..2.GGGGGGGGGGGGGGGuu.u.....M......1.........^...........................M.o..........M.....M.......M........................M.................#.M..#GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  '.............HGGGGGGGG@.=Q........GGGGGGGGGGGGGGG.......................................Q......GGGGGGG.....GGGGGGG....=QFQ.........................................................RRRRRRRRGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  '.............H....................GGGGGGGGGGGGGGG..................................................................................................................................GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  '..S.5..o...oCH.......M.......M..2.GGGGGGGGGGGGGGGuu.u.....M......1.........^...........................M.o..........M.....M.......M........................M.................#.M..#GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGGBBBGGGGGGGGGGGGGGHGGGGGGGGGGGGGGGGGGGGGGHGGGGGGHGGBBBGGGGGGGGGGGGGGGGGFFGGGGGGGGGG...GGGGGGGGGBBBGGGGGGGGGGGGGGGRRHRRRRRRRRRRRRGGGGGGGGGGGGGGGGGGGGGGGGGHGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.H........⊤....⊤........H<GGGG>H..........=................GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..H.......v.......=...=.................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.H..¥........¥........¥.H.GGGG.H.....................3.....GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..H.....................................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
@@ -318,3 +319,9 @@ export const HAZARD_TILES = computed(() => findHazardTiles(currentLayout.value))
  *  lighting reads: `PlatformerState.ts`'s `torchPositions` maps each of these
  *  cells to its world-space centre for the render pass (research D4). */
 export const TORCH_TILES = computed(() => findTorchTiles(currentLayout.value));
+
+/** Hand-placed deployable rope-ladder bundle positions, from `currentLayout`'s
+ *  `@` markers (a `ladderBundle` TERRAIN_CHARS entry). `PlatformerState.ts`
+ *  seeds one `DeployableLadderState` per cell here; the shipped level uses
+ *  them to demonstrate the mechanic (see this file's `LEVEL_1_LAYOUT`). */
+export const LADDER_BUNDLE_TILES = computed(() => findLadderBundleTiles(currentLayout.value));

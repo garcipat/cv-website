@@ -18,6 +18,8 @@ import type { ChestPlacement } from '../level/ChestMapper';
 import { toCheckpointState, type CheckpointState } from '../entities/Checkpoint';
 import type { SignPlacement } from '../level/SignMapper';
 import type { HazardPlacement } from '../level/HazardMapper';
+import { createDeployableLadderState } from '../engine/DeployableLadder';
+import type { DeployableLadderState } from '../engine/DeployableLadder';
 import type { CollectedFact } from '../types';
 
 /**
@@ -226,4 +228,15 @@ export function synthesizeHazardPlacements(grid: TileChar[][]): HazardPlacement[
     }
   }
   return placements;
+}
+
+/** Returns one `rolled` `DeployableLadderState` per `@` cell — the editor
+ *  previews the bundle and its landing cell, never a deployed shaft. Mirrors
+ *  the real game's own seeding (`PlatformerState.ts`'s
+ *  `deployableLadderPlacements`), but off the editor's in-memory grid. */
+export function synthesizeLadderBundleStates(grid: TileChar[][]): DeployableLadderState[] {
+  const level = gridToLevelDef(grid);
+  return findAllPositions(grid, '@').map(({ col, row }) =>
+    createDeployableLadderState(level, col, row),
+  );
 }

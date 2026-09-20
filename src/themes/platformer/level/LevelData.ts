@@ -46,6 +46,17 @@ export type TileType =
    *  from its own grid position plus the shared world clock (see
    *  `engine/Torch.ts`'s `torchFrameIndex`). It carries no per-instance state. */
   | 'torch'
+  /** A curled-up rope-ladder bundle the player deploys with Up — an
+   *  author-placeable terrain tile (`@`). Non-solid and not climbable, but
+   *  standable from above only (see Terrain.ts's `isStandableLadderBundleTop`),
+   *  so a character can stand on a rolled bundle. Its deployed shaft writes the
+   *  `ropeLadder` tile below it at runtime (see engine/DeployableLadder.ts). */
+  | 'ladderBundle'
+  /** A deployed rope-ladder rung cell — never author-placeable; it exists only
+   *  in the effective grid `applyDeployedLadders` produces from a completed
+   *  bundle. Climbable exactly like `ladder`/`chain` (see Terrain.ts's
+   *  `isClimbable`), so every climbing consumer treats it identically. */
+  | 'ropeLadder'
   | 'empty';
 
 export type TileMap = TileType[][];

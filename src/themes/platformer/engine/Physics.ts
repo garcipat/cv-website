@@ -4,6 +4,7 @@ import {
   isSolidExcludingBridge,
   isClimbable,
   isStandableLadderTop,
+  isStandableLadderBundleTop,
   tileAt,
   RENDERED_TILE_SIZE,
 } from '../level/Terrain';
@@ -457,6 +458,7 @@ export function stepPlayerPhysics(
     const columnIsGround = (col: number): boolean =>
       groundIsSolid(tileAt(level, col, footRow)) ||
       isStandableLadderTop(level, col, footRow) ||
+      isStandableLadderBundleTop(level, col, footRow) ||
       isBlockOccupied(blockPlacements, col, footRow);
 
     let groundResolved = false;

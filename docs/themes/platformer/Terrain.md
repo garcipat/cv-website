@@ -36,8 +36,9 @@ Declared in `src/themes/platformer/level/LevelData.ts`.
 | `stalactite` | Decorative, non-solid. Two size variants (large / twin) picked by position hash. |
 | `stalagmite` | Decorative, non-solid. Two size variants picked the same way. |
 | `torch` | Decorative, non-solid cave dressing. Its flame animates through a 4-frame sparkle loop — each cell's frame is a pure function of its grid position and the shared world clock (`engine/Torch.ts`'s `torchFrameIndex`), so neighbouring torches flicker out of phase and the tile carries no per-instance state. |
+| `ladderBundle` | A curled-up rope-ladder bundle (`@`), the author-placeable O-011 tile. Non-solid, not climbable, but standable from above (`isStandableLadderBundleTop`). A grounded character presses Up while on or one cell above it to deploy it. |
+| `ropeLadder` | A deployed rope-ladder rung cell. **Never author-placeable** — it exists only in the effective grid `applyDeployedLadders` derives from bundle state (see [Runtime overrides](#runtime-overrides)). Climbable exactly like `ladder`/`chain`. |
 | `empty` | Air. Out-of-bounds reads also resolve to `empty` — see `tileAt` below. |
-
 `tileAt(level, col, row)` in `src/themes/platformer/level/Terrain.ts` is the only sanctioned
 way to read a cell. It returns `'empty'` for any coordinate outside the grid, which is what
 lets every neighbour-inspecting helper below probe freely past the level's edges without
@@ -115,6 +116,31 @@ explicit "decorative" flag. `patrol` and `blueprintConnectionPoint` are non-soli
 same way, but are also invisible: `Renderer.ts`'s `tileSource` returns `null` for both, and
 only the level editor draws anything for them (`src/themes/platformer/editor/EditorCanvas.tsx`'s
 `drawTileMarkers`).
+
+## Runtime overrides
+
+Every tile above is a stateless value: what it does is derived purely from its
+type and its neighbours, and nothing about it changes at runtime. The O-011
+deployable rope ladder is the first and only exception.
+
+A rolled `ladderBundle` (`@`) is an ordinary terrain tile. A grounded character
+standing on it — or one cell above it — presses Up to deploy it. A per-bundle
+`DeployableLadderState` (in `PlatformerState.ts`, alongside the other
+per-instance session state) tracks the bundle's phase (`rolled` → `deploying` →
+`deployed`). `engine/DeployableLadder.ts`'s `applyDeployedLadders(level, states)`
+is a pure function that returns an **effective `LevelDef`** in which every
+completed bundle's cells are written as the `ropeLadder` tile type — climbable
+through the existing `isClimbable`/`isStandableLadderTop` predicates, with no new
+climbing code of its own.
+
+The split is deliberate: only `stepPlayerPhysics` reads the effective grid
+(`PlatformerState.ts`'s `activeLevel`); rendering and every other subsystem keep
+reading the raw `currentLevel`, and the deploy pass draws the rope art itself
+(`Renderer.ts`'s `drawDeployableLadders`). `applyDeployedLadders` returns the
+**same** `level` object when nothing is deployed, so the common case allocates
+nothing. This mechanism is scoped to bundles only — it is deliberately not a
+general per-tile animation or state framework (see the O-011 spec's Assumptions
+and Out of Scope).
 
 ## Autotiling `groundGrass`
 
