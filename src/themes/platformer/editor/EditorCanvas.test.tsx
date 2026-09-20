@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, fireEvent, act, cleanup } from '@testing-library/react';
 import {
   EditorCanvas,
+  readGameBackgroundColor,
   PATROL_MARKER_GLYPH,
   CONNECTION_POINT_MARKER_GLYPH,
   PLACEMENT_VALID_COLOR,
@@ -26,6 +27,10 @@ vi.mock('../engine/Renderer', () => ({
   drawHazards: vi.fn(),
   drawBackgroundTiles: vi.fn(),
   drawDeployableLadders: vi.fn(),
+  drawDarkness: vi.fn(),
+  drawEnemyEyes: vi.fn(),
+  drawHeldTorch: vi.fn(),
+  heldTorchLightPosition: vi.fn(() => ({ x: 0, y: 0 })),
 }));
 
 import {
@@ -37,7 +42,12 @@ import {
   drawChests,
   drawCheckpoints,
   drawBackgroundTiles,
+  drawDarkness,
+  drawEnemyEyes,
+  drawHeldTorch,
 } from '../engine/Renderer';
+import { EDITOR_PREVIEW_DARKNESS } from './caveLightingPreview';
+import type { BackgroundPlacement } from '../level/LevelData';
 
 const EMPTY_IMAGES: EditorImages = {
   tileset: null,
@@ -1147,6 +1157,29 @@ describe('EditorCanvas — background layer', () => {
   });
 });
 
+describe('EditorCanvas — readGameBackgroundColor', () => {
+  it('readGameBackgroundColor-whenEditorBackdropTokenIsSet-returnsIt', () => {
+    const spy = vi.spyOn(window, 'getComputedStyle').mockReturnValue({
+      getPropertyValue: (prop: string) =>
+        prop === '--editor-canvas-backdrop' ? '  #123456  ' : '',
+    } as unknown as CSSStyleDeclaration);
+
+    expect(readGameBackgroundColor()).toBe('#123456');
+
+    spy.mockRestore();
+  });
+
+  it('readGameBackgroundColor-whenTokenIsMissing-fallsBackToTheDaylightConstant', () => {
+    const spy = vi.spyOn(window, 'getComputedStyle').mockReturnValue({
+      getPropertyValue: () => '',
+    } as unknown as CSSStyleDeclaration);
+
+    expect(readGameBackgroundColor()).toBe('#53b0de');
+
+    spy.mockRestore();
+  });
+});
+
 describe('EditorCanvas — placement clicks (step 44c)', () => {
   const placementProps = (overrides: Partial<Parameters<typeof EditorCanvas>[0]> = {}) => ({
     ...BACKGROUND_LAYER_DEFAULT_PROPS,
@@ -1507,5 +1540,117 @@ describe('EditorCanvas — placement preview (step 44c)', () => {
     );
 
     expect(ctx.strokeRect).not.toHaveBeenCalled();
+  });
+});
+
+describe('EditorCanvas — cave lighting preview (O-015 US3)', () => {
+  const CAVE_BACKGROUND: BackgroundPlacement[] = [
+    { pieceId: 'charcoalBlock3x3', col: 0, row: 0 },
+  ];
+  const SPAWN_IN_CAVE_GRID: TileChar[][] = [
+    ['.', '.', '¥'],
+    ['.', 'S', 'P'],
+    ['.', '.', '.'],
+  ];
+
+  const previewProps = (overrides: Partial<Parameters<typeof EditorCanvas>[0]> = {}) => ({
+    ...BACKGROUND_LAYER_DEFAULT_PROPS,
+    grid: SPAWN_IN_CAVE_GRID,
+    selectedTool: 'G' as TileChar,
+    panOffset: { x: 0, y: 0 },
+    images: EMPTY_IMAGES,
+    appearance: 'dark' as const,
+    backgroundPlacements: CAVE_BACKGROUND,
+    onPaint: () => {},
+    onPan: () => {},
+    ...overrides,
+  });
+
+  it('canvas-whenDark-callsDrawDarknessDrawEnemyEyesAndDrawHeldTorchAtRest', () => {
+    stubCanvasContext();
+
+    render(<EditorCanvas {...previewProps()} />);
+
+    expect(drawDarkness).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.any(Number),
+      expect.any(Number),
+      EDITOR_PREVIEW_DARKNESS,
+      expect.arrayContaining([expect.objectContaining({ col: 2, row: 0 })]),
+      expect.any(Number),
+      expect.any(Number),
+      0,
+      expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }),
+    );
+    expect(drawEnemyEyes).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.any(Array),
+      EDITOR_PREVIEW_DARKNESS,
+      expect.any(Array),
+      0,
+      expect.any(Number),
+      expect.any(Number),
+      expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }),
+    );
+    expect(drawHeldTorch).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ animState: 'idle' }),
+      null,
+      EDITOR_PREVIEW_DARKNESS,
+      0,
+      0,
+      0,
+    );
+  });
+
+  it('canvas-whenLight-doesNotCallTheCavePasses', () => {
+    stubCanvasContext();
+
+    render(<EditorCanvas {...previewProps({ appearance: 'light' })} />);
+
+    expect(drawDarkness).not.toHaveBeenCalled();
+    expect(drawEnemyEyes).not.toHaveBeenCalled();
+    expect(drawHeldTorch).not.toHaveBeenCalled();
+  });
+
+  it('canvas-whenBlueprintMode-doesNotCallTheCavePassesEvenWhenDark', () => {
+    stubCanvasContext();
+
+    render(<EditorCanvas {...previewProps({ isBlueprintMode: true })} />);
+
+    expect(drawDarkness).not.toHaveBeenCalled();
+    expect(drawEnemyEyes).not.toHaveBeenCalled();
+    expect(drawHeldTorch).not.toHaveBeenCalled();
+  });
+
+  it('canvas-whenDarkEvenWithNoCaveBackground-callsDrawDarkness', () => {
+    stubCanvasContext();
+
+    render(<EditorCanvas {...previewProps({ backgroundPlacements: [] })} />);
+
+    expect(drawDarkness).toHaveBeenCalled();
+  });
+
+  it('canvas-whenPreviewActive-redrawsGridLinesSignBadgesAndMarkersAboveTheOverlay', () => {
+    const ctx = stubCanvasContext();
+    const order: string[] = [];
+    (drawDarkness as ReturnType<typeof vi.fn>).mockImplementation(() => {
+      order.push('darkness');
+    });
+    (ctx.stroke as ReturnType<typeof vi.fn>).mockImplementation(() => {
+      order.push('grid');
+    });
+    (ctx.fillText as ReturnType<typeof vi.fn>).mockImplementation(() => {
+      order.push('text');
+    });
+
+    render(<EditorCanvas {...previewProps()} />);
+
+    expect(order).toContain('darkness');
+    // The affordances are re-drawn after the darkness overlay so they stay
+    // legible on top of it (FR-012).
+    expect(order.lastIndexOf('grid')).toBeGreaterThan(order.indexOf('darkness'));
+    expect(order.lastIndexOf('text')).toBeGreaterThan(order.indexOf('darkness'));
   });
 });

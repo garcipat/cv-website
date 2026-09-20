@@ -8,6 +8,7 @@ import { importLayout } from './importLayout';
 import { BLANK_BLUEPRINT } from '../level/BlueprintData';
 import {
   editorArmedBlueprintIdSignal,
+  editorAppearanceSignal,
   editorBackgroundSignal,
   editorBlueprintBackgroundSignal,
   editorBlueprintSignal,
@@ -37,6 +38,10 @@ vi.mock('../engine/Renderer', () => ({
   drawHazards: vi.fn(),
   drawBackgroundTiles: vi.fn(),
   drawDeployableLadders: vi.fn(),
+  drawDarkness: vi.fn(),
+  drawEnemyEyes: vi.fn(),
+  drawHeldTorch: vi.fn(),
+  heldTorchLightPosition: vi.fn(() => ({ x: 0, y: 0 })),
 }));
 
 beforeEach(() => {
@@ -52,6 +57,7 @@ beforeEach(() => {
   editorLoadedBlueprintNameSignal.value = BLANK_BLUEPRINT.name;
   editorArmedBlueprintIdSignal.value = null;
   editorSelectedBackgroundPieceSignal.value = null;
+  editorAppearanceSignal.value = 'light';
   isDevEnvironmentSignal.value = true;
 });
 
@@ -190,5 +196,58 @@ describe('EditorToolbar — tooltips', () => {
     await userEvent.hover(levelEditorPage.entrySelect.trigger);
 
     expect(await screen.findByRole('tooltip')).toHaveTextContent('Levels');
+  });
+});
+
+describe('EditorToolbar — appearance toggle (O-015 US1)', () => {
+  it('toolbar-whenLevelCanvas-showsTheAppearanceToggle', () => {
+    render(<LevelEditorPage />);
+
+    expect(levelEditorPage.toolbar.appearanceToggle).toBeInTheDocument();
+  });
+
+  it('toolbar-whenBlueprintCanvas-showsTheAppearanceToggle', () => {
+    render(<LevelEditorPage />);
+
+    fireEvent.click(levelEditorPage.toolbar.canvasBlueprint);
+
+    expect(levelEditorPage.toolbar.appearanceToggle).toBeInTheDocument();
+  });
+
+  it('appearanceToggle-whenLight-hasAriaPressedFalseAndNamesDarkModeOff', async () => {
+    editorAppearanceSignal.value = 'light';
+    render(<LevelEditorPage />);
+
+    expect(levelEditorPage.toolbar.appearanceToggle).toHaveAttribute('aria-pressed', 'false');
+    await userEvent.hover(levelEditorPage.toolbar.appearanceToggle);
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Dark mode: off');
+  });
+
+  it('appearanceToggle-whenDark-hasAriaPressedTrueAndNamesDarkModeOn', async () => {
+    editorAppearanceSignal.value = 'dark';
+    render(<LevelEditorPage />);
+
+    expect(levelEditorPage.toolbar.appearanceToggle).toHaveAttribute('aria-pressed', 'true');
+    await userEvent.hover(levelEditorPage.toolbar.appearanceToggle);
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Dark mode: on');
+  });
+
+  it('appearanceToggle-whenKeyboardFocused-revealsTheTooltipWithItsState', async () => {
+    editorAppearanceSignal.value = 'light';
+    render(<LevelEditorPage />);
+
+    levelEditorPage.toolbar.appearanceToggle.focus();
+
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Dark mode: off');
+  });
+
+  it('appearanceToggle-click-togglesTheSignalAndPersists', async () => {
+    editorAppearanceSignal.value = 'light';
+    render(<LevelEditorPage />);
+
+    await userEvent.click(levelEditorPage.toolbar.appearanceToggle);
+
+    expect(editorAppearanceSignal.value).toBe('dark');
+    expect(JSON.parse(localStorage.getItem('platformer-editor-appearance')!)).toBe('dark');
   });
 });
