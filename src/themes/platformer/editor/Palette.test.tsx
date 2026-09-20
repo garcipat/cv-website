@@ -144,6 +144,24 @@ describe('Palette — subtitle groups', () => {
     ).toBeInTheDocument();
   });
 
+  it('terrainGroup-containsTheBouncyMushroomTile', () => {
+    // The bouncy mushroom is ordinary terrain (a one-way standable cap), so it
+    // lands in the Terrain group automatically.
+    render(<Palette {...defaultProps} />);
+    expect(
+      within(palette.group('terrain')).getByTestId('editor-palette-tile-§'),
+    ).toBeInTheDocument();
+  });
+
+  it('decorationGroup-containsTheSmallMushroomTile', () => {
+    // The small mushroom is pure dressing, so it joins the Decoration group
+    // via DECORATION_CHARS.
+    render(<Palette {...defaultProps} />);
+    expect(
+      within(palette.group('decoration')).getByTestId('editor-palette-tile-s'),
+    ).toBeInTheDocument();
+  });
+
   it('hazardsGroup-containsExactlyOneRepresentativeSpikeTile', () => {
     // Same one-button convention as signs: clicking the canvas auto-detects
     // a facing from the surrounding terrain, and clicking an already-placed

@@ -31,7 +31,13 @@ import {
   ropeLadderShaftPieces,
   COBWEB_CORNER_ENTRY,
   COBWEB_FLAT_ENTRY,
+  mushroomEntry,
+  mushroomHasCap,
+  MUSHROOM_CAP_SOURCE_HEIGHT,
+  MUSHROOM_DECORATIVE_ENTRY,
 } from './StaticObjectsCatalog';
+import { mushroomSquashDipAt } from './MushroomSquash';
+import type { MushroomSquashState } from './MushroomSquash';
 import {
   revealedStepCount,
   shaftCellCount,
@@ -186,6 +192,12 @@ function tileSource(
       // Drawn by drawDeployableLadders (the rolled bundle parcel, and the
       // deployed shaft's cap/step pieces), which needs the bundle's runtime
       // state — not a static sx/sy lookup, so there is nothing to return here.
+      return null;
+    case 'bouncyMushroom':
+    case 'decorativeMushroom':
+      // Drawn by drawTerrain's own mushroom branch when the mushroom sheet is
+      // loaded (the cap/stem split, the squash dip and the decorative cell are
+      // all neighbour- or state-dependent) — not a static sx/sy lookup.
       return null;
     case 'empty':
       return null;
@@ -580,6 +592,8 @@ export function drawTerrain(
   decorations: HTMLImageElement | null = null,
   torch: HTMLImageElement | null = null,
   worldElapsed = 0,
+  mushroom: HTMLImageElement | null = null,
+  mushroomSquashes: readonly MushroomSquashState[] = [],
 ): void {
   ctx.imageSmoothingEnabled = false;
 
@@ -699,6 +713,47 @@ export function drawTerrain(
           TORCH_FRAME_WIDTH * RENDER_SCALE,
           TORCH_FRAME_HEIGHT * RENDER_SCALE,
         );
+        continue;
+      }
+
+      if (mushroom && tile === 'decorativeMushroom') {
+        // A single fixed cell; the small mushroom's art already sits in the
+        // lower part of its 16px cell.
+        ctx.drawImage(
+          mushroom,
+          MUSHROOM_DECORATIVE_ENTRY.sx, MUSHROOM_DECORATIVE_ENTRY.sy,
+          TILE_SIZE, TILE_SIZE,
+          destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
+        );
+        continue;
+      }
+
+      if (mushroom && tile === 'bouncyMushroom') {
+        // A vertical run reads as one mushroom: the cap-bearing roles split
+        // their sprite into an unshifted stem/connector sub-rect and a cap
+        // sub-rect that dips on a bounce; `middle`/`bottom` draw one whole
+        // role cell. `dip` is in rendered px and is 0 with no active squash.
+        const role = verticalRunRole(level, col, row, 'bouncyMushroom');
+        const entry = mushroomEntry(role);
+        if (mushroomHasCap(role)) {
+          const dip = mushroomSquashDipAt(mushroomSquashes, col, row);
+          const capH = MUSHROOM_CAP_SOURCE_HEIGHT;
+          // Stem/connector first, unshifted, so only the cap moves.
+          ctx.drawImage(
+            mushroom, entry.sx, entry.sy + capH, TILE_SIZE, TILE_SIZE - capH,
+            destX, destY + capH * RENDER_SCALE, RENDERED_TILE_SIZE, (TILE_SIZE - capH) * RENDER_SCALE,
+          );
+          // Cap, dipped.
+          ctx.drawImage(
+            mushroom, entry.sx, entry.sy, TILE_SIZE, capH,
+            destX, destY + dip, RENDERED_TILE_SIZE, capH * RENDER_SCALE,
+          );
+        } else {
+          ctx.drawImage(
+            mushroom, entry.sx, entry.sy, TILE_SIZE, TILE_SIZE,
+            destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
+          );
+        }
         continue;
       }
 

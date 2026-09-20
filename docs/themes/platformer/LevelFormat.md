@@ -43,7 +43,10 @@ A level layout is a `readonly string[]` — one string per row, one character pe
   is what lets the parser handle any layout of any size, and be tested without the real
   level.
 
-`parseLevel` throws on any character that is not a key of one of the four maps below.
+An unrecognized character (not a key of any of the four maps below) is read as `'empty'`
+and logged once per distinct character via `console.warn` — `parseLevel` does not throw,
+so a level authored against a newer palette (or a hand-edited layout with a typo) still
+loads and plays.
 
 ### Terrain, entity, sign and hazard markers
 
@@ -81,6 +84,8 @@ of the raw layout by the `find*` functions in `LevelParser.ts`.
 | `⊥` | `stalagmite` | Decorative, non-solid cave dressing. Size variant (large/twin) picked by position hash. |
 | `¥` | `torch` | Decorative, non-solid cave dressing. Its flame animates through a 4-frame sparkle loop; each cell's phase is derived from its grid position plus the shared world clock (`engine/Torch.ts`). |
 | `@` | `ladderBundle` | A curled-up rope-ladder bundle (O-011). Non-solid and not climbable, but standable from above (`isStandableLadderBundleTop`); a grounded character presses Up while on or one cell above it to unroll a `ropeLadder` shaft down to the first solid tile below. |
+| `§` | `bouncyMushroom` | Non-solid and not climbable: passable from the side and from below. Its top cap is one-way ground (`isStandableMushroomCap`) and launches the character with a fixed super-jump on every downward landing, with a brief cosmetic cap dip. A vertical run reads as one mushroom — cap / connector / stem / foot — via `verticalRunRole`. The character is the section sign; it is not a valid JS identifier, so its `TERRAIN_CHARS` key is quoted (`'§'`). |
+| `s` | `decorativeMushroom` | Non-solid and not climbable dressing mushroom. Never standable, never bounces, never awards anything — a single fixed sprite. (`s` is also a `BACKGROUND_CHARS` key, meaning `surfaceStone`; the background is a separate layer, so the overlap is allowed.) |
 
 Decorative tiles never form multi-tile runs and carry no CV-data mapping. The two
 invisible kinds — `patrol` and `blueprintConnectionPoint` — still occupy the cell, so
@@ -153,7 +158,7 @@ hazard kind needs one entry here plus a registry line in
 ## `TileChar`
 
 `TileChar` (`LevelParser.ts`) is the union of every legal layout character — all four
-maps' keys, 35 characters in total. It is written out by hand rather than derived with
+maps' keys, 41 characters in total. It is written out by hand rather than derived with
 `keyof typeof`: the maps are annotated `Record<string, … | undefined>` so lookups can
 index by a plain `string`, which would widen a derived union to `string` and remove all
 type safety. A test asserts every map key appears in the union.

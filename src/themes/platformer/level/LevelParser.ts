@@ -39,6 +39,9 @@ export const TERRAIN_CHARS: Record<string, TileType | undefined> = {
   '⊥': 'stalagmite',
   '¥': 'torch',
   '@': 'ladderBundle',
+  // '§' is not a valid JS identifier, so its key is quoted.
+  '§': 'bouncyMushroom',
+  s: 'decorativeMushroom',
 };
 
 /**
@@ -198,7 +201,9 @@ export type TileChar =
   | '<'
   | '>'
   | 'C'
-  | '@';
+  | '@'
+  | '§'
+  | 's';
 
 /**
  * Parses a level's raw ASCII layout (one character per tile, see

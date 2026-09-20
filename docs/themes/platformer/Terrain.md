@@ -38,6 +38,8 @@ Declared in `src/themes/platformer/level/LevelData.ts`.
 | `torch` | Decorative, non-solid cave dressing. Its flame animates through a 4-frame sparkle loop — each cell's frame is a pure function of its grid position and the shared world clock (`engine/Torch.ts`'s `torchFrameIndex`), so neighbouring torches flicker out of phase and the tile carries no per-instance state. |
 | `ladderBundle` | A curled-up rope-ladder bundle (`@`), the author-placeable O-011 tile. Non-solid, not climbable, but standable from above (`isStandableLadderBundleTop`). A grounded character presses Up while on or one cell above it to deploy it. |
 | `ropeLadder` | A deployed rope-ladder rung cell. **Never author-placeable** — it exists only in the effective grid `applyDeployedLadders` derives from bundle state (see [Runtime overrides](#runtime-overrides)). Climbable exactly like `ladder`/`chain`. |
+| `bouncyMushroom` | The red bouncy mushroom (`§`). Non-solid and non-climbable: passable from the side and from below. Its top cap is one-way ground (`isStandableMushroomCap`) and launches the character with a fixed super-jump on every downward landing. A vertical run reads as one mushroom — cap / connector / stem / foot — via `verticalRunRole`, like `bush`. |
+| `decorativeMushroom` | The small non-solid dressing mushroom (`s`). No behaviour of any kind: never solid, never standable, never bounces. A single fixed sprite. |
 | `empty` | Air. Out-of-bounds reads also resolve to `empty` — see `tileAt` below. |
 `tileAt(level, col, row)` in `src/themes/platformer/level/Terrain.ts` is the only sanctioned
 way to read a cell. It returns `'empty'` for any coordinate outside the grid, which is what
@@ -88,6 +90,19 @@ climb-until-the-feet-leave-the-ladder behavior.
 Note that this predicate takes the level and a coordinate, not a bare tile: it is a
 property of a cell in context, not of a tile type.
 
+`isStandableMushroomCap(level, col, row)` is the bouncy mushroom's analogous one-way
+ground term. It is true when the cell is a `bouncyMushroom`, the cell directly above is
+**not** a `bouncyMushroom` (so this is the run's top), and that cell above is not solid
+(there would be no room to land). A covered cap is not standable, but its art role is
+unchanged — nothing special happens where no landing can occur. `isSolid`/`isClimbable`
+are untouched, so both mushroom kinds block nothing horizontally and nothing from below.
+
+Standability is evaluated per column, exactly like the ladder top: `Physics.ts`'s ground
+scan tests every column the hitbox spans. The **bounce**, however, is defined by the
+player's **centre** column (FR-007): `playerOnMushroomCap` in `Physics.ts` returns the cap
+only for a grounded player whose centre column is over a standable cap, so a landing on
+the exact seam beside a cap rests on its corner without bouncing.
+
 ### The one-way bridge contract
 
 A `bridge` is solid in exactly two of the four approach directions, and the split is
@@ -120,8 +135,9 @@ only the level editor draws anything for them (`src/themes/platformer/editor/Edi
 ## Runtime overrides
 
 Every tile above is a stateless value: what it does is derived purely from its
-type and its neighbours, and nothing about it changes at runtime. The O-011
-deployable rope ladder is the first and only exception.
+type and its neighbours, and nothing about it changes at runtime. There are two
+deliberate exceptions — the O-011 deployable rope ladder's effective-grid
+override, and the O-018 bouncy mushroom's transient cap squash.
 
 A rolled `ladderBundle` (`@`) is an ordinary terrain tile. A grounded character
 standing on it — or one cell above it — presses Up to deploy it. A per-bundle
@@ -141,6 +157,23 @@ reading the raw `currentLevel`, and the deploy pass draws the rope art itself
 nothing. This mechanism is scoped to bundles only — it is deliberately not a
 general per-tile animation or state framework (see the O-011 spec's Assumptions
 and Out of Scope).
+
+### The bouncy mushroom's cap squash
+
+The one other piece of transient state is the cosmetic cap dip that plays after a
+bounce (O-018). It is **not** a tile override: the `bouncyMushroom` cells in the grid
+never change. `engine/MushroomSquash.ts` owns a small pure list of
+`{ col, row, elapsed }` entries — one per recently-bounced cap — held in
+`PlatformerState.ts`'s `mushroomSquashStates` signal, advanced and pruned each `playing`
+tick by `tickMushroomSquashes`, and cleared by `resetGame()`. The renderer reads
+`mushroomSquashDipAt` only to shift the cap sub-rect downward; the squash never affects
+collision, standability or bounce strength (FR-011/FR-015).
+
+**Open gap:** terrain kinds still do not own their own rules. Every one-way kind
+(`bridge`, a ladder shaft's standable top, the rolled bundle, and now the bouncy mushroom's
+cap) is a special-cased predicate consulted by `Physics.ts`; there is deliberately no
+`TerrainKind` registry (O-018 research D1). The gap recorded by F-018 therefore stays open
+— a future feature may still lift these predicates into a registry.
 
 ## Autotiling `groundGrass`
 
@@ -227,6 +260,9 @@ type *and* top-exposed).
 horizontal helper it never counts a run's full length, so an arbitrarily tall stack costs no
 more to classify than a lone tile. `bush` uses it to become a tree: `bushOrTreeEntry(role, col, row)`
 in `src/themes/platformer/engine/StaticObjectsCatalog.ts` maps the role to a sprite family.
+`bouncyMushroom` uses it the same way, through `mushroomEntry(role)` / `mushroomHasCap(role)`:
+the run's top cell carries the cap (and is the only one-way ground), interior cells are plain
+stem, and the bottom cell carries the foot.
 
 `cobwebOrientation(level, col, row)` returns `{ corner, rotation }`, auto-detecting whether
 the cell sits in a corner formed by two *adjacent* solid sides (up+left, up+right,
@@ -388,7 +424,7 @@ relevant `*.test.ts` before each production edit.
    If the art comes from a new image, register it in
    `src/themes/platformer/entities/sprites/sheets.ts` and load it in both
    `src/themes/platformer/PlatformerPage.tsx` and
-   `src/themes/platformer/editor/LevelEditorPage.tsx`, then thread the image through
+   `src/themes/platformer/editor/EditorCanvasPane.tsx`, then thread the image through
    `drawTerrain`'s optional parameters the way `staticObjects` and `decorations` already are.
 
 4. **`src/themes/platformer/level/Terrain.ts`** — only if the tile is solid or climbable. Add

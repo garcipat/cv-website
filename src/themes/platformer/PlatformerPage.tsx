@@ -53,7 +53,8 @@ import { ladderBundleForPlayer, beginDeploy } from './engine/DeployableLadder';
 import type { DrawContext } from './engine/DrawContext';
 import { drawDebugOverlay, drawCameraDeadZoneOverlay } from './engine/DebugOverlay';
 import { createGameLoop } from './engine/GameLoop';
-import { stepPlayerPhysics, checkPitFall, resolvePitFall } from './engine/Physics';
+import { stepPlayerPhysics, checkPitFall, resolvePitFall, playerOnMushroomCap } from './engine/Physics';
+import { startMushroomSquash } from './engine/MushroomSquash';
 import { PHYSICS_CONFIG } from './engine/PhysicsConfig';
 import { stepEnemyPatrol, stepEnemyHitReaction } from './engine/EnemyAI';
 import { updateCamera, updateCameraY, initialCameraX, initialCameraY } from './engine/Camera';
@@ -169,6 +170,7 @@ import {
   DECORATIONS_SHEET,
   TORCH_SHEET,
   ROPE_LADDER_SHEET,
+  MUSHROOM_SHEET,
   BOMB_SHEET,
   EXPLOSION_SHEET,
 } from './entities/sprites/sheets';
@@ -236,6 +238,8 @@ import {
   deployableLadderStates,
   activeLevel,
   tickDeployableLadders,
+  mushroomSquashStates,
+  tickMushroomSquashes,
 } from './PlatformerState';
 import { useSignals } from '@preact/signals-react/runtime';
 import { Journal } from './components/Journal';
@@ -280,6 +284,9 @@ export const PlatformerPage = () => {
   // alongside the other decorative sheets and threaded into
   // drawDeployableLadders (O-011).
   const ropeLadderRef = useRef<HTMLImageElement | null>(null);
+  // The mushroom sheet — loaded alongside the other decorative sheets and
+  // threaded into drawTerrain's mushroom branch (O-018).
+  const mushroomRef = useRef<HTMLImageElement | null>(null);
   // Reusable offscreen canvas the darkness/torch pass draws its overlay onto
   // before compositing it over the world. Created and sized alongside the main
   // canvas in `resize()` below, so it is never reallocated per frame.
@@ -642,6 +649,8 @@ export const PlatformerPage = () => {
             decorationsRef.current,
             torchRef.current,
             worldAnimElapsed,
+            mushroomRef.current,
+            mushroomSquashStates.value,
           );
         }
         drawDeployableLadders(
@@ -1037,6 +1046,10 @@ export const PlatformerPage = () => {
       // In-progress rope-ladder unrolls advance here too, so they freeze with
       // the world on pause/death (O-011).
       tickDeployableLadders(dt);
+
+      // In-progress bouncy-mushroom cap dips advance here too, freezing with
+      // the world on pause/death (O-018).
+      tickMushroomSquashes(dt);
 
       // Computed once per tick and shared by every reveal site below — these
       // same two expressions used to be duplicated in the enemy-defeat block
@@ -1897,16 +1910,18 @@ export const PlatformerPage = () => {
             BLOCK_TYPES[entry.block.blockKind].triggerSides.includes(entry.contact.side),
         );
 
+      // Most negative wins, so several blocks bouncing the player in one tick
+      // is deterministic regardless of iteration order. Hoisted out of the
+      // block loop so a same-tick mushroom landing can join the aggregation
+      // before the single impulse is applied (FR-009).
+      let bounceVelocity: number | undefined;
+
       if (hitBlocks.length > 0) {
         const hitIds = new Set(hitBlocks.map((entry) => entry.block.id));
 
         blockStates.value = blockStates.value.map((block) =>
           hitIds.has(block.id) ? applyBlockHit(block) : block,
         );
-
-        // Most negative wins, so several blocks bouncing the player in one
-        // tick is deterministic regardless of iteration order.
-        let bounceVelocity: number | undefined;
 
         for (const id of hitIds) {
           // Re-read from the post-applyBlockHit array: onHit must see the
@@ -1917,14 +1932,29 @@ export const PlatformerPage = () => {
           const outcome = resolveBlockTerminalOutcome(block);
           bounceVelocity = strongerBounce(bounceVelocity, outcome.bounceVelocity);
         }
+      }
 
-        if (bounceVelocity !== undefined) {
-          // Mutates `next`, not `playerState.value` — `next` is what gets
-          // persisted further down this tick (after the pit-fall check and
-          // anim-state updates), so a direct playerState.value write here
-          // would be silently clobbered by that later assignment.
-          next = { ...next, vy: bounceVelocity, bounceAscending: true };
-        }
+      // A downward landing on a bouncy mushroom's cap launches the player with
+      // the dedicated super-jump, folded into the same aggregation as a pot
+      // landing so the two never sum. `cap` is non-null only on the contact
+      // tick, so the squash always reacts to a real landing.
+      const cap = playerOnMushroomCap(activeLevel.value, next);
+      if (cap) {
+        bounceVelocity = strongerBounce(bounceVelocity, PHYSICS_CONFIG.mushroomBounceVelocity);
+      }
+      if (bounceVelocity !== undefined) {
+        // Mutates `next`, not `playerState.value` — `next` is what gets
+        // persisted further down this tick (after the pit-fall check and
+        // anim-state updates), so a direct playerState.value write here
+        // would be silently clobbered by that later assignment.
+        next = { ...next, vy: bounceVelocity, bounceAscending: true };
+      }
+      if (cap) {
+        mushroomSquashStates.value = startMushroomSquash(
+          mushroomSquashStates.value,
+          cap.col,
+          cap.row,
+        );
       }
 
       // Placed bombs: the fuse always advances (even while falling), gravity
@@ -2301,6 +2331,16 @@ export const PlatformerPage = () => {
       .catch(() => {
         // Deployable ladders simply won't render if this sheet fails to load;
         // the rest of the level still shows.
+      });
+    loadImage(MUSHROOM_SHEET.src)
+      .then((img) => {
+        if (cancelled) return;
+        mushroomRef.current = img;
+        render();
+      })
+      .catch(() => {
+        // Mushrooms simply won't render if this sheet fails to load; the rest
+        // of the level still shows.
       });
     // The explosion sheet is no type's primary sprite, so — like
     // crack_overlay.png — it stays a hand-listed load rather than being
