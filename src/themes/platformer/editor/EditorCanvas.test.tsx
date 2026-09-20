@@ -331,6 +331,29 @@ describe('EditorCanvas', () => {
     );
   });
 
+  it('paints a mixed u p row and previews one merged pot run with a filler on the seam', () => {
+    stubCanvasContext();
+    const staticObjects = {} as HTMLImageElement;
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['u', 'p']]}
+        selectedTool="G"
+        panOffset={{ x: 0, y: 0 }}
+        images={{ ...EMPTY_IMAGES, staticObjects }}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+
+    const drawContext = vi.mocked(drawBlocks).mock.calls[0][2];
+    const plan = drawContext.potPlan!;
+    expect(plan.runsByOwnerId.size).toBe(1);
+    const run = [...plan.runsByOwnerId.values()][0];
+    expect(run.blocks).toHaveLength(2);
+    expect(run.fillers).toHaveLength(1);
+  });
+
   it('calls drawCollectibles, drawEnemies, drawBlocks, and drawChests with the synthesized state', () => {
     stubCanvasContext();
     const tileset = {} as HTMLImageElement;
@@ -363,13 +386,13 @@ describe('EditorCanvas', () => {
       expect.arrayContaining([expect.objectContaining({ type: 'slimeGreen' })]),
       expect.objectContaining({ originX: 5, originY: 7 }),
     );
-    // Regression test (see EditorCanvas.ts's coinPotPlan/STATIC_OBJECTS_SHEET
+    // Regression test (see EditorCanvas.ts's potPlan/STATIC_OBJECTS_SHEET
     // wiring): a real bug found by manual play-testing was that the editor's
     // drawContext never included STATIC_OBJECTS_SHEET at all (only used for
     // bush/fence via drawTerrain's own dedicated argument, never for a
-    // generic block before coinPot), nor a coinPotPlan — coinPot fell back
-    // to CoinPot.ts's "no plan provided" isolated-fallback path silently,
-    // and without the sheet it rendered nothing at all.
+    // generic block before pot), nor a potPlan — a clay pot fell back to its
+    // kind's "no plan provided" isolated-draw path silently, and without the
+    // sheet it rendered nothing at all.
     expect(drawBlocks).toHaveBeenCalledWith(
       expect.anything(),
       expect.arrayContaining([
@@ -380,8 +403,7 @@ describe('EditorCanvas', () => {
         originX: 5,
         originY: 7,
         sprites: expect.objectContaining({ [STATIC_OBJECTS_SHEET.src]: staticObjects }),
-        coinPotPlan: expect.objectContaining({
-          variantByBlockId: expect.any(Map),
+        potPlan: expect.objectContaining({
           ownerBlockId: expect.any(Map),
           runsByOwnerId: expect.any(Map),
         }),

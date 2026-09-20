@@ -687,7 +687,13 @@ describe('Journal', () => {
         const total = crates.length;
         expect(summary).toHaveTextContent(new RegExp(`Crates 1 / ${total}(?!\\d)`));
       } finally {
-        blockStates.value = blockPlacements.value.map((b) => ({ ...b, hitsTaken: 0, animState: 'idle', animTimer: 0 }));
+        blockStates.value = blockPlacements.value.map((b) => ({
+          ...b,
+          hitsTaken: 0,
+          animState: 'idle',
+          animTimer: 0,
+          rewardGiven: false,
+        }));
       }
     });
 

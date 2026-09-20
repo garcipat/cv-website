@@ -30,11 +30,11 @@
 
 ## Feature Completion Tracking
 
-When a feature's implementation **and** tests are fully done, immediately update `docs/Features.md` in three places:
+Feature ideas and their status are tracked as GitHub Issues; `docs/Features.md` currently holds
+**only the dependency map** (it has no feature list and no Implementation Status table). When a
+feature's implementation **and** tests are fully done, update the dependency diagram there:
 
-1. **Feature list** — change `- [ ]` to `- [x]` on the feature's bullet
-2. **Implementation Status table** — update all three columns to `✅ Done` / `✅`
-3. **Dependency diagram** — prefix the node label with `✅ ` and add `class XNNN done` alongside the existing category class
+1. **Dependency diagram** — prefix the node label with `✅ ` and add `class XNNN done` alongside the existing category class
 
 Feature IDs use the prefix of their tier: `F-NNN` (Core), `S-NNN` (Should Have), `O-NNN` (Optional). The node ID in the diagram omits the hyphen: `F002`, `S001`, `O001`.
 
@@ -48,3 +48,8 @@ Example for F-002:
 + class F001,F002,F003,F004,F018,F019 listManagement
 + class F002 done
 ```
+
+> Note: this section previously described a feature-list checkbox and an Implementation Status
+> table, which `docs/Features.md` no longer contains (status now lives in GitHub Issues). The
+> constitution's Principle IV wording still refers to a "feature list"; reconciling that wording
+> is a separate constitution amendment, not a feature task.

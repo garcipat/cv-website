@@ -13,8 +13,11 @@ level characters that place them, see [LevelFormat.md](LevelFormat.md).
 | `src/themes/platformer/entities/blocks/BlockType.ts` | The `BlockType` interface and `BlockHitOutcome` |
 | `src/themes/platformer/entities/blocks/index.ts` | `BLOCK_TYPES`, the whole registry |
 | `src/themes/platformer/entities/blocks/Crate.ts`, `QuestionMark.ts`, `FragileRock.ts`, `CoinPot.ts`, `PotionPot.ts` | One module per kind |
+| `src/themes/platformer/entities/blocks/potTypes.ts` | The shared pot/render types (`DropPolicy`, `PotKind`, `PotRenderPlan`, …) |
+| `src/themes/platformer/entities/blocks/pot.ts` | `createPotType` (the shared pot factory) and `drawPotBunch` |
+| `src/themes/platformer/entities/blocks/clayVariants.ts` | Per-tile clay variant math and the shared clay blit |
 | `src/themes/platformer/entities/blocks/drawBlockTile.ts` | The shared plain-tile blit |
-| `src/themes/platformer/entities/blocks/coinPotRenderPlan.ts` | Coin-pot run merging and variant assignment |
+| `src/themes/platformer/entities/blocks/potRenderPlan.ts` | Kind-agnostic pot run merging and fillers |
 | `src/themes/platformer/entities/Block.ts` | `BlockKind`, `BlockState`, hit application, lifecycle predicates |
 | `src/themes/platformer/engine/BlockAI.ts` | The bump/shatter animation and its offset |
 | `src/themes/platformer/engine/Outcome.ts` | `PlayerEffects` and `RewardEffects`, the outcome halves |
@@ -39,6 +42,7 @@ block rectangle.
 | `draw` | `(block: BlockState, dc: DrawContext) => void` | The kind's own rendering. `Renderer.ts` never branches on kind. |
 | `triggerSides` | `readonly BlockContactSide[]` | Which contact sides register a hit. |
 | `onHit` | `(block: BlockState) => BlockHitOutcome` (optional) | What a registering hit *means*. Omitted by a kind whose destruction has no consequences beyond the generic puff and removal. |
+| `pot` | `PotKind` (optional) | Present only on pot kinds (see [Container blocks](#container-blocks)). Its presence is the engine's single "this block is a pot" test — the render plan merges exactly those registry entries that declare one. Absent on every non-pot kind. |
 
 The current registry:
 
@@ -47,21 +51,34 @@ The current registry:
 | `crate` | 2 | `true` | `['bottom']` | `{ counterKey: 'crates' }` on the terminal hit, `{}` otherwise |
 | `questionMark` | 1 | `false` | `['bottom']` | `{ spawnPickup: 'bonusFruit' }` |
 | `fragileRock` | 1 | `true` | `['bottom']` | — (no `onHit`) |
-| `coinPot` | 1 | `true` | `['top']` | `{ spawnPickup: 'coin', bounceVelocity: PHYSICS_CONFIG.coinPotBounceVelocity }` |
-| `potionPot` | 1 | `true` | `['top']` | `{ spawnPickup: 'heart', bounceVelocity: PHYSICS_CONFIG.coinPotBounceVelocity }` |
+| `coinPot` | 1 | `true` | `['top']` | `{ spawnPickup: 'coin', bounceVelocity: PHYSICS_CONFIG.potBounceVelocity }` while `rewardGiven` is false, else just the bounce (`'once'`) |
+| `potionPot` | 1 | `true` | `['top']` | `{ spawnPickup: 'heart', bounceVelocity: PHYSICS_CONFIG.potBounceVelocity }` on every break (`'everyBreak'`) |
+
+`coinPot` and `potionPot` are not written by hand — each is a single `createPotType`
+call (see [Container blocks](#container-blocks)).
 
 ### The instance side
 
 `BlockState` (`entities/Block.ts`) extends `BlockPlacement` with `hitsTaken`,
-`animState` (`'idle' | 'bump' | 'shatter'`) and `animTimer`. Blocks compose none of the
-capability interfaces from `entities/capabilities.ts` — see
+`animState` (`'idle' | 'bump' | 'shatter'`), `animTimer` and `rewardGiven`. Blocks
+compose none of the capability interfaces from `entities/capabilities.ts` — see
 [Entities.md](Entities.md) for why.
+
+`rewardGiven` is the per-instance "this pot has already paid out" flag, mirroring
+`BaseEnemyState.rewardGiven` (`entities/enemies/EnemyType.ts`). `toBlockState` seeds it
+`false`; `PlatformerPage.tsx` sets it `true` when a block's `onHit` handed out a
+`spawnPickup`. It survives death/respawn (a restored placement carries it over from the
+prior block with the same id) and is cleared only by `resetGameProgress()`. It is what
+gates a `'once'` pot's drop, so a `'once'` kind never drops a second pickup even if it is
+ever restored (FR-017).
 
 The lifecycle predicates all read the type through the registry, so no caller branches
 on kind:
 
 - `maxHitsForBlock(kind)` → `BLOCK_TYPES[kind].maxHits`
 - `hitboxInsetXForBlock(kind)` → `BLOCK_TYPES[kind].hitboxInsetX ?? 0`
+- `restoredOnRespawnForBlock(kind)` → `BLOCK_TYPES[kind].pot?.restoredOnRespawn ?? false`
+  — the single input `resetGame()` uses to decide which placements to rebuild.
 - `isBlockUsedUp(block)` — took every hit its kind responds to; may still be animating.
 - `isBlockRemoved(block)` — `removeWhenUsedUp` *and* used up *and* settled back to
   `'idle'`. A question-mark is never removed.
@@ -145,9 +162,9 @@ rather than the raw tile boundary, reading the value through
 Only `coinPot` declares one today: `3 * RENDER_SCALE` = 6 rendered px, measured from the
 three variant sprites' actual drawn pixels inside their native 16×16 tile (the narrowest
 leaves ~3px of transparent margin per side, the widest ~2px). It is a single value used
-for every variant, because which variant an instance renders as is decided per-frame by
-`computeCoinPotRenderPlan` rather than fixed per block — the hitbox cannot reasonably
-vary with it.
+for every variant, because which variant an instance renders as is a pure function of the
+tile's own position (`clayVariantAt`) rather than fixed per block — the hitbox cannot
+reasonably vary with it.
 
 Vertical collision is unaffected; there is no `hitboxInsetY`.
 
@@ -283,49 +300,84 @@ Without step 3, a second fact-bearing block kind would have its reveal silently
 attributed to whatever counter the engine happened to hardcode. That is precisely why
 `counterKey` is on the outcome.
 
-## Container blocks
+## Container blocks (the shared pot concept)
 
-Coin pots and potion pots are the same `BlockType` contract with `triggerSides: ['top']`
-instead of `['bottom']` — destroyed by *landing on* them rather than by a hit from
-below. Nothing else about them is special-cased: the same generic filter, the same
-`applyBlockHit`, the same puff, the same removal.
+Coin pots, potion pots and any future pot kind (the bomb pot, O-012) are one shared
+concept. A kind is produced by `createPotType(config)` (`entities/blocks/pot.ts`), which
+fixes every shared behavior so no kind can vary it:
 
-Both declare `bounceVelocity: PHYSICS_CONFIG.coinPotBounceVelocity` (−220 px/s, weaker
-than the −330 enemy stomp) so landing on one gives a small hop. Neither carries a CV
-fact of its own — `BlockMapper.ts` places both directly from level markers, with a
-position-derived id and no def to zip against. Which fact a dropped coin eventually
-reveals is resolved at pickup time from the shared skill-fact pool.
+| `BlockType` field | Value for every pot |
+|---|---|
+| `maxHits` | `1` |
+| `removeWhenUsedUp` | `true` |
+| `triggerSides` | `['top']` — destroyed by *landing on* it, never by a hit from below |
+| `onHit` | Always `bounceVelocity: PHYSICS_CONFIG.potBounceVelocity` (−220 px/s, weaker than the −330 enemy stomp); includes `spawnPickup` per the kind's `dropPolicy` |
+| `draw` | `drawPotBunch` — merged-bunch rendering (below) |
+| `pot` | `{ drop, dropPolicy, restoredOnRespawn, drawPot }` |
 
-### Adjacent coin pots merge visually
+The shared puff, collision solidity, hit counting and removal are the existing
+`BlockType`/`BlockState` machinery, not restated per kind. A kind declares only its
+`PotTypeConfig`: `key`, `sprite`, `drop` (a `PickupKind`), `dropPolicy`
+(`'once' | 'everyBreak'`), `restoredOnRespawn`, `drawPot` (its own single-pot draw, with
+its own bump offset) and optional `frameIndex`/`hitboxInsetX`. `CoinPot.ts` and
+`PotionPot.ts` are each one such call.
 
-`coinPotRenderPlan.ts` computes, fresh from the live block list **every frame**, how
-every still-live coin-pot tile renders. Nothing is cached across ticks, so a hit tile
-drops out of its run immediately (`isBlockUsedUp`), before its bump animation even
-finishes — destroying the middle of a three-run leaves both survivors isolated on the
-very next frame.
+Neither pot carries a CV fact of its own — `BlockMapper.ts` places both directly from
+level markers, with a position-derived id and no def to zip against. Which fact a dropped
+coin eventually reveals is resolved at pickup time from the shared skill-fact pool.
 
-- Within one row, adjacent live tiles (column N and N+1) form a **run**.
-- `permutationForColumn(col)` hashes the run's leftmost column into one of the six
-  permutations of the three variant indices (0 = small round jar, 1 = tall narrow urn,
-  2 = wide square urn) — the same position-hash trick `StaticObjectsCatalog.ts` uses for
-  bush/tree variety.
-- The run walks slot indices `0, 1, 2, …` through that permutation. Base tiles take the
-  even slots; one **filler** pot per internal seam takes the odd slots, drawn centered on
-  the tile boundary. The result reads as one merged bunch of varied sizes rather than N
-  separate jars with visible gaps.
-- Because a permutation's three entries are pairwise distinct, no two consecutive
-  rendered pots ever share a variant, even across the `% 3` wraparound.
+### The drop policy and `rewardGiven`
 
-The plan is exposed on `DrawContext.coinPotPlan`. Only a run's **owner** (its leftmost
-block) actually draws: it renders every base pot in the run, each with its *own* bump
+`dropPolicy` says how often a kind's `drop` is spawned. `potionPot` is `'everyBreak'`: it
+drops a fresh heart on every destruction, including after a respawn. `coinPot` is
+`'once'`: the factory's `onHit` includes `spawnPickup` only while the instance's
+`rewardGiven` flag is still `false`. `PlatformerPage.tsx` marks `rewardGiven: true` on any
+block whose outcome produced a `spawnPickup` — the block analog of the enemy marking — so
+a `'once'` pot can never drop twice, even if a future restored kind is rebuilt. The flag
+survives death/respawn and is cleared only by Reset Game (`resetGameProgress()`).
+
+### Any pot kind merges
+
+`potRenderPlan.ts`'s `computePotRenderPlan(blocks, registry = BLOCK_TYPES)` computes,
+fresh from the live block list **every frame**, how every still-live pot tile renders.
+It is kind-agnostic: a block is a member iff `registry[block.blockKind].pot` is defined
+and the block is not used up. Nothing is cached across ticks, so a hit tile drops out of
+its run immediately, before its bump animation even finishes — destroying the middle of a
+three-run leaves both survivors isolated on the very next frame. The optional `registry`
+parameter exists only so a test can register a test-only kind without mutating the global
+registry.
+
+- Within one row, adjacent live tiles of **any** kinds (column N and N+1) form a **run**.
+- `clayVariantAt(col, row)` is a pure function of the tile's own position — one of the
+  three clay variants (0 = small round jar, 1 = tall narrow urn, 2 = wide square urn).
+  Because it depends on the tile alone, a survivor keeps its size when a neighbour breaks
+  or a bunch re-forms. It steps by exactly one variant per column (mod 3) with a per-row
+  phase, so two horizontally adjacent pots never share a size.
+- One **filler** pot per internal seam, drawn centered on the tile boundary, including a
+  seam between two bottles. `fillerVariantAt(seamCol, row)` differs by construction from
+  both bridged clay variants, so no two neighbouring rendered clay pots — base or filler —
+  ever share a variant, for a run of any length.
+- A lone pot is a run of one with no fillers and renders isolated. A potion bottle is
+  never assigned a clay variant: its `drawPot` always draws its fixed frame.
+
+Each run member is stored with its own `PotKind`, and the plan is exposed on
+`DrawContext.potPlan`. Only a run's **owner** (its leftmost block) actually draws: it
+renders every member through that member's own `drawPot`, each with its *own* bump
 offset, plus every filler, so a whole run renders from one `draw()` call regardless of
-which tile the caller happens to be iterating. Non-owners return immediately. A block
-absent from the plan — no plan supplied (a test drawing in isolation), or an instance
-mid-bump after being hit — draws itself alone with the same deterministic
-column-seeded fallback variant.
+which tile the caller happens to be iterating — and a coin-pot owner draws a neighbouring
+bottle with no kind branch. Non-owners return immediately. A block absent from the plan —
+no plan supplied (a test drawing in isolation), or an instance mid-bump after being hit —
+draws itself alone via its own `drawPot`.
 
 `EditorCanvas.tsx` builds the same plan over its synthesized editor placements, so the
-palette preview merges runs exactly as the game does.
+palette preview merges runs exactly as the game does (FR-016).
+
+### Adding a pot kind
+
+A pot kind is one `createPotType` call plus the normal block-registration pipeline
+(below). No edit is needed to `pot.ts`, `clayVariants.ts`, `potRenderPlan.ts`,
+`Renderer.ts` or `Physics.ts`: merging and shared behavior come from the factory and the
+registry-driven plan.
 
 ### The potion pot restores on respawn
 
@@ -333,13 +385,21 @@ Blocks are progress that persists across a death/respawn — `resetGame()` in
 `PlatformerState.ts` leaves `blockStates` alone for crate, question-mark, fragile rock
 and coin pot.
 
-The potion pot is the single exception. `resetGame()` rebuilds every potion-pot
-placement back to intact and clears `heartPickupStates`:
+A kind that declares `restoredOnRespawn: true` is the exception. `resetGame()` rebuilds
+every such placement back to intact — carrying its `rewardGiven` over from the prior
+block with the same id, the block analog of `reviveEnemy` — and clears
+`heartPickupStates`:
 
 ```ts
 blockStates.value = [
-  ...blockStates.value.filter((b) => b.blockKind !== 'potionPot'),
-  ...blockPlacements.value.filter((p) => p.blockKind === 'potionPot').map(toBlockState),
+  ...blockStates.value.filter((b) => !restoredOnRespawnForBlock(b.blockKind)),
+  ...blockPlacements.value
+    .filter((p) => restoredOnRespawnForBlock(p.blockKind))
+    .map((p) => {
+      const restored = toBlockState(p);
+      const prior = blockStates.value.find((b) => b.id === p.id);
+      return prior ? { ...restored, rewardGiven: prior.rewardGiven } : restored;
+    }),
 ];
 heartPickupStates.value = [];
 ```
@@ -347,6 +407,8 @@ heartPickupStates.value = [];
 A dropped-but-uncollected heart is tied to its now-restored pot; leaving it in the world
 would let the player collect a heal the pot itself is about to offer again. The heal
 amount is applied at pickup time by `Health.ts`'s `healDamage`, never by the block.
+Today the potion pot is the only restored kind; the flag is read from the registry so a
+future one needs no `PlatformerState` edit.
 
 The potion pot is implemented and reachable from the editor palette but is not placed in
 the shipped level.
@@ -360,7 +422,9 @@ the placement pipeline is.
    `BlockType` constant: `key`, `sprite`, `maxHits`, `removeWhenUsedUp`, `triggerSides`,
    `frameIndex`, `draw`, and `onHit` if the hit has consequences. Add `hitboxInsetX` if
    the art is narrower than its tile. Use `drawBlockTile` unless the kind needs its own
-   compositing.
+   compositing. A **pot** kind instead exports a single `createPotType(config)` call and
+   declares only `key`, `sprite`, `drop`, `dropPolicy`, `restoredOnRespawn`, `drawPot`
+   and any optional `frameIndex`/`hitboxInsetX` — never the shared fields.
 2. **`src/themes/platformer/entities/blocks/index.ts`** — one line in `BLOCK_TYPES`.
 3. **`src/themes/platformer/entities/Block.ts`** — add the literal to the `BlockKind`
    union.
@@ -377,7 +441,8 @@ the placement pipeline is.
    `mapCVDataToBlocks` def and a zip or pool-slice rule.
 7. **`src/themes/platformer/PlatformerState.ts`** — wire the marker signal into the
    marker-positions computed, and add the kind to `levelTotals` if it feeds a counter.
-   Add it to `resetGame` only if it must be restored on respawn.
+   A pot kind needs no `resetGame` edit: `restoredOnRespawn` is read from the registry.
+   (Only a non-pot kind that must be restored on respawn needs a new branch here.)
 8. **`src/themes/platformer/editor/paletteTiles.ts`** — an entry in
    `PALETTE_TILE_SPRITES` (sheet, source rect, frame size),
    `PALETTE_TILE_DESCRIPTIONS` (what it does in the finished level) and

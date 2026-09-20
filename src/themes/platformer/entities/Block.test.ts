@@ -9,6 +9,7 @@ import {
   isBlockRemoved,
   applyBlockHit,
   blockEffectAnchor,
+  restoredOnRespawnForBlock,
 } from './Block';
 import { TILE_SIZE, RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { BlockPlacement } from '../level/BlockMapper';
@@ -88,6 +89,26 @@ describe('toBlockState', () => {
     expect(state.animState).toBe('idle');
     expect(state.animTimer).toBe(0);
     expect(state.blockKind).toBe('crate');
+  });
+
+  it('freshPlacement-seedsRewardGivenFalse', () => {
+    expect(toBlockState(placement('coinPot')).rewardGiven).toBe(false);
+  });
+});
+
+describe('restoredOnRespawnForBlock', () => {
+  it('potionPot-isRestoredOnRespawn', () => {
+    expect(restoredOnRespawnForBlock('potionPot')).toBe(true);
+  });
+
+  it('coinPot-isNotRestoredOnRespawn', () => {
+    expect(restoredOnRespawnForBlock('coinPot')).toBe(false);
+  });
+
+  it('nonPotKinds-areNotRestoredOnRespawn', () => {
+    expect(restoredOnRespawnForBlock('crate')).toBe(false);
+    expect(restoredOnRespawnForBlock('questionMark')).toBe(false);
+    expect(restoredOnRespawnForBlock('fragileRock')).toBe(false);
   });
 });
 
