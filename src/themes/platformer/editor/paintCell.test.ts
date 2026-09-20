@@ -72,13 +72,13 @@ describe('paintCell — sign markers', () => {
   it('cyclingRepeatedly-walksThroughEveryRegisteredHintInOrderThenWrapsAround', () => {
     let grid: TileChar[][] = [['1', '.']];
     const seen: TileChar[] = [];
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 6; i++) {
       const result = paintCell(grid, 0, 0, '1');
       seen.push(result.grid[0][0]);
       grid = result.grid;
     }
 
-    expect(seen).toEqual(['2', '3', '4', '5', '1']);
+    expect(seen).toEqual(['2', '3', '4', '5', '6', '1']);
   });
 
   it('paintingSignToolOnEmptyCell-doesNotDisturbAnUnrelatedExistingSign-andSkipsTheAlreadyUsedHint', () => {
@@ -94,15 +94,15 @@ describe('paintCell — sign markers', () => {
   });
 
   it('everyRegisteredHintAlreadyUsedElsewhere-fallsBackToReusingTheStartingDigit', () => {
-    // Edge case from the doc comment: once every registered hint (1-5) is
+    // Edge case from the doc comment: once every registered hint (1-6) is
     // already placed somewhere else, a new placement has nothing unused
     // left to grab and falls back to the tool's own starting digit rather
     // than leaving the cell unpainted.
-    const grid: TileChar[][] = [['1', '2', '3', '4', '5', '.']];
+    const grid: TileChar[][] = [['1', '2', '3', '4', '5', '6', '.']];
 
-    const result = paintCell(grid, 5, 0, '1');
+    const result = paintCell(grid, 6, 0, '1');
 
-    expect(result.grid[0][5]).toBe('1');
+    expect(result.grid[0][6]).toBe('1');
   });
 
   it('paintingNonSignTool-behavesExactlyAsBefore', () => {

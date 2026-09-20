@@ -9,6 +9,7 @@ import {
   findFragileRockTiles,
   findCoinPotTiles,
   findPotionPotTiles,
+  findBombPotTiles,
   findChestTiles,
   findCheckpointTiles,
   TERRAIN_CHARS,
@@ -76,6 +77,7 @@ describe('parseLevel', () => {
     expect(ENTITY_CHARS.F).toBe('fragileRock');
     expect(ENTITY_CHARS.u).toBe('coinPot');
     expect(ENTITY_CHARS.p).toBe('potionPot');
+    expect(ENTITY_CHARS.b).toBe('bombPot');
     expect(ENTITY_CHARS.$).toBe('chest');
     expect(ENTITY_CHARS.C).toBe('checkpoint');
   });
@@ -364,6 +366,35 @@ describe('findPotionPotTiles', () => {
   });
 });
 
+describe('findBombPotTiles', () => {
+  it('noMarkers-returnsEmptyArray', () => {
+    expect(findBombPotTiles(['GG', 'GG'])).toEqual([]);
+  });
+
+  it('multipleMarkers-returnsAllInReadingOrder', () => {
+    expect(findBombPotTiles(['.b', 'b.'])).toEqual([
+      { col: 1, row: 0 },
+      { col: 0, row: 1 },
+    ]);
+  });
+
+  it('coinPotOrPotionPotMarker-isNotCountedAsBombPot', () => {
+    expect(findBombPotTiles(['up'])).toEqual([]);
+  });
+
+  it('bombPotChar-parsesAsEmptyWalkableTile', () => {
+    expect(parseLevel(['b.', 'GG']).terrain[0][0]).toBe('empty');
+  });
+
+  it('bombPotChar-collidesWithNoOtherCharacterMap', () => {
+    // The module-load guard in LevelParser.ts already throws on a shared
+    // key; this names the invariant for 'b' specifically.
+    expect('b' in TERRAIN_CHARS).toBe(false);
+    expect('b' in SIGN_CHARS).toBe(false);
+    expect('b' in HAZARD_CHARS).toBe(false);
+  });
+});
+
 describe('findChestTiles', () => {
   it('noMarkers-returnsEmptyArray', () => {
     expect(findChestTiles(['GG', 'GG'])).toEqual([]);
@@ -422,11 +453,12 @@ describe('SIGN_CHARS', () => {
     expect(SIGN_CHARS['1']).toBe('bridgeDropThrough');
   });
 
-  it('digitsTwoThroughFive-mapToTheirRegisteredHints', () => {
+  it('digitsTwoThroughSix-mapToTheirRegisteredHints', () => {
     expect(SIGN_CHARS['2']).toBe('ladderClimbUp');
     expect(SIGN_CHARS['3']).toBe('fragileRockBreaksFromBelow');
     expect(SIGN_CHARS['4']).toBe('chestNeedsKey');
     expect(SIGN_CHARS['5']).toBe('openAllChestsHaveFun');
+    expect(SIGN_CHARS['6']).toBe('bomb');
   });
 
   it('noOverlapWithTerrainOrEntityChars-documentedByTheModuleLoadGuard', () => {
@@ -550,7 +582,7 @@ describe('TileChar', () => {
   it('includes every TERRAIN_CHARS, ENTITY_CHARS, SIGN_CHARS, and HAZARD_CHARS key', () => {
     const tileChars: readonly TileChar[] = [
       '.', 'G', 'R', '#', 'B', 'H', 'I', 'P', '+', 'S', 'M', 'm', 'o', '=', 'Q', 'F', '$', 'u', 'p',
-      'n', 'N', 'X', 'c', '⊤', '⊥', '¥', '1', '2', '3', '4', '5', '^', 'v', '<', '>', 'C', '@',
+      'b', 'n', 'N', 'X', 'c', '⊤', '⊥', '¥', '1', '2', '3', '4', '5', '6', '^', 'v', '<', '>', 'C', '@',
     ];
     const allKeys = [
       ...Object.keys(TERRAIN_CHARS),

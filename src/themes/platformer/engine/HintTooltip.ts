@@ -14,6 +14,14 @@ export interface HintTooltipState {
   hintId: HintId;
   phase: HintTooltipPhase;
   elapsed: number;
+  /**
+   * When true, the tooltip auto-begins its exit after
+   * `HINT_TOOLTIP_TRANSIENT_DWELL_SECONDS` instead of waiting for
+   * `beginHintTooltipExit`. Used by a keypress-triggered bubble (the
+   * empty-inventory "no bombs" bubble), which has no sign overlap to leave
+   * and so must dismiss itself. A sign's own tooltip omits this.
+   */
+  transient?: boolean;
 }
 
 /**
@@ -26,11 +34,16 @@ export interface HintTooltipState {
 export const HINT_TOOLTIP_FADE_IN_SECONDS = 0.2;
 export const HINT_TOOLTIP_FADE_OUT_SECONDS = 0.25;
 
-/** Starts a fresh tooltip in its 'entering' phase — only called once the
- *  player presses Up/`W` while overlapping a sign, not on mere overlap —
- *  see PlatformerPage.tsx. */
-export function startHintTooltip(hintId: HintId): HintTooltipState {
-  return { hintId, phase: 'entering', elapsed: 0 };
+/** How long a transient (keypress-triggered) bubble stays fully shown before
+ *  it begins its own exit — long enough to read a short sentence. */
+export const HINT_TOOLTIP_TRANSIENT_DWELL_SECONDS = 1.5;
+
+/** Starts a fresh tooltip in its 'entering' phase — called once the player
+ *  presses Up/`W` while overlapping a sign, or presses the place-bomb input
+ *  with no bombs. Pass `{ transient: true }` for the latter, so the bubble
+ *  dismisses itself (see `tickHintTooltip`). */
+export function startHintTooltip(hintId: HintId, options?: { transient?: boolean }): HintTooltipState {
+  return { hintId, phase: 'entering', elapsed: 0, transient: options?.transient };
 }
 
 /** Switches an already-active tooltip into its 'exiting' phase, resetting
@@ -58,6 +71,11 @@ export function tickHintTooltip(state: HintTooltipState, dt: number): HintToolti
   if (state.phase === 'exiting') {
     if (elapsed >= HINT_TOOLTIP_FADE_OUT_SECONDS) return null;
     return { ...state, elapsed };
+  }
+  if (state.transient && elapsed >= HINT_TOOLTIP_TRANSIENT_DWELL_SECONDS) {
+    // A transient bubble has no sign overlap to leave, so it begins its own
+    // exit after the fixed dwell.
+    return beginHintTooltipExit(state);
   }
   return { ...state, elapsed };
 }

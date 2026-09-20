@@ -232,3 +232,22 @@ export const ROPE_LADDER_SHEET: SpriteSheet = {
   frameHeight: TILE_SIZE,
   columns: 2,
 };
+
+/** `bomb.png` — a 96x16 strip of six 16x16 frames: 0 = unlit bomb (the HUD
+ *  icon and world pickup), 1-3 = lit fuse burning down, 4 = pulse partner,
+ *  5 = orange pre-detonation glow (O-012). */
+export const BOMB_SHEET: SpriteSheet = {
+  src: '/sprites/bomb.png',
+  frameWidth: 16,
+  frameHeight: 16,
+  columns: 6,
+};
+
+/** `explosion.png` — a 384x48 strip of eight 48x48 frames: the spiky,
+ *  comic-style burst (the round-fireball candidate was dropped). */
+export const EXPLOSION_SHEET: SpriteSheet = {
+  src: '/sprites/explosion.png',
+  frameWidth: 48,
+  frameHeight: 48,
+  columns: 8,
+};

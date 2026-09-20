@@ -21,6 +21,7 @@ import type { HazardPlacement } from '../level/HazardMapper';
 import type { HintId } from '../types';
 import type { KeyPickupState } from '../entities/KeyPickup';
 import type { HeartPickupState } from '../entities/HeartPickup';
+import type { BombPickupState } from '../entities/BombPickup';
 import { MAX_HALF_HEARTS } from '../entities/Health';
 import { PICKUP_TYPES } from '../entities/pickups';
 import { strongerBounce } from './Outcome';
@@ -328,4 +329,25 @@ export function checkHeartPickupCollisions(
 ): string[] {
   if (player.hitPoints >= MAX_HALF_HEARTS) return [];
   return overlappingTriggers(player, hearts, (h) => PICKUP_TYPES.heart.box(h)).map((h) => h.id);
+}
+
+/**
+ * Returns the ids of bomb pickups the player's hitbox currently overlaps,
+ * limited to `max(0, cap - count)` ids in array order (FR-008/FR-009) — so a
+ * tick that touches several pickups at once can never overfill the inventory.
+ * At the cap it returns `[]`, leaving every pickup in the world, still
+ * bobbing. Uses the same `overlappingTriggers` helper as the heart/key checks;
+ * `bobOffset` is a draw-only offset, so collision ignores it.
+ */
+export function checkBombPickupCollisions(
+  player: PlayerState,
+  bombs: readonly BombPickupState[],
+  count: number,
+  cap: number,
+): string[] {
+  const capacity = Math.max(0, cap - count);
+  if (capacity === 0) return [];
+  return overlappingTriggers(player, bombs, (b) => PICKUP_TYPES.bomb.box(b))
+    .slice(0, capacity)
+    .map((b) => b.id);
 }

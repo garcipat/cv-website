@@ -13,6 +13,7 @@ export type EntityKind =
   | 'fragileRock'
   | 'coinPot'
   | 'potionPot'
+  | 'bombPot'
   | 'chest'
   | 'checkpoint';
 
@@ -50,7 +51,9 @@ export const TERRAIN_CHARS: Record<string, TileType | undefined> = {
  * glyph, unlike every other entity marker which is uppercase), `p` (potion-pot
  * block — destroyed by landing on top like a coin-pot, drops a heart pickup
  * that heals half a heart; no fact, same no-CVData-binding convention as
- * coin-pot/fragileRock), `$` (chest —
+ * coin-pot/fragileRock), `b` (bomb-pot block — destroyed by landing on top
+ * like the other pots, drops a bomb pickup the player carries and places;
+ * no fact, same no-CVData-binding convention, O-012), `$` (chest —
  * Experience fact, opened via Arrow Up while standing on it, spec.md
  * FR-023), `C` (checkpoint — no CV fact, raises a flag once stepped on with
  * solid ground below and becomes the active respawn point for the rest of the
@@ -70,6 +73,7 @@ export const ENTITY_CHARS: Record<string, EntityKind | undefined> = {
   F: 'fragileRock',
   u: 'coinPot',
   p: 'potionPot',
+  b: 'bombPot',
   $: 'chest',
   C: 'checkpoint',
 };
@@ -91,6 +95,7 @@ export const SIGN_CHARS: Record<string, HintId | undefined> = {
   '3': 'fragileRockBreaksFromBelow',
   '4': 'chestNeedsKey',
   '5': 'openAllChestsHaveFun',
+  '6': 'bomb',
 };
 
 /** A spike hazard's facing — which of the 4 pre-drawn sprites in
@@ -174,6 +179,8 @@ export type TileChar =
   | '$'
   | 'u'
   | 'p'
+  | 'b'
+  | '6'
   | 'n'
   | 'N'
   | 'X'
@@ -385,6 +392,14 @@ export function findCoinPotTiles(layout: readonly string[]): { col: number; row:
  *  amount (see Health.ts's HEART_PICKUP_HEAL_AMOUNT). */
 export function findPotionPotTiles(layout: readonly string[]): { col: number; row: number }[] {
   return findAllOfKind(layout, 'potionPot');
+}
+
+/** Finds every `b` (bomb-pot block) marker's position in a level layout —
+ *  same no-CVData-mapping convention as findCoinPotTiles/findPotionPotTiles;
+ *  the bomb a destroyed bomb-pot drops carries no fact of its own, only an
+ *  inventory count (O-012). */
+export function findBombPotTiles(layout: readonly string[]): { col: number; row: number }[] {
+  return findAllOfKind(layout, 'bombPot');
 }
 
 /** Finds every `$` (chest) marker's position in a level layout — same

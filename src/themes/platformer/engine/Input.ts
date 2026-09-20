@@ -3,7 +3,7 @@
  * arrow keys) is suppressed so gameplay isn't fighting the page — FR-007
  * reserves Arrow Left/Right/Up/Down and Space exclusively for the game.
  * ArrowDown/KeyS trigger bridge drop-through; they have no other purpose
- * today.
+ * today. KeyB places a carried bomb (O-012).
  */
 const GAME_KEYS = new Set([
   'ArrowLeft',
@@ -15,6 +15,7 @@ const GAME_KEYS = new Set([
   'KeyD',
   'KeyS',
   'KeyW',
+  'KeyB',
 ]);
 
 export interface KeyboardInput {
