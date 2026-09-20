@@ -90,7 +90,7 @@ import {
   blockEffectAnchor,
 } from './entities/Block';
 import type { BlockState } from './entities/Block';
-import { computeCoinPotRenderPlan } from './entities/blocks/coinPotRenderPlan';
+import { computePotRenderPlan } from './entities/blocks/potRenderPlan';
 import { spawnBonusFruit, tickBonusFruit, bonusFruitY } from './entities/BonusFruit';
 import { spawnKeyPickup, KEY_TILE_OFFSET_X, KEY_TILE_OFFSET_Y } from './entities/KeyPickup';
 import { spawnHeartPickup } from './entities/HeartPickup';
@@ -623,7 +623,7 @@ export const PlatformerPage = () => {
         originX,
         originY,
         worldElapsed: worldAnimElapsed,
-        coinPotPlan: computeCoinPotRenderPlan(blockStates.value),
+        potPlan: computePotRenderPlan(blockStates.value),
       };
 
       // Drawn BEFORE blocks: a bonus fruit spawns at its source block's own
@@ -1699,6 +1699,10 @@ export const PlatformerPage = () => {
         // popup bump below, computed from the raw destroyed-crate count
         // rather than facts revealed (see that bump's own comment).
         let crateDestroyedThisTick = false;
+        // Blocks whose outcome handed out a pickup this tick — marked
+        // `rewardGiven` after the loop, so a 'once' pot records that it has
+        // paid out (the block analog of the enemy marking above).
+        const paidOutBlockIds = new Set<string>();
 
         for (const id of hitIds) {
           // Re-read from the post-applyBlockHit array: onHit must see the
@@ -1714,6 +1718,11 @@ export const PlatformerPage = () => {
           const outcome = BLOCK_TYPES[block.blockKind].onHit?.(block) ?? {};
 
           bounceVelocity = strongerBounce(bounceVelocity, outcome.bounceVelocity);
+
+          // Record that this block handed out its pickup (if it did), so a
+          // 'once' pot never drops a second one — even if it is later
+          // restored. Mirrors the enemy `rewardGiven` marking above.
+          if (outcome.spawnPickup !== undefined) paidOutBlockIds.add(block.id);
 
           // One dispatch keyed by pickup type, replacing the old per-blockKind
           // branches. The two arms differ because their target arrays differ,
@@ -1772,6 +1781,15 @@ export const PlatformerPage = () => {
               counterKey: outcome.counterKey,
             });
           }
+        }
+
+        // A block that handed out its pickup is marked permanently paid out
+        // (surviving death/respawn; cleared only by Reset Game), exactly as
+        // every defeated enemy is marked above.
+        if (paidOutBlockIds.size > 0) {
+          blockStates.value = blockStates.value.map((b) =>
+            paidOutBlockIds.has(b.id) ? { ...b, rewardGiven: true } : b,
+          );
         }
 
         // The crates popup bumped here rather than by the reveal trigger,

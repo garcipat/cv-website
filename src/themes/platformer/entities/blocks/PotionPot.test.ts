@@ -5,16 +5,18 @@ import { WORLD_TILESET_SHEET } from '../sprites/sheets';
 import { frameSource } from '../sprites/SpriteSheet';
 
 describe('potionPot BlockType', () => {
-  it('maxHits-isOne', () => {
+  it('sharedFactoryContract-fixesOneHitTopTriggerAndRemoval', () => {
     expect(potionPot.maxHits).toBe(1);
-  });
-
-  it('removeWhenUsedUp-isTrue', () => {
     expect(potionPot.removeWhenUsedUp).toBe(true);
+    expect(potionPot.triggerSides).toEqual(['top']);
   });
 
-  it('triggerSides-reactsOnlyToALandingFromAbove', () => {
-    expect(potionPot.triggerSides).toEqual(['top']);
+  it('declaresItsOwnDropDropPolicyAndRespawnFlag', () => {
+    expect(potionPot.pot).toMatchObject({
+      drop: 'heart',
+      dropPolicy: 'everyBreak',
+      restoredOnRespawn: true,
+    });
   });
 
   it('drawsFromTheSharedTileset-purpleBottleFrame', () => {
@@ -27,14 +29,25 @@ describe('potionPot BlockType', () => {
 });
 
 describe('potionPot.onHit', () => {
-  it('itsOnlyHit-dropsAHeartAndBouncesThePlayer', () => {
+  it('anyDestruction-dropsAHeartAndBouncesThePlayer', () => {
     const pot = toBlockState({ id: 'p1', blockKind: 'potionPot', x: 0, y: 0 });
 
     const outcome = potionPot.onHit!({ ...pot, hitsTaken: 1 });
 
     expect(outcome).toEqual({
       spawnPickup: 'heart',
-      bounceVelocity: PHYSICS_CONFIG.coinPotBounceVelocity,
+      bounceVelocity: PHYSICS_CONFIG.potBounceVelocity,
+    });
+  });
+
+  it('afterRewardGiven-stillDropsAFreshHeartEveryBreak', () => {
+    const pot = toBlockState({ id: 'p1', blockKind: 'potionPot', x: 0, y: 0 });
+
+    const outcome = potionPot.onHit!({ ...pot, hitsTaken: 1, rewardGiven: true });
+
+    expect(outcome).toEqual({
+      spawnPickup: 'heart',
+      bounceVelocity: PHYSICS_CONFIG.potBounceVelocity,
     });
   });
 });

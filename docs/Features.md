@@ -48,7 +48,7 @@ graph RL
         O014["O-014: Background Tile Rework"]
         O015["✅ O-015: Editor Dark Mode"]
         O016["✅ O-016: Editor UI Rework"]
-        O017["O-017: Merge Pots of Different Colors"]
+        O017["✅ O-017: Merge Pots of Different Colors"]
         O018["O-018: Bouncy Mushroom Blocks"]
     end
 
@@ -148,6 +148,7 @@ graph RL
     class S005 done
     class F015,F016,F017,F018,S007,S008,S009,S010,O003,O004,O005,O008,O009,O013,O014 themes
     class O017 themes
+    class O017 done
     class O018 themes
     class F019,O006,O007,O010,O011,O012,O015,O016 enhancements
     class F015,F016,F017,F018,F019,S007,S008,S009,S010,O004,O005,O009 done

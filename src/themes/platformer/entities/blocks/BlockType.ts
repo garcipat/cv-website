@@ -4,6 +4,7 @@ import type { BlockState } from '../Block';
 import type { WorldType } from '../WorldType';
 import type { BlockContactSide } from '../Player';
 import type { PlayerEffects, RewardEffects } from '../../engine/Outcome';
+import type { PotKind } from './potTypes';
 
 /** What a registering hit on a block MEANS — the block equivalent of
  *  `CollisionOutcome`. Carries no `self`: block hit counting stays generic
@@ -66,6 +67,14 @@ export interface BlockType extends WorldType<BlockState> {
    * which is exactly the per-kind knowledge that belongs here instead.
    */
   triggerSides: readonly BlockContactSide[];
+  /**
+   * Present only on pot kinds (see `entities/blocks/pot.ts`'s
+   * `createPotType` and `potTypes.ts`'s shared contract). Its presence is
+   * the engine's single membership test for "this block is a pot": the
+   * kind-agnostic render plan (`potRenderPlan.ts`) merges exactly those
+   * blocks whose registry entry declares one. Absent on every non-pot kind.
+   */
+  pot?: PotKind;
   /**
    * What a registering hit MEANS for this kind. Receives the block AFTER
    * `applyBlockHit`, so comparing `block.hitsTaken` against this kind's own

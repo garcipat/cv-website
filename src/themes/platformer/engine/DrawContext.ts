@@ -1,5 +1,5 @@
 import type { SpriteLookup } from '../entities/sprites/SpriteSheet';
-import type { CoinPotRenderPlan } from '../entities/blocks/coinPotRenderPlan';
+import type { PotRenderPlan } from '../entities/blocks/potTypes';
 
 /**
  * Everything a type's `draw` needs in order to render itself, so drawing logic
@@ -19,12 +19,12 @@ export interface DrawContext {
   originY: number;
   /** Seconds since the world started animating — drives bob and pulse. */
   worldElapsed: number;
-  /** This frame's coin-pot adjacency/variant render plan (see
-   *  entities/blocks/coinPotRenderPlan.ts). Computed once per frame by
-   *  PlatformerPage.tsx from the live block list and attached here — every
-   *  block kind's `draw` receives it, but only CoinPot.ts's own `draw`
-   *  reads it; every other kind ignores it entirely. Undefined for any
-   *  draw call built without it (e.g. a test constructing a bare
-   *  DrawContext for an unrelated kind). */
-  coinPotPlan?: CoinPotRenderPlan;
+  /** This frame's pot bunch-render plan (see
+   *  entities/blocks/potRenderPlan.ts). Computed once per frame by
+   *  PlatformerPage.tsx / EditorCanvas.tsx from the live block list and
+   *  attached here — every block kind's `draw` receives it, but only a pot
+   *  kind's `drawPotBunch` reads it; every other kind ignores it entirely.
+   *  Undefined for any draw call built without it (e.g. a test constructing
+   *  a bare DrawContext for an unrelated kind). */
+  potPlan?: PotRenderPlan;
 }
