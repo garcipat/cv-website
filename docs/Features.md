@@ -47,7 +47,7 @@ graph RL
         O013["✅ O-013: Wall Torches"]
         O014["O-014: Background Tile Rework"]
         O015["O-015: Editor Dark Mode"]
-        O016["O-016: Editor UI Rework"]
+        O016["✅ O-016: Editor UI Rework"]
     end
 
     F003 --> F002
@@ -148,6 +148,7 @@ graph RL
     class O014 themes
     class O015 enhancements
     class O016 enhancements
+    class O016 done
 ```
 
 **Critical Path**: F-001 → F-012 → F-013 → F-002 → F-014 (foundation → theme system → multilanguage → data model → IDE theme, then Space and Terminal themes)

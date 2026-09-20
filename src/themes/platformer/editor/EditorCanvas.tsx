@@ -723,6 +723,7 @@ export const EditorCanvas = ({
     <div ref={containerRef} className="relative min-h-0 min-w-0 flex-1">
       <canvas
         ref={canvasRef}
+        data-testid="editor-canvas"
         width={canvasSize.width}
         height={canvasSize.height}
         className="absolute inset-0 block h-full w-full"

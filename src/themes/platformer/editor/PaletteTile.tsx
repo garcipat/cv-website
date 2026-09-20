@@ -3,6 +3,8 @@ import { cn } from '@/lib/utils';
 
 interface PaletteTileProps {
   label: string;
+  /** Stable test handle for this tile (`editor-palette-tile-*`). */
+  testId?: string;
   /** What the tile does, appended to `label` in the button's hover tooltip
    *  (see `PALETTE_TILE_DESCRIPTIONS`). Omitted, the tooltip is just the
    *  name. */
@@ -38,6 +40,7 @@ const SPRITE_PADDING = 10;
  */
 export const PaletteTile = ({
   label,
+  testId,
   description,
   sprite,
   glyph,
@@ -52,6 +55,7 @@ export const PaletteTile = ({
     <button
       type="button"
       aria-label={label}
+      data-testid={testId}
       title={description ? `${label} — ${description}` : label}
       aria-pressed={selected}
       onClick={onClick}
