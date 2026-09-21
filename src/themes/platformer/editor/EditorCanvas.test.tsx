@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, fireEvent, act, cleanup } from '@testing-library/react';
+import { render, fireEvent, act, cleanup, screen } from '@testing-library/react';
 import {
   EditorCanvas,
   readGameBackgroundColor,
@@ -89,6 +89,7 @@ function stubCanvasContext() {
     stroke: vi.fn(),
     save: vi.fn(),
     restore: vi.fn(),
+    scale: vi.fn(),
     font: '',
     textAlign: '',
     textBaseline: '',
@@ -478,6 +479,109 @@ describe('EditorCanvas', () => {
     );
   });
 
+  describe('EditorCanvas zoom-aware pointer math', () => {
+    it('paintsTheCellUnderTheCursorAt50PercentZoom-notTheCellA100PercentClickWouldHit', () => {
+      const onPaint = vi.fn();
+      stubCanvasContext();
+      render(
+        <EditorCanvas
+          {...BACKGROUND_LAYER_DEFAULT_PROPS}
+          grid={[
+            ['.', '.', '.', '.'],
+            ['.', '.', '.', '.'],
+          ]}
+          selectedTool="G"
+          panOffset={{ x: 0, y: 0 }}
+          zoom={0.5}
+          images={EMPTY_IMAGES}
+          onPaint={onPaint}
+          onPan={() => {}}
+        />,
+      );
+      const canvas = levelEditorPage.canvas;
+      vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({
+        left: 0,
+        top: 0,
+      } as DOMRect);
+
+      // At zoom 0.5, screen x = RENDERED_TILE_SIZE (one full tile at 100%) lands
+      // in world column 2, not column 1 — the pointer covers twice the world
+      // distance per screen pixel.
+      fireEvent.mouseDown(canvas, { button: 0, clientX: RENDERED_TILE_SIZE, clientY: 0 });
+
+      expect(onPaint).toHaveBeenCalledWith(
+        expect.objectContaining({ grid: expect.any(Array) }),
+      );
+      // paintCell's own contract is exercised elsewhere; here we only need to
+      // know WHICH cell it was asked to paint. Re-derive it the same way
+      // paintCell reports growth-free paints: the returned grid's column 2
+      // (not column 1) should have changed from '.' to 'G'.
+      const paintedGrid = onPaint.mock.calls[0][0].grid as string[][];
+      expect(paintedGrid[0][2]).toBe('G');
+      expect(paintedGrid[0][1]).toBe('.');
+    });
+
+    it('accountsForBothPanAndZoomTogether', () => {
+      const onPaint = vi.fn();
+      stubCanvasContext();
+      render(
+        <EditorCanvas
+          {...BACKGROUND_LAYER_DEFAULT_PROPS}
+          grid={[['.', '.', '.', '.']]}
+          selectedTool="G"
+          panOffset={{ x: RENDERED_TILE_SIZE, y: 0 }}
+          zoom={0.5}
+          images={EMPTY_IMAGES}
+          onPaint={onPaint}
+          onPan={() => {}}
+        />,
+      );
+      const canvas = levelEditorPage.canvas;
+      vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({
+        left: 0,
+        top: 0,
+      } as DOMRect);
+
+      // screenX=RENDERED_TILE_SIZE*1.5 -> subtract pan (RENDERED_TILE_SIZE) ->
+      // RENDERED_TILE_SIZE*0.5 remaining -> /zoom(0.5) -> RENDERED_TILE_SIZE ->
+      // /RENDERED_TILE_SIZE -> col 1.
+      fireEvent.mouseDown(canvas, {
+        button: 0,
+        clientX: RENDERED_TILE_SIZE * 1.5,
+        clientY: 0,
+      });
+
+      const paintedGrid = onPaint.mock.calls[0][0].grid as string[][];
+      expect(paintedGrid[0][1]).toBe('G');
+    });
+
+    it('defaultsToFullSize(100Percent)WhenZoomIsOmitted-existingCallersAreUnaffected', () => {
+      const onPaint = vi.fn();
+      stubCanvasContext();
+      render(
+        <EditorCanvas
+          {...BACKGROUND_LAYER_DEFAULT_PROPS}
+          grid={[['.', '.']]}
+          selectedTool="G"
+          panOffset={{ x: 0, y: 0 }}
+          images={EMPTY_IMAGES}
+          onPaint={onPaint}
+          onPan={() => {}}
+        />,
+      );
+      const canvas = levelEditorPage.canvas;
+      vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({
+        left: 0,
+        top: 0,
+      } as DOMRect);
+
+      fireEvent.mouseDown(canvas, { button: 0, clientX: RENDERED_TILE_SIZE + 1, clientY: 1 });
+
+      const paintedGrid = onPaint.mock.calls[0][0].grid as string[][];
+      expect(paintedGrid[0][1]).toBe('G');
+    });
+  });
+
   it('paints every cell along a left-click drag, not just the start and end', () => {
     stubCanvasContext();
     const onPaint = vi.fn();
@@ -753,6 +857,232 @@ describe('EditorCanvas patrol markers', () => {
       (call: unknown[]) => call[0] === PATROL_MARKER_GLYPH,
     );
     expect(glyphCalls).toHaveLength(0);
+  });
+});
+
+describe('EditorCanvas overlay drawing at non-100% zoom', () => {
+  it('scalesAPatrolMarkersTintedRectangleAndPositionByZoom', () => {
+    const ctx = stubCanvasContext() as unknown as { fillRect: ReturnType<typeof vi.fn> };
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        // A non-zero column is essential here: tileToPixel(0,0) = (0,0), so
+        // `0 * zoom + origin === origin` regardless of whether `* zoom` is
+        // even applied. Column 1 (world x = RENDERED_TILE_SIZE) is the
+        // smallest grid that actually exercises the position-scaling term.
+        grid={[['.', 'P']]}
+        selectedTool="."
+        panOffset={{ x: 100, y: 40 }}
+        zoom={0.5}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+    // tileToPixel(1,0) = (RENDERED_TILE_SIZE, 0) in world space;
+    // screen = world * zoom + origin.
+    expect(ctx.fillRect).toHaveBeenCalledWith(
+      RENDERED_TILE_SIZE * 0.5 + 100,
+      40,
+      RENDERED_TILE_SIZE * 0.5,
+      RENDERED_TILE_SIZE * 0.5,
+    );
+  });
+
+  it('scalesTheGridLineStepByZoom', () => {
+    const ctx = stubCanvasContext() as unknown as {
+      moveTo: ReturnType<typeof vi.fn>;
+    };
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['.']]}
+        selectedTool="."
+        // A non-zero pan is essential here: with panOffset 0,
+        // `((0 % step) + step) % step === 0` for ANY step value, so a
+        // regression that left `startX` computed against the unscaled
+        // `RENDERED_TILE_SIZE` (rather than the zoom-scaled `step`) would
+        // still pass. With pan 20 and zoom 0.5 (step = 16), the correct
+        // startX is ((20 % 16) + 16) % 16 = 4; the old, unfixed modulo
+        // against RENDERED_TILE_SIZE (32) would instead give 20 — the two
+        // formulas diverge, so this discriminates the fix.
+        panOffset={{ x: 20, y: 0 }}
+        zoom={0.5}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+    expect(ctx.moveTo).toHaveBeenCalledWith(4.5, 0);
+  });
+
+  it('scalesThePlacementPreviewsFillAndBorderByZoom', () => {
+    const ctx = stubCanvasContext() as unknown as {
+      fillRect: ReturnType<typeof vi.fn>;
+      strokeRect: ReturnType<typeof vi.fn>;
+    };
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['.', '.', '.']]}
+        selectedTool="."
+        panOffset={{ x: 0, y: 0 }}
+        zoom={0.5}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+        placement={{
+          preview: {
+            cells: [
+              { row: 0, col: 1, char: '.' },
+              { row: 0, col: 2, char: '.' },
+            ],
+            valid: true,
+          },
+          onHover: () => {},
+          onPlace: () => {},
+          onCancel: () => {},
+        }}
+      />,
+    );
+    // Per-cell fills: tileToPixel(1,0) = (32,0) and tileToPixel(2,0) = (64,0);
+    // screen = world * zoom, size = RENDERED_TILE_SIZE * zoom = 16.
+    expect(ctx.fillRect).toHaveBeenCalledWith(
+      RENDERED_TILE_SIZE * 0.5,
+      0,
+      RENDERED_TILE_SIZE * 0.5,
+      RENDERED_TILE_SIZE * 0.5,
+    );
+    expect(ctx.fillRect).toHaveBeenCalledWith(
+      RENDERED_TILE_SIZE,
+      0,
+      RENDERED_TILE_SIZE * 0.5,
+      RENDERED_TILE_SIZE * 0.5,
+    );
+    // Border: two-cell-wide bounding box. Its width MUST be
+    // `(maxCol - minCol + 1) * size` (2 * 16 = 32) — a regression that scaled
+    // the border's position but left its extent as
+    // `(maxCol - minCol + 1) * RENDERED_TILE_SIZE` (2 * 32 = 64) would slip
+    // past a single-cell preview, which is why this test uses two cells.
+    expect(ctx.strokeRect).toHaveBeenCalledWith(
+      RENDERED_TILE_SIZE * 0.5,
+      0,
+      RENDERED_TILE_SIZE,
+      RENDERED_TILE_SIZE * 0.5,
+    );
+  });
+
+  it('centersAPatrolMarkersGlyphOnTheZoomScaledTileSize', () => {
+    const ctx = stubCanvasContext() as unknown as { fillText: ReturnType<typeof vi.fn> };
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['P']]}
+        selectedTool="."
+        panOffset={{ x: 0, y: 0 }}
+        zoom={0.5}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+    // drawMarkerGlyph centers on `size / 2`. If `size` were left unscaled
+    // (RENDERED_TILE_SIZE = 32), the center would be 16; scaled by zoom 0.5
+    // (size = 16), the correct center is 8.
+    expect(ctx.fillText).toHaveBeenCalledWith(PATROL_MARKER_GLYPH, 8, 8);
+  });
+
+  // FR-006: overlays scale *together with* the tiles, which covers their text
+  // and stroke weights, not just their positions and rectangle extents — an
+  // 18px glyph on a 16px tile is exactly the "mismatched size relative to the
+  // tiles around it" the spec's edge-case list rules out.
+  it('scalesAMarkersFontSizeAndHaloStrokeWidthByZoom', () => {
+    const ctx = stubCanvasContext();
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['P']]}
+        selectedTool="."
+        panOffset={{ x: 0, y: 0 }}
+        zoom={0.5}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+    // MARKER_FONT_SIZE is 18, MARKER_HALO_WIDTH is 3.
+    expect(ctx.font).toBe(`${18 * 0.5}px sans-serif`);
+    expect(ctx.lineWidth).toBe(3 * 0.5);
+  });
+
+  it('scalesASignBadgesFontSizeByZoom', () => {
+    const ctx = stubCanvasContext();
+    // drawTileMarkers runs after drawSignBadges and reassigns `ctx.font`, so
+    // sample the font at the moment the badge itself is painted.
+    const fontsWhileDrawingBadges: string[] = [];
+    (ctx.fillText as ReturnType<typeof vi.fn>).mockImplementation((text: string) => {
+      if (text === '1') fontsWhileDrawingBadges.push(ctx.font);
+    });
+
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['1']]}
+        selectedTool="."
+        panOffset={{ x: 0, y: 0 }}
+        zoom={0.5}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+
+    // SIGN_BADGE_FONT_SIZE is 12.
+    expect(fontsWhileDrawingBadges.length).toBeGreaterThan(0);
+    expect(new Set(fontsWhileDrawingBadges)).toEqual(new Set([`${12 * 0.5}px sans-serif`]));
+  });
+
+  it('scalesThePlacementPreviewsBorderWidthByZoom', () => {
+    const ctx = stubCanvasContext();
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        // No 'P'/'+' cells, so drawMarkerGlyph never runs and the last
+        // lineWidth assignment is the placement border's own.
+        grid={[['.', '.']]}
+        selectedTool="."
+        panOffset={{ x: 0, y: 0 }}
+        zoom={0.5}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+        placement={{
+          preview: { cells: [{ row: 0, col: 1, char: '.' }], valid: true },
+          onHover: () => {},
+          onPlace: () => {},
+          onCancel: () => {},
+        }}
+      />,
+    );
+    // PLACEMENT_BORDER_WIDTH is 3.
+    expect(ctx.lineWidth).toBe(3 * 0.5);
+  });
+
+  it('leavesOverlayFontAndStrokeWidthsAtTheirUnscaledValuesAt100Percent', () => {
+    const ctx = stubCanvasContext();
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['P']]}
+        selectedTool="."
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+    expect(ctx.font).toBe('18px sans-serif');
+    expect(ctx.lineWidth).toBe(3);
   });
 });
 
@@ -1603,6 +1933,7 @@ describe('EditorCanvas — cave lighting preview (O-015 US3)', () => {
       expect.any(Number),
       0,
       expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }),
+      1,
     );
     expect(drawEnemyEyes).toHaveBeenCalledWith(
       expect.anything(),
@@ -1622,6 +1953,91 @@ describe('EditorCanvas — cave lighting preview (O-015 US3)', () => {
       0,
       0,
       0,
+    );
+  });
+
+  it('canvas-whenZoomedOut-stillDrawsTheWholeCavePreview', () => {
+    stubCanvasContext();
+
+    render(<EditorCanvas {...previewProps({ zoom: 0.5 })} />);
+
+    expect(drawDarkness).toHaveBeenCalled();
+    expect(drawEnemyEyes).toHaveBeenCalled();
+    expect(drawHeldTorch).toHaveBeenCalled();
+  });
+
+  it('canvas-whenZoomedOut-passesDrawDarknessTheRawPanAndTheZoom', () => {
+    // drawDarkness runs at IDENTITY transform and does its own zoom
+    // multiplication internally, so it takes the RAW pan — deliberately the
+    // opposite convention from drawTerrain & co., which run inside their own
+    // ctx.scale() and therefore take the pan pre-divided by zoom.
+    stubCanvasContext();
+
+    render(<EditorCanvas {...previewProps({ zoom: 0.5, panOffset: { x: 40, y: 20 } })} />);
+
+    expect(drawDarkness).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.any(Number),
+      expect.any(Number),
+      EDITOR_PREVIEW_DARKNESS,
+      expect.any(Array),
+      40, // raw panOffset.x, NOT 40 / 0.5
+      20, // raw panOffset.y, NOT 20 / 0.5
+      0,
+      expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }),
+      0.5,
+    );
+  });
+
+  it('canvas-whenZoomedOut-stillPassesTheDividedOriginToTheScaledCavePasses', () => {
+    // drawHeldTorch and drawEnemyEyes stay inside a ctx.scale() segment (their
+    // sprite/marker sizing is RENDERED_TILE_SIZE-based), so they keep the
+    // divided origin. A regression here means their sizing broke.
+    stubCanvasContext();
+
+    render(<EditorCanvas {...previewProps({ zoom: 0.5, panOffset: { x: 40, y: 20 } })} />);
+
+    expect(drawHeldTorch).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      null,
+      EDITOR_PREVIEW_DARKNESS,
+      80, // 40 / 0.5
+      40, // 20 / 0.5
+      0,
+    );
+    expect(drawEnemyEyes).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.any(Array),
+      EDITOR_PREVIEW_DARKNESS,
+      expect.any(Array),
+      0,
+      80, // 40 / 0.5
+      40, // 20 / 0.5
+      expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }),
+    );
+  });
+
+  it('canvas-whenZoomIsOmitted-passesDrawDarknessTheRawPanAndAZoomOfOne', () => {
+    // At 100% the divided and the raw origin coincide, so this frame is
+    // byte-identical to the pre-zoom one.
+    stubCanvasContext();
+
+    render(<EditorCanvas {...previewProps({ panOffset: { x: 40, y: 20 } })} />);
+
+    expect(drawDarkness).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.any(Number),
+      expect.any(Number),
+      EDITOR_PREVIEW_DARKNESS,
+      expect.any(Array),
+      40,
+      20,
+      0,
+      expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }),
+      1,
     );
   });
 
@@ -1673,5 +2089,258 @@ describe('EditorCanvas — cave lighting preview (O-015 US3)', () => {
     // legible on top of it (FR-012).
     expect(order.lastIndexOf('grid')).toBeGreaterThan(order.indexOf('darkness'));
     expect(order.lastIndexOf('text')).toBeGreaterThan(order.indexOf('darkness'));
+  });
+});
+
+describe('EditorCanvas — scaling the shared renderer', () => {
+  it('wrapsTheSharedRendererCallsInACtxScaleMatchingTheCurrentZoom', async () => {
+    const ctx = stubCanvasContext() as unknown as {
+      scale: ReturnType<typeof vi.fn>;
+    };
+    const player = {} as HTMLImageElement;
+    const backgroundAtlas = {} as HTMLImageElement;
+    const { drawTerrain, drawBackgroundTiles: drawBackgroundTilesFn, drawPlayer: drawPlayerFn } =
+      await import('../engine/Renderer');
+
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['G', 'S']]}
+        selectedTool="."
+        panOffset={{ x: 40, y: 20 }}
+        zoom={0.5}
+        images={{
+          ...EMPTY_IMAGES,
+          tileset: {} as HTMLImageElement,
+          groundAtlas: {} as HTMLImageElement,
+          backgroundAtlas,
+          player,
+        }}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+
+    // Exactly 3 scaled segments — background, terrain/ladders/signs, entities
+    // — never a single blanket scale (which would double-scale the markers
+    // Task 4 makes zoom-aware in screen space).
+    expect(ctx.scale).toHaveBeenCalledTimes(3);
+    expect(ctx.scale).toHaveBeenCalledWith(0.5, 0.5);
+    // The origin passed to the shared renderer must be pre-divided by zoom,
+    // so that after ctx.scale re-multiplies it, it lands back at the raw
+    // panOffset — panOffset itself must stay zoom-independent (design.md
+    // "Panning stays in raw pixels, outside the scale").
+    expect(drawTerrain).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      80, // 40 / 0.5
+      40, // 20 / 0.5
+      // EMPTY_IMAGES leaves these null; expect.anything() never matches
+      // null/undefined, so assert the literal values, matching the
+      // convention the pre-existing drawTerrain test uses above.
+      null,
+      null,
+      null,
+      0,
+      null,
+    );
+    // Background segment (hoisted, its own scale) gets the same divided origin.
+    expect(drawBackgroundTilesFn).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      backgroundAtlas,
+      80, // 40 / 0.5
+      40, // 20 / 0.5
+      null, // EMPTY_IMAGES leaves decorations null; anything() never matches null
+    );
+    // Entity segment (scaled segment 2) also gets the same divided origin.
+    expect(drawPlayerFn).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      player,
+      80, // 40 / 0.5
+      40, // 20 / 0.5
+      null,
+      true,
+    );
+  });
+
+  it('scalesBy1AndDividesOriginBy1WhenZoomIsOmitted-todaysFramesAreByte-for-byteUnchanged', async () => {
+    const ctx = stubCanvasContext() as unknown as { scale: ReturnType<typeof vi.fn> };
+    const { drawTerrain } = await import('../engine/Renderer');
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['G']]}
+        selectedTool="."
+        panOffset={{ x: 5, y: 7 }}
+        images={{ ...EMPTY_IMAGES, tileset: {} as HTMLImageElement, groundAtlas: {} as HTMLImageElement }}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+    expect(ctx.scale).toHaveBeenCalledWith(1, 1);
+    expect(drawTerrain).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      5,
+      7,
+      null,
+      null,
+      null,
+      0,
+      null,
+    );
+  });
+});
+
+describe('EditorCanvas zoom controls', () => {
+  it('rendersASliderAndAPercentageLabelReflectingTheCurrentZoom', () => {
+    stubCanvasContext();
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['.']]}
+        selectedTool="."
+        panOffset={{ x: 0, y: 0 }}
+        zoom={0.5}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+        onZoomChange={() => {}}
+      />,
+    );
+    expect(screen.getByTestId('editor-canvas-zoom-value')).toHaveTextContent('50%');
+    expect(screen.getByTestId('editor-canvas-zoom')).toBeInTheDocument();
+  });
+
+  it('scrollingUpOverTheCanvasZoomsInAnchoredToTheCursor', () => {
+    stubCanvasContext();
+    const onZoomChange = vi.fn();
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['.']]}
+        selectedTool="."
+        panOffset={{ x: 0, y: 0 }}
+        zoom={0.5}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+        onZoomChange={onZoomChange}
+      />,
+    );
+    const canvas = levelEditorPage.canvas;
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
+
+    fireEvent.wheel(canvas, { deltaY: -100, clientX: 20, clientY: 10 });
+
+    // anchoredPan({x:0,y:0}, {x:20,y:10}, 0.5, 0.75) = (20,10) - 1.5*(20,10) = (-10,-5)
+    expect(onZoomChange).toHaveBeenCalledWith(0.75, { x: -10, y: -5 });
+  });
+
+  it('scrollingDownOverTheCanvasZoomsOut', () => {
+    stubCanvasContext();
+    const onZoomChange = vi.fn();
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['.']]}
+        selectedTool="."
+        panOffset={{ x: 0, y: 0 }}
+        zoom={0.75}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+        onZoomChange={onZoomChange}
+      />,
+    );
+    const canvas = levelEditorPage.canvas;
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
+
+    fireEvent.wheel(canvas, { deltaY: 100, clientX: 20, clientY: 10 });
+
+    expect(onZoomChange).toHaveBeenCalledWith(0.5, expect.anything());
+  });
+
+  it('doesNotCallOnZoomChangeWhenAlreadyAtTheCeilingAndScrollingIn', () => {
+    stubCanvasContext();
+    const onZoomChange = vi.fn();
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['.']]}
+        selectedTool="."
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+        onZoomChange={onZoomChange}
+      />,
+    );
+    const canvas = levelEditorPage.canvas;
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
+
+    fireEvent.wheel(canvas, { deltaY: -100, clientX: 0, clientY: 0 });
+
+    expect(onZoomChange).not.toHaveBeenCalled();
+  });
+
+  it('movingTheSliderZoomsAnchoredToTheCanvasCenter', () => {
+    stubCanvasContext();
+    const onZoomChange = vi.fn();
+    let resizeCallback: ResizeObserverCallback = () => {};
+    class FakeResizeObserver {
+      constructor(callback: ResizeObserverCallback) {
+        resizeCallback = callback;
+      }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+    vi.stubGlobal('ResizeObserver', FakeResizeObserver);
+
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['.']]}
+        selectedTool="."
+        panOffset={{ x: 0, y: 0 }}
+        zoom={1}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+        onZoomChange={onZoomChange}
+      />,
+    );
+    act(() => {
+      resizeCallback(
+        [{ contentRect: { width: 200, height: 100 } } as ResizeObserverEntry],
+        {} as ResizeObserver,
+      );
+    });
+
+    // The base-ui Slider (this repo's shadcn style) puts the actual
+    // keyboard-interactive element on a hidden native `<input type="range">`
+    // inside the thumb, not on the outer `data-testid` container (that's the
+    // Root, which has no tabIndex of its own) — so the interaction targets
+    // that input rather than the outer element the testid is attached to.
+    const slider = screen.getByTestId('editor-canvas-zoom');
+    const sliderInput = slider.querySelector('input') as HTMLInputElement;
+    act(() => {
+      sliderInput.focus();
+      fireEvent.keyDown(sliderInput, { key: 'ArrowDown' });
+    });
+
+    // Stepping down once from index 3 (100%) lands on index 2 (75%).
+    // Center = (100, 50).
+    // anchoredPan({x:0,y:0}, {x:100,y:50}, 1, 0.75) = (100,50) - 0.75*(100,50) = (25, 12.5)
+    expect(onZoomChange).toHaveBeenCalledWith(0.75, { x: 25, y: 12.5 });
+
+    vi.unstubAllGlobals();
   });
 });

@@ -6,6 +6,15 @@ const CONNECTION_POINT_CHAR: TileChar = '+';
 import { paintCell, type PaintResult } from './paintCell';
 import { updatePanOffset, centerPanOnSpawn, type PanOffset } from './EditorPan';
 import {
+  ZOOM_LEVELS,
+  DEFAULT_ZOOM,
+  stepZoom,
+  anchoredPan,
+  sliderZoomIndex,
+  type ZoomLevel,
+} from './EditorZoom';
+import { Slider } from '@/components/ui/slider';
+import {
   gridToLevelDef,
   synthesizePlayerState,
   synthesizeCollectiblePlacements,
@@ -118,6 +127,14 @@ interface EditorCanvasProps {
   /** Set while a blueprint is armed for placement; omitted/`null` otherwise, so
    *  every existing render site is unaffected. */
   placement?: PlacementMode | null;
+  /** Current zoom level (O-019). Defaults to 100% so every existing caller
+   *  that doesn't pass it renders exactly as it did before this feature. */
+  zoom?: ZoomLevel;
+  /** Fires when the wheel or the zoom slider changes the zoom level. Carries
+   *  the fully-anchored new pan alongside the new zoom so the parent applies
+   *  both atomically (EditorZoom.ts's `anchoredPan`). Optional so every
+   *  existing caller that doesn't offer zoom control keeps compiling. */
+  onZoomChange?: (next: ZoomLevel, pan: PanOffset) => void;
   onPaint: (result: PaintResult) => void;
   onPaintBackground: (next: BackgroundChar[][]) => void;
   onPan: (offset: PanOffset) => void;
@@ -160,20 +177,22 @@ function drawGridLines(
   width: number,
   height: number,
   panOffset: PanOffset,
+  zoom: ZoomLevel,
 ): void {
   ctx.strokeStyle = GRID_LINE_COLOR;
   ctx.lineWidth = 1;
+  const step = RENDERED_TILE_SIZE * zoom;
 
-  const startX = ((panOffset.x % RENDERED_TILE_SIZE) + RENDERED_TILE_SIZE) % RENDERED_TILE_SIZE;
-  for (let x = startX; x <= width; x += RENDERED_TILE_SIZE) {
+  const startX = ((panOffset.x % step) + step) % step;
+  for (let x = startX; x <= width; x += step) {
     ctx.beginPath();
     ctx.moveTo(x + 0.5, 0);
     ctx.lineTo(x + 0.5, height);
     ctx.stroke();
   }
 
-  const startY = ((panOffset.y % RENDERED_TILE_SIZE) + RENDERED_TILE_SIZE) % RENDERED_TILE_SIZE;
-  for (let y = startY; y <= height; y += RENDERED_TILE_SIZE) {
+  const startY = ((panOffset.y % step) + step) % step;
+  for (let y = startY; y <= height; y += step) {
     ctx.beginPath();
     ctx.moveTo(0, y + 0.5);
     ctx.lineTo(width, y + 0.5);
@@ -192,9 +211,10 @@ function drawSignBadges(
   grid: TileChar[][],
   originX: number,
   originY: number,
+  zoom: ZoomLevel,
 ): void {
   ctx.save();
-  ctx.font = `${SIGN_BADGE_FONT_SIZE}px sans-serif`;
+  ctx.font = `${SIGN_BADGE_FONT_SIZE * zoom}px sans-serif`;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
   for (let row = 0; row < grid.length; row++) {
@@ -202,10 +222,12 @@ function drawSignBadges(
       const char = grid[row][col];
       if (!SIGN_CHARS[char]) continue;
       const { x, y } = tileToPixel(col, row);
+      const destX = x * zoom + originX;
+      const destY = y * zoom + originY;
       ctx.fillStyle = '#000';
-      ctx.fillText(char, x + originX + 1, y + originY + 1);
+      ctx.fillText(char, destX + 1, destY + 1);
       ctx.fillStyle = '#fff';
-      ctx.fillText(char, x + originX, y + originY);
+      ctx.fillText(char, destX, destY);
     }
   }
   ctx.restore();
@@ -265,10 +287,12 @@ function drawMarkerGlyph(
   destY: number,
   glyph: string,
   glyphColor: string,
+  zoom: ZoomLevel,
 ): void {
-  const centerX = destX + RENDERED_TILE_SIZE / 2;
-  const centerY = destY + RENDERED_TILE_SIZE / 2;
-  ctx.lineWidth = MARKER_HALO_WIDTH;
+  const size = RENDERED_TILE_SIZE * zoom;
+  const centerX = destX + size / 2;
+  const centerY = destY + size / 2;
+  ctx.lineWidth = MARKER_HALO_WIDTH * zoom;
   ctx.lineJoin = 'round';
   ctx.strokeStyle = MARKER_HALO_COLOR;
   ctx.strokeText(glyph, centerX, centerY);
@@ -281,11 +305,13 @@ function drawPlacementPreview(
   preview: PlacementPreview,
   originX: number,
   originY: number,
+  zoom: ZoomLevel,
 ): void {
   if (preview.cells.length === 0) return;
 
   ctx.save();
   ctx.fillStyle = preview.valid ? PLACEMENT_VALID_FILL : PLACEMENT_INVALID_FILL;
+  const size = RENDERED_TILE_SIZE * zoom;
 
   let minCol = Infinity;
   let minRow = Infinity;
@@ -293,7 +319,7 @@ function drawPlacementPreview(
   let maxRow = -Infinity;
   for (const { col, row } of preview.cells) {
     const { x, y } = tileToPixel(col, row);
-    ctx.fillRect(x + originX, y + originY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+    ctx.fillRect(x * zoom + originX, y * zoom + originY, size, size);
     if (col < minCol) minCol = col;
     if (row < minRow) minRow = row;
     if (col > maxCol) maxCol = col;
@@ -301,19 +327,19 @@ function drawPlacementPreview(
   }
 
   const topLeft = tileToPixel(minCol, minRow);
-  ctx.lineWidth = PLACEMENT_BORDER_WIDTH;
+  ctx.lineWidth = PLACEMENT_BORDER_WIDTH * zoom;
   ctx.strokeStyle = preview.valid ? PLACEMENT_VALID_COLOR : PLACEMENT_INVALID_COLOR;
   ctx.strokeRect(
-    topLeft.x + originX,
-    topLeft.y + originY,
-    (maxCol - minCol + 1) * RENDERED_TILE_SIZE,
-    (maxRow - minRow + 1) * RENDERED_TILE_SIZE,
+    topLeft.x * zoom + originX,
+    topLeft.y * zoom + originY,
+    (maxCol - minCol + 1) * size,
+    (maxRow - minRow + 1) * size,
   );
 
   // A connection point would otherwise disappear into the tint — draw its
   // glyph on top, same as it renders once actually placed (drawTileMarkers
   // below), so the preview shows exactly what committing would leave behind.
-  ctx.font = `${MARKER_FONT_SIZE}px sans-serif`;
+  ctx.font = `${MARKER_FONT_SIZE * zoom}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   for (const { col, row, char } of preview.cells) {
@@ -321,10 +347,11 @@ function drawPlacementPreview(
     const { x, y } = tileToPixel(col, row);
     drawMarkerGlyph(
       ctx,
-      x + originX,
-      y + originY,
+      x * zoom + originX,
+      y * zoom + originY,
       CONNECTION_POINT_MARKER_GLYPH,
       CONNECTION_POINT_MARKER_GLYPH_COLOR,
+      zoom,
     );
   }
   ctx.restore();
@@ -344,20 +371,22 @@ function drawTileMarkers(
   glyphColor: string,
   originX: number,
   originY: number,
+  zoom: ZoomLevel,
 ): void {
   ctx.save();
-  ctx.font = `${MARKER_FONT_SIZE}px sans-serif`;
+  ctx.font = `${MARKER_FONT_SIZE * zoom}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
+  const size = RENDERED_TILE_SIZE * zoom;
   for (let row = 0; row < grid.length; row++) {
     for (let col = 0; col < grid[row].length; col++) {
       if (grid[row][col] !== char) continue;
       const { x, y } = tileToPixel(col, row);
-      const destX = x + originX;
-      const destY = y + originY;
+      const destX = x * zoom + originX;
+      const destY = y * zoom + originY;
       ctx.fillStyle = tint;
-      ctx.fillRect(destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
-      drawMarkerGlyph(ctx, destX, destY, glyph, glyphColor);
+      ctx.fillRect(destX, destY, size, size);
+      drawMarkerGlyph(ctx, destX, destY, glyph, glyphColor, zoom);
     }
   }
   ctx.restore();
@@ -375,6 +404,8 @@ export const EditorCanvas = ({
   activeLayer,
   selectedBackgroundMaterial,
   placement = null,
+  zoom = DEFAULT_ZOOM,
+  onZoomChange,
   onPaint,
   onPaintBackground,
   onPan,
@@ -456,7 +487,7 @@ export const EditorCanvas = ({
 
     ctx.fillStyle = readGameBackgroundColor();
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    drawGridLines(ctx, canvas.width, canvas.height, panOffset);
+    drawGridLines(ctx, canvas.width, canvas.height, panOffset, zoom);
 
     if (images.backgroundAtlas) {
       // Same conversion `gridToLevelDef` performs for the foreground
@@ -467,6 +498,8 @@ export const EditorCanvas = ({
       const backgroundHeight = backgroundGrid.length;
       const backgroundWidth = backgroundGrid[0]?.length ?? 0;
       const backgroundRows = backgroundGrid.map((row) => row.join(''));
+      ctx.save();
+      ctx.scale(zoom, zoom);
       drawBackgroundTiles(
         ctx,
         {
@@ -476,10 +509,11 @@ export const EditorCanvas = ({
           background: parseBackgroundLayout(backgroundRows, backgroundWidth, backgroundHeight),
         },
         images.backgroundAtlas,
-        panOffset.x,
-        panOffset.y,
+        panOffset.x / zoom,
+        panOffset.y / zoom,
         images.decorations,
       );
+      ctx.restore();
     }
 
     // While the Background layer is active, the entire foreground scene —
@@ -494,14 +528,20 @@ export const EditorCanvas = ({
     try {
       ctx.globalAlpha = foregroundAlpha;
 
+      // --- scaled segment 1: Renderer.ts-backed terrain, ladders, signs ---
+      ctx.save();
+      ctx.scale(zoom, zoom);
+      const originX = panOffset.x / zoom;
+      const originY = panOffset.y / zoom;
+
       if (images.tileset && images.groundAtlas) {
         drawTerrain(
           ctx,
           gridToLevelDef(grid),
           images.tileset,
           images.groundAtlas,
-          panOffset.x,
-          panOffset.y,
+          originX,
+          originY,
           images.staticObjects,
           images.decorations,
           images.torch,
@@ -522,8 +562,8 @@ export const EditorCanvas = ({
         gridToLevelDef(grid),
         bundleStates.map((state) => ({ ...state, phase: 'deployed' as const })),
         images.ropeLadder,
-        panOffset.x,
-        panOffset.y,
+        originX,
+        originY,
       );
       ctx.restore();
       // Restore explicitly too: test canvas stubs make save()/restore() no-ops,
@@ -534,14 +574,17 @@ export const EditorCanvas = ({
         gridToLevelDef(grid),
         bundleStates,
         images.ropeLadder,
-        panOffset.x,
-        panOffset.y,
+        originX,
+        originY,
       );
 
       if (images.tileset) {
-        drawSigns(ctx, synthesizeSignPlacements(grid), images.tileset, panOffset.x, panOffset.y);
+        drawSigns(ctx, synthesizeSignPlacements(grid), images.tileset, originX, originY);
       }
-      drawSignBadges(ctx, grid, panOffset.x, panOffset.y);
+      ctx.restore(); // pop scaled segment 1 — back to unscaled, alpha still foregroundAlpha
+
+      // --- unscaled: editor-local overlays (Task 4 handles their own zoom math) ---
+      drawSignBadges(ctx, grid, panOffset.x, panOffset.y, zoom);
       drawTileMarkers(
         ctx,
         grid,
@@ -551,6 +594,7 @@ export const EditorCanvas = ({
         PATROL_MARKER_GLYPH_COLOR,
         panOffset.x,
         panOffset.y,
+        zoom,
       );
       drawTileMarkers(
         ctx,
@@ -561,7 +605,24 @@ export const EditorCanvas = ({
         CONNECTION_POINT_MARKER_GLYPH_COLOR,
         panOffset.x,
         panOffset.y,
+        zoom,
       );
+
+      // The offscreen layer `drawDarkness` punches its light holes into is
+      // created and sized here, once per frame and independently of the
+      // transform state, because it is read from two places below that sit on
+      // opposite sides of segment 2's `ctx.scale()`.
+      let darknessLayer: HTMLCanvasElement | null = null;
+      if (preview && showPreview) {
+        darknessLayer = darknessLayerRef.current ?? document.createElement('canvas');
+        darknessLayerRef.current = darknessLayer;
+        if (darknessLayer.width !== canvas.width) darknessLayer.width = canvas.width;
+        if (darknessLayer.height !== canvas.height) darknessLayer.height = canvas.height;
+      }
+
+      // --- scaled segment 2: Renderer.ts-backed entities ---
+      ctx.save();
+      ctx.scale(zoom, zoom);
 
       const editorBlockStates = synthesizeBlockStates(grid);
 
@@ -579,8 +640,8 @@ export const EditorCanvas = ({
           [STATIC_OBJECTS_SHEET.src]: images.staticObjects,
           [DECORATIONS_SHEET.src]: images.decorations,
         },
-        originX: panOffset.x,
-        originY: panOffset.y,
+        originX,
+        originY,
         worldElapsed: 0,
         // Same per-frame computation the real game does (PlatformerPage.tsx)
         // — without this, every pot falls back to its kind's isolated draw
@@ -609,32 +670,42 @@ export const EditorCanvas = ({
 
       const player = synthesizePlayerState(grid);
       if (player && images.player) {
-        drawPlayer(ctx, player, images.player, panOffset.x, panOffset.y, null, true);
+        drawPlayer(ctx, player, images.player, originX, originY, null, true);
       }
 
       // The preview composes the game's own draw passes unchanged, inside the
       // foreground-alpha block so the background-layer dimming applies to it
       // too. `worldElapsed = 0` keeps it static (FR-013).
-      if (preview && showPreview) {
-        const layer = darknessLayerRef.current ?? document.createElement('canvas');
-        darknessLayerRef.current = layer;
-        if (layer.width !== canvas.width) layer.width = canvas.width;
-        if (layer.height !== canvas.height) layer.height = canvas.height;
+      // `drawHeldTorch` draws a sprite at `RENDERED_TILE_SIZE`-based internal
+      // sizing, so it belongs inside this scaled segment, unlike `drawDarkness`
+      // below.
+      if (preview && showPreview && player !== null) {
+        drawHeldTorch(
+          ctx,
+          player,
+          images.torch,
+          preview.darknessLevel,
+          originX,
+          originY,
+          0,
+        );
+      }
+      ctx.restore(); // pop scaled segment 2 — drawDarkness below needs identity transform
 
-        if (player !== null) {
-          drawHeldTorch(
-            ctx,
-            player,
-            images.torch,
-            preview.darknessLevel,
-            panOffset.x,
-            panOffset.y,
-            0,
-          );
-        }
+      // `drawDarkness` punches its light holes into an always-unscaled
+      // offscreen layer and then composites that layer with a single
+      // `ctx.drawImage(layer, 0, 0, canvasWidth, canvasHeight)` — a call whose
+      // destination rect IS subject to the active transform. Running it inside
+      // segment 2's scale therefore covered only the top-left `zoom` fraction
+      // of the canvas. So it runs here at identity instead, taking the RAW
+      // (undivided) pan and its own `zoom` argument, which it applies to every
+      // world-space position and radius internally. The outer alpha save is
+      // still in effect, so the background-layer dimming applies exactly as
+      // before.
+      if (preview && showPreview && darknessLayer !== null) {
         drawDarkness(
           ctx,
-          layer,
+          darknessLayer,
           canvas.width,
           canvas.height,
           preview.darknessLevel,
@@ -643,20 +714,30 @@ export const EditorCanvas = ({
           panOffset.y,
           0,
           preview.playerLight,
+          zoom,
         );
+      }
+
+      // --- scaled segment 3: enemy-eye markers, drawn over the overlay ---
+      // Back inside a scale, since these are RENDERED_TILE_SIZE-based markers
+      // like segment 2's entities.
+      if (preview && showPreview) {
+        ctx.save();
+        ctx.scale(zoom, zoom);
         drawEnemyEyes(
           ctx,
           synthesizeEnemyStates(grid),
           preview.darknessLevel,
           preview.torches,
           0,
-          panOffset.x,
-          panOffset.y,
+          originX,
+          originY,
           preview.playerLight,
         );
+        ctx.restore();
       }
     } finally {
-      ctx.restore();
+      ctx.restore(); // pop the outer alpha save
     }
 
     // Re-draw the editor affordances above the darkness overlay so grid lines,
@@ -664,8 +745,8 @@ export const EditorCanvas = ({
     // Only when the preview is active, so the light frame is byte-for-byte the
     // pre-feature frame (FR-007, SC-004).
     if (showPreview) {
-      drawGridLines(ctx, canvas.width, canvas.height, panOffset);
-      drawSignBadges(ctx, grid, panOffset.x, panOffset.y);
+      drawGridLines(ctx, canvas.width, canvas.height, panOffset, zoom);
+      drawSignBadges(ctx, grid, panOffset.x, panOffset.y, zoom);
       drawTileMarkers(
         ctx,
         grid,
@@ -675,6 +756,7 @@ export const EditorCanvas = ({
         PATROL_MARKER_GLYPH_COLOR,
         panOffset.x,
         panOffset.y,
+        zoom,
       );
       drawTileMarkers(
         ctx,
@@ -685,6 +767,7 @@ export const EditorCanvas = ({
         CONNECTION_POINT_MARKER_GLYPH_COLOR,
         panOffset.x,
         panOffset.y,
+        zoom,
       );
     }
 
@@ -692,7 +775,7 @@ export const EditorCanvas = ({
     // author is looking at, so it is drawn last and at full opacity even while
     // the background layer dims everything else.
     if (placement?.preview) {
-      drawPlacementPreview(ctx, placement.preview, panOffset.x, panOffset.y);
+      drawPlacementPreview(ctx, placement.preview, panOffset.x, panOffset.y, zoom);
     }
     // `canvasSize` is read only via `canvas.width`/`canvas.height` above,
     // not referenced directly here — but it MUST stay a dependency.
@@ -703,15 +786,15 @@ export const EditorCanvas = ({
     // nothing would redraw it until some unrelated state change (a paint
     // or pan) happened to run this effect again — the canvas would sit
     // invisible until the next interaction "fixed" it as a side effect.
-  }, [grid, panOffset, images, canvasSize, backgroundGrid, activeLayer, placement, appearance, isBlueprintMode]);
+  }, [grid, panOffset, images, canvasSize, backgroundGrid, activeLayer, placement, appearance, isBlueprintMode, zoom]);
 
   const cellFromEvent = (clientX: number, clientY: number) => {
     const rect = canvasRef.current!.getBoundingClientRect();
     const x = clientX - rect.left;
     const y = clientY - rect.top;
     return {
-      col: Math.floor((x - panOffset.x) / RENDERED_TILE_SIZE),
-      row: Math.floor((y - panOffset.y) / RENDERED_TILE_SIZE),
+      col: Math.floor((x - panOffset.x) / zoom / RENDERED_TILE_SIZE),
+      row: Math.floor((y - panOffset.y) / zoom / RENDERED_TILE_SIZE),
     };
   };
 
@@ -830,6 +913,24 @@ export const EditorCanvas = ({
     if (placement) placement.onHover(null);
   };
 
+  const handleWheel = (event: React.WheelEvent<HTMLCanvasElement>) => {
+    if (!onZoomChange) return;
+    const direction = event.deltaY < 0 ? 1 : -1;
+    const next = stepZoom(zoom, direction);
+    if (next === zoom) return;
+    const rect = canvasRef.current!.getBoundingClientRect();
+    const anchor = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    onZoomChange(next, anchoredPan(panOffset, anchor, zoom, next));
+  };
+
+  const handleSliderZoom = (index: number) => {
+    if (!onZoomChange) return;
+    const next = ZOOM_LEVELS[index];
+    if (next === zoom) return;
+    const anchor = { x: canvasSize.width / 2, y: canvasSize.height / 2 };
+    onZoomChange(next, anchoredPan(panOffset, anchor, zoom, next));
+  };
+
   return (
     // `position: relative` + the canvas absolutely positioned (`inset-0`)
     // takes the canvas out of this container's layout flow entirely, so
@@ -842,6 +943,44 @@ export const EditorCanvas = ({
     // spiraling toward 0x0 before the browser's built-in loop-guard cuts
     // it off, leaving the canvas stuck invisible.
     <div ref={containerRef} className="relative min-h-0 min-w-0 flex-1">
+      {onZoomChange && (
+        // `pointer-events-none` on the wrapper, re-enabled on each control:
+        // the wrapper spans a wider box than the controls themselves, and
+        // without this it swallowed clicks meant for the canvas cells beneath
+        // that whole top-left corner.
+        <div className="pointer-events-none absolute left-2 top-2 z-10 flex items-center gap-2 rounded-md bg-background/80 px-2 py-1 shadow-sm">
+          <span className="pointer-events-auto text-xs text-muted-foreground">Zoom</span>
+          {/* The Slider's own root carries `data-horizontal:w-full`, which needs
+              an ancestor with a definite width to resolve against — as a bare
+              flex item it collapsed to just its thumb (~16px). This explicit,
+              non-shrinking box is that ancestor. */}
+          <div className="pointer-events-auto w-20 shrink-0">
+            <Slider
+              data-testid="editor-canvas-zoom"
+              aria-label="Zoom level"
+              min={0}
+              max={ZOOM_LEVELS.length - 1}
+              step={1}
+              value={[ZOOM_LEVELS.indexOf(zoom)]}
+              // base-ui hands a single-thumb slider's callback a plain NUMBER,
+              // not an array — destructuring it as `([index])` threw
+              // "number N is not iterable" inside the pointer handler, which
+              // left click and drag doing nothing at all (only the wheel and
+              // the keyboard worked). `value` above still has to be an array:
+              // slider.tsx renders one thumb per entry and falls back to TWO
+              // thumbs for a non-array value.
+              onValueChange={(value) => handleSliderZoom(sliderZoomIndex(value))}
+              className="w-full"
+            />
+          </div>
+          <span
+            data-testid="editor-canvas-zoom-value"
+            className="pointer-events-auto w-10 text-right text-xs tabular-nums"
+          >
+            {Math.round(zoom * 100)}%
+          </span>
+        </div>
+      )}
       <canvas
         ref={canvasRef}
         data-testid="editor-canvas"
@@ -852,6 +991,7 @@ export const EditorCanvas = ({
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
+        onWheel={handleWheel}
         onContextMenu={(event) => event.preventDefault()}
       />
     </div>
