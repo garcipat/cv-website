@@ -76,7 +76,7 @@ describe('synthesizeBlockStates', () => {
     // coinPot ('u') at all until this was added — a real bug found by
     // manual play-testing, not caught by the test suite (this test didn't
     // exist yet).
-    const grid: TileChar[][] = [['=', 'Q', 'F', 'u', 'p']];
+    const grid: TileChar[][] = [['=', '?', 'F', 'u', 'p']];
     const blocks = synthesizeBlockStates(grid);
     expect(blocks).toHaveLength(5);
     expect(blocks.map((b) => b.blockKind).sort()).toEqual(

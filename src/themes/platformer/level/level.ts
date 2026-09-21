@@ -126,7 +126,7 @@ import {
 //          mapCVDataToSkillFactPool doc comment — so this split is purely a
 //          level-authoring choice, not a bookkeeping requirement.
 //   =  8   crate — 2 education + 3 activities + 3 languages
-//   Q  5   question-mark block — 2 certificates + 3 projects, each popping a
+//   ?  5   question-mark block — 2 certificates + 3 projects, each popping a
 //          bonus fruit rather than carrying a fact of its own
 //   F  5   fragileRock block — no fact; the two surface plugs plus filler
 //   $  5   chest — one per experience entry; opening all five ends the run
@@ -151,7 +151,7 @@ import {
 //   >  1   spike (left wall)
 //
 // A question-mark's fruit rests in the tile directly above the block and stays
-// there, so a `Q` is only ever placed under open sky — one inside a cave would
+// there, so a `?` is only ever placed under open sky — one inside a cave would
 // pop its fruit into the ceiling, where nothing could reach it. Crates and
 // fragileRocks have no such constraint and do go underground.
 //
@@ -170,13 +170,13 @@ import {
 // (place a bomb with B) beside the first blue bomb-pot in zone A.
 export const LEVEL_1_LAYOUT: readonly string[] = [
   '..................................................................................................................................................................................................................m....$....',
-  '.............................................................................................................................................................................................Q..........=.....HGGGGGGGGGGG..',
+  '.............................................................................................................................................................................................?..........=.....HGGGGGGGGGGG..',
   '..............................................................................................................................................................................................................HGGGGGGGGGGG..',
   '................................................................................................................................................................................................M.............HGGGGGGGGGGG.$',
   '..............................................=......................................................................................................................................=.....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   '...........................................................................................................................................................................................GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   '........................................M........................................................o...........m........................................................................M..o.GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
-  '.............HGGGGGGGG@.=Q........GGGGGGGGGGGGGGG.......................................Q......GGGGGGG.....GGGGGGG....=QFQ.........................................................RRRRRRRRGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  '.............HGGGGGGGG@.=?........GGGGGGGGGGGGGGG.......................................?......GGGGGGG.....GGGGGGG....=?F?.........................................................RRRRRRRRGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   '.............H....................GGGGGGGGGGGGGGG..................................................................................................................................GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   '..S.5..o...oCH.......M....6b.M..2.GGGGGGGGGGGGGGGuu.u.....M......1.........^...........................M.o..........M.....M.......M........................M.................#.M..#GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGGBBBGGGGGGGGGGGGGGHGGGGGGGGGGGGGGGGGGGGGGHGGGGGGHGGBBBGGGGGGGGGGGGGGGGGFFGGGGGGGGGG...GGGGGGGGGBBBGGGGGGGGGGGGGGGRRHRRRRRRRRRRRRGGGGGGGGGGGGGGGGGGGGGGGGGHGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
@@ -282,7 +282,7 @@ export const COIN_TILES = computed(() => findCoinTiles(currentLayout.value));
 export const CRATE_TILES = computed(() => findCrateTiles(currentLayout.value));
 
 /** Hand-placed question-mark block positions (5 — one per Certificate and
- *  Project), from `currentLayout`'s `Q` markers. */
+ *  Project), from `currentLayout`'s `?` markers. */
 export const QUESTIONMARK_TILES = computed(() => findQuestionMarkTiles(currentLayout.value));
 
 /** Hand-placed fragileRock block positions, from `currentLayout`'s `F`
