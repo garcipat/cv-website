@@ -1106,6 +1106,59 @@ describe('LevelEditorPage — Level/Blueprint canvas toggle (step 44a)', () => {
   // retired here since it can no longer be driven through the rendered page.
 });
 
+describe('editor zoom (O-019)', () => {
+  // The base-ui Slider (this repo's shadcn style) puts the actual
+  // keyboard-interactive element on a hidden native `<input type="range">`
+  // inside the thumb, not on the outer `data-testid` container (that's the
+  // Root, which has no tabIndex of its own) — matching EditorCanvas.test.tsx's
+  // own "scrollingUpOverTheCanvasZoomsInAnchoredToTheCursor"-adjacent slider
+  // tests, which target that inner input the same way.
+  function sliderInput(): HTMLInputElement {
+    const slider = screen.getByTestId('editor-canvas-zoom');
+    return slider.querySelector('input') as HTMLInputElement;
+  }
+
+  it('keepsTheLevelCanvasAndBlueprintCanvasZoomLevelsIndependent', async () => {
+    render(<LevelEditorPage />);
+
+    act(() => {
+      sliderInput().focus();
+    });
+    fireEvent.keyDown(sliderInput(), { key: 'ArrowDown' }); // 100% -> 75%
+    expect(screen.getByTestId('editor-canvas-zoom-value')).toHaveTextContent('75%');
+
+    await levelEditorPage.setCanvas('blueprint');
+    expect(screen.getByTestId('editor-canvas-zoom-value')).toHaveTextContent('100%');
+
+    act(() => {
+      sliderInput().focus();
+    });
+    fireEvent.keyDown(sliderInput(), { key: 'ArrowDown' });
+    fireEvent.keyDown(sliderInput(), { key: 'ArrowDown' }); // 100% -> 75% -> 50%
+    expect(screen.getByTestId('editor-canvas-zoom-value')).toHaveTextContent('50%');
+
+    await levelEditorPage.setCanvas('level');
+    expect(screen.getByTestId('editor-canvas-zoom-value')).toHaveTextContent('75%');
+  });
+
+  it('resetsBothCanvasesZoomTo100PercentWhenALevelIsLoaded', async () => {
+    render(<LevelEditorPage />);
+
+    act(() => {
+      sliderInput().focus();
+    });
+    fireEvent.keyDown(sliderInput(), { key: 'ArrowDown' });
+    expect(screen.getByTestId('editor-canvas-zoom-value')).toHaveTextContent('75%');
+
+    await selectLevel('empty'); // the file's own helper (line ~179); 'empty' is
+    // an existing entry id already used by other tests (e.g. the discard-flow
+    // test at line ~812) and the grid here is still clean, so no discard
+    // dialog appears — the load proceeds immediately.
+
+    expect(screen.getByTestId('editor-canvas-zoom-value')).toHaveTextContent('100%');
+  });
+});
+
 async function saveBlueprintAs(name: string) {
   await userEvent.click(levelEditorPage.toolbar.save);
   const nameField = levelEditorPage.saveDialog.nameInput;
