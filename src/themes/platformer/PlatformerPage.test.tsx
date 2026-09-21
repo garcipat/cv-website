@@ -46,6 +46,7 @@ import {
   placedBombs,
   activeExplosions,
   resetGame,
+  resetGameProgress,
   activePuffs,
   activeCounterPopups,
   levelTotals,
@@ -84,6 +85,8 @@ import { PHYSICS_CONFIG } from './engine/PhysicsConfig';
 import { tileToPixel, RENDERED_TILE_SIZE, isClimbable, tileAt } from './level/Terrain';
 import { currentLevel, currentLayout, currentBackgroundLayout, SCRATCH_LAYOUT } from './level/level';
 import type { LevelDef, TileType } from './level/LevelData';
+import { setSpearTipMask } from './entities/hazards/SpearArt';
+import type { SpearMask } from './entities/hazards/SpearArt';
 import {
   JOURNAL_OPEN_FRAME_COUNT,
   JOURNAL_OPEN_FRAME_INTERVAL_MS,
@@ -217,6 +220,29 @@ function blockLandingY(block: BlockState, approachPx = 4): number {
   return block.y - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING - approachPx;
 }
 
+/** The empty spear tip mask — what the module-level store must be reset to
+ *  between tests so a mask injected by one test never leaks into the next. */
+const EMPTY_SPEAR_MASK: SpearMask = { width: 4, height: 4, pixels: new Uint8Array(16) };
+
+/** A 4x4 mask with one lethal tip pixel at (1, 1) — world (spear.x + 1,
+ *  spear.y + 1) for whatever spear placement a test uses. */
+function oneTipSpearMask(): SpearMask {
+  const pixels = new Uint8Array(16);
+  pixels[1 * 4 + 1] = 1;
+  return { width: 4, height: 4, pixels };
+}
+
+/** A 32x32 mask with one lethal tip pixel at (22, 8) — world (spear.x + 22,
+ *  spear.y + 8): a shorter side-spear tip eight rows below the tile's own top,
+ *  inside the hitbox of a player standing at `spear.x`. */
+function lowTipSpearMask(): SpearMask {
+  const width = 32;
+  const height = 32;
+  const pixels = new Uint8Array(width * height);
+  pixels[8 * width + 22] = 1;
+  return { width, height, pixels };
+}
+
 describe('PlatformerPage', () => {
   beforeEach(() => {
     vi.stubGlobal('requestAnimationFrame', () => 1);
@@ -290,6 +316,10 @@ describe('PlatformerPage', () => {
     checkpointStates.value = checkpointPlacements.value.map(toCheckpointState);
     activeCheckpointId.value = null;
     activeFadeOutTexts.value = [];
+    // Module-level tip-mask store (see entities/hazards/SpearArt.ts) — reset
+    // like the other module-level state above, or a mask injected by one test
+    // would make a later test's spear lethal (or inert) unexpectedly.
+    setSpearTipMask(EMPTY_SPEAR_MASK);
   });
 
   afterEach(() => {
@@ -3471,6 +3501,470 @@ describe('PlatformerPage', () => {
     frameCallback!(16);
 
     expect(playerState.value.hitPoints).toBe(startingHealth);
+  });
+
+  describe('floor spear hazard — descending tip landing is fatal (US1)', () => {
+    /** Renders the game with a spear one tile right of the spawn, injects a
+     *  one-tip mask, and drops the player onto that tip from above with the
+     *  given health/hit-timer overrides. Returns the spear placement. */
+    function dropOntoSpear(
+      frameCallback: (t: number) => void,
+      overrides: { hitPoints?: number; hitTimer?: number; fastFall?: boolean } = {},
+    ) {
+      setSpearTipMask(oneTipSpearMask());
+      const hazard = hazardPlacements.value[0];
+      // player.x puts the hitbox (x 20..44 for x=0) around the tip at
+      // hazard.x + 1; player.y puts the hitbox top above and the feet below
+      // that tip row, with prevFeetY above it (a descending sweep).
+      playerState.value = {
+        ...playerState.value,
+        x: hazard.x - 32,
+        y: overrides.fastFall ? hazard.y - 40 : hazard.y - 20,
+        vx: 0,
+        vy: 300,
+        grounded: false,
+        prevFeetY: overrides.fastFall ? hazard.y - 120 : hazard.y - 30,
+        hitPoints: overrides.hitPoints ?? MAX_HALF_HEARTS,
+        hitTimer: overrides.hitTimer ?? PLAYER_HIT_REACTION_SECONDS,
+      };
+      frameCallback(16);
+    }
+
+    function renderSpearLevel(layout: string[] = ['S¦', 'GG']): (t: number) => void {
+      currentLayout.value = layout;
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+      render(<PlatformerPage />);
+      frameCallback!(0);
+      return (t: number) => frameCallback!(t);
+    }
+
+    it('descendingTipLandingAtFullHealth-tick-killsInstantlyAndStartsTheDeathSequence', () => {
+      const frameCallback = renderSpearLevel();
+
+      dropOntoSpear(frameCallback, { hitPoints: MAX_HALF_HEARTS });
+
+      expect(playerState.value.hitPoints).toBe(0);
+      expect(playerState.value.alive).toBe(false);
+      expect(playerState.value.animState).toBe('death');
+      expect(lifecycleState.value.phase).toBe('dying');
+    });
+
+    it('descendingTipLandingAtOneHalfHeart-tick-killsInstantly', () => {
+      const frameCallback = renderSpearLevel();
+
+      dropOntoSpear(frameCallback, { hitPoints: 1 });
+
+      expect(playerState.value.hitPoints).toBe(0);
+      expect(playerState.value.alive).toBe(false);
+    });
+
+    it('descendingTipLandingDuringAnActiveInvulnerabilityWindow-tick-stillKills', () => {
+      const frameCallback = renderSpearLevel();
+
+      dropOntoSpear(frameCallback, { hitPoints: MAX_HALF_HEARTS, hitTimer: 0 });
+
+      expect(playerState.value.hitPoints).toBe(0);
+      expect(playerState.value.alive).toBe(false);
+    });
+
+    it('singleTickFastFallThroughTheTipBand-tick-stillKills', () => {
+      const frameCallback = renderSpearLevel();
+
+      dropOntoSpear(frameCallback, { fastFall: true });
+
+      expect(playerState.value.hitPoints).toBe(0);
+      expect(playerState.value.alive).toBe(false);
+    });
+
+    it('aDescentOntoASideTipAfterClearingTheTileTop-tick-killsInstantly', () => {
+      // Same shorter side tip as the US2 regression, but the feet were above
+      // the tile's top (prevFeetY < hazard.y) at the start of the step — a
+      // genuine fall onto the spear, so it kills.
+      setSpearTipMask(lowTipSpearMask());
+      const frameCallback = renderSpearLevel();
+      const hazard = hazardPlacements.value[0];
+      playerState.value = {
+        ...playerState.value,
+        x: hazard.x,
+        y: hazard.y + 10 - (PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING),
+        vx: 0,
+        vy: 120,
+        grounded: false,
+        prevFeetY: hazard.y - 4,
+      };
+
+      frameCallback(16);
+
+      expect(playerState.value.hitPoints).toBe(0);
+      expect(playerState.value.alive).toBe(false);
+    });
+
+    it('spearKill-appliesNoKnockbackAndStartsTheFeetBloodSplatter', () => {
+      const frameCallback = renderSpearLevel();
+
+      dropOntoSpear(frameCallback);
+
+      expect(playerState.value.vx).toBe(0);
+      expect(activeHitSplatters.value).toHaveLength(1);
+      // Blood leans upward/outward from the feet, unlike a side hit's flat spray.
+      expect(activeHitSplatters.value[0].dirBiasY).toBeLessThan(0);
+    });
+
+    it('spearKill-bloodSplatterKeepsSprayingThroughTheDeathLeadIn', () => {
+      const frameCallback = renderSpearLevel();
+
+      dropOntoSpear(frameCallback);
+      const spawned = activeHitSplatters.value[0];
+      expect(spawned.elapsed).toBe(0);
+
+      frameCallback(32);
+
+      expect(activeHitSplatters.value[0].elapsed).toBeGreaterThan(0);
+    });
+
+    it('sameTickEnemyContact-doesNotSaveTheCharacterAndTheSpearDeathWins', () => {
+      const frameCallback = renderSpearLevel(['S¦M', 'GGG']);
+      // Move the level's real green enemy onto the spear tile so the player
+      // overlaps both on the same tick. A side contact with the enemy would
+      // normally cost a half-heart; the spear's death must preempt it.
+      const enemy = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
+      enemyStates.value = enemyStates.value.map((e) =>
+        e.id === enemy.id ? { ...e, x: 20, y: 0 } : e,
+      );
+
+      dropOntoSpear(frameCallback, { hitPoints: MAX_HALF_HEARTS });
+
+      // 0, not 5: the enemy's half-heart never applied — the spear won.
+      expect(playerState.value.hitPoints).toBe(0);
+      expect(playerState.value.alive).toBe(false);
+      expect(lifecycleState.value.phase).toBe('dying');
+    });
+  });
+
+  describe('floor spear hazard — everything else is safe (US2)', () => {
+    function renderSpearLevel(layout: string[] = ['S¦', 'GG']): (t: number) => void {
+      currentLayout.value = layout;
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+      render(<PlatformerPage />);
+      frameCallback!(0);
+      return (t: number) => frameCallback!(t);
+    }
+
+    /** The resting y for a character standing on the solid row below the
+     *  spear (row 1), feet on that row's top edge. */
+    const GROUNDED_ON_ROW_BELOW_Y = RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
+
+    it('walkingHorizontallyThroughASpearTile-causesNoDamageAndNoDeflection', () => {
+      // Wide enough that the 64px player render slot can actually move right
+      // past the spear (a 2-tile level clamps it in place).
+      const frameCallback = renderSpearLevel(['S¦....', 'GGGGGG']);
+      const hazard = hazardPlacements.value[0];
+      playerState.value = {
+        ...playerState.value,
+        x: hazard.x,
+        y: GROUNDED_ON_ROW_BELOW_Y,
+        vx: 0,
+        vy: 0,
+        grounded: true,
+      };
+      const startingHealth = playerState.value.hitPoints;
+      const startX = playerState.value.x;
+
+      fireEvent.keyDown(window, { code: 'ArrowRight' });
+      frameCallback(16);
+      frameCallback(32);
+
+      expect(playerState.value.hitPoints).toBe(startingHealth);
+      // Not blocked or deflected: the character kept walking right through
+      // the tile at full commanded speed.
+      expect(playerState.value.x).toBeGreaterThan(startX);
+      expect(playerState.value.vx).toBe(PHYSICS_CONFIG.walkSpeed);
+    });
+
+    it('standingInsideTheSpearTileForManyTicks-causesNoDamage', () => {
+      const frameCallback = renderSpearLevel();
+      const hazard = hazardPlacements.value[0];
+      playerState.value = {
+        ...playerState.value,
+        x: hazard.x,
+        y: GROUNDED_ON_ROW_BELOW_Y,
+        vx: 0,
+        vy: 0,
+        grounded: true,
+      };
+      const startingHealth = playerState.value.hitPoints;
+
+      let t = 16;
+      for (let i = 0; i < 60; i++) {
+        frameCallback(t);
+        t += 16;
+      }
+
+      expect(playerState.value.hitPoints).toBe(startingHealth);
+      expect(playerState.value.alive).toBe(true);
+    });
+
+    it('risingThroughTheTile-causesNoDamage', () => {
+      setSpearTipMask(oneTipSpearMask());
+      const frameCallback = renderSpearLevel();
+      const hazard = hazardPlacements.value[0];
+      playerState.value = {
+        ...playerState.value,
+        x: hazard.x - 32,
+        y: 0,
+        vx: 0,
+        vy: -400,
+        grounded: false,
+        prevFeetY: 56,
+      };
+      const startingHealth = playerState.value.hitPoints;
+
+      frameCallback(16);
+      frameCallback(32);
+
+      expect(playerState.value.hitPoints).toBe(startingHealth);
+    });
+
+    it('hitboxWellAboveTheTipsWhileRising-causesNoDamage', () => {
+      setSpearTipMask(oneTipSpearMask());
+      const frameCallback = renderSpearLevel();
+      const hazard = hazardPlacements.value[0];
+      playerState.value = {
+        ...playerState.value,
+        x: hazard.x - 32,
+        y: -60,
+        vx: 0,
+        vy: -200,
+        grounded: false,
+        prevFeetY: -4,
+      };
+      const startingHealth = playerState.value.hitPoints;
+
+      frameCallback(16);
+      frameCallback(32);
+
+      expect(playerState.value.hitPoints).toBe(startingHealth);
+    });
+
+    it('descendingClipOfOnlyTheTransparentMargin-causesNoDamage', () => {
+      // One tip pixel at world (hazard.x + 1, hazard.y + 1); the hitbox (x
+      // 60..84) overlaps the tile's right edge but never that tip column.
+      setSpearTipMask(oneTipSpearMask());
+      const frameCallback = renderSpearLevel();
+      const hazard = hazardPlacements.value[0];
+      playerState.value = {
+        ...playerState.value,
+        x: hazard.x + 8,
+        y: 0,
+        vx: 0,
+        vy: 300,
+        grounded: false,
+        prevFeetY: 20,
+      };
+      const startingHealth = playerState.value.hitPoints;
+
+      frameCallback(16);
+
+      expect(playerState.value.hitPoints).toBe(startingHealth);
+      expect(playerState.value.alive).toBe(true);
+    });
+
+    it('descendingSideOrShaftGraze-causesNoDamage', () => {
+      // The feet are already below the tip row at the start of the step.
+      setSpearTipMask(oneTipSpearMask());
+      const frameCallback = renderSpearLevel();
+      const hazard = hazardPlacements.value[0];
+      playerState.value = {
+        ...playerState.value,
+        x: hazard.x - 32,
+        y: -10,
+        vx: 0,
+        vy: 120,
+        grounded: false,
+        prevFeetY: 40,
+      };
+      const startingHealth = playerState.value.hitPoints;
+
+      frameCallback(16);
+
+      expect(playerState.value.hitPoints).toBe(startingHealth);
+      expect(playerState.value.alive).toBe(true);
+    });
+
+    it('aDescentOntoASideTipThatNeverRoseAboveTheTileTop-causesNoDamage', () => {
+      // The jump-from-inside-the-tile bug: the feet clear a shorter side
+      // spear's tip (row 8) but never the tile's own top (row 0). They sweep
+      // 6 -> 10, crossing the tip, but were already inside the tile at the
+      // start of the step — the spear's full height was never cleared.
+      setSpearTipMask(lowTipSpearMask());
+      const frameCallback = renderSpearLevel();
+      const hazard = hazardPlacements.value[0];
+      playerState.value = {
+        ...playerState.value,
+        x: hazard.x,
+        y: hazard.y + 10 - (PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING),
+        vx: 0,
+        vy: 120,
+        grounded: false,
+        prevFeetY: hazard.y + 6,
+      };
+      const startingHealth = playerState.value.hitPoints;
+
+      frameCallback(16);
+
+      expect(playerState.value.hitPoints).toBe(startingHealth);
+      expect(playerState.value.alive).toBe(true);
+    });
+
+    it('spearCell-resolvesToEmptyTerrainAndNeverMakesItsTileSolid', () => {
+      currentLayout.value = ['S¦', 'GG'];
+      expect(tileAt(currentLevel.value, 1, 0)).toBe('empty');
+    });
+  });
+
+  describe('floor spear hazard — inert world object (FR-010/FR-011, SC-006)', () => {
+    /** Renders the page with a controllable game loop, mirroring the bombs
+     *  describe's own helper. */
+    function mountWithLoop(): (steps?: number, dt?: number) => void {
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+      render(<PlatformerPage />);
+      frameCallback!(0);
+
+      let t = 0;
+      return (steps = 1, dt = 16) => {
+        for (let i = 0; i < steps; i++) {
+          t += dt;
+          frameCallback!(t);
+        }
+      };
+    }
+
+    it('anEnemyOverlappingASpearTakesNoDamageAndIsNotBlocked', () => {
+      currentLayout.value = ['S¦M..', 'GGGGG'];
+      const advance = mountWithLoop();
+      const spear = hazardPlacements.value[0];
+      const enemy = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
+      const startingHealth = enemy.hitPoints;
+      enemyStates.value = enemyStates.value.map((e) =>
+        e.id === enemy.id ? { ...e, x: spear.x, y: spear.y } : e,
+      );
+
+      advance(2);
+
+      const after = enemyStates.value.find((e) => e.id === enemy.id)!;
+      expect(after.hitPoints).toBe(startingHealth);
+      expect(after.alive).toBe(true);
+      // The spear never blocks the patrol: the enemy still moved.
+      expect(after.x).not.toBe(spear.x);
+    });
+
+    it('aBombBlastLeavesEverySpearPlacementUnchanged', () => {
+      currentLayout.value = ['S¦...', 'GGGGG'];
+      const advance = mountWithLoop();
+      const before = hazardPlacements.value;
+      expect(before).toHaveLength(1);
+      placedBombs.value = [
+        ...placedBombs.value,
+        {
+          ...createPlacedBomb(
+            'spear-blast-bomb',
+            currentLevel.value,
+            blockStates.value,
+            3,
+            0,
+          ),
+          fuseElapsed: BOMB_FUSE_SECONDS - 0.001,
+          landed: true,
+        },
+      ];
+
+      advance(1);
+
+      expect(hazardPlacements.value).toEqual(before);
+    });
+
+    it('resetGameRestoresSpearsUnchangedAndLeavesNoSpearState', () => {
+      currentLayout.value = ['S¦', 'GG'];
+      const advance = mountWithLoop();
+      const before = hazardPlacements.value;
+      advance(2);
+
+      resetGameProgress();
+
+      expect(hazardPlacements.value).toEqual(before);
+      // No spear-specific state survives: the respawn player's feet history is
+      // reseeded to its own feet, not a stale pre-reset value.
+      expect(playerState.value.prevFeetY).toBe(
+        playerState.value.y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING,
+      );
+    });
+
+    it('walkingThroughASpearTileAwardsNoFactPickupOrCounter', () => {
+      currentLayout.value = ['S¦....', 'GGGGGG'];
+      const advance = mountWithLoop();
+      const spear = hazardPlacements.value[0];
+      playerState.value = {
+        ...playerState.value,
+        x: spear.x - 32,
+        y: RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING,
+        vx: 0,
+        vy: 0,
+        grounded: true,
+      };
+      const factsBefore = collectedFacts.value.length;
+      const collectiblesBefore = allCollectiblePlacements.value.length;
+      const totalsBefore = { ...levelTotals.value };
+
+      fireEvent.keyDown(window, { code: 'ArrowRight' });
+      advance(30);
+
+      expect(collectedFacts.value.length).toBe(factsBefore);
+      expect(allCollectiblePlacements.value.length).toBe(collectiblesBefore);
+      expect(levelTotals.value).toEqual(totalsBefore);
+    });
+
+    it('aSpearDeathRespawnAndResetGameLeaveTheSpearPlacementUnchanged', () => {
+      currentLayout.value = ['S¦', 'GG'];
+      const advance = mountWithLoop();
+      const before = hazardPlacements.value;
+
+      // Kill via the spear, then advance through the death/respawn lifecycle.
+      setSpearTipMask(oneTipSpearMask());
+      const spear = before[0];
+      playerState.value = {
+        ...playerState.value,
+        x: spear.x - 32,
+        y: spear.y - 20,
+        vx: 0,
+        vy: 300,
+        grounded: false,
+        prevFeetY: spear.y - 30,
+      };
+      advance(1);
+      expect(playerState.value.alive).toBe(false);
+
+      resetGame();
+      expect(hazardPlacements.value).toEqual(before);
+
+      resetGameProgress();
+      expect(hazardPlacements.value).toEqual(before);
+    });
   });
 
   it('playerFallsOntoEnemyFromAbove-tick-noSideHitDamageOnlyAStomp', () => {

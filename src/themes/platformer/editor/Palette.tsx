@@ -2,13 +2,14 @@ import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { Collapsible } from '@base-ui/react/collapsible';
 import { ChevronDownIcon } from 'lucide-react';
-import { TERRAIN_CHARS, ENTITY_CHARS, SIGN_CHARS, HAZARD_CHARS } from '../level/LevelParser';
+import { TERRAIN_CHARS, ENTITY_CHARS, SIGN_CHARS } from '../level/LevelParser';
 import type { TileChar } from '../level/LevelParser';
 import {
   PALETTE_TILE_SPRITES,
   PALETTE_TILE_LABELS,
   PALETTE_TILE_GLYPHS,
   PALETTE_TILE_DESCRIPTIONS,
+  HAZARD_PALETTE_KEYS,
   BLUEPRINT_GLYPH,
 } from './paletteTiles';
 import {
@@ -112,12 +113,11 @@ export const Palette = ({
   // (Task 7's paintCell.ts), so the palette itself never needs to grow past one
   // "Sign" entry no matter how many distinct hints get registered later.
   const [firstSignKey] = Object.keys(SIGN_CHARS) as TileChar[];
-  // Same one-button convention as signs: only the FIRST registered hazard
-  // character becomes a palette tile. Clicking the canvas auto-detects a
-  // facing from the surrounding terrain, and clicking an already-placed
-  // hazard again cycles to the next neighbor-backed facing (paintCell.ts's
-  // nextHazardChar) — the palette itself never needs a button per facing.
-  const [firstHazardKey] = Object.keys(HAZARD_CHARS) as TileChar[];
+  // One palette button per hazard KIND (derived from HAZARD_CHARS), not one
+  // per facing: the spike auto-orients and cycles its four facings on the
+  // canvas (paintCell.ts), while the floor spear has a single fixed
+  // orientation that never cycles.
+  const hazardKeys = HAZARD_PALETTE_KEYS;
   // Patrol lives here rather than in "Terrain": it's an invisible marker, not
   // physical ground, so it reads more like a level-authoring tool (same
   // category as the Eraser and Sign) than like grass/rock/wall. The blueprint
@@ -174,7 +174,7 @@ export const Palette = ({
             {renderGroup('Terrain', 'terrain', terrainKeys)}
             {renderGroup('Decoration', 'decoration', decorationKeys)}
             {renderGroup('Entities', 'entities', entityKeys)}
-            {renderGroup('Hazards', 'hazards', firstHazardKey ? [firstHazardKey] : [])}
+            {renderGroup('Hazards', 'hazards', hazardKeys)}
             {renderGroup('Tools', 'tools', toolKeys)}
             {showBlueprints && (
               <PaletteGroup title="Blueprints" slug="blueprints">

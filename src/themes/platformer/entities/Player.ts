@@ -89,6 +89,17 @@ export interface PlayerState extends Moving, SelfAnimated, Damageable {
    *  than a spawn/checkpoint. */
   lastGroundedX: number;
   lastGroundedY: number;
+  /** The feet line (`y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING`) at the
+   *  start of the previous physics step — genuine motion history beside
+   *  `lastGroundedX/Y`. Compared against the current feet by the floor
+   *  spear's swept contact-from-above test (`entities/hazards/SpearArt.ts`),
+   *  so a single-tick fast fall still registers while a side graze does not.
+   *  Written by `Physics.ts`'s `stepPlayerPhysics` on every return and by
+   *  `resolvePitFall`, and seeded to the state's own feet by both player-state
+   *  factories (`PlatformerState.ts`'s `playerStateAtTile` and
+   *  `editor/gridRenderState.ts`'s `synthesizePlayerState`) so a spawn/respawn
+   *  never carries a stale pre-death feet line. */
+  prevFeetY: number;
   /** Narrowed from `SelfAnimated`'s `string` to the player's finite set of
    *  animation states. */
   animState: PlayerAnimState;

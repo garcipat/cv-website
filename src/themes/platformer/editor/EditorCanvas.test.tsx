@@ -13,7 +13,7 @@ import { centerPanOnSpawn } from './EditorPan';
 import { levelEditorPage } from './LevelEditorPage.page';
 import type { TileChar, BackgroundChar } from '../level/LevelParser';
 import type { EditorImages } from './EditorCanvas';
-import { COIN_SHEET, STATIC_OBJECTS_SHEET } from '../entities/sprites/sheets';
+import { COIN_SHEET, STATIC_OBJECTS_SHEET, SPEAR_SHEET } from '../entities/sprites/sheets';
 
 vi.mock('../engine/Renderer', () => ({
   drawTerrain: vi.fn(),
@@ -41,6 +41,7 @@ import {
   drawBlocks,
   drawChests,
   drawCheckpoints,
+  drawHazards,
   drawBackgroundTiles,
   drawDarkness,
   drawEnemyEyes,
@@ -65,6 +66,7 @@ const EMPTY_IMAGES: EditorImages = {
   torch: null,
   ropeLadder: null,
   mushroom: null,
+  spears: null,
 };
 
 // Default props shared by every pre-existing test in this file (all of
@@ -438,6 +440,29 @@ describe('EditorCanvas', () => {
       checkpoint,
       null,
       expect.objectContaining({ originX: 5, originY: 7 }),
+    );
+  });
+
+  it('passes the spears image through to drawHazards for a "¦" cell', () => {
+    stubCanvasContext();
+    const spears = {} as HTMLImageElement;
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['¦']]}
+        selectedTool="G"
+        panOffset={{ x: 0, y: 0 }}
+        images={{ ...EMPTY_IMAGES, spears }}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+    expect(drawHazards).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.arrayContaining([expect.objectContaining({ hazardType: 'spear', facing: 'up' })]),
+      expect.objectContaining({
+        sprites: expect.objectContaining({ [SPEAR_SHEET.src]: spears }),
+      }),
     );
   });
 

@@ -4,11 +4,12 @@ import {
   PALETTE_TILE_LABELS,
   PALETTE_TILE_GLYPHS,
   PALETTE_TILE_DESCRIPTIONS,
+  HAZARD_PALETTE_KEYS,
   BLUEPRINT_GLYPH,
   PATROL_GLYPH,
   CONNECTION_POINT_GLYPH,
 } from './paletteTiles';
-import { TERRAIN_CHARS, ENTITY_CHARS, SIGN_CHARS } from '../level/LevelParser';
+import { TERRAIN_CHARS, ENTITY_CHARS, SIGN_CHARS, HAZARD_CHARS } from '../level/LevelParser';
 import type { TileChar } from '../level/LevelParser';
 
 describe('PALETTE_TILE_SPRITES', () => {
@@ -337,6 +338,57 @@ describe('mushroom tiles', () => {
   it('bothMushrooms-haveNonEmptyDescriptions', () => {
     expect(PALETTE_TILE_DESCRIPTIONS['§'].length).toBeGreaterThan(0);
     expect(PALETTE_TILE_DESCRIPTIONS.s.length).toBeGreaterThan(0);
+  });
+});
+
+describe('floor spear marker', () => {
+  it('brokenBar-hasASpriteCroppingTheWholeSpearsTile', () => {
+    expect(PALETTE_TILE_SPRITES['¦']).toEqual({
+      sheet: '/sprites/spears.png',
+      sheetWidth: 32,
+      sheetHeight: 32,
+      sx: 0,
+      sy: 0,
+      frameWidth: 32,
+      frameHeight: 32,
+    });
+  });
+
+  it('brokenBar-hasAHumanReadableLabel', () => {
+    expect(PALETTE_TILE_LABELS['¦']).toBe('Floor Spear');
+  });
+
+  it('brokenBar-hasANonEmptyDescription', () => {
+    expect(PALETTE_TILE_DESCRIPTIONS['¦'].length).toBeGreaterThan(0);
+  });
+});
+
+describe('HAZARD_PALETTE_KEYS', () => {
+  it('containsExactlyOneKeyPerRegisteredHazardKindInRegistrationOrder', () => {
+    // One representative character per hazard kind, derived from HAZARD_CHARS
+    // rather than hand-listed: the first key of each kind in registration
+    // order.
+    const expected: string[] = [];
+    for (const char of Object.keys(HAZARD_CHARS)) {
+      const kind = HAZARD_CHARS[char]!.hazardType;
+      const alreadyRepresented = expected.some(
+        (key) => HAZARD_CHARS[key]!.hazardType === kind,
+      );
+      if (!alreadyRepresented) expected.push(char);
+    }
+    expect(HAZARD_PALETTE_KEYS).toEqual(expected);
+    expect(HAZARD_PALETTE_KEYS).toEqual(['^', '¦']);
+  });
+
+  it('hasNoDuplicates', () => {
+    expect(new Set(HAZARD_PALETTE_KEYS).size).toBe(HAZARD_PALETTE_KEYS.length);
+  });
+
+  it('everyKeyHasAPaletteLabelAndSprite', () => {
+    for (const key of HAZARD_PALETTE_KEYS) {
+      expect(PALETTE_TILE_LABELS[key]).toBeTruthy();
+      expect(PALETTE_TILE_SPRITES[key]).toBeTruthy();
+    }
   });
 });
 

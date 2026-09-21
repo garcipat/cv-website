@@ -4,7 +4,11 @@ import { ENEMY_TYPES } from '../entities/enemies';
 import type { SlimePurpleState } from '../entities/enemies/SlimePurple';
 import type { EnemyPlacement } from '../level/EnemyMapper';
 import type { PlayerState } from '../entities/Player';
-import { PLAYER_HIT_REACTION_SECONDS } from '../entities/Player';
+import {
+  PLAYER_RENDERED_SIZE,
+  PLAYER_FOOT_PADDING,
+  PLAYER_HIT_REACTION_SECONDS,
+} from '../entities/Player';
 
 /**
  * Characterization of enemy/player contact as it behaves today, expressed in
@@ -31,6 +35,7 @@ function makePlayer(x: number, y: number, vy: number): PlayerState {
     isDroppingThroughBridge: false,
     lastGroundedX: x,
     lastGroundedY: y,
+    prevFeetY: y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING,
     animState: 'jump',
     animFrame: 0,
     animTimer: 0,

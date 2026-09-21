@@ -15,6 +15,7 @@ import {
   TORCH_SHEET,
   ROPE_LADDER_SHEET,
   MUSHROOM_SHEET,
+  SPEAR_SHEET,
 } from '../entities/sprites/sheets';
 import {
   applyBackgroundPaint,
@@ -44,6 +45,7 @@ const EMPTY_IMAGES: EditorImages = {
   torch: null,
   ropeLadder: null,
   mushroom: null,
+  spears: null,
 };
 
 const IMAGE_SOURCES: { key: keyof EditorImages; src: string }[] = [
@@ -63,6 +65,7 @@ const IMAGE_SOURCES: { key: keyof EditorImages; src: string }[] = [
   { key: 'torch', src: TORCH_SHEET.src },
   { key: 'ropeLadder', src: ROPE_LADDER_SHEET.src },
   { key: 'mushroom', src: MUSHROOM_SHEET.src },
+  { key: 'spears', src: SPEAR_SHEET.src },
 ];
 
 export interface EditorCanvasPaneProps {

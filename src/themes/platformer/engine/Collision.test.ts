@@ -9,10 +9,12 @@ import {
   checkKeyPickupCollisions,
   checkHeartPickupCollisions,
   checkBombPickupCollisions,
-  checkHazardCollisions,
+  resolveHazardContacts,
   overlappingTriggers,
 } from './Collision';
 import type { Box } from './Collision';
+import { setSpearTipMask } from '../entities/hazards/SpearArt';
+import type { SpearMask } from '../entities/hazards/SpearArt';
 import {
   PLAYER_SIDE_PADDING,
   PLAYER_HEAD_PADDING,
@@ -36,7 +38,7 @@ import type { HazardPlacement } from '../level/HazardMapper';
 import type { KeyPickupState } from '../entities/KeyPickup';
 import { spawnHeartPickup } from '../entities/HeartPickup';
 import { spawnBombPickup } from '../entities/BombPickup';
-import { MAX_HALF_HEARTS } from '../entities/Health';
+import { MAX_HALF_HEARTS, SIDE_HIT_DAMAGE } from '../entities/Health';
 import { PHYSICS_CONFIG } from './PhysicsConfig';
 
 function makePlayer(x: number, y: number): PlayerState {
@@ -51,6 +53,7 @@ function makePlayer(x: number, y: number): PlayerState {
     isDroppingThroughBridge: false,
     lastGroundedX: x,
     lastGroundedY: y,
+    prevFeetY: y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING,
     animState: 'idle',
     animFrame: 0,
     animTimer: 0,
@@ -342,28 +345,36 @@ describe('checkSignOverlap', () => {
   });
 });
 
-describe('checkHazardCollisions', () => {
+describe('resolveHazardContacts — ordinary hazard resolution', () => {
   const hazard: HazardPlacement = { id: 'h1', hazardType: 'spike', facing: 'up', x: 100, y: 100 };
 
-  it('playerOverlappingHazard-returnsIt', () => {
+  it('playerOverlappingHazard-returnsItsDamageAndTheHazard', () => {
     const player = makePlayer(100, 100);
-    expect(checkHazardCollisions(player, [hazard])).toEqual([hazard]);
+    const result = resolveHazardContacts(player, [hazard]);
+    expect(result.hazard).toBe(hazard);
+    expect(result.damage).toBe(SIDE_HIT_DAMAGE);
+    expect(result.lethal).toBeUndefined();
   });
 
-  it('playerFarFromHazard-returnsEmpty', () => {
+  it('playerFarFromHazard-returnsNoContact', () => {
     const player = makePlayer(1000, 1000);
-    expect(checkHazardCollisions(player, [hazard])).toEqual([]);
+    const result = resolveHazardContacts(player, [hazard]);
+    expect(result.hazard).toBeUndefined();
+    expect(result.damage).toBe(0);
+    expect(result.lethal).toBeUndefined();
   });
 
-  it('noHazardsInLevel-returnsEmpty', () => {
+  it('noHazardsInLevel-returnsNoContact', () => {
     const player = makePlayer(100, 100);
-    expect(checkHazardCollisions(player, [])).toEqual([]);
+    const result = resolveHazardContacts(player, []);
+    expect(result.hazard).toBeUndefined();
+    expect(result.damage).toBe(0);
   });
 
   it('facingChangesWhichPartOfTheTileIsHazardous-sameOverlapMissesADifferentFacing', () => {
-    // checkHazardCollisions dispatches through the HAZARD_TYPES registry
-    // (typeOf(h).box(h)), so each facing's own narrower hitbox — the band
-    // of the tile its visible spikes actually occupy, see Spike.ts's
+    // resolveHazardContacts dispatches through the HAZARD_TYPES registry
+    // (hazardTypeOf(h).box(h)), so each facing's own narrower hitbox — the
+    // band of the tile its visible spikes actually occupy, see Spike.ts's
     // facingBox — is what gets checked, not a facing-agnostic full tile.
     // 'up's band is the tile's bottom 10 rendered px; the player position
     // above (which overlaps it) sits well below the tile's TOP edge, so a
@@ -371,7 +382,164 @@ describe('checkHazardCollisions', () => {
     // miss.
     const player = makePlayer(100, 100);
     const downFacing: HazardPlacement = { ...hazard, facing: 'down' };
-    expect(checkHazardCollisions(player, [downFacing])).toEqual([]);
+    const result = resolveHazardContacts(player, [downFacing]);
+    expect(result.hazard).toBeUndefined();
+    expect(result.damage).toBe(0);
+  });
+
+  it('twoOverlappingOrdinaryHazards-appliesAtMostOneDamage', () => {
+    const player = makePlayer(100, 100);
+    const second: HazardPlacement = { id: 'h2', hazardType: 'spike', facing: 'up', x: 100, y: 100 };
+    const result = resolveHazardContacts(player, [hazard, second]);
+    expect(result.hazard).toBe(hazard);
+    expect(result.damage).toBe(SIDE_HIT_DAMAGE);
+  });
+});
+
+/** A mask with one lethal tip pixel at (1, 1) — world (101, 101) for a spear
+ *  placement at (100, 100). */
+function oneTipSpearMask(): SpearMask {
+  const pixels = new Uint8Array(16);
+  pixels[1 * 4 + 1] = 1;
+  return { width: 4, height: 4, pixels };
+}
+
+function emptySpearMask(): SpearMask {
+  return { width: 4, height: 4, pixels: new Uint8Array(16) };
+}
+
+describe('resolveHazardContacts — lethal spear contact (US1)', () => {
+  const spearHazard: HazardPlacement = { id: 's1', hazardType: 'spear', facing: 'up', x: 100, y: 100 };
+
+  afterEach(() => {
+    setSpearTipMask(emptySpearMask());
+  });
+
+  it('descendingTipSweep-returnsLethalWithZeroDamage', () => {
+    setSpearTipMask(oneTipSpearMask());
+    const player = makePlayer(80, 46);
+    player.vy = 120;
+    player.prevFeetY = 95;
+
+    const result = resolveHazardContacts(player, [spearHazard]);
+
+    expect(result.lethal).toBe(spearHazard);
+    expect(result.damage).toBe(0);
+    expect(result.hazard).toBeUndefined();
+  });
+
+  it('lethalContact-isReportedEvenWhileInvulnerable', () => {
+    setSpearTipMask(oneTipSpearMask());
+    const player = makePlayer(80, 46);
+    player.vy = 120;
+    player.prevFeetY = 95;
+    player.hitTimer = 0; // inside the refractory window
+
+    const result = resolveHazardContacts(player, [spearHazard]);
+
+    expect(result.lethal).toBe(spearHazard);
+  });
+
+  it('lethalContact-takesPrecedenceOverASameTickOrdinarySpikeOverlap', () => {
+    setSpearTipMask(oneTipSpearMask());
+    // The player's hitbox (x 100..124, y 64..102) overlaps both the 'up'
+    // spike's bottom band (82..92) and the spear's tip at (101, 101).
+    const spike: HazardPlacement = { id: 'h1', hazardType: 'spike', facing: 'up', x: 100, y: 60 };
+    const player = makePlayer(80, 46);
+    player.vy = 120;
+    player.prevFeetY = 95;
+
+    const result = resolveHazardContacts(player, [spike, spearHazard]);
+
+    expect(result.lethal).toBe(spearHazard);
+    expect(result.damage).toBe(0);
+    expect(result.hazard).toBeUndefined();
+  });
+});
+
+describe('resolveHazardContacts — everything but a tip landing is safe (US2)', () => {
+  const spearHazard: HazardPlacement = { id: 's1', hazardType: 'spear', facing: 'up', x: 100, y: 100 };
+
+  beforeEach(() => {
+    setSpearTipMask(oneTipSpearMask());
+  });
+
+  afterEach(() => {
+    setSpearTipMask(emptySpearMask());
+  });
+
+  it('walkingThroughTheTileVyZero-returnsNoContact', () => {
+    // Hitbox (x 100..124, y 118..156) overlaps the full-tile box, but the
+    // character is grounded and not descending.
+    const player = makePlayer(80, 100);
+    player.vx = 200;
+    player.vy = 0;
+    player.grounded = true;
+
+    const result = resolveHazardContacts(player, [spearHazard]);
+
+    expect(result.lethal).toBeUndefined();
+    expect(result.damage).toBe(0);
+  });
+
+  it('standingInsideTheTile-returnsNoContact', () => {
+    const player = makePlayer(80, 100);
+    player.vy = 0;
+    player.grounded = true;
+
+    const result = resolveHazardContacts(player, [spearHazard]);
+
+    expect(result.lethal).toBeUndefined();
+    expect(result.damage).toBe(0);
+  });
+
+  it('risingOrJumpingUpThroughTheTileVyNegative-returnsNoContact', () => {
+    const player = makePlayer(80, 100);
+    player.vy = -250;
+    player.prevFeetY = 200;
+
+    const result = resolveHazardContacts(player, [spearHazard]);
+
+    expect(result.lethal).toBeUndefined();
+    expect(result.damage).toBe(0);
+  });
+
+  it('transparentMarginOverlapWhileDescending-returnsNoContact', () => {
+    // Hitbox (x 120..144, y 118..156) overlaps the tile's box (100..132) but
+    // not the drawn tip at world (101, 101).
+    const player = makePlayer(100, 100);
+    player.vy = 300;
+    player.prevFeetY = 110;
+
+    const result = resolveHazardContacts(player, [spearHazard]);
+
+    expect(result.lethal).toBeUndefined();
+    expect(result.damage).toBe(0);
+  });
+
+  it('descendingSideOrShaftGraze-returnsNoContact', () => {
+    // The feet are already below the tip row (101) at the start of the step,
+    // so the sweep never crosses it — a side/shaft graze.
+    const player = makePlayer(80, 70);
+    player.vy = 120;
+    player.prevFeetY = 118;
+
+    const result = resolveHazardContacts(player, [spearHazard]);
+
+    expect(result.lethal).toBeUndefined();
+    expect(result.damage).toBe(0);
+  });
+
+  it('emptyMaskWhileDescending-returnsNoContact', () => {
+    setSpearTipMask(emptySpearMask());
+    const player = makePlayer(80, 46);
+    player.vy = 120;
+    player.prevFeetY = 95;
+
+    const result = resolveHazardContacts(player, [spearHazard]);
+
+    expect(result.lethal).toBeUndefined();
+    expect(result.damage).toBe(0);
   });
 });
 
@@ -538,6 +706,7 @@ describe('checkKeyPickupCollisions', () => {
   const player = {
     x: 0, y: 0, vx: 0, vy: 0, direction: 'right' as const, grounded: true, climbing: false,
     isDroppingThroughBridge: false, lastGroundedX: 0, lastGroundedY: 0, animState: 'idle' as const,
+    prevFeetY: PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING,
     animFrame: 0, animTimer: 0, knockbackTimer: 0, bounceAscending: false, blockContacts: [],
     hitPoints: 6, alive: true, hitTimer: PLAYER_HIT_REACTION_SECONDS,
   };

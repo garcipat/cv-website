@@ -37,18 +37,18 @@ const defaultProps = {
 };
 
 describe('Palette', () => {
-  it('renders one tile for every terrain char (excluding "."), every entity char, one representative Sign tile, one representative Hazard tile, and the Eraser', () => {
+  it('renders one tile for every terrain char (excluding "."), every entity char, one representative Sign tile, one tile per Hazard kind, and the Eraser', () => {
     render(<Palette {...defaultProps} />);
     // '.' is the Eraser, counted separately below; '+' is the blueprint
     // connection point, offered only on the blueprint canvas (step 44b) and
     // never from the Terrain group in either mode.
     const terrainCount = Object.keys(TERRAIN_CHARS).filter((k) => k !== '.' && k !== '+').length;
     const entityCount = Object.keys(ENTITY_CHARS).length;
-    // +1 for the single representative Sign tile, +1 for the single
-    // representative Hazard tile, +1 for the Eraser tile.
+    // +1 for the single representative Sign tile, +2 for one tile per hazard
+    // kind (Spike and Floor Spear), +1 for the Eraser tile.
     // +5 for the collapsible group triggers (Terrain, Decoration, Entities,
     // Hazards, Tools) — no Blueprints group with an empty registry.
-    expect(screen.getAllByRole('button')).toHaveLength(terrainCount + entityCount + 1 + 1 + 1 + 5);
+    expect(screen.getAllByRole('button')).toHaveLength(terrainCount + entityCount + 1 + 2 + 1 + 5);
   });
 
   it('renders a "Palette" title', () => {
@@ -162,16 +162,23 @@ describe('Palette — subtitle groups', () => {
     ).toBeInTheDocument();
   });
 
-  it('hazardsGroup-containsExactlyOneRepresentativeSpikeTile', () => {
-    // Same one-button convention as signs: clicking the canvas auto-detects
-    // a facing from the surrounding terrain, and clicking an already-placed
-    // spike again cycles to the next valid facing (paintCell.ts) — so the
-    // palette never needs a button per facing.
+  it('hazardsGroup-containsExactlyOneTilePerHazardKind', () => {
+    // One button per hazard kind: Spike (whose canvas click auto-detects a
+    // facing and cycles it) and Floor Spear (a single fixed orientation).
     render(<Palette {...defaultProps} />);
     const hazardsGroup = palette.group('hazards');
     expect(within(hazardsGroup).getByTestId('editor-palette-tile-^')).toBeInTheDocument();
-    // The Spike tile plus the group's own collapsible trigger.
-    expect(within(hazardsGroup).getAllByRole('button')).toHaveLength(2);
+    expect(within(hazardsGroup).getByTestId('editor-palette-tile-¦')).toBeInTheDocument();
+    // The two hazard tiles plus the group's own collapsible trigger.
+    expect(within(hazardsGroup).getAllByRole('button')).toHaveLength(3);
+  });
+
+  it('floorSpearTile-hasAReadableLabelAndARealArtPreview', () => {
+    render(<Palette {...defaultProps} />);
+    const spearTile = within(palette.group('hazards')).getByTestId('editor-palette-tile-¦');
+    expect(spearTile).toHaveAttribute('aria-label', 'Floor Spear');
+    const preview = spearTile.querySelector('img');
+    expect(preview).toHaveAttribute('src', '/sprites/spears.png');
   });
 });
 
