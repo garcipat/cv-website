@@ -894,7 +894,11 @@ describe('EditorCanvas overlay drawing at non-100% zoom', () => {
     render(
       <EditorCanvas
         {...BACKGROUND_LAYER_DEFAULT_PROPS}
-        grid={[['P']]}
+        // A non-zero column is essential here: tileToPixel(0,0) = (0,0), so
+        // `0 * zoom + origin === origin` regardless of whether `* zoom` is
+        // even applied. Column 1 (world x = RENDERED_TILE_SIZE) is the
+        // smallest grid that actually exercises the position-scaling term.
+        grid={[['.', 'P']]}
         selectedTool="."
         panOffset={{ x: 100, y: 40 }}
         zoom={0.5}
@@ -903,9 +907,10 @@ describe('EditorCanvas overlay drawing at non-100% zoom', () => {
         onPan={() => {}}
       />,
     );
-    // tileToPixel(0,0) = (0,0) in world space; screen = world*zoom + origin.
+    // tileToPixel(1,0) = (RENDERED_TILE_SIZE, 0) in world space;
+    // screen = world * zoom + origin.
     expect(ctx.fillRect).toHaveBeenCalledWith(
-      100,
+      RENDERED_TILE_SIZE * 0.5 + 100,
       40,
       RENDERED_TILE_SIZE * 0.5,
       RENDERED_TILE_SIZE * 0.5,
@@ -921,16 +926,22 @@ describe('EditorCanvas overlay drawing at non-100% zoom', () => {
         {...BACKGROUND_LAYER_DEFAULT_PROPS}
         grid={[['.']]}
         selectedTool="."
-        panOffset={{ x: 0, y: 0 }}
+        // A non-zero pan is essential here: with panOffset 0,
+        // `((0 % step) + step) % step === 0` for ANY step value, so a
+        // regression that left `startX` computed against the unscaled
+        // `RENDERED_TILE_SIZE` (rather than the zoom-scaled `step`) would
+        // still pass. With pan 20 and zoom 0.5 (step = 16), the correct
+        // startX is ((20 % 16) + 16) % 16 = 4; the old, unfixed modulo
+        // against RENDERED_TILE_SIZE (32) would instead give 20 — the two
+        // formulas diverge, so this discriminates the fix.
+        panOffset={{ x: 20, y: 0 }}
         zoom={0.5}
         images={EMPTY_IMAGES}
         onPaint={() => {}}
         onPan={() => {}}
       />,
     );
-    // With panOffset 0 and zoom 0.5, the first vertical grid line after x=0
-    // is at x = RENDERED_TILE_SIZE * 0.5, not RENDERED_TILE_SIZE.
-    expect(ctx.moveTo).toHaveBeenCalledWith(RENDERED_TILE_SIZE * 0.5 + 0.5, 0);
+    expect(ctx.moveTo).toHaveBeenCalledWith(4.5, 0);
   });
 
   it('scalesThePlacementPreviewsFillAndBorderByZoom', () => {
@@ -941,7 +952,7 @@ describe('EditorCanvas overlay drawing at non-100% zoom', () => {
     render(
       <EditorCanvas
         {...BACKGROUND_LAYER_DEFAULT_PROPS}
-        grid={[['.', '.']]}
+        grid={[['.', '.', '.']]}
         selectedTool="."
         panOffset={{ x: 0, y: 0 }}
         zoom={0.5}
@@ -949,19 +960,64 @@ describe('EditorCanvas overlay drawing at non-100% zoom', () => {
         onPaint={() => {}}
         onPan={() => {}}
         placement={{
-          preview: { cells: [{ row: 0, col: 1, char: '.' }], valid: true },
+          preview: {
+            cells: [
+              { row: 0, col: 1, char: '.' },
+              { row: 0, col: 2, char: '.' },
+            ],
+            valid: true,
+          },
           onHover: () => {},
           onPlace: () => {},
           onCancel: () => {},
         }}
       />,
     );
+    // Per-cell fills: tileToPixel(1,0) = (32,0) and tileToPixel(2,0) = (64,0);
+    // screen = world * zoom, size = RENDERED_TILE_SIZE * zoom = 16.
     expect(ctx.fillRect).toHaveBeenCalledWith(
       RENDERED_TILE_SIZE * 0.5,
       0,
       RENDERED_TILE_SIZE * 0.5,
       RENDERED_TILE_SIZE * 0.5,
     );
+    expect(ctx.fillRect).toHaveBeenCalledWith(
+      RENDERED_TILE_SIZE,
+      0,
+      RENDERED_TILE_SIZE * 0.5,
+      RENDERED_TILE_SIZE * 0.5,
+    );
+    // Border: two-cell-wide bounding box. Its width MUST be
+    // `(maxCol - minCol + 1) * size` (2 * 16 = 32) — a regression that scaled
+    // the border's position but left its extent as
+    // `(maxCol - minCol + 1) * RENDERED_TILE_SIZE` (2 * 32 = 64) would slip
+    // past a single-cell preview, which is why this test uses two cells.
+    expect(ctx.strokeRect).toHaveBeenCalledWith(
+      RENDERED_TILE_SIZE * 0.5,
+      0,
+      RENDERED_TILE_SIZE,
+      RENDERED_TILE_SIZE * 0.5,
+    );
+  });
+
+  it('centersAPatrolMarkersGlyphOnTheZoomScaledTileSize', () => {
+    const ctx = stubCanvasContext() as unknown as { fillText: ReturnType<typeof vi.fn> };
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['P']]}
+        selectedTool="."
+        panOffset={{ x: 0, y: 0 }}
+        zoom={0.5}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+    // drawMarkerGlyph centers on `size / 2`. If `size` were left unscaled
+    // (RENDERED_TILE_SIZE = 32), the center would be 16; scaled by zoom 0.5
+    // (size = 16), the correct center is 8.
+    expect(ctx.fillText).toHaveBeenCalledWith(PATROL_MARKER_GLYPH, 8, 8);
   });
 });
 
