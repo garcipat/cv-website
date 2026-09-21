@@ -63,15 +63,14 @@ wrong spot. A single slot, cleared by any other edit, keeps the offer honest —
 "put back the room I just stamped", never a stale state from several actions ago that the developer
 would have to reason about.
 
-## The editor has no zoom
+## The editor had no zoom
 
-The canvas draws one screen tile per grid cell and pans; it does not scale. Blueprint rooms are small
-by nature, and panning already gets the developer to any part of the level they need to line a room
-up against. Zoom would buy a wider overview at the cost of introducing a scale factor into every
-coordinate conversion in the editor — every draw call, every hit test, every pan clamp, every preview
-anchor — and into the tests that cover them. That is a large, diffuse change for a convenience the
-feature does not need, so the canvas stays at one-to-one and the idea is parked
-([issue #48](https://github.com/garcipat/cv-website/issues/48)).
+At the time this feature was built, the canvas drew one screen tile per grid cell and panned; it did
+not scale. Blueprint rooms are small by nature, and panning already got the developer to any part of
+the level they needed to line a room up against, so zoom was left as an unbuilt idea
+([issue #48](https://github.com/garcipat/cv-website/issues/48)) rather than something this feature
+needed to solve. Zoom was later added to both canvases by
+[O-019](../O-019-editor-zoom/spec.md).
 
 ## Blueprints are editor-time only
 
