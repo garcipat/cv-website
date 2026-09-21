@@ -451,6 +451,37 @@ export function startPlayerHitSplatter(
   };
 }
 
+const SPEAR_BLOOD_SPLATTER_DROPLET_COUNT = 11;
+const SPEAR_BLOOD_SPLATTER_DIR_BIAS_Y = -40;
+const SPEAR_BLOOD_SPLATTER_SPREAD_X = 40;
+const SPEAR_BLOOD_SPLATTER_SPREAD_Y = 30;
+
+/**
+ * Starts the blood burst for a spear kill (O-020): anchored at the character's
+ * own feet and leaning upward/outward, as if the character is run through from
+ * below. `playerCenterX` and `feetY` are the character's centre column and feet
+ * line — the caller already has both from the collision geometry that decided
+ * the kill, and passes them in screen space (same as `startPlayerHitSplatter`).
+ */
+export function startSpearBloodSplatter(
+  id: string,
+  playerCenterX: number,
+  feetY: number,
+): HitSplatterEffect {
+  return {
+    id,
+    x: playerCenterX,
+    y: feetY,
+    color: PLAYER_HIT_SPLATTER_COLOR,
+    dropletCount: SPEAR_BLOOD_SPLATTER_DROPLET_COUNT,
+    dirBiasX: 0,
+    dirBiasY: SPEAR_BLOOD_SPLATTER_DIR_BIAS_Y,
+    spreadX: SPEAR_BLOOD_SPLATTER_SPREAD_X,
+    spreadY: SPEAR_BLOOD_SPLATTER_SPREAD_Y,
+    elapsed: 0,
+  };
+}
+
 const ENEMY_HIT_SPLATTER_DROPLET_COUNT = 13;
 const ENEMY_HIT_SPLATTER_DIR_BIAS_Y = -45;
 const ENEMY_HIT_SPLATTER_SPREAD_X = 64;

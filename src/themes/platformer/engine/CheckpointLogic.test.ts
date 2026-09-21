@@ -6,7 +6,11 @@ import type { CheckpointPlacement } from '../level/CheckpointMapper';
 import { toCheckpointState, activateCheckpoint } from '../entities/Checkpoint';
 import type { CheckpointState } from '../entities/Checkpoint';
 import type { PlayerState } from '../entities/Player';
-import { PLAYER_HIT_REACTION_SECONDS } from '../entities/Player';
+import {
+  PLAYER_RENDERED_SIZE,
+  PLAYER_FOOT_PADDING,
+  PLAYER_HIT_REACTION_SECONDS,
+} from '../entities/Player';
 
 function makePlayer(x: number, y: number): PlayerState {
   return {
@@ -20,6 +24,7 @@ function makePlayer(x: number, y: number): PlayerState {
     isDroppingThroughBridge: false,
     lastGroundedX: x,
     lastGroundedY: y,
+    prevFeetY: y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING,
     animState: 'idle',
     animFrame: 0,
     animTimer: 0,

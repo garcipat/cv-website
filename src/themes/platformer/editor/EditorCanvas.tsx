@@ -59,6 +59,7 @@ import {
   CHEST_CLOSED_SHEET,
   STATIC_OBJECTS_SHEET,
   DECORATIONS_SHEET,
+  SPEAR_SHEET,
 } from '../entities/sprites/sheets';
 import { CHECKPOINT_FLAG_SHEET } from '../entities/Checkpoint';
 
@@ -79,6 +80,7 @@ export interface EditorImages {
   torch: HTMLImageElement | null;
   ropeLadder: HTMLImageElement | null;
   mushroom: HTMLImageElement | null;
+  spears: HTMLImageElement | null;
 }
 
 /** The cells a pending placement would write, in absolute grid coordinates,
@@ -639,6 +641,7 @@ export const EditorCanvas = ({
           [CHECKPOINT_FLAG_SHEET.src]: images.checkpoint,
           [STATIC_OBJECTS_SHEET.src]: images.staticObjects,
           [DECORATIONS_SHEET.src]: images.decorations,
+          [SPEAR_SHEET.src]: images.spears,
         },
         originX,
         originY,

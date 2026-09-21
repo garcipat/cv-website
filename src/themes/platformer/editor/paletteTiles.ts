@@ -1,4 +1,5 @@
 import type { TileChar } from '../level/LevelParser';
+import { HAZARD_CHARS } from '../level/LevelParser';
 
 /**
  * A crop rectangle (native, un-scaled pixels) into a sprite sheet image,
@@ -416,7 +417,38 @@ export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
     frameWidth: 16,
     frameHeight: 16,
   },
+  '¦': {
+    // The whole standalone 32x32 spears.png tile (see SPEAR_SHEET) — the floor
+    // spear's real art, drawn 1:1 in game.
+    sheet: '/sprites/spears.png',
+    sheetWidth: 32,
+    sheetHeight: 32,
+    sx: 0,
+    sy: 0,
+    frameWidth: 32,
+    frameHeight: 32,
+  },
 };
+
+/**
+ * One representative character per registered hazard kind, in registration
+ * order — the palette shows a kind, not a facing. Spike (`^`) keeps its
+ * four-facing cycle on the canvas; the spear (`¦`) has a single facing and
+ * never cycles. Derived from `HAZARD_CHARS` (the first key of each
+ * `hazardType`), never hand-listed, so a future hazard kind needs no palette
+ * edit here.
+ */
+export const HAZARD_PALETTE_KEYS: TileChar[] = (() => {
+  const keys: TileChar[] = [];
+  const seenKinds = new Set<string>();
+  for (const char of Object.keys(HAZARD_CHARS) as TileChar[]) {
+    const kind = HAZARD_CHARS[char]?.hazardType;
+    if (!kind || seenKinds.has(kind)) continue;
+    seenKinds.add(kind);
+    keys.push(char);
+  }
+  return keys;
+})();
 
 /** The turn-around character standing in for the patrol boundary's missing
  *  sprite — in the palette button below, and on the tile itself in the
@@ -503,6 +535,7 @@ export const PALETTE_TILE_DESCRIPTIONS: Record<TileChar, string> = {
   v: 'Spike (ceiling); damages the player on touch',
   '<': 'Spike (right wall); damages the player on touch',
   '>': 'Spike (left wall); damages the player on touch',
+  '¦': 'Floor spear; falling onto its points is fatal, walking or climbing through is safe',
 };
 
 /** Human-readable name per `TileChar`, so the palette reads by name rather
@@ -550,4 +583,5 @@ export const PALETTE_TILE_LABELS: Record<TileChar, string> = {
   v: 'Spike Down',
   '<': 'Spike Left',
   '>': 'Spike Right',
+  '¦': 'Floor Spear',
 };

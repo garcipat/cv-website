@@ -36,6 +36,7 @@ const idlePlayer: PlayerState = {
   isDroppingThroughBridge: false,
   lastGroundedX: 16,
   lastGroundedY: 256,
+  prevFeetY: 256 + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING,
   animTimer: 0,
   animState: 'idle',
   animFrame: 0,

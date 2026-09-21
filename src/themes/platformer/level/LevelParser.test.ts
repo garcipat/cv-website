@@ -47,7 +47,7 @@ describe('parseLevel', () => {
       width: 2,
       height: 1,
     });
-    expect(warn).toHaveBeenCalledWith('Skipping unknown level tile character(s): "?"');
+    expect(warn).toHaveBeenCalledWith('Skipping unknown level tile character(s): "Z"');
     warn.mockRestore();
   });
 
@@ -506,17 +506,34 @@ describe('HAZARD_CHARS', () => {
     expect(HAZARD_CHARS['>']).toEqual({ hazardType: 'spike', facing: 'right' });
   });
 
+  it('brokenBar-mapsToTheFloorSpearFacingUp', () => {
+    expect(HAZARD_CHARS['¦']).toEqual({ hazardType: 'spear', facing: 'up' });
+  });
+
   it('noOverlapWithTerrainEntityOrSignChars-documentedByTheModuleLoadGuard', () => {
     const keys = Object.keys(HAZARD_CHARS);
     expect(keys.filter((char) => char in TERRAIN_CHARS)).toEqual([]);
     expect(keys.filter((char) => char in ENTITY_CHARS)).toEqual([]);
     expect(keys.filter((char) => char in SIGN_CHARS)).toEqual([]);
   });
+
+  it('brokenBar-collidesWithNoOtherCharacterMap', () => {
+    // The module-load guard in LevelParser.ts already throws on a shared
+    // key; this names the invariant for '¦' specifically.
+    expect('¦' in TERRAIN_CHARS).toBe(false);
+    expect('¦' in ENTITY_CHARS).toBe(false);
+    expect('¦' in SIGN_CHARS).toBe(false);
+  });
 });
 
 describe('parseLevel — hazard markers', () => {
   it('hazardMarker-parsesAsEmptyWalkableTile', () => {
     const result = parseLevel(['^.', 'GG']);
+    expect(result.terrain[0][0]).toBe('empty');
+  });
+
+  it('spearMarker-parsesAsEmptyWalkableTile', () => {
+    const result = parseLevel(['¦.', 'GG']);
     expect(result.terrain[0][0]).toBe('empty');
   });
 });
@@ -532,6 +549,12 @@ describe('findHazardTiles', () => {
       { col: 1, row: 0, hazardType: 'spike', facing: 'down' },
       { col: 0, row: 1, hazardType: 'spike', facing: 'left' },
       { col: 1, row: 1, hazardType: 'spike', facing: 'right' },
+    ]);
+  });
+
+  it('spearMarker-returnsTheSpearFacingUp', () => {
+    expect(findHazardTiles(['.¦', 'G.'])).toEqual([
+      { col: 1, row: 0, hazardType: 'spear', facing: 'up' },
     ]);
   });
 });
@@ -617,7 +640,7 @@ describe('TileChar', () => {
     const tileChars: readonly TileChar[] = [
       '.', 'G', 'R', '#', 'B', 'H', 'I', 'P', '+', 'S', 'M', 'm', 'o', '=', '?', 'F', '$', 'u', 'p',
       'b', 'n', 'N', 'X', 'c', '⊤', '⊥', '¥', '1', '2', '3', '4', '5', '6', '^', 'v', '<', '>', 'C', '@',
-      '§', 's',
+      '§', 's', '¦',
     ];
     const allKeys = [
       ...Object.keys(TERRAIN_CHARS),

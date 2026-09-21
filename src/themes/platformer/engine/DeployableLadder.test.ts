@@ -47,6 +47,7 @@ function basePlayer(overrides: Partial<PlayerState> = {}): PlayerState {
     isDroppingThroughBridge: false,
     lastGroundedX: 0,
     lastGroundedY: 0,
+    prevFeetY: PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING,
     knockbackTimer: 0,
     bounceAscending: false,
     blockContacts: [],

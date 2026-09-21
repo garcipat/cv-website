@@ -1,5 +1,5 @@
 import { growGrid, type GrowResult } from './growGrid';
-import { SIGN_CHARS, TERRAIN_CHARS, HAZARD_CHARS, type TileChar, type HazardFacing } from '../level/LevelParser';
+import { SIGN_CHARS, TERRAIN_CHARS, HAZARD_CHARS, type TileChar, type HazardFacing, type HazardKind } from '../level/LevelParser';
 import { isSolid } from '../level/Terrain';
 
 /** Same shape as `growGrid`'s `GrowResult` — `paintCell` always returns a
@@ -11,11 +11,26 @@ const SIGN_KEYS = Object.keys(SIGN_CHARS) as TileChar[];
 
 const HAZARD_KEYS = Object.keys(HAZARD_CHARS) as TileChar[];
 
-/** The character for each facing — the inverse of `HAZARD_CHARS`, built once
- *  since every facing has exactly one registered character. */
-const CHAR_FOR_FACING = Object.fromEntries(
-  HAZARD_KEYS.map((char) => [HAZARD_CHARS[char]!.facing, char]),
-) as Record<HazardFacing, TileChar>;
+/** The registered characters per hazard kind, in registration order — the
+ *  grouping that lets a single-character kind (the spear) never cycle while a
+ *  multi-character kind (the spike) still does. */
+const HAZARD_CHARS_BY_KIND: Record<string, TileChar[]> = {};
+for (const char of HAZARD_KEYS) {
+  const kind = HAZARD_CHARS[char]!.hazardType;
+  (HAZARD_CHARS_BY_KIND[kind] ??= []).push(char);
+}
+
+/** The character for each facing WITHIN a single kind — a per-kind inverse of
+ *  `HAZARD_CHARS`. Keying it per kind (not by facing alone) is required for
+ *  correctness: the spike's `^` and the spear's `¦` both face `'up'`, and a
+ *  facing-only map would collide between them. */
+function charForFacing(kind: HazardKind): Partial<Record<HazardFacing, TileChar>> {
+  const map: Partial<Record<HazardFacing, TileChar>> = {};
+  for (const char of HAZARD_CHARS_BY_KIND[kind] ?? []) {
+    map[HAZARD_CHARS[char]!.facing] = char;
+  }
+  return map;
+}
 
 /** Auto-detect priority: floor spikes (needs solid ground below) are the
  *  common case, checked first; ceiling and the two wall-mounted facings
@@ -59,30 +74,40 @@ function validHazardFacings(grid: readonly TileChar[][], col: number, row: numbe
 }
 
 /**
- * The character to actually paint when `tool` is a registered hazard
- * marker. A fresh placement (the target cell doesn't already hold a
- * hazard) auto-picks the first neighbor-backed facing in
- * `FACING_PRIORITY` order, falling back to `FALLBACK_FACING` if nothing
- * around it is solid. Cycling (clicking an already-placed hazard again)
- * advances to the next neighbor-backed facing after the current one,
- * wrapping only through facings that are currently valid — same
- * "recompute and cycle" shape as `firstUnusedSignChar`, but validity here
- * means "has a solid neighbor to attach to", not "not already used
- * elsewhere". If the existing facing itself is no longer valid (the
- * author changed the surrounding terrain since placing it), cycling
- * starts from the first currently-valid facing instead of counting from a
- * facing that no longer applies.
+ * The character to actually paint for a multi-character hazard kind (the
+ * spike), given the cell's existing character if it is of the SAME kind.
+ * A fresh placement (no same-kind existing character) auto-picks the first
+ * neighbor-backed facing in `FACING_PRIORITY` order, falling back to
+ * `FALLBACK_FACING` if nothing around it is solid. Cycling (clicking an
+ * already-placed hazard again) advances to the next neighbor-backed facing
+ * after the current one, wrapping only through facings that are currently
+ * valid — same "recompute and cycle" shape as `firstUnusedSignChar`, but
+ * validity here means "has a solid neighbor to attach to". If the existing
+ * facing itself is no longer valid (the author changed the surrounding
+ * terrain since placing it), cycling starts from the first currently-valid
+ * facing instead of counting from a facing that no longer applies.
  */
-function nextHazardChar(grid: readonly TileChar[][], col: number, row: number, existing: TileChar): TileChar {
-  const validFacings = validHazardFacings(grid, col, row);
-  if (validFacings.length === 0) return CHAR_FOR_FACING[FALLBACK_FACING];
+function nextHazardChar(
+  grid: readonly TileChar[][],
+  col: number,
+  row: number,
+  existing: TileChar | undefined,
+  kind: HazardKind,
+): TileChar {
+  const chars = HAZARD_CHARS_BY_KIND[kind] ?? [];
+  const charFor = charForFacing(kind);
+  const validFacings = validHazardFacings(grid, col, row).filter(
+    (facing) => charFor[facing] !== undefined,
+  );
+  if (validFacings.length === 0) return charFor[FALLBACK_FACING] ?? chars[0];
 
-  const existingFacing = HAZARD_CHARS[existing]?.facing;
-  if (existingFacing === undefined) return CHAR_FOR_FACING[validFacings[0]];
+  const existingFacing = existing !== undefined ? HAZARD_CHARS[existing]?.facing : undefined;
+  if (existingFacing === undefined) return charFor[validFacings[0]]!;
 
   const existingIndex = validFacings.indexOf(existingFacing);
-  const nextFacing = existingIndex === -1 ? validFacings[0] : validFacings[(existingIndex + 1) % validFacings.length];
-  return CHAR_FOR_FACING[nextFacing];
+  const nextFacing =
+    existingIndex === -1 ? validFacings[0] : validFacings[(existingIndex + 1) % validFacings.length];
+  return charFor[nextFacing]!;
 }
 
 /**
@@ -160,8 +185,27 @@ export function paintCell(
       : tool;
     nextGrid[targetRow][targetCol] = firstUnusedSignChar(nextGrid, targetCol, targetRow, startFrom);
   } else if (HAZARD_KEYS.includes(tool)) {
-    const existing = nextGrid[targetRow][targetCol];
-    nextGrid[targetRow][targetCol] = nextHazardChar(nextGrid, targetCol, targetRow, existing);
+    const kind = HAZARD_CHARS[tool]!.hazardType;
+    const chars = HAZARD_CHARS_BY_KIND[kind] ?? [];
+    if (chars.length === 1) {
+      // A single-character kind (the spear) always paints its one character
+      // and never cycles orientation (FR-008).
+      nextGrid[targetRow][targetCol] = chars[0];
+    } else {
+      const existing = nextGrid[targetRow][targetCol];
+      // Only cycle when the cell already holds the SAME kind; a different
+      // kind is replaced by the tool's kind rather than cycling the
+      // existing one.
+      const existingForKind =
+        HAZARD_CHARS[existing]?.hazardType === kind ? existing : undefined;
+      nextGrid[targetRow][targetCol] = nextHazardChar(
+        nextGrid,
+        targetCol,
+        targetRow,
+        existingForKind,
+        kind,
+      );
+    }
   } else {
     nextGrid[targetRow][targetCol] = tool;
   }

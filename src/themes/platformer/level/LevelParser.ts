@@ -108,13 +108,14 @@ export const SIGN_CHARS: Record<string, HintId | undefined> = {
  *  facing only selects the sprite. */
 export type HazardFacing = 'up' | 'down' | 'left' | 'right';
 
-/** Every hazard kind the game knows about. Currently just `spike`, but every
- *  place that would otherwise hardcode the literal `'spike'` (HAZARD_CHARS's
- *  value type below, findHazardTiles's return type, HazardMapper.ts's
- *  HazardPlacement/placeHazards) is typed against this instead — adding a
- *  second kind is one line here plus its own module and registry entry
- *  (entities/hazards/index.ts), nothing else widens by hand. */
-export type HazardKind = 'spike';
+/** Every hazard kind the game knows about. `spike` (O-005) and the floor
+ *  `spear` (O-020) today, but every place that would otherwise hardcode the
+ *  literal `'spike'` (HAZARD_CHARS's value type below, findHazardTiles's
+ *  return type, HazardMapper.ts's HazardPlacement/placeHazards) is typed
+ *  against this instead — adding another kind is one line here plus its own
+ *  module and registry entry (entities/hazards/index.ts), nothing else widens
+ *  by hand. */
+export type HazardKind = 'spike' | 'spear';
 
 /**
  * Maps each hazard-marker character to the hazard it places. Same
@@ -131,6 +132,8 @@ export const HAZARD_CHARS: Record<string, { hazardType: HazardKind; facing: Haza
   v: { hazardType: 'spike', facing: 'down' },
   '<': { hazardType: 'spike', facing: 'left' },
   '>': { hazardType: 'spike', facing: 'right' },
+  // O-020's floor spear: `¦` (U+00A6, BROKEN BAR), the floor orientation only.
+  '¦': { hazardType: 'spear', facing: 'up' },
 };
 
 // A character can only mean one thing — guard against TERRAIN_CHARS,
@@ -200,6 +203,7 @@ export type TileChar =
   | 'v'
   | '<'
   | '>'
+  | '¦'
   | 'C'
   | '@'
   | '§'

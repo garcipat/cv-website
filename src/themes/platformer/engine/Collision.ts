@@ -271,21 +271,51 @@ export function checkSignOverlap(
   return overlappingTriggers(player, signs, signBox)[0]?.hintId;
 }
 
+/** The outcome of one tick's hazard contacts — see `resolveHazardContacts`. */
+export interface HazardContactResult {
+  /** The first qualifying lethal hazard this tick, or undefined. */
+  lethal?: HazardPlacement;
+  /** Half-hearts an ordinary contact costs; 0 when none or when lethal. */
+  damage: number;
+  /** The hazard that will apply `damage` (for knockback direction), if any. */
+  hazard?: HazardPlacement;
+}
+
 /**
- * Returns every hazard placement the player's hitbox currently overlaps.
- * Unlike checkSignOverlap (which returns only the first hint), every
- * touched hazard is returned — the caller (PlatformerPage.tsx) only ever
- * acts on the first one this tick (at most one hit registers per tick,
- * gated by the same invulnerability window every other damage source
- * uses), but needs the full placement (not just an id) to look up its
- * hazardType's own damage amount. Not destructive/dedup-tracked — a hazard
- * is reusable, like a sign, not consumed like a coin.
+ * Resolves the player's hazard contacts for one tick, kind-agnostically: the
+ * broad phase is each kind's own `box` overlap, and each kind's optional
+ * `isContact` decides whether that overlap actually qualifies (absent =
+ * always true, so every existing kind is unchanged).
+ *
+ * A qualifying `lethal` kind is returned as `lethal` and takes precedence
+ * over any ordinary hazard in the same tick (FR-012); otherwise the first
+ * qualifying non-lethal hazard supplies `damage`/`hazard`, so at most one
+ * ordinary hit registers per tick (O-005 FR-005). Never mutates its inputs;
+ * allocates only the result object.
+ *
+ * Replaces `checkHazardCollisions` (an overlap-only list) as the single
+ * hazard-resolution path — see `PlatformerPage.tsx`'s tick.
  */
-export function checkHazardCollisions(
+export function resolveHazardContacts(
   player: PlayerState,
   hazards: readonly HazardPlacement[],
-): HazardPlacement[] {
-  return overlappingTriggers(player, hazards, (h) => hazardTypeOf(h).box(h));
+): HazardContactResult {
+  const playerBox = playerHitbox(player);
+  let damage = 0;
+  let hazard: HazardPlacement | undefined;
+
+  for (const candidate of hazards) {
+    const hazardType = hazardTypeOf(candidate);
+    if (!aabbOverlap(playerBox, hazardType.box(candidate))) continue;
+    if (hazardType.isContact && !hazardType.isContact(candidate, player, playerBox)) continue;
+    if (hazardType.lethal) return { lethal: candidate, damage: 0 };
+    if (hazard === undefined) {
+      damage = hazardType.damage;
+      hazard = candidate;
+    }
+  }
+
+  return { damage, hazard };
 }
 
 /**

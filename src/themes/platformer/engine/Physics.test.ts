@@ -30,6 +30,7 @@ function basePlayer(overrides: Partial<PlayerState> = {}): PlayerState {
     isDroppingThroughBridge: false,
     lastGroundedX: 0,
     lastGroundedY: 0,
+    prevFeetY: PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING,
     knockbackTimer: 0,
     bounceAscending: false,
     blockContacts: [],
@@ -1450,5 +1451,61 @@ describe('playerOnMushroomCap', () => {
     const player = basePlayer({ x: -20, y: standingYOnRow(2), grounded: true });
 
     expect(playerOnMushroomCap(MUSHROOM_RUN_LEVEL, player)).toBeNull();
+  });
+});
+
+describe('stepPlayerPhysics prevFeetY motion history', () => {
+  const feetOf = (y: number): number => y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING;
+
+  it('inMidAir-recordsThePreStepFeetLine', () => {
+    const player = basePlayer({ y: 0, vy: 0 });
+
+    const next = stepPlayerPhysics(player, GROUND_LEVEL, 1 / 60);
+
+    expect(next.prevFeetY).toBe(feetOf(0));
+  });
+
+  it('landingOnSolidGround-recordsThePreStepFeetLineNotTheResolvedOne', () => {
+    const restY = 3 * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
+    const player = basePlayer({ y: restY - 1, vy: 500 });
+
+    const next = stepPlayerPhysics(player, GROUND_LEVEL, 1 / 60);
+
+    expect(next.y).toBe(restY);
+    expect(next.prevFeetY).toBe(feetOf(restY - 1));
+  });
+
+  it('climbingBranch-recordsThePreStepFeetLine', () => {
+    const player = basePlayer({ x: 0, y: 20, grounded: false, climbing: true });
+
+    const next = stepPlayerPhysics(player, LADDER_LEVEL, 1 / 60, { climbUpHeld: true });
+
+    expect(next.climbing).toBe(true);
+    expect(next.prevFeetY).toBe(feetOf(20));
+  });
+
+  it('climbExitBranch-recordsThePreStepFeetLine', () => {
+    const player = basePlayer({ x: 0, y: 20, grounded: false, climbing: true });
+
+    const next = stepPlayerPhysics(player, LADDER_LEVEL, 1 / 60, { jumpPressed: true });
+
+    expect(next.climbing).toBe(false);
+    expect(next.prevFeetY).toBe(feetOf(20));
+  });
+});
+
+describe('resolvePitFall prevFeetY motion history', () => {
+  it('recordsTheRecoveredPositionsOwnFeetLine', () => {
+    const player = basePlayer({
+      y: 999,
+      grounded: false,
+      lastGroundedX: 64,
+      lastGroundedY: 96,
+      prevFeetY: 1000,
+    });
+
+    const next = resolvePitFall(player);
+
+    expect(next.prevFeetY).toBe(96 + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING);
   });
 });
