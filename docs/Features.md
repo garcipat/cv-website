@@ -52,6 +52,7 @@ graph RL
         O018["✅ O-018: Bouncy Mushroom Blocks"]
         O019["✅ O-019: Editor Zoom"]
         O020["✅ O-020: Floor Spear Hazard"]
+        O021["O-021: Floor Spikes"]
         S011["S-011: Interact Hint Overlay"]
     end
 
@@ -127,10 +128,12 @@ graph RL
     O018 --> F015
     O019 --> F019
     O019 --> O006
-
     O020 --> F015
-    O020 --> F016
     O020 --> O005
+    O020 --> F016
+    O021 --> F015
+    O021 --> O005
+    O021 --> F016
 
     S011 --> F015
     S011 --> S009
@@ -161,7 +164,7 @@ graph RL
     class S002,S005,O001 enhancements
     class O001 done
     class S005 done
-    class F015,F016,F017,F018,S007,S008,S009,S010,O003,O004,O005,O008,O009,O013,O014 themes
+    class F015,F016,F017,F018,S007,S008,S009,S010,O003,O004,O005,O008,O009,O013,O014,O020 themes
     class S011 themes
     class O017 themes
     class O017 done
