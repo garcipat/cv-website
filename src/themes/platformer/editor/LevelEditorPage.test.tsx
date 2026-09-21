@@ -139,6 +139,7 @@ beforeEach(() => {
     stroke: vi.fn(),
     save: vi.fn(),
     restore: vi.fn(),
+    scale: vi.fn(),
     font: '',
     textAlign: '',
     textBaseline: '',
@@ -1103,6 +1104,161 @@ describe('LevelEditorPage — Level/Blueprint canvas toggle (step 44a)', () => {
   // arming logic inside `loadLevel` itself is left untouched (Task 7's brief
   // does not ask for it to be removed), but the regression test for it is
   // retired here since it can no longer be driven through the rendered page.
+});
+
+describe('editor zoom (O-019)', () => {
+  // The base-ui Slider (this repo's shadcn style) puts the actual
+  // keyboard-interactive element on a hidden native `<input type="range">`
+  // inside the thumb, not on the outer `data-testid` container (that's the
+  // Root, which has no tabIndex of its own) — matching EditorCanvas.test.tsx's
+  // own "scrollingUpOverTheCanvasZoomsInAnchoredToTheCursor"-adjacent slider
+  // tests, which target that inner input the same way.
+  function sliderInput(): HTMLInputElement {
+    const slider = screen.getByTestId('editor-canvas-zoom');
+    return slider.querySelector('input') as HTMLInputElement;
+  }
+
+  it('keepsTheLevelCanvasAndBlueprintCanvasZoomLevelsIndependent', async () => {
+    render(<LevelEditorPage />);
+
+    act(() => {
+      sliderInput().focus();
+    });
+    fireEvent.keyDown(sliderInput(), { key: 'ArrowDown' }); // 100% -> 75%
+    expect(screen.getByTestId('editor-canvas-zoom-value')).toHaveTextContent('75%');
+
+    await levelEditorPage.setCanvas('blueprint');
+    expect(screen.getByTestId('editor-canvas-zoom-value')).toHaveTextContent('100%');
+
+    act(() => {
+      sliderInput().focus();
+    });
+    fireEvent.keyDown(sliderInput(), { key: 'ArrowDown' });
+    fireEvent.keyDown(sliderInput(), { key: 'ArrowDown' }); // 100% -> 75% -> 50%
+    expect(screen.getByTestId('editor-canvas-zoom-value')).toHaveTextContent('50%');
+
+    await levelEditorPage.setCanvas('level');
+    expect(screen.getByTestId('editor-canvas-zoom-value')).toHaveTextContent('75%');
+  });
+
+  it('resetsBothCanvasesZoomTo100PercentWhenALevelIsLoaded', async () => {
+    render(<LevelEditorPage />);
+
+    act(() => {
+      sliderInput().focus();
+    });
+    fireEvent.keyDown(sliderInput(), { key: 'ArrowDown' });
+    expect(screen.getByTestId('editor-canvas-zoom-value')).toHaveTextContent('75%');
+
+    await selectLevel('empty'); // the file's own helper (line ~179); 'empty' is
+    // an existing entry id already used by other tests (e.g. the discard-flow
+    // test at line ~812) and the grid here is still clean, so no discard
+    // dialog appears — the load proceeds immediately.
+
+    expect(screen.getByTestId('editor-canvas-zoom-value')).toHaveTextContent('100%');
+  });
+});
+
+describe('editor zoom — user stories (O-019)', () => {
+  it('zoomingOutShowsTheSameLevelAtASmallerRenderedSize-userStory1', () => {
+    render(<LevelEditorPage />);
+    expect(levelEditorPage.zoomValue).toBe('100%');
+
+    levelEditorPage.setZoomViaSlider(50);
+
+    expect(levelEditorPage.zoomValue).toBe('50%');
+  });
+
+  it('paintingRemainsAccurateAfterZoomingOut-userStory2', async () => {
+    render(<LevelEditorPage />);
+    await waitFor(() => expect(drawTerrain).toHaveBeenCalled());
+    levelEditorPage.setZoomViaSlider(50);
+
+    const canvas = levelEditorPage.canvas;
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
+    // The editor opens centered on the spawn, so the pan is not 0. Recover it
+    // from drawTerrain's origin argument, which Task 3 passes pre-divided by
+    // zoom: panOffset = origin * zoom.
+    const lastCall = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls.at(-1)!;
+    const panX = (lastCall[4] as number) * 0.5;
+    const panY = (lastCall[5] as number) * 0.5;
+
+    // One tile-width-plus-a-pixel right of column 0's left edge. This point
+    // DISCRIMINATES the zoom-aware formula from a zoom-blind one: the correct
+    // column is floor(33 / 0.5 / 32) = 2, while ignoring zoom would give
+    // floor(33 / 32) = 1. (Clicking at +1px, as this test used to, resolves to
+    // column 0 under BOTH formulas and so proved nothing.) Both columns are
+    // positive, so no grid growth rebases the result.
+    const untouchedBefore = editorLevelSignal.value[0][1];
+    fireEvent.mouseDown(canvas, {
+      button: 0,
+      clientX: panX + RENDERED_TILE_SIZE + 1,
+      clientY: panY + 1,
+    });
+
+    // editorSelectedToolSignal is 'G' by default (see beforeEach), matching
+    // this file's own existing left-click paint assertions (e.g. line 1702).
+    expect(editorLevelSignal.value[0][2]).toBe('G');
+    // The zoom-blind column must be untouched.
+    expect(editorLevelSignal.value[0][1]).toBe(untouchedBefore);
+  });
+
+  it('scalesGrowthPanCompensationByTheActiveZoom-soTheViewDoesNotJump', async () => {
+    // The mirror of the 100%-zoom SC-006 test above: `compensateForGrowth`
+    // shifts a RAW-pixel pan by a TILE-unit growth, so it has to carry the
+    // active zoom. At 50% an unscaled compensation over-corrects by 2x.
+    render(<LevelEditorPage />);
+    await waitFor(() => expect(drawTerrain).toHaveBeenCalled());
+    levelEditorPage.setZoomViaSlider(50);
+
+    const canvas = levelEditorPage.canvas;
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
+    const originXBefore = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls.at(-1)![4] as number;
+
+    // One pixel left of where column 0 draws -> column -1 -> colShift 1.
+    fireEvent.mouseDown(canvas, { button: 0, clientX: originXBefore * 0.5 - 1, clientY: 1 });
+
+    await waitFor(() => {
+      const originXAfter = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls.at(-1)![4] as number;
+      // The pan moves by -RENDERED_TILE_SIZE * zoom raw pixels; drawTerrain's
+      // origin is that pan divided by zoom again, so it lands exactly one
+      // unscaled tile lower. A zoom-blind compensation would move the pan by a
+      // full raw tile and land this at -2 tiles instead.
+      expect(originXAfter).toBeCloseTo(originXBefore - RENDERED_TILE_SIZE, 5);
+    });
+  });
+
+  it('panningIsUnaffectedByTheCurrentZoomLevel-userStory3', async () => {
+    render(<LevelEditorPage />);
+    await waitFor(() => expect(drawTerrain).toHaveBeenCalled());
+    levelEditorPage.setZoomViaSlider(50);
+
+    const canvas = levelEditorPage.canvas;
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
+    const originXBefore = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls.at(-1)![4] as number;
+
+    fireEvent.mouseDown(canvas, { button: 1, clientX: 100, clientY: 100 });
+    fireEvent.mouseMove(canvas, { clientX: 70, clientY: 100 }); // 30px raw screen drag, leftward
+    fireEvent.mouseUp(canvas);
+
+    await waitFor(() => {
+      const originXAfter = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls.at(-1)![4] as number;
+      // Task 3 divides panOffset by zoom before passing it as drawTerrain's
+      // origin argument, so a 30px RAW screen drag (clientX 100 -> 70, i.e.
+      // -30) at 50% zoom moves that argument by -30 / 0.5 = -60 — proving
+      // the drag itself still moved the pan by exactly 30 raw pixels
+      // (design.md "Panning stays in raw pixels, outside the scale"), not
+      // by some zoom-scaled amount.
+      expect(originXAfter - originXBefore).toBeCloseTo(-60, 5);
+    });
+  });
+
+  it('theBlueprintCanvasZoomsIndependentlyOfTheLevelCanvas-userStory4', async () => {
+    render(<LevelEditorPage />);
+    levelEditorPage.setZoomViaSlider(50);
+    await levelEditorPage.setCanvas('blueprint');
+    expect(levelEditorPage.zoomValue).toBe('100%');
+  });
 });
 
 async function saveBlueprintAs(name: string) {

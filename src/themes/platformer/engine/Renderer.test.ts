@@ -3648,6 +3648,86 @@ describe('drawDarkness', () => {
     expect(layerCtx.createRadialGradient).not.toHaveBeenCalled();
     expect(raw.createRadialGradient).not.toHaveBeenCalled();
   });
+
+  // The `zoom` parameter (O-019) lets a caller that runs this at IDENTITY
+  // transform — the editor canvas — get correct hole positions AND correct
+  // full-canvas coverage at once, which is impossible when the composite
+  // `drawImage` falls under an ambient `ctx.scale()`.
+  describe('zoom parameter', () => {
+    it('omittedZoom-behavesIdenticallyToAnExplicitOne', () => {
+      const withDefault = makeLightingContext();
+      const defaultLayer = makeLightingLayer();
+      const withExplicit = makeLightingContext();
+      const explicitLayer = makeLightingLayer();
+      const torch = makeTorchLight({ x: 100, y: 100 });
+
+      drawDarkness(withDefault.ctx, defaultLayer.layer, 320, 180, 0.5, [torch], -40, 10, 0, {
+        x: 60,
+        y: 70,
+      });
+      drawDarkness(
+        withExplicit.ctx,
+        explicitLayer.layer,
+        320,
+        180,
+        0.5,
+        [torch],
+        -40,
+        10,
+        0,
+        { x: 60, y: 70 },
+        1,
+      );
+
+      expect(explicitLayer.layerCtx.arc.mock.calls).toEqual(
+        defaultLayer.layerCtx.arc.mock.calls,
+      );
+      expect(withExplicit.raw.arc.mock.calls).toEqual(withDefault.raw.arc.mock.calls);
+      // Compare the destination rect only — arg 0 is each run's own distinct
+      // layer stub, which deep-equality would (correctly) call different.
+      expect(withExplicit.raw.drawImage.mock.calls.map((call) => call.slice(1))).toEqual(
+        withDefault.raw.drawImage.mock.calls.map((call) => call.slice(1)),
+      );
+    });
+
+    it('halfZoom-halvesTheTorchHolePositionRelativeToOriginAndItsRadius', () => {
+      const { ctx } = makeLightingContext();
+      const { layer, layerCtx } = makeLightingLayer();
+      const torch = makeTorchLight({ x: 100, y: 100 });
+      const radius = TORCH_LIGHT_RADIUS_PX * torchPulseScale(torch, 0);
+
+      drawDarkness(ctx, layer, 320, 180, 0.5, [torch], -40, 10, 0, null, 0.5);
+
+      // world 100 * 0.5 + origin(-40) = 10; world 100 * 0.5 + origin(10) = 60.
+      expect(layerCtx.arc).toHaveBeenCalledWith(10, 60, radius * 0.5, 0, Math.PI * 2);
+    });
+
+    it('halfZoom-halvesThePlayerLightPositionAndRadius', () => {
+      const { ctx } = makeLightingContext();
+      const { layer, layerCtx } = makeLightingLayer();
+
+      drawDarkness(ctx, layer, 320, 180, 0.5, [], 20, 40, 0, { x: 100, y: 100 }, 0.5);
+
+      expect(layerCtx.arc).toHaveBeenCalledWith(
+        70,
+        90,
+        PLAYER_LIGHT_RADIUS_PX * 0.5,
+        0,
+        Math.PI * 2,
+      );
+    });
+
+    it('halfZoom-stillCompositesTheLayerOverTheRawFullCanvasSize', () => {
+      // The actual coverage bug this parameter exists to fix: the composite
+      // destination rect must stay the raw physical canvas size, never scaled.
+      const { ctx, raw } = makeLightingContext();
+      const { layer } = makeLightingLayer();
+
+      drawDarkness(ctx, layer, 320, 180, 0.5, [], 0, 0, 0, null, 0.5);
+
+      expect(raw.drawImage).toHaveBeenCalledWith(layer, 0, 0, 320, 180);
+    });
+  });
 });
 
 describe('drawHeldTorch', () => {
