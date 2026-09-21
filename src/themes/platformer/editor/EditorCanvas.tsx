@@ -5,6 +5,7 @@ const PATROL_CHAR: TileChar = 'P';
 const CONNECTION_POINT_CHAR: TileChar = '+';
 import { paintCell, type PaintResult } from './paintCell';
 import { updatePanOffset, centerPanOnSpawn, type PanOffset } from './EditorPan';
+import { DEFAULT_ZOOM, type ZoomLevel } from './EditorZoom';
 import {
   gridToLevelDef,
   synthesizePlayerState,
@@ -118,6 +119,9 @@ interface EditorCanvasProps {
   /** Set while a blueprint is armed for placement; omitted/`null` otherwise, so
    *  every existing render site is unaffected. */
   placement?: PlacementMode | null;
+  /** Current zoom level (O-019). Defaults to 100% so every existing caller
+   *  that doesn't pass it renders exactly as it did before this feature. */
+  zoom?: ZoomLevel;
   onPaint: (result: PaintResult) => void;
   onPaintBackground: (next: BackgroundChar[][]) => void;
   onPan: (offset: PanOffset) => void;
@@ -375,6 +379,7 @@ export const EditorCanvas = ({
   activeLayer,
   selectedBackgroundMaterial,
   placement = null,
+  zoom = DEFAULT_ZOOM,
   onPaint,
   onPaintBackground,
   onPan,
@@ -710,8 +715,8 @@ export const EditorCanvas = ({
     const x = clientX - rect.left;
     const y = clientY - rect.top;
     return {
-      col: Math.floor((x - panOffset.x) / RENDERED_TILE_SIZE),
-      row: Math.floor((y - panOffset.y) / RENDERED_TILE_SIZE),
+      col: Math.floor((x - panOffset.x) / zoom / RENDERED_TILE_SIZE),
+      row: Math.floor((y - panOffset.y) / zoom / RENDERED_TILE_SIZE),
     };
   };
 

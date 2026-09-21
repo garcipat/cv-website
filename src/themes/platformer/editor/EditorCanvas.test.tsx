@@ -478,6 +478,137 @@ describe('EditorCanvas', () => {
     );
   });
 
+  describe('EditorCanvas zoom-aware pointer math', () => {
+    it('paintsTheCellUnderTheCursorAt50PercentZoom-notTheCellA100PercentClickWouldHit', () => {
+      const onPaint = vi.fn();
+      stubCanvasContext();
+      render(
+        <EditorCanvas
+          {...BACKGROUND_LAYER_DEFAULT_PROPS}
+          grid={[
+            ['.', '.', '.', '.'],
+            ['.', '.', '.', '.'],
+          ]}
+          selectedTool="G"
+          panOffset={{ x: 0, y: 0 }}
+          zoom={0.5}
+          images={EMPTY_IMAGES}
+          onPaint={onPaint}
+          onPan={() => {}}
+        />,
+      );
+      const canvas = levelEditorPage.canvas;
+      vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({
+        left: 0,
+        top: 0,
+      } as DOMRect);
+
+      // At zoom 0.5, screen x = RENDERED_TILE_SIZE (one full tile at 100%) lands
+      // in world column 2, not column 1 — the pointer covers twice the world
+      // distance per screen pixel.
+      fireEvent.mouseDown(canvas, { button: 0, clientX: RENDERED_TILE_SIZE, clientY: 0 });
+
+      expect(onPaint).toHaveBeenCalledWith(
+        expect.objectContaining({ grid: expect.any(Array) }),
+      );
+      // paintCell's own contract is exercised elsewhere; here we only need to
+      // know WHICH cell it was asked to paint. Re-derive it the same way
+      // paintCell reports growth-free paints: the returned grid's column 2
+      // (not column 1) should have changed from '.' to 'G'.
+      const paintedGrid = onPaint.mock.calls[0][0].grid as string[][];
+      expect(paintedGrid[0][2]).toBe('G');
+      expect(paintedGrid[0][1]).toBe('.');
+    });
+
+    it('paintsTheCellUnderTheCursorAt25PercentZoom', () => {
+      const onPaint = vi.fn();
+      stubCanvasContext();
+      render(
+        <EditorCanvas
+          {...BACKGROUND_LAYER_DEFAULT_PROPS}
+          grid={[['.', '.', '.', '.', '.']]}
+          selectedTool="G"
+          panOffset={{ x: 0, y: 0 }}
+          zoom={0.25}
+          images={EMPTY_IMAGES}
+          onPaint={onPaint}
+          onPan={() => {}}
+        />,
+      );
+      const canvas = levelEditorPage.canvas;
+      vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({
+        left: 0,
+        top: 0,
+      } as DOMRect);
+
+      // One screen tile-width at 100% now covers 4 world columns at 25%.
+      fireEvent.mouseDown(canvas, { button: 0, clientX: RENDERED_TILE_SIZE, clientY: 0 });
+
+      const paintedGrid = onPaint.mock.calls[0][0].grid as string[][];
+      expect(paintedGrid[0][4]).toBe('G');
+    });
+
+    it('accountsForBothPanAndZoomTogether', () => {
+      const onPaint = vi.fn();
+      stubCanvasContext();
+      render(
+        <EditorCanvas
+          {...BACKGROUND_LAYER_DEFAULT_PROPS}
+          grid={[['.', '.', '.', '.']]}
+          selectedTool="G"
+          panOffset={{ x: RENDERED_TILE_SIZE, y: 0 }}
+          zoom={0.5}
+          images={EMPTY_IMAGES}
+          onPaint={onPaint}
+          onPan={() => {}}
+        />,
+      );
+      const canvas = levelEditorPage.canvas;
+      vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({
+        left: 0,
+        top: 0,
+      } as DOMRect);
+
+      // screenX=RENDERED_TILE_SIZE*1.5 -> subtract pan (RENDERED_TILE_SIZE) ->
+      // RENDERED_TILE_SIZE*0.5 remaining -> /zoom(0.5) -> RENDERED_TILE_SIZE ->
+      // /RENDERED_TILE_SIZE -> col 1.
+      fireEvent.mouseDown(canvas, {
+        button: 0,
+        clientX: RENDERED_TILE_SIZE * 1.5,
+        clientY: 0,
+      });
+
+      const paintedGrid = onPaint.mock.calls[0][0].grid as string[][];
+      expect(paintedGrid[0][1]).toBe('G');
+    });
+
+    it('defaultsToFullSize(100Percent)WhenZoomIsOmitted-existingCallersAreUnaffected', () => {
+      const onPaint = vi.fn();
+      stubCanvasContext();
+      render(
+        <EditorCanvas
+          {...BACKGROUND_LAYER_DEFAULT_PROPS}
+          grid={[['.', '.']]}
+          selectedTool="G"
+          panOffset={{ x: 0, y: 0 }}
+          images={EMPTY_IMAGES}
+          onPaint={onPaint}
+          onPan={() => {}}
+        />,
+      );
+      const canvas = levelEditorPage.canvas;
+      vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({
+        left: 0,
+        top: 0,
+      } as DOMRect);
+
+      fireEvent.mouseDown(canvas, { button: 0, clientX: RENDERED_TILE_SIZE + 1, clientY: 1 });
+
+      const paintedGrid = onPaint.mock.calls[0][0].grid as string[][];
+      expect(paintedGrid[0][1]).toBe('G');
+    });
+  });
+
   it('paints every cell along a left-click drag, not just the start and end', () => {
     stubCanvasContext();
     const onPaint = vi.fn();
