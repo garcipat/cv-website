@@ -176,6 +176,7 @@ import {
   BOMB_SHEET,
   EXPLOSION_SHEET,
   SPEAR_SHEET,
+  FLOOR_SPIKE_SHEET,
 } from './entities/sprites/sheets';
 import { frameSource, collectSheetSources } from './entities/sprites/SpriteSheet';
 import type { SpriteLookup } from './entities/sprites/SpriteSheet';
@@ -2443,6 +2444,20 @@ export const PlatformerPage = () => {
       .catch(() => {
         // The spear simply won't render (and stays inert) if its art fails to
         // load; the rest of the game still shows.
+      });
+    // The floor spike sheet (O-021) is no type's primary sprite either
+    // (spike/spear/floorSpike are hazards, not enemies/pickups/blocks, so
+    // HAZARD_TYPES is never walked by the collectSheetSources loop below) —
+    // same hand-listed-load convention as EXPLOSION_SHEET above.
+    loadImage(FLOOR_SPIKE_SHEET.src)
+      .then((img) => {
+        if (cancelled) return;
+        spritesRef.current[FLOOR_SPIKE_SHEET.src] = img;
+        render();
+      })
+      .catch(() => {
+        // Floor spikes simply won't render if this strip fails to load; the
+        // rest of the level still shows.
       });
     loadImage('/sprites/knight.png')
       .then((img) => {

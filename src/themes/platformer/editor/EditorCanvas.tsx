@@ -60,6 +60,7 @@ import {
   STATIC_OBJECTS_SHEET,
   DECORATIONS_SHEET,
   SPEAR_SHEET,
+  FLOOR_SPIKE_SHEET,
 } from '../entities/sprites/sheets';
 import { CHECKPOINT_FLAG_SHEET } from '../entities/Checkpoint';
 
@@ -81,6 +82,7 @@ export interface EditorImages {
   ropeLadder: HTMLImageElement | null;
   mushroom: HTMLImageElement | null;
   spears: HTMLImageElement | null;
+  floorSpike: HTMLImageElement | null;
 }
 
 /** The cells a pending placement would write, in absolute grid coordinates,
@@ -642,6 +644,7 @@ export const EditorCanvas = ({
           [STATIC_OBJECTS_SHEET.src]: images.staticObjects,
           [DECORATIONS_SHEET.src]: images.decorations,
           [SPEAR_SHEET.src]: images.spears,
+          [FLOOR_SPIKE_SHEET.src]: images.floorSpike,
         },
         originX,
         originY,
