@@ -52,7 +52,7 @@ graph RL
         O018["✅ O-018: Bouncy Mushroom Blocks"]
         O019["✅ O-019: Editor Zoom"]
         O020["✅ O-020: Floor Spear Hazard"]
-        O021["O-021: Floor Spikes"]
+        O021["✅ O-021: Floor Spikes"]
         S011["S-011: Interact Hint Overlay"]
     end
 
@@ -164,7 +164,7 @@ graph RL
     class S002,S005,O001 enhancements
     class O001 done
     class S005 done
-    class F015,F016,F017,F018,S007,S008,S009,S010,O003,O004,O005,O008,O009,O013,O014,O020 themes
+    class F015,F016,F017,F018,S007,S008,S009,S010,O003,O004,O005,O008,O009,O013,O014,O020,O021 themes
     class S011 themes
     class O017 themes
     class O017 done
@@ -185,6 +185,7 @@ graph RL
     class O015 done
     class O016 enhancements
     class O016 done
+    class O021 done
 ```
 
 **Critical Path**: F-001 → F-012 → F-013 → F-002 → F-014 (foundation → theme system → multilanguage → data model → IDE theme, then Space and Terminal themes)
