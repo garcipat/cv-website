@@ -18,6 +18,9 @@ import { signBox } from '../level/SignMapper';
 import type { SignPlacement } from '../level/SignMapper';
 import { typeOf as hazardTypeOf } from '../entities/hazards';
 import type { HazardPlacement } from '../level/HazardMapper';
+import { RENDER_SCALE, RENDERED_TILE_SIZE } from '../level/Terrain';
+import type { FloorSpikeTimerState } from './FloorSpike';
+import { isFloorSpikeArmed } from './FloorSpike';
 import type { HintId } from '../types';
 import type { KeyPickupState } from '../entities/KeyPickup';
 import type { HeartPickupState } from '../entities/HeartPickup';
@@ -316,6 +319,46 @@ export function resolveHazardContacts(
   }
 
   return { damage, hazard };
+}
+
+/** Same visible-band convention as Spike.ts / FloorSpike.ts's BAND_NATIVE —
+ *  duplicated here (rather than imported) deliberately: this is a TRIGGER
+ *  box, constant regardless of phase, not the hazard's own phase-varying
+ *  damage box (`floorSpike.box`). The two happen to share dimensions today
+ *  (both are floor-only, both use the same band) but conceptually answer
+ *  different questions — "can this tile arm?" vs. "is this tile hazardous
+ *  right now?" — so they are kept as separate functions rather than one
+ *  reused across both purposes.
+ */
+function floorSpikeTriggerBox(hazard: HazardPlacement): Box {
+  const band = 5 * RENDER_SCALE;
+  return {
+    x: hazard.x,
+    y: hazard.y + RENDERED_TILE_SIZE - band,
+    width: RENDERED_TILE_SIZE,
+    height: band,
+  };
+}
+
+/**
+ * Returns the ids of every at-rest floor spike the player's hitbox
+ * currently overlaps — candidates `PlatformerPage.tsx` should arm this tick
+ * (spec FR-003: contact starts the cycle exactly once). A floor spike whose
+ * cycle is already running is not eligible (spec FR-008), which is why this
+ * takes `timers` rather than relying on `hazards` alone — a floor spike's
+ * `HazardPlacement` carries no in-progress-or-not information of its own.
+ */
+export function checkFloorSpikeTriggers(
+  player: PlayerState,
+  hazards: readonly HazardPlacement[],
+  timers: readonly FloorSpikeTimerState[],
+): string[] {
+  return overlappingTriggers(
+    player,
+    hazards,
+    floorSpikeTriggerBox,
+    (h) => h.hazardType === 'floorSpike' && !isFloorSpikeArmed(timers, h.id),
+  ).map((h) => h.id);
 }
 
 /**
