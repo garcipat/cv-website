@@ -1,4 +1,4 @@
-import { screen, fireEvent } from '@testing-library/react';
+import { screen, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 /**
@@ -214,6 +214,9 @@ export const levelEditorPage = {
   get sidebar() {
     return screen.getByTestId('editor-sidebar');
   },
+  get zoomValue() {
+    return screen.getByTestId('editor-canvas-zoom-value').textContent;
+  },
 
   /** The editor-owned appearance attribute the palette is selected through
    *  (`<html data-editor-appearance="…">`) — `undefined` once unmounted. */
@@ -251,5 +254,37 @@ export const levelEditorPage = {
   },
   async toggleAppearance() {
     await userEvent.click(toolbar.appearanceToggle);
+  },
+  /** Sets the active canvas's zoom via the slider's keyboard interaction.
+   *  The base-ui Slider (this repo's shadcn style) puts the actual
+   *  keyboard-interactive element on a hidden native `<input type="range">`
+   *  inside the thumb, not on the outer `editor-canvas-zoom` testid
+   *  container (that's the Root, which has no tabIndex of its own) — see
+   *  this file's own "editor zoom (O-019)" describe block and
+   *  EditorCanvas.test.tsx's matching slider tests, both of which target
+   *  that inner input the same way. `ZOOM_LEVELS` (EditorZoom.ts) is
+   *  ascending — [25, 50, 75, 100] as percent — so index 0 is the slider's
+   *  minimum (25%) and index 3 its maximum (100%). "Home" always lands on
+   *  index 0 first, so stepping up with ArrowUp by the target's index is
+   *  deterministic regardless of the slider's current position.
+   */
+  setZoomViaSlider(percent: 25 | 50 | 75 | 100) {
+    const slider = screen.getByTestId('editor-canvas-zoom');
+    const input = slider.querySelector('input') as HTMLInputElement;
+    const levels = [25, 50, 75, 100] as const;
+    const targetIndex = levels.indexOf(percent);
+    act(() => {
+      input.focus();
+    });
+    fireEvent.keyDown(input, { key: 'Home' });
+    for (let i = 0; i < targetIndex; i++) {
+      fireEvent.keyDown(input, { key: 'ArrowUp' });
+    }
+  },
+  scrollZoomIn(clientX = 0, clientY = 0) {
+    fireEvent.wheel(levelEditorPage.canvas, { deltaY: -100, clientX, clientY });
+  },
+  scrollZoomOut(clientX = 0, clientY = 0) {
+    fireEvent.wheel(levelEditorPage.canvas, { deltaY: 100, clientX, clientY });
   },
 };

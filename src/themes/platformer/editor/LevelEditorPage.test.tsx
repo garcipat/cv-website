@@ -1159,6 +1159,65 @@ describe('editor zoom (O-019)', () => {
   });
 });
 
+describe('editor zoom — user stories (O-019)', () => {
+  it('zoomingOutShowsTheSameLevelAtASmallerRenderedSize-userStory1', () => {
+    render(<LevelEditorPage />);
+    expect(levelEditorPage.zoomValue).toBe('100%');
+
+    levelEditorPage.setZoomViaSlider(50);
+
+    expect(levelEditorPage.zoomValue).toBe('50%');
+  });
+
+  it('paintingRemainsAccurateAfterZoomingOut-userStory2', () => {
+    render(<LevelEditorPage />);
+    levelEditorPage.setZoomViaSlider(50);
+
+    const canvas = levelEditorPage.canvas;
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
+    // Same click `paintOneCell()` (line ~184) uses at 100% — at 50% zoom the
+    // same screen point (1, 1) still resolves to column/row 0, since both
+    // are inside the first (scaled-down) tile.
+    fireEvent.mouseDown(canvas, { button: 0, clientX: 1, clientY: 1 });
+
+    // editorSelectedToolSignal is 'G' by default (see beforeEach), matching
+    // this file's own existing left-click paint assertions (e.g. line 1702).
+    expect(editorLevelSignal.value[0][0]).toBe('G');
+  });
+
+  it('panningIsUnaffectedByTheCurrentZoomLevel-userStory3', async () => {
+    render(<LevelEditorPage />);
+    await waitFor(() => expect(drawTerrain).toHaveBeenCalled());
+    levelEditorPage.setZoomViaSlider(50);
+
+    const canvas = levelEditorPage.canvas;
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
+    const originXBefore = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls.at(-1)![4] as number;
+
+    fireEvent.mouseDown(canvas, { button: 1, clientX: 100, clientY: 100 });
+    fireEvent.mouseMove(canvas, { clientX: 70, clientY: 100 }); // 30px raw screen drag, leftward
+    fireEvent.mouseUp(canvas);
+
+    await waitFor(() => {
+      const originXAfter = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls.at(-1)![4] as number;
+      // Task 3 divides panOffset by zoom before passing it as drawTerrain's
+      // origin argument, so a 30px RAW screen drag (clientX 100 -> 70, i.e.
+      // -30) at 50% zoom moves that argument by -30 / 0.5 = -60 — proving
+      // the drag itself still moved the pan by exactly 30 raw pixels
+      // (design.md "Panning stays in raw pixels, outside the scale"), not
+      // by some zoom-scaled amount.
+      expect(originXAfter - originXBefore).toBeCloseTo(-60, 5);
+    });
+  });
+
+  it('theBlueprintCanvasZoomsIndependentlyOfTheLevelCanvas-userStory4', async () => {
+    render(<LevelEditorPage />);
+    levelEditorPage.setZoomViaSlider(50);
+    await levelEditorPage.setCanvas('blueprint');
+    expect(levelEditorPage.zoomValue).toBe('100%');
+  });
+});
+
 async function saveBlueprintAs(name: string) {
   await userEvent.click(levelEditorPage.toolbar.save);
   const nameField = levelEditorPage.saveDialog.nameInput;
