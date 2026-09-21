@@ -115,8 +115,8 @@ export const Palette = ({
   const [firstSignKey] = Object.keys(SIGN_CHARS) as TileChar[];
   // One palette button per hazard KIND (derived from HAZARD_CHARS), not one
   // per facing: the spike auto-orients and cycles its four facings on the
-  // canvas (paintCell.ts), while the floor spear has a single fixed
-  // orientation that never cycles.
+  // canvas (paintCell.ts), while the floor spear and O-021's floor spike
+  // each have a single fixed orientation that never cycles.
   const hazardKeys = HAZARD_PALETTE_KEYS;
   // Patrol lives here rather than in "Terrain": it's an invisible marker, not
   // physical ground, so it reads more like a level-authoring tool (same
