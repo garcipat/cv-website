@@ -1066,7 +1066,7 @@ export const PlatformerPage = () => {
       tickMushroomSquashes(dt);
 
       // In-progress floor spike cycles advance here too, freezing with the
-      // world on pause/death (O-020).
+      // world on pause/death (O-021).
       tickFloorSpikes(dt);
 
       // Computed once per tick and shared by every reveal site below — these

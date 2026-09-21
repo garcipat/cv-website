@@ -1,6 +1,6 @@
 # Feature Specification: Platformer Floor Spikes
 
-**Feature Branch**: `O-020-platformer-floor-spikes`
+**Feature Branch**: `O-021-platformer-floor-spikes`
 **Created**: 2026-09-21
 **Status**: Draft
 **Input**: [Issue #68](https://github.com/garcipat/cv-website/issues/68) — a hazard variant that looks
