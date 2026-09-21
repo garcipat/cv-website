@@ -428,6 +428,18 @@ export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
     frameWidth: 32,
     frameHeight: 32,
   },
+  // Frame 0 (the at-rest tell) of the 3-frame FLOOR_SPIKE_SHEET strip
+  // (O-021) — the palette preview always shows the resting pose, same
+  // convention as the static spike's single resting-pose preview above.
+  A: {
+    sheet: '/sprites/spikes.png',
+    sheetWidth: 16,
+    sheetHeight: 48,
+    sx: 0,
+    sy: 0,
+    frameWidth: 16,
+    frameHeight: 16,
+  },
 };
 
 /**
@@ -536,6 +548,7 @@ export const PALETTE_TILE_DESCRIPTIONS: Record<TileChar, string> = {
   '<': 'Spike (right wall); damages the player on touch',
   '>': 'Spike (left wall); damages the player on touch',
   '¦': 'Floor spear; falling onto its points is fatal, walking or climbing through is safe',
+  A: 'Floor spike; hidden until triggered — a visitor stepping on it starts a delayed warning-then-strike cycle, then it retracts and re-arms',
 };
 
 /** Human-readable name per `TileChar`, so the palette reads by name rather
@@ -584,4 +597,5 @@ export const PALETTE_TILE_LABELS: Record<TileChar, string> = {
   '<': 'Spike Left',
   '>': 'Spike Right',
   '¦': 'Floor Spear',
+  A: 'Floor Spike',
 };
