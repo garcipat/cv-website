@@ -1019,6 +1019,99 @@ describe('EditorCanvas overlay drawing at non-100% zoom', () => {
     // (size = 16), the correct center is 8.
     expect(ctx.fillText).toHaveBeenCalledWith(PATROL_MARKER_GLYPH, 8, 8);
   });
+
+  // FR-006: overlays scale *together with* the tiles, which covers their text
+  // and stroke weights, not just their positions and rectangle extents — an
+  // 18px glyph on a 16px tile is exactly the "mismatched size relative to the
+  // tiles around it" the spec's edge-case list rules out.
+  it('scalesAMarkersFontSizeAndHaloStrokeWidthByZoom', () => {
+    const ctx = stubCanvasContext();
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['P']]}
+        selectedTool="."
+        panOffset={{ x: 0, y: 0 }}
+        zoom={0.5}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+    // MARKER_FONT_SIZE is 18, MARKER_HALO_WIDTH is 3.
+    expect(ctx.font).toBe(`${18 * 0.5}px sans-serif`);
+    expect(ctx.lineWidth).toBe(3 * 0.5);
+  });
+
+  it('scalesASignBadgesFontSizeByZoom', () => {
+    const ctx = stubCanvasContext();
+    // drawTileMarkers runs after drawSignBadges and reassigns `ctx.font`, so
+    // sample the font at the moment the badge itself is painted.
+    const fontsWhileDrawingBadges: string[] = [];
+    (ctx.fillText as ReturnType<typeof vi.fn>).mockImplementation((text: string) => {
+      if (text === '1') fontsWhileDrawingBadges.push(ctx.font);
+    });
+
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['1']]}
+        selectedTool="."
+        panOffset={{ x: 0, y: 0 }}
+        zoom={0.5}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+
+    // SIGN_BADGE_FONT_SIZE is 12.
+    expect(fontsWhileDrawingBadges.length).toBeGreaterThan(0);
+    expect(new Set(fontsWhileDrawingBadges)).toEqual(new Set([`${12 * 0.5}px sans-serif`]));
+  });
+
+  it('scalesThePlacementPreviewsBorderWidthByZoom', () => {
+    const ctx = stubCanvasContext();
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        // No 'P'/'+' cells, so drawMarkerGlyph never runs and the last
+        // lineWidth assignment is the placement border's own.
+        grid={[['.', '.']]}
+        selectedTool="."
+        panOffset={{ x: 0, y: 0 }}
+        zoom={0.5}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+        placement={{
+          preview: { cells: [{ row: 0, col: 1, char: '.' }], valid: true },
+          onHover: () => {},
+          onPlace: () => {},
+          onCancel: () => {},
+        }}
+      />,
+    );
+    // PLACEMENT_BORDER_WIDTH is 3.
+    expect(ctx.lineWidth).toBe(3 * 0.5);
+  });
+
+  it('leavesOverlayFontAndStrokeWidthsAtTheirUnscaledValuesAt100Percent', () => {
+    const ctx = stubCanvasContext();
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['P']]}
+        selectedTool="."
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+    expect(ctx.font).toBe('18px sans-serif');
+    expect(ctx.lineWidth).toBe(3);
+  });
 });
 
 describe('EditorCanvas blueprint connection point markers', () => {
@@ -1868,6 +1961,7 @@ describe('EditorCanvas — cave lighting preview (O-015 US3)', () => {
       expect.any(Number),
       0,
       expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }),
+      1,
     );
     expect(drawEnemyEyes).toHaveBeenCalledWith(
       expect.anything(),
@@ -1890,20 +1984,89 @@ describe('EditorCanvas — cave lighting preview (O-015 US3)', () => {
     );
   });
 
-  it('canvas-whenZoomedIn-doesNotCallTheCavePasses', () => {
-    // drawDarkness (Renderer.ts) computes its torch-hole positions in its
-    // own always-unscaled offscreen layer, then composites that layer via a
-    // ctx.drawImage that DOES fall under the active ctx.scale(zoom, zoom) —
-    // there's no calling-side fix that keeps both hole alignment and
-    // full-canvas coverage correct at non-100% zoom without touching
-    // Renderer.ts, so the whole darkness/torch preview is skipped instead.
+  it('canvas-whenZoomedOut-stillDrawsTheWholeCavePreview', () => {
     stubCanvasContext();
 
     render(<EditorCanvas {...previewProps({ zoom: 0.5 })} />);
 
-    expect(drawDarkness).not.toHaveBeenCalled();
-    expect(drawEnemyEyes).not.toHaveBeenCalled();
-    expect(drawHeldTorch).not.toHaveBeenCalled();
+    expect(drawDarkness).toHaveBeenCalled();
+    expect(drawEnemyEyes).toHaveBeenCalled();
+    expect(drawHeldTorch).toHaveBeenCalled();
+  });
+
+  it('canvas-whenZoomedOut-passesDrawDarknessTheRawPanAndTheZoom', () => {
+    // drawDarkness runs at IDENTITY transform and does its own zoom
+    // multiplication internally, so it takes the RAW pan — deliberately the
+    // opposite convention from drawTerrain & co., which run inside their own
+    // ctx.scale() and therefore take the pan pre-divided by zoom.
+    stubCanvasContext();
+
+    render(<EditorCanvas {...previewProps({ zoom: 0.5, panOffset: { x: 40, y: 20 } })} />);
+
+    expect(drawDarkness).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.any(Number),
+      expect.any(Number),
+      EDITOR_PREVIEW_DARKNESS,
+      expect.any(Array),
+      40, // raw panOffset.x, NOT 40 / 0.5
+      20, // raw panOffset.y, NOT 20 / 0.5
+      0,
+      expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }),
+      0.5,
+    );
+  });
+
+  it('canvas-whenZoomedOut-stillPassesTheDividedOriginToTheScaledCavePasses', () => {
+    // drawHeldTorch and drawEnemyEyes stay inside a ctx.scale() segment (their
+    // sprite/marker sizing is RENDERED_TILE_SIZE-based), so they keep the
+    // divided origin. A regression here means their sizing broke.
+    stubCanvasContext();
+
+    render(<EditorCanvas {...previewProps({ zoom: 0.5, panOffset: { x: 40, y: 20 } })} />);
+
+    expect(drawHeldTorch).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      null,
+      EDITOR_PREVIEW_DARKNESS,
+      80, // 40 / 0.5
+      40, // 20 / 0.5
+      0,
+    );
+    expect(drawEnemyEyes).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.any(Array),
+      EDITOR_PREVIEW_DARKNESS,
+      expect.any(Array),
+      0,
+      80, // 40 / 0.5
+      40, // 20 / 0.5
+      expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }),
+    );
+  });
+
+  it('canvas-whenZoomIsOmitted-passesDrawDarknessTheRawPanAndAZoomOfOne', () => {
+    // At 100% the divided and the raw origin coincide, so this frame is
+    // byte-identical to the pre-zoom one.
+    stubCanvasContext();
+
+    render(<EditorCanvas {...previewProps({ panOffset: { x: 40, y: 20 } })} />);
+
+    expect(drawDarkness).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.any(Number),
+      expect.any(Number),
+      EDITOR_PREVIEW_DARKNESS,
+      expect.any(Array),
+      40,
+      20,
+      0,
+      expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }),
+      1,
+    );
   });
 
   it('canvas-whenLight-doesNotCallTheCavePasses', () => {

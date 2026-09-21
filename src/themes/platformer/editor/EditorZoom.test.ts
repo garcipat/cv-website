@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { ZOOM_LEVELS, DEFAULT_ZOOM, stepZoom, anchoredPan } from './EditorZoom';
+import {
+  ZOOM_LEVELS,
+  DEFAULT_ZOOM,
+  stepZoom,
+  anchoredPan,
+  sliderZoomIndex,
+} from './EditorZoom';
 
 describe('ZOOM_LEVELS', () => {
   it('isExactlyTheFourSpecifiedLevelsInAscendingOrder', () => {
@@ -54,5 +60,19 @@ describe('anchoredPan', () => {
     // pan = (30, 30), anchor = (130, 30) -> world under anchor at zoom 1 is (100, 0).
     // At zoom 0.5, newPan.x = 130 - 0.5*(130-30) = 130 - 50 = 80; newPan.y = 30 - 0.5*(30-30) = 30.
     expect(anchoredPan({ x: 30, y: 30 }, { x: 130, y: 30 }, 1, 0.5)).toEqual({ x: 80, y: 30 });
+  });
+});
+
+describe('sliderZoomIndex', () => {
+  it('unwrapsTheArrayShapeTheSliderUsesForItsValueProp', () => {
+    expect(sliderZoomIndex([2])).toBe(2);
+  });
+
+  it('acceptsThePlainNumberTheSliderPassesForASingleThumbPointerInteraction', () => {
+    // The live bug this exists for: reading the callback argument as only an
+    // array threw "number N is not iterable" mid-handler, so clicking and
+    // dragging the zoom slider did nothing while the wheel still worked.
+    expect(sliderZoomIndex(0)).toBe(0);
+    expect(sliderZoomIndex(3)).toBe(3);
   });
 });

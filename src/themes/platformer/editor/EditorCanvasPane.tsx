@@ -155,18 +155,27 @@ export const EditorCanvasPane = ({
   );
 
   /** Moves the active pan by the negative of a grid growth so existing content
-   *  does not visually move (spec SC-006). */
+   *  does not visually move (spec SC-006). The shift is in tiles, but the pan
+   *  offset is raw screen pixels and content renders at `world * zoom + pan`,
+   *  so a grown column moves existing content by `RENDERED_TILE_SIZE * zoom`
+   *  screen pixels — the compensation has to carry that same zoom factor. */
   const compensateForGrowth = useCallback(
     (shift: GrowthShift | null) => {
       if (shift === null || (shift.colShift === 0 && shift.rowShift === 0)) return;
       setActivePanOffset((prev) =>
-        updatePanOffset(prev, -shift.colShift * RENDERED_TILE_SIZE, -shift.rowShift * RENDERED_TILE_SIZE),
+        updatePanOffset(
+          prev,
+          -shift.colShift * RENDERED_TILE_SIZE * activeZoom,
+          -shift.rowShift * RENDERED_TILE_SIZE * activeZoom,
+        ),
       );
     },
-    // `setActivePanOffset` is a state setter chosen from the active mode; the
-    // shift itself is the only meaningful input.
+    // `setActivePanOffset` is a state setter chosen from the active mode, so
+    // `isBlueprintMode` stands in for it. `activeZoom` is a real value
+    // dependency, not a setter: the compensation is wrong by a factor of
+    // `1 / zoom` if this closure captures a stale zoom level.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [isBlueprintMode],
+    [isBlueprintMode, activeZoom],
   );
 
   const armedBlueprint =
