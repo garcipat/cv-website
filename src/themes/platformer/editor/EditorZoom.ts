@@ -22,6 +22,18 @@ export function stepZoom(current: ZoomLevel, direction: 1 | -1): ZoomLevel {
 }
 
 /**
+ * The zoom-level index carried by a slider change. The slider primitive hands
+ * a single-thumb callback a plain number for a pointer interaction but an
+ * array for a multi-value one, and reading it as only one of those shapes
+ * throws mid-handler — which silently left click and drag doing nothing while
+ * the wheel and keyboard still worked. Normalising both shapes in one pure
+ * place keeps that failure mode testable without a real pointer.
+ */
+export function sliderZoomIndex(value: number | readonly number[]): number {
+  return Array.isArray(value) ? value[0] : (value as number);
+}
+
+/**
  * The new pan offset that keeps the world content under a screen-space
  * `anchor` point fixed across a zoom change from `fromZoom` to `toZoom`
  * (design.md "Anchored zoom is one small formula"). `anchor` is a

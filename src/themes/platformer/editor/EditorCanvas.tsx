@@ -5,7 +5,14 @@ const PATROL_CHAR: TileChar = 'P';
 const CONNECTION_POINT_CHAR: TileChar = '+';
 import { paintCell, type PaintResult } from './paintCell';
 import { updatePanOffset, centerPanOnSpawn, type PanOffset } from './EditorPan';
-import { ZOOM_LEVELS, DEFAULT_ZOOM, stepZoom, anchoredPan, type ZoomLevel } from './EditorZoom';
+import {
+  ZOOM_LEVELS,
+  DEFAULT_ZOOM,
+  stepZoom,
+  anchoredPan,
+  sliderZoomIndex,
+  type ZoomLevel,
+} from './EditorZoom';
 import { Slider } from '@/components/ui/slider';
 import {
   gridToLevelDef,
@@ -207,7 +214,7 @@ function drawSignBadges(
   zoom: ZoomLevel,
 ): void {
   ctx.save();
-  ctx.font = `${SIGN_BADGE_FONT_SIZE}px sans-serif`;
+  ctx.font = `${SIGN_BADGE_FONT_SIZE * zoom}px sans-serif`;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
   for (let row = 0; row < grid.length; row++) {
@@ -285,7 +292,7 @@ function drawMarkerGlyph(
   const size = RENDERED_TILE_SIZE * zoom;
   const centerX = destX + size / 2;
   const centerY = destY + size / 2;
-  ctx.lineWidth = MARKER_HALO_WIDTH;
+  ctx.lineWidth = MARKER_HALO_WIDTH * zoom;
   ctx.lineJoin = 'round';
   ctx.strokeStyle = MARKER_HALO_COLOR;
   ctx.strokeText(glyph, centerX, centerY);
@@ -320,7 +327,7 @@ function drawPlacementPreview(
   }
 
   const topLeft = tileToPixel(minCol, minRow);
-  ctx.lineWidth = PLACEMENT_BORDER_WIDTH;
+  ctx.lineWidth = PLACEMENT_BORDER_WIDTH * zoom;
   ctx.strokeStyle = preview.valid ? PLACEMENT_VALID_COLOR : PLACEMENT_INVALID_COLOR;
   ctx.strokeRect(
     topLeft.x * zoom + originX,
@@ -332,7 +339,7 @@ function drawPlacementPreview(
   // A connection point would otherwise disappear into the tint — draw its
   // glyph on top, same as it renders once actually placed (drawTileMarkers
   // below), so the preview shows exactly what committing would leave behind.
-  ctx.font = `${MARKER_FONT_SIZE}px sans-serif`;
+  ctx.font = `${MARKER_FONT_SIZE * zoom}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   for (const { col, row, char } of preview.cells) {
@@ -367,7 +374,7 @@ function drawTileMarkers(
   zoom: ZoomLevel,
 ): void {
   ctx.save();
-  ctx.font = `${MARKER_FONT_SIZE}px sans-serif`;
+  ctx.font = `${MARKER_FONT_SIZE * zoom}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   const size = RENDERED_TILE_SIZE * zoom;
@@ -476,15 +483,7 @@ export const EditorCanvas = ({
     // drawn only in the dark appearance on the level canvas (FR-008/FR-011).
     const previewActive = appearance === 'dark' && !isBlueprintMode;
     const preview = previewActive ? caveLightingPreview(grid) : null;
-    // `drawDarkness` (Renderer.ts) computes its torch-hole positions by pure
-    // addition in its own always-unscaled offscreen layer, then composites
-    // that layer via a `ctx.drawImage` that DOES fall under whatever
-    // transform is active on the canvas — the `ctx.scale(zoom, zoom)` from
-    // segment 2 above. There is no calling-side fix that gets both correct
-    // hole alignment and correct full-canvas coverage at the same time
-    // without a `Renderer.ts` change (off-limits per Global Constraints), so
-    // the darkness/torch preview is simply not shown at non-100% zoom.
-    const showPreview = preview !== null && preview.darknessLevel > 0 && zoom === DEFAULT_ZOOM;
+    const showPreview = preview !== null && preview.darknessLevel > 0;
 
     ctx.fillStyle = readGameBackgroundColor();
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -609,6 +608,18 @@ export const EditorCanvas = ({
         zoom,
       );
 
+      // The offscreen layer `drawDarkness` punches its light holes into is
+      // created and sized here, once per frame and independently of the
+      // transform state, because it is read from two places below that sit on
+      // opposite sides of segment 2's `ctx.scale()`.
+      let darknessLayer: HTMLCanvasElement | null = null;
+      if (preview && showPreview) {
+        darknessLayer = darknessLayerRef.current ?? document.createElement('canvas');
+        darknessLayerRef.current = darknessLayer;
+        if (darknessLayer.width !== canvas.width) darknessLayer.width = canvas.width;
+        if (darknessLayer.height !== canvas.height) darknessLayer.height = canvas.height;
+      }
+
       // --- scaled segment 2: Renderer.ts-backed entities ---
       ctx.save();
       ctx.scale(zoom, zoom);
@@ -665,35 +676,54 @@ export const EditorCanvas = ({
       // The preview composes the game's own draw passes unchanged, inside the
       // foreground-alpha block so the background-layer dimming applies to it
       // too. `worldElapsed = 0` keeps it static (FR-013).
-      if (preview && showPreview) {
-        const layer = darknessLayerRef.current ?? document.createElement('canvas');
-        darknessLayerRef.current = layer;
-        if (layer.width !== canvas.width) layer.width = canvas.width;
-        if (layer.height !== canvas.height) layer.height = canvas.height;
+      // `drawHeldTorch` draws a sprite at `RENDERED_TILE_SIZE`-based internal
+      // sizing, so it belongs inside this scaled segment, unlike `drawDarkness`
+      // below.
+      if (preview && showPreview && player !== null) {
+        drawHeldTorch(
+          ctx,
+          player,
+          images.torch,
+          preview.darknessLevel,
+          originX,
+          originY,
+          0,
+        );
+      }
+      ctx.restore(); // pop scaled segment 2 — drawDarkness below needs identity transform
 
-        if (player !== null) {
-          drawHeldTorch(
-            ctx,
-            player,
-            images.torch,
-            preview.darknessLevel,
-            originX,
-            originY,
-            0,
-          );
-        }
+      // `drawDarkness` punches its light holes into an always-unscaled
+      // offscreen layer and then composites that layer with a single
+      // `ctx.drawImage(layer, 0, 0, canvasWidth, canvasHeight)` — a call whose
+      // destination rect IS subject to the active transform. Running it inside
+      // segment 2's scale therefore covered only the top-left `zoom` fraction
+      // of the canvas. So it runs here at identity instead, taking the RAW
+      // (undivided) pan and its own `zoom` argument, which it applies to every
+      // world-space position and radius internally. The outer alpha save is
+      // still in effect, so the background-layer dimming applies exactly as
+      // before.
+      if (preview && showPreview && darknessLayer !== null) {
         drawDarkness(
           ctx,
-          layer,
+          darknessLayer,
           canvas.width,
           canvas.height,
           preview.darknessLevel,
           preview.torches,
-          originX,
-          originY,
+          panOffset.x,
+          panOffset.y,
           0,
           preview.playerLight,
+          zoom,
         );
+      }
+
+      // --- scaled segment 3: enemy-eye markers, drawn over the overlay ---
+      // Back inside a scale, since these are RENDERED_TILE_SIZE-based markers
+      // like segment 2's entities.
+      if (preview && showPreview) {
+        ctx.save();
+        ctx.scale(zoom, zoom);
         drawEnemyEyes(
           ctx,
           synthesizeEnemyStates(grid),
@@ -704,8 +734,8 @@ export const EditorCanvas = ({
           originY,
           preview.playerLight,
         );
+        ctx.restore();
       }
-      ctx.restore(); // pop scaled segment 2
     } finally {
       ctx.restore(); // pop the outer alpha save
     }
@@ -914,18 +944,39 @@ export const EditorCanvas = ({
     // it off, leaving the canvas stuck invisible.
     <div ref={containerRef} className="relative min-h-0 min-w-0 flex-1">
       {onZoomChange && (
-        <div className="absolute left-2 top-2 z-10 flex items-center gap-2 rounded-md bg-background/80 px-2 py-1 shadow-sm">
-          <span className="text-xs text-muted-foreground">Zoom</span>
-          <Slider
-            data-testid="editor-canvas-zoom"
-            min={0}
-            max={ZOOM_LEVELS.length - 1}
-            step={1}
-            value={[ZOOM_LEVELS.indexOf(zoom)]}
-            onValueChange={([index]) => handleSliderZoom(index)}
-            className="w-28"
-          />
-          <span data-testid="editor-canvas-zoom-value" className="w-10 text-right text-xs tabular-nums">
+        // `pointer-events-none` on the wrapper, re-enabled on each control:
+        // the wrapper spans a wider box than the controls themselves, and
+        // without this it swallowed clicks meant for the canvas cells beneath
+        // that whole top-left corner.
+        <div className="pointer-events-none absolute left-2 top-2 z-10 flex items-center gap-2 rounded-md bg-background/80 px-2 py-1 shadow-sm">
+          <span className="pointer-events-auto text-xs text-muted-foreground">Zoom</span>
+          {/* The Slider's own root carries `data-horizontal:w-full`, which needs
+              an ancestor with a definite width to resolve against — as a bare
+              flex item it collapsed to just its thumb (~16px). This explicit,
+              non-shrinking box is that ancestor. */}
+          <div className="pointer-events-auto w-20 shrink-0">
+            <Slider
+              data-testid="editor-canvas-zoom"
+              aria-label="Zoom level"
+              min={0}
+              max={ZOOM_LEVELS.length - 1}
+              step={1}
+              value={[ZOOM_LEVELS.indexOf(zoom)]}
+              // base-ui hands a single-thumb slider's callback a plain NUMBER,
+              // not an array — destructuring it as `([index])` threw
+              // "number N is not iterable" inside the pointer handler, which
+              // left click and drag doing nothing at all (only the wheel and
+              // the keyboard worked). `value` above still has to be an array:
+              // slider.tsx renders one thumb per entry and falls back to TWO
+              // thumbs for a non-array value.
+              onValueChange={(value) => handleSliderZoom(sliderZoomIndex(value))}
+              className="w-full"
+            />
+          </div>
+          <span
+            data-testid="editor-canvas-zoom-value"
+            className="pointer-events-auto w-10 text-right text-xs tabular-nums"
+          >
             {Math.round(zoom * 100)}%
           </span>
         </div>

@@ -1169,20 +1169,63 @@ describe('editor zoom — user stories (O-019)', () => {
     expect(levelEditorPage.zoomValue).toBe('50%');
   });
 
-  it('paintingRemainsAccurateAfterZoomingOut-userStory2', () => {
+  it('paintingRemainsAccurateAfterZoomingOut-userStory2', async () => {
     render(<LevelEditorPage />);
+    await waitFor(() => expect(drawTerrain).toHaveBeenCalled());
     levelEditorPage.setZoomViaSlider(50);
 
     const canvas = levelEditorPage.canvas;
     vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
-    // Same click `paintOneCell()` (line ~184) uses at 100% — at 50% zoom the
-    // same screen point (1, 1) still resolves to column/row 0, since both
-    // are inside the first (scaled-down) tile.
-    fireEvent.mouseDown(canvas, { button: 0, clientX: 1, clientY: 1 });
+    // The editor opens centered on the spawn, so the pan is not 0. Recover it
+    // from drawTerrain's origin argument, which Task 3 passes pre-divided by
+    // zoom: panOffset = origin * zoom.
+    const lastCall = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls.at(-1)!;
+    const panX = (lastCall[4] as number) * 0.5;
+    const panY = (lastCall[5] as number) * 0.5;
+
+    // One tile-width-plus-a-pixel right of column 0's left edge. This point
+    // DISCRIMINATES the zoom-aware formula from a zoom-blind one: the correct
+    // column is floor(33 / 0.5 / 32) = 2, while ignoring zoom would give
+    // floor(33 / 32) = 1. (Clicking at +1px, as this test used to, resolves to
+    // column 0 under BOTH formulas and so proved nothing.) Both columns are
+    // positive, so no grid growth rebases the result.
+    const untouchedBefore = editorLevelSignal.value[0][1];
+    fireEvent.mouseDown(canvas, {
+      button: 0,
+      clientX: panX + RENDERED_TILE_SIZE + 1,
+      clientY: panY + 1,
+    });
 
     // editorSelectedToolSignal is 'G' by default (see beforeEach), matching
     // this file's own existing left-click paint assertions (e.g. line 1702).
-    expect(editorLevelSignal.value[0][0]).toBe('G');
+    expect(editorLevelSignal.value[0][2]).toBe('G');
+    // The zoom-blind column must be untouched.
+    expect(editorLevelSignal.value[0][1]).toBe(untouchedBefore);
+  });
+
+  it('scalesGrowthPanCompensationByTheActiveZoom-soTheViewDoesNotJump', async () => {
+    // The mirror of the 100%-zoom SC-006 test above: `compensateForGrowth`
+    // shifts a RAW-pixel pan by a TILE-unit growth, so it has to carry the
+    // active zoom. At 50% an unscaled compensation over-corrects by 2x.
+    render(<LevelEditorPage />);
+    await waitFor(() => expect(drawTerrain).toHaveBeenCalled());
+    levelEditorPage.setZoomViaSlider(50);
+
+    const canvas = levelEditorPage.canvas;
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
+    const originXBefore = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls.at(-1)![4] as number;
+
+    // One pixel left of where column 0 draws -> column -1 -> colShift 1.
+    fireEvent.mouseDown(canvas, { button: 0, clientX: originXBefore * 0.5 - 1, clientY: 1 });
+
+    await waitFor(() => {
+      const originXAfter = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls.at(-1)![4] as number;
+      // The pan moves by -RENDERED_TILE_SIZE * zoom raw pixels; drawTerrain's
+      // origin is that pan divided by zoom again, so it lands exactly one
+      // unscaled tile lower. A zoom-blind compensation would move the pan by a
+      // full raw tile and land this at -2 tiles instead.
+      expect(originXAfter).toBeCloseTo(originXBefore - RENDERED_TILE_SIZE, 5);
+    });
   });
 
   it('panningIsUnaffectedByTheCurrentZoomLevel-userStory3', async () => {

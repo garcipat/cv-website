@@ -134,26 +134,28 @@ file's shape depends on an unrelated UI preference, and a second author opening 
 see a zoom level that was never theirs to choose. Resetting to 100% on every open keeps the file format
 and the editor's opening state both simple and predictable.
 
-## The dark-appearance darkness preview doesn't get zoom (discovered during implementation)
+## The darkness preview is the one pass that takes zoom as a parameter
 
-`drawDarkness` (`Renderer.ts`) composites an offscreen "layer" canvas that punches torch-shaped holes
-into a full-canvas darkness fill and then draws that layer onto the main canvas. The hole positions are
-computed in the layer's own always-unscaled context using pure addition (`torch.x + originX`, no
-multiplicative term), while the final composite (`ctx.drawImage(layer, 0, 0, canvasWidth, canvasHeight)`)
-IS subject to whatever transform is active on the `ctx` it's given. That split makes it impossible to
-get both right from the calling side alone: running the call inside the active `ctx.scale(zoom, zoom)`
-(matching where every other Renderer.ts-backed draw sits) aligns the holes correctly but clips the
-composite's coverage to the zoomed fraction of the physical canvas; calling it outside the scale fixes
-coverage but leaves every hole's position wrong by an amount that depends on that torch's own world
-position, since a plain translation can't express the multiplicative correction a scale needs. Neither
-is achievable without adding a zoom parameter to `drawDarkness` itself — a `Renderer.ts` change this
-feature's Global Constraints rule out.
+`drawDarkness` (`Renderer.ts`) is the exception to the "scale the canvas, don't thread a factor through
+the shared renderer" rule above, because it is the only pass whose output is not uniformly subject to
+the active transform. It punches torch-shaped holes into a full-canvas darkness fill on an offscreen
+layer — in that layer's own, always-unscaled context — and then composites the result with a single
+`ctx.drawImage(layer, 0, 0, canvasWidth, canvasHeight)`, whose destination rect *is* subject to the
+transform. A canvas transform therefore cannot fix both halves at once: inside a `ctx.scale(zoom, zoom)`
+the holes land correctly but the composite covers only the zoomed fraction of the physical canvas, and
+outside it the coverage is right but every hole is off by an amount that depends on that torch's own
+world position, which a translation cannot express.
 
-Given the darkness preview is an O-015 editor convenience already outside O-019's spec scope, the
-resolution is to simply not render it at non-100% zoom (see spec.md's edge case) rather than duplicate
-`drawDarkness`'s hole-punching logic at the call site or touch the shared renderer. This was found during
-Task 3's implementation review, not anticipated during design — recorded here for whoever next touches
-zoom or the darkness preview.
+So this one function takes a `zoom` parameter and the editor calls it at identity transform, passing the
+raw (undivided) pan. It multiplies each world-space position and radius by `zoom` itself, and leaves
+`canvasWidth`/`canvasHeight` raw so the composite still covers the whole canvas. The parameter defaults
+to `1`, which makes every expression in the function algebraically identical to its pre-zoom form, so
+the live game's call site — which scales nothing and passes no zoom — is untouched.
+
+The two neighbouring editor-only passes stay where they were: `drawHeldTorch` and `drawEnemyEyes` size
+sprites and markers from `RENDERED_TILE_SIZE` with no offscreen indirection, so a canvas transform
+handles them correctly and they remain inside scaled segments, with `drawDarkness` composited between
+them at identity.
 
 ## Superseded: O-006's "the editor has no zoom" note
 

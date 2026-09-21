@@ -28,6 +28,11 @@ export function updatePanOffset(current: PanOffset, dx: number, dy: number): Pan
  * A spawn-less grid falls back to the unpanned origin: the marker can be
  * erased and not yet repainted mid-edit, and centering on nothing would
  * otherwise produce NaN offsets that blank the canvas.
+ *
+ * Computed in unscaled tile units — safe only because the caller always resets
+ * zoom to 100% on the same centering trigger (see `EditorCanvasPane`'s
+ * `centerRequestId` reset effect); if centering is ever decoupled from a zoom
+ * reset, this needs a zoom parameter too.
  */
 export function centerPanOnSpawn(
   grid: TileChar[][],
