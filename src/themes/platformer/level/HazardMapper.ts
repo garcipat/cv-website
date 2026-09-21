@@ -1,5 +1,6 @@
 import { tileToPixel } from './Terrain';
 import type { HazardFacing, HazardKind } from './LevelParser';
+import type { FloorSpikePhase } from '../engine/FloorSpike';
 
 export interface HazardPlacement {
   id: string;
@@ -7,6 +8,12 @@ export interface HazardPlacement {
   facing: HazardFacing;
   x: number;
   y: number;
+  /** A floor spike's current cycle phase, merged in per-tick by
+   *  PlatformerPage.tsx from `floorSpikeTimerStates` (Task 6) — `undefined`
+   *  for every other hazard kind and for a floor spike before its first
+   *  per-tick merge. `floorSpike.box()`/`.draw()` (Task 3) treat a missing
+   *  value the same as `'atRest'`. */
+  floorSpikePhase?: FloorSpikePhase;
 }
 
 /**

@@ -524,6 +524,10 @@ describe('HAZARD_CHARS', () => {
     expect('¦' in ENTITY_CHARS).toBe(false);
     expect('¦' in SIGN_CHARS).toBe(false);
   });
+
+  it('star-mapsToFloorSpikeFacingUp', () => {
+    expect(HAZARD_CHARS['A']).toEqual({ hazardType: 'floorSpike', facing: 'up' });
+  });
 });
 
 describe('parseLevel — hazard markers', () => {
@@ -555,6 +559,13 @@ describe('findHazardTiles', () => {
   it('spearMarker-returnsTheSpearFacingUp', () => {
     expect(findHazardTiles(['.¦', 'G.'])).toEqual([
       { col: 1, row: 0, hazardType: 'spear', facing: 'up' },
+    ]);
+  });
+
+  it('mixedStaticAndFloorSpikeCharacters-returnsBothKinds', () => {
+    expect(findHazardTiles(['^A'])).toEqual([
+      { col: 0, row: 0, hazardType: 'spike', facing: 'up' },
+      { col: 1, row: 0, hazardType: 'floorSpike', facing: 'up' },
     ]);
   });
 });
@@ -639,7 +650,7 @@ describe('TileChar', () => {
   it('includes every TERRAIN_CHARS, ENTITY_CHARS, SIGN_CHARS, and HAZARD_CHARS key', () => {
     const tileChars: readonly TileChar[] = [
       '.', 'G', 'R', '#', 'B', 'H', 'I', 'P', '+', 'S', 'M', 'm', 'o', '=', '?', 'F', '$', 'u', 'p',
-      'b', 'n', 'N', 'X', 'c', '⊤', '⊥', '¥', '1', '2', '3', '4', '5', '6', '^', 'v', '<', '>', 'C', '@',
+      'b', 'n', 'N', 'X', 'c', '⊤', '⊥', '¥', '1', '2', '3', '4', '5', '6', '^', 'v', '<', '>', 'A', 'C', '@',
       '§', 's', '¦',
     ];
     const allKeys = [
