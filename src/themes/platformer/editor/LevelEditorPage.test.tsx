@@ -139,6 +139,7 @@ beforeEach(() => {
     stroke: vi.fn(),
     save: vi.fn(),
     restore: vi.fn(),
+    scale: vi.fn(),
     font: '',
     textAlign: '',
     textBaseline: '',
