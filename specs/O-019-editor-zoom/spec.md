@@ -164,6 +164,12 @@ one, switch between them, and verify each canvas keeps its own zoom level.
 - **Wheel-anchoring near the edge of a small level**: If the anchored cursor position would put the
   view somewhere a level's content can never fill, the view simply shows empty space there, exactly
   like the case above — anchoring never clamps or refuses to zoom.
+- **The dark-appearance cave-lighting preview ([O-015](../O-015-editor-dark-mode/spec.md)) does not
+  render at non-100% zoom**: that preview composites an offscreen darkness layer whose hole positions
+  and full-canvas coverage cannot both be made zoom-correct without a code change to the shared
+  renderer, which is out of scope for this feature (see design.md). At any zoom other than 100%, the
+  preview simply does not draw — the terrain and entities underneath still render normally at every
+  zoom level, only the darkness/torchlight overlay is affected, and only in the dark appearance.
 
 ## Requirements _(mandatory)_
 
