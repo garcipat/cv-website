@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { EditorCanvas, type EditorImages } from './EditorCanvas';
 import { updatePanOffset, type PanOffset } from './EditorPan';
+import { DEFAULT_ZOOM, type ZoomLevel } from './EditorZoom';
 import { findBlueprint } from '../level/blueprintRegistry';
 import { blueprintCells } from './blueprintCells';
 import { blueprintFits } from './blueprintFit';
@@ -97,6 +98,8 @@ export const EditorCanvasPane = ({
 }: EditorCanvasPaneProps) => {
   const [panOffset, setPanOffset] = useState<PanOffset>({ x: 0, y: 0 });
   const [blueprintPanOffset, setBlueprintPanOffset] = useState<PanOffset>({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState<ZoomLevel>(DEFAULT_ZOOM);
+  const [blueprintZoom, setBlueprintZoom] = useState<ZoomLevel>(DEFAULT_ZOOM);
   // The hovered cell carries the (armed id, center request) key it was captured
   // under. A change of what is armed, or a fresh centering request (e.g. a
   // level load), invalidates the stale hover without an effect or an extra
@@ -113,6 +116,8 @@ export const EditorCanvasPane = ({
 
   const activePanOffset = isBlueprintMode ? blueprintPanOffset : panOffset;
   const setActivePanOffset = isBlueprintMode ? setBlueprintPanOffset : setPanOffset;
+  const activeZoom = isBlueprintMode ? blueprintZoom : zoom;
+  const setActiveZoom = isBlueprintMode ? setBlueprintZoom : setZoom;
 
   useEffect(() => {
     IMAGE_SOURCES.forEach(({ key, src }) => {
@@ -121,6 +126,33 @@ export const EditorCanvasPane = ({
         .catch(() => {});
     });
   }, []);
+
+  // Reopening/reloading the editor starts every canvas back at 100% zoom
+  // (spec FR-009), mirroring how centerRequestId already re-centers pan. The
+  // direct setState calls are intentional (a request signal driving reset
+  // state, not a value derived from props/state) — same justification as
+  // ControlsOverlay.tsx's own identical disable.
+  useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
+    setZoom(DEFAULT_ZOOM);
+    setBlueprintZoom(DEFAULT_ZOOM);
+    /* eslint-enable react-hooks/set-state-in-effect */
+    // Fires once per centering request (level/blueprint load, Reset), not on
+    // every render — see EditorCanvas's own identical justification for
+    // depending on centerRequestId alone. (setZoom/setBlueprintZoom are
+    // stable state setters, so exhaustive-deps doesn't require listing them.)
+  }, [centerRequestId]);
+
+  const handleZoomChange = useCallback(
+    (next: ZoomLevel, nextPan: PanOffset) => {
+      setActiveZoom(next);
+      setActivePanOffset(nextPan);
+    },
+    // Both setters are chosen from the active mode each render, exactly like
+    // compensateForGrowth's identical pattern above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isBlueprintMode],
+  );
 
   /** Moves the active pan by the negative of a grid growth so existing content
    *  does not visually move (spec SC-006). */
@@ -186,6 +218,7 @@ export const EditorCanvasPane = ({
         grid={grid}
         selectedTool={selectedTool}
         panOffset={activePanOffset}
+        zoom={activeZoom}
         images={images}
         appearance={appearance}
         isBlueprintMode={isBlueprintMode}
@@ -209,6 +242,7 @@ export const EditorCanvasPane = ({
         onPaintBackground={(next) => applyBackgroundPaint(next)}
         onPaint={(result) => compensateForGrowth(applyPaint(result))}
         onPan={setActivePanOffset}
+        onZoomChange={handleZoomChange}
       />
     </div>
   );
