@@ -83,6 +83,7 @@ import { isInvulnerable } from './entities/capabilities';
 import { PLAYER_HIT_REACTION_SECONDS } from './entities/Player';
 import { SPIKE_COOLDOWN_DURATION_SECONDS } from './entities/enemies/SlimePurple';
 import { PHYSICS_CONFIG } from './engine/PhysicsConfig';
+import { FLOOR_SPIKE_DELAY_SECONDS, FLOOR_SPIKE_WARNING_SECONDS } from './engine/FloorSpike';
 import { tileToPixel, RENDERED_TILE_SIZE, isClimbable, tileAt } from './level/Terrain';
 import { currentLevel, currentLayout, currentBackgroundLayout, SCRATCH_LAYOUT } from './level/level';
 import type { LevelDef, TileType } from './level/LevelData';
@@ -4012,8 +4013,9 @@ describe('PlatformerPage', () => {
     const startingHealth = playerState.value.hitPoints;
     playerState.value = { ...playerState.value, x: hazard.x, y: hazard.y, vx: 0, vy: 0 };
 
-    // Contact, then hold position past delay+warning (0.5s) into full-extend.
-    const framesToFullExtend = Math.ceil((0.55 * 1000) / 16);
+    // Contact, then hold position past delay+warning into full-extend.
+    const secondsToFullExtend = FLOOR_SPIKE_DELAY_SECONDS + FLOOR_SPIKE_WARNING_SECONDS + 0.05;
+    const framesToFullExtend = Math.ceil((secondsToFullExtend * 1000) / 16);
     for (let i = 0; i < framesToFullExtend; i++) {
       playerState.value = { ...playerState.value, x: hazard.x, y: hazard.y, vx: 0, vy: 0 };
       frameCallback!(16 * (i + 1));

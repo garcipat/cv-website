@@ -10,6 +10,8 @@ import {
   floorSpikePhaseAt,
   floorSpikePhaseFor,
   isFloorSpikeArmed,
+  floorSpikeExtensionAt,
+  floorSpikeExtensionFor,
 } from './FloorSpike';
 
 describe('FLOOR_SPIKE_CYCLE_SECONDS', () => {
@@ -114,5 +116,38 @@ describe('isFloorSpikeArmed', () => {
 
   it('entryPresent-returnsTrue', () => {
     expect(isFloorSpikeArmed([{ id: 'h1', elapsed: 0 }], 'h1')).toBe(true);
+  });
+});
+
+describe('floorSpikeExtensionAt', () => {
+  it.each([
+    [0, 0],
+    [FLOOR_SPIKE_DELAY_SECONDS - 0.001, 0],
+    [FLOOR_SPIKE_DELAY_SECONDS, 0],
+    [FLOOR_SPIKE_DELAY_SECONDS + FLOOR_SPIKE_WARNING_SECONDS / 2, 0.5],
+    [FLOOR_SPIKE_DELAY_SECONDS + FLOOR_SPIKE_WARNING_SECONDS, 1],
+    [FLOOR_SPIKE_DELAY_SECONDS + FLOOR_SPIKE_WARNING_SECONDS + FLOOR_SPIKE_FULL_EXTEND_SECONDS - 0.001, 1],
+  ] as const)('elapsed %d-isCloseTo %d', (elapsed, expected) => {
+    expect(floorSpikeExtensionAt(elapsed)).toBeCloseTo(expected, 5);
+  });
+
+  it('midRetract-isHalfway', () => {
+    const fullExtendEnd = FLOOR_SPIKE_DELAY_SECONDS + FLOOR_SPIKE_WARNING_SECONDS + FLOOR_SPIKE_FULL_EXTEND_SECONDS;
+    expect(floorSpikeExtensionAt(fullExtendEnd + FLOOR_SPIKE_RETRACT_SECONDS / 2)).toBeCloseTo(0.5, 5);
+  });
+
+  it('pastTheFullCycle-isZero', () => {
+    expect(floorSpikeExtensionAt(FLOOR_SPIKE_CYCLE_SECONDS)).toBeCloseTo(0, 5);
+  });
+});
+
+describe('floorSpikeExtensionFor', () => {
+  it('noEntryForId-isZero', () => {
+    expect(floorSpikeExtensionFor([], 'h1')).toBe(0);
+  });
+
+  it('entryPresent-delegatesToFloorSpikeExtensionAt', () => {
+    const elapsed = FLOOR_SPIKE_DELAY_SECONDS + FLOOR_SPIKE_WARNING_SECONDS;
+    expect(floorSpikeExtensionFor([{ id: 'h1', elapsed }], 'h1')).toBeCloseTo(1, 5);
   });
 });

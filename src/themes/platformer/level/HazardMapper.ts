@@ -9,11 +9,16 @@ export interface HazardPlacement {
   x: number;
   y: number;
   /** A floor spike's current cycle phase, merged in per-tick by
-   *  PlatformerPage.tsx from `floorSpikeTimerStates` (Task 6) — `undefined`
-   *  for every other hazard kind and for a floor spike before its first
-   *  per-tick merge. `floorSpike.box()`/`.draw()` (Task 3) treat a missing
-   *  value the same as `'atRest'`. */
+   *  PlatformerPage.tsx from `floorSpikeTimerStates` — `undefined` for
+   *  every other hazard kind and for a floor spike before its first
+   *  per-tick merge. `floorSpike.box()`/`.draw()` treat a missing value the
+   *  same as `'atRest'`. */
   floorSpikePhase?: FloorSpikePhase;
+  /** A floor spike's continuous 0..1 rise/fall ratio for this tick — the
+   *  render-only counterpart to `floorSpikePhase` (see
+   *  `engine/FloorSpike.ts`'s `floorSpikeExtensionAt`). `undefined`/missing
+   *  is treated as 0 (nothing risen). */
+  floorSpikeExtension?: number;
 }
 
 /**

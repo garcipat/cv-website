@@ -544,6 +544,43 @@ describe('resolveHazardContacts — everything but a tip landing is safe (US2)',
   });
 });
 
+describe('resolveHazardContacts — floor spike is only a contact while full-extend', () => {
+  // Regression: floorSpike.box() is a constant rect (not phase-gated — see
+  // its own doc comment), so a floor spike's `isContact` is what must
+  // exclude it outside full-extend; without `isContact`, aabbOverlap's
+  // strict comparisons would report the standing-on-the-tile overlap below
+  // as a contact regardless of phase.
+  it('playerStandingOnAChargingFloorSpike-isExcludedRegardlessOfBoxOverlap', () => {
+    const floorSpikeHazard: HazardPlacement = {
+      id: 'fs1',
+      hazardType: 'floorSpike',
+      facing: 'up',
+      x: 100,
+      y: 100,
+      floorSpikePhase: 'delay',
+    };
+    const player = makePlayer(100, 100);
+    const result = resolveHazardContacts(player, [floorSpikeHazard]);
+    expect(result.hazard).toBeUndefined();
+    expect(result.damage).toBe(0);
+  });
+
+  it('playerStandingOnAFullyExtendedFloorSpike-isIncluded', () => {
+    const floorSpikeHazard: HazardPlacement = {
+      id: 'fs1',
+      hazardType: 'floorSpike',
+      facing: 'up',
+      x: 100,
+      y: 100,
+      floorSpikePhase: 'fullExtend',
+    };
+    const player = makePlayer(100, 100);
+    const result = resolveHazardContacts(player, [floorSpikeHazard]);
+    expect(result.hazard).toBe(floorSpikeHazard);
+    expect(result.damage).toBe(SIDE_HIT_DAMAGE);
+  });
+});
+
 describe('checkFloorSpikeTriggers', () => {
   function floorSpikeHazard(id: string, x: number, y: number): HazardPlacement {
     return { id, hazardType: 'floorSpike', facing: 'up', x, y };

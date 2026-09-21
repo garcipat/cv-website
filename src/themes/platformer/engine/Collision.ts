@@ -288,7 +288,14 @@ export interface HazardContactResult {
  * Resolves the player's hazard contacts for one tick, kind-agnostically: the
  * broad phase is each kind's own `box` overlap, and each kind's optional
  * `isContact` decides whether that overlap actually qualifies (absent =
- * always true, so every existing kind is unchanged).
+ * always true, so every existing kind is unchanged). A floor spike's own
+ * `isContact` is what excludes it outside its full-extend phase — `box()`
+ * stays a constant geometric rect, not a phase-gated one, since a zero-size
+ * rect AT the hazard's position can still satisfy `aabbOverlap`'s strict
+ * `<`/`>` comparisons whenever the player's hitbox straddles that exact
+ * point (which it almost always does while simply standing on the tile);
+ * `isContact` is the correct place to encode "not hazardous right now",
+ * checked only after the broad-phase box overlap already passed.
  *
  * A qualifying `lethal` kind is returned as `lethal` and takes precedence
  * over any ordinary hazard in the same tick (FR-012); otherwise the first

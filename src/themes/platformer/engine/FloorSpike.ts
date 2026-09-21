@@ -12,7 +12,7 @@
 export type FloorSpikePhase = 'atRest' | 'delay' | 'warning' | 'fullExtend' | 'retracting';
 
 /** Seconds between first contact and the warning pose appearing (FR-003/004). */
-export const FLOOR_SPIKE_DELAY_SECONDS = 0.25;
+export const FLOOR_SPIKE_DELAY_SECONDS = 0.6;
 /** Seconds the partial-rise warning pose is shown (FR-004). */
 export const FLOOR_SPIKE_WARNING_SECONDS = 0.25;
 /** Seconds the spike stays fully extended and hazardous (FR-005/FR-007). */
@@ -82,4 +82,34 @@ export function floorSpikePhaseFor(
  *  trigger detection (only an unarmed tile can start a new cycle). */
 export function isFloorSpikeArmed(states: readonly FloorSpikeTimerState[], id: string): boolean {
   return states.some((state) => state.id === id);
+}
+
+/**
+ * How far out the spike currently is, from 0 (flush with the ground) to 1
+ * (fully extended) — the continuous counterpart to `floorSpikePhaseAt`'s
+ * discrete phase name. `'atRest'`/`'delay'` are both 0 (nothing has started
+ * rising yet — the delay phase shows a separate "armed" pose, not a
+ * partially-risen spike); it rises linearly 0→1 across the warning phase,
+ * holds at 1 through full-extend, then falls linearly 1→0 across retract.
+ * `entities/hazards/FloorSpike.ts`'s `draw` uses this to crop a variable-
+ * height slice of the spike art rather than picking between fixed poses.
+ */
+export function floorSpikeExtensionAt(elapsed: number): number {
+  const warningStart = FLOOR_SPIKE_DELAY_SECONDS;
+  const warningEnd = warningStart + FLOOR_SPIKE_WARNING_SECONDS;
+  const fullExtendEnd = warningEnd + FLOOR_SPIKE_FULL_EXTEND_SECONDS;
+  const retractEnd = fullExtendEnd + FLOOR_SPIKE_RETRACT_SECONDS;
+
+  if (elapsed < warningStart) return 0;
+  if (elapsed < warningEnd) return (elapsed - warningStart) / FLOOR_SPIKE_WARNING_SECONDS;
+  if (elapsed < fullExtendEnd) return 1;
+  if (elapsed < retractEnd) return 1 - (elapsed - fullExtendEnd) / FLOOR_SPIKE_RETRACT_SECONDS;
+  return 0;
+}
+
+/** `id`'s current extension ratio — 0 when no timer entry exists for it
+ *  (at rest, nothing rising). */
+export function floorSpikeExtensionFor(states: readonly FloorSpikeTimerState[], id: string): number {
+  const state = states.find((entry) => entry.id === id);
+  return state ? floorSpikeExtensionAt(state.elapsed) : 0;
 }
