@@ -8,8 +8,8 @@ import {
 } from './EditorZoom';
 
 describe('ZOOM_LEVELS', () => {
-  it('isExactlyTheFourSpecifiedLevelsInAscendingOrder', () => {
-    expect(ZOOM_LEVELS).toEqual([0.25, 0.5, 0.75, 1]);
+  it('isExactlyTheThreeSpecifiedLevelsInAscendingOrder', () => {
+    expect(ZOOM_LEVELS).toEqual([0.5, 0.75, 1]);
   });
 
   it('defaultsTo100Percent', () => {
@@ -19,7 +19,6 @@ describe('ZOOM_LEVELS', () => {
 
 describe('stepZoom', () => {
   it('movesToTheNextLargerLevelWhenSteppingUp', () => {
-    expect(stepZoom(0.25, 1)).toBe(0.5);
     expect(stepZoom(0.5, 1)).toBe(0.75);
     expect(stepZoom(0.75, 1)).toBe(1);
   });
@@ -27,7 +26,6 @@ describe('stepZoom', () => {
   it('movesToTheNextSmallerLevelWhenSteppingDown', () => {
     expect(stepZoom(1, -1)).toBe(0.75);
     expect(stepZoom(0.75, -1)).toBe(0.5);
-    expect(stepZoom(0.5, -1)).toBe(0.25);
   });
 
   it('holdsAtTheCeilingRatherThanWrapping', () => {
@@ -35,7 +33,7 @@ describe('stepZoom', () => {
   });
 
   it('holdsAtTheFloorRatherThanWrapping', () => {
-    expect(stepZoom(0.25, -1)).toBe(0.25);
+    expect(stepZoom(0.5, -1)).toBe(0.5);
   });
 });
 

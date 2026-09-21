@@ -521,34 +521,6 @@ describe('EditorCanvas', () => {
       expect(paintedGrid[0][1]).toBe('.');
     });
 
-    it('paintsTheCellUnderTheCursorAt25PercentZoom', () => {
-      const onPaint = vi.fn();
-      stubCanvasContext();
-      render(
-        <EditorCanvas
-          {...BACKGROUND_LAYER_DEFAULT_PROPS}
-          grid={[['.', '.', '.', '.', '.']]}
-          selectedTool="G"
-          panOffset={{ x: 0, y: 0 }}
-          zoom={0.25}
-          images={EMPTY_IMAGES}
-          onPaint={onPaint}
-          onPan={() => {}}
-        />,
-      );
-      const canvas = levelEditorPage.canvas;
-      vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({
-        left: 0,
-        top: 0,
-      } as DOMRect);
-
-      // One screen tile-width at 100% now covers 4 world columns at 25%.
-      fireEvent.mouseDown(canvas, { button: 0, clientX: RENDERED_TILE_SIZE, clientY: 0 });
-
-      const paintedGrid = onPaint.mock.calls[0][0].grid as string[][];
-      expect(paintedGrid[0][4]).toBe('G');
-    });
-
     it('accountsForBothPanAndZoomTogether', () => {
       const onPaint = vi.fn();
       stubCanvasContext();
@@ -2280,7 +2252,7 @@ describe('EditorCanvas zoom controls', () => {
         grid={[['.']]}
         selectedTool="."
         panOffset={{ x: 0, y: 0 }}
-        zoom={0.5}
+        zoom={0.75}
         images={EMPTY_IMAGES}
         onPaint={() => {}}
         onPan={() => {}}
@@ -2292,7 +2264,7 @@ describe('EditorCanvas zoom controls', () => {
 
     fireEvent.wheel(canvas, { deltaY: 100, clientX: 20, clientY: 10 });
 
-    expect(onZoomChange).toHaveBeenCalledWith(0.25, expect.anything());
+    expect(onZoomChange).toHaveBeenCalledWith(0.5, expect.anything());
   });
 
   it('doesNotCallOnZoomChangeWhenAlreadyAtTheCeilingAndScrollingIn', () => {

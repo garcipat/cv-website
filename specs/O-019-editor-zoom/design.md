@@ -97,12 +97,14 @@ small window of a level that can be hundreds of tiles wide. That is a request fo
 magnification, so 100% is the ceiling rather than the middle of a range — there is no case in the
 issue, or raised since, for seeing a tile larger than it already renders today.
 
-Discrete steps (100/75/50/25%) were chosen over a continuous slider range for two reasons. First,
-predictability: four fixed levels are easy to reason about, easy to test exhaustively, and easy for an
-author to return to (100% always means "today's canvas," not "whatever I last dragged to"). Second,
-rendering quality: a continuous factor risks sub-pixel tile boundaries and blurrier `drawImage` scaling
-at arbitrary factors, while power-of-a-simple-fraction steps like these keep the scaled tile size
-closer to whole pixels.
+Discrete steps (100/75/50%) were chosen over a continuous slider range for two reasons. First,
+predictability: a small set of fixed levels is easy to reason about, easy to test exhaustively, and
+easy for an author to return to (100% always means "today's canvas," not "whatever I last dragged
+to"). Second, rendering quality: a continuous factor risks sub-pixel tile boundaries and blurrier
+`drawImage` scaling at arbitrary factors, while power-of-a-simple-fraction steps like these keep the
+scaled tile size closer to whole pixels. 50% is the floor: it already gives enough overview to line a
+piece of level up against its surroundings, without the canvas going so small that individual tiles
+stop being useful to click on.
 
 ## Wheel zoom needs no modifier
 
@@ -114,7 +116,7 @@ gesture behind a modifier would only cost discoverability for no offsetting safe
 nothing to suppress, the handler does not call `event.preventDefault()` either — doing so on a React
 `onWheel` handler risks a "cannot preventDefault inside a passive listener" warning depending on how
 React attaches the underlying DOM listener, for a scroll that was never going to happen anyway. The
-handler reads `event.deltaY`'s sign to pick the next or previous of the four levels, and passes the
+handler reads `event.deltaY`'s sign to pick the next or previous of the three levels, and passes the
 event's canvas-relative position as the anchor to `anchoredPan` (see above) — so the wheel gesture
 itself supplies the one thing the slider cannot: a cursor position to zoom toward.
 

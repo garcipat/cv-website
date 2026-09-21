@@ -1,12 +1,12 @@
 import type { PanOffset } from './EditorPan';
 
 /**
- * The editor's four supported zoom levels, in ascending order. 1 (100%) is
+ * The editor's three supported zoom levels, in ascending order. 1 (100%) is
  * both the default and the ceiling — this feature only zooms OUT for
  * overview (O-019 spec, "Zoom is out-only"). Kept as a single ordered tuple
  * so `stepZoom` can move through it by index rather than by name.
  */
-export const ZOOM_LEVELS = [0.25, 0.5, 0.75, 1] as const;
+export const ZOOM_LEVELS = [0.5, 0.75, 1] as const;
 export type ZoomLevel = (typeof ZOOM_LEVELS)[number];
 export const DEFAULT_ZOOM: ZoomLevel = 1;
 
