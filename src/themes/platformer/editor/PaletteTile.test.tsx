@@ -151,4 +151,48 @@ describe('PaletteTile', () => {
 
     expect(screen.getAllByRole('img')).toHaveLength(1);
   });
+
+  it('overlayWithShorterFrameHeight-clipsItsOwnWrapperAndAnchorsItToTheBottom', () => {
+    const sprite: TileSpriteSpec = {
+      sheet: '/sprites/spikes.png',
+      sheetWidth: 48,
+      sheetHeight: 20,
+      sx: 0,
+      sy: 0,
+      frameWidth: 16,
+      frameHeight: 20,
+      overlay: { sx: 32, sy: 10, frameHeight: 10 },
+    };
+
+    const { container } = render(
+      <PaletteTile label="Floor Spike" sprite={sprite} selected={false} onClick={() => {}} />,
+    );
+
+    // scale = (40 - 10) / max(16, 20) = 1.5
+    const scale = 1.5;
+    const wrapper = container.querySelector('img[alt=""]')!.parentElement!;
+    expect(wrapper.style.height).toBe(`${10 * scale}px`);
+    // Bottom-anchored: (base frameHeight 20 - overlay frameHeight 10) * scale.
+    expect(wrapper.style.top).toBe(`${(20 - 10) * scale}px`);
+  });
+
+  it('overlayWithNoFrameHeight-fillsTheFullBaseFootprintFromTheTop', () => {
+    const sprite: TileSpriteSpec = {
+      sheet: '/sprites/tile_atlas.png',
+      sheetWidth: 130,
+      sheetHeight: 54,
+      sx: 114,
+      sy: 0,
+      frameWidth: 16,
+      frameHeight: 16,
+      overlay: { sx: 76, sy: 38 },
+    };
+
+    const { container } = render(
+      <PaletteTile label="Ground" sprite={sprite} selected={false} onClick={() => {}} />,
+    );
+
+    const wrapper = container.querySelector('img[alt=""]')!.parentElement!;
+    expect(wrapper.style.top).toBe('0px');
+  });
 });
