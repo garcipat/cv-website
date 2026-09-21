@@ -292,6 +292,13 @@ export function drawWaterForeground(
  *
  * When `playerLight` is given, the player's own smaller, steadier carried
  * light is punched and warmed the same way (FR-023/FR-024).
+ *
+ * `zoom` scales every world-space position and radius before adding the
+ * (unscaled) origin — callers that run this at identity transform (not inside
+ * their own `ctx.scale()`) pass their current zoom level here; callers that
+ * already scale the canvas themselves (the live game) leave it at the default
+ * `1`. `canvasWidth`/`canvasHeight` stay raw physical pixels either way, since
+ * the final composite covers the whole canvas at identity transform.
  */
 export function drawDarkness(
   ctx: CanvasRenderingContext2D,
@@ -304,6 +311,7 @@ export function drawDarkness(
   originY = 0,
   worldElapsed = 0,
   playerLight: Point | null = null,
+  zoom = 1,
 ): void {
   if (darknessLevel <= 0) return;
 
@@ -319,9 +327,9 @@ export function drawDarkness(
   // Only torches whose glow can touch the viewport do any work — this keeps
   // the pass O(visible torches) however many the level holds (SC-006).
   const visibleTorches = torches.filter((torch) => {
-    const radius = TORCH_LIGHT_RADIUS_PX * torchPulseScale(torch, worldElapsed);
-    const screenX = torch.x + originX;
-    const screenY = torch.y + originY;
+    const radius = TORCH_LIGHT_RADIUS_PX * torchPulseScale(torch, worldElapsed) * zoom;
+    const screenX = torch.x * zoom + originX;
+    const screenY = torch.y * zoom + originY;
     return (
       screenX + radius >= 0 &&
       screenX - radius <= canvasWidth &&
@@ -331,9 +339,9 @@ export function drawDarkness(
   });
 
   for (const torch of visibleTorches) {
-    const screenX = torch.x + originX;
-    const screenY = torch.y + originY;
-    const radius = TORCH_LIGHT_RADIUS_PX * torchPulseScale(torch, worldElapsed);
+    const screenX = torch.x * zoom + originX;
+    const screenY = torch.y * zoom + originY;
+    const radius = TORCH_LIGHT_RADIUS_PX * torchPulseScale(torch, worldElapsed) * zoom;
 
     // A soft radial hole: opaque at the centre, transparent at the edge, so
     // the world underneath shows through with no hard rim (FR-009).
@@ -347,8 +355,9 @@ export function drawDarkness(
     layerCtx.fill();
   }
 
-  const playerScreenX = playerLight ? playerLight.x + originX : 0;
-  const playerScreenY = playerLight ? playerLight.y + originY : 0;
+  const playerScreenX = playerLight ? playerLight.x * zoom + originX : 0;
+  const playerScreenY = playerLight ? playerLight.y * zoom + originY : 0;
+  const playerLightRadius = PLAYER_LIGHT_RADIUS_PX * zoom;
   if (playerLight) {
     // The player's own smaller pool, steadier than a torch's (FR-023).
     layerCtx.globalCompositeOperation = 'destination-out';
@@ -358,13 +367,13 @@ export function drawDarkness(
       0,
       playerScreenX,
       playerScreenY,
-      PLAYER_LIGHT_RADIUS_PX,
+      playerLightRadius,
     );
     hole.addColorStop(0, 'rgba(0, 0, 0, 1)');
     hole.addColorStop(1, 'rgba(0, 0, 0, 0)');
     layerCtx.fillStyle = hole;
     layerCtx.beginPath();
-    layerCtx.arc(playerScreenX, playerScreenY, PLAYER_LIGHT_RADIUS_PX, 0, Math.PI * 2);
+    layerCtx.arc(playerScreenX, playerScreenY, playerLightRadius, 0, Math.PI * 2);
     layerCtx.fill();
   }
   layerCtx.globalCompositeOperation = 'source-over';
@@ -372,9 +381,9 @@ export function drawDarkness(
   ctx.drawImage(layer, 0, 0, canvasWidth, canvasHeight);
 
   for (const torch of visibleTorches) {
-    const screenX = torch.x + originX;
-    const screenY = torch.y + originY;
-    const radius = TORCH_LIGHT_RADIUS_PX * torchPulseScale(torch, worldElapsed);
+    const screenX = torch.x * zoom + originX;
+    const screenY = torch.y * zoom + originY;
+    const radius = TORCH_LIGHT_RADIUS_PX * torchPulseScale(torch, worldElapsed) * zoom;
     // Stays comfortably inside the erased hole so the warm tone never bleeds
     // onto the darkened area.
     const glowRadius = radius * 0.7;
@@ -394,7 +403,7 @@ export function drawDarkness(
   }
 
   if (playerLight) {
-    const glowRadius = PLAYER_LIGHT_RADIUS_PX * 0.7;
+    const glowRadius = playerLightRadius * 0.7;
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     ctx.globalAlpha = darknessLevel * PLAYER_GLOW_INTENSITY;
