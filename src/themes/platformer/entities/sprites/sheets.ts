@@ -279,3 +279,15 @@ export const SPEAR_SHEET: SpriteSheet = {
   frameHeight: 32,
   columns: 1,
 };
+
+/** `spikes.png` — a 16x48 strip of three stacked 16x16 frames (O-021): 0 =
+ *  at-rest tell (two small dark holes), 1 = warning (partial rise), 2 =
+ *  full-extend. Vertical, not horizontal like BOMB_SHEET/EXPLOSION_SHEET,
+ *  since `SpriteSheet.columns` addresses frames left-to-right-then-top-to-
+ *  bottom and this strip is one column tall three rows. */
+export const FLOOR_SPIKE_SHEET: SpriteSheet = {
+  src: '/sprites/spikes.png',
+  frameWidth: 16,
+  frameHeight: 16,
+  columns: 1,
+};
