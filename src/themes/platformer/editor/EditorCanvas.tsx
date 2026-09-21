@@ -5,7 +5,8 @@ const PATROL_CHAR: TileChar = 'P';
 const CONNECTION_POINT_CHAR: TileChar = '+';
 import { paintCell, type PaintResult } from './paintCell';
 import { updatePanOffset, centerPanOnSpawn, type PanOffset } from './EditorPan';
-import { DEFAULT_ZOOM, type ZoomLevel } from './EditorZoom';
+import { ZOOM_LEVELS, DEFAULT_ZOOM, stepZoom, anchoredPan, type ZoomLevel } from './EditorZoom';
+import { Slider } from '@/components/ui/slider';
 import {
   gridToLevelDef,
   synthesizePlayerState,
@@ -122,6 +123,11 @@ interface EditorCanvasProps {
   /** Current zoom level (O-019). Defaults to 100% so every existing caller
    *  that doesn't pass it renders exactly as it did before this feature. */
   zoom?: ZoomLevel;
+  /** Fires when the wheel or the zoom slider changes the zoom level. Carries
+   *  the fully-anchored new pan alongside the new zoom so the parent applies
+   *  both atomically (EditorZoom.ts's `anchoredPan`). Optional so every
+   *  existing caller that doesn't offer zoom control keeps compiling. */
+  onZoomChange?: (next: ZoomLevel, pan: PanOffset) => void;
   onPaint: (result: PaintResult) => void;
   onPaintBackground: (next: BackgroundChar[][]) => void;
   onPan: (offset: PanOffset) => void;
@@ -392,6 +398,7 @@ export const EditorCanvas = ({
   selectedBackgroundMaterial,
   placement = null,
   zoom = DEFAULT_ZOOM,
+  onZoomChange,
   onPaint,
   onPaintBackground,
   onPan,
@@ -876,6 +883,24 @@ export const EditorCanvas = ({
     if (placement) placement.onHover(null);
   };
 
+  const handleWheel = (event: React.WheelEvent<HTMLCanvasElement>) => {
+    if (!onZoomChange) return;
+    const direction = event.deltaY < 0 ? 1 : -1;
+    const next = stepZoom(zoom, direction);
+    if (next === zoom) return;
+    const rect = canvasRef.current!.getBoundingClientRect();
+    const anchor = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    onZoomChange(next, anchoredPan(panOffset, anchor, zoom, next));
+  };
+
+  const handleSliderZoom = (index: number) => {
+    if (!onZoomChange) return;
+    const next = ZOOM_LEVELS[index];
+    if (next === zoom) return;
+    const anchor = { x: canvasSize.width / 2, y: canvasSize.height / 2 };
+    onZoomChange(next, anchoredPan(panOffset, anchor, zoom, next));
+  };
+
   return (
     // `position: relative` + the canvas absolutely positioned (`inset-0`)
     // takes the canvas out of this container's layout flow entirely, so
@@ -888,6 +913,23 @@ export const EditorCanvas = ({
     // spiraling toward 0x0 before the browser's built-in loop-guard cuts
     // it off, leaving the canvas stuck invisible.
     <div ref={containerRef} className="relative min-h-0 min-w-0 flex-1">
+      {onZoomChange && (
+        <div className="absolute left-2 top-2 z-10 flex items-center gap-2 rounded-md bg-background/80 px-2 py-1 shadow-sm">
+          <span className="text-xs text-muted-foreground">Zoom</span>
+          <Slider
+            data-testid="editor-canvas-zoom"
+            min={0}
+            max={ZOOM_LEVELS.length - 1}
+            step={1}
+            value={[ZOOM_LEVELS.indexOf(zoom)]}
+            onValueChange={([index]) => handleSliderZoom(index)}
+            className="w-28"
+          />
+          <span data-testid="editor-canvas-zoom-value" className="w-10 text-right text-xs tabular-nums">
+            {Math.round(zoom * 100)}%
+          </span>
+        </div>
+      )}
       <canvas
         ref={canvasRef}
         data-testid="editor-canvas"
@@ -898,6 +940,7 @@ export const EditorCanvas = ({
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
+        onWheel={handleWheel}
         onContextMenu={(event) => event.preventDefault()}
       />
     </div>
