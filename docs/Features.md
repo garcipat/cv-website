@@ -50,6 +50,7 @@ graph RL
         O016["✅ O-016: Editor UI Rework"]
         O017["✅ O-017: Merge Pots of Different Colors"]
         O018["✅ O-018: Bouncy Mushroom Blocks"]
+        O019["O-019: Editor Zoom"]
         S011["S-011: Interact Hint Overlay"]
     end
 
@@ -123,6 +124,8 @@ graph RL
 
     O017 --> O004
     O018 --> F015
+    O019 --> F019
+    O019 --> O006
 
     S011 --> F015
     S011 --> S009
@@ -159,7 +162,7 @@ graph RL
     class O017 done
     class O018 themes
     class O018 done
-    class F019,O006,O007,O010,O011,O012,O015,O016 enhancements
+    class F019,O006,O007,O010,O011,O012,O015,O016,O019 enhancements
     class O012 done
     class F015,F016,F017,F018,F019,S007,S008,S009,S010,O004,O005,O009 done
     class O013 done
