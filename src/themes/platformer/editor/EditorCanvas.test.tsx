@@ -89,6 +89,7 @@ function stubCanvasContext() {
     stroke: vi.fn(),
     save: vi.fn(),
     restore: vi.fn(),
+    scale: vi.fn(),
     font: '',
     textAlign: '',
     textBaseline: '',
@@ -1756,6 +1757,22 @@ describe('EditorCanvas — cave lighting preview (O-015 US3)', () => {
     );
   });
 
+  it('canvas-whenZoomedIn-doesNotCallTheCavePasses', () => {
+    // drawDarkness (Renderer.ts) computes its torch-hole positions in its
+    // own always-unscaled offscreen layer, then composites that layer via a
+    // ctx.drawImage that DOES fall under the active ctx.scale(zoom, zoom) —
+    // there's no calling-side fix that keeps both hole alignment and
+    // full-canvas coverage correct at non-100% zoom without touching
+    // Renderer.ts, so the whole darkness/torch preview is skipped instead.
+    stubCanvasContext();
+
+    render(<EditorCanvas {...previewProps({ zoom: 0.5 })} />);
+
+    expect(drawDarkness).not.toHaveBeenCalled();
+    expect(drawEnemyEyes).not.toHaveBeenCalled();
+    expect(drawHeldTorch).not.toHaveBeenCalled();
+  });
+
   it('canvas-whenLight-doesNotCallTheCavePasses', () => {
     stubCanvasContext();
 
@@ -1804,5 +1821,111 @@ describe('EditorCanvas — cave lighting preview (O-015 US3)', () => {
     // legible on top of it (FR-012).
     expect(order.lastIndexOf('grid')).toBeGreaterThan(order.indexOf('darkness'));
     expect(order.lastIndexOf('text')).toBeGreaterThan(order.indexOf('darkness'));
+  });
+});
+
+describe('EditorCanvas — scaling the shared renderer', () => {
+  it('wrapsTheSharedRendererCallsInACtxScaleMatchingTheCurrentZoom', async () => {
+    const ctx = stubCanvasContext() as unknown as {
+      scale: ReturnType<typeof vi.fn>;
+    };
+    const player = {} as HTMLImageElement;
+    const backgroundAtlas = {} as HTMLImageElement;
+    const { drawTerrain, drawBackgroundTiles: drawBackgroundTilesFn, drawPlayer: drawPlayerFn } =
+      await import('../engine/Renderer');
+
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['G', 'S']]}
+        selectedTool="."
+        panOffset={{ x: 40, y: 20 }}
+        zoom={0.5}
+        images={{
+          ...EMPTY_IMAGES,
+          tileset: {} as HTMLImageElement,
+          groundAtlas: {} as HTMLImageElement,
+          backgroundAtlas,
+          player,
+        }}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+
+    // Exactly 3 scaled segments — background, terrain/ladders/signs, entities
+    // — never a single blanket scale (which would double-scale the markers
+    // Task 4 makes zoom-aware in screen space).
+    expect(ctx.scale).toHaveBeenCalledTimes(3);
+    expect(ctx.scale).toHaveBeenCalledWith(0.5, 0.5);
+    // The origin passed to the shared renderer must be pre-divided by zoom,
+    // so that after ctx.scale re-multiplies it, it lands back at the raw
+    // panOffset — panOffset itself must stay zoom-independent (design.md
+    // "Panning stays in raw pixels, outside the scale").
+    expect(drawTerrain).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      80, // 40 / 0.5
+      40, // 20 / 0.5
+      // EMPTY_IMAGES leaves these null; expect.anything() never matches
+      // null/undefined, so assert the literal values, matching the
+      // convention the pre-existing drawTerrain test uses above.
+      null,
+      null,
+      null,
+      0,
+      null,
+    );
+    // Background segment (hoisted, its own scale) gets the same divided origin.
+    expect(drawBackgroundTilesFn).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      backgroundAtlas,
+      80, // 40 / 0.5
+      40, // 20 / 0.5
+      null, // EMPTY_IMAGES leaves decorations null; anything() never matches null
+    );
+    // Entity segment (scaled segment 2) also gets the same divided origin.
+    expect(drawPlayerFn).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      player,
+      80, // 40 / 0.5
+      40, // 20 / 0.5
+      null,
+      true,
+    );
+  });
+
+  it('scalesBy1AndDividesOriginBy1WhenZoomIsOmitted-todaysFramesAreByte-for-byteUnchanged', async () => {
+    const ctx = stubCanvasContext() as unknown as { scale: ReturnType<typeof vi.fn> };
+    const { drawTerrain } = await import('../engine/Renderer');
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['G']]}
+        selectedTool="."
+        panOffset={{ x: 5, y: 7 }}
+        images={{ ...EMPTY_IMAGES, tileset: {} as HTMLImageElement, groundAtlas: {} as HTMLImageElement }}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+    expect(ctx.scale).toHaveBeenCalledWith(1, 1);
+    expect(drawTerrain).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      5,
+      7,
+      null,
+      null,
+      null,
+      0,
+      null,
+    );
   });
 });

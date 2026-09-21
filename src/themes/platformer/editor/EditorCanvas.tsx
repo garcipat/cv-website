@@ -457,7 +457,15 @@ export const EditorCanvas = ({
     // drawn only in the dark appearance on the level canvas (FR-008/FR-011).
     const previewActive = appearance === 'dark' && !isBlueprintMode;
     const preview = previewActive ? caveLightingPreview(grid) : null;
-    const showPreview = preview !== null && preview.darknessLevel > 0;
+    // `drawDarkness` (Renderer.ts) computes its torch-hole positions by pure
+    // addition in its own always-unscaled offscreen layer, then composites
+    // that layer via a `ctx.drawImage` that DOES fall under whatever
+    // transform is active on the canvas — the `ctx.scale(zoom, zoom)` from
+    // segment 2 above. There is no calling-side fix that gets both correct
+    // hole alignment and correct full-canvas coverage at the same time
+    // without a `Renderer.ts` change (off-limits per Global Constraints), so
+    // the darkness/torch preview is simply not shown at non-100% zoom.
+    const showPreview = preview !== null && preview.darknessLevel > 0 && zoom === DEFAULT_ZOOM;
 
     ctx.fillStyle = readGameBackgroundColor();
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -472,6 +480,8 @@ export const EditorCanvas = ({
       const backgroundHeight = backgroundGrid.length;
       const backgroundWidth = backgroundGrid[0]?.length ?? 0;
       const backgroundRows = backgroundGrid.map((row) => row.join(''));
+      ctx.save();
+      ctx.scale(zoom, zoom);
       drawBackgroundTiles(
         ctx,
         {
@@ -481,10 +491,11 @@ export const EditorCanvas = ({
           background: parseBackgroundLayout(backgroundRows, backgroundWidth, backgroundHeight),
         },
         images.backgroundAtlas,
-        panOffset.x,
-        panOffset.y,
+        panOffset.x / zoom,
+        panOffset.y / zoom,
         images.decorations,
       );
+      ctx.restore();
     }
 
     // While the Background layer is active, the entire foreground scene —
@@ -499,14 +510,20 @@ export const EditorCanvas = ({
     try {
       ctx.globalAlpha = foregroundAlpha;
 
+      // --- scaled segment 1: Renderer.ts-backed terrain, ladders, signs ---
+      ctx.save();
+      ctx.scale(zoom, zoom);
+      const originX = panOffset.x / zoom;
+      const originY = panOffset.y / zoom;
+
       if (images.tileset && images.groundAtlas) {
         drawTerrain(
           ctx,
           gridToLevelDef(grid),
           images.tileset,
           images.groundAtlas,
-          panOffset.x,
-          panOffset.y,
+          originX,
+          originY,
           images.staticObjects,
           images.decorations,
           images.torch,
@@ -527,8 +544,8 @@ export const EditorCanvas = ({
         gridToLevelDef(grid),
         bundleStates.map((state) => ({ ...state, phase: 'deployed' as const })),
         images.ropeLadder,
-        panOffset.x,
-        panOffset.y,
+        originX,
+        originY,
       );
       ctx.restore();
       // Restore explicitly too: test canvas stubs make save()/restore() no-ops,
@@ -539,13 +556,16 @@ export const EditorCanvas = ({
         gridToLevelDef(grid),
         bundleStates,
         images.ropeLadder,
-        panOffset.x,
-        panOffset.y,
+        originX,
+        originY,
       );
 
       if (images.tileset) {
-        drawSigns(ctx, synthesizeSignPlacements(grid), images.tileset, panOffset.x, panOffset.y);
+        drawSigns(ctx, synthesizeSignPlacements(grid), images.tileset, originX, originY);
       }
+      ctx.restore(); // pop scaled segment 1 — back to unscaled, alpha still foregroundAlpha
+
+      // --- unscaled: editor-local overlays (Task 4 handles their own zoom math) ---
       drawSignBadges(ctx, grid, panOffset.x, panOffset.y);
       drawTileMarkers(
         ctx,
@@ -568,6 +588,10 @@ export const EditorCanvas = ({
         panOffset.y,
       );
 
+      // --- scaled segment 2: Renderer.ts-backed entities ---
+      ctx.save();
+      ctx.scale(zoom, zoom);
+
       const editorBlockStates = synthesizeBlockStates(grid);
 
       const drawContext: DrawContext = {
@@ -584,8 +608,8 @@ export const EditorCanvas = ({
           [STATIC_OBJECTS_SHEET.src]: images.staticObjects,
           [DECORATIONS_SHEET.src]: images.decorations,
         },
-        originX: panOffset.x,
-        originY: panOffset.y,
+        originX,
+        originY,
         worldElapsed: 0,
         // Same per-frame computation the real game does (PlatformerPage.tsx)
         // — without this, every pot falls back to its kind's isolated draw
@@ -614,7 +638,7 @@ export const EditorCanvas = ({
 
       const player = synthesizePlayerState(grid);
       if (player && images.player) {
-        drawPlayer(ctx, player, images.player, panOffset.x, panOffset.y, null, true);
+        drawPlayer(ctx, player, images.player, originX, originY, null, true);
       }
 
       // The preview composes the game's own draw passes unchanged, inside the
@@ -632,8 +656,8 @@ export const EditorCanvas = ({
             player,
             images.torch,
             preview.darknessLevel,
-            panOffset.x,
-            panOffset.y,
+            originX,
+            originY,
             0,
           );
         }
@@ -644,8 +668,8 @@ export const EditorCanvas = ({
           canvas.height,
           preview.darknessLevel,
           preview.torches,
-          panOffset.x,
-          panOffset.y,
+          originX,
+          originY,
           0,
           preview.playerLight,
         );
@@ -655,13 +679,14 @@ export const EditorCanvas = ({
           preview.darknessLevel,
           preview.torches,
           0,
-          panOffset.x,
-          panOffset.y,
+          originX,
+          originY,
           preview.playerLight,
         );
       }
+      ctx.restore(); // pop scaled segment 2
     } finally {
-      ctx.restore();
+      ctx.restore(); // pop the outer alpha save
     }
 
     // Re-draw the editor affordances above the darkness overlay so grid lines,
@@ -708,7 +733,7 @@ export const EditorCanvas = ({
     // nothing would redraw it until some unrelated state change (a paint
     // or pan) happened to run this effect again — the canvas would sit
     // invisible until the next interaction "fixed" it as a side effect.
-  }, [grid, panOffset, images, canvasSize, backgroundGrid, activeLayer, placement, appearance, isBlueprintMode]);
+  }, [grid, panOffset, images, canvasSize, backgroundGrid, activeLayer, placement, appearance, isBlueprintMode, zoom]);
 
   const cellFromEvent = (clientX: number, clientY: number) => {
     const rect = canvasRef.current!.getBoundingClientRect();
