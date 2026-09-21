@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, fireEvent, act, cleanup } from '@testing-library/react';
+import { render, fireEvent, act, cleanup, screen } from '@testing-library/react';
 import {
   EditorCanvas,
   readGameBackgroundColor,
@@ -2060,5 +2060,152 @@ describe('EditorCanvas — scaling the shared renderer', () => {
       0,
       null,
     );
+  });
+});
+
+describe('EditorCanvas zoom controls', () => {
+  it('rendersASliderAndAPercentageLabelReflectingTheCurrentZoom', () => {
+    stubCanvasContext();
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['.']]}
+        selectedTool="."
+        panOffset={{ x: 0, y: 0 }}
+        zoom={0.5}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+        onZoomChange={() => {}}
+      />,
+    );
+    expect(screen.getByTestId('editor-canvas-zoom-value')).toHaveTextContent('50%');
+    expect(screen.getByTestId('editor-canvas-zoom')).toBeInTheDocument();
+  });
+
+  it('scrollingUpOverTheCanvasZoomsInAnchoredToTheCursor', () => {
+    stubCanvasContext();
+    const onZoomChange = vi.fn();
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['.']]}
+        selectedTool="."
+        panOffset={{ x: 0, y: 0 }}
+        zoom={0.5}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+        onZoomChange={onZoomChange}
+      />,
+    );
+    const canvas = levelEditorPage.canvas;
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
+
+    fireEvent.wheel(canvas, { deltaY: -100, clientX: 20, clientY: 10 });
+
+    // anchoredPan({x:0,y:0}, {x:20,y:10}, 0.5, 0.75) = (20,10) - 1.5*(20,10) = (-10,-5)
+    expect(onZoomChange).toHaveBeenCalledWith(0.75, { x: -10, y: -5 });
+  });
+
+  it('scrollingDownOverTheCanvasZoomsOut', () => {
+    stubCanvasContext();
+    const onZoomChange = vi.fn();
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['.']]}
+        selectedTool="."
+        panOffset={{ x: 0, y: 0 }}
+        zoom={0.5}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+        onZoomChange={onZoomChange}
+      />,
+    );
+    const canvas = levelEditorPage.canvas;
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
+
+    fireEvent.wheel(canvas, { deltaY: 100, clientX: 20, clientY: 10 });
+
+    expect(onZoomChange).toHaveBeenCalledWith(0.25, expect.anything());
+  });
+
+  it('doesNotCallOnZoomChangeWhenAlreadyAtTheCeilingAndScrollingIn', () => {
+    stubCanvasContext();
+    const onZoomChange = vi.fn();
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['.']]}
+        selectedTool="."
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+        onZoomChange={onZoomChange}
+      />,
+    );
+    const canvas = levelEditorPage.canvas;
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
+
+    fireEvent.wheel(canvas, { deltaY: -100, clientX: 0, clientY: 0 });
+
+    expect(onZoomChange).not.toHaveBeenCalled();
+  });
+
+  it('movingTheSliderZoomsAnchoredToTheCanvasCenter', () => {
+    stubCanvasContext();
+    const onZoomChange = vi.fn();
+    let resizeCallback: ResizeObserverCallback = () => {};
+    class FakeResizeObserver {
+      constructor(callback: ResizeObserverCallback) {
+        resizeCallback = callback;
+      }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+    vi.stubGlobal('ResizeObserver', FakeResizeObserver);
+
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['.']]}
+        selectedTool="."
+        panOffset={{ x: 0, y: 0 }}
+        zoom={1}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+        onZoomChange={onZoomChange}
+      />,
+    );
+    act(() => {
+      resizeCallback(
+        [{ contentRect: { width: 200, height: 100 } } as ResizeObserverEntry],
+        {} as ResizeObserver,
+      );
+    });
+
+    // The base-ui Slider (this repo's shadcn style) puts the actual
+    // keyboard-interactive element on a hidden native `<input type="range">`
+    // inside the thumb, not on the outer `data-testid` container (that's the
+    // Root, which has no tabIndex of its own) — so the interaction targets
+    // that input rather than the outer element the testid is attached to.
+    const slider = screen.getByTestId('editor-canvas-zoom');
+    const sliderInput = slider.querySelector('input') as HTMLInputElement;
+    act(() => {
+      sliderInput.focus();
+      fireEvent.keyDown(sliderInput, { key: 'ArrowDown' });
+    });
+
+    // Stepping down once from index 3 (100%) lands on index 2 (75%).
+    // Center = (100, 50).
+    // anchoredPan({x:0,y:0}, {x:100,y:50}, 1, 0.75) = (100,50) - 0.75*(100,50) = (25, 12.5)
+    expect(onZoomChange).toHaveBeenCalledWith(0.75, { x: 25, y: 12.5 });
+
+    vi.unstubAllGlobals();
   });
 });
