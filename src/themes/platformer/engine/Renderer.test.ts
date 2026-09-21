@@ -52,7 +52,7 @@ import { backgroundAtlasCell } from './BackgroundAtlas';
 import { parseLevel } from '../level/LevelParser';
 import type { SignPlacement } from '../level/SignMapper';
 import type { PlayerState } from '../entities/Player';
-import { PLAYER_RENDERED_SIZE, PLAYER_HIT_REACTION_SECONDS } from '../entities/Player';
+import { PLAYER_RENDERED_SIZE, PLAYER_FOOT_PADDING, PLAYER_HIT_REACTION_SECONDS } from '../entities/Player';
 import { MAX_HALF_HEARTS, HEART_RENDERED_SIZE } from '../entities/Health';
 import { startFlightEffect, tickFlightEffect, RISE_DURATION_SECONDS, SPARKLE_DURATION_SECONDS, startPuffEffect, tickPuffEffect, startHealAuraEffect, HEAL_AURA_DURATION_SECONDS, startPlayerHitSplatter, startEnemyHitSplatter, tickHitSplatterEffect, startFadeOutTextEffect, tickFadeOutTextEffect, FADE_OUT_TEXT_DURATION_SECONDS } from './CollectionEffects';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
@@ -145,7 +145,7 @@ import {
 import { toChestState, openChest } from '../entities/Chest';
 import type { ChestState } from '../entities/Chest';
 import type { ChestPlacement } from '../level/ChestMapper';
-import { CHEST_CLOSED_SHEET, CHEST_OPEN_SHEET } from '../entities/sprites/sheets';
+import { CHEST_CLOSED_SHEET, CHEST_OPEN_SHEET, SPEAR_SHEET } from '../entities/sprites/sheets';
 import { spike } from '../entities/hazards/Spike';
 import type { HazardPlacement } from '../level/HazardMapper';
 import {
@@ -2148,6 +2148,7 @@ describe('drawPlayer', () => {
     isDroppingThroughBridge: false,
     lastGroundedX: 16,
     lastGroundedY: 256,
+    prevFeetY: 256 + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING,
     animTimer: 0,
     animState: 'idle',
     animFrame: 0,
@@ -3031,6 +3032,38 @@ describe('drawHazards', () => {
 
     expect(drawSpy).toHaveBeenCalledWith(hazards[0], dc);
   });
+
+  it('spear-drawsFromItsSheetAtItsWorldTileWithTheNativeFrameAndNoSmoothing', () => {
+    const ctx = makeMockContext();
+    const spearImage = { tag: 'spear' } as unknown as HTMLImageElement;
+    const dc = makeDrawContext(ctx, { sprites: { [SPEAR_SHEET.src]: spearImage } });
+    const hazards: HazardPlacement[] = [{ id: 's1', hazardType: 'spear', facing: 'up', x: 64, y: 32 }];
+
+    drawHazards(ctx, hazards, dc);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      spearImage,
+      0,
+      0,
+      32,
+      32,
+      64,
+      32,
+      RENDERED_TILE_SIZE,
+      RENDERED_TILE_SIZE,
+    );
+    expect(ctx.imageSmoothingEnabled).toBe(false);
+  });
+
+  it('spear-imageMissingFromSprites-isANoOp', () => {
+    const ctx = makeMockContext();
+    const dc = makeDrawContext(ctx);
+    const hazards: HazardPlacement[] = [{ id: 's1', hazardType: 'spear', facing: 'up', x: 64, y: 32 }];
+
+    drawHazards(ctx, hazards, dc);
+
+    expect(ctx.drawImage).not.toHaveBeenCalled();
+  });
 });
 
 describe('drawKeyCounter', () => {
@@ -3743,6 +3776,7 @@ describe('drawHeldTorch', () => {
     isDroppingThroughBridge: false,
     lastGroundedX: 100,
     lastGroundedY: 100,
+    prevFeetY: 100 + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING,
     animTimer: 0,
     animState: 'walk',
     animFrame: 0,
@@ -3815,6 +3849,7 @@ describe('heldTorchLightPosition', () => {
     isDroppingThroughBridge: false,
     lastGroundedX: 100,
     lastGroundedY: 100,
+    prevFeetY: 100 + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING,
     animTimer: 0,
     animState: 'idle',
     animFrame: 0,

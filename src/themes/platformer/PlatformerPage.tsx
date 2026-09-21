@@ -83,7 +83,7 @@ import {
   checkKeyPickupCollisions,
   checkHeartPickupCollisions,
   checkBombPickupCollisions,
-  checkHazardCollisions,
+  resolveHazardContacts,
   playerHitbox,
 } from './engine/Collision';
 import {
@@ -127,6 +127,7 @@ import {
   SPARKLE_DURATION_SECONDS,
   startPlayerHitSplatter,
   startEnemyHitSplatter,
+  startSpearBloodSplatter,
   tickHitSplatterEffect,
   HIT_SPLATTER_DURATION_SECONDS,
   startFadeOutTextEffect,
@@ -173,12 +174,13 @@ import {
   MUSHROOM_SHEET,
   BOMB_SHEET,
   EXPLOSION_SHEET,
+  SPEAR_SHEET,
 } from './entities/sprites/sheets';
 import { frameSource, collectSheetSources } from './entities/sprites/SpriteSheet';
 import type { SpriteLookup } from './entities/sprites/SpriteSheet';
 import { ENEMY_TYPES, typeOf } from './entities/enemies';
 import type { EnemyTypeKey } from './entities/enemies';
-import { HAZARD_TYPES } from './entities/hazards';
+import { spearTipMaskFromImage, setSpearTipMask } from './entities/hazards/SpearArt';
 import { PICKUP_TYPES } from './entities/pickups';
 import { BLOCK_TYPES } from './entities/blocks';
 import { CHEST_TYPE } from './entities/chests';
@@ -1011,6 +1013,12 @@ export const PlatformerPage = () => {
         if (lifecycleState.value.elapsed < DEATH_ANIM_SECONDS) {
           playerState.value = advancePlayerAnimation(playerState.value, dt);
         }
+        // The spear's blood burst (O-020) is spawned on the kill tick and must
+        // keep spraying through the death lead-in; the rest of the world stays
+        // frozen as before.
+        activeHitSplatters.value = activeHitSplatters.value
+          .map((splatter) => tickHitSplatterEffect(splatter, dt))
+          .filter((splatter) => splatter.elapsed <= HIT_SPLATTER_DURATION_SECONDS);
         render();
         return;
       }
@@ -1586,6 +1594,33 @@ export const PlatformerPage = () => {
         hintTooltipState.value = beginHintTooltipExit(currentTooltip);
       }
 
+      // Hazard contacts are resolved BEFORE enemy contacts, so a lethal floor
+      // spear can win the tick (FR-012). A lethal tip landing drops health
+      // straight to zero with no `takeDamage`, no knockback, no hit animation
+      // and no splatter (FR-004/FR-005); the flags below then suppress the
+      // enemy-damage and ordinary-hazard-damage blocks for this tick, while
+      // enemy contact resolution still runs so a same-tick stomp still merges
+      // its enemy state.
+      const hazardContacts = resolveHazardContacts(playerState.value, hazardPlacements.value);
+      const spearKilled = hazardContacts.lethal !== undefined;
+      if (spearKilled) {
+        playerState.value = { ...playerState.value, hitPoints: 0, alive: false };
+        // A blood burst at the character's feet (O-020 FR-006): the kill has no
+        // knockback or hit animation, but the impalement is still shown as
+        // impact feedback. Screen-space, like every other hit splatter.
+        const playerCenterX = playerState.value.x + PLAYER_RENDERED_SIZE / 2 + originX;
+        const feetY =
+          playerState.value.y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING + originY;
+        activeHitSplatters.value = [
+          ...activeHitSplatters.value,
+          startSpearBloodSplatter(
+            `spear-${activeHitSplatters.value.length}`,
+            playerCenterX,
+            feetY,
+          ),
+        ];
+      }
+
       // One pass over the enemies: the engine computes each overlap's
       // geometry, each enemy's own type decides what that overlap means, and
       // the aggregated result lands here. Invulnerability is the engine's rule,
@@ -1621,9 +1656,11 @@ export const PlatformerPage = () => {
       }
 
       // Damage is dropped entirely while inside the refractory window, so
-      // one persisting overlap can't register a fresh hit every tick.
+      // one persisting overlap can't register a fresh hit every tick. Also
+      // skipped when the spear already killed this tick (FR-012).
       if (
         contacts.damagePlayer > 0 &&
+        !spearKilled &&
         !isInvulnerable(playerState.value, PLAYER_HIT_REACTION_SECONDS)
       ) {
         const hitPoints = takeDamage(playerState.value.hitPoints, contacts.damagePlayer);
@@ -1665,19 +1702,24 @@ export const PlatformerPage = () => {
         }
       }
 
-      // Spike hazards: an entirely separate, independent damage source from
-      // enemy contacts above. Sequencing after the enemy block (rather than
-      // merging the two) is deliberate and safe: applyKnockback resets
-      // hitTimer to 0, and isInvulnerable(player, PLAYER_HIT_REACTION_SECONDS)
-      // treats hitTimer 0 as WITHIN the refractory window (0 < 0.8) — so if
-      // an enemy contact already damaged the player this very tick, this
-      // block's own isInvulnerable check reads that just-updated state and
-      // correctly skips, giving "at most one hit per tick" for free with no
-      // shared aggregation code.
-      const touchedHazards = checkHazardCollisions(playerState.value, hazardPlacements.value);
-      if (touchedHazards.length > 0 && !isInvulnerable(playerState.value, PLAYER_HIT_REACTION_SECONDS)) {
-        const hazard = touchedHazards[0];
-        const damage = HAZARD_TYPES[hazard.hazardType].damage;
+      // Ordinary (non-lethal) hazards: an entirely separate, independent
+      // damage source from enemy contacts above. Sequencing after the enemy
+      // block (rather than merging the two) is deliberate and safe:
+      // applyKnockback resets hitTimer to 0, and
+      // isInvulnerable(player, PLAYER_HIT_REACTION_SECONDS) treats hitTimer 0
+      // as WITHIN the refractory window (0 < 0.8) — so if an enemy contact
+      // already damaged the player this very tick, this block's own
+      // isInvulnerable check reads that just-updated state and correctly
+      // skips, giving "at most one hit per tick" for free with no shared
+      // aggregation code. Also skipped when the spear killed this tick
+      // (FR-012) — `hazardContacts.lethal` was already handled above.
+      if (
+        hazardContacts.hazard !== undefined &&
+        !spearKilled &&
+        !isInvulnerable(playerState.value, PLAYER_HIT_REACTION_SECONDS)
+      ) {
+        const hazard = hazardContacts.hazard;
+        const damage = hazardContacts.damage;
         const hitPoints = takeDamage(playerState.value.hitPoints, damage);
         playerState.value = { ...playerState.value, hitPoints, alive: hitPoints > 0 };
         // Pushed away from the hazard's own tile, same knockback amount as a
@@ -2354,6 +2396,22 @@ export const PlatformerPage = () => {
       .catch(() => {
         // Explosions simply won't render if this strip fails to load; the
         // rest of the game still shows.
+      });
+    // The floor spear's sheet is hand-listed (like EXPLOSION_SHEET) rather
+    // than discovered through a registry walk, because its loaded image must
+    // also build the module-level tip mask the lethal contact test reads
+    // (O-020). An unloaded/failed spear stays inert and renders nothing.
+    loadImage(SPEAR_SHEET.src)
+      .then((img) => {
+        if (cancelled) return;
+        spritesRef.current[SPEAR_SHEET.src] = img;
+        const mask = spearTipMaskFromImage(img);
+        if (mask) setSpearTipMask(mask);
+        render();
+      })
+      .catch(() => {
+        // The spear simply won't render (and stays inert) if its art fails to
+        // load; the rest of the game still shows.
       });
     loadImage('/sprites/knight.png')
       .then((img) => {

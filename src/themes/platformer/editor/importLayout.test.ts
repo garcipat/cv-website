@@ -26,6 +26,13 @@ describe('importLayout', () => {
       ['G', 'G', 'G', 'G'],
     ]);
   });
+
+  it('carries the floor spear marker "¦" through literally', () => {
+    expect(importLayout(['S¦.', 'GGG'])).toEqual([
+      ['S', '¦', '.'],
+      ['G', 'G', 'G'],
+    ]);
+  });
 });
 
 describe('importBackgroundLayout', () => {

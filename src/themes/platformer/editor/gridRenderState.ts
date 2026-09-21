@@ -84,6 +84,9 @@ export function synthesizePlayerState(grid: TileChar[][]): PlayerState | null {
     isDroppingThroughBridge: false,
     lastGroundedX: x,
     lastGroundedY: y,
+    // Seeded to the state's own feet — the editor's synthesized preview
+    // player is always at rest, so this is the only safe history value.
+    prevFeetY: y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING,
     animState: 'idle',
     animFrame: 0,
     animTimer: 0,

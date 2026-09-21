@@ -43,6 +43,7 @@ describe('synthesizePlayerState', () => {
     expect(player?.y).toBe(expectedY);
     expect(player?.lastGroundedX).toBe(expectedX);
     expect(player?.lastGroundedY).toBe(expectedY);
+    expect(player?.prevFeetY).toBe(expectedY + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING);
     expect(player?.direction).toBe('right');
     expect(player?.animState).toBe('idle');
     expect(player?.animFrame).toBe(0);
