@@ -164,20 +164,22 @@ function drawGridLines(
   width: number,
   height: number,
   panOffset: PanOffset,
+  zoom: ZoomLevel,
 ): void {
   ctx.strokeStyle = GRID_LINE_COLOR;
   ctx.lineWidth = 1;
+  const step = RENDERED_TILE_SIZE * zoom;
 
-  const startX = ((panOffset.x % RENDERED_TILE_SIZE) + RENDERED_TILE_SIZE) % RENDERED_TILE_SIZE;
-  for (let x = startX; x <= width; x += RENDERED_TILE_SIZE) {
+  const startX = ((panOffset.x % step) + step) % step;
+  for (let x = startX; x <= width; x += step) {
     ctx.beginPath();
     ctx.moveTo(x + 0.5, 0);
     ctx.lineTo(x + 0.5, height);
     ctx.stroke();
   }
 
-  const startY = ((panOffset.y % RENDERED_TILE_SIZE) + RENDERED_TILE_SIZE) % RENDERED_TILE_SIZE;
-  for (let y = startY; y <= height; y += RENDERED_TILE_SIZE) {
+  const startY = ((panOffset.y % step) + step) % step;
+  for (let y = startY; y <= height; y += step) {
     ctx.beginPath();
     ctx.moveTo(0, y + 0.5);
     ctx.lineTo(width, y + 0.5);
@@ -196,6 +198,7 @@ function drawSignBadges(
   grid: TileChar[][],
   originX: number,
   originY: number,
+  zoom: ZoomLevel,
 ): void {
   ctx.save();
   ctx.font = `${SIGN_BADGE_FONT_SIZE}px sans-serif`;
@@ -206,10 +209,12 @@ function drawSignBadges(
       const char = grid[row][col];
       if (!SIGN_CHARS[char]) continue;
       const { x, y } = tileToPixel(col, row);
+      const destX = x * zoom + originX;
+      const destY = y * zoom + originY;
       ctx.fillStyle = '#000';
-      ctx.fillText(char, x + originX + 1, y + originY + 1);
+      ctx.fillText(char, destX + 1, destY + 1);
       ctx.fillStyle = '#fff';
-      ctx.fillText(char, x + originX, y + originY);
+      ctx.fillText(char, destX, destY);
     }
   }
   ctx.restore();
@@ -269,9 +274,11 @@ function drawMarkerGlyph(
   destY: number,
   glyph: string,
   glyphColor: string,
+  zoom: ZoomLevel,
 ): void {
-  const centerX = destX + RENDERED_TILE_SIZE / 2;
-  const centerY = destY + RENDERED_TILE_SIZE / 2;
+  const size = RENDERED_TILE_SIZE * zoom;
+  const centerX = destX + size / 2;
+  const centerY = destY + size / 2;
   ctx.lineWidth = MARKER_HALO_WIDTH;
   ctx.lineJoin = 'round';
   ctx.strokeStyle = MARKER_HALO_COLOR;
@@ -285,11 +292,13 @@ function drawPlacementPreview(
   preview: PlacementPreview,
   originX: number,
   originY: number,
+  zoom: ZoomLevel,
 ): void {
   if (preview.cells.length === 0) return;
 
   ctx.save();
   ctx.fillStyle = preview.valid ? PLACEMENT_VALID_FILL : PLACEMENT_INVALID_FILL;
+  const size = RENDERED_TILE_SIZE * zoom;
 
   let minCol = Infinity;
   let minRow = Infinity;
@@ -297,7 +306,7 @@ function drawPlacementPreview(
   let maxRow = -Infinity;
   for (const { col, row } of preview.cells) {
     const { x, y } = tileToPixel(col, row);
-    ctx.fillRect(x + originX, y + originY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+    ctx.fillRect(x * zoom + originX, y * zoom + originY, size, size);
     if (col < minCol) minCol = col;
     if (row < minRow) minRow = row;
     if (col > maxCol) maxCol = col;
@@ -308,10 +317,10 @@ function drawPlacementPreview(
   ctx.lineWidth = PLACEMENT_BORDER_WIDTH;
   ctx.strokeStyle = preview.valid ? PLACEMENT_VALID_COLOR : PLACEMENT_INVALID_COLOR;
   ctx.strokeRect(
-    topLeft.x + originX,
-    topLeft.y + originY,
-    (maxCol - minCol + 1) * RENDERED_TILE_SIZE,
-    (maxRow - minRow + 1) * RENDERED_TILE_SIZE,
+    topLeft.x * zoom + originX,
+    topLeft.y * zoom + originY,
+    (maxCol - minCol + 1) * size,
+    (maxRow - minRow + 1) * size,
   );
 
   // A connection point would otherwise disappear into the tint — draw its
@@ -325,10 +334,11 @@ function drawPlacementPreview(
     const { x, y } = tileToPixel(col, row);
     drawMarkerGlyph(
       ctx,
-      x + originX,
-      y + originY,
+      x * zoom + originX,
+      y * zoom + originY,
       CONNECTION_POINT_MARKER_GLYPH,
       CONNECTION_POINT_MARKER_GLYPH_COLOR,
+      zoom,
     );
   }
   ctx.restore();
@@ -348,20 +358,22 @@ function drawTileMarkers(
   glyphColor: string,
   originX: number,
   originY: number,
+  zoom: ZoomLevel,
 ): void {
   ctx.save();
   ctx.font = `${MARKER_FONT_SIZE}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
+  const size = RENDERED_TILE_SIZE * zoom;
   for (let row = 0; row < grid.length; row++) {
     for (let col = 0; col < grid[row].length; col++) {
       if (grid[row][col] !== char) continue;
       const { x, y } = tileToPixel(col, row);
-      const destX = x + originX;
-      const destY = y + originY;
+      const destX = x * zoom + originX;
+      const destY = y * zoom + originY;
       ctx.fillStyle = tint;
-      ctx.fillRect(destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
-      drawMarkerGlyph(ctx, destX, destY, glyph, glyphColor);
+      ctx.fillRect(destX, destY, size, size);
+      drawMarkerGlyph(ctx, destX, destY, glyph, glyphColor, zoom);
     }
   }
   ctx.restore();
@@ -469,7 +481,7 @@ export const EditorCanvas = ({
 
     ctx.fillStyle = readGameBackgroundColor();
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    drawGridLines(ctx, canvas.width, canvas.height, panOffset);
+    drawGridLines(ctx, canvas.width, canvas.height, panOffset, zoom);
 
     if (images.backgroundAtlas) {
       // Same conversion `gridToLevelDef` performs for the foreground
@@ -566,7 +578,7 @@ export const EditorCanvas = ({
       ctx.restore(); // pop scaled segment 1 — back to unscaled, alpha still foregroundAlpha
 
       // --- unscaled: editor-local overlays (Task 4 handles their own zoom math) ---
-      drawSignBadges(ctx, grid, panOffset.x, panOffset.y);
+      drawSignBadges(ctx, grid, panOffset.x, panOffset.y, zoom);
       drawTileMarkers(
         ctx,
         grid,
@@ -576,6 +588,7 @@ export const EditorCanvas = ({
         PATROL_MARKER_GLYPH_COLOR,
         panOffset.x,
         panOffset.y,
+        zoom,
       );
       drawTileMarkers(
         ctx,
@@ -586,6 +599,7 @@ export const EditorCanvas = ({
         CONNECTION_POINT_MARKER_GLYPH_COLOR,
         panOffset.x,
         panOffset.y,
+        zoom,
       );
 
       // --- scaled segment 2: Renderer.ts-backed entities ---
@@ -694,8 +708,8 @@ export const EditorCanvas = ({
     // Only when the preview is active, so the light frame is byte-for-byte the
     // pre-feature frame (FR-007, SC-004).
     if (showPreview) {
-      drawGridLines(ctx, canvas.width, canvas.height, panOffset);
-      drawSignBadges(ctx, grid, panOffset.x, panOffset.y);
+      drawGridLines(ctx, canvas.width, canvas.height, panOffset, zoom);
+      drawSignBadges(ctx, grid, panOffset.x, panOffset.y, zoom);
       drawTileMarkers(
         ctx,
         grid,
@@ -705,6 +719,7 @@ export const EditorCanvas = ({
         PATROL_MARKER_GLYPH_COLOR,
         panOffset.x,
         panOffset.y,
+        zoom,
       );
       drawTileMarkers(
         ctx,
@@ -715,6 +730,7 @@ export const EditorCanvas = ({
         CONNECTION_POINT_MARKER_GLYPH_COLOR,
         panOffset.x,
         panOffset.y,
+        zoom,
       );
     }
 
@@ -722,7 +738,7 @@ export const EditorCanvas = ({
     // author is looking at, so it is drawn last and at full opacity even while
     // the background layer dims everything else.
     if (placement?.preview) {
-      drawPlacementPreview(ctx, placement.preview, panOffset.x, panOffset.y);
+      drawPlacementPreview(ctx, placement.preview, panOffset.x, panOffset.y, zoom);
     }
     // `canvasSize` is read only via `canvas.width`/`canvas.height` above,
     // not referenced directly here — but it MUST stay a dependency.
