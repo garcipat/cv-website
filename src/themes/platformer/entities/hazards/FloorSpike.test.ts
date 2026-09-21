@@ -22,19 +22,31 @@ describe('floorSpike', () => {
 describe('floorSpike.box', () => {
   const BAND = 10; // BAND_NATIVE (5) * RENDER_SCALE (2), same as Spike.ts
 
-  it.each([undefined, 'atRest', 'delay', 'warning', 'retracting'] as const)(
-    'phase %s-isEmptyAndNonHazardous',
+  // box() is NOT phase-gated (see Collision.ts's resolveHazardContacts doc
+  // comment) — it's the broad-phase geometric rect every phase shares;
+  // isContact (below) is what decides whether an overlap actually counts.
+  it.each([undefined, 'atRest', 'delay', 'warning', 'retracting', 'fullExtend'] as const)(
+    'phase %s-isAlwaysTheBottomBandSameAsAStaticUpFacingSpike',
     (phase) => {
-      expect(floorSpike.box(hazardAt(phase))).toEqual({ x: 16, y: 32, width: 0, height: 0 });
+      expect(floorSpike.box(hazardAt(phase))).toEqual({
+        x: 16,
+        y: 32 + RENDERED_TILE_SIZE - BAND,
+        width: RENDERED_TILE_SIZE,
+        height: BAND,
+      });
+    },
+  );
+});
+
+describe('floorSpike.isContact', () => {
+  it.each([undefined, 'atRest', 'delay', 'warning', 'retracting'] as const)(
+    'phase %s-isNotAContact',
+    (phase) => {
+      expect(floorSpike.isContact!(hazardAt(phase), {} as never, {} as never)).toBe(false);
     },
   );
 
-  it('fullExtend-isTheBottomBandOnlySameAsAStaticUpFacingSpike', () => {
-    expect(floorSpike.box(hazardAt('fullExtend'))).toEqual({
-      x: 16,
-      y: 32 + RENDERED_TILE_SIZE - BAND,
-      width: RENDERED_TILE_SIZE,
-      height: BAND,
-    });
+  it('fullExtend-isAContact', () => {
+    expect(floorSpike.isContact!(hazardAt('fullExtend'), {} as never, {} as never)).toBe(true);
   });
 });

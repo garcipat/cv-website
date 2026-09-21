@@ -8,7 +8,12 @@ import {
 import type { DeployableLadderState } from './engine/DeployableLadder';
 import { advanceMushroomSquashes } from './engine/MushroomSquash';
 import type { MushroomSquashState } from './engine/MushroomSquash';
-import { armFloorSpike, advanceFloorSpikes, floorSpikePhaseFor } from './engine/FloorSpike';
+import {
+  armFloorSpike,
+  advanceFloorSpikes,
+  floorSpikePhaseFor,
+  floorSpikeExtensionFor,
+} from './engine/FloorSpike';
 import type { FloorSpikeTimerState } from './engine/FloorSpike';
 import type { LevelDef } from './level/LevelData';
 import {
@@ -845,7 +850,11 @@ export function tickFloorSpikes(dt: number): void {
 export function hazardPlacementsForTick(): HazardPlacement[] {
   return hazardPlacements.value.map((hazard) =>
     hazard.hazardType === 'floorSpike'
-      ? { ...hazard, floorSpikePhase: floorSpikePhaseFor(floorSpikeTimerStates.value, hazard.id) }
+      ? {
+          ...hazard,
+          floorSpikePhase: floorSpikePhaseFor(floorSpikeTimerStates.value, hazard.id),
+          floorSpikeExtension: floorSpikeExtensionFor(floorSpikeTimerStates.value, hazard.id),
+        }
       : hazard,
   );
 }

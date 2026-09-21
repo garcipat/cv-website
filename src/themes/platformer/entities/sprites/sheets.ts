@@ -280,14 +280,21 @@ export const SPEAR_SHEET: SpriteSheet = {
   columns: 1,
 };
 
-/** `spikes.png` — a 16x48 strip of three stacked 16x16 frames (O-021): 0 =
- *  at-rest tell (two small dark holes), 1 = warning (partial rise), 2 =
- *  full-extend. Vertical, not horizontal like BOMB_SHEET/EXPLOSION_SHEET,
- *  since `SpriteSheet.columns` addresses frames left-to-right-then-top-to-
- *  bottom and this strip is one column tall three rows. */
+/** `spikes.png` — a 48x20 strip of three horizontally-laid-out 16x20
+ *  frames (O-021): 0 = at-rest tell, 1 = armed (a small nub, shown during
+ *  the post-contact delay before the spike starts rising), 2 = the spike
+ *  itself, drawn as a variable-height bottom-anchored crop rather than
+ *  picked between fixed poses (see entities/hazards/FloorSpike.ts's
+ *  `draw`). Each frame is 4px taller than a tile — a below-the-tile bleed
+ *  margin every frame shares — so drawing a frame at its normal tile-
+ *  aligned position lets its bottom rows bleed onto the tile below,
+ *  reading as marks/spikes sitting ON the ground surface rather than
+ *  floating inside their own tile. The margin is intentionally roomier
+ *  than the art currently uses, to leave headroom for the tell/armed
+ *  poses to be redrawn taller without a code change. */
 export const FLOOR_SPIKE_SHEET: SpriteSheet = {
   src: '/sprites/spikes.png',
   frameWidth: 16,
-  frameHeight: 16,
-  columns: 1,
+  frameHeight: 20,
+  columns: 3,
 };
