@@ -58,6 +58,7 @@ import {
   activeFadeOutTexts,
   playerStateAtTile,
   mushroomSquashStates,
+  floorSpikeTimerStates,
 } from './PlatformerState';
 import { toBlockState } from './entities/Block';
 import type { BlockState } from './entities/Block';
@@ -3965,6 +3966,94 @@ describe('PlatformerPage', () => {
       resetGameProgress();
       expect(hazardPlacements.value).toEqual(before);
     });
+  });
+
+  it('playerCrossingAFloorSpikeQuickly-tick-takesNoDamage', () => {
+    floorSpikeTimerStates.value = [];
+    currentLayout.value = ['SA', 'GG'];
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const hazard = hazardPlacements.value[0];
+    const startingHealth = playerState.value.hitPoints;
+    playerState.value = { ...playerState.value, x: hazard.x, y: hazard.y, vx: 0, vy: 0 };
+
+    // One tick to register contact, then immediately move off before the
+    // 0.5s delay+warning window elapses (SC-001).
+    frameCallback!(16);
+    playerState.value = { ...playerState.value, x: hazard.x + 200, vx: 0 };
+    frameCallback!(16);
+
+    expect(playerState.value.hitPoints).toBe(startingHealth);
+    floorSpikeTimerStates.value = [];
+  });
+
+  it('playerLingeringOnAFloorSpike-throughItsFullCycle-takesDamageWithNoKnockback', () => {
+    floorSpikeTimerStates.value = [];
+    currentLayout.value = ['SA', 'GG'];
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const hazard = hazardPlacements.value[0];
+    const startingHealth = playerState.value.hitPoints;
+    playerState.value = { ...playerState.value, x: hazard.x, y: hazard.y, vx: 0, vy: 0 };
+
+    // Contact, then hold position past delay+warning (0.5s) into full-extend.
+    const framesToFullExtend = Math.ceil((0.55 * 1000) / 16);
+    for (let i = 0; i < framesToFullExtend; i++) {
+      playerState.value = { ...playerState.value, x: hazard.x, y: hazard.y, vx: 0, vy: 0 };
+      frameCallback!(16 * (i + 1));
+    }
+
+    expect(playerState.value.hitPoints).toBe(startingHealth - SIDE_HIT_DAMAGE);
+    // FR-006: no knockback, unlike the static spike.
+    expect(playerState.value.vx).toBe(0);
+    floorSpikeTimerStates.value = [];
+  });
+
+  it('floorSpikeAlreadyTriggered-secondContactDuringWarning-doesNotRestartTheCycle', () => {
+    floorSpikeTimerStates.value = [];
+    currentLayout.value = ['SA', 'GG'];
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    frameCallback!(0);
+
+    const hazard = hazardPlacements.value[0];
+    playerState.value = { ...playerState.value, x: hazard.x, y: hazard.y, vx: 0, vy: 0 };
+    frameCallback!(16); // arms the cycle
+
+    const armedAfterFirstContact = floorSpikeTimerStates.value[0];
+    expect(armedAfterFirstContact).toBeDefined();
+
+    // Touch it again a couple of frames later, still inside the delay window.
+    frameCallback!(32);
+    frameCallback!(48);
+
+    // Still exactly one timer entry, and its elapsed time reflects continuous
+    // advancement, not a reset back near zero.
+    expect(floorSpikeTimerStates.value).toHaveLength(1);
+    expect(floorSpikeTimerStates.value[0].elapsed).toBeGreaterThan(armedAfterFirstContact.elapsed);
+    floorSpikeTimerStates.value = [];
   });
 
   it('playerFallsOntoEnemyFromAbove-tick-noSideHitDamageOnlyAStomp', () => {
