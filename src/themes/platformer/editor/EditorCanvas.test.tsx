@@ -888,6 +888,83 @@ describe('EditorCanvas patrol markers', () => {
   });
 });
 
+describe('EditorCanvas overlay drawing at non-100% zoom', () => {
+  it('scalesAPatrolMarkersTintedRectangleAndPositionByZoom', () => {
+    const ctx = stubCanvasContext() as unknown as { fillRect: ReturnType<typeof vi.fn> };
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['P']]}
+        selectedTool="."
+        panOffset={{ x: 100, y: 40 }}
+        zoom={0.5}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+    // tileToPixel(0,0) = (0,0) in world space; screen = world*zoom + origin.
+    expect(ctx.fillRect).toHaveBeenCalledWith(
+      100,
+      40,
+      RENDERED_TILE_SIZE * 0.5,
+      RENDERED_TILE_SIZE * 0.5,
+    );
+  });
+
+  it('scalesTheGridLineStepByZoom', () => {
+    const ctx = stubCanvasContext() as unknown as {
+      moveTo: ReturnType<typeof vi.fn>;
+    };
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['.']]}
+        selectedTool="."
+        panOffset={{ x: 0, y: 0 }}
+        zoom={0.5}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+    // With panOffset 0 and zoom 0.5, the first vertical grid line after x=0
+    // is at x = RENDERED_TILE_SIZE * 0.5, not RENDERED_TILE_SIZE.
+    expect(ctx.moveTo).toHaveBeenCalledWith(RENDERED_TILE_SIZE * 0.5 + 0.5, 0);
+  });
+
+  it('scalesThePlacementPreviewsFillAndBorderByZoom', () => {
+    const ctx = stubCanvasContext() as unknown as {
+      fillRect: ReturnType<typeof vi.fn>;
+      strokeRect: ReturnType<typeof vi.fn>;
+    };
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['.', '.']]}
+        selectedTool="."
+        panOffset={{ x: 0, y: 0 }}
+        zoom={0.5}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+        placement={{
+          preview: { cells: [{ row: 0, col: 1, char: '.' }], valid: true },
+          onHover: () => {},
+          onPlace: () => {},
+          onCancel: () => {},
+        }}
+      />,
+    );
+    expect(ctx.fillRect).toHaveBeenCalledWith(
+      RENDERED_TILE_SIZE * 0.5,
+      0,
+      RENDERED_TILE_SIZE * 0.5,
+      RENDERED_TILE_SIZE * 0.5,
+    );
+  });
+});
+
 describe('EditorCanvas blueprint connection point markers', () => {
   it('draws an editor-only marker over every connection point tile, which the game itself never shows', () => {
     const ctx = stubCanvasContext() as unknown as {
