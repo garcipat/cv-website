@@ -134,6 +134,27 @@ file's shape depends on an unrelated UI preference, and a second author opening 
 see a zoom level that was never theirs to choose. Resetting to 100% on every open keeps the file format
 and the editor's opening state both simple and predictable.
 
+## The dark-appearance darkness preview doesn't get zoom (discovered during implementation)
+
+`drawDarkness` (`Renderer.ts`) composites an offscreen "layer" canvas that punches torch-shaped holes
+into a full-canvas darkness fill and then draws that layer onto the main canvas. The hole positions are
+computed in the layer's own always-unscaled context using pure addition (`torch.x + originX`, no
+multiplicative term), while the final composite (`ctx.drawImage(layer, 0, 0, canvasWidth, canvasHeight)`)
+IS subject to whatever transform is active on the `ctx` it's given. That split makes it impossible to
+get both right from the calling side alone: running the call inside the active `ctx.scale(zoom, zoom)`
+(matching where every other Renderer.ts-backed draw sits) aligns the holes correctly but clips the
+composite's coverage to the zoomed fraction of the physical canvas; calling it outside the scale fixes
+coverage but leaves every hole's position wrong by an amount that depends on that torch's own world
+position, since a plain translation can't express the multiplicative correction a scale needs. Neither
+is achievable without adding a zoom parameter to `drawDarkness` itself — a `Renderer.ts` change this
+feature's Global Constraints rule out.
+
+Given the darkness preview is an O-015 editor convenience already outside O-019's spec scope, the
+resolution is to simply not render it at non-100% zoom (see spec.md's edge case) rather than duplicate
+`drawDarkness`'s hole-punching logic at the call site or touch the shared renderer. This was found during
+Task 3's implementation review, not anticipated during design — recorded here for whoever next touches
+zoom or the darkness preview.
+
 ## Superseded: O-006's "the editor has no zoom" note
 
 [O-006's design rationale](../O-006-platformer-blueprints/design.md) previously explained why the
