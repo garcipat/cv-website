@@ -263,15 +263,15 @@ export const levelEditorPage = {
    *  this file's own "editor zoom (O-019)" describe block and
    *  EditorCanvas.test.tsx's matching slider tests, both of which target
    *  that inner input the same way. `ZOOM_LEVELS` (EditorZoom.ts) is
-   *  ascending — [25, 50, 75, 100] as percent — so index 0 is the slider's
-   *  minimum (25%) and index 3 its maximum (100%). "Home" always lands on
+   *  ascending — [50, 75, 100] as percent — so index 0 is the slider's
+   *  minimum (50%) and index 2 its maximum (100%). "Home" always lands on
    *  index 0 first, so stepping up with ArrowUp by the target's index is
    *  deterministic regardless of the slider's current position.
    */
-  setZoomViaSlider(percent: 25 | 50 | 75 | 100) {
+  setZoomViaSlider(percent: 50 | 75 | 100) {
     const slider = screen.getByTestId('editor-canvas-zoom');
     const input = slider.querySelector('input') as HTMLInputElement;
-    const levels = [25, 50, 75, 100] as const;
+    const levels = [50, 75, 100] as const;
     const targetIndex = levels.indexOf(percent);
     act(() => {
       input.focus();

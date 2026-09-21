@@ -20,9 +20,11 @@ content.
   keeps every zoom level predictable and avoids the blurrier, seam-prone rendering a continuous
   factor risks.
 
-- Q: Which levels? → A: **100% / 75% / 50% / 25%**, with 100% remaining the default and matching
-  today's fixed size exactly. Rationale: zoom exists only to zoom *out* for overview; magnifying above
-  today's size is not a need this feature addresses.
+- Q: Which levels? → A: **100% / 75% / 50%**, with 100% remaining the default and matching
+  today's fixed size exactly, and 50% as the floor. Rationale: zoom exists only to zoom *out* for
+  overview; magnifying above today's size is not a need this feature addresses, and 50% already gives
+  enough overview to line a piece of level up against its surroundings without shrinking tiles past
+  useful click size.
 
 - Q: Does zoom apply to the main level canvas only, or also to the blueprint-room canvas
   ([O-006](../O-006-platformer-blueprints/spec.md))? → A: **Both**, each with its own independent
@@ -33,7 +35,7 @@ content.
   trigger, with no modifier key required.** Rationale: the canvas has no scrollable content of its own
   today — panning is middle-click-drag only, not wheel-scroll — so plain scrolling over it currently
   does nothing, and there is nothing for zoom to hijack. Requiring Ctrl/Cmd would only make the
-  gesture less discoverable for no benefit. Scrolling over the canvas steps through the same four
+  gesture less discoverable for no benefit. Scrolling over the canvas steps through the same three
   levels the slider offers, one step per notch, and moves the slider to match.
 
 - Q: Does zoom anchor to anything — the cursor, the canvas center — or leave the pan position exactly
@@ -52,7 +54,7 @@ A level author is placing a piece of level near existing content and wants to se
 its surroundings. Today the canvas shows only a small window of a level that can be hundreds of tiles
 wide, and the only way to see more is to pan repeatedly. The author drags the zoom slider in the
 canvas's top controls down from 100%, and the canvas immediately redraws showing more of the level at
-once, at 75%, 50%, or 25% of the original size.
+once, at 75% or 50% of the original size.
 
 **Why this priority**: This is the feature the issue asks for — the whole reason zoom is being added.
 
@@ -62,8 +64,8 @@ Separately, scroll the wheel over the canvas and verify it steps through the sam
 
 **Acceptance Scenarios**:
 
-1. **Given** the level canvas at its default 100% zoom, **When** the author moves the slider to 75%,
-   50%, or 25%, **Then** the canvas redraws immediately showing correspondingly more of the level in
+1. **Given** the level canvas at its default 100% zoom, **When** the author moves the slider to 75%
+   or 50%, **Then** the canvas redraws immediately showing correspondingly more of the level in
    the same canvas area.
 2. **Given** the level canvas at any zoom level other than 100%, **When** the author moves the slider
    back to 100%, **Then** the canvas returns to exactly today's fixed 1:1 size.
@@ -71,7 +73,7 @@ Separately, scroll the wheel over the canvas and verify it steps through the sam
    **Then** the canvas behaves exactly as it does today, at 100% zoom.
 4. **Given** the pointer is over the canvas, **When** the author scrolls the wheel, **Then** the zoom
    steps to the next or previous level in the scroll direction and the slider updates to match.
-5. **Given** the zoom is already at 100% (the ceiling) or 25% (the floor), **When** the author scrolls
+5. **Given** the zoom is already at 100% (the ceiling) or 50% (the floor), **When** the author scrolls
    further in that same direction, **Then** the zoom simply stays at that level — it does not wrap or
    error.
 
@@ -86,7 +88,7 @@ every zoom level.
 **Why this priority**: Zoom that shows more of the level is worthless — and actively dangerous to a
 level's content — if it silently paints or erases the wrong cell.
 
-**Independent Test**: At each of the four zoom levels, click a cell near the top-left, the center, and
+**Independent Test**: At each of the three zoom levels, click a cell near the top-left, the center, and
 the bottom-right of the visible canvas, and verify each click affects exactly the cell under the
 cursor.
 
@@ -159,14 +161,14 @@ one, switch between them, and verify each canvas keeps its own zoom level.
 - **Zooming mid-drag**: The zoom slider is a separate control from the canvas; a paint-drag or a
   pan-drag in progress is unaffected by the fact that the slider exists, since the two cannot be
   operated at the same time by the same pointer.
-- **Very small zoom on a small level**: A level smaller than the canvas at 25% simply shows empty
+- **Very small zoom on a small level**: A level smaller than the canvas at 50% simply shows empty
   space around it, exactly as panning past a level's edge does today.
 - **Wheel-anchoring near the edge of a small level**: If the anchored cursor position would put the
   view somewhere a level's content can never fill, the view simply shows empty space there, exactly
   like the case above — anchoring never clamps or refuses to zoom.
 - **The dark-appearance cave-lighting preview ([O-015](../O-015-editor-dark-mode/spec.md)) at every
   zoom level**: the darkness overlay covers the whole canvas and its torch and player light pools stay
-  on the tiles they belong to, scaling with them, at 100%, 75%, 50% and 25% alike.
+  on the tiles they belong to, scaling with them, at 100%, 75%, and 50% alike.
 
 ## Requirements _(mandatory)_
 
@@ -176,9 +178,9 @@ one, switch between them, and verify each canvas keeps its own zoom level.
   the current zoom level and allowing the author to change it. Scrolling the mouse wheel while the
   pointer is over the canvas MUST also change the zoom level, stepping one level per notch in the
   scroll direction, with no modifier key required; the slider MUST update to reflect the new level.
-  Scrolling past the ceiling (100%) or the floor (25%) MUST simply hold at that level.
+  Scrolling past the ceiling (100%) or the floor (50%) MUST simply hold at that level.
 
-- **FR-002**: The zoom control MUST offer exactly four levels: 100%, 75%, 50%, and 25%. 100% MUST be
+- **FR-002**: The zoom control MUST offer exactly three levels: 100%, 75%, and 50%. 100% MUST be
   the default and MUST render identically to the canvas's current fixed size.
 
 - **FR-003**: Changing the zoom level MUST redraw the canvas immediately at the new level, showing
@@ -209,7 +211,7 @@ one, switch between them, and verify each canvas keeps its own zoom level.
 
 ### Key Entities
 
-- **Zoom level**: A per-canvas view setting, one of 100% / 75% / 50% / 25%, defaulting to 100%.
+- **Zoom level**: A per-canvas view setting, one of 100% / 75% / 50%, defaulting to 100%.
   Affects only how much of the level or blueprint a canvas shows and at what size; carries no data and
   is never persisted.
 
@@ -219,7 +221,7 @@ one, switch between them, and verify each canvas keeps its own zoom level.
   at 100%, by moving a slider, without needing to pan. Verified by browser check.
 
 - **SC-002 — No loss of paint accuracy**: Painting, erasing, and placement hover remain exactly as
-  accurate at 25%, 50%, and 75% as they are at 100%. Verified by unit tests on the pointer-to-cell
+  accurate at 50% and 75% as they are at 100%. Verified by unit tests on the pointer-to-cell
   math plus a browser check at each level.
 
 - **SC-003 — Zoom anchors predictably**: Wheel-zoom keeps the pointed-at tile fixed under the cursor;
