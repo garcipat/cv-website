@@ -120,6 +120,9 @@ export function playerStateAtTile(col: number, row: number): PlayerState {
     isDroppingThroughBridge: false,
     lastGroundedX: x,
     lastGroundedY: y,
+    // Seeded to the state's own feet, so a spawn/checkpoint respawn never
+    // carries a stale pre-death feet line into the spear's swept test.
+    prevFeetY: y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING,
     animState: 'idle',
     animFrame: 0,
     animTimer: 0,

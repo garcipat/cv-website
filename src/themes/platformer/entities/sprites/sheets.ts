@@ -268,3 +268,14 @@ export const EXPLOSION_SHEET: SpriteSheet = {
   frameHeight: 48,
   columns: 8,
 };
+
+/** `spears.png` — a standalone single 32x32 flat 2D pixel-art tile: three
+ *  uneven, blood-tipped spear points pointing up (O-020's floor spear). One
+ *  frame filling the whole image, like `KEY_SHEET`/`CHEST_CLOSED_SHEET`, so
+ *  the art maps 1:1 onto the rendered tile (`RENDERED_TILE_SIZE` is 32). */
+export const SPEAR_SHEET: SpriteSheet = {
+  src: '/sprites/spears.png',
+  frameWidth: 32,
+  frameHeight: 32,
+  columns: 1,
+};

@@ -292,6 +292,7 @@ export function stepPlayerPhysics(
         knockbackTimer: Math.max(0, player.knockbackTimer - dt),
         bounceAscending: false,
         blockContacts: [],
+        prevFeetY: player.y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING,
       };
     }
 
@@ -308,6 +309,7 @@ export function stepPlayerPhysics(
       knockbackTimer: Math.max(0, player.knockbackTimer - dt),
       bounceAscending: false,
       blockContacts: [],
+      prevFeetY: player.y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING,
     };
   }
 
@@ -351,6 +353,7 @@ export function stepPlayerPhysics(
       knockbackTimer: Math.max(0, player.knockbackTimer - dt),
       bounceAscending: false,
       blockContacts: [],
+      prevFeetY: player.y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING,
     };
   }
 
@@ -506,6 +509,7 @@ export function stepPlayerPhysics(
     // it early, so it never lingers into a later, unrelated jump.
     bounceAscending: player.bounceAscending && resolvedVy < 0,
     blockContacts,
+    prevFeetY: player.y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING,
   };
 }
 
@@ -545,6 +549,9 @@ export function resolvePitFall(player: PlayerState): PlayerState {
     vy: 0,
     grounded: true,
     isDroppingThroughBridge: false,
+    // The recovered position's own feet line, so the spear's swept test never
+    // reads a stale pre-fall value after a pit recovery.
+    prevFeetY: player.lastGroundedY + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING,
   };
 }
 

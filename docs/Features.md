@@ -51,6 +51,7 @@ graph RL
         O017["✅ O-017: Merge Pots of Different Colors"]
         O018["✅ O-018: Bouncy Mushroom Blocks"]
         O019["✅ O-019: Editor Zoom"]
+        O020["✅ O-020: Floor Spear Hazard"]
         S011["S-011: Interact Hint Overlay"]
     end
 
@@ -127,6 +128,10 @@ graph RL
     O019 --> F019
     O019 --> O006
 
+    O020 --> F015
+    O020 --> F016
+    O020 --> O005
+
     S011 --> F015
     S011 --> S009
     S011 --> S007
@@ -164,6 +169,8 @@ graph RL
     class O018 done
     class F019,O006,O007,O010,O011,O012,O015,O016,O019 enhancements
     class O019 done
+    class O020 themes
+    class O020 done
     class O012 done
     class F015,F016,F017,F018,F019,S007,S008,S009,S010,O004,O005,O009 done
     class O013 done

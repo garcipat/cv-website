@@ -994,6 +994,9 @@ describe('playerStateAtTile', () => {
     expect(state.y).toBe(expectedY);
     expect(state.lastGroundedX).toBe(expectedX);
     expect(state.lastGroundedY).toBe(expectedY);
+    // Seeded to its own feet, so a respawn never carries a stale pre-death
+    // feet line into the spear's swept contact test.
+    expect(state.prevFeetY).toBe(expectedY + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING);
     expect(state.vx).toBe(0);
     expect(state.vy).toBe(0);
     expect(state.grounded).toBe(false);

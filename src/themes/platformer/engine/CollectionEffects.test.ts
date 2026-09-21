@@ -25,6 +25,7 @@ import {
   healAuraSparkles,
   startPlayerHitSplatter,
   startEnemyHitSplatter,
+  startSpearBloodSplatter,
   tickHitSplatterEffect,
   hitSplatterDroplets,
   HIT_SPLATTER_DURATION_SECONDS,
@@ -408,6 +409,29 @@ describe('startPlayerHitSplatter', () => {
     expect(effect.color).toBe('#a30f1f');
     expect(effect.dropletCount).toBe(7);
     expect(effect.elapsed).toBe(0);
+  });
+});
+
+describe('startSpearBloodSplatter', () => {
+  it('anchorsAtTheCharacterFeetWithNoHorizontalLean', () => {
+    const effect = startSpearBloodSplatter('s', 100, 250);
+    expect(effect.x).toBe(100);
+    expect(effect.y).toBe(250);
+    expect(effect.dirBiasX).toBe(0);
+  });
+
+  it('leansUpwardAndUsesTheSharedBloodRed', () => {
+    const effect = startSpearBloodSplatter('s', 0, 0);
+    expect(effect.dirBiasY).toBeLessThan(0);
+    expect(effect.color).toBe('#a30f1f');
+    expect(effect.elapsed).toBe(0);
+  });
+
+  it('shuffleStrideIsCoprimeWithTheDropletCount', () => {
+    // A stride sharing a factor with the count collapses every droplet to one
+    // vertical slot (see HIT_SPLATTER_SHUFFLE_STRIDE's doc comment).
+    const effect = startSpearBloodSplatter('s', 0, 0);
+    expect(effect.dropletCount % 3).not.toBe(0);
   });
 });
 

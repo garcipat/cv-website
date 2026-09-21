@@ -220,3 +220,57 @@ describe('paintCell — hazard markers', () => {
     expect(result.grid[0][0]).toBe('^'); // unrelated cell untouched
   });
 });
+
+describe('paintCell — floor spear marker', () => {
+  it('paintingTheSpearTool-writesTheBrokenBarCharacter', () => {
+    const grid: TileChar[][] = [
+      ['.', '.'],
+      ['G', 'G'],
+    ];
+    const result = paintCell(grid, 0, 0, '¦');
+    expect(result.grid[0][0]).toBe('¦');
+  });
+
+  it('paintingTheSpearToolOntoAnAlreadyPlacedSpear-leavesItUnchangedAndNeverCycles', () => {
+    const grid: TileChar[][] = [
+      ['¦', '.'],
+      ['G', 'G'],
+    ];
+    const result = paintCell(grid, 0, 0, '¦');
+    expect(result.grid[0][0]).toBe('¦');
+  });
+
+  it('paintingTheSpearToolOntoASpike-replacesItWithASpear', () => {
+    const grid: TileChar[][] = [['^', '.']];
+    const result = paintCell(grid, 0, 0, '¦');
+    expect(result.grid[0][0]).toBe('¦');
+  });
+
+  it('paintingTheSpikeToolOntoASpear-replacesItWithTheSpikeKindRatherThanCyclingTheSpear', () => {
+    const grid: TileChar[][] = [
+      ['¦'],
+      ['G'],
+    ];
+    const result = paintCell(grid, 0, 0, '^');
+    expect(result.grid[0][0]).toBe('^');
+  });
+
+  it('paintingTheSpikeToolStillAutoOrientsAndCyclesItsFourFacings-regression', () => {
+    // Fresh placement on ground with open space above auto-orients up...
+    const floor = paintCell(
+      [
+        ['.', '.'],
+        ['G', 'G'],
+      ],
+      0,
+      0,
+      '^',
+    );
+    expect(floor.grid[0][0]).toBe('^');
+
+    // ...and clicking an already-placed spike still cycles to the next valid
+    // facing (solid both below and above: up -> down).
+    const cycled = paintCell([['G'], ['^'], ['G']], 0, 1, '^');
+    expect(cycled.grid[1][0]).toBe('v');
+  });
+});

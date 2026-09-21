@@ -71,6 +71,14 @@ describe('exportLayout', () => {
     warn.mockRestore();
   });
 
+  it('floorSpearMarker-roundTripsVerbatimThroughImportAndExport', () => {
+    const layout = ['S¦.', 'GGG'];
+    const grid = importLayout(layout);
+    expect(grid[0][1]).toBe('¦');
+    expect(exportLayout(grid)).toEqual(layout);
+    expect(() => parseLevel(exportLayout(grid))).not.toThrow();
+  });
+
   it('exportLayout(importLayout(LEVEL_1_LAYOUT)) keeps every row since LEVEL_1_LAYOUT (post ladder-shaft rows) has no longer any leading/trailing all-"." row, only an interior one (which stays, per crop semantics)', () => {
     // Content-cropping (this function's own job) is unconditional — spec
     // SC-010 — so it applies the same way to freshly-loaded data as to

@@ -5,7 +5,7 @@ import { takeHit } from './shared';
 import type { SlimePurpleState } from './SlimePurple';
 import type { EnemyPlacement } from '../../level/EnemyMapper';
 import type { PlayerState } from '../Player';
-import { PLAYER_HIT_REACTION_SECONDS } from '../Player';
+import { PLAYER_RENDERED_SIZE, PLAYER_FOOT_PADDING, PLAYER_HIT_REACTION_SECONDS } from '../Player';
 import type { Contact } from '../../engine/Contact';
 import { PHYSICS_CONFIG } from '../../engine/PhysicsConfig';
 
@@ -26,6 +26,7 @@ function makePlayer(): PlayerState {
     isDroppingThroughBridge: false,
     lastGroundedX: 0,
     lastGroundedY: 0,
+    prevFeetY: PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING,
     animState: 'jump',
     animFrame: 0,
     animTimer: 0,

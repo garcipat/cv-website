@@ -1,10 +1,11 @@
 import { spike } from './Spike';
+import { spear } from './Spear';
 import type { HazardType } from './HazardType';
 import type { HazardPlacement } from '../../level/HazardMapper';
 
 /** Every hazard kind in the game. Adding one is one line here plus its
  *  module — nothing else in the codebase changes. */
-export const HAZARD_TYPES = { spike };
+export const HAZARD_TYPES = { spike, spear };
 
 export type HazardTypeKey = keyof typeof HAZARD_TYPES;
 
