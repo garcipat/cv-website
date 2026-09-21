@@ -41,7 +41,7 @@ describe('parseLevel', () => {
 
   it('unknownCharacter-isSkippedAsEmptyAndWarns', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const result = parseLevel(['G?']);
+    const result = parseLevel(['GZ']);
     expect(result).toEqual({
       terrain: [['groundGrass', 'empty']],
       width: 2,
@@ -73,7 +73,7 @@ describe('parseLevel', () => {
     expect(ENTITY_CHARS.m).toBe('enemyPurple');
     expect(ENTITY_CHARS.o).toBe('coin');
     expect(ENTITY_CHARS['=']).toBe('crate');
-    expect(ENTITY_CHARS.Q).toBe('questionMark');
+    expect(ENTITY_CHARS['?']).toBe('questionMark');
     expect(ENTITY_CHARS.F).toBe('fragileRock');
     expect(ENTITY_CHARS.u).toBe('coinPot');
     expect(ENTITY_CHARS.p).toBe('potionPot');
@@ -304,7 +304,7 @@ describe('findQuestionMarkTiles', () => {
   });
 
   it('multipleMarkers-returnsAllInReadingOrder', () => {
-    expect(findQuestionMarkTiles(['.Q', 'Q.'])).toEqual([
+    expect(findQuestionMarkTiles(['.?', '?.'])).toEqual([
       { col: 1, row: 0 },
       { col: 0, row: 1 },
     ]);
@@ -328,7 +328,7 @@ describe('findFragileRockTiles', () => {
   });
 
   it('crateOrQuestionMarkMarker-isNotCountedAsFragileRock', () => {
-    expect(findFragileRockTiles(['=Q'])).toEqual([]);
+    expect(findFragileRockTiles(['=?'])).toEqual([]);
   });
 });
 
@@ -345,7 +345,7 @@ describe('findCoinPotTiles', () => {
   });
 
   it('crateOrQuestionMarkMarker-isNotCountedAsCoinPot', () => {
-    expect(findCoinPotTiles(['=Q'])).toEqual([]);
+    expect(findCoinPotTiles(['=?'])).toEqual([]);
   });
 });
 
@@ -615,7 +615,7 @@ describe('mushroom terrain characters', () => {
 describe('TileChar', () => {
   it('includes every TERRAIN_CHARS, ENTITY_CHARS, SIGN_CHARS, and HAZARD_CHARS key', () => {
     const tileChars: readonly TileChar[] = [
-      '.', 'G', 'R', '#', 'B', 'H', 'I', 'P', '+', 'S', 'M', 'm', 'o', '=', 'Q', 'F', '$', 'u', 'p',
+      '.', 'G', 'R', '#', 'B', 'H', 'I', 'P', '+', 'S', 'M', 'm', 'o', '=', '?', 'F', '$', 'u', 'p',
       'b', 'n', 'N', 'X', 'c', '⊤', '⊥', '¥', '1', '2', '3', '4', '5', '6', '^', 'v', '<', '>', 'C', '@',
       '§', 's',
     ];

@@ -154,7 +154,7 @@ export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
     frameWidth: 16,
     frameHeight: 16,
   },
-  Q: {
+  '?': {
     sheet: WORLD_TILESET,
     sheetWidth: 256,
     sheetHeight: 256,
@@ -476,7 +476,7 @@ export const PALETTE_TILE_DESCRIPTIONS: Record<TileChar, string> = {
   m: 'Purple slime; stomping it drops a key',
   o: 'Coin; collecting it reveals one skill category',
   '=': 'Crate block; hit it from below to reveal a CV fact',
-  Q: 'Question block; hit it from below to pop a bonus fruit',
+  '?': 'Question block; hit it from below to pop a bonus fruit',
   F: 'Fragile rock; hit it from below to break it open',
   u: 'Coin-pot; land on it from above to break it and drop a coin',
   p: 'Potion-pot; land on it from above to break it and drop a heart that heals half a heart',
@@ -523,7 +523,7 @@ export const PALETTE_TILE_LABELS: Record<TileChar, string> = {
   m: 'Enemy Purple',
   o: 'Coin',
   '=': 'Crate',
-  Q: 'Question Mark',
+  '?': 'Question Mark',
   F: 'Fragile Rock',
   u: 'Coin Pot',
   p: 'Potion Pot',

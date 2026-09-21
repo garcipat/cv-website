@@ -48,7 +48,7 @@ export const TERRAIN_CHARS: Record<string, TileType | undefined> = {
  * Maps each entity-marker character usable in a level layout to what it
  * marks: `S` (spawn), `M` (green/Course enemy), `m` (purple enemy — carries
  * no CV fact, drops a key on defeat), `o` (Skill-category coin), `=` (crate block — Education/Activity/
- * Language fact), `Q` (question-mark block — no fact, spawns a bonus fruit),
+ * Language fact), `?` (question-mark block — no fact, spawns a bonus fruit),
  * `F` (fragileRock block — no fact, level-design filler), `u` (coin-pot block —
  * destroyed by landing on top, drops a coin; lowercase, a small urn-shaped
  * glyph, unlike every other entity marker which is uppercase), `p` (potion-pot
@@ -72,7 +72,7 @@ export const ENTITY_CHARS: Record<string, EntityKind | undefined> = {
   m: 'enemyPurple',
   o: 'coin',
   '=': 'crate',
-  Q: 'questionMark',
+  '?': 'questionMark',
   F: 'fragileRock',
   u: 'coinPot',
   p: 'potionPot',
@@ -177,7 +177,7 @@ export type TileChar =
   | 'm'
   | 'o'
   | '='
-  | 'Q'
+  | '?'
   | 'F'
   | '$'
   | 'u'
@@ -368,7 +368,7 @@ export function findCrateTiles(layout: readonly string[]): { col: number; row: n
   return findAllOfKind(layout, 'crate');
 }
 
-/** Finds every `Q` (question-mark block) marker's position in a level
+/** Finds every `?` (question-mark block) marker's position in a level
  *  layout. Question-mark blocks carry no CV fact (spec.md's FR-021
  *  amendment) — every marker found here becomes a placement directly (see
  *  BlockMapper.ts's placeBlocks), unlike findCrateTiles's markers which are
