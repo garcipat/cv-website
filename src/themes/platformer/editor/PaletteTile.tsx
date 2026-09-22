@@ -112,14 +112,21 @@ export const PaletteTile = ({
               }}
             >
               <img
-                src={sprite.sheet}
+                // Every existing overlay omits `sheet`/`sheetWidth`/
+                // `sheetHeight` and draws from the base spec's own — these
+                // three fall back to it independently. `g`'s crack overlay
+                // is the first to supply its own: a second file
+                // (crumble_cracks.png) at a genuinely different native size
+                // (48x8) from the base sheet (16x16), so reusing the base's
+                // sheetWidth/sheetHeight here would stretch/distort it.
+                src={sprite.overlay.sheet ?? sprite.sheet}
                 alt=""
                 style={{
                   position: 'absolute',
                   left: -sprite.overlay.sx * scale,
                   top: -sprite.overlay.sy * scale,
-                  width: sprite.sheetWidth * scale,
-                  height: sprite.sheetHeight * scale,
+                  width: (sprite.overlay.sheetWidth ?? sprite.sheetWidth) * scale,
+                  height: (sprite.overlay.sheetHeight ?? sprite.sheetHeight) * scale,
                   maxWidth: 'none',
                   imageRendering: 'pixelated',
                 }}

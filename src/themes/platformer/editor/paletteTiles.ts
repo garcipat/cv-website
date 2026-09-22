@@ -36,7 +36,15 @@ export interface TileSpriteSpec {
    * overlay fills the base's own `frameHeight`, unchanged from before this
    * field existed.
    */
-  overlay?: { sx: number; sy: number; frameHeight?: number };
+  /** `sheet` (and its native `sheetWidth`/`sheetHeight`) default to the base
+   *  spec's own when omitted — every existing overlay (e.g. `G`'s grass
+   *  tuft) draws from the same sheet as its base crop, at that sheet's own
+   *  dimensions. `g`'s crack overlay is the first to need a second file
+   *  (`crumble_cracks.png`, separate from `crumble_floor.png`, and a
+   *  different native size — 48x8 vs. 16x16), so all three are optional
+   *  here rather than assumed; the rendering code (`PaletteTile.tsx`) falls
+   *  each back to the base spec's own value independently. */
+  overlay?: { sheet?: string; sheetWidth?: number; sheetHeight?: number; sx: number; sy: number; frameHeight?: number };
 }
 
 const WORLD_TILESET = '/sprites/world_tileset.png';
@@ -305,6 +313,33 @@ export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
     frameWidth: 16,
     frameHeight: 16,
   },
+  g: {
+    // crumble_floor.png's one frame — a half-height ledge, top-aligned in
+    // its 16x16 cell (O-023). Same sheet the live game reads. The overlay
+    // composites crumble_cracks.png's frame 0 (the lightest crack stage) on
+    // top, at the same position/scale the live game uses for its cracking
+    // phase — so the palette icon reads as "unstable ground" at a glance
+    // instead of looking like a plain short platform. crumble_cracks.png is
+    // a 48x8 strip (3 frames of 16x8, see CRUMBLE_CRACKS_SHEET) — a
+    // genuinely different native size from the 16x16 base sheet, hence the
+    // overlay's own sheetWidth/sheetHeight rather than inheriting the
+    // base's.
+    sheet: '/sprites/crumble_floor.png',
+    sheetWidth: 16,
+    sheetHeight: 16,
+    sx: 0,
+    sy: 0,
+    frameWidth: 16,
+    frameHeight: 16,
+    overlay: {
+      sheet: '/sprites/crumble_cracks.png',
+      sheetWidth: 48,
+      sheetHeight: 8,
+      sx: 0,
+      sy: 0,
+      frameHeight: 8,
+    },
+  },
   '§': {
     // The complete-mushroom crop (16x16 at 0,0) of the red row of
     // mushroom.png (see MUSHROOM_SHEET). '§' is quoted: it is not a valid JS
@@ -548,6 +583,7 @@ export const PALETTE_TILE_DESCRIPTIONS: Record<TileChar, string> = {
   '⊥': 'Stalagmite; purely decorative, auto-picks a size variant',
   '¥': 'Wall torch; purely decorative, flame sparkles',
   '@': 'Rope ladder bundle; press Up while standing on it to unroll a rope ladder down to the ground below',
+  g: 'Cracks and shakes underfoot, then breaks and falls away; reforms after a short delay',
   '§': 'Land on its cap to be launched upward; walk and jump through it freely',
   s: 'Small mushroom; purely decorative, no effect',
   '1': 'Hint sign; click it again on the canvas to cycle its hint',
@@ -597,6 +633,7 @@ export const PALETTE_TILE_LABELS: Record<TileChar, string> = {
   '⊥': 'Stalagmite',
   '¥': 'Torch',
   '@': 'Rope Ladder Bundle',
+  g: 'Crumbling Floor',
   '§': 'Bouncy Mushroom',
   s: 'Small Mushroom',
   '1': 'Sign',
