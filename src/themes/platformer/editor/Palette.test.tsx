@@ -68,6 +68,11 @@ describe('Palette', () => {
     expect(palette.tile('o')).toHaveAccessibleName('Coin');
   });
 
+  it('renders the bee tile derived from ENTITY_CHARS with no per-kind palette code', () => {
+    render(<Palette {...defaultProps} />);
+    expect(palette.tile('q')).toHaveAccessibleName('Bee');
+  });
+
   it('calls onSelectTool with the clicked terrain char', async () => {
     const onSelectTool = vi.fn();
     render(<Palette {...defaultProps} onSelectTool={onSelectTool} />);

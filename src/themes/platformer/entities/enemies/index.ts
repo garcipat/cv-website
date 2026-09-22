@@ -1,15 +1,17 @@
 import { slimeGreen } from './SlimeGreen';
 import { slimePurple } from './SlimePurple';
+import { bee } from './Bee';
 import type { SlimeGreenState } from './SlimeGreen';
 import type { SlimePurpleState } from './SlimePurple';
+import type { BeeState } from './Bee';
 import type { EnemyType, BaseEnemyState } from './EnemyType';
 
 /** Every enemy type in the game. Adding an enemy is one line here plus its
  *  module plus its sprite asset — nothing else in the codebase changes. */
-export const ENEMY_TYPES = { slimeGreen, slimePurple };
+export const ENEMY_TYPES = { slimeGreen, slimePurple, bee };
 
 export type EnemyTypeKey = keyof typeof ENEMY_TYPES;
-export type EnemyState = SlimeGreenState | SlimePurpleState;
+export type EnemyState = SlimeGreenState | SlimePurpleState | BeeState;
 
 /**
  * The module owning `enemy`.

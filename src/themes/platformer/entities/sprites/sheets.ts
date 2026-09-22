@@ -280,6 +280,17 @@ export const SPEAR_SHEET: SpriteSheet = {
   columns: 1,
 };
 
+/** `bee.png` — a 192x168 flat 2D pixel-art sheet: an 8x7 grid of 24x24
+ *  cells. Row 5 (sheet frames 32-39) is the neutral flight loop the bee's
+ *  `fly` animation plays (see entities/enemies/Bee.ts). Addressed by frame
+ *  index via `frameSource`, the same convention as `SLIME_*_SHEET`. */
+export const BEE_SHEET: SpriteSheet = {
+  src: '/sprites/bee.png',
+  frameWidth: 24,
+  frameHeight: 24,
+  columns: 8,
+};
+
 /** `spikes.png` — a 48x20 strip of three horizontally-laid-out 16x20
  *  frames (O-021): 0 = at-rest tell, 1 = armed (a small nub, shown during
  *  the post-contact delay before the spike starts rising), 2 = the spike

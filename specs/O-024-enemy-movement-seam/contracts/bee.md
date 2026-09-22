@@ -20,7 +20,7 @@ export const bee: EnemyType<BeeState> = { /* see below */ };
 | Sheet | `BEE_SHEET` (`/sprites/bee.png`, already present): 192x168, 8 columns x 7 rows of 24x24 **cells** |
 | Visible art | Smaller than the cell and **not bottom-anchored**: row 5 (the fly loop) measures x=3..21, y=7..18 — ~18–19 px wide, ~12 px tall, with transparent margins of ~3 px left, ~2 px right, 7 px top, 5 px bottom |
 | `renderScale` | `1` → a 48 px cell, so the visible bee is ~38×24 px on screen (smaller than a slime's silhouette; may be raised after the browser check) |
-| `hitboxPaddingNative` | `{ side: 3, top: 7, bottom: 5 }` — measured from the fly frames; the `bottom` inset (FR-019) pulls the collision box up to the art's bottom and anchors the draw on the placement row |
+| `hitboxPaddingNative` | `{ side: 7, top: 7, bottom: 5 }` — hugs the **body**, not the wing span: the full art is ~18 px wide (wings out) but the body is ~10 px wide by ~12 px tall, so the box is taller than wide (20×24 px) and the wing tips overhang; the `bottom` inset (FR-019) pulls the collision box up to the art's bottom and anchors the draw on the placement row |
 | `animations.fly` | frames `[32..39]` (row 5, the neutral flight loop), `frameDuration: 0.12` |
 | `animations.hit` | **not declared** — FR-009's fallback reuses `fly` during the reaction |
 | `defaultAnimState` | `'fly'` (must exist in the table; asserted by the contract test) |
@@ -28,7 +28,7 @@ export const bee: EnemyType<BeeState> = { /* see below */ };
 
 ## Movement
 
-`movement: flyMovement({ speed: 70, bobAmplitude: 6, bobPeriod: 1.4, sprite:
+`movement: flyMovement({ speed: 40, bobAmplitude: 6, bobPeriod: 1.4, sprite:
 BEE_SPRITE, hitboxPaddingNative })` — see [fly.md](./fly.md). No chase.
 
 ## Combat (identical to a green slime)

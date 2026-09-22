@@ -1,11 +1,18 @@
 import type { EnemyType, BaseEnemyState } from './EnemyType';
-import { baseEnemyState, baseRevive, takeHit, ENEMY_HIT_REACTION_SECONDS } from './shared';
+import {
+  baseEnemyState,
+  baseRevive,
+  takeHit,
+  ENEMY_HIT_REACTION_SECONDS,
+  type EnemyBaseConfig,
+} from './shared';
 import { isInvulnerable } from '../capabilities';
 import { ENEMY_ANIMATIONS } from './EnemyAnimation';
 import { SLIME_PURPLE_SHEET, KEY_SHEET } from '../sprites/sheets';
 import type { SpriteDescriptor } from '../sprites/SpriteSheet';
 import { drawSpriteSheetEntity } from './drawSpriteSheetEntity';
 import { spriteSheetHitbox } from './spriteSheetHitbox';
+import { patrolMovement } from './movement/patrol';
 import { RENDER_SCALE, RENDERED_TILE_SIZE } from '../../level/Terrain';
 import { KEY_FRAME_WIDTH, KEY_FRAME_HEIGHT } from '../KeyPickup';
 import type { DrawContext } from '../../engine/DrawContext';
@@ -28,8 +35,18 @@ const SLIME_PURPLE_SPRITE: SpriteDescriptor = {
 };
 
 /** Transparent margin inside the native frame, in pre-scale pixels — the
- *  inset `box` below takes the collision hitbox in from the render slot by. */
-const HITBOX_PADDING_NATIVE = { side: 5, top: 9 };
+ *  inset `box` below takes the collision hitbox in from the render slot by.
+ *  `bottom: 0`: the slime's feet already touch the native frame's bottom edge
+ *  (see HITBOX_PADDING_NATIVE's own doc comment), so FR-019's bottom inset
+ *  leaves its box and anchor unchanged. */
+const HITBOX_PADDING_NATIVE = { side: 5, top: 9, bottom: 0 };
+
+const SLIME_PURPLE_BASE_CONFIG: EnemyBaseConfig = {
+  maxHitPoints: 3,
+  hitReactionSeconds: ENEMY_HIT_REACTION_SECONDS,
+  defaultAnimState: 'walk',
+  animations: SLIME_PURPLE_SPRITE.animations,
+};
 
 /** The held key is drawn at a FRACTION of the slime's own opaque silhouette
  *  height (not KEY_RENDERED_WIDTH/HEIGHT, which is sized for the standalone
@@ -134,19 +151,25 @@ export const slimePurple: EnemyType<SlimePurpleState> = {
   key: 'slimePurple',
   maxHitPoints: 3,
   hitReactionSeconds: ENEMY_HIT_REACTION_SECONDS,
-  patrolSpeedMultiplier: 0.7,
+  movement: patrolMovement({
+    speedMultiplier: 0.7,
+    sprite: SLIME_PURPLE_SPRITE,
+    hitboxPaddingNative: HITBOX_PADDING_NATIVE,
+    animState: 'walk',
+  }),
+  defaultAnimState: 'walk',
   hitboxPaddingNative: HITBOX_PADDING_NATIVE,
   sprite: SLIME_PURPLE_SPRITE,
   heldItem: 'key',
 
   create: (placement, index) => ({
-    ...baseEnemyState(placement, index, 3, slimePurple.hitReactionSeconds),
+    ...baseEnemyState(placement, index, SLIME_PURPLE_BASE_CONFIG),
     type: 'slimePurple',
     spiked: false,
     spikeTimer: 0,
   }),
   revive: (enemy) => ({
-    ...baseRevive(enemy, 3, slimePurple.hitReactionSeconds),
+    ...baseRevive(enemy, SLIME_PURPLE_BASE_CONFIG),
     type: 'slimePurple',
     spiked: false,
     spikeTimer: 0,
@@ -204,7 +227,7 @@ export const slimePurple: EnemyType<SlimePurpleState> = {
       );
     }
 
-    drawSpriteSheetEntity(enemy, dc, SLIME_PURPLE_SPRITE);
+    drawSpriteSheetEntity(enemy, dc, SLIME_PURPLE_SPRITE, 'walk');
 
     if (enemy.alive && enemy.spiked) {
       drawSpikes(enemy, dc, dx, dy, size, sidePadding, topPadding);
