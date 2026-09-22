@@ -38,6 +38,10 @@ import {
   startExplosionEffect,
   tickExplosionEffect,
   explosionFrameIndex,
+  startCrumbleDebrisEffect,
+  tickCrumbleDebrisEffect,
+  crumbleDebrisPieces,
+  CRUMBLE_DEBRIS_DURATION_SECONDS,
 } from './CollectionEffects';
 import type { PuffEffect, HealAuraEffect } from './CollectionEffects';
 
@@ -226,6 +230,60 @@ describe('startPuffEffect / tickPuffEffect', () => {
     const effect = startPuffEffect('rock-1', 100, 200, 1.5);
     const ticked = tickPuffEffect(effect, 0.1);
     expect(ticked).toEqual<PuffEffect>({ id: 'rock-1', x: 100, y: 200, scale: 1.5, pixel: false, elapsed: 0.1 });
+  });
+});
+
+describe('startCrumbleDebrisEffect', () => {
+  it('id-x-y-buildsAZeroElapsedEffect', () => {
+    expect(startCrumbleDebrisEffect('d1', 10, 20)).toEqual({ id: 'd1', x: 10, y: 20, elapsed: 0 });
+  });
+});
+
+describe('tickCrumbleDebrisEffect', () => {
+  it('dt-addsToElapsed', () => {
+    const effect = startCrumbleDebrisEffect('d1', 0, 0);
+    expect(tickCrumbleDebrisEffect(effect, 0.1).elapsed).toBeCloseTo(0.1, 5);
+  });
+});
+
+describe('crumbleDebrisPieces', () => {
+  it('alwaysReturnsExactlyFourPieces', () => {
+    const effect = startCrumbleDebrisEffect('d1', 0, 0);
+    expect(crumbleDebrisPieces(effect)).toHaveLength(4);
+  });
+
+  it('zeroElapsed-piecesHaveNoOffsetAndFullOpacity', () => {
+    const effect = startCrumbleDebrisEffect('d1', 0, 0);
+    for (const piece of crumbleDebrisPieces(effect)) {
+      expect(piece.dx).toBe(0);
+      expect(piece.dy).toBe(0);
+      expect(piece.opacity).toBe(1);
+    }
+  });
+
+  it('midway-opacityIsBetweenZeroAndOne', () => {
+    const effect = tickCrumbleDebrisEffect(
+      startCrumbleDebrisEffect('d1', 0, 0),
+      CRUMBLE_DEBRIS_DURATION_SECONDS / 2,
+    );
+    for (const piece of crumbleDebrisPieces(effect)) {
+      expect(piece.opacity).toBeGreaterThan(0);
+      expect(piece.opacity).toBeLessThan(1);
+    }
+  });
+
+  it('pastDuration-opacityClampsToZero', () => {
+    const effect = tickCrumbleDebrisEffect(startCrumbleDebrisEffect('d1', 0, 0), CRUMBLE_DEBRIS_DURATION_SECONDS + 5);
+    for (const piece of crumbleDebrisPieces(effect)) {
+      expect(piece.opacity).toBe(0);
+    }
+  });
+
+  it('piecesDivergeFromEachOtherOverTime', () => {
+    const effect = tickCrumbleDebrisEffect(startCrumbleDebrisEffect('d1', 0, 0), 0.1);
+    const pieces = crumbleDebrisPieces(effect);
+    const offsets = pieces.map((p) => `${p.dx},${p.dy}`);
+    expect(new Set(offsets).size).toBe(4);
   });
 });
 
