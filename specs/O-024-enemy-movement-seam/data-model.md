@@ -182,7 +182,7 @@ A flying enemy. One new module, one registry line.
 | `hitReactionSeconds` | `ENEMY_HIT_REACTION_SECONDS` (0.4) | Same reaction/refractory window as a green slime (FR-012). |
 | `movement` | `flyMovement({...})` | FR-004/FR-005/FR-006. |
 | `defaultAnimState` | `'fly'` | Present in its own table; the reaction falls back to it (FR-009). |
-| `hitboxPaddingNative` | `{ side: 3, top: 7, bottom: 5 }` | Measured from the fly frames (row 5: art x=3..21, y=7..18 in the 24×24 cell); `side` is a single **symmetric** value, so the larger measured side is used (the left/right asymmetry is not representable, by design); tuned in implementation. Insets the collision box to the visible bee and anchors it by the art's bottom (FR-019/SC-009). |
+| `hitboxPaddingNative` | `{ side: 7, top: 7, bottom: 5 }` | Hugs the **body**, not the wing span: the full art is ~18 px wide (wings out) but the body is ~10 px wide by ~12 px tall, so the box is taller than wide (20×24 px) and the wing tips overhang; `side` is a single **symmetric** value, so the larger measured side is used (the left/right asymmetry is not representable, by design); tuned in implementation. Insets the collision box to the visible bee and anchors it by the art's bottom (FR-019/SC-009). |
 | `sprite` | `{ sheet: BEE_SHEET, renderScale: 1, animations: BEE_ANIMATIONS }` | The cell is 48 px on screen; the visible bee is ~38 px wide, ~24 px tall. |
 | `heldItem` | `null` | Drops nothing (FR-013). |
 | `create` / `revive` | `baseEnemyState`/`baseRevive` + `type: 'bee'` | Seeds `animState: 'fly'` and the fly-loop stagger. |

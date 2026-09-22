@@ -7,6 +7,7 @@ export type EntityKind =
   | 'spawn'
   | 'enemyGreen'
   | 'enemyPurple'
+  | 'enemyBee'
   | 'coin'
   | 'crate'
   | 'questionMark'
@@ -54,9 +55,11 @@ export const TERRAIN_CHARS: Record<string, TileType | undefined> = {
  * glyph, unlike every other entity marker which is uppercase), `p` (potion-pot
  * block — destroyed by landing on top like a coin-pot, drops a heart pickup
  * that heals half a heart; no fact, same no-CVData-binding convention as
- * coin-pot/fragileRock), `b` (bomb-pot block — destroyed by landing on top
+ * `coin-pot/fragileRock), `b` (bomb-pot block — destroyed by landing on top
  * like the other pots, drops a bomb pickup the player carries and places;
- * no fact, same no-CVData-binding convention, O-012), `$` (chest —
+ * no fact, same no-CVData-binding convention, O-012), `q` (bee enemy — flies
+ * horizontally over gaps, stompable like a green slime, drops nothing and
+ * counts toward nothing; O-024), `$` (chest —
  * Experience fact, opened via Arrow Up while standing on it, spec.md
  * FR-023), `C` (checkpoint — no CV fact, raises a flag once stepped on with
  * solid ground below and becomes the active respawn point for the rest of the
@@ -70,6 +73,7 @@ export const ENTITY_CHARS: Record<string, EntityKind | undefined> = {
   S: 'spawn',
   M: 'enemyGreen',
   m: 'enemyPurple',
+  q: 'enemyBee',
   o: 'coin',
   '=': 'crate',
   '?': 'questionMark',
@@ -181,6 +185,7 @@ export type TileChar =
   | 'S'
   | 'M'
   | 'm'
+  | 'q'
   | 'o'
   | '='
   | '?'
@@ -358,6 +363,14 @@ export function findGreenEnemyTiles(layout: readonly string[]): { col: number; r
  *  enemy defs instead of project-derived ones. */
 export function findPurpleEnemyTiles(layout: readonly string[]): { col: number; row: number }[] {
   return findAllOfKind(layout, 'enemyPurple');
+}
+
+/** Finds every `q` (bee) marker's position in a level layout, in reading
+ *  order — a plain, position-derived enemy carrying no CV fact (O-024), so
+ *  every marker found here becomes one placement directly (see
+ *  EnemyMapper.ts's placeBees). */
+export function findBeeTiles(layout: readonly string[]): { col: number; row: number }[] {
+  return findAllOfKind(layout, 'enemyBee');
 }
 
 /** Finds every `o` (Skill-category coin) marker's position in a level

@@ -10,6 +10,7 @@ import type {
   Personality,
 } from '@/types/cv';
 import type { Translation } from '@/i18n/translations';
+import type { EnemyTypeKey } from './entities/enemies';
 
 /**
  * Every top-level CV section that can back a journal bookmark. Matches the
@@ -91,7 +92,9 @@ export interface CollectedFact {
  */
 export interface EnemyDef {
   id: string;
-  type: 'slimeGreen' | 'slimePurple';
+  /** Key into ENEMY_TYPES — derived from the registry, so registering a new
+   *  kind widens this union for free (research D7). */
+  type: EnemyTypeKey;
   /** Absent for a "plain" enemy — a level-author-placed marker beyond
    *  CVData's course count for that color (see `EnemyMapper.ts`'s
    *  `placeEnemies`). Enemies are not capped at CVData's length: only

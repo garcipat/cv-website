@@ -175,10 +175,10 @@ own state/table through keeps one stagger implementation for every kind.
 | `sprite.renderScale` | `1` | The cell is `24px * RENDER_SCALE(2) * 1 = 48px`; the visible bee is ~38×24 px, smaller than a slime's silhouette, so the render scale may be raised after the browser check. |
 | `animations.fly.frames` | `[32, 33, 34, 35, 36, 37, 38, 39]` | Row 5 of the 8×7 bee sheet = the neutral flight loop (design §5). |
 | `animations.fly.frameDuration` | `0.12` | Flutter faster than a slime's 0.15 walk; game feel. |
-| `speed` | `70` px/s | A little faster than a slime's 60; game feel. |
+| `speed` | `40` px/s | Two-thirds of a slime's 60 — a calm hover; game feel (tuned down from an initial 70 after the browser check). |
 | `bobAmplitude` | `6` px | ~⅕ tile — clearly visible, never leaves the lane. |
 | `bobPeriod` | `1.4` s | One slow, readable cycle. |
-| `hitboxPaddingNative` | `{ side: 3, top: 7, bottom: 5 }` | Measured from the fly frames (row 5: art x=3..21, y=7..18 in the 24×24 cell); an insect reads tighter than a slime, and the bottom inset anchors the floating art (FR-019). |
+| `hitboxPaddingNative` | `{ side: 7, top: 7, bottom: 5 }` | Hugs the **body**, not the wing span: the full art is ~18 px wide (wings out) but the body is ~10 px wide by ~12 px tall, so the box is taller than wide and the wing tips overhang (FR-019). |
 | `bodyAlpha` | `1` | The bee is opaque; the shared blit's slime alpha (0.78) exists so a held key shows through, which the bee has no reason to inherit. |
 
 No `hit` row is authored: FR-009's fallback makes the bee reuse `fly` during its

@@ -13,7 +13,7 @@ import { centerPanOnSpawn } from './EditorPan';
 import { levelEditorPage } from './LevelEditorPage.page';
 import type { TileChar, BackgroundChar } from '../level/LevelParser';
 import type { EditorImages } from './EditorCanvas';
-import { COIN_SHEET, STATIC_OBJECTS_SHEET, SPEAR_SHEET } from '../entities/sprites/sheets';
+import { COIN_SHEET, STATIC_OBJECTS_SHEET, SPEAR_SHEET, BEE_SHEET } from '../entities/sprites/sheets';
 
 vi.mock('../engine/Renderer', () => ({
   drawTerrain: vi.fn(),
@@ -57,6 +57,7 @@ const EMPTY_IMAGES: EditorImages = {
   fruit: null,
   slimeGreen: null,
   slimePurple: null,
+  bee: null,
   crackOverlay: null,
   chestClosed: null,
   checkpoint: null,
@@ -418,6 +419,29 @@ describe('EditorCanvas', () => {
       expect.anything(),
       expect.arrayContaining([expect.objectContaining({ id: 'editor-chest-0' })]),
       expect.objectContaining({ originX: 5, originY: 7 }),
+    );
+  });
+
+  it('a "q" cell previews the bee sprite through the draw context sprite map', () => {
+    stubCanvasContext();
+    const bee = {} as HTMLImageElement;
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['q']]}
+        selectedTool="G"
+        panOffset={{ x: 0, y: 0 }}
+        images={{ ...EMPTY_IMAGES, bee }}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+    expect(drawEnemies).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.arrayContaining([expect.objectContaining({ type: 'bee', animState: 'fly' })]),
+      expect.objectContaining({
+        sprites: expect.objectContaining({ [BEE_SHEET.src]: bee }),
+      }),
     );
   });
 

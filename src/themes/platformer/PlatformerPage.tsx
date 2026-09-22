@@ -56,7 +56,7 @@ import { createGameLoop } from './engine/GameLoop';
 import { stepPlayerPhysics, checkPitFall, resolvePitFall, playerOnMushroomCap } from './engine/Physics';
 import { startMushroomSquash } from './engine/MushroomSquash';
 import { PHYSICS_CONFIG } from './engine/PhysicsConfig';
-import { stepEnemyPatrol, stepEnemyHitReaction } from './engine/EnemyAI';
+import { stepEnemyHitReaction } from './engine/EnemyAI';
 import { updateCamera, updateCameraY, initialCameraX, initialCameraY } from './engine/Camera';
 import { createKeyboardInput } from './engine/Input';
 import type { KeyboardInput } from './engine/Input';
@@ -181,6 +181,7 @@ import {
 import { frameSource, collectSheetSources } from './entities/sprites/SpriteSheet';
 import type { SpriteLookup } from './entities/sprites/SpriteSheet';
 import { ENEMY_TYPES, typeOf } from './entities/enemies';
+import type { MovementContext } from './entities/enemies/movement/MovementStrategy';
 import type { EnemyTypeKey } from './entities/enemies';
 import { spearTipMaskFromImage, setSpearTipMask } from './entities/hazards/SpearArt';
 import { PICKUP_TYPES } from './entities/pickups';
@@ -1115,15 +1116,15 @@ export const PlatformerPage = () => {
       });
 
       // Enemies currently reacting to a stomp (animState 'hit') run their
-      // reaction timer instead of patrolling — stepEnemyHitReaction either
-      // holds them frozen, reverts them to 'walk', or flags them `alive:
-      // false` once the reaction finishes (a type module's own
-      // `onPlayerCollide` is what put
+      // reaction timer instead of moving — stepEnemyHitReaction either
+      // holds them frozen, reverts them to their kind's own default state, or
+      // flags them `alive: false` once the reaction finishes (a type module's
+      // own `onPlayerCollide` is what put
       // them into 'hit' in the first place, below). A dead enemy (`!alive`)
-      // is skipped entirely — it stays in the array but is neither patrolled
+      // is skipped entirely — it stays in the array but is neither moved
       // nor animated.
       //
-      // stepEnemyPatrol also needs to know about currently-live blocks
+      // The movement step also needs to know about currently-live blocks
       // (crate/questionMark/fragileRock) — LevelParser.ts resolves their
       // level-layout markers to 'empty' terrain, so the static grid alone
       // can't tell an enemy it's standing on/beside one. Derive the live
@@ -1136,11 +1137,26 @@ export const PlatformerPage = () => {
           col: Math.round(block.x / RENDERED_TILE_SIZE),
           row: Math.round(block.y / RENDERED_TILE_SIZE),
         }));
+      // One context per tick, shared by every enemy that tick. The player box
+      // feeds proximity strategies (chase); `elapsed` is the existing shared
+      // world clock the fly bob's phase reads, so the bob freezes with the
+      // world on pause/death and resumes on the same phase (research D8).
+      const movementCtx: MovementContext = {
+        level: currentLevel.value,
+        blockedTiles,
+        player: {
+          x: playerState.value.x,
+          y: playerState.value.y,
+          width: PLAYER_RENDERED_SIZE,
+          height: PLAYER_RENDERED_SIZE,
+        },
+        elapsed: worldAnimElapsed,
+      };
       const stepEnemy = (enemy: EnemyState): EnemyState => {
         const next =
           enemy.animState === 'hit'
             ? stepEnemyHitReaction(enemy, dt)
-            : stepEnemyPatrol(enemy, currentLevel.value, dt, blockedTiles);
+            : typeOf(enemy).movement.step(enemy, movementCtx, dt);
         return advanceEnemyAnimation(typeOf(next).onTick?.(next, dt) ?? next, dt);
       };
       enemyStates.value = enemyStates.value.map((enemy) => (enemy.alive ? stepEnemy(enemy) : enemy));
@@ -1227,8 +1243,10 @@ export const PlatformerPage = () => {
           // can own more than one). No counterKey here: the enemies popup is
           // bumped below instead, for every defeated green slime rather than
           // only ones that happen to reveal a fact (see that bump's own
-          // comment).
-          greenDefeatedThisTick = true;
+          // comment). The popup bump is gated on `slimeGreen` explicitly: a
+          // defeated bee (or any other non-key, fact-less kind) still earns
+          // its puff but counts toward nothing (FR-013/SC-008).
+          if (enemy.type === 'slimeGreen') greenDefeatedThisTick = true;
           newPuffs.push(startPuffEffect(enemy.id, puffX, puffY, anchor.scale));
           const facts = [enemy.fact, ...(enemy.extraFacts ?? [])].filter(
             (fact): fact is CollectedFact => fact !== undefined,
