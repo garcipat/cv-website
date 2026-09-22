@@ -99,13 +99,21 @@ export const PaletteTile = ({
               style={{
                 position: 'absolute',
                 left: 0,
-                // Bottom-anchored: a shorter overlay frameHeight sits flush
-                // with the base's own bottom edge rather than its top, so a
-                // partial slice reads as "emerging from the ground" instead
-                // of "hanging from the ceiling". Omitted (grass overlay),
-                // this is 0 and the overlay fills the full footprint exactly
-                // as before.
-                top: (sprite.frameHeight - (sprite.overlay.frameHeight ?? sprite.frameHeight)) * scale,
+                // Default ('bottom', every overlay before `g`): a shorter
+                // overlay frameHeight sits flush with the base's own bottom
+                // edge rather than its top, so a partial slice reads as
+                // "emerging from the ground" instead of "hanging from the
+                // ceiling". Omitted frameHeight (grass overlay), this is 0
+                // and the overlay fills the full footprint exactly as
+                // before. 'top' instead sits flush with the base sprite's
+                // own top edge — the crumbling floor's crack overlay needs
+                // this because its base art (crumble_floor.png) is itself
+                // top-aligned in its cell, matching Renderer.ts's live
+                // compositing at the same y as the ledge's own top.
+                top:
+                  sprite.overlay.anchor === 'top'
+                    ? 0
+                    : (sprite.frameHeight - (sprite.overlay.frameHeight ?? sprite.frameHeight)) * scale,
                 width: sprite.frameWidth * scale,
                 height: (sprite.overlay.frameHeight ?? sprite.frameHeight) * scale,
                 overflow: 'hidden',
