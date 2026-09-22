@@ -118,3 +118,26 @@ if (!document.fonts) {
     configurable: true,
   });
 }
+
+// jsdom does not implement `window.matchMedia`. The animated themes read it
+// once on mount (e.g. PlatformerPage's `prefers-reduced-motion` check), so
+// without a stub every mount test would throw. This returns `matches: false`
+// (motion allowed) by default; tests that care about the preference assign
+// their own `window.matchMedia` (see space.test.tsx).
+if (typeof window.matchMedia !== 'function') {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    configurable: true,
+    value: (query: string): MediaQueryList =>
+      ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => false,
+      }) as unknown as MediaQueryList,
+  });
+}
