@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
   drawBackgroundLayers,
+  backgroundBandGeometry,
   SKY_SOURCE_RECT,
   CLOUDS_SOURCE_RECT,
   VILLAGE_SOURCE_RECT,
@@ -287,5 +288,67 @@ describe('drawBackgroundLayers', () => {
     // Same x position/parallax speed as the village row, unaffected by the
     // y offset above.
     expect(riverCalls[0][ARG.dx]).toBe(villageCalls[0][ARG.dx]);
+  });
+});
+
+describe('backgroundBandGeometry', () => {
+  it('backgroundBandGeometry-anyCanvasHeight-matchesTheYValuesTheBackdropDraws', () => {
+    const ctx = fakeCtx();
+    const images = fakeImages();
+
+    drawBackgroundLayers(ctx, images, 320, 500, 0, 0);
+
+    const skyCalls = callsForSourceY(ctx.drawImage.mock.calls, images.layers, SKY_SOURCE_RECT.sy);
+    const cloudCalls = callsForSourceY(ctx.drawImage.mock.calls, images.layers, CLOUDS_SOURCE_RECT.sy);
+    const villageCalls = callsForSourceY(ctx.drawImage.mock.calls, images.layers, VILLAGE_SOURCE_RECT.sy);
+
+    const skyTop = SKY_TOP_MARGIN * BACKGROUND_RENDER_SCALE;
+    const skyBottom = skyTop + SKY_SOURCE_RECT.height * BACKGROUND_RENDER_SCALE;
+    const villageTop = Math.min(...villageCalls.map((call) => call[ARG.dy] as number));
+    const villageBottom = villageTop + VILLAGE_SOURCE_RECT.height * BACKGROUND_RENDER_SCALE;
+    const cloudsTop =
+      villageTop -
+      CLOUDS_SOURCE_RECT.height * BACKGROUND_RENDER_SCALE -
+      CLOUDS_VILLAGE_GAP * BACKGROUND_RENDER_SCALE;
+    const cloudsBottom = cloudsTop + CLOUDS_SOURCE_RECT.height * BACKGROUND_RENDER_SCALE;
+
+    const geometry = backgroundBandGeometry(500);
+
+    expect(geometry.skyTop).toBe(skyTop);
+    expect(geometry.skyBottom).toBe(skyBottom);
+    // The sky image is drawn starting at the top margin's bottom edge.
+    expect(skyCalls[0][ARG.dy]).toBe(geometry.skyTop);
+    expect(geometry.cloudsTop).toBe(cloudsTop);
+    expect(cloudCalls[0][ARG.dy]).toBe(geometry.cloudsTop);
+    expect(geometry.cloudsBottom).toBe(cloudsBottom);
+    expect(geometry.villageTop).toBe(villageTop);
+    expect(villageCalls[0][ARG.dy]).toBe(geometry.villageTop);
+    expect(geometry.villageBottom).toBe(villageBottom);
+  });
+
+  it('backgroundBandGeometry-tallerCanvasHeight-shiftsOnlyTheBottomAnchoredBands', () => {
+    const short = backgroundBandGeometry(400);
+    const tall = backgroundBandGeometry(500);
+
+    // The sky is top-anchored, so its edges are identical regardless of the
+    // canvas height...
+    expect(tall.skyTop).toBe(short.skyTop);
+    expect(tall.skyBottom).toBe(short.skyBottom);
+
+    // ...while the bottom-anchored bands each shift down by the height delta.
+    expect(tall.villageBottom - short.villageBottom).toBe(100);
+    expect(tall.villageTop - short.villageTop).toBe(100);
+    expect(tall.cloudsTop - short.cloudsTop).toBe(100);
+    expect(tall.cloudsBottom - short.cloudsBottom).toBe(100);
+  });
+
+  it('backgroundBandGeometry-anyCanvasHeight-keepsCloudsAboveTheVillageByTheGap', () => {
+    const geometry = backgroundBandGeometry(500);
+
+    expect(geometry.villageTop - geometry.cloudsBottom).toBe(
+      CLOUDS_VILLAGE_GAP * BACKGROUND_RENDER_SCALE,
+    );
+    expect(geometry.cloudsTop).toBeLessThan(geometry.cloudsBottom);
+    expect(geometry.skyBottom).toBeLessThanOrEqual(geometry.cloudsTop);
   });
 });

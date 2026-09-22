@@ -23,6 +23,7 @@ import {
   SPAWN_TILE,
   ENEMY_TILES_GREEN,
   ENEMY_TILES_PURPLE,
+  BEE_TILES,
   COIN_TILES,
   CRATE_TILES,
   QUESTIONMARK_TILES,
@@ -284,6 +285,7 @@ export const enemyPlacements = computed<EnemyPlacement[]>(() =>
   placeEnemies(mapCVDataToEnemies(currentCV.value), {
     slimeGreen: ENEMY_TILES_GREEN.value,
     slimePurple: ENEMY_TILES_PURPLE.value,
+    bee: BEE_TILES.value,
   }),
 );
 

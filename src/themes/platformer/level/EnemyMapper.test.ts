@@ -96,7 +96,7 @@ describe('placeEnemies', () => {
       { col: 2, row: 0 },
       { col: 3, row: 0 },
     ];
-    const placed = placeEnemies(defs, { slimeGreen: greenMarkers, slimePurple: [] });
+    const placed = placeEnemies(defs, { slimeGreen: greenMarkers, slimePurple: [], bee: [] });
 
     expect(placed.map((p) => p.fact)).toEqual(defs.map((d) => d.fact));
     expect(placed.every((p) => p.extraFacts === undefined)).toBe(true);
@@ -106,7 +106,7 @@ describe('placeEnemies', () => {
     // The example this feature was designed around: with only one enemy on
     // the map, defeating it must reveal every course.
     const defs = mapCVDataToEnemies(cv); // 3 courses
-    const placed = placeEnemies(defs, { slimeGreen: [{ col: 1, row: 0 }], slimePurple: [] });
+    const placed = placeEnemies(defs, { slimeGreen: [{ col: 1, row: 0 }], slimePurple: [], bee: [] });
 
     expect(placed).toHaveLength(1);
     expect(factsOf(placed[0])).toEqual(defs.map((d) => d.fact));
@@ -120,7 +120,7 @@ describe('placeEnemies', () => {
       { col: 3, row: 0 },
       { col: 4, row: 0 },
     ]; // 4 markers, 3 courses
-    const placed = placeEnemies(defs, { slimeGreen: greenMarkers, slimePurple: [] });
+    const placed = placeEnemies(defs, { slimeGreen: greenMarkers, slimePurple: [], bee: [] });
 
     // Not every marker gets a fact when there are more markers than facts...
     expect(placed.some((p) => p.fact === undefined)).toBe(true);
@@ -132,7 +132,7 @@ describe('placeEnemies', () => {
   it('fewerGreenMarkersThanCourses-someMarkersOwnMoreThanOneCourse', () => {
     const defs = mapCVDataToEnemies(cv); // 3 courses
     const greenMarkers = [{ col: 1, row: 0 }, { col: 2, row: 0 }]; // 2 markers, 3 courses
-    const placed = placeEnemies(defs, { slimeGreen: greenMarkers, slimePurple: [] });
+    const placed = placeEnemies(defs, { slimeGreen: greenMarkers, slimePurple: [], bee: [] });
 
     expect(placed.some((p) => (p.extraFacts?.length ?? 0) > 0)).toBe(true);
     expect(placed.flatMap(factsOf)).toEqual(defs.map((d) => d.fact));
@@ -143,6 +143,7 @@ describe('placeEnemies', () => {
     const placed = placeEnemies(defs, {
       slimeGreen: [{ col: 1, row: 0 }],
       slimePurple: [{ col: 5, row: 1 }],
+      bee: [],
     });
 
     const purple = placed.find((p) => p.type === 'slimePurple')!;
@@ -157,7 +158,7 @@ describe('placeEnemies', () => {
     // every green/purple marker alike (no more CVData-id vs "plain"-id
     // distinction).
     const defs = mapCVDataToEnemies(cv);
-    const placed = placeEnemies(defs, { slimeGreen: [{ col: 7, row: 4 }], slimePurple: [{ col: 2, row: 0 }] });
+    const placed = placeEnemies(defs, { slimeGreen: [{ col: 7, row: 4 }], slimePurple: [{ col: 2, row: 0 }], bee: [] });
 
     expect(placed.find((p) => p.type === 'slimeGreen')?.id).toBe('enemy-slimeGreen-7-4');
     expect(placed.find((p) => p.type === 'slimePurple')?.id).toBe('enemy-slimePurple-2-0');
@@ -170,7 +171,7 @@ describe('placeEnemies', () => {
       { col: 6, row: 2 },
     ];
     const purpleMarkers = [{ col: 8, row: 2 }];
-    const placed = placeEnemies(defs, { slimeGreen: greenMarkers, slimePurple: purpleMarkers });
+    const placed = placeEnemies(defs, { slimeGreen: greenMarkers, slimePurple: purpleMarkers, bee: [] });
 
     const green = placed.filter((p) => p.type === 'slimeGreen');
     const purple = placed.filter((p) => p.type === 'slimePurple');
@@ -183,6 +184,7 @@ describe('placeEnemies', () => {
     const placed = placeEnemies([], {
       slimeGreen: [{ col: 1, row: 0 }],
       slimePurple: [{ col: 2, row: 0 }],
+      bee: [],
     });
     expect(placed).toHaveLength(2);
     expect(placed.every((p) => p.fact === undefined && p.extraFacts === undefined)).toBe(true);
@@ -190,6 +192,24 @@ describe('placeEnemies', () => {
 
   it('noMarkersAtAll-returnsEmptyArray', () => {
     const defs = mapCVDataToEnemies(cv);
-    expect(placeEnemies(defs, { slimeGreen: [], slimePurple: [] })).toEqual([]);
+    expect(placeEnemies(defs, { slimeGreen: [], slimePurple: [], bee: [] })).toEqual([]);
+  });
+
+  it('beeMarkers-becomePlainPositionDerivedPlacementsWithNoFact', () => {
+    const defs = mapCVDataToEnemies(cv);
+    const placed = placeEnemies(defs, {
+      slimeGreen: [],
+      slimePurple: [],
+      bee: [{ col: 9, row: 4 }],
+    });
+
+    expect(placed).toHaveLength(1);
+    expect(placed[0]).toMatchObject({
+      id: 'enemy-bee-9-4',
+      type: 'bee',
+      ...tileToPixel(9, 4),
+    });
+    expect(placed[0].fact).toBeUndefined();
+    expect(placed[0].extraFacts).toBeUndefined();
   });
 });

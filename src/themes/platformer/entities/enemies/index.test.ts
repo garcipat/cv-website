@@ -11,10 +11,11 @@ describe('ENEMY_TYPES', () => {
   it('slimeGreen-matchesItsPreRefactorConstants', () => {
     expect(ENEMY_TYPES.slimeGreen).toMatchObject({
       maxHitPoints: 1,
-      patrolSpeedMultiplier: 1,
-      hitboxPaddingNative: { side: 5, top: 9 },
+      defaultAnimState: 'walk',
+      hitboxPaddingNative: { side: 5, top: 9, bottom: 0 },
       heldItem: null,
     });
+    expect(ENEMY_TYPES.slimeGreen.movement.kind).toBe('patrol');
     expect(ENEMY_TYPES.slimeGreen.sprite.sheet).toBe(SLIME_GREEN_SHEET);
     expect(ENEMY_TYPES.slimeGreen.sprite.renderScale).toBe(1);
   });
@@ -22,10 +23,11 @@ describe('ENEMY_TYPES', () => {
   it('slimePurple-matchesItsPreRefactorConstants', () => {
     expect(ENEMY_TYPES.slimePurple).toMatchObject({
       maxHitPoints: 3,
-      patrolSpeedMultiplier: 0.7,
-      hitboxPaddingNative: { side: 5, top: 9 },
+      defaultAnimState: 'walk',
+      hitboxPaddingNative: { side: 5, top: 9, bottom: 0 },
       heldItem: 'key',
     });
+    expect(ENEMY_TYPES.slimePurple.movement.kind).toBe('patrol');
     expect(ENEMY_TYPES.slimePurple.sprite.sheet).toBe(SLIME_PURPLE_SHEET);
     expect(ENEMY_TYPES.slimePurple.sprite.renderScale).toBe(2);
   });
@@ -38,8 +40,19 @@ describe('ENEMY_TYPES', () => {
     }
   });
 
-  it('everyEntry-declaresWalkAndHitAnimations', () => {
+  it('everyEntry-declaresAMovementAndARestingStateInItsOwnTable', () => {
+    // The seam's registry contract (FR-017/SC-006): every kind owns a
+    // callable movement step and a resting animation state that exists in its
+    // own table. The per-kind frames themselves differ (the slimes keep
+    // walk/hit; the bee flies), so this only asserts presence.
     for (const type of Object.values(ENEMY_TYPES)) {
+      expect(typeof type.movement.step).toBe('function');
+      expect(type.sprite.animations[type.defaultAnimState]).toBeDefined();
+    }
+  });
+
+  it('slimes-keepTheirWalkAndHitAnimationTables', () => {
+    for (const type of [ENEMY_TYPES.slimeGreen, ENEMY_TYPES.slimePurple]) {
       expect(type.sprite.animations.walk.frames).toEqual([3, 4, 5, 6, 7]);
       expect(type.sprite.animations.hit.frames).toEqual([8, 9, 10, 11]);
     }

@@ -16,6 +16,7 @@ import {
   CHEST_CLOSED_OFFSET_X,
 } from './Chest';
 import type { ChestState } from './Chest';
+import { RENDERED_TILE_SIZE } from '../level/Terrain';
 
 /** A living enemy of the given type at the given position. Carries
  *  slimePurple's own fields too, so one helper covers both types. */
@@ -120,6 +121,16 @@ describe('enemy box equivalence', () => {
         height: size - topPad,
       });
     }
+  });
+
+  it('box-bee-isPickedUpAutomaticallyAndItsBottomEdgeRestsOnItsPlacementRow', () => {
+    // The bee is not special-cased anywhere: `ENEMY_TYPES` iteration above
+    // already covers its `draw`/`box`. This pins FR-019/SC-009's bottom
+    // inset — the box's bottom edge matches the visible art's bottom, which
+    // is anchored on the placement row.
+    const enemy = ENEMY_TYPES.bee.create({ id: 'e', type: 'bee', x: 100, y: 200 }, 0);
+    const box = typeOf(enemy).box(enemy);
+    expect(box.y + box.height).toBeCloseTo(200 + RENDERED_TILE_SIZE);
   });
 });
 

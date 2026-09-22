@@ -5,6 +5,7 @@ import type { SpriteDescriptor } from '../sprites/SpriteSheet';
 import type { EnemyPlacement } from '../../level/EnemyMapper';
 import type { CollectedFact, EnemyDef } from '../../types';
 import type { EnemyAnimState } from './EnemyAnimation';
+import type { MovementStrategy } from './movement/MovementStrategy';
 import type { DrawContext } from '../../engine/DrawContext';
 import type { Contact, CollisionOutcome } from '../../engine/Contact';
 import type { PlayerState } from '../Player';
@@ -52,9 +53,18 @@ export interface EnemyType<S extends BaseEnemyState>
     Boxed<S> {
   /** Must equal this module's slot in ENEMY_TYPES — see index.test.ts. */
   key: string;
-  patrolSpeedMultiplier: number;
-  /** Transparent margin inside the native frame, in pre-scale pixels. */
-  hitboxPaddingNative: { side: number; top: number };
+  /** This kind's own movement rule. Required for every registered kind; the
+   *  shared game loop applies it and never branches on kind (FR-002/FR-017). */
+  movement: MovementStrategy<S>;
+  /** The state this kind shows at spawn, after a `hit` reaction ends, and
+   *  whenever a requested state is missing from its own table
+   *  (FR-008/FR-009/FR-017). MUST exist in `sprite.animations`. */
+  defaultAnimState: string;
+  /** Transparent margin inside the native frame, in pre-scale pixels. `side`
+   *  and `top` inset the collision box; `bottom` pulls its bottom edge up to
+   *  the visible art's bottom and anchors the draw on the placement row
+   *  (FR-019). A bottom-anchored sheet declares `bottom: 0`. */
+  hitboxPaddingNative: { side: number; top: number; bottom: number };
   sprite: SpriteDescriptor;
   /** What a finishing stomp drops, or null for a type that carries a CV fact
    *  instead. */
