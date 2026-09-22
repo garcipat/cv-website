@@ -47,6 +47,15 @@ export const MAX_DARKNESS = 0.97;
 /** Enter/exit fade duration in seconds (FR-003, SC-001). */
 export const DARKNESS_FADE_SECONDS = 0.4;
 
+/**
+ * Cave fog's flat tint, as an `"r, g, b"` triplet (so callers can build both
+ * `rgb(...)` and `rgba(..., alpha)` strings from it) — a cool, muted slate
+ * tone, deliberately distinct from darkness's neutral black so a visitor
+ * reads "fogged from outside" and "dark because I'm inside" as two different
+ * things rather than the same overlay at two strengths (O-028 FR-009).
+ */
+export const FOG_TINT_RGB = '92, 108, 122';
+
 /** Soft glow radius in rendered pixels — roughly a 3.5-tile radius (FR-009). */
 export const TORCH_LIGHT_RADIUS_PX = 3.5 * RENDERED_TILE_SIZE;
 

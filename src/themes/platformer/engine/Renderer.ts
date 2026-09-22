@@ -44,6 +44,7 @@ import {
   LADDER_STEP_NATIVE_PX,
 } from './DeployableLadder';
 import type { DeployableLadderState } from './DeployableLadder';
+import { backgroundMaterialFamily } from '../level/LevelData';
 import type { LevelDef, TileType } from '../level/LevelData';
 import type { SignPlacement } from '../level/SignMapper';
 import {
@@ -137,6 +138,7 @@ import {
   ENEMY_EYE_COLOR,
   ENEMY_EYE_SIZE_PX,
   ENEMY_EYE_GAP_PX,
+  FOG_TINT_RGB,
 } from './Lighting';
 
 function tileSource(
@@ -1098,6 +1100,47 @@ export function drawBackgroundTiles(
           destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
         );
       }
+    }
+  }
+}
+
+/**
+ * Draws the outside-a-cave fog (O-028): every cell whose background
+ * material belongs to the cave family is painted with a flat tint at
+ * `fogLevel`'s alpha, hiding everything on that cell — background, terrain,
+ * blocks and entities alike (FR-001/FR-002). Iterates the level's full
+ * background grid, the same shape `drawBackgroundTiles` uses, rather than a
+ * viewport-culled range — levels are small enough that this is cheap, and it
+ * keeps the two passes' looping identical.
+ *
+ * Callers are expected to keep `fogLevel` and `darknessLevel` mutually
+ * exclusive (only one is ever above zero at a time — FR-003); this function
+ * does not itself check `darknessLevel`.
+ *
+ * Fast path (SC-005): when `fogLevel <= 0` this draws nothing, so a level
+ * with no cave-family background renders exactly as it did before this
+ * feature.
+ */
+export function drawFog(
+  ctx: CanvasRenderingContext2D,
+  level: LevelDef,
+  fogLevel: number,
+  originX = 0,
+  originY = 0,
+): void {
+  if (fogLevel <= 0) return;
+
+  const grid = level.background ?? [];
+  ctx.fillStyle = `rgba(${FOG_TINT_RGB}, ${fogLevel})`;
+  for (let row = 0; row < grid.length; row++) {
+    const gridRow = grid[row];
+    for (let col = 0; col < gridRow.length; col++) {
+      const material = gridRow[col];
+      if (material === null || material === undefined) continue;
+      if (backgroundMaterialFamily(material) !== 'cave') continue;
+
+      const { x, y } = tileToPixel(col, row);
+      ctx.fillRect(x + originX, y + originY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
     }
   }
 }
