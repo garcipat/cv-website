@@ -35,6 +35,7 @@ import {
   CHEST_COUNTER_ICON_HEIGHT,
   drawWaterForeground,
   drawBackgroundTiles,
+  drawFog,
   drawHitSplatterEffects,
   drawLowHealthGlow,
   lowHealthGlowAlpha,
@@ -126,6 +127,7 @@ import {
   ENEMY_EYE_GAP_PX,
   ENEMY_EYE_BOB_PERIOD_SECONDS,
   ENEMY_EYE_BOB_AMPLITUDE_PX,
+  FOG_TINT_RGB,
 } from './Lighting';
 
 const ENEMY_FRAME_SIZE = SLIME_GREEN_SHEET.frameWidth;
@@ -3390,6 +3392,78 @@ describe('drawBackgroundTiles', () => {
     drawBackgroundTiles(ctx as unknown as CanvasRenderingContext2D, level, {} as HTMLImageElement, 0, 0, null);
 
     expect(ctx.drawImage).toHaveBeenCalledTimes(9);
+  });
+});
+
+describe('drawFog', () => {
+  it('atOrBelowZero-drawsNothingAtAll', () => {
+    const { ctx } = makeLightingContext();
+    const level: LevelDef = { terrain: [], width: 1, height: 1, background: [['charcoal']] };
+
+    drawFog(ctx, level, 0);
+
+    expect(ctx.fillRect).not.toHaveBeenCalled();
+  });
+
+  it('caveFamilyCell-fillsItWithTheFogTintAtTheFogAlpha', () => {
+    const { ctx } = makeLightingContext();
+    const level: LevelDef = { terrain: [], width: 1, height: 1, background: [['charcoal']] };
+
+    drawFog(ctx, level, 0.5, 0, 0);
+
+    expect(ctx.fillStyle).toBe(`rgba(${FOG_TINT_RGB}, 0.5)`);
+    expect(ctx.fillRect).toHaveBeenCalledWith(0, 0, 32, 32);
+  });
+
+  it('surfaceFamilyCell-drawsNothing', () => {
+    const { ctx } = makeLightingContext();
+    const level: LevelDef = { terrain: [], width: 1, height: 1, background: [['dirt']] };
+
+    drawFog(ctx, level, 0.5);
+
+    expect(ctx.fillRect).not.toHaveBeenCalled();
+  });
+
+  it('emptyCell-drawsNothing', () => {
+    const { ctx } = makeLightingContext();
+    const level: LevelDef = { terrain: [], width: 1, height: 1, background: [[null]] };
+
+    drawFog(ctx, level, 0.5);
+
+    expect(ctx.fillRect).not.toHaveBeenCalled();
+  });
+
+  it('levelWithNoBackgroundField-drawsNothing', () => {
+    const { ctx } = makeLightingContext();
+    const level: LevelDef = { terrain: [], width: 0, height: 0 };
+
+    drawFog(ctx, level, 0.5);
+
+    expect(ctx.fillRect).not.toHaveBeenCalled();
+  });
+
+  it('originOffset-shiftsTheFilledRect', () => {
+    const { ctx } = makeLightingContext();
+    const level: LevelDef = { terrain: [], width: 1, height: 1, background: [['caveStone']] };
+
+    drawFog(ctx, level, 0.5, 100, -50);
+
+    expect(ctx.fillRect).toHaveBeenCalledWith(100, -50, 32, 32);
+  });
+
+  it('mixedGrid-fillsOnlyTheCaveFamilyCells', () => {
+    const { ctx } = makeLightingContext();
+    const level: LevelDef = {
+      terrain: [],
+      width: 3,
+      height: 1,
+      background: [['dirt', 'charcoal', null]],
+    };
+
+    drawFog(ctx, level, 0.5);
+
+    expect(ctx.fillRect).toHaveBeenCalledTimes(1);
+    expect(ctx.fillRect).toHaveBeenCalledWith(32, 0, 32, 32);
   });
 });
 
