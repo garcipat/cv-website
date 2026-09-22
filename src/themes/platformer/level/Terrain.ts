@@ -4,6 +4,19 @@ export const TILE_SIZE = 16;
 export const RENDER_SCALE = 2;
 export const RENDERED_TILE_SIZE = TILE_SIZE * RENDER_SCALE;
 
+/**
+ * Native... no — RENDERED px height of a crumbling floor tile's solid
+ * region (O-023): its art top-aligns within its cell and is only half a
+ * tile tall, and its collision matches that exactly rather than the full
+ * cell every other solid tile uses. This is the tile's "vertical hitbox
+ * inset" — the first one in this codebase; every existing inset
+ * (`hitboxInsetXForBlock`) is horizontal and block-only. `Physics.ts`'s
+ * ceiling (rising-from-below) branch is the only place this is consulted —
+ * landing on it from above needs no special handling, since its solid
+ * region's TOP edge still sits at the ordinary tile-top line.
+ */
+export const CRUMBLING_FLOOR_SOLID_HEIGHT = RENDERED_TILE_SIZE / 2;
+
 export function tileAt(level: LevelDef, col: number, row: number): TileType {
   if (row < 0 || row >= level.height || col < 0 || col >= level.width) {
     return 'empty';
