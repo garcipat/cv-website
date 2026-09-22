@@ -1,4 +1,5 @@
 import { HAZARD_TYPES, typeOf } from './index';
+import { floorSpike } from './FloorSpike';
 import type { HazardPlacement } from '../../level/HazardMapper';
 
 describe('HAZARD_TYPES', () => {
@@ -22,5 +23,9 @@ describe('typeOf', () => {
   it('spearHazard-returnsTheSpearType', () => {
     const hazard: HazardPlacement = { id: 'h1', hazardType: 'spear', facing: 'up', x: 0, y: 0 };
     expect(typeOf(hazard).key).toBe('spear');
+  });
+
+  it('floorSpikePlacement-typeOfResolvesToFloorSpike', () => {
+    expect(typeOf({ id: 'h1', hazardType: 'floorSpike', facing: 'up', x: 0, y: 0 })).toBe(floorSpike);
   });
 });

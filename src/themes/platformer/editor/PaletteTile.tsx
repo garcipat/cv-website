@@ -37,6 +37,13 @@ const SPRITE_PADDING = 10;
  * spec carries an `overlay`, a second `<img>` of the same sheet is drawn on
  * top, cropped to the overlay's own offset — used to composite grass over
  * the ground block, since the atlas keeps grass out of every ground cell.
+ * An overlay with its own `frameHeight` (shorter than the base's) is
+ * clipped to that shorter window and bottom-anchored within the base's
+ * footprint instead of filling it — the floor spike palette icon uses this
+ * to show a partial spike slice sticking up out of its tell, the same
+ * bottom-anchored-crop convention `entities/hazards/FloorSpike.ts`'s
+ * `draw` uses at runtime, rather than the full (fully-extended-looking)
+ * frame the plain same-size overlay would otherwise show.
  */
 export const PaletteTile = ({
   label,
@@ -88,19 +95,36 @@ export const PaletteTile = ({
             }}
           />
           {sprite.overlay && (
-            <img
-              src={sprite.sheet}
-              alt=""
+            <div
               style={{
                 position: 'absolute',
-                left: -sprite.overlay.sx * scale,
-                top: -sprite.overlay.sy * scale,
-                width: sprite.sheetWidth * scale,
-                height: sprite.sheetHeight * scale,
-                maxWidth: 'none',
-                imageRendering: 'pixelated',
+                left: 0,
+                // Bottom-anchored: a shorter overlay frameHeight sits flush
+                // with the base's own bottom edge rather than its top, so a
+                // partial slice reads as "emerging from the ground" instead
+                // of "hanging from the ceiling". Omitted (grass overlay),
+                // this is 0 and the overlay fills the full footprint exactly
+                // as before.
+                top: (sprite.frameHeight - (sprite.overlay.frameHeight ?? sprite.frameHeight)) * scale,
+                width: sprite.frameWidth * scale,
+                height: (sprite.overlay.frameHeight ?? sprite.frameHeight) * scale,
+                overflow: 'hidden',
               }}
-            />
+            >
+              <img
+                src={sprite.sheet}
+                alt=""
+                style={{
+                  position: 'absolute',
+                  left: -sprite.overlay.sx * scale,
+                  top: -sprite.overlay.sy * scale,
+                  width: sprite.sheetWidth * scale,
+                  height: sprite.sheetHeight * scale,
+                  maxWidth: 'none',
+                  imageRendering: 'pixelated',
+                }}
+              />
+            </div>
           )}
         </div>
       ) : (

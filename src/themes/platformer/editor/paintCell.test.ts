@@ -219,6 +219,18 @@ describe('paintCell — hazard markers', () => {
     expect(result.grid[0][1]).toBe('G');
     expect(result.grid[0][0]).toBe('^'); // unrelated cell untouched
   });
+
+  it('floorSpikeTool-paintsItsOwnCharacterDirectlyWithNoFacingCycle', () => {
+    const grid: TileChar[][] = [['G', '.']];
+    const result = paintCell(grid, 1, 0, 'A');
+    expect(result.grid[0][1]).toBe('A');
+  });
+
+  it('floorSpikeToolPaintedAgain-staysTheSameCharacter', () => {
+    const grid: TileChar[][] = [['G', 'A']];
+    const result = paintCell(grid, 1, 0, 'A');
+    expect(result.grid[0][1]).toBe('A');
+  });
 });
 
 describe('paintCell — floor spear marker', () => {

@@ -150,10 +150,19 @@ face was touched, so the facing selects the sprite only.
 | `v` | `spike` | `down` | Ceiling spikes. |
 | `<` | `spike` | `left` | Mounted on a wall to the right of the tile. |
 | `>` | `spike` | `right` | Mounted on a wall to the left of the tile. |
+| `A` | `floorSpike` | `up` | Delayed-trigger hazard (O-021); floor-only, no facing cycle. |
 
 `hazardType` is carried on every entry rather than hardcoded elsewhere, so a second
 hazard kind needs one entry here plus a registry line in
 `src/themes/platformer/entities/hazards/index.ts`.
+
+`floorSpike` (`'A'`) is a second `HazardKind` sibling to `spike`, added by O-021. Unlike
+`spike`, it carries live per-instance cycle state (`HazardPlacement.floorSpikePhase`,
+merged in per-tick from `PlatformerState.ts`'s `floorSpikeTimerStates` via
+`hazardPlacementsForTick()`) rather than being purely static — its `box()`/`draw()`
+(`entities/hazards/FloorSpike.ts`) read that phase to decide hazardous area and sprite
+frame. See [specs/O-021-platformer-floor-spikes/spec.md](../../../specs/O-021-platformer-floor-spikes/spec.md)
+for the trigger/cycle behavior itself.
 
 ## `TileChar`
 

@@ -84,6 +84,7 @@ import {
   checkHeartPickupCollisions,
   checkBombPickupCollisions,
   resolveHazardContacts,
+  checkFloorSpikeTriggers,
   playerHitbox,
 } from './engine/Collision';
 import {
@@ -175,6 +176,7 @@ import {
   BOMB_SHEET,
   EXPLOSION_SHEET,
   SPEAR_SHEET,
+  FLOOR_SPIKE_SHEET,
 } from './entities/sprites/sheets';
 import { frameSource, collectSheetSources } from './entities/sprites/SpriteSheet';
 import type { SpriteLookup } from './entities/sprites/SpriteSheet';
@@ -242,6 +244,10 @@ import {
   tickDeployableLadders,
   mushroomSquashStates,
   tickMushroomSquashes,
+  floorSpikeTimerStates,
+  tickFloorSpikes,
+  armFloorSpikeTrigger,
+  hazardPlacementsForTick,
 } from './PlatformerState';
 import { useSignals } from '@preact/signals-react/runtime';
 import { Journal } from './components/Journal';
@@ -686,7 +692,7 @@ export const PlatformerPage = () => {
 
       drawPlacedBombs(ctx, placedBombs.value, drawContext);
 
-      drawHazards(ctx, hazardPlacements.value, drawContext);
+      drawHazards(ctx, hazardPlacementsForTick(), drawContext);
 
       drawChests(ctx, chestStates.value, drawContext);
 
@@ -1058,6 +1064,10 @@ export const PlatformerPage = () => {
       // In-progress bouncy-mushroom cap dips advance here too, freezing with
       // the world on pause/death (O-018).
       tickMushroomSquashes(dt);
+
+      // In-progress floor spike cycles advance here too, freezing with the
+      // world on pause/death (O-021).
+      tickFloorSpikes(dt);
 
       // Computed once per tick and shared by every reveal site below — these
       // same two expressions used to be duplicated in the enemy-defeat block
@@ -1594,14 +1604,24 @@ export const PlatformerPage = () => {
         hintTooltipState.value = beginHintTooltipExit(currentTooltip);
       }
 
+      // Arm any at-rest floor spike the player just stepped onto (FR-003) —
+      // before resolving hazard contacts below, so a spike armed this same
+      // tick is still correctly non-hazardous (its phase right after arming
+      // is 'delay', never 'fullExtend').
+      for (const id of checkFloorSpikeTriggers(playerState.value, hazardPlacements.value, floorSpikeTimerStates.value)) {
+        armFloorSpikeTrigger(id);
+      }
+
       // Hazard contacts are resolved BEFORE enemy contacts, so a lethal floor
       // spear can win the tick (FR-012). A lethal tip landing drops health
       // straight to zero with no `takeDamage`, no knockback, no hit animation
       // and no splatter (FR-004/FR-005); the flags below then suppress the
       // enemy-damage and ordinary-hazard-damage blocks for this tick, while
       // enemy contact resolution still runs so a same-tick stomp still merges
-      // its enemy state.
-      const hazardContacts = resolveHazardContacts(playerState.value, hazardPlacements.value);
+      // its enemy state. `hazardPlacementsForTick()` merges each floor
+      // spike's live cycle phase in (just-armed included) so its `isContact`
+      // sees the right phase this same tick.
+      const hazardContacts = resolveHazardContacts(playerState.value, hazardPlacementsForTick());
       const spearKilled = hazardContacts.lethal !== undefined;
       if (spearKilled) {
         playerState.value = { ...playerState.value, hitPoints: 0, alive: false };
@@ -1728,16 +1748,28 @@ export const PlatformerPage = () => {
         // the refractory window lapses, since nothing ever moves the player
         // out of contact with it.
         const contactSide: -1 | 1 = hazard.x >= playerState.value.x ? 1 : -1;
-        // Pushed away from the hazard, not toward it — the opposite sign of
-        // contactSide, spelled out as its own conditional (rather than
-        // `-contactSide`) since TS widens a negated `-1 | 1` to `number`.
-        const knockbackDirection: -1 | 1 = contactSide === 1 ? -1 : 1;
-        playerState.value = applyKnockback(
-          playerState.value,
-          knockbackDirection,
-          PHYSICS_CONFIG.sideHitKnockbackVx,
-          PHYSICS_CONFIG.sideHitKnockbackDuration,
-        );
+        // Floor spikes deal damage with no knockback (spec FR-006) — the
+        // only divergence from a static spike touch, which always pushes
+        // the player away (see the applyKnockback call below). Still needs
+        // to start the shared refractory window itself (beginHitReaction —
+        // the same "damage with no knockback" helper a pit fall uses), or
+        // the player would take repeated damage every tick they remain on
+        // the tile through the rest of the full-extend phase, since nothing
+        // else resets hitTimer for them.
+        if (hazard.hazardType === 'floorSpike') {
+          playerState.value = beginHitReaction(playerState.value);
+        } else {
+          // Pushed away from the hazard, not toward it — the opposite sign
+          // of contactSide, spelled out as its own conditional (rather than
+          // `-contactSide`) since TS widens a negated `-1 | 1` to `number`.
+          const knockbackDirection: -1 | 1 = contactSide === 1 ? -1 : 1;
+          playerState.value = applyKnockback(
+            playerState.value,
+            knockbackDirection,
+            PHYSICS_CONFIG.sideHitKnockbackVx,
+            PHYSICS_CONFIG.sideHitKnockbackDuration,
+          );
+        }
 
         // No splatter on the hit that kills the character — see the same
         // guard on the enemy-contact site above.
@@ -2412,6 +2444,20 @@ export const PlatformerPage = () => {
       .catch(() => {
         // The spear simply won't render (and stays inert) if its art fails to
         // load; the rest of the game still shows.
+      });
+    // The floor spike sheet (O-021) is no type's primary sprite either
+    // (spike/spear/floorSpike are hazards, not enemies/pickups/blocks, so
+    // HAZARD_TYPES is never walked by the collectSheetSources loop below) —
+    // same hand-listed-load convention as EXPLOSION_SHEET above.
+    loadImage(FLOOR_SPIKE_SHEET.src)
+      .then((img) => {
+        if (cancelled) return;
+        spritesRef.current[FLOOR_SPIKE_SHEET.src] = img;
+        render();
+      })
+      .catch(() => {
+        // Floor spikes simply won't render if this strip fails to load; the
+        // rest of the level still shows.
       });
     loadImage('/sprites/knight.png')
       .then((img) => {

@@ -50,8 +50,12 @@ import {
   torchPositions,
   mushroomSquashStates,
   tickMushroomSquashes,
+  floorSpikeTimerStates,
+  tickFloorSpikes,
+  armFloorSpikeTrigger,
 } from './PlatformerState';
 import { MUSHROOM_SQUASH_DURATION_SECONDS } from './engine/MushroomSquash';
+import { FLOOR_SPIKE_CYCLE_SECONDS } from './engine/FloorSpike';
 import type { CollectedFact } from './types';
 import { mapCVDataToEnemies } from './level/EnemyMapper';
 import { toBlockState } from './entities/Block';
@@ -1217,5 +1221,53 @@ describe('mushroomSquashStates', () => {
     resetGameProgress();
 
     expect(mushroomSquashStates.value).toEqual([]);
+  });
+});
+
+describe('tickFloorSpikes', () => {
+  afterEach(() => {
+    floorSpikeTimerStates.value = [];
+  });
+
+  it('armedEntry-advancesItsElapsed', () => {
+    floorSpikeTimerStates.value = [{ id: 'fs1', elapsed: 0 }];
+    tickFloorSpikes(0.1);
+    expect(floorSpikeTimerStates.value).toEqual([{ id: 'fs1', elapsed: expect.closeTo(0.1, 5) }]);
+  });
+
+  it('entryPastTheFullCycle-isDropped', () => {
+    floorSpikeTimerStates.value = [{ id: 'fs1', elapsed: FLOOR_SPIKE_CYCLE_SECONDS - 0.01 }];
+    tickFloorSpikes(0.02);
+    expect(floorSpikeTimerStates.value).toEqual([]);
+  });
+});
+
+describe('armFloorSpikeTrigger', () => {
+  afterEach(() => {
+    floorSpikeTimerStates.value = [];
+  });
+
+  it('unarmedId-addsIt', () => {
+    floorSpikeTimerStates.value = [];
+    armFloorSpikeTrigger('fs1');
+    expect(floorSpikeTimerStates.value).toEqual([{ id: 'fs1', elapsed: 0 }]);
+  });
+
+  it('alreadyArmedId-isANoOp', () => {
+    floorSpikeTimerStates.value = [{ id: 'fs1', elapsed: 0.3 }];
+    armFloorSpikeTrigger('fs1');
+    expect(floorSpikeTimerStates.value).toEqual([{ id: 'fs1', elapsed: 0.3 }]);
+  });
+});
+
+describe('resetGame — floor spikes', () => {
+  afterEach(() => {
+    floorSpikeTimerStates.value = [];
+  });
+
+  it('clearsFloorSpikeTimerStates', () => {
+    floorSpikeTimerStates.value = [{ id: 'fs1', elapsed: 0.3 }];
+    resetGame();
+    expect(floorSpikeTimerStates.value).toEqual([]);
   });
 });

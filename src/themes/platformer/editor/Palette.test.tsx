@@ -44,11 +44,12 @@ describe('Palette', () => {
     // never from the Terrain group in either mode.
     const terrainCount = Object.keys(TERRAIN_CHARS).filter((k) => k !== '.' && k !== '+').length;
     const entityCount = Object.keys(ENTITY_CHARS).length;
-    // +1 for the single representative Sign tile, +2 for one tile per hazard
-    // kind (Spike and Floor Spear), +1 for the Eraser tile.
+    // +1 for the single representative Sign tile, +3 for one tile per hazard
+    // KIND (static spike, floor spear — O-020, floor spike — O-021), +1 for
+    // the Eraser tile.
     // +5 for the collapsible group triggers (Terrain, Decoration, Entities,
     // Hazards, Tools) — no Blueprints group with an empty registry.
-    expect(screen.getAllByRole('button')).toHaveLength(terrainCount + entityCount + 1 + 2 + 1 + 5);
+    expect(screen.getAllByRole('button')).toHaveLength(terrainCount + entityCount + 1 + 3 + 1 + 5);
   });
 
   it('renders a "Palette" title', () => {
@@ -164,13 +165,15 @@ describe('Palette — subtitle groups', () => {
 
   it('hazardsGroup-containsExactlyOneTilePerHazardKind', () => {
     // One button per hazard kind: Spike (whose canvas click auto-detects a
-    // facing and cycles it) and Floor Spear (a single fixed orientation).
+    // facing and cycles it), Floor Spear (a single fixed orientation), and
+    // Floor Spike (also a single fixed orientation, O-021).
     render(<Palette {...defaultProps} />);
     const hazardsGroup = palette.group('hazards');
     expect(within(hazardsGroup).getByTestId('editor-palette-tile-^')).toBeInTheDocument();
     expect(within(hazardsGroup).getByTestId('editor-palette-tile-¦')).toBeInTheDocument();
-    // The two hazard tiles plus the group's own collapsible trigger.
-    expect(within(hazardsGroup).getAllByRole('button')).toHaveLength(3);
+    expect(within(hazardsGroup).getByTestId('editor-palette-tile-A')).toBeInTheDocument();
+    // The three hazard tiles plus the group's own collapsible trigger.
+    expect(within(hazardsGroup).getAllByRole('button')).toHaveLength(4);
   });
 
   it('floorSpearTile-hasAReadableLabelAndARealArtPreview', () => {
@@ -179,6 +182,12 @@ describe('Palette — subtitle groups', () => {
     expect(spearTile).toHaveAttribute('aria-label', 'Floor Spear');
     const preview = spearTile.querySelector('img');
     expect(preview).toHaveAttribute('src', '/sprites/spears.png');
+  });
+
+  it('hazardsGroup-showsOneButtonPerHazardKindIncludingFloorSpike', () => {
+    render(<Palette {...defaultProps} />);
+    expect(screen.getByTestId('editor-palette-tile-^')).toBeInTheDocument();
+    expect(screen.getByTestId('editor-palette-tile-A')).toBeInTheDocument();
   });
 });
 

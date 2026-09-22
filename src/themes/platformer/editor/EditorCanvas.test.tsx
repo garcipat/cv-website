@@ -67,6 +67,7 @@ const EMPTY_IMAGES: EditorImages = {
   ropeLadder: null,
   mushroom: null,
   spears: null,
+  floorSpike: null,
 };
 
 // Default props shared by every pre-existing test in this file (all of

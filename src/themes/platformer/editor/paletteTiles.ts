@@ -29,9 +29,14 @@ export interface TileSpriteSpec {
    * engine draws grass as a separate overlay pass — so a swatch that should
    * look like grassy ground composites the two the same way the renderer
    * does. A grass cell is 9px of tuft at the top of a 16px cell with the rest
-   * transparent, which is why this needs no height of its own.
+   * transparent, which is why this needs no height of its own — `frameHeight`
+   * is for a shorter, bottom-anchored slice instead (e.g. the floor spike's
+   * palette icon: a partial spike sticking up out of its tell, matching how
+   * `FloorSpike.ts`'s `draw` crops the same art at runtime). Omitted, the
+   * overlay fills the base's own `frameHeight`, unchanged from before this
+   * field existed.
    */
-  overlay?: { sx: number; sy: number };
+  overlay?: { sx: number; sy: number; frameHeight?: number };
 }
 
 const WORLD_TILESET = '/sprites/world_tileset.png';
@@ -428,6 +433,26 @@ export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
     frameWidth: 32,
     frameHeight: 32,
   },
+  // The at-rest tell (frame 0) as the base, with a bottom-anchored slice of
+  // the spike frame (frame 2, x offset 32) composited on top via `overlay` —
+  // reading as a spike sticking out of the ground, rather than either
+  // extreme: the bare tell alone is too low-contrast to read as a tool icon
+  // (two flat lines, deliberately subtle so it looks like ordinary floor in
+  // play), and the tell alone loses the ground-tell identity that actually
+  // distinguishes this hazard from the static spike above. The overlay's
+  // sy/frameHeight (4, 16) is exactly the spike frame's own non-transparent
+  // rows — not an arbitrary half-crop — so the tip is never clipped no
+  // matter how the art is redrawn, as long as it stays within that band.
+  A: {
+    sheet: '/sprites/spikes.png',
+    sheetWidth: 48,
+    sheetHeight: 20,
+    sx: 0,
+    sy: 0,
+    frameWidth: 16,
+    frameHeight: 20,
+    overlay: { sx: 32, sy: 4, frameHeight: 16 },
+  },
 };
 
 /**
@@ -536,6 +561,7 @@ export const PALETTE_TILE_DESCRIPTIONS: Record<TileChar, string> = {
   '<': 'Spike (right wall); damages the player on touch',
   '>': 'Spike (left wall); damages the player on touch',
   '¦': 'Floor spear; falling onto its points is fatal, walking or climbing through is safe',
+  A: 'Floor spike; hidden until triggered — a visitor stepping on it starts a delayed warning-then-strike cycle, then it retracts and re-arms',
 };
 
 /** Human-readable name per `TileChar`, so the palette reads by name rather
@@ -584,4 +610,5 @@ export const PALETTE_TILE_LABELS: Record<TileChar, string> = {
   '<': 'Spike Left',
   '>': 'Spike Right',
   '¦': 'Floor Spear',
+  A: 'Floor Spike',
 };

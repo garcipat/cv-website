@@ -8,6 +8,13 @@ import {
 import type { DeployableLadderState } from './engine/DeployableLadder';
 import { advanceMushroomSquashes } from './engine/MushroomSquash';
 import type { MushroomSquashState } from './engine/MushroomSquash';
+import {
+  armFloorSpike,
+  advanceFloorSpikes,
+  floorSpikePhaseFor,
+  floorSpikeExtensionFor,
+} from './engine/FloorSpike';
+import type { FloorSpikeTimerState } from './engine/FloorSpike';
 import type { LevelDef } from './level/LevelData';
 import {
   SPAWN_TILE,
@@ -807,6 +814,52 @@ export function tickMushroomSquashes(dt: number): void {
 }
 
 /**
+ * Live per-instance cycle timers for floor spikes — one entry per tile that
+ * has been triggered at least once, pruned back out once its cycle
+ * completes (spec FR-009). Same "presence means in progress" convention as
+ * `mushroomSquashStates`/`placedBombs`. Advanced by `tickFloorSpikes` and
+ * cleared by `resetGame()`.
+ */
+export const floorSpikeTimerStates = signal<FloorSpikeTimerState[]>([]);
+
+/** Arms `id`'s cycle if it isn't already running (spec FR-003/FR-008) — the
+ *  caller (PlatformerPage.tsx) calls this once per tick for every id
+ *  `checkFloorSpikeTriggers` returns; `armFloorSpike`'s own presence check
+ *  is what makes a repeat call during an already-running cycle a no-op. */
+export function armFloorSpikeTrigger(id: string): void {
+  floorSpikeTimerStates.value = armFloorSpike(floorSpikeTimerStates.value, id);
+}
+
+/** Advances every running floor spike cycle by `dt` — called once per
+ *  game-loop tick in the `playing` phase, alongside `tickMushroomSquashes`,
+ *  so cycles freeze with the rest of the world during pause/death. */
+export function tickFloorSpikes(dt: number): void {
+  floorSpikeTimerStates.value = advanceFloorSpikes(floorSpikeTimerStates.value, dt);
+}
+
+/**
+ * `hazardPlacements` with each floor spike's live `floorSpikePhase` merged
+ * in for this tick — what `PlatformerPage.tsx` actually hands to
+ * `drawHazards`/`checkHazardCollisions`/`checkFloorSpikeTriggers`, instead
+ * of the raw (phase-unaware) `hazardPlacements` computed. `spike`
+ * placements pass through unchanged. Recomputed fresh each call (not a
+ * `computed`) since it depends on `floorSpikeTimerStates`, which changes
+ * every tick during an active cycle — memoizing it would need the same
+ * invalidation signals a plain function call already gets for free.
+ */
+export function hazardPlacementsForTick(): HazardPlacement[] {
+  return hazardPlacements.value.map((hazard) =>
+    hazard.hazardType === 'floorSpike'
+      ? {
+          ...hazard,
+          floorSpikePhase: floorSpikePhaseFor(floorSpikeTimerStates.value, hazard.id),
+          floorSpikeExtension: floorSpikeExtensionFor(floorSpikeTimerStates.value, hazard.id),
+        }
+      : hazard,
+  );
+}
+
+/**
  * Resets the game world to its respawn state: player back at the active
  * checkpoint (or the level's spawn point when none is active), full health,
  * enemies revived in place at their spawn placements, camera scrolled back to
@@ -848,6 +901,9 @@ export function resetGame(): void {
   darknessLevel.value = 0;
   // An in-progress cap dip must not survive a death/respawn (FR-015).
   mushroomSquashStates.value = [];
+  // An in-progress floor spike cycle must not survive a death/respawn
+  // (FR-014), same convention as the mushroom cap squash above it.
+  floorSpikeTimerStates.value = [];
   enemyStates.value = enemyStates.value.map(reviveEnemy);
   hintTooltipState.value = null;
   // A label fading when the death/respawn happened must not survive it — it
