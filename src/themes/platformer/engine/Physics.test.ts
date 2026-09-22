@@ -498,6 +498,36 @@ describe('stepPlayerPhysics block solidity', () => {
       expect(next.x).toBe(fullTileRestX - HITBOX_INSET_X);
     });
   });
+
+  describe('a potionPot bottle (declares a hitboxInsetX like coinPot)', () => {
+    // Same fixture shape as the coinPot case above: the bottle art is 8px wide
+    // in its 16px tile, so it declares BlockType.hitboxInsetX (see
+    // PotionPot.ts/BombPot.ts) letting the player stop closer than a full-tile
+    // block would.
+    const potionPotAtCol2Row2 = placeBlocks([], {
+      crate: [],
+      questionMark: [],
+      fragileRock: [],
+      potionPot: [{ col: 2, row: 2 }],
+    });
+    const HITBOX_INSET_X = hitboxInsetXForBlock('potionPot');
+
+    it('walkingRightIntoAPotionPot-stopsInsetXCloserThanAFullTileBlock', () => {
+      const wallCol = 2;
+      const fullTileRestX = wallCol * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_SIDE_PADDING;
+      const player = basePlayer({ x: fullTileRestX - 1, y: 1 * RENDERED_TILE_SIZE, grounded: true });
+      const next = stepPlayerPhysics(player, BLOCK_LEVEL, 1 / 60, { left: false, right: true }, potionPotAtCol2Row2);
+      expect(next.x).toBe(fullTileRestX + HITBOX_INSET_X);
+    });
+
+    it('walkingLeftIntoAPotionPot-stopsInsetXCloserThanAFullTileBlock', () => {
+      const wallCol = 2;
+      const fullTileRestX = (wallCol + 1) * RENDERED_TILE_SIZE - PLAYER_SIDE_PADDING;
+      const player = basePlayer({ x: fullTileRestX + 1, y: 1 * RENDERED_TILE_SIZE, grounded: true });
+      const next = stepPlayerPhysics(player, BLOCK_LEVEL, 1 / 60, { left: true, right: false }, potionPotAtCol2Row2);
+      expect(next.x).toBe(fullTileRestX - HITBOX_INSET_X);
+    });
+  });
 });
 
 describe('stepPlayerPhysics knockback', () => {

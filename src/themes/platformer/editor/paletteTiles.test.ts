@@ -257,6 +257,30 @@ describe('paletteTiles — bush/fence', () => {
   });
 });
 
+describe('bee marker', () => {
+  it('q-hasASpriteCroppingTheFirstFlyFrame', () => {
+    // Frame 32 (row 5 col 0) of the 8x7 bee.png — the first frame of the
+    // bee's fly loop (see entities/enemies/Bee.ts's BEE_ANIMATIONS).
+    expect(PALETTE_TILE_SPRITES.q).toEqual({
+      sheet: '/sprites/bee.png',
+      sheetWidth: 192,
+      sheetHeight: 168,
+      sx: 0,
+      sy: 96,
+      frameWidth: 24,
+      frameHeight: 24,
+    });
+  });
+
+  it('q-hasAHumanReadableLabel', () => {
+    expect(PALETTE_TILE_LABELS.q).toBe('Bee');
+  });
+
+  it('q-hasANonEmptyDescription', () => {
+    expect(PALETTE_TILE_DESCRIPTIONS.q).toBeTruthy();
+  });
+});
+
 describe('BLUEPRINT_GLYPH', () => {
   // Prose `it(...)` name, matching every other test in this file (see the
   // `blueprint connection point marker` describe just above it) rather than

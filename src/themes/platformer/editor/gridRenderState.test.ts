@@ -69,6 +69,13 @@ describe('synthesizeEnemyStates', () => {
     expect(enemies.find((e) => e.type === 'slimeGreen')).toBeDefined();
     expect(enemies.find((e) => e.type === 'slimePurple')).toBeDefined();
   });
+
+  it('returns exactly one bee placeholder per "q" marker, in its own fly resting state', () => {
+    const enemies = synthesizeEnemyStates([['q']]);
+    expect(enemies).toHaveLength(1);
+    expect(enemies[0].type).toBe('bee');
+    expect(enemies[0].animState).toBe('fly');
+  });
 });
 
 describe('synthesizeBlockStates', () => {

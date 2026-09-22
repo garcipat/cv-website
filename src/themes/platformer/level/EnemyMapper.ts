@@ -51,6 +51,7 @@ export interface EnemyPlacement extends EnemyDef {
 export interface EnemyMarkerPositions {
   slimeGreen: readonly { col: number; row: number }[];
   slimePurple: readonly { col: number; row: number }[];
+  bee: readonly { col: number; row: number }[];
 }
 
 /**
@@ -102,10 +103,20 @@ function placePurpleSlimes(markers: readonly { col: number; row: number }[]): En
   });
 }
 
+/** Places every `q` marker as a bee — a plain, position-derived enemy with no
+ *  fact, exactly like a purple slime (O-024). */
+function placeBees(markers: readonly { col: number; row: number }[]): EnemyPlacement[] {
+  return markers.map((marker) => {
+    const { x, y } = tileToPixel(marker.col, marker.row);
+    return { id: `enemy-bee-${marker.col}-${marker.row}`, type: 'bee', x, y };
+  });
+}
+
 /**
  * Places enemy defs at hand-authored marker positions — `M` markers
  * (LevelParser.ts's findGreenEnemyTiles) become green slimes, `m` markers
- * (findPurpleEnemyTiles) become purple ones. There is no auto-placement: an
+ * (findPurpleEnemyTiles) become purple ones, `q` markers (findBeeTiles)
+ * become bees. There is no auto-placement: an
  * enemy's position is always exactly where a level author put its marker.
  * Every green marker's course fact(s) come from a fixed, position-based
  * slice of the course pool (see `placeGreenSlimes`) rather than a 1:1 zip
@@ -115,5 +126,9 @@ function placePurpleSlimes(markers: readonly { col: number; row: number }[]): En
 export function placeEnemies(defs: EnemyDef[], markers: EnemyMarkerPositions): EnemyPlacement[] {
   const pool = defs.filter((def) => def.type === 'slimeGreen').map((def) => def.fact!);
 
-  return [...placeGreenSlimes(markers.slimeGreen, pool), ...placePurpleSlimes(markers.slimePurple)];
+  return [
+    ...placeGreenSlimes(markers.slimeGreen, pool),
+    ...placePurpleSlimes(markers.slimePurple),
+    ...placeBees(markers.bee),
+  ];
 }

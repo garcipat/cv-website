@@ -19,6 +19,7 @@ import {
   FLOOR_SPIKE_SHEET,
   CRUMBLE_FLOOR_SHEET,
   CRUMBLE_CRACKS_SHEET,
+  BEE_SHEET,
 } from '../entities/sprites/sheets';
 import {
   applyBackgroundPaint,
@@ -39,6 +40,7 @@ const EMPTY_IMAGES: EditorImages = {
   fruit: null,
   slimeGreen: null,
   slimePurple: null,
+  bee: null,
   crackOverlay: null,
   chestClosed: null,
   checkpoint: null,
@@ -62,6 +64,7 @@ const IMAGE_SOURCES: { key: keyof EditorImages; src: string }[] = [
   { key: 'fruit', src: '/sprites/fruit.png' },
   { key: 'slimeGreen', src: '/sprites/slime_green.png' },
   { key: 'slimePurple', src: '/sprites/slime_purple.png' },
+  { key: 'bee', src: BEE_SHEET.src },
   { key: 'crackOverlay', src: '/sprites/crack_overlay.png' },
   { key: 'chestClosed', src: '/sprites/chest_closed.png' },
   { key: 'checkpoint', src: CHECKPOINT_FLAG_SHEET.src },

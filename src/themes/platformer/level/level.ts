@@ -6,6 +6,7 @@ import {
   findSpawnTile,
   findGreenEnemyTiles,
   findPurpleEnemyTiles,
+  findBeeTiles,
   findCoinTiles,
   findCrateTiles,
   findQuestionMarkTiles,
@@ -98,7 +99,9 @@ import {
 //     on the ledge underneath them.
 //   - Zone D, Pit Run (cols 91-125): a ground route (jump the open pit, cross
 //     the bridged one) and a mid-terrace platform route carrying a coin and
-//     the second key — two independent ways past the same stretch.
+//     the second key — two independent ways past the same stretch. The
+//     level's single bee hovers over the open pit, crossing it where a
+//     ground slime would have to turn.
 //   - Zone E, Deep Mine (cols 126-170): two stacked galleries. A ladder at
 //     col 128 drops to the upper one, col 140 continues to the lower, and col
 //     166 is one long shaft running surface-to-bottom. Two keys and two chests
@@ -120,6 +123,8 @@ import {
 //   S  1   spawn
 //   M  12  green slime — one per course
 //   m  5   purple slime — no CV fact; each drops one key
+//   q  1   bee — no CV fact; flies over gaps, stompable like a green slime,
+//          drops nothing and counts toward nothing (O-024)
 //   o  13  coin — walk-over coins (16 skill categories total; the other 3 are
 //          reachable via the `u` coin-pots below instead). A coin carries no
 //          CVData binding of its own — see CollectibleMapper.ts's
@@ -177,7 +182,7 @@ export const LEVEL_1_LAYOUT: readonly string[] = [
   '...........................................................................................................................................................................................GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   '........................................M........................................................o...........m........................................................................M..o.GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   '.............HGGGGGGGG@.=?........GGGGGGGGGGGGGGG.......................................?......GGGGGGG.....GGGGGGG....=?F?.........................................................RRRRRRRRGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
-  '.............H....................GGGGGGGGGGGGGGG..................................................................................................................................GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  '.............H....................GGGGGGGGGGGGGGG..............................................q...................................................................................GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   '..S.5.Ao...oCH.......M....6b.M..2.GGGGGGGGGGGGGGGuu.u.....M......1.........^..A........................M.o..........M.....M.......M........................M.................#.M..#GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGgggGGGBBBGGGGGGGGGGGGGGHGGGGGGGGGGGGGGGGGGGGGGHGGGGGGHGGBBBGGGGGGGGGGGGGGGGGFFGGGGGGGGGG...GGGGGGGGGBBBGGGGGGGGGGGGGGGRRHRRRRRRRRRRRRGGGGGGGGGGGGGGGGGGGGGGGGGHGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.H........⊤....⊤........H<GGGG>H..........=................GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..H.......v.......=...=.................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
@@ -273,6 +278,11 @@ export const ENEMY_TILES_GREEN = computed(() => findGreenEnemyTiles(currentLayou
  *  Purple slimes carry no CV fact — each drops one key, and the level holds
  *  exactly as many of them as it has chests. */
 export const ENEMY_TILES_PURPLE = computed(() => findPurpleEnemyTiles(currentLayout.value));
+
+/** Hand-placed bee positions, from `currentLayout`'s `q` markers (O-024).
+ *  A bee carries no CV fact and counts toward nothing — it is a plain,
+ *  position-derived flying enemy (see EnemyMapper.ts's placeBees). */
+export const BEE_TILES = computed(() => findBeeTiles(currentLayout.value));
 
 /** Hand-placed Skill-category coin positions, from `currentLayout`'s `o` markers. */
 export const COIN_TILES = computed(() => findCoinTiles(currentLayout.value));

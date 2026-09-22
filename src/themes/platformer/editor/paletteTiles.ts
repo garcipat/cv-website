@@ -178,6 +178,18 @@ export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
     frameWidth: 24,
     frameHeight: 24,
   },
+  q: {
+    // The first frame of the bee's fly loop (sheet frame 32 = row 5 col 0 of
+    // the 8x7 bee.png) — a representative still, matching the frame the
+    // engine draws at rest (see entities/enemies/Bee.ts's BEE_ANIMATIONS).
+    sheet: '/sprites/bee.png',
+    sheetWidth: 192,
+    sheetHeight: 168,
+    sx: 0,
+    sy: 96,
+    frameWidth: 24,
+    frameHeight: 24,
+  },
   o: {
     sheet: '/sprites/coin.png',
     sheetWidth: 192,
@@ -614,6 +626,7 @@ export const PALETTE_TILE_DESCRIPTIONS: Record<TileChar, string> = {
   S: 'Where the player starts',
   M: 'Green slime; stomping it reveals one CV fact',
   m: 'Purple slime; stomping it drops a key',
+  q: 'Bee; flies over gaps, stompable like a green slime, reveals nothing',
   o: 'Coin; collecting it reveals one skill category',
   '=': 'Crate block; hit it from below to reveal a CV fact',
   '?': 'Question block; hit it from below to pop a bonus fruit',
@@ -664,6 +677,7 @@ export const PALETTE_TILE_LABELS: Record<TileChar, string> = {
   S: 'Spawn',
   M: 'Enemy Green',
   m: 'Enemy Purple',
+  q: 'Bee',
   o: 'Coin',
   '=': 'Crate',
   '?': 'Question Mark',

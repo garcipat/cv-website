@@ -209,6 +209,20 @@ export const BACKGROUND_LAYER_GRASS_SHEET: SpriteSheet = {
   columns: 1,
 };
 
+/** The ambient cloud sheet (O-022) — a 185x32 strip of four differently-sized
+ *  soft white cloud shapes, prepared in the backdrop's own palette. The sheet is
+ *  not a uniform frame grid (the clouds differ in width), so `AmbientClouds.ts`
+ *  addresses it through its own `AMBIENT_CLOUD_SOURCE_RECTS` sx/sy rects rather
+ *  than by frame index — like `BACKGROUND_LAYERS_SHEET`, this registration
+ *  exists for loading, not addressing. `frameWidth`/`frameHeight`/`columns`
+ *  therefore do not describe the art; they only describe the image's bounds. */
+export const AMBIENT_CLOUDS_SHEET: SpriteSheet = {
+  src: '/sprites/ambient_clouds.png',
+  frameWidth: 185,
+  frameHeight: 32,
+  columns: 1,
+};
+
 /** Two 30px-tall wave-line animation frames stacked vertically (frame 0 on
  *  top, frame 1 below), cropped and chroma-keyed from `backgrounds.png`.
  *  Overlaid on the village layer by `BackgroundLayers.ts`, alternating over
@@ -307,6 +321,17 @@ export const SPEAR_SHEET: SpriteSheet = {
   frameWidth: 32,
   frameHeight: 32,
   columns: 1,
+};
+
+/** `bee.png` — a 192x168 flat 2D pixel-art sheet: an 8x7 grid of 24x24
+ *  cells. Row 5 (sheet frames 32-39) is the neutral flight loop the bee's
+ *  `fly` animation plays (see entities/enemies/Bee.ts). Addressed by frame
+ *  index via `frameSource`, the same convention as `SLIME_*_SHEET`. */
+export const BEE_SHEET: SpriteSheet = {
+  src: '/sprites/bee.png',
+  frameWidth: 24,
+  frameHeight: 24,
+  columns: 8,
 };
 
 /** `spikes.png` — a 48x20 strip of three horizontally-laid-out 16x20

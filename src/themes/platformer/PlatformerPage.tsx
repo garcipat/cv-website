@@ -50,7 +50,9 @@ import {
   drawCrumblingFloors,
   drawCrumbleDebrisEffects,
 } from './engine/Renderer';
-import { drawBackgroundLayers } from './engine/BackgroundLayers';
+import { drawBackgroundLayers, backgroundBandGeometry } from './engine/BackgroundLayers';
+import { createCloudField, stepCloudField, drawAmbientClouds } from './engine/AmbientClouds';
+import type { CloudField } from './engine/AmbientClouds';
 import { ladderBundleForPlayer, beginDeploy } from './engine/DeployableLadder';
 import type { DrawContext } from './engine/DrawContext';
 import { drawDebugOverlay, drawCameraDeadZoneOverlay } from './engine/DebugOverlay';
@@ -58,7 +60,7 @@ import { createGameLoop } from './engine/GameLoop';
 import { stepPlayerPhysics, checkPitFall, resolvePitFall, playerOnMushroomCap } from './engine/Physics';
 import { startMushroomSquash } from './engine/MushroomSquash';
 import { PHYSICS_CONFIG } from './engine/PhysicsConfig';
-import { stepEnemyPatrol, stepEnemyHitReaction } from './engine/EnemyAI';
+import { stepEnemyHitReaction } from './engine/EnemyAI';
 import { updateCamera, updateCameraY, initialCameraX, initialCameraY } from './engine/Camera';
 import { createKeyboardInput } from './engine/Input';
 import type { KeyboardInput } from './engine/Input';
@@ -176,6 +178,7 @@ import {
   BACKGROUND_LAYERS_SHEET,
   BACKGROUND_LAYER_GRASS_SHEET,
   BACKGROUND_LAYER_RIVER_SHEET,
+  AMBIENT_CLOUDS_SHEET,
   DECORATIONS_SHEET,
   TORCH_SHEET,
   ROPE_LADDER_SHEET,
@@ -190,6 +193,7 @@ import {
 import { frameSource, collectSheetSources } from './entities/sprites/SpriteSheet';
 import type { SpriteLookup } from './entities/sprites/SpriteSheet';
 import { ENEMY_TYPES, typeOf } from './entities/enemies';
+import type { MovementContext } from './entities/enemies/movement/MovementStrategy';
 import type { EnemyTypeKey } from './entities/enemies';
 import { spearTipMaskFromImage, setSpearTipMask } from './entities/hazards/SpearArt';
 import { PICKUP_TYPES } from './entities/pickups';
@@ -293,6 +297,9 @@ export const PlatformerPage = () => {
   const backgroundLayersRef = useRef<HTMLImageElement | null>(null);
   const backgroundLayerGrassRef = useRef<HTMLImageElement | null>(null);
   const backgroundLayerRiverRef = useRef<HTMLImageElement | null>(null);
+  // The ambient cloud sheet (O-022) — loaded alongside the other backdrop
+  // sheets and drawn as a camera-independent layer just above the backdrop.
+  const ambientCloudsRef = useRef<HTMLImageElement | null>(null);
   const groundAtlasRef = useRef<HTMLImageElement | null>(null);
   const backgroundAtlasRef = useRef<HTMLImageElement | null>(null);
   const staticObjectsRef = useRef<HTMLImageElement | null>(null);
@@ -597,6 +604,17 @@ export const PlatformerPage = () => {
     // spawnBonusFruit wrap it".
     let nextBonusFruitIcon = 0;
 
+    // Whether the visitor has asked for reduced motion — read once on mount
+    // (same precedent as SpacePage.tsx) and threaded into the ambient-cloud
+    // step, so the clouds are drawn but never drift (FR-014).
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // The ambient cloud field (O-022) — a loop-local value like
+    // `worldAnimElapsed` above, rebuilt from scratch on every resize and
+    // stepped only inside the 'playing' branch, so it freezes with the world
+    // during pause/death/restart. Starts empty until the first `resize()`.
+    let cloudField: CloudField = createCloudField(0, 0, 0);
+
     const resize = () => {
       const { width, height } = playCanvasSize(window.innerWidth, window.innerHeight);
       canvas.width = width;
@@ -609,6 +627,12 @@ export const PlatformerPage = () => {
       }
       darknessLayerRef.current.width = width;
       darknessLayerRef.current.height = height;
+
+      // Rebuild the ambient cloud field for the new play-area width and open
+      // sky region (FR-015, SC-007). `cloudsTop` is the painted clouds/hills
+      // band's top edge — the open sky's bottom (see contracts/rendering.md).
+      const geometry = backgroundBandGeometry(canvas.height);
+      cloudField = createCloudField(width, geometry.skyTop, geometry.cloudsTop);
 
       backgroundColor =
         getComputedStyle(document.documentElement).getPropertyValue('--background').trim() ||
@@ -646,6 +670,12 @@ export const PlatformerPage = () => {
           worldAnimElapsed,
         );
       }
+
+      // The ambient cloud layer (O-022): its own right-to-left drift plus a
+      // small camera-linked parallax shift at the painted clouds/hills band's
+      // factor, drawn immediately above the backdrop and behind everything
+      // else (FR-002, FR-011).
+      drawAmbientClouds(ctx, ambientCloudsRef.current, cloudField, cameraPositionX.value);
 
       if (tilesetRef.current) {
         if (backgroundAtlasRef.current) {
@@ -1069,6 +1099,12 @@ export const PlatformerPage = () => {
       // than ticking on a wall-clock independent of the paused state.
       worldAnimElapsed += dt;
 
+      // Ambient clouds drift right-to-left here, in the 'playing' branch only,
+      // so they freeze with the world during pause/death/restart. Stepping by
+      // the loop's own clamped `dt` is what makes them resume from where they
+      // were after a stall rather than jumping forward (FR-002).
+      cloudField = stepCloudField(cloudField, dt, prefersReducedMotion);
+
       // Darkness is eased here, in the `playing` branch only, so it freezes
       // with the rest of the world during pause/death (research D8).
       tickDarkness(dt);
@@ -1135,15 +1171,15 @@ export const PlatformerPage = () => {
       });
 
       // Enemies currently reacting to a stomp (animState 'hit') run their
-      // reaction timer instead of patrolling — stepEnemyHitReaction either
-      // holds them frozen, reverts them to 'walk', or flags them `alive:
-      // false` once the reaction finishes (a type module's own
-      // `onPlayerCollide` is what put
+      // reaction timer instead of moving — stepEnemyHitReaction either
+      // holds them frozen, reverts them to their kind's own default state, or
+      // flags them `alive: false` once the reaction finishes (a type module's
+      // own `onPlayerCollide` is what put
       // them into 'hit' in the first place, below). A dead enemy (`!alive`)
-      // is skipped entirely — it stays in the array but is neither patrolled
+      // is skipped entirely — it stays in the array but is neither moved
       // nor animated.
       //
-      // stepEnemyPatrol also needs to know about currently-live blocks
+      // The movement step also needs to know about currently-live blocks
       // (crate/questionMark/fragileRock) — LevelParser.ts resolves their
       // level-layout markers to 'empty' terrain, so the static grid alone
       // can't tell an enemy it's standing on/beside one. Derive the live
@@ -1156,11 +1192,27 @@ export const PlatformerPage = () => {
           col: Math.round(block.x / RENDERED_TILE_SIZE),
           row: Math.round(block.y / RENDERED_TILE_SIZE),
         }));
+      // One context per tick, shared by every enemy that tick. The player box
+      // feeds proximity strategies (chase); `elapsed` is the existing shared
+      // world clock the fly bob's phase reads, so the bob freezes with the
+      // world on pause/death and resumes on the same phase (research D8).
+      const movementCtx: MovementContext = {
+        level: currentLevel.value,
+        blockedTiles,
+        player: {
+          x: playerState.value.x,
+          y: playerState.value.y,
+          width: PLAYER_RENDERED_SIZE,
+          height: PLAYER_RENDERED_SIZE,
+        },
+        elapsed: worldAnimElapsed,
+        crumblingFloorStates: crumblingFloorTimerStates.value,
+      };
       const stepEnemy = (enemy: EnemyState): EnemyState => {
         const next =
           enemy.animState === 'hit'
             ? stepEnemyHitReaction(enemy, dt)
-            : stepEnemyPatrol(enemy, currentLevel.value, dt, blockedTiles, crumblingFloorTimerStates.value);
+            : typeOf(enemy).movement.step(enemy, movementCtx, dt);
         return advanceEnemyAnimation(typeOf(next).onTick?.(next, dt) ?? next, dt);
       };
       enemyStates.value = enemyStates.value.map((enemy) => (enemy.alive ? stepEnemy(enemy) : enemy));
@@ -1247,8 +1299,10 @@ export const PlatformerPage = () => {
           // can own more than one). No counterKey here: the enemies popup is
           // bumped below instead, for every defeated green slime rather than
           // only ones that happen to reveal a fact (see that bump's own
-          // comment).
-          greenDefeatedThisTick = true;
+          // comment). The popup bump is gated on `slimeGreen` explicitly: a
+          // defeated bee (or any other non-key, fact-less kind) still earns
+          // its puff but counts toward nothing (FR-013/SC-008).
+          if (enemy.type === 'slimeGreen') greenDefeatedThisTick = true;
           newPuffs.push(startPuffEffect(enemy.id, puffX, puffY, anchor.scale));
           const facts = [enemy.fact, ...(enemy.extraFacts ?? [])].filter(
             (fact): fact is CollectedFact => fact !== undefined,
@@ -2416,6 +2470,17 @@ export const PlatformerPage = () => {
       .catch(() => {
         // The river simply won't animate if this asset fails to load; the
         // rest of the background still shows.
+      });
+    loadImage(AMBIENT_CLOUDS_SHEET.src)
+      .then((img) => {
+        if (cancelled) return;
+        ambientCloudsRef.current = img;
+        render();
+      })
+      .catch(() => {
+        // The ambient layer is purely decorative — it simply won't render if
+        // this sheet fails to load (drawAmbientClouds returns early on a null
+        // image); the backdrop, level and HUD still show (FR-012).
       });
     loadImage(BACKGROUND_TILES_SHEET.src)
       .then((img) => {

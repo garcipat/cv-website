@@ -4,7 +4,7 @@
       "command": "npx",
       "args": ["-y", "mcp-image"],
       "env": {
-        "IMAGE_OUTPUT_DIR": "C:/Git/github/garcipat/cv-website/.generated",
+        "IMAGE_OUTPUT_DIR": ".generated",
         "GEMINI_API_KEY": "${GEMINI_API_KEY}"
       }
     }

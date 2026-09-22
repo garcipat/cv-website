@@ -495,6 +495,7 @@ const ENEMY_HIT_SPLATTER_SPREAD_Y = 44;
 const ENEMY_HIT_SPLATTER_COLOR: Record<EnemyTypeKey, string> = {
   slimeGreen: '#3ddc55',
   slimePurple: '#8e3dd9',
+  bee: '#f2c14e',
 };
 
 /**
