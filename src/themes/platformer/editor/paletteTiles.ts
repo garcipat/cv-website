@@ -43,8 +43,28 @@ export interface TileSpriteSpec {
    *  (`crumble_cracks.png`, separate from `crumble_floor.png`, and a
    *  different native size — 48x8 vs. 16x16), so all three are optional
    *  here rather than assumed; the rendering code (`PaletteTile.tsx`) falls
-   *  each back to the base spec's own value independently. */
-  overlay?: { sheet?: string; sheetWidth?: number; sheetHeight?: number; sx: number; sy: number; frameHeight?: number };
+   *  each back to the base spec's own value independently.
+   *
+   *  `anchor` picks which edge of the base's own footprint a shorter
+   *  `frameHeight` slice sits flush against: `'bottom'` (the default, and
+   *  every overlay before `g`) reads as "emerging from the ground" — the
+   *  floor spike's tip sticking up out of its tell. `'top'` sits flush
+   *  with the base sprite's own top edge instead, matching how the live
+   *  game's `Renderer.ts` composites the crumbling floor's crack overlay
+   *  at the same y as the ledge's own top (`destY`) — required because
+   *  `crumble_floor.png`'s visible ledge art itself is top-aligned in its
+   *  16x16 cell (rows 0-8 opaque, 9-15 transparent), the opposite of the
+   *  floor spike's bottom-aligned tell. Omitted, behavior is byte-for-byte
+   *  identical to before this field existed. */
+  overlay?: {
+    sheet?: string;
+    sheetWidth?: number;
+    sheetHeight?: number;
+    sx: number;
+    sy: number;
+    frameHeight?: number;
+    anchor?: 'top' | 'bottom';
+  };
 }
 
 const WORLD_TILESET = '/sprites/world_tileset.png';
@@ -338,6 +358,12 @@ export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
       sx: 0,
       sy: 0,
       frameHeight: 8,
+      // Top-anchored: crumble_floor.png's visible ledge art occupies the
+      // TOP half of its 16x16 cell (rows 0-8), not the bottom half like the
+      // floor spike's tell — so the crack overlay must sit flush with the
+      // base sprite's own top edge, matching Renderer.ts's compositing, or
+      // it lands over the ledge's transparent bottom half instead.
+      anchor: 'top',
     },
   },
   '§': {
