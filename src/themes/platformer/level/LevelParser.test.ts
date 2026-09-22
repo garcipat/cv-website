@@ -646,12 +646,29 @@ describe('mushroom terrain characters', () => {
   });
 });
 
+describe('crumblingFloor terrain character', () => {
+  it('TERRAIN_CHARS-crumblingFloorChar-mapsToCrumblingFloorTile', () => {
+    expect(TERRAIN_CHARS['g']).toBe('crumblingFloor');
+  });
+
+  it('parseLevel-crumblingFloorChar-parsesAsCrumblingFloorTile', () => {
+    const result = parseLevel(['g.', 'GG']);
+    expect(result.terrain[0][0]).toBe('crumblingFloor');
+  });
+
+  it('crumblingFloorChar-notSharedWithOtherCharMaps', () => {
+    expect('g' in ENTITY_CHARS).toBe(false);
+    expect('g' in SIGN_CHARS).toBe(false);
+    expect('g' in HAZARD_CHARS).toBe(false);
+  });
+});
+
 describe('TileChar', () => {
   it('includes every TERRAIN_CHARS, ENTITY_CHARS, SIGN_CHARS, and HAZARD_CHARS key', () => {
     const tileChars: readonly TileChar[] = [
       '.', 'G', 'R', '#', 'B', 'H', 'I', 'P', '+', 'S', 'M', 'm', 'o', '=', '?', 'F', '$', 'u', 'p',
       'b', 'n', 'N', 'X', 'c', '⊤', '⊥', '¥', '1', '2', '3', '4', '5', '6', '^', 'v', '<', '>', 'A', 'C', '@',
-      '§', 's', '¦',
+      '§', 's', 'g', '¦',
     ];
     const allKeys = [
       ...Object.keys(TERRAIN_CHARS),
