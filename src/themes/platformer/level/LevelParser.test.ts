@@ -3,6 +3,7 @@ import {
   findSpawnTile,
   findGreenEnemyTiles,
   findPurpleEnemyTiles,
+  findBeeTiles,
   findCoinTiles,
   findCrateTiles,
   findQuestionMarkTiles,
@@ -71,6 +72,7 @@ describe('parseLevel', () => {
     expect(ENTITY_CHARS.S).toBe('spawn');
     expect(ENTITY_CHARS.M).toBe('enemyGreen');
     expect(ENTITY_CHARS.m).toBe('enemyPurple');
+    expect(ENTITY_CHARS.q).toBe('enemyBee');
     expect(ENTITY_CHARS.o).toBe('coin');
     expect(ENTITY_CHARS['=']).toBe('crate');
     expect(ENTITY_CHARS['?']).toBe('questionMark');
@@ -261,6 +263,23 @@ describe('findPurpleEnemyTiles', () => {
 
   it('greenMarker-isNotCountedAsPurple', () => {
     expect(findPurpleEnemyTiles(['M.'])).toEqual([]);
+  });
+});
+
+describe('findBeeTiles', () => {
+  it('noMarkers-returnsEmptyArray', () => {
+    expect(findBeeTiles(['GG', 'GG'])).toEqual([]);
+  });
+
+  it('multipleMarkers-returnsAllInReadingOrder', () => {
+    expect(findBeeTiles(['.q', 'q.'])).toEqual([
+      { col: 1, row: 0 },
+      { col: 0, row: 1 },
+    ]);
+  });
+
+  it('otherEnemyMarkers-areNotCountedAsBees', () => {
+    expect(findBeeTiles(['Mm'])).toEqual([]);
   });
 });
 
@@ -649,7 +668,7 @@ describe('mushroom terrain characters', () => {
 describe('TileChar', () => {
   it('includes every TERRAIN_CHARS, ENTITY_CHARS, SIGN_CHARS, and HAZARD_CHARS key', () => {
     const tileChars: readonly TileChar[] = [
-      '.', 'G', 'R', '#', 'B', 'H', 'I', 'P', '+', 'S', 'M', 'm', 'o', '=', '?', 'F', '$', 'u', 'p',
+      '.', 'G', 'R', '#', 'B', 'H', 'I', 'P', '+', 'S', 'M', 'm', 'q', 'o', '=', '?', 'F', '$', 'u', 'p',
       'b', 'n', 'N', 'X', 'c', '⊤', '⊥', '¥', '1', '2', '3', '4', '5', '6', '^', 'v', '<', '>', 'A', 'C', '@',
       '§', 's', '¦',
     ];

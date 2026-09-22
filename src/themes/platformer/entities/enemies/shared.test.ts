@@ -1,10 +1,27 @@
-import { takeHit, baseEnemyState, baseRevive, ENEMY_HIT_REACTION_SECONDS } from './shared';
+import {
+  takeHit,
+  baseEnemyState,
+  baseRevive,
+  ENEMY_HIT_REACTION_SECONDS,
+  type EnemyBaseConfig,
+} from './shared';
+import { ENEMY_ANIMATIONS } from './EnemyAnimation';
 import { ENEMY_TYPES } from './index';
 import { isInvulnerable } from '../capabilities';
 import type { EnemyPlacement } from '../../level/EnemyMapper';
 
 function makeGreenPlacement(): EnemyPlacement {
   return { id: 'enemy-cert-x', type: 'slimeGreen', x: 320, y: 96 };
+}
+
+/** A walk-resting config with a deliberately non-shared reaction duration. */
+function configWithReaction(seconds: number): EnemyBaseConfig {
+  return {
+    maxHitPoints: 1,
+    hitReactionSeconds: seconds,
+    defaultAnimState: 'walk',
+    animations: ENEMY_ANIMATIONS,
+  };
 }
 
 describe('takeHit', () => {
@@ -55,15 +72,18 @@ describe('baseEnemyState/baseRevive hitTimer seeding', () => {
 
   it('baseEnemyState-seedsHitTimerFromArgumentNotSharedConstant-spawnsVulnerable', () => {
     const placement: EnemyPlacement = { id: 'enemy-cert-x', type: 'slimeGreen', x: 320, y: 96 };
-    const state = baseEnemyState(placement, 0, 1, differentDuration);
+    const state = baseEnemyState(placement, 0, configWithReaction(differentDuration));
     expect(state.hitTimer).toBe(differentDuration);
     expect(isInvulnerable(state, differentDuration)).toBe(false);
   });
 
   it('baseRevive-seedsHitTimerFromArgumentNotSharedConstant-revivesVulnerable', () => {
     const placement: EnemyPlacement = { id: 'enemy-cert-x', type: 'slimeGreen', x: 320, y: 96 };
-    const spawned = { ...baseEnemyState(placement, 0, 1, ENEMY_HIT_REACTION_SECONDS), type: 'slimeGreen' as const };
-    const revived = baseRevive(spawned, 1, differentDuration);
+    const spawned = {
+      ...baseEnemyState(placement, 0, configWithReaction(ENEMY_HIT_REACTION_SECONDS)),
+      type: 'slimeGreen' as const,
+    };
+    const revived = baseRevive(spawned, configWithReaction(differentDuration));
     expect(revived.hitTimer).toBe(differentDuration);
     expect(isInvulnerable(revived, differentDuration)).toBe(false);
   });
@@ -81,17 +101,61 @@ describe('baseEnemyState/baseRevive hitTimer seeding', () => {
   });
 });
 
+describe('baseEnemyState/baseRevive resting-state seeding', () => {
+  it('baseEnemyState-seedsAnimStateFromDefaultAnimState', () => {
+    const placement: EnemyPlacement = { id: 'enemy-cert-x', type: 'slimeGreen', x: 320, y: 96 };
+    const state = baseEnemyState(placement, 0, {
+      maxHitPoints: 1,
+      hitReactionSeconds: ENEMY_HIT_REACTION_SECONDS,
+      defaultAnimState: 'fly',
+      animations: { fly: { frames: [10, 11, 12], frameDuration: 0.2 } },
+    });
+    expect(state.animState).toBe('fly');
+    expect(state.animFrame).toBe(0);
+  });
+
+  it('baseEnemyState-staggersByTheRestingStatesOwnFrameCount', () => {
+    const placement: EnemyPlacement = { id: 'enemy-cert-x', type: 'slimeGreen', x: 320, y: 96 };
+    const config: EnemyBaseConfig = {
+      maxHitPoints: 1,
+      hitReactionSeconds: ENEMY_HIT_REACTION_SECONDS,
+      defaultAnimState: 'fly',
+      animations: { fly: { frames: [10, 11, 12], frameDuration: 0.2 } },
+    };
+    expect(baseEnemyState(placement, 3, config).animFrame).toBe(0);
+    expect(baseEnemyState(placement, 1, config).animFrame).toBe(1);
+  });
+
+  it('baseRevive-reseedsAnimStateFromDefaultAnimState', () => {
+    const placement: EnemyPlacement = { id: 'enemy-cert-x', type: 'slimeGreen', x: 320, y: 96 };
+    const config: EnemyBaseConfig = {
+      maxHitPoints: 1,
+      hitReactionSeconds: ENEMY_HIT_REACTION_SECONDS,
+      defaultAnimState: 'fly',
+      animations: { fly: { frames: [10, 11, 12], frameDuration: 0.2 } },
+    };
+    const spawned = { ...baseEnemyState(placement, 0, config), type: 'slimeGreen' as const, animState: 'hit' };
+    expect(baseRevive(spawned, config).animState).toBe('fly');
+  });
+});
+
 describe('deathEffectGiven', () => {
   const placement: EnemyPlacement = { id: 'enemy-cert-x', type: 'slimeGreen', x: 320, y: 96 };
+  const config = configWithReaction(ENEMY_HIT_REACTION_SECONDS);
 
   it('baseEnemyState-startsFalse', () => {
-    const state = baseEnemyState(placement, 0, 1, ENEMY_HIT_REACTION_SECONDS);
+    const state = baseEnemyState(placement, 0, config);
     expect(state.deathEffectGiven).toBe(false);
   });
 
   it('baseRevive-resetsDeathEffectGivenToFalse-evenIfItWasTrue', () => {
-    const state = { ...baseEnemyState(placement, 0, 1, ENEMY_HIT_REACTION_SECONDS), type: 'slimeGreen' as const, deathEffectGiven: true, alive: false };
-    const revived = baseRevive(state, 1, ENEMY_HIT_REACTION_SECONDS);
+    const state = {
+      ...baseEnemyState(placement, 0, config),
+      type: 'slimeGreen' as const,
+      deathEffectGiven: true,
+      alive: false,
+    };
+    const revived = baseRevive(state, config);
     expect(revived.deathEffectGiven).toBe(false);
   });
 
@@ -100,13 +164,13 @@ describe('deathEffectGiven', () => {
     // comment); deathEffectGiven is per-life. Both fields exist on the same
     // object but behave oppositely across a revive.
     const state = {
-      ...baseEnemyState(placement, 0, 1, ENEMY_HIT_REACTION_SECONDS),
+      ...baseEnemyState(placement, 0, config),
       type: 'slimeGreen' as const,
       rewardGiven: true,
       deathEffectGiven: true,
       alive: false,
     };
-    const revived = baseRevive(state, 1, ENEMY_HIT_REACTION_SECONDS);
+    const revived = baseRevive(state, config);
     expect(revived.rewardGiven).toBe(true);
     expect(revived.deathEffectGiven).toBe(false);
   });

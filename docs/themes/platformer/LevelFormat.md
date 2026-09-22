@@ -74,7 +74,7 @@ of the raw layout by the `find*` functions in `LevelParser.ts`.
 | `B` | `bridge` | Solid one-way: blocks landing from above and walking into it from the side, but never blocks rising into it from below or an active drop-through (`isSolidExcludingBridge`). |
 | `H` | `ladder` | Climbable, never solid. Its topmost tile with open space above is standable (`isStandableLadderTop`). |
 | `I` | `chain` | Climbable, never solid. Behaves identically to `ladder` everywhere; a purely visual alternative skin whose attachment side is derived from neighbouring solid terrain. |
-| `P` | `patrol` | Invisible, non-solid enemy patrol boundary. Nothing renders it and the player passes through, but `EnemyAI.ts` reverses a patrol that walks into one as if it were a wall. |
+| `P` | `patrol` | Invisible, non-solid enemy patrol boundary. Nothing renders it and the player passes through, but an enemy's movement strategy reverses when its visible leading edge reaches one, as if it were a wall. |
 | `+` | `blueprintConnectionPoint` | Invisible, editor-only marker on a blueprint's border cell. Never solid, never rendered in gameplay, and read by nothing in the running game — including blueprint placement, which validates overlap only. |
 | `n` | `bush` | Decorative, non-solid. Picks its own size variant; stacking grows it into a tree. |
 | `N` | `fence` | Decorative, non-solid. Single fixed sprite. |
@@ -107,6 +107,7 @@ See [Terrain.md](Terrain.md) for the tile API, autotiling and multi-cell runs.
 | `S` | `spawn` | The player's start tile. Required — `findSpawnTile` throws if the layout has none. |
 | `M` | `enemyGreen` | Green slime. Each marker owns a proportional slice of the course pool by position; reveals a Courses fact when stomped. |
 | `m` | `enemyPurple` | Purple slime. Bigger, slower, tougher; carries no CV fact and drops a key on defeat. |
+| `q` | `enemyBee` | Bee (O-024). Flies horizontally over gaps (no ledge check) with a steady vertical bob; stompable like a green slime, but carries no CV fact, drops nothing and counts toward no counter. |
 | `o` | `coin` | Walk-over coin. Purely positional — which skill-category fact it reveals is resolved from a shared pool at pickup time, not bound at placement. |
 | `=` | `crate` | Destroyable block, hit from below. Reveals an Education, Activities or Languages fact. |
 | `Q` | `questionMark` | Destroyable block, hit from below. Carries no fact of its own; pops a bonus fruit into the tile directly above, so it must be placed under open space. |
@@ -167,7 +168,7 @@ for the trigger/cycle behavior itself.
 ## `TileChar`
 
 `TileChar` (`LevelParser.ts`) is the union of every legal layout character — all four
-maps' keys, 41 characters in total. It is written out by hand rather than derived with
+maps' keys, 44 characters in total. It is written out by hand rather than derived with
 `keyof typeof`: the maps are annotated `Record<string, … | undefined>` so lookups can
 index by a plain `string`, which would widen a derived union to `string` and remove all
 type safety. A test asserts every map key appears in the union.

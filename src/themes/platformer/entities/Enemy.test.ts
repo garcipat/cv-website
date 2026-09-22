@@ -9,19 +9,26 @@ import {
   enemyTileOffsetY,
   enemyHitboxSidePadding,
   enemyHitboxTopPadding,
+  enemyHitboxBottomPadding,
   enemyEffectAnchor,
 } from './Enemy';
 import type { EnemyState } from './Enemy';
 import { ENEMY_TYPES, typeOf } from './enemies';
-import { enemyFrameIndex } from './enemies/EnemyAnimation';
+import { resolveAnimation, enemyFrameIndex } from './enemies/EnemyAnimation';
+import { spriteSheetHitbox } from './enemies/spriteSheetHitbox';
+import { drawSpriteSheetEntity } from './enemies/drawSpriteSheetEntity';
+import type { BaseEnemyState } from './enemies/EnemyType';
 import { ENEMY_HIT_REACTION_SECONDS } from './enemies/shared';
 import { SLIME_GREEN_SHEET } from './sprites/sheets';
 import { frameSource } from './sprites/SpriteSheet';
+import type { SpriteDescriptor } from './sprites/SpriteSheet';
+import type { DrawContext } from '../engine/DrawContext';
 
 const ENEMY_FRAME_SIZE = SLIME_GREEN_SHEET.frameWidth;
+const GREEN_SPRITE = ENEMY_TYPES.slimeGreen.sprite;
 
-function enemyFrameSource(animState: 'walk' | 'hit', frame: number): { sx: number; sy: number } {
-  return frameSource(SLIME_GREEN_SHEET, enemyFrameIndex(animState, frame));
+function enemyFrameSource(animState: string, frame: number): { sx: number; sy: number } {
+  return frameSource(SLIME_GREEN_SHEET, enemyFrameIndex(GREEN_SPRITE, animState, frame, 'walk'));
 }
 import type { EnemyPlacement } from '../level/EnemyMapper';
 import { RENDER_SCALE, RENDERED_TILE_SIZE } from '../level/Terrain';
@@ -158,11 +165,14 @@ describe('per-type enemy config', () => {
     expect(enemyTileOffsetY('slimePurple')).toBe(RENDERED_TILE_SIZE - size);
   });
 
-  it('patrolSpeedMultiplier-slimePurple-isSlowerThanGreen', () => {
-    expect(ENEMY_TYPES.slimePurple.patrolSpeedMultiplier).toBeLessThan(
-      ENEMY_TYPES.slimeGreen.patrolSpeedMultiplier,
-    );
-    expect(ENEMY_TYPES.slimePurple.patrolSpeedMultiplier).toBe(0.7);
+  it('movement-slimes-useAPatrolStrategyWithTheirOwnRestingState', () => {
+    // The old `patrolSpeedMultiplier` field moved into each slime's patrol
+    // strategy config; what is observable from the registry now is the
+    // strategy kind and the resting animation state.
+    expect(ENEMY_TYPES.slimePurple.movement.kind).toBe('patrol');
+    expect(ENEMY_TYPES.slimeGreen.movement.kind).toBe('patrol');
+    expect(ENEMY_TYPES.slimePurple.defaultAnimState).toBe('walk');
+    expect(ENEMY_TYPES.slimeGreen.defaultAnimState).toBe('walk');
   });
 
   it('hitPoints-slimePurple-is3', () => {
@@ -345,3 +355,107 @@ describe('applyEnemyDamage', () => {
     expect(applyEnemyDamage(purple, -1)).toEqual(purple);
   });
 });
+
+describe('enemy hitbox bottom inset (FR-019 / SC-009)', () => {
+  it('slimes-declareBottomZero-soTheirBoxIsBitIdenticalToBeforeTheSeam', () => {
+    for (const type of ['slimeGreen', 'slimePurple'] as const) {
+      expect(ENEMY_TYPES[type].hitboxPaddingNative.bottom).toBe(0);
+      expect(enemyHitboxBottomPadding(type)).toBe(0);
+
+      const enemy = toEnemyState({ id: 'e', type, x: 100, y: 200 });
+      const size = enemyRenderedSize(type);
+      const sidePad = enemyHitboxSidePadding(type);
+      const topPad = enemyHitboxTopPadding(type);
+      expect(typeOf(enemy).box(enemy)).toEqual({
+        x: 100 + enemyTileOffsetX(type) + sidePad,
+        y: 200 + enemyTileOffsetY(type) + topPad,
+        width: size - 2 * sidePad,
+        height: size - topPad,
+      });
+    }
+  });
+
+  it('aNonZeroBottomKind-boxBottomEdgeEqualsTheDrawnVisibleArtBottomAndIsAnchoredOnItsRow', () => {
+    // A synthetic descriptor + padding (not a registered kind) with a
+    // non-zero bottom inset: the box's bottom edge must coincide with the
+    // visible art's bottom, and the frame must be drawn anchored so that art
+    // rests on the placement row.
+    const sprite: SpriteDescriptor = {
+      sheet: SLIME_GREEN_SHEET,
+      renderScale: 1,
+      animations: { idle: { frames: [0], frameDuration: 1 } },
+    };
+    const padding = { side: 4, top: 6, bottom: 5 };
+    const enemy: BaseEnemyState = { ...toEnemyState(makePlacement()), animState: 'idle' };
+
+    const scale = RENDER_SCALE * sprite.renderScale;
+    const size = sprite.sheet.frameWidth * scale;
+    const bottomPad = padding.bottom * scale;
+
+    const box = spriteSheetHitbox(enemy, sprite, padding);
+    expect(box.y + box.height).toBeCloseTo(enemy.y + RENDERED_TILE_SIZE);
+
+    const drawn: { dy: number }[] = [];
+    const ctx = {
+      save: () => {},
+      restore: () => {},
+      translate: () => {},
+      scale: () => {},
+      globalAlpha: 1,
+      drawImage: (_img: unknown, _sx: number, _sy: number, _sw: number, _sh: number, _dx: number, dy: number) => {
+        drawn.push({ dy });
+      },
+    } as unknown as CanvasRenderingContext2D;
+    const dc = {
+      ctx,
+      sprites: { [SLIME_GREEN_SHEET.src]: {} as HTMLImageElement },
+      originX: 0,
+      originY: 0,
+      worldElapsed: 0,
+    } as unknown as DrawContext;
+
+    drawSpriteSheetEntity(enemy, dc, sprite, 'idle', bottomPad, 1);
+
+    expect(drawn).toHaveLength(1);
+    const visibleArtBottom = drawn[0].dy + size - bottomPad;
+    expect(visibleArtBottom).toBeCloseTo(box.y + box.height);
+    expect(visibleArtBottom).toBeCloseTo(enemy.y + RENDERED_TILE_SIZE);
+  });
+});
+
+describe('per-kind animation resolution (FR-007 / FR-009)', () => {
+  const customSprite: SpriteDescriptor = {
+    sheet: SLIME_GREEN_SHEET,
+    renderScale: 1,
+    animations: {
+      idle: { frames: [0, 1], frameDuration: 0.25 },
+      walk: { frames: [3, 4, 5], frameDuration: 0.1 },
+    },
+  };
+
+  it('resolveAnimation-statePresentInTheKindsTable-returnsThatAnimationsFrames', () => {
+    expect(resolveAnimation(customSprite, 'walk', 'idle')).toEqual(customSprite.animations.walk);
+  });
+
+  it('resolveAnimation-stateMissingFromTheKindsTable-fallsBackToItsDefaultState', () => {
+    expect(resolveAnimation(customSprite, 'hit', 'idle')).toEqual(customSprite.animations.idle);
+  });
+
+  it('enemyFrameIndex-stateMissingFromTheKindsTable-resolvesThroughTheFallbackWithoutThrowing', () => {
+    // The bee's table declares no `hit` row; a requested 'hit' must resolve
+    // to the resting state's frames rather than throwing or rendering blank.
+    expect(enemyFrameIndex(customSprite, 'hit', 1, 'idle')).toBe(customSprite.animations.idle.frames[1]);
+  });
+
+  it('slimes-keepWalkAndHitTablesUnchanged', () => {
+    expect(ENEMY_TYPES.slimeGreen.sprite.animations.walk).toEqual({
+      frames: [3, 4, 5, 6, 7],
+      frameDuration: 0.15,
+    });
+    expect(ENEMY_TYPES.slimePurple.sprite.animations.hit).toEqual({
+      frames: [8, 9, 10, 11],
+      frameDuration: 0.1,
+    });
+  });
+});
+

@@ -20,6 +20,14 @@ const SLIME_BODY_ALPHA = 0.78;
  * save/translate/scale(-1,1)/restore pattern, matching drawPlayer's
  * left-facing behavior.
  *
+ * `fallbackState` is the kind's `defaultAnimState`: a state the kind does not
+ * declare in its own table resolves to it (FR-009), so a freshly hit bee
+ * (whose table has no `hit` row) still renders on the draw path before any
+ * `advanceEnemyAnimation` runs. `bottomPad` is the kind's rendered bottom
+ * inset (FR-019) — the frame is shifted down by it so the visible art's
+ * bottom rests on the placement row. `bodyAlpha` defaults to the slimes'
+ * `SLIME_BODY_ALPHA`; a kind with nothing to show through it passes `1`.
+ *
  * Size and tile offsets use the same formula as Enemy.ts's
  * enemyRenderedSize/enemyTileOffsetX/enemyTileOffsetY, computed here from
  * `sprite` directly rather than imported — entities/enemies/ modules never
@@ -27,18 +35,28 @@ const SLIME_BODY_ALPHA = 0.78;
  * depends on this directory through ENEMY_TYPES and importing it back here
  * would create a load-order cycle.
  */
-export function drawSpriteSheetEntity(enemy: BaseEnemyState, dc: DrawContext, sprite: SpriteDescriptor): void {
+export function drawSpriteSheetEntity(
+  enemy: BaseEnemyState,
+  dc: DrawContext,
+  sprite: SpriteDescriptor,
+  fallbackState: string,
+  bottomPad = 0,
+  bodyAlpha = SLIME_BODY_ALPHA,
+): void {
   const { sheet, renderScale } = sprite;
   const image = dc.sprites[sheet.src];
   if (!image) return;
 
-  const { sx, sy } = frameSource(sheet, enemyFrameIndex(enemy.animState, enemy.animFrame));
+  const { sx, sy } = frameSource(
+    sheet,
+    enemyFrameIndex(sprite, enemy.animState, enemy.animFrame, fallbackState),
+  );
   const size = sheet.frameWidth * RENDER_SCALE * renderScale;
   const dx = enemy.x + (RENDERED_TILE_SIZE - size) / 2 + dc.originX;
-  const dy = enemy.y + (RENDERED_TILE_SIZE - size) + dc.originY;
+  const dy = enemy.y + (RENDERED_TILE_SIZE - size) + bottomPad + dc.originY;
 
   dc.ctx.save();
-  dc.ctx.globalAlpha = SLIME_BODY_ALPHA;
+  dc.ctx.globalAlpha = bodyAlpha;
 
   if (enemy.direction === 'left') {
     // Mirrors drawPlayer's left-facing flip: translate to the sprite's right

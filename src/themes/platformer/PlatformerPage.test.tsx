@@ -50,6 +50,7 @@ import {
   activePuffs,
   activeCounterPopups,
   levelTotals,
+  enemiesDefeated,
   hazardPlacements,
   activeHitSplatters,
   checkpointPlacements,
@@ -6159,6 +6160,133 @@ describe('PlatformerPage', () => {
         render(<PlatformerPage />);
         expect(screen.queryByText(/bomb/i)).toBeNull();
       });
+    });
+  });
+
+  describe('bee (O-024)', () => {
+    it('theShippedBee-overAPit-fliesAcrossWithoutReversing', () => {
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+      render(<PlatformerPage />);
+      frameCallback!(0);
+
+      const beeState = enemyStates.value.find((e) => e.type === 'bee')!;
+      expect(beeState).toBeDefined();
+      const startX = beeState.x;
+      const beeRow = Math.round(beeState.homeY / RENDERED_TILE_SIZE);
+      const beeCol = Math.round(beeState.homeX / RENDERED_TILE_SIZE);
+      // It hovers over open air: a ground slime in the same cell would turn
+      // at the pit edge.
+      expect(currentLevel.value.terrain[beeRow][beeCol + 1]).toBe('empty');
+
+      let t = 0;
+      for (let i = 0; i < 40; i++) {
+        t += 16;
+        frameCallback!(t);
+      }
+
+      const after = enemyStates.value.find((e) => e.id === beeState.id)!;
+      expect(after.direction).toBe('right');
+      expect(after.x).toBeGreaterThan(startX);
+    });
+
+    it('playerStompsTheBee-defeatsItAndQueuesTheSharedPuff', () => {
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+      render(<PlatformerPage />);
+      frameCallback!(0);
+
+      const target = enemyStates.value.find((e) => e.type === 'bee')!;
+      playerState.value = {
+        ...playerState.value,
+        x: target.x,
+        y: stompLandingY(target),
+        vy: 300,
+      };
+
+      // The bee has 1 hit point — one full hit-reaction cycle (400ms) after
+      // the stomp defeats it, same pattern as a green slime.
+      let t = 16;
+      frameCallback!(t);
+      for (let i = 0; i < 30; i++) {
+        t += 16;
+        frameCallback!(t);
+      }
+
+      expect(enemyStates.value.find((e) => e.id === target.id)?.alive).toBe(false);
+      expect(activePuffs.value.some((p) => p.id === target.id)).toBe(true);
+    });
+
+    it('playerTouchesTheBeeFromTheSide-losesHalfAHeartAndGetsKnockedBack', () => {
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+      render(<PlatformerPage />);
+      frameCallback!(0);
+
+      const target = enemyStates.value.find((e) => e.type === 'bee')!;
+      const startingHealth = playerState.value.hitPoints;
+      playerState.value = {
+        ...playerState.value,
+        x: target.x,
+        y: target.y,
+        vx: 0,
+        vy: 0,
+      };
+
+      frameCallback!(16);
+
+      expect(playerState.value.hitPoints).toBe(startingHealth - SIDE_HIT_DAMAGE);
+      expect(playerState.value.vx).not.toBe(0);
+    });
+
+    it('defeatingTheBee-banksNoFactAndDoesNotBumpTheEnemiesCounter', () => {
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+      render(<PlatformerPage />);
+      frameCallback!(0);
+
+      const target = enemyStates.value.find((e) => e.type === 'bee')!;
+      const factsBefore = collectedFacts.value.length;
+      const defeatedBefore = enemiesDefeated.value;
+
+      playerState.value = {
+        ...playerState.value,
+        x: target.x,
+        y: stompLandingY(target),
+        vy: 300,
+      };
+
+      let t = 16;
+      frameCallback!(t);
+      for (let i = 0; i < 30; i++) {
+        t += 16;
+        frameCallback!(t);
+      }
+
+      expect(enemyStates.value.find((e) => e.id === target.id)?.alive).toBe(false);
+      expect(collectedFacts.value.length).toBe(factsBefore);
+      expect(enemiesDefeated.value).toBe(defeatedBefore);
+      expect(activeCounterPopups.value.enemies).toBeUndefined();
     });
   });
 });

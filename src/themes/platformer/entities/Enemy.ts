@@ -2,7 +2,7 @@ import { RENDER_SCALE, RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { EnemyPlacement } from '../level/EnemyMapper';
 import { ENEMY_TYPES, typeOf } from './enemies';
 import type { EnemyState, EnemyTypeKey } from './enemies';
-import { ENEMY_ANIMATIONS } from './enemies/EnemyAnimation';
+import { resolveAnimation } from './enemies/EnemyAnimation';
 import { takeHit } from './enemies/shared';
 
 /**
@@ -14,7 +14,7 @@ import { takeHit } from './enemies/shared';
 
 export type { EnemyState } from './enemies';
 export type { EnemyAnimState } from './enemies/EnemyAnimation';
-export { walkAnimFrameCount, WALK_FRAME_DURATION } from './enemies/EnemyAnimation';
+export { WALK_FRAME_DURATION } from './enemies/EnemyAnimation';
 export type { Direction as EnemyDirection } from './geometry';
 
 /** Actual rendered size for a given type — the sheet's native frame scaled by
@@ -33,13 +33,13 @@ export function enemyTileOffsetX(type: EnemyTypeKey): number {
 }
 
 /**
- * Per-type bottom-anchoring offset. Every frame's opaque silhouette bottom
- * sits at the last row of the native frame — the sprite's feet already touch
- * the frame's bottom edge with no transparent padding, unlike Player.ts's
- * PLAYER_FOOT_PADDING — so no extra padding constant is needed.
+ * Per-type bottom-anchoring offset. The frame is shifted down by the kind's
+ * own `hitboxPaddingNative.bottom` inset so the VISIBLE art's bottom edge
+ * rests on the placement row (FR-019). A bottom-anchored sheet declares
+ * `bottom: 0`, which reproduces the pre-seam formula exactly.
  */
 export function enemyTileOffsetY(type: EnemyTypeKey): number {
-  return RENDERED_TILE_SIZE - enemyRenderedSize(type);
+  return RENDERED_TILE_SIZE - enemyRenderedSize(type) + enemyHitboxBottomPadding(type);
 }
 
 /** A world-space anchor point + size scale for a one-shot visual effect at
@@ -90,13 +90,19 @@ export function enemyHitboxSidePadding(type: EnemyTypeKey): number {
   return hitboxPaddingNative.side * RENDER_SCALE * sprite.renderScale;
 }
 
-/** Per-type collision-hitbox top inset — see enemyHitboxSidePadding.
- *  No corresponding bottom-inset function: the silhouette's feet already
- *  touch the native frame's bottom edge, so the hitbox's bottom edge stays
- *  at the render slot's bottom. */
+/** Per-type collision-hitbox top inset — see enemyHitboxSidePadding. */
 export function enemyHitboxTopPadding(type: EnemyTypeKey): number {
   const { hitboxPaddingNative, sprite } = ENEMY_TYPES[type];
   return hitboxPaddingNative.top * RENDER_SCALE * sprite.renderScale;
+}
+
+/** Per-type collision-hitbox bottom inset — see enemyHitboxSidePadding.
+ *  Pulls the box's bottom edge up to the visible art's bottom (FR-019); a
+ *  bottom-anchored sheet declares `0` and leaves the box's bottom edge at the
+ *  render slot's bottom, exactly as before this inset existed. */
+export function enemyHitboxBottomPadding(type: EnemyTypeKey): number {
+  const { hitboxPaddingNative, sprite } = ENEMY_TYPES[type];
+  return hitboxPaddingNative.bottom * RENDER_SCALE * sprite.renderScale;
 }
 
 /**
@@ -158,9 +164,16 @@ export function applyEnemyDamage(enemy: EnemyState, amount: number): EnemyState 
 }
 
 /** Advances the enemy's animation timer/frame by `dt` seconds — same
- *  convention as Player.ts's advancePlayerAnimation. */
+ *  convention as Player.ts's advancePlayerAnimation. Resolves the animation
+ *  through the kind's OWN table, falling back to its `defaultAnimState` when
+ *  the current state is missing (FR-009). */
 export function advanceEnemyAnimation(enemy: EnemyState, dt: number): EnemyState {
-  const { frames, frameDuration } = ENEMY_ANIMATIONS[enemy.animState];
+  const type = typeOf(enemy);
+  const { frames, frameDuration } = resolveAnimation(
+    type.sprite,
+    enemy.animState,
+    type.defaultAnimState,
+  );
   const animTimer = enemy.animTimer + dt;
   if (animTimer < frameDuration) {
     return { ...enemy, animTimer };

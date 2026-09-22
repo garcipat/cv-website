@@ -164,7 +164,34 @@ describe('PlatformerState', () => {
     for (const state of enemyStates.value) {
       expect(state.vx).toBe(0);
       expect(state.direction).toBe('right');
-      expect(state.animState).toBe('walk');
+      // Each kind seeds its OWN resting state: the slimes walk, the bee flies
+      // (FR-008).
+      expect(state.animState).toBe(state.type === 'bee' ? 'fly' : 'walk');
+    }
+  });
+
+  it('enemyPlacements-includesOneBeeForTheShippedQMarker', () => {
+    const bees = enemyPlacements.value.filter((p) => p.type === 'bee');
+    expect(bees).toHaveLength(1);
+    expect(bees[0].fact).toBeUndefined();
+  });
+
+  it('levelTotalsAndEnemiesDefeated-areUnchangedByTheBee', () => {
+    // SC-008: a level with bees reports the same enemies total / defeated
+    // count as the same level with them removed. Swap the `q` marker out of
+    // the layout and confirm neither counter moves, then restore.
+    const withBee = currentLayout.value;
+    const withoutBee = withBee.map((row) => row.replace('q', '.'));
+    expect(withoutBee).not.toEqual(withBee);
+
+    const totalsBefore = levelTotals.value.enemies;
+    const defeatedBefore = enemiesDefeated.value;
+    try {
+      currentLayout.value = withoutBee;
+      expect(levelTotals.value.enemies).toBe(totalsBefore);
+      expect(enemiesDefeated.value).toBe(defeatedBefore);
+    } finally {
+      currentLayout.value = withBee;
     }
   });
 
