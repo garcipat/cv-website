@@ -247,7 +247,7 @@ describe('tickCrumbleDebrisEffect', () => {
 });
 
 describe('crumbleDebrisPieces', () => {
-  it('alwaysReturnsExactlyFourPieces', () => {
+  it('crumbleDebrisPieces-anyEffect-alwaysReturnsExactlyFourPieces', () => {
     const effect = startCrumbleDebrisEffect('d1', 0, 0);
     expect(crumbleDebrisPieces(effect)).toHaveLength(4);
   });
@@ -279,7 +279,7 @@ describe('crumbleDebrisPieces', () => {
     }
   });
 
-  it('piecesDivergeFromEachOtherOverTime', () => {
+  it('crumbleDebrisPieces-nonZeroElapsed-piecesDivergeFromEachOther', () => {
     const effect = tickCrumbleDebrisEffect(startCrumbleDebrisEffect('d1', 0, 0), 0.1);
     const pieces = crumbleDebrisPieces(effect);
     const offsets = pieces.map((p) => `${p.dx},${p.dy}`);
