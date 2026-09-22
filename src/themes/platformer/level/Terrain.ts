@@ -5,8 +5,8 @@ export const RENDER_SCALE = 2;
 export const RENDERED_TILE_SIZE = TILE_SIZE * RENDER_SCALE;
 
 /**
- * Native... no — RENDERED px height of a crumbling floor tile's solid
- * region (O-023): its art top-aligns within its cell and is only half a
+ * Height, in rendered px, of a crumbling floor tile's solid region
+ * (O-023): its art top-aligns within its cell and is only half a
  * tile tall, and its collision matches that exactly rather than the full
  * cell every other solid tile uses. This is the tile's "vertical hitbox
  * inset" — the first one in this codebase; every existing inset
