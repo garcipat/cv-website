@@ -130,12 +130,18 @@ reversal helper, parameterized on whether to run the ledge check.
 ## 5. The bee (validating enemy)
 
 - **Sprite**: `public/sprites/bee.png` — 192×168, an 8-column × 7-row grid of
-  24×24 frames (56 frames). Frame index = `(row-1)*8 + col`. Row 5 (index 4,
+  24×24 cells (56 frames). Frame index = `(row-1)*8 + col`. Row 5 (index 4,
   frames 32–39) is the neutral fly/idle loop (edited so the stinger is
-  permanently slightly out). Exact hit row and frame range are an open
-  question (§9).
+  permanently slightly out). The opaque art is smaller than its cell (~18–19 px
+  wide, 10–13 px tall) and floats inside it — transparent margins of roughly 3 px
+  side, 7 px top, 3–5 px bottom — so, unlike the slimes, it does not touch the
+  frame bottom. Exact hit row and frame range are an open question (§9).
 - **New module** `entities/enemies/Bee.ts` with `BeeState` and the `bee`
   `EnemyType`.
+- **Frame inset & anchoring**: `hitboxPaddingNative` gains a `bottom` margin so
+  the bee's collision box matches its visible silhouette and the sprite is drawn
+  resting on its placement row (spec FR-019/SC-009). The slimes set `bottom: 0`
+  and are unchanged.
 - **Movement**: `flyMovement` (horizontal patrol + vertical bob, no ledge
   check). No chase.
 - **Combat**: stompable like the green slime — top contact stomps (bounce),
@@ -152,8 +158,9 @@ reversal helper, parameterized on whether to run the ledge check.
 Bees are level-marker only (no CV fact, no reward). This is the existing
 per-kind cost for a placeable enemy:
 
-- `level/LevelParser.ts`: add `'enemyBee'` to `EntityKind`, a character (e.g.
-  `b`) to `ENTITY_CHARS`, `TileChar`, and a `findBeeTiles` finder.
+- `level/LevelParser.ts`: add `'enemyBee'` to `EntityKind`, the character `q`
+  (its glyph reads as a bee; `b` is taken by the bomb pot) to `ENTITY_CHARS`,
+  `TileChar`, and a `findBeeTiles` finder.
 - `level/level.ts`: add a computed marker list.
 - `level/EnemyMapper.ts`: add `bee` to `EnemyMarkerPositions`, a placement
   function, and wire it into `placeEnemies`.
