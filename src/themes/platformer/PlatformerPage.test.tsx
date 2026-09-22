@@ -93,6 +93,18 @@ import {
   JOURNAL_OPEN_FRAME_COUNT,
   JOURNAL_OPEN_FRAME_INTERVAL_MS,
 } from './entities/JournalAnimation';
+import {
+  AMBIENT_CLOUDS_SHEET,
+  BACKGROUND_LAYERS_SHEET,
+  BACKGROUND_TILES_SHEET,
+} from './entities/sprites/sheets';
+import { cloudPopulationFor, AMBIENT_CLOUD_PARALLAX_FACTOR } from './engine/AmbientClouds';
+
+/** Every `drawImage` call whose source is the ambient cloud sheet (O-022). */
+const ambientCloudDraws = (ctx: { drawImage: ReturnType<typeof vi.fn> }) =>
+  ctx.drawImage.mock.calls.filter(
+    (call: unknown[]) => (call[0] as HTMLImageElement | null)?.src === AMBIENT_CLOUDS_SHEET.src,
+  );
 
 /**
  * The player.y to set so a falling player's hitbox lands a few px into the
@@ -496,6 +508,120 @@ describe('PlatformerPage', () => {
         ),
       ).toBe(true),
     );
+  });
+
+  it('ambientClouds-playing-phase-drawsTheLayerAndKeepsItDriftingWhileStandingStill', async () => {
+    Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 1024 });
+    Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 900 });
+    vi.stubGlobal('Image', MockTilesetImage);
+
+    let frameCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frameCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    const ctx = platformerPage.context;
+
+    // The ambient sheet loads asynchronously, then the layer is drawn.
+    await waitFor(() => expect(ambientCloudDraws(ctx).length).toBeGreaterThan(0));
+
+    const perRender = cloudPopulationFor(1024);
+
+    // Advance the loop without any player input — the layer keeps drawing.
+    frameCallback!(0); // establishes the loop's reference time
+    frameCallback!(16); // one tick
+    const drawsAfterFirstTick = ambientCloudDraws(ctx).length;
+    const positionsEarly = ambientCloudDraws(ctx)
+      .slice(-perRender)
+      .map((call) => call[5] as number);
+
+    // ~1s of standing still.
+    for (let i = 1; i <= 60; i++) frameCallback!(16 * (i + 1));
+
+    expect(ambientCloudDraws(ctx).length).toBeGreaterThan(drawsAfterFirstTick);
+
+    // The clouds' own x positions changed over that time, with no input.
+    const positionsLater = ambientCloudDraws(ctx)
+      .slice(-perRender)
+      .map((call) => call[5] as number);
+    expect(positionsLater).not.toEqual(positionsEarly);
+
+    // A resize rebuilds the field at the new play-area width, so the per-render
+    // draw count follows cloudPopulationFor.
+    ctx.drawImage.mockClear();
+    Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 2560 });
+    fireEvent(window, new Event('resize'));
+    expect(ambientCloudDraws(ctx).length).toBe(cloudPopulationFor(1280));
+  });
+
+  it('ambientClouds-renderOrder-drawsAfterBackdropBeforeBackgroundTilesWithCloudsParallaxOffset', async () => {
+    Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 1024 });
+    Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 900 });
+    vi.stubGlobal('Image', MockTilesetImage);
+    vi.stubGlobal('requestAnimationFrame', () => 1);
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    render(<PlatformerPage />);
+    const ctx = platformerPage.context;
+
+    const drawsForSource = (src: string) =>
+      ctx.drawImage.mock.calls.filter(
+        (call: unknown[]) => (call[0] as HTMLImageElement | null)?.src === src,
+      );
+
+    // Wait for every layer involved to have loaded and drawn at least once.
+    await waitFor(() => expect(drawsForSource(AMBIENT_CLOUDS_SHEET.src).length).toBeGreaterThan(0));
+    await waitFor(() =>
+      expect(drawsForSource(BACKGROUND_TILES_SHEET.src).length).toBeGreaterThan(0),
+    );
+
+    // Isolate a single synchronous render (triggered by resize()).
+    ctx.drawImage.mockClear();
+    fireEvent(window, new Event('resize'));
+
+    const calls = ctx.drawImage.mock.calls;
+    const order = ctx.drawImage.mock.invocationCallOrder;
+    const ordersFor = (src: string) =>
+      calls
+        .map((call, i) => ({ call, i }))
+        .filter(({ call }) => (call[0] as HTMLImageElement | null)?.src === src)
+        .map(({ i }) => order[i]);
+
+    const backdropOrders = ordersFor(BACKGROUND_LAYERS_SHEET.src);
+    const ambientOrders = ordersFor(AMBIENT_CLOUDS_SHEET.src);
+    const backgroundTileOrders = ordersFor(BACKGROUND_TILES_SHEET.src);
+
+    expect(backdropOrders.length).toBeGreaterThan(0);
+    expect(ambientOrders.length).toBeGreaterThan(0);
+    expect(backgroundTileOrders.length).toBeGreaterThan(0);
+
+    // Backdrop first, then ambient clouds, then the background tile layer.
+    expect(Math.max(...backdropOrders)).toBeLessThan(Math.min(...ambientOrders));
+    expect(Math.max(...ambientOrders)).toBeLessThan(Math.min(...backgroundTileOrders));
+
+    // Camera-linked parallax: on top of their own drift, the ambient clouds
+    // shift left by cameraX * AMBIENT_CLOUD_PARALLAX_FACTOR — the painted
+    // clouds/hills band's own factor — so they read at that band's depth
+    // (FR-002). The field is rebuilt identically on resize, so the only change
+    // between the two renders is the camera term.
+    const ambientDx = () => ambientCloudDraws(ctx).map((call) => call[5] as number);
+    const beforeCameraScroll = ambientDx();
+
+    const cameraX = 500;
+    cameraPositionX.value = cameraX;
+    ctx.drawImage.mockClear();
+    fireEvent(window, new Event('resize'));
+
+    const afterCameraScroll = ambientDx();
+    expect(afterCameraScroll).toHaveLength(beforeCameraScroll.length);
+    afterCameraScroll.forEach((dx, i) => {
+      // Dest x is rounded to a whole pixel, so allow the ±1 rounding can add.
+      const shift = beforeCameraScroll[i] - dx;
+      expect(Math.abs(shift - cameraX * AMBIENT_CLOUD_PARALLAX_FACTOR)).toBeLessThanOrEqual(1);
+    });
   });
 
   it('debugHitboxesQueryParam-present-drawsDebugOverlayHitboxes', async () => {
