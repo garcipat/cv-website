@@ -961,6 +961,51 @@ describe('stepPlayerPhysics - crumbling floor', () => {
     // clamped to restX.
     expect(next.x).toBeCloseTo(restX - 1 + PHYSICS_CONFIG.walkSpeed / 60, 5);
   });
+
+  // Row 0 has the crumbling floor tile (solid only in its own top half);
+  // row 1 beneath it is fully open, so a body positioned low enough spills
+  // into open space rather than hitting anything else.
+  const CRUMBLING_FLOOR_LOW_BODY_LEVEL = parseLevel(['....g.', '......']);
+
+  it('atRest-bodyBelowTheMidline-doesNotBlockSidewaysMovement', () => {
+    const wallCol = 4;
+    const restX = wallCol * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_SIDE_PADDING;
+    // y chosen so the hitbox's head-padded top sits clearly below row 0's
+    // solid/open midline (RENDERED_TILE_SIZE / 2 = 32): 20 + PLAYER_HEAD_PADDING
+    // (18) = 38 > 32, a 6px margin — the body is entirely in the tile's own
+    // open bottom half (plus spilling into open row 1 below it).
+    const player = basePlayer({ x: restX - 1, y: 20 });
+
+    const next = stepPlayerPhysics(player, CRUMBLING_FLOOR_LOW_BODY_LEVEL, 1 / 60, {
+      left: false,
+      right: true,
+    });
+
+    // Unblocked: same shape as brokenPhase-doesNotBlockSidewaysMovement,
+    // but here the tile is fully at-rest and solid — it's the body's
+    // vertical position (not the tile's phase) that makes it pass through.
+    expect(next.x).toBeCloseTo(restX - 1 + PHYSICS_CONFIG.walkSpeed / 60, 5);
+  });
+
+  it('atRest-bodyInTheSolidTopHalf-stillBlocksSidewaysMovement', () => {
+    const wallCol = 4;
+    const restX = wallCol * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_SIDE_PADDING;
+    // y: -10 puts the hitbox's head-padded top at -10 + PLAYER_HEAD_PADDING
+    // (18) = 8, inside row 0's solid top half (< CRUMBLING_FLOOR_SOLID_HEIGHT,
+    // 16) — the companion case to the test above, proving the fix didn't
+    // just make the tile permanently non-blocking. (y: 0 alone already
+    // clears the 16px-tall solid band once PLAYER_HEAD_PADDING (18) is
+    // added, since RENDERED_TILE_SIZE is 32 here, not 64 — hence the
+    // negative y.)
+    const player = basePlayer({ x: restX - 1, y: -10 });
+
+    const next = stepPlayerPhysics(player, CRUMBLING_FLOOR_LOW_BODY_LEVEL, 1 / 60, {
+      left: false,
+      right: true,
+    });
+
+    expect(next.x).toBe(restX);
+  });
 });
 
 describe('stepPlayerPhysics bridge drop-through', () => {

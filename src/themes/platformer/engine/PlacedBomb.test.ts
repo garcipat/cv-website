@@ -39,6 +39,17 @@ describe('bombLandingRow', () => {
     expect(bombLandingRow(level, [], 0, 0)).toBe(1);
   });
 
+  it('atRestCrumblingFloorBelowTheBomb-countsAsAFloor', () => {
+    const level = parseLevel(['.', 'g']);
+    expect(bombLandingRow(level, [], 0, 0)).toBe(0);
+  });
+
+  it('brokenCrumblingFloorBelowTheBomb-isOpenAir', () => {
+    const level = parseLevel(['.', 'g', 'G']);
+    const states = [{ col: 0, row: 1, elapsed: 1.0 }]; // mid "broken"
+    expect(bombLandingRow(level, [], 0, 0, states)).toBe(1);
+  });
+
   it('aBlockPlacementBelowTheBomb-countsAsAFloor', () => {
     const level = parseLevel(['.', '.', '.']);
     const block = toBlockState({

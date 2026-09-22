@@ -643,6 +643,14 @@ describe('checkCrumblingFloorTriggers', () => {
     const player = makePlayer(0, standingYOnRow(0));
     expect(checkCrumblingFloorTriggers(player, plainLevel, [])).toEqual([]);
   });
+
+  it('notGrounded-returnsNothingEvenWithFootRowOverlap', () => {
+    // Same feet-row position as the triggering test above, but airborne
+    // (e.g. mid-jump-arc passing through this row rather than landing on
+    // it) — must not arm the tile.
+    const player = { ...makePlayer(0, standingYOnRow(0)), grounded: false };
+    expect(checkCrumblingFloorTriggers(player, level, [])).toEqual([]);
+  });
 });
 
 function makeSpikedPurpleEnemy(overrides: Partial<EnemyState> = {}): EnemyState {

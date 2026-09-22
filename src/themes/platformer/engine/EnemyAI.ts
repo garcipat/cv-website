@@ -1,5 +1,6 @@
 import { PHYSICS_CONFIG } from './PhysicsConfig';
 import { isSolid, tileAt, RENDERED_TILE_SIZE } from '../level/Terrain';
+import { isCrumblingFloorBroken, type CrumblingFloorTimerState } from './CrumblingFloor';
 import type { LevelDef } from '../level/LevelData';
 import type { EnemyState, EnemyDirection } from '../entities/Enemy';
 import { ENEMY_TYPES } from '../entities/enemies';
@@ -59,11 +60,14 @@ import {
  * otherwise coincide almost exactly, which without this check reads as the
  * enemy vibrating in place, alternating direction every frame.
  */
+const NO_CRUMBLING_FLOOR_STATES: readonly CrumblingFloorTimerState[] = [];
+
 export function stepEnemyPatrol(
   enemy: EnemyState,
   level: LevelDef,
   dt: number,
   blockedTiles: readonly { col: number; row: number }[],
+  crumblingFloorStates: readonly CrumblingFloorTimerState[] = NO_CRUMBLING_FLOOR_STATES,
 ): EnemyState {
   const speed = PHYSICS_CONFIG.enemyPatrolSpeed * ENEMY_TYPES[enemy.type].patrolSpeedMultiplier;
   const row = Math.round(enemy.y / RENDERED_TILE_SIZE);
@@ -80,6 +84,14 @@ export function stepEnemyPatrol(
 
   const isBlockedTile = (col: number, tileRow: number) =>
     blockedTiles.some((tile) => tile.col === col && tile.row === tileRow);
+
+  // A crumbling floor tile (O-023) counts as solid ground for a patrolling
+  // enemy exactly like ordinary terrain, as long as it isn't currently
+  // broken/reforming — otherwise an enemy would treat an intact crumbling
+  // floor tile as a wall/ledge-edge and reverse in front of it as if it
+  // were a pit, even though the player can walk right onto it.
+  const tileIsGroundFor = (col: number, tileRow: number, tile = tileAt(level, col, tileRow)): boolean =>
+    tile === 'crumblingFloor' ? !isCrumblingFloorBroken(crumblingFloorStates, col, tileRow) : isSolid(tile);
 
   /** Tries moving one step in `direction` from `fromX`. `blocked` is whether
    *  the leading edge would enter a wall or run out of ground; `nextX` is
@@ -107,9 +119,10 @@ export function stepEnemyPatrol(
     // `isSolid` — it is a boundary for enemies only.
     const wallAhead = Array.from({ length: rowsSpanned }, (_, i) => row - i).some((r) => {
       const tile = tileAt(level, leadingCol, r);
-      return isSolid(tile) || tile === 'patrol' || isBlockedTile(leadingCol, r);
+      return tileIsGroundFor(leadingCol, r, tile) || tile === 'patrol' || isBlockedTile(leadingCol, r);
     });
-    const noGroundAhead = !isSolid(tileAt(level, leadingCol, row + 1)) && !isBlockedTile(leadingCol, row + 1);
+    const noGroundAhead =
+      !tileIsGroundFor(leadingCol, row + 1) && !isBlockedTile(leadingCol, row + 1);
 
     const snapX = movingRight
       ? leadingCol * RENDERED_TILE_SIZE - offsetX - size + sidePadding

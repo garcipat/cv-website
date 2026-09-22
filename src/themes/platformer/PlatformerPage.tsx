@@ -1160,7 +1160,7 @@ export const PlatformerPage = () => {
         const next =
           enemy.animState === 'hit'
             ? stepEnemyHitReaction(enemy, dt)
-            : stepEnemyPatrol(enemy, currentLevel.value, dt, blockedTiles);
+            : stepEnemyPatrol(enemy, currentLevel.value, dt, blockedTiles, crumblingFloorTimerStates.value);
         return advanceEnemyAnimation(typeOf(next).onTick?.(next, dt) ?? next, dt);
       };
       enemyStates.value = enemyStates.value.map((enemy) => (enemy.alive ? stepEnemy(enemy) : enemy));
@@ -1666,7 +1666,10 @@ export const PlatformerPage = () => {
         const debrisId = `crumble-${state.col}-${state.row}-${state.elapsed}`;
         activeCrumbleDebrisEffects.value = [
           ...activeCrumbleDebrisEffects.value,
-          startCrumbleDebrisEffect(debrisId, x + originX, y + originY),
+          // World-space position, not screen-space — drawCrumbleDebrisEffects
+          // adds dc.originX/originY itself at draw time (same convention
+          // PuffEffect uses), so adding it again here would double-offset.
+          startCrumbleDebrisEffect(debrisId, x, y),
         ];
       }
 
@@ -1899,6 +1902,7 @@ export const PlatformerPage = () => {
               blockStates.value,
               bombCol,
               bombRow,
+              crumblingFloorTimerStates.value,
             ),
           ];
           carriedBombs.value -= 1;

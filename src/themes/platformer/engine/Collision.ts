@@ -385,6 +385,11 @@ export function checkCrumblingFloorTriggers(
   level: LevelDef,
   states: readonly CrumblingFloorTimerState[],
 ): { col: number; row: number }[] {
+  // Only an actually-grounded player can arm a tile — otherwise a jump arc
+  // whose feet-row Y momentarily coincides with a crumbling floor tile
+  // (jumping over it, or through the space above it) would incorrectly
+  // start its crack cycle without the player ever landing on it.
+  if (!player.grounded) return [];
   const hitboxWidth = PLAYER_RENDERED_SIZE - 2 * PLAYER_SIDE_PADDING;
   const leftCol = Math.floor((player.x + PLAYER_SIDE_PADDING) / RENDERED_TILE_SIZE);
   const rightCol = Math.floor((player.x + PLAYER_SIDE_PADDING + hitboxWidth - 1) / RENDERED_TILE_SIZE);

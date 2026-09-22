@@ -111,13 +111,25 @@ export function stepPlayerPhysics(
   // excluding bridge-tunneling exemptions, same as any other wall) only while
   // it hasn't broken, regardless of `baseCheck`'s own answer for the tile
   // (which is always `false`, since `crumblingFloor` isn't in `isSolid`).
+  // A crumbling floor tile's solid region is only the top half of its cell
+  // (see Terrain.ts's CRUMBLING_FLOOR_SOLID_HEIGHT) — horizontal collision
+  // must respect that same vertical inset, not just whether the row is
+  // solid at all, or a character passing beside/below the tile at body
+  // height (in its open bottom half) would be wrongly blocked sideways.
   const wallTileIsSolid = (
     tile: TileType,
     col: number,
     row: number,
     baseCheck: (t: TileType) => boolean,
-  ): boolean =>
-    tile === 'crumblingFloor' ? !isCrumblingFloorBroken(crumblingFloorStates, col, row) : baseCheck(tile);
+  ): boolean => {
+    if (tile !== 'crumblingFloor') return baseCheck(tile);
+    if (isCrumblingFloorBroken(crumblingFloorStates, col, row)) return false;
+    const solidTop = row * RENDERED_TILE_SIZE;
+    const solidBottom = solidTop + CRUMBLING_FLOOR_SOLID_HEIGHT;
+    const playerTop = player.y + PLAYER_HEAD_PADDING;
+    const playerBottom = player.y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING;
+    return playerTop < solidBottom && playerBottom > solidTop;
+  };
 
   let x = player.x + vx * dt;
   // Excludes the head-padding sliver (like the vertical ceiling check below)
