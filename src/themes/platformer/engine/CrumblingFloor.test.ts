@@ -12,7 +12,9 @@ import {
   isCrumblingFloorSolidPhase,
   isCrumblingFloorBroken,
   crumblingFloorCrackRatioAt,
+  crumblingFloorCrackRatioFor,
   crumblingFloorReformRatioAt,
+  crumblingFloorReformRatioFor,
   crumblingFloorShakeOffsetXAt,
 } from './CrumblingFloor';
 
@@ -202,5 +204,28 @@ describe('crumblingFloorShakeOffsetXAt', () => {
     for (let t = 0; t < 2; t += 0.05) {
       expect(Math.abs(crumblingFloorShakeOffsetXAt(t))).toBeLessThanOrEqual(1);
     }
+  });
+});
+
+describe('crumblingFloorCrackRatioFor', () => {
+  it('noEntryForCell-isZero', () => {
+    expect(crumblingFloorCrackRatioFor([], 0, 0)).toBe(0);
+  });
+
+  it('entryPresent-usesItsElapsedRatio', () => {
+    const states = [{ col: 2, row: 3, elapsed: CRUMBLING_FLOOR_CRACK_SECONDS / 2 }];
+    expect(crumblingFloorCrackRatioFor(states, 2, 3)).toBeCloseTo(0.5, 5);
+  });
+});
+
+describe('crumblingFloorReformRatioFor', () => {
+  it('noEntryForCell-isZero', () => {
+    expect(crumblingFloorReformRatioFor([], 0, 0)).toBe(0);
+  });
+
+  it('entryPresent-usesItsElapsedRatio', () => {
+    const reformStart = CRUMBLING_FLOOR_CRACK_SECONDS + CRUMBLING_FLOOR_BROKEN_SECONDS;
+    const states = [{ col: 5, row: 5, elapsed: reformStart + CRUMBLING_FLOOR_REFORM_SECONDS / 2 }];
+    expect(crumblingFloorReformRatioFor(states, 5, 5)).toBeCloseTo(0.5, 5);
   });
 });
