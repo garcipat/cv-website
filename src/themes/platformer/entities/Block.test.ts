@@ -80,6 +80,8 @@ describe('hitboxInsetXForBlock', () => {
   it('questionMark-returnsZero', () => expect(hitboxInsetXForBlock('questionMark')).toBe(0));
   it('fragileRock-returnsZero', () => expect(hitboxInsetXForBlock('fragileRock')).toBe(0));
   it('coinPot-returnsANonZeroInset', () => expect(hitboxInsetXForBlock('coinPot')).toBeGreaterThan(0));
+  it('potionPot-returnsANonZeroInset', () => expect(hitboxInsetXForBlock('potionPot')).toBeGreaterThan(0));
+  it('bombPot-returnsANonZeroInset', () => expect(hitboxInsetXForBlock('bombPot')).toBeGreaterThan(0));
 });
 
 describe('toBlockState', () => {
