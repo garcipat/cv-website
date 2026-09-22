@@ -47,6 +47,8 @@ import {
   drawHeldTorch,
   heldTorchLightPosition,
   drawDeployableLadders,
+  drawCrumblingFloors,
+  drawCrumbleDebrisEffects,
 } from './engine/Renderer';
 import { drawBackgroundLayers } from './engine/BackgroundLayers';
 import { ladderBundleForPlayer, beginDeploy } from './engine/DeployableLadder';
@@ -85,6 +87,7 @@ import {
   checkBombPickupCollisions,
   resolveHazardContacts,
   checkFloorSpikeTriggers,
+  checkCrumblingFloorTriggers,
   playerHitbox,
 } from './engine/Collision';
 import {
@@ -137,11 +140,15 @@ import {
   startExplosionEffect,
   tickExplosionEffect,
   EXPLOSION_DURATION_SECONDS,
+  startCrumbleDebrisEffect,
+  tickCrumbleDebrisEffect,
+  CRUMBLE_DEBRIS_DURATION_SECONDS,
 } from './engine/CollectionEffects';
+import { crumblingFloorPhaseFor, CRUMBLING_FLOOR_CRACK_SECONDS } from './engine/CrumblingFloor';
 import { coinFrameSource, COIN_FRAME_SIZE } from './entities/Coin';
 import { fruitFrameSource, FRUIT_FRAME_SIZE } from './entities/Fruit';
 import { createRewardReveal } from './engine/RewardReveal';
-import { RENDERED_TILE_SIZE } from './level/Terrain';
+import { RENDERED_TILE_SIZE, tileToPixel } from './level/Terrain';
 import {
   advancePlayerAnimation,
   updatePlayerAnimState,
@@ -177,6 +184,8 @@ import {
   EXPLOSION_SHEET,
   SPEAR_SHEET,
   FLOOR_SPIKE_SHEET,
+  CRUMBLE_FLOOR_SHEET,
+  CRUMBLE_CRACKS_SHEET,
 } from './entities/sprites/sheets';
 import { frameSource, collectSheetSources } from './entities/sprites/SpriteSheet';
 import type { SpriteLookup } from './entities/sprites/SpriteSheet';
@@ -248,6 +257,10 @@ import {
   tickFloorSpikes,
   armFloorSpikeTrigger,
   hazardPlacementsForTick,
+  crumblingFloorTimerStates,
+  armCrumblingFloorTrigger,
+  tickCrumblingFloors,
+  activeCrumbleDebrisEffects,
 } from './PlatformerState';
 import { useSignals } from '@preact/signals-react/runtime';
 import { Journal } from './components/Journal';
@@ -694,6 +707,8 @@ export const PlatformerPage = () => {
 
       drawHazards(ctx, hazardPlacementsForTick(), drawContext);
 
+      drawCrumblingFloors(ctx, currentLevel.value, crumblingFloorTimerStates.value, drawContext);
+
       drawChests(ctx, chestStates.value, drawContext);
 
       drawCheckpoints(
@@ -829,6 +844,7 @@ export const PlatformerPage = () => {
 
       drawCollectionEffects(ctx, activeEffects.value);
       drawPuffEffects(ctx, activePuffs.value);
+      drawCrumbleDebrisEffects(ctx, activeCrumbleDebrisEffects.value, drawContext);
       drawHitSplatterEffects(ctx, activeHitSplatters.value);
       drawFadeOutTexts(ctx, activeFadeOutTexts.value, drawContext);
 
@@ -1069,6 +1085,10 @@ export const PlatformerPage = () => {
       // world on pause/death (O-021).
       tickFloorSpikes(dt);
 
+      // In-progress crumbling floor cycles advance here too, freezing with
+      // the world on pause/death (O-023).
+      tickCrumblingFloors(dt);
+
       // Computed once per tick and shared by every reveal site below — these
       // same two expressions used to be duplicated in the enemy-defeat block
       // and the collectible block. `originX`/`originY` convert a world-space
@@ -1282,6 +1302,10 @@ export const PlatformerPage = () => {
       activePuffs.value = activePuffs.value
         .map((puff) => tickPuffEffect(puff, dt))
         .filter((puff) => puff.elapsed <= SPARKLE_DURATION_SECONDS);
+
+      activeCrumbleDebrisEffects.value = activeCrumbleDebrisEffects.value
+        .map((effect) => tickCrumbleDebrisEffect(effect, dt))
+        .filter((effect) => effect.elapsed <= CRUMBLE_DEBRIS_DURATION_SECONDS);
 
       activeHealAuraEffects.value = activeHealAuraEffects.value
         .map((aura) => tickHealAuraEffect(aura, dt))
@@ -1612,6 +1636,40 @@ export const PlatformerPage = () => {
         armFloorSpikeTrigger(id);
       }
 
+      // Arm any at-rest crumbling floor tile the player just stepped onto
+      // (spec FR-003) — mirrors the floor spike arming above, but keyed by
+      // grid cell rather than hazard id (O-023).
+      for (const { col, row } of checkCrumblingFloorTriggers(
+        playerState.value,
+        activeLevel.value,
+        crumblingFloorTimerStates.value,
+      )) {
+        armCrumblingFloorTrigger(col, row);
+      }
+
+      // Spawn the falling-debris effect exactly once, on the tick a tile's
+      // phase actually becomes 'broken'. `tickCrumblingFloors(dt)` already
+      // ran above this same tick, so `state.elapsed` here is the
+      // POST-advance elapsed time; `state.elapsed - dt` recovers what
+      // elapsed was immediately before this tick's advance (the two calls
+      // share the same `dt`). A tile is caught here exactly once because
+      // elapsed strictly increases every tick a cycle is running: the
+      // pre-tick value is below CRUMBLING_FLOOR_CRACK_SECONDS on (and only
+      // on) the single tick that crosses the crack->broken boundary — every
+      // later tick while still broken has a pre-tick elapsed already past
+      // that threshold, so the check is false and nothing spawns again.
+      for (const state of crumblingFloorTimerStates.value) {
+        if (crumblingFloorPhaseFor(crumblingFloorTimerStates.value, state.col, state.row) !== 'broken') continue;
+        const justBroken = state.elapsed - dt < CRUMBLING_FLOOR_CRACK_SECONDS;
+        if (!justBroken) continue;
+        const { x, y } = tileToPixel(state.col, state.row);
+        const debrisId = `crumble-${state.col}-${state.row}-${state.elapsed}`;
+        activeCrumbleDebrisEffects.value = [
+          ...activeCrumbleDebrisEffects.value,
+          startCrumbleDebrisEffect(debrisId, x + originX, y + originY),
+        ];
+      }
+
       // Hazard contacts are resolved BEFORE enemy contacts, so a lethal floor
       // spear can win the tick (FR-012). A lethal tip landing drops health
       // straight to zero with no `takeDamage`, no knockback, no hit animation
@@ -1811,6 +1869,7 @@ export const PlatformerPage = () => {
           suppressJumpCut: contacts.bounceVelocity !== undefined,
         },
         blockStates.value,
+        crumblingFloorTimerStates.value,
       );
 
       // Place-bomb input (`B`, FR-012/FR-013/FR-014): read once per tick as an
@@ -2534,6 +2593,8 @@ export const PlatformerPage = () => {
       CHEST_TYPE.open,
       { sheet: KEY_SHEET, renderScale: 1, animations: {} },
       { sheet: CRACK_OVERLAY_SHEET, renderScale: 1, animations: {} },
+      { sheet: CRUMBLE_FLOOR_SHEET, renderScale: 1, animations: {} },
+      { sheet: CRUMBLE_CRACKS_SHEET, renderScale: 1, animations: {} },
     ])) {
       loadImage(src)
         .then((img) => {
