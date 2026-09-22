@@ -48,7 +48,9 @@ import {
   heldTorchLightPosition,
   drawDeployableLadders,
 } from './engine/Renderer';
-import { drawBackgroundLayers } from './engine/BackgroundLayers';
+import { drawBackgroundLayers, backgroundBandGeometry } from './engine/BackgroundLayers';
+import { createCloudField, stepCloudField, drawAmbientClouds } from './engine/AmbientClouds';
+import type { CloudField } from './engine/AmbientClouds';
 import { ladderBundleForPlayer, beginDeploy } from './engine/DeployableLadder';
 import type { DrawContext } from './engine/DrawContext';
 import { drawDebugOverlay, drawCameraDeadZoneOverlay } from './engine/DebugOverlay';
@@ -169,6 +171,7 @@ import {
   BACKGROUND_LAYERS_SHEET,
   BACKGROUND_LAYER_GRASS_SHEET,
   BACKGROUND_LAYER_RIVER_SHEET,
+  AMBIENT_CLOUDS_SHEET,
   DECORATIONS_SHEET,
   TORCH_SHEET,
   ROPE_LADDER_SHEET,
@@ -280,6 +283,9 @@ export const PlatformerPage = () => {
   const backgroundLayersRef = useRef<HTMLImageElement | null>(null);
   const backgroundLayerGrassRef = useRef<HTMLImageElement | null>(null);
   const backgroundLayerRiverRef = useRef<HTMLImageElement | null>(null);
+  // The ambient cloud sheet (O-022) — loaded alongside the other backdrop
+  // sheets and drawn as a camera-independent layer just above the backdrop.
+  const ambientCloudsRef = useRef<HTMLImageElement | null>(null);
   const groundAtlasRef = useRef<HTMLImageElement | null>(null);
   const backgroundAtlasRef = useRef<HTMLImageElement | null>(null);
   const staticObjectsRef = useRef<HTMLImageElement | null>(null);
@@ -584,6 +590,17 @@ export const PlatformerPage = () => {
     // spawnBonusFruit wrap it".
     let nextBonusFruitIcon = 0;
 
+    // Whether the visitor has asked for reduced motion — read once on mount
+    // (same precedent as SpacePage.tsx) and threaded into the ambient-cloud
+    // step, so the clouds are drawn but never drift (FR-014).
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // The ambient cloud field (O-022) — a loop-local value like
+    // `worldAnimElapsed` above, rebuilt from scratch on every resize and
+    // stepped only inside the 'playing' branch, so it freezes with the world
+    // during pause/death/restart. Starts empty until the first `resize()`.
+    let cloudField: CloudField = createCloudField(0, 0, 0);
+
     const resize = () => {
       const { width, height } = playCanvasSize(window.innerWidth, window.innerHeight);
       canvas.width = width;
@@ -596,6 +613,12 @@ export const PlatformerPage = () => {
       }
       darknessLayerRef.current.width = width;
       darknessLayerRef.current.height = height;
+
+      // Rebuild the ambient cloud field for the new play-area width and open
+      // sky region (FR-015, SC-007). `cloudsTop` is the painted clouds/hills
+      // band's top edge — the open sky's bottom (see contracts/rendering.md).
+      const geometry = backgroundBandGeometry(canvas.height);
+      cloudField = createCloudField(width, geometry.skyTop, geometry.cloudsTop);
 
       backgroundColor =
         getComputedStyle(document.documentElement).getPropertyValue('--background').trim() ||
@@ -633,6 +656,12 @@ export const PlatformerPage = () => {
           worldAnimElapsed,
         );
       }
+
+      // The ambient cloud layer (O-022): its own right-to-left drift plus a
+      // small camera-linked parallax shift at the painted clouds/hills band's
+      // factor, drawn immediately above the backdrop and behind everything
+      // else (FR-002, FR-011).
+      drawAmbientClouds(ctx, ambientCloudsRef.current, cloudField, cameraPositionX.value);
 
       if (tilesetRef.current) {
         if (backgroundAtlasRef.current) {
@@ -1052,6 +1081,12 @@ export const PlatformerPage = () => {
       // during death/restart/journal-pause, same as physics below, rather
       // than ticking on a wall-clock independent of the paused state.
       worldAnimElapsed += dt;
+
+      // Ambient clouds drift right-to-left here, in the 'playing' branch only,
+      // so they freeze with the world during pause/death/restart. Stepping by
+      // the loop's own clamped `dt` is what makes them resume from where they
+      // were after a stall rather than jumping forward (FR-002).
+      cloudField = stepCloudField(cloudField, dt, prefersReducedMotion);
 
       // Darkness is eased here, in the `playing` branch only, so it freezes
       // with the rest of the world during pause/death (research D8).
@@ -2353,6 +2388,17 @@ export const PlatformerPage = () => {
       .catch(() => {
         // The river simply won't animate if this asset fails to load; the
         // rest of the background still shows.
+      });
+    loadImage(AMBIENT_CLOUDS_SHEET.src)
+      .then((img) => {
+        if (cancelled) return;
+        ambientCloudsRef.current = img;
+        render();
+      })
+      .catch(() => {
+        // The ambient layer is purely decorative — it simply won't render if
+        // this sheet fails to load (drawAmbientClouds returns early on a null
+        // image); the backdrop, level and HUD still show (FR-012).
       });
     loadImage(BACKGROUND_TILES_SHEET.src)
       .then((img) => {
