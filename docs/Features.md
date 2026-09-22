@@ -53,6 +53,7 @@ graph RL
         O019["✅ O-019: Editor Zoom"]
         O020["✅ O-020: Floor Spear Hazard"]
         O021["✅ O-021: Floor Spikes"]
+        O022["O-022: Ambient Background Clouds"]
         O024["✅ O-024: Enemy Movement & Animation Seam + Bee"]
         S011["S-011: Interact Hint Overlay"]
     end
@@ -136,6 +137,8 @@ graph RL
     O021 --> O005
     O021 --> F016
 
+    O022 --> O009
+
     O024 --> F015
     O024 --> F017
     O024 --> F019
@@ -170,6 +173,7 @@ graph RL
     class O001 done
     class S005 done
     class F015,F016,F017,F018,S007,S008,S009,S010,O003,O004,O005,O008,O009,O013,O014,O020,O021 themes
+    class O022 themes
     class S011 themes
     class O024 themes
     class O024 done
