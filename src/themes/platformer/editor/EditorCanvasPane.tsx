@@ -16,6 +16,7 @@ import {
   ROPE_LADDER_SHEET,
   MUSHROOM_SHEET,
   SPEAR_SHEET,
+  FLOOR_SPIKE_SHEET,
 } from '../entities/sprites/sheets';
 import {
   applyBackgroundPaint,
@@ -46,6 +47,7 @@ const EMPTY_IMAGES: EditorImages = {
   ropeLadder: null,
   mushroom: null,
   spears: null,
+  floorSpike: null,
 };
 
 const IMAGE_SOURCES: { key: keyof EditorImages; src: string }[] = [
@@ -66,6 +68,7 @@ const IMAGE_SOURCES: { key: keyof EditorImages; src: string }[] = [
   { key: 'ropeLadder', src: ROPE_LADDER_SHEET.src },
   { key: 'mushroom', src: MUSHROOM_SHEET.src },
   { key: 'spears', src: SPEAR_SHEET.src },
+  { key: 'floorSpike', src: FLOOR_SPIKE_SHEET.src },
 ];
 
 export interface EditorCanvasPaneProps {

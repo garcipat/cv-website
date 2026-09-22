@@ -12,8 +12,8 @@ const SIGN_KEYS = Object.keys(SIGN_CHARS) as TileChar[];
 const HAZARD_KEYS = Object.keys(HAZARD_CHARS) as TileChar[];
 
 /** The registered characters per hazard kind, in registration order — the
- *  grouping that lets a single-character kind (the spear) never cycle while a
- *  multi-character kind (the spike) still does. */
+ *  grouping that lets a single-character kind (the spear, and O-021's floor
+ *  spike) never cycle while a multi-character kind (the spike) still does. */
 const HAZARD_CHARS_BY_KIND: Record<string, TileChar[]> = {};
 for (const char of HAZARD_KEYS) {
   const kind = HAZARD_CHARS[char]!.hazardType;
@@ -22,8 +22,8 @@ for (const char of HAZARD_KEYS) {
 
 /** The character for each facing WITHIN a single kind — a per-kind inverse of
  *  `HAZARD_CHARS`. Keying it per kind (not by facing alone) is required for
- *  correctness: the spike's `^` and the spear's `¦` both face `'up'`, and a
- *  facing-only map would collide between them. */
+ *  correctness: the spike's `^`, the spear's `¦`, and the floor spike's `A`
+ *  all face `'up'`, and a facing-only map would collide between them. */
 function charForFacing(kind: HazardKind): Partial<Record<HazardFacing, TileChar>> {
   const map: Partial<Record<HazardFacing, TileChar>> = {};
   for (const char of HAZARD_CHARS_BY_KIND[kind] ?? []) {
@@ -188,8 +188,10 @@ export function paintCell(
     const kind = HAZARD_CHARS[tool]!.hazardType;
     const chars = HAZARD_CHARS_BY_KIND[kind] ?? [];
     if (chars.length === 1) {
-      // A single-character kind (the spear) always paints its one character
-      // and never cycles orientation (FR-008).
+      // A single-character kind (the spear, and O-021's floor spike) always
+      // paints its one character and never cycles orientation (FR-008/
+      // FR-013) — see nextHazardChar's own doc comment for why cycling
+      // exists at all for a multi-character kind.
       nextGrid[targetRow][targetCol] = chars[0];
     } else {
       const existing = nextGrid[targetRow][targetCol];

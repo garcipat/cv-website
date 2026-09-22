@@ -85,6 +85,21 @@ describe('PALETTE_TILE_SPRITES', () => {
       frameHeight: 20,
     });
   });
+
+  it('star-hasASpritePreviewADescriptionAndALabel', () => {
+    expect(PALETTE_TILE_SPRITES['A']).toEqual({
+      sheet: '/sprites/spikes.png',
+      sheetWidth: 48,
+      sheetHeight: 20,
+      sx: 0,
+      sy: 0,
+      frameWidth: 16,
+      frameHeight: 20,
+      overlay: { sx: 32, sy: 4, frameHeight: 16 },
+    });
+    expect(PALETTE_TILE_DESCRIPTIONS['A']).toMatch(/floor spike/i);
+    expect(PALETTE_TILE_LABELS['A']).toBe('Floor Spike');
+  });
 });
 
 describe('PALETTE_TILE_LABELS', () => {
@@ -377,7 +392,7 @@ describe('HAZARD_PALETTE_KEYS', () => {
       if (!alreadyRepresented) expected.push(char);
     }
     expect(HAZARD_PALETTE_KEYS).toEqual(expected);
-    expect(HAZARD_PALETTE_KEYS).toEqual(['^', '¦']);
+    expect(HAZARD_PALETTE_KEYS).toEqual(['^', '¦', 'A']);
   });
 
   it('hasNoDuplicates', () => {
