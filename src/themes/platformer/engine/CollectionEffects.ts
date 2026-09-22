@@ -656,3 +656,67 @@ export function explosionFrameIndex(effect: ExplosionEffect): number {
   const progress = Math.min(1, Math.max(0, effect.elapsed / EXPLOSION_DURATION_SECONDS));
   return Math.min(Math.floor(progress * EXPLOSION_FRAME_COUNT), EXPLOSION_FRAME_COUNT - 1);
 }
+
+/**
+ * The four pieces a crumbling floor tile splits into when it breaks (O-023,
+ * spec FR-005). Unlike `PuffEffect` (a sparkle-dot burst with no real
+ * geometry), this carries just a position and elapsed time — the actual
+ * quarter-tile crop rects are fixed and live in `Renderer.ts`'s
+ * `drawCrumbleDebrisEffects`, which draws each piece from the SAME two
+ * sprites (`crumble_floor.png`/`crumble_cracks.png`) the tile itself uses,
+ * rather than needing dedicated debris art.
+ */
+export interface CrumbleDebrisEffect {
+  id: string;
+  x: number;
+  y: number;
+  elapsed: number;
+}
+
+export function startCrumbleDebrisEffect(id: string, x: number, y: number): CrumbleDebrisEffect {
+  return { id, x, y, elapsed: 0 };
+}
+
+export function tickCrumbleDebrisEffect(effect: CrumbleDebrisEffect, dt: number): CrumbleDebrisEffect {
+  return { ...effect, elapsed: effect.elapsed + dt };
+}
+
+/** How long the falling pieces take to fully fade — callers filter expired
+ *  effects out once `elapsed` passes this, same convention as
+ *  `SPARKLE_DURATION_SECONDS` for `PuffEffect`. */
+export const CRUMBLE_DEBRIS_DURATION_SECONDS = 0.5;
+
+/** One falling piece's current render offset (rendered px, relative to the
+ *  effect's own x/y) and opacity. */
+export interface DebrisPiece {
+  dx: number;
+  dy: number;
+  opacity: number;
+}
+
+/** Simple constant gravity, rendered px/s^2. */
+const DEBRIS_GRAVITY_PX_PER_SEC2 = 300;
+
+/** Each piece's initial kick (rendered px/s) — small outward/upward pops so
+ *  the four quarters visibly separate before gravity takes over, rather than
+ *  falling straight down as one clump. Order matches the fixed quarter
+ *  layout `Renderer.ts` crops: top-left, top-right, bottom-left,
+ *  bottom-right. */
+const DEBRIS_PIECE_KICKS: readonly { vx: number; vy: number }[] = [
+  { vx: -24, vy: -36 },
+  { vx: 24, vy: -36 },
+  { vx: -16, vy: -16 },
+  { vx: 16, vy: -16 },
+];
+
+/** Every piece's current offset/opacity for `effect`'s elapsed time — always
+ *  4 entries, in the fixed order `DEBRIS_PIECE_KICKS` declares. */
+export function crumbleDebrisPieces(effect: CrumbleDebrisEffect): DebrisPiece[] {
+  const t = effect.elapsed;
+  const opacity = Math.max(0, 1 - t / CRUMBLE_DEBRIS_DURATION_SECONDS);
+  return DEBRIS_PIECE_KICKS.map(({ vx, vy }) => ({
+    dx: vx * t + 0,
+    dy: vy * t + 0.5 * DEBRIS_GRAVITY_PX_PER_SEC2 * t * t + 0,
+    opacity,
+  }));
+}
