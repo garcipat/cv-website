@@ -43,6 +43,7 @@ import {
   drawDarkness,
   drawEnemyEyes,
   drawHeldTorch,
+  drawCrumblingFloors,
 } from '../engine/Renderer';
 import { caveLightingPreview } from './caveLightingPreview';
 import { paintBackgroundCell, eraseBackgroundCell } from './paintBackgroundCell';
@@ -62,6 +63,8 @@ import {
   DECORATIONS_SHEET,
   SPEAR_SHEET,
   FLOOR_SPIKE_SHEET,
+  CRUMBLE_FLOOR_SHEET,
+  CRUMBLE_CRACKS_SHEET,
 } from '../entities/sprites/sheets';
 import { CHECKPOINT_FLAG_SHEET } from '../entities/Checkpoint';
 
@@ -85,6 +88,8 @@ export interface EditorImages {
   mushroom: HTMLImageElement | null;
   spears: HTMLImageElement | null;
   floorSpike: HTMLImageElement | null;
+  crumbleFloor: HTMLImageElement | null;
+  crumbleCracks: HTMLImageElement | null;
 }
 
 /** The cells a pending placement would write, in absolute grid coordinates,
@@ -648,6 +653,8 @@ export const EditorCanvas = ({
           [DECORATIONS_SHEET.src]: images.decorations,
           [SPEAR_SHEET.src]: images.spears,
           [FLOOR_SPIKE_SHEET.src]: images.floorSpike,
+          [CRUMBLE_FLOOR_SHEET.src]: images.crumbleFloor,
+          [CRUMBLE_CRACKS_SHEET.src]: images.crumbleCracks,
         },
         originX,
         originY,
@@ -658,6 +665,11 @@ export const EditorCanvas = ({
         // preview used to look different from the actual game.
         potPlan: computePotRenderPlan(editorBlockStates),
       };
+
+      // No live cycle-timer state exists in the editor — an empty states
+      // array renders every crumblingFloor cell at rest, exactly the
+      // preview an author needs.
+      drawCrumblingFloors(ctx, gridToLevelDef(grid), [], drawContext);
 
       drawCollectibles(ctx, synthesizeCollectiblePlacements(grid), new Set(), drawContext);
 

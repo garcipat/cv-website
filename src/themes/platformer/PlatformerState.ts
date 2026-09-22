@@ -15,6 +15,9 @@ import {
   floorSpikeExtensionFor,
 } from './engine/FloorSpike';
 import type { FloorSpikeTimerState } from './engine/FloorSpike';
+import { armCrumblingFloor, advanceCrumblingFloors } from './engine/CrumblingFloor';
+import type { CrumblingFloorTimerState } from './engine/CrumblingFloor';
+import type { CrumbleDebrisEffect } from './engine/CollectionEffects';
 import type { LevelDef } from './level/LevelData';
 import {
   SPAWN_TILE,
@@ -840,6 +843,37 @@ export function tickFloorSpikes(dt: number): void {
 }
 
 /**
+ * Live per-instance cycle timers for crumbling floor tiles — one entry per
+ * cell that has been stepped on at least once, pruned back out once its
+ * full cycle completes (spec FR-010). Keyed by grid position, unlike
+ * `floorSpikeTimerStates`' placement ids, since a crumbling floor tile has
+ * no separate placement list (O-023). Advanced by `tickCrumblingFloors` and
+ * cleared by `resetGame()`.
+ */
+export const crumblingFloorTimerStates = signal<CrumblingFloorTimerState[]>([]);
+
+/** Arms `(col, row)`'s cycle if it isn't already running (spec FR-003/FR-007)
+ *  — called once per tick for every cell `checkCrumblingFloorTriggers`
+ *  returns, mirroring `armFloorSpikeTrigger`. */
+export function armCrumblingFloorTrigger(col: number, row: number): void {
+  crumblingFloorTimerStates.value = armCrumblingFloor(crumblingFloorTimerStates.value, col, row);
+}
+
+/** Advances every running crumbling floor cycle by `dt` — called once per
+ *  game-loop tick in the `playing` phase, alongside `tickFloorSpikes`, so
+ *  cycles freeze with the rest of the world during pause/death. */
+export function tickCrumblingFloors(dt: number): void {
+  crumblingFloorTimerStates.value = advanceCrumblingFloors(crumblingFloorTimerStates.value, dt);
+}
+
+/**
+ * Falling debris pieces from crumbling floor tiles that have just broken —
+ * same "list of transient effects, ticked and filtered by elapsed time"
+ * shape as `activePuffs`. Cleared by `resetGameProgress()`.
+ */
+export const activeCrumbleDebrisEffects = signal<CrumbleDebrisEffect[]>([]);
+
+/**
  * `hazardPlacements` with each floor spike's live `floorSpikePhase` merged
  * in for this tick — what `PlatformerPage.tsx` actually hands to
  * `drawHazards`/`checkHazardCollisions`/`checkFloorSpikeTriggers`, instead
@@ -906,6 +940,10 @@ export function resetGame(): void {
   // An in-progress floor spike cycle must not survive a death/respawn
   // (FR-014), same convention as the mushroom cap squash above it.
   floorSpikeTimerStates.value = [];
+  // An in-progress crumbling floor cycle must not survive a death/respawn
+  // (FR-013 — the spec's death/respawn reset requirement), same convention
+  // as the floor spike cycle above it.
+  crumblingFloorTimerStates.value = [];
   enemyStates.value = enemyStates.value.map(reviveEnemy);
   hintTooltipState.value = null;
   // A label fading when the death/respawn happened must not survive it — it
@@ -966,6 +1004,7 @@ export function resetGameProgress(): void {
   activeJournalSection.value = undefined;
   activeEffects.value = [];
   activePuffs.value = [];
+  activeCrumbleDebrisEffects.value = [];
   activeHealAuraEffects.value = [];
   activeHitSplatters.value = [];
   activeCounterPopups.value = {};
