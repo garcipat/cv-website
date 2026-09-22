@@ -103,6 +103,30 @@ export const CRACK_OVERLAY_SHEET: SpriteSheet = {
   columns: 1,
 };
 
+/** `crumble_floor.png` — a single 16x16 frame (O-023): a half-height ledge,
+ *  top-aligned within the cell (its art occupies roughly the top half, the
+ *  bottom half transparent) — cropped from the reinstated `spring_.png`
+ *  terrain tileset. One frame only; the tile has no color variants yet
+ *  (spec's Out of Scope). */
+export const CRUMBLE_FLOOR_SHEET: SpriteSheet = {
+  src: '/sprites/crumble_floor.png',
+  frameWidth: TILE_SIZE,
+  frameHeight: TILE_SIZE,
+  columns: 1,
+};
+
+/** `crumble_cracks.png` — a 48x8 strip of three 16x8 frames (O-023): 0 =
+ *  light cracking, 1 = medium, 2 = heavy — composited over
+ *  `CRUMBLE_FLOOR_SHEET` the same way `CRACK_OVERLAY_SHEET` composites over
+ *  a cracked crate. 8px tall (not a full tile) to match the ledge art's own
+ *  half-height content band. */
+export const CRUMBLE_CRACKS_SHEET: SpriteSheet = {
+  src: '/sprites/crumble_cracks.png',
+  frameWidth: TILE_SIZE,
+  frameHeight: 8,
+  columns: 3,
+};
+
 /** `background_tiles.png` is a 73x354 sheet of 16px tiles on a 19px stride:
  *  the purely-visual autotiled background mass's six materials (O-014).
  *  `BackgroundAtlas.ts` addresses it through its own sx/sy neighbour-mask
