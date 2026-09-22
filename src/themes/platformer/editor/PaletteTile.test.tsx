@@ -232,6 +232,10 @@ describe('PaletteTile', () => {
     );
 
     const wrapper = container.querySelector('img[alt=""]')!.parentElement!;
-    expect(wrapper.style.top).toBe('0px');
+    // Follows the base sprite's own topOffset (4 source px) nudge, scaled
+    // the same as everything else in the icon (scale = (40 - 10) / 16 =
+    // 1.875) — not flush at 0 the way a sprite with no topOffset would be
+    // (see the synthetic case above).
+    expect(wrapper.style.top).toBe('7.5px');
   });
 });
