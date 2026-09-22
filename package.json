@@ -14,7 +14,8 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "branches:prune": "git fetch --prune && git branch -vv | awk '/: gone]/{print $1}' | xargs -r git branch -D"
   },
   "imports": {
     "@/*": "./src/*"
