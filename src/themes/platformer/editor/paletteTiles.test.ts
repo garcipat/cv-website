@@ -392,7 +392,7 @@ describe('HAZARD_PALETTE_KEYS', () => {
       if (!alreadyRepresented) expected.push(char);
     }
     expect(HAZARD_PALETTE_KEYS).toEqual(expected);
-    expect(HAZARD_PALETTE_KEYS).toEqual(['^', '¦']);
+    expect(HAZARD_PALETTE_KEYS).toEqual(['^', '¦', 'A']);
   });
 
   it('hasNoDuplicates', () => {
