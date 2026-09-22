@@ -5,6 +5,7 @@ import { parseLevel } from '../level/LevelParser';
 import type { LevelDef } from '../level/LevelData';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import { placeBlocks } from '../level/BlockMapper';
+import type { CrumblingFloorTimerState } from './CrumblingFloor';
 import { hitboxInsetXForBlock } from '../entities/Block';
 import {
   PLAYER_RENDERED_SIZE,
@@ -50,6 +51,14 @@ const PIT_LEVEL = parseLevel(['..', '..', '..', '..']);
 // Same footprint as GROUND_LEVEL, but the solid row is on top instead of the
 // bottom — used to test the upward (ceiling) collision case jump introduces.
 const CEILING_LEVEL = parseLevel(['GG', '..', '..', '..']);
+
+// Ground on the bottom row is crumblingFloor instead of groundGrass — used
+// for the landing-from-above cases.
+const CRUMBLING_FLOOR_GROUND_LEVEL = parseLevel(['..', '..', '..', 'gg']);
+
+// Mirrors CEILING_LEVEL but with crumblingFloor on top — used for the
+// rising-from-below / vertical-inset cases.
+const CRUMBLING_FLOOR_CEILING_LEVEL = parseLevel(['gg', '..', '..', '..']);
 
 // Same shape as CEILING_LEVEL, but the solid row is `bridge` instead of
 // `groundGrass` — isolates the one-way case: rising into a bridge from below
@@ -758,6 +767,106 @@ describe('stepPlayerPhysics one-way bridge platforms', () => {
       }
     },
   );
+});
+
+describe('stepPlayerPhysics - crumbling floor', () => {
+  // Both grid columns of CRUMBLING_FLOOR_GROUND_LEVEL / _CEILING_LEVEL are
+  // 'g' (crumblingFloor), and the player's HITBOX_WIDTH (wider than one
+  // tile) always spans both column 0 and column 1 at x: 0 — so every
+  // states array below arms/exempts BOTH columns. Leaving one column's
+  // entry out would leave that column implicitly 'atRest' (solid), which
+  // would silently keep the player grounded/blocked through the OTHER
+  // (armed) column regardless of the phase under test.
+
+  it('atRest-solidFromAbove-justLikeOrdinaryGround', () => {
+    // Same close-approach shape as the pre-existing
+    // "fallingOntoSolidTile-snapsFeetToSurfaceAndStopsVelocity" ground test:
+    // start 1px above the surface, falling fast enough to reach it in one
+    // frame.
+    const player = basePlayer({ y: standingYOnRow(3) - 1, vy: 500 });
+    const next = stepPlayerPhysics(player, CRUMBLING_FLOOR_GROUND_LEVEL, 1 / 60, {}, [], []);
+    expect(next.grounded).toBe(true);
+    expect(next.y).toBe(standingYOnRow(3));
+  });
+
+  it('crackingPhase-stillSolidFromAbove', () => {
+    const player = basePlayer({ y: standingYOnRow(3) - 1, vy: 500 });
+    const states: CrumblingFloorTimerState[] = [
+      { col: 0, row: 3, elapsed: 0.1 }, // mid "cracking" (< CRUMBLING_FLOOR_CRACK_SECONDS)
+      { col: 1, row: 3, elapsed: 0.1 },
+    ];
+    const next = stepPlayerPhysics(player, CRUMBLING_FLOOR_GROUND_LEVEL, 1 / 60, {}, [], states);
+    expect(next.grounded).toBe(true);
+    expect(next.y).toBe(standingYOnRow(3));
+  });
+
+  it('brokenPhase-isNotSolid-playerFallsThrough', () => {
+    const player = basePlayer({ y: standingYOnRow(3) - 1, vy: 500 });
+    // 1.0s: past CRUMBLING_FLOOR_CRACK_SECONDS (0.9), short of crack+broken
+    // (0.9 + 1.5 = 2.4) — mid "broken".
+    const states: CrumblingFloorTimerState[] = [
+      { col: 0, row: 3, elapsed: 1.0 },
+      { col: 1, row: 3, elapsed: 1.0 },
+    ];
+    const next = stepPlayerPhysics(player, CRUMBLING_FLOOR_GROUND_LEVEL, 1 / 60, {}, [], states);
+    expect(next.grounded).toBe(false);
+  });
+
+  it('reformingPhase-isStillNotSolid', () => {
+    const player = basePlayer({ y: standingYOnRow(3) - 1, vy: 500 });
+    // 2.6s: past crack+broken (2.4), short of the full cycle (2.4 + 0.4 =
+    // 2.8) — mid "reforming".
+    const states: CrumblingFloorTimerState[] = [
+      { col: 0, row: 3, elapsed: 2.6 },
+      { col: 1, row: 3, elapsed: 2.6 },
+    ];
+    const next = stepPlayerPhysics(player, CRUMBLING_FLOOR_GROUND_LEVEL, 1 / 60, {}, [], states);
+    expect(next.grounded).toBe(false);
+  });
+
+  it('atRest-fromBelow-blocksOnlyAtTheHalfTileLine-notTheFullTile', () => {
+    // Head starts just inside row 1 (open space below row 0's crumbling
+    // floor) and rises into row 0. A full-height tile would catch the head
+    // the instant it reaches row 0's own bottom edge (headY ==
+    // RENDERED_TILE_SIZE, i.e. y == RENDERED_TILE_SIZE - PLAYER_HEAD_PADDING);
+    // this tile's solid region is only its top half, so the head keeps
+    // rising past that line and is only actually stopped once it reaches
+    // the cell's vertical midpoint. jumpHeld avoids the variable-jump-height
+    // cut so the test isolates collision behavior, same as the pre-existing
+    // block-ceiling tests.
+    const player = basePlayer({ y: RENDERED_TILE_SIZE - PLAYER_HEAD_PADDING + 2, vy: -500 });
+    const next = stepPlayerPhysics(
+      player,
+      CRUMBLING_FLOOR_CEILING_LEVEL,
+      1 / 60,
+      { jumpHeld: true },
+      [],
+      [],
+    );
+    const headYAfter = next.y + PLAYER_HEAD_PADDING;
+    // The stop plane is row 0's own top (0) plus half a tile.
+    expect(headYAfter).toBeCloseTo(RENDERED_TILE_SIZE / 2, 5);
+    expect(next.vy).toBe(0);
+  });
+
+  it('brokenPhase-fromBelow-neverBlocksAtAll', () => {
+    const player = basePlayer({ y: RENDERED_TILE_SIZE - PLAYER_HEAD_PADDING + 2, vy: -500 });
+    const states: CrumblingFloorTimerState[] = [
+      { col: 0, row: 0, elapsed: 1.0 }, // mid "broken"
+      { col: 1, row: 0, elapsed: 1.0 },
+    ];
+    const next = stepPlayerPhysics(
+      player,
+      CRUMBLING_FLOOR_CEILING_LEVEL,
+      1 / 60,
+      { jumpHeld: true },
+      [],
+      states,
+    );
+    // Unimpeded rise: this frame's vy is whatever gravity alone produces,
+    // with no ceiling stop at all.
+    expect(next.vy).toBeCloseTo(-500 + PHYSICS_CONFIG.gravity / 60, 5);
+  });
 });
 
 describe('stepPlayerPhysics bridge drop-through', () => {

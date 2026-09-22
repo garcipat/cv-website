@@ -8,11 +8,14 @@ import {
   isStandableMushroomCap,
   tileAt,
   RENDERED_TILE_SIZE,
+  CRUMBLING_FLOOR_SOLID_HEIGHT,
 } from '../level/Terrain';
 import type { LevelDef } from '../level/LevelData';
 import { isBlockOccupied, blockIdAt, blockAt } from '../level/BlockMapper';
 import type { BlockPlacement } from '../level/BlockMapper';
 import { hitboxInsetXForBlock } from '../entities/Block';
+import { isCrumblingFloorBroken } from './CrumblingFloor';
+import type { CrumblingFloorTimerState } from './CrumblingFloor';
 import {
   PLAYER_RENDERED_SIZE,
   PLAYER_FOOT_PADDING,
@@ -50,6 +53,7 @@ export interface PlayerInput {
 
 const NO_INPUT: PlayerInput = { left: false, right: false };
 const NO_BLOCKS: readonly BlockPlacement[] = [];
+const NO_CRUMBLING_FLOOR_STATES: readonly CrumblingFloorTimerState[] = [];
 
 /**
  * Width of the actual collision hitbox — narrower than PLAYER_RENDERED_SIZE
@@ -73,6 +77,7 @@ export function stepPlayerPhysics(
   dt: number,
   input: PlayerInput = NO_INPUT,
   blockPlacements: readonly BlockPlacement[] = NO_BLOCKS,
+  crumblingFloorStates: readonly CrumblingFloorTimerState[] = NO_CRUMBLING_FLOOR_STATES,
 ): PlayerState {
   const blockContacts: BlockContact[] = [];
   // While a side-hit's knockback is still active, held movement keys are
@@ -429,8 +434,18 @@ export function stepPlayerPhysics(
     const headRow = Math.floor(headY / RENDERED_TILE_SIZE);
     let ceilingResolved = false;
     for (let col = leftCol; col <= rightCol; col++) {
+      const tile = tileAt(level, col, headRow);
       const blockId = blockIdAt(blockPlacements, col, headRow);
-      const solid = isSolidExcludingBridge(tileAt(level, col, headRow)) || blockId !== undefined;
+      // A crumbling floor tile's solid region is only its top half (see
+      // Terrain.ts's CRUMBLING_FLOOR_SOLID_HEIGHT doc comment) — the
+      // character's rising head must actually reach that midline before
+      // it counts as a hit, rather than stopping at the full tile's
+      // bottom edge like every other solid tile.
+      const isCrumbling = tile === 'crumblingFloor';
+      const crumblingSolidY = headRow * RENDERED_TILE_SIZE + CRUMBLING_FLOOR_SOLID_HEIGHT;
+      const solid = isCrumbling
+        ? !isCrumblingFloorBroken(crumblingFloorStates, col, headRow) && headY >= crumblingSolidY
+        : isSolidExcludingBridge(tile) || blockId !== undefined;
       if (!solid) continue;
       // Position is resolved against only the FIRST solid column found
       // (matches the pre-existing single-collision behavior) — but every
@@ -438,7 +453,9 @@ export function stepPlayerPhysics(
       // still reported in `blockContacts`, even if it wasn't the column that
       // stopped the ascent.
       if (!ceilingResolved) {
-        y = (headRow + 1) * RENDERED_TILE_SIZE - PLAYER_HEAD_PADDING;
+        y = isCrumbling
+          ? crumblingSolidY - PLAYER_HEAD_PADDING
+          : (headRow + 1) * RENDERED_TILE_SIZE - PLAYER_HEAD_PADDING;
         resolvedVy = 0;
         ceilingResolved = true;
       }
@@ -459,12 +476,20 @@ export function stepPlayerPhysics(
     // movement or a climb through it. Pressing Down to climb back in is
     // handled far above (the grounded + climbable-row-below entry), which
     // returns before this collision pass runs.
-    const columnIsGround = (col: number): boolean =>
-      groundIsSolid(tileAt(level, col, footRow)) ||
-      isStandableLadderTop(level, col, footRow) ||
-      isStandableLadderBundleTop(level, col, footRow) ||
-      isStandableMushroomCap(level, col, footRow) ||
-      isBlockOccupied(blockPlacements, col, footRow);
+    const columnIsGround = (col: number): boolean => {
+      const tile = tileAt(level, col, footRow);
+      const tileIsGround =
+        tile === 'crumblingFloor'
+          ? !isCrumblingFloorBroken(crumblingFloorStates, col, footRow)
+          : groundIsSolid(tile);
+      return (
+        tileIsGround ||
+        isStandableLadderTop(level, col, footRow) ||
+        isStandableLadderBundleTop(level, col, footRow) ||
+        isStandableMushroomCap(level, col, footRow) ||
+        isBlockOccupied(blockPlacements, col, footRow)
+      );
+    };
 
     let groundResolved = false;
     for (let col = leftCol; col <= rightCol; col++) {
