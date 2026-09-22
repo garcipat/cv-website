@@ -139,6 +139,40 @@ describe('stepEnemyPatrol', () => {
     expect(next.x).toBe(126);
   });
 
+  it('crumblingFloorAhead-atRest-doesNotReverse-treatedAsGround', () => {
+    // Ground row has a crumbling floor tile (not a pit) at col 7, directly
+    // ahead of a rightward-moving enemy starting at col 5 — with no live
+    // timer entry (at rest), it must be treated exactly like ordinary
+    // ground, not like a ledge edge.
+    const entityRow: TileType[] = Array.from({ length: 10 }, () => 'empty');
+    const groundRow: TileType[] = Array.from({ length: 10 }, (_, c) =>
+      c === 7 ? 'crumblingFloor' : 'groundRock',
+    );
+    const level: LevelDef = { terrain: [entityRow, groundRow], width: 10, height: 2 };
+    const enemy = { ...makeEnemyAt(5), direction: 'right' as const };
+
+    const next = stepEnemyPatrol(enemy, level, DT, [], []);
+
+    expect(next.direction).toBe('right');
+    expect(next.vx).toBe(SPEED);
+  });
+
+  it('crumblingFloorAhead-broken-reversesLikeAPit', () => {
+    const entityRow: TileType[] = Array.from({ length: 10 }, () => 'empty');
+    const groundRow: TileType[] = Array.from({ length: 10 }, (_, c) =>
+      c === 7 ? 'crumblingFloor' : 'groundRock',
+    );
+    const level: LevelDef = { terrain: [entityRow, groundRow], width: 10, height: 2 };
+    // Same geometry/dt as wallAhead-movingRight above, so the leading edge
+    // deterministically reaches col 7 in one call.
+    const enemy = { ...makeEnemyAt(5), direction: 'right' as const };
+    const states = [{ col: 7, row: 1, elapsed: 1.0 }]; // mid "broken"
+
+    const next = stepEnemyPatrol(enemy, level, 1, [], states);
+
+    expect(next.direction).toBe('left');
+  });
+
   it('patrolTileAhead-movingRight-reversesAndClampsExactlyLikeAWall', () => {
     // Same geometry as wallAhead-movingRight above, with the wall replaced by
     // an invisible patrol tile at col 7: the turn-around point must be
