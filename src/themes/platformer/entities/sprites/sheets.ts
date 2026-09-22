@@ -108,11 +108,16 @@ export const CRACK_OVERLAY_SHEET: SpriteSheet = {
  *  bottom half transparent) — cropped from the reinstated `spring_.png`
  *  terrain tileset. One frame only; the tile has no color variants yet
  *  (spec's Out of Scope). */
+/** 64x16 strip of four 16x16 frames, cropped from `spring_.png` row 11
+ *  (cols 3/4/5/8, the salmon-dirt half-height ledge material): 0 = left cap,
+ *  1 = middle (repeatable), 2 = right cap, 3 = single (an isolated tile with
+ *  no crumblingFloor neighbour on either side; see `Terrain.ts`'s
+ *  `horizontalRunPosition`, whose `'single'` result picks this frame). */
 export const CRUMBLE_FLOOR_SHEET: SpriteSheet = {
   src: '/sprites/crumble_floor.png',
   frameWidth: TILE_SIZE,
   frameHeight: TILE_SIZE,
-  columns: 1,
+  columns: 4,
 };
 
 /** `crumble_cracks.png` — a 48x8 strip of three 16x8 frames (O-023): 0 =

@@ -87,7 +87,7 @@ export const PaletteTile = ({
             style={{
               position: 'absolute',
               left: -sprite.sx * scale,
-              top: -sprite.sy * scale,
+              top: (-sprite.sy + (sprite.topOffset ?? 0)) * scale,
               width: sprite.sheetWidth * scale,
               height: sprite.sheetHeight * scale,
               maxWidth: 'none',
@@ -109,10 +109,13 @@ export const PaletteTile = ({
                 // own top edge — the crumbling floor's crack overlay needs
                 // this because its base art (crumble_floor.png) is itself
                 // top-aligned in its cell, matching Renderer.ts's live
-                // compositing at the same y as the ledge's own top.
+                // compositing at the same y as the ledge's own top. Also
+                // follows the base's own `topOffset` nudge, so the overlay
+                // stays flush with the ledge's shifted position rather than
+                // floating above it.
                 top:
                   sprite.overlay.anchor === 'top'
-                    ? 0
+                    ? (sprite.topOffset ?? 0) * scale
                     : (sprite.frameHeight - (sprite.overlay.frameHeight ?? sprite.frameHeight)) * scale,
                 width: sprite.frameWidth * scale,
                 height: (sprite.overlay.frameHeight ?? sprite.frameHeight) * scale,

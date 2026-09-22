@@ -17,6 +17,8 @@ import {
   MUSHROOM_SHEET,
   SPEAR_SHEET,
   FLOOR_SPIKE_SHEET,
+  CRUMBLE_FLOOR_SHEET,
+  CRUMBLE_CRACKS_SHEET,
 } from '../entities/sprites/sheets';
 import {
   applyBackgroundPaint,
@@ -48,6 +50,8 @@ const EMPTY_IMAGES: EditorImages = {
   mushroom: null,
   spears: null,
   floorSpike: null,
+  crumbleFloor: null,
+  crumbleCracks: null,
 };
 
 const IMAGE_SOURCES: { key: keyof EditorImages; src: string }[] = [
@@ -69,6 +73,8 @@ const IMAGE_SOURCES: { key: keyof EditorImages; src: string }[] = [
   { key: 'mushroom', src: MUSHROOM_SHEET.src },
   { key: 'spears', src: SPEAR_SHEET.src },
   { key: 'floorSpike', src: FLOOR_SPIKE_SHEET.src },
+  { key: 'crumbleFloor', src: CRUMBLE_FLOOR_SHEET.src },
+  { key: 'crumbleCracks', src: CRUMBLE_CRACKS_SHEET.src },
 ];
 
 export interface EditorCanvasPaneProps {
