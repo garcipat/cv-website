@@ -2,7 +2,7 @@
 
 **Feature Branch**: `O-023-platformer-crumbling-floor`
 **Created**: 2026-09-22
-**Status**: Draft
+**Status**: Implemented
 **Input**: [Issue #69](https://github.com/garcipat/cv-website/issues/69) — ground that gives way underfoot: it
 cracks and shakes while the character stands on it, breaks apart and drops them through, then reforms after
 a while.

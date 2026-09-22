@@ -53,7 +53,7 @@ graph RL
         O019["✅ O-019: Editor Zoom"]
         O020["✅ O-020: Floor Spear Hazard"]
         O021["✅ O-021: Floor Spikes"]
-        O023["O-023: Crumbling Floor Blocks"]
+        O023["✅ O-023: Crumbling Floor Blocks"]
         S011["S-011: Interact Hint Overlay"]
     end
 
@@ -188,6 +188,7 @@ graph RL
     class O016 enhancements
     class O016 done
     class O021 done
+    class O023 done
 ```
 
 **Critical Path**: F-001 → F-012 → F-013 → F-002 → F-014 (foundation → theme system → multilanguage → data model → IDE theme, then Space and Terminal themes)
