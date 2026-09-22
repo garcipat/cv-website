@@ -81,6 +81,20 @@ export function crumblingFloorPhaseFor(
   return state ? crumblingFloorPhaseAt(state.elapsed) : 'atRest';
 }
 
+/** `(col, row)`'s raw elapsed time since arming — 0 when no timer entry
+ *  exists. Unlike the ratio/phase accessors, this is seconds, not a
+ *  normalized [0,1] value; `Renderer.ts`'s shake jitter needs the real
+ *  elapsed time since `crumblingFloorShakeOffsetXAt` is tuned in seconds
+ *  (see its own doc comment), not a phase-relative ratio. */
+export function crumblingFloorElapsedFor(
+  states: readonly CrumblingFloorTimerState[],
+  col: number,
+  row: number,
+): number {
+  const state = states.find((entry) => entry.col === col && entry.row === row);
+  return state ? state.elapsed : 0;
+}
+
 /** Whether `(col, row)` has a running cycle at all — the eligibility gate
  *  for trigger detection (only an unarmed tile can start a new cycle). */
 export function isCrumblingFloorArmed(

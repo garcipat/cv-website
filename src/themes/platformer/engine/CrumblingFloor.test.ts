@@ -8,6 +8,7 @@ import {
   advanceCrumblingFloors,
   crumblingFloorPhaseAt,
   crumblingFloorPhaseFor,
+  crumblingFloorElapsedFor,
   isCrumblingFloorArmed,
   isCrumblingFloorSolidPhase,
   isCrumblingFloorBroken,
@@ -111,6 +112,17 @@ describe('crumblingFloorPhaseFor', () => {
   it('entryPresent-usesItsElapsedPhase', () => {
     const states = [{ col: 2, row: 3, elapsed: CRUMBLING_FLOOR_CRACK_SECONDS + 0.1 }];
     expect(crumblingFloorPhaseFor(states, 2, 3)).toBe('broken');
+  });
+});
+
+describe('crumblingFloorElapsedFor', () => {
+  it('noEntryForCell-isZero', () => {
+    expect(crumblingFloorElapsedFor([], 0, 0)).toBe(0);
+  });
+
+  it('entryPresent-usesItsRawElapsed', () => {
+    const states = [{ col: 2, row: 3, elapsed: 0.37 }];
+    expect(crumblingFloorElapsedFor(states, 2, 3)).toBe(0.37);
   });
 });
 
