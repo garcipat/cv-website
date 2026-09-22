@@ -1,8 +1,6 @@
 import type { BaseEnemyState } from './EnemyType';
 import type { EnemyPlacement } from '../../level/EnemyMapper';
-// Imported from EnemyAnimation, NOT from ../Enemy — see this directory's
-// import direction: Enemy.ts depends on these modules, never the reverse.
-import { walkAnimFrameCount, WALK_FRAME_DURATION } from './EnemyAnimation';
+import type { SpriteDescriptor } from '../sprites/SpriteSheet';
 
 /**
  * Seconds an enemy's post-hit refractory window lasts — the red-flash/
@@ -14,18 +12,32 @@ import { walkAnimFrameCount, WALK_FRAME_DURATION } from './EnemyAnimation';
  */
 export const ENEMY_HIT_REACTION_SECONDS = 0.4;
 
+/** The per-kind numbers `baseEnemyState`/`baseRevive` seed a life from: the
+ *  kind's hit points and reaction window, plus the resting state and its own
+ *  frame table so the spawn/revive animation stagger follows THAT kind's
+ *  loop (research D4). */
+export interface EnemyBaseConfig {
+  maxHitPoints: number;
+  hitReactionSeconds: number;
+  /** The state seeded at spawn/revive — MUST exist in `animations`. */
+  defaultAnimState: string;
+  animations: SpriteDescriptor['animations'];
+}
+
 /**
- * The fields every enemy starts with. `index` offsets the starting walk frame
- * and timer so multiple enemies don't animate in perfect lockstep — each
- * enemy's frame advance is driven by its own dt-accumulated timer, not a
- * shared clock, so identical starts stay identical forever.
+ * The fields every enemy starts with. `index` offsets the starting animation
+ * frame and timer so multiple enemies don't animate in perfect lockstep —
+ * each enemy's frame advance is driven by its own dt-accumulated timer, not a
+ * shared clock, so identical starts stay identical forever. The resting
+ * state and its frame count/duration come from the kind's own config, so a
+ * kind whose resting loop is not `walk` (the bee's `fly`) staggers correctly.
  */
 export function baseEnemyState(
   placement: EnemyPlacement,
   index: number,
-  maxHitPoints: number,
-  hitReactionSeconds: number,
+  config: EnemyBaseConfig,
 ): Omit<BaseEnemyState, 'type'> {
+  const resting = config.animations[config.defaultAnimState];
   return {
     ...placement,
     homeX: placement.x,
@@ -33,17 +45,17 @@ export function baseEnemyState(
     vx: 0,
     vy: 0,
     direction: 'right',
-    animState: 'walk',
-    animFrame: index % walkAnimFrameCount(),
-    animTimer: (index * 0.05) % WALK_FRAME_DURATION,
-    hitPoints: maxHitPoints,
+    animState: config.defaultAnimState,
+    animFrame: index % resting.frames.length,
+    animTimer: (index * 0.05) % resting.frameDuration,
+    hitPoints: config.maxHitPoints,
     // At or past the reaction duration means "no hit is being reacted to",
     // i.e. vulnerable — `isInvulnerable` asks `hitTimer < hitReactionSeconds`.
     // Seeding 0 would make every enemy harmless and unstompable at spawn, so
     // this seeds from the type's own `hitReactionSeconds`, passed in here —
     // never from a shared constant, so a type with a different duration
     // still spawns exactly at its own threshold.
-    hitTimer: hitReactionSeconds,
+    hitTimer: config.hitReactionSeconds,
     alive: true,
     rewardGiven: false,
     deathEffectGiven: false,
@@ -88,8 +100,7 @@ export function takeHit<S extends BaseEnemyState>(enemy: S): S {
  *  nothing left to add. */
 export function baseRevive(
   enemy: BaseEnemyState,
-  maxHitPoints: number,
-  hitReactionSeconds: number,
+  config: EnemyBaseConfig,
 ): Omit<BaseEnemyState, 'type'> {
   return {
     ...enemy,
@@ -98,10 +109,10 @@ export function baseRevive(
     vx: 0,
     vy: 0,
     direction: 'right',
-    animState: 'walk',
-    hitPoints: maxHitPoints,
+    animState: config.defaultAnimState,
+    hitPoints: config.maxHitPoints,
     // Vulnerable again on revival — see baseEnemyState's note on this seed.
-    hitTimer: hitReactionSeconds,
+    hitTimer: config.hitReactionSeconds,
     alive: true,
     deathEffectGiven: false,
   };

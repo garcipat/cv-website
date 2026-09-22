@@ -10,8 +10,10 @@ import type { Rect } from '../geometry';
  * the box coincides with the visible, rounded silhouette rather than the
  * full square slot. `paddingNative` is in pre-scale pixels and scales with
  * the sprite exactly as the frame itself does, so a bigger slime gets a
- * proportionally bigger inset instead of a fixed one. There is no bottom
- * inset: a slime's feet already touch the native frame's bottom edge.
+ * proportionally bigger inset instead of a fixed one. The `bottom` inset
+ * shifts the box down with the draw's own bottom anchor and pulls its bottom
+ * edge up to the visible art's bottom (FR-019): a bottom-anchored sheet
+ * declares `bottom: 0` and reproduces the pre-seam box exactly.
  *
  * Size and offsets are computed from `sprite` here rather than imported from
  * Enemy.ts — enemies/ modules never import Enemy.ts, which depends on this
@@ -21,16 +23,17 @@ import type { Rect } from '../geometry';
 export function spriteSheetHitbox(
   enemy: BaseEnemyState,
   sprite: SpriteDescriptor,
-  paddingNative: { side: number; top: number },
+  paddingNative: { side: number; top: number; bottom: number },
 ): Rect {
   const scale = RENDER_SCALE * sprite.renderScale;
   const size = sprite.sheet.frameWidth * scale;
   const sidePad = paddingNative.side * scale;
   const topPad = paddingNative.top * scale;
+  const bottomPad = paddingNative.bottom * scale;
   return {
     x: enemy.x + (RENDERED_TILE_SIZE - size) / 2 + sidePad,
-    y: enemy.y + (RENDERED_TILE_SIZE - size) + topPad,
+    y: enemy.y + (RENDERED_TILE_SIZE - size) + topPad + bottomPad,
     width: size - 2 * sidePad,
-    height: size - topPad,
+    height: size - topPad - bottomPad,
   };
 }

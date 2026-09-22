@@ -129,12 +129,15 @@ function synthesizeEnemyPlacements(
   });
 }
 
-/** Returns one fixed-idle-walk placeholder `EnemyState` per `M` (slimeGreen)
- *  and `m` (slimePurple) marker, built via the engine's own `toEnemyState`. */
+/** Returns one fixed-idle-walk placeholder `EnemyState` per `M` (slimeGreen),
+ *  `m` (slimePurple) and `q` (bee) marker, built via the engine's own
+ *  `toEnemyState` — so each kind seeds its own resting state (the slimes
+ *  `walk`, the bee `fly`). */
 export function synthesizeEnemyStates(grid: TileChar[][]): EnemyState[] {
   const green = synthesizeEnemyPlacements(grid, 'M', 'slimeGreen', 'editor-enemy-green');
   const purple = synthesizeEnemyPlacements(grid, 'm', 'slimePurple', 'editor-enemy-purple');
-  return [...green, ...purple].map((placement) => toEnemyState(placement));
+  const bees = synthesizeEnemyPlacements(grid, 'q', 'bee', 'editor-enemy-bee');
+  return [...green, ...purple, ...bees].map((placement) => toEnemyState(placement));
 }
 
 function synthesizeBlockPlacements(

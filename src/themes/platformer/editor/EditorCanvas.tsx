@@ -52,6 +52,7 @@ import { computePotRenderPlan } from '../entities/blocks/potRenderPlan';
 import {
   SLIME_GREEN_SHEET,
   SLIME_PURPLE_SHEET,
+  BEE_SHEET,
   COIN_SHEET,
   FRUIT_SHEET,
   WORLD_TILESET_SHEET,
@@ -72,6 +73,7 @@ export interface EditorImages {
   fruit: HTMLImageElement | null;
   slimeGreen: HTMLImageElement | null;
   slimePurple: HTMLImageElement | null;
+  bee: HTMLImageElement | null;
   crackOverlay: HTMLImageElement | null;
   chestClosed: HTMLImageElement | null;
   checkpoint: HTMLImageElement | null;
@@ -635,6 +637,7 @@ export const EditorCanvas = ({
         sprites: {
           [SLIME_GREEN_SHEET.src]: images.slimeGreen,
           [SLIME_PURPLE_SHEET.src]: images.slimePurple,
+          [BEE_SHEET.src]: images.bee,
           [COIN_SHEET.src]: images.coin,
           [FRUIT_SHEET.src]: images.fruit,
           [WORLD_TILESET_SHEET.src]: images.tileset,
