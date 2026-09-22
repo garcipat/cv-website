@@ -10,7 +10,7 @@ import {
   RENDERED_TILE_SIZE,
   CRUMBLING_FLOOR_SOLID_HEIGHT,
 } from '../level/Terrain';
-import type { LevelDef } from '../level/LevelData';
+import type { LevelDef, TileType } from '../level/LevelData';
 import { isBlockOccupied, blockIdAt, blockAt } from '../level/BlockMapper';
 import type { BlockPlacement } from '../level/BlockMapper';
 import { hitboxInsetXForBlock } from '../entities/Block';
@@ -102,6 +102,23 @@ export function stepPlayerPhysics(
         : 0;
   const direction = knockbackActive ? player.direction : moveRight ? 'right' : moveLeft ? 'left' : player.direction;
 
+  // A crumbling floor tile is deliberately excluded from `isSolid`/
+  // `isSolidExcludingBridge` (so the default ground/ceiling logic doesn't
+  // treat it as always-solid), but that means the plain `isWall` checks below
+  // never see it as a wall at all — a character could otherwise walk straight
+  // through its side. This mirrors exactly how the ground branch further down
+  // already treats the tile: solid (in whichever sense `baseCheck` means —
+  // excluding bridge-tunneling exemptions, same as any other wall) only while
+  // it hasn't broken, regardless of `baseCheck`'s own answer for the tile
+  // (which is always `false`, since `crumblingFloor` isn't in `isSolid`).
+  const wallTileIsSolid = (
+    tile: TileType,
+    col: number,
+    row: number,
+    baseCheck: (t: TileType) => boolean,
+  ): boolean =>
+    tile === 'crumblingFloor' ? !isCrumblingFloorBroken(crumblingFloorStates, col, row) : baseCheck(tile);
+
   let x = player.x + vx * dt;
   // Excludes the head-padding sliver (like the vertical ceiling check below)
   // so a solid tile directly above the character's transparent head-padding
@@ -150,7 +167,11 @@ export function stepPlayerPhysics(
     // block today) — worth a real fix only if a future level stacks them.
     let rightMinInset = Infinity;
     for (let row = topRow; row <= bottomRow; row++) {
-      if (!isWall(tileAt(level, rightCol, row)) && !isBlockOccupied(blockPlacements, rightCol, row)) continue;
+      if (
+        !wallTileIsSolid(tileAt(level, rightCol, row), rightCol, row, isWall) &&
+        !isBlockOccupied(blockPlacements, rightCol, row)
+      )
+        continue;
       rightWallFound = true;
       // A block whose art doesn't fill its tile (e.g. coinPot) declares a
       // hitboxInsetX so the player can approach closer than the raw tile
@@ -175,7 +196,11 @@ export function stepPlayerPhysics(
     // column's wall spans" handling above.
     let leftMinInset = Infinity;
     for (let row = topRow; row <= bottomRow; row++) {
-      if (!isWall(tileAt(level, leftCol, row)) && !isBlockOccupied(blockPlacements, leftCol, row)) continue;
+      if (
+        !wallTileIsSolid(tileAt(level, leftCol, row), leftCol, row, isWall) &&
+        !isBlockOccupied(blockPlacements, leftCol, row)
+      )
+        continue;
       leftWallFound = true;
       const block = blockAt(blockPlacements, leftCol, row);
       const inset = block ? hitboxInsetXForBlock(block.blockKind) : 0;
@@ -432,7 +457,10 @@ export function stepPlayerPhysics(
     // passable from underneath while remaining solid everywhere else.
     const headY = y + PLAYER_HEAD_PADDING;
     const headRow = Math.floor(headY / RENDERED_TILE_SIZE);
-    let ceilingResolved = false;
+    // Hoisted once per ceiling-branch call — depends only on `headRow`, not
+    // on the column being scanned below.
+    const crumblingSolidY = headRow * RENDERED_TILE_SIZE + CRUMBLING_FLOOR_SOLID_HEIGHT;
+    let ceilingStopY: number | null = null;
     for (let col = leftCol; col <= rightCol; col++) {
       const tile = tileAt(level, col, headRow);
       const blockId = blockIdAt(blockPlacements, col, headRow);
@@ -440,26 +468,33 @@ export function stepPlayerPhysics(
       // Terrain.ts's CRUMBLING_FLOOR_SOLID_HEIGHT doc comment) — the
       // character's rising head must actually reach that midline before
       // it counts as a hit, rather than stopping at the full tile's
-      // bottom edge like every other solid tile.
+      // bottom edge like every other solid tile. Canvas y grows DOWNWARD, so
+      // a rising head (y decreasing) is still in the open bottom half while
+      // headY > crumblingSolidY, and only enters the solid top half once
+      // headY <= crumblingSolidY.
       const isCrumbling = tile === 'crumblingFloor';
-      const crumblingSolidY = headRow * RENDERED_TILE_SIZE + CRUMBLING_FLOOR_SOLID_HEIGHT;
       const solid = isCrumbling
-        ? !isCrumblingFloorBroken(crumblingFloorStates, col, headRow) && headY >= crumblingSolidY
+        ? !isCrumblingFloorBroken(crumblingFloorStates, col, headRow) && headY <= crumblingSolidY
         : isSolidExcludingBridge(tile) || blockId !== undefined;
       if (!solid) continue;
-      // Position is resolved against only the FIRST solid column found
-      // (matches the pre-existing single-collision behavior) — but every
-      // column at this row is scanned so a block spanning any of them is
-      // still reported in `blockContacts`, even if it wasn't the column that
-      // stopped the ascent.
-      if (!ceilingResolved) {
-        y = isCrumbling
-          ? crumblingSolidY - PLAYER_HEAD_PADDING
-          : (headRow + 1) * RENDERED_TILE_SIZE - PLAYER_HEAD_PADDING;
-        resolvedVy = 0;
-        ceilingResolved = true;
-      }
+      // Every solid column at this row is scanned (so a block spanning any
+      // of them is still reported in `blockContacts`), and the stop position
+      // resolves to the MAXIMUM candidate y across all of them — i.e.
+      // whichever solid column's stop plane the rising head reaches FIRST.
+      // Before crumblingFloor, every solid tile shared one stop plane, so
+      // "first column scanned" and "closest stop plane" were the same thing;
+      // now a row can mix a crumbling floor's higher midline plane with an
+      // ordinary wall's full-tile plane, and only the max-y (nearer) one is
+      // correct.
+      const candidateY = isCrumbling
+        ? crumblingSolidY - PLAYER_HEAD_PADDING
+        : (headRow + 1) * RENDERED_TILE_SIZE - PLAYER_HEAD_PADDING;
+      if (ceilingStopY === null || candidateY > ceilingStopY) ceilingStopY = candidateY;
       if (blockId !== undefined) blockContacts.push({ id: blockId, side: 'bottom' });
+    }
+    if (ceilingStopY !== null) {
+      y = ceilingStopY;
+      resolvedVy = 0;
     }
   } else {
     const feetY = y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING;
