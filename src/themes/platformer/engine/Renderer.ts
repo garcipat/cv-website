@@ -112,6 +112,7 @@ import {
   crumblingFloorCrackRatioFor,
   crumblingFloorReformRatioFor,
   crumblingFloorShakeOffsetXAt,
+  crumblingFloorElapsedFor,
 } from './CrumblingFloor';
 import type { CrumblingFloorTimerState } from './CrumblingFloor';
 import { bombFuseFrame } from './PlacedBomb';
@@ -955,9 +956,9 @@ export function drawCrumblingFloors(
       }
 
       // atRest or cracking.
-      const shakeElapsed = phase === 'cracking' ? crumblingFloorCrackRatioFor(states, col, row) : 0;
+      const elapsedSeconds = phase === 'cracking' ? crumblingFloorElapsedFor(states, col, row) : 0;
       const shakeX =
-        phase === 'cracking' ? crumblingFloorShakeOffsetXAt(shakeElapsed) * RENDER_SCALE : 0;
+        phase === 'cracking' ? crumblingFloorShakeOffsetXAt(elapsedSeconds) * RENDER_SCALE : 0;
       ctx.drawImage(ledge, 0, 0, TILE_SIZE, TILE_SIZE, destX + shakeX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
 
       if (phase === 'cracking' && cracks) {
