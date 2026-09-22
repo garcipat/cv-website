@@ -72,6 +72,45 @@ export const BACKGROUND_RENDER_SCALE = 2;
  *  seamlessly. */
 const SKY_FILL_COLOR = 'rgb(66, 154, 215)';
 
+/** The vertical edges of every backdrop band for a given canvas height, in
+ *  screen-space rendered pixels. */
+export interface BackgroundBandGeometry {
+  /** Bottom of the flat dark-blue HUD top margin (the sky image's top edge). */
+  skyTop: number;
+  /** Bottom of the sky image. */
+  skyBottom: number;
+  /** Top of the painted clouds/hills band. */
+  cloudsTop: number;
+  cloudsBottom: number;
+  villageTop: number;
+  villageBottom: number;
+}
+
+/**
+ * The vertical edges of the backdrop's bands for a given canvas height — a
+ * pure, behaviour-preserving extraction of the arithmetic `drawBackgroundLayers`
+ * already performs, so a caller that needs to place something relative to a
+ * band shares one source of truth instead of re-deriving the offsets. O-022's
+ * ambient clouds, for example, live between `skyTop` and `cloudsTop`.
+ *
+ * Depends only on `canvasHeight`: every band is top-anchored (the sky) or
+ * bottom-anchored (clouds/village/grass), none on the canvas width.
+ */
+export function backgroundBandGeometry(canvasHeight: number): BackgroundBandGeometry {
+  const skyTop = SKY_TOP_MARGIN * BACKGROUND_RENDER_SCALE;
+  const skyBottom = skyTop + SKY_SOURCE_RECT.height * BACKGROUND_RENDER_SCALE;
+
+  const villageDestHeight = VILLAGE_SOURCE_RECT.height * BACKGROUND_RENDER_SCALE;
+  const villageTop = canvasHeight - VILLAGE_BOTTOM_OFFSET * BACKGROUND_RENDER_SCALE - villageDestHeight;
+  const villageBottom = villageTop + villageDestHeight;
+
+  const cloudsDestHeight = CLOUDS_SOURCE_RECT.height * BACKGROUND_RENDER_SCALE;
+  const cloudsTop = villageTop - cloudsDestHeight - CLOUDS_VILLAGE_GAP * BACKGROUND_RENDER_SCALE;
+  const cloudsBottom = cloudsTop + cloudsDestHeight;
+
+  return { skyTop, skyBottom, cloudsTop, cloudsBottom, villageTop, villageBottom };
+}
+
 /** Extra flat dark-blue margin drawn above the sky image itself, in native
  *  (unscaled) pixels — gives HUD elements (hearts, coins, journal icon, drawn
  *  elsewhere) more dark-blue backdrop to sit against at the very top of the
@@ -179,51 +218,43 @@ export function drawBackgroundLayers(
 ): void {
   ctx.imageSmoothingEnabled = false;
 
-  const skyTopMarginHeight = SKY_TOP_MARGIN * BACKGROUND_RENDER_SCALE;
+  const geometry = backgroundBandGeometry(canvasHeight);
+
   ctx.fillStyle = SKY_DARK_COLOR;
-  ctx.fillRect(0, 0, canvasWidth, skyTopMarginHeight);
+  ctx.fillRect(0, 0, canvasWidth, geometry.skyTop);
 
-  drawTiledRow(ctx, images.layers, SKY_SOURCE_RECT, skyTopMarginHeight, canvasWidth, cameraX, 0, BACKGROUND_RENDER_SCALE);
-  const skyBottom = skyTopMarginHeight + SKY_SOURCE_RECT.height * BACKGROUND_RENDER_SCALE;
+  drawTiledRow(ctx, images.layers, SKY_SOURCE_RECT, geometry.skyTop, canvasWidth, cameraX, 0, BACKGROUND_RENDER_SCALE);
 
-  const villageDestHeight = VILLAGE_SOURCE_RECT.height * BACKGROUND_RENDER_SCALE;
-  const villageTop = canvasHeight - VILLAGE_BOTTOM_OFFSET * BACKGROUND_RENDER_SCALE - villageDestHeight;
-  const villageBottom = villageTop + villageDestHeight;
-
-  const cloudsDestHeight = CLOUDS_SOURCE_RECT.height * BACKGROUND_RENDER_SCALE;
-  const cloudsTop = villageTop - cloudsDestHeight - CLOUDS_VILLAGE_GAP * BACKGROUND_RENDER_SCALE;
-
-  if (cloudsTop > skyBottom) {
+  if (geometry.cloudsTop > geometry.skyBottom) {
     ctx.fillStyle = SKY_FILL_COLOR;
-    ctx.fillRect(0, skyBottom, canvasWidth, cloudsTop - skyBottom);
+    ctx.fillRect(0, geometry.skyBottom, canvasWidth, geometry.cloudsTop - geometry.skyBottom);
   }
 
   drawTiledRow(
-    ctx, images.layers, CLOUDS_SOURCE_RECT, cloudsTop, canvasWidth, cameraX, CLOUDS_PARALLAX_FACTOR,
+    ctx, images.layers, CLOUDS_SOURCE_RECT, geometry.cloudsTop, canvasWidth, cameraX, CLOUDS_PARALLAX_FACTOR,
     BACKGROUND_RENDER_SCALE,
   );
 
-  const cloudsBottom = cloudsTop + cloudsDestHeight;
-  if (villageTop > cloudsBottom) {
+  if (geometry.villageTop > geometry.cloudsBottom) {
     ctx.fillStyle = SKY_FILL_COLOR;
-    ctx.fillRect(0, cloudsBottom, canvasWidth, villageTop - cloudsBottom);
+    ctx.fillRect(0, geometry.cloudsBottom, canvasWidth, geometry.villageTop - geometry.cloudsBottom);
   }
 
   drawTiledRow(
-    ctx, images.layers, VILLAGE_SOURCE_RECT, villageTop, canvasWidth, cameraX, VILLAGE_PARALLAX_FACTOR,
+    ctx, images.layers, VILLAGE_SOURCE_RECT, geometry.villageTop, canvasWidth, cameraX, VILLAGE_PARALLAX_FACTOR,
     BACKGROUND_RENDER_SCALE,
   );
 
   const riverFrameIndex = Math.floor(worldElapsedSeconds / RIVER_FRAME_DURATION_SECONDS) % 2;
   const riverRect: SourceRect = { sx: 0, sy: riverFrameIndex * RIVER_FRAME_HEIGHT, width: 160, height: RIVER_FRAME_HEIGHT };
   drawTiledRow(
-    ctx, images.river, riverRect, villageTop + RIVER_DEST_OFFSET * BACKGROUND_RENDER_SCALE,
+    ctx, images.river, riverRect, geometry.villageTop + RIVER_DEST_OFFSET * BACKGROUND_RENDER_SCALE,
     canvasWidth, cameraX, VILLAGE_PARALLAX_FACTOR, BACKGROUND_RENDER_SCALE,
   );
 
   const grassDestHeight = images.grass.height * BACKGROUND_RENDER_SCALE;
   const grassSource: SourceRect = { sx: 0, sy: 0, width: images.grass.width, height: images.grass.height };
-  const grassTop = villageBottom - GRASS_VERTICAL_NUDGE;
+  const grassTop = geometry.villageBottom - GRASS_VERTICAL_NUDGE;
   drawTiledRow(
     ctx, images.grass, grassSource, grassTop, canvasWidth, cameraX, GRASS_PARALLAX_FACTOR,
     BACKGROUND_RENDER_SCALE,
