@@ -204,6 +204,33 @@ export function tickDarkness(dt: number): void {
 }
 
 /**
+ * How present the outside-a-cave fog currently is — `0` (none) to
+ * `MAX_DARKNESS` (O-028 spec Assumptions: fog reuses darkness's own cap
+ * since a fogged cell is never the player's own, so there is no readability
+ * floor to protect). Eased every `playing` tick from the same cell
+ * `darknessLevel` reads, toward `MAX_DARKNESS` when that cell is NOT
+ * cave-family or `0` when it is — the inverse of `darknessLevel`'s target,
+ * which is what keeps the two mutually exclusive (O-028 FR-003). Because the
+ * tick only runs in the `playing` phase, the value freezes with the world
+ * during pause/death, matching `darknessLevel`.
+ */
+export const fogLevel = signal(0);
+
+/**
+ * One game-loop tick of the fog value — the mirror of `tickDarkness` with
+ * the target inverted (O-028 FR-003/FR-004). Reads the same cell under the
+ * player's feet and eases the current value toward `MAX_DARKNESS` (outside a
+ * cave) or `0` (inside one) over the same `DARKNESS_FADE_SECONDS`, so the
+ * two transitions read as one continuous effect. `resetGame()` returns it to
+ * `0` on respawn.
+ */
+export function tickFog(dt: number): void {
+  const cell = playerOccupiedCell(playerState.value);
+  const target = isCellDarkening(currentLevel.value, cell.col, cell.row) ? 0 : MAX_DARKNESS;
+  fogLevel.value = nextDarknessLevel(fogLevel.value, target, dt, DARKNESS_FADE_SECONDS);
+}
+
+/**
  * Every torch tile's world-space centre (`tileToPixel` plus half a rendered
  * tile), derived from `TORCH_TILES` so the Level Editor's Try button updates it
  * reactively like every other placement list. This is the light-source list the
@@ -935,6 +962,7 @@ export function resetGame(): void {
   cameraPositionX.value = 0;
   cameraPositionY.value = 0;
   darknessLevel.value = 0;
+  fogLevel.value = 0;
   // An in-progress cap dip must not survive a death/respawn (FR-015).
   mushroomSquashStates.value = [];
   // An in-progress floor spike cycle must not survive a death/respawn

@@ -47,6 +47,8 @@ import {
   respawnCenter,
   darknessLevel,
   tickDarkness,
+  fogLevel,
+  tickFog,
   torchPositions,
   mushroomSquashStates,
   tickMushroomSquashes,
@@ -1184,6 +1186,68 @@ describe('darkness', () => {
     resetGame();
 
     expect(darknessLevel.value).toBe(0);
+  });
+});
+
+describe('fog', () => {
+  afterEach(() => {
+    // currentBackgroundLayout/fogLevel are module-level; restoring them keeps
+    // this block from leaking a fogged state into every other test in the
+    // file.
+    currentBackgroundLayout.value = LEVEL_1_BACKGROUND;
+    fogLevel.value = 0;
+  });
+
+  it('fogLevel-initial-isZero', () => {
+    expect(fogLevel.value).toBe(0);
+  });
+
+  it('tickFog-playerFootCellOnOpenGround-risesTowardMaxDarkness', () => {
+    // Arrange: no background at all under the player's feet (open ground).
+    currentBackgroundLayout.value = [];
+
+    // Act: two half-fades.
+    tickFog(DARKNESS_FADE_SECONDS / 2);
+    const halfway = fogLevel.value;
+    tickFog(DARKNESS_FADE_SECONDS / 2);
+
+    // Assert
+    expect(halfway).toBeCloseTo(MAX_DARKNESS / 2);
+    expect(fogLevel.value).toBeCloseTo(MAX_DARKNESS);
+  });
+
+  it('tickFog-playerFootCellCoveredByACavePiece-returnsTowardZero', () => {
+    // Arrange: fog in fully first, on open ground.
+    currentBackgroundLayout.value = [];
+    tickFog(DARKNESS_FADE_SECONDS);
+    expect(fogLevel.value).toBeCloseTo(MAX_DARKNESS);
+
+    // Act: cover the player's own cell with a cave-family piece and tick half a fade.
+    const cell = playerOccupiedCell(playerState.value);
+    currentBackgroundLayout.value = singleCellBackground('charcoal', cell.col, cell.row);
+    tickFog(DARKNESS_FADE_SECONDS / 2);
+
+    // Assert
+    expect(fogLevel.value).toBeCloseTo(MAX_DARKNESS / 2);
+  });
+
+  it('tickFog-playerFootCellCoveredByACavePiece-neverFogs', () => {
+    const cell = playerOccupiedCell(playerState.value);
+    currentBackgroundLayout.value = singleCellBackground('charcoal', cell.col, cell.row);
+
+    tickFog(DARKNESS_FADE_SECONDS);
+
+    expect(fogLevel.value).toBe(0);
+  });
+
+  it('resetGame-calledWhileFogged-setsFogBackToZero', () => {
+    currentBackgroundLayout.value = [];
+    tickFog(DARKNESS_FADE_SECONDS);
+    expect(fogLevel.value).toBeCloseTo(MAX_DARKNESS);
+
+    resetGame();
+
+    expect(fogLevel.value).toBe(0);
   });
 });
 
