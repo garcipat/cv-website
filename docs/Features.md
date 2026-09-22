@@ -54,6 +54,7 @@ graph RL
         O020["✅ O-020: Floor Spear Hazard"]
         O021["✅ O-021: Floor Spikes"]
         O022["O-022: Ambient Background Clouds"]
+        O023["✅ O-023: Crumbling Floor Blocks"]
         O024["✅ O-024: Enemy Movement & Animation Seam + Bee"]
         S011["S-011: Interact Hint Overlay"]
     end
@@ -136,6 +137,7 @@ graph RL
     O021 --> F015
     O021 --> O005
     O021 --> F016
+    O023 --> F015
 
     O022 --> O009
 
@@ -172,7 +174,7 @@ graph RL
     class S002,S005,O001 enhancements
     class O001 done
     class S005 done
-    class F015,F016,F017,F018,S007,S008,S009,S010,O003,O004,O005,O008,O009,O013,O014,O020,O021 themes
+    class F015,F016,F017,F018,S007,S008,S009,S010,O003,O004,O005,O008,O009,O013,O014,O020,O021,O023 themes
     class O022 themes
     class S011 themes
     class O024 themes
@@ -197,6 +199,7 @@ graph RL
     class O016 enhancements
     class O016 done
     class O021 done
+    class O023 done
 ```
 
 **Critical Path**: F-001 → F-012 → F-013 → F-002 → F-014 (foundation → theme system → multilanguage → data model → IDE theme, then Space and Terminal themes)

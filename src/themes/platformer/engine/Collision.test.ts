@@ -11,6 +11,7 @@ import {
   checkBombPickupCollisions,
   resolveHazardContacts,
   checkFloorSpikeTriggers,
+  checkCrumblingFloorTriggers,
   overlappingTriggers,
 } from './Collision';
 import type { Box } from './Collision';
@@ -36,6 +37,7 @@ import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { ChestState } from '../entities/Chest';
 import type { SignPlacement } from '../level/SignMapper';
 import type { HazardPlacement } from '../level/HazardMapper';
+import { parseLevel } from '../level/LevelParser';
 import type { KeyPickupState } from '../entities/KeyPickup';
 import { spawnHeartPickup } from '../entities/HeartPickup';
 import { spawnBombPickup } from '../entities/BombPickup';
@@ -608,6 +610,46 @@ describe('checkFloorSpikeTriggers', () => {
     const hazard: HazardPlacement = { id: 's1', hazardType: 'spike', facing: 'up', x: 16, y: 32 };
     const player = makePlayer(hazard.x, hazard.y);
     expect(checkFloorSpikeTriggers(player, [hazard], [])).toEqual([]);
+  });
+});
+
+/** The y that plants the player's feet exactly on `row`'s top edge — same
+ *  arithmetic as Physics.test.ts's `standingYOnRow`, duplicated locally
+ *  rather than imported since this file builds its players via the local
+ *  `makePlayer(x, y)` positional helper, not Physics.test.ts's
+ *  overrides-object `basePlayer`. */
+function standingYOnRow(row: number): number {
+  return row * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
+}
+
+describe('checkCrumblingFloorTriggers', () => {
+  // Row 0 is a crumbling floor tile ('g'), row 1 solid ground beneath it
+  // ('G') — the player's feet are planted on row 0's top edge.
+  const level = parseLevel(['g', 'G']);
+
+  it('unarmedCrumblingFloorUnderfoot-isReturnedAsATrigger', () => {
+    const player = makePlayer(0, standingYOnRow(0));
+    expect(checkCrumblingFloorTriggers(player, level, [])).toEqual([{ col: 0, row: 0 }]);
+  });
+
+  it('alreadyArmedCrumblingFloorUnderfoot-isNotReturnedAgain', () => {
+    const player = makePlayer(0, standingYOnRow(0));
+    const states = [{ col: 0, row: 0, elapsed: 0.1 }];
+    expect(checkCrumblingFloorTriggers(player, level, states)).toEqual([]);
+  });
+
+  it('playerNotOverACrumblingFloorTile-returnsNothing', () => {
+    const plainLevel = parseLevel(['.', 'G']);
+    const player = makePlayer(0, standingYOnRow(0));
+    expect(checkCrumblingFloorTriggers(player, plainLevel, [])).toEqual([]);
+  });
+
+  it('notGrounded-returnsNothingEvenWithFootRowOverlap', () => {
+    // Same feet-row position as the triggering test above, but airborne
+    // (e.g. mid-jump-arc passing through this row rather than landing on
+    // it) — must not arm the tile.
+    const player = { ...makePlayer(0, standingYOnRow(0)), grounded: false };
+    expect(checkCrumblingFloorTriggers(player, level, [])).toEqual([]);
   });
 });
 

@@ -5,6 +5,9 @@ import type { Direction } from '../../geometry';
 import type { SpriteDescriptor } from '../../sprites/SpriteSheet';
 import type { BaseEnemyState } from '../EnemyType';
 import type { MovementStrategy } from './MovementStrategy';
+import { isCrumblingFloorBroken, type CrumblingFloorTimerState } from '../../../engine/CrumblingFloor';
+
+const NO_CRUMBLING_FLOOR_STATES: readonly CrumblingFloorTimerState[] = [];
 
 /** The transparent-margin inset a kind declares, in pre-scale pixels. */
 export interface HitboxPaddingNative {
@@ -33,6 +36,10 @@ export interface StepHorizontalParams {
   level: LevelDef;
   blockedTiles: readonly { col: number; row: number }[];
   dt: number;
+  /** See `MovementContext`'s own doc comment (O-023) — threaded through so
+   *  an at-rest/cracking crumbling floor tile counts as solid ground here
+   *  exactly like ordinary terrain. */
+  crumblingFloorStates?: readonly CrumblingFloorTimerState[];
 }
 
 export interface StepHorizontalResult {
@@ -68,6 +75,7 @@ export function stepHorizontal(params: StepHorizontalParams): StepHorizontalResu
     level,
     blockedTiles,
     dt,
+    crumblingFloorStates = NO_CRUMBLING_FLOOR_STATES,
   } = params;
 
   const scale = RENDER_SCALE * sprite.renderScale;
@@ -80,6 +88,14 @@ export function stepHorizontal(params: StepHorizontalParams): StepHorizontalResu
 
   const isBlockedTile = (col: number, tileRow: number) =>
     blockedTiles.some((tile) => tile.col === col && tile.row === tileRow);
+
+  // A crumbling floor tile (O-023) counts as solid ground here exactly
+  // like ordinary terrain, as long as it isn't currently broken/reforming
+  // — otherwise an enemy would treat an intact crumbling floor tile as a
+  // wall/ledge edge and reverse in front of it as if it were a pit, even
+  // though the player can walk right onto it.
+  const tileIsGroundFor = (col: number, tileRow: number, tile = tileAt(level, col, tileRow)): boolean =>
+    tile === 'crumblingFloor' ? !isCrumblingFloorBroken(crumblingFloorStates, col, tileRow) : isSolid(tile);
 
   /** Tries moving one step in `direction` from `fromX`. `blocked` is whether
    *  the leading edge would enter a wall or run out of ground; `nextX` is
@@ -103,11 +119,11 @@ export function stepHorizontal(params: StepHorizontalParams): StepHorizontalResu
     // `isSolid` — it is a boundary for enemies only.
     const wallAhead = Array.from({ length: rowsSpanned }, (_, i) => row - i).some((r) => {
       const tile = tileAt(level, leadingCol, r);
-      return isSolid(tile) || tile === 'patrol' || isBlockedTile(leadingCol, r);
+      return tileIsGroundFor(leadingCol, r, tile) || tile === 'patrol' || isBlockedTile(leadingCol, r);
     });
     const noGroundAhead =
       checkLedges &&
-      !isSolid(tileAt(level, leadingCol, row + 1)) &&
+      !tileIsGroundFor(leadingCol, row + 1) &&
       !isBlockedTile(leadingCol, row + 1);
 
     const snapX = movingRight
@@ -171,6 +187,7 @@ export function patrolMovement<S extends BaseEnemyState>(
         level: ctx.level,
         blockedTiles: ctx.blockedTiles,
         dt,
+        crumblingFloorStates: ctx.crumblingFloorStates,
       });
       return { ...enemy, x, direction, vx, animState };
     },
