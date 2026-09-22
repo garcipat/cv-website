@@ -922,6 +922,10 @@ export function drawDeployableLadders(
  * to full, anchored to the cell's own top-center so it grows toward where
  * its collision boundary already sits.
  */
+function isCrumblingFloorTile(level: LevelDef, col: number, row: number): boolean {
+  return tileAt(level, col, row) === 'crumblingFloor';
+}
+
 export function drawCrumblingFloors(
   ctx: CanvasRenderingContext2D,
   level: LevelDef,
@@ -945,13 +949,21 @@ export function drawCrumblingFloors(
       const destX = x + dc.originX;
       const destY = y + dc.originY;
 
+      // 'single' (an isolated tile with no crumblingFloor neighbour on
+      // either side) gets its own frame, rounded on both edges — not the
+      // flat middle frame a run's interior tiles use.
+      const runPosition = horizontalRunPosition(level, col, row, isCrumblingFloorTile);
+      const frameIndex =
+        runPosition === 'left' ? 0 : runPosition === 'right' ? 2 : runPosition === 'single' ? 3 : 1;
+      const { sx: ledgeSx } = frameSource(CRUMBLE_FLOOR_SHEET, frameIndex);
+
       if (phase === 'reforming') {
         const ratio = crumblingFloorReformRatioFor(states, col, row);
         if (ratio <= 0) continue;
         const w = RENDERED_TILE_SIZE * ratio;
         const h = RENDERED_TILE_SIZE * ratio;
         const dx = destX + (RENDERED_TILE_SIZE - w) / 2;
-        ctx.drawImage(ledge, 0, 0, TILE_SIZE, TILE_SIZE, dx, destY, w, h);
+        ctx.drawImage(ledge, ledgeSx, 0, TILE_SIZE, TILE_SIZE, dx, destY, w, h);
         continue;
       }
 
@@ -959,7 +971,7 @@ export function drawCrumblingFloors(
       const elapsedSeconds = phase === 'cracking' ? crumblingFloorElapsedFor(states, col, row) : 0;
       const shakeX =
         phase === 'cracking' ? crumblingFloorShakeOffsetXAt(elapsedSeconds) * RENDER_SCALE : 0;
-      ctx.drawImage(ledge, 0, 0, TILE_SIZE, TILE_SIZE, destX + shakeX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+      ctx.drawImage(ledge, ledgeSx, 0, TILE_SIZE, TILE_SIZE, destX + shakeX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
 
       if (phase === 'cracking' && cracks) {
         const ratio = crumblingFloorCrackRatioFor(states, col, row);
@@ -1009,7 +1021,13 @@ export function drawCrumbleDebrisEffects(
   if (!ledge) return;
 
   const heavyFrame = frameSource(CRUMBLE_CRACKS_SHEET, 2);
-  const destSize = DEBRIS_QUARTER_W * RENDER_SCALE;
+  // Debris always breaks off the MIDDLE ledge frame's art, regardless of
+  // which run-position frame the tile itself was actually showing — a
+  // reasonable simplification for a decorative, short-lived effect (see
+  // CollectionEffects.ts's doc comment on CrumbleDebrisEffect).
+  const { sx: ledgeMidSx } = frameSource(CRUMBLE_FLOOR_SHEET, 1);
+  const destWidth = DEBRIS_QUARTER_W * RENDER_SCALE;
+  const destHeight = DEBRIS_QUARTER_H * RENDER_SCALE;
 
   for (const effect of effects) {
     const pieces = crumbleDebrisPieces(effect);
@@ -1022,13 +1040,13 @@ export function drawCrumbleDebrisEffects(
 
       ctx.globalAlpha = piece.opacity;
       ctx.drawImage(
-        ledge, quarter.sx, quarter.sy, DEBRIS_QUARTER_W, DEBRIS_QUARTER_H,
-        dx, dy, destSize, destSize,
+        ledge, ledgeMidSx + quarter.sx, quarter.sy, DEBRIS_QUARTER_W, DEBRIS_QUARTER_H,
+        dx, dy, destWidth, destHeight,
       );
       if (cracks) {
         ctx.drawImage(
           cracks, heavyFrame.sx + quarter.sx, heavyFrame.sy + quarter.sy, DEBRIS_QUARTER_W, DEBRIS_QUARTER_H,
-          dx, dy, destSize, destSize,
+          dx, dy, destWidth, destHeight,
         );
       }
     }

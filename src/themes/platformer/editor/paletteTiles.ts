@@ -23,6 +23,14 @@ export interface TileSpriteSpec {
   sy: number;
   frameWidth: number;
   frameHeight: number;
+  /** Shifts the base sprite DOWN within its icon box by this many source
+   *  px (scaled the same as everything else), without changing what's
+   *  cropped from the sheet. Every existing tile omits this (defaults to
+   *  0, unchanged). `g`'s ledge art is top-aligned within its own 16x16
+   *  cell (rows 0-8 opaque, 9-15 transparent) — the same shape the live
+   *  game renders — but the palette icon reads better nudged down a
+   *  little rather than sitting flush against the box's own top edge. */
+  topOffset?: number;
   /**
    * A second crop of the SAME sheet, drawn over the base crop at the same
    * scale and offset by its own `sx`/`sy`. Ground cells carry no grass — the
@@ -344,18 +352,32 @@ export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
     // genuinely different native size from the 16x16 base sheet, hence the
     // overlay's own sheetWidth/sheetHeight rather than inheriting the
     // base's.
+    // crumble_floor.png is now a 48x16 strip (3 frames of 16x16: left cap,
+    // middle, right cap — see CRUMBLE_FLOOR_SHEET) so a run of placed tiles
+    // can show proper end caps. The palette icon previews the MIDDLE frame
+    // (sx: 16), matching how an isolated single tile renders in-game
+    // (Terrain.ts's horizontalRunPosition resolves a lone tile to 'single',
+    // which Renderer.ts treats the same as 'middle' — same convention
+    // bridgeRunPosition already uses).
+    // Previews frame 3 (sx: 48) — the "single" variant, rounded on both
+    // edges — matching how a freshly-placed, still-isolated tile actually
+    // renders (Renderer.ts's drawCrumblingFloors), not the flat repeatable
+    // middle frame a run's interior tiles use.
     sheet: '/sprites/crumble_floor.png',
-    sheetWidth: 16,
+    sheetWidth: 64,
     sheetHeight: 16,
-    sx: 0,
+    sx: 48,
     sy: 0,
     frameWidth: 16,
     frameHeight: 16,
+    topOffset: 4,
     overlay: {
       sheet: '/sprites/crumble_cracks.png',
       sheetWidth: 48,
       sheetHeight: 8,
-      sx: 0,
+      // Frame 2 (heavy cracking, sx: 32) rather than frame 0 (light) — more
+      // recognizable as "unstable ground" at the palette's small icon size.
+      sx: 32,
       sy: 0,
       frameHeight: 8,
       // Top-anchored: crumble_floor.png's visible ledge art occupies the
