@@ -26,23 +26,38 @@
 
 **Files:**
 - Create: `public/sprites/ground_wood.png`
-- Modify: `public/sprites/background_tiles.png` (append a 7th material row)
-- Verify: `public/sprites/staticObjects.png` (door leaf crops already exist per design.md's "Open art already exists")
+- Create: `public/sprites/background_tiles_wood.png`
+- Create: `public/sprites/doors.png` (cropped from `public/sprites/staticObjects.png`, which is otherwise untouched)
 
 **Interfaces:**
-- Produces: the exact native-pixel `sx`/`sy` coordinates every later task's `StaticObjectEntry`/`tileSource` values need.
+- Produces: the exact native-pixel dimensions/frame layout every later task's sheet registration and `tileSource` values need.
+
+Both new wood sprites are **placeholder art**, standing in until proper wood
+tiles are designed later. They MUST each live in their own new file —
+**never appended to or merged into `world_tileset.png` or
+`background_tiles.png`**, which hold only finished, non-placeholder art.
+Keeping placeholders in their own dedicated files means replacing them later
+is a file swap (and, for the background material, a sheet-registration
+change — see Task 11), not a re-crop of every coordinate in a shared atlas.
 
 - [ ] **Step 1: Finalize and place `ground_wood.png`**
 
-A single 32×16 image, two 16×16 frames side by side: frame 0 (x=0..15) is the exposed-top wood plank sprite, frame 1 (x=16..31) is the buried wood sprite — mirrors `crumble_floor.png`'s multi-frame-strip convention (see `sheets.ts`'s `CRUMBLE_FLOOR_SHEET`). Use the palette established in this feature's brainstorming session (`.generated/wood_ground_fg.png`'s left tile) as the exposed-top frame; author a buried variant (same palette, slightly less detail is fine, matching how `groundRock`'s buried frame is plainer than its exposed one). Save to `public/sprites/ground_wood.png`.
+A single 32×16 image, two 16×16 frames side by side: frame 0 (x=0..15) is the exposed-top wood plank sprite, frame 1 (x=16..31) is the buried wood sprite — mirrors `crumble_floor.png`'s multi-frame-strip convention (see `sheets.ts`'s `CRUMBLE_FLOOR_SHEET`). Use the palette established in this feature's brainstorming session (`.generated/wood_ground_fg.png`'s left tile) as the exposed-top frame; author a buried variant (same palette, slightly less detail is fine, matching how `groundRock`'s buried frame is plainer than its exposed one). Save to `public/sprites/ground_wood.png` — its own dedicated file, not a cell inside `world_tileset.png`.
 
-- [ ] **Step 2: Append the wood material row to `background_tiles.png`**
+- [ ] **Step 2: Create `background_tiles_wood.png` — its own dedicated file**
 
-Append a 7th 4-column×3-row block (same `BACKGROUND_ATLAS_STRIDE`/`BACKGROUND_ATLAS_ROW_PITCH` layout every existing material uses — see `BackgroundAtlas.ts`) below the existing six, using the darker wood palette from `.generated/wood_ground_fg.png`'s right tile. Row index will be `6` (0-indexed, after `caveStone` at `3`... — record the actual row index chosen; it must be a value not already used in `BACKGROUND_MATERIAL_ROW_INDEX`).
+A single 4-column×3-row block (same `BACKGROUND_ATLAS_STRIDE` layout every existing material uses within `background_tiles.png` — see `BackgroundAtlas.ts`) using the darker wood palette from `.generated/wood_ground_fg.png`'s right tile. This is a SEPARATE image file from `background_tiles.png` — wood is the only material addressed from it (materialIndex 0 within its own file), which Task 11 accounts for with its own small lookup rather than adding a 7th row to `BACKGROUND_MATERIAL_ROW_INDEX`.
 
-- [ ] **Step 3: Record the door leaf crop rectangles**
+- [ ] **Step 3: Crop the four door leaf sprites out of `staticObjects.png` into their own `doors.png`**
 
-Run this once against the current `public/sprites/staticObjects.png` to print exact bounding boxes, and note the four results (closed-left, closed-right, open-left, open-right) for Task 4:
+Rather than addressing door art in place inside the shared, busy
+`staticObjects.png` (hand-picked crop rectangles into a sheet with a lot of
+unrelated art around them), crop the four leaves out into a small, dedicated
+sheet — a plain 4-frame horizontal strip, each frame the same 16×26 size,
+addressed by plain frame index exactly like `TORCH_SHEET`/`BOMB_SHEET`
+already are (`frameSource(sheet, index)`), not by hand-picked `sx`/`sy`
+crops. This also means door art needs no `StaticObjectsCatalog.ts` entries
+at all — see Task 8's reworked scope.
 
 ```bash
 python3 -c "
@@ -59,18 +74,34 @@ def bbox(x0, y0, x1, y1):
                 miny, maxy = min(miny, y), max(maxy, y)
     return (minx, miny, maxx - minx + 1, maxy - miny + 1)
 # Adjust these search windows if the sheet has moved since this plan was written.
-print('closed pair:', bbox(60, 66, 105, 100))
-print('open leaf A:', bbox(29, 62, 52, 98))
+closed = bbox(60, 66, 105, 100)   # the flush closed pair
+open_a = bbox(29, 62, 52, 98)     # one open leaf (mirror for the other side)
+print('closed pair:', closed)
+print('open leaf:', open_a)
+
+# Build the 4-frame strip: closed-left, closed-right, open-left, open-right,
+# each cropped to a common 16x26 frame and pasted left-to-right. Adjust the
+# per-leaf sub-crops below once 'closed'/'open_a' above confirm exact leaf
+# boundaries within each bbox (a closed pair's bbox spans BOTH leaves; split
+# it at its horizontal midpoint for the left/right halves).
+FRAME_W, FRAME_H = 16, 26
+strip = Image.new('RGBA', (FRAME_W * 4, FRAME_H), (0, 0, 0, 0))
+# ... crop each of the four leaves from im using the measured boxes and
+# strip.paste(leaf, (i * FRAME_W, 0)) for i in 0..3, in the order
+# closed-left, closed-right, open-left, open-right ...
+strip.save('public/sprites/doors.png')
 "
 ```
+
+Verify the saved `doors.png` is exactly 64×26 (4 frames × 16 wide, 26 tall) before moving on — a mismatched frame size breaks `frameSource`'s plain grid-division addressing.
 
 Cross-check each printed box against the spec's Clarifications (each leaf 16×26 native px) and design.md's "Open art already exists" section before using the numbers in Task 4 — if a box doesn't match that shape, widen the search window and re-run rather than guessing.
 
 - [ ] **Step 4: Commit the art**
 
 ```bash
-git add public/sprites/ground_wood.png public/sprites/background_tiles.png
-git commit -m "art(O-029): add wood ground and wood background material sprites"
+git add public/sprites/ground_wood.png public/sprites/background_tiles_wood.png public/sprites/doors.png
+git commit -m "art(O-029): add placeholder wood sprites and a dedicated door sprite strip"
 ```
 
 ---
@@ -825,71 +856,49 @@ git commit -m "feat(O-029): add pure door state module (toggle, effective grid, 
 
 ---
 
-## Task 8: `StaticObjectsCatalog.ts` — Door Leaf Sprite Crops
+## Task 8: `sheets.ts` — Register `DOOR_SHEET` and Its Frame Indices
 
 **Files:**
-- Modify: `src/themes/platformer/engine/StaticObjectsCatalog.ts`
-- Modify: `src/themes/platformer/engine/StaticObjectsCatalog.test.ts`
+- Modify: `src/themes/platformer/entities/sprites/sheets.ts`
 
 **Interfaces:**
-- Consumes: the four crop rectangles recorded in Task 0, Step 3.
-- Produces: `DOOR_LEAF_CLOSED_LEFT`, `DOOR_LEAF_CLOSED_RIGHT`, `DOOR_LEAF_OPEN_LEFT`, `DOOR_LEAF_OPEN_RIGHT: StaticObjectEntry`.
+- Consumes: `public/sprites/doors.png` from Task 0 (a 64×26, 4-frame horizontal strip).
+- Produces: `DOOR_SHEET: SpriteSheet`; `DOOR_FRAME_CLOSED_LEFT`/`DOOR_FRAME_CLOSED_RIGHT`/`DOOR_FRAME_OPEN_LEFT`/`DOOR_FRAME_OPEN_RIGHT: number` frame indices, addressed via the existing `frameSource(sheet, index)` helper — no `StaticObjectsCatalog.ts` entry needed, since door art is no longer a crop out of the shared `staticObjects.png`.
 
-- [ ] **Step 1: Write the failing test**
-
-```ts
-describe('doorLeafEntries-everyEntry-stayInsideStaticObjectsSheetBounds', () => {
-  it('every door leaf crop is inside the 288x145 sheet', () => {
-    const SHEET_WIDTH = 288;
-    const SHEET_HEIGHT = 145;
-    for (const entry of [
-      DOOR_LEAF_CLOSED_LEFT,
-      DOOR_LEAF_CLOSED_RIGHT,
-      DOOR_LEAF_OPEN_LEFT,
-      DOOR_LEAF_OPEN_RIGHT,
-    ]) {
-      expect(entry.sx + (entry.width ?? 16)).toBeLessThanOrEqual(SHEET_WIDTH);
-      expect(entry.sy + (entry.height ?? 16)).toBeLessThanOrEqual(SHEET_HEIGHT);
-    }
-  });
-});
-```
-
-- [ ] **Step 2: Run test to verify it fails**
-
-Run: `npx vitest run src/themes/platformer/engine/StaticObjectsCatalog.test.ts`
-Expected: FAIL — the four exports don't exist.
-
-- [ ] **Step 3: Add the entries**
-
-Using Task 0 Step 3's recorded values (example shape below — replace `sx`/`sy`/`width`/`height` with the actual recorded numbers, each leaf ~16 wide × ~26 tall per the spec's Clarifications):
+- [ ] **Step 1: Register the sheet and its frame indices**
 
 ```ts
-/**
- * The wooden double door's four leaf crops (O-029), from `staticObjects.png`
- * — closed-left/closed-right sit flush together forming the shut door;
- * open-left/open-right are the same leaves swung apart. Named individually
- * rather than through `pickVariant` (no position-hashed variation — a door
- * leaf is always exactly one of these four, chosen by `DoorState.phase` and
- * which side, not by cell position) — same convention as
- * `COBWEB_CORNER_ENTRY`/`COBWEB_FLAT_ENTRY`.
- */
-export const DOOR_LEAF_CLOSED_LEFT: StaticObjectEntry = { sx: 0, sy: 0, width: 16, height: 26 };
-export const DOOR_LEAF_CLOSED_RIGHT: StaticObjectEntry = { sx: 0, sy: 0, width: 16, height: 26 };
-export const DOOR_LEAF_OPEN_LEFT: StaticObjectEntry = { sx: 0, sy: 0, width: 16, height: 26 };
-export const DOOR_LEAF_OPEN_RIGHT: StaticObjectEntry = { sx: 0, sy: 0, width: 16, height: 26 };
+/** `doors.png` (O-029) — a 64x26 strip of four 16x26 frames, cropped from
+ *  `staticObjects.png`'s existing double-door art into its own dedicated
+ *  sheet (see Task 0): 0 = closed-left leaf, 1 = closed-right leaf, 2 =
+ *  open-left leaf, 3 = open-right leaf. Addressed by frame index via
+ *  `frameSource`, the same convention as `TORCH_SHEET`/`BOMB_SHEET` — no
+ *  StaticObjectsCatalog entry, since (unlike cobweb/stalactite/mushroom)
+ *  there's no neighbour- or position-driven variant selection, just a
+ *  fixed choice of which of the four frames `DoorState.phase` and which
+ *  side pick. */
+export const DOOR_SHEET: SpriteSheet = {
+  src: '/sprites/doors.png',
+  frameWidth: 16,
+  frameHeight: 26,
+  columns: 4,
+};
+
+export const DOOR_FRAME_CLOSED_LEFT = 0;
+export const DOOR_FRAME_CLOSED_RIGHT = 1;
+export const DOOR_FRAME_OPEN_LEFT = 2;
+export const DOOR_FRAME_OPEN_RIGHT = 3;
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [ ] **Step 2: No test needed**
 
-Run: `npx vitest run src/themes/platformer/engine/StaticObjectsCatalog.test.ts`
-Expected: PASS
+Same rationale as the wood sheets in Task 10 — this file's existing convention has no direct unit tests for sheet/frame-index registration constants; skip unless `sheets.ts` already has a `.test.ts` sibling, in which case add one assertion per constant.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
-git add src/themes/platformer/engine/StaticObjectsCatalog.ts src/themes/platformer/engine/StaticObjectsCatalog.test.ts
-git commit -m "feat(O-029): add door leaf sprite crop entries"
+git add src/themes/platformer/entities/sprites/sheets.ts
+git commit -m "feat(O-029): register the door sprite sheet and its frame indices"
 ```
 
 ---
@@ -901,7 +910,7 @@ git commit -m "feat(O-029): add door leaf sprite crop entries"
 - Modify: `src/themes/platformer/engine/Renderer.test.ts`
 
 **Interfaces:**
-- Consumes: `GROUND_WOOD_SHEET` (registered in Task 10), `DOOR_LEAF_*` entries from Task 8, `DoorState` from Task 7.
+- Consumes: `GROUND_WOOD_SHEET` (Task 10), `DOOR_SHEET`/`DOOR_FRAME_*` indices (Task 8), `DoorState` from Task 7.
 - Produces: `tileSource` handles `'groundWood'` and returns `null` (with a comment) for all four door tile members; new exported `drawDoors(ctx, states, doorSheet, originX, originY)`.
 
 - [ ] **Step 1: Write the failing tests**
@@ -965,7 +974,7 @@ Immediately after the existing `case 'groundRock':` block:
         : { sx: TILE_SIZE, sy: 0 };
 ```
 
-(These `sx`/`sy` assume `GROUND_WOOD_SHEET` is its own dedicated sheet per Task 10, addressed from `(0,0)`, not `world_tileset.png`'s coordinate space — `drawTerrain`'s groundWood branch, added in this same task, must pass the `groundWoodSheet` image, not `worldTilesetImage`, to whatever draws it. If Task 0 instead placed the art into free `world_tileset.png` cells, use that sheet's actual coordinates here instead and update this comment.)
+(`GROUND_WOOD_SHEET` is its own dedicated file per Task 0/Task 10, addressed from `(0,0)`, never `world_tileset.png`'s coordinate space — `drawTerrain`'s groundWood branch, added in this same task, must pass the `groundWoodSheet` image, not `worldTilesetImage`, to whatever draws it.)
 
 Add, immediately after the existing `blueprintConnectionPoint` case (grouped with the other "drawn by a dedicated pass" cases like `chain`):
 
@@ -986,17 +995,25 @@ Add, immediately after the existing `blueprintConnectionPoint` case (grouped wit
 Add near `drawDeployableLadders` (same file), following its `null`-sheet-guard and per-instance-draw shape:
 
 ```ts
-import { DOOR_LEAF_CLOSED_LEFT, DOOR_LEAF_CLOSED_RIGHT, DOOR_LEAF_OPEN_LEFT, DOOR_LEAF_OPEN_RIGHT } from './StaticObjectsCatalog';
+import {
+  DOOR_SHEET,
+  DOOR_FRAME_CLOSED_LEFT,
+  DOOR_FRAME_CLOSED_RIGHT,
+  DOOR_FRAME_OPEN_LEFT,
+  DOOR_FRAME_OPEN_RIGHT,
+} from '../entities/sprites/sheets';
+import { frameSource } from '../entities/sprites/SpriteSheet';
 import type { DoorState } from './DoorState';
 
 /**
- * Draws every door's two leaves. Each leaf's source art is taller than
- * RENDERED_TILE_SIZE, so it is drawn BOTTOM-anchored to its own cell — the
- * leaf's rendered bottom edge lines up with the cell's bottom edge, and the
- * excess height bleeds upward into the cell above (design.md's "Rendering
- * taller than the tile: bleed, not squeeze" — the mirror of FloorSpike's
- * downward bleed). `imageSmoothingEnabled = false` matches every other
- * pixel-art draw pass in this file.
+ * Draws every door's two leaves. Each leaf's source frame (16x26,
+ * `DOOR_SHEET`) is taller than RENDERED_TILE_SIZE, so it is drawn
+ * BOTTOM-anchored to its own cell — the leaf's rendered bottom edge lines
+ * up with the cell's bottom edge, and the excess height bleeds upward into
+ * the cell above (design.md's "Rendering taller than the tile: bleed, not
+ * squeeze" — the mirror of FloorSpike's downward bleed).
+ * `imageSmoothingEnabled = false` matches every other pixel-art draw pass
+ * in this file.
  */
 export function drawDoors(
   ctx: CanvasRenderingContext2D,
@@ -1008,30 +1025,31 @@ export function drawDoors(
   if (!doorSheet) return;
   ctx.imageSmoothingEnabled = false;
   for (const state of states) {
-    const leftEntry = state.phase === 'open' ? DOOR_LEAF_OPEN_LEFT : DOOR_LEAF_CLOSED_LEFT;
-    const rightEntry = state.phase === 'open' ? DOOR_LEAF_OPEN_RIGHT : DOOR_LEAF_CLOSED_RIGHT;
-    drawBottomAnchoredLeaf(ctx, doorSheet, leftEntry, state.col, state.row, originX, originY);
-    drawBottomAnchoredLeaf(ctx, doorSheet, rightEntry, state.col + 1, state.row, originX, originY);
+    const leftFrame = state.phase === 'open' ? DOOR_FRAME_OPEN_LEFT : DOOR_FRAME_CLOSED_LEFT;
+    const rightFrame = state.phase === 'open' ? DOOR_FRAME_OPEN_RIGHT : DOOR_FRAME_CLOSED_RIGHT;
+    drawBottomAnchoredLeaf(ctx, doorSheet, leftFrame, state.col, state.row, originX, originY);
+    drawBottomAnchoredLeaf(ctx, doorSheet, rightFrame, state.col + 1, state.row, originX, originY);
   }
 }
 
 function drawBottomAnchoredLeaf(
   ctx: CanvasRenderingContext2D,
   sheet: HTMLImageElement,
-  entry: StaticObjectEntry,
+  frameIndex: number,
   col: number,
   row: number,
   originX: number,
   originY: number,
 ): void {
-  const width = entry.width ?? TILE_SIZE;
-  const height = entry.height ?? TILE_SIZE;
+  const { sx, sy } = frameSource(DOOR_SHEET, frameIndex);
+  const width = DOOR_SHEET.frameWidth;
+  const height = DOOR_SHEET.frameHeight;
   const destWidth = width * RENDER_SCALE;
   const destHeight = height * RENDER_SCALE;
   const cellBottomY = (row + 1) * RENDERED_TILE_SIZE;
   const destX = col * RENDERED_TILE_SIZE + originX;
   const destY = cellBottomY - destHeight + originY;
-  ctx.drawImage(sheet, entry.sx, entry.sy, width, height, destX, destY, destWidth, destHeight);
+  ctx.drawImage(sheet, sx, sy, width, height, destX, destY, destWidth, destHeight);
 }
 ```
 
@@ -1059,92 +1077,245 @@ git commit -m "feat(O-029): render wood ground tiles and bottom-anchored door le
 - Modify: `src/themes/platformer/entities/sprites/sheets.ts`
 
 **Interfaces:**
-- Produces: `GROUND_WOOD_SHEET: SpriteSheet`.
-- Door art reuses the already-registered `STATIC_OBJECTS_SHEET` — no new sheet needed for it.
+- Produces: `GROUND_WOOD_SHEET: SpriteSheet`; `BACKGROUND_TILES_WOOD_SHEET: SpriteSheet`.
+- Door art has its own sheet, registered separately in Task 8 (`DOOR_SHEET`).
 
-- [ ] **Step 1: Register the new sheet**
+- [ ] **Step 1: Register the new sheets**
 
 ```ts
 /** `ground_wood.png` — a 32x16 strip of two 16x16 frames (O-029): 0 =
  *  exposed-top wood plank, 1 = buried wood — the same two-frame shape as
  *  `groundRock`'s own lookup, addressed by `tileSource`'s sx/sy, not by
- *  frame index. */
+ *  frame index. PLACEHOLDER ART — its own dedicated file rather than a cell
+ *  in `world_tileset.png` specifically so it can be swapped out later
+ *  without touching that finished, shared sheet. */
 export const GROUND_WOOD_SHEET: SpriteSheet = {
   src: '/sprites/ground_wood.png',
   frameWidth: TILE_SIZE,
   frameHeight: TILE_SIZE,
   columns: 2,
 };
+
+/** `background_tiles_wood.png` — one material's 4x3 `BACKGROUND_ATLAS_STRIDE`
+ *  block (O-029), the exact same per-material layout `background_tiles.png`
+ *  uses, but in its OWN file: wood is PLACEHOLDER ART, deliberately kept out
+ *  of the shared, finished `background_tiles.png` (see design.md's "Wood
+ *  background: its own placeholder sheet, not a 7th row"). Addressed by
+ *  `BackgroundAtlas.ts`'s own sx/sy lookup at materialIndex 0 (the only
+ *  material this file holds), not by frame index — like
+ *  `BACKGROUND_TILES_SHEET`, this registration exists for loading, not
+ *  addressing. */
+export const BACKGROUND_TILES_WOOD_SHEET: SpriteSheet = {
+  src: '/sprites/background_tiles_wood.png',
+  frameWidth: TILE_SIZE,
+  frameHeight: TILE_SIZE,
+  columns: 4,
+};
 ```
 
 - [ ] **Step 2: No test needed**
 
-This file's existing convention has no direct unit tests for sheet registration constants (confirm by checking whether `sheets.ts` has a `.test.ts` sibling; if it does, add one assertion that `GROUND_WOOD_SHEET.src === '/sprites/ground_wood.png'` and run it — otherwise skip, matching the file's established pattern).
+This file's existing convention has no direct unit tests for sheet registration constants (confirm by checking whether `sheets.ts` has a `.test.ts` sibling; if it does, add assertions that each new sheet's `src` matches its file path and run it — otherwise skip, matching the file's established pattern).
 
 - [ ] **Step 3: Commit**
 
 ```bash
 git add src/themes/platformer/entities/sprites/sheets.ts
-git commit -m "feat(O-029): register the wood ground sprite sheet"
+git commit -m "feat(O-029): register the wood ground and wood background sprite sheets"
 ```
 
 ---
 
-## Task 11: `BackgroundAtlas.ts` — Wood Material Row
+## Task 11: `BackgroundAtlas.ts` and `Renderer.ts` — Wood From Its Own Sheet
 
 **Files:**
 - Modify: `src/themes/platformer/engine/BackgroundAtlas.ts`
 - Modify: `src/themes/platformer/engine/BackgroundAtlas.test.ts`
+- Modify: `src/themes/platformer/engine/Renderer.ts`
+- Modify: `src/themes/platformer/engine/Renderer.test.ts`
 
 **Interfaces:**
-- Consumes: `'wood'` `BackgroundMaterialId` from Task 1; the row index recorded in Task 0 Step 2.
-- Produces: `backgroundAtlasCell('wood', mask)` returns valid entries for every mask 0-15.
+- Consumes: `'wood'` `BackgroundMaterialId` from Task 1; `BACKGROUND_TILES_WOOD_SHEET` from Task 10.
+- Produces: `backgroundAtlasCell('wood', mask)` returns entries relative to its OWN sheet's origin, not `BACKGROUND_TILES_SHEET`'s; `backgroundMaterialSheetSrc(material): string` (new) tells a caller which image a material's cells come from; `drawBackgroundTiles` gains a `woodBackgroundAtlas` parameter and picks the correct source image per cell.
 
-- [ ] **Step 1: Write the failing test**
+Since wood lives in its own file (per your note against baking placeholder
+art into the shared, finished `background_tiles.png`), the existing
+"every material is just another row in one shared sheet" assumption
+(`BACKGROUND_MATERIAL_ROW_INDEX`) no longer holds for wood alone. Wood is
+addressed as materialIndex `0` within its own file (the only material that
+file holds), and `drawBackgroundTiles` needs to know WHICH image to pull a
+given material's cell from — the one piece of "which sheet" branching this
+placeholder detour requires, isolated to these two files.
+
+- [ ] **Step 1: Write the failing tests**
 
 ```ts
-describe('backgroundAtlasCell-woodEveryMask-returnsAValidEntry', () => {
-  it('wood resolves every one of the 16 masks', () => {
+// BackgroundAtlas.test.ts
+describe('backgroundAtlasCell-woodEveryMask-returnsAValidEntryRelativeToItsOwnSheet', () => {
+  it('wood resolves every one of the 16 masks, at materialIndex 0', () => {
     for (let mask = 0; mask < 16; mask++) {
       const entry = backgroundAtlasCell('wood', mask);
       expect(entry.sx).toBeGreaterThanOrEqual(0);
       expect(entry.sy).toBeGreaterThanOrEqual(0);
+      // Materially different from the shared-sheet materials' own sy range
+      // for the same mask, since wood's sheet starts a fresh materialIndex 0
+      // rather than continuing the shared sheet's row stack:
+      expect(entry.sy).toBeLessThan(BACKGROUND_ATLAS_ROW_PITCH);
+    }
+  });
+});
+
+describe('backgroundMaterialSheetSrc-wood-returnsTheDedicatedWoodSheet', () => {
+  it('wood resolves to its own sheet src', () => {
+    expect(backgroundMaterialSheetSrc('wood')).toBe(BACKGROUND_TILES_WOOD_SHEET.src);
+  });
+});
+
+describe('backgroundMaterialSheetSrc-everyOtherMaterial-returnsTheSharedSheet', () => {
+  it('every non-wood material resolves to the shared sheet src', () => {
+    for (const material of ['dirt', 'rust', 'surfaceStone', 'charcoal', 'maroon', 'caveStone'] as const) {
+      expect(backgroundMaterialSheetSrc(material)).toBe(BACKGROUND_TILES_SHEET.src);
     }
   });
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
-
-Run: `npx vitest run src/themes/platformer/engine/BackgroundAtlas.test.ts`
-Expected: FAIL — `wood` is missing from `BACKGROUND_MATERIAL_ROW_INDEX`, so `BACKGROUND_ATLAS`'s `Object.keys` derivation won't include it (TypeScript will also flag the `Record<BackgroundMaterialId, number>` as incomplete).
-
-- [ ] **Step 3: Add the row index**
-
-Using the row index recorded in Task 0, Step 2 (example uses `6`, i.e. the 7th row):
-
 ```ts
-const BACKGROUND_MATERIAL_ROW_INDEX: Record<BackgroundMaterialId, number> = {
-  dirt: 0,
-  rust: 1,
-  surfaceStone: 2,
-  caveStone: 3,
-  maroon: 4,
-  charcoal: 5,
-  wood: 6,
-};
+// Renderer.test.ts
+describe('drawBackgroundTiles-woodCell-drawsFromTheWoodSheetNotTheSharedOne', () => {
+  it('picks woodBackgroundAtlas for a wood cell, backgroundAtlas for everything else', () => {
+    const ctx = { drawImage: vi.fn() } as unknown as CanvasRenderingContext2D;
+    const sharedSheet = {} as HTMLImageElement;
+    const woodSheet = {} as HTMLImageElement;
+    const level = /* a level with background[0][0] = 'wood', background[0][1] = 'dirt' */;
+    drawBackgroundTiles(ctx, level, sharedSheet, 0, 0, null, woodSheet);
+    // Assert one drawImage call's image arg === woodSheet (the wood cell)
+    // and another's === sharedSheet (the dirt cell).
+  });
+
+  it('skips a wood cell silently when woodBackgroundAtlas is null (not yet loaded)', () => {
+    // Same fixture, woodBackgroundAtlas omitted/null — assert no throw and
+    // the wood cell simply isn't drawn that frame (matches how every other
+    // optional image param in this file already degrades).
+  });
+});
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [ ] **Step 2: Run tests to verify they fail**
 
-Run: `npx vitest run src/themes/platformer/engine/BackgroundAtlas.test.ts`
+Run: `npx vitest run src/themes/platformer/engine/BackgroundAtlas.test.ts src/themes/platformer/engine/Renderer.test.ts`
+Expected: FAIL
+
+- [ ] **Step 3: Add wood's own cell lookup and `backgroundMaterialSheetSrc`**
+
+In `BackgroundAtlas.ts`, do **not** add `wood` to `BACKGROUND_MATERIAL_ROW_INDEX` (that Record stays exactly the six shared-sheet materials it already lists). Instead:
+
+```ts
+import { BACKGROUND_TILES_SHEET, BACKGROUND_TILES_WOOD_SHEET } from '../entities/sprites/sheets';
+
+/** Wood's placeholder cell lookup — materialIndex 0 always, since
+ *  `background_tiles_wood.png` holds exactly one material (see sheets.ts's
+ *  doc comment and design.md's "Wood background: its own placeholder
+ *  sheet"). Reuses the same MASK_SHAPE table every shared-sheet material
+ *  already uses — only which FILE the coordinates address differs. */
+const WOOD_MATERIAL_INDEX = 0;
+
+function woodCell(gx: number, gy: number): { sx: number; sy: number } {
+  return {
+    sx: gx * BACKGROUND_ATLAS_STRIDE,
+    sy: WOOD_MATERIAL_INDEX * BACKGROUND_ATLAS_ROW_PITCH + gy * BACKGROUND_ATLAS_STRIDE,
+  };
+}
+```
+
+Update `backgroundAtlasCell` to branch on `wood` before falling through to the existing shared-sheet table (find its current single-`return BACKGROUND_ATLAS[material][mask]`-style body and adjust):
+
+```ts
+export function backgroundAtlasCell(material: BackgroundMaterialId, mask: number): BackgroundAtlasEntry {
+  if (material === 'wood') {
+    const shape = MASK_SHAPE[mask];
+    return { ...woodCell(shape.gx, shape.gy), rotation: shape.rotation };
+  }
+  return BACKGROUND_ATLAS[material][mask];
+}
+```
+
+(Match this against the function's actual current body — the shape above assumes today's implementation is a direct table lookup; adapt only the wood branch, don't restructure the existing non-wood path.)
+
+Add the new export:
+
+```ts
+/** Which sprite sheet a material's `backgroundAtlasCell` result should be
+ *  drawn from — every material but `wood` shares `BACKGROUND_TILES_SHEET`;
+ *  `wood` is the one placeholder exception (see this file's `woodCell`
+ *  doc comment). `Renderer.ts`'s `drawBackgroundTiles` is the only
+ *  consumer. */
+export function backgroundMaterialSheetSrc(material: BackgroundMaterialId): string {
+  return material === 'wood' ? BACKGROUND_TILES_WOOD_SHEET.src : BACKGROUND_TILES_SHEET.src;
+}
+```
+
+- [ ] **Step 4: Thread a second image through `drawBackgroundTiles`**
+
+In `Renderer.ts`, add a new optional trailing parameter and pick the source image per cell:
+
+```ts
+export function drawBackgroundTiles(
+  ctx: CanvasRenderingContext2D,
+  level: LevelDef,
+  backgroundAtlas: HTMLImageElement,
+  originX = 0,
+  originY = 0,
+  decorations: HTMLImageElement | null = null,
+  woodBackgroundAtlas: HTMLImageElement | null = null,
+): void {
+  const grid = level.background ?? [];
+  for (let row = 0; row < grid.length; row++) {
+    const gridRow = grid[row];
+    for (let col = 0; col < gridRow.length; col++) {
+      const material = gridRow[col];
+      if (material === null || material === undefined) continue;
+
+      const sourceImage = material === 'wood' ? woodBackgroundAtlas : backgroundAtlas;
+      if (!sourceImage) continue; // placeholder sheet not loaded yet — skip silently, like every other optional image in this file
+
+      const { x, y } = tileToPixel(col, row);
+      const destX = x + originX;
+      const destY = y + originY;
+      const mask = backgroundNeighbourMask(level, col, row);
+      const entry = backgroundAtlasCell(material, mask);
+      drawRotatedTile(ctx, sourceImage, entry, destX, destY);
+
+      if (decorations && mask === 15) {
+        const rock = backgroundRockEntry(col, row);
+        ctx.drawImage(
+          decorations, rock.sx, rock.sy, TILE_SIZE, TILE_SIZE,
+          destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
+        );
+      }
+    }
+  }
+}
+```
+
+- [ ] **Step 5: Load and pass the second image at both call sites**
+
+In `PlatformerPage.tsx`: alongside the existing `loadImage(BACKGROUND_TILES_SHEET.src)`, add `loadImage(BACKGROUND_TILES_WOOD_SHEET.src)` into a new ref (mirroring how every other optional sprite sheet in this file is loaded), and pass it as `drawBackgroundTiles`'s new trailing argument at its existing call site.
+
+In `editor/EditorCanvasPane.tsx`: add `{ key: 'backgroundAtlasWood', src: BACKGROUND_TILES_WOOD_SHEET.src }` alongside the existing `backgroundAtlas` entry in whatever list feeds the editor's image loader.
+
+In `editor/EditorCanvas.tsx`: pass the newly-loaded wood image through to its own `drawBackgroundTiles` call, same trailing position.
+
+- [ ] **Step 6: Run tests to verify they pass**
+
+Run: `npx vitest run src/themes/platformer/engine/BackgroundAtlas.test.ts src/themes/platformer/engine/Renderer.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add src/themes/platformer/engine/BackgroundAtlas.ts src/themes/platformer/engine/BackgroundAtlas.test.ts
-git commit -m "feat(O-029): add the wood background material's atlas row"
+git add src/themes/platformer/engine/BackgroundAtlas.ts src/themes/platformer/engine/BackgroundAtlas.test.ts src/themes/platformer/engine/Renderer.ts src/themes/platformer/engine/Renderer.test.ts src/themes/platformer/PlatformerPage.tsx src/themes/platformer/editor/EditorCanvasPane.tsx src/themes/platformer/editor/EditorCanvas.tsx
+git commit -m "feat(O-029): address the wood background material from its own placeholder sheet"
 ```
 
 ---
@@ -1186,12 +1357,12 @@ Expected: FAIL
 
 - [ ] **Step 3: Add the entries**
 
-In `PALETTE_TILE_SPRITES` (`src/themes/platformer/editor/paletteTiles.ts`), following the `groundRock` entry's shape (a direct sheet+sx/sy+frame size, the "at rest" appearance — for `groundWood` use `GROUND_WOOD_SHEET`'s exposed-top frame; for `d`/`D` use `DOOR_LEAF_CLOSED_LEFT`/`DOOR_LEAF_CLOSED_RIGHT` from Task 8):
+In `PALETTE_TILE_SPRITES` (`src/themes/platformer/editor/paletteTiles.ts`), following the `groundRock` entry's shape (a direct sheet+sx/sy+frame size, the "at rest" appearance — for `groundWood` use `GROUND_WOOD_SHEET`'s exposed-top frame; for `d`/`D` use `DOOR_SHEET`'s closed-left/closed-right frames via `frameSource`, Task 8):
 
 ```ts
   W: { sheet: GROUND_WOOD_SHEET.src, sheetWidth: 32, sheetHeight: 16, sx: 0, sy: 0, frameWidth: 16, frameHeight: 16 },
-  d: { sheet: STATIC_OBJECTS_SHEET.src, sheetWidth: 288, sheetHeight: 145, sx: DOOR_LEAF_CLOSED_LEFT.sx, sy: DOOR_LEAF_CLOSED_LEFT.sy, frameWidth: DOOR_LEAF_CLOSED_LEFT.width ?? 16, frameHeight: DOOR_LEAF_CLOSED_LEFT.height ?? 16 },
-  D: { sheet: STATIC_OBJECTS_SHEET.src, sheetWidth: 288, sheetHeight: 145, sx: DOOR_LEAF_CLOSED_RIGHT.sx, sy: DOOR_LEAF_CLOSED_RIGHT.sy, frameWidth: DOOR_LEAF_CLOSED_RIGHT.width ?? 16, frameHeight: DOOR_LEAF_CLOSED_RIGHT.height ?? 16 },
+  d: { sheet: DOOR_SHEET.src, sheetWidth: 64, sheetHeight: 26, ...frameSource(DOOR_SHEET, DOOR_FRAME_CLOSED_LEFT), frameWidth: DOOR_SHEET.frameWidth, frameHeight: DOOR_SHEET.frameHeight },
+  D: { sheet: DOOR_SHEET.src, sheetWidth: 64, sheetHeight: 26, ...frameSource(DOOR_SHEET, DOOR_FRAME_CLOSED_RIGHT), frameWidth: DOOR_SHEET.frameWidth, frameHeight: DOOR_SHEET.frameHeight },
 ```
 
 In `PALETTE_TILE_DESCRIPTIONS`:
@@ -1889,7 +2060,7 @@ Find where `drawChests`/`drawDeployableLadders` are called in the render pass an
       drawDoors(ctx, doorStates.value, doorSheetRef.current, originX, originY);
 ```
 
-Add a `doorSheetRef` following the exact `ropeLadderRef`/`loadImage(ROPE_LADDER_SHEET.src)` pattern from O-011 (doors reuse `STATIC_OBJECTS_SHEET`, which this file should already be loading for other static-objects decorations; if it is, reuse that existing loaded image ref directly instead of creating a new one).
+Add a `doorSheetRef` + `loadImage(DOOR_SHEET.src)`, following the exact `ropeLadderRef`/`loadImage(ROPE_LADDER_SHEET.src)` pattern from O-011 (its own dedicated sheet per Task 8, not a shared one — no reuse to check for here).
 
 - [ ] **Step 6: Run the full existing PlatformerPage test file**
 

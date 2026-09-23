@@ -202,43 +202,52 @@ door to one tile tall would fight the art's proportions for no reason the level 
 already accommodate — a level author places a door the same deliberate way they'd place a
 free-standing torch or sign, with the space its art needs left open.
 
-### Open art already exists — no new sprites required
+### Open art already exists — cropped into its own sheet, not addressed in place
 
 `staticObjects.png` already contains both states: two single-leaf sprites (open, hinge pegs on
 both edges so the same crop can serve either side) and the flush two-leaf closed arrangement,
-sitting adjacent in the sheet. This is why the door needed no new hand-drawn art and no
-slide/rotate rendering trick to fake an open state from closed-only art — both crops are named
-`StaticObjectEntry` values in `StaticObjectsCatalog.ts`, exactly like `COBWEB_CORNER_ENTRY`/
-`COBWEB_FLAT_ENTRY` already name two fixed crops from one sheet for two fixed states, and the
-renderer picks between them by `DoorState` the same way it picks between `chest_closed.png`/
-`chest_open.png` by `ChestVisualState` — swapping which crop is drawn, not compositing or
-transforming one crop into two looks.
+sitting adjacent in the sheet. So no new hand-drawn art and no slide/rotate rendering trick is
+needed to fake an open state from closed-only art — but rather than addressing the four leaves
+in place with hand-picked crop rectangles into a sheet full of unrelated art, they are cropped
+once into their own small dedicated sheet (`doors.png`, a plain 4-frame strip) and addressed by
+frame index through the existing `frameSource` helper — the same convention `TORCH_SHEET`/
+`BOMB_SHEET` already use, and simpler than a `StaticObjectsCatalog.ts` entry (which exists for
+neighbour- or position-driven variant selection a door has none of: which of the four frames
+draws is a fixed choice from `DoorState.phase` and side, nothing else). The renderer picks
+between the closed/open frame pair by `DoorState` the same way it picks between
+`chest_closed.png`/`chest_open.png` by `ChestVisualState`.
 
 ## Assets needed
 
-Only the two wood terrain additions need new art; the door needs none. Counts below follow
-directly from the shapes chosen above, not from a separate art-planning pass.
+All three additions get their own dedicated sprite file — none of them touch `world_tileset.png`
+or `background_tiles.png`, the two shared, already-finished sheets. For `groundWood` and the wood
+background material this is deliberate for a second reason beyond avoiding a busy shared sheet:
+both are **placeholder art** for this feature, standing in until proper wood tiles are designed
+later, and a placeholder that already lives in its own file is a straight file swap to replace —
+no shared atlas to re-crop. Counts below follow directly from the shapes chosen above, not from a
+separate art-planning pass.
 
-### `groundWood` — 2 new 16×16 sprites
+### `groundWood` — 2 new 16×16 sprites, `ground_wood.png`
 
 One exposed-top sprite, one buried sprite — exactly the two `groundRock` already needs for the
-same shape (`isTopExposed`, no mask table). Palette should read as the same wood family already
-on-screen in `world_tileset.png`'s crate art, so it doesn't visually compete with an existing
-material. Added to a free pair of cells in `world_tileset.png` if room remains, otherwise a small
-dedicated sheet (`ground_wood.png`) following the `CRUMBLE_FLOOR_SHEET` precedent for a
-terrain material that outgrew the shared sheet.
+same shape (`isTopExposed`, no mask table). Its own dedicated sheet, following the
+`CRUMBLE_FLOOR_SHEET` precedent for a terrain material with its own small strip, not a couple of
+cells borrowed from `world_tileset.png`.
 
-### Wood background material — 9 new 16×16 sprites
+### Wood background material — 9 new 16×16 sprites, `background_tiles_wood.png`
 
 `BackgroundAtlas.ts`'s `MASK_SHAPE` maps all 16 neighbour masks onto a fixed 3×3 grid per
 material (corner/edge/corner × edge/middle/edge × corner/edge/corner, `gx`/`gy` 0-2) — the other
 7 masks are the same 9 shapes rotated, not drawn separately. So one material is always exactly 9
 cells, regardless of which material. Per O-014's flat rule, every cell of the material uses the
 same tone (no neighbour-driven brightness split), so these 9 need no light/dark variants either.
-Added as a 7th row to `background_tiles.png`, same wood palette as `groundWood` so the solid
-platform and the backdrop behind it read as the same material at different depths.
+Its own dedicated file rather than a 7th row appended to `background_tiles.png` — the one
+`BackgroundAtlas.ts`/`Renderer.ts` exception where a material's cells are addressed from a
+different image than the other six (`backgroundMaterialSheetSrc`), justified specifically by
+wood being placeholder art here, not a precedent for materials in general.
 
-### Door — 0 new sprites
+### Door — 0 new pixels, 1 new cropped sheet (`doors.png`)
 
-Both leaf states already exist in `staticObjects.png` (see above) and only need new
-`StaticObjectEntry` crops in `StaticObjectsCatalog.ts`, not new pixels.
+Both leaf states already exist in `staticObjects.png` (see above); this feature only crops them
+once into their own 4-frame strip, addressed by index — no `StaticObjectEntry` values, no new
+pixels drawn.
