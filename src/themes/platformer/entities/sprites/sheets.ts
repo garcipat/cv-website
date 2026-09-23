@@ -352,3 +352,24 @@ export const FLOOR_SPIKE_SHEET: SpriteSheet = {
   frameHeight: 20,
   columns: 3,
 };
+
+/** `doors.png` (O-029) — a 64x26 strip of four 16x26 frames, cropped from
+ *  `staticObjects.png`'s existing double-door art into its own dedicated
+ *  sheet (see Task 0): 0 = closed-left leaf, 1 = closed-right leaf, 2 =
+ *  open-left leaf, 3 = open-right leaf. Addressed by frame index via
+ *  `frameSource`, the same convention as `TORCH_SHEET`/`BOMB_SHEET` — no
+ *  StaticObjectsCatalog entry, since (unlike cobweb/stalactite/mushroom)
+ *  there's no neighbour- or position-driven variant selection, just a
+ *  fixed choice of which of the four frames `DoorState.phase` and which
+ *  side pick. */
+export const DOOR_SHEET: SpriteSheet = {
+  src: '/sprites/doors.png',
+  frameWidth: 16,
+  frameHeight: 26,
+  columns: 4,
+};
+
+export const DOOR_FRAME_CLOSED_LEFT = 0;
+export const DOOR_FRAME_CLOSED_RIGHT = 1;
+export const DOOR_FRAME_OPEN_LEFT = 2;
+export const DOOR_FRAME_OPEN_RIGHT = 3;
