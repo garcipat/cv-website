@@ -54,6 +54,7 @@ import {
   jumpFrameSource,
   climbFrameSource,
   hitFrameFromTimer,
+  HIT_RED_FRAME_INDEX,
 } from '../entities/Player';
 import type { PlayerState } from '../entities/Player';
 import {
@@ -1028,11 +1029,14 @@ export function drawPlayer(
 
   // Crouched hit reaction (FR-016): the red reaction is a render-time tint on
   // the crouch pose, so no red-tinted crouch art exists and the standing hit's
-  // baked red frame stays byte-for-byte unchanged (handled below).
+  // baked red frame stays byte-for-byte unchanged (handled below). The tint
+  // pulses on the same `hit` row cadence the standing flash uses — red only on
+  // HIT_RED_FRAME_INDEX — so it does not stay red for the whole reaction window.
   if (player.crouching && player.animState === 'hit') {
     const { sx, sy } = playerFrameSource('crouch', player.animFrame);
+    const redFlashOn = hitFrameFromTimer(player.hitTimer) === HIT_RED_FRAME_INDEX;
     const drawCrouchFrame = (destX: number, destY: number): void => {
-      if (tintLayer) {
+      if (tintLayer && redFlashOn) {
         drawTintedSprite(
           ctx,
           tintLayer,

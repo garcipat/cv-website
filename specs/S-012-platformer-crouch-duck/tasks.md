@@ -305,6 +305,11 @@ Task: "T032 Implement drawTintedSprite + CROUCH_HIT_TINT in engine/Renderer.ts"
      player's hitbox merely overlapped the pot's *tile column*, even with no real overlap.
      Fixed: `canStandUp` now tests each block against its real collision box (with the
      inset), matching `Physics.ts`'s horizontal collision.
+  4. *Crouched red tint stayed solid for the whole hit window:* the render-time tint was
+     applied continuously for all 0.8s, unlike the standing hit which only flashes red on
+     the `hit` row's red frame. Fixed: the tint is applied only when
+     `hitFrameFromTimer(hitTimer) === HIT_RED_FRAME_INDEX` (0.1s out of every 0.3s), so it
+     pulses at the standing flash's cadence.
   Covered by `Physics.ts` (climb entry, `downClaimed`, bridge drop) and `engine/Crouch.ts`
   (`canStandUp`) plus tests in `Physics.test.ts` and `engine/Crouch.test.ts`. Existing
   S-008 descend/ascend and standing bridge-drop assertions still pass unchanged.
