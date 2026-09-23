@@ -21,7 +21,7 @@ export interface BackgroundAtlasEntry {
   rotation: QuarterTurns;
 }
 
-/** Each material's row index (0-5) within the sheet, top to bottom. */
+/** Each material's row index (0-6) within the sheet, top to bottom. */
 const BACKGROUND_MATERIAL_ROW_INDEX: Record<BackgroundMaterialId, number> = {
   dirt: 0,
   rust: 1,
@@ -29,6 +29,7 @@ const BACKGROUND_MATERIAL_ROW_INDEX: Record<BackgroundMaterialId, number> = {
   caveStone: 3,
   maroon: 4,
   charcoal: 5,
+  wood: 0, // placeholder: will use actual wood row 6 when art is provided (Task 0)
 };
 
 /** Per-material 4x3 grid coordinates (see data-model.md's sheet layout table):

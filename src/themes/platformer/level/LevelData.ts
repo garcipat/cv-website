@@ -76,6 +76,23 @@ export type TileType =
    *  the only runtime state this tile kind carries — the grid cell itself
    *  never changes. */
   | 'crumblingFloor'
+  /** A solid wood plank ground tile (O-029). Two sprites only — exposed-top
+   *  and buried — exactly like `groundRock`'s shape; never autotiles and
+   *  carries no neighbour awareness (spec FR-003). */
+  | 'groundWood'
+  /** The left panel of a closed wooden double door (O-029), author-placed
+   *  immediately left of its `doorRight` partner. Solid until opened; see
+   *  engine/DoorState.ts's `applyOpenedDoors`. */
+  | 'doorLeft'
+  /** The right panel of a closed wooden double door (O-029), author-placed
+   *  immediately right of its `doorLeft` partner. */
+  | 'doorRight'
+  /** The open form of `doorLeft` — never author-placeable; produced only by
+   *  `applyOpenedDoors` in the effective grid. Non-solid. */
+  | 'doorLeftOpen'
+  /** The open form of `doorRight` — never author-placeable; produced only by
+   *  `applyOpenedDoors` in the effective grid. Non-solid. */
+  | 'doorRightOpen'
   | 'empty';
 
 /**
@@ -113,6 +130,11 @@ export const TILE_FOG_EXEMPT: Record<TileType, boolean> = {
   bouncyMushroom: false,
   decorativeMushroom: false,
   crumblingFloor: false,
+  groundWood: true,
+  doorLeft: false,
+  doorRight: false,
+  doorLeftOpen: false,
+  doorRightOpen: false,
   empty: false,
 };
 
@@ -141,7 +163,8 @@ export type BackgroundMaterialId =
   | 'surfaceStone'
   | 'charcoal'
   | 'maroon'
-  | 'caveStone';
+  | 'caveStone'
+  | 'wood';
 
 /**
  * The intrinsic family of a background material — the single fact that
@@ -160,6 +183,7 @@ export const BACKGROUND_MATERIAL_FAMILY: Record<BackgroundMaterialId, Background
   charcoal: 'cave',
   maroon: 'cave',
   caveStone: 'cave',
+  wood: 'surface',
 };
 
 /** `BackgroundMaterialId` is a closed union, so unlike the old
