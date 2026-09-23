@@ -35,6 +35,7 @@ import {
   CHEST_COUNTER_ICON_HEIGHT,
   drawWaterForeground,
   drawBackgroundTiles,
+  drawFog,
   drawHitSplatterEffects,
   drawLowHealthGlow,
   lowHealthGlowAlpha,
@@ -131,6 +132,12 @@ import {
   ENEMY_EYE_GAP_PX,
   ENEMY_EYE_BOB_PERIOD_SECONDS,
   ENEMY_EYE_BOB_AMPLITUDE_PX,
+  FOG_TINT_RGB,
+  FOG_PUFF_PLATEAU,
+  FOG_PUFF_RADIUS_PX,
+  fogPuffAt,
+  fogPeekStrengthAt,
+  FOG_PEEK_RADIUS_PX,
 } from './Lighting';
 
 const ENEMY_FRAME_SIZE = SLIME_GREEN_SHEET.frameWidth;
@@ -3633,6 +3640,198 @@ describe('drawBackgroundTiles', () => {
   });
 });
 
+describe('drawFog', () => {
+  it('atOrBelowZero-drawsNothingAtAll', () => {
+    const { ctx, raw } = makeLightingContext();
+    const level: LevelDef = { terrain: [['empty']], width: 1, height: 1, background: [['charcoal']] };
+
+    drawFog(ctx, level, 0);
+
+    expect(raw.createRadialGradient).not.toHaveBeenCalled();
+    expect(raw.fill).not.toHaveBeenCalled();
+  });
+
+  it('caveFamilyCell-drawsASoftPuffGradientAtTheFogAlpha', () => {
+    const { ctx, raw } = makeLightingContext();
+    const level: LevelDef = { terrain: [['empty']], width: 1, height: 1, background: [['charcoal']] };
+
+    drawFog(ctx, level, 0.5, 0, 0, 0);
+
+    const puff = fogPuffAt(0, 0, 0);
+    expect(raw.createRadialGradient).toHaveBeenCalledWith(puff.x, puff.y, 0, puff.x, puff.y, puff.radius);
+    const gradient = raw.createRadialGradient.mock.results[0].value;
+    expect(gradient.addColorStop).toHaveBeenNthCalledWith(1, 0, `rgba(${FOG_TINT_RGB}, 0.5)`);
+    expect(gradient.addColorStop).toHaveBeenNthCalledWith(2, FOG_PUFF_PLATEAU, `rgba(${FOG_TINT_RGB}, 0.5)`);
+    expect(gradient.addColorStop).toHaveBeenNthCalledWith(3, 1, `rgba(${FOG_TINT_RGB}, 0)`);
+    expect(raw.arc).toHaveBeenCalledWith(puff.x, puff.y, puff.radius, 0, Math.PI * 2);
+    expect(raw.fill).toHaveBeenCalledTimes(1);
+  });
+
+  it('surfaceFamilyCell-drawsNothing', () => {
+    const { ctx, raw } = makeLightingContext();
+    const level: LevelDef = { terrain: [['empty']], width: 1, height: 1, background: [['dirt']] };
+
+    drawFog(ctx, level, 0.5);
+
+    expect(raw.createRadialGradient).not.toHaveBeenCalled();
+  });
+
+  it('emptyCell-drawsNothing', () => {
+    const { ctx, raw } = makeLightingContext();
+    const level: LevelDef = { terrain: [['empty']], width: 1, height: 1, background: [[null]] };
+
+    drawFog(ctx, level, 0.5);
+
+    expect(raw.createRadialGradient).not.toHaveBeenCalled();
+  });
+
+  it('levelWithNoBackgroundField-drawsNothing', () => {
+    const { ctx, raw } = makeLightingContext();
+    const level: LevelDef = { terrain: [], width: 0, height: 0 };
+
+    drawFog(ctx, level, 0.5);
+
+    expect(raw.createRadialGradient).not.toHaveBeenCalled();
+  });
+
+  it('originOffset-shiftsThePuffCentre', () => {
+    const { ctx, raw } = makeLightingContext();
+    const level: LevelDef = { terrain: [['empty']], width: 1, height: 1, background: [['caveStone']] };
+
+    drawFog(ctx, level, 0.5, 100, -50, 0);
+
+    const puff = fogPuffAt(0, 0, 0);
+    expect(raw.arc).toHaveBeenCalledWith(puff.x + 100, puff.y - 50, puff.radius, 0, Math.PI * 2);
+  });
+
+  it('mixedGrid-drawsOnlyTheCaveFamilyCells', () => {
+    const { ctx, raw } = makeLightingContext();
+    const level: LevelDef = {
+      terrain: [['empty', 'empty', 'empty']],
+      width: 3,
+      height: 1,
+      background: [['dirt', 'charcoal', null]],
+    };
+
+    drawFog(ctx, level, 0.5, 0, 0, 0);
+
+    expect(raw.createRadialGradient).toHaveBeenCalledTimes(1);
+    const puff = fogPuffAt(1, 0, 0);
+    expect(raw.arc).toHaveBeenCalledWith(puff.x, puff.y, puff.radius, 0, Math.PI * 2);
+    expect(raw.fill).toHaveBeenCalledTimes(1);
+  });
+
+  it('twoAdjacentCaveFamilyCells-eachGetsItsOwnPuffAtItsOwnJitteredPosition', () => {
+    const { ctx, raw } = makeLightingContext();
+    const level: LevelDef = {
+      terrain: [['empty', 'empty']],
+      width: 2,
+      height: 1,
+      background: [['charcoal', 'charcoal']],
+    };
+
+    drawFog(ctx, level, 0.5, 0, 0, 0);
+
+    const puffA = fogPuffAt(0, 0, 0);
+    const puffB = fogPuffAt(1, 0, 0);
+    // Each cell's puff is independently jittered, so two neighbouring cells
+    // don't land on the exact same centre despite sharing a tile spacing.
+    expect(puffA.x).not.toBe(puffB.x);
+    expect(raw.createRadialGradient).toHaveBeenCalledTimes(2);
+    expect(raw.arc).toHaveBeenCalledWith(puffA.x, puffA.y, puffA.radius, 0, Math.PI * 2);
+    expect(raw.arc).toHaveBeenCalledWith(puffB.x, puffB.y, puffB.radius, 0, Math.PI * 2);
+  });
+
+  it('worldElapsed-breathesThePuffsRadiusOverTime', () => {
+    const { ctx, raw } = makeLightingContext();
+    const level: LevelDef = { terrain: [['empty']], width: 1, height: 1, background: [['charcoal']] };
+
+    drawFog(ctx, level, 0.5, 0, 0, 1.7);
+
+    const puff = fogPuffAt(0, 0, 1.7);
+    expect(raw.arc).toHaveBeenCalledWith(puff.x, puff.y, puff.radius, 0, Math.PI * 2);
+    // The pulse genuinely varies the radius from the base constant over time.
+    expect(puff.radius).not.toBe(FOG_PUFF_RADIUS_PX);
+  });
+
+  it('solidTerrainOnACaveFamilyCell-drawsNothing', () => {
+    const { ctx, raw } = makeLightingContext();
+    const level: LevelDef = {
+      terrain: [['groundRock']],
+      width: 1,
+      height: 1,
+      background: [['charcoal']],
+    };
+
+    drawFog(ctx, level, 0.5);
+
+    expect(raw.createRadialGradient).not.toHaveBeenCalled();
+  });
+
+  it('mixOfSolidAndOpenCaveFamilyCells-drawsOnlyTheOpenOne', () => {
+    const { ctx, raw } = makeLightingContext();
+    const level: LevelDef = {
+      terrain: [['wall', 'empty']],
+      width: 2,
+      height: 1,
+      background: [['charcoal', 'charcoal']],
+    };
+
+    drawFog(ctx, level, 0.5, 0, 0, 0);
+
+    expect(raw.createRadialGradient).toHaveBeenCalledTimes(1);
+    const puff = fogPuffAt(1, 0, 0);
+    expect(raw.arc).toHaveBeenCalledWith(puff.x, puff.y, puff.radius, 0, Math.PI * 2);
+  });
+
+  it('playerRightOnAPuff-skipsItEntirely', () => {
+    const { ctx, raw } = makeLightingContext();
+    const level: LevelDef = { terrain: [['empty']], width: 1, height: 1, background: [['charcoal']] };
+    const puff = fogPuffAt(0, 0, 0);
+
+    drawFog(ctx, level, 0.5, 0, 0, 0, { x: puff.x, y: puff.y });
+
+    expect(raw.createRadialGradient).not.toHaveBeenCalled();
+  });
+
+  it('playerFarFromAPuff-drawsItAtFullFogAlpha', () => {
+    const { ctx, raw } = makeLightingContext();
+    const level: LevelDef = { terrain: [['empty']], width: 1, height: 1, background: [['charcoal']] };
+    const puff = fogPuffAt(0, 0, 0);
+
+    drawFog(ctx, level, 0.5, 0, 0, 0, { x: puff.x + FOG_PEEK_RADIUS_PX * 10, y: puff.y });
+
+    const gradient = raw.createRadialGradient.mock.results[0].value;
+    expect(gradient.addColorStop).toHaveBeenNthCalledWith(1, 0, `rgba(${FOG_TINT_RGB}, 0.5)`);
+  });
+
+  it('playerPartWayIntoThePeekRadius-drawsThePuffAtAThinnedAlpha', () => {
+    const { ctx, raw } = makeLightingContext();
+    const level: LevelDef = { terrain: [['empty']], width: 1, height: 1, background: [['charcoal']] };
+    const puff = fogPuffAt(0, 0, 0);
+    const playerPosition = { x: puff.x + FOG_PEEK_RADIUS_PX / 2, y: puff.y };
+
+    drawFog(ctx, level, 0.5, 0, 0, 0, playerPosition);
+
+    const peek = fogPeekStrengthAt(puff.x, puff.y, playerPosition);
+    const expectedAlpha = 0.5 * (1 - peek);
+    expect(peek).toBeGreaterThan(0);
+    expect(peek).toBeLessThan(1);
+    const gradient = raw.createRadialGradient.mock.results[0].value;
+    expect(gradient.addColorStop).toHaveBeenNthCalledWith(1, 0, `rgba(${FOG_TINT_RGB}, ${expectedAlpha})`);
+  });
+
+  it('noPlayerPosition-drawsEveryPuffAtFullFogAlpha', () => {
+    const { ctx, raw } = makeLightingContext();
+    const level: LevelDef = { terrain: [['empty']], width: 1, height: 1, background: [['charcoal']] };
+
+    drawFog(ctx, level, 0.5, 0, 0, 0);
+
+    const gradient = raw.createRadialGradient.mock.results[0].value;
+    expect(gradient.addColorStop).toHaveBeenNthCalledWith(1, 0, `rgba(${FOG_TINT_RGB}, 0.5)`);
+  });
+});
+
 function makeCheckpoint(id: string, x: number, y: number): CheckpointState {
   return toCheckpointState({ id, col: 0, row: 0, x, y });
 }
@@ -3777,6 +3976,7 @@ function makeLightingContext() {
     restore: vi.fn(),
     beginPath: vi.fn(),
     arc: vi.fn(),
+    rect: vi.fn(),
     fill: vi.fn(),
     fillRect: vi.fn(),
     createRadialGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
