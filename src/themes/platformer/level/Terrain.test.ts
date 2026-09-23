@@ -78,7 +78,29 @@ describe('Terrain', () => {
   it('isSolid-empty-returnsFalse', () => {
     expect(isSolid('empty')).toBe(false);
   });
+});
 
+describe('isSolid-groundWood-isSolid', () => {
+  it('groundWood is solid', () => {
+    expect(isSolid('groundWood')).toBe(true);
+  });
+});
+
+describe('isSolid-closedDoorPanels-areSolid', () => {
+  it('doorLeft and doorRight are solid', () => {
+    expect(isSolid('doorLeft')).toBe(true);
+    expect(isSolid('doorRight')).toBe(true);
+  });
+});
+
+describe('isSolid-openDoorPanels-areNotSolid', () => {
+  it('doorLeftOpen and doorRightOpen are not solid', () => {
+    expect(isSolid('doorLeftOpen')).toBe(false);
+    expect(isSolid('doorRightOpen')).toBe(false);
+  });
+});
+
+describe('Terrain', () => {
   it('isSolidExcludingBridge-groundWall-returnsTrue', () => {
     expect(isSolidExcludingBridge('groundGrass')).toBe(true);
     expect(isSolidExcludingBridge('groundRock')).toBe(true);

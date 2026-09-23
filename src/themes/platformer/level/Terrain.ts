@@ -28,8 +28,11 @@ export function isSolid(tile: TileType): boolean {
   return (
     tile === 'groundGrass' ||
     tile === 'groundRock' ||
+    tile === 'groundWood' ||
     tile === 'wall' ||
-    tile === 'bridge'
+    tile === 'bridge' ||
+    tile === 'doorLeft' ||
+    tile === 'doorRight'
   );
 }
 
