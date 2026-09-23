@@ -104,3 +104,28 @@ it is a pure render-time consequence of the `BackgroundMaterialFamily` O-014 alr
 to every background material. A level author does nothing differently; fog simply appears
 wherever a cave-family background piece is already placed, the same way darkness already does
 today.
+
+## Solid terrain is exempt, via a declared table, not a reused collision check
+
+Fog originally covered *every* cell whose background was cave-family, terrain included — the
+literal reading of FR-002's "everything on that cell." In practice that meant a cave's own
+walls and floor, which are just rock, got hidden along with its actual contents, so the fog
+read as an unbroken block rather than something that let a visitor see the cave's shape while
+still hiding what's inside it (FR-002a).
+
+The fix isn't "skip fog wherever `Terrain.ts`'s `isSolid` says a tile is solid" — reusing that
+check directly would tie fog exemption to collision, a different concern that happens to
+agree with it today but has no reason to keep agreeing as new tile kinds are added (a future
+solid trap tile that should stay hidden, or a non-solid tile that should still show through,
+would both be wrong under `isSolid` and invisible as bugs). Instead, `level/LevelData.ts`
+declares `TILE_FOG_EXEMPT: Record<TileType, boolean>` — an exhaustive table over every
+`TileType`, the same pattern `BACKGROUND_MATERIAL_FAMILY` already uses for
+`BackgroundMaterialId`. Today it agrees with `isSolid` (`groundGrass`/`groundRock`/`wall`/
+`bridge` exempt, everything else fogged), but it's its own declared fact about a tile, not a
+side effect of another module's answer to a different question — and because `Record` is
+exhaustive, adding a new `TileType` member is a compile error until its fog-exemption is
+decided, rather than a silent default.
+
+A block is never exempt under this table: a block occupies an otherwise-open cell (its
+solidity is its own hitbox, not a terrain tile), so `TILE_FOG_EXEMPT` never sees it and a
+fogged cell with a block on it stays fogged, per FR-002.
