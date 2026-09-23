@@ -825,15 +825,31 @@ function makePlayer(x: number, y: number): PlayerState {
 }
 
 // The door pair below is always createDoorState(1, 1): left leaf at col 1,
-// right leaf at col 2, row 1. The player hitbox is PLAYER_RENDERED_SIZE
-// (64px = 2 columns) wide, inset by PLAYER_SIDE_PADDING on each side (same
-// convention ladderBundleForPlayer's leftCol/rightCol already use) — so a
-// player pressed up against a closed door's face already has its hitbox
-// touching the door's own column, not sitting a whole clear column away.
-// "Adjacent" therefore means the player's inset hitbox TOUCHES the door
-// pair's outer edge (rightCol === the left leaf's column, from the left; or
-// leftCol === the right leaf's column, from the right) — not "one clear
-// column apart", which a 2-column-wide sprite could never satisfy.
+// right leaf at col 2 (= state.col + 1), row 1. The player hitbox is
+// PLAYER_RENDERED_SIZE (64px = 2 columns) wide, inset by PLAYER_SIDE_PADDING
+// (20px) on each side (same convention ladderBundleForPlayer's leftCol/
+// rightCol already use) — so a player pressed up against a closed door's
+// face already has its hitbox touching the door's own column, not sitting a
+// whole clear column away. "Adjacent" therefore means the player's inset
+// hitbox TOUCHES the door pair's outer edge: playerRightCol === state.col
+// (left leaf, from the left) OR playerLeftCol === state.col + 1 (right
+// leaf, from the right) — not "one clear column apart", which a
+// 2-column-wide sprite could never satisfy.
+//
+// Worked arithmetic (RENDERED_TILE_SIZE=32, PLAYER_RENDERED_SIZE=64,
+// PLAYER_SIDE_PADDING=20 — verify these against the real constants before
+// trusting the numbers below, but the SHAPE of the derivation stays valid
+// regardless): playerLeftCol(x) = floor((x+20)/32),
+// playerRightCol(x) = floor((x+64-20-1)/32) = floor((x+43)/32).
+//   x=0  (test 1): playerRightCol = floor(43/32)  = 1 = state.col.       MATCH (left leaf, from the left).
+//   x=64 (test 2): playerLeftCol  = floor(84/32)  = 2 = state.col + 1.   MATCH (right leaf, from the right).
+//   x=-64(test 3): playerLeftCol=-2, playerRightCol=-1 — neither is 1 or 2. NO MATCH.
+// Test 2 uses `2 * RENDERED_TILE_SIZE`, NOT `3 *` — a previous draft of
+// this plan had that wrong twice (naively mirroring test 1's `0` as `3`
+// without recomputing the inset-hitbox arithmetic for the right side).
+// Whoever implements this: re-derive these four numbers yourself against
+// the actual constant VALUES in the codebase (they may have changed) before
+// writing the test file, rather than trusting this comment's numbers blindly.
 
 describe('doorPlayerIsAdjacentTo-playerPressedAgainstLeftLeafFromTheLeft-returnsDoorId', () => {
   it('matches a hitbox touching the left leaf\'s column from the left, same row', () => {
@@ -846,7 +862,7 @@ describe('doorPlayerIsAdjacentTo-playerPressedAgainstLeftLeafFromTheLeft-returns
 describe('doorPlayerIsAdjacentTo-playerPressedAgainstRightLeafFromTheRight-returnsDoorId', () => {
   it('matches a hitbox touching the right leaf\'s column from the right, same row', () => {
     const state = createDoorState(1, 1);
-    const player = makePlayer(3 * RENDERED_TILE_SIZE, 1 * RENDERED_TILE_SIZE);
+    const player = makePlayer(2 * RENDERED_TILE_SIZE, 1 * RENDERED_TILE_SIZE);
     expect(doorPlayerIsAdjacentTo([state], player)).toBe(state.id);
   });
 });
