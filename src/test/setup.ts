@@ -13,6 +13,18 @@ import '@testing-library/jest-dom/vitest';
 // tests can retrieve the exact object the component under test drew to.
 const mockContexts = new WeakMap<HTMLCanvasElement, unknown>();
 
+// Shared by every mock context's createRadialGradient/createLinearGradient
+// (below) rather than allocating a fresh `{ addColorStop: vi.fn() }` per
+// call. A gradient-per-cell render pass (e.g. the platformer's cave fog,
+// O-028) can call createRadialGradient thousands of times within a single
+// long-running test — allocating a brand-new mock object (with its own
+// vi.fn()) on every one of those calls is what was exhausting worker memory
+// and crashing PlatformerPage.test.tsx outright, not a normal assertion
+// failure. Nothing in this file's tests inspects a specific gradient's own
+// addColorStop calls (Renderer.test.ts's fine-grained gradient assertions
+// use their own local, per-test mock instead), so one shared stub is safe.
+const sharedGradientStub = { addColorStop: vi.fn() };
+
 HTMLCanvasElement.prototype.getContext = function (
   this: HTMLCanvasElement,
   contextId: string,
@@ -82,8 +94,8 @@ HTMLCanvasElement.prototype.getContext = function (
       putImageData: vi.fn(),
       // The heal aura's glow/rays (Renderer.ts's drawHealAuraEffects) paint
       // via canvas gradients — a bare fillStyle assignment doesn't cover it.
-      createRadialGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
-      createLinearGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
+      createRadialGradient: vi.fn(() => sharedGradientStub),
+      createLinearGradient: vi.fn(() => sharedGradientStub),
     });
   }
 
