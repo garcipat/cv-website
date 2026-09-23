@@ -1888,7 +1888,7 @@ In `Collision.ts`:
 
 ```ts
 import type { Interactable } from './Interact';
-import { openChest, type ChestState } from '../entities/Chest';
+import { openChest, CHEST_CLOSED_OFFSET_X, type ChestState } from '../entities/Chest';
 
 export function chestInteractable(
   states: Signal<ChestState[]>,
