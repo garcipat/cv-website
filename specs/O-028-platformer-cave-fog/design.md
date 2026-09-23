@@ -129,3 +129,40 @@ decided, rather than a silent default.
 A block is never exempt under this table: a block occupies an otherwise-open cell (its
 solidity is its own hitbox, not a terrain tile), so `TILE_FOG_EXEMPT` never sees it and a
 fogged cell with a block on it stays fogged, per FR-002.
+
+## A peek radius, reusing the player's own carried-light technique
+
+A visitor approaching a fogged cell had no warning before actually crossing into it — the
+first cell they'd see anything of was the one they'd already stepped onto. FR-011 fixes this
+with a peek radius: fog within `FOG_PEEK_RADIUS_PX` of the player's own position thins
+smoothly (`fogPeekStrengthAt`), reaching fully clear right at the player and fading back to
+the puff's normal alpha by the radius's edge.
+
+This is deliberately not a new mechanic — it's `playerGlowStrengthAt` (O-010's player-carried
+torch light, which already thins *darkness* locally around the player) applied to fog
+instead: same smoothstep falloff shape, same "distance from player to a point" input, just a
+different radius constant and a different thing it's thinning. Reusing the shape rather than
+inventing a new one means the two effects — the player's glow pushing back darkness, and the
+player's presence pushing back fog — read as the same idea (a visitor's own space around them
+stays visible) applied on both sides of the cave boundary, which the mirror-image spirit of
+this whole feature already asks for.
+
+Crucially, peek strength is *stateless*: `drawFog` recomputes it every frame from the
+player's current position and a puff's position, nothing more. There is no "has this cell
+been peeked" flag anywhere. A cell the player walked past and left thins while they're near
+it and fogs right back in the moment they're not — it is advance warning for the cell you're
+about to enter, not memory of what you've already seen (which FR-008 and the spec's
+Clarifications explicitly rule out as a separate, larger feature).
+
+## A smaller plateau, so a puff reads as haze rather than painted gray
+
+`FOG_PUFF_PLATEAU` started at `0.55` — a puff's inner 55% of its radius was flat, fully-opaque
+color, with only the outer 45% carrying any gradient. At the puff's overlap-generous radius
+(`FOG_PUFF_RADIUS_PX`), that flat core was wide enough that most of what a visitor actually
+saw, most of the time, was the plateau — which is indistinguishable from the original flat
+per-cell rect this feature moved away from. Dropping the plateau to `0.3` keeps the same
+puff shape and radius (so it still bleeds into neighbours and merges into one bank exactly as
+before) but gives most of a puff's radius to the gradient, so what a visitor actually sees is
+mostly soft falloff with only a small solid heart — which is what reads as mist rather than a
+disc of color, without touching the fog's own opacity (`fogLevel`) at all, so a fogged cell's
+contents stay exactly as hidden as FR-002 requires.
