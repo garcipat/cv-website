@@ -340,15 +340,14 @@ export function advancePlayerAnimation(player: PlayerState, dt: number): PlayerS
  * since this function only ever runs during live gameplay, never during the
  * `'dying'` phase.
  *
- * `'hit'` is likewise never entered here — only a directional knockback
- * (`applyKnockback`, called for an enemy or hazard touch, both of which push
- * the character away from whatever hit them) enters it directly, the same
+ * `'hit'` is likewise never entered here — only `applyHitReaction` (called for
+ * every attacker hit: an enemy or hazard touch) enters it directly, the same
  * way an enemy's own `takeHit` sets its `animState` straight to `'hit'`. A
- * pit fall (`beginHitReaction`) has no attacker to react to, so it leaves
+ * pit fall (`beginPitFallReaction`) has no attacker to react to, so it leaves
  * `animState` alone and stays on the render blink instead (see
  * PlatformerPage.tsx's `isPlayerBlinkVisible` use) — this function's only
  * job regarding `'hit'` is holding it for as long as the invulnerability
- * window from that knockback is still open (looping `advancePlayerAnimation`
+ * window from that hit is still open (looping `advancePlayerAnimation`
  * continuously via the same-reference return below, rather than restarting
  * every tick) and falling back to a movement-derived state once it closes.
  * Climbing takes priority over airborne/grounded/velocity checks — the
@@ -393,90 +392,79 @@ export function advancePlayerHitTimer(player: PlayerState, dt: number): PlayerSt
   };
 }
 
+/** Optional knockback bundled with a hit reaction: the direction/speed the
+ *  player is pushed away from whatever hit them, and how long input is
+ *  overridden. Omitted for a hit that deals damage without moving the player. */
+export interface HitKnockback {
+  /** Direction the player is pushed — and the facing they adopt. */
+  direction: -1 | 1;
+  /** Horizontal knockback speed in px/s (positive; the sign comes from `direction`). */
+  vx: number;
+  /** Seconds `knockbackTimer` overrides input-driven horizontal movement. */
+  duration: number;
+}
+
 /**
- * Applies a side-hit's knockback and refractory window in one step: sets `vx`
- * to `direction * knockbackVx` (facing to match, so the character visually
- * faces away from whatever hit it), starts `knockbackTimer` (how long
- * `stepPlayerPhysics` overrides input-driven horizontal movement) and
- * restarts `hitTimer` (how long further hits are ignored and the `hit`
- * animation loops). The two run independently and differ a lot in length —
- * control comes back long before the hit animation ends. The refractory
- * window takes no duration argument: its length is
- * PLAYER_HIT_REACTION_SECONDS, read by whoever asks `isInvulnerable`, so
- * starting one is just zeroing the timer.
+ * Starts the shared red `'hit'` reaction — **always**: opens the refractory
+ * window (`hitTimer = 0`) and switches `animState` straight to `'hit'` with its
+ * frame/timer reset (the same entry an enemy's own `takeHit` uses).
  *
- * Also switches `animState` straight to `'hit'` (frame/timer reset to 0),
- * the same way an enemy's own `takeHit` does — this is a directional hit
- * with a real "thing that hit you", unlike a pit fall's `beginHitReaction`,
- * so the sprite flash reaction applies here but not there.
+ * Knockback is a separate, optional effect: pass a `HitKnockback` to also set
+ * `vx`/`direction` (facing away from the hit) and `knockbackTimer`; omit it for
+ * a hit that deals damage but must not move the player (a floor spike, or any
+ * hit taken while crouched — FR-011/SC-009). Keeping the visual here and the
+ * knockback in the optional argument is what makes every damage source look the
+ * same while each source decides for itself whether it knocks back.
+ *
+ * The refractory window takes no duration argument: its length is
+ * PLAYER_HIT_REACTION_SECONDS, read by whoever asks `isInvulnerable`, so
+ * starting one is just zeroing the timer. `knockbackTimer` runs independently
+ * and is much shorter, so control comes back well before the reaction ends.
+ *
+ * Pure; never throws; no side effects.
  */
-export function applyKnockback(
-  player: PlayerState,
-  direction: -1 | 1,
-  knockbackVx: number,
-  knockbackDuration: number,
-): PlayerState {
-  return {
+export function applyHitReaction(player: PlayerState, knockback?: HitKnockback): PlayerState {
+  const hit: PlayerState = {
     ...player,
-    vx: direction * knockbackVx,
-    direction: direction < 0 ? 'left' : 'right',
-    knockbackTimer: knockbackDuration,
     hitTimer: 0,
     animState: 'hit',
     animFrame: 0,
     animTimer: 0,
   };
+  if (!knockback) return hit;
+  return {
+    ...hit,
+    vx: knockback.direction * knockback.vx,
+    direction: knockback.direction < 0 ? 'left' : 'right',
+    knockbackTimer: knockback.duration,
+  };
 }
 
 /**
- * Starts the post-hit refractory window with no knockback — used by a pit
- * fall, since the window is a property of taking damage generally, not just
- * of enemy contact specifically. Unlike `applyKnockback`, there's no
- * "direction to push away from" for a pit fall, and no reason to touch
- * `vx`/`direction`/`knockbackTimer` at all — `resolvePitFall` already
- * handles repositioning the character back to solid ground. `animState` is
- * deliberately left untouched too: with no attacker to react to, the
- * character stays on the render blink (`isPlayerBlinkVisible`) rather than
- * switching to the `hit` sprite flash `applyKnockback` uses.
+ * Starts a pit fall's post-hit refractory window with no knockback and no red
+ * flash — the one deliberate exception to `applyHitReaction`. A pit fall has no
+ * attacker to react to, and `resolvePitFall` already repositions the character
+ * back to solid ground, so `vx`/`direction`/`knockbackTimer` are untouched and
+ * `animState` is left alone: the character stays on the render blink
+ * (`isPlayerBlinkVisible`) rather than switching to the `'hit'` sprite. Only the
+ * shared refractory window (`hitTimer = 0`) is started, since that is a property
+ * of taking damage generally, not of enemy contact specifically.
  */
-export function beginHitReaction(player: PlayerState): PlayerState {
+export function beginPitFallReaction(player: PlayerState): PlayerState {
   return { ...player, hitTimer: 0 };
 }
 
 /**
- * Starts a directional hit's red `hit` reaction with NO knockback (FR-011,
- * SC-009) — used when a directional hit lands while the player is crouched, so
- * the one-tile box is never displaced and can never be forced open into a
- * ceiling.
- *
- * Sets `hitTimer` to 0, which both opens the refractory window
- * (`isInvulnerable` reads `hitTimer < PLAYER_HIT_REACTION_SECONDS`) and — via
- * `resolveCrouching`'s `inHitReaction` freeze — keeps `crouching` true for the
- * whole window. Sets `animState: 'hit'` so the sticky-hit derivation and
- * `PlatformerPage.tsx`'s `playerVisible` rule still treat it as a visible red
- * reaction; the *drawn* pose is the crouch pose, tinted (see
- * `Renderer.drawTintedSprite`). Deliberately leaves `vx`, `direction`,
- * `knockbackTimer`, `vy` and `bounceAscending` untouched: no knockback of
- * either axis and no facing change. A held crawl key still drives
- * `PHYSICS_CONFIG.crouchSpeed` on later ticks, since `knockbackTimer` stays 0.
- *
- * Pure; never throws; no side effects.
- */
-export function applyHitReactionWithoutKnockback(player: PlayerState): PlayerState {
-  return { ...player, hitTimer: 0, animState: 'hit', animFrame: 0, animTimer: 0 };
-}
-
-/**
  * Seconds the player's post-hit refractory window lasts: further hits are
- * dropped, and either the `hit` animation loops (a directional knockback) or
- * the render blink plays (a pit fall) for this long after a hit lands. Long
- * enough to read clearly as "just got hurt" without dragging on. The enemy
- * equivalent is each type's own `hitReactionSeconds`.
+ * dropped, and either the `hit` animation loops (an attacker hit) or the render
+ * blink plays (a pit fall) for this long after a hit lands. Long enough to read
+ * clearly as "just got hurt" without dragging on. The enemy equivalent is each
+ * type's own `hitReactionSeconds`.
  */
 export const PLAYER_HIT_REACTION_SECONDS = 0.8;
 
 /** Seconds between blink phase flips while a pit fall's invulnerability
- *  window is open and `animState` is not `'hit'` (see `beginHitReaction`'s
+ *  window is open and `animState` is not `'hit'` (see `beginPitFallReaction`'s
  *  doc comment for why a pit fall never enters `'hit'`). */
 export const PLAYER_BLINK_INTERVAL_SECONDS = 0.1;
 

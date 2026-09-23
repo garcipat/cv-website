@@ -147,10 +147,9 @@ import { RENDERED_TILE_SIZE } from './level/Terrain';
 import {
   advancePlayerAnimation,
   updatePlayerAnimState,
-  applyKnockback,
-  applyHitReactionWithoutKnockback,
+  applyHitReaction,
   advancePlayerHitTimer,
-  beginHitReaction,
+  beginPitFallReaction,
   isPlayerBlinkVisible,
   PLAYER_HIT_REACTION_SECONDS,
   PLAYER_RENDERED_SIZE,
@@ -756,7 +755,7 @@ export const PlatformerPage = () => {
         // whatever `hitTimer` the killing hit happened to leave behind. A
         // pit fall has no attacker to react to, so it's the only case left
         // that stays on the old invulnerability blink (see Player.ts's
-        // beginHitReaction/applyKnockback doc comments for why these
+        // beginPitFallReaction/applyHitReaction doc comments for why these
         // diverge).
         const playerVisible =
           playerState.value.animState === 'hit' ||
@@ -1758,14 +1757,13 @@ export const PlatformerPage = () => {
           // reaction but applies no knockback (horizontal or vertical), so
           // the one-tile box can never be displaced or forced open into a
           // ceiling (FR-011/SC-009).
-          playerState.value = applyHitReactionWithoutKnockback(playerState.value);
+          playerState.value = applyHitReaction(playerState.value);
         } else {
-          playerState.value = applyKnockback(
-            playerState.value,
-            contacts.knockbackDirection,
-            PHYSICS_CONFIG.sideHitKnockbackVx,
-            PHYSICS_CONFIG.sideHitKnockbackDuration,
-          );
+          playerState.value = applyHitReaction(playerState.value, {
+            direction: contacts.knockbackDirection,
+            vx: PHYSICS_CONFIG.sideHitKnockbackVx,
+            duration: PHYSICS_CONFIG.sideHitKnockbackDuration,
+          });
           if (contacts.knockback === 'awayAndUp') {
             // Without `bounceAscending: true` (same mechanism the stomp
             // bounce above relies on), `stepPlayerPhysics`'s variable-jump-
@@ -1801,7 +1799,7 @@ export const PlatformerPage = () => {
       // Ordinary (non-lethal) hazards: an entirely separate, independent
       // damage source from enemy contacts above. Sequencing after the enemy
       // block (rather than merging the two) is deliberate and safe:
-      // applyKnockback resets hitTimer to 0, and
+      // applyHitReaction resets hitTimer to 0, and
       // isInvulnerable(player, PLAYER_HIT_REACTION_SECONDS) treats hitTimer 0
       // as WITHIN the refractory window (0 < 0.8) — so if an enemy contact
       // already damaged the player this very tick, this block's own
@@ -1824,31 +1822,26 @@ export const PlatformerPage = () => {
         // the refractory window lapses, since nothing ever moves the player
         // out of contact with it.
         const contactSide: -1 | 1 = hazard.x >= playerState.value.x ? 1 : -1;
-        // Floor spikes deal damage with no knockback (spec FR-006) — the
-        // only divergence from a static spike touch, which always pushes
-        // the player away (see the applyKnockback call below). They still
-        // show the same red hit reaction as every other damage source
-        // (applyHitReactionWithoutKnockback), and that helper also opens the
-        // shared refractory window, or the player would take repeated damage
-        // every tick they remain on the tile through the rest of the
-        // full-extend phase. Only a pit fall keeps the transparent blink.
-        if (hazard.hazardType === 'floorSpike') {
-          playerState.value = applyHitReactionWithoutKnockback(playerState.value);
-        } else if (playerState.value.crouching) {
-          // A crouched non-floor-spike hazard hit deals damage and shows the
-          // red reaction but applies no knockback (FR-011/SC-009).
-          playerState.value = applyHitReactionWithoutKnockback(playerState.value);
+        // Floor spikes deal damage with no knockback (spec FR-006), and a
+        // crouched hit never knocks back (FR-011/SC-009). Both still show the
+        // same red hit reaction as every other damage source — `applyHitReaction`
+        // with no knockback — which also opens the shared refractory window, or
+        // the player would take repeated damage every tick they remain on the
+        // tile through the rest of the full-extend phase. Every other hazard
+        // touch pushes the player away. Only a pit fall keeps the transparent
+        // blink (see `beginPitFallReaction`).
+        if (hazard.hazardType === 'floorSpike' || playerState.value.crouching) {
+          playerState.value = applyHitReaction(playerState.value);
         } else {
           // Pushed away from the hazard, not toward it — the opposite sign
           // of contactSide, spelled out as its own conditional (rather than
           // `-contactSide`) since TS widens a negated `-1 | 1` to `number`.
           const knockbackDirection: -1 | 1 = contactSide === 1 ? -1 : 1;
-          playerState.value = applyKnockback(
-            playerState.value,
-            knockbackDirection,
-            PHYSICS_CONFIG.sideHitKnockbackVx,
-            PHYSICS_CONFIG.sideHitKnockbackDuration,
-          );
+          playerState.value = applyHitReaction(playerState.value, {
+            direction: knockbackDirection,
+            vx: PHYSICS_CONFIG.sideHitKnockbackVx,
+            duration: PHYSICS_CONFIG.sideHitKnockbackDuration,
+          });
         }
 
         // No splatter on the hit that kills the character — see the same
@@ -2190,14 +2183,13 @@ export const PlatformerPage = () => {
             if (next.crouching) {
               // A crouched blast hit deals damage and shows the red reaction
               // but applies no knockback (FR-011/SC-009).
-              next = applyHitReactionWithoutKnockback(next);
+              next = applyHitReaction(next);
             } else {
-              next = applyKnockback(
-                next,
-                knockbackDirection,
-                PHYSICS_CONFIG.sideHitKnockbackVx,
-                PHYSICS_CONFIG.sideHitKnockbackDuration,
-              );
+              next = applyHitReaction(next, {
+                direction: knockbackDirection,
+                vx: PHYSICS_CONFIG.sideHitKnockbackVx,
+                duration: PHYSICS_CONFIG.sideHitKnockbackDuration,
+              });
             }
             bombDamagedPlayerThisTick = true;
             if (hitPoints > 0) {
@@ -2266,9 +2258,9 @@ export const PlatformerPage = () => {
           next = { ...next, hitPoints, alive: hitPoints > 0 };
           // No debris burst — unlike an enemy/hazard touch, nothing visibly
           // struck the character, so a blood splatter doesn't read right
-          // here (only the blink applies; see beginHitReaction's doc
+          // here (only the blink applies; see beginPitFallReaction's doc
           // comment for why this never enters the `hit` animState either).
-          next = beginHitReaction(next);
+          next = beginPitFallReaction(next);
         }
         next = resolvePitFall(next);
       }

@@ -60,7 +60,7 @@ return requested || (!ctx.canStand && ctx.currentlyCrouching); // FR-001/005/006
   always entered via Down, FR-001).
 - Pure; returns a boolean; never throws; no side effects.
 
-## Crouched directional hits (`applyHitReactionWithoutKnockback`) — FR-011
+## Crouched directional hits (`applyHitReaction`) — FR-011
 
 A directional hit taken while crouched still deals damage, opens the
 invulnerability window and shows the red reaction, but applies **no knockback**
@@ -68,11 +68,17 @@ invulnerability window and shows the red reaction, but applies **no knockback**
 (FR-011, SC-009). Damage itself is unchanged and still applied by the caller
 (`takeDamage`); this helper only shapes the reaction state.
 
-### `applyHitReactionWithoutKnockback(player: PlayerState): PlayerState` (`entities/Player.ts`)
+### `applyHitReaction(player: PlayerState, knockback?: HitKnockback): PlayerState` (`entities/Player.ts`)
+
+The single hit-reaction helper. It **always** starts the red reaction:
 
 ```ts
-return { ...player, hitTimer: 0, animState: 'hit', animFrame: 0, animTimer: 0 };
+{ ...player, hitTimer: 0, animState: 'hit', animFrame: 0, animTimer: 0 }
 ```
+
+and, only when a `knockback` argument is passed, also sets
+`vx`/`direction`/`knockbackTimer`. The visual is therefore identical for every
+damage source; each source just decides whether it knocks back.
 
 - Sets `hitTimer` to 0, which both opens the refractory window
   (`isInvulnerable` reads `hitTimer < PLAYER_HIT_REACTION_SECONDS`) and, through
@@ -83,24 +89,22 @@ return { ...player, hitTimer: 0, animState: 'hit', animFrame: 0, animTimer: 0 };
   reaction. The *drawn* pose is the crouch pose, tinted — see
   [rendering-animation.md](./rendering-animation.md) and
   [crouched-hit-reaction.md](./crouched-hit-reaction.md).
-- **Does not touch** `vx`, `direction`, `knockbackTimer`, `vy` or
-  `bounceAscending` — no knockback of either axis, and no facing change.
+- With no `knockback` argument it **does not touch** `vx`, `direction`,
+  `knockbackTimer`, `vy` or `bounceAscending` — no knockback of either axis, and
+  no facing change.
 - Pure; never throws; no side effects.
 
 ### Call sites (`PlatformerPage.tsx`)
 
-Branch on `player.crouching`; the standing path is unchanged.
-
-| Site | Standing (unchanged) | Crouched (new) |
+| Site | Standing | Crouched |
 | --- | --- | --- |
-| Enemy contact (~L1741) | `applyKnockback(...)`, then `awayAndUp` sets `vy` + `bounceAscending` | `applyHitReactionWithoutKnockback(...)`; **skip** the `awayAndUp` `vy` |
-| Non-floor-spike hazard (~L1819) | `applyKnockback(...)` | `applyHitReactionWithoutKnockback(...)` |
-| Bomb blast (~L2163) | `applyKnockback(...)` | `applyHitReactionWithoutKnockback(...)` |
+| Enemy contact (~L1741) | `applyHitReaction(player, knockback)`, then `awayAndUp` sets `vy` + `bounceAscending` | `applyHitReaction(player)`; **skip** the `awayAndUp` `vy` |
+| Non-floor-spike hazard (~L1819) | `applyHitReaction(player, knockback)` | `applyHitReaction(player)` |
+| Bomb blast (~L2163) | `applyHitReaction(player, knockback)` | `applyHitReaction(player)` |
 
-- The floor-spike hazard keeps `beginHitReaction` in both cases: it is already
-  knockback-free and blink-only (no red `hit` pose), and FR-014 forbids
-  changing existing mechanics beyond the smaller box and the suppressed
-  knockback of FR-011.
+- The floor-spike hazard uses `applyHitReaction(player)` too: red reaction, no
+  knockback (FR-006). Only a pit fall stays on the blink
+  (`beginPitFallReaction`).
 - `stepPlayerPhysics` still runs after the hit: with `knockbackTimer` left at 0,
   held crawl input drives `crouchSpeed` as usual; gravity and ground/ceiling
   collision continue, so the character is never displaced by the hit itself.
@@ -159,10 +163,11 @@ Branch on `player.crouching`; the standing path is unchanged.
    the same ladder/bridge behaviour as before the feature.
 10. Every `stepPlayerPhysics` return path sets `crouching` explicitly (no stale
     carry-over), and the climbing returns set it `false`.
-11. `applyHitReactionWithoutKnockback` returns `hitTimer: 0`, `animState:
-    'hit'`, `animFrame: 0`, `animTimer: 0`, and leaves `vx`, `direction`,
-    `knockbackTimer`, `vy` and `bounceAscending` identical to the input
-    (FR-011).
+11. `applyHitReaction` with no `knockback` argument returns `hitTimer: 0`,
+    `animState: 'hit'`, `animFrame: 0`, `animTimer: 0`, and leaves `vx`,
+    `direction`, `knockbackTimer`, `vy` and `bounceAscending` identical to the
+    input (FR-011). With a `knockback` argument it also sets
+    `vx`/`direction`/`knockbackTimer`.
 12. After a crouched directional hit, `isInvulnerable(result,
     PLAYER_HIT_REACTION_SECONDS)` is true and `resolveCrouching` returns the
     pre-hit `crouching` value, so the one-tile box is kept for the whole

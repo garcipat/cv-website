@@ -137,7 +137,7 @@ Do this on plain ground first, then repeat inside the one-tile corridor.
 | Movement integration | `engine/Physics.test.ts` | enter crouch grounded, no airborne entry, retain through a fall, crawl speed both ways, jump disabled, Down priority on ladders/bridges, box rows, every return sets `crouching` |
 | Shared box + consumers | `engine/Collision.test.ts` | crouched `playerHitbox` geometry; triggers/pickups, enemy/stomp, hazard, floor-spike and blast checks read the crouched box |
 | Animation | `entities/Player.test.ts` | `'crouch'` derivation (grounded and airborne), row-8 frame source, stationary freeze, crawling advance |
-| Crouched hit state | `entities/Player.test.ts` | `applyHitReactionWithoutKnockback` sets `hitTimer`/`animState` and leaves `vx`/`direction`/`knockbackTimer`/`vy`/`bounceAscending` untouched |
+| Crouched hit state | `entities/Player.test.ts` | `applyHitReaction` sets `hitTimer`/`animState` and leaves `vx`/`direction`/`knockbackTimer`/`vy`/`bounceAscending` untouched |
 | Crouched hit tint | `engine/Renderer.test.ts` | crouched `hit` draws the crouch row through a tinted layer (`source-atop`); standing `hit` draws the baked frame with no layer; null-context fallback |
 | State/reset | `PlatformerState.test.ts` | factories seed `crouching: false`; it never survives `resetGame`/`resetGameProgress` |
 | Level | `level/level.test.ts` | the authored corridor is exactly one tile high, marker-free, and adds no new tile kind |
