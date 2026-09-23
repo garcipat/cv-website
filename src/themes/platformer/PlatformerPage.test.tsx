@@ -3769,7 +3769,7 @@ describe('PlatformerPage', () => {
       expect(playerState.value.vx).toBe(0);
     });
 
-    it('crouchedFloorSpikeHit-isUnchangedWithNoHitPoseAndNoKnockback', () => {
+    it('crouchedFloorSpikeHit-showsRedReactionWithNoKnockback', () => {
       floorSpikeTimerStates.value = [];
       currentLayout.value = ['SA', 'GG'];
       const frameCallback = mountWithFrameCallback();
@@ -3791,9 +3791,9 @@ describe('PlatformerPage', () => {
       }
 
       expect(playerState.value.hitPoints).toBe(startingHealth - SIDE_HIT_DAMAGE);
-      // The floor spike stays on the blink-only `beginHitReaction` — never the
-      // red `hit` pose (FR-014).
-      expect(playerState.value.animState).not.toBe('hit');
+      // The floor spike shows the same red hit reaction as every other damage
+      // source (a crouched hit renders the pulsing tint), with no knockback.
+      expect(playerState.value.animState).toBe('hit');
       expect(playerState.value.vx).toBe(0);
       floorSpikeTimerStates.value = [];
     });
@@ -4406,8 +4406,10 @@ describe('PlatformerPage', () => {
     }
 
     expect(playerState.value.hitPoints).toBe(startingHealth - SIDE_HIT_DAMAGE);
-    // FR-006: no knockback, unlike the static spike.
+    // FR-006: no knockback, unlike the static spike — but it still shows the
+    // red hit reaction every other damage source does.
     expect(playerState.value.vx).toBe(0);
+    expect(playerState.value.animState).toBe('hit');
     floorSpikeTimerStates.value = [];
   });
 
