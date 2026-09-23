@@ -824,32 +824,43 @@ function makePlayer(x: number, y: number): PlayerState {
   return { x, y, vx: 0, vy: 0, grounded: true, facing: 'right' } as PlayerState;
 }
 
-describe('doorPlayerIsAdjacentTo-playerOneColumnLeftOfLeftLeaf-returnsDoorId', () => {
-  it('matches standing immediately left of the left leaf, same row', () => {
+// The door pair below is always createDoorState(1, 1): left leaf at col 1,
+// right leaf at col 2, row 1. The player hitbox is PLAYER_RENDERED_SIZE
+// (64px = 2 columns) wide, inset by PLAYER_SIDE_PADDING on each side (same
+// convention ladderBundleForPlayer's leftCol/rightCol already use) — so a
+// player pressed up against a closed door's face already has its hitbox
+// touching the door's own column, not sitting a whole clear column away.
+// "Adjacent" therefore means the player's inset hitbox TOUCHES the door
+// pair's outer edge (rightCol === the left leaf's column, from the left; or
+// leftCol === the right leaf's column, from the right) — not "one clear
+// column apart", which a 2-column-wide sprite could never satisfy.
+
+describe('doorPlayerIsAdjacentTo-playerPressedAgainstLeftLeafFromTheLeft-returnsDoorId', () => {
+  it('matches a hitbox touching the left leaf\'s column from the left, same row', () => {
     const state = createDoorState(1, 1);
     const player = makePlayer(0 * RENDERED_TILE_SIZE, 1 * RENDERED_TILE_SIZE);
     expect(doorPlayerIsAdjacentTo([state], player)).toBe(state.id);
   });
 });
 
-describe('doorPlayerIsAdjacentTo-playerOneColumnRightOfRightLeaf-returnsDoorId', () => {
-  it('matches standing immediately right of the right leaf, same row', () => {
+describe('doorPlayerIsAdjacentTo-playerPressedAgainstRightLeafFromTheRight-returnsDoorId', () => {
+  it('matches a hitbox touching the right leaf\'s column from the right, same row', () => {
     const state = createDoorState(1, 1);
     const player = makePlayer(3 * RENDERED_TILE_SIZE, 1 * RENDERED_TILE_SIZE);
     expect(doorPlayerIsAdjacentTo([state], player)).toBe(state.id);
   });
 });
 
-describe('doorPlayerIsAdjacentTo-playerTwoColumnsAway-returnsNull', () => {
-  it('does not match from two columns away', () => {
+describe('doorPlayerIsAdjacentTo-playerAColumnAwayFromTouching-returnsNull', () => {
+  it('does not match when the hitbox does not reach either leaf\'s column', () => {
     const state = createDoorState(1, 1);
-    const player = makePlayer(-1 * RENDERED_TILE_SIZE, 1 * RENDERED_TILE_SIZE);
+    const player = makePlayer(-2 * RENDERED_TILE_SIZE, 1 * RENDERED_TILE_SIZE);
     expect(doorPlayerIsAdjacentTo([state], player)).toBeNull();
   });
 });
 
 describe('doorPlayerIsAdjacentTo-playerDifferentRow-returnsNull', () => {
-  it('does not match a different row', () => {
+  it('does not match a different row even when touching in column', () => {
     const state = createDoorState(1, 1);
     const player = makePlayer(0 * RENDERED_TILE_SIZE, 0 * RENDERED_TILE_SIZE);
     expect(doorPlayerIsAdjacentTo([state], player)).toBeNull();
@@ -867,7 +878,8 @@ Expected: FAIL — module doesn't exist.
 ```ts
 import type { LevelDef } from '../level/LevelData';
 import { applyTerrainOverrides } from '../level/TerrainOverrides';
-import { RENDERED_TILE_SIZE, PLAYER_RENDERED_SIZE } from '../level/Terrain';
+import { RENDERED_TILE_SIZE } from '../level/Terrain';
+import { PLAYER_RENDERED_SIZE, PLAYER_SIDE_PADDING } from '../entities/Player';
 import type { PlayerState } from '../entities/Player';
 
 /** Reversible — unlike DeployableLadderPhase's one-way progression, a door
@@ -923,23 +935,30 @@ export function applyOpenedDoors(level: LevelDef, states: readonly DoorState[]):
  * never overlap its cells the way `chestPlayerIsStandingOn` overlaps a
  * chest's trigger box — "standing next to it" instead means: same row as
  * the door (player's foot row equals the door's row), and the player's
- * hitbox sits in the column immediately left of the left leaf OR
- * immediately right of the right leaf. Mirrors `ladderBundleForPlayer`'s
- * shape (a plain scan + column/row arithmetic), not Collision.ts's generic
- * overlappingTriggers (which only tests actual box overlap).
+ * (inset) collision hitbox TOUCHES the door pair's outer edge — its right
+ * column reaches the left leaf's own column (pressed against it from the
+ * left), or its left column reaches the right leaf's own column (pressed
+ * against it from the right). This is deliberately "touching", not "one
+ * clear column away": `PLAYER_RENDERED_SIZE` is 64px — two tile columns —
+ * so a player's hitbox pressed flush against a closed door already reaches
+ * into the door's own column; there is no clear gap column to test for the
+ * way there would be for a one-tile-wide sprite. The column math mirrors
+ * `ladderBundleForPlayer`'s own inset-hitbox convention (`PLAYER_SIDE_PADDING`),
+ * not Collision.ts's generic `overlappingTriggers` (which only tests actual
+ * box overlap, impossible here since a closed door is solid).
  */
 export function doorPlayerIsAdjacentTo(
   states: readonly DoorState[],
   player: PlayerState,
 ): string | null {
   const playerRow = Math.floor(player.y / RENDERED_TILE_SIZE);
-  const playerLeftCol = Math.floor(player.x / RENDERED_TILE_SIZE);
-  const playerRightCol = Math.floor((player.x + PLAYER_RENDERED_SIZE - 1) / RENDERED_TILE_SIZE);
+  const playerLeftCol = Math.floor((player.x + PLAYER_SIDE_PADDING) / RENDERED_TILE_SIZE);
+  const playerRightCol = Math.floor(
+    (player.x + PLAYER_RENDERED_SIZE - PLAYER_SIDE_PADDING - 1) / RENDERED_TILE_SIZE,
+  );
   for (const state of states) {
     if (state.row !== playerRow) continue;
-    const leftOfDoor = state.col - 1;
-    const rightOfDoor = state.col + 2;
-    if (playerRightCol === leftOfDoor || playerLeftCol === rightOfDoor) {
+    if (playerRightCol === state.col || playerLeftCol === state.col + 1) {
       return state.id;
     }
   }
@@ -947,7 +966,7 @@ export function doorPlayerIsAdjacentTo(
 }
 ```
 
-Check `entities/Player.ts` for the exact `PlayerState` field names (`x`, `y`) and `PLAYER_RENDERED_SIZE`'s exact export name before finalizing this file — adjust the import only if a name differs from what's used above; the logic itself does not change.
+Check `entities/Player.ts` for the exact `PlayerState` field names (`x`, `y`), and `PLAYER_RENDERED_SIZE`/`PLAYER_SIDE_PADDING`'s exact export names and values, before finalizing this file — adjust the import only if a name differs from what's used above; the logic itself does not change. (For reference, in the current codebase: `PLAYER_RENDERED_SIZE` is 64, `PLAYER_SIDE_PADDING` is 20, `RENDERED_TILE_SIZE` is 32 — a player's inset hitbox is therefore 24px wide, narrower than one tile but still capable of spanning two tile columns depending on alignment, which is exactly why "touching" rather than "one clear column apart" is the correct test.)
 
 - [ ] **Step 4: Run tests to verify they pass**
 
