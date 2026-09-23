@@ -47,13 +47,15 @@ import {
   drawEnemyEyes,
   drawHeldTorch,
   heldTorchLightPosition,
+  drawTintedSprite,
+  CROUCH_HIT_TINT,
 } from './Renderer';
 import type { LevelDef } from '../level/LevelData';
 import { backgroundAtlasCell } from './BackgroundAtlas';
 import { parseLevel } from '../level/LevelParser';
 import type { SignPlacement } from '../level/SignMapper';
 import type { PlayerState } from '../entities/Player';
-import { PLAYER_RENDERED_SIZE, PLAYER_FOOT_PADDING, PLAYER_HIT_REACTION_SECONDS } from '../entities/Player';
+import { PLAYER_RENDERED_SIZE, PLAYER_FRAME_SIZE, PLAYER_FOOT_PADDING, PLAYER_HIT_REACTION_SECONDS } from '../entities/Player';
 import { MAX_HALF_HEARTS, HEART_RENDERED_SIZE } from '../entities/Health';
 import { startFlightEffect, tickFlightEffect, RISE_DURATION_SECONDS, SPARKLE_DURATION_SECONDS, startPuffEffect, tickPuffEffect, startHealAuraEffect, HEAL_AURA_DURATION_SECONDS, startPlayerHitSplatter, startEnemyHitSplatter, tickHitSplatterEffect, startFadeOutTextEffect, tickFadeOutTextEffect, FADE_OUT_TEXT_DURATION_SECONDS } from './CollectionEffects';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
@@ -2152,6 +2154,7 @@ describe('drawPlayer', () => {
     direction: 'right',
     grounded: true,
     climbing: false,
+    crouching: false,
     isDroppingThroughBridge: false,
     lastGroundedX: 16,
     lastGroundedY: 256,
@@ -2245,6 +2248,35 @@ describe('drawPlayer', () => {
     );
   });
 
+  it('crouchStateNonHit-drawsFromThePrimarySheetDuckRow', () => {
+    // A plain crouch needs no special drawPlayer branch: it falls through to
+    // the existing primary-sheet `playerFrameSource` path, so the DUCK-row
+    // frame is drawn from `knight.png` — never the knight2.png jump/climb
+    // sheet.
+    const ctx = makeMockContext();
+    const jumpSheet = {} as HTMLImageElement;
+    const player: PlayerState = {
+      ...idlePlayer,
+      crouching: true,
+      animState: 'crouch',
+      animFrame: 1,
+    };
+
+    drawPlayer(ctx, player, fakeSpriteSheet, 0, 0, jumpSheet);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeSpriteSheet,
+      PLAYER_FRAME_SIZE,
+      PLAYER_FRAME_SIZE * 8,
+      PLAYER_FRAME_SIZE,
+      PLAYER_FRAME_SIZE,
+      16,
+      256,
+      PLAYER_RENDERED_SIZE,
+      PLAYER_RENDERED_SIZE,
+    );
+  });
+
   it('originX-shiftsPlayerHorizontally', () => {
     const ctx = makeMockContext();
 
@@ -2255,6 +2287,126 @@ describe('drawPlayer', () => {
       0, 0, 32, 32,
       116, 256, 64, 64,
     );
+  });
+
+  it('crouchedHitWithTintLayer-drawsTheCrouchRowThroughTheTintedLayer', () => {
+    const { ctx, raw } = makeLightingContext();
+    const { layer, layerCtx } = makeTintLayer();
+    const player: PlayerState = {
+      ...idlePlayer,
+      crouching: true,
+      animState: 'hit',
+      animFrame: 1,
+      hitTimer: 0.25,
+    };
+
+    drawPlayer(ctx, player, fakeSpriteSheet, 0, 0, null, true, layer);
+
+    // The crouch row (sy = 8 frames), NOT the baked hit row (sy = 6 frames).
+    expect(layerCtx.drawImage).toHaveBeenCalledWith(
+      fakeSpriteSheet,
+      PLAYER_FRAME_SIZE,
+      PLAYER_FRAME_SIZE * 8,
+      PLAYER_FRAME_SIZE,
+      PLAYER_FRAME_SIZE,
+      0,
+      0,
+      PLAYER_RENDERED_SIZE,
+      PLAYER_RENDERED_SIZE,
+    );
+    expect(raw.drawImage).toHaveBeenCalledWith(
+      layer,
+      0,
+      0,
+      PLAYER_RENDERED_SIZE,
+      PLAYER_RENDERED_SIZE,
+      16,
+      256,
+      PLAYER_RENDERED_SIZE,
+      PLAYER_RENDERED_SIZE,
+    );
+  });
+
+  it('crouchedHitOnANonRedFrame-drawsPlainlyWithoutTinting', () => {
+    // The tint pulses on the `hit` row cadence, so it is only applied on the
+    // red frame (index 2). hitTimer 0.15 -> hitFrameFromTimer = 1 -> no tint.
+    const { ctx, raw } = makeLightingContext();
+    const { layer, layerCtx } = makeTintLayer();
+    const player: PlayerState = {
+      ...idlePlayer,
+      crouching: true,
+      animState: 'hit',
+      animFrame: 1,
+      hitTimer: 0.15,
+    };
+
+    drawPlayer(ctx, player, fakeSpriteSheet, 0, 0, null, true, layer);
+
+    expect(layerCtx.drawImage).not.toHaveBeenCalled();
+    expect(raw.drawImage).toHaveBeenCalledWith(
+      fakeSpriteSheet,
+      PLAYER_FRAME_SIZE,
+      PLAYER_FRAME_SIZE * 8,
+      PLAYER_FRAME_SIZE,
+      PLAYER_FRAME_SIZE,
+      16,
+      256,
+      PLAYER_RENDERED_SIZE,
+      PLAYER_RENDERED_SIZE,
+    );
+  });
+
+  it('crouchedHitWithoutTintLayer-drawsTheCrouchPosePlainlyNeverTheBakedHitRow', () => {
+    const { ctx, raw } = makeLightingContext();
+    const player: PlayerState = {
+      ...idlePlayer,
+      crouching: true,
+      animState: 'hit',
+      animFrame: 1,
+      hitTimer: 0.25,
+    };
+
+    drawPlayer(ctx, player, fakeSpriteSheet);
+
+    expect(raw.drawImage).toHaveBeenCalledWith(
+      fakeSpriteSheet,
+      PLAYER_FRAME_SIZE,
+      PLAYER_FRAME_SIZE * 8,
+      PLAYER_FRAME_SIZE,
+      PLAYER_FRAME_SIZE,
+      16,
+      256,
+      PLAYER_RENDERED_SIZE,
+      PLAYER_RENDERED_SIZE,
+    );
+  });
+
+  it('standingHitWithTintLayer-stillDrawsTheBakedHitFrameAndNeverTouchesTheLayer', () => {
+    const { ctx, raw } = makeLightingContext();
+    const { layer, layerCtx } = makeTintLayer();
+    const player: PlayerState = {
+      ...idlePlayer,
+      crouching: false,
+      animState: 'hit',
+      animFrame: 0,
+      hitTimer: 0.25,
+    };
+
+    drawPlayer(ctx, player, fakeSpriteSheet, 0, 0, null, true, layer);
+
+    // hitTimer 0.25 -> hitFrameFromTimer = 2 -> sx = 64, sy = 6 frames.
+    expect(raw.drawImage).toHaveBeenCalledWith(
+      fakeSpriteSheet,
+      64,
+      192,
+      32,
+      32,
+      16,
+      256,
+      64,
+      64,
+    );
+    expect(layerCtx.drawImage).not.toHaveBeenCalled();
   });
 
   it('draws-setsImageSmoothingEnabledFalse', () => {
@@ -3766,6 +3918,24 @@ function makeLightingLayer(width = 320, height = 180) {
   return { layer, layerCtx, compositeOps };
 }
 
+/** A fake offscreen layer for `drawTintedSprite` — a `drawImage`-capable
+ *  context with the composite-operation tracking the tint pass needs. */
+function makeTintLayer() {
+  const layerCtx = {
+    fillStyle: '',
+    globalAlpha: 1,
+    globalCompositeOperation: 'source-over',
+    clearRect: vi.fn(),
+    fillRect: vi.fn(),
+    drawImage: vi.fn(),
+  };
+  const compositeOps = trackStringProperty(layerCtx, 'globalCompositeOperation', 'source-over');
+  const layer = {
+    getContext: vi.fn(() => layerCtx),
+  } as unknown as HTMLCanvasElement;
+  return { layer, layerCtx, compositeOps };
+}
+
 function makeTorchLight(overrides: Partial<TorchLight> = {}): TorchLight {
   return { col: 0, row: 0, x: 100, y: 100, ...overrides };
 }
@@ -3973,6 +4143,7 @@ describe('drawHeldTorch', () => {
     direction: 'right',
     grounded: true,
     climbing: false,
+    crouching: false,
     isDroppingThroughBridge: false,
     lastGroundedX: 100,
     lastGroundedY: 100,
@@ -4046,6 +4217,7 @@ describe('heldTorchLightPosition', () => {
     direction: 'right',
     grounded: true,
     climbing: false,
+    crouching: false,
     isDroppingThroughBridge: false,
     lastGroundedX: 100,
     lastGroundedY: 100,
@@ -4148,5 +4320,36 @@ describe('drawEnemyEyes', () => {
     const [, restY] = rawRest.fillRect.mock.calls[0] as [number, number];
     const [, peakY] = rawPeak.fillRect.mock.calls[0] as [number, number];
     expect(peakY).toBe(restY + ENEMY_EYE_BOB_AMPLITUDE_PX);
+  });
+});
+
+describe('drawTintedSprite', () => {
+  const sheet = {} as HTMLImageElement;
+
+  it('drawTintedSprite-layerWithAContext-drawsTheFrameScaledThenTintsAndCompositesIt', () => {
+    const { ctx, raw } = makeLightingContext();
+    const { layer, layerCtx, compositeOps } = makeTintLayer();
+
+    drawTintedSprite(ctx, layer, sheet, 0, 0, 32, 16, 256, 64, CROUCH_HIT_TINT);
+
+    // 1. The frame is drawn scaled to destSize on the layer, source-over.
+    expect(layerCtx.drawImage).toHaveBeenCalledWith(sheet, 0, 0, 32, 32, 0, 0, 64, 64);
+    // 2. The tint is filled with source-atop (sprite silhouette only).
+    expect(compositeOps).toContain('source-atop');
+    expect(layerCtx.fillStyle).toBe(CROUCH_HIT_TINT);
+    expect(layerCtx.fillRect).toHaveBeenCalledWith(0, 0, 64, 64);
+    // 3. source-over is restored, and the layer is composited onto ctx.
+    expect(layerCtx.globalCompositeOperation).toBe('source-over');
+    expect(raw.drawImage).toHaveBeenCalledWith(layer, 0, 0, 64, 64, 16, 256, 64, 64);
+  });
+
+  it('drawTintedSprite-layerWhoseGetContextReturnsNull-fallsBackToAPlainDrawAndNeverThrows', () => {
+    const { ctx, raw } = makeLightingContext();
+    const layer = { getContext: vi.fn(() => null) } as unknown as HTMLCanvasElement;
+
+    expect(() =>
+      drawTintedSprite(ctx, layer, sheet, 0, 0, 32, 16, 256, 64, CROUCH_HIT_TINT),
+    ).not.toThrow();
+    expect(raw.drawImage).toHaveBeenCalledWith(sheet, 0, 0, 32, 32, 16, 256, 64, 64);
   });
 });

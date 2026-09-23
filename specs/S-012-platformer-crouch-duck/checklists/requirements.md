@@ -1,7 +1,7 @@
-# Specification Quality Checklist: Enemy Movement & Animation Seam + Bee
+# Specification Quality Checklist: Platformer Crouch/Duck
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
-**Created**: 2026-09-22
+**Created**: 2026-09-23
 **Feature**: [spec.md](../spec.md)
 
 ## Content Quality
@@ -32,13 +32,5 @@
 ## Notes
 
 - Items marked incomplete require spec updates before `/speckit.clarify` or `/speckit.plan`
-- **No clarifications were needed.** The design doc resolved the feature's scope; the four open
-  questions it left (bee reaction frames, exact fly frame range, bee tuning, marker character) are
-  game-feel or authoring details with reasonable defaults, recorded in the Assumptions section
-  rather than raised as blockers.
-- **One design assumption was corrected during specification**: the design's suggested bee marker
-  character `b` is already taken by the bomb-pot block, so the spec requires only that the character
-  collide with nothing and assumes the free character `q`, whose glyph reads as a bee.
-- **Verification approach**: most criteria are satisfiable by automated movement, animation and
-  contact tests; SC-007 (authorability) additionally needs a browser check, matching how
-  [O-021](../../O-021-platformer-floor-spikes/spec.md) handled its editor criterion.
+- Clarifications resolved: FR-008 uses a dedicated four-frame duck row (appended to the knight sheet); FR-015 teaches crouch via the upfront key legend, with a corridor signpost only as fallback.
+- `/speckit.clarify` session (2026-09-23) encoded four answers: stand-up gated by the full standing box fitting (not a literal one-tile gap); stationary crouch holds its frame while crawling loops the duck frames; crawl target ~120 px/s; legend-first onboarding.
