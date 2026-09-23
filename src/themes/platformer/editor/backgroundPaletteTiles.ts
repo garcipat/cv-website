@@ -57,6 +57,7 @@ export const BACKGROUND_PALETTE_LABELS: Record<BackgroundMaterialId, string> = {
   charcoal: 'Charcoal',
   maroon: 'Maroon',
   caveStone: 'Cave Stone',
+  wood: 'Wood',
 };
 
 /** One labelled, collapsible group of background materials in the editor's
