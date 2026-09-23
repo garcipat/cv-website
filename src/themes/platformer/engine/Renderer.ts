@@ -44,6 +44,7 @@ import {
   LADDER_STEP_NATIVE_PX,
 } from './DeployableLadder';
 import type { DeployableLadderState } from './DeployableLadder';
+import { isFogExempt } from '../level/LevelData';
 import type { LevelDef, TileType } from '../level/LevelData';
 import type { SignPlacement } from '../level/SignMapper';
 import {
@@ -138,6 +139,11 @@ import {
   ENEMY_EYE_COLOR,
   ENEMY_EYE_SIZE_PX,
   ENEMY_EYE_GAP_PX,
+  FOG_TINT_RGB,
+  FOG_PUFF_PLATEAU,
+  fogPuffAt,
+  fogPeekStrengthAt,
+  isCellDarkening,
 } from './Lighting';
 
 function tileSource(
@@ -1147,6 +1153,97 @@ export function drawBackgroundTiles(
           destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
         );
       }
+    }
+  }
+}
+
+/**
+ * Draws the outside-a-cave fog (O-028): every cell NOT exempt
+ * (`isFogExempt`) whose background material belongs to the cave family
+ * gets a soft radial-gradient "puff" (`fogPuffAt`) at `fogLevel`'s alpha,
+ * hiding everything on that cell — background, blocks and entities alike
+ * (FR-001/FR-002 — see `FOG_PUFF_PLATEAU`'s doc comment for a known
+ * tradeoff on isolated single-cell patches). Solid terrain
+ * (`groundGrass`/`groundRock`/`wall`/`bridge`) is exempt today: a cave's
+ * walls and floor are just rock, carrying no information a visitor could
+ * act on, so leaving them visible reads as "you can see the cave's shape,
+ * not what's inside it" — the open interior, where anything worth hiding
+ * (enemies, hazards, a pit, a chest) would actually be, still fogs.
+ * `isFogExempt`'s table (declared once, exhaustively, in
+ * `level/LevelData.ts`) is the single place that decision lives, so a new
+ * terrain tile forces an explicit choice rather than silently inheriting
+ * an unrelated helper's answer. Blocks are unaffected by exemption: a
+ * block sits on an otherwise-open cell, not a solid terrain tile, so a
+ * fogged cell with a block on it stays fogged.
+ *
+ * Each puff is opaque at its core out to `FOG_PUFF_PLATEAU` of its radius,
+ * then fades to transparent by the rim, and is sized a little larger than
+ * a tile so it bleeds into a neighbouring clear cell rather than stopping
+ * dead at the grid line — a flat per-cell rect read as a painted tile
+ * stamp rather than fog. A puff's centre jitters (within `FOG_PUFF_JITTER_PX`)
+ * and its radius breathes gently over time, both deterministic per cell
+ * (`fogPuffAt`), so a bank of fog looks organic rather than perfectly
+ * grid-aligned or static.
+ *
+ * Iterates the level's full background grid, the same shape
+ * `drawBackgroundTiles` uses, rather than a viewport-culled range — levels
+ * are small enough that this is cheap, and it keeps the two passes'
+ * looping identical. Each puff needs its own gradient, so (unlike a flat
+ * fill) this can't be batched into a single path/fill call; puffs overlap
+ * generously enough (`FOG_PUFF_RADIUS_PX` vs. tile spacing) that adjacent
+ * cells' soft edges blend into each other rather than leaving seams.
+ *
+ * Callers are expected to keep `fogLevel` and `darknessLevel` mutually
+ * exclusive (only one is ever above zero at a time — FR-003); this function
+ * does not itself check `darknessLevel`.
+ *
+ * When `playerPosition` is given, a puff within `FOG_PEEK_RADIUS_PX` of it
+ * thins smoothly toward fully clear the closer the player gets
+ * (`fogPeekStrengthAt`) — the same local-falloff technique the player's
+ * carried torch already uses against darkness, applied to fog instead, so a
+ * visitor gets a beat of warning before actually crossing into a fogged
+ * cell rather than stepping in blind. A puff whose peeked alpha reaches
+ * zero is skipped entirely.
+ *
+ * Fast path (SC-005): when `fogLevel <= 0` this draws nothing, so a level
+ * with no cave-family background renders exactly as it did before this
+ * feature.
+ */
+export function drawFog(
+  ctx: CanvasRenderingContext2D,
+  level: LevelDef,
+  fogLevel: number,
+  originX = 0,
+  originY = 0,
+  worldElapsed = 0,
+  playerPosition: Point | null = null,
+): void {
+  if (fogLevel <= 0) return;
+
+  const grid = level.background ?? [];
+  for (let row = 0; row < grid.length; row++) {
+    const gridRow = grid[row];
+    for (let col = 0; col < gridRow.length; col++) {
+      if (!isCellDarkening(level, col, row)) continue;
+      if (isFogExempt(tileAt(level, col, row))) continue;
+
+      const puff = fogPuffAt(col, row, worldElapsed);
+      const peek = playerPosition ? fogPeekStrengthAt(puff.x, puff.y, playerPosition) : 0;
+      const puffAlpha = fogLevel * (1 - peek);
+      if (puffAlpha <= 0) continue;
+
+      const screenX = puff.x + originX;
+      const screenY = puff.y + originY;
+
+      const gradient = ctx.createRadialGradient(screenX, screenY, 0, screenX, screenY, puff.radius);
+      gradient.addColorStop(0, `rgba(${FOG_TINT_RGB}, ${puffAlpha})`);
+      gradient.addColorStop(FOG_PUFF_PLATEAU, `rgba(${FOG_TINT_RGB}, ${puffAlpha})`);
+      gradient.addColorStop(1, `rgba(${FOG_TINT_RGB}, 0)`);
+
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(screenX, screenY, puff.radius, 0, Math.PI * 2);
+      ctx.fill();
     }
   }
 }

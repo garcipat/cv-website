@@ -47,6 +47,8 @@ import {
   respawnCenter,
   darknessLevel,
   tickDarkness,
+  fogLevel,
+  tickFog,
   torchPositions,
   mushroomSquashStates,
   tickMushroomSquashes,
@@ -1211,6 +1213,99 @@ describe('darkness', () => {
     resetGame();
 
     expect(darknessLevel.value).toBe(0);
+  });
+});
+
+describe('fog', () => {
+  afterEach(() => {
+    // currentBackgroundLayout/fogLevel are module-level; restoring them keeps
+    // this block from leaking a fogged state into every other test in the
+    // file. darknessLevel is reset too, since some tests here tick it
+    // alongside fogLevel to check the pairing invariant.
+    currentBackgroundLayout.value = LEVEL_1_BACKGROUND;
+    fogLevel.value = 0;
+    darknessLevel.value = 0;
+  });
+
+  it('fogLevel-initial-isZero', () => {
+    expect(fogLevel.value).toBe(0);
+  });
+
+  it('tickFog-playerFootCellOnOpenGround-risesTowardMaxDarkness', () => {
+    // Arrange: no background at all under the player's feet (open ground).
+    currentBackgroundLayout.value = [];
+
+    // Act: two half-fades.
+    tickFog(DARKNESS_FADE_SECONDS / 2);
+    const halfway = fogLevel.value;
+    tickFog(DARKNESS_FADE_SECONDS / 2);
+
+    // Assert
+    expect(halfway).toBeCloseTo(MAX_DARKNESS / 2);
+    expect(fogLevel.value).toBeCloseTo(MAX_DARKNESS);
+  });
+
+  it('tickFog-playerFootCellCoveredByACavePiece-returnsTowardZero', () => {
+    // Arrange: fog in fully first, on open ground.
+    currentBackgroundLayout.value = [];
+    tickFog(DARKNESS_FADE_SECONDS);
+    expect(fogLevel.value).toBeCloseTo(MAX_DARKNESS);
+
+    // Act: cover the player's own cell with a cave-family piece and tick half a fade.
+    const cell = playerOccupiedCell(playerState.value);
+    currentBackgroundLayout.value = singleCellBackground('charcoal', cell.col, cell.row);
+    tickFog(DARKNESS_FADE_SECONDS / 2);
+
+    // Assert
+    expect(fogLevel.value).toBeCloseTo(MAX_DARKNESS / 2);
+  });
+
+  it('tickFog-playerFootCellCoveredByACavePiece-neverFogs', () => {
+    const cell = playerOccupiedCell(playerState.value);
+    currentBackgroundLayout.value = singleCellBackground('charcoal', cell.col, cell.row);
+
+    tickFog(DARKNESS_FADE_SECONDS);
+
+    expect(fogLevel.value).toBe(0);
+  });
+
+  it('resetGame-calledWhileFogged-setsFogBackToZero', () => {
+    currentBackgroundLayout.value = [];
+    tickFog(DARKNESS_FADE_SECONDS);
+    expect(fogLevel.value).toBeCloseTo(MAX_DARKNESS);
+
+    resetGame();
+
+    expect(fogLevel.value).toBe(0);
+  });
+
+  it('tickFogAndTickDarknessTogether-openGround-fogIsFullAndDarknessIsZero', () => {
+    // Arrange: no background at all under the player's feet (open ground).
+    currentBackgroundLayout.value = [];
+
+    // Act: tick both effects together for a full fade.
+    tickFog(DARKNESS_FADE_SECONDS);
+    tickDarkness(DARKNESS_FADE_SECONDS);
+
+    // Assert: the pairing invariant this whole feature rests on — on open
+    // ground, fog ends fully present and darkness ends fully off.
+    expect(fogLevel.value).toBeCloseTo(MAX_DARKNESS);
+    expect(darknessLevel.value).toBeCloseTo(0);
+  });
+
+  it('tickFogAndTickDarknessTogether-caveFamilyCell-darknessIsFullAndFogIsZero', () => {
+    // Arrange: cover the cell under the player's feet with a cave-family piece.
+    const cell = playerOccupiedCell(playerState.value);
+    currentBackgroundLayout.value = singleCellBackground('charcoal', cell.col, cell.row);
+
+    // Act: tick both effects together for a full fade.
+    tickDarkness(DARKNESS_FADE_SECONDS);
+    tickFog(DARKNESS_FADE_SECONDS);
+
+    // Assert: the mirror of the open-ground case above — inside a cave,
+    // darkness ends fully present and fog ends fully off.
+    expect(darknessLevel.value).toBeCloseTo(MAX_DARKNESS);
+    expect(fogLevel.value).toBeCloseTo(0);
   });
 });
 
