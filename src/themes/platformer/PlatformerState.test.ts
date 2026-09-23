@@ -1193,9 +1193,11 @@ describe('fog', () => {
   afterEach(() => {
     // currentBackgroundLayout/fogLevel are module-level; restoring them keeps
     // this block from leaking a fogged state into every other test in the
-    // file.
+    // file. darknessLevel is reset too, since some tests here tick it
+    // alongside fogLevel to check the pairing invariant.
     currentBackgroundLayout.value = LEVEL_1_BACKGROUND;
     fogLevel.value = 0;
+    darknessLevel.value = 0;
   });
 
   it('fogLevel-initial-isZero', () => {
@@ -1248,6 +1250,35 @@ describe('fog', () => {
     resetGame();
 
     expect(fogLevel.value).toBe(0);
+  });
+
+  it('tickFogAndTickDarknessTogether-openGround-fogIsFullAndDarknessIsZero', () => {
+    // Arrange: no background at all under the player's feet (open ground).
+    currentBackgroundLayout.value = [];
+
+    // Act: tick both effects together for a full fade.
+    tickFog(DARKNESS_FADE_SECONDS);
+    tickDarkness(DARKNESS_FADE_SECONDS);
+
+    // Assert: the pairing invariant this whole feature rests on — on open
+    // ground, fog ends fully present and darkness ends fully off.
+    expect(fogLevel.value).toBeCloseTo(MAX_DARKNESS);
+    expect(darknessLevel.value).toBeCloseTo(0);
+  });
+
+  it('tickFogAndTickDarknessTogether-caveFamilyCell-darknessIsFullAndFogIsZero', () => {
+    // Arrange: cover the cell under the player's feet with a cave-family piece.
+    const cell = playerOccupiedCell(playerState.value);
+    currentBackgroundLayout.value = singleCellBackground('charcoal', cell.col, cell.row);
+
+    // Act: tick both effects together for a full fade.
+    tickDarkness(DARKNESS_FADE_SECONDS);
+    tickFog(DARKNESS_FADE_SECONDS);
+
+    // Assert: the mirror of the open-ground case above — inside a cave,
+    // darkness ends fully present and fog ends fully off.
+    expect(darknessLevel.value).toBeCloseTo(MAX_DARKNESS);
+    expect(fogLevel.value).toBeCloseTo(0);
   });
 });
 

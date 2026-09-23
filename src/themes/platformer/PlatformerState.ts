@@ -205,9 +205,12 @@ export function tickDarkness(dt: number): void {
 
 /**
  * How present the outside-a-cave fog currently is — `0` (none) to
- * `MAX_DARKNESS` (O-028 spec Assumptions: fog reuses darkness's own cap
- * since a fogged cell is never the player's own, so there is no readability
- * floor to protect). Eased every `playing` tick from the same cell
+ * `MAX_DARKNESS` (reuses darkness's own cap: 0.97 already reads as opaque,
+ * and sharing the constant with `darknessLevel` keeps the two effects'
+ * endpoints from drifting apart over time — design.md notes fog *could*
+ * safely go all the way to full opacity, since a fogged cell is never the
+ * player's own, but there's no visual reason to). Eased every `playing` tick
+ * from the same cell
  * `darknessLevel` reads, toward `MAX_DARKNESS` when that cell is NOT
  * cave-family or `0` when it is — the inverse of `darknessLevel`'s target,
  * which is what keeps the two mutually exclusive (O-028 FR-003). Because the
