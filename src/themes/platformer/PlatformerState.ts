@@ -6,6 +6,7 @@ import {
   applyDeployedLadders,
 } from './engine/DeployableLadder';
 import type { DeployableLadderState } from './engine/DeployableLadder';
+import { createDoorState, applyOpenedDoors, type DoorState } from './engine/DoorState';
 import { advanceMushroomSquashes } from './engine/MushroomSquash';
 import type { MushroomSquashState } from './engine/MushroomSquash';
 import {
@@ -38,6 +39,7 @@ import {
   currentLevel,
   TORCH_TILES,
   LADDER_BUNDLE_TILES,
+  DOOR_TILES,
 } from './level/level';
 import {
   MAX_DARKNESS,
@@ -810,14 +812,38 @@ export const deployableLadderStates = signal<DeployableLadderState[]>(
 );
 
 /**
+ * Every door pair in the level, placed once at module load from DOOR_TILES
+ * — same non-reactive, marker-driven convention as chestPlacements/
+ * deployableLadderPlacements above.
+ */
+export const doorPlacements = computed<DoorState[]>(() =>
+  DOOR_TILES.value.map(({ col, row }) => createDoorState(col, row)),
+);
+
+/**
+ * Live open/closed state for every door — mirrors deployableLadderStates.
+ * Unlike a bundle's one-way deploy, a door toggles freely (spec FR-008), and
+ * — like chestStates/blockStates, unlike deployableLadderStates — a door's
+ * open/closed state IS reset by resetGameProgress() (spec FR-013), while
+ * still surviving resetGame() (death/respawn) exactly like chests/blocks
+ * already do.
+ */
+export const doorStates = signal<DoorState[]>(doorPlacements.value);
+
+/**
  * The effective terrain grid the physics simulation reads: the raw level with
- * every completed bundle's cells written as `ropeLadder`. Identical (same
- * object) to `currentLevel.value` when nothing is deployed, so the common case
- * allocates nothing. Rendering and every other subsystem keep reading the raw
- * `currentLevel` — only `stepPlayerPhysics` consumes this (O-011 research D2).
+ * every completed bundle's cells written as `ropeLadder` and every open
+ * door's two leaf cells written as their `*Open` tile. Identical (same
+ * object) to `currentLevel.value` when nothing is deployed/open, so the
+ * common case allocates nothing. Rendering and every other subsystem keep
+ * reading the raw `currentLevel` — only `stepPlayerPhysics` consumes this
+ * (O-011 research D2).
  */
 export const activeLevel = computed<LevelDef>(() =>
-  applyDeployedLadders(currentLevel.value, deployableLadderStates.value),
+  applyOpenedDoors(
+    applyDeployedLadders(currentLevel.value, deployableLadderStates.value),
+    doorStates.value,
+  ),
 );
 
 /**
@@ -1043,6 +1069,7 @@ export function resetGameProgress(): void {
   blockStates.value = blockPlacements.value.map(toBlockState);
   spawnedCoinPlacements.value = [];
   chestStates.value = chestPlacements.value.map(toChestState);
+  doorStates.value = doorPlacements.value.map((d) => ({ ...d }));
   endingScreenShown.value = false;
   endingScreenOpen.value = false;
   bonusFruitStates.value = [];

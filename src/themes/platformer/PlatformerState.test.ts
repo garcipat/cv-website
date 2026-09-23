@@ -55,7 +55,12 @@ import {
   floorSpikeTimerStates,
   tickFloorSpikes,
   armFloorSpikeTrigger,
+  doorPlacements,
+  doorStates,
+  activeLevel,
 } from './PlatformerState';
+import { toggleDoor } from './engine/DoorState';
+import { currentLevel } from './level/level';
 import { MUSHROOM_SQUASH_DURATION_SECONDS } from './engine/MushroomSquash';
 import { FLOOR_SPIKE_CYCLE_SECONDS } from './engine/FloorSpike';
 import type { CollectedFact } from './types';
@@ -592,6 +597,76 @@ describe('blockPlacements — bombPot', () => {
     currentLayout.value = ['Sb', 'GG'];
     expect(BOMB_POT_TILES.value).toEqual([{ col: 1, row: 0 }]);
     expect(blockPlacements.value.some((b) => b.blockKind === 'bombPot')).toBe(true);
+  });
+});
+
+describe('doorPlacements-fromDoorTiles-oneEntryPerPair', () => {
+  afterEach(() => {
+    // currentLayout is module-level (see level.ts's doc comment) — restore
+    // it so this describe block doesn't leak a stripped-down layout into
+    // every other test in this file.
+    currentLayout.value = LEVEL_1_LAYOUT;
+  });
+
+  it('seeds one closed DoorState per DOOR_TILES entry', () => {
+    currentLayout.value = ['S....', 'GdDdD'];
+    expect(doorPlacements.value.length).toBe(2);
+    expect(doorPlacements.value.every((d) => d.phase === 'closed')).toBe(true);
+  });
+});
+
+describe('activeLevel-oneOpenDoor-reflectsInEffectiveGrid', () => {
+  beforeEach(() => {
+    currentLayout.value = ['S....', 'GdDdD'];
+    doorStates.value = doorPlacements.value.map((state) => ({ ...state }));
+  });
+
+  afterEach(() => {
+    currentLayout.value = LEVEL_1_LAYOUT;
+    doorStates.value = doorPlacements.value.map((state) => ({ ...state }));
+  });
+
+  it('opening a door is visible in activeLevel but not currentLevel', () => {
+    doorStates.value = doorStates.value.map((d, i) => (i === 0 ? toggleDoor(d) : d));
+    const opened = doorPlacements.value[0];
+    expect(activeLevel.value.terrain[opened.row][opened.col]).toBe('doorLeftOpen');
+    expect(currentLevel.value.terrain[opened.row][opened.col]).toBe('doorLeft');
+  });
+});
+
+describe('resetGameProgress-doorOpened-closesItAgain', () => {
+  beforeEach(() => {
+    currentLayout.value = ['S....', 'GdDdD'];
+    doorStates.value = doorPlacements.value.map((state) => ({ ...state }));
+  });
+
+  afterEach(() => {
+    currentLayout.value = LEVEL_1_LAYOUT;
+    doorStates.value = doorPlacements.value.map((state) => ({ ...state }));
+  });
+
+  it('Reset Game returns every door to closed (spec FR-013)', () => {
+    doorStates.value = doorStates.value.map(toggleDoor);
+    resetGameProgress();
+    expect(doorStates.value.every((d) => d.phase === 'closed')).toBe(true);
+  });
+});
+
+describe('resetGame-doorOpened-staysOpen', () => {
+  beforeEach(() => {
+    currentLayout.value = ['S....', 'GdDdD'];
+    doorStates.value = doorPlacements.value.map((state) => ({ ...state }));
+  });
+
+  afterEach(() => {
+    currentLayout.value = LEVEL_1_LAYOUT;
+    doorStates.value = doorPlacements.value.map((state) => ({ ...state }));
+  });
+
+  it('death/respawn does not close an opened door (spec FR-013)', () => {
+    doorStates.value = doorStates.value.map(toggleDoor);
+    resetGame();
+    expect(doorStates.value.every((d) => d.phase === 'open')).toBe(true);
   });
 });
 
