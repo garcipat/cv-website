@@ -59,6 +59,7 @@ graph RL
         O025["O-025: Platformer Dart Trap"]
         O026["O-026: Platformer Poison Gas"]
         O027["✅ O-027: Platformer Falling Stalactite"]
+        O028["✅ O-028: Cave Fog"]
         S011["S-011: Interact Hint Overlay"]
         S012["✅ S-012: Platformer Crouch/Duck"]
     end
@@ -149,6 +150,9 @@ graph RL
     O024 --> F017
     O024 --> F019
 
+    O028 --> O010
+    O028 --> O014
+
     S011 --> F015
     S011 --> S009
     S011 --> S007
@@ -204,6 +208,8 @@ graph RL
     class O026 themes
     class O027 themes
     class O027 done
+    class O028 themes
+    class O028 done
     class O017 themes
     class O017 done
     class O018 themes
