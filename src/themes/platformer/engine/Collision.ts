@@ -1,6 +1,7 @@
 import {
   PLAYER_RENDERED_SIZE,
   PLAYER_SIDE_PADDING,
+  PLAYER_FOOT_PADDING,
   playerHeadPaddingFor,
   playerBoxHeightFor,
 } from '../entities/Player';
@@ -18,9 +19,12 @@ import { signBox } from '../level/SignMapper';
 import type { SignPlacement } from '../level/SignMapper';
 import { typeOf as hazardTypeOf } from '../entities/hazards';
 import type { HazardPlacement } from '../level/HazardMapper';
-import { RENDER_SCALE, RENDERED_TILE_SIZE } from '../level/Terrain';
+import { RENDER_SCALE, RENDERED_TILE_SIZE, tileAt } from '../level/Terrain';
+import type { LevelDef } from '../level/LevelData';
 import type { FloorSpikeTimerState } from './FloorSpike';
 import { isFloorSpikeArmed } from './FloorSpike';
+import type { CrumblingFloorTimerState } from './CrumblingFloor';
+import { isCrumblingFloorArmed } from './CrumblingFloor';
 import type { HintId } from '../types';
 import type { KeyPickupState } from '../entities/KeyPickup';
 import type { HeartPickupState } from '../entities/HeartPickup';
@@ -369,6 +373,40 @@ export function checkFloorSpikeTriggers(
     floorSpikeTriggerBox,
     (h) => h.hazardType === 'floorSpike' && !isFloorSpikeArmed(timers, h.id),
   ).map((h) => h.id);
+}
+
+/**
+ * Returns the grid cells of every at-rest crumbling floor tile the player's
+ * feet currently overlap — candidates `PlatformerPage.tsx` should arm this
+ * tick (spec FR-003). Unlike `checkFloorSpikeTriggers`, there is no
+ * `HazardPlacement` list to scan: a crumbling floor tile is a plain terrain
+ * cell, so this walks the same footRow/column-range the ground-collision
+ * branch of `Physics.ts` uses, rather than `overlappingTriggers`' box-list
+ * approach.
+ */
+export function checkCrumblingFloorTriggers(
+  player: PlayerState,
+  level: LevelDef,
+  states: readonly CrumblingFloorTimerState[],
+): { col: number; row: number }[] {
+  // Only an actually-grounded player can arm a tile — otherwise a jump arc
+  // whose feet-row Y momentarily coincides with a crumbling floor tile
+  // (jumping over it, or through the space above it) would incorrectly
+  // start its crack cycle without the player ever landing on it.
+  if (!player.grounded) return [];
+  const hitboxWidth = PLAYER_RENDERED_SIZE - 2 * PLAYER_SIDE_PADDING;
+  const leftCol = Math.floor((player.x + PLAYER_SIDE_PADDING) / RENDERED_TILE_SIZE);
+  const rightCol = Math.floor((player.x + PLAYER_SIDE_PADDING + hitboxWidth - 1) / RENDERED_TILE_SIZE);
+  const feetY = player.y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING;
+  const footRow = Math.floor(feetY / RENDERED_TILE_SIZE);
+
+  const results: { col: number; row: number }[] = [];
+  for (let col = leftCol; col <= rightCol; col++) {
+    if (tileAt(level, col, footRow) !== 'crumblingFloor') continue;
+    if (isCrumblingFloorArmed(states, col, footRow)) continue;
+    results.push({ col, row: footRow });
+  }
+  return results;
 }
 
 /**

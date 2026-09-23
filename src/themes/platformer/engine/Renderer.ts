@@ -103,10 +103,19 @@ import {
   healAuraSparkles,
   hitSplatterDroplets,
   fadeOutTextOpacity,
+  crumbleDebrisPieces,
 } from './CollectionEffects';
-import type { FlightEffect, PuffEffect, HealAuraEffect, HitSplatterEffect, FadeOutTextEffect, ExplosionEffect } from './CollectionEffects';
+import type { FlightEffect, PuffEffect, HealAuraEffect, HitSplatterEffect, FadeOutTextEffect, ExplosionEffect, CrumbleDebrisEffect } from './CollectionEffects';
 import { explosionFrameIndex } from './CollectionEffects';
-import { TORCH_SHEET, BOMB_SHEET, EXPLOSION_SHEET } from '../entities/sprites/sheets';
+import { TORCH_SHEET, BOMB_SHEET, EXPLOSION_SHEET, CRUMBLE_FLOOR_SHEET, CRUMBLE_CRACKS_SHEET } from '../entities/sprites/sheets';
+import {
+  crumblingFloorPhaseFor,
+  crumblingFloorCrackRatioFor,
+  crumblingFloorReformRatioFor,
+  crumblingFloorShakeOffsetXAt,
+  crumblingFloorElapsedFor,
+} from './CrumblingFloor';
+import type { CrumblingFloorTimerState } from './CrumblingFloor';
 import { bombFuseFrame } from './PlacedBomb';
 import type { PlacedBombState } from './PlacedBomb';
 import {
@@ -199,6 +208,12 @@ function tileSource(
       // Drawn by drawTerrain's own mushroom branch when the mushroom sheet is
       // loaded (the cap/stem split, the squash dip and the decorative cell are
       // all neighbour- or state-dependent) — not a static sx/sy lookup.
+      return null;
+    case 'crumblingFloor':
+      // Drawn by the dedicated drawCrumblingFloors pass below, which needs
+      // per-cell cycle state (crack stage, shake, reform scale) this shared
+      // static sx/sy lookup has no way to access — not a plain tile-source
+      // lookup, same reasoning as ladderBundle/bouncyMushroom above.
       return null;
     case 'empty':
       return null;
@@ -939,6 +954,153 @@ export function drawDeployableLadders(
       remaining -= 1;
     }
   }
+}
+
+/**
+ * Draws every crumbling floor tile (O-023) at its current cycle phase —
+ * exempted from `drawTerrain`/`tileSource` (see that function's
+ * `'crumblingFloor'` case) because it needs per-cell timer state, the same
+ * reason `drawDeployableLadders` is its own pass. Takes the whole
+ * `DrawContext` (like `drawHazards`/`drawBlocks`) rather than raw image
+ * refs, since it reads two sprites out of `dc.sprites` by source path.
+ *
+ * `'broken'` draws nothing (the bare gap). `'atRest'`/`'cracking'` draw the
+ * full ledge, with the crack overlay's frame 0/1/2 composited on top once
+ * cracking starts (picked from the continuous crack ratio) plus a small
+ * horizontal shake jitter. `'reforming'` draws the ledge scaled from small
+ * to full, anchored to the cell's own top-center so it grows toward where
+ * its collision boundary already sits.
+ */
+function isCrumblingFloorTile(level: LevelDef, col: number, row: number): boolean {
+  return tileAt(level, col, row) === 'crumblingFloor';
+}
+
+export function drawCrumblingFloors(
+  ctx: CanvasRenderingContext2D,
+  level: LevelDef,
+  states: readonly CrumblingFloorTimerState[],
+  dc: DrawContext,
+): void {
+  const ledge = dc.sprites[CRUMBLE_FLOOR_SHEET.src];
+  if (!ledge) return;
+  const cracks = dc.sprites[CRUMBLE_CRACKS_SHEET.src];
+
+  ctx.imageSmoothingEnabled = false;
+
+  for (let row = 0; row < level.height; row++) {
+    for (let col = 0; col < level.width; col++) {
+      if (tileAt(level, col, row) !== 'crumblingFloor') continue;
+
+      const phase = crumblingFloorPhaseFor(states, col, row);
+      if (phase === 'broken') continue;
+
+      const { x, y } = tileToPixel(col, row);
+      const destX = x + dc.originX;
+      const destY = y + dc.originY;
+
+      // 'single' (an isolated tile with no crumblingFloor neighbour on
+      // either side) gets its own frame, rounded on both edges — not the
+      // flat middle frame a run's interior tiles use.
+      const runPosition = horizontalRunPosition(level, col, row, isCrumblingFloorTile);
+      const frameIndex =
+        runPosition === 'left' ? 0 : runPosition === 'right' ? 2 : runPosition === 'single' ? 3 : 1;
+      const { sx: ledgeSx } = frameSource(CRUMBLE_FLOOR_SHEET, frameIndex);
+
+      if (phase === 'reforming') {
+        const ratio = crumblingFloorReformRatioFor(states, col, row);
+        if (ratio <= 0) continue;
+        const w = RENDERED_TILE_SIZE * ratio;
+        const h = RENDERED_TILE_SIZE * ratio;
+        const dx = destX + (RENDERED_TILE_SIZE - w) / 2;
+        ctx.drawImage(ledge, ledgeSx, 0, TILE_SIZE, TILE_SIZE, dx, destY, w, h);
+        continue;
+      }
+
+      // atRest or cracking.
+      const elapsedSeconds = phase === 'cracking' ? crumblingFloorElapsedFor(states, col, row) : 0;
+      const shakeX =
+        phase === 'cracking' ? crumblingFloorShakeOffsetXAt(elapsedSeconds) * RENDER_SCALE : 0;
+      ctx.drawImage(ledge, ledgeSx, 0, TILE_SIZE, TILE_SIZE, destX + shakeX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+
+      if (phase === 'cracking' && cracks) {
+        const ratio = crumblingFloorCrackRatioFor(states, col, row);
+        const frameIndex = Math.min(2, Math.floor(ratio * 3));
+        const { sx, sy } = frameSource(CRUMBLE_CRACKS_SHEET, frameIndex);
+        const destHeight = (CRUMBLE_CRACKS_SHEET.frameHeight / TILE_SIZE) * RENDERED_TILE_SIZE;
+        ctx.drawImage(
+          cracks, sx, sy, CRUMBLE_CRACKS_SHEET.frameWidth, CRUMBLE_CRACKS_SHEET.frameHeight,
+          destX + shakeX, destY, RENDERED_TILE_SIZE, destHeight,
+        );
+      }
+    }
+  }
+}
+
+/** Native px size of one debris quarter — a quadrant of the tile's own
+ *  half-height content band (matches CRUMBLE_CRACKS_SHEET's 8px height),
+ *  not a quadrant of the full 16x16 frame (most of which is transparent
+ *  padding below the art). */
+const DEBRIS_QUARTER_W = TILE_SIZE / 2;
+const DEBRIS_QUARTER_H = CRUMBLE_CRACKS_SHEET.frameHeight / 2;
+
+/** Native (sx, sy) of each of the 4 quarters, in the same fixed order
+ *  `crumbleDebrisPieces` returns: top-left, top-right, bottom-left,
+ *  bottom-right. */
+const DEBRIS_QUARTER_SRC: readonly { sx: number; sy: number }[] = [
+  { sx: 0, sy: 0 },
+  { sx: DEBRIS_QUARTER_W, sy: 0 },
+  { sx: 0, sy: DEBRIS_QUARTER_H },
+  { sx: DEBRIS_QUARTER_W, sy: DEBRIS_QUARTER_H },
+];
+
+/**
+ * Draws every falling crumbling-floor debris piece (O-023). Each of the 4
+ * quarters is drawn as TWO layered blits — the matching quadrant of the
+ * plain ledge art, then the same quadrant of the heavy crack frame on top —
+ * exactly `Crate.ts`'s base-plus-crack-overlay technique, so a falling piece
+ * reads as "a chunk of the cracked floor" without any dedicated debris art.
+ */
+export function drawCrumbleDebrisEffects(
+  ctx: CanvasRenderingContext2D,
+  effects: readonly CrumbleDebrisEffect[],
+  dc: DrawContext,
+): void {
+  const ledge = dc.sprites[CRUMBLE_FLOOR_SHEET.src];
+  const cracks = dc.sprites[CRUMBLE_CRACKS_SHEET.src];
+  if (!ledge) return;
+
+  const heavyFrame = frameSource(CRUMBLE_CRACKS_SHEET, 2);
+  // Debris always breaks off the MIDDLE ledge frame's art, regardless of
+  // which run-position frame the tile itself was actually showing — a
+  // reasonable simplification for a decorative, short-lived effect (see
+  // CollectionEffects.ts's doc comment on CrumbleDebrisEffect).
+  const { sx: ledgeMidSx } = frameSource(CRUMBLE_FLOOR_SHEET, 1);
+  const destWidth = DEBRIS_QUARTER_W * RENDER_SCALE;
+  const destHeight = DEBRIS_QUARTER_H * RENDER_SCALE;
+
+  for (const effect of effects) {
+    const pieces = crumbleDebrisPieces(effect);
+    for (let i = 0; i < pieces.length; i++) {
+      const piece = pieces[i];
+      if (piece.opacity <= 0) continue;
+      const quarter = DEBRIS_QUARTER_SRC[i];
+      const dx = effect.x + dc.originX + quarter.sx * RENDER_SCALE + piece.dx;
+      const dy = effect.y + dc.originY + quarter.sy * RENDER_SCALE + piece.dy;
+
+      ctx.globalAlpha = piece.opacity;
+      ctx.drawImage(
+        ledge, ledgeMidSx + quarter.sx, quarter.sy, DEBRIS_QUARTER_W, DEBRIS_QUARTER_H,
+        dx, dy, destWidth, destHeight,
+      );
+      if (cracks) {
+        ctx.drawImage(
+          cracks, heavyFrame.sx + quarter.sx, heavyFrame.sy + quarter.sy, DEBRIS_QUARTER_W, DEBRIS_QUARTER_H,
+          dx, dy, destWidth, destHeight,
+        );
+      }
+    }
+  }
+  ctx.globalAlpha = 1;
 }
 
 /**

@@ -52,6 +52,7 @@ export function flyMovement<S extends BaseEnemyState>(
         level: ctx.level,
         blockedTiles: ctx.blockedTiles,
         dt,
+        crumblingFloorStates: ctx.crumblingFloorStates,
       });
       const phase = angularFrequency * ctx.elapsed;
       const y = enemy.homeY + config.bobAmplitude * Math.sin(phase);

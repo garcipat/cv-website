@@ -1,6 +1,7 @@
 import type { LevelDef } from '../level/LevelData';
 import type { EnemyState } from '../entities/Enemy';
 import { typeOf } from '../entities/enemies';
+import type { CrumblingFloorTimerState } from './CrumblingFloor';
 
 /**
  * Advances one enemy's movement by `dt` seconds — a thin compatibility
@@ -21,10 +22,11 @@ export function stepEnemyPatrol(
   level: LevelDef,
   dt: number,
   blockedTiles: readonly { col: number; row: number }[],
+  crumblingFloorStates?: readonly CrumblingFloorTimerState[],
 ): EnemyState {
   return typeOf(enemy).movement.step(
     enemy,
-    { level, blockedTiles, player: null, elapsed: 0 },
+    { level, blockedTiles, player: null, elapsed: 0, crumblingFloorStates },
     dt,
   );
 }

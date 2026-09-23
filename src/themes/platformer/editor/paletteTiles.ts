@@ -23,6 +23,14 @@ export interface TileSpriteSpec {
   sy: number;
   frameWidth: number;
   frameHeight: number;
+  /** Shifts the base sprite DOWN within its icon box by this many source
+   *  px (scaled the same as everything else), without changing what's
+   *  cropped from the sheet. Every existing tile omits this (defaults to
+   *  0, unchanged). `g`'s ledge art is top-aligned within its own 16x16
+   *  cell (rows 0-8 opaque, 9-15 transparent) — the same shape the live
+   *  game renders — but the palette icon reads better nudged down a
+   *  little rather than sitting flush against the box's own top edge. */
+  topOffset?: number;
   /**
    * A second crop of the SAME sheet, drawn over the base crop at the same
    * scale and offset by its own `sx`/`sy`. Ground cells carry no grass — the
@@ -36,7 +44,35 @@ export interface TileSpriteSpec {
    * overlay fills the base's own `frameHeight`, unchanged from before this
    * field existed.
    */
-  overlay?: { sx: number; sy: number; frameHeight?: number };
+  /** `sheet` (and its native `sheetWidth`/`sheetHeight`) default to the base
+   *  spec's own when omitted — every existing overlay (e.g. `G`'s grass
+   *  tuft) draws from the same sheet as its base crop, at that sheet's own
+   *  dimensions. `g`'s crack overlay is the first to need a second file
+   *  (`crumble_cracks.png`, separate from `crumble_floor.png`, and a
+   *  different native size — 48x8 vs. 16x16), so all three are optional
+   *  here rather than assumed; the rendering code (`PaletteTile.tsx`) falls
+   *  each back to the base spec's own value independently.
+   *
+   *  `anchor` picks which edge of the base's own footprint a shorter
+   *  `frameHeight` slice sits flush against: `'bottom'` (the default, and
+   *  every overlay before `g`) reads as "emerging from the ground" — the
+   *  floor spike's tip sticking up out of its tell. `'top'` sits flush
+   *  with the base sprite's own top edge instead, matching how the live
+   *  game's `Renderer.ts` composites the crumbling floor's crack overlay
+   *  at the same y as the ledge's own top (`destY`) — required because
+   *  `crumble_floor.png`'s visible ledge art itself is top-aligned in its
+   *  16x16 cell (rows 0-8 opaque, 9-15 transparent), the opposite of the
+   *  floor spike's bottom-aligned tell. Omitted, behavior is byte-for-byte
+   *  identical to before this field existed. */
+  overlay?: {
+    sheet?: string;
+    sheetWidth?: number;
+    sheetHeight?: number;
+    sx: number;
+    sy: number;
+    frameHeight?: number;
+    anchor?: 'top' | 'bottom';
+  };
 }
 
 const WORLD_TILESET = '/sprites/world_tileset.png';
@@ -317,6 +353,53 @@ export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
     frameWidth: 16,
     frameHeight: 16,
   },
+  g: {
+    // crumble_floor.png's one frame — a half-height ledge, top-aligned in
+    // its 16x16 cell (O-023). Same sheet the live game reads. The overlay
+    // composites crumble_cracks.png's frame 0 (the lightest crack stage) on
+    // top, at the same position/scale the live game uses for its cracking
+    // phase — so the palette icon reads as "unstable ground" at a glance
+    // instead of looking like a plain short platform. crumble_cracks.png is
+    // a 48x8 strip (3 frames of 16x8, see CRUMBLE_CRACKS_SHEET) — a
+    // genuinely different native size from the 16x16 base sheet, hence the
+    // overlay's own sheetWidth/sheetHeight rather than inheriting the
+    // base's.
+    // crumble_floor.png is now a 48x16 strip (3 frames of 16x16: left cap,
+    // middle, right cap — see CRUMBLE_FLOOR_SHEET) so a run of placed tiles
+    // can show proper end caps. The palette icon previews the MIDDLE frame
+    // (sx: 16), matching how an isolated single tile renders in-game
+    // (Terrain.ts's horizontalRunPosition resolves a lone tile to 'single',
+    // which Renderer.ts treats the same as 'middle' — same convention
+    // bridgeRunPosition already uses).
+    // Previews frame 3 (sx: 48) — the "single" variant, rounded on both
+    // edges — matching how a freshly-placed, still-isolated tile actually
+    // renders (Renderer.ts's drawCrumblingFloors), not the flat repeatable
+    // middle frame a run's interior tiles use.
+    sheet: '/sprites/crumble_floor.png',
+    sheetWidth: 64,
+    sheetHeight: 16,
+    sx: 48,
+    sy: 0,
+    frameWidth: 16,
+    frameHeight: 16,
+    topOffset: 4,
+    overlay: {
+      sheet: '/sprites/crumble_cracks.png',
+      sheetWidth: 48,
+      sheetHeight: 8,
+      // Frame 2 (heavy cracking, sx: 32) rather than frame 0 (light) — more
+      // recognizable as "unstable ground" at the palette's small icon size.
+      sx: 32,
+      sy: 0,
+      frameHeight: 8,
+      // Top-anchored: crumble_floor.png's visible ledge art occupies the
+      // TOP half of its 16x16 cell (rows 0-8), not the bottom half like the
+      // floor spike's tell — so the crack overlay must sit flush with the
+      // base sprite's own top edge, matching Renderer.ts's compositing, or
+      // it lands over the ledge's transparent bottom half instead.
+      anchor: 'top',
+    },
+  },
   '§': {
     // The complete-mushroom crop (16x16 at 0,0) of the red row of
     // mushroom.png (see MUSHROOM_SHEET). '§' is quoted: it is not a valid JS
@@ -561,6 +644,7 @@ export const PALETTE_TILE_DESCRIPTIONS: Record<TileChar, string> = {
   '⊥': 'Stalagmite; purely decorative, auto-picks a size variant',
   '¥': 'Wall torch; purely decorative, flame sparkles',
   '@': 'Rope ladder bundle; press Up while standing on it to unroll a rope ladder down to the ground below',
+  g: 'Cracks and shakes underfoot, then breaks and falls away; reforms after a short delay',
   '§': 'Land on its cap to be launched upward; walk and jump through it freely',
   s: 'Small mushroom; purely decorative, no effect',
   '1': 'Hint sign; click it again on the canvas to cycle its hint',
@@ -611,6 +695,7 @@ export const PALETTE_TILE_LABELS: Record<TileChar, string> = {
   '⊥': 'Stalagmite',
   '¥': 'Torch',
   '@': 'Rope Ladder Bundle',
+  g: 'Crumbling Floor',
   '§': 'Bouncy Mushroom',
   s: 'Small Mushroom',
   '1': 'Sign',

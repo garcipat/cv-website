@@ -43,6 +43,9 @@ export const TERRAIN_CHARS: Record<string, TileType | undefined> = {
   // '§' is not a valid JS identifier, so its key is quoted.
   '§': 'bouncyMushroom',
   s: 'decorativeMushroom',
+  // O-023's crumbling floor. Half-height ledge art, own runtime cycle state
+  // (engine/CrumblingFloor.ts) — the grid holds only its fixed placement.
+  g: 'crumblingFloor',
 };
 
 /**
@@ -216,7 +219,8 @@ export type TileChar =
   | 'C'
   | '@'
   | '§'
-  | 's';
+  | 's'
+  | 'g';
 
 /**
  * Parses a level's raw ASCII layout (one character per tile, see
