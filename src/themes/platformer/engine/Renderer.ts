@@ -1113,25 +1113,28 @@ export function drawBackgroundTiles(
  * (`isFogExempt`) whose background material belongs to the cave family
  * gets a soft radial-gradient "puff" (`fogPuffAt`) at `fogLevel`'s alpha,
  * hiding everything on that cell — background, blocks and entities alike
- * (FR-001/FR-002). Solid terrain (`groundGrass`/`groundRock`/`wall`/
- * `bridge`) is exempt today: a cave's walls and floor are just rock,
- * carrying no information a visitor could act on, so leaving them visible
- * reads as "you can see the cave's shape, not what's inside it" — the
- * open interior, where anything worth hiding (enemies, hazards, a pit, a
- * chest) would actually be, still fogs. `isFogExempt`'s table (declared
- * once, exhaustively, in `level/LevelData.ts`) is the single place that
- * decision lives, so a new terrain tile forces an explicit choice rather
- * than silently inheriting an unrelated helper's answer. Blocks are
- * unaffected by exemption: a block sits on an otherwise-open cell, not a
- * solid terrain tile, so a fogged cell with a block on it stays fogged.
+ * (FR-001/FR-002 — see `FOG_PUFF_PLATEAU`'s doc comment for a known
+ * tradeoff on isolated single-cell patches). Solid terrain
+ * (`groundGrass`/`groundRock`/`wall`/`bridge`) is exempt today: a cave's
+ * walls and floor are just rock, carrying no information a visitor could
+ * act on, so leaving them visible reads as "you can see the cave's shape,
+ * not what's inside it" — the open interior, where anything worth hiding
+ * (enemies, hazards, a pit, a chest) would actually be, still fogs.
+ * `isFogExempt`'s table (declared once, exhaustively, in
+ * `level/LevelData.ts`) is the single place that decision lives, so a new
+ * terrain tile forces an explicit choice rather than silently inheriting
+ * an unrelated helper's answer. Blocks are unaffected by exemption: a
+ * block sits on an otherwise-open cell, not a solid terrain tile, so a
+ * fogged cell with a block on it stays fogged.
  *
- * Each puff is opaque at its core out to `FOG_PUFF_PLATEAU` of its radius, then
- * fades to transparent by the rim, and is sized a little larger than a
- * tile so it bleeds into a neighbouring clear cell rather than stopping
+ * Each puff is opaque at its core out to `FOG_PUFF_PLATEAU` of its radius,
+ * then fades to transparent by the rim, and is sized a little larger than
+ * a tile so it bleeds into a neighbouring clear cell rather than stopping
  * dead at the grid line — a flat per-cell rect read as a painted tile
- * stamp rather than fog. A puff's centre jitters and its radius breathes
- * gently over time, both deterministic per cell (`fogPuffAt`), so a bank
- * of fog looks organic rather than perfectly grid-aligned or static.
+ * stamp rather than fog. A puff's centre jitters (within `FOG_PUFF_JITTER_PX`)
+ * and its radius breathes gently over time, both deterministic per cell
+ * (`fogPuffAt`), so a bank of fog looks organic rather than perfectly
+ * grid-aligned or static.
  *
  * Iterates the level's full background grid, the same shape
  * `drawBackgroundTiles` uses, rather than a viewport-culled range — levels

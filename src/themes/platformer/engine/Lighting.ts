@@ -73,6 +73,19 @@ export const FOG_PUFF_RADIUS_PX = 1.35 * RENDERED_TILE_SIZE;
  * plateau (near the puff's own radius) is what made the first version read
  * as "gray paint" instead of fog. Still enough of a solid centre that a
  * fogged cell's own middle stays opaque.
+ *
+ * Known tradeoff: because the fade starts this close to centre, content on
+ * an ISOLATED single- or two-cell fog patch — one with no neighbouring
+ * cave-family cell whose own puff would otherwise overlap and reinforce
+ * it — can sit close enough to this puff's soft rim to be faintly
+ * legible, rather than fully hidden as FR-002 asks for in the strict
+ * case. Two stricter alternatives were tried and reverted: extending the
+ * plateau (reads as flat paint again) and a separate small solid coverage
+ * circle under the haze (reads as an obvious second circle wherever the
+ * haze has faded past it). In practice this only matters for small,
+ * isolated cave pockets — every cave-family region in the shipped level is
+ * large enough that overlapping neighbouring puffs cover any single
+ * cell's content regardless of where its own puff's fade lands.
  */
 export const FOG_PUFF_PLATEAU = 0.3;
 
@@ -80,9 +93,12 @@ export const FOG_PUFF_PLATEAU = 0.3;
  * How far a fog puff's centre can drift from its own cell's centre, in
  * rendered pixels — small enough to stay visibly anchored to its cell,
  * large enough that a bank of fogged cells doesn't read as a perfectly
- * grid-aligned stamp.
+ * grid-aligned stamp. Kept modest rather than generous: every pixel of
+ * drift widens the gap `FOG_PUFF_PLATEAU`'s doc comment describes between
+ * a puff's centre and its cell's own farthest corner, so a smaller jitter
+ * directly narrows the isolated-cell tradeoff described there.
  */
-export const FOG_PUFF_JITTER_PX = 0.3 * RENDERED_TILE_SIZE;
+export const FOG_PUFF_JITTER_PX = 0.12 * RENDERED_TILE_SIZE;
 
 /** Depth of a fog puff's own gentle "breathing" pulse, as a fraction of its
  *  radius — same shape as `TORCH_PULSE_AMPLITUDE` below, kept as its own
