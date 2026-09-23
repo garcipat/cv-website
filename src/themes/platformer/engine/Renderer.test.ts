@@ -49,6 +49,7 @@ import {
   heldTorchLightPosition,
   drawTintedSprite,
   CROUCH_HIT_TINT,
+  drawDoors,
 } from './Renderer';
 import type { LevelDef } from '../level/LevelData';
 import { backgroundAtlasCell } from './BackgroundAtlas';
@@ -138,7 +139,8 @@ import {
 } from './Lighting';
 
 const ENEMY_FRAME_SIZE = SLIME_GREEN_SHEET.frameWidth;
-import { RENDERED_TILE_SIZE } from '../level/Terrain';
+import { RENDERED_TILE_SIZE, TILE_SIZE } from '../level/Terrain';
+import { createDoorState } from './DoorState';
 import {
   CHEST_CLOSED_WIDTH,
   CHEST_CLOSED_HEIGHT,
@@ -203,6 +205,7 @@ function makeMockContext() {
 
 const fakeTileset = {} as HTMLImageElement;
 const fakeGroundAtlas = {} as HTMLImageElement;
+const fakeGroundWoodImage = {} as HTMLImageElement;
 
 function makePlacement(id: string, spriteType: 'coin' | 'fruit', x: number, y: number): CollectiblePlacement {
   return { id, spriteType, x, y };
@@ -1427,6 +1430,44 @@ describe('drawTerrain', () => {
     drawTerrain(ctx, level, fakeTileset, fakeGroundAtlas);
 
     expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 16, 0, 16, 16, 0, 0, 32, 32);
+  });
+
+  it('tileSource-groundWood-topExposed-returnsExposedFrame', () => {
+    const level: LevelDef = { width: 1, height: 1, terrain: [['groundWood']] };
+    const ctx = makeMockContext();
+
+    drawTerrain(ctx, level, fakeTileset, fakeGroundAtlas, 0, 0, null, null, null, 0, null, [], fakeGroundWoodImage);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeGroundWoodImage, 0, 0, 16, 16, 0, 0, 32, 32);
+  });
+
+  it('tileSource-groundWood-buried-returnsBuriedFrame', () => {
+    const level: LevelDef = { width: 1, height: 2, terrain: [['wall'], ['groundWood']] };
+    const ctx = makeMockContext();
+
+    drawTerrain(ctx, level, fakeTileset, fakeGroundAtlas, 0, 0, null, null, null, 0, null, [], fakeGroundWoodImage);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeGroundWoodImage, TILE_SIZE, 0, 16, 16, 0, 32, 32, 32);
+  });
+
+  it('groundWood-noSheetLoaded-drawsNothing', () => {
+    const level: LevelDef = { width: 1, height: 1, terrain: [['groundWood']] };
+    const ctx = makeMockContext();
+
+    drawTerrain(ctx, level, fakeTileset, fakeGroundAtlas);
+
+    expect(ctx.drawImage).not.toHaveBeenCalled();
+  });
+
+  it('tileSource-doorTileVariants-returnNullForCustomDraw', () => {
+    for (const type of ['doorLeft', 'doorRight', 'doorLeftOpen', 'doorRightOpen'] as const) {
+      const level: LevelDef = { width: 1, height: 1, terrain: [[type]] };
+      const ctx = makeMockContext();
+
+      drawTerrain(ctx, level, fakeTileset, fakeGroundAtlas);
+
+      expect(ctx.drawImage).not.toHaveBeenCalled();
+    }
   });
 
   it('wallTile-draws-fromStoneBlockSource', () => {
@@ -4351,5 +4392,61 @@ describe('drawTintedSprite', () => {
       drawTintedSprite(ctx, layer, sheet, 0, 0, 32, 16, 256, 64, CROUCH_HIT_TINT),
     ).not.toThrow();
     expect(raw.drawImage).toHaveBeenCalledWith(sheet, 0, 0, 32, 32, 16, 256, 64, 64);
+  });
+});
+
+describe('drawDoors', () => {
+  it('drawDoors-nullSheet-returnsImmediately', () => {
+    const ctx = { drawImage: vi.fn() } as unknown as CanvasRenderingContext2D;
+
+    drawDoors(ctx, [createDoorState(1, 1)], null, 0, 0);
+
+    expect(ctx.drawImage).not.toHaveBeenCalled();
+  });
+
+  it('drawDoors-closedDoor-drawsBothClosedLeaves', () => {
+    const ctx = { drawImage: vi.fn(), imageSmoothingEnabled: true } as unknown as CanvasRenderingContext2D;
+    const sheet = {} as HTMLImageElement;
+
+    drawDoors(ctx, [createDoorState(1, 1)], sheet, 0, 0);
+
+    expect(ctx.drawImage).toHaveBeenCalledTimes(2);
+  });
+
+  it('drawDoors-closedDoor-bottomAnchorsBothLeavesAtTheDoorsTwoColumns', () => {
+    const ctx = { drawImage: vi.fn(), imageSmoothingEnabled: true } as unknown as CanvasRenderingContext2D;
+    const sheet = {} as HTMLImageElement;
+
+    // col 1, row 1: cell bottom is (1 + 1) * 32 = 64. Leaf art is 16x26
+    // native (32x52 rendered), so it bleeds 20px upward into the cell above:
+    // destY = 64 - 52 = 12.
+    drawDoors(ctx, [createDoorState(1, 1)], sheet, 0, 0);
+
+    // Left leaf: DOOR_FRAME_CLOSED_LEFT (index 0) -> sx 0, sy 0; column 1.
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(1, sheet, 0, 0, 16, 26, 32, 12, 32, 52);
+    // Right leaf: DOOR_FRAME_CLOSED_RIGHT (index 1) -> sx 16, sy 0; column 2.
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(2, sheet, 16, 0, 16, 26, 64, 12, 32, 52);
+  });
+
+  it('drawDoors-openDoor-drawsOpenFramesAtSameBottomAnchor', () => {
+    const ctx = { drawImage: vi.fn(), imageSmoothingEnabled: true } as unknown as CanvasRenderingContext2D;
+    const sheet = {} as HTMLImageElement;
+    const state = { ...createDoorState(0, 0), phase: 'open' as const };
+
+    drawDoors(ctx, [state], sheet, 0, 0);
+
+    // Left leaf: DOOR_FRAME_OPEN_LEFT (index 2) -> sx 32, sy 0; column 0.
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(1, sheet, 32, 0, 16, 26, 0, -20, 32, 52);
+    // Right leaf: DOOR_FRAME_OPEN_RIGHT (index 3) -> sx 48, sy 0; column 1.
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(2, sheet, 48, 0, 16, 26, 32, -20, 32, 52);
+  });
+
+  it('drawDoors-withOrigin-offsetsDestinationByOrigin', () => {
+    const ctx = { drawImage: vi.fn(), imageSmoothingEnabled: true } as unknown as CanvasRenderingContext2D;
+    const sheet = {} as HTMLImageElement;
+
+    drawDoors(ctx, [createDoorState(0, 0)], sheet, 10, 5);
+
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(1, sheet, 0, 0, 16, 26, 10, -15, 32, 52);
   });
 });

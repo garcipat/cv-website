@@ -108,7 +108,19 @@ import {
 } from './CollectionEffects';
 import type { FlightEffect, PuffEffect, HealAuraEffect, HitSplatterEffect, FadeOutTextEffect, ExplosionEffect, CrumbleDebrisEffect } from './CollectionEffects';
 import { explosionFrameIndex } from './CollectionEffects';
-import { TORCH_SHEET, BOMB_SHEET, EXPLOSION_SHEET, CRUMBLE_FLOOR_SHEET, CRUMBLE_CRACKS_SHEET } from '../entities/sprites/sheets';
+import {
+  TORCH_SHEET,
+  BOMB_SHEET,
+  EXPLOSION_SHEET,
+  CRUMBLE_FLOOR_SHEET,
+  CRUMBLE_CRACKS_SHEET,
+  DOOR_SHEET,
+  DOOR_FRAME_CLOSED_LEFT,
+  DOOR_FRAME_CLOSED_RIGHT,
+  DOOR_FRAME_OPEN_LEFT,
+  DOOR_FRAME_OPEN_RIGHT,
+} from '../entities/sprites/sheets';
+import type { DoorState } from './DoorState';
 import {
   crumblingFloorPhaseFor,
   crumblingFloorCrackRatioFor,
@@ -161,6 +173,15 @@ function tileSource(
       return isTopExposed(level, col, row)
         ? { sx: TILE_SIZE, sy: 0 }
         : { sx: TILE_SIZE, sy: TILE_SIZE };
+    case 'groundWood':
+      // GROUND_WOOD_SHEET (Task 10) is its own dedicated image, addressed
+      // from (0, 0) — never world_tileset.png's coordinate space. drawTerrain
+      // threads a separate groundWoodImage parameter and picks it over
+      // `tileset` when drawing this tile's source rect (see its own
+      // sheet-selection logic).
+      return isTopExposed(level, col, row)
+        ? { sx: 0, sy: 0 }
+        : { sx: TILE_SIZE, sy: 0 };
     case 'wall':
       return { sx: 8 * TILE_SIZE, sy: 0 };
     case 'bridge': {
@@ -187,6 +208,15 @@ function tileSource(
       // drawTileMarkers). It can reach a real level's terrain at all only
       // by way of a blueprint stamped down in the editor (step 44c), and
       // even then it must stay invisible in game.
+      return null;
+    case 'doorLeft':
+    case 'doorRight':
+    case 'doorLeftOpen':
+    case 'doorRightOpen':
+      // Drawn by the dedicated drawDoors pass below — a leaf's art is
+      // taller than its tile and bottom-anchored (bleeds upward into the
+      // cell above, see design.md's "Rendering taller than the tile"),
+      // which this shared single-cell lookup has no way to express.
       return null;
     case 'bush':
     case 'fence':
@@ -673,6 +703,7 @@ export function drawTerrain(
   worldElapsed = 0,
   mushroom: HTMLImageElement | null = null,
   mushroomSquashes: readonly MushroomSquashState[] = [],
+  groundWoodImage: HTMLImageElement | null = null,
 ): void {
   ctx.imageSmoothingEnabled = false;
 
@@ -877,8 +908,14 @@ export function drawTerrain(
       const source = tileSource(level, tile, col, row);
       if (!source) continue;
 
+      // groundWood sources from its own dedicated GROUND_WOOD_SHEET image
+      // (Task 10), never world_tileset.png — every other plain tileSource
+      // draw still comes from `tileset`.
+      const sheet = tile === 'groundWood' ? groundWoodImage : tileset;
+      if (!sheet) continue;
+
       ctx.drawImage(
-        tileset, source.sx, source.sy, TILE_SIZE, TILE_SIZE,
+        sheet, source.sx, source.sy, TILE_SIZE, TILE_SIZE,
         destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
       );
     }
@@ -960,6 +997,53 @@ export function drawDeployableLadders(
       remaining -= 1;
     }
   }
+}
+
+/**
+ * Draws every door's two leaves. Each leaf's source frame (16x26,
+ * `DOOR_SHEET`) is taller than RENDERED_TILE_SIZE, so it is drawn
+ * BOTTOM-anchored to its own cell — the leaf's rendered bottom edge lines
+ * up with the cell's bottom edge, and the excess height bleeds upward into
+ * the cell above (design.md's "Rendering taller than the tile: bleed, not
+ * squeeze" — the mirror of FloorSpike's downward bleed).
+ * `imageSmoothingEnabled = false` matches every other pixel-art draw pass
+ * in this file.
+ */
+export function drawDoors(
+  ctx: CanvasRenderingContext2D,
+  states: readonly DoorState[],
+  doorSheet: HTMLImageElement | null,
+  originX: number,
+  originY: number,
+): void {
+  if (!doorSheet) return;
+  ctx.imageSmoothingEnabled = false;
+  for (const state of states) {
+    const leftFrame = state.phase === 'open' ? DOOR_FRAME_OPEN_LEFT : DOOR_FRAME_CLOSED_LEFT;
+    const rightFrame = state.phase === 'open' ? DOOR_FRAME_OPEN_RIGHT : DOOR_FRAME_CLOSED_RIGHT;
+    drawBottomAnchoredLeaf(ctx, doorSheet, leftFrame, state.col, state.row, originX, originY);
+    drawBottomAnchoredLeaf(ctx, doorSheet, rightFrame, state.col + 1, state.row, originX, originY);
+  }
+}
+
+function drawBottomAnchoredLeaf(
+  ctx: CanvasRenderingContext2D,
+  sheet: HTMLImageElement,
+  frameIndex: number,
+  col: number,
+  row: number,
+  originX: number,
+  originY: number,
+): void {
+  const { sx, sy } = frameSource(DOOR_SHEET, frameIndex);
+  const width = DOOR_SHEET.frameWidth;
+  const height = DOOR_SHEET.frameHeight;
+  const destWidth = width * RENDER_SCALE;
+  const destHeight = height * RENDER_SCALE;
+  const cellBottomY = (row + 1) * RENDERED_TILE_SIZE;
+  const destX = col * RENDERED_TILE_SIZE + originX;
+  const destY = cellBottomY - destHeight + originY;
+  ctx.drawImage(sheet, sx, sy, width, height, destX, destY, destWidth, destHeight);
 }
 
 /**
