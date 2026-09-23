@@ -144,6 +144,32 @@ export const PaletteTile = ({
               />
             </div>
           )}
+          {sprite.tint && (
+            // Editor-only wash (O-027): a translucent tint so a camouflage
+            // hazard (`T`) is distinguishable from the decorative tile at a
+            // glance. Masked by the sprite's own sheet/crop (same math as the
+            // base <img> above), so only the art's opaque pixels are tinted —
+            // an unmasked `inset: 0` fill would wash the transparent
+            // background around the stone too. Pointer-events none so it never
+            // steals the button's own click.
+            <div
+              data-testid="palette-tile-tint"
+              style={{
+                position: 'absolute',
+                inset: 0,
+                backgroundColor: sprite.tint,
+                pointerEvents: 'none',
+                maskImage: `url(${sprite.sheet})`,
+                maskRepeat: 'no-repeat',
+                maskPosition: `${-sprite.sx * scale}px ${(-sprite.sy + (sprite.topOffset ?? 0)) * scale}px`,
+                maskSize: `${sprite.sheetWidth * scale}px ${sprite.sheetHeight * scale}px`,
+                WebkitMaskImage: `url(${sprite.sheet})`,
+                WebkitMaskRepeat: 'no-repeat',
+                WebkitMaskPosition: `${-sprite.sx * scale}px ${(-sprite.sy + (sprite.topOffset ?? 0)) * scale}px`,
+                WebkitMaskSize: `${sprite.sheetWidth * scale}px ${sprite.sheetHeight * scale}px`,
+              }}
+            />
+          )}
         </div>
       ) : (
         <span className="flex h-full w-full items-center justify-center rounded-sm border border-dashed border-muted-foreground text-muted-foreground">

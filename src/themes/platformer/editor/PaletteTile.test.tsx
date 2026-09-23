@@ -238,4 +238,41 @@ describe('PaletteTile', () => {
     // (see the synthetic case above).
     expect(wrapper.style.top).toBe('7.5px');
   });
+
+  it('spriteWithTint-rendersATranslucentOverlay', () => {
+    const sprite: TileSpriteSpec = { ...SPRITE, tint: 'rgba(220, 38, 38, 0.45)' };
+
+    render(<PaletteTile label="Falling Stalactite" sprite={sprite} selected={false} onClick={() => {}} />);
+
+    const tint = screen.getByTestId('palette-tile-tint');
+    expect(tint.style.backgroundColor).toBe('rgba(220, 38, 38, 0.45)');
+  });
+
+  it('spriteWithoutTint-rendersNoOverlay', () => {
+    render(<PaletteTile label="Coin" sprite={SPRITE} selected={false} onClick={() => {}} />);
+
+    expect(screen.queryByTestId('palette-tile-tint')).not.toBeInTheDocument();
+  });
+
+  it('spriteWithTint-masksTheWashToTheSpritesOwnOpaquePixels', () => {
+    // Regression (O-027): an unmasked `inset: 0` wash tints the whole icon
+    // box — including the transparent background around the stone — instead
+    // of only the stalactite art. The wash must be masked by the sprite's own
+    // sheet/crop so its alpha decides what gets tinted.
+    const sprite: TileSpriteSpec = { ...SPRITE, tint: 'rgba(220, 38, 38, 0.45)' };
+
+    render(<PaletteTile label="Falling Stalactite" sprite={sprite} selected={false} onClick={() => {}} />);
+
+    const tint = screen.getByTestId('palette-tile-tint');
+    expect(tint.style.maskImage).toContain('/sprites/coin.png');
+  });
+
+  it('realFallingStalactitePaletteEntry-carriesAReddishTint', () => {
+    const sprite = PALETTE_TILE_SPRITES['T'];
+    expect(sprite?.tint).toBeTruthy();
+
+    render(<PaletteTile label="Falling Stalactite" sprite={sprite} selected={false} onClick={() => {}} />);
+
+    expect(screen.getByTestId('palette-tile-tint')).toBeInTheDocument();
+  });
 });

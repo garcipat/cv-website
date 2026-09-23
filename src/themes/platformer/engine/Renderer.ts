@@ -104,9 +104,9 @@ import {
   healAuraSparkles,
   hitSplatterDroplets,
   fadeOutTextOpacity,
-  crumbleDebrisPieces,
+  debrisPieces,
 } from './CollectionEffects';
-import type { FlightEffect, PuffEffect, HealAuraEffect, HitSplatterEffect, FadeOutTextEffect, ExplosionEffect, CrumbleDebrisEffect } from './CollectionEffects';
+import type { FlightEffect, PuffEffect, HealAuraEffect, HitSplatterEffect, FadeOutTextEffect, ExplosionEffect, DebrisEffect } from './CollectionEffects';
 import { explosionFrameIndex } from './CollectionEffects';
 import { TORCH_SHEET, BOMB_SHEET, EXPLOSION_SHEET, CRUMBLE_FLOOR_SHEET, CRUMBLE_CRACKS_SHEET } from '../entities/sprites/sheets';
 import {
@@ -1042,66 +1042,52 @@ export function drawCrumblingFloors(
   }
 }
 
-/** Native px size of one debris quarter — a quadrant of the tile's own
- *  half-height content band (matches CRUMBLE_CRACKS_SHEET's 8px height),
- *  not a quadrant of the full 16x16 frame (most of which is transparent
- *  padding below the art). */
-const DEBRIS_QUARTER_W = TILE_SIZE / 2;
-const DEBRIS_QUARTER_H = CRUMBLE_CRACKS_SHEET.frameHeight / 2;
-
-/** Native (sx, sy) of each of the 4 quarters, in the same fixed order
- *  `crumbleDebrisPieces` returns: top-left, top-right, bottom-left,
- *  bottom-right. */
-const DEBRIS_QUARTER_SRC: readonly { sx: number; sy: number }[] = [
-  { sx: 0, sy: 0 },
-  { sx: DEBRIS_QUARTER_W, sy: 0 },
-  { sx: 0, sy: DEBRIS_QUARTER_H },
-  { sx: DEBRIS_QUARTER_W, sy: DEBRIS_QUARTER_H },
-];
-
 /**
- * Draws every falling crumbling-floor debris piece (O-023). Each of the 4
- * quarters is drawn as TWO layered blits — the matching quadrant of the
- * plain ledge art, then the same quadrant of the heavy crack frame on top —
- * exactly `Crate.ts`'s base-plus-crack-overlay technique, so a falling piece
- * reads as "a chunk of the cracked floor" without any dedicated debris art.
+ * Draws every falling debris piece (O-023 / O-027). For each effect, every art
+ * layer's own source rect is quartered into a fixed TL, TR, BL, BR layout and
+ * each quarter is blitted at the shared `debrisPieces` offset/opacity — so a
+ * one-layer stalactite shatter and the two-layer crumbling floor break share
+ * one implementation (SC-011). A missing sheet image is skipped without
+ * throwing.
  */
-export function drawCrumbleDebrisEffects(
+export function drawDebrisEffects(
   ctx: CanvasRenderingContext2D,
-  effects: readonly CrumbleDebrisEffect[],
+  effects: readonly DebrisEffect[],
   dc: DrawContext,
 ): void {
-  const ledge = dc.sprites[CRUMBLE_FLOOR_SHEET.src];
-  const cracks = dc.sprites[CRUMBLE_CRACKS_SHEET.src];
-  if (!ledge) return;
-
-  const heavyFrame = frameSource(CRUMBLE_CRACKS_SHEET, 2);
-  // Debris always breaks off the MIDDLE ledge frame's art, regardless of
-  // which run-position frame the tile itself was actually showing — a
-  // reasonable simplification for a decorative, short-lived effect (see
-  // CollectionEffects.ts's doc comment on CrumbleDebrisEffect).
-  const { sx: ledgeMidSx } = frameSource(CRUMBLE_FLOOR_SHEET, 1);
-  const destWidth = DEBRIS_QUARTER_W * RENDER_SCALE;
-  const destHeight = DEBRIS_QUARTER_H * RENDER_SCALE;
-
   for (const effect of effects) {
-    const pieces = crumbleDebrisPieces(effect);
-    for (let i = 0; i < pieces.length; i++) {
-      const piece = pieces[i];
-      if (piece.opacity <= 0) continue;
-      const quarter = DEBRIS_QUARTER_SRC[i];
-      const dx = effect.x + dc.originX + quarter.sx * RENDER_SCALE + piece.dx;
-      const dy = effect.y + dc.originY + quarter.sy * RENDER_SCALE + piece.dy;
-
-      ctx.globalAlpha = piece.opacity;
-      ctx.drawImage(
-        ledge, ledgeMidSx + quarter.sx, quarter.sy, DEBRIS_QUARTER_W, DEBRIS_QUARTER_H,
-        dx, dy, destWidth, destHeight,
-      );
-      if (cracks) {
+    const pieces = debrisPieces(effect);
+    for (const layer of effect.layers) {
+      const image = dc.sprites[layer.sheet];
+      if (!image) continue;
+      const halfW = Math.floor(layer.width / 2);
+      const halfH = Math.floor(layer.height / 2);
+      const quarters: readonly { sx: number; sy: number; width: number; height: number }[] = [
+        { sx: layer.sx, sy: layer.sy, width: halfW, height: halfH },
+        { sx: layer.sx + halfW, sy: layer.sy, width: layer.width - halfW, height: halfH },
+        { sx: layer.sx, sy: layer.sy + halfH, width: halfW, height: layer.height - halfH },
+        {
+          sx: layer.sx + halfW,
+          sy: layer.sy + halfH,
+          width: layer.width - halfW,
+          height: layer.height - halfH,
+        },
+      ];
+      for (let i = 0; i < pieces.length; i++) {
+        const piece = pieces[i];
+        if (piece.opacity <= 0) continue;
+        const quarter = quarters[i];
+        ctx.globalAlpha = piece.opacity;
         ctx.drawImage(
-          cracks, heavyFrame.sx + quarter.sx, heavyFrame.sy + quarter.sy, DEBRIS_QUARTER_W, DEBRIS_QUARTER_H,
-          dx, dy, destWidth, destHeight,
+          image,
+          quarter.sx,
+          quarter.sy,
+          quarter.width,
+          quarter.height,
+          effect.x + dc.originX + (quarter.sx - layer.sx) * RENDER_SCALE + piece.dx,
+          effect.y + dc.originY + (quarter.sy - layer.sy) * RENDER_SCALE + piece.dy,
+          quarter.width * RENDER_SCALE,
+          quarter.height * RENDER_SCALE,
         );
       }
     }

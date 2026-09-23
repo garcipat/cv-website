@@ -60,6 +60,9 @@ import {
   playerStateAtTile,
   mushroomSquashStates,
   floorSpikeTimerStates,
+  fallingStalactiteTimerStates,
+  hazardPlacementsForTick,
+  activeDebrisEffects,
 } from './PlatformerState';
 import { toBlockState } from './entities/Block';
 import type { BlockState } from './entities/Block';
@@ -335,6 +338,12 @@ describe('PlatformerPage', () => {
     // like the other module-level state above, or a mask injected by one test
     // would make a later test's spear lethal (or inert) unexpectedly.
     setSpearTipMask(EMPTY_SPEAR_MASK);
+    // Module-level falling-stalactite signals (O-027) — reset like the other
+    // session arrays above, or a shattered/armed stalactite (and its debris)
+    // left by one test would leak into the next test's assumption that every
+    // hazard starts hanging.
+    fallingStalactiteTimerStates.value = [];
+    activeDebrisEffects.value = [];
   });
 
   afterEach(() => {
@@ -6546,6 +6555,193 @@ describe('PlatformerPage', () => {
       expect(collectedFacts.value.length).toBe(factsBefore);
       expect(enemiesDefeated.value).toBe(defeatedBefore);
       expect(activeCounterPopups.value.enemies).toBeUndefined();
+    });
+  });
+
+  describe('falling stalactite (O-027)', () => {
+    // Hazard at (1,2), ground at row 4 — its detection zone is columns 0-2,
+    // row 3, so a player standing on the floor directly beneath it is inside.
+    const LAYOUT = ['S...', '....', '.T..', '....', 'GGGG'];
+    const GROUND_ROW = 4;
+
+    function mountPage(): (t: number) => void {
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+      render(<PlatformerPage />);
+      frameCallback!(0);
+      return (t: number) => frameCallback!(t);
+    }
+
+    /** Keeps the character standing still, centred under `hazard`, on the
+     *  ground row — preserving `hitTimer` (so re-positioning never clears the
+     *  shared invincibility window). */
+    function standUnder(hazardX: number): void {
+      const x = hazardX - (PLAYER_RENDERED_SIZE - RENDERED_TILE_SIZE) / 2;
+      const y = GROUND_ROW * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
+      playerState.value = { ...playerState.value, x, y, vx: 0, vy: 0, grounded: true };
+    }
+
+    it('fastCrossing-throughTheDetectionZone-takesNoDamage', () => {
+      currentLayout.value = LAYOUT;
+      const frame = mountPage();
+      const hazard = hazardPlacements.value[0];
+      const startingHealth = playerState.value.hitPoints;
+      const startX = hazard.x - RENDERED_TILE_SIZE - (PLAYER_RENDERED_SIZE - RENDERED_TILE_SIZE) / 2;
+      const standingY = GROUND_ROW * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
+
+      let t = 16;
+      for (let i = 0; i < 45; i++) {
+        const elapsed = t / 1000;
+        playerState.value = {
+          ...playerState.value,
+          x: startX + PHYSICS_CONFIG.walkSpeed * elapsed,
+          y: standingY,
+          vx: 0,
+          vy: 0,
+          grounded: true,
+        };
+        frame(t);
+        t += 16;
+      }
+
+      expect(playerState.value.hitPoints).toBe(startingHealth);
+    });
+
+    it('stoppedUnderIt-takesExactlyOneHalfHeartWithNoKnockback', () => {
+      currentLayout.value = LAYOUT;
+      const frame = mountPage();
+      const hazard = hazardPlacements.value[0];
+      const startingHealth = playerState.value.hitPoints;
+      standUnder(hazard.x);
+
+      let t = 16;
+      frame(t);
+      for (let i = 0; i < 120 && playerState.value.hitPoints === startingHealth; i++) {
+        t += 16;
+        standUnder(hazard.x);
+        frame(t);
+      }
+
+      expect(playerState.value.hitPoints).toBe(startingHealth - SIDE_HIT_DAMAGE);
+      // No knockback, and the shared invincibility window is open.
+      expect(playerState.value.vx).toBe(0);
+      expect(isInvulnerable(playerState.value, PLAYER_HIT_REACTION_SECONDS)).toBe(true);
+
+      // Remaining under the (now shattered) hazard deals no further damage.
+      const healthAfterHit = playerState.value.hitPoints;
+      for (let i = 0; i < 60; i++) {
+        t += 16;
+        standUnder(hazard.x);
+        frame(t);
+      }
+      expect(playerState.value.hitPoints).toBe(healthAfterHit);
+    });
+
+    it('shatter-spawnsExactlyOneDebrisEffect', () => {
+      currentLayout.value = LAYOUT;
+      const frame = mountPage();
+      const hazard = hazardPlacements.value[0];
+      standUnder(hazard.x);
+
+      let t = 16;
+      frame(t);
+      let spawned = 0;
+      for (let i = 0; i < 200; i++) {
+        t += 16;
+        standUnder(hazard.x);
+        frame(t);
+        const count = activeDebrisEffects.value.filter((e) => e.id.startsWith('stalactite-')).length;
+        if (count > 0) {
+          spawned = count;
+          break;
+        }
+      }
+      expect(spawned).toBe(1);
+
+      // One more tick must not spawn a second effect.
+      t += 16;
+      standUnder(hazard.x);
+      frame(t);
+      expect(activeDebrisEffects.value.filter((e) => e.id.startsWith('stalactite-')).length).toBe(1);
+    });
+
+    it('neverAffectsAnEnemy', () => {
+      // Enemy sits in the hazard's fall path; only the player may be hurt.
+      currentLayout.value = ['S...', '....', '.T..', '.M..', 'GGGG'];
+      const frame = mountPage();
+      const hazard = hazardPlacements.value[0];
+      const enemiesBefore = enemyStates.value.map((e) => ({ id: e.id, alive: e.alive, hitPoints: e.hitPoints }));
+      // Stand on the flanking column (col 0), clear of the enemy, so the
+      // zone still arms without the player/enemy touching.
+      playerState.value = {
+        ...playerState.value,
+        x: -PLAYER_SIDE_PADDING,
+        y: GROUND_ROW * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING,
+        vx: 0,
+        vy: 0,
+        grounded: true,
+      };
+
+      let t = 16;
+      for (let i = 0; i < 120; i++) {
+        t += 16;
+        frame(t);
+      }
+
+      const enemiesAfter = enemyStates.value.map((e) => ({ id: e.id, alive: e.alive, hitPoints: e.hitPoints }));
+      expect(enemiesAfter).toEqual(enemiesBefore);
+      // The hazard really did arm and fall while the enemy stayed unharmed.
+      expect(fallingStalactiteTimerStates.value.some((s) => s.id === hazard.id)).toBe(true);
+    });
+
+    it('resetGameAndResetGameProgress-returnAShatteredStalactiteToHanging', () => {
+      currentLayout.value = LAYOUT;
+      const frame = mountPage();
+      const hazard = hazardPlacements.value[0];
+
+      // Manually arm and run to the gone phase.
+      fallingStalactiteTimerStates.value = [{ id: hazard.id, elapsed: 0 }];
+      let t = 16;
+      frame(t);
+      for (let i = 0; i < 120; i++) {
+        t += 16;
+        frame(t);
+      }
+      expect(fallingStalactiteTimerStates.value.some((s) => s.id === hazard.id)).toBe(true);
+
+      resetGame();
+      expect(fallingStalactiteTimerStates.value).toEqual([]);
+
+      // Arm again, then a full Reset Game restores it too.
+      fallingStalactiteTimerStates.value = [{ id: hazard.id, elapsed: 0 }];
+      t += 16;
+      frame(t);
+      resetGameProgress();
+      expect(fallingStalactiteTimerStates.value).toEqual([]);
+    });
+
+    it('noStandableCellBelow-despawnsOffTheBottomWithoutDebris', () => {
+      // Ground exists under the player's flanking column only — nothing
+      // standable in the hazard's own column, so it falls off the bottom.
+      currentLayout.value = ['S...', '.T..', '....', 'G..G'];
+      const frame = mountPage();
+      const hazard = hazardPlacements.value[0];
+
+      fallingStalactiteTimerStates.value = [{ id: hazard.id, elapsed: 0 }];
+      let t = 16;
+      frame(t);
+      for (let i = 0; i < 200; i++) {
+        t += 16;
+        frame(t);
+      }
+
+      expect(activeDebrisEffects.value.filter((e) => e.id.startsWith('stalactite-'))).toEqual([]);
+      const merged = hazardPlacementsForTick().find((h) => h.id === hazard.id)!;
+      expect(merged.fallingStalactitePhase).toBe('gone');
     });
   });
 });

@@ -38,12 +38,13 @@ import {
   startExplosionEffect,
   tickExplosionEffect,
   explosionFrameIndex,
-  startCrumbleDebrisEffect,
-  tickCrumbleDebrisEffect,
-  crumbleDebrisPieces,
-  CRUMBLE_DEBRIS_DURATION_SECONDS,
+  startDebrisEffect,
+  tickDebrisEffect,
+  debrisPieces,
+  crumbleDebrisLayers,
+  DEBRIS_DURATION_SECONDS,
 } from './CollectionEffects';
-import type { PuffEffect, HealAuraEffect } from './CollectionEffects';
+import type { PuffEffect, HealAuraEffect, DebrisLayer } from './CollectionEffects';
 
 describe('startFlightEffect', () => {
   it('called-returns-risingPhaseAtZeroElapsed', () => {
@@ -233,28 +234,46 @@ describe('startPuffEffect / tickPuffEffect', () => {
   });
 });
 
-describe('startCrumbleDebrisEffect', () => {
-  it('id-x-y-buildsAZeroElapsedEffect', () => {
-    expect(startCrumbleDebrisEffect('d1', 10, 20)).toEqual({ id: 'd1', x: 10, y: 20, elapsed: 0 });
+const CRUMBLE_LAYERS = crumbleDebrisLayers();
+const STALACTITE_LAYERS: DebrisLayer[] = [
+  { sheet: '/sprites/decorations.png', sx: 51, sy: 0, width: 16, height: 17 },
+];
+
+describe('startDebrisEffect', () => {
+  it('id-x-y-layers-buildsAZeroElapsedEffect', () => {
+    expect(startDebrisEffect('d1', 10, 20, CRUMBLE_LAYERS)).toEqual({
+      id: 'd1',
+      x: 10,
+      y: 20,
+      elapsed: 0,
+      layers: CRUMBLE_LAYERS,
+    });
+  });
+
+  it('singleLayerSource-isAccepted', () => {
+    expect(startDebrisEffect('d1', 0, 0, STALACTITE_LAYERS).layers).toHaveLength(1);
   });
 });
 
-describe('tickCrumbleDebrisEffect', () => {
-  it('dt-addsToElapsed', () => {
-    const effect = startCrumbleDebrisEffect('d1', 0, 0);
-    expect(tickCrumbleDebrisEffect(effect, 0.1).elapsed).toBeCloseTo(0.1, 5);
+describe('tickDebrisEffect', () => {
+  it('dt-addsToElapsedAndPreservesLayers', () => {
+    const effect = startDebrisEffect('d1', 0, 0, CRUMBLE_LAYERS);
+    const ticked = tickDebrisEffect(effect, 0.1);
+    expect(ticked.elapsed).toBeCloseTo(0.1, 5);
+    expect(ticked.layers).toBe(CRUMBLE_LAYERS);
   });
 });
 
-describe('crumbleDebrisPieces', () => {
-  it('crumbleDebrisPieces-anyEffect-alwaysReturnsExactlyFourPieces', () => {
-    const effect = startCrumbleDebrisEffect('d1', 0, 0);
-    expect(crumbleDebrisPieces(effect)).toHaveLength(4);
+describe('debrisPieces', () => {
+  it('anyEffect-alwaysReturnsExactlyFourPiecesRegardlessOfLayerCount', () => {
+    expect(debrisPieces(startDebrisEffect('d1', 0, 0, CRUMBLE_LAYERS))).toHaveLength(4);
+    expect(debrisPieces(startDebrisEffect('d2', 0, 0, STALACTITE_LAYERS))).toHaveLength(4);
+    expect(debrisPieces(startDebrisEffect('d3', 0, 0, []))).toHaveLength(4);
   });
 
   it('zeroElapsed-piecesHaveNoOffsetAndFullOpacity', () => {
-    const effect = startCrumbleDebrisEffect('d1', 0, 0);
-    for (const piece of crumbleDebrisPieces(effect)) {
+    const effect = startDebrisEffect('d1', 0, 0, CRUMBLE_LAYERS);
+    for (const piece of debrisPieces(effect)) {
       expect(piece.dx).toBe(0);
       expect(piece.dy).toBe(0);
       expect(piece.opacity).toBe(1);
@@ -262,28 +281,40 @@ describe('crumbleDebrisPieces', () => {
   });
 
   it('midway-opacityIsBetweenZeroAndOne', () => {
-    const effect = tickCrumbleDebrisEffect(
-      startCrumbleDebrisEffect('d1', 0, 0),
-      CRUMBLE_DEBRIS_DURATION_SECONDS / 2,
+    const effect = tickDebrisEffect(
+      startDebrisEffect('d1', 0, 0, CRUMBLE_LAYERS),
+      DEBRIS_DURATION_SECONDS / 2,
     );
-    for (const piece of crumbleDebrisPieces(effect)) {
+    for (const piece of debrisPieces(effect)) {
       expect(piece.opacity).toBeGreaterThan(0);
       expect(piece.opacity).toBeLessThan(1);
     }
   });
 
   it('pastDuration-opacityClampsToZero', () => {
-    const effect = tickCrumbleDebrisEffect(startCrumbleDebrisEffect('d1', 0, 0), CRUMBLE_DEBRIS_DURATION_SECONDS + 5);
-    for (const piece of crumbleDebrisPieces(effect)) {
+    const effect = tickDebrisEffect(
+      startDebrisEffect('d1', 0, 0, CRUMBLE_LAYERS),
+      DEBRIS_DURATION_SECONDS + 5,
+    );
+    for (const piece of debrisPieces(effect)) {
       expect(piece.opacity).toBe(0);
     }
   });
 
-  it('crumbleDebrisPieces-nonZeroElapsed-piecesDivergeFromEachOther', () => {
-    const effect = tickCrumbleDebrisEffect(startCrumbleDebrisEffect('d1', 0, 0), 0.1);
-    const pieces = crumbleDebrisPieces(effect);
+  it('nonZeroElapsed-piecesDivergeFromEachOther', () => {
+    const effect = tickDebrisEffect(startDebrisEffect('d1', 0, 0, CRUMBLE_LAYERS), 0.1);
+    const pieces = debrisPieces(effect);
     const offsets = pieces.map((p) => `${p.dx},${p.dy}`);
     expect(new Set(offsets).size).toBe(4);
+  });
+});
+
+describe('crumbleDebrisLayers', () => {
+  it('providesTheTwoCrumbleLayersWithTheirNativeCrops', () => {
+    expect(CRUMBLE_LAYERS).toEqual([
+      { sheet: '/sprites/crumble_floor.png', sx: 16, sy: 0, width: 16, height: 8 },
+      { sheet: '/sprites/crumble_cracks.png', sx: 32, sy: 0, width: 16, height: 8 },
+    ]);
   });
 });
 

@@ -182,7 +182,7 @@ describe('synthesizeHazardPlacements', () => {
     ]);
     const { x, y } = tileToPixel(1, 1);
     expect(result).toEqual([
-      { id: 'editor-hazard-1-1', hazardType: 'spike', facing: 'up', x, y },
+      { id: 'editor-hazard-1-1', hazardType: 'spike', facing: 'up', x, y, col: 1, row: 1 },
     ]);
   });
 
@@ -190,5 +190,32 @@ describe('synthesizeHazardPlacements', () => {
     const result = synthesizeHazardPlacements([['^', 'v', '<', '>']]);
     expect(result.map((h) => h.facing)).toEqual(['up', 'down', 'left', 'right']);
     expect(result.every((h) => h.hazardType === 'spike')).toBe(true);
+  });
+
+  it('everyPlacement-carriesItsGridColAndRow', () => {
+    const result = synthesizeHazardPlacements([
+      ['^', '.'],
+      ['.', 'A'],
+    ]);
+    expect(result.map((h) => ({ col: h.col, row: h.row }))).toEqual([
+      { col: 0, row: 0 },
+      { col: 1, row: 1 },
+    ]);
+  });
+
+  it('fallingStalactiteCell-emitsItsColAndRow', () => {
+    const result = synthesizeHazardPlacements([['.', 'T']]);
+    const { x, y } = tileToPixel(1, 0);
+    expect(result).toEqual([
+      {
+        id: 'editor-hazard-1-0',
+        hazardType: 'fallingStalactite',
+        facing: 'down',
+        x,
+        y,
+        col: 1,
+        row: 0,
+      },
+    ]);
   });
 });

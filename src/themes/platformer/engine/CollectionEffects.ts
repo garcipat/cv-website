@@ -1,6 +1,11 @@
 import type { CounterKey } from '../entities/CollectiblesSummary';
 import type { EnemyTypeKey } from '../entities/enemies';
-import { EXPLOSION_SHEET } from '../entities/sprites/sheets';
+import {
+  EXPLOSION_SHEET,
+  CRUMBLE_FLOOR_SHEET,
+  CRUMBLE_CRACKS_SHEET,
+} from '../entities/sprites/sheets';
+import { frameSource } from '../entities/sprites/SpriteSheet';
 
 /** Seconds each phase of a collected-fact animation takes: a quick rise from
  *  the collection point to the middle of the screen, a hold there so the
@@ -659,33 +664,50 @@ export function explosionFrameIndex(effect: ExplosionEffect): number {
 }
 
 /**
- * The four pieces a crumbling floor tile splits into when it breaks (O-023,
- * spec FR-005). Unlike `PuffEffect` (a sparkle-dot burst with no real
- * geometry), this carries just a position and elapsed time — the actual
- * quarter-tile crop rects are fixed and live in `Renderer.ts`'s
- * `drawCrumbleDebrisEffects`, which draws each piece from the SAME two
- * sprites (`crumble_floor.png`/`crumble_cracks.png`) the tile itself uses,
- * rather than needing dedicated debris art.
+ * One art layer of a debris effect: a sprite-sheet crop (native, un-scaled px)
+ * drawn as one quarter of the burst. A source with more than one layer (the
+ * crumbling floor's ledge + crack) draws each layer's own quarter in order.
  */
-export interface CrumbleDebrisEffect {
+export interface DebrisLayer {
+  /** Sprite sheet src, resolved through `DrawContext.sprites`. */
+  sheet: string;
+  sx: number;
+  sy: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * A shatter burst that splits one or more art layers into four falling
+ * quarters. Shared by the crumbling floor's break (O-023) and the falling
+ * stalactite's landing shatter (O-027 FR-020/SC-011) — differing only in
+ * `layers`. `x`/`y` are the world-space top-left of the source art.
+ */
+export interface DebrisEffect {
   id: string;
   x: number;
   y: number;
   elapsed: number;
+  layers: readonly DebrisLayer[];
 }
 
-export function startCrumbleDebrisEffect(id: string, x: number, y: number): CrumbleDebrisEffect {
-  return { id, x, y, elapsed: 0 };
+export function startDebrisEffect(
+  id: string,
+  x: number,
+  y: number,
+  layers: readonly DebrisLayer[],
+): DebrisEffect {
+  return { id, x, y, elapsed: 0, layers };
 }
 
-export function tickCrumbleDebrisEffect(effect: CrumbleDebrisEffect, dt: number): CrumbleDebrisEffect {
+export function tickDebrisEffect(effect: DebrisEffect, dt: number): DebrisEffect {
   return { ...effect, elapsed: effect.elapsed + dt };
 }
 
 /** How long the falling pieces take to fully fade — callers filter expired
  *  effects out once `elapsed` passes this, same convention as
  *  `SPARKLE_DURATION_SECONDS` for `PuffEffect`. */
-export const CRUMBLE_DEBRIS_DURATION_SECONDS = 0.5;
+export const DEBRIS_DURATION_SECONDS = 0.5;
 
 /** One falling piece's current render offset (rendered px, relative to the
  *  effect's own x/y) and opacity. */
@@ -711,13 +733,42 @@ const DEBRIS_PIECE_KICKS: readonly { vx: number; vy: number }[] = [
 ];
 
 /** Every piece's current offset/opacity for `effect`'s elapsed time — always
- *  4 entries, in the fixed order `DEBRIS_PIECE_KICKS` declares. */
-export function crumbleDebrisPieces(effect: CrumbleDebrisEffect): DebrisPiece[] {
+ *  4 entries, in the fixed order `DEBRIS_PIECE_KICKS` declares, regardless of
+ *  how many art layers the effect carries. */
+export function debrisPieces(effect: DebrisEffect): DebrisPiece[] {
   const t = effect.elapsed;
-  const opacity = Math.max(0, 1 - t / CRUMBLE_DEBRIS_DURATION_SECONDS);
+  const opacity = Math.max(0, 1 - t / DEBRIS_DURATION_SECONDS);
   return DEBRIS_PIECE_KICKS.map(({ vx, vy }) => ({
     dx: vx * t + 0,
     dy: vy * t + 0.5 * DEBRIS_GRAVITY_PX_PER_SEC2 * t * t + 0,
     opacity,
   }));
+}
+
+/**
+ * The crumbling floor's two debris layers (O-023): the plain ledge art's
+ * middle frame (top 8 native rows, matching the tile's own half-height content
+ * band) plus the heavy crack frame on top. Kept here beside the effect so the
+ * break call site and the renderer tests share one definition; the falling
+ * stalactite instead passes its own single sprite crop.
+ */
+export function crumbleDebrisLayers(): DebrisLayer[] {
+  const ledgeMid = frameSource(CRUMBLE_FLOOR_SHEET, 1);
+  const heavyCrack = frameSource(CRUMBLE_CRACKS_SHEET, 2);
+  return [
+    {
+      sheet: CRUMBLE_FLOOR_SHEET.src,
+      sx: ledgeMid.sx,
+      sy: ledgeMid.sy,
+      width: CRUMBLE_FLOOR_SHEET.frameWidth,
+      height: CRUMBLE_CRACKS_SHEET.frameHeight,
+    },
+    {
+      sheet: CRUMBLE_CRACKS_SHEET.src,
+      sx: heavyCrack.sx,
+      sy: heavyCrack.sy,
+      width: CRUMBLE_CRACKS_SHEET.frameWidth,
+      height: CRUMBLE_CRACKS_SHEET.frameHeight,
+    },
+  ];
 }
