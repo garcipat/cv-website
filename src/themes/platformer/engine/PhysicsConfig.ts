@@ -40,6 +40,14 @@ export const PHYSICS_CONFIG = {
    */
   climbSpeed: 120,
   /**
+   * Constant horizontal crawl speed while crouched, in px/s, in either
+   * direction (FR-003) — 60% of walkSpeed (200) so the crouch reads as a
+   * deliberate, slower pace. Same tunneling invariant as every other velocity
+   * constant: `crouchSpeed * MAX_DT` must stay below RENDERED_TILE_SIZE (32px):
+   * 120 * (1/30) = 4 < 32. ✓ Knockback (`knockbackActive`) still overrides it.
+   */
+  crouchSpeed: 120,
+  /**
    * Initial upward velocity impulse on jump press, in px/s (negative = up).
    * Same tunneling invariant as `terminalVelocity`/`walkSpeed` applies:
    * `Math.abs(jumpVelocity) * MAX_DT` must stay below `RENDERED_TILE_SIZE`.

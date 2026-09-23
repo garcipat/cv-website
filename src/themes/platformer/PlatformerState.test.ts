@@ -383,6 +383,16 @@ describe('PlatformerState', () => {
 
       expect(hintTooltipState.value).toBeNull();
     });
+
+    it('calledWhileCrouched-returnsTheCharacterStanding', () => {
+      // FR-012: crouch is session-scoped in-memory state and never survives a
+      // respawn — resetGame() assigns a fresh playerStateAtTile result.
+      playerState.value = { ...playerState.value, crouching: true };
+
+      resetGame();
+
+      expect(playerState.value.crouching).toBe(false);
+    });
   });
 });
 
@@ -419,6 +429,15 @@ describe('resetGameProgress', () => {
     expect(playerState.value).toEqual(spawnPlayerState());
     expect(playerState.value.hitPoints).toBe(MAX_HALF_HEARTS);
     expect(cameraPositionX.value).toBe(0);
+  });
+
+  it('calledWhileCrouched-returnsTheCharacterStanding', () => {
+    // FR-012: a full Reset Game also returns the character standing.
+    playerState.value = { ...playerState.value, crouching: true };
+
+    resetGameProgress();
+
+    expect(playerState.value.crouching).toBe(false);
   });
 
   it('called-afterOpeningAChest-closesItAgain', () => {
@@ -1035,6 +1054,14 @@ describe('playerStateAtTile', () => {
     expect(state.alive).toBe(true);
     // Immediately vulnerable: no free invulnerability window after respawn.
     expect(state.hitTimer).toBe(PLAYER_HIT_REACTION_SECONDS);
+  });
+
+  it('playerStateAtTile-seedsCrouchingFalse', () => {
+    expect(playerStateAtTile(3, 4).crouching).toBe(false);
+  });
+
+  it('spawnPlayerState-seedsCrouchingFalse', () => {
+    expect(spawnPlayerState().crouching).toBe(false);
   });
 
   it('spawnPlayerState-delegatesToTheSpawnTile', () => {

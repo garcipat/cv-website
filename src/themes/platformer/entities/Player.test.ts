@@ -11,6 +11,7 @@ import {
   IDLE_FRAME_DURATION,
   applyKnockback,
   beginHitReaction,
+  applyHitReactionWithoutKnockback,
   advancePlayerHitTimer,
   isPlayerBlinkVisible,
   hitFrameFromTimer,
@@ -19,6 +20,7 @@ import {
 import type { PlayerState } from './Player';
 import type { Moving, SelfAnimated, Damageable } from './capabilities';
 import { isInvulnerable } from './capabilities';
+import { resolveCrouching } from '../engine/Crouch';
 import { spawnPlayerState } from '../PlatformerState';
 import { RENDER_SCALE } from '../level/Terrain';
 import { MAX_HALF_HEARTS } from './Health';
@@ -32,6 +34,7 @@ function idlePlayer(overrides: Partial<PlayerState> = {}): PlayerState {
     direction: 'right',
     grounded: true,
     climbing: false,
+    crouching: false,
     isDroppingThroughBridge: false,
     lastGroundedX: 0,
     lastGroundedY: 0,
@@ -516,5 +519,109 @@ describe('isPlayerBlinkVisible', () => {
     // vanishing. An end-anchored implementation would make this an accident
     // of the reaction duration's own value instead of a guaranteed frame.
     expect(isPlayerBlinkVisible(0)).toBe(false);
+  });
+});
+
+describe('crouch pose (US4)', () => {
+  it('playerFrameSource-crouchFrame0-returnsFirstColumnAtTheDuckRow', () => {
+    expect(playerFrameSource('crouch', 0)).toEqual({ sx: 0, sy: PLAYER_FRAME_SIZE * 8 });
+  });
+
+  it('playerFrameSource-crouchFrame1-returnsSecondColumnAtTheDuckRow', () => {
+    expect(playerFrameSource('crouch', 1)).toEqual({
+      sx: PLAYER_FRAME_SIZE,
+      sy: PLAYER_FRAME_SIZE * 8,
+    });
+  });
+
+  it('playerFrameSource-crouchFrame2-returnsThirdColumnAtTheDuckRow', () => {
+    expect(playerFrameSource('crouch', 2)).toEqual({
+      sx: PLAYER_FRAME_SIZE * 2,
+      sy: PLAYER_FRAME_SIZE * 8,
+    });
+  });
+
+  it('playerFrameSource-crouchFrame4-wrapsToTheFirstColumn', () => {
+    expect(playerFrameSource('crouch', 4)).toEqual({ sx: 0, sy: PLAYER_FRAME_SIZE * 8 });
+  });
+
+  it('updatePlayerAnimState-groundedCrouchingVxZero-switchesToCrouch', () => {
+    const player = idlePlayer({ crouching: true, grounded: true, vx: 0, animState: 'idle' });
+    expect(updatePlayerAnimState(player).animState).toBe('crouch');
+  });
+
+  it('updatePlayerAnimState-crouchingAirborne-keepsTheCrouchPose', () => {
+    const player = idlePlayer({ crouching: true, grounded: false, vx: 0, animState: 'idle' });
+    expect(updatePlayerAnimState(player).animState).toBe('crouch');
+  });
+
+  it('updatePlayerAnimState-crouchingAndInvulnerable-stillReturnsHit', () => {
+    const player = idlePlayer({
+      crouching: true,
+      grounded: true,
+      animState: 'hit',
+      hitTimer: 0.5,
+    });
+    expect(updatePlayerAnimState(player).animState).toBe('hit');
+  });
+
+  it('advancePlayerAnimation-stationaryCrouch-returnsTheSameReference', () => {
+    const player = idlePlayer({ animState: 'crouch', vx: 0, animFrame: 1, animTimer: 0.05 });
+    const next = advancePlayerAnimation(player, 1);
+    expect(next).toBe(player);
+  });
+
+  it('advancePlayerAnimation-crawlingCrouch-advancesTheFrame', () => {
+    const player = idlePlayer({ animState: 'crouch', vx: 120, animFrame: 0, animTimer: 0 });
+    const next = advancePlayerAnimation(player, 1);
+    expect(next.animFrame).not.toBe(0);
+  });
+});
+
+describe('applyHitReactionWithoutKnockback (FR-011)', () => {
+  it('applyHitReactionWithoutKnockback-crouchedHit-setsTheRedReactionState', () => {
+    const player = idlePlayer({
+      animState: 'crouch',
+      animFrame: 1,
+      animTimer: 0.05,
+      hitTimer: PLAYER_HIT_REACTION_SECONDS,
+    });
+    const result = applyHitReactionWithoutKnockback(player);
+    expect(result.hitTimer).toBe(0);
+    expect(result.animState).toBe('hit');
+    expect(result.animFrame).toBe(0);
+    expect(result.animTimer).toBe(0);
+  });
+
+  it('applyHitReactionWithoutKnockback-anyHit-leavesMotionStateIdentical', () => {
+    const player = idlePlayer({
+      vx: 120,
+      direction: 'left',
+      knockbackTimer: 0.2,
+      vy: -50,
+      bounceAscending: true,
+    });
+    const result = applyHitReactionWithoutKnockback(player);
+    expect(result.vx).toBe(player.vx);
+    expect(result.direction).toBe(player.direction);
+    expect(result.knockbackTimer).toBe(player.knockbackTimer);
+    expect(result.vy).toBe(player.vy);
+    expect(result.bounceAscending).toBe(player.bounceAscending);
+  });
+
+  it('applyHitReactionWithoutKnockback-afterIt-opensTheWindowAndKeepsTheCrouchFrozen', () => {
+    const player = idlePlayer({ crouching: true, hitTimer: PLAYER_HIT_REACTION_SECONDS });
+    const result = applyHitReactionWithoutKnockback(player);
+    expect(isInvulnerable(result, PLAYER_HIT_REACTION_SECONDS)).toBe(true);
+    expect(
+      resolveCrouching({
+        downHeld: false,
+        grounded: true,
+        currentlyCrouching: true,
+        downClaimed: false,
+        canStand: false,
+        inHitReaction: true,
+      }),
+    ).toBe(true);
   });
 });

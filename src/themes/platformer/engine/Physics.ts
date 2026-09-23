@@ -16,11 +16,14 @@ import { hitboxInsetXForBlock } from '../entities/Block';
 import {
   PLAYER_RENDERED_SIZE,
   PLAYER_FOOT_PADDING,
-  PLAYER_HEAD_PADDING,
   PLAYER_SIDE_PADDING,
+  PLAYER_HIT_REACTION_SECONDS,
+  playerHeadPaddingFor,
 } from '../entities/Player';
 import type { PlayerState } from '../entities/Player';
 import type { BlockContact } from '../entities/Player';
+import { isInvulnerable } from '../entities/capabilities';
+import { canStandUp, resolveCrouching } from './Crouch';
 
 /**
  * One frame's worth of player input. `left`/`right` default to no movement so
@@ -83,17 +86,72 @@ export function stepPlayerPhysics(
   const knockbackActive = player.knockbackTimer > 0;
   const moveRight = !knockbackActive && input.right && !input.left;
   const moveLeft = !knockbackActive && input.left && !input.right;
+  // Down priority (FR-009, research D6): ladder descent and bridge
+  // drop-through both claim Down ahead of crouch. Computed here, BEFORE the
+  // horizontal collision pass and the crouch decision, against the PRE-STEP
+  // position (`player.x`/`player.y`) — the same convention the ladder/bridge
+  // branches below use, and the only position available before this tick's
+  // move. The existing branches themselves are untouched, so S-008 timing and
+  // priority are preserved (SC-003).
+  const preStepLeftCol = Math.floor((player.x + PLAYER_SIDE_PADDING) / RENDERED_TILE_SIZE);
+  const preStepRightCol = Math.floor(
+    (player.x + PLAYER_SIDE_PADDING + HITBOX_WIDTH - 1) / RENDERED_TILE_SIZE,
+  );
+  const preStepFeetRow = Math.floor(
+    (player.y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING - 1) / RENDERED_TILE_SIZE,
+  );
+  const preStepStandingFootRow = Math.floor(
+    (player.y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING) / RENDERED_TILE_SIZE,
+  );
+  const preStepColumnsAreClimbable = (row: number): boolean => {
+    for (let col = preStepLeftCol; col <= preStepRightCol; col++) {
+      if (isClimbable(tileAt(level, col, row))) return true;
+    }
+    return false;
+  };
+  const preStepColumnsHaveBridge = (row: number): boolean => {
+    for (let col = preStepLeftCol; col <= preStepRightCol; col++) {
+      if (tileAt(level, col, row) === 'bridge') return true;
+    }
+    return false;
+  };
+  const downClaimed =
+    player.climbing ||
+    // A grounded player whose body merely overlaps a ladder tile (standing at
+    // the ladder's base, or crawling past it) has solid ground below, not a
+    // ladder, so Down is not a climb there — it crouches (S-012, FR-009).
+    // Airborne overlap still claims Down so a fall past a ladder can grab it.
+    (!player.grounded && preStepColumnsAreClimbable(preStepFeetRow)) ||
+    (player.grounded && preStepColumnsAreClimbable(preStepFeetRow + 1)) ||
+    // A bridge only claims Down from a standing state. While already crouched
+    // (holding Down to crawl), Down keeps meaning crouch — otherwise crawling
+    // onto a bridge would pop the character out of the crouch and drop it
+    // (S-012, FR-009). Releasing Down to stand, then pressing it again, drops.
+    (player.grounded && !player.crouching && preStepColumnsHaveBridge(preStepStandingFootRow));
+  // Crouch decision (S-012): resolved BEFORE the horizontal collision pass,
+  // because the crouched box changes which rows that pass scans. The headroom
+  // gate and the hit-reaction freeze are evaluated once per tick against the
+  // pre-step position (research D5/D8).
+  const crouching = resolveCrouching({
+    downHeld: Boolean(input.dropThroughHeld),
+    grounded: player.grounded,
+    currentlyCrouching: player.crouching,
+    downClaimed,
+    canStand: canStandUp(level, blockPlacements, player),
+    inHitReaction: isInvulnerable(player, PLAYER_HIT_REACTION_SECONDS),
+  });
   // `vx` reflects commanded/intended velocity from input, not realized
   // displacement — a wall or world-bounds clamp below may prevent `x` from
   // actually changing this frame even though `vx` stays non-zero. Any future
   // code that infers "the player moved" (dust particles, camera easing) from
   // `vx !== 0` should account for that.
+  const inputSpeed = crouching ? PHYSICS_CONFIG.crouchSpeed : PHYSICS_CONFIG.walkSpeed;
   const vx = knockbackActive
     ? player.vx
     : moveRight
-      ? PHYSICS_CONFIG.walkSpeed
+      ? inputSpeed
       : moveLeft
-        ? -PHYSICS_CONFIG.walkSpeed
+        ? -inputSpeed
         : 0;
   const direction = knockbackActive ? player.direction : moveRight ? 'right' : moveLeft ? 'left' : player.direction;
 
@@ -101,8 +159,9 @@ export function stepPlayerPhysics(
   // Excludes the head-padding sliver (like the vertical ceiling check below)
   // so a solid tile directly above the character's transparent head-padding
   // band doesn't register as a horizontal wall collision when nothing is
-  // visually beside the character.
-  const topRow = Math.floor((player.y + PLAYER_HEAD_PADDING) / RENDERED_TILE_SIZE);
+  // visually beside the character. Uses the tick's resolved crouch so the scan
+  // starts at the crouched head row while crouched (FR-002/SC-008).
+  const topRow = Math.floor((player.y + playerHeadPaddingFor(crouching)) / RENDERED_TILE_SIZE);
   // Excludes the foot-padding sliver (like the vertical ground check below)
   // so standing on solid ground doesn't register as a horizontal wall
   // collision on every frame the player tries to walk.
@@ -219,10 +278,19 @@ export function stepPlayerPhysics(
   let justEnteredClimbing = false;
   if (climbing) {
     climbing = onLadderNow && !input.jumpPressed;
-  } else if (onLadderNow && (climbUpHeld || climbDownHeld) && player.vy >= 0) {
-    // Fresh entry: overlapping a ladder column and pressing Up/Down. The
-    // `player.vy >= 0` guard stops this from immediately re-triggering the
-    // very next frame after a jump-cancel
+  } else if (
+    onLadderNow &&
+    player.vy >= 0 &&
+    // Down only grabs a ladder when there is somewhere to descend to: an
+    // airborne overlap (a fall past a ladder), or the grounded-from-above case
+    // handled by the branch below. A grounded player merely overlapping a
+    // ladder tile with solid ground beneath it is at the ladder's base (or
+    // crawling past it) — Down there must crouch, not climb (S-012, FR-009).
+    (climbUpHeld || (!player.grounded && climbDownHeld))
+  ) {
+    // Fresh entry: overlapping a ladder column and pressing Up, or pressing
+    // Down while airborne. The `player.vy >= 0` guard stops this from
+    // immediately re-triggering the very next frame after a jump-cancel
     // off a ladder — right after cancelling, the player is still briefly
     // overlapping the same row while ascending under the jump impulse; if
     // Up is still held (edge-triggered `jumpPressed` is already consumed
@@ -286,6 +354,7 @@ export function stepPlayerPhysics(
         direction,
         grounded: true,
         climbing: false,
+        crouching: false,
         isDroppingThroughBridge: false,
         lastGroundedX: climbX,
         lastGroundedY: minClimbY,
@@ -305,6 +374,7 @@ export function stepPlayerPhysics(
       direction,
       grounded: false,
       climbing: true,
+      crouching: false,
       isDroppingThroughBridge: false,
       knockbackTimer: Math.max(0, player.knockbackTimer - dt),
       bounceAscending: false,
@@ -318,7 +388,8 @@ export function stepPlayerPhysics(
   // `grounded: false` above, so the plain grounded-only check would silently
   // swallow a jump press that's meant to cancel a climb.
   const climbJumpCancelled = player.climbing && Boolean(input.jumpPressed);
-  const jumpStarts = (player.grounded || climbJumpCancelled) && Boolean(input.jumpPressed);
+  const jumpStarts =
+    (player.grounded || climbJumpCancelled) && Boolean(input.jumpPressed) && !crouching;
   let vy = jumpStarts
     ? PHYSICS_CONFIG.jumpVelocity
     : player.climbing
@@ -349,6 +420,7 @@ export function stepPlayerPhysics(
       direction,
       grounded: false,
       climbing: false,
+      crouching: false,
       isDroppingThroughBridge: false,
       knockbackTimer: Math.max(0, player.knockbackTimer - dt),
       bounceAscending: false,
@@ -415,17 +487,22 @@ export function stepPlayerPhysics(
   }
   const droppingThroughBridge =
     player.isDroppingThroughBridge ||
-    (player.grounded && standingOnBridge && Boolean(input.dropThroughHeld));
+    // Crouch wins while already crouched: crawling onto a bridge keeps the
+    // crouch instead of dropping through (S-012, FR-009). A standing press of
+    // Down on the bridge still drops, unchanged.
+    (player.grounded && standingOnBridge && !player.crouching && Boolean(input.dropThroughHeld));
 
   if (vy < 0) {
     // Ceiling collision: symmetric to the landing case below, but for the
     // player's head hitting a solid tile from underneath while rising.
     // PLAYER_HEAD_PADDING accounts for the transparent rows above the
     // sprite's actual head, so this triggers when the VISIBLE head reaches
-    // the tile, not when the top of the (mostly-empty) frame does.
+    // the tile, not when the top of the (mostly-empty) frame does. Uses the
+    // tick's resolved crouch, so a crouched head sits one row lower (FR-002).
     // Uses isSolidExcludingBridge (not isSolid) so `bridge` tiles are
     // passable from underneath while remaining solid everywhere else.
-    const headY = y + PLAYER_HEAD_PADDING;
+    const headPadding = playerHeadPaddingFor(crouching);
+    const headY = y + headPadding;
     const headRow = Math.floor(headY / RENDERED_TILE_SIZE);
     let ceilingResolved = false;
     for (let col = leftCol; col <= rightCol; col++) {
@@ -438,7 +515,7 @@ export function stepPlayerPhysics(
       // still reported in `blockContacts`, even if it wasn't the column that
       // stopped the ascent.
       if (!ceilingResolved) {
-        y = (headRow + 1) * RENDERED_TILE_SIZE - PLAYER_HEAD_PADDING;
+        y = (headRow + 1) * RENDERED_TILE_SIZE - headPadding;
         resolvedVy = 0;
         ceilingResolved = true;
       }
@@ -500,6 +577,7 @@ export function stepPlayerPhysics(
     direction,
     grounded,
     climbing: false,
+    crouching,
     isDroppingThroughBridge: grounded ? false : droppingThroughBridge,
     lastGroundedX: fullyGrounded ? x : player.lastGroundedX,
     lastGroundedY: fullyGrounded ? y : player.lastGroundedY,
