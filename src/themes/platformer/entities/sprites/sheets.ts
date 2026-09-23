@@ -373,3 +373,32 @@ export const DOOR_FRAME_CLOSED_LEFT = 0;
 export const DOOR_FRAME_CLOSED_RIGHT = 1;
 export const DOOR_FRAME_OPEN_LEFT = 2;
 export const DOOR_FRAME_OPEN_RIGHT = 3;
+
+/** `ground_wood.png` — a 32x16 strip of two 16x16 frames (O-029): 0 =
+ *  exposed-top wood plank, 1 = buried wood — the same two-frame shape as
+ *  `groundRock`'s own lookup, addressed by `tileSource`'s sx/sy, not by
+ *  frame index. PLACEHOLDER ART — its own dedicated file rather than a cell
+ *  in `world_tileset.png` specifically so it can be swapped out later
+ *  without touching that finished, shared sheet. */
+export const GROUND_WOOD_SHEET: SpriteSheet = {
+  src: '/sprites/ground_wood.png',
+  frameWidth: TILE_SIZE,
+  frameHeight: TILE_SIZE,
+  columns: 2,
+};
+
+/** `background_tiles_wood.png` — one material's 4x3 `BACKGROUND_ATLAS_STRIDE`
+ *  block (O-029), the exact same per-material layout `background_tiles.png`
+ *  uses, but in its OWN file: wood is PLACEHOLDER ART, deliberately kept out
+ *  of the shared, finished `background_tiles.png` (see design.md's "Wood
+ *  background: its own placeholder sheet, not a 7th row"). Addressed by
+ *  `BackgroundAtlas.ts`'s own sx/sy lookup at materialIndex 0 (the only
+ *  material this file holds), not by frame index — like
+ *  `BACKGROUND_TILES_SHEET`, this registration exists for loading, not
+ *  addressing. */
+export const BACKGROUND_TILES_WOOD_SHEET: SpriteSheet = {
+  src: '/sprites/background_tiles_wood.png',
+  frameWidth: TILE_SIZE,
+  frameHeight: TILE_SIZE,
+  columns: 4,
+};
