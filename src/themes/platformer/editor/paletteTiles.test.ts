@@ -9,6 +9,7 @@ import {
   PATROL_GLYPH,
   CONNECTION_POINT_GLYPH,
 } from './paletteTiles';
+import { GROUND_WOOD_SHEET, DOOR_SHEET } from '../entities/sprites/sheets';
 import { TERRAIN_CHARS, ENTITY_CHARS, SIGN_CHARS, HAZARD_CHARS } from '../level/LevelParser';
 import type { TileChar } from '../level/LevelParser';
 
@@ -399,6 +400,14 @@ describe('floor spear marker', () => {
 
   it('brokenBar-hasANonEmptyDescription', () => {
     expect(PALETTE_TILE_DESCRIPTIONS['¦'].length).toBeGreaterThan(0);
+  });
+});
+
+describe('PALETTE_TILE_SPRITES-woodAndDoorChars-useRealSheets', () => {
+  it('W, d, D now point at the real dedicated sheets, not the placeholder terrain crops Task 2 used', () => {
+    expect(PALETTE_TILE_SPRITES.W?.sheet).toBe(GROUND_WOOD_SHEET.src);
+    expect(PALETTE_TILE_SPRITES.d?.sheet).toBe(DOOR_SHEET.src);
+    expect(PALETTE_TILE_SPRITES.D?.sheet).toBe(DOOR_SHEET.src);
   });
 });
 

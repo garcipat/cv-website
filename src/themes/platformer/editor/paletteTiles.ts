@@ -1,5 +1,12 @@
 import type { TileChar } from '../level/LevelParser';
 import { HAZARD_CHARS } from '../level/LevelParser';
+import {
+  GROUND_WOOD_SHEET,
+  DOOR_SHEET,
+  DOOR_FRAME_CLOSED_LEFT,
+  DOOR_FRAME_CLOSED_RIGHT,
+} from '../entities/sprites/sheets';
+import { frameSource } from '../entities/sprites/SpriteSheet';
 
 /**
  * A crop rectangle (native, un-scaled pixels) into a sprite sheet image,
@@ -401,37 +408,29 @@ export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
     },
   },
   W: {
-    // O-029: solid wood ground, non-autotiling (placeholder — uses stone
-    // sprite). Temporary until the wood-art sheet is integrated.
-    sheet: WORLD_TILESET,
-    sheetWidth: 256,
-    sheetHeight: 256,
-    sx: 16,
+    sheet: GROUND_WOOD_SHEET.src,
+    sheetWidth: 32,
+    sheetHeight: 16,
+    sx: 0,
     sy: 0,
     frameWidth: 16,
     frameHeight: 16,
   },
   d: {
-    // O-029: left panel of a wooden double door (placeholder — uses wall
-    // sprite). Temporary until the door-art sheet is integrated.
-    sheet: WORLD_TILESET,
-    sheetWidth: 256,
-    sheetHeight: 256,
-    sx: 128,
-    sy: 0,
-    frameWidth: 16,
-    frameHeight: 16,
+    sheet: DOOR_SHEET.src,
+    sheetWidth: 64,
+    sheetHeight: 26,
+    ...frameSource(DOOR_SHEET, DOOR_FRAME_CLOSED_LEFT),
+    frameWidth: DOOR_SHEET.frameWidth,
+    frameHeight: DOOR_SHEET.frameHeight,
   },
   D: {
-    // O-029: right panel of a wooden double door (placeholder — uses wall
-    // sprite). Temporary until the door-art sheet is integrated.
-    sheet: WORLD_TILESET,
-    sheetWidth: 256,
-    sheetHeight: 256,
-    sx: 128,
-    sy: 0,
-    frameWidth: 16,
-    frameHeight: 16,
+    sheet: DOOR_SHEET.src,
+    sheetWidth: 64,
+    sheetHeight: 26,
+    ...frameSource(DOOR_SHEET, DOOR_FRAME_CLOSED_RIGHT),
+    frameWidth: DOOR_SHEET.frameWidth,
+    frameHeight: DOOR_SHEET.frameHeight,
   },
   '§': {
     // The complete-mushroom crop (16x16 at 0,0) of the red row of
