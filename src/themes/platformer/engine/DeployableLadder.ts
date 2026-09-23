@@ -1,5 +1,6 @@
 import type { LevelDef } from '../level/LevelData';
 import { isSolid, tileAt, RENDERED_TILE_SIZE } from '../level/Terrain';
+import { applyTerrainOverrides } from '../level/TerrainOverrides';
 import {
   PLAYER_RENDERED_SIZE,
   PLAYER_FOOT_PADDING,
@@ -158,13 +159,14 @@ export function applyDeployedLadders(
   level: LevelDef,
   states: readonly DeployableLadderState[],
 ): LevelDef {
-  const deployed = states.filter((state) => state.phase === 'deployed');
-  if (deployed.length === 0) return level;
-  const terrain = level.terrain.map((row) => [...row]);
-  for (const state of deployed) {
-    for (let r = state.row; r <= state.landRow; r++) {
-      terrain[r][state.col] = 'ropeLadder';
-    }
-  }
-  return { ...level, terrain };
+  return applyTerrainOverrides(
+    level,
+    states,
+    (state) => state.phase === 'deployed',
+    function* (state) {
+      for (let r = state.row; r <= state.landRow; r++) {
+        yield { col: state.col, row: r, tile: 'ropeLadder' as const };
+      }
+    },
+  );
 }
