@@ -2132,3 +2132,67 @@ describe('stepPlayerPhysics Down priority: ladder and bridge win over crouch (US
     expect(next.crouching).toBe(false);
   });
 });
+
+describe('stepPlayerPhysics ground branch — shared isStandableCell delegation', () => {
+  // The ground branch delegates to engine/Standable.ts's `isStandableCell`
+  // (O-027 research D3). These pin the behavior the delegation must preserve,
+  // including the bridge drop-through exemption that is passed through as
+  // `{ excludeBridge: droppingThroughBridge }`.
+
+  it('landingOnABridgeFromAbove-stopsTheFallLikeGround', () => {
+    const player = basePlayer({ y: standingYOnRow(3) - 1, vy: 500 });
+    const next = stepPlayerPhysics(player, BRIDGE_GROUND_LEVEL, 1 / 60);
+    expect(next.grounded).toBe(true);
+    expect(next.y).toBe(standingYOnRow(3));
+  });
+
+  it('droppingThroughABridge-ignoresItAndFallsPastTheBridgeRow', () => {
+    // Resting on the bridge row with the drop-through flag already set: the
+    // bridge is excluded from the ground term, so gravity carries the
+    // character down past row 0.
+    const player = basePlayer({
+      y: standingYOnRow(0),
+      vy: 0,
+      grounded: true,
+      isDroppingThroughBridge: true,
+    });
+    const next = stepPlayerPhysics(player, BRIDGE_DROP_LEVEL, 1 / 60, { dropThroughHeld: true });
+    expect(next.grounded).toBe(false);
+    expect(next.y).toBeGreaterThan(standingYOnRow(0));
+  });
+
+  it('landingOnALadderTopFromAbove-restsOnItLikeGround', () => {
+    // MID_LADDER_LEVEL row 3 is a standable ladder top; approach it from just
+    // above, falling fast enough to reach it in one frame.
+    const player = basePlayer({ x: 0, y: standingYOnRow(3) - 1, vy: 500 });
+    const next = stepPlayerPhysics(player, MID_LADDER_LEVEL, 1 / 60);
+    expect(next.grounded).toBe(true);
+    expect(next.y).toBe(standingYOnRow(3));
+  });
+
+  it('landingOnABlockFromAbove-restsOnItLikeGround', () => {
+    const blockLevel = parseLevel(['....', '....', '....', 'GGGG']);
+    const blocks = placeBlocks([], {
+      crate: [],
+      questionMark: [{ col: 1, row: 2 }],
+      fragileRock: [],
+    });
+    const player = basePlayer({ x: RENDERED_TILE_SIZE, y: standingYOnRow(2) - 1, vy: 500 });
+    const next = stepPlayerPhysics(player, blockLevel, 1 / 60, {}, blocks);
+    expect(next.grounded).toBe(true);
+    expect(next.y).toBe(standingYOnRow(2));
+  });
+
+  it('fallingOntoABrokenCrumblingFloor-passesThroughToTheGroundBelow', () => {
+    // Both columns broken, so the ground branch must not treat either as
+    // standable; the player falls through to the level bottom (no solid below).
+    const brokenStates: CrumblingFloorTimerState[] = [
+      { col: 0, row: 3, elapsed: 1.5 },
+      { col: 1, row: 3, elapsed: 1.5 },
+    ];
+    const player = basePlayer({ y: standingYOnRow(3) - 1, vy: 500 });
+    const next = stepPlayerPhysics(player, CRUMBLING_FLOOR_GROUND_LEVEL, 1 / 60, {}, [], brokenStates);
+    expect(next.grounded).toBe(false);
+    expect(next.y).toBeGreaterThan(standingYOnRow(3));
+  });
+});

@@ -16,16 +16,16 @@ describe('HAZARD_TYPES', () => {
 
 describe('typeOf', () => {
   it('spikeHazard-returnsTheSpikeType', () => {
-    const hazard: HazardPlacement = { id: 'h1', hazardType: 'spike', facing: 'up', x: 0, y: 0 };
+    const hazard: HazardPlacement = { id: 'h1', hazardType: 'spike', facing: 'up', x: 0, y: 0, col: 0, row: 0 };
     expect(typeOf(hazard).key).toBe('spike');
   });
 
   it('spearHazard-returnsTheSpearType', () => {
-    const hazard: HazardPlacement = { id: 'h1', hazardType: 'spear', facing: 'up', x: 0, y: 0 };
+    const hazard: HazardPlacement = { id: 'h1', hazardType: 'spear', facing: 'up', x: 0, y: 0, col: 0, row: 0 };
     expect(typeOf(hazard).key).toBe('spear');
   });
 
   it('floorSpikePlacement-typeOfResolvesToFloorSpike', () => {
-    expect(typeOf({ id: 'h1', hazardType: 'floorSpike', facing: 'up', x: 0, y: 0 })).toBe(floorSpike);
+    expect(typeOf({ id: 'h1', hazardType: 'floorSpike', facing: 'up', x: 0, y: 0, col: 0, row: 0 })).toBe(floorSpike);
   });
 });

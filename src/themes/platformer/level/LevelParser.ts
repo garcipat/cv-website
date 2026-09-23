@@ -122,7 +122,7 @@ export type HazardFacing = 'up' | 'down' | 'left' | 'right';
  *  HazardPlacement/placeHazards) is typed against this instead — adding
  *  another kind is one line here plus its own module and registry entry
  *  (entities/hazards/index.ts), nothing else widens by hand. */
-export type HazardKind = 'spike' | 'spear' | 'floorSpike';
+export type HazardKind = 'spike' | 'spear' | 'floorSpike' | 'fallingStalactite';
 
 /**
  * Maps each hazard-marker character to the hazard it places. Same
@@ -144,6 +144,12 @@ export const HAZARD_CHARS: Record<string, { hazardType: HazardKind; facing: Haza
   // O-021's floor spike. Floor-only (FR-013) — no facing cycle, unlike the
   // static spike above.
   A: { hazardType: 'floorSpike', facing: 'up' },
+  // O-027's falling stalactite. Ceiling-only, points down, single orientation
+  // (no facing cycle) — `facing` is cosmetic here (the hazard's own draw
+  // picks the sprite) but 'down' matches the hang direction, like a `v`
+  // ceiling spike. `T` is deliberately distinct from the decorative `⊤`
+  // stalactite tile (FR-018).
+  T: { hazardType: 'fallingStalactite', facing: 'down' },
 };
 
 // A character can only mean one thing — guard against TERRAIN_CHARS,
@@ -216,6 +222,7 @@ export type TileChar =
   | '>'
   | '¦'
   | 'A'
+  | 'T'
   | 'C'
   | '@'
   | '§'

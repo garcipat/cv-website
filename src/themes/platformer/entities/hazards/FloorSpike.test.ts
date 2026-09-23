@@ -6,7 +6,7 @@ import type { HazardPlacement } from '../../level/HazardMapper';
 import type { FloorSpikePhase } from '../../engine/FloorSpike';
 
 function hazardAt(phase: FloorSpikePhase | undefined): HazardPlacement {
-  return { id: 'h1', hazardType: 'floorSpike', facing: 'up', x: 16, y: 32, floorSpikePhase: phase };
+  return { id: 'h1', hazardType: 'floorSpike', facing: 'up', x: 16, y: 32, col: 0, row: 0, floorSpikePhase: phase };
 }
 
 describe('floorSpike', () => {

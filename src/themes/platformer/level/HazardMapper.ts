@@ -1,6 +1,7 @@
 import { tileToPixel } from './Terrain';
 import type { HazardFacing, HazardKind } from './LevelParser';
 import type { FloorSpikePhase } from '../engine/FloorSpike';
+import type { FallingStalactitePhase } from '../engine/FallingStalactite';
 
 export interface HazardPlacement {
   id: string;
@@ -8,6 +9,11 @@ export interface HazardPlacement {
   facing: HazardFacing;
   x: number;
   y: number;
+  /** Grid position of the marker. Added (O-027) so a falling stalactite can
+   *  resolve its decoration variant, detection zone and landing column from
+   *  its own cell. Every kind carries it. */
+  col: number;
+  row: number;
   /** A floor spike's current cycle phase, merged in per-tick by
    *  PlatformerPage.tsx from `floorSpikeTimerStates` — `undefined` for
    *  every other hazard kind and for a floor spike before its first
@@ -19,6 +25,15 @@ export interface HazardPlacement {
    *  `engine/FloorSpike.ts`'s `floorSpikeExtensionAt`). `undefined`/missing
    *  is treated as 0 (nothing risen). */
   floorSpikeExtension?: number;
+  /** A falling stalactite's current phase, merged in per-tick by
+   *  `hazardPlacementsForTick()` — `undefined` for every other kind and for
+   *  a falling stalactite before its first merge (treated as `'hanging'`). */
+  fallingStalactitePhase?: FallingStalactitePhase;
+  /** Downward offset in rendered px from the hanging position (0 while
+   *  hanging/shaking). */
+  fallingStalactiteOffsetY?: number;
+  /** Horizontal shake offset in rendered px (only non-zero while shaking). */
+  fallingStalactiteShakeOffsetX?: number;
 }
 
 /**
@@ -33,6 +48,6 @@ export function placeHazards(
 ): HazardPlacement[] {
   return markers.map(({ col, row, hazardType, facing }) => {
     const { x, y } = tileToPixel(col, row);
-    return { id: `hazard-${hazardType}-${col}-${row}`, hazardType, facing, x, y };
+    return { id: `hazard-${hazardType}-${col}-${row}`, hazardType, facing, x, y, col, row };
   });
 }

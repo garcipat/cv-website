@@ -33,7 +33,7 @@ Declared in `src/themes/platformer/level/LevelData.ts`.
 | `fence` | Decorative, non-solid, one fixed sprite. |
 | `cobweb` | Decorative, non-solid. Corner-vs-flat art and rotation are auto-detected from neighbouring solid terrain. |
 | `crystalCluster` | Decorative, non-solid, one fixed sprite. |
-| `stalactite` | Decorative, non-solid. Two size variants (large / twin) picked by position hash. |
+| `stalactite` | Decorative, non-solid. Two size variants (large / twin) picked by position hash. Its falling-hazard counterpart is the `T` hazard marker (O-027), which is **not** a terrain tile — it lives on `empty` terrain and renders this same art untinted in game (see [LevelFormat.md](./LevelFormat.md#hazard-characters)). |
 | `stalagmite` | Decorative, non-solid. Two size variants picked the same way. |
 | `torch` | Decorative, non-solid cave dressing. Its flame animates through a 4-frame sparkle loop — each cell's frame is a pure function of its grid position and the shared world clock (`engine/Torch.ts`'s `torchFrameIndex`), so neighbouring torches flicker out of phase and the tile carries no per-instance state. |
 | `ladderBundle` | A curled-up rope-ladder bundle (`@`), the author-placeable O-011 tile. Non-solid, not climbable, but standable from above (`isStandableLadderBundleTop`). A grounded character presses Up while on or one cell above it to deploy it. |
@@ -284,6 +284,13 @@ and surface later as a confusing crash deep in the render loop.
 Callers: `bushOrTreeEntry` (four bush sizes for the `only` role), `staticObjectEntry` for
 `fence` and `crystalCluster` (one variant each), and `stalactiteEntry` / `stalagmiteEntry`
 (large / twin). A level author places one tile; the size is never a level-file choice.
+
+`isStalactiteTwin(col, row)` reuses that same `pickVariant` hash to tell whether a cell's
+`stalactite` decoration resolves to the twin variant, so the O-027 falling-stalactite
+hazard (`T`) is guaranteed to render the exact variant the decoration would at that cell.
+The twin's two halves are exported as `TWIN_LEFT_RECT` / `TWIN_RIGHT_RECT` (split at x=8;
+left is the taller/larger one) — the hazard detaches exactly one of them, left on an even
+column and right on an odd one, keeping the other hanging.
 
 ## Multi-cell runs — chain as the worked example
 
