@@ -43,6 +43,7 @@ import {
   drawCheckpoints,
   drawFadeOutTexts,
   drawDarkness,
+  drawFog,
   drawEnemyEyes,
   drawHeldTorch,
   heldTorchLightPosition,
@@ -251,6 +252,8 @@ import {
   respawnCenter,
   darknessLevel,
   tickDarkness,
+  fogLevel,
+  tickFog,
   torchPositions,
   deployableLadderStates,
   activeLevel,
@@ -822,6 +825,12 @@ export const PlatformerPage = () => {
         );
       }
 
+      // Outside-a-cave fog: drawn over the whole world (background, terrain,
+      // player, enemies, pickups, water) but before every HUD/UI pass below,
+      // same placement as the darkness overlay it is mutually exclusive with
+      // (O-028 FR-010).
+      drawFog(ctx, currentLevel.value, fogLevel.value, originX, originY);
+
       // Cave-darkness overlay: drawn over the whole world (background,
       // terrain, player, enemies, pickups, water) but before every HUD/UI
       // pass below, so hearts, counters, hint bubbles and popups stay fully
@@ -1108,6 +1117,11 @@ export const PlatformerPage = () => {
       // Darkness is eased here, in the `playing` branch only, so it freezes
       // with the rest of the world during pause/death (research D8).
       tickDarkness(dt);
+
+      // Fog is eased here too, in the `playing` branch only, so it freezes
+      // with the rest of the world during pause/death, same as darkness
+      // (O-028).
+      tickFog(dt);
 
       // In-progress rope-ladder unrolls advance here too, so they freeze with
       // the world on pause/death (O-011).
