@@ -98,6 +98,33 @@ CV-content objective the key economy exists to gate). Tying a second interact-an
 the same key pool chests already use would make keys serve two unrelated purposes with no way for
 a visitor to tell which a given key press will consume, for no stated benefit in the source idea.
 
+### A shared `applyTerrainOverrides` helper, not a second copy of the same plumbing
+
+`DeployableLadder.ts`'s `applyDeployedLadders` has a shape that has nothing to do with ladders
+specifically: filter per-instance states down to the ones currently affecting the grid: if none,
+return the input `level` by reference (so the common no-override case allocates nothing): otherwise
+clone `level.terrain` exactly once (`level.terrain.map((row) => [...row])`) and write into that one
+clone for every affected state. `applyOpenedDoors` needs precisely that shape — filter to states
+where `phase === 'open'`, write each open pair's two cells — differing from the ladder version only
+in *which* states qualify and *which* cells each one writes. Writing a second, separately-tested copy
+of the filter/clone-once/identity-when-empty logic would be exactly the kind of duplication this
+codebase's own conventions warn against (`pickVariant`'s shared home rather than one per decoration
+kind, `drawBlockTile`/`potRenderPlan` shared across block kinds). Since this feature is the second
+caller of that shape, not the first, it is the right moment to lift the shared part out — a small
+`applyTerrainOverrides(level, states, isActive, cellsFor)` helper (`isActive: (state) => boolean`,
+`cellsFor: (state) => Iterable<{ col, row, tile }>`) that owns the filter/clone/identity mechanics
+once, called by both `applyDeployedLadders` (unchanged behavior, now expressed through the shared
+helper) and the new `applyOpenedDoors`. `activeLevel` composes both:
+`applyOpenedDoors(applyDeployedLadders(currentLevel.value, ladderStates), doorStates)`.
+
+This is deliberately smaller than a `TerrainKind` registry — `Terrain.md`'s "Open gap" note already
+records that a full registry lifting `isSolid`/`isClimbable`/one-way predicates out of `Physics.ts`
+is a known, larger, and still-open gap, explicitly left alone by every feature so far including this
+one. `applyTerrainOverrides` only touches the narrower "runtime tile override" shape those two
+features already share, not the broader predicate-dispatch question — it makes the *existing*
+two-instance pattern honest about being one mechanism instead of two coincidentally similar ones,
+without pre-building machinery for hypothetical future tile kinds this feature doesn't need.
+
 ### Two leaves, two adjacent cells, not one wide entity
 
 The door's art is two 16×26px leaves — each exactly one tile wide. That is what makes the
