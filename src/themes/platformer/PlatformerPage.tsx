@@ -1826,14 +1826,14 @@ export const PlatformerPage = () => {
         const contactSide: -1 | 1 = hazard.x >= playerState.value.x ? 1 : -1;
         // Floor spikes deal damage with no knockback (spec FR-006) — the
         // only divergence from a static spike touch, which always pushes
-        // the player away (see the applyKnockback call below). Still needs
-        // to start the shared refractory window itself (beginHitReaction —
-        // the same "damage with no knockback" helper a pit fall uses), or
-        // the player would take repeated damage every tick they remain on
-        // the tile through the rest of the full-extend phase, since nothing
-        // else resets hitTimer for them.
+        // the player away (see the applyKnockback call below). They still
+        // show the same red hit reaction as every other damage source
+        // (applyHitReactionWithoutKnockback), and that helper also opens the
+        // shared refractory window, or the player would take repeated damage
+        // every tick they remain on the tile through the rest of the
+        // full-extend phase. Only a pit fall keeps the transparent blink.
         if (hazard.hazardType === 'floorSpike') {
-          playerState.value = beginHitReaction(playerState.value);
+          playerState.value = applyHitReactionWithoutKnockback(playerState.value);
         } else if (playerState.value.crouching) {
           // A crouched non-floor-spike hazard hit deals damage and shows the
           // red reaction but applies no knockback (FR-011/SC-009).
