@@ -1,13 +1,51 @@
 import { computed, signal, type ReadonlySignal, type Signal } from '@preact/signals-react';
 import { createDebouncedLocalStorageSignal, createLocalStorageSignal } from '@/lib/utils';
-import { importLayout } from './importLayout';
-import { LEVEL_1_LAYOUT } from '../level/level';
+import { importLayout, importMarkerGrid } from './importLayout';
+import { LEVEL_1_LAYOUT, LEVEL_1_MARKERS } from '../level/level';
 import { BLANK_BLUEPRINT } from '../level/BlueprintData';
 import type { BackgroundChar, TileChar } from '../level/LevelParser';
+import type { MarkerEntry, MarkerGrid } from '../level/LevelData';
 
 export type EditorCanvasMode = 'level' | 'blueprint';
 export type EditorLayer = 'foreground' | 'background';
 export type EditorAppearance = 'light' | 'dark';
+
+/** The palette's marker tools — a marker kind a click writes to the tile meta
+ *  layer. The sign (`T`) and decorative (`⊤`) tools are `TileChar`s, not
+ *  `MarkerTool`s: the sign is the one variant tool whose marker kind is not
+ *  itself a tool name, and the decorative stalactite writes no marker at all.
+ *  `connectionPoint` is offered on the blueprint canvas only (FR-007/FR-010). */
+export type MarkerTool = 'patrolBoundary' | 'connectionPoint' | 'fallingStalactite';
+
+/** Every palette tool: a terrain/entity/hazard/sign character, or a marker
+ *  tool (FR-013). A pure marker tool writes only its own marker; the sign and
+ *  falling-stalactite tools write a terrain character plus their own marker. */
+export type EditorTool = TileChar | MarkerTool;
+
+/**
+ * Forgiving shape guard for a persisted marker grid — the one untyped
+ * boundary (localStorage). Mirrors the "a malformed value costs only that
+ * field" policy the terrain/background grids use: an entry that is not
+ * `null` and does not look like a `{kind}` marker is dropped.
+ */
+const isMarkerEntry = (value: unknown): value is MarkerEntry => {
+  if (value === null || typeof value !== 'object') return false;
+  const kind = (value as { kind?: unknown }).kind;
+  return (
+    kind === 'patrolBoundary' ||
+    kind === 'connectionPoint' ||
+    kind === 'fallingStalactite' ||
+    (kind === 'sign' && typeof (value as { hintId?: unknown }).hintId === 'string')
+  );
+};
+
+const isMarkerGrid = (value: unknown): value is MarkerGrid =>
+  Array.isArray(value) &&
+  value.every(
+    (row) =>
+      Array.isArray(row) &&
+      row.every((cell) => cell === null || cell === undefined || isMarkerEntry(cell)),
+  );
 
 /** The unified result of a level or blueprint save. Structurally identical to
  *  the two per-file result types it replaces (`SaveLevelResult`,
@@ -26,6 +64,7 @@ export interface SaveResult {
 export interface PlacementSnapshot {
   grid: TileChar[][];
   background: BackgroundChar[][];
+  markers: MarkerGrid;
 }
 
 /** Which save last ran and what it did. */
@@ -53,9 +92,16 @@ export const editorLevelSignal = createDebouncedLocalStorageSignal<TileChar[][]>
   EDITOR_STORAGE_DEBOUNCE_MS,
 );
 
-export const editorSelectedToolSignal = createLocalStorageSignal<TileChar>(
+export const editorSelectedToolSignal = createLocalStorageSignal<EditorTool>(
   'platformer-editor-selected-tool',
   'G',
+);
+
+export const editorMarkerSignal = createDebouncedLocalStorageSignal<MarkerGrid>(
+  'platformer-editor-markers',
+  importMarkerGrid(LEVEL_1_LAYOUT, LEVEL_1_MARKERS),
+  EDITOR_STORAGE_DEBOUNCE_MS,
+  isMarkerGrid,
 );
 
 export const editorLoadedLevelNameSignal = createLocalStorageSignal<string>(
@@ -110,6 +156,13 @@ export const editorBlueprintBackgroundSignal = createDebouncedLocalStorageSignal
   EDITOR_STORAGE_DEBOUNCE_MS,
 );
 
+export const editorBlueprintMarkerSignal = createDebouncedLocalStorageSignal<MarkerGrid>(
+  'platformer-editor-blueprint-markers',
+  importMarkerGrid(BLANK_BLUEPRINT.layout, BLANK_BLUEPRINT.markers),
+  EDITOR_STORAGE_DEBOUNCE_MS,
+  isMarkerGrid,
+);
+
 export const editorLoadedBlueprintNameSignal = createLocalStorageSignal<string>(
   'platformer-editor-loaded-blueprint',
   BLANK_BLUEPRINT.name,
@@ -161,6 +214,14 @@ export const editorBackgroundGridSignal: ReadonlySignal<BackgroundChar[][]> = co
   editorCanvasModeSignal.value === 'blueprint'
     ? editorBlueprintBackgroundSignal.value
     : editorBackgroundSignal.value,
+);
+
+/** The active canvas's tile meta layer — the marker analogue of
+ *  `editorBackgroundGridSignal`. */
+export const editorMarkerGridSignal: ReadonlySignal<MarkerGrid> = computed(() =>
+  editorCanvasModeSignal.value === 'blueprint'
+    ? editorBlueprintMarkerSignal.value
+    : editorMarkerSignal.value,
 );
 
 export const editorActiveDirtySignal: ReadonlySignal<boolean> = computed(() =>

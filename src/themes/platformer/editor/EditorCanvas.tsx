@@ -1,8 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
-import { SIGN_CHARS, parseBackgroundLayout, type TileChar, type BackgroundChar } from '../level/LevelParser';
-
-const PATROL_CHAR: TileChar = 'P';
-const CONNECTION_POINT_CHAR: TileChar = '+';
+import { parseBackgroundLayout, TERRAIN_CHARS, type TileChar, type BackgroundChar } from '../level/LevelParser';
+import type { MarkerEntry, MarkerGrid } from '../level/LevelData';
+import { hintCode } from '../level/HintCatalog';
+import { DEFAULT_TORCH_STRENGTH, torchStrengthCode } from '../engine/Torch';
+import {
+  paintMarkerCell,
+  eraseMarkerCell,
+  paintSignMarker,
+  paintTorchMarker,
+  shiftMarkerGrid,
+} from './paintMarkerCell';
+import { currentUI } from '@/state/locale';
 import { paintCell, type PaintResult } from './paintCell';
 import { updatePanOffset, centerPanOnSpawn, type PanOffset } from './EditorPan';
 import {
@@ -54,7 +62,7 @@ import {
 import { caveLightingPreview } from './caveLightingPreview';
 import { paintBackgroundCell, eraseBackgroundCell } from './paintBackgroundCell';
 import type { DrawContext } from '../engine/DrawContext';
-import type { EditorAppearance } from './editorState';
+import type { EditorAppearance, EditorTool } from './editorState';
 import { computePotRenderPlan } from '../entities/blocks/potRenderPlan';
 import {
   SLIME_GREEN_SHEET,
@@ -104,7 +112,7 @@ export interface EditorImages {
  *  a connection point's glyph the same way the level canvas does once it's
  *  actually placed, rather than letting it disappear into the tint. */
 export interface PlacementPreview {
-  cells: readonly { row: number; col: number; char: TileChar }[];
+  cells: readonly { row: number; col: number; char: TileChar; marker?: MarkerEntry }[];
   valid: boolean;
 }
 
@@ -125,7 +133,11 @@ export interface PlacementMode {
 
 interface EditorCanvasProps {
   grid: TileChar[][];
-  selectedTool: TileChar;
+  /** The active canvas's tile meta layer, aligned 1:1 with `grid`. Optional so
+   *  every existing render site that doesn't care about markers (tests that
+   *  only exercise terrain painting) is unaffected; defaults to no markers. */
+  markerGrid?: MarkerGrid;
+  selectedTool: EditorTool;
   panOffset: PanOffset;
   images: EditorImages;
   /** The editor-owned appearance. Only `'dark'` draws the cave-lighting
@@ -153,6 +165,9 @@ interface EditorCanvasProps {
    *  existing caller that doesn't offer zoom control keeps compiling. */
   onZoomChange?: (next: ZoomLevel, pan: PanOffset) => void;
   onPaint: (result: PaintResult) => void;
+  /** Writes the active canvas's marker grid. Optional (defaults to a no-op)
+   *  for the same reason `markerGrid` is. */
+  onPaintMarker?: (next: MarkerGrid) => void;
   onPaintBackground: (next: BackgroundChar[][]) => void;
   onPan: (offset: PanOffset) => void;
 }
@@ -219,13 +234,13 @@ function drawGridLines(
 
 const SIGN_BADGE_FONT_SIZE = 12;
 
-/** Draws each sign marker's own digit character in its tile's top-left
+/** Draws each sign marker's hint code (`1`-`6`) in its tile's top-left
  *  corner — lets an author tell apart otherwise-identical signpost sprites
- *  at a glance while placing/cycling them (Task 7). Editor-only: the real
+ *  at a glance while placing/cycling them (FR-028). Editor-only: the real
  *  game's own drawSigns/drawSignBubble never show this. */
 function drawSignBadges(
   ctx: CanvasRenderingContext2D,
-  grid: TileChar[][],
+  markers: MarkerGrid,
   originX: number,
   originY: number,
   zoom: ZoomLevel,
@@ -234,17 +249,53 @@ function drawSignBadges(
   ctx.font = `${SIGN_BADGE_FONT_SIZE * zoom}px sans-serif`;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
-  for (let row = 0; row < grid.length; row++) {
-    for (let col = 0; col < grid[row].length; col++) {
-      const char = grid[row][col];
-      if (!SIGN_CHARS[char]) continue;
+  for (let row = 0; row < markers.length; row++) {
+    for (let col = 0; col < markers[row].length; col++) {
+      const marker = markers[row][col];
+      if (marker?.kind !== 'sign') continue;
+      const code = hintCode(marker.hintId);
       const { x, y } = tileToPixel(col, row);
       const destX = x * zoom + originX;
       const destY = y * zoom + originY;
       ctx.fillStyle = '#000';
-      ctx.fillText(char, destX + 1, destY + 1);
+      ctx.fillText(code, destX + 1, destY + 1);
       ctx.fillStyle = '#fff';
-      ctx.fillText(char, destX, destY);
+      ctx.fillText(code, destX, destY);
+    }
+  }
+  ctx.restore();
+}
+
+const TORCH_BADGE_FONT_SIZE = 12;
+
+/** Draws each torch's light strength (`0`-`9`) in its tile's top-left corner —
+ *  editor-only, exactly like `drawSignBadges`, so an author can read a torch's
+ *  strength at a glance. A torch with no marker shows the default. */
+function drawTorchBadges(
+  ctx: CanvasRenderingContext2D,
+  grid: TileChar[][],
+  markers: MarkerGrid,
+  originX: number,
+  originY: number,
+  zoom: ZoomLevel,
+): void {
+  ctx.save();
+  ctx.font = `${TORCH_BADGE_FONT_SIZE * zoom}px sans-serif`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  for (let row = 0; row < grid.length; row++) {
+    for (let col = 0; col < grid[row].length; col++) {
+      if (TERRAIN_CHARS[grid[row][col]] !== 'torch') continue;
+      const marker = markers[row]?.[col];
+      const strength = marker?.kind === 'torch' ? marker.strength : DEFAULT_TORCH_STRENGTH;
+      const code = torchStrengthCode(strength);
+      const { x, y } = tileToPixel(col, row);
+      const destX = x * zoom + originX;
+      const destY = y * zoom + originY;
+      ctx.fillStyle = '#000';
+      ctx.fillText(code, destX + 1, destY + 1);
+      ctx.fillStyle = '#fff';
+      ctx.fillText(code, destX, destY);
     }
   }
   ctx.restore();
@@ -267,6 +318,17 @@ const PATROL_MARKER_GLYPH_COLOR = '#3d0a0a';
 const CONNECTION_POINT_MARKER_TINT = 'rgba(96, 168, 255, 0.4)';
 const CONNECTION_POINT_MARKER_GLYPH_COLOR = '#0a2a4d';
 const MARKER_FONT_SIZE = 18;
+
+/** Human-readable names for the hover tooltip (FR-029). A sign additionally
+ *  shows its hint's own translated text, read from the same
+ *  `currentUI.value.platformer.hints` the in-game bubble uses. */
+const MARKER_TOOLTIP_LABELS: Record<MarkerEntry['kind'], string> = {
+  patrolBoundary: 'Patrol boundary',
+  connectionPoint: 'Connection point',
+  fallingStalactite: 'Falling stalactite',
+  sign: 'Sign',
+  torch: 'Torch',
+};
 // The glyph is drawn as a dark core inside a light halo rather than in one
 // flat color: a marker tile can sit over anything the editor draws — pale
 // sky, dark ground, a ladder — and the editor itself renders in both a light
@@ -359,8 +421,8 @@ function drawPlacementPreview(
   ctx.font = `${MARKER_FONT_SIZE * zoom}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  for (const { col, row, char } of preview.cells) {
-    if (char !== CONNECTION_POINT_CHAR) continue;
+  for (const { col, row, marker } of preview.cells) {
+    if (marker?.kind !== 'connectionPoint') continue;
     const { x, y } = tileToPixel(col, row);
     drawMarkerGlyph(
       ctx,
@@ -374,15 +436,15 @@ function drawPlacementPreview(
   ctx.restore();
 }
 
-/** Draws a tinted cell with `glyph` on every `char` tile. Editor-only,
- *  exactly like drawSignBadges above: both markers that use this — the patrol
- *  boundary and the blueprint connection point — are invisible in the real
- *  game by design (Renderer.ts's tileSource returns null for both), which
- *  would otherwise leave an author painting tiles they cannot see. */
+/** Draws a tinted cell with `glyph` on every cell whose marker is `kind`.
+ *  Editor-only, exactly like drawSignBadges above: both markers that use this
+ *  — the patrol boundary and the blueprint connection point — are invisible
+ *  in the real game by design, which would otherwise leave an author painting
+ *  markers they cannot see. */
 function drawTileMarkers(
   ctx: CanvasRenderingContext2D,
-  grid: TileChar[][],
-  char: TileChar,
+  markers: MarkerGrid,
+  kind: MarkerEntry['kind'],
   glyph: string,
   tint: string,
   glyphColor: string,
@@ -395,9 +457,9 @@ function drawTileMarkers(
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   const size = RENDERED_TILE_SIZE * zoom;
-  for (let row = 0; row < grid.length; row++) {
-    for (let col = 0; col < grid[row].length; col++) {
-      if (grid[row][col] !== char) continue;
+  for (let row = 0; row < markers.length; row++) {
+    for (let col = 0; col < markers[row].length; col++) {
+      if (markers[row][col]?.kind !== kind) continue;
       const { x, y } = tileToPixel(col, row);
       const destX = x * zoom + originX;
       const destY = y * zoom + originY;
@@ -488,8 +550,8 @@ function tintedStalactiteSprite(
  */
 function drawTileTint(
   ctx: CanvasRenderingContext2D,
-  grid: TileChar[][],
-  char: TileChar,
+  markers: MarkerGrid,
+  kind: MarkerEntry['kind'],
   tint: string,
   image: HTMLImageElement | null,
   originX: number,
@@ -500,9 +562,9 @@ function drawTileTint(
   ctx.save();
   ctx.imageSmoothingEnabled = false;
   const size = RENDERED_TILE_SIZE * zoom;
-  for (let row = 0; row < grid.length; row++) {
-    for (let col = 0; col < grid[row].length; col++) {
-      if (grid[row][col] !== char) continue;
+  for (let row = 0; row < markers.length; row++) {
+    for (let col = 0; col < markers[row].length; col++) {
+      if (markers[row][col]?.kind !== kind) continue;
       const sprite = tintedStalactiteSprite(image, col, row, tint);
       if (!sprite) continue;
       const { x, y } = tileToPixel(col, row);
@@ -514,6 +576,7 @@ function drawTileTint(
 
 export const EditorCanvas = ({
   grid,
+  markerGrid = [],
   selectedTool,
   panOffset,
   images,
@@ -527,6 +590,7 @@ export const EditorCanvas = ({
   zoom = DEFAULT_ZOOM,
   onZoomChange,
   onPaint,
+  onPaintMarker = () => {},
   onPaintBackground,
   onPan,
 }: EditorCanvasProps) => {
@@ -537,7 +601,7 @@ export const EditorCanvas = ({
   const darknessLayerRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   type DragState =
-    | { mode: 'paint'; tool: TileChar; lastCol: number; lastRow: number }
+    | { mode: 'paint'; tool: EditorTool; isErase: boolean; lastCol: number; lastRow: number }
     | { mode: 'paintBackground'; isErase: boolean; lastCol: number; lastRow: number }
     | { mode: 'pan'; lastX: number; lastY: number };
   const dragRef = useRef<DragState | null>(null);
@@ -553,6 +617,15 @@ export const EditorCanvas = ({
   const [canvasMeasured, setCanvasMeasured] = useState(
     () => typeof ResizeObserver === 'undefined',
   );
+  // The marker hover tooltip's position (canvas-local px) and text, or `null`
+  // when no marker is hovered (FR-029). A plain absolutely-positioned overlay,
+  // like the placement preview — not a shadcn tooltip, which would need a DOM
+  // anchor the canvas cells don't have.
+  const [hoverTooltip, setHoverTooltip] = useState<{
+    x: number;
+    y: number;
+    text: string;
+  } | null>(null);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -602,7 +675,7 @@ export const EditorCanvas = ({
     // The cave-lighting preview is derived from the live grid/background and
     // drawn only in the dark appearance on the level canvas (FR-008/FR-011).
     const previewActive = appearance === 'dark' && !isBlueprintMode;
-    const preview = previewActive ? caveLightingPreview(grid) : null;
+    const preview = previewActive ? caveLightingPreview(grid, markerGrid) : null;
     const showPreview = preview !== null && preview.darknessLevel > 0;
 
     ctx.fillStyle = readGameBackgroundColor();
@@ -699,16 +772,17 @@ export const EditorCanvas = ({
       );
 
       if (images.tileset) {
-        drawSigns(ctx, synthesizeSignPlacements(grid), images.tileset, originX, originY);
+        drawSigns(ctx, synthesizeSignPlacements(grid, markerGrid), images.tileset, originX, originY);
       }
       ctx.restore(); // pop scaled segment 1 — back to unscaled, alpha still foregroundAlpha
 
       // --- unscaled: editor-local overlays (Task 4 handles their own zoom math) ---
-      drawSignBadges(ctx, grid, panOffset.x, panOffset.y, zoom);
+      drawSignBadges(ctx, markerGrid, panOffset.x, panOffset.y, zoom);
+      drawTorchBadges(ctx, grid, markerGrid, panOffset.x, panOffset.y, zoom);
       drawTileMarkers(
         ctx,
-        grid,
-        PATROL_CHAR,
+        markerGrid,
+        'patrolBoundary',
         PATROL_MARKER_GLYPH,
         PATROL_MARKER_TINT,
         PATROL_MARKER_GLYPH_COLOR,
@@ -718,8 +792,8 @@ export const EditorCanvas = ({
       );
       drawTileMarkers(
         ctx,
-        grid,
-        CONNECTION_POINT_CHAR,
+        markerGrid,
+        'connectionPoint',
         CONNECTION_POINT_MARKER_GLYPH,
         CONNECTION_POINT_MARKER_TINT,
         CONNECTION_POINT_MARKER_GLYPH_COLOR,
@@ -782,7 +856,7 @@ export const EditorCanvas = ({
 
       drawCollectibles(ctx, synthesizeCollectiblePlacements(grid), new Set(), drawContext);
 
-      drawHazards(ctx, synthesizeHazardPlacements(grid), drawContext);
+      drawHazards(ctx, synthesizeHazardPlacements(grid, markerGrid), drawContext);
 
       drawEnemies(ctx, synthesizeEnemyStates(grid), drawContext);
 
@@ -827,12 +901,12 @@ export const EditorCanvas = ({
       // segment 2 just drew, so an author can tell a `T` from the decorative
       // `⊤`. Masked to the stalactite's own opaque pixels — never a full-cell
       // fill — so only the stone is washed.
-      const fallingStalactiteTint = PALETTE_TILE_SPRITES['T']?.tint;
+      const fallingStalactiteTint = PALETTE_TILE_SPRITES['fallingStalactite']?.tint;
       if (fallingStalactiteTint) {
         drawTileTint(
           ctx,
-          grid,
-          'T',
+          markerGrid,
+          'fallingStalactite',
           fallingStalactiteTint,
           images.decorations,
           panOffset.x,
@@ -895,11 +969,12 @@ export const EditorCanvas = ({
     // pre-feature frame (FR-007, SC-004).
     if (showPreview) {
       drawGridLines(ctx, canvas.width, canvas.height, panOffset, zoom);
-      drawSignBadges(ctx, grid, panOffset.x, panOffset.y, zoom);
+      drawSignBadges(ctx, markerGrid, panOffset.x, panOffset.y, zoom);
+      drawTorchBadges(ctx, grid, markerGrid, panOffset.x, panOffset.y, zoom);
       drawTileMarkers(
         ctx,
-        grid,
-        PATROL_CHAR,
+        markerGrid,
+        'patrolBoundary',
         PATROL_MARKER_GLYPH,
         PATROL_MARKER_TINT,
         PATROL_MARKER_GLYPH_COLOR,
@@ -909,8 +984,8 @@ export const EditorCanvas = ({
       );
       drawTileMarkers(
         ctx,
-        grid,
-        CONNECTION_POINT_CHAR,
+        markerGrid,
+        'connectionPoint',
         CONNECTION_POINT_MARKER_GLYPH,
         CONNECTION_POINT_MARKER_TINT,
         CONNECTION_POINT_MARKER_GLYPH_COLOR,
@@ -935,7 +1010,7 @@ export const EditorCanvas = ({
     // nothing would redraw it until some unrelated state change (a paint
     // or pan) happened to run this effect again — the canvas would sit
     // invisible until the next interaction "fixed" it as a side effect.
-  }, [grid, panOffset, images, canvasSize, backgroundGrid, activeLayer, placement, appearance, isBlueprintMode, zoom]);
+  }, [grid, markerGrid, panOffset, images, canvasSize, backgroundGrid, activeLayer, placement, appearance, isBlueprintMode, zoom]);
 
   const cellFromEvent = (clientX: number, clientY: number) => {
     const rect = canvasRef.current!.getBoundingClientRect();
@@ -947,7 +1022,104 @@ export const EditorCanvas = ({
     };
   };
 
+  /** Applies `tool` at `(col, row)`. A pure marker tool writes only the marker
+   *  grid and never grows it (FR-009/FR-010); the sign and falling-stalactite
+   *  tools write their terrain character plus their own marker at the
+   *  post-growth coordinates (the ordering invariant, D8); every other tool
+   *  writes terrain. Returns the (post-growth) cell a drag should remember. */
+  const applyToolAt = (
+    col: number,
+    row: number,
+    tool: EditorTool,
+    isErase: boolean,
+  ): { col: number; row: number } => {
+    if (tool === 'patrolBoundary' || tool === 'connectionPoint') {
+      onPaintMarker(
+        isErase
+          ? eraseMarkerCell(markerGrid, col, row)
+          : paintMarkerCell(markerGrid, col, row, { kind: tool }),
+      );
+      return { col, row };
+    }
+
+    if (tool === 'T' || tool === 'fallingStalactite') {
+      // Right-click removes the whole cell — the terrain character AND whatever
+      // marker is on it, not just this tool's own kind. Clearing only the own
+      // kind would orphan a marker whenever the tile is erased with a different
+      // tool selected (e.g. right-clicking a sign with the torch tool).
+      if (isErase) {
+        onPaint(paintCell(grid, col, row, '.'));
+        if (markerGrid[row]?.[col]) {
+          onPaintMarker(eraseMarkerCell(markerGrid, col, row));
+        }
+        return { col, row };
+      }
+      const result = paintCell(grid, col, row, tool === 'T' ? 'T' : '⊤');
+      const shifted = shiftMarkerGrid(markerGrid, result.colShift, result.rowShift);
+      const targetCol = col + result.colShift;
+      const targetRow = row + result.rowShift;
+      onPaint(result);
+      onPaintMarker(
+        tool === 'T'
+          ? paintSignMarker(shifted, targetCol, targetRow)
+          : paintMarkerCell(shifted, targetCol, targetRow, { kind: 'fallingStalactite' }),
+      );
+      return { col: targetCol, row: targetRow };
+    }
+
+    if (tool === '¥') {
+      // Right-click removes the torch and whatever marker is on its cell, like
+      // the sign/falling tools above.
+      if (isErase) {
+        onPaint(paintCell(grid, col, row, '.'));
+        if (markerGrid[row]?.[col]) {
+          onPaintMarker(eraseMarkerCell(markerGrid, col, row));
+        }
+        return { col, row };
+      }
+      const alreadyTorch = grid[row]?.[col] === '¥';
+      const result = paintCell(grid, col, row, '¥');
+      const targetCol = col + result.colShift;
+      const targetRow = row + result.rowShift;
+      onPaint(result);
+      // Only cycle on an already-placed torch: a fresh click lays a default
+      // torch (no marker), and the next clicks step its strength up 0–9.
+      if (alreadyTorch) {
+        onPaintMarker(
+          paintTorchMarker(
+            shiftMarkerGrid(markerGrid, result.colShift, result.rowShift),
+            targetCol,
+            targetRow,
+          ),
+        );
+      }
+      return { col: targetCol, row: targetRow };
+    }
+
+    const result = paintCell(grid, col, row, isErase ? '.' : tool);
+    onPaint(result);
+    // Erasing a cell clears its marker whatever kind it is — the right-click
+    // gesture and the Eraser tool remove the tile and its metadata together, so
+    // a marker can never be left behind unremovable. A *left*-click that paints
+    // a different tile over the cell only clears a marker that describes that
+    // tile (a sign, falling stalactite or torch); a patrol boundary or
+    // connection point survives a repaint (FR-002).
+    const existing = markerGrid[row]?.[col];
+    const clearsCell = isErase || tool === '.';
+    if (
+      existing &&
+      (clearsCell ||
+        existing.kind === 'sign' ||
+        existing.kind === 'fallingStalactite' ||
+        existing.kind === 'torch')
+    ) {
+      onPaintMarker(eraseMarkerCell(markerGrid, col, row));
+    }
+    return { col: col + result.colShift, row: row + result.rowShift };
+  };
+
   const handleMouseDown = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    setHoverTooltip(null);
     if (event.button === 1) {
       event.preventDefault(); // suppress the browser's middle-click auto-scroll cursor
       dragRef.current = {
@@ -986,18 +1158,19 @@ export const EditorCanvas = ({
       return;
     }
 
-    // Right-click always erases, regardless of the selected palette tool;
-    // left-click paints with it.
-    const tool = event.button === 2 ? '.' : selectedTool;
+    // Right-click is the erase gesture: it clears the selected tool's own
+    // content (a marker tool's marker, or a terrain tool's terrain);
+    // left-click paints with the selected tool.
+    const isErase = event.button === 2;
     const { col, row } = cellFromEvent(event.clientX, event.clientY);
-    const result = paintCell(grid, col, row, tool);
+    const target = applyToolAt(col, row, selectedTool, isErase);
     dragRef.current = {
       mode: 'paint',
-      tool,
-      lastCol: col + result.colShift,
-      lastRow: row + result.rowShift,
+      tool: selectedTool,
+      isErase,
+      lastCol: target.col,
+      lastRow: target.row,
     };
-    onPaint(result);
   };
 
   const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
@@ -1023,7 +1196,29 @@ export const EditorCanvas = ({
       return;
     }
 
-    if (!drag) return;
+    if (!drag) {
+      // Hover tooltip (FR-029): names the marker under the cursor and, for a
+      // sign, shows its hint's own translated text.
+      const { col, row } = cellFromEvent(event.clientX, event.clientY);
+      const marker = markerGrid[row]?.[col];
+      if (!marker) {
+        setHoverTooltip(null);
+        return;
+      }
+      const rect = canvasRef.current!.getBoundingClientRect();
+      const label = MARKER_TOOLTIP_LABELS[marker.kind];
+      setHoverTooltip({
+        x: event.clientX - rect.left + 12,
+        y: event.clientY - rect.top + 12,
+        text:
+          marker.kind === 'sign'
+            ? `${label}: ${currentUI.value.platformer.hints[marker.hintId]}`
+            : marker.kind === 'torch'
+              ? `${label}: strength ${marker.strength}`
+              : label,
+      });
+      return;
+    }
 
     if (drag.mode === 'paintBackground') {
       const { col, row } = cellFromEvent(event.clientX, event.clientY);
@@ -1040,13 +1235,8 @@ export const EditorCanvas = ({
 
     const { col, row } = cellFromEvent(event.clientX, event.clientY);
     if (col === drag.lastCol && row === drag.lastRow) return;
-    const result = paintCell(grid, col, row, drag.tool);
-    dragRef.current = {
-      ...drag,
-      lastCol: col + result.colShift,
-      lastRow: row + result.rowShift,
-    };
-    onPaint(result);
+    const target = applyToolAt(col, row, drag.tool, drag.isErase);
+    dragRef.current = { ...drag, lastCol: target.col, lastRow: target.row };
   };
 
   const handleMouseUp = () => {
@@ -1059,6 +1249,7 @@ export const EditorCanvas = ({
   // previewed at a position the mouse is no longer over.
   const handleMouseLeave = () => {
     handleMouseUp();
+    setHoverTooltip(null);
     if (placement) placement.onHover(null);
   };
 
@@ -1143,6 +1334,16 @@ export const EditorCanvas = ({
         onWheel={handleWheel}
         onContextMenu={(event) => event.preventDefault()}
       />
+      {hoverTooltip && (
+        <div
+          data-testid="editor-marker-tooltip"
+          role="tooltip"
+          className="pointer-events-none absolute z-20 max-w-xs rounded bg-foreground px-2 py-1 text-xs text-background shadow"
+          style={{ left: hoverTooltip.x, top: hoverTooltip.y }}
+        >
+          {hoverTooltip.text}
+        </div>
+      )}
     </div>
   );
 };

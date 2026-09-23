@@ -35,6 +35,42 @@ export function boundingBoxOfContent<T>(grid: T[][], emptyValue: T): BoundingBox
   return minRow === Infinity ? null : { minRow, maxRow, minCol, maxCol };
 }
 
+/** The smallest box containing both `a` and `b`, or whichever is non-null, or
+ *  `null` when both are — the tile meta layer's crop shares the foreground's
+ *  origin through this (D11/FR-017). */
+export function unionBoxes(a: BoundingBox | null, b: BoundingBox | null): BoundingBox | null {
+  if (a === null) return b;
+  if (b === null) return a;
+  return {
+    minRow: Math.min(a.minRow, b.minRow),
+    maxRow: Math.max(a.maxRow, b.maxRow),
+    minCol: Math.min(a.minCol, b.minCol),
+    maxCol: Math.max(a.maxCol, b.maxCol),
+  };
+}
+
+/**
+ * Serializes the sub-rectangle of `grid` described by `box` into the exact
+ * `readonly string[]` shape `parseLevel` expects (one string per row, top row
+ * first). A `null` box (no content) returns `['.']` rather than an empty
+ * array, which `parseLevel` cannot represent as a valid level. Cells missing
+ * from a ragged grid read as `.`, matching `boundingBoxOfContent`'s own
+ * tolerance.
+ */
+export function cropLayoutToBox(grid: TileChar[][], box: BoundingBox | null): readonly string[] {
+  if (box === null) return ['.'];
+
+  const rows: string[] = [];
+  for (let row = box.minRow; row <= box.maxRow; row++) {
+    let line = '';
+    for (let col = box.minCol; col <= box.maxCol; col++) {
+      line += grid[row]?.[col] ?? '.';
+    }
+    rows.push(line);
+  }
+  return rows;
+}
+
 /**
  * Crops `grid` to the tightest rectangle containing every non-`.` cell,
  * then serializes it into the exact `readonly string[]` shape `parseLevel`
@@ -47,16 +83,5 @@ export function boundingBoxOfContent<T>(grid: T[][], emptyValue: T): BoundingBox
  * level).
  */
 export function exportLayout(grid: TileChar[][]): readonly string[] {
-  const box = boundingBoxOfContent(grid, '.');
-  if (box === null) return ['.'];
-
-  const rows: string[] = [];
-  for (let row = box.minRow; row <= box.maxRow; row++) {
-    let line = '';
-    for (let col = box.minCol; col <= box.maxCol; col++) {
-      line += grid[row][col];
-    }
-    rows.push(line);
-  }
-  return rows;
+  return cropLayoutToBox(grid, boundingBoxOfContent(grid, '.'));
 }

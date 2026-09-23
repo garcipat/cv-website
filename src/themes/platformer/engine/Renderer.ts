@@ -127,12 +127,11 @@ import {
 } from './Torch';
 import type { Point, TorchLight } from './Lighting';
 import {
-  TORCH_LIGHT_RADIUS_PX,
   PLAYER_LIGHT_RADIUS_PX,
   TORCH_GLOW_COLOR,
   PLAYER_GLOW_COLOR,
   PLAYER_GLOW_INTENSITY,
-  torchPulseScale,
+  torchLightRadius,
   localDarknessAt,
   enemyEyeOpacity,
   enemyEyeBobOffset,
@@ -175,18 +174,6 @@ function tileSource(
       // Drawn by drawTerrain's own staticObjects branch — an entire shaft is
       // composited as one run from its top cell, which this shared
       // single-tile lookup has no way to express.
-      return null;
-    case 'patrol':
-      // An enemy patrol boundary is deliberately invisible in game — only
-      // the Level Editor draws a marker for it (EditorCanvas.tsx's
-      // drawTileMarkers), the same way it badges sign digits.
-      return null;
-    case 'blueprintConnectionPoint':
-      // Editor-only, exactly like 'patrol' above: only the Level Editor
-      // draws anything for a connection point (EditorCanvas.tsx's
-      // drawTileMarkers). It can reach a real level's terrain at all only
-      // by way of a blueprint stamped down in the editor (step 44c), and
-      // even then it must stay invisible in game.
       return null;
     case 'bush':
     case 'fence':
@@ -305,7 +292,7 @@ export function drawWaterForeground(
  *    is cleared and filled with `rgba(0, 0, 0, darknessLevel)`.
  * 2. For each torch whose glow can intersect the viewport, a soft
  *    `destination-out` radial gradient erases a light hole at the torch's
- *    screen position, radius `TORCH_LIGHT_RADIUS_PX * torchPulseScale`.
+ *    screen position, radius `torchLightRadius`.
  * 3. The layer is composited onto `ctx` with `source-over`.
  * 4. Each torch then gets a smaller additive (`lighter`) warm gradient whose
  *    radius stays inside the erased hole and whose alpha scales with
@@ -349,7 +336,7 @@ export function drawDarkness(
   // Only torches whose glow can touch the viewport do any work — this keeps
   // the pass O(visible torches) however many the level holds (SC-006).
   const visibleTorches = torches.filter((torch) => {
-    const radius = TORCH_LIGHT_RADIUS_PX * torchPulseScale(torch, worldElapsed) * zoom;
+    const radius = torchLightRadius(torch, worldElapsed) * zoom;
     const screenX = torch.x * zoom + originX;
     const screenY = torch.y * zoom + originY;
     return (
@@ -363,7 +350,7 @@ export function drawDarkness(
   for (const torch of visibleTorches) {
     const screenX = torch.x * zoom + originX;
     const screenY = torch.y * zoom + originY;
-    const radius = TORCH_LIGHT_RADIUS_PX * torchPulseScale(torch, worldElapsed) * zoom;
+    const radius = torchLightRadius(torch, worldElapsed) * zoom;
 
     // A soft radial hole: opaque at the centre, transparent at the edge, so
     // the world underneath shows through with no hard rim (FR-009).
@@ -405,7 +392,7 @@ export function drawDarkness(
   for (const torch of visibleTorches) {
     const screenX = torch.x * zoom + originX;
     const screenY = torch.y * zoom + originY;
-    const radius = TORCH_LIGHT_RADIUS_PX * torchPulseScale(torch, worldElapsed) * zoom;
+    const radius = torchLightRadius(torch, worldElapsed) * zoom;
     // Stays comfortably inside the erased hole so the warm tone never bleeds
     // onto the darkened area.
     const glowRadius = radius * 0.7;

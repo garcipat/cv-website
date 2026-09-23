@@ -30,10 +30,11 @@ export const parseBlueprintModules = (modules: Record<string, unknown>): Bluepri
           : module;
       if (raw === null || typeof raw !== 'object') return null;
 
-      const { name, layout, background } = raw as {
+      const { name, layout, background, markers } = raw as {
         name?: unknown;
         layout?: unknown;
         background?: unknown;
+        markers?: unknown;
       };
       const id = idFromPath(path);
       const base: unknown = {
@@ -42,10 +43,19 @@ export const parseBlueprintModules = (modules: Record<string, unknown>): Bluepri
         layout,
       };
       if (!isBlueprint(base)) return null;
-      if (background === undefined) return base;
 
-      const withBackground: unknown = { ...base, background };
-      return isBlueprint(withBackground) ? withBackground : base;
+      // Each optional field is attached independently: a malformed
+      // `background` or `markers` costs only that field, exactly like levels.
+      let entry: Blueprint = base;
+      if (background !== undefined) {
+        const withBackground: unknown = { ...entry, background };
+        if (isBlueprint(withBackground)) entry = withBackground;
+      }
+      if (markers !== undefined) {
+        const withMarkers: unknown = { ...entry, markers };
+        if (isBlueprint(withMarkers)) entry = withMarkers;
+      }
+      return entry;
     })
     .filter((entry): entry is Blueprint => entry !== null)
     .sort((a, b) => a.id.localeCompare(b.id));

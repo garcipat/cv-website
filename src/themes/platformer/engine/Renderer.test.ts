@@ -1300,8 +1300,13 @@ describe('drawCounterPopups', () => {
 });
 
 describe('drawTerrain', () => {
-  it('patrolTile-drawsNothing-soThePatrolBoundaryStaysInvisibleInGame', () => {
-    const level: LevelDef = { width: 1, height: 1, terrain: [['patrol']] };
+  it('markerLayer-drawsNothing-soAMarkerStaysInvisibleInGame', () => {
+    const level: LevelDef = {
+      width: 1,
+      height: 1,
+      terrain: [['empty']],
+      markers: [[{ kind: 'patrolBoundary' }]],
+    };
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
 
     drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas);
@@ -4025,7 +4030,7 @@ function makeTintLayer() {
 }
 
 function makeTorchLight(overrides: Partial<TorchLight> = {}): TorchLight {
-  return { col: 0, row: 0, x: 100, y: 100, ...overrides };
+  return { col: 0, row: 0, x: 100, y: 100, strength: 5, ...overrides };
 }
 
 describe('drawDarkness', () => {

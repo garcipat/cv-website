@@ -17,6 +17,8 @@ import {
   editorIsBlueprintModeSignal,
   editorLastPlacementSnapshotSignal,
   editorLevelSignal,
+  editorMarkerGridSignal,
+  editorMarkerSignal,
   editorLoadedBlueprintNameSignal,
   editorLoadedLevelNameSignal,
   editorSaveResultSignal,
@@ -73,6 +75,7 @@ export const EditorWorkspace = () => {
           blueprintDirty={editorBlueprintDirtySignal.value}
           saveResult={editorSaveResultSignal.value}
           levelGrid={editorLevelSignal.value}
+          markerGrid={editorMarkerSignal.value}
           backgroundGrid={editorBackgroundSignal.value}
         />
       </header>
@@ -88,6 +91,7 @@ export const EditorWorkspace = () => {
           isBlueprintMode={isBlueprintMode}
           appearance={appearance}
           grid={editorGridSignal.value}
+          markerGrid={editorMarkerGridSignal.value}
           backgroundGrid={editorBackgroundGridSignal.value}
           selectedTool={editorSelectedToolSignal.value}
           activeLayer={editorActiveLayerSignal.value}

@@ -1,5 +1,6 @@
 import type { TileChar } from '../level/LevelParser';
 import { HAZARD_CHARS } from '../level/LevelParser';
+import type { EditorTool } from './editorState';
 
 /**
  * A crop rectangle (native, un-scaled pixels) into a sprite sheet image,
@@ -91,13 +92,15 @@ const DECORATIONS_SHEET_WIDTH = 67;
 const DECORATIONS_SHEET_HEIGHT = 35;
 
 /**
- * One sprite spec per `TileChar`, or `null` for the three tiles that have no
- * sprite at all: `.` (the Eraser tool), `P` (the patrol boundary, which is
- * invisible in game by design) and `+` (the blueprint connection point,
- * likewise invisible — and editor-only besides). All three render as an
- * empty bordered square, told apart by `PALETTE_TILE_GLYPHS` below.
+ * One sprite spec per `EditorTool`, or `null` for the tools that have no
+ * sprite at all: `.` (the Eraser tool), `patrolBoundary` and
+ * `connectionPoint` (both invisible in game by design). All three render as
+ * an empty bordered square, told apart by `PALETTE_TILE_GLYPHS` below. The
+ * `fallingStalactite` marker tool reuses the `⊤` art with the reddish tint
+ * (moved off the removed `T` hazard key); the sign (`T`) uses the signpost
+ * sprite.
  */
-export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
+export const PALETTE_TILE_SPRITES: Record<EditorTool, TileSpriteSpec | null> = {
   '.': null,
   G: {
     sheet: TILE_ATLAS,
@@ -158,8 +161,8 @@ export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
     frameWidth: 5,
     frameHeight: 13,
   },
-  P: null,
-  '+': null,
+  patrolBoundary: null,
+  connectionPoint: null,
   S: {
     sheet: '/sprites/knight.png',
     sheetWidth: 256,
@@ -431,57 +434,9 @@ export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
     frameWidth: 16,
     frameHeight: 16,
   },
-  // '1'-'5' are all the same signpost sprite — the digit is what
-  // distinguishes a sign's hint content (SIGN_CHARS), not its appearance.
-  // Only the first (`'1'`) ever renders as its own palette button (see
-  // Palette.tsx's firstSignKey); the rest exist purely so this exhaustive
-  // Record has an entry for every TileChar.
-  '1': {
-    sheet: WORLD_TILESET,
-    sheetWidth: 256,
-    sheetHeight: 256,
-    sx: 128,
-    sy: 48,
-    frameWidth: 16,
-    frameHeight: 16,
-  },
-  '2': {
-    sheet: WORLD_TILESET,
-    sheetWidth: 256,
-    sheetHeight: 256,
-    sx: 128,
-    sy: 48,
-    frameWidth: 16,
-    frameHeight: 16,
-  },
-  '3': {
-    sheet: WORLD_TILESET,
-    sheetWidth: 256,
-    sheetHeight: 256,
-    sx: 128,
-    sy: 48,
-    frameWidth: 16,
-    frameHeight: 16,
-  },
-  '4': {
-    sheet: WORLD_TILESET,
-    sheetWidth: 256,
-    sheetHeight: 256,
-    sx: 128,
-    sy: 48,
-    frameWidth: 16,
-    frameHeight: 16,
-  },
-  '5': {
-    sheet: WORLD_TILESET,
-    sheetWidth: 256,
-    sheetHeight: 256,
-    sx: 128,
-    sy: 48,
-    frameWidth: 16,
-    frameHeight: 16,
-  },
-  '6': {
+  // The signpost sprite. Every sign shares it — the hint is carried by the
+  // `sign` marker and shown as a corner badge (`SIGN_CHAR`), not by the art.
+  T: {
     sheet: WORLD_TILESET,
     sheetWidth: 256,
     sheetHeight: 256,
@@ -557,11 +512,12 @@ export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
     frameHeight: 20,
     overlay: { sx: 32, sy: 4, frameHeight: 16 },
   },
-  T: {
+  fallingStalactite: {
     // The large stalactite crop (the same art the live game draws for a
-    // decoration/hazard whose position hash resolves to the large variant),
-    // with a reddish tint so it reads as the falling hazard at a glance,
-    // distinct from the untinted decorative `⊤` (O-027 FR-017/FR-021).
+    // decoration whose position hash resolves to the large variant), with a
+    // reddish tint so it reads as the falling variant at a glance, distinct
+    // from the untinted decorative `⊤` (O-027 FR-017/FR-021). The marker tool
+    // owns this tint now that `T` is the sign character.
     sheet: DECORATIONS,
     sheetWidth: DECORATIONS_SHEET_WIDTH,
     sheetHeight: DECORATIONS_SHEET_HEIGHT,
@@ -617,14 +573,14 @@ export const CONNECTION_POINT_GLYPH = '⊕';
 export const BLUEPRINT_GLYPH = '▦';
 
 /**
- * The character drawn inside a sprite-less tile's empty palette square, so
- * two of them are never indistinguishable. `P` and `+` need one; the
- * Eraser's empty square already reads as "erase", and giving it a glyph
- * would make it look like a tile you can paint.
+ * The character drawn inside a sprite-less tool's empty palette square, so
+ * two of them are never indistinguishable. `patrolBoundary` and
+ * `connectionPoint` need one; the Eraser's empty square already reads as
+ * "erase", and giving it a glyph would make it look like a tile you can paint.
  */
-export const PALETTE_TILE_GLYPHS: Partial<Record<TileChar, string>> = {
-  P: PATROL_GLYPH,
-  '+': CONNECTION_POINT_GLYPH,
+export const PALETTE_TILE_GLYPHS: Partial<Record<EditorTool, string>> = {
+  patrolBoundary: PATROL_GLYPH,
+  connectionPoint: CONNECTION_POINT_GLYPH,
 };
 
 /**
@@ -636,7 +592,7 @@ export const PALETTE_TILE_GLYPHS: Partial<Record<TileChar, string>> = {
  * Phrased as what the tile does in the finished level, not as how to paint
  * it.
  */
-export const PALETTE_TILE_DESCRIPTIONS: Record<TileChar, string> = {
+export const PALETTE_TILE_DESCRIPTIONS: Record<EditorTool, string> = {
   '.': 'Clears a tile back to empty',
   G: 'Solid earth; grows a grass top wherever it is exposed',
   R: 'Solid stone, for exposed rock faces and cave floors',
@@ -644,8 +600,8 @@ export const PALETTE_TILE_DESCRIPTIONS: Record<TileChar, string> = {
   B: 'Solid from above; the player drops through it with Down',
   H: 'Climbed with Up and Down',
   I: 'Chain; climbs like a ladder, art hugs whichever wall (if any) it hangs against',
-  P: 'Invisible in game; turns patrolling enemies around',
-  '+': 'Blueprint only; marks a border cell another blueprint can attach to',
+  patrolBoundary: 'Invisible in game; turns patrolling enemies around. Paints over any tile',
+  connectionPoint: 'Blueprint only; marks a border cell another blueprint can attach to',
   S: 'Where the player starts',
   M: 'Green slime; stomping it reveals one CV fact',
   m: 'Purple slime; stomping it drops a key',
@@ -663,32 +619,27 @@ export const PALETTE_TILE_DESCRIPTIONS: Record<TileChar, string> = {
   N: 'Fence',
   X: 'Cobweb; purely decorative, auto-orients to nearby solid terrain',
   c: 'Crystal cluster; purely decorative',
-  '⊤': 'Stalactite; purely decorative, auto-picks a size variant',
+  '⊤': 'Stalactite; purely decorative, auto-picks a size variant. Never falls',
+  fallingStalactite: 'Stalactite; looks decorative until a visitor walks beneath it, then shakes and drops',
   '⊥': 'Stalagmite; purely decorative, auto-picks a size variant',
-  '¥': 'Wall torch; purely decorative, flame sparkles',
+  '¥': 'Wall torch; lights the cave. Click it again on the canvas to raise its light strength (0-9)',
   '@': 'Rope ladder bundle; press Up while standing on it to unroll a rope ladder down to the ground below',
   g: 'Cracks and shakes underfoot, then breaks and falls away; reforms after a short delay',
   '§': 'Land on its cap to be launched upward; walk and jump through it freely',
   s: 'Small mushroom; purely decorative, no effect',
-  '1': 'Hint sign; click it again on the canvas to cycle its hint',
-  '2': 'Hint sign; click it again on the canvas to cycle its hint',
-  '3': 'Hint sign; click it again on the canvas to cycle its hint',
-  '4': 'Hint sign; click it again on the canvas to cycle its hint',
-  '5': 'Hint sign; click it again on the canvas to cycle its hint',
-  '6': 'Hint sign; click it again on the canvas to cycle its hint',
+  T: 'Hint sign; click it again on the canvas to cycle its hint',
   '^': 'Spike; auto-orients to solid terrain nearby, click an already-placed one again to cycle its facing',
   v: 'Spike (ceiling); damages the player on touch',
   '<': 'Spike (right wall); damages the player on touch',
   '>': 'Spike (left wall); damages the player on touch',
   '¦': 'Floor spear; falling onto its points is fatal, walking or climbing through is safe',
   A: 'Floor spike; hidden until triggered — a visitor stepping on it starts a delayed warning-then-strike cycle, then it retracts and re-arms',
-  T: 'Falling stalactite; looks exactly like the decorative stalactite until a visitor walks beneath it, then shakes and drops',
 };
 
-/** Human-readable name per `TileChar`, so the palette reads by name rather
+/** Human-readable name per `EditorTool`, so the palette reads by name rather
  *  than by memorized character — matches `TERRAIN_CHARS`/`ENTITY_CHARS`'s
  *  own `TileType`/`EntityKind` values, just spaced and capitalized. */
-export const PALETTE_TILE_LABELS: Record<TileChar, string> = {
+export const PALETTE_TILE_LABELS: Record<EditorTool, string> = {
   '.': 'Eraser',
   G: 'Ground Grass',
   R: 'Ground Rock',
@@ -696,8 +647,8 @@ export const PALETTE_TILE_LABELS: Record<TileChar, string> = {
   B: 'Bridge',
   H: 'Ladder',
   I: 'Chain',
-  P: 'Patrol Boundary',
-  '+': 'Connection Point',
+  patrolBoundary: 'Patrol Boundary',
+  connectionPoint: 'Connection Point',
   S: 'Spawn',
   M: 'Enemy Green',
   m: 'Enemy Purple',
@@ -722,17 +673,12 @@ export const PALETTE_TILE_LABELS: Record<TileChar, string> = {
   g: 'Crumbling Floor',
   '§': 'Bouncy Mushroom',
   s: 'Small Mushroom',
-  '1': 'Sign',
-  '2': 'Sign 2',
-  '3': 'Sign 3',
-  '4': 'Sign 4',
-  '5': 'Sign 5',
-  '6': 'Sign 6',
+  T: 'Sign',
   '^': 'Spike',
   v: 'Spike Down',
   '<': 'Spike Left',
   '>': 'Spike Right',
   '¦': 'Floor Spear',
   A: 'Floor Spike',
-  T: 'Falling Stalactite',
+  fallingStalactite: 'Falling Stalactite',
 };

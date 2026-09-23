@@ -23,9 +23,10 @@ import {
   RENDERED_TILE_SIZE,
   backgroundAt,
   backgroundNeighbourMask,
+  markerAt,
 } from './Terrain';
 import { parseLevel } from './LevelParser';
-import type { LevelDef } from './LevelData';
+import type { LevelDef, MarkerEntry } from './LevelData';
 
 const testLevel: LevelDef = {
   width: 3,
@@ -55,19 +56,6 @@ describe('Terrain', () => {
     expect(isSolid('groundRock')).toBe(true);
     expect(isSolid('wall')).toBe(true);
     expect(isSolid('bridge')).toBe(true);
-  });
-
-  it('isSolid-patrol-returnsFalse', () => {
-    // A patrol tile bounds enemies only — the player, and physics in
-    // general, must walk straight through it.
-    expect(isSolid('patrol')).toBe(false);
-  });
-
-  it('isSolid-blueprintConnectionPoint-returnsFalse', () => {
-    // Editor-only marker (roadmap step 44b) — even if one ends up in a real
-    // level's terrain via a placed blueprint (step 44c), the player must
-    // walk straight through it, exactly like a patrol tile.
-    expect(isSolid('blueprintConnectionPoint')).toBe(false);
   });
 
   it('isSolid-bushAndFence-returnFalse', () => {
@@ -316,8 +304,6 @@ describe('isClimbable', () => {
     expect(isClimbable('wall')).toBe(false);
     expect(isClimbable('bridge')).toBe(false);
     expect(isClimbable('empty')).toBe(false);
-    expect(isClimbable('patrol')).toBe(false);
-    expect(isClimbable('blueprintConnectionPoint')).toBe(false);
   });
 
   it('isClimbable-bushAndFence-returnFalse', () => {
@@ -715,5 +701,44 @@ describe('backgroundNeighbourMask', () => {
     };
     expect(backgroundNeighbourMask(level, 0, 0)).toBe(NEIGHBOUR_RIGHT);
     expect(backgroundNeighbourMask(level, 1, 0)).toBe(NEIGHBOUR_LEFT);
+  });
+});
+
+describe('markerAt', () => {
+  const marker: MarkerEntry = { kind: 'patrolBoundary' };
+  const level: LevelDef = {
+    width: 2,
+    height: 1,
+    terrain: [['empty', 'empty']],
+    markers: [[marker, null]],
+  };
+
+  it('markedCell-returnsItsMarker', () => {
+    expect(markerAt(level, 0, 0)).toBe(marker);
+  });
+
+  it('emptyCell-returnsNull', () => {
+    expect(markerAt(level, 1, 0)).toBeNull();
+  });
+
+  it('outOfBounds-returnsNull', () => {
+    expect(markerAt(level, -1, 0)).toBeNull();
+    expect(markerAt(level, 0, 5)).toBeNull();
+    expect(markerAt(level, 9, 9)).toBeNull();
+  });
+
+  it('missingGrid-returnsNull', () => {
+    const noMarkers: LevelDef = { width: 1, height: 1, terrain: [['empty']] };
+    expect(markerAt(noMarkers, 0, 0)).toBeNull();
+  });
+
+  it('gridSmallerThanTerrain-returnsNullBeyondItsOwnBounds', () => {
+    const smaller: LevelDef = {
+      width: 3,
+      height: 1,
+      terrain: [['empty', 'empty', 'empty']],
+      markers: [[marker]],
+    };
+    expect(markerAt(smaller, 2, 0)).toBeNull();
   });
 });

@@ -1,5 +1,8 @@
 import { growGrid, type GrowResult } from './growGrid';
+import { importMarkerGrid } from './importLayout';
 import type { BlueprintCell } from './blueprintCells';
+import type { Blueprint } from '../level/BlueprintData';
+import type { MarkerEntry, MarkerGrid } from '../level/LevelData';
 import type { BackgroundChar, TileChar } from '../level/LevelParser';
 
 /** Same shape `paintCell` returns, deliberately: a placement is just a bigger
@@ -56,6 +59,69 @@ export const placeBlueprint = (
 
   return { grid: nextGrid, colShift, rowShift };
 };
+
+/**
+ * Every marker a blueprint carries, relative to the room's own top-left corner
+ * — its stored `markers` field merged over any legacy marker characters still
+ * in `layout` (FR-015), via the same `importMarkerGrid` the editor's load path
+ * uses. `blueprintCells` deliberately stays terrain-only; this is the marker
+ * analogue a placement stamps alongside it.
+ */
+export function blueprintMarkers(
+  blueprint: Blueprint,
+): readonly { row: number; col: number; marker: MarkerEntry }[] {
+  const grid = importMarkerGrid(blueprint.layout, blueprint.markers);
+  const placements: { row: number; col: number; marker: MarkerEntry }[] = [];
+  for (let row = 0; row < grid.length; row++) {
+    for (let col = 0; col < grid[row].length; col++) {
+      const marker = grid[row][col];
+      if (marker) placements.push({ row, col, marker });
+    }
+  }
+  return placements;
+}
+
+/**
+ * Stamps a blueprint's markers into `markers` at the placement's anchor,
+ * replacing whatever marker was there (FR-018/FR-020). The level marker grid
+ * may be smaller than the placement's extent (a level with no markers starts
+ * empty, and a right/down growth appends terrain without touching it), so the
+ * grid is padded with `null` to fit; it never triggers a `GrowthShift`, since
+ * markers never define a level's extent. `blueprintFit` is untouched and
+ * terrain-only — a marker never blocks a placement (FR-019).
+ */
+export function placeBlueprintMarkers(
+  markers: MarkerGrid,
+  placements: readonly { row: number; col: number; marker: MarkerEntry }[],
+  anchorCol: number,
+  anchorRow: number,
+): MarkerGrid {
+  if (placements.length === 0) return markers;
+
+  let maxRow = -Infinity;
+  let maxCol = -Infinity;
+  for (const { row, col } of placements) {
+    maxRow = Math.max(maxRow, anchorRow + row);
+    maxCol = Math.max(maxCol, anchorCol + col);
+  }
+
+  const height = Math.max(markers.length, maxRow + 1, 0);
+  const width = Math.max(markers[0]?.length ?? 0, maxCol + 1, 0);
+  const next: MarkerGrid = Array.from({ length: height }, (_, row) => {
+    const nextRow: (MarkerEntry | null)[] = markers[row] ? [...markers[row]] : [];
+    while (nextRow.length < width) nextRow.push(null);
+    return nextRow;
+  });
+
+  for (const { row, col, marker } of placements) {
+    const targetRow = anchorRow + row;
+    const targetCol = anchorCol + col;
+    if (targetRow < 0 || targetCol < 0) continue;
+    next[targetRow][targetCol] = marker;
+  }
+
+  return next;
+}
 
 /**
  * Stamps a blueprint's own `background` sub-region into `target`, anchored so

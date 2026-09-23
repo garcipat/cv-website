@@ -10,12 +10,19 @@ import {
   CONNECTION_POINT_GLYPH,
   type TileSpriteSpec,
 } from './paletteTiles';
-import { TERRAIN_CHARS, ENTITY_CHARS, SIGN_CHARS, HAZARD_CHARS } from '../level/LevelParser';
-import type { TileChar } from '../level/LevelParser';
+import { TERRAIN_CHARS, ENTITY_CHARS, SIGN_CHAR, HAZARD_CHARS } from '../level/LevelParser';
+import type { EditorTool } from './editorState';
 
 describe('PALETTE_TILE_SPRITES', () => {
-  it('has an entry for every TERRAIN_CHARS, ENTITY_CHARS, and SIGN_CHARS key', () => {
-    const allKeys = [...Object.keys(TERRAIN_CHARS), ...Object.keys(ENTITY_CHARS), ...Object.keys(SIGN_CHARS)];
+  it('has an entry for every TERRAIN_CHARS, ENTITY_CHARS, SIGN_CHAR and marker-tool key', () => {
+    const allKeys: EditorTool[] = [
+      ...(Object.keys(TERRAIN_CHARS) as EditorTool[]),
+      ...(Object.keys(ENTITY_CHARS) as EditorTool[]),
+      SIGN_CHAR,
+      'patrolBoundary',
+      'connectionPoint',
+      'fallingStalactite',
+    ];
     for (const key of allKeys) {
       expect(Object.keys(PALETTE_TILE_SPRITES)).toContain(key);
     }
@@ -25,28 +32,28 @@ describe('PALETTE_TILE_SPRITES', () => {
     expect(PALETTE_TILE_SPRITES['.']).toBeNull();
   });
 
-  it('maps "P" (Patrol Boundary) to null — it is invisible, so it has no sprite', () => {
-    expect(PALETTE_TILE_SPRITES.P).toBeNull();
+  it('maps "patrolBoundary" to null — it is invisible, so it has no sprite', () => {
+    expect(PALETTE_TILE_SPRITES.patrolBoundary).toBeNull();
   });
 
-  it('gives every sprite-less tile a glyph so the palette never shows two blank squares', () => {
-    // '.' (Eraser), 'P' (Patrol Boundary) and '+' (blueprint Connection
-    // Point) are the tiles with no sprite; without a glyph to tell them
-    // apart they would render as identical empty squares. The Eraser is the
-    // deliberate exception — an empty square already reads as "erase".
-    const spriteless = (Object.keys(PALETTE_TILE_SPRITES) as TileChar[]).filter(
+  it('gives every sprite-less tool a glyph so the palette never shows two blank squares', () => {
+    // '.' (Eraser), 'patrolBoundary' and 'connectionPoint' are the tools with
+    // no sprite; without a glyph to tell them apart they would render as
+    // identical empty squares. The Eraser is the deliberate exception — an
+    // empty square already reads as "erase".
+    const spriteless = (Object.keys(PALETTE_TILE_SPRITES) as EditorTool[]).filter(
       (key) => PALETTE_TILE_SPRITES[key] === null,
     );
-    expect(spriteless).toEqual(['.', 'P', '+']);
+    expect(spriteless).toEqual(['.', 'patrolBoundary', 'connectionPoint']);
     expect(PALETTE_TILE_GLYPHS['.']).toBeUndefined();
-    expect(PALETTE_TILE_GLYPHS.P).toBeTruthy();
-    expect(PALETTE_TILE_GLYPHS['+']).toBeTruthy();
+    expect(PALETTE_TILE_GLYPHS.patrolBoundary).toBeTruthy();
+    expect(PALETTE_TILE_GLYPHS.connectionPoint).toBeTruthy();
   });
 
-  it('gives every non-sprite-less tile a spec with a positive frame size', () => {
-    const keys = Object.keys(PALETTE_TILE_SPRITES) as TileChar[];
+  it('gives every non-sprite-less tool a spec with a positive frame size', () => {
+    const keys = Object.keys(PALETTE_TILE_SPRITES) as EditorTool[];
     for (const key of keys) {
-      if (key === '.' || key === 'P' || key === '+') continue;
+      if (key === '.' || key === 'patrolBoundary' || key === 'connectionPoint') continue;
       const spec = PALETTE_TILE_SPRITES[key];
       expect(spec).not.toBeNull();
       expect(spec!.frameWidth).toBeGreaterThan(0);
@@ -56,19 +63,19 @@ describe('PALETTE_TILE_SPRITES', () => {
     }
   });
 
-  it('describes every tile, so no palette button hovers without an explanation', () => {
-    const keys = Object.keys(PALETTE_TILE_SPRITES) as TileChar[];
+  it('describes every tool, so no palette button hovers without an explanation', () => {
+    const keys = Object.keys(PALETTE_TILE_SPRITES) as EditorTool[];
     for (const key of keys) {
       expect(PALETTE_TILE_DESCRIPTIONS[key]).toBeTruthy();
     }
   });
 
-  it('describes the patrol tile by the two things that are not visible about it', () => {
-    expect(PALETTE_TILE_DESCRIPTIONS.P).toBe('Invisible in game; turns patrolling enemies around');
+  it('describes the patrol boundary by the two things that are not visible about it', () => {
+    expect(PALETTE_TILE_DESCRIPTIONS.patrolBoundary).toMatch(/invisible in game/i);
   });
 
-  it('labels the patrol tile by what it does, not by its character', () => {
-    expect(PALETTE_TILE_LABELS.P).toBe('Patrol Boundary');
+  it('labels the patrol boundary by what it does, not by its character', () => {
+    expect(PALETTE_TILE_LABELS.patrolBoundary).toBe('Patrol Boundary');
   });
 
   it('uses the coin sprite sheet for the coin tile', () => {
@@ -104,12 +111,12 @@ describe('PALETTE_TILE_SPRITES', () => {
 });
 
 describe('PALETTE_TILE_LABELS', () => {
-  it('has a non-empty label for every TERRAIN_CHARS, ENTITY_CHARS, and SIGN_CHARS key', () => {
-    const allKeys = [
-      ...Object.keys(TERRAIN_CHARS),
-      ...Object.keys(ENTITY_CHARS),
-      ...Object.keys(SIGN_CHARS),
-    ] as TileChar[];
+  it('has a non-empty label for every TERRAIN_CHARS, ENTITY_CHARS and SIGN_CHAR key', () => {
+    const allKeys: EditorTool[] = [
+      ...(Object.keys(TERRAIN_CHARS) as EditorTool[]),
+      ...(Object.keys(ENTITY_CHARS) as EditorTool[]),
+      SIGN_CHAR,
+    ];
     for (const key of allKeys) {
       expect(PALETTE_TILE_LABELS[key]).toBeTruthy();
     }
@@ -121,8 +128,8 @@ describe('PALETTE_TILE_LABELS', () => {
 });
 
 describe('sign marker', () => {
-  it('digitOne-hasASpriteMatchingTheInGameSignpostTile', () => {
-    expect(PALETTE_TILE_SPRITES['1']).toEqual({
+  it('theSignCharacter-hasASpriteMatchingTheInGameSignpostTile', () => {
+    expect(PALETTE_TILE_SPRITES[SIGN_CHAR]).toEqual({
       sheet: '/sprites/world_tileset.png',
       sheetWidth: 256,
       sheetHeight: 256,
@@ -133,8 +140,8 @@ describe('sign marker', () => {
     });
   });
 
-  it('digitOne-hasAHumanReadableLabel', () => {
-    expect(PALETTE_TILE_LABELS['1']).toBe('Sign');
+  it('theSignCharacter-hasAHumanReadableLabel', () => {
+    expect(PALETTE_TILE_LABELS[SIGN_CHAR]).toBe('Sign');
   });
 });
 
@@ -207,22 +214,6 @@ describe('bombPot marker', () => {
     expect(PALETTE_TILE_DESCRIPTIONS.b).toBe(
       'Bomb-pot; land on it from above to break it and drop a bomb you can place',
     );
-  });
-
-  it('six-hasASpriteMatchingTheInGameSignpostTile', () => {
-    expect(PALETTE_TILE_SPRITES['6']).toEqual({
-      sheet: '/sprites/world_tileset.png',
-      sheetWidth: 256,
-      sheetHeight: 256,
-      sx: 128,
-      sy: 48,
-      frameWidth: 16,
-      frameHeight: 16,
-    });
-  });
-
-  it('six-hasAHumanReadableLabel', () => {
-    expect(PALETTE_TILE_LABELS['6']).toBe('Sign 6');
   });
 });
 
@@ -297,21 +288,21 @@ describe('BLUEPRINT_GLYPH', () => {
 });
 
 describe('blueprint connection point marker', () => {
-  it('maps "+" (Connection Point) to null — like the patrol tile, it has no in-game sprite', () => {
-    expect(PALETTE_TILE_SPRITES['+']).toBeNull();
+  it('maps "connectionPoint" to null — like the patrol boundary, it has no in-game sprite', () => {
+    expect(PALETTE_TILE_SPRITES.connectionPoint).toBeNull();
   });
 
-  it('gives "+" a glyph, so it is not a second blank square next to the patrol tile', () => {
-    expect(PALETTE_TILE_GLYPHS['+']).toBeTruthy();
-    expect(PALETTE_TILE_GLYPHS['+']).not.toBe(PALETTE_TILE_GLYPHS.P);
+  it('gives "connectionPoint" a glyph, so it is not a second blank square next to the patrol boundary', () => {
+    expect(PALETTE_TILE_GLYPHS.connectionPoint).toBeTruthy();
+    expect(PALETTE_TILE_GLYPHS.connectionPoint).not.toBe(PALETTE_TILE_GLYPHS.patrolBoundary);
   });
 
-  it('labels "+" by what it is, not by its character', () => {
-    expect(PALETTE_TILE_LABELS['+']).toBe('Connection Point');
+  it('labels "connectionPoint" by what it is, not by its character', () => {
+    expect(PALETTE_TILE_LABELS.connectionPoint).toBe('Connection Point');
   });
 
-  it('describes "+" by where it belongs and what it is for', () => {
-    expect(PALETTE_TILE_DESCRIPTIONS['+']).toBe(
+  it('describes "connectionPoint" by where it belongs and what it is for', () => {
+    expect(PALETTE_TILE_DESCRIPTIONS.connectionPoint).toBe(
       'Blueprint only; marks a border cell another blueprint can attach to',
     );
   });
@@ -404,8 +395,8 @@ describe('floor spear marker', () => {
 });
 
 describe('falling stalactite marker', () => {
-  it('T-hasASpriteCroppingTheLargeStalactiteWithAReddishTint', () => {
-    expect(PALETTE_TILE_SPRITES['T']).toEqual({
+  it('theFallingTool-hasASpriteCroppingTheLargeStalactiteWithAReddishTint', () => {
+    expect(PALETTE_TILE_SPRITES.fallingStalactite).toEqual({
       sheet: '/sprites/decorations.png',
       sheetWidth: 67,
       sheetHeight: 35,
@@ -417,14 +408,20 @@ describe('falling stalactite marker', () => {
     });
   });
 
-  it('T-hasAHumanReadableLabelDistinctFromTheDecoration', () => {
-    expect(PALETTE_TILE_LABELS['T']).toBe('Falling Stalactite');
-    expect(PALETTE_TILE_LABELS['T']).not.toBe(PALETTE_TILE_LABELS['⊤']);
+  it('theFallingTool-hasAHumanReadableLabelDistinctFromTheDecoration', () => {
+    expect(PALETTE_TILE_LABELS.fallingStalactite).toBe('Falling Stalactite');
+    expect(PALETTE_TILE_LABELS.fallingStalactite).not.toBe(PALETTE_TILE_LABELS['⊤']);
   });
 
-  it('T-hasADescriptionDistinctFromTheDecoration', () => {
-    expect(PALETTE_TILE_DESCRIPTIONS['T']).toBeTruthy();
-    expect(PALETTE_TILE_DESCRIPTIONS['T']).not.toBe(PALETTE_TILE_DESCRIPTIONS['⊤']);
+  it('theFallingTool-hasADescriptionDistinctFromTheDecoration', () => {
+    expect(PALETTE_TILE_DESCRIPTIONS.fallingStalactite).toBeTruthy();
+    expect(PALETTE_TILE_DESCRIPTIONS.fallingStalactite).not.toBe(
+      PALETTE_TILE_DESCRIPTIONS['⊤'],
+    );
+  });
+
+  it('theDecorativeStalactite-hasNoTint', () => {
+    expect(PALETTE_TILE_SPRITES['⊤']?.tint).toBeUndefined();
   });
 });
 
@@ -454,7 +451,8 @@ describe('HAZARD_PALETTE_KEYS', () => {
       if (!alreadyRepresented) expected.push(char);
     }
     expect(HAZARD_PALETTE_KEYS).toEqual(expected);
-    expect(HAZARD_PALETTE_KEYS).toEqual(['^', '¦', 'A', 'T']);
+    // The falling stalactite is a marker tool now, not a hazard character.
+    expect(HAZARD_PALETTE_KEYS).toEqual(['^', '¦', 'A']);
   });
 
   it('hasNoDuplicates', () => {

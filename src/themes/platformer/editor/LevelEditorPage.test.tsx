@@ -2,8 +2,16 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { LevelEditorPage } from './LevelEditorPage';
-import { LEVEL_1_LAYOUT, LEVEL_1_BACKGROUND, SCRATCH_LAYOUT, currentLayout } from '../level/level';
-import { importLayout, importBackgroundLayout } from './importLayout';
+import {
+  LEVEL_1_LAYOUT,
+  LEVEL_1_BACKGROUND,
+  LEVEL_1_MARKERS,
+  SCRATCH_LAYOUT,
+  currentLayout,
+} from '../level/level';
+import { importLayout, importBackgroundLayout, importMarkerGrid } from './importLayout';
+import { levelFileJson } from './saveLevelFile';
+import type { MarkerGrid } from '../level/LevelData';
 import { centerPanOnSpawn } from './EditorPan';
 import { exportLayout } from './exportLayout';
 import { cropLevelForExport } from './cropLevelForExport';
@@ -21,6 +29,8 @@ import {
   editorAppearanceSignal,
   editorBlueprintSignal,
   editorBlueprintBackgroundSignal,
+  editorBlueprintMarkerSignal,
+  editorMarkerSignal,
   editorLoadedBlueprintNameSignal,
   editorArmedBlueprintIdSignal,
 } from './editorState';
@@ -109,6 +119,7 @@ beforeEach(() => {
   editorLoadedLevelNameSignal.value = 'main';
   editorDirtySignal.value = false;
   editorBackgroundSignal.value = [];
+  editorMarkerSignal.value = importMarkerGrid(LEVEL_1_LAYOUT, LEVEL_1_MARKERS);
   editorActiveLayerSignal.value = 'foreground';
   editorSelectedBackgroundMaterialSignal.value = null;
   currentBackgroundLayout.value = [];
@@ -116,6 +127,7 @@ beforeEach(() => {
   editorAppearanceSignal.value = 'light';
   editorBlueprintSignal.value = importLayout(BLANK_BLUEPRINT.layout);
   editorBlueprintBackgroundSignal.value = [];
+  editorBlueprintMarkerSignal.value = [];
   editorLoadedBlueprintNameSignal.value = BLANK_BLUEPRINT.name;
   editorArmedBlueprintIdSignal.value = null;
   blueprintEntries.length = 0;
@@ -152,25 +164,30 @@ beforeEach(() => {
   } as unknown as CanvasRenderingContext2D);
 });
 
-/** Formats both crop layers into the exact `  'ROW',`-per-line, background-
- *  section-appended shape `EditorToolbar`'s Export dialog produces (see its
- *  `cropLevelForExport`-based `exportedText`), so every test asserting on
- *  the dialog's textarea content can build the expectation from the same
- *  grids the toolbar reads rather than hand-formatting a duplicate string. */
+/** The exact text `EditorToolbar`'s Export dialog produces: the complete level
+ *  JSON via the same `levelFileJson` a save writes, so every test asserting on
+ *  the textarea builds its expectation from the same grids the toolbar reads
+ *  rather than hand-formatting a duplicate string. */
 function expectedExportText(
   grid: TileChar[][],
   background: BackgroundChar[][] = [],
+  markers: MarkerGrid = [],
+  name = 'main',
 ): string {
-  const cropped = cropLevelForExport(grid, background);
-  const formatRows = (rows: readonly string[]) => rows.map((row) => `  '${row}',`).join('\n');
-  return `${formatRows(cropped.layout)}\n// LEVEL_1_BACKGROUND\n${formatRows(cropped.background)}`;
+  const cropped = cropLevelForExport(grid, background, markers);
+  return levelFileJson(name, cropped.layout, cropped.background, cropped.markers);
 }
 
 // LEVEL_1_LAYOUT is jagged (its ladder-shaft rows are short); importLayout
 // right-pads to a rectangle the same way parseLevel does, and — as of this
 // writing — LEVEL_1_LAYOUT's only all-'.' row is interior (between content
-// rows), so content-cropping (exportLayout's job) removes nothing.
-const EXPECTED_EXPORT_TEXT = expectedExportText(importLayout(LEVEL_1_LAYOUT));
+// rows), so content-cropping (exportLayout's job) removes nothing. The
+// shipped level carries its six sign markers on the tile meta layer.
+const EXPECTED_EXPORT_TEXT = expectedExportText(
+  importLayout(LEVEL_1_LAYOUT),
+  [],
+  importMarkerGrid(LEVEL_1_LAYOUT, LEVEL_1_MARKERS),
+);
 
 async function openExportDialog() {
   await userEvent.click(levelEditorPage.toolbar.export);
@@ -327,7 +344,7 @@ describe('LevelEditorPage', () => {
 
     await openExportDialog();
     const textarea = (await levelEditorPage.exportDialog.findOutput()) as HTMLTextAreaElement;
-    expect(textarea.value).toBe(expectedExportText(importLayout(SCRATCH_LAYOUT)));
+    expect(textarea.value).toBe(expectedExportText(importLayout(SCRATCH_LAYOUT), [], [], 'empty'));
   });
 
   it('selectingALevelAfterEditing-opensTheDiscardDialogRatherThanLoadingImmediately', async () => {
@@ -363,7 +380,11 @@ describe('LevelEditorPage', () => {
     // unlike the fresh-mount default (an empty background) EXPECTED_EXPORT_TEXT
     // assumes elsewhere in this file.
     expect(textarea.value).toBe(
-      expectedExportText(importLayout(LEVEL_1_LAYOUT), importBackgroundLayout(LEVEL_1_BACKGROUND)),
+      expectedExportText(
+        importLayout(LEVEL_1_LAYOUT),
+        importBackgroundLayout(LEVEL_1_BACKGROUND),
+        importMarkerGrid(LEVEL_1_LAYOUT, LEVEL_1_MARKERS),
+      ),
     );
   });
 
@@ -636,7 +657,13 @@ describe('LevelEditorPage - debounced localStorage sync (editorLevelSignal)', ()
     render(<LevelEditorPage />);
     await userEvent.click(levelEditorPage.toolbar.export);
     const textarea = (await levelEditorPage.exportDialog.findOutput()) as HTMLTextAreaElement;
-    expect(textarea.value).toBe(expectedExportText(editedGrid));
+    expect(textarea.value).toBe(
+      expectedExportText(
+        editedGrid,
+        [],
+        importMarkerGrid(LEVEL_1_LAYOUT, LEVEL_1_MARKERS),
+      ),
+    );
   });
 
   it('paintingACell-doesNotPersistToLocalStorageImmediately', () => {
@@ -1422,39 +1449,48 @@ describe('LevelEditorPage — blueprint connection points (step 44b)', () => {
 
     fireEvent.click(levelEditorPage.toolbar.canvasBlueprint);
 
-    expect(levelEditorPage.palette.tile('+')).toBeInTheDocument();
+    expect(levelEditorPage.palette.tile('connectionPoint')).toBeInTheDocument();
   });
 
   it('levelMode-thePaletteDoesNotOfferTheConnectionPointTool', () => {
     render(<LevelEditorPage />);
 
-    expect(levelEditorPage.palette.queryTile('+')).not.toBeInTheDocument();
+    expect(levelEditorPage.palette.queryTile('connectionPoint')).not.toBeInTheDocument();
   });
 
-  it('paintingWithTheConnectionPointTool-writesItsCharacterIntoTheBlueprintGrid', async () => {
+  it('paintingWithTheConnectionPointTool-writesItsMarkerIntoTheBlueprintMarkerGrid', async () => {
     renderEditorInBlueprintMode();
-    fireEvent.click(levelEditorPage.palette.tile('+'));
-
+    // Grow the room first (a marker never grows the canvas, FR-010).
     paintBlueprintCell(2, 1);
+    fireEvent.click(levelEditorPage.palette.tile('connectionPoint'));
+
+    paintBlueprintCell(0, 0);
 
     await waitFor(() => {
-      expect(editorBlueprintSignal.value[1][2]).toBe('+');
+      expect(editorBlueprintMarkerSignal.value[0][0]).toEqual({ kind: 'connectionPoint' });
     });
+    // It never writes terrain over the marker's own cell.
+    expect(editorBlueprintSignal.value[0][0]).toBe('.');
   });
 
-  it('savingABlueprintWithAConnectionPoint-keepsTheCharacterInThePostedLayout', async () => {
-    // The crop/export path carries '+' like any other character — nothing in
-    // saveBlueprint/cropLevelForExport knows about connection points, which is
-    // exactly what Part 2's placement relies on to read them back.
+  it('savingABlueprintWithAConnectionPoint-keepsTheMarkerInThePostedJson', async () => {
+    // The crop/export path carries the marker on the tile meta layer, and the
+    // connection point's terrain cell stays empty.
     const { fetchCalls } = stubBlueprintWrite();
     renderEditorInBlueprintMode();
+    // Paint the terrain first (which grows the grid), then the marker on it.
     paintBlueprintCell(2, 1);
-    fireEvent.click(levelEditorPage.palette.tile('+'));
-    paintBlueprintCell(3, 1);
+    fireEvent.click(levelEditorPage.palette.tile('connectionPoint'));
+    paintBlueprintCell(2, 1);
 
     await saveBlueprintAs('Test Room');
 
-    expect(JSON.parse(blueprintPostBody(fetchCalls).contents).layout).toEqual(['G+']);
+    const body = JSON.parse(blueprintPostBody(fetchCalls).contents) as {
+      layout: string[];
+      markers: unknown[];
+    };
+    expect(body.layout).toEqual(['G']);
+    expect(body.markers).toEqual([{ col: 0, row: 0, marker: { kind: 'connectionPoint' } }]);
   });
 
   it('connectionPointArmed-switchingToLevel-disarmsItSoClicksCannotPaintOneIntoTheLevel', () => {
@@ -1463,12 +1499,12 @@ describe('LevelEditorPage — blueprint connection points (step 44b)', () => {
     // session that left '+' armed would paint inert markers into a real
     // level through a palette showing nothing selected.
     editorCanvasModeSignal.value = 'blueprint';
-    editorSelectedToolSignal.value = '+';
+    editorSelectedToolSignal.value = 'connectionPoint';
     render(<LevelEditorPage />);
 
     fireEvent.click(levelEditorPage.toolbar.canvasLevel);
 
-    expect(editorSelectedToolSignal.value).not.toBe('+');
+    expect(editorSelectedToolSignal.value).not.toBe('connectionPoint');
     expect(levelEditorPage.palette.tile('G')).toHaveAttribute(
       'aria-pressed',
       'true',
@@ -1480,24 +1516,24 @@ describe('LevelEditorPage — blueprint connection points (step 44b)', () => {
     // up on the level canvas with '+' selected and no toggle click to
     // trigger the other disarm path.
     editorCanvasModeSignal.value = 'level';
-    editorSelectedToolSignal.value = '+';
+    editorSelectedToolSignal.value = 'connectionPoint';
 
     render(<LevelEditorPage />);
 
-    expect(editorSelectedToolSignal.value).not.toBe('+');
-    expect(levelEditorPage.palette.queryTile('+')).not.toBeInTheDocument();
+    expect(editorSelectedToolSignal.value).not.toBe('connectionPoint');
+    expect(levelEditorPage.palette.queryTile('connectionPoint')).not.toBeInTheDocument();
   });
 
   it('blueprintModeWithTheConnectionPointArmed-keepsItArmedAcrossAMountInThatMode', () => {
     // The mirror case must NOT be disarmed: '+' is a perfectly valid armed
     // tool on the blueprint canvas.
     editorCanvasModeSignal.value = 'blueprint';
-    editorSelectedToolSignal.value = '+';
+    editorSelectedToolSignal.value = 'connectionPoint';
 
     render(<LevelEditorPage />);
 
-    expect(editorSelectedToolSignal.value).toBe('+');
-    expect(levelEditorPage.palette.tile('+')).toHaveAttribute(
+    expect(editorSelectedToolSignal.value).toBe('connectionPoint');
+    expect(levelEditorPage.palette.tile('connectionPoint')).toHaveAttribute(
       'aria-pressed',
       'true',
     );
@@ -2067,6 +2103,7 @@ describe('LevelEditorPage — full authoring loop through the toolbar (US2)', ()
     stubDevServerWrite();
     blueprintEntries.push(LOOP_ROOM);
     editorLevelSignal.value = importLayout(['...', '...', '...']);
+    editorMarkerSignal.value = [];
     render(<LevelEditorPage />);
 
     // Pick a tool from the palette and paint a cell.
@@ -2274,7 +2311,9 @@ describe('LevelEditorPage — the cave preview is view-only (O-015 US3)', () => 
     await saveAsParity();
     cleanup();
 
-    // Dark appearance — same level, same edits.
+    // Dark appearance — same level, same edits. Reset the loaded name too:
+    // saving changed it to 'Parity', and the Export JSON now carries the name.
+    editorLoadedLevelNameSignal.value = 'main';
     editorAppearanceSignal.value = 'dark';
     render(<LevelEditorPage />);
     const darkExport = await exportText();

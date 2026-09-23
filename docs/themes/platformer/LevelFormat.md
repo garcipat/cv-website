@@ -1,19 +1,20 @@
 # Platformer Level Format
 
 The on-disk and in-code shape of a platformer level: the ASCII layout array, the
-characters that may appear in it, the two tile layers, and the JSON files the level
-editor writes.
+characters that may appear in it, the terrain/background layers plus the typed **tile
+meta layer**, and the JSON files the level editor writes.
 
 Everything here is defined by code, and the code is the authority:
 
 | Concern | Source |
 |---|---|
-| Character maps, the `TileChar`/`BackgroundChar` unions, `parseBackgroundLayout` | `src/themes/platformer/level/LevelParser.ts` |
-| `TileType`, `LevelDef`, `BackgroundGrid`, `BackgroundMaterialId` | `src/themes/platformer/level/LevelData.ts` |
-| The shipped level's layout and its structure notes | `src/themes/platformer/level/level.ts` |
+| Character maps, the `TileChar`/`BackgroundChar` unions, `parseBackgroundLayout`, `parseLevel`/`parseMarkers`, `SIGN_CHAR`, `LEGACY_MARKER_CHARS` | `src/themes/platformer/level/LevelParser.ts` |
+| `TileType`, `LevelDef`, `MarkerEntry`, `MarkerGrid`, `MarkerPlacement`, `BackgroundGrid`, `BackgroundMaterialId` | `src/themes/platformer/level/LevelData.ts` |
+| The ordered sign-hint catalog | `src/themes/platformer/level/HintCatalog.ts` |
+| The shipped level's layout, markers and structure notes | `src/themes/platformer/level/level.ts` |
 | Saved-level discovery and validation | `src/themes/platformer/level/levelRegistry.ts` |
 | Blueprint shape, discovery and validation | `src/themes/platformer/level/BlueprintData.ts`, `blueprintRegistry.ts` |
-| Solidity and climbability predicates | `src/themes/platformer/level/Terrain.ts` |
+| Solidity and climbability predicates, `markerAt` | `src/themes/platformer/level/Terrain.ts` |
 | Background neighbour-mask autotiling | `src/themes/platformer/engine/BackgroundAtlas.ts` |
 
 ## The layout array
@@ -50,14 +51,18 @@ loads and plays.
 
 ### Terrain, entity, sign and hazard markers
 
-A cell holds exactly one character, and that character means exactly one thing: the four
-maps are checked for overlapping keys at module load, and a shared key throws at import
-time.
+A cell holds exactly one character, and that character means exactly one thing: the maps
+are checked for overlapping keys at module load, and a shared key throws at import time.
 
 Terrain characters resolve to their `TileType`. Entity, sign and hazard characters
 resolve to `'empty'` terrain — the marker says *what starts here*, not *what the ground
 is*, and the ground under any marker is always empty. Their positions are read back out
 of the raw layout by the `find*` functions in `LevelParser.ts`.
+
+Per-cell content that a single character could not express — an enemy patrol boundary, a
+blueprint connection point, a sign's hint, a falling-stalactite variant — lives on the
+**tile meta layer** instead, a typed per-cell store aligned to the terrain grid. See
+"The tile meta layer" below.
 
 ## Terrain characters
 
@@ -74,22 +79,21 @@ of the raw layout by the `find*` functions in `LevelParser.ts`.
 | `B` | `bridge` | Solid one-way: blocks landing from above and walking into it from the side, but never blocks rising into it from below or an active drop-through (`isSolidExcludingBridge`). |
 | `H` | `ladder` | Climbable, never solid. Its topmost tile with open space above is standable (`isStandableLadderTop`). |
 | `I` | `chain` | Climbable, never solid. Behaves identically to `ladder` everywhere; a purely visual alternative skin whose attachment side is derived from neighbouring solid terrain. |
-| `P` | `patrol` | Invisible, non-solid enemy patrol boundary. Nothing renders it and the player passes through, but an enemy's movement strategy reverses when its visible leading edge reaches one, as if it were a wall. |
-| `+` | `blueprintConnectionPoint` | Invisible, editor-only marker on a blueprint's border cell. Never solid, never rendered in gameplay, and read by nothing in the running game — including blueprint placement, which validates overlap only. |
 | `n` | `bush` | Decorative, non-solid. Picks its own size variant; stacking grows it into a tree. |
 | `N` | `fence` | Decorative, non-solid. Single fixed sprite. |
 | `X` | `cobweb` | Decorative, non-solid cave dressing. Corner-vs-flat art and its rotation are auto-detected from neighbouring solid terrain (`Terrain.ts`'s `cobwebOrientation`). |
 | `c` | `crystalCluster` | Decorative, non-solid cave dressing. Single fixed sprite. |
-| `⊤` | `stalactite` | Decorative, non-solid cave dressing. Size variant (large/twin) picked by position hash. Its falling-hazard counterpart is the `T` hazard marker below. |
+| `⊤` | `stalactite` | Decorative, non-solid cave dressing. Size variant (large/twin) picked by position hash. A `fallingStalactite` marker on this tile makes it shake and drop (see the tile meta layer). |
 | `⊥` | `stalagmite` | Decorative, non-solid cave dressing. Size variant (large/twin) picked by position hash. |
-| `¥` | `torch` | Decorative, non-solid cave dressing. Its flame animates through a 4-frame sparkle loop; each cell's phase is derived from its grid position plus the shared world clock (`engine/Torch.ts`). |
+| `¥` | `torch` | Non-solid cave dressing and a light source. Its flame animates through a 4-frame sparkle loop; each cell's phase is derived from its grid position plus the shared world clock (`engine/Torch.ts`). A `torch` marker on this tile sets its light strength 0–9 (default 5), scaling the light radius (see the tile meta layer). |
 | `@` | `ladderBundle` | A curled-up rope-ladder bundle (O-011). Non-solid and not climbable, but standable from above (`isStandableLadderBundleTop`); a grounded character presses Up while on or one cell above it to unroll a `ropeLadder` shaft down to the first solid tile below. |
 | `§` | `bouncyMushroom` | Non-solid and not climbable: passable from the side and from below. Its top cap is one-way ground (`isStandableMushroomCap`) and launches the character with a fixed super-jump on every downward landing, with a brief cosmetic cap dip. A vertical run reads as one mushroom — cap / connector / stem / foot — via `verticalRunRole`. The character is the section sign; it is not a valid JS identifier, so its `TERRAIN_CHARS` key is quoted (`'§'`). |
 | `s` | `decorativeMushroom` | Non-solid and not climbable dressing mushroom. Never standable, never bounces, never awards anything — a single fixed sprite. (`s` is also a `BACKGROUND_CHARS` key, meaning `surfaceStone`; the background is a separate layer, so the overlap is allowed.) |
 
 Decorative tiles never form multi-tile runs and carry no CV-data mapping. The two
-invisible kinds — `patrol` and `blueprintConnectionPoint` — still occupy the cell, so
-painting one over a wall replaces the wall rather than overlaying it.
+invisible markers — the patrol boundary and the blueprint connection point — are no
+longer terrain characters at all: they live on the tile meta layer, so painting one never
+replaces the tile under it.
 
 The `ropeLadder` `TileType` a bundle deploys has **no** level character — it is never
 author-placeable, existing only in the effective grid the running game derives from
@@ -119,24 +123,30 @@ See [Terrain.md](Terrain.md) for the tile API, autotiling and multi-cell runs.
 
 See [Enemies.md](Enemies.md) and [Blocks.md](Blocks.md) for the entity APIs.
 
-## Sign characters
+## Sign character
 
-`SIGN_CHARS` in `src/themes/platformer/level/LevelParser.ts`; each value is a `HintId`
-from `src/themes/platformer/types.ts`. Signs are non-solid props standing on `empty`
-terrain.
+Every sign is the single uniform character `SIGN_CHAR` (`'T'`) in
+`src/themes/platformer/level/LevelParser.ts`. A `T` cell resolves to `'empty'` terrain —
+a sign is a non-solid prop standing on open ground. Its **hint** lives on the tile meta
+layer as a `{ kind: 'sign', hintId }` marker, so rows and columns can be added, removed
+or reordered without ever scrambling which sign shows which text.
 
-Unlike entity markers, a sign's content is hand-authored rather than derived from CV
-data, so the character itself carries the hint's identity. That is what lets rows and
-columns be added, removed or reordered without ever scrambling which sign shows which
-text. The map is capped at digits `1`–`9` as an accepted constraint.
+The registered hints and their order live in `level/HintCatalog.ts`:
 
-| Char | Shows (`HintId`) | Notes |
+| `HintId` | Default text | Editor badge |
 |---|---|---|
-| `1` | `bridgeDropThrough` | Hold Down to drop through a bridge. |
-| `2` | `ladderClimbUp` | Ladders are climbed with Up/Down. |
-| `3` | `fragileRockBreaksFromBelow` | Fragile rocks break when hit from underneath. |
-| `4` | `chestNeedsKey` | A chest cannot be opened without a key. |
-| `5` | `openAllChestsHaveFun` | Opening every chest ends the run. |
+| `bridgeDropThrough` | Hold Down to drop through a bridge. | `1` |
+| `ladderClimbUp` | Press Up to climb a ladder. | `2` |
+| `fragileRockBreaksFromBelow` | Fragile rocks can be broken from below. | `3` |
+| `chestNeedsKey` | Chests need a key to open. | `4` |
+| `openAllChestsHaveFun` | Open all the chests and have fun! | `5` |
+| `bomb` | Press B to place a bomb. | `6` |
+
+`HINT_IDS` is the ordered catalog (the badge codes, the sign tool's cycle order and the
+default all derive from it). A `T` with no `sign` marker falls back to
+`DEFAULT_HINT_ID` (`HINT_IDS[0]`), and a stored `hintId` that is not registered also
+falls back to it. The old digits `1`–`6` are legacy characters, migrated at load time
+(see "The tile meta layer").
 
 ## Hazard characters
 
@@ -152,11 +162,16 @@ face was touched, so the facing selects the sprite only.
 | `<` | `spike` | `left` | Mounted on a wall to the right of the tile. |
 | `>` | `spike` | `right` | Mounted on a wall to the left of the tile. |
 | `A` | `floorSpike` | `up` | Delayed-trigger hazard (O-021); floor-only, no facing cycle. |
-| `T` | `fallingStalactite` | `down` | Camouflage ceiling hazard (O-027); renders the decorative stalactite's own art untinted while hanging, shakes then drops. Ceiling-only, single orientation, no facing cycle. |
 
 `hazardType` is carried on every entry rather than hardcoded elsewhere, so a second
 hazard kind needs one entry here plus a registry line in
 `src/themes/platformer/entities/hazards/index.ts`.
+
+The **falling stalactite** is no longer a hazard character: it is a presence-only
+`{ kind: 'fallingStalactite' }` marker on the decorative `⊤` tile (FR-026). Its freed `T`
+is the sign character above. `findHazardTiles` merges the character hazards above with the
+marker-derived falling stalactites into one reading-order list, so every downstream
+consumer is unchanged.
 
 `floorSpike` (`'A'`) is a second `HazardKind` sibling to `spike`, added by O-021. Unlike
 `spike`, it carries live per-instance cycle state (`HazardPlacement.floorSpikePhase`,
@@ -166,37 +181,48 @@ merged in per-tick from `PlatformerState.ts`'s `floorSpikeTimerStates` via
 frame. See [specs/O-021-platformer-floor-spikes/spec.md](../../../specs/O-021-platformer-floor-spikes/spec.md)
 for the trigger/cycle behavior itself.
 
-`fallingStalactite` (`'T'`) is a third `HazardKind`, added by O-027. It hangs under a
-ceiling and renders **exactly** like the decorative `⊤` stalactite at its cell (same
-large/twin position-hash variant, no in-game tint), so the first drop is a surprise. It
-arms when the player's hitbox enters a bounded detection zone beneath it (the three
-columns below, reaching down to the first standable cell in its own column or 10 tiles,
-clipped per column by standable cells), then shakes briefly, falls straight down its own
-column, and shatters on the first cell the player could stand on (or despawns off the
-bottom). Only the falling phase is hazardous. Its live per-instance phase and
-fall/shake offsets are merged per-tick by `hazardPlacementsForTick()` from
-`PlatformerState.ts`'s `fallingStalactiteTimerStates`; a shattered one stays gone until
-death/respawn or Reset Game. `T` is tinted reddish in the editor only — its palette
-thumbnail and its painted grid cell — never in game. See
+`fallingStalactite` is a third `HazardKind`, added by O-027, but it is discovered from
+the tile meta layer rather than a character. It hangs under a ceiling and renders
+**exactly** like the decorative `⊤` stalactite at its cell (same large/twin position-hash
+variant, no in-game tint), so the first drop is a surprise. It arms when the player's
+hitbox enters a bounded detection zone beneath it (the three columns below, reaching down
+to the first standable cell in its own column or 10 tiles, clipped per column by standable
+cells), then shakes briefly, falls straight down its own column, and shatters on the
+first cell the player could stand on (or despawns off the bottom). Only the falling phase
+is hazardous. Its live per-instance phase and fall/shake offsets are merged per-tick by
+`hazardPlacementsForTick()` from `PlatformerState.ts`'s `fallingStalactiteTimerStates`; a
+shattered one stays gone until death/respawn or Reset Game. The falling variant is tinted
+reddish in the editor only — its palette thumbnail and its painted grid cell — never in
+game. See
 [specs/O-027-platformer-falling-stalactite/spec.md](../../../specs/O-027-platformer-falling-stalactite/spec.md).
 
 ## `TileChar`
 
-`TileChar` (`LevelParser.ts`) is the union of every legal layout character — all four
-maps' keys, 46 characters in total. It is written out by hand rather than derived with
-`keyof typeof`: the maps are annotated `Record<string, … | undefined>` so lookups can
-index by a plain `string`, which would widen a derived union to `string` and remove all
-type safety. A test asserts every map key appears in the union.
+`TileChar` (`LevelParser.ts`) is the union of every legal layout character — every
+`TERRAIN_CHARS`, `ENTITY_CHARS` and `HAZARD_CHARS` key, plus the uniform `SIGN_CHAR`
+(`'T'`). It is written out by hand rather than derived with `keyof typeof`: the maps are
+annotated `Record<string, … | undefined>` so lookups can index by a plain `string`, which
+would widen a derived union to `string` and remove all type safety. A test asserts every
+map key appears in the union. The legacy marker characters (`P`, `+`, `1`–`6`) are **not**
+members — they exist only in `LEGACY_MARKER_CHARS`.
 
 `TileChar` is also the editor grid's cell type — `editorLevelSignal` holds a
 `TileChar[][]`.
 
-## The two tile layers
+## The three tile layers
 
-A level has two independent layers.
+A level has three independent layers: foreground terrain, background, and the tile meta
+layer.
 
 **Foreground** is the layout array itself: terrain, entity, sign and hazard characters.
-This is the layer physics, collision and gameplay read.
+This is the layer physics, collision and gameplay read. It no longer encodes the patrol
+boundary, the connection point, a sign's hint or the falling-stalactite variant — those
+are markers.
+
+**Tile meta layer** is a typed, sparse, per-cell store aligned 1:1 with the terrain grid.
+Its entries are **markers**; a cell carries at most one. A marker is never terrain, so it
+is never solid, never climbable, and never rendered by the game. See "The tile meta
+layer" below.
 
 **Background** is a dense per-cell grid aligned 1:1 with the terrain grid (O-014), so a
 filled region reads as one continuous autotiled mass behind the terrain rather than as
@@ -300,6 +326,96 @@ and erasing a background cell (`editor/paintBackgroundCell.ts`) works exactly li
 painting foreground terrain — a single-cell write, growing the grid the same way, no
 footprint/overlap reasoning.
 
+## The tile meta layer
+
+The tile meta layer is a typed, per-cell metadata store aligned to the terrain grid and
+independent of it. A marker's value is a closed discriminated union
+(`level/LevelData.ts`), so a marker carries exactly the data its kind needs and nothing is
+untyped (FR-023):
+
+```ts
+type MarkerEntry =
+  | { kind: 'patrolBoundary' }        // reverses an enemy at this cell; invisible, non-solid
+  | { kind: 'connectionPoint' }       // editor-only blueprint border marker; read by nothing in game
+  | { kind: 'fallingStalactite' }     // a presence-only variant on a decorative `⊤` tile
+  | { kind: 'sign'; hintId: HintId }  // a sign's hint, carried on a `T` cell
+  | { kind: 'torch'; strength: TorchStrength }; // a torch's light strength (0-9), carried on a `¥` cell
+
+type MarkerGrid = (MarkerEntry | null)[][]; // dense runtime grid, row-major, [row][col]
+
+interface MarkerPlacement {
+  col: number;                        // relative to the cropped layout's origin
+  row: number;
+  marker: MarkerEntry;
+}
+```
+
+A `torch`'s `strength` (0–9) scales that torch's light radius: `0` is dark, `5`
+(`DEFAULT_TORCH_STRENGTH`) is today's fixed radius, and `9` is roughly double. A torch with no
+marker lights at the default, so a torch is stored as a marker only when its strength differs
+from `5` — an unadjusted level stays sparse and every level authored before the torch-strength
+feature lights exactly as it did. The editor shows each torch's strength as a corner badge
+(like a sign's hint code) and raises it on re-click.
+
+`LevelDef.markers` is the dense runtime grid, read through `Terrain.ts`'s
+`markerAt(level, col, row)` — `null` for an out-of-bounds cell, a missing grid, or an
+empty cell, the same forgiving contract `backgroundAt` has. A marker is not a `TileType`,
+so `tileAt`/`isSolid`/`isClimbable` never see one: a marked wall stays solid, a marked
+empty cell stays walkable.
+
+### Migration and the `T` generation rule
+
+`parseLevel(layout, storedMarkers?)` migrates a pre-feature file at load time (FR-015).
+`LEGACY_MARKER_CHARS` is the **only** place a marker character exists:
+
+| Legacy char | Migrates to | Terrain result |
+|---|---|---|
+| `P` | `{ kind: 'patrolBoundary' }` | `'empty'` |
+| `+` | `{ kind: 'connectionPoint' }` | `'empty'` |
+| `1`–`6` | `{ kind: 'sign', hintId }` (per `HINT_IDS`) | `'empty'` |
+| `T` | `{ kind: 'fallingStalactite' }` **or** `{ kind: 'sign', hintId }` | `⊤` or `'empty'` |
+
+`T` is genuinely overloaded between the old falling-stalactite hazard and the new sign
+character, so it is resolved by **file generation**: `storedMarkers === undefined` (the
+file has no `markers` field) means pre-feature, so `T` → `⊤` + a `fallingStalactite`
+marker; `storedMarkers` present (even `[]`) means new-format, so `T` is a sign whose hint
+is the cell's `sign` marker or `DEFAULT_HINT_ID`. An explicit `sign` marker at a `T` cell
+always wins, so a new-format file is never re-interpreted as pre-feature. Stored markers
+are merged on top of the legacy lift; an unrecognised `kind` or an out-of-bounds entry is
+ignored, and an unregistered sign `hintId` falls back to the default.
+
+The editor's `importLayout`/`importMarkerGrid` perform the same lift once on load, so the
+editor grid shows `T` for a migrated sign and `⊤` for a migrated falling stalactite; the
+next save writes the new shape. The effective gameplay is identical whether a marker came
+from a legacy character or the new `markers` field.
+
+### Adding a new marker kind
+
+Adding a kind is a small, closed set of touch-points — no marker character is ever added
+to `TERRAIN_CHARS`:
+
+1. **Union member** — add the variant to `MarkerEntry` in `level/LevelData.ts`, carrying
+   only the data it needs.
+2. **Storage** — `MarkerPlacement` already stores any `MarkerEntry`; `parseMarkers`'s
+   `normalizeMarkerEntry` accepts the new `kind` (a presence-only kind needs no extra
+   branch; a payload kind validates its payload there).
+3. **Migration (only if it replaces a character)** — add the legacy character to
+   `LEGACY_MARKER_CHARS` so an old layout lifts to the new marker.
+4. **Runtime consumer** — read it through `markerAt` (e.g. `movement/patrol.ts`), or add
+   it to `findSignTiles`/`findHazardTiles` if it feeds an existing placement pipeline.
+5. **Editor tool + presentation** — add the tool to `MarkerTool` in
+   `editor/editorState.ts`; widen `PALETTE_TILE_SPRITES`/`LABELS`/`DESCRIPTIONS`/
+   `GLYPHS` in `editor/paletteTiles.ts`; offer it in `Palette.tsx`'s `toolKeys`; handle
+   it in `EditorCanvas.tsx`'s `applyToolAt` paint branch and its draw pass; and add its
+   hover-tooltip label to `EditorCanvas.tsx`'s `MARKER_TOOLTIP_LABELS`
+   (`Record<MarkerEntry['kind'], string>`, so a new kind fails the build there until it is
+   named). Extend the corner badge too if the kind carries content to show.
+6. **Tests** — a pure-module test for the parser/accessor, an editor test for the tool,
+   and a runtime test for the consumer.
+
+The `sign` and `fallingStalactite` kinds are the two variant tools that also write a
+terrain character (`T` / `⊤`); every other kind writes only the marker grid.
+
 ## `LevelDef`
 
 What `parseLevel` produces and what the engine consumes:
@@ -310,13 +426,14 @@ interface LevelDef {
   width: number;                    // tiles, derived from the layout
   height: number;                   // tiles, the layout's length
   background?: BackgroundGrid;
+  markers?: MarkerGrid;             // the tile meta layer; absent when empty
 }
 ```
 
 `background` MAY be smaller than `terrain`'s own bounds — any cell outside the grid's
 own bounds (or a missing `background` field entirely) reads as `null` via
 `Terrain.ts`'s `backgroundAt`, the same out-of-bounds-is-empty convention `tileAt`
-already uses.
+already uses. `markers` is likewise optional and read through `markerAt`.
 
 ## Saved level files
 
@@ -331,7 +448,10 @@ committed like any other source file.
 {
   "name": "Cave Run",
   "layout": [".S.", "GGG"],
-  "background": ["...", ".c."]
+  "background": ["...", ".c."],
+  "markers": [
+    { "col": 1, "row": 0, "marker": { "kind": "sign", "hintId": "bridgeDropThrough" } }
+  ]
 }
 ```
 
@@ -340,6 +460,11 @@ committed like any other source file.
 - `background` is optional, and when present is only written when it holds at least one
   non-`'.'` character — a level with an all-empty background layout keeps the same shape
   it had before the background layer existed.
+- `markers` is optional and **sparse**: it holds only the markers that are actually
+  present (never a grid of empty cells), each a typed `MarkerPlacement` whose coordinates
+  are relative to the cropped `layout`'s own origin. It is omitted entirely when there are
+  none, so an unmarked level's file is unchanged. Its presence (even `[]`) is also the
+  signal that a file is new-format for the `T` generation rule.
 - Validation is deliberately forgiving: a file that is not an object, or whose `layout`
   is not a non-empty array of strings, is skipped entirely — that level simply does not
   appear and every other one still loads. `background` is validated with the same "array
@@ -371,6 +496,7 @@ interface Blueprint {
   name: string;
   layout: readonly string[];
   background?: readonly string[];
+  markers?: readonly MarkerPlacement[];
 }
 ```
 
@@ -391,15 +517,24 @@ The folder ships empty apart from a `.gitkeep`.
 
 The level editor persists its working state to `localStorage` — the grid
 (`platformer-editor-level`, a `TileChar[][]`), the selected tool
-(`platformer-editor-selected-tool`, a single `TileChar`), the background grid
-(`platformer-editor-background`, a `BackgroundChar[][]`), the blueprint canvas and its
-background, the active layer, the canvas mode, and the loaded level/blueprint names
-(`src/themes/platformer/editor/editorState.ts` + `editorActions.ts`).
+(`platformer-editor-selected-tool`, a `TileChar` or a marker tool), the background grid
+(`platformer-editor-background`, a `BackgroundChar[][]`), the tile meta layer
+(`platformer-editor-markers`, a `MarkerGrid`), the blueprint canvas and its background and
+markers, the active layer, the canvas mode, and the loaded level/blueprint names
+(`src/themes/platformer/editor/editorState.ts` + `editorActions.ts`). A persisted marker
+grid is validated by a forgiving shape guard on load; a malformed value falls back to the
+default.
 
 Old saved levels/blueprints using either the pre-O-014 flat `BackgroundPlacement[]`
 format or the pre-storage-unification-revision array-of-arrays `BackgroundGrid` format
 load with an empty background layout — no attempt is made to convert either older shape
 to the current `string[]` layout (FR-013).
+
+A persisted **terrain** grid that still holds the legacy marker characters (`P`, `+`,
+digits) is likewise **not** migrated: local working state is deliberately not converted,
+the same policy as every prior remap. The affected `platformer-editor-*` keys can be
+cleared and reloaded. A saved level/blueprint file, by contrast, *is* migrated at load
+time (see "The tile meta layer").
 
 Several layout characters were remapped at one point, and there is **no migration path**.
 A browser profile that opened the editor before that remap still holds the old letters in

@@ -1,42 +1,40 @@
 import type { TileChar, BackgroundChar } from '../level/LevelParser';
-import { exportLayout, boundingBoxOfContent } from './exportLayout';
+import type { MarkerGrid, MarkerPlacement } from '../level/LevelData';
+import { boundingBoxOfContent, cropLayoutToBox, unionBoxes } from './exportLayout';
 
 export interface CroppedLevel {
   layout: readonly string[];
   background: readonly string[];
+  markers: readonly MarkerPlacement[];
 }
 
 /**
- * Pairs `exportLayout`'s existing foreground-only crop with the matching
- * sub-region of `background`, serialized the same `readonly string[]` shape
- * `layout` itself has (O-014's storage-unification revision — background is
- * a compact `string[]` layout now, not an array-of-arrays grid) — the
- * grid-model replacement for the old placement-rebase, so the two layers
- * never drift apart across export/save/try. The crop's origin
- * (`minCol`/`minRow`, the foreground's own tightest non-`.` bounding box) and
- * its extent (`maxCol`/`maxRow`) — computed via the SAME `boundingBoxOfContent`
- * helper `exportLayout` uses internally, rather than a second min/max scan —
- * are what slice `background`.
+ * Pairs the foreground's crop with the matching sub-region of `background` and
+ * the tile meta layer, serialized the same `readonly string[]`/`MarkerPlacement[]`
+ * shapes `layout` and the stored `markers` field have (O-014's
+ * storage-unification revision, extended by the tile meta layer) — so the
+ * three layers never drift apart across export/save/try.
  *
- * Deliberately does NOT extend the crop to include background content beyond
- * the foreground's own bounding box: per the project owner, storage/export
- * only ever reflects the foreground grid's own content — background is
- * purely a render-time concern aligned 1:1 with the foreground grid, not an
- * independent shape with its own bounds. A background cell outside the
- * foreground's tightest box is simply dropped by the crop, the same way any
- * other cell outside the exported layout's own bounds would be.
+ * The crop box is the tightest rectangle over every non-`.` terrain cell
+ * **and** every non-null marker cell (FR-017), so an isolated marker on an
+ * empty cell expands the box and survives the save. `background` is cropped to
+ * that same box, and `markers` are serialized relative to its origin.
+ *
+ * An all-empty level still exports `layout: ['.']`, `background: []`,
+ * `markers: []`.
  */
 export function cropLevelForExport(
   grid: TileChar[][],
   background: BackgroundChar[][],
+  markers: MarkerGrid = [],
 ): CroppedLevel {
-  const box = boundingBoxOfContent(grid, '.');
+  const box = unionBoxes(boundingBoxOfContent(grid, '.'), boundingBoxOfContent(markers, null));
 
-  // No foreground content at all — exportLayout returns the arbitrary
-  // single-cell ['.'], which has no real bounding box to crop background
-  // against, so background exports empty too (nothing to align it to).
+  // No foreground or marker content at all — exportLayout returns the
+  // arbitrary single-cell ['.'], which has no real bounding box to crop the
+  // other layers against, so they export empty too (nothing to align them to).
   if (box === null) {
-    return { layout: exportLayout(grid), background: [] };
+    return { layout: cropLayoutToBox(grid, null), background: [], markers: [] };
   }
 
   const backgroundRows: string[] = [];
@@ -48,5 +46,19 @@ export function cropLevelForExport(
     backgroundRows.push(line);
   }
 
-  return { layout: exportLayout(grid), background: backgroundRows };
+  const markerPlacements: MarkerPlacement[] = [];
+  for (let row = box.minRow; row <= box.maxRow; row++) {
+    for (let col = box.minCol; col <= box.maxCol; col++) {
+      const marker = markers[row]?.[col];
+      if (marker) {
+        markerPlacements.push({ col: col - box.minCol, row: row - box.minRow, marker });
+      }
+    }
+  }
+
+  return {
+    layout: cropLayoutToBox(grid, box),
+    background: backgroundRows,
+    markers: markerPlacements,
+  };
 }

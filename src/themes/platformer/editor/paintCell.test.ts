@@ -49,69 +49,18 @@ describe('paintCell', () => {
   });
 });
 
-describe('paintCell — sign markers', () => {
-  it('paintingSignToolOnEmptyCell-placesTheFirstUnusedRegisteredHint', () => {
-    const grid: TileChar[][] = [['.', '.']];
-
-    const result = paintCell(grid, 1, 0, '1');
-
-    expect(result.grid[0][1]).toBe('1');
+describe('paintCell — sign character', () => {
+  it('signTool-writesTheUniformSignCharacter', () => {
+    const result = paintCell([['.', '.']], 1, 0, 'T');
+    expect(result.grid[0][1]).toBe('T');
   });
 
-  it('clickingAnAlreadyPlacedSign-cyclesToTheNextRegisteredHint', () => {
-    // Now genuinely exercised: 5 hints are registered (SIGN_CHARS '1'-'5'),
-    // so cycling the lone placed sign moves to the next digit, not a
-    // same-digit no-op.
-    const grid: TileChar[][] = [['1', '.']];
-
-    const result = paintCell(grid, 0, 0, '1');
-
-    expect(result.grid[0][0]).toBe('2');
-  });
-
-  it('cyclingRepeatedly-walksThroughEveryRegisteredHintInOrderThenWrapsAround', () => {
-    let grid: TileChar[][] = [['1', '.']];
-    const seen: TileChar[] = [];
-    for (let i = 0; i < 6; i++) {
-      const result = paintCell(grid, 0, 0, '1');
-      seen.push(result.grid[0][0]);
-      grid = result.grid;
-    }
-
-    expect(seen).toEqual(['2', '3', '4', '5', '6', '1']);
-  });
-
-  it('paintingSignToolOnEmptyCell-doesNotDisturbAnUnrelatedExistingSign-andSkipsTheAlreadyUsedHint', () => {
-    const grid: TileChar[][] = [['1', '.']];
-
-    const result = paintCell(grid, 1, 0, '1');
-
-    // '1' is already used elsewhere on the map, so the new sign gets the
-    // next unused hint ('2') instead of duplicating '1' — and the first
-    // sign is left completely untouched.
-    expect(result.grid[0][0]).toBe('1');
-    expect(result.grid[0][1]).toBe('2');
-  });
-
-  it('everyRegisteredHintAlreadyUsedElsewhere-fallsBackToReusingTheStartingDigit', () => {
-    // Edge case from the doc comment: once every registered hint (1-6) is
-    // already placed somewhere else, a new placement has nothing unused
-    // left to grab and falls back to the tool's own starting digit rather
-    // than leaving the cell unpainted.
-    const grid: TileChar[][] = [['1', '2', '3', '4', '5', '6', '.']];
-
-    const result = paintCell(grid, 6, 0, '1');
-
-    expect(result.grid[0][6]).toBe('1');
-  });
-
-  it('paintingNonSignTool-behavesExactlyAsBefore', () => {
-    const grid: TileChar[][] = [['1', '.']];
-
-    const result = paintCell(grid, 1, 0, 'G');
-
-    expect(result.grid[0][1]).toBe('G');
-    expect(result.grid[0][0]).toBe('1'); // unrelated cell untouched
+  it('rePaintingASign-leavesTheCharacterUnchanged', () => {
+    // The hint cycle lives on the marker grid now (`paintSignMarker`), not on
+    // the terrain character.
+    const result = paintCell([['T', '.']], 0, 0, 'T');
+    expect(result.grid[0][0]).toBe('T');
+    expect(result.grid[0][1]).toBe('.');
   });
 });
 

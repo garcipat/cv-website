@@ -239,9 +239,10 @@ rows upward from the anchor row — a purple slime spans two, so an obstacle at 
 stops it):
 
 1. `isSolid(tileAt(level, col, row))` — static terrain.
-2. The tile is `'patrol'` — an invisible, non-solid boundary tile the player walks
-   straight through, whose only effect is to turn enemies around. It has to be checked
-   by name because it is never solid. It bounds only the row it is painted on.
+2. `markerAt(level, col, row)?.kind === 'patrolBoundary'` — an invisible, non-solid
+   boundary marker the player walks straight through, whose only effect is to turn
+   enemies around. It is read from the tile meta layer because it is never terrain, and
+   it bounds only the row it sits on.
 3. `blockedTiles` contains that cell — the currently-live
    `crate`/`questionMark`/`fragileRock` blocks, which the static grid resolves to
    `'empty'` because they are a separate dynamic layer.
