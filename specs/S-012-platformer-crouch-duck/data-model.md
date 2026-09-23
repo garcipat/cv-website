@@ -143,17 +143,18 @@ field.
 | knockback | **none** | `vx`, `direction`, `knockbackTimer`, `vy` and `bounceAscending` are left untouched (FR-011, SC-009) |
 | collision box | the one-tile `CrouchedBox` for the whole window | guaranteed by `resolveCrouching`'s `inHitReaction` freeze (D8) |
 
-**Producer**: `applyHitReactionWithoutKnockback(player): PlayerState` on
-`entities/Player.ts`:
+**Producer**: `applyHitReaction(player, knockback?)` on `entities/Player.ts` —
+the shared hit-reaction helper (always the red pose; knockback optional):
 
 ```ts
-return { ...player, hitTimer: 0, animState: 'hit', animFrame: 0, animTimer: 0 };
+// always:
+{ ...player, hitTimer: 0, animState: 'hit', animFrame: 0, animTimer: 0 }
 ```
 
-Called at the three directional damage sites in `PlatformerPage.tsx` when
-`player.crouching` (enemy contact, non-floor-spike hazard, bomb blast). The
-floor-spike hazard keeps its existing `beginHitReaction` (already
-knockback-free, blink-only; FR-014).
+Called with no `knockback` argument at the three directional damage sites in
+`PlatformerPage.tsx` when `player.crouching` (enemy contact, non-floor-spike
+hazard, bomb blast). The floor-spike hazard uses it with no argument too (red,
+no knockback). Only a pit fall blinks (`beginPitFallReaction`).
 
 **Render descriptor** (derived only while `crouching && animState === 'hit'`):
 
@@ -231,7 +232,7 @@ level / blocks / player pos ──┘         ▲                               
                                                                                   └──▶ CrouchPose (animState 'crouch', row 8)
                                                                                            ▲
    crouching && animState === 'hit' ──▶ CrouchedHitReaction ─────────────────────────────┘
-        (applyHitReactionWithoutKnockback: hitTimer 0 + 'hit' pose, no knockback)
+        (applyHitReaction: hitTimer 0 + 'hit' pose, no knockback)
                                               │
                                               └──▶ drawTintedSprite (crouch pose + CROUCH_HIT_TINT)
 ```

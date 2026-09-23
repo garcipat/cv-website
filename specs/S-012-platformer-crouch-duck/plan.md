@@ -27,7 +27,7 @@ the spec after the first plan and this plan now covers them:
 The implementation is: a pure, DOM-free `engine/Crouch.ts` decision module; one
 shared box-geometry helper pair on `entities/Player.ts` consumed by both
 `Physics.ts` and `Collision.playerHitbox`; one pure no-knockback hit helper
-(`applyHitReactionWithoutKnockback`) on `Player.ts`; and one reusable
+(`applyHitReaction`) on `Player.ts`; and one reusable
 `drawTintedSprite` helper on `engine/Renderer.ts` (offscreen canvas +
 `source-atop` red fill) applied by `drawPlayer` when the player is crouched and
 in the hit reaction. `Renderer.ts` therefore **does** need an edit (the earlier
@@ -38,7 +38,7 @@ plan's "no edit required" statement is superseded).
 **Language/Version**: TypeScript 5.x, strict mode, no `any` — Vite 6+, React 19
 **Primary Dependencies**: React 19, `@preact/signals-react` (game state), Tailwind CSS 4 (legend/UI overlay). **No new dependency.**
 **Storage**: N/A — static site; no backend, no API calls, no database. Crouch is session-scoped in-memory `PlayerState` only (constitution Principle I; [docs/Architecture.md](../../docs/Architecture.md) "No backend" / Technical Constraints).
-**Testing**: Vitest + React Testing Library + jsdom ([docs/TestingGuide.md](../../docs/TestingGuide.md)). Pure engine/entity helpers (`engine/Crouch.ts`, `applyHitReactionWithoutKnockback`, `drawTintedSprite`) are unit-tested DOM-free; `drawPlayer` is tested with a fake `CanvasRenderingContext2D` and a fake offscreen layer, exactly as `drawDarkness` is today.
+**Testing**: Vitest + React Testing Library + jsdom ([docs/TestingGuide.md](../../docs/TestingGuide.md)). Pure engine/entity helpers (`engine/Crouch.ts`, `applyHitReaction`, `drawTintedSprite`) are unit-tested DOM-free; `drawPlayer` is tested with a fake `CanvasRenderingContext2D` and a fake offscreen layer, exactly as `drawDarkness` is today.
 **Target Platform**: Web browser, static Vite build; win32 dev environment, Linux/CI target.
 **Project Type**: Single project — Vite + React static site. The platformer theme is self-contained under `src/themes/platformer/`.
 **Performance Goals**: 60 fps game loop; initial static load < 1.5 s; interaction feedback < 200 ms (constitution Principle V). The crouched-hit tint reuses one 64×64 offscreen canvas owned by `PlatformerPage.tsx`; no per-frame allocation.
@@ -52,7 +52,7 @@ _GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 | Principle | Gate | Result |
 | --- | --- | --- |
 | **I. Typed Data Architecture** | New state is the typed `PlayerState.crouching: boolean`; the tint is a typed config consumed by a typed helper; no `any`, no runtime parsing, no CV JSON touched | **PASS** |
-| **II. Testing (NON-NEGOTIABLE)** | TDD; `resolveCrouching`/`canStandUp`, `applyHitReactionWithoutKnockback` and `drawTintedSprite` are pure and unit-testable with Vitest (the renderer via a caller-provided fake layer, no DOM); existing ladder/bridge assertions run unchanged | **PASS** |
+| **II. Testing (NON-NEGOTIABLE)** | TDD; `resolveCrouching`/`canStandUp`, `applyHitReaction` and `drawTintedSprite` are pure and unit-testable with Vitest (the renderer via a caller-provided fake layer, no DOM); existing ladder/bridge assertions run unchanged | **PASS** |
 | **III. Code Quality & Component Standards** | Named arrow-function exports, typed props destructured inline, `cn()` for conditional Tailwind, PascalCase/camelCase, no default exports; no shadcn change | **PASS** |
 | **IV. No Feature Bloat** | Work originates from `specs/S-012-platformer-crouch-duck/spec.md`; FR-011/FR-016/SC-009 live inside that spec; no roadmap or numbered step list; `docs/Features.md` dependency diagram is updated only on completion | **PASS** |
 | **V. Performance & Static Delivery** | One reused offscreen canvas (no per-frame allocation), no new asset or dependency, no measurable bundle increase | **PASS** |
@@ -114,7 +114,7 @@ src/
     │   └── DebugOverlay.test.ts
     ├── entities/
     │   ├── Player.ts                              # + crouching field, box helpers, 'crouch' anim,
-    │   │                                          #   applyHitReactionWithoutKnockback
+    │   │                                          #   applyHitReaction
     │   └── Player.test.ts
     ├── level/
     │   ├── level.ts                               # + one-tile corridor (existing tiles only)

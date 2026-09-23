@@ -80,7 +80,7 @@ export function stepPlayerPhysics(
   const blockContacts: BlockContact[] = [];
   // While a side-hit's knockback is still active, held movement keys are
   // ignored entirely and the knockback velocity/direction set
-  // by Player.ts's `applyKnockback` is held steady — otherwise this branch
+  // by Player.ts's `applyHitReaction` (its knockback argument) is held steady — otherwise this branch
   // would recompute `vx` from input every single frame (as it does normally)
   // and silently erase the knockback the instant this function next runs.
   const knockbackActive = player.knockbackTimer > 0;

@@ -21,7 +21,7 @@ are also covered from the physics side
 
 ## 2. No knockback (FR-011, SC-009)
 
-`applyHitReactionWithoutKnockback(player)` (`entities/Player.ts`) returns:
+`applyHitReaction(player)` (`entities/Player.ts`) returns:
 
 ```ts
 { ...player, hitTimer: 0, animState: 'hit', animFrame: 0, animTimer: 0 }
@@ -43,12 +43,13 @@ The three directional sites branch on `player.crouching`:
 
 | Site | Standing (unchanged) | Crouched |
 | --- | --- | --- |
-| Enemy contact (`PlatformerPage.tsx` ~L1741) | `applyKnockback` (+ `awayAndUp` `vy`) | `applyHitReactionWithoutKnockback` (no `vy`) |
-| Non-floor-spike hazard (~L1819) | `applyKnockback` | `applyHitReactionWithoutKnockback` |
-| Bomb blast (~L2163) | `applyKnockback` | `applyHitReactionWithoutKnockback` |
+| Enemy contact (`PlatformerPage.tsx` ~L1741) | `applyHitReaction(player, knockback)` (+ `awayAndUp` `vy`) | `applyHitReaction(player)` (no `vy`) |
+| Non-floor-spike hazard (~L1819) | `applyHitReaction(player, knockback)` | `applyHitReaction(player)` |
+| Bomb blast (~L2163) | `applyHitReaction(player, knockback)` | `applyHitReaction(player)` |
 
-The floor-spike hazard is unchanged in both cases: it uses `beginHitReaction`
-(no knockback, blink-only, no red `hit` pose) and FR-014 forbids altering it.
+The floor-spike hazard also uses `applyHitReaction(player)` — the same red
+reaction with no knockback (FR-006). The transparent blink is pit falls only
+(`beginPitFallReaction`).
 
 ## 3. The one-tile box for the whole reaction (FR-011)
 
@@ -74,7 +75,7 @@ though the character may be moving or the space above may be occupied.
 
 ## Invariants (asserted by `Player.test.ts` / `Renderer.test.ts` / `PlatformerPage.test.tsx`)
 
-1. `applyHitReactionWithoutKnockback` leaves `vx`, `direction`,
+1. `applyHitReaction` leaves `vx`, `direction`,
    `knockbackTimer`, `vy` and `bounceAscending` identical to the input, and sets
    `hitTimer: 0`, `animState: 'hit'`, `animFrame: 0`, `animTimer: 0`.
 2. After the helper, `isInvulnerable(result, PLAYER_HIT_REACTION_SECONDS)` is
@@ -87,5 +88,5 @@ though the character may be moving or the space above may be occupied.
    the `crouch` row through the tinted layer; with `crouching: false,
    animState: 'hit'` it draws the baked `hit` frame directly and never calls the
    layer.
-6. The floor-spike hit is unchanged while crouched (`beginHitReaction`, no
-   `animState` change) — FR-014.
+6. The floor-spike hit also shows the red reaction (`applyHitReaction(player)`,
+   no knockback) — only a pit fall blinks (`beginPitFallReaction`).

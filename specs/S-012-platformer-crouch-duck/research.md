@@ -284,7 +284,7 @@ stuck-crouch rules coexist.
 
 **Decision**: While the player's post-hit refractory window is open
 (`isInvulnerable(player, PLAYER_HIT_REACTION_SECONDS)`, which covers both a
-directional knockback and a pit fall's `beginHitReaction`), `resolveCrouching`
+directional knockback and a pit fall's `beginPitFallReaction`), `resolveCrouching`
 returns `currentlyCrouching` unchanged. The crouch box is therefore kept for
 the whole reaction and can never be forced open into a ceiling by a hit.
 
@@ -417,18 +417,17 @@ ceiling `groundGrass` added, corridor row left empty, existing floor reused.
 
 ## D13 — A crouched directional hit: damage + window + `'hit'` pose, no knockback (FR-011, SC-009)
 
-**Decision**: Add a pure helper to `entities/Player.ts`:
+**Decision**: Add a pure helper to `entities/Player.ts` (later consolidated with
+the pre-existing `applyKnockback` — see "Consolidation" below):
 
 ```ts
 /**
- * Starts a directional hit's red `hit` reaction with NO knockback. Sets
- * `hitTimer` to 0 (opening the refractory window), switches `animState` to
- * `'hit'`, and resets the frame/timer — but leaves `vx`, `direction`,
- * `knockbackTimer`, `vy` and `bounceAscending` untouched.
+ * Starts the shared red `hit` reaction (hitTimer 0, animState 'hit', frame
+ * reset). With a `knockback` argument it also sets vx/direction/knockbackTimer;
+ * with none it leaves vx, direction, knockbackTimer, vy and bounceAscending
+ * untouched.
  */
-export function applyHitReactionWithoutKnockback(player: PlayerState): PlayerState {
-  return { ...player, hitTimer: 0, animState: 'hit', animFrame: 0, animTimer: 0 };
-}
+export function applyHitReaction(player: PlayerState, knockback?: HitKnockback): PlayerState
 ```
 
 `PlatformerPage.tsx` branches on `player.crouching` at the three directional
@@ -436,14 +435,13 @@ damage sites, and never changes the standing path:
 
 | Site | Standing (unchanged) | Crouched (new) |
 | --- | --- | --- |
-| Enemy contact (~L1741) | `applyKnockback(...)`; then `awayAndUp` sets `vy` + `bounceAscending` | `applyHitReactionWithoutKnockback(...)`; **skip** the `awayAndUp` `vy` |
-| Non-floor-spike hazard (~L1819) | `applyKnockback(...)` | `applyHitReactionWithoutKnockback(...)` |
-| Bomb blast (~L2163) | `applyKnockback(...)` | `applyHitReactionWithoutKnockback(...)` |
+| Enemy contact (~L1741) | `applyHitReaction(player, knockback)`; then `awayAndUp` sets `vy` + `bounceAscending` | `applyHitReaction(player)`; **skip** the `awayAndUp` `vy` |
+| Non-floor-spike hazard (~L1819) | `applyHitReaction(player, knockback)` | `applyHitReaction(player)` |
+| Bomb blast (~L2163) | `applyHitReaction(player, knockback)` | `applyHitReaction(player)` |
 
-The floor-spike hazard keeps `beginHitReaction` in both cases: it is already
-knockback-free and blink-only (no red `hit` pose), and FR-014 says crouch must
-not change any existing mechanic beyond the smaller box and the suppressed
-knockback of FR-011.
+The floor-spike hazard uses `applyHitReaction(player)` too — the same red
+reaction with no knockback (a follow-up change; see "Consolidation"). Only a pit
+fall blinks (`beginPitFallReaction`).
 
 **Rationale**: One pure function is unit-testable and keeps each of the three
 call sites a one-line branch, instead of repeating the exact field set three
@@ -460,18 +458,35 @@ the player's own input, not a hit impulse.
 
 **Alternatives considered**:
 
-- *Inline `if (crouching) { ... } else { applyKnockback(...) }` at each of the
+- *Inline `if (crouching) { ... } else { applyHitReaction(...) }` at each of the
   three sites* — rejected: it duplicates the field set three times and leaves
   the no-knockback rule untestable in isolation.
-- *Reuse `beginHitReaction` (the pit-fall helper)* — rejected: it only resets
+- *Reuse `beginPitFallReaction` (the pit-fall helper)* — rejected: it only resets
   `hitTimer`, so the character would blink rather than show the red reaction
   the spec requires while crouched.
 - *Zero `vx`/`vy` in the helper* — rejected: the spec asks for no knockback,
   not a movement lock; held input should still crawl, and `vy` is governed by
   gravity and the ground/ceiling collision that already keeps the box valid.
-- *Change the floor-spike path to also show red while crouched* — rejected:
-  that would alter a shipped mechanic (FR-014); the floor spike has never shown
-  the red pose.
+- *Change the floor-spike path to also show red while crouched* — initially
+  rejected as an out-of-scope change to a shipped mechanic (FR-014). **Later
+  adopted** (see Consolidation): the floor spike showing the pit-fall blink was
+  an accident of it being the only no-knockback helper at the time, not a
+  deliberate visual.
+
+### Consolidation (post-implementation)
+
+Two browser-review fixes turned the "crouched no-knockback" helper and the
+pre-existing `applyKnockback` into one function, so the *visual* (the red `hit`
+reaction) and the *knockback* are separate concerns:
+
+- `applyHitReaction(player, knockback?)` — always starts the red reaction;
+  knockback is optional. `applyKnockback` was folded into it (its knockback
+  becomes the argument).
+- The floor spike switched from `beginHitReaction` (blink) to
+  `applyHitReaction(player)` (red, still no knockback), so every attacker hit
+  looks the same.
+- `beginHitReaction` was renamed `beginPitFallReaction` — now the only
+  blink-only path, and the only deliberate exception.
 
 ## D14 — The crouched red reaction is a reusable render-time tint (FR-016)
 
@@ -547,10 +562,10 @@ reaction "the crouch pose, tinted red" without authoring a frame.
 - **S-009 Platformer Onboarding** — supplies the `ControlsOverlay` key legend,
   the sign marker mechanism (`SIGN_CHARS`, `HintId`, `checkSignOverlap`,
   `HintTooltip`) used as the fallback.
-- **S-010 Platformer Health & Hit Reaction** — supplies `applyKnockback`,
-  `beginHitReaction`, `PLAYER_HIT_REACTION_SECONDS`, `hitFrameFromTimer`, the
+- **S-010 Platformer Health & Hit Reaction** — supplies `applyHitReaction`,
+  `beginPitFallReaction`, `PLAYER_HIT_REACTION_SECONDS`, `hitFrameFromTimer`, the
   baked `hit` row and the invulnerability blink. This feature adds the
-  no-knockback sibling (`applyHitReactionWithoutKnockback`, D13) and the
+  no-knockback sibling (`applyHitReaction`, D13) and the
   render-time tint (D14) without altering any of it.
 - **F-015 / F-016 / F-017 / F-018 / O-005 / O-012 / O-020 / O-021** — supply the
   movement/gravity/solid collision, health/hit reaction, enemy contact, block
