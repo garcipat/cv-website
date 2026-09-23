@@ -39,6 +39,16 @@ the player is in a cave.
   covered per FR-002). Solid rock/wall carries no information worth hiding, so showing a
   cave's outer shape while still fogging its open interior is the right split; a block never
   qualifies for the exemption since it sits on an open cell, not solid terrain.
+- Q: A visitor approaching a fogged cell has no warning before actually stepping into it —
+  should fog give any advance notice? → A: **Yes — a peek radius around the player.** Fog
+  within a short radius of the player's own position thins smoothly the closer they get,
+  fully clearing right at their position, so a visitor gets a beat of warning before crossing
+  in rather than stepping in blind. This is intentionally the same local-falloff technique
+  the player's own carried torch already uses against Cave Lighting's darkness (O-010),
+  applied to fog instead. It does not weaken FR-003/FR-008's premise ("no memory, no
+  fog-of-war"): the thinning is a pure, stateless function of the player's current distance
+  to each puff, recomputed every frame — a puff a visitor walked past minutes ago fogs again
+  the moment they're no longer close to it.
 
 ## User Scenarios & Testing _(mandatory)_
 
@@ -86,9 +96,16 @@ on the cells they enter, in a smooth fade rather than a snap.
 
 ### Edge Cases
 
-- **A cave-family cell right next to the player's own cell**: still fully fogged while the
-  player's own cell is not cave-family — proximity does not make a neighboring cave cell any
-  more visible; only actually standing on a cave-family cell clears it.
+- **A cave-family cell right next to the player's own cell**: thins toward clear as the
+  player approaches, per FR-011's peek radius — proximity alone does not fully reveal it
+  until the player is close enough (fully clear only right at the player's own position);
+  actually standing on a cave-family cell clears it entirely via FR-003/FR-004 instead.
+- **A cave-family cell beyond the peek radius**: renders at the full fog level, completely
+  unaffected by the player's position — the peek radius is short and local, not a general
+  visibility boost.
+- **The player peeks a cell, then walks away**: the cell fogs back in exactly as it would
+  have if the player had never approached — FR-011's thinning carries no memory (Key
+  Entities' "Peek radius").
 - **A fogged cell containing an enemy, block, or hazard**: none of it is visible or hinted at
   through the fog; the fog is opaque, not a translucent haze (Acceptance Scenario 1).
 - **A cave-family cell occupied by solid ground or wall terrain**: not fogged (FR-002a) — its
@@ -144,6 +161,12 @@ on the cells they enter, in a smooth fade rather than a snap.
   darkness, so a visitor can tell "fogged from outside" apart from "dark because I'm inside."
 - **FR-010**: Fog MUST NOT be drawn over HUD elements or UI overlays (hearts, counters, hint
   bubbles, journal, collection popups), matching Cave Lighting's own exclusion.
+- **FR-011**: Fog near the player's own position MUST thin smoothly the closer the player
+  gets, reaching fully clear at the player's own position, within a short peek radius; a
+  fogged cell beyond that radius MUST render at the full fog level, unaffected. The thinning
+  MUST be a pure function of the player's current distance to the cell — it MUST NOT persist
+  once the player moves away, so a cell already visited fogs again exactly like one never
+  approached (consistent with FR-008's "no memory" premise).
 
 ### Key Entities
 
@@ -160,6 +183,9 @@ on the cells they enter, in a smooth fade rather than a snap.
   today). Exemption is intrinsic to the tile kind, declared once and exhaustively over every
   terrain tile kind — the same way a background material's surface/cave family is intrinsic
   (O-014) — so it is never a per-placement flag a level author sets.
+- **Peek radius**: the distance around the player's own position within which fog thins
+  (FR-011). A derived, stateless quantity — recomputed every frame from the player's current
+  position and each fogged cell's own position — never stored, never remembered.
 
 ## Success Criteria _(mandatory)_
 
