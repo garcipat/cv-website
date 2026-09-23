@@ -141,6 +141,7 @@ import {
   FOG_TINT_RGB,
   FOG_PUFF_PLATEAU,
   fogPuffAt,
+  fogPeekStrengthAt,
   isCellDarkening,
 } from './Lighting';
 
@@ -1144,6 +1145,14 @@ export function drawBackgroundTiles(
  * exclusive (only one is ever above zero at a time — FR-003); this function
  * does not itself check `darknessLevel`.
  *
+ * When `playerPosition` is given, a puff within `FOG_PEEK_RADIUS_PX` of it
+ * thins smoothly toward fully clear the closer the player gets
+ * (`fogPeekStrengthAt`) — the same local-falloff technique the player's
+ * carried torch already uses against darkness, applied to fog instead, so a
+ * visitor gets a beat of warning before actually crossing into a fogged
+ * cell rather than stepping in blind. A puff whose peeked alpha reaches
+ * zero is skipped entirely.
+ *
  * Fast path (SC-005): when `fogLevel <= 0` this draws nothing, so a level
  * with no cave-family background renders exactly as it did before this
  * feature.
@@ -1155,6 +1164,7 @@ export function drawFog(
   originX = 0,
   originY = 0,
   worldElapsed = 0,
+  playerPosition: Point | null = null,
 ): void {
   if (fogLevel <= 0) return;
 
@@ -1166,12 +1176,16 @@ export function drawFog(
       if (isFogExempt(tileAt(level, col, row))) continue;
 
       const puff = fogPuffAt(col, row, worldElapsed);
+      const peek = playerPosition ? fogPeekStrengthAt(puff.x, puff.y, playerPosition) : 0;
+      const puffAlpha = fogLevel * (1 - peek);
+      if (puffAlpha <= 0) continue;
+
       const screenX = puff.x + originX;
       const screenY = puff.y + originY;
 
       const gradient = ctx.createRadialGradient(screenX, screenY, 0, screenX, screenY, puff.radius);
-      gradient.addColorStop(0, `rgba(${FOG_TINT_RGB}, ${fogLevel})`);
-      gradient.addColorStop(FOG_PUFF_PLATEAU, `rgba(${FOG_TINT_RGB}, ${fogLevel})`);
+      gradient.addColorStop(0, `rgba(${FOG_TINT_RGB}, ${puffAlpha})`);
+      gradient.addColorStop(FOG_PUFF_PLATEAU, `rgba(${FOG_TINT_RGB}, ${puffAlpha})`);
       gradient.addColorStop(1, `rgba(${FOG_TINT_RGB}, 0)`);
 
       ctx.fillStyle = gradient;

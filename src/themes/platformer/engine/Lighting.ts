@@ -67,11 +67,14 @@ export const FOG_PUFF_RADIUS_PX = 1.35 * RENDERED_TILE_SIZE;
 
 /**
  * How far into a puff's radius the fully-opaque plateau extends, as a
- * fraction of the radius, before the soft fade to transparent begins. Keeps
- * a fogged cell's own centre solidly opaque while only the puff's rim
- * softens — the fade is what reads as "fog" instead of "a painted tile".
+ * fraction of the radius, before the soft fade to transparent begins. Kept
+ * small deliberately: most of a puff's radius is gradient, not flat color,
+ * so it reads as drifting haze rather than a solid painted disc — a large
+ * plateau (near the puff's own radius) is what made the first version read
+ * as "gray paint" instead of fog. Still enough of a solid centre that a
+ * fogged cell's own middle stays opaque.
  */
-export const FOG_PUFF_PLATEAU = 0.55;
+export const FOG_PUFF_PLATEAU = 0.3;
 
 /**
  * How far a fog puff's centre can drift from its own cell's centre, in
@@ -135,6 +138,32 @@ export function fogPuffAt(
     y: centerY + Math.sin(jitterAngle) * jitterDistance,
     radius: FOG_PUFF_RADIUS_PX * pulse,
   };
+}
+
+/**
+ * How close the player must be to a fog puff before it starts thinning, in
+ * rendered pixels — roughly a 2.5-tile radius, so a visitor gets a beat of
+ * warning before actually crossing into a fogged cell rather than stepping
+ * in blind.
+ */
+export const FOG_PEEK_RADIUS_PX = 2.5 * RENDERED_TILE_SIZE;
+
+/**
+ * How much a fog puff at `(x, y)` should thin because the player is nearby,
+ * in `[0, 1]` — `1` right at the player's own position (fully cleared),
+ * falling smoothly (smoothstep) to `0` at `FOG_PEEK_RADIUS_PX`, and `0`
+ * beyond it. The same falloff shape `playerGlowStrengthAt` already uses for
+ * the player's carried torch light, applied to fog instead of darkness.
+ */
+export function fogPeekStrengthAt(x: number, y: number, player: Point): number {
+  const radius = FOG_PEEK_RADIUS_PX;
+  if (radius <= 0) return 0;
+
+  const distance = Math.hypot(x - player.x, y - player.y);
+  if (distance >= radius) return 0;
+
+  const t = 1 - distance / radius;
+  return t * t * (3 - 2 * t);
 }
 
 /** Soft glow radius in rendered pixels — roughly a 3.5-tile radius (FR-009). */

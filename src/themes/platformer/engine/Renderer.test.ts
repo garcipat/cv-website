@@ -131,6 +131,8 @@ import {
   FOG_PUFF_PLATEAU,
   FOG_PUFF_RADIUS_PX,
   fogPuffAt,
+  fogPeekStrengthAt,
+  FOG_PEEK_RADIUS_PX,
 } from './Lighting';
 
 const ENEMY_FRAME_SIZE = SLIME_GREEN_SHEET.frameWidth;
@@ -3540,6 +3542,53 @@ describe('drawFog', () => {
     expect(raw.createRadialGradient).toHaveBeenCalledTimes(1);
     const puff = fogPuffAt(1, 0, 0);
     expect(raw.arc).toHaveBeenCalledWith(puff.x, puff.y, puff.radius, 0, Math.PI * 2);
+  });
+
+  it('playerRightOnAPuff-skipsItEntirely', () => {
+    const { ctx, raw } = makeLightingContext();
+    const level: LevelDef = { terrain: [['empty']], width: 1, height: 1, background: [['charcoal']] };
+    const puff = fogPuffAt(0, 0, 0);
+
+    drawFog(ctx, level, 0.5, 0, 0, 0, { x: puff.x, y: puff.y });
+
+    expect(raw.createRadialGradient).not.toHaveBeenCalled();
+  });
+
+  it('playerFarFromAPuff-drawsItAtFullFogAlpha', () => {
+    const { ctx, raw } = makeLightingContext();
+    const level: LevelDef = { terrain: [['empty']], width: 1, height: 1, background: [['charcoal']] };
+    const puff = fogPuffAt(0, 0, 0);
+
+    drawFog(ctx, level, 0.5, 0, 0, 0, { x: puff.x + FOG_PEEK_RADIUS_PX * 10, y: puff.y });
+
+    const gradient = raw.createRadialGradient.mock.results[0].value;
+    expect(gradient.addColorStop).toHaveBeenNthCalledWith(1, 0, `rgba(${FOG_TINT_RGB}, 0.5)`);
+  });
+
+  it('playerPartWayIntoThePeekRadius-drawsThePuffAtAThinnedAlpha', () => {
+    const { ctx, raw } = makeLightingContext();
+    const level: LevelDef = { terrain: [['empty']], width: 1, height: 1, background: [['charcoal']] };
+    const puff = fogPuffAt(0, 0, 0);
+    const playerPosition = { x: puff.x + FOG_PEEK_RADIUS_PX / 2, y: puff.y };
+
+    drawFog(ctx, level, 0.5, 0, 0, 0, playerPosition);
+
+    const peek = fogPeekStrengthAt(puff.x, puff.y, playerPosition);
+    const expectedAlpha = 0.5 * (1 - peek);
+    expect(peek).toBeGreaterThan(0);
+    expect(peek).toBeLessThan(1);
+    const gradient = raw.createRadialGradient.mock.results[0].value;
+    expect(gradient.addColorStop).toHaveBeenNthCalledWith(1, 0, `rgba(${FOG_TINT_RGB}, ${expectedAlpha})`);
+  });
+
+  it('noPlayerPosition-drawsEveryPuffAtFullFogAlpha', () => {
+    const { ctx, raw } = makeLightingContext();
+    const level: LevelDef = { terrain: [['empty']], width: 1, height: 1, background: [['charcoal']] };
+
+    drawFog(ctx, level, 0.5, 0, 0, 0);
+
+    const gradient = raw.createRadialGradient.mock.results[0].value;
+    expect(gradient.addColorStop).toHaveBeenNthCalledWith(1, 0, `rgba(${FOG_TINT_RGB}, 0.5)`);
   });
 });
 

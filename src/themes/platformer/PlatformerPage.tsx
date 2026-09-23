@@ -829,7 +829,10 @@ export const PlatformerPage = () => {
       // player, enemies, pickups, water) but before every HUD/UI pass below,
       // same placement as the darkness overlay it is mutually exclusive with
       // (O-028 FR-010).
-      drawFog(ctx, currentLevel.value, fogLevel.value, originX, originY, worldAnimElapsed);
+      drawFog(ctx, currentLevel.value, fogLevel.value, originX, originY, worldAnimElapsed, {
+        x: playerState.value.x + PLAYER_RENDERED_SIZE / 2,
+        y: playerState.value.y + PLAYER_VISUAL_CENTER_Y_OFFSET,
+      });
 
       // Cave-darkness overlay: drawn over the whole world (background,
       // terrain, player, enemies, pickups, water) but before every HUD/UI
