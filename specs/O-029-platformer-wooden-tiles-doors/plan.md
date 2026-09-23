@@ -113,11 +113,13 @@ git commit -m "art(O-029): add placeholder wood sprites and a dedicated door spr
 - Test: `src/themes/platformer/level/LevelData.test.ts` (create if it doesn't exist; otherwise extend)
 - Modify: `src/themes/platformer/engine/BackgroundAtlas.ts` (placeholder `wood` entry only — see Step 3a)
 - Modify: `src/themes/platformer/editor/backgroundPaletteTiles.ts` (placeholder `wood` label only — see Step 3a)
+- Modify: `src/themes/platformer/level/LevelParser.ts` (the `wood` background character only — see Step 3a)
+- Modify: `src/themes/platformer/level/LevelParser.test.ts` (matching test update — see Step 3a)
 
 **Interfaces:**
 - Produces: `TileType` members `'groundWood'`, `'doorLeft'`, `'doorRight'`, `'doorLeftOpen'`, `'doorRightOpen'`; `BackgroundMaterialId` member `'wood'`.
 
-**Why this task also touches two files outside `level/`**: `BACKGROUND_MATERIAL_ROW_INDEX` (`BackgroundAtlas.ts`) and `BACKGROUND_PALETTE_LABELS` (`backgroundPaletteTiles.ts`) are both literal objects typed `Record<BackgroundMaterialId, X>` — TypeScript requires every key of `BackgroundMaterialId` to be present the moment `'wood'` joins that union, and `backgroundPaletteTiles.ts`'s `BACKGROUND_PALETTE_SPRITES` const computes a sprite for every material EAGERLY AT MODULE LOAD (`Object.keys(BACKGROUND_MATERIAL_FAMILY).map(spriteFor)`), so a missing `wood` row crashes at import time, not just at final build. This isn't optional scope creep — without it, adding `wood` to `BackgroundMaterialId` alone breaks the whole suite. Task 11 does NOT remove these placeholder entries later; it makes them irrelevant by branching around them for `wood` specifically (see Task 11's own note).
+**Why this task also touches three files outside `level/LevelData.ts`**: `BACKGROUND_MATERIAL_ROW_INDEX` (`BackgroundAtlas.ts`) and `BACKGROUND_PALETTE_LABELS` (`backgroundPaletteTiles.ts`) are both literal objects typed `Record<BackgroundMaterialId, X>` — TypeScript requires every key of `BackgroundMaterialId` to be present the moment `'wood'` joins that union, and `backgroundPaletteTiles.ts`'s `BACKGROUND_PALETTE_SPRITES` const computes a sprite for every material EAGERLY AT MODULE LOAD (`Object.keys(BACKGROUND_MATERIAL_FAMILY).map(spriteFor)`), so a missing `wood` row crashes at import time, not just at final build. Separately, `backgroundPaletteTiles.ts` already has an existing round-trip test walking every `BackgroundMaterialId` through `BACKGROUND_MATERIAL_CHAR` back to `BACKGROUND_CHARS` (`LevelParser.ts`) — so `wood` also needs its real character mapping there, not a placeholder, or that existing test fails. None of this is optional scope creep — without it, adding `wood` to `BackgroundMaterialId` alone breaks the suite two different ways. Task 11 does NOT remove the two Record placeholders later; it makes them irrelevant by branching around them for `wood` specifically (see Task 11's own note). The `LevelParser.ts` character mapping is not a placeholder — it's real, permanent content, just landing here instead of Task 2 because the existing test demands it exist as soon as `wood` does.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -245,7 +247,16 @@ export const BACKGROUND_PALETTE_LABELS: Record<BackgroundMaterialId, string> = {
 };
 ```
 
-Do **not** touch `src/themes/platformer/level/LevelParser.ts` (`BACKGROUND_CHARS`/`BackgroundChar`) — that Record is keyed by CHARACTER, not by `BackgroundMaterialId`, so it has no exhaustiveness requirement and genuinely belongs to Task 2.
+`BACKGROUND_CHARS` (`LevelParser.ts`) is keyed by CHARACTER, not by `BackgroundMaterialId`, so TypeScript itself imposes no exhaustiveness requirement on it — but `backgroundPaletteTiles.ts` already has an existing round-trip test (`BACKGROUND_MATERIAL_CHAR`'s `it.each(ALL_MATERIALS)('%s-isTheInverseOfBackgroundChars', ...)`) that walks every `BackgroundMaterialId`, looks up its char via `BACKGROUND_MATERIAL_CHAR` (itself derived from `BACKGROUND_CHARS`), and asserts the char maps back to the same material. That test fails for `wood` without a real character mapping — not a crash, a single assertion failure, but still a full-suite regression. So Task 1 also needs the character mapping itself (not a placeholder — this is the actual, correct, permanent mapping Task 2 would otherwise add):
+
+```ts
+// in BACKGROUND_CHARS (LevelParser.ts):
+  w: 'wood',
+```
+
+Add `'w'` to the `BackgroundChar` union alongside it. In `LevelParser.test.ts`, update the existing `backgroundCharUnion-coversEveryBackgroundCharsKeyPlusEmpty` test's hardcoded `chars` array to include `'w'`.
+
+Task 2 (below) no longer needs to touch `BACKGROUND_CHARS`/`BackgroundChar` at all — only the foreground terrain characters (`W`/`d`/`D`) and `findDoorTiles` are still its job.
 
 - [ ] **Step 4: Run the full suite, not just this task's own test file**
 
@@ -253,12 +264,12 @@ Run: `npx vitest run src/themes/platformer/level/LevelData.test.ts`
 Expected: PASS
 
 Then run: `npx vitest run` (the full suite)
-Expected: PASS, no regressions — this confirms Step 3a's placeholder entries actually prevent the eager-module-load crash in `backgroundPaletteTiles.ts` and any test that imports it.
+Expected: PASS, no regressions — this confirms Step 3a's entries actually prevent both the eager-module-load crash in `backgroundPaletteTiles.ts` and the `wood-isTheInverseOfBackgroundChars` round-trip test failure.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/themes/platformer/level/LevelData.ts src/themes/platformer/level/LevelData.test.ts src/themes/platformer/engine/BackgroundAtlas.ts src/themes/platformer/editor/backgroundPaletteTiles.ts
+git add src/themes/platformer/level/LevelData.ts src/themes/platformer/level/LevelData.test.ts src/themes/platformer/engine/BackgroundAtlas.ts src/themes/platformer/editor/backgroundPaletteTiles.ts src/themes/platformer/level/LevelParser.ts src/themes/platformer/level/LevelParser.test.ts
 git commit -m "feat(O-029): add wood/door TileType members and wood background material"
 ```
 
@@ -271,7 +282,7 @@ git commit -m "feat(O-029): add wood/door TileType members and wood background m
 - Modify: `src/themes/platformer/level/LevelParser.test.ts`
 
 **Interfaces:**
-- Consumes: `TileType`/`BackgroundMaterialId` members from Task 1.
+- Consumes: `TileType` members from Task 1. (`BackgroundMaterialId`'s `'wood'` and its `BACKGROUND_CHARS`/`BackgroundChar` mapping were already added in Task 1 — see its Step 3a — because an existing round-trip test demanded it; this task no longer touches `BACKGROUND_CHARS`/`BackgroundChar` at all.)
 - Produces: `findDoorTiles(layout): { col: number; row: number }[]` (one entry per matched pair, positioned at the **left** leaf's cell).
 
 - [ ] **Step 1: Write the failing tests**
@@ -285,12 +296,6 @@ describe('TERRAIN_CHARS-woodAndDoorChars-mapToNewTileTypes', () => {
   it('d and D map to the door panels', () => {
     expect(TERRAIN_CHARS.d).toBe('doorLeft');
     expect(TERRAIN_CHARS.D).toBe('doorRight');
-  });
-});
-
-describe('BACKGROUND_CHARS-w-mapsToWood', () => {
-  it('w maps to the wood background material', () => {
-    expect(BACKGROUND_CHARS.w).toBe('wood');
   });
 });
 
@@ -331,8 +336,6 @@ In `TERRAIN_CHARS` (`src/themes/platformer/level/LevelParser.ts`), add:
 ```
 
 Add `'W' | 'd' | 'D'` to the `TileChar` union (append after the existing final member `'g'`).
-
-In `BACKGROUND_CHARS`, add `w: 'wood',` and add `'w'` to the `BackgroundChar` union.
 
 Add, mirroring `findLadderBundleTiles`'s shape exactly:
 
