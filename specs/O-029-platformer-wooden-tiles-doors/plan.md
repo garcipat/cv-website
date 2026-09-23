@@ -2090,8 +2090,8 @@ git commit -m "feat(O-029): add per-kind Interactable factories, keeping each ki
 - Modify: `src/themes/platformer/PlatformerPage.test.tsx`
 
 **Interfaces:**
-- Consumes: `applyInteract` (Task 15); `ladderBundleInteractable`, `doorInteractable`, `chestInteractable`, `hintInteractable` (Task 16); `doorStates`/`doorPlacements` (Task 13).
-- Produces: `PlatformerPage.tsx`'s tick calls four factories and `applyInteract` instead of four hand-written blocks; the door is now wired in and rendered.
+- Consumes: `applyInteract` (Task 15); `ladderBundleInteractable`, `doorInteractable`, `chestInteractable`, `hintInteractable` (Task 16); `doorStates`/`doorPlacements` (Task 13); `GROUND_WOOD_SHEET` (Task 10).
+- Produces: `PlatformerPage.tsx`'s tick calls four factories and `applyInteract` instead of four hand-written blocks; the door is now wired in and rendered; the wood ground tile finally renders (Step 5 below closes a gap left open since Task 9).
 
 **⚠️ Higher regression risk than earlier tasks**: this touches the ladder
 bundle's, chest's, and sign's ALREADY-SHIPPED interact call sites, not just
@@ -2185,6 +2185,8 @@ Find where `drawChests`/`drawDeployableLadders` are called in the render pass an
 
 Add a `doorSheetRef` + `loadImage(DOOR_SHEET.src)`, following the exact `ropeLadderRef`/`loadImage(ROPE_LADDER_SHEET.src)` pattern from O-011 (its own dedicated sheet per Task 8, not a shared one — no reuse to check for here).
 
+**Also wire `groundWoodImage` here — this is the one remaining gap left by Task 9.** Task 9 added the `groundWoodImage` optional parameter to `drawTerrain`'s signature and the `groundWood` case to `tileSource`, but nothing in the plan ever loads `GROUND_WOOD_SHEET.src` or passes it at `drawTerrain`'s actual call site — Task 11 wired the analogous background-wood image through, but the *foreground* ground-wood image was never threaded anywhere. Without this fix, `groundWood` tiles render as nothing (the `if (!sheet) continue` guard silently skips them forever), which Task 18's manual check would otherwise catch far too late. Add a `groundWoodImageRef` + `loadImage(GROUND_WOOD_SHEET.src)`, same pattern as `doorSheetRef` above, and pass it as `drawTerrain`'s `groundWoodImage` argument at its existing call site (find where `drawTerrain` is currently called in this file's render pass).
+
 - [ ] **Step 6: Run the full existing PlatformerPage test file**
 
 Run: `npx vitest run src/themes/platformer/PlatformerPage.test.tsx`
@@ -2211,9 +2213,11 @@ git commit -m "refactor(O-029): compose ladder bundle, door, chest, and hint int
 
 **Files:** none (verification only — constitution requires a manual browser check for changes with visible behavior).
 
+**Known limitation, not a bug to chase here**: the level editor's own canvas (`EditorCanvas.tsx`) never got `groundWoodImage`/`DOOR_SHEET` threaded into its live preview rendering — no task in this plan wires that up, only `PlatformerPage.tsx` (the live game, Task 17) and the background-wood image (Task 11, both editor and game). Placed `W`/`d`/`D` tiles will therefore look blank while editing (though still placeable via the Task 12 palette and correctly saved/loaded per FR-013) and only render with real art once the level is actually played. This is spec-compliant — FR-013 requires placement and persistence, not editor-canvas visual fidelity — and deliberately left as a follow-up rather than expanding this already-large plan further.
+
 - [ ] **Step 1: Start the dev server and open the level editor**
 
-Paint a small test level: a run of `W` tiles, a filled region of the `w` background material, and a `dD` door pair blocking a corridor with a patrolling enemy marker beyond it.
+Paint a small test level: a run of `W` tiles, a filled region of the `w` background material, and a `dD` door pair blocking a corridor with a patrolling enemy marker beyond it. Per the known limitation above, `W`/`d`/`D` may look blank on the editor's own canvas while painting — that's expected; verify the actual behavior once played (Step 2).
 
 - [ ] **Step 2: Play the level**
 
