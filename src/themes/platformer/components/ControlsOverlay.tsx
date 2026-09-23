@@ -35,7 +35,14 @@ const SLIDE_OUT_DISTANCE_PX = PHYSICS_CONFIG.walkSpeed * (FADE_OUT_DURATION_MS /
 // space bar: cols 283-449, J key: cols 472-558), not eyeballed. Used to
 // position each caption directly under its matching key group below,
 // regardless of the image's rendered size.
-const MOVE_LABEL_CENTER_PERCENT = 23.75;
+const ARROW_CLUSTER_CENTER_PERCENT = 23.75;
+// Down/crouch shares the arrow cluster with Move, so the two captions sit side
+// by side inside the cluster's own width (≈0.2%–47.3% of the image): Move
+// shifts left of the cluster's centre and Crouch sits to its right, so neither
+// overlaps the other. Exact percentages are tuned by eye in the browser check
+// (see contracts/onboarding-level.md §A).
+const MOVE_LABEL_CENTER_PERCENT = 13.5;
+const CROUCH_LABEL_CENTER_PERCENT = 34.5;
 const JUMP_LABEL_CENTER_PERCENT = 65.36;
 const JOURNAL_LABEL_CENTER_PERCENT = 91.96;
 // The "Interact" caption sits ABOVE the key sprite (every other caption sits
@@ -44,7 +51,7 @@ const JOURNAL_LABEL_CENTER_PERCENT = 91.96;
 // as-is by coincidence — the sprite's inverted-T layout already centers Up
 // on that same horizontal midpoint as the whole cluster, so no new
 // pixel-decoding pass is needed to find Up's own sub-position.
-const INTERACT_LABEL_CENTER_PERCENT = MOVE_LABEL_CENTER_PERCENT;
+const INTERACT_LABEL_CENTER_PERCENT = ARROW_CLUSTER_CENTER_PERCENT;
 
 /**
  * Universal controls overlay (spec.md FR-036) — shown once
@@ -245,6 +252,12 @@ export const ControlsOverlay = () => {
             style={{ left: `${MOVE_LABEL_CENTER_PERCENT}%` }}
           >
             {ui.platformer.controlsOverlay.move}
+          </span>
+          <span
+            className="absolute -translate-x-1/2"
+            style={{ left: `${CROUCH_LABEL_CENTER_PERCENT}%` }}
+          >
+            {ui.platformer.controlsOverlay.crouch}
           </span>
           <span
             className="absolute -translate-x-1/2"

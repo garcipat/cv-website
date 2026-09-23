@@ -1,8 +1,9 @@
 import {
   PLAYER_RENDERED_SIZE,
   PLAYER_SIDE_PADDING,
-  PLAYER_HEAD_PADDING,
   PLAYER_FOOT_PADDING,
+  playerHeadPaddingFor,
+  playerBoxHeightFor,
 } from '../entities/Player';
 import type { PlayerState } from '../entities/Player';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
@@ -44,14 +45,17 @@ export interface Box {
  * Physics.ts's terrain collision already uses (PLAYER_SIDE_PADDING on each
  * side, PLAYER_HEAD_PADDING off the top, PLAYER_FOOT_PADDING off the
  * bottom), so a coin the player's sprite art doesn't actually touch never
- * registers as collected.
+ * registers as collected. The top offset and height come from the shared
+ * `playerHeadPaddingFor`/`playerBoxHeightFor` pair, so every consumer of this
+ * box sees the one-tile crouched height while `player.crouching` is true and
+ * the full standing height otherwise (FR-002/SC-008).
  */
 export function playerHitbox(player: PlayerState): Box {
   return {
     x: player.x + PLAYER_SIDE_PADDING,
-    y: player.y + PLAYER_HEAD_PADDING,
+    y: player.y + playerHeadPaddingFor(player.crouching),
     width: PLAYER_RENDERED_SIZE - 2 * PLAYER_SIDE_PADDING,
-    height: PLAYER_RENDERED_SIZE - PLAYER_HEAD_PADDING - PLAYER_FOOT_PADDING,
+    height: playerBoxHeightFor(player.crouching),
   };
 }
 

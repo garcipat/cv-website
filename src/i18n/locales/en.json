@@ -178,6 +178,7 @@
     },
     "controlsOverlay": {
       "move": "Move",
+      "crouch": "Crouch",
       "jump": "Jump",
       "journal": "Journal",
       "interact": "Interact"

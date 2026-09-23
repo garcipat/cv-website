@@ -136,7 +136,7 @@ Composition per family:
 
 | Family | Moving | SelfAnimated | Damageable | Its own fields |
 |---|---|---|---|---|
-| player | ✅ | ✅ | ✅ | `grounded`, `climbing`, `knockbackTimer`, … |
+| player | ✅ | ✅ | ✅ | `grounded`, `climbing`, `crouching`, `knockbackTimer`, … |
 | enemies | ✅ | ✅ | ✅ | `homeX`/`homeY`, `rewardGiven`; purple adds `spiked`/`spikeTimer` |
 | blocks | ❌ | ❌ | ❌ | `hitsTaken`, plus its own `animState`/`animTimer` |
 | chests | ❌ | ❌ | ❌ | open-or-closed state |
@@ -200,6 +200,33 @@ number. Every call site takes the duration from the type, never from a shared co
 What stays type-specific is what *happens* during and after the window — the player
 blinks then becomes vulnerable; an enemy plays its hit animation then reverts or dies.
 That is `onTick` business, not interface business.
+
+### Crouch: one stored flag, one shared box
+
+A crouch is **one stored boolean**, `PlayerState.crouching`, set each tick by
+`stepPlayerPhysics` from the pure `engine/Crouch.ts` decision. Everything else is
+derived:
+
+- **The box.** `playerHeadPaddingFor(crouching)` and `playerBoxHeightFor(crouching)`
+  (`entities/Player.ts`) are the single source of truth for the player's box geometry.
+  The feet line (`y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING`) is unchanged, so the
+  box shrinks *upward* from the ground: standing is 38 px tall with its top 18 px below
+  `y`, crouched is one tile (32 px) with its top 24 px below `y`. `Collision.playerHitbox`,
+  `Physics.stepPlayerPhysics` and `DebugOverlay.drawDebugOverlay` all read the same pair,
+  so no consumer can keep the standing height (SC-008).
+- **The headroom test.** `canStandUp(level, blocks, player)` measures the **full standing
+  box** — a one-tile gap is not enough — against solid terrain (`bridge` counts) and live
+  blocks. `resolveCrouching` keeps an existing crouch while `!canStand` and stands
+  automatically the frame headroom returns (FR-005/FR-006).
+- **Down priority.** Down still means ladder descent, then bridge drop-through, then
+  crouch, in that order. `stepPlayerPhysics` computes a `downClaimed` flag from the
+  pre-step position and `resolveCrouching` ignores Down when it is set (FR-009).
+- **The crouched hit.** A directional hit while crouched still deals damage and opens the
+  refractory window, but applies **no knockback**:
+  `applyHitReactionWithoutKnockback` sets `hitTimer`/`animState` and leaves
+  `vx`/`vy`/`direction`/`knockbackTimer` untouched, while the `inHitReaction` freeze keeps
+  the one-tile box for the whole reaction (FR-011). The red reaction is a render-time tint
+  on the crouch pose, never new art (FR-016).
 
 ## The type layer
 

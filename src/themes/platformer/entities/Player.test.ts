@@ -9,8 +9,8 @@ import {
   advancePlayerAnimation,
   updatePlayerAnimState,
   IDLE_FRAME_DURATION,
-  applyKnockback,
-  beginHitReaction,
+  applyHitReaction,
+  beginPitFallReaction,
   advancePlayerHitTimer,
   isPlayerBlinkVisible,
   hitFrameFromTimer,
@@ -19,6 +19,7 @@ import {
 import type { PlayerState } from './Player';
 import type { Moving, SelfAnimated, Damageable } from './capabilities';
 import { isInvulnerable } from './capabilities';
+import { resolveCrouching } from '../engine/Crouch';
 import { spawnPlayerState } from '../PlatformerState';
 import { RENDER_SCALE } from '../level/Terrain';
 import { MAX_HALF_HEARTS } from './Health';
@@ -32,6 +33,7 @@ function idlePlayer(overrides: Partial<PlayerState> = {}): PlayerState {
     direction: 'right',
     grounded: true,
     climbing: false,
+    crouching: false,
     isDroppingThroughBridge: false,
     lastGroundedX: 0,
     lastGroundedY: 0,
@@ -290,10 +292,10 @@ describe('advancePlayerHitTimer', () => {
   });
 });
 
-describe('applyKnockback', () => {
-  it('directionLeft-setsNegativeVxFacingLeftAndBothTimers', () => {
+describe('applyHitReaction', () => {
+  it('withKnockbackDirectionLeft-setsNegativeVxFacingLeftAndBothTimers', () => {
     const player = idlePlayer({ vx: 0, direction: 'right' });
-    const next = applyKnockback(player, -1, 250, 0.25);
+    const next = applyHitReaction(player, { direction: -1, vx: 250, duration: 0.25 });
     expect(next.vx).toBe(-250);
     expect(next.direction).toBe('left');
     expect(next.knockbackTimer).toBe(0.25);
@@ -301,21 +303,63 @@ describe('applyKnockback', () => {
     expect(isInvulnerable(next, PLAYER_HIT_REACTION_SECONDS)).toBe(true);
   });
 
-  it('directionRight-setsPositiveVxAndFacingRight', () => {
+  it('withKnockbackDirectionRight-setsPositiveVxAndFacingRight', () => {
     const player = idlePlayer({ vx: 0, direction: 'left' });
-    const next = applyKnockback(player, 1, 250, 0.25);
+    const next = applyHitReaction(player, { direction: 1, vx: 250, duration: 0.25 });
     expect(next.vx).toBe(250);
     expect(next.direction).toBe('right');
   });
 
   it('called-switchesAnimStateToHitAndResetsItsFrame', () => {
-    // A directional hit has a real "thing that hit you" — unlike a pit
-    // fall's beginHitReaction, this enters the sprite flash directly.
+    // Every attacker hit enters the red `hit` pose — unlike a pit fall's
+    // beginPitFallReaction, which stays on the blink.
     const player = idlePlayer({ animState: 'walk', animFrame: 5, animTimer: 0.03 });
-    const next = applyKnockback(player, 1, 250, 0.25);
+    const next = applyHitReaction(player, { direction: 1, vx: 250, duration: 0.25 });
     expect(next.animState).toBe('hit');
     expect(next.animFrame).toBe(0);
     expect(next.animTimer).toBe(0);
+  });
+
+  it('noKnockback-setsTheRedPoseButLeavesMotionUntouched', () => {
+    // A floor spike, or any hit taken while crouched (FR-011): the same red
+    // reaction, but no push of either axis.
+    const player = idlePlayer({
+      vx: 120,
+      direction: 'left',
+      knockbackTimer: 0.2,
+      vy: -50,
+      bounceAscending: true,
+      animState: 'crouch',
+      animFrame: 1,
+      animTimer: 0.05,
+      hitTimer: PLAYER_HIT_REACTION_SECONDS,
+    });
+    const result = applyHitReaction(player);
+    expect(result.hitTimer).toBe(0);
+    expect(result.animState).toBe('hit');
+    expect(result.animFrame).toBe(0);
+    expect(result.animTimer).toBe(0);
+    expect(result.vx).toBe(player.vx);
+    expect(result.direction).toBe(player.direction);
+    expect(result.knockbackTimer).toBe(player.knockbackTimer);
+    expect(result.vy).toBe(player.vy);
+    expect(result.bounceAscending).toBe(player.bounceAscending);
+  });
+
+  it('noKnockbackWhileCrouching-opensTheWindowAndKeepsTheCrouchFrozen', () => {
+    const player = idlePlayer({ crouching: true, hitTimer: PLAYER_HIT_REACTION_SECONDS });
+    const result = applyHitReaction(player);
+    expect(isInvulnerable(result, PLAYER_HIT_REACTION_SECONDS)).toBe(true);
+    expect(
+      resolveCrouching({
+        downHeld: false,
+        grounded: true,
+        currentlyCrouching: true,
+        downClaimed: false,
+        canStand: false,
+        inHitReaction: true,
+      }),
+    ).toBe(true);
   });
 });
 
@@ -327,12 +371,12 @@ it('playerState-assignedToMovingAndSelfAnimated-satisfiesBothShapes', () => {
   expect(player.animState).toBe('idle');
 });
 
-describe('beginHitReaction', () => {
+describe('beginPitFallReaction', () => {
   it('restartsTheHitTimer-leavesVxFacingKnockbackTimerUntouched', () => {
-    // Unlike applyKnockback, a pit fall has no "direction to knock away
+    // Unlike applyHitReaction, a pit fall has no "direction to knock away
     // from" and no horizontal push at all — only the timer changes.
     const player = idlePlayer({ vx: 42, direction: 'left', knockbackTimer: 0 });
-    const next = beginHitReaction(player);
+    const next = beginPitFallReaction(player);
     expect(next.hitTimer).toBe(0);
     expect(isInvulnerable(next, PLAYER_HIT_REACTION_SECONDS)).toBe(true);
     expect(next.vx).toBe(42);
@@ -342,9 +386,9 @@ describe('beginHitReaction', () => {
 
   it('called-leavesAnimStateUntouched', () => {
     // No attacker to react to, so this stays on the render blink rather
-    // than switching into the `hit` sprite flash applyKnockback uses.
+    // than switching into the `hit` sprite flash applyHitReaction uses.
     const player = idlePlayer({ animState: 'walk', animFrame: 3, animTimer: 0.02 });
-    const next = beginHitReaction(player);
+    const next = beginPitFallReaction(player);
     expect(next.animState).toBe('walk');
     expect(next.animFrame).toBe(3);
     expect(next.animTimer).toBe(0.02);
@@ -445,7 +489,7 @@ describe('playerFrameSource death row', () => {
 
 describe('updatePlayerAnimState hit priority', () => {
   // Entry into 'hit' is NOT this function's job (see its doc comment) — only
-  // applyKnockback enters it directly, for a directional hit. This function
+  // applyHitReaction enters it directly, for an attacker hit. This function
   // only ever HOLDS 'hit' for as long as the window stays open, regardless
   // of movement, and falls back to a movement-derived state once it closes.
   it('alreadyHitAndStillInWindow-staysHitRegardlessOfMovement', () => {
@@ -467,9 +511,9 @@ describe('updatePlayerAnimState hit priority', () => {
   });
 
   it('hitTimerFreshButAnimStateNotYetHit-doesNotAutoEnterHit', () => {
-    // Confirms entry is external (applyKnockback), not derived from
+    // Confirms entry is external (applyHitReaction), not derived from
     // hitTimer/isInvulnerable by this function — e.g. a pit fall's
-    // beginHitReaction resets hitTimer without touching animState, and this
+    // beginPitFallReaction resets hitTimer without touching animState, and this
     // function must not second-guess that by entering 'hit' anyway.
     const player = idlePlayer({ hitTimer: 0, vx: 0, grounded: true, animState: 'idle' });
     const next = updatePlayerAnimState(player);
@@ -516,5 +560,61 @@ describe('isPlayerBlinkVisible', () => {
     // vanishing. An end-anchored implementation would make this an accident
     // of the reaction duration's own value instead of a guaranteed frame.
     expect(isPlayerBlinkVisible(0)).toBe(false);
+  });
+});
+
+describe('crouch pose (US4)', () => {
+  it('playerFrameSource-crouchFrame0-returnsFirstColumnAtTheDuckRow', () => {
+    expect(playerFrameSource('crouch', 0)).toEqual({ sx: 0, sy: PLAYER_FRAME_SIZE * 8 });
+  });
+
+  it('playerFrameSource-crouchFrame1-returnsSecondColumnAtTheDuckRow', () => {
+    expect(playerFrameSource('crouch', 1)).toEqual({
+      sx: PLAYER_FRAME_SIZE,
+      sy: PLAYER_FRAME_SIZE * 8,
+    });
+  });
+
+  it('playerFrameSource-crouchFrame2-returnsThirdColumnAtTheDuckRow', () => {
+    expect(playerFrameSource('crouch', 2)).toEqual({
+      sx: PLAYER_FRAME_SIZE * 2,
+      sy: PLAYER_FRAME_SIZE * 8,
+    });
+  });
+
+  it('playerFrameSource-crouchFrame4-wrapsToTheFirstColumn', () => {
+    expect(playerFrameSource('crouch', 4)).toEqual({ sx: 0, sy: PLAYER_FRAME_SIZE * 8 });
+  });
+
+  it('updatePlayerAnimState-groundedCrouchingVxZero-switchesToCrouch', () => {
+    const player = idlePlayer({ crouching: true, grounded: true, vx: 0, animState: 'idle' });
+    expect(updatePlayerAnimState(player).animState).toBe('crouch');
+  });
+
+  it('updatePlayerAnimState-crouchingAirborne-keepsTheCrouchPose', () => {
+    const player = idlePlayer({ crouching: true, grounded: false, vx: 0, animState: 'idle' });
+    expect(updatePlayerAnimState(player).animState).toBe('crouch');
+  });
+
+  it('updatePlayerAnimState-crouchingAndInvulnerable-stillReturnsHit', () => {
+    const player = idlePlayer({
+      crouching: true,
+      grounded: true,
+      animState: 'hit',
+      hitTimer: 0.5,
+    });
+    expect(updatePlayerAnimState(player).animState).toBe('hit');
+  });
+
+  it('advancePlayerAnimation-stationaryCrouch-returnsTheSameReference', () => {
+    const player = idlePlayer({ animState: 'crouch', vx: 0, animFrame: 1, animTimer: 0.05 });
+    const next = advancePlayerAnimation(player, 1);
+    expect(next).toBe(player);
+  });
+
+  it('advancePlayerAnimation-crawlingCrouch-advancesTheFrame', () => {
+    const player = idlePlayer({ animState: 'crouch', vx: 120, animFrame: 0, animTimer: 0 });
+    const next = advancePlayerAnimation(player, 1);
+    expect(next.animFrame).not.toBe(0);
   });
 });

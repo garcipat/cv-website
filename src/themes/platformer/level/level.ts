@@ -165,6 +165,14 @@ import {
 // found cannot be opened yet, and the player either backtracks or remembers
 // it. Five slimes for five chests means every key is needed and none is spare.
 //
+// The zone C/D boundary (cols 89-94) carries the level's one low corridor: a
+// single row of `groundGrass` ceiling (array row 8) added over the existing
+// mid-terrace floor (array row 10), leaving exactly one empty tile of clearance
+// (array row 9) that only the crouched one-tile collision box can enter (S-012,
+// FR-013). It reuses only `groundGrass` and empty — no new tile kind — and sits
+// just right of the `?` block at row 7 / col 88 (which stays reachable from
+// below) and left of the bee marker at row 8 / col 95.
+//
 // `1`-`6` are hint signs (LevelParser.ts's SIGN_CHARS), each placed where its
 // mechanic is first needed AND actually pays off: `5` (open all the chests) at
 // spawn, `2` (ladder) beside the first ladder, `4` (chests need a key) beside
@@ -182,7 +190,7 @@ export const LEVEL_1_LAYOUT: readonly string[] = [
   '...........................................................................................................................................................................................GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   '........................................M........................................................o...........m........................................................................M..o.GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   '.............HGGGGGGGG@.=?........GGGGGGGGGGGGGGG.......................................?......GGGGGGG.....GGGGGGG....=?F?.........................................................RRRRRRRRGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
-  '.............H....................GGGGGGGGGGGGGGG..............................................q...................................................................................GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  '.............H....................GGGGGGGGGGGGGGG........................................GGGGGGq...................................................................................GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   '..S.5.Ao...oCH.......M....6b.M..2.GGGGGGGGGGGGGGGuu.u.....M......1.........^..A........................M.o..........M.....M.......M........................M.................#.M..#GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGgggGGGBBBGGGGGGGGGGGGGGHGGGGGGGGGGGGGGGGGGGGGGHGGGGGGHGGBBBGGGGGGGGGGGGGGGGGFFGGGGGGGGGG...GGGGGGGGGBBBGGGGGGGGGGGGGGGRRHRRRRRRRRRRRRGGGGGGGGGGGGGGGGGGGGGGGGGHGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.H........⊤....⊤........H<GGGG>H..........=................GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..H.......v.......=...=.................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',

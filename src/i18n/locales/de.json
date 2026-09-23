@@ -178,6 +178,7 @@
     },
     "controlsOverlay": {
       "move": "Bewegen",
+      "crouch": "Ducken",
       "jump": "Springen",
       "journal": "Journal",
       "interact": "Interagieren"
