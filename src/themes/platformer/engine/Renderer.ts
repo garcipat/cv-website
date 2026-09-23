@@ -44,7 +44,6 @@ import {
   LADDER_STEP_NATIVE_PX,
 } from './DeployableLadder';
 import type { DeployableLadderState } from './DeployableLadder';
-import { backgroundMaterialFamily } from '../level/LevelData';
 import type { LevelDef, TileType } from '../level/LevelData';
 import type { SignPlacement } from '../level/SignMapper';
 import {
@@ -139,6 +138,7 @@ import {
   ENEMY_EYE_SIZE_PX,
   ENEMY_EYE_GAP_PX,
   FOG_TINT_RGB,
+  isCellDarkening,
 } from './Lighting';
 
 function tileSource(
@@ -1132,17 +1132,21 @@ export function drawFog(
 
   const grid = level.background ?? [];
   ctx.fillStyle = `rgba(${FOG_TINT_RGB}, ${fogLevel})`;
+  // Accumulated into one path and filled once (rather than one fillRect per
+  // cell) so adjacent translucent cells don't anti-alias their shared edge
+  // independently — with a fractional origin (camera mid-scroll), per-cell
+  // fills can leave a faint seam of lighter fog between cells.
+  ctx.beginPath();
   for (let row = 0; row < grid.length; row++) {
     const gridRow = grid[row];
     for (let col = 0; col < gridRow.length; col++) {
-      const material = gridRow[col];
-      if (material === null || material === undefined) continue;
-      if (backgroundMaterialFamily(material) !== 'cave') continue;
+      if (!isCellDarkening(level, col, row)) continue;
 
       const { x, y } = tileToPixel(col, row);
-      ctx.fillRect(x + originX, y + originY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+      ctx.rect(x + originX, y + originY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
     }
   }
+  ctx.fill();
 }
 
 /**

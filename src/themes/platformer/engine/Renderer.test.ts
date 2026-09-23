@@ -3402,7 +3402,8 @@ describe('drawFog', () => {
 
     drawFog(ctx, level, 0);
 
-    expect(ctx.fillRect).not.toHaveBeenCalled();
+    expect(ctx.rect).not.toHaveBeenCalled();
+    expect(ctx.fill).not.toHaveBeenCalled();
   });
 
   it('caveFamilyCell-fillsItWithTheFogTintAtTheFogAlpha', () => {
@@ -3412,7 +3413,8 @@ describe('drawFog', () => {
     drawFog(ctx, level, 0.5, 0, 0);
 
     expect(ctx.fillStyle).toBe(`rgba(${FOG_TINT_RGB}, 0.5)`);
-    expect(ctx.fillRect).toHaveBeenCalledWith(0, 0, 32, 32);
+    expect(ctx.rect).toHaveBeenCalledWith(0, 0, 32, 32);
+    expect(ctx.fill).toHaveBeenCalledTimes(1);
   });
 
   it('surfaceFamilyCell-drawsNothing', () => {
@@ -3421,7 +3423,7 @@ describe('drawFog', () => {
 
     drawFog(ctx, level, 0.5);
 
-    expect(ctx.fillRect).not.toHaveBeenCalled();
+    expect(ctx.rect).not.toHaveBeenCalled();
   });
 
   it('emptyCell-drawsNothing', () => {
@@ -3430,7 +3432,7 @@ describe('drawFog', () => {
 
     drawFog(ctx, level, 0.5);
 
-    expect(ctx.fillRect).not.toHaveBeenCalled();
+    expect(ctx.rect).not.toHaveBeenCalled();
   });
 
   it('levelWithNoBackgroundField-drawsNothing', () => {
@@ -3439,7 +3441,7 @@ describe('drawFog', () => {
 
     drawFog(ctx, level, 0.5);
 
-    expect(ctx.fillRect).not.toHaveBeenCalled();
+    expect(ctx.rect).not.toHaveBeenCalled();
   });
 
   it('originOffset-shiftsTheFilledRect', () => {
@@ -3448,7 +3450,7 @@ describe('drawFog', () => {
 
     drawFog(ctx, level, 0.5, 100, -50);
 
-    expect(ctx.fillRect).toHaveBeenCalledWith(100, -50, 32, 32);
+    expect(ctx.rect).toHaveBeenCalledWith(100, -50, 32, 32);
   });
 
   it('mixedGrid-fillsOnlyTheCaveFamilyCells', () => {
@@ -3462,8 +3464,9 @@ describe('drawFog', () => {
 
     drawFog(ctx, level, 0.5);
 
-    expect(ctx.fillRect).toHaveBeenCalledTimes(1);
-    expect(ctx.fillRect).toHaveBeenCalledWith(32, 0, 32, 32);
+    expect(ctx.rect).toHaveBeenCalledTimes(1);
+    expect(ctx.rect).toHaveBeenCalledWith(32, 0, 32, 32);
+    expect(ctx.fill).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -3611,6 +3614,7 @@ function makeLightingContext() {
     restore: vi.fn(),
     beginPath: vi.fn(),
     arc: vi.fn(),
+    rect: vi.fn(),
     fill: vi.fn(),
     fillRect: vi.fn(),
     createRadialGradient: vi.fn(() => ({ addColorStop: vi.fn() })),

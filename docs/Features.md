@@ -56,6 +56,7 @@ graph RL
         O022["O-022: Ambient Background Clouds"]
         O023["✅ O-023: Crumbling Floor Blocks"]
         O024["✅ O-024: Enemy Movement & Animation Seam + Bee"]
+        O028["✅ O-028: Cave Fog"]
         S011["S-011: Interact Hint Overlay"]
     end
 
@@ -145,6 +146,9 @@ graph RL
     O024 --> F017
     O024 --> F019
 
+    O028 --> O010
+    O028 --> O014
+
     S011 --> F015
     S011 --> S009
     S011 --> S007
@@ -179,6 +183,8 @@ graph RL
     class S011 themes
     class O024 themes
     class O024 done
+    class O028 themes
+    class O028 done
     class O017 themes
     class O017 done
     class O018 themes
