@@ -138,6 +138,8 @@ import {
   ENEMY_EYE_SIZE_PX,
   ENEMY_EYE_GAP_PX,
   FOG_TINT_RGB,
+  FOG_PUFF_PLATEAU,
+  fogPuffAt,
   isCellDarkening,
 } from './Lighting';
 
@@ -1106,12 +1108,24 @@ export function drawBackgroundTiles(
 
 /**
  * Draws the outside-a-cave fog (O-028): every cell whose background
- * material belongs to the cave family is painted with a flat tint at
- * `fogLevel`'s alpha, hiding everything on that cell — background, terrain,
- * blocks and entities alike (FR-001/FR-002). Iterates the level's full
- * background grid, the same shape `drawBackgroundTiles` uses, rather than a
- * viewport-culled range — levels are small enough that this is cheap, and it
- * keeps the two passes' looping identical.
+ * material belongs to the cave family gets a soft radial-gradient "puff"
+ * (`fogPuffAt`) at `fogLevel`'s alpha, hiding everything on that cell —
+ * background, terrain, blocks and entities alike (FR-001/FR-002). Each
+ * puff is opaque at its core out to `FOG_PUFF_PLATEAU` of its radius, then
+ * fades to transparent by the rim, and is sized a little larger than a
+ * tile so it bleeds into a neighbouring clear cell rather than stopping
+ * dead at the grid line — a flat per-cell rect read as a painted tile
+ * stamp rather than fog. A puff's centre jitters and its radius breathes
+ * gently over time, both deterministic per cell (`fogPuffAt`), so a bank
+ * of fog looks organic rather than perfectly grid-aligned or static.
+ *
+ * Iterates the level's full background grid, the same shape
+ * `drawBackgroundTiles` uses, rather than a viewport-culled range — levels
+ * are small enough that this is cheap, and it keeps the two passes'
+ * looping identical. Each puff needs its own gradient, so (unlike a flat
+ * fill) this can't be batched into a single path/fill call; puffs overlap
+ * generously enough (`FOG_PUFF_RADIUS_PX` vs. tile spacing) that adjacent
+ * cells' soft edges blend into each other rather than leaving seams.
  *
  * Callers are expected to keep `fogLevel` and `darknessLevel` mutually
  * exclusive (only one is ever above zero at a time — FR-003); this function
@@ -1127,26 +1141,31 @@ export function drawFog(
   fogLevel: number,
   originX = 0,
   originY = 0,
+  worldElapsed = 0,
 ): void {
   if (fogLevel <= 0) return;
 
   const grid = level.background ?? [];
-  ctx.fillStyle = `rgba(${FOG_TINT_RGB}, ${fogLevel})`;
-  // Accumulated into one path and filled once (rather than one fillRect per
-  // cell) so adjacent translucent cells don't anti-alias their shared edge
-  // independently — with a fractional origin (camera mid-scroll), per-cell
-  // fills can leave a faint seam of lighter fog between cells.
-  ctx.beginPath();
   for (let row = 0; row < grid.length; row++) {
     const gridRow = grid[row];
     for (let col = 0; col < gridRow.length; col++) {
       if (!isCellDarkening(level, col, row)) continue;
 
-      const { x, y } = tileToPixel(col, row);
-      ctx.rect(x + originX, y + originY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+      const puff = fogPuffAt(col, row, worldElapsed);
+      const screenX = puff.x + originX;
+      const screenY = puff.y + originY;
+
+      const gradient = ctx.createRadialGradient(screenX, screenY, 0, screenX, screenY, puff.radius);
+      gradient.addColorStop(0, `rgba(${FOG_TINT_RGB}, ${fogLevel})`);
+      gradient.addColorStop(FOG_PUFF_PLATEAU, `rgba(${FOG_TINT_RGB}, ${fogLevel})`);
+      gradient.addColorStop(1, `rgba(${FOG_TINT_RGB}, 0)`);
+
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(screenX, screenY, puff.radius, 0, Math.PI * 2);
+      ctx.fill();
     }
   }
-  ctx.fill();
 }
 
 /**
