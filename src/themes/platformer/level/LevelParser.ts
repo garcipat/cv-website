@@ -279,7 +279,6 @@ export const BACKGROUND_CHARS: Record<string, BackgroundMaterialId | undefined> 
   c: 'charcoal',
   m: 'maroon',
   v: 'caveStone',
-  w: 'wood',
 };
 
 /**
@@ -288,7 +287,7 @@ export const BACKGROUND_CHARS: Record<string, BackgroundMaterialId | undefined> 
  * Also the editor's background grid's own cell type (`BackgroundChar[][]`,
  * the background-layer analogue of `editorLevelSignal`'s `TileChar[][]`).
  */
-export type BackgroundChar = '.' | 'd' | 'r' | 's' | 'c' | 'm' | 'v' | 'w';
+export type BackgroundChar = '.' | 'd' | 'r' | 's' | 'c' | 'm' | 'v';
 
 /**
  * Parses a background layout (the same one-character-per-cell `string[]`

@@ -756,7 +756,7 @@ describe('parseBackgroundLayout', () => {
   });
 
   it('backgroundCharUnion-coversEveryBackgroundCharsKeyPlusEmpty', () => {
-    const chars: BackgroundChar[] = ['.', 'd', 'r', 's', 'c', 'm', 'v', 'w'];
+    const chars: BackgroundChar[] = ['.', 'd', 'r', 's', 'c', 'm', 'v'];
     for (const key of Object.keys(BACKGROUND_CHARS)) {
       expect(chars).toContain(key);
     }

@@ -111,9 +111,13 @@ git commit -m "art(O-029): add placeholder wood sprites and a dedicated door spr
 **Files:**
 - Modify: `src/themes/platformer/level/LevelData.ts`
 - Test: `src/themes/platformer/level/LevelData.test.ts` (create if it doesn't exist; otherwise extend)
+- Modify: `src/themes/platformer/engine/BackgroundAtlas.ts` (placeholder `wood` entry only — see Step 3a)
+- Modify: `src/themes/platformer/editor/backgroundPaletteTiles.ts` (placeholder `wood` label only — see Step 3a)
 
 **Interfaces:**
 - Produces: `TileType` members `'groundWood'`, `'doorLeft'`, `'doorRight'`, `'doorLeftOpen'`, `'doorRightOpen'`; `BackgroundMaterialId` member `'wood'`.
+
+**Why this task also touches two files outside `level/`**: `BACKGROUND_MATERIAL_ROW_INDEX` (`BackgroundAtlas.ts`) and `BACKGROUND_PALETTE_LABELS` (`backgroundPaletteTiles.ts`) are both literal objects typed `Record<BackgroundMaterialId, X>` — TypeScript requires every key of `BackgroundMaterialId` to be present the moment `'wood'` joins that union, and `backgroundPaletteTiles.ts`'s `BACKGROUND_PALETTE_SPRITES` const computes a sprite for every material EAGERLY AT MODULE LOAD (`Object.keys(BACKGROUND_MATERIAL_FAMILY).map(spriteFor)`), so a missing `wood` row crashes at import time, not just at final build. This isn't optional scope creep — without it, adding `wood` to `BackgroundMaterialId` alone breaks the whole suite. Task 11 does NOT remove these placeholder entries later; it makes them irrelevant by branching around them for `wood` specifically (see Task 11's own note).
 
 - [ ] **Step 1: Write the failing test**
 
@@ -205,15 +209,56 @@ export const BACKGROUND_MATERIAL_FAMILY: Record<BackgroundMaterialId, Background
 };
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [ ] **Step 3a: Add the required placeholder entries so the rest of the suite keeps compiling and running**
+
+In `src/themes/platformer/engine/BackgroundAtlas.ts`, add a `wood` entry to `BACKGROUND_MATERIAL_ROW_INDEX` — the VALUE is never actually used for wood once Task 11 lands (Task 11's `backgroundAtlasCell` branches on `material === 'wood'` before ever reading this Record for it), so point it at any existing row and say so plainly:
+
+```ts
+/** Each material's row index (0-5) within the shared sheet, top to bottom.
+ *  `wood` is a required placeholder, not a real row: TypeScript requires
+ *  every `BackgroundMaterialId` to have an entry here, but wood is
+ *  addressed from its own dedicated sheet (Task 11) and this value is
+ *  never actually read for it once that lands — see Task 11's
+ *  `backgroundAtlasCell` branch. */
+const BACKGROUND_MATERIAL_ROW_INDEX: Record<BackgroundMaterialId, number> = {
+  dirt: 0,
+  rust: 1,
+  surfaceStone: 2,
+  caveStone: 3,
+  maroon: 4,
+  charcoal: 5,
+  wood: 0, // placeholder — never read for wood once Task 11 lands, see comment above
+};
+```
+
+In `src/themes/platformer/editor/backgroundPaletteTiles.ts`, add the real label (this one has no placeholder-vs-real distinction — it's just the label Task 12 would otherwise add, done here because the `Record` must be exhaustive):
+
+```ts
+export const BACKGROUND_PALETTE_LABELS: Record<BackgroundMaterialId, string> = {
+  dirt: 'Dirt',
+  rust: 'Rust',
+  surfaceStone: 'Surface Stone',
+  charcoal: 'Charcoal',
+  maroon: 'Maroon',
+  caveStone: 'Cave Stone',
+  wood: 'Wood',
+};
+```
+
+Do **not** touch `src/themes/platformer/level/LevelParser.ts` (`BACKGROUND_CHARS`/`BackgroundChar`) — that Record is keyed by CHARACTER, not by `BackgroundMaterialId`, so it has no exhaustiveness requirement and genuinely belongs to Task 2.
+
+- [ ] **Step 4: Run the full suite, not just this task's own test file**
 
 Run: `npx vitest run src/themes/platformer/level/LevelData.test.ts`
 Expected: PASS
 
+Then run: `npx vitest run` (the full suite)
+Expected: PASS, no regressions — this confirms Step 3a's placeholder entries actually prevent the eager-module-load crash in `backgroundPaletteTiles.ts` and any test that imports it.
+
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/themes/platformer/level/LevelData.ts src/themes/platformer/level/LevelData.test.ts
+git add src/themes/platformer/level/LevelData.ts src/themes/platformer/level/LevelData.test.ts src/themes/platformer/engine/BackgroundAtlas.ts src/themes/platformer/editor/backgroundPaletteTiles.ts
 git commit -m "feat(O-029): add wood/door TileType members and wood background material"
 ```
 
@@ -1138,14 +1183,25 @@ git commit -m "feat(O-029): register the wood ground and wood background sprite 
 - Consumes: `'wood'` `BackgroundMaterialId` from Task 1; `BACKGROUND_TILES_WOOD_SHEET` from Task 10.
 - Produces: `backgroundAtlasCell('wood', mask)` returns entries relative to its OWN sheet's origin, not `BACKGROUND_TILES_SHEET`'s; `backgroundMaterialSheetSrc(material): string` (new) tells a caller which image a material's cells come from; `drawBackgroundTiles` gains a `woodBackgroundAtlas` parameter and picks the correct source image per cell.
 
-Since wood lives in its own file (per your note against baking placeholder
-art into the shared, finished `background_tiles.png`), the existing
-"every material is just another row in one shared sheet" assumption
+Since wood lives in its own file (kept out of the shared, finished
+`background_tiles.png` since it's placeholder art), the existing "every
+material is just another row in one shared sheet" assumption
 (`BACKGROUND_MATERIAL_ROW_INDEX`) no longer holds for wood alone. Wood is
 addressed as materialIndex `0` within its own file (the only material that
 file holds), and `drawBackgroundTiles` needs to know WHICH image to pull a
 given material's cell from — the one piece of "which sheet" branching this
 placeholder detour requires, isolated to these two files.
+
+**Note on `BACKGROUND_MATERIAL_ROW_INDEX`**: Task 1 already added a
+`wood: 0` entry to this Record — not optional scope creep, but a
+TypeScript/eager-module-load requirement (see Task 1's Step 3a). Its value
+is a placeholder and is never actually correct for wood; this task makes
+that irrelevant by branching around it in `backgroundAtlasCell` (Step 3
+below) rather than ever reading it for `wood`. **Do not edit or "fix" that
+placeholder entry** — leave it exactly as Task 1 left it. This task adds a
+genuinely separate, correct code path for wood; it does not correct the
+placeholder value, because nothing ever reads it once this task's branch
+exists.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -1208,7 +1264,7 @@ Expected: FAIL
 
 - [ ] **Step 3: Add wood's own cell lookup and `backgroundMaterialSheetSrc`**
 
-In `BackgroundAtlas.ts`, do **not** add `wood` to `BACKGROUND_MATERIAL_ROW_INDEX` (that Record stays exactly the six shared-sheet materials it already lists). Instead:
+In `BackgroundAtlas.ts`, leave `BACKGROUND_MATERIAL_ROW_INDEX`'s `wood: 0` placeholder entry exactly as Task 1 left it (do not edit or remove it — see this task's opening note). Add wood's real lookup alongside it, addressed from its own sheet:
 
 ```ts
 import { BACKGROUND_TILES_SHEET, BACKGROUND_TILES_WOOD_SHEET } from '../entities/sprites/sheets';
