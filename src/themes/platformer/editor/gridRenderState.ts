@@ -81,6 +81,7 @@ export function synthesizePlayerState(grid: TileChar[][]): PlayerState | null {
     direction: 'right',
     grounded: true,
     climbing: false,
+    crouching: false,
     isDroppingThroughBridge: false,
     lastGroundedX: x,
     lastGroundedY: y,

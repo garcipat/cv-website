@@ -41,6 +41,7 @@ function basePlayer(overrides: Partial<PlayerState> = {}): PlayerState {
     direction: 'right',
     grounded: false,
     climbing: false,
+    crouching: false,
     animState: 'idle',
     animFrame: 0,
     animTimer: 0,

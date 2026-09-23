@@ -76,6 +76,17 @@ describe('ControlsOverlay', () => {
     expect(screen.getByText('Interact')).toBeInTheDocument();
   });
 
+  it('render-showsTheCrouchCaptionAlongsideTheExistingCaptions', () => {
+    lifecycleState.value = PLAYING_PHASE;
+    render(<ControlsOverlay />);
+    const overlay = screen.getByTestId('platformer-controls-overlay');
+    expect(overlay).toHaveTextContent('Crouch');
+    expect(overlay).toHaveTextContent('Move');
+    expect(overlay).toHaveTextContent('Jump');
+    expect(overlay).toHaveTextContent('Journal');
+    expect(screen.getByText('Interact')).toBeInTheDocument();
+  });
+
   it('render-beforeReveal-isInvisibleAndOffsetLeft', () => {
     lifecycleState.value = PLAYING_PHASE;
     render(<ControlsOverlay />);

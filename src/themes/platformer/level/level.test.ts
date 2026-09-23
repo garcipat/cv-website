@@ -18,7 +18,13 @@ import {
   TORCH_TILES,
 } from './level';
 import { isTopExposed, isSolid, isClimbable, isStandableLadderTop, tileAt } from './Terrain';
-import { SIGN_CHARS } from './LevelParser';
+import {
+  SIGN_CHARS,
+  ENTITY_CHARS,
+  HAZARD_CHARS,
+  TERRAIN_CHARS,
+  type TileChar,
+} from './LevelParser';
 import cvEn from '@/data/cv.en.json';
 
 /** Every hand-placed marker must sit on an empty tile directly above a solid
@@ -439,5 +445,66 @@ describe('TORCH_TILES', () => {
   it('layoutWithNoTorches-returnsEmptyArray', () => {
     currentLayout.value = ['S..', 'GGG'];
     expect(TORCH_TILES.value).toEqual([]);
+  });
+});
+
+// S-012 (US1): the authored one-tile crouch corridor.
+//
+// The design contract (contracts/onboarding-level.md §C) describes this
+// corridor with 0-based array indices: ceiling at row 8, corridor row 9, floor
+// row 10. The authored geometry matches:
+//   array row 8  — ceiling (empty before this feature; the new `G` tiles)
+//   array row 9  — corridor (empty)
+//   array row 10 — floor (already solid `groundGrass`)
+// At columns 89-94 that is exactly one tile of clearance, just right of the `?`
+// block at row 7 / col 88 (which stays reachable from below) and left of the
+// bee marker at row 8 / col 95.
+const CORRIDOR_FROM_COL = 89;
+const CORRIDOR_TO_COL = 94;
+const CORRIDOR_CEILING_ROW = 8;
+const CORRIDOR_ROW = 9;
+const CORRIDOR_FLOOR_ROW = 10;
+
+describe('the authored one-tile crouch corridor (US1)', () => {
+  it('ceilingRow-isSolidGroundGrassAcrossTheCorridor', () => {
+    for (let col = CORRIDOR_FROM_COL; col <= CORRIDOR_TO_COL; col++) {
+      expect(LEVEL_1_LAYOUT[CORRIDOR_CEILING_ROW][col]).toBe('G');
+    }
+  });
+
+  it('corridorRow-isEmptyAcrossTheCorridor', () => {
+    for (let col = CORRIDOR_FROM_COL; col <= CORRIDOR_TO_COL; col++) {
+      expect(LEVEL_1_LAYOUT[CORRIDOR_ROW][col]).toBe('.');
+    }
+  });
+
+  it('floorRow-isSolidGroundGrassAcrossTheCorridor', () => {
+    for (let col = CORRIDOR_FROM_COL; col <= CORRIDOR_TO_COL; col++) {
+      expect(LEVEL_1_LAYOUT[CORRIDOR_FLOOR_ROW][col]).toBe('G');
+    }
+  });
+
+  it('corridorCells-containNoEntitySignOrHazardMarker', () => {
+    for (const row of [CORRIDOR_CEILING_ROW, CORRIDOR_ROW]) {
+      for (let col = CORRIDOR_FROM_COL; col <= CORRIDOR_TO_COL; col++) {
+        const char = LEVEL_1_LAYOUT[row][col] as TileChar;
+        expect(ENTITY_CHARS[char]).toBeUndefined();
+        expect(SIGN_CHARS[char]).toBeUndefined();
+        expect(HAZARD_CHARS[char]).toBeUndefined();
+      }
+    }
+  });
+
+  it('corridor-reusesOnlyExistingTerrainCharacters', () => {
+    // No new TileType/TileChar: every corridor cell resolves through the
+    // pre-existing TERRAIN_CHARS map.
+    for (const row of [CORRIDOR_CEILING_ROW, CORRIDOR_ROW, CORRIDOR_FLOOR_ROW]) {
+      for (let col = CORRIDOR_FROM_COL; col <= CORRIDOR_TO_COL; col++) {
+        const char = LEVEL_1_LAYOUT[row][col] as TileChar;
+        expect(TERRAIN_CHARS[char]).toBeDefined();
+      }
+    }
+    expect(TERRAIN_CHARS['G']).toBe('groundGrass');
+    expect(TERRAIN_CHARS['.']).toBe('empty');
   });
 });

@@ -56,8 +56,12 @@ graph RL
         O022["O-022: Ambient Background Clouds"]
         O023["✅ O-023: Crumbling Floor Blocks"]
         O024["✅ O-024: Enemy Movement & Animation Seam + Bee"]
+        O025["O-025: Platformer Dart Trap"]
+        O026["O-026: Platformer Poison Gas"]
+        O027["O-027: Platformer Falling Stalactite"]
         O028["✅ O-028: Cave Fog"]
         S011["S-011: Interact Hint Overlay"]
+        S012["✅ S-012: Platformer Crouch/Duck"]
     end
 
     F003 --> F002
@@ -155,6 +159,21 @@ graph RL
     S011 --> O001
     S011 --> O011
 
+    S012 --> F015
+    S012 --> S008
+
+    O025 --> F015
+    O025 --> O005
+    O025 --> S012
+
+    O026 --> F015
+    O026 --> O005
+    O026 --> F016
+
+    O027 --> F015
+    O027 --> O005
+    O027 --> F016
+
     classDef done stroke:#FFD600,stroke-width:3px
     classDef projectSetup fill:#1565C0,color:#ffffff
     classDef layoutNavigation fill:#E65100,color:#ffffff
@@ -183,6 +202,11 @@ graph RL
     class S011 themes
     class O024 themes
     class O024 done
+    class S012 themes
+    class S012 done
+    class O025 themes
+    class O026 themes
+    class O027 themes
     class O028 themes
     class O028 done
     class O017 themes
