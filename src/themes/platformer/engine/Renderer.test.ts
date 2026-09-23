@@ -3593,6 +3593,47 @@ describe('drawBackgroundTiles', () => {
   });
 });
 
+describe('drawBackgroundTiles-woodCell-drawsFromTheWoodSheetNotTheSharedOne', () => {
+  it('picks woodBackgroundAtlas for a wood cell, backgroundAtlas for everything else', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const sharedSheet = {} as HTMLImageElement;
+    const woodSheet = {} as HTMLImageElement;
+    const level: LevelDef = {
+      terrain: [],
+      width: 2,
+      height: 1,
+      background: [['wood', 'dirt']],
+    };
+
+    drawBackgroundTiles(ctx as unknown as CanvasRenderingContext2D, level, sharedSheet, 0, 0, null, woodSheet);
+
+    const calls = (ctx.drawImage as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls.some((call) => call[0] === woodSheet)).toBe(true);
+    expect(calls.some((call) => call[0] === sharedSheet)).toBe(true);
+  });
+
+  it('skips a wood cell silently when woodBackgroundAtlas is null (not yet loaded)', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const sharedSheet = {} as HTMLImageElement;
+    const level: LevelDef = {
+      terrain: [],
+      width: 2,
+      height: 1,
+      background: [['wood', 'dirt']],
+    };
+
+    expect(() =>
+      drawBackgroundTiles(ctx as unknown as CanvasRenderingContext2D, level, sharedSheet, 0, 0, null),
+    ).not.toThrow();
+
+    const calls = (ctx.drawImage as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls.some((call) => call[0] === sharedSheet)).toBe(true);
+    expect(calls.every((call) => call[0] !== undefined)).toBe(true);
+    // Only the dirt cell drew — the wood cell was skipped silently.
+    expect(calls).toHaveLength(1);
+  });
+});
+
 describe('drawFog', () => {
   it('atOrBelowZero-drawsNothingAtAll', () => {
     const { ctx, raw } = makeLightingContext();

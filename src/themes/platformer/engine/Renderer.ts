@@ -1215,6 +1215,7 @@ export function drawBackgroundTiles(
   originX = 0,
   originY = 0,
   decorations: HTMLImageElement | null = null,
+  woodBackgroundAtlas: HTMLImageElement | null = null,
 ): void {
   const grid = level.background ?? [];
   for (let row = 0; row < grid.length; row++) {
@@ -1223,12 +1224,15 @@ export function drawBackgroundTiles(
       const material = gridRow[col];
       if (material === null || material === undefined) continue;
 
+      const sourceImage = material === 'wood' ? woodBackgroundAtlas : backgroundAtlas;
+      if (!sourceImage) continue; // placeholder sheet not loaded yet — skip silently, like every other optional image in this file
+
       const { x, y } = tileToPixel(col, row);
       const destX = x + originX;
       const destY = y + originY;
       const mask = backgroundNeighbourMask(level, col, row);
       const entry = backgroundAtlasCell(material, mask);
-      drawRotatedTile(ctx, backgroundAtlas, entry, destX, destY);
+      drawRotatedTile(ctx, sourceImage, entry, destX, destY);
 
       if (decorations && mask === 15) {
         const rock = backgroundRockEntry(col, row);

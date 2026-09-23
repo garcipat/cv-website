@@ -1,4 +1,5 @@
 import type { BackgroundMaterialId } from '../level/LevelData';
+import { BACKGROUND_TILES_SHEET, BACKGROUND_TILES_WOOD_SHEET } from '../entities/sprites/sheets';
 
 /**
  * `background_tiles.png` holds 16px tiles on a 19px stride (16px tile plus a
@@ -45,6 +46,20 @@ function cell(materialIndex: number, gx: number, gy: number): { sx: number; sy: 
   return {
     sx: gx * BACKGROUND_ATLAS_STRIDE,
     sy: materialIndex * BACKGROUND_ATLAS_ROW_PITCH + gy * BACKGROUND_ATLAS_STRIDE,
+  };
+}
+
+/** Wood's placeholder cell lookup — materialIndex 0 always, since
+ *  `background_tiles_wood.png` holds exactly one material (see sheets.ts's
+ *  doc comment and design.md's "Wood background: its own placeholder
+ *  sheet"). Reuses the same MASK_SHAPE table every shared-sheet material
+ *  already uses — only which FILE the coordinates address differs. */
+const WOOD_MATERIAL_INDEX = 0;
+
+function woodCell(gx: number, gy: number): { sx: number; sy: number } {
+  return {
+    sx: gx * BACKGROUND_ATLAS_STRIDE,
+    sy: WOOD_MATERIAL_INDEX * BACKGROUND_ATLAS_ROW_PITCH + gy * BACKGROUND_ATLAS_STRIDE,
   };
 }
 
@@ -114,9 +129,25 @@ const BACKGROUND_ATLAS: Record<BackgroundMaterialId, Record<number, BackgroundAt
  * practice.
  */
 export function backgroundAtlasCell(material: BackgroundMaterialId, mask: number): BackgroundAtlasEntry {
+  if (material === 'wood') {
+    const shape = MASK_SHAPE[mask];
+    if (!shape) {
+      throw new Error(`No background atlas entry for material "${material}" mask ${mask}`);
+    }
+    return { ...woodCell(shape.gx, shape.gy), rotation: shape.rotation };
+  }
   const entry = BACKGROUND_ATLAS[material]?.[mask];
   if (!entry) {
     throw new Error(`No background atlas entry for material "${material}" mask ${mask}`);
   }
   return entry;
+}
+
+/** Which sprite sheet a material's `backgroundAtlasCell` result should be
+ *  drawn from — every material but `wood` shares `BACKGROUND_TILES_SHEET`;
+ *  `wood` is the one placeholder exception (see this file's `woodCell`
+ *  doc comment). `Renderer.ts`'s `drawBackgroundTiles` is the only
+ *  consumer. */
+export function backgroundMaterialSheetSrc(material: BackgroundMaterialId): string {
+  return material === 'wood' ? BACKGROUND_TILES_WOOD_SHEET.src : BACKGROUND_TILES_SHEET.src;
 }

@@ -3,6 +3,7 @@ import {
   BACKGROUND_ATLAS_STRIDE,
   BACKGROUND_ATLAS_ROW_PITCH,
   backgroundAtlasCell,
+  backgroundMaterialSheetSrc,
 } from './BackgroundAtlas';
 import type { BackgroundMaterialId } from '../level/LevelData';
 import {
@@ -11,6 +12,7 @@ import {
   NEIGHBOUR_DOWN,
   NEIGHBOUR_LEFT,
 } from '../level/Terrain';
+import { BACKGROUND_TILES_SHEET, BACKGROUND_TILES_WOOD_SHEET } from '../entities/sprites/sheets';
 
 const ALL_MASKS = Array.from({ length: 16 }, (_, mask) => mask);
 const ALL_MATERIALS: BackgroundMaterialId[] = [
@@ -97,5 +99,33 @@ describe('backgroundAtlasCell', () => {
     expect(BACKGROUND_ATLAS_STRIDE).toBeGreaterThan(0);
     expect(Number.isInteger(BACKGROUND_ATLAS_ROW_PITCH)).toBe(true);
     expect(BACKGROUND_ATLAS_ROW_PITCH).toBeGreaterThan(0);
+  });
+});
+
+describe('backgroundAtlasCell-woodEveryMask-returnsAValidEntryRelativeToItsOwnSheet', () => {
+  it('wood resolves every one of the 16 masks, at materialIndex 0', () => {
+    for (let mask = 0; mask < 16; mask++) {
+      const entry = backgroundAtlasCell('wood', mask);
+      expect(entry.sx).toBeGreaterThanOrEqual(0);
+      expect(entry.sy).toBeGreaterThanOrEqual(0);
+      // Materially different from the shared-sheet materials' own sy range
+      // for the same mask, since wood's sheet starts a fresh materialIndex 0
+      // rather than continuing the shared sheet's row stack:
+      expect(entry.sy).toBeLessThan(BACKGROUND_ATLAS_ROW_PITCH);
+    }
+  });
+});
+
+describe('backgroundMaterialSheetSrc-wood-returnsTheDedicatedWoodSheet', () => {
+  it('wood resolves to its own sheet src', () => {
+    expect(backgroundMaterialSheetSrc('wood')).toBe(BACKGROUND_TILES_WOOD_SHEET.src);
+  });
+});
+
+describe('backgroundMaterialSheetSrc-everyOtherMaterial-returnsTheSharedSheet', () => {
+  it('every non-wood material resolves to the shared sheet src', () => {
+    for (const material of ['dirt', 'rust', 'surfaceStone', 'charcoal', 'maroon', 'caveStone'] as const) {
+      expect(backgroundMaterialSheetSrc(material)).toBe(BACKGROUND_TILES_SHEET.src);
+    }
   });
 });

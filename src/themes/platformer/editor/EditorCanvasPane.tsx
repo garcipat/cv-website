@@ -10,6 +10,7 @@ import { loadImage } from '../engine/SpriteLoader';
 import { CHECKPOINT_FLAG_SHEET } from '../entities/Checkpoint';
 import {
   BACKGROUND_TILES_SHEET,
+  BACKGROUND_TILES_WOOD_SHEET,
   STATIC_OBJECTS_SHEET,
   DECORATIONS_SHEET,
   TORCH_SHEET,
@@ -45,6 +46,7 @@ const EMPTY_IMAGES: EditorImages = {
   chestClosed: null,
   checkpoint: null,
   backgroundAtlas: null,
+  backgroundAtlasWood: null,
   staticObjects: null,
   decorations: null,
   torch: null,
@@ -69,6 +71,7 @@ const IMAGE_SOURCES: { key: keyof EditorImages; src: string }[] = [
   { key: 'chestClosed', src: '/sprites/chest_closed.png' },
   { key: 'checkpoint', src: CHECKPOINT_FLAG_SHEET.src },
   { key: 'backgroundAtlas', src: BACKGROUND_TILES_SHEET.src },
+  { key: 'backgroundAtlasWood', src: BACKGROUND_TILES_WOOD_SHEET.src },
   { key: 'staticObjects', src: STATIC_OBJECTS_SHEET.src },
   { key: 'decorations', src: DECORATIONS_SHEET.src },
   { key: 'torch', src: TORCH_SHEET.src },

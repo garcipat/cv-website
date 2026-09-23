@@ -175,6 +175,7 @@ import {
   CRACK_OVERLAY_SHEET,
   GROUND_ATLAS_SHEET,
   BACKGROUND_TILES_SHEET,
+  BACKGROUND_TILES_WOOD_SHEET,
   STATIC_OBJECTS_SHEET,
   BACKGROUND_LAYERS_SHEET,
   BACKGROUND_LAYER_GRASS_SHEET,
@@ -305,6 +306,11 @@ export const PlatformerPage = () => {
   const ambientCloudsRef = useRef<HTMLImageElement | null>(null);
   const groundAtlasRef = useRef<HTMLImageElement | null>(null);
   const backgroundAtlasRef = useRef<HTMLImageElement | null>(null);
+  // The wood background material's own dedicated sheet (O-029) — placeholder
+  // art kept out of the shared, finished BACKGROUND_TILES_SHEET (see
+  // BackgroundAtlas.ts's `woodCell` doc comment) and threaded into
+  // drawBackgroundTiles as its own trailing image parameter.
+  const backgroundAtlasWoodRef = useRef<HTMLImageElement | null>(null);
   const staticObjectsRef = useRef<HTMLImageElement | null>(null);
   const decorationsRef = useRef<HTMLImageElement | null>(null);
   // The torch animation strip — loaded alongside the other decorative sheets
@@ -702,6 +708,7 @@ export const PlatformerPage = () => {
             originX,
             originY,
             decorationsRef.current,
+            backgroundAtlasWoodRef.current,
           );
         }
         if (groundAtlasRef.current) {
@@ -2534,6 +2541,18 @@ export const PlatformerPage = () => {
         // The background tile layer is purely decorative — it simply won't
         // render if this atlas fails to load; the sky, terrain and the rest
         // of the game still show.
+      });
+    loadImage(BACKGROUND_TILES_WOOD_SHEET.src)
+      .then((img) => {
+        if (cancelled) return;
+        backgroundAtlasWoodRef.current = img;
+        render();
+      })
+      .catch(() => {
+        // Same fallback as the shared background tile layer above — a wood
+        // background cell simply won't draw if this placeholder sheet fails
+        // to load (drawBackgroundTiles skips it silently); everything else
+        // still shows.
       });
     loadImage(STATIC_OBJECTS_SHEET.src)
       .then((img) => {

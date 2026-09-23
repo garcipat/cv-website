@@ -63,6 +63,7 @@ const EMPTY_IMAGES: EditorImages = {
   chestClosed: null,
   checkpoint: null,
   backgroundAtlas: null,
+  backgroundAtlasWood: null,
   staticObjects: null,
   decorations: null,
   torch: null,
@@ -2207,6 +2208,7 @@ describe('EditorCanvas — scaling the shared renderer', () => {
       80, // 40 / 0.5
       40, // 20 / 0.5
       null, // EMPTY_IMAGES leaves decorations null; anything() never matches null
+      null, // EMPTY_IMAGES leaves backgroundAtlasWood null too
     );
     // Entity segment (scaled segment 2) also gets the same divided origin.
     expect(drawPlayerFn).toHaveBeenCalledWith(

@@ -81,6 +81,7 @@ export interface EditorImages {
   chestClosed: HTMLImageElement | null;
   checkpoint: HTMLImageElement | null;
   backgroundAtlas: HTMLImageElement | null;
+  backgroundAtlasWood: HTMLImageElement | null;
   staticObjects: HTMLImageElement | null;
   decorations: HTMLImageElement | null;
   torch: HTMLImageElement | null;
@@ -523,6 +524,7 @@ export const EditorCanvas = ({
         panOffset.x / zoom,
         panOffset.y / zoom,
         images.decorations,
+        images.backgroundAtlasWood,
       );
       ctx.restore();
     }
