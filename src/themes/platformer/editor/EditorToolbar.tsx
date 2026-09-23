@@ -17,7 +17,7 @@ import { BlueprintSelect } from './BlueprintSelect';
 import { EditorSaveDialog, type EditorSaveDialogConfig } from './EditorSaveDialog';
 import { cropLevelForExport } from './cropLevelForExport';
 import { isDevEnvironmentSignal, probeDevEnvironment } from './devEnvironment';
-import { LEVELS_FOLDER } from './saveLevelFile';
+import { LEVELS_FOLDER, levelFileJson } from './saveLevelFile';
 import { BLUEPRINTS_FOLDER } from './saveBlueprintFile';
 import {
   loadBlueprint,
@@ -54,6 +54,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import type { MarkerGrid } from '../level/LevelData';
 import type { BackgroundChar, TileChar } from '../level/LevelParser';
 
 const LEVEL_SAVE_CONFIG: EditorSaveDialogConfig = {
@@ -166,12 +167,11 @@ export interface EditorToolbarProps {
   blueprintDirty: boolean;
   saveResult: SaveResultState | null;
   levelGrid: TileChar[][];
-  /** The level canvas's own background grid — folded into the Export
-   *  dialog's textarea as a second labelled section alongside the
-   *  foreground layout (O-014's storage-unification revision made
-   *  `LEVEL_1_BACKGROUND` a literal `readonly string[]` constant too, the
-   *  same shape `LEVEL_1_LAYOUT` already has, so one copy-pasteable block
-   *  now covers both). */
+  /** The level canvas's own tile meta layer — folded into the Export
+   *  dialog's complete JSON (`levelFileJson`), markers included. */
+  markerGrid: MarkerGrid;
+  /** The level canvas's own background grid — cropped to the same origin as
+   *  the foreground and the markers for the Export dialog's complete JSON. */
   backgroundGrid: BackgroundChar[][];
 }
 
@@ -194,6 +194,7 @@ export const EditorToolbar = ({
   blueprintDirty,
   saveResult,
   levelGrid,
+  markerGrid,
   backgroundGrid,
 }: EditorToolbarProps) => {
   const [isDevEnvironment, setIsDevEnvironment] = useState(isDevEnvironmentSignal.value);
@@ -208,13 +209,17 @@ export const EditorToolbar = ({
     reconcilePersistedEditorState();
   }, []);
 
-  // Both layers share the same crop origin/bounds (cropLevelForExport, the
-  // same alignment `saveCurrentLevel`/`tryLayout` rely on) so the pasted
-  // `LEVEL_1_BACKGROUND` block lines up with `LEVEL_1_LAYOUT` cell-for-cell,
-  // exactly like the shipped constants do in `level.ts`.
-  const cropped = cropLevelForExport(levelGrid, backgroundGrid);
-  const formatRows = (rows: readonly string[]) => rows.map((row) => `  '${row}',`).join('\n');
-  const exportedText = `${formatRows(cropped.layout)}\n// LEVEL_1_BACKGROUND\n${formatRows(cropped.background)}`;
+  // All three layers share the same crop origin/bounds (cropLevelForExport,
+  // the same alignment `saveCurrentLevel`/`tryLayout` rely on). The Export
+  // textarea shows the complete level JSON via the same `levelFileJson` a
+  // save writes (FR-033/FR-034), so the two can never drift apart.
+  const cropped = cropLevelForExport(levelGrid, backgroundGrid, markerGrid);
+  const exportedText = levelFileJson(
+    loadedLevelName,
+    cropped.layout,
+    cropped.background,
+    cropped.markers,
+  );
 
   const openSaveDialog = () => {
     editorSaveResultSignal.value = null;

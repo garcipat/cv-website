@@ -1,4 +1,4 @@
-import type { LevelDef, TileType, BackgroundMaterialId } from './LevelData';
+import type { LevelDef, TileType, BackgroundMaterialId, MarkerEntry } from './LevelData';
 
 export const TILE_SIZE = 16;
 export const RENDER_SCALE = 2;
@@ -155,6 +155,19 @@ export function tileToPixel(col: number, row: number): { x: number; y: number } 
  */
 export function backgroundAt(level: LevelDef, col: number, row: number): BackgroundMaterialId | null {
   const gridRow = level.background?.[row];
+  if (!gridRow) return null;
+  return gridRow[col] ?? null;
+}
+
+/**
+ * The tile meta layer's marker at `(col, row)`, or `null` for an empty cell.
+ * Out-of-bounds, a missing `markers` field, and a grid smaller than the
+ * terrain all resolve to `null`, mirroring `backgroundAt`'s forgiving
+ * contract. A marker is never solid or climbable — it is not a `TileType` at
+ * all, so `tileAt`/`isSolid`/`isClimbable` never see one.
+ */
+export function markerAt(level: LevelDef, col: number, row: number): MarkerEntry | null {
+  const gridRow = level.markers?.[row];
   if (!gridRow) return null;
   return gridRow[col] ?? null;
 }

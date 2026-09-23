@@ -48,6 +48,27 @@ describe('isBlueprint', () => {
     expect(isBlueprint({ id: 'r', name: 'R', layout: ['#'], background: [['dirt']] })).toBe(false);
   });
 
+  it('blueprintWithAValidMarkersField-isAccepted', () => {
+    expect(
+      isBlueprint({
+        id: 'room',
+        name: 'Room',
+        layout: ['#'],
+        markers: [{ col: 0, row: 0, marker: { kind: 'connectionPoint' } }],
+      }),
+    ).toBe(true);
+  });
+
+  it('markersThatIsNotAnArrayOfTypedEntries-isRejected', () => {
+    expect(isBlueprint({ id: 'r', name: 'R', layout: ['#'], markers: 'nope' })).toBe(false);
+    expect(isBlueprint({ id: 'r', name: 'R', layout: ['#'], markers: [{ col: 0, row: 0 }] })).toBe(
+      false,
+    );
+    expect(
+      isBlueprint({ id: 'r', name: 'R', layout: ['#'], markers: [{ col: 'x', row: 0, marker: { kind: 'sign' } }] }),
+    ).toBe(false);
+  });
+
   it('backgroundWithAnUnrecognizedCharacter-isStillAcceptedAtTheShapeLevel', () => {
     // Shape validation only — an unrecognized character is a parseBackgroundLayout
     // concern (it silently reads as empty), not a load-time rejection reason.

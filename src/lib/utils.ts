@@ -48,8 +48,9 @@ export function createDebouncedLocalStorageSignal<T>(
   key: string,
   defaultValue: T,
   delayMs: number,
+  isValid?: (value: unknown) => boolean,
 ): Signal<T> {
-  const stored = readLocalStorage<T>(key);
+  const stored = readLocalStorage<T>(key, isValid);
   const debouncedSignal = signal<T>(stored !== undefined ? stored : defaultValue);
 
   let timer: ReturnType<typeof setTimeout> | undefined;

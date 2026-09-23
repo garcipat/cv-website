@@ -1,5 +1,5 @@
 import { PHYSICS_CONFIG } from '../../../engine/PhysicsConfig';
-import { isSolid, tileAt, RENDER_SCALE, RENDERED_TILE_SIZE } from '../../../level/Terrain';
+import { isSolid, tileAt, markerAt, RENDER_SCALE, RENDERED_TILE_SIZE } from '../../../level/Terrain';
 import type { LevelDef } from '../../../level/LevelData';
 import type { Direction } from '../../geometry';
 import type { SpriteDescriptor } from '../../sprites/SpriteSheet';
@@ -53,7 +53,7 @@ export interface StepHorizontalResult {
  * slime's turn points stay bit-for-bit what they were before the seam
  * (SC-001). Moves at `speed` in `direction`; reverses (snapping so the
  * sprite's VISIBLE leading edge exactly touches the obstacle) at a static
- * solid tile, a `'patrol'` tile or a live `blockedTiles` cell at any row the
+ * solid tile, a `patrolBoundary` marker or a live `blockedTiles` cell at any row the
  * silhouette spans from the anchor row; and, when `checkLedges` is true,
  * reverses at a ledge. If the reversed direction is blocked too (the lane is
  * narrower than the sprite on both sides), stands still rather than flipping
@@ -114,12 +114,16 @@ export function stepHorizontal(params: StepHorizontalParams): StepHorizontalResu
     // (mostly transparent) render frame — same reasoning as sidePadding.
     const visibleHeight = size - topPadding - bottomPadding;
     const rowsSpanned = Math.ceil(visibleHeight / RENDERED_TILE_SIZE);
-    // A `patrol` tile is invisible and never solid (the player walks right
-    // through it), so it has to be checked by name here rather than through
-    // `isSolid` — it is a boundary for enemies only.
+    // A patrol boundary is invisible and never solid (the player walks right
+    // through it), so it has to be read from the tile meta layer rather than
+    // through `isSolid` — it is a boundary for enemies only (FR-021).
     const wallAhead = Array.from({ length: rowsSpanned }, (_, i) => row - i).some((r) => {
       const tile = tileAt(level, leadingCol, r);
-      return tileIsGroundFor(leadingCol, r, tile) || tile === 'patrol' || isBlockedTile(leadingCol, r);
+      return (
+        tileIsGroundFor(leadingCol, r, tile) ||
+        markerAt(level, leadingCol, r)?.kind === 'patrolBoundary' ||
+        isBlockedTile(leadingCol, r)
+      );
     });
     const noGroundAhead =
       checkLedges &&

@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import type { Signal } from '@preact/signals-react';
-import { importLayout } from './importLayout';
-import { LEVEL_1_LAYOUT } from '../level/level';
+import { importLayout, importMarkerGrid } from './importLayout';
+import { LEVEL_1_LAYOUT, LEVEL_1_MARKERS } from '../level/level';
 import { BLANK_BLUEPRINT } from '../level/BlueprintData';
 import {
   EDITOR_STORAGE_DEBOUNCE_MS,
@@ -23,6 +23,9 @@ import {
   editorLevelSignal,
   editorLoadedBlueprintNameSignal,
   editorLoadedLevelNameSignal,
+  editorMarkerGridSignal,
+  editorMarkerSignal,
+  editorBlueprintMarkerSignal,
   editorSaveResultSignal,
   editorSelectedBackgroundMaterialSignal,
   editorSelectedToolSignal,
@@ -122,6 +125,8 @@ describe('editorState — storage-key round-trips (FR-022, SC-006)', () => {
     blueprintBackground: editorBlueprintBackgroundSignal.value,
     loadedBlueprint: editorLoadedBlueprintNameSignal.value,
     armed: editorArmedBlueprintIdSignal.value,
+    levelMarkers: editorMarkerSignal.value,
+    blueprintMarkers: editorBlueprintMarkerSignal.value,
   };
 
   beforeEach(() => {
@@ -141,12 +146,32 @@ describe('editorState — storage-key round-trips (FR-022, SC-006)', () => {
     editorBlueprintBackgroundSignal.value = originals.blueprintBackground;
     editorLoadedBlueprintNameSignal.value = originals.loadedBlueprint;
     editorArmedBlueprintIdSignal.value = originals.armed;
+    editorMarkerSignal.value = originals.levelMarkers;
+    editorBlueprintMarkerSignal.value = originals.blueprintMarkers;
     vi.advanceTimersByTime(EDITOR_STORAGE_DEBOUNCE_MS);
     vi.useRealTimers();
   });
 
   it('editorLevelSignal-persistsUnderPlatformerEditorLevel', () => {
     expectRoundTrip(editorLevelSignal, 'platformer-editor-level', importLayout(['GGG']), true);
+  });
+
+  it('editorMarkerSignal-persistsUnderPlatformerEditorMarkers', () => {
+    expectRoundTrip(
+      editorMarkerSignal,
+      'platformer-editor-markers',
+      [[{ kind: 'patrolBoundary' }, null]],
+      true,
+    );
+  });
+
+  it('editorBlueprintMarkerSignal-persistsUnderPlatformerEditorBlueprintMarkers', () => {
+    expectRoundTrip(
+      editorBlueprintMarkerSignal,
+      'platformer-editor-blueprint-markers',
+      [[null, { kind: 'connectionPoint' }]],
+      true,
+    );
   });
 
   it('editorSelectedToolSignal-persistsUnderPlatformerEditorSelectedTool', () => {
@@ -223,6 +248,8 @@ describe('editorState — derived signals', () => {
     blueprint: editorBlueprintSignal.value,
     levelBackground: editorBackgroundSignal.value,
     blueprintBackground: editorBlueprintBackgroundSignal.value,
+    levelMarkers: editorMarkerSignal.value,
+    blueprintMarkers: editorBlueprintMarkerSignal.value,
     levelDirty: editorDirtySignal.value,
     blueprintDirty: editorBlueprintDirtySignal.value,
   };
@@ -233,6 +260,8 @@ describe('editorState — derived signals', () => {
     editorBlueprintSignal.value = originals.blueprint;
     editorBackgroundSignal.value = originals.levelBackground;
     editorBlueprintBackgroundSignal.value = originals.blueprintBackground;
+    editorMarkerSignal.value = originals.levelMarkers;
+    editorBlueprintMarkerSignal.value = originals.blueprintMarkers;
     editorDirtySignal.value = originals.levelDirty;
     editorBlueprintDirtySignal.value = originals.blueprintDirty;
   });
@@ -241,11 +270,13 @@ describe('editorState — derived signals', () => {
     editorCanvasModeSignal.value = 'level';
     editorLevelSignal.value = importLayout(['GG']);
     editorBackgroundSignal.value = [['d', '.']];
+    editorMarkerSignal.value = [[{ kind: 'patrolBoundary' }, null]];
     editorDirtySignal.value = true;
 
     expect(editorIsBlueprintModeSignal.value).toBe(false);
     expect(editorGridSignal.value).toEqual(importLayout(['GG']));
     expect(editorBackgroundGridSignal.value).toEqual([['d', '.']]);
+    expect(editorMarkerGridSignal.value).toEqual([[{ kind: 'patrolBoundary' }, null]]);
     expect(editorActiveDirtySignal.value).toBe(true);
   });
 
@@ -253,13 +284,46 @@ describe('editorState — derived signals', () => {
     editorCanvasModeSignal.value = 'blueprint';
     editorBlueprintSignal.value = importLayout(['##']);
     editorBlueprintBackgroundSignal.value = [['c']];
+    editorBlueprintMarkerSignal.value = [[null, { kind: 'connectionPoint' }]];
     editorBlueprintDirtySignal.value = true;
     editorDirtySignal.value = false;
 
     expect(editorIsBlueprintModeSignal.value).toBe(true);
     expect(editorGridSignal.value).toEqual(importLayout(['##']));
     expect(editorBackgroundGridSignal.value).toEqual([['c']]);
+    expect(editorMarkerGridSignal.value).toEqual([[null, { kind: 'connectionPoint' }]]);
     expect(editorActiveDirtySignal.value).toBe(true);
+  });
+});
+
+describe('editorState — persisted marker grid validation', () => {
+  // The marker signals are created at module load, so their creation-time
+  // forgiving fallback can only be exercised by re-importing the module after
+  // seeding localStorage. `vi.resetModules()` gives each test a fresh signal
+  // without disturbing the statically-imported signals the other describes use.
+  beforeEach(() => {
+    localStorage.clear();
+    vi.resetModules();
+  });
+
+  it('aStoredMarkerGrid-withNoValue-fallsBackToTheDefault', async () => {
+    const { editorMarkerSignal } = await import('./editorState');
+    expect(editorMarkerSignal.value).toEqual(importMarkerGrid(LEVEL_1_LAYOUT, LEVEL_1_MARKERS));
+  });
+
+  it('aStoredMarkerGrid-withAMalformedValue-isRejectedInFavourOfTheDefault', async () => {
+    localStorage.setItem('platformer-editor-markers', JSON.stringify([['not-a-marker']]));
+    const { editorMarkerSignal } = await import('./editorState');
+    expect(editorMarkerSignal.value).toEqual(importMarkerGrid(LEVEL_1_LAYOUT, LEVEL_1_MARKERS));
+  });
+
+  it('aStoredMarkerGrid-withAValidValue-isUsed', async () => {
+    localStorage.setItem(
+      'platformer-editor-markers',
+      JSON.stringify([[{ kind: 'patrolBoundary' }, null]]),
+    );
+    const { editorMarkerSignal } = await import('./editorState');
+    expect(editorMarkerSignal.value).toEqual([[{ kind: 'patrolBoundary' }, null]]);
   });
 });
 

@@ -17,9 +17,11 @@ import {
   editorLevelSignal,
   editorLoadedBlueprintNameSignal,
   editorLoadedLevelNameSignal,
+  editorMarkerSignal,
   editorSelectedBackgroundMaterialSignal,
   editorSelectedToolSignal,
 } from './editorState';
+import { levelFileJson } from './saveLevelFile';
 import { isDevEnvironmentSignal } from './devEnvironment';
 
 vi.mock('../engine/SpriteLoader', () => ({
@@ -161,19 +163,29 @@ describe('EditorToolbar — per-canvas adaptation', () => {
   });
 });
 
-describe('EditorToolbar — export dialog background section', () => {
-  it('exportOutput-includesALabelledBackgroundSectionAlongsideTheForegroundLayout', async () => {
+describe('EditorToolbar — export dialog complete JSON', () => {
+  it('exportOutput-showsTheCompleteLevelJsonWithAllThreeLayers', async () => {
     editorLevelSignal.value = importLayout(['G#']);
     editorBackgroundSignal.value = [['d', 'c']];
+    editorMarkerSignal.value = [[{ kind: 'patrolBoundary' }, null]];
     render(<LevelEditorPage />);
 
     await userEvent.click(levelEditorPage.toolbar.export);
     const textarea = (await levelEditorPage.exportDialog.findOutput()) as HTMLTextAreaElement;
 
-    // One textarea, two paste-ready blocks: the foreground layout first,
-    // then a comment marking where LEVEL_1_BACKGROUND's own rows start —
-    // cropped to the SAME origin/bounds as the foreground layout above it.
-    expect(textarea.value).toBe("  'G#',\n// LEVEL_1_BACKGROUND\n  'dc',");
+    // The textarea holds the same `levelFileJson` a save writes, so the two
+    // can never drift apart (FR-033/FR-034).
+    expect(textarea.value).toBe(
+      levelFileJson('main', ['G#'], ['dc'], [
+        { col: 0, row: 0, marker: { kind: 'patrolBoundary' } },
+      ]),
+    );
+    expect(JSON.parse(textarea.value)).toEqual({
+      name: 'main',
+      layout: ['G#'],
+      background: ['dc'],
+      markers: [{ col: 0, row: 0, marker: { kind: 'patrolBoundary' } }],
+    });
   });
 });
 

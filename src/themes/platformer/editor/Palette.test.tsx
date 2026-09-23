@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { render, screen, fireEvent, within, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Palette } from './Palette';
 import { TERRAIN_CHARS, ENTITY_CHARS } from '../level/LevelParser';
@@ -37,19 +37,27 @@ const defaultProps = {
 };
 
 describe('Palette', () => {
-  it('renders one tile for every terrain char (excluding "."), every entity char, one representative Sign tile, one tile per Hazard kind, and the Eraser', () => {
+  it('renders one tile per Terrain/Decoration/Entity char, one Sign tile, one tile per Hazard kind, and the marker/Eraser tools', () => {
     render(<Palette {...defaultProps} />);
-    // '.' is the Eraser, counted separately below; '+' is the blueprint
-    // connection point, offered only on the blueprint canvas (step 44b) and
-    // never from the Terrain group in either mode.
-    const terrainCount = Object.keys(TERRAIN_CHARS).filter((k) => k !== '.' && k !== '+').length;
+    // The seven decorative chars (including the decorative `⊤`) live in the
+    // Decoration group, not Terrain; '.' is the Eraser.
+    const DECORATION_CHARS = ['n', 'N', 'X', 'c', '⊤', '⊥', '¥', 's'];
+    const terrainCount = Object.keys(TERRAIN_CHARS).filter(
+      (k) => k !== '.' && !DECORATION_CHARS.includes(k),
+    ).length;
+    const decorationCount = DECORATION_CHARS.length;
     const entityCount = Object.keys(ENTITY_CHARS).length;
-    // +1 for the single representative Sign tile, +4 for one tile per hazard
-    // KIND (static spike, floor spear — O-020, floor spike — O-021, falling
-    // stalactite — O-027), +1 for the Eraser tile.
+    // One tile per hazard KIND (static spike, floor spear — O-020, floor
+    // spike — O-021) plus the falling-stalactite marker tool, which lives
+    // here beside the hazards it behaves like.
+    const hazardCount = 4;
+    // The Tools group: Sign, Patrol Boundary, and the Eraser.
+    const toolCount = 3;
     // +5 for the collapsible group triggers (Terrain, Decoration, Entities,
     // Hazards, Tools) — no Blueprints group with an empty registry.
-    expect(screen.getAllByRole('button')).toHaveLength(terrainCount + entityCount + 1 + 4 + 1 + 5);
+    expect(screen.getAllByRole('button')).toHaveLength(
+      terrainCount + decorationCount + entityCount + hazardCount + toolCount + 5,
+    );
   });
 
   it('renders a "Palette" title', () => {
@@ -171,14 +179,16 @@ describe('Palette — subtitle groups', () => {
   it('hazardsGroup-containsExactlyOneTilePerHazardKind', () => {
     // One button per hazard kind: Spike (whose canvas click auto-detects a
     // facing and cycles it), Floor Spear (a single fixed orientation), Floor
-    // Spike (also a single fixed orientation, O-021), and Falling Stalactite
-    // (single orientation, O-027).
+    // Spike (also a single fixed orientation, O-021) and the falling
+    // stalactite marker tool, which lives here beside them.
     render(<Palette {...defaultProps} />);
     const hazardsGroup = palette.group('hazards');
     expect(within(hazardsGroup).getByTestId('editor-palette-tile-^')).toBeInTheDocument();
     expect(within(hazardsGroup).getByTestId('editor-palette-tile-¦')).toBeInTheDocument();
     expect(within(hazardsGroup).getByTestId('editor-palette-tile-A')).toBeInTheDocument();
-    expect(within(hazardsGroup).getByTestId('editor-palette-tile-T')).toBeInTheDocument();
+    expect(
+      within(hazardsGroup).getByTestId('editor-palette-tile-fallingStalactite'),
+    ).toBeInTheDocument();
     // The four hazard tiles plus the group's own collapsible trigger.
     expect(within(hazardsGroup).getAllByRole('button')).toHaveLength(5);
   });
@@ -229,7 +239,9 @@ describe('Palette — blueprint connection point tool', () => {
   it('blueprintCanvasMode-offersTheConnectionPointToolInTheToolsGroup', () => {
     render(<Palette {...defaultProps} canvasMode="blueprint" />);
 
-    expect(within(toolsGroup()).getByTestId('editor-palette-tile-+')).toBeInTheDocument();
+    expect(
+      within(toolsGroup()).getByTestId('editor-palette-tile-connectionPoint'),
+    ).toBeInTheDocument();
   });
 
   it('levelCanvasMode-doesNotOfferTheConnectionPointToolAtAll', () => {
@@ -237,7 +249,7 @@ describe('Palette — blueprint connection point tool', () => {
     // level it would be an inert marker nothing downstream reads (step 44b).
     render(<Palette {...defaultProps} canvasMode="level" />);
 
-    expect(palette.queryTile('+')).not.toBeInTheDocument();
+    expect(palette.queryTile('connectionPoint')).not.toBeInTheDocument();
   });
 
   // Deliberately NOT named `omittedCanvasMode-behavesLikeLevelMode`: that exact
@@ -247,7 +259,7 @@ describe('Palette — blueprint connection point tool', () => {
   it('omittedCanvasMode-offersNoConnectionPointToolEither', () => {
     render(<Palette {...defaultProps} />);
 
-    expect(palette.queryTile('+')).not.toBeInTheDocument();
+    expect(palette.queryTile('connectionPoint')).not.toBeInTheDocument();
   });
 
   it('blueprintCanvasMode-keepsTheConnectionPointOutOfTheTerrainGroup', () => {
@@ -256,17 +268,17 @@ describe('Palette — blueprint connection point tool', () => {
     render(<Palette {...defaultProps} canvasMode="blueprint" />);
 
     expect(
-      within(palette.group('terrain')).queryByTestId('editor-palette-tile-+'),
+      within(palette.group('terrain')).queryByTestId('editor-palette-tile-connectionPoint'),
     ).not.toBeInTheDocument();
   });
 
-  it('blueprintCanvasMode-clickingTheConnectionPointTool-armsItsCharacter', async () => {
+  it('blueprintCanvasMode-clickingTheConnectionPointTool-armsItsTool', async () => {
     const onSelectTool = vi.fn();
     render(<Palette {...defaultProps} canvasMode="blueprint" onSelectTool={onSelectTool} />);
 
-    await userEvent.click(palette.tile('+'));
+    await userEvent.click(palette.tile('connectionPoint'));
 
-    expect(onSelectTool).toHaveBeenCalledWith('+');
+    expect(onSelectTool).toHaveBeenCalledWith('connectionPoint');
   });
 
   it('blueprintCanvasMode-theEraserStaysTheLastToolInTheGroup', () => {
@@ -274,6 +286,42 @@ describe('Palette — blueprint connection point tool', () => {
 
     const tiles = within(toolsGroup()).getAllByTestId(/^editor-palette-tile-/);
     expect(tiles.at(-1)).toHaveAccessibleName('Eraser');
+  });
+});
+
+describe('Palette — marker tools', () => {
+  it('patrolBoundaryTool-appearsOnBothCanvases', () => {
+    render(<Palette {...defaultProps} canvasMode="level" />);
+    expect(
+      within(palette.group('tools')).getByTestId('editor-palette-tile-patrolBoundary'),
+    ).toBeInTheDocument();
+    cleanup();
+    render(<Palette {...defaultProps} canvasMode="blueprint" />);
+    expect(
+      within(palette.group('tools')).getByTestId('editor-palette-tile-patrolBoundary'),
+    ).toBeInTheDocument();
+  });
+
+  it('signTool-isTheUniformSignCharacterInTheToolsGroup', () => {
+    render(<Palette {...defaultProps} />);
+    expect(within(palette.group('tools')).getByTestId('editor-palette-tile-T')).toBeInTheDocument();
+  });
+
+  it('decorativeStalactite-isInDecorationAndFallingStalactite-inHazards', () => {
+    render(<Palette {...defaultProps} />);
+    expect(
+      within(palette.group('decoration')).getByTestId('editor-palette-tile-⊤'),
+    ).toBeInTheDocument();
+    expect(
+      within(palette.group('hazards')).getByTestId('editor-palette-tile-fallingStalactite'),
+    ).toBeInTheDocument();
+  });
+
+  it('clickingTheFallingStalactiteTool-armsIt', async () => {
+    const onSelectTool = vi.fn();
+    render(<Palette {...defaultProps} onSelectTool={onSelectTool} />);
+    await userEvent.click(palette.tile('fallingStalactite'));
+    expect(onSelectTool).toHaveBeenCalledWith('fallingStalactite');
   });
 });
 

@@ -1,7 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { placeBlueprint, rebaseBlueprintBackground } from './placeBlueprint';
+import {
+  placeBlueprint,
+  placeBlueprintMarkers,
+  blueprintMarkers,
+  rebaseBlueprintBackground,
+} from './placeBlueprint';
 import { blueprintCells } from './blueprintCells';
 import type { TileChar, BackgroundChar } from '../level/LevelParser';
+import type { MarkerGrid } from '../level/LevelData';
 
 const EMPTY_3X3: TileChar[][] = [
   ['.', '.', '.'],
@@ -99,11 +105,53 @@ describe('placeBlueprint — growing right and down', () => {
   });
 });
 
-describe('placeBlueprint — characters', () => {
-  it('connectionPointCells-areStampedAsOrdinaryCellsNotStripped', () => {
-    // Design: every non-'.' cell is written, '+' included; a placed connection
-    // point simply becomes ordinary occupied terrain.
-    expect(placeBlueprint([['.']], blueprintCells(['+']), 0, 0).grid).toEqual([['+']]);
+describe('placeBlueprint — markers', () => {
+  it('connectionPointMarkers-areStampedAtTheAnchor', () => {
+    const markers: MarkerGrid = [[null, null], [null, null]];
+    const result = placeBlueprintMarkers(
+      markers,
+      [{ row: 0, col: 0, marker: { kind: 'connectionPoint' } }],
+      1,
+      1,
+    );
+    expect(result[1][1]).toEqual({ kind: 'connectionPoint' });
+  });
+
+  it('anExistingMarkerAtTheTarget-isReplaced', () => {
+    const markers: MarkerGrid = [[{ kind: 'patrolBoundary' }]];
+    const result = placeBlueprintMarkers(
+      markers,
+      [{ row: 0, col: 0, marker: { kind: 'connectionPoint' } }],
+      0,
+      0,
+    );
+    expect(result[0][0]).toEqual({ kind: 'connectionPoint' });
+  });
+
+  it('aSmallerMarkerGrid-isPaddedToFitThePlacement', () => {
+    const result = placeBlueprintMarkers(
+      [],
+      [{ row: 2, col: 3, marker: { kind: 'fallingStalactite' } }],
+      0,
+      0,
+    );
+    expect(result).toHaveLength(3);
+    expect(result[2][3]).toEqual({ kind: 'fallingStalactite' });
+  });
+
+  it('blueprintMarkers-liftsALegacyLayoutMarkerAndItsStoredMarkers', () => {
+    expect(
+      blueprintMarkers({ id: 'r', name: 'Room', layout: ['P.'] }),
+    ).toEqual([{ row: 0, col: 0, marker: { kind: 'patrolBoundary' } }]);
+
+    expect(
+      blueprintMarkers({
+        id: 'r',
+        name: 'Room',
+        layout: ['.'],
+        markers: [{ col: 0, row: 0, marker: { kind: 'connectionPoint' } }],
+      }),
+    ).toEqual([{ row: 0, col: 0, marker: { kind: 'connectionPoint' } }]);
   });
 
   it('aBlueprintWithNoCells-leavesTheGridExactlyAsItWas', () => {

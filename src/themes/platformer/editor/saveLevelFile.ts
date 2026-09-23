@@ -1,4 +1,5 @@
 import { LEVELS_FOLDER, SAVE_LEVEL_ENDPOINT } from './saveLevelEndpoint';
+import type { MarkerPlacement } from '../level/LevelData';
 
 export { LEVELS_FOLDER };
 
@@ -40,9 +41,15 @@ export const levelFileJson = (
   name: string,
   layout: readonly string[],
   background: readonly string[],
+  markers: readonly MarkerPlacement[] = [],
 ): string =>
   `${JSON.stringify(
-    { name, layout, ...(hasBackgroundContent(background) ? { background } : {}) },
+    {
+      name,
+      layout,
+      ...(hasBackgroundContent(background) ? { background } : {}),
+      ...(markers.length > 0 ? { markers } : {}),
+    },
     null,
     2,
   )}\n`;
@@ -81,6 +88,7 @@ export const saveLevel = async (
   name: string,
   layout: readonly string[],
   background: readonly string[],
+  markers: readonly MarkerPlacement[] = [],
 ): Promise<SaveLevelResult> => {
   try {
     const response = await fetch(SAVE_LEVEL_ENDPOINT, {
@@ -88,7 +96,7 @@ export const saveLevel = async (
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         fileName: levelFileName(name),
-        contents: levelFileJson(name, layout, background),
+        contents: levelFileJson(name, layout, background, markers),
       }),
     });
     const body = (await response.json()) as { path?: string; error?: string };
@@ -97,11 +105,11 @@ export const saveLevel = async (
       return { written: true, path: body.path };
     }
 
-    downloadLevelFile(name, layout, background);
+    downloadLevelFile(name, layout, background, markers);
     return body.error === undefined ? { written: false } : { written: false, error: body.error };
   } catch {
     // No dev server behind this page at all (built site, or served statically).
-    downloadLevelFile(name, layout, background);
+    downloadLevelFile(name, layout, background, markers);
     return { written: false };
   }
 };
@@ -110,8 +118,11 @@ export const downloadLevelFile = (
   name: string,
   layout: readonly string[],
   background: readonly string[],
+  markers: readonly MarkerPlacement[] = [],
 ): void => {
-  const blob = new Blob([levelFileJson(name, layout, background)], { type: 'application/json' });
+  const blob = new Blob([levelFileJson(name, layout, background, markers)], {
+    type: 'application/json',
+  });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;

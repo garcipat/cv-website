@@ -89,7 +89,13 @@ import { SPIKE_COOLDOWN_DURATION_SECONDS } from './entities/enemies/SlimePurple'
 import { PHYSICS_CONFIG } from './engine/PhysicsConfig';
 import { FLOOR_SPIKE_DELAY_SECONDS, FLOOR_SPIKE_WARNING_SECONDS } from './engine/FloorSpike';
 import { tileToPixel, RENDERED_TILE_SIZE, isClimbable, tileAt } from './level/Terrain';
-import { currentLevel, currentLayout, currentBackgroundLayout, SCRATCH_LAYOUT } from './level/level';
+import {
+  currentLevel,
+  currentLayout,
+  currentBackgroundLayout,
+  currentMarkers,
+  SCRATCH_LAYOUT,
+} from './level/level';
 import type { LevelDef, TileType } from './level/LevelData';
 import { setSpearTipMask } from './entities/hazards/SpearArt';
 import type { SpearMask } from './entities/hazards/SpearArt';
@@ -152,6 +158,7 @@ const originalLocation = window.location;
 // default level.
 const initialLayout = currentLayout.value;
 const initialBackground = currentBackgroundLayout.value;
+const initialMarkers = currentMarkers.value;
 
 /** The first tile of `type` in reading order that also satisfies `also`, so
  *  level-driven tests name the terrain they need instead of pinning the
@@ -268,6 +275,7 @@ describe('PlatformerPage', () => {
     playerState.value = initialPlayerState;
     currentLayout.value = initialLayout;
     currentBackgroundLayout.value = initialBackground;
+    currentMarkers.value = initialMarkers;
     cameraPositionX.value = 0;
     cameraPositionY.value = 0;
     lifecycleState.value = initialLifecycleState;
@@ -6561,8 +6569,13 @@ describe('PlatformerPage', () => {
   describe('falling stalactite (O-027)', () => {
     // Hazard at (1,2), ground at row 4 — its detection zone is columns 0-2,
     // row 3, so a player standing on the floor directly beneath it is inside.
-    const LAYOUT = ['S...', '....', '.T..', '....', 'GGGG'];
+    // The `⊤` tile plus a `fallingStalactite` marker (the tile meta layer).
+    const LAYOUT = ['S...', '....', '.⊤..', '....', 'GGGG'];
     const GROUND_ROW = 4;
+
+    beforeEach(() => {
+      currentMarkers.value = [{ col: 1, row: 2, marker: { kind: 'fallingStalactite' } }];
+    });
 
     function mountPage(): (t: number) => void {
       let frameCallback: FrameRequestCallback | null = null;
@@ -6671,7 +6684,7 @@ describe('PlatformerPage', () => {
 
     it('neverAffectsAnEnemy', () => {
       // Enemy sits in the hazard's fall path; only the player may be hurt.
-      currentLayout.value = ['S...', '....', '.T..', '.M..', 'GGGG'];
+      currentLayout.value = ['S...', '....', '.⊤..', '.M..', 'GGGG'];
       const frame = mountPage();
       const hazard = hazardPlacements.value[0];
       const enemiesBefore = enemyStates.value.map((e) => ({ id: e.id, alive: e.alive, hitPoints: e.hitPoints }));
@@ -6727,7 +6740,7 @@ describe('PlatformerPage', () => {
     it('noStandableCellBelow-despawnsOffTheBottomWithoutDebris', () => {
       // Ground exists under the player's flanking column only — nothing
       // standable in the hazard's own column, so it falls off the bottom.
-      currentLayout.value = ['S...', '.T..', '....', 'G..G'];
+      currentLayout.value = ['S...', '.⊤..', '....', 'G..G'];
       const frame = mountPage();
       const hazard = hazardPlacements.value[0];
 
@@ -6742,6 +6755,54 @@ describe('PlatformerPage', () => {
       expect(activeDebrisEffects.value.filter((e) => e.id.startsWith('stalactite-'))).toEqual([]);
       const merged = hazardPlacementsForTick().find((h) => h.id === hazard.id)!;
       expect(merged.fallingStalactitePhase).toBe('gone');
+    });
+  });
+
+  describe('PlatformerPage — tile meta layer (S-030)', () => {
+    it('aSignMarkersHintDrivesTheInGameBubble', () => {
+      currentLayout.value = ['S.T', 'GGG'];
+      currentMarkers.value = [{ col: 2, row: 0, marker: { kind: 'sign', hintId: 'bomb' } }];
+      expect(signPlacements.value).toEqual([
+        expect.objectContaining({ hintId: 'bomb' }),
+      ]);
+    });
+
+    it('aBareTWithNoSignMarkerFallsBackToTheDefaultHint', () => {
+      currentLayout.value = ['S.T', 'GGG'];
+      currentMarkers.value = [];
+      expect(signPlacements.value[0].hintId).toBe('bridgeDropThrough');
+    });
+
+    it('aPatrolBoundaryMarkerTurnsAnEnemyWithoutBlockingThePlayer', () => {
+      // The enemy walks right toward the marker at col 3; the player can stand
+      // on the marked cell, because a marker is not terrain.
+      currentLayout.value = ['S..M..', 'GGGGGG'];
+      currentMarkers.value = [{ col: 3, row: 0, marker: { kind: 'patrolBoundary' } }];
+
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+      render(<PlatformerPage />);
+      frameCallback!(0);
+
+      const enemy = () => enemyStates.value[0];
+      const startingDirection = enemy().direction;
+      for (let t = 16; t <= 3000; t += 16) frameCallback!(t);
+      expect(enemy().direction).not.toBe(startingDirection);
+
+      // The player is not blocked by the marker's cell: standing on it is fine.
+      playerState.value = {
+        ...playerState.value,
+        x: 3 * RENDERED_TILE_SIZE,
+        y: 0,
+        vx: 0,
+        vy: 0,
+        grounded: true,
+      };
+      expect(currentLevel.value.markers?.[0]?.[3]).toEqual({ kind: 'patrolBoundary' });
     });
   });
 });

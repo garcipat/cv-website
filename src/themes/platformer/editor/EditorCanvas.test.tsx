@@ -12,6 +12,7 @@ import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import { centerPanOnSpawn } from './EditorPan';
 import { levelEditorPage } from './LevelEditorPage.page';
 import type { TileChar, BackgroundChar } from '../level/LevelParser';
+import type { MarkerEntry } from '../level/LevelData';
 import type { EditorImages } from './EditorCanvas';
 import { COIN_SHEET, STATIC_OBJECTS_SHEET, SPEAR_SHEET, BEE_SHEET } from '../entities/sprites/sheets';
 import { PALETTE_TILE_SPRITES } from './paletteTiles';
@@ -866,8 +867,9 @@ describe('EditorCanvas patrol markers', () => {
     render(
       <EditorCanvas
         {...BACKGROUND_LAYER_DEFAULT_PROPS}
-        grid={[['P']]}
-        selectedTool="P"
+        grid={[['.']]}
+        markerGrid={[[{ kind: 'patrolBoundary' }]]}
+        selectedTool="patrolBoundary"
         panOffset={{ x: 0, y: 0 }}
         images={EMPTY_IMAGES}
         onPaint={() => {}}
@@ -889,8 +891,9 @@ describe('EditorCanvas patrol markers', () => {
     render(
       <EditorCanvas
         {...BACKGROUND_LAYER_DEFAULT_PROPS}
-        grid={[['P']]}
-        selectedTool="P"
+        grid={[['.']]}
+        markerGrid={[[{ kind: 'patrolBoundary' }]]}
+        selectedTool="patrolBoundary"
         panOffset={{ x: 100, y: 40 }}
         images={EMPTY_IMAGES}
         onPaint={() => {}}
@@ -933,7 +936,8 @@ describe('EditorCanvas overlay drawing at non-100% zoom', () => {
         // `0 * zoom + origin === origin` regardless of whether `* zoom` is
         // even applied. Column 1 (world x = RENDERED_TILE_SIZE) is the
         // smallest grid that actually exercises the position-scaling term.
-        grid={[['.', 'P']]}
+        grid={[['.', '.']]}
+        markerGrid={[[null, { kind: 'patrolBoundary' }]]}
         selectedTool="."
         panOffset={{ x: 100, y: 40 }}
         zoom={0.5}
@@ -1040,7 +1044,8 @@ describe('EditorCanvas overlay drawing at non-100% zoom', () => {
     render(
       <EditorCanvas
         {...BACKGROUND_LAYER_DEFAULT_PROPS}
-        grid={[['P']]}
+        grid={[['.']]}
+        markerGrid={[[{ kind: 'patrolBoundary' }]]}
         selectedTool="."
         panOffset={{ x: 0, y: 0 }}
         zoom={0.5}
@@ -1064,7 +1069,8 @@ describe('EditorCanvas overlay drawing at non-100% zoom', () => {
     render(
       <EditorCanvas
         {...BACKGROUND_LAYER_DEFAULT_PROPS}
-        grid={[['P']]}
+        grid={[['.']]}
+        markerGrid={[[{ kind: 'patrolBoundary' }]]}
         selectedTool="."
         panOffset={{ x: 0, y: 0 }}
         zoom={0.5}
@@ -1090,7 +1096,8 @@ describe('EditorCanvas overlay drawing at non-100% zoom', () => {
     render(
       <EditorCanvas
         {...BACKGROUND_LAYER_DEFAULT_PROPS}
-        grid={[['1']]}
+        grid={[['T']]}
+        markerGrid={[[{ kind: 'sign', hintId: 'bridgeDropThrough' }]]}
         selectedTool="."
         panOffset={{ x: 0, y: 0 }}
         zoom={0.5}
@@ -1136,7 +1143,8 @@ describe('EditorCanvas overlay drawing at non-100% zoom', () => {
     render(
       <EditorCanvas
         {...BACKGROUND_LAYER_DEFAULT_PROPS}
-        grid={[['P']]}
+        grid={[['.']]}
+        markerGrid={[[{ kind: 'patrolBoundary' }]]}
         selectedTool="."
         panOffset={{ x: 0, y: 0 }}
         images={EMPTY_IMAGES}
@@ -1159,8 +1167,9 @@ describe('EditorCanvas blueprint connection point markers', () => {
     render(
       <EditorCanvas
         {...BACKGROUND_LAYER_DEFAULT_PROPS}
-        grid={[['+']]}
-        selectedTool="+"
+        grid={[['.']]}
+        markerGrid={[[{ kind: 'connectionPoint' }]]}
+        selectedTool="connectionPoint"
         panOffset={{ x: 0, y: 0 }}
         images={EMPTY_IMAGES}
         onPaint={() => {}}
@@ -1182,8 +1191,9 @@ describe('EditorCanvas blueprint connection point markers', () => {
     render(
       <EditorCanvas
         {...BACKGROUND_LAYER_DEFAULT_PROPS}
-        grid={[['+']]}
-        selectedTool="+"
+        grid={[['.']]}
+        markerGrid={[[{ kind: 'connectionPoint' }]]}
+        selectedTool="connectionPoint"
         panOffset={{ x: 100, y: 40 }}
         images={EMPTY_IMAGES}
         onPaint={() => {}}
@@ -1224,8 +1234,9 @@ describe('EditorCanvas blueprint connection point markers', () => {
     render(
       <EditorCanvas
         {...BACKGROUND_LAYER_DEFAULT_PROPS}
-        grid={[['P', '+']]}
-        selectedTool="+"
+        grid={[['.', '.']]}
+        markerGrid={[[{ kind: 'patrolBoundary' }, { kind: 'connectionPoint' }]]}
+        selectedTool="connectionPoint"
         panOffset={{ x: 0, y: 0 }}
         images={EMPTY_IMAGES}
         onPaint={() => {}}
@@ -1789,7 +1800,7 @@ describe('EditorCanvas — placement clicks (step 44c)', () => {
 
 describe('EditorCanvas — placement preview (step 44c)', () => {
   const previewProps = (preview: {
-    cells: { row: number; col: number; char?: TileChar }[];
+    cells: { row: number; col: number; char?: TileChar; marker?: MarkerEntry }[];
     valid: boolean;
   }) => ({
     ...BACKGROUND_LAYER_DEFAULT_PROPS,
@@ -1800,7 +1811,12 @@ describe('EditorCanvas — placement preview (step 44c)', () => {
     onPan: () => {},
     placement: {
       preview: {
-        cells: preview.cells.map(({ row, col, char = 'R' as TileChar }) => ({ row, col, char })),
+        cells: preview.cells.map(({ row, col, char = 'R' as TileChar, marker }) => ({
+          row,
+          col,
+          char,
+          ...(marker ? { marker } : {}),
+        })),
         valid: preview.valid,
       },
       onHover: () => {},
@@ -1911,7 +1927,7 @@ describe('EditorCanvas — placement preview (step 44c)', () => {
         {...previewProps({
           cells: [
             { row: 0, col: 0, char: 'R' as TileChar },
-            { row: 0, col: 1, char: '+' as TileChar },
+            { row: 0, col: 1, marker: { kind: 'connectionPoint' } },
           ],
           valid: true,
         })}
@@ -1963,7 +1979,7 @@ describe('EditorCanvas — cave lighting preview (O-015 US3)', () => {
   const CAVE_BACKGROUND: BackgroundChar[][] = [['c']];
   const SPAWN_IN_CAVE_GRID: TileChar[][] = [
     ['.', '.', '¥'],
-    ['.', 'S', 'P'],
+    ['.', 'S', '.'],
     ['.', '.', '.'],
   ];
 
@@ -2145,7 +2161,18 @@ describe('EditorCanvas — cave lighting preview (O-015 US3)', () => {
       order.push('text');
     });
 
-    render(<EditorCanvas {...previewProps()} />);
+    // A marker on the grid so the affordance re-draw actually paints text.
+    render(
+      <EditorCanvas
+        {...previewProps({
+          markerGrid: [
+            [null, null, null],
+            [null, null, { kind: 'patrolBoundary' }],
+            [null, null, null],
+          ],
+        })}
+      />,
+    );
 
     expect(order).toContain('darkness');
     // The affordances are re-drawn after the darkness overlay so they stay
@@ -2409,9 +2436,9 @@ describe('EditorCanvas zoom controls', () => {
 });
 
 describe('EditorCanvas falling-stalactite tint (O-027)', () => {
-  const TINT = PALETTE_TILE_SPRITES['T']!.tint!;
+  const TINT = PALETTE_TILE_SPRITES.fallingStalactite!.tint!;
 
-  it('tintsEveryTCellWithTheEditorOnlyReddishWashAndNoGlyph', () => {
+  it('tintsEveryFallingMarkerCellWithTheEditorOnlyReddishWashAndNoGlyph', () => {
     const ctx = stubCanvasContext() as unknown as {
       fillRect: ReturnType<typeof vi.fn>;
       fillText: ReturnType<typeof vi.fn>;
@@ -2422,8 +2449,9 @@ describe('EditorCanvas falling-stalactite tint (O-027)', () => {
     render(
       <EditorCanvas
         {...BACKGROUND_LAYER_DEFAULT_PROPS}
-        grid={[['T']]}
-        selectedTool="T"
+        grid={[['⊤']]}
+        markerGrid={[[{ kind: 'fallingStalactite' }]]}
+        selectedTool="fallingStalactite"
         panOffset={{ x: 0, y: 0 }}
         images={TINT_IMAGES}
         onPaint={() => {}}
@@ -2467,14 +2495,15 @@ describe('EditorCanvas falling-stalactite tint (O-027)', () => {
     ).toBeUndefined();
   });
 
-  it('offsetsTheTTintByThePanOffsetAndZoom', () => {
+  it('offsetsTheFallingTintByThePanOffsetAndZoom', () => {
     const ctx = stubCanvasContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
 
     render(
       <EditorCanvas
         {...BACKGROUND_LAYER_DEFAULT_PROPS}
-        grid={[['.', 'T']]}
-        selectedTool="T"
+        grid={[['.', '⊤']]}
+        markerGrid={[[null, { kind: 'fallingStalactite' }]]}
+        selectedTool="fallingStalactite"
         panOffset={{ x: 100, y: 40 }}
         zoom={0.5}
         images={TINT_IMAGES}
@@ -2490,5 +2519,533 @@ describe('EditorCanvas falling-stalactite tint (O-027)', () => {
       RENDERED_TILE_SIZE * 0.5,
       RENDERED_TILE_SIZE * 0.5,
     ]);
+  });
+});
+
+describe('EditorCanvas — marker tool clicks (US1)', () => {
+  function clickCell(col: number, row: number, button = 0) {
+    const canvas = levelEditorPage.canvas;
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
+    fireEvent.mouseDown(canvas, {
+      button,
+      clientX: col * RENDERED_TILE_SIZE + 1,
+      clientY: row * RENDERED_TILE_SIZE + 1,
+    });
+  }
+
+  it('aPureMarkerToolClick-writesOnlyTheMarkerGridAndNeverTerrain', () => {
+    stubCanvasContext();
+    const onPaint = vi.fn();
+    const onPaintMarker = vi.fn();
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['.', '.']]}
+        markerGrid={[[null, null]]}
+        selectedTool="patrolBoundary"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={onPaint}
+        onPaintMarker={onPaintMarker}
+        onPan={() => {}}
+      />,
+    );
+
+    clickCell(1, 0);
+
+    expect(onPaint).not.toHaveBeenCalled();
+    expect(onPaintMarker).toHaveBeenCalledWith([[null, { kind: 'patrolBoundary' }]]);
+  });
+
+  it('aTerrainToolClick-leavesTheMarkerGridAlone', () => {
+    stubCanvasContext();
+    const onPaintMarker = vi.fn();
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['.', '.']]}
+        markerGrid={[[{ kind: 'patrolBoundary' }, null]]}
+        selectedTool="G"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPaintMarker={onPaintMarker}
+        onPan={() => {}}
+      />,
+    );
+
+    clickCell(1, 0);
+
+    expect(onPaintMarker).not.toHaveBeenCalled();
+  });
+
+  it('anEntityOrHazardOrBackgroundToolClick-leavesTheMarkerGridUntouched', () => {
+    // FR-013: no tool writes a marker of a kind other than its own.
+    for (const tool of ['M', '^'] as const) {
+      stubCanvasContext();
+      const onPaintMarker = vi.fn();
+      const { unmount } = render(
+        <EditorCanvas
+          {...BACKGROUND_LAYER_DEFAULT_PROPS}
+          grid={[['.', '.']]}
+          markerGrid={[[{ kind: 'patrolBoundary' }, null]]}
+          selectedTool={tool}
+          panOffset={{ x: 0, y: 0 }}
+          images={EMPTY_IMAGES}
+          onPaint={() => {}}
+          onPaintMarker={onPaintMarker}
+          onPan={() => {}}
+        />,
+      );
+      clickCell(1, 0);
+      expect(onPaintMarker).not.toHaveBeenCalled();
+      unmount();
+    }
+  });
+
+  it('theEraseGesture-clearsOnlyTheSelectedMarkerToolCell', () => {
+    stubCanvasContext();
+    const onPaintMarker = vi.fn();
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['.', '.']]}
+        markerGrid={[[{ kind: 'patrolBoundary' }, { kind: 'connectionPoint' }]]}
+        selectedTool="patrolBoundary"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPaintMarker={onPaintMarker}
+        onPan={() => {}}
+      />,
+    );
+
+    clickCell(0, 0, 2);
+
+    // Only the patrol boundary is cleared; the connection point is untouched.
+    expect(onPaintMarker).toHaveBeenCalledWith([
+      [null, { kind: 'connectionPoint' }],
+    ]);
+  });
+
+  it('theSignTool-writesTAndADefaultHintMarker', () => {
+    stubCanvasContext();
+    const onPaint = vi.fn();
+    const onPaintMarker = vi.fn();
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['.', '.']]}
+        markerGrid={[[null, null]]}
+        selectedTool="T"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={onPaint}
+        onPaintMarker={onPaintMarker}
+        onPan={() => {}}
+      />,
+    );
+
+    clickCell(1, 0);
+
+    expect(onPaint).toHaveBeenCalledWith(expect.objectContaining({ grid: [['.', 'T']] }));
+    expect(onPaintMarker).toHaveBeenCalledWith([[null, { kind: 'sign', hintId: 'bridgeDropThrough' }]]);
+  });
+
+  it('theSignTool-reClicked-cyclesTheHint', () => {
+    stubCanvasContext();
+    const onPaintMarker = vi.fn();
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['T', '.']]}
+        markerGrid={[[{ kind: 'sign', hintId: 'bridgeDropThrough' }, null]]}
+        selectedTool="T"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPaintMarker={onPaintMarker}
+        onPan={() => {}}
+      />,
+    );
+
+    clickCell(0, 0);
+
+    expect(onPaintMarker).toHaveBeenCalledWith([[{ kind: 'sign', hintId: 'ladderClimbUp' }, null]]);
+  });
+
+  it('theDecorativeStalactiteTool-paintsOnlyTheTileAndNoMarker', () => {
+    stubCanvasContext();
+    const onPaint = vi.fn();
+    const onPaintMarker = vi.fn();
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['.']]}
+        markerGrid={[[null]]}
+        selectedTool="⊤"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={onPaint}
+        onPaintMarker={onPaintMarker}
+        onPan={() => {}}
+      />,
+    );
+
+    clickCell(0, 0);
+
+    expect(onPaint).toHaveBeenCalledWith(expect.objectContaining({ grid: [['⊤']] }));
+    expect(onPaintMarker).not.toHaveBeenCalled();
+  });
+
+  it('theFallingStalactiteTool-paintsTheTilePlusItsOwnMarker', () => {
+    stubCanvasContext();
+    const onPaint = vi.fn();
+    const onPaintMarker = vi.fn();
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['.']]}
+        markerGrid={[[null]]}
+        selectedTool="fallingStalactite"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={onPaint}
+        onPaintMarker={onPaintMarker}
+        onPan={() => {}}
+      />,
+    );
+
+    clickCell(0, 0);
+
+    expect(onPaint).toHaveBeenCalledWith(expect.objectContaining({ grid: [['⊤']] }));
+    expect(onPaintMarker).toHaveBeenCalledWith([[{ kind: 'fallingStalactite' }]]);
+  });
+
+  it('theSignTool-rightClick-removesTheTileAndItsMarker', () => {
+    stubCanvasContext();
+    const onPaint = vi.fn();
+    const onPaintMarker = vi.fn();
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['T', '.']]}
+        markerGrid={[[{ kind: 'sign', hintId: 'bridgeDropThrough' }, null]]}
+        selectedTool="T"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={onPaint}
+        onPaintMarker={onPaintMarker}
+        onPan={() => {}}
+      />,
+    );
+
+    clickCell(0, 0, 2);
+
+    // The whole sign goes: the `T` terrain and the sign marker (a bare `T`
+    // would otherwise still resolve to the default hint).
+    expect(onPaint).toHaveBeenCalledWith(expect.objectContaining({ grid: [['.', '.']] }));
+    expect(onPaintMarker).toHaveBeenCalledWith([[null, null]]);
+  });
+
+  it('theFallingStalactiteTool-rightClick-removesTheTileAndItsMarker', () => {
+    stubCanvasContext();
+    const onPaint = vi.fn();
+    const onPaintMarker = vi.fn();
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['⊤']]}
+        markerGrid={[[{ kind: 'fallingStalactite' }]]}
+        selectedTool="fallingStalactite"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={onPaint}
+        onPaintMarker={onPaintMarker}
+        onPan={() => {}}
+      />,
+    );
+
+    clickCell(0, 0, 2);
+
+    expect(onPaint).toHaveBeenCalledWith(expect.objectContaining({ grid: [['.']] }));
+    expect(onPaintMarker).toHaveBeenCalledWith([[null]]);
+  });
+
+  it('theEraser-overASignTile-clearsTheStaleSignMarker', () => {
+    stubCanvasContext();
+    const onPaintMarker = vi.fn();
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['T']]}
+        markerGrid={[[{ kind: 'sign', hintId: 'bridgeDropThrough' }]]}
+        selectedTool="."
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPaintMarker={onPaintMarker}
+        onPan={() => {}}
+      />,
+    );
+
+    clickCell(0, 0, 2);
+
+    expect(onPaintMarker).toHaveBeenCalledWith([[null]]);
+  });
+
+  it('paintingAnotherTileOverAFallingStalactite-clearsTheStaleMarker', () => {
+    stubCanvasContext();
+    const onPaintMarker = vi.fn();
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['⊤']]}
+        markerGrid={[[{ kind: 'fallingStalactite' }]]}
+        selectedTool="G"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPaintMarker={onPaintMarker}
+        onPan={() => {}}
+      />,
+    );
+
+    clickCell(0, 0);
+
+    expect(onPaintMarker).toHaveBeenCalledWith([[null]]);
+  });
+
+  it('paintingTerrainOverAPatrolBoundary-leavesItsMarker', () => {
+    stubCanvasContext();
+    const onPaintMarker = vi.fn();
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['.']]}
+        markerGrid={[[{ kind: 'patrolBoundary' }]]}
+        selectedTool="G"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPaintMarker={onPaintMarker}
+        onPan={() => {}}
+      />,
+    );
+
+    clickCell(0, 0);
+
+    // A patrol boundary is independent of its terrain (FR-002).
+    expect(onPaintMarker).not.toHaveBeenCalled();
+  });
+
+  it('rightClick-overAPatrolBoundary-clearsItWhateverTheTool', () => {
+    stubCanvasContext();
+    const onPaintMarker = vi.fn();
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['G']]}
+        markerGrid={[[{ kind: 'patrolBoundary' }]]}
+        selectedTool="G"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPaintMarker={onPaintMarker}
+        onPan={() => {}}
+      />,
+    );
+
+    clickCell(0, 0, 2);
+
+    // Right-click erases the cell's metadata too, whatever the tool.
+    expect(onPaintMarker).toHaveBeenCalledWith([[null]]);
+  });
+
+  it('theEraserTool-overAPatrolBoundary-clearsIt', () => {
+    stubCanvasContext();
+    const onPaintMarker = vi.fn();
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['.']]}
+        markerGrid={[[{ kind: 'patrolBoundary' }]]}
+        selectedTool="."
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPaintMarker={onPaintMarker}
+        onPan={() => {}}
+      />,
+    );
+
+    clickCell(0, 0);
+
+    expect(onPaintMarker).toHaveBeenCalledWith([[null]]);
+  });
+
+  it('theTorchTool-freshCell-paintsTheTileWithNoMarker', () => {
+    stubCanvasContext();
+    const onPaint = vi.fn();
+    const onPaintMarker = vi.fn();
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['.']]}
+        markerGrid={[[null]]}
+        selectedTool="¥"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={onPaint}
+        onPaintMarker={onPaintMarker}
+        onPan={() => {}}
+      />,
+    );
+
+    clickCell(0, 0);
+
+    expect(onPaint).toHaveBeenCalledWith(expect.objectContaining({ grid: [['¥']] }));
+    // A default torch stores no marker.
+    expect(onPaintMarker).not.toHaveBeenCalled();
+  });
+
+  it('theTorchTool-reClick-raisesTheStrength', () => {
+    stubCanvasContext();
+    const onPaintMarker = vi.fn();
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['¥']]}
+        markerGrid={[[null]]}
+        selectedTool="¥"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPaintMarker={onPaintMarker}
+        onPan={() => {}}
+      />,
+    );
+
+    clickCell(0, 0);
+
+    // Default 5 -> 6. Stores a strength marker for `6`.
+    expect(onPaintMarker).toHaveBeenCalledWith([[{ kind: 'torch', strength: 6 }]]);
+  });
+
+  it('theTorchTool-rightClick-removesTheTileAndItsMarker', () => {
+    stubCanvasContext();
+    const onPaint = vi.fn();
+    const onPaintMarker = vi.fn();
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['¥']]}
+        markerGrid={[[{ kind: 'torch', strength: 9 }]]}
+        selectedTool="¥"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={onPaint}
+        onPaintMarker={onPaintMarker}
+        onPan={() => {}}
+      />,
+    );
+
+    clickCell(0, 0, 2);
+
+    expect(onPaint).toHaveBeenCalledWith(expect.objectContaining({ grid: [['.']] }));
+    expect(onPaintMarker).toHaveBeenCalledWith([[null]]);
+  });
+
+  it('rightClickWithTheTorchTool-overASign-clearsTheSignMarkerToo', () => {
+    // The regression: erasing with a *different* variant tool must still clear
+    // the cell's marker, whatever kind it is — not just the tool's own kind.
+    stubCanvasContext();
+    const onPaintMarker = vi.fn();
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['T']]}
+        markerGrid={[[{ kind: 'sign', hintId: 'bomb' }]]}
+        selectedTool="¥"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPaintMarker={onPaintMarker}
+        onPan={() => {}}
+      />,
+    );
+
+    clickCell(0, 0, 2);
+
+    expect(onPaintMarker).toHaveBeenCalledWith([[null]]);
+  });
+
+  it('rightClickWithTheSignTool-overATorch-clearsTheTorchMarkerToo', () => {
+    stubCanvasContext();
+    const onPaintMarker = vi.fn();
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['¥']]}
+        markerGrid={[[{ kind: 'torch', strength: 8 }]]}
+        selectedTool="T"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPaintMarker={onPaintMarker}
+        onPan={() => {}}
+      />,
+    );
+
+    clickCell(0, 0, 2);
+
+    expect(onPaintMarker).toHaveBeenCalledWith([[null]]);
+  });
+});
+
+describe('EditorCanvas — marker hover tooltip (FR-029)', () => {
+  it('hoveringASign-showsItsHintsOwnTranslatedText', () => {
+    stubCanvasContext();
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['T']]}
+        markerGrid={[[{ kind: 'sign', hintId: 'bridgeDropThrough' }]]}
+        selectedTool="G"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+    const canvas = levelEditorPage.canvas;
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
+
+    fireEvent.mouseMove(canvas, { clientX: 1, clientY: 1 });
+
+    const tooltip = screen.getByTestId('editor-marker-tooltip');
+    expect(tooltip).toHaveTextContent('Hold Down to drop through a bridge.');
+  });
+
+  it('hoveringAPatrolBoundary-namesTheMarker', () => {
+    stubCanvasContext();
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['.']]}
+        markerGrid={[[{ kind: 'patrolBoundary' }]]}
+        selectedTool="G"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+    const canvas = levelEditorPage.canvas;
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
+
+    fireEvent.mouseMove(canvas, { clientX: 1, clientY: 1 });
+
+    expect(screen.getByTestId('editor-marker-tooltip')).toHaveTextContent('Patrol boundary');
   });
 });

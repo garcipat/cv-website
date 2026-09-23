@@ -8,6 +8,8 @@
  * neighbouring torches flicker out of phase (spec FR-009).
  */
 
+import type { TorchStrength } from '../level/LevelData';
+
 /** Seconds each flame frame is held — a calm, visible sparkle (spec FR-002). */
 export const TORCH_FRAME_DURATION_SECONDS = 0.2;
 
@@ -58,4 +60,41 @@ export function torchFrameIndex(col: number, row: number, worldElapsed: number):
   return (
     Math.floor(worldElapsed / TORCH_FRAME_DURATION_SECONDS) + torchPhase(col, row)
   ) % TORCH_FRAME_COUNT;
+}
+
+/**
+ * The strength a `torch` with no marker resolves to. Calibrated to today's fixed
+ * torch light (`TORCH_LIGHT_RADIUS_PX`), so an unadjusted level — and every
+ * level authored before this feature — lights exactly as it did.
+ */
+export const DEFAULT_TORCH_STRENGTH: TorchStrength = 5;
+
+/**
+ * Every strength, in ascending order — the order the torch tool's re-click
+ * cycle follows.
+ */
+export const TORCH_STRENGTHS: readonly TorchStrength[] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+/** The editor badge's code for a strength — its own digit, `'0'`–`'9'`. */
+export function torchStrengthCode(strength: TorchStrength): string {
+  return String(strength);
+}
+
+/** The next strength the torch tool cycles to, wrapping `9` → `0`. */
+export function nextTorchStrength(strength: TorchStrength): TorchStrength {
+  return ((strength + 1) % 10) as TorchStrength;
+}
+
+/** Forgiving validation of a stored marker's `strength` (0–9). */
+export function isTorchStrength(value: unknown): value is TorchStrength {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 9;
+}
+
+/**
+ * A torch's light-radius scale relative to the default: `strength /
+ * DEFAULT_TORCH_STRENGTH`. So the default is `1`, `0` is `0` (dark), and `9` is
+ * `1.8` (roughly double).
+ */
+export function torchLightScale(strength: TorchStrength): number {
+  return strength / DEFAULT_TORCH_STRENGTH;
 }

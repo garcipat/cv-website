@@ -65,6 +65,32 @@ describe('parseBlueprintModules', () => {
     expect(entries[0].background).toBeUndefined();
   });
 
+  it('validMarkersField-isCarriedOntoTheEntry', () => {
+    const markers = [{ col: 0, row: 0, marker: { kind: 'connectionPoint' } }];
+    const entries = parseBlueprintModules({
+      './blueprints/cave.json': { name: 'Cave', layout: ['G'], markers },
+    });
+
+    expect(entries[0].markers).toEqual(markers);
+  });
+
+  it('malformedMarkersField-dropsOnlyThatFieldNotTheWholeEntry', () => {
+    const entries = parseBlueprintModules({
+      './blueprints/broken-markers.json': { name: 'Broken', layout: ['G'], markers: 'nope' },
+    });
+
+    expect(entries).toHaveLength(1);
+    expect(entries[0].markers).toBeUndefined();
+    expect(entries[0].layout).toEqual(['G']);
+  });
+
+  it('missingMarkersField-meansAPreFeatureRoom', () => {
+    const entries = parseBlueprintModules({
+      './blueprints/old.json': { default: { layout: ['T.'] } },
+    });
+    expect(entries[0].markers).toBeUndefined();
+  });
+
   it('savedBlueprintFileContents-roundTripBackIntoAnEntryWithTheSameLayout', () => {
     // SC-012's blueprint counterpart: a file the editor wrote has to be a file
     // this registry accepts, connection point characters included.

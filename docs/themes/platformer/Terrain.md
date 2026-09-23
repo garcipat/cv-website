@@ -27,13 +27,11 @@ Declared in `src/themes/platformer/level/LevelData.ts`.
 | `bridge` | A thin walkway: solid from above and from the side, passable from below, and droppable-through on Down. See the one-way contract below. |
 | `ladder` | Non-solid but climbable. A shaft's topmost rung is standable from above. |
 | `chain` | Climbs exactly like `ladder`; a purely visual alternative skin. Its art is composited per run rather than per cell — see [Multi-cell runs](#multi-cell-runs-chain-as-the-worked-example). |
-| `patrol` | An invisible, non-solid enemy patrol boundary. Nothing renders it in game and the player passes straight through, but `EnemyAI.ts` reverses a patrolling enemy that walks into one as if it were a wall. |
-| `blueprintConnectionPoint` | An editor-only marker on a blueprint's border cell, noting where another blueprint may attach. Invisible in game, never solid, and nothing in the running game reads it. Placement validates overlap only and does not match connection points. |
 | `bush` | Decorative, non-solid. Stacking bush cells vertically grows a tree: the run's role (root / trunk / canopy / lone bush) picks the sprite. |
 | `fence` | Decorative, non-solid, one fixed sprite. |
 | `cobweb` | Decorative, non-solid. Corner-vs-flat art and rotation are auto-detected from neighbouring solid terrain. |
 | `crystalCluster` | Decorative, non-solid, one fixed sprite. |
-| `stalactite` | Decorative, non-solid. Two size variants (large / twin) picked by position hash. Its falling-hazard counterpart is the `T` hazard marker (O-027), which is **not** a terrain tile — it lives on `empty` terrain and renders this same art untinted in game (see [LevelFormat.md](./LevelFormat.md#hazard-characters)). |
+| `stalactite` | Decorative, non-solid. Two size variants (large / twin) picked by position hash. A `{ kind: 'fallingStalactite' }` marker on this tile (O-027) makes it shake and drop; the tile itself renders untinted in game (see [LevelFormat.md](./LevelFormat.md#the-tile-meta-layer)). |
 | `stalagmite` | Decorative, non-solid. Two size variants picked the same way. |
 | `torch` | Decorative, non-solid cave dressing. Its flame animates through a 4-frame sparkle loop — each cell's frame is a pure function of its grid position and the shared world clock (`engine/Torch.ts`'s `torchFrameIndex`), so neighbouring torches flicker out of phase and the tile carries no per-instance state. |
 | `ladderBundle` | A curled-up rope-ladder bundle (`@`), the author-placeable O-011 tile. Non-solid, not climbable, but standable from above (`isStandableLadderBundleTop`). A grounded character presses Up while on or one cell above it to deploy it. |
@@ -127,10 +125,28 @@ bridge as a wall.
 
 Decorative tiles appear in no predicate at all. They exist only in the renderer, and
 `isSolid`/`isClimbable` returning false for them is what makes them non-solid — there is no
-explicit "decorative" flag. `patrol` and `blueprintConnectionPoint` are non-solid in the
-same way, but are also invisible: `Renderer.ts`'s `tileSource` returns `null` for both, and
-only the level editor draws anything for them (`src/themes/platformer/editor/EditorCanvas.tsx`'s
-`drawTileMarkers`).
+explicit "decorative" flag.
+
+The patrol boundary and the blueprint connection point are no longer `TileType` members at
+all: they live on the **tile meta layer** (see
+[LevelFormat.md](./LevelFormat.md#the-tile-meta-layer)), which is why they are invisible
+and non-solid by construction — `tileAt` never returns a marker, and the renderer never
+walks the marker grid. Only the level editor draws a glyph for them
+(`src/themes/platformer/editor/EditorCanvas.tsx`'s `drawTileMarkers`).
+
+### Markers are not terrain
+
+The tile meta layer's accessor lives beside `tileAt` in the same file:
+
+```ts
+markerAt(level, col, row): MarkerEntry | null
+```
+
+It returns `null` for an out-of-bounds coordinate, a missing `markers` field, or an empty
+cell — the same forgiving contract `backgroundAt` has. Because a marker is never a
+`TileType`, none of the predicates below ever see one: a marked wall stays solid, a marked
+empty cell stays walkable, and a patrol boundary reverses an enemy without blocking the
+player (`movement/patrol.ts` reads it through `markerAt`).
 
 ## Runtime overrides
 
@@ -287,7 +303,8 @@ Callers: `bushOrTreeEntry` (four bush sizes for the `only` role), `staticObjectE
 
 `isStalactiteTwin(col, row)` reuses that same `pickVariant` hash to tell whether a cell's
 `stalactite` decoration resolves to the twin variant, so the O-027 falling-stalactite
-hazard (`T`) is guaranteed to render the exact variant the decoration would at that cell.
+hazard (a `fallingStalactite` marker on a `⊤` tile) is guaranteed to render the exact
+variant the decoration would at that cell.
 The twin's two halves are exported as `TWIN_LEFT_RECT` / `TWIN_RIGHT_RECT` (split at x=8;
 left is the taller/larger one) — the hazard detaches exactly one of them, left on an even
 column and right on an odd one, keeping the other hanging.
@@ -359,8 +376,8 @@ cell; a piece whose remaining room is zero or negative ends the loop.
 
 Sprite-less-by-design tiles use the same skip mechanism at a different site: `tileSource`
 returns `null` for `chain` (drawn by the run branch), for `groundGrass` (drawn by the atlas
-path), for `patrol` and `blueprintConnectionPoint` (invisible), and for the decorative tiles
-when their sheet is not loaded.
+path), and for the decorative tiles when their sheet is not loaded. Markers are not in the
+terrain grid at all, so `tileSource` never sees one.
 
 ### The wall gap and vertical offset
 
@@ -427,7 +444,9 @@ relevant `*.test.ts` before each production edit.
    - *Neighbour- or run-dependent art*: add the lookup to `Terrain.ts` or
      `StaticObjectsCatalog.ts` and add a branch to `drawTerrain`, returning `null` from
      `tileSource` with a comment saying which branch owns it.
-   - *Invisible*: return `null` with a comment, following `patrol`.
+   - *Invisible*: there is no invisible terrain kind any more — an invisible per-cell
+     marker belongs on the tile meta layer, not in `TERRAIN_CHARS`. Follow the "Adding a
+     new marker kind" recipe in [LevelFormat.md](./LevelFormat.md#adding-a-new-marker-kind).
    If the art comes from a new image, register it in
    `src/themes/platformer/entities/sprites/sheets.ts` and load it in both
    `src/themes/platformer/PlatformerPage.tsx` and
@@ -457,13 +476,11 @@ relevant `*.test.ts` before each production edit.
 
 8. **`src/themes/platformer/editor/Palette.tsx`** — a purely decorative tile joins
    `DECORATION_CHARS` so it lands in the Decorations group; anything else falls into Terrain
-   automatically. An invisible marker belongs in `toolKeys` alongside the patrol boundary
-   rather than in Terrain, and if it is blueprint-only, gate it on `canvasMode` the way the
-   connection point is.
+   automatically. (An invisible per-cell marker is not a tile: see the "Adding a new marker
+   kind" recipe in [LevelFormat.md](./LevelFormat.md#adding-a-new-marker-kind) instead.)
 
-9. **`src/themes/platformer/editor/EditorCanvas.tsx`** — only for an invisible tile: add a
-   `drawTileMarkers` call with its tint and glyph, so an author is not painting cells they
-   cannot see.
+9. **`src/themes/platformer/editor/EditorCanvas.tsx`** — only if the tile needs an
+   editor-only marker drawn over it; see `drawTileMarkers` for the marker-grid version.
 
 10. **Tests** — `Terrain.test.ts` for any new predicate or classifier, `Renderer.test.ts` for
     the draw branch, `LevelParser.test.ts` for the character mapping (the map/`TileChar`

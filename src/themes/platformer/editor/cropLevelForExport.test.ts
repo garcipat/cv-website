@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { cropLevelForExport } from './cropLevelForExport';
 import { exportLayout } from './exportLayout';
 import type { TileChar, BackgroundChar } from '../level/LevelParser';
+import type { MarkerGrid } from '../level/LevelData';
 
 describe('cropLevelForExport', () => {
   it('crops the layout exactly like exportLayout, foreground content only', () => {
@@ -76,6 +77,46 @@ describe('cropLevelForExport', () => {
 
   it('returns a single-row all-empty background when the background grid itself is empty', () => {
     const grid: TileChar[][] = [['G']];
-    expect(cropLevelForExport(grid, [])).toEqual({ layout: ['G'], background: ['.'] });
+    expect(cropLevelForExport(grid, [])).toEqual({
+      layout: ['G'],
+      background: ['.'],
+      markers: [],
+    });
+  });
+
+  it('aMarkerOnAnEmptyCell-expandsTheCropBoxAndSurvives', () => {
+    const grid: TileChar[][] = [['G', '.']];
+    const markers: MarkerGrid = [[null, { kind: 'patrolBoundary' }]];
+    const result = cropLevelForExport(grid, [], markers);
+    expect(result.layout).toEqual(['G.']);
+    expect(result.markers).toEqual([{ col: 1, row: 0, marker: { kind: 'patrolBoundary' } }]);
+  });
+
+  it('markers-areSerializedRelativeToTheCropOrigin', () => {
+    const grid: TileChar[][] = [
+      ['.', '.', '.'],
+      ['.', 'G', '.'],
+      ['.', '.', '.'],
+    ];
+    const markers: MarkerGrid = [
+      [null, null, null],
+      [null, null, { kind: 'connectionPoint' }],
+      [null, null, null],
+    ];
+    const result = cropLevelForExport(grid, [], markers);
+    expect(result.layout).toEqual(['G.']);
+    // The marker sits at grid (2,1); the crop origin is (1,1), so it is (1,0).
+    expect(result.markers).toEqual([{ col: 1, row: 0, marker: { kind: 'connectionPoint' } }]);
+  });
+
+  it('anAllEmptyLevel-exportsAnEmptyMarkerList', () => {
+    const result = cropLevelForExport(
+      [
+        ['.', '.'],
+        ['.', '.'],
+      ],
+      [],
+    );
+    expect(result.markers).toEqual([]);
   });
 });

@@ -268,7 +268,7 @@ describe('PaletteTile', () => {
   });
 
   it('realFallingStalactitePaletteEntry-carriesAReddishTint', () => {
-    const sprite = PALETTE_TILE_SPRITES['T'];
+    const sprite = PALETTE_TILE_SPRITES.fallingStalactite;
     expect(sprite?.tint).toBeTruthy();
 
     render(<PaletteTile label="Falling Stalactite" sprite={sprite} selected={false} onClick={() => {}} />);

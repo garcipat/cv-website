@@ -13,6 +13,8 @@ import {
 import { RENDERED_TILE_SIZE, tileToPixel } from '../level/Terrain';
 import { PLAYER_RENDERED_SIZE, PLAYER_FOOT_PADDING } from '../entities/Player';
 import type { TileChar } from '../level/LevelParser';
+import type { MarkerGrid } from '../level/LevelData';
+import { DEFAULT_HINT_ID } from '../level/HintCatalog';
 import { computePotRenderPlan } from '../entities/blocks/potRenderPlan';
 import { PALETTE_TILE_SPRITES, PALETTE_TILE_LABELS } from './paletteTiles';
 
@@ -131,17 +133,31 @@ describe('synthesizeChestStates', () => {
 });
 
 describe('synthesizeSignPlacements', () => {
-  it('noSignMarkers-returnsEmptyArray', () => {
-    expect(synthesizeSignPlacements([['G', 'G']])).toEqual([]);
+  it('noSignCharacters-returnsEmptyArray', () => {
+    expect(synthesizeSignPlacements([['G', 'G']], [])).toEqual([]);
   });
 
-  it('oneSignMarker-returnsItsHintIdAndPixelPosition', () => {
-    const result = synthesizeSignPlacements([
-      ['.', '.'],
-      ['.', '1'],
-    ]);
+  it('aTWithASignMarker-returnsItsHintIdAndPixelPosition', () => {
+    const markers: MarkerGrid = [
+      [null, null],
+      [null, { kind: 'sign', hintId: 'bridgeDropThrough' }],
+    ];
+    const result = synthesizeSignPlacements(
+      [
+        ['.', '.'],
+        ['.', 'T'],
+      ],
+      markers,
+    );
     const { x, y } = tileToPixel(1, 1);
     expect(result).toEqual([{ id: 'editor-sign-1-1', hintId: 'bridgeDropThrough', x, y }]);
+  });
+
+  it('aTWithNoSignMarker-fallsBackToTheDefaultHint', () => {
+    const result = synthesizeSignPlacements([['T']], []);
+    expect(result).toEqual([
+      { id: 'editor-sign-0-0', hintId: DEFAULT_HINT_ID, x: 0, y: 0 },
+    ]);
   });
 });
 
@@ -172,14 +188,17 @@ describe('synthesizeCheckpointStates', () => {
 
 describe('synthesizeHazardPlacements', () => {
   it('noHazardMarkers-returnsEmptyArray', () => {
-    expect(synthesizeHazardPlacements([['G', 'G']])).toEqual([]);
+    expect(synthesizeHazardPlacements([['G', 'G']], [])).toEqual([]);
   });
 
   it('oneHazardMarker-returnsItsHazardTypeFacingAndPixelPosition', () => {
-    const result = synthesizeHazardPlacements([
-      ['.', '.'],
-      ['.', '^'],
-    ]);
+    const result = synthesizeHazardPlacements(
+      [
+        ['.', '.'],
+        ['.', '^'],
+      ],
+      [],
+    );
     const { x, y } = tileToPixel(1, 1);
     expect(result).toEqual([
       { id: 'editor-hazard-1-1', hazardType: 'spike', facing: 'up', x, y, col: 1, row: 1 },
@@ -187,24 +206,28 @@ describe('synthesizeHazardPlacements', () => {
   });
 
   it('everyFacingCharacter-mapsToItsOwnFacing', () => {
-    const result = synthesizeHazardPlacements([['^', 'v', '<', '>']]);
+    const result = synthesizeHazardPlacements([['^', 'v', '<', '>']], []);
     expect(result.map((h) => h.facing)).toEqual(['up', 'down', 'left', 'right']);
     expect(result.every((h) => h.hazardType === 'spike')).toBe(true);
   });
 
   it('everyPlacement-carriesItsGridColAndRow', () => {
-    const result = synthesizeHazardPlacements([
-      ['^', '.'],
-      ['.', 'A'],
-    ]);
+    const result = synthesizeHazardPlacements(
+      [
+        ['^', '.'],
+        ['.', 'A'],
+      ],
+      [],
+    );
     expect(result.map((h) => ({ col: h.col, row: h.row }))).toEqual([
       { col: 0, row: 0 },
       { col: 1, row: 1 },
     ]);
   });
 
-  it('fallingStalactiteCell-emitsItsColAndRow', () => {
-    const result = synthesizeHazardPlacements([['.', 'T']]);
+  it('fallingStalactiteMarker-emitsItsColAndRow', () => {
+    const markers: MarkerGrid = [[null, { kind: 'fallingStalactite' }]];
+    const result = synthesizeHazardPlacements([['.', '⊤']], markers);
     const { x, y } = tileToPixel(1, 0);
     expect(result).toEqual([
       {
