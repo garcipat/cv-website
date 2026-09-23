@@ -31,6 +31,14 @@ the player is in a cave.
   (opaque core, faded rim) sized larger than the cell so neighbouring puffs merge into one
   bank and bleed into an adjacent clear cell rather than stopping at the grid line, with a
   slow per-cell "breathing" pulse so it reads as alive rather than static.
+- Q: Fog was covering solid ground/wall terrain too — should it? A first instinct was to
+  exempt every solid tile, but that would reveal a block placed on an otherwise-open
+  cell (blocks aren't solid terrain, so they'd have shown through). What's the actual rule?
+  → A: **Exempt solid terrain specifically, everywhere** (amends the earlier "everything on
+  that cell" answer above for terrain only — background, blocks and entities are still fully
+  covered per FR-002). Solid rock/wall carries no information worth hiding, so showing a
+  cave's outer shape while still fogging its open interior is the right split; a block never
+  qualifies for the exemption since it sits on an open cell, not solid terrain.
 
 ## User Scenarios & Testing _(mandatory)_
 
@@ -83,6 +91,11 @@ on the cells they enter, in a smooth fade rather than a snap.
   more visible; only actually standing on a cave-family cell clears it.
 - **A fogged cell containing an enemy, block, or hazard**: none of it is visible or hinted at
   through the fog; the fog is opaque, not a translucent haze (Acceptance Scenario 1).
+- **A cave-family cell occupied by solid ground or wall terrain**: not fogged (FR-002a) — its
+  rock is visible, letting a visitor read the cave's outer shape, while a directly
+  neighboring open cell (which could hold anything) still fogs normally.
+- **A block placed on a cave-family cell**: still fogged — a block occupies an otherwise-open
+  cell, never a solid terrain tile, so FR-002a's exemption never applies to it.
 - **Torches or other light sources on a fogged cell**: render exactly as they do today
   because fog and Cave Lighting's darkness never coexist — a torch is only ever seen either
   glowing through darkness (player inside) or not at all (player outside, cell fogged).
@@ -103,9 +116,14 @@ on the cells they enter, in a smooth fade rather than a snap.
 
 - **FR-001**: Every on-screen background cell whose material belongs to the cave family
   MUST be covered by an opaque fog whenever the player's own current cell is not
-  cave-family.
-- **FR-002**: Fog on a cell MUST cover everything on that cell — its background, terrain,
+  cave-family, EXCEPT cells occupied by solid terrain (FR-002a).
+- **FR-002**: Fog on a fogged cell MUST cover everything on that cell — its background,
   blocks and entities alike — so none of it is legible while fogged.
+- **FR-002a**: A cell occupied by solid terrain (ground, wall, or any tile a level exposes
+  the same way — see Key Entities' "Fog-exempt tile") MUST NOT be fogged, even when its
+  background is cave-family: solid terrain carries no information worth hiding, and showing
+  it lets a cave's outer shape read as rock rather than as an unbroken bank of fog. A block
+  placed on an otherwise-open cell is unaffected by this — that cell still fogs.
 - **FR-003**: Fog and Cave Lighting's darkness MUST share one continuous crossfade: as the
   player's own cell crosses the cave/surface boundary, one effect fades out exactly as the
   other fades in, so the two never both sit at their full, steady-state value at the same
@@ -133,9 +151,15 @@ on the cells they enter, in a smooth fade rather than a snap.
   fully opaque). It is derived from whether the player's own cell is cave-family — the
   inverse of Cave Lighting's own trigger — and animated smoothly over time rather than
   stored per cell or per level.
-- **Fogged cell**: any on-screen cell whose background material belongs to the cave family,
-  while the fog level is above zero. Carries no state of its own beyond its material's
-  intrinsic family, already defined by O-014.
+- **Fogged cell**: any on-screen cell whose background material belongs to the cave family
+  and whose terrain is not fog-exempt (see below), while the fog level is above zero.
+  Carries no state of its own beyond its material's intrinsic family, already defined by
+  O-014.
+- **Fog-exempt tile**: a terrain tile kind that never fogs, even on a cave-family cell,
+  because it carries no information a visitor could act on (solid ground and wall terrain
+  today). Exemption is intrinsic to the tile kind, declared once and exhaustively over every
+  terrain tile kind — the same way a background material's surface/cave family is intrinsic
+  (O-014) — so it is never a per-placement flag a level author sets.
 
 ## Success Criteria _(mandatory)_
 
