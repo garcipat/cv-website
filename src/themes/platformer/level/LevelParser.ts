@@ -46,6 +46,12 @@ export const TERRAIN_CHARS: Record<string, TileType | undefined> = {
   // O-023's crumbling floor. Half-height ledge art, own runtime cycle state
   // (engine/CrumblingFloor.ts) — the grid holds only its fixed placement.
   g: 'crumblingFloor',
+  // O-029: solid wood ground, non-autotiling (spec FR-003).
+  W: 'groundWood',
+  // O-029: a wooden double door's two panels — always authored as an
+  // adjacent pair, `d` (left) immediately followed by `D` (right).
+  d: 'doorLeft',
+  D: 'doorRight',
 };
 
 /**
@@ -220,7 +226,10 @@ export type TileChar =
   | '@'
   | '§'
   | 's'
-  | 'g';
+  | 'g'
+  | 'W'
+  | 'd'
+  | 'D';
 
 /**
  * Parses a level's raw ASCII layout (one character per tile, see
@@ -524,6 +533,26 @@ export function findLadderBundleTiles(layout: readonly string[]): { col: number;
   for (let row = 0; row < layout.length; row++) {
     for (let col = 0; col < layout[row].length; col++) {
       if (TERRAIN_CHARS[layout[row][col]] === 'ladderBundle') {
+        tiles.push({ col, row });
+      }
+    }
+  }
+  return tiles;
+}
+
+/**
+ * Finds every wooden door's **left**-leaf position in a level layout, in
+ * reading order — the same direct `TERRAIN_CHARS` scan shape as
+ * `findLadderBundleTiles`. The paired `doorRight` cell is always the
+ * immediately following column on the same row, by the "always authored as
+ * a matched pair" assumption (spec.md Assumptions) — callers derive it as
+ * `{ col: col + 1, row }` rather than scanning for it separately.
+ */
+export function findDoorTiles(layout: readonly string[]): { col: number; row: number }[] {
+  const tiles: { col: number; row: number }[] = [];
+  for (let row = 0; row < layout.length; row++) {
+    for (let col = 0; col < layout[row].length; col++) {
+      if (TERRAIN_CHARS[layout[row][col]] === 'doorLeft') {
         tiles.push({ col, row });
       }
     }

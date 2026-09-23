@@ -400,6 +400,39 @@ export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
       anchor: 'top',
     },
   },
+  W: {
+    // O-029: solid wood ground, non-autotiling (placeholder — uses stone
+    // sprite). Temporary until the wood-art sheet is integrated.
+    sheet: WORLD_TILESET,
+    sheetWidth: 256,
+    sheetHeight: 256,
+    sx: 16,
+    sy: 0,
+    frameWidth: 16,
+    frameHeight: 16,
+  },
+  d: {
+    // O-029: left panel of a wooden double door (placeholder — uses wall
+    // sprite). Temporary until the door-art sheet is integrated.
+    sheet: WORLD_TILESET,
+    sheetWidth: 256,
+    sheetHeight: 256,
+    sx: 128,
+    sy: 0,
+    frameWidth: 16,
+    frameHeight: 16,
+  },
+  D: {
+    // O-029: right panel of a wooden double door (placeholder — uses wall
+    // sprite). Temporary until the door-art sheet is integrated.
+    sheet: WORLD_TILESET,
+    sheetWidth: 256,
+    sheetHeight: 256,
+    sx: 128,
+    sy: 0,
+    frameWidth: 16,
+    frameHeight: 16,
+  },
   '§': {
     // The complete-mushroom crop (16x16 at 0,0) of the red row of
     // mushroom.png (see MUSHROOM_SHEET). '§' is quoted: it is not a valid JS
@@ -645,6 +678,9 @@ export const PALETTE_TILE_DESCRIPTIONS: Record<TileChar, string> = {
   '¥': 'Wall torch; purely decorative, flame sparkles',
   '@': 'Rope ladder bundle; press Up while standing on it to unroll a rope ladder down to the ground below',
   g: 'Cracks and shakes underfoot, then breaks and falls away; reforms after a short delay',
+  W: 'Solid wood plank ground (O-029)',
+  d: 'Left panel of a wooden double door (O-029); opens when interacted',
+  D: 'Right panel of a wooden double door (O-029); opens when interacted',
   '§': 'Land on its cap to be launched upward; walk and jump through it freely',
   s: 'Small mushroom; purely decorative, no effect',
   '1': 'Hint sign; click it again on the canvas to cycle its hint',
@@ -696,6 +732,9 @@ export const PALETTE_TILE_LABELS: Record<TileChar, string> = {
   '¥': 'Torch',
   '@': 'Rope Ladder Bundle',
   g: 'Crumbling Floor',
+  W: 'Ground Wood',
+  d: 'Door Left',
+  D: 'Door Right',
   '§': 'Bouncy Mushroom',
   s: 'Small Mushroom',
   '1': 'Sign',

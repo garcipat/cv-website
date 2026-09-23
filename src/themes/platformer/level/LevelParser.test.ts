@@ -21,6 +21,7 @@ import {
   findHazardTiles,
   findTorchTiles,
   findLadderBundleTiles,
+  findDoorTiles,
   BACKGROUND_CHARS,
   parseBackgroundLayout,
   type TileChar,
@@ -682,12 +683,39 @@ describe('crumblingFloor terrain character', () => {
   });
 });
 
+describe('TERRAIN_CHARS-woodAndDoorChars-mapToNewTileTypes', () => {
+  it('W maps to groundWood', () => {
+    expect(TERRAIN_CHARS.W).toBe('groundWood');
+  });
+  it('d and D map to the door panels', () => {
+    expect(TERRAIN_CHARS.d).toBe('doorLeft');
+    expect(TERRAIN_CHARS.D).toBe('doorRight');
+  });
+});
+
+describe('findDoorTiles-layoutWithOnePair-returnsLeftLeafPosition', () => {
+  it('finds a door pair by its left leaf', () => {
+    const layout = ['.....', '.dD..', '.....'];
+    expect(findDoorTiles(layout)).toEqual([{ col: 1, row: 1 }]);
+  });
+});
+
+describe('findDoorTiles-layoutWithTwoPairs-returnsBothInReadingOrder', () => {
+  it('finds every pair, reading order', () => {
+    const layout = ['dD...', '...dD'];
+    expect(findDoorTiles(layout)).toEqual([
+      { col: 0, row: 0 },
+      { col: 3, row: 1 },
+    ]);
+  });
+});
+
 describe('TileChar', () => {
   it('includes every TERRAIN_CHARS, ENTITY_CHARS, SIGN_CHARS, and HAZARD_CHARS key', () => {
     const tileChars: readonly TileChar[] = [
       '.', 'G', 'R', '#', 'B', 'H', 'I', 'P', '+', 'S', 'M', 'm', 'q', 'o', '=', '?', 'F', '$', 'u', 'p',
       'b', 'n', 'N', 'X', 'c', '⊤', '⊥', '¥', '1', '2', '3', '4', '5', '6', '^', 'v', '<', '>', 'A', 'C', '@',
-      '§', 's', 'g', '¦',
+      '§', 's', 'g', 'W', 'd', 'D', '¦',
     ];
     const allKeys = [
       ...Object.keys(TERRAIN_CHARS),
