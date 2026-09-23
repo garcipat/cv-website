@@ -63,7 +63,7 @@ graph RL
         S011["S-011: Interact Hint Overlay"]
         S012["✅ S-012: Platformer Crouch/Duck"]
         S030["✅ S-030: Platformer Tile Meta Layer"]
-        S031["S-031: Platformer Torch Strength"]
+        S031["✅ S-031: Platformer Torch Strength"]
     end
 
     F003 --> F002
@@ -214,6 +214,7 @@ graph RL
     class S012 done
     class S030 enhancements
     class S030 done
+    class S031 done
     class O025 themes
     class O026 themes
     class O027 themes

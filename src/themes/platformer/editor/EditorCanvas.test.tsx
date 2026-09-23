@@ -2955,6 +2955,52 @@ describe('EditorCanvas — marker tool clicks (US1)', () => {
     expect(onPaint).toHaveBeenCalledWith(expect.objectContaining({ grid: [['.']] }));
     expect(onPaintMarker).toHaveBeenCalledWith([[null]]);
   });
+
+  it('rightClickWithTheTorchTool-overASign-clearsTheSignMarkerToo', () => {
+    // The regression: erasing with a *different* variant tool must still clear
+    // the cell's marker, whatever kind it is — not just the tool's own kind.
+    stubCanvasContext();
+    const onPaintMarker = vi.fn();
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['T']]}
+        markerGrid={[[{ kind: 'sign', hintId: 'bomb' }]]}
+        selectedTool="¥"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPaintMarker={onPaintMarker}
+        onPan={() => {}}
+      />,
+    );
+
+    clickCell(0, 0, 2);
+
+    expect(onPaintMarker).toHaveBeenCalledWith([[null]]);
+  });
+
+  it('rightClickWithTheSignTool-overATorch-clearsTheTorchMarkerToo', () => {
+    stubCanvasContext();
+    const onPaintMarker = vi.fn();
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['¥']]}
+        markerGrid={[[{ kind: 'torch', strength: 8 }]]}
+        selectedTool="T"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPaintMarker={onPaintMarker}
+        onPan={() => {}}
+      />,
+    );
+
+    clickCell(0, 0, 2);
+
+    expect(onPaintMarker).toHaveBeenCalledWith([[null]]);
+  });
 });
 
 describe('EditorCanvas — marker hover tooltip (FR-029)', () => {
