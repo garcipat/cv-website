@@ -69,9 +69,28 @@ holds a `DeployableLadderState` per bundle, and `applyDeployedLadders` returns a
 per-tile animation framework. A door state (`DoorState`: open/closed per placed pair, keyed by
 position) is a second instance of that same narrow exception, not a new one — `applyOpenedDoors`
 mirrors `applyDeployedLadders`'s shape: solid `doorLeft`/`doorRight` cells rewritten to a passable
-tile once open, read only by `stepPlayerPhysics`'s effective grid, leaving `currentLevel` and every
-other subsystem untouched. This keeps the "two deliberate exceptions" list in `Terrain.md` honestly
-described as still small and enumerable, rather than opening it up to arbitrary tiles.
+tile once open. Unlike a rope-ladder bundle's one-way `rolled → deployed` progression, a door's flip
+is reversible — the interact handler calls the same toggle on either state, so `DoorState` only ever
+holds `'open' | 'closed'` rather than growing a transitional phase the way deploying does.
+
+### Enemies read the same effective grid, not a second mechanism
+
+O-011 scoped `activeLevel` to a single consumer deliberately — "only `stepPlayerPhysics` consumes
+this." A door breaks that scoping on purpose: it must block (or admit) enemy movement exactly as it
+does the player's, per the clarified requirement, and enemy movement does not currently read
+`activeLevel` at all — `stepHorizontal` is called today against the raw `currentLevel`, with a
+separate `blockedTiles` list layered on top purely to tell enemies about live block instances (whose
+positions the static grid can't express, since `LevelParser.ts` resolves a block marker to `'empty'`
+terrain). A door is not like a block in that respect: it *is* an ordinary pair of grid cells, just
+ones whose solidity can flip, which is exactly what `activeLevel` already exists to express. So the
+door's own solidity flows through `activeLevel` for both consumers — enemy movement's `level` param
+switches from `currentLevel.value` to `activeLevel.value`, the same value `stepPlayerPhysics` already
+reads — rather than teaching `blockedTiles` a second, differently-shaped kind of entry to carry door
+state as live positions instead of grid cells. `blockedTiles` keeps meaning exactly one thing (live
+block instances); `activeLevel` keeps meaning exactly one thing (the grid with every runtime tile
+override applied), now read by two call sites instead of one. `Terrain.md`'s "two deliberate
+exceptions" framing is still accurate for what *can* change a tile at runtime (ladder bundles, now
+also doors) — this only widens who is required to look at the result.
 
 Opening carries no key cost and reveals no CV fact — a door is a traversal gate, not a collectible.
 That puts it closer in spirit to a rock (blocks a route, no CV mapping) than to a chest (the

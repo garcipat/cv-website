@@ -27,6 +27,11 @@ or a transition between rooms — and needing brainstorming before implementatio
 - Q: The door's art is taller than one tile — how should it be shown? → A: Its top is allowed to
   extend into the tile directly above its placement, the way an existing hazard tile is already
   allowed to extend into the tile below its own placement.
+- Q: Once opened, can a door be closed again? → A: Yes — interacting with a door toggles it: open
+  closes it, closed opens it. It is not a one-time permanent flip.
+- Q: Does a door's open/closed state matter only to the player, or to enemies too? → A: To both — a
+  closed door blocks enemy movement exactly like it blocks the player, and an open door lets an
+  enemy pass through it exactly like it lets the player through.
 
 ## User Scenarios & Testing _(mandatory)_
 
@@ -90,51 +95,64 @@ front of it.
 
 ---
 
-### User Story 3 - Open a Wooden Door to Continue (Priority: P1)
+### User Story 3 - Open and Close a Wooden Door to Control a Route (Priority: P1)
 
 A visitor's path is blocked by a closed wooden double door — a solid obstacle the character cannot
-walk, jump, or rise through. Standing next to the door and pressing the interact key opens it: both
-door panels swing open together, permanently, and the space they occupied becomes freely passable for
-the rest of the session. Opening costs nothing and reveals nothing — it exists purely to gate a route
-until the visitor finds and opens it, the way a breakable rock shapes a path without carrying any CV
-content of its own.
+walk, jump, or rise through, and that an enemy cannot walk through either. Standing next to the door
+and pressing the interact key opens it: both door panels swing open together, and the space they
+occupied becomes freely passable — to the character and to any enemy — until someone closes it again.
+Pressing interact next to an open door closes it the same way, restoring it as a solid obstacle to
+both. Opening or closing costs nothing and reveals nothing — the door exists purely to gate a route,
+the way a breakable rock shapes a path without carrying any CV content of its own, except that unlike
+a rock it can be reopened and reclosed freely.
 
 **Why this priority**: This is the interactive half of the feature and the one the source idea
 specifically called out as needing to be more than decoration — a door that cannot be opened is
-indistinguishable from a painted wall.
+indistinguishable from a painted wall. Making it toggle both ways, and gating enemies as well as the
+player, is what turns it into a level-design tool rather than a one-time unlock.
 
-**Independent Test**: Place a closed door blocking a route. Verify the character cannot pass through
-it. Stand next to it and press interact — verify both panels open, the route becomes passable, and no
-key is spent and no fact is revealed. Walk away and back, and press interact again — verify nothing
-further happens.
+**Independent Test**: Place a closed door blocking a route, with an enemy patrolling toward it. Verify
+neither the character nor the enemy can pass through it. Stand next to it and press interact — verify
+both panels open, and that both the character and the enemy can now pass through the space. Press
+interact again — verify the door closes and blocks both once more.
 
 **Acceptance Scenarios**:
 
 1. **Given** a closed door, **When** the character attempts to walk, jump, or rise into it from any
    side, **Then** it blocks movement exactly like solid terrain.
-2. **Given** a closed door, **When** the character stands next to either of its two panels and the
-   visitor presses the interact key, **Then** both panels open together, the door becomes
-   permanently passable, and no key is spent and no fact is revealed.
-3. **Given** a closed door, **When** the character is not standing next to it, **Then** pressing the
-   interact key does nothing to the door.
-4. **Given** an already-open door, **When** the visitor presses the interact key again while standing
-   next to it, **Then** nothing further happens — a door opens once per session.
-5. **Given** an open door, **When** the character walks through the space it occupied, **Then**
-   nothing blocks them — the space behaves like any other passable gap in the terrain.
+2. **Given** a closed door, **When** an enemy's patrol or movement would carry it into the door,
+   **Then** the door blocks it exactly as it blocks the character.
+3. **Given** a closed door, **When** the character stands next to either of its two panels and the
+   visitor presses the interact key, **Then** both panels open together, and the door stops blocking
+   both the character and any enemy, and no key is spent and no fact is revealed.
+4. **Given** an open door, **When** the character stands next to either of its two panels and the
+   visitor presses the interact key, **Then** both panels close together, and the door resumes
+   blocking both the character and any enemy.
+5. **Given** a door in either state, **When** the character is not standing next to it, **Then**
+   pressing the interact key does nothing to the door.
+6. **Given** an open door, **When** the character or an enemy moves through the space it occupied,
+   **Then** nothing blocks them — the space behaves like any other passable gap in the terrain.
 
 ---
 
 ### Edge Cases
 
-- **Interacting near only one of the two panels**: opening either panel opens the whole door — the
+- **Interacting near only one of the two panels**: toggling either panel toggles the whole door — the
   two panels are one unit and are never in different states from one another.
-- **A door opened, then Reset Game**: like every other permanent per-session state change (chests,
-  broken blocks), a door returns to closed when the visitor resets the game.
-- **A door opened, then the character dies and respawns**: an opened door stays open across a
-  death/respawn, exactly as an opened chest or a destroyed block does — only Reset Game reverts it.
-- **The character standing inside the door's footprint at the moment it opens**: opening never moves,
-  damages, or otherwise affects the character — it only changes whether that space blocks movement
-  going forward.
+- **A door toggled, then Reset Game**: like every other permanent per-session state change (chests,
+  broken blocks), a door returns to closed when the visitor resets the game, regardless of how many
+  times it was opened and closed beforehand.
+- **A door toggled, then the character dies and respawns**: a door's current state (open or closed)
+  persists across a death/respawn, exactly as an opened chest or a destroyed block does — only Reset
+  Game reverts it to closed.
+- **The character or an enemy standing inside the door's footprint at the moment it toggles**: toggling
+  never moves, damages, or otherwise affects a character or enemy already there — it only changes
+  whether that space blocks movement going forward.
+- **An enemy whose patrol range spans a door**: a closed door turns the enemy back exactly like any
+  other solid wall it patrols up to; if the door is later opened, the enemy is free to walk through it
+  and beyond into whatever space it opens onto — a level author who does not want that has to design
+  the enemy's placement and the door's state accordingly, the same way any other patrol boundary
+  already has to be authored deliberately.
 - **A wood ground tile directly beside a wood background tile**: the two are independent systems (one
   solid foreground terrain, one non-solid backdrop) and never interact with or reference each other's
   placement.
@@ -167,19 +185,23 @@ specification states behavior only and does not restate that contract.
 - **FR-006**: The game MUST provide a wooden door, placeable by a level author, made of two panels
   occupying two adjacent tiles side by side.
 - **FR-007**: A closed door MUST be solid from every direction across both of its panels, blocking
-  movement exactly like solid terrain, until it is opened.
-- **FR-008**: Standing next to either panel of a closed door and pressing the interact key MUST open
-  the door: both panels MUST transition together, MUST stop being solid, and the space they occupied
-  MUST become freely passable.
-- **FR-009**: Opening a door MUST NOT require or consume any item, and MUST NOT reveal any CV fact or
-  advance any collectible counter — it is a traversal gate only.
-- **FR-010**: Once open, a door MUST stay open for the remainder of the session — pressing the
-  interact key again near it MUST have no further effect — until the visitor resets the game.
-- **FR-011**: A door's state (open or closed) MUST reset to closed on Reset Game, and MUST persist as
-  open across a death/respawn.
-- **FR-012**: The interact key MUST have no effect on a door when the character is not standing next
+  movement exactly like solid terrain, for both the character and any enemy, until it is opened.
+- **FR-008**: Standing next to either panel of a door and pressing the interact key MUST toggle it:
+  a closed door opens, an open door closes, and both panels MUST transition together in either
+  direction.
+- **FR-009**: While open, a door MUST stop being solid — the space its two panels occupy MUST become
+  freely passable to both the character and any enemy — until it is closed again.
+- **FR-010**: While closed, a door MUST resume blocking movement for both the character and any
+  enemy, exactly as it did before it was first opened.
+- **FR-011**: Toggling a door, in either direction, MUST NOT require or consume any item, and MUST
+  NOT reveal any CV fact or advance any collectible counter — it is a traversal gate only.
+- **FR-012**: A door MAY be toggled open and closed an unlimited number of times in a session; there
+  is no limit on how many times it can be reopened or reclosed.
+- **FR-013**: A door's current state (open or closed) MUST reset to closed on Reset Game, and MUST
+  persist, whichever it currently is, across a death/respawn.
+- **FR-014**: The interact key MUST have no effect on a door when the character is not standing next
   to either of its panels.
-- **FR-013**: A level author MUST be able to place the wood ground tile, the wood background
+- **FR-015**: A level author MUST be able to place the wood ground tile, the wood background
   material, and the door from the level editor's palette, and each MUST round-trip through level save
   and load unchanged, including a door's placement as a matched pair of panels.
 
@@ -189,9 +211,9 @@ specification states behavior only and does not restate that contract.
   awareness, and no state.
 - **Wood background material**: a non-solid backdrop material participating in the existing
   background-mass system, distinguished from other materials by tone alone.
-- **Wooden door**: a two-panel obstacle with a single open/closed state shared by both panels. Closed
-  is solid and blocks movement; open is non-solid and permanent for the session (until Reset Game). It
-  carries no key requirement and no CV mapping.
+- **Wooden door**: a two-panel obstacle with a single open/closed state shared by both panels,
+  toggled by the interact key and freely reversible. Closed is solid and blocks both the character and
+  enemies; open is non-solid and lets both pass. It carries no key requirement and no CV mapping.
 
 ## Success Criteria _(mandatory)_
 
@@ -208,14 +230,14 @@ specification states behavior only and does not restate that contract.
   background materials already pass. Verified by automated tests.
 - **SC-004 — Foreground and backdrop stay visually distinct**: the wood ground tile and the wood
   background material never share the same rendered tone. Verified by a visual/manual check.
-- **SC-005 — A closed door blocks, an open door does not**: collision against a door is solid in every
-  direction while closed and absent in every direction once open, with no partial state. Verified by
-  automated tests.
-- **SC-006 — Opening is free and silent**: opening a door never changes a key count or any
-  collectible counter, and never reveals a fact. Verified by automated tests.
-- **SC-007 — A door opens once per session**: repeated interaction with an already-open door produces
-  no further change, and Reset Game is the only thing that closes an opened door again. Verified by
-  automated tests.
+- **SC-005 — A closed door blocks, an open door does not, for both the character and enemies**:
+  collision against a door — for the character and for an enemy — is solid in every direction while
+  closed and absent in every direction once open, with no partial state. Verified by automated tests.
+- **SC-006 — Toggling is free and silent**: opening or closing a door never changes a key count or
+  any collectible counter, and never reveals a fact. Verified by automated tests.
+- **SC-007 — A door toggles without limit**: repeated interaction with a door alternates its state
+  open/closed/open/... indefinitely with no cap, and Reset Game always returns it to closed regardless
+  of its state at the time. Verified by automated tests.
 - **SC-008 — Authorable**: all three additions appear in the editor's palette with a name, a
   description, and a preview, and each survives a save and reload, including a door's two-panel
   pairing. Verified by a component test of the palette plus a browser check.
