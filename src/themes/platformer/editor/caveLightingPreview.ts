@@ -1,5 +1,7 @@
 import { TERRAIN_CHARS, type TileChar } from '../level/LevelParser';
 import { RENDERED_TILE_SIZE, tileToPixel } from '../level/Terrain';
+import type { MarkerGrid } from '../level/LevelData';
+import { DEFAULT_TORCH_STRENGTH } from '../engine/Torch';
 import { type Point, type TorchLight } from '../engine/Lighting';
 import { heldTorchLightPosition } from '../engine/Renderer';
 import { synthesizePlayerState } from './gridRenderState';
@@ -28,20 +30,24 @@ export interface CaveLightingPreview {
 
 /**
  * One light per `torch` terrain tile, at `tileToPixel` + half a rendered tile —
- * the same conversion `PlatformerState`'s `torchPositions` uses. A pure scan of
- * the editor's `TileChar[][]` (O-015 D6), never mutating its argument.
+ * the same conversion `PlatformerState`'s `torchPositions` uses. Each light's
+ * strength is its `torch` marker's value, or `DEFAULT_TORCH_STRENGTH` when it
+ * carries none. A pure scan of the editor's `TileChar[][]` (O-015 D6), never
+ * mutating its arguments.
  */
-export function torchLightsFromGrid(grid: TileChar[][]): TorchLight[] {
+export function torchLightsFromGrid(grid: TileChar[][], markers?: MarkerGrid): TorchLight[] {
   const torches: TorchLight[] = [];
   for (let row = 0; row < grid.length; row++) {
     for (let col = 0; col < grid[row].length; col++) {
       if (TERRAIN_CHARS[grid[row][col]] !== 'torch') continue;
       const { x, y } = tileToPixel(col, row);
+      const marker = markers?.[row]?.[col];
       torches.push({
         col,
         row,
         x: x + RENDERED_TILE_SIZE / 2,
         y: y + RENDERED_TILE_SIZE / 2,
+        strength: marker?.kind === 'torch' ? marker.strength : DEFAULT_TORCH_STRENGTH,
       });
     }
   }
@@ -57,11 +63,11 @@ export function torchLightsFromGrid(grid: TileChar[][]): TorchLight[] {
  * discernible. The spawn only supplies that carried light — its position no
  * longer decides *whether* the scene darkens. Pure and never throws.
  */
-export function caveLightingPreview(grid: TileChar[][]): CaveLightingPreview {
+export function caveLightingPreview(grid: TileChar[][], markers?: MarkerGrid): CaveLightingPreview {
   const player = synthesizePlayerState(grid);
   return {
     darknessLevel: EDITOR_PREVIEW_DARKNESS,
-    torches: torchLightsFromGrid(grid),
+    torches: torchLightsFromGrid(grid, markers),
     playerLight: player ? heldTorchLightPosition(player) : null,
   };
 }

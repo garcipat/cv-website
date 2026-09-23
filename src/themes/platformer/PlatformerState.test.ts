@@ -1322,6 +1322,7 @@ describe('fog', () => {
 describe('torchPositions', () => {
   afterEach(() => {
     currentLayout.value = LEVEL_1_LAYOUT;
+    currentMarkers.value = LEVEL_1_MARKERS;
   });
 
   it('eachTorchTile-mapsToItsWorldSpaceCentre', () => {
@@ -1335,6 +1336,25 @@ describe('torchPositions', () => {
         row: torch.row,
         x: cell.x + RENDERED_TILE_SIZE / 2,
         y: cell.y + RENDERED_TILE_SIZE / 2,
+        strength: 5,
+      },
+    ]);
+  });
+
+  it('aTorchWithAStrengthMarker-usesThatStrength', () => {
+    currentLayout.value = ['S.¥', 'GGG'];
+    const [torch] = TORCH_TILES.value;
+    const cell = tileToPixel(torch.col, torch.row);
+
+    currentMarkers.value = [{ col: torch.col, row: torch.row, marker: { kind: 'torch', strength: 9 } }];
+
+    expect(torchPositions.value).toEqual([
+      {
+        col: torch.col,
+        row: torch.row,
+        x: cell.x + RENDERED_TILE_SIZE / 2,
+        y: cell.y + RENDERED_TILE_SIZE / 2,
+        strength: 9,
       },
     ]);
   });

@@ -1,5 +1,6 @@
 import type { MarkerEntry, MarkerGrid } from '../level/LevelData';
 import { DEFAULT_HINT_ID, nextHintId } from '../level/HintCatalog';
+import { DEFAULT_TORCH_STRENGTH, nextTorchStrength } from '../engine/Torch';
 
 /**
  * Shifts a marker grid by a terrain growth, inserting empty rows/columns at
@@ -80,4 +81,21 @@ export function paintSignMarker(markers: MarkerGrid, col: number, row: number): 
   const next = markers.map((r) => [...r]);
   next[row][col] = { kind: 'sign', hintId };
   return next;
+}
+
+/**
+ * The torch tool's marker write on a cell that already holds `¥`: the next
+ * strength in the `0`–`9` cycle (`nextTorchStrength`). The cycle clears the
+ * marker when it reaches `DEFAULT_TORCH_STRENGTH`, so a torch at the default is
+ * stored as no marker at all (FR-014) and an unadjusted level stays sparse.
+ * An out-of-bounds cell is a no-op, matching `paintMarkerCell`.
+ */
+export function paintTorchMarker(markers: MarkerGrid, col: number, row: number): MarkerGrid {
+  if (markers[row]?.[col] === undefined) return markers;
+  const existing = markers[row][col];
+  const current = existing?.kind === 'torch' ? existing.strength : DEFAULT_TORCH_STRENGTH;
+  const next = nextTorchStrength(current);
+  const grid = markers.map((r) => [...r]);
+  grid[row][col] = next === DEFAULT_TORCH_STRENGTH ? null : { kind: 'torch', strength: next };
+  return grid;
 }

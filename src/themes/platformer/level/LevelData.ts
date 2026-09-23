@@ -110,18 +110,27 @@ export function isFogExempt(tile: TileType): boolean {
 export type TileMap = TileType[][];
 
 /**
+ * A wall torch's light strength, `0`-`9`. `5` is the default
+ * (`DEFAULT_TORCH_STRENGTH`): a torch with no marker lights at today's radius,
+ * and the other values scale that radius linearly, so `0` is dark and `9` is
+ * roughly double.
+ */
+export type TorchStrength = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+
+/**
  * The tile meta layer's value at a cell — a closed, typed discriminated union
  * (FR-023). Each kind declares exactly the data it needs and nothing else; the
- * three presence-only kinds carry no payload, while a `sign` carries the
- * `hintId` it shows. There is deliberately no per-cell character vocabulary
- * for markers — the only place a marker character exists is the load-time
- * migration map (`LevelParser.ts`'s `LEGACY_MARKER_CHARS`).
+ * presence-only kinds carry no payload, while a `sign` carries the `hintId` it
+ * shows and a `torch` its `strength`. There is deliberately no per-cell
+ * character vocabulary for markers — the only place a marker character exists
+ * is the load-time migration map (`LevelParser.ts`'s `LEGACY_MARKER_CHARS`).
  */
 export type MarkerEntry =
   | { kind: 'patrolBoundary' }
   | { kind: 'connectionPoint' }
   | { kind: 'fallingStalactite' }
-  | { kind: 'sign'; hintId: HintId };
+  | { kind: 'sign'; hintId: HintId }
+  | { kind: 'torch'; strength: TorchStrength };
 
 /**
  * The tile meta layer as a dense runtime grid, aligned 1:1 with

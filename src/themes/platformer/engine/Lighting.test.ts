@@ -36,7 +36,7 @@ function makePlayer(x: number, y: number): PlayerState {
 }
 
 function makeTorch(overrides: Partial<TorchLight> = {}): TorchLight {
-  return { col: 3, row: 4, x: 100, y: 100, ...overrides };
+  return { col: 3, row: 4, x: 100, y: 100, strength: 5, ...overrides };
 }
 
 describe('Lighting constants', () => {

@@ -28,6 +28,8 @@ import {
   type BackgroundChar,
 } from './LevelParser';
 import { DEFAULT_HINT_ID } from './HintCatalog';
+import { DEFAULT_TORCH_STRENGTH } from '../engine/Torch';
+import type { TorchStrength } from './LevelData';
 
 describe('parseLevel', () => {
   it('charLayout-parsesInto-matchingTileMap', () => {
@@ -503,6 +505,27 @@ describe('parseLevel — sign markers', () => {
       kind: 'sign',
       hintId: 'bridgeDropThrough',
     });
+  });
+});
+
+describe('parseLevel — torch strength markers', () => {
+  it('aTorchStrengthMarker-parses', () => {
+    const result = parseLevel(['¥.'], [{ col: 0, row: 0, marker: { kind: 'torch', strength: 9 } }]);
+    expect(result.markers?.[0]?.[0]).toEqual({ kind: 'torch', strength: 9 });
+  });
+
+  it('anOutOfRangeStrength-fallsBackToTheDefault', () => {
+    const result = parseLevel(['¥.'], [
+      { col: 0, row: 0, marker: { kind: 'torch', strength: 42 as unknown as TorchStrength } },
+    ]);
+    expect(result.markers?.[0]?.[0]).toEqual({ kind: 'torch', strength: DEFAULT_TORCH_STRENGTH });
+  });
+
+  it('aNonNumericStrength-fallsBackToTheDefault', () => {
+    const result = parseLevel(['¥.'], [
+      { col: 0, row: 0, marker: { kind: 'torch', strength: 'x' as unknown as TorchStrength } },
+    ]);
+    expect(result.markers?.[0]?.[0]).toEqual({ kind: 'torch', strength: DEFAULT_TORCH_STRENGTH });
   });
 });
 

@@ -622,7 +622,7 @@ export const PALETTE_TILE_DESCRIPTIONS: Record<EditorTool, string> = {
   '⊤': 'Stalactite; purely decorative, auto-picks a size variant. Never falls',
   fallingStalactite: 'Stalactite; looks decorative until a visitor walks beneath it, then shakes and drops',
   '⊥': 'Stalagmite; purely decorative, auto-picks a size variant',
-  '¥': 'Wall torch; purely decorative, flame sparkles',
+  '¥': 'Wall torch; lights the cave. Click it again on the canvas to raise its light strength (0-9)',
   '@': 'Rope ladder bundle; press Up while standing on it to unroll a rope ladder down to the ground below',
   g: 'Cracks and shakes underfoot, then breaks and falls away; reforms after a short delay',
   '§': 'Land on its cap to be launched upward; walk and jump through it freely',

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { paintMarkerCell, eraseMarkerCell, paintSignMarker, resizeMarkerGrid } from './paintMarkerCell';
+import { paintMarkerCell, eraseMarkerCell, paintSignMarker, paintTorchMarker, resizeMarkerGrid } from './paintMarkerCell';
 import type { MarkerGrid } from '../level/LevelData';
 import { DEFAULT_HINT_ID } from '../level/HintCatalog';
 
@@ -72,6 +72,32 @@ describe('paintSignMarker', () => {
 
   it('outOfBounds-isANoOp', () => {
     expect(paintSignMarker(EMPTY, 9, 9)).toBe(EMPTY);
+  });
+});
+
+describe('paintTorchMarker', () => {
+  it('anUnmarkedTorch-startsAtTheNextStrengthAboveTheDefault', () => {
+    // Default 5 -> 6 on the first re-click.
+    expect(paintTorchMarker(EMPTY, 1, 1)[1][1]).toEqual({ kind: 'torch', strength: 6 });
+  });
+
+  it('anExistingTorch-raisesTheStrength', () => {
+    const grid: MarkerGrid = [[{ kind: 'torch', strength: 7 }]];
+    expect(paintTorchMarker(grid, 0, 0)[0][0]).toEqual({ kind: 'torch', strength: 8 });
+  });
+
+  it('aTorchAtNine-wrapsToZero', () => {
+    const grid: MarkerGrid = [[{ kind: 'torch', strength: 9 }]];
+    expect(paintTorchMarker(grid, 0, 0)[0][0]).toEqual({ kind: 'torch', strength: 0 });
+  });
+
+  it('aTorchOneBelowTheDefault-cyclesBackToTheDefaultByClearingTheMarker', () => {
+    const grid: MarkerGrid = [[{ kind: 'torch', strength: 4 }]];
+    expect(paintTorchMarker(grid, 0, 0)[0][0]).toBeNull();
+  });
+
+  it('outOfBounds-isANoOp', () => {
+    expect(paintTorchMarker(EMPTY, 9, 9)).toBe(EMPTY);
   });
 });
 
