@@ -1431,17 +1431,391 @@ git commit -m "feat(O-029): enemies read the same effective grid as the player, 
 
 ---
 
-## Task 15: `PlatformerPage.tsx` — Interact Key Toggles a Door
+## Task 15: `engine/Interact.ts` — Generic Interact Dispatch
+
+**Files:**
+- Create: `src/themes/platformer/engine/Interact.ts`
+- Test: `src/themes/platformer/engine/Interact.test.ts`
+
+**Interfaces:**
+- Produces: `Interactable` interface (`kind: string`, `findCandidate(): string | null`, `applyInteract(candidateId: string): void`); `applyInteract(interactables: readonly Interactable[]): boolean`.
+
+This module is deliberately generic and knows nothing about ladders, chests,
+doors, or signs — see design.md's "`applyInteract`: one dispatch, not a
+fourth hand-written block". Task 16 supplies the four real adapters.
+
+- [ ] **Step 1: Write the failing tests**
+
+```ts
+import { describe, it, expect, vi } from 'vitest';
+import { applyInteract, type Interactable } from './Interact';
+
+function fakeInteractable(kind: string, candidateId: string | null): Interactable & { applyInteractMock: ReturnType<typeof vi.fn> } {
+  const applyInteractMock = vi.fn();
+  return {
+    kind,
+    findCandidate: () => candidateId,
+    applyInteract: applyInteractMock,
+    applyInteractMock,
+  };
+}
+
+describe('applyInteract-noCandidates-returnsFalseAndCallsNothing', () => {
+  it('does nothing when nothing is found', () => {
+    const a = fakeInteractable('a', null);
+    const b = fakeInteractable('b', null);
+    expect(applyInteract([a, b])).toBe(false);
+    expect(a.applyInteractMock).not.toHaveBeenCalled();
+    expect(b.applyInteractMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('applyInteract-firstKindHasCandidate-appliesItAndStops', () => {
+  it('applies the first match and never checks the rest', () => {
+    const a = fakeInteractable('a', 'a-1');
+    const b = fakeInteractable('b', 'b-1');
+    expect(applyInteract([a, b])).toBe(true);
+    expect(a.applyInteractMock).toHaveBeenCalledWith('a-1');
+    expect(b.applyInteractMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('applyInteract-onlySecondKindHasCandidate-appliesTheSecond', () => {
+  it('falls through to the next kind when the first has none', () => {
+    const a = fakeInteractable('a', null);
+    const b = fakeInteractable('b', 'b-1');
+    expect(applyInteract([a, b])).toBe(true);
+    expect(b.applyInteractMock).toHaveBeenCalledWith('b-1');
+  });
+});
+
+describe('applyInteract-emptyList-returnsFalse', () => {
+  it('handles an empty interactables list', () => {
+    expect(applyInteract([])).toBe(false);
+  });
+});
+```
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+Run: `npx vitest run src/themes/platformer/engine/Interact.test.ts`
+Expected: FAIL — module doesn't exist.
+
+- [ ] **Step 3: Implement `Interact.ts`**
+
+```ts
+/**
+ * One interact-key-triggered candidate kind — a ladder bundle, a chest, a
+ * door, a sign. `findCandidate`/`applyInteract` close over whatever live
+ * state and position that kind needs (PlatformerPage.tsx builds a fresh
+ * array of these each tick); this module knows nothing about what any kind
+ * actually is. See design.md's "applyInteract: one dispatch, not a fourth
+ * hand-written block".
+ */
+export interface Interactable {
+  kind: string;
+  /** Returns the id of the thing the player could interact with right now,
+   *  or null. Read-only — must not itself change any state. */
+  findCandidate(): string | null;
+  /** Applies this kind's own one-shot effect for the given candidate. */
+  applyInteract(candidateId: string): void;
+}
+
+/**
+ * Tries each interactable in order and applies the FIRST one with a
+ * candidate, then stops — a direct data-driven replacement for a chain of
+ * `if (interactPressed && !alreadyHandled) { ... }` blocks. Order is the
+ * caller's priority list (PlatformerPage.tsx: ladder bundle, door, chest,
+ * sign — see design.md). Returns whether anything was applied, so a caller
+ * that needs to know (none currently do, but O-011's `bundleDeployedThisTick`
+ * shows the shape) can react.
+ */
+export function applyInteract(interactables: readonly Interactable[]): boolean {
+  for (const interactable of interactables) {
+    const candidateId = interactable.findCandidate();
+    if (candidateId !== null) {
+      interactable.applyInteract(candidateId);
+      return true;
+    }
+  }
+  return false;
+}
+```
+
+- [ ] **Step 4: Run tests to verify they pass**
+
+Run: `npx vitest run src/themes/platformer/engine/Interact.test.ts`
+Expected: PASS
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/themes/platformer/engine/Interact.ts src/themes/platformer/engine/Interact.test.ts
+git commit -m "feat(O-029): add generic interact dispatch"
+```
+
+---
+
+## Task 16: Per-Kind `Interactable` Factories — Details Live in Each Tile's Own Module
+
+**Files:**
+- Modify: `src/themes/platformer/engine/DeployableLadder.ts` (+ `.test.ts`)
+- Modify: `src/themes/platformer/engine/DoorState.ts` (+ `.test.ts`)
+- Modify: `src/themes/platformer/engine/Collision.ts` (+ `.test.ts`)
+- Modify: `src/themes/platformer/engine/HintTooltip.ts` (+ `.test.ts`)
+
+**Interfaces:**
+- Consumes: `Interactable` (Task 15).
+- Produces: `ladderBundleInteractable(states, level, player): Interactable`; `doorInteractable(states, player): Interactable`; `chestInteractable(states, keys, player, onReveal): Interactable`; `hintInteractable(tooltipState, overlappingHintId): Interactable`.
+
+The generic `applyInteract` dispatcher (Task 15) is not where each kind's
+candidate/effect logic should actually live — that would just relocate the
+duplication into `PlatformerPage.tsx` as inline closures instead of removing
+it. Each kind's own file already owns its pure logic
+(`ladderBundleForPlayer`/`beginDeploy`, `doorPlayerIsAdjacentTo`/`toggleDoor`,
+`chestPlayerIsStandingOn`/`openChest`, `startHintTooltip`) — this task adds
+one small factory per file that adapts that existing logic to the
+`Interactable` shape, so `PlatformerPage.tsx` (Task 17) only has to call four
+factories and pass the result to `applyInteract`, exactly the way it already
+only calls `BLOCK_TYPES`/`ENEMY_TYPES` entries rather than branching on kind
+itself (see Entities.md: "adding a new enemy, interactable or block should
+mean writing one module").
+
+**Placement note — avoid a circular import**: `chestPlayerIsStandingOn`
+already lives in `engine/Collision.ts`, which already imports from
+`entities/Chest.ts` (for `isChestOpen`/`CHEST_TYPE`). Putting
+`chestInteractable` in `Chest.ts` instead would need `Chest.ts` to import
+back from `Collision.ts`, a cycle. `chestInteractable` therefore lives in
+`Collision.ts` beside the geometry test it wraps, not in `Chest.ts`.
+
+- [ ] **Step 1: Write the failing tests, one per factory**
+
+```ts
+// DeployableLadder.test.ts
+describe('ladderBundleInteractable-groundedNearRolledBundle-candidateIsBundleId', () => {
+  it('wraps ladderBundleForPlayer/beginDeploy as an Interactable', () => {
+    const states = { value: [/* one rolled bundle state */] };
+    const interactable = ladderBundleInteractable(states as any, level, player);
+    expect(interactable.kind).toBe('ladderBundle');
+    expect(interactable.findCandidate()).toBe(states.value[0].id);
+    interactable.applyInteract(states.value[0].id);
+    expect(states.value[0].phase).toBe('deploying');
+  });
+});
+```
+
+```ts
+// DoorState.test.ts
+describe('doorInteractable-adjacentClosedDoor-toggleFlipsPhase', () => {
+  it('wraps doorPlayerIsAdjacentTo/toggleDoor as an Interactable', () => {
+    const states = { value: [createDoorState(1, 1)] };
+    const interactable = doorInteractable(states as any, adjacentPlayer);
+    expect(interactable.findCandidate()).toBe(states.value[0].id);
+    interactable.applyInteract(states.value[0].id);
+    expect(states.value[0].phase).toBe('open');
+  });
+});
+```
+
+```ts
+// Collision.test.ts
+describe('chestInteractable-standingOnClosedChestWithKeys-opensAndSpendsAKey', () => {
+  it('wraps chestPlayerIsStandingOn/openChest as an Interactable, spending a key', () => {
+    const states = { value: [/* one closed chest */] };
+    const keys = { value: 1 };
+    const onReveal = vi.fn();
+    const interactable = chestInteractable(states as any, keys as any, standingPlayer, onReveal);
+    const id = interactable.findCandidate()!;
+    interactable.applyInteract(id);
+    expect(isChestOpen(states.value[0])).toBe(true);
+    expect(keys.value).toBe(0);
+    expect(onReveal).toHaveBeenCalledOnce();
+  });
+});
+
+describe('chestInteractable-standingOnClosedChestWithZeroKeys-noCandidate', () => {
+  it('returns no candidate when the visitor holds no keys', () => {
+    const states = { value: [/* one closed chest */] };
+    const keys = { value: 0 };
+    const interactable = chestInteractable(states as any, keys as any, standingPlayer, vi.fn());
+    expect(interactable.findCandidate()).toBeNull();
+  });
+});
+```
+
+```ts
+// HintTooltip.test.ts
+describe('hintInteractable-newHintId-startsTheTooltip', () => {
+  it('starts a fresh tooltip for a new hint id', () => {
+    const tooltipState = { value: null };
+    const interactable = hintInteractable(tooltipState as any, 'chestNeedsKey');
+    expect(interactable.findCandidate()).toBe('chestNeedsKey');
+    interactable.applyInteract('chestNeedsKey');
+    expect(tooltipState.value?.hintId).toBe('chestNeedsKey');
+  });
+});
+
+describe('hintInteractable-currentlyExiting-restartsEntrance', () => {
+  it('restarts the entrance when pressed again mid-exit', () => {
+    const tooltipState = { value: { hintId: 'chestNeedsKey', phase: 'exiting', elapsed: 0.3 } };
+    const interactable = hintInteractable(tooltipState as any, 'chestNeedsKey');
+    interactable.applyInteract('chestNeedsKey');
+    expect(tooltipState.value?.phase).toBe('entering');
+    expect(tooltipState.value?.elapsed).toBe(0);
+  });
+});
+```
+
+Match whatever fake-signal shape (`{ value: T }`) each file's existing tests
+already use for signals; adjust the `as any` casts to that file's actual
+convention rather than introducing a new one.
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+Run: `npx vitest run src/themes/platformer/engine/DeployableLadder.test.ts src/themes/platformer/engine/DoorState.test.ts src/themes/platformer/engine/Collision.test.ts src/themes/platformer/engine/HintTooltip.test.ts`
+Expected: FAIL — none of the four factories exist yet.
+
+- [ ] **Step 3: Implement the four factories**
+
+In `DeployableLadder.ts`:
+
+```ts
+import type { Interactable } from './Interact';
+
+export function ladderBundleInteractable(
+  states: Signal<DeployableLadderState[]>,
+  level: LevelDef,
+  player: PlayerState,
+): Interactable {
+  return {
+    kind: 'ladderBundle',
+    findCandidate: () => ladderBundleForPlayer(level, states.value, player)?.id ?? null,
+    applyInteract: (id) => {
+      states.value = states.value.map((s) => (s.id === id ? beginDeploy(s) : s));
+    },
+  };
+}
+```
+
+In `DoorState.ts`:
+
+```ts
+import type { Interactable } from './Interact';
+
+export function doorInteractable(states: Signal<DoorState[]>, player: PlayerState): Interactable {
+  return {
+    kind: 'door',
+    findCandidate: () => doorPlayerIsAdjacentTo(states.value, player),
+    applyInteract: (id) => {
+      states.value = states.value.map((d) => (d.id === id ? toggleDoor(d) : d));
+    },
+  };
+}
+```
+
+In `Collision.ts`:
+
+```ts
+import type { Interactable } from './Interact';
+import { openChest, type ChestState } from '../entities/Chest';
+
+export function chestInteractable(
+  states: Signal<ChestState[]>,
+  keys: Signal<number>,
+  player: PlayerState,
+  onReveal: (fact: CollectedFact, effect: { x: number; y: number; effectId: string }) => void,
+): Interactable {
+  return {
+    kind: 'chest',
+    findCandidate: () => (keys.value > 0 ? chestPlayerIsStandingOn(player, states.value) ?? null : null),
+    applyInteract: (id) => {
+      const chest = states.value.find((c) => c.id === id)!;
+      states.value = states.value.map((c) => (c.id === id ? openChest(c) : c));
+      keys.value -= 1;
+      onReveal(chest.fact, { x: chest.x + CHEST_CLOSED_OFFSET_X, y: chest.y, effectId: chest.id });
+    },
+  };
+}
+```
+
+In `HintTooltip.ts`:
+
+```ts
+import type { Interactable } from './Interact';
+
+/**
+ * The interact-triggered half of hint/tooltip behavior — "start it on a
+ * fresh press". `overlappingHintId` is computed by the caller each tick
+ * exactly as today (the union of a sign overlap and a locked-chest-needs-
+ * key case, PlatformerPage.tsx's existing logic, unchanged by this task);
+ * this factory only owns what happens once interact fires for it. The
+ * CONTINUOUS half — tickHintTooltip's per-frame advance, and the
+ * not-overlapping exit branch — stays independent of this factory entirely,
+ * same as DeployableLadder.ts's advanceDeployableLadder stays independent of
+ * ladderBundleInteractable above.
+ */
+export function hintInteractable(
+  tooltipState: Signal<HintTooltipState | null>,
+  overlappingHintId: HintId | undefined,
+): Interactable {
+  return {
+    kind: 'hint',
+    findCandidate: () => overlappingHintId ?? null,
+    applyInteract: (id) => {
+      const current = tooltipState.value;
+      if (!current || current.hintId !== id) {
+        tooltipState.value = startHintTooltip(id as HintId);
+      } else if (current.phase === 'exiting') {
+        tooltipState.value = { ...current, phase: 'entering', elapsed: 0 };
+      }
+    },
+  };
+}
+```
+
+Import `Signal` from `@preact/signals-react` in each file that needs it (check the file's existing imports first — several already import other signal helpers from this package).
+
+- [ ] **Step 4: Run tests to verify they pass**
+
+Run: `npx vitest run src/themes/platformer/engine/DeployableLadder.test.ts src/themes/platformer/engine/DoorState.test.ts src/themes/platformer/engine/Collision.test.ts src/themes/platformer/engine/HintTooltip.test.ts`
+Expected: PASS
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/themes/platformer/engine/DeployableLadder.ts src/themes/platformer/engine/DeployableLadder.test.ts src/themes/platformer/engine/DoorState.ts src/themes/platformer/engine/DoorState.test.ts src/themes/platformer/engine/Collision.ts src/themes/platformer/engine/Collision.test.ts src/themes/platformer/engine/HintTooltip.ts src/themes/platformer/engine/HintTooltip.test.ts
+git commit -m "feat(O-029): add per-kind Interactable factories, keeping each kind's details in its own module"
+```
+
+---
+
+## Task 17: `PlatformerPage.tsx` — Compose the Four Factories, Replace the Hand-Written Blocks
 
 **Files:**
 - Modify: `src/themes/platformer/PlatformerPage.tsx`
 - Modify: `src/themes/platformer/PlatformerPage.test.tsx`
 
 **Interfaces:**
-- Consumes: `doorStates`/`doorPlacements` (Task 13), `doorPlayerIsAdjacentTo`/`toggleDoor` (Task 7), `interactPressed`/`bundleDeployedThisTick` (existing, Task 3 area of O-011's tick).
-- Produces: pressing the interact key next to a door toggles it, spending no key and revealing no fact.
+- Consumes: `applyInteract` (Task 15); `ladderBundleInteractable`, `doorInteractable`, `chestInteractable`, `hintInteractable` (Task 16); `doorStates`/`doorPlacements` (Task 13).
+- Produces: `PlatformerPage.tsx`'s tick calls four factories and `applyInteract` instead of four hand-written blocks; the door is now wired in and rendered.
 
-- [ ] **Step 1: Write the failing tests**
+**⚠️ Higher regression risk than earlier tasks**: this touches the ladder
+bundle's, chest's, and sign's ALREADY-SHIPPED interact call sites, not just
+new door code — though Task 16 already moved and unit-tested the actual
+logic, so this task is now closer to pure wiring than a rewrite. Every
+existing test for those three must still pass, UNCHANGED, after this task.
+If any existing assertion needs to change, stop and re-read the code being
+replaced rather than editing the test.
+
+- [ ] **Step 1: Read the current interact block in full before changing anything**
+
+Re-read `PlatformerPage.tsx` from the `arrowUpPressed`/`wPressed` lines
+through the end of the hint-tooltip block (the `bundleForPlayer`, chest-open,
+`overlappingSignHintId`/`lockedChestHintId`/`overlappingHintId`, and
+tooltip-phase sections) as it currently stands — O-011/S-007 code may have
+shifted since this plan was written.
+
+- [ ] **Step 2: Write the failing door tests (the only genuinely NEW behavior)**
 
 ```ts
 describe('interact-standingNextToClosedDoor-opensIt', () => {
@@ -1466,36 +1840,48 @@ describe('interact-notAdjacentToDoor-doesNothing', () => {
   });
 });
 
-describe('interact-doorAndChestBothStandable-existingPrecedenceApplies', () => {
-  it('does not crash and resolves deterministically when both are candidates', () => {
-    // Out of scope to arbitrate per spec.md's Edge Cases — this test only
-    // guards against a crash/undefined-behavior regression, not a specific
-    // winner.
+describe('interact-ladderBundleCandidate-suppressesADoorCandidateSameTick', () => {
+  it('preserves the existing "ladder bundle goes first" priority', () => {
+    // Contrived fixture where both could match; assert only the bundle's
+    // phase changes and doorStates is untouched.
   });
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [ ] **Step 3: Run tests to verify they fail**
 
 Run: `npx vitest run src/themes/platformer/PlatformerPage.test.tsx`
-Expected: FAIL
+Expected: FAIL for the four new door tests; every PRE-EXISTING test in this file should still be PASSING at this point (you haven't touched production code yet).
 
-- [ ] **Step 3: Add the toggle wiring**
+- [ ] **Step 4: Replace the hand-written blocks with the composed dispatch**
 
-Import `doorStates`, `doorPlayerIsAdjacentTo`, `toggleDoor` (from `./PlatformerState` and `./engine/DoorState` respectively — `PlatformerState.ts` already re-exports most signals this file consumes; add `doorStates` to whatever existing destructured import block brings in `chestStates`).
+Import `applyInteract` from `./engine/Interact`, `ladderBundleInteractable` from `./engine/DeployableLadder`, `doorInteractable` from `./engine/DoorState`, `chestInteractable` from `./engine/Collision`, `hintInteractable` from `./engine/HintTooltip`, and `doorStates` per Task 13.
 
-Immediately after the existing chest-open block (`if (interactPressed && !bundleDeployedThisTick) { ... }` — the one opening `standingChestId`), add a parallel block for the door, guarded the same way so a door toggle and a chest open never both fire from one press:
+Replace the existing sequence — `bundleForPlayer` computation + its `if`
+block, the chest `if (interactPressed && !bundleDeployedThisTick)` block,
+and the interact-triggered half of the hint-tooltip block (the
+`if (overlappingHintId && interactPressed && !bundleDeployedThisTick) { ... }`
+branch specifically — with:
 
 ```ts
-      const adjacentDoorId = interactPressed ? doorPlayerIsAdjacentTo(doorStates.value, playerState.value) : null;
-      if (interactPressed && !bundleDeployedThisTick && adjacentDoorId) {
-        doorStates.value = doorStates.value.map((d) => (d.id === adjacentDoorId ? toggleDoor(d) : d));
+      if (interactPressed) {
+        applyInteract([
+          ladderBundleInteractable(deployableLadderStates, currentLevel.value, playerState.value),
+          doorInteractable(doorStates, playerState.value),
+          chestInteractable(chestStates, collectedKeys, playerState.value, revealFact),
+          hintInteractable(hintTooltipState, overlappingHintId),
+        ]);
       }
 ```
 
-Place this block so it does not also consume the same `interactPressed` in a way that double-triggers the chest block above — since `chestPlayerIsStandingOn` and `doorPlayerIsAdjacentTo` test disjoint geometries (chest = overlap, door = adjacent-but-not-overlapping, because a closed door is solid and the player physically cannot overlap it), a single tick can satisfy at most one of the two in practice; no additional guard is needed beyond the existing `!bundleDeployedThisTick`.
+Keep `overlappingSignHintId`, `lockedChestHintId`, `overlappingHintId`,
+`tickHintTooltip(dt)`, and the not-overlapping exit branch exactly where
+they are today, unchanged — `overlappingHintId` must still be computed
+BEFORE this block since `hintInteractable` reads it. Delete the now-dead
+`bundleDeployedThisTick`/`bundleForPlayer` locals and the old inline chest
+`if` block entirely — their logic now lives inside Task 16's factories.
 
-- [ ] **Step 4: Wire the render call**
+- [ ] **Step 5: Wire the door render call**
 
 Find where `drawChests`/`drawDeployableLadders` are called in the render pass and add, in the same area:
 
@@ -1503,23 +1889,31 @@ Find where `drawChests`/`drawDeployableLadders` are called in the render pass an
       drawDoors(ctx, doorStates.value, doorSheetRef.current, originX, originY);
 ```
 
-Add a `doorSheetRef` following the exact `ropeLadderRef`/`loadImage(ROPE_LADDER_SHEET.src)` pattern from O-011 (Task 10 of this plan didn't register a new sheet for doors — doors reuse `STATIC_OBJECTS_SHEET`, which this file should already be loading for the other static-objects decorations; if it is, reuse that existing loaded image ref directly instead of creating a new one).
+Add a `doorSheetRef` following the exact `ropeLadderRef`/`loadImage(ROPE_LADDER_SHEET.src)` pattern from O-011 (doors reuse `STATIC_OBJECTS_SHEET`, which this file should already be loading for other static-objects decorations; if it is, reuse that existing loaded image ref directly instead of creating a new one).
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [ ] **Step 6: Run the full existing PlatformerPage test file**
 
 Run: `npx vitest run src/themes/platformer/PlatformerPage.test.tsx`
-Expected: PASS
+Expected: PASS — every pre-existing ladder-bundle, chest, and sign/hint test
+passes UNCHANGED, and the four new door tests from Step 2 now pass too. If
+any pre-existing test fails, re-check that Task 16's factories faithfully
+reproduce Step 1's original behavior — fix the factory, not the test.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Run the full platformer suite**
+
+Run: `npx vitest run src/themes/platformer`
+Expected: PASS, no regressions anywhere else in the theme.
+
+- [ ] **Step 8: Commit**
 
 ```bash
 git add src/themes/platformer/PlatformerPage.tsx src/themes/platformer/PlatformerPage.test.tsx
-git commit -m "feat(O-029): wire the interact key to toggle an adjacent door, and render doors"
+git commit -m "refactor(O-029): compose ladder bundle, door, chest, and hint interactables in PlatformerPage.tsx"
 ```
 
 ---
 
-## Task 16: Manual Browser Verification
+## Task 18: Manual Browser Verification
 
 **Files:** none (verification only — constitution requires a manual browser check for changes with visible behavior).
 
@@ -1545,4 +1939,5 @@ Take a screenshot of the rendered wood/door scene and share it — this step has
 
 - **Task 0 is unusually load-bearing**: every later task's exact sprite coordinates depend on its output. Do not skip straight to Task 1 with guessed numbers.
 - **Task 9's Step 5** (threading `groundWoodImage` through `drawTerrain`) is the one step in this plan described by pattern-reference rather than full code, because it depends on exactly how `drawTerrain`'s current parameter list is shaped at implementation time — read `Terrain.md`'s "Adding a tile" step 3 and the `crumblingFloor` sheet-threading precedent before writing it.
-- **Task 15's exact `interactPressed` block ordering** depends on precisely which existing blocks precede it in the current `PlatformerPage.tsx` tick — re-read that function's current state before inserting, since O-011/S-007 code may have shifted since this plan was written.
+- **Task 17's exact `interactPressed` block ordering** depends on precisely which existing blocks precede it in the current `PlatformerPage.tsx` tick — re-read that function's current state before inserting, since O-011/S-007 code may have shifted since this plan was written.
+- **Task 16 depends on Task 15's `Interactable` type existing first** — do not reorder these two; each factory imports `type { Interactable }` from `engine/Interact.ts`.

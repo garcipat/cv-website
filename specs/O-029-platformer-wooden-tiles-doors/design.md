@@ -125,6 +125,57 @@ features already share, not the broader predicate-dispatch question — it makes
 two-instance pattern honest about being one mechanism instead of two coincidentally similar ones,
 without pre-building machinery for hypothetical future tile kinds this feature doesn't need.
 
+### `applyInteract`: one dispatch, not a fourth hand-written block
+
+`PlatformerPage.tsx`'s tick already has two hand-written "stand near X, press
+interact, X decides what happens" blocks — the ladder bundle's deploy trigger
+and the chest's open trigger — with a sign's hint bubble as a close third
+(its *interact effect* is `startHintTooltip`, a one-shot transition exactly
+like the other two; its per-tick animation and its exit-when-not-overlapping
+branch are a separate, already-independent concern, the same way the ladder
+bundle's own per-tick `advanceDeployableLadder` is independent of its
+one-shot `beginDeploy`). A door would be a fourth copy of the same shape.
+Three near-identical hand-written blocks was already a lot; a fourth is the
+point where the duplication itself becomes a design problem, not a matter of
+taste — this is the same "second (now fourth) caller of the same shape, right
+moment to lift it out" reasoning that justified `applyTerrainOverrides`.
+
+Each kind's *detection* geometry differs (ladder bundle: proximity above;
+chest: overlap; door: adjacent-but-not-overlapping, since a closed door is
+solid; sign: overlap) and each kind's *effect* touches its own state (and,
+for chest, `collectedKeys` and `revealFact`) — so the shared part isn't "one
+function that knows about all four," it's a thin common shape each kind
+already expresses through its own pure functions (`ladderBundleForPlayer`/
+`beginDeploy`, `chestPlayerIsStandingOn`/`openChest`, the new
+`doorPlayerIsAdjacentTo`/`toggleDoor`, `checkSignOverlap`/`startHintTooltip`),
+wired through one small adapter interface:
+
+```ts
+interface Interactable {
+  kind: string;
+  findCandidate(player: PlayerState): string | null;
+  applyInteract(candidateId: string): void;
+}
+```
+
+`applyInteract(interactables: readonly Interactable[], player): boolean`
+tries each in a fixed priority order and stops at the first match — a direct
+data-driven replacement for the sequential `if`/`!bundleDeployedThisTick`
+guards already in `PlatformerPage.tsx`, preserving the same "first match
+wins, one press does one thing" behavior. Each kind's own pure logic
+(`toggleDoor`, `beginDeploy`, `openChest`, `startHintTooltip`) is untouched —
+the adapters are thin closures built once in `PlatformerPage.tsx`, over the
+same live signals the hand-written blocks already read and write. Priority
+order matches today's implicit order plus the door slotted in: ladder bundle
+(must gate the others) → door → chest → sign (read-only, so it never needs to
+win against anything, same as today).
+
+This does not touch `applyOpenedDoors`/`applyDeployedLadders` at all — those
+answer a different question ("what does the effective grid look like right
+now") and keep running every tick regardless of input, exactly as before.
+`applyInteract` only replaces the *detection-and-one-shot-effect* half of the
+tick, upstream of them.
+
 ### Two leaves, two adjacent cells, not one wide entity
 
 The door's art is two 16×26px leaves — each exactly one tile wide. That is what makes the
