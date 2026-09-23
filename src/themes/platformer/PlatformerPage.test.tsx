@@ -60,6 +60,8 @@ import {
   playerStateAtTile,
   mushroomSquashStates,
   floorSpikeTimerStates,
+  doorPlacements,
+  doorStates,
 } from './PlatformerState';
 import { toBlockState } from './entities/Block';
 import type { BlockState } from './entities/Block';
@@ -4350,6 +4352,97 @@ describe('PlatformerPage', () => {
 
       resetGameProgress();
       expect(hazardPlacements.value).toEqual(before);
+    });
+  });
+
+  describe('enemies read activeLevel, not currentLevel (O-029 Task 14)', () => {
+    /** Renders the page with a controllable game loop, mirroring the
+     *  floor-spear describe's own mountWithLoop above. */
+    function mountWithLoop(): (steps?: number, dt?: number) => void {
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+      render(<PlatformerPage />);
+      frameCallback!(0);
+
+      let t = 0;
+      return (steps = 1, dt = 16) => {
+        for (let i = 0; i < steps; i++) {
+          t += dt;
+          frameCallback!(t);
+        }
+      };
+    }
+
+    // A patrolling enemy ('M', col 2) a few tiles from a closed door pair
+    // (cols 4-5), with the patrol boundary ('P', col 9) well beyond the
+    // door — the ONLY thing that can turn the enemy around before col 9 is
+    // the door itself. The marker (not a post-mount reposition) is required
+    // here: PlatformerPage's mount effect calls `resetGameProgress()`, which
+    // reseeds `enemyStates` from `enemyPlacements` (derived from whatever
+    // `currentLayout` is at mount time) — a marker-less layout mounts with
+    // zero enemies.
+    const DOOR_TEST_LAYOUT = ['S.M.dD...P', 'GGGGGGGGGG'];
+
+    /** Pins the green slime placed by DOOR_TEST_LAYOUT's `M` marker to an
+     *  exact tile-aligned position/direction, so the test doesn't depend on
+     *  EnemyMapper's placement-to-fact zip order for anything but "this is
+     *  a slimeGreen". */
+    function placeGreenSlimeAt(col: number, row: number): EnemyState {
+      const target = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
+      enemyStates.value = enemyStates.value.map((e) =>
+        e.id === target.id
+          ? { ...e, x: col * RENDERED_TILE_SIZE, y: row * RENDERED_TILE_SIZE, direction: 'right' as const, vx: 0 }
+          : e,
+      );
+      return enemyStates.value.find((e) => e.id === target.id)!;
+    }
+
+    describe('enemyMovement-closedDoorBlocksPatrol-reversesLikeAWall', () => {
+      it('a patrolling enemy reverses at a closed door', () => {
+        currentLayout.value = DOOR_TEST_LAYOUT;
+        doorStates.value = doorPlacements.value.map((state) => ({ ...state }));
+        const advance = mountWithLoop();
+        const door = doorPlacements.value[0];
+        const enemy = placeGreenSlimeAt(2, 0);
+
+        for (let i = 0; i < 300; i++) {
+          advance(1);
+          const current = enemyStates.value.find((e) => e.id === enemy.id)!;
+          // Never crosses into the closed door's own column — it reverses
+          // at the door exactly as it would at a wall.
+          expect(current.x).toBeLessThan(door.col * RENDERED_TILE_SIZE);
+        }
+
+        const after = enemyStates.value.find((e) => e.id === enemy.id)!;
+        expect(after.direction).toBe('left');
+      });
+    });
+
+    describe('enemyMovement-openDoorAdmitsPatrol-enemyWalksThrough', () => {
+      it('an opened door lets a patrolling enemy walk through it', () => {
+        currentLayout.value = DOOR_TEST_LAYOUT;
+        const advance = mountWithLoop();
+        // Set AFTER mounting: the mount effect's own resetGameProgress() call
+        // (theme-switch reset, PlatformerPage.tsx) reseeds doorStates back to
+        // closed, so opening it beforehand would just be clobbered.
+        doorStates.value = doorPlacements.value.map((state) => ({ ...state, phase: 'open' as const }));
+        const door = doorPlacements.value[0];
+        const enemy = placeGreenSlimeAt(2, 0);
+
+        // 170 ticks (2.72s) covers the ~4.35 tiles from col 2 to well past
+        // the door's leaf cells at 60px/s, with margin before the enemy
+        // would reach the far patrol boundary at col 9 and reverse again.
+        advance(170);
+
+        const after = enemyStates.value.find((e) => e.id === enemy.id)!;
+        // Walked clear past both leaf cells of the (open) door pair.
+        expect(after.x).toBeGreaterThan((door.col + 2) * RENDERED_TILE_SIZE);
+      });
     });
   });
 

@@ -1235,7 +1235,7 @@ export const PlatformerPage = () => {
       // world clock the fly bob's phase reads, so the bob freezes with the
       // world on pause/death and resumes on the same phase (research D8).
       const movementCtx: MovementContext = {
-        level: currentLevel.value,
+        level: activeLevel.value,
         blockedTiles,
         player: {
           x: playerState.value.x,
