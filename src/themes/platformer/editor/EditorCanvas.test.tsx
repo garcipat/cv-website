@@ -30,6 +30,7 @@ vi.mock('../engine/Renderer', () => ({
   drawDarkness: vi.fn(),
   drawEnemyEyes: vi.fn(),
   drawHeldTorch: vi.fn(),
+  drawCrumblingFloors: vi.fn(),
   heldTorchLightPosition: vi.fn(() => ({ x: 0, y: 0 })),
 }));
 
@@ -69,6 +70,8 @@ const EMPTY_IMAGES: EditorImages = {
   mushroom: null,
   spears: null,
   floorSpike: null,
+  crumbleFloor: null,
+  crumbleCracks: null,
 };
 
 // Default props shared by every pre-existing test in this file (all of

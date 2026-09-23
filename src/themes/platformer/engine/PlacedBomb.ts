@@ -2,6 +2,9 @@ import type { LevelDef } from '../level/LevelData';
 import { isBlockOccupied, type BlockPlacement } from '../level/BlockMapper';
 import { isSolid, tileAt, tileToPixel, RENDERED_TILE_SIZE } from '../level/Terrain';
 import { PHYSICS_CONFIG } from './PhysicsConfig';
+import { isCrumblingFloorBroken, type CrumblingFloorTimerState } from './CrumblingFloor';
+
+const NO_CRUMBLING_FLOOR_STATES: readonly CrumblingFloorTimerState[] = [];
 
 /**
  * A placed bomb's live state — the one new stored value the bomb placement
@@ -66,20 +69,26 @@ export const BOMB_FUSE_SECONDS = BOMB_BURN_SECONDS + BOMB_PULSE_SECONDS;
  * row (i.e. the resting row, which equals `row` when the cell directly below
  * is solid), or `null` when the column has no floor before the level's bottom.
  *
- * "Solid for a bomb" is `isSolid(tileAt(...)) || isBlockOccupied(...)`.
- * `isSolid` includes `bridge`, so a bridge stops a bomb; `ladder` is not
- * solid and `isStandableLadderTop` is deliberately not consulted, so a ladder
- * tile is open air (FR-015). Never throws — `tileAt` resolves out-of-bounds
- * reads to `'empty'`.
+ * "Solid for a bomb" is `isSolid(tileAt(...)) || isBlockOccupied(...)`, with
+ * one exception: a crumbling floor tile (O-023) counts as solid too, as long
+ * as it isn't currently broken/reforming — a bomb rests on it exactly like
+ * ordinary ground while it's there. `isSolid` includes `bridge`, so a bridge
+ * stops a bomb; `ladder` is not solid and `isStandableLadderTop` is
+ * deliberately not consulted, so a ladder tile is open air (FR-015). Never
+ * throws — `tileAt` resolves out-of-bounds reads to `'empty'`.
  */
 export function bombLandingRow(
   level: LevelDef,
   blocks: readonly BlockPlacement[],
   col: number,
   row: number,
+  crumblingFloorStates: readonly CrumblingFloorTimerState[] = NO_CRUMBLING_FLOOR_STATES,
 ): number | null {
   for (let r = row + 1; r < level.height; r++) {
-    if (isSolid(tileAt(level, col, r)) || isBlockOccupied(blocks, col, r)) return r - 1;
+    const tile = tileAt(level, col, r);
+    const tileIsGround =
+      tile === 'crumblingFloor' ? !isCrumblingFloorBroken(crumblingFloorStates, col, r) : isSolid(tile);
+    if (tileIsGround || isBlockOccupied(blocks, col, r)) return r - 1;
   }
   return null;
 }
@@ -93,6 +102,7 @@ export function createPlacedBomb(
   blocks: readonly BlockPlacement[],
   col: number,
   row: number,
+  crumblingFloorStates: readonly CrumblingFloorTimerState[] = NO_CRUMBLING_FLOOR_STATES,
 ): PlacedBombState {
   const { x, y } = tileToPixel(col, row);
   return {
@@ -102,7 +112,7 @@ export function createPlacedBomb(
     vy: 0,
     col,
     row,
-    landingRow: bombLandingRow(level, blocks, col, row),
+    landingRow: bombLandingRow(level, blocks, col, row, crumblingFloorStates),
     fuseElapsed: 0,
     landed: false,
   };

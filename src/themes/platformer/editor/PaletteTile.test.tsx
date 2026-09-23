@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PaletteTile } from './PaletteTile';
-import type { TileSpriteSpec } from './paletteTiles';
+import { PALETTE_TILE_SPRITES, type TileSpriteSpec } from './paletteTiles';
 
 const SPRITE: TileSpriteSpec = {
   sheet: '/sprites/coin.png',
@@ -194,5 +194,48 @@ describe('PaletteTile', () => {
 
     const wrapper = container.querySelector('img[alt=""]')!.parentElement!;
     expect(wrapper.style.top).toBe('0px');
+  });
+
+  it('overlayWithTopAnchor-positionsFlushWithTheBaseSpritesOwnTop', () => {
+    const sprite: TileSpriteSpec = {
+      sheet: '/sprites/crumble_floor.png',
+      sheetWidth: 16,
+      sheetHeight: 16,
+      sx: 0,
+      sy: 0,
+      frameWidth: 16,
+      frameHeight: 16,
+      overlay: { sx: 0, sy: 0, frameHeight: 8, anchor: 'top' },
+    };
+
+    const { container } = render(
+      <PaletteTile label="Crumbling Floor" sprite={sprite} selected={false} onClick={() => {}} />,
+    );
+
+    const wrapper = container.querySelector('img[alt=""]')!.parentElement!;
+    // Top-anchored: flush with the base sprite's own top (0), unlike the
+    // bottom-anchored floor spike case above, even though this overlay's
+    // frameHeight (8) is shorter than the base's (16).
+    expect(wrapper.style.top).toBe('0px');
+  });
+
+  it('crumblingFloorPaletteEntry-topAnchorsItsCrackOverlay', () => {
+    // Regression coverage for the real `g` (Crumbling Floor) spec, not just
+    // a synthetic anchor:'top' case: crumble_floor.png's visible ledge art
+    // is top-aligned in its 16x16 cell, so its crack overlay must render
+    // over that visible top half rather than the transparent bottom half.
+    const sprite = PALETTE_TILE_SPRITES.g;
+    expect(sprite?.overlay?.anchor).toBe('top');
+
+    const { container } = render(
+      <PaletteTile label="Crumbling Floor" sprite={sprite} selected={false} onClick={() => {}} />,
+    );
+
+    const wrapper = container.querySelector('img[alt=""]')!.parentElement!;
+    // Follows the base sprite's own topOffset (4 source px) nudge, scaled
+    // the same as everything else in the icon (scale = (40 - 10) / 16 =
+    // 1.875) — not flush at 0 the way a sprite with no topOffset would be
+    // (see the synthetic case above).
+    expect(wrapper.style.top).toBe('7.5px');
   });
 });

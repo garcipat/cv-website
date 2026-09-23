@@ -66,6 +66,16 @@ export type TileType =
   /** The small non-solid dressing mushroom. No behaviour of any kind: never
    *  solid, never standable, never bounces. Art is a single fixed cell. */
   | 'decorativeMushroom'
+  /** Ground that cracks and shakes underfoot, breaks apart into falling
+   *  debris after a fixed cycle, and reforms after a fixed delay (O-023).
+   *  Solid while at rest or cracking; non-solid while broken or reforming.
+   *  Its art top-aligns within its cell and is only half a tile tall — its
+   *  solid region matches that height exactly rather than the full cell
+   *  (see Terrain.ts's `CRUMBLING_FLOOR_SOLID_HEIGHT` and Physics.ts's
+   *  ceiling branch). Per-cell cycle state (`engine/CrumblingFloor.ts`) is
+   *  the only runtime state this tile kind carries — the grid cell itself
+   *  never changes. */
+  | 'crumblingFloor'
   | 'empty';
 
 export type TileMap = TileType[][];

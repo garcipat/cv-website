@@ -87,7 +87,7 @@ export const PaletteTile = ({
             style={{
               position: 'absolute',
               left: -sprite.sx * scale,
-              top: -sprite.sy * scale,
+              top: (-sprite.sy + (sprite.topOffset ?? 0)) * scale,
               width: sprite.sheetWidth * scale,
               height: sprite.sheetHeight * scale,
               maxWidth: 'none',
@@ -99,27 +99,45 @@ export const PaletteTile = ({
               style={{
                 position: 'absolute',
                 left: 0,
-                // Bottom-anchored: a shorter overlay frameHeight sits flush
-                // with the base's own bottom edge rather than its top, so a
-                // partial slice reads as "emerging from the ground" instead
-                // of "hanging from the ceiling". Omitted (grass overlay),
-                // this is 0 and the overlay fills the full footprint exactly
-                // as before.
-                top: (sprite.frameHeight - (sprite.overlay.frameHeight ?? sprite.frameHeight)) * scale,
+                // Default ('bottom', every overlay before `g`): a shorter
+                // overlay frameHeight sits flush with the base's own bottom
+                // edge rather than its top, so a partial slice reads as
+                // "emerging from the ground" instead of "hanging from the
+                // ceiling". Omitted frameHeight (grass overlay), this is 0
+                // and the overlay fills the full footprint exactly as
+                // before. 'top' instead sits flush with the base sprite's
+                // own top edge — the crumbling floor's crack overlay needs
+                // this because its base art (crumble_floor.png) is itself
+                // top-aligned in its cell, matching Renderer.ts's live
+                // compositing at the same y as the ledge's own top. Also
+                // follows the base's own `topOffset` nudge, so the overlay
+                // stays flush with the ledge's shifted position rather than
+                // floating above it.
+                top:
+                  sprite.overlay.anchor === 'top'
+                    ? (sprite.topOffset ?? 0) * scale
+                    : (sprite.frameHeight - (sprite.overlay.frameHeight ?? sprite.frameHeight)) * scale,
                 width: sprite.frameWidth * scale,
                 height: (sprite.overlay.frameHeight ?? sprite.frameHeight) * scale,
                 overflow: 'hidden',
               }}
             >
               <img
-                src={sprite.sheet}
+                // Every existing overlay omits `sheet`/`sheetWidth`/
+                // `sheetHeight` and draws from the base spec's own — these
+                // three fall back to it independently. `g`'s crack overlay
+                // is the first to supply its own: a second file
+                // (crumble_cracks.png) at a genuinely different native size
+                // (48x8) from the base sheet (16x16), so reusing the base's
+                // sheetWidth/sheetHeight here would stretch/distort it.
+                src={sprite.overlay.sheet ?? sprite.sheet}
                 alt=""
                 style={{
                   position: 'absolute',
                   left: -sprite.overlay.sx * scale,
                   top: -sprite.overlay.sy * scale,
-                  width: sprite.sheetWidth * scale,
-                  height: sprite.sheetHeight * scale,
+                  width: (sprite.overlay.sheetWidth ?? sprite.sheetWidth) * scale,
+                  height: (sprite.overlay.sheetHeight ?? sprite.sheetHeight) * scale,
                   maxWidth: 'none',
                   imageRendering: 'pixelated',
                 }}

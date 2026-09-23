@@ -5,6 +5,7 @@ import { parseLevel } from '../level/LevelParser';
 import type { LevelDef } from '../level/LevelData';
 import { RENDERED_TILE_SIZE, isSolid, tileAt } from '../level/Terrain';
 import { placeBlocks } from '../level/BlockMapper';
+import type { CrumblingFloorTimerState } from './CrumblingFloor';
 import { hitboxInsetXForBlock } from '../entities/Block';
 import {
   PLAYER_RENDERED_SIZE,
@@ -53,6 +54,14 @@ const PIT_LEVEL = parseLevel(['..', '..', '..', '..']);
 // Same footprint as GROUND_LEVEL, but the solid row is on top instead of the
 // bottom — used to test the upward (ceiling) collision case jump introduces.
 const CEILING_LEVEL = parseLevel(['GG', '..', '..', '..']);
+
+// Ground on the bottom row is crumblingFloor instead of groundGrass — used
+// for the landing-from-above cases.
+const CRUMBLING_FLOOR_GROUND_LEVEL = parseLevel(['..', '..', '..', 'gg']);
+
+// Mirrors CEILING_LEVEL but with crumblingFloor on top — used for the
+// rising-from-below / vertical-inset cases.
+const CRUMBLING_FLOOR_CEILING_LEVEL = parseLevel(['gg', '..', '..', '..']);
 
 // Same shape as CEILING_LEVEL, but the solid row is `bridge` instead of
 // `groundGrass` — isolates the one-way case: rising into a bridge from below
@@ -791,6 +800,245 @@ describe('stepPlayerPhysics one-way bridge platforms', () => {
       }
     },
   );
+});
+
+describe('stepPlayerPhysics - crumbling floor', () => {
+  // Both grid columns of CRUMBLING_FLOOR_GROUND_LEVEL / _CEILING_LEVEL are
+  // 'g' (crumblingFloor), and the player's HITBOX_WIDTH (wider than one
+  // tile) always spans both column 0 and column 1 at x: 0 — so every
+  // states array below arms/exempts BOTH columns. Leaving one column's
+  // entry out would leave that column implicitly 'atRest' (solid), which
+  // would silently keep the player grounded/blocked through the OTHER
+  // (armed) column regardless of the phase under test.
+
+  it('atRest-solidFromAbove-justLikeOrdinaryGround', () => {
+    // Same close-approach shape as the pre-existing
+    // "fallingOntoSolidTile-snapsFeetToSurfaceAndStopsVelocity" ground test:
+    // start 1px above the surface, falling fast enough to reach it in one
+    // frame.
+    const player = basePlayer({ y: standingYOnRow(3) - 1, vy: 500 });
+    const next = stepPlayerPhysics(player, CRUMBLING_FLOOR_GROUND_LEVEL, 1 / 60, {}, [], []);
+    expect(next.grounded).toBe(true);
+    expect(next.y).toBe(standingYOnRow(3));
+  });
+
+  it('crackingPhase-stillSolidFromAbove', () => {
+    const player = basePlayer({ y: standingYOnRow(3) - 1, vy: 500 });
+    const states: CrumblingFloorTimerState[] = [
+      { col: 0, row: 3, elapsed: 0.1 }, // mid "cracking" (< CRUMBLING_FLOOR_CRACK_SECONDS)
+      { col: 1, row: 3, elapsed: 0.1 },
+    ];
+    const next = stepPlayerPhysics(player, CRUMBLING_FLOOR_GROUND_LEVEL, 1 / 60, {}, [], states);
+    expect(next.grounded).toBe(true);
+    expect(next.y).toBe(standingYOnRow(3));
+  });
+
+  it('brokenPhase-isNotSolid-playerFallsThrough', () => {
+    const player = basePlayer({ y: standingYOnRow(3) - 1, vy: 500 });
+    // 1.0s: past CRUMBLING_FLOOR_CRACK_SECONDS (0.9), short of crack+broken
+    // (0.9 + 1.5 = 2.4) — mid "broken".
+    const states: CrumblingFloorTimerState[] = [
+      { col: 0, row: 3, elapsed: 1.0 },
+      { col: 1, row: 3, elapsed: 1.0 },
+    ];
+    const next = stepPlayerPhysics(player, CRUMBLING_FLOOR_GROUND_LEVEL, 1 / 60, {}, [], states);
+    expect(next.grounded).toBe(false);
+  });
+
+  it('reformingPhase-isStillNotSolid', () => {
+    const player = basePlayer({ y: standingYOnRow(3) - 1, vy: 500 });
+    // 2.6s: past crack+broken (2.4), short of the full cycle (2.4 + 0.4 =
+    // 2.8) — mid "reforming".
+    const states: CrumblingFloorTimerState[] = [
+      { col: 0, row: 3, elapsed: 2.6 },
+      { col: 1, row: 3, elapsed: 2.6 },
+    ];
+    const next = stepPlayerPhysics(player, CRUMBLING_FLOOR_GROUND_LEVEL, 1 / 60, {}, [], states);
+    expect(next.grounded).toBe(false);
+  });
+
+  it('atRest-fromBelow-blocksOnlyAtTheHalfTileLine-notTheFullTile', () => {
+    // Two-frame sequence, small dt per frame, so the transition across the
+    // midline can actually be observed rather than jumped over in one step.
+    // A full-height tile would catch the head the instant it reaches row 0's
+    // own bottom edge (headY == RENDERED_TILE_SIZE); this tile's solid
+    // region is only its top half, so the head must be free to keep rising
+    // past that line and only stop once it reaches the cell's vertical
+    // midpoint (RENDERED_TILE_SIZE / 2). jumpHeld avoids the
+    // variable-jump-height cut so the test isolates collision behavior, same
+    // as the pre-existing block-ceiling tests.
+    const midlineHeadY = RENDERED_TILE_SIZE / 2;
+
+    // Frame 1: head starts well below the midline (still in the tile's open
+    // bottom half) and a small dt moves it up a little, but not as far as
+    // the midline — must NOT be stopped.
+    let player = basePlayer({ y: midlineHeadY + 10 - PLAYER_HEAD_PADDING, vy: -60 });
+    player = stepPlayerPhysics(player, CRUMBLING_FLOOR_CEILING_LEVEL, 1 / 240, { jumpHeld: true }, [], []);
+    expect(player.y + PLAYER_HEAD_PADDING).toBeGreaterThan(midlineHeadY);
+    expect(player.vy).not.toBe(0);
+    expect(player.vy).toBeLessThan(0); // still rising
+
+    // Frame 2: a bigger step (real MAX_DT, faster vy) that crosses the
+    // midline — must stop exactly at crumblingSolidY - PLAYER_HEAD_PADDING,
+    // with vy zeroed.
+    player = { ...player, vy: -500 };
+    const next = stepPlayerPhysics(player, CRUMBLING_FLOOR_CEILING_LEVEL, MAX_DT, { jumpHeld: true }, [], []);
+    const crumblingSolidY = midlineHeadY;
+    expect(next.y).toBeCloseTo(crumblingSolidY - PLAYER_HEAD_PADDING, 5);
+    expect(next.vy).toBe(0);
+  });
+
+  it('fastRise-atMaxDt-stopsAtMidlineInsteadOfTunnelingThrough', () => {
+    // Mirrors a real jump/mushroom-bounce velocity magnitude at this game's
+    // real MAX_DT — proves the fix for the inverted comparison, which used
+    // to let a fast single-frame rise skip past the 16px detection window
+    // entirely and tunnel straight through the solid top half.
+    const midlineHeadY = RENDERED_TILE_SIZE / 2;
+    // Start well below the midline (bottom of the open half), rising fast
+    // enough that one MAX_DT frame would overshoot well past the midline if
+    // uncaught.
+    const player = basePlayer({
+      y: RENDERED_TILE_SIZE - PLAYER_HEAD_PADDING - 1,
+      vy: -600,
+    });
+    const next = stepPlayerPhysics(
+      player,
+      CRUMBLING_FLOOR_CEILING_LEVEL,
+      MAX_DT,
+      { jumpHeld: true },
+      [],
+      [],
+    );
+    expect(next.y).toBeCloseTo(midlineHeadY - PLAYER_HEAD_PADDING, 5);
+    expect(next.vy).toBe(0);
+  });
+
+  it('mixedCeilingRow-crumblingFloorAndWall-stopsAtTheWallsStopPlane-notTheMidline', () => {
+    // 2-column-wide level: col 0 is crumblingFloor (higher/midline stop
+    // plane), col 1 is an ordinary wall (lower/full-tile stop plane). The
+    // player's hitbox (wider than one tile at x: 0) spans both columns.
+    // Chosen so BOTH columns are actually solid in the same frame (the head
+    // ends up past the crumbling floor's own midline, not just the wall's
+    // full-tile line) — this exercises the MAX-across-columns tie-break
+    // itself, not just "only one column happened to be solid". Rising from
+    // below, the player must stop at the WALL's plane — the larger/more
+    // restrictive candidate y — not the crumbling floor's midline.
+    const MIXED_CEILING_LEVEL = parseLevel(['g#', '..', '..', '..']);
+    const player = basePlayer({ y: -2, vy: -500 });
+    const next = stepPlayerPhysics(player, MIXED_CEILING_LEVEL, 1 / 60, { jumpHeld: true }, [], []);
+    const expectedY = RENDERED_TILE_SIZE - PLAYER_HEAD_PADDING; // wall's full-tile stop plane
+    expect(next.y).toBeCloseTo(expectedY, 5);
+    expect(next.vy).toBe(0);
+  });
+
+  it('brokenPhase-fromBelow-neverBlocksAtAll', () => {
+    const player = basePlayer({ y: RENDERED_TILE_SIZE - PLAYER_HEAD_PADDING + 2, vy: -500 });
+    const states: CrumblingFloorTimerState[] = [
+      { col: 0, row: 0, elapsed: 1.0 }, // mid "broken"
+      { col: 1, row: 0, elapsed: 1.0 },
+    ];
+    const next = stepPlayerPhysics(
+      player,
+      CRUMBLING_FLOOR_CEILING_LEVEL,
+      1 / 60,
+      { jumpHeld: true },
+      [],
+      states,
+    );
+    // Unimpeded rise: this frame's vy is whatever gravity alone produces,
+    // with no ceiling stop at all.
+    expect(next.vy).toBeCloseTo(-500 + PHYSICS_CONFIG.gravity / 60, 5);
+  });
+
+  // Same shape as RIGHT_WALL_LEVEL (see the horizontal-movement describe
+  // block above) but the solid column is `crumblingFloor` instead of `wall`
+  // — isolates the horizontal-collision gap: `Terrain.ts`'s `isSolid` never
+  // lists `crumblingFloor` (correctly — the default ground/ceiling logic
+  // must not treat it as always-solid), so without a crumbling-floor-aware
+  // wall check, the horizontal branches would never block sideways movement
+  // into it at all, in any phase.
+  const CRUMBLING_FLOOR_SIDE_WALL_LEVEL = parseLevel(['....g.', '....g.']);
+
+  it('atRest-blocksSidewaysMovementLikeAnyWall', () => {
+    const wallCol = 4;
+    const restX = wallCol * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_SIDE_PADDING;
+    const player = basePlayer({ x: restX - 1 });
+
+    const next = stepPlayerPhysics(player, CRUMBLING_FLOOR_SIDE_WALL_LEVEL, 1 / 60, {
+      left: false,
+      right: true,
+    });
+
+    expect(next.x).toBe(restX);
+  });
+
+  it('brokenPhase-doesNotBlockSidewaysMovement', () => {
+    const wallCol = 4;
+    const restX = wallCol * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_SIDE_PADDING;
+    const player = basePlayer({ x: restX - 1 });
+    const states: CrumblingFloorTimerState[] = [
+      { col: wallCol, row: 0, elapsed: 1.0 }, // mid "broken"
+      { col: wallCol, row: 1, elapsed: 1.0 },
+    ];
+
+    const next = stepPlayerPhysics(
+      player,
+      CRUMBLING_FLOOR_SIDE_WALL_LEVEL,
+      1 / 60,
+      { left: false, right: true },
+      [],
+      states,
+    );
+
+    // Unblocked: the player keeps moving right at walkSpeed instead of being
+    // clamped to restX.
+    expect(next.x).toBeCloseTo(restX - 1 + PHYSICS_CONFIG.walkSpeed / 60, 5);
+  });
+
+  // Row 0 has the crumbling floor tile (solid only in its own top half);
+  // row 1 beneath it is fully open, so a body positioned low enough spills
+  // into open space rather than hitting anything else.
+  const CRUMBLING_FLOOR_LOW_BODY_LEVEL = parseLevel(['....g.', '......']);
+
+  it('atRest-bodyBelowTheMidline-doesNotBlockSidewaysMovement', () => {
+    const wallCol = 4;
+    const restX = wallCol * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_SIDE_PADDING;
+    // y chosen so the hitbox's head-padded top sits clearly below row 0's
+    // solid/open midline (RENDERED_TILE_SIZE / 2 = 32): 20 + PLAYER_HEAD_PADDING
+    // (18) = 38 > 32, a 6px margin — the body is entirely in the tile's own
+    // open bottom half (plus spilling into open row 1 below it).
+    const player = basePlayer({ x: restX - 1, y: 20 });
+
+    const next = stepPlayerPhysics(player, CRUMBLING_FLOOR_LOW_BODY_LEVEL, 1 / 60, {
+      left: false,
+      right: true,
+    });
+
+    // Unblocked: same shape as brokenPhase-doesNotBlockSidewaysMovement,
+    // but here the tile is fully at-rest and solid — it's the body's
+    // vertical position (not the tile's phase) that makes it pass through.
+    expect(next.x).toBeCloseTo(restX - 1 + PHYSICS_CONFIG.walkSpeed / 60, 5);
+  });
+
+  it('atRest-bodyInTheSolidTopHalf-stillBlocksSidewaysMovement', () => {
+    const wallCol = 4;
+    const restX = wallCol * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_SIDE_PADDING;
+    // y: -10 puts the hitbox's head-padded top at -10 + PLAYER_HEAD_PADDING
+    // (18) = 8, inside row 0's solid top half (< CRUMBLING_FLOOR_SOLID_HEIGHT,
+    // 16) — the companion case to the test above, proving the fix didn't
+    // just make the tile permanently non-blocking. (y: 0 alone already
+    // clears the 16px-tall solid band once PLAYER_HEAD_PADDING (18) is
+    // added, since RENDERED_TILE_SIZE is 32 here, not 64 — hence the
+    // negative y.)
+    const player = basePlayer({ x: restX - 1, y: -10 });
+
+    const next = stepPlayerPhysics(player, CRUMBLING_FLOOR_LOW_BODY_LEVEL, 1 / 60, {
+      left: false,
+      right: true,
+    });
+
+    expect(next.x).toBe(restX);
+  });
 });
 
 describe('stepPlayerPhysics bridge drop-through', () => {

@@ -1,5 +1,6 @@
 import type { LevelDef } from '../../../level/LevelData';
 import type { BaseEnemyState } from '../EnemyType';
+import type { CrumblingFloorTimerState } from '../../../engine/CrumblingFloor';
 
 /**
  * The per-tick inputs a movement strategy receives. Built once per tick by
@@ -20,6 +21,13 @@ export interface MovementContext {
   /** Seconds since level start; freezes with the world on pause/death. The
    *  fly bob's phase clock. */
   elapsed: number;
+  /** Live crumbling floor (O-023) cycle timers — an at-rest/cracking tile
+   *  counts as solid ground for `stepHorizontal`'s wall/ledge checks
+   *  exactly like ordinary terrain; broken/reforming does not. Defaults to
+   *  empty in any context that doesn't pass it (e.g. pre-seam
+   *  characterization tests), matching ordinary terrain's behavior when no
+   *  crumbling floor tile is on the level at all. */
+  crumblingFloorStates?: readonly CrumblingFloorTimerState[];
 }
 
 /**

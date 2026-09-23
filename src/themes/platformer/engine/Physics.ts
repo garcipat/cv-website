@@ -8,11 +8,14 @@ import {
   isStandableMushroomCap,
   tileAt,
   RENDERED_TILE_SIZE,
+  CRUMBLING_FLOOR_SOLID_HEIGHT,
 } from '../level/Terrain';
-import type { LevelDef } from '../level/LevelData';
+import type { LevelDef, TileType } from '../level/LevelData';
 import { isBlockOccupied, blockIdAt, blockAt } from '../level/BlockMapper';
 import type { BlockPlacement } from '../level/BlockMapper';
 import { hitboxInsetXForBlock } from '../entities/Block';
+import { isCrumblingFloorBroken } from './CrumblingFloor';
+import type { CrumblingFloorTimerState } from './CrumblingFloor';
 import {
   PLAYER_RENDERED_SIZE,
   PLAYER_FOOT_PADDING,
@@ -53,6 +56,7 @@ export interface PlayerInput {
 
 const NO_INPUT: PlayerInput = { left: false, right: false };
 const NO_BLOCKS: readonly BlockPlacement[] = [];
+const NO_CRUMBLING_FLOOR_STATES: readonly CrumblingFloorTimerState[] = [];
 
 /**
  * Width of the actual collision hitbox — narrower than PLAYER_RENDERED_SIZE
@@ -76,6 +80,7 @@ export function stepPlayerPhysics(
   dt: number,
   input: PlayerInput = NO_INPUT,
   blockPlacements: readonly BlockPlacement[] = NO_BLOCKS,
+  crumblingFloorStates: readonly CrumblingFloorTimerState[] = NO_CRUMBLING_FLOOR_STATES,
 ): PlayerState {
   const blockContacts: BlockContact[] = [];
   // While a side-hit's knockback is still active, held movement keys are
@@ -155,6 +160,35 @@ export function stepPlayerPhysics(
         : 0;
   const direction = knockbackActive ? player.direction : moveRight ? 'right' : moveLeft ? 'left' : player.direction;
 
+  // A crumbling floor tile is deliberately excluded from `isSolid`/
+  // `isSolidExcludingBridge` (so the default ground/ceiling logic doesn't
+  // treat it as always-solid), but that means the plain `isWall` checks below
+  // never see it as a wall at all — a character could otherwise walk straight
+  // through its side. This mirrors exactly how the ground branch further down
+  // already treats the tile: solid (in whichever sense `baseCheck` means —
+  // excluding bridge-tunneling exemptions, same as any other wall) only while
+  // it hasn't broken, regardless of `baseCheck`'s own answer for the tile
+  // (which is always `false`, since `crumblingFloor` isn't in `isSolid`).
+  // A crumbling floor tile's solid region is only the top half of its cell
+  // (see Terrain.ts's CRUMBLING_FLOOR_SOLID_HEIGHT) — horizontal collision
+  // must respect that same vertical inset, not just whether the row is
+  // solid at all, or a character passing beside/below the tile at body
+  // height (in its open bottom half) would be wrongly blocked sideways.
+  const wallTileIsSolid = (
+    tile: TileType,
+    col: number,
+    row: number,
+    baseCheck: (t: TileType) => boolean,
+  ): boolean => {
+    if (tile !== 'crumblingFloor') return baseCheck(tile);
+    if (isCrumblingFloorBroken(crumblingFloorStates, col, row)) return false;
+    const solidTop = row * RENDERED_TILE_SIZE;
+    const solidBottom = solidTop + CRUMBLING_FLOOR_SOLID_HEIGHT;
+    const playerTop = player.y + playerHeadPaddingFor(crouching);
+    const playerBottom = player.y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING;
+    return playerTop < solidBottom && playerBottom > solidTop;
+  };
+
   let x = player.x + vx * dt;
   // Excludes the head-padding sliver (like the vertical ceiling check below)
   // so a solid tile directly above the character's transparent head-padding
@@ -204,7 +238,11 @@ export function stepPlayerPhysics(
     // block today) — worth a real fix only if a future level stacks them.
     let rightMinInset = Infinity;
     for (let row = topRow; row <= bottomRow; row++) {
-      if (!isWall(tileAt(level, rightCol, row)) && !isBlockOccupied(blockPlacements, rightCol, row)) continue;
+      if (
+        !wallTileIsSolid(tileAt(level, rightCol, row), rightCol, row, isWall) &&
+        !isBlockOccupied(blockPlacements, rightCol, row)
+      )
+        continue;
       rightWallFound = true;
       // A block whose art doesn't fill its tile (e.g. coinPot) declares a
       // hitboxInsetX so the player can approach closer than the raw tile
@@ -229,7 +267,11 @@ export function stepPlayerPhysics(
     // column's wall spans" handling above.
     let leftMinInset = Infinity;
     for (let row = topRow; row <= bottomRow; row++) {
-      if (!isWall(tileAt(level, leftCol, row)) && !isBlockOccupied(blockPlacements, leftCol, row)) continue;
+      if (
+        !wallTileIsSolid(tileAt(level, leftCol, row), leftCol, row, isWall) &&
+        !isBlockOccupied(blockPlacements, leftCol, row)
+      )
+        continue;
       leftWallFound = true;
       const block = blockAt(blockPlacements, leftCol, row);
       const inset = block ? hitboxInsetXForBlock(block.blockKind) : 0;
@@ -504,22 +546,45 @@ export function stepPlayerPhysics(
     const headPadding = playerHeadPaddingFor(crouching);
     const headY = y + headPadding;
     const headRow = Math.floor(headY / RENDERED_TILE_SIZE);
-    let ceilingResolved = false;
+    // Hoisted once per ceiling-branch call — depends only on `headRow`, not
+    // on the column being scanned below.
+    const crumblingSolidY = headRow * RENDERED_TILE_SIZE + CRUMBLING_FLOOR_SOLID_HEIGHT;
+    let ceilingStopY: number | null = null;
     for (let col = leftCol; col <= rightCol; col++) {
+      const tile = tileAt(level, col, headRow);
       const blockId = blockIdAt(blockPlacements, col, headRow);
-      const solid = isSolidExcludingBridge(tileAt(level, col, headRow)) || blockId !== undefined;
+      // A crumbling floor tile's solid region is only its top half (see
+      // Terrain.ts's CRUMBLING_FLOOR_SOLID_HEIGHT doc comment) — the
+      // character's rising head must actually reach that midline before
+      // it counts as a hit, rather than stopping at the full tile's
+      // bottom edge like every other solid tile. Canvas y grows DOWNWARD, so
+      // a rising head (y decreasing) is still in the open bottom half while
+      // headY > crumblingSolidY, and only enters the solid top half once
+      // headY <= crumblingSolidY.
+      const isCrumbling = tile === 'crumblingFloor';
+      const solid = isCrumbling
+        ? !isCrumblingFloorBroken(crumblingFloorStates, col, headRow) && headY <= crumblingSolidY
+        : isSolidExcludingBridge(tile) || blockId !== undefined;
       if (!solid) continue;
-      // Position is resolved against only the FIRST solid column found
-      // (matches the pre-existing single-collision behavior) — but every
-      // column at this row is scanned so a block spanning any of them is
-      // still reported in `blockContacts`, even if it wasn't the column that
-      // stopped the ascent.
-      if (!ceilingResolved) {
-        y = (headRow + 1) * RENDERED_TILE_SIZE - headPadding;
-        resolvedVy = 0;
-        ceilingResolved = true;
-      }
+      // Every solid column at this row is scanned (so a block spanning any
+      // of them is still reported in `blockContacts`), and the stop position
+      // resolves to the MAXIMUM candidate y across all of them — i.e.
+      // whichever solid column's stop plane the rising head reaches FIRST.
+      // Before crumblingFloor, every solid tile shared one stop plane, so
+      // "first column scanned" and "closest stop plane" were the same thing;
+      // now a row can mix a crumbling floor's higher midline plane with an
+      // ordinary wall's full-tile plane, and only the max-y (nearer) one is
+      // correct. The head padding is this tick's resolved crouch, so a
+      // crouched head sits one row lower (FR-002).
+      const candidateY = isCrumbling
+        ? crumblingSolidY - headPadding
+        : (headRow + 1) * RENDERED_TILE_SIZE - headPadding;
+      if (ceilingStopY === null || candidateY > ceilingStopY) ceilingStopY = candidateY;
       if (blockId !== undefined) blockContacts.push({ id: blockId, side: 'bottom' });
+    }
+    if (ceilingStopY !== null) {
+      y = ceilingStopY;
+      resolvedVy = 0;
     }
   } else {
     const feetY = y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING;
@@ -536,12 +601,20 @@ export function stepPlayerPhysics(
     // movement or a climb through it. Pressing Down to climb back in is
     // handled far above (the grounded + climbable-row-below entry), which
     // returns before this collision pass runs.
-    const columnIsGround = (col: number): boolean =>
-      groundIsSolid(tileAt(level, col, footRow)) ||
-      isStandableLadderTop(level, col, footRow) ||
-      isStandableLadderBundleTop(level, col, footRow) ||
-      isStandableMushroomCap(level, col, footRow) ||
-      isBlockOccupied(blockPlacements, col, footRow);
+    const columnIsGround = (col: number): boolean => {
+      const tile = tileAt(level, col, footRow);
+      const tileIsGround =
+        tile === 'crumblingFloor'
+          ? !isCrumblingFloorBroken(crumblingFloorStates, col, footRow)
+          : groundIsSolid(tile);
+      return (
+        tileIsGround ||
+        isStandableLadderTop(level, col, footRow) ||
+        isStandableLadderBundleTop(level, col, footRow) ||
+        isStandableMushroomCap(level, col, footRow) ||
+        isBlockOccupied(blockPlacements, col, footRow)
+      );
+    };
 
     let groundResolved = false;
     for (let col = leftCol; col <= rightCol; col++) {
