@@ -12,7 +12,7 @@ import type { BackgroundMaterialFamily, LevelDef } from '../level/LevelData';
 import { backgroundMaterialFamily } from '../level/LevelData';
 import type { PlayerState } from '../entities/Player';
 import { PLAYER_RENDERED_SIZE, PLAYER_FOOT_PADDING } from '../entities/Player';
-import { RENDERED_TILE_SIZE, RENDER_SCALE, backgroundAt } from '../level/Terrain';
+import { RENDERED_TILE_SIZE, RENDER_SCALE, backgroundAt, tileToPixel } from '../level/Terrain';
 import { TORCH_FRAME_COUNT, torchPhase } from './Torch';
 
 /**
@@ -46,6 +46,141 @@ export const MAX_DARKNESS = 0.97;
 
 /** Enter/exit fade duration in seconds (FR-003, SC-001). */
 export const DARKNESS_FADE_SECONDS = 0.4;
+
+/**
+ * Cave fog's flat tint, as an `"r, g, b"` triplet (so callers can build both
+ * `rgb(...)` and `rgba(..., alpha)` strings from it) — a cool, muted slate
+ * tone, deliberately distinct from darkness's neutral black so a visitor
+ * reads "fogged from outside" and "dark because I'm inside" as two different
+ * things rather than the same overlay at two strengths (O-028 FR-009).
+ */
+export const FOG_TINT_RGB = '92, 108, 122';
+
+/**
+ * A fog puff's radius, in rendered pixels — well over a full tile so
+ * neighbouring puffs overlap generously and read as one continuous bank of
+ * fog rather than a row of separate dots, and bleed a little into whatever
+ * clear cell sits next to a cave-family one instead of stopping dead at the
+ * grid line.
+ */
+export const FOG_PUFF_RADIUS_PX = 1.35 * RENDERED_TILE_SIZE;
+
+/**
+ * How far into a puff's radius the fully-opaque plateau extends, as a
+ * fraction of the radius, before the soft fade to transparent begins. Kept
+ * small deliberately: most of a puff's radius is gradient, not flat color,
+ * so it reads as drifting haze rather than a solid painted disc — a large
+ * plateau (near the puff's own radius) is what made the first version read
+ * as "gray paint" instead of fog. Still enough of a solid centre that a
+ * fogged cell's own middle stays opaque.
+ *
+ * Known tradeoff: because the fade starts this close to centre, content on
+ * an ISOLATED single- or two-cell fog patch — one with no neighbouring
+ * cave-family cell whose own puff would otherwise overlap and reinforce
+ * it — can sit close enough to this puff's soft rim to be faintly
+ * legible, rather than fully hidden as FR-002 asks for in the strict
+ * case. Two stricter alternatives were tried and reverted: extending the
+ * plateau (reads as flat paint again) and a separate small solid coverage
+ * circle under the haze (reads as an obvious second circle wherever the
+ * haze has faded past it). In practice this only matters for small,
+ * isolated cave pockets — every cave-family region in the shipped level is
+ * large enough that overlapping neighbouring puffs cover any single
+ * cell's content regardless of where its own puff's fade lands.
+ */
+export const FOG_PUFF_PLATEAU = 0.3;
+
+/**
+ * How far a fog puff's centre can drift from its own cell's centre, in
+ * rendered pixels — small enough to stay visibly anchored to its cell,
+ * large enough that a bank of fogged cells doesn't read as a perfectly
+ * grid-aligned stamp. Kept modest rather than generous: every pixel of
+ * drift widens the gap `FOG_PUFF_PLATEAU`'s doc comment describes between
+ * a puff's centre and its cell's own farthest corner, so a smaller jitter
+ * directly narrows the isolated-cell tradeoff described there.
+ */
+export const FOG_PUFF_JITTER_PX = 0.12 * RENDERED_TILE_SIZE;
+
+/** Depth of a fog puff's own gentle "breathing" pulse, as a fraction of its
+ *  radius — same shape as `TORCH_PULSE_AMPLITUDE` below, kept as its own
+ *  constant since fog and torch light are unrelated effects that happen to
+ *  share a technique. */
+export const FOG_PULSE_AMPLITUDE = 0.06;
+
+/** Seconds per full fog-puff breath — slow and calm, the same spirit as
+ *  `TORCH_PULSE_PERIOD_SECONDS`: barely perceptible, never a flicker. */
+export const FOG_PULSE_PERIOD_SECONDS = 3.4;
+
+/**
+ * A deterministic pseudo-random value in `[0, 1)` for `(col, row, salt)` —
+ * the same `Math.imul` position-hash `Torch.ts`'s `torchPhase` uses,
+ * generalized with a salt so one cell can draw several independent values
+ * (a jitter angle, a jitter distance, a pulse phase) without them
+ * correlating. Pure: the same inputs always produce the same output, so a
+ * cell's puff always drifts and breathes the same way.
+ */
+function cellHash01(col: number, row: number, salt: number): number {
+  const hash =
+    (Math.imul(col + salt * 92821, 374761393) ^ Math.imul(row + salt * 68917, 668265263)) >>> 0;
+  return hash / 0xffffffff;
+}
+
+/**
+ * One fog puff's current centre and (pulsing) radius for the cell at
+ * `(col, row)` at `worldElapsed` — the jitter offset and pulse phase are
+ * both derived from the cell's own position via `cellHash01`, so the same
+ * cell always drifts to the same spot and breathes on its own phase,
+ * mirroring how `torchPulseScale` gives each torch its own phase offset so
+ * neighbouring instances never move in unison.
+ */
+export function fogPuffAt(
+  col: number,
+  row: number,
+  worldElapsed: number,
+): { x: number; y: number; radius: number } {
+  const { x: tileX, y: tileY } = tileToPixel(col, row);
+  const centerX = tileX + RENDERED_TILE_SIZE / 2;
+  const centerY = tileY + RENDERED_TILE_SIZE / 2;
+
+  const jitterAngle = cellHash01(col, row, 1) * Math.PI * 2;
+  const jitterDistance = cellHash01(col, row, 2) * FOG_PUFF_JITTER_PX;
+  const phaseOffset = cellHash01(col, row, 3);
+  const pulse =
+    1 +
+    FOG_PULSE_AMPLITUDE *
+      Math.sin((worldElapsed / FOG_PULSE_PERIOD_SECONDS + phaseOffset) * Math.PI * 2);
+
+  return {
+    x: centerX + Math.cos(jitterAngle) * jitterDistance,
+    y: centerY + Math.sin(jitterAngle) * jitterDistance,
+    radius: FOG_PUFF_RADIUS_PX * pulse,
+  };
+}
+
+/**
+ * How close the player must be to a fog puff before it starts thinning, in
+ * rendered pixels — roughly a 2.5-tile radius, so a visitor gets a beat of
+ * warning before actually crossing into a fogged cell rather than stepping
+ * in blind.
+ */
+export const FOG_PEEK_RADIUS_PX = 2.5 * RENDERED_TILE_SIZE;
+
+/**
+ * How much a fog puff at `(x, y)` should thin because the player is nearby,
+ * in `[0, 1]` — `1` right at the player's own position (fully cleared),
+ * falling smoothly (smoothstep) to `0` at `FOG_PEEK_RADIUS_PX`, and `0`
+ * beyond it. The same falloff shape `playerGlowStrengthAt` already uses for
+ * the player's carried torch light, applied to fog instead of darkness.
+ */
+export function fogPeekStrengthAt(x: number, y: number, player: Point): number {
+  const radius = FOG_PEEK_RADIUS_PX;
+  if (radius <= 0) return 0;
+
+  const distance = Math.hypot(x - player.x, y - player.y);
+  if (distance >= radius) return 0;
+
+  const t = 1 - distance / radius;
+  return t * t * (3 - 2 * t);
+}
 
 /** Soft glow radius in rendered pixels — roughly a 3.5-tile radius (FR-009). */
 export const TORCH_LIGHT_RADIUS_PX = 3.5 * RENDERED_TILE_SIZE;
