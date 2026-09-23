@@ -1197,7 +1197,7 @@ function drawBottomAnchoredLeaf(
 
 - [ ] **Step 5: Wire the `groundWood` render into `drawTerrain`**
 
-Find where `drawTerrain` handles `groundRock` (a plain `tileSource`-driven draw, no custom branch) and confirm `groundWood` needs no custom branch either **if** its sheet is registered as an additional optional image parameter thread through `drawTerrain` (mirroring how `staticObjects`/`decorations` images are already threaded — see `Terrain.md`'s "Adding a tile" step 3). Add `groundWoodImage` as a new optional parameter, and extend the plain per-cell draw loop's sheet-selection logic to pick `groundWoodImage` when `type === 'groundWood'`. Follow the exact pattern `crumblingFloor`'s dedicated sheet threading already established, rather than inventing a new one.
+Find where `drawTerrain` handles `groundRock` (a plain `tileSource`-driven draw, no custom branch) and confirm `groundWood` needs no custom branch either **if** its sheet is registered as an additional optional image parameter thread through `drawTerrain` (mirroring how `staticObjects`/`decorations`/`torch`/`mushroom` images are already threaded — see `Terrain.md`'s "Adding a tile" step 3). Add `groundWoodImage` as a new trailing optional parameter, and extend the plain per-cell draw loop's sheet-selection logic to pick `groundWoodImage` when `type === 'groundWood'`. (Note: `crumblingFloor` is NOT this pattern — it's drawn by its own wholly separate top-level pass, same reason `drawDeployableLadders` is separate; don't follow it as a model here.)
 
 - [ ] **Step 6: Run tests to verify they pass**
 
