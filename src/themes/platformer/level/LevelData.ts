@@ -78,6 +78,49 @@ export type TileType =
   | 'crumblingFloor'
   | 'empty';
 
+/**
+ * Whether a terrain tile stays visible through cave fog (O-028) even on a
+ * cave-family background cell — declared once, exhaustively, as a lookup
+ * `Record` (the same pattern `BACKGROUND_MATERIAL_FAMILY` above uses for
+ * `BackgroundMaterialId`), so a new `TileType` member forces an explicit
+ * choice here at compile time rather than silently inheriting whatever an
+ * unrelated helper (e.g. `isSolid`) happens to say. Exempt today: solid
+ * rock/structure (`groundGrass`/`groundRock`/`wall`/`bridge`) — a cave's
+ * walls and floor carry no information a visitor could act on, so leaving
+ * them visible reads as "you can see the cave's shape, not what's inside
+ * it." Every other tile (open space, ladders, decorations, blocks-in-
+ * waiting...) stays fogged, since any of them could be the thing worth
+ * hiding until the player is actually inside.
+ */
+export const TILE_FOG_EXEMPT: Record<TileType, boolean> = {
+  groundGrass: true,
+  groundRock: true,
+  wall: true,
+  bridge: true,
+  ladder: false,
+  chain: false,
+  patrol: false,
+  blueprintConnectionPoint: false,
+  bush: false,
+  fence: false,
+  cobweb: false,
+  crystalCluster: false,
+  stalactite: false,
+  stalagmite: false,
+  torch: false,
+  ladderBundle: false,
+  ropeLadder: false,
+  bouncyMushroom: false,
+  decorativeMushroom: false,
+  crumblingFloor: false,
+  empty: false,
+};
+
+/** Whether `tile` should be skipped by cave fog — see `TILE_FOG_EXEMPT`. */
+export function isFogExempt(tile: TileType): boolean {
+  return TILE_FOG_EXEMPT[tile];
+}
+
 export type TileMap = TileType[][];
 
 export interface LevelDef {
