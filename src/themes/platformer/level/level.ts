@@ -20,6 +20,7 @@ import {
   findHazardTiles,
   findTorchTiles,
   findLadderBundleTiles,
+  findDoorTiles,
 } from './LevelParser';
 
 // Visual layout of currentLevel — one character per tile (see LevelParser.ts's
@@ -364,3 +365,9 @@ export const TORCH_TILES = computed(() => findTorchTiles(currentLayout.value));
  *  seeds one `DeployableLadderState` per cell here; the shipped level uses
  *  them to demonstrate the mechanic (see this file's `LEVEL_1_LAYOUT`). */
 export const LADDER_BUNDLE_TILES = computed(() => findLadderBundleTiles(currentLayout.value));
+
+/** Hand-placed wooden door positions, from `currentLayout`'s `D` markers
+ *  (a `door` TERRAIN_CHARS entry). Each door is fixed terrain and does not
+ *  move or respond to the player — it stands as a passable wall or barrier
+ *  blocking movement in certain directions. */
+export const DOOR_TILES = computed(() => findDoorTiles(currentLayout.value));
