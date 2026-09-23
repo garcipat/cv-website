@@ -17,7 +17,16 @@ import {
 import type { FloorSpikeTimerState } from './engine/FloorSpike';
 import { armCrumblingFloor, advanceCrumblingFloors } from './engine/CrumblingFloor';
 import type { CrumblingFloorTimerState } from './engine/CrumblingFloor';
-import type { CrumbleDebrisEffect } from './engine/CollectionEffects';
+import {
+  armFallingStalactite,
+  advanceFallingStalactites,
+  fallingStalactitePhaseFor,
+  fallingStalactiteElapsedFor,
+  fallingStalactiteOffsetYAt,
+  fallingStalactiteShakeOffsetXAt,
+} from './engine/FallingStalactite';
+import type { FallingStalactiteTimerState } from './engine/FallingStalactite';
+import type { DebrisEffect } from './engine/CollectionEffects';
 import type { LevelDef } from './level/LevelData';
 import {
   SPAWN_TILE,
@@ -316,7 +325,7 @@ export const blockPlacements = computed<BlockPlacement[]>(() =>
 /**
  * Every chest in the level, placed once at module load — same non-reactive,
  * marker-driven convention as blockPlacements above. One chest per real
- * Experience entry, zipped against currentLevel's `T` markers (see
+ * Experience entry, zipped against currentLevel's `$` markers (see
  * ChestMapper.ts's placeChests).
  */
 export const chestPlacements = computed<ChestPlacement[]>(() =>
@@ -868,32 +877,73 @@ export function tickCrumblingFloors(dt: number): void {
 }
 
 /**
- * Falling debris pieces from crumbling floor tiles that have just broken —
- * same "list of transient effects, ticked and filtered by elapsed time"
- * shape as `activePuffs`. Cleared by `resetGameProgress()`.
+ * Live per-instance timer states for falling stalactites — one entry per
+ * hazard that has been armed at least once. Unlike the floor spike's cycle,
+ * entries are NEVER pruned: a `gone` (shattered) stalactite must stay gone for
+ * the rest of the attempt (FR-013), so its entry persists until `resetGame()`
+ * clears the whole array (FR-014).
  */
-export const activeCrumbleDebrisEffects = signal<CrumbleDebrisEffect[]>([]);
+export const fallingStalactiteTimerStates = signal<FallingStalactiteTimerState[]>([]);
+
+/** Arms `id`'s falling-stalactite timer if it isn't already running (FR-003/
+ *  FR-004) — called once per tick for every id `checkFallingStalactiteTriggers`
+ *  returns; `armFallingStalactite`'s own presence check makes a repeat call a
+ *  no-op. */
+export function armFallingStalactiteTrigger(id: string): void {
+  fallingStalactiteTimerStates.value = armFallingStalactite(fallingStalactiteTimerStates.value, id);
+}
+
+/** Advances every running falling-stalactite timer by `dt` — called once per
+ *  game-loop tick in the `playing` phase, so timers freeze with the rest of
+ *  the world during pause/death. Never prunes (FR-013). */
+export function tickFallingStalactites(dt: number): void {
+  fallingStalactiteTimerStates.value = advanceFallingStalactites(fallingStalactiteTimerStates.value, dt);
+}
 
 /**
- * `hazardPlacements` with each floor spike's live `floorSpikePhase` merged
- * in for this tick — what `PlatformerPage.tsx` actually hands to
- * `drawHazards`/`checkHazardCollisions`/`checkFloorSpikeTriggers`, instead
- * of the raw (phase-unaware) `hazardPlacements` computed. `spike`
- * placements pass through unchanged. Recomputed fresh each call (not a
- * `computed`) since it depends on `floorSpikeTimerStates`, which changes
- * every tick during an active cycle — memoizing it would need the same
- * invalidation signals a plain function call already gets for free.
+ * Falling debris pieces from crumbling floor tiles that have just broken and
+ * from shattered falling stalactites — same "list of transient effects, ticked
+ * and filtered by elapsed time" shape as `activePuffs`. Cleared by
+ * `resetGameProgress()` (and, like the rest of the world, not by a
+ * death/respawn — see `resetGame()`'s doc comment).
+ */
+export const activeDebrisEffects = signal<DebrisEffect[]>([]);
+
+/**
+ * `hazardPlacements` with each kind's live per-tick state merged in — floor
+ * spikes get their cycle phase/extension, falling stalactites get their phase
+ * and fall/shake offsets. This is what `PlatformerPage.tsx` hands to
+ * `drawHazards`/`resolveHazardContacts`/`checkFallingStalactiteTriggers`
+ * instead of the raw (phase-unaware) `hazardPlacements` computed. Every other
+ * kind passes through unchanged. Recomputed fresh each call (not a `computed`)
+ * since it depends on signals that change every tick during an active cycle.
  */
 export function hazardPlacementsForTick(): HazardPlacement[] {
-  return hazardPlacements.value.map((hazard) =>
-    hazard.hazardType === 'floorSpike'
-      ? {
-          ...hazard,
-          floorSpikePhase: floorSpikePhaseFor(floorSpikeTimerStates.value, hazard.id),
-          floorSpikeExtension: floorSpikeExtensionFor(floorSpikeTimerStates.value, hazard.id),
-        }
-      : hazard,
-  );
+  return hazardPlacements.value.map((hazard) => {
+    if (hazard.hazardType === 'floorSpike') {
+      return {
+        ...hazard,
+        floorSpikePhase: floorSpikePhaseFor(floorSpikeTimerStates.value, hazard.id),
+        floorSpikeExtension: floorSpikeExtensionFor(floorSpikeTimerStates.value, hazard.id),
+      };
+    }
+    if (hazard.hazardType === 'fallingStalactite') {
+      const elapsed = fallingStalactiteElapsedFor(fallingStalactiteTimerStates.value, hazard.id);
+      return {
+        ...hazard,
+        fallingStalactitePhase: fallingStalactitePhaseFor(
+          fallingStalactiteTimerStates.value,
+          hazard,
+          activeLevel.value,
+          blockStates.value,
+          crumblingFloorTimerStates.value,
+        ),
+        fallingStalactiteOffsetY: fallingStalactiteOffsetYAt(elapsed),
+        fallingStalactiteShakeOffsetX: fallingStalactiteShakeOffsetXAt(elapsed),
+      };
+    }
+    return hazard;
+  });
 }
 
 /**
@@ -945,6 +995,12 @@ export function resetGame(): void {
   // (FR-013 — the spec's death/respawn reset requirement), same convention
   // as the floor spike cycle above it.
   crumblingFloorTimerStates.value = [];
+  // Every shattered falling stalactite returns to hanging on death/respawn
+  // (FR-014) — same convention as the floor spike/crumbling floor cycles
+  // above. Its shatter debris (`activeDebrisEffects`) is deliberately NOT
+  // cleared here: like every other transient visual it fades on its own
+  // duration (see `resetGameProgress()`, which does clear it).
+  fallingStalactiteTimerStates.value = [];
   enemyStates.value = enemyStates.value.map(reviveEnemy);
   hintTooltipState.value = null;
   // A label fading when the death/respawn happened must not survive it — it
@@ -1005,7 +1061,7 @@ export function resetGameProgress(): void {
   activeJournalSection.value = undefined;
   activeEffects.value = [];
   activePuffs.value = [];
-  activeCrumbleDebrisEffects.value = [];
+  activeDebrisEffects.value = [];
   activeHealAuraEffects.value = [];
   activeHitSplatters.value = [];
   activeCounterPopups.value = {};

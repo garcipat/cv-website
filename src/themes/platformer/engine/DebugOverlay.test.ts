@@ -283,7 +283,7 @@ describe('drawDebugOverlay', () => {
     // facingBox) — the tile's right-hand 10 rendered px — not the full tile.
     const ctx = makeMockContext();
     const level: LevelDef = { width: 1, height: 1, terrain: [['empty']] };
-    const hazard: HazardPlacement = { id: 'h1', hazardType: 'spike', facing: 'left', x: 100, y: 200 };
+    const hazard: HazardPlacement = { id: 'h1', hazardType: 'spike', facing: 'left', x: 100, y: 200, col: 0, row: 0 };
     const originX = 10;
     const originY = 20;
     const band = 10;

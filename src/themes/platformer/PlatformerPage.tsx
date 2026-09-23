@@ -48,7 +48,7 @@ import {
   heldTorchLightPosition,
   drawDeployableLadders,
   drawCrumblingFloors,
-  drawCrumbleDebrisEffects,
+  drawDebrisEffects,
 } from './engine/Renderer';
 import { drawBackgroundLayers, backgroundBandGeometry } from './engine/BackgroundLayers';
 import { createCloudField, stepCloudField, drawAmbientClouds } from './engine/AmbientClouds';
@@ -90,6 +90,7 @@ import {
   resolveHazardContacts,
   checkFloorSpikeTriggers,
   checkCrumblingFloorTriggers,
+  checkFallingStalactiteTriggers,
   playerHitbox,
 } from './engine/Collision';
 import {
@@ -142,10 +143,17 @@ import {
   startExplosionEffect,
   tickExplosionEffect,
   EXPLOSION_DURATION_SECONDS,
-  startCrumbleDebrisEffect,
-  tickCrumbleDebrisEffect,
-  CRUMBLE_DEBRIS_DURATION_SECONDS,
+  startDebrisEffect,
+  tickDebrisEffect,
+  crumbleDebrisLayers,
+  DEBRIS_DURATION_SECONDS,
 } from './engine/CollectionEffects';
+import {
+  fallingStalactiteLandingRow,
+  fallingStalactiteOffsetYAt,
+  fallingStalactiteRestOffsetY,
+} from './engine/FallingStalactite';
+import { fallingStalactiteShatter } from './entities/hazards/FallingStalactite';
 import { crumblingFloorPhaseFor, CRUMBLING_FLOOR_CRACK_SECONDS } from './engine/CrumblingFloor';
 import { coinFrameSource, COIN_FRAME_SIZE } from './entities/Coin';
 import { fruitFrameSource, FRUIT_FRAME_SIZE } from './entities/Fruit';
@@ -264,7 +272,10 @@ import {
   crumblingFloorTimerStates,
   armCrumblingFloorTrigger,
   tickCrumblingFloors,
-  activeCrumbleDebrisEffects,
+  fallingStalactiteTimerStates,
+  armFallingStalactiteTrigger,
+  tickFallingStalactites,
+  activeDebrisEffects,
 } from './PlatformerState';
 import { useSignals } from '@preact/signals-react/runtime';
 import { Journal } from './components/Journal';
@@ -888,7 +899,7 @@ export const PlatformerPage = () => {
 
       drawCollectionEffects(ctx, activeEffects.value);
       drawPuffEffects(ctx, activePuffs.value);
-      drawCrumbleDebrisEffects(ctx, activeCrumbleDebrisEffects.value, drawContext);
+      drawDebrisEffects(ctx, activeDebrisEffects.value, drawContext);
       drawHitSplatterEffects(ctx, activeHitSplatters.value);
       drawFadeOutTexts(ctx, activeFadeOutTexts.value, drawContext);
 
@@ -1139,6 +1150,10 @@ export const PlatformerPage = () => {
       // the world on pause/death (O-023).
       tickCrumblingFloors(dt);
 
+      // Falling stalactites advance here too (O-027), so their shake/fall
+      // timelines freeze with the world on pause/death.
+      tickFallingStalactites(dt);
+
       // Computed once per tick and shared by every reveal site below — these
       // same two expressions used to be duplicated in the enemy-defeat block
       // and the collectible block. `originX`/`originY` convert a world-space
@@ -1371,9 +1386,9 @@ export const PlatformerPage = () => {
         .map((puff) => tickPuffEffect(puff, dt))
         .filter((puff) => puff.elapsed <= SPARKLE_DURATION_SECONDS);
 
-      activeCrumbleDebrisEffects.value = activeCrumbleDebrisEffects.value
-        .map((effect) => tickCrumbleDebrisEffect(effect, dt))
-        .filter((effect) => effect.elapsed <= CRUMBLE_DEBRIS_DURATION_SECONDS);
+      activeDebrisEffects.value = activeDebrisEffects.value
+        .map((effect) => tickDebrisEffect(effect, dt))
+        .filter((effect) => effect.elapsed <= DEBRIS_DURATION_SECONDS);
 
       activeHealAuraEffects.value = activeHealAuraEffects.value
         .map((aura) => tickHealAuraEffect(aura, dt))
@@ -1715,6 +1730,22 @@ export const PlatformerPage = () => {
         armCrumblingFloorTrigger(col, row);
       }
 
+      // Arm any hanging falling stalactite whose detection zone the player
+      // just entered (FR-003) — mirrors the arming above, before contact
+      // resolution so a just-armed hazard is still correctly non-hazardous
+      // this tick (its phase right after arming is 'shaking', never
+      // 'falling').
+      for (const id of checkFallingStalactiteTriggers(
+        playerState.value,
+        hazardPlacements.value,
+        fallingStalactiteTimerStates.value,
+        activeLevel.value,
+        blockStates.value,
+        crumblingFloorTimerStates.value,
+      )) {
+        armFallingStalactiteTrigger(id);
+      }
+
       // Spawn the falling-debris effect exactly once, on the tick a tile's
       // phase actually becomes 'broken'. `tickCrumblingFloors(dt)` already
       // ran above this same tick, so `state.elapsed` here is the
@@ -1732,12 +1763,46 @@ export const PlatformerPage = () => {
         if (!justBroken) continue;
         const { x, y } = tileToPixel(state.col, state.row);
         const debrisId = `crumble-${state.col}-${state.row}-${state.elapsed}`;
-        activeCrumbleDebrisEffects.value = [
-          ...activeCrumbleDebrisEffects.value,
-          // World-space position, not screen-space — drawCrumbleDebrisEffects
-          // adds dc.originX/originY itself at draw time (same convention
+        activeDebrisEffects.value = [
+          ...activeDebrisEffects.value,
+          // World-space position, not screen-space — drawDebrisEffects adds
+          // dc.originX/originY itself at draw time (same convention
           // PuffEffect uses), so adding it again here would double-offset.
-          startCrumbleDebrisEffect(debrisId, x, y),
+          startDebrisEffect(debrisId, x, y, crumbleDebrisLayers()),
+        ];
+      }
+
+      // Spawn the falling stalactite's shatter debris exactly once, on the
+      // tick its fall first reaches its landing row (FR-020). Same
+      // `elapsed - dt` just-crossed guard as the crumbling floor above, so
+      // the effect can never spawn twice; a hazard with no landing below it
+      // despawns off the bottom with no debris (FR-009). The landing row is
+      // re-resolved here from the live block/crumbling state, so a floor that
+      // broke mid-fall is respected.
+      for (const state of fallingStalactiteTimerStates.value) {
+        const hazard = hazardPlacements.value.find((h) => h.id === state.id);
+        if (!hazard) continue;
+        const landingRow = fallingStalactiteLandingRow(
+          activeLevel.value,
+          blockStates.value,
+          crumblingFloorTimerStates.value,
+          hazard.col,
+          hazard.row,
+        );
+        if (landingRow === null) continue;
+        // The offset at which the sprite's bottom meets the landing solid —
+        // one sprite-height above the landing row's top, so the shatter fires
+        // as it comes to rest rather than after it has sunk into the floor.
+        const restOffset = fallingStalactiteRestOffsetY(hazard, landingRow);
+        if (restOffset === null) continue;
+        const justLanded =
+          fallingStalactiteOffsetYAt(state.elapsed - dt) < restOffset &&
+          fallingStalactiteOffsetYAt(state.elapsed) >= restOffset;
+        if (!justLanded) continue;
+        const shatter = fallingStalactiteShatter(hazard, landingRow);
+        activeDebrisEffects.value = [
+          ...activeDebrisEffects.value,
+          startDebrisEffect(`stalactite-${hazard.id}-${state.elapsed}`, shatter.x, shatter.y, shatter.layers),
         ];
       }
 
@@ -1884,15 +1949,20 @@ export const PlatformerPage = () => {
         // the refractory window lapses, since nothing ever moves the player
         // out of contact with it.
         const contactSide: -1 | 1 = hazard.x >= playerState.value.x ? 1 : -1;
-        // Floor spikes deal damage with no knockback (spec FR-006), and a
-        // crouched hit never knocks back (FR-011/SC-009). Both still show the
-        // same red hit reaction as every other damage source — `applyHitReaction`
-        // with no knockback — which also opens the shared refractory window, or
-        // the player would take repeated damage every tick they remain on the
-        // tile through the rest of the full-extend phase. Every other hazard
-        // touch pushes the player away. Only a pit fall keeps the transparent
-        // blink (see `beginPitFallReaction`).
-        if (hazard.hazardType === 'floorSpike' || playerState.value.crouching) {
+        // Floor spikes and falling stalactites deal damage with no knockback
+        // (spec FR-006 / O-027 FR-007), and a crouched hit never knocks back
+        // (FR-011/SC-009). All still show the same red hit reaction as every
+        // other damage source — `applyHitReaction` with no knockback — which
+        // also opens the shared refractory window, or the player would take
+        // repeated damage every tick they remain on the tile through the rest
+        // of the full-extend phase. Every other hazard touch pushes the
+        // player away. Only a pit fall keeps the transparent blink (see
+        // `beginPitFallReaction`).
+        if (
+          hazard.hazardType === 'floorSpike' ||
+          hazard.hazardType === 'fallingStalactite' ||
+          playerState.value.crouching
+        ) {
           playerState.value = applyHitReaction(playerState.value);
         } else {
           // Pushed away from the hazard, not toward it — the opposite sign
@@ -2689,6 +2759,7 @@ export const PlatformerPage = () => {
       { sheet: CRACK_OVERLAY_SHEET, renderScale: 1, animations: {} },
       { sheet: CRUMBLE_FLOOR_SHEET, renderScale: 1, animations: {} },
       { sheet: CRUMBLE_CRACKS_SHEET, renderScale: 1, animations: {} },
+      { sheet: DECORATIONS_SHEET, renderScale: 1, animations: {} },
     ])) {
       loadImage(src)
         .then((img) => {

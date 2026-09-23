@@ -58,7 +58,7 @@ graph RL
         O024["✅ O-024: Enemy Movement & Animation Seam + Bee"]
         O025["O-025: Platformer Dart Trap"]
         O026["O-026: Platformer Poison Gas"]
-        O027["O-027: Platformer Falling Stalactite"]
+        O027["✅ O-027: Platformer Falling Stalactite"]
         S011["S-011: Interact Hint Overlay"]
         S012["✅ S-012: Platformer Crouch/Duck"]
     end
@@ -203,6 +203,7 @@ graph RL
     class O025 themes
     class O026 themes
     class O027 themes
+    class O027 done
     class O017 themes
     class O017 done
     class O018 themes

@@ -232,6 +232,8 @@ export function synthesizeHazardPlacements(grid: TileChar[][]): HazardPlacement[
         facing: hazard.facing,
         x,
         y,
+        col,
+        row,
       });
     }
   }

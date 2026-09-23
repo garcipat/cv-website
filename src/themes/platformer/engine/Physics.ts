@@ -1,21 +1,12 @@
 import { PHYSICS_CONFIG } from './PhysicsConfig';
-import {
-  isSolid,
-  isSolidExcludingBridge,
-  isClimbable,
-  isStandableLadderTop,
-  isStandableLadderBundleTop,
-  isStandableMushroomCap,
-  tileAt,
-  RENDERED_TILE_SIZE,
-  CRUMBLING_FLOOR_SOLID_HEIGHT,
-} from '../level/Terrain';
+import { isSolid, isSolidExcludingBridge, isClimbable, isStandableLadderTop, isStandableMushroomCap, tileAt, RENDERED_TILE_SIZE, CRUMBLING_FLOOR_SOLID_HEIGHT } from '../level/Terrain';
 import type { LevelDef, TileType } from '../level/LevelData';
 import { isBlockOccupied, blockIdAt, blockAt } from '../level/BlockMapper';
 import type { BlockPlacement } from '../level/BlockMapper';
 import { hitboxInsetXForBlock } from '../entities/Block';
 import { isCrumblingFloorBroken } from './CrumblingFloor';
 import type { CrumblingFloorTimerState } from './CrumblingFloor';
+import { isStandableCell } from './Standable';
 import {
   PLAYER_RENDERED_SIZE,
   PLAYER_FOOT_PADDING,
@@ -592,29 +583,13 @@ export function stepPlayerPhysics(
     // While actively dropping through a bridge, ground collision ignores
     // bridge tiles the same way the ceiling check always does — everything
     // else (regular ground, platforms, walls) still catches the character.
-    const groundIsSolid = droppingThroughBridge ? isSolidExcludingBridge : isSolid;
-    // A ladder shaft's topmost rung is solid from above — that's what lets
-    // the character stand on top of a ladder
-    // after climbing out of the shaft, and catches it when it falls back
-    // onto that spot. One-way, exactly like `bridge`: the rest of the shaft
-    // stays fully passable, and nothing here makes a ladder block sideways
-    // movement or a climb through it. Pressing Down to climb back in is
-    // handled far above (the grounded + climbable-row-below entry), which
-    // returns before this collision pass runs.
-    const columnIsGround = (col: number): boolean => {
-      const tile = tileAt(level, col, footRow);
-      const tileIsGround =
-        tile === 'crumblingFloor'
-          ? !isCrumblingFloorBroken(crumblingFloorStates, col, footRow)
-          : groundIsSolid(tile);
-      return (
-        tileIsGround ||
-        isStandableLadderTop(level, col, footRow) ||
-        isStandableLadderBundleTop(level, col, footRow) ||
-        isStandableMushroomCap(level, col, footRow) ||
-        isBlockOccupied(blockPlacements, col, footRow)
-      );
-    };
+    // The union of every standable term lives in engine/Standable.ts so the
+    // falling stalactite's landing rule (O-027 FR-008) and this ground branch
+    // can never drift apart.
+    const columnIsGround = (col: number): boolean =>
+      isStandableCell(level, blockPlacements, crumblingFloorStates, col, footRow, {
+        excludeBridge: droppingThroughBridge,
+      });
 
     let groundResolved = false;
     for (let col = leftCol; col <= rightCol; col++) {

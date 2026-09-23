@@ -48,6 +48,7 @@ import {
   heldTorchLightPosition,
   drawTintedSprite,
   CROUCH_HIT_TINT,
+  drawDebrisEffects,
 } from './Renderer';
 import type { LevelDef } from '../level/LevelData';
 import { backgroundAtlasCell } from './BackgroundAtlas';
@@ -56,7 +57,7 @@ import type { SignPlacement } from '../level/SignMapper';
 import type { PlayerState } from '../entities/Player';
 import { PLAYER_RENDERED_SIZE, PLAYER_FRAME_SIZE, PLAYER_FOOT_PADDING, PLAYER_HIT_REACTION_SECONDS } from '../entities/Player';
 import { MAX_HALF_HEARTS, HEART_RENDERED_SIZE } from '../entities/Health';
-import { startFlightEffect, tickFlightEffect, RISE_DURATION_SECONDS, SPARKLE_DURATION_SECONDS, startPuffEffect, tickPuffEffect, startHealAuraEffect, HEAL_AURA_DURATION_SECONDS, startPlayerHitSplatter, startEnemyHitSplatter, tickHitSplatterEffect, startFadeOutTextEffect, tickFadeOutTextEffect, FADE_OUT_TEXT_DURATION_SECONDS } from './CollectionEffects';
+import { startFlightEffect, tickFlightEffect, RISE_DURATION_SECONDS, SPARKLE_DURATION_SECONDS, startPuffEffect, tickPuffEffect, startHealAuraEffect, HEAL_AURA_DURATION_SECONDS, startPlayerHitSplatter, startEnemyHitSplatter, tickHitSplatterEffect, startFadeOutTextEffect, tickFadeOutTextEffect, FADE_OUT_TEXT_DURATION_SECONDS, startDebrisEffect, crumbleDebrisLayers } from './CollectionEffects';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
 import type { BlockPlacement } from '../level/BlockMapper';
 import { toBlockState, blockFrameSource } from '../entities/Block';
@@ -115,7 +116,9 @@ import {
   STATIC_OBJECTS_SHEET,
   BOMB_SHEET,
   EXPLOSION_SHEET,
+  DECORATIONS_SHEET,
 } from '../entities/sprites/sheets';
+import { isStalactiteTwin, stalactiteEntry } from './StaticObjectsCatalog';
 import { computePotRenderPlan } from '../entities/blocks/potRenderPlan';
 import type { DrawContext } from './DrawContext';
 import { TORCH_LIGHT_RADIUS_PX, torchPulseScale } from './Lighting';
@@ -3178,7 +3181,7 @@ describe('drawHazards', () => {
     const ctx = makeMockContext();
     const dc = makeDrawContext(ctx);
     const drawSpy = vi.spyOn(spike, 'draw');
-    const hazards: HazardPlacement[] = [{ id: 'h1', hazardType: 'spike', facing: 'up', x: 0, y: 0 }];
+    const hazards: HazardPlacement[] = [{ id: 'h1', hazardType: 'spike', facing: 'up', x: 0, y: 0, col: 0, row: 0 }];
 
     drawHazards(ctx, hazards, dc);
 
@@ -3189,7 +3192,7 @@ describe('drawHazards', () => {
     const ctx = makeMockContext();
     const spearImage = { tag: 'spear' } as unknown as HTMLImageElement;
     const dc = makeDrawContext(ctx, { sprites: { [SPEAR_SHEET.src]: spearImage } });
-    const hazards: HazardPlacement[] = [{ id: 's1', hazardType: 'spear', facing: 'up', x: 64, y: 32 }];
+    const hazards: HazardPlacement[] = [{ id: 's1', hazardType: 'spear', facing: 'up', x: 64, y: 32, col: 0, row: 0 }];
 
     drawHazards(ctx, hazards, dc);
 
@@ -3210,11 +3213,96 @@ describe('drawHazards', () => {
   it('spear-imageMissingFromSprites-isANoOp', () => {
     const ctx = makeMockContext();
     const dc = makeDrawContext(ctx);
-    const hazards: HazardPlacement[] = [{ id: 's1', hazardType: 'spear', facing: 'up', x: 64, y: 32 }];
+    const hazards: HazardPlacement[] = [{ id: 's1', hazardType: 'spear', facing: 'up', x: 64, y: 32, col: 0, row: 0 }];
 
     drawHazards(ctx, hazards, dc);
 
     expect(ctx.drawImage).not.toHaveBeenCalled();
+  });
+
+  it('hangingFallingStalactite-untintedBlitReproducesTheDecorationAtItsCell', () => {
+    const ctx = makeMockContext();
+    const decorations = { tag: 'decorations' } as unknown as HTMLImageElement;
+    const dc = makeDrawContext(ctx, { sprites: { [DECORATIONS_SHEET.src]: decorations } });
+    // First large-variant cell in reading order.
+    let cell = { col: 0, row: 0 };
+    outer: for (let row = 0; row < 8; row++) {
+      for (let col = 0; col < 40; col++) {
+        if (!isStalactiteTwin(col, row)) {
+          cell = { col, row };
+          break outer;
+        }
+      }
+    }
+    const entry = stalactiteEntry(cell.col, cell.row);
+    const hazard: HazardPlacement = {
+      id: 'h1',
+      hazardType: 'fallingStalactite',
+      facing: 'down',
+      x: 64,
+      y: 32,
+      col: cell.col,
+      row: cell.row,
+      fallingStalactitePhase: 'hanging',
+    };
+
+    drawHazards(ctx, [hazard], dc);
+
+    expect(ctx.drawImage).toHaveBeenCalledTimes(1);
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      decorations,
+      entry.sx,
+      entry.sy,
+      entry.width,
+      entry.height,
+      64,
+      32,
+      RENDERED_TILE_SIZE,
+      RENDERED_TILE_SIZE,
+    );
+    expect(ctx.imageSmoothingEnabled).toBe(false);
+  });
+
+  it('shakingFallingStalactite-offsetsHorizontallyOnlyWithNoFrameChange', () => {
+    const ctx = makeMockContext();
+    const decorations = { tag: 'decorations' } as unknown as HTMLImageElement;
+    const dc = makeDrawContext(ctx, { sprites: { [DECORATIONS_SHEET.src]: decorations } });
+    let cell = { col: 0, row: 0 };
+    outer: for (let row = 0; row < 8; row++) {
+      for (let col = 0; col < 40; col++) {
+        if (!isStalactiteTwin(col, row)) {
+          cell = { col, row };
+          break outer;
+        }
+      }
+    }
+    const entry = stalactiteEntry(cell.col, cell.row);
+    const hazard: HazardPlacement = {
+      id: 'h1',
+      hazardType: 'fallingStalactite',
+      facing: 'down',
+      x: 64,
+      y: 32,
+      col: cell.col,
+      row: cell.row,
+      fallingStalactitePhase: 'shaking',
+      fallingStalactiteShakeOffsetX: 3,
+    };
+
+    drawHazards(ctx, [hazard], dc);
+
+    // Same art, shifted right by the shake, at the same y.
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      decorations,
+      entry.sx,
+      entry.sy,
+      entry.width,
+      entry.height,
+      67,
+      32,
+      RENDERED_TILE_SIZE,
+      RENDERED_TILE_SIZE,
+    );
   });
 });
 
@@ -4151,5 +4239,68 @@ describe('drawTintedSprite', () => {
       drawTintedSprite(ctx, layer, sheet, 0, 0, 32, 16, 256, 64, CROUCH_HIT_TINT),
     ).not.toThrow();
     expect(raw.drawImage).toHaveBeenCalledWith(sheet, 0, 0, 32, 32, 16, 256, 64, 64);
+  });
+});
+
+describe('drawDebrisEffects', () => {
+  const LAYER_A = { sheet: '/sprites/a.png', sx: 4, sy: 6, width: 10, height: 6 };
+  const LAYER_B = { sheet: '/sprites/b.png', sx: 0, sy: 0, width: 16, height: 8 };
+  const imageA = { tag: 'a' } as unknown as HTMLImageElement;
+  const imageB = { tag: 'b' } as unknown as HTMLImageElement;
+
+  function makeDebrisContext(sprites: Record<string, HTMLImageElement> = {}) {
+    const ctx = makeMockContext();
+    const dc = makeDrawContext(ctx, { sprites: { ...sprites } });
+    return { ctx, dc };
+  }
+
+  it('eachLayerOwnRect-isQuarteredTLTRBLBRAndBlittedPerPiece', () => {
+    const { ctx, dc } = makeDebrisContext({ [LAYER_A.sheet]: imageA, [LAYER_B.sheet]: imageB });
+    const effect = startDebrisEffect('d1', 100, 200, [LAYER_A, LAYER_B]);
+
+    drawDebrisEffects(ctx, [effect], dc);
+
+    const calls = vi.mocked(ctx.drawImage).mock.calls;
+    expect(calls).toHaveLength(8);
+    // Layer A: 10x6 -> halves 5x3, offset within the layer 0/5 and 0/3.
+    expect(calls[0]).toEqual([imageA, 4, 6, 5, 3, 100, 200, 10, 6]);
+    expect(calls[1]).toEqual([imageA, 9, 6, 5, 3, 110, 200, 10, 6]);
+    expect(calls[2]).toEqual([imageA, 4, 9, 5, 3, 100, 206, 10, 6]);
+    expect(calls[3]).toEqual([imageA, 9, 9, 5, 3, 110, 206, 10, 6]);
+    // Layer B: 16x8 -> halves 8x4.
+    expect(calls[4]).toEqual([imageB, 0, 0, 8, 4, 100, 200, 16, 8]);
+    expect(calls[5]).toEqual([imageB, 8, 0, 8, 4, 116, 200, 16, 8]);
+    expect(calls[6]).toEqual([imageB, 0, 4, 8, 4, 100, 208, 16, 8]);
+    expect(calls[7]).toEqual([imageB, 8, 4, 8, 4, 116, 208, 16, 8]);
+  });
+
+  it('missingSheetImage-isSkippedWithoutThrowing', () => {
+    const { ctx, dc } = makeDebrisContext({ [LAYER_A.sheet]: imageA });
+    const effect = startDebrisEffect('d1', 0, 0, [LAYER_A, LAYER_B]);
+
+    expect(() => drawDebrisEffects(ctx, [effect], dc)).not.toThrow();
+    // Only layer A's four quarters were drawn.
+    expect(vi.mocked(ctx.drawImage).mock.calls).toHaveLength(4);
+  });
+
+  it('crumbleTwoLayerSource-keepsTheOriginalCropAndQuarterSizes', () => {
+    const ledgeImage = { tag: 'ledge' } as unknown as HTMLImageElement;
+    const crackImage = { tag: 'crack' } as unknown as HTMLImageElement;
+    const { ctx, dc } = makeDebrisContext({
+      '/sprites/crumble_floor.png': ledgeImage,
+      '/sprites/crumble_cracks.png': crackImage,
+    });
+    const effect = startDebrisEffect('d1', 32, 64, crumbleDebrisLayers());
+
+    drawDebrisEffects(ctx, [effect], dc);
+
+    const calls = vi.mocked(ctx.drawImage).mock.calls;
+    expect(calls).toHaveLength(8);
+    // Ledge layer: middle frame (sx 16), top 8 rows, quarters 8x4.
+    expect(calls[0]).toEqual([ledgeImage, 16, 0, 8, 4, 32, 64, 16, 8]);
+    expect(calls[3]).toEqual([ledgeImage, 24, 4, 8, 4, 48, 72, 16, 8]);
+    // Crack layer: heavy frame (sx 32), same 16x8 crop and quarter sizes.
+    expect(calls[4]).toEqual([crackImage, 32, 0, 8, 4, 32, 64, 16, 8]);
+    expect(calls[7]).toEqual([crackImage, 40, 4, 8, 4, 48, 72, 16, 8]);
   });
 });

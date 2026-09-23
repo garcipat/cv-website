@@ -80,7 +80,7 @@ of the raw layout by the `find*` functions in `LevelParser.ts`.
 | `N` | `fence` | Decorative, non-solid. Single fixed sprite. |
 | `X` | `cobweb` | Decorative, non-solid cave dressing. Corner-vs-flat art and its rotation are auto-detected from neighbouring solid terrain (`Terrain.ts`'s `cobwebOrientation`). |
 | `c` | `crystalCluster` | Decorative, non-solid cave dressing. Single fixed sprite. |
-| `⊤` | `stalactite` | Decorative, non-solid cave dressing. Size variant (large/twin) picked by position hash. |
+| `⊤` | `stalactite` | Decorative, non-solid cave dressing. Size variant (large/twin) picked by position hash. Its falling-hazard counterpart is the `T` hazard marker below. |
 | `⊥` | `stalagmite` | Decorative, non-solid cave dressing. Size variant (large/twin) picked by position hash. |
 | `¥` | `torch` | Decorative, non-solid cave dressing. Its flame animates through a 4-frame sparkle loop; each cell's phase is derived from its grid position plus the shared world clock (`engine/Torch.ts`). |
 | `@` | `ladderBundle` | A curled-up rope-ladder bundle (O-011). Non-solid and not climbable, but standable from above (`isStandableLadderBundleTop`); a grounded character presses Up while on or one cell above it to unroll a `ropeLadder` shaft down to the first solid tile below. |
@@ -152,6 +152,7 @@ face was touched, so the facing selects the sprite only.
 | `<` | `spike` | `left` | Mounted on a wall to the right of the tile. |
 | `>` | `spike` | `right` | Mounted on a wall to the left of the tile. |
 | `A` | `floorSpike` | `up` | Delayed-trigger hazard (O-021); floor-only, no facing cycle. |
+| `T` | `fallingStalactite` | `down` | Camouflage ceiling hazard (O-027); renders the decorative stalactite's own art untinted while hanging, shakes then drops. Ceiling-only, single orientation, no facing cycle. |
 
 `hazardType` is carried on every entry rather than hardcoded elsewhere, so a second
 hazard kind needs one entry here plus a registry line in
@@ -165,10 +166,24 @@ merged in per-tick from `PlatformerState.ts`'s `floorSpikeTimerStates` via
 frame. See [specs/O-021-platformer-floor-spikes/spec.md](../../../specs/O-021-platformer-floor-spikes/spec.md)
 for the trigger/cycle behavior itself.
 
+`fallingStalactite` (`'T'`) is a third `HazardKind`, added by O-027. It hangs under a
+ceiling and renders **exactly** like the decorative `⊤` stalactite at its cell (same
+large/twin position-hash variant, no in-game tint), so the first drop is a surprise. It
+arms when the player's hitbox enters a bounded detection zone beneath it (the three
+columns below, reaching down to the first standable cell in its own column or 10 tiles,
+clipped per column by standable cells), then shakes briefly, falls straight down its own
+column, and shatters on the first cell the player could stand on (or despawns off the
+bottom). Only the falling phase is hazardous. Its live per-instance phase and
+fall/shake offsets are merged per-tick by `hazardPlacementsForTick()` from
+`PlatformerState.ts`'s `fallingStalactiteTimerStates`; a shattered one stays gone until
+death/respawn or Reset Game. `T` is tinted reddish in the editor only — its palette
+thumbnail and its painted grid cell — never in game. See
+[specs/O-027-platformer-falling-stalactite/spec.md](../../../specs/O-027-platformer-falling-stalactite/spec.md).
+
 ## `TileChar`
 
 `TileChar` (`LevelParser.ts`) is the union of every legal layout character — all four
-maps' keys, 44 characters in total. It is written out by hand rather than derived with
+maps' keys, 46 characters in total. It is written out by hand rather than derived with
 `keyof typeof`: the maps are annotated `Record<string, … | undefined>` so lookups can
 index by a plain `string`, which would widen a derived union to `string` and remove all
 type safety. A test asserts every map key appears in the union.

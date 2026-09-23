@@ -14,6 +14,7 @@ import { levelEditorPage } from './LevelEditorPage.page';
 import type { TileChar, BackgroundChar } from '../level/LevelParser';
 import type { EditorImages } from './EditorCanvas';
 import { COIN_SHEET, STATIC_OBJECTS_SHEET, SPEAR_SHEET, BEE_SHEET } from '../entities/sprites/sheets';
+import { PALETTE_TILE_SPRITES } from './paletteTiles';
 
 vi.mock('../engine/Renderer', () => ({
   drawTerrain: vi.fn(),
@@ -74,6 +75,11 @@ const EMPTY_IMAGES: EditorImages = {
   crumbleCracks: null,
 };
 
+// The O-027 stalactite tint pass masks its wash against the decorations sheet
+// (a scratch `source-atop` composite). The actual `drawImage` is a stub, so a
+// truthy stand-in is enough to exercise the tint path.
+const TINT_IMAGES: EditorImages = { ...EMPTY_IMAGES, decorations: {} as HTMLImageElement };
+
 // Default props shared by every pre-existing test in this file (all of
 // which predate the background layer and only care about the foreground):
 // the background layer stays inactive/empty so it doesn't affect them.
@@ -87,9 +93,13 @@ const BACKGROUND_LAYER_DEFAULT_PROPS = {
 function stubCanvasContext() {
   const ctx = {
     fillRect: vi.fn(),
+    clearRect: vi.fn(),
+    drawImage: vi.fn(),
     fillStyle: '',
     strokeStyle: '',
     lineWidth: 0,
+    globalCompositeOperation: 'source-over',
+    imageSmoothingEnabled: true,
     beginPath: vi.fn(),
     moveTo: vi.fn(),
     lineTo: vi.fn(),
@@ -2395,5 +2405,90 @@ describe('EditorCanvas zoom controls', () => {
     expect(onZoomChange).toHaveBeenCalledWith(0.75, { x: 25, y: 12.5 });
 
     vi.unstubAllGlobals();
+  });
+});
+
+describe('EditorCanvas falling-stalactite tint (O-027)', () => {
+  const TINT = PALETTE_TILE_SPRITES['T']!.tint!;
+
+  it('tintsEveryTCellWithTheEditorOnlyReddishWashAndNoGlyph', () => {
+    const ctx = stubCanvasContext() as unknown as {
+      fillRect: ReturnType<typeof vi.fn>;
+      fillText: ReturnType<typeof vi.fn>;
+      drawImage: ReturnType<typeof vi.fn>;
+      fillStyle: string;
+    };
+
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['T']]}
+        selectedTool="T"
+        panOffset={{ x: 0, y: 0 }}
+        images={TINT_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+
+    // The wash is applied to the scratch sprite mask at native size
+    // (`source-atop`) — NOT as a full-cell rectangle at the cell's offset —
+    // so only the stalactite's own opaque pixels get tinted.
+    expect(ctx.fillRect).toHaveBeenCalledWith(0, 0, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+    expect(ctx.fillStyle).toBe(TINT);
+    // The tinted sprite is then blitted to the cell (identity pan/zoom here).
+    const blit = ctx.drawImage.mock.calls.find((call) => call[0] instanceof HTMLCanvasElement);
+    expect(blit?.slice(1)).toEqual([0, 0, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE]);
+    // No glyph is drawn for the hazard cell — it is not a sprite-less marker.
+    expect(ctx.fillText.mock.calls.filter((call: unknown[]) => call[0] === 'T')).toHaveLength(0);
+  });
+
+  it('leavesTheDecorativeStalactiteCellUntinted', () => {
+    const ctx = stubCanvasContext() as unknown as {
+      fillRect: ReturnType<typeof vi.fn>;
+      drawImage: ReturnType<typeof vi.fn>;
+    };
+
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['⊤']]}
+        selectedTool="⊤"
+        panOffset={{ x: 0, y: 0 }}
+        images={TINT_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+
+    expect(ctx.fillRect).not.toHaveBeenCalledWith(0, 0, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+    expect(
+      ctx.drawImage.mock.calls.find((call) => call[0] instanceof HTMLCanvasElement),
+    ).toBeUndefined();
+  });
+
+  it('offsetsTheTTintByThePanOffsetAndZoom', () => {
+    const ctx = stubCanvasContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['.', 'T']]}
+        selectedTool="T"
+        panOffset={{ x: 100, y: 40 }}
+        zoom={0.5}
+        images={TINT_IMAGES}
+        onPaint={() => {}}
+        onPan={() => {}}
+      />,
+    );
+
+    const blit = ctx.drawImage.mock.calls.find((call) => call[0] instanceof HTMLCanvasElement);
+    expect(blit?.slice(1)).toEqual([
+      RENDERED_TILE_SIZE * 0.5 + 100,
+      40,
+      RENDERED_TILE_SIZE * 0.5,
+      RENDERED_TILE_SIZE * 0.5,
+    ]);
   });
 });

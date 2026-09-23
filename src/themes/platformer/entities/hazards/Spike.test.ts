@@ -4,7 +4,7 @@ import { RENDERED_TILE_SIZE } from '../../level/Terrain';
 import type { HazardPlacement } from '../../level/HazardMapper';
 
 function hazardAt(facing: HazardPlacement['facing']): HazardPlacement {
-  return { id: 'h1', hazardType: 'spike', facing, x: 16, y: 32 };
+  return { id: 'h1', hazardType: 'spike', facing, x: 16, y: 32, col: 0, row: 0 };
 }
 
 describe('spike', () => {

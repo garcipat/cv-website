@@ -8,6 +8,7 @@ import {
   BLUEPRINT_GLYPH,
   PATROL_GLYPH,
   CONNECTION_POINT_GLYPH,
+  type TileSpriteSpec,
 } from './paletteTiles';
 import { TERRAIN_CHARS, ENTITY_CHARS, SIGN_CHARS, HAZARD_CHARS } from '../level/LevelParser';
 import type { TileChar } from '../level/LevelParser';
@@ -402,11 +403,48 @@ describe('floor spear marker', () => {
   });
 });
 
+describe('falling stalactite marker', () => {
+  it('T-hasASpriteCroppingTheLargeStalactiteWithAReddishTint', () => {
+    expect(PALETTE_TILE_SPRITES['T']).toEqual({
+      sheet: '/sprites/decorations.png',
+      sheetWidth: 67,
+      sheetHeight: 35,
+      sx: 51,
+      sy: 0,
+      frameWidth: 16,
+      frameHeight: 17,
+      tint: 'rgba(220, 38, 38, 0.45)',
+    });
+  });
+
+  it('T-hasAHumanReadableLabelDistinctFromTheDecoration', () => {
+    expect(PALETTE_TILE_LABELS['T']).toBe('Falling Stalactite');
+    expect(PALETTE_TILE_LABELS['T']).not.toBe(PALETTE_TILE_LABELS['⊤']);
+  });
+
+  it('T-hasADescriptionDistinctFromTheDecoration', () => {
+    expect(PALETTE_TILE_DESCRIPTIONS['T']).toBeTruthy();
+    expect(PALETTE_TILE_DESCRIPTIONS['T']).not.toBe(PALETTE_TILE_DESCRIPTIONS['⊤']);
+  });
+});
+
+describe('TileSpriteSpec tint', () => {
+  it('tint-isOptional', () => {
+    const spec: TileSpriteSpec = {
+      sheet: '/sprites/decorations.png',
+      sheetWidth: 67,
+      sheetHeight: 35,
+      sx: 51,
+      sy: 0,
+      frameWidth: 16,
+      frameHeight: 17,
+    };
+    expect(spec.tint).toBeUndefined();
+  });
+});
+
 describe('HAZARD_PALETTE_KEYS', () => {
   it('containsExactlyOneKeyPerRegisteredHazardKindInRegistrationOrder', () => {
-    // One representative character per hazard kind, derived from HAZARD_CHARS
-    // rather than hand-listed: the first key of each kind in registration
-    // order.
     const expected: string[] = [];
     for (const char of Object.keys(HAZARD_CHARS)) {
       const kind = HAZARD_CHARS[char]!.hazardType;
@@ -416,7 +454,7 @@ describe('HAZARD_PALETTE_KEYS', () => {
       if (!alreadyRepresented) expected.push(char);
     }
     expect(HAZARD_PALETTE_KEYS).toEqual(expected);
-    expect(HAZARD_PALETTE_KEYS).toEqual(['^', '¦', 'A']);
+    expect(HAZARD_PALETTE_KEYS).toEqual(['^', '¦', 'A', 'T']);
   });
 
   it('hasNoDuplicates', () => {

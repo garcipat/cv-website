@@ -17,7 +17,7 @@ function oneTipMask(): SpearMask {
   return { width: 4, height: 4, pixels };
 }
 
-const hazard: HazardPlacement = { id: 'h1', hazardType: 'spear', facing: 'up', x: 100, y: 100 };
+const hazard: HazardPlacement = { id: 'h1', hazardType: 'spear', facing: 'up', x: 100, y: 100, col: 0, row: 0 };
 
 function makePlayer(overrides: Partial<PlayerState> = {}): PlayerState {
   return {

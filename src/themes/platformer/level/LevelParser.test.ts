@@ -547,6 +547,18 @@ describe('HAZARD_CHARS', () => {
   it('star-mapsToFloorSpikeFacingUp', () => {
     expect(HAZARD_CHARS['A']).toEqual({ hazardType: 'floorSpike', facing: 'up' });
   });
+
+  it('uppercaseT-mapsToFallingStalactiteFacingDown', () => {
+    expect(HAZARD_CHARS['T']).toEqual({ hazardType: 'fallingStalactite', facing: 'down' });
+  });
+
+  it('uppercaseT-collidesWithNoOtherCharacterMap', () => {
+    // The module-load guard in LevelParser.ts already throws on a shared
+    // key; this names the invariant for 'T' specifically.
+    expect('T' in TERRAIN_CHARS).toBe(false);
+    expect('T' in ENTITY_CHARS).toBe(false);
+    expect('T' in SIGN_CHARS).toBe(false);
+  });
 });
 
 describe('parseLevel — hazard markers', () => {
@@ -557,6 +569,11 @@ describe('parseLevel — hazard markers', () => {
 
   it('spearMarker-parsesAsEmptyWalkableTile', () => {
     const result = parseLevel(['¦.', 'GG']);
+    expect(result.terrain[0][0]).toBe('empty');
+  });
+
+  it('fallingStalactiteMarker-parsesAsEmptyWalkableTile', () => {
+    const result = parseLevel(['T.', 'GG']);
     expect(result.terrain[0][0]).toBe('empty');
   });
 });
@@ -687,7 +704,7 @@ describe('TileChar', () => {
     const tileChars: readonly TileChar[] = [
       '.', 'G', 'R', '#', 'B', 'H', 'I', 'P', '+', 'S', 'M', 'm', 'q', 'o', '=', '?', 'F', '$', 'u', 'p',
       'b', 'n', 'N', 'X', 'c', '⊤', '⊥', '¥', '1', '2', '3', '4', '5', '6', '^', 'v', '<', '>', 'A', 'C', '@',
-      '§', 's', 'g', '¦',
+      '§', 's', 'g', '¦', 'T',
     ];
     const allKeys = [
       ...Object.keys(TERRAIN_CHARS),
