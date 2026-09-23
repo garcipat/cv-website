@@ -62,6 +62,8 @@ import {
   floorSpikeTimerStates,
   doorPlacements,
   doorStates,
+  deployableLadderStates,
+  deployableLadderPlacements,
 } from './PlatformerState';
 import { toBlockState } from './entities/Block';
 import type { BlockState } from './entities/Block';
@@ -4442,6 +4444,127 @@ describe('PlatformerPage', () => {
         const after = enemyStates.value.find((e) => e.id === enemy.id)!;
         // Walked clear past both leaf cells of the (open) door pair.
         expect(after.x).toBeGreaterThan((door.col + 2) * RENDERED_TILE_SIZE);
+      });
+    });
+  });
+
+  // Task 17: PlatformerPage.tsx now dispatches the interact key through the
+  // composed applyInteract([ladderBundleInteractable, doorInteractable,
+  // chestInteractable, hintInteractable]) call instead of hand-written
+  // blocks. These four tests are the only genuinely NEW behavior this task
+  // adds (the door candidate itself is unit-tested in DoorState.test.ts) —
+  // everything else in this file's ladder/chest/sign describes above is a
+  // pre-existing regression check that the refactor must leave unchanged.
+  describe('interact dispatch — door wiring (O-029 Task 17)', () => {
+    // A closed door pair at col 2 (left leaf) / col 3 (right leaf), row 0,
+    // with nothing else interactable nearby — isolates the door candidate
+    // from the ladder-bundle one for tests 1-3 below.
+    const DOOR_ONLY_LAYOUT = ['S.dD....', 'GGGGGGGG'];
+
+    function mountAt(layout: string[]): (ms: number) => void {
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+      currentLayout.value = layout;
+      render(<PlatformerPage />);
+      frameCallback!(0);
+      return (ms: number) => frameCallback!(ms);
+    }
+
+    describe('interact-standingNextToClosedDoor-opensIt', () => {
+      it('Up next to a closed door opens it, costs nothing', () => {
+        const tick = mountAt(DOOR_ONLY_LAYOUT);
+        const door = doorPlacements.value[0];
+        const startingKeys = collectedKeys.value;
+        const startingFactCount = collectedFacts.value.length;
+        // One column left of the left leaf, same row — pressed flush
+        // against the door's face (same convention DoorState.test.ts's own
+        // doorPlayerIsAdjacentTo fixtures use).
+        playerState.value = {
+          ...playerState.value,
+          x: (door.col - 1) * RENDERED_TILE_SIZE,
+          y: door.row * RENDERED_TILE_SIZE,
+          vx: 0,
+          vy: 0,
+          grounded: true,
+        };
+
+        fireEvent.keyDown(window, { code: 'ArrowUp' });
+        tick(16);
+
+        expect(doorStates.value.find((d) => d.id === door.id)?.phase).toBe('open');
+        expect(collectedKeys.value).toBe(startingKeys);
+        expect(collectedFacts.value.length).toBe(startingFactCount);
+      });
+    });
+
+    describe('interact-standingNextToOpenDoor-closesIt', () => {
+      it('Up next to an open door closes it again', () => {
+        const tick = mountAt(DOOR_ONLY_LAYOUT);
+        // Set AFTER mounting: the mount effect's own resetGameProgress()
+        // call reseeds doorStates back to closed (same reason the O-029
+        // Task 14 enemy-patrol describe above sets it post-mount).
+        doorStates.value = doorPlacements.value.map((d) => ({ ...d, phase: 'open' as const }));
+        const door = doorPlacements.value[0];
+        playerState.value = {
+          ...playerState.value,
+          x: (door.col - 1) * RENDERED_TILE_SIZE,
+          y: door.row * RENDERED_TILE_SIZE,
+          vx: 0,
+          vy: 0,
+          grounded: true,
+        };
+
+        fireEvent.keyDown(window, { code: 'ArrowUp' });
+        tick(16);
+
+        expect(doorStates.value.find((d) => d.id === door.id)?.phase).toBe('closed');
+      });
+    });
+
+    describe('interact-notAdjacentToDoor-doesNothing', () => {
+      it('Up does nothing when not standing next to the door', () => {
+        const tick = mountAt(DOOR_ONLY_LAYOUT);
+        const door = doorPlacements.value[0];
+        // Player stays at its spawn position (col 0, row 0) — two clear
+        // columns short of the left leaf's own column, well outside the
+        // touching test doorPlayerIsAdjacentTo requires.
+        fireEvent.keyDown(window, { code: 'ArrowUp' });
+        tick(16);
+
+        expect(doorStates.value.find((d) => d.id === door.id)?.phase).toBe('closed');
+      });
+    });
+
+    describe('interact-ladderBundleCandidate-suppressesADoorCandidateSameTick', () => {
+      it('preserves the existing "ladder bundle goes first" priority', () => {
+        // A rolled bundle at col 1 and a closed door's left leaf at col 2,
+        // both row 0 — a player straddling cols 1-2 (x = 1 tile) is
+        // simultaneously a valid ladderBundleForPlayer candidate (bundle
+        // col within its hitbox) AND a valid doorPlayerIsAdjacentTo
+        // candidate (hitbox touching the left leaf's column from the
+        // left). applyInteract's documented order (ladder bundle, door,
+        // chest, hint — design.md) means only the bundle should react.
+        const tick = mountAt(['S@dD....', 'GGGGGGGG']);
+        const bundle = deployableLadderPlacements.value[0];
+        const door = doorPlacements.value[0];
+        playerState.value = {
+          ...playerState.value,
+          x: 1 * RENDERED_TILE_SIZE,
+          y: 0 * RENDERED_TILE_SIZE,
+          vx: 0,
+          vy: 0,
+          grounded: true,
+        };
+
+        fireEvent.keyDown(window, { code: 'ArrowUp' });
+        tick(16);
+
+        expect(deployableLadderStates.value.find((s) => s.id === bundle.id)?.phase).toBe('deploying');
+        expect(doorStates.value.find((d) => d.id === door.id)?.phase).toBe('closed');
       });
     });
   });

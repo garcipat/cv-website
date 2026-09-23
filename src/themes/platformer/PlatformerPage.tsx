@@ -50,11 +50,14 @@ import {
   drawDeployableLadders,
   drawCrumblingFloors,
   drawCrumbleDebrisEffects,
+  drawDoors,
 } from './engine/Renderer';
 import { drawBackgroundLayers, backgroundBandGeometry } from './engine/BackgroundLayers';
 import { createCloudField, stepCloudField, drawAmbientClouds } from './engine/AmbientClouds';
 import type { CloudField } from './engine/AmbientClouds';
-import { ladderBundleForPlayer, beginDeploy } from './engine/DeployableLadder';
+import { ladderBundleInteractable } from './engine/DeployableLadder';
+import { doorInteractable } from './engine/DoorState';
+import { applyInteract } from './engine/Interact';
 import type { DrawContext } from './engine/DrawContext';
 import { drawDebugOverlay, drawCameraDeadZoneOverlay } from './engine/DebugOverlay';
 import { createGameLoop } from './engine/GameLoop';
@@ -92,6 +95,7 @@ import {
   checkFloorSpikeTriggers,
   checkCrumblingFloorTriggers,
   playerHitbox,
+  chestInteractable,
 } from './engine/Collision';
 import {
   createPlacedBomb,
@@ -101,7 +105,7 @@ import {
 } from './engine/PlacedBomb';
 import { blastTiles, blocksInBlast, enemiesInBlast, playerInBlast } from './engine/Blast';
 import { resolveCheckpointContacts } from './engine/CheckpointLogic';
-import { openChest, allChestsOpen, isChestOpen, CHEST_CLOSED_OFFSET_X } from './entities/Chest';
+import { allChestsOpen, isChestOpen } from './entities/Chest';
 import { stepBlockAnimation } from './engine/BlockAI';
 import {
   applyBlockHit,
@@ -191,6 +195,8 @@ import {
   FLOOR_SPIKE_SHEET,
   CRUMBLE_FLOOR_SHEET,
   CRUMBLE_CRACKS_SHEET,
+  DOOR_SHEET,
+  GROUND_WOOD_SHEET,
 } from './entities/sprites/sheets';
 import { frameSource, collectSheetSources } from './entities/sprites/SpriteSheet';
 import type { SpriteLookup } from './entities/sprites/SpriteSheet';
@@ -269,6 +275,7 @@ import {
   armCrumblingFloorTrigger,
   tickCrumblingFloors,
   activeCrumbleDebrisEffects,
+  doorStates,
 } from './PlatformerState';
 import { useSignals } from '@preact/signals-react/runtime';
 import { Journal } from './components/Journal';
@@ -281,6 +288,7 @@ import {
   beginHintTooltipExit,
   tickHintTooltip,
   hintTooltipGrowthAndOpacity,
+  hintInteractable,
 } from './engine/HintTooltip';
 import type { HintId, CollectedFact } from './types';
 import { playCanvasSize } from './engine/CanvasSize';
@@ -324,6 +332,14 @@ export const PlatformerPage = () => {
   // The mushroom sheet — loaded alongside the other decorative sheets and
   // threaded into drawTerrain's mushroom branch (O-018).
   const mushroomRef = useRef<HTMLImageElement | null>(null);
+  // The door sheet (O-029) — its own dedicated image (Task 8), loaded
+  // alongside the other decorative sheets and threaded into the dedicated
+  // drawDoors pass below, same pattern as ropeLadderRef/drawDeployableLadders.
+  const doorSheetRef = useRef<HTMLImageElement | null>(null);
+  // The foreground wood ground tile's own dedicated image (Task 9/10) —
+  // threaded into drawTerrain's `groundWoodImage` parameter at its call site
+  // below. Mirrors backgroundAtlasWoodRef's analogous background-wood image.
+  const groundWoodImageRef = useRef<HTMLImageElement | null>(null);
   // Reusable offscreen canvas the darkness/torch pass draws its overlay onto
   // before compositing it over the world. Created and sized alongside the main
   // canvas in `resize()` below, so it is never reallocated per frame.
@@ -725,6 +741,7 @@ export const PlatformerPage = () => {
             worldAnimElapsed,
             mushroomRef.current,
             mushroomSquashStates.value,
+            groundWoodImageRef.current,
           );
         }
         drawDeployableLadders(
@@ -735,6 +752,7 @@ export const PlatformerPage = () => {
           originX,
           originY,
         );
+        drawDoors(ctx, doorStates.value, doorSheetRef.current, originX, originY);
         drawSigns(ctx, signPlacements.value, tilesetRef.current, originX, originY);
       }
 
@@ -1633,47 +1651,6 @@ export const PlatformerPage = () => {
       const arrowUpPressed = input.consumePress('ArrowUp');
       const wPressed = input.consumePress('KeyW');
       const interactPressed = arrowUpPressed || wPressed;
-      // Computed unconditionally (not just inside `if (interactPressed)`) so
-      // the "no key" hint bubble below can also read it — standing on a
-      // closed chest with zero keys is itself the trigger condition for that
-      // bubble, independent of whether Up was actually pressed this tick.
-      const standingChestId = chestPlayerIsStandingOn(playerState.value, chestStates.value);
-
-      // A grounded character standing on (or one cell above) a rolled bundle
-      // takes the Up press to deploy it — before the chest/hint blocks below,
-      // so the press is consumed and never also opens a chest or reveals a
-      // hint this tick (FR-017). Holding Up afterwards is harmless: the bundle
-      // is not climbable while rolled/deploying.
-      const bundleForPlayer = interactPressed
-        ? ladderBundleForPlayer(currentLevel.value, deployableLadderStates.value, playerState.value)
-        : null;
-      const bundleDeployedThisTick = bundleForPlayer !== null;
-      if (bundleForPlayer) {
-        deployableLadderStates.value = deployableLadderStates.value.map((state) =>
-          state.id === bundleForPlayer.id ? beginDeploy(state) : state,
-        );
-      }
-
-      if (interactPressed && !bundleDeployedThisTick) {
-        if (standingChestId && collectedKeys.value > 0) {
-          const chest = chestStates.value.find((c) => c.id === standingChestId)!;
-          chestStates.value = chestStates.value.map((c) =>
-            c.id === standingChestId ? openChest(c) : c,
-          );
-          collectedKeys.value -= 1;
-          revealFact(chest.fact, {
-            // Shifted by CHEST_CLOSED_OFFSET_X (see entities/Chest.ts) to start
-            // from the chest's actual centered-on-tile left edge — only the
-            // closed offset applies, since this fires the instant a closed
-            // chest is opened.
-            x: chest.x + CHEST_CLOSED_OFFSET_X,
-            y: chest.y,
-            effectId: chest.id,
-            // No counterKey: chests have a permanent HUD counter, so this
-            // reveal deliberately bumps no transient popup — same as today.
-          });
-        }
-      }
 
       // FR-038: revealed like a chest — stand on a sign (or, per the same
       // convention, a locked chest with zero keys) and press Up/W
@@ -1695,28 +1672,39 @@ export const PlatformerPage = () => {
       // third-person rule, and the two must stay independently translatable
       // since they're grammatically different sentences, not just different
       // triggers for the same line. Signs take priority in the vanishingly
-      // unlikely case a chest and a sign tile overlap. Re-checked against the
-      // CURRENT chestStates (not the `standingChestId` captured above, before
-      // the chest-open block ran) — a chest just successfully opened this
-      // same tick is no longer "closed and stood on", so
-      // `chestPlayerIsStandingOn` correctly stops returning its id (it skips
-      // open chests), and no bubble should show for that case.
+      // unlikely case a chest and a sign tile overlap. This chestStates read
+      // happens BEFORE the composed applyInteract dispatch below runs (unlike
+      // the pre-Task-17 version, which re-checked it AFTER an earlier
+      // hand-written chest-open block) — but the result is the same either
+      // way: opening a chest this same tick only happens when
+      // `collectedKeys.value > 0` (chestInteractable's own gate), and
+      // `lockedChestHintId` below only fires when `collectedKeys.value <= 0`,
+      // so a chest that's about to be opened this tick can never also be
+      // "closed, stood on, and keyless" at the same time.
       const standingClosedChestId = chestPlayerIsStandingOn(playerState.value, chestStates.value);
       const lockedChestHintId: HintId | undefined =
         !overlappingSignHintId && standingClosedChestId && collectedKeys.value <= 0 ? 'noKeyForChest' : undefined;
       const overlappingHintId = overlappingSignHintId ?? lockedChestHintId;
       const currentTooltip = hintTooltipState.value;
-      if (overlappingHintId && interactPressed && !bundleDeployedThisTick) {
-        if (!currentTooltip || currentTooltip.hintId !== overlappingHintId) {
-          hintTooltipState.value = startHintTooltip(overlappingHintId);
-        } else if (currentTooltip.phase === 'exiting') {
-          // Pressed Up again before the previous reveal finished leaving —
-          // restart the entrance rather than leaving it stuck exiting.
-          hintTooltipState.value = { ...currentTooltip, phase: 'entering', elapsed: 0 };
-        }
-        // Already 'entering'/'shown' for this exact sign/chest: a repeat
-        // press while it's already up is a harmless no-op.
-      } else if (!overlappingHintId && currentTooltip && currentTooltip.phase !== 'exiting') {
+
+      // Ladder bundle, door, chest, then hint/sign — the FIRST candidate
+      // with a match wins and the rest are never even asked (FR-017: a
+      // bundle deploy is never also a chest-open or hint-reveal the same
+      // tick). `applyInteract` (Task 15) tries each `Interactable` in this
+      // exact order; the per-kind candidate/effect logic itself lives in
+      // each factory (Task 16) — this call site is pure composition, not a
+      // fourth hand-written `if` block. See design.md's "applyInteract: one
+      // dispatch, not a fourth hand-written block".
+      if (interactPressed) {
+        applyInteract([
+          ladderBundleInteractable(deployableLadderStates, currentLevel.value, playerState.value),
+          doorInteractable(doorStates, playerState.value),
+          chestInteractable(chestStates, collectedKeys, playerState.value, revealFact),
+          hintInteractable(hintTooltipState, overlappingHintId),
+        ]);
+      }
+
+      if (!overlappingHintId && currentTooltip && currentTooltip.phase !== 'exiting') {
         hintTooltipState.value = beginHintTooltipExit(currentTooltip);
       }
 
@@ -2604,6 +2592,26 @@ export const PlatformerPage = () => {
       .catch(() => {
         // Mushrooms simply won't render if this sheet fails to load; the rest
         // of the level still shows.
+      });
+    loadImage(DOOR_SHEET.src)
+      .then((img) => {
+        if (cancelled) return;
+        doorSheetRef.current = img;
+        render();
+      })
+      .catch(() => {
+        // Doors simply won't render if this sheet fails to load; the rest of
+        // the level still shows.
+      });
+    loadImage(GROUND_WOOD_SHEET.src)
+      .then((img) => {
+        if (cancelled) return;
+        groundWoodImageRef.current = img;
+        render();
+      })
+      .catch(() => {
+        // The wood ground tile simply won't render if this sheet fails to
+        // load; the rest of the level still shows.
       });
     // The explosion sheet is no type's primary sprite, so — like
     // crack_overlay.png — it stays a hand-listed load rather than being
