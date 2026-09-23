@@ -54,6 +54,7 @@ import {
   jumpFrameSource,
   climbFrameSource,
   hitFrameFromTimer,
+  HIT_RED_FRAME_INDEX,
 } from '../entities/Player';
 import type { PlayerState } from '../entities/Player';
 import {
@@ -447,6 +448,54 @@ export function drawDarkness(
  * down, so the marker lands on the face rather than the top edge (FR-018).
  */
 const ENEMY_EYE_LINE_FRACTION = 0.35;
+
+/** The render-time red applied to the crouch pose during a crouched hit
+ *  reaction (FR-016) — tunable in one place. */
+export const CROUCH_HIT_TINT = 'rgba(230, 40, 40, 0.6)';
+
+/**
+ * Draws one sprite frame through a reusable caller-owned offscreen `layer`,
+ * recolouring only the sprite's opaque pixels with `tint` (FR-016). Follows the
+ * exact caller-owned-layer convention `drawDarkness` establishes, so it
+ * allocates nothing per frame and stays testable with a fake layer, DOM-free.
+ *
+ * 1. `layer.getContext('2d')`; if `null`, falls back to a plain `ctx.drawImage`
+ *    of the frame at the destination.
+ * 2. Clears the layer to `destSize` and draws the frame scaled to `destSize`
+ *    with `source-over`.
+ * 3. Switches to `source-atop` and fills the layer with `tint`, so only the
+ *    sprite's already-opaque pixels are recoloured — never a rectangle.
+ * 4. Composites the layer onto `ctx` at `(destX, destY)` and restores
+ *    `source-over` on the layer.
+ */
+export function drawTintedSprite(
+  ctx: CanvasRenderingContext2D,
+  layer: HTMLCanvasElement,
+  sheet: CanvasImageSource,
+  sx: number,
+  sy: number,
+  frameSize: number,
+  destX: number,
+  destY: number,
+  destSize: number,
+  tint: string,
+): void {
+  const layerCtx = layer.getContext('2d');
+  if (!layerCtx) {
+    ctx.drawImage(sheet, sx, sy, frameSize, frameSize, destX, destY, destSize, destSize);
+    return;
+  }
+
+  layerCtx.globalCompositeOperation = 'source-over';
+  layerCtx.clearRect(0, 0, destSize, destSize);
+  layerCtx.drawImage(sheet, sx, sy, frameSize, frameSize, 0, 0, destSize, destSize);
+  layerCtx.globalCompositeOperation = 'source-atop';
+  layerCtx.fillStyle = tint;
+  layerCtx.fillRect(0, 0, destSize, destSize);
+  layerCtx.globalCompositeOperation = 'source-over';
+
+  ctx.drawImage(layer, 0, 0, destSize, destSize, destX, destY, destSize, destSize);
+}
 
 /**
  * Draws each living enemy's glowing-eye marker through the darkness. Runs
@@ -1113,6 +1162,12 @@ export function drawBackgroundTiles(
  * placeholder primary sheet has no jump row); if it hasn't loaded yet, this
  * falls back to the primary sheet's current frame rather than drawing
  * nothing.
+ *
+ * A crouched hit reaction (`player.crouching && animState === 'hit'`) is the
+ * one special branch: it draws the crouch pose (DUCK row) through the reusable
+ * `drawTintedSprite` red tint when a caller-owned `tintLayer` is given, or
+ * plainly when it is not — never the baked `hit` row a standing hit draws
+ * (FR-016).
  */
 export function drawPlayer(
   ctx: CanvasRenderingContext2D,
@@ -1126,9 +1181,62 @@ export function drawPlayer(
   // sprite — simpler, and consistent with this renderer having no
   // alpha/tint effects anywhere else.
   visible = true,
+  // Caller-owned 64×64 scratch layer for the crouched-hit red tint (FR-016),
+  // reused across frames exactly like drawDarkness's lighting layer. Null
+  // (the default, e.g. the editor preview) draws the crouch pose plainly.
+  tintLayer: HTMLCanvasElement | null = null,
 ): void {
   if (!visible) return;
   ctx.imageSmoothingEnabled = false;
+
+  // Crouched hit reaction (FR-016): the red reaction is a render-time tint on
+  // the crouch pose, so no red-tinted crouch art exists and the standing hit's
+  // baked red frame stays byte-for-byte unchanged (handled below). The tint
+  // pulses on the same `hit` row cadence the standing flash uses — red only on
+  // HIT_RED_FRAME_INDEX — so it does not stay red for the whole reaction window.
+  if (player.crouching && player.animState === 'hit') {
+    const { sx, sy } = playerFrameSource('crouch', player.animFrame);
+    const redFlashOn = hitFrameFromTimer(player.hitTimer) === HIT_RED_FRAME_INDEX;
+    const drawCrouchFrame = (destX: number, destY: number): void => {
+      if (tintLayer && redFlashOn) {
+        drawTintedSprite(
+          ctx,
+          tintLayer,
+          spriteSheet,
+          sx,
+          sy,
+          PLAYER_FRAME_SIZE,
+          destX,
+          destY,
+          PLAYER_RENDERED_SIZE,
+          CROUCH_HIT_TINT,
+        );
+      } else {
+        ctx.drawImage(
+          spriteSheet,
+          sx,
+          sy,
+          PLAYER_FRAME_SIZE,
+          PLAYER_FRAME_SIZE,
+          destX,
+          destY,
+          PLAYER_RENDERED_SIZE,
+          PLAYER_RENDERED_SIZE,
+        );
+      }
+    };
+
+    if (player.direction === 'left') {
+      ctx.save();
+      ctx.translate(player.x + originX + PLAYER_RENDERED_SIZE, player.y + originY);
+      ctx.scale(-1, 1);
+      drawCrouchFrame(0, 0);
+      ctx.restore();
+    } else {
+      drawCrouchFrame(player.x + originX, player.y + originY);
+    }
+    return;
+  }
 
   const useHighResSheet =
     (player.animState === 'jump' || player.animState === 'climb') && jumpSpriteSheet !== null;

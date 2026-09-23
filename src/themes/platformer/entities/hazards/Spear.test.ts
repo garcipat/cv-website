@@ -28,6 +28,7 @@ function makePlayer(overrides: Partial<PlayerState> = {}): PlayerState {
     direction: 'right',
     grounded: false,
     climbing: false,
+    crouching: false,
     isDroppingThroughBridge: false,
     lastGroundedX: 80,
     lastGroundedY: 46,

@@ -154,7 +154,7 @@ export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
   S: {
     sheet: '/sprites/knight.png',
     sheetWidth: 256,
-    sheetHeight: 256,
+    sheetHeight: 288,
     sx: 0,
     sy: 0,
     frameWidth: 32,

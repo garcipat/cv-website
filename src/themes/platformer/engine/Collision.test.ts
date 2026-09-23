@@ -14,6 +14,7 @@ import {
   checkCrumblingFloorTriggers,
   overlappingTriggers,
 } from './Collision';
+import { playerInBlast } from './Blast';
 import type { Box } from './Collision';
 import { setSpearTipMask } from '../entities/hazards/SpearArt';
 import type { SpearMask } from '../entities/hazards/SpearArt';
@@ -53,6 +54,7 @@ function makePlayer(x: number, y: number): PlayerState {
     direction: 'right',
     grounded: true,
     climbing: false,
+    crouching: false,
     isDroppingThroughBridge: false,
     lastGroundedX: x,
     lastGroundedY: y,
@@ -96,6 +98,23 @@ describe('playerHitbox', () => {
     expect(box.x).toBe(PLAYER_SIDE_PADDING);
     expect(box.y).toBe(PLAYER_HEAD_PADDING);
     expect(box.width).toBe(PLAYER_RENDERED_SIZE - 2 * PLAYER_SIDE_PADDING);
+  });
+
+  it('playerHitbox-crouchingFalse-returnsTheFullStandingBox', () => {
+    const box = playerHitbox(makePlayer(0, 0));
+    expect(box.y).toBe(PLAYER_HEAD_PADDING);
+    expect(box.height).toBe(PLAYER_RENDERED_SIZE - PLAYER_HEAD_PADDING - PLAYER_FOOT_PADDING);
+  });
+
+  it('playerHitbox-crouchingTrue-returnsOneTileBoxWithIdenticalXWidthAndFeetLine', () => {
+    const standing = playerHitbox(makePlayer(0, 0));
+    const crouched = playerHitbox({ ...makePlayer(0, 0), crouching: true });
+    expect(crouched.y).toBe(PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING - RENDERED_TILE_SIZE);
+    expect(crouched.height).toBe(RENDERED_TILE_SIZE);
+    expect(crouched.x).toBe(standing.x);
+    expect(crouched.width).toBe(standing.width);
+    // The box shrinks upward from the ground line: the feet do not move.
+    expect(crouched.y + crouched.height).toBe(standing.y + standing.height);
   });
 });
 
@@ -815,6 +834,7 @@ describe('resolveEnemyContacts aggregation', () => {
 describe('checkKeyPickupCollisions', () => {
   const player = {
     x: 0, y: 0, vx: 0, vy: 0, direction: 'right' as const, grounded: true, climbing: false,
+    crouching: false,
     isDroppingThroughBridge: false, lastGroundedX: 0, lastGroundedY: 0, animState: 'idle' as const,
     prevFeetY: PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING,
     animFrame: 0, animTimer: 0, knockbackTimer: 0, bounceAscending: false, blockContacts: [],
@@ -863,5 +883,71 @@ describe('checkBombPickupCollisions', () => {
   it('noOverlap-returnsEmpty', () => {
     const bomb = spawnBombPickup('b1', 1000, 1000);
     expect(checkBombPickupCollisions(player, [bomb], 0, 5)).toEqual([]);
+  });
+});
+
+describe('every consumer reads the one crouched box (US1 / SC-008)', () => {
+  // A pickup in the standing box's head band — the 6px strip (18..24) only the
+  // standing box reaches. The 32px coin's bottom sits at 20, above the crouched
+  // top at 24, so only the standing box overlaps it.
+  it('checkCollectibleCollisions-coinInTheHeadBand-collectedStandingMissedCrouched', () => {
+    const coin = makePlacement('head-coin', PLAYER_SIDE_PADDING, -12);
+    const standing = makePlayer(0, 0);
+    const crouched = { ...makePlayer(0, 0), crouching: true };
+    expect(checkCollectibleCollisions(standing, [coin], new Set())).toEqual(['head-coin']);
+    expect(checkCollectibleCollisions(crouched, [coin], new Set())).toEqual([]);
+  });
+
+  it('resolveEnemyContacts-enemyReachableOnlyByTheStandingHeadBand-contactsStandingOnly', () => {
+    // A green slime's hitbox is (x+2, y+2, 28x30); at placement y = -10 it spans
+    // -8..22, overlapping the standing box (18..56) but not the crouched one
+    // (24..56).
+    const green = makeEnemy(0, -10);
+    const standing = makePlayer(0, 0);
+    const crouched = { ...makePlayer(0, 0), crouching: true };
+    expect(resolveEnemyContacts(standing, [green]).damagePlayer).toBeGreaterThan(0);
+    expect(resolveEnemyContacts(crouched, [green]).damagePlayer).toBe(0);
+  });
+
+  it('resolveHazardContacts-spikeBandInTheHeadBand-hitsStandingOnly', () => {
+    // An 'up' spike's band is its tile's bottom 10 rendered px; at y = -10 it
+    // spans 12..22 — inside the standing box's head band, above the crouched
+    // top at 24.
+    const hazard: HazardPlacement = {
+      id: 'head-spike',
+      hazardType: 'spike',
+      facing: 'up',
+      x: PLAYER_SIDE_PADDING,
+      y: -10,
+    };
+    const standing = makePlayer(0, 0);
+    const crouched = { ...makePlayer(0, 0), crouching: true };
+    expect(resolveHazardContacts(standing, [hazard]).damage).toBeGreaterThan(0);
+    expect(resolveHazardContacts(crouched, [hazard]).damage).toBe(0);
+  });
+
+  it('checkFloorSpikeTriggers-triggerBandInTheHeadBand-armsStandingOnly', () => {
+    const hazard: HazardPlacement = {
+      id: 'head-fs',
+      hazardType: 'floorSpike',
+      facing: 'up',
+      x: PLAYER_SIDE_PADDING,
+      y: -10,
+    };
+    const standing = makePlayer(0, 0);
+    const crouched = { ...makePlayer(0, 0), crouching: true };
+    expect(checkFloorSpikeTriggers(standing, [hazard], [])).toEqual(['head-fs']);
+    expect(checkFloorSpikeTriggers(crouched, [hazard], [])).toEqual([]);
+  });
+
+  it('playerInBlast-tileReachableOnlyByTheTallerBox-hitsStandingOnly', () => {
+    // Player at y = 8: the standing box spans 26..64 (row 0 included), the
+    // crouched box 32..64 (row 1 onward). A row-0 blast tile (0..32) is touched
+    // only by the standing box.
+    const standingBox = playerHitbox(makePlayer(0, 8));
+    const crouchedBox = playerHitbox({ ...makePlayer(0, 8), crouching: true });
+    const tiles = [{ col: 0, row: 0 }];
+    expect(playerInBlast(standingBox, tiles, RENDERED_TILE_SIZE)).toBe(true);
+    expect(playerInBlast(crouchedBox, tiles, RENDERED_TILE_SIZE)).toBe(false);
   });
 });

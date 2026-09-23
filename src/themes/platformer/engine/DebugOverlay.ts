@@ -2,7 +2,7 @@ import {
   PLAYER_RENDERED_SIZE,
   PLAYER_SIDE_PADDING,
   PLAYER_FOOT_PADDING,
-  PLAYER_HEAD_PADDING,
+  playerHeadPaddingFor,
 } from '../entities/Player';
 import type { PlayerState } from '../entities/Player';
 import { enemyRenderedSize, enemyTileOffsetX, enemyTileOffsetY } from '../entities/Enemy';
@@ -59,8 +59,9 @@ export function drawDebugOverlay(
     PLAYER_RENDERED_SIZE,
   );
 
-  // Head-collision row line (cyan).
-  const headY = player.y + PLAYER_HEAD_PADDING + originY;
+  // Head-collision row line (cyan) — at the shared box's top offset, so it
+  // matches the crouched box while crouching (SC-008).
+  const headY = player.y + playerHeadPaddingFor(player.crouching) + originY;
   ctx.strokeStyle = 'cyan';
   ctx.beginPath();
   ctx.moveTo(visibleLeft + originX, headY);

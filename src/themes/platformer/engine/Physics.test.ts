@@ -3,7 +3,7 @@ import { PHYSICS_CONFIG } from './PhysicsConfig';
 import { MAX_DT } from './GameLoop';
 import { parseLevel } from '../level/LevelParser';
 import type { LevelDef } from '../level/LevelData';
-import { RENDERED_TILE_SIZE } from '../level/Terrain';
+import { RENDERED_TILE_SIZE, isSolid, tileAt } from '../level/Terrain';
 import { placeBlocks } from '../level/BlockMapper';
 import type { CrumblingFloorTimerState } from './CrumblingFloor';
 import { hitboxInsetXForBlock } from '../entities/Block';
@@ -12,9 +12,11 @@ import {
   PLAYER_FOOT_PADDING,
   PLAYER_HEAD_PADDING,
   PLAYER_SIDE_PADDING,
+  playerHeadPaddingFor,
 } from '../entities/Player';
 import type { PlayerState } from '../entities/Player';
 import { PLAYER_HIT_REACTION_SECONDS } from '../entities/Player';
+import { playerHitbox } from './Collision';
 
 function basePlayer(overrides: Partial<PlayerState> = {}): PlayerState {
   return {
@@ -25,6 +27,7 @@ function basePlayer(overrides: Partial<PlayerState> = {}): PlayerState {
     direction: 'right',
     grounded: false,
     climbing: false,
+    crouching: false,
     animState: 'idle',
     animFrame: 0,
     animTimer: 0,
@@ -1061,6 +1064,34 @@ describe('stepPlayerPhysics bridge drop-through', () => {
     expect(next.y).toBeGreaterThan(restY);
   });
 
+  it('downHeld-whileCrouchedOnBridge-keepsCrouchingAndDoesNotDrop', () => {
+    // S-012: while already crouched, Down keeps meaning crouch. Crawling onto
+    // a bridge (or holding Down on one) must not pop the character out of the
+    // crouch and drop it through.
+    const restY = 0 - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
+    const player = basePlayer({ y: restY, vy: 0, grounded: true, crouching: true });
+
+    const next = stepPlayerPhysics(player, BRIDGE_DROP_LEVEL, 1 / 60, { dropThroughHeld: true });
+
+    expect(next.grounded).toBe(true);
+    expect(next.crouching).toBe(true);
+    expect(next.isDroppingThroughBridge).toBe(false);
+    expect(next.y).toBe(restY);
+  });
+
+  it('crouchedOnBridge-releaseDownThenPressAgain-dropsThrough', () => {
+    // The escape hatch for the rule above: stand up (release Down), then press
+    // Down again while on the bridge to drop through, exactly as before.
+    const restY = 0 - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
+    let player = basePlayer({ y: restY, vy: 0, grounded: true, crouching: true });
+
+    player = stepPlayerPhysics(player, BRIDGE_DROP_LEVEL, 1 / 60);
+    expect(player.crouching).toBe(false);
+
+    player = stepPlayerPhysics(player, BRIDGE_DROP_LEVEL, 1 / 60, { dropThroughHeld: true });
+    expect(player.isDroppingThroughBridge).toBe(true);
+  });
+
   it('downHeld-whileGroundedOnRegularGround-hasNoEffect', () => {
     const restY = 3 * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
     const player = basePlayer({ y: restY, vy: 0, grounded: true });
@@ -1362,6 +1393,37 @@ describe('stepPlayerPhysics climbing', () => {
     const next = stepPlayerPhysics(player, GROUND_LEVEL, 1 / 60, { dropThroughHeld: true });
 
     expect(next.climbing).toBe(false);
+  });
+
+  it('groundedAtALadderBaseWithNoLadderBelow-dropThroughHeld-crouchesInsteadOfClimbing', () => {
+    // LADDER_LEVEL: row 3 is the solid ground the ladder starts from, rows 1-2
+    // are the ladder in col 0. Standing on row 3's ground puts the body in the
+    // ladder's bottom tile (row 2), so `onLadderNow` is true — but row 3 below
+    // the feet is solid ground, not a ladder, so there is nowhere to descend.
+    // Pressing Down must therefore NOT grab the ladder (S-012: this is exactly
+    // the "crawl past a ladder" case); it crouches instead.
+    const player = basePlayer({
+      x: 0,
+      y: standingYOnRow(3),
+      vy: 0,
+      grounded: true,
+      climbing: false,
+    });
+
+    const next = stepPlayerPhysics(player, LADDER_LEVEL, 1 / 60, { dropThroughHeld: true });
+
+    expect(next.climbing).toBe(false);
+    expect(next.crouching).toBe(true);
+  });
+
+  it('airborneOnALadderTile-dropThroughHeld-stillGrabsTheLadder', () => {
+    // Regression guard for the fix above: while airborne (falling past a
+    // ladder) Down must still grab it, because there is a ladder to descend.
+    const player = basePlayer({ x: 0, y: 20, grounded: false, climbing: false });
+
+    const next = stepPlayerPhysics(player, LADDER_LEVEL, 1 / 60, { dropThroughHeld: true });
+
+    expect(next.climbing).toBe(true);
   });
 
   it('freshClimbEntry-snapsXToCenterOnTheLadderColumn', () => {
@@ -1785,5 +1847,288 @@ describe('resolvePitFall prevFeetY motion history', () => {
     const next = resolvePitFall(player);
 
     expect(next.prevFeetY).toBe(96 + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING);
+  });
+});
+
+describe('stepPlayerPhysics crouch (US1)', () => {
+  // A wall only in the STANDING head row (row 0): a standing player's head is
+  // in row 0 and is blocked, while a crouched player's head is in row 1 and
+  // passes under it. Rows 1-2 are open, row 2 is the floor.
+  const HEAD_BAND_WALL_LEVEL = parseLevel(['.#....', '......', 'GGGGGG']);
+
+  it('stepPlayerPhysics-groundedAndDropThroughHeld-setsCrouchingTrue', () => {
+    const player = basePlayer({ x: 0, y: standingYOnRow(3), vy: 0, grounded: true });
+    const next = stepPlayerPhysics(player, GROUND_LEVEL, 1 / 60, { dropThroughHeld: true });
+    expect(next.crouching).toBe(true);
+  });
+
+  it('stepPlayerPhysics-airborneDownHeldNoPriorCrouch-doesNotStartCrouch', () => {
+    const player = basePlayer({ x: 0, y: 0, vy: 0, grounded: false });
+    const next = stepPlayerPhysics(player, OPEN_LEVEL, 1 / 60, { dropThroughHeld: true });
+    expect(next.crouching).toBe(false);
+  });
+
+  it('stepPlayerPhysics-crouchedHoldingRight-movesAtCrouchSpeed', () => {
+    const player = basePlayer({
+      x: 0,
+      y: standingYOnRow(3),
+      vy: 0,
+      grounded: true,
+      crouching: true,
+    });
+    const next = stepPlayerPhysics(player, GROUND_LEVEL, 1 / 60, {
+      right: true,
+      dropThroughHeld: true,
+    });
+    expect(next.vx).toBe(PHYSICS_CONFIG.crouchSpeed);
+  });
+
+  it('stepPlayerPhysics-crouchedHoldingLeft-movesAtNegativeCrouchSpeed', () => {
+    const player = basePlayer({
+      x: 100,
+      y: standingYOnRow(3),
+      vy: 0,
+      grounded: true,
+      crouching: true,
+    });
+    const next = stepPlayerPhysics(player, GROUND_LEVEL, 1 / 60, {
+      left: true,
+      dropThroughHeld: true,
+    });
+    expect(next.vx).toBe(-PHYSICS_CONFIG.crouchSpeed);
+  });
+
+  it('stepPlayerPhysics-standingHoldingRight-movesAtWalkSpeed', () => {
+    const player = basePlayer({ x: 0, y: standingYOnRow(3), vy: 0, grounded: true });
+    const next = stepPlayerPhysics(player, GROUND_LEVEL, 1 / 60, { right: true });
+    expect(next.vx).toBe(PHYSICS_CONFIG.walkSpeed);
+  });
+
+  it('stepPlayerPhysics-crouchedAndJumpPressed-producesNoJump', () => {
+    const player = basePlayer({
+      x: 0,
+      y: standingYOnRow(3),
+      vy: 0,
+      grounded: true,
+      crouching: true,
+    });
+    const next = stepPlayerPhysics(player, GROUND_LEVEL, 1 / 60, {
+      jumpPressed: true,
+      jumpHeld: true,
+      dropThroughHeld: true,
+    });
+    expect(next.vy).toBeGreaterThanOrEqual(0);
+    expect(next.crouching).toBe(true);
+  });
+
+  it('stepPlayerPhysics-crouchedHorizontalScan-passesUnderAStandingHeadBandWall', () => {
+    const player = basePlayer({
+      x: 0,
+      y: standingYOnRow(2),
+      vy: 0,
+      grounded: true,
+      crouching: true,
+    });
+    const next = stepPlayerPhysics(player, HEAD_BAND_WALL_LEVEL, 1 / 60, {
+      right: true,
+      dropThroughHeld: true,
+    });
+    expect(next.x).toBeGreaterThan(0);
+  });
+
+  it('stepPlayerPhysics-standingHorizontalScan-isBlockedByAStandingHeadBandWall', () => {
+    const player = basePlayer({ x: 0, y: standingYOnRow(2), vy: 0, grounded: true });
+    const next = stepPlayerPhysics(player, HEAD_BAND_WALL_LEVEL, 1 / 60, { right: true });
+    expect(next.x).toBeLessThanOrEqual(0);
+  });
+
+  it('stepPlayerPhysics-crouchedCeilingScan-doesNotHitCeilingAboveTheStandingHead', () => {
+    // y = 10 puts the standing head (y + 18 = 28) in the solid row 0 while the
+    // crouched head (y + 24 = 34) is in empty row 1 — so the crouched player
+    // rises freely while a standing one would be clamped.
+    const level = parseLevel(['GG', '..', '..', '..']);
+    const player = basePlayer({
+      x: 0,
+      y: 10,
+      vy: -100,
+      grounded: false,
+      crouching: true,
+    });
+    const next = stepPlayerPhysics(player, level, 1 / 60, { dropThroughHeld: true });
+    expect(next.y).toBeLessThan(player.y);
+    expect(next.vy).toBeLessThan(0);
+  });
+
+  it('stepPlayerPhysics-standingCeilingScan-hitsTheCeilingAboveTheStandingHead', () => {
+    const level = parseLevel(['GG', '..', '..', '..']);
+    const player = basePlayer({ x: 0, y: 10, vy: -100, grounded: false });
+    const next = stepPlayerPhysics(player, level, 1 / 60, {});
+    expect(next.vy).toBe(0);
+  });
+
+  it('stepPlayerPhysics-crouchedDownReleasedInOpenAir-normalReturnClearsCrouching', () => {
+    const player = basePlayer({
+      x: 0,
+      y: standingYOnRow(3),
+      vy: 0,
+      grounded: true,
+      crouching: true,
+    });
+    const next = stepPlayerPhysics(player, GROUND_LEVEL, 1 / 60, {});
+    expect(next.crouching).toBe(false);
+  });
+});
+
+/** Whether the player's ACTUAL box (crouched or standing) overlaps any solid
+ *  terrain tile — a direct, independent check of "the box never clips". */
+function boxOverlapsSolid(level: LevelDef, player: PlayerState): boolean {
+  const box = playerHitbox(player);
+  const leftCol = Math.floor(box.x / RENDERED_TILE_SIZE);
+  const rightCol = Math.floor((box.x + box.width - 1) / RENDERED_TILE_SIZE);
+  const topRow = Math.floor(box.y / RENDERED_TILE_SIZE);
+  const bottomRow = Math.floor((box.y + box.height - 1) / RENDERED_TILE_SIZE);
+  for (let row = topRow; row <= bottomRow; row++) {
+    for (let col = leftCol; col <= rightCol; col++) {
+      if (isSolid(tileAt(level, col, row))) return true;
+    }
+  }
+  return false;
+}
+
+describe('stepPlayerPhysics crouch headroom (US2)', () => {
+  // A one-tile corridor: solid ceiling row 0, empty corridor row 1, solid floor
+  // row 2. A player on the floor cannot fit its 38px standing box.
+  const ONE_TILE_CEILING_LEVEL = parseLevel(['GG', '..', 'GG']);
+  // A longer corridor for the crawl simulation.
+  const CORRIDOR_LEVEL = parseLevel(['GGGGGG', '......', 'GGGGGG']);
+  // Ceiling only over col 0; cols 1-2 are open, so headroom returns there.
+  const CEILING_ENDS_LEVEL = parseLevel(['G..', '...', 'GGG']);
+
+  it('stepPlayerPhysics-crouchedUnderOneTileCeilingDownReleased-keepsCrouchingTrue', () => {
+    const player = basePlayer({
+      x: 0,
+      y: standingYOnRow(2),
+      vy: 0,
+      grounded: true,
+      crouching: true,
+    });
+    const next = stepPlayerPhysics(player, ONE_TILE_CEILING_LEVEL, 1 / 60, {});
+    expect(next.crouching).toBe(true);
+  });
+
+  it('stepPlayerPhysics-underCeilingThenInOpenAir-autoStandsOnlyWhenHeadroomReturns', () => {
+    const under = basePlayer({
+      x: 0,
+      y: standingYOnRow(2),
+      vy: 0,
+      grounded: true,
+      crouching: true,
+    });
+    // No headroom: stays crouched with Down released.
+    expect(stepPlayerPhysics(under, ONE_TILE_CEILING_LEVEL, 1 / 60, {}).crouching).toBe(true);
+
+    const open = basePlayer({
+      x: 32,
+      y: standingYOnRow(2),
+      vy: 0,
+      grounded: true,
+      crouching: true,
+    });
+    // Headroom returned: auto-stands with no Down release.
+    expect(stepPlayerPhysics(open, CEILING_ENDS_LEVEL, 1 / 60, {}).crouching).toBe(false);
+  });
+
+  it('stepPlayerPhysics-crawlingTheCorridorReleasingAndRepressingDown-boxNeverOverlapsASolidTile', () => {
+    let player = basePlayer({
+      x: 0,
+      y: standingYOnRow(2),
+      vy: 0,
+      grounded: true,
+      crouching: true,
+    });
+    for (let tick = 0; tick < 40; tick++) {
+      // Release Down every third tick, then re-press — no height flicker.
+      const downHeld = tick % 3 !== 2;
+      player = stepPlayerPhysics(player, CORRIDOR_LEVEL, 1 / 60, {
+        right: true,
+        dropThroughHeld: downHeld,
+      });
+      expect(player.crouching).toBe(true);
+      expect(boxOverlapsSolid(CORRIDOR_LEVEL, player)).toBe(false);
+    }
+    expect(player.x).toBeGreaterThan(0);
+  });
+
+  it('stepPlayerPhysics-crouchedHeadPadding-isTheOneTileBoxUnderTheCeiling', () => {
+    const player = basePlayer({
+      x: 0,
+      y: standingYOnRow(2),
+      vy: 0,
+      grounded: true,
+      crouching: true,
+    });
+    const next = stepPlayerPhysics(player, ONE_TILE_CEILING_LEVEL, 1 / 60, {});
+    expect(playerHeadPaddingFor(next.crouching)).toBe(playerHeadPaddingFor(true));
+  });
+});
+
+describe('stepPlayerPhysics Down priority: ladder and bridge win over crouch (US3)', () => {
+  it('stepPlayerPhysics-crouchedOverlappingAClimbableTileDownHeld-climbsWithoutCrouching', () => {
+    const player = basePlayer({
+      x: 0,
+      y: standingYOnRow(2),
+      vy: 0,
+      grounded: true,
+      crouching: true,
+    });
+    const next = stepPlayerPhysics(player, LADDER_LEVEL, 1 / 60, { dropThroughHeld: true });
+    expect(next.climbing).toBe(true);
+    expect(next.crouching).toBe(false);
+  });
+
+  it('stepPlayerPhysics-groundedOnABridgeDownHeld-dropsThroughWithoutCrouching', () => {
+    // A standing press of Down on a bridge still drops through (unchanged).
+    const player = basePlayer({
+      x: 0,
+      y: standingYOnRow(0),
+      vy: 0,
+      grounded: true,
+      crouching: false,
+    });
+    const next = stepPlayerPhysics(player, BRIDGE_DROP_LEVEL, 1 / 60, { dropThroughHeld: true });
+    expect(next.crouching).toBe(false);
+    expect(next.isDroppingThroughBridge).toBe(true);
+  });
+
+  it('stepPlayerPhysics-crawledOntoABridgeDownStillHeld-keepsCrouchingAndDoesNotDrop', () => {
+    // S-012: crouched on plain ground next to the bridge, holding Down and
+    // moving onto the bridge — crouch wins while already crouched, so the
+    // character keeps crawling instead of popping up and dropping through.
+    const player = basePlayer({
+      x: 0,
+      y: standingYOnRow(0),
+      vy: 0,
+      grounded: true,
+      crouching: true,
+    });
+    const next = stepPlayerPhysics(player, BRIDGE_DROP_LEVEL, 1 / 60, {
+      dropThroughHeld: true,
+      right: true,
+    });
+    expect(next.crouching).toBe(true);
+    expect(next.isDroppingThroughBridge).toBe(false);
+  });
+
+  it('stepPlayerPhysics-crouchedClimbExitReturn-clearsCrouching', () => {
+    const player = basePlayer({
+      x: 0,
+      y: 20,
+      grounded: false,
+      climbing: true,
+      crouching: true,
+    });
+    const next = stepPlayerPhysics(player, LADDER_LEVEL, 1 / 60, { jumpPressed: true });
+    expect(next.climbing).toBe(false);
+    expect(next.crouching).toBe(false);
   });
 });
