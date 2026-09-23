@@ -1,8 +1,10 @@
+import type { Signal } from '@preact/signals-react';
 import type { LevelDef } from '../level/LevelData';
 import { applyTerrainOverrides } from '../level/TerrainOverrides';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import { PLAYER_RENDERED_SIZE, PLAYER_SIDE_PADDING } from '../entities/Player';
 import type { PlayerState } from '../entities/Player';
+import type { Interactable } from './Interact';
 
 /** Reversible — unlike DeployableLadderPhase's one-way progression, a door
  *  toggles freely between exactly two phases (spec FR-008/FR-012). */
@@ -85,4 +87,20 @@ export function doorPlayerIsAdjacentTo(
     }
   }
   return null;
+}
+
+/**
+ * Adapts `doorPlayerIsAdjacentTo`/`toggleDoor` to the generic `Interactable`
+ * shape (Task 15's `applyInteract` dispatcher) — the candidate/effect logic
+ * itself is unchanged, just wrapped so `PlatformerPage.tsx` can call this
+ * factory instead of branching on kind inline.
+ */
+export function doorInteractable(states: Signal<DoorState[]>, player: PlayerState): Interactable {
+  return {
+    kind: 'door',
+    findCandidate: () => doorPlayerIsAdjacentTo(states.value, player),
+    applyInteract: (id) => {
+      states.value = states.value.map((d) => (d.id === id ? toggleDoor(d) : d));
+    },
+  };
 }

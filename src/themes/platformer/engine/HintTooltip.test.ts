@@ -1,12 +1,15 @@
+import type { Signal } from '@preact/signals-react';
 import {
   startHintTooltip,
   beginHintTooltipExit,
   tickHintTooltip,
   hintTooltipGrowthAndOpacity,
+  hintInteractable,
   HINT_TOOLTIP_FADE_IN_SECONDS,
   HINT_TOOLTIP_FADE_OUT_SECONDS,
   HINT_TOOLTIP_TRANSIENT_DWELL_SECONDS,
 } from './HintTooltip';
+import type { HintTooltipState } from './HintTooltip';
 
 describe('startHintTooltip', () => {
   it('createsAnEnteringStateAtZeroElapsed', () => {
@@ -150,5 +153,42 @@ describe('hintTooltipGrowthAndOpacity', () => {
     const pastEnd = { ...exiting, elapsed: HINT_TOOLTIP_FADE_OUT_SECONDS * 2 };
 
     expect(hintTooltipGrowthAndOpacity(pastEnd)).toEqual({ growth: 0, opacity: 0 });
+  });
+});
+
+describe('hintInteractable-newHintId-startsTheTooltip', () => {
+  it('starts a fresh tooltip for a new hint id', () => {
+    const tooltipState: Signal<HintTooltipState | null> = { value: null } as Signal<HintTooltipState | null>;
+
+    const interactable = hintInteractable(tooltipState, 'chestNeedsKey');
+
+    expect(interactable.kind).toBe('hint');
+    expect(interactable.findCandidate()).toBe('chestNeedsKey');
+    interactable.applyInteract('chestNeedsKey');
+    expect(tooltipState.value?.hintId).toBe('chestNeedsKey');
+  });
+});
+
+describe('hintInteractable-currentlyExiting-restartsEntrance', () => {
+  it('restarts the entrance when pressed again mid-exit', () => {
+    const tooltipState: Signal<HintTooltipState | null> = {
+      value: { hintId: 'chestNeedsKey', phase: 'exiting', elapsed: 0.3 },
+    } as Signal<HintTooltipState | null>;
+
+    const interactable = hintInteractable(tooltipState, 'chestNeedsKey');
+    interactable.applyInteract('chestNeedsKey');
+
+    expect(tooltipState.value?.phase).toBe('entering');
+    expect(tooltipState.value?.elapsed).toBe(0);
+  });
+});
+
+describe('hintInteractable-noOverlappingHint-noCandidate', () => {
+  it('returns no candidate when nothing is overlapping', () => {
+    const tooltipState: Signal<HintTooltipState | null> = { value: null } as Signal<HintTooltipState | null>;
+
+    const interactable = hintInteractable(tooltipState, undefined);
+
+    expect(interactable.findCandidate()).toBeNull();
   });
 });

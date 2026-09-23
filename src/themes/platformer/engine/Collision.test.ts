@@ -1,3 +1,4 @@
+import type { Signal } from '@preact/signals-react';
 import {
   playerHitbox,
   aabbOverlap,
@@ -13,6 +14,7 @@ import {
   checkFloorSpikeTriggers,
   checkCrumblingFloorTriggers,
   overlappingTriggers,
+  chestInteractable,
 } from './Collision';
 import { playerInBlast } from './Blast';
 import type { Box } from './Collision';
@@ -35,6 +37,7 @@ import type { SlimeGreenState } from '../entities/enemies/SlimeGreen';
 import type { EnemyPlacement } from '../level/EnemyMapper';
 import { spawnBonusFruit, tickBonusFruit, BONUS_FRUIT_RISE_DURATION_SECONDS } from '../entities/BonusFruit';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
+import { isChestOpen } from '../entities/Chest';
 import type { ChestState } from '../entities/Chest';
 import type { SignPlacement } from '../level/SignMapper';
 import type { HazardPlacement } from '../level/HazardMapper';
@@ -342,6 +345,50 @@ describe('chestPlayerIsStandingOn', () => {
     // breaks.
     const player = makePlayer(52, closedChest.y);
     expect(chestPlayerIsStandingOn(player, [closedChest])).toBe('chest-1');
+  });
+});
+
+describe('chestInteractable-standingOnClosedChestWithKeys-opensAndSpendsAKey', () => {
+  const closedChest: ChestState = {
+    id: 'chest-1',
+    x: 100,
+    y: 100,
+    state: 'closed',
+    fact: {
+      id: 'chest-1',
+      sectionId: 'experience',
+      sectionLabel: 'Experience',
+      data: { company: 'X', role: 'Y', startDate: '2020-01', highlights: [] },
+      sourceType: 'chest',
+    },
+  };
+
+  it('wraps chestPlayerIsStandingOn/openChest as an Interactable, spending a key', () => {
+    const states: Signal<ChestState[]> = { value: [closedChest] } as Signal<ChestState[]>;
+    const keys: Signal<number> = { value: 1 } as Signal<number>;
+    const onReveal = vi.fn();
+    const standingPlayer = makePlayer(closedChest.x, closedChest.y);
+
+    const interactable = chestInteractable(states, keys, standingPlayer, onReveal);
+    const id = interactable.findCandidate();
+
+    expect(interactable.kind).toBe('chest');
+    expect(id).toBe('chest-1');
+    interactable.applyInteract(id!);
+
+    expect(isChestOpen(states.value[0])).toBe(true);
+    expect(keys.value).toBe(0);
+    expect(onReveal).toHaveBeenCalledOnce();
+  });
+
+  it('standingOnClosedChestWithZeroKeys-noCandidate', () => {
+    const states: Signal<ChestState[]> = { value: [closedChest] } as Signal<ChestState[]>;
+    const keys: Signal<number> = { value: 0 } as Signal<number>;
+    const standingPlayer = makePlayer(closedChest.x, closedChest.y);
+
+    const interactable = chestInteractable(states, keys, standingPlayer, vi.fn());
+
+    expect(interactable.findCandidate()).toBeNull();
   });
 });
 

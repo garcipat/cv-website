@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import type { Signal } from '@preact/signals-react';
 import {
   UNROLL_SECONDS,
   LADDER_STEP_NATIVE_PX,
@@ -12,6 +13,7 @@ import {
   revealedStepCount,
   ladderBundleForPlayer,
   applyDeployedLadders,
+  ladderBundleInteractable,
 } from './DeployableLadder';
 import type { DeployableLadderState } from './DeployableLadder';
 import { parseLevel } from '../level/LevelParser';
@@ -269,5 +271,32 @@ describe('applyDeployedLadders', () => {
     expect(tileAt(effective, 0, 0)).toBe('ropeLadder');
     expect(tileAt(effective, 2, 0)).toBe('ropeLadder');
     expect(tileAt(effective, 1, 0)).toBe('empty');
+  });
+});
+
+describe('ladderBundleInteractable-groundedNearRolledBundle-candidateIsBundleId', () => {
+  it('wraps ladderBundleForPlayer/beginDeploy as an Interactable', () => {
+    const states: Signal<DeployableLadderState[]> = { value: [stateFor()] } as Signal<
+      DeployableLadderState[]
+    >;
+    const player = basePlayer({ grounded: true, x: 0, y: standingYOnRow(0) });
+
+    const interactable = ladderBundleInteractable(states, DROP, player);
+
+    expect(interactable.kind).toBe('ladderBundle');
+    expect(interactable.findCandidate()).toBe(states.value[0].id);
+    interactable.applyInteract(states.value[0].id);
+    expect(states.value[0].phase).toBe('deploying');
+  });
+
+  it('noRolledBundleNearby-findCandidateReturnsNull', () => {
+    const states: Signal<DeployableLadderState[]> = { value: [stateFor()] } as Signal<
+      DeployableLadderState[]
+    >;
+    const player = basePlayer({ grounded: false, x: 0, y: standingYOnRow(0) });
+
+    const interactable = ladderBundleInteractable(states, DROP, player);
+
+    expect(interactable.findCandidate()).toBeNull();
   });
 });

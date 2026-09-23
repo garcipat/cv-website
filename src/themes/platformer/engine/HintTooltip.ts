@@ -1,4 +1,6 @@
+import type { Signal } from '@preact/signals-react';
 import type { HintId } from '../types';
+import type { Interactable } from './Interact';
 
 /**
  * Grow+fade animation state for the hint-sign tooltip — the bubble grows
@@ -103,4 +105,33 @@ export function hintTooltipGrowthAndOpacity(state: HintTooltipState): { growth: 
     return { growth: 1 - progress, opacity: 1 - progress };
   }
   return { growth: 1, opacity: 1 };
+}
+
+/**
+ * The interact-triggered half of hint/tooltip behavior — "start it on a
+ * fresh press". `overlappingHintId` is computed by the caller each tick
+ * exactly as today (the union of a sign overlap and a locked-chest-needs-
+ * key case, PlatformerPage.tsx's existing logic, unchanged by this task);
+ * this factory only owns what happens once interact fires for it. The
+ * CONTINUOUS half — tickHintTooltip's per-frame advance, and the
+ * not-overlapping exit branch — stays independent of this factory entirely,
+ * same as DeployableLadder.ts's advanceDeployableLadder stays independent of
+ * ladderBundleInteractable above.
+ */
+export function hintInteractable(
+  tooltipState: Signal<HintTooltipState | null>,
+  overlappingHintId: HintId | undefined,
+): Interactable {
+  return {
+    kind: 'hint',
+    findCandidate: () => overlappingHintId ?? null,
+    applyInteract: (id) => {
+      const current = tooltipState.value;
+      if (!current || current.hintId !== id) {
+        tooltipState.value = startHintTooltip(id as HintId);
+      } else if (current.phase === 'exiting') {
+        tooltipState.value = { ...current, phase: 'entering', elapsed: 0 };
+      }
+    },
+  };
 }

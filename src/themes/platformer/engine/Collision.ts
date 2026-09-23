@@ -1,3 +1,4 @@
+import type { Signal } from '@preact/signals-react';
 import {
   PLAYER_RENDERED_SIZE,
   PLAYER_SIDE_PADDING,
@@ -12,9 +13,11 @@ import { typeOf } from '../entities/enemies';
 import type { ContactSide } from './Contact';
 import { BONUS_FRUIT_RISE_DURATION_SECONDS } from '../entities/BonusFruit';
 import type { BonusFruitState } from '../entities/BonusFruit';
-import { isChestOpen } from '../entities/Chest';
+import { isChestOpen, openChest, CHEST_CLOSED_OFFSET_X } from '../entities/Chest';
 import type { ChestState } from '../entities/Chest';
 import { CHEST_TYPE } from '../entities/chests';
+import type { Interactable } from './Interact';
+import type { CollectedFact } from '../types';
 import { signBox } from '../level/SignMapper';
 import type { SignPlacement } from '../level/SignMapper';
 import { typeOf as hazardTypeOf } from '../entities/hazards';
@@ -263,6 +266,35 @@ export function chestPlayerIsStandingOn(
   chests: readonly ChestState[],
 ): string | undefined {
   return overlappingTriggers(player, chests, CHEST_TYPE.box, (c) => !isChestOpen(c))[0]?.id;
+}
+
+/**
+ * Adapts `chestPlayerIsStandingOn`/`openChest` to the generic `Interactable`
+ * shape (Task 15's `applyInteract` dispatcher). Lives here rather than in
+ * `entities/Chest.ts` to avoid a circular import: this file already imports
+ * `isChestOpen`/`CHEST_TYPE` from `entities/Chest.ts` (and now `openChest`/
+ * `CHEST_CLOSED_OFFSET_X` too), so putting the factory in `Chest.ts` instead
+ * would need `Chest.ts` to import `Interactable` shape support back from
+ * this file — a cycle. `chestPlayerIsStandingOn` itself already lives here
+ * for the same reason, so this factory sits right beside the geometry test
+ * it wraps.
+ */
+export function chestInteractable(
+  states: Signal<ChestState[]>,
+  keys: Signal<number>,
+  player: PlayerState,
+  onReveal: (fact: CollectedFact, effect: { x: number; y: number; effectId: string }) => void,
+): Interactable {
+  return {
+    kind: 'chest',
+    findCandidate: () => (keys.value > 0 ? chestPlayerIsStandingOn(player, states.value) ?? null : null),
+    applyInteract: (id) => {
+      const chest = states.value.find((c) => c.id === id)!;
+      states.value = states.value.map((c) => (c.id === id ? openChest(c) : c));
+      keys.value -= 1;
+      onReveal(chest.fact, { x: chest.x + CHEST_CLOSED_OFFSET_X, y: chest.y, effectId: chest.id });
+    },
+  };
 }
 
 /**

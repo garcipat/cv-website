@@ -1,9 +1,11 @@
 import { describe, it, expect } from 'vitest';
+import type { Signal } from '@preact/signals-react';
 import {
   createDoorState,
   toggleDoor,
   applyOpenedDoors,
   doorPlayerIsAdjacentTo,
+  doorInteractable,
   type DoorState,
 } from './DoorState';
 import type { LevelDef } from '../level/LevelData';
@@ -114,5 +116,28 @@ describe('doorPlayerIsAdjacentTo-playerDifferentRow-returnsNull', () => {
     const state = createDoorState(1, 1);
     const player = makePlayer(0 * RENDERED_TILE_SIZE, 0 * RENDERED_TILE_SIZE);
     expect(doorPlayerIsAdjacentTo([state], player)).toBeNull();
+  });
+});
+
+describe('doorInteractable-adjacentClosedDoor-toggleFlipsPhase', () => {
+  it('wraps doorPlayerIsAdjacentTo/toggleDoor as an Interactable', () => {
+    const states: Signal<DoorState[]> = { value: [createDoorState(1, 1)] } as Signal<DoorState[]>;
+    const adjacentPlayer = makePlayer(0 * RENDERED_TILE_SIZE, 1 * RENDERED_TILE_SIZE);
+
+    const interactable = doorInteractable(states, adjacentPlayer);
+
+    expect(interactable.kind).toBe('door');
+    expect(interactable.findCandidate()).toBe(states.value[0].id);
+    interactable.applyInteract(states.value[0].id);
+    expect(states.value[0].phase).toBe('open');
+  });
+
+  it('noAdjacentDoor-findCandidateReturnsNull', () => {
+    const states: Signal<DoorState[]> = { value: [createDoorState(1, 1)] } as Signal<DoorState[]>;
+    const farPlayer = makePlayer(-2 * RENDERED_TILE_SIZE, 1 * RENDERED_TILE_SIZE);
+
+    const interactable = doorInteractable(states, farPlayer);
+
+    expect(interactable.findCandidate()).toBeNull();
   });
 });

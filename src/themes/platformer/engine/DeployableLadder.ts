@@ -1,3 +1,4 @@
+import type { Signal } from '@preact/signals-react';
 import type { LevelDef } from '../level/LevelData';
 import { isSolid, tileAt, RENDERED_TILE_SIZE } from '../level/Terrain';
 import { applyTerrainOverrides } from '../level/TerrainOverrides';
@@ -7,6 +8,7 @@ import {
   PLAYER_SIDE_PADDING,
 } from '../entities/Player';
 import type { PlayerState } from '../entities/Player';
+import type { Interactable } from './Interact';
 
 /**
  * A deployable rope-ladder bundle's deployment lifecycle. `rolled` is the
@@ -169,4 +171,24 @@ export function applyDeployedLadders(
       }
     },
   );
+}
+
+/**
+ * Adapts `ladderBundleForPlayer`/`beginDeploy` to the generic `Interactable`
+ * shape (Task 15's `applyInteract` dispatcher) — the candidate/effect logic
+ * itself is unchanged, just wrapped so `PlatformerPage.tsx` can call this
+ * factory instead of branching on kind inline.
+ */
+export function ladderBundleInteractable(
+  states: Signal<DeployableLadderState[]>,
+  level: LevelDef,
+  player: PlayerState,
+): Interactable {
+  return {
+    kind: 'ladderBundle',
+    findCandidate: () => ladderBundleForPlayer(level, states.value, player)?.id ?? null,
+    applyInteract: (id) => {
+      states.value = states.value.map((s) => (s.id === id ? beginDeploy(s) : s));
+    },
+  };
 }
