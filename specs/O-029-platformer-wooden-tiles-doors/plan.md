@@ -280,10 +280,13 @@ git commit -m "feat(O-029): add wood/door TileType members and wood background m
 **Files:**
 - Modify: `src/themes/platformer/level/LevelParser.ts`
 - Modify: `src/themes/platformer/level/LevelParser.test.ts`
+- Modify: `src/themes/platformer/editor/paletteTiles.ts` (placeholder sprite/label/description entries only — see Step 3a; same exhaustiveness pattern as Task 1)
 
 **Interfaces:**
 - Consumes: `TileType` members from Task 1. (`BackgroundMaterialId`'s `'wood'` and its `BACKGROUND_CHARS`/`BackgroundChar` mapping were already added in Task 1 — see its Step 3a — because an existing round-trip test demanded it; this task no longer touches `BACKGROUND_CHARS`/`BackgroundChar` at all.)
 - Produces: `findDoorTiles(layout): { col: number; row: number }[]` (one entry per matched pair, positioned at the **left** leaf's cell).
+
+**Why this task also touches `paletteTiles.ts`**: same shape of issue as Task 1's Step 3a — `PALETTE_TILE_SPRITES`, `PALETTE_TILE_DESCRIPTIONS`, and `PALETTE_TILE_LABELS` are all literal `Record<TileChar, X>` objects, and `paletteTiles.test.ts` has an existing round-trip test enumerating every `TERRAIN_CHARS` key against them. Adding `W`/`d`/`D` to `TileChar` without matching entries in all three breaks that test immediately. Task 2's Step 3a therefore adds placeholder entries (real sprites don't exist yet — `GROUND_WOOD_SHEET`/`DOOR_SHEET` aren't registered until Tasks 8/10) borrowed from existing terrain (e.g. `groundRock`'s/`wall`'s sprite), clearly commented as temporary. Task 12 later REPLACES the placeholder `sx`/`sy`/`sheet` values with the real ones — it does not add new entries for these three chars.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -361,16 +364,72 @@ export function findDoorTiles(layout: readonly string[]): { col: number; row: nu
 }
 ```
 
+- [ ] **Step 3a: Add placeholder editor-palette entries so `paletteTiles.test.ts`'s round-trip check keeps passing**
+
+In `src/themes/platformer/editor/paletteTiles.ts`'s `PALETTE_TILE_SPRITES`, borrow an existing terrain sprite as a visibly-placeholder stand-in (any reasonable existing crop works — e.g. `groundRock`'s exposed sprite for `W`, `wall`'s sprite for `d`/`D`), clearly commented as temporary:
+
+```ts
+  W: {
+    // O-029: solid wood ground (placeholder sprite — real art lands in Task 12).
+    sheet: WORLD_TILESET,
+    sheetWidth: 256,
+    sheetHeight: 256,
+    sx: 16,
+    sy: 0,
+    frameWidth: 16,
+    frameHeight: 16,
+  },
+  d: {
+    // O-029: left door panel (placeholder sprite — real art lands in Task 12).
+    sheet: WORLD_TILESET,
+    sheetWidth: 256,
+    sheetHeight: 256,
+    sx: 128,
+    sy: 0,
+    frameWidth: 16,
+    frameHeight: 16,
+  },
+  D: {
+    // O-029: right door panel (placeholder sprite — real art lands in Task 12).
+    sheet: WORLD_TILESET,
+    sheetWidth: 256,
+    sheetHeight: 256,
+    sx: 128,
+    sy: 0,
+    frameWidth: 16,
+    frameHeight: 16,
+  },
+```
+
+Add matching entries to `PALETTE_TILE_DESCRIPTIONS` and `PALETTE_TILE_LABELS` (these are real, permanent content, not placeholders):
+
+```ts
+  W: 'Solid wood plank ground (O-029)',
+  d: 'Left panel of a wooden double door (O-029); opens when interacted',
+  D: 'Right panel of a wooden double door (O-029); opens when interacted',
+```
+
+```ts
+  W: 'Ground Wood',
+  d: 'Door Left',
+  D: 'Door Right',
+```
+
+Do **not** add `d`/`D` to `DECORATION_CHARS` in `Palette.tsx` — they are structural terrain, not decoration, and fall into the Terrain group automatically per that file's existing rule. `W` needs no `Palette.tsx` change either, for the same reason.
+
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `npx vitest run src/themes/platformer/level/LevelParser.test.ts`
+Run: `npx vitest run src/themes/platformer/level/LevelParser.test.ts src/themes/platformer/editor/paletteTiles.test.ts`
 Expected: PASS. Also confirm the existing map/`TileChar` sync assertion (search the test file for it) still passes — it should, since `W`/`d`/`D` were added to both places together.
+
+Then run: `npx vitest run` (the full suite)
+Expected: PASS, no regressions.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/themes/platformer/level/LevelParser.ts src/themes/platformer/level/LevelParser.test.ts
-git commit -m "feat(O-029): add level-format characters for wood ground, wood background, and doors"
+git add src/themes/platformer/level/LevelParser.ts src/themes/platformer/level/LevelParser.test.ts src/themes/platformer/editor/paletteTiles.ts
+git commit -m "feat(O-029): add level-format characters for wood ground and doors, with findDoorTiles"
 ```
 
 ---
@@ -1379,44 +1438,36 @@ git commit -m "feat(O-029): address the wood background material from its own pl
 
 ---
 
-## Task 12: Editor Palette — Wood Ground, Wood Background, Doors
+## Task 12: Editor Palette — Wire Real Door/Wood Sprites Into the Palette
 
 **Files:**
 - Modify: `src/themes/platformer/editor/paletteTiles.ts`
 - Modify: `src/themes/platformer/editor/paletteTiles.test.ts`
-- Modify: `src/themes/platformer/editor/backgroundPaletteTiles.ts`
 
 **Interfaces:**
-- Consumes: `TileChar`/`BackgroundChar` members from Task 2; sprite crops from Tasks 8/10.
+- Consumes: `BackgroundChar` members from Task 1; sprite crops from Tasks 8/10.
+- Note: Task 2 already added PLACEHOLDER `PALETTE_TILE_SPRITES`/`PALETTE_TILE_DESCRIPTIONS`/`PALETTE_TILE_LABELS` entries for `W`/`d`/`D` (same exhaustiveness reasoning as Task 1's Step 3a — see Task 2's note). This task REPLACES the placeholder `sx`/`sy`/`sheet` values in `PALETTE_TILE_SPRITES` with the real ones now that `GROUND_WOOD_SHEET`/`DOOR_SHEET` exist; it does not add new entries for these three chars, and the labels/descriptions Task 2 already wrote are real content, not placeholders — leave them as-is unless they need wording changes.
 
 - [ ] **Step 1: Write the failing tests**
 
 ```ts
-describe('PALETTE_TILE_SPRITES-woodAndDoorChars-haveEntries', () => {
-  it('W, d, D each have a sprite spec', () => {
-    expect(PALETTE_TILE_SPRITES.W).not.toBeNull();
-    expect(PALETTE_TILE_SPRITES.d).not.toBeNull();
-    expect(PALETTE_TILE_SPRITES.D).not.toBeNull();
-  });
-});
-
-describe('PALETTE_TILE_LABELS-woodAndDoorChars-haveReadableNames', () => {
-  it('each has a non-empty label', () => {
-    expect(PALETTE_TILE_LABELS.W.length).toBeGreaterThan(0);
-    expect(PALETTE_TILE_LABELS.d.length).toBeGreaterThan(0);
-    expect(PALETTE_TILE_LABELS.D.length).toBeGreaterThan(0);
+describe('PALETTE_TILE_SPRITES-woodAndDoorChars-useRealSheets', () => {
+  it('W, d, D now point at the real dedicated sheets, not the placeholder terrain crops Task 2 used', () => {
+    expect(PALETTE_TILE_SPRITES.W?.sheet).toBe(GROUND_WOOD_SHEET.src);
+    expect(PALETTE_TILE_SPRITES.d?.sheet).toBe(DOOR_SHEET.src);
+    expect(PALETTE_TILE_SPRITES.D?.sheet).toBe(DOOR_SHEET.src);
   });
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [ ] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/themes/platformer/editor/paletteTiles.test.ts`
-Expected: FAIL
+Expected: FAIL — `W`/`d`/`D` still point at Task 2's placeholder `WORLD_TILESET` crops.
 
-- [ ] **Step 3: Add the entries**
+- [ ] **Step 3: Replace the placeholder sprite entries**
 
-In `PALETTE_TILE_SPRITES` (`src/themes/platformer/editor/paletteTiles.ts`), following the `groundRock` entry's shape (a direct sheet+sx/sy+frame size, the "at rest" appearance — for `groundWood` use `GROUND_WOOD_SHEET`'s exposed-top frame; for `d`/`D` use `DOOR_SHEET`'s closed-left/closed-right frames via `frameSource`, Task 8):
+In `PALETTE_TILE_SPRITES` (`src/themes/platformer/editor/paletteTiles.ts`), replace the three placeholder entries Task 2 added with the real sheets (for `groundWood` use `GROUND_WOOD_SHEET`'s exposed-top frame; for `d`/`D` use `DOOR_SHEET`'s closed-left/closed-right frames via `frameSource`, Task 8):
 
 ```ts
   W: { sheet: GROUND_WOOD_SHEET.src, sheetWidth: 32, sheetHeight: 16, sx: 0, sy: 0, frameWidth: 16, frameHeight: 16 },
@@ -1424,31 +1475,9 @@ In `PALETTE_TILE_SPRITES` (`src/themes/platformer/editor/paletteTiles.ts`), foll
   D: { sheet: DOOR_SHEET.src, sheetWidth: 64, sheetHeight: 26, ...frameSource(DOOR_SHEET, DOOR_FRAME_CLOSED_RIGHT), frameWidth: DOOR_SHEET.frameWidth, frameHeight: DOOR_SHEET.frameHeight },
 ```
 
-In `PALETTE_TILE_DESCRIPTIONS`:
+Leave `PALETTE_TILE_DESCRIPTIONS`/`PALETTE_TILE_LABELS`'s `W`/`d`/`D` entries exactly as Task 2 wrote them — that content was already real and permanent, not placeholder.
 
-```ts
-  W: 'Solid wood ground. Does not connect to neighbouring wood tiles.',
-  d: 'Left panel of a wooden double door — always place its right panel (D) immediately to its right.',
-  D: 'Right panel of a wooden double door — always place its left panel (d) immediately to its left.',
-```
-
-In `PALETTE_TILE_LABELS`:
-
-```ts
-  W: 'Wood Ground',
-  d: 'Door (Left)',
-  D: 'Door (Right)',
-```
-
-Do **not** add `d`/`D` to `DECORATION_CHARS` in `Palette.tsx` — they are structural terrain, not decoration, and fall into the Terrain group automatically per that file's existing rule. `W` needs no `Palette.tsx` change either, for the same reason.
-
-In `backgroundPaletteTiles.ts`, add to `BACKGROUND_PALETTE_LABELS`:
-
-```ts
-  wood: 'Wood',
-```
-
-(`BACKGROUND_PALETTE_SPRITES`, `BACKGROUND_MATERIAL_CHAR`, and `BACKGROUND_PALETTE_SECTIONS` all derive automatically from `BACKGROUND_MATERIAL_FAMILY`/`BACKGROUND_CHARS` — Tasks 1 and 2 already made those complete for `wood`, so no other edit is needed here.)
+`backgroundPaletteTiles.ts` needs no change at all in this task: Task 1's Step 3a already added `wood: 'Wood'` to `BACKGROUND_PALETTE_LABELS` (same exhaustiveness reasoning), and `BACKGROUND_PALETTE_SPRITES`, `BACKGROUND_MATERIAL_CHAR`, and `BACKGROUND_PALETTE_SECTIONS` all derive automatically from `BACKGROUND_MATERIAL_FAMILY`/`BACKGROUND_CHARS` — Tasks 1 and 1's Step 3a already made those complete for `wood`.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
@@ -1458,8 +1487,8 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/themes/platformer/editor/paletteTiles.ts src/themes/platformer/editor/paletteTiles.test.ts src/themes/platformer/editor/backgroundPaletteTiles.ts
-git commit -m "feat(O-029): add editor palette entries for wood ground, wood background, and door panels"
+git add src/themes/platformer/editor/paletteTiles.ts src/themes/platformer/editor/paletteTiles.test.ts
+git commit -m "feat(O-029): wire the real wood and door sprite sheets into the editor palette"
 ```
 
 ---
