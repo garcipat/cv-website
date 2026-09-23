@@ -53,6 +53,12 @@ import {
   floorSpikeTimerStates,
   tickFloorSpikes,
   armFloorSpikeTrigger,
+  fallingStalactiteTimerStates,
+  armFallingStalactiteTrigger,
+  tickFallingStalactites,
+  hazardPlacements,
+  hazardPlacementsForTick,
+  activeDebrisEffects,
 } from './PlatformerState';
 import { MUSHROOM_SQUASH_DURATION_SECONDS } from './engine/MushroomSquash';
 import { FLOOR_SPIKE_CYCLE_SECONDS } from './engine/FloorSpike';
@@ -89,7 +95,8 @@ import {
 } from './entities/Player';
 import { toChestState, isChestOpen } from './entities/Chest';
 import { toCheckpointState } from './entities/Checkpoint';
-import { startPuffEffect, startHealAuraEffect, startFadeOutTextEffect } from './engine/CollectionEffects';
+import { startPuffEffect, startHealAuraEffect, startFadeOutTextEffect, startDebrisEffect } from './engine/CollectionEffects';
+import { FALLING_STALACTITE_SHAKE_SECONDS } from './engine/FallingStalactite';
 import { MAX_DARKNESS, DARKNESS_FADE_SECONDS, playerOccupiedCell } from './engine/Lighting';
 
 function collectedFactFixture(): CollectedFact {
@@ -138,7 +145,7 @@ describe('PlatformerState', () => {
 
   describe('chestPlacements', () => {
     it('module-places-oneChestPerMarker', () => {
-      // The level carries one `T` marker per Experience entry, so every
+      // The level carries one `$` marker per Experience entry, so every
       // chest def finds a slot — placeChests has no auto-placement fallback,
       // and a missing marker would silently drop an Experience entry.
       expect(chestPlacements.value).toHaveLength(CHEST_TILES.value.length);
@@ -802,7 +809,7 @@ describe('marker-derived placements react to currentLayout', () => {
   });
 
   it('changingCurrentLayoutToALayoutWithNoMarkers-recomputesEveryPlacementSignalToEmpty', () => {
-    // A layout with no S/E/M/C/X/Q/F/T markers at all — placeEnemies/
+    // A layout with no marker characters at all — placeEnemies/
     // placeCollectibles/placeBlocks/placeChests all zip real CVData against
     // zero marker positions, so every placement list must come back empty.
     // This is the behavior collectiblePlacements/enemyPlacements/
@@ -1323,5 +1330,74 @@ describe('resetGame — floor spikes', () => {
     floorSpikeTimerStates.value = [{ id: 'fs1', elapsed: 0.3 }];
     resetGame();
     expect(floorSpikeTimerStates.value).toEqual([]);
+  });
+});
+
+describe('falling stalactites — state and per-tick merge', () => {
+  afterEach(() => {
+    currentLayout.value = LEVEL_1_LAYOUT;
+    fallingStalactiteTimerStates.value = [];
+    activeDebrisEffects.value = [];
+  });
+
+  it('fallingStalactiteTimerStates-startsEmpty', () => {
+    expect(fallingStalactiteTimerStates.value).toEqual([]);
+  });
+
+  it('armFallingStalactiteTrigger-addsAZeroElapsedEntryAndIsIdempotent', () => {
+    armFallingStalactiteTrigger('h1');
+    expect(fallingStalactiteTimerStates.value).toEqual([{ id: 'h1', elapsed: 0 }]);
+    armFallingStalactiteTrigger('h1');
+    expect(fallingStalactiteTimerStates.value).toHaveLength(1);
+  });
+
+  it('tickFallingStalactites-advancesAndNeverPrunes', () => {
+    armFallingStalactiteTrigger('h1');
+    tickFallingStalactites(0.2);
+    expect(fallingStalactiteTimerStates.value[0].elapsed).toBeCloseTo(0.2, 5);
+    tickFallingStalactites(100);
+    expect(fallingStalactiteTimerStates.value).toHaveLength(1);
+  });
+
+  it('hazardPlacementsForTick-mergesTheFallingStalactitePhaseAndOffsets', () => {
+    currentLayout.value = ['S...', '.T..', '....', 'GGGG'];
+    const hazard = hazardPlacements.value.find((h) => h.hazardType === 'fallingStalactite')!;
+
+    const hanging = hazardPlacementsForTick().find((h) => h.id === hazard.id)!;
+    expect(hanging.fallingStalactitePhase).toBe('hanging');
+    expect(hanging.fallingStalactiteOffsetY).toBe(0);
+    expect(hanging.fallingStalactiteShakeOffsetX).toBe(0);
+
+    armFallingStalactiteTrigger(hazard.id);
+    tickFallingStalactites(FALLING_STALACTITE_SHAKE_SECONDS / 2);
+    const shaking = hazardPlacementsForTick().find((h) => h.id === hazard.id)!;
+    expect(shaking.fallingStalactitePhase).toBe('shaking');
+    expect(shaking.fallingStalactiteOffsetY).toBe(0);
+  });
+
+  it('hazardPlacementsForTick-passesOtherKindsThroughUnchanged', () => {
+    currentLayout.value = ['S^..', '....', '....', 'GGGG'];
+    const spike = hazardPlacements.value.find((h) => h.hazardType === 'spike')!;
+    const merged = hazardPlacementsForTick().find((h) => h.id === spike.id)!;
+    expect(merged).toBe(spike);
+  });
+
+  it('resetGame-clearsFallingStalactiteTimersButNotDebris', () => {
+    armFallingStalactiteTrigger('h1');
+    tickFallingStalactites(10);
+    const debris = startDebrisEffect('d1', 0, 0, []);
+    activeDebrisEffects.value = [debris];
+
+    resetGame();
+
+    expect(fallingStalactiteTimerStates.value).toEqual([]);
+    expect(activeDebrisEffects.value).toHaveLength(1);
+    expect(activeDebrisEffects.value[0]).toBe(debris);
+  });
+
+  it('resetGameProgress-clearsActiveDebrisEffects', () => {
+    activeDebrisEffects.value = [startDebrisEffect('d1', 0, 0, [])];
+    resetGameProgress();
+    expect(activeDebrisEffects.value).toEqual([]);
   });
 });

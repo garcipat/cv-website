@@ -25,6 +25,9 @@ import type { FloorSpikeTimerState } from './FloorSpike';
 import { isFloorSpikeArmed } from './FloorSpike';
 import type { CrumblingFloorTimerState } from './CrumblingFloor';
 import { isCrumblingFloorArmed } from './CrumblingFloor';
+import { isFallingStalactiteArmed, detectionZoneCells } from './FallingStalactite';
+import type { FallingStalactiteTimerState } from './FallingStalactite';
+import type { BlockPlacement } from '../level/BlockMapper';
 import type { HintId } from '../types';
 import type { KeyPickupState } from '../entities/KeyPickup';
 import type { HeartPickupState } from '../entities/HeartPickup';
@@ -471,4 +474,39 @@ export function checkBombPickupCollisions(
   return overlappingTriggers(player, bombs, (b) => PICKUP_TYPES.bomb.box(b))
     .slice(0, capacity)
     .map((b) => b.id);
+}
+
+/**
+ * Returns the ids of every hanging falling stalactite whose detection zone the
+ * player's hitbox currently overlaps — candidates `PlatformerPage.tsx` should
+ * arm this tick (FR-003). An already-armed hazard is not eligible (arming is
+ * irreversible, FR-004), which is why this takes `states` rather than relying
+ * on `hazards` alone — a placement carries no armed-or-not information of its
+ * own. Pure; never mutates its inputs.
+ */
+export function checkFallingStalactiteTriggers(
+  player: PlayerState,
+  hazards: readonly HazardPlacement[],
+  states: readonly FallingStalactiteTimerState[],
+  level: LevelDef,
+  blocks: readonly BlockPlacement[],
+  crumblingFloorStates: readonly CrumblingFloorTimerState[],
+): string[] {
+  const hitbox = playerHitbox(player);
+  const ids: string[] = [];
+  for (const hazard of hazards) {
+    if (hazard.hazardType !== 'fallingStalactite') continue;
+    if (isFallingStalactiteArmed(states, hazard.id)) continue;
+    const zone = detectionZoneCells(hazard, level, blocks, crumblingFloorStates);
+    const overlaps = zone.some((cell) =>
+      aabbOverlap(hitbox, {
+        x: cell.col * RENDERED_TILE_SIZE,
+        y: cell.row * RENDERED_TILE_SIZE,
+        width: RENDERED_TILE_SIZE,
+        height: RENDERED_TILE_SIZE,
+      }),
+    );
+    if (overlaps) ids.push(hazard.id);
+  }
+  return ids;
 }

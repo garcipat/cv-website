@@ -32,6 +32,15 @@ export interface TileSpriteSpec {
    *  little rather than sitting flush against the box's own top edge. */
   topOffset?: number;
   /**
+   * A translucent reddish wash drawn over the sprite in the palette (and,
+   * via the same value, on the editor grid) to mark an otherwise
+   * camouflage hazard — the falling stalactite (`T`), whose in-game art is
+   * pixel-identical to the decorative `⊤`. Editor-only: the live game never
+   * reads this field, so a hanging hazard stays untinted in play (O-027
+   * FR-017/SC-001). Omitted for every existing tile, unchanged.
+   */
+  tint?: string;
+  /**
    * A second crop of the SAME sheet, drawn over the base crop at the same
    * scale and offset by its own `sx`/`sy`. Ground cells carry no grass — the
    * engine draws grass as a separate overlay pass — so a swatch that should
@@ -548,6 +557,20 @@ export const PALETTE_TILE_SPRITES: Record<TileChar, TileSpriteSpec | null> = {
     frameHeight: 20,
     overlay: { sx: 32, sy: 4, frameHeight: 16 },
   },
+  T: {
+    // The large stalactite crop (the same art the live game draws for a
+    // decoration/hazard whose position hash resolves to the large variant),
+    // with a reddish tint so it reads as the falling hazard at a glance,
+    // distinct from the untinted decorative `⊤` (O-027 FR-017/FR-021).
+    sheet: DECORATIONS,
+    sheetWidth: DECORATIONS_SHEET_WIDTH,
+    sheetHeight: DECORATIONS_SHEET_HEIGHT,
+    sx: 51,
+    sy: 0,
+    frameWidth: 16,
+    frameHeight: 17,
+    tint: 'rgba(220, 38, 38, 0.45)',
+  },
 };
 
 /**
@@ -659,6 +682,7 @@ export const PALETTE_TILE_DESCRIPTIONS: Record<TileChar, string> = {
   '>': 'Spike (left wall); damages the player on touch',
   '¦': 'Floor spear; falling onto its points is fatal, walking or climbing through is safe',
   A: 'Floor spike; hidden until triggered — a visitor stepping on it starts a delayed warning-then-strike cycle, then it retracts and re-arms',
+  T: 'Falling stalactite; looks exactly like the decorative stalactite until a visitor walks beneath it, then shakes and drops',
 };
 
 /** Human-readable name per `TileChar`, so the palette reads by name rather
@@ -710,4 +734,5 @@ export const PALETTE_TILE_LABELS: Record<TileChar, string> = {
   '>': 'Spike Right',
   '¦': 'Floor Spear',
   A: 'Floor Spike',
+  T: 'Falling Stalactite',
 };

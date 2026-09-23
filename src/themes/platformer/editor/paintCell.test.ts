@@ -286,3 +286,26 @@ describe('paintCell — floor spear marker', () => {
     expect(cycled.grid[1][0]).toBe('v');
   });
 });
+
+describe('paintCell — falling stalactite marker (O-027)', () => {
+  it('paintingTheFallingStalactiteTool-writesItsOneCharacter', () => {
+    const grid: TileChar[][] = [['.', '.']];
+    const result = paintCell(grid, 1, 0, 'T');
+    expect(result.grid[0][1]).toBe('T');
+  });
+
+  it('paintingItAgain-neverCyclesOrientation', () => {
+    let grid: TileChar[][] = [['T']];
+    for (let i = 0; i < 3; i++) {
+      const result = paintCell(grid, 0, 0, 'T');
+      expect(result.grid[0][0]).toBe('T');
+      grid = result.grid;
+    }
+  });
+
+  it('paintingOverAnotherHazardKind-replacesItRatherThanCycling', () => {
+    const grid: TileChar[][] = [['^']];
+    const result = paintCell(grid, 0, 0, 'T');
+    expect(result.grid[0][0]).toBe('T');
+  });
+});

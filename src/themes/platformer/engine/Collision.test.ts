@@ -12,6 +12,7 @@ import {
   resolveHazardContacts,
   checkFloorSpikeTriggers,
   checkCrumblingFloorTriggers,
+  checkFallingStalactiteTriggers,
   overlappingTriggers,
 } from './Collision';
 import { playerInBlast } from './Blast';
@@ -38,6 +39,7 @@ import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { ChestState } from '../entities/Chest';
 import type { SignPlacement } from '../level/SignMapper';
 import type { HazardPlacement } from '../level/HazardMapper';
+import type { FallingStalactiteTimerState } from './FallingStalactite';
 import { parseLevel } from '../level/LevelParser';
 import type { KeyPickupState } from '../entities/KeyPickup';
 import { spawnHeartPickup } from '../entities/HeartPickup';
@@ -368,7 +370,7 @@ describe('checkSignOverlap', () => {
 });
 
 describe('resolveHazardContacts — ordinary hazard resolution', () => {
-  const hazard: HazardPlacement = { id: 'h1', hazardType: 'spike', facing: 'up', x: 100, y: 100 };
+  const hazard: HazardPlacement = { id: 'h1', hazardType: 'spike', facing: 'up', x: 100, y: 100, col: 0, row: 0 };
 
   it('playerOverlappingHazard-returnsItsDamageAndTheHazard', () => {
     const player = makePlayer(100, 100);
@@ -411,7 +413,7 @@ describe('resolveHazardContacts — ordinary hazard resolution', () => {
 
   it('twoOverlappingOrdinaryHazards-appliesAtMostOneDamage', () => {
     const player = makePlayer(100, 100);
-    const second: HazardPlacement = { id: 'h2', hazardType: 'spike', facing: 'up', x: 100, y: 100 };
+    const second: HazardPlacement = { id: 'h2', hazardType: 'spike', facing: 'up', x: 100, y: 100, col: 0, row: 0 };
     const result = resolveHazardContacts(player, [hazard, second]);
     expect(result.hazard).toBe(hazard);
     expect(result.damage).toBe(SIDE_HIT_DAMAGE);
@@ -431,7 +433,7 @@ function emptySpearMask(): SpearMask {
 }
 
 describe('resolveHazardContacts — lethal spear contact (US1)', () => {
-  const spearHazard: HazardPlacement = { id: 's1', hazardType: 'spear', facing: 'up', x: 100, y: 100 };
+  const spearHazard: HazardPlacement = { id: 's1', hazardType: 'spear', facing: 'up', x: 100, y: 100, col: 0, row: 0 };
 
   afterEach(() => {
     setSpearTipMask(emptySpearMask());
@@ -466,7 +468,7 @@ describe('resolveHazardContacts — lethal spear contact (US1)', () => {
     setSpearTipMask(oneTipSpearMask());
     // The player's hitbox (x 100..124, y 64..102) overlaps both the 'up'
     // spike's bottom band (82..92) and the spear's tip at (101, 101).
-    const spike: HazardPlacement = { id: 'h1', hazardType: 'spike', facing: 'up', x: 100, y: 60 };
+    const spike: HazardPlacement = { id: 'h1', hazardType: 'spike', facing: 'up', x: 100, y: 60, col: 0, row: 0 };
     const player = makePlayer(80, 46);
     player.vy = 120;
     player.prevFeetY = 95;
@@ -480,7 +482,7 @@ describe('resolveHazardContacts — lethal spear contact (US1)', () => {
 });
 
 describe('resolveHazardContacts — everything but a tip landing is safe (US2)', () => {
-  const spearHazard: HazardPlacement = { id: 's1', hazardType: 'spear', facing: 'up', x: 100, y: 100 };
+  const spearHazard: HazardPlacement = { id: 's1', hazardType: 'spear', facing: 'up', x: 100, y: 100, col: 0, row: 0 };
 
   beforeEach(() => {
     setSpearTipMask(oneTipSpearMask());
@@ -578,6 +580,8 @@ describe('resolveHazardContacts — floor spike is only a contact while full-ext
       facing: 'up',
       x: 100,
       y: 100,
+      col: 0,
+      row: 0,
       floorSpikePhase: 'delay',
     };
     const player = makePlayer(100, 100);
@@ -593,6 +597,8 @@ describe('resolveHazardContacts — floor spike is only a contact while full-ext
       facing: 'up',
       x: 100,
       y: 100,
+      col: 0,
+      row: 0,
       floorSpikePhase: 'fullExtend',
     };
     const player = makePlayer(100, 100);
@@ -604,7 +610,7 @@ describe('resolveHazardContacts — floor spike is only a contact while full-ext
 
 describe('checkFloorSpikeTriggers', () => {
   function floorSpikeHazard(id: string, x: number, y: number): HazardPlacement {
-    return { id, hazardType: 'floorSpike', facing: 'up', x, y };
+    return { id, hazardType: 'floorSpike', facing: 'up', x, y, col: 0, row: 0 };
   }
 
   it('playerOverlappingAnUnarmedFloorSpike-returnsItsId', () => {
@@ -626,7 +632,7 @@ describe('checkFloorSpikeTriggers', () => {
   });
 
   it('staticSpikePlacements-areIgnored', () => {
-    const hazard: HazardPlacement = { id: 's1', hazardType: 'spike', facing: 'up', x: 16, y: 32 };
+    const hazard: HazardPlacement = { id: 's1', hazardType: 'spike', facing: 'up', x: 16, y: 32, col: 0, row: 0 };
     const player = makePlayer(hazard.x, hazard.y);
     expect(checkFloorSpikeTriggers(player, [hazard], [])).toEqual([]);
   });
@@ -919,6 +925,8 @@ describe('every consumer reads the one crouched box (US1 / SC-008)', () => {
       facing: 'up',
       x: PLAYER_SIDE_PADDING,
       y: -10,
+      col: 0,
+      row: 0,
     };
     const standing = makePlayer(0, 0);
     const crouched = { ...makePlayer(0, 0), crouching: true };
@@ -933,6 +941,8 @@ describe('every consumer reads the one crouched box (US1 / SC-008)', () => {
       facing: 'up',
       x: PLAYER_SIDE_PADDING,
       y: -10,
+      col: 0,
+      row: 0,
     };
     const standing = makePlayer(0, 0);
     const crouched = { ...makePlayer(0, 0), crouching: true };
@@ -949,5 +959,69 @@ describe('every consumer reads the one crouched box (US1 / SC-008)', () => {
     const tiles = [{ col: 0, row: 0 }];
     expect(playerInBlast(standingBox, tiles, RENDERED_TILE_SIZE)).toBe(true);
     expect(playerInBlast(crouchedBox, tiles, RENDERED_TILE_SIZE)).toBe(false);
+  });
+});
+
+describe('checkFallingStalactiteTriggers', () => {
+  // Hazard at (1,0), ground at row 3 — its detection zone is columns 0-2,
+  // rows 1-2.
+  const LEVEL = parseLevel(['.T..', '....', '....', 'GGGG']);
+  const NO_STATES: FallingStalactiteTimerState[] = [];
+
+  function fallingHazard(id: string, col: number, row: number): HazardPlacement {
+    const { x, y } = { x: col * RENDERED_TILE_SIZE, y: row * RENDERED_TILE_SIZE };
+    return { id, hazardType: 'fallingStalactite', facing: 'down', x, y, col, row };
+  }
+
+  it('playerOverlappingAnyZoneCell-returnsItsId', () => {
+    const hazard = fallingHazard('h1', 1, 0);
+    const player = makePlayer(RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+    expect(checkFallingStalactiteTriggers(player, [hazard], NO_STATES, LEVEL, [], [])).toEqual(['h1']);
+  });
+
+  it('playerOverlappingAFlankingZoneColumn-alsoArmsIt', () => {
+    const hazard = fallingHazard('h1', 1, 0);
+    const player = makePlayer(0, RENDERED_TILE_SIZE);
+    expect(checkFallingStalactiteTriggers(player, [hazard], NO_STATES, LEVEL, [], [])).toEqual(['h1']);
+  });
+
+  it('playerFarFromTheZone-returnsEmpty', () => {
+    const hazard = fallingHazard('h1', 1, 0);
+    const player = makePlayer(500, 500);
+    expect(checkFallingStalactiteTriggers(player, [hazard], NO_STATES, LEVEL, [], [])).toEqual([]);
+  });
+
+  it('alreadyArmedHazard-isExcluded', () => {
+    const hazard = fallingHazard('h1', 1, 0);
+    const player = makePlayer(RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+    expect(
+      checkFallingStalactiteTriggers(player, [hazard], [{ id: 'h1', elapsed: 0.1 }], LEVEL, [], []),
+    ).toEqual([]);
+  });
+
+  it('otherHazardKinds-areIgnored', () => {
+    const spike: HazardPlacement = {
+      id: 's1',
+      hazardType: 'spike',
+      facing: 'up',
+      x: RENDERED_TILE_SIZE,
+      y: RENDERED_TILE_SIZE,
+      col: 1,
+      row: 1,
+    };
+    const player = makePlayer(RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+    expect(checkFallingStalactiteTriggers(player, [spike], NO_STATES, LEVEL, [], [])).toEqual([]);
+  });
+
+  it('isPure-doesNotMutateItsInputsAndIsDeterministic', () => {
+    const hazard = fallingHazard('h1', 1, 0);
+    const states: FallingStalactiteTimerState[] = [];
+    const hazards = [hazard];
+    const player = makePlayer(RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+    const first = checkFallingStalactiteTriggers(player, hazards, states, LEVEL, [], []);
+    const second = checkFallingStalactiteTriggers(player, hazards, states, LEVEL, [], []);
+    expect(first).toEqual(second);
+    expect(states).toEqual([]);
+    expect(hazards).toHaveLength(1);
   });
 });

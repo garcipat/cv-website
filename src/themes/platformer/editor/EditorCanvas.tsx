@@ -26,8 +26,14 @@ import {
   synthesizeHazardPlacements,
   synthesizeLadderBundleStates,
 } from './gridRenderState';
-import { RENDERED_TILE_SIZE, tileToPixel } from '../level/Terrain';
-import { PATROL_GLYPH, CONNECTION_POINT_GLYPH } from './paletteTiles';
+import { RENDERED_TILE_SIZE, RENDER_SCALE, TILE_SIZE, tileToPixel } from '../level/Terrain';
+import {
+  isStalactiteTwin,
+  stalactiteEntry,
+  TWIN_LEFT_RECT,
+  TWIN_RIGHT_RECT,
+} from '../engine/StaticObjectsCatalog';
+import { PATROL_GLYPH, CONNECTION_POINT_GLYPH, PALETTE_TILE_SPRITES } from './paletteTiles';
 import {
   drawTerrain,
   drawPlayer,
@@ -403,6 +409,109 @@ function drawTileMarkers(
   ctx.restore();
 }
 
+/** A reusable native-size scratch canvas for the editor-only stalactite tint
+ *  (O-027). Module-level so tinting many `T` cells in one frame — and across
+ *  frames — never allocates a canvas per cell. `null` until first use. */
+let tintScratchCanvas: HTMLCanvasElement | null = null;
+
+/** Draws one decorations-sheet crop into `sctx`, scaled to its own rendered
+ *  size at `destX` (top-anchored), using the same crop math
+ *  `entities/hazards/FallingStalactite.ts` uses at runtime — so the wash lands
+ *  on exactly the pixels the editor's `drawHazards` drew. */
+function blitCrop(
+  sctx: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  rect: { sx: number; sy: number; width: number; height: number },
+  destX: number,
+): void {
+  sctx.drawImage(
+    image,
+    rect.sx,
+    rect.sy,
+    rect.width,
+    rect.height,
+    destX,
+    0,
+    rect.width * RENDER_SCALE,
+    rect.height * RENDER_SCALE,
+  );
+}
+
+/** Renders the stalactite at `(col, row)` into the scratch canvas and washes
+ *  it with `tint` via `source-atop`, so ONLY the art's opaque pixels are
+ *  tinted — not the cell's transparent background. Returns `null` when no 2D
+ *  context is available. */
+function tintedStalactiteSprite(
+  image: HTMLImageElement,
+  col: number,
+  row: number,
+  tint: string,
+): HTMLCanvasElement | null {
+  const canvas = (tintScratchCanvas ??= document.createElement('canvas'));
+  if (canvas.width !== RENDERED_TILE_SIZE) canvas.width = RENDERED_TILE_SIZE;
+  if (canvas.height !== RENDERED_TILE_SIZE) canvas.height = RENDERED_TILE_SIZE;
+  const sctx = canvas.getContext('2d');
+  if (!sctx) return null;
+  sctx.clearRect(0, 0, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+  sctx.imageSmoothingEnabled = false;
+  if (isStalactiteTwin(col, row)) {
+    blitCrop(sctx, image, TWIN_LEFT_RECT, TWIN_LEFT_RECT.sx * RENDER_SCALE);
+    blitCrop(sctx, image, TWIN_RIGHT_RECT, TWIN_RIGHT_RECT.sx * RENDER_SCALE);
+  } else {
+    const entry = stalactiteEntry(col, row);
+    sctx.drawImage(
+      image,
+      entry.sx,
+      entry.sy,
+      entry.width ?? TILE_SIZE,
+      entry.height ?? TILE_SIZE,
+      0,
+      0,
+      RENDERED_TILE_SIZE,
+      RENDERED_TILE_SIZE,
+    );
+  }
+  sctx.globalCompositeOperation = 'source-atop';
+  sctx.fillStyle = tint;
+  sctx.fillRect(0, 0, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+  sctx.globalCompositeOperation = 'source-over';
+  return canvas;
+}
+
+/**
+ * Washes every `char` cell's stalactite art with `tint` — the editor-only
+ * marker for a camouflage hazard whose in-game art is indistinguishable from
+ * a decoration (O-027's falling stalactite `T`). The wash is masked to the
+ * sprite's own opaque pixels (a scratch `source-atop` composite), so the
+ * cell's transparent background stays clear instead of turning into a solid
+ * red square. Mirrors `drawTileMarkers`' scan/zoom math.
+ */
+function drawTileTint(
+  ctx: CanvasRenderingContext2D,
+  grid: TileChar[][],
+  char: TileChar,
+  tint: string,
+  image: HTMLImageElement | null,
+  originX: number,
+  originY: number,
+  zoom: ZoomLevel,
+): void {
+  if (!image) return;
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  const size = RENDERED_TILE_SIZE * zoom;
+  for (let row = 0; row < grid.length; row++) {
+    for (let col = 0; col < grid[row].length; col++) {
+      if (grid[row][col] !== char) continue;
+      const sprite = tintedStalactiteSprite(image, col, row, tint);
+      if (!sprite) continue;
+      const { x, y } = tileToPixel(col, row);
+      ctx.drawImage(sprite, x * zoom + originX, y * zoom + originY, size, size);
+    }
+  }
+  ctx.restore();
+}
+
 export const EditorCanvas = ({
   grid,
   selectedTool,
@@ -712,6 +821,25 @@ export const EditorCanvas = ({
         );
       }
       ctx.restore(); // pop scaled segment 2 — drawDarkness below needs identity transform
+
+      // Editor-only reddish tint over every falling-stalactite cell (O-027
+      // FR-017), drawn here at identity scale over the untinted hazard art
+      // segment 2 just drew, so an author can tell a `T` from the decorative
+      // `⊤`. Masked to the stalactite's own opaque pixels — never a full-cell
+      // fill — so only the stone is washed.
+      const fallingStalactiteTint = PALETTE_TILE_SPRITES['T']?.tint;
+      if (fallingStalactiteTint) {
+        drawTileTint(
+          ctx,
+          grid,
+          'T',
+          fallingStalactiteTint,
+          images.decorations,
+          panOffset.x,
+          panOffset.y,
+          zoom,
+        );
+      }
 
       // `drawDarkness` punches its light holes into an always-unscaled
       // offscreen layer and then composites that layer with a single

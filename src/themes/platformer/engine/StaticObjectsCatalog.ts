@@ -218,6 +218,26 @@ export function stalactiteEntry(col: number, row: number): StaticObjectEntry {
   return pickVariant(STALACTITE_VARIANTS, col, row);
 }
 
+/**
+ * Whether the decoration at `(col, row)` renders the twin variant (the second
+ * `STALACTITE_VARIANTS` entry), using the same position hash as
+ * `stalactiteEntry` so a falling-stalactite hazard's variant always matches
+ * the decoration at its cell (O-027 research D7).
+ */
+export function isStalactiteTwin(col: number, row: number): boolean {
+  return pickVariant(STALACTITE_VARIANTS, col, row) === STALACTITE_VARIANTS[1];
+}
+
+/**
+ * The two stalactites of the twin variant (`decorations.png`, region
+ * `sx=0, sy=19, w=16, h=16`), split exactly at x=8. The left one is taller
+ * (the larger); the right one is shorter. A falling-stalactite hazard on a
+ * twin cell uses whichever half its column parity selects (even → left,
+ * odd → right) for both its sprite and its half-tile hitbox (O-027 FR-019).
+ */
+export const TWIN_LEFT_RECT: Required<StaticObjectEntry> = { sx: 0, sy: 19, width: 8, height: 16 };
+export const TWIN_RIGHT_RECT: Required<StaticObjectEntry> = { sx: 8, sy: 19, width: 8, height: 10 };
+
 /** Picks a `stalagmite` tile's large-vs-twin sprite deterministically from its
  *  own position — see `STALAGMITE_VARIANTS`'s doc comment. */
 export function stalagmiteEntry(col: number, row: number): StaticObjectEntry {
