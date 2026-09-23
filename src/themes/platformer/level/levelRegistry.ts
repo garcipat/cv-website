@@ -1,4 +1,5 @@
-import { LEVEL_1_LAYOUT, LEVEL_1_BACKGROUND, SCRATCH_LAYOUT } from './level';
+import { LEVEL_1_LAYOUT, LEVEL_1_BACKGROUND, LEVEL_1_MARKERS, SCRATCH_LAYOUT } from './level';
+import type { MarkerPlacement } from './LevelData';
 
 /**
  * One level the Level Editor can load. `layout` is the same
@@ -16,6 +17,10 @@ export interface LevelEntry {
   readonly name: string;
   readonly layout: readonly string[];
   readonly background?: readonly string[];
+  /** The level's tile meta layer — absent for a pre-feature file, which is
+   *  what tells `parseLevel` its `T` is a falling stalactite (the `T`
+   *  generation rule, D5). */
+  readonly markers?: readonly MarkerPlacement[];
 }
 
 /**
@@ -26,7 +31,13 @@ export interface LevelEntry {
  * editor has no separate Reset or Scratch button (spec FR-028).
  */
 export const BUILT_IN_LEVELS: readonly LevelEntry[] = [
-  { id: 'main', name: 'main', layout: LEVEL_1_LAYOUT, background: LEVEL_1_BACKGROUND },
+  {
+    id: 'main',
+    name: 'main',
+    layout: LEVEL_1_LAYOUT,
+    background: LEVEL_1_BACKGROUND,
+    markers: LEVEL_1_MARKERS,
+  },
   { id: 'empty', name: 'empty', layout: SCRATCH_LAYOUT },
 ];
 
@@ -54,6 +65,24 @@ const isLayout = (value: unknown): value is string[] =>
 const isBackground = (value: unknown): value is string[] =>
   Array.isArray(value) && value.every((row) => typeof row === 'string');
 
+/** `markers`'s shape check: an array whose entries each carry numeric
+ *  `col`/`row` and a `marker` object with a string `kind`. Forgiving in the
+ *  same way `background` is — a malformed field costs only that field, and a
+ *  missing field means the level is pre-feature (the `T` generation rule). */
+const isMarkers = (value: unknown): value is MarkerPlacement[] =>
+  Array.isArray(value) &&
+  value.every((entry) => {
+    if (entry === null || typeof entry !== 'object') return false;
+    const { col, row, marker } = entry as { col?: unknown; row?: unknown; marker?: unknown };
+    return (
+      typeof col === 'number' &&
+      typeof row === 'number' &&
+      marker !== null &&
+      typeof marker === 'object' &&
+      typeof (marker as { kind?: unknown }).kind === 'string'
+    );
+  });
+
 /**
  * Turns an `import.meta.glob` result into registry entries, skipping anything
  * malformed (spec FR-027). A hand-edited or half-written JSON file in
@@ -75,7 +104,12 @@ export const parseLevelModules = (modules: Record<string, unknown>): LevelEntry[
           : module;
       if (raw === null || typeof raw !== 'object') return null;
 
-      const { name, layout, background } = raw as { name?: unknown; layout?: unknown; background?: unknown };
+      const { name, layout, background, markers } = raw as {
+        name?: unknown;
+        layout?: unknown;
+        background?: unknown;
+        markers?: unknown;
+      };
       if (!isLayout(layout)) return null;
 
       const id = idFromPath(path);
@@ -84,6 +118,7 @@ export const parseLevelModules = (modules: Record<string, unknown>): LevelEntry[
         name: typeof name === 'string' && name !== '' ? name : id,
         layout,
         ...(isBackground(background) ? { background } : {}),
+        ...(isMarkers(markers) ? { markers } : {}),
       };
     })
     .filter((entry): entry is LevelEntry => entry !== null)

@@ -15,7 +15,8 @@ import {
   findCheckpointTiles,
   TERRAIN_CHARS,
   ENTITY_CHARS,
-  SIGN_CHARS,
+  SIGN_CHAR,
+  LEGACY_MARKER_CHARS,
   findSignTiles,
   HAZARD_CHARS,
   findHazardTiles,
@@ -26,6 +27,7 @@ import {
   type TileChar,
   type BackgroundChar,
 } from './LevelParser';
+import { DEFAULT_HINT_ID } from './HintCatalog';
 
 describe('parseLevel', () => {
   it('charLayout-parsesInto-matchingTileMap', () => {
@@ -137,46 +139,42 @@ describe('parseLevel ragged rows (padding, not throwing)', () => {
   });
 });
 
-describe('patrol terrain character', () => {
-  it('P-mapsToThePatrolTileType', () => {
-    expect(TERRAIN_CHARS.P).toBe('patrol');
+describe('legacy patrol boundary character', () => {
+  it('P-isNoLongerATerrainCharacter', () => {
+    expect('P' in TERRAIN_CHARS).toBe(false);
   });
 
-  it('parseLevel-patrolChar-keepsItAsItsOwnTileRatherThanEmpty', () => {
-    // A patrol tile is invisible in game, but it is NOT empty — EnemyAI
-    // reads it straight out of the terrain grid to reverse a patrol.
+  it('parseLevel-legacyPChar-liftsAPatrolBoundaryMarkerAndEmptiesTheTerrain', () => {
+    // A patrol boundary is invisible in game, but it is no longer terrain —
+    // EnemyAI reads it from the tile meta layer to reverse a patrol.
     expect(parseLevel(['.P.'])).toEqual({
-      terrain: [['empty', 'patrol', 'empty']],
+      terrain: [['empty', 'empty', 'empty']],
       width: 3,
       height: 1,
+      markers: [[null, { kind: 'patrolBoundary' }, null]],
     });
   });
 });
 
-describe('blueprint connection point terrain character', () => {
-  it('plus-mapsToTheBlueprintConnectionPointTileType', () => {
-    expect(TERRAIN_CHARS['+']).toBe('blueprintConnectionPoint');
+describe('legacy blueprint connection point character', () => {
+  it('plus-isNoLongerATerrainCharacter', () => {
+    expect('+' in TERRAIN_CHARS).toBe(false);
   });
 
-  it('parseLevel-connectionPointChar-keepsItAsItsOwnTileRatherThanEmpty', () => {
-    // Same reason a patrol tile is not parsed to `empty`: the character has
-    // to survive a parse/export round trip so a saved blueprint still knows
-    // where its connection points are (step 44c reads them back out of the
-    // layout).
+  it('parseLevel-legacyPlusChar-liftsAConnectionPointMarkerAndEmptiesTheTerrain', () => {
     expect(parseLevel(['.+.'])).toEqual({
-      terrain: [['empty', 'blueprintConnectionPoint', 'empty']],
+      terrain: [['empty', 'empty', 'empty']],
       width: 3,
       height: 1,
+      markers: [[null, { kind: 'connectionPoint' }, null]],
     });
   });
 
-  it('connectionPointChar-collidesWithNoOtherCharacterMap', () => {
-    // The module-load guard in LevelParser.ts already throws on a shared
-    // key; this names the invariant for '+' specifically, since 44b is the
-    // step that claimed it.
+  it('plus-isALegacyMarkerCharacterAndCollidesWithNoLiveMap', () => {
+    expect(LEGACY_MARKER_CHARS['+']).toEqual({ kind: 'connectionPoint' });
     expect('+' in ENTITY_CHARS).toBe(false);
-    expect('+' in SIGN_CHARS).toBe(false);
     expect('+' in HAZARD_CHARS).toBe(false);
+    expect('+' in TERRAIN_CHARS).toBe(false);
   });
 });
 
@@ -217,7 +215,7 @@ describe('torch terrain character', () => {
     // key; this names the invariant for '¥' specifically, so a future tile
     // cannot quietly claim the same glyph.
     expect('¥' in ENTITY_CHARS).toBe(false);
-    expect('¥' in SIGN_CHARS).toBe(false);
+    expect('¥' in LEGACY_MARKER_CHARS).toBe(false);
     expect('¥' in HAZARD_CHARS).toBe(false);
   });
 });
@@ -409,7 +407,7 @@ describe('findBombPotTiles', () => {
     // The module-load guard in LevelParser.ts already throws on a shared
     // key; this names the invariant for 'b' specifically.
     expect('b' in TERRAIN_CHARS).toBe(false);
-    expect('b' in SIGN_CHARS).toBe(false);
+    expect('b' in LEGACY_MARKER_CHARS).toBe(false);
     expect('b' in HAZARD_CHARS).toBe(false);
   });
 });
@@ -445,7 +443,7 @@ describe('checkpoint marker', () => {
     // The module-load guard in LevelParser.ts already throws on a shared
     // key; this names the invariant for 'C' specifically.
     expect('C' in TERRAIN_CHARS).toBe(false);
-    expect('C' in SIGN_CHARS).toBe(false);
+    expect('C' in LEGACY_MARKER_CHARS).toBe(false);
     expect('C' in HAZARD_CHARS).toBe(false);
   });
 });
@@ -467,52 +465,68 @@ describe('findCheckpointTiles', () => {
   });
 });
 
-describe('SIGN_CHARS', () => {
-  it('digitOne-mapsToBridgeDropThroughHint', () => {
-    expect(SIGN_CHARS['1']).toBe('bridgeDropThrough');
+describe('SIGN_CHAR and legacy sign characters', () => {
+  it('SIGN_CHAR-isTheOneUniformSignCharacter', () => {
+    expect(SIGN_CHAR).toBe('T');
   });
 
-  it('digitsTwoThroughSix-mapToTheirRegisteredHints', () => {
-    expect(SIGN_CHARS['2']).toBe('ladderClimbUp');
-    expect(SIGN_CHARS['3']).toBe('fragileRockBreaksFromBelow');
-    expect(SIGN_CHARS['4']).toBe('chestNeedsKey');
-    expect(SIGN_CHARS['5']).toBe('openAllChestsHaveFun');
-    expect(SIGN_CHARS['6']).toBe('bomb');
+  it('legacyDigits-mapToTheirRegisteredHints', () => {
+    expect(LEGACY_MARKER_CHARS['1']).toEqual({ kind: 'sign', hintId: 'bridgeDropThrough' });
+    expect(LEGACY_MARKER_CHARS['2']).toEqual({ kind: 'sign', hintId: 'ladderClimbUp' });
+    expect(LEGACY_MARKER_CHARS['3']).toEqual({
+      kind: 'sign',
+      hintId: 'fragileRockBreaksFromBelow',
+    });
+    expect(LEGACY_MARKER_CHARS['4']).toEqual({ kind: 'sign', hintId: 'chestNeedsKey' });
+    expect(LEGACY_MARKER_CHARS['5']).toEqual({ kind: 'sign', hintId: 'openAllChestsHaveFun' });
+    expect(LEGACY_MARKER_CHARS['6']).toEqual({ kind: 'sign', hintId: 'bomb' });
   });
 
-  it('noOverlapWithTerrainOrEntityChars-documentedByTheModuleLoadGuard', () => {
-    // Same convention as the existing TERRAIN_CHARS/ENTITY_CHARS overlap
-    // guard (see LevelParser.ts) — this file having loaded at all is that
-    // guard having already passed.
-    const overlapsTerrain = Object.keys(SIGN_CHARS).filter((char) => char in TERRAIN_CHARS);
-    const overlapsEntity = Object.keys(SIGN_CHARS).filter((char) => char in ENTITY_CHARS);
-    expect(overlapsTerrain).toEqual([]);
-    expect(overlapsEntity).toEqual([]);
+  it('legacySignChars-overlapNoLiveMap-documentedByTheModuleLoadGuard', () => {
+    // Same convention as the TERRAIN_CHARS/ENTITY_CHARS overlap guard (see
+    // LevelParser.ts) — this file having loaded at all is that guard having
+    // already passed.
+    const legacySignKeys = ['1', '2', '3', '4', '5', '6'];
+    expect(legacySignKeys.filter((char) => char in TERRAIN_CHARS)).toEqual([]);
+    expect(legacySignKeys.filter((char) => char in ENTITY_CHARS)).toEqual([]);
   });
 });
 
 describe('parseLevel — sign markers', () => {
-  it('signMarker-parsesAsEmptyWalkableTile', () => {
+  it('legacySignMarker-parsesAsEmptyWalkableTile', () => {
     const result = parseLevel(['1.', 'GG']);
     expect(result.terrain[0][0]).toBe('empty');
+  });
+
+  it('legacySignMarker-liftsItsHint', () => {
+    expect(parseLevel(['1.', 'GG']).markers?.[0]?.[0]).toEqual({
+      kind: 'sign',
+      hintId: 'bridgeDropThrough',
+    });
   });
 });
 
 describe('findSignTiles', () => {
-  it('noMarkers-returnsEmptyArray', () => {
+  it('noSigns-returnsEmptyArray', () => {
     expect(findSignTiles(['GG', 'GG'])).toEqual([]);
   });
 
-  it('oneMarker-returnsItsColRowAndHintId', () => {
-    expect(findSignTiles(['..', '.1'])).toEqual([{ col: 1, row: 1, hintId: 'bridgeDropThrough' }]);
+  it('oneTWithNoMarker-returnsTheDefaultHint', () => {
+    expect(findSignTiles(['..', '.T'])).toEqual([{ col: 1, row: 1, hintId: DEFAULT_HINT_ID }]);
   });
 
-  it('multipleMarkersOfTheSameHint-returnsAllInReadingOrder', () => {
-    // Only '1' is registered today — placing it twice is still valid (a
-    // hint can be shown at more than one spot in the level).
-    expect(findSignTiles(['1.', '.1'])).toEqual([
-      { col: 0, row: 0, hintId: 'bridgeDropThrough' },
-      { col: 1, row: 1, hintId: 'bridgeDropThrough' },
+  it('oneTWithASignMarker-returnsItsHint', () => {
+    const markers = [
+      [null, null],
+      [null, { kind: 'sign' as const, hintId: 'bomb' as const }],
+    ];
+    expect(findSignTiles(['..', '.T'], markers)).toEqual([{ col: 1, row: 1, hintId: 'bomb' }]);
+  });
+
+  it('multipleSigns-returnAllInReadingOrder', () => {
+    expect(findSignTiles(['T.', '.T'])).toEqual([
+      { col: 0, row: 0, hintId: DEFAULT_HINT_ID },
+      { col: 1, row: 1, hintId: DEFAULT_HINT_ID },
     ]);
   });
 });
@@ -533,7 +547,7 @@ describe('HAZARD_CHARS', () => {
     const keys = Object.keys(HAZARD_CHARS);
     expect(keys.filter((char) => char in TERRAIN_CHARS)).toEqual([]);
     expect(keys.filter((char) => char in ENTITY_CHARS)).toEqual([]);
-    expect(keys.filter((char) => char in SIGN_CHARS)).toEqual([]);
+    expect(keys.filter((char) => char in LEGACY_MARKER_CHARS)).toEqual([]);
   });
 
   it('brokenBar-collidesWithNoOtherCharacterMap', () => {
@@ -541,23 +555,19 @@ describe('HAZARD_CHARS', () => {
     // key; this names the invariant for '¦' specifically.
     expect('¦' in TERRAIN_CHARS).toBe(false);
     expect('¦' in ENTITY_CHARS).toBe(false);
-    expect('¦' in SIGN_CHARS).toBe(false);
+    expect('¦' in LEGACY_MARKER_CHARS).toBe(false);
   });
 
   it('star-mapsToFloorSpikeFacingUp', () => {
     expect(HAZARD_CHARS['A']).toEqual({ hazardType: 'floorSpike', facing: 'up' });
   });
 
-  it('uppercaseT-mapsToFallingStalactiteFacingDown', () => {
-    expect(HAZARD_CHARS['T']).toEqual({ hazardType: 'fallingStalactite', facing: 'down' });
-  });
-
-  it('uppercaseT-collidesWithNoOtherCharacterMap', () => {
-    // The module-load guard in LevelParser.ts already throws on a shared
-    // key; this names the invariant for 'T' specifically.
+  it('uppercaseT-isNoLongerAHazardCharacter', () => {
+    // The falling stalactite is a marker on the decorative `⊤` tile now; its
+    // freed `T` is the sign character (FR-025/FR-026).
+    expect('T' in HAZARD_CHARS).toBe(false);
     expect('T' in TERRAIN_CHARS).toBe(false);
     expect('T' in ENTITY_CHARS).toBe(false);
-    expect('T' in SIGN_CHARS).toBe(false);
   });
 });
 
@@ -572,9 +582,19 @@ describe('parseLevel — hazard markers', () => {
     expect(result.terrain[0][0]).toBe('empty');
   });
 
-  it('fallingStalactiteMarker-parsesAsEmptyWalkableTile', () => {
+  it('legacyTMarker-parsesAsTheStalactiteTilePlusAFallingMarker', () => {
+    // No `markers` field means a pre-feature file, so `T` is the old
+    // falling-stalactite hazard (the `T` generation rule).
     const result = parseLevel(['T.', 'GG']);
+    expect(result.terrain[0][0]).toBe('stalactite');
+    expect(result.markers?.[0]?.[0]).toEqual({ kind: 'fallingStalactite' });
+  });
+
+  it('newFormatTMarker-parsesAsAnEmptySignTile', () => {
+    // A `markers` field (even empty) means a new-format file, so `T` is a sign.
+    const result = parseLevel(['T.', 'GG'], []);
     expect(result.terrain[0][0]).toBe('empty');
+    expect(result.markers).toBeUndefined();
   });
 });
 
@@ -602,6 +622,17 @@ describe('findHazardTiles', () => {
     expect(findHazardTiles(['^A'])).toEqual([
       { col: 0, row: 0, hazardType: 'spike', facing: 'up' },
       { col: 1, row: 0, hazardType: 'floorSpike', facing: 'up' },
+    ]);
+  });
+
+  it('fallingStalactiteMarker-isIncludedAlongsideCharacterHazards', () => {
+    const markers = [
+      [{ kind: 'fallingStalactite' as const }, null],
+      [null, null],
+    ];
+    expect(findHazardTiles(['^.', 'GG'], markers)).toEqual([
+      { col: 0, row: 0, hazardType: 'spike', facing: 'up' },
+      { col: 0, row: 0, hazardType: 'fallingStalactite', facing: 'down' },
     ]);
   });
 });
@@ -674,10 +705,10 @@ describe('mushroom terrain characters', () => {
     // background is a separate layer whose characters may overlap the
     // foreground ones.)
     expect('§' in ENTITY_CHARS).toBe(false);
-    expect('§' in SIGN_CHARS).toBe(false);
+    expect('§' in LEGACY_MARKER_CHARS).toBe(false);
     expect('§' in HAZARD_CHARS).toBe(false);
     expect('s' in ENTITY_CHARS).toBe(false);
-    expect('s' in SIGN_CHARS).toBe(false);
+    expect('s' in LEGACY_MARKER_CHARS).toBe(false);
     expect('s' in HAZARD_CHARS).toBe(false);
   });
 });
@@ -694,22 +725,22 @@ describe('crumblingFloor terrain character', () => {
 
   it('crumblingFloorChar-notSharedWithOtherCharMaps', () => {
     expect('g' in ENTITY_CHARS).toBe(false);
-    expect('g' in SIGN_CHARS).toBe(false);
+    expect('g' in LEGACY_MARKER_CHARS).toBe(false);
     expect('g' in HAZARD_CHARS).toBe(false);
   });
 });
 
 describe('TileChar', () => {
-  it('includes every TERRAIN_CHARS, ENTITY_CHARS, SIGN_CHARS, and HAZARD_CHARS key', () => {
+  it('includes every TERRAIN_CHARS, ENTITY_CHARS, SIGN_CHAR, and HAZARD_CHARS key', () => {
     const tileChars: readonly TileChar[] = [
-      '.', 'G', 'R', '#', 'B', 'H', 'I', 'P', '+', 'S', 'M', 'm', 'q', 'o', '=', '?', 'F', '$', 'u', 'p',
-      'b', 'n', 'N', 'X', 'c', '⊤', '⊥', '¥', '1', '2', '3', '4', '5', '6', '^', 'v', '<', '>', 'A', 'C', '@',
+      '.', 'G', 'R', '#', 'B', 'H', 'I', 'S', 'M', 'm', 'q', 'o', '=', '?', 'F', '$', 'u', 'p',
+      'b', 'n', 'N', 'X', 'c', '⊤', '⊥', '¥', '^', 'v', '<', '>', 'A', 'C', '@',
       '§', 's', 'g', '¦', 'T',
     ];
     const allKeys = [
       ...Object.keys(TERRAIN_CHARS),
       ...Object.keys(ENTITY_CHARS),
-      ...Object.keys(SIGN_CHARS),
+      SIGN_CHAR,
       ...Object.keys(HAZARD_CHARS),
     ];
     for (const key of allKeys) {

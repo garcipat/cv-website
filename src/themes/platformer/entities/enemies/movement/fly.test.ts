@@ -3,7 +3,7 @@ import { bee } from '../Bee';
 import type { BeeState } from '../Bee';
 import { BEE_SHEET } from '../../sprites/sheets';
 import type { SpriteDescriptor } from '../../sprites/SpriteSheet';
-import type { LevelDef, TileType } from '../../../level/LevelData';
+import type { LevelDef, MarkerEntry, TileType } from '../../../level/LevelData';
 import type { EnemyPlacement } from '../../../level/EnemyMapper';
 import { RENDERED_TILE_SIZE } from '../../../level/Terrain';
 
@@ -43,11 +43,13 @@ function makeLevel(width: number, wallCols: number[], pitCols: number[]): LevelD
 }
 
 function makePatrolLevel(width: number, patrolCols: number[]): LevelDef {
-  const entityRow: TileType[] = Array.from({ length: width }, (_, c) =>
-    patrolCols.includes(c) ? 'patrol' : 'empty',
-  );
+  const entityRow: TileType[] = Array.from({ length: width }, () => 'empty');
   const groundRow: TileType[] = Array.from({ length: width }, () => 'groundRock');
-  return { terrain: [entityRow, groundRow], width, height: 2 };
+  const markers: (MarkerEntry | null)[][] = Array.from({ length: 2 }, () =>
+    new Array<MarkerEntry | null>(width).fill(null),
+  );
+  for (const col of patrolCols) markers[0][col] = { kind: 'patrolBoundary' };
+  return { terrain: [entityRow, groundRow], width, height: 2, markers };
 }
 
 function makeBeeAt(col: number): BeeState {

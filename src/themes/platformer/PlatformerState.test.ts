@@ -22,6 +22,7 @@ import {
   chestStates,
   endingScreenShown,
   signPlacements,
+  activeLevel,
   controlsOverlayDismissed,
   keyPickupStates,
   collectedKeys,
@@ -77,8 +78,10 @@ import {
   SPAWN_TILE,
   currentLayout,
   currentBackgroundLayout,
+  currentMarkers,
   LEVEL_1_LAYOUT,
   LEVEL_1_BACKGROUND,
+  LEVEL_1_MARKERS,
   ENEMY_TILES_PURPLE,
   CRATE_TILES,
   QUESTIONMARK_TILES,
@@ -1431,6 +1434,7 @@ describe('resetGame — floor spikes', () => {
 describe('falling stalactites — state and per-tick merge', () => {
   afterEach(() => {
     currentLayout.value = LEVEL_1_LAYOUT;
+    currentMarkers.value = LEVEL_1_MARKERS;
     fallingStalactiteTimerStates.value = [];
     activeDebrisEffects.value = [];
   });
@@ -1455,7 +1459,10 @@ describe('falling stalactites — state and per-tick merge', () => {
   });
 
   it('hazardPlacementsForTick-mergesTheFallingStalactitePhaseAndOffsets', () => {
-    currentLayout.value = ['S...', '.T..', '....', 'GGGG'];
+    currentLayout.value = ['S...', '.⊤..', '....', 'GGGG'];
+    currentMarkers.value = [
+      { col: 1, row: 1, marker: { kind: 'fallingStalactite' } },
+    ];
     const hazard = hazardPlacements.value.find((h) => h.hazardType === 'fallingStalactite')!;
 
     const hanging = hazardPlacementsForTick().find((h) => h.id === hazard.id)!;
@@ -1494,5 +1501,36 @@ describe('falling stalactites — state and per-tick merge', () => {
     activeDebrisEffects.value = [startDebrisEffect('d1', 0, 0, [])];
     resetGameProgress();
     expect(activeDebrisEffects.value).toEqual([]);
+  });
+});
+
+describe('tile meta layer consumption', () => {
+  afterEach(() => {
+    currentLayout.value = LEVEL_1_LAYOUT;
+    currentMarkers.value = LEVEL_1_MARKERS;
+  });
+
+  it('activeLevel-preservesMarkersThroughTheDeployableLadderOverride', () => {
+    currentLayout.value = ['S..', '...', 'GGG'];
+    currentMarkers.value = [{ col: 1, row: 1, marker: { kind: 'patrolBoundary' } }];
+    expect(activeLevel.value.markers?.[1]?.[1]).toEqual({ kind: 'patrolBoundary' });
+  });
+
+  it('signPlacements-readsTheSignMarkersHint', () => {
+    currentLayout.value = ['S.T', 'GGG'];
+    currentMarkers.value = [{ col: 2, row: 0, marker: { kind: 'sign', hintId: 'bomb' } }];
+    expect(signPlacements.value).toEqual([
+      expect.objectContaining({ hintId: 'bomb', x: 2 * RENDERED_TILE_SIZE, y: 0 }),
+    ]);
+  });
+
+  it('hazardPlacements-includesTheMarkerDerivedFallingStalactite', () => {
+    currentLayout.value = ['S..', '.⊤.', 'GGG'];
+    currentMarkers.value = [{ col: 1, row: 1, marker: { kind: 'fallingStalactite' } }];
+    const hazard = hazardPlacements.value.find((h) => h.hazardType === 'fallingStalactite');
+    expect(hazard).toBeDefined();
+    expect(hazard).toEqual(
+      expect.objectContaining({ hazardType: 'fallingStalactite', facing: 'down', col: 1, row: 1 }),
+    );
   });
 });

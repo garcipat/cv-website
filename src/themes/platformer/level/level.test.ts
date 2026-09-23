@@ -2,8 +2,10 @@ import {
   currentLevel,
   currentLayout,
   currentBackgroundLayout,
+  currentMarkers,
   LEVEL_1_LAYOUT,
   LEVEL_1_BACKGROUND,
+  LEVEL_1_MARKERS,
   SPAWN_TILE,
   ENEMY_TILES_GREEN,
   ENEMY_TILES_PURPLE,
@@ -15,16 +17,19 @@ import {
   CHEST_TILES,
   CHECKPOINT_TILES,
   SIGN_TILES,
+  HAZARD_TILES,
   TORCH_TILES,
 } from './level';
 import { isTopExposed, isSolid, isClimbable, isStandableLadderTop, tileAt } from './Terrain';
 import {
-  SIGN_CHARS,
+  SIGN_CHAR,
+  LEGACY_MARKER_CHARS,
   ENTITY_CHARS,
   HAZARD_CHARS,
   TERRAIN_CHARS,
   type TileChar,
 } from './LevelParser';
+import { HINT_IDS } from './HintCatalog';
 import cvEn from '@/data/cv.en.json';
 
 /** Every hand-placed marker must sit on an empty tile directly above a solid
@@ -270,9 +275,9 @@ describe('SIGN_TILES', () => {
   it('everyHint-hasExactlyOneSignInTheLevel', () => {
     // A hint with no sign can never be shown; two signs for one hint is
     // repetition. `noKeyForChest` is the exception — it fires from the chest
-    // itself, not from a signpost, so it has no SIGN_CHARS entry.
+    // itself, not from a signpost, so it has no HINT_IDS entry.
     const placed = SIGN_TILES.value.map((sign) => sign.hintId).sort();
-    expect(placed).toEqual(Object.values(SIGN_CHARS).sort());
+    expect(placed).toEqual([...HINT_IDS].sort());
   });
 
   it('bridgeDropThroughSign-standsOnTheBridgeItExplains', () => {
@@ -318,6 +323,32 @@ describe('SIGN_TILES', () => {
     const sign = SIGN_TILES.value.find((tile) => tile.hintId === 'openAllChestsHaveFun');
     expect(sign).toBeDefined();
     expect(Math.abs(sign!.col - SPAWN_TILE.value.col)).toBeLessThanOrEqual(4);
+  });
+});
+
+describe('currentMarkers', () => {
+  afterEach(() => {
+    currentMarkers.value = LEVEL_1_MARKERS;
+    currentLayout.value = LEVEL_1_LAYOUT;
+  });
+
+  it('defaultValue-isTheShippedLevelsMarkers', () => {
+    expect(currentMarkers.value).toBe(LEVEL_1_MARKERS);
+  });
+
+  it('changingCurrentMarkers-appearsOnCurrentLevelsParsedMarkerGrid', () => {
+    currentMarkers.value = [{ col: 0, row: 0, marker: { kind: 'patrolBoundary' } }];
+    expect(currentLevel.value.markers?.[0]?.[0]).toEqual({ kind: 'patrolBoundary' });
+  });
+
+  it('undefinedMarkers-meanAPreFeatureLevel', () => {
+    currentMarkers.value = undefined;
+    currentLayout.value = ['T.', 'GG'];
+    // A bare `T` with no `markers` field is the old falling-stalactite hazard.
+    expect(currentLevel.value.terrain[0][0]).toBe('stalactite');
+    expect(HAZARD_TILES.value).toEqual([
+      { col: 0, row: 0, hazardType: 'fallingStalactite', facing: 'down' },
+    ]);
   });
 });
 
@@ -489,7 +520,8 @@ describe('the authored one-tile crouch corridor (US1)', () => {
       for (let col = CORRIDOR_FROM_COL; col <= CORRIDOR_TO_COL; col++) {
         const char = LEVEL_1_LAYOUT[row][col] as TileChar;
         expect(ENTITY_CHARS[char]).toBeUndefined();
-        expect(SIGN_CHARS[char]).toBeUndefined();
+        expect(LEGACY_MARKER_CHARS[char]).toBeUndefined();
+        expect(char).not.toBe(SIGN_CHAR);
         expect(HAZARD_CHARS[char]).toBeUndefined();
       }
     }

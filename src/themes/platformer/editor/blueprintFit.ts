@@ -13,10 +13,10 @@ const EMPTY_CHAR: TileChar = '.';
  * would. There is no connection-point check, no adjacency check, no facing,
  * and no "first room" special case — see the design doc's Goal section for why
  * connection-point matching was dropped (it degenerates the moment a
- * blueprint's connection points are stamped into a level, since a placed `'+'`
- * carries no memory of its source blueprint's bounds). A
- * `blueprintConnectionPoint` cell, in the grid or in the blueprint, takes part
- * here exactly like any other non-`'.'` cell.
+ * blueprint's connection points are stamped into a level, since a placed
+ * marker carries no memory of its source blueprint's bounds). A blueprint's
+ * markers are stamped separately (`placeBlueprintMarkers`) and never take part
+ * in this check — placement validity is terrain-only (FR-019).
  *
  * `cells` are the blueprint's own `'.'`-free cells (`blueprintCells`), so its
  * padding is never checked: a room can be dropped over existing terrain that

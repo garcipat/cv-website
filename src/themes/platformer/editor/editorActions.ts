@@ -1,16 +1,23 @@
 import type { Signal } from '@preact/signals-react';
-import { importLayout, importBackgroundLayout } from './importLayout';
+import { importLayout, importBackgroundLayout, importMarkerGrid } from './importLayout';
 import { blueprintCells } from './blueprintCells';
 import { blueprintFits } from './blueprintFit';
-import { placeBlueprint, rebaseBlueprintBackground } from './placeBlueprint';
+import {
+  placeBlueprint,
+  placeBlueprintMarkers,
+  blueprintMarkers,
+  rebaseBlueprintBackground,
+} from './placeBlueprint';
 import { cropLevelForExport } from './cropLevelForExport';
 import { saveLevel } from './saveLevelFile';
 import { saveBlueprint } from './saveBlueprintFile';
 import { findBlueprint } from '../level/blueprintRegistry';
-import { currentLayout, currentBackgroundLayout } from '../level/level';
+import { currentLayout, currentBackgroundLayout, currentMarkers } from '../level/level';
 import type { LevelEntry } from '../level/levelRegistry';
 import type { Blueprint } from '../level/BlueprintData';
 import type { BackgroundChar, TileChar } from '../level/LevelParser';
+import type { MarkerGrid } from '../level/LevelData';
+import { shiftMarkerGrid as shiftMarkerGridPure, resizeMarkerGrid } from './paintMarkerCell';
 import type { PaintResult } from './paintCell';
 import { resetGameProgress } from '../PlatformerState';
 import { currentTheme } from '@/state/theme';
@@ -22,6 +29,7 @@ import {
   editorBackgroundSignal,
   editorBlueprintBackgroundSignal,
   editorBlueprintDirtySignal,
+  editorBlueprintMarkerSignal,
   editorBlueprintSignal,
   editorCanvasModeSignal,
   editorCenterRequestIdSignal,
@@ -31,12 +39,14 @@ import {
   editorLevelSignal,
   editorLoadedBlueprintNameSignal,
   editorLoadedLevelNameSignal,
+  editorMarkerSignal,
   editorSaveResultSignal,
   editorSelectedBackgroundMaterialSignal,
   editorSelectedToolSignal,
   type EditorAppearance,
   type EditorCanvasMode,
   type EditorLayer,
+  type EditorTool,
 } from './editorState';
 
 export interface GrowthShift {
@@ -48,8 +58,7 @@ export interface GrowthShift {
 // (Palette.tsx), so an already-armed one of either is swapped for this when the
 // canvas it does not belong to becomes active.
 const SPAWN_CHAR: TileChar = 'S';
-const CONNECTION_POINT_CHAR: TileChar = '+';
-const FALLBACK_TOOL: TileChar = 'G';
+const FALLBACK_TOOL: EditorTool = 'G';
 
 /**
  * Shifts a background grid in place by a foreground grid growth, by inserting
@@ -75,12 +84,30 @@ const shiftBackgroundGrid = (
   target.value = [...Array.from({ length: rowShift }, emptyRow), ...shiftedRows];
 };
 
+/**
+ * The marker grid's own analogue of `shiftBackgroundGrid` (D9): a left/up
+ * growth prepends empty rows/columns so every marker keeps its cell, and a
+ * right/down growth needs no shift. Marker paint itself never grows, so this
+ * is only ever called from a terrain growth (a paint or a placement).
+ */
+const shiftMarkerGrid = (
+  target: Signal<MarkerGrid>,
+  colShift: number,
+  rowShift: number,
+  width: number,
+  height: number,
+): void => {
+  const shifted = shiftMarkerGridPure(target.value, colShift, rowShift);
+  const resized = resizeMarkerGrid(shifted, width, height);
+  if (resized !== target.value) target.value = resized;
+};
+
 // --- Selection / toggles -----------------------------------------------------
 
-/** Selecting a tile tool is unambiguously "I want to paint again", so it
+/** Selecting a tool is unambiguously "I want to paint again", so it
  *  disarms any armed blueprint. The reverse is deliberately not true: arming a
  *  blueprint leaves `selectedTool` alone so disarming restores it. */
-export const selectTool = (tool: TileChar): void => {
+export const selectTool = (tool: EditorTool): void => {
   editorSelectedToolSignal.value = tool;
   editorArmedBlueprintIdSignal.value = null;
 };
@@ -99,7 +126,7 @@ export const setCanvasMode = (mode: EditorCanvasMode): void => {
   if (mode === 'blueprint' && editorSelectedToolSignal.value === SPAWN_CHAR) {
     selectTool(FALLBACK_TOOL);
   }
-  if (mode === 'level' && editorSelectedToolSignal.value === CONNECTION_POINT_CHAR) {
+  if (mode === 'level' && editorSelectedToolSignal.value === 'connectionPoint') {
     selectTool(FALLBACK_TOOL);
   }
   if (mode === 'level' && editorLevelCenterPendingSignal.value) {
@@ -132,7 +159,7 @@ export const reconcilePersistedEditorState = (): void => {
   }
   if (
     editorCanvasModeSignal.value === 'level' &&
-    editorSelectedToolSignal.value === CONNECTION_POINT_CHAR
+    editorSelectedToolSignal.value === 'connectionPoint'
   ) {
     editorSelectedToolSignal.value = FALLBACK_TOOL;
   }
@@ -167,6 +194,13 @@ export const applyPaint = (result: PaintResult): GrowthShift => {
     editorBlueprintSignal.value = grid;
     editorBlueprintDirtySignal.value = true;
     shiftBackgroundGrid(editorBlueprintBackgroundSignal, colShift, rowShift);
+    shiftMarkerGrid(
+      editorBlueprintMarkerSignal,
+      colShift,
+      rowShift,
+      grid[0]?.length ?? 0,
+      grid.length,
+    );
     return { colShift, rowShift };
   }
 
@@ -174,8 +208,29 @@ export const applyPaint = (result: PaintResult): GrowthShift => {
   if (!editorDirtySignal.value) editorDirtySignal.value = true;
   editorSaveResultSignal.value = null;
   shiftBackgroundGrid(editorBackgroundSignal, colShift, rowShift);
+  shiftMarkerGrid(editorMarkerSignal, colShift, rowShift, grid[0]?.length ?? 0, grid.length);
   editorLastPlacementSnapshotSignal.value = null;
   return { colShift, rowShift };
+};
+
+/**
+ * Writes the active canvas's marker grid, marks it dirty, and clears the save
+ * result and placement snapshot. There is no `GrowthShift` because marker
+ * paint never grows the grid (FR-010) — the caller writes a terrain growth's
+ * shift through `applyPaint` first, then calls this at the post-growth
+ * coordinates (D8's ordering invariant).
+ */
+export const applyMarkerPaint = (next: MarkerGrid): void => {
+  if (editorCanvasModeSignal.value === 'blueprint') {
+    editorBlueprintMarkerSignal.value = next;
+    editorBlueprintDirtySignal.value = true;
+    return;
+  }
+
+  editorMarkerSignal.value = next;
+  if (!editorDirtySignal.value) editorDirtySignal.value = true;
+  editorSaveResultSignal.value = null;
+  editorLastPlacementSnapshotSignal.value = null;
 };
 
 export const applyBackgroundPaint = (next: BackgroundChar[][]): void => {
@@ -206,6 +261,7 @@ export const commitPlacement = (col: number, row: number): GrowthShift | null =>
   editorLastPlacementSnapshotSignal.value = {
     grid,
     background: editorBackgroundSignal.value,
+    markers: editorMarkerSignal.value,
   };
 
   const result = placeBlueprint(grid, armedCells, col, row);
@@ -224,16 +280,33 @@ export const commitPlacement = (col: number, row: number): GrowthShift | null =>
     row + result.rowShift,
   );
 
+  // Same ordering for markers: shift first, then stamp at the post-growth
+  // anchor, overwriting (FR-018/FR-020).
+  shiftMarkerGrid(
+    editorMarkerSignal,
+    result.colShift,
+    result.rowShift,
+    result.grid[0]?.length ?? 0,
+    result.grid.length,
+  );
+  editorMarkerSignal.value = placeBlueprintMarkers(
+    editorMarkerSignal.value,
+    blueprintMarkers(armedBlueprint),
+    col + result.colShift,
+    row + result.rowShift,
+  );
+
   return { colShift: result.colShift, rowShift: result.rowShift };
 };
 
-/** Restores the grid and background from immediately before the most recently
- *  committed placement. A no-op with no snapshot. */
+/** Restores the grid, background and markers from immediately before the most
+ *  recently committed placement. A no-op with no snapshot. */
 export const undoLastPlacement = (): void => {
   const snapshot = editorLastPlacementSnapshotSignal.value;
   if (snapshot === null) return;
   editorLevelSignal.value = snapshot.grid;
   editorBackgroundSignal.value = snapshot.background;
+  editorMarkerSignal.value = snapshot.markers;
   editorLastPlacementSnapshotSignal.value = null;
 };
 
@@ -243,8 +316,13 @@ export const undoLastPlacement = (): void => {
  *  (not only through the debounce) so a pending write cannot resurrect
  *  discarded work. */
 export const loadLevel = (level: LevelEntry): void => {
-  const levelGrid = importLayout(level.layout);
+  // A file with no `markers` field is pre-feature, so its `T` is the old
+  // falling-stalactite hazard and must migrate to `⊤` (the `T` generation
+  // rule, D5). A new-format file's `T` stays the sign character.
+  const legacyT = level.markers === undefined;
+  const levelGrid = importLayout(level.layout, legacyT);
   editorLevelSignal.value = levelGrid;
+  editorMarkerSignal.value = importMarkerGrid(level.layout, level.markers);
 
   if (editorCanvasModeSignal.value === 'blueprint') {
     editorLevelCenterPendingSignal.value = true;
@@ -264,24 +342,34 @@ export const loadLevel = (level: LevelEntry): void => {
 };
 
 export const loadBlueprint = (blueprint: Blueprint): void => {
-  const grid = importLayout(blueprint.layout);
+  const legacyT = blueprint.markers === undefined;
+  const grid = importLayout(blueprint.layout, legacyT);
   editorBlueprintSignal.value = grid;
   editorBlueprintBackgroundSignal.value = importBackgroundLayout(blueprint.background ?? []);
+  editorBlueprintMarkerSignal.value = importMarkerGrid(blueprint.layout, blueprint.markers);
   editorLoadedBlueprintNameSignal.value = blueprint.name;
   editorBlueprintDirtySignal.value = false;
 };
 
 export const saveCurrentLevel = async (name: string): Promise<void> => {
-  const cropped = cropLevelForExport(editorLevelSignal.value, editorBackgroundSignal.value);
-  const result = await saveLevel(name, cropped.layout, cropped.background);
+  const cropped = cropLevelForExport(
+    editorLevelSignal.value,
+    editorBackgroundSignal.value,
+    editorMarkerSignal.value,
+  );
+  const result = await saveLevel(name, cropped.layout, cropped.background, cropped.markers);
   editorSaveResultSignal.value = { target: 'level', result };
   editorLoadedLevelNameSignal.value = name;
   editorDirtySignal.value = false;
 };
 
 export const saveCurrentBlueprint = async (name: string): Promise<void> => {
-  const cropped = cropLevelForExport(editorBlueprintSignal.value, editorBlueprintBackgroundSignal.value);
-  const result = await saveBlueprint(name, cropped.layout, cropped.background);
+  const cropped = cropLevelForExport(
+    editorBlueprintSignal.value,
+    editorBlueprintBackgroundSignal.value,
+    editorBlueprintMarkerSignal.value,
+  );
+  const result = await saveBlueprint(name, cropped.layout, cropped.background, cropped.markers);
   editorSaveResultSignal.value = { target: 'blueprint', result };
   editorLoadedBlueprintNameSignal.value = name;
   editorBlueprintDirtySignal.value = false;
@@ -290,9 +378,14 @@ export const saveCurrentBlueprint = async (name: string): Promise<void> => {
 /** Exports the level into the in-memory layout the game reads, resets game
  *  progress, and navigates into the game with the debug panel visible. */
 export const tryLayout = (): void => {
-  const cropped = cropLevelForExport(editorLevelSignal.value, editorBackgroundSignal.value);
+  const cropped = cropLevelForExport(
+    editorLevelSignal.value,
+    editorBackgroundSignal.value,
+    editorMarkerSignal.value,
+  );
   currentLayout.value = cropped.layout;
   currentBackgroundLayout.value = cropped.background;
+  currentMarkers.value = cropped.markers;
   resetGameProgress();
   currentTheme.value = 'platformer';
   navigateTo('/platformer?debug=1');

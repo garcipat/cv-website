@@ -1,3 +1,5 @@
+import type { HintId } from '../types';
+
 export type TileType =
   | 'groundGrass'
   | 'groundRock'
@@ -9,20 +11,6 @@ export type TileType =
    *  from a solid ceiling, or offset toward whichever side (if any) has
    *  solid terrain next to it (Terrain.ts's `chainAttachment`). */
   | 'chain'
-  /** An invisible, non-solid enemy patrol boundary: nothing renders it, and
-   *  the player passes straight through, but `EnemyAI.ts` reverses a patrol
-   *  that walks into one exactly as if it were a wall — the way a level
-   *  author pens an enemy into a stretch of open ground without putting a
-   *  visible obstacle there. */
-  | 'patrol'
-  /** An editor-only marker for a cell on a blueprint's border where another
-   *  blueprint may attach (roadmap step 44b). Follows `'patrol'` above
-   *  exactly — invisible in normal gameplay rendering, never solid, no
-   *  collision behavior — and goes one step further: nothing in the running
-   *  game reads it at all. Purely a visual cue for the blueprint's author;
-   *  placement (step 44c) validates overlap only and does not read or match
-   *  connection points at all — a stamped `'+'` is just another cell. */
-  | 'blueprintConnectionPoint'
   | 'bush'
   | 'fence'
   /** Purely decorative cave-dressing tiles from `decorations.png`, never
@@ -99,8 +87,6 @@ export const TILE_FOG_EXEMPT: Record<TileType, boolean> = {
   bridge: true,
   ladder: false,
   chain: false,
-  patrol: false,
-  blueprintConnectionPoint: false,
   bush: false,
   fence: false,
   cobweb: false,
@@ -123,11 +109,46 @@ export function isFogExempt(tile: TileType): boolean {
 
 export type TileMap = TileType[][];
 
+/**
+ * The tile meta layer's value at a cell — a closed, typed discriminated union
+ * (FR-023). Each kind declares exactly the data it needs and nothing else; the
+ * three presence-only kinds carry no payload, while a `sign` carries the
+ * `hintId` it shows. There is deliberately no per-cell character vocabulary
+ * for markers — the only place a marker character exists is the load-time
+ * migration map (`LevelParser.ts`'s `LEGACY_MARKER_CHARS`).
+ */
+export type MarkerEntry =
+  | { kind: 'patrolBoundary' }
+  | { kind: 'connectionPoint' }
+  | { kind: 'fallingStalactite' }
+  | { kind: 'sign'; hintId: HintId };
+
+/**
+ * The tile meta layer as a dense runtime grid, aligned 1:1 with
+ * `LevelDef.terrain` — `null` means empty, mirroring `BackgroundGrid`'s own
+ * split. A level with no markers omits the field entirely (FR-014); the layer
+ * is never persisted densely.
+ */
+export type MarkerGrid = (MarkerEntry | null)[][];
+
+/**
+ * One marker as written in a level/blueprint file: a typed `MarkerEntry` at a
+ * cell relative to the cropped `layout`'s own origin. A file stores only the
+ * markers that are actually present, never a grid of empty cells (FR-014).
+ */
+export interface MarkerPlacement {
+  col: number;
+  row: number;
+  marker: MarkerEntry;
+}
+
 export interface LevelDef {
   terrain: TileMap;
   width: number;
   height: number;
   background?: BackgroundGrid;
+  /** The tile meta layer — absent when the level has no markers. */
+  markers?: MarkerGrid;
 }
 
 /**

@@ -4,7 +4,7 @@ import { toEnemyState } from '../entities/Enemy';
 import type { EnemyState } from '../entities/Enemy';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import { PHYSICS_CONFIG } from './PhysicsConfig';
-import type { LevelDef, TileType } from '../level/LevelData';
+import type { LevelDef, MarkerEntry, TileType } from '../level/LevelData';
 import type { EnemyPlacement } from '../level/EnemyMapper';
 
 /** Builds a one-row-tall-per-feature level: `groundRow` is solid everywhere
@@ -21,16 +21,19 @@ function makeLevel(width: number, wallCols: number[], pitCols: number[]): LevelD
   return { terrain: [entityRow, groundRow], width, height: 2 };
 }
 
-/** A level whose entity row carries `patrol` marker tiles at the given
- *  columns — the invisible, non-solid patrol boundaries an author paints
- *  with `P` — over ground that is solid everywhere, so a reversal here can
- *  only come from the patrol tile and never from a wall or a ledge. */
+/** A level whose entity row carries `patrolBoundary` markers at the given
+ *  columns — the invisible, non-solid patrol boundaries an author paints with
+ *  the Patrol Boundary tool — over ground that is solid everywhere, so a
+ *  reversal here can only come from the marker and never from a wall or a
+ *  ledge. */
 function makePatrolLevel(width: number, patrolCols: number[]): LevelDef {
-  const entityRow: TileType[] = Array.from({ length: width }, (_, c) =>
-    patrolCols.includes(c) ? 'patrol' : 'empty',
-  );
+  const entityRow: TileType[] = Array.from({ length: width }, () => 'empty');
   const groundRow: TileType[] = Array.from({ length: width }, () => 'groundRock');
-  return { terrain: [entityRow, groundRow], width, height: 2 };
+  const markers: (MarkerEntry | null)[][] = Array.from({ length: 2 }, () =>
+    new Array<MarkerEntry | null>(width).fill(null),
+  );
+  for (const col of patrolCols) markers[0][col] = { kind: 'patrolBoundary' };
+  return { terrain: [entityRow, groundRow], width, height: 2, markers };
 }
 
 function makeEnemyAt(col: number) {
@@ -215,12 +218,14 @@ describe('stepEnemyPatrol', () => {
     // above (row 0) must leave an enemy walking on row 1 alone, or a single
     // marker would silently bound every enemy in its whole column.
     const width = 10;
-    const skyRow: TileType[] = Array.from({ length: width }, (_, c) =>
-      c === 7 ? 'patrol' : 'empty',
-    );
+    const skyRow: TileType[] = Array.from({ length: width }, () => 'empty');
     const entityRow: TileType[] = Array.from({ length: width }, () => 'empty');
     const groundRow: TileType[] = Array.from({ length: width }, () => 'groundRock');
-    const level: LevelDef = { terrain: [skyRow, entityRow, groundRow], width, height: 3 };
+    const markers: (MarkerEntry | null)[][] = Array.from({ length: 3 }, () =>
+      new Array<MarkerEntry | null>(width).fill(null),
+    );
+    markers[0][7] = { kind: 'patrolBoundary' };
+    const level: LevelDef = { terrain: [skyRow, entityRow, groundRow], width, height: 3, markers };
     const enemy = {
       ...makeEnemyAt(5),
       y: RENDERED_TILE_SIZE,
@@ -240,9 +245,13 @@ describe('stepEnemyPatrol', () => {
     const width = 10;
     const entityRow: TileType[] = Array.from({ length: width }, () => 'empty');
     const groundRow: TileType[] = Array.from({ length: width }, (_, c) =>
-      c === 7 ? 'patrol' : 'groundRock',
+      c === 7 ? 'empty' : 'groundRock',
     );
-    const level: LevelDef = { terrain: [entityRow, groundRow], width, height: 2 };
+    const markers: (MarkerEntry | null)[][] = Array.from({ length: 2 }, () =>
+      new Array<MarkerEntry | null>(width).fill(null),
+    );
+    markers[1][7] = { kind: 'patrolBoundary' };
+    const level: LevelDef = { terrain: [entityRow, groundRow], width, height: 2, markers };
     const enemy = { ...makeEnemyAt(5), direction: 'right' as const };
 
     const next = stepEnemyPatrol(enemy, level, 1, []);

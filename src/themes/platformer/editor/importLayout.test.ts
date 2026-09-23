@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { importLayout, importBackgroundLayout } from './importLayout';
+import { importLayout, importBackgroundLayout, importMarkerGrid } from './importLayout';
 
 describe('importLayout', () => {
   it('converts a single-row layout into a one-row grid of the same characters', () => {
@@ -32,6 +32,49 @@ describe('importLayout', () => {
       ['S', '¦', '.'],
       ['G', 'G', 'G'],
     ]);
+  });
+
+  it('migrates a legacy digit to the uniform sign character', () => {
+    expect(importLayout(['1.'])).toEqual([['T', '.']]);
+  });
+
+  it('drops the legacy patrol and connection-point characters to empty terrain', () => {
+    expect(importLayout(['P+'])).toEqual([['.', '.']]);
+  });
+
+  it('legacyT-mapsToTheDecorativeStalactiteTileWhenTheFileIsPreFeature', () => {
+    expect(importLayout(['T.'], true)).toEqual([['⊤', '.']]);
+  });
+
+  it('newFormatT-staysTheSignCharacter', () => {
+    expect(importLayout(['T.'])).toEqual([['T', '.']]);
+  });
+});
+
+describe('importMarkerGrid', () => {
+  it('liftsLegacyPatrolConnectionPointAndSignCharacters', () => {
+    expect(importMarkerGrid(['P+1.'])).toEqual([
+      [
+        { kind: 'patrolBoundary' },
+        { kind: 'connectionPoint' },
+        { kind: 'sign', hintId: 'bridgeDropThrough' },
+        null,
+      ],
+    ]);
+  });
+
+  it('legacyT-liftsToAFallingStalactiteWhenNoMarkersFieldIsGiven', () => {
+    expect(importMarkerGrid(['T.'])).toEqual([[{ kind: 'fallingStalactite' }, null]]);
+  });
+
+  it('storedMarkersAreMergedOnTopOfTheLegacyLift', () => {
+    expect(
+      importMarkerGrid(['..'], [{ col: 0, row: 0, marker: { kind: 'connectionPoint' } }]),
+    ).toEqual([[{ kind: 'connectionPoint' }, null]]);
+  });
+
+  it('newFormatTWithNoSignMarkerStaysEmpty', () => {
+    expect(importMarkerGrid(['T.'], [])).toEqual([[null, null]]);
   });
 });
 

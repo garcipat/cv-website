@@ -1300,8 +1300,13 @@ describe('drawCounterPopups', () => {
 });
 
 describe('drawTerrain', () => {
-  it('patrolTile-drawsNothing-soThePatrolBoundaryStaysInvisibleInGame', () => {
-    const level: LevelDef = { width: 1, height: 1, terrain: [['patrol']] };
+  it('markerLayer-drawsNothing-soAMarkerStaysInvisibleInGame', () => {
+    const level: LevelDef = {
+      width: 1,
+      height: 1,
+      terrain: [['empty']],
+      markers: [[{ kind: 'patrolBoundary' }]],
+    };
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
 
     drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas);

@@ -7,6 +7,7 @@ import {
   saveBlueprint,
 } from './saveBlueprintFile';
 import { SAVE_BLUEPRINT_ENDPOINT } from './saveBlueprintEndpoint';
+import type { MarkerPlacement } from '../level/LevelData';
 
 const LAYOUT = ['#G#'];
 
@@ -89,10 +90,19 @@ describe('blueprintFileJson', () => {
     });
   });
 
-  it('connectionPointCharacters-surviveSerializationUntouched', () => {
-    // Step 44b's '+' is an ordinary layout character; the file format has to
-    // carry it, since Part 2 reads connection points back out of `layout`.
-    expect(JSON.parse(blueprintFileJson('Room', ['#+#'], [])).layout).toEqual(['#+#']);
+  it('connectionPointMarkers-areIncludedAsTypedPlacementsAndOmittedWhenEmpty', () => {
+    const markers: MarkerPlacement[] = [
+      { col: 1, row: 0, marker: { kind: 'connectionPoint' } },
+    ];
+    expect(JSON.parse(blueprintFileJson('Room', ['#.#'], [], markers))).toEqual({
+      name: 'Room',
+      layout: ['#.#'],
+      markers,
+    });
+    expect(JSON.parse(blueprintFileJson('Room', ['#.#'], [], []))).toEqual({
+      name: 'Room',
+      layout: ['#.#'],
+    });
   });
 });
 
