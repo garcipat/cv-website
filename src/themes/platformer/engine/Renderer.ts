@@ -44,6 +44,7 @@ import {
   LADDER_STEP_NATIVE_PX,
 } from './DeployableLadder';
 import type { DeployableLadderState } from './DeployableLadder';
+import { isFogExempt } from '../level/LevelData';
 import type { LevelDef, TileType } from '../level/LevelData';
 import type { SignPlacement } from '../level/SignMapper';
 import {
@@ -1107,11 +1108,23 @@ export function drawBackgroundTiles(
 }
 
 /**
- * Draws the outside-a-cave fog (O-028): every cell whose background
- * material belongs to the cave family gets a soft radial-gradient "puff"
- * (`fogPuffAt`) at `fogLevel`'s alpha, hiding everything on that cell —
- * background, terrain, blocks and entities alike (FR-001/FR-002). Each
- * puff is opaque at its core out to `FOG_PUFF_PLATEAU` of its radius, then
+ * Draws the outside-a-cave fog (O-028): every cell NOT exempt
+ * (`isFogExempt`) whose background material belongs to the cave family
+ * gets a soft radial-gradient "puff" (`fogPuffAt`) at `fogLevel`'s alpha,
+ * hiding everything on that cell — background, blocks and entities alike
+ * (FR-001/FR-002). Solid terrain (`groundGrass`/`groundRock`/`wall`/
+ * `bridge`) is exempt today: a cave's walls and floor are just rock,
+ * carrying no information a visitor could act on, so leaving them visible
+ * reads as "you can see the cave's shape, not what's inside it" — the
+ * open interior, where anything worth hiding (enemies, hazards, a pit, a
+ * chest) would actually be, still fogs. `isFogExempt`'s table (declared
+ * once, exhaustively, in `level/LevelData.ts`) is the single place that
+ * decision lives, so a new terrain tile forces an explicit choice rather
+ * than silently inheriting an unrelated helper's answer. Blocks are
+ * unaffected by exemption: a block sits on an otherwise-open cell, not a
+ * solid terrain tile, so a fogged cell with a block on it stays fogged.
+ *
+ * Each puff is opaque at its core out to `FOG_PUFF_PLATEAU` of its radius, then
  * fades to transparent by the rim, and is sized a little larger than a
  * tile so it bleeds into a neighbouring clear cell rather than stopping
  * dead at the grid line — a flat per-cell rect read as a painted tile
@@ -1150,6 +1163,7 @@ export function drawFog(
     const gridRow = grid[row];
     for (let col = 0; col < gridRow.length; col++) {
       if (!isCellDarkening(level, col, row)) continue;
+      if (isFogExempt(tileAt(level, col, row))) continue;
 
       const puff = fogPuffAt(col, row, worldElapsed);
       const screenX = puff.x + originX;
