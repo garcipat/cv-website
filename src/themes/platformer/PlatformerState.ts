@@ -1,5 +1,6 @@
 import { signal, computed } from '@preact/signals-react';
-import { tileToPixel, RENDERED_TILE_SIZE } from './level/Terrain';
+import { tileToPixel, RENDERED_TILE_SIZE, markerAt } from './level/Terrain';
+import { DEFAULT_TORCH_STRENGTH } from './engine/Torch';
 import {
   createDeployableLadderState,
   advanceDeployableLadder,
@@ -245,19 +246,23 @@ export function tickFog(dt: number): void {
 
 /**
  * Every torch tile's world-space centre (`tileToPixel` plus half a rendered
- * tile), derived from `TORCH_TILES` so the Level Editor's Try button updates it
- * reactively like every other placement list. This is the light-source list the
- * render pass reads for both the darkness overlay's holes and the enemy-eye
- * pass's local-darkness check (research D4).
+ * tile) and its light strength, derived from `TORCH_TILES` so the Level Editor's
+ * Try button updates it reactively like every other placement list. A torch's
+ * strength is its `torch` marker's value, or `DEFAULT_TORCH_STRENGTH` when it
+ * carries none. This is the light-source list the render pass reads for both
+ * the darkness overlay's holes and the enemy-eye pass's local-darkness check
+ * (research D4).
  */
 export const torchPositions = computed<TorchLight[]>(() =>
   TORCH_TILES.value.map(({ col, row }) => {
     const { x, y } = tileToPixel(col, row);
+    const marker = markerAt(currentLevel.value, col, row);
     return {
       col,
       row,
       x: x + RENDERED_TILE_SIZE / 2,
       y: y + RENDERED_TILE_SIZE / 2,
+      strength: marker?.kind === 'torch' ? marker.strength : DEFAULT_TORCH_STRENGTH,
     };
   }),
 );

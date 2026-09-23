@@ -71,13 +71,25 @@ describe('caveLightingPreview', () => {
         row: 0,
         x: RENDERED_TILE_SIZE + RENDERED_TILE_SIZE / 2,
         y: RENDERED_TILE_SIZE / 2,
+        strength: 5,
       },
       {
         col: 0,
         row: 1,
         x: RENDERED_TILE_SIZE / 2,
         y: RENDERED_TILE_SIZE + RENDERED_TILE_SIZE / 2,
+        strength: 5,
       },
     ]);
+  });
+
+  it('torchLightsFromGrid-withAStrengthMarker-usesThatStrength', () => {
+    const torches = torchLightsFromGrid([['¥']], [[{ kind: 'torch', strength: 9 }]]);
+    expect(torches[0]?.strength).toBe(9);
+  });
+
+  it('torchLightsFromGrid-withNoMarker-usesTheDefaultStrength', () => {
+    const torches = torchLightsFromGrid([['¥']]);
+    expect(torches[0]?.strength).toBe(5);
   });
 });

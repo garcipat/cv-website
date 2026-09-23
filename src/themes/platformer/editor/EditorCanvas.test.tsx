@@ -2838,6 +2838,123 @@ describe('EditorCanvas — marker tool clicks (US1)', () => {
     // A patrol boundary is independent of its terrain (FR-002).
     expect(onPaintMarker).not.toHaveBeenCalled();
   });
+
+  it('rightClick-overAPatrolBoundary-clearsItWhateverTheTool', () => {
+    stubCanvasContext();
+    const onPaintMarker = vi.fn();
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['G']]}
+        markerGrid={[[{ kind: 'patrolBoundary' }]]}
+        selectedTool="G"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPaintMarker={onPaintMarker}
+        onPan={() => {}}
+      />,
+    );
+
+    clickCell(0, 0, 2);
+
+    // Right-click erases the cell's metadata too, whatever the tool.
+    expect(onPaintMarker).toHaveBeenCalledWith([[null]]);
+  });
+
+  it('theEraserTool-overAPatrolBoundary-clearsIt', () => {
+    stubCanvasContext();
+    const onPaintMarker = vi.fn();
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['.']]}
+        markerGrid={[[{ kind: 'patrolBoundary' }]]}
+        selectedTool="."
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPaintMarker={onPaintMarker}
+        onPan={() => {}}
+      />,
+    );
+
+    clickCell(0, 0);
+
+    expect(onPaintMarker).toHaveBeenCalledWith([[null]]);
+  });
+
+  it('theTorchTool-freshCell-paintsTheTileWithNoMarker', () => {
+    stubCanvasContext();
+    const onPaint = vi.fn();
+    const onPaintMarker = vi.fn();
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['.']]}
+        markerGrid={[[null]]}
+        selectedTool="¥"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={onPaint}
+        onPaintMarker={onPaintMarker}
+        onPan={() => {}}
+      />,
+    );
+
+    clickCell(0, 0);
+
+    expect(onPaint).toHaveBeenCalledWith(expect.objectContaining({ grid: [['¥']] }));
+    // A default torch stores no marker.
+    expect(onPaintMarker).not.toHaveBeenCalled();
+  });
+
+  it('theTorchTool-reClick-raisesTheStrength', () => {
+    stubCanvasContext();
+    const onPaintMarker = vi.fn();
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['¥']]}
+        markerGrid={[[null]]}
+        selectedTool="¥"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={() => {}}
+        onPaintMarker={onPaintMarker}
+        onPan={() => {}}
+      />,
+    );
+
+    clickCell(0, 0);
+
+    // Default 5 -> 6. Stores a strength marker for `6`.
+    expect(onPaintMarker).toHaveBeenCalledWith([[{ kind: 'torch', strength: 6 }]]);
+  });
+
+  it('theTorchTool-rightClick-removesTheTileAndItsMarker', () => {
+    stubCanvasContext();
+    const onPaint = vi.fn();
+    const onPaintMarker = vi.fn();
+    render(
+      <EditorCanvas
+        {...BACKGROUND_LAYER_DEFAULT_PROPS}
+        grid={[['¥']]}
+        markerGrid={[[{ kind: 'torch', strength: 9 }]]}
+        selectedTool="¥"
+        panOffset={{ x: 0, y: 0 }}
+        images={EMPTY_IMAGES}
+        onPaint={onPaint}
+        onPaintMarker={onPaintMarker}
+        onPan={() => {}}
+      />,
+    );
+
+    clickCell(0, 0, 2);
+
+    expect(onPaint).toHaveBeenCalledWith(expect.objectContaining({ grid: [['.']] }));
+    expect(onPaintMarker).toHaveBeenCalledWith([[null]]);
+  });
 });
 
 describe('EditorCanvas — marker hover tooltip (FR-029)', () => {

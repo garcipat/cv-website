@@ -85,7 +85,7 @@ blueprint connection point, a sign's hint, a falling-stalactite variant — live
 | `c` | `crystalCluster` | Decorative, non-solid cave dressing. Single fixed sprite. |
 | `⊤` | `stalactite` | Decorative, non-solid cave dressing. Size variant (large/twin) picked by position hash. A `fallingStalactite` marker on this tile makes it shake and drop (see the tile meta layer). |
 | `⊥` | `stalagmite` | Decorative, non-solid cave dressing. Size variant (large/twin) picked by position hash. |
-| `¥` | `torch` | Decorative, non-solid cave dressing. Its flame animates through a 4-frame sparkle loop; each cell's phase is derived from its grid position plus the shared world clock (`engine/Torch.ts`). |
+| `¥` | `torch` | Non-solid cave dressing and a light source. Its flame animates through a 4-frame sparkle loop; each cell's phase is derived from its grid position plus the shared world clock (`engine/Torch.ts`). A `torch` marker on this tile sets its light strength 0–9 (default 5), scaling the light radius (see the tile meta layer). |
 | `@` | `ladderBundle` | A curled-up rope-ladder bundle (O-011). Non-solid and not climbable, but standable from above (`isStandableLadderBundleTop`); a grounded character presses Up while on or one cell above it to unroll a `ropeLadder` shaft down to the first solid tile below. |
 | `§` | `bouncyMushroom` | Non-solid and not climbable: passable from the side and from below. Its top cap is one-way ground (`isStandableMushroomCap`) and launches the character with a fixed super-jump on every downward landing, with a brief cosmetic cap dip. A vertical run reads as one mushroom — cap / connector / stem / foot — via `verticalRunRole`. The character is the section sign; it is not a valid JS identifier, so its `TERRAIN_CHARS` key is quoted (`'§'`). |
 | `s` | `decorativeMushroom` | Non-solid and not climbable dressing mushroom. Never standable, never bounces, never awards anything — a single fixed sprite. (`s` is also a `BACKGROUND_CHARS` key, meaning `surfaceStone`; the background is a separate layer, so the overlap is allowed.) |
@@ -338,7 +338,8 @@ type MarkerEntry =
   | { kind: 'patrolBoundary' }        // reverses an enemy at this cell; invisible, non-solid
   | { kind: 'connectionPoint' }       // editor-only blueprint border marker; read by nothing in game
   | { kind: 'fallingStalactite' }     // a presence-only variant on a decorative `⊤` tile
-  | { kind: 'sign'; hintId: HintId }; // a sign's hint, carried on a `T` cell
+  | { kind: 'sign'; hintId: HintId }  // a sign's hint, carried on a `T` cell
+  | { kind: 'torch'; strength: TorchStrength }; // a torch's light strength (0-9), carried on a `¥` cell
 
 type MarkerGrid = (MarkerEntry | null)[][]; // dense runtime grid, row-major, [row][col]
 
@@ -348,6 +349,13 @@ interface MarkerPlacement {
   marker: MarkerEntry;
 }
 ```
+
+A `torch`'s `strength` (0–9) scales that torch's light radius: `0` is dark, `5`
+(`DEFAULT_TORCH_STRENGTH`) is today's fixed radius, and `9` is roughly double. A torch with no
+marker lights at the default, so a torch is stored as a marker only when its strength differs
+from `5` — an unadjusted level stays sparse and every level authored before the torch-strength
+feature lights exactly as it did. The editor shows each torch's strength as a corner badge
+(like a sign's hint code) and raises it on re-click.
 
 `LevelDef.markers` is the dense runtime grid, read through `Terrain.ts`'s
 `markerAt(level, col, row)` — `null` for an out-of-bounds cell, a missing grid, or an

@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { parseBackgroundLayout, type TileChar, type BackgroundChar } from '../level/LevelParser';
+import { parseBackgroundLayout, TERRAIN_CHARS, type TileChar, type BackgroundChar } from '../level/LevelParser';
 import type { MarkerEntry, MarkerGrid } from '../level/LevelData';
 import { hintCode } from '../level/HintCatalog';
+import { DEFAULT_TORCH_STRENGTH, torchStrengthCode } from '../engine/Torch';
 import {
   paintMarkerCell,
   eraseMarkerCell,
   paintSignMarker,
+  paintTorchMarker,
   shiftMarkerGrid,
 } from './paintMarkerCell';
 import { currentUI } from '@/state/locale';
@@ -264,6 +266,41 @@ function drawSignBadges(
   ctx.restore();
 }
 
+const TORCH_BADGE_FONT_SIZE = 12;
+
+/** Draws each torch's light strength (`0`-`9`) in its tile's top-left corner —
+ *  editor-only, exactly like `drawSignBadges`, so an author can read a torch's
+ *  strength at a glance. A torch with no marker shows the default. */
+function drawTorchBadges(
+  ctx: CanvasRenderingContext2D,
+  grid: TileChar[][],
+  markers: MarkerGrid,
+  originX: number,
+  originY: number,
+  zoom: ZoomLevel,
+): void {
+  ctx.save();
+  ctx.font = `${TORCH_BADGE_FONT_SIZE * zoom}px sans-serif`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  for (let row = 0; row < grid.length; row++) {
+    for (let col = 0; col < grid[row].length; col++) {
+      if (TERRAIN_CHARS[grid[row][col]] !== 'torch') continue;
+      const marker = markers[row]?.[col];
+      const strength = marker?.kind === 'torch' ? marker.strength : DEFAULT_TORCH_STRENGTH;
+      const code = torchStrengthCode(strength);
+      const { x, y } = tileToPixel(col, row);
+      const destX = x * zoom + originX;
+      const destY = y * zoom + originY;
+      ctx.fillStyle = '#000';
+      ctx.fillText(code, destX + 1, destY + 1);
+      ctx.fillStyle = '#fff';
+      ctx.fillText(code, destX, destY);
+    }
+  }
+  ctx.restore();
+}
+
 /** The character drawn on a patrol tile in the editor — the same one its
  *  palette button shows, so a placed tile is recognizable as the tool that
  *  painted it. */
@@ -290,6 +327,7 @@ const MARKER_TOOLTIP_LABELS: Record<MarkerEntry['kind'], string> = {
   connectionPoint: 'Connection point',
   fallingStalactite: 'Falling stalactite',
   sign: 'Sign',
+  torch: 'Torch',
 };
 // The glyph is drawn as a dark core inside a light halo rather than in one
 // flat color: a marker tile can sit over anything the editor draws — pale
@@ -637,7 +675,7 @@ export const EditorCanvas = ({
     // The cave-lighting preview is derived from the live grid/background and
     // drawn only in the dark appearance on the level canvas (FR-008/FR-011).
     const previewActive = appearance === 'dark' && !isBlueprintMode;
-    const preview = previewActive ? caveLightingPreview(grid) : null;
+    const preview = previewActive ? caveLightingPreview(grid, markerGrid) : null;
     const showPreview = preview !== null && preview.darknessLevel > 0;
 
     ctx.fillStyle = readGameBackgroundColor();
@@ -740,6 +778,7 @@ export const EditorCanvas = ({
 
       // --- unscaled: editor-local overlays (Task 4 handles their own zoom math) ---
       drawSignBadges(ctx, markerGrid, panOffset.x, panOffset.y, zoom);
+      drawTorchBadges(ctx, grid, markerGrid, panOffset.x, panOffset.y, zoom);
       drawTileMarkers(
         ctx,
         markerGrid,
@@ -931,6 +970,7 @@ export const EditorCanvas = ({
     if (showPreview) {
       drawGridLines(ctx, canvas.width, canvas.height, panOffset, zoom);
       drawSignBadges(ctx, markerGrid, panOffset.x, panOffset.y, zoom);
+      drawTorchBadges(ctx, grid, markerGrid, panOffset.x, panOffset.y, zoom);
       drawTileMarkers(
         ctx,
         markerGrid,
@@ -1029,15 +1069,52 @@ export const EditorCanvas = ({
       return { col: targetCol, row: targetRow };
     }
 
+    if (tool === '¥') {
+      // Right-click removes the torch and its strength marker together, like
+      // the sign/falling tools.
+      if (isErase) {
+        onPaint(paintCell(grid, col, row, '.'));
+        if (markerGrid[row]?.[col]?.kind === 'torch') {
+          onPaintMarker(eraseMarkerCell(markerGrid, col, row));
+        }
+        return { col, row };
+      }
+      const alreadyTorch = grid[row]?.[col] === '¥';
+      const result = paintCell(grid, col, row, '¥');
+      const targetCol = col + result.colShift;
+      const targetRow = row + result.rowShift;
+      onPaint(result);
+      // Only cycle on an already-placed torch: a fresh click lays a default
+      // torch (no marker), and the next clicks step its strength up 0–9.
+      if (alreadyTorch) {
+        onPaintMarker(
+          paintTorchMarker(
+            shiftMarkerGrid(markerGrid, result.colShift, result.rowShift),
+            targetCol,
+            targetRow,
+          ),
+        );
+      }
+      return { col: targetCol, row: targetRow };
+    }
+
     const result = paintCell(grid, col, row, isErase ? '.' : tool);
     onPaint(result);
-    // A sign or falling-stalactite marker describes its own terrain tile, so if
-    // this write cleared or replaced that tile the marker is now stale and goes
-    // with it — the eraser, or painting something else over the cell. A patrol
-    // boundary or connection point is independent of its terrain and stays
-    // (FR-002).
-    const replaced = markerGrid[row]?.[col];
-    if (replaced?.kind === 'sign' || replaced?.kind === 'fallingStalactite') {
+    // Erasing a cell clears its marker whatever kind it is — the right-click
+    // gesture and the Eraser tool remove the tile and its metadata together, so
+    // a marker can never be left behind unremovable. A *left*-click that paints
+    // a different tile over the cell only clears a marker that describes that
+    // tile (a sign, falling stalactite or torch); a patrol boundary or
+    // connection point survives a repaint (FR-002).
+    const existing = markerGrid[row]?.[col];
+    const clearsCell = isErase || tool === '.';
+    if (
+      existing &&
+      (clearsCell ||
+        existing.kind === 'sign' ||
+        existing.kind === 'fallingStalactite' ||
+        existing.kind === 'torch')
+    ) {
       onPaintMarker(eraseMarkerCell(markerGrid, col, row));
     }
     return { col: col + result.colShift, row: row + result.rowShift };
@@ -1138,7 +1215,9 @@ export const EditorCanvas = ({
         text:
           marker.kind === 'sign'
             ? `${label}: ${currentUI.value.platformer.hints[marker.hintId]}`
-            : label,
+            : marker.kind === 'torch'
+              ? `${label}: strength ${marker.strength}`
+              : label,
       });
       return;
     }

@@ -4030,7 +4030,7 @@ function makeTintLayer() {
 }
 
 function makeTorchLight(overrides: Partial<TorchLight> = {}): TorchLight {
-  return { col: 0, row: 0, x: 100, y: 100, ...overrides };
+  return { col: 0, row: 0, x: 100, y: 100, strength: 5, ...overrides };
 }
 
 describe('drawDarkness', () => {

@@ -10,6 +10,7 @@ import type {
 } from './LevelData';
 import type { HintId } from '../types';
 import { DEFAULT_HINT_ID, isHintId } from './HintCatalog';
+import { DEFAULT_TORCH_STRENGTH, isTorchStrength } from '../engine/Torch';
 
 /** An entity marker's kind — what it means, not what it looks like on the
  *  ground (every entity marker sits on `empty` terrain, see parseLevel). */
@@ -316,8 +317,9 @@ export function parseMarkers(
 }
 
 /** Narrows a stored marker value to the closed `MarkerEntry` union, falling
- *  back to `DEFAULT_HINT_ID` for a `sign` whose `hintId` is unregistered and
- *  returning `null` for anything unrecognised (FR-016/FR-027). */
+ *  back to `DEFAULT_HINT_ID` for a `sign` whose `hintId` is unregistered and to
+ *  `DEFAULT_TORCH_STRENGTH` for a `torch` whose `strength` is out of `0`–`9`,
+ *  and returning `null` for anything unrecognised (FR-016/FR-027). */
 function normalizeMarkerEntry(value: unknown): MarkerEntry | null {
   if (value === null || typeof value !== 'object') return null;
   const kind = (value as { kind?: unknown }).kind;
@@ -327,6 +329,10 @@ function normalizeMarkerEntry(value: unknown): MarkerEntry | null {
   if (kind === 'sign') {
     const hintId = (value as { hintId?: unknown }).hintId;
     return { kind: 'sign', hintId: isHintId(hintId) ? hintId : DEFAULT_HINT_ID };
+  }
+  if (kind === 'torch') {
+    const strength = (value as { strength?: unknown }).strength;
+    return { kind: 'torch', strength: isTorchStrength(strength) ? strength : DEFAULT_TORCH_STRENGTH };
   }
   return null;
 }

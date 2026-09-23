@@ -8,6 +8,12 @@ import {
   TORCH_INSET_X,
   torchPhase,
   torchFrameIndex,
+  DEFAULT_TORCH_STRENGTH,
+  TORCH_STRENGTHS,
+  torchStrengthCode,
+  nextTorchStrength,
+  isTorchStrength,
+  torchLightScale,
 } from './Torch';
 
 describe('Torch constants', () => {
@@ -100,5 +106,40 @@ describe('torchFrameIndex', () => {
 
   it('isStableAcrossRepeatedCalls', () => {
     expect(torchFrameIndex(5, 6, 1.234)).toBe(torchFrameIndex(5, 6, 1.234));
+  });
+});
+
+describe('torch strength catalog', () => {
+  it('defaultStrength-isFive', () => {
+    expect(DEFAULT_TORCH_STRENGTH).toBe(5);
+  });
+
+  it('strengths-coverZeroThroughNineInOrder', () => {
+    expect(TORCH_STRENGTHS).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  });
+
+  it('code-isTheStrengthDigit', () => {
+    expect(torchStrengthCode(0)).toBe('0');
+    expect(torchStrengthCode(7)).toBe('7');
+  });
+
+  it('nextStrength-incrementsAndWrapsFromNineToZero', () => {
+    expect(nextTorchStrength(5)).toBe(6);
+    expect(nextTorchStrength(9)).toBe(0);
+  });
+
+  it('isTorchStrength-acceptsZeroThroughNineAndRejectsEverythingElse', () => {
+    for (const value of TORCH_STRENGTHS) expect(isTorchStrength(value)).toBe(true);
+    expect(isTorchStrength(-1)).toBe(false);
+    expect(isTorchStrength(10)).toBe(false);
+    expect(isTorchStrength(1.5)).toBe(false);
+    expect(isTorchStrength('5')).toBe(false);
+    expect(isTorchStrength(undefined)).toBe(false);
+  });
+
+  it('lightScale-isOneAtTheDefaultAndScalesLinearly', () => {
+    expect(torchLightScale(5)).toBe(1);
+    expect(torchLightScale(0)).toBe(0);
+    expect(torchLightScale(9)).toBeCloseTo(1.8);
   });
 });

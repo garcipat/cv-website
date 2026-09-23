@@ -8,12 +8,12 @@
  * positions and the shared clock. Nothing in this file stores state or draws.
  */
 
-import type { BackgroundMaterialFamily, LevelDef } from '../level/LevelData';
+import type { BackgroundMaterialFamily, LevelDef, TorchStrength } from '../level/LevelData';
 import { backgroundMaterialFamily } from '../level/LevelData';
 import type { PlayerState } from '../entities/Player';
 import { PLAYER_RENDERED_SIZE, PLAYER_FOOT_PADDING } from '../entities/Player';
 import { RENDERED_TILE_SIZE, RENDER_SCALE, backgroundAt, tileToPixel } from '../level/Terrain';
-import { TORCH_FRAME_COUNT, torchPhase } from './Torch';
+import { TORCH_FRAME_COUNT, torchPhase, torchLightScale } from './Torch';
 
 /**
  * `BackgroundMaterialFamily` is declared once in `level/LevelData.ts` (the
@@ -39,6 +39,8 @@ export interface Point {
 export interface TorchLight extends Point {
   col: number;
   row: number;
+  /** The torch's strength (0–9) — its light radius scales with this. */
+  strength: TorchStrength;
 }
 
 /** Darkness cap — a brightness floor so the scene stays readable (FR-005). */
@@ -304,10 +306,19 @@ export function torchPulseScale(torch: TorchLight, worldElapsed: number): number
 }
 
 /**
+ * A torch's current light radius in rendered pixels — the base radius scaled by
+ * the torch's own strength (`torchLightScale`) and its pulse. The single source
+ * of truth for both the darkness pass and `torchGlowStrengthAt`, so the hole
+ * that pass punches and the glow it adds can never drift apart.
+ */
+export function torchLightRadius(torch: TorchLight, worldElapsed: number): number {
+  return TORCH_LIGHT_RADIUS_PX * torchLightScale(torch.strength) * torchPulseScale(torch, worldElapsed);
+}
+
+/**
  * A torch's light contribution at `(x, y)` in `[0, 1]`: `1` at the torch
- * centre, falling smoothly (smoothstep) to `0` at
- * `TORCH_LIGHT_RADIUS_PX * torchPulseScale`, and `0` beyond it. Distance alone
- * decides — no occlusion (FR-011).
+ * centre, falling smoothly (smoothstep) to `0` at `torchLightRadius`, and `0`
+ * beyond it. Distance alone decides — no occlusion (FR-011).
  */
 export function torchGlowStrengthAt(
   torch: TorchLight,
@@ -315,7 +326,7 @@ export function torchGlowStrengthAt(
   y: number,
   worldElapsed: number,
 ): number {
-  const radius = TORCH_LIGHT_RADIUS_PX * torchPulseScale(torch, worldElapsed);
+  const radius = torchLightRadius(torch, worldElapsed);
   if (radius <= 0) return 0;
 
   const distance = Math.hypot(x - torch.x, y - torch.y);
