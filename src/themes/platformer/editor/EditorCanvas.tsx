@@ -1043,15 +1043,13 @@ export const EditorCanvas = ({
     }
 
     if (tool === 'T' || tool === 'fallingStalactite') {
-      const ownKind = tool === 'T' ? 'sign' : 'fallingStalactite';
-      // Right-click removes the whole unit: the terrain character AND this
-      // tool's own marker, which is meaningless without its tile — a bare `T`
-      // still resolves to the default hint and a bare `⊤` is still a
-      // (decorative) stalactite, so clearing only the marker would leave the
-      // tile looking unremovable (FR-027/FR-030).
+      // Right-click removes the whole cell — the terrain character AND whatever
+      // marker is on it, not just this tool's own kind. Clearing only the own
+      // kind would orphan a marker whenever the tile is erased with a different
+      // tool selected (e.g. right-clicking a sign with the torch tool).
       if (isErase) {
         onPaint(paintCell(grid, col, row, '.'));
-        if (markerGrid[row]?.[col]?.kind === ownKind) {
+        if (markerGrid[row]?.[col]) {
           onPaintMarker(eraseMarkerCell(markerGrid, col, row));
         }
         return { col, row };
@@ -1070,11 +1068,11 @@ export const EditorCanvas = ({
     }
 
     if (tool === '¥') {
-      // Right-click removes the torch and its strength marker together, like
-      // the sign/falling tools.
+      // Right-click removes the torch and whatever marker is on its cell, like
+      // the sign/falling tools above.
       if (isErase) {
         onPaint(paintCell(grid, col, row, '.'));
-        if (markerGrid[row]?.[col]?.kind === 'torch') {
+        if (markerGrid[row]?.[col]) {
           onPaintMarker(eraseMarkerCell(markerGrid, col, row));
         }
         return { col, row };
