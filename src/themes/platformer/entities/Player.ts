@@ -1,4 +1,4 @@
-import { RENDER_SCALE } from '../level/Terrain';
+import { RENDER_SCALE, RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { Moving, SelfAnimated, Damageable } from './capabilities';
 import { isInvulnerable } from './capabilities';
 
@@ -34,7 +34,41 @@ export const PLAYER_VISUAL_CENTER_Y_OFFSET =
  */
 export const PLAYER_SIDE_PADDING = 10 * RENDER_SCALE; // 20 rendered px
 
-export type PlayerAnimState = 'idle' | 'walk' | 'jump' | 'climb' | 'hit' | 'death';
+/**
+ * The crouched collision box's height — exactly one rendered tile (32 px), the
+ * pixel-level meaning of the spec's "one tile tall" (FR-002). The feet line
+ * (`y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING`) is unchanged by crouch, so
+ * the box shrinks upward from the ground line: a standing box spans
+ * `[feetY - 38, feetY)`, a crouched box `[feetY - 32, feetY)`.
+ */
+export const PLAYER_CROUCH_BOX_HEIGHT = RENDERED_TILE_SIZE; // 32
+
+/**
+ * Box top offset from the render slot's `y` — the single source of truth shared
+ * by `Collision.playerHitbox`, `Physics.stepPlayerPhysics` and
+ * `DebugOverlay.drawDebugOverlay` (SC-008). Standing uses the sprite's own
+ * transparent head padding (18); crouched uses the reduced box height so the
+ * box's bottom edge stays on the unchanged feet line (24).
+ */
+export function playerHeadPaddingFor(crouching: boolean): number {
+  return crouching
+    ? PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING - PLAYER_CROUCH_BOX_HEIGHT // 24
+    : PLAYER_HEAD_PADDING; // 18
+}
+
+/**
+ * The player's collision box height — the standing box's full silhouette height
+ * (38), or the one-tile crouched height (32). The companion to
+ * `playerHeadPaddingFor`; both consumers must read this pair so no check can
+ * keep the standing height while crouched (SC-008).
+ */
+export function playerBoxHeightFor(crouching: boolean): number {
+  return crouching
+    ? PLAYER_CROUCH_BOX_HEIGHT // 32
+    : PLAYER_RENDERED_SIZE - PLAYER_HEAD_PADDING - PLAYER_FOOT_PADDING; // 38
+}
+
+export type PlayerAnimState = 'idle' | 'walk' | 'jump' | 'climb' | 'crouch' | 'hit' | 'death';
 
 /** Which of a touched block's four faces the player's collision resolved
  *  against, from the block's own perspective — `'bottom'` means the
@@ -70,6 +104,15 @@ export interface PlayerState extends Moving, SelfAnimated, Damageable {
    *  — while true, `Physics.ts`'s stepPlayerPhysics suspends gravity and
    *  drives vertical movement directly from Up/Down instead. */
   climbing: boolean;
+  /** Whether the player is currently crouched (FR-001): a one-tile collision
+   *  box and interaction hitbox (FR-002), a slower crawl speed and no jump
+   *  (FR-003/FR-004). Set by `stepPlayerPhysics` each tick from the pure
+   *  `resolveCrouching` decision; a required field, always seeded `false` by
+   *  both player-state factories, so a respawn/reset returns the character
+   *  standing (FR-012). Kept separate from the derived `'crouch'` `animState`
+   *  because a hit reaction sets `animState: 'hit'` while the box must stay
+   *  one tile (FR-011). */
+  crouching: boolean;
   /** Whether the player is currently dropping through a `bridge` tile
    *  they deliberately fell through (Down held while resting on one) —
    *  see Physics.ts's ground-collision branch. Cleared once they land on
@@ -170,6 +213,13 @@ const ANIM_CONFIG: Record<
   walk: { frameCount: 8, frameDuration: 0.08, sy: PLAYER_FRAME_SIZE * 2 },
   jump: { frameCount: 7, frameDuration: 0.062, sy: 0 },
   climb: { frameCount: 4, frameDuration: 0.1, sy: 0 },
+  // `knight.png`'s 9th row (0-indexed 8) — the dedicated DUCK row (S-012),
+  // drawn low and horizontal so the crouch reads as a duck/crawl rather than
+  // standing (`idle`=0, `walk`=2, `hit`=6, `death`=7; `jump`/`climb` use the
+  // separate knight2.png). Four crawl frames loop 0→1→2→3→0 while the player
+  // crawls (FR-008); a stationary crouch holds its current frame. `frameDuration`
+  // sits between `walk`'s 0.08 and `idle`'s 0.15 so the crawl reads as effortful.
+  crouch: { frameCount: 4, frameDuration: 0.12, sy: PLAYER_FRAME_SIZE * 8 },
   hit: { frameCount: HIT_FRAME_COUNT, frameDuration: HIT_FRAME_DURATION, sy: PLAYER_FRAME_SIZE * 6 },
   // `knight.png`'s 7th row (its 4th frame a shrunken "collapsed" pose) —
   // slower than `hit` so the collapse reads as weighty; played once by
@@ -258,6 +308,9 @@ export function climbFrameSource(frame: number): { sx: number; sy: number } {
 export function advancePlayerAnimation(player: PlayerState, dt: number): PlayerState {
   if (player.animState === 'hit') return player;
   if (player.animState === 'climb' && player.vy === 0) return player;
+  // Mirrors the `climb` freeze: a stationary crouch holds one tucked frame,
+  // and only alternates its two frames while actually crawling (FR-008).
+  if (player.animState === 'crouch' && player.vx === 0) return player;
   const { frameCount, frameDuration } = ANIM_CONFIG[player.animState];
   const animTimer = player.animTimer + dt;
   if (animTimer < frameDuration) {
@@ -271,8 +324,8 @@ export function advancePlayerAnimation(player: PlayerState, dt: number): PlayerS
 }
 
 /**
- * Switches `animState` between `idle`/`walk`/`jump`/`climb`, resetting the
- * animation frame/timer whenever the state actually changes so a leftover
+ * Switches `animState` between `idle`/`walk`/`jump`/`climb`/`crouch`, resetting
+ * the animation frame/timer whenever the state actually changes so a leftover
  * frame index from the previous state's cycle never carries over.
  * `'death'` is deliberately not derived here — it's driven externally
  * (PlatformerPage.tsx sets it directly at the moment `alive` goes false),
@@ -292,7 +345,9 @@ export function advancePlayerAnimation(player: PlayerState, dt: number): PlayerS
  * every tick) and falling back to a movement-derived state once it closes.
  * Climbing takes priority over airborne/grounded/velocity checks — the
  * character can be moving or airborne while climbing, but it still reads as
- * `'climb'`, not other states.
+ * `'climb'`, not other states. `'crouch'` sits just below `'climb'` and above
+ * the airborne check, so a crouched character that walks off a ledge keeps the
+ * crouched pose for the fall (spec Edge Case).
  */
 export function updatePlayerAnimState(player: PlayerState): PlayerState {
   if (player.animState === 'hit' && isInvulnerable(player, PLAYER_HIT_REACTION_SECONDS)) {
@@ -300,11 +355,13 @@ export function updatePlayerAnimState(player: PlayerState): PlayerState {
   }
   const animState: PlayerAnimState = player.climbing
     ? 'climb'
-    : !player.grounded
-      ? 'jump'
-      : player.vx !== 0
-        ? 'walk'
-        : 'idle';
+    : player.crouching
+      ? 'crouch'
+      : !player.grounded
+        ? 'jump'
+        : player.vx !== 0
+          ? 'walk'
+          : 'idle';
   if (animState === player.animState) return player;
   return { ...player, animState, animFrame: 0, animTimer: 0 };
 }
@@ -376,6 +433,29 @@ export function applyKnockback(
  */
 export function beginHitReaction(player: PlayerState): PlayerState {
   return { ...player, hitTimer: 0 };
+}
+
+/**
+ * Starts a directional hit's red `hit` reaction with NO knockback (FR-011,
+ * SC-009) — used when a directional hit lands while the player is crouched, so
+ * the one-tile box is never displaced and can never be forced open into a
+ * ceiling.
+ *
+ * Sets `hitTimer` to 0, which both opens the refractory window
+ * (`isInvulnerable` reads `hitTimer < PLAYER_HIT_REACTION_SECONDS`) and — via
+ * `resolveCrouching`'s `inHitReaction` freeze — keeps `crouching` true for the
+ * whole window. Sets `animState: 'hit'` so the sticky-hit derivation and
+ * `PlatformerPage.tsx`'s `playerVisible` rule still treat it as a visible red
+ * reaction; the *drawn* pose is the crouch pose, tinted (see
+ * `Renderer.drawTintedSprite`). Deliberately leaves `vx`, `direction`,
+ * `knockbackTimer`, `vy` and `bounceAscending` untouched: no knockback of
+ * either axis and no facing change. A held crawl key still drives
+ * `PHYSICS_CONFIG.crouchSpeed` on later ticks, since `knockbackTimer` stays 0.
+ *
+ * Pure; never throws; no side effects.
+ */
+export function applyHitReactionWithoutKnockback(player: PlayerState): PlayerState {
+  return { ...player, hitTimer: 0, animState: 'hit', animFrame: 0, animTimer: 0 };
 }
 
 /**

@@ -3632,6 +3632,263 @@ describe('PlatformerPage', () => {
     expect(playerState.value.hitPoints).toBe(startingHealth);
   });
 
+  describe('crouched hit reaction (FR-011 / SC-009)', () => {
+    /** Renders the page with a controllable loop and returns its frame
+     *  callback (already primed at t=0). */
+    function mountWithFrameCallback(): (t: number) => void {
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+      render(<PlatformerPage />);
+      frameCallback!(0);
+      return frameCallback!;
+    }
+
+    it('crouchedSideEnemyHit-dealsDamageAndShowsHitButAppliesNoKnockback', () => {
+      const frameCallback = mountWithFrameCallback();
+      const target = enemyStates.value.find((e) => e.type === 'slimeGreen')!;
+      const startingHealth = playerState.value.hitPoints;
+      const directionBefore = playerState.value.direction;
+      playerState.value = {
+        ...playerState.value,
+        x: target.x,
+        y: target.y,
+        vx: 0,
+        vy: 0,
+        crouching: true,
+      };
+
+      frameCallback(16);
+
+      expect(playerState.value.hitPoints).toBe(startingHealth - SIDE_HIT_DAMAGE);
+      expect(playerState.value.animState).toBe('hit');
+      expect(playerState.value.vx).toBe(0);
+      expect(playerState.value.direction).toBe(directionBefore);
+      expect(playerState.value.bounceAscending).toBe(false);
+    });
+
+    it('crouchedSpikedPurpleTopLanding-dealsDamageButAddsNoVerticalKnockback', () => {
+      const frameCallback = mountWithFrameCallback();
+      const target = enemyStates.value.find((e) => e.type === 'slimePurple')!;
+      enemyStates.value = enemyStates.value.map((e) =>
+        e.id === target.id ? { ...e, spiked: true, spikeTimer: 0.1 } : e,
+      );
+      const spiked = enemyStates.value.find((e) => e.id === target.id)!;
+      const startingHealth = playerState.value.hitPoints;
+      playerState.value = {
+        ...playerState.value,
+        x: spiked.x,
+        y: stompLandingY(spiked),
+        vy: 300,
+        crouching: true,
+      };
+
+      frameCallback(16);
+
+      expect(playerState.value.hitPoints).toBe(startingHealth - SIDE_HIT_DAMAGE);
+      expect(playerState.value.animState).toBe('hit');
+      // No upward pop: the fall keeps vy positive and never applies the
+      // awayAndUp impulse.
+      expect(playerState.value.vy).not.toBe(PHYSICS_CONFIG.awayAndUpKnockbackVy);
+      expect(playerState.value.vy).toBeGreaterThan(0);
+      expect(playerState.value.bounceAscending).toBe(false);
+    });
+
+    it('standingSpikedPurpleTopLanding-stillAddsUpwardKnockback', () => {
+      const frameCallback = mountWithFrameCallback();
+      const target = enemyStates.value.find((e) => e.type === 'slimePurple')!;
+      enemyStates.value = enemyStates.value.map((e) =>
+        e.id === target.id ? { ...e, spiked: true, spikeTimer: 0.1 } : e,
+      );
+      const spiked = enemyStates.value.find((e) => e.id === target.id)!;
+      playerState.value = {
+        ...playerState.value,
+        x: spiked.x,
+        y: stompLandingY(spiked),
+        vy: 300,
+        crouching: false,
+      };
+
+      frameCallback(16);
+
+      expect(playerState.value.vy).toBeLessThan(-100);
+    });
+
+    it('crouchedSpikeHazard-dealsDamageAndShowsHitButAppliesNoKnockback', () => {
+      currentLayout.value = ['S^', 'GG'];
+      const frameCallback = mountWithFrameCallback();
+      const hazard = hazardPlacements.value[0];
+      const startingHealth = playerState.value.hitPoints;
+      playerState.value = {
+        ...playerState.value,
+        x: hazard.x,
+        y: hazard.y,
+        vx: 0,
+        vy: 0,
+        crouching: true,
+      };
+
+      frameCallback(16);
+
+      expect(playerState.value.hitPoints).toBe(startingHealth - SIDE_HIT_DAMAGE);
+      expect(playerState.value.animState).toBe('hit');
+      expect(playerState.value.vx).toBe(0);
+    });
+
+    it('crouchedBombBlast-dealsDamageAndShowsHitButAppliesNoKnockback', () => {
+      currentLayout.value = ['S....', 'GGGGG'];
+      const frameCallback = mountWithFrameCallback();
+      frameCallback(16); // settle on the ground
+
+      const p = playerState.value;
+      const col = Math.floor((p.x + PLAYER_RENDERED_SIZE / 2) / RENDERED_TILE_SIZE);
+      const row = Math.floor(
+        (p.y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING - 1) / RENDERED_TILE_SIZE,
+      );
+      placedBombs.value = [
+        {
+          ...createPlacedBomb('crouch-blast', currentLevel.value, blockStates.value, col, row),
+          fuseElapsed: BOMB_FUSE_SECONDS - 0.001,
+          landed: true,
+        },
+      ];
+      const startingHealth = playerState.value.hitPoints;
+      playerState.value = { ...playerState.value, crouching: true, vx: 0 };
+      // Hold Down so the crouch survives this tick's physics step (the blast
+      // site runs after `stepPlayerPhysics`, unlike the enemy/hazard sites).
+      fireEvent.keyDown(window, { code: 'ArrowDown' });
+
+      frameCallback(32);
+
+      expect(playerState.value.hitPoints).toBe(startingHealth - 2);
+      expect(playerState.value.animState).toBe('hit');
+      expect(playerState.value.vx).toBe(0);
+    });
+
+    it('crouchedFloorSpikeHit-isUnchangedWithNoHitPoseAndNoKnockback', () => {
+      floorSpikeTimerStates.value = [];
+      currentLayout.value = ['SA', 'GG'];
+      const frameCallback = mountWithFrameCallback();
+      const hazard = hazardPlacements.value[0];
+      const startingHealth = playerState.value.hitPoints;
+
+      const secondsToFullExtend = FLOOR_SPIKE_DELAY_SECONDS + FLOOR_SPIKE_WARNING_SECONDS + 0.05;
+      const framesToFullExtend = Math.ceil((secondsToFullExtend * 1000) / 16);
+      for (let i = 0; i < framesToFullExtend; i++) {
+        playerState.value = {
+          ...playerState.value,
+          x: hazard.x,
+          y: hazard.y,
+          vx: 0,
+          vy: 0,
+          crouching: true,
+        };
+        frameCallback(16 * (i + 1));
+      }
+
+      expect(playerState.value.hitPoints).toBe(startingHealth - SIDE_HIT_DAMAGE);
+      // The floor spike stays on the blink-only `beginHitReaction` — never the
+      // red `hit` pose (FR-014).
+      expect(playerState.value.animState).not.toBe('hit');
+      expect(playerState.value.vx).toBe(0);
+      floorSpikeTimerStates.value = [];
+    });
+  });
+
+  describe('crouch integration (S-012)', () => {
+    /** Renders the page with a controllable loop and returns its frame
+     *  callback (already primed at t=0). */
+    function mountWithFrameCallback(): (t: number) => void {
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+      render(<PlatformerPage />);
+      frameCallback!(0);
+      return frameCallback!;
+    }
+
+    it('holdingDownOnPlainGround-tick-crouchesAndReleaseStandsUp', () => {
+      currentLayout.value = ['S....', 'GGGGG'];
+      const frameCallback = mountWithFrameCallback();
+      frameCallback(16); // settle on the ground
+
+      fireEvent.keyDown(window, { code: 'ArrowDown' });
+      frameCallback(32);
+      expect(playerState.value.crouching).toBe(true);
+
+      fireEvent.keyUp(window, { code: 'ArrowDown' });
+      frameCallback(48);
+      expect(playerState.value.crouching).toBe(false);
+    });
+
+    it('crouchedPlayerCrawlsUnderAOneTileCeiling', () => {
+      // Ceiling over cols 2-5, floor everywhere, spawn in the open at col 0.
+      currentLayout.value = ['..GGGG', 'S.....', 'GGGGGG'];
+      const frameCallback = mountWithFrameCallback();
+      frameCallback(16); // settle
+
+      fireEvent.keyDown(window, { code: 'ArrowDown' });
+      fireEvent.keyDown(window, { code: 'ArrowRight' });
+      for (let i = 0; i < 60; i++) frameCallback(32 + i * 16);
+
+      expect(playerState.value.crouching).toBe(true);
+      expect(playerState.value.x).toBeGreaterThan(2 * RENDERED_TILE_SIZE);
+    });
+
+    it('crouchedPlayerPressesJump-tick-producesNoJump', () => {
+      currentLayout.value = ['S....', 'GGGGG'];
+      const frameCallback = mountWithFrameCallback();
+      frameCallback(16);
+
+      fireEvent.keyDown(window, { code: 'ArrowDown' });
+      frameCallback(32);
+      expect(playerState.value.crouching).toBe(true);
+
+      const yBefore = playerState.value.y;
+      fireEvent.keyDown(window, { code: 'Space' });
+      frameCallback(48);
+
+      expect(playerState.value.vy).toBeGreaterThanOrEqual(0);
+      expect(playerState.value.y).toBeGreaterThanOrEqual(yBefore);
+    });
+
+    it('holdingDownOnALadder-climbsWithoutCrouching', () => {
+      const frameCallback = mountWithFrameCallback();
+      const rung = firstTileOfType('ladder', (level, col, row) =>
+        isClimbable(tileAt(level, col, row - 1)),
+      );
+      const { x, y } = tileToPixel(rung.col, rung.row);
+      playerState.value = { ...playerState.value, x, y, vy: 50, grounded: false, climbing: false };
+
+      fireEvent.keyDown(window, { code: 'ArrowDown' });
+      frameCallback(16);
+
+      expect(playerState.value.climbing).toBe(true);
+      expect(playerState.value.crouching).toBe(false);
+    });
+
+    it('resetGameAndResetGameProgress-bothReturnTheCharacterStanding', () => {
+      currentLayout.value = ['S....', 'GGGGG'];
+      mountWithFrameCallback();
+      playerState.value = { ...playerState.value, crouching: true };
+
+      resetGame();
+      expect(playerState.value.crouching).toBe(false);
+
+      playerState.value = { ...playerState.value, crouching: true };
+      resetGameProgress();
+      expect(playerState.value.crouching).toBe(false);
+    });
+  });
+
   describe('floor spear hazard — descending tip landing is fatal (US1)', () => {
     /** Renders the game with a spear one tile right of the spawn, injects a
      *  one-tip mask, and drops the player onto that tip from above with the

@@ -6,7 +6,7 @@ import {
   PLAYER_RENDERED_SIZE,
   PLAYER_SIDE_PADDING,
   PLAYER_FOOT_PADDING,
-  PLAYER_HEAD_PADDING,
+  playerHeadPaddingFor,
 } from '../entities/Player';
 import { toEnemyState, enemyRenderedSize, enemyTileOffsetX, enemyTileOffsetY } from '../entities/Enemy';
 import { typeOf } from '../entities/enemies';
@@ -33,6 +33,7 @@ const idlePlayer: PlayerState = {
   direction: 'right',
   grounded: true,
   climbing: false,
+  crouching: false,
   isDroppingThroughBridge: false,
   lastGroundedX: 16,
   lastGroundedY: 256,
@@ -90,9 +91,24 @@ describe('drawDebugOverlay', () => {
 
     drawDebugOverlay(ctx, idlePlayer, level, 0, 0);
 
-    const headY = idlePlayer.y + PLAYER_HEAD_PADDING;
+    const headY = idlePlayer.y + playerHeadPaddingFor(idlePlayer.crouching);
     const visibleLeft = idlePlayer.x + PLAYER_SIDE_PADDING;
     const visibleRight = idlePlayer.x + PLAYER_RENDERED_SIZE - PLAYER_SIDE_PADDING - 1;
+
+    expect(ctx.moveTo).toHaveBeenCalledWith(visibleLeft, headY);
+    expect(ctx.lineTo).toHaveBeenCalledWith(visibleRight, headY);
+  });
+
+  it('player-crouchingTrue-drawsCyanHeadLineAtTheCrouchedHeadPaddingOffset', () => {
+    const ctx = makeMockContext();
+    const level: LevelDef = { width: 1, height: 1, terrain: [['empty']] };
+    const crouched: PlayerState = { ...idlePlayer, crouching: true };
+
+    drawDebugOverlay(ctx, crouched, level, 0, 0);
+
+    const headY = crouched.y + playerHeadPaddingFor(true);
+    const visibleLeft = crouched.x + PLAYER_SIDE_PADDING;
+    const visibleRight = crouched.x + PLAYER_RENDERED_SIZE - PLAYER_SIDE_PADDING - 1;
 
     expect(ctx.moveTo).toHaveBeenCalledWith(visibleLeft, headY);
     expect(ctx.lineTo).toHaveBeenCalledWith(visibleRight, headY);

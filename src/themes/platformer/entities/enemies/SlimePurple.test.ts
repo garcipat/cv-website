@@ -23,6 +23,7 @@ function makePlayer(): PlayerState {
     direction: 'right',
     grounded: false,
     climbing: false,
+    crouching: false,
     isDroppingThroughBridge: false,
     lastGroundedX: 0,
     lastGroundedY: 0,

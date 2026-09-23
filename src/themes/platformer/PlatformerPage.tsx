@@ -148,6 +148,7 @@ import {
   advancePlayerAnimation,
   updatePlayerAnimState,
   applyKnockback,
+  applyHitReactionWithoutKnockback,
   advancePlayerHitTimer,
   beginHitReaction,
   isPlayerBlinkVisible,
@@ -306,6 +307,10 @@ export const PlatformerPage = () => {
   // before compositing it over the world. Created and sized alongside the main
   // canvas in `resize()` below, so it is never reallocated per frame.
   const darknessLayerRef = useRef<HTMLCanvasElement | null>(null);
+  // Reusable 64×64 offscreen canvas the crouched-hit red tint draws onto
+  // (FR-016) — caller-owned and created once in `resize()` beside
+  // `darknessLayerRef`, so the tint allocates nothing per frame.
+  const hitTintLayerRef = useRef<HTMLCanvasElement | null>(null);
   const playerSpriteRef = useRef<HTMLImageElement | null>(null);
   const playerJumpSpriteRef = useRef<HTMLImageElement | null>(null);
   const heartsSpriteRef = useRef<HTMLImageElement | null>(null);
@@ -615,6 +620,15 @@ export const PlatformerPage = () => {
       darknessLayerRef.current.width = width;
       darknessLayerRef.current.height = height;
 
+      // The crouched-hit tint's scratch layer — one 64×64 tile-sized canvas
+      // (the player's rendered size), created once and reused every frame
+      // (FR-016). Sized only on creation: it never depends on the viewport.
+      if (!hitTintLayerRef.current) {
+        hitTintLayerRef.current = document.createElement('canvas');
+        hitTintLayerRef.current.width = PLAYER_RENDERED_SIZE;
+        hitTintLayerRef.current.height = PLAYER_RENDERED_SIZE;
+      }
+
       // Rebuild the ambient cloud field for the new play-area width and open
       // sky region (FR-015, SC-007). `cloudsTop` is the painted clouds/hills
       // band's top edge — the open sky's bottom (see contracts/rendering.md).
@@ -757,6 +771,7 @@ export const PlatformerPage = () => {
           originY,
           playerJumpSpriteRef.current,
           playerVisible,
+          hitTintLayerRef.current,
         );
         // The very small torch the player carries, only while walking — drawn
         // with the player so the player's own light reveals it (FR-025).
@@ -1738,25 +1753,33 @@ export const PlatformerPage = () => {
       ) {
         const hitPoints = takeDamage(playerState.value.hitPoints, contacts.damagePlayer);
         playerState.value = { ...playerState.value, hitPoints, alive: hitPoints > 0 };
-        playerState.value = applyKnockback(
-          playerState.value,
-          contacts.knockbackDirection,
-          PHYSICS_CONFIG.sideHitKnockbackVx,
-          PHYSICS_CONFIG.sideHitKnockbackDuration,
-        );
-        if (contacts.knockback === 'awayAndUp') {
-          // Without `bounceAscending: true` (same mechanism the stomp
-          // bounce above relies on), `stepPlayerPhysics`'s variable-jump-
-          // height cut would shear this upward velocity to ~45% of its
-          // configured magnitude on this very tick, and again every tick
-          // after while the jump key isn't held — this isn't a jump the
-          // player is "holding", so it must play out at its full
-          // configured magnitude regardless of jump-key state.
-          playerState.value = {
-            ...playerState.value,
-            vy: PHYSICS_CONFIG.awayAndUpKnockbackVy,
-            bounceAscending: true,
-          };
+        if (playerState.value.crouching) {
+          // A crouched directional hit deals damage and shows the red
+          // reaction but applies no knockback (horizontal or vertical), so
+          // the one-tile box can never be displaced or forced open into a
+          // ceiling (FR-011/SC-009).
+          playerState.value = applyHitReactionWithoutKnockback(playerState.value);
+        } else {
+          playerState.value = applyKnockback(
+            playerState.value,
+            contacts.knockbackDirection,
+            PHYSICS_CONFIG.sideHitKnockbackVx,
+            PHYSICS_CONFIG.sideHitKnockbackDuration,
+          );
+          if (contacts.knockback === 'awayAndUp') {
+            // Without `bounceAscending: true` (same mechanism the stomp
+            // bounce above relies on), `stepPlayerPhysics`'s variable-jump-
+            // height cut would shear this upward velocity to ~45% of its
+            // configured magnitude on this very tick, and again every tick
+            // after while the jump key isn't held — this isn't a jump the
+            // player is "holding", so it must play out at its full
+            // configured magnitude regardless of jump-key state.
+            playerState.value = {
+              ...playerState.value,
+              vy: PHYSICS_CONFIG.awayAndUpKnockbackVy,
+              bounceAscending: true,
+            };
+          }
         }
 
         // No splatter on the hit that kills the character — the death
@@ -1811,6 +1834,10 @@ export const PlatformerPage = () => {
         // else resets hitTimer for them.
         if (hazard.hazardType === 'floorSpike') {
           playerState.value = beginHitReaction(playerState.value);
+        } else if (playerState.value.crouching) {
+          // A crouched non-floor-spike hazard hit deals damage and shows the
+          // red reaction but applies no knockback (FR-011/SC-009).
+          playerState.value = applyHitReactionWithoutKnockback(playerState.value);
         } else {
           // Pushed away from the hazard, not toward it — the opposite sign
           // of contactSide, spelled out as its own conditional (rather than
@@ -2160,12 +2187,18 @@ export const PlatformerPage = () => {
             const bombCenterX = bomb.x + RENDERED_TILE_SIZE / 2;
             const knockbackDirection: -1 | 1 =
               next.x + PLAYER_RENDERED_SIZE / 2 <= bombCenterX ? -1 : 1;
-            next = applyKnockback(
-              next,
-              knockbackDirection,
-              PHYSICS_CONFIG.sideHitKnockbackVx,
-              PHYSICS_CONFIG.sideHitKnockbackDuration,
-            );
+            if (next.crouching) {
+              // A crouched blast hit deals damage and shows the red reaction
+              // but applies no knockback (FR-011/SC-009).
+              next = applyHitReactionWithoutKnockback(next);
+            } else {
+              next = applyKnockback(
+                next,
+                knockbackDirection,
+                PHYSICS_CONFIG.sideHitKnockbackVx,
+                PHYSICS_CONFIG.sideHitKnockbackDuration,
+              );
+            }
             bombDamagedPlayerThisTick = true;
             if (hitPoints > 0) {
               const playerCenterX = next.x + PLAYER_RENDERED_SIZE / 2 + originX;
