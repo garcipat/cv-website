@@ -25,6 +25,12 @@ the player is in a cave.
 - Q: What should the fog look like? → A: **A flat, near-opaque tint** — not a textured mist
   sprite, and not simply cave darkness's own black reused at a lighter shade; a tone that
   reads as fog rather than as shadow.
+- Q: A flat per-cell fill read as artificial — grid-stamped, one uniform color, static. What
+  should replace it? → A: **Soft, overlapping, gently drifting puffs** — no new art (still no
+  textured mist sprite), but each cave-family cell's fog is now a soft-edged radial gradient
+  (opaque core, faded rim) sized larger than the cell so neighbouring puffs merge into one
+  bank and bleed into an adjacent clear cell rather than stopping at the grid line, with a
+  slow per-cell "breathing" pulse so it reads as alive rather than static.
 
 ## User Scenarios & Testing _(mandatory)_
 
@@ -167,9 +173,10 @@ on the cells they enter, in a smooth fade rather than a snap.
   opacity so the player's own character always stays discernible — fog never covers the
   player's own current cell (it is, by definition, not cave-family whenever fog is active),
   so there is no equivalent readability floor to protect.
-- **Fog tint and exact opacity are tunable during implementation**: the requirement is only
-  that the tint is flat, near-opaque, and visually distinct from Cave Lighting's neutral
-  black.
+- **Fog tint, puff size, and pulse timing are tunable during implementation**: the requirement
+  is only that the tint is near-opaque at a fogged cell's centre, visually distinct from Cave
+  Lighting's neutral black, and rendered as soft-edged, gently animated puffs rather than a
+  flat, static, grid-aligned fill.
 - **No editor-time preview**: the level editor does not need to render fog while authoring,
   matching Cave Lighting's own original scope. (The editor's separate dark-mode toggle,
   O-015, is an unrelated manual preview and is unaffected by this feature.)
@@ -189,7 +196,8 @@ on the cells they enter, in a smooth fade rather than a snap.
 - Fog-of-war or discovery/memory of previously-seen cave areas.
 - Any interaction with torches or other light sources beyond their existing Cave Lighting
   behavior.
-- A textured or animated mist sprite — the fog is a flat tint.
+- A textured or hand-authored mist sprite — the fog's soft, animated look is generated from
+  gradients and a deterministic per-cell pulse, not new art.
 - Showing fog in the level editor's preview.
 - Any new background material, palette section, or authoring surface — this feature reuses
   the existing surface/cave family as-is.

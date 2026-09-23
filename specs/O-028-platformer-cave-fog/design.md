@@ -12,7 +12,8 @@ scene is meant to read as dark. The outside-in case is not the mirror image of t
 player is on the surface, most of what's on screen is legitimately surface and must render
 exactly as it always has. Only the specific cells whose background is cave-family need
 hiding. That rules out reusing `drawDarkness`'s technique as-is; this feature instead paints
-a fog rect per on-screen cell, gated by that cell's own material family. `drawFog` iterates
+a fog shape per cave-family cell (see "Soft, drifting puffs" below for what that shape is),
+gated by that cell's own material family. `drawFog` iterates
 the level's full background grid every frame, the same loop shape `drawBackgroundTiles`
 already uses — there is no separate visible-tile-range computation to reuse here; no pass
 in this codebase culls terrain/background rendering to the viewport, so this doesn't
@@ -52,15 +53,49 @@ darkness — not fog — would be active instead). There's nothing under the fog
 requires to stay readable, so the tint can go fully opaque without reproducing O-010's
 readability floor.
 
-## Flat tint, not a reuse of darkness's black
+## A distinct tint, not a reuse of darkness's black
 
 Painting fogged cells with the same neutral black `drawDarkness` uses, just at a different
 alpha, would make the two effects easy to confuse — a partially-fogged view and a
 partially-dark cave would look like the same phenomenon at different strengths, when they are
 actually opposite states (outside vs. inside) that happen to share a mechanism. A distinct,
-cool, muted tone (exact value tunable during implementation, per spec Assumptions) keeps the
-two readable as different things: black reads as "no light here," the fog tone reads as
+cool, muted tone (`FOG_TINT_RGB`, exact value tunable, per spec Assumptions) keeps the two
+readable as different things: black reads as "no light here," the fog tone reads as
 "something's blocking the view."
+
+## Soft, drifting puffs, not a flat per-cell fill
+
+The first pass painted each cave-family cell as one flat, hard-edged rect at `fogLevel`'s
+alpha — cheap and spec-compliant, but it read as artificial: every cell was the exact same
+single color, stamped precisely to the grid, with a hard cut at the cell boundary and no
+motion at all. That's a defensible *literal* reading of "flat, near-opaque tint" (spec
+Clarifications), but not what fog actually looks like.
+
+`drawFog` now paints one soft radial-gradient "puff" per cave-family cell instead
+(`fogPuffAt`): opaque out to `FOG_PUFF_PLATEAU` of its radius, then a smooth fade to fully
+transparent by the rim. Three things fall out of that shape change directly:
+
+- **Bleeding into the surroundings**: `FOG_PUFF_RADIUS_PX` is well over a full tile, so a
+  puff's soft rim extends past its own cell into whatever neighbours it — a clear cell next
+  to a fogged one gets a gentle wash rather than a hard line, and the "cover a little of the
+  surrounding, since it's clear it's fog" read the flat rect couldn't produce falls out of the
+  gradient shape for free.
+- **Not grid-stamped**: a puff's centre isn't pinned to its cell's centre — it's offset by a
+  small jitter, deterministically hashed from the cell's own `(col, row)` (`cellHash01`, the
+  same `Math.imul` position-hash `Torch.ts`'s `torchPhase` already uses). Two neighbouring
+  cave cells' puffs land at different offsets, so a fog bank's outline is irregular rather than
+  a row of identical stamped squares.
+- **Not static**: each puff's radius breathes gently over time (`FOG_PULSE_AMPLITUDE`,
+  `FOG_PULSE_PERIOD_SECONDS`) — the same shape as the torch's own pulse (`TORCH_PULSE_*`), kept
+  as separate constants since fog and torch light are unrelated effects that happen to share a
+  technique. Each cell's phase is its own hash output, so neighbouring puffs never breathe in
+  unison, mirroring `torchPulseScale`'s per-torch phase offset.
+
+This is still no new art: `fogPuffAt` is a pure function of a cell's position and the world
+clock, and `drawFog` draws it with the canvas's own gradient API — the same
+`createRadialGradient`/`addColorStop` machinery `drawDarkness`'s torch glow already uses, not a
+sprite sheet. A puff's radius is generous enough that overlapping puffs across several
+cave-family cells merge into one continuous bank rather than reading as separate blobs.
 
 ## No new terrain or background data
 
