@@ -205,6 +205,14 @@ export interface PlayerState extends Moving, SelfAnimated, Damageable {
 const HIT_FRAME_COUNT = 3;
 const HIT_FRAME_DURATION = 0.1;
 
+/**
+ * The `hit` row's red-tinted frame — its 3rd of the 3 used frames. The standing
+ * hit flashes red only on this frame (0.1s out of every 0.3s), so the crouched
+ * hit's render-time tint reuses it to pulse at the same cadence instead of
+ * staying red for the whole reaction window.
+ */
+export const HIT_RED_FRAME_INDEX = HIT_FRAME_COUNT - 1;
+
 const ANIM_CONFIG: Record<
   PlayerAnimState,
   { frameCount: number; frameDuration: number; sy: number }

@@ -69,9 +69,14 @@ The renderer **does** need one edit, for the crouched red reaction. When
   DUCK-row crawl pose — **not** the baked `hit` row (`sy =
   PLAYER_FRAME_SIZE * 6`) a standing hit draws;
 - the pose is tinted at render time by `drawTintedSprite` (below), mirrored
-  through the same `save`/`translate`/`scale` path when facing left;
-- if no tint layer is passed (e.g. the editor preview), it falls back to a
-  plain draw of the same crouch pose, so the wrong row is never drawn.
+  through the same `save`/`translate`/`scale` path when facing left. The tint
+  **pulses on the standing hit's own cadence** — applied only when
+  `hitFrameFromTimer(player.hitTimer) === HIT_RED_FRAME_INDEX` (the `hit` row's
+  red frame, 0.1s out of every 0.3s) — so the crouch does not stay solid red for
+  the whole reaction window;
+- if no tint layer is passed (e.g. the editor preview), or the current hit frame
+  is not the red one, it falls back to a plain draw of the same crouch pose, so
+  the wrong row is never drawn.
 
 The standing hit path (`crouching: false`) is byte-for-byte unchanged: it still
 draws the sheet's baked red frame from `hitFrameFromTimer`. FR-016 deliberately
@@ -140,9 +145,11 @@ Recorded here so the behaviour is a decision, not an accident.
    `knight2.png` sheet).
 6. `drawPlayer` with `crouching: true, animState: 'hit'` and a fake tint layer
    resolves the frame from the `crouch` row (`sy = PLAYER_FRAME_SIZE * 8`) and
-   composites the tinted layer onto the main context; with `crouching: false,
-   animState: 'hit'` it still draws the baked `hit` frame (`sy =
-   PLAYER_FRAME_SIZE * 6`) directly, with no layer.
+   composites the tinted layer onto the main context **only on the red hit
+   frame** (`hitFrameFromTimer === HIT_RED_FRAME_INDEX`); on any other hit frame
+   it draws the crouch pose plainly. With `crouching: false, animState: 'hit'`
+   it still draws the baked `hit` frame (`sy = PLAYER_FRAME_SIZE * 6`) directly,
+   with no layer.
 7. `drawTintedSprite` sets `source-atop` on the layer while filling the tint and
    restores `source-over` afterwards; with a layer whose `getContext` returns
    `null` it falls back to a plain `ctx.drawImage` and never throws.

@@ -2320,6 +2320,35 @@ describe('drawPlayer', () => {
     );
   });
 
+  it('crouchedHitOnANonRedFrame-drawsPlainlyWithoutTinting', () => {
+    // The tint pulses on the `hit` row cadence, so it is only applied on the
+    // red frame (index 2). hitTimer 0.15 -> hitFrameFromTimer = 1 -> no tint.
+    const { ctx, raw } = makeLightingContext();
+    const { layer, layerCtx } = makeTintLayer();
+    const player: PlayerState = {
+      ...idlePlayer,
+      crouching: true,
+      animState: 'hit',
+      animFrame: 1,
+      hitTimer: 0.15,
+    };
+
+    drawPlayer(ctx, player, fakeSpriteSheet, 0, 0, null, true, layer);
+
+    expect(layerCtx.drawImage).not.toHaveBeenCalled();
+    expect(raw.drawImage).toHaveBeenCalledWith(
+      fakeSpriteSheet,
+      PLAYER_FRAME_SIZE,
+      PLAYER_FRAME_SIZE * 8,
+      PLAYER_FRAME_SIZE,
+      PLAYER_FRAME_SIZE,
+      16,
+      256,
+      PLAYER_RENDERED_SIZE,
+      PLAYER_RENDERED_SIZE,
+    );
+  });
+
   it('crouchedHitWithoutTintLayer-drawsTheCrouchPosePlainlyNeverTheBakedHitRow', () => {
     const { ctx, raw } = makeLightingContext();
     const player: PlayerState = {
