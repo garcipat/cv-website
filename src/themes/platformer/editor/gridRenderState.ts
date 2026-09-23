@@ -1,5 +1,6 @@
-import { TERRAIN_CHARS, SIGN_CHARS, HAZARD_CHARS, type TileChar } from '../level/LevelParser';
-import type { LevelDef, TileMap } from '../level/LevelData';
+import { TERRAIN_CHARS, SIGN_CHAR, HAZARD_CHARS, type TileChar } from '../level/LevelParser';
+import { DEFAULT_HINT_ID } from '../level/HintCatalog';
+import type { LevelDef, MarkerGrid, TileMap } from '../level/LevelData';
 import { tileToPixel, RENDERED_TILE_SIZE } from '../level/Terrain';
 import {
   PLAYER_RENDERED_SIZE,
@@ -191,19 +192,18 @@ export function synthesizeCheckpointStates(grid: TileChar[][]): CheckpointState[
   });
 }
 
-/** Returns a `SignPlacement` for every cell whose character is registered in
- *  `SIGN_CHARS` — unlike `findAllPositions` (used by every other
- *  `synthesizeX` function above), this scans for ANY sign character at once
- *  and resolves each one's own `hintId` directly, mirroring
- *  `LevelParser.ts`'s `findSignTiles`/`SignMapper.ts`'s `placeSigns` (the
- *  real game's own sign-placement path) rather than duplicating a
- *  one-char-at-a-time helper that wouldn't generalize past a single digit. */
-export function synthesizeSignPlacements(grid: TileChar[][]): SignPlacement[] {
+/** Returns a `SignPlacement` for every `SIGN_CHAR` (`T`) cell, paired with
+ *  its `sign` marker's `hintId` — or `DEFAULT_HINT_ID` when the marker is
+ *  absent (FR-027). Mirrors `LevelParser.ts`'s `findSignTiles`/
+ *  `SignMapper.ts`'s `placeSigns` (the real game's own sign-placement path)
+ *  rather than duplicating it. */
+export function synthesizeSignPlacements(grid: TileChar[][], markers: MarkerGrid): SignPlacement[] {
   const placements: SignPlacement[] = [];
   for (let row = 0; row < grid.length; row++) {
     for (let col = 0; col < grid[row].length; col++) {
-      const hintId = SIGN_CHARS[grid[row][col]];
-      if (!hintId) continue;
+      if (grid[row][col] !== SIGN_CHAR) continue;
+      const marker = markers[row]?.[col];
+      const hintId = marker?.kind === 'sign' ? marker.hintId : DEFAULT_HINT_ID;
       const { x, y } = tileToPixel(col, row);
       placements.push({ id: `editor-sign-${col}-${row}`, hintId, x, y });
     }
@@ -211,30 +211,44 @@ export function synthesizeSignPlacements(grid: TileChar[][]): SignPlacement[] {
   return placements;
 }
 
-/** Returns a `HazardPlacement` for every cell whose character is registered
- *  in `HAZARD_CHARS` — same scan-for-any-key, direct marker-to-placement
- *  conversion as `synthesizeSignPlacements` above (a hazard marker's
- *  hazardType/facing is fully carried by its character, no CVData zip),
+/** Returns a `HazardPlacement` for every character hazard in `HAZARD_CHARS`
+ *  plus every `{kind:'fallingStalactite'}` marker, in one reading-order list —
  *  mirroring `LevelParser.ts`'s `findHazardTiles`/`HazardMapper.ts`'s
  *  `placeHazards` (the real game's own hazard-placement path) rather than
  *  reusing them directly, since those operate on the level's raw
  *  string-array layout, not the editor's in-memory `TileChar[][]` grid. */
-export function synthesizeHazardPlacements(grid: TileChar[][]): HazardPlacement[] {
+export function synthesizeHazardPlacements(
+  grid: TileChar[][],
+  markers: MarkerGrid,
+): HazardPlacement[] {
   const placements: HazardPlacement[] = [];
   for (let row = 0; row < grid.length; row++) {
     for (let col = 0; col < grid[row].length; col++) {
       const hazard = HAZARD_CHARS[grid[row][col]];
-      if (!hazard) continue;
-      const { x, y } = tileToPixel(col, row);
-      placements.push({
-        id: `editor-hazard-${col}-${row}`,
-        hazardType: hazard.hazardType,
-        facing: hazard.facing,
-        x,
-        y,
-        col,
-        row,
-      });
+      if (hazard) {
+        const { x, y } = tileToPixel(col, row);
+        placements.push({
+          id: `editor-hazard-${col}-${row}`,
+          hazardType: hazard.hazardType,
+          facing: hazard.facing,
+          x,
+          y,
+          col,
+          row,
+        });
+      }
+      if (markers[row]?.[col]?.kind === 'fallingStalactite') {
+        const { x, y } = tileToPixel(col, row);
+        placements.push({
+          id: `editor-hazard-${col}-${row}`,
+          hazardType: 'fallingStalactite',
+          facing: 'down',
+          x,
+          y,
+          col,
+          row,
+        });
+      }
     }
   }
   return placements;

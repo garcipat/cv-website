@@ -36,9 +36,10 @@ describe('blueprintCells', () => {
     ]);
   });
 
-  it('connectionPointCells-areReturnedLikeAnyOtherCharacter', () => {
-    // Placement never treats '+' specially: it is written and it counts as
-    // occupied, and nothing reads a facing off it (design, Goal section).
-    expect(blueprintCells(['+'])).toEqual([{ row: 0, col: 0, char: '+' }]);
+  it('connectionPointMarkers-contributeNoTerrainCells', () => {
+    // A connection point is a marker on the tile meta layer now, not a terrain
+    // character — `blueprintCells` returns terrain cells only, and the marker
+    // is stamped separately by `placeBlueprintMarkers`.
+    expect(blueprintCells(['+'])).toEqual([]);
   });
 });

@@ -62,6 +62,7 @@ graph RL
         O028["✅ O-028: Cave Fog"]
         S011["S-011: Interact Hint Overlay"]
         S012["✅ S-012: Platformer Crouch/Duck"]
+        S030["✅ S-030: Platformer Tile Meta Layer"]
     end
 
     F003 --> F002
@@ -162,6 +163,9 @@ graph RL
     S012 --> F015
     S012 --> S008
 
+    S030 --> F019
+    S030 --> O006
+
     O025 --> F015
     O025 --> O005
     O025 --> S012
@@ -204,6 +208,8 @@ graph RL
     class O024 done
     class S012 themes
     class S012 done
+    class S030 enhancements
+    class S030 done
     class O025 themes
     class O026 themes
     class O027 themes
@@ -214,7 +220,7 @@ graph RL
     class O017 done
     class O018 themes
     class O018 done
-    class F019,O006,O007,O010,O011,O012,O015,O016,O019 enhancements
+    class F019,O006,O007,O010,O011,O012,O015,O016,O019,S030 enhancements
     class O019 done
     class O020 themes
     class O020 done

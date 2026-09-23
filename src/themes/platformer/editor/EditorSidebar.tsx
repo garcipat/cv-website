@@ -1,12 +1,12 @@
 import { Palette } from './Palette';
 import { armBlueprint, selectBackgroundMaterial, selectTool } from './editorActions';
-import type { EditorCanvasMode, EditorLayer } from './editorState';
-import type { BackgroundChar, TileChar } from '../level/LevelParser';
+import type { EditorCanvasMode, EditorLayer, EditorTool } from './editorState';
+import type { BackgroundChar } from '../level/LevelParser';
 
 export interface EditorSidebarProps {
   activeLayer: EditorLayer;
   canvasMode: EditorCanvasMode;
-  selectedTool: TileChar;
+  selectedTool: EditorTool;
   selectedBackgroundMaterial: BackgroundChar | null;
   armedBlueprintId: string | null;
 }

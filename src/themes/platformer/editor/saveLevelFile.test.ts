@@ -3,6 +3,7 @@ import { levelFileName, levelFileJson, downloadLevelFile, saveLevel } from './sa
 import { SAVE_LEVEL_ENDPOINT } from './saveLevelEndpoint';
 import { importLayout } from './importLayout';
 import { exportLayout } from './exportLayout';
+import type { MarkerPlacement } from '../level/LevelData';
 import { parseLevelModules } from '../level/levelRegistry';
 import { SCRATCH_LAYOUT } from '../level/level';
 
@@ -84,6 +85,27 @@ describe('levelFileJson — background field', () => {
   it('backgroundOfAllEmptyRows-isOmittedFromTheSerializedJson', () => {
     const json = levelFileJson('Plain', ['SS'], ['..', '..']);
     expect(JSON.parse(json)).toEqual({ name: 'Plain', layout: ['SS'] });
+  });
+});
+
+describe('levelFileJson — markers field', () => {
+  const markers: MarkerPlacement[] = [
+    { col: 1, row: 0, marker: { kind: 'sign', hintId: 'bomb' } },
+  ];
+
+  it('nonEmptyMarkers-areIncludedAsTypedPlacements', () => {
+    expect(JSON.parse(levelFileJson('Cave', ['T'], [], markers))).toEqual({
+      name: 'Cave',
+      layout: ['T'],
+      markers,
+    });
+  });
+
+  it('emptyMarkers-areOmittedEntirely', () => {
+    expect(JSON.parse(levelFileJson('Plain', ['S'], [], []))).toEqual({
+      name: 'Plain',
+      layout: ['S'],
+    });
   });
 });
 

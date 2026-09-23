@@ -1,5 +1,6 @@
 import { BLUEPRINTS_FOLDER, SAVE_BLUEPRINT_ENDPOINT } from './saveBlueprintEndpoint';
 import { BLANK_BLUEPRINT } from '../level/BlueprintData';
+import type { MarkerPlacement } from '../level/LevelData';
 
 export { BLUEPRINTS_FOLDER };
 
@@ -54,9 +55,15 @@ export const blueprintFileJson = (
   name: string,
   layout: readonly string[],
   background: readonly string[],
+  markers: readonly MarkerPlacement[] = [],
 ): string =>
   `${JSON.stringify(
-    { name, layout, ...(hasBackgroundContent(background) ? { background } : {}) },
+    {
+      name,
+      layout,
+      ...(hasBackgroundContent(background) ? { background } : {}),
+      ...(markers.length > 0 ? { markers } : {}),
+    },
     null,
     2,
   )}\n`;
@@ -86,6 +93,7 @@ export const saveBlueprint = async (
   name: string,
   layout: readonly string[],
   background: readonly string[],
+  markers: readonly MarkerPlacement[] = [],
 ): Promise<SaveBlueprintResult> => {
   try {
     const response = await fetch(SAVE_BLUEPRINT_ENDPOINT, {
@@ -93,7 +101,7 @@ export const saveBlueprint = async (
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         fileName: blueprintFileName(name),
-        contents: blueprintFileJson(name, layout, background),
+        contents: blueprintFileJson(name, layout, background, markers),
       }),
     });
     const body = (await response.json()) as { path?: string; error?: string };
@@ -102,11 +110,11 @@ export const saveBlueprint = async (
       return { written: true, path: body.path };
     }
 
-    downloadBlueprintFile(name, layout, background);
+    downloadBlueprintFile(name, layout, background, markers);
     return body.error === undefined ? { written: false } : { written: false, error: body.error };
   } catch {
     // No dev server behind this page at all (built site, or served statically).
-    downloadBlueprintFile(name, layout, background);
+    downloadBlueprintFile(name, layout, background, markers);
     return { written: false };
   }
 };
@@ -115,8 +123,9 @@ export const downloadBlueprintFile = (
   name: string,
   layout: readonly string[],
   background: readonly string[],
+  markers: readonly MarkerPlacement[] = [],
 ): void => {
-  const blob = new Blob([blueprintFileJson(name, layout, background)], {
+  const blob = new Blob([blueprintFileJson(name, layout, background, markers)], {
     type: 'application/json',
   });
   const url = URL.createObjectURL(blob);

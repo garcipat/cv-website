@@ -1,11 +1,53 @@
 import { describe, it, expect, vi } from 'vitest';
-import { exportLayout } from './exportLayout';
+import { exportLayout, unionBoxes, cropLayoutToBox, boundingBoxOfContent } from './exportLayout';
 import { importLayout } from './importLayout';
 import { parseLevel } from '../level/LevelParser';
 import { LEVEL_1_LAYOUT } from '../level/level';
 import type { TileChar } from '../level/LevelParser';
 
+describe('unionBoxes', () => {
+  it('returnsTheSmallestBoxContainingBoth', () => {
+    expect(
+      unionBoxes({ minRow: 1, maxRow: 2, minCol: 1, maxCol: 2 }, { minRow: 0, maxRow: 1, minCol: 3, maxCol: 4 }),
+    ).toEqual({ minRow: 0, maxRow: 2, minCol: 1, maxCol: 4 });
+  });
+
+  it('oneNullSide-returnsTheOther', () => {
+    const box = { minRow: 0, maxRow: 0, minCol: 0, maxCol: 0 };
+    expect(unionBoxes(null, box)).toEqual(box);
+    expect(unionBoxes(box, null)).toEqual(box);
+    expect(unionBoxes(null, null)).toBeNull();
+  });
+});
+
+describe('cropLayoutToBox', () => {
+  it('serializesTheSubRectangleAsStrings', () => {
+    const grid: TileChar[][] = [
+      ['.', '.', '.'],
+      ['.', 'G', 'S'],
+      ['.', 'R', 'R'],
+    ];
+    expect(cropLayoutToBox(grid, { minRow: 1, maxRow: 2, minCol: 1, maxCol: 2 })).toEqual([
+      'GS',
+      'RR',
+    ]);
+  });
+
+  it('aNullBox-returnsTheSingleEmptyCellLayout', () => {
+    expect(cropLayoutToBox([['G']], null)).toEqual(['.']);
+  });
+});
+
 describe('exportLayout', () => {
+  it('equalsCropLayoutToBoxWithItsOwnContentBox', () => {
+    const grid: TileChar[][] = [
+      ['.', '.', '.'],
+      ['.', 'G', 'S'],
+      ['.', 'R', 'R'],
+    ];
+    expect(exportLayout(grid)).toEqual(cropLayoutToBox(grid, boundingBoxOfContent(grid, '.')));
+  });
+
   it('joins each row into a string, matching the grid exactly when fully painted', () => {
     const grid: TileChar[][] = [
       ['G', 'G', 'S'],

@@ -2,9 +2,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { importLayout } from './importLayout';
 import { LEVEL_1_LAYOUT } from '../level/level';
 import { BLANK_BLUEPRINT, type Blueprint } from '../level/BlueprintData';
+import { paintCell } from './paintCell';
 import {
   armBlueprint,
   applyBackgroundPaint,
+  applyMarkerPaint,
   applyPaint,
   commitPlacement,
   loadBlueprint,
@@ -36,6 +38,8 @@ import {
   editorLevelSignal,
   editorLoadedBlueprintNameSignal,
   editorLoadedLevelNameSignal,
+  editorMarkerSignal,
+  editorBlueprintMarkerSignal,
   editorSaveResultSignal,
   editorSelectedBackgroundMaterialSignal,
   editorSelectedToolSignal,
@@ -68,6 +72,8 @@ const CAVE_ROOM: Blueprint = {
 beforeEach(() => {
   vi.clearAllMocks();
   editorLevelSignal.value = importLayout(LEVEL_1_LAYOUT);
+  editorMarkerSignal.value = [];
+  editorBlueprintMarkerSignal.value = [];
   editorSelectedToolSignal.value = 'G';
   editorLoadedLevelNameSignal.value = 'main';
   editorDirtySignal.value = false;
@@ -125,7 +131,7 @@ describe('editorActions — selection and toggles', () => {
   });
 
   it('setCanvasMode-levelWithConnectionPointArmed-swapsItForTheFallbackTool', () => {
-    editorSelectedToolSignal.value = '+';
+    editorSelectedToolSignal.value = 'connectionPoint';
     setCanvasMode('level');
     expect(editorSelectedToolSignal.value).toBe('G');
   });
@@ -155,16 +161,16 @@ describe('editorActions — selection and toggles', () => {
 
   it('reconcilePersistedEditorState-mountingInLevelModeWithTheConnectionPointArmed-disarmsIt', () => {
     editorCanvasModeSignal.value = 'level';
-    editorSelectedToolSignal.value = '+';
+    editorSelectedToolSignal.value = 'connectionPoint';
     reconcilePersistedEditorState();
     expect(editorSelectedToolSignal.value).toBe('G');
   });
 
   it('reconcilePersistedEditorState-mountingInBlueprintModeWithTheConnectionPointArmed-keepsIt', () => {
     editorCanvasModeSignal.value = 'blueprint';
-    editorSelectedToolSignal.value = '+';
+    editorSelectedToolSignal.value = 'connectionPoint';
     reconcilePersistedEditorState();
-    expect(editorSelectedToolSignal.value).toBe('+');
+    expect(editorSelectedToolSignal.value).toBe('connectionPoint');
   });
 });
 
@@ -343,7 +349,12 @@ describe('editorActions — load and save routing', () => {
     editorDirtySignal.value = true;
     await saveCurrentLevel('Cave Run');
 
-    expect(saveLevel).toHaveBeenCalledWith('Cave Run', expect.any(Array), expect.any(Array));
+    expect(saveLevel).toHaveBeenCalledWith(
+      'Cave Run',
+      expect.any(Array),
+      expect.any(Array),
+      expect.any(Array),
+    );
     expect(editorSaveResultSignal.value).toEqual({
       target: 'level',
       result: { written: true, path: 'levels/cave-run.json' },
@@ -356,12 +367,92 @@ describe('editorActions — load and save routing', () => {
     editorBlueprintDirtySignal.value = true;
     await saveCurrentBlueprint('Test Room');
 
-    expect(saveBlueprint).toHaveBeenCalledWith('Test Room', expect.any(Array), expect.any(Array));
+    expect(saveBlueprint).toHaveBeenCalledWith(
+      'Test Room',
+      expect.any(Array),
+      expect.any(Array),
+      expect.any(Array),
+    );
     expect(editorSaveResultSignal.value).toEqual({
       target: 'blueprint',
       result: { written: false },
     });
     expect(editorLoadedBlueprintNameSignal.value).toBe('Test Room');
     expect(editorBlueprintDirtySignal.value).toBe(false);
+  });
+});
+
+describe('editorActions — marker layer', () => {
+  it('applyMarkerPaint-writesTheActiveGridMarksItDirtyAndClearsTheSnapshot', () => {
+    editorLevelSignal.value = importLayout(['..']);
+    editorMarkerSignal.value = [[null, null]];
+    editorLastPlacementSnapshotSignal.value = {
+      grid: importLayout(['..']),
+      background: [],
+      markers: [[null, null]],
+    };
+
+    applyMarkerPaint([[{ kind: 'patrolBoundary' }, null]]);
+
+    expect(editorMarkerSignal.value).toEqual([[{ kind: 'patrolBoundary' }, null]]);
+    expect(editorDirtySignal.value).toBe(true);
+    expect(editorLastPlacementSnapshotSignal.value).toBeNull();
+  });
+
+  it('applyPaint-aLeftwardGrowth-shiftsTheMarkerGridToStayAligned', () => {
+    editorLevelSignal.value = importLayout(['..']);
+    editorMarkerSignal.value = [[{ kind: 'patrolBoundary' }, null]];
+
+    // Painting at col -1 grows the terrain grid left by one column.
+    applyPaint(paintCell(importLayout(['..']), -1, 0, 'G'));
+
+    expect(editorMarkerSignal.value[0][1]).toEqual({ kind: 'patrolBoundary' });
+    expect(editorMarkerSignal.value[0][0]).toBeNull();
+  });
+
+  it('applyPaint-aRightwardGrowth-padsTheMarkerGridToTheNewWidth', () => {
+    editorLevelSignal.value = importLayout(['..']);
+    editorMarkerSignal.value = [[null, null]];
+
+    applyPaint(paintCell(importLayout(['..']), 4, 0, 'G'));
+
+    expect(editorMarkerSignal.value[0]).toHaveLength(5);
+    expect(editorMarkerSignal.value[0][4]).toBeNull();
+  });
+
+  it('commitPlacement-stampsTheBlueprintsMarkersAtTheAnchorAndUndoRestoresThem', () => {
+    blueprintEntries.push({
+      id: 'room',
+      name: 'Room',
+      layout: ['#.'],
+      markers: [{ col: 1, row: 0, marker: { kind: 'connectionPoint' } }],
+    });
+    editorLevelSignal.value = importLayout(['...', '...']);
+    editorMarkerSignal.value = [
+      [null, null, null],
+      [null, null, null],
+    ];
+    editorArmedBlueprintIdSignal.value = 'room';
+
+    commitPlacement(0, 0);
+    expect(editorMarkerSignal.value[0][1]).toEqual({ kind: 'connectionPoint' });
+
+    undoLastPlacement();
+    expect(editorMarkerSignal.value).toEqual([
+      [null, null, null],
+      [null, null, null],
+    ]);
+  });
+
+  it('loadLevel-migratesALegacyLayoutAndItsStoredMarkers', () => {
+    loadLevel({
+      id: 'legacy',
+      name: 'Legacy',
+      layout: ['P1.'],
+    });
+    expect(editorLevelSignal.value).toEqual([['.', 'T', '.']]);
+    expect(editorMarkerSignal.value).toEqual([
+      [{ kind: 'patrolBoundary' }, { kind: 'sign', hintId: 'bridgeDropThrough' }, null],
+    ]);
   });
 });

@@ -62,15 +62,18 @@ describe('blueprintFits', () => {
     expect(blueprintFits(grid, blueprintCells(['.#']), 0, 0)).toBe(true);
   });
 
-  it('aConnectionPointAlreadyInTheGrid-countsAsOccupiedLikeAnyOtherCell', () => {
-    // A placed '+' is ordinary occupied terrain as far as the next placement is
-    // concerned; nothing gives it special treatment (design, Goal section).
-    expect(blueprintFits([['+']], blueprintCells(['#']), 0, 0)).toBe(false);
+  it('aConnectionPointMarkerInTheBlueprint-writesNoTerrainCell', () => {
+    // A connection point is a marker on the tile meta layer now, not a terrain
+    // character — a layout that is only a connection point has no terrain
+    // cells to place, so it fits anywhere (its marker is stamped separately).
+    expect(blueprintCells(['+'])).toEqual([]);
+    expect(blueprintFits([['G']], blueprintCells(['+']), 0, 0)).toBe(true);
   });
 
-  it('aBlueprintsOwnConnectionPoint-stillNeedsAnEmptyTargetCell', () => {
-    expect(blueprintFits([['G']], blueprintCells(['+']), 0, 0)).toBe(false);
-    expect(blueprintFits([['.']], blueprintCells(['+']), 0, 0)).toBe(true);
+  it('markersInTheTargetGrid-neverBlockAPlacement', () => {
+    // Placement validity is terrain-only (FR-019): blueprintFits never sees
+    // the marker grid, so a marker alone can never block a placement.
+    expect(blueprintFits(EMPTY_3X3, WALL, 0, 0)).toBe(true);
   });
 
   it('aBlueprintWithNoCellsAtAll-fitsAnywhere', () => {

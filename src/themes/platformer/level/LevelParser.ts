@@ -1,5 +1,15 @@
-import type { LevelDef, TileMap, TileType, BackgroundGrid, BackgroundMaterialId } from './LevelData';
+import type {
+  LevelDef,
+  TileMap,
+  TileType,
+  BackgroundGrid,
+  BackgroundMaterialId,
+  MarkerEntry,
+  MarkerGrid,
+  MarkerPlacement,
+} from './LevelData';
 import type { HintId } from '../types';
+import { DEFAULT_HINT_ID, isHintId } from './HintCatalog';
 
 /** An entity marker's kind — what it means, not what it looks like on the
  *  ground (every entity marker sits on `empty` terrain, see parseLevel). */
@@ -30,8 +40,6 @@ export const TERRAIN_CHARS: Record<string, TileType | undefined> = {
   B: 'bridge',
   H: 'ladder',
   I: 'chain',
-  P: 'patrol',
-  '+': 'blueprintConnectionPoint',
   n: 'bush',
   N: 'fence',
   X: 'cobweb',
@@ -89,23 +97,31 @@ export const ENTITY_CHARS: Record<string, EntityKind | undefined> = {
 };
 
 /**
- * Maps each sign-marker character to the hint it shows. Unlike ENTITY_CHARS
- * (coins/enemies/blocks/chests, whose specific CV fact comes from zipping
- * marker discovery order against CVData), a sign's content is hand-authored,
- * not derived from CVData — so the character itself carries the hint's
- * identity directly. This means the level layout can be freely edited
- * (rows/columns added, removed, reordered) without ever scrambling which
- * sign shows which text — a zip-by-discovery-order approach couldn't
- * guarantee that. Capped at digits 1-9 (an accepted constraint, FR-037):
- * this level is expected to need only a handful of distinct hints ever.
+ * The one uniform sign layout character. Every sign is a `T` cell; its hint
+ * lives on the tile meta layer as a `{ kind: 'sign', hintId }` marker, so the
+ * layout can be freely edited without scrambling which sign shows which text
+ * (FR-025). Resolves to `'empty'` terrain, exactly as the old digit sign
+ * characters did.
  */
-export const SIGN_CHARS: Record<string, HintId | undefined> = {
-  '1': 'bridgeDropThrough',
-  '2': 'ladderClimbUp',
-  '3': 'fragileRockBreaksFromBelow',
-  '4': 'chestNeedsKey',
-  '5': 'openAllChestsHaveFun',
-  '6': 'bomb',
+export const SIGN_CHAR = 'T';
+
+/**
+ * The **only** place a marker character exists: the load-time migration map
+ * for a file authored before the tile meta layer (FR-015). Every entry lifts
+ * to a typed `MarkerEntry` and its terrain cell is written `'empty'`. A legacy
+ * `T` is not in this map because `T` is genuinely overloaded between the old
+ * falling-stalactite hazard and the new sign character; `parseLevel` resolves
+ * it by file generation instead (see its doc comment).
+ */
+export const LEGACY_MARKER_CHARS: Record<string, MarkerEntry | undefined> = {
+  P: { kind: 'patrolBoundary' },
+  '+': { kind: 'connectionPoint' },
+  '1': { kind: 'sign', hintId: 'bridgeDropThrough' },
+  '2': { kind: 'sign', hintId: 'ladderClimbUp' },
+  '3': { kind: 'sign', hintId: 'fragileRockBreaksFromBelow' },
+  '4': { kind: 'sign', hintId: 'chestNeedsKey' },
+  '5': { kind: 'sign', hintId: 'openAllChestsHaveFun' },
+  '6': { kind: 'sign', hintId: 'bomb' },
 };
 
 /** A spike hazard's facing — which of the 4 pre-drawn sprites in
@@ -126,7 +142,7 @@ export type HazardKind = 'spike' | 'spear' | 'floorSpike' | 'fallingStalactite';
 
 /**
  * Maps each hazard-marker character to the hazard it places. Same
- * hand-authored-content convention as SIGN_CHARS (the character itself
+ * hand-authored-content convention as LEGACY_MARKER_CHARS (the character itself
  * carries the identity directly, no CVData zip) — a level author picks the
  * exact facing per cell, the same way every other tile is placed explicitly.
  * `hazardType` is carried on every entry (not hardcoded to `'spike'`
@@ -144,22 +160,20 @@ export const HAZARD_CHARS: Record<string, { hazardType: HazardKind; facing: Haza
   // O-021's floor spike. Floor-only (FR-013) — no facing cycle, unlike the
   // static spike above.
   A: { hazardType: 'floorSpike', facing: 'up' },
-  // O-027's falling stalactite. Ceiling-only, points down, single orientation
-  // (no facing cycle) — `facing` is cosmetic here (the hazard's own draw
-  // picks the sprite) but 'down' matches the hang direction, like a `v`
-  // ceiling spike. `T` is deliberately distinct from the decorative `⊤`
-  // stalactite tile (FR-018).
-  T: { hazardType: 'fallingStalactite', facing: 'down' },
+  // O-027's falling stalactite is NO LONGER a hazard character: it is a
+  // `{kind:'fallingStalactite'}` marker on the decorative `⊤` tile (FR-026),
+  // discovered by `findHazardTiles` below. Its freed `T` is the sign
+  // character (FR-025).
 };
 
 // A character can only mean one thing — guard against TERRAIN_CHARS,
-// ENTITY_CHARS, SIGN_CHARS, and HAZARD_CHARS accidentally sharing a key, which
+// ENTITY_CHARS, SIGN_CHAR, and HAZARD_CHARS accidentally sharing a key, which
 // independent maps don't prevent on their own the way one unified table
 // would.
 const charOwners: Record<string, string[]> = {};
 for (const char of Object.keys(TERRAIN_CHARS)) (charOwners[char] ??= []).push('terrain');
 for (const char of Object.keys(ENTITY_CHARS)) (charOwners[char] ??= []).push('entity');
-for (const char of Object.keys(SIGN_CHARS)) (charOwners[char] ??= []).push('sign');
+(charOwners[SIGN_CHAR] ??= []).push('sign');
 for (const char of Object.keys(HAZARD_CHARS)) (charOwners[char] ??= []).push('hazard');
 const sharedChars = Object.entries(charOwners)
   .filter(([, owners]) => owners.length > 1)
@@ -172,7 +186,7 @@ if (sharedChars.length > 0) {
 
 /**
  * Every character a level layout string may legally contain — the union of
- * every `TERRAIN_CHARS`, `ENTITY_CHARS`, `SIGN_CHARS`, and `HAZARD_CHARS` key.
+ * every `TERRAIN_CHARS`, `ENTITY_CHARS`, `SIGN_CHAR`, and `HAZARD_CHARS` key.
  * Deliberately NOT derived via `keyof typeof TERRAIN_CHARS | keyof typeof
  * ENTITY_CHARS`: the maps are annotated `Record<string, ... | undefined>`
  * (required so `parseLevel`'s and finder functions' lookups can index by a
@@ -189,8 +203,6 @@ export type TileChar =
   | 'B'
   | 'H'
   | 'I'
-  | 'P'
-  | '+'
   | 'S'
   | 'M'
   | 'm'
@@ -203,7 +215,6 @@ export type TileChar =
   | 'u'
   | 'p'
   | 'b'
-  | '6'
   | 'n'
   | 'N'
   | 'X'
@@ -211,11 +222,6 @@ export type TileChar =
   | '⊤'
   | '⊥'
   | '¥'
-  | '1'
-  | '2'
-  | '3'
-  | '4'
-  | '5'
   | '^'
   | 'v'
   | '<'
@@ -244,7 +250,113 @@ export type TileChar =
  * should still load and play — a single stray character must not turn the
  * whole canvas blue — and the warning is what surfaces it to the author.
  */
-export function parseLevel(layout: readonly string[]): LevelDef {
+/**
+ * Builds the tile meta layer for a layout, lifting every legacy marker
+ * character out of `layout` and merging `storedMarkers` on top (FR-015/FR-016).
+ *
+ * The **`T` generation rule** (FR-015 vs FR-025/FR-027): `T` is overloaded
+ * between the old falling-stalactite hazard and the new sign character. The
+ * `markers` field disambiguates. `storedMarkers === undefined` means the file
+ * has no `markers` field at all, so it is pre-feature and a `T` lifts to
+ * `{kind:'fallingStalactite'}`. When `storedMarkers` is present (even `[]`)
+ * the file is new-format and `T` is a sign; its hint is the cell's `sign`
+ * marker (applied below) or `DEFAULT_HINT_ID` when the marker is absent. An
+ * explicit `sign` marker at a `T` cell always wins.
+ *
+ * A stored entry with an unrecognised `kind` or an out-of-bounds `(col, row)`
+ * is ignored; a `sign` whose `hintId` is not registered falls back to
+ * `DEFAULT_HINT_ID`. A later duplicate `(col, row)` replaces an earlier one.
+ */
+export function parseMarkers(
+  layout: readonly string[],
+  storedMarkers: readonly MarkerPlacement[] | undefined,
+  width: number,
+  height: number,
+): MarkerGrid {
+  const grid: MarkerGrid = Array.from({ length: height }, () =>
+    new Array<MarkerEntry | null>(width).fill(null),
+  );
+
+  for (let row = 0; row < height; row++) {
+    const line = layout[row] ?? '';
+    for (let col = 0; col < width; col++) {
+      const char = line[col];
+      if (char === undefined) continue;
+      if (char === SIGN_CHAR) {
+        if (storedMarkers === undefined) grid[row][col] = { kind: 'fallingStalactite' };
+        continue;
+      }
+      const legacy = LEGACY_MARKER_CHARS[char];
+      if (legacy) grid[row][col] = legacy;
+    }
+  }
+
+  if (storedMarkers !== undefined) {
+    for (const placement of storedMarkers) {
+      if (placement === null || typeof placement !== 'object') continue;
+      const { col, row } = placement;
+      if (
+        typeof col !== 'number' ||
+        typeof row !== 'number' ||
+        !Number.isInteger(col) ||
+        !Number.isInteger(row) ||
+        col < 0 ||
+        row < 0 ||
+        col >= width ||
+        row >= height
+      ) {
+        continue;
+      }
+      const marker = normalizeMarkerEntry(placement.marker);
+      if (marker) grid[row][col] = marker;
+    }
+  }
+
+  return grid;
+}
+
+/** Narrows a stored marker value to the closed `MarkerEntry` union, falling
+ *  back to `DEFAULT_HINT_ID` for a `sign` whose `hintId` is unregistered and
+ *  returning `null` for anything unrecognised (FR-016/FR-027). */
+function normalizeMarkerEntry(value: unknown): MarkerEntry | null {
+  if (value === null || typeof value !== 'object') return null;
+  const kind = (value as { kind?: unknown }).kind;
+  if (kind === 'patrolBoundary' || kind === 'connectionPoint' || kind === 'fallingStalactite') {
+    return { kind };
+  }
+  if (kind === 'sign') {
+    const hintId = (value as { hintId?: unknown }).hintId;
+    return { kind: 'sign', hintId: isHintId(hintId) ? hintId : DEFAULT_HINT_ID };
+  }
+  return null;
+}
+
+/**
+ * Parses a level's raw ASCII layout (one character per tile, see
+ * TERRAIN_CHARS/ENTITY_CHARS, top row first) into a `LevelDef`'s terrain
+ * grid, plus the tile meta layer when `storedMarkers` is supplied. Width and
+ * height are read from the layout itself — never hardcoded — so any layout of
+ * any size works, which is also what makes this parser testable independently
+ * of any specific level's real data. Entity markers resolve to `empty` terrain
+ * here — use findSpawnTile/findGreenEnemyTiles/findPurpleEnemyTiles below to
+ * read their positions.
+ *
+ * Legacy marker characters (`P`/`+`/digits, and a pre-feature `T`) lift out of
+ * the terrain into the layer and their cell is written `'empty'` (a legacy `T`
+ * becomes the decorative `⊤` tile) — see `parseMarkers`. `markers` is attached
+ * only when at least one marker exists, so a marker-free `LevelDef` keeps its
+ * pre-feature shape (FR-014).
+ *
+ * An unrecognized character is skipped (treated as `empty`) and logged via
+ * `console.warn` once per distinct character, rather than throwing. A level
+ * authored against a newer palette (or a hand-edited layout with a typo)
+ * should still load and play — a single stray character must not turn the
+ * whole canvas blue — and the warning is what surfaces it to the author.
+ */
+export function parseLevel(
+  layout: readonly string[],
+  storedMarkers?: readonly MarkerPlacement[],
+): LevelDef {
   const height = layout.length;
   const width = layout.reduce((max, row) => Math.max(max, row.length), 0);
   const unknownChars = new Set<string>();
@@ -253,7 +365,12 @@ export function parseLevel(layout: readonly string[]): LevelDef {
     const chars = row.split('').map((char) => {
       const tile = TERRAIN_CHARS[char];
       if (tile) return tile;
-      if (ENTITY_CHARS[char] || SIGN_CHARS[char] || HAZARD_CHARS[char]) return 'empty';
+      if (char === SIGN_CHAR) {
+        // A pre-feature `T` is the old falling-stalactite hazard, which is now
+        // the decorative `⊤` tile plus a marker; a new-format `T` is a sign.
+        return storedMarkers === undefined ? 'stalactite' : 'empty';
+      }
+      if (ENTITY_CHARS[char] || LEGACY_MARKER_CHARS[char] || HAZARD_CHARS[char]) return 'empty';
       unknownChars.add(char);
       return 'empty';
     });
@@ -267,7 +384,10 @@ export function parseLevel(layout: readonly string[]): LevelDef {
     );
   }
 
-  return { terrain, width, height };
+  const markers = parseMarkers(layout, storedMarkers, width, height);
+  const hasMarker = markers.some((markerRow) => markerRow.some((marker) => marker !== null));
+
+  return hasMarker ? { terrain, width, height, markers } : { terrain, width, height };
 }
 
 /**
@@ -458,41 +578,48 @@ export function findCheckpointTiles(layout: readonly string[]): { col: number; r
 }
 
 /**
- * Finds every sign marker's position in a level layout, in reading order,
- * paired with the hint it shows (SIGN_CHARS). Unlike findCoinTiles/
- * findChestTiles/findGreenEnemyTiles/etc. (which all look for one specific
- * EntityKind), this scans for ANY key of SIGN_CHARS at once and returns the
- * resolved hintId directly — there's no separate CVData-derived list to zip
- * these positions against.
+ * Finds every sign in a level layout, in reading order, paired with the hint
+ * it shows. Each `SIGN_CHAR` (`T`) cell is paired with a `sign` marker at that
+ * cell, or `DEFAULT_HINT_ID` when the marker is absent (FR-027) — the runtime
+ * analogue of the editor's `synthesizeSignPlacements`. There is no separate
+ * CVData-derived list to zip these positions against.
  */
 export function findSignTiles(
   layout: readonly string[],
+  markers?: MarkerGrid,
 ): { col: number; row: number; hintId: HintId }[] {
   const tiles: { col: number; row: number; hintId: HintId }[] = [];
   for (let row = 0; row < layout.length; row++) {
     for (let col = 0; col < layout[row].length; col++) {
-      const hintId = SIGN_CHARS[layout[row][col]];
-      if (hintId) tiles.push({ col, row, hintId });
+      if (layout[row][col] !== SIGN_CHAR) continue;
+      const marker = markers?.[row]?.[col];
+      const hintId = marker?.kind === 'sign' ? marker.hintId : DEFAULT_HINT_ID;
+      tiles.push({ col, row, hintId });
     }
   }
   return tiles;
 }
 
 /**
- * Finds every hazard marker's position in a level layout, in reading order,
- * paired with its hazard kind and facing (HAZARD_CHARS) — same
- * scan-for-any-key convention as findSignTiles, since a hazard marker's
- * identity is fully carried by its character, not zipped against a
- * CVData-derived list.
+ * Finds every hazard in a level layout, in reading order, paired with its
+ * hazard kind and facing. This is the **single** hazard-discovery entry point:
+ * it scans the layout for the character hazards (`^`/`v`/`<`/`>`/`¦`/`A`) and
+ * the marker grid for `{kind:'fallingStalactite'}` entries, returning one
+ * combined list for the existing `placeHazards` pipeline. A caller asks for
+ * "the level's hazards", never for each source separately (FR-032).
  */
 export function findHazardTiles(
   layout: readonly string[],
+  markers?: MarkerGrid,
 ): { col: number; row: number; hazardType: HazardKind; facing: HazardFacing }[] {
   const tiles: { col: number; row: number; hazardType: HazardKind; facing: HazardFacing }[] = [];
   for (let row = 0; row < layout.length; row++) {
     for (let col = 0; col < layout[row].length; col++) {
       const hazard = HAZARD_CHARS[layout[row][col]];
       if (hazard) tiles.push({ col, row, ...hazard });
+      if (markers?.[row]?.[col]?.kind === 'fallingStalactite') {
+        tiles.push({ col, row, hazardType: 'fallingStalactite', facing: 'down' });
+      }
     }
   }
   return tiles;

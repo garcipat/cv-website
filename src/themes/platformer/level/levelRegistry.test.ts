@@ -6,7 +6,7 @@ import {
   LEVELS,
   type LevelEntry,
 } from './levelRegistry';
-import { LEVEL_1_LAYOUT, SCRATCH_LAYOUT } from './level';
+import { LEVEL_1_LAYOUT, LEVEL_1_MARKERS, SCRATCH_LAYOUT } from './level';
 
 describe('BUILT_IN_LEVELS', () => {
   it('listsMainFirstThenEmpty', () => {
@@ -17,8 +17,19 @@ describe('BUILT_IN_LEVELS', () => {
     expect(BUILT_IN_LEVELS[0].layout).toEqual(LEVEL_1_LAYOUT);
   });
 
+  it('mainEntry-carriesTheShippedMarkers', () => {
+    expect(BUILT_IN_LEVELS[0].markers).toEqual(LEVEL_1_MARKERS);
+  });
+
   it('emptyEntry-carriesTheScratchLayout', () => {
     expect(BUILT_IN_LEVELS[1].layout).toEqual(SCRATCH_LAYOUT);
+  });
+
+  it('emptyEntry-hasNoMarkersSoItIsTreatedAsNewFormatWithNone', () => {
+    // `undefined` is what marks a pre-feature file for the `T` generation rule;
+    // the scratch layout has no `T`, so either way is harmless, but it must not
+    // accidentally gain a markers field.
+    expect(BUILT_IN_LEVELS[1].markers).toBeUndefined();
   });
 });
 
@@ -61,6 +72,32 @@ describe('parseLevelModules', () => {
 
   it('emptyGlobResult-yieldsNoEntries', () => {
     expect(parseLevelModules({})).toEqual([]);
+  });
+
+  it('validMarkersField-isCarriedOntoTheEntry', () => {
+    const markers = [{ col: 0, row: 0, marker: { kind: 'patrolBoundary' } }];
+    const entries = parseLevelModules({
+      './levels/cave-run.json': { default: { layout: ['GGG'], markers } },
+    });
+    expect(entries[0].markers).toEqual(markers);
+  });
+
+  it('malformedMarkersField-costsOnlyThatFieldNotTheWholeEntry', () => {
+    const entries = parseLevelModules({
+      './levels/cave-run.json': {
+        default: { name: 'Cave Run', layout: ['GGG'], markers: 'nope' },
+      },
+    });
+    expect(entries).toHaveLength(1);
+    expect(entries[0].markers).toBeUndefined();
+    expect(entries[0].layout).toEqual(['GGG']);
+  });
+
+  it('missingMarkersField-meansAPreFeatureFile', () => {
+    const entries = parseLevelModules({
+      './levels/old.json': { default: { layout: ['T.'] } },
+    });
+    expect(entries[0].markers).toBeUndefined();
   });
 
   describe('malformed files are skipped (FR-027)', () => {

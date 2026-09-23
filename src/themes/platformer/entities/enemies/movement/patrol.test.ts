@@ -4,7 +4,7 @@ import { ENEMY_TYPES } from '../index';
 import type { EnemyState } from '../../Enemy';
 import { RENDERED_TILE_SIZE } from '../../../level/Terrain';
 import { PHYSICS_CONFIG } from '../../../engine/PhysicsConfig';
-import type { LevelDef, TileType } from '../../../level/LevelData';
+import type { LevelDef, MarkerEntry, TileType } from '../../../level/LevelData';
 import type { EnemyPlacement } from '../../../level/EnemyMapper';
 
 /**
@@ -26,11 +26,13 @@ function makeLevel(width: number, wallCols: number[], pitCols: number[]): LevelD
 }
 
 function makePatrolLevel(width: number, patrolCols: number[]): LevelDef {
-  const entityRow: TileType[] = Array.from({ length: width }, (_, c) =>
-    patrolCols.includes(c) ? 'patrol' : 'empty',
-  );
+  const entityRow: TileType[] = Array.from({ length: width }, () => 'empty');
   const groundRow: TileType[] = Array.from({ length: width }, () => 'groundRock');
-  return { terrain: [entityRow, groundRow], width, height: 2 };
+  const markers: (MarkerEntry | null)[][] = Array.from({ length: 2 }, () =>
+    new Array<MarkerEntry | null>(width).fill(null),
+  );
+  for (const col of patrolCols) markers[0][col] = { kind: 'patrolBoundary' };
+  return { terrain: [entityRow, groundRow], width, height: 2, markers };
 }
 
 function makeEntityFeatureLevel(width: number, featureCol: number, feature: TileType): LevelDef {
@@ -194,12 +196,14 @@ describe('patrolMovement', () => {
 
   it('patrolTileOnADifferentRow-doesNotTurnTheEnemyAround', () => {
     const width = 10;
-    const skyRow: TileType[] = Array.from({ length: width }, (_, c) =>
-      c === 7 ? 'patrol' : 'empty',
-    );
+    const skyRow: TileType[] = Array.from({ length: width }, () => 'empty');
     const entityRow: TileType[] = Array.from({ length: width }, () => 'empty');
     const groundRow: TileType[] = Array.from({ length: width }, () => 'groundRock');
-    const level: LevelDef = { terrain: [skyRow, entityRow, groundRow], width, height: 3 };
+    const markers: (MarkerEntry | null)[][] = Array.from({ length: 3 }, () =>
+      new Array<MarkerEntry | null>(width).fill(null),
+    );
+    markers[0][7] = { kind: 'patrolBoundary' };
+    const level: LevelDef = { terrain: [skyRow, entityRow, groundRow], width, height: 3, markers };
     const enemy = {
       ...makeEnemyAt(5),
       y: RENDERED_TILE_SIZE,
@@ -216,9 +220,13 @@ describe('patrolMovement', () => {
     const width = 10;
     const entityRow: TileType[] = Array.from({ length: width }, () => 'empty');
     const groundRow: TileType[] = Array.from({ length: width }, (_, c) =>
-      c === 7 ? 'patrol' : 'groundRock',
+      c === 7 ? 'empty' : 'groundRock',
     );
-    const level: LevelDef = { terrain: [entityRow, groundRow], width, height: 2 };
+    const markers: (MarkerEntry | null)[][] = Array.from({ length: 2 }, () =>
+      new Array<MarkerEntry | null>(width).fill(null),
+    );
+    markers[1][7] = { kind: 'patrolBoundary' };
+    const level: LevelDef = { terrain: [entityRow, groundRow], width, height: 2, markers };
     const enemy = { ...makeEnemyAt(5), direction: 'right' as const };
 
     const next = step(GREEN_MOVEMENT, enemy, level, 1);

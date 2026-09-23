@@ -1,5 +1,5 @@
 import { signal, computed } from '@preact/signals-react';
-import type { LevelDef } from './LevelData';
+import type { LevelDef, MarkerPlacement } from './LevelData';
 import {
   parseLevel,
   parseBackgroundLayout,
@@ -23,7 +23,7 @@ import {
 } from './LevelParser';
 
 // Visual layout of currentLevel — one character per tile (see LevelParser.ts's
-// TERRAIN_CHARS/ENTITY_CHARS/SIGN_CHARS). Every row is the same length (the
+// TERRAIN_CHARS/ENTITY_CHARS/SIGN_CHAR). Every row is the same length (the
 // level's width in tiles, 220), and the array is bottom-anchored: its LAST row
 // is the bedrock stratum, and rows above it add height only as far up as the
 // tallest actual feature needs — there is no leading row of empty sky, which
@@ -173,14 +173,16 @@ import {
 // just right of the `?` block at row 7 / col 88 (which stays reachable from
 // below) and left of the bee marker at row 8 / col 95.
 //
-// `1`-`6` are hint signs (LevelParser.ts's SIGN_CHARS), each placed where its
-// mechanic is first needed AND actually pays off: `5` (open all the chests) at
-// spawn, `2` (ladder) beside the first ladder, `4` (chests need a key) beside
-// the first chest, `3` (fragile rocks break from below) on the ledge under
-// zone C's plug, `1` (bridge drop-through) on zone C's cave-mouth bridge —
-// deliberately NOT on the meadow bridge, where dropping through only earns a
-// pit fall; on the cave mouth, dropping through is the way in — and `6`
-// (place a bomb with B) beside the first blue bomb-pot in zone A.
+// Every hint sign is the uniform `T` character (LevelParser.ts's SIGN_CHAR);
+// its hint lives on the tile meta layer as a `sign` marker (see
+// LEVEL_1_MARKERS below). Each sign stands where its mechanic is first needed
+// AND actually pays off: openAllChestsHaveFun at spawn, ladderClimbUp beside
+// the first ladder, chestNeedsKey beside the first chest,
+// fragileRockBreaksFromBelow on the ledge under zone C's plug,
+// bridgeDropThrough on zone C's cave-mouth bridge — deliberately NOT on the
+// meadow bridge, where dropping through only earns a pit fall; on the cave
+// mouth, dropping through is the way in — and bomb beside the first blue
+// bomb-pot in zone A.
 export const LEVEL_1_LAYOUT: readonly string[] = [
   '..................................................................................................................................................................................................................m....$....',
   '.............................................................................................................................................................................................?..........=.....HGGGGGGGGGGG..',
@@ -191,11 +193,11 @@ export const LEVEL_1_LAYOUT: readonly string[] = [
   '........................................M........................................................o...........m........................................................................M..o.GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   '.............HGGGGGGGG@.=?........GGGGGGGGGGGGGGG.......................................?......GGGGGGG.....GGGGGGG....=?F?.........................................................RRRRRRRRGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   '.............H....................GGGGGGGGGGGGGGG........................................GGGGGGq...................................................................................GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
-  '..S.5.Ao...oCH.......M....6b.M..2.GGGGGGGGGGGGGGGuu.u.....M......1.........^..A........................M.o..........M.....M.......M........................M.................#.M..#GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  '..S.T.Ao...oCH.......M....Tb.M..T.GGGGGGGGGGGGGGGuu.u.....M......T.........^..A........................M.o..........M.....M.......M........................M.................#.M..#GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGgggGGGBBBGGGGGGGGGGGGGGHGGGGGGGGGGGGGGGGGGGGGGHGGGGGGHGGBBBGGGGGGGGGGGGGGGGGFFGGGGGGGGGG...GGGGGGGGGBBBGGGGGGGGGGGGGGGRRHRRRRRRRRRRRRGGGGGGGGGGGGGGGGGGGGGGGGGHGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.H........⊤....⊤........H<GGGG>H..........=................GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..H.......v.......=...=.................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
-  'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.H..¥........¥........¥.H.GGGG.H.....................3.....GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..H.....................................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
-  'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.H..o...4.$.⊥...⊥.......H.GGGG.H.....o..m....o....o.RRRRR..GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..H..o.m..$.............................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.H..¥........¥........¥.H.GGGG.H.....................T.....GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..H.....................................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+  'GGGGGGGGGGGGGG...GGGGGGGGGGGGG.H..o...T.$.⊥...⊥.......H.GGGG.H.....o..m....o....o.RRRRR..GGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..H..o.m..$.............................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGG...GGGGGGGGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRGGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRRRGGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGGRRRRRRRRRRRRRRHRRRRRRRRRRRFFRRRRRRRRRRRRHRRRRGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGG...GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGG..............H.........................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
   'GGGGGGGGGGGGGG...GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG...GGGGGGGGG...GGGGGGGGGGGGGGGX.....X.......H.........................H....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
@@ -223,6 +225,24 @@ export const LEVEL_1_BACKGROUND: readonly string[] = LEVEL_1_LAYOUT.map((_, row)
     row >= 11 && row <= 13 && col >= 30 && col <= 56 ? 'c' : '.',
   ).join(''),
 );
+
+/**
+ * The shipped level's tile meta layer — the six hand-authored hint signs,
+ * each a uniform `T` layout character plus a `{kind:'sign', hintId}` marker.
+ * A new-format level always supplies a `markers` field (even an empty one),
+ * which is what tells `parseLevel` that a `T` is a sign rather than a
+ * pre-feature falling stalactite (the `T` generation rule, research D5).
+ * Coordinates are relative to `LEVEL_1_LAYOUT`'s own origin, the same space
+ * `LEVEL_1_BACKGROUND` shares.
+ */
+export const LEVEL_1_MARKERS: readonly MarkerPlacement[] = [
+  { col: 4, row: 9, marker: { kind: 'sign', hintId: 'openAllChestsHaveFun' } },
+  { col: 26, row: 9, marker: { kind: 'sign', hintId: 'bomb' } },
+  { col: 32, row: 9, marker: { kind: 'sign', hintId: 'ladderClimbUp' } },
+  { col: 65, row: 9, marker: { kind: 'sign', hintId: 'bridgeDropThrough' } },
+  { col: 83, row: 12, marker: { kind: 'sign', hintId: 'fragileRockBreaksFromBelow' } },
+  { col: 38, row: 13, marker: { kind: 'sign', hintId: 'chestNeedsKey' } },
+];
 
 /**
  * The smallest layout that is still a playable level: three ground tiles with
@@ -260,16 +280,28 @@ export const currentLayout = signal<readonly string[]>(LEVEL_1_LAYOUT);
  *  button is the only place that overwrites it at runtime. */
 export const currentBackgroundLayout = signal<readonly string[]>(LEVEL_1_BACKGROUND);
 
+/**
+ * The GAME's tile meta layer — parallel to `currentLayout`/
+ * `currentBackgroundLayout` above, holding the raw `MarkerPlacement[]` a
+ * level file stores (not the parsed `MarkerGrid` — see `currentLevel` below).
+ * Deliberately `undefined` for a pre-feature level so `parseLevel` can tell
+ * the two generations apart (the `T` generation rule, research D5); the
+ * shipped level starts new-format with `LEVEL_1_MARKERS`. The Level Editor's
+ * Try button is the only place that overwrites it at runtime.
+ */
+export const currentMarkers = signal<readonly MarkerPlacement[] | undefined>(LEVEL_1_MARKERS);
+
 /** Parsed terrain/dimensions for `currentLayout`, with `background` parsed
  *  from `currentBackgroundLayout` via `parseBackgroundLayout` and clamped to
- *  the freshly-parsed terrain's own bounds. Recomputes whenever the Level
- *  Editor's Try button changes `currentLayout`/`currentBackgroundLayout` (see
- *  their doc comments above); every other read site (PlatformerPage.tsx,
- *  PlatformerState.ts) reads this reactively via `.value` instead of a plain
- *  module-load-time constant, so a Try'd layout actually renders/simulates
- *  instead of the stale default. */
+ *  the freshly-parsed terrain's own bounds, and the tile meta layer parsed
+ *  from `currentMarkers` by `parseLevel`. Recomputes whenever the Level
+ *  Editor's Try button changes `currentLayout`/`currentBackgroundLayout`/
+ *  `currentMarkers` (see their doc comments above); every other read site
+ *  (PlatformerPage.tsx, PlatformerState.ts) reads this reactively via
+ *  `.value` instead of a plain module-load-time constant, so a Try'd layout
+ *  actually renders/simulates instead of the stale default. */
 export const currentLevel = computed<LevelDef>(() => {
-  const terrain = parseLevel(currentLayout.value);
+  const terrain = parseLevel(currentLayout.value, currentMarkers.value);
   return {
     ...terrain,
     background: parseBackgroundLayout(currentBackgroundLayout.value, terrain.width, terrain.height),
@@ -342,16 +374,22 @@ export const CHEST_TILES = computed(() => findChestTiles(currentLayout.value));
  *  CheckpointLogic.ts). */
 export const CHECKPOINT_TILES = computed(() => findCheckpointTiles(currentLayout.value));
 
-/** Hand-placed hint-sign positions, from `currentLayout`'s digit markers
- *  (`1`-`9`, see LevelParser.ts's SIGN_CHARS, spec.md FR-040). One sign per
- *  hint, each standing where its mechanic is first needed — see this file's
- *  top doc comment. */
-export const SIGN_TILES = computed(() => findSignTiles(currentLayout.value));
+/** Hand-placed hint-sign positions, from `currentLayout`'s uniform `T`
+ *  markers (LevelParser.ts's SIGN_CHAR) paired with each cell's `sign` marker
+ *  hint (or the default). One sign per hint, each standing where its mechanic
+ *  is first needed — see this file's top doc comment. */
+export const SIGN_TILES = computed(() =>
+  findSignTiles(currentLayout.value, currentLevel.value.markers),
+);
 
-/** Hand-placed spike-hazard positions, from `currentLayout`'s `^`/`v`/`<`/`>`
- *  markers (LevelParser.ts's HAZARD_CHARS) — purely positional/cosmetic-
- *  facing, no CVData binding, same convention as SIGN_TILES. */
-export const HAZARD_TILES = computed(() => findHazardTiles(currentLayout.value));
+/** Hand-placed hazard positions: `currentLayout`'s `^`/`v`/`<`/`>`/`¦`/`A`
+ *  character hazards (LevelParser.ts's HAZARD_CHARS) plus the marker-derived
+ *  falling stalactites, in one reading-order list — purely
+ *  positional/cosmetic-facing, no CVData binding, same convention as
+ *  SIGN_TILES. */
+export const HAZARD_TILES = computed(() =>
+  findHazardTiles(currentLayout.value, currentLevel.value.markers),
+);
 
 /** Hand-placed wall-torch positions, from `currentLayout`'s `¥` markers (a
  *  `torch` TERRAIN_CHARS entry). Torches are the only light sources the cave

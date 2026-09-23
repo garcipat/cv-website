@@ -4,6 +4,7 @@ import { updatePanOffset, type PanOffset } from './EditorPan';
 import { DEFAULT_ZOOM, type ZoomLevel } from './EditorZoom';
 import { findBlueprint } from '../level/blueprintRegistry';
 import { blueprintCells } from './blueprintCells';
+import { blueprintMarkers } from './placeBlueprint';
 import { blueprintFits } from './blueprintFit';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import { loadImage } from '../engine/SpriteLoader';
@@ -23,13 +24,15 @@ import {
 } from '../entities/sprites/sheets';
 import {
   applyBackgroundPaint,
+  applyMarkerPaint,
   applyPaint,
   armBlueprint,
   commitPlacement,
   undoLastPlacement,
   type GrowthShift,
 } from './editorActions';
-import type { EditorAppearance, EditorLayer, PlacementSnapshot } from './editorState';
+import type { EditorAppearance, EditorLayer, EditorTool, PlacementSnapshot } from './editorState';
+import type { MarkerGrid } from '../level/LevelData';
 import type { BackgroundChar, TileChar } from '../level/LevelParser';
 
 const EMPTY_IMAGES: EditorImages = {
@@ -84,8 +87,9 @@ export interface EditorCanvasPaneProps {
   isBlueprintMode: boolean;
   appearance: EditorAppearance;
   grid: TileChar[][];
+  markerGrid: MarkerGrid;
   backgroundGrid: BackgroundChar[][];
-  selectedTool: TileChar;
+  selectedTool: EditorTool;
   activeLayer: EditorLayer;
   selectedBackgroundMaterial: BackgroundChar | null;
   armedBlueprintId: string | null;
@@ -103,6 +107,7 @@ export const EditorCanvasPane = ({
   isBlueprintMode,
   appearance,
   grid,
+  markerGrid,
   backgroundGrid,
   selectedTool,
   activeLayer,
@@ -196,16 +201,28 @@ export const EditorCanvasPane = ({
   const armedBlueprint =
     armedBlueprintId === null ? null : (findBlueprint(armedBlueprintId) ?? null);
   const armedCells = armedBlueprint === null ? null : blueprintCells(armedBlueprint.layout);
+  const armedMarkerCells = armedBlueprint === null ? [] : blueprintMarkers(armedBlueprint);
 
   const placementActive = !isBlueprintMode && activeLayer === 'foreground' && armedCells !== null;
   const placementPreview =
     placementActive && armedCells !== null && activeHover !== null
       ? {
-          cells: armedCells.map(({ row, col, char }) => ({
-            row: row + activeHover.row,
-            col: col + activeHover.col,
-            char,
-          })),
+          cells: [
+            ...armedCells.map(({ row, col, char }) => ({
+              row: row + activeHover.row,
+              col: col + activeHover.col,
+              char,
+            })),
+            // The room's own marker cells are part of what committing leaves
+            // behind, so the preview shows them too — a connection point on an
+            // otherwise-empty border cell included.
+            ...armedMarkerCells.map(({ row, col, marker }) => ({
+              row: row + activeHover.row,
+              col: col + activeHover.col,
+              char: '.' as TileChar,
+              marker,
+            })),
+          ],
           valid: blueprintFits(grid, armedCells, activeHover.col, activeHover.row),
         }
       : null;
@@ -240,6 +257,7 @@ export const EditorCanvasPane = ({
     <div data-testid="editor-canvas-pane" className="flex min-h-0 min-w-0 flex-1 flex-col">
       <EditorCanvas
         grid={grid}
+        markerGrid={markerGrid}
         selectedTool={selectedTool}
         panOffset={activePanOffset}
         zoom={activeZoom}
@@ -265,6 +283,7 @@ export const EditorCanvasPane = ({
         }
         onPaintBackground={(next) => applyBackgroundPaint(next)}
         onPaint={(result) => compensateForGrowth(applyPaint(result))}
+        onPaintMarker={(next) => applyMarkerPaint(next)}
         onPan={setActivePanOffset}
         onZoomChange={handleZoomChange}
       />
