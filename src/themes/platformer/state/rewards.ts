@@ -1,7 +1,8 @@
 import { collectedFacts, activeEffects, activeCounterPopups, levelTotals } from '../PlatformerState';
-import { startFlightEffect, startCounterPopup } from './CollectionEffects';
+import { startFlightEffect, startCounterPopup } from '../engine/CollectionEffects';
 import { countCollectedFor } from '../entities/CollectiblesSummary';
-import type { CounterPopupLabelKey, SlotAllocator } from './CollectionEffects';
+import type { SlotAllocator } from '../engine/CollectionEffects';
+import type { CounterPopupLabelKey } from '../contracts/counters';
 import { formatJournalEntry } from '../entities/JournalEntry';
 import type { CollectedFact } from '../types';
 

@@ -1,7 +1,7 @@
 import { RENDER_SCALE, RENDERED_TILE_SIZE } from '../../level/Terrain';
 import type { SpriteDescriptor } from '../sprites/SpriteSheet';
 import type { BaseEnemyState } from './EnemyType';
-import type { Rect } from '../geometry';
+import type { Rect } from '../../contracts/geometry';
 
 /**
  * The collision box shared by every sprite-sheet enemy: the render slot

@@ -1,12 +1,13 @@
 import { bombPot } from './BombPot';
 import { toBlockState } from '../Block';
 import type { BlockState } from '../Block';
-import { PHYSICS_CONFIG } from '../../engine/PhysicsConfig';
+import { PHYSICS_CONFIG } from '../../contracts/PhysicsConfig';
 import { WORLD_TILESET_SHEET } from '../sprites/sheets';
 import { frameSource } from '../sprites/SpriteSheet';
 import { computePotRenderPlan } from './potRenderPlan';
 import { tileToPixel, RENDERED_TILE_SIZE } from '../../level/Terrain';
-import type { DrawContext } from '../../engine/DrawContext';
+import type { DrawContext } from '../../contracts/DrawContext';
+import type { PotRenderPlan } from './potTypes';
 
 /** Row 8, column 0 of `world_tileset.png` — the blue bottle directly left of
  *  the potion pot's red bottle. */
@@ -18,12 +19,12 @@ function blockAt(kind: string, col: number, row: number, id = `${kind}-${col}-${
 }
 
 function makeDrawContext(image: HTMLImageElement | null): {
-  dc: DrawContext;
+  dc: DrawContext<PotRenderPlan>;
   drawImage: ReturnType<typeof vi.fn>;
 } {
   const drawImage = vi.fn();
   const ctx = { drawImage } as unknown as CanvasRenderingContext2D;
-  const dc: DrawContext = {
+  const dc: DrawContext<PotRenderPlan> = {
     ctx,
     sprites: image ? { [WORLD_TILESET_SHEET.src]: image } : {},
     originX: 0,

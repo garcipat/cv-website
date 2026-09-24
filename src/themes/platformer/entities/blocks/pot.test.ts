@@ -6,12 +6,13 @@ import { BLOCK_TYPES } from './index';
 import { toBlockState } from '../Block';
 import type { BlockState } from '../Block';
 import type { BlockPlacement } from '../../level/BlockMapper';
-import { PHYSICS_CONFIG } from '../../engine/PhysicsConfig';
+import { PHYSICS_CONFIG } from '../../contracts/PhysicsConfig';
 import { STATIC_OBJECTS_SHEET } from '../sprites/sheets';
 import { tileToPixel } from '../../level/Terrain';
-import type { DrawContext } from '../../engine/DrawContext';
+import type { DrawContext } from '../../contracts/DrawContext';
+import type { PotRenderPlan } from './potTypes';
 
-function makeDc(overrides: Partial<DrawContext> = {}): DrawContext {
+function makeDc(overrides: Partial<DrawContext<PotRenderPlan>> = {}): DrawContext<PotRenderPlan> {
   return {
     ctx: { drawImage: vi.fn() } as unknown as CanvasRenderingContext2D,
     sprites: { [STATIC_OBJECTS_SHEET.src]: {} as unknown as HTMLImageElement },

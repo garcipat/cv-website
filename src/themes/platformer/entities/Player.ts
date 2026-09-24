@@ -1,6 +1,6 @@
 import { RENDER_SCALE, RENDERED_TILE_SIZE } from '../level/Terrain';
-import type { Moving, SelfAnimated, Damageable } from './capabilities';
-import { isInvulnerable } from './capabilities';
+import type { Moving, SelfAnimated, Damageable } from '../contracts/capabilities';
+import { isInvulnerable } from '../contracts/capabilities';
 
 export const PLAYER_FRAME_SIZE = 32;
 export const PLAYER_RENDERED_SIZE = PLAYER_FRAME_SIZE * RENDER_SCALE;

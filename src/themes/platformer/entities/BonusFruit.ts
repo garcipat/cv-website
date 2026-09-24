@@ -21,9 +21,8 @@ export const BONUS_FRUIT_RISE_DURATION_SECONDS = 0.3;
  * only rise straight up, never drift horizontally); `restY` is one tile
  * above the block's `y`, matching currentLevel's reserved blank row above every
  * `Q` marker. `iconIndex` picks a `fruit.png` frame (see `Fruit.ts`'s
- * `fruitFrameSource`) so bonus fruits visually vary from spawn to spawn,
- * distinguishing them from each other and from the fixed-icon Language
- * fruits (`F` markers) elsewhere in the level.
+ *  `fruitFrameSource`) so bonus fruits visually vary from spawn to spawn,
+ *  distinguishing them from each other.
  */
 export interface BonusFruitState {
   id: string;

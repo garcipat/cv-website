@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { parseBackgroundLayout, TERRAIN_CHARS, type TileChar, type BackgroundChar } from '../level/LevelParser';
 import type { MarkerEntry, MarkerGrid } from '../level/LevelData';
 import { hintCode } from '../level/HintCatalog';
-import { DEFAULT_TORCH_STRENGTH, torchStrengthCode } from '../engine/Torch';
+import { DEFAULT_TORCH_STRENGTH, torchStrengthCode } from '../entities/Torch';
 import {
   paintMarkerCell,
   eraseMarkerCell,
@@ -61,9 +61,10 @@ import {
 } from '../engine/Renderer';
 import { caveLightingPreview } from './caveLightingPreview';
 import { paintBackgroundCell, eraseBackgroundCell } from './paintBackgroundCell';
-import type { DrawContext } from '../engine/DrawContext';
+import type { DrawContext } from '../contracts/DrawContext';
 import type { EditorAppearance, EditorTool } from './editorState';
 import { computePotRenderPlan } from '../entities/blocks/potRenderPlan';
+import type { PotRenderPlan } from '../entities/blocks/potTypes';
 import {
   SLIME_GREEN_SHEET,
   SLIME_PURPLE_SHEET,
@@ -820,7 +821,7 @@ export const EditorCanvas = ({
 
       const editorBlockStates = synthesizeBlockStates(grid);
 
-      const drawContext: DrawContext = {
+      const drawContext: DrawContext<PotRenderPlan> = {
         ctx,
         sprites: {
           [SLIME_GREEN_SHEET.src]: images.slimeGreen,

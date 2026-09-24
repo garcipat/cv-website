@@ -1,6 +1,6 @@
 import { RENDERED_TILE_SIZE, RENDER_SCALE } from '../level/Terrain';
 import type { CheckpointPlacement } from '../level/CheckpointMapper';
-import type { Box } from '../engine/Collision';
+import type { Box } from '../contracts/geometry';
 import type { EffectAnchor } from './Enemy';
 import type { SpriteSheet } from './sprites/SpriteSheet';
 

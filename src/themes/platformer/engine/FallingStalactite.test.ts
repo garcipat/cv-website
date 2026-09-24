@@ -14,9 +14,8 @@ import {
   FALLING_STALACTITE_FALL_SPEED,
   FALLING_STALACTITE_MAX_DETECTION_DEPTH,
   FALLING_STALACTITE_ZONE_HALF_WIDTH,
-  type FallingStalactiteTimerState,
-  type FallingStalactitePhase,
 } from './FallingStalactite';
+import type { FallingStalactitePhase, FallingStalactiteTimerState } from '../entities/hazards/phases';
 import { parseLevel } from '../level/LevelParser';
 import { RENDER_SCALE, RENDERED_TILE_SIZE } from '../level/Terrain';
 import { TWIN_LEFT_RECT, TWIN_RIGHT_RECT } from './StaticObjectsCatalog';

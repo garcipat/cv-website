@@ -4,7 +4,7 @@ import { currentUI } from '@/state/locale';
 import { lifecycleState, controlsOverlayDismissed, playerState } from '../PlatformerState';
 import { RESTART_PROMPT_FONT_FAMILY } from '../engine/Renderer';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
-import { PHYSICS_CONFIG } from '../engine/PhysicsConfig';
+import { PHYSICS_CONFIG } from '../contracts/PhysicsConfig';
 
 // The overlay dismisses once the player has actually traveled this far from
 // where they stood when it appeared (about two tiles) — a deliberately

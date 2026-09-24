@@ -55,12 +55,12 @@ import { drawBackgroundLayers, backgroundBandGeometry } from './engine/Backgroun
 import { createCloudField, stepCloudField, drawAmbientClouds } from './engine/AmbientClouds';
 import type { CloudField } from './engine/AmbientClouds';
 import { ladderBundleForPlayer, beginDeploy } from './engine/DeployableLadder';
-import type { DrawContext } from './engine/DrawContext';
+import type { DrawContext } from './contracts/DrawContext';
 import { drawDebugOverlay, drawCameraDeadZoneOverlay } from './engine/DebugOverlay';
 import { createGameLoop } from './engine/GameLoop';
 import { stepPlayerPhysics, checkPitFall, resolvePitFall, playerOnMushroomCap } from './engine/Physics';
 import { startMushroomSquash } from './engine/MushroomSquash';
-import { PHYSICS_CONFIG } from './engine/PhysicsConfig';
+import { PHYSICS_CONFIG } from './contracts/PhysicsConfig';
 import { stepEnemyHitReaction } from './engine/EnemyAI';
 import { updateCamera, updateCameraY, initialCameraX, initialCameraY } from './engine/Camera';
 import { createKeyboardInput } from './engine/Input';
@@ -114,6 +114,7 @@ import {
 } from './entities/Block';
 import type { BlockState } from './entities/Block';
 import { computePotRenderPlan } from './entities/blocks/potRenderPlan';
+import type { PotRenderPlan } from './entities/blocks/potTypes';
 import { spawnBonusFruit, tickBonusFruit, bonusFruitY } from './entities/BonusFruit';
 import { spawnKeyPickup, KEY_TILE_OFFSET_X, KEY_TILE_OFFSET_Y } from './entities/KeyPickup';
 import { spawnHeartPickup } from './entities/HeartPickup';
@@ -158,7 +159,7 @@ import { fallingStalactiteShatter } from './entities/hazards/FallingStalactite';
 import { crumblingFloorPhaseFor, CRUMBLING_FLOOR_CRACK_SECONDS } from './engine/CrumblingFloor';
 import { coinFrameSource, COIN_FRAME_SIZE } from './entities/Coin';
 import { fruitFrameSource, FRUIT_FRAME_SIZE } from './entities/Fruit';
-import { createRewardReveal } from './engine/RewardReveal';
+import { createRewardReveal } from './state/rewards';
 import { RENDERED_TILE_SIZE, tileToPixel } from './level/Terrain';
 import {
   advancePlayerAnimation,
@@ -174,8 +175,8 @@ import {
   PLAYER_FOOT_PADDING,
 } from './entities/Player';
 import type { BlockContact } from './entities/Player';
-import { strongerBounce } from './engine/Outcome';
-import { isInvulnerable } from './entities/capabilities';
+import { strongerBounce } from './contracts/Outcome';
+import { isInvulnerable } from './contracts/capabilities';
 import { advanceEnemyAnimation, applyEnemyDamage, enemyEffectAnchor } from './entities/Enemy';
 import {
   SLIME_GREEN_SHEET,
@@ -200,7 +201,7 @@ import {
   CRUMBLE_CRACKS_SHEET,
 } from './entities/sprites/sheets';
 import { frameSource, collectSheetSources } from './entities/sprites/SpriteSheet';
-import type { SpriteLookup } from './entities/sprites/SpriteSheet';
+import type { SpriteLookup } from './contracts/SpriteLookup';
 import { ENEMY_TYPES, typeOf } from './entities/enemies';
 import type { MovementContext } from './entities/enemies/movement/MovementStrategy';
 import type { EnemyTypeKey } from './entities/enemies';
@@ -742,7 +743,7 @@ export const PlatformerPage = () => {
         drawSigns(ctx, signPlacements.value, tilesetRef.current, originX, originY);
       }
 
-      const drawContext: DrawContext = {
+      const drawContext: DrawContext<PotRenderPlan> = {
         ctx,
         sprites: spritesRef.current,
         originX,

@@ -1,6 +1,6 @@
-import type { WorldType, Boxed } from '../WorldType';
+import type { WorldType, Boxed } from '../../contracts/WorldType';
 import type { PlayerState } from '../Player';
-import type { Rect } from '../geometry';
+import type { Rect } from '../../contracts/geometry';
 
 /**
  * Everything the engine needs to know about one hazard kind, owned entirely

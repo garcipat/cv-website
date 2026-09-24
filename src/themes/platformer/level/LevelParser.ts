@@ -10,7 +10,7 @@ import type {
 } from './LevelData';
 import type { HintId } from '../types';
 import { DEFAULT_HINT_ID, isHintId } from './HintCatalog';
-import { DEFAULT_TORCH_STRENGTH, isTorchStrength } from '../engine/Torch';
+import { DEFAULT_TORCH_STRENGTH, isTorchStrength } from '../entities/Torch';
 
 /** An entity marker's kind — what it means, not what it looks like on the
  *  ground (every entity marker sits on `empty` terrain, see parseLevel). */

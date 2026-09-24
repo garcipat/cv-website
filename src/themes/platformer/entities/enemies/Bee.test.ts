@@ -7,12 +7,12 @@ import { resolveAnimation, enemyFrameIndex } from './EnemyAnimation';
 import { frameSource } from '../sprites/SpriteSheet';
 import { ENEMY_HIT_REACTION_SECONDS } from './shared';
 import type { PlayerState } from '../Player';
-import type { Contact, ContactSide } from '../../engine/Contact';
-import type { DrawContext } from '../../engine/DrawContext';
+import type { Contact, ContactSide } from '../../contracts/Contact';
+import type { DrawContext } from '../../contracts/DrawContext';
 import type { LevelDef, TileType } from '../../level/LevelData';
 import type { EnemyPlacement } from '../../level/EnemyMapper';
 import { RENDER_SCALE, RENDERED_TILE_SIZE } from '../../level/Terrain';
-import { PHYSICS_CONFIG } from '../../engine/PhysicsConfig';
+import { PHYSICS_CONFIG } from '../../contracts/PhysicsConfig';
 
 /**
  * The bee's combat contract (FR-010/FR-011/FR-012/FR-013, SC-004/SC-009):

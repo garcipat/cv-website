@@ -9,7 +9,7 @@ import { baseEnemyState, baseRevive, ENEMY_HIT_REACTION_SECONDS, type EnemyBaseC
 import { SLIME_GREEN_SHEET } from '../../sprites/sheets';
 import { frameSource } from '../../sprites/SpriteSheet';
 import type { SpriteDescriptor } from '../../sprites/SpriteSheet';
-import type { DrawContext } from '../../../engine/DrawContext';
+import type { DrawContext } from '../../../contracts/DrawContext';
 import type { EnemyPlacement } from '../../../level/EnemyMapper';
 import type { LevelDef } from '../../../level/LevelData';
 

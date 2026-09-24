@@ -4,7 +4,7 @@ import type { HazardFacing } from '../../level/LevelParser';
 import { STATIC_OBJECTS_SHEET } from '../sprites/sheets';
 import { TILE_SIZE, RENDERED_TILE_SIZE, RENDER_SCALE } from '../../level/Terrain';
 import { SIDE_HIT_DAMAGE } from '../Health';
-import type { Rect } from '../geometry';
+import type { Rect } from '../../contracts/geometry';
 
 /**
  * Native tile coordinates (columns 3-4, rows 6-7 of staticObjects.png, 16px

@@ -65,7 +65,7 @@ graph RL
         S030["✅ S-030: Platformer Tile Meta Layer"]
         S031["✅ S-031: Platformer Torch Strength"]
 
-        R001["R-001: Platformer Core Contracts & Dependency Layers"]
+        R001["✅ R-001: Platformer Core Contracts & Dependency Layers"]
         R002["R-002: Platformer Shared Primitives & Dedup"]
         R003["R-003: Platformer Abstract Light Sources"]
         R004["R-004: Platformer Transient Effect Registry"]
@@ -78,6 +78,7 @@ graph RL
         R011["R-011: Platformer Player Damage & Bomb Systems"]
         R012["R-012: Platformer State Stores & Asset/HUD Extraction"]
         R013["R-013: Platformer Sprite Asset & Atlas Organization"]
+        R014["R-014: Platformer Layer-Boundary Lint Guard"]
     end
 
     F003 --> F002
@@ -234,6 +235,7 @@ graph RL
     R012 --> R009
     R012 --> R011
     R013 --> F015
+    R014 --> R001
 
     classDef done stroke:#FFD600,stroke-width:3px
     classDef projectSetup fill:#1565C0,color:#ffffff
@@ -295,7 +297,8 @@ graph RL
     class O016 done
     class O021 done
     class O023 done
-    class R001,R002,R003,R004,R005,R006,R007,R008,R009,R011,R012 themes
+    class R001,R002,R003,R004,R005,R006,R007,R008,R009,R011,R012,R014 themes
+    class R001 done
     class R010 enhancements
     class R013 themes
 ```

@@ -5,7 +5,7 @@ import { isStalactiteTwin, stalactiteEntry, TWIN_LEFT_RECT, TWIN_RIGHT_RECT } fr
 import { DECORATIONS_SHEET } from '../sprites/sheets';
 import { RENDER_SCALE, RENDERED_TILE_SIZE, TILE_SIZE } from '../../level/Terrain';
 import { SIDE_HIT_DAMAGE } from '../Health';
-import type { DrawContext } from '../../engine/DrawContext';
+import type { DrawContext } from '../../contracts/DrawContext';
 import type { PlayerState } from '../Player';
 
 function findCell(twin: boolean, parity?: 0 | 1): { col: number; row: number } {

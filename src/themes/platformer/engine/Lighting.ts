@@ -8,12 +8,13 @@
  * positions and the shared clock. Nothing in this file stores state or draws.
  */
 
-import type { BackgroundMaterialFamily, LevelDef, TorchStrength } from '../level/LevelData';
+import type { BackgroundMaterialFamily, LevelDef } from '../level/LevelData';
+import type { TorchStrength } from '../entities/Torch';
 import { backgroundMaterialFamily } from '../level/LevelData';
 import type { PlayerState } from '../entities/Player';
 import { PLAYER_RENDERED_SIZE, PLAYER_FOOT_PADDING } from '../entities/Player';
 import { RENDERED_TILE_SIZE, RENDER_SCALE, backgroundAt, tileToPixel } from '../level/Terrain';
-import { TORCH_FRAME_COUNT, torchPhase, torchLightScale } from './Torch';
+import { TORCH_FRAME_COUNT, torchPhase, torchLightScale } from '../entities/Torch';
 
 /**
  * `BackgroundMaterialFamily` is declared once in `level/LevelData.ts` (the

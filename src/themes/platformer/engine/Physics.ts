@@ -1,4 +1,4 @@
-import { PHYSICS_CONFIG } from './PhysicsConfig';
+import { PHYSICS_CONFIG } from '../contracts/PhysicsConfig';
 import { isSolid, isSolidExcludingBridge, isClimbable, isStandableLadderTop, isStandableMushroomCap, tileAt, RENDERED_TILE_SIZE, CRUMBLING_FLOOR_SOLID_HEIGHT } from '../level/Terrain';
 import type { LevelDef, TileType } from '../level/LevelData';
 import { isBlockOccupied, blockIdAt, blockAt } from '../level/BlockMapper';
@@ -16,7 +16,7 @@ import {
 } from '../entities/Player';
 import type { PlayerState } from '../entities/Player';
 import type { BlockContact } from '../entities/Player';
-import { isInvulnerable } from '../entities/capabilities';
+import { isInvulnerable } from '../contracts/capabilities';
 import { canStandUp, resolveCrouching } from './Crouch';
 
 /**

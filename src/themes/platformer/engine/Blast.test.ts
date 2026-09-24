@@ -3,7 +3,7 @@ import { toBlockState } from '../entities/Block';
 import type { BlockState } from '../entities/Block';
 import { toEnemyState } from '../entities/Enemy';
 import { RENDERED_TILE_SIZE, tileToPixel } from '../level/Terrain';
-import type { Box } from './Collision';
+import type { Box } from '../contracts/geometry';
 
 function blockAt(kind: string, col: number, row: number, id = `${kind}-${col}-${row}`): BlockState {
   const { x, y } = tileToPixel(col, row);
