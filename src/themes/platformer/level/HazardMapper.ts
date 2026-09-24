@@ -1,5 +1,6 @@
 import { tileToPixel } from './Terrain';
-import type { HazardFacing, HazardKind } from './LevelParser';
+import type { HazardFacing } from './LevelParser';
+import type { HazardKind } from '../entities/hazards';
 import type { FloorSpikePhase, FallingStalactitePhase } from '../entities/hazards/phases';
 
 export interface HazardPlacement {

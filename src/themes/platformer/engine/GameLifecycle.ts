@@ -1,10 +1,55 @@
-import {
-  IRIS_DURATION_SECONDS,
-  IRIS_HOLD_SECONDS,
-  IRIS_CLOSE_SECONDS,
-  IRIS_SMALL_RADIUS,
-  lerpRadius,
-} from './IrisTransition';
+import { lerp } from '../shared/math';
+
+/**
+ * Seconds the main grow-open (intro) / shrink-closed (dying) segment of the
+ * iris animation takes. Chosen for a deliberately slow, dramatic beat rather
+ * than a snappy transition.
+ */
+export const IRIS_DURATION_SECONDS = 1.75;
+
+/**
+ * Seconds the iris pauses at IRIS_SMALL_RADIUS — already circled in at the
+ * very start of `intro` (before growing open), and again mid-`dying` (after
+ * shrinking down around the just-died character, before the final full
+ * close) — a beat of held tension on both ends of the transition.
+ */
+export const IRIS_HOLD_SECONDS = 0.4;
+
+/**
+ * Seconds the final `dying` segment (IRIS_SMALL_RADIUS -> 0, the full black
+ * close) takes. Short relative to IRIS_DURATION_SECONDS since it only
+ * crosses a small remaining distance — reads as a quick, final snap shut.
+ */
+export const IRIS_CLOSE_SECONDS = 0.5;
+
+/**
+ * The radius the iris holds at when "encircling" the character — small
+ * enough to read as a tight circle around the player (PLAYER_RENDERED_SIZE
+ * is 64px), with a bit of margin. Not exported alongside a player-specific
+ * import to keep this module free of a dependency on entities/Player.
+ */
+export const IRIS_SMALL_RADIUS = 60;
+
+/**
+ * The radius a circle centered at (centerX, centerY) needs to fully cover a
+ * canvasWidth x canvasHeight rectangle — the distance to the farthest corner,
+ * computed without enumerating all four corners: the farthest corner is
+ * always at the horizontal edge farther from centerX combined with the
+ * vertical edge farther from centerY.
+ *
+ * Merged here from the removed `engine/IrisTransition.ts`, which existed only
+ * to hold this math for `GameLifecycle`.
+ */
+export function maxIrisRadius(
+  canvasWidth: number,
+  canvasHeight: number,
+  centerX: number,
+  centerY: number,
+): number {
+  const dx = Math.max(centerX, canvasWidth - centerX);
+  const dy = Math.max(centerY, canvasHeight - centerY);
+  return Math.sqrt(dx * dx + dy * dy);
+}
 
 /**
  * `intro`: circle already held small, then growing open at game
@@ -136,7 +181,7 @@ export function currentIrisRadius(state: LifecycleState, maxRadius: number): num
   if (state.phase === 'intro') {
     if (state.elapsed < IRIS_HOLD_SECONDS) return smallRadius;
     const growProgress = (state.elapsed - IRIS_HOLD_SECONDS) / IRIS_DURATION_SECONDS;
-    return lerpRadius(growProgress, smallRadius, maxRadius);
+    return lerp(smallRadius, maxRadius, growProgress);
   }
 
   // 'dying' — the death-animation lead-in holds the mask fully open (no
@@ -145,10 +190,10 @@ export function currentIrisRadius(state: LifecycleState, maxRadius: number): num
   const irisElapsed = state.elapsed - DEATH_ANIM_SECONDS;
   if (irisElapsed < IRIS_DURATION_SECONDS) {
     const shrinkProgress = irisElapsed / IRIS_DURATION_SECONDS;
-    return lerpRadius(shrinkProgress, maxRadius, smallRadius);
+    return lerp(maxRadius, smallRadius, shrinkProgress);
   }
   if (irisElapsed < IRIS_DURATION_SECONDS + IRIS_HOLD_SECONDS) return smallRadius;
   const closeProgress =
     (irisElapsed - IRIS_DURATION_SECONDS - IRIS_HOLD_SECONDS) / IRIS_CLOSE_SECONDS;
-  return lerpRadius(closeProgress, smallRadius, 0);
+  return lerp(smallRadius, 0, closeProgress);
 }

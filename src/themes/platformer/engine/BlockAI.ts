@@ -1,4 +1,5 @@
 import type { BlockState } from '../entities/Block';
+import { clamp01 } from '../shared/math';
 
 /** How long the shared bump/nudge animation plays on every upward hit
  *  (FR-022d: "roughly 100ms"). */
@@ -61,7 +62,7 @@ export function stepBlockAnimation(block: BlockState, dt: number): BlockState {
  */
 export function blockBumpOffsetY(block: BlockState): number {
   if (block.animState !== 'bump') return 0;
-  const t = Math.max(0, Math.min(1, block.animTimer / BLOCK_BUMP_DURATION_SECONDS));
+  const t = clamp01(block.animTimer / BLOCK_BUMP_DURATION_SECONDS);
   const phase = t < 0.5 ? t / 0.5 : 1 - (t - 0.5) / 0.5;
   return phase === 0 ? 0 : -BLOCK_BUMP_HEIGHT_PX * phase;
 }

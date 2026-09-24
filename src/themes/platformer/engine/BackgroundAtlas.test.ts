@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { ATLAS_STRIDE } from './TileAtlas';
 import {
-  BACKGROUND_ATLAS_STRIDE,
   BACKGROUND_ATLAS_ROW_PITCH,
   backgroundAtlasCell,
 } from './BackgroundAtlas';
@@ -32,8 +32,8 @@ describe('backgroundAtlasCell', () => {
   it.each(ALL_MATERIALS)('%s-everyEntry-coordinatesLieOnTheAtlasGrid', (material) => {
     for (const mask of ALL_MASKS) {
       const { sx } = backgroundAtlasCell(material, mask);
-      expect(sx % BACKGROUND_ATLAS_STRIDE).toBe(0);
-      expect(sx / BACKGROUND_ATLAS_STRIDE).toBeLessThanOrEqual(3);
+      expect(sx % ATLAS_STRIDE).toBe(0);
+      expect(sx / ATLAS_STRIDE).toBeLessThanOrEqual(3);
     }
   });
 
@@ -44,8 +44,8 @@ describe('backgroundAtlasCell', () => {
 
   it('isolatedMask-usesTheSheetsIsolatedTile', () => {
     expect(backgroundAtlasCell('dirt', 0)).toEqual({
-      sx: 3 * BACKGROUND_ATLAS_STRIDE,
-      sy: 0 * BACKGROUND_ATLAS_STRIDE,
+      sx: 3 * ATLAS_STRIDE,
+      sy: 0 * ATLAS_STRIDE,
       rotation: 0,
     });
   });
@@ -53,8 +53,8 @@ describe('backgroundAtlasCell', () => {
   it('fullyInteriorMask-usesTheMiddleTile', () => {
     const mask = NEIGHBOUR_UP | NEIGHBOUR_RIGHT | NEIGHBOUR_DOWN | NEIGHBOUR_LEFT;
     expect(backgroundAtlasCell('dirt', mask)).toEqual({
-      sx: 1 * BACKGROUND_ATLAS_STRIDE,
-      sy: 1 * BACKGROUND_ATLAS_STRIDE,
+      sx: 1 * ATLAS_STRIDE,
+      sy: 1 * ATLAS_STRIDE,
       rotation: 0,
     });
   });
@@ -93,8 +93,8 @@ describe('backgroundAtlasCell', () => {
   });
 
   it('rowPitch-and-stride-arePositiveIntegers', () => {
-    expect(Number.isInteger(BACKGROUND_ATLAS_STRIDE)).toBe(true);
-    expect(BACKGROUND_ATLAS_STRIDE).toBeGreaterThan(0);
+    expect(Number.isInteger(ATLAS_STRIDE)).toBe(true);
+    expect(ATLAS_STRIDE).toBeGreaterThan(0);
     expect(Number.isInteger(BACKGROUND_ATLAS_ROW_PITCH)).toBe(true);
     expect(BACKGROUND_ATLAS_ROW_PITCH).toBeGreaterThan(0);
   });

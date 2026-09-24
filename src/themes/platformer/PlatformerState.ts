@@ -72,7 +72,7 @@ import { toChestState } from './entities/Chest';
 import type { ChestState } from './entities/Chest';
 import { toCheckpointState } from './entities/Checkpoint';
 import type { CheckpointState } from './entities/Checkpoint';
-import type { BonusFruitState } from './entities/BonusFruit';
+import type { FruitState } from './entities/Fruit';
 import type { KeyPickupState } from './entities/KeyPickup';
 import type { HeartPickupState } from './entities/HeartPickup';
 import type { BombPickupState } from './entities/BombPickup';
@@ -270,14 +270,12 @@ export const torchPositions = computed<TorchLight[]>(() =>
 /**
  * Every collectible in the level — purely positional now (see
  * `CollectibleMapper.ts`'s `mapCVDataToSkillFactPool` doc comment for why a
- * coin carries no CVData binding of its own), so this needs only the
- * level's hand-placed `o` markers (see COIN_TILES), not `currentCV` at all.
- * `fruit` is passed an empty array (see level.ts's doc comment) since
- * `CollectibleMarkerPositions` still legitimately has that field for future
- * use. placeCollectibles has no auto-placement, same as placeEnemies below.
+ * coin carries no CVData binding of its own), so this needs only the level's
+ * hand-placed `o` markers (see COIN_TILES), not `currentCV` at all.
+ * placeCollectibles has no auto-placement, same as placeEnemies below.
  */
 export const collectiblePlacements = computed<CollectiblePlacement[]>(() =>
-  placeCollectibles({ coin: COIN_TILES.value, fruit: [] }),
+  placeCollectibles(COIN_TILES.value),
 );
 
 /**
@@ -631,16 +629,16 @@ export const endingScreenOpen = signal(false);
 export const controlsOverlayDismissed = signal(false);
 
 /**
- * Question-mark blocks' spawned bonus fruits — starts empty;
- * `PlatformerPage.tsx` appends one each time a question-mark block is hit.
- * Persists across a death/respawn (same reasoning as `blockStates` above);
- * cleared only by `resetGameProgress()`.
+ * Question-mark blocks' spawned fruits — starts empty; `PlatformerPage.tsx`
+ * appends one each time a question-mark block is hit. Persists across a
+ * death/respawn (same reasoning as `blockStates` above); cleared only by
+ * `resetGameProgress()`.
  */
-export const bonusFruitStates = signal<BonusFruitState[]>([]);
+export const fruitStates = signal<FruitState[]>([]);
 
 /**
  * Hearts dropped by destroyed potion-pots this session — starts empty, same
- * lifecycle as `bonusFruitStates` above: `PlatformerPage.tsx` appends one
+ * lifecycle as `fruitStates` above: `PlatformerPage.tsx` appends one
  * each time a potion-pot block is hit, and a touched heart is removed from
  * this array outright (no `collected` flag — see `HeartPickup.ts`'s doc
  * comment). Persists across a death/respawn; cleared only by
@@ -656,7 +654,7 @@ export const heartPickupStates = signal<HeartPickupState[]>([]);
  * The guarantee that a defeated purple slime can never drop a second key
  * lives elsewhere now: on the source enemy's own `rewardGiven` flag
  * (Enemy.ts), not on anything read from this array. Persists across a
- * death/respawn (resetGame()), same as blockStates/bonusFruitStates —
+ * death/respawn (resetGame()), same as blockStates/fruitStates —
  * cleared only by resetGameProgress().
  */
 export const keyPickupStates = signal<KeyPickupState[]>([]);
@@ -1106,7 +1104,7 @@ export function resetGameProgress(): void {
   chestStates.value = chestPlacements.value.map(toChestState);
   endingScreenShown.value = false;
   endingScreenOpen.value = false;
-  bonusFruitStates.value = [];
+  fruitStates.value = [];
   heartPickupStates.value = [];
   keyPickupStates.value = [];
   collectedKeys.value = 0;

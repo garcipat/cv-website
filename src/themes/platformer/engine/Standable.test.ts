@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { isStandableCell } from './Standable';
+import { findLandingRow, isStandableCell } from './Standable';
 import { parseLevel } from '../level/LevelParser';
 import { placeBlocks } from '../level/BlockMapper';
+import { isSolid, tileAt } from '../level/Terrain';
 import {
   CRUMBLING_FLOOR_CRACK_SECONDS,
   CRUMBLING_FLOOR_BROKEN_SECONDS,
@@ -130,5 +131,47 @@ describe('isStandableCell — blocks', () => {
       fragileRock: [],
     });
     expect(isStandableCell(GROUND, blocks, NO_CRUMBLING, 0, 0)).toBe(false);
+  });
+});
+
+describe('findLandingRow', () => {
+  const isSolidPredicate = (level: Parameters<typeof findLandingRow>[0], col: number, row: number) =>
+    isSolid(tileAt(level, col, row));
+
+  it('firstSolidRowBelowFromRow-isReturned', () => {
+    // Four rows: solid ground starts at row 2.
+    const level = parseLevel(['....', '....', 'GGGG', 'GGGG']);
+    expect(findLandingRow(level, 1, 0, isSolidPredicate)).toBe(2);
+  });
+
+  it('cellDirectlyBelowFromRow-isSolid-returnsFromRowPlusOne', () => {
+    const level = parseLevel(['....', 'GGGG']);
+    expect(findLandingRow(level, 1, 0, isSolidPredicate)).toBe(1);
+  });
+
+  it('noSolidRowBeforeLevelBottom-returnsNull', () => {
+    const level = parseLevel(['....', '....']);
+    expect(findLandingRow(level, 1, 0, isSolidPredicate)).toBeNull();
+  });
+
+  it('scanStartsStrictlyBelowFromRow-neverReturnsFromRowsOwnSolidCell', () => {
+    const level = parseLevel(['....', 'GGGG', '....']);
+    expect(findLandingRow(level, 1, 1, isSolidPredicate)).toBeNull();
+  });
+
+  it('fromRowAtLevelBottom-returnsNull', () => {
+    const level = parseLevel(['....', 'GGGG']);
+    expect(findLandingRow(level, 1, 1, isSolidPredicate)).toBeNull();
+  });
+
+  it('predicateIsParameterized-usesTheCallersOwnRule', () => {
+    // Terrain is entirely empty, yet the caller-supplied rule names row 2.
+    const level = parseLevel(['....', '....', '....']);
+    expect(findLandingRow(level, 0, 0, (_level, _col, row) => row === 2)).toBe(2);
+  });
+
+  it('predicateOnlyTrueAboveFromRow-returnsNull', () => {
+    const level = parseLevel(['GGGG', 'GGGG', '....']);
+    expect(findLandingRow(level, 1, 1, (_level, _col, row) => row < 1)).toBeNull();
   });
 });

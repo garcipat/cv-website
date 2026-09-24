@@ -8,7 +8,7 @@ import {
   BOMB_PICKUP_TILE_OFFSET_X,
   BOMB_PICKUP_TILE_OFFSET_Y,
 } from '../BombPickup';
-import { spawnBonusFruit, BONUS_FRUIT_RISE_DURATION_SECONDS, bonusFruitY } from '../BonusFruit';
+import { spawnFruit, FRUIT_RISE_DURATION_SECONDS, fruitY } from '../Fruit';
 import type { CollectiblePlacement } from '../../level/CollectibleMapper';
 
 function makePlacement(x: number, y: number): CollectiblePlacement {
@@ -26,7 +26,6 @@ describe('PICKUP_TYPES', () => {
     expect(PICKUP_TYPES.coin.sprite.sheet).toBe(COIN_SHEET);
     expect(PICKUP_TYPES.fruit.sprite.sheet).toBe(FRUIT_SHEET);
     expect(PICKUP_TYPES.key.sprite.sheet).toBe(KEY_SHEET);
-    expect(PICKUP_TYPES.bonusFruit.sprite.sheet).toBe(FRUIT_SHEET);
     expect(PICKUP_TYPES.heart.sprite.sheet).toBe(HEARTS_SHEET);
     expect(PICKUP_TYPES.bomb.sprite.sheet).toBe(BOMB_SHEET);
   });
@@ -53,12 +52,12 @@ describe('pickup boxes match the boxes collision uses today', () => {
     });
   });
 
-  it('bonusFruit-boxFollowsTheRiseTween', () => {
-    const fruit = spawnBonusFruit('b', 100, 200, undefined, 0);
-    expect(PICKUP_TYPES.bonusFruit.box(fruit).y).toBe(bonusFruitY(fruit));
+  it('fruit-boxFollowsTheRiseTween', () => {
+    const fruit = spawnFruit('b', 100, 200, undefined, 0);
+    expect(PICKUP_TYPES.fruit.box(fruit).y).toBe(fruitY(fruit));
 
-    const risen = { ...fruit, elapsed: BONUS_FRUIT_RISE_DURATION_SECONDS };
-    expect(PICKUP_TYPES.bonusFruit.box(risen).y).toBe(risen.restY);
+    const risen = { ...fruit, elapsed: FRUIT_RISE_DURATION_SECONDS };
+    expect(PICKUP_TYPES.fruit.box(risen).y).toBe(risen.restY);
   });
 
   it('heart-boxIsCenteredAtItsSmallerRenderedSize', () => {
@@ -90,10 +89,12 @@ describe('pickup frames match their existing frame functions', () => {
     expect(PICKUP_TYPES.key.frameIndex(spawnKeyPickup('k', 0, 0), 99, 0)).toBe(0);
   });
 
-  it('fruitFrameIndex-tracksItsPositionAmongPlacements', () => {
-    const placement = makePlacement(0, 0);
-    expect(PICKUP_TYPES.fruit.frameIndex(placement, 0, 0)).toBe(0);
-    expect(PICKUP_TYPES.fruit.frameIndex(placement, 0, 1)).toBe(1);
+  it('fruitFrameIndex-returnsItsOwnIconIndex', () => {
+    // The question-mark reward's `fruit` pickup carries its own per-instance
+    // icon index (wrapped at spawn), unlike the former order-derived
+    // placed-fruit.
+    expect(PICKUP_TYPES.fruit.frameIndex(spawnFruit('f', 0, 0, undefined, 0), 0, 0)).toBe(0);
+    expect(PICKUP_TYPES.fruit.frameIndex(spawnFruit('f', 0, 0, undefined, 5), 0, 0)).toBe(5);
   });
 
   it('heart-alwaysShowsTheFullHeartFrame', () => {
@@ -115,9 +116,10 @@ describe('bomb pickup carries no CV fact (FR-011)', () => {
   });
 
   it('bomb-isNeverACollectiblePlacement', () => {
-    // A CollectiblePlacement's spriteType is the fact-bearing coin/fruit set;
+    // A CollectiblePlacement's spriteType is the fact-bearing coin set (a
+    // question-mark reward is a separately-drawn rising fruit);
     // a bomb feeds no fact pool and no journal counter.
-    const collectibleSpriteTypes: CollectiblePlacement['spriteType'][] = ['coin', 'fruit'];
+    const collectibleSpriteTypes: CollectiblePlacement['spriteType'][] = ['coin'];
     expect(collectibleSpriteTypes.includes(PICKUP_TYPES.bomb.key as CollectiblePlacement['spriteType'])).toBe(
       false,
     );

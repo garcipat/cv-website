@@ -1,52 +1,47 @@
 import type { PickupType } from './PickupType';
-import type { CollectiblePlacement } from '../../level/CollectibleMapper';
 import { FRUIT_SHEET } from '../sprites/sheets';
-import { FRUIT_FRAME_SIZE, FRUIT_RENDERED_SIZE, fruitFrameSource } from '../Fruit';
-import { coinBobOffset } from '../Coin';
+import {
+  FRUIT_FRAME_SIZE,
+  FRUIT_RENDERED_SIZE,
+  fruitFrameSource,
+  fruitY,
+  type FruitState,
+} from '../Fruit';
 
-/** NOTE: dormant — there is no placed-fruit marker today (only `Q` blocks
- *  spawn bonus fruits; see `CollectibleMapper.ts`), and `placeCollectibles`
- *  is always called with an empty fruit list. This placed-fruit `PickupType`
- *  is unused scaffolding slated for removal in R-006.
- *
- *  The `PickupType` view of a placed fruit collectible — Fruit.ts remains
- *  the source of truth for every constant. A placed fruit carries no
- *  per-instance icon index (unlike BonusFruit's `iconIndex`); its icon comes
- *  from its position among all fruit placements instead, supplied through
- *  this module's own `frameIndex`/`draw` `index` parameter (the caller counts
- *  placements as it iterates) — so `frameIndex` returns `index` itself (the
- *  LOGICAL index; packed-slot mapping via `FRUIT_ICON_ORDER` happens later,
- *  at draw time). Fruits bob exactly like coins (Coin.ts's coinBobOffset,
- *  reused as-is — bobbing is visual, not coin-specific). */
-export const fruit: PickupType<CollectiblePlacement> = {
+/** The `PickupType` view of a question-mark block's spawned fruit (FR-022:
+ *  renamed from `bonusFruit`; `entities/Fruit.ts` remains the source of truth
+ *  for every constant). `box`'s `y` is state-dependent because the fruit
+ *  tweens upward while rising (see `fruitY`). Unlike a coin/key, a fruit with
+ *  a rise tween does not bob — this module's own `draw` draws it at
+ *  `fruitY(fruit)` with no bob offset added, since its own rise tween already
+ *  supplies its vertical motion. `frameIndex` returns the fruit's own
+ *  `iconIndex` as-is — that is already the LOGICAL index (`spawnFruit` wraps
+ *  it mod `FRUIT_ICON_COUNT`); packed-slot mapping via `FRUIT_ICON_ORDER`
+ *  happens later, at draw time, same as every other pickup type. */
+export const fruit: PickupType<FruitState> = {
   key: 'fruit',
   sprite: {
     sheet: FRUIT_SHEET,
     renderScale: 1,
-    // Frame selection goes through frameIndex, not through named animations —
-    // this stays empty rather than restating unread frame/duration data.
+    // Frame selection goes through frameIndex (fruit.iconIndex), not through
+    // named animations — this stays empty rather than restating unread
+    // frame/duration data.
     animations: {},
   },
-  box: (placement) => ({
-    x: placement.x,
-    y: placement.y,
+  box: (fruit) => ({
+    x: fruit.x,
+    y: fruitY(fruit),
     width: FRUIT_RENDERED_SIZE,
     height: FRUIT_RENDERED_SIZE,
   }),
-  // Icon comes from placement order, not per-instance state — see doc comment above.
-  frameIndex: (_state, _elapsed, index) => index,
-  bobOffset: (_placement, elapsed) => coinBobOffset(elapsed),
-  // The logical index (this placement's position among all fruit
-  // placements, supplied by the caller — see drawCollectibles) is mapped to
-  // a packed sheet position by fruitFrameSource, NOT the generic
-  // frameSource — passing it to frameSource directly would treat the
-  // logical index as an already-packed slot and render the wrong icon.
-  draw: (placement, dc, index = 0) => {
+  frameIndex: (fruit) => fruit.iconIndex,
+  bobOffset: () => 0,
+  // No bob offset added (see bobOffset above and the doc comment on this module).
+  draw: (fruitState, dc) => {
     const image = dc.sprites[FRUIT_SHEET.src];
     if (!image) return;
 
-    const { sx, sy } = fruitFrameSource(fruit.frameIndex(placement, dc.worldElapsed, index));
-    const bob = fruit.bobOffset(placement, dc.worldElapsed);
+    const { sx, sy } = fruitFrameSource(fruit.frameIndex(fruitState, dc.worldElapsed, 0));
 
     dc.ctx.imageSmoothingEnabled = false;
     dc.ctx.drawImage(
@@ -55,8 +50,8 @@ export const fruit: PickupType<CollectiblePlacement> = {
       sy,
       FRUIT_FRAME_SIZE,
       FRUIT_FRAME_SIZE,
-      placement.x + dc.originX,
-      placement.y + dc.originY + bob,
+      fruitState.x + dc.originX,
+      fruitY(fruitState) + dc.originY,
       FRUIT_RENDERED_SIZE,
       FRUIT_RENDERED_SIZE,
     );

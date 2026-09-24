@@ -7,7 +7,7 @@ import type { CollectedFact, EnemyDef } from '../../types';
 import type { EnemyAnimState } from './EnemyAnimation';
 import type { MovementStrategy } from './movement/MovementStrategy';
 import type { DrawContext } from '../../contracts/DrawContext';
-import type { Contact, CollisionOutcome } from '../../contracts/Contact';
+import type { Contact, CollisionOutcome } from '../../contracts/Outcome';
 import type { PlayerState } from '../Player';
 
 /** Item kinds an enemy type can drop on defeat. Grows as items are added. */

@@ -1,4 +1,5 @@
 import type { CollectedFact } from '../types';
+import type { Rect } from './geometry';
 import type { PickupKind } from './PickupKind';
 import type { CounterPopupLabelKey } from './counters';
 
@@ -8,8 +9,8 @@ import type { CounterPopupLabelKey } from './counters';
  * "bounce the player" means one thing everywhere.
  *
  * Deliberately two small interfaces (this and `RewardEffects`) rather than one
- * outcome type covering everything: see Contact.ts's `CollisionOutcome` doc
- * comment — an outcome type that grows past a handful of fields has become the
+ * outcome type covering everything: see `CollisionOutcome`'s doc comment —
+ * an outcome type that grows past a handful of fields has become the
  * scattered conditionals it replaced, and a unified type would hand every
  * family fields that are meaningless to it.
  */
@@ -58,11 +59,53 @@ export interface RewardEffects {
    * Deliberately NOT named `*Effect`: in this codebase an Effect is a
    * transient visual (`FlightEffect`/`PuffEffect`/`CounterPopupEffect`),
    * whereas a spawned pickup is real world state the player can walk over and
-   * collect. Note `'fruit'` and `'bonusFruit'` are separate registry keys with
-   * different state types — the rising, fact-carrying one a question mark
-   * drops is `'bonusFruit'`.
+   * collect. `'fruit'` names the rising, fact-carrying reward a question-mark
+   * block drops (the former `'bonusFruit'`; R-002 FR-022).
    */
   spawnPickup?: PickupKind;
+}
+
+export type ContactSide = 'top' | 'side' | 'bottom';
+
+/**
+ * The geometry of one player-versus-entity overlap, computed once by the
+ * engine and handed to the entity's type so it can decide what the contact
+ * MEANS. The engine never decides consequences; the type never computes
+ * geometry.
+ */
+export interface Contact {
+  /** 'top' iff the player is falling AND its hitbox bottom edge is at or above
+   *  the entity hitbox's vertical midpoint — the rule that distinguishes
+   *  "jumped on" from "walked into". */
+  side: ContactSide;
+  playerVx: number;
+  playerVy: number;
+  playerBox: Rect;
+  selfBox: Rect;
+}
+
+/**
+ * What an entity asks the engine to do about a contact. Returned as data
+ * rather than applied directly so the hook stays a pure function — no signals,
+ * no canvas — and the engine remains the only writer of game state.
+ *
+ * `RewardReveal.ts` is the one sanctioned exception to that "only writer"
+ * rule: the per-tick reveal trigger writes `collectedFacts`/`activeEffects`/
+ * `activeCounterPopups` directly rather than staging them back through the
+ * engine, because five call sites across three families would otherwise each
+ * need their own staging array.
+ *
+ * Keep this small. It is the shared vocabulary of everything that can happen
+ * in the world; if it grows past a handful of fields it has become the
+ * scattered conditionals it replaced. Anything exotic goes through an
+ * `onDefeat(entity, world)` style hook receiving a narrow WorldApi instead.
+ *
+ * Folded in here from the removed `contracts/Contact.ts` (R-002 FR-020) so the
+ * contract vocabulary has one home and stays a strict `contracts/` leaf.
+ */
+export interface CollisionOutcome<S> extends PlayerEffects {
+  /** Replacement state, if the contact changed this entity. */
+  self?: S;
 }
 
 /**

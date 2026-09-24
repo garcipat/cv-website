@@ -11,6 +11,7 @@ import type {
 import type { HintId } from '../types';
 import { DEFAULT_HINT_ID, isHintId } from './HintCatalog';
 import { DEFAULT_TORCH_STRENGTH, isTorchStrength } from '../entities/Torch';
+import type { HazardKind } from '../entities/hazards';
 
 /** An entity marker's kind — what it means, not what it looks like on the
  *  ground (every entity marker sits on `empty` terrain, see parseLevel). */
@@ -132,14 +133,11 @@ export const LEGACY_MARKER_CHARS: Record<string, MarkerEntry | undefined> = {
  *  facing only selects the sprite. */
 export type HazardFacing = 'up' | 'down' | 'left' | 'right';
 
-/** Every hazard kind the game knows about. `spike` (O-005), the floor
- *  `spear` (O-020) and the floor `floorSpike` (O-021) today, but every place
- *  that would otherwise hardcode the literal `'spike'` (HAZARD_CHARS's value
- *  type below, findHazardTiles's return type, HazardMapper.ts's
- *  HazardPlacement/placeHazards) is typed against this instead — adding
- *  another kind is one line here plus its own module and registry entry
- *  (entities/hazards/index.ts), nothing else widens by hand. */
-export type HazardKind = 'spike' | 'spear' | 'floorSpike' | 'fallingStalactite';
+/** Every hazard kind the game knows about — `HazardKind` is derived from the
+ *  `entities/hazards` registry (`keyof typeof HAZARD_TYPES`), so adding a kind
+ *  is a registry line, not an edit here. Every place that would otherwise
+ *  hardcode a kind (HAZARD_CHARS's value type, findHazardTiles's return type,
+ *  HazardMapper's HazardPlacement/placeHazards) is typed against it. */
 
 /**
  * Maps each hazard-marker character to the hazard it places. Same
@@ -319,8 +317,10 @@ export function parseMarkers(
 /** Narrows a stored marker value to the closed `MarkerEntry` union, falling
  *  back to `DEFAULT_HINT_ID` for a `sign` whose `hintId` is unregistered and to
  *  `DEFAULT_TORCH_STRENGTH` for a `torch` whose `strength` is out of `0`–`9`,
- *  and returning `null` for anything unrecognised (FR-016/FR-027). */
-function normalizeMarkerEntry(value: unknown): MarkerEntry | null {
+ *  and returning `null` for anything unrecognised (FR-016/FR-027). Exported so
+ *  the editor's localStorage marker guard reuses this complete validator
+ *  (fixing the dropped-torch-marker bug). */
+export function normalizeMarkerEntry(value: unknown): MarkerEntry | null {
   if (value === null || typeof value !== 'object') return null;
   const kind = (value as { kind?: unknown }).kind;
   if (kind === 'patrolBoundary' || kind === 'connectionPoint' || kind === 'fallingStalactite') {

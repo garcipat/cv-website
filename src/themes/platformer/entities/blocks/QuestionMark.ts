@@ -22,8 +22,8 @@ export const questionMark: BlockType = {
   triggerSides: ['bottom'],
   // maxHits is 1, so its only registering hit is always its terminal one.
   // The engine supplies the icon index (see PlatformerPage.tsx's
-  // nextBonusFruitIcon) — a block never picks its fruit's appearance.
-  onHit: () => ({ spawnPickup: 'bonusFruit' }),
+  // nextFruitIcon) — a block never picks its fruit's appearance.
+  onHit: () => ({ spawnPickup: 'fruit' }),
   frameIndex: questionMarkFrameIndex,
   draw: (block, dc) => drawBlockTile(block, dc, questionMarkFrameIndex(block.hitsTaken)),
 };

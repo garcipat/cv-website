@@ -1,33 +1,18 @@
 import { NEIGHBOUR_UP } from '../level/Terrain';
 import type { RunPosition } from '../level/Terrain';
-
-/**
- * `tile_atlas.png` holds 16px tiles on a uniform 19px stride (16px tile plus
- * a 3px transparent gutter), 7 columns by 3 rows. The gutter is why the
- * stride is not the tile size — a cell's origin is `index * ATLAS_STRIDE`,
- * while the source rect drawn from it stays `TILE_SIZE` square.
- */
-export const ATLAS_STRIDE = 19;
+// `tile_atlas.png` holds 16px tiles on the shared 19px atlas stride (16px tile
+// plus a 3px transparent gutter), 7 columns by 3 rows. The gutter is why the
+// stride is not the tile size — a cell's origin is `index * ATLAS_STRIDE`,
+// while the source rect drawn from it stays `TILE_SIZE` square.
+import { atlasCell, type TileAtlasEntry } from './TileAtlas';
 
 /** Grass sprites occupy only the top 9px of their cell; the rest is
  *  transparent so the ground tile beneath shows through. */
 export const GRASS_SOURCE_HEIGHT = 9;
 
-function cell(col: number, row: number): { sx: number; sy: number } {
-  return { sx: col * ATLAS_STRIDE, sy: row * ATLAS_STRIDE };
-}
-
 export type GroundTileKind = 'bright' | 'dark';
 
-/** Quarter-turns clockwise applied when drawing. A half turn (2) is used to
- *  flip a vertical brightness ramp end-for-end; the quarter turns move a
- *  border onto an adjacent edge and are only safe on flat cells. */
-export type QuarterTurns = 0 | 1 | 2 | 3;
-
-export interface GroundAtlasEntry {
-  sx: number;
-  sy: number;
-  rotation: QuarterTurns;
+export interface GroundAtlasEntry extends TileAtlasEntry {
   kind: GroundTileKind;
 }
 
@@ -65,22 +50,22 @@ export function groundTileKind(mask: number): GroundTileKind {
  * not used by any mask. `c6r1` is referenced (mask 10) and is not a spare.
  */
 const GROUND_ATLAS: Record<number, GroundAtlasEntry> = {
-  0: { ...cell(0, 0), rotation: 2, kind: 'bright' }, // T B L R - isolated single tile, half-turned
-  1: { ...cell(0, 2), rotation: 0, kind: 'dark' }, //     B L R - bottom of a one-wide column
-  2: { ...cell(6, 0), rotation: 3, kind: 'bright' }, // T B L   - left end of a one-tall run
-  3: { ...cell(0, 1), rotation: 0, kind: 'dark' }, //     B L   - bottom-left corner
-  4: { ...cell(6, 0), rotation: 0, kind: 'bright' }, //   T L R - top of a one-wide column
-  5: { ...cell(4, 1), rotation: 0, kind: 'dark' }, //       L R - middle of a one-wide column
-  6: { ...cell(3, 0), rotation: 0, kind: 'bright' }, //   T L   - top-left corner
-  7: { ...cell(1, 1), rotation: 1, kind: 'dark' }, //       L   - left edge, bottom-edge tile turned CW
-  8: { ...cell(6, 0), rotation: 1, kind: 'bright' }, // T B   R - right end of a one-tall run
-  9: { ...cell(2, 1), rotation: 0, kind: 'dark' }, //     B R   - bottom-right corner
-  10: { ...cell(6, 1), rotation: 1, kind: 'bright' }, // T B    - middle of a one-tall run
-  11: { ...cell(1, 1), rotation: 0, kind: 'dark' }, //     B    - bottom edge
-  12: { ...cell(5, 0), rotation: 0, kind: 'bright' }, //  T   R - top-right corner
-  13: { ...cell(1, 1), rotation: 3, kind: 'dark' }, //         R - right edge, bottom-edge tile turned CCW
-  14: { ...cell(4, 0), rotation: 0, kind: 'bright' }, //  T     - top edge
-  15: { ...cell(5, 1), rotation: 0, kind: 'dark' }, //  (none)  - fully buried interior
+  0: { ...atlasCell(0, 0), rotation: 2, kind: 'bright' }, // T B L R - isolated single tile, half-turned
+  1: { ...atlasCell(0, 2), rotation: 0, kind: 'dark' }, //     B L R - bottom of a one-wide column
+  2: { ...atlasCell(6, 0), rotation: 3, kind: 'bright' }, // T B L   - left end of a one-tall run
+  3: { ...atlasCell(0, 1), rotation: 0, kind: 'dark' }, //     B L   - bottom-left corner
+  4: { ...atlasCell(6, 0), rotation: 0, kind: 'bright' }, //   T L R - top of a one-wide column
+  5: { ...atlasCell(4, 1), rotation: 0, kind: 'dark' }, //       L R - middle of a one-wide column
+  6: { ...atlasCell(3, 0), rotation: 0, kind: 'bright' }, //   T L   - top-left corner
+  7: { ...atlasCell(1, 1), rotation: 1, kind: 'dark' }, //       L   - left edge, bottom-edge tile turned CW
+  8: { ...atlasCell(6, 0), rotation: 1, kind: 'bright' }, // T B   R - right end of a one-tall run
+  9: { ...atlasCell(2, 1), rotation: 0, kind: 'dark' }, //     B R   - bottom-right corner
+  10: { ...atlasCell(6, 1), rotation: 1, kind: 'bright' }, // T B    - middle of a one-tall run
+  11: { ...atlasCell(1, 1), rotation: 0, kind: 'dark' }, //     B    - bottom edge
+  12: { ...atlasCell(5, 0), rotation: 0, kind: 'bright' }, //  T   R - top-right corner
+  13: { ...atlasCell(1, 1), rotation: 3, kind: 'dark' }, //         R - right edge, bottom-edge tile turned CCW
+  14: { ...atlasCell(4, 0), rotation: 0, kind: 'bright' }, //  T     - top edge
+  15: { ...atlasCell(5, 1), rotation: 0, kind: 'dark' }, //  (none)  - fully buried interior
 };
 
 export function groundAtlasCell(mask: number): GroundAtlasEntry {
@@ -94,10 +79,10 @@ export function groundAtlasCell(mask: number): GroundAtlasEntry {
 /** Grass is a separate overlay keyed by horizontal run position, so no
  *  ground tile carries grass of its own. */
 const GRASS_CELLS: Record<RunPosition, { sx: number; sy: number }> = {
-  left: cell(1, 2),
-  middle: cell(2, 2),
-  right: cell(3, 2),
-  single: cell(4, 2),
+  left: atlasCell(1, 2),
+  middle: atlasCell(2, 2),
+  right: atlasCell(3, 2),
+  single: atlasCell(4, 2),
 };
 
 export function grassCell(position: RunPosition): { sx: number; sy: number } {

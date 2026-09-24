@@ -62,40 +62,36 @@ describe('mapCVDataToSkillFactPool', () => {
 });
 
 describe('placeCollectibles', () => {
-  it('coinAndFruitMarkers-returnsOnePlacementPerMarkerInReadingOrder', () => {
+  it('coinMarkers-returnsOnePlacementPerMarkerInReadingOrder', () => {
     // Purely positional now — no CVData involved (see
-    // mapCVDataToSkillFactPool's doc comment for why).
+    // mapCVDataToSkillFactPool's doc comment for why), and a placed
+    // collectible is always a coin (R-002 FR-022).
     const coinMarkers = [
       { col: 5, row: 2 },
       { col: 6, row: 2 },
     ];
-    const fruitMarkers = [{ col: 7, row: 2 }];
-    const placed = placeCollectibles({ coin: coinMarkers, fruit: fruitMarkers });
+    const placed = placeCollectibles(coinMarkers);
 
-    expect(placed).toHaveLength(3);
+    expect(placed).toHaveLength(2);
     expect(placed[0]).toMatchObject({ spriteType: 'coin', ...tileToPixel(coinMarkers[0].col, coinMarkers[0].row) });
     expect(placed[1]).toMatchObject({ spriteType: 'coin', ...tileToPixel(coinMarkers[1].col, coinMarkers[1].row) });
-    expect(placed[2]).toMatchObject({ spriteType: 'fruit', ...tileToPixel(fruitMarkers[0].col, fruitMarkers[0].row) });
   });
 
   it('everyPlacement-hasAUniquePositionDerivedId', () => {
-    const placed = placeCollectibles({
-      coin: [
-        { col: 1, row: 0 },
-        { col: 2, row: 0 },
-      ],
-      fruit: [{ col: 3, row: 0 }],
-    });
+    const placed = placeCollectibles([
+      { col: 1, row: 0 },
+      { col: 2, row: 0 },
+    ]);
     const ids = placed.map((p) => p.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
 
   it('noMarkersAtAll-returnsEmptyArray', () => {
-    expect(placeCollectibles({ coin: [], fruit: [] })).toEqual([]);
+    expect(placeCollectibles([])).toEqual([]);
   });
 
-  it('onlyCoinMarkers-noFruitPlacements', () => {
-    const placed = placeCollectibles({ coin: [{ col: 1, row: 0 }], fruit: [] });
+  it('onlyCoinMarkers-placeOneCoinEach', () => {
+    const placed = placeCollectibles([{ col: 1, row: 0 }]);
     expect(placed).toHaveLength(1);
     expect(placed[0].spriteType).toBe('coin');
   });

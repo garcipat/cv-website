@@ -7,4 +7,4 @@
  *  this vocabulary stays a strict leaf the contracts layer can own. The
  *  registry conforms to it via `satisfies Record<PickupKind, unknown>`, so the
  *  two cannot drift. */
-export type PickupKind = 'coin' | 'fruit' | 'key' | 'bonusFruit' | 'heart' | 'bomb';
+export type PickupKind = 'coin' | 'fruit' | 'key' | 'heart' | 'bomb';

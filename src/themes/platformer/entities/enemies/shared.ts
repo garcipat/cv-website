@@ -71,7 +71,7 @@ export function baseEnemyState(
  * runs before this is ever called, and any consequence of the enemy
  * surviving the hit (SlimePurple.ts's temporary un-stompable defense, for
  * one) is also that module's own business to layer on afterward. Does NOT
- * decide defeat here — EnemyAI.ts's `stepEnemyHitReaction` checks
+ * decide defeat here — `hitReaction.ts`'s `stepEnemyHitReaction` checks
  * `hitPoints` once the reaction animation finishes playing, so the player
  * always sees the same brief "stunned" reaction whether or not this hit was
  * the finishing blow. Zeroing `hitTimer` both starts the reaction animation's

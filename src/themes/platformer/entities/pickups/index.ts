@@ -2,7 +2,6 @@ import type { PickupKind } from '../../contracts/PickupKind';
 import { coin } from './Coin';
 import { fruit } from './Fruit';
 import { key } from './Key';
-import { bonusFruit } from './BonusFruit';
 import { heart } from './Heart';
 import { bomb } from './Bomb';
 
@@ -13,7 +12,7 @@ import { bomb } from './Bomb';
  *
  *  The `satisfies` clause pins the registry to the contract vocabulary, so a
  *  kind added to one side without the other fails to compile. */
-export const PICKUP_TYPES = { coin, fruit, key, bonusFruit, heart, bomb } satisfies Record<
+export const PICKUP_TYPES = { coin, fruit, key, heart, bomb } satisfies Record<
   PickupKind,
   unknown
 >;

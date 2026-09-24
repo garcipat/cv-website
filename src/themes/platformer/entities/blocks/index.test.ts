@@ -91,12 +91,12 @@ describe('block frame selection', () => {
 });
 
 describe('questionMark.onHit', () => {
-  it('itsOnlyHit-spawnsABonusFruit', () => {
+  it('itsOnlyHit-spawnsAFruit', () => {
     // maxHits is 1, so its only registering hit is always its terminal one.
     const qmark = toBlockState({ id: 'q1', blockKind: 'questionMark', x: 0, y: 0 });
 
     expect(BLOCK_TYPES.questionMark.onHit!({ ...qmark, hitsTaken: 1 })).toEqual({
-      spawnPickup: 'bonusFruit',
+      spawnPickup: 'fruit',
     });
   });
 });
