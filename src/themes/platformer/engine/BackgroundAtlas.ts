@@ -1,25 +1,18 @@
 import type { BackgroundMaterialId } from '../level/LevelData';
+// `background_tiles.png` holds 16px tiles on the shared 19px `ATLAS_STRIDE`
+// (16px tile plus a 3px transparent gutter) — same convention as
+// `GroundAtlas.ts`. Six materials are stacked vertically, each a 4-column by
+// 3-row block; `BACKGROUND_ATLAS_ROW_PITCH` is the vertical distance from one
+// material's block to the next (`3*16 + 2*3` for the three gutter-separated
+// rows, plus the extra 6px gap between materials — see data-model.md).
+import { ATLAS_STRIDE, type QuarterTurns, type TileAtlasEntry } from './TileAtlas';
 
-/**
- * `background_tiles.png` holds 16px tiles on a 19px stride (16px tile plus a
- * 3px transparent gutter) — same convention as `GroundAtlas.ts`'s
- * `ATLAS_STRIDE`. Six materials are stacked vertically, each a 4-column by
- * 3-row block; `BACKGROUND_ATLAS_ROW_PITCH` is the vertical distance from one
- * material's block to the next (`3*16 + 2*3` for the three gutter-separated
- * rows, plus the extra 6px gap between materials — see data-model.md).
- */
-export const BACKGROUND_ATLAS_STRIDE = 19;
 export const BACKGROUND_ATLAS_ROW_PITCH = 60;
 
-/** Quarter-turns clockwise applied when drawing — reused from GroundAtlas.ts's
- *  own convention rather than redeclared with different semantics. */
-export type QuarterTurns = 0 | 1 | 2 | 3;
-
-export interface BackgroundAtlasEntry {
-  sx: number;
-  sy: number;
-  rotation: QuarterTurns;
-}
+/** `BackgroundAtlasEntry` is the shared `{ sx, sy, rotation }` atlas cell
+ *  shape — a type alias rather than an empty `interface extends`, which is
+ *  equivalent and lint-clean. */
+export type BackgroundAtlasEntry = TileAtlasEntry;
 
 /** Each material's row index (0-5) within the sheet, top to bottom. */
 const BACKGROUND_MATERIAL_ROW_INDEX: Record<BackgroundMaterialId, number> = {
@@ -37,8 +30,8 @@ const BACKGROUND_MATERIAL_ROW_INDEX: Record<BackgroundMaterialId, number> = {
  *  strip-cap/strip-body/isolated shapes). */
 function cell(materialIndex: number, gx: number, gy: number): { sx: number; sy: number } {
   return {
-    sx: gx * BACKGROUND_ATLAS_STRIDE,
-    sy: materialIndex * BACKGROUND_ATLAS_ROW_PITCH + gy * BACKGROUND_ATLAS_STRIDE,
+    sx: gx * ATLAS_STRIDE,
+    sy: materialIndex * BACKGROUND_ATLAS_ROW_PITCH + gy * ATLAS_STRIDE,
   };
 }
 

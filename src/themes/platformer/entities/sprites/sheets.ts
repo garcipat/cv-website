@@ -48,9 +48,9 @@ export const KEY_SHEET: SpriteSheet = {
 
 /** `coin.png` is a 192x16 strip: 12 frames of one spin cycle, so its
  *  addressing stride is the whole strip. `frameSource(COIN_SHEET, i)` does
- *  NOT wrap for `i >= 12` the way `coinFrameSource` does — harmless today
+ *  NOT wrap for `i >= 12` the way `coinFrameIndex` does — harmless today
  *  since coin.png is a single row and every caller already passes a wrapped
- *  index, but this sheet is not a drop-in for `coinFrameSource`'s wrapping
+ *  index, but this sheet is not a drop-in for `coinFrameIndex`'s wrapping
  *  behavior. */
 export const COIN_SHEET: SpriteSheet = {
   src: '/sprites/coin.png',

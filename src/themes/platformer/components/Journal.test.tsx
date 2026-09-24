@@ -12,8 +12,10 @@ import {
   enemyPlacements,
   enemyStates,
 } from '../PlatformerState';
-import { currentLayout, LEVEL_1_LAYOUT } from '../level/level';
+import { LEVEL_1_LAYOUT } from '../level/level';
+import { currentLayout } from '../state/levelSession';
 import { toEnemyState } from '../entities/Enemy';
+import { toBlockState } from '../entities/Block';
 import { JOURNAL_OPEN_FRAME_COUNT, JOURNAL_OPEN_FRAME_INTERVAL_MS } from '../entities/JournalAnimation';
 import { sectionTotal } from '../entities/JournalSections';
 import type { CollectedFact } from '../types';
@@ -675,8 +677,12 @@ describe('Journal', () => {
       // here, but several crate-sectioned facts are already banked (as if
       // an earlier crate's slice had more than one fact), which would make
       // the facts-derived count diverge from the real destroyed count.
-      const crates = blockPlacements.value.filter((b) => b.blockKind === 'crate');
       try {
+        // Three crates spread the crate fact pool across several facts each,
+        // so the first crate alone reveals more than one fact.
+        currentLayout.value = ['S===', 'GGGG'];
+        blockStates.value = blockPlacements.value.map(toBlockState);
+        const crates = blockPlacements.value.filter((b) => b.blockKind === 'crate');
         blockStates.value = blockStates.value.map((b) => (b.id === crates[0].id ? { ...b, hitsTaken: 2 } : b));
         collectedFacts.value = crates.slice(0, 3).map((c) => c.fact!);
 
@@ -687,13 +693,8 @@ describe('Journal', () => {
         const total = crates.length;
         expect(summary).toHaveTextContent(new RegExp(`Crates 1 / ${total}(?!\\d)`));
       } finally {
-        blockStates.value = blockPlacements.value.map((b) => ({
-          ...b,
-          hitsTaken: 0,
-          animState: 'idle',
-          animTimer: 0,
-          rewardGiven: false,
-        }));
+        currentLayout.value = LEVEL_1_LAYOUT;
+        blockStates.value = blockPlacements.value.map(toBlockState);
       }
     });
 

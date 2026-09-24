@@ -6,7 +6,7 @@ import type { SlimePurpleState } from './SlimePurple';
 import type { EnemyPlacement } from '../../level/EnemyMapper';
 import type { PlayerState } from '../Player';
 import { PLAYER_RENDERED_SIZE, PLAYER_FOOT_PADDING, PLAYER_HIT_REACTION_SECONDS } from '../Player';
-import type { Contact } from '../../contracts/Contact';
+import type { Contact } from '../../contracts/Outcome';
 import { PHYSICS_CONFIG } from '../../contracts/PhysicsConfig';
 
 function makePurpleEnemy(overrides: Partial<SlimePurpleState> = {}): SlimePurpleState {

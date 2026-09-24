@@ -325,6 +325,18 @@ describe('editorState — persisted marker grid validation', () => {
     const { editorMarkerSignal } = await import('./editorState');
     expect(editorMarkerSignal.value).toEqual([[{ kind: 'patrolBoundary' }, null]]);
   });
+
+  it('aStoredMarkerGrid-withATorchMarker-isUsedRatherThanRejected', async () => {
+    // Regression (FR-015): the weaker guard omitted the `torch` kind, so a
+    // torch placed in the editor was dropped — along with the entire stored
+    // grid — the next time the editor loaded.
+    localStorage.setItem(
+      'platformer-editor-markers',
+      JSON.stringify([[{ kind: 'torch', strength: 7 }, null]]),
+    );
+    const { editorMarkerSignal } = await import('./editorState');
+    expect(editorMarkerSignal.value).toEqual([[{ kind: 'torch', strength: 7 }, null]]);
+  });
 });
 
 describe('editorState — editor appearance (O-015 FR-003)', () => {

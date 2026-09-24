@@ -70,7 +70,7 @@ import { PICKUP_TYPES } from '../entities/pickups';
 import { key } from '../entities/pickups/Key';
 import { heart } from '../entities/pickups/Heart';
 import { bomb } from '../entities/pickups/Bomb';
-import { bonusFruit } from '../entities/pickups/BonusFruit';
+import { fruit } from '../entities/pickups/Fruit';
 import { typeOf } from '../entities/enemies';
 import type { EnemyState } from '../entities/Enemy';
 import { typeOf as hazardTypeOf } from '../entities/hazards';
@@ -96,7 +96,8 @@ import {
 } from '../entities/Checkpoint';
 import type { CheckpointState } from '../entities/Checkpoint';
 import { frameSource } from '../entities/sprites/SpriteSheet';
-import type { BonusFruitState } from '../entities/BonusFruit';
+import { pulse } from '../shared/math';
+import type { FruitState } from '../entities/Fruit';
 import {
   flightEffectPosition,
   sparkleParticles,
@@ -1746,12 +1747,12 @@ export function drawSignBubble(
 /**
  * Draws every not-yet-collected placement — each spriteType renders itself
  * (see entities/pickups/), keyed by the item's stable position among all
- * placements of its own spriteType (matters for fruit's fixed-per-index
- * icon — see Fruit.ts — and is tracked here, unconditionally per item seen,
- * so a fruit's icon stays stable regardless of which fruits have since been
- * collected). A missing sprite for one pickup type is handled inside that
- * type's own `draw` (it simply skips), so a missing fruit sprite never hides
- * coins and vice versa.
+ * placements of its own spriteType (tracked here, unconditionally per item
+ * seen, so a pickup's frame stays stable regardless of which ones have since
+ * been collected). A missing sprite for one pickup type is handled inside that
+ * type's own `draw` (it simply skips), so a missing sprite never hides the
+ * others. A placed collectible is always a coin today (a question-mark's
+ * reward is a rising fruit, drawn separately — see drawFruits).
  */
 export function drawCollectibles(
   ctx: CanvasRenderingContext2D,
@@ -1791,7 +1792,7 @@ export function drawKeyPickups(
  *  entities/pickups/Heart.ts). Unlike drawKeyPickups, there's no `collected`
  *  filter: a touched heart is removed from its live array entirely the same
  *  tick (see PlatformerState.ts's heartPickupStates doc comment), same
- *  convention as drawBonusFruits below. */
+ *  convention as drawFruits below. */
 export function drawHeartPickups(
   ctx: CanvasRenderingContext2D,
   pickups: readonly HeartPickupState[],
@@ -2006,7 +2007,7 @@ export function drawCheckpointTwinkles(
   ctx.imageSmoothingEnabled = false;
   for (const spot of CHECKPOINT_TWINKLE_SPOTS) {
     const t = dc.worldElapsed / CHECKPOINT_TWINKLE_PERIOD_SECONDS + spot.phase;
-    const wave = (Math.sin(t * Math.PI * 2) + 1) / 2;
+    const wave = (pulse(t) + 1) / 2;
     drawPixelSparkle(
       ctx,
       flagX + spot.dx,
@@ -2089,16 +2090,16 @@ export function drawFadeOutTexts(
   }
 }
 
-/** Draws every question-mark block's spawned bonus fruit — each one renders
- *  itself (see entities/pickups/BonusFruit.ts). */
-export function drawBonusFruits(
+/** Draws every question-mark block's spawned fruit — each one renders
+ *  itself (see entities/pickups/Fruit.ts). */
+export function drawFruits(
   ctx: CanvasRenderingContext2D,
-  fruits: readonly BonusFruitState[],
+  fruits: readonly FruitState[],
   dc: DrawContext,
 ): void {
   ctx.imageSmoothingEnabled = false;
-  for (const fruit of fruits) {
-    bonusFruit.draw(fruit, dc);
+  for (const fruitState of fruits) {
+    fruit.draw(fruitState, dc);
   }
 }
 
@@ -2300,8 +2301,8 @@ const LOW_HEALTH_GLOW_COLOR = '#ff1f1f';
  *  the glow is ambient and open-ended for as long as health stays critical,
  *  see PlatformerPage.tsx's `worldAnimElapsed`). */
 export function lowHealthGlowAlpha(elapsedSeconds: number): number {
-  const pulse = (Math.sin((elapsedSeconds / LOW_HEALTH_GLOW_PULSE_PERIOD_SECONDS) * Math.PI * 2) + 1) / 2;
-  return LOW_HEALTH_GLOW_BASE_ALPHA + pulse * LOW_HEALTH_GLOW_PULSE_ALPHA;
+  const wave = (pulse(elapsedSeconds / LOW_HEALTH_GLOW_PULSE_PERIOD_SECONDS) + 1) / 2;
+  return LOW_HEALTH_GLOW_BASE_ALPHA + wave * LOW_HEALTH_GLOW_PULSE_ALPHA;
 }
 
 /** Draws a soft red glow pulsing inward from all four canvas edges — the

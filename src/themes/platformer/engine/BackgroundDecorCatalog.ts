@@ -5,6 +5,8 @@
  * new small catalog instead of extending `StaticObjectsCatalog`").
  */
 
+import { pickVariant } from './StaticObjectsCatalog';
+
 export interface BackgroundDecorEntry {
   sx: number;
   sy: number;
@@ -22,20 +24,6 @@ export interface BackgroundDecorEntry {
  * deterministic hash, so a second variant is a one-line addition later.
  */
 const ROCK_VARIANTS: BackgroundDecorEntry[] = [{ sx: 51, sy: 17 }];
-
-/**
- * The same position-hashed variant picker `StaticObjectsCatalog.ts` defines —
- * duplicated (a handful of lines) rather than imported, per design.md's
- * rationale for keeping the two catalogs independent.
- */
-function pickVariant<T>(variants: readonly T[], col: number, row: number): T {
-  if (variants.length === 0) {
-    throw new Error('pickVariant: no variants provided');
-  }
-  const hash = (Math.imul(col, 374761393) ^ Math.imul(row, 668265263)) >>> 0;
-  const index = hash % variants.length;
-  return variants[index];
-}
 
 /**
  * The rock sprite for a fully-interior background cell at `(col, row)`.

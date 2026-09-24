@@ -6,6 +6,7 @@ import {
   CRUMBLE_CRACKS_SHEET,
 } from '../entities/sprites/sheets';
 import { frameSource } from '../entities/sprites/SpriteSheet';
+import { clamp01, lerp } from '../shared/math';
 
 /** Seconds each phase of a collected-fact animation takes: a quick rise from
  *  the collection point to the middle of the screen, a hold there so the
@@ -130,18 +131,17 @@ export function flightEffectPosition(effect: FlightEffect): { x: number; y: numb
     return { x: effect.targetX, y: effect.targetY, opacity: 0 };
   }
   if (effect.phase === 'rising') {
-    const progress = Math.min(1, effect.elapsed / RISE_DURATION_SECONDS);
-    const x = effect.startX + (effect.midX - effect.startX) * progress;
-    const y = effect.startY + (effect.midY - effect.startY) * progress;
+    const x = lerp(effect.startX, effect.midX, effect.elapsed / RISE_DURATION_SECONDS);
+    const y = lerp(effect.startY, effect.midY, effect.elapsed / RISE_DURATION_SECONDS);
     return { x, y, opacity: 1 };
   }
   if (effect.phase === 'holding') {
     return { x: effect.midX, y: effect.midY, opacity: 1 };
   }
   const flightElapsed = effect.elapsed - RISE_DURATION_SECONDS - HOLD_DURATION_SECONDS;
-  const progress = Math.min(1, flightElapsed / FLIGHT_DURATION_SECONDS);
-  const x = effect.midX + (effect.targetX - effect.midX) * progress;
-  const y = effect.midY + (effect.targetY - effect.midY) * progress;
+  const progress = clamp01(flightElapsed / FLIGHT_DURATION_SECONDS);
+  const x = lerp(effect.midX, effect.targetX, flightElapsed / FLIGHT_DURATION_SECONDS);
+  const y = lerp(effect.midY, effect.targetY, flightElapsed / FLIGHT_DURATION_SECONDS);
   const opacity = progress < 0.6 ? 1 : 1 - (progress - 0.6) / 0.4;
   return { x, y, opacity };
 }
@@ -650,7 +650,7 @@ export function tickExplosionEffect(effect: ExplosionEffect, dt: number): Explos
 /** The active sheet's frame to draw, playing each frame once in order and
  *  clamping to the last frame at/past the duration. */
 export function explosionFrameIndex(effect: ExplosionEffect): number {
-  const progress = Math.min(1, Math.max(0, effect.elapsed / EXPLOSION_DURATION_SECONDS));
+  const progress = clamp01(effect.elapsed / EXPLOSION_DURATION_SECONDS);
   return Math.min(Math.floor(progress * EXPLOSION_FRAME_COUNT), EXPLOSION_FRAME_COUNT - 1);
 }
 

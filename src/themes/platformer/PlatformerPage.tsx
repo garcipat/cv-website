@@ -9,7 +9,7 @@ import {
   drawCollectibles,
   drawEnemies,
   drawBlocks,
-  drawBonusFruits,
+  drawFruits,
   drawCollectionEffects,
   drawPuffEffects,
   drawCounterPopups,
@@ -61,7 +61,7 @@ import { createGameLoop } from './engine/GameLoop';
 import { stepPlayerPhysics, checkPitFall, resolvePitFall, playerOnMushroomCap } from './engine/Physics';
 import { startMushroomSquash } from './engine/MushroomSquash';
 import { PHYSICS_CONFIG } from './contracts/PhysicsConfig';
-import { stepEnemyHitReaction } from './engine/EnemyAI';
+import { stepEnemyHitReaction } from './entities/enemies/hitReaction';
 import { updateCamera, updateCameraY, initialCameraX, initialCameraY } from './engine/Camera';
 import { createKeyboardInput } from './engine/Input';
 import type { KeyboardInput } from './engine/Input';
@@ -76,13 +76,13 @@ import {
   dismissEndingScreen,
   DEATH_ANIM_SECONDS,
 } from './engine/GameLifecycle';
-import { maxIrisRadius } from './engine/IrisTransition';
-import { currentLevel, currentLayout, currentBackgroundLayout } from './level/level';
+import { maxIrisRadius } from './engine/GameLifecycle';
+import { currentLevel, currentLayout, currentBackgroundLayout } from './state/levelSession';
 import { findLevel } from './level/levelRegistry';
 import {
   checkCollectibleCollisions,
   resolveEnemyContacts,
-  checkBonusFruitCollisions,
+  checkFruitCollisions,
   chestPlayerIsStandingOn,
   checkSignOverlap,
   checkKeyPickupCollisions,
@@ -115,7 +115,7 @@ import {
 import type { BlockState } from './entities/Block';
 import { computePotRenderPlan } from './entities/blocks/potRenderPlan';
 import type { PotRenderPlan } from './entities/blocks/potTypes';
-import { spawnBonusFruit, tickBonusFruit, bonusFruitY } from './entities/BonusFruit';
+import { spawnFruit, tickFruit, fruitY } from './entities/Fruit';
 import { spawnKeyPickup, KEY_TILE_OFFSET_X, KEY_TILE_OFFSET_Y } from './entities/KeyPickup';
 import { spawnHeartPickup } from './entities/HeartPickup';
 import { spawnBombPickup } from './entities/BombPickup';
@@ -157,7 +157,7 @@ import {
 } from './engine/FallingStalactite';
 import { fallingStalactiteShatter } from './entities/hazards/FallingStalactite';
 import { crumblingFloorPhaseFor, CRUMBLING_FLOOR_CRACK_SECONDS } from './engine/CrumblingFloor';
-import { coinFrameSource, COIN_FRAME_SIZE } from './entities/Coin';
+import { COIN_FRAME_SIZE } from './entities/Coin';
 import { fruitFrameSource, FRUIT_FRAME_SIZE } from './entities/Fruit';
 import { createRewardReveal } from './state/rewards';
 import { RENDERED_TILE_SIZE, tileToPixel } from './level/Terrain';
@@ -191,6 +191,7 @@ import {
   AMBIENT_CLOUDS_SHEET,
   DECORATIONS_SHEET,
   TORCH_SHEET,
+  COIN_SHEET,
   ROPE_LADDER_SHEET,
   MUSHROOM_SHEET,
   BOMB_SHEET,
@@ -231,7 +232,7 @@ import {
   blockStates,
   cratesDestroyed,
   enemiesDefeated,
-  bonusFruitStates,
+  fruitStates,
   collectedCollectibleIds,
   activeEffects,
   activeCounterPopups,
@@ -620,8 +621,8 @@ export const PlatformerPage = () => {
     // Cycles through fruit.png's icon frames (see Fruit.ts's
     // FRUIT_ICON_COUNT) so successive question-mark bonus fruits look
     // visibly different from each other — "just keep incrementing, let
-    // spawnBonusFruit wrap it".
-    let nextBonusFruitIcon = 0;
+    // spawnFruit wrap it".
+    let nextFruitIcon = 0;
 
     // Whether the visitor has asked for reduced motion — read once on mount
     // (same precedent as SpacePage.tsx) and threaded into the ambient-cloud
@@ -757,7 +758,7 @@ export const PlatformerPage = () => {
       // own tile occlude the still-rising fruit until it clears the block's
       // top edge, reading as "popping out from behind the block" instead of
       // floating on top of it.
-      drawBonusFruits(ctx, bonusFruitStates.value, drawContext);
+      drawFruits(ctx, fruitStates.value, drawContext);
 
       drawBlocks(ctx, blockStates.value, drawContext);
 
@@ -936,7 +937,7 @@ export const PlatformerPage = () => {
         iconFrame: { sx: number; sy: number; size: number };
         iconYOffset?: number;
       }> = [
-        { labelKey: 'coins', icon: coinSpriteRef.current, iconFrame: { ...coinFrameSource(0), size: COIN_FRAME_SIZE } },
+        { labelKey: 'coins', icon: coinSpriteRef.current, iconFrame: { ...frameSource(COIN_SHEET, 0), size: COIN_FRAME_SIZE } },
         {
           labelKey: 'fruits',
           icon: fruitSpriteRef.current,
@@ -1277,7 +1278,7 @@ export const PlatformerPage = () => {
 
       // Bonus fruits rise on their own fixed timer, independent of anything
       // else this tick.
-      bonusFruitStates.value = bonusFruitStates.value.map((fruit) => tickBonusFruit(fruit, dt));
+      fruitStates.value = fruitStates.value.map((fruit) => tickFruit(fruit, dt));
 
       // Enemies whose hit reaction just finished with no hit points left
       // (`!alive`): fire their reward, reusing the exact fact-flight
@@ -1516,22 +1517,22 @@ export const PlatformerPage = () => {
       // other collectible on touch. A fruit
       // spawned from a question-mark marker beyond the available data
       // (`fruit.fact === undefined`) still removes silently, same as before.
-      const touchedBonusFruitIds = checkBonusFruitCollisions(playerState.value, bonusFruitStates.value);
-      if (touchedBonusFruitIds.length > 0) {
-        for (const id of touchedBonusFruitIds) {
-          const fruit = bonusFruitStates.value.find((f) => f.id === id);
+      const touchedFruitIds = checkFruitCollisions(playerState.value, fruitStates.value);
+      if (touchedFruitIds.length > 0) {
+        for (const id of touchedFruitIds) {
+          const fruit = fruitStates.value.find((f) => f.id === id);
           if (!fruit || !fruit.fact) continue;
 
           revealFact(fruit.fact, {
             x: fruit.x,
-            y: bonusFruitY(fruit),
+            y: fruitY(fruit),
             effectId: id,
             counterKey: 'fruits',
           });
         }
 
-        bonusFruitStates.value = bonusFruitStates.value.filter(
-          (fruit) => !touchedBonusFruitIds.includes(fruit.id),
+        fruitStates.value = fruitStates.value.filter(
+          (fruit) => !touchedFruitIds.includes(fruit.id),
         );
       }
 
@@ -2130,10 +2131,10 @@ export const PlatformerPage = () => {
         // branches. Each arm keeps what is the engine's business rather than
         // the block's: the fruit icon cycle, and the dropped pickup's
         // id/position.
-        if (outcome.spawnPickup === 'bonusFruit') {
-          bonusFruitStates.value = [
-            ...bonusFruitStates.value,
-            spawnBonusFruit(block.id, block.x, block.y, block.fact, nextBonusFruitIcon++),
+        if (outcome.spawnPickup === 'fruit') {
+          fruitStates.value = [
+            ...fruitStates.value,
+            spawnFruit(block.id, block.x, block.y, block.fact, nextFruitIcon++),
           ];
         } else if (outcome.spawnPickup === 'coin') {
           // `block.id` is the pot's own id, not a fact id (the block never

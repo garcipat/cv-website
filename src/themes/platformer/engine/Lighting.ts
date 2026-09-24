@@ -15,6 +15,7 @@ import type { PlayerState } from '../entities/Player';
 import { PLAYER_RENDERED_SIZE, PLAYER_FOOT_PADDING } from '../entities/Player';
 import { RENDERED_TILE_SIZE, RENDER_SCALE, backgroundAt, tileToPixel } from '../level/Terrain';
 import { TORCH_FRAME_COUNT, torchPhase, torchLightScale } from '../entities/Torch';
+import { clamp01, hash2D, pulse, smoothstep } from '../shared/math';
 
 /**
  * `BackgroundMaterialFamily` is declared once in `level/LevelData.ts` (the
@@ -122,9 +123,7 @@ export const FOG_PULSE_PERIOD_SECONDS = 3.4;
  * cell's puff always drifts and breathes the same way.
  */
 function cellHash01(col: number, row: number, salt: number): number {
-  const hash =
-    (Math.imul(col + salt * 92821, 374761393) ^ Math.imul(row + salt * 68917, 668265263)) >>> 0;
-  return hash / 0xffffffff;
+  return hash2D(col, row, salt) / 0xffffffff;
 }
 
 /**
@@ -147,15 +146,15 @@ export function fogPuffAt(
   const jitterAngle = cellHash01(col, row, 1) * Math.PI * 2;
   const jitterDistance = cellHash01(col, row, 2) * FOG_PUFF_JITTER_PX;
   const phaseOffset = cellHash01(col, row, 3);
-  const pulse =
+  const pulseScale =
     1 +
     FOG_PULSE_AMPLITUDE *
-      Math.sin((worldElapsed / FOG_PULSE_PERIOD_SECONDS + phaseOffset) * Math.PI * 2);
+      pulse(worldElapsed / FOG_PULSE_PERIOD_SECONDS + phaseOffset);
 
   return {
     x: centerX + Math.cos(jitterAngle) * jitterDistance,
     y: centerY + Math.sin(jitterAngle) * jitterDistance,
-    radius: FOG_PUFF_RADIUS_PX * pulse,
+    radius: FOG_PUFF_RADIUS_PX * pulseScale,
   };
 }
 
@@ -182,7 +181,7 @@ export function fogPeekStrengthAt(x: number, y: number, player: Point): number {
   if (distance >= radius) return 0;
 
   const t = 1 - distance / radius;
-  return t * t * (3 - 2 * t);
+  return smoothstep(t);
 }
 
 /** Soft glow radius in rendered pixels — roughly a 3.5-tile radius (FR-009). */
@@ -302,8 +301,7 @@ export function playerOccupiedCell(player: PlayerState): Cell {
  */
 export function torchPulseScale(torch: TorchLight, worldElapsed: number): number {
   const phaseOffset = torchPhase(torch.col, torch.row) / TORCH_FRAME_COUNT;
-  const phase = (worldElapsed / TORCH_PULSE_PERIOD_SECONDS + phaseOffset) * Math.PI * 2;
-  return 1 + TORCH_PULSE_AMPLITUDE * Math.sin(phase);
+  return 1 + TORCH_PULSE_AMPLITUDE * pulse(worldElapsed / TORCH_PULSE_PERIOD_SECONDS + phaseOffset);
 }
 
 /**
@@ -334,7 +332,7 @@ export function torchGlowStrengthAt(
   if (distance >= radius) return 0;
 
   const t = 1 - distance / radius;
-  return t * t * (3 - 2 * t);
+  return smoothstep(t);
 }
 
 /**
@@ -373,7 +371,7 @@ export function playerGlowStrengthAt(x: number, y: number, light: Point): number
   if (distance >= radius) return 0;
 
   const t = 1 - distance / radius;
-  return t * t * (3 - 2 * t);
+  return smoothstep(t);
 }
 
 /**
@@ -385,8 +383,7 @@ export function playerGlowStrengthAt(x: number, y: number, light: Point): number
 export function enemyEyeOpacity(localDarkness: number): number {
   if (localDarkness <= ENEMY_EYE_DARKNESS_THRESHOLD) return 0;
   const t = (localDarkness - ENEMY_EYE_DARKNESS_THRESHOLD) / ENEMY_EYE_FADE_RANGE;
-  const clamped = Math.max(0, Math.min(1, t));
-  return clamped * clamped * (3 - 2 * clamped);
+  return smoothstep(clamp01(t));
 }
 
 /** Seconds per full up-down bob of an enemy's eye marker (FR-018). */
@@ -403,8 +400,5 @@ export const ENEMY_EYE_BOB_AMPLITUDE_PX = 3;
  * `[-ENEMY_EYE_BOB_AMPLITUDE_PX, ENEMY_EYE_BOB_AMPLITUDE_PX]` (FR-018).
  */
 export function enemyEyeBobOffset(worldElapsed: number): number {
-  return (
-    Math.sin((worldElapsed / ENEMY_EYE_BOB_PERIOD_SECONDS) * Math.PI * 2) *
-    ENEMY_EYE_BOB_AMPLITUDE_PX
-  );
+  return pulse(worldElapsed / ENEMY_EYE_BOB_PERIOD_SECONDS) * ENEMY_EYE_BOB_AMPLITUDE_PX;
 }

@@ -3,6 +3,7 @@ import { createDebouncedLocalStorageSignal, createLocalStorageSignal } from '@/l
 import { importLayout, importMarkerGrid } from './importLayout';
 import { LEVEL_1_LAYOUT, LEVEL_1_MARKERS } from '../level/level';
 import { BLANK_BLUEPRINT } from '../level/BlueprintData';
+import { normalizeMarkerEntry } from '../level/LevelParser';
 import type { BackgroundChar, TileChar } from '../level/LevelParser';
 import type { MarkerEntry, MarkerGrid } from '../level/LevelData';
 
@@ -24,20 +25,19 @@ export type EditorTool = TileChar | MarkerTool;
 
 /**
  * Forgiving shape guard for a persisted marker grid — the one untyped
- * boundary (localStorage). Mirrors the "a malformed value costs only that
- * field" policy the terrain/background grids use: an entry that is not
- * `null` and does not look like a `{kind}` marker is dropped.
+ * boundary (localStorage). Delegates to `LevelParser.normalizeMarkerEntry`,
+ * the complete validator (including the `torch` kind), so a persisted torch
+ * marker survives a save → reload round-trip instead of dropping the whole
+ * grid (FR-014/FR-015). Anything that normalizes to `null` is not a marker
+ * kind the game knows, so the entry is dropped — the same "a malformed value
+ * costs only that field" policy the terrain/background grids use.
+ *
+ * The game's own load path (`LevelParser.parseLevel`) normalizes every entry
+ * through the same function, so an out-of-range stored `strength` is resolved
+ * to `DEFAULT_TORCH_STRENGTH` before it can reach gameplay.
  */
-const isMarkerEntry = (value: unknown): value is MarkerEntry => {
-  if (value === null || typeof value !== 'object') return false;
-  const kind = (value as { kind?: unknown }).kind;
-  return (
-    kind === 'patrolBoundary' ||
-    kind === 'connectionPoint' ||
-    kind === 'fallingStalactite' ||
-    (kind === 'sign' && typeof (value as { hintId?: unknown }).hintId === 'string')
-  );
-};
+const isMarkerEntry = (value: unknown): value is MarkerEntry =>
+  normalizeMarkerEntry(value) !== null;
 
 const isMarkerGrid = (value: unknown): value is MarkerGrid =>
   Array.isArray(value) &&

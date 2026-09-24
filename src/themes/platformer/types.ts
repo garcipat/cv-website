@@ -11,6 +11,7 @@ import type {
 } from '@/types/cv';
 import type { Translation } from '@/i18n/translations';
 import type { EnemyTypeKey } from './entities/enemies';
+import type { BlockKind } from './entities/blocks';
 
 /**
  * Every top-level CV section that can back a journal bookmark. Matches the
@@ -117,7 +118,7 @@ export interface EnemyDef {
  */
 export interface BlockDef {
   id: string;
-  blockKind: 'crate' | 'questionMark' | 'fragileRock' | 'coinPot' | 'potionPot' | 'bombPot';
+  blockKind: BlockKind;
   /** Present only when `blockKind === 'crate'` — every other kind
    *  (question-mark, fragileRock, coinPot, potionPot) never carries a fact. */
   fact?: CollectedFact;

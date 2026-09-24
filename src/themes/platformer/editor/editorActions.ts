@@ -12,7 +12,7 @@ import { cropLevelForExport } from './cropLevelForExport';
 import { saveLevel } from './saveLevelFile';
 import { saveBlueprint } from './saveBlueprintFile';
 import { findBlueprint } from '../level/blueprintRegistry';
-import { currentLayout, currentBackgroundLayout, currentMarkers } from '../level/level';
+import { currentLayout, currentBackgroundLayout, currentMarkers } from '../state/levelSession';
 import type { LevelEntry } from '../level/levelRegistry';
 import type { Blueprint } from '../level/BlueprintData';
 import type { BackgroundChar, TileChar } from '../level/LevelParser';

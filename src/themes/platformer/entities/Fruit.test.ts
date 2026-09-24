@@ -1,4 +1,14 @@
-import { FRUIT_FRAME_SIZE, FRUIT_ICON_COUNT, fruitFrameSource } from './Fruit';
+import {
+  spawnFruit,
+  tickFruit,
+  fruitY,
+  FRUIT_FRAME_SIZE,
+  FRUIT_ICON_COUNT,
+  FRUIT_RISE_DURATION_SECONDS,
+  fruitFrameSource,
+} from './Fruit';
+import { RENDERED_TILE_SIZE } from '../level/Terrain';
+import type { CollectedFact } from '../types';
 
 describe('fruitFrameSource', () => {
   it('indexZero-returnsFirstPriorityFruit', () => {
@@ -24,5 +34,78 @@ describe('fruitFrameSource', () => {
 
   it('indexBeyondIconCount-wraps', () => {
     expect(fruitFrameSource(FRUIT_ICON_COUNT)).toEqual(fruitFrameSource(0));
+  });
+});
+
+// Folded in from the removed entities/BonusFruit.test.ts (R-002 FR-022).
+const testFact: CollectedFact = {
+  id: 'qmark-cert-x',
+  sectionId: 'certificates',
+  sectionLabel: 'Certificates',
+  data: { name: 'Test Cert', issuer: 'Test', date: '2024-01' },
+  sourceType: 'block',
+};
+
+describe('spawnFruit', () => {
+  it('called-startsAtBlockPositionWithZeroElapsed', () => {
+    const fruit = spawnFruit('f1', 100, 200, undefined, 0);
+    expect(fruit.id).toBe('f1');
+    expect(fruit.x).toBe(100);
+    expect(fruit.elapsed).toBe(0);
+    expect(fruit.restY).toBe(200 - RENDERED_TILE_SIZE);
+  });
+
+  it('factProvided-carriesItForward', () => {
+    const fruit = spawnFruit('f1', 100, 200, testFact, 0);
+    expect(fruit.fact).toBe(testFact);
+  });
+
+  it('noFactProvided-factIsUndefined', () => {
+    const fruit = spawnFruit('f1', 100, 200, undefined, 0);
+    expect(fruit.fact).toBeUndefined();
+  });
+
+  it('iconIndexWithinRange-usedAsIs', () => {
+    const fruit = spawnFruit('f1', 100, 200, undefined, 3);
+    expect(fruit.iconIndex).toBe(3);
+  });
+
+  it('iconIndexOutOfRange-wrapsIntoValidRange', () => {
+    const fruit = spawnFruit('f1', 100, 200, undefined, FRUIT_ICON_COUNT + 2);
+    expect(fruit.iconIndex).toBe(2);
+  });
+});
+
+describe('tickFruit', () => {
+  it('called-accumulatesElapsed', () => {
+    const fruit = tickFruit(spawnFruit('f1', 0, 0, undefined, 0), 0.1);
+    expect(fruit.elapsed).toBeCloseTo(0.1);
+  });
+});
+
+describe('fruitY', () => {
+  it('justSpawned-yEqualsStartingBlockY', () => {
+    const fruit = spawnFruit('f1', 0, 200, undefined, 0);
+    expect(fruitY(fruit)).toBe(200);
+  });
+
+  it('riseDurationElapsed-yEqualsRestYOneTileHigher', () => {
+    let fruit = spawnFruit('f1', 0, 200, undefined, 0);
+    fruit = tickFruit(fruit, FRUIT_RISE_DURATION_SECONDS);
+    expect(fruitY(fruit)).toBe(200 - RENDERED_TILE_SIZE);
+  });
+
+  it('midRise-yIsBetweenStartAndRest', () => {
+    let fruit = spawnFruit('f1', 0, 200, undefined, 0);
+    fruit = tickFruit(fruit, FRUIT_RISE_DURATION_SECONDS / 2);
+    const y = fruitY(fruit);
+    expect(y).toBeLessThan(200);
+    expect(y).toBeGreaterThan(200 - RENDERED_TILE_SIZE);
+  });
+
+  it('pastRiseDuration-yStaysClampedAtRestY', () => {
+    let fruit = spawnFruit('f1', 0, 200, undefined, 0);
+    fruit = tickFruit(fruit, FRUIT_RISE_DURATION_SECONDS * 3);
+    expect(fruitY(fruit)).toBe(200 - RENDERED_TILE_SIZE);
   });
 });

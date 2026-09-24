@@ -1,11 +1,9 @@
 import {
   COIN_FRAME_COUNT,
-  COIN_FRAME_SIZE,
   COIN_FRAME_DURATION,
   COIN_BOB_AMPLITUDE,
   COIN_BOB_PERIOD_SECONDS,
   coinFrameIndex,
-  coinFrameSource,
   coinBobOffset,
 } from './Coin';
 
@@ -28,20 +26,6 @@ describe('coinFrameIndex', () => {
 
   it('elapsedNegative-clampsToFrameZero', () => {
     expect(coinFrameIndex(-1)).toBe(0);
-  });
-});
-
-describe('coinFrameSource', () => {
-  it('frameZero-returnsTopLeftOfSheet', () => {
-    expect(coinFrameSource(0)).toEqual({ sx: 0, sy: 0 });
-  });
-
-  it('frameFive-returnsFifthFrameOffset', () => {
-    expect(coinFrameSource(5)).toEqual({ sx: 5 * COIN_FRAME_SIZE, sy: 0 });
-  });
-
-  it('frameEqualToFrameCount-wrapsToFirstFrame', () => {
-    expect(coinFrameSource(COIN_FRAME_COUNT)).toEqual({ sx: 0, sy: 0 });
   });
 });
 

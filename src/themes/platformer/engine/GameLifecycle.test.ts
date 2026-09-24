@@ -7,15 +7,15 @@ import {
   resumeFromJournal,
   showEndingScreen,
   dismissEndingScreen,
+  maxIrisRadius,
   DEATH_ANIM_SECONDS,
-} from './GameLifecycle';
-import type { LifecycleState } from './GameLifecycle';
-import {
   IRIS_DURATION_SECONDS,
   IRIS_HOLD_SECONDS,
   IRIS_CLOSE_SECONDS,
   IRIS_SMALL_RADIUS,
-} from './IrisTransition';
+} from './GameLifecycle';
+import type { LifecycleState } from './GameLifecycle';
+import { lerp } from '../shared/math';
 
 const INTRO_TOTAL_SECONDS = IRIS_HOLD_SECONDS + IRIS_DURATION_SECONDS;
 const DYING_TOTAL_SECONDS =
@@ -267,5 +267,50 @@ describe('currentIrisRadius', () => {
     // hold radius must never exceed the circle needed to cover the canvas.
     const state: LifecycleState = { phase: 'intro', elapsed: 0, centerX: 0, centerY: 0 };
     expect(currentIrisRadius(state, 10)).toBe(10);
+  });
+});
+
+// Relocated from the removed engine/IrisTransition.test.ts, whose constants
+// and maxIrisRadius now live here.
+describe('maxIrisRadius', () => {
+  it('centerAtOrigin-returns-distanceToFarthestCorner', () => {
+    expect(maxIrisRadius(100, 100, 0, 0)).toBeCloseTo(Math.sqrt(100 * 100 + 100 * 100));
+  });
+
+  it('centerAtMiddle-returns-halfDiagonal', () => {
+    expect(maxIrisRadius(200, 100, 100, 50)).toBeCloseTo(Math.sqrt(100 * 100 + 50 * 50));
+  });
+
+  it('centerOffCanvas-usesFarthestEdgeDistance', () => {
+    // Center past the right/bottom edge: the farthest corner is top-left (0,0).
+    expect(maxIrisRadius(100, 100, 150, 150)).toBeCloseTo(Math.sqrt(150 * 150 + 150 * 150));
+  });
+});
+
+// The former `lerpRadius(progress, from, to)` is now the shared `lerp(from, to,
+// progress)` — same clamp semantics, arguments in the shared order.
+describe('lerp (iris radius interpolation)', () => {
+  it('progressZero-returnsFromRadius', () => {
+    expect(lerp(100, 500, 0)).toBe(100);
+  });
+
+  it('progressOne-returnsToRadius', () => {
+    expect(lerp(100, 500, 1)).toBe(500);
+  });
+
+  it('progressHalf-returnsMidpoint', () => {
+    expect(lerp(100, 500, 0.5)).toBe(300);
+  });
+
+  it('fromGreaterThanTo-progressHalf-returnsMidpoint', () => {
+    expect(lerp(500, 100, 0.5)).toBe(300);
+  });
+
+  it('progressBeyondOne-clampsToOne', () => {
+    expect(lerp(100, 500, 1.5)).toBe(500);
+  });
+
+  it('progressBelowZero-clampsToZero', () => {
+    expect(lerp(100, 500, -0.5)).toBe(100);
   });
 });

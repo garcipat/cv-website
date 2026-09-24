@@ -1,4 +1,5 @@
 import type { ChainAttachment, VerticalRunRole } from '../level/Terrain';
+import { hash2D } from '../shared/math';
 
 export interface StaticObjectEntry {
   sx: number;
@@ -178,7 +179,15 @@ export function ropeLadderShaftPieces(shaftCellCount: number): ChainPieceRect[] 
   return pieces;
 }
 
-function pickVariant<T>(variants: readonly T[], col: number, row: number): T {
+/**
+ * Picks a variant deterministically from a cell's grid position — the shared
+ * home of the position-hashed variant picker (`BackgroundDecorCatalog.ts`
+ * imports this rather than keeping its own copy). Backed by `shared/math.ts`'s
+ * `hash2D(col, row)`; the two large unrelated multipliers in that hash scramble
+ * the low bits enough that adjacent columns don't fall into an obvious short
+ * repeating sequence.
+ */
+export function pickVariant<T>(variants: readonly T[], col: number, row: number): T {
   // Every variants array today is a non-empty literal declared above, but
   // nothing in the types enforces that. Guard explicitly rather than
   // letting `% 0` produce NaN and silently index to `undefined` — that
@@ -187,14 +196,7 @@ function pickVariant<T>(variants: readonly T[], col: number, row: number): T {
   if (variants.length === 0) {
     throw new Error('pickVariant: no variants provided');
   }
-  // A plain `(col * a + row * b) % n` cycles through variants in a fixed
-  // order as col increases by 1 (period `n`) — visually that reads as
-  // "small, medium, large, small, medium, large, ..." rather than varied,
-  // especially when `n` is small (like 4 bush sizes). Multiplying by two
-  // large, unrelated constants (Math.imul keeps this in 32-bit int math)
-  // before XOR-ing scrambles the low bits enough that adjacent columns
-  // don't fall into an obvious short repeating sequence.
-  const hash = (Math.imul(col, 374761393) ^ Math.imul(row, 668265263)) >>> 0;
+  const hash = hash2D(col, row);
   const index = hash % variants.length;
   return variants[index];
 }

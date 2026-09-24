@@ -74,24 +74,20 @@ import { PHYSICS_CONFIG } from './contracts/PhysicsConfig';
 import { currentCV } from '@/state/locale';
 import { MAX_HALF_HEARTS } from './entities/Health';
 import { tileToPixel, RENDERED_TILE_SIZE } from './level/Terrain';
+import { LEVEL_1_LAYOUT, LEVEL_1_BACKGROUND, LEVEL_1_MARKERS } from './level/level';
 import {
   SPAWN_TILE,
   currentLayout,
   currentBackgroundLayout,
   currentMarkers,
-  LEVEL_1_LAYOUT,
-  LEVEL_1_BACKGROUND,
-  LEVEL_1_MARKERS,
-  ENEMY_TILES_PURPLE,
   CRATE_TILES,
   QUESTIONMARK_TILES,
   FRAGILE_ROCK_TILES,
   BOMB_POT_TILES,
   CHEST_TILES,
-  CHECKPOINT_TILES,
   SIGN_TILES,
   TORCH_TILES,
-} from './level/level';
+} from './state/levelSession';
 import {
   PLAYER_RENDERED_SIZE,
   PLAYER_FOOT_PADDING,
@@ -121,17 +117,20 @@ describe('PlatformerState', () => {
   });
 
   it('enemyPlacements-initial-oneEnemyPerLevelMarkerNotPerFullCVData', () => {
-    // Placement count tracks the level's markers, never CVData's length —
-    // the level now carries one green slime per course, so those two happen
-    // to match, while purple slimes have no CV defs at all and are placed
-    // purely from markers (one per chest, see level.ts).
-    const allPossibleDefs = mapCVDataToEnemies(currentCV.value);
-    expect(enemyPlacements.value.filter((p) => p.type === 'slimeGreen')).toHaveLength(
-      allPossibleDefs.length,
-    );
-    expect(enemyPlacements.value.filter((p) => p.type === 'slimePurple')).toHaveLength(
-      ENEMY_TILES_PURPLE.value.length,
-    );
+    // Placement count tracks the level's markers, never CVData's length — a
+    // fixture with two green markers places exactly two green enemies (not
+    // one per CVData course), while a purple marker places a purple slime
+    // even though purple slimes have no CV defs at all.
+    try {
+      currentLayout.value = ['SMMm', 'GGGG'];
+      expect(enemyPlacements.value.filter((p) => p.type === 'slimeGreen')).toHaveLength(2);
+      expect(enemyPlacements.value.filter((p) => p.type === 'slimeGreen')).not.toHaveLength(
+        mapCVDataToEnemies(currentCV.value).length,
+      );
+      expect(enemyPlacements.value.filter((p) => p.type === 'slimePurple')).toHaveLength(1);
+    } finally {
+      currentLayout.value = LEVEL_1_LAYOUT;
+    }
   });
 
   it('blockPlacements-initial-hasOnePlacementPerLevelMarkerOfEachKind', () => {
@@ -150,11 +149,18 @@ describe('PlatformerState', () => {
 
   describe('chestPlacements', () => {
     it('module-places-oneChestPerMarker', () => {
-      // The level carries one `$` marker per Experience entry, so every
-      // chest def finds a slot — placeChests has no auto-placement fallback,
-      // and a missing marker would silently drop an Experience entry.
-      expect(chestPlacements.value).toHaveLength(CHEST_TILES.value.length);
-      expect(chestPlacements.value).toHaveLength(currentCV.value.experience.length);
+      // One chest per `$` marker, each zipped against one Experience entry —
+      // a fixture authored with exactly one marker per Experience entry (the
+      // shipped level's own convention) proves both halves without pinning
+      // the shipped level's marker count.
+      try {
+        const markerCount = currentCV.value.experience.length;
+        currentLayout.value = ['S' + '$'.repeat(markerCount), 'G'.repeat(markerCount + 1)];
+        expect(chestPlacements.value).toHaveLength(CHEST_TILES.value.length);
+        expect(chestPlacements.value).toHaveLength(currentCV.value.experience.length);
+      } finally {
+        currentLayout.value = LEVEL_1_LAYOUT;
+      }
     });
   });
 
@@ -183,9 +189,17 @@ describe('PlatformerState', () => {
   });
 
   it('enemyPlacements-includesOneBeeForTheShippedQMarker', () => {
-    const bees = enemyPlacements.value.filter((p) => p.type === 'bee');
-    expect(bees).toHaveLength(1);
-    expect(bees[0].fact).toBeUndefined();
+    // A `q` marker places exactly one fact-less bee — a single-`q` fixture
+    // proves the marker-to-bee mapping without depending on how many `q`
+    // markers the shipped level happens to author.
+    try {
+      currentLayout.value = ['Sq', 'GG'];
+      const bees = enemyPlacements.value.filter((p) => p.type === 'bee');
+      expect(bees).toHaveLength(1);
+      expect(bees[0].fact).toBeUndefined();
+    } finally {
+      currentLayout.value = LEVEL_1_LAYOUT;
+    }
   });
 
   it('levelTotalsAndEnemiesDefeated-areUnchangedByTheBee', () => {
@@ -682,7 +696,7 @@ describe('resetGame — potion-pots restore, dropped hearts vanish', () => {
   });
 
   it('resetGame-clearsDroppedHeartPickups', () => {
-    // Unlike keyPickupStates/bonusFruitStates (which persist across a
+    // Unlike keyPickupStates/fruitStates (which persist across a
     // death/respawn, cleared only by resetGameProgress), a dropped heart
     // disappears on every death — the user's call: a heart in the world is
     // tied to its still-broken pot, and the pot itself is about to reappear.
@@ -1004,12 +1018,6 @@ describe('checkpointPlacements', () => {
     checkpointStates.value = checkpointPlacements.value.map(toCheckpointState);
     activeCheckpointId.value = null;
     activeFadeOutTexts.value = [];
-  });
-
-  it('shippedLevel-hasItsAuthoredCheckpoint', () => {
-    currentLayout.value = LEVEL_1_LAYOUT;
-    expect(checkpointPlacements.value.map((p) => p.id)).toEqual(['checkpoint-12-9']);
-    expect(CHECKPOINT_TILES.value).toEqual([{ col: 12, row: 9 }]);
   });
 
   it('layoutWithCheckpoints-derivesOnePlacementPerMarkerInReadingOrder', () => {

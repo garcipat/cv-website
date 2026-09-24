@@ -1,35 +1,4 @@
-import type { LevelDef } from '../level/LevelData';
-import type { EnemyState } from '../entities/Enemy';
-import { typeOf } from '../entities/enemies';
-import type { CrumblingFloorTimerState } from './CrumblingFloor';
-
-/**
- * Advances one enemy's movement by `dt` seconds — a thin compatibility
- * wrapper around the kind's own movement strategy (`typeOf(enemy).movement`),
- * kept with its exact old signature so the pre-seam patrol characterization
- * in `engine/EnemyAI.test.ts` keeps passing unedited (SC-001).
- *
- * The shared game loop (PlatformerPage.tsx) no longer calls this; it applies
- * `typeOf(enemy).movement.step(...)` directly with a full `MovementContext`.
- * This wrapper exists only so that characterization — which predates the
- * movement seam and passes no player/elapsed clock — has an entry point. It
- * builds a context with `player: null` and `elapsed: 0`, which is all the
- * patrol strategy needs. The wrapper can be deleted once that test is
- * migrated.
- */
-export function stepEnemyPatrol(
-  enemy: EnemyState,
-  level: LevelDef,
-  dt: number,
-  blockedTiles: readonly { col: number; row: number }[],
-  crumblingFloorStates?: readonly CrumblingFloorTimerState[],
-): EnemyState {
-  return typeOf(enemy).movement.step(
-    enemy,
-    { level, blockedTiles, player: null, elapsed: 0, crumblingFloorStates },
-    dt,
-  );
-}
+import { typeOf, type EnemyState } from './index';
 
 /**
  * Advances an enemy currently playing its stomp `hit` reaction. No-op
@@ -48,6 +17,12 @@ export function stepEnemyPatrol(
  * 0: the same timer answers "is this enemy still untouchable?" through
  * `isInvulnerable`, and a reset would read as a fresh hit that never
  * happened, leaving a patrolling enemy permanently harmless.
+ *
+ * Lives with the enemy family (moved here from the removed `engine/EnemyAI.ts`
+ * shim) because the kind's own hit reaction is the family's business. Kept in
+ * its own module rather than folded into `shared.ts` so `index.ts` (which
+ * every kind module imports transitively) never gains a back-edge to a module
+ * that imports it — avoiding an initialisation cycle.
  */
 export function stepEnemyHitReaction(enemy: EnemyState, dt: number): EnemyState {
   if (enemy.animState !== 'hit') return enemy;

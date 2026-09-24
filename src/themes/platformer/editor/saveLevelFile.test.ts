@@ -4,7 +4,7 @@ import { SAVE_LEVEL_ENDPOINT } from './saveLevelEndpoint';
 import { importLayout } from './importLayout';
 import { exportLayout } from './exportLayout';
 import type { MarkerPlacement } from '../level/LevelData';
-import { parseLevelModules } from '../level/levelRegistry';
+import { parseLevelModules } from '../level/layoutFile';
 import { SCRATCH_LAYOUT } from '../level/level';
 
 describe('levelFileName', () => {
