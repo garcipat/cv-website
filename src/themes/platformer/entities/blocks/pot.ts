@@ -1,10 +1,10 @@
 import type { BlockType, BlockHitOutcome } from './BlockType';
 import type { BlockState } from '../Block';
-import type { DrawContext } from '../../engine/DrawContext';
+import type { DrawContext } from '../../contracts/DrawContext';
 import type { SpriteDescriptor } from '../sprites/SpriteSheet';
-import type { PickupKind } from '../pickups';
-import type { DropPolicy, PotKind } from './potTypes';
-import { PHYSICS_CONFIG } from '../../engine/PhysicsConfig';
+import type { PickupKind } from '../../contracts/PickupKind';
+import type { DropPolicy, PotKind, PotRenderPlan } from './potTypes';
+import { PHYSICS_CONFIG } from '../../contracts/PhysicsConfig';
 import { drawClayPotAt } from './clayVariants';
 
 /**
@@ -29,7 +29,7 @@ export interface PotTypeConfig {
   /** Draws this kind alone at its tile, applying its own bump offset. Must
    *  not read `dc.potPlan` or draw neighbours — `drawPotBunch` owns run
    *  iteration. */
-  drawPot(block: BlockState, dc: DrawContext): void;
+  drawPot(block: BlockState, dc: DrawContext<PotRenderPlan>): void;
   /** Palette/journal fallback frame for callers outside `draw`; defaults to
    *  a constant 0. */
   frameIndex?(hitsTaken: number): number;
@@ -48,7 +48,7 @@ export interface PotTypeConfig {
  * mid-bump that the plan already dropped) falls back to drawing itself alone,
  * which keeps a kind's own draw correct in isolation (research D4).
  */
-export function drawPotBunch(ownKind: PotKind, block: BlockState, dc: DrawContext): void {
+export function drawPotBunch(ownKind: PotKind, block: BlockState, dc: DrawContext<PotRenderPlan>): void {
   const plan = dc.potPlan;
   const ownerId = plan?.ownerBlockId.get(block.id);
   if (!plan || ownerId === undefined) {
@@ -101,7 +101,7 @@ export function createPotType(config: PotTypeConfig): BlockType {
       return outcome;
     },
     frameIndex: config.frameIndex ?? (() => 0),
-    draw: (block: BlockState, dc: DrawContext) => drawPotBunch(pot, block, dc),
+    draw: (block: BlockState, dc: DrawContext<PotRenderPlan>) => drawPotBunch(pot, block, dc),
     pot,
   };
 }

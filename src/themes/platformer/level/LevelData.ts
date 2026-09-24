@@ -1,4 +1,5 @@
 import type { HintId } from '../types';
+import type { TorchStrength } from '../entities/Torch';
 
 export type TileType =
   | 'groundGrass'
@@ -108,14 +109,6 @@ export function isFogExempt(tile: TileType): boolean {
 }
 
 export type TileMap = TileType[][];
-
-/**
- * A wall torch's light strength, `0`-`9`. `5` is the default
- * (`DEFAULT_TORCH_STRENGTH`): a torch with no marker lights at today's radius,
- * and the other values scale that radius linearly, so `0` is dark and `9` is
- * roughly double.
- */
-export type TorchStrength = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 
 /**
  * The tile meta layer's value at a cell — a closed, typed discriminated union

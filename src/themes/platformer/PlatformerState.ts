@@ -1,6 +1,6 @@
 import { signal, computed } from '@preact/signals-react';
 import { tileToPixel, RENDERED_TILE_SIZE, markerAt } from './level/Terrain';
-import { DEFAULT_TORCH_STRENGTH } from './engine/Torch';
+import { DEFAULT_TORCH_STRENGTH } from './entities/Torch';
 import {
   createDeployableLadderState,
   advanceDeployableLadder,
@@ -15,7 +15,7 @@ import {
   floorSpikePhaseFor,
   floorSpikeExtensionFor,
 } from './engine/FloorSpike';
-import type { FloorSpikeTimerState } from './engine/FloorSpike';
+import type { FloorSpikeTimerState } from './entities/hazards/phases';
 import { armCrumblingFloor, advanceCrumblingFloors } from './engine/CrumblingFloor';
 import type { CrumblingFloorTimerState } from './engine/CrumblingFloor';
 import {
@@ -26,7 +26,7 @@ import {
   fallingStalactiteOffsetYAt,
   fallingStalactiteShakeOffsetXAt,
 } from './engine/FallingStalactite';
-import type { FallingStalactiteTimerState } from './engine/FallingStalactite';
+import type { FallingStalactiteTimerState } from './entities/hazards/phases';
 import type { DebrisEffect } from './engine/CollectionEffects';
 import type { LevelDef } from './level/LevelData';
 import {
@@ -102,10 +102,10 @@ import type {
   HealAuraEffect,
   HitSplatterEffect,
   CounterPopupEffect,
-  CounterPopupLabelKey,
   FadeOutTextEffect,
   ExplosionEffect,
 } from './engine/CollectionEffects';
+import type { CounterPopupLabelKey } from './contracts/counters';
 import type { LevelTotals } from './entities/CollectiblesSummary';
 import type { HintTooltipState } from './engine/HintTooltip';
 

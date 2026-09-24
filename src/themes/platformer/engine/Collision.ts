@@ -9,7 +9,7 @@ import type { PlayerState } from '../entities/Player';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
 import type { EnemyState } from '../entities/Enemy';
 import { typeOf } from '../entities/enemies';
-import type { ContactSide } from './Contact';
+import type { ContactSide } from '../contracts/Contact';
 import { BONUS_FRUIT_RISE_DURATION_SECONDS } from '../entities/BonusFruit';
 import type { BonusFruitState } from '../entities/BonusFruit';
 import { isChestOpen } from '../entities/Chest';
@@ -21,12 +21,12 @@ import { typeOf as hazardTypeOf } from '../entities/hazards';
 import type { HazardPlacement } from '../level/HazardMapper';
 import { RENDER_SCALE, RENDERED_TILE_SIZE, tileAt } from '../level/Terrain';
 import type { LevelDef } from '../level/LevelData';
-import type { FloorSpikeTimerState } from './FloorSpike';
+import type { FloorSpikeTimerState } from '../entities/hazards/phases';
 import { isFloorSpikeArmed } from './FloorSpike';
 import type { CrumblingFloorTimerState } from './CrumblingFloor';
 import { isCrumblingFloorArmed } from './CrumblingFloor';
 import { isFallingStalactiteArmed, detectionZoneCells } from './FallingStalactite';
-import type { FallingStalactiteTimerState } from './FallingStalactite';
+import type { FallingStalactiteTimerState } from '../entities/hazards/phases';
 import type { BlockPlacement } from '../level/BlockMapper';
 import type { HintId } from '../types';
 import type { KeyPickupState } from '../entities/KeyPickup';
@@ -34,14 +34,8 @@ import type { HeartPickupState } from '../entities/HeartPickup';
 import type { BombPickupState } from '../entities/BombPickup';
 import { MAX_HALF_HEARTS } from '../entities/Health';
 import { PICKUP_TYPES } from '../entities/pickups';
-import { strongerBounce } from './Outcome';
-
-export interface Box {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
+import { strongerBounce } from '../contracts/Outcome';
+import type { Box } from '../contracts/geometry';
 
 /**
  * The player's collision box — same narrower-than-render-slot box

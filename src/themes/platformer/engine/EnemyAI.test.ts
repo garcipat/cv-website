@@ -3,7 +3,7 @@ import { ENEMY_HIT_REACTION_SECONDS } from '../entities/enemies/shared';
 import { toEnemyState } from '../entities/Enemy';
 import type { EnemyState } from '../entities/Enemy';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
-import { PHYSICS_CONFIG } from './PhysicsConfig';
+import { PHYSICS_CONFIG } from '../contracts/PhysicsConfig';
 import type { LevelDef, MarkerEntry, TileType } from '../level/LevelData';
 import type { EnemyPlacement } from '../level/EnemyMapper';
 

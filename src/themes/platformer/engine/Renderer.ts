@@ -75,7 +75,8 @@ import { typeOf } from '../entities/enemies';
 import type { EnemyState } from '../entities/Enemy';
 import { typeOf as hazardTypeOf } from '../entities/hazards';
 import type { HazardPlacement } from '../level/HazardMapper';
-import type { DrawContext } from './DrawContext';
+import type { DrawContext } from '../contracts/DrawContext';
+import type { PotRenderPlan } from '../entities/blocks/potTypes';
 import type { KeyPickupState } from '../entities/KeyPickup';
 import type { HeartPickupState } from '../entities/HeartPickup';
 import type { BombPickupState } from '../entities/BombPickup';
@@ -124,7 +125,7 @@ import {
   TORCH_FRAME_HEIGHT,
   TORCH_INSET_X,
   torchFrameIndex,
-} from './Torch';
+} from '../entities/Torch';
 import type { Point, TorchLight } from './Lighting';
 import {
   PLAYER_LIGHT_RADIUS_PX,
@@ -1850,7 +1851,7 @@ export function drawEnemies(
 export function drawBlocks(
   ctx: CanvasRenderingContext2D,
   blocks: readonly BlockState[],
-  dc: DrawContext,
+  dc: DrawContext<PotRenderPlan>,
 ): void {
   ctx.imageSmoothingEnabled = false;
   for (const block of blocks) {

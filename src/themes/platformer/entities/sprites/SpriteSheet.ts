@@ -30,11 +30,6 @@ export interface SpriteDescriptor {
   animations: Record<string, { frames: number[]; frameDuration: number }>;
 }
 
-/** Loaded images keyed by `SpriteSheet.src`. A key present with a `null` value
- *  means the asset has not finished loading; callers skip drawing rather than
- *  waiting. */
-export type SpriteLookup = Record<string, HTMLImageElement | null>;
-
 /** Source rect of one frame. */
 export function frameSource(sheet: SpriteSheet, index: number): { sx: number; sy: number } {
   return {

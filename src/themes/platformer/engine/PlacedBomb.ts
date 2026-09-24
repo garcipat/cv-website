@@ -1,7 +1,7 @@
 import type { LevelDef } from '../level/LevelData';
 import { isBlockOccupied, type BlockPlacement } from '../level/BlockMapper';
 import { isSolid, tileAt, tileToPixel, RENDERED_TILE_SIZE } from '../level/Terrain';
-import { PHYSICS_CONFIG } from './PhysicsConfig';
+import { PHYSICS_CONFIG } from '../contracts/PhysicsConfig';
 import { isCrumblingFloorBroken, type CrumblingFloorTimerState } from './CrumblingFloor';
 
 const NO_CRUMBLING_FLOOR_STATES: readonly CrumblingFloorTimerState[] = [];

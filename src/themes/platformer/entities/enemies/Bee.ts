@@ -6,14 +6,14 @@ import {
   ENEMY_HIT_REACTION_SECONDS,
   type EnemyBaseConfig,
 } from './shared';
-import { isInvulnerable } from '../capabilities';
+import { isInvulnerable } from '../../contracts/capabilities';
 import { BEE_SHEET } from '../sprites/sheets';
 import type { SpriteDescriptor } from '../sprites/SpriteSheet';
 import { drawSpriteSheetEntity } from './drawSpriteSheetEntity';
 import { spriteSheetHitbox } from './spriteSheetHitbox';
 import { flyMovement } from './movement/fly';
 import { RENDER_SCALE } from '../../level/Terrain';
-import { PHYSICS_CONFIG } from '../../engine/PhysicsConfig';
+import { PHYSICS_CONFIG } from '../../contracts/PhysicsConfig';
 
 export interface BeeState extends BaseEnemyState {
   type: 'bee';

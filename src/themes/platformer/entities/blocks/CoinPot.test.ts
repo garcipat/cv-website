@@ -1,6 +1,6 @@
 import { coinPot } from './CoinPot';
 import { toBlockState } from '../Block';
-import { PHYSICS_CONFIG } from '../../engine/PhysicsConfig';
+import { PHYSICS_CONFIG } from '../../contracts/PhysicsConfig';
 
 describe('coinPot BlockType', () => {
   it('sharedFactoryContract-fixesOneHitTopTriggerAndRemoval', () => {

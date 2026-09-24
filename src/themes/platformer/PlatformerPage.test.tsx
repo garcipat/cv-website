@@ -83,10 +83,10 @@ import { HEARTS_START_X, keyCounterX, KEY_COUNTER_Y, LOW_HEALTH_GLOW_WIDTH_PX } 
 import { pauseForJournal } from './engine/GameLifecycle';
 import { HIT_SPLATTER_DURATION_SECONDS } from './engine/CollectionEffects';
 import { ENEMY_HIT_REACTION_SECONDS } from './entities/enemies/shared';
-import { isInvulnerable } from './entities/capabilities';
+import { isInvulnerable } from './contracts/capabilities';
 import { PLAYER_HIT_REACTION_SECONDS } from './entities/Player';
 import { SPIKE_COOLDOWN_DURATION_SECONDS } from './entities/enemies/SlimePurple';
-import { PHYSICS_CONFIG } from './engine/PhysicsConfig';
+import { PHYSICS_CONFIG } from './contracts/PhysicsConfig';
 import { FLOOR_SPIKE_DELAY_SECONDS, FLOOR_SPIKE_WARNING_SECONDS } from './engine/FloorSpike';
 import { tileToPixel, RENDERED_TILE_SIZE, isClimbable, tileAt } from './level/Terrain';
 import {

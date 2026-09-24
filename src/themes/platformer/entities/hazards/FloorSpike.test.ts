@@ -3,7 +3,7 @@ import { floorSpike } from './FloorSpike';
 import { SIDE_HIT_DAMAGE } from '../Health';
 import { RENDERED_TILE_SIZE } from '../../level/Terrain';
 import type { HazardPlacement } from '../../level/HazardMapper';
-import type { FloorSpikePhase } from '../../engine/FloorSpike';
+import type { FloorSpikePhase } from './phases';
 
 function hazardAt(phase: FloorSpikePhase | undefined): HazardPlacement {
   return { id: 'h1', hazardType: 'floorSpike', facing: 'up', x: 16, y: 32, col: 0, row: 0, floorSpikePhase: phase };

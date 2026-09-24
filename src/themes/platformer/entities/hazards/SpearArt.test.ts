@@ -7,7 +7,7 @@ import {
   getSpearTipMask,
 } from './SpearArt';
 import type { SpearMask } from './SpearArt';
-import type { Rect } from '../geometry';
+import type { Rect } from '../../contracts/geometry';
 
 /** Builds an RGBA buffer whose alpha channel is given row-major (one byte per
  *  pixel); RGB is left at 0, since only alpha is ever read. */

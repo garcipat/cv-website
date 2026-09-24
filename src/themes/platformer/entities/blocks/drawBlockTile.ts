@@ -3,7 +3,7 @@ import { blockBumpOffsetY } from '../../engine/BlockAI';
 import { frameSource } from '../sprites/SpriteSheet';
 import { WORLD_TILESET_SHEET } from '../sprites/sheets';
 import { TILE_SIZE, RENDERED_TILE_SIZE } from '../../level/Terrain';
-import type { DrawContext } from '../../engine/DrawContext';
+import type { DrawContext } from '../../contracts/DrawContext';
 
 /**
  * The plain shared-tileset blit common to every block kind: the given frame

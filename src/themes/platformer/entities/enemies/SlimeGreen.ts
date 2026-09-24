@@ -6,14 +6,14 @@ import {
   ENEMY_HIT_REACTION_SECONDS,
   type EnemyBaseConfig,
 } from './shared';
-import { isInvulnerable } from '../capabilities';
+import { isInvulnerable } from '../../contracts/capabilities';
 import { ENEMY_ANIMATIONS } from './EnemyAnimation';
 import { SLIME_GREEN_SHEET } from '../sprites/sheets';
 import type { SpriteDescriptor } from '../sprites/SpriteSheet';
 import { drawSpriteSheetEntity } from './drawSpriteSheetEntity';
 import { spriteSheetHitbox } from './spriteSheetHitbox';
 import { patrolMovement } from './movement/patrol';
-import { PHYSICS_CONFIG } from '../../engine/PhysicsConfig';
+import { PHYSICS_CONFIG } from '../../contracts/PhysicsConfig';
 
 export interface SlimeGreenState extends BaseEnemyState {
   type: 'slimeGreen';

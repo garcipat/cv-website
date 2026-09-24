@@ -121,7 +121,8 @@ import {
 } from '../entities/sprites/sheets';
 import { isStalactiteTwin, stalactiteEntry } from './StaticObjectsCatalog';
 import { computePotRenderPlan } from '../entities/blocks/potRenderPlan';
-import type { DrawContext } from './DrawContext';
+import type { PotRenderPlan } from '../entities/blocks/potTypes';
+import type { DrawContext } from '../contracts/DrawContext';
 import { TORCH_LIGHT_RADIUS_PX, torchPulseScale } from './Lighting';
 import type { TorchLight } from './Lighting';
 import {
@@ -379,8 +380,8 @@ function makeMockCtx() {
  *  given `drawImage` call came from. */
 function makeDrawContext(
   ctx: CanvasRenderingContext2D,
-  overrides: Partial<DrawContext> = {},
-): DrawContext {
+  overrides: Partial<DrawContext<PotRenderPlan>> = {},
+): DrawContext<PotRenderPlan> {
   return {
     ctx,
     sprites: {

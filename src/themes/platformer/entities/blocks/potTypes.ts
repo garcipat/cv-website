@@ -1,6 +1,6 @@
 import type { BlockState } from '../Block';
-import type { DrawContext } from '../../engine/DrawContext';
-import type { PickupKind } from '../pickups';
+import type { DrawContext } from '../../contracts/DrawContext';
+import type { PickupKind } from '../../contracts/PickupKind';
 
 /** How often a pot kind's configured pickup is spawned when the pot is
  *  destroyed: `'once'` spawns it only while the instance's `rewardGiven`
@@ -30,7 +30,7 @@ export interface PotKind {
    *  a run or reads `dc.potPlan` — the shared `drawPotBunch` owns run
    *  iteration, so a kind's own draw is correct both in isolation and in a
    *  bunch. */
-  drawPot(block: BlockState, dc: DrawContext): void;
+  drawPot(block: BlockState, dc: DrawContext<PotRenderPlan>): void;
 }
 
 /** One live pot in a `PotRun`, carrying its own `PotKind` so a run's owner

@@ -7,7 +7,7 @@ import {
 } from './shared';
 import { ENEMY_ANIMATIONS } from './EnemyAnimation';
 import { ENEMY_TYPES } from './index';
-import { isInvulnerable } from '../capabilities';
+import { isInvulnerable } from '../../contracts/capabilities';
 import type { EnemyPlacement } from '../../level/EnemyMapper';
 
 function makeGreenPlacement(): EnemyPlacement {

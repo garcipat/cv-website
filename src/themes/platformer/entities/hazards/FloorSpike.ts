@@ -3,8 +3,8 @@ import type { HazardPlacement } from '../../level/HazardMapper';
 import { FLOOR_SPIKE_SHEET } from '../sprites/sheets';
 import { RENDERED_TILE_SIZE, RENDER_SCALE } from '../../level/Terrain';
 import { SIDE_HIT_DAMAGE } from '../Health';
-import type { Rect } from '../geometry';
-import type { DrawContext } from '../../engine/DrawContext';
+import type { Rect } from '../../contracts/geometry';
+import type { DrawContext } from '../../contracts/DrawContext';
 
 /** Same visible-band convention as Spike.ts's BAND_NATIVE for the 'up'
  *  facing — a floor spike is floor-only (FR-013), so it only ever needs

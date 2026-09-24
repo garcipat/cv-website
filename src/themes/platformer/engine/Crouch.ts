@@ -10,7 +10,7 @@ import {
 } from '../entities/Player';
 import { hitboxInsetXForBlock } from '../entities/Block';
 import { aabbOverlap } from './Collision';
-import type { Box } from './Collision';
+import type { Box } from '../contracts/geometry';
 import { isSolid, tileAt, RENDERED_TILE_SIZE } from '../level/Terrain';
 
 /**

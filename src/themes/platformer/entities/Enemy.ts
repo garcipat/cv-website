@@ -15,7 +15,7 @@ import { takeHit } from './enemies/shared';
 export type { EnemyState } from './enemies';
 export type { EnemyAnimState } from './enemies/EnemyAnimation';
 export { WALK_FRAME_DURATION } from './enemies/EnemyAnimation';
-export type { Direction as EnemyDirection } from './geometry';
+export type { Direction as EnemyDirection } from '../contracts/geometry';
 
 /** Actual rendered size for a given type — the sheet's native frame scaled by
  *  RENDER_SCALE and the type's own render scale. Renderer.ts's drawEnemies
