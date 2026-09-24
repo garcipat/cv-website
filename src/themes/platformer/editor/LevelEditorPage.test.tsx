@@ -7,8 +7,8 @@ import {
   LEVEL_1_BACKGROUND,
   LEVEL_1_MARKERS,
   SCRATCH_LAYOUT,
-  currentLayout,
 } from '../level/level';
+import { currentLayout } from '../state/levelSession';
 import { importLayout, importBackgroundLayout, importMarkerGrid } from './importLayout';
 import { levelFileJson } from './saveLevelFile';
 import type { MarkerGrid } from '../level/LevelData';
@@ -45,7 +45,7 @@ import { currentTheme } from '@/state/theme';
 import { currentPath } from '@/state/navigation';
 import { readFileSync } from 'node:fs';
 import { enemyPlacements, enemyStates, collectedFacts, collectedCollectibleIds } from '../PlatformerState';
-import { currentBackgroundLayout } from '../level/level';
+import { currentBackgroundLayout } from '../state/levelSession';
 
 const { blueprintEntries } = vi.hoisted(() => ({ blueprintEntries: [] as Blueprint[] }));
 
@@ -143,24 +143,41 @@ beforeEach(() => {
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
     fillRect: vi.fn(),
     strokeRect: vi.fn(),
+    clearRect: vi.fn(),
+    drawImage: vi.fn(),
+    imageSmoothingEnabled: true,
+    globalCompositeOperation: 'source-over',
+    fill: vi.fn(),
     fillStyle: '',
     strokeStyle: '',
     lineWidth: 0,
     beginPath: vi.fn(),
+    closePath: vi.fn(),
     moveTo: vi.fn(),
     lineTo: vi.fn(),
+    rect: vi.fn(),
+    roundRect: vi.fn(),
+    arc: vi.fn(),
     stroke: vi.fn(),
     save: vi.fn(),
     restore: vi.fn(),
+    translate: vi.fn(),
     scale: vi.fn(),
+    rotate: vi.fn(),
     font: '',
     textAlign: '',
     textBaseline: '',
     lineJoin: '',
     fillText: vi.fn(),
     strokeText: vi.fn(),
+    measureText: vi.fn(() => ({ width: 10 })),
     setLineDash: vi.fn(),
-    arc: vi.fn(),
+    getImageData: vi.fn((_sx: number, _sy: number, sw: number, sh: number) => ({
+      data: new Uint8ClampedArray(sw * sh * 4).fill(255),
+    })),
+    putImageData: vi.fn(),
+    createRadialGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
+    createLinearGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
   } as unknown as CanvasRenderingContext2D);
 });
 
@@ -755,7 +772,7 @@ describe('LevelEditorPage - Try button', () => {
   });
 
   it('click-alsoResetsGameProgressSoStaleStateFromAnEarlierLayoutDoesNotLeakIn', async () => {
-    // Regression test: enemyStates/blockStates/chestStates/bonusFruitStates
+    // Regression test: enemyStates/blockStates/chestStates/fruitStates
     // are all plain signals seeded once at module load, NOT computed signals
     // reactive to currentLayout — only resetGame()/resetGameProgress()
     // re-derives them. Without calling one of those, Try swapped

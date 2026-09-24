@@ -77,7 +77,7 @@ import {
   DEATH_ANIM_SECONDS,
 } from './engine/GameLifecycle';
 import { maxIrisRadius } from './engine/GameLifecycle';
-import { currentLevel, currentLayout, currentBackgroundLayout } from './level/level';
+import { currentLevel, currentLayout, currentBackgroundLayout } from './state/levelSession';
 import { findLevel } from './level/levelRegistry';
 import {
   checkCollectibleCollisions,

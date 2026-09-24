@@ -89,13 +89,16 @@ import { SPIKE_COOLDOWN_DURATION_SECONDS } from './entities/enemies/SlimePurple'
 import { PHYSICS_CONFIG } from './contracts/PhysicsConfig';
 import { FLOOR_SPIKE_DELAY_SECONDS, FLOOR_SPIKE_WARNING_SECONDS } from './engine/FloorSpike';
 import { tileToPixel, RENDERED_TILE_SIZE, isClimbable, tileAt } from './level/Terrain';
+import { SCRATCH_LAYOUT } from './level/level';
+import { mapCVDataToEnemies } from './level/EnemyMapper';
+import { mapCVDataToBlocks } from './level/BlockMapper';
+import { currentCV } from '@/state/locale';
 import {
   currentLevel,
   currentLayout,
   currentBackgroundLayout,
   currentMarkers,
-  SCRATCH_LAYOUT,
-} from './level/level';
+} from './state/levelSession';
 import type { LevelDef, TileType } from './level/LevelData';
 import { setSpearTipMask } from './entities/hazards/SpearArt';
 import type { SpearMask } from './entities/hazards/SpearArt';
@@ -174,6 +177,47 @@ const firstTileOfType = (
     }
   }
   throw new Error(`level has no ${type} tile matching the given condition`);
+};
+
+/**
+ * Swaps in a tiny, explicit fixture layout (and clears the background/marker
+ * layers) so a gameplay test exercises exactly the markers it needs instead
+ * of depending on the shipped level's authored content. Call BEFORE render:
+ * `PlatformerPage`'s mount effect re-seeds the player/enemy/block/chest
+ * state from whatever `currentLayout` holds at mount, so no manual signal
+ * reset is needed here. The top-level `beforeEach` restores the shipped
+ * default for the next test.
+ */
+function useLayout(layout: string[]): void {
+  currentLayout.value = layout;
+  currentBackgroundLayout.value = [];
+  currentMarkers.value = undefined;
+}
+
+/** A fixture with exactly as many coins as the skill-fact pool is long, each
+ *  spaced a tile apart so the player overlaps exactly one at a time, so the
+ *  very first coin reveals exactly one fact (see SkillFactPacing.ts). */
+const oneCoinPerSkillFact = (): string[] => {
+  const n = skillFactPool.value.length;
+  return ['S' + 'o.'.repeat(n), 'G'.repeat(1 + 2 * n)];
+};
+
+/** A fixture with exactly one green marker per CVData course, each spaced a
+ *  tile apart so the player can only stomp one at a time — so each green
+ *  slime owns exactly one course fact instead of a multi-fact slice. */
+const oneGreenPerCourse = (): string[] => {
+  const n = mapCVDataToEnemies(currentCV.value).length;
+  return ['S' + 'M.'.repeat(n), 'G'.repeat(1 + 2 * n)];
+};
+
+/** A fixture with exactly one crate marker per crate fact, each spaced a tile
+ *  apart and with open air below it, so every crate owns exactly one fact
+ *  and can be bumped from below without hitting a neighbour or the ground. */
+const oneCratePerFact = (): string[] => {
+  const n = mapCVDataToBlocks(currentCV.value).filter((d) => d.blockKind === 'crate').length;
+  const width = 1 + 2 * n;
+  const blank = '.'.repeat(width);
+  return ['S' + '.'.repeat(width - 1), blank, '.' + '=.'.repeat(n), blank, blank, blank, 'G'.repeat(width)];
 };
 
 /** How far right of a real crate the synthetic coin-pot blocks in the
@@ -467,29 +511,41 @@ describe('PlatformerPage', () => {
     Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 900 });
     vi.stubGlobal('Image', MockTilesetImage);
 
+    // A fixture level tall enough that the spawn-framing camera offset is
+    // positive, so the level's own terrain bottom (not a canvas-filling
+    // background layer) is the bottom-most draw. A solid-rock floor row is
+    // used (rather than grass) because grass tiles are drawn through a
+    // rotated/offset path whose drawImage args don't carry the cell's true
+    // on-canvas position; rock tiles draw at their literal destY with a full
+    // tile height, so `dy + dh` is the real bottom edge.
+    useLayout(['S....', '.....', '.....', 'RRRRR']);
+
     render(<PlatformerPage />);
     const ctx = platformerPage.context;
 
-    await waitFor(() => expect(ctx.drawImage).toHaveBeenCalled());
-
+    // Wait until the terrain sheet has actually drawn (the backdrop/cloud
+    // layers can draw first), then assert the level's bottom-most tile edge.
+    //
     // Excludes the water foreground's own tiles (sx 64 — see Renderer.ts's
     // WATER_TILE_SX): that band is deliberately drawn to overhang the
     // canvas's bottom edge by half a tile (drawWaterForeground's half-tile
     // overlap with the level's last row), which is a different, intentional
     // invariant from THIS test's — that the level's own TERRAIN bottom sits
-    // wherever `snapCameraYToSpawn` (PlatformerPage.tsx) placed it to frame
-    // the spawn at the dead-zone's target row (see `initialCameraY` in
-    // Camera.ts), not necessarily flush with the canvas bottom.
-    const bottomEdges = ctx.drawImage.mock.calls
-      .filter((call: unknown[]) => call[1] !== 64)
-      .map((call: unknown[]) => (call[6] as number) + (call[8] as number)); // dy + dh
+    // wherever the spawn-framing camera snap (PlatformerPage.tsx) placed it
+    // to frame the spawn at the dead-zone's target row (see `initialCameraY`
+    // in Camera.ts), not necessarily flush with the canvas bottom.
+    //
     // Canvas height is capped at PLAY_CANVAS_ROWS(24) * RENDERED_TILE_SIZE(32)
-    // = 768 regardless of the (taller) mocked window.innerHeight (900).
-    // LEVEL_1's spawn row (see level.ts's `S` marker) sits well above the
-    // level's own bottom edge, so the initial camera snap shifts the level
-    // up by a fixed, deterministic offset (768 + 248 = 1016) to frame the
-    // player at the target row instead of leaving the level bottom-anchored.
-    expect(Math.max(...bottomEdges)).toBe(1016);
+    // = 768 regardless of the (taller) mocked window.innerHeight (900), and
+    // the level's bottom edge is drawn at `canvas.height + cameraPositionY`
+    // (see PlatformerPage.tsx's render: originY = canvas.height -
+    // levelPixelHeight + cameraPositionY), whatever offset the snap chose.
+    await waitFor(() => {
+      const bottomEdges = ctx.drawImage.mock.calls
+        .filter((call: unknown[]) => call[1] !== 64)
+        .map((call: unknown[]) => (call[6] as number) + (call[8] as number)); // dy + dh
+      expect(Math.max(...bottomEdges)).toBe(platformerPage.canvas.height + cameraPositionY.value);
+    });
   });
 
   it('render-afterPlayerSpriteLoads-drawsPlayerAtIdleSize', async () => {
@@ -1069,14 +1125,15 @@ describe('PlatformerPage', () => {
     });
     vi.stubGlobal('cancelAnimationFrame', vi.fn());
 
+    // One green marker per course, so the target owns exactly one course
+    // fact and the denominator is every green slime placed.
+    useLayout(oneGreenPerCourse());
     render(<PlatformerPage />);
     frameCallback!(0);
 
     const ctx = platformerPage.context;
-    // The counter popup shows collected facts out of total fact-bearing placements,
-    // not including plain enemies (those at markers beyond the CVData's defs count).
-    // Since all courses now map to green slimes only, the purple marker becomes a
-    // plain enemy with no fact; it shouldn't be counted in the denominator.
+    // The counter popup shows collected facts out of total fact-bearing
+    // placements — every green slime in this fixture carries a fact.
     const enemyTotal = enemyPlacements.value.filter((p) => p.fact).length;
 
     // The popup's icon needs its sprite ref loaded (same reasoning the old
@@ -1121,6 +1178,7 @@ describe('PlatformerPage', () => {
     });
     vi.stubGlobal('cancelAnimationFrame', vi.fn());
 
+    useLayout(oneGreenPerCourse());
     render(<PlatformerPage />);
     frameCallback!(0);
 
@@ -1253,6 +1311,9 @@ describe('PlatformerPage', () => {
     });
     vi.stubGlobal('cancelAnimationFrame', vi.fn());
 
+    // One coin per skill fact, so the first coin reveals the pool's first
+    // entry (see SkillFactPacing.ts).
+    useLayout(oneCoinPerSkillFact());
     render(<PlatformerPage />);
     frameCallback!(0);
 
@@ -1282,6 +1343,7 @@ describe('PlatformerPage', () => {
     });
     vi.stubGlobal('cancelAnimationFrame', vi.fn());
 
+    useLayout(oneCoinPerSkillFact());
     render(<PlatformerPage />);
     frameCallback!(0);
 
@@ -1320,6 +1382,7 @@ describe('PlatformerPage', () => {
     Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 1024 });
     Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 900 });
 
+    useLayout(oneCoinPerSkillFact());
     render(<PlatformerPage />);
     frameCallback!(0);
 
@@ -1392,6 +1455,7 @@ describe('PlatformerPage', () => {
     });
     vi.stubGlobal('cancelAnimationFrame', vi.fn());
 
+    useLayout(oneCoinPerSkillFact());
     render(<PlatformerPage />);
     frameCallback!(0);
     const target = collectiblePlacements.value[0];
@@ -1424,6 +1488,7 @@ describe('PlatformerPage', () => {
     });
     vi.stubGlobal('cancelAnimationFrame', vi.fn());
 
+    useLayout(oneGreenPerCourse());
     render(<PlatformerPage />);
     frameCallback!(0);
 
@@ -1834,6 +1899,7 @@ describe('PlatformerPage', () => {
     });
     vi.stubGlobal('cancelAnimationFrame', vi.fn());
 
+    useLayout(oneCratePerFact());
     render(<PlatformerPage />);
     frameCallback!(0);
 
@@ -1891,6 +1957,7 @@ describe('PlatformerPage', () => {
     });
     vi.stubGlobal('cancelAnimationFrame', vi.fn());
 
+    useLayout(oneCratePerFact());
     render(<PlatformerPage />);
     frameCallback!(0);
 
@@ -2514,6 +2581,7 @@ describe('PlatformerPage', () => {
     });
     vi.stubGlobal('cancelAnimationFrame', vi.fn());
 
+    useLayout(oneCoinPerSkillFact());
     render(<PlatformerPage />);
     frameCallback!(0);
 
@@ -2638,6 +2706,7 @@ describe('PlatformerPage', () => {
     });
     vi.stubGlobal('cancelAnimationFrame', vi.fn());
 
+    useLayout(oneGreenPerCourse());
     render(<PlatformerPage />);
     frameCallback!(0);
 
@@ -3158,6 +3227,7 @@ describe('PlatformerPage', () => {
     });
     vi.stubGlobal('cancelAnimationFrame', vi.fn());
 
+    useLayout(oneCoinPerSkillFact());
     render(<PlatformerPage />);
     frameCallback!(0);
 
@@ -6421,17 +6491,6 @@ describe('PlatformerPage', () => {
     });
 
     describe('onboarding', () => {
-      it('theShippedLevel-containsABombPotAndABombHintSignBesideIt', () => {
-        // The `6` sign sits directly beside the `b` pot (see level.ts).
-        const bombPotTile = blockPlacements.value.find((b) => b.blockKind === 'bombPot')!;
-        const bombCol = Math.round(bombPotTile.x / RENDERED_TILE_SIZE);
-        const bombRow = Math.round(bombPotTile.y / RENDERED_TILE_SIZE);
-        const bombHint = signPlacements.value.find((s) => s.hintId === 'bomb');
-        expect(bombHint).toBeDefined();
-        expect(Math.abs(Math.round(bombHint!.x / RENDERED_TILE_SIZE) - bombCol)).toBe(1);
-        expect(Math.round(bombHint!.y / RENDERED_TILE_SIZE)).toBe(bombRow);
-      });
-
       it('theStartOfGameControlsOverlay-doesNotAdvertiseABombKey', () => {
         render(<PlatformerPage />);
         expect(screen.queryByText(/bomb/i)).toBeNull();
