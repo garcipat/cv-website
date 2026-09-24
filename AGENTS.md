@@ -36,7 +36,7 @@ feature's implementation **and** tests are fully done, update the dependency dia
 
 1. **Dependency diagram** — prefix the node label with `✅ ` and add `class XNNN done` alongside the existing category class
 
-Feature IDs use the prefix of their tier: `F-NNN` (Core), `S-NNN` (Should Have), `O-NNN` (Optional). The node ID in the diagram omits the hyphen: `F002`, `S001`, `O001`.
+Feature IDs use a work-type prefix: `F-NNN` (Core), `S-NNN` (Should Have), `O-NNN` (Optional), and `R-NNN` (Refactoring). `F`/`S`/`O` map 1:1 to `tier:core` / `tier:should` / `tier:optional`. `R` (Refactoring) is a non-tier work type for restructuring **already-shipped** code without changing behaviour; `R-*` issues carry the `refactor` label plus an `area:*` label and `tier:should` by default. The node ID in the diagram omits the hyphen: `F002`, `S001`, `O001`, `R001`.
 
 Example for F-002:
 

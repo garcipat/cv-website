@@ -1,6 +1,6 @@
 ﻿# Feature Dependency Map
 
-Feature ideas and bugs are tracked as GitHub Issues, which are the source of truth for what to build and what is broken. Feature IDs use the tier prefixes `F-NNN` (core), `S-NNN` (should have), and `O-NNN` (optional); they appear in issue titles, and dependencies between features are recorded in the issue bodies. This file only holds the dependency map.
+Feature ideas and bugs are tracked as GitHub Issues, which are the source of truth for what to build and what is broken. Feature IDs use the work-type prefixes `F-NNN` (core), `S-NNN` (should have), `O-NNN` (optional), and `R-NNN` (refactoring); they appear in issue titles, and dependencies between features are recorded in the issue bodies. This file only holds the dependency map.
 
 ## Feature Dependencies
 
@@ -64,6 +64,20 @@ graph RL
         S012["✅ S-012: Platformer Crouch/Duck"]
         S030["✅ S-030: Platformer Tile Meta Layer"]
         S031["✅ S-031: Platformer Torch Strength"]
+
+        R001["R-001: Platformer Core Contracts & Dependency Layers"]
+        R002["R-002: Platformer Shared Primitives & Dedup"]
+        R003["R-003: Platformer Abstract Light Sources"]
+        R004["R-004: Platformer Transient Effect Registry"]
+        R005["R-005: Platformer Generic Speech Bubble"]
+        R006["R-006: Platformer Pickup Unification"]
+        R007["R-007: Platformer Registry Dispatch Completion"]
+        R008["R-008: Platformer Placeable World Items"]
+        R009["R-009: Platformer Static Tile Registry & Renderer Split"]
+        R010["R-010: Platformer Mapper & Editor Unification"]
+        R011["R-011: Platformer Player Damage & Bomb Systems"]
+        R012["R-012: Platformer State Stores & Asset/HUD Extraction"]
+        R013["R-013: Platformer Sprite Asset & Atlas Organization"]
     end
 
     F003 --> F002
@@ -182,6 +196,45 @@ graph RL
     O027 --> O005
     O027 --> F016
 
+    R001 --> F015
+    R002 --> R001
+    R003 --> R001
+    R003 --> R002
+    R003 --> S031
+    R004 --> R001
+    R004 --> R002
+    R004 --> O023
+    R004 --> O027
+    R005 --> R004
+    R005 --> S011
+    R005 --> O018
+    R006 --> R001
+    R006 --> R002
+    R006 --> O012
+    R007 --> R004
+    R007 --> R006
+    R007 --> O023
+    R007 --> O027
+    R007 --> O024
+    R008 --> R006
+    R008 --> R007
+    R008 --> O012
+    R009 --> R003
+    R009 --> R004
+    R009 --> R008
+    R009 --> O014
+    R010 --> R002
+    R010 --> O015
+    R010 --> O016
+    R010 --> O019
+    R010 --> S030
+    R011 --> R007
+    R011 --> R008
+    R011 --> O012
+    R012 --> R009
+    R012 --> R011
+    R013 --> F015
+
     classDef done stroke:#FFD600,stroke-width:3px
     classDef projectSetup fill:#1565C0,color:#ffffff
     classDef layoutNavigation fill:#E65100,color:#ffffff
@@ -242,6 +295,9 @@ graph RL
     class O016 done
     class O021 done
     class O023 done
+    class R001,R002,R003,R004,R005,R006,R007,R008,R009,R011,R012 themes
+    class R010 enhancements
+    class R013 themes
 ```
 
 **Critical Path**: F-001 → F-012 → F-013 → F-002 → F-014 (foundation → theme system → multilanguage → data model → IDE theme, then Space and Terminal themes)
