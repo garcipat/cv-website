@@ -1,7 +1,7 @@
-import type { Rect } from '../geometry';
-import type { WorldType, Boxed } from '../WorldType';
+import type { Rect } from '../../contracts/geometry';
+import type { WorldType, Boxed } from '../../contracts/WorldType';
 import type { SpriteDescriptor } from '../sprites/SpriteSheet';
-import type { DrawContext } from '../../engine/DrawContext';
+import type { DrawContext } from '../../contracts/DrawContext';
 
 /**
  * Everything the engine needs to know about one pickup type, owned entirely

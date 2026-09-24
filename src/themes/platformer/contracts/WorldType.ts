@@ -1,5 +1,5 @@
 import type { Rect } from './geometry';
-import type { DrawContext } from '../engine/DrawContext';
+import type { DrawContext } from './DrawContext';
 
 /**
  * What every drawable world object's type provides. Required members are the

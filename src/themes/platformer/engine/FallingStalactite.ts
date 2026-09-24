@@ -5,26 +5,10 @@ import type { CrumblingFloorTimerState } from './CrumblingFloor';
 import { RENDER_SCALE, RENDERED_TILE_SIZE } from '../level/Terrain';
 import { isStandableCell } from './Standable';
 import { isStalactiteTwin, TWIN_LEFT_RECT, TWIN_RIGHT_RECT } from './StaticObjectsCatalog';
-
-/**
- * A falling stalactite's phase (O-027, spec.md's Key Entities). `'hanging'`
- * is the absence of a timer entry — the only triggerable phase — while the
- * timer-derived phases are `shaking` → `falling` → `gone`.
- *
- * Unlike the floor spike's cycle, a `gone` entry is NEVER pruned: it
- * persists for the rest of the attempt (FR-013) and is cleared only by
- * `resetGame()` (FR-014). Keeping `elapsed` as the only mutable field makes
- * every phase a pure function of elapsed time.
- */
-export type FallingStalactitePhase = 'hanging' | 'shaking' | 'falling' | 'gone';
-
-/** One falling stalactite's live timer. Presence in the states array means
- *  armed (shaking or later); absence means hanging and triggerable. */
-export interface FallingStalactiteTimerState {
-  id: string;
-  /** Seconds since armed. */
-  elapsed: number;
-}
+import type {
+  FallingStalactitePhase,
+  FallingStalactiteTimerState,
+} from '../entities/hazards/phases';
 
 /** Seconds the shake telegraph lasts before the drop (spec's 0.4–0.6s). */
 export const FALLING_STALACTITE_SHAKE_SECONDS = 0.5;

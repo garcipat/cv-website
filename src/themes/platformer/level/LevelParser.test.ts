@@ -28,8 +28,8 @@ import {
   type BackgroundChar,
 } from './LevelParser';
 import { DEFAULT_HINT_ID } from './HintCatalog';
-import { DEFAULT_TORCH_STRENGTH } from '../engine/Torch';
-import type { TorchStrength } from './LevelData';
+import { DEFAULT_TORCH_STRENGTH } from '../entities/Torch';
+import type { TorchStrength } from '../entities/Torch';
 
 describe('parseLevel', () => {
   it('charLayout-parsesInto-matchingTileMap', () => {

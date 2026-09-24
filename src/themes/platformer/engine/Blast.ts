@@ -4,7 +4,8 @@ import { BLOCK_TYPES } from '../entities/blocks';
 import type { EnemyState } from '../entities/Enemy';
 import { typeOf } from '../entities/enemies';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
-import { aabbOverlap, type Box } from './Collision';
+import { aabbOverlap } from './Collision';
+import type { Box } from '../contracts/geometry';
 
 /** Blast radius in tiles — a radius of 2 gives a rounded 5×5 area (FR-018). */
 export const BLAST_RADIUS = 2;

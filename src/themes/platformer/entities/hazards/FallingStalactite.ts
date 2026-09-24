@@ -10,8 +10,8 @@ import {
   TWIN_RIGHT_RECT,
 } from '../../engine/StaticObjectsCatalog';
 import { fallingStalactiteRestOffsetY } from '../../engine/FallingStalactite';
-import type { Rect } from '../geometry';
-import type { DrawContext } from '../../engine/DrawContext';
+import type { Rect } from '../../contracts/geometry';
+import type { DrawContext } from '../../contracts/DrawContext';
 import type { DebrisLayer } from '../../engine/CollectionEffects';
 
 /** A native-pixel sprite crop. */

@@ -1,4 +1,4 @@
-import type { Rect } from '../entities/geometry';
+import type { Rect } from './geometry';
 import type { PlayerEffects } from './Outcome';
 
 export type ContactSide = 'top' | 'side' | 'bottom';

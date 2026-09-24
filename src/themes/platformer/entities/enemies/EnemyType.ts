@@ -1,13 +1,13 @@
-import type { Moving, SelfAnimated, Damageable, DamageableType } from '../capabilities';
-import type { WorldType, Boxed } from '../WorldType';
-import type { Rect } from '../geometry';
+import type { Moving, SelfAnimated, Damageable, DamageableType } from '../../contracts/capabilities';
+import type { WorldType, Boxed } from '../../contracts/WorldType';
+import type { Rect } from '../../contracts/geometry';
 import type { SpriteDescriptor } from '../sprites/SpriteSheet';
 import type { EnemyPlacement } from '../../level/EnemyMapper';
 import type { CollectedFact, EnemyDef } from '../../types';
 import type { EnemyAnimState } from './EnemyAnimation';
 import type { MovementStrategy } from './movement/MovementStrategy';
-import type { DrawContext } from '../../engine/DrawContext';
-import type { Contact, CollisionOutcome } from '../../engine/Contact';
+import type { DrawContext } from '../../contracts/DrawContext';
+import type { Contact, CollisionOutcome } from '../../contracts/Contact';
 import type { PlayerState } from '../Player';
 
 /** Item kinds an enemy type can drop on defeat. Grows as items are added. */

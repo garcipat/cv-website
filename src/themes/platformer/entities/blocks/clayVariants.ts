@@ -1,4 +1,4 @@
-import type { DrawContext } from '../../engine/DrawContext';
+import type { DrawContext } from '../../contracts/DrawContext';
 import { STATIC_OBJECTS_SHEET } from '../sprites/sheets';
 import { TILE_SIZE, RENDERED_TILE_SIZE } from '../../level/Terrain';
 

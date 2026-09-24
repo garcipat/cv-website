@@ -4,7 +4,12 @@ import { FRUIT_SHEET } from '../sprites/sheets';
 import { FRUIT_FRAME_SIZE, FRUIT_RENDERED_SIZE, fruitFrameSource } from '../Fruit';
 import { coinBobOffset } from '../Coin';
 
-/** The `PickupType` view of a placed fruit collectible — Fruit.ts remains
+/** NOTE: dormant — there is no placed-fruit marker today (only `Q` blocks
+ *  spawn bonus fruits; see `CollectibleMapper.ts`), and `placeCollectibles`
+ *  is always called with an empty fruit list. This placed-fruit `PickupType`
+ *  is unused scaffolding slated for removal in R-006.
+ *
+ *  The `PickupType` view of a placed fruit collectible — Fruit.ts remains
  *  the source of truth for every constant. A placed fruit carries no
  *  per-instance icon index (unlike BonusFruit's `iconIndex`); its icon comes
  *  from its position among all fruit placements instead, supplied through

@@ -1,7 +1,7 @@
 import { TERRAIN_CHARS, type TileChar } from '../level/LevelParser';
 import { RENDERED_TILE_SIZE, tileToPixel } from '../level/Terrain';
 import type { MarkerGrid } from '../level/LevelData';
-import { DEFAULT_TORCH_STRENGTH } from '../engine/Torch';
+import { DEFAULT_TORCH_STRENGTH } from '../entities/Torch';
 import { type Point, type TorchLight } from '../engine/Lighting';
 import { heldTorchLightPosition } from '../engine/Renderer';
 import { synthesizePlayerState } from './gridRenderState';

@@ -1,10 +1,10 @@
 import type { SpriteDescriptor } from '../sprites/SpriteSheet';
-import type { DrawContext } from '../../engine/DrawContext';
+import type { DrawContext } from '../../contracts/DrawContext';
 import type { BlockState } from '../Block';
-import type { WorldType } from '../WorldType';
+import type { WorldType } from '../../contracts/WorldType';
 import type { BlockContactSide } from '../Player';
-import type { PlayerEffects, RewardEffects } from '../../engine/Outcome';
-import type { PotKind } from './potTypes';
+import type { PlayerEffects, RewardEffects } from '../../contracts/Outcome';
+import type { PotKind, PotRenderPlan } from './potTypes';
 
 /** What a registering hit on a block MEANS — the block equivalent of
  *  `CollisionOutcome`. Carries no `self`: block hit counting stays generic
@@ -56,7 +56,7 @@ export interface BlockType extends WorldType<BlockState> {
   /** Which frame of `sprite.sheet` to draw for the given hit count — a kind
    *  whose appearance does not change ignores the argument. */
   frameIndex(hitsTaken: number): number;
-  draw(block: BlockState, dc: DrawContext): void;
+  draw(block: BlockState, dc: DrawContext<PotRenderPlan>): void;
   /**
    * Which contact sides register a hit on this kind, in the block's own
    * four-face vocabulary (`BlockContactSide`, from `PlayerState.blockContacts`

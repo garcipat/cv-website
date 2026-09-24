@@ -16,7 +16,7 @@ import {
   overlappingTriggers,
 } from './Collision';
 import { playerInBlast } from './Blast';
-import type { Box } from './Collision';
+import type { Box } from '../contracts/geometry';
 import { setSpearTipMask } from '../entities/hazards/SpearArt';
 import type { SpearMask } from '../entities/hazards/SpearArt';
 import {
@@ -39,13 +39,13 @@ import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { ChestState } from '../entities/Chest';
 import type { SignPlacement } from '../level/SignMapper';
 import type { HazardPlacement } from '../level/HazardMapper';
-import type { FallingStalactiteTimerState } from './FallingStalactite';
+import type { FallingStalactiteTimerState } from '../entities/hazards/phases';
 import { parseLevel } from '../level/LevelParser';
 import type { KeyPickupState } from '../entities/KeyPickup';
 import { spawnHeartPickup } from '../entities/HeartPickup';
 import { spawnBombPickup } from '../entities/BombPickup';
 import { MAX_HALF_HEARTS, SIDE_HIT_DAMAGE } from '../entities/Health';
-import { PHYSICS_CONFIG } from './PhysicsConfig';
+import { PHYSICS_CONFIG } from '../contracts/PhysicsConfig';
 
 function makePlayer(x: number, y: number): PlayerState {
   return {

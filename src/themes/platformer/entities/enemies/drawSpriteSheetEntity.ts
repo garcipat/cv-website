@@ -3,7 +3,7 @@ import { frameSource } from '../sprites/SpriteSheet';
 import type { SpriteDescriptor } from '../sprites/SpriteSheet';
 import { enemyFrameIndex } from './EnemyAnimation';
 import type { BaseEnemyState } from './EnemyType';
-import type { DrawContext } from '../../engine/DrawContext';
+import type { DrawContext } from '../../contracts/DrawContext';
 
 /** Opacity every slime's body is drawn at — low enough that a purple slime's
  *  held key (see SlimePurple.ts) visibly shines through it, high enough that

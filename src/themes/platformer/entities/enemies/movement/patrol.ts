@@ -1,7 +1,7 @@
-import { PHYSICS_CONFIG } from '../../../engine/PhysicsConfig';
+import { PHYSICS_CONFIG } from '../../../contracts/PhysicsConfig';
 import { isSolid, tileAt, markerAt, RENDER_SCALE, RENDERED_TILE_SIZE } from '../../../level/Terrain';
 import type { LevelDef } from '../../../level/LevelData';
-import type { Direction } from '../../geometry';
+import type { Direction } from '../../../contracts/geometry';
 import type { SpriteDescriptor } from '../../sprites/SpriteSheet';
 import type { BaseEnemyState } from '../EnemyType';
 import type { MovementStrategy } from './MovementStrategy';

@@ -1,6 +1,6 @@
 import type { CollectedFact } from '../types';
-import type { PickupKind } from '../entities/pickups';
-import type { CounterPopupLabelKey } from './CollectionEffects';
+import type { PickupKind } from './PickupKind';
+import type { CounterPopupLabelKey } from './counters';
 
 /**
  * What an entity asks the engine to do to the PLAYER about a contact.

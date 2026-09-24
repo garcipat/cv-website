@@ -1,6 +1,7 @@
 import type { BlockType } from './BlockType';
 import type { BlockState } from '../Block';
-import type { DrawContext } from '../../engine/DrawContext';
+import type { DrawContext } from '../../contracts/DrawContext';
+import type { PotRenderPlan } from './potTypes';
 import { STATIC_OBJECTS_SHEET } from '../sprites/sheets';
 import { RENDERED_TILE_SIZE, RENDER_SCALE } from '../../level/Terrain';
 import { blockBumpOffsetY } from '../../engine/BlockAI';
@@ -41,7 +42,7 @@ export const coinPot: BlockType = createPotType({
   // — the real per-instance variant is the tile's own positional
   // `clayVariantAt` value, drawn below.
   frameIndex: () => 0,
-  drawPot: (block: BlockState, dc: DrawContext) => {
+  drawPot: (block: BlockState, dc: DrawContext<PotRenderPlan>) => {
     const col = Math.round(block.x / RENDERED_TILE_SIZE);
     const row = Math.round(block.y / RENDERED_TILE_SIZE);
     drawClayPotAt(dc, block.x, block.y, clayVariantAt(col, row), blockBumpOffsetY(block));

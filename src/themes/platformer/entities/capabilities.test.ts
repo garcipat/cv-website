@@ -1,7 +1,7 @@
 import { toEnemyState } from './Enemy';
 import { ENEMY_HIT_REACTION_SECONDS } from './enemies/shared';
-import { isInvulnerable } from './capabilities';
-import type { Moving, SelfAnimated, Damageable } from './capabilities';
+import { isInvulnerable } from '../contracts/capabilities';
+import type { Moving, SelfAnimated, Damageable } from '../contracts/capabilities';
 import type { EnemyPlacement } from '../level/EnemyMapper';
 
 function makePlacement(): EnemyPlacement {
