@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
   BUILT_IN_LEVELS,
-  parseLevelModules,
   findLevel,
   LEVELS,
   type LevelEntry,
 } from './levelRegistry';
+import { parseLevelModules } from './layoutFile';
 import { LEVEL_1_LAYOUT, LEVEL_1_MARKERS, SCRATCH_LAYOUT } from './level';
 
 describe('BUILT_IN_LEVELS', () => {

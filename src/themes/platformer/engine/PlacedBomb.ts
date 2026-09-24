@@ -3,6 +3,7 @@ import { isBlockOccupied, type BlockPlacement } from '../level/BlockMapper';
 import { isSolid, tileAt, tileToPixel, RENDERED_TILE_SIZE } from '../level/Terrain';
 import { PHYSICS_CONFIG } from '../contracts/PhysicsConfig';
 import { isCrumblingFloorBroken, type CrumblingFloorTimerState } from './CrumblingFloor';
+import { findLandingRow } from './Standable';
 
 const NO_CRUMBLING_FLOOR_STATES: readonly CrumblingFloorTimerState[] = [];
 
@@ -84,13 +85,13 @@ export function bombLandingRow(
   row: number,
   crumblingFloorStates: readonly CrumblingFloorTimerState[] = NO_CRUMBLING_FLOOR_STATES,
 ): number | null {
-  for (let r = row + 1; r < level.height; r++) {
-    const tile = tileAt(level, col, r);
+  const landing = findLandingRow(level, col, row, (l, c, r) => {
+    const tile = tileAt(l, c, r);
     const tileIsGround =
-      tile === 'crumblingFloor' ? !isCrumblingFloorBroken(crumblingFloorStates, col, r) : isSolid(tile);
-    if (tileIsGround || isBlockOccupied(blocks, col, r)) return r - 1;
-  }
-  return null;
+      tile === 'crumblingFloor' ? !isCrumblingFloorBroken(crumblingFloorStates, c, r) : isSolid(tile);
+    return tileIsGround || isBlockOccupied(blocks, c, r);
+  });
+  return landing === null ? null : landing - 1;
 }
 
 /** Creates a placed bomb at `(col, row)` with its landing row resolved from

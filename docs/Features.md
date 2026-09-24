@@ -66,7 +66,7 @@ graph RL
         S031["✅ S-031: Platformer Torch Strength"]
 
         R001["✅ R-001: Platformer Core Contracts & Dependency Layers"]
-        R002["R-002: Platformer Shared Primitives & Dedup"]
+        R002["✅ R-002: Platformer Shared Primitives & Dedup"]
         R003["R-003: Platformer Abstract Light Sources"]
         R004["R-004: Platformer Transient Effect Registry"]
         R005["R-005: Platformer Generic Speech Bubble"]
@@ -299,6 +299,7 @@ graph RL
     class O023 done
     class R001,R002,R003,R004,R005,R006,R007,R008,R009,R011,R012,R014 themes
     class R001 done
+    class R002 done
     class R010 enhancements
     class R013 themes
 ```

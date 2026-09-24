@@ -8,6 +8,8 @@
  * neighbouring torches flicker out of phase (spec FR-009).
  */
 
+import { hash2D } from '../shared/math';
+
 /**
  * A wall torch's light strength, `0`-`9`. `5` is the default
  * (`DEFAULT_TORCH_STRENGTH`): a torch with no marker lights at today's radius,
@@ -47,15 +49,13 @@ export const TORCH_CONTENT_WIDTH = 6;
 export const TORCH_INSET_X = 2;
 
 /**
- * Deterministic per-tile phase offset from grid position — the same
- * `Math.imul` position-hash technique as `StaticObjectsCatalog.ts`'s
- * `pickVariant`, but used to offset a frame index rather than pick a variant.
- * Returns an integer in `[0, TORCH_FRAME_COUNT)`, stable across sessions
- * (spec FR-009).
+ * Deterministic per-tile phase offset from grid position — the shared
+ * `shared/math.ts` `hash2D`, used to offset a frame index rather than pick a
+ * variant. Returns an integer in `[0, TORCH_FRAME_COUNT)`, stable across
+ * sessions (spec FR-009).
  */
 export function torchPhase(col: number, row: number): number {
-  const hash = (Math.imul(col, 374761393) ^ Math.imul(row, 668265263)) >>> 0;
-  return hash % TORCH_FRAME_COUNT;
+  return hash2D(col, row) % TORCH_FRAME_COUNT;
 }
 
 /**

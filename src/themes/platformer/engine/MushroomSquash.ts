@@ -9,6 +9,8 @@
  * collision, standability or bounce strength.
  */
 
+import { clamp01 } from '../shared/math';
+
 /** One cap that has just bounced: which cell, and how long ago. */
 export interface MushroomSquashState {
   col: number;
@@ -52,7 +54,7 @@ export function advanceMushroomSquashes(
 
 /** `DIP * (1 - clamp(elapsed / DURATION, 0, 1))`, in rendered px. */
 export function mushroomSquashDip(state: MushroomSquashState): number {
-  const ratio = Math.min(1, Math.max(0, state.elapsed / MUSHROOM_SQUASH_DURATION_SECONDS));
+  const ratio = clamp01(state.elapsed / MUSHROOM_SQUASH_DURATION_SECONDS);
   return MUSHROOM_SQUASH_DIP_PX * (1 - ratio);
 }
 

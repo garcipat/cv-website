@@ -1,5 +1,5 @@
+import { ATLAS_STRIDE } from './TileAtlas';
 import {
-  ATLAS_STRIDE,
   GRASS_SOURCE_HEIGHT,
   groundTileKind,
   groundAtlasCell,

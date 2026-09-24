@@ -1,7 +1,7 @@
 import { TILE_SIZE, RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { BlockPlacement } from '../level/BlockMapper';
 import type { EffectAnchor } from './Enemy';
-import { BLOCK_TYPES } from './blocks';
+import { BLOCK_TYPES, type BlockKind } from './blocks';
 import { frameSource } from './sprites/SpriteSheet';
 
 /** Blocks are drawn from `world_tileset.png` — the same image and tile size
@@ -9,8 +9,6 @@ import { frameSource } from './sprites/SpriteSheet';
  *  dimensions are needed. */
 export const BLOCK_FRAME_SIZE = TILE_SIZE;
 export const BLOCK_RENDERED_SIZE = RENDERED_TILE_SIZE;
-
-export type BlockKind = 'crate' | 'questionMark' | 'fragileRock' | 'coinPot' | 'potionPot' | 'bombPot';
 
 /**
  * Sprite-sheet source rect (in `world_tileset.png`) for a block's current

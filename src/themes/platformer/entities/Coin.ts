@@ -23,12 +23,6 @@ export function coinFrameIndex(elapsedSeconds: number): number {
   return frame % COIN_FRAME_COUNT;
 }
 
-/** Sprite-sheet source rect for a given frame index (wraps, matching
- *  Player.ts's playerFrameSource convention). */
-export function coinFrameSource(frame: number): { sx: number; sy: number } {
-  return { sx: (frame % COIN_FRAME_COUNT) * COIN_FRAME_SIZE, sy: 0 };
-}
-
 /** Vertical bob distance in rendered px, and the full up-down-up cycle's
  *  duration in seconds — a small ambient float layered on top of the spin,
  *  driven by the same shared elapsed clock as coinFrameIndex. */

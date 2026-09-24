@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { parseBlueprintModules, findBlueprint, BLUEPRINTS } from './blueprintRegistry';
+import { findBlueprint, BLUEPRINTS } from './blueprintRegistry';
+import { parseBlueprintModules } from './layoutFile';
 import { blueprintFileJson } from '../editor/saveBlueprintFile';
 import type { Blueprint } from './BlueprintData';
 

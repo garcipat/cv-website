@@ -1,5 +1,6 @@
 import { growGrid, type GrowResult } from './growGrid';
-import { TERRAIN_CHARS, HAZARD_CHARS, type TileChar, type HazardFacing, type HazardKind } from '../level/LevelParser';
+import { TERRAIN_CHARS, HAZARD_CHARS, type TileChar, type HazardFacing } from '../level/LevelParser';
+import type { HazardKind } from '../entities/hazards';
 import { isSolid } from '../level/Terrain';
 
 /** Same shape as `growGrid`'s `GrowResult` — `paintCell` always returns a

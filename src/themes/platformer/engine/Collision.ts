@@ -9,9 +9,8 @@ import type { PlayerState } from '../entities/Player';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
 import type { EnemyState } from '../entities/Enemy';
 import { typeOf } from '../entities/enemies';
-import type { ContactSide } from '../contracts/Contact';
-import { BONUS_FRUIT_RISE_DURATION_SECONDS } from '../entities/BonusFruit';
-import type { BonusFruitState } from '../entities/BonusFruit';
+import { FRUIT_RISE_DURATION_SECONDS } from '../entities/Fruit';
+import type { FruitState } from '../entities/Fruit';
 import { isChestOpen } from '../entities/Chest';
 import type { ChestState } from '../entities/Chest';
 import { CHEST_TYPE } from '../entities/chests';
@@ -34,7 +33,7 @@ import type { HeartPickupState } from '../entities/HeartPickup';
 import type { BombPickupState } from '../entities/BombPickup';
 import { MAX_HALF_HEARTS } from '../entities/Health';
 import { PICKUP_TYPES } from '../entities/pickups';
-import { strongerBounce } from '../contracts/Outcome';
+import { strongerBounce, type ContactSide } from '../contracts/Outcome';
 import type { Box } from '../contracts/geometry';
 
 /**
@@ -224,21 +223,21 @@ export function resolveEnemyContacts(
 /**
  * Returns the ids of every bonus fruit the player's hitbox currently
  * overlaps AND that has finished rising (`elapsed >=
- * BONUS_FRUIT_RISE_DURATION_SECONDS`) — spec.md's "lands as a touchable
+ * FRUIT_RISE_DURATION_SECONDS`) — spec.md's "lands as a touchable
  * pickup", i.e. not collectible mid-rise. Unlike
  * `checkCollectibleCollisions`, there's no `collectedIds` dedup set here:
  * `PlatformerPage.tsx` removes a touched bonus fruit from its live array
  * entirely the same tick, so it simply can't be checked against again.
  */
-export function checkBonusFruitCollisions(
+export function checkFruitCollisions(
   player: PlayerState,
-  fruits: readonly BonusFruitState[],
+  fruits: readonly FruitState[],
 ): string[] {
   return overlappingTriggers(
     player,
     fruits,
-    (f) => PICKUP_TYPES.bonusFruit.box(f),
-    (f) => f.elapsed >= BONUS_FRUIT_RISE_DURATION_SECONDS,
+    (f) => PICKUP_TYPES.fruit.box(f),
+    (f) => f.elapsed >= FRUIT_RISE_DURATION_SECONDS,
   ).map((f) => f.id);
 }
 
@@ -249,7 +248,7 @@ export function checkBonusFruitCollisions(
  * only opens it once this returns an id AND the visitor has pressed Arrow Up
  * this tick. Only a chest's CLOSED footprint is checked (its open sprite is a
  * different size and the chest is un-openable again anyway, so an open
- * chest's box is irrelevant here) — mirrors checkBonusFruitCollisions'
+ * chest's box is irrelevant here) — mirrors checkFruitCollisions'
  * single-box-per-item convention. The box comes from `CHEST_TYPE.box`,
  * which shifts its x by CHEST_CLOSED_OFFSET_X (see entities/Chest.ts) so it
  * matches exactly where the closed chest is drawn (centered on its tile,
@@ -437,7 +436,7 @@ export function checkKeyPickupCollisions(
  * overlaps AND that the player can actually benefit from — gated on
  * `hitPoints < MAX_HALF_HEARTS` so a heart waits in the world rather than
  * being consumed for nothing at full health. Otherwise mirrors
- * `checkBonusFruitCollisions` (no `collectedIds`/`collected` flag):
+ * `checkFruitCollisions` (no `collectedIds`/`collected` flag):
  * `PlatformerPage.tsx` removes a touched heart from its live array entirely
  * the same tick, same as a bonus fruit.
  */

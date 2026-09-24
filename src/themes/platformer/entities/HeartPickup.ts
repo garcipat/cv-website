@@ -19,8 +19,8 @@ export const HEART_PICKUP_TILE_OFFSET_Y = (RENDERED_TILE_SIZE - HEART_PICKUP_REN
  * bobbing pickup (bob reuses `Coin.ts`'s `coinBobOffset`, same as
  * `KeyPickup.ts` — see `entities/pickups/Heart.ts`). Unlike `KeyPickupState`,
  * there is no `collected` flag: a heart is removed from its live array
- * outright the instant it's touched, the same convention `BonusFruitState`
- * uses (see `PlatformerPage.tsx`'s bonus-fruit collision handling) — there is
+ * outright the instant it's touched, the same convention `FruitState`
+ * uses (see `PlatformerPage.tsx`'s fruit collision handling) — there is
  * no HUD counter a heart needs to keep contributing to after collection, so
  * nothing needs it to linger flagged.
  */

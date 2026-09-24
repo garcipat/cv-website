@@ -3,7 +3,7 @@ import {
   aabbOverlap,
   checkCollectibleCollisions,
   resolveEnemyContacts,
-  checkBonusFruitCollisions,
+  checkFruitCollisions,
   chestPlayerIsStandingOn,
   checkSignOverlap,
   checkKeyPickupCollisions,
@@ -34,7 +34,7 @@ import type { EnemyState } from '../entities/Enemy';
 import { typeOf } from '../entities/enemies';
 import type { SlimeGreenState } from '../entities/enemies/SlimeGreen';
 import type { EnemyPlacement } from '../level/EnemyMapper';
-import { spawnBonusFruit, tickBonusFruit, BONUS_FRUIT_RISE_DURATION_SECONDS } from '../entities/BonusFruit';
+import { spawnFruit, tickFruit, FRUIT_RISE_DURATION_SECONDS } from '../entities/Fruit';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { ChestState } from '../entities/Chest';
 import type { SignPlacement } from '../level/SignMapper';
@@ -255,25 +255,25 @@ function playerLandingOnTopOf(enemy: EnemyState, overlapPx = 4): PlayerState {
   return makePlayer(enemy.x, y);
 }
 
-describe('checkBonusFruitCollisions', () => {
+describe('checkFruitCollisions', () => {
   it('playerOverlapsRestedFruit-returnsItsId', () => {
-    let fruit = spawnBonusFruit('bf1', 0, 100, undefined, 0);
-    fruit = tickBonusFruit(fruit, BONUS_FRUIT_RISE_DURATION_SECONDS);
+    let fruit = spawnFruit('bf1', 0, 100, undefined, 0);
+    fruit = tickFruit(fruit, FRUIT_RISE_DURATION_SECONDS);
     const player = makePlayer(0, 100 - RENDERED_TILE_SIZE);
-    expect(checkBonusFruitCollisions(player, [fruit])).toEqual(['bf1']);
+    expect(checkFruitCollisions(player, [fruit])).toEqual(['bf1']);
   });
 
   it('playerOverlapsStillRisingFruit-notYetCollectible', () => {
-    const fruit = spawnBonusFruit('bf1', 0, 100, undefined, 0); // elapsed 0, mid-rise
+    const fruit = spawnFruit('bf1', 0, 100, undefined, 0); // elapsed 0, mid-rise
     const player = makePlayer(0, 100 - RENDERED_TILE_SIZE);
-    expect(checkBonusFruitCollisions(player, [fruit])).toEqual([]);
+    expect(checkFruitCollisions(player, [fruit])).toEqual([]);
   });
 
   it('playerFarFromFruit-returnsNoIds', () => {
-    let fruit = spawnBonusFruit('bf1', 0, 100, undefined, 0);
-    fruit = tickBonusFruit(fruit, BONUS_FRUIT_RISE_DURATION_SECONDS);
+    let fruit = spawnFruit('bf1', 0, 100, undefined, 0);
+    fruit = tickFruit(fruit, FRUIT_RISE_DURATION_SECONDS);
     const player = makePlayer(1000, 1000);
-    expect(checkBonusFruitCollisions(player, [fruit])).toEqual([]);
+    expect(checkFruitCollisions(player, [fruit])).toEqual([]);
   });
 });
 

@@ -3,8 +3,9 @@ import type { LevelDef } from '../level/LevelData';
 import type { BlockPlacement } from '../level/BlockMapper';
 import type { CrumblingFloorTimerState } from './CrumblingFloor';
 import { RENDER_SCALE, RENDERED_TILE_SIZE } from '../level/Terrain';
-import { isStandableCell } from './Standable';
+import { findLandingRow, isStandableCell } from './Standable';
 import { isStalactiteTwin, TWIN_LEFT_RECT, TWIN_RIGHT_RECT } from './StaticObjectsCatalog';
+import { shakeOffsetX } from '../shared/math';
 import type {
   FallingStalactitePhase,
   FallingStalactiteTimerState,
@@ -71,7 +72,7 @@ export function fallingStalactiteOffsetYAt(elapsed: number): number {
  *  shake phase (same technique as `crumblingFloorShakeOffsetXAt`). */
 export function fallingStalactiteShakeOffsetXAt(elapsed: number): number {
   if (elapsed < 0 || elapsed >= FALLING_STALACTITE_SHAKE_SECONDS) return 0;
-  return Math.sin(elapsed * 40) * SHAKE_AMPLITUDE_RENDERED_PX;
+  return shakeOffsetX(elapsed, SHAKE_AMPLITUDE_RENDERED_PX);
 }
 
 /**
@@ -86,10 +87,9 @@ export function fallingStalactiteLandingRow(
   col: number,
   fromRow: number,
 ): number | null {
-  for (let row = fromRow + 1; row < level.height; row++) {
-    if (isStandableCell(level, blocks, crumblingFloorStates, col, row)) return row;
-  }
-  return null;
+  return findLandingRow(level, col, fromRow, (l, c, r) =>
+    isStandableCell(l, blocks, crumblingFloorStates, c, r),
+  );
 }
 
 /**

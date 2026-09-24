@@ -6,6 +6,7 @@ import { RENDERED_TILE_SIZE } from '../../../level/Terrain';
 import { PHYSICS_CONFIG } from '../../../contracts/PhysicsConfig';
 import type { LevelDef, MarkerEntry, TileType } from '../../../level/LevelData';
 import type { EnemyPlacement } from '../../../level/EnemyMapper';
+import type { CrumblingFloorTimerState } from '../../../engine/CrumblingFloor';
 
 /**
  * The parity proof for SC-001: every case the pre-seam
@@ -88,8 +89,13 @@ function step(
   level: LevelDef,
   dt: number,
   blockedTiles: readonly { col: number; row: number }[] = [],
+  crumblingFloorStates: readonly CrumblingFloorTimerState[] = [],
 ): EnemyState {
-  return movement.step(enemy, { level, blockedTiles, player: null, elapsed: 0 }, dt);
+  return movement.step(
+    enemy,
+    { level, blockedTiles, player: null, elapsed: 0, crumblingFloorStates },
+    dt,
+  );
 }
 
 const SPEED = PHYSICS_CONFIG.enemyPatrolSpeed;
@@ -384,5 +390,40 @@ describe('patrolMovement', () => {
         expect(nextOverMushroom.x).toBeCloseTo(nextOverPit.x);
       },
     );
+  });
+
+  // Relocated from the removed engine/EnemyAI.test.ts: the pre-seam patrol
+  // wrapper's crumbling-floor characterization, exercised against the
+  // movement strategy directly (what `typeOf(enemy).movement` resolves to).
+  describe('crumbling floor (O-023)', () => {
+    function makeCrumblingLevel(): LevelDef {
+      const entityRow: TileType[] = Array.from({ length: 10 }, () => 'empty');
+      const groundRow: TileType[] = Array.from({ length: 10 }, (_, c) =>
+        c === 7 ? 'crumblingFloor' : 'groundRock',
+      );
+      return { terrain: [entityRow, groundRow], width: 10, height: 2 };
+    }
+
+    it('crumblingFloorAhead-atRest-doesNotReverse-treatedAsGround', () => {
+      const level = makeCrumblingLevel();
+      const enemy = { ...makeEnemyAt(5), direction: 'right' as const };
+
+      const next = step(GREEN_MOVEMENT, enemy, level, DT, [], []);
+
+      expect(next.direction).toBe('right');
+      expect(next.vx).toBe(SPEED);
+    });
+
+    it('crumblingFloorAhead-broken-reversesLikeAPit', () => {
+      // Same geometry/dt as wallAhead-movingRight above, so the leading edge
+      // deterministically reaches col 7 in one call.
+      const level = makeCrumblingLevel();
+      const enemy = { ...makeEnemyAt(5), direction: 'right' as const };
+      const states = [{ col: 7, row: 1, elapsed: 1.0 }]; // mid "broken"
+
+      const next = step(GREEN_MOVEMENT, enemy, level, 1, [], states);
+
+      expect(next.direction).toBe('left');
+    });
   });
 });

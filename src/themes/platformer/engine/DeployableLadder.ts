@@ -6,6 +6,8 @@ import {
   PLAYER_SIDE_PADDING,
 } from '../entities/Player';
 import type { PlayerState } from '../entities/Player';
+import { clamp01 } from '../shared/math';
+import { findLandingRow } from './Standable';
 
 /**
  * A deployable rope-ladder bundle's deployment lifecycle. `rolled` is the
@@ -50,12 +52,8 @@ export const STEPS_PER_TILE = 2;
  * the loop is bounded by `level.height` regardless.
  */
 export function ladderLandingRow(level: LevelDef, col: number, row: number): number {
-  let land = row;
-  for (let r = row + 1; r < level.height; r++) {
-    if (isSolid(tileAt(level, col, r))) break;
-    land = r;
-  }
-  return land;
+  const landing = findLandingRow(level, col, row, (l, c, r) => isSolid(tileAt(l, c, r)));
+  return landing === null ? level.height - 1 : landing - 1;
 }
 
 /** Seeds one `rolled` state for an authored `@` cell. Pure. */
@@ -114,7 +112,7 @@ export function totalStepCount(state: DeployableLadderState): number {
 export function revealedStepCount(state: DeployableLadderState): number {
   if (state.phase === 'deployed') return totalStepCount(state);
   if (state.phase === 'rolled') return 0;
-  const progress = Math.min(1, Math.max(0, state.elapsed / UNROLL_SECONDS));
+  const progress = clamp01(state.elapsed / UNROLL_SECONDS);
   return Math.floor(totalStepCount(state) * progress);
 }
 

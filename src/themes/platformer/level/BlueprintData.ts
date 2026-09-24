@@ -1,4 +1,5 @@
 import type { MarkerPlacement } from './LevelData';
+import { isLayout, isBackground, isMarkers } from './layoutFile';
 
 /**
  * A named, reusable room authored on the Level Editor's own blueprint canvas.
@@ -26,32 +27,6 @@ export interface Blueprint {
  *  registry's built-in `empty`: one empty cell, nothing painted. Unlike
  *  `SCRATCH_LAYOUT` it carries no `S` — a blueprint has no spawn. */
 export const BLANK_BLUEPRINT: Blueprint = { id: 'new', name: 'new', layout: ['.'] };
-
-const isLayout = (value: unknown): value is string[] =>
-  Array.isArray(value) && value.length > 0 && value.every((row) => typeof row === 'string');
-
-/** Same "array of strings" shape check `levelRegistry.ts`'s `isBackground`
- *  uses — see its doc comment for why the old array-of-arrays/
- *  `BackgroundPlacement[]` formats both fail this for free. */
-const isBackground = (value: unknown): value is string[] =>
-  Array.isArray(value) && value.every((row) => typeof row === 'string');
-
-/** Forgiving shape check for the `markers` field: an array whose entries each
- *  carry numeric `col`/`row` and a `marker` object with a string `kind`. Same
- *  "a malformed field costs only that field" policy `background` has. */
-const isMarkers = (value: unknown): value is MarkerPlacement[] =>
-  Array.isArray(value) &&
-  value.every((entry) => {
-    if (entry === null || typeof entry !== 'object') return false;
-    const { col, row, marker } = entry as { col?: unknown; row?: unknown; marker?: unknown };
-    return (
-      typeof col === 'number' &&
-      typeof row === 'number' &&
-      marker !== null &&
-      typeof marker === 'object' &&
-      typeof (marker as { kind?: unknown }).kind === 'string'
-    );
-  });
 
 /**
  * Whether `value` is a well-formed `Blueprint`. Same "skip anything

@@ -1,3 +1,5 @@
+import { clamp01, shakeOffsetX } from '../shared/math';
+
 /**
  * A crumbling floor tile's cycle phase (spec.md's Key Entities). Unlike
  * `engine/FloorSpike.ts`'s timer states (keyed by a `HazardPlacement`'s own
@@ -128,7 +130,7 @@ export function isCrumblingFloorBroken(
  *  broken/reforming elapsed value (past the crack phase) still returns a
  *  sane value rather than growing unbounded. */
 export function crumblingFloorCrackRatioAt(elapsed: number): number {
-  return Math.max(0, Math.min(1, elapsed / CRUMBLING_FLOOR_CRACK_SECONDS));
+  return clamp01(elapsed / CRUMBLING_FLOOR_CRACK_SECONDS);
 }
 
 /** `(col, row)`'s current crack ratio — 0 when no timer entry exists (at
@@ -149,7 +151,7 @@ export function crumblingFloorCrackRatioFor(
 export function crumblingFloorReformRatioAt(elapsed: number): number {
   const reformStart = CRUMBLING_FLOOR_CRACK_SECONDS + CRUMBLING_FLOOR_BROKEN_SECONDS;
   if (elapsed < reformStart) return 0;
-  return Math.max(0, Math.min(1, (elapsed - reformStart) / CRUMBLING_FLOOR_REFORM_SECONDS));
+  return clamp01((elapsed - reformStart) / CRUMBLING_FLOOR_REFORM_SECONDS);
 }
 
 /** `(col, row)`'s current reform ratio — 0 when no timer entry exists. */
@@ -169,5 +171,5 @@ export function crumblingFloorReformRatioFor(
  *  clock rather than mutable random state. */
 const SHAKE_AMPLITUDE_NATIVE_PX = 1;
 export function crumblingFloorShakeOffsetXAt(elapsed: number): number {
-  return Math.sin(elapsed * 40) * SHAKE_AMPLITUDE_NATIVE_PX;
+  return shakeOffsetX(elapsed, SHAKE_AMPLITUDE_NATIVE_PX);
 }

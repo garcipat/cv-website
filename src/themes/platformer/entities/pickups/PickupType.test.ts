@@ -1,15 +1,6 @@
 import { frameSource } from '../sprites/SpriteSheet';
-import { COIN_SHEET, FRUIT_SHEET } from '../sprites/sheets';
-import { coinFrameSource, COIN_FRAME_COUNT } from '../Coin';
+import { FRUIT_SHEET } from '../sprites/sheets';
 import { fruitFrameSource, FRUIT_ICON_COUNT, FRUIT_ICON_COLUMNS, FRUIT_ICON_ORDER } from '../Fruit';
-
-describe('COIN_SHEET', () => {
-  it('everyFrameIndex-matchesCoinFrameSource', () => {
-    for (let i = 0; i < COIN_FRAME_COUNT; i++) {
-      expect(frameSource(COIN_SHEET, i)).toEqual(coinFrameSource(i));
-    }
-  });
-});
 
 describe('FRUIT_SHEET', () => {
   // fruit.png is physically four 16px columns wide, but only its first THREE

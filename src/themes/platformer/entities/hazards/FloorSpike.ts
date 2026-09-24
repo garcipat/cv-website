@@ -5,6 +5,7 @@ import { RENDERED_TILE_SIZE, RENDER_SCALE } from '../../level/Terrain';
 import { SIDE_HIT_DAMAGE } from '../Health';
 import type { Rect } from '../../contracts/geometry';
 import type { DrawContext } from '../../contracts/DrawContext';
+import { clamp01 } from '../../shared/math';
 
 /** Same visible-band convention as Spike.ts's BAND_NATIVE for the 'up'
  *  facing — a floor spike is floor-only (FR-013), so it only ever needs
@@ -112,7 +113,7 @@ export const floorSpike: HazardType<HazardPlacement> = {
     // (0..1, see engine/FloorSpike.ts's floorSpikeExtensionAt) — one piece
     // of art growing/shrinking continuously, rather than a fixed "half up"
     // pose.
-    const ratio = Math.max(0, Math.min(1, hazard.floorSpikeExtension ?? 0));
+    const ratio = clamp01(hazard.floorSpikeExtension ?? 0);
     const cropHeight = Math.round(FRAME_H * ratio);
     if (cropHeight <= 0) return;
     const cropTop = FRAME_H - cropHeight;

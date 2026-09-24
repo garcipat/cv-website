@@ -54,7 +54,7 @@ export function mapCVDataToSkillFactPool(cv: CVData): CollectedFact[] {
 }
 
 /**
- * A placed coin or fruit collectible — purely positional (see
+ * A placed coin collectible — purely positional (see
  * `mapCVDataToSkillFactPool`'s doc comment for why a coin carries no fact of
  * its own). `id` is derived from its marker position, stable and unique,
  * used only for `collectedCollectibleIds` dedup — it has no relationship to
@@ -62,40 +62,30 @@ export function mapCVDataToSkillFactPool(cv: CVData): CollectedFact[] {
  */
 export interface CollectiblePlacement {
   id: string;
-  spriteType: 'coin' | 'fruit';
+  spriteType: 'coin';
   x: number;
   y: number;
 }
 
-/** Hand-authored marker positions for each collectible type, keyed the
- *  same way `CollectiblePlacement.spriteType` is — see `placeCollectibles`
- *  below. */
-export interface CollectibleMarkerPositions {
-  coin: readonly { col: number; row: number }[];
-  fruit: readonly { col: number; row: number }[];
-}
-
 /**
- * Places one plain collectible per hand-authored marker — `o` markers
- * (LevelParser.ts's findCoinTiles) for coins; `fruit` has no level marker of
- * its own today (a hit question-mark spawns its own bonus fruit instead —
- * see BlockMapper.ts's certificateToBlock/projectToBlock), so callers pass
- * an empty array for `markers.fruit`. There is no auto-placement: a
- * collectible's position is always exactly where a level author put its
- * marker, mirroring EnemyMapper.ts's placeEnemies/BlockMapper.ts's
- * placeBlocks.
+ * Places one coin per hand-authored `o` marker (LevelParser.ts's
+ * findCoinTiles). There is no auto-placement: a collectible's position is
+ * always exactly where a level author put its marker, mirroring
+ * EnemyMapper.ts's placeEnemies/BlockMapper.ts's placeBlocks.
+ *
+ * A question-mark block's reward is NOT placed here — a hit `Q` spawns its own
+ * rising fruit (`entities/Fruit.ts`'s `spawnFruit`), so the former dormant
+ * placed-fruit branch and its `CollectibleMarkerPositions.fruit` field were
+ * removed (R-002 FR-022).
  */
-export function placeCollectibles(markers: CollectibleMarkerPositions): CollectiblePlacement[] {
+export function placeCollectibles(
+  coinMarkers: readonly { col: number; row: number }[],
+): CollectiblePlacement[] {
   const placements: CollectiblePlacement[] = [];
 
-  markers.coin.forEach(({ col, row }) => {
+  coinMarkers.forEach(({ col, row }) => {
     const { x, y } = tileToPixel(col, row);
     placements.push({ id: `coin-${col}-${row}`, spriteType: 'coin', x, y });
-  });
-
-  markers.fruit.forEach(({ col, row }) => {
-    const { x, y } = tileToPixel(col, row);
-    placements.push({ id: `fruit-${col}-${row}`, spriteType: 'fruit', x, y });
   });
 
   return placements;
