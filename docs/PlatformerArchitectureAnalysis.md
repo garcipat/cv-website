@@ -261,7 +261,7 @@ user asked for.
 own signal (`PlatformerState.ts:936` area), tick call, and draw branch in `drawTerrain`.
 
 **Direction** Fold into the effect registry (E1); it is a cosmetic transient exactly like the
-others. If it should affect collision/standability it belongs to the timed-tile core (E4).
+others. If it should affect collision/standability it belongs to the shared timed-tile module (E4).
 
 **Affected**: `engine/MushroomSquash.ts`, `PlatformerState.ts`, `Renderer.ts`.
 
@@ -281,7 +281,7 @@ Two structural clones (`{col,row,elapsed}` and `{id,elapsed}`); arm/advance bodi
 copy-paste; shake is byte-identical except amplitude (`CrumblingFloor.ts:172` /
 `FallingStalactite.ts:90`: `Math.sin(elapsed*40)*AMP`).
 
-**Direction** One `timedTile` core (`arm`, `advance`, `elapsedFor`, `shakeOffsetX`) with each
+**Direction** One shared `timedTile` module (`arm`, `advance`, `elapsedFor`, `shakeOffsetX`) with each
 module keeping only its durations and phase table.
 
 **Affected**: the four engine modules + `PlatformerState.ts` tick wiring.
@@ -636,13 +636,15 @@ Entity *type* modules import the engine for their own contract:
 `entities/pickups/PickupType.ts:4`, `entities/Checkpoint.ts:3` (`Box` from `Collision`),
 `entities/hazards/FallingStalactite.ts` (`FallingStalactite` + `CollectionEffects`).
 
-**Problem** There is no "shared core" layer; the contracts live wherever they were first
+**Problem** There is no shared contracts layer; the contracts live wherever they were first
 written. `DrawContext` in particular is a render contract that entities must import from
 `engine/`.
 
-**Direction** A `core/` (or `contracts/`) layer holding `WorldType`, `capabilities`,
+**Direction** A `contracts/` layer holding `WorldType`, `capabilities`,
 `geometry`, `Outcome`, `Contact`, `DrawContext`, `PhysicsConfig`, plus the Phase 0 `math` and
-`GridCell` primitives. `engine/` and `entities/` both depend *down* on it.
+`GridCell` primitives. `engine/` and `entities/` both depend *down* on it. *(Resolved by
+R-001 — `specs/R-001-platformer-core-contracts/`: `PhysicsConfig` lands in `contracts/`, and
+`sprites/` stays in `entities/`.)*
 
 **Affected**: the 8 files above plus their importers.
 
@@ -657,9 +659,13 @@ written. `DrawContext` in particular is a render contract that entities must imp
 
 **Problem** Three small type/constant leaks force a cycle between two large folders.
 
-**Direction** `Box` → `core/geometry.ts`; torch strength constants (authoring data) → `level/`
-or `core/`; hazard phase types → `entities/hazards` (the hazard kinds own their phases) or
-`level/`. After this, `level/` depends on nothing upward.
+**Direction** `Box` → `contracts/geometry.ts`; the whole torch module (`TorchStrength`,
+constants, validator, frame animation) → `entities/Torch.ts`; hazard phase types →
+`entities/hazards/phases.ts` (the hazard kinds own their phases). After this, `level/` no
+longer imports `engine/` (it still reaches `entities/`, mirroring the existing
+`entities/ → level/` edge). [R-004](https://github.com/garcipat/cv-website/issues/92) later
+relocates the spike/stalactite state machines themselves into `entities/hazards/`. *(Resolved by
+R-001.)*
 
 **Affected**: `level/HazardMapper.ts`, `level/LevelParser.ts`, `level/SignMapper.ts`,
 `engine/Torch.ts`, `engine/Collision.ts`, `engine/FloorSpike.ts`,
@@ -792,8 +798,8 @@ pickup state modules (`Coin.ts`, `Fruit.ts`, `BonusFruit.ts`, `BombPickup.ts`,
 pickup states are split from their views. It is not obvious where a new entity module goes.
 
 **Direction** One folder per family (`entities/player/`, `entities/checkpoint/`, …), pickup
-constants colocated with their `pickups/*` views (also X6), contracts + `sprites/` moved to
-`core/`. Keep each family a self-contained unit.
+constants colocated with their `pickups/*` views (also X6), contracts moved to `contracts/`
+(`sprites/` stays in `entities/`). Keep each family a self-contained unit.
 
 **Affected**: `entities/` top level; overlaps X6.
 
@@ -908,6 +914,17 @@ scene *sources* that were cropped into the shipped sheets).
 **Direction** Extend the loader manifest so every sheet/atlas — including secondary and
 sequence assets — is discovered, not hand-listed. This overlaps [R-012](https://github.com/garcipat/cv-website/issues/100)'s `AssetLoader`.
 
+#### A6 — Non-shared sprite art lives away from its owner
+**Impact: Med · Effort: M**
+
+**Evidence** Every sprite is registered centrally in `entities/sprites/sheets.ts`, including art
+used by exactly one entity or tile (`FLOOR_SPIKE_SHEET`, `SPEAR_SHEET`, `DECORATIONS_SHEET`, the
+torch frames). The consumer and its art therefore live in different folders.
+
+**Direction** Keep only genuinely shared sheets/atlases in `entities/sprites/`; move art used by
+a single entity or tile beside that owner (e.g. the hazard, block, or torch module) and expose it
+through the owner. Depends on the A1 `SpriteSheet`/`SpriteAtlas` split.
+
 ---
 
 ### Group X — File merges and dead code
@@ -957,7 +974,7 @@ A target tree that (a) gives the shared contracts a real layer, (b) breaks the
 
 ```
 src/themes/platformer/
-├── core/                     # shared contracts + pure primitives (no canvas, no React)
+├── contracts/                # shared contracts + pure primitives (no canvas, no React)
 │   ├── WorldType.ts
 │   ├── capabilities.ts
 │   ├── geometry.ts           # Direction, Rect, Box, GridCell, tileBox (absorbs F2)
@@ -993,7 +1010,6 @@ src/themes/platformer/
 │   ├── torch/                # Torch.ts + LightSource (L2/X5)
 │   ├── bombs/                # PlacedBomb + blast + BombSystem (P1/P2/D6)
 │   ├── ladders/              # DeployableLadder
-│   ├── hazards/              # FloorSpike, FallingStalactite, CrumblingFloor (E4)
 │   ├── mushrooms/            # MushroomSquash (→ effect, E3)
 │   ├── checkpoints/          # CheckpointLogic
 │   └── effects/              # CollectionEffects + SpeechBubble registry (E1/E2)
@@ -1001,11 +1017,11 @@ src/themes/platformer/
 │   ├── player/               # Player.ts, Health.ts, Crouch? 
 │   ├── blocks/               # Block.ts + blocks/* (constants colocated — X6/F9)
 │   ├── enemies/
-│   ├── hazards/
+│   ├── hazards/              # views + FloorSpike/FallingStalactite state machines (E4)
 │   ├── pickups/              # states + type views together (X6/F9)
 │   ├── chests/
 │   ├── checkpoint/
-│   └── sprites/
+│   └── sprites/              # shared sheets/atlases only (R-013 — non-shared art with its owner)
 ├── state/                    # signals/stores (PlatformerState split — D7)
 │   ├── (per-domain stores)
 │   └── levelSession.ts       # currentLayout/currentLevel signals (from level.ts — F5)
@@ -1021,6 +1037,11 @@ src/themes/platformer/
 └── PlatformerPage.tsx
 ```
 
+**R-001 interim landings (before the F7 split).** Landed early as cheap, independent moves:
+the shared contracts live in `contracts/`; the torch module lives at `entities/Torch.ts`
+(later folded into `features/torch/` with `LightSource` at L2/X5); hazard phase types live at
+`entities/hazards/phases.ts`; and `RewardReveal` moves to `state/rewards.ts`.
+
 **Important sequencing note.** Moving files is high-churn and generates merge conflicts, and
 many files here are scheduled to be **merged or deleted** anyway (X1–X8, E/P findings). Do
 *not* do a big-bang move first. Instead, land moves **with** the logical change that touches
@@ -1030,8 +1051,8 @@ the file — e.g. fold `MushroomSquash` into the effect registry and land it und
 
 | Move | Rides with |
 | --- | --- |
-| F1 contracts → `core/` | Phase 0 (primitives) |
-| F2 `Box`/phases → `core/`/`entities` | Phase 0 + Phase 4 |
+| F1 contracts → `contracts/` | Phase 0 (primitives) |
+| F2 `Box`/torch/phases → `contracts/`/`entities/` | Phase 0 + Phase 4 |
 | F3 `RewardReveal` → state/features | Phase 4 (reward applier) |
 | F4/F11 journal → `ui/journal/` | independent, early |
 | F5/F6 `level.ts` split → `level/levels/` + `state/levelSession` | Phase 7 |
@@ -1049,13 +1070,13 @@ Ordered for leverage and dependency. Phases 0, 1 are independent of the rest; la
 can be reordered, but the dependencies noted must hold.
 
 ### Phase 0 — Shared primitives and safe dedup (low risk, unlocks later work) ([R-001](https://github.com/garcipat/cv-website/issues/89), [R-002](https://github.com/garcipat/cv-website/issues/90))
-- **L4/L5** `core/math.ts`: `clamp01`, `smoothstep`, `lerp`, `hash2D`, `pulse`, `shakeOffsetX`.
+- **L4/L5** `contracts/math.ts`: `clamp01`, `smoothstep`, `lerp`, `hash2D`, `pulse`, `shakeOffsetX`.
 - **L6** shared `TileAtlas` type.
 - **P3** `findLandingRow` in `Standable.ts`; route the three callers.
 - **M4** one `layoutFile.ts`; fixes the torch-marker-drop bug.
 - **M5** derive kind unions from registries.
 - **X1, X2, X3, X4, X6** low-risk file merges/deletions (keep tests green).
-- **Structure:** create `core/` and land **F1** (contracts) + **F2** (`Box`/`geometry`) here;
+- **Structure:** create `contracts/` and land **F1** (contracts) + **F2** (`Box`/`geometry`) here;
   move `RewardReveal` (**F3**); journal modules (**F4**) and the empty folder cleanup (**F6**)
   are independent and can land any time.
 - *Checkpoint: full test suite + build.*
@@ -1069,7 +1090,7 @@ can be reordered, but the dependencies noted must hold.
 - **E1** `TransientEffect` registry + single collection/pass.
 - **E2/M9** `SpeechBubble` (this is the abstraction the user asked for for tooltips);
   fold the hint pieces into one home (**F10**).
-- **E3** mushroom squash as an effect; **E4** timed-tile core shared with the effect expiry.
+- **E3** mushroom squash as an effect; **E4** timed-tile module shared with the effect expiry.
 - **Structure:** begin the `engine/render/` + `features/` split (**F7**) as these files move.
 - *Checkpoint: each migrated effect keeps its existing tests; add registry contract test.*
 
@@ -1114,8 +1135,8 @@ can be reordered, but the dependencies noted must hold.
 If we want one high-signal, low-risk starter that demonstrates the pattern and de-risks the
 rest, do **Phase 0 + Phase 1** together:
 
-1. `core/math.ts` (L4/L5) — tiny, pure, immediately removes ~15 duplicated sites.
-2. `core/` extraction of the shared contracts (F1) + break the `Box`/phase cycle (F2) — cheap,
+1. `contracts/math.ts` (L4/L5) — tiny, pure, immediately removes ~15 duplicated sites.
+2. `contracts/` extraction of the shared contracts (F1) + break the `Box`/phase cycle (F2) — cheap,
    and everything after it gets a sane home.
 3. `LightSource` (L2/L3, X5) — small surface area, high payoff, exercises the exact
    "abstract interface that torch and player both implement" the user described.
@@ -1141,8 +1162,9 @@ example (mushroom squash / hint tooltip behind an abstract speech bubble), and *
 - **Mappers**: is `LevelDef` the single parse artifact, or do we keep a distinct editor grid
   type and adapt at the boundary? (Affects M1.)
 - **Chest/CHEST_TYPE**: is a second chest kind actually planned? (Affects X7.)
-- **`core/` boundary**: does `PhysicsConfig` belong in `core/` (shared tuning) or `engine/`
-  (engine-owned)? Does `sprites/` belong in `core/` or `entities/`? (Affects F1/F2/F9.)
+- ✅ **`contracts/` boundary** (resolved by R-001): `PhysicsConfig` lives in `contracts/`
+  (shared tuning); `sprites/` stays in `entities/`. The shared layer is named `contracts/`.
+  (Affects F1/F2/F9.)
 - **`features/` boundary**: which `engine/` modules are "services" vs "features"? Is a
   feature-per-folder split worth it now, or only once E/P fold the machines together?
   (Affects F7.)

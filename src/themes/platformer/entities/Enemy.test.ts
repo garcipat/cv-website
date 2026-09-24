@@ -22,7 +22,7 @@ import { ENEMY_HIT_REACTION_SECONDS } from './enemies/shared';
 import { SLIME_GREEN_SHEET } from './sprites/sheets';
 import { frameSource } from './sprites/SpriteSheet';
 import type { SpriteDescriptor } from './sprites/SpriteSheet';
-import type { DrawContext } from '../engine/DrawContext';
+import type { DrawContext } from '../contracts/DrawContext';
 
 const ENEMY_FRAME_SIZE = SLIME_GREEN_SHEET.frameWidth;
 const GREEN_SPRITE = ENEMY_TYPES.slimeGreen.sprite;

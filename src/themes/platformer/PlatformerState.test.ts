@@ -70,7 +70,7 @@ import { mapCVDataToEnemies } from './level/EnemyMapper';
 import { toBlockState } from './entities/Block';
 import { computePotRenderPlan } from './entities/blocks/potRenderPlan';
 import { BLOCK_TYPES } from './entities/blocks';
-import { PHYSICS_CONFIG } from './engine/PhysicsConfig';
+import { PHYSICS_CONFIG } from './contracts/PhysicsConfig';
 import { currentCV } from '@/state/locale';
 import { MAX_HALF_HEARTS } from './entities/Health';
 import { tileToPixel, RENDERED_TILE_SIZE } from './level/Terrain';

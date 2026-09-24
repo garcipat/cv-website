@@ -1,7 +1,7 @@
 import type { SpriteDescriptor } from '../sprites/SpriteSheet';
 import type { ChestState } from '../Chest';
-import type { WorldType, Boxed } from '../WorldType';
-import type { Rect } from '../geometry';
+import type { WorldType, Boxed } from '../../contracts/WorldType';
+import type { Rect } from '../../contracts/geometry';
 
 /**
  * A chest's appearance, owned by its own module. Its two states are separate

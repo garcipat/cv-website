@@ -6,7 +6,7 @@ import {
   ENEMY_HIT_REACTION_SECONDS,
   type EnemyBaseConfig,
 } from './shared';
-import { isInvulnerable } from '../capabilities';
+import { isInvulnerable } from '../../contracts/capabilities';
 import { ENEMY_ANIMATIONS } from './EnemyAnimation';
 import { SLIME_PURPLE_SHEET, KEY_SHEET } from '../sprites/sheets';
 import type { SpriteDescriptor } from '../sprites/SpriteSheet';
@@ -15,8 +15,8 @@ import { spriteSheetHitbox } from './spriteSheetHitbox';
 import { patrolMovement } from './movement/patrol';
 import { RENDER_SCALE, RENDERED_TILE_SIZE } from '../../level/Terrain';
 import { KEY_FRAME_WIDTH, KEY_FRAME_HEIGHT } from '../KeyPickup';
-import type { DrawContext } from '../../engine/DrawContext';
-import { PHYSICS_CONFIG } from '../../engine/PhysicsConfig';
+import type { DrawContext } from '../../contracts/DrawContext';
+import { PHYSICS_CONFIG } from '../../contracts/PhysicsConfig';
 
 export interface SlimePurpleState extends BaseEnemyState {
   type: 'slimePurple';

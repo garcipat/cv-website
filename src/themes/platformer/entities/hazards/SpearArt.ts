@@ -1,4 +1,4 @@
-import type { Rect } from '../geometry';
+import type { Rect } from '../../contracts/geometry';
 import { RENDERED_TILE_SIZE } from '../../level/Terrain';
 
 /**

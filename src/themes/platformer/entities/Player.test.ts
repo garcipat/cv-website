@@ -17,8 +17,8 @@ import {
   PLAYER_HIT_REACTION_SECONDS,
 } from './Player';
 import type { PlayerState } from './Player';
-import type { Moving, SelfAnimated, Damageable } from './capabilities';
-import { isInvulnerable } from './capabilities';
+import type { Moving, SelfAnimated, Damageable } from '../contracts/capabilities';
+import { isInvulnerable } from '../contracts/capabilities';
 import { resolveCrouching } from '../engine/Crouch';
 import { spawnPlayerState } from '../PlatformerState';
 import { RENDER_SCALE } from '../level/Terrain';

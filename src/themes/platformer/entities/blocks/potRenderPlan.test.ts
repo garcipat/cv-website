@@ -6,7 +6,7 @@ import type { BlockState } from '../Block';
 import type { BlockPlacement } from '../../level/BlockMapper';
 import { RENDERED_TILE_SIZE, tileToPixel } from '../../level/Terrain';
 import { STATIC_OBJECTS_SHEET } from '../sprites/sheets';
-import { PHYSICS_CONFIG } from '../../engine/PhysicsConfig';
+import { PHYSICS_CONFIG } from '../../contracts/PhysicsConfig';
 
 function blockAt(kind: string, col: number, row: number, id = `${kind}-${col}-${row}`): BlockState {
   const { x, y } = tileToPixel(col, row);

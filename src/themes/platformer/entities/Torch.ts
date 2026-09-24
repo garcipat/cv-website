@@ -8,7 +8,17 @@
  * neighbouring torches flicker out of phase (spec FR-009).
  */
 
-import type { TorchStrength } from '../level/LevelData';
+/**
+ * A wall torch's light strength, `0`-`9`. `5` is the default
+ * (`DEFAULT_TORCH_STRENGTH`): a torch with no marker lights at today's radius,
+ * and the other values scale that radius linearly, so `0` is dark and `9` is
+ * roughly double.
+ *
+ * Owned here rather than in `level/LevelData.ts` so the whole torch module —
+ * type, constants, frame animation and validator — stays together and free of
+ * any `level/` dependency (the `level/ → engine/` edge R-001 removes).
+ */
+export type TorchStrength = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 
 /** Seconds each flame frame is held — a calm, visible sparkle (spec FR-002). */
 export const TORCH_FRAME_DURATION_SECONDS = 0.2;

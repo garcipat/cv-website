@@ -5,7 +5,7 @@ import { RENDERED_TILE_SIZE } from '../../level/Terrain';
 import { PLAYER_HIT_REACTION_SECONDS } from '../Player';
 import type { PlayerState } from '../Player';
 import type { HazardPlacement } from '../../level/HazardMapper';
-import type { Rect } from '../geometry';
+import type { Rect } from '../../contracts/geometry';
 
 const EMPTY_MASK: SpearMask = { width: 4, height: 4, pixels: new Uint8Array(16) };
 

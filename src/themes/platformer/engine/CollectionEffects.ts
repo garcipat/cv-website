@@ -1,4 +1,4 @@
-import type { CounterKey } from '../entities/CollectiblesSummary';
+import type { CounterPopupLabelKey } from '../contracts/counters';
 import type { EnemyTypeKey } from '../entities/enemies';
 import {
   EXPLOSION_SHEET,
@@ -158,15 +158,6 @@ export function flightEffectPosition(effect: FlightEffect): { x: number; y: numb
 export const COUNTER_POPUP_HOLD_SECONDS = 1.7;
 export const COUNTER_POPUP_FADE_SECONDS = 0.4;
 export const COUNTER_POPUP_DURATION_SECONDS = COUNTER_POPUP_HOLD_SECONDS + COUNTER_POPUP_FADE_SECONDS;
-
-/**
- * Which collectible counters get a TRANSIENT popup — derived from `CounterKey`
- * rather than spelled out again, so adding a sixth counter cannot leave this
- * union silently stale. `'chests'` is the one exclusion: chests already have a
- * PERMANENT HUD counter (see Renderer.ts's chest counter), so a chest reveal
- * deliberately bumps no popup.
- */
-export type CounterPopupLabelKey = Exclude<CounterKey, 'chests'>;
 
 /**
  * One "(icon) collected / total" counter popup for a single collectible

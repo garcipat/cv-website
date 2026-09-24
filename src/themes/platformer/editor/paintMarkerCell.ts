@@ -1,6 +1,6 @@
 import type { MarkerEntry, MarkerGrid } from '../level/LevelData';
 import { DEFAULT_HINT_ID, nextHintId } from '../level/HintCatalog';
-import { DEFAULT_TORCH_STRENGTH, nextTorchStrength } from '../engine/Torch';
+import { DEFAULT_TORCH_STRENGTH, nextTorchStrength } from '../entities/Torch';
 
 /**
  * Shifts a marker grid by a terrain growth, inserting empty rows/columns at

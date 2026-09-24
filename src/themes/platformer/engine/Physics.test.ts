@@ -1,5 +1,5 @@
 import { stepPlayerPhysics, checkPitFall, resolvePitFall, playerOnMushroomCap } from './Physics';
-import { PHYSICS_CONFIG } from './PhysicsConfig';
+import { PHYSICS_CONFIG } from '../contracts/PhysicsConfig';
 import { MAX_DT } from './GameLoop';
 import { parseLevel } from '../level/LevelParser';
 import type { LevelDef } from '../level/LevelData';

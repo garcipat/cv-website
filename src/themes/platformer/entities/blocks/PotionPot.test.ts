@@ -1,6 +1,6 @@
 import { potionPot } from './PotionPot';
 import { toBlockState } from '../Block';
-import { PHYSICS_CONFIG } from '../../engine/PhysicsConfig';
+import { PHYSICS_CONFIG } from '../../contracts/PhysicsConfig';
 import { WORLD_TILESET_SHEET } from '../sprites/sheets';
 import { frameSource } from '../sprites/SpriteSheet';
 

@@ -1,7 +1,7 @@
-import { createRewardReveal } from './RewardReveal';
+import { createRewardReveal } from './rewards';
 import { collectedFacts, activeEffects, activeCounterPopups } from '../PlatformerState';
-import { COLLECTION_TEXT_SLOT_COUNT, createSlotAllocator } from './CollectionEffects';
-import type { SlotAllocator } from './CollectionEffects';
+import { COLLECTION_TEXT_SLOT_COUNT, createSlotAllocator } from '../engine/CollectionEffects';
+import type { SlotAllocator } from '../engine/CollectionEffects';
 import type { CollectedFact } from '../types';
 
 const factIn = (id: string, sectionId: CollectedFact['sectionId']): CollectedFact => ({

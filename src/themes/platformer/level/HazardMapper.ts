@@ -1,7 +1,6 @@
 import { tileToPixel } from './Terrain';
 import type { HazardFacing, HazardKind } from './LevelParser';
-import type { FloorSpikePhase } from '../engine/FloorSpike';
-import type { FallingStalactitePhase } from '../engine/FallingStalactite';
+import type { FloorSpikePhase, FallingStalactitePhase } from '../entities/hazards/phases';
 
 export interface HazardPlacement {
   id: string;

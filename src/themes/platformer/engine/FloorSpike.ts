@@ -1,15 +1,4 @@
-/**
- * A floor spike's cycle phase (spec.md's Key Entities). `'atRest'` is the
- * only phase with no tracked timer entry at all — everything else is driven
- * by elapsed time since arming, same shape as `PlacedBomb.ts`'s
- * `fuseElapsed`. `'delay'` and `'atRest'` render identically (the ground
- * tell only) but are distinct states so a second contact during the delay
- * is a no-op rather than a fresh trigger (spec FR-008). `'fullExtend'`
- * covers both the spec's "full-extend" and "holding" phases — both are
- * hazardous and render identically, so nothing observable distinguishes
- * them (see this plan's Architecture Decisions §1).
- */
-export type FloorSpikePhase = 'atRest' | 'delay' | 'warning' | 'fullExtend' | 'retracting';
+import type { FloorSpikePhase, FloorSpikeTimerState } from '../entities/hazards/phases';
 
 /** Seconds between first contact and the warning pose appearing (FR-003/004). */
 export const FLOOR_SPIKE_DELAY_SECONDS = 0.6;
@@ -22,14 +11,6 @@ export const FLOOR_SPIKE_RETRACT_SECONDS = 0.3;
 /** Total cycle length — once elapsed reaches this, the tile is at rest again. */
 export const FLOOR_SPIKE_CYCLE_SECONDS =
   FLOOR_SPIKE_DELAY_SECONDS + FLOOR_SPIKE_WARNING_SECONDS + FLOOR_SPIKE_FULL_EXTEND_SECONDS + FLOOR_SPIKE_RETRACT_SECONDS;
-
-/** One floor spike's live timer. Presence in the states array means its
- *  cycle is running; absence means at rest and triggerable. */
-export interface FloorSpikeTimerState {
-  id: string;
-  /** Seconds since this tile was armed. */
-  elapsed: number;
-}
 
 /** Arms `id`'s cycle if it isn't already running — a no-op re-contact during
  *  an in-progress cycle (spec FR-008), matching `startMushroomSquash`'s

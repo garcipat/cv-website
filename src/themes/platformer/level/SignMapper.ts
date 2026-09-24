@@ -1,5 +1,5 @@
 import { tileToPixel, RENDERED_TILE_SIZE } from './Terrain';
-import type { Box } from '../engine/Collision';
+import type { Box } from '../contracts/geometry';
 import type { SignDef, HintId } from '../types';
 
 export interface SignPlacement extends SignDef {
