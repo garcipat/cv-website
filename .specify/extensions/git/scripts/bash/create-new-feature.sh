@@ -279,8 +279,8 @@ cd "$REPO_ROOT"
 
 # Auto-extract feature ID from description if not explicitly provided
 if [ -z "$FEATURE_ID" ] && [ -n "$FEATURE_DESCRIPTION" ]; then
-    if echo "$FEATURE_DESCRIPTION" | grep -Eq '^(F|S|O)-[0-9]{3,}[[:space:]:]'; then
-        FEATURE_ID=$(echo "$FEATURE_DESCRIPTION" | grep -Eo '^(F|S|O)-[0-9]{3,}')
+    if echo "$FEATURE_DESCRIPTION" | grep -Eq '^(F|S|O|R)-[0-9]{3,}[[:space:]:]'; then
+        FEATURE_ID=$(echo "$FEATURE_DESCRIPTION" | grep -Eo '^(F|S|O|R)-[0-9]{3,}')
     fi
 fi
 
@@ -330,8 +330,8 @@ if [ -n "${GIT_BRANCH_NAME:-}" ]; then
     BRANCH_NAME="$GIT_BRANCH_NAME"
     # Extract FEATURE_NUM from the branch name if it starts with a feature ID or numeric prefix
     # Check patterns in order: F-XXX, timestamp, numeric
-    if echo "$BRANCH_NAME" | grep -Eq '^(F|S|O)-[0-9]{3,}-'; then
-        FEATURE_NUM=$(echo "$BRANCH_NAME" | grep -Eo '^(F|S|O)-[0-9]{3,}')
+    if echo "$BRANCH_NAME" | grep -Eq '^(F|S|O|R)-[0-9]{3,}-'; then
+        FEATURE_NUM=$(echo "$BRANCH_NAME" | grep -Eo '^(F|S|O|R)-[0-9]{3,}')
         BRANCH_SUFFIX="${BRANCH_NAME#${FEATURE_NUM}-}"
     elif echo "$BRANCH_NAME" | grep -Eq '^[0-9]{8}-[0-9]{6}-'; then
         FEATURE_NUM=$(echo "$BRANCH_NAME" | grep -Eo '^[0-9]{8}-[0-9]{6}')

@@ -7,7 +7,7 @@ description: Use when a bug, defect, regression, crash, error, or unexpected beh
 
 ## Overview
 
-Files a bug as a GitHub Issue on `github.com/garcipat/cv-website`. Every bug gets the `bug` label plus **exactly one** `area:*` label. Bugs get **no** F/S/O feature ID — those are reserved for features.
+Files a bug as a GitHub Issue on `github.com/garcipat/cv-website`. Every bug gets the `bug` label plus **exactly one** `area:*` label. Bugs get **no** F/S/O/R feature ID — those are reserved for features and refactors.
 
 ## Prerequisites
 

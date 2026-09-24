@@ -9,7 +9,7 @@ description: Use when capturing a new feature idea in the cv-website project —
 
 Feature ideas live in **GitHub Issues**, which are the source of truth. Capturing an idea means creating an issue with the right ID, labels, and dependency line, then keeping the Mermaid dependency diagram in `docs/Features.md` in sync.
 
-- **Feature IDs** (`F-NNN` core, `S-NNN` should-have, `O-NNN` optional) appear in **issue titles**: `O-017: Platformer Wall Vines`.
+- **Feature IDs** (`F-NNN` core, `S-NNN` should-have, `O-NNN` optional, `R-NNN` refactoring) appear in **issue titles**: `O-017: Platformer Wall Vines`.
 - **Dependencies** are recorded in the **issue body** as an unordered list under `## Dependencies`.
 - The **issue body is the home of the idea** — its full content (design notes, open questions, sub-sections) goes under `## Details`. There is no separate idea document: migrate any existing `docs/ideas/*.md` content into the issue and delete the doc.
 - `docs/Features.md` holds **only** the Mermaid dependency diagram.
@@ -19,7 +19,7 @@ Feature ideas live in **GitHub Issues**, which are the source of truth. Capturin
 - `gh` is installed and authenticated (`gh auth status`).
 - On Windows, if `gh` is not on PATH, use the full path: `& "C:\Program Files\GitHub CLI\gh.exe"`.
 - Issues are enabled on the repo.
-- Labels come from `docs/GitHubLabels.md` — the canonical taxonomy. This skill uses `feature`, one of `tier:core` / `tier:should` / `tier:optional`, and one `area:*` label.
+- Labels come from `docs/GitHubLabels.md` — the canonical taxonomy. This skill uses `feature`, one of `tier:core` / `tier:should` / `tier:optional`, and one `area:*` label. For refactoring work it uses `refactor` + `tier:should` + one `area:*` label instead of `feature`.
 
 ## Workflow
 
@@ -45,6 +45,13 @@ Use the `question` tool. Ask only what you cannot infer. Typical questions:
 
 > What should this feature be called? (short, imperative — e.g. "Platformer Wall Vines")
 
+**Work type** _(options)_ → maps to the ID prefix and the primary label
+
+> Is this a new feature, or a refactor of already-shipped code?
+>
+> - Feature → `F`/`S`/`O` prefix + `feature` label (then answer the Tier question below)
+> - Refactor of shipped code → `R` prefix + `refactor` label; no behaviour change, and the tier defaults to `tier:should`
+
 **Area** _(options + free text)_ → maps to the `area:*` label
 
 > Which area does this feature belong to?
@@ -55,7 +62,7 @@ Use the `question` tool. Ask only what you cannot infer. Typical questions:
 > - Content (`area:content`)
 > - Other (describe — check `docs/GitHubLabels.md` for the closest existing label)
 
-**Tier** _(options)_ → maps to the `tier:*` label and the ID prefix
+**Tier** _(options; features only — refactors default to `tier:should`)_ → maps to the `tier:*` label and the ID prefix
 
 > What tier is this feature?
 >
@@ -114,8 +121,17 @@ gh issue create --repo garcipat/cv-website `
 ```
 
 - Title: `X-NNN: Feature Name`
-- Labels: `feature` + exactly one `tier:*` + exactly one `area:*`
+- Labels: for features, `feature` + exactly one `tier:*` + exactly one `area:*`; for refactors, `refactor` + `tier:should` + exactly one `area:*`
 - `--label` may be repeated (shown above) or comma-separated.
+
+Refactor example:
+
+```powershell
+gh issue create --repo garcipat/cv-website `
+  --title "R-003: Platformer Abstract Light Sources" `
+  --label refactor --label tier:should --label area:platformer `
+  --body-file "$env:TEMP\feature-body.md"
+```
 
 ### 6. Update the Mermaid diagram in `docs/Features.md`
 
@@ -179,8 +195,10 @@ If no class line exists for that category yet, append one:
 | Putting the ID in the body instead of the title                | IDs go in titles: `O-017: Feature Name`                                                                        |
 | Forgetting to add the node to the Mermaid diagram              | Always do steps 6A-6C — the diagram must stay in sync                                                           |
 | Using the wrong zero-padding                                   | Always three digits: `S-001`, `O-001` — not `S-1` or `O-1`                                                      |
-| Wrong prefix for the tier                                      | F = `tier:core`, S = `tier:should`, O = `tier:optional`                                                         |
-| Missing or freeform labels                                     | Use `feature` + one `tier:*` + one `area:*` from `docs/GitHubLabels.md`                                         |
+| Wrong prefix for the tier                                      | F = `tier:core`, S = `tier:should`, O = `tier:optional`, R = `refactor`                                        |
+| Missing or freeform labels                                     | Use `feature` + one `tier:*` + one `area:*` (or `refactor` + `tier:should` + one `area:*`) from `docs/GitHubLabels.md` |
+| Using an `R-` prefix for a new feature, or `F`/`S`/`O` for a refactor | `R-*` is only for restructuring already-shipped code; new behaviour uses `F`/`S`/`O`                    |
+| A refactor issue carrying the `feature` label                  | `R-*` issues use `refactor` (not `feature`) + `tier:should` + one `area:*`                                      |
 | Leaving `## Dependencies` empty or comma-separated             | Always include it as an unordered list, one `- ID: Title (#number)` per line, or `- None`                   |
 | Dependency listed without `#number`                            | Every dependency needs `ID: Title (#number)` — the `#number` is what GitHub cross-references               |
 | Dependency listed as only `#12`                                | Add the ID and title as text too — GitHub shows only the number, the title is on hover                      |

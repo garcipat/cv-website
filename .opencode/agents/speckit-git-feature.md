@@ -43,8 +43,8 @@ Determine the branch numbering strategy by checking configuration in this order:
 
 If the strategy is `feature-id`:
 
-1. **Extract or ask for the feature ID** — If the user input contains a feature ID in the format `F-NNN`, `S-NNN`, or `O-NNN` (e.g., `F-001: Create Bingo List`), extract it. Otherwise, ask the user: "What is the feature ID? (e.g., F-008)"
-2. **Validate** the feature ID matches one of: `F-NNN` (Core), `S-NNN` (Should Have), `O-NNN` (Optional)
+1. **Extract or ask for the feature ID** — If the user input contains a feature ID in the format `F-NNN`, `S-NNN`, `O-NNN`, or `R-NNN` (e.g., `F-001: Create Bingo List`), extract it. Otherwise, ask the user: "What is the feature ID? (e.g., F-008)"
+2. **Validate** the feature ID matches one of: `F-NNN` (Core), `S-NNN` (Should Have), `O-NNN` (Optional), `R-NNN` (Refactoring)
 3. **Pass `-FeatureId`** to the script alongside `-ShortName`
 
 ## Execution
