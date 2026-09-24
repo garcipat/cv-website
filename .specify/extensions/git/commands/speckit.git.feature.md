@@ -16,11 +16,12 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Feature ID Extraction
 
-Ask the user for the feature ID in format `F-NNN`, `S-NNN`, or `O-NNN` (where NNN is the feature number):
+Ask the user for the feature ID in format `F-NNN`, `S-NNN`, `O-NNN`, or `R-NNN` (where NNN is the feature number):
 
 - **F-NNN**: Core features (e.g., `F-008`)
 - **S-NNN**: Should Have features (e.g., `S-001`)
 - **O-NNN**: Optional features (e.g., `O-001`)
+- **R-NNN**: Refactoring work on already-shipped code (e.g., `R-003`)
 
 If the feature ID is provided in the user input or feature description, extract it. Otherwise, ask the user: "What is the feature ID? (e.g., F-008)"
 
