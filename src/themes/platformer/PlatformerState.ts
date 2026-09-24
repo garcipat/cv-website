@@ -48,7 +48,7 @@ import {
   currentLevel,
   TORCH_TILES,
   LADDER_BUNDLE_TILES,
-} from './level/level';
+} from './state/levelSession';
 import {
   MAX_DARKNESS,
   DARKNESS_FADE_SECONDS,

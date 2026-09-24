@@ -48,9 +48,16 @@ export const BUILT_IN_LEVELS: readonly LevelEntry[] = [
  * up after the dev server picks the new module up — which is exactly what the
  * Save dialog tells the developer (see `editor/saveLevelFile.ts`).
  */
+const BUILT_IN_IDS = new Set(BUILT_IN_LEVELS.map((entry) => entry.id));
+
 export const LEVELS: readonly LevelEntry[] = [
   ...BUILT_IN_LEVELS,
-  ...parseLevelModules(import.meta.glob('./levels/*.json', { eager: true })),
+  ...parseLevelModules(import.meta.glob('./levels/*.json', { eager: true })).filter(
+    // A saved file can never shadow a built-in id: `main`'s own data now lives
+    // in `levels/main.json` (imported by `level.ts`), but `main` stays a
+    // built-in entry so it keeps its first position and its unremovable slot.
+    (entry) => !BUILT_IN_IDS.has(entry.id),
+  ),
 ];
 
 export const findLevel = (id: string): LevelEntry | undefined =>
