@@ -40,7 +40,7 @@ Stop if the current branch is `main`, or if the working tree has uncommitted cha
 
 ### 2. Resolve the linked issue
 
-Feature and bug branches are named after their issue ID (`O-017-merge-mixed-pots`, `F-014-ide-theme`). Extract the `[FSO]-\d{3}` prefix from the branch name, then find the issue:
+Feature and bug branches are named after their issue ID (`O-017-merge-mixed-pots`, `F-014-ide-theme`, `R-003-abstract-lights`). Extract the `[FSOR]-\d{3}` prefix from the branch name, then find the issue:
 
 ```powershell
 & "C:\Program Files\GitHub CLI\gh.exe" issue list `

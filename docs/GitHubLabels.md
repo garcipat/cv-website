@@ -6,6 +6,7 @@ These are the canonical labels used for feature ideas and bugs on the GitHub rep
 | ----- | ----- | ----------- |
 | `idea` | `#FBCA04` | Rough idea, not yet accepted as a feature |
 | `feature` | `#0E8A16` | Accepted feature to build |
+| `refactor` | `#8250DF` | Restructuring already-shipped code — no behaviour change (`R-NNN`) |
 | `bug` | `#D73A4A` | Something isn't working |
 | `documentation` | `#0075CA` | Improvements or additions to documentation |
 | `tier:core` | `#B60205` | Must-have feature |
@@ -22,6 +23,7 @@ These are the canonical labels used for feature ideas and bugs on the GitHub rep
 ```bash
 gh label create idea --color FBCA04 --description "Rough idea, not yet accepted as a feature" --force
 gh label create feature --color 0E8A16 --description "Accepted feature to build" --force
+gh label create refactor --color 8250DF --description "Restructuring already-shipped code — no behaviour change (R-NNN)" --force
 gh label create bug --color D73A4A --description "Something isn't working" --force
 gh label create documentation --color 0075CA --description "Improvements or additions to documentation" --force
 gh label create tier:core --color B60205 --description "Must-have feature" --force

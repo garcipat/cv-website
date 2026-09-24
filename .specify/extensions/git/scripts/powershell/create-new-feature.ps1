@@ -232,7 +232,7 @@ $specsDir = Join-Path $repoRoot 'specs'
 
 # Auto-extract feature ID from description if not explicitly provided
 if (-not $FeatureId -and $featureDesc) {
-    if ($featureDesc -match '^([F|S|O]-\d{3,})[\s:]') {
+    if ($featureDesc -match '^([F|S|O|R]-\d{3,})[\s:]') {
         $FeatureId = $matches[1]
         Write-Verbose "Auto-detected feature ID from description: $FeatureId"
     }
@@ -283,7 +283,7 @@ if ($env:GIT_BRANCH_NAME) {
     }
     # Extract FEATURE_NUM from the branch name if it starts with a numeric or feature ID prefix
     # Check patterns in order: F-XXX, timestamp, numeric
-    if ($branchName -match '^([F|S|O]-\d{3,})-') {
+    if ($branchName -match '^([F|S|O|R]-\d{3,})-') {
         $featureNum = $matches[1]
     } elseif ($branchName -match '^(\d{8}-\d{6})-') {
         $featureNum = $matches[1]

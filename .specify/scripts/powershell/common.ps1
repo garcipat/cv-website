@@ -153,24 +153,24 @@ function Test-FeatureBranch {
     $Branch = Get-SpecKitEffectiveBranchName $raw
     
     # Accept multiple branch name patterns:
-    # 1. Feature ID: F-NNN-feature-name, S-NNN-feature-name, O-NNN-feature-name
+    # 1. Feature ID: F-NNN-feature-name, S-NNN-feature-name, O-NNN-feature-name, R-NNN-feature-name
     # 2. Sequential prefix: 001-feature-name, 1234-feature-name
     # 3. Timestamp prefix: 20260319-143022-feature-name
-    $isFeatureId = ($Branch -match '^[FSO]-\d{3,}-')
+    $isFeatureId = ($Branch -match '^[FSOR]-\d{3,}-')
     $hasMalformedTimestamp = ($Branch -match '^[0-9]{7}-[0-9]{6}-') -or ($Branch -match '^(?:\d{7}|\d{8})-\d{6}$')
     $isSequential = ($Branch -match '^[0-9]{3,}-') -and (-not $hasMalformedTimestamp)
     $isTimestamp = ($Branch -match '^\d{8}-\d{6}-')
     
     if (-not ($isFeatureId -or $isSequential -or $isTimestamp)) {
         [Console]::Error.WriteLine("ERROR: Not on a feature branch. Current branch: $raw")
-        [Console]::Error.WriteLine("Feature branches should be named like: F-021-player-scoring, 001-feature-name, 1234-feature-name, or 20260319-143022-feature-name")
+        [Console]::Error.WriteLine("Feature branches should be named like: F-021-player-scoring, R-003-abstract-lights, 001-feature-name, 1234-feature-name, or 20260319-143022-feature-name")
         return $false
     }
     return $true
 }
 
 # Resolve specs/<feature-dir> by numeric/timestamp prefix (mirrors scripts/bash/common.sh find_feature_dir_by_prefix).
-# Also supports direct feature ID matching (F-NNN-*, S-NNN-*, O-NNN-*)
+# Also supports direct feature ID matching (F-NNN-*, S-NNN-*, O-NNN-*, R-NNN-*)
 function Find-FeatureDirByPrefix {
     param(
         [Parameter(Mandatory = $true)][string]$RepoRoot,
@@ -180,8 +180,8 @@ function Find-FeatureDirByPrefix {
     $branchName = Get-SpecKitEffectiveBranchName $Branch
 
     $prefix = $null
-    # Match feature ID pattern (F-NNN-*, S-NNN-*, O-NNN-*)
-    if ($branchName -match '^([FSO]-\d{3,})-') {
+    # Match feature ID pattern (F-NNN-*, S-NNN-*, O-NNN-*, R-NNN-*)
+    if ($branchName -match '^([FSOR]-\d{3,})-') {
         $prefix = $Matches[1]
     } elseif ($branchName -match '^(\d{8}-\d{6})-') {
         $prefix = $Matches[1]
