@@ -3,7 +3,7 @@ import type { CollectiblePlacement } from '../../level/CollectibleMapper';
 import { COIN_SHEET } from '../sprites/sheets';
 import { frameSource } from '../sprites/SpriteSheet';
 import { revealedFactCountFor } from '../../level/SkillFactPacing';
-import type { PickupReveal } from '../../contracts/PickupOutcome';
+import type { PickupReveal } from '../../contracts/Pickup';
 import { RENDER_SCALE } from '../../level/Terrain';
 
 /** `coin.png` is a 192x16 sheet: 12 frames of 16x16, one spin cycle. */

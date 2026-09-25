@@ -47,12 +47,12 @@ Single self-contained theme tree at `src/themes/platformer/` (per plan.md). No n
 
 **Purpose**: The shared `contracts/` vocabulary every pickup kind and the generic engine import downward. No user-story work can start until these exist.
 
-**⚠️ CRITICAL**: `contracts/` MUST stay a strict leaf — import only `./PickupKind` (in `Pickup.ts`) and `../types` + `./counters` (in `PickupOutcome.ts`). No `contracts/ → level/` or `contracts/ → entities/` edge (FR-008/SC-007).
+**⚠️ CRITICAL**: `contracts/` MUST stay a strict leaf — `contracts/Pickup.ts` imports only `./PickupKind`, `../types` and `./counters`. No `contracts/ → level/` or `contracts/ → entities/` edge (FR-008/SC-007).
 
 - [X] T003 [P] Write the type-level contract test `src/themes/platformer/contracts/Pickup.test.ts` (tests-first) asserting `Pickup` exposes `id: string`, `x: number`, `y: number`, `kind: PickupKind`, `collected: boolean`, and that `PickupGroups = Partial<Record<PickupKind, readonly Pickup[]>>` accepts a partial map.
-- [X] T004 [P] Write the type-level contract test `src/themes/platformer/contracts/PickupOutcome.test.ts` (tests-first) asserting `PickupCollisionContext` carries `playerHitPoints` + optional `capacity` and **no** `collectedIds`; `PickupContext` carries `pool`/`total`/`collectedBefore`; `PickupOutcome` carries only consequences (`facts`/`counterKey`/`heal`/`bombs`/`bankKey`/`flyingText`) with **no** `self` and no `disposition`.
+- [X] T004 [P] Write the type-level contract test in `src/themes/platformer/contracts/Pickup.test.ts` (tests-first; the outcome-contract describes are merged into the `Pickup` contract test after the module merge) asserting `PickupCollisionContext` carries `playerHitPoints` + optional `capacity` and **no** `collectedIds`; `PickupContext` carries `pool`/`total`/`collectedBefore`; `PickupOutcome` carries only consequences (`facts`/`counterKey`/`heal`/`bombs`/`bankKey`/`flyingText`) with **no** `self` and no `disposition`.
 - [X] T005 [P] Create `src/themes/platformer/contracts/Pickup.ts` with the `Pickup` base (`id`, `x`, `y`, `kind: PickupKind`, `collected: boolean`) and `PickupGroups`; leaf (imports only `./PickupKind`).
-- [X] T006 [P] Create `src/themes/platformer/contracts/PickupOutcome.ts` with `PickupReveal`, `PickupCollisionContext`, `PickupContext`, `PickupOutcome`; no `PickupDisposition`, no `self`, no `collectedIds`; leaf (imports only `../types` and `./counters`).
+- [X] T006 [P] Create `src/themes/platformer/contracts/Pickup.ts` with the `Pickup` model + `PickupGroups` and the collect-outcome vocabulary (`PickupReveal`, `PickupCollisionContext`, `PickupContext`, `PickupOutcome`); no `PickupDisposition`, no `self`, no `collectedIds`; leaf (imports only `./PickupKind`, `../types` and `./counters`). (Post-implementation: the outcome vocabulary was merged into `Pickup.ts`, so no separate `PickupOutcome.ts` exists.)
 
 **Checkpoint**: `contracts/` leaf vocabulary exists; user-story work can begin.
 

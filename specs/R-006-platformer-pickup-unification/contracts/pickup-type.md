@@ -63,7 +63,7 @@ dispatch under `strictFunctionTypes`, with no `any`.
 **Removed:** `isVisible`. Visibility is the shared `!state.collected`; there is no per-kind visibility
 special case (SC-008). The base `collected` flag is not a `PickupType` member — it lives on the state.
 
-## Outcome vocabulary — `contracts/PickupOutcome.ts` (leaf)
+## Outcome vocabulary — in `contracts/Pickup.ts` (leaf)
 
 ```ts
 export interface PickupReveal {

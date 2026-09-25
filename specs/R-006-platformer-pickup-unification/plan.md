@@ -203,10 +203,10 @@ top-level project is added; the change is confined to that tree.
 ```text
 src/themes/platformer/
 ├── contracts/
-│   ├── Pickup.ts                   # NEW — shared Pickup base (id, x, y, kind, collected)
-│   │                               #       + PickupGroups (leaf)
-│   ├── PickupOutcome.ts            # NEW — PickupReveal/PickupOutcome/PickupCollisionContext/
-│   │                               #       PickupContext (leaf; NO PickupDisposition, NO self)
+│   ├── Pickup.ts                   # NEW — shared Pickup model (id, x, y, kind, collected)
+│   │                               #       + PickupGroups + the outcome vocabulary
+│   │                               #       (PickupReveal/PickupCollisionContext/PickupContext/
+│   │                               #       PickupOutcome; leaf; NO PickupDisposition, NO self)
 │   ├── PickupKind.ts               # UNCHANGED — 'coin'|'fruit'|'key'|'heart'|'bomb' (FR-006: fruit stays)
 │   └── ... (capabilities, counters, DrawContext, geometry, Outcome, PhysicsConfig, SpriteLookup, WorldType)
 ├── entities/

@@ -78,7 +78,7 @@ import {
   playerHitbox,
 } from './engine/Collision';
 import type { PickupHit } from './engine/Collision';
-import type { PickupContext } from './contracts/PickupOutcome';
+import type { PickupContext } from './contracts/Pickup';
 import type { PickupKind } from './contracts/PickupKind';
 import {
   createPlacedBomb,

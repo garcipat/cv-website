@@ -9,7 +9,7 @@ import type {
   PickupCollisionContext,
   PickupContext,
   PickupOutcome,
-} from '../../contracts/PickupOutcome';
+} from '../../contracts/Pickup';
 
 /** The band `drawPickups` draws this kind in (see engine/Renderer.ts). */
 export type PickupDrawLayer = 'belowBlocks' | 'beforeEnemies' | 'afterEnemies';

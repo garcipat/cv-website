@@ -244,8 +244,8 @@ export interface PickupType<S extends Pickup = Pickup> extends WorldType<S>, Box
 `isVisible` is **removed**: visibility is the shared `!state.collected`, and there is no per-kind
 visibility special case (SC-008). `onPickup` is non-optional and returns only consequences.
 
-**Collect vocabulary** (`contracts/PickupOutcome.ts`, leaf-safe — imports only `CollectedFact` from
-`../types` and `CounterPopupLabelKey` from `./counters`; it does NOT need `Pickup` any more because
+**Collect vocabulary** (co-located in `contracts/Pickup.ts`, leaf-safe — imports only `CollectedFact`
+from `../types` and `CounterPopupLabelKey` from `./counters`; it needs no separate module because
 there is no `self`):
 
 ```ts
@@ -291,7 +291,7 @@ counter/reward, heal, bomb/key banking, flying text) that a shared applier execu
 `BlockType.onHit` returning `RewardEffects`. The coin's dynamic fact pacing stays in `Coin.ts`
 (`onPickup` calls `level/SkillFactPacing`'s `revealedFactCountFor` with
 `ctx.pool`/`ctx.total`/`ctx.collectedBefore`) rather than leaking pacing into the page.
-`PickupCollisionContext` carries primitives only (no `PlayerState`) so `contracts/PickupOutcome.ts`
+`PickupCollisionContext` carries primitives only (no `PlayerState`) so `contracts/Pickup.ts`
 stays a leaf (R-001 SC-007).
 
 **Per-kind module table** (the concrete values the merged modules implement):
@@ -611,8 +611,8 @@ with `collected: true` and skipped by both generic paths, and (b) a collected ba
 
 ## R11 — Layer and constitution re-check
 
-- `contracts/Pickup.ts` imports only `./PickupKind`; `contracts/PickupOutcome.ts` imports only
-  `../types` (`CollectedFact`) and `./counters` (`CounterPopupLabelKey`) — no
+- `contracts/Pickup.ts` imports only `./PickupKind`, `../types` (`CollectedFact`) and `./counters`
+  (`CounterPopupLabelKey`) — no
   `engine/`/`entities/`/`level/`/state import, so `contracts/` remains a strict leaf (R-001 FR-002,
   SC-007/FR-008).
 - No new `level/ → engine/` edge: `level/CollectibleMapper` now imports `contracts/Pickup` (downward),

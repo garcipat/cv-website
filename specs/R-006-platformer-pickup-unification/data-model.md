@@ -47,7 +47,7 @@ export interface CollectiblePlacement extends Pickup { kind: 'coin'; }
 emits `{ id, kind: 'coin', x, y, collected: false }`. The dormant placed-fruit path stays retired (no
 fruit variant/branch/marker field).
 
-### Collect outcome vocabulary — `contracts/PickupOutcome.ts` (NEW, leaf)
+### Collect outcome vocabulary — in `contracts/Pickup.ts` (leaf)
 
 | Type | Shape | Consumer |
 | --- | --- | --- |
@@ -184,7 +184,7 @@ entries' own `collected` flags, and `coinsCollectedSoFar` becomes
 
 ## 6. Module map (created / changed / deleted)
 
-- **Created:** `contracts/Pickup.ts`, `contracts/PickupOutcome.ts`.
+- **Created:** `contracts/Pickup.ts` (the `Pickup` model + `PickupGroups` + the collect-outcome vocabulary).
 - **Merged (state into view):** `entities/pickups/{Coin,Fruit,Key,Heart,Bomb}.ts`.
 - **Deleted:** `entities/{Fruit,Coin,KeyPickup,HeartPickup,BombPickup}.ts` (+ their top-level tests,
   relocated).

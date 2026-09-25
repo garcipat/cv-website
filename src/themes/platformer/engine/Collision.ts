@@ -30,7 +30,7 @@ import type { SignHintId } from '../level/HintCatalog';
 import { PICKUP_TYPES } from '../entities/pickups';
 import type { Pickup, PickupGroups } from '../contracts/Pickup';
 import type { PickupKind } from '../contracts/PickupKind';
-import type { PickupCollisionContext } from '../contracts/PickupOutcome';
+import type { PickupCollisionContext } from '../contracts/Pickup';
 import { strongerBounce, type ContactSide } from '../contracts/Outcome';
 import type { Box } from '../contracts/geometry';
 
