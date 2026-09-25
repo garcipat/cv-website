@@ -6,6 +6,7 @@ cv-website/
 │   ├── Architecture.md            # Tech stack, data flow, key patterns
 │   ├── CodingGuidelines.md        # Naming conventions, component structure
 │   ├── Features.md                # Feature list, status, dependency diagram
+│   ├── Patterns.md                # Recurring problems and the solutions we reuse
 │   ├── RepositoryStructure.md     # This file
 │   └── TestingGuide.md            # Test setup, patterns, coverage targets
 ├── public/                        # Static assets served at root (favicon, robots.txt)

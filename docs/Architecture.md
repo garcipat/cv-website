@@ -113,6 +113,8 @@ src/
 
 ## Key Patterns
 
+Deep problem → solution entries live in [Patterns](Patterns.md).
+
 - **Signals over Context**: Preact Signals for all shared state — no React Context, no prop drilling, minimal re-renders
 - **Theme-as-layout**: Each theme is a self-contained layout component tree. Tailwind is used within each theme, never for cross-theme style switching. Language toggle and theme switcher are rendered by each theme in its own native style (IDE: sidebar/status bar, Terminal: commands, 3D Room: floating controls)
 - **Typed data, presentational components**: Data flows from signals — components don't fetch or transform data
