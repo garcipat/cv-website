@@ -138,6 +138,7 @@ import {
   ENEMY_EYE_SIZE_PX,
   ENEMY_EYE_GAP_PX,
   FOG_TINT_RGB,
+  FOG_DENSITY,
   FOG_PUFF_PLATEAU,
   fogPuffAt,
   fogPeekStrengthAt,
@@ -1172,7 +1173,7 @@ export function drawFog(
 
       const puff = fogPuffAt(col, row, worldElapsed);
       const peek = playerPosition ? fogPeekStrengthAt(puff.x, puff.y, playerPosition) : 0;
-      const puffAlpha = fogLevel * (1 - peek);
+      const puffAlpha = fogLevel * FOG_DENSITY * (1 - peek);
       if (puffAlpha <= 0) continue;
 
       const screenX = puff.x + originX;

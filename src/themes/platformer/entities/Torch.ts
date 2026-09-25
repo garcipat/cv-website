@@ -137,7 +137,7 @@ export interface TorchLight {
 export const TORCH_LIGHT_RADIUS_PX = 3.5 * 32;
 
 /** Pulse depth as a fraction of the light radius (FR-013, SC-007). */
-export const TORCH_PULSE_AMPLITUDE = 0.02;
+export const TORCH_PULSE_AMPLITUDE = 0.05;
 
 /**
  * Seconds per full pulse breath. Deliberately much slower than the torch's

@@ -52,13 +52,21 @@ export const DARKNESS_FADE_SECONDS = 0.4;
 export const FOG_TINT_RGB = '92, 108, 122';
 
 /**
+ * Fog density: an alpha multiplier applied to every puff, so the bank's
+ * thickness is one knob independent of its radius and of `fogLevel`'s darkness
+ * ramp. Below `1` it is a thinner haze that lets more of the world read
+ * through.
+ */
+export const FOG_DENSITY = 0.88;
+
+/**
  * A fog puff's radius, in rendered pixels — well over a full tile so
  * neighbouring puffs overlap generously and read as one continuous bank of
- * fog rather than a row of separate dots, and bleed a little into whatever
- * clear cell sits next to a cave-family one instead of stopping dead at the
- * grid line.
+ * fog rather than a row of separate dots, and bleed into whatever clear cell
+ * sits next to a cave-family one instead of stopping dead at the grid line —
+ * nearly two tiles' radius, so the soft falloff reaches over adjacent tiles.
  */
-export const FOG_PUFF_RADIUS_PX = 1.35 * RENDERED_TILE_SIZE;
+export const FOG_PUFF_RADIUS_PX = 1.85 * RENDERED_TILE_SIZE;
 
 /**
  * How far into a puff's radius the fully-opaque plateau extends, as a

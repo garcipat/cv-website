@@ -132,6 +132,7 @@ import {
   ENEMY_EYE_BOB_PERIOD_SECONDS,
   ENEMY_EYE_BOB_AMPLITUDE_PX,
   FOG_TINT_RGB,
+  FOG_DENSITY,
   FOG_PUFF_PLATEAU,
   FOG_PUFF_RADIUS_PX,
   fogPuffAt,
@@ -3597,8 +3598,8 @@ describe('drawFog', () => {
     const puff = fogPuffAt(0, 0, 0);
     expect(raw.createRadialGradient).toHaveBeenCalledWith(puff.x, puff.y, 0, puff.x, puff.y, puff.radius);
     const gradient = raw.createRadialGradient.mock.results[0].value;
-    expect(gradient.addColorStop).toHaveBeenNthCalledWith(1, 0, `rgba(${FOG_TINT_RGB}, 0.5)`);
-    expect(gradient.addColorStop).toHaveBeenNthCalledWith(2, FOG_PUFF_PLATEAU, `rgba(${FOG_TINT_RGB}, 0.5)`);
+    expect(gradient.addColorStop).toHaveBeenNthCalledWith(1, 0, `rgba(${FOG_TINT_RGB}, ${0.5 * FOG_DENSITY})`);
+    expect(gradient.addColorStop).toHaveBeenNthCalledWith(2, FOG_PUFF_PLATEAU, `rgba(${FOG_TINT_RGB}, ${0.5 * FOG_DENSITY})`);
     expect(gradient.addColorStop).toHaveBeenNthCalledWith(3, 1, `rgba(${FOG_TINT_RGB}, 0)`);
     expect(raw.arc).toHaveBeenCalledWith(puff.x, puff.y, puff.radius, 0, Math.PI * 2);
     expect(raw.fill).toHaveBeenCalledTimes(1);
@@ -3739,7 +3740,7 @@ describe('drawFog', () => {
     drawFog(ctx, level, 0.5, 0, 0, 0, { x: puff.x + FOG_PEEK_RADIUS_PX * 10, y: puff.y });
 
     const gradient = raw.createRadialGradient.mock.results[0].value;
-    expect(gradient.addColorStop).toHaveBeenNthCalledWith(1, 0, `rgba(${FOG_TINT_RGB}, 0.5)`);
+    expect(gradient.addColorStop).toHaveBeenNthCalledWith(1, 0, `rgba(${FOG_TINT_RGB}, ${0.5 * FOG_DENSITY})`);
   });
 
   it('playerPartWayIntoThePeekRadius-drawsThePuffAtAThinnedAlpha', () => {
@@ -3751,7 +3752,7 @@ describe('drawFog', () => {
     drawFog(ctx, level, 0.5, 0, 0, 0, playerPosition);
 
     const peek = fogPeekStrengthAt(puff.x, puff.y, playerPosition);
-    const expectedAlpha = 0.5 * (1 - peek);
+    const expectedAlpha = 0.5 * FOG_DENSITY * (1 - peek);
     expect(peek).toBeGreaterThan(0);
     expect(peek).toBeLessThan(1);
     const gradient = raw.createRadialGradient.mock.results[0].value;
@@ -3765,7 +3766,7 @@ describe('drawFog', () => {
     drawFog(ctx, level, 0.5, 0, 0, 0);
 
     const gradient = raw.createRadialGradient.mock.results[0].value;
-    expect(gradient.addColorStop).toHaveBeenNthCalledWith(1, 0, `rgba(${FOG_TINT_RGB}, 0.5)`);
+    expect(gradient.addColorStop).toHaveBeenNthCalledWith(1, 0, `rgba(${FOG_TINT_RGB}, ${0.5 * FOG_DENSITY})`);
   });
 });
 

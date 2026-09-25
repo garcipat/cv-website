@@ -211,7 +211,10 @@ describe('torchGlowStrengthAt', () => {
   it('atOrBeyondThePulsedRadius-isZero', () => {
     const torch = makeTorch();
     const radius = TORCH_LIGHT_RADIUS_PX * torchPulseScale(torch, 0);
-    expect(torchGlowStrengthAt(torch, torch.x + radius, torch.y, 0)).toBe(0);
+    // The exact boundary is subject to float rounding (x + radius - x), so it
+    // only needs to be effectively zero there; strictly beyond is exact zero.
+    expect(torchGlowStrengthAt(torch, torch.x + radius, torch.y, 0)).toBeCloseTo(0, 12);
+    expect(torchGlowStrengthAt(torch, torch.x + radius * 1.000001, torch.y, 0)).toBe(0);
     expect(torchGlowStrengthAt(torch, torch.x + radius * 2, torch.y, 0)).toBe(0);
   });
 
