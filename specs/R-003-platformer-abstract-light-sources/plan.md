@@ -112,16 +112,7 @@ _GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 ```text
 specs/R-003-platformer-abstract-light-sources/
 ├── plan.md              # This file
-├── spec.md              # Input specification (already clarified)
-├── lighting-dependencies.md  # Before/after import + move map (design reference)
-├── checklists/requirements.md
-├── research.md          # Phase 0 output — decisions resolving the design
-├── data-model.md        # Phase 1 output — types, adapters, module relationships
-├── quickstart.md        # Phase 1 output — verification steps
-├── contracts/           # Phase 1 output — the new/changed interface contracts
-│   ├── lighting-source.md   # LightSource type + the two adapters
-│   └── draw-passes.md       # drawDarkness / localDarknessAt / drawEnemyEyes / preview
-└── tasks.md             # Phase 2 output (/speckit.tasks — NOT created by this command)
+└── spec.md              # Input specification
 ```
 
 ### Source Code (repository root)
@@ -162,8 +153,7 @@ src/themes/platformer/
 `DrawContext`). The torch light half joins its subject in `entities/Torch.ts`; the player light
 half and held-torch geometry join their subject in `entities/Player.ts`. `engine/Lighting.ts`
 keeps only what is not light-kind-specific (darkness easing/clamping, the cave-cell probe, fog,
-the enemy-eye math) plus the now-generic `localDarknessAt`. This matches the target graph in
-[lighting-dependencies.md](./lighting-dependencies.md) and keeps every R-001 edge direction
+the enemy-eye math) plus the now-generic `localDarknessAt`. This keeps every R-001 edge direction
 (`entities/ → contracts/`, `engine/ → entities/`, `engine/ → contracts/`; no `entities/ → engine/`).
 
 ## Complexity Tracking
