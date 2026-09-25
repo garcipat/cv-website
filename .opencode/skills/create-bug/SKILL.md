@@ -42,6 +42,13 @@ Title = the concise summary. Labels = `bug` plus the chosen `area:*` label.
 
 The issue body template lives in `.opencode/skills/create-bug/template.md`. Copy it, replace every `{{...}}` placeholder, write the result to a temp file, then pass it with `--body-file` — far more reliable than inline `--body` for multi-line bodies on Windows/PowerShell.
 
+> [!CAUTION]
+> **Never pass a multi-line body inline via `--body`.** When PowerShell hands an
+> argument to a native executable it flattens every embedded newline to a space, so
+> `gh issue create --body "line1`nline2"` silently produces a **single-line** issue body:
+> every `##` heading stops being a heading and every repro step collapses into one
+> paragraph. `--body-file` is the only supported way to create or edit an issue body.
+
 | Placeholder     | Fill with                                                          |
 | --------------- | ------------------------------------------------------------------ |
 | `{{SUMMARY}}`   | the one-line summary                                               |
@@ -72,6 +79,23 @@ Remove-Item -LiteralPath $tmp
 & "C:\Program Files\GitHub CLI\gh.exe" issue view <n> --json title,labels
 ```
 
+Then **read the body back** and confirm it kept its line structure — a collapsed body
+is the most common failure here, and it is silent:
+
+```powershell
+& "C:\Program Files\GitHub CLI\gh.exe" issue view <n> --json body --jq '.body' |
+  Set-Content "$env:TEMP\verify.md" -Encoding utf8
+```
+
+Read `$env:TEMP\verify.md` and check that the first line is exactly `## Summary`, that
+every `## ` heading starts its own line, and that each repro step is on its own line.
+A body of one or two lines is collapsed: rebuild it from the template and re-apply with
+`gh issue edit <n> --body-file <file>`.
+
+> Do not pipe `gh ... --json body` through the PowerShell console and inspect the
+> output directly: the console re-encodes UTF-8 as the OEM code page and turns
+> `→`, `—` and `§` into mojibake. Redirect to a file and read the file.
+
 ## Common Mistakes
 
 | Mistake                                          | Fix                                                                     |
@@ -81,7 +105,9 @@ Remove-Item -LiteralPath $tmp
 | Adding two or more `area:*` labels               | Pick the single best-fitting area                                       |
 | Vague repro steps ("it breaks")                  | Numbered, concrete steps starting from a clean state                    |
 | Omitting expected vs actual                      | Always state both, even if the difference seems obvious                 |
-| Using `--body` with a multi-line string          | Write to a temp file and use `--body-file`                              |
+| Using `--body` with a multi-line string          | PowerShell flattens newlines to spaces for native exes — the body lands as one line. Write to a temp file and use `--body-file`; if a body was already created collapsed, rebuild it and `gh issue edit <n> --body-file <file>` |
+| Not reading the body back after creating          | A collapsed body is silent — `gh` reports success. Read it back and check the headings and repro steps are on their own lines |
+| Reading `gh --json body` through the console      | The console mis-decodes UTF-8 (`→` → `ÔåÆ`). Redirect to a file and read the file |
 | `gh` not found on Windows                        | Use `& "C:\Program Files\GitHub CLI\gh.exe"`                            |
 
 ## Reference
