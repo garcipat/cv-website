@@ -13,7 +13,7 @@ import {
  * `entities/hazards/FloorSpike.ts`'s timer states (keyed by a `HazardPlacement`'s own
  * `id`), a crumbling floor tile has no placement list of its own — it's a
  * plain terrain `TileType` — so its live state is keyed by grid position
- * directly, the same convention `engine/MushroomSquash.ts` uses for cap
+ * directly, the same convention `entities/blocks/Mushroom.ts` uses for cap
  * dips. `'atRest'` has no tracked timer entry at all (state PRESENCE means
  * "cycle running", same as `FloorSpikeTimerState`); every other phase is a
  * pure function of elapsed time since arming.

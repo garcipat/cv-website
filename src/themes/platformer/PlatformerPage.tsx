@@ -50,7 +50,7 @@ import type { DrawContext } from './contracts/DrawContext';
 import { drawDebugOverlay, drawCameraDeadZoneOverlay } from './engine/DebugOverlay';
 import { createGameLoop } from './engine/GameLoop';
 import { stepPlayerPhysics, checkPitFall, resolvePitFall, playerOnMushroomCap } from './engine/Physics';
-import { startMushroomSquash } from './engine/MushroomSquash';
+import { startMushroomSquash } from './entities/blocks/Mushroom';
 import { PHYSICS_CONFIG } from './contracts/PhysicsConfig';
 import { stepEnemyHitReaction } from './entities/enemies/hitReaction';
 import { updateCamera, updateCameraY, initialCameraX, initialCameraY } from './engine/Camera';
@@ -930,7 +930,7 @@ export const PlatformerPage = () => {
         }
 
         // Enemy eye markers are drawn AFTER the darkness overlay so they stay
-        // visible through it (FR-015), but before the hint tooltip/UI below.
+        // visible through it (FR-015), but before the speech bubble/UI below.
         drawEnemyEyes(
           ctx,
           enemyStates.value,

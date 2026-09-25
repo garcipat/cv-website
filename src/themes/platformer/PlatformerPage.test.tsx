@@ -5541,7 +5541,7 @@ describe('PlatformerPage', () => {
       frameCallback!(32);
 
       // The render loop's refresh rewrites the bubble's stored text from the
-      // derived hintText signal in the same frame (no bubbleText context
+      // derived hintText signal in the same frame (no render-context text
       // lookup); the draw reads only state.text.
       expect(speechBubble()?.state.text).toBe(de.platformer.hints.bridgeDropThrough);
       changeLocale('en');

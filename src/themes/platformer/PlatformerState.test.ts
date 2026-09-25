@@ -59,7 +59,7 @@ import {
   hazardPlacements,
   hazardPlacementsForTick,
 } from './PlatformerState';
-import { MUSHROOM_SQUASH_DURATION_SECONDS } from './engine/MushroomSquash';
+import { MUSHROOM_SQUASH_DURATION_SECONDS } from './entities/blocks/Mushroom';
 import { FLOOR_SPIKE_CYCLE_SECONDS } from './entities/hazards/FloorSpike';
 import type { CollectedFact } from './types';
 import { mapCVDataToEnemies } from './level/EnemyMapper';

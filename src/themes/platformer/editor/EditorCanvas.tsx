@@ -238,7 +238,7 @@ const SIGN_BADGE_FONT_SIZE = 12;
 /** Draws each sign marker's hint code (`1`-`6`) in its tile's top-left
  *  corner — lets an author tell apart otherwise-identical signpost sprites
  *  at a glance while placing/cycling them (FR-028). Editor-only: the real
- *  game's own drawSigns/drawSignBubble never show this. */
+ *  game's own drawSigns never show this. */
 function drawSignBadges(
   ctx: CanvasRenderingContext2D,
   markers: MarkerGrid,

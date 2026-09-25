@@ -74,10 +74,11 @@ export function defaultExpired<S>(effect: TransientEffect<S>): boolean {
 }
 
 /**
- * Per-kind reset scope (FR-006). Only `fadeOutText` is `'death'`-scoped, so a
- * death/respawn clears exactly the labels it clears today; every other kind is
- * `'progress'`-scoped and survives until a full Reset Game. The registry reads
- * this map so the policy lives with the kind list rather than being respelled.
+ * Per-kind reset scope (FR-006). `fadeOutText` and `speechBubble` are
+ * `'death'`-scoped, so a death/respawn clears exactly the labels and the bubble
+ * it clears today; every other kind is `'progress'`-scoped and survives until a
+ * full Reset Game. The registry reads this map so the policy lives with the
+ * kind list rather than being respelled.
  */
 export const RESET_SCOPE_BY_KIND: Record<EffectKind, EffectResetScope> = {
   speechBubble: 'death',

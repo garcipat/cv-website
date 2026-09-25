@@ -55,7 +55,7 @@ describe('HintCatalog', () => {
   it('uiOnlyMessagesAreNotSignHintIds', () => {
     // A UI-only bubble message is a valid BubbleMessageId but must fail to
     // type-check as a SignHintId — the whole point of splitting the old mixed
-    // HintId (FR-007).
+    // sign-or-bubble id union (FR-007).
     // @ts-expect-error noKeyForChest is a bubble-only message, not a sign hint
     const uiOnly: SignHintId = 'noKeyForChest';
     expect(uiOnly).toBe('noKeyForChest');

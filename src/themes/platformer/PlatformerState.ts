@@ -7,8 +7,8 @@ import {
   applyDeployedLadders,
 } from './engine/DeployableLadder';
 import type { DeployableLadderState } from './engine/DeployableLadder';
-import { advanceMushroomSquashes } from './engine/MushroomSquash';
-import type { MushroomSquashState } from './engine/MushroomSquash';
+import { advanceMushroomSquashes } from './entities/blocks/Mushroom';
+import type { MushroomSquashState } from './entities/blocks/Mushroom';
 import {
   armFloorSpike,
   advanceFloorSpikes,

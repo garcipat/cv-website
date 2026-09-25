@@ -31,13 +31,15 @@ import {
   ropeLadderShaftPieces,
   COBWEB_CORNER_ENTRY,
   COBWEB_FLAT_ENTRY,
+} from './StaticObjectsCatalog';
+import {
   mushroomEntry,
   mushroomHasCap,
   MUSHROOM_CAP_SOURCE_HEIGHT,
   MUSHROOM_DECORATIVE_ENTRY,
-} from './StaticObjectsCatalog';
-import { mushroomSquashDipAt } from './MushroomSquash';
-import type { MushroomSquashState } from './MushroomSquash';
+  mushroomSquashDipAt,
+} from '../entities/blocks/Mushroom';
+import type { MushroomSquashState } from '../entities/blocks/Mushroom';
 import {
   revealedStepCount,
   shaftCellCount,
