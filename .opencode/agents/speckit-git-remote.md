@@ -3,9 +3,10 @@ description: Detect Git remote URL for GitHub integration
 mode: subagent
 ---
 
+
+
 <!-- Extension: git -->
 <!-- Config: .specify/extensions/git/ -->
-
 # Detect Git Remote URL
 
 Detect the Git remote URL for integration with GitHub services (e.g., issue creation).
