@@ -3,28 +3,18 @@
   "version": "1.0.11",
   "installed_at": "2026-04-22T06:13:28.692854+00:00",
   "files": {
-    ".specify/scripts/powershell/check-prerequisites.ps1": "bcb37804b0757c37799b65a9321c1d3fb7b7ddcab6703c55c5b9a142c9166bf1",
-    ".specify/scripts/powershell/setup-plan.ps1": "c13ec3f33330e74aa088979c69bf35fe641301aaa50b2c1203c10ce94bcad338",
-    ".specify/scripts/powershell/create-new-feature.ps1": "84227d4cde2af8ae7c854a2cbfb9145325cfce1be67f8018a63febcff8b1a272",
-    ".specify/scripts/powershell/common.ps1": "bedd97e2a4d0ba2344909f6dfe8d7fe87753fdb4a88d517254c8c8399e4ec155",
-    ".specify/templates/tasks-template.md": "34f46ceabc2b71bde55c680b017ab4d3cc165f8df4381dfc3d15b06670b72f0c",
-    ".specify/templates/plan-template.md": "101272fea52f48fae7a43fe18dab3cf3b4aad17b227563664ca0e4f05c085782",
-    ".specify/templates/checklist-template.md": "0ad704b60af2df817aee1c0a2ecc0e0304b271d2de34047df1c891735967033e",
-    ".specify/templates/spec-template.md": "39b81f3d17606bdffe0abd58e553758bf03e63b5a8741cd5c124a0388faac529",
-    ".specify/templates/constitution-template.md": "a4d7984ef21ecb37897570a5940cf42104cc26e1140a6bb599fd83978e4d104f",
+    ".specify/scripts/powershell/check-prerequisites.ps1": "95c43b2c210004be4e2e6da8d6b0e293fb95bc6a54bb7bcb0d92edbd55539d9b",
+    ".specify/scripts/powershell/setup-plan.ps1": "3b8173f1553bbf67ae021af949a29e2d3e3bb35805be95e4ba8d0ab83173c66f",
+    ".specify/scripts/powershell/create-new-feature.ps1": "916f79f0487151a2034cd2eb2aab2fc6fa12bc3e636cb35f311baf8c945902ab",
+    ".specify/scripts/powershell/common.ps1": "e354c24dece2f6537234c756f22227e7db189ade6bcaccbc4b9ca13c15706125",
+    ".specify/templates/tasks-template.md": "c731575d8099b3f871861186fbd1a592b51b2ba57fb99e1a0dab439ff6d5608f",
+    ".specify/templates/plan-template.md": "5ef0e4c97b36e9f91372dc6eb8e5a7e515af8958cf1a9286e43a1ebd9bd48540",
+    ".specify/templates/checklist-template.md": "3f4124a13ffbc0c2d8e979d9a08248f29ce53cc6c324a8303a6ae0d231b78836",
+    ".specify/templates/spec-template.md": "3945437fc35cd30a5b2bf7beea680337c3516826d3efa5a6b92c4a7eca1ba28e",
+    ".specify/templates/constitution-template.md": "ce7549540fa45543cca797a150201d868e64495fdff39dc38246fb17bd4024b3",
     ".specify/scripts/powershell/resolve-template.ps1": "e49c565a09902e4ebd4b5a51c4e014d5067fdee5b1592f15cb44ef31f430d745",
     ".specify/scripts/powershell/setup-tasks.ps1": "5aebeff2b84d6e369ec9bb3b5b73a9a1195ec4b927274f6a2df95aa9eba7e949",
     ".specify/.gitignore": "8c908410d177a1ef3d0dee16d7ad55f2ac3333df3104c4d4adee1c9b82f1dbc1"
   },
-  "recovered_files": [
-    ".specify/scripts/powershell/check-prerequisites.ps1",
-    ".specify/scripts/powershell/common.ps1",
-    ".specify/scripts/powershell/create-new-feature.ps1",
-    ".specify/scripts/powershell/setup-plan.ps1",
-    ".specify/templates/checklist-template.md",
-    ".specify/templates/constitution-template.md",
-    ".specify/templates/plan-template.md",
-    ".specify/templates/spec-template.md",
-    ".specify/templates/tasks-template.md"
-  ]
+  "recovered_files": []
 }
