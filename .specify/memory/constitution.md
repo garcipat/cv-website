@@ -1,3 +1,11 @@
+<!--
+Sync Impact Report
+- Version: 1.0.1 -> 1.1.0 (MINOR: new workflow requirement)
+- Amendment: Added "No auto-advance between Spec Kit steps" to Development Workflow and Quality Gates.
+- Rationale: an agent advanced the Spec Kit pipeline without the user explicitly invoking the next step.
+- Dependent artifacts: plan-template Constitution Check and other templates require no change; AGENTS.md/CLAUDE.md unchanged.
+-->
+
 # CV Website Constitution
 
 ## Core Principles
@@ -100,6 +108,7 @@ See [docs/Architecture.md](docs/Architecture.md) and
   pull request directly into `main`; there is no intermediate integration branch,
   and the branch is deleted after merging.
 - Specification-first delivery: clarify → spec → plan → tasks → analyze → implementation.
+- **No auto-advance between Spec Kit steps**: run only the Spec Kit step the user explicitly invoked, then stop and report. Advancing to the next step is the user's decision, made by explicitly invoking that command. Never run a downstream step — and never treat a command's suggested "Next Steps" as an instruction to act — on your own initiative. The only commands that run automatically are the current step's extension hooks (`before_*`/`after_*` from `.specify/extensions.yml`).
 - Constitution Check in planning MUST enumerate principle-specific pass/fail
   outcomes and document mitigations for any exception.
 - Pull requests MUST pass all tests and linting (when configured).
@@ -142,4 +151,4 @@ Compliance review expectations:
 - Any approved exception MUST be explicit, time-bounded, and tracked as
   follow-up work.
 
-**Version**: 1.0.1 | **Ratified**: 2026-06-20 | **Last Amended**: 2026-09-06
+**Version**: 1.1.0 | **Ratified**: 2026-06-20 | **Last Amended**: 2026-09-25
