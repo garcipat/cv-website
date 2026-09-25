@@ -72,9 +72,8 @@ import {
   chestPlayerIsStandingOn,
   checkSignOverlap,
   resolveHazardContacts,
-  checkFloorSpikeTriggers,
+  checkHazardArmTriggers,
   checkCrumblingFloorTriggers,
-  checkFallingStalactiteTriggers,
   playerHitbox,
 } from './engine/Collision';
 import type { PickupHit } from './engine/Collision';
@@ -102,7 +101,6 @@ import type { BlockState } from './entities/Block';
 import { computePotRenderPlan } from './entities/blocks/potRenderPlan';
 import type { PotRenderPlan } from './entities/blocks/potTypes';
 import { tickFruit } from './entities/pickups/Fruit';
-import { spawnKeyPickup } from './entities/pickups/Key';
 import type { BlockHitOutcome } from './entities/blocks/BlockType';
 import {
   activeSpeechBubble,
@@ -133,10 +131,13 @@ import {
   fallingStalactiteRestOffsetY,
   fallingStalactiteShatter,
 } from './entities/hazards/FallingStalactite';
+import { typeOf as hazardTypeOf } from './entities/hazards';
+import type { HazardTickContext } from './entities/hazards/HazardType';
 import { crumblingFloorPhaseFor, CRUMBLING_FLOOR_CRACK_SECONDS } from './engine/CrumblingFloor';
 import { COIN_FRAME_SIZE } from './entities/pickups/Coin';
 import { fruitFrameSource, FRUIT_FRAME_SIZE } from './entities/pickups/Fruit';
 import { createRewardReveal } from './state/rewards';
+import { applyEnemyDefeats } from './state/enemyRewards';
 import { RENDERED_TILE_SIZE, tileToPixel } from './level/Terrain';
 import {
   advancePlayerAnimation,
@@ -210,7 +211,6 @@ import {
   enemyStates,
   blockStates,
   cratesDestroyed,
-  enemiesDefeated,
   fruitStates,
   activeEffects,
   spawnEffect,
@@ -220,7 +220,6 @@ import {
   endingScreenOpen,
   signPlacements,
   hazardPlacements,
-  keyPickupStates,
   collectedKeys,
   MAX_BOMBS,
   carriedBombs,
@@ -243,13 +242,12 @@ import {
   tickMushroomSquashes,
   floorSpikeTimerStates,
   tickFloorSpikes,
-  armFloorSpikeTrigger,
   hazardPlacementsForTick,
   crumblingFloorTimerStates,
   armCrumblingFloorTrigger,
   tickCrumblingFloors,
   fallingStalactiteTimerStates,
-  armFallingStalactiteTrigger,
+  armHazardTrigger,
   tickFallingStalactites,
 } from './PlatformerState';
 import { useSignals } from '@preact/signals-react/runtime';
@@ -1251,119 +1249,21 @@ export const PlatformerPage = () => {
       fruitStates.value = fruitStates.value.map((fruit) => tickFruit(fruit, dt));
 
       // Enemies whose hit reaction just finished with no hit points left
-      // (`!alive`): fire their reward, reusing the exact flying-text
-      // mechanism coins use (see the collectible-collision block below)
-      // rather than a duplicate implementation. The enemy itself stays in
-      // `enemyStates` — render and collision already skip a dead enemy, so
-      // there's nothing left to remove.
+      // (`!alive`): the shared reward applier (`state/enemyRewards.ts`) fires
+      // each kind's own `DefeatApi`-driven `onDefeat` hook (a pickup spawn, a
+      // per-fact reveal, a per-defeat counter bump) and owns the
+      // unconditional per-death puff plus the `rewardGiven`/`deathEffectGiven`
+      // gating. The page names no enemy or drop kind.
       //
       // `alive` goes false on the finishing stomp; `deathEffectGiven` is set
-      // the same tick (see the end of this block) and resets on revive, so a
-      // revived enemy stomped again in a later life IS selected here again —
-      // its new death still deserves its own puff/flying-text effect. `rewardGiven`
-      // is separate and permanent: it gates whether anything is actually paid
-      // out (fact or key), not whether the enemy is selected below.
-      //
-      // !deathEffectGiven (not !rewardGiven) is what makes a revived enemy
-      // defeated a second time show up here again — rewardGiven stays true
-      // forever once anything has been given (see Enemy.ts's baseRevive doc
-      // comment), but deathEffectGiven resets on revive, since a new life's
-      // death still deserves its own visual effect. See B-003.
+      // the same tick (by the applier) and resets on revive, so a revived
+      // enemy stomped again in a later life IS selected here again — its new
+      // death still deserves its own puff. `rewardGiven` is separate and
+      // permanent: it gates whether anything is actually paid out, not
+      // whether the enemy is selected. See B-003.
       const justDefeated = enemyStates.value.filter((e) => !e.alive && !e.deathEffectGiven);
       if (justDefeated.length > 0) {
-        const newPuffs: ReturnType<typeof startPuffEffect>[] = [];
-        // Whether any green slime was freshly defeated this tick — gates
-        // the popup bump below, computed from the raw defeated-enemy count
-        // rather than facts revealed (see that bump's own comment).
-        let greenDefeatedThisTick = false;
-
-        for (const enemy of justDefeated) {
-          const anchor = enemyEffectAnchor(enemy);
-          const puffX = anchor.x + originX;
-          const puffY = anchor.y + originY;
-
-          // A defeated purple slime carries no fact at all — it drops a key
-          // pickup instead (spec.md User Story 4).
-          if (typeOf(enemy).heldItem === 'key') {
-            // A purple slime carries no fact — its finishing stomp always
-            // gets a puff. A key pickup is dropped only the FIRST time
-            // (rewardGiven false); a revived-and-redefeated purple slime
-            // still puffs on later deaths but drops nothing further, since
-            // it already gave its one key.
-            if (!enemy.rewardGiven) {
-              keyPickupStates.value = [...keyPickupStates.value, spawnKeyPickup(enemy.id, enemy.x, enemy.y)];
-            }
-            newPuffs.push(startPuffEffect(enemy.id, puffX, puffY, anchor.scale));
-            continue;
-          }
-
-          if (enemy.rewardGiven) {
-            // A revived enemy defeated again after already paying out
-            // (rewardGiven permanent — see Enemy.ts's baseRevive doc
-            // comment): nothing left to reward, but the defeat itself is
-            // still a world event that deserves a puff (B-003).
-            newPuffs.push(startPuffEffect(enemy.id, puffX, puffY, anchor.scale));
-            continue;
-          }
-
-          // A fresh defeat: puff and reward are fully decoupled layers (puff
-          // = destruction/defeat feedback, flying text = reward feedback),
-          // same as crate destruction below — the defeat is a world event
-          // that always deserves a puff, independent of whether it also
-          // happens to award a fact. A green slime's fact(s) were fixed at
-          // placement time (see EnemyMapper.ts's placeGreenSlimes doc
-          // comment) — reveal its own `fact` plus any `extraFacts` (when
-          // this level has fewer green slimes than course facts, one slime
-          // can own more than one). No counterKey here: the enemies popup is
-          // bumped below instead, for every defeated green slime rather than
-          // only ones that happen to reveal a fact (see that bump's own
-          // comment). The popup bump is gated on `slimeGreen` explicitly: a
-          // defeated bee (or any other non-key, fact-less kind) still earns
-          // its puff but counts toward nothing (FR-013/SC-008).
-          if (enemy.type === 'slimeGreen') greenDefeatedThisTick = true;
-          newPuffs.push(startPuffEffect(enemy.id, puffX, puffY, anchor.scale));
-          const facts = [enemy.fact, ...(enemy.extraFacts ?? [])].filter(
-            (fact): fact is CollectedFact => fact !== undefined,
-          );
-          facts.forEach((fact, index) => {
-            revealFact(fact, {
-              x: enemy.x,
-              y: enemy.y,
-              // Unique per revealed fact, not just per enemy.
-              effectId: `${enemy.id}-${index}`,
-            });
-          });
-        }
-
-        // Every defeated enemy is marked processed (deathEffectGiven) so it
-        // isn't selected into justDefeated again next tick. rewardGiven is
-        // ALSO set for every one of them, not only fact-bearing ones — a
-        // "plain" enemy or a purple slime's key drop are just as much "its
-        // one payout" as a fact is (see Enemy.ts's baseRevive doc comment):
-        // there is nothing further to ever give any of them again.
-        const processedIds = new Set(justDefeated.map((e) => e.id));
-        enemyStates.value = enemyStates.value.map((e) =>
-          processedIds.has(e.id) ? { ...e, rewardGiven: true, deathEffectGiven: true } : e,
-        );
-
-        // The enemies popup bumped here rather than by the reveal trigger,
-        // mirroring the coins/crates loops: a green slime's fact(s) are a
-        // fixed pool slice (see EnemyMapper.ts's placeGreenSlimes), so most
-        // slimes can reveal zero facts whenever there are more green slimes
-        // than course facts — gating this on a reveal would leave those
-        // defeats with no "enemies defeated / total" feedback, and could
-        // even show more facts revealed than enemies exist. Uses
-        // `enemiesDefeated` (PlatformerState.ts), not `countCollectedFor`,
-        // for the same reason `coinsCollectedSoFar` does above — read AFTER
-        // the rewardGiven update above, so this tick's own defeats are
-        // included (it's a computed off `enemyStates`, so it already is).
-        if (greenDefeatedThisTick) {
-          spawnEffect(
-            startCounterPopup('enemies', enemiesDefeated.value, levelTotals.value.enemies),
-          );
-        }
-
-        for (const puff of newPuffs) spawnEffect(puff);
+        applyEnemyDefeats(justDefeated, { revealFact, originX, originY });
       }
 
       // ONE advance replaces the six byte-identical per-kind tick bodies plus
@@ -1581,39 +1481,33 @@ export const PlatformerPage = () => {
         spawnEffect(beginSpeechBubbleExit(currentBubble));
       }
 
-      // Arm any at-rest floor spike the player just stepped onto (FR-003) —
-      // before resolving hazard contacts below, so a spike armed this same
-      // tick is still correctly non-hazardous (its phase right after arming
-      // is 'delay', never 'fullExtend').
-      for (const id of checkFloorSpikeTriggers(playerState.value, hazardPlacements.value, floorSpikeTimerStates.value)) {
-        armFloorSpikeTrigger(id);
+      // Arm any at-rest floor spike the player just stepped onto, or hanging
+      // falling stalactite whose detection zone the player just entered
+      // (FR-003) — before resolving hazard contacts below, so a hazard armed
+      // this same tick is still correctly non-hazardous (a floor spike's phase
+      // right after arming is 'delay', never 'fullExtend'; a stalactite's is
+      // 'shaking', never 'falling'). Each kind's own `armTriggerRects` supplies
+      // the eligible hazard's trigger rects; the generic `armHazardTrigger`
+      // dispatches the arming action by hazard kind.
+      const hazardTickContext: HazardTickContext = {
+        floorSpikeTimers: floorSpikeTimerStates.value,
+        fallingStalactiteTimers: fallingStalactiteTimerStates.value,
+        activeLevel: activeLevel.value,
+        blockStates: blockStates.value,
+        crumblingFloorTimers: crumblingFloorTimerStates.value,
+      };
+      for (const id of checkHazardArmTriggers(playerState.value, hazardPlacements.value, hazardTickContext)) {
+        armHazardTrigger(id);
       }
 
       // Arm any at-rest crumbling floor tile the player just stepped onto
-      // (spec FR-003) — mirrors the floor spike arming above, but keyed by
-      // grid cell rather than hazard id (O-023).
+      // (spec FR-003) — keyed by grid cell rather than hazard id (O-023).
       for (const { col, row } of checkCrumblingFloorTriggers(
         playerState.value,
         activeLevel.value,
         crumblingFloorTimerStates.value,
       )) {
         armCrumblingFloorTrigger(col, row);
-      }
-
-      // Arm any hanging falling stalactite whose detection zone the player
-      // just entered (FR-003) — mirrors the arming above, before contact
-      // resolution so a just-armed hazard is still correctly non-hazardous
-      // this tick (its phase right after arming is 'shaking', never
-      // 'falling').
-      for (const id of checkFallingStalactiteTriggers(
-        playerState.value,
-        hazardPlacements.value,
-        fallingStalactiteTimerStates.value,
-        activeLevel.value,
-        blockStates.value,
-        crumblingFloorTimerStates.value,
-      )) {
-        armFallingStalactiteTrigger(id);
       }
 
       // Spawn the falling-debris effect exactly once, on the tick a tile's
@@ -1811,20 +1705,17 @@ export const PlatformerPage = () => {
         // the refractory window lapses, since nothing ever moves the player
         // out of contact with it.
         const contactSide: -1 | 1 = hazard.x >= playerState.value.x ? 1 : -1;
-        // Floor spikes and falling stalactites deal damage with no knockback
-        // (spec FR-006 / O-027 FR-007), and a crouched hit never knocks back
-        // (FR-011/SC-009). All still show the same red hit reaction as every
-        // other damage source — `applyHitReaction` with no knockback — which
-        // also opens the shared refractory window, or the player would take
-        // repeated damage every tick they remain on the tile through the rest
-        // of the full-extend phase. Every other hazard touch pushes the
-        // player away. Only a pit fall keeps the transparent blink (see
-        // `beginPitFallReaction`).
-        if (
-          hazard.hazardType === 'floorSpike' ||
-          hazard.hazardType === 'fallingStalactite' ||
-          playerState.value.crouching
-        ) {
+        // The knockback decision is the hazard kind's own `knocksBack` flag
+        // (false for the floor spike and falling stalactite — spec FR-006 /
+        // O-027 FR-007), while a crouched hit never knocks back regardless
+        // (player-side and unchanged, FR-011/SC-009). All still show the same
+        // red hit reaction as every other damage source — `applyHitReaction`
+        // with no knockback — which also opens the shared refractory window,
+        // or the player would take repeated damage every tick they remain on
+        // the tile through the rest of the full-extend phase. Every
+        // knock-back hazard touch pushes the player away. Only a pit fall
+        // keeps the transparent blink (see `beginPitFallReaction`).
+        if (!hazardTypeOf(hazard).knocksBack || playerState.value.crouching) {
           playerState.value = applyHitReaction(playerState.value);
         } else {
           // Pushed away from the hazard, not toward it — the opposite sign

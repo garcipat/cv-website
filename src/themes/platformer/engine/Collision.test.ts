@@ -6,9 +6,8 @@ import {
   chestPlayerIsStandingOn,
   checkSignOverlap,
   resolveHazardContacts,
-  checkFloorSpikeTriggers,
+  checkHazardArmTriggers,
   checkCrumblingFloorTriggers,
-  checkFallingStalactiteTriggers,
   overlappingTriggers,
 } from './Collision';
 import { playerInBlast } from './Blast';
@@ -35,6 +34,7 @@ import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { ChestState } from '../entities/Chest';
 import type { SignPlacement } from '../level/SignMapper';
 import type { HazardPlacement } from '../level/HazardMapper';
+import type { HazardTickContext } from '../entities/hazards/HazardType';
 import type { FallingStalactiteTimerState } from '../entities/hazards/FallingStalactite';
 import { parseLevel } from '../level/LevelParser';
 import type { KeyPickupState } from '../entities/pickups/Key';
@@ -645,7 +645,21 @@ describe('resolveHazardContacts — floor spike is only a contact while full-ext
   });
 });
 
-describe('checkFloorSpikeTriggers', () => {
+describe('checkHazardArmTriggers', () => {
+  /** A caller-supplied tick context with only the fields a scenario reads. */
+  function hazardCtx(overrides: Partial<HazardTickContext> = {}): HazardTickContext {
+    return {
+      floorSpikeTimers: [],
+      fallingStalactiteTimers: [],
+      activeLevel: LEVEL,
+      blockStates: [],
+      crumblingFloorTimers: [],
+      ...overrides,
+    };
+  }
+
+  // --- floor spike: its own trigger band, only while at rest ---
+
   function floorSpikeHazard(id: string, x: number, y: number): HazardPlacement {
     return { id, hazardType: 'floorSpike', facing: 'up', x, y, col: 0, row: 0 };
   }
@@ -653,25 +667,98 @@ describe('checkFloorSpikeTriggers', () => {
   it('playerOverlappingAnUnarmedFloorSpike-returnsItsId', () => {
     const hazard = floorSpikeHazard('fs1', 16, 32);
     const player = makePlayer(hazard.x, hazard.y);
-    expect(checkFloorSpikeTriggers(player, [hazard], [])).toEqual(['fs1']);
+    expect(checkHazardArmTriggers(player, [hazard], hazardCtx())).toEqual(['fs1']);
   });
 
   it('playerOverlappingAnAlreadyArmedFloorSpike-returnsEmpty', () => {
     const hazard = floorSpikeHazard('fs1', 16, 32);
     const player = makePlayer(hazard.x, hazard.y);
-    expect(checkFloorSpikeTriggers(player, [hazard], [{ id: 'fs1', elapsed: 0.1 }])).toEqual([]);
+    const ctx = hazardCtx({ floorSpikeTimers: [{ id: 'fs1', elapsed: 0.1 }] });
+    expect(checkHazardArmTriggers(player, [hazard], ctx)).toEqual([]);
   });
 
   it('playerFarFromEveryFloorSpike-returnsEmpty', () => {
     const hazard = floorSpikeHazard('fs1', 1600, 1600);
     const player = makePlayer(0, 0);
-    expect(checkFloorSpikeTriggers(player, [hazard], [])).toEqual([]);
+    expect(checkHazardArmTriggers(player, [hazard], hazardCtx())).toEqual([]);
   });
 
   it('staticSpikePlacements-areIgnored', () => {
     const hazard: HazardPlacement = { id: 's1', hazardType: 'spike', facing: 'up', x: 16, y: 32, col: 0, row: 0 };
     const player = makePlayer(hazard.x, hazard.y);
-    expect(checkFloorSpikeTriggers(player, [hazard], [])).toEqual([]);
+    expect(checkHazardArmTriggers(player, [hazard], hazardCtx())).toEqual([]);
+  });
+
+  // --- falling stalactite: its detection-zone cells, only while hanging ---
+
+  // Hazard at (1,0), ground at row 3 — its detection zone is columns 0-2,
+  // rows 1-2.
+  const LEVEL = parseLevel(['.T..', '....', '....', 'GGGG']);
+  const NO_STATES: FallingStalactiteTimerState[] = [];
+
+  function fallingHazard(id: string, col: number, row: number): HazardPlacement {
+    const { x, y } = { x: col * RENDERED_TILE_SIZE, y: row * RENDERED_TILE_SIZE };
+    return { id, hazardType: 'fallingStalactite', facing: 'down', x, y, col, row };
+  }
+
+  it('playerOverlappingAnyZoneCell-returnsItsId', () => {
+    const hazard = fallingHazard('h1', 1, 0);
+    const player = makePlayer(RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+    const ctx = hazardCtx({ activeLevel: LEVEL });
+    expect(checkHazardArmTriggers(player, [hazard], ctx)).toEqual(['h1']);
+  });
+
+  it('playerOverlappingAFlankingZoneColumn-alsoArmsIt', () => {
+    const hazard = fallingHazard('h1', 1, 0);
+    const player = makePlayer(0, RENDERED_TILE_SIZE);
+    const ctx = hazardCtx({ activeLevel: LEVEL });
+    expect(checkHazardArmTriggers(player, [hazard], ctx)).toEqual(['h1']);
+  });
+
+  it('playerFarFromTheZone-returnsEmpty', () => {
+    const hazard = fallingHazard('h1', 1, 0);
+    const player = makePlayer(500, 500);
+    const ctx = hazardCtx({ activeLevel: LEVEL });
+    expect(checkHazardArmTriggers(player, [hazard], ctx)).toEqual([]);
+  });
+
+  it('alreadyArmedHazard-isExcluded', () => {
+    const hazard = fallingHazard('h1', 1, 0);
+    const player = makePlayer(RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+    const ctx = hazardCtx({
+      activeLevel: LEVEL,
+      fallingStalactiteTimers: [{ id: 'h1', elapsed: 0.1 }],
+    });
+    expect(checkHazardArmTriggers(player, [hazard], ctx)).toEqual([]);
+  });
+
+  it('otherHazardKinds-areIgnored', () => {
+    const spike: HazardPlacement = {
+      id: 's1',
+      hazardType: 'spike',
+      facing: 'up',
+      x: RENDERED_TILE_SIZE,
+      y: RENDERED_TILE_SIZE,
+      col: 1,
+      row: 1,
+    };
+    const player = makePlayer(RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+    const ctx = hazardCtx({ activeLevel: LEVEL });
+    expect(checkHazardArmTriggers(player, [spike], ctx)).toEqual([]);
+  });
+
+  it('isPure-doesNotMutateItsInputsAndIsDeterministic', () => {
+    const hazard = fallingHazard('h1', 1, 0);
+    const states: FallingStalactiteTimerState[] = [];
+    const hazards = [hazard];
+    const player = makePlayer(RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+    const ctx = hazardCtx({ activeLevel: LEVEL, fallingStalactiteTimers: states });
+    const first = checkHazardArmTriggers(player, hazards, ctx);
+    const second = checkHazardArmTriggers(player, hazards, ctx);
+    expect(first).toEqual(second);
+    expect(states).toEqual([]);
+    expect(hazards).toHaveLength(1);
+    expect(NO_STATES).toEqual([]);
   });
 });
 
@@ -985,7 +1072,7 @@ describe('every consumer reads the one crouched box (US1 / SC-008)', () => {
     expect(resolveHazardContacts(crouched, [hazard]).damage).toBe(0);
   });
 
-  it('checkFloorSpikeTriggers-triggerBandInTheHeadBand-armsStandingOnly', () => {
+  it('checkHazardArmTriggers-triggerBandInTheHeadBand-armsStandingOnly', () => {
     const hazard: HazardPlacement = {
       id: 'head-fs',
       hazardType: 'floorSpike',
@@ -995,10 +1082,17 @@ describe('every consumer reads the one crouched box (US1 / SC-008)', () => {
       col: 0,
       row: 0,
     };
+    const ctx: HazardTickContext = {
+      floorSpikeTimers: [],
+      fallingStalactiteTimers: [],
+      activeLevel: parseLevel(['.']),
+      blockStates: [],
+      crumblingFloorTimers: [],
+    };
     const standing = makePlayer(0, 0);
     const crouched = { ...makePlayer(0, 0), crouching: true };
-    expect(checkFloorSpikeTriggers(standing, [hazard], [])).toEqual(['head-fs']);
-    expect(checkFloorSpikeTriggers(crouched, [hazard], [])).toEqual([]);
+    expect(checkHazardArmTriggers(standing, [hazard], ctx)).toEqual(['head-fs']);
+    expect(checkHazardArmTriggers(crouched, [hazard], ctx)).toEqual([]);
   });
 
   it('playerInBlast-tileReachableOnlyByTheTallerBox-hitsStandingOnly', () => {
@@ -1013,66 +1107,3 @@ describe('every consumer reads the one crouched box (US1 / SC-008)', () => {
   });
 });
 
-describe('checkFallingStalactiteTriggers', () => {
-  // Hazard at (1,0), ground at row 3 — its detection zone is columns 0-2,
-  // rows 1-2.
-  const LEVEL = parseLevel(['.T..', '....', '....', 'GGGG']);
-  const NO_STATES: FallingStalactiteTimerState[] = [];
-
-  function fallingHazard(id: string, col: number, row: number): HazardPlacement {
-    const { x, y } = { x: col * RENDERED_TILE_SIZE, y: row * RENDERED_TILE_SIZE };
-    return { id, hazardType: 'fallingStalactite', facing: 'down', x, y, col, row };
-  }
-
-  it('playerOverlappingAnyZoneCell-returnsItsId', () => {
-    const hazard = fallingHazard('h1', 1, 0);
-    const player = makePlayer(RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
-    expect(checkFallingStalactiteTriggers(player, [hazard], NO_STATES, LEVEL, [], [])).toEqual(['h1']);
-  });
-
-  it('playerOverlappingAFlankingZoneColumn-alsoArmsIt', () => {
-    const hazard = fallingHazard('h1', 1, 0);
-    const player = makePlayer(0, RENDERED_TILE_SIZE);
-    expect(checkFallingStalactiteTriggers(player, [hazard], NO_STATES, LEVEL, [], [])).toEqual(['h1']);
-  });
-
-  it('playerFarFromTheZone-returnsEmpty', () => {
-    const hazard = fallingHazard('h1', 1, 0);
-    const player = makePlayer(500, 500);
-    expect(checkFallingStalactiteTriggers(player, [hazard], NO_STATES, LEVEL, [], [])).toEqual([]);
-  });
-
-  it('alreadyArmedHazard-isExcluded', () => {
-    const hazard = fallingHazard('h1', 1, 0);
-    const player = makePlayer(RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
-    expect(
-      checkFallingStalactiteTriggers(player, [hazard], [{ id: 'h1', elapsed: 0.1 }], LEVEL, [], []),
-    ).toEqual([]);
-  });
-
-  it('otherHazardKinds-areIgnored', () => {
-    const spike: HazardPlacement = {
-      id: 's1',
-      hazardType: 'spike',
-      facing: 'up',
-      x: RENDERED_TILE_SIZE,
-      y: RENDERED_TILE_SIZE,
-      col: 1,
-      row: 1,
-    };
-    const player = makePlayer(RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
-    expect(checkFallingStalactiteTriggers(player, [spike], NO_STATES, LEVEL, [], [])).toEqual([]);
-  });
-
-  it('isPure-doesNotMutateItsInputsAndIsDeterministic', () => {
-    const hazard = fallingHazard('h1', 1, 0);
-    const states: FallingStalactiteTimerState[] = [];
-    const hazards = [hazard];
-    const player = makePlayer(RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
-    const first = checkFallingStalactiteTriggers(player, hazards, states, LEVEL, [], []);
-    const second = checkFallingStalactiteTriggers(player, hazards, states, LEVEL, [], []);
-    expect(first).toEqual(second);
-    expect(states).toEqual([]);
-    expect(hazards).toHaveLength(1);
-  });
-});

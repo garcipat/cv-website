@@ -1613,6 +1613,39 @@ describe('drawTerrain — cave decorations', () => {
     );
   });
 
+  it('stalactiteTile-withAFallingStalactiteMarker-skipsTheStaticDecoration', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    // A falling-stalactite cell is a `⊤` (stalactite) tile plus a
+    // `fallingStalactite` marker; the hazard's own `draw` renders it — the
+    // large sprite while hanging, nothing once it has fallen, and only the
+    // survivor half of a twin. Drawing the static decoration here too would
+    // leave a ghost on the cell after the stalactite falls.
+    const level: LevelDef = {
+      terrain: [['stalactite']],
+      markers: [[{ kind: 'fallingStalactite' }]],
+      width: 1,
+      height: 1,
+    };
+
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, fakeDecorations);
+
+    expect(ctx.drawImage).not.toHaveBeenCalled();
+  });
+
+  it('stalactiteTile-withoutAMarker-drawsTheStaticDecoration', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    // A plain decorative `⊤` (no falling marker) still draws from the
+    // decorations sheet.
+    const level: LevelDef = { terrain: [['stalactite']], width: 1, height: 1 };
+
+    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, fakeDecorations);
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeDecorations, expect.anything(), expect.anything(), expect.anything(), expect.anything(),
+      0, 0, 32, 32,
+    );
+  });
+
   it('decorationsNotLoaded-cobwebDrawsNothingButOtherTerrainStillRenders', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const level: LevelDef = { terrain: [['cobweb', 'wall']], width: 2, height: 1 };

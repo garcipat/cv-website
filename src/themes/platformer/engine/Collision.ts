@@ -15,17 +15,11 @@ import { signBox } from '../level/SignMapper';
 import type { SignPlacement } from '../level/SignMapper';
 import { typeOf as hazardTypeOf } from '../entities/hazards';
 import type { HazardPlacement } from '../level/HazardMapper';
-import { RENDER_SCALE, RENDERED_TILE_SIZE, tileAt } from '../level/Terrain';
+import type { HazardTickContext } from '../entities/hazards/HazardType';
+import { RENDERED_TILE_SIZE, tileAt } from '../level/Terrain';
 import type { LevelDef } from '../level/LevelData';
-import { isFloorSpikeArmed, type FloorSpikeTimerState } from '../entities/hazards/FloorSpike';
 import type { CrumblingFloorTimerState } from './CrumblingFloor';
 import { isCrumblingFloorArmed } from './CrumblingFloor';
-import {
-  isFallingStalactiteArmed,
-  detectionZoneCells,
-  type FallingStalactiteTimerState,
-} from '../entities/hazards/FallingStalactite';
-import type { BlockPlacement } from '../level/BlockMapper';
 import type { SignHintId } from '../level/HintCatalog';
 import { PICKUP_TYPES } from '../entities/pickups';
 import type { Pickup, PickupGroups } from '../contracts/Pickup';
@@ -323,50 +317,36 @@ export function resolveHazardContacts(
   return { damage, hazard };
 }
 
-/** Same visible-band convention as Spike.ts / FloorSpike.ts's BAND_NATIVE —
- *  duplicated here (rather than imported) deliberately: this is a TRIGGER
- *  box, constant regardless of phase, not the hazard's own phase-varying
- *  damage box (`floorSpike.box`). The two happen to share dimensions today
- *  (both are floor-only, both use the same band) but conceptually answer
- *  different questions — "can this tile arm?" vs. "is this tile hazardous
- *  right now?" — so they are kept as separate functions rather than one
- *  reused across both purposes.
- */
-function floorSpikeTriggerBox(hazard: HazardPlacement): Box {
-  const band = 5 * RENDER_SCALE;
-  return {
-    x: hazard.x,
-    y: hazard.y + RENDERED_TILE_SIZE - band,
-    width: RENDERED_TILE_SIZE,
-    height: band,
-  };
-}
-
 /**
- * Returns the ids of every at-rest floor spike the player's hitbox
- * currently overlaps — candidates `PlatformerPage.tsx` should arm this tick
- * (spec FR-003: contact starts the cycle exactly once). A floor spike whose
- * cycle is already running is not eligible (spec FR-008), which is why this
- * takes `timers` rather than relying on `hazards` alone — a floor spike's
- * `HazardPlacement` carries no in-progress-or-not information of its own.
+ * Returns the ids of every hazard the player's hitbox currently overlaps a
+ * NEW-ARMING trigger rect for — candidates `PlatformerPage.tsx` should arm
+ * this tick (spec FR-003: contact starts the cycle exactly once). The
+ * trigger geometry and the already-armed eligibility gate are the hazard
+ * kind's own knowledge (`HazardType.armTriggerRects`): a floor spike returns
+ * its trigger band only while at rest, a falling stalactite its detection-zone
+ * cells only while hanging, and a static kind (spike/spear) omits the hook
+ * entirely. Iterates in array order, exactly as the two replaced kind-switched
+ * functions did. Pure; never mutates its inputs.
  */
-export function checkFloorSpikeTriggers(
+export function checkHazardArmTriggers(
   player: PlayerState,
   hazards: readonly HazardPlacement[],
-  timers: readonly FloorSpikeTimerState[],
+  ctx: HazardTickContext,
 ): string[] {
-  return overlappingTriggers(
-    player,
-    hazards,
-    floorSpikeTriggerBox,
-    (h) => h.hazardType === 'floorSpike' && !isFloorSpikeArmed(timers, h.id),
-  ).map((h) => h.id);
+  const hitbox = playerHitbox(player);
+  const ids: string[] = [];
+  for (const hazard of hazards) {
+    const rects = hazardTypeOf(hazard).armTriggerRects?.(hazard, ctx);
+    if (!rects) continue;
+    if (rects.some((rect) => aabbOverlap(hitbox, rect))) ids.push(hazard.id);
+  }
+  return ids;
 }
 
 /**
  * Returns the grid cells of every at-rest crumbling floor tile the player's
  * feet currently overlap — candidates `PlatformerPage.tsx` should arm this
- * tick (spec FR-003). Unlike `checkFloorSpikeTriggers`, there is no
+ * tick (spec FR-003). Unlike `checkHazardArmTriggers`, there is no
  * `HazardPlacement` list to scan: a crumbling floor tile is a plain terrain
  * cell, so this walks the same footRow/column-range the ground-collision
  * branch of `Physics.ts` uses, rather than `overlappingTriggers`' box-list
@@ -397,37 +377,3 @@ export function checkCrumblingFloorTriggers(
   return results;
 }
 
-/**
- * Returns the ids of every hanging falling stalactite whose detection zone the
- * player's hitbox currently overlaps — candidates `PlatformerPage.tsx` should
- * arm this tick (FR-003). An already-armed hazard is not eligible (arming is
- * irreversible, FR-004), which is why this takes `states` rather than relying
- * on `hazards` alone — a placement carries no armed-or-not information of its
- * own. Pure; never mutates its inputs.
- */
-export function checkFallingStalactiteTriggers(
-  player: PlayerState,
-  hazards: readonly HazardPlacement[],
-  states: readonly FallingStalactiteTimerState[],
-  level: LevelDef,
-  blocks: readonly BlockPlacement[],
-  crumblingFloorStates: readonly CrumblingFloorTimerState[],
-): string[] {
-  const hitbox = playerHitbox(player);
-  const ids: string[] = [];
-  for (const hazard of hazards) {
-    if (hazard.hazardType !== 'fallingStalactite') continue;
-    if (isFallingStalactiteArmed(states, hazard.id)) continue;
-    const zone = detectionZoneCells(hazard, level, blocks, crumblingFloorStates);
-    const overlaps = zone.some((cell) =>
-      aabbOverlap(hitbox, {
-        x: cell.col * RENDERED_TILE_SIZE,
-        y: cell.row * RENDERED_TILE_SIZE,
-        width: RENDERED_TILE_SIZE,
-        height: RENDERED_TILE_SIZE,
-      }),
-    );
-    if (overlaps) ids.push(hazard.id);
-  }
-  return ids;
-}

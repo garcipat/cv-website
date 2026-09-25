@@ -3,6 +3,21 @@ import { toEnemyState } from '../Enemy';
 import { RENDER_SCALE } from '../../level/Terrain';
 import { SLIME_GREEN_SHEET, SLIME_PURPLE_SHEET } from '../sprites/sheets';
 import type { EnemyPlacement } from '../../level/EnemyMapper';
+import type { DefeatApi } from '../../contracts/Outcome';
+import type { PickupKind } from '../../contracts/PickupKind';
+import type { CounterPopupLabelKey } from '../../contracts/counters';
+import type { CollectedFact } from '../../types';
+
+/** A CV fact usable as a green slime's `fact`/`extraFacts`. */
+function courseFact(id: string): CollectedFact {
+  return {
+    id,
+    sectionId: 'courses',
+    sectionLabel: 'Course',
+    data: { category: id, skills: [] },
+    sourceType: 'enemy',
+  };
+}
 
 describe('ENEMY_TYPES', () => {
   // These are the exact values the parallel Record lookups held before this
@@ -59,7 +74,7 @@ describe('ENEMY_TYPES', () => {
   });
 });
 
-describe('heldItem drop wiring', () => {
+describe('heldItem declarations', () => {
   it('slimePurple-heldItem-isKey', () => {
     expect(ENEMY_TYPES.slimePurple.heldItem).toBe('key');
   });
@@ -68,16 +83,77 @@ describe('heldItem drop wiring', () => {
     expect(ENEMY_TYPES.slimeGreen.heldItem).toBeNull();
   });
 
-  it('enemyTypes-heldItemOfKey-isExactlyTheSlimePurpleType', () => {
-    // The defeat handler (PlatformerPage.tsx) reads `typeOf(enemy).heldItem`
-    // to decide whether to spawn a key pickup, rather than branching on a
-    // hardcoded type literal. This asserts that config, not a type-name
-    // check, is what determines which types drop a key: exactly the types
-    // whose `heldItem` is `'key'` are the ones expected to drop one.
-    const typesThatDropAKey = Object.entries(ENEMY_TYPES)
-      .filter(([, type]) => type.heldItem === 'key')
+  it('enemyTypes-areExactlyOneHeldItemCarrier-thePurpleSlime', () => {
+    // The drop is declared by config, not a hardcoded type literal: exactly
+    // the type carrying a heldItem is the one whose own `onDefeat` asks the
+    // defeat API to spawn it — the page no longer reads `heldItem` at all.
+    const typesThatCarryAHeldItem = Object.entries(ENEMY_TYPES)
+      .filter(([, type]) => type.heldItem !== null)
       .map(([key]) => key);
-    expect(typesThatDropAKey).toEqual(['slimePurple']);
+    expect(typesThatCarryAHeldItem).toEqual(['slimePurple']);
+  });
+});
+
+describe('onDefeat wiring', () => {
+  function makeDefeatApi() {
+    return {
+      spawnPickup: vi.fn<(kind: PickupKind) => void>(),
+      revealFact: vi.fn<(fact: CollectedFact, effectId: string) => void>(),
+      bumpCounter: vi.fn<(key: CounterPopupLabelKey) => void>(),
+    } satisfies DefeatApi;
+  }
+
+  it('slimePurple-onDefeat-spawnsItsOwnHeldKeyThroughTheDefeatApi', () => {
+    const api = makeDefeatApi();
+    const enemy = ENEMY_TYPES.slimePurple.create(
+      { id: 'p1', type: 'slimePurple', x: 10, y: 20 },
+      0,
+    );
+
+    ENEMY_TYPES.slimePurple.onDefeat!(enemy, api);
+
+    expect(api.spawnPickup).toHaveBeenCalledTimes(1);
+    expect(api.spawnPickup).toHaveBeenCalledWith('key');
+    expect(api.revealFact).not.toHaveBeenCalled();
+    expect(api.bumpCounter).not.toHaveBeenCalled();
+  });
+
+  it('slimeGreen-onDefeat-revealsEachFactPerFactThenBumpsTheEnemiesCounterOnce', () => {
+    const api = makeDefeatApi();
+    const factA = courseFact('course-a');
+    const factB = courseFact('course-b');
+    const enemy = ENEMY_TYPES.slimeGreen.create(
+      { id: 'g1', type: 'slimeGreen', x: 0, y: 0, fact: factA, extraFacts: [factB] },
+      0,
+    );
+
+    ENEMY_TYPES.slimeGreen.onDefeat!(enemy, api);
+
+    expect(api.revealFact).toHaveBeenCalledTimes(2);
+    expect(api.revealFact).toHaveBeenNthCalledWith(1, factA, 'g1-0');
+    expect(api.revealFact).toHaveBeenNthCalledWith(2, factB, 'g1-1');
+    // The counter bump is per-defeat, not per-fact.
+    expect(api.bumpCounter).toHaveBeenCalledTimes(1);
+    expect(api.bumpCounter).toHaveBeenCalledWith('enemies');
+    expect(api.spawnPickup).not.toHaveBeenCalled();
+  });
+
+  it('slimeGreen-withNoFact-stillBumpsTheEnemiesCounterOnce', () => {
+    // A level with more green slimes than course facts gives a slime no fact
+    // to reveal — it must still count toward the enemies numerator.
+    const api = makeDefeatApi();
+    const enemy = ENEMY_TYPES.slimeGreen.create({ id: 'g2', type: 'slimeGreen', x: 0, y: 0 }, 0);
+
+    ENEMY_TYPES.slimeGreen.onDefeat!(enemy, api);
+
+    expect(api.revealFact).not.toHaveBeenCalled();
+    expect(api.bumpCounter).toHaveBeenCalledTimes(1);
+    expect(api.bumpCounter).toHaveBeenCalledWith('enemies');
+  });
+
+  it('bee-carriesNoOnDefeatHook', () => {
+    // The bee puffs and rewards/counts nothing — it declares no consequences.
+    expect(ENEMY_TYPES.bee.onDefeat).toBeUndefined();
   });
 });
 

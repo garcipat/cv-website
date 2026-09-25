@@ -58,6 +58,11 @@ describe('spear', () => {
     expect(spear.key).toBe('spear');
   });
 
+  it('knocksBack-isTrue', () => {
+    // A non-lethal spear contact (a walk-through) pushes the player away.
+    expect(spear.knocksBack).toBe(true);
+  });
+
   it('lethal-isTrue', () => {
     expect(spear.lethal).toBe(true);
   });

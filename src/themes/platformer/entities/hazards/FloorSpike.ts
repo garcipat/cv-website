@@ -147,6 +147,25 @@ export function floorSpikeExtensionFor(states: readonly FloorSpikeTimerState[], 
 const BAND_NATIVE = 5;
 
 /**
+ * The spike's TRIGGER box — constant regardless of phase, NOT the
+ * phase-varying damage `floorSpikeBox` above. The two happen to share
+ * dimensions today (both are floor-only, both use that same visible band)
+ * but conceptually answer different questions — "can this tile arm?" vs.
+ * "is this tile hazardous right now?" — so they stay separate functions.
+ * Moved here from `engine/Collision.ts` (R-007 D3), where the kind-switched
+ * detection lived.
+ */
+function floorSpikeTriggerBox(hazard: HazardPlacement): Rect {
+  const band = BAND_NATIVE * RENDER_SCALE;
+  return {
+    x: hazard.x,
+    y: hazard.y + RENDERED_TILE_SIZE - band,
+    width: RENDERED_TILE_SIZE,
+    height: band,
+  };
+}
+
+/**
  * The hazardous rect — identical to the static spike's 'up'-facing band
  * (Spike.ts's facingBox), and NOT phase-gated: it's the broad-phase overlap
  * test `resolveHazardContacts` runs before checking `isContact` below, so it
@@ -224,8 +243,20 @@ function drawFrameSlice(
 export const floorSpike: HazardType<HazardPlacement> = {
   key: 'floorSpike',
   damage: SIDE_HIT_DAMAGE,
+  knocksBack: false,
   box: floorSpikeBox,
   isContact: floorSpikeIsContact,
+  /** Merges the live cycle phase/extension — the exact per-kind branch the
+   *  state layer's `hazardPlacementsForTick` used to inline. */
+  withTickState: (placement, timers) => ({
+    ...placement,
+    floorSpikePhase: floorSpikePhaseFor(timers.floorSpikeTimers, placement.id),
+    floorSpikeExtension: floorSpikeExtensionFor(timers.floorSpikeTimers, placement.id),
+  }),
+  /** The trigger band, returned only while the spike is still at rest (an
+   *  already-running cycle is not re-eligible, FR-008). */
+  armTriggerRects: (hazard, timers) =>
+    isFloorSpikeArmed(timers.floorSpikeTimers, hazard.id) ? [] : [floorSpikeTriggerBox(hazard)],
   draw: (hazard, dc) => {
     // The ground tell (the holes) is the base every other pose is drawn on
     // top of. It's what stays visible under/around the spike once it's

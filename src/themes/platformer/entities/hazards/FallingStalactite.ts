@@ -356,8 +356,42 @@ function blit(
 export const fallingStalactite: HazardType<HazardPlacement> = {
   key: 'fallingStalactite',
   damage: SIDE_HIT_DAMAGE,
+  knocksBack: false,
   box: fallingStalactiteBox,
   isContact: fallingStalactiteIsContact,
+  /** Merges the live phase and fall/shake offsets — the exact per-kind branch
+   *  the state layer's `hazardPlacementsForTick` used to inline. */
+  withTickState: (placement, timers) => {
+    const elapsed = fallingStalactiteElapsedFor(timers.fallingStalactiteTimers, placement.id);
+    return {
+      ...placement,
+      fallingStalactitePhase: fallingStalactitePhaseFor(
+        timers.fallingStalactiteTimers,
+        placement,
+        timers.activeLevel,
+        timers.blockStates,
+        timers.crumblingFloorTimers,
+      ),
+      fallingStalactiteOffsetY: fallingStalactiteOffsetYAt(elapsed),
+      fallingStalactiteShakeOffsetX: fallingStalactiteShakeOffsetXAt(elapsed),
+    };
+  },
+  /** The detection-zone cells as tile rects, returned only while the hazard is
+   *  still hanging (arming is irreversible, FR-004). */
+  armTriggerRects: (hazard, timers) => {
+    if (isFallingStalactiteArmed(timers.fallingStalactiteTimers, hazard.id)) return [];
+    return detectionZoneCells(
+      hazard,
+      timers.activeLevel,
+      timers.blockStates,
+      timers.crumblingFloorTimers,
+    ).map((cell) => ({
+      x: cell.col * RENDERED_TILE_SIZE,
+      y: cell.row * RENDERED_TILE_SIZE,
+      width: RENDERED_TILE_SIZE,
+      height: RENDERED_TILE_SIZE,
+    }));
+  },
   draw: (hazard, dc) => {
     const image = dc.sprites[DECORATIONS_SHEET.src];
     if (!image) return;

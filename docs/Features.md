@@ -72,7 +72,7 @@ graph RL
         R004["✅ R-004: Platformer Transient Effect Registry"]
         R005["✅ R-005: Platformer Generic Speech Bubble"]
         R006["✅ R-006: Platformer Pickup Unification"]
-        R007["R-007: Platformer Registry Dispatch Completion"]
+        R007["✅ R-007: Platformer Registry Dispatch Completion"]
         R008["R-008: Platformer Placeable World Items"]
         R009["R-009: Platformer Renderer Split"]
         R010["R-010: Platformer Mapper & Editor Unification"]
@@ -319,6 +319,7 @@ graph RL
     class R004 done
     class R005 done
     class R006 done
+    class R007 done
     class R010 enhancements
     class R013 themes
 ```

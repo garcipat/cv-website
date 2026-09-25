@@ -61,6 +61,7 @@ function facingBox(hazard: HazardPlacement): Rect {
 export const spike: HazardType<HazardPlacement> & { spriteCoords: typeof spriteCoords } = {
   key: 'spike',
   damage: SIDE_HIT_DAMAGE,
+  knocksBack: true,
   spriteCoords,
   box: facingBox,
   draw: (hazard, dc) => {

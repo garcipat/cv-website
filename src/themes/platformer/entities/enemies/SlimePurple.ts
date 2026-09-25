@@ -161,6 +161,16 @@ export const slimePurple: EnemyType<SlimePurpleState> = {
   hitboxPaddingNative: HITBOX_PADDING_NATIVE,
   sprite: SLIME_PURPLE_SPRITE,
   heldItem: 'key',
+  onDefeat: (_enemy, defeat) => {
+    // The drop fires from inside the kind: read its OWN heldItem and ask the
+    // defeat API to spawn it through the generic pickup-spawn path
+    // (`PICKUP_TYPES['key'].spawn`) — never a page-side `spawnKeyPickup`.
+    // A revived-and-redefeated purple slime never reaches this hook (the
+    // shared applier invokes it only when `rewardGiven` is false), so it
+    // drops nothing further.
+    const item = slimePurple.heldItem;
+    if (item) defeat.spawnPickup(item);
+  },
 
   create: (placement, index) => ({
     ...baseEnemyState(placement, index, SLIME_PURPLE_BASE_CONFIG),

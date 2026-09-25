@@ -16,6 +16,11 @@ describe('spike', () => {
     expect(spike.damage).toBe(SIDE_HIT_DAMAGE);
   });
 
+  it('knocksBack-isTrue', () => {
+    // Unlike the floor spike/stalactite, a static spike pushes the player away.
+    expect(spike.knocksBack).toBe(true);
+  });
+
   // Each facing's hitbox is only the band of the tile its visible spikes
   // actually occupy (measured directly from staticObjects.png: 5 of the
   // tile's 16 native px, i.e. 10 of its 32 rendered px, anchored to the
