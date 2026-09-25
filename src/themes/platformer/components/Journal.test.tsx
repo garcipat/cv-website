@@ -5,7 +5,7 @@ import { currentCV } from '@/state/locale';
 import {
   collectedFacts,
   activeJournalSection,
-  collectedCollectibleIds,
+  baseCoinPlacements,
   collectiblePlacements,
   blockPlacements,
   blockStates,
@@ -51,7 +51,7 @@ describe('Journal', () => {
     // it must be reset between tests the same way collectedFacts is, or a
     // manual tab click in one test leaks into the next test's default.
     activeJournalSection.value = undefined;
-    collectedCollectibleIds.value = new Set();
+    baseCoinPlacements.value = baseCoinPlacements.value.map((p) => ({ ...p, collected: false }));
     vi.useRealTimers();
   });
 
@@ -569,7 +569,7 @@ describe('Journal', () => {
       // CollectibleMapper.ts's mapCVDataToSkillFactPool doc comment) — same
       // formula Journal.tsx itself uses.
       const total =
-        collectiblePlacements.value.filter((p) => p.spriteType === 'coin').length +
+        collectiblePlacements.value.filter((p) => p.kind === 'coin').length +
         blockPlacements.value.filter((b) => b.blockKind === 'coinPot').length;
       collectedFacts.value = [
         {
@@ -581,14 +581,15 @@ describe('Journal', () => {
         },
       ];
       // The coins row's "collected" count is now an explicit override (see
-      // Journal.tsx/CollectiblesSummary.ts) derived from
-      // `collectedCollectibleIds` matching a real coin placement, not from
-      // `collectedFacts` alone — under proportional fact pacing those are
-      // different numbers whenever the coin count and skill-category count
-      // differ (see CollectibleMapper.ts's mapCVDataToSkillFactPool doc
-      // comment), so this test must mark an actual coin placement as
-      // collected too, not just push a fact.
-      collectedCollectibleIds.value = new Set([collectiblePlacements.value[0].id]);
+      // Journal.tsx/CollectiblesSummary.ts) derived from a base coin's shared
+      // `collected` flag, not from `collectedFacts` alone — under proportional
+      // fact pacing those are different numbers whenever the coin count and
+      // skill-category count differ (see CollectibleMapper.ts's
+      // mapCVDataToSkillFactPool doc comment), so this test must mark an
+      // actual placed coin collected too, not just push a fact.
+      baseCoinPlacements.value = baseCoinPlacements.value.map((p, index) =>
+        index === 0 ? { ...p, collected: true } : p,
+      );
 
       render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
       openBookAnimation();
@@ -619,7 +620,7 @@ describe('Journal', () => {
         // S spawn, one placed coin (o), two coin-pots (u, u) -> coins total = 3.
         currentLayout.value = ['Souu', 'GGGG'];
         collectedFacts.value = [];
-        collectedCollectibleIds.value = new Set();
+        baseCoinPlacements.value = baseCoinPlacements.value.map((p) => ({ ...p, collected: false }));
 
         render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
         openBookAnimation();

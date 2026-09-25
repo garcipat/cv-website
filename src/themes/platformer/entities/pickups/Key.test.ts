@@ -7,13 +7,15 @@ import {
   KEY_RENDERED_HEIGHT,
   KEY_TILE_OFFSET_X,
   KEY_TILE_OFFSET_Y,
-} from './KeyPickup';
-import { RENDERED_TILE_SIZE } from '../level/Terrain';
+  key,
+} from './Key';
+import { RENDERED_TILE_SIZE } from '../../level/Terrain';
 
 describe('spawnKeyPickup', () => {
   it('spawnKeyPickup-givenIdAndPosition-returnsUncollectedState', () => {
     expect(spawnKeyPickup('enemy-plain-slimePurple-5-6', 100, 200)).toEqual({
       id: 'enemy-plain-slimePurple-5-6',
+      kind: 'key',
       x: 100,
       y: 200,
       collected: false,
@@ -23,8 +25,6 @@ describe('spawnKeyPickup', () => {
 
 describe('KEY sizing constants', () => {
   it('renderedHeight-fixedToExactlyOneRenderedTile-independentOfOtherPickups', () => {
-    // Fixed to one tile height regardless of any other pickup's own size
-    // (a coin renders smaller than a tile — not used as a reference here).
     expect(KEY_RENDERED_HEIGHT).toBe(RENDERED_TILE_SIZE);
   });
 
@@ -38,5 +38,30 @@ describe('KEY sizing constants', () => {
 
   it('tileOffsetX-centersKeyHorizontallyOnItsTile', () => {
     expect(KEY_TILE_OFFSET_X).toBe((RENDERED_TILE_SIZE - KEY_RENDERED_WIDTH) / 2);
+  });
+});
+
+describe('key view', () => {
+  it('key-isKey-andDrawLayerIsAfterEnemies', () => {
+    expect(key.key).toBe('key');
+    expect(key.drawLayer).toBe('afterEnemies');
+  });
+
+  it('onPickup-banksAKeyAndFliesATextToTheKeyCounter', () => {
+    const outcome = key.onPickup(spawnKeyPickup('k1', 100, 200), {
+      pool: [],
+      total: 0,
+      collectedBefore: 0,
+    });
+    expect(outcome.bankKey).toBe(true);
+    expect(outcome.flyingText).toEqual({
+      effectId: 'k1',
+      label: 'Key',
+      x: 100 + KEY_TILE_OFFSET_X,
+      y: 200 + KEY_TILE_OFFSET_Y,
+      target: 'keyCounter',
+    });
+    expect(outcome).not.toHaveProperty('disposition');
+    expect(outcome).not.toHaveProperty('self');
   });
 });

@@ -44,7 +44,7 @@ import type { Blueprint } from '../level/BlueprintData';
 import { currentTheme } from '@/state/theme';
 import { currentPath } from '@/state/navigation';
 import { readFileSync } from 'node:fs';
-import { enemyPlacements, enemyStates, collectedFacts, collectedCollectibleIds } from '../PlatformerState';
+import { enemyPlacements, enemyStates, collectedFacts, baseCoinPlacements } from '../PlatformerState';
 import { currentBackgroundLayout } from '../state/levelSession';
 
 const { blueprintEntries } = vi.hoisted(() => ({ blueprintEntries: [] as Blueprint[] }));
@@ -61,7 +61,7 @@ vi.mock('../engine/SpriteLoader', () => ({
 vi.mock('../engine/Renderer', () => ({
   drawTerrain: vi.fn(),
   drawPlayer: vi.fn(),
-  drawCollectibles: vi.fn(),
+  drawPickups: vi.fn(),
   drawEnemies: vi.fn(),
   drawBlocks: vi.fn(),
   drawChests: vi.fn(),
@@ -781,7 +781,7 @@ describe('LevelEditorPage - Try button', () => {
     // (collected facts/coins) from a previous Try session doesn't leak into
     // the next one — trying a layout should be a clean slate.
     collectedFacts.value = [{ id: 'stale-fact', sectionId: 'courses', sectionLabel: 'Courses', data: {} as never, sourceType: 'enemy' }];
-    collectedCollectibleIds.value = new Set(['stale-coin']);
+    baseCoinPlacements.value = baseCoinPlacements.value.map((p) => ({ ...p, collected: true }));
     enemyStates.value = [];
 
     render(<LevelEditorPage />);
@@ -789,7 +789,7 @@ describe('LevelEditorPage - Try button', () => {
 
     expect(enemyStates.value).toHaveLength(enemyPlacements.value.length);
     expect(collectedFacts.value).toEqual([]);
-    expect(collectedCollectibleIds.value.size).toBe(0);
+    expect(baseCoinPlacements.value.every((p) => !p.collected)).toBe(true);
   });
 });
 

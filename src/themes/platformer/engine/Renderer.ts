@@ -68,22 +68,17 @@ import {
   heartRemaining,
   heartFrameIndex,
 } from '../entities/Health';
-import type { CollectiblePlacement } from '../level/CollectibleMapper';
 import { PICKUP_TYPES } from '../entities/pickups';
-import { key } from '../entities/pickups/Key';
-import { heart } from '../entities/pickups/Heart';
-import { bomb } from '../entities/pickups/Bomb';
-import { fruit } from '../entities/pickups/Fruit';
+import type { Pickup, PickupGroups } from '../contracts/Pickup';
+import type { PickupKind } from '../contracts/PickupKind';
+import type { PickupDrawLayer } from '../entities/pickups/PickupType';
 import { typeOf } from '../entities/enemies';
 import type { EnemyState } from '../entities/Enemy';
 import { typeOf as hazardTypeOf } from '../entities/hazards';
 import type { HazardPlacement } from '../level/HazardMapper';
 import type { DrawContext } from '../contracts/DrawContext';
 import type { PotRenderPlan } from '../entities/blocks/potTypes';
-import type { KeyPickupState } from '../entities/KeyPickup';
-import type { HeartPickupState } from '../entities/HeartPickup';
-import type { BombPickupState } from '../entities/BombPickup';
-import { KEY_FRAME_WIDTH, KEY_FRAME_HEIGHT } from '../entities/KeyPickup';
+import { KEY_FRAME_WIDTH, KEY_FRAME_HEIGHT } from '../entities/pickups/Key';
 import type { BlockState } from '../entities/Block';
 import { BLOCK_TYPES } from '../entities/blocks';
 import { CHEST_TYPE } from '../entities/chests';
@@ -101,7 +96,6 @@ import type { CheckpointState } from '../entities/Checkpoint';
 import { frameSource } from '../entities/sprites/SpriteSheet';
 import { pulse } from '../shared/math';
 import { fillTextWithOutline, RESTART_PROMPT_FONT_FAMILY } from './textDraw';
-import type { FruitState } from '../entities/Fruit';
 import { TORCH_SHEET, BOMB_SHEET, CRUMBLE_FLOOR_SHEET, CRUMBLE_CRACKS_SHEET } from '../entities/sprites/sheets';import {
   crumblingFloorPhaseFor,
   crumblingFloorCrackRatioFor,
@@ -1435,7 +1429,7 @@ const SIGN_TILE_SY = 3 * TILE_SIZE;
 
 /**
  * Draws every hint sign's static signpost sprite. Same originX/originY
- * convention as drawTerrain/drawPlayer/drawCollectibles. Signs have no
+ * convention as drawTerrain/drawPlayer/drawPickups. Signs have no
  * animation and no collected/removed state (unlike collectibles) — every
  * placement in `signs` is always drawn.
  */
@@ -1463,78 +1457,40 @@ export function drawSigns(
 }
 
 /**
- * Draws every not-yet-collected placement — each spriteType renders itself
- * (see entities/pickups/), keyed by the item's stable position among all
- * placements of its own spriteType (tracked here, unconditionally per item
- * seen, so a pickup's frame stays stable regardless of which ones have since
- * been collected). A missing sprite for one pickup type is handled inside that
- * type's own `draw` (it simply skips), so a missing sprite never hides the
- * others. A placed collectible is always a coin today (a question-mark's
- * reward is a rising fruit, drawn separately — see drawFruits).
+ * THE one generic pickup draw path — dispatches each entry to its own kind's
+ * `draw`, so the renderer names no kind. When `layer` is given, only kinds
+ * whose `drawLayer` matches are drawn; the page invokes it at three bands to
+ * preserve the current draw order (fruit before blocks, coins after mid-world
+ * effects but before enemies, key/heart/bomb after enemies), while the editor
+ * preview omits the layer and draws every present kind.
+ *
+ * A per-kind index is tracked over ALL items (incremented before the
+ * visibility test), so a coin's frame/placement index stays stable regardless
+ * of which entries have been collected. An item whose shared `collected` flag
+ * is true is skipped — that is the one visibility rule; there is no
+ * collected-id set and no per-kind `isVisible`. A missing sprite for one type
+ * is handled inside that type's own `draw` (it simply skips), so a missing
+ * sprite never hides the others.
  */
-export function drawCollectibles(
+export function drawPickups(
   ctx: CanvasRenderingContext2D,
-  placements: readonly CollectiblePlacement[],
-  collectedIds: ReadonlySet<string>,
+  groups: PickupGroups,
   dc: DrawContext,
+  layer?: PickupDrawLayer,
 ): void {
   ctx.imageSmoothingEnabled = false;
-
-  const typeCounts: Partial<Record<CollectiblePlacement['spriteType'], number>> = {};
-  for (const placement of placements) {
-    const index = typeCounts[placement.spriteType] ?? 0;
-    typeCounts[placement.spriteType] = index + 1;
-    if (collectedIds.has(placement.id)) continue;
-    PICKUP_TYPES[placement.spriteType].draw(placement, dc, index);
-  }
-}
-
-/**
- * Draws every not-yet-collected key pickup — each one renders itself (see
- * entities/pickups/Key.ts); this only owns the collected filter, matching
- * drawCollectibles's/drawEnemies's own not-yet-collected/alive filtering.
- */
-export function drawKeyPickups(
-  ctx: CanvasRenderingContext2D,
-  pickups: readonly KeyPickupState[],
-  dc: DrawContext,
-): void {
-  ctx.imageSmoothingEnabled = false;
-  for (const pickup of pickups) {
-    if (pickup.collected) continue;
-    key.draw(pickup, dc);
-  }
-}
-
-/** Draws every potion-pot's dropped heart — each one renders itself (see
- *  entities/pickups/Heart.ts). Unlike drawKeyPickups, there's no `collected`
- *  filter: a touched heart is removed from its live array entirely the same
- *  tick (see PlatformerState.ts's heartPickupStates doc comment), same
- *  convention as drawFruits below. */
-export function drawHeartPickups(
-  ctx: CanvasRenderingContext2D,
-  pickups: readonly HeartPickupState[],
-  dc: DrawContext,
-): void {
-  ctx.imageSmoothingEnabled = false;
-  for (const pickup of pickups) {
-    heart.draw(pickup, dc);
-  }
-}
-
-/** Draws every dropped bomb pickup — each one renders itself (see
- *  entities/pickups/Bomb.ts). Same no-`collected`-flag convention as
- *  drawHeartPickups: a touched bomb is removed from its live array entirely
- *  the same tick (unless the inventory is at its cap — then it is left in the
- *  world and simply keeps drawing). */
-export function drawBombPickups(
-  ctx: CanvasRenderingContext2D,
-  pickups: readonly BombPickupState[],
-  dc: DrawContext,
-): void {
-  ctx.imageSmoothingEnabled = false;
-  for (const pickup of pickups) {
-    bomb.draw(pickup, dc);
+  for (const kind of Object.keys(groups) as PickupKind[]) {
+    const items = groups[kind];
+    if (!items) continue;
+    const type = PICKUP_TYPES[kind];
+    if (layer !== undefined && type.drawLayer !== layer) continue;
+    let index = 0;
+    for (const item of items) {
+      const itemIndex = index;
+      index += 1;
+      if (item.collected) continue;
+      type.draw(item as Pickup, dc, itemIndex);
+    }
   }
 }
 
@@ -1735,19 +1691,6 @@ export function drawCheckpoints(
     );
 
     drawCheckpointTwinkles(state, dc, state.id === activeCheckpointId);
-  }
-}
-
-/** Draws every question-mark block's spawned fruit — each one renders
- *  itself (see entities/pickups/Fruit.ts). */
-export function drawFruits(
-  ctx: CanvasRenderingContext2D,
-  fruits: readonly FruitState[],
-  dc: DrawContext,
-): void {
-  ctx.imageSmoothingEnabled = false;
-  for (const fruitState of fruits) {
-    fruit.draw(fruitState, dc);
   }
 }
 

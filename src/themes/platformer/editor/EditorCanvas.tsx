@@ -45,7 +45,7 @@ import { PATROL_GLYPH, CONNECTION_POINT_GLYPH, PALETTE_TILE_SPRITES } from './pa
 import {
   drawTerrain,
   drawPlayer,
-  drawCollectibles,
+  drawPickups,
   drawEnemies,
   drawBlocks,
   drawChests,
@@ -855,7 +855,7 @@ export const EditorCanvas = ({
       // preview an author needs.
       drawCrumblingFloors(ctx, gridToLevelDef(grid), [], drawContext);
 
-      drawCollectibles(ctx, synthesizeCollectiblePlacements(grid), new Set(), drawContext);
+      drawPickups(ctx, { coin: synthesizeCollectiblePlacements(grid) }, drawContext);
 
       drawHazards(ctx, synthesizeHazardPlacements(grid, markerGrid), drawContext);
 

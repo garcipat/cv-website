@@ -1,9 +1,27 @@
 import type { SpriteSheet } from './SpriteSheet';
-import { KEY_FRAME_WIDTH, KEY_FRAME_HEIGHT } from '../KeyPickup';
-import { COIN_FRAME_SIZE, COIN_FRAME_COUNT } from '../Coin';
-import { FRUIT_FRAME_SIZE, FRUIT_ICON_COLUMNS } from '../Fruit';
 import { HEART_FRAME_SIZE } from '../Health';
 import { TILE_SIZE } from '../../level/Terrain';
+
+/**
+ * Pickup sheet geometry is declared here with local literals rather than
+ * imported from the pickup modules: `entities/pickups/<Kind>.ts` import their
+ * own `*_SHEET` from this file, so importing their frame constants back would
+ * close a module cycle. The numeric agreement is instead asserted in
+ * `entities/pickups/PickupType.test.ts`, following the same convention
+ * `BOMB_SHEET`/`SLIME_*` already use.
+ *
+ * `key.png` is a standalone image whose native frame is 14x22.
+ */
+const KEY_FRAME_WIDTH = 14;
+const KEY_FRAME_HEIGHT = 22;
+
+/** `coin.png` is a 192x16 strip: 12 frames of 16x16, one spin cycle. */
+const COIN_FRAME_SIZE = 16;
+const COIN_FRAME_COUNT = 12;
+
+/** `fruit.png`'s icons are 16x16, addressed with a stride of its 3 real columns. */
+const FRUIT_FRAME_SIZE = 16;
+const FRUIT_ICON_COLUMNS = 3;
 import {
   CHEST_CLOSED_WIDTH,
   CHEST_CLOSED_HEIGHT,

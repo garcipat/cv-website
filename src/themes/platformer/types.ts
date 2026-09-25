@@ -83,7 +83,7 @@ export interface CollectedFact {
  * One mapped, not-yet-placed enemy — `EnemyMapper.ts` produces these from
  * `CVData`; `placeEnemies` adds x/y to turn each into an `EnemyPlacement`.
  * An enemy's type ('slimeGreen'/'slimePurple') has no meaning for a
- * coin/fruit collectible, and enemies don't join `collectedCollectibleIds`
+ * coin/fruit collectible, and enemies don't join the pickup collect-once state
  * — their defeat dedups by fact id in `collectedFacts` instead. (Coins no
  * longer have their own "Def" type — see `CollectibleMapper.ts`'s
  * `CollectiblePlacement`: a coin is a plain position now, and which CV fact

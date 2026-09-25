@@ -10,9 +10,12 @@ import {
   collectedFacts,
   activeJournalSection,
   collectiblePlacements,
+  fruitStates,
   enemyPlacements,
   enemyStates,
-  collectedCollectibleIds,
+  baseCoinPlacements,
+  pickupStores,
+  pickupGroups,
   activeEffects,
   refreshSpeechBubbleText,
   blockPlacements,
@@ -61,7 +64,6 @@ import {
 } from './PlatformerState';
 import { MUSHROOM_SQUASH_DURATION_SECONDS } from './entities/blocks/Mushroom';
 import { FLOOR_SPIKE_CYCLE_SECONDS } from './entities/hazards/FloorSpike';
-import type { CollectedFact } from './types';
 import { mapCVDataToEnemies } from './level/EnemyMapper';
 import { toBlockState } from './entities/Block';
 import { computePotRenderPlan } from './entities/blocks/potRenderPlan';
@@ -119,6 +121,10 @@ import type {
 } from './engine/effects';
 import { FALLING_STALACTITE_SHAKE_SECONDS } from './entities/hazards/FallingStalactite';
 import { MAX_DARKNESS, DARKNESS_FADE_SECONDS, playerOccupiedCell } from './engine/Lighting';
+import { checkPickupCollisions } from './engine/Collision';
+import { spawnFruit, tickFruit, FRUIT_RISE_DURATION_SECONDS } from './entities/pickups/Fruit';
+import { spawnHeartPickup } from './entities/pickups/Heart';
+import { spawnBombPickup } from './entities/pickups/Bomb';
 
 /** The live collection narrowed to one effect kind. */
 const effectsOfKind = <S,>(kind: EffectKind): readonly TransientEffect<S>[] =>
@@ -129,10 +135,6 @@ const speechBubble = (): TransientEffect<SpeechBubbleState> | undefined =>
   activeEffects.value.find(
     (effect): effect is TransientEffect<SpeechBubbleState> => effect.kind === 'speechBubble',
   );
-
-function collectedFactFixture(): CollectedFact {
-  return { id: 'f1', sectionId: 'skills', sectionLabel: 'Skills', data: { category: 'Test', skills: [] }, sourceType: 'coin' };
-}
 
 describe('PlatformerState', () => {
   it('collectedFacts-initial-isEmpty', () => {
@@ -273,8 +275,9 @@ describe('PlatformerState', () => {
     });
   });
 
-  it('collectedCollectibleIds-initial-isEmptySet', () => {
-    expect(collectedCollectibleIds.value.size).toBe(0);
+  it('baseCoinPlacements-initial-areAllUncollected', () => {
+    expect(baseCoinPlacements.value.length).toBeGreaterThan(0);
+    expect(baseCoinPlacements.value.every((p) => !p.collected)).toBe(true);
   });
 
   it('activeEffects-initial-isEmptyArray', () => {
@@ -282,16 +285,22 @@ describe('PlatformerState', () => {
   });
 
   it('resetGame-calledAfterCollectingAndFactsAdded-doesNotClearCollectedStateOrFacts', () => {
-    collectedCollectibleIds.value = new Set(['coin-backend']);
+    baseCoinPlacements.value = baseCoinPlacements.value.map((p, index) =>
+      index === 0 ? { ...p, collected: true } : p,
+    );
+    const collectedId = baseCoinPlacements.value[0].id;
     collectedFacts.value = [
       { id: 'coin-backend', sectionId: 'skills', sectionLabel: 'Skills', data: { category: 'Backend', skills: [] }, sourceType: 'coin' },
     ];
 
     resetGame();
 
-    // FR-020c: collected coins/facts survive a death/respawn reset.
-    expect(collectedCollectibleIds.value.has('coin-backend')).toBe(true);
+    // FR-020c: collected coins/facts survive a death/respawn reset — the
+    // base coin keeps its shared `collected` flag.
+    expect(baseCoinPlacements.value.find((p) => p.id === collectedId)?.collected).toBe(true);
     expect(collectedFacts.value).toHaveLength(1);
+
+    baseCoinPlacements.value = baseCoinPlacements.value.map((p) => ({ ...p, collected: false }));
   });
 
   it('resetGame-afterEnemyMovedAndDied-revivesTheSameObjectsInPlace', () => {
@@ -457,22 +466,22 @@ describe('PlatformerState', () => {
 describe('resetGameProgress', () => {
   afterEach(() => {
     collectedFacts.value = [];
-    collectedCollectibleIds.value = new Set();
+    baseCoinPlacements.value = baseCoinPlacements.value.map((p) => ({ ...p, collected: false }));
     activeJournalSection.value = undefined;
     chestStates.value = chestPlacements.value.map(toChestState);
   });
 
-  it('called-clearsCollectedFactsAndCollectibleIds', () => {
+  it('called-clearsCollectedFactsAndReDerivesBaseCoinsUncollected', () => {
     collectedFacts.value = [
       { id: 'coin-backend', sectionId: 'skills', sectionLabel: 'Skills', data: { category: 'Backend', skills: [] }, sourceType: 'coin' },
     ];
-    collectedCollectibleIds.value = new Set(['coin-backend']);
+    baseCoinPlacements.value = baseCoinPlacements.value.map((p) => ({ ...p, collected: true }));
     activeJournalSection.value = 'skills';
 
     resetGameProgress();
 
     expect(collectedFacts.value).toEqual([]);
-    expect(collectedCollectibleIds.value.size).toBe(0);
+    expect(baseCoinPlacements.value.every((p) => !p.collected)).toBe(true);
     expect(activeJournalSection.value).toBeUndefined();
   });
 
@@ -644,15 +653,15 @@ describe('keyPickupStates / collectedKeys persistence', () => {
   });
 
   it('resetGame-doesNotClearKeyPickupsOrCollectedKeys', () => {
-    keyPickupStates.value = [{ id: 'k1', x: 0, y: 0, collected: true }];
+    keyPickupStates.value = [{ id: 'k1', kind: 'key', x: 0, y: 0, collected: true }];
     collectedKeys.value = 2;
     resetGame();
-    expect(keyPickupStates.value).toEqual([{ id: 'k1', x: 0, y: 0, collected: true }]);
+    expect(keyPickupStates.value).toEqual([{ id: 'k1', kind: 'key', x: 0, y: 0, collected: true }]);
     expect(collectedKeys.value).toBe(2);
   });
 
   it('resetGameProgress-clearsKeyPickupsAndCollectedKeys', () => {
-    keyPickupStates.value = [{ id: 'k1', x: 0, y: 0, collected: true }];
+    keyPickupStates.value = [{ id: 'k1', kind: 'key', x: 0, y: 0, collected: true }];
     collectedKeys.value = 2;
     resetGameProgress();
     expect(keyPickupStates.value).toEqual([]);
@@ -670,7 +679,7 @@ describe('heartPickupStates', () => {
   });
 
   it('resetGameProgress-clearsHeartPickups', () => {
-    heartPickupStates.value = [{ id: 'h1', x: 0, y: 0 }];
+    heartPickupStates.value = [{ id: 'h1', kind: 'heart', x: 0, y: 0, collected: false }];
     resetGameProgress();
     expect(heartPickupStates.value).toEqual([]);
   });
@@ -739,7 +748,7 @@ describe('resetGame — bombs clear and bomb-pots restore', () => {
       },
     ];
     carriedBombs.value = 3;
-    bombPickupStates.value = [{ id: 'b1', x: 0, y: 0 }];
+    bombPickupStates.value = [{ id: 'b1', kind: 'bomb', x: 0, y: 0, collected: false }];
 
     resetGame();
 
@@ -786,7 +795,7 @@ describe('resetGame — potion-pots restore, dropped hearts vanish', () => {
     // death/respawn, cleared only by resetGameProgress), a dropped heart
     // disappears on every death — the user's call: a heart in the world is
     // tied to its still-broken pot, and the pot itself is about to reappear.
-    heartPickupStates.value = [{ id: 'h1', x: 0, y: 0 }];
+    heartPickupStates.value = [{ id: 'h1', kind: 'heart', x: 0, y: 0, collected: false }];
     resetGame();
     expect(heartPickupStates.value).toEqual([]);
   });
@@ -895,7 +904,7 @@ describe('resetGame — restored-on-respawn flag and rewardGiven carry-over', ()
   });
 
   it('resetGame-aPreviouslyDroppedCoinPickupSurvivesAndStaysCollectible', () => {
-    const droppedCoin = { id: 'coinpot-x', spriteType: 'coin' as const, x: 100, y: 100 };
+    const droppedCoin = { id: 'coinpot-x', kind: 'coin' as const, x: 100, y: 100, collected: false };
     spawnedCoinPlacements.value = [droppedCoin];
 
     resetGame();
@@ -938,7 +947,7 @@ describe('allCollectiblePlacements', () => {
   });
 
   it('afterASpawnedCoinIsAdded-includesIt', () => {
-    const extra = { id: 'spawned-1', spriteType: 'coin' as const, fact: collectedFactFixture(), x: 0, y: 0 };
+    const extra = { id: 'spawned-1', kind: 'coin' as const, x: 0, y: 0, collected: false };
     spawnedCoinPlacements.value = [extra];
     expect(allCollectiblePlacements.value).toContainEqual(extra);
     spawnedCoinPlacements.value = []; // don't leak into other tests
@@ -989,7 +998,7 @@ describe('levelTotals', () => {
     // each field must equal the exact expression its former call site used.
     expect(levelTotals.value).toEqual({
       coins:
-        collectiblePlacements.value.filter((p) => p.spriteType === 'coin').length +
+        collectiblePlacements.value.filter((p) => p.kind === 'coin').length +
         blockPlacements.value.filter((b) => b.blockKind === 'coinPot').length,
       fruits: blockPlacements.value.filter((b) => b.blockKind === 'questionMark' && b.fact).length,
       enemies: enemyPlacements.value.filter((p) => p.type === 'slimeGreen').length,
@@ -1712,5 +1721,180 @@ describe('R-004 US5 — unified effect collection lifecycle', () => {
     expect(effectsOfKind<HitSplatterState>('hitSplatter')[0].elapsed).toBeCloseTo(0.2, 5);
     expect(effectsOfKind<PuffState>('puff')[0]).toBe(puff);
     expect(effectsOfKind<PuffState>('puff')[0].elapsed).toBe(0);
+  });
+});
+
+describe('R-006 collection storage — one collect-once mechanism (SC-008)', () => {
+  afterEach(() => {
+    baseCoinPlacements.value = baseCoinPlacements.value.map((p) => ({ ...p, collected: false }));
+    spawnedCoinPlacements.value = [];
+    fruitStates.value = [];
+    keyPickupStates.value = [];
+    heartPickupStates.value = [];
+    bombPickupStates.value = [];
+    collectedKeys.value = 0;
+    carriedBombs.value = 0;
+  });
+
+  it('markCollected-flagsAPlacedCoinInPlaceAndRetainsIt', () => {
+    const target = baseCoinPlacements.value[0];
+    const before = baseCoinPlacements.value.length;
+
+    pickupStores.coin.markCollected(new Set([target.id]));
+
+    expect(baseCoinPlacements.value).toHaveLength(before);
+    expect(baseCoinPlacements.value.find((p) => p.id === target.id)?.collected).toBe(true);
+    expect(
+      pickupGroups.value.coin?.find((p) => p.id === target.id)?.collected,
+    ).toBe(true);
+  });
+
+  it('aFlaggedBaseCoinSurvivesResetGameButIsReDerivedByResetGameProgress', () => {
+    const target = baseCoinPlacements.value[0];
+    pickupStores.coin.markCollected(new Set([target.id]));
+
+    resetGame();
+    expect(baseCoinPlacements.value.find((p) => p.id === target.id)?.collected).toBe(true);
+
+    resetGameProgress();
+    expect(baseCoinPlacements.value.every((p) => !p.collected)).toBe(true);
+  });
+
+  it('everyKind-markCollectedRetainsTheEntryFlaggedRatherThanRemovingIt', () => {
+    fruitStates.value = [tickFruit(spawnFruit('f1', 0, 0, undefined, 0), FRUIT_RISE_DURATION_SECONDS)];
+    keyPickupStates.value = [{ id: 'k1', kind: 'key', x: 0, y: 0, collected: false }];
+    heartPickupStates.value = [spawnHeartPickup('h1', 0, 0)];
+    bombPickupStates.value = [spawnBombPickup('b1', 0, 0)];
+
+    pickupStores.fruit.markCollected(new Set(['f1']));
+    pickupStores.key.markCollected(new Set(['k1']));
+    pickupStores.heart.markCollected(new Set(['h1']));
+    pickupStores.bomb.markCollected(new Set(['b1']));
+
+    for (const kind of ['fruit', 'key', 'heart', 'bomb'] as const) {
+      const items = pickupStores[kind].items;
+      expect(items).toHaveLength(1);
+      expect(items[0].collected).toBe(true);
+    }
+  });
+
+  it('pickupGroups-isTheSinglePerKindViewOfEveryArray', () => {
+    const groups = pickupGroups.value;
+    expect(groups.coin).toBe(allCollectiblePlacements.value);
+    expect(groups.fruit).toBe(fruitStates.value);
+    expect(groups.key).toBe(keyPickupStates.value);
+    expect(groups.heart).toBe(heartPickupStates.value);
+    expect(groups.bomb).toBe(bombPickupStates.value);
+  });
+});
+
+describe('R-006 reset scopes are the only per-kind difference (FR-009)', () => {
+  afterEach(() => {
+    baseCoinPlacements.value = baseCoinPlacements.value.map((p) => ({ ...p, collected: false }));
+    spawnedCoinPlacements.value = [];
+    fruitStates.value = [];
+    keyPickupStates.value = [];
+    heartPickupStates.value = [];
+    bombPickupStates.value = [];
+    collectedKeys.value = 0;
+  });
+
+  it('resetGame-keepsCoinFruitKeyFlagsAndClearsHeartBomb', () => {
+    const target = baseCoinPlacements.value[0];
+    pickupStores.coin.markCollected(new Set([target.id]));
+    fruitStates.value = [{ ...tickFruit(spawnFruit('f1', 0, 0, undefined, 0), FRUIT_RISE_DURATION_SECONDS), collected: true }];
+    keyPickupStates.value = [{ id: 'k1', kind: 'key', x: 0, y: 0, collected: true }];
+    spawnedCoinPlacements.value = [{ id: 'spawned-1', kind: 'coin', x: 0, y: 0, collected: true }];
+    heartPickupStates.value = [spawnHeartPickup('h1', 0, 0)];
+    bombPickupStates.value = [spawnBombPickup('b1', 0, 0)];
+    collectedKeys.value = 2;
+
+    resetGame();
+
+    expect(baseCoinPlacements.value.find((p) => p.id === target.id)?.collected).toBe(true);
+    expect(spawnedCoinPlacements.value).toHaveLength(1);
+    expect(fruitStates.value[0].collected).toBe(true);
+    expect(keyPickupStates.value[0].collected).toBe(true);
+    expect(collectedKeys.value).toBe(2);
+    expect(heartPickupStates.value).toEqual([]);
+    expect(bombPickupStates.value).toEqual([]);
+  });
+
+  it('resetGameProgress-clearsEveryPickupArrayAndCollectedKeys', () => {
+    baseCoinPlacements.value = baseCoinPlacements.value.map((p) => ({ ...p, collected: true }));
+    spawnedCoinPlacements.value = [{ id: 'spawned-1', kind: 'coin', x: 0, y: 0, collected: true }];
+    fruitStates.value = [tickFruit(spawnFruit('f1', 0, 0, undefined, 0), FRUIT_RISE_DURATION_SECONDS)];
+    keyPickupStates.value = [{ id: 'k1', kind: 'key', x: 0, y: 0, collected: true }];
+    heartPickupStates.value = [spawnHeartPickup('h1', 0, 0)];
+    bombPickupStates.value = [spawnBombPickup('b1', 0, 0)];
+    collectedKeys.value = 3;
+
+    resetGameProgress();
+
+    expect(baseCoinPlacements.value.every((p) => !p.collected)).toBe(true);
+    expect(spawnedCoinPlacements.value).toEqual([]);
+    expect(fruitStates.value).toEqual([]);
+    expect(keyPickupStates.value).toEqual([]);
+    expect(heartPickupStates.value).toEqual([]);
+    expect(bombPickupStates.value).toEqual([]);
+    expect(collectedKeys.value).toBe(0);
+  });
+});
+
+describe('R-006 generic eligibility gates (FR-002)', () => {
+  // The player's hitbox stands at y 86..124; a pickup placed at y 100
+  // overlaps it — same geometry the engine's other pickup tests use.
+  const player = { ...playerState.value, x: 0, y: 100 - RENDERED_TILE_SIZE };
+
+  afterEach(() => {
+    heartPickupStates.value = [];
+    bombPickupStates.value = [];
+    fruitStates.value = [];
+  });
+
+  it('aFullHealthPlayerLeavesAHeartInTheWorld', () => {
+    const heart = spawnHeartPickup('h1', 0, 100);
+    const hits = checkPickupCollisions(
+      { ...player, hitPoints: MAX_HALF_HEARTS },
+      { heart: [heart] },
+      { playerHitPoints: MAX_HALF_HEARTS },
+    );
+    expect(hits).toEqual([]);
+  });
+
+  it('aBelowMaxHealthPlayerCollectsTheHeart', () => {
+    const heart = spawnHeartPickup('h1', 0, 100);
+    const hits = checkPickupCollisions(
+      { ...player, hitPoints: 4 },
+      { heart: [heart] },
+      { playerHitPoints: 4 },
+    );
+    expect(hits.map((h) => h.state.id)).toEqual(['h1']);
+  });
+
+  it('anAtCapPlayerLeavesABombInTheWorld', () => {
+    const bomb = spawnBombPickup('b1', 0, 100);
+    const hits = checkPickupCollisions(
+      player,
+      { bomb: [bomb] },
+      { playerHitPoints: MAX_HALF_HEARTS, capacity: 0 },
+    );
+    expect(hits).toEqual([]);
+  });
+
+  it('aMidRiseFruitIsNotCollectible', () => {
+    const fruit = spawnFruit('f1', 0, 100, undefined, 0);
+    const hits = checkPickupCollisions(player, { fruit: [fruit] }, { playerHitPoints: MAX_HALF_HEARTS });
+    expect(hits).toEqual([]);
+  });
+
+  it('aBombPickupAtCapacityIsClampedInArrayOrder', () => {
+    bombPickupStates.value = [spawnBombPickup('b1', 0, 100), spawnBombPickup('b2', 0, 100)];
+    const hits = checkPickupCollisions(
+      player,
+      { bomb: bombPickupStates.value },
+      { playerHitPoints: MAX_HALF_HEARTS, capacity: 1 },
+    );
+    expect(hits.map((h) => h.state.id)).toEqual(['b1']);
   });
 });

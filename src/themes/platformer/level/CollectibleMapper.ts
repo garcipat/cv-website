@@ -1,6 +1,7 @@
 import { tileToPixel } from './Terrain';
 import type { CVData, SkillCategory, Skill } from '@/types/cv';
 import type { CollectedFact } from '../types';
+import type { Pickup } from '../contracts/Pickup';
 
 /** Lowercases and hyphenates a label into a stable id fragment (e.g.
  *  "DevOps & Tools" -> "devops-tools"). Not full slugify (no unicode
@@ -56,15 +57,14 @@ export function mapCVDataToSkillFactPool(cv: CVData): CollectedFact[] {
 /**
  * A placed coin collectible — purely positional (see
  * `mapCVDataToSkillFactPool`'s doc comment for why a coin carries no fact of
- * its own). `id` is derived from its marker position, stable and unique,
- * used only for `collectedCollectibleIds` dedup — it has no relationship to
- * which fact a pickup ends up revealing.
+ * its own). Composes the shared `Pickup` base with `kind: 'coin'`, so the
+ * generic collision and draw paths treat a placed coin like any other kind.
+ * `id` is derived from its marker position, stable and unique; its `collected`
+ * flag lives on the mutable `PlatformerState.baseCoinPlacements` (so it
+ * survives death/respawn and is cleared only by a full reset).
  */
-export interface CollectiblePlacement {
-  id: string;
-  spriteType: 'coin';
-  x: number;
-  y: number;
+export interface CollectiblePlacement extends Pickup {
+  kind: 'coin';
 }
 
 /**
@@ -74,9 +74,9 @@ export interface CollectiblePlacement {
  * EnemyMapper.ts's placeEnemies/BlockMapper.ts's placeBlocks.
  *
  * A question-mark block's reward is NOT placed here — a hit `Q` spawns its own
- * rising fruit (`entities/Fruit.ts`'s `spawnFruit`), so the former dormant
- * placed-fruit branch and its `CollectibleMarkerPositions.fruit` field were
- * removed (R-002 FR-022).
+ * rising fruit (`entities/pickups/Fruit.ts`'s `spawnFruit`), so the former
+ * dormant placed-fruit branch and its `CollectibleMarkerPositions.fruit` field
+ * were removed (R-002 FR-022). This path is coin-only.
  */
 export function placeCollectibles(
   coinMarkers: readonly { col: number; row: number }[],
@@ -85,7 +85,7 @@ export function placeCollectibles(
 
   coinMarkers.forEach(({ col, row }) => {
     const { x, y } = tileToPixel(col, row);
-    placements.push({ id: `coin-${col}-${row}`, spriteType: 'coin', x, y });
+    placements.push({ id: `coin-${col}-${row}`, kind: 'coin', x, y, collected: false });
   });
 
   return placements;

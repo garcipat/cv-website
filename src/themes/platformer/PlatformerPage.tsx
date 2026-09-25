@@ -6,10 +6,9 @@ import {
   drawTerrain,
   drawPlayer,
   drawHearts,
-  drawCollectibles,
+  drawPickups,
   drawEnemies,
   drawBlocks,
-  drawFruits,
   drawChests,
   drawChestCounter,
   drawIrisOverlay,
@@ -19,9 +18,6 @@ import {
   CHEST_COUNTER_X,
   CHEST_COUNTER_Y,
   drawSigns,
-  drawKeyPickups,
-  drawHeartPickups,
-  drawBombPickups,
   drawPlacedBombs,
   drawLowHealthGlow,
   drawHazards,
@@ -71,20 +67,19 @@ import { maxIrisRadius } from './engine/GameLifecycle';
 import { currentLevel, currentLayout, currentBackgroundLayout } from './state/levelSession';
 import { findLevel } from './level/levelRegistry';
 import {
-  checkCollectibleCollisions,
+  checkPickupCollisions,
   resolveEnemyContacts,
-  checkFruitCollisions,
   chestPlayerIsStandingOn,
   checkSignOverlap,
-  checkKeyPickupCollisions,
-  checkHeartPickupCollisions,
-  checkBombPickupCollisions,
   resolveHazardContacts,
   checkFloorSpikeTriggers,
   checkCrumblingFloorTriggers,
   checkFallingStalactiteTriggers,
   playerHitbox,
 } from './engine/Collision';
+import type { PickupHit } from './engine/Collision';
+import type { PickupContext } from './contracts/PickupOutcome';
+import type { PickupKind } from './contracts/PickupKind';
 import {
   createPlacedBomb,
   stepPlacedBomb,
@@ -106,10 +101,8 @@ import {
 import type { BlockState } from './entities/Block';
 import { computePotRenderPlan } from './entities/blocks/potRenderPlan';
 import type { PotRenderPlan } from './entities/blocks/potTypes';
-import { spawnFruit, tickFruit, fruitY } from './entities/Fruit';
-import { spawnKeyPickup, KEY_TILE_OFFSET_X, KEY_TILE_OFFSET_Y } from './entities/KeyPickup';
-import { spawnHeartPickup } from './entities/HeartPickup';
-import { spawnBombPickup } from './entities/BombPickup';
+import { tickFruit } from './entities/pickups/Fruit';
+import { spawnKeyPickup } from './entities/pickups/Key';
 import type { BlockHitOutcome } from './entities/blocks/BlockType';
 import {
   activeSpeechBubble,
@@ -141,8 +134,8 @@ import {
   fallingStalactiteShatter,
 } from './entities/hazards/FallingStalactite';
 import { crumblingFloorPhaseFor, CRUMBLING_FLOOR_CRACK_SECONDS } from './engine/CrumblingFloor';
-import { COIN_FRAME_SIZE } from './entities/Coin';
-import { fruitFrameSource, FRUIT_FRAME_SIZE } from './entities/Fruit';
+import { COIN_FRAME_SIZE } from './entities/pickups/Coin';
+import { fruitFrameSource, FRUIT_FRAME_SIZE } from './entities/pickups/Fruit';
 import { createRewardReveal } from './state/rewards';
 import { RENDERED_TILE_SIZE, tileToPixel } from './level/Terrain';
 import {
@@ -202,8 +195,7 @@ import {
   checkpointEffectAnchor,
 } from './entities/Checkpoint';
 import type { EnemyState } from './entities/Enemy';
-import { takeDamage, healDamage, PIT_FALL_DAMAGE, HEART_PICKUP_HEAL_AMOUNT, isHealthCritical } from './entities/Health';
-import { revealedFactCountFor } from './level/SkillFactPacing';
+import { takeDamage, healDamage, PIT_FALL_DAMAGE, isHealthCritical } from './entities/Health';
 import {
   playerState,
   cameraPositionX,
@@ -212,15 +204,14 @@ import {
   resetGame,
   resetGameProgress,
   controlsOverlayDismissed,
-  spawnedCoinPlacements,
-  allCollectiblePlacements,
   skillFactPool,
+  pickupStores,
+  pickupGroups,
   enemyStates,
   blockStates,
   cratesDestroyed,
   enemiesDefeated,
   fruitStates,
-  collectedCollectibleIds,
   activeEffects,
   spawnEffect,
   refreshSpeechBubbleText,
@@ -231,10 +222,8 @@ import {
   hazardPlacements,
   keyPickupStates,
   collectedKeys,
-  heartPickupStates,
   MAX_BOMBS,
   carriedBombs,
-  bombPickupStates,
   placedBombs,
   levelTotals,
   checkpointPlacements,
@@ -735,6 +724,10 @@ export const PlatformerPage = () => {
         potPlan: computePotRenderPlan(blockStates.value),
       };
 
+      // Read once per frame: the page never names a pickup kind, it just
+      // hands the same kind→array groups to `drawPickups` at each band.
+      const pickupGroupValues = pickupGroups.value;
+
       // One render context per frame, shared by the four `drawEffects` layer
       // invocations below. `popupIcons` is resolved once here from the sprite
       // refs (the former render-loop popupOrder), so the counter-popup draw
@@ -801,7 +794,7 @@ export const PlatformerPage = () => {
       // own tile occlude the still-rising fruit until it clears the block's
       // top edge, reading as "popping out from behind the block" instead of
       // floating on top of it.
-      drawFruits(ctx, fruitStates.value, drawContext);
+      drawPickups(ctx, pickupGroupValues, drawContext, 'belowBlocks');
 
       drawBlocks(ctx, blockStates.value, drawContext);
 
@@ -864,15 +857,11 @@ export const PlatformerPage = () => {
       // Mid-world layer: the heal aura sits over the player, under collectibles.
       drawEffects(effectRenderContext, 'midWorld', activeEffects.value);
 
-      drawCollectibles(ctx, allCollectiblePlacements.value, collectedCollectibleIds.value, drawContext);
+      drawPickups(ctx, pickupGroupValues, drawContext, 'beforeEnemies');
 
       drawEnemies(ctx, enemyStates.value, drawContext);
 
-      drawKeyPickups(ctx, keyPickupStates.value, drawContext);
-
-      drawHeartPickups(ctx, heartPickupStates.value, drawContext);
-
-      drawBombPickups(ctx, bombPickupStates.value, drawContext);
+      drawPickups(ctx, pickupGroupValues, drawContext, 'afterEnemies');
 
       // Very-foreground water band, anchored to the LEVEL's bottom edge (not
       // the viewport) — drawn after every world entity so it sits in front
@@ -1382,188 +1371,115 @@ export const PlatformerPage = () => {
       // tick/expiry reproduces its exact boundary (FR-004/FR-007).
       activeEffects.value = advanceEffects(activeEffects.value, dt);
 
-      const touchedIds = checkCollectibleCollisions(
-        playerState.value,
-        allCollectiblePlacements.value,
-        collectedCollectibleIds.value,
-      );
-      if (touchedIds.length > 0) {
-        const nextCollected = new Set(collectedCollectibleIds.value);
+      // ONE generic collect path. The shared collision entry point returns
+      // every eligible hit keyed by kind; the applier flags each kind's hits
+      // `collected` (the ONE collect-once action) and applies that kind's
+      // declared consequences uniformly. The page names no kind.
+      const pickupHits = checkPickupCollisions(playerState.value, pickupGroups.value, {
+        playerHitPoints: playerState.value.hitPoints,
+        capacity: Math.max(0, MAX_BOMBS - carriedBombs.value),
+      });
+      if (pickupHits.length > 0) {
+        // Group the hits by kind, preserving the collision path's order.
+        const hitsByKind = new Map<PickupKind, PickupHit[]>();
+        for (const hit of pickupHits) {
+          const bucket = hitsByKind.get(hit.kind);
+          if (bucket) bucket.push(hit);
+          else hitsByKind.set(hit.kind, [hit]);
+        }
 
-        const poolLength = skillFactPool.value.length;
-        // A coin carries no fact of its own (see CollectibleMapper.ts's
-        // mapCVDataToSkillFactPool doc comment) — how many facts should be
-        // revealed by a given collected-coin count is computed by
-        // SkillFactPacing.ts's revealedFactCountFor (see its doc comment for
-        // the proportional-fill reasoning). `coinsCollectedSoFar` seeds from
-        // how many coins are ALREADY collected (before this tick), then
-        // advances locally so multiple coins touched in the same tick are
-        // staged in order rather than all reading the same "before" count.
-        let coinsCollectedSoFar = allCollectiblePlacements.value.filter(
-          (p) => p.spriteType === 'coin' && collectedCollectibleIds.value.has(p.id),
-        ).length;
+        for (const [kind, hits] of hitsByKind) {
+          const pickupType = PICKUP_TYPES[kind];
+          const ids = new Set(hits.map((hit) => hit.state.id));
+          // Seed the pre-tick already-collected count and advance it per
+          // processed hit, so several same-tick coins reveal successive fact
+          // windows (FR-009) exactly as the old coinsCollectedSoFar loop did.
+          let collectedBefore = pickupStores[kind].items.filter((item) => item.collected).length;
+          const outcomes = hits.map((hit) => {
+            const context: PickupContext = {
+              pool: skillFactPool.value,
+              total: levelTotals.value.coins,
+              collectedBefore,
+            };
+            const outcome = pickupType.onPickup(hit.state, context);
+            collectedBefore += 1;
+            return { hit, outcome };
+          });
 
-        for (const id of touchedIds) {
-          const placement = allCollectiblePlacements.value.find((p) => p.id === id);
-          if (!placement) continue;
-          nextCollected.add(id);
-          if (placement.spriteType !== 'coin') continue; // fruit carries no fact-pool entry
+          // The ONE collect-once action: flag every hit, retaining it.
+          pickupStores[kind].markCollected(ids);
 
-          const factCountBefore = revealedFactCountFor(coinsCollectedSoFar, levelTotals.value.coins, poolLength);
-          coinsCollectedSoFar++;
-          const factCountAfter = revealedFactCountFor(coinsCollectedSoFar, levelTotals.value.coins, poolLength);
+          let counterKeyToBump: CounterPopupLabelKey | undefined;
+          let healedAmount: number | undefined;
+          for (const { hit, outcome } of outcomes) {
+            const hitState = hit.state;
+            if (outcome.facts) {
+              for (const reveal of outcome.facts) {
+                revealFact(reveal.fact, {
+                  x: hitState.x,
+                  y: hitState.y,
+                  effectId: reveal.effectId,
+                  counterKey: reveal.counterKey,
+                });
+              }
+            }
+            // The counter popup is bumped once per tick with the tick-final
+            // count, not once per reveal (a coin's reward is resolved
+            // dynamically and most coins reveal no fact).
+            if (outcome.counterKey) counterKeyToBump = outcome.counterKey;
+            if (outcome.heal !== undefined) healedAmount = outcome.heal;
+            if (outcome.bombs) carriedBombs.value += outcome.bombs;
+            if (outcome.bankKey) collectedKeys.value += 1;
+            if (outcome.flyingText) {
+              const text = outcome.flyingText;
+              // The key pickup's flying text takes its slot from the SAME
+              // per-tick allocator the reveal trigger uses, so a key collected
+              // alongside a fact reveal can't land on that fact's row.
+              const stackOffsetY = allocateSlotOffset();
+              const midX = canvas.width / 2;
+              const midY = canvas.height * 0.3;
+              let targetX = canvas.width - 32;
+              let targetY = canvas.height - 32;
+              if (text.target === 'keyCounter') {
+                const hudCtx = canvas.getContext('2d');
+                targetX = hudCtx
+                  ? keyCounterX(hudCtx, chestStates.value.filter(isChestOpen).length, levelTotals.value.chests)
+                  : CHEST_COUNTER_X;
+                targetY = KEY_COUNTER_Y;
+              }
+              spawnEffect(
+                startFlyingText(
+                  text.effectId,
+                  text.label,
+                  text.x + originX,
+                  text.y + originY + stackOffsetY,
+                  midX,
+                  midY + stackOffsetY,
+                  targetX,
+                  targetY,
+                ),
+              );
+            }
+          }
 
-          for (let factIndex = factCountBefore; factIndex < factCountAfter; factIndex++) {
-            const fact = skillFactPool.value[factIndex];
-            if (!fact) continue; // defensive only — factCountAfter never exceeds poolLength
-            // The trigger's own dedup guard covers what this site used to do
-            // inline: `levelTotals.value.coins` is only a de-facto session
-            // constant, not a guaranteed one — switching levels mid-session
-            // (the editor's "Try") changes COIN_TILES/COIN_POT_TILES, which
-            // could otherwise make factCountBefore come out below the
-            // number of facts already revealed and replay an old entry.
-            revealFact(fact, {
-              x: placement.x,
-              y: placement.y,
-              // A unique key per revealed fact, not just per coin — one coin
-              // can reveal more than one fact when fewer coins are placed than
-              // there are CVData facts.
-              effectId: `${id}-${factIndex}`,
-              // No counterKey: the coins popup is bumped below instead, for
-              // every coin rather than only for the ones that reveal a fact.
-            });
+          if (healedAmount !== undefined) {
+            // Heal once per kind per tick (matching the former single heal),
+            // but spawn one aura per healing hit.
+            playerState.value = {
+              ...playerState.value,
+              hitPoints: healDamage(playerState.value.hitPoints, healedAmount),
+            };
+            for (const { hit, outcome } of outcomes) {
+              if (outcome.heal !== undefined) spawnEffect(startHealAuraEffect(hit.state.id));
+            }
+          }
+
+          if (counterKeyToBump) {
+            spawnEffect(
+              startCounterPopup(counterKeyToBump, collectedBefore, levelTotals.value[counterKeyToBump]),
+            );
           }
         }
-
-        collectedCollectibleIds.value = nextCollected;
-
-        // The one counter popup bumped here rather than by the reveal trigger.
-        // A coin's reward is resolved dynamically at pickup time (see
-        // revealedFactCountFor above) and most coins reveal NO fact, so gating
-        // this on a reveal would leave the tail of a level collecting coins
-        // with no "coins collected / total" feedback at all. Fires once per
-        // tick in which any coin was touched, with the tick-final count.
-        if (touchedIds.some((id) => allCollectiblePlacements.value.find((p) => p.id === id)?.spriteType === 'coin')) {
-          spawnEffect(
-            startCounterPopup('coins', coinsCollectedSoFar, levelTotals.value.coins),
-          );
-        }
-      }
-
-      // Bonus fruits: a question-mark's spawned fruit carries a CV fact
-      // (Certificates/Projects — see BlockMapper.ts's
-      // certificateToBlock/projectToBlock) and reveals it exactly like any
-      // other collectible on touch. A fruit
-      // spawned from a question-mark marker beyond the available data
-      // (`fruit.fact === undefined`) still removes silently, same as before.
-      const touchedFruitIds = checkFruitCollisions(playerState.value, fruitStates.value);
-      if (touchedFruitIds.length > 0) {
-        for (const id of touchedFruitIds) {
-          const fruit = fruitStates.value.find((f) => f.id === id);
-          if (!fruit || !fruit.fact) continue;
-
-          revealFact(fruit.fact, {
-            x: fruit.x,
-            y: fruitY(fruit),
-            effectId: id,
-            counterKey: 'fruits',
-          });
-        }
-
-        fruitStates.value = fruitStates.value.filter(
-          (fruit) => !touchedFruitIds.includes(fruit.id),
-        );
-      }
-
-      // Heart pickups: dropped by destroyed potion-pots, healed on touch and
-      // removed outright — same array-filter convention as bonus fruits
-      // above, not the flagged-`collected` convention key pickups use, since
-      // there's no HUD counter a heart needs to keep contributing to.
-      // checkHeartPickupCollisions itself gates on hitPoints < MAX_HALF_HEARTS,
-      // so a heart reaching this point always has something to heal — no
-      // no-op collection at full health (it waits in the world instead).
-      const touchedHeartIds = checkHeartPickupCollisions(playerState.value, heartPickupStates.value);
-      if (touchedHeartIds.length > 0) {
-        playerState.value = {
-          ...playerState.value,
-          hitPoints: healDamage(playerState.value.hitPoints, HEART_PICKUP_HEAL_AMOUNT),
-        };
-        heartPickupStates.value = heartPickupStates.value.filter(
-          (heart) => !touchedHeartIds.includes(heart.id),
-        );
-        // One aura per touched heart (typically just one) — the draw anchors
-        // every active entry at the player's CURRENT position each frame, so
-        // several overlapping auras simply read as one brighter one.
-        for (const id of touchedHeartIds) spawnEffect(startHealAuraEffect(id));
-      }
-
-      // Bomb pickups: dropped by destroyed bomb-pots, collected on touch and
-      // removed outright — same array-filter convention as hearts above.
-      // checkBombPickupCollisions is cap-aware, so at MAX_BOMBS it returns []
-      // and the pickup stays in the world, still bobbing, until the count
-      // drops (FR-008/FR-009).
-      const touchedBombIds = checkBombPickupCollisions(
-        playerState.value,
-        bombPickupStates.value,
-        carriedBombs.value,
-        MAX_BOMBS,
-      );
-      if (touchedBombIds.length > 0) {
-        carriedBombs.value += touchedBombIds.length;
-        bombPickupStates.value = bombPickupStates.value.filter(
-          (pickup) => !touchedBombIds.includes(pickup.id),
-        );
-      }
-
-      // Key pickups: dropped by defeated purple slimes (see the justDefeated
-      // block above), collected on touch like a coin, but banked as a count
-      // rather than a per-item fact — flagged `collected: true` in place
-      // (not removed from the array) so drawKeyPickups's own skip-if-collected
-      // check keeps the pickup out of the render list without needing a
-      // separate "already gone" list. Unlike every other pickup here, the
-      // flying-text target isn't the journal icon — it's the canvas-drawn HUD key
-      // counter's screen position (keyCounterX/KEY_COUNTER_Y), used directly
-      // with no origin/camera offset since the HUD is screen-fixed. keyCounterX
-      // needs a 2D context to measure the chest counter's current text width
-      // (same real position render() draws the key counter at) — canvas
-      // already has one from this component's setup, reused here rather than
-      // recreating it. There's no per-key fact/label the way other pickups
-      // have one, so the flying text is just a static "Key" caption.
-      const touchedKeyIds = checkKeyPickupCollisions(playerState.value, keyPickupStates.value);
-      if (touchedKeyIds.length > 0) {
-        const newEffects: ReturnType<typeof startFlyingText>[] = [];
-        const midX = canvas.width / 2;
-        const midY = canvas.height * 0.3;
-        const hudCtx = canvas.getContext('2d');
-        const keyX = hudCtx
-          ? keyCounterX(hudCtx, chestStates.value.filter(isChestOpen).length, levelTotals.value.chests)
-          : CHEST_COUNTER_X;
-        for (const pickup of keyPickupStates.value) {
-          if (!touchedKeyIds.includes(pickup.id)) continue;
-          // The key pickup stays outside `revealFact` (no fact, static
-          // caption, HUD target), but takes its slot from the SAME per-tick
-          // allocator the trigger uses — so a key collected alongside a fact
-          // reveal can't land on that fact's row, and successive keys in one
-          // tick still step down a row.
-          const stackOffsetY = allocateSlotOffset();
-          newEffects.push(
-            startFlyingText(
-              pickup.id,
-              'Key',
-              pickup.x + KEY_TILE_OFFSET_X + originX,
-              pickup.y + KEY_TILE_OFFSET_Y + originY + stackOffsetY,
-              midX,
-              midY + stackOffsetY,
-              keyX,
-              KEY_COUNTER_Y,
-            ),
-          );
-        }
-        for (const effect of newEffects) spawnEffect(effect);
-        keyPickupStates.value = keyPickupStates.value.map((k) =>
-          touchedKeyIds.includes(k.id) ? { ...k, collected: true } : k,
-        );
-        collectedKeys.value += touchedKeyIds.length;
       }
 
       // Chests don't open on touch like every other collectible — spec.md
@@ -2050,37 +1966,22 @@ export const PlatformerPage = () => {
           );
         }
 
-        // One dispatch keyed by pickup type, replacing the old per-blockKind
-        // branches. Each arm keeps what is the engine's business rather than
-        // the block's: the fruit icon cycle, and the dropped pickup's
-        // id/position.
-        if (outcome.spawnPickup === 'fruit') {
-          fruitStates.value = [
-            ...fruitStates.value,
-            spawnFruit(block.id, block.x, block.y, block.fact, nextFruitIcon++),
-          ];
-        } else if (outcome.spawnPickup === 'coin') {
-          // `block.id` is the pot's own id, not a fact id (the block never
-          // had one) — this is what the coin-total dedup guard matches
-          // against once this coin exists in allCollectiblePlacements.
-          spawnedCoinPlacements.value = [
-            ...spawnedCoinPlacements.value,
-            { id: block.id, spriteType: 'coin', x: block.x, y: block.y },
-          ];
-        } else if (outcome.spawnPickup === 'heart') {
-          // `block.id` is the pot's own id — a potion-pot carries no fact,
-          // same convention as coinPot's dropped coin above.
-          heartPickupStates.value = [
-            ...heartPickupStates.value,
-            spawnHeartPickup(block.id, block.x, block.y),
-          ];
-        } else if (outcome.spawnPickup === 'bomb') {
-          // `block.id` is the pot's own id — a bomb-pot carries no fact, same
-          // convention as the other pots (O-012).
-          bombPickupStates.value = [
-            ...bombPickupStates.value,
-            spawnBombPickup(block.id, block.x, block.y),
-          ];
+        // One generic spawn path keyed by the outcome's declared kind — the
+        // page names no pickup kind. Each kind's module owns its id/position
+        // convention (and the fruit's lazy icon cycle); `pickupStores` routes
+        // the new state to that kind's live array (a coin-pot's coin to
+        // `spawnedCoinPlacements`). Adding a block-drop kind needs no page edit.
+        if (outcome.spawnPickup !== undefined) {
+          const kind = outcome.spawnPickup;
+          pickupStores[kind].append(
+            PICKUP_TYPES[kind].spawn({
+              id: block.id,
+              x: block.x,
+              y: block.y,
+              fact: block.fact,
+              iconIndex: () => nextFruitIcon++,
+            }),
+          );
         }
 
         if (outcome.counterKey === 'crates') {

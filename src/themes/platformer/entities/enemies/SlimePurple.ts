@@ -14,7 +14,7 @@ import { drawSpriteSheetEntity } from './drawSpriteSheetEntity';
 import { spriteSheetHitbox } from './spriteSheetHitbox';
 import { patrolMovement } from './movement/patrol';
 import { RENDER_SCALE, RENDERED_TILE_SIZE } from '../../level/Terrain';
-import { KEY_FRAME_WIDTH, KEY_FRAME_HEIGHT } from '../KeyPickup';
+import { KEY_FRAME_WIDTH, KEY_FRAME_HEIGHT } from '../pickups/Key';
 import type { DrawContext } from '../../contracts/DrawContext';
 import { PHYSICS_CONFIG } from '../../contracts/PhysicsConfig';
 

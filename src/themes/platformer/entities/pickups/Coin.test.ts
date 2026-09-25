@@ -5,6 +5,7 @@ import {
   COIN_BOB_PERIOD_SECONDS,
   coinFrameIndex,
   coinBobOffset,
+  coin,
 } from './Coin';
 
 describe('coinFrameIndex', () => {
@@ -48,5 +49,36 @@ describe('coinBobOffset', () => {
 
   it('elapsedFullPeriod-returnsCloseToZero', () => {
     expect(coinBobOffset(COIN_BOB_PERIOD_SECONDS)).toBeCloseTo(0);
+  });
+});
+
+describe('coin view', () => {
+  it('key-isCoin-andDrawLayerIsBeforeEnemies', () => {
+    expect(coin.key).toBe('coin');
+    expect(coin.drawLayer).toBe('beforeEnemies');
+  });
+
+  it('spawn-seedsAnUncollectedCoinAtTheSourcePosition', () => {
+    expect(coin.spawn({ id: 'pot', x: 1, y: 2 })).toEqual({
+      id: 'pot',
+      kind: 'coin',
+      x: 1,
+      y: 2,
+      collected: false,
+    });
+  });
+
+  it('onPickup-alwaysAsksForTheCoinsCounterPopup', () => {
+    const placement = { id: 'coin-1', kind: 'coin' as const, x: 0, y: 0, collected: false };
+    const outcome = coin.onPickup(placement, { pool: [], total: 1, collectedBefore: 0 });
+    expect(outcome.counterKey).toBe('coins');
+    expect(outcome.facts).toEqual([]);
+  });
+
+  it('onPickup-retainsTheEntryAndCarriesNoDisposition', () => {
+    const placement = { id: 'coin-1', kind: 'coin' as const, x: 0, y: 0, collected: false };
+    const outcome = coin.onPickup(placement, { pool: [], total: 1, collectedBefore: 0 });
+    expect('disposition' in outcome).toBe(false);
+    expect('self' in outcome).toBe(false);
   });
 });

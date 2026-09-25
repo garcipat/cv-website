@@ -2,19 +2,15 @@ import {
   drawTerrain,
   drawPlayer,
   drawHearts,
-  drawCollectibles,
+  drawPickups,
   drawEnemies,
   drawBlocks,
   drawChests,
-  drawFruits,
   drawCollectibleCounter,
   drawChestCounter,
   drawIrisOverlay,
   drawRestartPrompt,
   drawSigns,
-  drawKeyPickups,
-  drawHeartPickups,
-  drawBombPickups,
   drawPlacedBombs,
   drawHazards,
   drawKeyCounter,
@@ -53,9 +49,9 @@ import { toBlockState, blockFrameSource } from '../entities/Block';
 import type { BlockState } from '../entities/Block';
 import { blockBumpOffsetY } from './BlockAI';
 import { crateShatterOpacity } from '../entities/blocks/Crate';
-import { spawnFruit, fruitY } from '../entities/Fruit';
+import { spawnFruit, fruitY } from '../entities/pickups/Fruit';
 import type { EnemyState } from '../entities/Enemy';
-import { fruitFrameSource, FRUIT_FRAME_SIZE, FRUIT_RENDERED_SIZE } from '../entities/Fruit';
+import { fruitFrameSource, FRUIT_FRAME_SIZE, FRUIT_RENDERED_SIZE } from '../entities/pickups/Fruit';
 import {
   ENEMY_RENDERED_SIZE,
   ENEMY_TILE_OFFSET_X,
@@ -69,17 +65,17 @@ import {
   KEY_TILE_OFFSET_X,
   KEY_TILE_OFFSET_Y,
   spawnKeyPickup,
-} from '../entities/KeyPickup';
-import type { KeyPickupState } from '../entities/KeyPickup';
-import { spawnHeartPickup, HEART_PICKUP_RENDERED_SIZE, HEART_PICKUP_TILE_OFFSET_X, HEART_PICKUP_TILE_OFFSET_Y } from '../entities/HeartPickup';
-import type { HeartPickupState } from '../entities/HeartPickup';
+} from '../entities/pickups/Key';
+import type { KeyPickupState } from '../entities/pickups/Key';
+import { spawnHeartPickup, HEART_PICKUP_RENDERED_SIZE, HEART_PICKUP_TILE_OFFSET_X, HEART_PICKUP_TILE_OFFSET_Y } from '../entities/pickups/Heart';
+import type { HeartPickupState } from '../entities/pickups/Heart';
 import {
   spawnBombPickup,
   BOMB_PICKUP_RENDERED_SIZE,
   BOMB_PICKUP_TILE_OFFSET_X,
   BOMB_PICKUP_TILE_OFFSET_Y,
-} from '../entities/BombPickup';
-import type { BombPickupState } from '../entities/BombPickup';
+} from '../entities/pickups/Bomb';
+import type { BombPickupState } from '../entities/pickups/Bomb';
 import {
   bombFuseFrame,
   BOMB_FUSE_SECONDS,
@@ -192,7 +188,7 @@ const fakeTileset = {} as HTMLImageElement;
 const fakeGroundAtlas = {} as HTMLImageElement;
 
 function makeCoinPlacement(id = 'coin-1', x = 100, y = 100): CollectiblePlacement {
-  return { id, spriteType: 'coin', x, y };
+  return { id, kind: 'coin', x, y, collected: false };
 }
 
 function makeBlockPlacement(
@@ -219,23 +215,23 @@ function makeChestPlacement(id = 'c1', x = 10, y = 20): ChestPlacement {
   };
 }
 
-describe('drawCollectibles', () => {
+describe('drawPickups — coin', () => {
   it('coinPlacements-drawFromTheCoinSheet', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
     const placements = [makeCoinPlacement('a', 100, 100), makeCoinPlacement('b', 300, 300)];
 
-    drawCollectibles(ctx as unknown as CanvasRenderingContext2D, placements, new Set(), dc);
+    drawPickups(ctx as unknown as CanvasRenderingContext2D, { coin: placements }, dc);
 
     expect(drawImageCallsFor(ctx, dc.sprites[COIN_SHEET.src])).toHaveLength(2);
   });
 
-  it('collectedId-isSkipped', () => {
+  it('collectedEntry-isSkipped', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
-    const placements = [makeCoinPlacement('a', 100, 100)];
+    const placements = [{ ...makeCoinPlacement('a', 100, 100), collected: true }];
 
-    drawCollectibles(ctx as unknown as CanvasRenderingContext2D, placements, new Set(['a']), dc);
+    drawPickups(ctx as unknown as CanvasRenderingContext2D, { coin: placements }, dc);
 
     expect(ctx.drawImage).not.toHaveBeenCalled();
   });
@@ -245,7 +241,7 @@ describe('drawCollectibles', () => {
     const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D, { sprites: {} });
     const placements = [makeCoinPlacement('a', 100, 100)];
 
-    drawCollectibles(ctx as unknown as CanvasRenderingContext2D, placements, new Set(), dc);
+    drawPickups(ctx as unknown as CanvasRenderingContext2D, { coin: placements }, dc);
 
     expect(ctx.drawImage).not.toHaveBeenCalled();
   });
@@ -798,14 +794,14 @@ describe('drawChestCounter', () => {
   });
 });
 
-describe('drawFruits', () => {
+describe('drawPickups — fruit band', () => {
   it('someFruits-drawsFromFirstFruitIconAtCurrentRisePosition', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
     const fruit = spawnFruit('bf1', 40, 100, undefined, 0);
     const { sx, sy } = fruitFrameSource(0);
 
-    drawFruits(ctx as unknown as CanvasRenderingContext2D, [fruit], dc);
+    drawPickups(ctx as unknown as CanvasRenderingContext2D, { fruit: [fruit] }, dc);
 
     expect(ctx.drawImage).toHaveBeenCalledWith(
       dc.sprites[FRUIT_SHEET.src],
@@ -826,7 +822,7 @@ describe('drawFruits', () => {
     const fruit = spawnFruit('bf1', 40, 100, undefined, 5);
     const { sx, sy } = fruitFrameSource(5);
 
-    drawFruits(ctx as unknown as CanvasRenderingContext2D, [fruit], dc);
+    drawPickups(ctx as unknown as CanvasRenderingContext2D, { fruit: [fruit] }, dc);
 
     expect(ctx.drawImage).toHaveBeenCalledWith(
       dc.sprites[FRUIT_SHEET.src],
@@ -846,7 +842,7 @@ describe('drawFruits', () => {
     const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D, { sprites: {} });
     const fruit = spawnFruit('bf1', 0, 100, undefined, 0);
 
-    drawFruits(ctx as unknown as CanvasRenderingContext2D, [fruit], dc);
+    drawPickups(ctx as unknown as CanvasRenderingContext2D, { fruit: [fruit] }, dc);
 
     expect(ctx.drawImage).not.toHaveBeenCalled();
   });
@@ -855,7 +851,7 @@ describe('drawFruits', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
 
-    drawFruits(ctx as unknown as CanvasRenderingContext2D, [], dc);
+    drawPickups(ctx as unknown as CanvasRenderingContext2D, { fruit: [] }, dc);
 
     expect(ctx.drawImage).not.toHaveBeenCalled();
   });
@@ -865,11 +861,34 @@ describe('drawFruits', () => {
     const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D, { originX: 50, originY: 20 });
     const fruit = spawnFruit('bf1', 0, 100, undefined, 0);
 
-    drawFruits(ctx as unknown as CanvasRenderingContext2D, [fruit], dc);
+    drawPickups(ctx as unknown as CanvasRenderingContext2D, { fruit: [fruit] }, dc);
 
     const call = ctx.drawImage.mock.calls[0];
     expect(call[5]).toBe(0 + 50);
     expect(call[6]).toBe(fruitY(fruit) + 20);
+  });
+
+  it('fruit-drawsOnlyInTheBelowBlocksBand', () => {
+    // A still-rising fruit must draw before blocks so its source block
+    // occludes it; the afterEnemies band of the SAME group draws nothing.
+    const fruit = spawnFruit('bf1', 0, 100, undefined, 0);
+    const belowCtx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    drawPickups(
+      belowCtx as unknown as CanvasRenderingContext2D,
+      { fruit: [fruit] },
+      makeDrawContext(belowCtx as unknown as CanvasRenderingContext2D),
+      'belowBlocks',
+    );
+    expect(belowCtx.drawImage).toHaveBeenCalledTimes(1);
+
+    const afterCtx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    drawPickups(
+      afterCtx as unknown as CanvasRenderingContext2D,
+      { fruit: [fruit] },
+      makeDrawContext(afterCtx as unknown as CanvasRenderingContext2D),
+      'afterEnemies',
+    );
+    expect(afterCtx.drawImage).not.toHaveBeenCalled();
   });
 });
 
@@ -2345,12 +2364,12 @@ describe('drawSigns', () => {
   });
 });
 
-describe('drawKeyPickups', () => {
-  it('drawKeyPickups-uncollectedPickup-drawsKeySprite', () => {
+describe('drawPickups — key band', () => {
+  it('drawPickups-uncollectedPickup-drawsKeySprite', () => {
     const ctx = makeMockContext();
     const dc = makeDrawContext(ctx);
-    const pickups: KeyPickupState[] = [{ id: 'k1', x: 0, y: 0, collected: false }];
-    drawKeyPickups(ctx, pickups, dc);
+    const pickups: KeyPickupState[] = [{ id: 'k1', kind: 'key', x: 0, y: 0, collected: false }];
+    drawPickups(ctx, { key: pickups }, dc);
     expect(ctx.drawImage).toHaveBeenCalledWith(
       dc.sprites[KEY_SHEET.src],
       0, 0, KEY_FRAME_WIDTH, KEY_FRAME_HEIGHT,
@@ -2359,21 +2378,21 @@ describe('drawKeyPickups', () => {
     );
   });
 
-  it('drawKeyPickups-collectedPickup-doesNotDraw', () => {
+  it('drawPickups-collectedPickup-doesNotDraw', () => {
     const ctx = makeMockContext();
     const dc = makeDrawContext(ctx);
-    const pickups: KeyPickupState[] = [{ id: 'k1', x: 0, y: 0, collected: true }];
-    drawKeyPickups(ctx, pickups, dc);
+    const pickups: KeyPickupState[] = [{ id: 'k1', kind: 'key', x: 0, y: 0, collected: true }];
+    drawPickups(ctx, { key: pickups }, dc);
     expect(ctx.drawImage).not.toHaveBeenCalled();
   });
 
-  it('drawKeyPickups-uncollectedPickup-fitsWithinOneTileAndIsBottomAnchored', () => {
+  it('drawPickups-uncollectedPickup-fitsWithinOneTileAndIsBottomAnchored', () => {
     const ctx = makeMockContext();
     // No bob: worldElapsed 0 gives coinBobOffset(0) === 0, so the drawn y is
     // exactly pickup.y + KEY_TILE_OFFSET_Y with no ambient float noise.
     const dc = makeDrawContext(ctx, { worldElapsed: 0 });
-    const pickups: KeyPickupState[] = [{ id: 'k1', x: 100, y: 200, collected: false }];
-    drawKeyPickups(ctx, pickups, dc);
+    const pickups: KeyPickupState[] = [{ id: 'k1', kind: 'key', x: 100, y: 200, collected: false }];
+    drawPickups(ctx, { key: pickups }, dc);
     expect(KEY_RENDERED_HEIGHT).toBe(RENDERED_TILE_SIZE);
     expect(ctx.drawImage).toHaveBeenCalledWith(
       dc.sprites[KEY_SHEET.src],
@@ -2389,14 +2408,14 @@ describe('drawKeyPickups', () => {
   });
 });
 
-describe('drawHeartPickups', () => {
+describe('drawPickups — heart band', () => {
   it('someHearts-drawsTheFullHeartFrameAtItsSmallerRenderedSize', () => {
     const ctx = makeMockContext();
     // No bob: worldElapsed 0 gives coinBobOffset(0) === 0.
     const dc = makeDrawContext(ctx, { worldElapsed: 0 });
     const hearts: HeartPickupState[] = [spawnHeartPickup('h1', 100, 200)];
 
-    drawHeartPickups(ctx, hearts, dc);
+    drawPickups(ctx, { heart: hearts }, dc);
 
     expect(ctx.drawImage).toHaveBeenCalledWith(
       dc.sprites[HEARTS_SHEET.src],
@@ -2415,19 +2434,19 @@ describe('drawHeartPickups', () => {
     const ctx = makeMockContext();
     const dc = makeDrawContext(ctx);
 
-    drawHeartPickups(ctx, [], dc);
+    drawPickups(ctx, { heart: [] }, dc);
 
     expect(ctx.drawImage).not.toHaveBeenCalled();
   });
 });
 
-describe('drawBombPickups', () => {
+describe('drawPickups — bomb band', () => {
   it('someBombs-drawsTheUnlitFrameAtItsSmallerRenderedSize', () => {
     const ctx = makeMockContext();
     const dc = makeDrawContext(ctx, { worldElapsed: 0 });
     const bombs: BombPickupState[] = [spawnBombPickup('b1', 100, 200)];
 
-    drawBombPickups(ctx, bombs, dc);
+    drawPickups(ctx, { bomb: bombs }, dc);
 
     expect(ctx.drawImage).toHaveBeenCalledWith(
       dc.sprites[BOMB_SHEET.src],
@@ -2446,7 +2465,7 @@ describe('drawBombPickups', () => {
     const ctx = makeMockContext();
     const dc = makeDrawContext(ctx);
 
-    drawBombPickups(ctx, [], dc);
+    drawPickups(ctx, { bomb: [] }, dc);
 
     expect(ctx.drawImage).not.toHaveBeenCalled();
   });
@@ -2569,11 +2588,18 @@ describe('bombCounterX', () => {
 });
 
 describe('pickup drawing delegates to the type modules', () => {
+  const orderedGroups = () => ({
+    coin: [makeCoinPlacement()],
+    fruit: [spawnFruit('f1', 40, 100, undefined, 0)],
+    key: [{ ...spawnKeyPickup('k1', 100, 200), collected: false }],
+    heart: [spawnHeartPickup('h1', 100, 200)],
+    bomb: [spawnBombPickup('b1', 100, 200)],
+  });
+
   it('coinsAndFruits-eachDrawFromTheirOwnSheet', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
-    drawCollectibles(ctx as unknown as CanvasRenderingContext2D, [makeCoinPlacement()], new Set(), dc);
-    drawFruits(ctx as unknown as CanvasRenderingContext2D, [spawnFruit('f1', 40, 100, undefined, 0)], dc);
+    drawPickups(ctx as unknown as CanvasRenderingContext2D, { coin: [makeCoinPlacement()], fruit: [spawnFruit('f1', 40, 100, undefined, 0)] }, dc);
     expect(drawImageCallsFor(ctx, dc.sprites[COIN_SHEET.src])).toHaveLength(1);
     expect(drawImageCallsFor(ctx, dc.sprites[FRUIT_SHEET.src])).toHaveLength(1);
   });
@@ -2581,20 +2607,43 @@ describe('pickup drawing delegates to the type modules', () => {
   it('alreadyCollectedCollectible-drawsNothing', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
-    const coin = makeCoinPlacement();
-    drawCollectibles(ctx as unknown as CanvasRenderingContext2D, [coin], new Set([coin.id]), dc);
+    const coin = { ...makeCoinPlacement(), collected: true };
+    drawPickups(ctx as unknown as CanvasRenderingContext2D, { coin: [coin] }, dc);
     expect(ctx.drawImage).not.toHaveBeenCalled();
   });
 
   it('collectedKeyPickup-drawsNothing', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
-    drawKeyPickups(
+    drawPickups(
       ctx as unknown as CanvasRenderingContext2D,
-      [{ ...spawnKeyPickup('k', 100, 200), collected: true }],
+      { key: [{ ...spawnKeyPickup('k', 100, 200), collected: true }] },
       dc,
     );
     expect(ctx.drawImage).not.toHaveBeenCalled();
+  });
+
+  it('threeBandCalls-preserveEachKindsDrawDepth', () => {
+    // The page invokes drawPickups at three bands; each kind only draws in
+    // its own (fruit belowBlocks, coin beforeEnemies, key/heart/bomb
+    // afterEnemies) and every kind's sprite is drawn exactly once across them.
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
+    const groups = orderedGroups();
+    const drawCtx = ctx as unknown as CanvasRenderingContext2D;
+
+    drawPickups(drawCtx, groups, dc, 'belowBlocks');
+    expect(drawImageCallsFor(ctx, dc.sprites[FRUIT_SHEET.src])).toHaveLength(1);
+    expect(drawImageCallsFor(ctx, dc.sprites[COIN_SHEET.src])).toHaveLength(0);
+
+    drawPickups(drawCtx, groups, dc, 'beforeEnemies');
+    expect(drawImageCallsFor(ctx, dc.sprites[COIN_SHEET.src])).toHaveLength(1);
+    expect(drawImageCallsFor(ctx, dc.sprites[KEY_SHEET.src])).toHaveLength(0);
+
+    drawPickups(drawCtx, groups, dc, 'afterEnemies');
+    expect(drawImageCallsFor(ctx, dc.sprites[KEY_SHEET.src])).toHaveLength(1);
+    expect(drawImageCallsFor(ctx, dc.sprites[HEARTS_SHEET.src])).toHaveLength(1);
+    expect(drawImageCallsFor(ctx, dc.sprites[BOMB_SHEET.src])).toHaveLength(1);
   });
 });
 
