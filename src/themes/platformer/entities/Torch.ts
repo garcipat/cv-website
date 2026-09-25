@@ -8,7 +8,8 @@
  * neighbouring torches flicker out of phase (spec FR-009).
  */
 
-import { hash2D } from '../shared/math';
+import { hash2D, pulse, radialFalloffAt } from '../shared/math';
+import type { LightSource } from '../contracts/lighting';
 
 /**
  * A wall torch's light strength, `0`-`9`. `5` is the default
@@ -107,4 +108,101 @@ export function isTorchStrength(value: unknown): value is TorchStrength {
  */
 export function torchLightScale(strength: TorchStrength): number {
   return strength / DEFAULT_TORCH_STRENGTH;
+}
+
+/**
+ * A torch light source, derived from a `torch` terrain tile (R-003 finding X5
+ * — the light half now lives with its subject). `col`/`row` drive the pulse
+ * phase and `strength` scales the radius, so the generic `LightSource` cannot
+ * replace this descriptor; it is the adapter's input.
+ *
+ * `x`/`y` are declared inline rather than extending `engine/Lighting.ts`'s
+ * `Point`, so this module keeps reaching only `shared/math` and
+ * `contracts/lighting` (no `entities/ → engine/` edge; FR-017).
+ */
+export interface TorchLight {
+  col: number;
+  row: number;
+  /** World-space centre X, in rendered pixels. */
+  x: number;
+  /** World-space centre Y, in rendered pixels. */
+  y: number;
+  /** The torch's strength (0–9) — its light radius scales with this. */
+  strength: TorchStrength;
+}
+
+/** Soft glow radius in rendered pixels — roughly a 3.5-tile radius (FR-009).
+ *  3.5 × `RENDERED_TILE_SIZE` (16 native px × 2 render scale = 32) is inlined
+ *  so this module takes no `level/` import. */
+export const TORCH_LIGHT_RADIUS_PX = 3.5 * 32;
+
+/** Pulse depth as a fraction of the light radius (FR-013, SC-007). */
+export const TORCH_PULSE_AMPLITUDE = 0.05;
+
+/**
+ * Seconds per full pulse breath. Deliberately much slower than the torch's
+ * 0.8 s flame loop: the light should read as a slow, calm breathing, not a
+ * flicker locked to the fast frame changes (FR-013, SC-007). Each torch keeps
+ * its own phase offset (from `torchPhase`) so they never breathe in unison.
+ */
+export const TORCH_PULSE_PERIOD_SECONDS = 2.6;
+
+/** Warm orange/gold glow, visually distinct from the neutral darkness (FR-014). */
+export const TORCH_GLOW_COLOR = 'rgb(255, 176, 74)';
+
+/**
+ * A multiplier around `1` whose depth is `TORCH_PULSE_AMPLITUDE` and whose
+ * period is the slow `TORCH_PULSE_PERIOD_SECONDS` — a calm breathing rather
+ * than a nervous flicker (FR-013, SC-007). Each torch keeps its own phase
+ * offset from `torchPhase` so neighbouring torches do not breathe in unison.
+ * Always within `[1 - TORCH_PULSE_AMPLITUDE, 1 + TORCH_PULSE_AMPLITUDE]`.
+ */
+export function torchPulseScale(torch: TorchLight, worldElapsed: number): number {
+  const phaseOffset = torchPhase(torch.col, torch.row) / TORCH_FRAME_COUNT;
+  return 1 + TORCH_PULSE_AMPLITUDE * pulse(worldElapsed / TORCH_PULSE_PERIOD_SECONDS + phaseOffset);
+}
+
+/**
+ * A torch's current light radius in rendered pixels — the base radius scaled by
+ * the torch's own strength (`torchLightScale`) and its pulse. The single source
+ * of truth for both the darkness pass and `torchGlowStrengthAt`, so the hole
+ * that pass punches and the glow it adds can never drift apart.
+ */
+export function torchLightRadius(torch: TorchLight, worldElapsed: number): number {
+  return TORCH_LIGHT_RADIUS_PX * torchLightScale(torch.strength) * torchPulseScale(torch, worldElapsed);
+}
+
+/**
+ * A torch's light contribution at `(x, y)` in `[0, 1]`: `1` at the torch
+ * centre, falling smoothly to `0` at `torchLightRadius`, and `0` beyond it.
+ * Distance alone decides — no occlusion (FR-011). Delegates the falloff to
+ * `shared/math.ts`'s `radialFalloffAt` so the formula has one implementation
+ * (FR-010).
+ */
+export function torchGlowStrengthAt(
+  torch: TorchLight,
+  x: number,
+  y: number,
+  worldElapsed: number,
+): number {
+  return radialFalloffAt(x, y, torch.x, torch.y, torchLightRadius(torch, worldElapsed));
+}
+
+/**
+ * The torch's `LightSource` adapter (FR-003): maps a torch descriptor plus the
+ * caller's `worldElapsed` to the shared render contract, with a radius
+ * byte-identical to `torchLightRadius`. `intensity: 1` means the glow's
+ * `globalAlpha` is just `darknessLevel`, and `glowMidAlpha: 0.35` reproduces the
+ * torch's own gradient mid stop.
+ */
+export function torchLightSource(torch: TorchLight, worldElapsed: number): LightSource {
+  return {
+    x: torch.x,
+    y: torch.y,
+    radius: torchLightRadius(torch, worldElapsed),
+    color: TORCH_GLOW_COLOR,
+    intensity: 1,
+    glowMidAlpha: 0.35,
+    punchHole: true,
+  };
 }

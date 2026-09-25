@@ -933,11 +933,9 @@ export const EditorCanvas = ({
           canvas.width,
           canvas.height,
           preview.darknessLevel,
-          preview.torches,
+          preview.lights,
           panOffset.x,
           panOffset.y,
-          0,
-          preview.playerLight,
           zoom,
         );
       }
@@ -952,11 +950,10 @@ export const EditorCanvas = ({
           ctx,
           synthesizeEnemyStates(grid),
           preview.darknessLevel,
-          preview.torches,
+          preview.lights,
           0,
           originX,
           originY,
-          preview.playerLight,
         );
         ctx.restore();
       }

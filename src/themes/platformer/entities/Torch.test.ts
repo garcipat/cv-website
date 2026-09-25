@@ -14,7 +14,19 @@ import {
   nextTorchStrength,
   isTorchStrength,
   torchLightScale,
+  TORCH_LIGHT_RADIUS_PX,
+  TORCH_PULSE_AMPLITUDE,
+  TORCH_GLOW_COLOR,
+  torchPulseScale,
+  torchLightRadius,
+  torchGlowStrengthAt,
+  torchLightSource,
 } from './Torch';
+import type { TorchLight } from './Torch';
+
+function makeTorch(overrides: Partial<TorchLight> = {}): TorchLight {
+  return { col: 3, row: 4, x: 100, y: 100, strength: 5, ...overrides };
+}
 
 describe('Torch constants', () => {
   it('frameDuration-isTwoTenthsOfASecond', () => {
@@ -40,6 +52,19 @@ describe('Torch constants', () => {
   it('insetX-centresTheTwelvePixelFrameInASixteenPixelCell', () => {
     expect(TORCH_INSET_X).toBe(2);
     expect(TORCH_INSET_X).toBe((16 - TORCH_FRAME_WIDTH) / 2);
+  });
+
+  it('lightRadiusPx-isAPositiveRadius', () => {
+    expect(TORCH_LIGHT_RADIUS_PX).toBeGreaterThan(0);
+  });
+
+  it('pulseAmplitude-isSmallButNonZero', () => {
+    expect(TORCH_PULSE_AMPLITUDE).toBeGreaterThan(0);
+    expect(TORCH_PULSE_AMPLITUDE).toBeLessThan(0.25);
+  });
+
+  it('glowColor-isANonEmptyString', () => {
+    expect(TORCH_GLOW_COLOR.length).toBeGreaterThan(0);
   });
 });
 
@@ -141,5 +166,93 @@ describe('torch strength catalog', () => {
     expect(torchLightScale(5)).toBe(1);
     expect(torchLightScale(0)).toBe(0);
     expect(torchLightScale(9)).toBeCloseTo(1.8);
+  });
+});
+
+describe('torchPulseScale', () => {
+  it('anyWorldElapsed-staysWithinThePulseAmplitudeBounds', () => {
+    const torch = makeTorch();
+    for (let elapsed = 0; elapsed <= 5; elapsed += 0.013) {
+      const scale = torchPulseScale(torch, elapsed);
+      expect(scale).toBeGreaterThanOrEqual(1 - TORCH_PULSE_AMPLITUDE);
+      expect(scale).toBeLessThanOrEqual(1 + TORCH_PULSE_AMPLITUDE);
+    }
+  });
+
+  it('sameInputs-areDeterministic', () => {
+    const torch = makeTorch();
+    expect(torchPulseScale(torch, 1.234)).toBe(torchPulseScale(torch, 1.234));
+  });
+
+  it('differentTorches-differInPhaseAtTheSameInstant', () => {
+    expect(torchPulseScale(makeTorch({ col: 0, row: 0 }), 0)).not.toBe(
+      torchPulseScale(makeTorch({ col: 1, row: 0 }), 0),
+    );
+  });
+});
+
+describe('torchLightRadius', () => {
+  it('defaultStrength-atRest-isTheBaseRadiusTimesThePulse', () => {
+    const torch = makeTorch();
+    expect(torchLightRadius(torch, 0)).toBe(TORCH_LIGHT_RADIUS_PX * torchPulseScale(torch, 0));
+  });
+
+  it('strengthZero-isDark', () => {
+    expect(torchLightRadius(makeTorch({ strength: 0 }), 0)).toBe(0);
+  });
+});
+
+describe('torchGlowStrengthAt', () => {
+  it('torchCentre-isFullStrength', () => {
+    const torch = makeTorch();
+    expect(torchGlowStrengthAt(torch, torch.x, torch.y, 0)).toBe(1);
+  });
+
+  it('atOrBeyondThePulsedRadius-isZero', () => {
+    const torch = makeTorch();
+    const radius = TORCH_LIGHT_RADIUS_PX * torchPulseScale(torch, 0);
+    // The exact boundary is subject to float rounding (x + radius - x), so it
+    // only needs to be effectively zero there; strictly beyond is exact zero.
+    expect(torchGlowStrengthAt(torch, torch.x + radius, torch.y, 0)).toBeCloseTo(0, 12);
+    expect(torchGlowStrengthAt(torch, torch.x + radius * 1.000001, torch.y, 0)).toBe(0);
+    expect(torchGlowStrengthAt(torch, torch.x + radius * 2, torch.y, 0)).toBe(0);
+  });
+
+  it('falloff-isSmoothAndMonotonicFromCentreToEdge', () => {
+    const torch = makeTorch();
+    const radius = TORCH_LIGHT_RADIUS_PX * torchPulseScale(torch, 0);
+    const centre = torchGlowStrengthAt(torch, torch.x, torch.y, 0);
+    const near = torchGlowStrengthAt(torch, torch.x + radius * 0.25, torch.y, 0);
+    const middle = torchGlowStrengthAt(torch, torch.x + radius * 0.5, torch.y, 0);
+    const far = torchGlowStrengthAt(torch, torch.x + radius * 0.9, torch.y, 0);
+
+    expect(centre).toBeGreaterThan(near);
+    expect(near).toBeGreaterThan(middle);
+    expect(middle).toBeGreaterThan(far);
+    expect(far).toBeGreaterThan(0);
+  });
+});
+
+describe('torchLightSource', () => {
+  it('radius-isByteEqualToTorchLightRadius', () => {
+    const torch = makeTorch();
+    expect(torchLightSource(torch, 1.7).radius).toBe(torchLightRadius(torch, 1.7));
+  });
+
+  it('colourMidStopIntensityAndPunch-matchTheTorchGlow', () => {
+    const light = torchLightSource(makeTorch(), 0);
+
+    expect(light.color).toBe(TORCH_GLOW_COLOR);
+    expect(light.glowMidAlpha).toBe(0.35);
+    expect(light.intensity).toBe(1);
+    expect(light.punchHole).toBe(true);
+  });
+
+  it('centre-isTheTorchCentre', () => {
+    const torch = makeTorch({ x: 123, y: 456 });
+    const light = torchLightSource(torch, 0);
+
+    expect(light.x).toBe(123);
+    expect(light.y).toBe(456);
   });
 });

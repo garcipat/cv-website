@@ -1,9 +1,10 @@
 import { TERRAIN_CHARS, type TileChar } from '../level/LevelParser';
 import { RENDERED_TILE_SIZE, tileToPixel } from '../level/Terrain';
 import type { MarkerGrid } from '../level/LevelData';
-import { DEFAULT_TORCH_STRENGTH } from '../entities/Torch';
-import { type Point, type TorchLight } from '../engine/Lighting';
-import { heldTorchLightPosition } from '../engine/Renderer';
+import { DEFAULT_TORCH_STRENGTH, torchLightSource } from '../entities/Torch';
+import type { TorchLight } from '../entities/Torch';
+import type { LightSource } from '../contracts/lighting';
+import { playerLightSource } from '../entities/Player';
 import { synthesizePlayerState } from './gridRenderState';
 
 /**
@@ -16,16 +17,16 @@ import { synthesizePlayerState } from './gridRenderState';
 export const EDITOR_PREVIEW_DARKNESS = 0.82;
 
 /**
- * The three inputs the engine's cave-lighting draw passes need for the
- * editor's dark-mode preview (O-015 US3). Pure, derived, and stored nowhere.
+ * The inputs the engine's cave-lighting draw passes need for the editor's
+ * dark-mode preview (O-015 US3). Pure, derived, and stored nowhere. The lights
+ * are the shared `LightSource` list both passes consume; the spawn only
+ * supplies its carried light and never decides *whether* the scene darkens.
  */
 export interface CaveLightingPreview {
   /** Always `EDITOR_PREVIEW_DARKNESS` while the preview is active (FR-013). */
   darknessLevel: number;
-  /** One light per `torch` terrain tile in the grid, at its world centre. */
-  torches: TorchLight[];
-  /** The spawn player's carried light, or `null` when there is no spawn. */
-  playerLight: Point | null;
+  /** Wall torches at `t = 0` plus the spawn's carried light when one exists. */
+  lights: LightSource[];
 }
 
 /**
@@ -65,9 +66,14 @@ export function torchLightsFromGrid(grid: TileChar[][], markers?: MarkerGrid): T
  */
 export function caveLightingPreview(grid: TileChar[][], markers?: MarkerGrid): CaveLightingPreview {
   const player = synthesizePlayerState(grid);
+  // Resolve torch radii at `worldElapsed = 0`, matching the editor's static
+  // preview frame (FR-013).
+  const lights: LightSource[] = torchLightsFromGrid(grid, markers).map((torch) =>
+    torchLightSource(torch, 0),
+  );
+  if (player) lights.push(playerLightSource(player));
   return {
     darknessLevel: EDITOR_PREVIEW_DARKNESS,
-    torches: torchLightsFromGrid(grid, markers),
-    playerLight: player ? heldTorchLightPosition(player) : null,
+    lights,
   };
 }

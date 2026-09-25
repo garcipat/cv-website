@@ -74,7 +74,6 @@ vi.mock('../engine/Renderer', () => ({
   drawEnemyEyes: vi.fn(),
   drawHeldTorch: vi.fn(),
   drawCrumblingFloors: vi.fn(),
-  heldTorchLightPosition: vi.fn(() => ({ x: 0, y: 0 })),
 }));
 
 // Adds one extra registry entry whose `background` grid mixes a valid,

@@ -6,6 +6,8 @@ import {
 } from './caveLightingPreview';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { TileChar } from '../level/LevelParser';
+import { PLAYER_LIGHT_RADIUS_PX, PLAYER_GLOW_COLOR } from '../entities/Player';
+import { TORCH_GLOW_COLOR } from '../entities/Torch';
 
 const SPAWN_GRID: TileChar[][] = [
   ['.', '.', '.'],
@@ -13,22 +15,61 @@ const SPAWN_GRID: TileChar[][] = [
   ['.', '.', '.'],
 ];
 
+const TORCH_GRID: TileChar[][] = [
+  ['.', '¥'],
+  ['.', '.'],
+];
+
 describe('caveLightingPreview', () => {
-  it('caveLightingPreview-withNoSpawn-returnsMaxDarknessAndNoPlayerLight', () => {
+  it('caveLightingPreview-withNoSpawnAndNoTorch-returnsMaxDarknessAndNoLights', () => {
     const preview = caveLightingPreview([
       ['.', '.'],
       ['.', '.'],
     ]);
 
     expect(preview.darknessLevel).toBe(EDITOR_PREVIEW_DARKNESS);
-    expect(preview.playerLight).toBeNull();
+    expect(preview.lights).toEqual([]);
   });
 
   it('caveLightingPreview-withASpawn-returnsMaxDarknessAndTheCarriedLight', () => {
     const preview = caveLightingPreview(SPAWN_GRID);
 
     expect(preview.darknessLevel).toBe(EDITOR_PREVIEW_DARKNESS);
-    expect(preview.playerLight).not.toBeNull();
+    expect(preview.lights).toHaveLength(1);
+    expect(preview.lights[0]).toMatchObject({
+      radius: PLAYER_LIGHT_RADIUS_PX,
+      color: PLAYER_GLOW_COLOR,
+      glowMidAlpha: 0.3,
+      punchHole: true,
+    });
+  });
+
+  it('caveLightingPreview-withATorch-resolvesItsLightAtTimeZero', () => {
+    const preview = caveLightingPreview(TORCH_GRID);
+
+    expect(preview.lights).toHaveLength(1);
+    expect(preview.lights[0]).toMatchObject({
+      x: RENDERED_TILE_SIZE + RENDERED_TILE_SIZE / 2,
+      y: RENDERED_TILE_SIZE / 2,
+      color: TORCH_GLOW_COLOR,
+      intensity: 1,
+      glowMidAlpha: 0.35,
+      punchHole: true,
+    });
+    expect(preview.lights[0].radius).toBeGreaterThan(0);
+  });
+
+  it('caveLightingPreview-withATorchAndASpawn-listsTheTorchThenTheCarriedLight', () => {
+    const grid: TileChar[][] = [
+      ['.', '¥'],
+      ['.', 'S'],
+    ];
+
+    const preview = caveLightingPreview(grid);
+
+    expect(preview.lights).toHaveLength(2);
+    expect(preview.lights[0].color).toBe(TORCH_GLOW_COLOR);
+    expect(preview.lights[1].color).toBe(PLAYER_GLOW_COLOR);
   });
 
   it('caveLightingPreview-regardlessOfSpawnPosition-returnsMaxDarkness', () => {

@@ -1,6 +1,6 @@
 import { signal, computed } from '@preact/signals-react';
 import { tileToPixel, RENDERED_TILE_SIZE, markerAt } from './level/Terrain';
-import { DEFAULT_TORCH_STRENGTH } from './entities/Torch';
+import { DEFAULT_TORCH_STRENGTH, type TorchLight } from './entities/Torch';
 import {
   createDeployableLadderState,
   advanceDeployableLadder,
@@ -56,7 +56,6 @@ import {
   isCellDarkening,
   playerOccupiedCell,
 } from './engine/Lighting';
-import type { TorchLight } from './engine/Lighting';
 import {
   PLAYER_RENDERED_SIZE,
   PLAYER_FOOT_PADDING,

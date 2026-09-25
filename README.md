@@ -128,6 +128,7 @@ Components are installed to `src/components/ui/`.
 
 - [Architecture](docs/Architecture.md) — Signal-based state management, theme isolation, multilingual architecture, and design patterns
 - [Coding Guidelines](docs/CodingGuidelines.md) — Naming conventions, component structure, and best practices
+- [Patterns](docs/Patterns.md) — Recurring problems and the solutions we reuse
 - [Features](docs/Features.md) — Feature roadmap and development status
 - [Testing Guide](docs/TestingGuide.md) — Test setup, patterns, and testing conventions
 - [Repository Structure](docs/RepositoryStructure.md) — Directory organization and file layout

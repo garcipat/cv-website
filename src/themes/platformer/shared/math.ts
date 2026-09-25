@@ -44,6 +44,29 @@ export function pulse(phase: number): number {
   return Math.sin(phase * Math.PI * 2);
 }
 
+/**
+ * Radial light falloff at `(x, y)`: `1` at the centre `(centerX, centerY)`,
+ * falling smoothly (`smoothstep`) to `0` at `radius`, and `0` beyond it — `0`
+ * for a non-positive radius too. The single falloff implementation the light
+ * math delegates to (`localDarknessAt`, `torchGlowStrengthAt`,
+ * `playerGlowStrengthAt`), so no copy of the formula survives elsewhere
+ * (R-003 FR-010). Pure and total.
+ */
+export function radialFalloffAt(
+  x: number,
+  y: number,
+  centerX: number,
+  centerY: number,
+  radius: number,
+): number {
+  if (radius <= 0) return 0;
+
+  const distance = Math.hypot(x - centerX, y - centerY);
+  if (distance >= radius) return 0;
+
+  return smoothstep(1 - distance / radius);
+}
+
 /** Deterministic horizontal shake jitter: `sin(elapsed * 40) * amplitude`. */
 export function shakeOffsetX(elapsed: number, amplitude: number): number {
   return Math.sin(elapsed * 40) * amplitude;

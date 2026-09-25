@@ -46,7 +46,6 @@ import {
   drawFog,
   drawEnemyEyes,
   drawHeldTorch,
-  heldTorchLightPosition,
   drawDeployableLadders,
   drawCrumblingFloors,
   drawDebrisEffects,
@@ -175,6 +174,9 @@ import {
   PLAYER_FOOT_PADDING,
 } from './entities/Player';
 import type { BlockContact } from './entities/Player';
+import { playerLightSource } from './entities/Player';
+import { torchLightSource } from './entities/Torch';
+import type { LightSource } from './contracts/lighting';
 import { strongerBounce } from './contracts/Outcome';
 import { isInvulnerable } from './contracts/capabilities';
 import { advanceEnemyAnimation, applyEnemyDamage, enemyEffectAnchor } from './entities/Enemy';
@@ -866,37 +868,43 @@ export const PlatformerPage = () => {
       // pass below, so hearts, counters, hint bubbles and popups stay fully
       // readable (FR-006). Each torch punches a warm, mildly pulsing pool
       // back through it, anchored to the torch's world position.
-      // The player's own carried light, in world coordinates — a small, steady
-      // pool centered on the held torch (FR-023).
-      const playerLight = heldTorchLightPosition(playerState.value);
+      //
+      // The single `LightSource[]` is assembled per frame — only when dark —
+      // by adapting each torch with the frame's `worldElapsed` and appending
+      // the player's carried light. No resolved radius enters a signal
+      // (FR-012); at `darknessLevel <= 0` no list is built and neither light
+      // pass runs (FR-019/SC-008).
+      if (darknessLevel.value > 0) {
+        const lights: LightSource[] = [
+          ...torchPositions.value.map((torch) => torchLightSource(torch, worldAnimElapsed)),
+          playerLightSource(playerState.value),
+        ];
 
-      if (darknessLayerRef.current) {
-        drawDarkness(
+        if (darknessLayerRef.current) {
+          drawDarkness(
+            ctx,
+            darknessLayerRef.current,
+            canvas.width,
+            canvas.height,
+            darknessLevel.value,
+            lights,
+            originX,
+            originY,
+          );
+        }
+
+        // Enemy eye markers are drawn AFTER the darkness overlay so they stay
+        // visible through it (FR-015), but before the hint tooltip/UI below.
+        drawEnemyEyes(
           ctx,
-          darknessLayerRef.current,
-          canvas.width,
-          canvas.height,
+          enemyStates.value,
           darknessLevel.value,
-          torchPositions.value,
+          lights,
+          worldAnimElapsed,
           originX,
           originY,
-          worldAnimElapsed,
-          playerLight,
         );
       }
-
-      // Enemy eye markers are drawn AFTER the darkness overlay so they stay
-      // visible through it (FR-015), but before the hint tooltip/UI below.
-      drawEnemyEyes(
-        ctx,
-        enemyStates.value,
-        darknessLevel.value,
-        torchPositions.value,
-        worldAnimElapsed,
-        originX,
-        originY,
-        playerLight,
-      );
 
       const tooltip = hintTooltipState.value;
       if (tooltip) {

@@ -2,10 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
   MAX_DARKNESS,
   DARKNESS_FADE_SECONDS,
-  TORCH_LIGHT_RADIUS_PX,
-  TORCH_PULSE_AMPLITUDE,
-  TORCH_GLOW_COLOR,
-  PLAYER_LIGHT_RADIUS_PX,
   ENEMY_EYE_DARKNESS_THRESHOLD,
   ENEMY_EYE_FADE_RANGE,
   ENEMY_EYE_COLOR,
@@ -16,14 +12,11 @@ import {
   nextDarknessLevel,
   isCellDarkening,
   playerOccupiedCell,
-  torchPulseScale,
-  torchGlowStrengthAt,
   localDarknessAt,
   enemyEyeOpacity,
   enemyEyeBobOffset,
-  playerGlowStrengthAt,
 } from './Lighting';
-import type { TorchLight } from './Lighting';
+import type { LightSource } from '../contracts/lighting';
 import { PLAYER_RENDERED_SIZE, PLAYER_FOOT_PADDING } from '../entities/Player';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { LevelDef } from '../level/LevelData';
@@ -35,8 +28,19 @@ function makePlayer(x: number, y: number): PlayerState {
   return { x, y } as unknown as PlayerState;
 }
 
-function makeTorch(overrides: Partial<TorchLight> = {}): TorchLight {
-  return { col: 3, row: 4, x: 100, y: 100, strength: 5, ...overrides };
+/** A hand-built light — deliberately neither a torch nor the player, to prove
+ *  the probe reads the shared list generically. */
+function makeLight(overrides: Partial<LightSource> = {}): LightSource {
+  return {
+    x: 100,
+    y: 100,
+    radius: 112,
+    color: 'rgb(255, 176, 74)',
+    intensity: 1,
+    glowMidAlpha: 0.35,
+    punchHole: true,
+    ...overrides,
+  };
 }
 
 describe('Lighting constants', () => {
@@ -49,17 +53,7 @@ describe('Lighting constants', () => {
     expect(DARKNESS_FADE_SECONDS).toBeGreaterThan(0);
   });
 
-  it('torchLightRadiusPx-isAPositiveRadius', () => {
-    expect(TORCH_LIGHT_RADIUS_PX).toBeGreaterThan(0);
-  });
-
-  it('torchPulseAmplitude-isSmallButNonZero', () => {
-    expect(TORCH_PULSE_AMPLITUDE).toBeGreaterThan(0);
-    expect(TORCH_PULSE_AMPLITUDE).toBeLessThan(0.25);
-  });
-
-  it('torchGlowColor-and-enemyEyeColor-areNonEmptyStrings', () => {
-    expect(TORCH_GLOW_COLOR.length).toBeGreaterThan(0);
+  it('enemyEyeColor-isANonEmptyString', () => {
     expect(ENEMY_EYE_COLOR.length).toBeGreaterThan(0);
   });
 
@@ -191,92 +185,74 @@ describe('playerOccupiedCell', () => {
   });
 });
 
-describe('torchPulseScale', () => {
-  it('anyWorldElapsed-staysWithinThePulseAmplitudeBounds', () => {
-    const torch = makeTorch();
-    for (let elapsed = 0; elapsed <= 5; elapsed += 0.013) {
-      const scale = torchPulseScale(torch, elapsed);
-      expect(scale).toBeGreaterThanOrEqual(1 - TORCH_PULSE_AMPLITUDE);
-      expect(scale).toBeLessThanOrEqual(1 + TORCH_PULSE_AMPLITUDE);
-    }
-  });
-
-  it('sameInputs-areDeterministic', () => {
-    const torch = makeTorch();
-    expect(torchPulseScale(torch, 1.234)).toBe(torchPulseScale(torch, 1.234));
-  });
-
-  it('differentTorches-differInPhaseAtTheSameInstant', () => {
-    expect(torchPulseScale(makeTorch({ col: 0, row: 0 }), 0)).not.toBe(
-      torchPulseScale(makeTorch({ col: 1, row: 0 }), 0),
-    );
-  });
-});
-
-describe('torchGlowStrengthAt', () => {
-  it('torchCentre-isFullStrength', () => {
-    const torch = makeTorch();
-    expect(torchGlowStrengthAt(torch, torch.x, torch.y, 0)).toBe(1);
-  });
-
-  it('atOrBeyondThePulsedRadius-isZero', () => {
-    const torch = makeTorch();
-    const radius = TORCH_LIGHT_RADIUS_PX * torchPulseScale(torch, 0);
-    expect(torchGlowStrengthAt(torch, torch.x + radius, torch.y, 0)).toBe(0);
-    expect(torchGlowStrengthAt(torch, torch.x + radius * 2, torch.y, 0)).toBe(0);
-  });
-
-  it('falloff-isSmoothAndMonotonicFromCentreToEdge', () => {
-    const torch = makeTorch();
-    const radius = TORCH_LIGHT_RADIUS_PX * torchPulseScale(torch, 0);
-    const centre = torchGlowStrengthAt(torch, torch.x, torch.y, 0);
-    const near = torchGlowStrengthAt(torch, torch.x + radius * 0.25, torch.y, 0);
-    const middle = torchGlowStrengthAt(torch, torch.x + radius * 0.5, torch.y, 0);
-    const far = torchGlowStrengthAt(torch, torch.x + radius * 0.9, torch.y, 0);
-
-    expect(centre).toBeGreaterThan(near);
-    expect(near).toBeGreaterThan(middle);
-    expect(middle).toBeGreaterThan(far);
-    expect(far).toBeGreaterThan(0);
-  });
-});
-
 describe('localDarknessAt', () => {
-  it('noTorches-returnsTheBaseDarkness', () => {
-    expect(localDarknessAt(0, 0, MAX_DARKNESS, [], 0)).toBe(MAX_DARKNESS);
+  it('noLights-returnsTheBaseDarkness', () => {
+    expect(localDarknessAt(0, 0, MAX_DARKNESS, [])).toBe(MAX_DARKNESS);
   });
 
-  it('torchAtThePoint-erasesAllDarkness', () => {
-    const torch = makeTorch();
-    expect(localDarknessAt(torch.x, torch.y, MAX_DARKNESS, [torch], 0)).toBe(0);
+  it('lightAtThePoint-erasesAllDarkness', () => {
+    const light = makeLight();
+    expect(localDarknessAt(light.x, light.y, MAX_DARKNESS, [light])).toBe(0);
   });
 
-  it('overlappingTorches-useTheMaximumNotTheSum', () => {
-    const torch = makeTorch();
-    const radius = TORCH_LIGHT_RADIUS_PX * torchPulseScale(torch, 0);
-    // Half a radius out, the smooth falloff is exactly 0.5 — so one torch
+  it('overlappingLights-useTheMaximumNotTheSum', () => {
+    const light = makeLight();
+    // Half a radius out, the smooth falloff is exactly 0.5 — so one light
     // leaves darkness - 0.5, and a summed pair would clamp to 0 instead.
-    const x = torch.x + radius * 0.5;
-    const one = localDarknessAt(x, torch.y, MAX_DARKNESS, [torch], 0);
-    const two = localDarknessAt(x, torch.y, MAX_DARKNESS, [torch, { ...torch }], 0);
+    const x = light.x + light.radius * 0.5;
+    const one = localDarknessAt(x, light.y, MAX_DARKNESS, [light]);
+    const two = localDarknessAt(x, light.y, MAX_DARKNESS, [light, { ...light }]);
 
     expect(one).toBeCloseTo(MAX_DARKNESS - 0.5);
     expect(two).toBe(one);
   });
 
   it('isMonotonicInTheBaseDarkness', () => {
-    const torch = makeTorch();
-    const x = torch.x + TORCH_LIGHT_RADIUS_PX * 0.5;
-    expect(localDarknessAt(x, torch.y, MAX_DARKNESS, [torch], 0)).toBeGreaterThanOrEqual(
-      localDarknessAt(x, torch.y, MAX_DARKNESS / 2, [torch], 0),
+    const light = makeLight();
+    const x = light.x + light.radius * 0.5;
+    expect(localDarknessAt(x, light.y, MAX_DARKNESS, [light])).toBeGreaterThanOrEqual(
+      localDarknessAt(x, light.y, MAX_DARKNESS / 2, [light]),
     );
   });
 
   it('result-isClampedToTheValidRange', () => {
-    const torch = makeTorch();
-    const lit = localDarknessAt(torch.x, torch.y, MAX_DARKNESS, [torch], 0);
+    const light = makeLight();
+    const lit = localDarknessAt(light.x, light.y, MAX_DARKNESS, [light]);
     expect(lit).toBeGreaterThanOrEqual(0);
     expect(lit).toBeLessThanOrEqual(MAX_DARKNESS);
+  });
+
+  it('glowOnlyLight-punchHoleFalse-stillIlluminates', () => {
+    // `punchHole` is a draw-pass concern only: a glow-only light still counts
+    // as local light (FR-007; Story 1 scenario 5).
+    const light = makeLight({ punchHole: false });
+    const x = light.x + light.radius * 0.5;
+
+    expect(localDarknessAt(light.x, light.y, MAX_DARKNESS, [light])).toBe(0);
+    expect(localDarknessAt(x, light.y, MAX_DARKNESS, [light])).toBeCloseTo(MAX_DARKNESS - 0.5);
+  });
+
+  it('aThirdArbitraryLight-isCountedWithNoSpecialBranch', () => {
+    // Not a torch, not the player — just data in the list (SC-003).
+    const third = makeLight({
+      x: 400,
+      y: 400,
+      radius: 50,
+      color: 'rgb(10, 20, 30)',
+      intensity: 0.5,
+      glowMidAlpha: 0.2,
+      punchHole: false,
+    });
+
+    expect(localDarknessAt(third.x, third.y, MAX_DARKNESS, [third])).toBe(0);
+    expect(localDarknessAt(third.x + third.radius, third.y, MAX_DARKNESS, [third])).toBe(
+      MAX_DARKNESS,
+    );
+  });
+
+  it('emptyRadiusLight-illuminatesNothing', () => {
+    const light = makeLight({ radius: 0 });
+    expect(localDarknessAt(light.x, light.y, MAX_DARKNESS, [light])).toBe(MAX_DARKNESS);
   });
 });
 
@@ -329,51 +305,5 @@ describe('enemyEyeBobOffset', () => {
 
   it('sameInputs-areDeterministic', () => {
     expect(enemyEyeBobOffset(1.234)).toBe(enemyEyeBobOffset(1.234));
-  });
-});
-
-describe('playerGlowStrengthAt', () => {
-  const light = { x: 50, y: 60 };
-
-  it('playerLightRadius-isPositiveAndSmallerThanATorch', () => {
-    expect(PLAYER_LIGHT_RADIUS_PX).toBeGreaterThan(0);
-    expect(PLAYER_LIGHT_RADIUS_PX).toBeLessThan(TORCH_LIGHT_RADIUS_PX);
-  });
-
-  it('atThePlayerCentre-isFullStrength', () => {
-    expect(playerGlowStrengthAt(light.x, light.y, light)).toBe(1);
-  });
-
-  it('atOrBeyondTheRadius-isZero', () => {
-    expect(playerGlowStrengthAt(light.x + PLAYER_LIGHT_RADIUS_PX, light.y, light)).toBe(0);
-    expect(playerGlowStrengthAt(light.x + PLAYER_LIGHT_RADIUS_PX * 2, light.y, light)).toBe(0);
-  });
-
-  it('falloff-isSmoothAndMonotonicFromCentreToEdge', () => {
-    const near = playerGlowStrengthAt(light.x + PLAYER_LIGHT_RADIUS_PX * 0.25, light.y, light);
-    const mid = playerGlowStrengthAt(light.x + PLAYER_LIGHT_RADIUS_PX * 0.5, light.y, light);
-    const far = playerGlowStrengthAt(light.x + PLAYER_LIGHT_RADIUS_PX * 0.9, light.y, light);
-
-    expect(near).toBeGreaterThan(mid);
-    expect(mid).toBeGreaterThan(far);
-  });
-});
-
-describe('localDarknessAt with the player light', () => {
-  const light = { x: 50, y: 60 };
-
-  it('atThePlayerCentre-erasesAllDarkness', () => {
-    expect(localDarknessAt(light.x, light.y, MAX_DARKNESS, [], 0, light)).toBe(0);
-  });
-
-  it('farFromThePlayer-keepsTheBaseDarkness', () => {
-    expect(localDarknessAt(light.x + 10000, light.y, MAX_DARKNESS, [], 0, light)).toBe(MAX_DARKNESS);
-  });
-
-  it('playerLightAndTorch-useTheMaximumNotTheSum', () => {
-    const torch = makeTorch({ x: light.x, y: light.y });
-    const lit = localDarknessAt(light.x, light.y, MAX_DARKNESS, [torch], 0, light);
-
-    expect(lit).toBe(0);
   });
 });

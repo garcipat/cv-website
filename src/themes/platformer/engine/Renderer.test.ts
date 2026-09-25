@@ -46,7 +46,6 @@ import {
   drawDarkness,
   drawEnemyEyes,
   drawHeldTorch,
-  heldTorchLightPosition,
   drawTintedSprite,
   CROUCH_HIT_TINT,
   drawDebrisEffects,
@@ -56,7 +55,7 @@ import { backgroundAtlasCell } from './BackgroundAtlas';
 import { parseLevel } from '../level/LevelParser';
 import type { SignPlacement } from '../level/SignMapper';
 import type { PlayerState } from '../entities/Player';
-import { PLAYER_RENDERED_SIZE, PLAYER_FRAME_SIZE, PLAYER_FOOT_PADDING, PLAYER_HIT_REACTION_SECONDS } from '../entities/Player';
+import { PLAYER_RENDERED_SIZE, PLAYER_FRAME_SIZE, PLAYER_FOOT_PADDING, PLAYER_HIT_REACTION_SECONDS, PLAYER_LIGHT_RADIUS_PX } from '../entities/Player';
 import { MAX_HALF_HEARTS, HEART_RENDERED_SIZE } from '../entities/Health';
 import { startFlightEffect, tickFlightEffect, RISE_DURATION_SECONDS, SPARKLE_DURATION_SECONDS, startPuffEffect, tickPuffEffect, startHealAuraEffect, HEAL_AURA_DURATION_SECONDS, startPlayerHitSplatter, startEnemyHitSplatter, tickHitSplatterEffect, startFadeOutTextEffect, tickFadeOutTextEffect, FADE_OUT_TEXT_DURATION_SECONDS, startDebrisEffect, crumbleDebrisLayers } from './CollectionEffects';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
@@ -123,17 +122,17 @@ import { isStalactiteTwin, stalactiteEntry } from './StaticObjectsCatalog';
 import { computePotRenderPlan } from '../entities/blocks/potRenderPlan';
 import type { PotRenderPlan } from '../entities/blocks/potTypes';
 import type { DrawContext } from '../contracts/DrawContext';
-import { TORCH_LIGHT_RADIUS_PX, torchPulseScale } from './Lighting';
-import type { TorchLight } from './Lighting';
+import { TORCH_LIGHT_RADIUS_PX } from '../entities/Torch';
+import type { LightSource } from '../contracts/lighting';
 import {
   MAX_DARKNESS,
-  PLAYER_LIGHT_RADIUS_PX,
   ENEMY_EYE_COLOR,
   ENEMY_EYE_SIZE_PX,
   ENEMY_EYE_GAP_PX,
   ENEMY_EYE_BOB_PERIOD_SECONDS,
   ENEMY_EYE_BOB_AMPLITUDE_PX,
   FOG_TINT_RGB,
+  FOG_DENSITY,
   FOG_PUFF_PLATEAU,
   FOG_PUFF_RADIUS_PX,
   fogPuffAt,
@@ -3599,8 +3598,8 @@ describe('drawFog', () => {
     const puff = fogPuffAt(0, 0, 0);
     expect(raw.createRadialGradient).toHaveBeenCalledWith(puff.x, puff.y, 0, puff.x, puff.y, puff.radius);
     const gradient = raw.createRadialGradient.mock.results[0].value;
-    expect(gradient.addColorStop).toHaveBeenNthCalledWith(1, 0, `rgba(${FOG_TINT_RGB}, 0.5)`);
-    expect(gradient.addColorStop).toHaveBeenNthCalledWith(2, FOG_PUFF_PLATEAU, `rgba(${FOG_TINT_RGB}, 0.5)`);
+    expect(gradient.addColorStop).toHaveBeenNthCalledWith(1, 0, `rgba(${FOG_TINT_RGB}, ${0.5 * FOG_DENSITY})`);
+    expect(gradient.addColorStop).toHaveBeenNthCalledWith(2, FOG_PUFF_PLATEAU, `rgba(${FOG_TINT_RGB}, ${0.5 * FOG_DENSITY})`);
     expect(gradient.addColorStop).toHaveBeenNthCalledWith(3, 1, `rgba(${FOG_TINT_RGB}, 0)`);
     expect(raw.arc).toHaveBeenCalledWith(puff.x, puff.y, puff.radius, 0, Math.PI * 2);
     expect(raw.fill).toHaveBeenCalledTimes(1);
@@ -3741,7 +3740,7 @@ describe('drawFog', () => {
     drawFog(ctx, level, 0.5, 0, 0, 0, { x: puff.x + FOG_PEEK_RADIUS_PX * 10, y: puff.y });
 
     const gradient = raw.createRadialGradient.mock.results[0].value;
-    expect(gradient.addColorStop).toHaveBeenNthCalledWith(1, 0, `rgba(${FOG_TINT_RGB}, 0.5)`);
+    expect(gradient.addColorStop).toHaveBeenNthCalledWith(1, 0, `rgba(${FOG_TINT_RGB}, ${0.5 * FOG_DENSITY})`);
   });
 
   it('playerPartWayIntoThePeekRadius-drawsThePuffAtAThinnedAlpha', () => {
@@ -3753,7 +3752,7 @@ describe('drawFog', () => {
     drawFog(ctx, level, 0.5, 0, 0, 0, playerPosition);
 
     const peek = fogPeekStrengthAt(puff.x, puff.y, playerPosition);
-    const expectedAlpha = 0.5 * (1 - peek);
+    const expectedAlpha = 0.5 * FOG_DENSITY * (1 - peek);
     expect(peek).toBeGreaterThan(0);
     expect(peek).toBeLessThan(1);
     const gradient = raw.createRadialGradient.mock.results[0].value;
@@ -3767,7 +3766,7 @@ describe('drawFog', () => {
     drawFog(ctx, level, 0.5, 0, 0, 0);
 
     const gradient = raw.createRadialGradient.mock.results[0].value;
-    expect(gradient.addColorStop).toHaveBeenNthCalledWith(1, 0, `rgba(${FOG_TINT_RGB}, 0.5)`);
+    expect(gradient.addColorStop).toHaveBeenNthCalledWith(1, 0, `rgba(${FOG_TINT_RGB}, ${0.5 * FOG_DENSITY})`);
   });
 });
 
@@ -3963,16 +3962,39 @@ function makeTintLayer() {
   return { layer, layerCtx, compositeOps };
 }
 
-function makeTorchLight(overrides: Partial<TorchLight> = {}): TorchLight {
-  return { col: 0, row: 0, x: 100, y: 100, strength: 5, ...overrides };
+/** A hand-built light — independent of the torch/player adapters, so the pass
+ *  is proven generic (Story 1's independent test / SC-003). */
+function makeLightSource(overrides: Partial<LightSource> = {}): LightSource {
+  return {
+    x: 100,
+    y: 100,
+    radius: 112,
+    color: 'rgb(255, 176, 74)',
+    intensity: 1,
+    glowMidAlpha: 0.35,
+    punchHole: true,
+    ...overrides,
+  };
 }
+
+/** The player's carried light as a hand-built `LightSource` (radius `1.75 × 32`,
+ *  softer intensity and mid stop than a torch). */
+const PLAYER_LIGHT: LightSource = {
+  x: 100,
+  y: 100,
+  radius: PLAYER_LIGHT_RADIUS_PX,
+  color: 'rgb(255, 145, 45)',
+  intensity: 0.7,
+  glowMidAlpha: 0.3,
+  punchHole: true,
+};
 
 describe('drawDarkness', () => {
   it('atOrBelowZero-darknessDrawsNothingAtAll', () => {
     const { ctx, raw } = makeLightingContext();
     const { layer, layerCtx } = makeLightingLayer();
 
-    drawDarkness(ctx, layer, 320, 180, 0, [], 0, 0, 0);
+    drawDarkness(ctx, layer, 320, 180, 0, [], 0, 0);
 
     expect(raw.drawImage).not.toHaveBeenCalled();
     expect(layerCtx.fillRect).not.toHaveBeenCalled();
@@ -3982,7 +4004,7 @@ describe('drawDarkness', () => {
     const { ctx } = makeLightingContext();
     const { layer, layerCtx } = makeLightingLayer();
 
-    drawDarkness(ctx, layer, 320, 180, 0.5, [], 0, 0, 0);
+    drawDarkness(ctx, layer, 320, 180, 0.5, [], 0, 0);
 
     expect(layerCtx.fillRect).toHaveBeenCalledWith(0, 0, 320, 180);
     expect(layerCtx.fillStyle).toBe('rgba(0, 0, 0, 0.5)');
@@ -3992,43 +4014,38 @@ describe('drawDarkness', () => {
     const { ctx, raw } = makeLightingContext();
     const { layer, layerCtx, compositeOps } = makeLightingLayer();
 
-    drawDarkness(ctx, layer, 320, 180, 0.5, [], 0, 0, 0);
+    drawDarkness(ctx, layer, 320, 180, 0.5, [], 0, 0);
 
     expect(raw.drawImage).toHaveBeenCalledWith(layer, 0, 0, 320, 180);
     expect(compositeOps).toContain('source-over');
     expect(layerCtx.globalCompositeOperation).toBe('source-over');
   });
 
-  it('oneVisibleTorch-erasesOneHoleAndPaintsOneWarmGlow', () => {
+  it('oneVisibleLight-erasesOneHoleAndPaintsOneWarmGlow', () => {
     const { ctx, raw, compositeOps: mainCompositeOps } = makeLightingContext();
     const { layer, layerCtx, compositeOps } = makeLightingLayer();
-    const torch = makeTorchLight({ col: 0, row: 0, x: 100, y: 100 });
-    const radius = TORCH_LIGHT_RADIUS_PX * torchPulseScale(torch, 0);
+    const light = makeLightSource();
 
-    drawDarkness(ctx, layer, 320, 180, 0.5, [torch], 0, 0, 0);
+    drawDarkness(ctx, layer, 320, 180, 0.5, [light], 0, 0);
 
     // Hole punched through the darkness layer.
     expect(layerCtx.createRadialGradient).toHaveBeenCalledTimes(1);
-    expect(layerCtx.arc).toHaveBeenCalledWith(100, 100, radius, 0, Math.PI * 2);
+    expect(layerCtx.arc).toHaveBeenCalledWith(100, 100, light.radius, 0, Math.PI * 2);
     expect(compositeOps).toContain('destination-out');
     expect(layerCtx.globalCompositeOperation).toBe('source-over');
 
     // Warm additive pool on the main context, kept inside the hole.
     expect(raw.createRadialGradient).toHaveBeenCalledTimes(1);
-    const glowRadius = raw.arc.mock.calls[0][2] as number;
-    expect(glowRadius).toBeLessThan(radius);
+    expect(raw.arc.mock.calls[0][2]).toBe(light.radius * 0.7);
     expect(mainCompositeOps).toContain('lighter');
   });
 
-  it('twoVisibleTorches-eraseTwoHolesAndPaintTwoGlows', () => {
+  it('twoVisibleLights-eraseTwoHolesAndPaintTwoGlows', () => {
     const { ctx, raw } = makeLightingContext();
     const { layer, layerCtx } = makeLightingLayer();
-    const torches = [
-      makeTorchLight({ col: 0, row: 0, x: 100, y: 100 }),
-      makeTorchLight({ col: 1, row: 0, x: 200, y: 100 }),
-    ];
+    const lights = [makeLightSource({ x: 100, y: 100 }), makeLightSource({ x: 200, y: 100 })];
 
-    drawDarkness(ctx, layer, 320, 180, 0.5, torches, 0, 0, 0);
+    drawDarkness(ctx, layer, 320, 180, 0.5, lights, 0, 0);
 
     expect(layerCtx.createRadialGradient).toHaveBeenCalledTimes(2);
     expect(raw.createRadialGradient).toHaveBeenCalledTimes(2);
@@ -4037,21 +4054,20 @@ describe('drawDarkness', () => {
   it('cameraOrigin-shiftsTheHoleAndGlowToTheScreenPosition', () => {
     const { ctx, raw } = makeLightingContext();
     const { layer, layerCtx } = makeLightingLayer();
-    const torch = makeTorchLight({ col: 0, row: 0, x: 100, y: 100 });
-    const radius = TORCH_LIGHT_RADIUS_PX * torchPulseScale(torch, 0);
+    const light = makeLightSource();
 
-    drawDarkness(ctx, layer, 320, 180, 0.5, [torch], -40, 10, 0);
+    drawDarkness(ctx, layer, 320, 180, 0.5, [light], -40, 10);
 
-    expect(layerCtx.arc).toHaveBeenCalledWith(60, 110, radius, 0, Math.PI * 2);
+    expect(layerCtx.arc).toHaveBeenCalledWith(60, 110, light.radius, 0, Math.PI * 2);
     expect(raw.arc).toHaveBeenCalledWith(60, 110, expect.any(Number), 0, Math.PI * 2);
   });
 
-  it('torchFullyOutsideTheViewport-contributesNoHoleOrGlow', () => {
+  it('lightFullyOutsideTheViewport-contributesNoHoleOrGlow', () => {
     const { ctx, raw } = makeLightingContext();
     const { layer, layerCtx } = makeLightingLayer();
-    const torch = makeTorchLight({ x: -10000, y: -10000 });
+    const light = makeLightSource({ x: -10000, y: -10000 });
 
-    drawDarkness(ctx, layer, 320, 180, 0.5, [torch], 0, 0, 0);
+    drawDarkness(ctx, layer, 320, 180, 0.5, [light], 0, 0);
 
     expect(layerCtx.createRadialGradient).not.toHaveBeenCalled();
     expect(raw.createRadialGradient).not.toHaveBeenCalled();
@@ -4061,7 +4077,7 @@ describe('drawDarkness', () => {
     const { ctx, raw } = makeLightingContext();
     const { layer, layerCtx } = makeLightingLayer();
 
-    drawDarkness(ctx, layer, 320, 180, 0.5, [], 0, 0, 0, { x: 100, y: 100 });
+    drawDarkness(ctx, layer, 320, 180, 0.5, [PLAYER_LIGHT], 0, 0);
 
     expect(layerCtx.createRadialGradient).toHaveBeenCalledTimes(1);
     expect(layerCtx.arc).toHaveBeenCalledWith(100, 100, PLAYER_LIGHT_RADIUS_PX, 0, Math.PI * 2);
@@ -4069,14 +4085,48 @@ describe('drawDarkness', () => {
     expect(PLAYER_LIGHT_RADIUS_PX).toBeLessThan(TORCH_LIGHT_RADIUS_PX);
   });
 
-  it('noPlayerLight-doesNotPunchAPlayerHole', () => {
+  it('glowOnlyLight-punchHoleFalse-glowsButErasesNoDarkness', () => {
+    const { ctx, raw } = makeLightingContext();
+    const { layer, layerCtx } = makeLightingLayer();
+    const light = makeLightSource({ punchHole: false });
+
+    drawDarkness(ctx, layer, 320, 180, 0.5, [light], 0, 0);
+
+    expect(layerCtx.createRadialGradient).not.toHaveBeenCalled();
+    expect(raw.createRadialGradient).toHaveBeenCalledTimes(1);
+  });
+
+  it('noLights-punchesAndGlowsNothing', () => {
     const { ctx, raw } = makeLightingContext();
     const { layer, layerCtx } = makeLightingLayer();
 
-    drawDarkness(ctx, layer, 320, 180, 0.5, [], 0, 0, 0);
+    drawDarkness(ctx, layer, 320, 180, 0.5, [], 0, 0);
 
     expect(layerCtx.createRadialGradient).not.toHaveBeenCalled();
     expect(raw.createRadialGradient).not.toHaveBeenCalled();
+  });
+
+  it('thirdArbitraryLight-isDataNotANewBranch', () => {
+    // Neither a torch nor the player: one punch loop (2 punching lights → 2
+    // holes) and one glow loop (all 3 lights glow), with no per-kind block
+    // (SC-001/SC-003).
+    const { ctx, raw } = makeLightingContext();
+    const { layer, layerCtx } = makeLightingLayer();
+    const torch = makeLightSource({ x: 100, y: 100 });
+    const third = makeLightSource({
+      x: 260,
+      y: 40,
+      radius: 40,
+      color: 'rgb(10, 20, 30)',
+      intensity: 0.5,
+      glowMidAlpha: 0.2,
+      punchHole: false,
+    });
+
+    drawDarkness(ctx, layer, 320, 180, 0.5, [torch, PLAYER_LIGHT, third], 0, 0);
+
+    expect(layerCtx.createRadialGradient).toHaveBeenCalledTimes(2);
+    expect(raw.createRadialGradient).toHaveBeenCalledTimes(3);
   });
 
   // The `zoom` parameter (O-019) lets a caller that runs this at IDENTITY
@@ -4089,25 +4139,10 @@ describe('drawDarkness', () => {
       const defaultLayer = makeLightingLayer();
       const withExplicit = makeLightingContext();
       const explicitLayer = makeLightingLayer();
-      const torch = makeTorchLight({ x: 100, y: 100 });
+      const light = makeLightSource();
 
-      drawDarkness(withDefault.ctx, defaultLayer.layer, 320, 180, 0.5, [torch], -40, 10, 0, {
-        x: 60,
-        y: 70,
-      });
-      drawDarkness(
-        withExplicit.ctx,
-        explicitLayer.layer,
-        320,
-        180,
-        0.5,
-        [torch],
-        -40,
-        10,
-        0,
-        { x: 60, y: 70 },
-        1,
-      );
+      drawDarkness(withDefault.ctx, defaultLayer.layer, 320, 180, 0.5, [light], -40, 10);
+      drawDarkness(withExplicit.ctx, explicitLayer.layer, 320, 180, 0.5, [light], -40, 10, 1);
 
       expect(explicitLayer.layerCtx.arc.mock.calls).toEqual(
         defaultLayer.layerCtx.arc.mock.calls,
@@ -4120,23 +4155,22 @@ describe('drawDarkness', () => {
       );
     });
 
-    it('halfZoom-halvesTheTorchHolePositionRelativeToOriginAndItsRadius', () => {
+    it('halfZoom-halvesTheHolePositionRelativeToOriginAndItsRadius', () => {
       const { ctx } = makeLightingContext();
       const { layer, layerCtx } = makeLightingLayer();
-      const torch = makeTorchLight({ x: 100, y: 100 });
-      const radius = TORCH_LIGHT_RADIUS_PX * torchPulseScale(torch, 0);
+      const light = makeLightSource();
 
-      drawDarkness(ctx, layer, 320, 180, 0.5, [torch], -40, 10, 0, null, 0.5);
+      drawDarkness(ctx, layer, 320, 180, 0.5, [light], -40, 10, 0.5);
 
       // world 100 * 0.5 + origin(-40) = 10; world 100 * 0.5 + origin(10) = 60.
-      expect(layerCtx.arc).toHaveBeenCalledWith(10, 60, radius * 0.5, 0, Math.PI * 2);
+      expect(layerCtx.arc).toHaveBeenCalledWith(10, 60, light.radius * 0.5, 0, Math.PI * 2);
     });
 
     it('halfZoom-halvesThePlayerLightPositionAndRadius', () => {
       const { ctx } = makeLightingContext();
       const { layer, layerCtx } = makeLightingLayer();
 
-      drawDarkness(ctx, layer, 320, 180, 0.5, [], 20, 40, 0, { x: 100, y: 100 }, 0.5);
+      drawDarkness(ctx, layer, 320, 180, 0.5, [PLAYER_LIGHT], 20, 40, 0.5);
 
       expect(layerCtx.arc).toHaveBeenCalledWith(
         70,
@@ -4153,7 +4187,7 @@ describe('drawDarkness', () => {
       const { ctx, raw } = makeLightingContext();
       const { layer } = makeLightingLayer();
 
-      drawDarkness(ctx, layer, 320, 180, 0.5, [], 0, 0, 0, null, 0.5);
+      drawDarkness(ctx, layer, 320, 180, 0.5, [], 0, 0, 0.5);
 
       expect(raw.drawImage).toHaveBeenCalledWith(layer, 0, 0, 320, 180);
     });
@@ -4235,48 +4269,6 @@ describe('drawHeldTorch', () => {
   });
 });
 
-describe('heldTorchLightPosition', () => {
-  const basePlayer: PlayerState = {
-    x: 100,
-    y: 100,
-    vx: 0,
-    vy: 0,
-    direction: 'right',
-    grounded: true,
-    climbing: false,
-    crouching: false,
-    isDroppingThroughBridge: false,
-    lastGroundedX: 100,
-    lastGroundedY: 100,
-    prevFeetY: 100 + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING,
-    animTimer: 0,
-    animState: 'idle',
-    animFrame: 0,
-    knockbackTimer: 0,
-    bounceAscending: false,
-    blockContacts: [],
-    hitPoints: 6,
-    alive: true,
-    hitTimer: PLAYER_HIT_REACTION_SECONDS,
-  };
-
-  it('rightFacing-sitsToTheRightOfThePlayerCentre', () => {
-    const light = heldTorchLightPosition(basePlayer);
-
-    expect(light.x).toBeGreaterThan(basePlayer.x + PLAYER_RENDERED_SIZE / 2);
-  });
-
-  it('leftFacing-mirrorsToTheLeftOfThePlayerCentre', () => {
-    const right = heldTorchLightPosition(basePlayer);
-    const left = heldTorchLightPosition({ ...basePlayer, direction: 'left' });
-
-    expect(left.x).toBeLessThan(basePlayer.x + PLAYER_RENDERED_SIZE / 2);
-    expect(basePlayer.x + PLAYER_RENDERED_SIZE / 2 - left.x).toBeCloseTo(
-      right.x - (basePlayer.x + PLAYER_RENDERED_SIZE / 2),
-    );
-  });
-});
-
 describe('drawEnemyEyes', () => {
   it('atOrBelowZeroDarkness-drawsNothingAtAll', () => {
     const { ctx, raw } = makeLightingContext();
@@ -4311,13 +4303,13 @@ describe('drawEnemyEyes', () => {
     expect(raw.fillRect).not.toHaveBeenCalled();
   });
 
-  it('enemyInsideATorchPool-showsNoMarker', () => {
+  it('enemyInsideALightPool-showsNoMarker', () => {
     const { ctx, raw } = makeLightingContext();
-    // The torch sits exactly on the enemy's own effect anchor, so its local
+    // The light sits exactly on the enemy's own effect anchor, so its local
     // darkness is 0 — well below the eye threshold.
-    const torch = makeTorchLight({ col: 0, row: 0, x: 116, y: 125 });
+    const light = makeLightSource({ x: 116, y: 125 });
 
-    drawEnemyEyes(ctx, [makeGreenEnemy({ x: 100, y: 100 })], MAX_DARKNESS, [torch], 0, 0, 0);
+    drawEnemyEyes(ctx, [makeGreenEnemy({ x: 100, y: 100 })], MAX_DARKNESS, [light], 0, 0, 0);
 
     expect(raw.fillRect).not.toHaveBeenCalled();
   });
