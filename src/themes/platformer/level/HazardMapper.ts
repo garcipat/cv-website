@@ -1,7 +1,8 @@
 import { tileToPixel } from './Terrain';
 import type { HazardFacing } from './LevelParser';
 import type { HazardKind } from '../entities/hazards';
-import type { FloorSpikePhase, FallingStalactitePhase } from '../entities/hazards/phases';
+import type { FloorSpikePhase } from '../entities/hazards/FloorSpike';
+import type { FallingStalactitePhase } from '../entities/hazards/FallingStalactite';
 
 export interface HazardPlacement {
   id: string;
@@ -22,7 +23,7 @@ export interface HazardPlacement {
   floorSpikePhase?: FloorSpikePhase;
   /** A floor spike's continuous 0..1 rise/fall ratio for this tick — the
    *  render-only counterpart to `floorSpikePhase` (see
-   *  `engine/FloorSpike.ts`'s `floorSpikeExtensionAt`). `undefined`/missing
+   *  `entities/hazards/FloorSpike.ts`'s `floorSpikeExtensionAt`). `undefined`/missing
    *  is treated as 0 (nothing risen). */
   floorSpikeExtension?: number;
   /** A falling stalactite's current phase, merged in per-tick by

@@ -1,7 +1,7 @@
-import { collectedFacts, activeEffects, activeCounterPopups, levelTotals } from '../PlatformerState';
-import { startFlightEffect, startCounterPopup } from '../engine/CollectionEffects';
+import { collectedFacts, spawnEffect, levelTotals } from '../PlatformerState';
+import { startFlyingText, startCounterPopup } from '../engine/effects';
 import { countCollectedFor } from '../entities/CollectiblesSummary';
-import type { SlotAllocator } from '../engine/CollectionEffects';
+import type { SlotAllocator } from '../engine/effects';
 import type { CounterPopupLabelKey } from '../contracts/counters';
 import { formatJournalEntry } from '../entities/JournalEntry';
 import type { CollectedFact } from '../types';
@@ -19,13 +19,13 @@ export interface RevealContext {
   /** The journal button's rect in CANVAS-LOCAL coordinates (i.e. already
    *  translated out of `getBoundingClientRect()`'s viewport-relative space
    *  by subtracting the canvas's own bounding rect — see the call site),
-   *  or null when the button hasn't mounted yet, in which case the flight
+   *  or null when the button hasn't mounted yet, in which case the flying text
    *  targets the bottom-right corner instead. */
   journalRect: DOMRect | null;
   /** This tick's collection-text slot allocator (see `createSlotAllocator`).
    *  Passed in rather than built here because it is SHARED with the key
    *  pickup, which is outside this trigger: one counter across every
-   *  flight-text site is what keeps two texts in the same tick off the same
+   *  flying-text site is what keeps two texts in the same tick off the same
    *  row. */
   allocateSlotOffset: SlotAllocator;
 }
@@ -34,7 +34,7 @@ export interface RevealOptions {
   /** The revealing entity's world-space position. */
   x: number;
   y: number;
-  /** Unique id for the flight effect — usually the entity's own id, but a
+  /** Unique id for the flying-text effect — usually the entity's own id, but a
    *  coin revealing more than one fact needs one per fact. */
   effectId: string;
   /**
@@ -54,7 +54,7 @@ export interface RevealOptions {
 
 /**
  * Builds this tick's fact-reveal trigger: the one place that turns "this
- * entity revealed a fact" into collected state, a flight effect and a counter
+ * entity revealed a fact" into collected state, a flying-text effect and a counter
  * popup. Every fact-reveal site in the game goes through it — enemy defeat,
  * coin pickup, bonus fruit, chest open, crate destruction — replacing five
  * near-duplicate inline blocks that each did the same three things slightly
@@ -96,7 +96,7 @@ export function createRewardReveal(
     // Reuses the journal's own title/icon derivation: formatJournalEntry gets
     // every section's display title right (Course's `title`, Experience's
     // `role`/`company`, Education's `degree`), unlike an ad-hoc
-    // `'name' in data` check. `icon` is passed to startFlightEffect
+    // `'name' in data` check. `icon` is passed to startFlyingText
     // separately, NOT concatenated into `label`: Renderer.ts draws it in a
     // different font, and the pixel font `label` uses has no emoji glyphs.
     const { icon, title: label } = formatJournalEntry(fact);
@@ -109,19 +109,17 @@ export function createRewardReveal(
 
     if (options.counterKey) {
       const counterKey = options.counterKey;
-      activeCounterPopups.value = {
-        ...activeCounterPopups.value,
-        [counterKey]: startCounterPopup(
+      spawnEffect(
+        startCounterPopup(
           counterKey,
           countCollectedFor(counterKey, collectedFacts.value),
           levelTotals.value[counterKey],
         ),
-      };
+      );
     }
 
-    activeEffects.value = [
-      ...activeEffects.value,
-      startFlightEffect(
+    spawnEffect(
+      startFlyingText(
         options.effectId,
         label,
         options.x + ctx.originX,
@@ -132,7 +130,7 @@ export function createRewardReveal(
         targetY,
         icon,
       ),
-    ];
+    );
 
     return true;
   };

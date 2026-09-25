@@ -39,7 +39,7 @@ import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { ChestState } from '../entities/Chest';
 import type { SignPlacement } from '../level/SignMapper';
 import type { HazardPlacement } from '../level/HazardMapper';
-import type { FallingStalactiteTimerState } from '../entities/hazards/phases';
+import type { FallingStalactiteTimerState } from '../entities/hazards/FallingStalactite';
 import { parseLevel } from '../level/LevelParser';
 import type { KeyPickupState } from '../entities/KeyPickup';
 import { spawnHeartPickup } from '../entities/HeartPickup';

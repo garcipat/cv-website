@@ -1,8 +1,16 @@
-import { clamp01, shakeOffsetX } from '../shared/math';
+import { clamp01 } from '../shared/math';
+import {
+  advanceTimedTiles,
+  armTimedTile,
+  timedTileElapsedFor,
+  timedTileHas,
+  timedTileShakeOffsetX,
+  type TimedTileConfig,
+} from '../shared/timedTile';
 
 /**
  * A crumbling floor tile's cycle phase (spec.md's Key Entities). Unlike
- * `engine/FloorSpike.ts`'s timer states (keyed by a `HazardPlacement`'s own
+ * `entities/hazards/FloorSpike.ts`'s timer states (keyed by a `HazardPlacement`'s own
  * `id`), a crumbling floor tile has no placement list of its own — it's a
  * plain terrain `TileType` — so its live state is keyed by grid position
  * directly, the same convention `engine/MushroomSquash.ts` uses for cap
@@ -35,16 +43,27 @@ export interface CrumblingFloorTimerState {
   elapsed: number;
 }
 
+interface GridKey {
+  col: number;
+  row: number;
+}
+
+const CONFIG: TimedTileConfig<CrumblingFloorTimerState, GridKey> = {
+  keyOf: (state) => ({ col: state.col, row: state.row }),
+  duration: CRUMBLING_FLOOR_CYCLE_SECONDS,
+  prune: true,
+  rearm: 'noop',
+};
+
 /** Arms `(col, row)`'s cycle if it isn't already running — a no-op
  *  re-contact during an in-progress cycle (spec FR-007), same shape as
- *  `engine/FloorSpike.ts`'s `armFloorSpike`. */
+ *  `entities/hazards/FloorSpike.ts`'s `armFloorSpike`. */
 export function armCrumblingFloor(
   states: readonly CrumblingFloorTimerState[],
   col: number,
   row: number,
 ): CrumblingFloorTimerState[] {
-  if (states.some((state) => state.col === col && state.row === row)) return [...states];
-  return [...states, { col, row, elapsed: 0 }];
+  return armTimedTile(states, CONFIG, { col, row }, () => ({ col, row, elapsed: 0 }));
 }
 
 /** Advances every running cycle by `dt` and drops any that reached the full
@@ -55,12 +74,7 @@ export function advanceCrumblingFloors(
   states: readonly CrumblingFloorTimerState[],
   dt: number,
 ): CrumblingFloorTimerState[] {
-  const next: CrumblingFloorTimerState[] = [];
-  for (const state of states) {
-    const elapsed = dt > 0 ? state.elapsed + dt : state.elapsed;
-    if (elapsed < CRUMBLING_FLOOR_CYCLE_SECONDS) next.push({ ...state, elapsed });
-  }
-  return next;
+  return advanceTimedTiles(states, dt, CONFIG);
 }
 
 /** Pure elapsed-time -> phase mapping. `'atRest'` is never returned here —
@@ -85,7 +99,7 @@ export function crumblingFloorPhaseFor(
 
 /** `(col, row)`'s raw elapsed time since arming — 0 when no timer entry
  *  exists. Unlike the ratio/phase accessors, this is seconds, not a
- *  normalized [0,1] value; `Renderer.ts`'s shake jitter needs the real
+ *  normalized [0,1] value; the draw's shake jitter needs the real
  *  elapsed time since `crumblingFloorShakeOffsetXAt` is tuned in seconds
  *  (see its own doc comment), not a phase-relative ratio. */
 export function crumblingFloorElapsedFor(
@@ -93,8 +107,7 @@ export function crumblingFloorElapsedFor(
   col: number,
   row: number,
 ): number {
-  const state = states.find((entry) => entry.col === col && entry.row === row);
-  return state ? state.elapsed : 0;
+  return timedTileElapsedFor(states, { col, row }, CONFIG);
 }
 
 /** Whether `(col, row)` has a running cycle at all — the eligibility gate
@@ -104,7 +117,7 @@ export function isCrumblingFloorArmed(
   col: number,
   row: number,
 ): boolean {
-  return states.some((state) => state.col === col && state.row === row);
+  return timedTileHas(states, { col, row }, CONFIG);
 }
 
 /** Whether a phase is solid ground (spec's Key Entities: at-rest and
@@ -147,7 +160,7 @@ export function crumblingFloorCrackRatioFor(
 /** How far through the reform animation `elapsed` is, from 0 (just started
  *  reforming, a small square) to 1 (fully grown) — 0 for every elapsed value
  *  before reforming starts (cracking/broken read as "nothing to grow yet"),
- *  matching `engine/FloorSpike.ts`'s `floorSpikeExtensionAt` shape. */
+ *  matching `entities/hazards/FloorSpike.ts`'s `floorSpikeExtensionAt` shape. */
 export function crumblingFloorReformRatioAt(elapsed: number): number {
   const reformStart = CRUMBLING_FLOOR_CRACK_SECONDS + CRUMBLING_FLOOR_BROKEN_SECONDS;
   if (elapsed < reformStart) return 0;
@@ -168,8 +181,9 @@ export function crumblingFloorReformRatioFor(
  *  during cracking (spec FR-004) — a sine wave rather than `Math.random()`
  *  so rendering stays a pure function of elapsed time, matching
  *  `Torch.ts`'s `torchFrameIndex` convention of deriving animation from the
- *  clock rather than mutable random state. */
+ *  clock rather than mutable random state. Routes through the shared core's
+ *  shake helper; the crumbling floor always shakes (no window gate). */
 const SHAKE_AMPLITUDE_NATIVE_PX = 1;
 export function crumblingFloorShakeOffsetXAt(elapsed: number): number {
-  return shakeOffsetX(elapsed, SHAKE_AMPLITUDE_NATIVE_PX);
+  return timedTileShakeOffsetX(elapsed, SHAKE_AMPLITUDE_NATIVE_PX);
 }

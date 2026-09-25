@@ -44,29 +44,38 @@ import {
   carriedBombs,
   bombPickupStates,
   placedBombs,
-  activeExplosions,
   resetGame,
   resetGameProgress,
-  activePuffs,
-  activeCounterPopups,
   levelTotals,
   enemiesDefeated,
   hazardPlacements,
-  activeHitSplatters,
   checkpointPlacements,
   checkpointStates,
   activeCheckpointId,
-  activeFadeOutTexts,
   playerStateAtTile,
   mushroomSquashStates,
   floorSpikeTimerStates,
   fallingStalactiteTimerStates,
   hazardPlacementsForTick,
-  activeDebrisEffects,
 } from './PlatformerState';
 import { toBlockState } from './entities/Block';
 import type { BlockState } from './entities/Block';
-import { startPuffEffect } from './engine/CollectionEffects';
+import {
+  HIT_SPLATTER_DURATION_SECONDS,
+  startPuffEffect,
+} from './engine/effects';
+import type {
+  CounterPopupState,
+  DebrisState,
+  EffectKind,
+  ExplosionState,
+  FadeOutTextState,
+  FlyingTextState,
+  HitSplatterState,
+  PuffState,
+  TransientEffect,
+} from './engine/effects';
+import type { CounterPopupLabelKey } from './contracts/counters';
 import { createPlacedBomb, BOMB_FUSE_SECONDS } from './engine/PlacedBomb';
 import { toCheckpointState } from './entities/Checkpoint';
 import { initialCameraX } from './engine/Camera';
@@ -81,13 +90,12 @@ import {
 } from './entities/Health';
 import { HEARTS_START_X, keyCounterX, KEY_COUNTER_Y, LOW_HEALTH_GLOW_WIDTH_PX } from './engine/Renderer';
 import { pauseForJournal } from './engine/GameLifecycle';
-import { HIT_SPLATTER_DURATION_SECONDS } from './engine/CollectionEffects';
 import { ENEMY_HIT_REACTION_SECONDS } from './entities/enemies/shared';
 import { isInvulnerable } from './contracts/capabilities';
 import { PLAYER_HIT_REACTION_SECONDS } from './entities/Player';
 import { SPIKE_COOLDOWN_DURATION_SECONDS } from './entities/enemies/SlimePurple';
 import { PHYSICS_CONFIG } from './contracts/PhysicsConfig';
-import { FLOOR_SPIKE_DELAY_SECONDS, FLOOR_SPIKE_WARNING_SECONDS } from './engine/FloorSpike';
+import { FLOOR_SPIKE_DELAY_SECONDS, FLOOR_SPIKE_WARNING_SECONDS } from './entities/hazards/FloorSpike';
 import { tileToPixel, RENDERED_TILE_SIZE, isClimbable, tileAt } from './level/Terrain';
 import { SCRATCH_LAYOUT } from './level/level';
 import { mapCVDataToEnemies } from './level/EnemyMapper';
@@ -112,6 +120,21 @@ import {
   BACKGROUND_TILES_SHEET,
 } from './entities/sprites/sheets';
 import { cloudPopulationFor, AMBIENT_CLOUD_PARALLAX_FACTOR } from './engine/AmbientClouds';
+
+/** The unified collection narrowed to one effect kind (R-004). */
+const effectsOfKind = <S,>(kind: EffectKind): readonly TransientEffect<S>[] =>
+  activeEffects.value.filter((effect) => effect.kind === kind) as readonly TransientEffect<S>[];
+
+/** The live counter popup for a collectible label, if any. */
+const popupFor = (labelKey: CounterPopupLabelKey): TransientEffect<CounterPopupState> | undefined =>
+  activeEffects.value.find(
+    (effect) =>
+      effect.kind === 'counterPopup' &&
+      (effect as TransientEffect<CounterPopupState>).state.labelKey === labelKey,
+  ) as TransientEffect<CounterPopupState> | undefined;
+
+const counterPopups = (): readonly TransientEffect<CounterPopupState>[] =>
+  effectsOfKind<CounterPopupState>('counterPopup');
 
 /** Every `drawImage` call whose source is the ambient cloud sheet (O-022). */
 const ambientCloudDraws = (ctx: { drawImage: ReturnType<typeof vi.fn> }) =>
@@ -330,10 +353,10 @@ describe('PlatformerPage', () => {
     activeJournalSection.value = undefined;
     collectedCollectibleIds.value = new Set();
     // Not one of the two signals the brief called out explicitly, but a
-    // module-level signal like the others — without a reset, a flight effect
+    // module-level signal like the others — without a reset, a flying-text effect
     // started by one test (e.g. a collection) lingers into the next test's
     // render() since it's independent of collectedFacts/collectedCollectibleIds
-    // and only clears itself via tickFlightEffect, which no render-only test
+    // and only clears itself via tickFlyingText, which no render-only test
     // ever calls.
     activeEffects.value = [];
     // Module-level signal like the others above — a stomp/defeat mutation
@@ -373,19 +396,19 @@ describe('PlatformerPage', () => {
     carriedBombs.value = 0;
     bombPickupStates.value = [];
     placedBombs.value = [];
-    activeExplosions.value = [];
+    activeEffects.value = [];
     // Module-level signal like the others above — a counter popup started by
     // one test would otherwise still be present (popups only clear via
     // tickCounterPopup, which no render-only test drives long enough), so a
     // later test asserting "no popup for X" could pass or fail on inherited
     // state rather than on its own tick.
-    activeCounterPopups.value = {};
+    activeEffects.value = [];
     // Module-level checkpoint signals — a checkpoint activated or label
     // started by one test must not leak into the next test's assumption that
     // no checkpoint is active.
     checkpointStates.value = checkpointPlacements.value.map(toCheckpointState);
     activeCheckpointId.value = null;
-    activeFadeOutTexts.value = [];
+    activeEffects.value = [];
     // Module-level tip-mask store (see entities/hazards/SpearArt.ts) — reset
     // like the other module-level state above, or a mask injected by one test
     // would make a later test's spear lethal (or inert) unexpectedly.
@@ -395,7 +418,7 @@ describe('PlatformerPage', () => {
     // left by one test would leak into the next test's assumption that every
     // hazard starts hanging.
     fallingStalactiteTimerStates.value = [];
-    activeDebrisEffects.value = [];
+    activeEffects.value = [];
   });
 
   afterEach(() => {
@@ -1290,9 +1313,9 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    activePuffs.value = [startPuffEffect('test-puff', 500, 500)];
+    activeEffects.value = [startPuffEffect('test-puff', 500, 500)];
     frameCallback!(16);
-    expect(activePuffs.value.find((p) => p.id === 'test-puff')?.elapsed).toBeGreaterThan(0);
+    expect(effectsOfKind<PuffState>('puff').find((p) => p.id === 'test-puff')?.elapsed).toBeGreaterThan(0);
 
     // SPARKLE_DURATION_SECONDS is 0.4s — well under 1000ms of ticks.
     let t = 16;
@@ -1300,7 +1323,7 @@ describe('PlatformerPage', () => {
       t += 16;
       frameCallback!(t);
     }
-    expect(activePuffs.value.find((p) => p.id === 'test-puff')).toBeUndefined();
+    expect(effectsOfKind<PuffState>('puff').find((p) => p.id === 'test-puff')).toBeUndefined();
   });
 
   it('playerOverlapsACollectible-tick-marksItCollectedAndAddsFact', () => {
@@ -1330,7 +1353,7 @@ describe('PlatformerPage', () => {
     expect(collectedFacts.value).toEqual([skillFactPool.value[0]]);
   });
 
-  it('playerOverlapsACollectible-tick-flightEffectCarriesAnIconSeparateFromText', () => {
+  it('playerOverlapsACollectible-tick-flyingTextEffectCarriesAnIconSeparateFromText', () => {
     // The icon (a language's flag, or the section's generic symbol — 💡 for
     // skills) is drawn separately from the effect's text (see Renderer.ts:
     // the pixel font `text` uses has no emoji glyphs), so it must actually
@@ -1352,25 +1375,25 @@ describe('PlatformerPage', () => {
 
     frameCallback!(16);
 
-    // The flight effect's id is `${coinId}-${factIndex}`, not the coin's
+    // The flying-text effect's id is `${coinId}-${factIndex}`, not the coin's
     // own id (a single coin can reveal more than one fact under the
     // proportional-fill pacing — see PlatformerPage.tsx's revealedFactCountFor).
-    const effect = activeEffects.value.find((e) => e.id.startsWith(`${target.id}-`));
-    expect(effect?.icon).toBe('💡');
-    expect(effect?.text).not.toContain('💡');
+    const effect = effectsOfKind<FlyingTextState>('flyingText').find((e) => e.id.startsWith(`${target.id}-`));
+    expect(effect?.state.icon).toBe('💡');
+    expect(effect?.state.text).not.toContain('💡');
   });
 
-  it('canvasVerticallyCenteredInATallerViewport-flightEffectTargets-landsOnTheJournalButtonNotMidCanvas', () => {
+  it('canvasVerticallyCenteredInATallerViewport-flyingTextEffectTargets-landsOnTheJournalButtonNotMidCanvas', () => {
     // jsdom does no real layout, so getBoundingClientRect() is stubbed here to
     // reproduce what a real browser reports once a short level leaves the
     // fixed-height canvas vertically centered within a taller viewport (see
     // the wrapper's comment in PlatformerPage.tsx): the canvas itself sits at
     // some viewport-space top offset, and the journal button (top-4 left-4
     // within the canvas-wrapping div) sits 16px further down/right than that.
-    // Before the canvas-local translation, the flight target used the
+    // Before the canvas-local translation, the flying-text target used the
     // button's raw viewport-space rect directly, which happens to sit close
-    // to the fact-flight text's canvas-local hold point (canvas.height * 0.3)
-    // — so the "flight" phase moved only a few pixels before fading, reading
+    // to the fact-flying text's canvas-local hold point (canvas.height * 0.3)
+    // — so the "flying" phase moved only a few pixels before fading, reading
     // as the reward vanishing mid-flight instead of reaching the icon.
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
@@ -1402,10 +1425,10 @@ describe('PlatformerPage', () => {
 
     frameCallback!(16);
 
-    const effect = activeEffects.value.find((e) => e.id.startsWith(`${target.id}-`));
+    const effect = effectsOfKind<FlyingTextState>('flyingText').find((e) => e.id.startsWith(`${target.id}-`));
     // Canvas-local journal button center: (16 - 0) + 40/2, (82 - 66) + 40/2.
-    expect(effect?.targetX).toBe(36);
-    expect(effect?.targetY).toBe(36);
+    expect(effect?.state.targetX).toBe(36);
+    expect(effect?.state.targetY).toBe(36);
   });
 
   it('coinThatRevealsNoFact-tick-stillBumpsTheCoinsCounterPopup', () => {
@@ -1435,15 +1458,14 @@ describe('PlatformerPage', () => {
 
     frameCallback!(16);
 
-    // Nothing revealed: no new fact, and no flight effect for this coin.
+    // Nothing revealed: no new fact, and no flying-text effect for this coin.
     expect(collectedFacts.value).toHaveLength(skillFactPool.value.length);
     expect(activeEffects.value.some((e) => e.id.startsWith(`${target.id}-`))).toBe(false);
     // ...but the coin still counts, and still says so.
-    expect(activeCounterPopups.value.coins).toEqual({
+    expect(popupFor('coins')?.state).toMatchObject({
       labelKey: 'coins',
       collected: 1,
       total: levelTotals.value.coins,
-      elapsed: expect.any(Number),
     });
   });
 
@@ -1517,9 +1539,9 @@ describe('PlatformerPage', () => {
     // placement time and is asserted against directly.
     expect(collectedFacts.value.some((f) => f.id === target.fact?.id)).toBe(true);
     // A fresh fact-bearing defeat still queues a puff — puff (defeat
-    // feedback) and the fact/flight-text reward are fully decoupled layers,
+    // feedback) and the fact/flying-text reward are fully decoupled layers,
     // same as crate destruction (B-003).
-    expect(activePuffs.value.some((p) => p.id === target.id)).toBe(true);
+    expect(effectsOfKind<PuffState>('puff').some((p) => p.id === target.id)).toBe(true);
   });
 
   it('enemiesPopup-collectedReflectsDefeatedEnemyCountNotFactsAlreadyBanked', () => {
@@ -1553,7 +1575,7 @@ describe('PlatformerPage', () => {
       frameCallback!(t);
     }
 
-    expect(activeCounterPopups.value.enemies).toMatchObject({ collected: 1, total: levelTotals.value.enemies });
+    expect(popupFor('enemies')?.state).toMatchObject({ collected: 1, total: levelTotals.value.enemies });
   });
 
   it('enemyAlreadyDefeatedFromAPriorLife-defeatingItAgain-awardsNoNewFact', () => {
@@ -1593,7 +1615,7 @@ describe('PlatformerPage', () => {
   });
 
   it('enemyAlreadyDefeatedFromAPriorLife-defeatingItAgain-stillQueuesAPuff', () => {
-    // Puff (defeat feedback) and the fact/flight-text reward are fully
+    // Puff (defeat feedback) and the fact/flying-text reward are fully
     // decoupled layers (B-003) — a defeat that awards nothing because it
     // already paid out in a prior life is still a world event that
     // deserves a puff.
@@ -1622,7 +1644,7 @@ describe('PlatformerPage', () => {
     }
 
     expect(enemyStates.value.find((e) => e.id === target.id)?.alive).toBe(false);
-    expect(activePuffs.value.some((p) => p.id === target.id)).toBe(true);
+    expect(effectsOfKind<PuffState>('puff').some((p) => p.id === target.id)).toBe(true);
   });
 
   it('purpleSlimeDefeat-thirdStomp-spawnsKeyPickupInsteadOfJournalFact', () => {
@@ -1663,7 +1685,7 @@ describe('PlatformerPage', () => {
     // behavior (an item spawned right under the player is picked up on
     // contact, same as any other collectible), not a test artifact. What
     // matters here is that a KeyPickupState was created at all (proving the
-    // defeat routed through spawnKeyPickup, not the fact-flight path) and
+    // defeat routed through spawnKeyPickup, not the flying-text path) and
     // that no journal fact was banked for this enemy.
     expect(enemyStates.value.find((e) => e.id === target.id)?.alive).toBe(false);
     expect(keyPickupStates.value.some((k) => k.id === target.id)).toBe(true);
@@ -1692,10 +1714,10 @@ describe('PlatformerPage', () => {
       frameCallback!(t);
     }
 
-    expect(activePuffs.value.some((p) => p.id === target.id)).toBe(true);
+    expect(effectsOfKind<PuffState>('puff').some((p) => p.id === target.id)).toBe(true);
     // A purple slime is bigger than the baseline green slime — its puff scale
     // must be visibly bigger than 1 (see enemyEffectAnchor).
-    expect(activePuffs.value.find((p) => p.id === target.id)?.scale).toBeGreaterThan(1);
+    expect(effectsOfKind<PuffState>('puff').find((p) => p.id === target.id)?.state.scale).toBeGreaterThan(1);
   });
 
   it('purpleSlimeRespawnedAfterDeath-defeatedAgain-doesNotDropASecondKey', () => {
@@ -1804,7 +1826,7 @@ describe('PlatformerPage', () => {
     expect(revived.rewardGiven).toBe(true);
   });
 
-  it('greenSlimeRevivedAndDefeatedAgain-secondDefeat-queuesAPuffNotAFlightEffect', () => {
+  it('greenSlimeRevivedAndDefeatedAgain-secondDefeat-queuesAPuffNotAFlyingTextEffect', () => {
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frameCallback = cb;
@@ -1857,10 +1879,10 @@ describe('PlatformerPage', () => {
     // The redefeat must NOT add a second fact...
     expect(collectedFacts.value).toHaveLength(factsAfterFirstDefeat);
     // ...but MUST show a puff, which is the actual bug being fixed.
-    expect(activePuffs.value.some((p) => p.id === target.id)).toBe(true);
+    expect(effectsOfKind<PuffState>('puff').some((p) => p.id === target.id)).toBe(true);
   });
 
-  it('fragileRockBrokenFromBelow-queuesAPuffNotAFlightEffect', () => {
+  it('fragileRockBrokenFromBelow-queuesAPuffNotAFlyingTextEffect', () => {
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frameCallback = cb;
@@ -1887,11 +1909,11 @@ describe('PlatformerPage', () => {
       frameCallback!(t);
     }
 
-    expect(activePuffs.value.some((p) => p.id === rock.id)).toBe(true);
-    expect(activeEffects.value.some((e) => e.id === rock.id)).toBe(false);
+    expect(effectsOfKind<PuffState>('puff').some((p) => p.id === rock.id)).toBe(true);
+    expect(effectsOfKind<FlyingTextState>('flyingText').some((e) => e.id === rock.id)).toBe(false);
   });
 
-  it('crateDestroyedFromBelow-terminalHit-queuesAPuffAndStillAwardsTheFlightEffectReward', () => {
+  it('crateDestroyedFromBelow-terminalHit-queuesAPuffAndStillAwardsTheFlyingTextEffectReward', () => {
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frameCallback = cb;
@@ -1920,13 +1942,13 @@ describe('PlatformerPage', () => {
       t += 16;
       frameCallback!(t);
     }
-    expect(activePuffs.value.some((p) => p.id === crate.id)).toBe(false);
+    expect(effectsOfKind<PuffState>('puff').some((p) => p.id === crate.id)).toBe(false);
     expect(activeEffects.value.some((e) => e.id.startsWith(`${crate.id}-`))).toBe(false);
 
     // Second hit — the terminal one — must ALWAYS queue a puff (destruction
     // feedback, reusing the same blockEffectAnchor/startPuffEffect mechanism
     // as fragileRock above) AND independently still award its own
-    // fact/flight-effect reward, fixed at placement time (see
+    // fact/flying-text effect reward, fixed at placement time (see
     // BlockMapper.ts's placeCrates doc comment).
     playerState.value = { ...playerState.value, ...bumpPosition };
     t += 16;
@@ -1936,8 +1958,8 @@ describe('PlatformerPage', () => {
       frameCallback!(t);
     }
 
-    expect(activePuffs.value.some((p) => p.id === crate.id)).toBe(true);
-    // The flight effect's id is `${crateId}-${factIndex}`, not the crate's
+    expect(effectsOfKind<PuffState>('puff').some((p) => p.id === crate.id)).toBe(true);
+    // The flying-text effect's id is `${crateId}-${factIndex}`, not the crate's
     // own id — a single crate can reveal more than one fact when fewer
     // crates are placed than there are crate-pool facts.
     expect(activeEffects.value.some((e) => e.id.startsWith(`${crate.id}-`))).toBe(true);
@@ -1981,11 +2003,10 @@ describe('PlatformerPage', () => {
     }
 
     expect(collectedFacts.value.some((f) => f.id === crate.fact?.id)).toBe(true);
-    expect(activeCounterPopups.value.crates).toEqual({
+    expect(popupFor('crates')?.state).toMatchObject({
       labelKey: 'crates',
       collected: 1,
       total: levelTotals.value.crates,
-      elapsed: expect.any(Number),
     });
   });
 
@@ -2026,7 +2047,7 @@ describe('PlatformerPage', () => {
       }
     }
 
-    expect(activeCounterPopups.value.crates).toMatchObject({ collected: 1, total: levelTotals.value.crates });
+    expect(popupFor('crates')?.state).toMatchObject({ collected: 1, total: levelTotals.value.crates });
   });
 
   describe('coinPot — landing destroys it and drops a coin', () => {
@@ -2115,7 +2136,7 @@ describe('PlatformerPage', () => {
         frameCallback!(t);
       }
 
-      expect(activePuffs.value.some((p) => p.id === pot.id)).toBe(true);
+      expect(effectsOfKind<PuffState>('puff').some((p) => p.id === pot.id)).toBe(true);
     });
 
     it('hittingACoinPotFromBelow-doesNotBreakItOrDropACoin', () => {
@@ -2153,7 +2174,7 @@ describe('PlatformerPage', () => {
 
       expect(blockStates.value.find((b) => b.id === pot.id)?.hitsTaken).toBe(0);
       expect(spawnedCoinPlacements.value).toEqual([]);
-      expect(activePuffs.value.some((p) => p.id === pot.id)).toBe(false);
+      expect(effectsOfKind<PuffState>('puff').some((p) => p.id === pot.id)).toBe(false);
     });
   });
 
@@ -2573,7 +2594,7 @@ describe('PlatformerPage', () => {
     expect(playerState.value.bounceAscending).toBe(false);
   });
 
-  it('coinCollection-queuesAFlightEffectOnly-neverAlsoAPuff', () => {
+  it('coinCollection-queuesAFlyingTextEffectOnly-neverAlsoAPuff', () => {
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frameCallback = cb;
@@ -2590,7 +2611,7 @@ describe('PlatformerPage', () => {
     frameCallback!(16);
 
     expect(activeEffects.value.some((e) => e.id.startsWith(`${coin.id}-`))).toBe(true);
-    expect(activePuffs.value.some((p) => p.id === coin.id)).toBe(false);
+    expect(effectsOfKind<PuffState>('puff').some((p) => p.id === coin.id)).toBe(false);
   });
 
   it('playerWalksIntoKeyPickup-tick-incrementsCollectedKeys', () => {
@@ -2621,10 +2642,10 @@ describe('PlatformerPage', () => {
     expect(keyPickupStates.value.find((k) => k.id === pickup.id)?.collected).toBe(true);
   });
 
-  it('playerWalksIntoKeyPickup-tick-startsAFlightEffectTowardTheKeyCounter', () => {
+  it('playerWalksIntoKeyPickup-tick-startsAFlyingTextEffectTowardTheKeyCounter', () => {
     // Spec.md's User Story 4 and roadmap.md's step 30 both promise that
     // collecting a key "animates toward the key counter in the HUD" —
-    // reusing the same startFlightEffect/activeEffects mechanism every other
+    // reusing the same startFlyingText/activeEffects mechanism every other
     // pickup path in this file already uses, just targeting the HUD key
     // counter's fixed screen position instead of the journal icon.
     let frameCallback: FrameRequestCallback | null = null;
@@ -2645,13 +2666,13 @@ describe('PlatformerPage', () => {
 
     frameCallback!(16);
 
-    const effect = activeEffects.value.find((e) => e.id === pickup.id);
+    const effect = effectsOfKind<FlyingTextState>('flyingText').find((e) => e.id === pickup.id);
     expect(effect).toBeDefined();
     const canvas = screen.getByTestId('platformer-canvas') as HTMLCanvasElement;
     const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
     const chestOpenCount = chestStates.value.filter(isChestOpen).length;
-    expect(effect?.targetX).toBe(keyCounterX(ctx, chestOpenCount, chestPlacements.value.length));
-    expect(effect?.targetY).toBe(KEY_COUNTER_Y);
+    expect(effect?.state.targetX).toBe(keyCounterX(ctx, chestOpenCount, chestPlacements.value.length));
+    expect(effect?.state.targetY).toBe(KEY_COUNTER_Y);
   });
 
   it('playerFallsOntoGreenEnemy-tick-bouncesPlayerUpward', () => {
@@ -4083,21 +4104,21 @@ describe('PlatformerPage', () => {
       dropOntoSpear(frameCallback);
 
       expect(playerState.value.vx).toBe(0);
-      expect(activeHitSplatters.value).toHaveLength(1);
+      expect(effectsOfKind<HitSplatterState>('hitSplatter')).toHaveLength(1);
       // Blood leans upward/outward from the feet, unlike a side hit's flat spray.
-      expect(activeHitSplatters.value[0].dirBiasY).toBeLessThan(0);
+      expect(effectsOfKind<HitSplatterState>('hitSplatter')[0].state.dirBiasY).toBeLessThan(0);
     });
 
     it('spearKill-bloodSplatterKeepsSprayingThroughTheDeathLeadIn', () => {
       const frameCallback = renderSpearLevel();
 
       dropOntoSpear(frameCallback);
-      const spawned = activeHitSplatters.value[0];
+      const spawned = effectsOfKind<HitSplatterState>('hitSplatter')[0];
       expect(spawned.elapsed).toBe(0);
 
       frameCallback(32);
 
-      expect(activeHitSplatters.value[0].elapsed).toBeGreaterThan(0);
+      expect(effectsOfKind<HitSplatterState>('hitSplatter')[0].elapsed).toBeGreaterThan(0);
     });
 
     it('sameTickEnemyContact-doesNotSaveTheCharacterAndTheSpearDeathWins', () => {
@@ -4876,8 +4897,8 @@ describe('PlatformerPage', () => {
 
     // The reveal really did happen — otherwise "no popup" would be vacuous.
     expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(true);
-    expect(Object.keys(activeCounterPopups.value)).not.toContain('chests');
-    expect(activeCounterPopups.value).toEqual({});
+    expect(counterPopups().map((popup) => popup.state.labelKey)).not.toContain('chests');
+    expect(counterPopups()).toEqual([]);
   });
 
   it('keyWPressed-whileStandingOnClosedChest-opensItAndRevealsExperienceFact', () => {
@@ -5515,12 +5536,12 @@ describe('PlatformerPage', () => {
 
       frameCallback!(16);
 
-      expect(activeHitSplatters.value.length).toBeGreaterThan(0);
-      const splatter = activeHitSplatters.value[0];
-      expect(splatter.color).toBe('#a30f1f');
+      expect(effectsOfKind<HitSplatterState>('hitSplatter').length).toBeGreaterThan(0);
+      const splatter = effectsOfKind<HitSplatterState>('hitSplatter')[0];
+      expect(splatter.state.color).toBe('#a30f1f');
       // Enemy is to the right, so the splatter's directional bias must lean
       // right (positive), not left or centered.
-      expect(splatter.dirBiasX).toBeGreaterThan(0);
+      expect(splatter.state.dirBiasX).toBeGreaterThan(0);
     });
 
     it('playerTouchingASpikeHazard-startsARedSplatter', () => {
@@ -5540,7 +5561,7 @@ describe('PlatformerPage', () => {
 
       frameCallback!(16);
 
-      expect(activeHitSplatters.value.some((s) => s.color === '#a30f1f')).toBe(true);
+      expect(effectsOfKind<HitSplatterState>('hitSplatter').some((s) => s.state.color === '#a30f1f')).toBe(true);
     });
 
     it('spikeHitKillsThePlayer-startsNoSplatter', () => {
@@ -5567,7 +5588,7 @@ describe('PlatformerPage', () => {
 
       expect(playerState.value.hitPoints).toBe(0);
       expect(playerState.value.alive).toBe(false);
-      expect(activeHitSplatters.value.length).toBe(0);
+      expect(effectsOfKind<HitSplatterState>('hitSplatter').length).toBe(0);
     });
 
     it('playerFallsIntoPit-startsNoSplatter', () => {
@@ -5587,7 +5608,7 @@ describe('PlatformerPage', () => {
       playerState.value = { ...playerState.value, y: 10000, vy: 50, grounded: false };
       frameCallback!(16);
 
-      expect(activeHitSplatters.value.length).toBe(0);
+      expect(effectsOfKind<HitSplatterState>('hitSplatter').length).toBe(0);
     });
 
     it('purpleSlimeSurvivesAStomp-startsAPurpleSplatterWithNoDefeatPuff', () => {
@@ -5612,8 +5633,8 @@ describe('PlatformerPage', () => {
         frameCallback!(t);
       }
 
-      expect(activeHitSplatters.value.some((s) => s.color === '#8e3dd9')).toBe(true);
-      expect(activePuffs.value.some((p) => p.id === target.id)).toBe(false);
+      expect(effectsOfKind<HitSplatterState>('hitSplatter').some((s) => s.state.color === '#8e3dd9')).toBe(true);
+      expect(effectsOfKind<PuffState>('puff').some((p) => p.id === target.id)).toBe(false);
     });
 
     it('greenSlimeDefeated-startsAGreenSplatterAlongsideTheExistingDefeatPuff', () => {
@@ -5637,8 +5658,8 @@ describe('PlatformerPage', () => {
         frameCallback!(t);
       }
 
-      expect(activeHitSplatters.value.some((s) => s.color === '#3ddc55')).toBe(true);
-      expect(activePuffs.value.some((p) => p.id === target.id)).toBe(true);
+      expect(effectsOfKind<HitSplatterState>('hitSplatter').some((s) => s.state.color === '#3ddc55')).toBe(true);
+      expect(effectsOfKind<PuffState>('puff').some((p) => p.id === target.id)).toBe(true);
     });
 
     it('splatterEffect-afterItsDuration-isRemovedFromActiveHitSplatters', () => {
@@ -5656,7 +5677,7 @@ describe('PlatformerPage', () => {
       const hazard = hazardPlacements.value[0];
       playerState.value = { ...playerState.value, x: hazard.x, y: hazard.y, vx: 0, vy: 0 };
       frameCallback!(16);
-      expect(activeHitSplatters.value.length).toBeGreaterThan(0);
+      expect(effectsOfKind<HitSplatterState>('hitSplatter').length).toBeGreaterThan(0);
 
       // Advance well past HIT_SPLATTER_DURATION_SECONDS (0.6s) but still
       // under PLAYER_HIT_REACTION_SECONDS (0.8s) — GameLoop's MAX_DT caps
@@ -5673,7 +5694,7 @@ describe('PlatformerPage', () => {
         frameCallback!(t);
       }
 
-      expect(activeHitSplatters.value.length).toBe(0);
+      expect(effectsOfKind<HitSplatterState>('hitSplatter').length).toBe(0);
     });
   });
 
@@ -5764,7 +5785,7 @@ describe('PlatformerPage', () => {
       currentLayout.value = layout;
       checkpointStates.value = checkpointPlacements.value.map(toCheckpointState);
       activeCheckpointId.value = null;
-      activeFadeOutTexts.value = [];
+      activeEffects.value = [];
     }
 
     /** Presses the interact key (Up) so the next frame's checkpoint
@@ -5799,14 +5820,14 @@ describe('PlatformerPage', () => {
       nextFrame()(32);
       expect(checkpointStates.value.find((c) => c.id === 'checkpoint-0-0')?.activated).toBe(true);
       expect(activeCheckpointId.value).toBe('checkpoint-0-0');
-      expect(activePuffs.value.filter((p) => p.id === 'checkpoint-0-0')).toHaveLength(1);
-      expect(activeFadeOutTexts.value.find((t) => t.id === 'checkpoint-0-0')?.text).toBe('Checkpoint');
+      expect(effectsOfKind<PuffState>('puff').filter((p) => p.id === 'checkpoint-0-0')).toHaveLength(1);
+      expect(effectsOfKind<FadeOutTextState>('fadeOutText').find((t) => t.id === 'checkpoint-0-0')?.state.text).toBe('Checkpoint');
 
       // Standing on it and pressing Up again replays nothing.
       pressInteract();
       nextFrame()(48);
-      expect(activePuffs.value.filter((p) => p.id === 'checkpoint-0-0')).toHaveLength(1);
-      expect(activeFadeOutTexts.value.filter((t) => t.id === 'checkpoint-0-0')).toHaveLength(1);
+      expect(effectsOfKind<PuffState>('puff').filter((p) => p.id === 'checkpoint-0-0')).toHaveLength(1);
+      expect(effectsOfKind<FadeOutTextState>('fadeOutText').filter((t) => t.id === 'checkpoint-0-0')).toHaveLength(1);
     });
 
     it('theActivationLabelIsRemovedOnceItsFadeFinishes', () => {
@@ -5817,7 +5838,7 @@ describe('PlatformerPage', () => {
       playerState.value = playerStateAtTile(0, 0);
       pressInteract();
       nextFrame()(16);
-      expect(activeFadeOutTexts.value.some((t) => t.id === 'checkpoint-0-0')).toBe(true);
+      expect(effectsOfKind<FadeOutTextState>('fadeOutText').some((t) => t.id === 'checkpoint-0-0')).toBe(true);
 
       let t = 16;
       for (let i = 0; i < 60; i++) {
@@ -5825,7 +5846,7 @@ describe('PlatformerPage', () => {
         nextFrame()(t);
       }
 
-      expect(activeFadeOutTexts.value.some((t) => t.id === 'checkpoint-0-0')).toBe(false);
+      expect(effectsOfKind<FadeOutTextState>('fadeOutText').some((t) => t.id === 'checkpoint-0-0')).toBe(false);
     });
 
     it('aMidAirCheckpointWithNoSolidGroundBelow-isInert', () => {
@@ -5980,12 +6001,12 @@ describe('PlatformerPage', () => {
       expect(activeCheckpointId.value).toBe('checkpoint-2-0');
 
       // Pressing Up on the first again moves the glow with no replay.
-      const puffsBefore = activePuffs.value.filter((p) => p.id === 'checkpoint-0-0').length;
+      const puffsBefore = effectsOfKind<PuffState>('puff').filter((p) => p.id === 'checkpoint-0-0').length;
       playerState.value = playerStateAtTile(0, 0);
       pressInteract();
       nextFrame()(48);
       expect(activeCheckpointId.value).toBe('checkpoint-0-0');
-      expect(activePuffs.value.filter((p) => p.id === 'checkpoint-0-0')).toHaveLength(puffsBefore);
+      expect(effectsOfKind<PuffState>('puff').filter((p) => p.id === 'checkpoint-0-0')).toHaveLength(puffsBefore);
     });
   });
 
@@ -6166,7 +6187,7 @@ describe('PlatformerPage', () => {
         advance(Math.ceil(BOMB_FUSE_SECONDS / 0.016) + 2);
 
         expect(placedBombs.value).toHaveLength(0);
-        expect(activeExplosions.value.length).toBeGreaterThan(0);
+        expect(effectsOfKind<ExplosionState>('explosion').length).toBeGreaterThan(0);
         expect(playerState.value.hitPoints).toBe(MAX_HALF_HEARTS - 2);
         // The blast knocks the character away and enters the shared `hit`
         // sprite flash — the same knockback + red flash a side hit uses.
@@ -6203,7 +6224,7 @@ describe('PlatformerPage', () => {
         // Move the character clear of the blast.
         playerState.value = { ...playerState.value, x: 9 * RENDERED_TILE_SIZE, vy: 0 };
         advance(Math.ceil(BOMB_FUSE_SECONDS / 0.016) + 2);
-        expect(activeExplosions.value.length).toBeGreaterThan(0);
+        expect(effectsOfKind<ExplosionState>('explosion').length).toBeGreaterThan(0);
 
         const hitPointsBefore = playerState.value.hitPoints;
         // Step into the (already inert) blast while the frames still play.
@@ -6245,9 +6266,9 @@ describe('PlatformerPage', () => {
         expect(live === undefined || live.hitsTaken >= 2).toBe(true);
 
         // The explosion visual is centred on the landing tile too.
-        const explosion = activeExplosions.value[0];
-        expect(explosion.x).toBe(tileToPixel(2, 3).x + RENDERED_TILE_SIZE / 2);
-        expect(explosion.y).toBe(tileToPixel(2, 3).y + RENDERED_TILE_SIZE / 2);
+        const explosion = effectsOfKind<ExplosionState>('explosion')[0];
+        expect(explosion.state.x).toBe(tileToPixel(2, 3).x + RENDERED_TILE_SIZE / 2);
+        expect(explosion.state.y).toBe(tileToPixel(2, 3).y + RENDERED_TILE_SIZE / 2);
       });
 
       it('aBombOnABridge-restsOnIt', () => {
@@ -6285,7 +6306,7 @@ describe('PlatformerPage', () => {
         advance(40);
 
         expect(placedBombs.value).toHaveLength(0);
-        expect(activeExplosions.value).toHaveLength(0);
+        expect(effectsOfKind<ExplosionState>('explosion')).toHaveLength(0);
       });
     });
 
@@ -6373,8 +6394,8 @@ describe('PlatformerPage', () => {
         advance(1);
 
         expect(placedBombs.value.some((b) => b.id === 'blast-bomb-b')).toBe(true);
-        expect(activeExplosions.value.some((e) => e.id === 'blast-bomb-a')).toBe(true);
-        expect(activeExplosions.value.some((e) => e.id === 'blast-bomb-b')).toBe(false);
+        expect(effectsOfKind<ExplosionState>('explosion').some((e) => e.id === 'blast-bomb-a')).toBe(true);
+        expect(effectsOfKind<ExplosionState>('explosion').some((e) => e.id === 'blast-bomb-b')).toBe(false);
       });
     });
 
@@ -6559,7 +6580,7 @@ describe('PlatformerPage', () => {
       }
 
       expect(enemyStates.value.find((e) => e.id === target.id)?.alive).toBe(false);
-      expect(activePuffs.value.some((p) => p.id === target.id)).toBe(true);
+      expect(effectsOfKind<PuffState>('puff').some((p) => p.id === target.id)).toBe(true);
     });
 
     it('playerTouchesTheBeeFromTheSide-losesHalfAHeartAndGetsKnockedBack', () => {
@@ -6621,7 +6642,7 @@ describe('PlatformerPage', () => {
       expect(enemyStates.value.find((e) => e.id === target.id)?.alive).toBe(false);
       expect(collectedFacts.value.length).toBe(factsBefore);
       expect(enemiesDefeated.value).toBe(defeatedBefore);
-      expect(activeCounterPopups.value.enemies).toBeUndefined();
+      expect(popupFor('enemies')).toBeUndefined();
     });
   });
 
@@ -6726,7 +6747,7 @@ describe('PlatformerPage', () => {
         t += 16;
         standUnder(hazard.x);
         frame(t);
-        const count = activeDebrisEffects.value.filter((e) => e.id.startsWith('stalactite-')).length;
+        const count = effectsOfKind<DebrisState>('debris').filter((e) => e.id.startsWith('stalactite-')).length;
         if (count > 0) {
           spawned = count;
           break;
@@ -6738,7 +6759,7 @@ describe('PlatformerPage', () => {
       t += 16;
       standUnder(hazard.x);
       frame(t);
-      expect(activeDebrisEffects.value.filter((e) => e.id.startsWith('stalactite-')).length).toBe(1);
+      expect(effectsOfKind<DebrisState>('debris').filter((e) => e.id.startsWith('stalactite-')).length).toBe(1);
     });
 
     it('neverAffectsAnEnemy', () => {
@@ -6811,7 +6832,7 @@ describe('PlatformerPage', () => {
         frame(t);
       }
 
-      expect(activeDebrisEffects.value.filter((e) => e.id.startsWith('stalactite-'))).toEqual([]);
+      expect(effectsOfKind<DebrisState>('debris').filter((e) => e.id.startsWith('stalactite-'))).toEqual([]);
       const merged = hazardPlacementsForTick().find((h) => h.id === hazard.id)!;
       expect(merged.fallingStalactitePhase).toBe('gone');
     });

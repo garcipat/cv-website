@@ -15,8 +15,6 @@ import {
   enemyStates,
   collectedCollectibleIds,
   activeEffects,
-  activePuffs,
-  activeHealAuraEffects,
   blockPlacements,
   chestPlacements,
   chestStates,
@@ -31,7 +29,6 @@ import {
   carriedBombs,
   bombPickupStates,
   placedBombs,
-  activeExplosions,
   spawnedCoinPlacements,
   allCollectiblePlacements,
   levelTotals,
@@ -41,7 +38,6 @@ import {
   checkpointPlacements,
   checkpointStates,
   activeCheckpointId,
-  activeFadeOutTexts,
   playerStateAtTile,
   activeRespawnPlacement,
   respawnPlayerState,
@@ -56,15 +52,15 @@ import {
   floorSpikeTimerStates,
   tickFloorSpikes,
   armFloorSpikeTrigger,
+  crumblingFloorTimerStates,
   fallingStalactiteTimerStates,
   armFallingStalactiteTrigger,
   tickFallingStalactites,
   hazardPlacements,
   hazardPlacementsForTick,
-  activeDebrisEffects,
 } from './PlatformerState';
 import { MUSHROOM_SQUASH_DURATION_SECONDS } from './engine/MushroomSquash';
-import { FLOOR_SPIKE_CYCLE_SECONDS } from './engine/FloorSpike';
+import { FLOOR_SPIKE_CYCLE_SECONDS } from './entities/hazards/FloorSpike';
 import type { CollectedFact } from './types';
 import { mapCVDataToEnemies } from './level/EnemyMapper';
 import { toBlockState } from './entities/Block';
@@ -96,9 +92,33 @@ import {
 } from './entities/Player';
 import { toChestState, isChestOpen } from './entities/Chest';
 import { toCheckpointState } from './entities/Checkpoint';
-import { startPuffEffect, startHealAuraEffect, startFadeOutTextEffect, startDebrisEffect } from './engine/CollectionEffects';
-import { FALLING_STALACTITE_SHAKE_SECONDS } from './engine/FallingStalactite';
+import {
+  advanceEffects,
+  startCounterPopup,
+  startDebrisEffect,
+  startExplosionEffect,
+  startFadeOutTextEffect,
+  startFlyingText,
+  startHealAuraEffect,
+  startPlayerHitSplatter,
+  startPuffEffect,
+} from './engine/effects';
+import type {
+  DebrisState,
+  EffectKind,
+  ExplosionState,
+  FadeOutTextState,
+  HealAuraState,
+  HitSplatterState,
+  PuffState,
+  TransientEffect,
+} from './engine/effects';
+import { FALLING_STALACTITE_SHAKE_SECONDS } from './entities/hazards/FallingStalactite';
 import { MAX_DARKNESS, DARKNESS_FADE_SECONDS, playerOccupiedCell } from './engine/Lighting';
+
+/** The live collection narrowed to one effect kind. */
+const effectsOfKind = <S,>(kind: EffectKind): readonly TransientEffect<S>[] =>
+  activeEffects.value.filter((effect) => effect.kind === kind) as readonly TransientEffect<S>[];
 
 function collectedFactFixture(): CollectedFact {
   return { id: 'f1', sectionId: 'skills', sectionLabel: 'Skills', data: { category: 'Test', skills: [] }, sourceType: 'coin' };
@@ -488,47 +508,59 @@ describe('resetGameProgress', () => {
   });
 });
 
-describe('activePuffs', () => {
-  it('startsEmpty', () => {
-    expect(activePuffs.value).toEqual([]);
+describe('activeEffects — puffs', () => {
+  beforeEach(() => {
+    activeEffects.value = [];
   });
 
-  it('resetGame-doesNotClearActivePuffs', () => {
+  afterEach(() => {
+    activeEffects.value = [];
+  });
+
+  it('startsEmpty-withNoPuffEffects', () => {
+    expect(effectsOfKind<PuffState>('puff')).toEqual([]);
+  });
+
+  it('resetGame-doesNotClearPuffs', () => {
     const puff = startPuffEffect('a', 0, 0);
-    activePuffs.value = [puff];
+    activeEffects.value = [puff];
     resetGame();
-    expect(activePuffs.value).toHaveLength(1);
-    expect(activePuffs.value[0]).toBe(puff);
+    expect(effectsOfKind<PuffState>('puff')).toHaveLength(1);
+    expect(effectsOfKind<PuffState>('puff')[0]).toBe(puff);
   });
 
-  it('resetGameProgress-clearsActivePuffs', () => {
-    activePuffs.value = [startPuffEffect('a', 0, 0)];
+  it('resetGameProgress-clearsPuffs', () => {
+    activeEffects.value = [startPuffEffect('a', 0, 0)];
     resetGameProgress();
-    expect(activePuffs.value).toEqual([]);
+    expect(effectsOfKind<PuffState>('puff')).toEqual([]);
   });
 });
 
-describe('activeHealAuraEffects', () => {
+describe('activeEffects — heal auras', () => {
+  beforeEach(() => {
+    activeEffects.value = [];
+  });
+
   afterEach(() => {
-    activeHealAuraEffects.value = [];
+    activeEffects.value = [];
   });
 
-  it('startsEmpty', () => {
-    expect(activeHealAuraEffects.value).toEqual([]);
+  it('startsEmpty-withNoHealAuraEffects', () => {
+    expect(effectsOfKind<HealAuraState>('healAura')).toEqual([]);
   });
 
-  it('resetGame-doesNotClearActiveHealAuraEffects', () => {
+  it('resetGame-doesNotClearHealAuras', () => {
     const aura = startHealAuraEffect('h1');
-    activeHealAuraEffects.value = [aura];
+    activeEffects.value = [aura];
     resetGame();
-    expect(activeHealAuraEffects.value).toHaveLength(1);
-    expect(activeHealAuraEffects.value[0]).toBe(aura);
+    expect(effectsOfKind<HealAuraState>('healAura')).toHaveLength(1);
+    expect(effectsOfKind<HealAuraState>('healAura')[0]).toBe(aura);
   });
 
-  it('resetGameProgress-clearsActiveHealAuraEffects', () => {
-    activeHealAuraEffects.value = [startHealAuraEffect('h1')];
+  it('resetGameProgress-clearsHealAuras', () => {
+    activeEffects.value = [startHealAuraEffect('h1')];
     resetGameProgress();
-    expect(activeHealAuraEffects.value).toEqual([]);
+    expect(effectsOfKind<HealAuraState>('healAura')).toEqual([]);
   });
 });
 
@@ -628,7 +660,7 @@ describe('bomb inventory signals', () => {
     expect(carriedBombs.value).toBe(0);
     expect(bombPickupStates.value).toEqual([]);
     expect(placedBombs.value).toEqual([]);
-    expect(activeExplosions.value).toEqual([]);
+    expect(effectsOfKind<ExplosionState>('explosion')).toEqual([]);
   });
 });
 
@@ -680,11 +712,11 @@ describe('resetGame — bombs clear and bomb-pots restore', () => {
   });
 
   it('resetGameProgress-clearsActiveExplosions', () => {
-    activeExplosions.value = [{ id: 'bomb-1', x: 0, y: 0, elapsed: 0 }];
+    activeEffects.value = [startExplosionEffect('bomb-1', 0, 0)];
 
     resetGameProgress();
 
-    expect(activeExplosions.value).toEqual([]);
+    expect(effectsOfKind<ExplosionState>('explosion')).toEqual([]);
   });
 });
 
@@ -1017,7 +1049,7 @@ describe('checkpointPlacements', () => {
     currentLayout.value = LEVEL_1_LAYOUT;
     checkpointStates.value = checkpointPlacements.value.map(toCheckpointState);
     activeCheckpointId.value = null;
-    activeFadeOutTexts.value = [];
+    activeEffects.value = [];
   });
 
   it('layoutWithCheckpoints-derivesOnePlacementPerMarkerInReadingOrder', () => {
@@ -1032,7 +1064,7 @@ describe('checkpointStates', () => {
     currentLayout.value = LEVEL_1_LAYOUT;
     checkpointStates.value = checkpointPlacements.value.map(toCheckpointState);
     activeCheckpointId.value = null;
-    activeFadeOutTexts.value = [];
+    activeEffects.value = [];
   });
 
   it('module-seedsOneDormantStatePerPlacement', () => {
@@ -1048,8 +1080,8 @@ describe('checkpointStates', () => {
     expect(activeCheckpointId.value).toBeNull();
   });
 
-  it('activeFadeOutTexts-startsEmpty', () => {
-    expect(activeFadeOutTexts.value).toEqual([]);
+  it('fadeOutTextKind-startsEmpty', () => {
+    expect(effectsOfKind<FadeOutTextState>('fadeOutText')).toEqual([]);
   });
 });
 
@@ -1125,14 +1157,14 @@ describe('checkpoint reset semantics', () => {
     currentLayout.value = LEVEL_1_LAYOUT;
     checkpointStates.value = checkpointPlacements.value.map(toCheckpointState);
     activeCheckpointId.value = null;
-    activeFadeOutTexts.value = [];
+    activeEffects.value = [];
   });
 
   it('resetGame-preservesRaisedFlagsAndTheActiveIdButClearsLabels', () => {
     const placement = { id: 'checkpoint-1-1', col: 1, row: 1, x: 32, y: 32 };
     checkpointStates.value = [{ ...toCheckpointState(placement), activated: true, activatedAt: 1 }];
     activeCheckpointId.value = 'checkpoint-1-1';
-    activeFadeOutTexts.value = [startFadeOutTextEffect('checkpoint-1-1', 0, 0, 'Checkpoint')];
+    activeEffects.value = [startFadeOutTextEffect('checkpoint-1-1', 0, 0, 'Checkpoint')];
 
     resetGame();
 
@@ -1140,7 +1172,7 @@ describe('checkpoint reset semantics', () => {
     expect(checkpointStates.value[0].activated).toBe(true);
     expect(activeCheckpointId.value).toBe('checkpoint-1-1');
     // A frozen label must not survive a respawn.
-    expect(activeFadeOutTexts.value).toEqual([]);
+    expect(effectsOfKind<FadeOutTextState>('fadeOutText')).toEqual([]);
   });
 
   it('resetGameProgress-clearsTheActiveIdRebuildsDormantAndClearsLabels', () => {
@@ -1148,14 +1180,14 @@ describe('checkpoint reset semantics', () => {
     const placement = checkpointPlacements.value[0];
     checkpointStates.value = [{ ...toCheckpointState(placement), activated: true, activatedAt: 1 }];
     activeCheckpointId.value = placement.id;
-    activeFadeOutTexts.value = [startFadeOutTextEffect(placement.id, 0, 0, 'Checkpoint')];
+    activeEffects.value = [startFadeOutTextEffect(placement.id, 0, 0, 'Checkpoint')];
 
     resetGameProgress();
 
     expect(activeCheckpointId.value).toBeNull();
     expect(checkpointStates.value).toHaveLength(1);
     expect(checkpointStates.value[0]).toMatchObject({ activated: false, activatedAt: null });
-    expect(activeFadeOutTexts.value).toEqual([]);
+    expect(effectsOfKind<FadeOutTextState>('fadeOutText')).toEqual([]);
   });
 });
 
@@ -1464,7 +1496,7 @@ describe('falling stalactites — state and per-tick merge', () => {
     currentLayout.value = LEVEL_1_LAYOUT;
     currentMarkers.value = LEVEL_1_MARKERS;
     fallingStalactiteTimerStates.value = [];
-    activeDebrisEffects.value = [];
+    activeEffects.value = [];
   });
 
   it('fallingStalactiteTimerStates-startsEmpty', () => {
@@ -1516,19 +1548,19 @@ describe('falling stalactites — state and per-tick merge', () => {
     armFallingStalactiteTrigger('h1');
     tickFallingStalactites(10);
     const debris = startDebrisEffect('d1', 0, 0, []);
-    activeDebrisEffects.value = [debris];
+    activeEffects.value = [debris];
 
     resetGame();
 
     expect(fallingStalactiteTimerStates.value).toEqual([]);
-    expect(activeDebrisEffects.value).toHaveLength(1);
-    expect(activeDebrisEffects.value[0]).toBe(debris);
+    expect(effectsOfKind<DebrisState>('debris')).toHaveLength(1);
+    expect(effectsOfKind<DebrisState>('debris')[0]).toBe(debris);
   });
 
   it('resetGameProgress-clearsActiveDebrisEffects', () => {
-    activeDebrisEffects.value = [startDebrisEffect('d1', 0, 0, [])];
+    activeEffects.value = [startDebrisEffect('d1', 0, 0, [])];
     resetGameProgress();
-    expect(activeDebrisEffects.value).toEqual([]);
+    expect(effectsOfKind<DebrisState>('debris')).toEqual([]);
   });
 });
 
@@ -1560,5 +1592,71 @@ describe('tile meta layer consumption', () => {
     expect(hazard).toEqual(
       expect.objectContaining({ hazardType: 'fallingStalactite', facing: 'down', col: 1, row: 1 }),
     );
+  });
+});
+
+describe('R-004 US5 — unified effect collection lifecycle', () => {
+  beforeEach(() => {
+    activeEffects.value = [];
+    mushroomSquashStates.value = [];
+    floorSpikeTimerStates.value = [];
+    crumblingFloorTimerStates.value = [];
+    fallingStalactiteTimerStates.value = [];
+  });
+
+  afterEach(() => {
+    activeEffects.value = [];
+    mushroomSquashStates.value = [];
+    floorSpikeTimerStates.value = [];
+    crumblingFloorTimerStates.value = [];
+    fallingStalactiteTimerStates.value = [];
+  });
+
+  it('resetGame-clearsOnlyDeathScopedEffectsAndTheFourTimedTileTimers', () => {
+    const fade = startFadeOutTextEffect('f', 0, 0, 'x');
+    const puff = startPuffEffect('p', 0, 0);
+    const aura = startHealAuraEffect('h');
+    const splatter = startPlayerHitSplatter('s', 0, 0, 1);
+    const debris = startDebrisEffect('d', 0, 0, []);
+    const explosion = startExplosionEffect('e', 0, 0);
+    const flyingText = startFlyingText('fl', 't', 0, 0, 0, 0, 0, 0);
+    const popup = startCounterPopup('coins', 1, 4);
+    activeEffects.value = [fade, puff, aura, splatter, debris, explosion, flyingText, popup];
+    mushroomSquashStates.value = [{ col: 0, row: 0, elapsed: 0 }];
+    floorSpikeTimerStates.value = [{ id: 'h', elapsed: 0 }];
+    crumblingFloorTimerStates.value = [{ col: 0, row: 0, elapsed: 0 }];
+    fallingStalactiteTimerStates.value = [{ id: 'h', elapsed: 0 }];
+
+    resetGame();
+
+    // Only the death-scoped fade-out labels are cleared from the collection...
+    expect(effectsOfKind<FadeOutTextState>('fadeOutText')).toEqual([]);
+    // ...every other kind survives by reference.
+    for (const survivor of [puff, aura, splatter, debris, explosion, flyingText, popup]) {
+      expect(activeEffects.value).toContain(survivor);
+    }
+    // The four timed-tile timer arrays are cleared as before.
+    expect(mushroomSquashStates.value).toEqual([]);
+    expect(floorSpikeTimerStates.value).toEqual([]);
+    expect(crumblingFloorTimerStates.value).toEqual([]);
+    expect(fallingStalactiteTimerStates.value).toEqual([]);
+  });
+
+  it('resetGameProgress-clearsTheWholeCollection', () => {
+    activeEffects.value = [startPuffEffect('p', 0, 0), startFadeOutTextEffect('f', 0, 0, 'x')];
+    resetGameProgress();
+    expect(activeEffects.value).toEqual([]);
+  });
+
+  it('advanceEffects-filteredToHitSplatter-advancesOnlySplattersAndFreezesTheRest', () => {
+    const splatter = startPlayerHitSplatter('s', 0, 0, 1);
+    const puff = startPuffEffect('p', 0, 0);
+    activeEffects.value = [splatter, puff];
+
+    activeEffects.value = advanceEffects(activeEffects.value, 0.2, { kinds: ['hitSplatter'] });
+
+    expect(effectsOfKind<HitSplatterState>('hitSplatter')[0].elapsed).toBeCloseTo(0.2, 5);
+    expect(effectsOfKind<PuffState>('puff')[0]).toBe(puff);
+    expect(effectsOfKind<PuffState>('puff')[0].elapsed).toBe(0);
   });
 });

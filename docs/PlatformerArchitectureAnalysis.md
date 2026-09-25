@@ -11,9 +11,9 @@ meant to be worked through item by item: every finding has a stable ID (`L1`, `E
 > work. Treat them as pointers, not contracts. Every finding lists *Evidence*,
 > *Problem*, *Direction*, and *Affected files*.
 >
-> **Tracking.** The phases below are tracked as refactor features **R-001..R-013** under
+> **Tracking.** The phases below are tracked as refactor features **R-001..R-015** under
 > the *Platformer Architecture Refactor* milestone (see `docs/Features.md`). R-001..R-012 map
-> to the phases; **[R-013](https://github.com/garcipat/cv-website/issues/101)** covers sprite asset/atlas organization (Group A). Finding IDs
+> to the phases; **[R-013](https://github.com/garcipat/cv-website/issues/101)** covers sprite asset/atlas organization (Group A), **[R-014](https://github.com/garcipat/cv-website/issues/103)** the layer-boundary lint guard, and **[R-015](https://github.com/garcipat/cv-website/issues/111)** the tile module registry (Phase 3). Finding IDs
 > (`L*`, `E*`, `P*`, `D*`, `M*`, `F*`, `A*`, `X*`) are analysis-local `Letter+digit` ids —
 > distinct from the `Letter-NNN` feature ids (`F-015`, `S-031`, `[R-013](https://github.com/garcipat/cv-website/issues/101)`).
 
@@ -942,6 +942,62 @@ through the owner. Depends on the A1 `SpriteSheet`/`SpriteAtlas` split.
 
 ---
 
+## 3.5 The object taxonomy: tiles, grid objects, actors, markers
+
+A fault line runs through `entities/`: it holds both **cell-anchored** things (blocks,
+chests, pickups, hazards) and **free-moving** things (player, enemies, projectiles), with no
+vocabulary distinguishing them. Naming the distinction is a prerequisite for R-007 (entity
+registry completion), R-008 (placeable world items), and R-009/R-015 (tile registry): they
+are three points on one spectrum, and each currently invents its own terms.
+
+| Category | Anchored to | Identity | Runtime state | Examples |
+| --- | --- | --- | --- | --- |
+| **Tile** | a cell | none — the type is the whole story | none | `groundGrass`, `wall`, `bush`, `chain`, `torch`, decor |
+| **Grid object** | a cell (or cells) | `id` + `col/row` | optional, keyed by cell/id | `?` block, chest, coin, floor spike, falling stalactite (pre-fall), ladder bundle, mushroom cap |
+| **Actor** | a free position | `id` + `x/y` | position, velocity, AI | player, enemies, projectiles, falling stalactite (mid-fall), dropped pickups |
+| **Marker** | a cell | none | none (annotates) | sign, torch strength, patrol boundary, connection point |
+
+**The shared grid-object shape** is the middle category's contract — the same shape the
+placeable-world-item finding (Group P) proposes, generalised:
+
+```ts
+interface GridObject<S> {
+  id: string;
+  col: number;
+  row: number;
+  state?: S;
+  step?(state: S, dt: number): S;
+  box?(...): Rect;
+  draw(...): void;
+}
+```
+
+`WorldItemType<S>` is the **runtime-spawned** subset of this shape (placed bomb, deployed
+ladder, dropped pickup); the author-placed families (`BlockType`, `HazardType`, `ChestType`,
+`WorldType`) are the **load-placed** subset. A stateless tile is the degenerate case: no id,
+no state, empty `step`.
+
+Two things the taxonomy must not hide:
+
+- **Category transitions.** A falling stalactite is a grid object until it is triggered, then
+  an actor. A `ladderBundle` is a stateless tile until deployed, then a grid object that
+  mutates the effective grid (`ropeLadder`). Membership is per-phase, not fixed.
+- **Cosmetic vs behavioural state.** The mushroom cap squash is cosmetic; the crumbling floor
+  changes `isSolid` mid-cycle. Both are stateful grid objects, so the contract must let a
+  solidity/`box` hook read state.
+
+**Consequences.** `entities/` conflates grid objects and actors; the eventual split is
+planned but deferred — it rides with whichever of R-007/R-008/R-015 lands first, not as a
+standalone big-bang move (per the sequencing note in §4.1). A new tile-module registry
+([R-015](https://github.com/garcipat/cv-website/issues/111)) owns the stateless-tile end;
+[R-008](https://github.com/garcipat/cv-website/issues/96) owns the runtime world-item end;
+[R-007](https://github.com/garcipat/cv-website/issues/95) owns the author-placed entity
+families. Do **not** introduce a fourth top-level concept or a `TerrainKind` registry up
+front — O-018's research D1 rejected the latter deliberately, and the safe path is the shared
+shape, not a merged registry.
+
+---
+
 ## 4. North-star abstractions (one-line sketches)
 
 These are the shared constructs most findings converge on. Names are proposals; exact shape
@@ -954,7 +1010,10 @@ to be settled per item.
 - **`SpeechBubble`** — a `TransientEffect` variant carrying `{ textId, anchor, transient }`.
   Unblocks E2/M9.
 - **`WorldItemType<S>`** — `{ id, col, row, step(state,dt), box?, draw }` registry for placed
-  items. Unblocks P1/P2.
+  items; the runtime-spawned subset of `GridObject` (§3.5). Unblocks P1/P2.
+- **`GridObject<S>`** — the shared `{ id, col, row, state?, step?, box?, draw }` shape behind
+  both the load-placed entity families and the runtime `WorldItemType`; a stateless
+  `StaticTileType` is its degenerate case. See §3.5. Unblocks R-007/R-008/R-015 alignment.
 - **`StaticTileType`** — `{ key, draw(...) }` registry for terrain decor. Unblocks L1/L6.
 - **`placeAtMarkers` / `placeWithFactPool`** + a declarative entity registry
   `{ char, finder, mapper, synthesize }`. Unblocks M1/M2/M3/M5.
@@ -1013,7 +1072,7 @@ src/themes/platformer/
 │   ├── mushrooms/            # MushroomSquash (→ effect, E3)
 │   ├── checkpoints/          # CheckpointLogic
 │   └── effects/              # CollectionEffects + SpeechBubble registry (E1/E2)
-├── entities/                 # one folder per family, self-contained
+├── entities/                 # one folder per family; later split grid objects vs actors (§3.5)
 │   ├── player/               # Player.ts, Health.ts, Crouch? 
 │   ├── blocks/               # Block.ts + blocks/* (constants colocated — X6/F9)
 │   ├── enemies/
@@ -1052,15 +1111,19 @@ the file — e.g. fold `MushroomSquash` into the effect registry and land it und
 | Move | Rides with |
 | --- | --- |
 | F1 contracts → `contracts/` | Phase 0 (primitives) |
-| F2 `Box`/torch/phases → `contracts/`/`entities/` | Phase 0 + Phase 4 |
-| F3 `RewardReveal` → state/features | Phase 4 (reward applier) |
+| F2 `Box`/torch/phases → `contracts/`/`entities/` | Phase 0 + Phase 5 |
+| F3 `RewardReveal` → state/features | Phase 5 (reward applier) |
 | F4/F11 journal → `ui/journal/` | independent, early |
-| F5/F6 `level.ts` split → `level/levels/` + `state/levelSession` | Phase 7 |
-| F7 `engine/` + `features/` split | Phases 1/2/6 (as files fold) |
-| F8 `editor/ops` + `editor/dev` | Phase 7 |
-| F9 entity folders | Phases 3/5 (with X6) |
+| F5/F6 `level.ts` split → `level/levels/` + `state/levelSession` | Phase 8 |
+| F7 `engine/` + `features/` split | Phases 1/2/7 (as files fold) |
+| F8 `editor/ops` + `editor/dev` | Phase 8 |
+| F9 entity folders | Phases 4/6 (with X6) |
 | F10 hints → speech bubble | Phase 2 (E2) |
 | F12 casing | opportunistic |
+
+**The grid-object/actor split (§3.5) is not a separate move.** Fold each family's grid
+objects out as its registry is touched — R-007 (blocks/hazards/chests/pickups), R-008
+(placed items), R-015 (tiles) — rather than a standalone `entities/` reorganisation.
 
 ---
 
@@ -1094,35 +1157,52 @@ can be reordered, but the dependencies noted must hold.
 - **Structure:** begin the `engine/render/` + `features/` split (**F7**) as these files move.
 - *Checkpoint: each migrated effect keeps its existing tests; add registry contract test.*
 
-### Phase 3 — Pickup unification ([R-006](https://github.com/garcipat/cv-website/issues/94))
+### Phase 3 — Tile module registry ([R-015](https://github.com/garcipat/cv-website/issues/111))
+- **F-018 gap / L1 (registry half):** one self-contained module per tile kind under `tiles/`,
+  owning its draw, its behaviour predicates, and any registered transient state; a stateless
+  tile is the degenerate case (§3.5). This is where the `STATIC_TILE_TYPES`-style tile
+  registry lands.
+- Depends on Phase 0 (contracts) and Phase 2 (the timed-tile/effect state lifecycle, E4). It
+  must precede the world-item, renderer-split and mapper/editor phases so the deployable
+  ladder (P1), the renderer (L1) and the editor palette consume the tile contract instead of
+  each inventing one.
+- *Checkpoint: the "Adding a tile" recipe collapses to one module plus one registry line;
+  solidity/climbability/standability and every sprite are unchanged.*
+
+### Phase 4 — Pickup unification ([R-006](https://github.com/garcipat/cv-website/issues/94))
 - **D1** add `kind` discriminator + generic collision/draw + `spawn`/`onCollect`.
 - **X6/F9** fold constant modules into `pickups/*` and give each family its own folder.
 - *Checkpoint: page's pickup-name `if/else` deleted; counter totals (D4) can follow.*
 
-### Phase 4 — Registry dispatch completion ([R-007](https://github.com/garcipat/cv-website/issues/95))
+### Phase 5 — Registry dispatch completion ([R-007](https://github.com/garcipat/cv-website/issues/95))
 - **D2** `EnemyType.onDefeat` + shared reward applier; unify `ItemKind`/`PickupKind`.
 - **D3** `HazardType.knocksBack` + `withTickState`.
 - **D4** counter metadata.
-- Depends on Phase 3 (reward applier shape).
+- Depends on Phase 4 (reward applier shape).
 
-### Phase 5 — Placeable world items ([R-008](https://github.com/garcipat/cv-website/issues/96))
+### Phase 6 — Placeable world items ([R-008](https://github.com/garcipat/cv-website/issues/96))
 - **P1** `WorldItemType` registry; **P2** bomb consolidation; **X7** chest decision.
-- Depends on Phase 3 (pickup drop path) and Phase 4 (reward applier).
+- Consumes the tile module contract (Phase 3) for the deployable ladder's `ladderBundle`
+  interaction.
+- Depends on Phase 4 (pickup drop path) and Phase 5 (reward applier).
 
-### Phase 6 — Static tile registry and renderer split ([R-009](https://github.com/garcipat/cv-website/issues/97))
-- **L1** `STATIC_TILE_TYPES` + collapse `drawTerrain`; split `SceneRenderer`/`HudRenderer`;
-  **L6** atlas sharing (already in Phase 0).
+### Phase 7 — Renderer split ([R-009](https://github.com/garcipat/cv-website/issues/97))
+- **L1 (renderer half)** split `SceneRenderer`/`HudRenderer`; **L6** atlas sharing (already in
+  Phase 0).
+- The static-tile registry half of L1 now lands in Phase 3 (R-015); this phase consumes that
+  registry rather than building its own.
 - Large but mostly mechanical once Phase 1/2 removed the lighting/effect special cases.
 
-### Phase 7 — Mapper and editor unification ([R-010](https://github.com/garcipat/cv-website/issues/98))
+### Phase 8 — Mapper and editor unification ([R-010](https://github.com/garcipat/cv-website/issues/98))
 - **M1** editor reuse of finder/mapper chain; **M2/M3** shared place helpers and def flattening;
   **M6/M7/M8** palette/paint/save unification.
 - **Structure:** split `editor/ops` + `editor/dev` (**F8**); split `level.ts` into
   `level/levels/` data + `state/levelSession` signals and realise the placeholder folders
   (**F5/F6**).
-- Largely independent of Phases 1–6; can run in parallel with a different workstream.
+- Consumes the tile module contract (Phase 3) for the editor palette.
+- Largely independent of Phases 1–7; can run in parallel with a different workstream.
 
-### Phase 8 — God-file decomposition (systems + stores) ([R-011](https://github.com/garcipat/cv-website/issues/99), [R-012](https://github.com/garcipat/cv-website/issues/100))
+### Phase 9 — God-file decomposition (systems + stores) ([R-011](https://github.com/garcipat/cv-website/issues/99), [R-012](https://github.com/garcipat/cv-website/issues/100))
 - **D5** `PlayerDamageSystem`; **D6** `BombSystem`; **D7** per-domain stores;
   **D8** `AssetLoader`; **D9** `HudRenderer`; **D10** typed placements.
 - Do this **last**, after the registry/abstraction work has already removed most branches —
@@ -1145,8 +1225,10 @@ The independent cheap structure moves (**F3** `RewardReveal`, **F4** journal mod
 **F6** empty folders) can be picked up in parallel at any point.
 
 After that, **Phase 2 (SpeechBubble + effect registry)** delivers the user's other named
-example (mushroom squash / hint tooltip behind an abstract speech bubble), and **Phase 3
-(pickups)** delivers the `placeItem`-family fix.
+example (mushroom squash / hint tooltip behind an abstract speech bubble); **Phase 3 (tile
+module registry)** gives tiles the same per-kind self-containment before the world-item,
+renderer and editor phases consume it; and **Phase 4 (pickups)** delivers the
+`placeItem`-family fix.
 
 ---
 
@@ -1159,6 +1241,9 @@ example (mushroom squash / hint tooltip behind an abstract speech bubble), and *
 - **WorldItemType**: do dropped pickups join the same registry as placed bombs/ladders, or
   stay in the pickup family with a shared `id/x/y` base? (Affects P1 vs D1 boundary.)
 - **StaticTileType**: how much decor art is "tile" vs "entity"? (Affects L1 scope.)
+- **Grid object vs actor** (§3.5): is `GridObject<S>` a shared interface the load-placed
+  registries express, or only the runtime `WorldItemType`? When does `entities/` split into
+  grid objects vs actors? (Affects R-007/R-008/R-015.)
 - **Mappers**: is `LevelDef` the single parse artifact, or do we keep a distinct editor grid
   type and adapt at the boundary? (Affects M1.)
 - **Chest/CHEST_TYPE**: is a second chest kind actually planned? (Affects X7.)

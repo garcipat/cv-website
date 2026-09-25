@@ -43,7 +43,7 @@ export function enemyTileOffsetY(type: EnemyTypeKey): number {
 }
 
 /** A world-space anchor point + size scale for a one-shot visual effect at
- *  this enemy's position — see engine/CollectionEffects.ts's PuffEffect and
+ *  this enemy's position — see engine/effects/puff.ts's PuffState and
  *  B-003 (docs/bugs/B-003-puff-bound-to-fact-reward/ticket.md). Centred on
  *  the collision hitbox (`typeOf(enemy).box(enemy)`), not the render slot: a
  *  slime's actual opaque silhouette sits bottom-anchored with a big

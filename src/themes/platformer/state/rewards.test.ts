@@ -1,7 +1,7 @@
 import { createRewardReveal } from './rewards';
-import { collectedFacts, activeEffects, activeCounterPopups } from '../PlatformerState';
-import { COLLECTION_TEXT_SLOT_COUNT, createSlotAllocator } from '../engine/CollectionEffects';
-import type { SlotAllocator } from '../engine/CollectionEffects';
+import { collectedFacts, activeEffects } from '../PlatformerState';
+import { COLLECTION_TEXT_SLOT_COUNT, createSlotAllocator } from '../engine/effects';
+import type { CounterPopupState, FlyingTextState, SlotAllocator, TransientEffect } from '../engine/effects';
 import type { CollectedFact } from '../types';
 
 const factIn = (id: string, sectionId: CollectedFact['sectionId']): CollectedFact => ({
@@ -11,6 +11,16 @@ const factIn = (id: string, sectionId: CollectedFact['sectionId']): CollectedFac
   data: { category: 'x', skills: [] },
   sourceType: 'block',
 });
+
+// The unified collection holds every kind; these narrow to the two families
+// this trigger spawns.
+const flyingTexts = (): TransientEffect<FlyingTextState>[] =>
+  activeEffects.value.filter((effect) => effect.kind === 'flyingText') as TransientEffect<FlyingTextState>[];
+const popupFor = (labelKey: string): TransientEffect<CounterPopupState> | undefined =>
+  activeEffects.value.find(
+    (effect): effect is TransientEffect<CounterPopupState> =>
+      effect.kind === 'counterPopup' && (effect as TransientEffect<CounterPopupState>).state.labelKey === labelKey,
+  );
 
 // The allocator is stateful, so every context gets its own — except where a
 // test deliberately shares one, which is the whole point of it living outside
@@ -28,13 +38,11 @@ describe('createRewardReveal', () => {
   beforeEach(() => {
     collectedFacts.value = [];
     activeEffects.value = [];
-    activeCounterPopups.value = {};
   });
 
   afterEach(() => {
     collectedFacts.value = [];
     activeEffects.value = [];
-    activeCounterPopups.value = {};
   });
 
   it('freshFact-collectsItAndReturnsTrue', () => {
@@ -51,13 +59,13 @@ describe('createRewardReveal', () => {
     expect(collectedFacts.value.map((f) => f.id)).toEqual(['a']);
   });
 
-  it('freshFact-startsOneFlightEffect', () => {
+  it('freshFact-startsOneFlyingTextEffect', () => {
     const reveal = createRewardReveal(ctxWith());
 
     reveal(factIn('a', 'education'), { x: 100, y: 200, effectId: 'block-1', counterKey: 'crates' });
 
-    expect(activeEffects.value).toHaveLength(1);
-    expect(activeEffects.value[0]).toMatchObject({ id: 'block-1', startX: 100 });
+    expect(flyingTexts()).toHaveLength(1);
+    expect(flyingTexts()[0]).toMatchObject({ id: 'block-1', state: { startX: 100 } });
   });
 
   it('alreadyCollectedFact-revealsNothingAndReturnsFalse', () => {
@@ -80,7 +88,7 @@ describe('createRewardReveal', () => {
 
     // Slot 0 then slot 1 — successive reveals step down a row rather than
     // stacking on top of each other.
-    expect(activeEffects.value[0].startY).toBeLessThan(activeEffects.value[1].startY);
+    expect(flyingTexts()[0].state.startY).toBeLessThan(flyingTexts()[1].state.startY);
   });
 
   it('contextWithEffectsAlreadyInFlight-seedsTheFirstSlotFromThatCount', () => {
@@ -88,7 +96,7 @@ describe('createRewardReveal', () => {
     const fresh = createRewardReveal(ctxWith());
 
     reveal(factIn('a', 'education'), { x: 0, y: 0, effectId: 'e1', counterKey: 'crates' });
-    const seededY = activeEffects.value[0].startY;
+    const seededY = flyingTexts()[0].state.startY;
     collectedFacts.value = [];
     activeEffects.value = [];
     fresh(factIn('b', 'education'), { x: 0, y: 0, effectId: 'e2', counterKey: 'crates' });
@@ -96,7 +104,7 @@ describe('createRewardReveal', () => {
     // An isolated reveal lands on slot 0; one starting with an effect already
     // in flight lands lower. This is the reseed-from-live-in-flight-count
     // behavior, not an ever-incrementing counter.
-    expect(seededY).toBeGreaterThan(activeEffects.value[0].startY);
+    expect(seededY).toBeGreaterThan(flyingTexts()[0].state.startY);
   });
 
   it('crateFact-bumpsTheCrateCounterWithTheSectionDerivedNumerator', () => {
@@ -104,7 +112,7 @@ describe('createRewardReveal', () => {
 
     reveal(factIn('a', 'education'), { x: 0, y: 0, effectId: 'e1', counterKey: 'crates' });
 
-    expect(activeCounterPopups.value.crates).toMatchObject({ labelKey: 'crates', collected: 1 });
+    expect(popupFor('crates')).toMatchObject({ state: { labelKey: 'crates', collected: 1 } });
   });
 
   it('allocatorSharedWithAnotherConsumer-theyNeverTakeTheSameSlot', () => {
@@ -117,7 +125,7 @@ describe('createRewardReveal', () => {
     reveal(factIn('a', 'education'), { x: 0, y: 0, effectId: 'e1', counterKey: 'crates' });
     const keyPickupOffset = allocateSlotOffset();
 
-    expect(activeEffects.value[0].startY).not.toBe(keyPickupOffset);
+    expect(flyingTexts()[0].state.startY).not.toBe(keyPickupOffset);
     expect(keyPickupOffset).toBeGreaterThan(0);
   });
 
@@ -129,8 +137,8 @@ describe('createRewardReveal', () => {
     const revealed = reveal(factIn('a', 'experience'), { x: 0, y: 0, effectId: 'chest-1' });
 
     expect(revealed).toBe(true);
-    expect(activeCounterPopups.value).toEqual({});
-    expect(activeEffects.value).toHaveLength(1);
+    expect(activeEffects.value.some((effect) => effect.kind === 'counterPopup')).toBe(false);
+    expect(flyingTexts()).toHaveLength(1);
   });
 
   it('slotCycling-wrapsAfterTheSlotCount', () => {
@@ -141,7 +149,7 @@ describe('createRewardReveal', () => {
     }
 
     // The (COLLECTION_TEXT_SLOT_COUNT + 1)-th reveal is back on slot 0.
-    expect(activeEffects.value[COLLECTION_TEXT_SLOT_COUNT].startY).toBe(activeEffects.value[0].startY);
+    expect(flyingTexts()[COLLECTION_TEXT_SLOT_COUNT].state.startY).toBe(flyingTexts()[0].state.startY);
   });
 
   it('twoRevealsInOneTick-applyTheSameStackOffsetToStartYAndMidY', () => {
@@ -155,9 +163,9 @@ describe('createRewardReveal', () => {
     // hold phase — the exact bug this design rejected. Pinning that the
     // startY gap and the midY gap match (and are non-zero) proves the
     // offset moves both points together, without hardcoding the row height.
-    const [first, second] = activeEffects.value;
-    const startYGap = second.startY - first.startY;
-    const midYGap = second.midY - first.midY;
+    const [first, second] = flyingTexts();
+    const startYGap = second.state.startY - first.state.startY;
+    const midYGap = second.state.midY - first.state.midY;
 
     expect(startYGap).not.toBe(0);
     expect(midYGap).toBe(startYGap);
@@ -169,7 +177,7 @@ describe('createRewardReveal', () => {
     reveal(factIn('a', 'education'), { x: 100, y: 200, effectId: 'e1', counterKey: 'crates' });
 
     // Slot 0 contributes no stack offset, so startY is exactly y + originY.
-    expect(activeEffects.value[0].startX).toBe(140);
-    expect(activeEffects.value[0].startY).toBe(225);
+    expect(flyingTexts()[0].state.startX).toBe(140);
+    expect(flyingTexts()[0].state.startY).toBe(225);
   });
 });

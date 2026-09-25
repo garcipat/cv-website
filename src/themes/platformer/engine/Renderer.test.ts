@@ -7,11 +7,8 @@ import {
   drawBlocks,
   drawChests,
   drawFruits,
-  drawCollectionEffects,
-  drawPuffEffects,
   drawCollectibleCounter,
   drawChestCounter,
-  drawCounterPopups,
   drawIrisOverlay,
   drawRestartPrompt,
   drawSigns,
@@ -20,36 +17,30 @@ import {
   drawHeartPickups,
   drawBombPickups,
   drawPlacedBombs,
-  drawExplosions,
-  EXPLOSION_DRAW_SCALE,
-  drawHealAuraEffects,
   drawHazards,
   drawKeyCounter,
   drawBombCounter,
   keyCounterX,
   bombCounterX,
   KEY_COUNTER_Y,
-  RESTART_PROMPT_FONT_FAMILY,
   HEARTS_START_X,
   CHEST_COUNTER_TEXT_GAP,
   CHEST_COUNTER_ICON_HEIGHT,
   drawWaterForeground,
   drawBackgroundTiles,
   drawFog,
-  drawHitSplatterEffects,
   drawLowHealthGlow,
   lowHealthGlowAlpha,
   LOW_HEALTH_GLOW_WIDTH_PX,
   LOW_HEALTH_GLOW_PULSE_PERIOD_SECONDS,
   drawCheckpoints,
-  drawFadeOutTexts,
   drawDarkness,
   drawEnemyEyes,
   drawHeldTorch,
   drawTintedSprite,
   CROUCH_HIT_TINT,
-  drawDebrisEffects,
 } from './Renderer';
+import { RESTART_PROMPT_FONT_FAMILY } from './textDraw';
 import type { LevelDef } from '../level/LevelData';
 import { backgroundAtlasCell } from './BackgroundAtlas';
 import { parseLevel } from '../level/LevelParser';
@@ -57,7 +48,6 @@ import type { SignPlacement } from '../level/SignMapper';
 import type { PlayerState } from '../entities/Player';
 import { PLAYER_RENDERED_SIZE, PLAYER_FRAME_SIZE, PLAYER_FOOT_PADDING, PLAYER_HIT_REACTION_SECONDS, PLAYER_LIGHT_RADIUS_PX } from '../entities/Player';
 import { MAX_HALF_HEARTS, HEART_RENDERED_SIZE } from '../entities/Health';
-import { startFlightEffect, tickFlightEffect, RISE_DURATION_SECONDS, SPARKLE_DURATION_SECONDS, startPuffEffect, tickPuffEffect, startHealAuraEffect, HEAL_AURA_DURATION_SECONDS, startPlayerHitSplatter, startEnemyHitSplatter, tickHitSplatterEffect, startFadeOutTextEffect, tickFadeOutTextEffect, FADE_OUT_TEXT_DURATION_SECONDS, startDebrisEffect, crumbleDebrisLayers } from './CollectionEffects';
 import type { CollectiblePlacement } from '../level/CollectibleMapper';
 import type { BlockPlacement } from '../level/BlockMapper';
 import { toBlockState, blockFrameSource } from '../entities/Block';
@@ -99,11 +89,6 @@ import {
 } from './PlacedBomb';
 import type { PlacedBombState } from './PlacedBomb';
 import { frameSource } from '../entities/sprites/SpriteSheet';
-import {
-  startExplosionEffect,
-  explosionFrameIndex,
-  EXPLOSION_DURATION_SECONDS,
-} from './CollectionEffects';
 import {
   SLIME_GREEN_SHEET,
   SLIME_PURPLE_SHEET,
@@ -889,227 +874,9 @@ describe('drawFruits', () => {
   });
 });
 
-describe('drawCollectionEffects', () => {
-  it('risingEffect-drawsTextPartwayToMid', () => {
-    const ctx = makeMockContext() as unknown as { fillText: ReturnType<typeof vi.fn> };
-    const effect = tickFlightEffect(
-      startFlightEffect('a', 'German', 50, 60, 400, 300, 900, 900),
-      RISE_DURATION_SECONDS / 2,
-    );
 
-    drawCollectionEffects(ctx as unknown as CanvasRenderingContext2D, [effect]);
 
-    expect(ctx.fillText).toHaveBeenCalledWith('German', expect.any(Number), expect.any(Number));
-  });
 
-  it('effectWithIcon-drawsIconInSeparateSansSerifFillTextCall', () => {
-    // The custom pixel font `text` is drawn with has no emoji glyphs —
-    // canvas text doesn't fall back to a system emoji font mid-string the
-    // way DOM text does, so the icon must be its own fillText call in a
-    // plain font, not baked into the same string/font as the text.
-    const ctx = makeMockContext() as unknown as { fillText: ReturnType<typeof vi.fn>; font: string };
-    const fontsAtCall: string[] = [];
-    ctx.fillText.mockImplementation(() => {
-      fontsAtCall.push(ctx.font);
-    });
-    const effect = startFlightEffect('a', 'German', 50, 60, 400, 300, 900, 900, '🇩🇪');
-
-    drawCollectionEffects(ctx as unknown as CanvasRenderingContext2D, [effect]);
-
-    // The text itself is drawn with an outline (fillTextWithOutline: 4
-    // offset fillText calls plus the final fill), so the icon — drawn after
-    // it — is the LAST fillText call, not the 2nd.
-    expect(ctx.fillText).toHaveBeenCalledTimes(6);
-    const lastCall = ctx.fillText.mock.calls.length;
-    expect(ctx.fillText).toHaveBeenNthCalledWith(lastCall, '🇩🇪', expect.any(Number), expect.any(Number));
-    const iconFont = fontsAtCall[fontsAtCall.length - 1];
-    expect(iconFont).toContain('sans-serif');
-    // The text call's font quotes the custom pixel font family name; the
-    // icon call's font doesn't reference it at all.
-    expect(iconFont).not.toContain('"');
-  });
-
-  it('effectWithoutIcon-drawsOutlinedTextOnly', () => {
-    const ctx = makeMockContext() as unknown as { fillText: ReturnType<typeof vi.fn> };
-    const effect = startFlightEffect('a', 'German', 50, 60, 400, 300, 900, 900);
-
-    drawCollectionEffects(ctx as unknown as CanvasRenderingContext2D, [effect]);
-
-    // 4 outline offsets + 1 final fill, all for 'German' — no icon call.
-    expect(ctx.fillText).toHaveBeenCalledTimes(5);
-    ctx.fillText.mock.calls.forEach((call) => expect(call[0]).toBe('German'));
-  });
-
-  it('noEffects-doesNotCallFillText', () => {
-    const ctx = makeMockContext() as unknown as { fillText: ReturnType<typeof vi.fn> };
-    drawCollectionEffects(ctx as unknown as CanvasRenderingContext2D, []);
-    expect(ctx.fillText).not.toHaveBeenCalled();
-  });
-
-  it('freshEffect-drawsNoSparkleCircles-sparkleIsNowPuffOnly', () => {
-    // Sparkle bursts are exclusively PuffEffect's concern now (see
-    // drawPuffEffects below) — a flight effect (coin/fruit/key/enemy-fact
-    // collection) shows only its flying text, never a sparkle ring.
-    const ctx = makeMockContext() as unknown as { arc: ReturnType<typeof vi.fn> };
-    const effect = startFlightEffect('a', 'German', 50, 60, 400, 300, 900, 900);
-
-    drawCollectionEffects(ctx as unknown as CanvasRenderingContext2D, [effect]);
-
-    expect(ctx.arc).not.toHaveBeenCalled();
-  });
-});
-
-describe('drawPuffEffects', () => {
-  it('freshPuff-drawsSixSparkleCircles', () => {
-    const ctx = makeMockContext() as unknown as { arc: ReturnType<typeof vi.fn> };
-    const effect = startPuffEffect('rock-1', 100, 200);
-
-    drawPuffEffects(ctx as unknown as CanvasRenderingContext2D, [effect]);
-
-    expect(ctx.arc).toHaveBeenCalledTimes(6);
-  });
-
-  it('freshPuff-neverCallsFillText', () => {
-    // A puff has no text/icon at all — unlike drawCollectionEffects, there is
-    // nothing here that could accidentally render an empty label.
-    const ctx = makeMockContext() as unknown as { fillText: ReturnType<typeof vi.fn> };
-    const effect = startPuffEffect('rock-1', 100, 200);
-
-    drawPuffEffects(ctx as unknown as CanvasRenderingContext2D, [effect]);
-
-    expect(ctx.fillText).not.toHaveBeenCalled();
-  });
-
-  it('puffAtItsOwnXY-drawsCirclesCenteredThere-not0-0', () => {
-    const ctx = makeMockContext() as unknown as { arc: ReturnType<typeof vi.fn> };
-    const effect = startPuffEffect('rock-1', 100, 200);
-
-    drawPuffEffects(ctx as unknown as CanvasRenderingContext2D, [effect]);
-
-    const [cx, cy] = ctx.arc.mock.calls[0];
-    expect(cx).toBeCloseTo(100, 0);
-    expect(cy).toBeCloseTo(200, 0);
-  });
-
-  it('scaledPuff-drawsWiderCircleRadiusThanUnscaled', () => {
-    const ctx = makeMockContext() as unknown as { arc: ReturnType<typeof vi.fn> };
-    const unscaled = startPuffEffect('a', 0, 0, 1);
-    const scaled = startPuffEffect('b', 0, 0, 2);
-
-    drawPuffEffects(ctx as unknown as CanvasRenderingContext2D, [unscaled]);
-    const unscaledRadius = ctx.arc.mock.calls[0][2];
-    ctx.arc.mockClear();
-    drawPuffEffects(ctx as unknown as CanvasRenderingContext2D, [scaled]);
-    const scaledRadius = ctx.arc.mock.calls[0][2];
-
-    expect(scaledRadius).toBeGreaterThan(unscaledRadius);
-  });
-
-  it('expiredPuff-doesNotDrawSparkleCircles', () => {
-    const ctx = makeMockContext() as unknown as { arc: ReturnType<typeof vi.fn> };
-    const effect = tickPuffEffect(startPuffEffect('rock-1', 100, 200), SPARKLE_DURATION_SECONDS + 0.01);
-
-    drawPuffEffects(ctx as unknown as CanvasRenderingContext2D, [effect]);
-
-    expect(ctx.arc).not.toHaveBeenCalled();
-  });
-
-  it('noPuffs-drawsNothing', () => {
-    const ctx = makeMockContext() as unknown as { arc: ReturnType<typeof vi.fn> };
-    drawPuffEffects(ctx as unknown as CanvasRenderingContext2D, []);
-    expect(ctx.arc).not.toHaveBeenCalled();
-  });
-});
-
-describe('drawHealAuraEffects', () => {
-  it('freshAura-drawsGlowCircleAndSparkleCircles', () => {
-    const ctx = makeMockContext() as unknown as { arc: ReturnType<typeof vi.fn> };
-    const effect = startHealAuraEffect('h1');
-
-    drawHealAuraEffects(ctx as unknown as CanvasRenderingContext2D, [effect], 100, 200, 32);
-
-    // 1 glow circle + 4 sparkle circles (see CollectionEffects.ts's
-    // HEAL_AURA_SPARKLE_OFFSETS).
-    expect(ctx.arc).toHaveBeenCalledTimes(5);
-  });
-
-  it('freshAura-drawsOneRayRectPerHealAuraRay', () => {
-    const ctx = makeMockContext() as unknown as { fillRect: ReturnType<typeof vi.fn> };
-    const effect = startHealAuraEffect('h1');
-
-    drawHealAuraEffects(ctx as unknown as CanvasRenderingContext2D, [effect], 100, 200, 32);
-
-    // 5 rays (see CollectionEffects.ts's HEAL_AURA_RAY_COUNT).
-    expect(ctx.fillRect).toHaveBeenCalledTimes(5);
-  });
-
-  it('auraAtItsAnchor-drawsGlowCircleCenteredThere-notAt0-0', () => {
-    const ctx = makeMockContext() as unknown as { arc: ReturnType<typeof vi.fn> };
-    const effect = startHealAuraEffect('h1');
-
-    drawHealAuraEffects(ctx as unknown as CanvasRenderingContext2D, [effect], 100, 200, 32);
-
-    const [cx, cy] = ctx.arc.mock.calls[0];
-    expect(cx).toBeCloseTo(100, 0);
-    expect(cy).toBeCloseTo(200, 0);
-  });
-
-  it('expiredAura-drawsNothing', () => {
-    const ctx = makeMockContext() as unknown as {
-      arc: ReturnType<typeof vi.fn>;
-      fillRect: ReturnType<typeof vi.fn>;
-    };
-    const effect = { id: 'h1', elapsed: HEAL_AURA_DURATION_SECONDS + 0.01 };
-
-    drawHealAuraEffects(ctx as unknown as CanvasRenderingContext2D, [effect], 100, 200, 32);
-
-    expect(ctx.arc).not.toHaveBeenCalled();
-    expect(ctx.fillRect).not.toHaveBeenCalled();
-  });
-
-  it('noAuras-drawsNothing', () => {
-    const ctx = makeMockContext() as unknown as { arc: ReturnType<typeof vi.fn> };
-    drawHealAuraEffects(ctx as unknown as CanvasRenderingContext2D, [], 100, 200, 32);
-    expect(ctx.arc).not.toHaveBeenCalled();
-  });
-});
-
-describe('drawHitSplatterEffects', () => {
-  it('freshEffect-drawsOneFillRectPerDroplet', () => {
-    const ctx = makeMockContext() as unknown as { fillRect: ReturnType<typeof vi.fn> };
-    const effect = startPlayerHitSplatter('p', 100, 200, 1);
-
-    drawHitSplatterEffects(ctx as unknown as CanvasRenderingContext2D, [effect]);
-
-    expect(ctx.fillRect).toHaveBeenCalledTimes(effect.dropletCount);
-  });
-
-  it('expiredEffect-drawsNothing', () => {
-    const ctx = makeMockContext() as unknown as { fillRect: ReturnType<typeof vi.fn> };
-    const effect = tickHitSplatterEffect(startPlayerHitSplatter('p', 100, 200, 1), 10);
-
-    drawHitSplatterEffects(ctx as unknown as CanvasRenderingContext2D, [effect]);
-
-    expect(ctx.fillRect).not.toHaveBeenCalled();
-  });
-
-  it('noEffects-drawsNothing', () => {
-    const ctx = makeMockContext() as unknown as { fillRect: ReturnType<typeof vi.fn> };
-    drawHitSplatterEffects(ctx as unknown as CanvasRenderingContext2D, []);
-    expect(ctx.fillRect).not.toHaveBeenCalled();
-  });
-
-  it('enemyEffect-usesTheEffectsOwnColorAsFillStyle', () => {
-    const ctx = makeMockContext() as unknown as { fillRect: ReturnType<typeof vi.fn> };
-    const setFillStyle = vi.fn();
-    Object.defineProperty(ctx, 'fillStyle', { set: setFillStyle, get: () => '' });
-    const effect = startEnemyHitSplatter('e', 10, 20, 'slimePurple');
-
-    drawHitSplatterEffects(ctx as unknown as CanvasRenderingContext2D, [effect]);
-
-    expect(setFillStyle).toHaveBeenCalledWith(effect.color);
-  });
-});
 
 describe('lowHealthGlowAlpha', () => {
   it('atPulsePeak-returnsBasePlusFullPulse', () => {
@@ -1163,78 +930,6 @@ describe('drawCollectibleCounter', () => {
   });
 });
 
-describe('drawCounterPopups', () => {
-  it('calledWithOneItem-drawsIconThenSpacedText', () => {
-    const ctx = makeMockContext() as unknown as {
-      drawImage: ReturnType<typeof vi.fn>;
-      fillText: ReturnType<typeof vi.fn>;
-    };
-    const icon = {} as HTMLImageElement;
-
-    drawCounterPopups(
-      ctx as unknown as CanvasRenderingContext2D,
-      [{ icon, iconFrame: { sx: 0, sy: 0, size: 16 }, collected: 1, total: 4, opacity: 1 }],
-      400,
-      20,
-    );
-
-    expect(ctx.drawImage).toHaveBeenCalledWith(icon, 0, 0, 16, 16, expect.any(Number), expect.any(Number), expect.any(Number), expect.any(Number));
-    expect(ctx.fillText).toHaveBeenCalledWith('1 / 4', expect.any(Number), 20);
-  });
-
-  it('calledWithZeroOpacityItem-skipsIt', () => {
-    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn>; fillText: ReturnType<typeof vi.fn> };
-    const icon = {} as HTMLImageElement;
-
-    drawCounterPopups(
-      ctx as unknown as CanvasRenderingContext2D,
-      [{ icon, iconFrame: { sx: 0, sy: 0, size: 16 }, collected: 1, total: 4, opacity: 0 }],
-      400,
-      20,
-    );
-
-    expect(ctx.drawImage).not.toHaveBeenCalled();
-    expect(ctx.fillText).not.toHaveBeenCalled();
-  });
-
-  it('calledWithNoItems-drawsNothing', () => {
-    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn>; fillText: ReturnType<typeof vi.fn> };
-
-    drawCounterPopups(ctx as unknown as CanvasRenderingContext2D, [], 400, 20);
-
-    expect(ctx.drawImage).not.toHaveBeenCalled();
-    expect(ctx.fillText).not.toHaveBeenCalled();
-  });
-
-  it('calledWithTwoItems-drawsBothSideBySideAsOneCenteredGroup', () => {
-    const ctx = makeMockContext() as unknown as {
-      drawImage: ReturnType<typeof vi.fn>;
-      fillText: ReturnType<typeof vi.fn>;
-    };
-    const coinIcon = { tag: 'coin' } as unknown as HTMLImageElement;
-    const fruitIcon = { tag: 'fruit' } as unknown as HTMLImageElement;
-
-    drawCounterPopups(
-      ctx as unknown as CanvasRenderingContext2D,
-      [
-        { icon: coinIcon, iconFrame: { sx: 0, sy: 0, size: 16 }, collected: 2, total: 4, opacity: 1 },
-        { icon: fruitIcon, iconFrame: { sx: 0, sy: 0, size: 16 }, collected: 1, total: 2, opacity: 1 },
-      ],
-      400,
-      20,
-    );
-
-    expect(ctx.fillText).toHaveBeenCalledWith('2 / 4', expect.any(Number), 20);
-    expect(ctx.fillText).toHaveBeenCalledWith('1 / 2', expect.any(Number), 20);
-
-    // The second item's icon must be drawn strictly to the right of the
-    // first item's icon — otherwise they'd overlap instead of sitting side
-    // by side.
-    const coinCallX = ctx.drawImage.mock.calls.find((c: unknown[]) => c[0] === coinIcon)![5] as number;
-    const fruitCallX = ctx.drawImage.mock.calls.find((c: unknown[]) => c[0] === fruitIcon)![5] as number;
-    expect(fruitCallX).toBeGreaterThan(coinCallX);
-  });
-});
 
 describe('drawTerrain', () => {
   it('markerLayer-drawsNothing-soAMarkerStaysInvisibleInGame', () => {
@@ -3013,47 +2708,6 @@ describe('drawPlacedBombs', () => {
   });
 });
 
-describe('drawExplosions', () => {
-  it('drawsTheActiveSheetFrameAtTheEnlargedScaleCentredOnTheBlast', () => {
-    const ctx = makeMockContext();
-    const dc = makeDrawContext(ctx, { worldElapsed: 0 });
-    const effect = startExplosionEffect('bomb-1', 80, 48);
-
-    drawExplosions(ctx, [effect], dc);
-
-    const { sx, sy } = frameSource(EXPLOSION_SHEET, explosionFrameIndex(effect));
-    const size = EXPLOSION_SHEET.frameWidth * 2 * EXPLOSION_DRAW_SCALE;
-    expect(ctx.drawImage).toHaveBeenCalledWith(
-      dc.sprites[EXPLOSION_SHEET.src],
-      sx,
-      sy,
-      EXPLOSION_SHEET.frameWidth,
-      EXPLOSION_SHEET.frameHeight,
-      80 - size / 2,
-      48 - size / 2,
-      size,
-      size,
-    );
-  });
-
-  it('playsEachFrameOnceInOrder', () => {
-    const frames: number[] = [];
-    for (let i = 0; i < EXPLOSION_SHEET.columns; i++) {
-      const elapsed = ((i + 0.5) * EXPLOSION_DURATION_SECONDS) / EXPLOSION_SHEET.columns;
-      frames.push(explosionFrameIndex({ ...startExplosionEffect('b', 0, 0), elapsed }));
-    }
-    expect(frames).toEqual(Array.from({ length: EXPLOSION_SHEET.columns }, (_, i) => i));
-  });
-
-  it('noExplosions-drawsNothing', () => {
-    const ctx = makeMockContext();
-    const dc = makeDrawContext(ctx);
-
-    drawExplosions(ctx, [], dc);
-
-    expect(ctx.drawImage).not.toHaveBeenCalled();
-  });
-});
 
 describe('drawBombCounter', () => {
   it('drawsTheUnlitBombIconAndTheCountWithNoDenominator', () => {
@@ -3850,35 +3504,6 @@ describe('drawCheckpoints', () => {
   });
 });
 
-describe('drawFadeOutTexts', () => {
-  it('drawsEachEffectsOwnTextAtItsOwnOriginShiftedPosition', () => {
-    const ctx = makeMockContext() as unknown as {
-      fillText: ReturnType<typeof vi.fn>;
-      globalAlpha: number;
-    };
-    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D, { originX: 5, originY: 7 });
-    const a = startFadeOutTextEffect('a', 100, 200, 'Checkpoint');
-    const b = startFadeOutTextEffect('b', 300, 400, 'Kontrollpunkt');
-
-    drawFadeOutTexts(ctx as unknown as CanvasRenderingContext2D, [a, b], dc);
-
-    expect(ctx.fillText).toHaveBeenCalledWith('Checkpoint', 105, 207);
-    expect(ctx.fillText).toHaveBeenCalledWith('Kontrollpunkt', 305, 407);
-  });
-
-  it('anExpiredEffect-drawsNothing', () => {
-    const ctx = makeMockContext() as unknown as { fillText: ReturnType<typeof vi.fn> };
-    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
-    const expired = tickFadeOutTextEffect(
-      startFadeOutTextEffect('a', 0, 0, 'x'),
-      FADE_OUT_TEXT_DURATION_SECONDS + 1,
-    );
-
-    drawFadeOutTexts(ctx as unknown as CanvasRenderingContext2D, [expired], dc);
-
-    expect(ctx.fillText).not.toHaveBeenCalled();
-  });
-});
 
 /**
  * Records every assignment to a string property (e.g.
@@ -4373,65 +3998,3 @@ describe('drawTintedSprite', () => {
   });
 });
 
-describe('drawDebrisEffects', () => {
-  const LAYER_A = { sheet: '/sprites/a.png', sx: 4, sy: 6, width: 10, height: 6 };
-  const LAYER_B = { sheet: '/sprites/b.png', sx: 0, sy: 0, width: 16, height: 8 };
-  const imageA = { tag: 'a' } as unknown as HTMLImageElement;
-  const imageB = { tag: 'b' } as unknown as HTMLImageElement;
-
-  function makeDebrisContext(sprites: Record<string, HTMLImageElement> = {}) {
-    const ctx = makeMockContext();
-    const dc = makeDrawContext(ctx, { sprites: { ...sprites } });
-    return { ctx, dc };
-  }
-
-  it('eachLayerOwnRect-isQuarteredTLTRBLBRAndBlittedPerPiece', () => {
-    const { ctx, dc } = makeDebrisContext({ [LAYER_A.sheet]: imageA, [LAYER_B.sheet]: imageB });
-    const effect = startDebrisEffect('d1', 100, 200, [LAYER_A, LAYER_B]);
-
-    drawDebrisEffects(ctx, [effect], dc);
-
-    const calls = vi.mocked(ctx.drawImage).mock.calls;
-    expect(calls).toHaveLength(8);
-    // Layer A: 10x6 -> halves 5x3, offset within the layer 0/5 and 0/3.
-    expect(calls[0]).toEqual([imageA, 4, 6, 5, 3, 100, 200, 10, 6]);
-    expect(calls[1]).toEqual([imageA, 9, 6, 5, 3, 110, 200, 10, 6]);
-    expect(calls[2]).toEqual([imageA, 4, 9, 5, 3, 100, 206, 10, 6]);
-    expect(calls[3]).toEqual([imageA, 9, 9, 5, 3, 110, 206, 10, 6]);
-    // Layer B: 16x8 -> halves 8x4.
-    expect(calls[4]).toEqual([imageB, 0, 0, 8, 4, 100, 200, 16, 8]);
-    expect(calls[5]).toEqual([imageB, 8, 0, 8, 4, 116, 200, 16, 8]);
-    expect(calls[6]).toEqual([imageB, 0, 4, 8, 4, 100, 208, 16, 8]);
-    expect(calls[7]).toEqual([imageB, 8, 4, 8, 4, 116, 208, 16, 8]);
-  });
-
-  it('missingSheetImage-isSkippedWithoutThrowing', () => {
-    const { ctx, dc } = makeDebrisContext({ [LAYER_A.sheet]: imageA });
-    const effect = startDebrisEffect('d1', 0, 0, [LAYER_A, LAYER_B]);
-
-    expect(() => drawDebrisEffects(ctx, [effect], dc)).not.toThrow();
-    // Only layer A's four quarters were drawn.
-    expect(vi.mocked(ctx.drawImage).mock.calls).toHaveLength(4);
-  });
-
-  it('crumbleTwoLayerSource-keepsTheOriginalCropAndQuarterSizes', () => {
-    const ledgeImage = { tag: 'ledge' } as unknown as HTMLImageElement;
-    const crackImage = { tag: 'crack' } as unknown as HTMLImageElement;
-    const { ctx, dc } = makeDebrisContext({
-      '/sprites/crumble_floor.png': ledgeImage,
-      '/sprites/crumble_cracks.png': crackImage,
-    });
-    const effect = startDebrisEffect('d1', 32, 64, crumbleDebrisLayers());
-
-    drawDebrisEffects(ctx, [effect], dc);
-
-    const calls = vi.mocked(ctx.drawImage).mock.calls;
-    expect(calls).toHaveLength(8);
-    // Ledge layer: middle frame (sx 16), top 8 rows, quarters 8x4.
-    expect(calls[0]).toEqual([ledgeImage, 16, 0, 8, 4, 32, 64, 16, 8]);
-    expect(calls[3]).toEqual([ledgeImage, 24, 4, 8, 4, 48, 72, 16, 8]);
-    // Crack layer: heavy frame (sx 32), same 16x8 crop and quarter sizes.
-    expect(calls[4]).toEqual([crackImage, 32, 0, 8, 4, 32, 64, 16, 8]);
-    expect(calls[7]).toEqual([crackImage, 40, 4, 8, 4, 48, 72, 16, 8]);
-  });
-});

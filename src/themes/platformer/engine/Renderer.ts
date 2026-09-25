@@ -98,21 +98,9 @@ import {
 import type { CheckpointState } from '../entities/Checkpoint';
 import { frameSource } from '../entities/sprites/SpriteSheet';
 import { pulse } from '../shared/math';
+import { fillTextWithOutline, RESTART_PROMPT_FONT_FAMILY } from './textDraw';
 import type { FruitState } from '../entities/Fruit';
-import {
-  flightEffectPosition,
-  sparkleParticles,
-  healAuraOpacity,
-  healAuraRays,
-  healAuraSparkles,
-  hitSplatterDroplets,
-  fadeOutTextOpacity,
-  debrisPieces,
-} from './CollectionEffects';
-import type { FlightEffect, PuffEffect, HealAuraEffect, HitSplatterEffect, FadeOutTextEffect, ExplosionEffect, DebrisEffect } from './CollectionEffects';
-import { explosionFrameIndex } from './CollectionEffects';
-import { TORCH_SHEET, BOMB_SHEET, EXPLOSION_SHEET, CRUMBLE_FLOOR_SHEET, CRUMBLE_CRACKS_SHEET } from '../entities/sprites/sheets';
-import {
+import { TORCH_SHEET, BOMB_SHEET, CRUMBLE_FLOOR_SHEET, CRUMBLE_CRACKS_SHEET } from '../entities/sprites/sheets';import {
   crumblingFloorPhaseFor,
   crumblingFloorCrackRatioFor,
   crumblingFloorReformRatioFor,
@@ -1001,59 +989,6 @@ export function drawCrumblingFloors(
 }
 
 /**
- * Draws every falling debris piece (O-023 / O-027). For each effect, every art
- * layer's own source rect is quartered into a fixed TL, TR, BL, BR layout and
- * each quarter is blitted at the shared `debrisPieces` offset/opacity — so a
- * one-layer stalactite shatter and the two-layer crumbling floor break share
- * one implementation (SC-011). A missing sheet image is skipped without
- * throwing.
- */
-export function drawDebrisEffects(
-  ctx: CanvasRenderingContext2D,
-  effects: readonly DebrisEffect[],
-  dc: DrawContext,
-): void {
-  for (const effect of effects) {
-    const pieces = debrisPieces(effect);
-    for (const layer of effect.layers) {
-      const image = dc.sprites[layer.sheet];
-      if (!image) continue;
-      const halfW = Math.floor(layer.width / 2);
-      const halfH = Math.floor(layer.height / 2);
-      const quarters: readonly { sx: number; sy: number; width: number; height: number }[] = [
-        { sx: layer.sx, sy: layer.sy, width: halfW, height: halfH },
-        { sx: layer.sx + halfW, sy: layer.sy, width: layer.width - halfW, height: halfH },
-        { sx: layer.sx, sy: layer.sy + halfH, width: halfW, height: layer.height - halfH },
-        {
-          sx: layer.sx + halfW,
-          sy: layer.sy + halfH,
-          width: layer.width - halfW,
-          height: layer.height - halfH,
-        },
-      ];
-      for (let i = 0; i < pieces.length; i++) {
-        const piece = pieces[i];
-        if (piece.opacity <= 0) continue;
-        const quarter = quarters[i];
-        ctx.globalAlpha = piece.opacity;
-        ctx.drawImage(
-          image,
-          quarter.sx,
-          quarter.sy,
-          quarter.width,
-          quarter.height,
-          effect.x + dc.originX + (quarter.sx - layer.sx) * RENDER_SCALE + piece.dx,
-          effect.y + dc.originY + (quarter.sy - layer.sy) * RENDER_SCALE + piece.dy,
-          quarter.width * RENDER_SCALE,
-          quarter.height * RENDER_SCALE,
-        );
-      }
-    }
-  }
-  ctx.globalAlpha = 1;
-}
-
-/**
  * Draws the level's purely-decorative autotiled background mass (O-014) —
  * one atlas cell per non-empty background cell, same double-loop shape as
  * `drawTerrain`, same `originX`/`originY` scroll convention. Levels with no
@@ -1468,14 +1403,6 @@ export function drawIrisOverlay(
 
 const RESTART_PROMPT_TEXT = 'Press any button to restart';
 
-/**
- * Family name registered with `document.fonts` by engine/FontLoader.ts's
- * `loadFont` call (see PlatformerPage.tsx's mount effect) for
- * `RESTART_PROMPT_FONT_URL`. Kept alongside the draw call that uses it so
- * the loaded family name and the drawn family name can't drift apart.
- */
-export const RESTART_PROMPT_FONT_FAMILY = 'ByteBounce';
-
 /** Public path to the font file loaded for RESTART_PROMPT_FONT_FAMILY. */
 export const RESTART_PROMPT_FONT_URL = '/fonts/bytebounce.medium.ttf';
 
@@ -1840,45 +1767,6 @@ export function drawPlacedBombs(
   }
 }
 
-/**
- * Extra draw multiplier for the explosion. The native 48px frame at
- * `RENDER_SCALE` (2) is 96px; at 1.5× it draws at 144px (3× native), close to
- * the 5×5 blast footprint (`BLAST_RADIUS = 2` → 5 × 32px = 160px) while
- * keeping an integer native scale so the pixels stay even.
- */
-export const EXPLOSION_DRAW_SCALE = 1.5;
-
-/**
- * Draws every active explosion — the active sheet's frame at `renderScale 2`
- * scaled by `EXPLOSION_DRAW_SCALE`, centred on the effect's world point.
- * Purely cosmetic (FR-023).
- */
-export function drawExplosions(
-  ctx: CanvasRenderingContext2D,
-  explosions: readonly ExplosionEffect[],
-  dc: DrawContext,
-): void {
-  ctx.imageSmoothingEnabled = false;
-  const image = dc.sprites[EXPLOSION_SHEET.src];
-  if (!image) return;
-
-  const size = EXPLOSION_SHEET.frameWidth * RENDER_SCALE * EXPLOSION_DRAW_SCALE;
-  for (const effect of explosions) {
-    const { sx, sy } = frameSource(EXPLOSION_SHEET, explosionFrameIndex(effect));
-    ctx.drawImage(
-      image,
-      sx,
-      sy,
-      EXPLOSION_SHEET.frameWidth,
-      EXPLOSION_SHEET.frameHeight,
-      effect.x + dc.originX - size / 2,
-      effect.y + dc.originY - size / 2,
-      size,
-      size,
-    );
-  }
-}
-
 /** Draws every chest at its current open/closed sprite — each one renders
  *  itself (see entities/chests/Chest.ts). */
 export function drawChests(
@@ -2000,37 +1888,6 @@ export function drawCheckpoints(
   }
 }
 
-/** Font size of a fading world-anchored label — a touch smaller than the
- *  collection-effect text so it reads as localized rather than a reward. */
-const FADE_OUT_TEXT_FONT_SIZE = 16;
-
-/**
- * Draws every currently-fading world-anchored label in place (FR-022). Each
- * effect carries its own already-localized `text`, so this pass takes no
- * string argument — the checkpoint activation label is simply its first user.
- * World-space x/y are shifted by the camera origin; the fade opacity comes
- * from `fadeOutTextOpacity`, and an expired effect draws nothing.
- */
-export function drawFadeOutTexts(
-  ctx: CanvasRenderingContext2D,
-  effects: readonly FadeOutTextEffect[],
-  dc: DrawContext,
-): void {
-  for (const effect of effects) {
-    const opacity = fadeOutTextOpacity(effect.elapsed);
-    if (opacity <= 0) continue;
-
-    ctx.save();
-    ctx.globalAlpha = opacity;
-    ctx.fillStyle = '#fff';
-    ctx.font = `${FADE_OUT_TEXT_FONT_SIZE}px "${RESTART_PROMPT_FONT_FAMILY}", sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    fillTextWithOutline(ctx, effect.text, effect.x + dc.originX, effect.y + dc.originY);
-    ctx.restore();
-  }
-}
-
 /** Draws every question-mark block's spawned fruit — each one renders
  *  itself (see entities/pickups/Fruit.ts). */
 export function drawFruits(
@@ -2041,189 +1898,6 @@ export function drawFruits(
   ctx.imageSmoothingEnabled = false;
   for (const fruitState of fruits) {
     fruit.draw(fruitState, dc);
-  }
-}
-
-const COLLECTION_EFFECT_FONT_SIZE = 28;
-const COLLECTION_EFFECT_ICON_FONT_SIZE = 20;
-const COLLECTION_EFFECT_ICON_GAP = 6;
-const SPARKLE_RADIUS_PX = 3;
-/** Screen-px side of one pixel-art burst square (2 native px) and its warm
- *  gold colour — the pixel burst reads as a few crisp pixels rather than the
- *  soft white dots the enemy/block puffs use. */
-const SPARKLE_PIXEL_SIZE = 4;
-const SPARKLE_PIXEL_COLOR = '#ffe9a8';
-
-/** Draws one sparkle burst — a ring of small fading particles radiating
- *  outward from (x, y) — called only by drawPuffEffects (a standalone
- *  world-event puff, whose scale varies with the entity that caused it). A
- *  flight effect (drawCollectionEffects) shows only its flying text and never
- *  a sparkle — sparkle is exclusively PuffEffect's concern, decoupled from
- *  CV-fact collection. This stays the one place that draws a sparkle ring, so
- *  the visual can't drift if a future call site needs one too. `pixel` swaps
- *  the soft anti-aliased dots for small integer-aligned pixel squares; the
- *  checkpoint's activation burst uses it so it matches the game's pixel art. */
-function drawSparkleBurst(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  elapsedSinceCollect: number,
-  scale = 1,
-  pixel = false,
-): void {
-  const particles = sparkleParticles(elapsedSinceCollect, scale);
-  if (pixel) {
-    const half = SPARKLE_PIXEL_SIZE / 2;
-    ctx.save();
-    ctx.imageSmoothingEnabled = false;
-    ctx.fillStyle = SPARKLE_PIXEL_COLOR;
-    for (const sparkle of particles) {
-      ctx.globalAlpha = sparkle.opacity;
-      ctx.fillRect(
-        Math.round(x + sparkle.dx - half),
-        Math.round(y + sparkle.dy - half),
-        SPARKLE_PIXEL_SIZE,
-        SPARKLE_PIXEL_SIZE,
-      );
-    }
-    ctx.restore();
-    return;
-  }
-  for (const sparkle of particles) {
-    ctx.save();
-    ctx.globalAlpha = sparkle.opacity;
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.arc(x + sparkle.dx, y + sparkle.dy, SPARKLE_RADIUS_PX * scale, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-  }
-}
-
-export function drawCollectionEffects(ctx: CanvasRenderingContext2D, effects: FlightEffect[]): void {
-  for (const effect of effects) {
-    const { x, y, opacity } = flightEffectPosition(effect);
-    if (opacity > 0) {
-      ctx.save();
-      ctx.globalAlpha = opacity;
-      ctx.fillStyle = '#fff';
-      ctx.font = `${COLLECTION_EFFECT_FONT_SIZE}px "${RESTART_PROMPT_FONT_FAMILY}", sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      fillTextWithOutline(ctx, effect.text, x, y);
-
-      // Drawn as a SEPARATE fillText, in a plain system font (not the pixel
-      // font above) — a custom @font-face has no emoji glyphs, and canvas
-      // text doesn't fall back to a system emoji font mid-string the way
-      // DOM text does, so an emoji baked into `effect.text` silently didn't
-      // render. Positioned just left of the text using the text's measured
-      // half-width, rather than baked into one centered string.
-      if (effect.icon) {
-        const textHalfWidth = ctx.measureText(effect.text).width / 2;
-        ctx.font = `${COLLECTION_EFFECT_ICON_FONT_SIZE}px sans-serif`;
-        ctx.textAlign = 'right';
-        ctx.fillText(effect.icon, x - textHalfWidth - COLLECTION_EFFECT_ICON_GAP, y);
-      }
-      ctx.restore();
-    }
-  }
-}
-
-/** Draws every currently-animating world-event puff (see B-003 /
- *  CollectionEffects.ts's PuffEffect doc comment) — screen-space, same
- *  no-camera-offset convention as drawCollectionEffects. */
-export function drawPuffEffects(ctx: CanvasRenderingContext2D, effects: PuffEffect[]): void {
-  for (const effect of effects) {
-    drawSparkleBurst(ctx, effect.x, effect.y, effect.elapsed, effect.scale, effect.pixel);
-  }
-}
-
-/**
- * Draws every active heal aura — a soft golden glow, a handful of rising
- * light rays, and a few sparkle motes, all anchored at (anchorX, anchorY)
- * and sized relative to `width` (the player's own rendered width, so the
- * effect hugs the player rather than spreading across the screen — see
- * CollectionEffects.ts's HealAuraEffect doc comment). The caller re-derives
- * the anchor from the live player position every frame, unlike
- * drawPuffEffects's fixed per-effect x/y. Every part shares the same fade
- * curve (healAuraOpacity), so an expired effect (opacity 0) draws nothing.
- */
-export function drawHealAuraEffects(
-  ctx: CanvasRenderingContext2D,
-  effects: readonly HealAuraEffect[],
-  anchorX: number,
-  anchorY: number,
-  width: number,
-): void {
-  for (const effect of effects) {
-    const opacity = healAuraOpacity(effect.elapsed);
-    if (opacity <= 0) continue;
-
-    const glowRadius = width * 0.9;
-    ctx.save();
-    ctx.globalAlpha = opacity;
-    const glow = ctx.createRadialGradient(anchorX, anchorY, 0, anchorX, anchorY, glowRadius);
-    glow.addColorStop(0, 'rgba(255,224,120,0.9)');
-    glow.addColorStop(0.5, 'rgba(255,200,60,0.4)');
-    glow.addColorStop(1, 'rgba(255,200,60,0)');
-    ctx.fillStyle = glow;
-    ctx.beginPath();
-    ctx.arc(anchorX, anchorY, glowRadius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-
-    for (const ray of healAuraRays(effect.elapsed, width)) {
-      ctx.save();
-      ctx.globalAlpha = opacity;
-      const rayGradient = ctx.createLinearGradient(
-        anchorX + ray.dx,
-        anchorY,
-        anchorX + ray.dx,
-        anchorY - ray.height,
-      );
-      rayGradient.addColorStop(0, 'rgba(255,230,140,0.95)');
-      rayGradient.addColorStop(1, 'rgba(255,230,140,0)');
-      ctx.fillStyle = rayGradient;
-      ctx.fillRect(anchorX + ray.dx - 1, anchorY - ray.height, 2, ray.height);
-      ctx.restore();
-    }
-
-    for (const sparkle of healAuraSparkles(effect.elapsed, width)) {
-      ctx.save();
-      ctx.globalAlpha = opacity;
-      ctx.fillStyle = '#fff8d6';
-      ctx.beginPath();
-      ctx.arc(anchorX + sparkle.dx, anchorY + sparkle.dy, 2, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    }
-  }
-}
-
-const HIT_SPLATTER_DROPLET_SIZE_PX = 4;
-
-/** Draws every active hit splatter — one small filled square per droplet,
- *  colored per-effect (red for the player, goo-green/purple for an enemy —
- *  see CollectionEffects.ts's startPlayerHitSplatter/startEnemyHitSplatter).
- *  Screen-space, fixed per-effect x/y, same convention as drawPuffEffects. */
-export function drawHitSplatterEffects(
-  ctx: CanvasRenderingContext2D,
-  effects: readonly HitSplatterEffect[],
-): void {
-  for (const effect of effects) {
-    for (const droplet of hitSplatterDroplets(effect)) {
-      if (droplet.opacity <= 0) continue;
-      ctx.save();
-      ctx.globalAlpha = droplet.opacity;
-      ctx.fillStyle = effect.color;
-      ctx.fillRect(
-        effect.x + droplet.dx - HIT_SPLATTER_DROPLET_SIZE_PX / 2,
-        effect.y + droplet.dy - HIT_SPLATTER_DROPLET_SIZE_PX / 2,
-        HIT_SPLATTER_DROPLET_SIZE_PX,
-        HIT_SPLATTER_DROPLET_SIZE_PX,
-      );
-      ctx.restore();
-    }
   }
 }
 
@@ -2286,110 +1960,6 @@ export function drawLowHealthGlow(
   ctx.fillRect(0, canvasHeight - w, canvasWidth, w);
 
   ctx.restore();
-}
-
-/** Outline color used behind every "collected" HUD counter's text below —
- *  matches ControlsOverlay.tsx's DOM `textShadow` treatment (four 1px
- *  diagonal offsets in the same semi-transparent black), reproduced here via
- *  four offset fillText calls since canvas has no CSS text-shadow equivalent.
- *  Without it, the counters' plain white text is easy to lose against
- *  lighter terrain/sky backgrounds. */
-const COUNTER_TEXT_OUTLINE_COLOR = 'rgba(0,0,0,0.8)';
-
-/** Draws `text` with a 1px outline in every diagonal direction before the
- *  final fill, so the caller's already-set fillStyle/font/textAlign/
- *  textBaseline are used for both the outline and the fill — callers must
- *  set those on `ctx` before calling this, exactly as they would before a
- *  plain `ctx.fillText`. */
-function fillTextWithOutline(ctx: CanvasRenderingContext2D, text: string, x: number, y: number): void {
-  const fillStyle = ctx.fillStyle;
-  ctx.fillStyle = COUNTER_TEXT_OUTLINE_COLOR;
-  ctx.fillText(text, x - 1, y - 1);
-  ctx.fillText(text, x + 1, y - 1);
-  ctx.fillText(text, x - 1, y + 1);
-  ctx.fillText(text, x + 1, y + 1);
-  ctx.fillStyle = fillStyle;
-  ctx.fillText(text, x, y);
-}
-
-const COUNTER_POPUP_ICON_SIZE = 28;
-const COUNTER_POPUP_FONT_SIZE = 24;
-const COUNTER_POPUP_TEXT_GAP = 6;
-// Horizontal gap between two side-by-side popups (e.g. a coin popup and a
-// fruit popup both showing at once) — wider than COUNTER_POPUP_TEXT_GAP
-// (which separates an icon from ITS OWN text) so the two units read as
-// clearly separate, not one run-on row.
-const COUNTER_POPUP_ITEM_GAP = 20;
-
-export interface CounterPopupDrawItem {
-  icon: HTMLImageElement;
-  iconFrame: { sx: number; sy: number; size: number };
-  collected: number;
-  total: number;
-  opacity: number;
-  // Nudges only the icon (never the text) vertically from its default
-  // centered position — same purpose, and same default, as
-  // drawCollectibleCounter's iconYOffset above: Enemy.ts's slime frames are
-  // bottom-anchored (no transparent padding below the feet), which reads as
-  // sitting too low next to this popup's text otherwise.
-  iconYOffset?: number;
-}
-
-/**
- * Draws every currently-visible "(icon) collected / total" counter popup
- * (see CollectionEffects.ts's CounterPopupEffect) side by side, the whole
- * row horizontally centered at a caller-chosen fixed screen position, above
- * the fact-flight text's stacked slots — see PlatformerPage.tsx for where
- * that position comes from and why there can be more than one: each
- * collectible type gets its own independent slot, so collecting a coin and
- * a fruit close together shows both at once. Measures
- * every item's text width up front to center the WHOLE row as a group,
- * rather than centering each item independently (which would just stack
- * them concentrically instead of laying them out left to right). */
-export function drawCounterPopups(
-  ctx: CanvasRenderingContext2D,
-  items: CounterPopupDrawItem[],
-  centerX: number,
-  y: number,
-): void {
-  const visible = items.filter((item) => item.opacity > 0);
-  if (visible.length === 0) return;
-
-  ctx.font = `${COUNTER_POPUP_FONT_SIZE}px "${RESTART_PROMPT_FONT_FAMILY}", monospace`;
-  const itemWidths = visible.map(
-    (item) => COUNTER_POPUP_ICON_SIZE + COUNTER_POPUP_TEXT_GAP + ctx.measureText(`${item.collected} / ${item.total}`).width,
-  );
-  const totalWidth =
-    itemWidths.reduce((sum, w) => sum + w, 0) + COUNTER_POPUP_ITEM_GAP * (visible.length - 1);
-
-  let cursorX = centerX - totalWidth / 2;
-  visible.forEach((item, i) => {
-    const { icon, iconFrame, collected, total, opacity, iconYOffset = 0 } = item;
-    const text = `${collected} / ${total}`;
-    ctx.save();
-    ctx.globalAlpha = opacity;
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(
-      icon,
-      iconFrame.sx,
-      iconFrame.sy,
-      iconFrame.size,
-      iconFrame.size,
-      cursorX,
-      y - COUNTER_POPUP_ICON_SIZE / 2 + iconYOffset,
-      COUNTER_POPUP_ICON_SIZE,
-      COUNTER_POPUP_ICON_SIZE,
-    );
-
-    ctx.fillStyle = '#fff';
-    ctx.font = `${COUNTER_POPUP_FONT_SIZE}px "${RESTART_PROMPT_FONT_FAMILY}", monospace`;
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'middle';
-    fillTextWithOutline(ctx, text, cursorX + COUNTER_POPUP_ICON_SIZE + COUNTER_POPUP_TEXT_GAP, y);
-    ctx.restore();
-
-    cursorX += itemWidths[i] + COUNTER_POPUP_ITEM_GAP;
-  });
 }
 
 // Matches HEART_RENDERED_SIZE so the coin/fruit counter icons read as the
@@ -2548,7 +2118,7 @@ export function chestCounterWidth(ctx: CanvasRenderingContext2D, collected: numb
 /** Horizontal screen position for the key counter — placed just to the right
  *  of the chest counter's actual measured width, same HUD row, separated by
  *  the same HUD_GROUP_GAP the hearts→chest gap uses. Callers (both
- *  PlatformerPage.tsx's render loop and its key-collection flight-effect
+ *  PlatformerPage.tsx's render loop and its key-collection flying-text effect
  *  target) must call this with the CURRENT chest collected/total — it is a
  *  function, not a static constant, precisely because that width isn't
  *  fixed. */
