@@ -59,7 +59,8 @@ export function torchLightSource(torch: TorchLight, worldElapsed: number): Light
 `entities/Torch.ts` exports `TorchLight` (`col`, `row`, `x`, `y`, `strength`), the torch light
 constants (`TORCH_LIGHT_RADIUS_PX`, `TORCH_PULSE_AMPLITUDE`, `TORCH_PULSE_PERIOD_SECONDS`,
 `TORCH_GLOW_COLOR`), and the helpers (`torchPulseScale`, `torchLightRadius`, `torchGlowStrengthAt`)
-moved from `engine/Lighting.ts` (X5). It must reach only `shared/math.ts` plus
+moved from `engine/Lighting.ts` (X5); `torchGlowStrengthAt` delegates to `shared/math.ts`'s
+`radialFalloffAt` rather than re-inlining the falloff. It must reach only `shared/math.ts` plus
 `contracts/lighting.ts` — no `level/` or `engine/` edge (FR-017; Story 3 scenario 4).
 
 ---

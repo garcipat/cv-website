@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { clamp01, smoothstep, lerp, hash2D, pulse, shakeOffsetX } from './math';
+import { clamp01, smoothstep, lerp, hash2D, pulse, shakeOffsetX, radialFalloffAt } from './math';
 
 /** The former inline `clamp01` bodies this module replaces. */
 const legacyClamp = (x: number) => Math.max(0, Math.min(1, x));
@@ -143,6 +143,54 @@ describe('pulse', () => {
 
   it('phaseThreeQuarters-returnsMinusOne', () => {
     expect(pulse(0.75)).toBeCloseTo(-1);
+  });
+});
+
+/** The former inline radial falloff in `engine/Lighting.ts` (torch/player). */
+const legacyRadialFalloffAt = (
+  x: number,
+  y: number,
+  centerX: number,
+  centerY: number,
+  radius: number,
+) => {
+  if (radius <= 0) return 0;
+  const distance = Math.hypot(x - centerX, y - centerY);
+  if (distance >= radius) return 0;
+  return legacySmoothstep(1 - distance / radius);
+};
+
+describe('radialFalloffAt', () => {
+  it('atTheCentre-returnsFullStrength', () => {
+    expect(radialFalloffAt(10, 20, 10, 20, 50)).toBe(1);
+  });
+
+  it('atOrBeyondTheRadius-returnsZero', () => {
+    expect(radialFalloffAt(60, 20, 10, 20, 50)).toBe(0);
+    expect(radialFalloffAt(110, 20, 10, 20, 50)).toBe(0);
+  });
+
+  it('nonPositiveRadius-returnsZero', () => {
+    expect(radialFalloffAt(10, 20, 10, 20, 0)).toBe(0);
+    expect(radialFalloffAt(10, 20, 10, 20, -4)).toBe(0);
+  });
+
+  it('halfwayOut-returnsHalf', () => {
+    expect(radialFalloffAt(35, 20, 10, 20, 50)).toBeCloseTo(0.5);
+  });
+
+  it('anyInput-isByteEqualToTheFormerInlineFormula', () => {
+    const cases = [
+      [10, 20, 10, 20, 50],
+      [35, 20, 10, 20, 50],
+      [59.999, 20, 10, 20, 50],
+      [60, 20, 10, 20, 50],
+      [0, 0, 3, 4, 10],
+      [3, 4, 3, 4, 0],
+    ] as const;
+    for (const [x, y, cx, cy, r] of cases) {
+      expect(radialFalloffAt(x, y, cx, cy, r)).toBe(legacyRadialFalloffAt(x, y, cx, cy, r));
+    }
   });
 });
 

@@ -58,6 +58,13 @@ Declares `x`/`y` inline rather than `extends Point` so `entities/Torch.ts` never
 
 ## 3. Light-kind modules after R-003
 
+### `shared/math.ts` (MODIFIED — one falloff implementation)
+
+Adds `radialFalloffAt(x, y, centerX, centerY, radius): number` — the single falloff
+(`radius <= 0 → 0`, `distance >= radius → 0`, else `smoothstep(1 - distance/radius)`) consumed by
+`localDarknessAt`, `torchGlowStrengthAt`, and `playerGlowStrengthAt`, so no per-kind copy of the
+formula survives (FR-010). It is a leaf primitive alongside `smoothstep`/`hash2D`.
+
 ### `entities/Torch.ts` (MODIFIED — absorbs finding X5)
 
 | Symbol | Kind | Origin |
@@ -76,10 +83,13 @@ Declares `x`/`y` inline rather than `extends Point` so `entities/Torch.ts` never
 | --- | --- | --- |
 | `PlayerState`, animation/physics player helpers | existing | stays |
 | `PLAYER_LIGHT_RADIUS_PX`, `PLAYER_GLOW_COLOR`, `PLAYER_GLOW_INTENSITY` | constants | moved from `engine/Lighting.ts` |
-| `playerGlowStrengthAt(x, y, light: Point)` | function | moved from `engine/Lighting.ts` |
-| `HELD_TORCH_SCALE`, `HELD_TORCH_OFFSET_X`, `HELD_TORCH_OFFSET_Y`, `HELD_TORCH_ALPHA` | constants | moved from `engine/Renderer.ts` |
-| `heldTorchPlacement(player): { centerX; topY; width; height }` | function | **new shared geometry** (FR-004) |
+| `playerGlowStrengthAt(x, y, light: Point)` | function | moved from `engine/Lighting.ts`; delegates to `shared/math.ts`'s `radialFalloffAt` |
+| `HELD_TORCH_SCALE`, `HELD_TORCH_OFFSET_X`, `HELD_TORCH_OFFSET_Y` | constants | moved from `engine/Renderer.ts` (draw-only `HELD_TORCH_ALPHA` stays there) |
+| `heldTorchPlacement(player): { centerX; topY; width; height }` | function | **new shared geometry** (FR-004); `centerX` = mirrored flame centre, `width`/`height` from `TORCH_FRAME_WIDTH`/`TORCH_FRAME_HEIGHT` (`./Torch`) |
 | `playerLightSource(player): LightSource` | function | **new adapter** (FR-004), replaces `heldTorchLightPosition` |
+
+`HELD_TORCH_ALPHA` is **not** part of the shared geometry — it is a draw-only concern and remains in
+`engine/Renderer.ts`.
 
 ### `engine/Lighting.ts` (MODIFIED — keeps only non-kind math)
 
@@ -141,6 +151,9 @@ signal unchanged in shape; no signal, level, or marker data is added or migrated
 | --- | --- | --- |
 | `entities/Torch.ts → contracts/lighting.ts` | down | **new**, legal |
 | `entities/Player.ts → contracts/lighting.ts` | down | **new**, legal |
+| `entities/Player.ts → entities/Torch.ts` | same layer | **new** (`TORCH_FRAME_WIDTH`/`TORCH_FRAME_HEIGHT` for `heldTorchPlacement`), legal |
+| `entities/Player.ts → shared/math.ts` | down | **new** (`playerGlowStrengthAt` → `radialFalloffAt`), legal |
+| `engine/Lighting.ts → shared/math.ts` | down | **new** (`localDarknessAt` → `radialFalloffAt`), legal |
 | `engine/Lighting.ts → contracts/lighting.ts` | down | **new**, legal |
 | `engine/Renderer.ts → entities/Player.ts` | down | **new** (held-torch geometry), legal |
 | `engine/Lighting.ts → entities/Torch.ts` | down | **removed** (torch formula left); the reverse (`entities/ → engine/`) is forbidden and never introduced |

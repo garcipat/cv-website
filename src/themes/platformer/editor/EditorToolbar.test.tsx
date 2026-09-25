@@ -44,7 +44,6 @@ vi.mock('../engine/Renderer', () => ({
   drawEnemyEyes: vi.fn(),
   drawHeldTorch: vi.fn(),
   drawCrumblingFloors: vi.fn(),
-  heldTorchLightPosition: vi.fn(() => ({ x: 0, y: 0 })),
 }));
 
 beforeEach(() => {

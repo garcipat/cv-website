@@ -65,8 +65,9 @@ export function localDarknessAt(
 ```
 
 - **Dropped**: `torches`, `worldElapsed`, `playerLight`.
-- Computes each light's contribution from `light.radius` via the shared `smoothstep` falloff
-  (`1` at centre → `0` at the radius, `0` beyond), takes the **maximum** (never a sum), and returns
+- Computes each light's contribution from `light.radius` via the shared
+  `shared/math.ts` `radialFalloffAt` primitive (`1` at centre → `0` at the radius, `0` beyond),
+  takes the **maximum** (never a sum), and returns
   `Math.max(0, Math.min(darknessLevel, darknessLevel - strongest))`.
 - With no lights it returns `darknessLevel` unchanged.
 - Ignores `punchHole`: a glow-only light still illuminates (Story 1 scenario 5/SC-003).

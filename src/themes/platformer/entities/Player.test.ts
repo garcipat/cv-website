@@ -15,8 +15,18 @@ import {
   isPlayerBlinkVisible,
   hitFrameFromTimer,
   PLAYER_HIT_REACTION_SECONDS,
+  playerGlowStrengthAt,
+  PLAYER_LIGHT_RADIUS_PX,
+  PLAYER_GLOW_COLOR,
+  PLAYER_GLOW_INTENSITY,
+  heldTorchPlacement,
+  HELD_TORCH_SCALE,
+  HELD_TORCH_OFFSET_X,
+  HELD_TORCH_OFFSET_Y,
+  playerLightSource,
 } from './Player';
 import type { PlayerState } from './Player';
+import { TORCH_FRAME_WIDTH, TORCH_FRAME_HEIGHT, TORCH_LIGHT_RADIUS_PX } from './Torch';
 import type { Moving, SelfAnimated, Damageable } from '../contracts/capabilities';
 import { isInvulnerable } from '../contracts/capabilities';
 import { resolveCrouching } from '../engine/Crouch';
@@ -616,5 +626,94 @@ describe('crouch pose (US4)', () => {
     const player = idlePlayer({ animState: 'crouch', vx: 120, animFrame: 0, animTimer: 0 });
     const next = advancePlayerAnimation(player, 1);
     expect(next.animFrame).not.toBe(0);
+  });
+});
+
+describe('playerGlowStrengthAt', () => {
+  const light = { x: 50, y: 60 };
+
+  it('playerLightRadius-isPositiveAndSmallerThanATorch', () => {
+    expect(PLAYER_LIGHT_RADIUS_PX).toBeGreaterThan(0);
+    expect(PLAYER_LIGHT_RADIUS_PX).toBeLessThan(TORCH_LIGHT_RADIUS_PX);
+  });
+
+  it('atThePlayerCentre-isFullStrength', () => {
+    expect(playerGlowStrengthAt(light.x, light.y, light)).toBe(1);
+  });
+
+  it('atOrBeyondTheRadius-isZero', () => {
+    expect(playerGlowStrengthAt(light.x + PLAYER_LIGHT_RADIUS_PX, light.y, light)).toBe(0);
+    expect(playerGlowStrengthAt(light.x + PLAYER_LIGHT_RADIUS_PX * 2, light.y, light)).toBe(0);
+  });
+
+  it('falloff-isSmoothAndMonotonicFromCentreToEdge', () => {
+    const near = playerGlowStrengthAt(light.x + PLAYER_LIGHT_RADIUS_PX * 0.25, light.y, light);
+    const mid = playerGlowStrengthAt(light.x + PLAYER_LIGHT_RADIUS_PX * 0.5, light.y, light);
+    const far = playerGlowStrengthAt(light.x + PLAYER_LIGHT_RADIUS_PX * 0.9, light.y, light);
+
+    expect(near).toBeGreaterThan(mid);
+    expect(mid).toBeGreaterThan(far);
+  });
+});
+
+describe('heldTorchPlacement', () => {
+  it('rightFacing-sitsToTheRightOfThePlayerCentre', () => {
+    const placement = heldTorchPlacement(idlePlayer({ x: 100, y: 100 }));
+    const slotCentre = 100 + PLAYER_RENDERED_SIZE / 2;
+
+    expect(placement.centerX).toBeGreaterThan(slotCentre);
+    expect(placement.centerX).toBe(slotCentre + HELD_TORCH_OFFSET_X + placement.width / 2);
+  });
+
+  it('leftFacing-mirrorsToTheLeftOfThePlayerCentre', () => {
+    const base = idlePlayer({ x: 100, y: 100 });
+    const right = heldTorchPlacement(base);
+    const left = heldTorchPlacement({ ...base, direction: 'left' });
+    const slotCentre = 100 + PLAYER_RENDERED_SIZE / 2;
+
+    expect(left.centerX).toBeLessThan(slotCentre);
+    expect(slotCentre - left.centerX).toBeCloseTo(right.centerX - slotCentre);
+  });
+
+  it('ownsTheTorchFrameGeometryAndVerticalOffset', () => {
+    const placement = heldTorchPlacement(idlePlayer({ x: 100, y: 100 }));
+
+    expect(placement.width).toBe(TORCH_FRAME_WIDTH * HELD_TORCH_SCALE);
+    expect(placement.height).toBe(TORCH_FRAME_HEIGHT * HELD_TORCH_SCALE);
+    expect(placement.topY).toBe(100 + HELD_TORCH_OFFSET_Y);
+  });
+});
+
+describe('playerLightSource', () => {
+  it('carriesThePlayersRadiusColourMidStopAndIntensity', () => {
+    const light = playerLightSource(idlePlayer({ x: 100, y: 100 }));
+
+    expect(light.radius).toBe(PLAYER_LIGHT_RADIUS_PX);
+    expect(light.color).toBe(PLAYER_GLOW_COLOR);
+    expect(light.glowMidAlpha).toBe(0.3);
+    expect(light.intensity).toBe(PLAYER_GLOW_INTENSITY);
+    expect(light.punchHole).toBe(true);
+  });
+
+  it('isCentredOnTheHeldTorch', () => {
+    const player = idlePlayer({ x: 100, y: 100 });
+    const placement = heldTorchPlacement(player);
+    const light = playerLightSource(player);
+
+    expect(light.x).toBe(placement.centerX);
+    expect(light.y).toBe(placement.topY + placement.height / 2);
+  });
+
+  it('heldTorchDrawAndLight-shareOneGeometry', () => {
+    // The drawn flame's centre and the light's centre must be the same point,
+    // mirrored identically, so they cannot drift (SC-007). A left-facing
+    // player's light sits on the mirrored flame centre, to the left of the
+    // render-slot centre.
+    const right = idlePlayer({ x: 100, y: 100, direction: 'right' });
+    const left = { ...right, direction: 'left' as const };
+
+    expect(playerLightSource(right).x).toBe(heldTorchPlacement(right).centerX);
+    expect(playerLightSource(left).x).toBe(heldTorchPlacement(left).centerX);
+    expect(playerLightSource(left).x).toBeLessThan(100 + PLAYER_RENDERED_SIZE / 2);
   });
 });

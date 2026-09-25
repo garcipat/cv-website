@@ -55,6 +55,7 @@ rg "torchLightRadius|torchPulseScale|torchGlowStrengthAt|TORCH_GLOW_COLOR" src/t
 rg "PLAYER_LIGHT_RADIUS_PX|PLAYER_GLOW_COLOR|PLAYER_GLOW_INTENSITY" src/themes/platformer         # entities/Player.ts only
 rg "heldTorchLightPosition" src/themes/platformer                                                  # no matches (deleted)
 rg "heldTorchPlacement" src/themes/platformer                                                      # Player.ts defines; Renderer.ts consumes
+rg "radialFalloffAt" src/themes/platformer                                                          # shared/math.ts defines; Lighting/Torch/Player consume (one falloff, FR-010)
 ```
 
 **Layer invariants (FR-017; R-001):**

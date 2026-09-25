@@ -80,7 +80,7 @@ single `readonly LightSource[]`; `engine/Lighting.ts` keeps only the non-light-k
 ```mermaid
 flowchart TB
   subgraph shared["shared/ — pure leaf"]
-    MATH["shared/math.ts<br/>clamp01 · smoothstep · hash2D · pulse"]
+    MATH["shared/math.ts<br/>clamp01 · smoothstep · radialFalloffAt · hash2D · pulse"]
   end
 
   subgraph contracts["contracts/ — leaf"]
@@ -114,6 +114,7 @@ flowchart TB
 
   TORCH --> MATH
   TORCH --> CLIGHT
+  PLAYER --> TORCH
   PLAYER --> MATH
   PLAYER --> CLIGHT
   PLAYER --> TERRAIN
@@ -152,7 +153,8 @@ gain the moved light code (the tables below spell out exactly what moves).
 | `TorchLight` descriptor + torch light radius/pulse/glow (`torchLightRadius`, `torchPulseScale`, `torchGlowStrengthAt`, `TORCH_*`) | `engine/Lighting.ts` | **`entities/Torch.ts`** (X5) |
 | `torchLightSource(torch, worldElapsed)` adapter | — | **`entities/Torch.ts`** |
 | Player light constants (`PLAYER_LIGHT_RADIUS_PX`, `PLAYER_GLOW_COLOR`, `PLAYER_GLOW_INTENSITY`) + `playerGlowStrengthAt` | `engine/Lighting.ts` | **`entities/Player.ts`** |
-| `heldTorchLightPosition` (+ held-torch geometry) | `engine/Renderer.ts` | **`entities/Player.ts`** (player `LightSource` adapter) |
+| `heldTorchLightPosition` (+ held-torch offsets/scale geometry) | `engine/Renderer.ts` | **`entities/Player.ts`** (player `LightSource` adapter + `heldTorchPlacement`); `HELD_TORCH_ALPHA` stays in `engine/Renderer.ts` (draw-only) |
+| Radial falloff (`smoothstep(1 - distance/radius)`) | duplicated in `engine/Lighting.ts` (torch + player probes) | **`shared/math.ts`** `radialFalloffAt`, delegated to by `localDarknessAt`/`torchGlowStrengthAt`/`playerGlowStrengthAt` |
 | `drawDarkness` / `drawEnemyEyes` light inputs | `torches` + `playerLight` | one `readonly LightSource[]` |
 | `localDarknessAt` | torch/player kind max | max over `LightSource[]` |
 | `drawDarkness` / `localDarknessAt` `worldElapsed` | used | dropped (radius resolved by adapters) |
@@ -162,7 +164,10 @@ gain the moved light code (the tables below spell out exactly what moves).
 **Edges that disappear:** `engine/Lighting.ts → entities/Torch.ts` (the torch formula no longer
 lives there) and `engine/Renderer.ts` owning the player light. **Edges that appear:**
 `entities/Torch.ts → contracts/lighting.ts`, `entities/Player.ts → contracts/lighting.ts`,
-`engine/Lighting.ts → contracts/lighting.ts`, and the app/editor consumers →
+`engine/Lighting.ts → contracts/lighting.ts`, `entities/Player.ts → entities/Torch.ts`
+(`TORCH_FRAME_WIDTH`/`TORCH_FRAME_HEIGHT` for the shared held-torch geometry),
+`entities/Player.ts → shared/math.ts` and `engine/Lighting.ts → shared/math.ts`
+(`radialFalloffAt`), and the app/editor consumers →
 `entities/Torch.ts` / `entities/Player.ts` adapters.
 
 ## Layer invariants the graph must keep (R-001)

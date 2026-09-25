@@ -1,6 +1,9 @@
 import { RENDER_SCALE, RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { Moving, SelfAnimated, Damageable } from '../contracts/capabilities';
 import { isInvulnerable } from '../contracts/capabilities';
+import { TORCH_FRAME_WIDTH, TORCH_FRAME_HEIGHT } from './Torch';
+import type { LightSource } from '../contracts/lighting';
+import { radialFalloffAt } from '../shared/math';
 
 export const PLAYER_FRAME_SIZE = 32;
 export const PLAYER_RENDERED_SIZE = PLAYER_FRAME_SIZE * RENDER_SCALE;
@@ -483,4 +486,88 @@ export const PLAYER_BLINK_INTERVAL_SECONDS = 0.1;
  */
 export function isPlayerBlinkVisible(hitTimer: number): boolean {
   return Math.floor(hitTimer / PLAYER_BLINK_INTERVAL_SECONDS) % 2 === 1;
+}
+
+/** Radius of the player's own carried light, in rendered pixels — deliberately
+ *  much smaller than a wall torch's so torches stay the landmarks (FR-023). */
+export const PLAYER_LIGHT_RADIUS_PX = 1.75 * RENDERED_TILE_SIZE;
+
+/** The player's own carried glow — a touch more orange and less yellow than the
+ *  wall torches', and softer overall (FR-023). */
+export const PLAYER_GLOW_COLOR = 'rgb(255, 145, 45)';
+
+/** How strong the player's warm glow is relative to a torch's (FR-023). */
+export const PLAYER_GLOW_INTENSITY = 0.7;
+
+/**
+ * The player's own carried light at `(x, y)` in `[0, 1]`: `1` at the light's
+ * centre, falling smoothly to `0` at `PLAYER_LIGHT_RADIUS_PX`. Steady rather
+ * than pulsing, so the player's readability never flickers (FR-023/FR-024).
+ * Delegates the falloff to `shared/math.ts`'s `radialFalloffAt` so the formula
+ * has one implementation (FR-010).
+ */
+export function playerGlowStrengthAt(
+  x: number,
+  y: number,
+  light: { x: number; y: number },
+): number {
+  return radialFalloffAt(x, y, light.x, light.y, PLAYER_LIGHT_RADIUS_PX);
+}
+
+/** The held torch's size multiplier (native px → drawn px) and where it sits
+ *  relative to the player's render-slot centre for a right-facing player
+ *  (mirrored when facing left). Small and tucked against the character's hand;
+ *  tuned by eye. Owned by the player module so the drawn flame and the
+ *  player's carried light share one geometry (FR-004/SC-007). */
+export const HELD_TORCH_SCALE = 1.25;
+export const HELD_TORCH_OFFSET_X = 0;
+export const HELD_TORCH_OFFSET_Y = 30;
+
+/**
+ * Where the player's held torch sits in world space — the shared geometry the
+ * held-torch draw and the player's carried light both read, so they cannot
+ * drift (FR-004/SC-007). `centerX` is the **flame/image centre** (mirrored with
+ * `player.direction`); callers derive their draw origin from it
+ * (`centerX - width / 2` for the right-facing left edge, `centerX + width / 2`
+ * as the mirror anchor for a left-facing draw). `topY` is the image's top edge.
+ * Pure and never throws.
+ */
+export function heldTorchPlacement(player: PlayerState): {
+  centerX: number;
+  topY: number;
+  width: number;
+  height: number;
+} {
+  const width = TORCH_FRAME_WIDTH * HELD_TORCH_SCALE;
+  const height = TORCH_FRAME_HEIGHT * HELD_TORCH_SCALE;
+  const centerX = player.x + PLAYER_RENDERED_SIZE / 2;
+  return {
+    centerX:
+      player.direction === 'left'
+        ? centerX - HELD_TORCH_OFFSET_X - width / 2
+        : centerX + HELD_TORCH_OFFSET_X + width / 2,
+    topY: player.y + HELD_TORCH_OFFSET_Y,
+    width,
+    height,
+  };
+}
+
+/**
+ * The player's `LightSource` adapter (FR-004) — the player implements the same
+ * render contract as the torch, centred on the held torch so the glow sits on
+ * the flame rather than on the character. Replaces the renderer's old
+ * held-torch position helper. Steady (no `worldElapsed`); `intensity: 0.7` and
+ * `glowMidAlpha: 0.3` reproduce the player's softer glow.
+ */
+export function playerLightSource(player: PlayerState): LightSource {
+  const { centerX, topY, height } = heldTorchPlacement(player);
+  return {
+    x: centerX,
+    y: topY + height / 2,
+    radius: PLAYER_LIGHT_RADIUS_PX,
+    color: PLAYER_GLOW_COLOR,
+    intensity: PLAYER_GLOW_INTENSITY,
+    glowMidAlpha: 0.3,
+    punchHole: true,
+  };
 }

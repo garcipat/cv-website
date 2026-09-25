@@ -56,6 +56,7 @@ import {
   climbFrameSource,
   hitFrameFromTimer,
   HIT_RED_FRAME_INDEX,
+  heldTorchPlacement,
 } from '../entities/Player';
 import type { PlayerState } from '../entities/Player';
 import {
@@ -127,13 +128,9 @@ import {
   TORCH_INSET_X,
   torchFrameIndex,
 } from '../entities/Torch';
-import type { Point, TorchLight } from './Lighting';
+import type { Point } from './Lighting';
+import type { LightSource } from '../contracts/lighting';
 import {
-  PLAYER_LIGHT_RADIUS_PX,
-  TORCH_GLOW_COLOR,
-  PLAYER_GLOW_COLOR,
-  PLAYER_GLOW_INTENSITY,
-  torchLightRadius,
   localDarknessAt,
   enemyEyeOpacity,
   enemyEyeBobOffset,
@@ -280,29 +277,32 @@ export function drawWaterForeground(
 }
 
 /**
- * Draws the cave-darkness overlay and the torch light pools that punch back
- * through it, over the whole play canvas. This is the one pass that maps torch
- * world positions to canvas coordinates (same `originX`/`originY` convention
- * as `drawTerrain`/`drawPlayer`), so light pools scroll with the camera
- * (FR-012).
+ * Draws the cave-darkness overlay and the light pools that punch back through
+ * it, over the whole play canvas. This is the one pass that maps light world
+ * positions to canvas coordinates (same `originX`/`originY` convention as
+ * `drawTerrain`/`drawPlayer`), so light pools scroll with the camera (FR-012).
  *
- * Full-brightness fast path (research D10 / SC-005): when `darknessLevel <= 0`
- * this draws nothing at all, so a level with no cave pieces renders exactly as
- * it did before this feature. Otherwise:
+ * Full-brightness fast path (FR-008 / research D10 / SC-005): when
+ * `darknessLevel <= 0` this draws nothing at all. Otherwise:
  *
  * 1. The reusable offscreen `layer` (owned and sized by `PlatformerPage.tsx`)
  *    is cleared and filled with `rgba(0, 0, 0, darknessLevel)`.
- * 2. For each torch whose glow can intersect the viewport, a soft
- *    `destination-out` radial gradient erases a light hole at the torch's
- *    screen position, radius `torchLightRadius`.
+ * 2. **One punch loop** (`destination-out`): for every visible light whose
+ *    `punchHole` is true, a soft radial gradient erases a hole at the light's
+ *    screen position, radius `light.radius * zoom`.
  * 3. The layer is composited onto `ctx` with `source-over`.
- * 4. Each torch then gets a smaller additive (`lighter`) warm gradient whose
- *    radius stays inside the erased hole and whose alpha scales with
- *    `darknessLevel`, so the pool reads warm without tinting the surrounding
- *    darkness (FR-008/FR-009/FR-010/FR-013/FR-014).
+ * 4. **One glow loop** (`lighter`): every visible light gets a smaller warm
+ *    gradient (radius `light.radius * zoom * 0.7`, `globalAlpha =
+ *    darknessLevel * light.intensity`, stops `light.color` /
+ *    `withAlpha(light.color, light.glowMidAlpha)` / `withAlpha(light.color, 0)`),
+ *    so the pool reads warm without tinting the surrounding darkness
+ *    (FR-005/FR-006).
  *
- * When `playerLight` is given, the player's own smaller, steadier carried
- * light is punched and warmed the same way (FR-023/FR-024).
+ * The two loops replace the old four near-duplicated per-kind blocks, so a
+ * torch, the player's carried light, and any future emitter are all just data
+ * in `lights` (SC-001/SC-003). `withAlpha` derives the `rgba(r, g, b, α)` stops
+ * from the light's opaque `rgb(r, g, b)` base so the exact gradient strings are
+ * preserved.
  *
  * `zoom` scales every world-space position and radius before adding the
  * (unscaled) origin — callers that run this at identity transform (not inside
@@ -317,11 +317,9 @@ export function drawDarkness(
   canvasWidth: number,
   canvasHeight: number,
   darknessLevel: number,
-  torches: readonly TorchLight[] = [],
+  lights: readonly LightSource[] = [],
   originX = 0,
   originY = 0,
-  worldElapsed = 0,
-  playerLight: Point | null = null,
   zoom = 1,
 ): void {
   if (darknessLevel <= 0) return;
@@ -335,12 +333,12 @@ export function drawDarkness(
   layerCtx.fillStyle = `rgba(0, 0, 0, ${darknessLevel})`;
   layerCtx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-  // Only torches whose glow can touch the viewport do any work — this keeps
-  // the pass O(visible torches) however many the level holds (SC-006).
-  const visibleTorches = torches.filter((torch) => {
-    const radius = torchLightRadius(torch, worldElapsed) * zoom;
-    const screenX = torch.x * zoom + originX;
-    const screenY = torch.y * zoom + originY;
+  // Only lights whose glow can touch the viewport do any work — this keeps
+  // the pass O(visible lights) however many the level holds (FR-008).
+  const visibleLights = lights.filter((light) => {
+    const radius = light.radius * zoom;
+    const screenX = light.x * zoom + originX;
+    const screenY = light.y * zoom + originY;
     return (
       screenX + radius >= 0 &&
       screenX - radius <= canvasWidth &&
@@ -349,10 +347,13 @@ export function drawDarkness(
     );
   });
 
-  for (const torch of visibleTorches) {
-    const screenX = torch.x * zoom + originX;
-    const screenY = torch.y * zoom + originY;
-    const radius = torchLightRadius(torch, worldElapsed) * zoom;
+  // One punch loop: every punching light erases a soft radial hole before the
+  // layer is composited.
+  for (const light of visibleLights) {
+    if (!light.punchHole) continue;
+    const screenX = light.x * zoom + originX;
+    const screenY = light.y * zoom + originY;
+    const radius = light.radius * zoom;
 
     // A soft radial hole: opaque at the centre, transparent at the edge, so
     // the world underneath shows through with no hard rim (FR-009).
@@ -365,76 +366,44 @@ export function drawDarkness(
     layerCtx.arc(screenX, screenY, radius, 0, Math.PI * 2);
     layerCtx.fill();
   }
-
-  const playerScreenX = playerLight ? playerLight.x * zoom + originX : 0;
-  const playerScreenY = playerLight ? playerLight.y * zoom + originY : 0;
-  const playerLightRadius = PLAYER_LIGHT_RADIUS_PX * zoom;
-  if (playerLight) {
-    // The player's own smaller pool, steadier than a torch's (FR-023).
-    layerCtx.globalCompositeOperation = 'destination-out';
-    const hole = layerCtx.createRadialGradient(
-      playerScreenX,
-      playerScreenY,
-      0,
-      playerScreenX,
-      playerScreenY,
-      playerLightRadius,
-    );
-    hole.addColorStop(0, 'rgba(0, 0, 0, 1)');
-    hole.addColorStop(1, 'rgba(0, 0, 0, 0)');
-    layerCtx.fillStyle = hole;
-    layerCtx.beginPath();
-    layerCtx.arc(playerScreenX, playerScreenY, playerLightRadius, 0, Math.PI * 2);
-    layerCtx.fill();
-  }
   layerCtx.globalCompositeOperation = 'source-over';
 
   ctx.drawImage(layer, 0, 0, canvasWidth, canvasHeight);
 
-  for (const torch of visibleTorches) {
-    const screenX = torch.x * zoom + originX;
-    const screenY = torch.y * zoom + originY;
-    const radius = torchLightRadius(torch, worldElapsed) * zoom;
+  // One glow loop: every visible light — punching or glow-only — adds its own
+  // warm additive gradient.
+  for (const light of visibleLights) {
+    const screenX = light.x * zoom + originX;
+    const screenY = light.y * zoom + originY;
+    const radius = light.radius * zoom;
     // Stays comfortably inside the erased hole so the warm tone never bleeds
     // onto the darkened area.
     const glowRadius = radius * 0.7;
 
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
-    ctx.globalAlpha = darknessLevel;
+    ctx.globalAlpha = darknessLevel * light.intensity;
     const glow = ctx.createRadialGradient(screenX, screenY, 0, screenX, screenY, glowRadius);
-    glow.addColorStop(0, TORCH_GLOW_COLOR);
-    glow.addColorStop(0.55, 'rgba(255, 176, 74, 0.35)');
-    glow.addColorStop(1, 'rgba(255, 176, 74, 0)');
+    glow.addColorStop(0, light.color);
+    glow.addColorStop(0.55, withAlpha(light.color, light.glowMidAlpha));
+    glow.addColorStop(1, withAlpha(light.color, 0));
     ctx.fillStyle = glow;
     ctx.beginPath();
     ctx.arc(screenX, screenY, glowRadius, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }
+}
 
-  if (playerLight) {
-    const glowRadius = playerLightRadius * 0.7;
-    ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.globalAlpha = darknessLevel * PLAYER_GLOW_INTENSITY;
-    const glow = ctx.createRadialGradient(
-      playerScreenX,
-      playerScreenY,
-      0,
-      playerScreenX,
-      playerScreenY,
-      glowRadius,
-    );
-    glow.addColorStop(0, PLAYER_GLOW_COLOR);
-    glow.addColorStop(0.55, 'rgba(255, 145, 45, 0.3)');
-    glow.addColorStop(1, 'rgba(255, 145, 45, 0)');
-    ctx.fillStyle = glow;
-    ctx.beginPath();
-    ctx.arc(playerScreenX, playerScreenY, glowRadius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-  }
+/**
+ * Derives an `rgba(r, g, b, alpha)` string from an opaque `'rgb(r, g, b)'`
+ * base. The substitution keeps the output byte-equal to the literal stops the
+ * old per-kind glow blocks used (e.g. `rgb(255, 176, 74)` →
+ * `rgba(255, 176, 74, 0.35)`), so the generic glow loop preserves each light's
+ * gradient exactly (FR-006).
+ */
+function withAlpha(color: string, alpha: number): string {
+  return color.replace('rgb(', 'rgba(').replace(')', `, ${alpha})`);
 }
 
 /**
@@ -508,11 +477,10 @@ export function drawEnemyEyes(
   ctx: CanvasRenderingContext2D,
   enemies: readonly EnemyState[],
   darknessLevel: number,
-  torches: readonly TorchLight[],
+  lights: readonly LightSource[],
   worldElapsed: number,
   originX = 0,
   originY = 0,
-  playerLight: Point | null = null,
 ): void {
   if (darknessLevel <= 0) return;
 
@@ -526,7 +494,7 @@ export function drawEnemyEyes(
     const box = typeOf(enemy).box(enemy);
     const anchorX = box.x + box.width / 2;
     const anchorY = box.y + box.height / 2;
-    const localDarkness = localDarknessAt(anchorX, anchorY, darknessLevel, torches, worldElapsed, playerLight);
+    const localDarkness = localDarknessAt(anchorX, anchorY, darknessLevel, lights);
     const opacity = enemyEyeOpacity(localDarkness);
     if (opacity <= 0) continue;
 
@@ -1358,35 +1326,12 @@ export function drawPlayer(
   );
 }
 
-/** The held torch's size multiplier (native px → drawn px) and where it sits
- *  relative to the player's render-slot centre for a right-facing player
- *  (mirrored when facing left). Small and tucked against the character's hand;
- *  tuned by eye. */
-const HELD_TORCH_SCALE = 1.25;
-const HELD_TORCH_OFFSET_X = 0;
-const HELD_TORCH_OFFSET_Y = 30;
 /** The held torch is drawn a little translucent so its bright flame doesn't
- *  glare yellow against the dark (FR-025). */
+ *  glare yellow against the dark (FR-025). The offset/scale geometry it shares
+ *  with the player's carried light now lives in `entities/Player.ts`
+ *  (`heldTorchPlacement`), so the drawn flame and the light cannot drift
+ *  (FR-004/SC-007). */
 const HELD_TORCH_ALPHA = 0.8;
-
-/**
- * The world-space centre of the player's held torch — where the player's own
- * carried light sits, so the glow is centered on the flame rather than on the
- * character (FR-023). Mirrors with the player's facing.
- */
-export function heldTorchLightPosition(player: PlayerState): Point {
-  const width = TORCH_FRAME_WIDTH * HELD_TORCH_SCALE;
-  const height = TORCH_FRAME_HEIGHT * HELD_TORCH_SCALE;
-  const centerX = player.x + PLAYER_RENDERED_SIZE / 2;
-  const torchCenterX =
-    player.direction === 'left'
-      ? centerX - HELD_TORCH_OFFSET_X - width / 2
-      : centerX + HELD_TORCH_OFFSET_X + width / 2;
-  return {
-    x: torchCenterX,
-    y: player.y + HELD_TORCH_OFFSET_Y + height / 2,
-  };
-}
 
 /**
  * Draws the very small torch the player carries, but only while standing or
@@ -1394,6 +1339,12 @@ export function heldTorchLightPosition(player: PlayerState): Point {
  * torches' own flame frames so the style matches (FR-028), mirrored to face
  * the player's direction. Drawn with the player, before the darkness overlay,
  * so the player's own light reveals it.
+ *
+ * The placement comes from `entities/Player.ts`'s `heldTorchPlacement(player)`
+ * — the same geometry the player's `LightSource` adapter reads — so the flame
+ * and its light cannot drift (SC-007). `centerX` is the flame/image centre, so
+ * the image's left edge is `centerX - width / 2` for a right-facing player and
+ * the mirror anchor is `centerX + width / 2` for a left-facing one.
  */
 export function drawHeldTorch(
   ctx: CanvasRenderingContext2D,
@@ -1409,28 +1360,17 @@ export function drawHeldTorch(
   if (player.animState !== 'walk' && player.animState !== 'idle') return;
 
   const { sx, sy } = frameSource(TORCH_SHEET, torchFrameIndex(0, 0, worldElapsed));
-  const width = TORCH_FRAME_WIDTH * HELD_TORCH_SCALE;
-  const height = TORCH_FRAME_HEIGHT * HELD_TORCH_SCALE;
-  const centerX = player.x + originX + PLAYER_RENDERED_SIZE / 2;
-  const topY = player.y + originY + HELD_TORCH_OFFSET_Y;
+  const { centerX, topY, width, height } = heldTorchPlacement(player);
+  const drawCenterX = centerX + originX;
+  const drawTopY = topY + originY;
 
   ctx.save();
   ctx.imageSmoothingEnabled = false;
   ctx.globalAlpha = HELD_TORCH_ALPHA;
   if (player.direction === 'left') {
-    ctx.translate(centerX, topY);
+    ctx.translate(drawCenterX + width / 2, drawTopY);
     ctx.scale(-1, 1);
-    ctx.drawImage(
-      torchSheet,
-      sx,
-      sy,
-      TORCH_FRAME_WIDTH,
-      TORCH_FRAME_HEIGHT,
-      HELD_TORCH_OFFSET_X,
-      0,
-      width,
-      height,
-    );
+    ctx.drawImage(torchSheet, sx, sy, TORCH_FRAME_WIDTH, TORCH_FRAME_HEIGHT, 0, 0, width, height);
   } else {
     ctx.drawImage(
       torchSheet,
@@ -1438,8 +1378,8 @@ export function drawHeldTorch(
       sy,
       TORCH_FRAME_WIDTH,
       TORCH_FRAME_HEIGHT,
-      centerX + HELD_TORCH_OFFSET_X,
-      topY,
+      drawCenterX - width / 2,
+      drawTopY,
       width,
       height,
     );

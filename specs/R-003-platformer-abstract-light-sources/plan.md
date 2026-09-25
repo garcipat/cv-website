@@ -76,12 +76,18 @@ gradient creation. No formula output changes.
   collapse, the torch/player adapter extractions, the `playerLight` → `LightSource` widening, the
   dropped `worldElapsed` parameters, and the torch-light/player-light moves (spec Assumptions).
 - **Layer invariants** (R-001): `contracts/lighting.ts` is a strict leaf; no `entities/ → engine/`;
-  no `level/ → engine/`; no `engine/ → state`; `engine/Lighting.ts` stays pure and DOM-free.
+  no `level/ → engine/`; no `engine/ → state`; `engine/Lighting.ts` stays pure and DOM-free. The
+  move adds one legal same-layer edge, `entities/Player.ts → entities/Torch.ts` (the held-torch
+  frame dimensions `TORCH_FRAME_WIDTH`/`TORCH_FRAME_HEIGHT`), which neither direction of R-001's
+  forbidden edges covers.
+- **One falloff formula** — `shared/math.ts`'s `radialFalloffAt` is the single implementation;
+  `localDarknessAt`, `torchGlowStrengthAt`, and `playerGlowStrengthAt` all delegate to it (FR-010),
+  so the retained per-kind helpers are wrappers, not a second copy of the math.
 - **One home per concept** — no compatibility re-export that preserves the old `torchPositions` /
   `TorchLight` / `heldTorchLightPosition` paths.
 - **No gameplay, balance, visual, or level-data change** (spec Out of Scope).
 
-**Scale/Scope**: 4 user stories, ~8 production modules touched, 6 test files migrated. The largest
+**Scale/Scope**: 4 user stories, ~8 production modules touched, 8 test files migrated. The largest
 single change is the `drawDarkness` four-block → two-loop collapse; the mechanical majority is
 import retargeting.
 
@@ -143,10 +149,12 @@ src/themes/platformer/
 │   ├── caveLightingPreview.ts      # MODIFIED — returns { darknessLevel, lights: LightSource[] }
 │   ├── caveLightingPreview.test.ts # MODIFIED — torches/playerLight assertions become lights
 │   ├── EditorCanvas.tsx            # MODIFIED — passes preview.lights to both passes; zoom-only drawDarkness
-│   └── EditorCanvas.test.tsx       # MODIFIED — Renderer mock drops heldTorchLightPosition
+│   ├── EditorCanvas.test.tsx       # MODIFIED — Renderer mock drops heldTorchLightPosition; light-call expectations updated
+│   ├── EditorToolbar.test.tsx      # MODIFIED — Renderer mock drops heldTorchLightPosition
+│   └── LevelEditorPage.test.tsx    # MODIFIED — Renderer mock drops heldTorchLightPosition
 ├── PlatformerState.ts              # MODIFIED — torchPositions imports TorchLight from entities/Torch
-├── PlatformerPage.tsx              # MODIFIED — assembles LightSource[] per frame (FR-019); drops heldTorchLightPosition
-└── PlatformerPage.test.tsx         # MODIFIED — import/mock retargets only (verification)
+└── PlatformerPage.tsx              # MODIFIED — assembles LightSource[] per frame (FR-019); drops heldTorchLightPosition
+                                    # (PlatformerPage.test.tsx unchanged — imports only unchanged HUD constants from Renderer)
 ```
 
 **Structure Decision**: The single-project platformer tree is retained. The one new module is

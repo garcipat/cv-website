@@ -33,7 +33,6 @@ vi.mock('../engine/Renderer', () => ({
   drawEnemyEyes: vi.fn(),
   drawHeldTorch: vi.fn(),
   drawCrumblingFloors: vi.fn(),
-  heldTorchLightPosition: vi.fn(() => ({ x: 0, y: 0 })),
 }));
 
 import {
@@ -2007,22 +2006,27 @@ describe('EditorCanvas — cave lighting preview (O-015 US3)', () => {
       expect.any(Number),
       expect.any(Number),
       EDITOR_PREVIEW_DARKNESS,
-      expect.arrayContaining([expect.objectContaining({ col: 2, row: 0 })]),
+      expect.arrayContaining([
+        expect.objectContaining({
+          radius: expect.any(Number),
+          color: expect.any(String),
+          punchHole: true,
+        }),
+      ]),
       expect.any(Number),
       expect.any(Number),
-      0,
-      expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }),
       1,
     );
     expect(drawEnemyEyes).toHaveBeenCalledWith(
       expect.anything(),
       expect.any(Array),
       EDITOR_PREVIEW_DARKNESS,
-      expect.any(Array),
+      expect.arrayContaining([
+        expect.objectContaining({ radius: expect.any(Number), color: expect.any(String) }),
+      ]),
       0,
       expect.any(Number),
       expect.any(Number),
-      expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }),
     );
     expect(drawHeldTorch).toHaveBeenCalledWith(
       expect.anything(),
@@ -2063,8 +2067,6 @@ describe('EditorCanvas — cave lighting preview (O-015 US3)', () => {
       expect.any(Array),
       40, // raw panOffset.x, NOT 40 / 0.5
       20, // raw panOffset.y, NOT 20 / 0.5
-      0,
-      expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }),
       0.5,
     );
   });
@@ -2094,7 +2096,6 @@ describe('EditorCanvas — cave lighting preview (O-015 US3)', () => {
       0,
       80, // 40 / 0.5
       40, // 20 / 0.5
-      expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }),
     );
   });
 
@@ -2114,8 +2115,6 @@ describe('EditorCanvas — cave lighting preview (O-015 US3)', () => {
       expect.any(Array),
       40,
       20,
-      0,
-      expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }),
       1,
     );
   });
