@@ -16,9 +16,12 @@ effect collection, the game tick, the draw pass, or reset code (FR-002/FR-020).
 | The single collection + state-owned `spawnEffect` | `src/themes/platformer/PlatformerState.ts` |
 
 The subsystem imports `contracts/`, `shared/`, `entities/`, and
-`engine/textDraw` only — never state, and never `level/` *state* (`RENDER_SCALE`
-from `level/Terrain` is an allowed, pre-existing `engine/ → level/` constant
-import already used by `Renderer.ts`).
+`engine/textDraw` only — never state, never app/i18n state, and never `level/`
+*state* (`RENDER_SCALE` from `level/Terrain` is an allowed, pre-existing
+`engine/ → level/` constant import already used by `Renderer.ts`). A localized
+effect like the speech bubble must carry its resolved text on its own `state`
+(the page resolves it and refreshes it on a language change), so the engine
+never reaches into the app's translation state.
 
 ## The shape of an effect
 
@@ -36,14 +39,34 @@ export interface TransientEffect<S = unknown> {
 ```
 
 - `tick` returns the next effect, the same reference for a no-op, or **`null`**
-  to signal "drop now" (the counter popup's sentinel). Six families use
+  to signal "drop now" (the counter popup's sentinel; the speech bubble returns
+  it when its exit completes). Six families use
   `defaultTick` (`{ ...effect, elapsed: elapsed + dt }`).
 - `expired` is the family's exact boundary. The default is strictly past the
   duration (`effect.elapsed > effect.duration`, never `>=`); `flyingText` overrides
-  it with `phase === 'done'`.
+  it with `phase === 'done'`, and `speechBubble` overrides it with `() => false`
+  so only its own phase machine ends it.
 - `draw` renders into the shared `EffectRenderContext` (`ctx`, `dc`,
   `canvasWidth`/`canvasHeight`, `playerAnchor`, `popupIcons`, and the live
   `effects` collection for sibling-dependent layouts).
+
+### The speech bubble: a constant-keyed singleton
+
+The `speechBubble` kind (`engine/effects/speechBubble.ts`) shows the generic
+message bubble above the player's head. Two properties are worth copying when a
+new effect needs them:
+
+- **One slot, not many.** Its registry `keyOf` returns the constant
+  `'speechBubble'`, so spawning a new bubble replaces the existing one in place
+  instead of queueing a second. The trigger site still decides *whether* to
+  spawn, restart, or no-op by comparing the current bubble's `messageId`/`phase`.
+- **The effect carries its resolved localized text.** `SpeechBubbleState` holds
+  both the `messageId` and the already-resolved `text` string. The page resolves
+  it from the derived hint-text signal when the bubble spawns and, at the top of
+  the render loop, rewrites that one effect's stored `text` **only when it
+  differs** — so a live bubble follows a language switch with no steady-state
+  collection write. The draw reads `effect.state.text`; the render context
+  carries no text lookup.
 
 ## Step 1 — write the module
 
@@ -63,7 +86,7 @@ Append an entry to `EFFECT_REGISTRY` in `effectRegistry.ts`, **in declaration or
 
 ```ts
 widen({
-  kind: 'poisonGas',            // one of the closed EffectKind set
+  kind: 'poisonGas',            // one of the extensible EffectKind set
   create: startPoisonGasEffect,
   tick: tickPoisonGasEffect,    // omit to use the default advance
   draw: drawPoisonGasEffect,
@@ -75,15 +98,29 @@ widen({
 ```
 
 - **`layer`** picks the pipeline depth. `drawEffects` is invoked once per layer
-  by `PlatformerPage.tsx`: `midWorld` (heal aura), `worldEffects` (flyingText, puff,
-  debris, hitSplatter, fadeOutText), `aboveWorld` (explosion), `hudLast`
+  by `PlatformerPage.tsx`: `midWorld` (heal aura), `worldEffects` (speechBubble,
+  flyingText, puff, debris, hitSplatter, fadeOutText), `aboveWorld` (explosion), `hudLast`
   (counter popups). Choose the depth the effect must render at.
 - **`resetScope`** declares the per-kind reset policy. `'death'` kinds are
   cleared by `resetGame()` (death/respawn); `'progress'` kinds only by a full
-  `resetGameProgress()`. Only `fadeOutText` is `'death'`.
+  `resetGameProgress()`. `fadeOutText` and `speechBubble` are `'death'`.
 - **`keyOf`** declares a keyed slot: `spawnEffect` replaces any existing effect
   with the same `(kind, key)` instead of appending (counter popups key by
   `labelKey`). Omit it for append-only kinds.
+
+## Not every timed visual is an effect
+
+Some platformer timers are **grid-cell-keyed timed tiles**, not transient
+effects — the bouncy-mushroom cap squash is the reference example
+(`entities/blocks/Mushroom.ts`). They share `shared/timedTile.ts`'s
+arm/advance/prune scaffolding, but their state is a `{ col, row, elapsed }`
+entry per cell (not a `TransientEffect` with an `id`/`kind`/`draw`) and they are
+**never** registered in `EFFECT_REGISTRY`. They have no `EffectKind`, are not
+advanced by `advanceEffects`, are not drawn by `drawEffects`, and are not
+touched by the effect reset scopes; the terrain draw reads the dip from the same
+state array the state layer advances. Use an effect only when the thing must be
+drawn through the layer dispatch; use a keyed timed tile when a tile's own
+renderer owns the visual and the state is purely per-cell.
 
 ## What you never touch
 

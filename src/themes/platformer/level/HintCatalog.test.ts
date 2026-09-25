@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { HINT_IDS, DEFAULT_HINT_ID, hintCode, nextHintId, isHintId } from './HintCatalog';
+import {
+  HINT_IDS,
+  DEFAULT_HINT_ID,
+  hintCode,
+  nextHintId,
+  isSignHintId,
+  type SignHintId,
+  type BubbleMessageId,
+} from './HintCatalog';
 
 describe('HintCatalog', () => {
   it('HINT_IDS-preservesTheOldDigitOrder', () => {
@@ -29,11 +37,27 @@ describe('HintCatalog', () => {
     expect(nextHintId('bomb')).toBe('bridgeDropThrough');
   });
 
-  it('isHintId-acceptsEveryRegisteredHintAndRejectsEverythingElse', () => {
-    for (const id of HINT_IDS) expect(isHintId(id)).toBe(true);
-    expect(isHintId('noKeyForChest')).toBe(false);
-    expect(isHintId('notAHint')).toBe(false);
-    expect(isHintId(undefined)).toBe(false);
-    expect(isHintId(3)).toBe(false);
+  it('isSignHintId-acceptsEveryRegisteredHintAndRejectsEverythingElse', () => {
+    for (const id of HINT_IDS) expect(isSignHintId(id)).toBe(true);
+    expect(isSignHintId('noKeyForChest')).toBe(false);
+    expect(isSignHintId('noBombs')).toBe(false);
+    expect(isSignHintId('notAHint')).toBe(false);
+    expect(isSignHintId(undefined)).toBe(false);
+    expect(isSignHintId(3)).toBe(false);
+  });
+
+  it('signHintIdsAreAssignableToBubbleMessageIds', () => {
+    const signHint: SignHintId = 'bridgeDropThrough';
+    const bubbleMessage: BubbleMessageId = signHint;
+    expect(bubbleMessage).toBe('bridgeDropThrough');
+  });
+
+  it('uiOnlyMessagesAreNotSignHintIds', () => {
+    // A UI-only bubble message is a valid BubbleMessageId but must fail to
+    // type-check as a SignHintId — the whole point of splitting the old mixed
+    // sign-or-bubble id union (FR-007).
+    // @ts-expect-error noKeyForChest is a bubble-only message, not a sign hint
+    const uiOnly: SignHintId = 'noKeyForChest';
+    expect(uiOnly).toBe('noKeyForChest');
   });
 });

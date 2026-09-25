@@ -9,12 +9,12 @@ import {
   resetGameProgress,
   collectedFacts,
   activeJournalSection,
-  hintTooltipState,
   collectiblePlacements,
   enemyPlacements,
   enemyStates,
   collectedCollectibleIds,
   activeEffects,
+  refreshSpeechBubbleText,
   blockPlacements,
   chestPlacements,
   chestStates,
@@ -59,7 +59,7 @@ import {
   hazardPlacements,
   hazardPlacementsForTick,
 } from './PlatformerState';
-import { MUSHROOM_SQUASH_DURATION_SECONDS } from './engine/MushroomSquash';
+import { MUSHROOM_SQUASH_DURATION_SECONDS } from './entities/blocks/Mushroom';
 import { FLOOR_SPIKE_CYCLE_SECONDS } from './entities/hazards/FloorSpike';
 import type { CollectedFact } from './types';
 import { mapCVDataToEnemies } from './level/EnemyMapper';
@@ -67,9 +67,13 @@ import { toBlockState } from './entities/Block';
 import { computePotRenderPlan } from './entities/blocks/potRenderPlan';
 import { BLOCK_TYPES } from './entities/blocks';
 import { PHYSICS_CONFIG } from './contracts/PhysicsConfig';
-import { currentCV } from '@/state/locale';
+import { changeLocale, currentCV } from '@/state/locale';
 import { MAX_HALF_HEARTS } from './entities/Health';
 import { tileToPixel, RENDERED_TILE_SIZE } from './level/Terrain';
+import { startSpeechBubble } from './engine/effects';
+import type { SpeechBubbleState } from './engine/effects';
+import { hintText } from './state/hintText';
+
 import { LEVEL_1_LAYOUT, LEVEL_1_BACKGROUND, LEVEL_1_MARKERS } from './level/level';
 import {
   SPAWN_TILE,
@@ -119,6 +123,12 @@ import { MAX_DARKNESS, DARKNESS_FADE_SECONDS, playerOccupiedCell } from './engin
 /** The live collection narrowed to one effect kind. */
 const effectsOfKind = <S,>(kind: EffectKind): readonly TransientEffect<S>[] =>
   activeEffects.value.filter((effect) => effect.kind === kind) as readonly TransientEffect<S>[];
+
+/** The single live speech bubble (R-005), kind-filtered from the collection. */
+const speechBubble = (): TransientEffect<SpeechBubbleState> | undefined =>
+  activeEffects.value.find(
+    (effect): effect is TransientEffect<SpeechBubbleState> => effect.kind === 'speechBubble',
+  );
 
 function collectedFactFixture(): CollectedFact {
   return { id: 'f1', sectionId: 'skills', sectionLabel: 'Skills', data: { category: 'Test', skills: [] }, sourceType: 'coin' };
@@ -418,16 +428,18 @@ describe('PlatformerState', () => {
       expect(cameraPositionY.value).toBe(0);
     });
 
-    it('calledWhileHintTooltipVisible-clearsHintTooltipState', () => {
+    it('calledWhileSpeechBubbleVisible-clearsItFromActiveEffects', () => {
       // Regression test: a sign's hint bubble used to freeze on screen
       // through the death animation, the awaitingRestart wait, and (since
       // resetGame() never cleared it) flash once more at the new spawn
       // point before the game-loop's own tick logic finally cleared it.
-      hintTooltipState.value = { hintId: 'bridgeDropThrough', phase: 'shown', elapsed: 0 };
+      activeEffects.value = [
+        startSpeechBubble('bridgeDropThrough', 'Hold Down to drop through a bridge.'),
+      ];
 
       resetGame();
 
-      expect(hintTooltipState.value).toBeNull();
+      expect(speechBubble()).toBeUndefined();
     });
 
     it('calledWhileCrouched-returnsTheCharacterStanding', () => {
@@ -573,13 +585,55 @@ describe('activeJournalSection', () => {
   });
 });
 
-describe('hintTooltipState', () => {
+describe('refreshSpeechBubbleText', () => {
   afterEach(() => {
-    hintTooltipState.value = null;
+    activeEffects.value = [];
+    changeLocale('en');
   });
 
-  it('initialValue-onModuleLoad-isNull', () => {
-    expect(hintTooltipState.value).toBeNull();
+  it('noActiveBubble-leavesTheCollectionUntouched', () => {
+    const puff = startPuffEffect('p', 0, 0);
+    activeEffects.value = [puff];
+
+    refreshSpeechBubbleText();
+
+    expect(activeEffects.value).toEqual([puff]);
+    expect(activeEffects.value[0]).toBe(puff);
+  });
+
+  it('bubbleWithMatchingText-leavesTheCollectionReferenceUnchanged', () => {
+    activeEffects.value = [startSpeechBubble('noBombs', hintText.value.noBombs)];
+    const before = activeEffects.value;
+
+    refreshSpeechBubbleText();
+
+    // No steady-state collection write when the stored text already matches.
+    expect(activeEffects.value).toBe(before);
+  });
+
+  it('bubbleWithStaleText-rewritesOnlyThatEffect', () => {
+    const other = startPuffEffect('p', 0, 0);
+    const bubble = startSpeechBubble('noBombs', 'stale');
+    activeEffects.value = [bubble, other];
+
+    refreshSpeechBubbleText();
+
+    expect(activeEffects.value[1]).toBe(other);
+    const updated = speechBubble()!;
+    expect(updated).not.toBe(bubble);
+    expect(updated.state.text).toBe(hintText.value.noBombs);
+  });
+
+  it('languageChange-rewritesTheStoredTextToTheNewLocale', () => {
+    activeEffects.value = [
+      startSpeechBubble('bridgeDropThrough', 'Hold Down to drop through a bridge.'),
+    ];
+
+    changeLocale('de');
+    refreshSpeechBubbleText();
+
+    expect(speechBubble()?.state.text).not.toBe('Hold Down to drop through a bridge.');
+    expect(speechBubble()?.state.messageId).toBe('bridgeDropThrough');
   });
 });
 

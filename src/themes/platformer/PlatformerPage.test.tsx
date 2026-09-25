@@ -36,7 +36,6 @@ import {
   endingScreenOpen,
   controlsOverlayDismissed,
   signPlacements,
-  hintTooltipState,
   keyPickupStates,
   collectedKeys,
   heartPickupStates,
@@ -73,6 +72,7 @@ import type {
   FlyingTextState,
   HitSplatterState,
   PuffState,
+  SpeechBubbleState,
   TransientEffect,
 } from './engine/effects';
 import type { CounterPopupLabelKey } from './contracts/counters';
@@ -100,7 +100,8 @@ import { tileToPixel, RENDERED_TILE_SIZE, isClimbable, tileAt } from './level/Te
 import { SCRATCH_LAYOUT } from './level/level';
 import { mapCVDataToEnemies } from './level/EnemyMapper';
 import { mapCVDataToBlocks } from './level/BlockMapper';
-import { currentCV } from '@/state/locale';
+import { changeLocale, currentCV } from '@/state/locale';
+import { de } from '@/i18n/translations';
 import {
   currentLevel,
   currentLayout,
@@ -135,6 +136,10 @@ const popupFor = (labelKey: CounterPopupLabelKey): TransientEffect<CounterPopupS
 
 const counterPopups = (): readonly TransientEffect<CounterPopupState>[] =>
   effectsOfKind<CounterPopupState>('counterPopup');
+
+/** The single live speech bubble (R-005), kind-filtered from the collection. */
+const speechBubble = (): TransientEffect<SpeechBubbleState> | undefined =>
+  effectsOfKind<SpeechBubbleState>('speechBubble')[0];
 
 /** Every `drawImage` call whose source is the ambient cloud sheet (O-022). */
 const ambientCloudDraws = (ctx: { drawImage: ReturnType<typeof vi.fn> }) =>
@@ -383,7 +388,7 @@ describe('PlatformerPage', () => {
     // like the other module-level signals above, or a tooltip left mid-
     // animation by one test would leak into the next test's assumption that
     // no sign is currently revealed.
-    hintTooltipState.value = null;
+
     // Module-level signals like the others above — a key pickup dropped or
     // collected by one test must not leak into the next test's assumption
     // that no keys have been dropped/banked yet.
@@ -4982,8 +4987,8 @@ describe('PlatformerPage', () => {
     fireEvent.keyDown(window, { code: 'ArrowUp' });
     frameCallback!(16);
 
-    expect(hintTooltipState.value?.hintId).toBe('noKeyForChest');
-    expect(hintTooltipState.value?.phase).toBe('entering');
+    expect(speechBubble()?.state.messageId).toBe('noKeyForChest');
+    expect(speechBubble()?.state.phase).toBe('entering');
   });
 
   it('chestOpen-zeroKeys-thenPlayerWalksAway-needsKeyHintBubbleBeginsExiting', () => {
@@ -5002,13 +5007,13 @@ describe('PlatformerPage', () => {
     playerState.value = { ...playerState.value, x: target.x, y: target.y };
     fireEvent.keyDown(window, { code: 'ArrowUp' });
     frameCallback!(16);
-    expect(hintTooltipState.value?.hintId).toBe('noKeyForChest');
+    expect(speechBubble()?.state.messageId).toBe('noKeyForChest');
 
     // Walk far away from the chest — no longer standing on/overlapping it.
     playerState.value = { ...playerState.value, x: target.x + 2000, y: target.y };
     frameCallback!(32);
 
-    expect(hintTooltipState.value?.phase).toBe('exiting');
+    expect(speechBubble()?.state.phase).toBe('exiting');
   });
 
   it('chestOpen-atLeastOneKey-doesNotShowNeedsKeyHintBubble', () => {
@@ -5029,7 +5034,7 @@ describe('PlatformerPage', () => {
     frameCallback!(16);
 
     // The chest opened successfully — no "need a key" bubble should show.
-    expect(hintTooltipState.value).toBeNull();
+    expect(speechBubble()).toBeUndefined();
   });
 
   it('chestOpen-atLeastOneKey-opensChestAndSpendsOneKey', () => {
@@ -5335,7 +5340,7 @@ describe('PlatformerPage', () => {
       frameCallback!(0);
       frameCallback!(16);
 
-      expect(hintTooltipState.value).toBeNull();
+      expect(speechBubble()).toBeUndefined();
     });
 
     it('arrowUpPressed-whileOverlappingSign-startsEnteringAndEventuallyDrawsBubbleText', () => {
@@ -5353,14 +5358,14 @@ describe('PlatformerPage', () => {
       frameCallback!(0);
       frameCallback!(16); // one ~16ms tick: starts 'entering'
 
-      expect(hintTooltipState.value?.hintId).toBe('bridgeDropThrough');
-      expect(hintTooltipState.value?.phase).toBe('entering');
+      expect(speechBubble()?.state.messageId).toBe('bridgeDropThrough');
+      expect(speechBubble()?.state.phase).toBe('entering');
 
       // Advance well past HINT_TOOLTIP_FADE_IN_SECONDS (0.2s) — several more
       // 16ms ticks — so it settles into 'shown' and the text actually paints.
       for (let t = 32; t <= 320; t += 16) frameCallback!(t);
 
-      expect(hintTooltipState.value?.phase).toBe('shown');
+      expect(speechBubble()?.state.phase).toBe('shown');
       const ctx = platformerPage.context;
       expect(ctx.fillText).toHaveBeenCalledWith(
         'Hold Down to drop through a bridge.',
@@ -5386,7 +5391,7 @@ describe('PlatformerPage', () => {
       frameCallback!(0);
       frameCallback!(16);
 
-      expect(hintTooltipState.value?.hintId).toBe('bridgeDropThrough');
+      expect(speechBubble()?.state.messageId).toBe('bridgeDropThrough');
     });
 
     it('playerWalksAwayAfterRevealing-gameLoopTicks-entersExitingThenClearsToNull', () => {
@@ -5407,12 +5412,12 @@ describe('PlatformerPage', () => {
         t += 16;
         frameCallback!(t);
       }
-      expect(hintTooltipState.value?.phase).toBe('shown');
+      expect(speechBubble()?.state.phase).toBe('shown');
 
       playerState.value = { ...playerState.value, x: sign.x + 2000, y: sign.y };
       t += 16;
       frameCallback!(t);
-      expect(hintTooltipState.value?.phase).toBe('exiting');
+      expect(speechBubble()?.state.phase).toBe('exiting');
 
       // Advance well past HINT_TOOLTIP_FADE_OUT_SECONDS (0.25s).
       for (let i = 0; i < 20; i++) {
@@ -5420,7 +5425,7 @@ describe('PlatformerPage', () => {
         frameCallback!(t);
       }
 
-      expect(hintTooltipState.value).toBeNull();
+      expect(speechBubble()).toBeUndefined();
     });
 
     it('arrowUpPressedAgainWhileMidExit-restartsTheEntranceInsteadOfStayingStuckExiting', () => {
@@ -5441,7 +5446,7 @@ describe('PlatformerPage', () => {
         t += 16;
         frameCallback!(t);
       }
-      expect(hintTooltipState.value?.phase).toBe('shown');
+      expect(speechBubble()?.state.phase).toBe('shown');
 
       // Walk away and tick exactly once — just enough to enter 'exiting',
       // deliberately NOT enough to let it finish (HINT_TOOLTIP_FADE_OUT_SECONDS
@@ -5449,7 +5454,7 @@ describe('PlatformerPage', () => {
       playerState.value = { ...playerState.value, x: sign.x + 2000, y: sign.y };
       t += 16;
       frameCallback!(t);
-      expect(hintTooltipState.value?.phase).toBe('exiting');
+      expect(speechBubble()?.state.phase).toBe('exiting');
 
       // Walk back onto the sign and press Up again before the exit finishes.
       playerState.value = { ...playerState.value, x: sign.x, y: sign.y };
@@ -5457,8 +5462,8 @@ describe('PlatformerPage', () => {
       t += 16;
       frameCallback!(t);
 
-      expect(hintTooltipState.value?.hintId).toBe('bridgeDropThrough');
-      expect(hintTooltipState.value?.phase).toBe('entering');
+      expect(speechBubble()?.state.messageId).toBe('bridgeDropThrough');
+      expect(speechBubble()?.state.phase).toBe('entering');
     });
 
     it('playerWalksAwayWithoutEverPressingUp-staysNull', () => {
@@ -5474,12 +5479,12 @@ describe('PlatformerPage', () => {
       playerState.value = { ...playerState.value, x: sign.x, y: sign.y };
       frameCallback!(0);
       frameCallback!(16);
-      expect(hintTooltipState.value).toBeNull();
+      expect(speechBubble()).toBeUndefined();
 
       playerState.value = { ...playerState.value, x: sign.x + 2000, y: sign.y };
       frameCallback!(32);
 
-      expect(hintTooltipState.value).toBeNull();
+      expect(speechBubble()).toBeUndefined();
     });
 
     it('playerDiesWhileTooltipShown-clearsImmediatelyInsteadOfFreezingThroughDeath', () => {
@@ -5506,14 +5511,40 @@ describe('PlatformerPage', () => {
         t += 16;
         frameCallback!(t);
       }
-      expect(hintTooltipState.value?.phase).toBe('shown');
+      expect(speechBubble()?.state.phase).toBe('shown');
 
       playerState.value = { ...playerState.value, hitPoints: 0, alive: false };
       t += 16;
       frameCallback!(t); // enters 'dying'
 
       expect(lifecycleState.value.phase).toBe('dying');
-      expect(hintTooltipState.value).toBeNull();
+      expect(speechBubble()).toBeUndefined();
+    });
+
+    it('languageSwitchWhileBubbleShown-updatesTheStoredTextInTheSameFrame', () => {
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+      render(<PlatformerPage />);
+      const sign = bridgeSign();
+      playerState.value = { ...playerState.value, x: sign.x, y: sign.y };
+      fireEvent.keyDown(window, { code: 'ArrowUp' });
+      frameCallback!(0);
+      frameCallback!(16);
+      expect(speechBubble()?.state.text).toBe('Hold Down to drop through a bridge.');
+
+      changeLocale('de');
+      frameCallback!(32);
+
+      // The render loop's refresh rewrites the bubble's stored text from the
+      // derived hintText signal in the same frame (no render-context text
+      // lookup); the draw reads only state.text.
+      expect(speechBubble()?.state.text).toBe(de.platformer.hints.bridgeDropThrough);
+      changeLocale('en');
     });
   });
 
@@ -6422,8 +6453,8 @@ describe('PlatformerPage', () => {
         advance(1);
 
         expect(placedBombs.value).toHaveLength(0);
-        expect(hintTooltipState.value?.hintId).toBe('noBombs');
-        expect(hintTooltipState.value?.transient).toBe(true);
+        expect(speechBubble()?.state.messageId).toBe('noBombs');
+        expect(speechBubble()?.state.transient).toBe(true);
       });
 
       it('pressingBOnATileThatAlreadyHoldsABomb-isASilentNoOp', () => {
@@ -6436,14 +6467,14 @@ describe('PlatformerPage', () => {
         advance(1);
         const placedCount = placedBombs.value.length;
         const carriedCount = carriedBombs.value;
-        hintTooltipState.value = null;
+        activeEffects.value = [];
 
         fireEvent.keyDown(window, { code: 'KeyB' });
         advance(1);
 
         expect(placedBombs.value).toHaveLength(placedCount);
         expect(carriedBombs.value).toBe(carriedCount);
-        expect(hintTooltipState.value).toBeNull();
+        expect(speechBubble()).toBeUndefined();
       });
 
       it('aPlacedBomb-isNotSolid', () => {

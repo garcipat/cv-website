@@ -9,7 +9,7 @@ import { makeMockContext, renderContext } from './testContext';
  * (docs/TransientEffectRecipe.md): one module's worth of data/create/draw
  * behaviour, with no edit to the state collection, the tick, the draw pass, or
  * reset code. It reuses an existing `kind` slot because `EffectKind` is the
- * closed shipped set; only the local registry below is consulted.
+ * extensible shipped set; only the local registry below is consulted.
  */
 interface ThrowawayState {
   brightness: number;

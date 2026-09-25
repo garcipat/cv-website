@@ -19,7 +19,6 @@ import {
   CHEST_COUNTER_X,
   CHEST_COUNTER_Y,
   drawSigns,
-  drawSignBubble,
   drawKeyPickups,
   drawHeartPickups,
   drawBombPickups,
@@ -51,7 +50,7 @@ import type { DrawContext } from './contracts/DrawContext';
 import { drawDebugOverlay, drawCameraDeadZoneOverlay } from './engine/DebugOverlay';
 import { createGameLoop } from './engine/GameLoop';
 import { stepPlayerPhysics, checkPitFall, resolvePitFall, playerOnMushroomCap } from './engine/Physics';
-import { startMushroomSquash } from './engine/MushroomSquash';
+import { startMushroomSquash } from './entities/blocks/Mushroom';
 import { PHYSICS_CONFIG } from './contracts/PhysicsConfig';
 import { stepEnemyHitReaction } from './entities/enemies/hitReaction';
 import { updateCamera, updateCameraY, initialCameraX, initialCameraY } from './engine/Camera';
@@ -113,7 +112,11 @@ import { spawnHeartPickup } from './entities/HeartPickup';
 import { spawnBombPickup } from './entities/BombPickup';
 import type { BlockHitOutcome } from './entities/blocks/BlockType';
 import {
+  activeSpeechBubble,
   advanceEffects,
+  beginSpeechBubbleEnter,
+  beginSpeechBubbleExit,
+  clearEffectsOfKind,
   drawEffects,
   effectCount,
   startFlyingText,
@@ -127,6 +130,7 @@ import {
   startFadeOutTextEffect,
   startExplosionEffect,
   startDebrisEffect,
+  startSpeechBubble,
   crumbleDebrisLayers,
 } from './engine/effects';
 import type { EffectRenderContext, PopupIconLookup } from './engine/effects';
@@ -219,12 +223,12 @@ import {
   collectedCollectibleIds,
   activeEffects,
   spawnEffect,
+  refreshSpeechBubbleText,
   chestStates,
   endingScreenShown,
   endingScreenOpen,
   signPlacements,
   hazardPlacements,
-  hintTooltipState,
   keyPickupStates,
   collectedKeys,
   heartPickupStates,
@@ -265,13 +269,9 @@ import { ThankYouScreen } from './components/ThankYouScreen';
 import { ControlsOverlay } from './components/ControlsOverlay';
 import { navigateTo } from '@/state/navigation';
 import { currentUI } from '@/state/locale';
-import {
-  startHintTooltip,
-  beginHintTooltipExit,
-  tickHintTooltip,
-  hintTooltipGrowthAndOpacity,
-} from './engine/HintTooltip';
-import type { HintId, CollectedFact } from './types';
+import { hintText } from './state/hintText';
+import type { CollectedFact } from './types';
+import type { BubbleMessageId } from './level/HintCatalog';
 import { playCanvasSize } from './engine/CanvasSize';
 
 /** Hitpoints a bomb blast deals to a character caught in it — 2 half-heart
@@ -553,12 +553,12 @@ export const PlatformerPage = () => {
     };
     const p = playerState.value;
     lifecycleState.value = startDeath(p.x + PLAYER_RENDERED_SIZE / 2, p.y + PLAYER_VISUAL_CENTER_Y_OFFSET);
-    // Death immediately halts the hint-tick block below (the game loop skips
-    // it entirely for the 'dying'/'awaitingRestart' phases), so without this
-    // a bubble revealed just before dying would otherwise freeze on screen
-    // through the whole death animation and the restart-prompt wait — see
-    // this same comment at the other `startDeath()` call site below.
-    hintTooltipState.value = null;
+    // Death immediately halts the effect-advance block below (the game loop
+    // skips it entirely for the 'dying'/'awaitingRestart' phases), so without
+    // this a bubble revealed just before dying would otherwise freeze on
+    // screen through the whole death animation and the restart-prompt wait —
+    // see this same comment at the other `startDeath()` call site below.
+    activeEffects.value = clearEffectsOfKind(activeEffects.value, 'speechBubble');
   };
 
   const handleDebugRespawn = () => {
@@ -648,6 +648,11 @@ export const PlatformerPage = () => {
     const render = () => {
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
+
+      // Re-resolve the active speech bubble's stored text before assembling the
+      // effect render context, so a language switch updates a live bubble in
+      // the same frame (FR-005/FR-020); a no-op in the steady state.
+      refreshSpeechBubbleText();
 
       ctx.fillStyle = backgroundColor;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -778,9 +783,14 @@ export const PlatformerPage = () => {
         canvasWidth: canvas.width,
         canvasHeight: canvas.height,
         playerAnchor: {
-          x: playerState.value.x + PLAYER_RENDERED_SIZE / 2 + originX,
-          y: playerState.value.y + PLAYER_VISUAL_CENTER_Y_OFFSET + originY,
+          centerX: playerState.value.x + PLAYER_RENDERED_SIZE / 2 + originX,
+          centerY: playerState.value.y + PLAYER_VISUAL_CENTER_Y_OFFSET + originY,
           width: PLAYER_RENDERED_SIZE,
+          // The player's actual visible head (render-slot top plus
+          // PLAYER_HEAD_PADDING) — the speech bubble's tail anchor. The slot has
+          // transparent padding above the head, so using it directly would float
+          // the bubble noticeably higher than the character.
+          headBottomY: playerState.value.y + PLAYER_HEAD_PADDING + originY,
         },
         popupIcons,
         effects: activeEffects.value,
@@ -920,7 +930,7 @@ export const PlatformerPage = () => {
         }
 
         // Enemy eye markers are drawn AFTER the darkness overlay so they stay
-        // visible through it (FR-015), but before the hint tooltip/UI below.
+        // visible through it (FR-015), but before the speech bubble/UI below.
         drawEnemyEyes(
           ctx,
           enemyStates.value,
@@ -932,22 +942,10 @@ export const PlatformerPage = () => {
         );
       }
 
-      const tooltip = hintTooltipState.value;
-      if (tooltip) {
-        const hintText = currentUI.value.platformer.hints[tooltip.hintId];
-        const anchorX = playerState.value.x + PLAYER_RENDERED_SIZE / 2 + originX;
-        // Anchored at the player's actual visible head (render-slot top plus
-        // PLAYER_HEAD_PADDING), not the render slot's own top — the slot has
-        // transparent padding above the head, so using it directly floated
-        // the bubble noticeably higher than the character.
-        const anchorBottomY = playerState.value.y + PLAYER_HEAD_PADDING + originY;
-        const { growth, opacity } = hintTooltipGrowthAndOpacity(tooltip);
-        drawSignBubble(ctx, hintText, anchorX, anchorBottomY, growth, opacity);
-      }
-
-      // World-effects layer, after the hint bubble: registry declaration order
-      // fixes the intra-layer sequence flyingText → puff → debris → hitSplatter →
-      // fadeOutText (FR-005).
+      // World-effects layer: registry declaration order fixes the intra-layer
+      // sequence speechBubble → flyingText → puff → debris → hitSplatter →
+      // fadeOutText (FR-005), so the speech bubble keeps its depth after the
+      // darkness/enemy-eye overlay and before the other world effects.
       drawEffects(effectRenderContext, 'worldEffects', activeEffects.value);
 
       // Explosions sit above the world effects and below the HUD — a bright,
@@ -1629,9 +1627,8 @@ export const PlatformerPage = () => {
       // (not dedup-tracked) and hidden again
       // automatically the instant the player leaves overlap, with no
       // keypress needed to dismiss it.
-      if (hintTooltipState.value) {
-        hintTooltipState.value = tickHintTooltip(hintTooltipState.value, dt);
-      }
+      // The bubble is advanced by the single `advanceEffects` above, like
+      // every other effect; this block only drives its trigger transitions.
       const overlappingSignHintId = checkSignOverlap(playerState.value, signPlacements.value);
       // A closed chest the player is standing on, while holding zero keys,
       // is itself an "overlapping something with a hint" case — uses its own
@@ -1650,22 +1647,22 @@ export const PlatformerPage = () => {
       // `chestPlayerIsStandingOn` correctly stops returning its id (it skips
       // open chests), and no bubble should show for that case.
       const standingClosedChestId = chestPlayerIsStandingOn(playerState.value, chestStates.value);
-      const lockedChestHintId: HintId | undefined =
+      const lockedChestHintId: BubbleMessageId | undefined =
         !overlappingSignHintId && standingClosedChestId && collectedKeys.value <= 0 ? 'noKeyForChest' : undefined;
       const overlappingHintId = overlappingSignHintId ?? lockedChestHintId;
-      const currentTooltip = hintTooltipState.value;
+      const currentBubble = activeSpeechBubble(activeEffects.value);
       if (overlappingHintId && interactPressed && !bundleDeployedThisTick) {
-        if (!currentTooltip || currentTooltip.hintId !== overlappingHintId) {
-          hintTooltipState.value = startHintTooltip(overlappingHintId);
-        } else if (currentTooltip.phase === 'exiting') {
+        if (!currentBubble || currentBubble.state.messageId !== overlappingHintId) {
+          spawnEffect(startSpeechBubble(overlappingHintId, hintText.value[overlappingHintId]));
+        } else if (currentBubble.state.phase === 'exiting') {
           // Pressed Up again before the previous reveal finished leaving —
           // restart the entrance rather than leaving it stuck exiting.
-          hintTooltipState.value = { ...currentTooltip, phase: 'entering', elapsed: 0 };
+          spawnEffect(beginSpeechBubbleEnter(currentBubble));
         }
         // Already 'entering'/'shown' for this exact sign/chest: a repeat
         // press while it's already up is a harmless no-op.
-      } else if (!overlappingHintId && currentTooltip && currentTooltip.phase !== 'exiting') {
-        hintTooltipState.value = beginHintTooltipExit(currentTooltip);
+      } else if (!overlappingHintId && currentBubble && currentBubble.state.phase !== 'exiting') {
+        spawnEffect(beginSpeechBubbleExit(currentBubble));
       }
 
       // Arm any at-rest floor spike the player just stepped onto (FR-003) —
@@ -1984,7 +1981,7 @@ export const PlatformerPage = () => {
           (bomb) => bomb.col === bombCol && bomb.row === bombRow,
         );
         if (carriedBombs.value <= 0) {
-          hintTooltipState.value = startHintTooltip('noBombs', { transient: true });
+          spawnEffect(startSpeechBubble('noBombs', hintText.value.noBombs, { transient: true }));
         } else if (!tileOccupied) {
           placedBombs.value = [
             ...placedBombs.value,
@@ -2411,11 +2408,11 @@ export const PlatformerPage = () => {
           next.y + PLAYER_VISUAL_CENTER_Y_OFFSET,
         );
         // See handleDebugKill's identical assignment above: without this the
-        // hint bubble would freeze on screen through the death animation and
-        // the awaitingRestart wait, since the game loop's early-returns for
-        // those phases never reach the hint tick/transition block that would
-        // otherwise fade it out.
-        hintTooltipState.value = null;
+        // bubble would freeze on screen through the death animation and the
+        // awaitingRestart wait, since the game loop's early-returns for those
+        // phases never reach the effect-advance block that would otherwise
+        // fade it out.
+        activeEffects.value = clearEffectsOfKind(activeEffects.value, 'speechBubble');
       } else {
         lifecycleState.value = tickLifecycle(lifecycleState.value, dt);
       }

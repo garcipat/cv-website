@@ -31,13 +31,15 @@ import {
   ropeLadderShaftPieces,
   COBWEB_CORNER_ENTRY,
   COBWEB_FLAT_ENTRY,
+} from './StaticObjectsCatalog';
+import {
   mushroomEntry,
   mushroomHasCap,
   MUSHROOM_CAP_SOURCE_HEIGHT,
   MUSHROOM_DECORATIVE_ENTRY,
-} from './StaticObjectsCatalog';
-import { mushroomSquashDipAt } from './MushroomSquash';
-import type { MushroomSquashState } from './MushroomSquash';
+  mushroomSquashDipAt,
+} from '../entities/blocks/Mushroom';
+import type { MushroomSquashState } from '../entities/blocks/Mushroom';
 import {
   revealedStepCount,
   shaftCellCount,
@@ -1458,158 +1460,6 @@ export function drawSigns(
       RENDERED_TILE_SIZE,
     );
   }
-}
-
-const BUBBLE_FONT_SIZE = 16;
-const BUBBLE_PADDING_X = 10;
-const BUBBLE_PADDING_Y = 6;
-const BUBBLE_BORDER_WIDTH = 2;
-/** Extra vertical gap between wrapped lines, on top of BUBBLE_FONT_SIZE
- *  itself — only added BETWEEN lines (lines.length - 1 times), so a
- *  single-line bubble's height is untouched by this. */
-const BUBBLE_LINE_SPACING = 4;
-/** Corner radius for the bubble's rounded rect (both the border and the
- *  inset fill), drawn via `ctx.roundRect` — a smooth curve, not a pixel-art
- *  chamfer (a chamfer's cut-corner notches read as just cutting away the
- *  corners, not as a rounded shape). A curved corner is always
- *  anti-aliased regardless of `imageSmoothingEnabled` (that flag only
- *  affects `drawImage` scaling), so it reads slightly softer than this
- *  game's pixel-art tileset — an accepted, deliberate tradeoff here. */
-const BUBBLE_CORNER_RADIUS = 6;
-/** Nudges the text down from dead-center by a couple px — a purely visual
- *  correction: centered text reads as sitting slightly high against the
- *  box, likely due to font metrics' cap-height vs. middle-baseline not
- *  perfectly bisecting the box. */
-const BUBBLE_TEXT_VERTICAL_NUDGE = 2;
-/** Vertical gap between the bubble tail's tip and its anchor point
- *  (anchorBottomY), so it floats just above the character's head rather
- *  than overlapping it. Kept small — this is the gap ABOVE the anchor, which
- *  itself is already the head's own position (see PlatformerPage.tsx's
- *  anchorBottomY), not extra breathing room on top of that. */
-const BUBBLE_GAP_ABOVE_ANCHOR = 16;
-const BUBBLE_TAIL_HALF_WIDTH = 6;
-const BUBBLE_TAIL_HEIGHT = 8;
-const BUBBLE_BG_COLOR = '#f4ecd8';
-const BUBBLE_BORDER_COLOR = '#241a0e';
-const BUBBLE_TEXT_COLOR = '#241a0e';
-
-/**
- * Draws a comic-style speech bubble with `text` — a cream box, a dark
- * border, and a small tail pointing down at (`anchorX`, `anchorBottomY`),
- * already origin-shifted screen-space coordinates (same convention as
- * drawPlayer's own position). Uses a bigger dark rect/triangle behind a
- * smaller inset cream one for both the box and the tail, instead of
- * `ctx.strokeRect`/`ctx.stroke` — reads as a BUBBLE_BORDER_WIDTH-thick
- * outline with only fill-based primitives.
- *
- * `growth` (default 1) scales the box's and tail's HEIGHT from 0 to their
- * full size — reading as the bubble rising out of the sign like it's
- * starting to talk — while keeping the box's BOTTOM edge
- * fixed (where the tail meets it) — the caller passes
- * `hintTooltipGrowthAndOpacity`'s `growth` straight through. `growth <= 0`
- * draws nothing at all. `opacity` (default 1) is applied via
- * `ctx.globalAlpha`, the same mechanism `Crate.ts`'s crate-shatter fade
- * already uses.
- */
-/** Clamps a corner radius so `roundRect` never receives a radius bigger than
- *  half the shape's own width/height — exceeding that throws a RangeError in
- *  real browsers. The bubble's box/tail height shrinks toward 0 during the
- *  grow/shrink animation, so this matters at low `growth`, not just as a
- *  theoretical edge case. */
-function clampedCornerRadius(width: number, height: number, radius: number): number {
-  return Math.max(0, Math.min(radius, width / 2, height / 2));
-}
-
-export function drawSignBubble(
-  ctx: CanvasRenderingContext2D,
-  text: string,
-  anchorX: number,
-  anchorBottomY: number,
-  growth = 1,
-  opacity = 1,
-): void {
-  if (growth <= 0) return;
-
-  ctx.save();
-  ctx.globalAlpha = opacity;
-  ctx.font = `${BUBBLE_FONT_SIZE}px "${RESTART_PROMPT_FONT_FAMILY}", sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-
-  // Lines are `\n`-separated (a hint can be authored as a multi-line i18n
-  // string) — box width fits the WIDEST line, box height grows with every
-  // extra line. A single-line text (the common case) reduces to exactly the
-  // old single-line formula: `lines.length - 1` is 0, so no extra spacing.
-  const lines = text.split('\n');
-  const boxWidth = Math.max(...lines.map((line) => ctx.measureText(line).width)) + BUBBLE_PADDING_X * 2;
-  const fullBoxHeight =
-    lines.length * BUBBLE_FONT_SIZE + BUBBLE_PADDING_Y * 2 + (lines.length - 1) * BUBBLE_LINE_SPACING;
-  const boxHeight = fullBoxHeight * growth;
-  const tailHeight = BUBBLE_TAIL_HEIGHT * growth;
-  // Tail WIDTH is not scaled by growth — per the plan's explicit constraint,
-  // the bubble reveals at its full width immediately and only its height
-  // (box height + tail height) animates. Using the constant here (rather
-  // than `BUBBLE_TAIL_HALF_WIDTH * growth`) keeps the tail from narrowing
-  // to a sliver mid-grow.
-  const tailHalfWidth = BUBBLE_TAIL_HALF_WIDTH;
-
-  // Anchored at the box's fixed BOTTOM edge (independent of growth) — the
-  // box grows UPWARD from there, and the tail grows DOWNWARD from there
-  // toward anchorBottomY, so the whole bubble reads as rising out of that
-  // fixed point rather than scaling in place. (Computing boxBottom from a
-  // growth-scaled tailHeight instead would make the box's own bottom edge
-  // drift as growth changes — the opposite of what "fixed bottom edge"
-  // means; boxBottom must depend only on the CONSTANT BUBBLE_TAIL_HEIGHT.)
-  const boxBottom = anchorBottomY - BUBBLE_GAP_ABOVE_ANCHOR - BUBBLE_TAIL_HEIGHT;
-  const boxTop = boxBottom - boxHeight;
-  const tailTipY = boxBottom + tailHeight;
-  const boxLeft = anchorX - boxWidth / 2;
-
-  const outerWidth = boxWidth + BUBBLE_BORDER_WIDTH * 2;
-  const outerHeight = boxHeight + BUBBLE_BORDER_WIDTH * 2;
-
-  ctx.fillStyle = BUBBLE_BORDER_COLOR;
-  ctx.beginPath();
-  ctx.roundRect(
-    boxLeft - BUBBLE_BORDER_WIDTH,
-    boxTop - BUBBLE_BORDER_WIDTH,
-    outerWidth,
-    outerHeight,
-    clampedCornerRadius(outerWidth, outerHeight, BUBBLE_CORNER_RADIUS + BUBBLE_BORDER_WIDTH),
-  );
-  ctx.fill();
-  ctx.fillStyle = BUBBLE_BG_COLOR;
-  ctx.beginPath();
-  ctx.roundRect(boxLeft, boxTop, boxWidth, boxHeight, clampedCornerRadius(boxWidth, boxHeight, BUBBLE_CORNER_RADIUS));
-  ctx.fill();
-
-  ctx.fillStyle = BUBBLE_BORDER_COLOR;
-  ctx.beginPath();
-  ctx.moveTo(anchorX - tailHalfWidth - BUBBLE_BORDER_WIDTH, boxBottom);
-  ctx.lineTo(anchorX, tailTipY + BUBBLE_BORDER_WIDTH);
-  ctx.lineTo(anchorX + tailHalfWidth + BUBBLE_BORDER_WIDTH, boxBottom);
-  ctx.closePath();
-  ctx.fill();
-  ctx.fillStyle = BUBBLE_BG_COLOR;
-  ctx.beginPath();
-  ctx.moveTo(anchorX - tailHalfWidth, boxBottom);
-  ctx.lineTo(anchorX, tailTipY);
-  ctx.lineTo(anchorX + tailHalfWidth, boxBottom);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.fillStyle = BUBBLE_TEXT_COLOR;
-  // Lines are stacked evenly around the box's vertical center, scaling their
-  // spacing by `growth` too (so they compress toward the center as the box
-  // shrinks, rather than overflowing it) — reduces to a single fillText at
-  // dead-center-plus-nudge when there's only one line.
-  const lineStep = (BUBBLE_FONT_SIZE + BUBBLE_LINE_SPACING) * growth;
-  const centerY = boxTop + boxHeight / 2 + BUBBLE_TEXT_VERTICAL_NUDGE * growth;
-  const firstLineY = centerY - ((lines.length - 1) * lineStep) / 2;
-  lines.forEach((line, i) => {
-    ctx.fillText(line, anchorX, firstLineY + i * lineStep);
-  });
-  ctx.restore();
 }
 
 /**

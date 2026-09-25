@@ -80,8 +80,8 @@ export function drawHealAuraEffect(
   rc: EffectRenderContext,
 ): void {
   const ctx = rc.ctx;
-  const anchorX = rc.playerAnchor.x;
-  const anchorY = rc.playerAnchor.y;
+  const anchorX = rc.playerAnchor.centerX;
+  const anchorY = rc.playerAnchor.centerY;
   const width = rc.playerAnchor.width;
 
   const opacity = healAuraOpacity(effect.elapsed);

@@ -2,7 +2,7 @@
  * The effect kind → start/tick/draw/expiry registry that makes a new transient
  * effect one module plus one registry line (R-004 FR-002). Declaration order
  * is part of the contract: it fixes the intra-layer draw order
- * (`flyingText` → `puff` → `debris` → `hitSplatter` → `fadeOutText`).
+ * (`speechBubble` → `flyingText` → `puff` → `debris` → `hitSplatter` → `fadeOutText`).
  */
 import {
   drawFlyingText,
@@ -23,9 +23,17 @@ import { drawHitSplatterEffect, startPlayerHitSplatter } from './hitSplatter';
 import { drawFadeOutText, startFadeOutTextEffect } from './fadeOutText';
 import { drawExplosionEffect, startExplosionEffect } from './explosion';
 import { RESET_SCOPE_BY_KIND, type EffectRenderContext, type TransientEffect } from './transientEffect';
+import {
+  drawSpeechBubbleEffect,
+  startSpeechBubble,
+  tickSpeechBubbleEffect,
+} from './speechBubble';
 
-/** The fixed set of shipped effect families — no additions (FR-019). */
+/** The shipped effect families. The set was never closed — R-004's original
+ *  six have since grown, and R-005 adds `speechBubble` — so a new kind is one
+ *  entry here plus its own module. */
 export type EffectKind =
+  | 'speechBubble'
   | 'flyingText'
   | 'counterPopup'
   | 'puff'
@@ -43,8 +51,10 @@ export type EffectResetScope = 'death' | 'progress';
 
 /**
  * Maps a kind to its start/tick/draw/expiry and the metadata the collection
- * needs. Only `flyingText` and `counterPopup` override `tick`/`expired`; only
- * `counterPopup` declares `keyOf` (a keyed replace-in-place slot).
+ * needs. `flyingText`, `counterPopup` and `speechBubble` override `tick`, and
+ * `flyingText`, `counterPopup` and `speechBubble` override `expired`;
+ * `counterPopup` and `speechBubble` declare `keyOf` (a keyed replace-in-place
+ * slot).
  */
 export interface EffectRegistryEntry<S = unknown> {
   readonly kind: EffectKind;
@@ -78,6 +88,16 @@ function keyOfCounterPopup(effect: TransientEffect<unknown>): string {
  * reset code.
  */
 export const EFFECT_REGISTRY: readonly EffectRegistryEntry<unknown>[] = [
+  widen({
+    kind: 'speechBubble',
+    create: startSpeechBubble,
+    tick: tickSpeechBubbleEffect,
+    draw: drawSpeechBubbleEffect,
+    expired: () => false,
+    layer: 'worldEffects',
+    resetScope: RESET_SCOPE_BY_KIND.speechBubble,
+    keyOf: () => 'speechBubble',
+  }),
   widen({
     kind: 'flyingText',
     create: startFlyingText,

@@ -1,6 +1,6 @@
 import { tileToPixel, RENDERED_TILE_SIZE } from './Terrain';
 import type { Box } from '../contracts/geometry';
-import type { SignDef, HintId } from '../types';
+import type { SignDef, SignHintId } from './HintCatalog';
 
 export interface SignPlacement extends SignDef {
   x: number;
@@ -31,7 +31,7 @@ export function signBox(sign: SignPlacement): Box {
  * hint at different spots in the level get distinct ids.
  */
 export function placeSigns(
-  markers: readonly { col: number; row: number; hintId: HintId }[],
+  markers: readonly { col: number; row: number; hintId: SignHintId }[],
 ): SignPlacement[] {
   return markers.map(({ col, row, hintId }) => {
     const { x, y } = tileToPixel(col, row);

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   advanceEffects,
   clearEffectsByResetScope,
+  clearEffectsOfKind,
   defaultExpired,
   defaultTick,
   effectCount,
@@ -110,6 +111,27 @@ describe('clearEffectsByResetScope', () => {
     const fade = startFadeOutTextEffect('f', 0, 0, 'x');
     const puff = startPuffEffect('p', 0, 0);
     expect(clearEffectsByResetScope([fade, puff])).toEqual([]);
+  });
+});
+
+describe('clearEffectsOfKind', () => {
+  it('namedKind-removesOnlyThatKindAndLeavesOthersByReference', () => {
+    const puff = startPuffEffect('p', 0, 0);
+    const fade = startFadeOutTextEffect('f', 0, 0, 'x');
+    const next = clearEffectsOfKind([puff, fade], 'fadeOutText');
+    expect(next).toEqual([puff]);
+    expect(next[0]).toBe(puff);
+  });
+
+  it('absentKind-returnsTheRemainingEffectsByReference', () => {
+    const puff = startPuffEffect('p', 0, 0);
+    const next = clearEffectsOfKind([puff], 'speechBubble');
+    expect(next).toEqual([puff]);
+    expect(next[0]).toBe(puff);
+  });
+
+  it('emptyCollection-isAnEmptyArray', () => {
+    expect(clearEffectsOfKind([], 'speechBubble')).toEqual([]);
   });
 });
 

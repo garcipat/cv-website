@@ -245,39 +245,3 @@ export const TWIN_RIGHT_RECT: Required<StaticObjectEntry> = { sx: 8, sy: 19, wid
 export function stalagmiteEntry(col: number, row: number): StaticObjectEntry {
   return pickVariant(STALAGMITE_VARIANTS, col, row);
 }
-
-/** The cap rows of an `only`/`top` mushroom cell (from `mushroom.png`'s 16px
- *  grid); rows 11-15 are the stem/connector. Only the cap sub-rect moves during
- *  the squash dip, so the split height lives here as the single source of
- *  truth the renderer reads. */
-export const MUSHROOM_CAP_SOURCE_HEIGHT = 11;
-
-/**
- * The four art cells of a `bouncyMushroom` vertical run, from the red row of
- * `mushroom.png` (see `MUSHROOM_SHEET`). `middle` is the plain stalk and
- * `bottom` is the stalk with its flared foot — the one cross-row read, at
- * (48, 16), whose cell holds only the shared colour-neutral tan foot art (see
- * `sheets.ts`'s `MUSHROOM_SHEET` doc comment). Addressed by sx/sy, never by
- * frame index.
- */
-const MUSHROOM_ROLE_ENTRIES: Record<VerticalRunRole, StaticObjectEntry> = {
-  only: { sx: 0, sy: 0 },
-  top: { sx: 16, sy: 0 },
-  middle: { sx: 48, sy: 0 },
-  bottom: { sx: 48, sy: 16 },
-};
-
-/** The sprite rect for a bouncy mushroom's run role. */
-export function mushroomEntry(role: VerticalRunRole): StaticObjectEntry {
-  return MUSHROOM_ROLE_ENTRIES[role];
-}
-
-/** Whether a run role carries a cap (`only`/`top`) and therefore needs the
- *  cap/stem split the squash dip animates. */
-export function mushroomHasCap(role: VerticalRunRole): boolean {
-  return role === 'only' || role === 'top';
-}
-
-/** The small decorative mushroom's fixed cell (col 2, row 0 of the red row of
- *  `mushroom.png`) — drawn whole, never split and never squashed. */
-export const MUSHROOM_DECORATIVE_ENTRY: StaticObjectEntry = { sx: 32, sy: 0 };

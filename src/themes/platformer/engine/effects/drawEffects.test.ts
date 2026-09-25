@@ -112,7 +112,7 @@ describe('drawEffects — ordering and context', () => {
     const effects = [aura];
     drawEffects(
       renderContext(ctx as unknown as CanvasRenderingContext2D, effects, {
-        playerAnchor: { x: 123, y: 456, width: 64 },
+        playerAnchor: { centerX: 123, centerY: 456, headBottomY: 0, width: 64 },
       }),
       'midWorld',
       effects,

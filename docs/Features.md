@@ -60,6 +60,7 @@ graph RL
         O026["O-026: Platformer Poison Gas"]
         O027["✅ O-027: Platformer Falling Stalactite"]
         O028["✅ O-028: Cave Fog"]
+        O030["O-030: Platformer Proximity Hint Bubbles"]
         S011["S-011: Interact Hint Overlay"]
         S012["✅ S-012: Platformer Crouch/Duck"]
         S030["✅ S-030: Platformer Tile Meta Layer"]
@@ -69,7 +70,7 @@ graph RL
         R002["✅ R-002: Platformer Shared Primitives & Dedup"]
         R003["✅ R-003: Platformer Abstract Light Sources"]
         R004["✅ R-004: Platformer Transient Effect Registry"]
-        R005["R-005: Platformer Generic Speech Bubble"]
+        R005["✅ R-005: Platformer Generic Speech Bubble"]
         R006["R-006: Platformer Pickup Unification"]
         R007["R-007: Platformer Registry Dispatch Completion"]
         R008["R-008: Platformer Placeable World Items"]
@@ -243,6 +244,14 @@ graph RL
     R015 --> R001
     R015 --> R004
 
+    O030 --> R005
+    O030 --> S011
+    O030 --> F015
+    O030 --> S007
+    O030 --> O023
+    O030 --> O020
+    O030 --> O011
+
     classDef done stroke:#FFD600,stroke-width:3px
     classDef projectSetup fill:#1565C0,color:#ffffff
     classDef layoutNavigation fill:#E65100,color:#ffffff
@@ -282,6 +291,7 @@ graph RL
     class O027 done
     class O028 themes
     class O028 done
+    class O030 themes
     class O017 themes
     class O017 done
     class O018 themes
@@ -307,6 +317,7 @@ graph RL
     class R001 done
     class R002 done
     class R004 done
+    class R005 done
     class R010 enhancements
     class R013 themes
 ```

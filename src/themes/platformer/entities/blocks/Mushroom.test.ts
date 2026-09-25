@@ -1,12 +1,18 @@
+import { describe, it, expect } from 'vitest';
 import {
+  MUSHROOM_CAP_SOURCE_HEIGHT,
   MUSHROOM_SQUASH_DURATION_SECONDS,
   MUSHROOM_SQUASH_DIP_PX,
   advanceMushroomSquashes,
+  mushroomEntry,
+  mushroomHasCap,
   mushroomSquashDip,
   mushroomSquashDipAt,
   startMushroomSquash,
   type MushroomSquashState,
-} from './MushroomSquash';
+} from './Mushroom';
+
+const TILE_SIZE = 16;
 
 describe('startMushroomSquash', () => {
   it('emptyInput-appendsAFreshEntryAtElapsedZero', () => {
@@ -114,5 +120,29 @@ describe('mushroomSquashDipAt', () => {
     expect(mushroomSquashDipAt([{ col: 1, row: 2, elapsed: 0 }], 1, 2)).toBe(
       MUSHROOM_SQUASH_DIP_PX,
     );
+  });
+});
+
+describe('mushroomEntry / mushroomHasCap', () => {
+  it('mushroomEntry-eachRole-resolvesToItsDocumentedCrop', () => {
+    expect(mushroomEntry('only')).toEqual({ sx: 0, sy: 0 });
+    expect(mushroomEntry('top')).toEqual({ sx: 16, sy: 0 });
+    expect(mushroomEntry('middle')).toEqual({ sx: 48, sy: 0 });
+    expect(mushroomEntry('bottom')).toEqual({ sx: 48, sy: 16 });
+  });
+
+  it('mushroomHasCap-onlyAndTop-areTrue', () => {
+    expect(mushroomHasCap('only')).toBe(true);
+    expect(mushroomHasCap('top')).toBe(true);
+  });
+
+  it('mushroomHasCap-middleAndBottom-areFalse', () => {
+    expect(mushroomHasCap('middle')).toBe(false);
+    expect(mushroomHasCap('bottom')).toBe(false);
+  });
+
+  it('MUSHROOM_CAP_SOURCE_HEIGHT-staysWithinThe16pxCell', () => {
+    expect(MUSHROOM_CAP_SOURCE_HEIGHT).toBeGreaterThan(0);
+    expect(MUSHROOM_CAP_SOURCE_HEIGHT).toBeLessThanOrEqual(TILE_SIZE);
   });
 });

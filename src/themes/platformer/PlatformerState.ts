@@ -7,8 +7,8 @@ import {
   applyDeployedLadders,
 } from './engine/DeployableLadder';
 import type { DeployableLadderState } from './engine/DeployableLadder';
-import { advanceMushroomSquashes } from './engine/MushroomSquash';
-import type { MushroomSquashState } from './engine/MushroomSquash';
+import { advanceMushroomSquashes } from './entities/blocks/Mushroom';
+import type { MushroomSquashState } from './entities/blocks/Mushroom';
 import {
   armFloorSpike,
   advanceFloorSpikes,
@@ -94,12 +94,16 @@ import type { CollectedFact, SectionId } from './types';
 import type { CollectiblePlacement } from './level/CollectibleMapper';
 import type { EnemyPlacement } from './level/EnemyMapper';
 import type { BlockPlacement } from './level/BlockMapper';
-import type {
-  TransientEffect,
+import type { TransientEffect } from './engine/effects';
+import {
+  activeSpeechBubble,
+  clearEffectsByResetScope,
+  effectKeyOf,
+  upsertEffect,
+  withSpeechBubbleText,
 } from './engine/effects';
-import { clearEffectsByResetScope, effectKeyOf, upsertEffect } from './engine/effects';
 import type { LevelTotals } from './entities/CollectiblesSummary';
-import type { HintTooltipState } from './engine/HintTooltip';
+import { hintText } from './state/hintText';
 
 /**
  * The player's state at the level's spawn point — full health's worth of
@@ -717,6 +721,25 @@ export function spawnEffect(effect: TransientEffect<unknown>): void {
 }
 
 /**
+ * Re-resolves the active speech bubble's stored localized text from the
+ * derived `hintText` signal and rewrites that one effect only when the text
+ * differs (the pure `withSpeechBubbleText` identity check). Called by the
+ * render loop each frame, so a live bubble follows a language switch in the
+ * same frame while a steady-state frame performs no collection write
+ * (FR-005/FR-020). State-owned, like `spawnEffect`, so `engine/effects` keeps
+ * no `engine/ → state/` import.
+ */
+export function refreshSpeechBubbleText(): void {
+  const bubble = activeSpeechBubble(activeEffects.value);
+  if (!bubble) return;
+  const resolved = hintText.value[bubble.state.messageId];
+  if (resolved === bubble.state.text) return;
+  activeEffects.value = activeEffects.value.map((effect) =>
+    effect === bubble ? withSpeechBubbleText(bubble, resolved) : effect,
+  );
+}
+
+/**
  * The journal's last manually-selected bookmark section, remembered across
  * closing and reopening the journal — `Journal.tsx`
  * itself fully unmounts on close, so this can't live in its local
@@ -726,20 +749,6 @@ export function spawnEffect(effect: TransientEffect<unknown>): void {
  * recently collected one).
  */
 export const activeJournalSection = signal<SectionId | undefined>(undefined);
-
-/**
- * The hint-sign tooltip's current grow+fade animation state (see
- * engine/HintTooltip.ts), or `null` when no
- * tooltip is active/animating. Updated every game-loop tick (see
- * PlatformerPage.tsx's transition/tick logic) and read by `render()` to
- * decide whether/what/where to draw. Cleared by `resetGame()` (and so also
- * by `resetGameProgress()`, which calls it): a death/respawn or restart
- * moves the player away from wherever the tooltip was anchored, so a
- * lingering bubble would otherwise freeze on screen through the death
- * animation and the `awaitingRestart` wait, then flash once at the new
- * spawn point before the tick logic naturally clears it.
- */
-export const hintTooltipState = signal<HintTooltipState | null>(null);
 
 /**
  * World-space center point (not top-left) of the spawned player — used to
@@ -991,7 +1000,6 @@ export function resetGame(): void {
   // survive a death today — keep fading on their own duration (FR-006).
   fallingStalactiteTimerStates.value = [];
   enemyStates.value = enemyStates.value.map(reviveEnemy);
-  hintTooltipState.value = null;
   // A label fading when the death/respawn happened must not survive it — it
   // would otherwise freeze on screen through the death animation and then
   // flash at the new respawn point.

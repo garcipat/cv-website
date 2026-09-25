@@ -14,9 +14,6 @@ import {
   ROPE_BOTTOM_CAP,
   COBWEB_CORNER_ENTRY,
   COBWEB_FLAT_ENTRY,
-  mushroomEntry,
-  mushroomHasCap,
-  MUSHROOM_CAP_SOURCE_HEIGHT,
 } from './StaticObjectsCatalog';
 import type { ChainAttachment } from '../level/Terrain';
 
@@ -202,30 +199,6 @@ describe('StaticObjectsCatalog', () => {
         expect(totalNativeHeight).toBe((cells + 1) * 16);
       }
     });
-  });
-});
-
-describe('mushroomEntry / mushroomHasCap', () => {
-  it('mushroomEntry-eachRole-resolvesToItsDocumentedCrop', () => {
-    expect(mushroomEntry('only')).toEqual({ sx: 0, sy: 0 });
-    expect(mushroomEntry('top')).toEqual({ sx: 16, sy: 0 });
-    expect(mushroomEntry('middle')).toEqual({ sx: 48, sy: 0 });
-    expect(mushroomEntry('bottom')).toEqual({ sx: 48, sy: 16 });
-  });
-
-  it('mushroomHasCap-onlyAndTop-areTrue', () => {
-    expect(mushroomHasCap('only')).toBe(true);
-    expect(mushroomHasCap('top')).toBe(true);
-  });
-
-  it('mushroomHasCap-middleAndBottom-areFalse', () => {
-    expect(mushroomHasCap('middle')).toBe(false);
-    expect(mushroomHasCap('bottom')).toBe(false);
-  });
-
-  it('MUSHROOM_CAP_SOURCE_HEIGHT-staysWithinThe16pxCell', () => {
-    expect(MUSHROOM_CAP_SOURCE_HEIGHT).toBeGreaterThan(0);
-    expect(MUSHROOM_CAP_SOURCE_HEIGHT).toBeLessThanOrEqual(TILE_SIZE);
   });
 });
 

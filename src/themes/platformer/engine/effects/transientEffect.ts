@@ -34,8 +34,11 @@ export interface EffectRenderContext {
   dc: DrawContext;
   canvasWidth: number;
   canvasHeight: number;
-  /** Live player anchor for the position-less heal aura. */
-  playerAnchor: { x: number; y: number; width: number };
+  /** Live player screen-space points for player-anchored effects: the visual
+   *  centre (the position-less heal aura) and the visible-head bottom edge (the
+   *  speech bubble's tail). Re-derived each frame so anchored effects track the
+   *  moving player. */
+  playerAnchor: { centerX: number; centerY: number; headBottomY: number; width: number };
   /** Page-resolved popup icons, keyed by `CounterPopupLabelKey`. */
   popupIcons: PopupIconLookup;
   /** The live unified collection this frame, so a kind whose layout depends on
@@ -71,12 +74,14 @@ export function defaultExpired<S>(effect: TransientEffect<S>): boolean {
 }
 
 /**
- * Per-kind reset scope (FR-006). Only `fadeOutText` is `'death'`-scoped, so a
- * death/respawn clears exactly the labels it clears today; every other kind is
- * `'progress'`-scoped and survives until a full Reset Game. The registry reads
- * this map so the policy lives with the kind list rather than being respelled.
+ * Per-kind reset scope (FR-006). `fadeOutText` and `speechBubble` are
+ * `'death'`-scoped, so a death/respawn clears exactly the labels and the bubble
+ * it clears today; every other kind is `'progress'`-scoped and survives until a
+ * full Reset Game. The registry reads this map so the policy lives with the
+ * kind list rather than being respelled.
  */
 export const RESET_SCOPE_BY_KIND: Record<EffectKind, EffectResetScope> = {
+  speechBubble: 'death',
   flyingText: 'progress',
   counterPopup: 'progress',
   puff: 'progress',
@@ -124,6 +129,17 @@ export function clearEffectsByResetScope(
 ): TransientEffect<unknown>[] {
   if (scope === undefined) return [];
   return effects.filter((effect) => RESET_SCOPE_BY_KIND[effect.kind] !== scope);
+}
+
+/**
+ * Remove every effect of one kind, leaving the others by reference (the
+ * immediate death-time bubble clear, FR-013).
+ */
+export function clearEffectsOfKind(
+  effects: readonly TransientEffect<unknown>[],
+  kind: EffectKind,
+): TransientEffect<unknown>[] {
+  return effects.filter((effect) => effect.kind !== kind);
 }
 
 /**
