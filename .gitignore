@@ -19,6 +19,10 @@ dist-ssr
 # Test coverage
 coverage/
 
+# Python
+__pycache__/
+*.py[cod]
+
 # TypeScript
 *.tsbuildinfo
 node_modules/.tmp/
