@@ -5,7 +5,7 @@
  * intra-layer order is preserved. The page invokes this once per pipeline
  * layer (midWorld/worldEffects/aboveWorld/hudLast), never collapsing depth.
  */
-import { EFFECT_REGISTRY, type EffectLayer, type EffectRegistryEntry } from './registry';
+import { EFFECT_REGISTRY, type EffectLayer, type EffectRegistryEntry } from './effectRegistry';
 import type { EffectRenderContext, TransientEffect } from './transientEffect';
 
 /**

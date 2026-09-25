@@ -57,7 +57,7 @@ export interface RewardEffects {
    * a key needs no new field here.
    *
    * Deliberately NOT named `*Effect`: in this codebase an Effect is a
-   * transient visual (`FlightEffect`/`PuffEffect`/`CounterPopupEffect`),
+   * transient visual (`FlyingTextEffect`/`PuffEffect`/`CounterPopupEffect`),
    * whereas a spawned pickup is real world state the player can walk over and
    * collect. `'fruit'` names the rising, fact-carrying reward a question-mark
    * block drops (the former `'bonusFruit'`; R-002 FR-022).

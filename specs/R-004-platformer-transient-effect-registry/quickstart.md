@@ -22,7 +22,7 @@ Expected: every existing test passes, updated only for import paths/signatures/l
 New/updated test coverage to confirm exists:
 
 - **Registry contract**: one `TransientEffect<S>` base, one registry; a throwaway registered kind starts, advances, draws, and expires with no edit to state/tick/draw/reset (US1-5/SC-003).
-- **Advance boundaries**: each family's exact expiry (`>` for six, `phase === 'done'` for flight, `null` sentinel for counter popup) and the `dying` filtered advance (US5-3).
+- **Advance boundaries**: each family's exact expiry (`>` for six, `phase === 'done'` for `flyingText`, `null` sentinel for counter popup) and the `dying` filtered advance (US5-3).
 - **Keyed slot**: two same-type collects leave exactly one popup with the refreshed count/timer; different types coexist (US5-1).
 - **Timed-tile core**: arm/prune/re-arm/`dt <= 0`/shake gating for all four callers (US2).
 - **Particle byte-identity**: sparkle/splatter/debris outputs unchanged at sampled elapsed times (US3-3/SC-005).
@@ -65,7 +65,7 @@ npm run dev
 
 Play a level that exercises every effect and confirm **no visible or behavioural difference** from the pre-refactor build:
 
-- Collect a coin and a bonus fruit — flight text rises/holds/flies; counter popups show per type and refresh in place on a quick second collect.
+- Collect a coin and a bonus fruit — flying text rises/holds/flies; counter popups show per type and refresh in place on a quick second collect.
 - Stomp a green and a purple slime — puff + splatter, key drop for the purple.
 - Take damage / fall in a pit — red splatter; splatters keep spraying through the death lead-in while the world stays frozen.
 - Take a heart — golden aura follows the moving player.

@@ -26,7 +26,7 @@ export interface TransientEffect<S = unknown> {
   keyed-slot lookup in `spawnEffect`); the family-specific data lives in `state`.
 
 - `tick` returns the next effect, the same reference (no-op), or `null` to signal "drop now" (counter-popup sentinel). The six default-advance families return `{ ...effect, elapsed: effect.elapsed + dt }`.
-- `expired` default is `effect.elapsed > effect.duration`; `flight` returns `state.phase === 'done'`.
+- `expired` default is `effect.elapsed > effect.duration`; `flyingText` returns `state.phase === 'done'`.
 
 ## Render context
 
@@ -52,7 +52,7 @@ export interface EffectRenderContext {
 
 ```ts
 export type EffectKind =
-  | 'flight' | 'counterPopup' | 'puff' | 'healAura'
+  | 'flyingText' | 'counterPopup' | 'puff' | 'healAura'
   | 'hitSplatter' | 'fadeOutText' | 'explosion' | 'debris';
 
 export type EffectLayer = 'midWorld' | 'worldEffects' | 'aboveWorld' | 'hudLast';
@@ -70,7 +70,7 @@ export interface EffectRegistryEntry<S = unknown> {
 }
 ```
 
-**Registry ordering is part of the contract:** declaration order fixes the intra-layer draw order (`flight` → `puff` → `debris` → `hitSplatter` → `fadeOutText`).
+**Registry ordering is part of the contract:** declaration order fixes the intra-layer draw order (`flyingText` → `puff` → `debris` → `hitSplatter` → `fadeOutText`).
 
 ## Collection operations
 
@@ -95,7 +95,7 @@ export function drawEffects(
   effects: readonly TransientEffect<unknown>[],
 ): void;
 
-/** Live count of one kind (e.g. flight effects seed the slot allocator). */
+/** Live count of one kind (e.g. flying-text effects seed the slot allocator). */
 export function effectCount(effects: readonly TransientEffect<unknown>[], kind: EffectKind): number;
 ```
 

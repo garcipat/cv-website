@@ -10,7 +10,7 @@ effect collection, the game tick, the draw pass, or reset code (FR-002/FR-020).
 | Piece | Home |
 | --- | --- |
 | `TransientEffect<S>` base, `EffectRenderContext`, `advanceEffects`, `clearEffectsByResetScope`, `effectCount`, `upsertEffect` | `src/themes/platformer/engine/effects/transientEffect.ts` |
-| The kind → start/tick/draw/expiry registry | `src/themes/platformer/engine/effects/registry.ts` |
+| The kind → start/tick/draw/expiry registry | `src/themes/platformer/engine/effects/effectRegistry.ts` |
 | The one layer-filtered draw dispatch | `src/themes/platformer/engine/effects/drawEffects.ts` |
 | One module per kind (start/tick/derive/draw) | `src/themes/platformer/engine/effects/<kind>.ts` |
 | The single collection + state-owned `spawnEffect` | `src/themes/platformer/PlatformerState.ts` |
@@ -39,7 +39,7 @@ export interface TransientEffect<S = unknown> {
   to signal "drop now" (the counter popup's sentinel). Six families use
   `defaultTick` (`{ ...effect, elapsed: elapsed + dt }`).
 - `expired` is the family's exact boundary. The default is strictly past the
-  duration (`effect.elapsed > effect.duration`, never `>=`); `flight` overrides
+  duration (`effect.elapsed > effect.duration`, never `>=`); `flyingText` overrides
   it with `phase === 'done'`.
 - `draw` renders into the shared `EffectRenderContext` (`ctx`, `dc`,
   `canvasWidth`/`canvasHeight`, `playerAnchor`, `popupIcons`, and the live
@@ -58,7 +58,7 @@ export interface TransientEffect<S = unknown> {
 
 ## Step 2 — add one registry line
 
-Append an entry to `EFFECT_REGISTRY` in `registry.ts`, **in declaration order**
+Append an entry to `EFFECT_REGISTRY` in `effectRegistry.ts`, **in declaration order**
 (order fixes intra-layer draw order):
 
 ```ts
@@ -75,7 +75,7 @@ widen({
 ```
 
 - **`layer`** picks the pipeline depth. `drawEffects` is invoked once per layer
-  by `PlatformerPage.tsx`: `midWorld` (heal aura), `worldEffects` (flight, puff,
+  by `PlatformerPage.tsx`: `midWorld` (heal aura), `worldEffects` (flyingText, puff,
   debris, hitSplatter, fadeOutText), `aboveWorld` (explosion), `hudLast`
   (counter popups). Choose the depth the effect must render at.
 - **`resetScope`** declares the per-kind reset policy. `'death'` kinds are

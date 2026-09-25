@@ -10,7 +10,7 @@ Unify the platformer theme's transient visuals behind one `TransientEffect<S>` c
 
 **Primary technical approach** (all decisions recorded in [`research.md`](./research.md)):
 
-- **Effect home**: a new `engine/effects/` directory replaces `engine/CollectionEffects.ts` — `transientEffect.ts` (base + collection advance), `registry.ts`, one module per effect kind (each owning its start/tick/derive/**draw**), `particles.ts`, `drawEffects.ts` (the single layer-filtered dispatch), and an `index.ts` barrel. **Not** a single `engine/effects.ts` file and **not** the F7 `features/effects/` target (F7 is explicitly later work in this spec's Assumptions).
+- **Effect home**: a new `engine/effects/` directory replaces `engine/CollectionEffects.ts` — `transientEffect.ts` (base + collection advance), `effectRegistry.ts`, one module per effect kind (each owning its start/tick/derive/**draw**), `particles.ts`, `drawEffects.ts` (the single layer-filtered dispatch), and an `index.ts` barrel. **Not** a single `engine/effects.ts` file and **not** the F7 `features/effects/` target (F7 is explicitly later work in this spec's Assumptions).
 - **Timed-tile core home**: a new pure leaf `shared/timedTile.ts` (sibling of the R-002 `shared/math.ts`), so the `engine/` mushroom/crumbling machines **and** the relocated `entities/hazards/` machines consume it without adding any new `entities/ → engine/` edge. It also exports the dependency-free `GridTimerState` shape (`{ col, row, elapsed }`) that the relocated falling-stalactite machine uses for its `crumblingFloorStates` parameter, so the merge does not import `engine/CrumblingFloor`.
 - **Hazards**: `engine/FloorSpike.ts` merges into `entities/hazards/FloorSpike.ts`; `engine/FallingStalactite.ts` merges into `entities/hazards/FallingStalactite.ts`; `entities/hazards/phases.ts` is folded into those two modules and deleted.
 - **Text helper**: `fillTextWithOutline` (and the shared pixel font-family constant) extract to a small `engine/textDraw.ts` so effect modules can draw text without importing the god `Renderer.ts` and without a cycle.
@@ -87,10 +87,10 @@ src/themes/platformer/
 │   ├── effects/                     # NEW — replaces engine/CollectionEffects.ts
 │   │   ├── index.ts                 # public barrel (single import site)
 │   │   ├── transientEffect.ts       # TransientEffect<S>, EffectRenderContext, advanceEffects, clearEffectsByResetScope, effectCount
-│   │   ├── registry.ts              # kind → { create, tick?, draw, expired, layer, resetScope, keyOf? }
+│   │   ├── effectRegistry.ts        # kind → { create, tick?, draw, expired, layer, resetScope, keyOf? }
 │   │   ├── particles.ts             # shared particle-list producer (sparkle/splatter/debris)
 │   │   ├── drawEffects.ts           # the single layer-filtered draw pass
-│   │   ├── flight.ts                # FlightEffect family (start / 4-phase tick / derive / draw)
+│   │   ├── flyingText.ts                # FlyingTextEffect family (start / 4-phase tick / derive / draw)
 │   │   ├── counterPopup.ts          # CounterPopupEffect family (keyed slot, null sentinel, draw)
 │   │   ├── puff.ts                  # PuffEffect family (start / default tick / drawSparkleBurst)
 │   │   ├── healAura.ts              # HealAuraEffect family (player-anchored, derive / draw)
@@ -139,12 +139,12 @@ Full rationale and alternatives are in [`research.md`](./research.md); the durab
 
 1. **`TransientEffect<S>` + registry home = `engine/effects/` directory.** Rejected: single `engine/effects.ts` (keeps an 8-family grab bag, no home for the extractions) and `features/effects/` (the F7 target, explicitly later work per spec Assumptions).
 2. **Timed-tile core home = `shared/timedTile.ts`.** Pure leaf; avoids the new `entities/hazards/ → engine/` edge that `engine/timedTile.ts` would create and the cross-family reach that `entities/hazards/timedTile.ts` would create. It also owns the dependency-free `GridTimerState` (`{ col, row, elapsed }`) that `FallingStalactite`'s merged module uses for its crumbling-floor parameter, so the move adds no `engine/CrumblingFloor` import (FR-013).
-3. **One dispatch, four pipeline invocations.** `drawEffects(rc, layer, effects)` is the single pass; the page invokes it at `midWorld` (heal aura), `worldEffects` (flight → puff → debris → splatter → fade-out text, in today's order), `aboveWorld` (explosions), and `hudLast` (counter popups). Depth and intra-layer order are preserved exactly (FR-005/US5-4).
+3. **One dispatch, four pipeline invocations.** `drawEffects(rc, layer, effects)` is the single pass; the page invokes it at `midWorld` (heal aura), `worldEffects` (flyingText → puff → debris → splatter → fade-out text, in today's order), `aboveWorld` (explosions), and `hudLast` (counter popups). Depth and intra-layer order are preserved exactly (FR-005/US5-4).
 4. **Per-kind reset scope is registry metadata.** Only `fadeOutText` is `'death'`-scoped (cleared by `resetGame()`); every other kind is `'progress'`-scoped (cleared only by `resetGameProgress()`), preserving FR-006/US5-5. The four timed-tile arrays remain separately cleared by `resetGame()`.
 5. **Keyed slot via registry `keyOf`.** Counter popups replace in place by `labelKey`; all other kinds append (FR-016/US5-1).
-6. **Per-kind expiry boundaries are explicit.** Six families expire on `elapsed > duration` (default); flight expires on `phase === 'done'`; the counter popup's `tick` returns the `null` sentinel at `elapsed >= duration` (FR-004/FR-007).
+6. **Per-kind expiry boundaries are explicit.** Six families expire on `elapsed > duration` (default); `flyingText` expires on `phase === 'done'`; the counter popup's `tick` returns the `null` sentinel at `elapsed >= duration` (FR-004/FR-007).
 7. **Filtered advance preserves the dying lead-in.** `advanceEffects(activeEffects.value, dt, { kinds: ['hitSplatter'] })` ticks/prunes only hit splatters and leaves the rest frozen (US5-3).
-8. **`activeEffects` is the one collection name**; the old flight-only signal is retargeted to count flight effects for the slot allocator (`effectCount('flight')`), and no parallel store survives (FR-003/FR-018).
+8. **`activeEffects` is the one collection name**; the old flying-text-only signal is retargeted to count flying-text effects for the slot allocator (`effectCount('flyingText')`), and no parallel store survives (FR-003/FR-018).
 9. **Hazard phase vocabulary folds into the hazard modules** and `entities/hazards/phases.ts` is deleted; `level/HazardMapper.ts` imports the phase types from `entities/hazards/FloorSpike.ts` / `FallingStalactite.ts` (allowed `level/ → entities/` edge). The pre-existing `entities/hazards/ → engine/` helper imports (`findLandingRow`, `StaticObjectsCatalog` geometry) are preserved, not widened (FR-013).
 10. **Text helper extracted to `engine/textDraw.ts`** so per-kind effect draws can own their rendering without importing `Renderer.ts` and without a cycle.
 

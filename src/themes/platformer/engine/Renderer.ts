@@ -2118,7 +2118,7 @@ export function chestCounterWidth(ctx: CanvasRenderingContext2D, collected: numb
 /** Horizontal screen position for the key counter — placed just to the right
  *  of the chest counter's actual measured width, same HUD row, separated by
  *  the same HUD_GROUP_GAP the hearts→chest gap uses. Callers (both
- *  PlatformerPage.tsx's render loop and its key-collection flight-effect
+ *  PlatformerPage.tsx's render loop and its key-collection flying-text effect
  *  target) must call this with the CURRENT chest collected/total — it is a
  *  function, not a static constant, precisely because that width isn't
  *  fixed. */

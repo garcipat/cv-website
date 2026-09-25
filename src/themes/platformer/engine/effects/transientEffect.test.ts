@@ -115,7 +115,7 @@ describe('clearEffectsByResetScope', () => {
 
 describe('effectCount', () => {
   it('emptyCollection-isZero', () => {
-    expect(effectCount([], 'flight')).toBe(0);
+    expect(effectCount([], 'flyingText')).toBe(0);
   });
 
   it('countsOnlyTheNamedKind', () => {
@@ -125,7 +125,7 @@ describe('effectCount', () => {
       startFadeOutTextEffect('f', 0, 0, 'x'),
     ];
     expect(effectCount(collection, 'puff')).toBe(2);
-    expect(effectCount(collection, 'flight')).toBe(0);
+    expect(effectCount(collection, 'flyingText')).toBe(0);
   });
 
   it('unrelatedKind-inACollectionOfOtherKindsIsZero', () => {

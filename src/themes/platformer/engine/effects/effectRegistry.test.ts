@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { EFFECT_REGISTRY, effectEntry, effectKeyOf, type EffectKind } from './registry';
+import { EFFECT_REGISTRY, effectEntry, effectKeyOf, type EffectKind } from './effectRegistry';
 import { startPuffEffect } from './puff';
 import { startCounterPopup } from './counterPopup';
 
 describe('EFFECT_REGISTRY', () => {
   it('declaresExactlyTheEightShippedKinds', () => {
     expect(EFFECT_REGISTRY.map((entry) => entry.kind)).toEqual([
-      'flight',
+      'flyingText',
       'counterPopup',
       'puff',
       'healAura',
@@ -19,7 +19,7 @@ describe('EFFECT_REGISTRY', () => {
 
   it('assignsEachKindItsLayerAndResetScopeFromTheDataModel', () => {
     const byKind = Object.fromEntries(EFFECT_REGISTRY.map((entry) => [entry.kind, entry]));
-    expect(byKind.flight).toMatchObject({ layer: 'worldEffects', resetScope: 'progress' });
+    expect(byKind.flyingText).toMatchObject({ layer: 'worldEffects', resetScope: 'progress' });
     expect(byKind.counterPopup).toMatchObject({ layer: 'hudLast', resetScope: 'progress' });
     expect(byKind.puff).toMatchObject({ layer: 'worldEffects', resetScope: 'progress' });
     expect(byKind.healAura).toMatchObject({ layer: 'midWorld', resetScope: 'progress' });

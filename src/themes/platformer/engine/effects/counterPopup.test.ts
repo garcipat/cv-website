@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { makeMockContext, renderContext } from './testContext';
-import { effectKeyOf } from './registry';
+import { effectKeyOf } from './effectRegistry';
 import { upsertEffect } from './transientEffect';
 import { startPuffEffect } from './puff';
 import {

@@ -70,7 +70,7 @@ import type {
   EffectKind,
   ExplosionState,
   FadeOutTextState,
-  FlightState,
+  FlyingTextState,
   HitSplatterState,
   PuffState,
   TransientEffect,
@@ -353,10 +353,10 @@ describe('PlatformerPage', () => {
     activeJournalSection.value = undefined;
     collectedCollectibleIds.value = new Set();
     // Not one of the two signals the brief called out explicitly, but a
-    // module-level signal like the others — without a reset, a flight effect
+    // module-level signal like the others — without a reset, a flying-text effect
     // started by one test (e.g. a collection) lingers into the next test's
     // render() since it's independent of collectedFacts/collectedCollectibleIds
-    // and only clears itself via tickFlightEffect, which no render-only test
+    // and only clears itself via tickFlyingText, which no render-only test
     // ever calls.
     activeEffects.value = [];
     // Module-level signal like the others above — a stomp/defeat mutation
@@ -1353,7 +1353,7 @@ describe('PlatformerPage', () => {
     expect(collectedFacts.value).toEqual([skillFactPool.value[0]]);
   });
 
-  it('playerOverlapsACollectible-tick-flightEffectCarriesAnIconSeparateFromText', () => {
+  it('playerOverlapsACollectible-tick-flyingTextEffectCarriesAnIconSeparateFromText', () => {
     // The icon (a language's flag, or the section's generic symbol — 💡 for
     // skills) is drawn separately from the effect's text (see Renderer.ts:
     // the pixel font `text` uses has no emoji glyphs), so it must actually
@@ -1375,25 +1375,25 @@ describe('PlatformerPage', () => {
 
     frameCallback!(16);
 
-    // The flight effect's id is `${coinId}-${factIndex}`, not the coin's
+    // The flying-text effect's id is `${coinId}-${factIndex}`, not the coin's
     // own id (a single coin can reveal more than one fact under the
     // proportional-fill pacing — see PlatformerPage.tsx's revealedFactCountFor).
-    const effect = effectsOfKind<FlightState>('flight').find((e) => e.id.startsWith(`${target.id}-`));
+    const effect = effectsOfKind<FlyingTextState>('flyingText').find((e) => e.id.startsWith(`${target.id}-`));
     expect(effect?.state.icon).toBe('💡');
     expect(effect?.state.text).not.toContain('💡');
   });
 
-  it('canvasVerticallyCenteredInATallerViewport-flightEffectTargets-landsOnTheJournalButtonNotMidCanvas', () => {
+  it('canvasVerticallyCenteredInATallerViewport-flyingTextEffectTargets-landsOnTheJournalButtonNotMidCanvas', () => {
     // jsdom does no real layout, so getBoundingClientRect() is stubbed here to
     // reproduce what a real browser reports once a short level leaves the
     // fixed-height canvas vertically centered within a taller viewport (see
     // the wrapper's comment in PlatformerPage.tsx): the canvas itself sits at
     // some viewport-space top offset, and the journal button (top-4 left-4
     // within the canvas-wrapping div) sits 16px further down/right than that.
-    // Before the canvas-local translation, the flight target used the
+    // Before the canvas-local translation, the flying-text target used the
     // button's raw viewport-space rect directly, which happens to sit close
-    // to the fact-flight text's canvas-local hold point (canvas.height * 0.3)
-    // — so the "flight" phase moved only a few pixels before fading, reading
+    // to the fact-flying text's canvas-local hold point (canvas.height * 0.3)
+    // — so the "flying" phase moved only a few pixels before fading, reading
     // as the reward vanishing mid-flight instead of reaching the icon.
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
@@ -1425,7 +1425,7 @@ describe('PlatformerPage', () => {
 
     frameCallback!(16);
 
-    const effect = effectsOfKind<FlightState>('flight').find((e) => e.id.startsWith(`${target.id}-`));
+    const effect = effectsOfKind<FlyingTextState>('flyingText').find((e) => e.id.startsWith(`${target.id}-`));
     // Canvas-local journal button center: (16 - 0) + 40/2, (82 - 66) + 40/2.
     expect(effect?.state.targetX).toBe(36);
     expect(effect?.state.targetY).toBe(36);
@@ -1458,7 +1458,7 @@ describe('PlatformerPage', () => {
 
     frameCallback!(16);
 
-    // Nothing revealed: no new fact, and no flight effect for this coin.
+    // Nothing revealed: no new fact, and no flying-text effect for this coin.
     expect(collectedFacts.value).toHaveLength(skillFactPool.value.length);
     expect(activeEffects.value.some((e) => e.id.startsWith(`${target.id}-`))).toBe(false);
     // ...but the coin still counts, and still says so.
@@ -1539,7 +1539,7 @@ describe('PlatformerPage', () => {
     // placement time and is asserted against directly.
     expect(collectedFacts.value.some((f) => f.id === target.fact?.id)).toBe(true);
     // A fresh fact-bearing defeat still queues a puff — puff (defeat
-    // feedback) and the fact/flight-text reward are fully decoupled layers,
+    // feedback) and the fact/flying-text reward are fully decoupled layers,
     // same as crate destruction (B-003).
     expect(effectsOfKind<PuffState>('puff').some((p) => p.id === target.id)).toBe(true);
   });
@@ -1615,7 +1615,7 @@ describe('PlatformerPage', () => {
   });
 
   it('enemyAlreadyDefeatedFromAPriorLife-defeatingItAgain-stillQueuesAPuff', () => {
-    // Puff (defeat feedback) and the fact/flight-text reward are fully
+    // Puff (defeat feedback) and the fact/flying-text reward are fully
     // decoupled layers (B-003) — a defeat that awards nothing because it
     // already paid out in a prior life is still a world event that
     // deserves a puff.
@@ -1685,7 +1685,7 @@ describe('PlatformerPage', () => {
     // behavior (an item spawned right under the player is picked up on
     // contact, same as any other collectible), not a test artifact. What
     // matters here is that a KeyPickupState was created at all (proving the
-    // defeat routed through spawnKeyPickup, not the fact-flight path) and
+    // defeat routed through spawnKeyPickup, not the flying-text path) and
     // that no journal fact was banked for this enemy.
     expect(enemyStates.value.find((e) => e.id === target.id)?.alive).toBe(false);
     expect(keyPickupStates.value.some((k) => k.id === target.id)).toBe(true);
@@ -1826,7 +1826,7 @@ describe('PlatformerPage', () => {
     expect(revived.rewardGiven).toBe(true);
   });
 
-  it('greenSlimeRevivedAndDefeatedAgain-secondDefeat-queuesAPuffNotAFlightEffect', () => {
+  it('greenSlimeRevivedAndDefeatedAgain-secondDefeat-queuesAPuffNotAFlyingTextEffect', () => {
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frameCallback = cb;
@@ -1882,7 +1882,7 @@ describe('PlatformerPage', () => {
     expect(effectsOfKind<PuffState>('puff').some((p) => p.id === target.id)).toBe(true);
   });
 
-  it('fragileRockBrokenFromBelow-queuesAPuffNotAFlightEffect', () => {
+  it('fragileRockBrokenFromBelow-queuesAPuffNotAFlyingTextEffect', () => {
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frameCallback = cb;
@@ -1910,10 +1910,10 @@ describe('PlatformerPage', () => {
     }
 
     expect(effectsOfKind<PuffState>('puff').some((p) => p.id === rock.id)).toBe(true);
-    expect(effectsOfKind<FlightState>('flight').some((e) => e.id === rock.id)).toBe(false);
+    expect(effectsOfKind<FlyingTextState>('flyingText').some((e) => e.id === rock.id)).toBe(false);
   });
 
-  it('crateDestroyedFromBelow-terminalHit-queuesAPuffAndStillAwardsTheFlightEffectReward', () => {
+  it('crateDestroyedFromBelow-terminalHit-queuesAPuffAndStillAwardsTheFlyingTextEffectReward', () => {
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frameCallback = cb;
@@ -1948,7 +1948,7 @@ describe('PlatformerPage', () => {
     // Second hit — the terminal one — must ALWAYS queue a puff (destruction
     // feedback, reusing the same blockEffectAnchor/startPuffEffect mechanism
     // as fragileRock above) AND independently still award its own
-    // fact/flight-effect reward, fixed at placement time (see
+    // fact/flying-text effect reward, fixed at placement time (see
     // BlockMapper.ts's placeCrates doc comment).
     playerState.value = { ...playerState.value, ...bumpPosition };
     t += 16;
@@ -1959,7 +1959,7 @@ describe('PlatformerPage', () => {
     }
 
     expect(effectsOfKind<PuffState>('puff').some((p) => p.id === crate.id)).toBe(true);
-    // The flight effect's id is `${crateId}-${factIndex}`, not the crate's
+    // The flying-text effect's id is `${crateId}-${factIndex}`, not the crate's
     // own id — a single crate can reveal more than one fact when fewer
     // crates are placed than there are crate-pool facts.
     expect(activeEffects.value.some((e) => e.id.startsWith(`${crate.id}-`))).toBe(true);
@@ -2594,7 +2594,7 @@ describe('PlatformerPage', () => {
     expect(playerState.value.bounceAscending).toBe(false);
   });
 
-  it('coinCollection-queuesAFlightEffectOnly-neverAlsoAPuff', () => {
+  it('coinCollection-queuesAFlyingTextEffectOnly-neverAlsoAPuff', () => {
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frameCallback = cb;
@@ -2642,10 +2642,10 @@ describe('PlatformerPage', () => {
     expect(keyPickupStates.value.find((k) => k.id === pickup.id)?.collected).toBe(true);
   });
 
-  it('playerWalksIntoKeyPickup-tick-startsAFlightEffectTowardTheKeyCounter', () => {
+  it('playerWalksIntoKeyPickup-tick-startsAFlyingTextEffectTowardTheKeyCounter', () => {
     // Spec.md's User Story 4 and roadmap.md's step 30 both promise that
     // collecting a key "animates toward the key counter in the HUD" —
-    // reusing the same startFlightEffect/activeEffects mechanism every other
+    // reusing the same startFlyingText/activeEffects mechanism every other
     // pickup path in this file already uses, just targeting the HUD key
     // counter's fixed screen position instead of the journal icon.
     let frameCallback: FrameRequestCallback | null = null;
@@ -2666,7 +2666,7 @@ describe('PlatformerPage', () => {
 
     frameCallback!(16);
 
-    const effect = effectsOfKind<FlightState>('flight').find((e) => e.id === pickup.id);
+    const effect = effectsOfKind<FlyingTextState>('flyingText').find((e) => e.id === pickup.id);
     expect(effect).toBeDefined();
     const canvas = screen.getByTestId('platformer-canvas') as HTMLCanvasElement;
     const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;

@@ -116,7 +116,7 @@ import {
   advanceEffects,
   drawEffects,
   effectCount,
-  startFlightEffect,
+  startFlyingText,
   createSlotAllocator,
   startCounterPopup,
   startPuffEffect,
@@ -946,7 +946,7 @@ export const PlatformerPage = () => {
       }
 
       // World-effects layer, after the hint bubble: registry declaration order
-      // fixes the intra-layer sequence flight → puff → debris → hitSplatter →
+      // fixes the intra-layer sequence flyingText → puff → debris → hitSplatter →
       // fadeOutText (FR-005).
       drawEffects(effectRenderContext, 'worldEffects', activeEffects.value);
 
@@ -1159,29 +1159,29 @@ export const PlatformerPage = () => {
       // Computed once per tick and shared by every reveal site below — these
       // same two expressions used to be duplicated in the enemy-defeat block
       // and the collectible block. `originX`/`originY` convert a world-space
-      // entity position into the screen-space coordinates FlightEffect
-      // requires (see engine/effects/flight.ts's doc comment); the level is
+      // entity position into the screen-space coordinates FlyingTextEffect
+      // requires (see engine/effects/flyingText.ts's doc comment); the level is
       // anchored to the bottom of the canvas, same as render()'s own copy.
       const levelPixelHeight = currentLevel.value.height * RENDERED_TILE_SIZE;
       const originX = -cameraPositionX.value;
       const originY = canvas.height - levelPixelHeight + cameraPositionY.value;
       // ONE slot allocator for the whole tick, shared by the reveal trigger
-      // and the key pickup below — two flight texts appearing in the same tick
+      // and the key pickup below — two flying texts appearing in the same tick
       // must never land on the same vertical row, which takes a single counter
-      // across every flight-text site (see createSlotAllocator's doc comment).
-      // Seeded from the number of fact-flight effects still in the air from
+      // across every flying-text site (see createSlotAllocator's doc comment).
+      // Seeded from the number of fact-flying-text effects still in the air from
       // previous ticks (already filtered for 'done' ones at the end of the
       // previous tick — see the activeEffects tick/filter below).
-      const allocateSlotOffset = createSlotAllocator(effectCount(activeEffects.value, 'flight'));
+      const allocateSlotOffset = createSlotAllocator(effectCount(activeEffects.value, 'flyingText'));
       // The one fact-reveal trigger every reveal site below goes through.
       const journalButtonRect = journalButtonRef.current?.getBoundingClientRect() ?? null;
       // journalButtonRect is viewport-relative (getBoundingClientRect), but
-      // every other coordinate the flight effect uses (originX/originY,
+      // every other coordinate the flying-text effect uses (originX/originY,
       // canvasWidth/canvasHeight) is canvas-local. That was harmless while
       // the canvas filled the viewport from (0,0), but now that a short
       // level leaves the canvas vertically centered within a taller
       // viewport (see the wrapper's comment near the canvas JSX below), the
-      // viewport offset must be subtracted out or the flight lands wherever
+      // viewport offset must be subtracted out or the flying text lands wherever
       // the button would be if the canvas started at the viewport's origin.
       const canvasRect = canvas.getBoundingClientRect();
       const journalRect = journalButtonRect
@@ -1264,7 +1264,7 @@ export const PlatformerPage = () => {
       fruitStates.value = fruitStates.value.map((fruit) => tickFruit(fruit, dt));
 
       // Enemies whose hit reaction just finished with no hit points left
-      // (`!alive`): fire their reward, reusing the exact fact-flight
+      // (`!alive`): fire their reward, reusing the exact flying-text
       // mechanism coins use (see the collectible-collision block below)
       // rather than a duplicate implementation. The enemy itself stays in
       // `enemyStates` — render and collision already skip a dead enemy, so
@@ -1273,7 +1273,7 @@ export const PlatformerPage = () => {
       // `alive` goes false on the finishing stomp; `deathEffectGiven` is set
       // the same tick (see the end of this block) and resets on revive, so a
       // revived enemy stomped again in a later life IS selected here again —
-      // its new death still deserves its own puff/flight effect. `rewardGiven`
+      // its new death still deserves its own puff/flying-text effect. `rewardGiven`
       // is separate and permanent: it gates whether anything is actually paid
       // out (fact or key), not whether the enemy is selected below.
       //
@@ -1320,7 +1320,7 @@ export const PlatformerPage = () => {
           }
 
           // A fresh defeat: puff and reward are fully decoupled layers (puff
-          // = destruction/defeat feedback, flight text = reward feedback),
+          // = destruction/defeat feedback, flying text = reward feedback),
           // same as crate destruction below — the defeat is a world event
           // that always deserves a puff, independent of whether it also
           // happens to award a fact. A green slime's fact(s) were fixed at
@@ -1380,7 +1380,7 @@ export const PlatformerPage = () => {
       }
 
       // ONE advance replaces the six byte-identical per-kind tick bodies plus
-      // the flight-phase and counter-popup plumbing. Each effect's registered
+      // the flying-text phase and counter-popup plumbing. Each effect's registered
       // tick/expiry reproduces its exact boundary (FR-004/FR-007).
       activeEffects.value = advanceEffects(activeEffects.value, dt);
 
@@ -1523,17 +1523,17 @@ export const PlatformerPage = () => {
       // (not removed from the array) so drawKeyPickups's own skip-if-collected
       // check keeps the pickup out of the render list without needing a
       // separate "already gone" list. Unlike every other pickup here, the
-      // flight target isn't the journal icon — it's the canvas-drawn HUD key
+      // flying-text target isn't the journal icon — it's the canvas-drawn HUD key
       // counter's screen position (keyCounterX/KEY_COUNTER_Y), used directly
       // with no origin/camera offset since the HUD is screen-fixed. keyCounterX
       // needs a 2D context to measure the chest counter's current text width
       // (same real position render() draws the key counter at) — canvas
       // already has one from this component's setup, reused here rather than
       // recreating it. There's no per-key fact/label the way other pickups
-      // have one, so the flight text is just a static "Key" caption.
+      // have one, so the flying text is just a static "Key" caption.
       const touchedKeyIds = checkKeyPickupCollisions(playerState.value, keyPickupStates.value);
       if (touchedKeyIds.length > 0) {
-        const newEffects: ReturnType<typeof startFlightEffect>[] = [];
+        const newEffects: ReturnType<typeof startFlyingText>[] = [];
         const midX = canvas.width / 2;
         const midY = canvas.height * 0.3;
         const hudCtx = canvas.getContext('2d');
@@ -1549,7 +1549,7 @@ export const PlatformerPage = () => {
           // tick still step down a row.
           const stackOffsetY = allocateSlotOffset();
           newEffects.push(
-            startFlightEffect(
+            startFlyingText(
               pickup.id,
               'Key',
               pickup.x + KEY_TILE_OFFSET_X + originX,

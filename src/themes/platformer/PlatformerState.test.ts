@@ -98,7 +98,7 @@ import {
   startDebrisEffect,
   startExplosionEffect,
   startFadeOutTextEffect,
-  startFlightEffect,
+  startFlyingText,
   startHealAuraEffect,
   startPlayerHitSplatter,
   startPuffEffect,
@@ -1619,9 +1619,9 @@ describe('R-004 US5 — unified effect collection lifecycle', () => {
     const splatter = startPlayerHitSplatter('s', 0, 0, 1);
     const debris = startDebrisEffect('d', 0, 0, []);
     const explosion = startExplosionEffect('e', 0, 0);
-    const flight = startFlightEffect('fl', 't', 0, 0, 0, 0, 0, 0);
+    const flyingText = startFlyingText('fl', 't', 0, 0, 0, 0, 0, 0);
     const popup = startCounterPopup('coins', 1, 4);
-    activeEffects.value = [fade, puff, aura, splatter, debris, explosion, flight, popup];
+    activeEffects.value = [fade, puff, aura, splatter, debris, explosion, flyingText, popup];
     mushroomSquashStates.value = [{ col: 0, row: 0, elapsed: 0 }];
     floorSpikeTimerStates.value = [{ id: 'h', elapsed: 0 }];
     crumblingFloorTimerStates.value = [{ col: 0, row: 0, elapsed: 0 }];
@@ -1632,7 +1632,7 @@ describe('R-004 US5 — unified effect collection lifecycle', () => {
     // Only the death-scoped fade-out labels are cleared from the collection...
     expect(effectsOfKind<FadeOutTextState>('fadeOutText')).toEqual([]);
     // ...every other kind survives by reference.
-    for (const survivor of [puff, aura, splatter, debris, explosion, flight, popup]) {
+    for (const survivor of [puff, aura, splatter, debris, explosion, flyingText, popup]) {
       expect(activeEffects.value).toContain(survivor);
     }
     // The four timed-tile timer arrays are cleared as before.

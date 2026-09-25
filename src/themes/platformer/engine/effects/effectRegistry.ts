@@ -2,14 +2,14 @@
  * The effect kind → start/tick/draw/expiry registry that makes a new transient
  * effect one module plus one registry line (R-004 FR-002). Declaration order
  * is part of the contract: it fixes the intra-layer draw order
- * (`flight` → `puff` → `debris` → `hitSplatter` → `fadeOutText`).
+ * (`flyingText` → `puff` → `debris` → `hitSplatter` → `fadeOutText`).
  */
 import {
-  drawFlightEffect,
-  flightEffectExpired,
-  startFlightEffect,
-  tickFlightEffect,
-} from './flight';
+  drawFlyingText,
+  flyingTextExpired,
+  startFlyingText,
+  tickFlyingText,
+} from './flyingText';
 import {
   drawCounterPopup,
   startCounterPopup,
@@ -26,7 +26,7 @@ import { RESET_SCOPE_BY_KIND, type EffectRenderContext, type TransientEffect } f
 
 /** The fixed set of shipped effect families — no additions (FR-019). */
 export type EffectKind =
-  | 'flight'
+  | 'flyingText'
   | 'counterPopup'
   | 'puff'
   | 'healAura'
@@ -43,7 +43,7 @@ export type EffectResetScope = 'death' | 'progress';
 
 /**
  * Maps a kind to its start/tick/draw/expiry and the metadata the collection
- * needs. Only `flight` and `counterPopup` override `tick`/`expired`; only
+ * needs. Only `flyingText` and `counterPopup` override `tick`/`expired`; only
  * `counterPopup` declares `keyOf` (a keyed replace-in-place slot).
  */
 export interface EffectRegistryEntry<S = unknown> {
@@ -79,13 +79,13 @@ function keyOfCounterPopup(effect: TransientEffect<unknown>): string {
  */
 export const EFFECT_REGISTRY: readonly EffectRegistryEntry<unknown>[] = [
   widen({
-    kind: 'flight',
-    create: startFlightEffect,
-    tick: tickFlightEffect,
-    draw: drawFlightEffect,
-    expired: flightEffectExpired,
+    kind: 'flyingText',
+    create: startFlyingText,
+    tick: tickFlyingText,
+    draw: drawFlyingText,
+    expired: flyingTextExpired,
     layer: 'worldEffects',
-    resetScope: RESET_SCOPE_BY_KIND.flight,
+    resetScope: RESET_SCOPE_BY_KIND.flyingText,
   }),
   widen({
     kind: 'counterPopup',

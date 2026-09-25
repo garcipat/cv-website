@@ -8,10 +8,10 @@
  * `docs/TransientEffectRecipe.md`.
  */
 export * from './transientEffect';
-export * from './registry';
+export * from './effectRegistry';
 export * from './drawEffects';
 export * from './particles';
-export * from './flight';
+export * from './flyingText';
 export * from './counterPopup';
 export * from './puff';
 export * from './healAura';

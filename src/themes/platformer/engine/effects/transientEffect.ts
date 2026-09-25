@@ -12,7 +12,7 @@
  */
 import type { DrawContext } from '../../contracts/DrawContext';
 import type { CounterPopupLabelKey } from '../../contracts/counters';
-import type { EffectKind, EffectResetScope } from './registry';
+import type { EffectKind, EffectResetScope } from './effectRegistry';
 
 /** A resolved HUD popup icon (see `EffectRenderContext.popupIcons`). */
 export interface PopupIcon {
@@ -77,7 +77,7 @@ export function defaultExpired<S>(effect: TransientEffect<S>): boolean {
  * this map so the policy lives with the kind list rather than being respelled.
  */
 export const RESET_SCOPE_BY_KIND: Record<EffectKind, EffectResetScope> = {
-  flight: 'progress',
+  flyingText: 'progress',
   counterPopup: 'progress',
   puff: 'progress',
   healAura: 'progress',
@@ -147,7 +147,7 @@ export function upsertEffect(
   ];
 }
 
-/** Live count of one kind (e.g. flight effects seed the slot allocator). */
+/** Live count of one kind (e.g. flying-text effects seed the slot allocator). */
 export function effectCount(effects: readonly TransientEffect<unknown>[], kind: EffectKind): number {
   let count = 0;
   for (const effect of effects) {

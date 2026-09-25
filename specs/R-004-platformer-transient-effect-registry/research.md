@@ -50,7 +50,7 @@ This document resolves the open technical decisions for R-004. The spec intentio
 | Layer | Kinds (declaration order) | Pipeline position today |
 | --- | --- | --- |
 | `midWorld` | `healAura` | after player/held torch, before collectibles |
-| `worldEffects` | `flight`, `puff`, `debris`, `hitSplatter`, `fadeOutText` | after the hint bubble |
+| `worldEffects` | `flyingText`, `puff`, `debris`, `hitSplatter`, `fadeOutText` | after the hint bubble |
 | `aboveWorld` | `explosion` | above world effects, below the counters |
 | `hudLast` | `counterPopup` | last, after enemy-eye/hint/UI work |
 
@@ -72,7 +72,7 @@ This document resolves the open technical decisions for R-004. The spec intentio
 
 | Kind | Advance | Expiry |
 | --- | --- | --- |
-| `flight` | 4-phase machine (`rising`→`holding`→`flying`→`done`) | `phase === 'done'` (set at `elapsed >= RISE+HOLD+FLIGHT`) |
+| `flyingText` | 4-phase machine (`rising`→`holding`→`flying`→`done`) | `phase === 'done'` (set at `elapsed >= RISE+HOLD+FLIGHT`) |
 | `counterPopup` | advance elapsed | `tick` returns `null` at `elapsed >= duration` |
 | `puff` | default | `elapsed > SPARKLE_DURATION_SECONDS` |
 | `healAura` | default | `elapsed > HEAL_AURA_DURATION_SECONDS` |
@@ -81,7 +81,7 @@ This document resolves the open technical decisions for R-004. The spec intentio
 | `explosion` | default | `elapsed > EXPLOSION_DURATION_SECONDS` |
 | `debris` | default | `elapsed > DEBRIS_DURATION_SECONDS` |
 
-**Rationale**: Matches the spec's edge-case resolution (mixed `<=`/`<`/sentinel/phase-machine expiry) and FR-004/FR-007. A default `expired = elapsed > duration` covers six families; flight and counter override.
+**Rationale**: Matches the spec's edge-case resolution (mixed `<=`/`<`/sentinel/phase-machine expiry) and FR-004/FR-007. A default `expired = elapsed > duration` covers six families; flyingText and counter override.
 
 **Alternatives considered**:
 - **A single uniform `elapsed >= duration` boundary** — rejected: changes one-frame behaviour for six families and breaks byte-identity.
@@ -95,7 +95,7 @@ This document resolves the open technical decisions for R-004. The spec intentio
 
 **Decision**: Registry metadata carries `resetScope: 'death' | 'progress'` and an optional `keyOf(effect)`. Only `fadeOutText` is `'death'`-scoped among effects; insertion of a keyed kind replaces the existing effect with the same `(kind, key)`.
 
-**Rationale**: FR-006/US5-5 require that death/respawn keeps puffs/auras/splatters/debris/explosions/flight/counter popups and clears only fade-out labels (plus the four separate timed-tile timer arrays). FR-016/US5-1 require counter popups to be one-per-`labelKey` with refresh-in-place.
+**Rationale**: FR-006/US5-5 require that death/respawn keeps puffs/auras/splatters/debris/explosions/flyingText/counter popups and clears only fade-out labels (plus the four separate timed-tile timer arrays). FR-016/US5-1 require counter popups to be one-per-`labelKey` with refresh-in-place.
 
 **Alternatives considered**:
 - **Hard-code the clear lists in the state module** — rejected: FR-002/FR-006 want the policy declared where the kind is registered, so adding a kind is one registry line.
@@ -119,7 +119,7 @@ This document resolves the open technical decisions for R-004. The spec intentio
 
 **Decision**: Extract `fillTextWithOutline` and the shared pixel font-family constant from `Renderer.ts` into a small `engine/textDraw.ts`. `Renderer.ts` and the effect modules import from it.
 
-**Rationale**: Per-kind draws (flight, fade-out text, counter popup) need outlined text and the pixel font. Importing `Renderer.ts` from an effect module would couple feature logic to the god module; moving the helper gives one definition and an acyclic graph (`effects → textDraw`, `Renderer → textDraw`).
+**Rationale**: Per-kind draws (flyingText, fade-out text, counter popup) need outlined text and the pixel font. Importing `Renderer.ts` from an effect module would couple feature logic to the god module; moving the helper gives one definition and an acyclic graph (`effects → textDraw`, `Renderer → textDraw`).
 
 **Alternatives considered**:
 - **Effect modules import `Renderer.ts`** — rejected: backwards coupling and a large dependency surface; the eventual F7 direction is `features/effects → engine/render` helpers, not the reverse.

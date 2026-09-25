@@ -696,7 +696,7 @@ export const collectedCollectibleIds = signal<Set<string>>(new Set());
 
 /**
  * THE one collection of live transient effects (R-004 FR-003). Every effect
- * family — flight text, counter popups, puffs, heal auras, hit splatters,
+ * family — flying text, counter popups, puffs, heal auras, hit splatters,
  * fade-out labels, explosions, debris — lives here; no family keeps a parallel
  * store. Effects are appended by `spawnEffect` below, advanced by the single
  * `advanceEffects` in the game tick, and drawn by the single `drawEffects`
@@ -987,7 +987,7 @@ export function resetGame(): void {
   // (FR-014) — same convention as the floor spike/crumbling floor cycles
   // above. Transient effects are deliberately NOT all cleared here: only the
   // `'death'`-scoped kinds (the fade-out labels) are, so puffs, heal auras,
-  // hit splatters, debris, explosions, flight text and counter popups — which
+  // hit splatters, debris, explosions, flying text and counter popups — which
   // survive a death today — keep fading on their own duration (FR-006).
   fallingStalactiteTimerStates.value = [];
   enemyStates.value = enemyStates.value.map(reviveEnemy);
@@ -1028,7 +1028,7 @@ export function resetGame(): void {
  * makes already-collected coins/fruits reappear in the level, since the
  * render/collision loop reads it live), the remembered active journal
  * bookmark (falls back to Journal.tsx's default section afterward), and any
- * in-flight fact-flight text animation (`activeEffects`) so a pickup
+ * in-flight flying-text animation (`activeEffects`) so a pickup
  * triggered just before Reset Game is clicked doesn't keep animating after
  * the journal closes. `lifecycleState` is deliberately left untouched: the
  * journal can only be opened from the `'playing'` phase

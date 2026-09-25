@@ -3,21 +3,21 @@ import { makeMockContext, renderContext } from './testContext';
 import {
   COLLECTION_TEXT_SLOT_COUNT,
   COLLECTION_TEXT_STACK_ROW_HEIGHT,
-  FLIGHT_DURATION_SECONDS,
+  FLY_DURATION_SECONDS,
   HOLD_DURATION_SECONDS,
   RISE_DURATION_SECONDS,
   createSlotAllocator,
-  drawFlightEffect,
-  flightEffectExpired,
-  flightEffectPosition,
-  startFlightEffect,
-  tickFlightEffect,
-} from './flight';
+  drawFlyingText,
+  flyingTextExpired,
+  flyingTextPosition,
+  startFlyingText,
+  tickFlyingText,
+} from './flyingText';
 
-describe('startFlightEffect', () => {
+describe('startFlyingText', () => {
   it('called-returnsRisingPhaseAtZeroElapsed', () => {
-    const effect = startFlightEffect('a', 'German', 10, 20, 400, 300, 900, 600);
-    expect(effect).toMatchObject({ kind: 'flight', id: 'a', elapsed: 0 });
+    const effect = startFlyingText('a', 'German', 10, 20, 400, 300, 900, 600);
+    expect(effect).toMatchObject({ kind: 'flyingText', id: 'a', elapsed: 0 });
     expect(effect.state).toEqual({
       text: 'German',
       startX: 10,
@@ -31,115 +31,115 @@ describe('startFlightEffect', () => {
   });
 
   it('calledWithIcon-includesIconOnTheState', () => {
-    const effect = startFlightEffect('a', 'German', 10, 20, 400, 300, 900, 600, '🇩🇪');
+    const effect = startFlyingText('a', 'German', 10, 20, 400, 300, 900, 600, '🇩🇪');
     expect(effect.state.icon).toBe('🇩🇪');
   });
 
   it('calledWithoutIcon-iconIsUndefined', () => {
-    const effect = startFlightEffect('a', 'German', 10, 20, 400, 300, 900, 600);
+    const effect = startFlyingText('a', 'German', 10, 20, 400, 300, 900, 600);
     expect(effect.state.icon).toBeUndefined();
   });
 });
 
-describe('tickFlightEffect', () => {
-  const start = () => startFlightEffect('a', 't', 0, 0, 0, 0, 0, 0);
+describe('tickFlyingText', () => {
+  const start = () => startFlyingText('a', 't', 0, 0, 0, 0, 0, 0);
 
   it('withinRiseDuration-staysRisingPhase', () => {
-    expect(tickFlightEffect(start(), RISE_DURATION_SECONDS / 2).state.phase).toBe('rising');
+    expect(tickFlyingText(start(), RISE_DURATION_SECONDS / 2).state.phase).toBe('rising');
   });
 
   it('pastRiseDuration-transitionsToHoldingPhase', () => {
-    expect(tickFlightEffect(start(), RISE_DURATION_SECONDS + 0.01).state.phase).toBe('holding');
+    expect(tickFlyingText(start(), RISE_DURATION_SECONDS + 0.01).state.phase).toBe('holding');
   });
 
   it('pastRisePlusHoldDuration-transitionsToFlyingPhase', () => {
     expect(
-      tickFlightEffect(start(), RISE_DURATION_SECONDS + HOLD_DURATION_SECONDS + 0.01).state.phase,
+      tickFlyingText(start(), RISE_DURATION_SECONDS + HOLD_DURATION_SECONDS + 0.01).state.phase,
     ).toBe('flying');
   });
 
-  it('pastRisePlusHoldPlusFlightDuration-transitionsToDonePhase', () => {
+  it('pastRisePlusHoldPlusFlyDuration-transitionsToDonePhase', () => {
     expect(
-      tickFlightEffect(
+      tickFlyingText(
         start(),
-        RISE_DURATION_SECONDS + HOLD_DURATION_SECONDS + FLIGHT_DURATION_SECONDS + 0.01,
+        RISE_DURATION_SECONDS + HOLD_DURATION_SECONDS + FLY_DURATION_SECONDS + 0.01,
       ).state.phase,
     ).toBe('done');
   });
 
   it('donePhase-tickedAgain-returnsSameReference', () => {
-    const done = tickFlightEffect(
+    const done = tickFlyingText(
       start(),
-      RISE_DURATION_SECONDS + HOLD_DURATION_SECONDS + FLIGHT_DURATION_SECONDS + 0.01,
+      RISE_DURATION_SECONDS + HOLD_DURATION_SECONDS + FLY_DURATION_SECONDS + 0.01,
     );
-    expect(tickFlightEffect(done, 1)).toBe(done);
+    expect(tickFlyingText(done, 1)).toBe(done);
   });
 
   it('atExactlyRiseDuration-transitionsToHoldingPhase', () => {
-    expect(tickFlightEffect(start(), RISE_DURATION_SECONDS).state.phase).toBe('holding');
+    expect(tickFlyingText(start(), RISE_DURATION_SECONDS).state.phase).toBe('holding');
   });
 
   it('atExactlyRisePlusHold-transitionsToFlyingPhase', () => {
     expect(
-      tickFlightEffect(start(), RISE_DURATION_SECONDS + HOLD_DURATION_SECONDS).state.phase,
+      tickFlyingText(start(), RISE_DURATION_SECONDS + HOLD_DURATION_SECONDS).state.phase,
     ).toBe('flying');
   });
 
   it('atExactlyTheFullDuration-transitionsToDonePhase', () => {
-    expect(tickFlightEffect(start(), FLIGHT_DURATION_SECONDS + RISE_DURATION_SECONDS + HOLD_DURATION_SECONDS).state.phase).toBe(
+    expect(tickFlyingText(start(), FLY_DURATION_SECONDS + RISE_DURATION_SECONDS + HOLD_DURATION_SECONDS).state.phase).toBe(
       'done',
     );
   });
 });
 
-describe('flightEffectExpired', () => {
+describe('flyingTextExpired', () => {
   it('runningPhase-isNotExpired', () => {
-    expect(flightEffectExpired(startFlightEffect('a', 't', 0, 0, 0, 0, 0, 0))).toBe(false);
+    expect(flyingTextExpired(startFlyingText('a', 't', 0, 0, 0, 0, 0, 0))).toBe(false);
   });
 
   it('donePhase-isExpired', () => {
-    const done = tickFlightEffect(startFlightEffect('a', 't', 0, 0, 0, 0, 0, 0), 100);
-    expect(flightEffectExpired(done)).toBe(true);
+    const done = tickFlyingText(startFlyingText('a', 't', 0, 0, 0, 0, 0, 0), 100);
+    expect(flyingTextExpired(done)).toBe(true);
   });
 });
 
-describe('flightEffectPosition', () => {
-  const start = () => startFlightEffect('a', 't', 100, 100, 400, 300, 900, 600);
+describe('flyingTextPosition', () => {
+  const start = () => startFlyingText('a', 't', 100, 100, 400, 300, 900, 600);
 
   it('risingPhaseStart-positionedAtStart', () => {
-    const pos = flightEffectPosition(start());
+    const pos = flyingTextPosition(start());
     expect(pos.x).toBeCloseTo(100);
     expect(pos.y).toBeCloseTo(100);
     expect(pos.opacity).toBe(1);
   });
 
   it('risingPhaseEnd-positionedAtMidWithFullOpacity', () => {
-    const pos = flightEffectPosition(tickFlightEffect(start(), RISE_DURATION_SECONDS));
+    const pos = flyingTextPosition(tickFlyingText(start(), RISE_DURATION_SECONDS));
     expect(pos.x).toBeCloseTo(400);
     expect(pos.y).toBeCloseTo(300);
     expect(pos.opacity).toBe(1);
   });
 
   it('holdingPhase-staysFixedAtMidWithFullOpacity', () => {
-    const pos = flightEffectPosition(
-      tickFlightEffect(start(), RISE_DURATION_SECONDS + HOLD_DURATION_SECONDS / 2),
+    const pos = flyingTextPosition(
+      tickFlyingText(start(), RISE_DURATION_SECONDS + HOLD_DURATION_SECONDS / 2),
     );
     expect(pos.x).toBeCloseTo(400);
     expect(pos.y).toBeCloseTo(300);
     expect(pos.opacity).toBe(1);
   });
 
-  it('flightStart-positionedAtMid', () => {
-    const pos = flightEffectPosition(
-      tickFlightEffect(start(), RISE_DURATION_SECONDS + HOLD_DURATION_SECONDS),
+  it('flyingTextStart-positionedAtMid', () => {
+    const pos = flyingTextPosition(
+      tickFlyingText(start(), RISE_DURATION_SECONDS + HOLD_DURATION_SECONDS),
     );
     expect(pos.x).toBeCloseTo(400);
     expect(pos.y).toBeCloseTo(300);
   });
 
-  it('flightEnd-positionedAtTargetWithZeroOpacity', () => {
-    const pos = flightEffectPosition(
-      tickFlightEffect(start(), RISE_DURATION_SECONDS + HOLD_DURATION_SECONDS + FLIGHT_DURATION_SECONDS),
+  it('flyEnd-positionedAtTargetWithZeroOpacity', () => {
+    const pos = flyingTextPosition(
+      tickFlyingText(start(), RISE_DURATION_SECONDS + HOLD_DURATION_SECONDS + FLY_DURATION_SECONDS),
     );
     expect(pos.x).toBeCloseTo(900);
     expect(pos.y).toBeCloseTo(600);
@@ -147,8 +147,8 @@ describe('flightEffectPosition', () => {
   });
 
   it('donePhase-returnsZeroOpacity', () => {
-    const effect = tickFlightEffect(startFlightEffect('a', 't', 0, 0, 0, 0, 0, 0), 100);
-    expect(flightEffectPosition(effect).opacity).toBe(0);
+    const effect = tickFlyingText(startFlyingText('a', 't', 0, 0, 0, 0, 0, 0), 100);
+    expect(flyingTextPosition(effect).opacity).toBe(0);
   });
 });
 
@@ -179,15 +179,15 @@ describe('createSlotAllocator', () => {
   });
 });
 
-describe('drawFlightEffect', () => {
+describe('drawFlyingText', () => {
   it('risingEffect-drawsTextPartwayToMid', () => {
     const ctx = makeMockContext() as unknown as { fillText: ReturnType<typeof vi.fn> };
-    const effect = tickFlightEffect(
-      startFlightEffect('a', 'German', 50, 60, 400, 300, 900, 900),
+    const effect = tickFlyingText(
+      startFlyingText('a', 'German', 50, 60, 400, 300, 900, 900),
       RISE_DURATION_SECONDS / 2,
     );
 
-    drawFlightEffect(effect, renderContext(ctx as unknown as CanvasRenderingContext2D, [effect]));
+    drawFlyingText(effect, renderContext(ctx as unknown as CanvasRenderingContext2D, [effect]));
 
     expect(ctx.fillText).toHaveBeenCalledWith('German', expect.any(Number), expect.any(Number));
   });
@@ -198,9 +198,9 @@ describe('drawFlightEffect', () => {
     ctx.fillText.mockImplementation(() => {
       fontsAtCall.push(ctx.font);
     });
-    const effect = startFlightEffect('a', 'German', 50, 60, 400, 300, 900, 900, '🇩🇪');
+    const effect = startFlyingText('a', 'German', 50, 60, 400, 300, 900, 900, '🇩🇪');
 
-    drawFlightEffect(effect, renderContext(ctx as unknown as CanvasRenderingContext2D, [effect]));
+    drawFlyingText(effect, renderContext(ctx as unknown as CanvasRenderingContext2D, [effect]));
 
     // 4 outline offsets + 1 final fill for the text, then the icon.
     expect(ctx.fillText).toHaveBeenCalledTimes(6);
@@ -213,9 +213,9 @@ describe('drawFlightEffect', () => {
 
   it('effectWithoutIcon-drawsOutlinedTextOnly', () => {
     const ctx = makeMockContext() as unknown as { fillText: ReturnType<typeof vi.fn> };
-    const effect = startFlightEffect('a', 'German', 50, 60, 400, 300, 900, 900);
+    const effect = startFlyingText('a', 'German', 50, 60, 400, 300, 900, 900);
 
-    drawFlightEffect(effect, renderContext(ctx as unknown as CanvasRenderingContext2D, [effect]));
+    drawFlyingText(effect, renderContext(ctx as unknown as CanvasRenderingContext2D, [effect]));
 
     expect(ctx.fillText).toHaveBeenCalledTimes(5);
     ctx.fillText.mock.calls.forEach((call) => expect(call[0]).toBe('German'));
@@ -223,9 +223,9 @@ describe('drawFlightEffect', () => {
 
   it('freshEffect-drawsNoSparkleCircles-sparkleIsNowPuffOnly', () => {
     const ctx = makeMockContext() as unknown as { arc: ReturnType<typeof vi.fn> };
-    const effect = startFlightEffect('a', 'German', 50, 60, 400, 300, 900, 900);
+    const effect = startFlyingText('a', 'German', 50, 60, 400, 300, 900, 900);
 
-    drawFlightEffect(effect, renderContext(ctx as unknown as CanvasRenderingContext2D, [effect]));
+    drawFlyingText(effect, renderContext(ctx as unknown as CanvasRenderingContext2D, [effect]));
 
     expect(ctx.arc).not.toHaveBeenCalled();
   });

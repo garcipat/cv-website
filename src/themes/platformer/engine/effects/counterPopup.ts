@@ -7,11 +7,11 @@
  */
 import type { CounterPopupLabelKey } from '../../contracts/counters';
 import { fillTextWithOutline, RESTART_PROMPT_FONT_FAMILY } from '../textDraw';
-import { COLLECTION_TEXT_STACK_ROW_HEIGHT } from './flight';
+import { COLLECTION_TEXT_STACK_ROW_HEIGHT } from './flyingText';
 import type { EffectRenderContext, TransientEffect } from './transientEffect';
 
 /** Seconds the popup stays fully visible before fading, and the total seconds
- *  until it is gone (sized to slightly exceed the flight text's own 2.0s). */
+ *  until it is gone (sized to slightly exceed the flying text's own 2.0s). */
 export const COUNTER_POPUP_HOLD_SECONDS = 1.7;
 export const COUNTER_POPUP_FADE_SECONDS = 0.4;
 export const COUNTER_POPUP_DURATION_SECONDS =

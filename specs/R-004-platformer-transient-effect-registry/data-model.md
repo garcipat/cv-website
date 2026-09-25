@@ -36,20 +36,20 @@ Maps a kind to its start/tick/draw/expiry and the metadata the collection needs.
 | --- | --- | --- |
 | `kind` | `EffectKind` | Union of the eight shipped families (FR-019: no new kinds). |
 | `create` | `(...args) => TransientEffect<S>` | The family's start/create function. |
-| `tick` | optional `(effect, dt) => TransientEffect<S> \| null` | Only flight + counter popup override the default advance. |
+| `tick` | optional `(effect, dt) => TransientEffect<S> \| null` | Only `flyingText` + counter popup override the default advance. |
 | `draw` | `(effect, rc) => void` | The family's registered draw. |
-| `expired` | optional `(effect) => boolean` | Only flight + counter popup override; default is `elapsed > duration`. |
+| `expired` | optional `(effect) => boolean` | Only `flyingText` + counter popup override; default is `elapsed > duration`. |
 | `layer` | `EffectLayer` | Pipeline depth for the single dispatch. |
 | `resetScope` | `EffectResetScope` | `'death'` (cleared by `resetGame()`) or `'progress'`. |
 | `keyOf` | optional `(effect) => string` | Present only for keyed slots (counter popups). |
 
-**`EffectKind`** (fixed set — no additions): `flight`, `counterPopup`, `puff`, `healAura`, `hitSplatter`, `fadeOutText`, `explosion`, `debris`.
+**`EffectKind`** (fixed set — no additions): `flyingText`, `counterPopup`, `puff`, `healAura`, `hitSplatter`, `fadeOutText`, `explosion`, `debris`.
 
 **`EffectLayer`**: `midWorld`, `worldEffects`, `aboveWorld`, `hudLast`.
 
 **`EffectResetScope`**: `death`, `progress`.
 
-**Registry order** is declaration order and is significant: it fixes the intra-layer draw order (`flight` → `puff` → `debris` → `hitSplatter` → `fadeOutText`) that matches today's render loop.
+**Registry order** is declaration order and is significant: it fixes the intra-layer draw order (`flyingText` → `puff` → `debris` → `hitSplatter` → `fadeOutText`) that matches today's render loop.
 
 ---
 
@@ -62,7 +62,7 @@ Maps a kind to its start/tick/draw/expiry and the metadata the collection needs.
 | Advance | Exactly one `advanceEffects(effects, dt, options?)` ticks the collection through each effect's registered `tick` and drops `null`/expired results (FR-004). |
 | Filtered advance | A `kinds` filter ticks/prunes only the named kinds and leaves the rest frozen (dying lead-in, US5-3). |
 | Reset | `clearEffectsByResetScope('death')` removes only `'death'`-scoped kinds; `resetGameProgress()` empties the collection. |
-| Counts | `effectCount(activeEffects, 'flight')` seeds the slot allocator from live flight effects only. |
+| Counts | `effectCount(activeEffects, 'flyingText')` seeds the slot allocator from live flying-text effects only. |
 
 **Validation rules**
 - No parallel per-kind effect store exists (FR-003/FR-018).
@@ -96,7 +96,7 @@ The render context passed to every registered `draw` (FR-017), so no family lose
 
 | Kind | State payload | Advance | Expiry boundary | Layer | Reset scope | Keyed |
 | --- | --- | --- | --- | --- | --- | --- |
-| `flight` | text/icon/start-mid-target + phase | 4-phase machine | `phase === 'done'` | `worldEffects` | `progress` | no |
+| `flyingText` | text/icon/start-mid-target + phase | 4-phase machine | `phase === 'done'` | `worldEffects` | `progress` | no |
 | `counterPopup` | labelKey/collected/total | elapsed | `tick → null` at `>= duration` | `hudLast` | `progress` | yes (`labelKey`) |
 | `puff` | x/y/scale/pixel | default | `elapsed > duration` | `worldEffects` | `progress` | no |
 | `healAura` | id only | default | `elapsed > duration` | `midWorld` | `progress` | no |
