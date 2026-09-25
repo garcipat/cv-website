@@ -70,10 +70,10 @@ import { toChestState } from './entities/Chest';
 import type { ChestState } from './entities/Chest';
 import { toCheckpointState } from './entities/Checkpoint';
 import type { CheckpointState } from './entities/Checkpoint';
-import type { FruitState } from './entities/Fruit';
-import type { KeyPickupState } from './entities/KeyPickup';
-import type { HeartPickupState } from './entities/HeartPickup';
-import type { BombPickupState } from './entities/BombPickup';
+import type { FruitState } from './entities/pickups/Fruit';
+import type { KeyPickupState } from './entities/pickups/Key';
+import type { HeartPickupState } from './entities/pickups/Heart';
+import type { BombPickupState } from './entities/pickups/Bomb';
 import type { PlacedBombState } from './engine/PlacedBomb';
 import { introState } from './engine/GameLifecycle';
 import { currentCV } from '@/state/locale';
@@ -92,6 +92,8 @@ import type { PlayerState } from './entities/Player';
 import type { LifecycleState } from './engine/GameLifecycle';
 import type { CollectedFact, SectionId } from './types';
 import type { CollectiblePlacement } from './level/CollectibleMapper';
+import type { Pickup, PickupGroups } from './contracts/Pickup';
+import type { PickupKind } from './contracts/PickupKind';
 import type { EnemyPlacement } from './level/EnemyMapper';
 import type { BlockPlacement } from './level/BlockMapper';
 import type { TransientEffect } from './engine/effects';
@@ -275,6 +277,24 @@ export const collectiblePlacements = computed<CollectiblePlacement[]>(() =>
 );
 
 /**
+ * The mutable, flag-carrying base coins — the `collected: true` entries the
+ * pure `collectiblePlacements` cannot hold because it is level-derived.
+ * Initialised from `collectiblePlacements` (each entry normalised to
+ * `collected: false`) and re-derived uncollected only by
+ * `resetGameProgress()` (the Level Editor's Try button and the Reset Game
+ * button both route through it) — so a placed coin's flag survives
+ * death/respawn, and a level change clears it. There is no signals effect;
+ * the re-derivation seam is explicit. Reset Game / level change only, never
+ * `resetGame()` (death/respawn).
+ *
+ * `collectiblePlacements` stays the pure source for `levelTotals`'s coin
+ * count, which is deliberately not invalidated by a collect or a pot drop.
+ */
+export const baseCoinPlacements = signal<CollectiblePlacement[]>(
+  collectiblePlacements.value.map((placement) => ({ ...placement, collected: false })),
+);
+
+/**
  * The ordered pool of skill-category facts a coin pickup can reveal — see
  * `CollectibleMapper.ts`'s `mapCVDataToSkillFactPool` doc comment.
  * `PlatformerPage.tsx` resolves how many of this pool's entries have been
@@ -297,14 +317,14 @@ export const skillFactPool = computed<CollectedFact[]>(() => mapCVDataToSkillFac
 export const spawnedCoinPlacements = signal<CollectiblePlacement[]>([]);
 
 /**
- * Every currently-collectible coin/fruit: `collectiblePlacements`'s fixed,
- * load-time set plus any coin-pot drops so far this session. Every
+ * Every currently-collectible coin: the mutable, flag-carrying
+ * `baseCoinPlacements` plus any coin-pot drops so far this session. Every
  * player-facing read (collision, rendering, totals) that used to read
- * `collectiblePlacements` directly now reads this instead, so a dropped
- * coin behaves exactly like any other one.
+ * `collectiblePlacements` directly now reads this instead, so a dropped coin
+ * behaves exactly like any other one.
  */
 export const allCollectiblePlacements = computed<CollectiblePlacement[]>(() => [
-  ...collectiblePlacements.value,
+  ...baseCoinPlacements.value,
   ...spawnedCoinPlacements.value,
 ]);
 
@@ -389,7 +409,7 @@ export const chestPlacements = computed<ChestPlacement[]>(() =>
  */
 export const levelTotals = computed<LevelTotals>(() => ({
   coins:
-    collectiblePlacements.value.filter((p) => p.spriteType === 'coin').length +
+    collectiblePlacements.value.filter((p) => p.kind === 'coin').length +
     blockPlacements.value.filter((b) => b.blockKind === 'coinPot').length,
   fruits: blockPlacements.value.filter((b) => b.blockKind === 'questionMark' && b.fact).length,
   // Every green slime placed, not just the ones that happen to have a fact —
@@ -626,24 +646,23 @@ export const fruitStates = signal<FruitState[]>([]);
 
 /**
  * Hearts dropped by destroyed potion-pots this session — starts empty, same
- * lifecycle as `fruitStates` above: `PlatformerPage.tsx` appends one
- * each time a potion-pot block is hit, and a touched heart is removed from
- * this array outright (no `collected` flag — see `HeartPickup.ts`'s doc
- * comment). Persists across a death/respawn; cleared only by
- * `resetGameProgress()`.
+ * lifecycle as `fruitStates` above: `PlatformerPage.tsx` appends one each time
+ * a potion-pot block is hit. A touched heart is retained and flagged
+ * `collected` (skipped on draw/collision, never removed), and the array is
+ * cleared by `resetGame()` (a dropped heart is tied to its now-restored pot).
  */
 export const heartPickupStates = signal<HeartPickupState[]>([]);
 
 /**
  * Dropped-key pickups (one per purple-slime finishing stomp) — starts empty.
  * Collected entries stay in this array flagged `collected: true` rather than
- * being removed so the renderer's skip-if-collected logic (see
- * entities/KeyPickup.ts's doc comment) keeps working across a death/respawn.
- * The guarantee that a defeated purple slime can never drop a second key
- * lives elsewhere now: on the source enemy's own `rewardGiven` flag
- * (Enemy.ts), not on anything read from this array. Persists across a
- * death/respawn (resetGame()), same as blockStates/fruitStates —
- * cleared only by resetGameProgress().
+ * being removed, so the shared skip-if-collected logic (see
+ * entities/pickups/Key.ts) keeps working across a death/respawn. The
+ * guarantee that a defeated purple slime can never drop a second key lives
+ * elsewhere now: on the source enemy's own `rewardGiven` flag (Enemy.ts), not
+ * on anything read from this array. Persists across a death/respawn
+ * (resetGame()), same as blockStates/fruitStates — cleared only by
+ * resetGameProgress().
  */
 export const keyPickupStates = signal<KeyPickupState[]>([]);
 
@@ -667,12 +686,114 @@ export const carriedBombs = signal<number>(0);
 
 /**
  * Bombs dropped by destroyed bomb-pots this session — starts empty, same
- * lifecycle as `heartPickupStates`: appended when a bomb-pot breaks, removed
- * outright when collected, and cleared by `resetGame()` (a dropped bomb is
- * tied to its now-restored pot). A pickup at the cap is left in the world,
- * still bobbing, until the count drops below the cap (FR-009).
+ * lifecycle as `heartPickupStates`: appended when a bomb-pot breaks, retained
+ * and flagged `collected` when collected, and cleared by `resetGame()` (a
+ * dropped bomb is tied to its now-restored pot). A pickup at the cap is left
+ * in the world, still bobbing, until the count drops below the cap (FR-009) —
+ * the bomb kind's `maxPerTick` yields nothing at the cap.
  */
 export const bombPickupStates = signal<BombPickupState[]>([]);
+
+/** One kind's live array adapter — the kind→store seam the generic applier
+ *  and spawn path use without naming a kind. `items` is the live read view. */
+export interface PickupStore {
+  readonly items: readonly Pickup[];
+  /** Appends a freshly spawned pickup to this kind's live array. */
+  append(item: Pickup): void;
+  /** The shared applier's ONE collect-once action: flags every id `collected`,
+   *  retaining the entry. */
+  markCollected(ids: ReadonlySet<string>): void;
+}
+
+function markCollectedIn<S extends Pickup>(items: S[], ids: ReadonlySet<string>): S[] {
+  return items.map((item) => (ids.has(item.id) ? { ...item, collected: true } : item));
+}
+
+const coinStore: PickupStore = {
+  get items() {
+    return allCollectiblePlacements.value;
+  },
+  append(item) {
+    spawnedCoinPlacements.value = [...spawnedCoinPlacements.value, item as CollectiblePlacement];
+  },
+  markCollected(ids) {
+    // A coin id may live in the base set or in this session's pot drops —
+    // flag both so `allCollectiblePlacements` (their union) sees it.
+    baseCoinPlacements.value = markCollectedIn(baseCoinPlacements.value, ids);
+    spawnedCoinPlacements.value = markCollectedIn(spawnedCoinPlacements.value, ids);
+  },
+};
+
+const fruitStore: PickupStore = {
+  get items() {
+    return fruitStates.value;
+  },
+  append(item) {
+    fruitStates.value = [...fruitStates.value, item as FruitState];
+  },
+  markCollected(ids) {
+    fruitStates.value = markCollectedIn(fruitStates.value, ids);
+  },
+};
+
+const keyStore: PickupStore = {
+  get items() {
+    return keyPickupStates.value;
+  },
+  append(item) {
+    keyPickupStates.value = [...keyPickupStates.value, item as KeyPickupState];
+  },
+  markCollected(ids) {
+    keyPickupStates.value = markCollectedIn(keyPickupStates.value, ids);
+  },
+};
+
+const heartStore: PickupStore = {
+  get items() {
+    return heartPickupStates.value;
+  },
+  append(item) {
+    heartPickupStates.value = [...heartPickupStates.value, item as HeartPickupState];
+  },
+  markCollected(ids) {
+    heartPickupStates.value = markCollectedIn(heartPickupStates.value, ids);
+  },
+};
+
+const bombStore: PickupStore = {
+  get items() {
+    return bombPickupStates.value;
+  },
+  append(item) {
+    bombPickupStates.value = [...bombPickupStates.value, item as BombPickupState];
+  },
+  markCollected(ids) {
+    bombPickupStates.value = markCollectedIn(bombPickupStates.value, ids);
+  },
+};
+
+/**
+ * Kind→array adapter for the generic collect applier and spawn path — the
+ * per-kind arrays stay separate (each with its own reset scope), but the page
+ * reaches them by kind instead of naming them.
+ */
+export const pickupStores: Record<PickupKind, PickupStore> = {
+  coin: coinStore,
+  fruit: fruitStore,
+  key: keyStore,
+  heart: heartStore,
+  bomb: bombStore,
+};
+
+/** The single per-kind groups value the page passes to both
+ *  `checkPickupCollisions` and `drawPickups`. */
+export const pickupGroups = computed<PickupGroups>(() => ({
+  coin: allCollectiblePlacements.value,
+  fruit: fruitStates.value,
+  key: keyPickupStates.value,
+  heart: heartPickupStates.value,
+  bomb: bombPickupStates.value,
+}));
 
 /**
  * Live placed bombs — each one a ticking fuse that falls under gravity and
@@ -688,15 +809,6 @@ export const placedBombs = signal<PlacedBombState[]>([]);
  * chest opens.
  */
 export const collectedFacts = signal<CollectedFact[]>([]);
-
-/**
- * Ids of every collected-and-removed collectible this session (dedup key,
- * FR-020c) — kept separate from `collectedFacts` since a collectible's
- * removal-from-the-world state and its fact-content-in-the-journal state,
- * while always updated together (see PlatformerPage.tsx's collection
- * handler), are conceptually different concerns.
- */
-export const collectedCollectibleIds = signal<Set<string>>(new Set());
 
 /**
  * THE one collection of live transient effects (R-004 FR-003). Every effect
@@ -946,11 +1058,12 @@ export function hazardPlacementsForTick(): HazardPlacement[] {
  * Resets the game world to its respawn state: player back at the active
  * checkpoint (or the level's spawn point when none is active), full health,
  * enemies revived in place at their spawn placements, camera scrolled back to
- * the level start. Does NOT touch `lifecycleState`, `collectedFacts`,
- * `collectedCollectibleIds`, or checkpoint memory (`checkpointStates`/
- * `activeCheckpointId`) — per FR-015/FR-020c, a death/respawn preserves every
- * raised flag and the active target; only the "Reset Game" button clears
- * those (see `resetGameProgress()` below). Callers
+ * the level start. Does NOT touch `lifecycleState`, `collectedFacts`, the
+ * collected pickup flags (the coin/fruit/key arrays, including
+ * `baseCoinPlacements`, are kept — permanence is reset scope alone), or
+ * checkpoint memory (`checkpointStates`/`activeCheckpointId`) — a death/respawn
+ * preserves every raised flag and the active target; only the "Reset Game"
+ * button clears those (see `resetGameProgress()` below). Callers
  * (restart-on-input and the debug Respawn button, both wired to the `intro`
  * iris-in) decide the lifecycle transition themselves, since not every
  * caller of a "reset" necessarily wants the iris animation.
@@ -1032,13 +1145,16 @@ export function resetGame(): void {
  * The "Reset Game" button's full reset (FR-018b) — unlike
  * `resetGame()`, this is a deliberate action the visitor takes, not a
  * death/respawn, so it also clears everything `resetGame()` leaves alone:
- * collected facts, the collected-collectible dedup set (clearing it is what
- * makes already-collected coins/fruits reappear in the level, since the
- * render/collision loop reads it live), the remembered active journal
+ * collected facts, the collected pickup flags (re-deriving the base coins
+ * uncollected and clearing the spawned/dropped arrays is what makes
+ * already-collected coins/fruits reappear in the level, since the
+ * render/collision loop reads them live), the remembered active journal
  * bookmark (falls back to Journal.tsx's default section afterward), and any
  * in-flight flying-text animation (`activeEffects`) so a pickup
  * triggered just before Reset Game is clicked doesn't keep animating after
- * the journal closes. `lifecycleState` is deliberately left untouched: the
+ * the journal closes. This is also the level-change seam the editor's Try
+ * routes through, so the mutable base coins follow a `currentLayout` change.
+ * `lifecycleState` is deliberately left untouched: the
  * journal can only be opened from the `'playing'` phase
  * (`PlatformerPage.tsx`'s `handleJournalToggle`), so the phase is always
  * `'paused'` while Reset Game is clickable, and `resumeFromJournal` (already
@@ -1057,9 +1173,16 @@ export function resetGameProgress(): void {
   // non-`'death'`-scoped kinds.
   activeEffects.value = [];
   collectedFacts.value = [];
-  collectedCollectibleIds.value = new Set();
   activeJournalSection.value = undefined;
   blockStates.value = blockPlacements.value.map(toBlockState);
+  // Re-derive the mutable base coins uncollected (the pure
+  // `collectiblePlacements` is the level-derived source) and clear this
+  // session's pot drops — a full Reset Game makes every placed coin
+  // reappear, exactly as clearing the old id set did.
+  baseCoinPlacements.value = collectiblePlacements.value.map((placement) => ({
+    ...placement,
+    collected: false,
+  }));
   spawnedCoinPlacements.value = [];
   chestStates.value = chestPlacements.value.map(toChestState);
   endingScreenShown.value = false;

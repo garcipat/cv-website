@@ -73,8 +73,19 @@ describe('placeCollectibles', () => {
     const placed = placeCollectibles(coinMarkers);
 
     expect(placed).toHaveLength(2);
-    expect(placed[0]).toMatchObject({ spriteType: 'coin', ...tileToPixel(coinMarkers[0].col, coinMarkers[0].row) });
-    expect(placed[1]).toMatchObject({ spriteType: 'coin', ...tileToPixel(coinMarkers[1].col, coinMarkers[1].row) });
+    expect(placed[0]).toMatchObject({
+      kind: 'coin',
+      collected: false,
+      ...tileToPixel(coinMarkers[0].col, coinMarkers[0].row),
+    });
+    expect(placed[1]).toMatchObject({
+      kind: 'coin',
+      collected: false,
+      ...tileToPixel(coinMarkers[1].col, coinMarkers[1].row),
+    });
+    // The old `spriteType: 'coin'` field is removed (not kept as an alias),
+    // and no dormant placed-fruit vocabulary remains.
+    expect(placed[0]).not.toHaveProperty('spriteType');
   });
 
   it('everyPlacement-hasAUniquePositionDerivedId', () => {
@@ -93,6 +104,8 @@ describe('placeCollectibles', () => {
   it('onlyCoinMarkers-placeOneCoinEach', () => {
     const placed = placeCollectibles([{ col: 1, row: 0 }]);
     expect(placed).toHaveLength(1);
-    expect(placed[0].spriteType).toBe('coin');
+    expect(placed[0].kind).toBe('coin');
+    expect(placed[0].collected).toBe(false);
+    expect(placed[0]).not.toHaveProperty('spriteType');
   });
 });

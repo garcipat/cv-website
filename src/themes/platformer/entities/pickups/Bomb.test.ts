@@ -3,14 +3,19 @@ import {
   BOMB_PICKUP_RENDERED_SIZE,
   BOMB_PICKUP_TILE_OFFSET_X,
   BOMB_PICKUP_TILE_OFFSET_Y,
-} from './BombPickup';
-import { bomb } from './pickups/Bomb';
-import { RENDERED_TILE_SIZE } from '../level/Terrain';
+  bomb,
+} from './Bomb';
+import { RENDERED_TILE_SIZE } from '../../level/Terrain';
 
 describe('spawnBombPickup', () => {
   it('called-startsAtTheGivenPosition', () => {
-    const pickup = spawnBombPickup('pot1', 100, 200);
-    expect(pickup).toEqual({ id: 'pot1', x: 100, y: 200 });
+    expect(spawnBombPickup('pot1', 100, 200)).toEqual({
+      id: 'pot1',
+      kind: 'bomb',
+      x: 100,
+      y: 200,
+      collected: false,
+    });
   });
 });
 
@@ -35,5 +40,24 @@ describe('bomb pickup box', () => {
       width: BOMB_PICKUP_RENDERED_SIZE,
       height: BOMB_PICKUP_RENDERED_SIZE,
     });
+  });
+});
+
+describe('bomb view', () => {
+  it('key-isBomb-andDrawLayerIsAfterEnemies', () => {
+    expect(bomb.key).toBe('bomb');
+    expect(bomb.drawLayer).toBe('afterEnemies');
+  });
+
+  it('maxPerTick-returnsTheRemainingCapacity', () => {
+    expect(bomb.maxPerTick?.({ playerHitPoints: 6, capacity: 3 })).toBe(3);
+    expect(bomb.maxPerTick?.({ playerHitPoints: 6 })).toBe(0);
+  });
+
+  it('onPickup-addsExactlyOneBomb', () => {
+    const outcome = bomb.onPickup(spawnBombPickup('b1', 0, 0), { pool: [], total: 0, collectedBefore: 0 });
+    expect(outcome).toEqual({ bombs: 1 });
+    expect(outcome).not.toHaveProperty('disposition');
+    expect(outcome).not.toHaveProperty('self');
   });
 });

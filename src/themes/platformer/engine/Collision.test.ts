@@ -1,14 +1,10 @@
 import {
   playerHitbox,
   aabbOverlap,
-  checkCollectibleCollisions,
+  checkPickupCollisions,
   resolveEnemyContacts,
-  checkFruitCollisions,
   chestPlayerIsStandingOn,
   checkSignOverlap,
-  checkKeyPickupCollisions,
-  checkHeartPickupCollisions,
-  checkBombPickupCollisions,
   resolveHazardContacts,
   checkFloorSpikeTriggers,
   checkCrumblingFloorTriggers,
@@ -34,16 +30,16 @@ import type { EnemyState } from '../entities/Enemy';
 import { typeOf } from '../entities/enemies';
 import type { SlimeGreenState } from '../entities/enemies/SlimeGreen';
 import type { EnemyPlacement } from '../level/EnemyMapper';
-import { spawnFruit, tickFruit, FRUIT_RISE_DURATION_SECONDS } from '../entities/Fruit';
+import { spawnFruit, tickFruit, FRUIT_RISE_DURATION_SECONDS } from '../entities/pickups/Fruit';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { ChestState } from '../entities/Chest';
 import type { SignPlacement } from '../level/SignMapper';
 import type { HazardPlacement } from '../level/HazardMapper';
 import type { FallingStalactiteTimerState } from '../entities/hazards/FallingStalactite';
 import { parseLevel } from '../level/LevelParser';
-import type { KeyPickupState } from '../entities/KeyPickup';
-import { spawnHeartPickup } from '../entities/HeartPickup';
-import { spawnBombPickup } from '../entities/BombPickup';
+import type { KeyPickupState } from '../entities/pickups/Key';
+import { spawnHeartPickup } from '../entities/pickups/Heart';
+import { spawnBombPickup } from '../entities/pickups/Bomb';
 import { MAX_HALF_HEARTS, SIDE_HIT_DAMAGE } from '../entities/Health';
 import { PHYSICS_CONFIG } from '../contracts/PhysicsConfig';
 
@@ -74,7 +70,7 @@ function makePlayer(x: number, y: number): PlayerState {
 }
 
 function makePlacement(id: string, x: number, y: number): CollectiblePlacement {
-  return { id, spriteType: 'coin', x, y };
+  return { id, kind: 'coin', x, y, collected: false };
 }
 
 function makeEnemy(x: number, y: number, overrides: Partial<SlimeGreenState> = {}): EnemyState {
@@ -214,29 +210,54 @@ describe('overlappingTriggers', () => {
   });
 });
 
-describe('checkCollectibleCollisions', () => {
+describe('checkPickupCollisions — coin', () => {
+  const ctx = { playerHitPoints: 6 };
+  const ids = (player: PlayerState, groups: Parameters<typeof checkPickupCollisions>[1]) =>
+    checkPickupCollisions(player, groups, ctx).map((hit) => hit.state.id);
+
   it('playerOverlappingOnePlacement-returns-itsId', () => {
     const player = makePlayer(0, 0);
     const placements = [makePlacement('a', 0, 0)];
-    expect(checkCollectibleCollisions(player, placements, new Set())).toEqual(['a']);
+    expect(ids(player, { coin: placements })).toEqual(['a']);
   });
 
   it('playerFarFromEveryPlacement-returns-emptyArray', () => {
     const player = makePlayer(0, 0);
     const placements = [makePlacement('a', 2000, 2000)];
-    expect(checkCollectibleCollisions(player, placements, new Set())).toEqual([]);
+    expect(ids(player, { coin: placements })).toEqual([]);
   });
 
   it('overlappingButAlreadyCollected-excludesIt', () => {
     const player = makePlayer(0, 0);
-    const placements = [makePlacement('a', 0, 0)];
-    expect(checkCollectibleCollisions(player, placements, new Set(['a']))).toEqual([]);
+    const placements = [{ ...makePlacement('a', 0, 0), collected: true }];
+    expect(ids(player, { coin: placements })).toEqual([]);
   });
 
   it('overlappingTwoPlacements-returns-bothIds', () => {
     const player = makePlayer(0, 0);
     const placements = [makePlacement('a', 0, 0), makePlacement('b', 5, 5)];
-    expect(checkCollectibleCollisions(player, placements, new Set())).toEqual(['a', 'b']);
+    expect(ids(player, { coin: placements })).toEqual(['a', 'b']);
+  });
+
+  it('returnsTheKindAlongsideTheState', () => {
+    const player = makePlayer(0, 0);
+    const placement = makePlacement('a', 0, 0);
+    expect(checkPickupCollisions(player, { coin: [placement] }, ctx)).toEqual([
+      { kind: 'coin', state: placement },
+    ]);
+  });
+
+  it('concatenatesKindsInGroupsInsertionOrder', () => {
+    const player = makePlayer(0, 0);
+    const coin = makePlacement('c', 0, 0);
+    const key: KeyPickupState = { id: 'k', kind: 'key', x: 0, y: 0, collected: false };
+    const hits = checkPickupCollisions(player, { coin: [coin], key: [key] }, ctx);
+    expect(hits.map((hit) => hit.state.id)).toEqual(['c', 'k']);
+  });
+
+  it('anAbsentKindGroup-isSkipped', () => {
+    const player = makePlayer(0, 0);
+    expect(checkPickupCollisions(player, {}, ctx)).toEqual([]);
   });
 });
 
@@ -255,39 +276,55 @@ function playerLandingOnTopOf(enemy: EnemyState, overlapPx = 4): PlayerState {
   return makePlayer(enemy.x, y);
 }
 
-describe('checkFruitCollisions', () => {
+describe('checkPickupCollisions — fruit rise gate', () => {
+  const ctx = { playerHitPoints: 6 };
+  const ids = (player: PlayerState, fruits: Parameters<typeof checkPickupCollisions>[1]['fruit']) =>
+    checkPickupCollisions(player, { fruit: fruits ?? [] }, ctx).map((hit) => hit.state.id);
+
   it('playerOverlapsRestedFruit-returnsItsId', () => {
     let fruit = spawnFruit('bf1', 0, 100, undefined, 0);
     fruit = tickFruit(fruit, FRUIT_RISE_DURATION_SECONDS);
     const player = makePlayer(0, 100 - RENDERED_TILE_SIZE);
-    expect(checkFruitCollisions(player, [fruit])).toEqual(['bf1']);
+    expect(ids(player, [fruit])).toEqual(['bf1']);
   });
 
   it('playerOverlapsStillRisingFruit-notYetCollectible', () => {
     const fruit = spawnFruit('bf1', 0, 100, undefined, 0); // elapsed 0, mid-rise
     const player = makePlayer(0, 100 - RENDERED_TILE_SIZE);
-    expect(checkFruitCollisions(player, [fruit])).toEqual([]);
+    expect(ids(player, [fruit])).toEqual([]);
+  });
+
+  it('anAlreadyCollectedRestedFruit-isExcluded', () => {
+    let fruit = spawnFruit('bf1', 0, 100, undefined, 0);
+    fruit = tickFruit(fruit, FRUIT_RISE_DURATION_SECONDS);
+    const player = makePlayer(0, 100 - RENDERED_TILE_SIZE);
+    expect(ids(player, [{ ...fruit, collected: true }])).toEqual([]);
   });
 
   it('playerFarFromFruit-returnsNoIds', () => {
     let fruit = spawnFruit('bf1', 0, 100, undefined, 0);
     fruit = tickFruit(fruit, FRUIT_RISE_DURATION_SECONDS);
     const player = makePlayer(1000, 1000);
-    expect(checkFruitCollisions(player, [fruit])).toEqual([]);
+    expect(ids(player, [fruit])).toEqual([]);
   });
 });
 
-describe('checkHeartPickupCollisions', () => {
+describe('checkPickupCollisions — heart full-health gate', () => {
+  const ids = (player: PlayerState, hearts: Parameters<typeof checkPickupCollisions>[1]['heart']) =>
+    checkPickupCollisions(player, { heart: hearts ?? [] }, { playerHitPoints: player.hitPoints }).map(
+      (hit) => hit.state.id,
+    );
+
   it('playerBelowMaxHealthOverlapsHeart-returnsItsId', () => {
     const heart = spawnHeartPickup('h1', 0, 100);
     const player = { ...makePlayer(0, 100 - RENDERED_TILE_SIZE), hitPoints: 4 };
-    expect(checkHeartPickupCollisions(player, [heart])).toEqual(['h1']);
+    expect(ids(player, [heart])).toEqual(['h1']);
   });
 
   it('playerFarFromHeart-returnsNoIds', () => {
     const heart = spawnHeartPickup('h1', 0, 100);
     const player = { ...makePlayer(1000, 1000), hitPoints: 4 };
-    expect(checkHeartPickupCollisions(player, [heart])).toEqual([]);
+    expect(ids(player, [heart])).toEqual([]);
   });
 
   it('playerAtFullHealthOverlapsHeart-returnsNoIds', () => {
@@ -295,7 +332,7 @@ describe('checkHeartPickupCollisions', () => {
     // see Health.ts's MAX_HALF_HEARTS.
     const heart = spawnHeartPickup('h1', 0, 100);
     const player = { ...makePlayer(0, 100 - RENDERED_TILE_SIZE), hitPoints: MAX_HALF_HEARTS };
-    expect(checkHeartPickupCollisions(player, [heart])).toEqual([]);
+    expect(ids(player, [heart])).toEqual([]);
   });
 });
 
@@ -837,7 +874,7 @@ describe('resolveEnemyContacts aggregation', () => {
   });
 });
 
-describe('checkKeyPickupCollisions', () => {
+describe('checkPickupCollisions — key collect-once', () => {
   const player = {
     x: 0, y: 0, vx: 0, vy: 0, direction: 'right' as const, grounded: true, climbing: false,
     crouching: false,
@@ -847,33 +884,40 @@ describe('checkKeyPickupCollisions', () => {
     hitPoints: 6, alive: true, hitTimer: PLAYER_HIT_REACTION_SECONDS,
   };
 
-  it('checkKeyPickupCollisions-overlappingUncollectedPickup-returnsItsId', () => {
-    const pickups: KeyPickupState[] = [{ id: 'k1', x: 0, y: 0, collected: false }];
-    expect(checkKeyPickupCollisions(player, pickups)).toEqual(['k1']);
+  const ids = (pickups: KeyPickupState[]) =>
+    checkPickupCollisions(player, { key: pickups }, { playerHitPoints: 6 }).map((hit) => hit.state.id);
+
+  it('checkPickupCollisions-overlappingUncollectedPickup-returnsItsId', () => {
+    const pickups: KeyPickupState[] = [{ id: 'k1', kind: 'key', x: 0, y: 0, collected: false }];
+    expect(ids(pickups)).toEqual(['k1']);
   });
 
-  it('checkKeyPickupCollisions-alreadyCollectedPickup-isExcluded', () => {
-    const pickups: KeyPickupState[] = [{ id: 'k1', x: 0, y: 0, collected: true }];
-    expect(checkKeyPickupCollisions(player, pickups)).toEqual([]);
+  it('checkPickupCollisions-alreadyCollectedPickup-isExcluded', () => {
+    const pickups: KeyPickupState[] = [{ id: 'k1', kind: 'key', x: 0, y: 0, collected: true }];
+    expect(ids(pickups)).toEqual([]);
   });
 
-  it('checkKeyPickupCollisions-noOverlap-returnsEmpty', () => {
-    const pickups: KeyPickupState[] = [{ id: 'k1', x: 1000, y: 1000, collected: false }];
-    expect(checkKeyPickupCollisions(player, pickups)).toEqual([]);
+  it('checkPickupCollisions-noOverlap-returnsEmpty', () => {
+    const pickups: KeyPickupState[] = [{ id: 'k1', kind: 'key', x: 1000, y: 1000, collected: false }];
+    expect(ids(pickups)).toEqual([]);
   });
 });
 
-describe('checkBombPickupCollisions', () => {
+describe('checkPickupCollisions — bomb capacity clamp', () => {
   const player = { ...makePlayer(0, 100 - RENDERED_TILE_SIZE) };
+
+  const ids = (bombs: ReturnType<typeof spawnBombPickup>[], count: number) =>
+    checkPickupCollisions(player, { bomb: bombs }, { playerHitPoints: 6, capacity: Math.max(0, 5 - count) })
+      .map((hit) => hit.state.id);
 
   it('belowTheCap-overlappingPickup-returnsItsId', () => {
     const bomb = spawnBombPickup('b1', 0, 100);
-    expect(checkBombPickupCollisions(player, [bomb], 0, 5)).toEqual(['b1']);
+    expect(ids([bomb], 0)).toEqual(['b1']);
   });
 
   it('atTheCap-overlappingPickup-isLeftInTheWorld', () => {
     const bomb = spawnBombPickup('b1', 0, 100);
-    expect(checkBombPickupCollisions(player, [bomb], 5, 5)).toEqual([]);
+    expect(ids([bomb], 5)).toEqual([]);
   });
 
   it('severalPickupsInOneTick-clampsToTheRemainingCapacityInArrayOrder', () => {
@@ -882,13 +926,18 @@ describe('checkBombPickupCollisions', () => {
       spawnBombPickup('b2', 0, 100),
       spawnBombPickup('b3', 0, 100),
     ];
-    expect(checkBombPickupCollisions(player, bombs, 4, 5)).toEqual(['b1']);
-    expect(checkBombPickupCollisions(player, bombs, 3, 5)).toEqual(['b1', 'b2']);
+    expect(ids(bombs, 4)).toEqual(['b1']);
+    expect(ids(bombs, 3)).toEqual(['b1', 'b2']);
+  });
+
+  it('aCollectedBomb-isExcludedBeforeTheClamp', () => {
+    const bombs = [{ ...spawnBombPickup('b1', 0, 100), collected: true }];
+    expect(ids(bombs, 0)).toEqual([]);
   });
 
   it('noOverlap-returnsEmpty', () => {
     const bomb = spawnBombPickup('b1', 1000, 1000);
-    expect(checkBombPickupCollisions(player, [bomb], 0, 5)).toEqual([]);
+    expect(ids([bomb], 0)).toEqual([]);
   });
 });
 
@@ -896,12 +945,14 @@ describe('every consumer reads the one crouched box (US1 / SC-008)', () => {
   // A pickup in the standing box's head band — the 6px strip (18..24) only the
   // standing box reaches. The 32px coin's bottom sits at 20, above the crouched
   // top at 24, so only the standing box overlaps it.
-  it('checkCollectibleCollisions-coinInTheHeadBand-collectedStandingMissedCrouched', () => {
+  it('checkPickupCollisions-coinInTheHeadBand-collectedStandingMissedCrouched', () => {
     const coin = makePlacement('head-coin', PLAYER_SIDE_PADDING, -12);
     const standing = makePlayer(0, 0);
     const crouched = { ...makePlayer(0, 0), crouching: true };
-    expect(checkCollectibleCollisions(standing, [coin], new Set())).toEqual(['head-coin']);
-    expect(checkCollectibleCollisions(crouched, [coin], new Set())).toEqual([]);
+    const ids = (player: PlayerState) =>
+      checkPickupCollisions(player, { coin: [coin] }, { playerHitPoints: 6 }).map((hit) => hit.state.id);
+    expect(ids(standing)).toEqual(['head-coin']);
+    expect(ids(crouched)).toEqual([]);
   });
 
   it('resolveEnemyContacts-enemyReachableOnlyByTheStandingHeadBand-contactsStandingOnly', () => {

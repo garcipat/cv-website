@@ -88,6 +88,15 @@ describe('WorldType conformance', () => {
       expect('box' in type).toBe(false);
     }
   });
+
+  it('pickupTypes-eachSpawnsAStateWhoseKindMatchesItsRegistrySlot', () => {
+    for (const [key, type] of Object.entries(PICKUP_TYPES)) {
+      const state = type.spawn({ id: `${key}-1`, x: 0, y: 0 });
+      expect(state.kind).toBe(key);
+      expect(state.kind).toBe(type.key);
+      expect(typeof state.collected).toBe('boolean');
+    }
+  });
 });
 
 describe('enemy box equivalence', () => {

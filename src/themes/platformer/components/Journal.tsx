@@ -5,7 +5,6 @@ import {
   collectedFacts,
   activeJournalSection,
   allCollectiblePlacements,
-  collectedCollectibleIds,
   levelTotals,
   cratesDestroyed,
   enemiesDefeated,
@@ -20,8 +19,8 @@ import {
   buildJournalPages,
 } from '../entities/JournalSections';
 import { collectiblesSummary } from '../entities/CollectiblesSummary';
-import { COIN_FRAME_SIZE, COIN_FRAME_COUNT } from '../entities/Coin';
-import { FRUIT_FRAME_SIZE } from '../entities/Fruit';
+import { COIN_FRAME_SIZE, COIN_FRAME_COUNT } from '../entities/pickups/Coin';
+import { FRUIT_FRAME_SIZE } from '../entities/pickups/Fruit';
 import { SLIME_GREEN_SHEET } from '../entities/sprites/sheets';
 import { frameSource } from '../entities/sprites/SpriteSheet';
 import { blockFrameSource, BLOCK_FRAME_SIZE } from '../entities/Block';
@@ -461,7 +460,7 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
                           // placements, the same quantity the in-game HUD popup
                           // shows, so the two never disagree.
                           coinsCollected: allCollectiblePlacements.value.filter(
-                            (p) => p.spriteType === 'coin' && collectedCollectibleIds.value.has(p.id),
+                            (p) => p.kind === 'coin' && p.collected,
                           ).length,
                           // Same reasoning as coinsCollected above, for
                           // enemies/crates: a green slime's/crate's course

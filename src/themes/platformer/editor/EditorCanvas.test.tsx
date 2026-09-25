@@ -20,7 +20,7 @@ import { PALETTE_TILE_SPRITES } from './paletteTiles';
 vi.mock('../engine/Renderer', () => ({
   drawTerrain: vi.fn(),
   drawPlayer: vi.fn(),
-  drawCollectibles: vi.fn(),
+  drawPickups: vi.fn(),
   drawEnemies: vi.fn(),
   drawBlocks: vi.fn(),
   drawChests: vi.fn(),
@@ -38,7 +38,7 @@ vi.mock('../engine/Renderer', () => ({
 import {
   drawTerrain,
   drawPlayer,
-  drawCollectibles,
+  drawPickups,
   drawEnemies,
   drawBlocks,
   drawChests,
@@ -373,7 +373,7 @@ describe('EditorCanvas', () => {
     expect(run.fillers).toHaveLength(1);
   });
 
-  it('calls drawCollectibles, drawEnemies, drawBlocks, and drawChests with the synthesized state', () => {
+  it('calls drawPickups, drawEnemies, drawBlocks, and drawChests with the synthesized state', () => {
     stubCanvasContext();
     const tileset = {} as HTMLImageElement;
     const coin = {} as HTMLImageElement;
@@ -390,10 +390,13 @@ describe('EditorCanvas', () => {
         onPan={() => {}}
       />,
     );
-    expect(drawCollectibles).toHaveBeenCalledWith(
+    expect(drawPickups).toHaveBeenCalledWith(
       expect.anything(),
-      expect.arrayContaining([expect.objectContaining({ spriteType: 'coin' })]),
-      expect.any(Set),
+      {
+        coin: expect.arrayContaining([
+          expect.objectContaining({ kind: 'coin', collected: false }),
+        ]),
+      },
       expect.objectContaining({
         originX: 5,
         originY: 7,

@@ -6,11 +6,8 @@ import {
   playerBoxHeightFor,
 } from '../entities/Player';
 import type { PlayerState } from '../entities/Player';
-import type { CollectiblePlacement } from '../level/CollectibleMapper';
 import type { EnemyState } from '../entities/Enemy';
 import { typeOf } from '../entities/enemies';
-import { FRUIT_RISE_DURATION_SECONDS } from '../entities/Fruit';
-import type { FruitState } from '../entities/Fruit';
 import { isChestOpen } from '../entities/Chest';
 import type { ChestState } from '../entities/Chest';
 import { CHEST_TYPE } from '../entities/chests';
@@ -30,11 +27,10 @@ import {
 } from '../entities/hazards/FallingStalactite';
 import type { BlockPlacement } from '../level/BlockMapper';
 import type { SignHintId } from '../level/HintCatalog';
-import type { KeyPickupState } from '../entities/KeyPickup';
-import type { HeartPickupState } from '../entities/HeartPickup';
-import type { BombPickupState } from '../entities/BombPickup';
-import { MAX_HALF_HEARTS } from '../entities/Health';
 import { PICKUP_TYPES } from '../entities/pickups';
+import type { Pickup, PickupGroups } from '../contracts/Pickup';
+import type { PickupKind } from '../contracts/PickupKind';
+import type { PickupCollisionContext } from '../contracts/Pickup';
 import { strongerBounce, type ContactSide } from '../contracts/Outcome';
 import type { Box } from '../contracts/geometry';
 
@@ -74,11 +70,10 @@ const ALWAYS_ELIGIBLE = () => true;
  *
  * Eligibility is a caller-supplied predicate rather than a property of the
  * item, because the trigger families record "no longer available" differently:
- * placed collectibles are deduplicated against an external id Set, dropped
- * keys carry a `collected` flag, bonus fruits are removed from their array
- * outright, chests read their own open/closed state, and signs are reusable
- * and never become ineligible at all (they omit the predicate). The overlap
- * mechanism is shared; the policy stays with whoever owns it.
+ * pickups carry the shared `Pickup.collected` flag, chests read their own
+ * open/closed state, and signs are reusable and never become ineligible at all
+ * (they omit the predicate). The overlap mechanism is shared; the policy stays
+ * with whoever owns it.
  */
 export function overlappingTriggers<T>(
   player: PlayerState,
@@ -95,31 +90,47 @@ export function overlappingTriggers<T>(
   return hits;
 }
 
+/** One overlapped pickup: its kind discriminant and its state. */
+export interface PickupHit {
+  kind: PickupKind;
+  state: Pickup;
+}
+
 /**
- * Returns the ids of every placement the player's hitbox currently overlaps,
- * excluding ids already in `collectedIds` — collision against an
- * already-collected (visually removed) collectible is a no-op, not a
- * duplicate-collect (FR-020c). Boxes come from `PICKUP_TYPES[spriteType].box`,
- * which uses each placement's fixed x/y, ignoring the cosmetic bob offset
- * (applied only when drawing — see each pickup type's own `bobOffset` under
- * entities/pickups/) so the hitbox doesn't jitter a few pixels every frame
- * independent of the sprite. A coin placement's box is
- * `COIN_RENDERED_SIZE` square and a fruit placement's is `FRUIT_RENDERED_SIZE`
- * square — both currently equal 32, so routing per-placement through its own
- * pickup type is a no-op versus the single shared size this function used to
- * hardcode.
+ * THE one generic pickup collision path — returns every pickup the player's
+ * hitbox overlaps and that its kind's own eligibility allows, in each kind's
+ * array order and concatenated in `groups` insertion order. Replaces the five
+ * family-specific collision functions.
+ *
+ * The shared base gate is each state's own `!collected` (the one collect-once
+ * flag; there is no external id set and nothing is removed on collect). Each
+ * kind may add one extra gate via `PICKUP_TYPES[kind].isCollectible`
+ * (fruit rise, heart full-health) and cap its per-tick selection via
+ * `maxPerTick` (bomb capacity) — so no family-specific rule is lost while the
+ * engine names no kind. Boxes come from `PICKUP_TYPES[kind].box`, which
+ * ignores the cosmetic draw-only bob offset so the hitbox does not jitter.
  */
-export function checkCollectibleCollisions(
+export function checkPickupCollisions(
   player: PlayerState,
-  placements: CollectiblePlacement[],
-  collectedIds: ReadonlySet<string>,
-): string[] {
-  return overlappingTriggers(
-    player,
-    placements,
-    (p) => PICKUP_TYPES[p.spriteType].box(p),
-    (p) => !collectedIds.has(p.id),
-  ).map((p) => p.id);
+  groups: PickupGroups,
+  ctx: PickupCollisionContext,
+): PickupHit[] {
+  const hits: PickupHit[] = [];
+  for (const kind of Object.keys(groups) as PickupKind[]) {
+    const items = groups[kind];
+    if (!items) continue;
+    const type = PICKUP_TYPES[kind];
+    const matched = overlappingTriggers(
+      player,
+      items,
+      (state) => type.box(state),
+      (state) => !state.collected && (type.isCollectible?.(state, ctx) ?? true),
+    );
+    const cap = type.maxPerTick?.(ctx);
+    const limited = cap === undefined ? matched : matched.slice(0, Math.max(0, cap));
+    for (const state of limited) hits.push({ kind, state });
+  }
+  return hits;
 }
 
 export interface EnemyContactResult {
@@ -223,35 +234,14 @@ export function resolveEnemyContacts(
 }
 
 /**
- * Returns the ids of every bonus fruit the player's hitbox currently
- * overlaps AND that has finished rising (`elapsed >=
- * FRUIT_RISE_DURATION_SECONDS`) — spec.md's "lands as a touchable
- * pickup", i.e. not collectible mid-rise. Unlike
- * `checkCollectibleCollisions`, there's no `collectedIds` dedup set here:
- * `PlatformerPage.tsx` removes a touched bonus fruit from its live array
- * entirely the same tick, so it simply can't be checked against again.
- */
-export function checkFruitCollisions(
-  player: PlayerState,
-  fruits: readonly FruitState[],
-): string[] {
-  return overlappingTriggers(
-    player,
-    fruits,
-    (f) => PICKUP_TYPES.fruit.box(f),
-    (f) => f.elapsed >= FRUIT_RISE_DURATION_SECONDS,
-  ).map((f) => f.id);
-}
-
-/**
  * Returns the id of the first closed chest the player's hitbox currently
  * overlaps, or `undefined` if none — spec.md FR-023: unlike every other
  * collectible, a chest does NOT open on touch; the caller (PlatformerPage.tsx)
  * only opens it once this returns an id AND the visitor has pressed Arrow Up
  * this tick. Only a chest's CLOSED footprint is checked (its open sprite is a
  * different size and the chest is un-openable again anyway, so an open
- * chest's box is irrelevant here) — mirrors checkFruitCollisions'
- * single-box-per-item convention. The box comes from `CHEST_TYPE.box`,
+ * chest's box is irrelevant here) — mirrors the pickups' single-box-per-item
+ * convention. The box comes from `CHEST_TYPE.box`,
  * which shifts its x by CHEST_CLOSED_OFFSET_X (see entities/Chest.ts) so it
  * matches exactly where the closed chest is drawn (centered on its tile,
  * not left-aligned to the tile's top-left corner).
@@ -265,7 +255,7 @@ export function chestPlayerIsStandingOn(
 
 /**
  * Returns the `hintId` of the first sign the player's hitbox currently
- * overlaps, or `undefined` if none. Unlike checkCollectibleCollisions, this
+ * overlaps, or `undefined` if none. Unlike the pickup collision path, this
  * is NOT destructive/dedup-tracked — a sign is reusable, so the same sign
  * returns its hintId every tick the player stands on it, and again the next
  * time they walk back onto it. The box comes from `signBox`
@@ -405,70 +395,6 @@ export function checkCrumblingFloorTriggers(
     results.push({ col, row: footRow });
   }
   return results;
-}
-
-/**
- * Returns the ids of every NOT-yet-collected key pickup the player's hitbox
- * currently overlaps. Unlike checkCollectibleCollisions, there's no external
- * `collectedIds` set — a pickup's own `collected` flag is the source of
- * truth (PlatformerState.ts's keyPickupStates keeps collected entries around,
- * flagged rather than removed, so the renderer can skip drawing them — see
- * KeyPickup.ts's doc comment). A defeated purple slime can never drop a
- * second key on a later respawn because of a separate mechanism: the source
- * enemy's own `rewardGiven` flag (Enemy.ts), which `reviveEnemy` leaves
- * untouched. The box is offset by KEY_TILE_OFFSET_X/Y, the same
- * centering/bottom-anchoring entities/pickups/Key.ts's `box`/`draw` apply,
- * so the collidable area matches where the key is actually drawn rather
- * than the tile's raw top-left corner.
- */
-export function checkKeyPickupCollisions(
-  player: PlayerState,
-  pickups: readonly KeyPickupState[],
-): string[] {
-  return overlappingTriggers(
-    player,
-    pickups,
-    (p) => PICKUP_TYPES.key.box(p),
-    (p) => !p.collected,
-  ).map((p) => p.id);
-}
-
-/**
- * Returns the ids of every heart pickup the player's hitbox currently
- * overlaps AND that the player can actually benefit from — gated on
- * `hitPoints < MAX_HALF_HEARTS` so a heart waits in the world rather than
- * being consumed for nothing at full health. Otherwise mirrors
- * `checkFruitCollisions` (no `collectedIds`/`collected` flag):
- * `PlatformerPage.tsx` removes a touched heart from its live array entirely
- * the same tick, same as a bonus fruit.
- */
-export function checkHeartPickupCollisions(
-  player: PlayerState,
-  hearts: readonly HeartPickupState[],
-): string[] {
-  if (player.hitPoints >= MAX_HALF_HEARTS) return [];
-  return overlappingTriggers(player, hearts, (h) => PICKUP_TYPES.heart.box(h)).map((h) => h.id);
-}
-
-/**
- * Returns the ids of bomb pickups the player's hitbox currently overlaps,
- * limited to `max(0, cap - count)` ids in array order (FR-008/FR-009) — so a
- * tick that touches several pickups at once can never overfill the inventory.
- * At the cap it returns `[]`, leaving every pickup in the world, still
- * bobbing. Uses the same `overlappingTriggers` helper as the heart/key checks;
- * `bobOffset` is a draw-only offset, so collision ignores it.
- */
-export function checkBombPickupCollisions(
-  player: PlayerState,
-  bombs: readonly BombPickupState[],
-  count: number,
-  cap: number,
-): string[] {
-  const capacity = Math.max(0, cap - count);
-  if (capacity === 0) return [];
-  return overlappingTriggers(player, bombs, (b) => PICKUP_TYPES.bomb.box(b))
-    .slice(0, capacity)
-    .map((b) => b.id);
 }
 
 /**

@@ -22,8 +22,8 @@ import {
   activeJournalSection,
   collectiblePlacements,
   allCollectiblePlacements,
+  baseCoinPlacements,
   skillFactPool,
-  collectedCollectibleIds,
   activeEffects,
   enemyPlacements,
   enemyStates,
@@ -38,6 +38,7 @@ import {
   signPlacements,
   keyPickupStates,
   collectedKeys,
+  fruitStates,
   heartPickupStates,
   MAX_BOMBS,
   carriedBombs,
@@ -80,7 +81,7 @@ import { createPlacedBomb, BOMB_FUSE_SECONDS } from './engine/PlacedBomb';
 import { toCheckpointState } from './entities/Checkpoint';
 import { initialCameraX } from './engine/Camera';
 import { toChestState, isChestOpen } from './entities/Chest';
-import { spawnKeyPickup } from './entities/KeyPickup';
+import { spawnKeyPickup } from './entities/pickups/Key';
 import {
   MAX_HALF_HEARTS,
   PIT_FALL_DAMAGE,
@@ -356,13 +357,14 @@ describe('PlatformerPage', () => {
     // way collectedFacts is, or a bookmark tab selection made by one test
     // (via the rendered Journal) would leak into the next test's default.
     activeJournalSection.value = undefined;
-    collectedCollectibleIds.value = new Set();
+    baseCoinPlacements.value = baseCoinPlacements.value.map((p) => ({ ...p, collected: false }));
+    fruitStates.value = [];
+    spawnedCoinPlacements.value = [];
     // Not one of the two signals the brief called out explicitly, but a
     // module-level signal like the others — without a reset, a flying-text effect
     // started by one test (e.g. a collection) lingers into the next test's
-    // render() since it's independent of collectedFacts/collectedCollectibleIds
-    // and only clears itself via tickFlyingText, which no render-only test
-    // ever calls.
+    // render() since it's independent of collectedFacts and only clears itself
+    // via tickFlyingText, which no render-only test ever calls.
     activeEffects.value = [];
     // Module-level signal like the others above — a stomp/defeat mutation
     // from one test must not leak into the next test's enemy positions.
@@ -1350,7 +1352,7 @@ describe('PlatformerPage', () => {
 
     frameCallback!(16);
 
-    expect(collectedCollectibleIds.value.has(target.id)).toBe(true);
+    expect(allCollectiblePlacements.value.find((p) => p.id === target.id)?.collected).toBe(true);
     // A coin carries no fact of its own (see CollectibleMapper.ts's
     // mapCVDataToSkillFactPool doc comment) — collecting the very first
     // coin this session reveals the pool's first entry, not a fact matching
@@ -1375,7 +1377,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const target = collectiblePlacements.value.find((p) => p.spriteType === 'coin')!;
+    const target = collectiblePlacements.value.find((p) => p.kind === 'coin')!;
     playerState.value = { ...playerState.value, x: target.x, y: target.y };
 
     frameCallback!(16);
@@ -1425,7 +1427,7 @@ describe('PlatformerPage', () => {
       new DOMRect(16, 82, 40, 40),
     );
 
-    const target = collectiblePlacements.value.find((p) => p.spriteType === 'coin')!;
+    const target = collectiblePlacements.value.find((p) => p.kind === 'coin')!;
     playerState.value = { ...playerState.value, x: target.x, y: target.y };
 
     frameCallback!(16);
@@ -1458,7 +1460,7 @@ describe('PlatformerPage', () => {
     // nothing is revealed.
     collectedFacts.value = [...skillFactPool.value];
 
-    const target = collectiblePlacements.value.find((p) => p.spriteType === 'coin')!;
+    const target = collectiblePlacements.value.find((p) => p.kind === 'coin')!;
     playerState.value = { ...playerState.value, x: target.x, y: target.y };
 
     frameCallback!(16);
@@ -2114,7 +2116,8 @@ describe('PlatformerPage', () => {
       }
 
       expect(spawnedCoinPlacements.value).toHaveLength(1);
-      expect(spawnedCoinPlacements.value[0].spriteType).toBe('coin');
+      expect(spawnedCoinPlacements.value[0].kind).toBe('coin');
+      expect(spawnedCoinPlacements.value[0].collected).toBe(false);
       // The dropped coin's id is the pot's own id — it never had a fact id
       // to reuse.
       expect(spawnedCoinPlacements.value[0].id).toBe(pot.id);
@@ -2180,6 +2183,52 @@ describe('PlatformerPage', () => {
       expect(blockStates.value.find((b) => b.id === pot.id)?.hitsTaken).toBe(0);
       expect(spawnedCoinPlacements.value).toEqual([]);
       expect(effectsOfKind<PuffState>('puff').some((p) => p.id === pot.id)).toBe(false);
+    });
+
+    it('hittingAQuestionMarkFromBelow-spawnsItsRisingFruitThroughTheGenericPath', () => {
+      // US2: a block's declared `spawnPickup` drives ONE generic spawn path
+      // (`PICKUP_TYPES[kind].spawn` -> `pickupStores[kind].append`); the page
+      // names no pickup kind, so the fruit's id/position come from the kind's
+      // own module.
+      let frameCallback: FrameRequestCallback | null = null;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        frameCallback = cb;
+        return 1;
+      });
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+      render(<PlatformerPage />);
+      frameCallback!(0);
+
+      const crate = blockPlacements.value.find((b) => b.blockKind === 'crate')!;
+      const qmark = toBlockState({
+        id: 'qmark-test-spawn',
+        blockKind: 'questionMark',
+        x: crate.x + 3 * RENDERED_TILE_SIZE,
+        y: crate.y,
+      });
+      blockStates.value = [...blockStates.value, qmark];
+
+      const ceilingBottomY = qmark.y + RENDERED_TILE_SIZE;
+      playerState.value = {
+        ...playerState.value,
+        x: qmark.x,
+        y: ceilingBottomY - PLAYER_HEAD_PADDING + 1,
+        vy: -1000,
+      };
+
+      let t = 16;
+      frameCallback!(t);
+      for (let i = 0; i < 10; i++) {
+        t += 16;
+        frameCallback!(t);
+      }
+
+      expect(fruitStates.value).toHaveLength(1);
+      expect(fruitStates.value[0]).toMatchObject({ id: qmark.id, kind: 'fruit', collected: false });
+      expect(fruitStates.value[0].x).toBe(qmark.x);
+      // The block is permanently paid out — no second fruit on a later hit.
+      expect(blockStates.value.find((b) => b.id === qmark.id)?.rewardGiven).toBe(true);
     });
   });
 
@@ -2520,7 +2569,7 @@ describe('PlatformerPage', () => {
       heartPickupStates.value = [];
     });
 
-    it('walkingOverADroppedHeart-healsHalfAHeartAndRemovesThePickup', () => {
+    it('walkingOverADroppedHeart-healsHalfAHeartAndFlagsThePickupCollected', () => {
       let frameCallback: FrameRequestCallback | null = null;
       vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
         frameCallback = cb;
@@ -2534,17 +2583,21 @@ describe('PlatformerPage', () => {
       playerState.value = { ...playerState.value, hitPoints: MAX_HALF_HEARTS - 2 };
       const heartX = playerState.value.x;
       const heartY = playerState.value.y;
-      heartPickupStates.value = [{ id: 'heart-test-1', x: heartX, y: heartY }];
+      heartPickupStates.value = [{ id: 'heart-test-1', kind: 'heart', x: heartX, y: heartY, collected: false }];
 
       frameCallback!(16);
 
       expect(playerState.value.hitPoints).toBe(MAX_HALF_HEARTS - 2 + HEART_PICKUP_HEAL_AMOUNT);
-      expect(heartPickupStates.value).toEqual([]);
+      // The shared collect-once flag: the heart is retained and flagged, not
+      // removed.
+      expect(heartPickupStates.value).toEqual([
+        { id: 'heart-test-1', kind: 'heart', x: heartX, y: heartY, collected: true },
+      ]);
     });
 
     it('walkingOverADroppedHeart-atFullHealth-staysInTheWorldUncollected', () => {
       // The heart waits for the player to actually need it rather than being
-      // consumed for nothing (Collision.ts's checkHeartPickupCollisions).
+      // consumed for nothing (Collision.ts's checkPickupCollisions heart gate).
       let frameCallback: FrameRequestCallback | null = null;
       vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
         frameCallback = cb;
@@ -2558,12 +2611,14 @@ describe('PlatformerPage', () => {
       playerState.value = { ...playerState.value, hitPoints: MAX_HALF_HEARTS };
       const heartX = playerState.value.x;
       const heartY = playerState.value.y;
-      heartPickupStates.value = [{ id: 'heart-test-2', x: heartX, y: heartY }];
+      heartPickupStates.value = [{ id: 'heart-test-2', kind: 'heart', x: heartX, y: heartY, collected: false }];
 
       frameCallback!(16);
 
       expect(playerState.value.hitPoints).toBe(MAX_HALF_HEARTS);
-      expect(heartPickupStates.value).toEqual([{ id: 'heart-test-2', x: heartX, y: heartY }]);
+      expect(heartPickupStates.value).toEqual([
+        { id: 'heart-test-2', kind: 'heart', x: heartX, y: heartY, collected: false },
+      ]);
     });
   });
 
@@ -3120,7 +3175,7 @@ describe('PlatformerPage', () => {
         sourceType: 'coin',
       },
     ];
-    collectedCollectibleIds.value = new Set(['coin-frontend']);
+    baseCoinPlacements.value = baseCoinPlacements.value.map((p) => ({ ...p, collected: true }));
     playerState.value = { ...playerState.value, x: 999, y: 999 };
     playerState.value = { ...playerState.value, hitPoints: 0 };
     cameraPositionX.value = 300;
@@ -3129,7 +3184,7 @@ describe('PlatformerPage', () => {
 
     expect(platformerPage.journal.root).not.toBeInTheDocument();
     expect(collectedFacts.value).toEqual([]);
-    expect(collectedCollectibleIds.value.size).toBe(0);
+    expect(baseCoinPlacements.value.every((p) => !p.collected)).toBe(true);
     expect(playerState.value.hitPoints).toBe(MAX_HALF_HEARTS);
     expect(lifecycleState.value.phase).toBe('intro');
     expect(playerState.value.x).toBe(initialPlayerState.x);
@@ -5221,19 +5276,21 @@ describe('PlatformerPage', () => {
 
     // A coin carries no fact of its own (see CollectibleMapper.ts's
     // mapCVDataToSkillFactPool doc comment) — this test only cares that
-    // collectedFacts/collectedCollectibleIds are cleared on remount, not
+    // collectedFacts and the base-coin flags are cleared on remount, not
     // which fact was "collected", so a minimal standalone one suffices.
     collectedFacts.value = [
       { id: 'test-fact', sectionId: 'skills', sectionLabel: 'Skills', data: { category: 'Test', skills: [] }, sourceType: 'coin' },
     ];
-    collectedCollectibleIds.value = new Set([collectiblePlacements.value[0].id]);
+    baseCoinPlacements.value = baseCoinPlacements.value.map((p, index) =>
+      index === 0 ? { ...p, collected: true } : p,
+    );
     collectedKeys.value = 1;
 
     unmount();
     render(<PlatformerPage />);
 
     expect(collectedFacts.value).toEqual([]);
-    expect(collectedCollectibleIds.value.size).toBe(0);
+    expect(baseCoinPlacements.value.every((p) => !p.collected)).toBe(true);
     expect(collectedKeys.value).toBe(0);
   });
 
@@ -6164,15 +6221,17 @@ describe('PlatformerPage', () => {
         expect(bombPickupStates.value[0].id).toBe(pot.id);
       });
 
-      it('walkingOverABombPickup-incrementsCarriedBombsByExactlyOneAndRemovesIt', () => {
+      it('walkingOverABombPickup-incrementsCarriedBombsByExactlyOneAndFlagsItCollected', () => {
         const advance = mountWithLoop();
         const player = playerState.value;
-        bombPickupStates.value = [{ id: 'b1', x: player.x, y: player.y }];
+        bombPickupStates.value = [{ id: 'b1', kind: 'bomb', x: player.x, y: player.y, collected: false }];
 
         advance(1);
 
         expect(carriedBombs.value).toBe(1);
-        expect(bombPickupStates.value).toEqual([]);
+        // Retained and flagged, not removed.
+        expect(bombPickupStates.value).toHaveLength(1);
+        expect(bombPickupStates.value[0]).toMatchObject({ id: 'b1', kind: 'bomb', collected: true });
       });
 
       it('collectingABomb-addsNoCollectiblePlacementAndLeavesTheCountersUnchanged', () => {
@@ -6180,7 +6239,7 @@ describe('PlatformerPage', () => {
         const player = playerState.value;
         const coinsBefore = levelTotals.value.coins;
         const factsBefore = collectedFacts.value.length;
-        bombPickupStates.value = [{ id: 'b1', x: player.x, y: player.y }];
+        bombPickupStates.value = [{ id: 'b1', kind: 'bomb', x: player.x, y: player.y, collected: false }];
 
         advance(1);
 
@@ -6435,7 +6494,7 @@ describe('PlatformerPage', () => {
         const advance = mountWithLoop();
         carriedBombs.value = MAX_BOMBS;
         const player = playerState.value;
-        bombPickupStates.value = [{ id: 'cap-bomb', x: player.x, y: player.y }];
+        bombPickupStates.value = [{ id: 'cap-bomb', kind: 'bomb', x: player.x, y: player.y, collected: false }];
 
         advance(1);
 

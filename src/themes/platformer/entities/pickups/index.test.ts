@@ -1,24 +1,41 @@
+import { vi } from 'vitest';
 import { PICKUP_TYPES } from './index';
 import { COIN_SHEET, FRUIT_SHEET, KEY_SHEET, HEARTS_SHEET, BOMB_SHEET } from '../sprites/sheets';
-import { spawnKeyPickup } from '../KeyPickup';
-import { spawnHeartPickup, HEART_PICKUP_RENDERED_SIZE, HEART_PICKUP_TILE_OFFSET_X } from '../HeartPickup';
+import { spawnKeyPickup } from './Key';
+import { spawnHeartPickup, HEART_PICKUP_RENDERED_SIZE, HEART_PICKUP_TILE_OFFSET_X } from './Heart';
 import {
   spawnBombPickup,
   BOMB_PICKUP_RENDERED_SIZE,
   BOMB_PICKUP_TILE_OFFSET_X,
   BOMB_PICKUP_TILE_OFFSET_Y,
-} from '../BombPickup';
-import { spawnFruit, FRUIT_RISE_DURATION_SECONDS, fruitY } from '../Fruit';
+} from './Bomb';
+import { spawnFruit, FRUIT_RISE_DURATION_SECONDS, fruitY, tickFruit } from './Fruit';
+import type { FruitState } from './Fruit';
 import type { CollectiblePlacement } from '../../level/CollectibleMapper';
+import type { CollectedFact } from '../../types';
 
 function makePlacement(x: number, y: number): CollectiblePlacement {
-  return { id: 'coin-x', spriteType: 'coin', x, y };
+  return { id: 'coin-x', kind: 'coin', x, y, collected: false };
 }
+
+const testFact: CollectedFact = {
+  id: 'qmark-cert-x',
+  sectionId: 'certificates',
+  sectionLabel: 'Certificates',
+  data: { name: 'Test Cert', issuer: 'Test', date: '2024-01' },
+  sourceType: 'block',
+};
 
 describe('PICKUP_TYPES', () => {
   it('everyEntry-declaresItsOwnKey', () => {
     for (const [key, type] of Object.entries(PICKUP_TYPES)) {
       expect(type.key).toBe(key);
+    }
+  });
+
+  it('everyEntry-declaresItsOwnDrawLayer', () => {
+    for (const type of Object.values(PICKUP_TYPES)) {
+      expect(['belowBlocks', 'beforeEnemies', 'afterEnemies']).toContain(type.drawLayer);
     }
   });
 
@@ -28,6 +45,61 @@ describe('PICKUP_TYPES', () => {
     expect(PICKUP_TYPES.key.sprite.sheet).toBe(KEY_SHEET);
     expect(PICKUP_TYPES.heart.sprite.sheet).toBe(HEARTS_SHEET);
     expect(PICKUP_TYPES.bomb.sprite.sheet).toBe(BOMB_SHEET);
+  });
+
+  it('everySpawnedState-kindEqualsItsRegistrySlot-andExposesABooleanCollectedFlag', () => {
+    // SC-002: each state's `kind` equals the registry slot it is stored under,
+    // and carries the shared boolean collect-once flag.
+    const states = [
+      PICKUP_TYPES.coin.spawn({ id: 'c', x: 0, y: 0 }),
+      PICKUP_TYPES.fruit.spawn({ id: 'f', x: 0, y: 0 }),
+      PICKUP_TYPES.key.spawn({ id: 'k', x: 0, y: 0 }),
+      PICKUP_TYPES.heart.spawn({ id: 'h', x: 0, y: 0 }),
+      PICKUP_TYPES.bomb.spawn({ id: 'b', x: 0, y: 0 }),
+    ];
+    for (const state of states) {
+      expect(state.kind).toBe(PICKUP_TYPES[state.kind].key);
+      expect(typeof state.collected).toBe('boolean');
+      expect(state.collected).toBe(false);
+    }
+  });
+});
+
+describe('every kind spawns itself from a source (US2)', () => {
+  it('coin-spawnsAPositionalCoinThatIgnoresFactAndIconIndex', () => {
+    const iconIndex = vi.fn(() => 5);
+    const state = PICKUP_TYPES.coin.spawn({ id: 'pot-1', x: 10, y: 20, fact: testFact, iconIndex });
+    expect(state).toEqual({ id: 'pot-1', kind: 'coin', x: 10, y: 20, collected: false });
+    // The lazy icon supplier is only invoked for the fruit kind.
+    expect(iconIndex).not.toHaveBeenCalled();
+  });
+
+  it('fruit-spawnsItsRisingStateWithTheSourceFactAndLazyIconIndex', () => {
+    const iconIndex = vi.fn(() => 5);
+    const state = PICKUP_TYPES.fruit.spawn({ id: 'qmark-1', x: 30, y: 40, fact: testFact, iconIndex }) as FruitState;
+    expect(state.kind).toBe('fruit');
+    expect(state.id).toBe('qmark-1');
+    expect(state.x).toBe(30);
+    expect(state.y).toBe(40);
+    expect(state.collected).toBe(false);
+    expect(state.fact).toBe(testFact);
+    expect(state.iconIndex).toBe(5);
+    expect(iconIndex).toHaveBeenCalledTimes(1);
+  });
+
+  it('key-spawnsAnUncollectedKeyAtTheSourcePosition', () => {
+    const state = PICKUP_TYPES.key.spawn({ id: 'enemy-1', x: 1, y: 2 });
+    expect(state).toEqual({ id: 'enemy-1', kind: 'key', x: 1, y: 2, collected: false });
+  });
+
+  it('heart-spawnsAnUncollectedHeartAtTheSourcePosition', () => {
+    const state = PICKUP_TYPES.heart.spawn({ id: 'pot-1', x: 1, y: 2 });
+    expect(state).toEqual({ id: 'pot-1', kind: 'heart', x: 1, y: 2, collected: false });
+  });
+
+  it('bomb-spawnsAnUncollectedBombAtTheSourcePosition', () => {
+    const state = PICKUP_TYPES.bomb.spawn({ id: 'pot-1', x: 1, y: 2 });
+    expect(state).toEqual({ id: 'pot-1', kind: 'bomb', x: 1, y: 2, collected: false });
   });
 });
 
@@ -52,12 +124,14 @@ describe('pickup boxes match the boxes collision uses today', () => {
     });
   });
 
-  it('fruit-boxFollowsTheRiseTween', () => {
+  it('fruit-boxFollowsTheStoredRisePosition', () => {
     const fruit = spawnFruit('b', 100, 200, undefined, 0);
-    expect(PICKUP_TYPES.fruit.box(fruit).y).toBe(fruitY(fruit));
+    expect(PICKUP_TYPES.fruit.box(fruit).y).toBe(fruit.y);
+    expect(fruit.y).toBe(fruitY(fruit));
 
-    const risen = { ...fruit, elapsed: FRUIT_RISE_DURATION_SECONDS };
+    const risen = tickFruit(fruit, FRUIT_RISE_DURATION_SECONDS);
     expect(PICKUP_TYPES.fruit.box(risen).y).toBe(risen.restY);
+    expect(risen.y).toBe(fruitY(risen));
   });
 
   it('heart-boxIsCenteredAtItsSmallerRenderedSize', () => {
@@ -115,12 +189,12 @@ describe('bomb pickup carries no CV fact (FR-011)', () => {
     expect('fact' in PICKUP_TYPES.bomb).toBe(false);
   });
 
-  it('bomb-isNeverACollectiblePlacement', () => {
-    // A CollectiblePlacement's spriteType is the fact-bearing coin set (a
-    // question-mark reward is a separately-drawn rising fruit);
-    // a bomb feeds no fact pool and no journal counter.
-    const collectibleSpriteTypes: CollectiblePlacement['spriteType'][] = ['coin'];
-    expect(collectibleSpriteTypes.includes(PICKUP_TYPES.bomb.key as CollectiblePlacement['spriteType'])).toBe(
+  it('bomb-isNeverACollectiblePlacementKind', () => {
+    // A CollectiblePlacement's `kind` is the fact-bearing coin variant (a
+    // question-mark reward is a separately-drawn rising fruit); a bomb feeds
+    // no fact pool and no journal counter.
+    const collectibleKinds: CollectiblePlacement['kind'][] = ['coin'];
+    expect(collectibleKinds.includes(PICKUP_TYPES.bomb.key as CollectiblePlacement['kind'])).toBe(
       false,
     );
   });

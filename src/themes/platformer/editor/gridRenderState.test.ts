@@ -57,7 +57,8 @@ describe('synthesizeCollectiblePlacements', () => {
     const grid: TileChar[][] = [['o', '.', 'o']];
     const placements = synthesizeCollectiblePlacements(grid);
     expect(placements).toHaveLength(2);
-    expect(placements[0].spriteType).toBe('coin');
+    expect(placements[0].kind).toBe('coin');
+    expect(placements[0].collected).toBe(false);
     expect(placements[0].x).toBe(0);
     expect(placements[1].x).toBe(2 * RENDERED_TILE_SIZE);
   });

@@ -104,18 +104,19 @@ export function synthesizePlayerState(grid: TileChar[][]): PlayerState | null {
 
 /** Returns one fixed-frame coin placeholder per `o` marker. There is no
  *  fruit marker character — fruit only spawns from a hit question-mark
- *  block in the real game, so `spriteType` is always `'coin'` here. A coin
- *  carries no fact of its own even in the real game (see
- *  CollectibleMapper.ts's mapCVDataToSkillFactPool), so there's none to
- *  stub here either. */
+ *  block in the real game, so `kind` is always `'coin'` here and every
+ *  synthesized placement is `collected: false`. A coin carries no fact of its
+ *  own even in the real game (see CollectibleMapper.ts's
+ *  mapCVDataToSkillFactPool), so there's none to stub here either. */
 export function synthesizeCollectiblePlacements(grid: TileChar[][]): CollectiblePlacement[] {
   return findAllPositions(grid, 'o').map(({ col, row }, index) => {
     const { x, y } = tileToPixel(col, row);
     return {
       id: `editor-coin-${index}`,
-      spriteType: 'coin',
+      kind: 'coin',
       x,
       y,
+      collected: false,
     };
   });
 }

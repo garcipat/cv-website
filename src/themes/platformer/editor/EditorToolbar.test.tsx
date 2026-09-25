@@ -31,7 +31,7 @@ vi.mock('../engine/SpriteLoader', () => ({
 vi.mock('../engine/Renderer', () => ({
   drawTerrain: vi.fn(),
   drawPlayer: vi.fn(),
-  drawCollectibles: vi.fn(),
+  drawPickups: vi.fn(),
   drawEnemies: vi.fn(),
   drawBlocks: vi.fn(),
   drawChests: vi.fn(),
