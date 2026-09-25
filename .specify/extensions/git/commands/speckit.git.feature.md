@@ -30,7 +30,7 @@ If the feature ID is provided in the user input or feature description, extract 
 If the user explicitly provided `GIT_BRANCH_NAME` (e.g., via environment variable, argument, or in their request), pass it through to the script by setting the `GIT_BRANCH_NAME` environment variable before invoking the script. When `GIT_BRANCH_NAME` is set:
 
 - The script uses the exact value as the branch name, bypassing all prefix/suffix generation
-- Feature ID is extracted from the name if it starts with a feature prefix (F-, S-, O-) or numeric prefix, otherwise set to the full branch name
+- Feature ID is extracted from the name if it starts with a feature prefix (F-, S-, O-, R-) or numeric prefix, otherwise set to the full branch name
 
 ## Prerequisites
 

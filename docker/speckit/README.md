@@ -61,11 +61,10 @@ function specify { docker run --rm -it -v "${PWD}:/workspace" speckit:1.0.11 @ar
 
 This project uses the Spec Kit `opencode` integration with PowerShell scripts.
 The bundled integration writes `.opencode/commands/speckit.*.md` as full prompts
-and does **not** create `.opencode/agents/*`. OpenCode V2 commands do support
-`agent:` plus `subagent: true` (and agents support `mode: subagent`), so
-`scripts/speckit-opencode-split.sh` rewrites each command into a thin wrapper
-that dispatches to a matching subagent. See
-<https://opencode.ai/v2/docs/commands>.
+and does **not** create `.opencode/agents/*`. This repo instead keeps each command
+as a thin wrapper (`agent:` + `subagent: true`) that dispatches to a matching
+`.opencode/agents/speckit-*.md` subagent (`mode: subagent`). OpenCode V2 supports
+both. See <https://opencode.ai/v2/docs/commands>.
 
 ### Upgrade
 
@@ -84,28 +83,18 @@ docker run --rm -it --user "$(id -u):$(id -g)" -e HOME=/tmp \
   the project configuration (`.specify/integration.json` records
   `"script": "ps"`); use `--script sh` for Bash scripts instead.
 
-### Required post-step: restore the command wrappers
+### Upgrades overwrite the command files
 
-After any `integration switch`/`upgrade`, run **both** scripts from the
-repository root, in this order:
+The integration rewrites `.opencode/commands/*.md` with full upstream prompts and
+does not create `.opencode/agents/*`. This repo's command → subagent wrappers are
+maintained by hand under `.opencode/`, so after an upgrade re-create the thin
+wrappers (one per command, with `agent:` and `subagent: true`) and treat
+`.opencode/agents/*.md` as the source of truth for the prompts — the integration
+does not touch them. Review the diff before committing.
 
-```bash
-scripts/speckit-opencode-split.sh          # commands → agents + thin wrappers
-scripts/speckit-apply-local-edits.py       # re-apply the local agent overlays
-```
-
-The integration overwrites `.opencode/commands/*` with full prompts and does not
-create `.opencode/agents/*`, so the splitter restores the command → subagent
-wrappers. The splitter also regenerates the agents from the upstream prompts,
-which drops this project's overlays, so the applier then re-applies the
-`question`-tool and feature-ID edits to the `specify`, `clarify` and `analyze`
-agents. Both scripts are idempotent.
-
-Only `description` is carried from the upstream command frontmatter into the
-agent. `handoffs:` is Copilot-oriented and `tools:` is a Copilot-era command
-allow-list; neither is an OpenCode V2 command/agent field (V2 uses
-`agent`/`subagent`/`mode`/`model`/`permissions`), so both are intentionally
-dropped.
+OpenCode V2 command frontmatter defines `agent`, `subagent`, `mode`, `model`; the
+upstream `handoffs:` (Copilot) and `tools:` (Copilot-era allow-list) fields are
+not OpenCode V2 command/agent fields and are intentionally not used.
 
 - Never pass `--refresh-shared-infra`: it overwrites customized shared infra,
   including the custom `.specify/scripts/powershell/common.ps1`. Core scripts
