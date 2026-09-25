@@ -57,14 +57,40 @@ alias specify='docker run --rm -it --user "$(id -u):$(id -g)" -e HOME=/tmp -v "$
 function specify { docker run --rm -it -v "${PWD}:/workspace" speckit:1.0.11 @args }
 ```
 
-## Refreshing the opencode integration
+## Seed Spec Kit for OpenCode v2
 
-Check state first, then upgrade or install:
+The current Spec Kit `opencode` integration is commands-only: it writes
+`.opencode/commands/speckit.*.md` and does **not** create subagent agents or use
+`subtask`/`subagent`, so a command resolves into normal prompt input and the
+session gets a title.
+
+Initialize (or re-initialize) this existing project for OpenCode v2. From the
+repository root:
+
+```bash
+docker run --rm -it --user "$(id -u):$(id -g)" -e HOME=/tmp \
+  -v "$PWD:/workspace" speckit:1.0.11 \
+  init --here --force --non-interactive --integration opencode --script ps
+```
+
+- `--here` targets the current directory (already a project).
+- `--force` acknowledges initializing a non-empty directory; it only touches
+  managed Spec Kit paths, not the rest of the app.
+- `--non-interactive` skips the integration picker.
+- `--script ps` keeps PowerShell scripts (`.specify/scripts/powershell`) to match
+  the Windows host; use `--script sh` for Bash scripts instead.
+
+Then review the diff before committing:
+
+```bash
+git diff
+```
+
+Check what is installed/active and refresh later:
 
 ```bash
 docker run --rm -it -v "$PWD:/workspace" speckit:1.0.11 integration status
 docker run --rm -it -v "$PWD:/workspace" speckit:1.0.11 integration upgrade opencode
-docker run --rm -it -v "$PWD:/workspace" speckit:1.0.11 integration install opencode
 ```
 
 ## Generated scripts: `--script`
