@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
 # Convert full-prompt Spec Kit opencode commands into thin wrappers that invoke
-# per-command subagents. Idempotent: already-wrapped commands are skipped.
+# per-command subagents. Idempotent: an already-wrapped command is skipped only
+# when its matching agent file also exists; a missing agent is recreated instead
+# of being silently skipped.
+#
+# Frontmatter policy: only `description` is propagated to the agent.
+# `handoffs:` (Copilot-oriented, irrelevant for opencode) and `tools:` (a
+# Copilot-era command allow-list) are intentionally dropped. OpenCode V2
+# command/agent frontmatter defines `agent`/`subagent`/`mode`/`model`/
+# `permissions`, not Copilot's `tools:`.
+# See <https://opencode.ai/v2/docs/commands> and <https://opencode.ai/v2/docs/agents>.
 #
 # Run after any `specify integration upgrade/switch opencode`.
 set -euo pipefail
@@ -15,7 +24,7 @@ for cmd in "$CMD_DIR"/speckit.*.md; do
   base=$(basename "$cmd" .md)          # speckit.specify | speckit.git.commit
   agent_id=${base//./-}                # speckit-specify  | speckit-git-commit
 
-  if grep -q '^subagent: true$' "$cmd"; then
+  if grep -q '^subagent: true$' "$cmd" && [ -f "$AGENT_DIR/$agent_id.md" ]; then
     echo "skip (already wrapped): $base"
     continue
   fi
@@ -23,8 +32,10 @@ for cmd in "$CMD_DIR"/speckit.*.md; do
   desc=$(awk '/^description:/{d=$0; sub(/^description:[[:space:]]*/,"",d); print d; exit}' "$cmd")
   [ -n "$desc" ] || { echo "ERROR: no description in $cmd" >&2; exit 1; }
 
-  # Body = lines after the closing frontmatter delimiter.
-  body=$(awk 'BEGIN{n=0} /^---[[:space:]]*$/{n++; next} n>=2{print}' "$cmd")
+  # Body = lines after the closing frontmatter delimiter. Only the first two
+  # bare `---` lines are frontmatter delimiters; a later bare `---` in the body
+  # (e.g. a markdown horizontal rule) is preserved.
+  body=$(awk 'BEGIN{n=0} /^---[[:space:]]*$/{n++; if (n<=2) next} n>=2{print}' "$cmd")
   [ -n "$body" ] || { echo "ERROR: empty body in $cmd" >&2; exit 1; }
 
   {

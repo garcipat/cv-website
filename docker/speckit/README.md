@@ -86,16 +86,26 @@ docker run --rm -it --user "$(id -u):$(id -g)" -e HOME=/tmp \
 
 ### Required post-step: restore the command wrappers
 
-After any `integration switch`/`upgrade`, run the splitter from the repository
-root:
+After any `integration switch`/`upgrade`, run **both** scripts from the
+repository root, in this order:
 
 ```bash
-scripts/speckit-opencode-split.sh
+scripts/speckit-opencode-split.sh          # commands → agents + thin wrappers
+scripts/speckit-apply-local-edits.py       # re-apply the local agent overlays
 ```
 
 The integration overwrites `.opencode/commands/*` with full prompts and does not
-create `.opencode/agents/*`; the splitter restores the command → subagent
-wrappers (it is idempotent and skips already-wrapped commands).
+create `.opencode/agents/*`, so the splitter restores the command → subagent
+wrappers. The splitter also regenerates the agents from the upstream prompts,
+which drops this project's overlays, so the applier then re-applies the
+`question`-tool and feature-ID edits to the `specify`, `clarify` and `analyze`
+agents. Both scripts are idempotent.
+
+Only `description` is carried from the upstream command frontmatter into the
+agent. `handoffs:` is Copilot-oriented and `tools:` is a Copilot-era command
+allow-list; neither is an OpenCode V2 command/agent field (V2 uses
+`agent`/`subagent`/`mode`/`model`/`permissions`), so both are intentionally
+dropped.
 
 - Never pass `--refresh-shared-infra`: it overwrites customized shared infra,
   including the custom `.specify/scripts/powershell/common.ps1`. Core scripts
