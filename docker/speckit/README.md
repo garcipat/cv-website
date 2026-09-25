@@ -59,26 +59,49 @@ function specify { docker run --rm -it -v "${PWD}:/workspace" speckit:1.0.11 @ar
 
 ## Seed Spec Kit for OpenCode v2
 
-The current Spec Kit `opencode` integration is commands-only: it writes
-`.opencode/commands/speckit.*.md` and does **not** create subagent agents or use
-`subtask`/`subagent`, so a command resolves into normal prompt input and the
-session gets a title.
+This project uses the Spec Kit `opencode` integration with PowerShell scripts.
+The bundled integration writes `.opencode/commands/speckit.*.md` as full prompts
+and does **not** create `.opencode/agents/*`. OpenCode V2 commands do support
+`agent:` plus `subagent: true` (and agents support `mode: subagent`), so
+`scripts/speckit-opencode-split.sh` rewrites each command into a thin wrapper
+that dispatches to a matching subagent. See
+<https://opencode.ai/v2/docs/commands>.
 
-Initialize (or re-initialize) this existing project for OpenCode v2. From the
-repository root:
+### Upgrade
+
+Switch or upgrade the integration from the repository root:
 
 ```bash
 docker run --rm -it --user "$(id -u):$(id -g)" -e HOME=/tmp \
   -v "$PWD:/workspace" speckit:1.0.11 \
-  init --here --force --non-interactive --integration opencode --script ps
+  integration switch opencode --script ps
 ```
 
-- `--here` targets the current directory (already a project).
-- `--force` acknowledges initializing a non-empty directory; it only touches
-  managed Spec Kit paths, not the rest of the app.
-- `--non-interactive` skips the integration picker.
+- `integration switch opencode --script ps` is the 1.0.11 upgrade path. Do **not**
+  use the old `init --here --force --non-interactive --integration opencode`
+  recipe: it can reinstall the bundled `git` extension.
 - `--script ps` keeps PowerShell scripts (`.specify/scripts/powershell`) to match
-  the Windows host; use `--script sh` for Bash scripts instead.
+  the project configuration (`.specify/integration.json` records
+  `"script": "ps"`); use `--script sh` for Bash scripts instead.
+
+### Required post-step: restore the command wrappers
+
+After any `integration switch`/`upgrade`, run the splitter from the repository
+root:
+
+```bash
+scripts/speckit-opencode-split.sh
+```
+
+The integration overwrites `.opencode/commands/*` with full prompts and does not
+create `.opencode/agents/*`; the splitter restores the command → subagent
+wrappers (it is idempotent and skips already-wrapped commands).
+
+- Never pass `--refresh-shared-infra`: it overwrites customized shared infra,
+  including the custom `.specify/scripts/powershell/common.ps1`. Core scripts
+  are refreshed by a targeted copy instead.
+- Never install the bundled `git` extension: it lacks `--feature-id`, which this
+  project's `F-/S-/O-/R-` workflow relies on. Keep the forked extension.
 
 Then review the diff before committing:
 
@@ -90,16 +113,18 @@ Check what is installed/active and refresh later:
 
 ```bash
 docker run --rm -it -v "$PWD:/workspace" speckit:1.0.11 integration status
-docker run --rm -it -v "$PWD:/workspace" speckit:1.0.11 integration upgrade opencode
+docker run --rm -it -v "$PWD:/workspace" speckit:1.0.11 integration upgrade opencode --script ps
 ```
 
 ## Generated scripts: `--script`
 
-The container is Linux, so Spec Kit defaults to `sh` scripts. This project
-currently ships `.specify/scripts/powershell` for a Windows host. If you keep
-using PowerShell for those scripts, pass `--script ps` where supported (`init`,
-`upgrade`) so the `.ps1` files are preserved. The `.ps1` files are not executed
-inside the container, and `specify` does not need to run them.
+The container is Linux, so Spec Kit defaults to `sh` scripts. This project ships
+`.specify/scripts/powershell` and pins `"script": "ps"` in
+`.specify/integration.json`, so pass `--script ps` on `integration switch` and
+`integration upgrade` to keep the `.ps1` files. Running those scripts on this
+host needs a PowerShell runtime (`pwsh`); PowerShell 7.6.6 is installed
+user-space for that. The `.ps1` files are not executed inside the container, and
+`specify` does not need to run them.
 
 ## Notes
 
