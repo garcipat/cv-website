@@ -3,9 +3,10 @@ description: Validate current branch follows feature branch naming conventions
 mode: subagent
 ---
 
+
+
 <!-- Extension: git -->
 <!-- Config: .specify/extensions/git/ -->
-
 # Validate Feature Branch
 
 Validate that the current Git branch follows the expected feature branch naming conventions.

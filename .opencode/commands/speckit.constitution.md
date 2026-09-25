@@ -1,7 +1,7 @@
 ---
-description: Create or update the project constitution from interactive or provided principle inputs, ensuring all dependent templates stay in sync.
+description: Create or update the project constitution from interactive or provided principle inputs.
 agent: speckit-constitution
-subtask: true
+subagent: true
 ---
 
 $ARGUMENTS

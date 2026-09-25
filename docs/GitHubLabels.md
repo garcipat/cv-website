@@ -17,6 +17,7 @@ These are the canonical labels used for feature ideas and bugs on the GitHub rep
 | `area:theme` | `#006B75` | Themes and theming |
 | `area:content` | `#C2E0C6` | CV content and data |
 | `area:testing` | `#FBCA04` | Testing and test tooling |
+| `area:tooling` | `#BFD4F2` | Agent, CLI, and developer tooling |
 
 ## Seeding
 
@@ -34,4 +35,5 @@ gh label create area:editor --color 5319E7 --description "Platformer level edito
 gh label create area:theme --color 006B75 --description "Themes and theming" --force
 gh label create area:content --color C2E0C6 --description "CV content and data" --force
 gh label create area:testing --color FBCA04 --description "Testing and test tooling" --force
+gh label create area:tooling --color BFD4F2 --description "Agent, CLI, and developer tooling" --force
 ```
