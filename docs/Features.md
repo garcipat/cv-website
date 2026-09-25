@@ -73,12 +73,13 @@ graph RL
         R006["R-006: Platformer Pickup Unification"]
         R007["R-007: Platformer Registry Dispatch Completion"]
         R008["R-008: Platformer Placeable World Items"]
-        R009["R-009: Platformer Static Tile Registry & Renderer Split"]
+        R009["R-009: Platformer Renderer Split"]
         R010["R-010: Platformer Mapper & Editor Unification"]
         R011["R-011: Platformer Player Damage & Bomb Systems"]
         R012["R-012: Platformer State Stores & Asset/HUD Extraction"]
         R013["R-013: Platformer Sprite Asset & Atlas Organization"]
         R014["R-014: Platformer Layer-Boundary Lint Guard"]
+        R015["R-015: Platformer Tile Module Registry"]
     end
 
     F003 --> F002
@@ -219,15 +220,18 @@ graph RL
     R007 --> O024
     R008 --> R006
     R008 --> R007
+    R008 --> R015
     R008 --> O012
     R009 --> R003
     R009 --> R004
     R009 --> R008
+    R009 --> R015
     R009 --> O014
     R010 --> R002
     R010 --> O015
     R010 --> O016
     R010 --> O019
+    R010 --> R015
     R010 --> S030
     R011 --> R007
     R011 --> R008
@@ -236,6 +240,8 @@ graph RL
     R012 --> R011
     R013 --> F015
     R014 --> R001
+    R015 --> R001
+    R015 --> R004
 
     classDef done stroke:#FFD600,stroke-width:3px
     classDef projectSetup fill:#1565C0,color:#ffffff
@@ -297,7 +303,7 @@ graph RL
     class O016 done
     class O021 done
     class O023 done
-    class R001,R002,R003,R004,R005,R006,R007,R008,R009,R011,R012,R014 themes
+    class R001,R002,R003,R004,R005,R006,R007,R008,R009,R011,R012,R014,R015 themes
     class R001 done
     class R002 done
     class R010 enhancements
