@@ -67,7 +67,7 @@ graph RL
 
         R001["✅ R-001: Platformer Core Contracts & Dependency Layers"]
         R002["✅ R-002: Platformer Shared Primitives & Dedup"]
-        R003["R-003: Platformer Abstract Light Sources"]
+        R003["✅ R-003: Platformer Abstract Light Sources"]
         R004["R-004: Platformer Transient Effect Registry"]
         R005["R-005: Platformer Generic Speech Bubble"]
         R006["R-006: Platformer Pickup Unification"]
