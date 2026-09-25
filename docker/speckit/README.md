@@ -112,8 +112,10 @@ git diff
 Check what is installed/active and refresh later:
 
 ```bash
-docker run --rm -it -v "$PWD:/workspace" speckit:1.0.11 integration status
-docker run --rm -it -v "$PWD:/workspace" speckit:1.0.11 integration upgrade opencode --script ps
+docker run --rm -it --user "$(id -u):$(id -g)" -e HOME=/tmp \
+  -v "$PWD:/workspace" speckit:1.0.11 integration status
+docker run --rm -it --user "$(id -u):$(id -g)" -e HOME=/tmp \
+  -v "$PWD:/workspace" speckit:1.0.11 integration upgrade opencode --script ps
 ```
 
 ## Generated scripts: `--script`
