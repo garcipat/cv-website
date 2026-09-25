@@ -261,6 +261,7 @@ import {
 import type { FallingStalactitePhase, FallingStalactiteTimerState } from './FallingStalactite';
 import { parseLevel } from '../../level/LevelParser';
 import type { GridTimerState } from '../../shared/timedTile';
+import type { HazardTickContext } from './HazardType';
 
 const NO_BLOCKS: never[] = [];
 const NO_CRUMBLING: readonly GridTimerState[] = [];
@@ -541,5 +542,72 @@ describe('fallingStalactitePhaseFor', () => {
     expect(fallingStalactitePhaseFor(early, HAZARD, CRUMBLING_LEVEL, NO_BLOCKS, broken)).toBe('falling');
     const atNewLanding: FallingStalactiteTimerState[] = [{ id: 'h', elapsed: elapsedAtNewRest }];
     expect(fallingStalactitePhaseFor(atNewLanding, HAZARD, CRUMBLING_LEVEL, NO_BLOCKS, broken)).toBe('gone');
+  });
+});
+
+describe('fallingStalactite dispatch hooks (R-007 D3)', () => {
+  const FULL_HAZARD: HazardPlacement = hazard({ id: 'h', col: 1, row: 0, x: RENDERED_TILE_SIZE, y: 0 });
+
+  function hazardCtx(
+    timers: readonly FallingStalactiteTimerState[] = [],
+    overrides: Partial<HazardTickContext> = {},
+  ): HazardTickContext {
+    return {
+      floorSpikeTimers: [],
+      fallingStalactiteTimers: timers,
+      activeLevel: LEVEL,
+      blockStates: NO_BLOCKS,
+      crumblingFloorTimers: NO_CRUMBLING,
+      ...overrides,
+    };
+  }
+
+  it('knocksBack-isFalse', () => {
+    // The falling stalactite deals half-heart damage with NO knockback.
+    expect(fallingStalactite.knocksBack).toBe(false);
+  });
+
+  it('withTickState-hangingHazard-mergesHangingPhaseAndZeroOffsets', () => {
+    const merged = fallingStalactite.withTickState!(FULL_HAZARD, hazardCtx());
+    expect(merged.fallingStalactitePhase).toBe('hanging');
+    expect(merged.fallingStalactiteOffsetY).toBe(0);
+    expect(merged.fallingStalactiteShakeOffsetX).toBe(0);
+    // Every other field carried through untouched.
+    expect({
+      ...merged,
+      fallingStalactitePhase: undefined,
+      fallingStalactiteOffsetY: undefined,
+      fallingStalactiteShakeOffsetX: undefined,
+    }).toEqual(FULL_HAZARD);
+  });
+
+  it('withTickState-shakingHazard-matchesThePhaseAndOffsetHelpersByteForByte', () => {
+    const elapsed = FALLING_STALACTITE_SHAKE_SECONDS / 2;
+    const timers: FallingStalactiteTimerState[] = [{ id: 'h', elapsed }];
+    const merged = fallingStalactite.withTickState!(FULL_HAZARD, hazardCtx(timers));
+
+    expect(merged.fallingStalactitePhase).toBe(
+      fallingStalactitePhaseFor(timers, HAZARD, LEVEL, NO_BLOCKS, NO_CRUMBLING),
+    );
+    expect(merged.fallingStalactiteOffsetY).toBe(fallingStalactiteOffsetYAt(elapsed));
+    expect(merged.fallingStalactiteShakeOffsetX).toBe(fallingStalactiteShakeOffsetXAt(elapsed));
+    expect(merged.fallingStalactitePhase).toBe('shaking');
+    expect(merged.fallingStalactiteOffsetY).toBe(0);
+  });
+
+  it('armTriggerRects-hangingHazard-returnsItsDetectionZoneCellsAsTileRects', () => {
+    const expected = detectionZoneCells(FULL_HAZARD, LEVEL, NO_BLOCKS, NO_CRUMBLING).map((cell) => ({
+      x: cell.col * RENDERED_TILE_SIZE,
+      y: cell.row * RENDERED_TILE_SIZE,
+      width: RENDERED_TILE_SIZE,
+      height: RENDERED_TILE_SIZE,
+    }));
+
+    expect(fallingStalactite.armTriggerRects!(FULL_HAZARD, hazardCtx())).toEqual(expected);
+  });
+
+  it('armTriggerRects-armedHazard-returnsNoRects', () => {
+    const timers: FallingStalactiteTimerState[] = [{ id: 'h', elapsed: 0.1 }];
+    expect(fallingStalactite.armTriggerRects!(FULL_HAZARD, hazardCtx(timers))).toEqual([]);
   });
 });

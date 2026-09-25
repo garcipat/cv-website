@@ -12,8 +12,6 @@ import type { MushroomSquashState } from './entities/blocks/Mushroom';
 import {
   armFloorSpike,
   advanceFloorSpikes,
-  floorSpikePhaseFor,
-  floorSpikeExtensionFor,
   type FloorSpikeTimerState,
 } from './entities/hazards/FloorSpike';
 import { armCrumblingFloor, advanceCrumblingFloors } from './engine/CrumblingFloor';
@@ -21,12 +19,11 @@ import type { CrumblingFloorTimerState } from './engine/CrumblingFloor';
 import {
   armFallingStalactite,
   advanceFallingStalactites,
-  fallingStalactitePhaseFor,
-  fallingStalactiteElapsedFor,
-  fallingStalactiteOffsetYAt,
-  fallingStalactiteShakeOffsetXAt,
   type FallingStalactiteTimerState,
 } from './entities/hazards/FallingStalactite';
+import { typeOf as hazardTypeOf } from './entities/hazards';
+import type { HazardKind } from './entities/hazards';
+import type { HazardTickContext } from './entities/hazards/HazardType';
 import type { LevelDef } from './level/LevelData';
 import {
   SPAWN_TILE,
@@ -954,12 +951,42 @@ export function tickMushroomSquashes(dt: number): void {
  */
 export const floorSpikeTimerStates = signal<FloorSpikeTimerState[]>([]);
 
-/** Arms `id`'s cycle if it isn't already running (spec FR-003/FR-008) — the
- *  caller (PlatformerPage.tsx) calls this once per tick for every id
- *  `checkFloorSpikeTriggers` returns; `armFloorSpike`'s own presence check
- *  is what makes a repeat call during an already-running cycle a no-op. */
-export function armFloorSpikeTrigger(id: string): void {
-  floorSpikeTimerStates.value = armFloorSpike(floorSpikeTimerStates.value, id);
+/** One kind's arming action — writes that kind's own timer signal. */
+interface HazardTimerStore {
+  arm(id: string): void;
+}
+
+/**
+ * Kind→arming-action registry (R-007 D3). A brand-new armed-then-cycle hazard
+ * kind declares its timer signal and one entry here (where signals live) — the
+ * detection (`Collision.ts`), the per-tick merge (`hazardPlacementsForTick`),
+ * and the page's damage/knockback block need no edit, exactly as R-006 records
+ * for a new pickup family.
+ */
+const hazardTimerStores: Partial<Record<HazardKind, HazardTimerStore>> = {
+  floorSpike: {
+    arm: (id) => {
+      floorSpikeTimerStates.value = armFloorSpike(floorSpikeTimerStates.value, id);
+    },
+  },
+  fallingStalactite: {
+    arm: (id) => {
+      fallingStalactiteTimerStates.value = armFallingStalactite(
+        fallingStalactiteTimerStates.value,
+        id,
+      );
+    },
+  },
+};
+
+/** Arms the hazard `id`'s cycle if it isn't already running (spec FR-003) —
+ *  the caller (PlatformerPage.tsx) calls this once per tick for every id
+ *  `checkHazardArmTriggers` returns; the dispatched store's own presence check
+ *  makes a repeat call during an already-running cycle a no-op. */
+export function armHazardTrigger(id: string): void {
+  const hazard = hazardPlacements.value.find((h) => h.id === id);
+  if (!hazard) return;
+  hazardTimerStores[hazard.hazardType]?.arm(id);
 }
 
 /** Advances every running floor spike cycle by `dt` — called once per
@@ -981,7 +1008,7 @@ export const crumblingFloorTimerStates = signal<CrumblingFloorTimerState[]>([]);
 
 /** Arms `(col, row)`'s cycle if it isn't already running (spec FR-003/FR-007)
  *  — called once per tick for every cell `checkCrumblingFloorTriggers`
- *  returns, mirroring `armFloorSpikeTrigger`. */
+ *  returns. */
 export function armCrumblingFloorTrigger(col: number, row: number): void {
   crumblingFloorTimerStates.value = armCrumblingFloor(crumblingFloorTimerStates.value, col, row);
 }
@@ -1002,14 +1029,6 @@ export function tickCrumblingFloors(dt: number): void {
  */
 export const fallingStalactiteTimerStates = signal<FallingStalactiteTimerState[]>([]);
 
-/** Arms `id`'s falling-stalactite timer if it isn't already running (FR-003/
- *  FR-004) — called once per tick for every id `checkFallingStalactiteTriggers`
- *  returns; `armFallingStalactite`'s own presence check makes a repeat call a
- *  no-op. */
-export function armFallingStalactiteTrigger(id: string): void {
-  fallingStalactiteTimerStates.value = armFallingStalactite(fallingStalactiteTimerStates.value, id);
-}
-
 /** Advances every running falling-stalactite timer by `dt` — called once per
  *  game-loop tick in the `playing` phase, so timers freeze with the rest of
  *  the world during pause/death. Never prunes (FR-013). */
@@ -1018,40 +1037,28 @@ export function tickFallingStalactites(dt: number): void {
 }
 
 /**
- * `hazardPlacements` with each kind's live per-tick state merged in — floor
- * spikes get their cycle phase/extension, falling stalactites get their phase
- * and fall/shake offsets. This is what `PlatformerPage.tsx` hands to
- * `drawHazards`/`resolveHazardContacts`/`checkFallingStalactiteTriggers`
- * instead of the raw (phase-unaware) `hazardPlacements` computed. Every other
- * kind passes through unchanged. Recomputed fresh each call (not a `computed`)
- * since it depends on signals that change every tick during an active cycle.
+ * `hazardPlacements` with each kind's live per-tick state merged in — the
+ * merge itself is the hazard kind's own `withTickState` hook (floor spikes get
+ * their cycle phase/extension, falling stalactites their phase and fall/shake
+ * offsets; every other kind passes through unchanged by omitting the hook).
+ * This is what `PlatformerPage.tsx` hands to `drawHazards`/`resolveHazardContacts`
+ * instead of the raw (phase-unaware) `hazardPlacements` computed. Recomputed
+ * fresh each call (not a `computed`) since it depends on signals that change
+ * every tick during an active cycle. The state layer still assembles the
+ * timer/context bundle; the hook reads only that parameter (no new
+ * `entities/ → state/` edge).
  */
 export function hazardPlacementsForTick(): HazardPlacement[] {
-  return hazardPlacements.value.map((hazard) => {
-    if (hazard.hazardType === 'floorSpike') {
-      return {
-        ...hazard,
-        floorSpikePhase: floorSpikePhaseFor(floorSpikeTimerStates.value, hazard.id),
-        floorSpikeExtension: floorSpikeExtensionFor(floorSpikeTimerStates.value, hazard.id),
-      };
-    }
-    if (hazard.hazardType === 'fallingStalactite') {
-      const elapsed = fallingStalactiteElapsedFor(fallingStalactiteTimerStates.value, hazard.id);
-      return {
-        ...hazard,
-        fallingStalactitePhase: fallingStalactitePhaseFor(
-          fallingStalactiteTimerStates.value,
-          hazard,
-          activeLevel.value,
-          blockStates.value,
-          crumblingFloorTimerStates.value,
-        ),
-        fallingStalactiteOffsetY: fallingStalactiteOffsetYAt(elapsed),
-        fallingStalactiteShakeOffsetX: fallingStalactiteShakeOffsetXAt(elapsed),
-      };
-    }
-    return hazard;
-  });
+  const ctx: HazardTickContext = {
+    floorSpikeTimers: floorSpikeTimerStates.value,
+    fallingStalactiteTimers: fallingStalactiteTimerStates.value,
+    activeLevel: activeLevel.value,
+    blockStates: blockStates.value,
+    crumblingFloorTimers: crumblingFloorTimerStates.value,
+  };
+  return hazardPlacements.value.map(
+    (hazard) => hazardTypeOf(hazard).withTickState?.(hazard, ctx) ?? hazard,
+  );
 }
 
 /**

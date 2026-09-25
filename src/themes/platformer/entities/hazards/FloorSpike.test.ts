@@ -4,6 +4,8 @@ import { SIDE_HIT_DAMAGE } from '../Health';
 import { RENDERED_TILE_SIZE } from '../../level/Terrain';
 import type { HazardPlacement } from '../../level/HazardMapper';
 import type { FloorSpikePhase } from './FloorSpike';
+import type { HazardTickContext } from './HazardType';
+import { parseLevel } from '../../level/LevelParser';
 
 function hazardAt(phase: FloorSpikePhase | undefined): HazardPlacement {
   return { id: 'h1', hazardType: 'floorSpike', facing: 'up', x: 16, y: 32, col: 0, row: 0, floorSpikePhase: phase };
@@ -204,5 +206,63 @@ describe('floorSpikeExtensionFor', () => {
   it('entryPresent-delegatesToFloorSpikeExtensionAt', () => {
     const elapsed = FLOOR_SPIKE_DELAY_SECONDS + FLOOR_SPIKE_WARNING_SECONDS;
     expect(floorSpikeExtensionFor([{ id: 'h1', elapsed }], 'h1')).toBeCloseTo(1, 5);
+  });
+});
+
+describe('floorSpike dispatch hooks (R-007 D3)', () => {
+  function hazardCtx(overrides: Partial<HazardTickContext> = {}): HazardTickContext {
+    return {
+      floorSpikeTimers: [],
+      fallingStalactiteTimers: [],
+      activeLevel: parseLevel(['.']),
+      blockStates: [],
+      crumblingFloorTimers: [],
+      ...overrides,
+    };
+  }
+
+  it('knocksBack-isFalse', () => {
+    // The floor spike deals half-heart damage with NO knockback.
+    expect(floorSpike.knocksBack).toBe(false);
+  });
+
+  it('withTickState-mergesPhaseAndExtensionFromItsOwnTimers', () => {
+    const placement = hazardAt(undefined);
+    const elapsed = FLOOR_SPIKE_DELAY_SECONDS + FLOOR_SPIKE_WARNING_SECONDS;
+    const merged = floorSpike.withTickState!(placement, hazardCtx({
+      floorSpikeTimers: [{ id: 'h1', elapsed }],
+    }));
+
+    // Byte-identical to the phase/extension helpers the inline branch used.
+    expect(merged.floorSpikePhase).toBe(floorSpikePhaseFor([{ id: 'h1', elapsed }], 'h1'));
+    expect(merged.floorSpikeExtension).toBeCloseTo(floorSpikeExtensionFor([{ id: 'h1', elapsed }], 'h1'), 5);
+    expect(merged.floorSpikePhase).toBe('fullExtend');
+    expect(merged.floorSpikeExtension).toBeCloseTo(1, 5);
+    // Every other field carried through untouched.
+    expect({ ...merged, floorSpikePhase: undefined, floorSpikeExtension: undefined }).toEqual(placement);
+  });
+
+  it('withTickState-noTimer-readsAtRestAndZeroExtension', () => {
+    const merged = floorSpike.withTickState!(hazardAt(undefined), hazardCtx());
+    expect(merged.floorSpikePhase).toBe('atRest');
+    expect(merged.floorSpikeExtension).toBe(0);
+  });
+
+  it('armTriggerRects-unarmedSpike-returnsItsTriggerBand', () => {
+    const hazard = hazardAt(undefined);
+    expect(floorSpike.armTriggerRects!(hazard, hazardCtx())).toEqual([
+      {
+        x: hazard.x,
+        y: hazard.y + RENDERED_TILE_SIZE - 10,
+        width: RENDERED_TILE_SIZE,
+        height: 10,
+      },
+    ]);
+  });
+
+  it('armTriggerRects-alreadyArmedSpike-returnsNoRects', () => {
+    const hazard = hazardAt(undefined);
+    const ctx = hazardCtx({ floorSpikeTimers: [{ id: 'h1', elapsed: 0.1 }] });
+    expect(floorSpike.armTriggerRects!(hazard, ctx)).toEqual([]);
   });
 });

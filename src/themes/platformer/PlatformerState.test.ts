@@ -54,16 +54,15 @@ import {
   tickMushroomSquashes,
   floorSpikeTimerStates,
   tickFloorSpikes,
-  armFloorSpikeTrigger,
+  armHazardTrigger,
   crumblingFloorTimerStates,
   fallingStalactiteTimerStates,
-  armFallingStalactiteTrigger,
   tickFallingStalactites,
   hazardPlacements,
   hazardPlacementsForTick,
 } from './PlatformerState';
 import { MUSHROOM_SQUASH_DURATION_SECONDS } from './entities/blocks/Mushroom';
-import { FLOOR_SPIKE_CYCLE_SECONDS } from './entities/hazards/FloorSpike';
+import { FLOOR_SPIKE_CYCLE_SECONDS, FLOOR_SPIKE_DELAY_SECONDS, FLOOR_SPIKE_WARNING_SECONDS } from './entities/hazards/FloorSpike';
 import { mapCVDataToEnemies } from './level/EnemyMapper';
 import { toBlockState } from './entities/Block';
 import { computePotRenderPlan } from './entities/blocks/potRenderPlan';
@@ -1524,21 +1523,69 @@ describe('tickFloorSpikes', () => {
   });
 });
 
-describe('armFloorSpikeTrigger', () => {
+describe('armHazardTrigger', () => {
   afterEach(() => {
     floorSpikeTimerStates.value = [];
+    currentLayout.value = LEVEL_1_LAYOUT;
+    currentMarkers.value = LEVEL_1_MARKERS;
   });
 
-  it('unarmedId-addsIt', () => {
+  it('unarmedFloorSpike-addsItsTimerEntry', () => {
+    currentLayout.value = ['SA', 'GG'];
+    const hazard = hazardPlacements.value.find((h) => h.hazardType === 'floorSpike')!;
+
+    armHazardTrigger(hazard.id);
+
+    expect(floorSpikeTimerStates.value).toEqual([{ id: hazard.id, elapsed: 0 }]);
+  });
+
+  it('alreadyArmedHazard-isANoOp', () => {
+    currentLayout.value = ['SA', 'GG'];
+    const hazard = hazardPlacements.value.find((h) => h.hazardType === 'floorSpike')!;
+    floorSpikeTimerStates.value = [{ id: hazard.id, elapsed: 0.3 }];
+
+    armHazardTrigger(hazard.id);
+
+    expect(floorSpikeTimerStates.value).toEqual([{ id: hazard.id, elapsed: 0.3 }]);
+  });
+
+  it('staticHazardKind-hasNoArmingAction', () => {
+    currentLayout.value = ['S^', 'GG'];
+    const spike = hazardPlacements.value.find((h) => h.hazardType === 'spike')!;
+
+    armHazardTrigger(spike.id);
+
+    expect(floorSpikeTimerStates.value).toEqual([]);
+    expect(fallingStalactiteTimerStates.value).toEqual([]);
+  });
+
+  it('unknownId-isANoOp', () => {
+    currentLayout.value = ['SA', 'GG'];
+    armHazardTrigger('no-such-hazard');
+    expect(floorSpikeTimerStates.value).toEqual([]);
+  });
+});
+
+describe('hazardPlacementsForTick — floor spike merge', () => {
+  afterEach(() => {
     floorSpikeTimerStates.value = [];
-    armFloorSpikeTrigger('fs1');
-    expect(floorSpikeTimerStates.value).toEqual([{ id: 'fs1', elapsed: 0 }]);
+    currentLayout.value = LEVEL_1_LAYOUT;
+    currentMarkers.value = LEVEL_1_MARKERS;
   });
 
-  it('alreadyArmedId-isANoOp', () => {
-    floorSpikeTimerStates.value = [{ id: 'fs1', elapsed: 0.3 }];
-    armFloorSpikeTrigger('fs1');
-    expect(floorSpikeTimerStates.value).toEqual([{ id: 'fs1', elapsed: 0.3 }]);
+  it('mergedFloorSpike-readsItsOwnPhaseAndExtensionFromTheTimerState', () => {
+    currentLayout.value = ['SA', 'GG'];
+    const hazard = hazardPlacements.value.find((h) => h.hazardType === 'floorSpike')!;
+
+    const atRest = hazardPlacementsForTick().find((h) => h.id === hazard.id)!;
+    expect(atRest.floorSpikePhase).toBe('atRest');
+    expect(atRest.floorSpikeExtension).toBe(0);
+
+    armHazardTrigger(hazard.id);
+    tickFloorSpikes(FLOOR_SPIKE_DELAY_SECONDS + FLOOR_SPIKE_WARNING_SECONDS);
+    const extended = hazardPlacementsForTick().find((h) => h.id === hazard.id)!;
+    expect(extended.floorSpikePhase).toBe('fullExtend');
+    expect(extended.floorSpikeExtension).toBeCloseTo(1, 5);
   });
 });
 
@@ -1566,15 +1613,19 @@ describe('falling stalactites — state and per-tick merge', () => {
     expect(fallingStalactiteTimerStates.value).toEqual([]);
   });
 
-  it('armFallingStalactiteTrigger-addsAZeroElapsedEntryAndIsIdempotent', () => {
-    armFallingStalactiteTrigger('h1');
-    expect(fallingStalactiteTimerStates.value).toEqual([{ id: 'h1', elapsed: 0 }]);
-    armFallingStalactiteTrigger('h1');
+  it('armHazardTrigger-addsAZeroElapsedEntryAndIsIdempotent', () => {
+    currentLayout.value = ['S...', '.⊤..', '....', 'GGGG'];
+    currentMarkers.value = [{ col: 1, row: 1, marker: { kind: 'fallingStalactite' } }];
+    const hazard = hazardPlacements.value.find((h) => h.hazardType === 'fallingStalactite')!;
+
+    armHazardTrigger(hazard.id);
+    expect(fallingStalactiteTimerStates.value).toEqual([{ id: hazard.id, elapsed: 0 }]);
+    armHazardTrigger(hazard.id);
     expect(fallingStalactiteTimerStates.value).toHaveLength(1);
   });
 
   it('tickFallingStalactites-advancesAndNeverPrunes', () => {
-    armFallingStalactiteTrigger('h1');
+    fallingStalactiteTimerStates.value = [{ id: 'h1', elapsed: 0 }];
     tickFallingStalactites(0.2);
     expect(fallingStalactiteTimerStates.value[0].elapsed).toBeCloseTo(0.2, 5);
     tickFallingStalactites(100);
@@ -1593,7 +1644,7 @@ describe('falling stalactites — state and per-tick merge', () => {
     expect(hanging.fallingStalactiteOffsetY).toBe(0);
     expect(hanging.fallingStalactiteShakeOffsetX).toBe(0);
 
-    armFallingStalactiteTrigger(hazard.id);
+    armHazardTrigger(hazard.id);
     tickFallingStalactites(FALLING_STALACTITE_SHAKE_SECONDS / 2);
     const shaking = hazardPlacementsForTick().find((h) => h.id === hazard.id)!;
     expect(shaking.fallingStalactitePhase).toBe('shaking');
@@ -1608,7 +1659,7 @@ describe('falling stalactites — state and per-tick merge', () => {
   });
 
   it('resetGame-clearsFallingStalactiteTimersButNotDebris', () => {
-    armFallingStalactiteTrigger('h1');
+    fallingStalactiteTimerStates.value = [{ id: 'h1', elapsed: 0 }];
     tickFallingStalactites(10);
     const debris = startDebrisEffect('d1', 0, 0, []);
     activeEffects.value = [debris];

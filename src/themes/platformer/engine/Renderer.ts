@@ -14,6 +14,7 @@ import {
   RENDERED_TILE_SIZE,
   verticalRunRole,
   backgroundNeighbourMask,
+  markerAt,
 } from '../level/Terrain';
 import type { ChainAttachment } from '../level/Terrain';
 import { groundAtlasCell, grassCell, GRASS_SOURCE_HEIGHT } from './GroundAtlas';
@@ -699,6 +700,12 @@ export function drawTerrain(
       }
 
       if (decorations && tile === 'stalactite') {
+        // A cell carrying a `fallingStalactite` marker is rendered by that
+        // hazard's own `draw` — which shows the large sprite while hanging,
+        // renders nothing once it has fallen, and keeps only the survivor half
+        // of a twin. Drawing the static decoration here too would leave a
+        // ghost on the cell after the stalactite falls.
+        if (markerAt(level, col, row)?.kind === 'fallingStalactite') continue;
         const entry = stalactiteEntry(col, row);
         ctx.drawImage(
           decorations, entry.sx, entry.sy, entry.width ?? TILE_SIZE, entry.height ?? TILE_SIZE,

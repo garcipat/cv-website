@@ -25,6 +25,7 @@ export const spear: HazardType<HazardPlacement> = {
   key: 'spear',
   lethal: true,
   damage: 0,
+  knocksBack: true,
   box: (hazard) => ({
     x: hazard.x,
     y: hazard.y,

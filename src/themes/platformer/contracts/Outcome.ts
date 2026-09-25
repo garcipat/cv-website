@@ -65,6 +65,34 @@ export interface RewardEffects {
   spawnPickup?: PickupKind;
 }
 
+/**
+ * The narrow world interface a defeated enemy's `EnemyType.onDefeat` hook uses
+ * to fire its consequences. Supplied by the shared reward applier
+ * (`state/enemyRewards.ts`); the kind never writes engine state directly and
+ * never returns a reward value — a defeat may fire several consequences (spawn
+ * a pickup, reveal several facts, bump a counter) in one call, or none (the
+ * bee). This is the `onDefeat(entity, world)` hook shape `CollisionOutcome`'s
+ * own doc comment reserves for anything beyond a handful of `RewardEffects`
+ * fields.
+ *
+ * Leaf-safe: imports only `../types` (`CollectedFact`) and sibling `contracts/`
+ * types (`PickupKind`, `CounterPopupLabelKey`).
+ */
+export interface DefeatApi {
+  /** Spawns a pickup of `kind` at the enemy's position (its `x`/`y` at the
+   *  moment of defeat), routed through `PICKUP_TYPES[kind].spawn` + the
+   *  generic pickup store — never a page-side `spawnKeyPickup` call. */
+  spawnPickup(kind: PickupKind): void;
+  /** Reveals one fact at the enemy's position. Per-fact: a kind that owns
+   *  several facts (a green slime with `fact` + `extraFacts`) calls this once
+   *  per fact. */
+  revealFact(fact: CollectedFact, effectId: string): void;
+  /** Requests a transient HUD counter popup for `key`. The applier dedupes by
+   *  key and flushes after the `rewardGiven`/`deathEffectGiven` update, so
+   *  several same-tick defeats bump a key exactly once. */
+  bumpCounter(key: CounterPopupLabelKey): void;
+}
+
 export type ContactSide = 'top' | 'side' | 'bottom';
 
 /**

@@ -81,7 +81,8 @@ import { createPlacedBomb, BOMB_FUSE_SECONDS } from './engine/PlacedBomb';
 import { toCheckpointState } from './entities/Checkpoint';
 import { initialCameraX } from './engine/Camera';
 import { toChestState, isChestOpen } from './entities/Chest';
-import { spawnKeyPickup } from './entities/pickups/Key';
+import { PICKUP_TYPES } from './entities/pickups';
+import type { KeyPickupState } from './entities/pickups/Key';
 import {
   MAX_HALF_HEARTS,
   PIT_FALL_DAMAGE,
@@ -1692,8 +1693,9 @@ describe('PlatformerPage', () => {
     // behavior (an item spawned right under the player is picked up on
     // contact, same as any other collectible), not a test artifact. What
     // matters here is that a KeyPickupState was created at all (proving the
-    // defeat routed through spawnKeyPickup, not the flying-text path) and
-    // that no journal fact was banked for this enemy.
+    // defeat routed through the purple slime's own `onDefeat` → the defeat
+    // API's generic `spawnPickup`, not the flying-text path) and that no
+    // journal fact was banked for this enemy.
     expect(enemyStates.value.find((e) => e.id === target.id)?.alive).toBe(false);
     expect(keyPickupStates.value.some((k) => k.id === target.id)).toBe(true);
     expect(collectedFacts.value.some((f) => f.id === target.id)).toBe(false);
@@ -2692,7 +2694,7 @@ describe('PlatformerPage', () => {
     frameCallback!(0);
 
     expect(collectedKeys.value).toBe(0);
-    const pickup = spawnKeyPickup('test-key-1', 5000, 5000);
+    const pickup = PICKUP_TYPES.key.spawn({ id: 'test-key-1', x: 5000, y: 5000 }) as KeyPickupState;
     keyPickupStates.value = [pickup];
     playerState.value = { ...playerState.value, x: pickup.x, y: pickup.y };
 
@@ -2718,7 +2720,7 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    const pickup = spawnKeyPickup('test-key-2', 5000, 5000);
+    const pickup = PICKUP_TYPES.key.spawn({ id: 'test-key-2', x: 5000, y: 5000 }) as KeyPickupState;
     keyPickupStates.value = [pickup];
     playerState.value = { ...playerState.value, x: pickup.x, y: pickup.y };
 

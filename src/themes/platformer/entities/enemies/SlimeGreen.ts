@@ -14,6 +14,7 @@ import { drawSpriteSheetEntity } from './drawSpriteSheetEntity';
 import { spriteSheetHitbox } from './spriteSheetHitbox';
 import { patrolMovement } from './movement/patrol';
 import { PHYSICS_CONFIG } from '../../contracts/PhysicsConfig';
+import type { CollectedFact } from '../../types';
 
 export interface SlimeGreenState extends BaseEnemyState {
   type: 'slimeGreen';
@@ -52,6 +53,18 @@ export const slimeGreen: EnemyType<SlimeGreenState> = {
   hitboxPaddingNative: HITBOX_PADDING_NATIVE,
   sprite: SLIME_GREEN_SPRITE,
   heldItem: null,
+  onDefeat: (enemy, defeat) => {
+    // `enemy.fact` plus any `extraFacts` (when the level has fewer green
+    // slimes than course facts, one slime can own several), revealed
+    // per-fact (effectId unique per fact, not per enemy) — then the enemies
+    // popup bumps once per DEFEATED SLIME, not per revealed fact, so a
+    // fact-less slime still counts toward the numerator.
+    const facts = [enemy.fact, ...(enemy.extraFacts ?? [])].filter(
+      (fact): fact is CollectedFact => fact !== undefined,
+    );
+    facts.forEach((fact, index) => defeat.revealFact(fact, `${enemy.id}-${index}`));
+    defeat.bumpCounter('enemies');
+  },
 
   create: (placement, index) => ({
     ...baseEnemyState(placement, index, SLIME_GREEN_BASE_CONFIG),

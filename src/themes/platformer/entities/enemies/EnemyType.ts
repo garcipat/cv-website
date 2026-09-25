@@ -7,11 +7,9 @@ import type { CollectedFact, EnemyDef } from '../../types';
 import type { EnemyAnimState } from './EnemyAnimation';
 import type { MovementStrategy } from './movement/MovementStrategy';
 import type { DrawContext } from '../../contracts/DrawContext';
-import type { Contact, CollisionOutcome } from '../../contracts/Outcome';
+import type { Contact, CollisionOutcome, DefeatApi } from '../../contracts/Outcome';
+import type { PickupKind } from '../../contracts/PickupKind';
 import type { PlayerState } from '../Player';
-
-/** Item kinds an enemy type can drop on defeat. Grows as items are added. */
-export type ItemKind = 'key';
 
 /**
  * What every enemy has, regardless of type. Type-specific state — a
@@ -67,11 +65,22 @@ export interface EnemyType<S extends BaseEnemyState>
   hitboxPaddingNative: { side: number; top: number; bottom: number };
   sprite: SpriteDescriptor;
   /** What a finishing stomp drops, or null for a type that carries a CV fact
-   *  instead. */
-  heldItem: ItemKind | null;
+   *  instead. Re-typed to `PickupKind`: the drop is fired from this kind's
+   *  own `onDefeat` via `defeat.spawnPickup(<heldItem>)`. */
+  heldItem: PickupKind | null;
 
   create(placement: EnemyPlacement, index: number): S;
   revive(enemy: S): S;
+  /**
+   * Fires this kind's defeat consequences through the supplied `defeat` API.
+   * Present only on kinds whose defeat produces consequences beyond the
+   * generic puff (slimePurple drops its held key; slimeGreen reveals its
+   * facts and bumps the enemies counter). Absent on the bee and any plain
+   * enemy. The shared reward applier (`state/enemyRewards.ts`) invokes it
+   * exactly once per fresh defeat (when `rewardGiven` is false) and never
+   * branches on `enemy.type`/`heldItem`/any kind name.
+   */
+  onDefeat?(enemy: S, defeat: DefeatApi): void;
   /**
    * This enemy's collision box — the visible silhouette, inset from the full
    * render slot by the sprite's own transparent margins, so a touch against
