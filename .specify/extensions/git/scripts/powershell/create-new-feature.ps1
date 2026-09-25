@@ -1,8 +1,8 @@
 #!/usr/bin/env pwsh
 # Git extension: create-new-feature.ps1
 # Adapted from core scripts/powershell/create-new-feature.ps1 for extension layout.
-# Sources common.ps1 from the project's installed scripts, falling back to
-# git-common.ps1 for minimal git helpers.
+# Sources common.ps1 from the project's installed scripts and always also sources
+# git-common.ps1 (the fork's git helpers).
 [CmdletBinding()]
 param(
     [switch]$Json,
@@ -194,9 +194,11 @@ if ($projectRoot) {
     }
 }
 
-if (-not $commonLoaded -and (Test-Path "$PSScriptRoot/git-common.ps1")) {
+# The fork's git helpers (Test-HasGit, Get-SpecKitEffectiveBranchName, ...) live in
+# git-common.ps1; upstream core common.ps1 no longer defines all of them, so always
+# load our own copy regardless of whether core common.ps1 was sourced.
+if (Test-Path "$PSScriptRoot/git-common.ps1") {
     . "$PSScriptRoot/git-common.ps1"
-    $commonLoaded = $true
 }
 
 if (-not $commonLoaded) {
