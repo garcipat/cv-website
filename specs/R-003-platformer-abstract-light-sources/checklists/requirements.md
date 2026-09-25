@@ -39,6 +39,7 @@
   `0.3`); `radius` is a resolved number; the player light lives in `entities/Player.ts` and
   implements the `LightSource` contract; the light list is assembled per frame (the
   `torchPositions` signal keeps its `TorchLight[]` shape); `worldElapsed` is dropped from
-  `drawDarkness`/`localDarknessAt`; the editor preview resolves at `t = 0`.
+  `drawDarkness`/`localDarknessAt`; the editor preview resolves at `t = 0`; and the light list
+  is skipped entirely when `darknessLevel <= 0` (FR-019).
 - R-002 already resolved L3 (fog shares `shared/math.ts`); R-003 verifies it does not regress.
 - Validation result: **all items pass** — spec is ready for `/speckit.plan` (or `/speckit.clarify`).

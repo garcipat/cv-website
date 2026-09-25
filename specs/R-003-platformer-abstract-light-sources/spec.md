@@ -20,6 +20,7 @@
 - Q: Where does the player's carried light live? → A: With the player. The player module (`entities/Player.ts`) implements the `LightSource` contract — a player light adapter replaces `engine/Renderer.ts`'s `heldTorchLightPosition`, so the player, like the torch, is a light emitter and its light geometry cannot drift from the drawn held torch.
 - Q: Should `worldElapsed` remain on `drawDarkness`/`localDarknessAt`? → A: No. Once the adapters resolve `radius`, neither needs time; both drop `worldElapsed`. `drawEnemyEyes` keeps `worldElapsed` only for the eye bob.
 - Q: What time does the editor preview resolve torch radii at? → A: `worldElapsed = 0`, matching `EditorCanvas`'s current static preview — so the preview stays visually unchanged.
+- Q: Should the light list be built when there is no darkness? → A: No. When `darknessLevel <= 0` the render loop skips assembling the `LightSource[]` and skips calling `drawDarkness`/`drawEnemyEyes`; the existing pass-level fast path is extended to the assembly and call site (FR-019).
 
 ## User Scenarios & Testing _(mandatory)_
 
@@ -38,6 +39,7 @@ A developer adding any light emitter — today a wall torch or the player's carr
 3. **Given** `localDarknessAt`, **When** its signature is inspected, **Then** it takes the same `readonly LightSource[]` and returns `clamp(darknessLevel − strongestLight, 0, darknessLevel)` using the **maximum** contribution, exactly as before.
 4. **Given** a third light added to the list (neither a torch nor the player), **When** `drawDarkness` and `localDarknessAt` run, **Then** it is punched, glowed, and counted in local darkness with no new branch.
 5. **Given** a light whose `punchHole` is `false`, **When** the darkness pass runs, **Then** it contributes a glow and local light but erases no darkness.
+6. **Given** `darknessLevel <= 0`, **When** a frame renders, **Then** no `LightSource[]` is built and neither `drawDarkness` nor `drawEnemyEyes` is called.
 
 ---
 
@@ -101,6 +103,7 @@ The enemy-eye pass and the editor's dark-mode preview are the other two consumer
 - ✅ **Zoom and origin must keep applying exactly once.** `drawDarkness` runs at identity transform and scales world positions/radii by its `zoom` argument before adding `origin`; the editor passes raw pan + `zoom`, the live game passes `1` after its own scale. Resolved by FR-005 and the "zoom/origin" assumption.
 - ✅ **The offscreen layer reuse and the full-brightness fast path must survive.** `darknessLevel <= 0` still draws nothing, and the caller-owned layer is still cleared/filled/composited once. Resolved by FR-008.
 - ✅ **Per-light viewport filtering must stay.** Only lights whose glow can intersect the canvas do work, keeping the pass O(visible lights). Resolved by FR-008.
+- ✅ **No light list is built when there is no darkness.** The passes already no-op at `darknessLevel <= 0`; assembling the `LightSource[]` (and running each adapter) in a fully bright level is pure waste, so the render loop skips it. This holds because lights only matter to the darkness pass — a `punchHole: false` glow still shows only inside it; revisit if atmospheric light in bright levels is ever wanted. Resolved by FR-019.
 - ✅ **Enemy eyes must remain a separate post-darkness effect, not a light.** They are an addition on top of the cave overlay whose opacity comes from local darkness; if they became a `LightSource` emitter they would render into the darkness rather than over it and would change their purpose (being *visible through* darkness). Resolved by FR-009/FR-015.
 - ✅ **Moving the player light out of `engine/Renderer.ts` must not break its importers.** The player light adapter (formerly `heldTorchLightPosition`) is imported by the page render loop, the editor preview, and mocked in three editor tests; those imports retarget to the player module, and the held-torch draw must keep using the same geometry so the flame and its light stay aligned. Resolved by FR-004/FR-012.
 - ✅ **R-002's fog dedup must not regress.** `fogPuffAt`/`fogPeekStrengthAt` already use `shared/math.ts` `hash2D`/`smoothstep`; the X5 move must not re-inline those formulas. Resolved by FR-010.
@@ -127,6 +130,7 @@ The enemy-eye pass and the editor's dark-mode preview are the other two consumer
 - **FR-016**: The change MUST preserve behaviour: all existing tests (updated only where a signature changed, never weakened, skipped, or deleted) MUST pass and the production build MUST succeed.
 - **FR-017**: The change MUST NOT regress R-001's layer invariants (`contracts/` stays a leaf; no `level/ → engine/`; no `engine/ → state`) and MUST keep `engine/Lighting.ts` a pure, DOM-free module.
 - **FR-018**: There MUST be no data migration: authored levels, markers, torch strengths, and tuning are unchanged.
+- **FR-019**: When `darknessLevel <= 0`, the render loop MUST skip the light work entirely — it MUST NOT build the `LightSource[]` and MUST NOT call `drawDarkness` or `drawEnemyEyes`, so no light adapter runs and no list is allocated in a fully bright level. This extends FR-008's pass-level fast path to the assembly and the call site.
 
 ### Key Entities
 
@@ -150,6 +154,7 @@ The enemy-eye pass and the editor's dark-mode preview are the other two consumer
 - **SC-005**: The full test suite passes and the production build succeeds; a manual browser pass over a cave level (walking in/out of dark cells, passing torches of different strengths, entering a cave with fog) and an editor dark-mode preview show no visible or behavioural difference.
 - **SC-006**: Enemy-eye markers still appear only above the darkness overlay and still fade in as local darkness grows (farther from lights); the four-block collapse changes no marker position, opacity, or bob.
 - **SC-007**: The player light adapter lives in the player module (`entities/Player.ts`) and implements the `LightSource` contract; `engine/Renderer.ts` contains no player-light radius/glow/intensity formula, and the held-torch draw and the light share one geometry source.
+- **SC-008**: At `darknessLevel <= 0` no light adapter runs and no `LightSource[]` is allocated, and neither light pass is called.
 
 ## Assumptions
 
@@ -165,6 +170,7 @@ The enemy-eye pass and the editor's dark-mode preview are the other two consumer
 - **Behaviour is byte-for-byte preserved.** The only sanctioned body changes are the two-loop collapse, the torch/player adapter extractions, the `playerLight` → `LightSource` widening, the dropped `worldElapsed` parameters, and the torch-light/player-light moves — never a change to gameplay, visuals, or level data.
 - **No data migration.** Authored levels, markers, torch strengths, and tuning are unchanged.
 - **The light list is assembled per frame, not stored.** `torchPositions` keeps its `TorchLight[]` shape (it has no time dependency); the page/editor adapt it to `LightSource[]` at the draw call site, resolving each torch's radius with the frame's `worldElapsed` and appending the held torch. No resolved radius enters a signal/store (FR-012).
+- **No darkness means no light work.** The `LightSource[]` is built only when `darknessLevel > 0`, so the bright-level fast path covers the assembly and the two passes, not just the pass bodies (FR-019).
 - **Layer invariants continue to hold.** `contracts/lighting.ts` is a `contracts/` leaf; `engine/` and `entities/` both depend down on it; `level/` never reaches into `engine/`; `engine/` never imports state (R-001).
 
 ## Out of Scope
