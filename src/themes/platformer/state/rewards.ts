@@ -1,7 +1,7 @@
-import { collectedFacts, activeEffects, activeCounterPopups, levelTotals } from '../PlatformerState';
-import { startFlightEffect, startCounterPopup } from '../engine/CollectionEffects';
+import { collectedFacts, spawnEffect, levelTotals } from '../PlatformerState';
+import { startFlightEffect, startCounterPopup } from '../engine/effects';
 import { countCollectedFor } from '../entities/CollectiblesSummary';
-import type { SlotAllocator } from '../engine/CollectionEffects';
+import type { SlotAllocator } from '../engine/effects';
 import type { CounterPopupLabelKey } from '../contracts/counters';
 import { formatJournalEntry } from '../entities/JournalEntry';
 import type { CollectedFact } from '../types';
@@ -109,18 +109,16 @@ export function createRewardReveal(
 
     if (options.counterKey) {
       const counterKey = options.counterKey;
-      activeCounterPopups.value = {
-        ...activeCounterPopups.value,
-        [counterKey]: startCounterPopup(
+      spawnEffect(
+        startCounterPopup(
           counterKey,
           countCollectedFor(counterKey, collectedFacts.value),
           levelTotals.value[counterKey],
         ),
-      };
+      );
     }
 
-    activeEffects.value = [
-      ...activeEffects.value,
+    spawnEffect(
       startFlightEffect(
         options.effectId,
         label,
@@ -132,7 +130,7 @@ export function createRewardReveal(
         targetY,
         icon,
       ),
-    ];
+    );
 
     return true;
   };

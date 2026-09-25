@@ -4,7 +4,7 @@ import type { HintId } from '../types';
  * Grow+fade animation state for the hint-sign tooltip — the bubble grows
  * from bottom to top like the sign is starting to talk, and collapses the
  * same way when it disappears. Mirrors the phase/elapsed shape
- * `engine/CollectionEffects.ts`'s `FlightEffect` already uses for the
+ * `engine/effects/flight.ts`'s `FlightState` already uses for the
  * fact-flight text animation, generalized here to just two transitions
  * instead of three.
  */
@@ -59,8 +59,8 @@ export function beginHintTooltipExit(state: HintTooltipState): HintTooltipState 
  * accumulates elapsed with no transition (the caller decides when to call
  * beginHintTooltipExit); 'exiting' returns `null` once
  * HINT_TOOLTIP_FADE_OUT_SECONDS elapses — the caller clears its signal to
- * `null` at that point, same convention as CollectionEffects.ts's
- * tickFlightEffect/tickCounterPopup returning a sentinel for "done".
+ * `null` at that point, same convention as engine/effects/flight.ts's and
+ * engine/effects/counterPopup.ts's ticks returning a sentinel for "done".
  */
 export function tickHintTooltip(state: HintTooltipState, dt: number): HintTooltipState | null {
   const elapsed = state.elapsed + dt;

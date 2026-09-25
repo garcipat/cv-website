@@ -90,10 +90,10 @@ export interface Contact {
  * no canvas — and the engine remains the only writer of game state.
  *
  * `RewardReveal.ts` is the one sanctioned exception to that "only writer"
- * rule: the per-tick reveal trigger writes `collectedFacts`/`activeEffects`/
- * `activeCounterPopups` directly rather than staging them back through the
- * engine, because five call sites across three families would otherwise each
- * need their own staging array.
+ * rule: the per-tick reveal trigger writes `collectedFacts` and the unified
+ * `activeEffects` collection (via `spawnEffect`) directly rather than staging
+ * them back through the engine, because five call sites across three families
+ * would otherwise each need their own staging array.
  *
  * Keep this small. It is the shared vocabulary of everything that can happen
  * in the world; if it grows past a handful of fields it has become the

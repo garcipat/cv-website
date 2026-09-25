@@ -14,8 +14,8 @@ import {
   advanceFloorSpikes,
   floorSpikePhaseFor,
   floorSpikeExtensionFor,
-} from './engine/FloorSpike';
-import type { FloorSpikeTimerState } from './entities/hazards/phases';
+  type FloorSpikeTimerState,
+} from './entities/hazards/FloorSpike';
 import { armCrumblingFloor, advanceCrumblingFloors } from './engine/CrumblingFloor';
 import type { CrumblingFloorTimerState } from './engine/CrumblingFloor';
 import {
@@ -25,9 +25,8 @@ import {
   fallingStalactiteElapsedFor,
   fallingStalactiteOffsetYAt,
   fallingStalactiteShakeOffsetXAt,
-} from './engine/FallingStalactite';
-import type { FallingStalactiteTimerState } from './entities/hazards/phases';
-import type { DebrisEffect } from './engine/CollectionEffects';
+  type FallingStalactiteTimerState,
+} from './entities/hazards/FallingStalactite';
 import type { LevelDef } from './level/LevelData';
 import {
   SPAWN_TILE,
@@ -96,15 +95,9 @@ import type { CollectiblePlacement } from './level/CollectibleMapper';
 import type { EnemyPlacement } from './level/EnemyMapper';
 import type { BlockPlacement } from './level/BlockMapper';
 import type {
-  FlightEffect,
-  PuffEffect,
-  HealAuraEffect,
-  HitSplatterEffect,
-  CounterPopupEffect,
-  FadeOutTextEffect,
-  ExplosionEffect,
-} from './engine/CollectionEffects';
-import type { CounterPopupLabelKey } from './contracts/counters';
+  TransientEffect,
+} from './engine/effects';
+import { clearEffectsByResetScope, effectKeyOf, upsertEffect } from './engine/effects';
 import type { LevelTotals } from './entities/CollectiblesSummary';
 import type { HintTooltipState } from './engine/HintTooltip';
 
@@ -521,14 +514,6 @@ export const checkpointStates = signal<CheckpointState[]>(
 export const activeCheckpointId = signal<string | null>(null);
 
 /**
- * The activation labels currently fading in place (see
- * `FadeOutTextEffect`). At most one per checkpoint id. Cleared by both
- * `resetGame()` and `resetGameProgress()` — a frozen label must not survive a
- * respawn or a restart.
- */
-export const activeFadeOutTexts = signal<FadeOutTextEffect[]>([]);
-
-/**
  * The active checkpoint's static placement, or `null` when the level spawn is
  * the respawn point. Derived (not stored) so it reacts to
  * `activeCheckpointId`/`checkpointStates` like every other derived value.
@@ -694,13 +679,6 @@ export const bombPickupStates = signal<BombPickupState[]>([]);
 export const placedBombs = signal<PlacedBombState[]>([]);
 
 /**
- * Transient explosion visuals — one per detonation, purely cosmetic and never
- * a hazard (FR-023). Advanced/expired every tick; cleared by
- * `resetGameProgress()`.
- */
-export const activeExplosions = signal<ExplosionEffect[]>([]);
-
-/**
  * Facts discovered so far this session (see spec.md FR-032). Starts empty;
  * populated via real coin/fruit collection, enemy defeat, block hits, and
  * chest opens.
@@ -716,41 +694,27 @@ export const collectedFacts = signal<CollectedFact[]>([]);
  */
 export const collectedCollectibleIds = signal<Set<string>>(new Set());
 
-/** Currently animating fact-flight text effects (see engine/CollectionEffects.ts) —
- *  flying text only; the sparkle burst is `activePuffs`'s concern, not this one. */
-export const activeEffects = signal<FlightEffect[]>([]);
-
-/** Currently animating world-event puffs — see engine/CollectionEffects.ts's
- *  PuffEffect doc comment and B-003
- *  (docs/bugs/B-003-puff-bound-to-fact-reward/ticket.md). Kept as its own
- *  array, parallel to activeEffects, rather than merged into it: the two are
- *  different shapes (no text/flight-target fields here) and different
- *  render passes (drawPuffEffects vs. drawCollectionEffects). */
-export const activePuffs = signal<PuffEffect[]>([]);
-
-/** Currently animating heal auras, played on the player when a heart pickup
- *  heals them — see engine/CollectionEffects.ts's HealAuraEffect doc
- *  comment. Kept as its own array, parallel to activePuffs, for the same
- *  reason: a different shape (no x/y — the player moves) and its own render
- *  pass (drawHealAuraEffects). */
-export const activeHealAuraEffects = signal<HealAuraEffect[]>([]);
-
-/** Currently animating hit-splatter bursts — one per landed hit on the
- *  character or an enemy (see engine/CollectionEffects.ts's
- *  HitSplatterEffect doc comment). Kept as its own array, parallel to
- *  activePuffs/activeHealAuraEffects, for the same reason: a different
- *  shape and its own render pass (drawHitSplatterEffects). */
-export const activeHitSplatters = signal<HitSplatterEffect[]>([]);
+/**
+ * THE one collection of live transient effects (R-004 FR-003). Every effect
+ * family — flight text, counter popups, puffs, heal auras, hit splatters,
+ * fade-out labels, explosions, debris — lives here; no family keeps a parallel
+ * store. Effects are appended by `spawnEffect` below, advanced by the single
+ * `advanceEffects` in the game tick, and drawn by the single `drawEffects`
+ * dispatch at its pipeline layer. The four timed-tile timer signals elsewhere
+ * in this module remain separate: they are keyed timers, not effect instances.
+ */
+export const activeEffects = signal<TransientEffect<unknown>[]>([]);
 
 /**
- * The currently-visible "(icon) collected / total" counter popups, one slot
- * per collectible type. A missing key means that type has nothing showing.
- * Collecting a coin while a coin popup is already up refreshes THAT slot
- * (new count, timer restarted) rather than queuing a second one; collecting
- * a coin and a fruit close together shows both at once, since they're
- * genuinely different information (see CounterPopupEffect's doc comment).
+ * Appends a transient effect to `activeEffects`, replacing in place when the
+ * kind declares a keyed slot (`counterPopup`, keyed by `labelKey`) so a fresh
+ * collect of the same type refreshes that slot rather than queuing a second
+ * popup (FR-016). State-owned, so `engine/effects` keeps no `engine/ → state/`
+ * import.
  */
-export const activeCounterPopups = signal<Partial<Record<CounterPopupLabelKey, CounterPopupEffect>>>({});
+export function spawnEffect(effect: TransientEffect<unknown>): void {
+  activeEffects.value = upsertEffect(activeEffects.value, effect, effectKeyOf);
+}
 
 /**
  * The journal's last manually-selected bookmark section, remembered across
@@ -933,15 +897,6 @@ export function tickFallingStalactites(dt: number): void {
 }
 
 /**
- * Falling debris pieces from crumbling floor tiles that have just broken and
- * from shattered falling stalactites — same "list of transient effects, ticked
- * and filtered by elapsed time" shape as `activePuffs`. Cleared by
- * `resetGameProgress()` (and, like the rest of the world, not by a
- * death/respawn — see `resetGame()`'s doc comment).
- */
-export const activeDebrisEffects = signal<DebrisEffect[]>([]);
-
-/**
  * `hazardPlacements` with each kind's live per-tick state merged in — floor
  * spikes get their cycle phase/extension, falling stalactites get their phase
  * and fall/shake offsets. This is what `PlatformerPage.tsx` hands to
@@ -1030,16 +985,17 @@ export function resetGame(): void {
   crumblingFloorTimerStates.value = [];
   // Every shattered falling stalactite returns to hanging on death/respawn
   // (FR-014) — same convention as the floor spike/crumbling floor cycles
-  // above. Its shatter debris (`activeDebrisEffects`) is deliberately NOT
-  // cleared here: like every other transient visual it fades on its own
-  // duration (see `resetGameProgress()`, which does clear it).
+  // above. Transient effects are deliberately NOT all cleared here: only the
+  // `'death'`-scoped kinds (the fade-out labels) are, so puffs, heal auras,
+  // hit splatters, debris, explosions, flight text and counter popups — which
+  // survive a death today — keep fading on their own duration (FR-006).
   fallingStalactiteTimerStates.value = [];
   enemyStates.value = enemyStates.value.map(reviveEnemy);
   hintTooltipState.value = null;
   // A label fading when the death/respawn happened must not survive it — it
   // would otherwise freeze on screen through the death animation and then
   // flash at the new respawn point.
-  activeFadeOutTexts.value = [];
+  activeEffects.value = clearEffectsByResetScope(activeEffects.value, 'death');
   blockStates.value = [
     ...blockStates.value.filter((b) => !restoredOnRespawnForBlock(b.blockKind)),
     ...blockPlacements.value
@@ -1087,17 +1043,14 @@ export function resetGameProgress(): void {
   // checkpoint and returns the character to the level spawn (FR-016).
   activeCheckpointId.value = null;
   checkpointStates.value = checkpointPlacements.value.map(toCheckpointState);
-  activeFadeOutTexts.value = [];
   resetGame();
+  // A full Reset Game empties the whole unified effect collection, whatever
+  // each kind's reset scope (FR-006) — only a death/respawn preserves the
+  // non-`'death'`-scoped kinds.
+  activeEffects.value = [];
   collectedFacts.value = [];
   collectedCollectibleIds.value = new Set();
   activeJournalSection.value = undefined;
-  activeEffects.value = [];
-  activePuffs.value = [];
-  activeDebrisEffects.value = [];
-  activeHealAuraEffects.value = [];
-  activeHitSplatters.value = [];
-  activeCounterPopups.value = {};
   blockStates.value = blockPlacements.value.map(toBlockState);
   spawnedCoinPlacements.value = [];
   chestStates.value = chestPlacements.value.map(toChestState);
@@ -1109,5 +1062,4 @@ export function resetGameProgress(): void {
   collectedKeys.value = 0;
   deployableLadderStates.value = deployableLadderPlacements.value.map((state) => ({ ...state }));
   enemyStates.value = enemyPlacements.value.map((placement, index) => toEnemyState(placement, index));
-  activeExplosions.value = [];
 }

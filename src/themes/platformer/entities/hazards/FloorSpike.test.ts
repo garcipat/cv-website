@@ -3,7 +3,7 @@ import { floorSpike } from './FloorSpike';
 import { SIDE_HIT_DAMAGE } from '../Health';
 import { RENDERED_TILE_SIZE } from '../../level/Terrain';
 import type { HazardPlacement } from '../../level/HazardMapper';
-import type { FloorSpikePhase } from './phases';
+import type { FloorSpikePhase } from './FloorSpike';
 
 function hazardAt(phase: FloorSpikePhase | undefined): HazardPlacement {
   return { id: 'h1', hazardType: 'floorSpike', facing: 'up', x: 16, y: 32, col: 0, row: 0, floorSpikePhase: phase };
@@ -48,5 +48,161 @@ describe('floorSpike.isContact', () => {
 
   it('fullExtend-isAContact', () => {
     expect(floorSpike.isContact!(hazardAt('fullExtend'), {} as never, {} as never)).toBe(true);
+  });
+});
+
+
+// ---- merged from engine/FloorSpike.test.ts (R-004 US4) ----
+
+import {
+  FLOOR_SPIKE_DELAY_SECONDS,
+  FLOOR_SPIKE_WARNING_SECONDS,
+  FLOOR_SPIKE_FULL_EXTEND_SECONDS,
+  FLOOR_SPIKE_RETRACT_SECONDS,
+  FLOOR_SPIKE_CYCLE_SECONDS,
+  armFloorSpike,
+  advanceFloorSpikes,
+  floorSpikePhaseAt,
+  floorSpikePhaseFor,
+  isFloorSpikeArmed,
+  floorSpikeExtensionAt,
+  floorSpikeExtensionFor,
+} from './FloorSpike';
+
+describe('FLOOR_SPIKE_CYCLE_SECONDS', () => {
+  it('isTheSumOfEveryPhaseDuration', () => {
+    expect(FLOOR_SPIKE_CYCLE_SECONDS).toBe(
+      FLOOR_SPIKE_DELAY_SECONDS +
+        FLOOR_SPIKE_WARNING_SECONDS +
+        FLOOR_SPIKE_FULL_EXTEND_SECONDS +
+        FLOOR_SPIKE_RETRACT_SECONDS,
+    );
+  });
+});
+
+describe('armFloorSpike', () => {
+  it('unarmedId-addsANewZeroElapsedEntry', () => {
+    const next = armFloorSpike([], 'h1');
+    expect(next).toEqual([{ id: 'h1', elapsed: 0 }]);
+  });
+
+  it('alreadyArmedId-leavesItsElapsedUnchanged', () => {
+    const states = [{ id: 'h1', elapsed: 0.4 }];
+    const next = armFloorSpike(states, 'h1');
+    expect(next).toEqual([{ id: 'h1', elapsed: 0.4 }]);
+  });
+
+  it('unrelatedIds-areUnaffected', () => {
+    const states = [{ id: 'other', elapsed: 0.1 }];
+    const next = armFloorSpike(states, 'h1');
+    expect(next).toEqual([{ id: 'other', elapsed: 0.1 }, { id: 'h1', elapsed: 0 }]);
+  });
+});
+
+describe('advanceFloorSpikes', () => {
+  it('inProgress-advancesElapsedByDt', () => {
+    const next = advanceFloorSpikes([{ id: 'h1', elapsed: 0.2 }], 0.1);
+    expect(next).toEqual([{ id: 'h1', elapsed: expect.closeTo(0.3, 5) }]);
+  });
+
+  it('crossingTheFullCycleDuration-dropsTheEntry', () => {
+    const next = advanceFloorSpikes(
+      [{ id: 'h1', elapsed: FLOOR_SPIKE_CYCLE_SECONDS - 0.01 }],
+      0.02,
+    );
+    expect(next).toEqual([]);
+  });
+
+  it('nonPositiveDt-leavesElapsedUnchangedButStillPrunesExpired', () => {
+    const next = advanceFloorSpikes(
+      [
+        { id: 'inProgress', elapsed: 0.2 },
+        { id: 'expired', elapsed: FLOOR_SPIKE_CYCLE_SECONDS },
+      ],
+      0,
+    );
+    expect(next).toEqual([{ id: 'inProgress', elapsed: 0.2 }]);
+  });
+
+  it('advancing-neverMutatesItsInput', () => {
+    const states = [{ id: 'h1', elapsed: 0.1 }];
+    const snapshot = JSON.parse(JSON.stringify(states));
+    advanceFloorSpikes(states, 0.1);
+    expect(states).toEqual(snapshot);
+  });
+});
+
+describe('floorSpikePhaseAt', () => {
+  it.each([
+    [0, 'delay'],
+    [FLOOR_SPIKE_DELAY_SECONDS - 0.001, 'delay'],
+    [FLOOR_SPIKE_DELAY_SECONDS, 'warning'],
+    [FLOOR_SPIKE_DELAY_SECONDS + FLOOR_SPIKE_WARNING_SECONDS - 0.001, 'warning'],
+    [FLOOR_SPIKE_DELAY_SECONDS + FLOOR_SPIKE_WARNING_SECONDS, 'fullExtend'],
+    [
+      FLOOR_SPIKE_DELAY_SECONDS + FLOOR_SPIKE_WARNING_SECONDS + FLOOR_SPIKE_FULL_EXTEND_SECONDS - 0.001,
+      'fullExtend',
+    ],
+    [
+      FLOOR_SPIKE_DELAY_SECONDS + FLOOR_SPIKE_WARNING_SECONDS + FLOOR_SPIKE_FULL_EXTEND_SECONDS,
+      'retracting',
+    ],
+    [FLOOR_SPIKE_CYCLE_SECONDS - 0.001, 'retracting'],
+  ] as const)('elapsed %d-mapsTo %s', (elapsed, expected) => {
+    expect(floorSpikePhaseAt(elapsed)).toBe(expected);
+  });
+});
+
+describe('floorSpikePhaseFor', () => {
+  it('noEntryForId-returnsAtRest', () => {
+    expect(floorSpikePhaseFor([], 'h1')).toBe('atRest');
+  });
+
+  it('entryPresent-delegatesToFloorSpikePhaseAt', () => {
+    const states = [{ id: 'h1', elapsed: FLOOR_SPIKE_DELAY_SECONDS }];
+    expect(floorSpikePhaseFor(states, 'h1')).toBe('warning');
+  });
+});
+
+describe('isFloorSpikeArmed', () => {
+  it('noEntry-returnsFalse', () => {
+    expect(isFloorSpikeArmed([], 'h1')).toBe(false);
+  });
+
+  it('entryPresent-returnsTrue', () => {
+    expect(isFloorSpikeArmed([{ id: 'h1', elapsed: 0 }], 'h1')).toBe(true);
+  });
+});
+
+describe('floorSpikeExtensionAt', () => {
+  it.each([
+    [0, 0],
+    [FLOOR_SPIKE_DELAY_SECONDS - 0.001, 0],
+    [FLOOR_SPIKE_DELAY_SECONDS, 0],
+    [FLOOR_SPIKE_DELAY_SECONDS + FLOOR_SPIKE_WARNING_SECONDS / 2, 0.5],
+    [FLOOR_SPIKE_DELAY_SECONDS + FLOOR_SPIKE_WARNING_SECONDS, 1],
+    [FLOOR_SPIKE_DELAY_SECONDS + FLOOR_SPIKE_WARNING_SECONDS + FLOOR_SPIKE_FULL_EXTEND_SECONDS - 0.001, 1],
+  ] as const)('elapsed %d-isCloseTo %d', (elapsed, expected) => {
+    expect(floorSpikeExtensionAt(elapsed)).toBeCloseTo(expected, 5);
+  });
+
+  it('midRetract-isHalfway', () => {
+    const fullExtendEnd = FLOOR_SPIKE_DELAY_SECONDS + FLOOR_SPIKE_WARNING_SECONDS + FLOOR_SPIKE_FULL_EXTEND_SECONDS;
+    expect(floorSpikeExtensionAt(fullExtendEnd + FLOOR_SPIKE_RETRACT_SECONDS / 2)).toBeCloseTo(0.5, 5);
+  });
+
+  it('pastTheFullCycle-isZero', () => {
+    expect(floorSpikeExtensionAt(FLOOR_SPIKE_CYCLE_SECONDS)).toBeCloseTo(0, 5);
+  });
+});
+
+describe('floorSpikeExtensionFor', () => {
+  it('noEntryForId-isZero', () => {
+    expect(floorSpikeExtensionFor([], 'h1')).toBe(0);
+  });
+
+  it('entryPresent-delegatesToFloorSpikeExtensionAt', () => {
+    const elapsed = FLOOR_SPIKE_DELAY_SECONDS + FLOOR_SPIKE_WARNING_SECONDS;
+    expect(floorSpikeExtensionFor([{ id: 'h1', elapsed }], 'h1')).toBeCloseTo(1, 5);
   });
 });

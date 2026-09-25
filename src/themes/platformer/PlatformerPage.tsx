@@ -10,14 +10,10 @@ import {
   drawEnemies,
   drawBlocks,
   drawFruits,
-  drawCollectionEffects,
-  drawPuffEffects,
-  drawCounterPopups,
   drawChests,
   drawChestCounter,
   drawIrisOverlay,
   drawRestartPrompt,
-  RESTART_PROMPT_FONT_FAMILY,
   RESTART_PROMPT_FONT_URL,
   HEARTS_START_X,
   CHEST_COUNTER_X,
@@ -28,9 +24,6 @@ import {
   drawHeartPickups,
   drawBombPickups,
   drawPlacedBombs,
-  drawExplosions,
-  drawHealAuraEffects,
-  drawHitSplatterEffects,
   drawLowHealthGlow,
   drawHazards,
   drawKeyCounter,
@@ -41,15 +34,15 @@ import {
   drawWaterForeground,
   drawBackgroundTiles,
   drawCheckpoints,
-  drawFadeOutTexts,
   drawDarkness,
   drawFog,
   drawEnemyEyes,
   drawHeldTorch,
   drawDeployableLadders,
   drawCrumblingFloors,
-  drawDebrisEffects,
 } from './engine/Renderer';
+import { RESTART_PROMPT_FONT_FAMILY } from './engine/textDraw';
+import type { CounterPopupLabelKey } from './contracts/counters';
 import { drawBackgroundLayers, backgroundBandGeometry } from './engine/BackgroundLayers';
 import { createCloudField, stepCloudField, drawAmbientClouds } from './engine/AmbientClouds';
 import type { CloudField } from './engine/AmbientClouds';
@@ -120,41 +113,29 @@ import { spawnHeartPickup } from './entities/HeartPickup';
 import { spawnBombPickup } from './entities/BombPickup';
 import type { BlockHitOutcome } from './entities/blocks/BlockType';
 import {
+  advanceEffects,
+  drawEffects,
+  effectCount,
   startFlightEffect,
-  tickFlightEffect,
   createSlotAllocator,
-  COLLECTION_TEXT_STACK_ROW_HEIGHT,
   startCounterPopup,
-  tickCounterPopup,
-  counterPopupOpacity,
   startPuffEffect,
-  tickPuffEffect,
   startHealAuraEffect,
-  tickHealAuraEffect,
-  HEAL_AURA_DURATION_SECONDS,
-  SPARKLE_DURATION_SECONDS,
   startPlayerHitSplatter,
   startEnemyHitSplatter,
   startSpearBloodSplatter,
-  tickHitSplatterEffect,
-  HIT_SPLATTER_DURATION_SECONDS,
   startFadeOutTextEffect,
-  tickFadeOutTextEffect,
-  FADE_OUT_TEXT_DURATION_SECONDS,
   startExplosionEffect,
-  tickExplosionEffect,
-  EXPLOSION_DURATION_SECONDS,
   startDebrisEffect,
-  tickDebrisEffect,
   crumbleDebrisLayers,
-  DEBRIS_DURATION_SECONDS,
-} from './engine/CollectionEffects';
+} from './engine/effects';
+import type { EffectRenderContext, PopupIconLookup } from './engine/effects';
 import {
   fallingStalactiteLandingRow,
   fallingStalactiteOffsetYAt,
   fallingStalactiteRestOffsetY,
-} from './engine/FallingStalactite';
-import { fallingStalactiteShatter } from './entities/hazards/FallingStalactite';
+  fallingStalactiteShatter,
+} from './entities/hazards/FallingStalactite';
 import { crumblingFloorPhaseFor, CRUMBLING_FLOOR_CRACK_SECONDS } from './engine/CrumblingFloor';
 import { COIN_FRAME_SIZE } from './entities/Coin';
 import { fruitFrameSource, FRUIT_FRAME_SIZE } from './entities/Fruit';
@@ -237,7 +218,7 @@ import {
   fruitStates,
   collectedCollectibleIds,
   activeEffects,
-  activeCounterPopups,
+  spawnEffect,
   chestStates,
   endingScreenShown,
   endingScreenOpen,
@@ -251,15 +232,10 @@ import {
   carriedBombs,
   bombPickupStates,
   placedBombs,
-  activeExplosions,
-  activePuffs,
-  activeHealAuraEffects,
-  activeHitSplatters,
   levelTotals,
   checkpointPlacements,
   checkpointStates,
   activeCheckpointId,
-  activeFadeOutTexts,
   respawnPlayerState,
   respawnCenter,
   darknessLevel,
@@ -282,7 +258,6 @@ import {
   fallingStalactiteTimerStates,
   armFallingStalactiteTrigger,
   tickFallingStalactites,
-  activeDebrisEffects,
 } from './PlatformerState';
 import { useSignals } from '@preact/signals-react/runtime';
 import { Journal } from './components/Journal';
@@ -755,6 +730,62 @@ export const PlatformerPage = () => {
         potPlan: computePotRenderPlan(blockStates.value),
       };
 
+      // One render context per frame, shared by the four `drawEffects` layer
+      // invocations below. `popupIcons` is resolved once here from the sprite
+      // refs (the former render-loop popupOrder), so the counter-popup draw
+      // needs no image refs of its own.
+      const popupIconSources: Array<{
+        labelKey: CounterPopupLabelKey;
+        icon: HTMLImageElement | null;
+        iconFrame: { sx: number; sy: number; size: number };
+        iconYOffset?: number;
+      }> = [
+        {
+          labelKey: 'coins',
+          icon: coinSpriteRef.current,
+          iconFrame: { ...frameSource(COIN_SHEET, 0), size: COIN_FRAME_SIZE },
+        },
+        {
+          labelKey: 'fruits',
+          icon: fruitSpriteRef.current,
+          iconFrame: { ...fruitFrameSource(0), size: FRUIT_FRAME_SIZE },
+        },
+        {
+          labelKey: 'enemies',
+          icon: spritesRef.current[SLIME_GREEN_SHEET.src],
+          iconFrame: { ...frameSource(SLIME_GREEN_SHEET, 2), size: SLIME_GREEN_SHEET.frameWidth },
+          iconYOffset: -6,
+        },
+        {
+          labelKey: 'crates',
+          icon: tilesetRef.current,
+          iconFrame: { ...blockFrameSource('crate'), size: BLOCK_FRAME_SIZE },
+        },
+      ];
+      const popupIcons: PopupIconLookup = {};
+      for (const source of popupIconSources) {
+        if (source.icon) {
+          popupIcons[source.labelKey] = {
+            icon: source.icon,
+            iconFrame: source.iconFrame,
+            iconYOffset: source.iconYOffset,
+          };
+        }
+      }
+      const effectRenderContext: EffectRenderContext = {
+        ctx,
+        dc: drawContext,
+        canvasWidth: canvas.width,
+        canvasHeight: canvas.height,
+        playerAnchor: {
+          x: playerState.value.x + PLAYER_RENDERED_SIZE / 2 + originX,
+          y: playerState.value.y + PLAYER_VISUAL_CENTER_Y_OFFSET + originY,
+          width: PLAYER_RENDERED_SIZE,
+        },
+        popupIcons,
+        effects: activeEffects.value,
+      };
+
       // Drawn BEFORE blocks: a bonus fruit spawns at its source block's own
       // position and rises through it — drawing it first lets the block's
       // own tile occlude the still-rising fruit until it clears the block's
@@ -820,13 +851,8 @@ export const PlatformerPage = () => {
         }
       }
 
-      drawHealAuraEffects(
-        ctx,
-        activeHealAuraEffects.value,
-        playerState.value.x + PLAYER_RENDERED_SIZE / 2 + originX,
-        playerState.value.y + PLAYER_VISUAL_CENTER_Y_OFFSET + originY,
-        PLAYER_RENDERED_SIZE,
-      );
+      // Mid-world layer: the heal aura sits over the player, under collectibles.
+      drawEffects(effectRenderContext, 'midWorld', activeEffects.value);
 
       drawCollectibles(ctx, allCollectiblePlacements.value, collectedCollectibleIds.value, drawContext);
 
@@ -919,70 +945,20 @@ export const PlatformerPage = () => {
         drawSignBubble(ctx, hintText, anchorX, anchorBottomY, growth, opacity);
       }
 
-      drawCollectionEffects(ctx, activeEffects.value);
-      drawPuffEffects(ctx, activePuffs.value);
-      drawDebrisEffects(ctx, activeDebrisEffects.value, drawContext);
-      drawHitSplatterEffects(ctx, activeHitSplatters.value);
-      drawFadeOutTexts(ctx, activeFadeOutTexts.value, drawContext);
+      // World-effects layer, after the hint bubble: registry declaration order
+      // fixes the intra-layer sequence flight → puff → debris → hitSplatter →
+      // fadeOutText (FR-005).
+      drawEffects(effectRenderContext, 'worldEffects', activeEffects.value);
 
       // Explosions sit above the world effects and below the HUD — a bright,
       // short-lived burst that reads over the terrain but never over the
       // counters (FR-023).
-      drawExplosions(ctx, activeExplosions.value, drawContext);
+      drawEffects(effectRenderContext, 'aboveWorld', activeEffects.value);
 
-      // Trial counter popups (see activeCounterPopups's doc comment in
-      // PlatformerState.ts): drawn above
-      // the fact-flight text's stacked slots (canvas.height * 0.3, minus one
-      // row height, matches the vertical gap COLLECTION_TEXT_STACK_ROW_HEIGHT
-      // already uses between stacked slots), the whole row horizontally
-      // centered like the fact-flight text's own hold position. Built as an
-      // array in a fixed type order (matching the journal summary's own
-      // coins/fruits/enemies/crates ordering) so simultaneous popups always
-      // lay out the same way regardless of collection order.
-      const popupOrder: Array<{
-        labelKey: 'coins' | 'fruits' | 'enemies' | 'crates';
-        icon: HTMLImageElement | null;
-        iconFrame: { sx: number; sy: number; size: number };
-        iconYOffset?: number;
-      }> = [
-        { labelKey: 'coins', icon: coinSpriteRef.current, iconFrame: { ...frameSource(COIN_SHEET, 0), size: COIN_FRAME_SIZE } },
-        {
-          labelKey: 'fruits',
-          icon: fruitSpriteRef.current,
-          iconFrame: { ...fruitFrameSource(0), size: FRUIT_FRAME_SIZE },
-        },
-        {
-          labelKey: 'enemies',
-          icon: spritesRef.current[SLIME_GREEN_SHEET.src],
-          iconFrame: { ...frameSource(SLIME_GREEN_SHEET, 2), size: SLIME_GREEN_SHEET.frameWidth },
-          iconYOffset: -6,
-        },
-        {
-          labelKey: 'crates',
-          icon: tilesetRef.current,
-          iconFrame: { ...blockFrameSource('crate'), size: BLOCK_FRAME_SIZE },
-        },
-      ];
-      const popupItems = popupOrder.flatMap(({ labelKey, icon, iconFrame, iconYOffset }) => {
-        const popup = activeCounterPopups.value[labelKey];
-        if (!popup || !icon) return [];
-        return [
-          {
-            icon,
-            iconFrame,
-            collected: popup.collected,
-            total: popup.total,
-            opacity: counterPopupOpacity(popup),
-            iconYOffset,
-          },
-        ];
-      });
-      drawCounterPopups(
-        ctx,
-        popupItems,
-        canvas.width / 2,
-        canvas.height * 0.3 - COLLECTION_TEXT_STACK_ROW_HEIGHT,
-      );
+      // Counter popups are drawn last, after the enemy-eye/hint/UI work. The
+      // row's fixed coins/fruits/enemies/crates layout lives in the effect
+      // module (see counterPopup.ts).
+      drawEffects(effectRenderContext, 'hudLast', activeEffects.value);
 
       if (debugHitboxesRef.current) {
         drawDebugOverlay(
@@ -1114,10 +1090,9 @@ export const PlatformerPage = () => {
         }
         // The spear's blood burst (O-020) is spawned on the kill tick and must
         // keep spraying through the death lead-in; the rest of the world stays
-        // frozen as before.
-        activeHitSplatters.value = activeHitSplatters.value
-          .map((splatter) => tickHitSplatterEffect(splatter, dt))
-          .filter((splatter) => splatter.elapsed <= HIT_SPLATTER_DURATION_SECONDS);
+        // frozen as before, so the filtered advance ticks only hit splatters and
+        // leaves every other effect's elapsed exactly (US5-3/FR-004).
+        activeEffects.value = advanceEffects(activeEffects.value, dt, { kinds: ['hitSplatter'] });
         render();
         return;
       }
@@ -1185,7 +1160,7 @@ export const PlatformerPage = () => {
       // same two expressions used to be duplicated in the enemy-defeat block
       // and the collectible block. `originX`/`originY` convert a world-space
       // entity position into the screen-space coordinates FlightEffect
-      // requires (see CollectionEffects.ts's doc comment); the level is
+      // requires (see engine/effects/flight.ts's doc comment); the level is
       // anchored to the bottom of the canvas, same as render()'s own copy.
       const levelPixelHeight = currentLevel.value.height * RENDERED_TILE_SIZE;
       const originX = -cameraPositionX.value;
@@ -1197,7 +1172,7 @@ export const PlatformerPage = () => {
       // Seeded from the number of fact-flight effects still in the air from
       // previous ticks (already filtered for 'done' ones at the end of the
       // previous tick — see the activeEffects tick/filter below).
-      const allocateSlotOffset = createSlotAllocator(activeEffects.value.length);
+      const allocateSlotOffset = createSlotAllocator(effectCount(activeEffects.value, 'flight'));
       // The one fact-reveal trigger every reveal site below goes through.
       const journalButtonRect = journalButtonRef.current?.getBoundingClientRect() ?? null;
       // journalButtonRect is viewport-relative (getBoundingClientRect), but
@@ -1309,7 +1284,7 @@ export const PlatformerPage = () => {
       // death still deserves its own visual effect. See B-003.
       const justDefeated = enemyStates.value.filter((e) => !e.alive && !e.deathEffectGiven);
       if (justDefeated.length > 0) {
-        const newPuffs = [...activePuffs.value];
+        const newPuffs: ReturnType<typeof startPuffEffect>[] = [];
         // Whether any green slime was freshly defeated this tick — gates
         // the popup bump below, computed from the raw defeated-enemy count
         // rather than facts revealed (see that bump's own comment).
@@ -1396,59 +1371,18 @@ export const PlatformerPage = () => {
         // the rewardGiven update above, so this tick's own defeats are
         // included (it's a computed off `enemyStates`, so it already is).
         if (greenDefeatedThisTick) {
-          activeCounterPopups.value = {
-            ...activeCounterPopups.value,
-            enemies: startCounterPopup('enemies', enemiesDefeated.value, levelTotals.value.enemies),
-          };
+          spawnEffect(
+            startCounterPopup('enemies', enemiesDefeated.value, levelTotals.value.enemies),
+          );
         }
 
-        activePuffs.value = newPuffs;
+        for (const puff of newPuffs) spawnEffect(puff);
       }
 
-      activeEffects.value = activeEffects.value
-        .map((effect) => tickFlightEffect(effect, dt))
-        .filter((effect) => effect.phase !== 'done');
-
-      activePuffs.value = activePuffs.value
-        .map((puff) => tickPuffEffect(puff, dt))
-        .filter((puff) => puff.elapsed <= SPARKLE_DURATION_SECONDS);
-
-      activeDebrisEffects.value = activeDebrisEffects.value
-        .map((effect) => tickDebrisEffect(effect, dt))
-        .filter((effect) => effect.elapsed <= DEBRIS_DURATION_SECONDS);
-
-      activeHealAuraEffects.value = activeHealAuraEffects.value
-        .map((aura) => tickHealAuraEffect(aura, dt))
-        .filter((aura) => aura.elapsed <= HEAL_AURA_DURATION_SECONDS);
-
-      activeHitSplatters.value = activeHitSplatters.value
-        .map((splatter) => tickHitSplatterEffect(splatter, dt))
-        .filter((splatter) => splatter.elapsed <= HIT_SPLATTER_DURATION_SECONDS);
-
-      // Explosion visuals play once and are dropped — purely cosmetic, never
-      // a hazard (FR-023).
-      activeExplosions.value = activeExplosions.value
-        .map((effect) => tickExplosionEffect(effect, dt))
-        .filter((effect) => effect.elapsed <= EXPLOSION_DURATION_SECONDS);
-
-      // In-place checkpoint labels fade on their own timer; the caller drops
-      // each once its duration has elapsed (same convention as puffs).
-      activeFadeOutTexts.value = activeFadeOutTexts.value
-        .map((effect) => tickFadeOutTextEffect(effect, dt))
-        .filter((effect) => effect.elapsed <= FADE_OUT_TEXT_DURATION_SECONDS);
-
-      const tickedPopups = { ...activeCounterPopups.value };
-      let popupsChanged = false;
-      for (const key of Object.keys(tickedPopups) as Array<keyof typeof tickedPopups>) {
-        const ticked = tickCounterPopup(tickedPopups[key]!, dt);
-        popupsChanged = true;
-        if (ticked) {
-          tickedPopups[key] = ticked;
-        } else {
-          delete tickedPopups[key];
-        }
-      }
-      if (popupsChanged) activeCounterPopups.value = tickedPopups;
+      // ONE advance replaces the six byte-identical per-kind tick bodies plus
+      // the flight-phase and counter-popup plumbing. Each effect's registered
+      // tick/expiry reproduces its exact boundary (FR-004/FR-007).
+      activeEffects.value = advanceEffects(activeEffects.value, dt);
 
       const touchedIds = checkCollectibleCollisions(
         playerState.value,
@@ -1512,10 +1446,9 @@ export const PlatformerPage = () => {
         // with no "coins collected / total" feedback at all. Fires once per
         // tick in which any coin was touched, with the tick-final count.
         if (touchedIds.some((id) => allCollectiblePlacements.value.find((p) => p.id === id)?.spriteType === 'coin')) {
-          activeCounterPopups.value = {
-            ...activeCounterPopups.value,
-            coins: startCounterPopup('coins', coinsCollectedSoFar, levelTotals.value.coins),
-          };
+          spawnEffect(
+            startCounterPopup('coins', coinsCollectedSoFar, levelTotals.value.coins),
+          );
         }
       }
 
@@ -1560,13 +1493,10 @@ export const PlatformerPage = () => {
         heartPickupStates.value = heartPickupStates.value.filter(
           (heart) => !touchedHeartIds.includes(heart.id),
         );
-        // One aura per touched heart (typically just one) — drawHealAuraEffects
-        // draws every active entry at the player's CURRENT position each
-        // frame, so several overlapping auras simply read as one brighter one.
-        activeHealAuraEffects.value = [
-          ...activeHealAuraEffects.value,
-          ...touchedHeartIds.map((id) => startHealAuraEffect(id)),
-        ];
+        // One aura per touched heart (typically just one) — the draw anchors
+        // every active entry at the player's CURRENT position each frame, so
+        // several overlapping auras simply read as one brighter one.
+        for (const id of touchedHeartIds) spawnEffect(startHealAuraEffect(id));
       }
 
       // Bomb pickups: dropped by destroyed bomb-pots, collected on touch and
@@ -1603,7 +1533,7 @@ export const PlatformerPage = () => {
       // have one, so the flight text is just a static "Key" caption.
       const touchedKeyIds = checkKeyPickupCollisions(playerState.value, keyPickupStates.value);
       if (touchedKeyIds.length > 0) {
-        const newEffects = [...activeEffects.value];
+        const newEffects: ReturnType<typeof startFlightEffect>[] = [];
         const midX = canvas.width / 2;
         const midY = canvas.height * 0.3;
         const hudCtx = canvas.getContext('2d');
@@ -1631,7 +1561,7 @@ export const PlatformerPage = () => {
             ),
           );
         }
-        activeEffects.value = newEffects;
+        for (const effect of newEffects) spawnEffect(effect);
         keyPickupStates.value = keyPickupStates.value.map((k) =>
           touchedKeyIds.includes(k.id) ? { ...k, collected: true } : k,
         );
@@ -1790,13 +1720,10 @@ export const PlatformerPage = () => {
         if (!justBroken) continue;
         const { x, y } = tileToPixel(state.col, state.row);
         const debrisId = `crumble-${state.col}-${state.row}-${state.elapsed}`;
-        activeDebrisEffects.value = [
-          ...activeDebrisEffects.value,
-          // World-space position, not screen-space — drawDebrisEffects adds
-          // dc.originX/originY itself at draw time (same convention
-          // PuffEffect uses), so adding it again here would double-offset.
-          startDebrisEffect(debrisId, x, y, crumbleDebrisLayers()),
-        ];
+        // World-space position, not screen-space — the debris draw adds
+        // dc.originX/originY itself at draw time (same convention puffs use),
+        // so adding it again here would double-offset.
+        spawnEffect(startDebrisEffect(debrisId, x, y, crumbleDebrisLayers()));
       }
 
       // Spawn the falling stalactite's shatter debris exactly once, on the
@@ -1827,10 +1754,9 @@ export const PlatformerPage = () => {
           fallingStalactiteOffsetYAt(state.elapsed) >= restOffset;
         if (!justLanded) continue;
         const shatter = fallingStalactiteShatter(hazard, landingRow);
-        activeDebrisEffects.value = [
-          ...activeDebrisEffects.value,
+        spawnEffect(
           startDebrisEffect(`stalactite-${hazard.id}-${state.elapsed}`, shatter.x, shatter.y, shatter.layers),
-        ];
+        );
       }
 
       // Hazard contacts are resolved BEFORE enemy contacts, so a lethal floor
@@ -1852,14 +1778,13 @@ export const PlatformerPage = () => {
         const playerCenterX = playerState.value.x + PLAYER_RENDERED_SIZE / 2 + originX;
         const feetY =
           playerState.value.y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING + originY;
-        activeHitSplatters.value = [
-          ...activeHitSplatters.value,
+        spawnEffect(
           startSpearBloodSplatter(
-            `spear-${activeHitSplatters.value.length}`,
+            `spear-${effectCount(activeEffects.value, 'hitSplatter')}`,
             playerCenterX,
             feetY,
           ),
-        ];
+        );
       }
 
       // One pass over the enemies: the engine computes each overlap's
@@ -1870,22 +1795,20 @@ export const PlatformerPage = () => {
       enemyStates.value = contacts.enemies;
 
       if (contacts.damagedEnemyIds.length > 0) {
-        const newHitSplatters = [...activeHitSplatters.value];
         for (const id of contacts.damagedEnemyIds) {
           const enemy = contacts.enemies.find((e) => e.id === id);
           if (!enemy) continue;
           const anchor = enemyEffectAnchor(enemy);
           const topY = typeOf(enemy).box(enemy).y + originY;
-          newHitSplatters.push(
+          spawnEffect(
             startEnemyHitSplatter(
-              `${id}-${newHitSplatters.length}`,
+              `${id}-${effectCount(activeEffects.value, 'hitSplatter')}`,
               anchor.x + originX,
               topY,
               enemy.type as EnemyTypeKey,
             ),
           );
         }
-        activeHitSplatters.value = newHitSplatters;
       }
 
       if (contacts.bounceVelocity !== undefined) {
@@ -1943,10 +1866,9 @@ export const PlatformerPage = () => {
           const contactSide = -contacts.knockbackDirection as -1 | 1;
           const playerCenterX = playerState.value.x + PLAYER_RENDERED_SIZE / 2 + originX;
           const playerCenterY = playerState.value.y + PLAYER_VISUAL_CENTER_Y_OFFSET + originY;
-          activeHitSplatters.value = [
-            ...activeHitSplatters.value,
-            startPlayerHitSplatter(`player-${activeHitSplatters.value.length}`, playerCenterX, playerCenterY, contactSide),
-          ];
+          spawnEffect(
+            startPlayerHitSplatter(`player-${effectCount(activeEffects.value, 'hitSplatter')}`, playerCenterX, playerCenterY, contactSide),
+          );
         }
       }
 
@@ -2008,10 +1930,9 @@ export const PlatformerPage = () => {
         if (hitPoints > 0) {
           const playerCenterX = playerState.value.x + PLAYER_RENDERED_SIZE / 2 + originX;
           const playerCenterY = playerState.value.y + PLAYER_VISUAL_CENTER_Y_OFFSET + originY;
-          activeHitSplatters.value = [
-            ...activeHitSplatters.value,
-            startPlayerHitSplatter(`player-${activeHitSplatters.value.length}`, playerCenterX, playerCenterY, contactSide),
-          ];
+          spawnEffect(
+            startPlayerHitSplatter(`player-${effectCount(activeEffects.value, 'hitSplatter')}`, playerCenterX, playerCenterY, contactSide),
+          );
         }
       }
 
@@ -2095,16 +2016,13 @@ export const PlatformerPage = () => {
       // A block's terminal hit — any kind that's removed once used up
       // (crate, fragileRock, coinPot; not questionMark, which never breaks)
       // — gets a visual "puff": a standalone world-event burst
-      // (CollectionEffects.ts's PuffEffect / Renderer.ts's
-      // drawPuffEffects), independent of whether a reward is also awarded
+      // (engine/effects/puff.ts's PuffEffect / its registered draw),
+      // independent of whether a reward is also awarded
       // alongside it.
       const firePuffIfJustUsedUp = (block: BlockState): void => {
         if (!BLOCK_TYPES[block.blockKind].removeWhenUsedUp || !isBlockUsedUp(block)) return;
         const anchor = blockEffectAnchor(block);
-        activePuffs.value = [
-          ...activePuffs.value,
-          startPuffEffect(block.id, anchor.x + originX, anchor.y + originY, anchor.scale),
-        ];
+        spawnEffect(startPuffEffect(block.id, anchor.x + originX, anchor.y + originY, anchor.scale));
       };
 
       // Whether any crate reached its terminal hit this tick — gates the
@@ -2356,29 +2274,27 @@ export const PlatformerPage = () => {
             if (hitPoints > 0) {
               const playerCenterX = next.x + PLAYER_RENDERED_SIZE / 2 + originX;
               const playerCenterY = next.y + PLAYER_VISUAL_CENTER_Y_OFFSET + originY;
-              activeHitSplatters.value = [
-                ...activeHitSplatters.value,
+              spawnEffect(
                 startPlayerHitSplatter(
                   `bomb-${bomb.id}`,
                   playerCenterX,
                   playerCenterY,
                   knockbackDirection === 1 ? -1 : 1,
                 ),
-              ];
+              );
             }
           }
 
           // The explosion is purely cosmetic, centred on the bomb's current
           // position — where it actually is when the fuse expires (FR-023).
           // Never a hazard: the effects above resolved once, here.
-          activeExplosions.value = [
-            ...activeExplosions.value,
+          spawnEffect(
             startExplosionEffect(
               bomb.id,
               bomb.x + RENDERED_TILE_SIZE / 2,
               bomb.y + RENDERED_TILE_SIZE / 2,
             ),
-          ];
+          );
         }
 
         // Keep every bomb that neither detonated nor fell out of the level.
@@ -2401,10 +2317,9 @@ export const PlatformerPage = () => {
       // own doc comment for why that would undercount). Set by BOTH the
       // contact-hit loop and a blast above.
       if (crateDestroyedThisTick) {
-        activeCounterPopups.value = {
-          ...activeCounterPopups.value,
-          crates: startCounterPopup('crates', cratesDestroyed.value, levelTotals.value.crates),
-        };
+        spawnEffect(
+          startCounterPopup('crates', cratesDestroyed.value, levelTotals.value.crates),
+        );
       }
 
       if (checkPitFall(next, currentLevel.value)) {
@@ -2455,19 +2370,15 @@ export const PlatformerPage = () => {
       checkpointStates.value = checkpointResolution.states;
       activeCheckpointId.value = checkpointResolution.activeId;
       if (checkpointResolution.activatedIds.length > 0) {
-        const newPuffs = [...activePuffs.value];
-        const newTexts = [...activeFadeOutTexts.value];
         for (const id of checkpointResolution.activatedIds) {
           const state = checkpointResolution.states.find((s) => s.id === id);
           if (!state) continue;
           const anchor = checkpointEffectAnchor(state);
-          newPuffs.push(startPuffEffect(id, anchor.x + originX, anchor.y + originY, anchor.scale, true));
-          newTexts.push(
+          spawnEffect(startPuffEffect(id, anchor.x + originX, anchor.y + originY, anchor.scale, true));
+          spawnEffect(
             startFadeOutTextEffect(id, anchor.x, anchor.y, currentUI.value.platformer.checkpoint.label),
           );
         }
-        activePuffs.value = newPuffs;
-        activeFadeOutTexts.value = newTexts;
       }
 
       const levelPixelWidth = currentLevel.value.width * RENDERED_TILE_SIZE;

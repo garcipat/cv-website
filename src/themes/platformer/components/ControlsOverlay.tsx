@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useSignals } from '@preact/signals-react/runtime';
 import { currentUI } from '@/state/locale';
 import { lifecycleState, controlsOverlayDismissed, playerState } from '../PlatformerState';
-import { RESTART_PROMPT_FONT_FAMILY } from '../engine/Renderer';
+import { RESTART_PROMPT_FONT_FAMILY } from '../engine/textDraw';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import { PHYSICS_CONFIG } from '../contracts/PhysicsConfig';
 

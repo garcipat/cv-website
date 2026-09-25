@@ -1,4 +1,4 @@
-import { HAZARD_TYPES, typeOf } from './index';
+import { HAZARD_TYPES, typeOf, armFloorSpike, armFallingStalactite, fallingStalactiteShatter } from './index';
 import { floorSpike } from './FloorSpike';
 import type { HazardPlacement } from '../../level/HazardMapper';
 
@@ -27,5 +27,16 @@ describe('typeOf', () => {
 
   it('floorSpikePlacement-typeOfResolvesToFloorSpike', () => {
     expect(typeOf({ id: 'h1', hazardType: 'floorSpike', facing: 'up', x: 0, y: 0, col: 0, row: 0 })).toBe(floorSpike);
+  });
+});
+
+describe('merged hazard machine re-exports', () => {
+  it('reExportsTheFloorSpikeMachineApi', () => {
+    expect(typeof armFloorSpike).toBe('function');
+  });
+
+  it('reExportsTheFallingStalactiteMachineApi', () => {
+    expect(typeof armFallingStalactite).toBe('function');
+    expect(typeof fallingStalactiteShatter).toBe('function');
   });
 });

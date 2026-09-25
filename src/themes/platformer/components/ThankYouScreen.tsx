@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSignals } from '@preact/signals-react/runtime';
 import { currentCV, currentUI } from '@/state/locale';
-import { RESTART_PROMPT_FONT_FAMILY } from '../engine/Renderer';
+import { RESTART_PROMPT_FONT_FAMILY } from '../engine/textDraw';
 
 export interface ThankYouScreenProps {
   onDismiss: () => void;

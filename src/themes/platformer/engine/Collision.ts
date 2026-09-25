@@ -20,12 +20,14 @@ import { typeOf as hazardTypeOf } from '../entities/hazards';
 import type { HazardPlacement } from '../level/HazardMapper';
 import { RENDER_SCALE, RENDERED_TILE_SIZE, tileAt } from '../level/Terrain';
 import type { LevelDef } from '../level/LevelData';
-import type { FloorSpikeTimerState } from '../entities/hazards/phases';
-import { isFloorSpikeArmed } from './FloorSpike';
+import { isFloorSpikeArmed, type FloorSpikeTimerState } from '../entities/hazards/FloorSpike';
 import type { CrumblingFloorTimerState } from './CrumblingFloor';
 import { isCrumblingFloorArmed } from './CrumblingFloor';
-import { isFallingStalactiteArmed, detectionZoneCells } from './FallingStalactite';
-import type { FallingStalactiteTimerState } from '../entities/hazards/phases';
+import {
+  isFallingStalactiteArmed,
+  detectionZoneCells,
+  type FallingStalactiteTimerState,
+} from '../entities/hazards/FallingStalactite';
 import type { BlockPlacement } from '../level/BlockMapper';
 import type { HintId } from '../types';
 import type { KeyPickupState } from '../entities/KeyPickup';
