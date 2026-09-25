@@ -68,7 +68,7 @@ graph RL
         R001["✅ R-001: Platformer Core Contracts & Dependency Layers"]
         R002["✅ R-002: Platformer Shared Primitives & Dedup"]
         R003["✅ R-003: Platformer Abstract Light Sources"]
-        R004["R-004: Platformer Transient Effect Registry"]
+        R004["✅ R-004: Platformer Transient Effect Registry"]
         R005["R-005: Platformer Generic Speech Bubble"]
         R006["R-006: Platformer Pickup Unification"]
         R007["R-007: Platformer Registry Dispatch Completion"]
@@ -306,6 +306,7 @@ graph RL
     class R001,R002,R003,R004,R005,R006,R007,R008,R009,R011,R012,R014,R015 themes
     class R001 done
     class R002 done
+    class R004 done
     class R010 enhancements
     class R013 themes
 ```
