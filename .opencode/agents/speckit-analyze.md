@@ -53,7 +53,7 @@ Identify inconsistencies, duplications, ambiguities, and underspecified items ac
 
 ## Operating Constraints
 
-**STRICTLY READ-ONLY**: Do **not** modify any files. Output a structured analysis report. Offer an optional remediation plan (user must explicitly approve before any follow-up editing commands would be invoked manually).
+**READ-ONLY by default**: Do not modify files during the analysis pass (steps 1-7). After user approves remediation selections in step 8, apply the approved edits directly to the relevant files.
 
 **Constitution Authority**: The project constitution (`.specify/memory/constitution.md`) is **non-negotiable** within this analysis scope. Constitution conflicts are automatically CRITICAL and require adjustment of the spec, plan, or tasks—not dilution, reinterpretation, or silent ignoring of the principle. If a principle itself needs to change, that must occur in a separate, explicit constitution update outside `/speckit.analyze`.
 
@@ -195,9 +195,15 @@ At end of report, output a concise Next Actions block:
 - If only LOW/MEDIUM: User may proceed, but provide improvement suggestions
 - Provide explicit command suggestions: e.g., "Run /speckit.specify with refinement", "Run /speckit.plan to adjust architecture", "Manually edit tasks.md to add coverage for 'performance-metrics'"
 
-### 8. Offer Remediation
+### 8. Address All Findings with the Question Tool
 
-Ask the user: "Would you like me to suggest concrete remediation edits for the top N issues?" (Do NOT apply them automatically.)
+After the analysis report, use the `question` tool to present ALL findings to the user for resolution — not just the top N. Process:
+
+1. Present all findings (CRITICAL → HIGH → MEDIUM → LOW) grouped by severity using the `question` tool with `multiple: true`, so the user can select which ones to remediate.
+2. Include a "Fix all" option to select everything at once.
+3. After the user selects, immediately apply the fixes by editing the relevant files (spec.md, plan.md, tasks.md, etc.) — do not just suggest edits.
+4. Mark each resolved finding in the report with ✅ once fixed.
+5. If no findings exist, skip this step gracefully.
 
 ### 9. Check for extension hooks
 

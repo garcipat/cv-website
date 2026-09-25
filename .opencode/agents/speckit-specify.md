@@ -79,6 +79,7 @@ Given that feature description, do this:
    1. If the user explicitly provided `SPECIFY_FEATURE_DIRECTORY` (e.g., via environment variable, argument, or configuration), use it as-is
    2. Otherwise, auto-generate it under `specs/`:
       - Check `.specify/init-options.json` for `feature_numbering` (preferred) or `branch_numbering` (deprecated, migration only — will be removed in a future release)
+      - If `"feature-id"`: use the `before_specify` hook's `BRANCH_NAME` output (e.g. `F-008-player-roster`) and set `SPECIFY_FEATURE_DIRECTORY = specs/<BRANCH_NAME>`. If no hook ran, ask the user for the feature ID (`F-/S-/O-/R-NNN`), generate a 2-4 word short name, and use `specs/<FEATURE_ID>-<short-name>`.
       - If `"timestamp"`: prefix is `YYYYMMDD-HHMMSS` (current timestamp)
       - If `"sequential"` or absent: prefix is `NNN` (next available 3-digit number after scanning existing directories in `specs/`)
       - Construct the directory name: `<prefix>-<short-name>` (e.g., `003-user-auth` or `20260319-143022-user-auth`)
@@ -193,37 +194,17 @@ Given that feature description, do this:
       - **If [NEEDS CLARIFICATION] markers remain**:
         1. Extract all [NEEDS CLARIFICATION: ...] markers from the spec
         2. **LIMIT CHECK**: If more than 3 markers exist, keep only the 3 most critical (by scope/security/UX impact) and make informed guesses for the rest
-        3. For each clarification needed (max 3), present options to user in this format:
-
-           ```markdown
-           ## Question [N]: [Topic]
-
-           **Context**: [Quote relevant spec section]
-
-           **What we need to know**: [Specific question from NEEDS CLARIFICATION marker]
-
-           **Suggested Answers**:
-
-           | Option | Answer | Implications |
-           |--------|--------|--------------|
-           | A      | [First suggested answer] | [What this means for the feature] |
-           | B      | [Second suggested answer] | [What this means for the feature] |
-           | C      | [Third suggested answer] | [What this means for the feature] |
-           | Custom | Provide your own answer | [Explain how to provide custom input] |
-
-           **Your choice**: _[Wait for user response]_
-           ```
-
-        4. **CRITICAL - Table Formatting**: Ensure markdown tables are properly formatted:
-           - Use consistent spacing with pipes aligned
-           - Each cell should have spaces around content: `| Content |` not `|Content|`
-           - Header separator must have at least 3 dashes: `|--------|`
-           - Test that the table renders correctly in markdown preview
-        5. Number questions sequentially (Q1, Q2, Q3 - max 3 total)
-        6. Present all questions together before waiting for responses
-        7. Wait for user to respond with their choices for all questions (e.g., "Q1: A, Q2: Custom - [details], Q3: B")
-        8. Update the spec by replacing each [NEEDS CLARIFICATION] marker with the user's selected or provided answer
-        9. Re-run validation after all clarifications are resolved
+        3. For each clarification needed (max 3), use the `question` tool to present it. Always use the `question` tool for presenting options — never raw markdown tables or lists. For each question:
+           - `header`: Short topic label (e.g., "Auth Scope")
+           - `question`: Full question including context and recommendation. Include the context and the recommended answer with reasoning in the question text.
+           - `options`: Array of answer options. The first option should be the recommended one. Each must have:
+             - `label`: Concise option name (e.g., "A - OAuth2 only")
+             - `description`: Brief implication summary (1-2 sentences)
+           - Keep `multiple` unset (defaults to single selection).
+           - The automatic "Type your own answer" option covers custom input.
+        4. Present all questions together in a single `question` tool call (pass an array of question objects).
+        5. After the user responds, update the spec by replacing each [NEEDS CLARIFICATION] marker with the user's selected or provided answer for each question.
+        6. Re-run validation after all clarifications are resolved
 
    d. **Update Checklist**: After each validation iteration, update the checklist file with current pass/fail status
 
