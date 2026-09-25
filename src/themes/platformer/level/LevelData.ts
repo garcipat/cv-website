@@ -1,4 +1,4 @@
-import type { HintId } from '../types';
+import type { SignHintId } from './HintCatalog';
 import type { TorchStrength } from '../entities/Torch';
 
 export type TileType =
@@ -122,7 +122,7 @@ export type MarkerEntry =
   | { kind: 'patrolBoundary' }
   | { kind: 'connectionPoint' }
   | { kind: 'fallingStalactite' }
-  | { kind: 'sign'; hintId: HintId }
+  | { kind: 'sign'; hintId: SignHintId }
   | { kind: 'torch'; strength: TorchStrength };
 
 /**

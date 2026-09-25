@@ -12,6 +12,7 @@ export * from './effectRegistry';
 export * from './drawEffects';
 export * from './particles';
 export * from './flyingText';
+export * from './speechBubble';
 export * from './counterPopup';
 export * from './puff';
 export * from './healAura';

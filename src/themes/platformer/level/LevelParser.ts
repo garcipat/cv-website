@@ -8,8 +8,8 @@ import type {
   MarkerGrid,
   MarkerPlacement,
 } from './LevelData';
-import type { HintId } from '../types';
-import { DEFAULT_HINT_ID, isHintId } from './HintCatalog';
+import type { SignHintId } from './HintCatalog';
+import { DEFAULT_HINT_ID, isSignHintId } from './HintCatalog';
 import { DEFAULT_TORCH_STRENGTH, isTorchStrength } from '../entities/Torch';
 import type { HazardKind } from '../entities/hazards';
 
@@ -328,7 +328,7 @@ export function normalizeMarkerEntry(value: unknown): MarkerEntry | null {
   }
   if (kind === 'sign') {
     const hintId = (value as { hintId?: unknown }).hintId;
-    return { kind: 'sign', hintId: isHintId(hintId) ? hintId : DEFAULT_HINT_ID };
+    return { kind: 'sign', hintId: isSignHintId(hintId) ? hintId : DEFAULT_HINT_ID };
   }
   if (kind === 'torch') {
     const strength = (value as { strength?: unknown }).strength;
@@ -593,8 +593,8 @@ export function findCheckpointTiles(layout: readonly string[]): { col: number; r
 export function findSignTiles(
   layout: readonly string[],
   markers?: MarkerGrid,
-): { col: number; row: number; hintId: HintId }[] {
-  const tiles: { col: number; row: number; hintId: HintId }[] = [];
+): { col: number; row: number; hintId: SignHintId }[] {
+  const tiles: { col: number; row: number; hintId: SignHintId }[] = [];
   for (let row = 0; row < layout.length; row++) {
     for (let col = 0; col < layout[row].length; col++) {
       if (layout[row][col] !== SIGN_CHAR) continue;

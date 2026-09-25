@@ -29,7 +29,7 @@ import {
   type FallingStalactiteTimerState,
 } from '../entities/hazards/FallingStalactite';
 import type { BlockPlacement } from '../level/BlockMapper';
-import type { HintId } from '../types';
+import type { SignHintId } from '../level/HintCatalog';
 import type { KeyPickupState } from '../entities/KeyPickup';
 import type { HeartPickupState } from '../entities/HeartPickup';
 import type { BombPickupState } from '../entities/BombPickup';
@@ -275,7 +275,7 @@ export function chestPlayerIsStandingOn(
 export function checkSignOverlap(
   player: PlayerState,
   signs: readonly SignPlacement[],
-): HintId | undefined {
+): SignHintId | undefined {
   return overlappingTriggers(player, signs, signBox)[0]?.hintId;
 }
 

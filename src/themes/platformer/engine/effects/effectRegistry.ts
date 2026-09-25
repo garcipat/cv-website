@@ -23,9 +23,15 @@ import { drawHitSplatterEffect, startPlayerHitSplatter } from './hitSplatter';
 import { drawFadeOutText, startFadeOutTextEffect } from './fadeOutText';
 import { drawExplosionEffect, startExplosionEffect } from './explosion';
 import { RESET_SCOPE_BY_KIND, type EffectRenderContext, type TransientEffect } from './transientEffect';
+import {
+  drawSpeechBubbleEffect,
+  startSpeechBubble,
+  tickSpeechBubbleEffect,
+} from './speechBubble';
 
 /** The fixed set of shipped effect families — no additions (FR-019). */
 export type EffectKind =
+  | 'speechBubble'
   | 'flyingText'
   | 'counterPopup'
   | 'puff'
@@ -78,6 +84,16 @@ function keyOfCounterPopup(effect: TransientEffect<unknown>): string {
  * reset code.
  */
 export const EFFECT_REGISTRY: readonly EffectRegistryEntry<unknown>[] = [
+  widen({
+    kind: 'speechBubble',
+    create: startSpeechBubble,
+    tick: tickSpeechBubbleEffect,
+    draw: drawSpeechBubbleEffect,
+    expired: () => false,
+    layer: 'worldEffects',
+    resetScope: RESET_SCOPE_BY_KIND.speechBubble,
+    keyOf: () => 'speechBubble',
+  }),
   widen({
     kind: 'flyingText',
     create: startFlyingText,

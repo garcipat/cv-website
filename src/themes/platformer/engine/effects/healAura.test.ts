@@ -102,7 +102,7 @@ describe('drawHealAuraEffect', () => {
     drawHealAuraEffect(
       effect,
       renderContext(ctx as unknown as CanvasRenderingContext2D, [effect], {
-        playerAnchor: { x: 100, y: 200, width: 32 },
+        playerAnchor: { centerX: 100, centerY: 200, headBottomY: 0, width: 32 },
       }),
     );
 
@@ -120,7 +120,7 @@ describe('drawHealAuraEffect', () => {
     drawHealAuraEffect(
       effect,
       renderContext(ctx as unknown as CanvasRenderingContext2D, [effect], {
-        playerAnchor: { x: 100, y: 200, width: 32 },
+        playerAnchor: { centerX: 100, centerY: 200, headBottomY: 0, width: 32 },
       }),
     );
 

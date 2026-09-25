@@ -10,7 +10,7 @@ import {
   paintTorchMarker,
   shiftMarkerGrid,
 } from './paintMarkerCell';
-import { currentUI } from '@/state/locale';
+import { hintText } from '../state/hintText';
 import { paintCell, type PaintResult } from './paintCell';
 import { updatePanOffset, centerPanOnSpawn, type PanOffset } from './EditorPan';
 import {
@@ -321,8 +321,8 @@ const CONNECTION_POINT_MARKER_GLYPH_COLOR = '#0a2a4d';
 const MARKER_FONT_SIZE = 18;
 
 /** Human-readable names for the hover tooltip (FR-029). A sign additionally
- *  shows its hint's own translated text, read from the same
- *  `currentUI.value.platformer.hints` the in-game bubble uses. */
+ *  shows its hint's own translated text, read from the same `hintText` signal
+ *  the in-game bubble uses. */
 const MARKER_TOOLTIP_LABELS: Record<MarkerEntry['kind'], string> = {
   patrolBoundary: 'Patrol boundary',
   connectionPoint: 'Connection point',
@@ -1210,7 +1210,7 @@ export const EditorCanvas = ({
         y: event.clientY - rect.top + 12,
         text:
           marker.kind === 'sign'
-            ? `${label}: ${currentUI.value.platformer.hints[marker.hintId]}`
+            ? `${label}: ${hintText.value[marker.hintId]}`
             : marker.kind === 'torch'
               ? `${label}: strength ${marker.strength}`
               : label,
