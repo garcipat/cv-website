@@ -460,7 +460,7 @@ describe('chainRunLength', () => {
 
   it('calledFromAMiddleCell-countsOnlyFromThatCellDownward', () => {
     // chainRunLength itself doesn't know or care whether (col,row) is a
-    // run's actual top — it's the caller's job (Renderer.ts) to only call
+    // run's actual top — it's the caller's job (SceneRenderer.ts) to only call
     // this when tileAt(level, col, row-1) !== 'chain'.
     const level: LevelDef = { width: 1, height: 3, terrain: [['chain'], ['chain'], ['chain']] };
     expect(chainRunLength(level, 0, 1)).toBe(2);

@@ -1,7 +1,7 @@
 import { vi } from 'vitest';
 import type { EffectRenderContext, PopupIconLookup, TransientEffect } from './transientEffect';
 
-/** A DOM-free Canvas 2D mock, mirroring Renderer.test.ts's own mock shape. */
+/** A DOM-free Canvas 2D mock, mirroring the renderer suites' own mock shape. */
 export function makeMockContext(): CanvasRenderingContext2D {
   return {
     imageSmoothingEnabled: true,

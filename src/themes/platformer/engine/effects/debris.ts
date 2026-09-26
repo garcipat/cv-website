@@ -111,7 +111,7 @@ export function crumbleDebrisLayers(): DebrisLayer[] {
   ];
 }
 
-/** The debris family's registered draw — the former Renderer.ts
+/** The debris family's registered draw — the former scene renderer
  *  `drawDebrisEffects` body, per effect. */
 export function drawDebrisEffect(
   effect: TransientEffect<DebrisState>,

@@ -97,7 +97,7 @@ export function createRewardReveal(
     // every section's display title right (Course's `title`, Experience's
     // `role`/`company`, Education's `degree`), unlike an ad-hoc
     // `'name' in data` check. `icon` is passed to startFlyingText
-    // separately, NOT concatenated into `label`: Renderer.ts draws it in a
+    // separately, NOT concatenated into `label`: the HUD counter drawer draws it in a
     // different font, and the pixel font `label` uses has no emoji glyphs.
     const { icon, title: label } = formatJournalEntry(fact);
     // The offset applies to BOTH the rise's start and its mid hold point —

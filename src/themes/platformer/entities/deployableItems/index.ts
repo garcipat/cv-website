@@ -16,7 +16,7 @@ import { chestDeployableItem } from '../chests';
 /**
  * Every deployable-item kind in the game. Adding a kind is one module plus one
  * line here — the page's tick/draw/interaction dispatch, the sprite loader,
- * `Renderer.ts` and `Collision.ts` need no edit. The
+ * `SceneRenderer.ts` and `Collision.ts` need no edit. The
  * `Record<DeployableItemKind, …>` annotation pins the registry to the leaf
  * vocabulary, so a kind added to one side without the other fails to compile.
  */

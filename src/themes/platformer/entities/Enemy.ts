@@ -18,7 +18,7 @@ export { WALK_FRAME_DURATION } from './enemies/EnemyAnimation';
 export type { Direction as EnemyDirection } from '../contracts/geometry';
 
 /** Actual rendered size for a given type — the sheet's native frame scaled by
- *  RENDER_SCALE and the type's own render scale. Renderer.ts's drawEnemies
+ *  RENDER_SCALE and the type's own render scale. SceneRenderer.ts's drawEnemies
  *  and DebugOverlay.ts's render slot both call this, so a bigger purple slime
  *  gets a proportionally bigger draw rect. */
 export function enemyRenderedSize(type: EnemyTypeKey): number {

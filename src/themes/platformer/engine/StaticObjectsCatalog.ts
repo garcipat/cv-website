@@ -9,7 +9,7 @@ export interface StaticObjectEntry {
    *  cell. Only the hand-spaced `decorations.png` entries below set these
    *  explicitly: that sheet's icons now have real gaps between them and
    *  aren't all exactly 16x16, so a fixed 16x16 crop would clip them —
-   *  Renderer.ts reads these (falling back to 16) instead of hardcoding
+   *  SceneRenderer.ts reads these (falling back to 16) instead of hardcoding
    *  TILE_SIZE for every decoration draw. */
   width?: number;
   height?: number;
@@ -124,14 +124,14 @@ const CHAIN_BOTTOM: ChainPieceRect = { sx: 137, sy: 118, width: 5, height: 15 };
 
 /**
  * Composes the full vertical sequence of sprites for a chain shaft's TOP
- * cell to draw (see Renderer.ts — only the top cell of a run draws
+ * cell to draw (see SceneRenderer.ts — only the top cell of a run draws
  * anything). A 1-tile shaft is just its attachment's cap. A longer one
  * stacks: the attachment's "continues" piece, then as many `CHAIN_MIDDLE`
  * pieces as fit in the remaining native-pixel budget (`runLength * 16`),
  * then `CHAIN_BOTTOM` — deliberately capped rather than exact, since these
  * pieces' heights don't divide evenly into `16 * runLength`; better to stop
  * a few pixels short than overflow into whatever tile is below the shaft
- * (Renderer.ts draws tiles top-to-bottom, so an overflow would just get
+ * (SceneRenderer.ts draws tiles top-to-bottom, so an overflow would just get
  * silently painted over by that tile anyway, never visible — this is about
  * not relying on that, and choosing the shortfall deliberately instead).
  */

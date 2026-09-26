@@ -231,7 +231,7 @@ export function resolveEnemyContacts(
  * returns its hintId every tick the player stands on it, and again the next
  * time they walk back onto it. The box comes from `signBox`
  * (level/SignMapper.ts) — exactly one rendered tile, matching how it's
- * drawn (Renderer.ts).
+ * drawn (SceneRenderer.ts).
  */
 export function checkSignOverlap(
   player: PlayerState,

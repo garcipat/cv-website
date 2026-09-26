@@ -1,8 +1,8 @@
 /**
  * Shared outlined-text drawing for the platformer's canvas HUD and transient
- * text effects, extracted from `Renderer.ts` (R-004 D7) so an effect module can
+ * text effects, extracted from the combined renderer (R-004 D7) so an effect module can
  * draw outlined text without importing the god renderer and without a cycle.
- * `Renderer.ts` imports the same helpers.
+ * The renderer modules import the same helpers.
  */
 
 /**

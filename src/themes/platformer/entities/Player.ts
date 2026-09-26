@@ -32,7 +32,7 @@ export const PLAYER_VISUAL_CENTER_Y_OFFSET =
  * the 32px cell). Used by Physics.ts to define a narrower, centered
  * collision hitbox within the full PLAYER_RENDERED_SIZE render slot — not
  * used for any rendering-position shift; the sprite is always drawn at a
- * fixed position (see Renderer.ts's drawPlayer), only its artwork mirrors
+ * fixed position (see SceneRenderer.ts's drawPlayer), only its artwork mirrors
  * for facing direction.
  */
 export const PLAYER_SIDE_PADDING = 10 * RENDER_SCALE; // 20 rendered px

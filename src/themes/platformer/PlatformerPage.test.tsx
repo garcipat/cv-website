@@ -81,7 +81,7 @@ import { createPlacedBomb, BOMB_FUSE_SECONDS } from './entities/deployableItems/
 import type { PlacedBombState } from './entities/deployableItems/Bomb';
 import { toCheckpointState } from './entities/Checkpoint';
 import { initialCameraX } from './engine/Camera';
-import { toChestState, isChestOpen } from './entities/chests';
+import { toChestState, isChestOpen, CHEST_CLOSED_WIDTH, CHEST_CLOSED_HEIGHT } from './entities/chests';
 import { PICKUP_TYPES } from './entities/pickups';
 import type { KeyPickupState } from './entities/pickups/Key';
 import {
@@ -91,7 +91,16 @@ import {
   HEART_RENDERED_SIZE,
   HEART_PICKUP_HEAL_AMOUNT,
 } from './entities/Health';
-import { HEARTS_START_X, keyCounterX, KEY_COUNTER_Y, LOW_HEALTH_GLOW_WIDTH_PX } from './engine/Renderer';
+import {
+  HEARTS_START_X,
+  hudCounterX,
+  scaledImageCounter,
+  CHEST_COUNTER_ICON_HEIGHT,
+  CHEST_COUNTER_TEXT_GAP,
+  CHEST_COUNTER_X,
+  KEY_COUNTER_Y,
+  LOW_HEALTH_GLOW_WIDTH_PX,
+} from './engine/render/HudRenderer';
 import { pauseForJournal } from './engine/GameLifecycle';
 import { ENEMY_HIT_REACTION_SECONDS } from './entities/enemies/shared';
 import { isInvulnerable } from './contracts/capabilities';
@@ -591,7 +600,7 @@ describe('PlatformerPage', () => {
     // Wait until the terrain sheet has actually drawn (the backdrop/cloud
     // layers can draw first), then assert the level's bottom-most tile edge.
     //
-    // Excludes the water foreground's own tiles (sx 64 — see Renderer.ts's
+    // Excludes the water foreground's own tiles (sx 64 — see SceneRenderer.ts's
     // WATER_TILE_SX): that band is deliberately drawn to overhang the
     // canvas's bottom edge by half a tile (drawWaterForeground's half-tile
     // overlap with the level's last row), which is a different, intentional
@@ -637,7 +646,7 @@ describe('PlatformerPage', () => {
     // (SPAWN_TILE col 1, camera at 0, facing right) the player's dest-x
     // could coincidentally match too. dy===16 (call[6]) is what actually
     // discriminates: drawHearts always draws at dy=HUD_MARGIN=16
-    // (Renderer.ts), while the player's dy is its scrolled world y-position
+    // (SceneRenderer.ts), while the player's dy is its scrolled world y-position
     // (648 by default here), never 16.
     await waitFor(() =>
       expect(
@@ -1202,7 +1211,8 @@ describe('PlatformerPage', () => {
     const enemyTotal = enemyPlacements.value.filter((p) => p.fact).length;
 
     // The popup's icon needs its sprite ref loaded (same reasoning the old
-    // "showsCoinCounterAtZero" test's comment gave for drawCollectibleCounter)
+    // "showsCoinCounterAtZero" test's comment gave for the collectible
+    // counter's sheet-frame geometry)
     // — wait for sprites to finish loading (any drawImage call) before
     // defeating the enemy, or the popup would silently skip drawing (no
     // icon yet) regardless of whether the count logic itself is correct.
@@ -1299,11 +1309,11 @@ describe('PlatformerPage', () => {
   it('render-collectedKeysZero-doesNotDrawKeyCounter', async () => {
     // The HUD key counter is only ever drawn by the `keySpriteRef.current &&
     // collectedKeys.value > 0` gate in PlatformerPage.tsx's render function —
-    // drawKeyCounter itself doesn't gate on count (matching drawChestCounter's
-    // convention of the CALLER deciding whether to call it). At 0 keys
-    // (this suite's default — see beforeEach), no plain digit-string
-    // fillText call (drawKeyCounter's own "N" text, distinct from every
-    // other HUD counter's "N / total" format) should ever appear.
+    // the generic drawHudCounter itself doesn't gate on count (the CALLER
+    // decides whether to call it). At 0 keys (this suite's default — see
+    // beforeEach), no plain digit-string fillText call (the key counter's own
+    // "N" text, distinct from the chest counter's "N / total" format) should
+    // ever appear.
     vi.stubGlobal('Image', MockTilesetImage);
 
     render(<PlatformerPage />);
@@ -1397,7 +1407,7 @@ describe('PlatformerPage', () => {
 
   it('playerOverlapsACollectible-tick-flyingTextEffectCarriesAnIconSeparateFromText', () => {
     // The icon (a language's flag, or the section's generic symbol — 💡 for
-    // skills) is drawn separately from the effect's text (see Renderer.ts:
+    // skills) is drawn separately from the effect's text (see SceneRenderer.ts:
     // the pixel font `text` uses has no emoji glyphs), so it must actually
     // reach the effect as its own field, not be missing or baked into
     // `text`.
@@ -2767,7 +2777,16 @@ describe('PlatformerPage', () => {
     const canvas = screen.getByTestId('platformer-canvas') as HTMLCanvasElement;
     const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
     const chestOpenCount = chestStates.value.filter(isChestOpen).length;
-    expect(effect?.state.targetX).toBe(keyCounterX(ctx, chestOpenCount, chestPlacements.value.length));
+    const measurementChestDescriptor = scaledImageCounter({
+      image: null,
+      sourceWidth: CHEST_CLOSED_WIDTH,
+      sourceHeight: CHEST_CLOSED_HEIGHT,
+      height: CHEST_COUNTER_ICON_HEIGHT,
+      count: chestOpenCount,
+      total: chestPlacements.value.length,
+      textGap: CHEST_COUNTER_TEXT_GAP,
+    });
+    expect(effect?.state.targetX).toBe(hudCounterX(ctx, measurementChestDescriptor, CHEST_COUNTER_X));
     expect(effect?.state.targetY).toBe(KEY_COUNTER_Y);
   });
 
@@ -4972,7 +4991,7 @@ describe('PlatformerPage', () => {
 
   it('arrowUpPressed-whileStandingOnClosedChest-bumpsNoTransientCounterPopup', () => {
     // Chests are the one fact-reveal site that deliberately feeds no popup:
-    // they already have a PERMANENT HUD counter (Renderer.ts's chest
+    // they already have a PERMANENT HUD counter (HudRenderer.ts's chest
     // counter), which is why `CounterPopupLabelKey` has no 'chests' member at
     // all. The chest site therefore omits `counterKey` entirely.
     let frameCallback: FrameRequestCallback | null = null;

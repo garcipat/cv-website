@@ -57,7 +57,7 @@ import {
   drawEnemyEyes,
   drawHeldTorch,
   drawCrumblingFloors,
-} from '../engine/Renderer';
+} from '../engine/render/SceneRenderer';
 import { caveLightingPreview } from './caveLightingPreview';
 import { paintBackgroundCell, eraseBackgroundCell } from './paintBackgroundCell';
 import type { DrawContext } from '../contracts/DrawContext';
@@ -722,7 +722,7 @@ export const EditorCanvas = ({
     try {
       ctx.globalAlpha = foregroundAlpha;
 
-      // --- scaled segment 1: Renderer.ts-backed terrain, ladders, signs ---
+      // --- scaled segment 1: SceneRenderer.ts-backed terrain, ladders, signs ---
       ctx.save();
       ctx.scale(zoom, zoom);
       const originX = panOffset.x / zoom;
@@ -838,7 +838,7 @@ export const EditorCanvas = ({
         if (darknessLayer.height !== canvas.height) darknessLayer.height = canvas.height;
       }
 
-      // --- scaled segment 2: Renderer.ts-backed entities ---
+      // --- scaled segment 2: SceneRenderer.ts-backed entities ---
       ctx.save();
       ctx.scale(zoom, zoom);
 

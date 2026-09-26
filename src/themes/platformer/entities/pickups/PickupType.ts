@@ -11,7 +11,7 @@ import type {
   PickupOutcome,
 } from '../../contracts/Pickup';
 
-/** The band `drawPickups` draws this kind in (see engine/Renderer.ts). */
+/** The band `drawPickups` draws this kind in (see engine/render/SceneRenderer.ts). */
 export type PickupDrawLayer = 'belowBlocks' | 'beforeEnemies' | 'afterEnemies';
 
 /** Where and how a pickup is created from its source (a block today). */
@@ -29,7 +29,7 @@ export interface PickupSpawnSource {
  * by that type's own module — including how the kind is spawned from a source
  * and what collecting it asks for. Adding a pickup means writing one of these
  * and adding one line to `pickups/index.ts`; nothing in Collision.ts,
- * Renderer.ts or PlatformerPage.tsx needs to change.
+ * SceneRenderer.ts or PlatformerPage.tsx needs to change.
  *
  * The collect-once flag lives on the shared `Pickup` state, not here: each
  * kind supplies only its own extra eligibility gate (`isCollectible`) on top

@@ -75,7 +75,7 @@ const SPARKLE_RADIUS_PX = 3;
 const SPARKLE_PIXEL_SIZE = 4;
 const SPARKLE_PIXEL_COLOR = '#ffe9a8';
 
-/** The puff family's registered draw — the former Renderer.ts
+/** The puff family's registered draw — the former scene renderer
  *  `drawSparkleBurst`/`drawPuffEffects` body. Screen-space. */
 export function drawPuffEffect(effect: TransientEffect<PuffState>, rc: EffectRenderContext): void {
   const ctx = rc.ctx;
