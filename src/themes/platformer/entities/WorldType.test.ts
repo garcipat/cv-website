@@ -1,7 +1,8 @@
 import { ENEMY_TYPES, typeOf } from './enemies';
 import { PICKUP_TYPES } from './pickups';
 import { BLOCK_TYPES } from './blocks';
-import { CHEST_TYPE } from './chests';
+import { chestDeployableItem } from './chests';
+import { DEPLOYABLE_ITEM_TYPES } from './deployableItems';
 import {
   enemyRenderedSize,
   enemyTileOffsetX,
@@ -14,8 +15,8 @@ import {
   CHEST_CLOSED_RENDERED_WIDTH,
   CHEST_CLOSED_RENDERED_HEIGHT,
   CHEST_CLOSED_OFFSET_X,
-} from './Chest';
-import type { ChestState } from './Chest';
+} from './chests';
+import type { ChestState } from './chests';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 
 /** A living enemy of the given type at the given position. Carries
@@ -48,6 +49,9 @@ function makeEnemy(type: EnemyState['type'], x: number, y: number): EnemyState {
 function makeChest(x: number, y: number): ChestState {
   return {
     id: 'chest-1',
+    kind: 'chest',
+    col: 0,
+    row: 0,
     x,
     y,
     state: 'closed',
@@ -67,7 +71,8 @@ describe('WorldType conformance', () => {
       ...Object.values(ENEMY_TYPES),
       ...Object.values(PICKUP_TYPES),
       ...Object.values(BLOCK_TYPES),
-      CHEST_TYPE,
+      ...Object.values(DEPLOYABLE_ITEM_TYPES),
+      chestDeployableItem,
     ];
     for (const type of all) {
       expect(typeof type.draw).toBe('function');
@@ -75,9 +80,17 @@ describe('WorldType conformance', () => {
   });
 
   it('typesWithARectangle-exposeABox', () => {
-    const boxed = [...Object.values(ENEMY_TYPES), ...Object.values(PICKUP_TYPES), CHEST_TYPE];
+    const boxed = [...Object.values(ENEMY_TYPES), ...Object.values(PICKUP_TYPES), chestDeployableItem];
     for (const type of boxed) {
       expect(typeof type.box).toBe('function');
+    }
+  });
+
+  it('deployableItemTypes-eachDeclaresItsOwnKeyAndItsStatesCarryThatKind', () => {
+    for (const [key, type] of Object.entries(DEPLOYABLE_ITEM_TYPES)) {
+      expect(type.key).toBe(key);
+      const state = { id: `${key}-1`, col: 0, row: 0, x: 0, y: 0, kind: key as never };
+      expect(state.kind).toBe(type.key);
     }
   });
 
@@ -146,7 +159,7 @@ describe('enemy box equivalence', () => {
 describe('chest box equivalence', () => {
   it('box-closedChest-matchesTheRectChestPlayerIsStandingOnBuilds', () => {
     const chest = makeChest(10, 20);
-    expect(CHEST_TYPE.box(chest)).toEqual({
+    expect(chestDeployableItem.box(chest)).toEqual({
       x: chest.x + CHEST_CLOSED_OFFSET_X,
       y: chest.y,
       width: CHEST_CLOSED_RENDERED_WIDTH,
@@ -157,7 +170,7 @@ describe('chest box equivalence', () => {
   it('box-closedChest-isTheClosedFootprintCenteredOnItsTile', () => {
     // Concrete anchors: the closed art is 28x20 native, scaled so its height
     // matches the 32px tile -> 44.8 x 32, centered by an offset of -6.4.
-    const box = CHEST_TYPE.box(makeChest(10, 20));
+    const box = chestDeployableItem.box(makeChest(10, 20));
     expect(box.x).toBeCloseTo(3.6, 6);
     expect(box.y).toBe(20);
     expect(box.width).toBeCloseTo(44.8, 6);

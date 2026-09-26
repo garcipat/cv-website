@@ -3,7 +3,6 @@ import {
   aabbOverlap,
   checkPickupCollisions,
   resolveEnemyContacts,
-  chestPlayerIsStandingOn,
   checkSignOverlap,
   resolveHazardContacts,
   checkHazardArmTriggers,
@@ -31,7 +30,6 @@ import type { SlimeGreenState } from '../entities/enemies/SlimeGreen';
 import type { EnemyPlacement } from '../level/EnemyMapper';
 import { spawnFruit, tickFruit, FRUIT_RISE_DURATION_SECONDS } from '../entities/pickups/Fruit';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
-import type { ChestState } from '../entities/Chest';
 import type { SignPlacement } from '../level/SignMapper';
 import type { HazardPlacement } from '../level/HazardMapper';
 import type { HazardTickContext } from '../entities/hazards/HazardType';
@@ -39,7 +37,7 @@ import type { FallingStalactiteTimerState } from '../entities/hazards/FallingSta
 import { parseLevel } from '../level/LevelParser';
 import type { KeyPickupState } from '../entities/pickups/Key';
 import { spawnHeartPickup } from '../entities/pickups/Heart';
-import { spawnBombPickup } from '../entities/pickups/Bomb';
+import { spawnBombPickup } from '../entities/deployableItems/Bomb';
 import { MAX_HALF_HEARTS, SIDE_HIT_DAMAGE } from '../entities/Health';
 import { PHYSICS_CONFIG } from '../contracts/PhysicsConfig';
 
@@ -333,54 +331,6 @@ describe('checkPickupCollisions — heart full-health gate', () => {
     const heart = spawnHeartPickup('h1', 0, 100);
     const player = { ...makePlayer(0, 100 - RENDERED_TILE_SIZE), hitPoints: MAX_HALF_HEARTS };
     expect(ids(player, [heart])).toEqual([]);
-  });
-});
-
-describe('chestPlayerIsStandingOn', () => {
-  const closedChest: ChestState = {
-    id: 'chest-1',
-    x: 100,
-    y: 100,
-    state: 'closed',
-    fact: {
-      id: 'chest-1',
-      sectionId: 'experience',
-      sectionLabel: 'Experience',
-      data: { company: 'X', role: 'Y', startDate: '2020-01', highlights: [] },
-      sourceType: 'chest',
-    },
-  };
-
-  it('playerOverlappingClosedChest-returnsItsId', () => {
-    const player = { ...makePlayer(closedChest.x, closedChest.y) };
-    expect(chestPlayerIsStandingOn(player, [closedChest])).toBe('chest-1');
-  });
-
-  it('playerFarFromAnyChest-returnsUndefined', () => {
-    const player = { ...makePlayer(closedChest.x + 1000, closedChest.y) };
-    expect(chestPlayerIsStandingOn(player, [closedChest])).toBeUndefined();
-  });
-
-  it('alreadyOpenChest-isIgnored-evenWhileOverlapping', () => {
-    const openChestState: ChestState = { ...closedChest, state: 'open' };
-    const player = { ...makePlayer(openChestState.x, openChestState.y) };
-    expect(chestPlayerIsStandingOn(player, [openChestState])).toBeUndefined();
-  });
-
-  it('noChests-returnsUndefined', () => {
-    const player = makePlayer(0, 0);
-    expect(chestPlayerIsStandingOn(player, [])).toBeUndefined();
-  });
-
-  it('playerOverlappingOnlyTheOffsetShiftedRegion-stillReturnsItsId', () => {
-    // The closed box's x is chest.x + CHEST_CLOSED_OFFSET_X (a negative
-    // number — see entities/Chest.ts), so its left edge sits to the LEFT of
-    // chest.x. A player hitbox at x 72..96 overlaps that shifted-left sliver
-    // (box spans 93.6..138.4) but would miss a box that started at chest.x
-    // unshifted (100..144.8) entirely — this is the case a dropped offset
-    // breaks.
-    const player = makePlayer(52, closedChest.y);
-    expect(chestPlayerIsStandingOn(player, [closedChest])).toBe('chest-1');
   });
 });
 

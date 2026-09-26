@@ -96,7 +96,15 @@ Take the highest existing `X-NNN` for the chosen prefix and add 1. Format with z
 
 ### 5. Create the issue
 
-The issue body template lives in `.opencode/skills/add-feature-idea/template.md`. Copy it, replace every `{{...}}` placeholder, write the result to a temp file, then pass it with `--body-file` (reliable multi-line bodies on Windows/PowerShell):
+The issue body template lives in `.opencode/skills/add-feature-idea/template.md`. Copy it, replace every `{{...}}` placeholder, write the result to a temp file, then pass it with `--body-file` (reliable multi-line bodies on Windows/PowerShell).
+
+> [!CAUTION]
+> **Never pass a multi-line body inline via `--body`.** When PowerShell hands an
+> argument to a native executable it flattens every embedded newline to a space, so
+> `gh issue create --body "line1`nline2"` silently produces a **single-line** issue body:
+> every `##` heading stops being a heading and every bullet collapses into one
+> paragraph. This corrupted issues #96, #98, #99 and #100. `--body-file` is the only
+> supported way to create or edit an issue body.
 
 | Placeholder        | Fill with                                                                                |
 | ------------------ | ---------------------------------------------------------------------------------------- |
@@ -132,6 +140,32 @@ gh issue create --repo garcipat/cv-website `
   --label refactor --label tier:should --label area:platformer `
   --body-file "$env:TEMP\feature-body.md"
 ```
+
+### 5b. Verify the body survived
+
+Never trust the create call — read the body back and assert it still has its line
+structure. A body that came out collapsed is the single most common failure here.
+
+```powershell
+gh issue view <n> --repo garcipat/cv-website --json body --jq '.body' |
+  Set-Content "$env:TEMP\verify.md" -Encoding utf8
+```
+
+Confirm by reading `$env:TEMP\verify.md`:
+
+- The first line is exactly `## Description`.
+- Every `## ` heading (`Description`, `Dependencies`, `Details`, `References`) sits at the
+  **start of a line** — not after a stray `- `, and not trailing on a previous line.
+- Each `## Dependencies` entry is on its own line, and each `## Details` /
+  `## References` bullet is on its own line.
+- The file has more than a handful of lines; a body of 1-2 lines is collapsed.
+
+If it is collapsed, do **not** hand-fix the text. Rebuild it from the template and
+re-apply with `gh issue edit <n> --body-file <file>`.
+
+> Do not pipe `gh ... --json body` through the PowerShell console and inspect the
+> output directly: the console re-encodes UTF-8 as the OEM code page and turns
+> `→`, `—` and `§` into mojibake. Redirect to a file and read the file.
 
 ### 6. Update the Mermaid diagram in `docs/Features.md`
 
@@ -203,6 +237,11 @@ If no class line exists for that category yet, append one:
 | Dependency listed without `#number`                            | Every dependency needs `ID: Title (#number)` — the `#number` is what GitHub cross-references               |
 | Dependency listed as only `#12`                                | Add the ID and title as text too — GitHub shows only the number, the title is on hover                      |
 | Using a markdown link `[F-015](url)` as the reference           | GitHub does not track it — use the `#number` autolink syntax instead                                        |
+| Using `--body` with a multi-line string                        | PowerShell flattens newlines to spaces for native exes — the body lands as one line. Write to a temp file and use `--body-file`; if a body was already created collapsed, rebuild it and `gh issue edit <n> --body-file <file>` |
+| A `## ` heading that renders as a bullet                        | The heading got a stray `- ` prefix or lost its line start. Every `## ` heading must begin its own line |
+| Two bullets merged onto one line                                | A collapsed `\n`. Each `## Details` / `## References` bullet needs its own line |
+| Not reading the body back after creating                        | A collapsed body is silent — `gh` reports success. Read it back and check the line structure (step 5b) |
+| Reading `gh --json body` through the console                    | The console mis-decodes UTF-8 (`→` → `ÔåÆ`). Redirect to a file and read the file |
 | Adding ✅ or the `done` class to a new feature                  | New features are unimplemented — no ✅ prefix, no `done` class                                                  |
 | Diagram uses `graph TD`                                        | This project uses `graph RL` — always match the existing diagram direction                                      |
 | Creating a spec file                                           | Do **not** create `specs/feature-slug.md` — the spec is written separately after the issue exists              |

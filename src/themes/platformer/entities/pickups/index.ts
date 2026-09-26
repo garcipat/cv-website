@@ -5,7 +5,7 @@ import { coin } from './Coin';
 import { fruit } from './Fruit';
 import { key } from './Key';
 import { heart } from './Heart';
-import { bomb } from './Bomb';
+import { bomb } from '../deployableItems/Bomb';
 
 /**
  * Every pickup type in the game. Adding a pickup is one line here plus its own

@@ -31,7 +31,10 @@ import {
   MAX_BOMBS,
   carriedBombs,
   bombPickupStates,
-  placedBombs,
+  deployableItems,
+  tickDeployableItems,
+  applyDeployableItemConsequences,
+  ropeLadderPlacements,
   spawnedCoinPlacements,
   allCollectiblePlacements,
   levelTotals,
@@ -70,7 +73,7 @@ import { BLOCK_TYPES } from './entities/blocks';
 import { PHYSICS_CONFIG } from './contracts/PhysicsConfig';
 import { changeLocale, currentCV } from '@/state/locale';
 import { MAX_HALF_HEARTS } from './entities/Health';
-import { tileToPixel, RENDERED_TILE_SIZE } from './level/Terrain';
+import { tileToPixel, tileAt, RENDERED_TILE_SIZE } from './level/Terrain';
 import { startSpeechBubble } from './engine/effects';
 import type { SpeechBubbleState } from './engine/effects';
 import { hintText } from './state/hintText';
@@ -79,6 +82,7 @@ import { LEVEL_1_LAYOUT, LEVEL_1_BACKGROUND, LEVEL_1_MARKERS } from './level/lev
 import {
   SPAWN_TILE,
   currentLayout,
+  currentLevel,
   currentBackgroundLayout,
   currentMarkers,
   CRATE_TILES,
@@ -95,7 +99,7 @@ import {
   PLAYER_VISUAL_CENTER_Y_OFFSET,
   PLAYER_HIT_REACTION_SECONDS,
 } from './entities/Player';
-import { toChestState, isChestOpen } from './entities/Chest';
+import { toChestState, isChestOpen } from './entities/chests';
 import { toCheckpointState } from './entities/Checkpoint';
 import {
   advanceEffects,
@@ -123,7 +127,13 @@ import { MAX_DARKNESS, DARKNESS_FADE_SECONDS, playerOccupiedCell } from './engin
 import { checkPickupCollisions } from './engine/Collision';
 import { spawnFruit, tickFruit, FRUIT_RISE_DURATION_SECONDS } from './entities/pickups/Fruit';
 import { spawnHeartPickup } from './entities/pickups/Heart';
-import { spawnBombPickup } from './entities/pickups/Bomb';
+import { spawnBombPickup } from './entities/deployableItems/Bomb';
+import { createPlacedBomb, BOMB_FUSE_SECONDS } from './entities/deployableItems/Bomb';
+import { createRopeLadderState } from './entities/deployableItems/RopeLadder';
+import {
+  applyDeployableItemTerrain,
+  proposeDeployableItemInteraction,
+} from './entities/deployableItems';
 
 /** The live collection narrowed to one effect kind. */
 const effectsOfKind = <S,>(kind: EffectKind): readonly TransientEffect<S>[] =>
@@ -134,6 +144,29 @@ const speechBubble = (): TransientEffect<SpeechBubbleState> | undefined =>
   activeEffects.value.find(
     (effect): effect is TransientEffect<SpeechBubbleState> => effect.kind === 'speechBubble',
   );
+
+/** Opens the first live chest through the one `deployableItems` collection (the
+ *  derived `chestStates` projection is read-only). */
+function openFirstChest(): void {
+  let opened = false;
+  deployableItems.value = deployableItems.value.map((item) => {
+    if (!opened && item.kind === 'chest') {
+      opened = true;
+      return { ...item, state: 'open' as const };
+    }
+    return item;
+  });
+}
+
+/** Closes every live chest through the one `deployableItems` collection. */
+function closeAllChests(): void {
+  deployableItems.value = deployableItems.value.map((item) =>
+    item.kind === 'chest' ? { ...item, state: 'closed' as const } : item,
+  );
+}
+
+/** Every live placed bomb, filtered out of the one `deployableItems` collection. */
+const liveBombs = () => deployableItems.value.filter((item) => item.kind === 'bomb');
 
 describe('PlatformerState', () => {
   it('collectedFacts-initial-isEmpty', () => {
@@ -425,7 +458,7 @@ describe('PlatformerState', () => {
 
   describe('resetGame', () => {
     it('called-afterOpeningAChest-leavesChestOpen', () => {
-      chestStates.value = chestStates.value.map((c, i) => (i === 0 ? { ...c, state: 'open' } : c));
+      openFirstChest();
       resetGame();
       expect(isChestOpen(chestStates.value[0])).toBe(true);
     });
@@ -467,7 +500,7 @@ describe('resetGameProgress', () => {
     collectedFacts.value = [];
     baseCoinPlacements.value = baseCoinPlacements.value.map((p) => ({ ...p, collected: false }));
     activeJournalSection.value = undefined;
-    chestStates.value = chestPlacements.value.map(toChestState);
+    closeAllChests();
   });
 
   it('called-clearsCollectedFactsAndReDerivesBaseCoinsUncollected', () => {
@@ -507,7 +540,7 @@ describe('resetGameProgress', () => {
   });
 
   it('called-afterOpeningAChest-closesItAgain', () => {
-    chestStates.value = chestStates.value.map((c, i) => (i === 0 ? { ...c, state: 'open' } : c));
+    openFirstChest();
     resetGameProgress();
     expect(chestStates.value.every((c) => !isChestOpen(c))).toBe(true);
   });
@@ -721,7 +754,7 @@ describe('bomb inventory signals', () => {
   it('module-load-seedsAnEmptyInventoryAndNoBombsInTheWorld', () => {
     expect(carriedBombs.value).toBe(0);
     expect(bombPickupStates.value).toEqual([]);
-    expect(placedBombs.value).toEqual([]);
+    expect(liveBombs()).toEqual([]);
     expect(effectsOfKind<ExplosionState>('explosion')).toEqual([]);
   });
 });
@@ -733,9 +766,11 @@ describe('resetGame — bombs clear and bomb-pots restore', () => {
   });
 
   it('resetGame-clearsPlacedBombsCarriedCountAndDroppedBombPickups', () => {
-    placedBombs.value = [
+    deployableItems.value = [
+      ...deployableItems.value,
       {
         id: 'bomb-1',
+        kind: 'bomb',
         x: 0,
         y: 0,
         vy: 0,
@@ -751,7 +786,7 @@ describe('resetGame — bombs clear and bomb-pots restore', () => {
 
     resetGame();
 
-    expect(placedBombs.value).toEqual([]);
+    expect(liveBombs()).toEqual([]);
     expect(carriedBombs.value).toBe(0);
     expect(bombPickupStates.value).toEqual([]);
   });
@@ -1947,5 +1982,132 @@ describe('R-006 generic eligibility gates (FR-002)', () => {
       { playerHitPoints: MAX_HALF_HEARTS, capacity: 1 },
     );
     expect(hits.map((h) => h.state.id)).toEqual(['b1']);
+  });
+});
+
+describe('deployableItems — one collection, one tick, one consequence pass', () => {
+  function makeChestState(id = 'chest-test-1', x = 0, y = 0) {
+    return toChestState({
+      id,
+      col: 0,
+      row: 0,
+      x,
+      y,
+      fact: {
+        id,
+        sectionId: 'experience',
+        sectionLabel: 'Experience',
+        data: { company: 'X', role: 'Y', startDate: '2020-01', highlights: [] },
+        sourceType: 'chest',
+      },
+    });
+  }
+
+  const seed = () => {
+    deployableItems.value = [
+      ...ropeLadderPlacements.value.map((state) => ({ ...state })),
+      ...chestPlacements.value.map(toChestState),
+    ];
+  };
+
+  beforeEach(seed);
+  afterEach(() => {
+    seed();
+    activeEffects.value = [];
+  });
+
+  it('activeLevel-isIdenticalToCurrentLevelWhenNothingIsDeployed', () => {
+    // The seed's ladder bundles are all `rolled`, so nothing contributes.
+    expect(activeLevel.value).toBe(currentLevel.value);
+  });
+
+  it('tickDeployableItems-advancesEveryEntryThroughItsOwnStepAndLeavesAStepLessChestAlone', () => {
+    const ladder = { ...createRopeLadderState(currentLevel.value, 0, 0), phase: 'deploying' as const, elapsed: 0 };
+    const chest = makeChestState();
+    deployableItems.value = [ladder, chest];
+
+    tickDeployableItems(0.2);
+
+    const steppedLadder = deployableItems.value.find((item) => item.id === ladder.id);
+    expect(steppedLadder?.kind).toBe('ladder');
+    if (steppedLadder?.kind === 'ladder') expect(steppedLadder.elapsed).toBeCloseTo(0.2, 5);
+    expect(deployableItems.value.find((item) => item.id === chest.id)).toBe(chest);
+  });
+
+  it('applyDeployableItemConsequences-removesADetonatedBombAndReturnsItsBlast', () => {
+    const bomb = { ...createPlacedBomb('bomb-0-0-0', currentLevel.value, [], 0, 0), fuseElapsed: BOMB_FUSE_SECONDS };
+    const chest = makeChestState();
+    deployableItems.value = [bomb, chest];
+
+    const blasts = applyDeployableItemConsequences();
+
+    expect(blasts).toHaveLength(1);
+    expect(blasts[0].effectId).toBe('bomb-0-0-0');
+    expect(liveBombs()).toEqual([]);
+    expect(deployableItems.value.find((item) => item.id === chest.id)).toBe(chest);
+  });
+
+  it('applyDeployableItemConsequences-emptyCollection-allocatesNothing', () => {
+    deployableItems.value = [];
+    expect(applyDeployableItemConsequences()).toEqual([]);
+    expect(deployableItems.value).toEqual([]);
+  });
+
+  it('applyDeployableItemTerrain-foldsDeployedLadderCellsIntoANewLevel', () => {
+    const level = currentLevel.value;
+    const deployed = { ...createRopeLadderState(level, 0, 0), phase: 'deployed' as const };
+    const effective = applyDeployableItemTerrain(level, [deployed]);
+    expect(effective).not.toBe(level);
+    expect(tileAt(effective, deployed.col, deployed.row)).toBe('ropeLadder');
+    // The source level is untouched.
+    expect(tileAt(level, deployed.col, deployed.row)).not.toBe('ropeLadder');
+  });
+
+  it('proposeDeployableItemInteraction-runsTheSharedDispatchThroughTheStateCollection', () => {
+    const level = currentLevel.value;
+    const player = { ...playerStateAtTile(0, 0), grounded: true };
+    const chest = makeChestState('chest-under-player', player.x, player.y);
+    deployableItems.value = [chest];
+
+    expect(proposeDeployableItemInteraction(deployableItems.value, { level, player, keys: 0 })).toEqual({
+      hint: 'noKeyForChest',
+    });
+    expect(
+      proposeDeployableItemInteraction(deployableItems.value, { level, player, keys: 1 }).activate?.id,
+    ).toBe('chest-under-player');
+  });
+
+  it('resetGame-keepsADeployedLadderButDropsEveryBombWithoutExplodingIt', () => {
+    const ladder = { ...createRopeLadderState(currentLevel.value, 0, 0), phase: 'deployed' as const };
+    const bomb = {
+      ...createPlacedBomb('bomb-keep-check', currentLevel.value, [], 0, 0),
+      fuseElapsed: BOMB_FUSE_SECONDS,
+    };
+    deployableItems.value = [ladder, bomb];
+
+    resetGame();
+
+    expect(deployableItems.value.some((item) => item.id === ladder.id && item.kind === 'ladder')).toBe(true);
+    expect(liveBombs()).toEqual([]);
+    // The dropped bomb is never exploded on a death/respawn.
+    expect(effectsOfKind<ExplosionState>('explosion')).toEqual([]);
+  });
+
+  it('resetGameProgress-rebuildsLaddersRolledAndChestsClosedAndDropsAnyBomb', () => {
+    const deployedLadder = {
+      ...createRopeLadderState(currentLevel.value, 0, 0),
+      phase: 'deployed' as const,
+    };
+    const bomb = createPlacedBomb('bomb-progress-check', currentLevel.value, [], 0, 0);
+    const chest = makeChestState('chest-progress-check');
+    deployableItems.value = [deployedLadder, bomb, { ...chest, state: 'open' as const }];
+
+    resetGameProgress();
+
+    expect(liveBombs()).toEqual([]);
+    expect(chestStates.value.every((chestState) => chestState.state === 'closed')).toBe(true);
+    expect(deployableItems.value.every((item) => item.kind !== 'ladder' || item.phase === 'rolled')).toBe(
+      true,
+    );
   });
 });

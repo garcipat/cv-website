@@ -26,10 +26,6 @@ import {
   stalactiteEntry,
   stalagmiteEntry,
   chainRunPieces,
-  ROPE_BUNDLE,
-  ROPE_STEP,
-  ROPE_BOTTOM_CAP,
-  ropeLadderShaftPieces,
   COBWEB_CORNER_ENTRY,
   COBWEB_FLAT_ENTRY,
 } from './StaticObjectsCatalog';
@@ -41,12 +37,6 @@ import {
   mushroomSquashDipAt,
 } from '../entities/blocks/Mushroom';
 import type { MushroomSquashState } from '../entities/blocks/Mushroom';
-import {
-  revealedStepCount,
-  shaftCellCount,
-  LADDER_STEP_NATIVE_PX,
-} from './DeployableLadder';
-import type { DeployableLadderState } from './DeployableLadder';
 import { isFogExempt } from '../level/LevelData';
 import type { LevelDef, TileType } from '../level/LevelData';
 import type { SignPlacement } from '../level/SignMapper';
@@ -82,9 +72,12 @@ import type { PotRenderPlan } from '../entities/blocks/potTypes';
 import { KEY_FRAME_WIDTH, KEY_FRAME_HEIGHT } from '../entities/pickups/Key';
 import type { BlockState } from '../entities/Block';
 import { BLOCK_TYPES } from '../entities/blocks';
-import { CHEST_TYPE } from '../entities/chests';
-import { CHEST_CLOSED_WIDTH, CHEST_CLOSED_HEIGHT } from '../entities/Chest';
-import type { ChestState } from '../entities/Chest';
+import { CHEST_CLOSED_WIDTH, CHEST_CLOSED_HEIGHT } from '../entities/chests';
+import { DEPLOYABLE_ITEM_TYPES } from '../entities/deployableItems';
+import type {
+  DeployableItemDrawLayer,
+  DeployableItemState,
+} from '../entities/deployableItems/DeployableItemType';
 import {
   CHECKPOINT_FLAG_SHEET,
   CHECKPOINT_FRAME_WIDTH,
@@ -105,8 +98,6 @@ import { TORCH_SHEET, BOMB_SHEET, CRUMBLE_FLOOR_SHEET, CRUMBLE_CRACKS_SHEET } fr
   crumblingFloorElapsedFor,
 } from './CrumblingFloor';
 import type { CrumblingFloorTimerState } from './CrumblingFloor';
-import { bombFuseFrame } from './PlacedBomb';
-import type { PlacedBombState } from './PlacedBomb';
 import {
   TORCH_FRAME_WIDTH,
   TORCH_FRAME_HEIGHT,
@@ -177,9 +168,10 @@ function tileSource(
       return null;
     case 'ladderBundle':
     case 'ropeLadder':
-      // Drawn by drawDeployableLadders (the rolled bundle parcel, and the
-      // deployed shaft's cap/step pieces), which needs the bundle's runtime
-      // state — not a static sx/sy lookup, so there is nothing to return here.
+      // Drawn by the rope-ladder kind's own `draw` (the rolled bundle parcel,
+      // and the deployed shaft's cap/step pieces), which needs the bundle's
+      // runtime state — not a static sx/sy lookup, so there is nothing to
+      // return here.
       return null;
     case 'bouncyMushroom':
     case 'decorativeMushroom':
@@ -835,79 +827,23 @@ export function drawTerrain(
 }
 
 /**
- * Draws every deployable rope-ladder bundle and its deployed shaft — the one
- * pass that maps bundle state to canvas coordinates (same `originX`/`originY`
- * convention as `drawTerrain`), so the rope scrolls with the camera. Runs
- * immediately after `drawTerrain` so it sits over the terrain it was placed on.
- *
- * Returns immediately when the sheet is not loaded (the same optional-sheet
- * fallback every other decorative pass uses). A `rolled`/`deploying` bundle
- * draws the rolled parcel plus the steps revealed so far (a fixed ~0.5 s
- * reveal measured in 8 px steps — see `revealedStepCount`); a `deployed`
- * bundle draws the full completed shaft as one stack of cap/step pieces. The
- * bundle cell itself is always the shaft's top rung.
- *
- * `level` is accepted for signature parity with `drawTerrain` and reserved for
- * future neighbour-aware art; the state already carries everything the draw
- * needs (column, row, landing row), so it is not read here.
+ * Draws every live deployable item whose kind's `drawLayer` matches `layer`
+ * (or every entry when `layer` is omitted), delegating to each kind's own
+ * `draw`. Replaces the shipped `drawPlacedBombs`/`drawDeployableLadders`/
+ * `drawChests` passes: the page calls it once per band, so no call site names a
+ * deployable-item kind and a new kind needs no edit here.
  */
-export function drawDeployableLadders(
+export function drawDeployableItems(
   ctx: CanvasRenderingContext2D,
-  _level: LevelDef,
-  states: readonly DeployableLadderState[],
-  ropeSheet: HTMLImageElement | null,
-  originX = 0,
-  originY = 0,
+  items: readonly DeployableItemState[],
+  dc: DrawContext,
+  layer?: DeployableItemDrawLayer,
 ): void {
-  if (!ropeSheet) return;
   ctx.imageSmoothingEnabled = false;
-
-  for (const state of states) {
-    const destX = state.col * RENDERED_TILE_SIZE + originX;
-    const destY = state.row * RENDERED_TILE_SIZE + originY;
-
-    if (state.phase === 'deployed') {
-      // Once complete, the bundle cell becomes the shaft's top rung: the top
-      // cap plus a plain step fill it, and the steps below sit at exactly the
-      // same rows the unroll had revealed them at, so nothing shifts.
-      const pieces = ropeLadderShaftPieces(shaftCellCount(state));
-      let drawY = destY;
-      for (const piece of pieces) {
-        ctx.drawImage(
-          ropeSheet,
-          piece.sx, piece.sy, piece.width, piece.height,
-          destX, drawY, piece.width * RENDER_SCALE, piece.height * RENDER_SCALE,
-        );
-        drawY += piece.height * RENDER_SCALE;
-      }
-      continue;
-    }
-
-    // rolled / deploying: the rolled parcel in its cell, then the steps
-    // revealed so far, starting at the bundle cell's bottom edge and clamped
-    // so no step spills past the landing cell's bottom. The bottom-most
-    // revealed step is the ladder's end (the knotted bottom cap), so it lands
-    // in the same place the completed shaft's bottom cap will.
-    ctx.drawImage(
-      ropeSheet,
-      ROPE_BUNDLE.sx, ROPE_BUNDLE.sy, ROPE_BUNDLE.width, ROPE_BUNDLE.height,
-      destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
-    );
-
-    const stepHeight = LADDER_STEP_NATIVE_PX * RENDER_SCALE;
-    const shaftBottomY = (state.landRow + 1) * RENDERED_TILE_SIZE + originY;
-    let drawY = destY + RENDERED_TILE_SIZE;
-    let remaining = revealedStepCount(state);
-    while (remaining > 0 && drawY + stepHeight <= shaftBottomY) {
-      const piece = remaining === 1 ? ROPE_BOTTOM_CAP : ROPE_STEP;
-      ctx.drawImage(
-        ropeSheet,
-        piece.sx, piece.sy, piece.width, piece.height,
-        destX, drawY, piece.width * RENDER_SCALE, piece.height * RENDER_SCALE,
-      );
-      drawY += stepHeight;
-      remaining -= 1;
-    }
+  for (const item of items) {
+    const type = DEPLOYABLE_ITEM_TYPES[item.kind];
+    if (layer !== undefined && type.drawLayer !== layer) continue;
+    type.draw(item, dc);
   }
 }
 
@@ -915,7 +851,7 @@ export function drawDeployableLadders(
  * Draws every crumbling floor tile (O-023) at its current cycle phase —
  * exempted from `drawTerrain`/`tileSource` (see that function's
  * `'crumblingFloor'` case) because it needs per-cell timer state, the same
- * reason `drawDeployableLadders` is its own pass. Takes the whole
+ * reason the rope-ladder kind's own `draw` is its own pass. Takes the whole
  * `DrawContext` (like `drawHazards`/`drawBlocks`) rather than raw image
  * refs, since it reads two sprites out of `dc.sprites` by source path.
  *
@@ -1538,58 +1474,6 @@ export function drawBlocks(
   ctx.imageSmoothingEnabled = false;
   for (const block of blocks) {
     BLOCK_TYPES[block.blockKind].draw(block, dc);
-  }
-}
-
-/**
- * Draws every live placed bomb at its fuse frame (see `bombFuseFrame`),
- * scaled about its tile centre — the orange pre-detonation frame is drawn
- * slightly larger (FR-017). A still-falling bomb is drawn at its current `y`.
- * Frame 0 (the unlit icon) is never drawn on a placed bomb.
- */
-export function drawPlacedBombs(
-  ctx: CanvasRenderingContext2D,
-  bombs: readonly PlacedBombState[],
-  dc: DrawContext,
-): void {
-  ctx.imageSmoothingEnabled = false;
-  const image = dc.sprites[BOMB_SHEET.src];
-  if (!image) return;
-
-  for (const placed of bombs) {
-    const { frame, scale } = bombFuseFrame(placed.fuseElapsed);
-    const { sx, sy } = frameSource(BOMB_SHEET, frame);
-    const centerX = placed.x + RENDERED_TILE_SIZE / 2 + dc.originX;
-    const centerY = placed.y + RENDERED_TILE_SIZE / 2 + dc.originY;
-
-    ctx.save();
-    ctx.translate(centerX, centerY);
-    ctx.scale(scale, scale);
-    ctx.drawImage(
-      image,
-      sx,
-      sy,
-      BOMB_SHEET.frameWidth,
-      BOMB_SHEET.frameHeight,
-      -RENDERED_TILE_SIZE / 2,
-      -RENDERED_TILE_SIZE / 2,
-      RENDERED_TILE_SIZE,
-      RENDERED_TILE_SIZE,
-    );
-    ctx.restore();
-  }
-}
-
-/** Draws every chest at its current open/closed sprite — each one renders
- *  itself (see entities/chests/Chest.ts). */
-export function drawChests(
-  ctx: CanvasRenderingContext2D,
-  chests: readonly ChestState[],
-  dc: DrawContext,
-): void {
-  ctx.imageSmoothingEnabled = false;
-  for (const chest of chests) {
-    CHEST_TYPE.draw(chest, dc);
   }
 }
 

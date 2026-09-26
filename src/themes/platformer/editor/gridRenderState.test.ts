@@ -6,6 +6,7 @@ import {
   synthesizeEnemyStates,
   synthesizeBlockStates,
   synthesizeChestStates,
+  synthesizeRopeLadderBundleStates,
   synthesizeSignPlacements,
   synthesizeHazardPlacements,
   synthesizeCheckpointStates,
@@ -130,6 +131,28 @@ describe('synthesizeChestStates', () => {
     const chests = synthesizeChestStates(grid);
     expect(chests).toHaveLength(1);
     expect(chests[0].state).toBe('closed');
+  });
+
+  it('synthesizedStates-carryKindAndTheirGridColRow', () => {
+    const { x, y } = tileToPixel(1, 0);
+    expect(synthesizeChestStates([['.', '$']])).toEqual([
+      expect.objectContaining({ kind: 'chest', col: 1, row: 0, x, y }),
+    ]);
+  });
+});
+
+describe('synthesizeRopeLadderBundleStates', () => {
+  it('returns one rolled ladder placeholder per "@" marker', () => {
+    const states = synthesizeRopeLadderBundleStates([['@', 'G']]);
+    expect(states).toHaveLength(1);
+    expect(states[0].phase).toBe('rolled');
+  });
+
+  it('synthesizedStates-carryKindAndTheirGridColRow', () => {
+    const { x, y } = tileToPixel(1, 0);
+    expect(synthesizeRopeLadderBundleStates([['.', '@']])).toEqual([
+      expect.objectContaining({ kind: 'ladder', col: 1, row: 0, x, y }),
+    ]);
   });
 });
 

@@ -8,9 +8,6 @@ import {
 import type { PlayerState } from '../entities/Player';
 import type { EnemyState } from '../entities/Enemy';
 import { typeOf } from '../entities/enemies';
-import { isChestOpen } from '../entities/Chest';
-import type { ChestState } from '../entities/Chest';
-import { CHEST_TYPE } from '../entities/chests';
 import { signBox } from '../level/SignMapper';
 import type { SignPlacement } from '../level/SignMapper';
 import { typeOf as hazardTypeOf } from '../entities/hazards';
@@ -225,26 +222,6 @@ export function resolveEnemyContacts(
     knockbackDirection,
     damagedEnemyIds,
   };
-}
-
-/**
- * Returns the id of the first closed chest the player's hitbox currently
- * overlaps, or `undefined` if none — spec.md FR-023: unlike every other
- * collectible, a chest does NOT open on touch; the caller (PlatformerPage.tsx)
- * only opens it once this returns an id AND the visitor has pressed Arrow Up
- * this tick. Only a chest's CLOSED footprint is checked (its open sprite is a
- * different size and the chest is un-openable again anyway, so an open
- * chest's box is irrelevant here) — mirrors the pickups' single-box-per-item
- * convention. The box comes from `CHEST_TYPE.box`,
- * which shifts its x by CHEST_CLOSED_OFFSET_X (see entities/Chest.ts) so it
- * matches exactly where the closed chest is drawn (centered on its tile,
- * not left-aligned to the tile's top-left corner).
- */
-export function chestPlayerIsStandingOn(
-  player: PlayerState,
-  chests: readonly ChestState[],
-): string | undefined {
-  return overlappingTriggers(player, chests, CHEST_TYPE.box, (c) => !isChestOpen(c))[0]?.id;
 }
 
 /**

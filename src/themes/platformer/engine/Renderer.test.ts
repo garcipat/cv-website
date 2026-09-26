@@ -5,13 +5,12 @@ import {
   drawPickups,
   drawEnemies,
   drawBlocks,
-  drawChests,
+  drawDeployableItems,
   drawCollectibleCounter,
   drawChestCounter,
   drawIrisOverlay,
   drawRestartPrompt,
   drawSigns,
-  drawPlacedBombs,
   drawHazards,
   drawKeyCounter,
   drawBombCounter,
@@ -74,16 +73,10 @@ import {
   BOMB_PICKUP_RENDERED_SIZE,
   BOMB_PICKUP_TILE_OFFSET_X,
   BOMB_PICKUP_TILE_OFFSET_Y,
-} from '../entities/pickups/Bomb';
-import type { BombPickupState } from '../entities/pickups/Bomb';
-import {
-  bombFuseFrame,
-  BOMB_FUSE_SECONDS,
-  BOMB_FUSE_SEQUENCE,
-  BOMB_PULSE_SCALE,
-} from './PlacedBomb';
-import type { PlacedBombState } from './PlacedBomb';
-import { frameSource } from '../entities/sprites/SpriteSheet';
+  bombDeployableItem,
+} from '../entities/deployableItems/Bomb';
+import type { BombPickupState } from '../entities/deployableItems/Bomb';
+import { createRopeLadderState } from '../entities/deployableItems/RopeLadder';
 import {
   SLIME_GREEN_SHEET,
   SLIME_PURPLE_SHEET,
@@ -97,6 +90,7 @@ import {
   BOMB_SHEET,
   EXPLOSION_SHEET,
   DECORATIONS_SHEET,
+  ROPE_LADDER_SHEET,
 } from '../entities/sprites/sheets';
 import { isStalactiteTwin, stalactiteEntry } from './StaticObjectsCatalog';
 import { computePotRenderPlan } from '../entities/blocks/potRenderPlan';
@@ -125,17 +119,9 @@ import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import {
   CHEST_CLOSED_WIDTH,
   CHEST_CLOSED_HEIGHT,
-  CHEST_OPEN_WIDTH,
-  CHEST_OPEN_HEIGHT,
-  CHEST_CLOSED_RENDERED_WIDTH,
-  CHEST_CLOSED_RENDERED_HEIGHT,
-  CHEST_OPEN_RENDERED_WIDTH,
-  CHEST_OPEN_RENDERED_HEIGHT,
-  CHEST_CLOSED_OFFSET_X,
-  CHEST_OPEN_OFFSET_X,
-} from '../entities/Chest';
-import { toChestState, openChest } from '../entities/Chest';
-import type { ChestState } from '../entities/Chest';
+} from '../entities/chests';
+import { toChestState } from '../entities/chests';
+import type { ChestState } from '../entities/chests';
 import type { ChestPlacement } from '../level/ChestMapper';
 import { CHEST_CLOSED_SHEET, CHEST_OPEN_SHEET, SPEAR_SHEET } from '../entities/sprites/sheets';
 import { spike } from '../entities/hazards/Spike';
@@ -200,9 +186,11 @@ function makeBlockPlacement(
   return { id, blockKind, x, y };
 }
 
-function makeChestPlacement(id = 'c1', x = 10, y = 20): ChestPlacement {
+function makeChestPlacement(id = 'c1', x = 10, y = 20, col = 0, row = 0): ChestPlacement {
   return {
     id,
+    col,
+    row,
     x,
     y,
     fact: {
@@ -314,6 +302,7 @@ function makeDrawContext(
       [STATIC_OBJECTS_SHEET.src]: { tag: 'staticObjects' } as unknown as HTMLImageElement,
       [BOMB_SHEET.src]: { tag: 'bomb' } as unknown as HTMLImageElement,
       [EXPLOSION_SHEET.src]: { tag: 'explosion' } as unknown as HTMLImageElement,
+      [ROPE_LADDER_SHEET.src]: { tag: 'ropeLadder' } as unknown as HTMLImageElement,
     },
     originX: 0,
     originY: 0,
@@ -693,73 +682,75 @@ describe('drawBlocks with a pot render plan', () => {
   });
 });
 
-describe('drawChests', () => {
-  it('closedChest-drawsFromClosedSprite-atNativeSize', () => {
+describe('drawDeployableItems', () => {
+  const level = parseLevel(['@', 'G']);
+  const ladder = createRopeLadderState(level, 0, 0);
+  const bomb = bombDeployableItem.spawn({
+    id: 'bomb-0-0-0',
+    col: 0,
+    row: 0,
+    x: 0,
+    y: 0,
+    level,
+    blocks: [],
+    crumblingFloorStates: [],
+  });
+  const chest: ChestState = toChestState(makeChestPlacement());
+
+  it('terrainLayer-drawsOnlyTheLadder', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
-    const chest: ChestState = toChestState(makeChestPlacement());
 
-    drawChests(ctx as unknown as CanvasRenderingContext2D, [chest], dc);
+    drawDeployableItems(ctx as unknown as CanvasRenderingContext2D, [ladder, bomb, chest], dc, 'terrain');
 
-    expect(ctx.drawImage).toHaveBeenCalledWith(
-      dc.sprites[CHEST_CLOSED_SHEET.src],
-      0,
-      0,
-      CHEST_CLOSED_WIDTH,
-      CHEST_CLOSED_HEIGHT,
-      10 + CHEST_CLOSED_OFFSET_X,
-      20,
-      CHEST_CLOSED_RENDERED_WIDTH,
-      CHEST_CLOSED_RENDERED_HEIGHT,
-    );
+    expect(drawImageCallsFor(ctx, dc.sprites[ROPE_LADDER_SHEET.src]).length).toBeGreaterThan(0);
+    expect(drawImageCallsFor(ctx, dc.sprites[BOMB_SHEET.src])).toHaveLength(0);
+    expect(drawImageCallsFor(ctx, dc.sprites[CHEST_CLOSED_SHEET.src])).toHaveLength(0);
   });
 
-  it('openChest-drawsFromOpenSprite-atItsOwnNativeSize', () => {
+  it('afterBlocksLayer-drawsOnlyTheBomb', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
-    const chest: ChestState = openChest(toChestState(makeChestPlacement()));
 
-    drawChests(ctx as unknown as CanvasRenderingContext2D, [chest], dc);
+    drawDeployableItems(ctx as unknown as CanvasRenderingContext2D, [ladder, bomb, chest], dc, 'afterBlocks');
 
-    expect(ctx.drawImage).toHaveBeenCalledWith(
-      dc.sprites[CHEST_OPEN_SHEET.src],
-      0,
-      0,
-      CHEST_OPEN_WIDTH,
-      CHEST_OPEN_HEIGHT,
-      10 + CHEST_OPEN_OFFSET_X,
-      20,
-      CHEST_OPEN_RENDERED_WIDTH,
-      CHEST_OPEN_RENDERED_HEIGHT,
-    );
+    expect(drawImageCallsFor(ctx, dc.sprites[BOMB_SHEET.src]).length).toBeGreaterThan(0);
+    expect(drawImageCallsFor(ctx, dc.sprites[ROPE_LADDER_SHEET.src])).toHaveLength(0);
+    expect(drawImageCallsFor(ctx, dc.sprites[CHEST_CLOSED_SHEET.src])).toHaveLength(0);
   });
 
-  it('missingSpriteForCurrentState-skipsThatChest-noThrow', () => {
+  it('afterCrumblingFloorsLayer-drawsOnlyTheChest', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D, {
-      sprites: { [CHEST_CLOSED_SHEET.src]: null, [CHEST_OPEN_SHEET.src]: null },
-    });
-    const chest: ChestState = toChestState(makeChestPlacement());
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
 
-    expect(() => drawChests(ctx as unknown as CanvasRenderingContext2D, [chest], dc)).not.toThrow();
+    drawDeployableItems(
+      ctx as unknown as CanvasRenderingContext2D,
+      [ladder, bomb, chest],
+      dc,
+      'afterCrumblingFloors',
+    );
+
+    expect(drawImageCallsFor(ctx, dc.sprites[CHEST_CLOSED_SHEET.src])).toHaveLength(1);
+    expect(drawImageCallsFor(ctx, dc.sprites[BOMB_SHEET.src])).toHaveLength(0);
+    expect(drawImageCallsFor(ctx, dc.sprites[ROPE_LADDER_SHEET.src])).toHaveLength(0);
+  });
+
+  it('omittedLayer-drawsEveryEntryThroughItsOwnDraw', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
+
+    drawDeployableItems(ctx as unknown as CanvasRenderingContext2D, [ladder, bomb, chest], dc);
+
+    expect(drawImageCallsFor(ctx, dc.sprites[ROPE_LADDER_SHEET.src]).length).toBeGreaterThan(0);
+    expect(drawImageCallsFor(ctx, dc.sprites[BOMB_SHEET.src]).length).toBeGreaterThan(0);
+    expect(drawImageCallsFor(ctx, dc.sprites[CHEST_CLOSED_SHEET.src])).toHaveLength(1);
+  });
+
+  it('noItems-drawsNothing', () => {
+    const ctx = makeMockContext();
+    const dc = makeDrawContext(ctx);
+    drawDeployableItems(ctx, [], dc);
     expect(ctx.drawImage).not.toHaveBeenCalled();
-  });
-});
-
-describe('chest drawing delegates to the type module', () => {
-  it('closedChest-drawsFromTheClosedSheet', () => {
-    const ctx = makeMockContext();
-    const dc = makeDrawContext(ctx);
-    drawChests(ctx, [toChestState(makeChestPlacement())], dc);
-    expect(drawImageCallsFor(ctx as unknown as { drawImage: ReturnType<typeof vi.fn> }, dc.sprites[CHEST_CLOSED_SHEET.src])).toHaveLength(1);
-    expect(drawImageCallsFor(ctx as unknown as { drawImage: ReturnType<typeof vi.fn> }, dc.sprites[CHEST_OPEN_SHEET.src])).toHaveLength(0);
-  });
-
-  it('openChest-drawsFromTheOpenSheet', () => {
-    const ctx = makeMockContext();
-    const dc = makeDrawContext(ctx);
-    drawChests(ctx, [openChest(toChestState(makeChestPlacement()))], dc);
-    expect(drawImageCallsFor(ctx as unknown as { drawImage: ReturnType<typeof vi.fn> }, dc.sprites[CHEST_OPEN_SHEET.src])).toHaveLength(1);
   });
 });
 
@@ -2503,86 +2494,6 @@ describe('drawPickups — bomb band', () => {
     expect(ctx.drawImage).not.toHaveBeenCalled();
   });
 });
-
-describe('drawPlacedBombs', () => {
-  const baseBomb: PlacedBombState = {
-    id: 'bomb-1',
-    x: 64,
-    y: 32,
-    vy: 0,
-    col: 2,
-    row: 1,
-    landingRow: 1,
-    fuseElapsed: 0,
-    landed: true,
-  };
-
-  it('drawsTheFuseFrameForItsElapsedTime', () => {
-    const ctx = makeMockContext();
-    const dc = makeDrawContext(ctx, { worldElapsed: 0 });
-
-    drawPlacedBombs(ctx, [baseBomb], dc);
-
-    const { sx, sy } = frameSource(BOMB_SHEET, bombFuseFrame(0).frame);
-    expect(ctx.drawImage).toHaveBeenCalledWith(
-      dc.sprites[BOMB_SHEET.src],
-      sx,
-      sy,
-      BOMB_SHEET.frameWidth,
-      BOMB_SHEET.frameHeight,
-      expect.any(Number),
-      expect.any(Number),
-      RENDERED_TILE_SIZE,
-      RENDERED_TILE_SIZE,
-    );
-  });
-
-  it('acrossTheWholeFuse-neverDrawsTheUnlitFrame', () => {
-    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D, { worldElapsed: 0 });
-    const unlit = frameSource(BOMB_SHEET, 0);
-    const frames: number[] = [];
-
-    for (let i = 0; i < BOMB_FUSE_SEQUENCE.length; i++) {
-      const fuseElapsed = ((i + 0.5) * BOMB_FUSE_SECONDS) / BOMB_FUSE_SEQUENCE.length;
-      drawPlacedBombs(ctx as unknown as CanvasRenderingContext2D, [{ ...baseBomb, fuseElapsed }], dc);
-      frames.push(bombFuseFrame(fuseElapsed).frame);
-    }
-
-    expect(frames).not.toContain(0);
-    for (const call of ctx.drawImage.mock.calls) {
-      expect([call[1], call[2]]).not.toEqual([unlit.sx, unlit.sy]);
-    }
-  });
-
-  it('theOrangeFrame-isScaledUpAboutTheTileCentre', () => {
-    const ctx = makeMockContext() as unknown as {
-      scale: ReturnType<typeof vi.fn>;
-    };
-    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D, { worldElapsed: 0 });
-
-    drawPlacedBombs(
-      ctx as unknown as CanvasRenderingContext2D,
-      [{ ...baseBomb, fuseElapsed: BOMB_FUSE_SECONDS * 0.999 }],
-      dc,
-    );
-
-    expect(ctx.scale).toHaveBeenCalledWith(BOMB_PULSE_SCALE, BOMB_PULSE_SCALE);
-  });
-
-  it('aFallingBomb-isDrawnAtItsCurrentY', () => {
-    const ctx = makeMockContext() as unknown as { translate: ReturnType<typeof vi.fn> };
-    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D, { worldElapsed: 0 });
-
-    drawPlacedBombs(ctx as unknown as CanvasRenderingContext2D, [{ ...baseBomb, y: 96 }], dc);
-
-    expect(ctx.translate).toHaveBeenCalledWith(
-      64 + RENDERED_TILE_SIZE / 2,
-      96 + RENDERED_TILE_SIZE / 2,
-    );
-  });
-});
-
 
 describe('drawBombCounter', () => {
   it('drawsTheUnlitBombIconAndTheCountWithNoDenominator', () => {

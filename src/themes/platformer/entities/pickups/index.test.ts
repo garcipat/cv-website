@@ -8,7 +8,7 @@ import {
   BOMB_PICKUP_RENDERED_SIZE,
   BOMB_PICKUP_TILE_OFFSET_X,
   BOMB_PICKUP_TILE_OFFSET_Y,
-} from './Bomb';
+} from '../deployableItems/Bomb';
 import { spawnFruit, FRUIT_RISE_DURATION_SECONDS, fruitY, tickFruit } from './Fruit';
 import type { FruitState } from './Fruit';
 import type { CollectiblePlacement } from '../../level/CollectibleMapper';

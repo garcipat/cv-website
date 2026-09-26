@@ -43,7 +43,7 @@ import {
   MAX_BOMBS,
   carriedBombs,
   bombPickupStates,
-  placedBombs,
+  deployableItems,
   resetGame,
   resetGameProgress,
   levelTotals,
@@ -77,10 +77,11 @@ import type {
   TransientEffect,
 } from './engine/effects';
 import type { CounterPopupLabelKey } from './contracts/counters';
-import { createPlacedBomb, BOMB_FUSE_SECONDS } from './engine/PlacedBomb';
+import { createPlacedBomb, BOMB_FUSE_SECONDS } from './entities/deployableItems/Bomb';
+import type { PlacedBombState } from './entities/deployableItems/Bomb';
 import { toCheckpointState } from './entities/Checkpoint';
 import { initialCameraX } from './engine/Camera';
-import { toChestState, isChestOpen } from './entities/Chest';
+import { toChestState, isChestOpen } from './entities/chests';
 import { PICKUP_TYPES } from './entities/pickups';
 import type { KeyPickupState } from './entities/pickups/Key';
 import {
@@ -142,6 +143,39 @@ const counterPopups = (): readonly TransientEffect<CounterPopupState>[] =>
 /** The single live speech bubble (R-005), kind-filtered from the collection. */
 const speechBubble = (): TransientEffect<SpeechBubbleState> | undefined =>
   effectsOfKind<SpeechBubbleState>('speechBubble')[0];
+
+/**
+ * Test-local adapter over the one `deployableItems` collection so the
+ * placed-bomb scenarios keep reading/writing a bomb array (R-008 merged the
+ * old `placedBombs` store into `deployableItems`). The bomb subset keeps its
+ * array-order position after any ladders/chests already seeded.
+ */
+const placedBombs: { value: PlacedBombState[] } = {
+  get value() {
+    return deployableItems.value.filter((item): item is PlacedBombState => item.kind === 'bomb');
+  },
+  set value(next: PlacedBombState[]) {
+    deployableItems.value = [
+      ...deployableItems.value.filter((item) => item.kind !== 'bomb'),
+      ...next,
+    ];
+  },
+};
+
+/** Closes every live chest through the one `deployableItems` collection (the
+ *  derived `chestStates` projection is read-only). */
+function resetChestsClosed(): void {
+  deployableItems.value = deployableItems.value.map((item) =>
+    item.kind === 'chest' ? { ...item, state: 'closed' as const } : item,
+  );
+}
+
+/** Opens one chest by id through the one `deployableItems` collection. */
+function openChestById(chestId: string): void {
+  deployableItems.value = deployableItems.value.map((item) =>
+    item.id === chestId && item.kind === 'chest' ? { ...item, state: 'open' as const } : item,
+  );
+}
 
 /** Every `drawImage` call whose source is the ambient cloud sheet (O-022). */
 const ambientCloudDraws = (ctx: { drawImage: ReturnType<typeof vi.fn> }) =>
@@ -373,7 +407,7 @@ describe('PlatformerPage', () => {
     // Module-level signal like the others above — an open-chest mutation
     // from one test must not leak into the next test's assumption that
     // every chest starts closed.
-    chestStates.value = chestPlacements.value.map(toChestState);
+    resetChestsClosed();
     // Module-level one-shot latch (see PlatformerState.ts's doc comment) —
     // must be reset too, or a test that triggers the ending screen would
     // leave later tests unable to ever see it triggered again.
@@ -6028,7 +6062,7 @@ describe('PlatformerPage', () => {
       ];
       collectedKeys.value = 2;
       const chestId = chestPlacements.value[0]!.id;
-      chestStates.value = chestStates.value.map((c) => (c.id === chestId ? { ...c, state: 'open' } : c));
+      openChestById(chestId);
 
       playerState.value = { ...playerState.value, hitPoints: 0, alive: false };
       nextFrame()(16);
