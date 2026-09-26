@@ -3,25 +3,26 @@ import {
   UNROLL_SECONDS,
   LADDER_STEP_NATIVE_PX,
   STEPS_PER_TILE,
-  ladderLandingRow,
-  createDeployableLadderState,
+  ropeLadderLandingRow,
+  createRopeLadderState,
   beginDeploy,
-  advanceDeployableLadder,
+  advanceRopeLadder,
   shaftCellCount,
   totalStepCount,
   revealedStepCount,
-  ladderBundleForPlayer,
-  applyDeployedLadders,
-} from './DeployableLadder';
-import type { DeployableLadderState } from './DeployableLadder';
-import { parseLevel } from '../level/LevelParser';
-import { RENDERED_TILE_SIZE, tileAt } from '../level/Terrain';
+  ropeLadderBundleIsUnderPlayer,
+  applyDeployedRopeLadders,
+  ropeLadderDeployableItem,
+} from './RopeLadder';
+import type { RopeLadderState } from './RopeLadder';
+import { parseLevel } from '../../level/LevelParser';
+import { RENDERED_TILE_SIZE, tileAt } from '../../level/Terrain';
 import {
   PLAYER_RENDERED_SIZE,
   PLAYER_FOOT_PADDING,
   PLAYER_HIT_REACTION_SECONDS,
-} from '../entities/Player';
-import type { PlayerState } from '../entities/Player';
+} from '../Player';
+import type { PlayerState } from '../Player';
 
 // A bundle on the top row with two empty rows then solid ground: lands at row 2.
 const DROP = parseLevel(['@', '.', '.', 'G']);
@@ -64,40 +65,43 @@ function standingYOnRow(row: number): number {
   return row * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
 }
 
-function stateFor(level = DROP, col = 0, row = 0): DeployableLadderState {
-  return createDeployableLadderState(level, col, row);
+function stateFor(level = DROP, col = 0, row = 0): RopeLadderState {
+  return createRopeLadderState(level, col, row);
 }
 
-describe('ladderLandingRow', () => {
+describe('ropeLadderLandingRow', () => {
   it('scanDownToFirstSolid-returnsLastEmptyRowAboveIt', () => {
-    expect(ladderLandingRow(DROP, 0, 0)).toBe(2);
+    expect(ropeLadderLandingRow(DROP, 0, 0)).toBe(2);
   });
 
   it('solidDirectlyBelow-returnsTheBundleRowItself', () => {
-    expect(ladderLandingRow(ON_SOLID, 0, 0)).toBe(0);
+    expect(ropeLadderLandingRow(ON_SOLID, 0, 0)).toBe(0);
   });
 
   it('bundleOnBottomRow-returnsTheBundleRow', () => {
-    expect(ladderLandingRow(ON_BOTTOM, 0, 0)).toBe(0);
+    expect(ropeLadderLandingRow(ON_BOTTOM, 0, 0)).toBe(0);
   });
 
   it('bridgeBelow-stopsTheUnrollLikeAnySolidTile', () => {
-    expect(ladderLandingRow(BRIDGE_STOP, 0, 0)).toBe(1);
+    expect(ropeLadderLandingRow(BRIDGE_STOP, 0, 0)).toBe(1);
   });
 
   it('noSolidAnywhere-fillsToTheLevelBottom', () => {
-    expect(ladderLandingRow(parseLevel(['@', '.', '.']), 0, 0)).toBe(2);
+    expect(ropeLadderLandingRow(parseLevel(['@', '.', '.']), 0, 0)).toBe(2);
   });
 });
 
-describe('createDeployableLadderState', () => {
-  it('buildsARolledStateWithIdAndLandingRow', () => {
+describe('createRopeLadderState', () => {
+  it('buildsARolledStateWithIdKindPositionAndLandingRow', () => {
     const state = stateFor();
     expect(state).toEqual({
       id: 'ladder-bundle-0-0',
+      kind: 'ladder',
       col: 0,
       row: 0,
-      landRow: 2,
+      x: 0,
+      y: 0,
+      landingRow: 2,
       phase: 'rolled',
       elapsed: 0,
     });
@@ -120,42 +124,42 @@ describe('beginDeploy', () => {
   });
 });
 
-describe('advanceDeployableLadder', () => {
+describe('advanceRopeLadder', () => {
   it('accumulatesElapsedWhileDeploying', () => {
-    const next = advanceDeployableLadder(beginDeploy(stateFor()), 0.1);
+    const next = advanceRopeLadder(beginDeploy(stateFor()), 0.1);
     expect(next.phase).toBe('deploying');
     expect(next.elapsed).toBeCloseTo(0.1);
   });
 
   it('completesAtUnrollSecondsAndCapsElapsed', () => {
     let state = beginDeploy(stateFor());
-    state = advanceDeployableLadder(state, UNROLL_SECONDS);
+    state = advanceRopeLadder(state, UNROLL_SECONDS);
     expect(state.phase).toBe('deployed');
     expect(state.elapsed).toBe(UNROLL_SECONDS);
   });
 
   it('overshootingStillClampsToUnrollSeconds', () => {
-    const state = advanceDeployableLadder(beginDeploy(stateFor()), UNROLL_SECONDS * 5);
+    const state = advanceRopeLadder(beginDeploy(stateFor()), UNROLL_SECONDS * 5);
     expect(state.phase).toBe('deployed');
     expect(state.elapsed).toBe(UNROLL_SECONDS);
   });
 
   it('nonPositiveDt-isANoOp', () => {
     const deploying = beginDeploy(stateFor());
-    expect(advanceDeployableLadder(deploying, 0)).toBe(deploying);
-    expect(advanceDeployableLadder(deploying, -1)).toBe(deploying);
+    expect(advanceRopeLadder(deploying, 0)).toBe(deploying);
+    expect(advanceRopeLadder(deploying, -1)).toBe(deploying);
   });
 
   it('rolledOrDeployed-isUnchanged', () => {
     const rolled = stateFor();
-    expect(advanceDeployableLadder(rolled, 0.1)).toBe(rolled);
+    expect(advanceRopeLadder(rolled, 0.1)).toBe(rolled);
     const deployed = { ...rolled, phase: 'deployed' as const };
-    expect(advanceDeployableLadder(deployed, 0.1)).toBe(deployed);
+    expect(advanceRopeLadder(deployed, 0.1)).toBe(deployed);
   });
 
   it('isStrictlyOneWay-neverReturnsToRolledOrDeploying', () => {
-    const deployed = advanceDeployableLadder(beginDeploy(stateFor()), UNROLL_SECONDS);
-    expect(advanceDeployableLadder(deployed, UNROLL_SECONDS).phase).toBe('deployed');
+    const deployed = advanceRopeLadder(beginDeploy(stateFor()), UNROLL_SECONDS);
+    expect(advanceRopeLadder(deployed, UNROLL_SECONDS).phase).toBe('deployed');
   });
 });
 
@@ -196,51 +200,87 @@ describe('revealedStepCount', () => {
   });
 });
 
-describe('ladderBundleForPlayer', () => {
+describe('ropeLadderBundleIsUnderPlayer / onPlayerInteract', () => {
   it('standingOnTheBundle-matches', () => {
-    const states = [stateFor()];
     const player = basePlayer({ grounded: true, x: 0, y: standingYOnRow(0) });
-    expect(ladderBundleForPlayer(DROP, states, player)?.id).toBe('ladder-bundle-0-0');
+    expect(ropeLadderBundleIsUnderPlayer(stateFor(), DROP, player)).toBe(true);
   });
 
   it('standingInTheBundlesOwnCell-matches', () => {
     const level = parseLevel(['@', 'G']);
-    const states = [stateFor(level)];
     const player = basePlayer({ grounded: true, x: 0, y: standingYOnRow(1) });
-    expect(ladderBundleForPlayer(level, states, player)?.id).toBe('ladder-bundle-0-0');
+    expect(ropeLadderBundleIsUnderPlayer(stateFor(level), level, player)).toBe(true);
   });
 
   it('airborne-doesNotMatch', () => {
     const player = basePlayer({ grounded: false, x: 0, y: standingYOnRow(0) });
-    expect(ladderBundleForPlayer(DROP, [stateFor()], player)).toBeNull();
+    expect(ropeLadderBundleIsUnderPlayer(stateFor(), DROP, player)).toBe(false);
   });
 
   it('offTheBundlesColumn-doesNotMatch', () => {
     const player = basePlayer({ grounded: true, x: RENDERED_TILE_SIZE * 5, y: standingYOnRow(0) });
-    expect(ladderBundleForPlayer(DROP, [stateFor()], player)).toBeNull();
+    expect(ropeLadderBundleIsUnderPlayer(stateFor(), DROP, player)).toBe(false);
   });
 
   it('moreThanOneRowAway-doesNotMatch', () => {
     const player = basePlayer({ grounded: true, x: 0, y: standingYOnRow(3) });
-    expect(ladderBundleForPlayer(DROP, [stateFor()], player)).toBeNull();
+    expect(ropeLadderBundleIsUnderPlayer(stateFor(), DROP, player)).toBe(false);
   });
 
-  it('neverReturnsANonRolledBundle', () => {
+  it('neverMatchesANonRolledBundle', () => {
     const deploying = beginDeploy(stateFor());
     const player = basePlayer({ grounded: true, x: 0, y: standingYOnRow(0) });
-    expect(ladderBundleForPlayer(DROP, [deploying], player)).toBeNull();
+    expect(ropeLadderBundleIsUnderPlayer(deploying, DROP, player)).toBe(false);
+  });
+
+  it('eligibleBundle-returnsAnActivateOutcomeThatBeginsTheUnroll', () => {
+    const state = stateFor();
+    const player = basePlayer({ grounded: true, x: 0, y: standingYOnRow(0) });
+    expect(ropeLadderDeployableItem.onPlayerInteract(state, { level: DROP, player, keys: 0 })).toEqual({
+      kind: 'activate',
+      state: beginDeploy(state),
+    });
+  });
+
+  it('ineligibleBundle-returnsNull', () => {
+    const state = stateFor();
+    const player = basePlayer({ grounded: false, x: 0, y: standingYOnRow(0) });
+    expect(ropeLadderDeployableItem.onPlayerInteract(state, { level: DROP, player, keys: 0 })).toBeNull();
   });
 });
 
-describe('applyDeployedLadders', () => {
+describe('effectiveTerrainCells', () => {
+  it('rolledOrDeploying-contributesNothing', () => {
+    expect(ropeLadderDeployableItem.effectiveTerrainCells?.(stateFor())).toBeNull();
+    expect(ropeLadderDeployableItem.effectiveTerrainCells?.(beginDeploy(stateFor()))).toBeNull();
+  });
+
+  it('deployedWritesRopeLadderFromBundleRowToLandingRowInclusive', () => {
+    const deployed = { ...stateFor(), phase: 'deployed' as const };
+    expect(ropeLadderDeployableItem.effectiveTerrainCells?.(deployed)).toEqual([
+      { col: 0, row: 0, tile: 'ropeLadder' },
+      { col: 0, row: 1, tile: 'ropeLadder' },
+      { col: 0, row: 2, tile: 'ropeLadder' },
+    ]);
+  });
+
+  it('zeroLengthDeployedWritesOnlyTheBundleCell', () => {
+    const deployed = { ...stateFor(ON_SOLID), phase: 'deployed' as const };
+    expect(ropeLadderDeployableItem.effectiveTerrainCells?.(deployed)).toEqual([
+      { col: 0, row: 0, tile: 'ropeLadder' },
+    ]);
+  });
+});
+
+describe('applyDeployedRopeLadders', () => {
   it('nothingDeployed-returnsTheSameLevelObject', () => {
-    expect(applyDeployedLadders(DROP, [stateFor()])).toBe(DROP);
-    expect(applyDeployedLadders(DROP, [])).toBe(DROP);
+    expect(applyDeployedRopeLadders(DROP, [stateFor()])).toBe(DROP);
+    expect(applyDeployedRopeLadders(DROP, [])).toBe(DROP);
   });
 
   it('deployedWritesRopeLadderFromBundleRowToLandingRow', () => {
     const deployed = { ...stateFor(), phase: 'deployed' as const };
-    const effective = applyDeployedLadders(DROP, [deployed]);
+    const effective = applyDeployedRopeLadders(DROP, [deployed]);
     expect(tileAt(effective, 0, 0)).toBe('ropeLadder');
     expect(tileAt(effective, 0, 1)).toBe('ropeLadder');
     expect(tileAt(effective, 0, 2)).toBe('ropeLadder');
@@ -250,22 +290,22 @@ describe('applyDeployedLadders', () => {
 
   it('zeroLengthDeployedWritesOnlyTheBundleCell', () => {
     const deployed = { ...stateFor(ON_SOLID), phase: 'deployed' as const };
-    const effective = applyDeployedLadders(ON_SOLID, [deployed]);
+    const effective = applyDeployedRopeLadders(ON_SOLID, [deployed]);
     expect(tileAt(effective, 0, 0)).toBe('ropeLadder');
     expect(tileAt(effective, 0, 1)).toBe('groundGrass');
   });
 
   it('doesNotMutateTheInputLevel', () => {
     const deployed = { ...stateFor(), phase: 'deployed' as const };
-    applyDeployedLadders(DROP, [deployed]);
+    applyDeployedRopeLadders(DROP, [deployed]);
     expect(tileAt(DROP, 0, 0)).toBe('ladderBundle');
   });
 
   it('twoDeployedBundlesBothWriteTheirOwnColumns', () => {
     const level = parseLevel(['@.@', 'G.G']);
-    const left = { ...createDeployableLadderState(level, 0, 0), phase: 'deployed' as const };
-    const right = { ...createDeployableLadderState(level, 2, 0), phase: 'deployed' as const };
-    const effective = applyDeployedLadders(level, [left, right]);
+    const left = { ...createRopeLadderState(level, 0, 0), phase: 'deployed' as const };
+    const right = { ...createRopeLadderState(level, 2, 0), phase: 'deployed' as const };
+    const effective = applyDeployedRopeLadders(level, [left, right]);
     expect(tileAt(effective, 0, 0)).toBe('ropeLadder');
     expect(tileAt(effective, 2, 0)).toBe('ropeLadder');
     expect(tileAt(effective, 1, 0)).toBe('empty');

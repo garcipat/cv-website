@@ -1,12 +1,16 @@
 import { signal, computed } from '@preact/signals-react';
 import { tileToPixel, RENDERED_TILE_SIZE, markerAt } from './level/Terrain';
 import { DEFAULT_TORCH_STRENGTH, type TorchLight } from './entities/Torch';
+import { createRopeLadderState } from './entities/deployableItems/RopeLadder';
+import type { RopeLadderState } from './entities/deployableItems/RopeLadder';
 import {
-  createDeployableLadderState,
-  advanceDeployableLadder,
-  applyDeployedLadders,
-} from './engine/DeployableLadder';
-import type { DeployableLadderState } from './engine/DeployableLadder';
+  DEPLOYABLE_ITEM_TYPES,
+  applyDeployableItemTerrain,
+} from './entities/deployableItems';
+import type {
+  BlastRequest,
+  DeployableItemTickContext,
+} from './entities/deployableItems/DeployableItemType';
 import { advanceMushroomSquashes } from './entities/blocks/Mushroom';
 import type { MushroomSquashState } from './entities/blocks/Mushroom';
 import {
@@ -63,15 +67,14 @@ import { toEnemyState, reviveEnemy } from './entities/Enemy';
 import type { EnemyState } from './entities/Enemy';
 import { toBlockState, isBlockUsedUp, restoredOnRespawnForBlock } from './entities/Block';
 import type { BlockState } from './entities/Block';
-import { toChestState } from './entities/Chest';
-import type { ChestState } from './entities/Chest';
+import { toChestState, isChestState, isChestOpen } from './entities/chests';
+import type { ChestState } from './entities/chests';
 import { toCheckpointState } from './entities/Checkpoint';
 import type { CheckpointState } from './entities/Checkpoint';
 import type { FruitState } from './entities/pickups/Fruit';
 import type { KeyPickupState } from './entities/pickups/Key';
 import type { HeartPickupState } from './entities/pickups/Heart';
-import type { BombPickupState } from './entities/pickups/Bomb';
-import type { PlacedBombState } from './engine/PlacedBomb';
+import type { BombPickupState, PlacedBombState } from './entities/deployableItems/Bomb';
 import { introState } from './engine/GameLifecycle';
 import { currentCV } from '@/state/locale';
 import { mapCVDataToSkillFactPool, placeCollectibles } from './level/CollectibleMapper';
@@ -495,13 +498,15 @@ export const enemiesDefeated = computed<number>(
 );
 
 /**
- * Live open/closed state for every chest — mirrors blockStates above.
- * Seeded from chestPlacements (module load) and reset back to that seed only
- * by resetGameProgress() (the Reset Game button), NOT by resetGame()
- * (death/respawn) — a chest, like a block, is progress that persists across
- * a death (spec.md FR-023's "never re-closes except via Reset Game").
+ * Live open/closed state for every chest — a read-only DERIVED projection over
+ * the single `deployableItems` collection (never written). Feeds the HUD
+ * counter, the completion trigger and any residual read; a chest, like a
+ * block, is progress that persists across a death, and is rebuilt closed only
+ * by resetGameProgress() (the Reset Game button / editor Try).
  */
-export const chestStates = signal<ChestState[]>(chestPlacements.value.map(toChestState));
+export const chestStates = computed<ChestState[]>(() =>
+  deployableItems.value.filter(isChestState),
+);
 
 /**
  * Every checkpoint in the level, placed from `currentLayout`'s `C` markers
@@ -571,7 +576,7 @@ export const respawnCenter = computed<{ x: number; y: number }>(() => {
  * One-shot latch: true once the Thank You screen has been shown this
  * "session" (i.e. since the last Reset Game). Without this,
  * `allChestsOpen(chestStates.value)` stays true forever after the last chest
- * opens (opening is permanent — see entities/Chest.ts's openChest), so the
+ * opens (opening is permanent — see entities/chests/Chest.ts's openChest), so the
  * ending-screen check at the end of each tick would otherwise re-trigger
  * `showEndingScreen`/`setEndingScreenOpen(true)` on the very next tick after
  * dismissal, permanently locking the visitor out.
@@ -793,14 +798,6 @@ export const pickupGroups = computed<PickupGroups>(() => ({
 }));
 
 /**
- * Live placed bombs — each one a ticking fuse that falls under gravity and
- * detonates after `BOMB_FUSE_SECONDS` (FR-015/FR-016). Never part of
- * `blockPlacements` (a placed bomb is non-solid) and never a blast target
- * (FR-025/FR-026). Cleared by `resetGame()` (FR-027).
- */
-export const placedBombs = signal<PlacedBombState[]>([]);
-
-/**
  * Facts discovered so far this session (see spec.md FR-032). Starts empty;
  * populated via real coin/fruit collection, enemy defeat, block hits, and
  * chest opens.
@@ -882,46 +879,91 @@ export const lifecycleState = signal<LifecycleState>(
 /**
  * Every deployable rope-ladder bundle in the level, from `currentLayout`'s `@`
  * markers (see `LADDER_BUNDLE_TILES`). A `computed`, so the Level Editor's
- * "Try" button updates it reactively like every other placement list.
+ * "Try" button updates it reactively like every other placement list. A
+ * read-only seed source — the live bundle states live in `deployableItems`.
  */
-export const deployableLadderPlacements = computed<DeployableLadderState[]>(() =>
+export const ropeLadderPlacements = computed<RopeLadderState[]>(() =>
   LADDER_BUNDLE_TILES.value.map(({ col, row }) =>
-    createDeployableLadderState(currentLevel.value, col, row),
+    createRopeLadderState(currentLevel.value, col, row),
   ),
 );
 
+/** Every kind of live deployable item, discriminated by `kind`. */
+export type DeployableItem = PlacedBombState | RopeLadderState | ChestState;
+
 /**
- * Live per-bundle deployment state — seeded `rolled` from
- * `deployableLadderPlacements` (module load) and rebuilt from it only by
- * `resetGameProgress()` (Reset Game / the editor's Try / the theme-switch
- * remount), NOT by `resetGame()` (death/respawn). Same lifetime as blocks and
- * chests: a deployed ladder survives a death but is rolled back on a full
- * reset (FR-013).
+ * THE one collection of live player-affected objects — a placed bomb, a live
+ * rope ladder and a chest — discriminated by `kind` (R-008 FR-002). Seeded at
+ * module load from the authored ladder bundles (rolled) and chest placements
+ * (closed), and rebuilt only by `resetGameProgress()` (Reset Game / editor Try
+ * / theme-switch remount). `resetGame()` (death/respawn) filters out only the
+ * kinds whose registry `resetScope` is `'death'` (today the bomb), so a
+ * deployed ladder and an open chest survive a death.
  */
-export const deployableLadderStates = signal<DeployableLadderState[]>(
-  deployableLadderPlacements.value.map((state) => ({ ...state })),
+export const deployableItems = signal<DeployableItem[]>([
+  ...ropeLadderPlacements.value.map((state) => ({ ...state })),
+  ...chestPlacements.value.map(toChestState),
+]);
+
+/** Open-chest count for the HUD — derived, so the page never imports a chest
+ *  helper to count them. */
+export const chestsOpened = computed<number>(
+  () => chestStates.value.filter(isChestOpen).length,
 );
 
 /**
  * The effective terrain grid the physics simulation reads: the raw level with
- * every completed bundle's cells written as `ropeLadder`. Identical (same
- * object) to `currentLevel.value` when nothing is deployed, so the common case
- * allocates nothing. Rendering and every other subsystem keep reading the raw
- * `currentLevel` — only `stepPlayerPhysics` consumes this (O-011 research D2).
+ * every live item's `effectiveTerrainCells` contribution folded in (the rope
+ * ladder's deployed shaft today). Identical (same object) to
+ * `currentLevel.value` when nothing contributes, so the common case allocates
+ * nothing. Rendering and every other subsystem keep reading the raw
+ * `currentLevel` — only `stepPlayerPhysics` consumes this.
  */
 export const activeLevel = computed<LevelDef>(() =>
-  applyDeployedLadders(currentLevel.value, deployableLadderStates.value),
+  applyDeployableItemTerrain(currentLevel.value, deployableItems.value),
 );
 
 /**
- * Advances every in-progress unroll by `dt` seconds — called once per
- * game-loop tick in the `playing` phase (so it freezes with the world during
- * pause/death). Completed bundles are unchanged. O(bundles), not O(level).
+ * The one shared early (pre-physics) advance: maps every live item through its
+ * own kind's `step` (a step-less kind, the chest, passes through unchanged).
+ * Called once per game-loop tick in the `playing` phase (so it freezes with the
+ * world during pause/death). O(items), not O(level).
  */
-export function tickDeployableLadders(dt: number): void {
-  deployableLadderStates.value = deployableLadderStates.value.map((state) =>
-    advanceDeployableLadder(state, dt),
-  );
+export function tickDeployableItems(dt: number): void {
+  if (deployableItems.value.length === 0) return;
+  deployableItems.value = deployableItems.value.map((item): DeployableItem => {
+    const step = DEPLOYABLE_ITEM_TYPES[item.kind].step;
+    // The registry erases each kind's concrete state to the shared base; the
+    // step returns the same kind's state, so this narrows back to the union.
+    return step ? (step(item, dt) as DeployableItem) : item;
+  });
+}
+
+/**
+ * The one shared late (post-physics, pre-persist) consequence pass: dispatches
+ * each kind's declarative `onTick` outcome, drops every item that asks to be
+ * removed, and returns the blasts the page must resolve. Allocates a survivor
+ * array only when something is removed and a returned-blast array only when one
+ * detonates.
+ */
+export function applyDeployableItemConsequences(): readonly BlastRequest[] {
+  const items = deployableItems.value;
+  if (items.length === 0) return [];
+  const ctx: DeployableItemTickContext = { level: currentLevel.value };
+  const blasts: BlastRequest[] = [];
+  let removed = false;
+  const survivors = items.filter((item) => {
+    const outcome = DEPLOYABLE_ITEM_TYPES[item.kind].onTick?.(item, ctx);
+    if (!outcome) return true;
+    if (outcome.blasts) blasts.push(...outcome.blasts);
+    if (outcome.disposition === 'remove') {
+      removed = true;
+      return false;
+    }
+    return true;
+  });
+  if (removed) deployableItems.value = survivors;
+  return blasts;
 }
 
 /**
@@ -936,7 +978,7 @@ export const mushroomSquashStates = signal<MushroomSquashState[]>([]);
 /**
  * Advances every in-progress cap dip by `dt` and drops expired ones — called
  * once per game-loop tick in the `playing` phase (so it freezes with the world
- * during pause/death, alongside `tickDarkness`/`tickDeployableLadders`).
+ * during pause/death, alongside `tickDarkness`/`tickDeployableItems`).
  */
 export function tickMushroomSquashes(dt: number): void {
   mushroomSquashStates.value = advanceMushroomSquashes(mushroomSquashStates.value, dt);
@@ -946,7 +988,7 @@ export function tickMushroomSquashes(dt: number): void {
  * Live per-instance cycle timers for floor spikes — one entry per tile that
  * has been triggered at least once, pruned back out once its cycle
  * completes (spec FR-009). Same "presence means in progress" convention as
- * `mushroomSquashStates`/`placedBombs`. Advanced by `tickFloorSpikes` and
+ * `mushroomSquashStates`/`deployableItems`. Advanced by `tickFloorSpikes` and
  * cleared by `resetGame()`.
  */
 export const floorSpikeTimerStates = signal<FloorSpikeTimerState[]>([]);
@@ -1138,12 +1180,16 @@ export function resetGame(): void {
       }),
   ];
   heartPickupStates.value = [];
-  // O-012: a death/respawn removes every live placed bomb (never exploding
-  // it), resets the carried count to zero, and clears dropped bomb pickups —
-  // a dropped bomb is tied to its now-restored pot, exactly like a heart
-  // (FR-027/FR-028). The `bombPot` restoration itself flows through the
+  // A death/respawn clears every deployable-item kind whose registry
+  // `resetScope` is `'death'` — today only the placed bomb, removed without
+  // exploding it. A deployed rope ladder and an open chest both declare
+  // `'progress'`, so they persist across the death; the carried count resets
+  // to zero and dropped bomb pickups are cleared (a dropped bomb is tied to
+  // its now-restored pot). The `bombPot` restoration itself flows through the
   // `restoredOnRespawnForBlock` path above.
-  placedBombs.value = [];
+  deployableItems.value = deployableItems.value.filter(
+    (item) => DEPLOYABLE_ITEM_TYPES[item.kind].resetScope !== 'death',
+  );
   carriedBombs.value = 0;
   bombPickupStates.value = [];
 }
@@ -1191,13 +1237,18 @@ export function resetGameProgress(): void {
     collected: false,
   }));
   spawnedCoinPlacements.value = [];
-  chestStates.value = chestPlacements.value.map(toChestState);
   endingScreenShown.value = false;
   endingScreenOpen.value = false;
   fruitStates.value = [];
   heartPickupStates.value = [];
   keyPickupStates.value = [];
   collectedKeys.value = 0;
-  deployableLadderStates.value = deployableLadderPlacements.value.map((state) => ({ ...state }));
+  // Rebuild every rope ladder rolled and every chest closed, dropping any
+  // bomb the preceding resetGame() did not already clear — the exact current
+  // per-kind reset scopes, through the one collection.
+  deployableItems.value = [
+    ...ropeLadderPlacements.value.map((state) => ({ ...state })),
+    ...chestPlacements.value.map(toChestState),
+  ];
   enemyStates.value = enemyPlacements.value.map((placement, index) => toEnemyState(placement, index));
 }

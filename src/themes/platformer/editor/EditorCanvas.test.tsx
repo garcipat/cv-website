@@ -23,12 +23,11 @@ vi.mock('../engine/Renderer', () => ({
   drawPickups: vi.fn(),
   drawEnemies: vi.fn(),
   drawBlocks: vi.fn(),
-  drawChests: vi.fn(),
+  drawDeployableItems: vi.fn(),
   drawCheckpoints: vi.fn(),
   drawSigns: vi.fn(),
   drawHazards: vi.fn(),
   drawBackgroundTiles: vi.fn(),
-  drawDeployableLadders: vi.fn(),
   drawDarkness: vi.fn(),
   drawEnemyEyes: vi.fn(),
   drawHeldTorch: vi.fn(),
@@ -41,7 +40,7 @@ import {
   drawPickups,
   drawEnemies,
   drawBlocks,
-  drawChests,
+  drawDeployableItems,
   drawCheckpoints,
   drawHazards,
   drawBackgroundTiles,
@@ -373,7 +372,7 @@ describe('EditorCanvas', () => {
     expect(run.fillers).toHaveLength(1);
   });
 
-  it('calls drawPickups, drawEnemies, drawBlocks, and drawChests with the synthesized state', () => {
+  it('calls drawPickups, drawEnemies, drawBlocks, and drawDeployableItems with the synthesized state', () => {
     stubCanvasContext();
     const tileset = {} as HTMLImageElement;
     const coin = {} as HTMLImageElement;
@@ -431,10 +430,11 @@ describe('EditorCanvas', () => {
         }),
       }),
     );
-    expect(drawChests).toHaveBeenCalledWith(
+    expect(drawDeployableItems).toHaveBeenCalledWith(
       expect.anything(),
-      expect.arrayContaining([expect.objectContaining({ id: 'editor-chest-0' })]),
+      expect.arrayContaining([expect.objectContaining({ kind: 'chest', id: 'editor-chest-0' })]),
       expect.objectContaining({ originX: 5, originY: 7 }),
+      'afterCrumblingFloors',
     );
   });
 

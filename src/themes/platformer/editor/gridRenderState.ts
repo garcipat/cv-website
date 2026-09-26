@@ -15,13 +15,13 @@ import type { EnemyPlacement } from '../level/EnemyMapper';
 import { toBlockState, type BlockState } from '../entities/Block';
 import type { BlockKind } from '../entities/blocks';
 import type { BlockPlacement } from '../level/BlockMapper';
-import { toChestState, type ChestState } from '../entities/Chest';
+import { toChestState, type ChestState } from '../entities/chests';
 import type { ChestPlacement } from '../level/ChestMapper';
 import { toCheckpointState, type CheckpointState } from '../entities/Checkpoint';
 import type { SignPlacement } from '../level/SignMapper';
 import type { HazardPlacement } from '../level/HazardMapper';
-import { createDeployableLadderState } from '../engine/DeployableLadder';
-import type { DeployableLadderState } from '../engine/DeployableLadder';
+import { createRopeLadderState } from '../entities/deployableItems/RopeLadder';
+import type { RopeLadderState } from '../entities/deployableItems/RopeLadder';
 import type { CollectedFact } from '../types';
 
 /**
@@ -178,7 +178,7 @@ export function synthesizeBlockStates(grid: TileChar[][]): BlockState[] {
 export function synthesizeChestStates(grid: TileChar[][]): ChestState[] {
   const placements: ChestPlacement[] = findAllPositions(grid, '$').map(({ col, row }, index) => {
     const { x, y } = tileToPixel(col, row);
-    return { id: `editor-chest-${index}`, fact: PLACEHOLDER_FACT, x, y };
+    return { id: `editor-chest-${index}`, col, row, fact: PLACEHOLDER_FACT, x, y };
   });
   return placements.map((placement) => toChestState(placement));
 }
@@ -256,13 +256,13 @@ export function synthesizeHazardPlacements(
   return placements;
 }
 
-/** Returns one `rolled` `DeployableLadderState` per `@` cell — the editor
- *  previews the bundle and its landing cell, never a deployed shaft. Mirrors
- *  the real game's own seeding (`PlatformerState.ts`'s
- *  `deployableLadderPlacements`), but off the editor's in-memory grid. */
-export function synthesizeLadderBundleStates(grid: TileChar[][]): DeployableLadderState[] {
+/** Returns one `rolled` `RopeLadderState` per `@` cell — the editor previews
+ *  the bundle and its landing cell, never a deployed shaft. Mirrors the real
+ *  game's own seeding (`PlatformerState.ts`'s `ropeLadderPlacements`), but off
+ *  the editor's in-memory grid. */
+export function synthesizeRopeLadderBundleStates(grid: TileChar[][]): RopeLadderState[] {
   const level = gridToLevelDef(grid);
   return findAllPositions(grid, '@').map(({ col, row }) =>
-    createDeployableLadderState(level, col, row),
+    createRopeLadderState(level, col, row),
   );
 }

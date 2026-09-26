@@ -9,7 +9,6 @@ import {
   drawPickups,
   drawEnemies,
   drawBlocks,
-  drawChests,
   drawChestCounter,
   drawIrisOverlay,
   drawRestartPrompt,
@@ -18,7 +17,6 @@ import {
   CHEST_COUNTER_X,
   CHEST_COUNTER_Y,
   drawSigns,
-  drawPlacedBombs,
   drawLowHealthGlow,
   drawHazards,
   drawKeyCounter,
@@ -33,7 +31,7 @@ import {
   drawFog,
   drawEnemyEyes,
   drawHeldTorch,
-  drawDeployableLadders,
+  drawDeployableItems,
   drawCrumblingFloors,
 } from './engine/Renderer';
 import { RESTART_PROMPT_FONT_FAMILY } from './engine/textDraw';
@@ -41,7 +39,6 @@ import type { CounterPopupLabelKey } from './contracts/counters';
 import { drawBackgroundLayers, backgroundBandGeometry } from './engine/BackgroundLayers';
 import { createCloudField, stepCloudField, drawAmbientClouds } from './engine/AmbientClouds';
 import type { CloudField } from './engine/AmbientClouds';
-import { ladderBundleForPlayer, beginDeploy } from './engine/DeployableLadder';
 import type { DrawContext } from './contracts/DrawContext';
 import { drawDebugOverlay, drawCameraDeadZoneOverlay } from './engine/DebugOverlay';
 import { createGameLoop } from './engine/GameLoop';
@@ -69,7 +66,6 @@ import { findLevel } from './level/levelRegistry';
 import {
   checkPickupCollisions,
   resolveEnemyContacts,
-  chestPlayerIsStandingOn,
   checkSignOverlap,
   resolveHazardContacts,
   checkHazardArmTriggers,
@@ -80,14 +76,12 @@ import type { PickupHit } from './engine/Collision';
 import type { PickupContext } from './contracts/Pickup';
 import type { PickupKind } from './contracts/PickupKind';
 import {
-  createPlacedBomb,
-  stepPlacedBomb,
-  checkBombFellOut,
-  hasDetonated,
-} from './engine/PlacedBomb';
+  bombDeployableItem,
+} from './entities/deployableItems/Bomb';
+import { proposeDeployableItemInteraction, DEPLOYABLE_ITEM_TYPES } from './entities/deployableItems';
 import { blastTiles, blocksInBlast, enemiesInBlast, playerInBlast } from './engine/Blast';
 import { resolveCheckpointContacts } from './engine/CheckpointLogic';
-import { openChest, allChestsOpen, isChestOpen, CHEST_CLOSED_OFFSET_X } from './entities/Chest';
+import { allChestsOpen, chestDeployableItem } from './entities/chests';
 import { stepBlockAnimation } from './engine/BlockAI';
 import {
   applyBlockHit,
@@ -173,7 +167,6 @@ import {
   DECORATIONS_SHEET,
   TORCH_SHEET,
   COIN_SHEET,
-  ROPE_LADDER_SHEET,
   MUSHROOM_SHEET,
   BOMB_SHEET,
   EXPLOSION_SHEET,
@@ -190,7 +183,6 @@ import type { EnemyTypeKey } from './entities/enemies';
 import { spearTipMaskFromImage, setSpearTipMask } from './entities/hazards/SpearArt';
 import { PICKUP_TYPES } from './entities/pickups';
 import { BLOCK_TYPES } from './entities/blocks';
-import { CHEST_TYPE } from './entities/chests';
 import {
   CHECKPOINT_FLAG_SHEET,
   checkpointEffectAnchor,
@@ -216,6 +208,7 @@ import {
   spawnEffect,
   refreshSpeechBubbleText,
   chestStates,
+  chestsOpened,
   endingScreenShown,
   endingScreenOpen,
   signPlacements,
@@ -223,7 +216,6 @@ import {
   collectedKeys,
   MAX_BOMBS,
   carriedBombs,
-  placedBombs,
   levelTotals,
   checkpointPlacements,
   checkpointStates,
@@ -235,9 +227,10 @@ import {
   fogLevel,
   tickFog,
   torchPositions,
-  deployableLadderStates,
+  deployableItems,
   activeLevel,
-  tickDeployableLadders,
+  tickDeployableItems,
+  applyDeployableItemConsequences,
   mushroomSquashStates,
   tickMushroomSquashes,
   floorSpikeTimerStates,
@@ -258,7 +251,6 @@ import { navigateTo } from '@/state/navigation';
 import { currentUI } from '@/state/locale';
 import { hintText } from './state/hintText';
 import type { CollectedFact } from './types';
-import type { BubbleMessageId } from './level/HintCatalog';
 import { playCanvasSize } from './engine/CanvasSize';
 
 /** Hitpoints a bomb blast deals to a character caught in it — 2 half-heart
@@ -288,10 +280,6 @@ export const PlatformerPage = () => {
   // and threaded into drawTerrain with the shared world clock (see the render
   // call below), since a torch's frame animates over time.
   const torchRef = useRef<HTMLImageElement | null>(null);
-  // The deployable rope-ladder sheet (bundle + shaft cap/step pieces) — loaded
-  // alongside the other decorative sheets and threaded into
-  // drawDeployableLadders (O-011).
-  const ropeLadderRef = useRef<HTMLImageElement | null>(null);
   // The mushroom sheet — loaded alongside the other decorative sheets and
   // threaded into drawTerrain's mushroom branch (O-018).
   const mushroomRef = useRef<HTMLImageElement | null>(null);
@@ -313,8 +301,8 @@ export const PlatformerPage = () => {
   // individual refs — see the mount effect below.
   const spritesRef = useRef<SpriteLookup>({});
   // Kept alongside spritesRef: drawChestCounter (the HUD) still reads this
-  // directly, unlike drawChests, which now reads the closed/open sprites
-  // from spritesRef via CHEST_TYPE.draw.
+  // directly, unlike the chest's own draw, which reads the closed/open sprites
+  // from spritesRef via the chest kind's `draw`.
   const chestClosedSpriteRef = useRef<HTMLImageElement | null>(null);
   const keySpriteRef = useRef<HTMLImageElement | null>(null);
   const checkpointSpriteRef = useRef<HTMLImageElement | null>(null);
@@ -675,6 +663,18 @@ export const PlatformerPage = () => {
       // else (FR-002, FR-011).
       drawAmbientClouds(ctx, ambientCloudsRef.current, cloudField, cameraPositionX.value);
 
+      // Built before the 'terrain' band (it used to be built after the ladder
+      // draw): the deployable-item draw dispatch needs it at every band, and
+      // the pot plan computation is order-independent.
+      const drawContext: DrawContext<PotRenderPlan> = {
+        ctx,
+        sprites: spritesRef.current,
+        originX,
+        originY,
+        worldElapsed: worldAnimElapsed,
+        potPlan: computePotRenderPlan(blockStates.value),
+      };
+
       if (tilesetRef.current) {
         if (backgroundAtlasRef.current) {
           drawBackgroundTiles(
@@ -702,25 +702,11 @@ export const PlatformerPage = () => {
             mushroomSquashStates.value,
           );
         }
-        drawDeployableLadders(
-          ctx,
-          currentLevel.value,
-          deployableLadderStates.value,
-          ropeLadderRef.current,
-          originX,
-          originY,
-        );
+        // Terrain-level band: the rope ladder's rolled bundle and deployed
+        // shaft, drawn over the terrain it was placed on.
+        drawDeployableItems(ctx, deployableItems.value, drawContext, 'terrain');
         drawSigns(ctx, signPlacements.value, tilesetRef.current, originX, originY);
       }
-
-      const drawContext: DrawContext<PotRenderPlan> = {
-        ctx,
-        sprites: spritesRef.current,
-        originX,
-        originY,
-        worldElapsed: worldAnimElapsed,
-        potPlan: computePotRenderPlan(blockStates.value),
-      };
 
       // Read once per frame: the page never names a pickup kind, it just
       // hands the same kind→array groups to `drawPickups` at each band.
@@ -796,13 +782,15 @@ export const PlatformerPage = () => {
 
       drawBlocks(ctx, blockStates.value, drawContext);
 
-      drawPlacedBombs(ctx, placedBombs.value, drawContext);
+      // After-blocks band: the placed bomb's lit fuse frames.
+      drawDeployableItems(ctx, deployableItems.value, drawContext, 'afterBlocks');
 
       drawHazards(ctx, hazardPlacementsForTick(), drawContext);
 
       drawCrumblingFloors(ctx, currentLevel.value, crumblingFloorTimerStates.value, drawContext);
 
-      drawChests(ctx, chestStates.value, drawContext);
+      // After-crumbling-floors band: the chest, at its own depth.
+      drawDeployableItems(ctx, deployableItems.value, drawContext, 'afterCrumblingFloors');
 
       drawCheckpoints(
         ctx,
@@ -966,7 +954,7 @@ export const PlatformerPage = () => {
         drawChestCounter(
           ctx,
           chestClosedSpriteRef.current,
-          chestStates.value.filter(isChestOpen).length,
+          chestsOpened.value,
           levelTotals.value.chests,
           CHEST_COUNTER_X,
           CHEST_COUNTER_Y,
@@ -976,7 +964,7 @@ export const PlatformerPage = () => {
       if (keySpriteRef.current && collectedKeys.value > 0) {
         const keyX = keyCounterX(
           ctx,
-          chestStates.value.filter(isChestOpen).length,
+          chestsOpened.value,
           levelTotals.value.chests,
         );
         drawKeyCounter(ctx, keySpriteRef.current, collectedKeys.value, keyX, KEY_COUNTER_Y);
@@ -987,7 +975,7 @@ export const PlatformerPage = () => {
       if (bombSprite && carriedBombs.value > 0) {
         const bombX = bombCounterX(
           ctx,
-          chestStates.value.filter(isChestOpen).length,
+          chestsOpened.value,
           levelTotals.value.chests,
           collectedKeys.value,
         );
@@ -1123,7 +1111,7 @@ export const PlatformerPage = () => {
 
       // In-progress rope-ladder unrolls advance here too, so they freeze with
       // the world on pause/death (O-011).
-      tickDeployableLadders(dt);
+      tickDeployableItems(dt);
 
       // In-progress bouncy-mushroom cap dips advance here too, freezing with
       // the world on pause/death (O-018).
@@ -1343,7 +1331,7 @@ export const PlatformerPage = () => {
               if (text.target === 'keyCounter') {
                 const hudCtx = canvas.getContext('2d');
                 targetX = hudCtx
-                  ? keyCounterX(hudCtx, chestStates.value.filter(isChestOpen).length, levelTotals.value.chests)
+                  ? keyCounterX(hudCtx, chestsOpened.value, levelTotals.value.chests)
                   : CHEST_COUNTER_X;
                 targetY = KEY_COUNTER_Y;
               }
@@ -1395,77 +1383,56 @@ export const PlatformerPage = () => {
       const arrowUpPressed = input.consumePress('ArrowUp');
       const wPressed = input.consumePress('KeyW');
       const interactPressed = arrowUpPressed || wPressed;
-      // Computed unconditionally (not just inside `if (interactPressed)`) so
-      // the "no key" hint bubble below can also read it — standing on a
-      // closed chest with zero keys is itself the trigger condition for that
-      // bubble, independent of whether Up was actually pressed this tick.
-      const standingChestId = chestPlayerIsStandingOn(playerState.value, chestStates.value);
 
-      // A grounded character standing on (or one cell above) a rolled bundle
-      // takes the Up press to deploy it — before the chest/hint blocks below,
-      // so the press is consumed and never also opens a chest or reveals a
-      // hint this tick (FR-017). Holding Up afterwards is harmless: the bundle
-      // is not climbable while rolled/deploying.
-      const bundleForPlayer = interactPressed
-        ? ladderBundleForPlayer(currentLevel.value, deployableLadderStates.value, playerState.value)
-        : null;
-      const bundleDeployedThisTick = bundleForPlayer !== null;
-      if (bundleForPlayer) {
-        deployableLadderStates.value = deployableLadderStates.value.map((state) =>
-          state.id === bundleForPlayer.id ? beginDeploy(state) : state,
+      // The one shared interaction dispatch, run every tick (not just inside
+      // `if (interactPressed)`) so the "standing on a closed chest with no key"
+      // hint below keeps working and its exit condition is evaluated. It offers
+      // an activation to the single best-`interactionPriority` entry (the
+      // rope-ladder bundle's 0 outranks the chest's 1, so one Up press deploys
+      // at most one bundle and never also opens a chest) and returns
+      // declarative data — the page names no deployable-item kind.
+      const interaction = proposeDeployableItemInteraction(deployableItems.value, {
+        level: currentLevel.value,
+        player: playerState.value,
+        keys: collectedKeys.value,
+      });
+      if (interactPressed && interaction.activate) {
+        const { id, next, keyCost, reveal } = interaction.activate;
+        deployableItems.value = deployableItems.value.map((item) =>
+          item.id === id ? (next as typeof item) : item,
         );
-      }
-
-      if (interactPressed && !bundleDeployedThisTick) {
-        if (standingChestId && collectedKeys.value > 0) {
-          const chest = chestStates.value.find((c) => c.id === standingChestId)!;
-          chestStates.value = chestStates.value.map((c) =>
-            c.id === standingChestId ? openChest(c) : c,
-          );
-          collectedKeys.value -= 1;
-          revealFact(chest.fact, {
-            // Shifted by CHEST_CLOSED_OFFSET_X (see entities/Chest.ts) to start
-            // from the chest's actual centered-on-tile left edge — only the
-            // closed offset applies, since this fires the instant a closed
-            // chest is opened.
-            x: chest.x + CHEST_CLOSED_OFFSET_X,
-            y: chest.y,
-            effectId: chest.id,
-            // No counterKey: chests have a permanent HUD counter, so this
-            // reveal deliberately bumps no transient popup — same as today.
+        if (keyCost > 0) collectedKeys.value -= keyCost;
+        if (reveal) {
+          revealFact(reveal.fact, {
+            x: reveal.x,
+            y: reveal.y,
+            effectId: reveal.effectId,
+            counterKey: reveal.counterKey,
           });
         }
       }
+      const bundleDeployedThisTick = interactPressed && interaction.activate !== undefined;
 
       // FR-038: revealed like a chest — stand on a sign (or, per the same
       // convention, a locked chest with zero keys) and press Up/W
-      // (interactPressed, computed above for chest-opening) — but reusable
-      // (not dedup-tracked) and hidden again
-      // automatically the instant the player leaves overlap, with no
-      // keypress needed to dismiss it.
-      // The bubble is advanced by the single `advanceEffects` above, like
+      // (interactPressed, consumed above for the shared dispatch) — but
+      // reusable (not dedup-tracked) and hidden again automatically the
+      // instant the player leaves overlap, with no keypress needed to dismiss
+      // it. The bubble is advanced by the single `advanceEffects` above, like
       // every other effect; this block only drives its trigger transitions.
       const overlappingSignHintId = checkSignOverlap(playerState.value, signPlacements.value);
-      // A closed chest the player is standing on, while holding zero keys,
-      // is itself an "overlapping something with a hint" case — uses its own
-      // `noKeyForChest` hint text (spec.md's i18n `platformer.hints`),
-      // distinct from `chestNeedsKey` (a hint-SIGN's informational rule text,
-      // "Chests need a key to open.") even though both used to share one key
-      // before this was split: a bubble anchored above the player's own head
-      // reads as the character SPEAKING ("I need a key."), not as a sign's
-      // third-person rule, and the two must stay independently translatable
-      // since they're grammatically different sentences, not just different
-      // triggers for the same line. Signs take priority in the vanishingly
-      // unlikely case a chest and a sign tile overlap. Re-checked against the
-      // CURRENT chestStates (not the `standingChestId` captured above, before
-      // the chest-open block ran) — a chest just successfully opened this
-      // same tick is no longer "closed and stood on", so
-      // `chestPlayerIsStandingOn` correctly stops returning its id (it skips
-      // open chests), and no bubble should show for that case.
-      const standingClosedChestId = chestPlayerIsStandingOn(playerState.value, chestStates.value);
-      const lockedChestHintId: BubbleMessageId | undefined =
-        !overlappingSignHintId && standingClosedChestId && collectedKeys.value <= 0 ? 'noKeyForChest' : undefined;
-      const overlappingHintId = overlappingSignHintId ?? lockedChestHintId;
+      // A `blocked` interaction outcome is the chest's own `noKeyForChest`
+      // hint text (spec.md's i18n `platformer.hints`) — distinct from
+      // `chestNeedsKey` (a hint-SIGN's informational rule text) even though
+      // both used to share one key before this was split: a bubble anchored
+      // above the player's own head reads as the character SPEAKING ("I need a
+      // key."), not as a sign's third-person rule, and the two must stay
+      // independently translatable. Signs take priority in the vanishingly
+      // unlikely case a chest and a sign tile overlap. A chest just
+      // successfully opened this same tick no longer returns the blocked hint
+      // (the dispatch only blocks a closed chest with no key), so no bubble
+      // shows for that case.
+      const overlappingHintId = overlappingSignHintId ?? interaction.hint;
       const currentBubble = activeSpeechBubble(activeEffects.value);
       if (overlappingHintId && interactPressed && !bundleDeployedThisTick) {
         if (!currentBubble || currentBubble.state.messageId !== overlappingHintId) {
@@ -1784,22 +1751,31 @@ export const PlatformerPage = () => {
         const bombRow = Math.floor(
           (next.y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING - 1) / RENDERED_TILE_SIZE,
         );
-        const tileOccupied = placedBombs.value.some(
-          (bomb) => bomb.col === bombCol && bomb.row === bombRow,
+        const tileOccupied = deployableItems.value.some(
+          (item) =>
+            item.kind === bombDeployableItem.key && item.col === bombCol && item.row === bombRow,
         );
         if (carriedBombs.value <= 0) {
           spawnEffect(startSpeechBubble('noBombs', hintText.value.noBombs, { transient: true }));
         } else if (!tileOccupied) {
-          placedBombs.value = [
-            ...placedBombs.value,
-            createPlacedBomb(
-              `bomb-${bombCol}-${bombRow}-${placedBombs.value.length}`,
-              currentLevel.value,
-              blockStates.value,
-              bombCol,
-              bombRow,
-              crumblingFloorTimerStates.value,
-            ),
+          // The placed face's own `spawn` entry point creates the bomb; the
+          // sequence keeps counting live bombs (not the whole collection) so
+          // the id convention stays byte-identical.
+          const bombSeq = deployableItems.value.filter(
+            (item) => item.kind === bombDeployableItem.key,
+          ).length;
+          deployableItems.value = [
+            ...deployableItems.value,
+            bombDeployableItem.spawn({
+              id: `bomb-${bombCol}-${bombRow}-${bombSeq}`,
+              col: bombCol,
+              row: bombRow,
+              x: bombCol * RENDERED_TILE_SIZE,
+              y: bombRow * RENDERED_TILE_SIZE,
+              level: currentLevel.value,
+              blocks: blockStates.value,
+              crumblingFloorStates: crumblingFloorTimerStates.value,
+            }),
           ];
           carriedBombs.value -= 1;
         }
@@ -1972,28 +1948,21 @@ export const PlatformerPage = () => {
         );
       }
 
-      // Placed bombs: the fuse always advances (even while falling), gravity
-      // pulls a mid-air bomb to its landing row, and a bomb whose fuse has
-      // expired detonates once. A placed bomb is never in `blockPlacements`,
-      // so it never blocks the player (FR-015).
-      if (placedBombs.value.length > 0) {
-        const steppedBombs = placedBombs.value.map((bomb) =>
-          stepPlacedBomb(bomb, currentLevel.value, blockStates.value, dt),
-        );
-        const detonatingBombs = steppedBombs.filter(hasDetonated);
+      // The one shared late (post-physics, pre-persist) consequence pass: each
+      // kind returns a declarative outcome (a placed bomb detonates or falls
+      // out; the ladder/chest ask for nothing), the pass drops the removed
+      // entries and returns the blasts to resolve here. A placed bomb is never
+      // in `blockPlacements`, so it never blocks the player (FR-015).
+      if (deployableItems.value.length > 0) {
+        const blasts = applyDeployableItemConsequences();
 
         // At most one blast's damage per invincibility window, even when two
         // blasts overlap in one tick (FR-021/edge case).
         let bombDamagedPlayerThisTick = false;
-        for (const bomb of detonatingBombs) {
-          // A bomb can fall after placement, so the blast is centred on where
-          // it actually is now — its current tile — not where it was placed
-          // (FR-015/FR-018).
-          const bombCol = Math.round(bomb.x / RENDERED_TILE_SIZE);
-          const bombRow = Math.round(bomb.y / RENDERED_TILE_SIZE);
+        for (const blast of blasts) {
           const tiles = blastTiles(
-            bombCol,
-            bombRow,
+            blast.col,
+            blast.row,
             currentLevel.value.width,
             currentLevel.value.height,
           );
@@ -2041,11 +2010,11 @@ export const PlatformerPage = () => {
             const hitPoints = takeDamage(next.hitPoints, BOMB_DAMAGE);
             next = { ...next, hitPoints, alive: hitPoints > 0 };
             // A blast has no single contact side, so the push direction is
-            // derived from the character's position relative to the bomb's
+            // derived from the character's position relative to the blast's
             // centre — away from it. This is the same knockback + `hit` sprite
             // flash a side hit uses, not the blink-only pit-fall reaction
             // (FR-021).
-            const bombCenterX = bomb.x + RENDERED_TILE_SIZE / 2;
+            const bombCenterX = blast.x + RENDERED_TILE_SIZE / 2;
             const knockbackDirection: -1 | 1 =
               next.x + PLAYER_RENDERED_SIZE / 2 <= bombCenterX ? -1 : 1;
             if (next.crouching) {
@@ -2065,7 +2034,7 @@ export const PlatformerPage = () => {
               const playerCenterY = next.y + PLAYER_VISUAL_CENTER_Y_OFFSET + originY;
               spawnEffect(
                 startPlayerHitSplatter(
-                  `bomb-${bomb.id}`,
+                  blast.hitEffectId,
                   playerCenterX,
                   playerCenterY,
                   knockbackDirection === 1 ? -1 : 1,
@@ -2074,23 +2043,17 @@ export const PlatformerPage = () => {
             }
           }
 
-          // The explosion is purely cosmetic, centred on the bomb's current
-          // position — where it actually is when the fuse expires (FR-023).
-          // Never a hazard: the effects above resolved once, here.
+          // The explosion is purely cosmetic, centred on where the bomb
+          // actually is when the fuse expires (FR-023). Never a hazard: the
+          // effects above resolved once, here.
           spawnEffect(
             startExplosionEffect(
-              bomb.id,
-              bomb.x + RENDERED_TILE_SIZE / 2,
-              bomb.y + RENDERED_TILE_SIZE / 2,
+              blast.effectId,
+              blast.x + RENDERED_TILE_SIZE / 2,
+              blast.y + RENDERED_TILE_SIZE / 2,
             ),
           );
         }
-
-        // Keep every bomb that neither detonated nor fell out of the level.
-        // A bomb that fell out is removed without exploding (FR-015).
-        placedBombs.value = steppedBombs.filter(
-          (bomb) => !hasDetonated(bomb) && !checkBombFellOut(bomb, currentLevel.value),
-        );
       }
 
       // The crates popup bumped here rather than by the reveal trigger,
@@ -2346,16 +2309,6 @@ export const PlatformerPage = () => {
         // Torches are purely decorative — they simply won't render if this
         // strip fails to load; the rest of the level still shows.
       });
-    loadImage(ROPE_LADDER_SHEET.src)
-      .then((img) => {
-        if (cancelled) return;
-        ropeLadderRef.current = img;
-        render();
-      })
-      .catch(() => {
-        // Deployable ladders simply won't render if this sheet fails to load;
-        // the rest of the level still shows.
-      });
     loadImage(MUSHROOM_SHEET.src)
       .then((img) => {
         if (cancelled) return;
@@ -2461,27 +2414,32 @@ export const PlatformerPage = () => {
       });
     // Discovers every enemy sheet from the type registry (plus the key
     // sheet, for a purple slime's held-key shine-through), every pickup
-    // sheet from PICKUP_TYPES, every block sheet from BLOCK_TYPES and both
-    // chest sheets (closed/open) from CHEST_TYPE, rather than hand-listing
-    // each one — adding an enemy, pickup, block or chest type needs no new
-    // loadImage call here. coin.png and fruit.png are also loaded
-    // individually above into coinSpriteRef/fruitSpriteRef, which the HUD
-    // counters (drawCollectibleCounter) still read directly — the two loads
-    // race harmlessly (same convention KEY_SHEET already established
-    // alongside keySpriteRef's own individual load below). world_tileset.png
-    // is likewise still loaded individually above into tilesetRef, which
-    // drawTerrain/drawSigns read directly — its block-drawing modules
-    // (entities/blocks/) read the copy landing here in spritesRef instead.
-    // crack_overlay.png has no dedicated ref at all and no type's primary
-    // sprite — only a crate's own module reads it, as a secondary overlay it
-    // composites on top of its own tile, via spritesRef, so it stays
-    // hand-listed here rather than discovered through a registry.
+    // sheet from PICKUP_TYPES, every block sheet from BLOCK_TYPES, every
+    // deployable item's primary sprite from DEPLOYABLE_ITEM_TYPES (the rope
+    // ladder's bundle/shaft sheet and the bomb's strip are discovered here)
+    // and both chest sheets (closed/open) from the chest kind, rather than
+    // hand-listing each one — adding an enemy, pickup, block, deployable item
+    // or chest type needs no new loadImage call here. coin.png and fruit.png
+    // are also loaded individually above into coinSpriteRef/fruitSpriteRef,
+    // which the HUD counters (drawCollectibleCounter) still read directly —
+    // the two loads race harmlessly (same convention KEY_SHEET already
+    // established alongside keySpriteRef's own individual load below).
+    // world_tileset.png is likewise still loaded individually above into
+    // tilesetRef, which drawTerrain/drawSigns read directly — its block-drawing
+    // modules (entities/blocks/) read the copy landing here in spritesRef
+    // instead. crack_overlay.png has no dedicated ref at all and no type's
+    // primary sprite — only a crate's own module reads it, as a secondary
+    // overlay it composites on top of its own tile, via spritesRef, so it stays
+    // hand-listed here rather than discovered through a registry. The chest's
+    // secondary open sheet stays hand-listed too, as secondary sheets do for
+    // every family.
     for (const src of collectSheetSources([
       ...Object.values(ENEMY_TYPES).map((t) => t.sprite),
       ...Object.values(PICKUP_TYPES).map((t) => t.sprite),
       ...Object.values(BLOCK_TYPES).map((t) => t.sprite),
-      CHEST_TYPE.closed,
-      CHEST_TYPE.open,
+      ...Object.values(DEPLOYABLE_ITEM_TYPES).map((t) => t.sprite),
+      chestDeployableItem.closed,
+      chestDeployableItem.open,
       { sheet: KEY_SHEET, renderScale: 1, animations: {} },
       { sheet: CRACK_OVERLAY_SHEET, renderScale: 1, animations: {} },
       { sheet: CRUMBLE_FLOOR_SHEET, renderScale: 1, animations: {} },

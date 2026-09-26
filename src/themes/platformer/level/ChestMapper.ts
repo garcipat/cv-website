@@ -41,6 +41,10 @@ export function mapCVDataToChests(cv: CVData): ChestDef[] {
 }
 
 export interface ChestPlacement extends ChestDef {
+  /** Placement tile column (markers already carry it; no level data change). */
+  col: number;
+  /** Placement tile row. */
+  row: number;
   x: number;
   y: number;
 }
@@ -61,7 +65,7 @@ export function placeChests(
     if (index >= markers.length) return;
     const { col, row } = markers[index];
     const { x, y } = tileToPixel(col, row);
-    placements.push({ ...def, x, y });
+    placements.push({ ...def, col, row, x, y });
   });
   return placements;
 }

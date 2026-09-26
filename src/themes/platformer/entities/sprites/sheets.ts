@@ -22,12 +22,19 @@ const COIN_FRAME_COUNT = 12;
 /** `fruit.png`'s icons are 16x16, addressed with a stride of its 3 real columns. */
 const FRUIT_FRAME_SIZE = 16;
 const FRUIT_ICON_COLUMNS = 3;
-import {
-  CHEST_CLOSED_WIDTH,
-  CHEST_CLOSED_HEIGHT,
-  CHEST_OPEN_WIDTH,
-  CHEST_OPEN_HEIGHT,
-} from '../Chest';
+
+/**
+ * Chest sheet geometry is declared here with local literals rather than
+ * imported from `entities/chests/Chest.ts`, which imports its own `CHEST_*_SHEET`
+ * from this file — importing its frame constants back would close a module
+ * cycle at eval time (the same hazard R-006 hit for the pickup sheets). The
+ * chest module stays the behavioural source of truth for these numbers;
+ * `entities/chests/index.test.ts` asserts they agree.
+ */
+const CHEST_CLOSED_WIDTH = 28;
+const CHEST_CLOSED_HEIGHT = 20;
+const CHEST_OPEN_WIDTH = 24;
+const CHEST_OPEN_HEIGHT = 20;
 
 /**
  * Both slime sheets are 96x72: a 4x3 grid of 24x24 frames. Frames 0-2 read as a

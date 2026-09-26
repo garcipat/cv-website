@@ -32,7 +32,7 @@ import {
   synthesizeCheckpointStates,
   synthesizeSignPlacements,
   synthesizeHazardPlacements,
-  synthesizeLadderBundleStates,
+  synthesizeRopeLadderBundleStates,
 } from './gridRenderState';
 import { RENDERED_TILE_SIZE, RENDER_SCALE, TILE_SIZE, tileToPixel } from '../level/Terrain';
 import {
@@ -48,12 +48,11 @@ import {
   drawPickups,
   drawEnemies,
   drawBlocks,
-  drawChests,
   drawCheckpoints,
   drawSigns,
   drawHazards,
   drawBackgroundTiles,
-  drawDeployableLadders,
+  drawDeployableItems,
   drawDarkness,
   drawEnemyEyes,
   drawHeldTorch,
@@ -80,6 +79,7 @@ import {
   FLOOR_SPIKE_SHEET,
   CRUMBLE_FLOOR_SHEET,
   CRUMBLE_CRACKS_SHEET,
+  ROPE_LADDER_SHEET,
 } from '../entities/sprites/sheets';
 import { CHECKPOINT_FLAG_SHEET } from '../entities/Checkpoint';
 
@@ -728,6 +728,38 @@ export const EditorCanvas = ({
       const originX = panOffset.x / zoom;
       const originY = panOffset.y / zoom;
 
+      const editorBlockStates = synthesizeBlockStates(grid);
+
+      const drawContext: DrawContext<PotRenderPlan> = {
+        ctx,
+        sprites: {
+          [SLIME_GREEN_SHEET.src]: images.slimeGreen,
+          [SLIME_PURPLE_SHEET.src]: images.slimePurple,
+          [BEE_SHEET.src]: images.bee,
+          [COIN_SHEET.src]: images.coin,
+          [FRUIT_SHEET.src]: images.fruit,
+          [WORLD_TILESET_SHEET.src]: images.tileset,
+          [CRACK_OVERLAY_SHEET.src]: images.crackOverlay,
+          [CHEST_CLOSED_SHEET.src]: images.chestClosed,
+          [CHECKPOINT_FLAG_SHEET.src]: images.checkpoint,
+          [STATIC_OBJECTS_SHEET.src]: images.staticObjects,
+          [DECORATIONS_SHEET.src]: images.decorations,
+          [SPEAR_SHEET.src]: images.spears,
+          [FLOOR_SPIKE_SHEET.src]: images.floorSpike,
+          [CRUMBLE_FLOOR_SHEET.src]: images.crumbleFloor,
+          [CRUMBLE_CRACKS_SHEET.src]: images.crumbleCracks,
+          [ROPE_LADDER_SHEET.src]: images.ropeLadder,
+        },
+        originX,
+        originY,
+        worldElapsed: 0,
+        // Same per-frame computation the real game does (PlatformerPage.tsx)
+        // — without this, every pot falls back to its kind's isolated draw
+        // path (never merged with a neighbour), which is why the editor
+        // preview used to look different from the actual game.
+        potPlan: computePotRenderPlan(editorBlockStates),
+      };
+
       if (images.tileset && images.groundAtlas) {
         drawTerrain(
           ctx,
@@ -747,30 +779,21 @@ export const EditorCanvas = ({
       // Editor preview: a translucent ghost of the fully-deployed shaft below
       // each bundle, so an author sees exactly how far the ladder will reach,
       // then the opaque curled bundle drawn on top of it. Never drawn in game.
-      const bundleStates = synthesizeLadderBundleStates(grid);
+      const bundleStates = synthesizeRopeLadderBundleStates(grid);
       const previousAlpha = ctx.globalAlpha;
       ctx.save();
       ctx.globalAlpha = 0.4;
-      drawDeployableLadders(
+      drawDeployableItems(
         ctx,
-        gridToLevelDef(grid),
         bundleStates.map((state) => ({ ...state, phase: 'deployed' as const })),
-        images.ropeLadder,
-        originX,
-        originY,
+        drawContext,
+        'terrain',
       );
       ctx.restore();
       // Restore explicitly too: test canvas stubs make save()/restore() no-ops,
       // so without this the ghost's alpha would leak into later draws.
       ctx.globalAlpha = previousAlpha;
-      drawDeployableLadders(
-        ctx,
-        gridToLevelDef(grid),
-        bundleStates,
-        images.ropeLadder,
-        originX,
-        originY,
-      );
+      drawDeployableItems(ctx, bundleStates, drawContext, 'terrain');
 
       if (images.tileset) {
         drawSigns(ctx, synthesizeSignPlacements(grid, markerGrid), images.tileset, originX, originY);
@@ -819,37 +842,6 @@ export const EditorCanvas = ({
       ctx.save();
       ctx.scale(zoom, zoom);
 
-      const editorBlockStates = synthesizeBlockStates(grid);
-
-      const drawContext: DrawContext<PotRenderPlan> = {
-        ctx,
-        sprites: {
-          [SLIME_GREEN_SHEET.src]: images.slimeGreen,
-          [SLIME_PURPLE_SHEET.src]: images.slimePurple,
-          [BEE_SHEET.src]: images.bee,
-          [COIN_SHEET.src]: images.coin,
-          [FRUIT_SHEET.src]: images.fruit,
-          [WORLD_TILESET_SHEET.src]: images.tileset,
-          [CRACK_OVERLAY_SHEET.src]: images.crackOverlay,
-          [CHEST_CLOSED_SHEET.src]: images.chestClosed,
-          [CHECKPOINT_FLAG_SHEET.src]: images.checkpoint,
-          [STATIC_OBJECTS_SHEET.src]: images.staticObjects,
-          [DECORATIONS_SHEET.src]: images.decorations,
-          [SPEAR_SHEET.src]: images.spears,
-          [FLOOR_SPIKE_SHEET.src]: images.floorSpike,
-          [CRUMBLE_FLOOR_SHEET.src]: images.crumbleFloor,
-          [CRUMBLE_CRACKS_SHEET.src]: images.crumbleCracks,
-        },
-        originX,
-        originY,
-        worldElapsed: 0,
-        // Same per-frame computation the real game does (PlatformerPage.tsx)
-        // — without this, every pot falls back to its kind's isolated draw
-        // path (never merged with a neighbour), which is why the editor
-        // preview used to look different from the actual game.
-        potPlan: computePotRenderPlan(editorBlockStates),
-      };
-
       // No live cycle-timer state exists in the editor — an empty states
       // array renders every crumblingFloor cell at rest, exactly the
       // preview an author needs.
@@ -863,7 +855,7 @@ export const EditorCanvas = ({
 
       drawBlocks(ctx, editorBlockStates, drawContext);
 
-      drawChests(ctx, synthesizeChestStates(grid), drawContext);
+      drawDeployableItems(ctx, synthesizeChestStates(grid), drawContext, 'afterCrumblingFloors');
 
       drawCheckpoints(
         ctx,
