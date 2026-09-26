@@ -21,7 +21,7 @@ const mockContexts = new WeakMap<HTMLCanvasElement, unknown>();
 // vi.fn()) on every one of those calls is what was exhausting worker memory
 // and crashing PlatformerPage.test.tsx outright, not a normal assertion
 // failure. Nothing in this file's tests inspects a specific gradient's own
-// addColorStop calls (Renderer.test.ts's fine-grained gradient assertions
+// addColorStop calls (the renderer suites' fine-grained gradient assertions
 // use their own local, per-test mock instead), so one shared stub is safe.
 const sharedGradientStub = { addColorStop: vi.fn() };
 
@@ -43,7 +43,7 @@ HTMLCanvasElement.prototype.getContext = function (
       lineJoin: 'miter',
       fillRect: vi.fn(),
       fillText: vi.fn(),
-      // The cave-lighting pass (Renderer.ts's drawDarkness) clears its
+      // The cave-lighting pass (SceneRenderer.ts's drawDarkness) clears its
       // reusable offscreen layer before compositing the overlay. Without this
       // the render loop would throw the moment a test's player stands in a
       // cave and darkness becomes active.
@@ -55,7 +55,7 @@ HTMLCanvasElement.prototype.getContext = function (
       strokeText: vi.fn(),
       // Returns a fixed, non-zero width — real glyph metrics don't matter
       // for any test (nothing asserts on measured text width), only that
-      // callers relying on it (e.g. Renderer.ts's icon-positioning next to
+      // callers relying on it (e.g. HudRenderer.ts's icon-positioning next to
       // collection-effect text) don't crash on a missing mock method.
       measureText: vi.fn(() => ({ width: 10 })),
       drawImage: vi.fn(),
@@ -84,7 +84,7 @@ HTMLCanvasElement.prototype.getContext = function (
       // Returns an opaque-white buffer of the requested size by default —
       // real pixel content doesn't matter for most tests (nothing reads the
       // tileset's actual pixels), only that a caller doing a
-      // getImageData/mutate/putImageData round trip (e.g. Renderer.ts's
+      // getImageData/mutate/putImageData round trip (e.g. AmbientClouds.ts's
       // cloud-tile recoloring) doesn't crash on a missing mock method. Tests
       // that DO care about specific pixel values override this per-call via
       // `mockReturnValueOnce`/`mockImplementationOnce`.
@@ -92,7 +92,7 @@ HTMLCanvasElement.prototype.getContext = function (
         data: new Uint8ClampedArray(sw * sh * 4).fill(255),
       })),
       putImageData: vi.fn(),
-      // The heal aura's glow/rays (Renderer.ts's drawHealAuraEffects) paint
+      // The heal aura's glow/rays (the heal-aura effect's own draw) paint
       // via canvas gradients — a bare fillStyle assignment doesn't cover it.
       createRadialGradient: vi.fn(() => sharedGradientStub),
       createLinearGradient: vi.fn(() => sharedGradientStub),

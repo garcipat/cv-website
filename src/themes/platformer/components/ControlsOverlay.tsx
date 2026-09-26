@@ -59,7 +59,7 @@ const INTERACT_LABEL_CENTER_PERCENT = ARROW_CLUSTER_CENTER_PERCENT;
  * controls via the real keycap sprite (`controls_overlay_keys.png`: the
  * arrow-key cluster, Space, and J) plus short translated captions, centered
  * where collected-fact text already lands (roughly 30% down the viewport —
- * see Renderer.ts's/PlatformerPage.tsx's own `midY` convention) rather than
+ * see PlatformerPage.tsx's own `midY` convention) rather than
  * in a background panel. Eases in over `FADE_IN_DURATION_MS` instead of
  * popping straight to its baseline opacity.
  *

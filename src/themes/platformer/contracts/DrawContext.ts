@@ -5,7 +5,7 @@ import type { SpriteLookup } from './SpriteLookup';
  * can live in the type's own module without each module reaching for the
  * camera or the sprite refs.
  *
- * Renderer.ts remains the only module that knows how the camera maps world
+ * SceneRenderer.ts remains the only module that knows how the camera maps world
  * coordinates to canvas coordinates; a type only ever adds originX/originY to
  * its own world position.
  *

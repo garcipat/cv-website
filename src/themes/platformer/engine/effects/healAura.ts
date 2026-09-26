@@ -73,7 +73,7 @@ export function healAuraSparkles(elapsed: number, width: number): HealAuraSparkl
   return HEAL_AURA_SPARKLE_OFFSETS.map((frac) => ({ dx: frac * width, dy: -rise }));
 }
 
-/** The heal-aura family's registered draw — the former Renderer.ts
+/** The heal-aura family's registered draw — the former scene renderer
  *  `drawHealAuraEffects` body, re-anchored from the live player each frame. */
 export function drawHealAuraEffect(
   effect: TransientEffect<HealAuraState>,

@@ -49,7 +49,7 @@ export function fadeOutTextOpacity(elapsed: number): number {
   return 1 - elapsed / FADE_OUT_TEXT_DURATION_SECONDS;
 }
 
-/** The fade-out-text family's registered draw — the former Renderer.ts
+/** The fade-out-text family's registered draw — the former scene renderer
  *  `drawFadeOutTexts` body. World-space, origin-shifted. */
 export function drawFadeOutText(
   effect: TransientEffect<FadeOutTextState>,

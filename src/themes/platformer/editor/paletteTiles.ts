@@ -9,7 +9,7 @@ import type { EditorTool } from './editorState';
  * inside an `overflow: hidden` box) needs, with no runtime image
  * measurement. Coordinates are hand-picked to match the exact frame the
  * real engine renders for that tile/marker's "at rest" state (see
- * `Renderer.ts`'s `tileSource`, and `coinFrameIndex`/`enemyFrameIndex`/
+ * `SceneRenderer.ts`'s `tileSource`, and `coinFrameIndex`/`enemyFrameIndex`/
  * `blockFrameSource`/`playerFrameSource` in the respective entity files) —
  * this is a palette icon, not a live game sprite, so it intentionally
  * doesn't reuse those functions' animation/context-dependent logic (e.g.
@@ -68,7 +68,7 @@ export interface TileSpriteSpec {
    *  every overlay before `g`) reads as "emerging from the ground" — the
    *  floor spike's tip sticking up out of its tell. `'top'` sits flush
    *  with the base sprite's own top edge instead, matching how the live
-   *  game's `Renderer.ts` composites the crumbling floor's crack overlay
+   *  game's `SceneRenderer.ts` composites the crumbling floor's crack overlay
    *  at the same y as the ledge's own top (`destY`) — required because
    *  `crumble_floor.png`'s visible ledge art itself is top-aligned in its
    *  16x16 cell (rows 0-8 opaque, 9-15 transparent), the opposite of the
@@ -149,7 +149,7 @@ export const PALETTE_TILE_SPRITES: Record<EditorTool, TileSpriteSpec | null> = {
     frameHeight: 16,
   },
   I: {
-    // The ceiling-attachment "cap" piece (Renderer.ts's chainRunPieces) —
+    // The ceiling-attachment "cap" piece (SceneRenderer.ts's chainRunPieces) —
     // not 16x16 like most other entries here, since chain art was
     // redesigned (roadmap step 38 final review) to keep its own true native
     // size rather than fit the tile grid; see StaticObjectsCatalog.ts.
@@ -381,11 +381,11 @@ export const PALETTE_TILE_SPRITES: Record<EditorTool, TileSpriteSpec | null> = {
     // can show proper end caps. The palette icon previews the MIDDLE frame
     // (sx: 16), matching how an isolated single tile renders in-game
     // (Terrain.ts's horizontalRunPosition resolves a lone tile to 'single',
-    // which Renderer.ts treats the same as 'middle' — same convention
+    // which SceneRenderer.ts treats the same as 'middle' — same convention
     // bridgeRunPosition already uses).
     // Previews frame 3 (sx: 48) — the "single" variant, rounded on both
     // edges — matching how a freshly-placed, still-isolated tile actually
-    // renders (Renderer.ts's drawCrumblingFloors), not the flat repeatable
+    // renders (SceneRenderer.ts's drawCrumblingFloors), not the flat repeatable
     // middle frame a run's interior tiles use.
     sheet: '/sprites/crumble_floor.png',
     sheetWidth: 64,
@@ -407,7 +407,7 @@ export const PALETTE_TILE_SPRITES: Record<EditorTool, TileSpriteSpec | null> = {
       // Top-anchored: crumble_floor.png's visible ledge art occupies the
       // TOP half of its 16x16 cell (rows 0-8), not the bottom half like the
       // floor spike's tell — so the crack overlay must sit flush with the
-      // base sprite's own top edge, matching Renderer.ts's compositing, or
+      // base sprite's own top edge, matching SceneRenderer.ts's compositing, or
       // it lands over the ledge's transparent bottom half instead.
       anchor: 'top',
     },
